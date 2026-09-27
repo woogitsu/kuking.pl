@@ -27,7 +27,7 @@ final class CofniecieRezerwacjiListuUrodzinowegoTest extends TestCase
 
     public function test_odmawia_gdy_dzisiejszy_list_jest_w_kolejce_bez_potwierdzenia(): void
     {
-        $osoba = $this->user('urodziny-rollback');
+        $osoba = $this->user('urodzinyrollback');
         $osoba->forceFill(['birthday_email_queued_on' => Czas::dzisiajData()])->save();
 
         $odmowa = null;
@@ -45,7 +45,7 @@ final class CofniecieRezerwacjiListuUrodzinowegoTest extends TestCase
 
     public function test_potwierdzony_list_nie_blokuje_rollbacku(): void
     {
-        $osoba = $this->user('urodziny-potwierdzone');
+        $osoba = $this->user('urodzinypotwierdz');
         $osoba->forceFill([
             'birthday_email_queued_on' => Czas::dzisiajData(),
             'birthday_email_sent_on' => Czas::dzisiajData(),
