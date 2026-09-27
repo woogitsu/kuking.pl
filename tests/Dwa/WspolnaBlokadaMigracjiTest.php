@@ -7,6 +7,10 @@ namespace Tests\Dwa;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
+/**
+ * @bez-kontroli-dodatniej Ten test wykonuje rzeczywistą komendę w drugim procesie,
+ * sprawdza odmowę przy zajętej blokadzie i sukces po jej zwolnieniu.
+ */
 #[Group('dwa-polaczenia')]
 final class WspolnaBlokadaMigracjiTest extends TestDwochPolaczen
 {

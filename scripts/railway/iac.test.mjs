@@ -109,7 +109,7 @@ function bledy(g, { srodowisko, rozbity, nazwaWww, limitZdjec }) {
     if (jestWww && produkcja && JSON.stringify(domeny.sort()) !== JSON.stringify(["kuking.pl", "www.kuking.pl"])) {
       b.push(`${s.name}: domeny produkcji ${domeny.join(", ")}, oczekiwane kuking.pl i www.kuking.pl`);
     }
-    const migruje = (s.deploy?.preDeployCommand ?? []).some((c) => c.includes("migrate"));
+    const migruje = (s.deploy?.preDeployCommand ?? []).some((c) => c.includes("kuking:migruj-pod-blokada"));
     if (jestWww && !migruje) b.push(`${s.name}: brak migracji w preDeployCommand`);
     // Migracje raz na wdrożenie, w jednym serwisie. Trzy serwisy z tym
     // samym preDeploy to trzy równoległe `migrate` na jednej bazie.
