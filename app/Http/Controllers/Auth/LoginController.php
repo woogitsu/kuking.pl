@@ -12,6 +12,7 @@ use App\Models\AuditLogEntry;
 use App\Models\User;
 use App\Rules\TurnstileJestPotwierdzony;
 use App\Support\Turnstile;
+use App\Support\ZamiarObserwowania;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -32,8 +33,12 @@ class LoginController extends Controller
 {
     public function __construct(private readonly LimitProbHasla $limit) {}
 
-    public function show(): View
+    public function show(Request $request, ZamiarObserwowania $zamiar): View
     {
+        if ($cel = $zamiar->celDoLogowania($request)) {
+            $request->session()->put('url.intended', $cel);
+        }
+
         return view('auth.login');
     }
 
