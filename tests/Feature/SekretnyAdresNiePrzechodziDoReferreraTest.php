@@ -59,13 +59,18 @@ final class SekretnyAdresNiePrzechodziDoReferreraTest extends TestCase
             ->assertNotFound()->assertHeader('Referrer-Policy', 'no-referrer');
     }
 
-    public function test_potwierdzenie_email_chroni_przekierowanie_i_odmowe(): void
+    public function test_potwierdzenie_email_chroni_ekran_posredni_i_odmowe(): void
     {
         $user = $this->user(null, ['email_verified_at' => null]);
         $url = URL::temporarySignedRoute('verification.verify', now()->addMinutes(5), [
             'id' => $user->getKey(), 'hash' => sha1($user->getEmailForVerification()),
         ]);
-        $this->actingAs($user)->get($url)->assertRedirect()->assertHeader('Referrer-Policy', 'no-referrer');
+        // GET (issue #1862): tylko ekran pośredni, żaden nagłówek
+        // bezpieczeństwa nie znika przy okazji rozdzielenia GET/POST.
+        $this->actingAs($user)->get($url)->assertOk()->assertHeader('Referrer-Policy', 'no-referrer');
+        $this->assertFalse($user->fresh()->hasVerifiedEmail());
+        // POST z tego samego, wciąż podpisanego adresu potwierdza.
+        $this->actingAs($user)->post($url)->assertRedirect()->assertHeader('Referrer-Policy', 'no-referrer');
         $this->assertTrue($user->fresh()->hasVerifiedEmail());
         $this->get('/potwierdz-email/'.$user->getKey().'/TEST_1052_INVALID')
             ->assertForbidden()->assertHeader('Referrer-Policy', 'no-referrer');

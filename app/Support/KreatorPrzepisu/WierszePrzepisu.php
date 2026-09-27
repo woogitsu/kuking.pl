@@ -41,6 +41,7 @@ final class WierszePrzepisu
         'ingredients.*.text',
         'ingredients.*.group_name',
         'ingredients.*.note',
+        'ingredients.*.substitutes',
         'steps.*.instruction',
         'steps.*.timer_minutes',
     ];
@@ -50,6 +51,7 @@ final class WierszePrzepisu
         'ingredients.*.text' => 'Ten składnik jest za długi. Zostaw najwyżej 240 znaków albo rozbij go na dwa wiersze.',
         'ingredients.*.group_name' => 'Nazwa grupy jest za długa. Zostaw najwyżej 120 znaków, na przykład „Ciasto”.',
         'ingredients.*.note' => 'Ta uwaga jest za długa. Zostaw najwyżej 300 znaków.',
+        'ingredients.*.substitutes' => 'Ten zamiennik jest za długi. Zostaw najwyżej 300 znaków, na przykład „margaryna albo olej”.',
         'steps.*.instruction' => 'Ten krok jest za długi. Zostaw najwyżej 4000 znaków albo podziel go na dwa kroki.',
     ];
 
@@ -64,7 +66,7 @@ final class WierszePrzepisu
         $bledy = [];
 
         foreach ($wiersze as $index => $row) {
-            foreach (['text', 'group_name', 'note'] as $pole) {
+            foreach (['text', 'group_name', 'note', 'substitutes'] as $pole) {
                 if (mb_strlen(trim((string) ($row[$pole] ?? ''))) > self::limit("ingredients.*.{$pole}")) {
                     $bledy["ingredients.{$index}.{$pole}"] = self::KOMUNIKATY["ingredients.*.{$pole}"];
                 }
@@ -107,7 +109,7 @@ final class WierszePrzepisu
      * Puste wiersze są pomijane — pusty składnik nigdy nie trafia do bazy.
      *
      * @param  array<array-key, array<string, mixed>>  $wiersze
-     * @return list<array{text: string, group_name: ?string, note: ?string, no_amount: bool}>
+     * @return list<array{text: string, group_name: ?string, note: ?string, substitutes: ?string, no_amount: bool}>
      */
     public static function skladniki(array $wiersze): array
     {
@@ -124,6 +126,7 @@ final class WierszePrzepisu
                 'text' => mb_substr($text, 0, self::limit('ingredients.*.text')),
                 'group_name' => self::clampOrNull($row['group_name'] ?? null, self::limit('ingredients.*.group_name')),
                 'note' => self::clampOrNull($row['note'] ?? null, self::limit('ingredients.*.note')),
+                'substitutes' => self::clampOrNull($row['substitutes'] ?? null, self::limit('ingredients.*.substitutes')),
                 // „Bez ilości” — sól do smaku, mleko ile weźmie (issue #44).
                 'no_amount' => (bool) ($row['no_amount'] ?? false),
             ];
