@@ -21,13 +21,15 @@ class PowiadomienieZobaczNiepoprawnyIdTest extends TestCase
 
         try {
             DB::flushQueryLog();
-            $this->post('/powiadomienia/not-a-uuid/zobacz')->assertNotFound();
-            $this->assertSame([], $this->zapytaniaONotificationId(),
+            $niepoprawnyId = 'not-a-uuid';
+            $this->post("/powiadomienia/{$niepoprawnyId}/zobacz")->assertNotFound();
+            $this->assertSame([], $this->zapytaniaZIdentyfikatorem($niepoprawnyId),
                 'Niepoprawny identyfikator dotarł do zapytania o powiadomienie.');
 
             DB::flushQueryLog();
-            $this->post('/powiadomienia/00000000-0000-4000-8000-000000000000/zobacz')->assertNotFound();
-            $this->assertNotEmpty($this->zapytaniaONotificationId(),
+            $nieistniejacyId = '00000000-0000-4000-8000-000000000000';
+            $this->post("/powiadomienia/{$nieistniejacyId}/zobacz")->assertNotFound();
+            $this->assertNotEmpty($this->zapytaniaZIdentyfikatorem($nieistniejacyId),
                 'Poprawny, nieistniejący UUID powinien przejść trasę i zakończyć się na 404 po sprawdzeniu własnych powiadomień.');
         } finally {
             DB::disableQueryLog();
@@ -36,11 +38,11 @@ class PowiadomienieZobaczNiepoprawnyIdTest extends TestCase
     }
 
     /** @return list<string> */
-    private function zapytaniaONotificationId(): array
+    private function zapytaniaZIdentyfikatorem(string $id): array
     {
         return array_values(array_map(
             static fn (array $query): string => $query['query'],
-            array_filter(DB::getQueryLog(), static fn (array $query): bool => preg_match('/\\bnotifications\\b.*\\bid\\b/i', $query['query']) === 1),
+            array_filter(DB::getQueryLog(), static fn (array $query): bool => str_contains($query['query'], 'notifications') && in_array($id, $query['bindings'], true)),
         ));
     }
 }
