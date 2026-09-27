@@ -23,6 +23,14 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 To, co już działa, ale nie ma jeszcze numeru wydania.
 
+### Moje wpisy
+
+W zakładce „Moje” znajdziecie teraz przycisk „Moje wpisy”. Prowadzi do
+Waszych wpisów od najnowszego — również tych prywatnych, dla
+obserwujących oraz szkiców. Zobaczycie tam także własne wpisy ukryte
+przez moderację. Przy każdym jest napisane, kto może go zobaczyć i w jakim
+jest stanie. Tę listę otworzycie tylko Wy.
+
 ### Ta strona
 
 Numer wersji w stopce każdej strony prowadzi teraz właśnie tutaj — na tę
