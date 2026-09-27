@@ -50,9 +50,28 @@ class SocialController extends Controller
             return back()->withErrors(['follow' => $e->getMessage()]);
         }
 
-        return back()->with('status', $followed
-            ? 'Obserwujesz '.$target->displayName().'. Nowe wpisy pojawią się na Twojej stronie głównej.'
-            : 'Już obserwujesz tę osobę.');
+        if (! $followed) {
+            return back()->with('status', 'Już obserwujesz tę osobę.');
+        }
+
+        // KOMUNIKAT, KTÓRY MÓWI PRAWDĘ (issue #1809). Bez nazwy konta —
+        // „Obserwujesz Anna" to odmiana, której z dowolnego ciągu znaków nie
+        // policzymy (COPY_STYLE, 11 września 2026). Zdanie o powiadomieniu
+        // tylko wtedy, gdy powiadomienie naprawdę powstało: powtórka tej
+        // samej pary w oknie (obserwuj → cofnij → obserwuj) jest wyciszona.
+        //
+        // `status_powrot` — przycisk „Cofnij" pod komunikatem, który nie
+        // znika sam (ten sam mechanizm co „Przywróć do zeszytu", D-242).
+        // Formularz jest POST-em, więc DELETE idzie polem `_method`.
+        return back()
+            ->with('status', $this->followUser->czyPowiadomiono()
+                ? 'Obserwujesz. Ta osoba dostanie powiadomienie. Jej nowe wpisy zobaczysz na Starcie.'
+                : 'Obserwujesz. Nowe wpisy tej osoby zobaczysz na Starcie.')
+            ->with('status_powrot', [
+                'akcja' => route('social.unfollow', $target->profile->username),
+                'etykieta' => 'Cofnij',
+                'pola' => ['_method' => 'DELETE', 'oczekiwany_id' => (string) $target->getKey()],
+            ]);
     }
 
     public function unfollow(Request $request, string $username): RedirectResponse
@@ -76,7 +95,8 @@ class SocialController extends Controller
 
         $this->unfollowUser->handle($request->user(), $target);
 
-        return back()->with('status', 'Nie obserwujesz już '.$target->displayName().'.');
+        // Bez nazwy konta po „już" (dopełniacz) — patrz komunikat w `follow()`.
+        return back()->with('status', 'Nie obserwujesz już tej osoby.');
     }
 
     public function block(Request $request, string $username): RedirectResponse
