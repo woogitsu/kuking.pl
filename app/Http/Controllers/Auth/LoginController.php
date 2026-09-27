@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Domain\Notifications\Push\OdlaczUrzadzeniePush;
 use App\Domain\Security\KomunikatZamknietegoKonta;
 use App\Domain\Security\LimitProbHasla;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Http\Controllers\Controller;
+use App\Models\AuditLogEntry;
 use App\Models\User;
 use App\Rules\TurnstileJestPotwierdzony;
 use App\Support\Turnstile;
+use App\Support\ZamiarObserwowania;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -31,8 +34,12 @@ class LoginController extends Controller
 {
     public function __construct(private readonly LimitProbHasla $limit) {}
 
-    public function show(): View
+    public function show(Request $request, ZamiarObserwowania $zamiar): View
     {
+        if ($cel = $zamiar->celDoLogowania($request)) {
+            $request->session()->put('url.intended', $cel);
+        }
+
         return view('auth.login');
     }
 
@@ -99,6 +106,9 @@ class LoginController extends Controller
         // otwierając serwis samym hasłem.
         if ($user === null || ! Auth::validate(['email' => $user->email, 'password' => $data['password']])) {
             $this->limit->zapiszNieudanaProbe($data['login'], $adres);
+            // Aktor nie jest uwierzytelniony. Przy nieznanym loginie nie
+            // zapisujemy też podanej nazwy ani adresu e-mail.
+            AuditLogEntry::recordBezWywracania('account.password_login_failed', subject: $user, ip: $adres);
 
             throw ValidationException::withMessages([
                 'login' => 'Nie udało się zalogować. Sprawdź, czy nazwa i hasło są wpisane poprawnie. Jeśli nie pamiętasz hasła, kliknij „Nie pamiętam hasła”.',
@@ -124,6 +134,7 @@ class LoginController extends Controller
         if (in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true)) {
             // Bez `Auth::logout()` — `Auth::validate()` wyżej niczego nie
             // zalogowało, więc nie ma z czego wylogowywać.
+            AuditLogEntry::recordBezWywracania('account.password_login_failed', subject: $user, ip: $adres);
             throw ValidationException::withMessages([
                 'login' => KomunikatZamknietegoKonta::dla($user),
             ]);
@@ -153,12 +164,29 @@ class LoginController extends Controller
 
         $request->session()->regenerate();
         Auth::login($user, remember: true);
+        AuditLogEntry::recordBezWywracania('account.password_login_succeeded', $user, $user, ip: $adres);
 
         return redirect()->intended(route('home'));
     }
 
-    public function destroy(Request $request): RedirectResponse
+    /**
+     * Wylogowanie gasi też powiadomienia poza serwisem na TYM urządzeniu
+     * (#1979): na wspólnym komputerze prywatne „ktoś ugotował…" nie ma prawa
+     * pokazywać się dalej po wyjściu z konta. Wygaśnięcie sesji tego nie
+     * robi — patrz `OdlaczUrzadzeniePush`.
+     */
+    public function destroy(Request $request, OdlaczUrzadzeniePush $odlaczPush): RedirectResponse
     {
+        $user = $request->user();
+
+        if ($user instanceof User) {
+            $odlaczPush->handle(
+                $user,
+                $request->session()->get(OdlaczUrzadzeniePush::KLUCZ_SESJI),
+                $request->input('push_endpoint'),
+            );
+        }
+
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

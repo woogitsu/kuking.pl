@@ -38,8 +38,11 @@ use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\MojeWpisyController;
+use App\Http\Controllers\MojStolController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\NowosciController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PlanerController;
 use App\Http\Controllers\PodsumowanieTygodniaController;
@@ -73,6 +76,7 @@ use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\UkryciaController;
 use App\Http\Controllers\UrodzinyWypiszController;
+use App\Http\Controllers\WartosciOdzywczeController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use Illuminate\Support\Facades\Route;
@@ -101,7 +105,12 @@ $limits = config('kuking.limits');
 
 Route::get('/', [FeedController::class, 'landing'])->name('landing');
 Route::get('/otworz-link', ExternalLinkController::class)->middleware("throttle:{$limits['external_link']},external_link")->name('links.external');
-Route::get('/odkryj', [FeedController::class, 'discover'])->name('discover');
+// Limiter per adres IP gościa (issue #1952): zapytanie liczy row_number()
+// na wszystkich publicznych wpisach przed odcięciem strony — patrz
+// uzasadnienie przy `limits.discover` w config/kuking.php.
+Route::get('/odkryj', [FeedController::class, 'discover'])
+    ->middleware("throttle:{$limits['discover']},discover")
+    ->name('discover');
 Route::get('/pytania', [QuestionController::class, 'index'])
     ->middleware("throttle:{$limits['search']},search")
     ->name('questions.index');
@@ -148,6 +157,14 @@ Route::get('/zasady', [StaticPageController::class, 'rules'])->name('rules');
 Route::get('/o-kuking', [StaticPageController::class, 'about'])->name('about');
 Route::get('/regulamin', [StaticPageController::class, 'terms'])->name('terms');
 Route::get('/prywatnosc', [StaticPageController::class, 'privacy'])->name('privacy');
+
+/*
+ * „CO NOWEGO" — issue #1909. Wersja w stopce (`App\Support\Wersja`) linkuje
+ * tutaj, z kotwicą bieżącego wydania (`Wersja::kotwicaWydania()`). Publiczna
+ * jak reszta stron statycznych wyżej — bez `Policy`, bo nie ma tu cudzego
+ * zasobu do chronienia.
+ */
+Route::get('/co-nowego', [NowosciController::class, 'index'])->name('nowosci');
 
 /*
 |--------------------------------------------------------------------------
@@ -549,12 +566,18 @@ Route::post('/wejdz/facebook/domknij', [FacebookLoginController::class, 'finish'
  * STAGING TYCH POWIADOMIEŃ NIE DOSTANIE. To nie jest usterka do naprawienia
  * w kodzie.
  *
- * Bez ogranicznika liczby żądań: każde żądanie bez poprawnego podpisu kończy
- * się odrzuceniem po jednym `hash_hmac`, a ogranicznik ustawiony za nisko
- * zaczyna gubić prawdziwe powiadomienia — których Facebook nie ponawia
- * w nieskończoność.
+ * OGRANICZNIK ŻĄDAŃ JEST, i to CELOWO HOJNY (issue #1869, audyt — poprawia
+ * wcześniejszy wpis, który mówił, że limitu tu nie ma). Każde żądanie bez
+ * poprawnego podpisu i tak kończy się odrzuceniem po jednym `hash_hmac`,
+ * ale to wciąż praca CPU i wpis w logu na próbę — a bez ogranicznika
+ * seria takich żądań z jednego adresu robi jedno i drugie bez końca.
+ * Ogranicznik ustawiony ZA NISKO gubiłby prawdziwe powiadomienia, których
+ * Facebook nie ponawia w nieskończoność — ale to jest argument za DOBOREM
+ * liczby (`facebook_deauthorize` w `config/kuking.php`, ten sam wzorzec
+ * co `csp_report` niżej), nie za brakiem limitu w ogóle.
  */
 Route::post('/wejdz/facebook/odebranie-dostepu', FacebookDeauthorizeController::class)
+    ->middleware("throttle:{$limits['facebook_deauthorize']},facebook_deauthorize")
     ->name('facebook.deauthorize');
 
 Route::get('/wejdz/facebook/polacz', [FacebookLoginController::class, 'linkForm'])
@@ -562,6 +585,12 @@ Route::get('/wejdz/facebook/polacz', [FacebookLoginController::class, 'linkForm'
 Route::post('/wejdz/facebook/polacz', [FacebookLoginController::class, 'link'])
     ->middleware("throttle:{$limits['facebook_domkniecie']},facebook_domkniecie")
     ->name('facebook.link.store');
+Route::post('/wejdz/facebook/polacz/link', [FacebookLoginController::class, 'requestLinkProof'])
+    ->middleware("throttle:{$limits['confirm_password']},confirm_password")
+    ->name('facebook.link.email');
+Route::get('/wejdz/facebook/polacz/link/{token}', [FacebookLoginController::class, 'confirmLinkProof'])
+    ->middleware("throttle:{$limits['facebook_domkniecie']},facebook_domkniecie")
+    ->name('facebook.link.confirm');
 
 // --------------------------------------------------------------------------
 // Odwołanie od decyzji moderacyjnej — droga dla osób ZABLOKOWANYCH (#10)
@@ -744,6 +773,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/przepisy/{recipe}', [RecipeController::class, 'update'])
         ->middleware("throttle:{$limits['post']},post")
         ->name('recipes.update');
+    // „Ukryj wartości odżywcze w moim przepisie” (D-299). Ustawienie widoku
+    // własnego przepisu, nie nowa wersja treści — osobny, luźniejszy limit.
+    Route::patch('/przepisy/{recipe}/wartosci-odzywcze', WartosciOdzywczeController::class)
+        ->middleware("throttle:{$limits['wartosci_odzywcze']},wartosci_odzywcze")
+        ->name('recipes.wartosci-odzywcze');
     Route::post('/przepisy/{recipe}/komentarz', [RecipeController::class, 'comment'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('recipes.comment');
@@ -799,6 +833,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/zeszyt', [CollectionController::class, 'store'])
         ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.store');
+    // „Moje wpisy” (D-328): własne wpisy autora, także szkice, prywatne
+    // i ukryte przez moderację. PRZED `/zeszyt/{collection}` — inaczej
+    // „moje-wpisy” trafiłoby do wiązania zeszytu po UUID. Nazwa pod
+    // `collections.*`, żeby pozycja „Moje” w nawigacji była bieżąca.
+    Route::get('/zeszyt/moje-wpisy', MojeWpisyController::class)->name('collections.own-posts');
     Route::get('/zeszyt/{collection}', [CollectionController::class, 'show'])->name('collections.show');
     // Cofnięcie publicznego udostępnienia bez kasowania zeszytu (issue #777).
     // Własny klucz `zeszyt`, nie `usuwanie` — to nie jest akcja destrukcyjna.
@@ -888,6 +927,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/@{username}/ukryj', [UkryciaController::class, 'cofnijOsobe'])
         ->middleware("throttle:{$limits['ukrycia']},ukrycia")
         ->name('social.unhide');
+    // „MÓJ STÓŁ" (issue #1749, D-304) — dobrowolna półka przepisów, domyślnie
+    // wyłączona. Dobór wyłącznie z zamkniętej listy AGENTS.md §8.
+    Route::get('/moj-stol', [MojStolController::class, 'pokaz'])
+        ->middleware("throttle:{$limits['moj_stol']},moj_stol")
+        ->name('moj-stol');
+    Route::put('/moj-stol', [MojStolController::class, 'ustaw'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('moj-stol.ustaw');
     Route::get('/ustawienia/ukryte', [UkryciaController::class, 'lista'])->name('settings.hidden');
     Route::patch('/ustawienia/ukryte/{hide}', [UkryciaController::class, 'zostaw'])
         ->middleware("throttle:{$limits['ukrycia']},ukrycia")
@@ -1017,6 +1064,9 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/ustawienia/powiadomienia/urzadzenie', [NotificationSettingsController::class, 'unsubscribe'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('settings.notifications.unsubscribe');
+    Route::post('/ustawienia/powiadomienia/urzadzenie/uzgodnij', [NotificationSettingsController::class, 'reconcileDevice'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.notifications.reconcile-device');
     Route::delete('/ustawienia/powiadomienia/wszedzie', [NotificationSettingsController::class, 'disableAll'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('settings.notifications.disable-all');

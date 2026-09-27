@@ -166,10 +166,18 @@ final readonly class WejdzPrzezDostawce
      * `$swiezy` to wiersz wczytany POD blokadą, więc pytania zadajemy jemu,
      * nie obiektowi z sesji.
      */
-    public function polacz(Request $request, User $user, TozsamoscOdDostawcy $tozsamosc): ?User
+    public function polacz(Request $request, User $user, TozsamoscOdDostawcy $tozsamosc, ?\Closure $potwierdzKonto = null): ?User
     {
-        return ZamekKonta::zablokuj($user, function (?User $swiezy) use ($request, $tozsamosc): ?User {
+        return ZamekKonta::zablokuj($user, function (?User $swiezy) use ($request, $tozsamosc, $potwierdzKonto): ?User {
             if ($swiezy === null || ! $this->wolnoPolaczyc($swiezy, $tozsamosc)) {
+                return null;
+            }
+
+            if ($this->dostawca->wymagaSwiezegoPotwierdzenia() && $potwierdzKonto === null) {
+                return null;
+            }
+
+            if ($potwierdzKonto !== null && ! $potwierdzKonto($swiezy)) {
                 return null;
             }
 

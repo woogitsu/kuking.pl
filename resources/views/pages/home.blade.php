@@ -8,7 +8,7 @@
         (docs/product/COLD_START.md).
     --}}
     <x-slot:rail>
-        <x-szyna-startowa :board="$board" :zeszyt="$zeszyt ?? null" />
+        <x-szyna-startowa :board="$board" :zeszyt="$zeszyt ?? null" :mojStol="$mojStol ?? null" />
     </x-slot:rail>
 
     <header class="start-naglowek">
