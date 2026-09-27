@@ -63,6 +63,8 @@ PLANER_TYGODNIA = "app/Domain/Planer/PlanerTygodnia.php"
 PLANER_DODAJ = "app/Domain/Planer/Actions/DodajDoPlanu.php"
 WYMAZANIE_KONTA = "app/Domain/Users/Actions/EraseAccountData.php"
 PLANER_TEST = "PlanerTygodniaTest"
+PUSH_JOB = "app/Jobs/WyslijPowiadomieniePush.php"
+PUSH_DWA_POLACZENIA_TEST = "PowiadomieniaPushDwaPolaczeniaTest"
 
 CONTROLLER = "app/Http/Controllers/CollectionController.php"
 LAYOUT = "resources/views/components/layout.blade.php"
@@ -532,6 +534,11 @@ IAC_PRODUKCJA_TEST = "IacProdukcjaTylkoZPrDoMainTest"
 README = "README.md"
 README_SECURITY_TEST = "ReadmeISecurityMowiaPrawdeTest"
 IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
+# Strażnik strony „Co nowego” (issue #1909, AGENTS.md §10): wpis CHANGELOGA
+# oznaczony `[nowa funkcja]` w sekcji „## Nieopublikowane" ma odpowiadający
+# akapit (`### ...`) w sekcji „## Najnowsze zmiany" pliku nowości.
+CHANGELOG_NOWOSCI = "CHANGELOG.md"
+STRAZNIK_NOWOSCI_TEST = "StraznikNowosciKazdaNowaFunkcjaMaAkapitTest"
 # Komendy IaC w dokumentacji z jawnym KUKING_WAIT_FOR_CI (#1390 × runbook,
 # audyt po fali 26.09.2026). Mutacja zdejmuje zmienną z `apply` w runbooku.
 RUNBOOK = "docs/infra/DEPLOYMENT_RUNBOOK.md"
@@ -989,6 +996,12 @@ checks = [
      lambda s: replace_once(s, 'if ! czekaj_na_preview "$REPO" "$SHA"; then', 'if false; then')),
     ("Preview bez sondy wydania przed sprawdzeniami", PREVIEW_WORKFLOW, PREVIEW_IAC_TEST,
      lambda s: replace_once(s, 'if ! sonda_wydanie "$BASE_URL" "$OCZEKIWANY_SHA"; then', 'if false; then')),
+    ("Job smoke znów dostaje prawo zapisu do PR-ów (#1941)", PREVIEW_WORKFLOW, PREVIEW_IAC_TEST,
+     lambda s: replace_once(
+         s,
+         "    permissions:\n      contents: read\n      deployments: read\n",
+         "    permissions:\n      contents: read\n      deployments: read\n      pull-requests: write\n",
+     )),
     ("Apply IaC bez przekazanej bramki CI", IAC_WORKFLOW, PREVIEW_IAC_TEST,
      apply_bez_bramki_ci),
     ("Brak KUKING_WAIT_FOR_CI jako wyłączenie", IAC_RAILWAY_TS, PREVIEW_IAC_TEST,
@@ -1162,6 +1175,11 @@ checks = [
     # Wymazanie konta zostawia prywatny plan tygodnia w bazie.
     ("Wymazanie konta nie kasuje planu tygodnia", WYMAZANIE_KONTA, PLANER_TEST,
      lambda s: replace_once(s, "            $fresh->mealPlanEntries()->delete();\n", "")),
+    # #1992: pierwszy worker zarezerwował slot i czeka na transport. Liczenie
+    # wyłącznie potwierdzonych wysyłek musi zapalić test dwóch połączeń.
+    ("Limit push nie liczy rezerwacji w transporcie", PUSH_JOB, PUSH_DWA_POLACZENIA_TEST,
+     lambda s: replace_once(s, "            ->where($wlicz)\n            ->distinct()",
+                            "            ->whereNotNull('push_wyslano_at')\n            ->distinct()")),
     ("Preview wkleja ręczny pr_number w run:", PREVIEW_WORKFLOW, WKLEJANIE_DO_RUN_TEST,
      lambda s: replace_once(s, '          env_name="pr-${PR_NUMBER}"\n          echo "Tworzę', '          env_name="pr-${{ github.event.inputs.pr_number }}"\n          echo "Tworzę')),
     ("IaC wkleja inputs.* w podsumowanie", IAC_WORKFLOW, WKLEJANIE_DO_RUN_TEST,
@@ -1174,6 +1192,13 @@ checks = [
     # działają — strażnik README ma to złapać, choć ci.yml mówi co innego.
     ("README: „Dopóki ich nie ma” wraca", README, README_SECURITY_TEST,
      lambda s: s + "\nDopóki ich nie ma, testy uruchamiasz lokalnie.\n"),
+    # Strona „Co nowego” (issue #1909): wpis CHANGELOGA oznaczony
+    # `[nowa funkcja]` musi mieć akapit w resources/nowosci/tresc.md. Mutacja
+    # zdejmuje znacznik z JEDYNEGO miejsca, w którym stoi razem z „(#1909)” —
+    # dwa oznaczone wpisy w CHANGELOGU zostają jednym, dwa akapity nowości
+    # zostają dwoma, licznik się rozjeżdża i strażnik ma zapalić.
+    ("Znacznik [nowa funkcja] zdjęty z jednego wpisu CHANGELOGA", CHANGELOG_NOWOSCI, STRAZNIK_NOWOSCI_TEST,
+     lambda s: replace_once(s, " (#1909). [nowa funkcja]", " (#1909).")),
     # #35 (D-088): down() migracji Web Push bez odmowy, choć ludzie wybrali
     # własną ciszę nocną — test wycofania ma oblać.
     ("Wycofanie Web Push bez odmowy przy wybranej ciszy nocnej", MIGRACJA_PUSH, MIGRACJA_PUSH_TEST,
@@ -1270,6 +1295,7 @@ run_test(MIGRACJA_PUSH_TEST, True)
 run_test(PLAN_IAC_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
 run_test(README_SECURITY_TEST, True)
+run_test(STRAZNIK_NOWOSCI_TEST, True)
 run_test(KOMENDY_IAC_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
