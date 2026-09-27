@@ -324,6 +324,29 @@ try {
             return (string) $przepis->title;
         })(),
 
+        // #2112: prawdziwe żądanie HTTP przełącznika. Route binding i Policy
+        // czytają stan przed decyzją moderatora, a zapis czeka na blokadę.
+        'przelacz-wartosci-2112' => (function () use ($argumenty): array {
+            $autor = User::query()->whereKey($argumenty['autor'])->firstOrFail();
+            $recipe = Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail();
+            Auth::guard('web')->setUser($autor);
+
+            $zadanie = Request::create(route('recipes.wartosci-odzywcze', $recipe), 'PATCH', [
+                'pokazuj' => '0',
+            ], [], [], ['HTTP_REFERER' => route('recipes.show', $recipe)]);
+            $odpowiedz = app(HttpKernel::class)->handle($zadanie);
+            $sesja = $zadanie->hasSession() ? $zadanie->session() : null;
+            $bledy = $sesja?->get('errors');
+
+            return [
+                'status' => $odpowiedz->getStatusCode(),
+                'blad' => is_object($bledy)
+                    ? $bledy->first('pokazuj')
+                    : ($bledy['default']['messages']['pokazuj'][0] ?? null),
+                'zapisane' => $sesja?->get('status'),
+            ];
+        })(),
+
         // Komentarz pod wpisem (audyt podwójnego wysłania, 12.09.2026).
         // Dwa procesy z IDENTYCZNĄ treścią odtwarzają podwójne kliknięcie,
         // w którym oba żądania trafiły na serwer naprawdę jednocześnie —
