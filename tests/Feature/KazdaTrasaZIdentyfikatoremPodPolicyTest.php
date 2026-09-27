@@ -788,7 +788,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('recipes.details', 'szczegóły przepisu', 'get',
             route('recipes.details', $przepis), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.update', 'zapis przepisu', 'put',
-            route('recipes.update', $przepis), ['title' => 'Nowy tytuł przepisu'], [$W, $O, $O, $O, $O]);
+            route('recipes.update', $przepis), ['content_revision' => $przepis->fresh()->content_revision, 'title' => 'Nowy tytuł przepisu'], [$W, $O, $O, $O, $O]);
         // „Ukryj wartości odżywcze” (D-299) — ustawienie widoku WŁASNEGO
         // przepisu; moderator też nie przełącza go za autora.
         $dodaj('recipes.wartosci-odzywcze', 'ukrycie wartości odżywczych przepisu', 'patch',

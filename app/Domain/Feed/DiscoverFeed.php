@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Feed;
 
-use App\Domain\Collections\ZapisyWpisu;
 use App\Models\Hide;
 use App\Models\Post;
 use App\Models\User;
@@ -31,14 +30,6 @@ use Illuminate\Pagination\CursorPaginator;
  */
 final class DiscoverFeed
 {
-    /**
-     * `new ZapisyWpisu` jako domyślna wartość — tak samo jak
-     * `LiczbaKukingow` bierze `CookEligibility`. Kontener i tak wstrzyknie
-     * tę klasę (nie ma zależności), a domyślna wartość sprawia, że test
-     * wołający `new DiscoverFeed` wprost nie musi o niej wiedzieć.
-     */
-    public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
-
     /**
      * Najdalszy wstecz „stan", jaki przyjmujemy z adresu. Kursor starszy niż
      * doba to zakładka, nie przeglądanie — wtedy lista zaczyna się od
@@ -115,33 +106,9 @@ final class DiscoverFeed
         $strona = Post::query()
             ->select('posts.*', 'rotacja.runda')
             ->joinSub($rundy, 'rotacja', 'rotacja.id', '=', 'posts.id')
-            ->with([
-                'author.profile.avatar',
-                'media',
-                // `visibility` i `hero_media_id` W SELEKCIE, a `heroMedia`
-                // doładowane (issue #368): karta wpisu wskazującego przepis
-                // bierze z relacji WSZYSTKO — tytuł, zdjęcie i plakietkę
-                // widoczności — bo wpis niczego z przepisu nie kopiuje.
-                // Kolumna pominięta w selekcie wróciłaby jako `null`, czyli
-                // karta po cichu napisałaby „publicznie" pod przepisem
-                // widocznym tylko dla obserwujących.
-                'recipe:id,title,slug,visibility,hero_media_id',
-                'recipe.heroMedia',
-                // Patrz komentarz w FollowingFeed::paginate() — karta wpisu
-                // pokazuje tematy TYLKO wtedy, gdy relacja jest już
-                // doładowana, więc bez tego wpisy na „Świeżo z Kuking"
-                // nie miałyby żadnych chipów tematów.
-                'tags:id,slug,name,status',
-            ])
-            ->withVisibleCommentCount($viewer)
-            // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
-            // zapytaniem, co wszystko powyżej (issue #275, D-081). Reguły
-            // (kto się liczy, od ilu osób widać liczbę) siedzą w
-            // `ZapisyWpisu`; tutaj jest tylko miejsce, w którym dokładamy
-            // kolumnę do SELECT-a. Bez tego karta wpisu nie pokazałaby ani
-            // liczby, ani potwierdzenia — dokładnie jak z `tags:id,slug,name,status`
-            // wyżej.
-            ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
+            // Relacje karty, licznik komentarzy i zapisów — jeden kontrakt
+            // `Post::scopeDlaKarty()` (#1037), ten sam na każdej liście wpisów.
+            ->dlaKarty($viewer)
             // Runda, w niej czas, a remis czasu rozstrzyga identyfikator —
             // ta sama trójka, którą kursor zapisuje i odtwarza.
             ->orderBy('rotacja.runda')
