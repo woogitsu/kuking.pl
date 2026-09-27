@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione: „Przywróć do zeszytu” sprawdza aktualny stan konta, treści i zeszytu w chwili zapisu. Zawieszenie nie pozwala już przywrócić wpisu ani przepisu do publicznego zeszytu z wcześniej otwartej strony; przywracanie wielu pozycji jest jedną operacją. Notatki, daty zapisania i dotychczasowe powiadomienia o zapisaniu przepisu pozostają zachowane. Także wyjęcie niedostępnych pozycji sprawdza świeże uprawnienia właściciela (#2094).
 - Naprawione: wpis rozpoczęty przed zawieszeniem, zablokowaniem lub usunięciem konta nie może dokończyć publikacji po zatwierdzeniu tej decyzji. Serwis sprawdza aktualny stan autora pod blokadą przed zapisem i wycofuje także tagi oraz inne skutki odrzuconej próby; publikacja, która uzyskała blokadę pierwsza, kończy się normalnie (#2088).
 - Po zmianie lub resecie hasła, wylogowaniu innych urządzeń, blokadzie konta albo zgłoszeniu jego usunięcia odwołana sesja nie wraca już przez zapis wcześniej rozpoczętego żądania. Bieżąca sesja osoby wykonującej operację pozostaje aktywna tam, gdzie powinna (#1046).
 - Wewnętrzne: walidator paczki design systemu v3.1 (`07-wdrozenie/sprawdz-paczke.mjs`) rozpoznaje teraz każdy wariant zamknięcia `<script>` dopuszczony przez parser HTML, nie tylko goły `</script>` — `</script foo="bar">` przechodził wcześniej niezauważony i zostawiał treść skryptu w puli tekstu widocznego dla skanu słów zakazanych (CodeQL js/bad-tag-filter #3, #1910). Funkcja odpowiedzialna za to wydzielona do osobnego, testowalnego pliku (`tekst-widoczny.mjs`) z testem regresyjnym.
