@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Feed;
 
 use App\Models\DailyPick;
+use App\Models\Hide;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -213,6 +214,10 @@ final class DailyBoard
             ->whereIn('id', $picks->where('subject_type', DailyPick::TYPE_POST)->pluck('subject_id'))
             ->publiclyVisible()
             ->whereNotIn('author_id', $hidden)
+            // „Ukryj ten wpis" (#1810) działa także na wybór gospodarza —
+            // widz wskazał TEN wpis palcem. Ukrycie osoby wyboru gospodarza
+            // nie zdejmuje (D-278): to jest oznaczony wybór, nie podsunięcie.
+            ->bezUkrytychWpisow($viewer)
             // Konto autora aktywne (audyt A5) — ta tablica żyje na tej samej
             // stronie /odkryj co reszta feedu i redakcja mogła wybrać wpis
             // wcześniej, zanim autora zawieszono albo zbanowano.
@@ -249,6 +254,13 @@ final class DailyBoard
             $picks->where('subject_type', DailyPick::TYPE_POST)
                 ->map(fn (DailyPick $pick) => $postsById->get($pick->subject_id))
                 ->filter()
+                // Najwyżej jedno danie od osoby TAKŻE w części redakcyjnej
+                // (#1296). Panel już tego pilnuje przy zapisie, ale zastane
+                // albo ręcznie wstawione `daily_picks` mogą mieć dwa dania
+                // jednego autora. Zostaje pierwsze według pozycji gospodarza
+                // (`forDate()` sortuje po `position`, `id`), a zwolnione
+                // miejsce uzupełnia automat w `uzupelnijDoSufitu()`.
+                ->unique('author_id')
                 ->values(),
         );
 
@@ -326,7 +338,8 @@ final class DailyBoard
         // Parametr, a nie odsiewanie po pobraniu: limit jest narzucany w SQL,
         // więc odsianie „po fakcie" zwracałoby MNIEJ pozycji niż proszono
         // i dziura zostawałaby otwarta.
-        $excluded = [...$this->hiddenAuthorIdsFor($viewer), ...$pomin];
+        // Ukryte osoby (#1810, D-278) — propozycje to podsuwanie ludzi.
+        $excluded = [...$this->hiddenAuthorIdsFor($viewer), ...$this->ukryteOsobyDla($viewer), ...$pomin];
 
         if ($viewer !== null) {
             $excluded = [
@@ -433,7 +446,12 @@ final class DailyBoard
         // z wyboru gospodarza. Wykluczamy AUTORA, nie sam wpis, bo reguła
         // „najwyżej jedno danie od osoby" obowiązuje w całej tablicy, a nie
         // osobno w części redakcyjnej i osobno w dobranej.
-        $hidden = array_values(array_unique([...$this->hiddenAuthorIdsFor($viewer), ...$pominAutorow]));
+        // Ukryte osoby (#1810, D-278) — automatyczna część tablicy podsuwa ludzi.
+        $hidden = array_values(array_unique([...$this->hiddenAuthorIdsFor($viewer), ...$this->ukryteOsobyDla($viewer), ...$pominAutorow]));
+        // Ukryte wpisy odsiewamy przy przeglądaniu kandydatów z cache, nie
+        // dopiero w `pelneWpisy()`: tam brak wpisu wyglądałby jak nieaktualny
+        // cache i każdy widz z ukryciem kasowałby go wszystkim.
+        $ukryteWpisy = array_flip($this->ukryteWpisyDla($viewer));
 
         // DISTINCT ON (author_id), NIE „pobierz z zapasem i odsiej".
         //
@@ -480,7 +498,7 @@ final class DailyBoard
 
         $wybrane = [];
         foreach ($kandydaci as [$wpis, $autor]) {
-            if (! isset($ukryci[$autor])) {
+            if (! isset($ukryci[$autor]) && ! isset($ukryteWpisy[$wpis])) {
                 $wybrane[] = $wpis;
             }
         }
@@ -517,6 +535,10 @@ final class DailyBoard
             ->selectRaw('DISTINCT ON (posts.author_id) posts.id, posts.author_id, posts.published_at')
             ->publiclyVisible()
             ->when($hidden !== [], fn ($query) => $query->whereNotIn('posts.author_id', $hidden))
+            // W podzapytaniu, przed `DISTINCT ON`: ukryty wpis oddaje miejsce
+            // starszemu wpisowi tego autora (#1810). Dla `null` (kandydaci
+            // do cache) nic nie robi.
+            ->bezUkrytychWpisow($viewer)
             // Konto autora aktywne (audyt A5) — patrz uzasadnienie przy
             // DiscoverFeed::paginate(): to jest promowanie treści, więc próg
             // jest surowszy niż zwykłe wejście na adres wpisu.
@@ -553,6 +575,7 @@ final class DailyBoard
             // Te same bramki co przy wyborze kandydatów, liczone dla TEGO
             // widza: kandydaci z cache mogli zostać schowani po zapisaniu.
             ->publiclyVisible()
+            ->bezUkrytychWpisow($viewer)
             ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
             // Wpis z własną treścią zostaje za swoją widocznością (issue #1377);
             // przepis zdejmuje z kafelka `Post::ukryjNiedostepnePrzepisy()`.
@@ -573,6 +596,32 @@ final class DailyBoard
             ->limit($limit)
             ->get()
             ->tap(fn (Collection $wpisy) => Post::ukryjNiedostepnePrzepisy($wpisy, $viewer));
+    }
+
+    /**
+     * Osoby, które widz ukrył sobie (#1810, D-278) — aktywne ukrycia.
+     *
+     * @return list<string>
+     */
+    private function ukryteOsobyDla(?User $viewer): array
+    {
+        if ($viewer === null) {
+            return [];
+        }
+
+        return Hide::query()->aktywne()->where('user_id', $viewer->getKey())
+            ->whereNotNull('hidden_user_id')->pluck('hidden_user_id')->all();
+    }
+
+    /** @return list<string> */
+    private function ukryteWpisyDla(?User $viewer): array
+    {
+        if ($viewer === null) {
+            return [];
+        }
+
+        return Hide::query()->aktywne()->where('user_id', $viewer->getKey())
+            ->whereNotNull('post_id')->pluck('post_id')->all();
     }
 
     /** @return list<string> */

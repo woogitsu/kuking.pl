@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {utworzKontrolerWakeLock} from './wake-lock-gotowania.js';
+import {kluczWyboru, podlaczPrzelacznik, utworzKontrolerWakeLock, utworzPamiecWyboru} from './wake-lock-gotowania.js';
 
 /** Fałszywa blokada, którą test zwalnia ręcznie -- symulacja przeglądarki. */
 function utworzFalszywaBlokade() {
@@ -80,4 +80,135 @@ test('awaria request() (np. oszczedzanie baterii) nie zostawia stanu aktywnego',
     assert.equal(wynik, false);
     assert.equal(kontroler.jestAktywna(), false);
     assert.deepEqual(stany, [false]);
+});
+
+// --- Wybór przeżywa zmianę kroku (issue #1302) ------------------------------
+
+/** `sessionStorage` jednej karty — wspólny dla kolejnych dokumentów kroków. */
+function utworzPamiecKarty() {
+    const dane = new Map();
+
+    return {
+        getItem: (k) => (dane.has(k) ? dane.get(k) : null),
+        setItem: (k, v) => dane.set(k, String(v)),
+        removeItem: (k) => dane.delete(k),
+    };
+}
+
+/**
+ * Jeden DOKUMENT kroku: świeży checkbox z serwera (odznaczony), świeży
+ * kontroler, wspólna karta i wspólne API przeglądarki. Tak wygląda każde
+ * „Następny krok” i każde „Oznacz krok jako zrobiony”.
+ */
+function zaladujKrok(karta, przegladarka, recipeSlug = 'bigos') {
+    const nasluchy = [];
+    const checkbox = {
+        checked: false,
+        addEventListener: (zdarzenie, cb) => zdarzenie === 'change' && nasluchy.push(cb),
+    };
+    const kontroler = utworzKontrolerWakeLock(przegladarka.request, (aktywna) => {
+        // Ta sama zasada co w app.js: odmowa odznacza przełącznik.
+        if (!aktywna) checkbox.checked = false;
+    });
+    const odtworzenie = podlaczPrzelacznik(checkbox, kontroler, utworzPamiecWyboru(karta, recipeSlug));
+
+    return {
+        checkbox,
+        kontroler,
+        odtworzenie,
+        klik: async () => {
+            checkbox.checked = !checkbox.checked;
+            nasluchy.forEach((cb) => cb());
+            await Promise.resolve();
+        },
+    };
+}
+
+function utworzPrzegladarke({odmawiaOd = Infinity} = {}) {
+    const przegladarka = {
+        zadania: 0,
+        request: () => {
+            przegladarka.zadania += 1;
+
+            return przegladarka.zadania >= odmawiaOd
+                ? Promise.reject(new Error('odmowa'))
+                : Promise.resolve(utworzFalszywaBlokade().sentinel);
+        },
+    };
+
+    return przegladarka;
+}
+
+test('wybor z kroku 1 prosi o blokade na nowo w dokumencie kroku 2 (issue #1302)', async () => {
+    const karta = utworzPamiecKarty();
+    const przegladarka = utworzPrzegladarke();
+
+    const krok1 = zaladujKrok(karta, przegladarka);
+    await krok1.klik();
+    await krok1.odtworzenie;
+    assert.equal(przegladarka.zadania, 1);
+
+    // Nawigacja: nowy dokument, checkbox znowu odznaczony z serwera.
+    const krok2 = zaladujKrok(karta, przegladarka);
+
+    assert.equal(await krok2.odtworzenie, true);
+    assert.equal(przegladarka.zadania, 2);
+    assert.equal(krok2.checkbox.checked, true);
+    assert.equal(krok2.kontroler.jestAktywna(), true);
+});
+
+test('odmowa na nowym kroku pokazuje prawdziwy stan, a nastepny krok probuje znowu', async () => {
+    const karta = utworzPamiecKarty();
+    const przegladarka = utworzPrzegladarke({odmawiaOd: 2});
+
+    await zaladujKrok(karta, przegladarka).klik();
+
+    const krok2 = zaladujKrok(karta, przegladarka);
+    assert.equal(await krok2.odtworzenie, false);
+    assert.equal(krok2.checkbox.checked, false);
+    assert.equal(krok2.kontroler.jestAktywna(), false);
+
+    // Człowiek niczego nie wyłączał — odmowa przeglądarki nie kasuje wyboru.
+    zaladujKrok(karta, przegladarka);
+    assert.equal(przegladarka.zadania, 3);
+});
+
+test('reczne wylaczenie nie wraca po nawigacji; inny przepis nie dziedziczy wyboru', async () => {
+    const karta = utworzPamiecKarty();
+    const przegladarka = utworzPrzegladarke();
+
+    const krok1 = zaladujKrok(karta, przegladarka);
+    await krok1.klik();
+    await krok1.klik();
+
+    const krok2 = zaladujKrok(karta, przegladarka);
+    assert.equal(await krok2.odtworzenie, false);
+    assert.equal(krok2.checkbox.checked, false);
+    assert.equal(przegladarka.zadania, 1);
+
+    await zaladujKrok(karta, przegladarka, 'bigos').klik();
+    const innyPrzepis = zaladujKrok(karta, przegladarka, 'pierogi');
+    assert.equal(await innyPrzepis.odtworzenie, false);
+    assert.equal(innyPrzepis.checkbox.checked, false);
+});
+
+test('Zakoncz gotowanie kasuje wybor, a niedostepna pamiec niczego nie psuje', async () => {
+    const karta = utworzPamiecKarty();
+    const przegladarka = utworzPrzegladarke();
+
+    await zaladujKrok(karta, przegladarka).klik();
+    assert.equal(karta.getItem(kluczWyboru('bigos')), '1');
+
+    utworzPamiecWyboru(karta, 'bigos').zapamietaj(false);
+    assert.equal(karta.getItem(kluczWyboru('bigos')), null);
+
+    const zablokowana = {
+        getItem: () => { throw new Error('SecurityError'); },
+        setItem: () => { throw new Error('SecurityError'); },
+        removeItem: () => { throw new Error('SecurityError'); },
+    };
+    const krok = zaladujKrok(zablokowana, przegladarka);
+    assert.equal(await krok.odtworzenie, false);
+    await krok.klik();
+    assert.equal(krok.kontroler.jestAktywna(), true);
 });

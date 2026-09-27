@@ -91,7 +91,7 @@
                         czyta dwa razy (D-054).
                     --}}
                     <span class="btn btn-secondary profil-awatar-zmiana-akcja">
-                        {{ $p->avatar?->isReady() ? 'Zmień zdjęcie profilowe' : 'Dodaj zdjęcie profilowe' }}
+                        {{ $p->zdjecieDoPokazania() !== null ? 'Zmień zdjęcie profilowe' : 'Dodaj zdjęcie profilowe' }}
                     </span>
                 </a>
             @else
@@ -298,7 +298,8 @@
                         :fields="['oczekiwany_id' => $owner->getKey()]" />
                 @endif
             @else
-                <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby obserwować</a>
+                <a class="btn btn-primary" href="{{ route('register', ['follow_user' => $owner->getKey()]) }}">Załóż konto, żeby obserwować</a>
+                <a class="btn btn-quiet" href="{{ route('login', ['follow_user' => $owner->getKey()]) }}">Zaloguj się do swojego konta</a>
             @endif
         </div>
     </header>
@@ -406,7 +407,9 @@
         @else
             <div class="stack" id="lista-wykonan">
                 @foreach($cookedEvents as $event)
-                    <x-cooked-card :event="$event" :showRecipe="true" />
+                    <x-cooked-card :event="$event" :showRecipe="true"
+                        :przepisDostepny="$przepisyWidoczneNaKartach === null || in_array((string) $event->recipe_id, $przepisyWidoczneNaKartach, true) ? true : null"
+                        :przepisZaBlokada="$event->recipe !== null && in_array($event->recipe->author_id, $autorzyZaBlokada, true)" />
                 @endforeach
             </div>
             <x-show-more :paginator="$cookedEvents" czego="wykonań" lista="lista-wykonan" />
