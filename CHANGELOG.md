@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Wewnętrzne: obraz aplikacji nie obiecuje już awaryjnego `pg_dump` w wersji 17, który odmawiał zrzutu PostgreSQL 18. Jednorazowy zrzut prowadzi teraz runbook przez osobny obraz kopii z klientem 18, a CI sprawdza prawdziwy zrzut testowej bazy 18 (#2078).
+
 - Po zmianie lub resecie hasła, wylogowaniu innych urządzeń, blokadzie konta albo zgłoszeniu jego usunięcia odwołana sesja nie wraca już przez zapis wcześniej rozpoczętego żądania. Bieżąca sesja osoby wykonującej operację pozostaje aktywna tam, gdzie powinna (#1046).
 - Kolaż kilku zdjęć we wpisie pokazuje teraz fotografie w ich naturalnych proporcjach, bez szarych pustych pasów. Przy nieparzystej liczbie zdjęć ostatnie zajmuje cały wiersz zamiast zostawiać obok pusty kafel. Zdjęcia nadal można powiększyć i żadne nie jest przycinane.
 - Wewnętrzne: walidator paczki design systemu v3.1 (`07-wdrozenie/sprawdz-paczke.mjs`) rozpoznaje teraz każdy wariant zamknięcia `<script>` dopuszczony przez parser HTML, nie tylko goły `</script>` — `</script foo="bar">` przechodził wcześniej niezauważony i zostawiał treść skryptu w puli tekstu widocznego dla skanu słów zakazanych (CodeQL js/bad-tag-filter #3, #1910). Funkcja odpowiedzialna za to wydzielona do osobnego, testowalnego pliku (`tekst-widoczny.mjs`) z testem regresyjnym.
