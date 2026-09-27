@@ -10,12 +10,14 @@ use App\Domain\Recipes\Actions\ZrobWlasnaWersje;
 use App\Domain\Recipes\CoMoznaDopisac;
 use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\MojaWersja;
+use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\Recipes\ZapisPrzepisuRequest;
 use App\Models\Comment;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Unit;
+use App\Support\OdpowiedziWatku;
 use App\Support\PaginationLinks;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -48,7 +50,8 @@ use Illuminate\View\View;
  * BAZA SIĘ NIE ZMIENIŁA. Oba pola tekstowe z punktu 1 serwer rozbija
  * z powrotem na `recipe_ingredients` i `recipe_steps`
  * (`App\Domain\Recipes\TekstNaWiersze`). Szukanie po składnikach nadal
- * czyta te same wiersze. Skalowanie porcji pozostaje niewdrożonym planem V2.
+ * czyta te same wiersze. Skalowanie porcji (V2, D-284) czyta ilość z tekstu
+ * wiersza w chwili pokazania — `App\Domain\Recipes\Porcje\PrzeliczSkladnik`.
  *
  * Wszystkie drogi kończą się w tej samej akcji domenowej `PublishRecipe`
  * (formularze bez JavaScriptu przez `ZapiszPrzepisZFormularza`, walidacja
@@ -390,15 +393,14 @@ class RecipeController extends Controller
 
         // Komentarze filtrowane przez blokady (issue #41) — bez tego
         // zablokowana osoba nadal była widoczna pod cudzymi treściami — i od
-        // dziś PAGINOWANE. Odpowiedzi jednego wątku dociągamy w całości: mają
-        // tylko jeden poziom (`comment-thread.blade.php`) i są ograniczone
-        // liczbą osób, które weszły w JEDNĄ rozmowę, a nie popularnością
-        // całego przepisu.
+        // dziś PAGINOWANE. Odpowiedzi jednego wątku też idą porcjami
+        // (issue #939): nic nie ogranicza, ile razy ta sama osoba odpowie,
+        // więc „ograniczone liczbą osób w rozmowie” nie było prawdą.
         $komentarze = $model->comments()
             ->widoczneDla($request->user())
             ->with([
                 'author.profile.avatar',
-                'replies' => fn ($query) => $query->widoczneDla($request->user()),
+                'replies' => fn ($query) => OdpowiedziWatku::pierwszaPorcja($query, $request->user()),
                 'replies.author.profile.avatar',
                 // TO NIE JEST NADMIAROWE, CHOĆ PRZEPIS STOI OBOK W `$model`.
                 //
@@ -419,6 +421,7 @@ class RecipeController extends Controller
                 'replies.recipe',
             ])
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
+        OdpowiedziWatku::uzupelnij($komentarze, $request, ['author.profile.avatar', 'recipe']);
 
         // Widoczne dla widza (audyt A4) — bez tego galeria „Komu wyszło"
         // pokazywała każde wykonanie, nie pytając, czy widz zablokował
@@ -459,6 +462,9 @@ class RecipeController extends Controller
 
         return view('pages.recipes.show', [
             'recipe' => $model,
+            // Na ile porcji pokazać ilości (D-284). Wybór żyje w adresie
+            // (`?porcje=6`), przeliczenie w `App\Domain\Recipes\Porcje`.
+            'wyborPorcji' => WyborPorcji::dla($model, $request->query('porcje')),
             // Wersja zbyt podobna do publicznego oryginału nie idzie do
             // indeksu (docs/seo/SEO_TECHNICAL.md §1.4 pkt 4).
             'wersjaDoIndeksu' => MojaWersja::czyIndeksowac($model),

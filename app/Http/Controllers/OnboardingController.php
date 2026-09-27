@@ -289,6 +289,10 @@ class OnboardingController extends Controller
             }
         }
 
+        // Koniec pierwszych kroków zapisujemy tu, w POST — nie w GET
+        // `/witaj/gotowe`, który przeglądarka może pobrać z wyprzedzeniem (#985).
+        $this->oznaczZakonczony($request);
+
         $dalej = redirect()->route('onboarding.done');
 
         // DWIE RÓŻNE RZECZY MOGŁY PÓJŚĆ NIE TAK NARAZ, więc komunikaty
@@ -321,10 +325,45 @@ class OnboardingController extends Controller
 
     public function done(Request $request): View
     {
+        // Bez zapisu stanu konta: GET może przyjść z prefetchu przeglądarki,
+        // więc samo otwarcie tej strony nie wyłącza przypomnienia (#985).
         $request->session()->forget('onboarding.selection');
 
         return view('pages.onboarding.done', [
             'name' => $request->user()->displayName(),
         ]);
+    }
+
+    /**
+     * „Pomiń ten krok" na `/witaj/ludzie` — POST z CSRF, bo kończy
+     * pierwsze kroki na stałe (#985).
+     */
+    public function skip(Request $request): RedirectResponse
+    {
+        $request->session()->forget('onboarding.selection');
+        $this->oznaczZakonczony($request);
+
+        return redirect()->route('onboarding.done');
+    }
+
+    /**
+     * „Nie przypominaj" przy odnośniku na Starcie — trwała decyzja (#985).
+     */
+    public function dismiss(Request $request): RedirectResponse
+    {
+        $this->oznaczZakonczony($request);
+
+        return redirect()->route('home')
+            ->with('status', 'Dobrze, nie będziemy już przypominać o pierwszych krokach.');
+    }
+
+    /** Tylko pierwszy raz: ponowne wejście pod `/witaj/...` niczego nie cofa ani nie przesuwa. */
+    private function oznaczZakonczony(Request $request): void
+    {
+        $user = $request->user();
+
+        if ($user->onboarding_zakonczony_at === null) {
+            $user->forceFill(['onboarding_zakonczony_at' => now()])->save();
+        }
     }
 }

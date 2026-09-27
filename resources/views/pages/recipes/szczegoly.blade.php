@@ -4,7 +4,7 @@
     $isEdit = $recipe !== null;
     $action = $isEdit ? route('recipes.update', $recipe->slug) : route('recipes.store');
 
-    $oldIngredients = old('ingredients', $isEdit ? $recipe->ingredients->map(fn ($i) => ['text' => $i->ingredient_text, 'group_name' => $i->group_name, 'note' => $i->note, 'no_amount' => $i->no_amount])->all() : []);
+    $oldIngredients = old('ingredients', $isEdit ? $recipe->ingredients->map(fn ($i) => ['text' => $i->ingredient_text, 'group_name' => $i->group_name, 'note' => $i->note, 'substitutes' => $i->substitutes, 'no_amount' => $i->no_amount])->all() : []);
 
     /*
      * KAŻDY WIERSZ KROKU NIESIE SWOJĄ TOŻSAMOŚĆ (audyt zewnętrzny T12/T24).
@@ -193,7 +193,7 @@
             <div class="siatka-pol">
                 {{-- Krok 0,01 (setne) — decyzja właściciela z 20.09.2026 (#750).
                      Kolumna `servings` to decimal(6,2); `step` musi się zgadzać
-                     z walidacją serwera (`RecipeController::validated()`),
+                     z walidacją serwera (`ZapisPrzepisuRequest`),
                      inaczej przeglądarka odrzuca poprawną wartość jako
                      `stepMismatch`, zanim żądanie w ogóle wyjdzie. --}}
                 <x-field name="servings" label="Na ile porcji" type="number" inputmode="decimal"
@@ -343,8 +343,9 @@
                     <input class="field-input" id="f-ingredients-{{ $i }}-text"
                            name="ingredients[{{ $i }}][text]" type="text" maxlength="240"
                            value="{{ $oldIngredients[$i]['text'] ?? '' }}"
-                           @if($i === 0) placeholder="1 kurczak, najlepiej zagrodowy" @endif>
-                    @error("ingredients.$i.text")<span class="field-error">{{ $message }}</span>@enderror
+                           @if($i === 0) placeholder="1 kurczak, najlepiej zagrodowy" @endif
+                           @error("ingredients.$i.text") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-text-error" @enderror>
+                    @error("ingredients.$i.text")<span class="field-error" id="f-ingredients-{{ $i }}-text-error">{{ $message }}</span>@enderror
 
                     {{--
                         GRUPA SKŁADNIKÓW — „Ciasto”, „Farsz”, „Do podania”
@@ -374,8 +375,9 @@
                     <input class="field-input" id="f-ingredients-{{ $i }}-group_name"
                            name="ingredients[{{ $i }}][group_name]" type="text" maxlength="120"
                            value="{{ $oldIngredients[$i]['group_name'] ?? '' }}"
-                           @if($i === 0) placeholder="Ciasto" @endif>
-                    @error("ingredients.$i.group_name")<span class="field-error">{{ $message }}</span>@enderror
+                           @if($i === 0) placeholder="Ciasto" @endif
+                           @error("ingredients.$i.group_name") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-group_name-error" @enderror>
+                    @error("ingredients.$i.group_name")<span class="field-error" id="f-ingredients-{{ $i }}-group_name-error">{{ $message }}</span>@enderror
 
                     <label class="mt-3" for="f-ingredients-{{ $i }}-note">Uwagi do składnika <span class="meta">(nieobowiązkowe)</span></label>
                     <input class="field-input" id="f-ingredients-{{ $i }}-note"
@@ -384,10 +386,21 @@
                            @error("ingredients.$i.note") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-note-error" @enderror>
                     @error("ingredients.$i.note")<span class="field-error" id="f-ingredients-{{ $i }}-note-error">{{ $message }}</span>@enderror
 
+                    {{-- Zamiennik od autora (D-284) — na stronie przepisu stoi
+                         pod składnikiem jako „Zamiast tego: …”. Ta sama nazwa
+                         pola co w kreatorze, więc przechodzi między drogami. --}}
+                    <label class="mt-3" for="f-ingredients-{{ $i }}-substitutes">Czym można to zastąpić <span class="meta">(nieobowiązkowe)</span></label>
+                    <input class="field-input" id="f-ingredients-{{ $i }}-substitutes"
+                           name="ingredients[{{ $i }}][substitutes]" type="text" maxlength="300"
+                           value="{{ $ingredient['substitutes'] ?? '' }}"
+                           @if($i === 0) placeholder="margaryna albo olej kokosowy" @endif
+                           @error("ingredients.$i.substitutes") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-substitutes-error" @enderror>
+                    @error("ingredients.$i.substitutes")<span class="field-error" id="f-ingredients-{{ $i }}-substitutes-error">{{ $message }}</span>@enderror
+
                     {{-- „Bez ilości” — sól do smaku (issue #44). Zwykły
                          checkbox, działa bez JavaScriptu. Nieobowiązkowy
                          i domyślnie wyłączony: ma znaczenie dopiero przy
-                         przyszłym przeliczaniu porcji (V2, jeszcze niewdrożonym). --}}
+                         przeliczaniu porcji na stronie przepisu (V2, D-284). --}}
                     <label class="choice mt-2">
                         <input type="checkbox" name="ingredients[{{ $i }}][no_amount]" value="1"
                                @checked($oldIngredients[$i]['no_amount'] ?? false)>
@@ -470,8 +483,9 @@
                                type="number" inputmode="numeric" name="steps[{{ $i }}][timer_minutes]"
                                min="0" max="{{ \App\Domain\Recipes\StepTimer::MAX_MINUTES }}" step="1"
                                value="{{ $oldSteps[$i]['timer_minutes'] ?? '' }}"
-                               aria-describedby="f-steps-{{ $i }}-timer_minutes-help">
-                        @error("steps.$i.timer_minutes")<span class="field-error">{{ $message }}</span>@enderror
+                               aria-describedby="f-steps-{{ $i }}-timer_minutes-help{{ $errors->has('steps.'.$i.'.timer_minutes') ? ' f-steps-'.$i.'-timer_minutes-error' : '' }}"
+                               @error("steps.$i.timer_minutes") aria-invalid="true" @enderror>
+                        @error("steps.$i.timer_minutes")<span class="field-error" id="f-steps-{{ $i }}-timer_minutes-error">{{ $message }}</span>@enderror
                     </div>
 
                     <div class="field @error("steps.$i.photo") has-error @enderror">

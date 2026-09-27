@@ -27,6 +27,19 @@ return [
     ],
 
     // Przygotowanie #371; ścieżki produktu i egzekwowanie flagi należą do #372.
+    /*
+     * PLANER TYGODNIA (#27, D-310) — prywatny plan: dzień + przepis albo
+     * własny wpis.
+     *
+     * `wpisow_na_dzien` — ile pozycji najwyżej w jednym dniu. Dziesięć to
+     * więcej niż śniadanie, obiad, kolacja i dwie przekąski dla całej
+     * rodziny; granica jest po to, żeby pętla nie dopisywała wierszy bez
+     * końca, a nie żeby cokolwiek komuś odmawiać.
+     */
+    'planer' => [
+        'wpisow_na_dzien' => 10,
+    ],
+
     'questions' => [
         'enabled' => env('KUKING_QUESTIONS_ENABLED', false),
     ],
@@ -339,6 +352,21 @@ return [
         'max_per_post' => 6,
     ],
 
+    /*
+     * Prywatne ukrycia (issue #1810, D-278).
+     *
+     * `dni` — na ile ukrywamy domyślnie; po terminie wpis albo osoba wracają
+     * same, a lista w Ustawieniach pokazuje datę końca.
+     * `prog_ostrzezenia` — ułamek autorów aktywnych w ostatnich
+     * `okno_aktywnosci_dni` dniach, od którego lista ukrytych osób mówi, że
+     * ukrywasz już sporą część serwisu. Samo zdanie, nic nie blokuje.
+     */
+    'ukrycia' => [
+        'dni' => (int) env('KUKING_UKRYCIA_DNI', 30),
+        'prog_ostrzezenia' => (float) env('KUKING_UKRYCIA_PROG_OSTRZEZENIA', 1 / 3),
+        'okno_aktywnosci_dni' => (int) env('KUKING_UKRYCIA_OKNO_AKTYWNOSCI_DNI', 14),
+    ],
+
     'feed' => [
         // Ile wpisów na "stronę". Bez infinite scroll — jest przycisk
         // "Pokaż więcej" (docs/UX_50_PLUS.md).
@@ -358,6 +386,14 @@ return [
         // ma być wszędzie podobny, żeby człowiek wiedział, czego się
         // spodziewać (UX_50_PLUS.md: przewidywalność przed bogactwem).
         'page_size' => (int) env('KUKING_COMMENTS_PAGE_SIZE', 12),
+
+        // Ile ODPOWIEDZI jednego wątku pokazuje strona naraz (issue #939).
+        // Nic nie ogranicza, ile razy ta sama osoba odpowie w wątku, więc bez
+        // tego limitu jeden gorący wątek ładował całą rozmowę mimo paginacji
+        // wątków. Dalsze porcje: link „Pokaż dalsze odpowiedzi (N)”, bez JS
+        // (`App\Domain\Comments\OdpowiedziWatku`). Ta sama liczba co
+        // `page_size` — jeden krok ma być wszędzie podobny.
+        'replies_per_thread' => (int) env('KUKING_COMMENT_REPLIES_PER_THREAD', 12),
     ],
 
     'collections' => [
@@ -896,7 +932,12 @@ return [
          * bez limitu i bez ciszy nocnej.
          */
         'zewnetrzne' => [
-            'wlaczone' => (bool) env('KUKING_POWIADOMIENIA_ZEWNETRZNE', false),
+            // AWARYJNY WYŁĄCZNIK wszystkich kanałów poza serwisem (D-303).
+            // Od uruchomienia Web Push domyślnie WŁĄCZONY, bo o tym, czy kanał
+            // w ogóle istnieje, decyduje jego własna konfiguracja: brak kluczy
+            // VAPID niżej = brak Web Push i brak przycisku. `false` gasi
+            // wysyłkę i ekran ustawień bez ruszania kluczy.
+            'wlaczone' => (bool) env('KUKING_POWIADOMIENIA_ZEWNETRZNE', true),
 
             // Cisza nocna 21:00–8:00 w strefie odbiorcy (§3.2). Zdarzenie jest
             // ODKŁADANE do końca ciszy, nigdy kasowane. Równe wartości = brak ciszy.
@@ -908,6 +949,34 @@ return [
             // doby, zamiast przepaść. `0` = kanał wyłączony (świadoma
             // konfiguracja awaryjna), nie „odkładaj bez końca".
             'dzienny_limit' => (int) env('KUKING_POWIADOMIENIA_DZIENNY_LIMIT', 1),
+
+            // Wybory, które człowiek może zrobić na `/ustawienia/powiadomienia`
+            // (D-303). Zamknięta lista, żeby formularz był prostym wyborem,
+            // a nie polem do wpisania liczby. Baza pilnuje zakresu CHECK-iem
+            // (`ustawienia_powiadomien_zewnetrznych`).
+            'limity_do_wyboru' => [1, 2, 3, 5],
+
+            // Starsze niż to powiadomienia nie idą już pushem — w serwisie
+            // zostają. Push jest szturchnięciem „teraz", nie archiwum.
+            'push_maks_wiek_godzin' => (int) env('KUKING_PUSH_MAKS_WIEK_GODZIN', 48),
+
+            // Ile urządzeń (przeglądarek) jedno konto może mieć zapisanych.
+            // Przy nadmiarze znika najstarsze — przeglądarki rzadko mówią,
+            // że subskrypcja umarła, póki nie spróbujemy na nią wysłać.
+            'push_maks_urzadzen' => 10,
+
+            // PONOWIENIE PO BŁĘDZIE TRANSPORTU (issue #1960, D-303). Błąd
+            // usługi push (`WynikWysylkiPush::Blad`) nie kasuje subskrypcji
+            // i nie ma zostać po cichu potraktowany jak sukces — zadanie
+            // ponawia dostarczenie WYŁĄCZNIE do urządzeń, które go jeszcze
+            // nie dostały, po krótkim odstępie.
+            'push_ponowienie_sekund' => (int) env('KUKING_PUSH_PONOWIENIE_SEKUND', 30),
+
+            // Po tylu PRÓBACH TRANSPORTU (nie: prób na urządzenie) rezygnujemy
+            // z automatycznego ponawiania. Powiadomienie w serwisie i tak
+            // czeka (push jest szturchnięciem, nie listem poleconym) —
+            // trwała porażka zostawia mierzalny, pusty `push_wyslano_at`.
+            'push_maks_prob_transportu' => (int) env('KUKING_PUSH_MAKS_PROB_TRANSPORTU', 3),
         ],
 
         // RETENCJA (issue #19, docs/decyzje/ADR_RETENCJE.md §5.2).
@@ -961,6 +1030,43 @@ return [
     | z tym samym kluczem (D-027, `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md`).
     |
     */
+
+    /*
+     * WEB PUSH (issue #35, D-303) — standard VAPID, bez dostawcy pośredniego.
+     *
+     * BRAK KLUCZA = FUNKCJI NIE MA. Dopóki `VAPID_PUBLIC_KEY`
+     * i `VAPID_PRIVATE_KEY` są puste, nie ma ekranu `/ustawienia/powiadomienia`,
+     * pozycji w spisie ustawień, przycisku ani żadnej wysyłki
+     * (`App\Domain\Notifications\Push\KanalPush::dostepny()`).
+     *
+     * Klucze generuje się RAZ (`php artisan kuking:klucze-vapid`) i nie zmienia:
+     * nowa para unieważnia wszystkie zapisane subskrypcje — przeglądarki
+     * odrzucą wysyłkę podpisaną innym kluczem niż ten, z którym się zapisały.
+     *
+     * `subject` to kontakt dla operatora usługi push (Google, Mozilla, Apple),
+     * gdyby nasze wysyłki sprawiały kłopot: `mailto:` albo adres `https:`.
+     */
+    'push' => [
+        'vapid_public_key' => env('VAPID_PUBLIC_KEY'),
+        'vapid_private_key' => env('VAPID_PRIVATE_KEY'),
+        'vapid_subject' => env('VAPID_SUBJECT', 'mailto:kontakt@kuking.pl'),
+
+        // Jak długo usługa push ma próbować doręczyć, gdy urządzenie jest
+        // wyłączone. Doba: rano po wyłączonym na noc telefonie wiadomość
+        // o wczorajszym „Ugotowałem" jeszcze ma sens, po tygodniu — nie.
+        'ttl_sekund' => 86400,
+
+        // TYLKO te hosty wolno zapisać jako adres subskrypcji. Adres podaje
+        // przeglądarka, czyli w praktyce KAŻDY, kto wyśle żądanie — bez tej
+        // listy serwer robiłby POST pod dowolny adres (SSRF). Dopasowanie:
+        // host równy wpisowi albo kończący się na „.wpis".
+        'dozwolone_hosty' => [
+            'fcm.googleapis.com',          // Chrome, Edge, Opera, Samsung Internet
+            'push.services.mozilla.com',   // Firefox
+            'push.apple.com',              // Safari (macOS, iOS 16.4+ z ekranu początkowego)
+            'notify.windows.com',          // starsze Edge / Windows
+        ],
+    ],
 
     'formularze' => [
         // WYŁĄCZNIK AWARYJNY MECHANIZMU KLUCZA WYSŁANIA (ADR §8.4, „Wyjście 1").
@@ -1529,6 +1635,23 @@ return [
         'tag_suggest' => '60,1',
 
         /*
+         * „MÓJ STÓŁ" — strona (issue #1749, D-304). Ten sam wzorzec co
+         * `search`: to jest strona za logowaniem, otwierana zwykłym
+         * przewijaniem/odświeżaniem, nie formularz — więc koszyk ma ten sam
+         * rząd wielkości, sześćdziesiąt na minutę, żeby nie łapać człowieka,
+         * który wraca na tę stronę kilka razy w trakcie gotowania.
+         *
+         * OSOBNY PREFIKS OD `search`, mimo tej samej liczby: to inna trasa
+         * i inna szkoda z nadużycia (patrz
+         * `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest` — jeden prefiks to
+         * zawsze jedna trasa). Zapis stanu (przełącznik włącz/wyłącz) ma już
+         * własny limit zapisu (`ustawienia`, PUT `/moj-stol`); ten koszyk
+         * dotyczy tylko odczytu strony (GET `/moj-stol`), który wcześniej nie
+         * miał żadnego limitu.
+         */
+        'moj_stol' => '60,1',
+
+        /*
          * Serwowanie zdjęcia (audyt W7-02) — trasa `media.show`.
          *
          * Trasa jest PUBLICZNA i pyta bazę o rodziców zdjęcia przy każdym
@@ -1588,6 +1711,11 @@ return [
         // DOBĘ — sufit dobowy na konto stoi w
         // `poczta.ponowienie_potwierdzenia_na_dobe` (D-246).
         'verification_resend' => '6,1',
+
+        // Potwierdzenie adresu z podpisanego linku (GET pokazuje ekran, POST
+        // potwierdza — #1862). Podpis jest autoryzacją, limit chroni przed
+        // mieleniem trasy; 6 na minutę jak domyślna trasa weryfikacji Laravela.
+        'verification_verify' => '6,1',
 
         /*
          |----------------------------------------------------------------
@@ -1706,6 +1834,14 @@ return [
         'blokada' => '60,10',
 
         /*
+         * UKRYCIA — „Ukryj ten wpis", „Ukryj tę osobę", przywracanie i „Zostaw
+         * ukryte" (issue #1810). Własny koszyk: to jest porządkowanie WŁASNEGO
+         * ekranu i nikogo nie powiadamia, więc nie może zjadać budżetu
+         * obserwowania ani blokady (ta druga to narzędzie bezpieczeństwa).
+         */
+        'ukrycia' => '60,10',
+
+        /*
          * ZESZYT — zapis i wypisanie przepisu albo wpisu, założenie zeszytu.
          *
          * Szkoda z nadużycia: praktycznie żadna poza kontem sprawcy. Nikt
@@ -1727,6 +1863,16 @@ return [
          * do której należą.
          */
         'zeszyt' => '60,10',
+
+        /*
+         * PLANER TYGODNIA (#27, D-310) — dopisanie pozycji, usunięcie jej
+         * i „Skopiuj poprzedni tydzień”. Szkoda z nadużycia taka jak przy
+         * zeszycie: nikt inny planu nie widzi, nikogo nie powiadamia.
+         * Układanie tygodnia to kilkanaście kliknięć pod rząd, więc ten sam
+         * próg co zeszyt, we własnym koszyku — planowanie nie zjada budżetu
+         * zapisywania przepisów.
+         */
+        'planer' => '60,10',
 
         /*
          * USTAWIENIA PRYWATNE I DROBNE PRZEŁĄCZNIKI — czytelność,
@@ -1820,6 +1966,18 @@ return [
          * profil — a skrypt wgrywający obrazy potrzebowałby setek.
          */
         'ustawienia_profil' => '15,10',
+
+        /*
+         * WGRYWANIE PLIKU W KREATORZE PRZEPISU (endpoint Livewire
+         * `livewire/upload-file`, audyt A5-09). Podpinane w
+         * `config/livewire.php`, bo tej trasy nie ma w `routes/web.php`.
+         *
+         * Każde zdjęcie to jedno żądanie, wysyłane od razu po wyborze pliku.
+         * SKĄD 30 NA 10 MINUT. Długi przepis to zdjęcie dania i kilkanaście
+         * zdjęć kroków, plus kilka ponownych wyborów — mieści się z zapasem.
+         * Domyślne `60,1` pakietu pozwalało wgrać 900 MB na minutę.
+         */
+        'livewire_upload' => '30,10',
 
         /*
          * PACZKA Z DANYMI (RODO) — `POST /ustawienia/twoje-dane/eksport`.
@@ -2472,7 +2630,7 @@ return [
          * przechodzić przez recenzję jak każda inna zmiana, a nie dać się
          * przestawić w panelu Railwaya.
          */
-        'wersja_polityki' => '2026-09-10',
+        'wersja_polityki' => '2026-09-25',
     ],
 
     'analytics' => [
@@ -2758,6 +2916,31 @@ return [
     'retencja' => [
         'partia' => (int) env('KUKING_RETENCJA_PARTIA', 1000),
         'budzet' => (int) env('KUKING_RETENCJA_BUDZET', 50000),
+    ],
+
+    // DZIENNIK WYMAZAŃ KONT POZA BAZĄ (audyt B5, znalezisko 3, 25.09.2026).
+    //
+    // Odtworzenie bazy z kopii przywraca konta wymazane po dacie kopii,
+    // a ślad wymazania leży w tej samej bazie. Dziennik — jeden obiekt na
+    // konto: identyfikator, chwila, zakres — leży w magazynie obiektów
+    // (`App\Domain\Compliance\DziennikWymazan`) i czyta go
+    // `kuking:wymaz-ponownie`, obowiązkowy krok procedury odtworzenia
+    // (`docs/infra/KOPIE_I_ODTWORZENIE.md`).
+    //
+    // DYSK: domyślnie ten sam prywatny dysk co paczki eksportu (na produkcji
+    // `r2_eksporty`), prefiks `dziennik-wymazan/`. NIE bucket kopii bazy —
+    // tam aplikacja nie ma prawa zapisu (D-043), i NIE baza.
+    //
+    // 120 DNI: dłużej niż najstarsza kopia, z której konto mogłoby wrócić
+    // (zrzut offsite 30 dni, PITR ok. 4 tygodni, miesięczny Volume Backup
+    // Railwaya 89 dni — KOPIE_I_ODTWORZENIE.md §5.3). Starszy wpis nie ma już
+    // przed czym chronić, więc znika.
+    'dziennik_wymazan' => [
+        'dysk' => env('KUKING_DZIENNIK_WYMAZAN_DYSK', env(
+            'KUKING_EXPORT_DISK',
+            env('FILESYSTEM_DISK', 'local') === 'r2' ? 'r2_eksporty' : 'local',
+        )),
+        'retention_days' => (int) env('KUKING_DZIENNIK_WYMAZAN_DNI', 120),
     ],
 
     // TREŚCI USUNIĘTE PRZEZ AUTORA (audyt B5, znalezisko 1, 25.09.2026).

@@ -375,7 +375,8 @@
      od 80rem belka i stopka biorą wtedy szerszy sufit, bo tyle ma treść
      z szyną obok. Poniżej 80rem szyna leci pod treścią i szerokość jest ta
      sama co bez niej — dlatego druga klasa nic tam nie robi. --}}
-<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($szerokaRama ? ' uklad-solo-z-szyna' : '') }} @endguest" data-marka="kuking-2026">
+<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($szerokaRama ? ' uklad-solo-z-szyna' : '') }} @endguest" data-marka="kuking-2026"
+      @auth @if(config('kuking.push.vapid_public_key')) data-push-uzgodnij="{{ route('settings.notifications.reconcile-device') }}" data-push-csrf="{{ csrf_token() }}" @endif @endauth>
     <a class="skip-link" href="#tresc">Przejdź do treści</a>
 
     {{--
@@ -435,11 +436,18 @@
                     belka ma tam pomieścić logotyp i powiadomienia, a „Szukaj"
                     stoi w pasku dolnym, w zasięgu kciuka.
                 --}}
+                @php
+                    // `q` może być tablicą (`?q[]=...`, issue #738) — `e()` na tablicy
+                    // to TypeError i 500 na każdej stronie z belką. Ten sam kontrakt
+                    // co w SearchController: nie-tekstowe `q` = brak frazy.
+                    $belkaQ = request()->routeIs('search') ? request()->query('q', '') : '';
+                    $belkaQ = is_string($belkaQ) ? $belkaQ : '';
+                @endphp
                 <form class="topbar-szukaj" method="GET" action="{{ route('search') }}" role="search">
                     <label class="visually-hidden" for="topbar-q">Szukaj przepisów, osób i składników</label>
                     <x-ikona nazwa="search" :rozmiar="22" class="topbar-szukaj-ikona" />
                     <input class="topbar-szukaj-pole" id="topbar-q" type="search" name="q"
-                           value="{{ request()->routeIs('search') ? request('q') : '' }}"
+                           value="{{ $belkaQ }}"
                            placeholder="Szukaj przepisów, osób i składników…">
                 </form>
             @endauth
@@ -940,6 +948,11 @@
                 używa), a nie rozpychanie całej strony.
             --}}
             <main class="app-main" id="tresc">
+                @auth @if(config('kuking.push.vapid_public_key'))
+                    <p class="flash" role="status" data-push-uzgodnij-komunikat hidden>
+                        Powiadomienia poprzedniej osoby zostały wyłączone w tej przeglądarce. Twoje powiadomienia możesz włączyć w ustawieniach.
+                    </p>
+                @endif @endauth
                 {{-- Komunikaty zwrotne. aria-live, żeby czytnik ekranu je ogłosił.
 
                      `komunikaty` jest tu po to, żeby układ pasów (strona
@@ -995,6 +1008,16 @@
                 @if($collectionError)
                     <p id="blad-wyboru-zeszytu" class="notice" role="alert">{{ $collectionError }}</p>
                 @endif
+                {{-- To samo dla akcji z menu karty, które wracają na strumień
+                     (przegląd #1781): „Ukryj ten wpis" / „Ukryj tę osobę"
+                     odmawiają z worka `ukrycie`, a na Starcie czy w Odkrywaniu
+                     nie ma formularza z podsumowaniem błędów. --}}
+                @foreach(['ukrycie'] as $kluczBleduAkcji)
+                    @php $bladAkcji = session('errors')?->first($kluczBleduAkcji); @endphp
+                    @if($bladAkcji)
+                        <p class="notice" role="alert" data-blad-akcji="{{ $kluczBleduAkcji }}">{{ $bladAkcji }}</p>
+                    @endif
+                @endforeach
 
                 {{--
                     Stan zawieszenia widoczny na KAŻDYM ekranie (issue #40).
