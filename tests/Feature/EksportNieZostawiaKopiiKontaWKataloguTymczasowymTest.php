@@ -159,7 +159,8 @@ class EksportNieZostawiaKopiiKontaWKataloguTymczasowymTest extends TestCase
         // KONTROLA DODATNIA: oba naprawdę wyszły wczesnym powrotem.
         $this->assertSame(DataExport::REASON_ACCOUNT_MISSING, $wymazany->refresh()->failure_reason);
         $this->assertSame(DataExport::STATUS_READY, $gotowy->refresh()->status);
-        $this->assertNull($gotowy->object_key);
+        // Adres z zamówienia nietknięty — job nie zbudował drugiej paczki.
+        $this->assertSame('eksporty/basiatmp.zip', $gotowy->object_key);
 
         $this->assertDirectoryDoesNotExist($katalogWymazanego, 'Kopia wymazanego konta została w katalogu tymczasowym.');
         $this->assertDirectoryDoesNotExist($katalogGotowego);
@@ -230,10 +231,18 @@ class EksportNieZostawiaKopiiKontaWKataloguTymczasowymTest extends TestCase
 
     private function zamowienie(string $status = DataExport::STATUS_QUEUED): DataExport
     {
+        // Gotowa paczka ma komplet metadanych — CHECK
+        // `data_exports_ready_complete_check` (issue #1365).
         return DataExport::create([
             'user_id' => $this->user('basiatmp'.Str::random(6))->getKey(),
             'status' => $status,
-        ]);
+        ] + ($status === DataExport::STATUS_READY ? [
+            'disk' => 'local',
+            'object_key' => 'eksporty/basiatmp.zip',
+            'bytes' => 1234,
+            'completed_at' => now(),
+            'expires_at' => now()->addDays(7),
+        ] : []));
     }
 
     private function katalogEksportu(string $id, int $mtime): string
