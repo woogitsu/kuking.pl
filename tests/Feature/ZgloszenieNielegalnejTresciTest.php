@@ -113,7 +113,10 @@ class ZgloszenieNielegalnejTresciTest extends TestCase
             ->assertSessionHasNoErrors();
 
         Notification::assertSentOnDemand(DecyzjaWSprawieZgloszenia::class);
-        $this->assertNotNull($zgloszenie->refresh()->decision_sent_at);
+        // Fałszywka nie wysyła listu, więc znacznik zostaje pusty: stawia go
+        // list po wysłaniu (#1838, D-293). Przebieg z prawdziwą kolejką:
+        // `DecyzjaZgloszeniaOznaczanaPoWysylceTest`.
+        $this->assertNull($zgloszenie->refresh()->decision_sent_at);
     }
 
     public function test_decyzja_odmowna_tez_dociera_do_zglaszajacego(): void

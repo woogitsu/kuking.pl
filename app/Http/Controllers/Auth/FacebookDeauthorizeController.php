@@ -76,6 +76,31 @@ use Illuminate\Support\Facades\Log;
  *    ostatniej zgody (`zgoda_potwierdzona_at`, a gdy pusta: `connected_at`).
  *    Wiadomość starsza od tej granicy kończy się spokojnym 200 i niczego
  *    nie zmienia; Facebook uznaje ją za dostarczoną i nie ponawia.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ *  ROZMIAR I CZĘSTOTLIWOŚĆ (audyt, issue #1869)
+ * ────────────────────────────────────────────────────────────────────────
+ *
+ * Trasa jest publiczna i bez CSRF (patrz wyżej) — jedyną przepustką jest
+ * podpis, a podpis sam w sobie NIE JEST tani: `explode`, dwa `base64_decode`
+ * i `hash_hmac('sha256', …)` na dowolnie długim `signed_request`, zanim
+ * cokolwiek się nie zgodzi. Bez limitu rozmiaru anonimowe żądanie
+ * z ogromnym `signed_request` płaci tę cenę za każdym razem, a każde kończy
+ * się jeszcze wpisem w logu — czyli też miejscem na dysku.
+ *
+ * `LIMIT_BAJTOW_SIGNED_REQUEST` odcina to PRZED `explode`/`base64_decode`,
+ * tym samym wzorcem co `CspReportController::LIMIT_BAJTOW`: prawdziwy
+ * `signed_request` (podpis + `{algorithm,user_id,issued_at}` w base64) waży
+ * grubo poniżej jednego kilobajta; limit zostawia szeroki zapas i odcina
+ * wszystko, co nim nie jest.
+ *
+ * Trasa ma też własny limit żądań (`facebook_deauthorize` w
+ * `config/kuking.php`, ten sam koszyk-wzorzec co `csp_report`) — po adresie
+ * IP, żeby jeden zapętlony klient (albo atak) nie zajmował procesu ani logu
+ * bez końca. Liczba jest CELOWO hojna: prawdziwe powiadomienia Facebooka są
+ * rzadkie (jedno na osobę, która akurat odebrała dostęp), więc dobrze
+ * dobrany limit nie gubi ŻADNEGO z nich — gubi go dopiero limit ustawiony
+ * ZA NISKO, nie sam fakt, że limit istnieje.
  */
 final class FacebookDeauthorizeController extends Controller
 {
@@ -86,8 +111,33 @@ final class FacebookDeauthorizeController extends Controller
      */
     private const TOLERANCJA_ZEGARA_S = 300;
 
+    /**
+     * Prawdziwy `signed_request` waży grubo poniżej jednego kilobajta —
+     * patrz uzasadnienie w opisie klasy. Cokolwiek dłuższe nie jest
+     * dekodowane w ogóle.
+     */
+    private const LIMIT_BAJTOW_SIGNED_REQUEST = 4096;
+
+    /**
+     * Limit CAŁEGO ciała żądania (issue #1869), szerszy niż
+     * `LIMIT_BAJTOW_SIGNED_REQUEST` — zostawia miejsce na to, że formularz
+     * niesie pole w jeszcze jednej otoczce (np. `signed_request[]=…`), a mimo
+     * to odcina ogromne ciało, zanim Laravel w ogóle rozpakuje je do tablicy
+     * pól.
+     */
+    private const LIMIT_BAJTOW_CIALO = 16384;
+
     public function __invoke(Request $request): Response
     {
+        // PRZED odpytaniem `$request->input()` (issue #1869) — patrz
+        // uzasadnienie w opisie klasy. Ten sam komunikat i kod co przy złym
+        // podpisie: pytający nie dowiaduje się, że odpadł na samym rozmiarze.
+        if (strlen((string) $request->getContent()) > self::LIMIT_BAJTOW_CIALO) {
+            Log::warning('Powiadomienie o odebraniu dostępu z Facebooka odrzucone: podpis się nie zgadza.');
+
+            return response('', 400);
+        }
+
         /*
          * TYP SPRAWDZAMY PRZED RZUTOWANIEM (issue #1344). `signed_request[]=x`
          * daje tablicę, a `(string)` na tablicy to ostrzeżenie „Array to
@@ -151,6 +201,14 @@ final class FacebookDeauthorizeController extends Controller
         $sekret = (string) config('kuking.facebook.sekret_klienta');
 
         if ($sekret === '' || $signedRequest === '') {
+            return null;
+        }
+
+        // PRZED `explode`/`base64_decode`/`hash_hmac` (issue #1869) — patrz
+        // uzasadnienie w opisie klasy. Zbyt długie żądanie kończy się tym
+        // samym `null` co zły podpis: pytający nie dowiaduje się, czy odpadł
+        // na rozmiarze, kształcie czy podpisie.
+        if (strlen($signedRequest) > self::LIMIT_BAJTOW_SIGNED_REQUEST) {
             return null;
         }
 

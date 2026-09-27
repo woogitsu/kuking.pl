@@ -124,6 +124,7 @@ final class InwentarzDanychKonta
         'punishment_status' => [self::EKSPORT, 'konto'],
         'punishment_expires_at' => [self::EKSPORT, 'konto'],
         'delete_requested_at' => [self::EKSPORT, 'konto'],
+        'delete_request_generation' => [self::NIE_DOTYCZY, 'Losowy techniczny identyfikator generacji wniosku o usunięcie; nie opisuje osoby ani treści wniosku.'],
         'delete_scope' => [self::EKSPORT, 'konto'],
         'data_erased_at' => [self::EKSPORT, 'konto'],
         'two_factor_confirmed_at' => [self::EKSPORT, 'konto'],

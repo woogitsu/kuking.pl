@@ -333,6 +333,7 @@ class RecipeController extends Controller
                 publish: $request->input('action') !== 'draft',
                 ip: $request->ip(),
                 existing: $recipe,
+                oczekiwanaRewizja: (int) $request->validated('content_revision'),
             );
         } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['title' => $e->getMessage()]);

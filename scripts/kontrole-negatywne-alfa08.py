@@ -883,6 +883,16 @@ def railway_cli_bez_przypietej_wersji(source):
 
 
 checks = [
+    # D-088: usunięcie odmowy rollbacku nie może przejść niezauważone, nawet
+    # gdy osobny przypadek z wygasłym ukryciem poprawnie cofa migrację.
+    ("Rollback aktywnych ukryć przestaje odmawiać", "database/migrations/2026_09_26_100000_create_hides_table.php", "CofniecieMigracjiUkrycNieOdslaniaTest",
+     lambda s: replace_once(s, 'if ($aktywne > 0) {', 'if (false) {')),
+    ("Composer błędnie deklaruje MIT", "composer.json", "DeklaracjaLicencjiJestSpojnaTest",
+     lambda s: replace_once(s, '"license": "proprietary"', '"license": "MIT"')),
+    ("LICENSE traci zastrzeżenie praw", "LICENSE", "DeklaracjaLicencjiJestSpojnaTest",
+     lambda s: replace_once(s, 'Wszelkie prawa zastrzeżone.', 'Prawa nie są zastrzeżone.')),
+    ("Obraz błędnie deklaruje MIT", "Dockerfile", "DeklaracjaLicencjiJestSpojnaTest",
+     lambda s: replace_once(s, 'org.opencontainers.image.licenses="proprietary"', 'org.opencontainers.image.licenses="MIT"')),
     ("Format UUID", CONTROLLER, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
     # Paginacja panelu moderacji (audyt B1, zn. 1): powrót do `links()`, czyli
@@ -1080,7 +1090,7 @@ checks = [
     ("Jeden worker ze ścisłym priorytetem kolejek", ENTRYPOINT, KOLEJKI_BEZ_GLODZENIA_TEST,
      lambda s: replace_once(s, 'local osobne="high default media low"', 'local osobne="high,default,media,low"')),
     ("Rola all z procesem na kolejkę (OOM w 1024 MB)", ENTRYPOINT, UMOWA_KOLEJKI_TEST,
-     lambda s: replace_once(s, '${QUEUE_NAMES:-high,default,media,low}', '${QUEUE_NAMES:-high default media low}')),
+     lambda s: replace_once(s, 'local wspolnyKontener="high,default media,low"', 'local wspolnyKontener="high default media low"')),
     ("Awaria eksportu bez przekazania wyjątku kolejce", EKSPORT_JOB, EKSPORT_PORAZKA_TEST,
      lambda s: replace_once(s, EKSPORT_RETHROW, EKSPORT_BEZ_RETHROW)),
     # #1750: klucz paczki RODO wraca do formy żeńskiej sprzed poprawki.
@@ -1103,7 +1113,7 @@ checks = [
     ("Migracja pierwszych kroków bez backfillu", MIGRACJA_ONBOARDINGU, MIGRACJA_ONBOARDINGU_TEST,
      lambda s: replace_once(s, "        DB::table('users')->update(['onboarding_zakonczony_at' => DB::raw('created_at')]);\n", "")),
     ("Koniec pierwszych kroków zapisywany w GET", ONBOARDING_KONTROLER, ONBOARDING_WZNOWIENIE_TEST,
-     lambda s: replace_once(s, "        $request->session()->forget('onboarding.selection');\n\n        return view(", "        $request->session()->forget('onboarding.selection');\n        $this->oznaczZakonczony($request);\n\n        return view(")),
+     lambda s: replace_once(s, "        $request->session()->forget('onboarding.selection');\n\n        if ($cel = $zamiar->celPoOnboardingu($request)) {", "        $request->session()->forget('onboarding.selection');\n        $this->oznaczZakonczony($request);\n\n        if ($cel = $zamiar->celPoOnboardingu($request)) {")),
     ("Turnstile bez porównania hosta", KLIENT_TURNSTILE, TURNSTILE_HOST_TEST,
      lambda s: replace_once(s, "! in_array(strtolower($host), $dozwolone, true) => 'host_spoza_listy',\n", "")),
     ("Turnstile bez porównania akcji", KLIENT_TURNSTILE, TURNSTILE_AKCJA_TEST,
