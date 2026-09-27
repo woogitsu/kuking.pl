@@ -69,12 +69,17 @@ final class DostawcaWejsciaFacebook implements DostawcaWejscia
     /**
      * ADRESU E-MAIL NIE MA W TYCH WARUNKACH I TO JEST CAŁA RÓŻNICA WOBEC
      * GOOGLE. Tam adres od dostawcy musi się zgadzać z adresem konta, bo to on
-     * jest dowodem. Tutaj dowodem jest to, że człowiek JEST ZALOGOWANY na to
-     * konto (`linkForm`/`link` wymagają `Auth::user()`) — a adres z Facebooka
-     * nie dowodzi niczego i porównywanie go dawałoby złudzenie warunku. Konto
+     * jest dowodem. Tutaj adres z Facebooka nie dowodzi niczego. Zalogowana
+     * sesja wybiera konto, lecz zapis wymaga też świeżego hasła albo linku
+     * na obecny potwierdzony adres Kuking (issue #2085). Konto
      * może więc mieć zupełnie inny adres niż Facebook: ludzie mają kilka adresów.
      */
     public function dowodPolaczenia(User $user, TozsamoscOdDostawcy $tozsamosc): bool
+    {
+        return true;
+    }
+
+    public function wymagaSwiezegoPotwierdzenia(): bool
     {
         return true;
     }

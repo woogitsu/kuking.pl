@@ -52,7 +52,7 @@
                      niż zaznaczył. Brak wyjaśnienia zamienia świadomą decyzję
                      projektową w usterkę. --}}
                 <span class="choice-help">
-                    Wszystkie zdjęcia w siatce, na jednym ekranie. Nic nie jest przycinane.
+                    Zdjęcia obok siebie, całe i bez pustych kafelków. Ostatnie może zająć cały wiersz.
                     Na wąskim telefonie zdjęcia pokazują się jedno pod drugim — w siatce
                     byłyby za małe, żeby cokolwiek na nich zobaczyć.
                 </span>

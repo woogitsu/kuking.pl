@@ -584,6 +584,12 @@ Route::get('/wejdz/facebook/polacz', [FacebookLoginController::class, 'linkForm'
 Route::post('/wejdz/facebook/polacz', [FacebookLoginController::class, 'link'])
     ->middleware("throttle:{$limits['facebook_domkniecie']},facebook_domkniecie")
     ->name('facebook.link.store');
+Route::post('/wejdz/facebook/polacz/link', [FacebookLoginController::class, 'requestLinkProof'])
+    ->middleware("throttle:{$limits['confirm_password']},confirm_password")
+    ->name('facebook.link.email');
+Route::get('/wejdz/facebook/polacz/link/{token}', [FacebookLoginController::class, 'confirmLinkProof'])
+    ->middleware("throttle:{$limits['facebook_domkniecie']},facebook_domkniecie")
+    ->name('facebook.link.confirm');
 
 // --------------------------------------------------------------------------
 // Odwołanie od decyzji moderacyjnej — droga dla osób ZABLOKOWANYCH (#10)
