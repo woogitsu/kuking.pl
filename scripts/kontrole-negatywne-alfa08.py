@@ -203,6 +203,7 @@ WDROZENIE_WORKFLOW = ".github/workflows/deploy.yml"
 # leży w repozytorium bez jednego przebiegu.
 CI_WORKFLOW = ".github/workflows/ci.yml"
 AUTOZAPIS_892_TEST = "test_autozapis_kreatora_892_chodzi_w_ci"
+DEPLOY_WSTRZYKNIECIE_TEST = "DeployNieWklejaDanychZdarzeniaDoPowlokiTest"
 WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
 # Preview i IaC nie zgadują stanu (#1389, #1390). Strażnik czyta workflow
 # i railway.ts; mutacje przywracają: test dymny bez czekania na `success`,
@@ -1308,6 +1309,11 @@ checks = [
      lambda s: replace_once(s, "        if (Schema::hasTable('ustawienia_powiadomien_zewnetrznych')\n", "        if (false && Schema::hasTable('ustawienia_powiadomien_zewnetrznych')\n")),
     ("Runbook: railway config apply bez KUKING_WAIT_FOR_CI", RUNBOOK, KOMENDY_IAC_TEST,
      lambda s: replace_once(s, RUNBOOK_APPLY_Z_BRAMKA, "\nrailway config apply\n")),
+    # #1851: krok „Ustal adres środowiska" wraca do wklejania danych zdarzenia
+    # w treść skryptu — strażnik ma to złapać, zanim nazwa środowiska stanie
+    # się poleceniem na runnerze.
+    ("Deploy: dane zdarzenia wklejone do Basha", WDROZENIE_WORKFLOW, DEPLOY_WSTRZYKNIECIE_TEST,
+     lambda s: replace_once(s, 'env_name="${ZDARZENIE_SRODOWISKO:-}"', "env_name='${{ github.event.deployment.environment }}'")),
     ("Strażnik migracji ślepy na FK dodany przez Blueprint", STRAZNIK_MIGRACJI, STRAZNIK_MIGRACJI_TEST,
      lambda s: replace_once(s, "if (preg_match('/->\\s*(constrained|foreign)\\s*\\(/', $body)) {",
                             "if (false && preg_match('/->\\s*(constrained|foreign)\\s*\\(/', $body)) {")),
@@ -1405,6 +1411,7 @@ run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
 run_test(DIGEST_DOBOR_TEST, True)
 run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
+run_test(DEPLOY_WSTRZYKNIECIE_TEST, True)
 run_test(NOWOSCI_OD_NUMERU_TEST, True)
 run_test(MIGRACJA_NO_AMOUNT_TEST, True)
 run_test(MIGRACJA_PUSH_TEST, True)
