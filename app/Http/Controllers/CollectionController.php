@@ -514,7 +514,11 @@ class CollectionController extends Controller
         // ma chronić. Dlatego najpierw sprawdzamy, czy to nie jest powrót po
         // wyjęciu, które sami przed chwilą zrobiliśmy.
         if ($collection === null && $request->input('note') === null) {
-            $powrot = $this->przywrocPoWyjeciu($request, 'przepis', (string) $model->getKey());
+            try {
+                $powrot = $this->przywrocPoWyjeciu($request, 'przepis', (string) $model->getKey());
+            } catch (BladDlaCzlowieka $e) {
+                return back()->withErrors(['collection_id' => $e->getMessage()]);
+            }
 
             if ($powrot !== null) {
                 return back()->with('status', $powrot);
@@ -627,7 +631,11 @@ class CollectionController extends Controller
 
         // Powrót po wyjęciu — uzasadnienie przy `saveRecipe()`.
         if ($collection === null && $request->input('note') === null) {
-            $powrot = $this->przywrocPoWyjeciu($request, 'wpis', (string) $post->getKey());
+            try {
+                $powrot = $this->przywrocPoWyjeciu($request, 'wpis', (string) $post->getKey());
+            } catch (BladDlaCzlowieka $e) {
+                return back()->withErrors(['collection_id' => $e->getMessage()]);
+            }
 
             if ($powrot !== null) {
                 return back()->with('status', $powrot);

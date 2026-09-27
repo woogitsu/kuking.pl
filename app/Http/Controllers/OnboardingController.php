@@ -168,6 +168,10 @@ class OnboardingController extends Controller
 
             return $oczekiwanyId === null || (string) $profile->user_id === $oczekiwanyId;
         });
+        // whereIn nie gwarantuje kolejności. Zachowaj kolejność wyboru także
+        // po kolejnych wyszukiwaniach, gdy identyfikatory w bazie są przemieszane.
+        $pozycjeWyboru = array_flip($selected);
+        $selectedProfiles = $selectedProfiles->sortBy(fn (Profile $profile) => $pozycjeWyboru[$profile->username] ?? PHP_INT_MAX)->values();
         $selected = $selectedProfiles->pluck('username')->all();
 
         return view('pages.onboarding.people', [

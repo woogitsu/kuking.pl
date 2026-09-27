@@ -11,6 +11,7 @@ use App\Domain\Media\ZachowaneZdjecia;
 use App\Domain\Posts\Actions\EditPost;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Posts\KonfliktEdycjiWpisu;
+use App\Domain\Posts\KontoNieMozePublikowac;
 use App\Domain\Posts\SasiedniWpisAutora;
 use App\Domain\Tags\TagSuggester;
 use App\Exceptions\BladDlaCzlowieka;
@@ -254,13 +255,11 @@ class PostController extends Controller
             );
         } catch (BladDlaCzlowieka $e) {
             // Formularz zachowuje wpisany tekst — poprawne dane nigdy nie giną
-            // (docs/UX_50_PLUS.md). Dwa różne powody mogą tu wylądować
-            // (wpis całkiem pusty ALBO za dużo tagów po rozwiązaniu nazw
-            // na aliasy) — komunikat trafia pod pole, którego naprawdę
-            // dotyczy, żeby „Poprawne dane nigdy nie znikają" nie zgubiło
-            // się w złym miejscu ekranu.
-            $pole = $e->getMessage() === LimityTagow::komunikatZaDuzoTagow()
-                || ($question && str_contains($e->getMessage(), '3 tagi')) ? 'tagi' : 'photos';
+            // (docs/UX_50_PLUS.md). Odmowa po zmianie stanu konta dotyczy
+            // całego wpisu; błędy zdjęć i tagów trafiają pod swoje pola.
+            $pole = $e instanceof KontoNieMozePublikowac ? 'body'
+                : (($e->getMessage() === LimityTagow::komunikatZaDuzoTagow()
+                    || ($question && str_contains($e->getMessage(), '3 tagi'))) ? 'tagi' : 'photos');
 
             return back()
                 ->withInput($this->wejscieBezPlikowITagow($request, $mediaIds, $tagNames))
