@@ -332,6 +332,16 @@ WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 # że obietnica stoi na kodzie, a nie na zmiennej środowiskowej.
 POLITYKA_R2_TEST = "test_polityka_nie_obiecuje_jurysdykcji_r2_bez_pokrycia_w_endpoincie"
 
+# Dokumenty prywatności o awatarach zgodne z kodem (#1461, D-240). Mutacja 1
+# dopisuje w kontrolerze prawdziwe zlecenie zadania — dokumenty mówią wtedy
+# nieprawdę („nie zleca”) i test ma zapalić, bo źródłem prawdy jest kod.
+# Mutacja 2 przywraca w DATABASE.md dawne zdanie o aktywnej ocenie awatara.
+KONTROLER_AWATARA = "app/Http/Controllers/Settings/AvatarSettingsController.php"
+DOKUMENTACJA_AWATARA_TEST = "DokumentacjaAwataraZgodnaZKodemTest"
+AWATAR_KOMENTARZ = "        // Awatar dalej podlega zgłoszeniom od ludzi, jak każda treść.\n"
+DATABASE_DOC = "docs/DATABASE.md"
+AWATAR_DATABASE = "Wprowadził ją automat oceny\nzdjęć profilowych (issue #237), a oznaczenie wskazywało `media.id`."
+
 # Awans roli z powłoki gasi sesje sprzed awansu (#1315). Test chodzi po HTTP
 # w osobnych procesach; bez tej linijki stara sesja wchodzi do panelu.
 ZMIANA_ROLI = "app/Domain/Users/Actions/ChangeUserRole.php"
@@ -1119,6 +1129,12 @@ checks = [
      lambda s: replace_once(s, KREATOR_ZAPIS, "$juzOpublikowany ? 'opublikowany' : 'szkic'")),
     ("Polityka obiecuje UE przy strażniku bez eu", STRAZNIK_R2, POLITYKA_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
+    ("Kontroler znów zleca analizę awatara", KONTROLER_AWATARA, DOKUMENTACJA_AWATARA_TEST,
+     lambda s: replace_once(s, AWATAR_KOMENTARZ, AWATAR_KOMENTARZ
+                            + "        \\App\\Jobs\\PrzeanalizujAwatar::dispatch((string) $zdjecie->getKey());\n")),
+    ("DATABASE.md znów mówi, że model ocenia awatar", DATABASE_DOC, DOKUMENTACJA_AWATARA_TEST,
+     lambda s: replace_once(s, AWATAR_DATABASE, "Dziś trafia tu wyłącznie\nzdjęcie profilowe: model ocenia je po "
+                            "przetworzeniu (`PrzeanalizujAwatar`),\na oznaczenie wskazuje `media.id`.")),
     ("Wyjęcie przepisu ze wszystkich zeszytów bez transakcji", WYJECIE_PRZEPISU, WYJECIE_ATOMOWE_TEST,
      lambda s: replace_once(s, "return DB::transaction(fn (): array => $this->zdejmij($user, $recipe, $collection));",
                             "return $this->zdejmij($user, $recipe, $collection);")),
@@ -1343,6 +1359,7 @@ run_test(AUTOZAPIS_892_TEST, True)
 run_test(LIVEWIRE_TOKEN_TEST, True)
 run_test(KREATOR_ZAPIS_TEST, True)
 run_test(POLITYKA_R2_TEST, True)
+run_test(DOKUMENTACJA_AWATARA_TEST, True)
 run_test(WYJECIE_ATOMOWE_TEST, True)
 run_test(ODWOLANIE_AUTORA_TEST, True)
 run_test(ODWOLANIE_ZGLASZAJACEGO_TEST, True)
