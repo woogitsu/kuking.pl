@@ -40,8 +40,7 @@ class PowiadomienieZobaczNiepoprawnyIdTest extends TestCase
     {
         return array_values(array_map(
             static fn (array $query): string => $query['query'],
-            array_filter(DB::getQueryLog(), static fn (array $query): bool =>
-                preg_match('/\\bnotifications\\b.*\\bid\\b/i', $query['query']) === 1),
+            array_filter(DB::getQueryLog(), static fn (array $query): bool => preg_match('/\\bnotifications\\b.*\\bid\\b/i', $query['query']) === 1),
         ));
     }
 }
