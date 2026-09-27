@@ -16079,6 +16079,10 @@ a ekrany z #1168 zostają, bo bez nich nie ma jak wskazać zeszytu.
    i z pierwotnym `created_at`, więc zeszyt nie przestawia się na górę listy.
    Nie nadpisuje świeższego wiersza (ktoś zdążył zapisać ponownie), nie sięga
    zeszytu, który zniknął albo nigdy nie był tej osoby.
+   Uściślenie #2094: cały powrót odbywa się w jednej transakcji po ponownym
+   odczycie uprawnień do konta, treści i zeszytu pod blokadami. Dotyczy to
+   tak samo przepisu i wpisu; nie zmienia notatki, daty ani reguły
+   powiadomienia autora o pierwszym zapisaniu przepisu.
 3. **Droga powrotu czeka w sesji, nie we flashu.** Flash żyje jedno żądanie,
    a droga powrotu ma trzy (DELETE, GET z przyciskiem, POST po kliknięciu).
    `saveRecipe()` i `savePost()` sprawdzają najpierw, czy to nie jest powrót
