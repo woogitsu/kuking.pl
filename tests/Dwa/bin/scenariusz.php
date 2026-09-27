@@ -372,6 +372,18 @@ try {
             return true;
         })(),
 
+        // Zapis całego widocznego okna tagów (#2091): ten sam formularz,
+        // który może dodać relację po zmianie statusu konta w innym żądaniu.
+        'zapisz-obserwowane-tagi' => (function () use ($argumenty): bool {
+            app(UpdateTagFollows::class)->save(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                [$argumenty['tag']],
+                ['shown' => [$argumenty['tag']], 'followed' => []],
+            );
+
+            return true;
+        })(),
+
         'scal-tagi' => (string) app(MergeTags::class)->handle(
             Tag::query()->whereKey($argumenty['zrodlo'])->firstOrFail(),
             Tag::query()->whereKey($argumenty['cel'])->firstOrFail(),
