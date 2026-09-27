@@ -943,7 +943,9 @@ class LogowanieKontemGoogleTest extends TestCase
             // o stanie powiązania („dostawca powiadomił nas, że ta osoba cofnęła
             // zgodę"), a nie dana O CZŁOWIEKU wzięta od dostawcy. Pola na token
             // nadal nie ma i nie wolno go dołożyć bez decyzji.
-            ['connected_at', 'dostawca', 'dostep_odebrany_at', 'id', 'identyfikator', 'user_id'],
+            // `zgoda_potwierdzona_at` (issue #1025) — też nasz znacznik: kiedy
+            // człowiek ostatni raz wszedł przez dostawcę.
+            ['connected_at', 'dostawca', 'dostep_odebrany_at', 'id', 'identyfikator', 'user_id', 'zgoda_potwierdzona_at'],
             collect(Schema::getColumnListing('tozsamosci_zewnetrzne'))->sort()->values()->all(),
             'Zmiana zakresu danych o człowieku wymaga decyzji, nie refaktoru (AGENTS.md §6).',
         );

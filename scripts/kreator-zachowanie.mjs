@@ -1,4 +1,10 @@
-/* Regresje #892/#901 oraz pomiar decyzji #899, wyłącznie na bazie stanowiska. */
+/* Regresje #892/#901 oraz pomiar decyzji #899, wyłącznie na bazie pomiarowej.
+
+   Tryby `autosave` i `published` chodzą w CI (job `port_funkcje`, baza
+   `kuking_port_pomiar`) — to jedyny test regresji #892: plakietka nie może
+   obiecywać „Szkic zapisany.” dla tekstu, którego serwer jeszcze nie dostał.
+   Czekamy na STAN strony (waitForFunction), nie na zegar: debounce 3000 ms
+   i czas odpowiedzi runnera nie decydują o wyniku. */
 import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
 import { chromium } from 'playwright';
@@ -6,12 +12,15 @@ import { mkdirSync } from 'node:fs';
 import { createServer } from 'node:net';
 
 const env = { ...process.env };
-assert.equal(env.DB_HOST, '127.0.0.1');
-assert.equal(env.DB_PORT, '55439');
-assert.equal(env.DB_DATABASE, 'kuking_flota_gpt-kreator-przepisu');
+// Skrypt tworzy konto i szkice, więc tylko na bazie pomiarowej — ta sama
+// osłona co w `scripts/kroki-kreatora.mjs` (plus historyczna baza floty).
+const bazaPomiarowa = baza => /^[a-zA-Z0-9_-]+$/.test(baza || '')
+    && (baza.endsWith('_pomiar') || baza.startsWith('kuking_qa_') || baza === 'kuking_flota_gpt-kreator-przepisu');
+assert(bazaPomiarowa(env.DB_DATABASE), 'Kreator wymaga osobnej bazy pomiarowej (…_pomiar albo kuking_qa_…)');
+assert(['127.0.0.1', 'localhost'].includes(env.DB_HOST || '127.0.0.1'), 'Pomiar tylko na lokalnej bazie');
 const mode = process.argv[2] || 'autosave';
 const fixture = JSON.parse(execFileSync('php', ['artisan', 'tinker', '--execute', `
-    if (config('database.connections.pgsql.port') != 55439 || config('database.connections.pgsql.database') !== 'kuking_flota_gpt-kreator-przepisu') { throw new RuntimeException('Obca baza'); }
+    if (config('database.connections.'.config('database.default').'.database') !== '${env.DB_DATABASE}') { throw new RuntimeException('Obca baza'); }
     $u = App\\Models\\User::factory()->create(['password' => Illuminate\\Support\\Facades\\Hash::make('Test-kreatora-123!')]);
     $u->profile()->update(['username' => 'kreator'.Illuminate\\Support\\Str::lower(Illuminate\\Support\\Str::random(8)), 'display_name' => 'Pomiar kreatora']);
     $r = App\\Models\\Recipe::factory()${mode === 'published' ? '' : '->draft()'}->create(['author_id' => $u->id, 'title' => 'Najstarszy szkic', 'updated_at' => now()->subDays(2)]);
@@ -27,10 +36,12 @@ const base = `http://127.0.0.1:${port}`;
 const server = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`, '--no-reload'], { env, stdio: 'ignore' });
 let browser;
 try {
-    for (let i = 0; i < 60; i++) {
-        try { if ((await fetch(base + '/health')).ok) break; } catch {}
+    let gotowy = false;
+    for (let i = 0; i < 120; i++) {
+        try { if ((await fetch(base + '/health')).ok) { gotowy = true; break; } } catch {}
         await new Promise(r => setTimeout(r, 250));
     }
+    assert(gotowy, 'Serwer pomiarowy nie wystartował');
     browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH });
     const page = await browser.newPage({ viewport: { width: 390, height: 900 }, serviceWorkers: 'block' });
     const pageErrors = [];
@@ -94,29 +105,52 @@ try {
                 throw error;
             }
         };
+        const POTWIERDZENIE = /Szkic zapisany\.|Zmiany zapisane\./;
+        const brakPotwierdzenia = async (kod) => assert(!POTWIERDZENIE.test((await badge.allTextContents()).join(' ')), kod);
+        // Widoczna plakietka o danym stanie (`data-state`) — sygnał z DOM, nie z zegara.
+        const czekajNaPlakietke = (stan) => page.waitForFunction(s => [...document.querySelectorAll('.autosave-badge')]
+            .some(e => e.dataset.state === s && e.checkVisibility()), stan, { timeout: 15000 });
+        const potwierdzonaWersja = () => page.evaluate(() => {
+            const root = document.querySelector('[wire\\:id]');
+            return window.Livewire.find(root.getAttribute('wire:id')).acknowledgedRevision;
+        });
         await page.fill('#f-title', 'Pierwszy zapis');
         await waitSaved();
-        await page.fill('#f-title', 'Drugi zapis');
-        await page.waitForTimeout(100);
-        console.log('PRZED WYSŁANIEM:', await badge.allTextContents());
-        assert(!/Szkic zapisany\.|Zmiany zapisane\./.test((await badge.allTextContents()).join(' ')), 'STARE_POTWIERDZENIE');
+
+        // 1. Zmiana jest tylko w przeglądarce (debounce jeszcze trwa).
         let release;
-        let intercepted = false;
+        let oznaczPrzechwycenie;
+        const przechwycone = new Promise(r => { oznaczPrzechwycenie = r; });
         const hold = new Promise(r => { release = r; });
         await page.route(/\/livewire.*\/update/, async route => {
-            intercepted = true;
+            oznaczPrzechwycenie();
             const response = await route.fetch();
             assert.equal(response.status(), 200, 'Odpowiedź opóźnianego żądania');
             await hold;
             await route.fulfill({ response });
         });
-        await page.waitForTimeout(3400);
-        assert(intercepted, 'Nie opóźniono żadnego żądania');
-        assert(!/Szkic zapisany\.|Zmiany zapisane\./.test((await badge.allTextContents()).join(' ')), 'POTWIERDZENIE_W_TRAKCIE');
+        await page.fill('#f-title', 'Drugi zapis');
+        await czekajNaPlakietke('waiting');
+        console.log('PRZED WYSŁANIEM:', await badge.allTextContents());
+        await brakPotwierdzenia('STARE_POTWIERDZENIE');
+
+        // 2. Żądanie w toku (odpowiedź wstrzymana).
+        await przechwycone;
+        await czekajNaPlakietke('saving');
+        await brakPotwierdzenia('POTWIERDZENIE_W_TRAKCIE');
+        const przedOdpowiedzia = await potwierdzonaWersja();
+
+        // 3. Starsza odpowiedź przychodzi, gdy w polu jest już nowszy tekst.
         await page.fill('#f-title', 'Trzeci zapis podczas odpowiedzi');
         release();
-        await page.waitForTimeout(200);
-        assert(!/Szkic zapisany\.|Zmiany zapisane\./.test((await badge.allTextContents()).join(' ')), 'STARSZA_ODPOWIEDZ');
+        await page.waitForFunction(przed => {
+            const root = document.querySelector('[wire\\:id]');
+            return window.Livewire.find(root.getAttribute('wire:id')).acknowledgedRevision > przed;
+        }, przedOdpowiedzia, { timeout: 15000 });
+        await czekajNaPlakietke('waiting');
+        await brakPotwierdzenia('STARSZA_ODPOWIEDZ');
+
+        // 4. Sukces dopiero dla najnowszej wersji.
         await page.unrouteAll({ behavior: 'wait' });
         await waitSaved();
         await page.reload();
@@ -128,13 +162,16 @@ try {
         await page.getByRole('button', { name: /Dalej/ }).click();
         await page.getByRole('button', { name: /Dalej/ }).click();
         await page.fill('#f-steps-0-instruction', 'Nowy tekst przygotowania.');
-        await page.waitForTimeout(100);
-        assert(!/Szkic zapisany\.|Zmiany zapisane\./.test((await badge.allTextContents()).join(' ')), 'STARE_POTWIERDZENIE_KROKU');
+        await czekajNaPlakietke('waiting');
+        await brakPotwierdzenia('STARE_POTWIERDZENIE_KROKU');
         await waitSaved();
+
+        // 5. Błąd walidacji: żadnego fałszywego sukcesu.
         await page.getByRole('button', { name: /Wstecz/ }).click();
         await page.getByRole('button', { name: /Wstecz/ }).click();
         await page.fill('#f-servings', '0');
         await page.waitForFunction(() => [...document.querySelectorAll('.autosave-badge')].some(e => e.checkVisibility() && e.textContent.includes('Nie zapisaliśmy')));
+        await brakPotwierdzenia('POTWIERDZENIE_PO_BLEDZIE');
         mkdirSync('output/playwright', { recursive: true });
         await page.screenshot({ path: 'output/playwright/kreator-walidacja.png', fullPage: true });
         console.log('AUTOZAPIS: oczekiwanie, żądanie, starsza odpowiedź, sukces i błąd — OK');

@@ -251,7 +251,15 @@
 <html lang="pl" @if($scale !== 100) data-text-scale="{{ $scale }}" @endif @if($theme === 'dark') data-theme="dark" @endif>
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {{-- `interactive-widget=resizes-content` (issue #947): klawiatura ekranowa
+         zmniejsza LAYOUT viewport, nie tylko visual viewport. Bez tego Chrome
+         od wersji 108 zostawia układ w pełnej wysokości, progi wysokości
+         z `marka-rama.css` (40rem przy wąskim oknie, 25rem przy każdej
+         szerokości) nie zapalają się przy otwartej klawiaturze i obie
+         przypięte belki zabierają resztę widoku nad polem. Zmierzone
+         w `scripts/przegladarka/klawiatura-belki.test.mjs`. Safari tego klucza
+         nie zna i go pomija — zachowanie tam bez zmian. Zoomu NIE blokujemy. --}}
+    <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
     <meta name="kuking-service-worker" content="/sw.js?v={{ rawurlencode(config('kuking.wersja.commit') ?: \App\Support\Wersja::etykieta()) }}">
     <title>{{ $pageTitle }}</title>
 
@@ -367,7 +375,8 @@
      od 80rem belka i stopka biorą wtedy szerszy sufit, bo tyle ma treść
      z szyną obok. Poniżej 80rem szyna leci pod treścią i szerokość jest ta
      sama co bez niej — dlatego druga klasa nic tam nie robi. --}}
-<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($szerokaRama ? ' uklad-solo-z-szyna' : '') }} @endguest" data-marka="kuking-2026">
+<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($szerokaRama ? ' uklad-solo-z-szyna' : '') }} @endguest" data-marka="kuking-2026"
+      @auth @if(config('kuking.push.vapid_public_key')) data-push-uzgodnij="{{ route('settings.notifications.reconcile-device') }}" data-push-csrf="{{ csrf_token() }}" @endif @endauth>
     <a class="skip-link" href="#tresc">Przejdź do treści</a>
 
     {{--
@@ -427,11 +436,18 @@
                     belka ma tam pomieścić logotyp i powiadomienia, a „Szukaj"
                     stoi w pasku dolnym, w zasięgu kciuka.
                 --}}
+                @php
+                    // `q` może być tablicą (`?q[]=...`, issue #738) — `e()` na tablicy
+                    // to TypeError i 500 na każdej stronie z belką. Ten sam kontrakt
+                    // co w SearchController: nie-tekstowe `q` = brak frazy.
+                    $belkaQ = request()->routeIs('search') ? request()->query('q', '') : '';
+                    $belkaQ = is_string($belkaQ) ? $belkaQ : '';
+                @endphp
                 <form class="topbar-szukaj" method="GET" action="{{ route('search') }}" role="search">
                     <label class="visually-hidden" for="topbar-q">Szukaj przepisów, osób i składników</label>
                     <x-ikona nazwa="search" :rozmiar="22" class="topbar-szukaj-ikona" />
                     <input class="topbar-szukaj-pole" id="topbar-q" type="search" name="q"
-                           value="{{ request()->routeIs('search') ? request('q') : '' }}"
+                           value="{{ $belkaQ }}"
                            placeholder="Szukaj przepisów, osób i składników…">
                 </form>
             @endauth
@@ -932,6 +948,11 @@
                 używa), a nie rozpychanie całej strony.
             --}}
             <main class="app-main" id="tresc">
+                @auth @if(config('kuking.push.vapid_public_key'))
+                    <p class="flash" role="status" data-push-uzgodnij-komunikat hidden>
+                        Powiadomienia poprzedniej osoby zostały wyłączone w tej przeglądarce. Twoje powiadomienia możesz włączyć w ustawieniach.
+                    </p>
+                @endif @endauth
                 {{-- Komunikaty zwrotne. aria-live, żeby czytnik ekranu je ogłosił.
 
                      `komunikaty` jest tu po to, żeby układ pasów (strona
@@ -940,6 +961,30 @@
                 <div class="komunikaty" aria-live="polite">
                     @if(session('status'))
                         <p class="flash">{{ session('status') }}</p>
+                    @endif
+                    {{--
+                        JAWNY KROK PO PIERWSZEJ PUBLIKACJI (issue #1881).
+
+                        `docs/product/COLD_START.md` i `docs/product/SOUL.md`
+                        obiecują po pierwszym „Opublikuj" nie tylko datę
+                        w komunikacie, ale JAWNY przycisk „Zobacz swój wpis" —
+                        nie samo poleganie na tym, że przekierowanie i tak
+                        czasem ląduje na wpisie. Przy dwóch i więcej zdjęciach
+                        ląduje ono na ekranie układu, więc bez tego przycisku
+                        obietnicy z dokumentu nigdzie nie było widać.
+
+                        Odnośnik, nie formularz: to jest samo OGLĄDANIE, a nie
+                        zmiana stanu — w przeciwieństwie do `status_powrot`
+                        niżej, które cofa akcję i dlatego idzie przez `POST`.
+                        Stoi w tym samym obszarze `aria-live`, więc czytnik
+                        ekranu ogłasza najpierw co się stało, a zaraz potem,
+                        co można z tym zrobić.
+                    --}}
+                    @php $statusAkcja = session('status_akcja'); @endphp
+                    @if(is_array($statusAkcja) && isset($statusAkcja['url'], $statusAkcja['etykieta']))
+                        <p class="flash-akcja">
+                            <a class="btn btn-primary" href="{{ $statusAkcja['url'] }}">{{ $statusAkcja['etykieta'] }}</a>
+                        </p>
                     @endif
                     {{--
                         DROGA POWROTU PRZY AKCJI ODWRACALNEJ (issue L1 z audytu
@@ -987,6 +1032,16 @@
                 @if($collectionError)
                     <p id="blad-wyboru-zeszytu" class="notice" role="alert">{{ $collectionError }}</p>
                 @endif
+                {{-- To samo dla akcji z menu karty, które wracają na strumień
+                     (przegląd #1781): „Ukryj ten wpis" / „Ukryj tę osobę"
+                     odmawiają z worka `ukrycie`, a na Starcie czy w Odkrywaniu
+                     nie ma formularza z podsumowaniem błędów. --}}
+                @foreach(['ukrycie'] as $kluczBleduAkcji)
+                    @php $bladAkcji = session('errors')?->first($kluczBleduAkcji); @endphp
+                    @if($bladAkcji)
+                        <p class="notice" role="alert" data-blad-akcji="{{ $kluczBleduAkcji }}">{{ $bladAkcji }}</p>
+                    @endif
+                @endforeach
 
                 {{--
                     Stan zawieszenia widoczny na KAŻDYM ekranie (issue #40).

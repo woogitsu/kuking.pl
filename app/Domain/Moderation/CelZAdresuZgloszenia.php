@@ -18,6 +18,8 @@ use App\Models\Recipe;
  * NIEUDANA PRÓBA NIE JEST BŁĘDEM. Ktoś wkleja link z pamięci albo ze zrzutu
  * ekranu, treść mogła już zniknąć, adres może być z innego serwisu.
  * Zgłoszenie i tak musi zostać przyjęte — moderator zobaczy wtedy sam adres.
+ * Rozpoznajemy wyłącznie bezwzględny adres http(s) Kuking (`AdresZgloszenia`,
+ * #1636) — adres z obcego hosta albo względny zostaje samym dowodem.
  *
  * CO ROZPOZNAJEMY
  *  - `/przepisy/{slug}` (i dawne `/przepis/…`) → przepis,
@@ -40,16 +42,22 @@ final class CelZAdresuZgloszenia
     {
         $adres = trim($adres);
 
+        // SAMA ŚCIEŻKA NIE WYSTARCZA (issue #1636). Do celu wolno przypiąć
+        // tylko adres, który naprawdę wskazuje Kuking — `obcy.example/przepis/<slug>`
+        // przypinał się do naszego przepisu o tym samym slugu. Reguła hosta,
+        // schematu i portu żyje w `AdresZgloszenia`, bo panel moderatora pyta
+        // o to samo. Dotyczy też fragmentu `#komentarz-…`: obcy adres z naszym
+        // identyfikatorem komentarza nie wskazuje naszego komentarza.
+        $sciezka = AdresZgloszenia::sciezkaWewnetrzna($adres);
+
+        if (! is_string($sciezka)) {
+            return [null, null];
+        }
+
         $komentarz = self::komentarzZFragmentu($adres);
 
         if ($komentarz !== null) {
             return ['comment', $komentarz];
-        }
-
-        $sciezka = parse_url($adres, PHP_URL_PATH);
-
-        if (! is_string($sciezka)) {
-            return [null, null];
         }
 
         $segmenty = array_values(array_filter(
