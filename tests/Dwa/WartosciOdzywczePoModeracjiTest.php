@@ -49,7 +49,7 @@ final class WartosciOdzywczePoModeracjiTest extends TestDwochPolaczen
             'source_type' => Recipe::SOURCE_OWN,
             'status' => Recipe::STATUS_PUBLISHED,
             'published_at' => now(),
-        ]);
+        ])->fresh();
         $this->recipes[] = (string) $recipe->getKey();
         $this->assertTrue((bool) $recipe->pokazuj_wartosci_odzywcze);
 
