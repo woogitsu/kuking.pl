@@ -309,6 +309,16 @@ z publikacją odpowiedzi; sam model konta z początku żądania nie rozstrzyga
 uprawnienia do zapisu (#2090).
 Graf, koszt i granice pomiarów: [protokół komentarzy](research/2026-09-21-komentarz-biezacy-stan.md).
 
+## Obserwowanie po zmianie stanu konta
+
+`FollowUser` pod `ZamekPary` ponownie sprawdza oba świeże konta przed
+utworzeniem relacji i powiadomienia. `UpdateTagFollows` zachowuje kolejność
+`TagMutationLock` → konto → tagi; po blokadzie konta używa świeżego modelu
+i odmawia dodania tagu przez przycisk lub zbiorczy formularz, jeśli konto
+straciło aktywność. Cofnięcie istniejącego obserwowania pozostaje możliwe,
+także przez formularz zawierający wyłącznie usunięcia. Test dwóch połączeń
+rozstrzyga oba przeploty z sankcją konta (#2091).
+
 ## Wybór redakcyjny: jeden pełny zestaw i audyt w tej samej transakcji
 
 Tablica dnia i kolaż strony powitalnej zastępują cały wybór przez `DELETE`

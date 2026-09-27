@@ -3,6 +3,10 @@
 ## Nieopublikowane
 
 - Wewnętrzne: ręczne migracje i migracje przed wdrożeniem Railway korzystają z tej samej blokady PostgreSQL. Gdy jeden przebieg już migruje bazę, drugi kończy się błędem zamiast działać równolegle albo zgłosić pozorny sukces (#2082).
+- Obserwowanie osoby albo tagu rozpoczęte przed sankcją nie dopisze relacji po zawieszeniu, zablokowaniu lub zamknięciu konta. Można nadal przestać obserwować istniejące tagi (#2091).
+- W wyszukiwarce każda lista znalezionych przepisów lub osób ma własny widoczny nagłówek także po wybraniu zakresu „Przepisy”, „Do 30 minut” albo „Ludzie”. Ułatwia to znalezienie wyników przez nawigację po nagłówkach (#2081).
+- Naprawione: zdjęcia w zwykłej siatce wpisu bez opisu autora dostają odróżnialne teksty alternatywne, np. „Zdjęcie 1 z 3 w tym wpisie”. Ten sam opis jest dostępny przy powiększaniu zdjęcia; własny opis autora pozostaje bez zmian (#2065).
+- Naprawione: miniatura w wierszowej karcie przepisu ma teraz nazwany link „Zobacz przepis: …”, nawet gdy zdjęcie nie ma opisu. Osobny link tytułu i widok kafelkowy zachowują dotychczasowe działanie (#2063).
 - Naprawione: „Przywróć do zeszytu” sprawdza aktualny stan konta, treści i zeszytu w chwili zapisu. Zawieszenie nie pozwala już przywrócić wpisu ani przepisu do publicznego zeszytu z wcześniej otwartej strony; przywracanie wielu pozycji jest jedną operacją. Notatki, daty zapisania i dotychczasowe powiadomienia o zapisaniu przepisu pozostają zachowane. Także wyjęcie niedostępnych pozycji sprawdza świeże uprawnienia właściciela (#2094).
 - Połączenie lub ponowne uaktywnienie Facebooka wymaga teraz potwierdzenia obecnego konta Kuking: hasłem albo jednorazowym linkiem na potwierdzony adres. Gdy konto ma włączoną weryfikację dwuetapową, potrzebny jest także dotychczasowy kod. Samo zalogowanie i zgoda na Facebooku już nie dodają trwałej drogi wejścia (#2085).
 - Poprawienie komentarza rozpoczęte przed zawieszeniem, zablokowaniem albo zamknięciem konta nie zapisze już nowej treści po zatwierdzeniu tej decyzji. Edycja i sankcja są sprawdzane w jednej kolejności na świeżym stanie konta (#2090).
