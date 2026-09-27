@@ -437,6 +437,21 @@ final class OdczytZdjeciaKartkiTest extends TestCase
         Queue::assertPushed(OdczytajPrzepis::class, 1);
     }
 
+    public function test_ponowienie_starego_bledu_po_wypelnieniu_szkicu_nie_zleca_kolejnego_odczytu(): void
+    {
+        $this->zgoda();
+        Queue::fake();
+        $poprzednie = $this->zlecenieBezWysylki(ImportPrzepisu::STATUS_NIEUDANY);
+        $poprzednie->recipe->steps()->create(['position' => 1, 'instruction' => 'Mój własny krok.']);
+
+        $this->actingAs($this->osoba)->post(route('import.ponow', $poprzednie))
+            ->assertRedirect(route('import.show', $poprzednie))
+            ->assertSessionHasErrors('ponow');
+
+        $this->assertSame(1, ImportPrzepisu::query()->count());
+        Queue::assertNotPushed(OdczytajPrzepis::class);
+    }
+
     public function test_nieczytelne_zdjecie(): void
     {
         $this->zgoda();
