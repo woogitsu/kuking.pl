@@ -143,6 +143,30 @@ class ZaleznoscOdStaregoBucketuTest extends TestCase
         $this->assertStringNotContainsString((string) $media->object_key, $wyjscie, 'Raport wypisuje klucz obiektu.');
     }
 
+    public function test_niepelne_warianty_ready_sa_niepewne_i_nie_wypisuja_nazwy_wariantu(): void
+    {
+        $media = $this->zdjecieWStarym();
+
+        foreach ([
+            [],
+            null,
+            ['feed' => ['width' => 640]],
+            ['basia@example.com' => ['key' => '']],
+        ] as $warianty) {
+            $media->forceFill(['metadata' => ['variants' => $warianty]])->save();
+
+            [$kod, $wyjscie] = $this->bramka(['--pliki' => true]);
+
+            $this->assertSame(1, $kod);
+            $this->assertStringContainsString('NIEPEWNE media '.$media->getKey(), $wyjscie);
+            $this->assertStringContainsString('Z niepełnymi metadata.variants (NIEPEWNE): 1.', $wyjscie);
+            $this->assertStringContainsString('Wynik jest NIEPEŁNY', $wyjscie);
+            $this->assertStringNotContainsString('basia@example.com', $wyjscie);
+            $this->assertStringNotContainsString((string) $media->object_key, $wyjscie);
+            $this->assertSame('r2_legacy', $media->fresh()->disk);
+        }
+    }
+
     public function test_bez_bucketu_w_konfiguracji_mowi_ze_zdjecia_sie_nie_serwuja(): void
     {
         config(['filesystems.disks.r2_legacy.bucket' => '']);

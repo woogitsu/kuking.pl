@@ -73,7 +73,7 @@ final class WariantyKontrakt
             }
 
             if (! is_array($wariant) || ! isset($wariant['key']) || ! is_string($wariant['key']) || $wariant['key'] === '') {
-                throw new WariantyMetadanychNiepelne("Wariant `{$nazwa}` bez poprawnego, niepustego klucza pliku.");
+                throw new WariantyMetadanychNiepelne('Wariant bez poprawnego, niepustego klucza pliku.');
             }
 
             $poprawne[$nazwa] = $wariant['key'];
