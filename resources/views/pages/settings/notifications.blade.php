@@ -43,7 +43,16 @@
              data-push-csrf="{{ csrf_token() }}"
              data-push-znane="{{ json_encode($urzadzenia->map(fn ($u) => hash('sha256', $u->endpoint))->values()) }}">
         <h2>Na tym urządzeniu</h2>
-        <p data-push-stan>
+        {{--
+            `role="status"` (#1976): skrypt po sprawdzeniu przeglądarki podmienia
+            to zdanie („włączone", „wyłączone", „zablokowane", „nie obsługuje")
+            i odsłania przyciski. Bez regionu statusu osoba z czytnikiem ekranu
+            nie dowiadywała się o wyniku, dopóki sama nie wróciła do akapitu.
+            Region jest w HTML-u od początku — czytniki ogłaszają zmianę tylko
+            w regionie, który już istniał. Komunikaty po kliknięciu idą osobno,
+            do `data-push-komunikat`.
+        --}}
+        <p role="status" aria-live="polite" data-push-stan>
             Żeby włączyć powiadomienia na tym urządzeniu, potrzebna jest przeglądarka z włączonym JavaScriptem,
             która obsługuje powiadomienia — na przykład aktualny Chrome, Edge, Firefox albo Safari.
         </p>

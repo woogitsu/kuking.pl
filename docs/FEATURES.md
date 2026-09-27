@@ -148,7 +148,8 @@ z audytu zapisane na później. Nie budować bez nowej decyzji, mimo D-282:
 - kilka jawnych zakresów czasu w wyszukiwarce przepisów (#1997);
 - widoczne kalorie na porcję w danych SEO przepisu / JSON-LD (#1996);
 - historia i porównanie publicznych wersji przepisu (#2024);
-- opcjonalna synchronizacja postępu gotowania między urządzeniami (#2016).
+- opcjonalna synchronizacja postępu gotowania między urządzeniami (#2016);
+- typowy rzeczywisty czas przygotowania z wykonań społeczności (#2067).
 
 ## Nie wcześnie
 
