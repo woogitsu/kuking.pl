@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Security\TwoFactorAuthenticator;
+use App\Models\FacebookConnectionProof;
 use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Notifications\PotwierdzeniePolaczeniaFacebooka;
+use App\Support\Skrot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -81,6 +83,11 @@ class PolaczenieFacebookaWymagaSwiezegoDowoduTest extends TestCase
         $this->post(route('facebook.link.email'))->assertRedirect(route('facebook.link'));
         $token = $this->emailedToken($user);
         $this->assertSame('obecny@example.test', $user->fresh()->email);
+        $this->assertTrue(FacebookConnectionProof::validShape($token), 'Niepoprawny token z listu: '.$token);
+        $proof = FacebookConnectionProof::query()->firstOrFail();
+        $this->assertSame(FacebookConnectionProof::hashToken($token), $proof->token_hash);
+        $this->assertSame(Skrot::hmac($this->app['session']->getId()), $proof->session_hash);
+        $this->get(route('facebook.link'))->assertOk();
         $confirmation = $this->get(route('facebook.link.confirm', ['token' => $token]));
         $this->assertSame(200, $confirmation->status(),
             'Link potwierdzający skierował na: '.(string) $confirmation->headers->get('Location')
