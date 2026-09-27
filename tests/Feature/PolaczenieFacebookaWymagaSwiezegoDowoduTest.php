@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Security\TwoFactorAuthenticator;
 use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Notifications\PotwierdzeniePolaczeniaFacebooka;
@@ -80,7 +81,9 @@ class PolaczenieFacebookaWymagaSwiezegoDowoduTest extends TestCase
         $this->post(route('facebook.link.email'))->assertRedirect(route('facebook.link'));
         $token = $this->emailedToken($user);
         $this->assertSame('obecny@example.test', $user->fresh()->email);
-        $this->get(route('facebook.link.confirm', ['token' => $token]))->assertOk();
+        $confirmation = $this->get(route('facebook.link.confirm', ['token' => $token]));
+        $this->assertSame(200, $confirmation->status(),
+            'Link potwierdzający skierował na: '.(string) $confirmation->headers->get('Location'));
         $this->assertFalse($user->fresh()->hasFacebookConnected());
 
         $this->post(route('facebook.link.store'), ['proof_token' => $token])
@@ -164,7 +167,7 @@ class PolaczenieFacebookaWymagaSwiezegoDowoduTest extends TestCase
         $this->assertDatabaseCount('facebook_connection_proofs', 0);
 
         $user->forceFill(['email_verified_at' => now()])->save();
-        $secret = app(\App\Domain\Security\TwoFactorAuthenticator::class)->generateSecret();
+        $secret = app(TwoFactorAuthenticator::class)->generateSecret();
         $user->beginTwoFactorSetup($secret);
         $user->confirmTwoFactor([]);
         $this->begin($user->refresh());

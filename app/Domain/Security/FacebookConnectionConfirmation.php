@@ -7,6 +7,7 @@ namespace App\Domain\Security;
 use App\Domain\Users\ZamekKonta;
 use App\Models\AuditLogEntry;
 use App\Models\FacebookConnectionProof;
+use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Notifications\PotwierdzeniePolaczeniaFacebooka;
 use App\Support\Skrot;
@@ -17,6 +18,29 @@ use Illuminate\Support\Facades\Hash;
 final readonly class FacebookConnectionConfirmation
 {
     public function __construct(private TwoFactorAuthenticator $totp) {}
+
+    public function mayReactivate(User $user, string $facebookId): bool
+    {
+        return User::findByFacebookId($facebookId)?->getKey() === $user->getKey()
+            && $user->dostepOdebranyU(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK)
+            && ! $user->hasStaffRole()
+            && ! in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true);
+    }
+
+    public function reactivate(Request $request, User $user, string $facebookId): ?User
+    {
+        return ZamekKonta::zablokuj($user, function (?User $fresh) use ($request, $facebookId): ?User {
+            if ($fresh === null || ! $this->mayReactivate($fresh, $facebookId)
+                || ! $this->consume($request, $fresh, $facebookId)) {
+                return null;
+            }
+
+            $fresh->cofnijOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
+            AuditLogEntry::record('account.facebook_reactivated', $fresh, $fresh, ip: $request->ip());
+
+            return $fresh;
+        });
+    }
 
     public function requestEmailProof(Request $request, User $user, string $facebookId): bool
     {

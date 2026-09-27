@@ -4,19 +4,18 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
-use App\Domain\Security\KomunikatZamknietegoKonta;
 use App\Domain\Security\FacebookConnectionConfirmation;
+use App\Domain\Security\KomunikatZamknietegoKonta;
+use App\Domain\Security\WejsciePrzezDostawce\TozsamoscOdDostawcy;
 use App\Domain\Security\WejsciePrzezDostawce\WejdzPrzezDostawce;
 use App\Domain\Security\WejsciePrzezDostawce\WynikWejscia;
 use App\Domain\Users\Actions\ZalozKonto;
 use App\Domain\Users\Actions\ZalozoneKonto;
-use App\Domain\Users\ZamekKonta;
 use App\Facebook\DostawcaWejsciaFacebook;
 use App\Facebook\KlientFacebook;
 use App\Facebook\TozsamoscFacebook;
 use App\Http\Controllers\Controller;
 use App\Models\TozsamoscZewnetrzna;
-use App\Models\AuditLogEntry;
 use App\Models\User;
 use App\Notifications\ProbaWejsciaKontemFacebooka;
 use App\Support\Facebook;
@@ -66,11 +65,11 @@ use Illuminate\View\View;
  *   3. **Gdy adres z Facebooka należy do istniejącego konta — ODMAWIAMY**
  *      i mówimy, co zrobić. Nie łączymy, nie logujemy, nie zakładamy
  *      drugiego konta.
-     *   4. **Powiązanie z istniejącym kontem powstaje tylko na życzenie osoby,
-     *      która JUŻ JEST ZALOGOWANA** na to konto. Przy zapisie dodatkowo
-     *      potwierdza obecną drogę wejścia do Kuking (#2085): hasło albo
-     *      link na potwierdzony adres, a przy 2FA także dotychczasowy kod.
-     *      Facebook i jego adres nie są takim dowodem.
+ *   4. **Powiązanie z istniejącym kontem powstaje tylko na życzenie osoby,
+ *      która JUŻ JEST ZALOGOWANA** na to konto. Przy zapisie dodatkowo
+ *      potwierdza obecną drogę wejścia do Kuking (#2085): hasło albo
+ *      link na potwierdzony adres, a przy 2FA także dotychczasowy kod.
+ *      Facebook i jego adres nie są takim dowodem.
  *
  * DLACZEGO TE TRASY NIE SĄ W GRUPIE `guest` (a trasy Google są). Bo punkt 4
  * wymaga człowieka ZALOGOWANEGO. Gdyby `/wejdz/facebook` było tylko dla
@@ -580,25 +579,10 @@ class FacebookLoginController extends Controller
          */
         $powiazane = $this->dostawca->kontoPowiazane($tozsamosc->identyfikator);
         if ($powiazane?->getKey() === $user->getKey()) {
-            $polaczone = ZamekKonta::zablokuj($user, function (?User $fresh) use ($request, $tozsamosc): ?User {
-                if ($fresh === null || $fresh->hasStaffRole()
-                    || in_array($fresh->status, User::STATUSY_ZAMKNIETEGO_KONTA, true)
-                    || ! $fresh->dostepOdebranyU(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK)
-                    || $this->dostawca->kontoPowiazane($tozsamosc->identyfikator)?->getKey() !== $fresh->getKey()
-                    || ! $this->potwierdzenie->consume($request, $fresh, $tozsamosc->identyfikator)) {
-                    return null;
-                }
-
-                $fresh->cofnijOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
-                AuditLogEntry::record('account.facebook_reactivated', $fresh, $fresh, ip: $request->ip());
-
-                return $fresh;
-            });
+            $polaczone = $this->potwierdzenie->reactivate($request, $user, $tozsamosc->identyfikator);
         } else {
-            $polaczone = $this->wejscie()->polacz(
-                $request, $user, $tozsamosc,
-                fn (User $fresh): bool => $this->potwierdzenie->consume($request, $fresh, $tozsamosc->identyfikator),
-            );
+            $potwierdz = fn (User $fresh): bool => $this->potwierdzenie->consume($request, $fresh, $tozsamosc->identyfikator);
+            $polaczone = $this->wejscie()->polacz($request, $user, $tozsamosc, $potwierdz);
         }
 
         if ($polaczone === null) {
@@ -624,12 +608,11 @@ class FacebookLoginController extends Controller
     private function moznaPokazacPolaczenie(User $user, string $facebookId): bool
     {
         $powiazane = $this->dostawca->kontoPowiazane($facebookId);
-        if ($powiazane?->getKey() === $user->getKey()
-            && $user->dostepOdebranyU(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK)) {
-            return ! $user->hasStaffRole() && ! in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true);
+        if ($powiazane?->getKey() === $user->getKey()) {
+            return $this->potwierdzenie->mayReactivate($user, $facebookId);
         }
 
-        return $this->wejscie()->wolnoPolaczyc($user, new \App\Domain\Security\WejsciePrzezDostawce\TozsamoscOdDostawcy(
+        return $this->wejscie()->wolnoPolaczyc($user, new TozsamoscOdDostawcy(
             identyfikator: $facebookId, email: null, emailPotwierdzony: false, imie: '',
         ));
     }
