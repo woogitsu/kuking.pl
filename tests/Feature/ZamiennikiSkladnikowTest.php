@@ -74,9 +74,9 @@ final class ZamiennikiSkladnikowTest extends TestCase
             ->assertSee('value="margaryna"', false);
 
         // …a zapis z polem zmienia tylko to, co zmienił człowiek.
-        $this->put(route('recipes.update', $przepis->slug), $this->formularz([
+        $this->put(route('recipes.update', $przepis->slug), [...$this->formularz([
             ['text' => '250 g masła', 'substitutes' => 'margaryna'],
-        ]))->assertRedirect();
+        ]), 'content_revision' => $przepis->fresh()->content_revision])->assertRedirect();
 
         $this->assertSame('margaryna', $przepis->ingredients()->firstOrFail()->substitutes);
     }
