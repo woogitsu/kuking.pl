@@ -90,6 +90,7 @@
             <input class="visually-hidden pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
                    accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                    multiple
+                   data-usuwanie-zdjec
                    aria-labelledby="f-photos-etykieta f-photos-tytul"
                    aria-describedby="f-photos-help">
             <label class="pole-zdjecia" for="f-photos">
@@ -97,6 +98,7 @@
                 <span class="pole-zdjecia-tytul" id="f-photos-tytul">Dodaj zdjęcie</span>
                 <span class="field-help" id="f-photos-help">
                     Na telefonie kliknij tutaj, a potem wybierz „Galeria” albo „Zrób zdjęcie”.
+                    {{ \App\Support\LimityZdjec::pomocLiczbyZdjec($zachowane->count()) }}
                     Największy plik: {{ \App\Support\LimityZdjec::maksMegabajtowDoKomunikatu() }} MB.
                 </span>
             </label>

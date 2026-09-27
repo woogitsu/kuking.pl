@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Feed\TagFeed;
+use App\Domain\Feed\FollowingFeed;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\FollowUser;
 use App\Models\Media;
@@ -15,6 +15,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
+ * Od #1808 (D-277) `TagFeed` nie istnieje: wpisy z obserwowanych tematów
+ * oddaje `FollowingFeed` razem z wpisami osób. Gwarancje poniżej obowiązują
+ * tę połączoną listę — historia niżej opisuje, skąd się wzięły.
+ *
  * Obserwowanie tagu nie może być obejściem widoczności PRZEPISU.
  *
  * `TagFeed` filtruje wpisy przez `widoczneDla()` — i to działa. Ale wpis
@@ -53,7 +57,7 @@ class FeedTagowNiePokazujeCudzegoPrzepisuTest extends TestCase
     {
         [$ola, $wpisPrzepisu, $wpisPubliczny] = $this->strumien();
 
-        $widziane = collect(app(TagFeed::class)->paginate($ola)->items())
+        $widziane = collect(app(FollowingFeed::class)->paginate($ola)->items())
             ->map(fn (Post $wpis) => (string) $wpis->getKey())
             ->all();
 
@@ -127,7 +131,7 @@ class FeedTagowNiePokazujeCudzegoPrzepisuTest extends TestCase
 
         $basia = User::query()->whereKey($wpisPrzepisu->author_id)->firstOrFail();
 
-        $widziane = collect(app(TagFeed::class)->paginate($basia)->items())
+        $widziane = collect(app(FollowingFeed::class)->paginate($basia)->items())
             ->map(fn (Post $wpis) => (string) $wpis->getKey())
             ->all();
 
@@ -231,7 +235,7 @@ class FeedTagowNiePokazujeCudzegoPrzepisuTest extends TestCase
      */
     private function strumienOczami(User $widz): array
     {
-        return collect(app(TagFeed::class)->paginate($widz)->items())
+        return collect(app(FollowingFeed::class)->paginate($widz)->items())
             ->map(fn (Post $wpis) => (string) $wpis->getKey())
             ->all();
     }
@@ -251,7 +255,7 @@ class FeedTagowNiePokazujeCudzegoPrzepisuTest extends TestCase
 
         // KONTROLA DODATNIA: dopóki stoi publiczny wpis, treść JEST.
         $this->assertTrue(
-            app(TagFeed::class)->maTresci($ola),
+            ! app(FollowingFeed::class)->isEmptyFor($ola),
             'Strumień tagów nie widzi nawet publicznego wpisu — asercja niżej nie mówiłaby wtedy '
             .'o bramce przepisu.',
         );
@@ -265,7 +269,7 @@ class FeedTagowNiePokazujeCudzegoPrzepisuTest extends TestCase
         );
 
         $this->assertFalse(
-            app(TagFeed::class)->maTresci($ola),
+            ! app(FollowingFeed::class)->isEmptyFor($ola),
             'Zostaje sama zapowiedź cudzego przepisu „tylko dla obserwujących", a strumień tagów '
             .'mówi, że jest co pokazać. `paginate()` odda pustą listę i widz zobaczy pusty ekran '
             .'zamiast pustego stanu.',

@@ -397,19 +397,23 @@ gałęzi tak chciał. Kolejność niżej jest wiążąca: każdy krok zakłada p
    automat nie wystartuje nawet przy ustawionych zmiennych:
 
    ```php
-   Schedule::call(fn () => Artisan::call('kuking:sprzataj-potwierdzenia-rodo'))
+   Harmonogram::artisan('kuking:sprzataj-potwierdzenia-rodo')
        ->name('kuking:sprzataj-potwierdzenia-rodo')
-       ->dailyAt('05:20')
+       ->dailyAt('HH:MM') // wolny slot — patrz niżej
        ->onOneServer()
-       ->withoutOverlapping();
+       ->withoutOverlapping(120);
    ```
 
-   **05:20, nie 05:00.** 05:00 zajmuje `kuking:sprzataj-zaproszenia`, a 05:10
-   `kuking:sprzataj-sesje`; cała lista jest świadomie rozsunięta co dziesięć
-   minut, bo w roli `all` harmonogram chodzi w jednym procesie razem
-   z serwerem. Pierwotna gałąź wstawiała to zadanie na 05:00, czyli w slot już
-   zajęty — nie powtarzać tego błędu. `->onOneServer()` jest obowiązkowe dla
-   każdego zadania (#595) i pilnuje tego `HarmonogramJednegoSerweraTest`.
+   **Godzinę wybierz dopiero przy wpinaniu, z bieżącej listy.** Nocne zadania
+   są świadomie rozsunięte co dziesięć minut, bo w roli `all` harmonogram
+   chodzi w jednym procesie razem z serwerem. Wcześniej ten punkt podawał
+   gotowy slot (05:20), który w międzyczasie zajął `queue:prune-failed`;
+   pierwotna gałąź wstawiała zadanie na 05:00, też już zajęte. Zajętości
+   pilnuje `HarmonogramBezWspolnychSlotowTest` (zadania codzienne co
+   najmniej 10 minut od siebie), `->onOneServer()` —
+   `HarmonogramJednegoSerweraTest` (#595), a blokady krótszej niż odstęp
+   między terminami — `HarmonogramWygasaniaBlokadTest` (#1002, stąd
+   `withoutOverlapping(120)`, nie gołe `withoutOverlapping()`).
 
 6. **Poprawić `tests/Feature/RetencjaPotwierdzenRodoTest.php`.** Dwa testy są
    tam celowo napisane pod stan wyłączony i po włączeniu MAJĄ paść — to jest

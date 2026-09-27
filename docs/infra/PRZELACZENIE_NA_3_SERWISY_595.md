@@ -48,9 +48,12 @@ ani że plan będzie taki, jak opisuję niżej. To rozstrzyga dopiero krok 2.
    `NAZWA_SERWISU_WWW` / `NAZWA_BAZY` w `.railway/railway.ts` i `APP_SERVICE`
    w `.github/workflows/deploy.yml` w osobnym PR-ze (strażnik pilnuje, że się
    zgadzają), dopiero potem wracaj tutaj.
-3. Gdy „Wait for CI” jest włączone: GitHub → Settings → Secrets and variables
-   → Actions → **Variables** → `KUKING_WAIT_FOR_CI` = `true`. Lokalnie
-   poprzedzaj każde `railway config plan/apply` przez `KUKING_WAIT_FOR_CI=true`.
+3. `KUKING_WAIT_FOR_CI` jest **obowiązkowe** (#1390): `true`, gdy „Wait for CI”
+   jest włączone, `false`, gdy nie. Brak zmiennej zatrzymuje plan i apply.
+   GitHub → Settings → Secrets and variables → Actions → **Variables** →
+   `KUKING_WAIT_FOR_CI` = `true` albo `false`. Lokalnie poprzedzaj każde
+   `railway config plan/apply` przez `KUKING_WAIT_FOR_CI=<ta sama wartość>`
+   (przykłady niżej zakładają `true`).
 4. Lista zmiennych współdzielonych, do których odwołuje się plik:
 
    ```bash
@@ -75,20 +78,21 @@ kroku 2 z tym samym czytaniem planu.
 
 ```bash
 railway link                                   # projekt, środowisko: staging
-KUKING_IAC_STAGING_ROZBITY=true railway config plan
-KUKING_IAC_STAGING_ROZBITY=true railway config apply   # interaktywnie, bez --yes
+KUKING_WAIT_FOR_CI=true KUKING_IAC_STAGING_ROZBITY=true railway config plan
+KUKING_WAIT_FOR_CI=true KUKING_IAC_STAGING_ROZBITY=true railway config apply   # interaktywnie, bez --yes
 ```
 
 Sprawdź na stagingu weryfikację z kroku 4 (wgranie zdjęcia, harmonogram,
 restart workera w trakcie zadania). Powrót stagingu do jednego kontenera:
-`railway config plan` / `apply` **bez** zmiennej — plan pokaże usunięcie
+`railway config plan` / `apply` **bez** `KUKING_IAC_STAGING_ROZBITY` (z samym
+`KUKING_WAIT_FOR_CI`) — plan pokaże usunięcie
 `worker` i `scheduler` na stagingu, na co tu wolno się zgodzić.
 
 ## Krok 2 — plan produkcji i jego czytanie
 
 ```bash
 railway link                                   # projekt, środowisko: production
-KUKING_WAIT_FOR_CI=true railway config plan    # zmienna tylko, jeśli krok 0.3
+KUKING_WAIT_FOR_CI=true railway config plan    # obowiązkowa; wartość z kroku 0.3
 ```
 
 Plan jest bezpieczny do uruchomienia. Wynik porównaj z tabelą:
@@ -100,7 +104,8 @@ Plan jest bezpieczny do uruchomienia. Wynik porównaj z tabelą:
 | `Postgres` | brak zmian | Utworzenie, usunięcie, zmiana obrazu, regionu albo wolumenu — **stop**. Zmiana obrazu/regionu bazy to migracja danych, nie część #595. |
 | `web`, `postgres` (małe litery) | nie występują | Ktoś cofnął nazwy — **stop** |
 | domeny `kuking.pl`, `www.kuking.pl` | brak zmian | Usunięcie/utworzenie domeny = nowy certyfikat i przerwa — **stop** |
-| usunięcie **zmiennej** w `kuking.pl` | brak | **Stop.** Zmienna ustawiona tylko w panelu zniknie. Dopisz ją do `appEnv` w `railway.ts` (PR), wyjątek: `KUKING_HTML_EDGE_CACHE_SECONDS` — jej zniknięcie wyłącza cache HTML (bezpieczny kierunek), ale świadomie. |
+| usunięcie **zmiennej** w `kuking.pl` | tylko `TRUSTED_PROXIES` — martwa, nie czyta jej żaden kod (SEC-01, komentarz w `railway.ts`) | Każda inna — **stop.** Zmienna ustawiona tylko w panelu zniknie. Dopisz ją do roli, która ją czyta, w `railway.ts` (PR). Od 25.09.2026 w pliku są już `KUKING_QUESTIONS_ENABLED`, `KUKING_MEDIA_DISK`, `KUKING_EDGE_TRYB`, `KUKING_HTML_EDGE_CACHE_SECONDS` i `KUKING_R2_PUBLICZNE_ADRESY`. |
+| `KUKING_EDGE_TRYB`, `KUKING_HTML_EDGE_CACHE_SECONDS`, `KUKING_R2_PUBLICZNE_ADRESY` w `kuking.pl` → referencja `${{shared.…}}` | bez zmiany zachowania: Shared Variable założona z tą samą wartością, co dziś w serwisie, albo zmiennej nie było wcale (pusto = wartość domyślna) | Stała w serwisie z wartością inną niż domyślna, a Shared Variable nie założono — **stop**, przenieś wartość do Shared Variables i zrób plan jeszcze raz. |
 | zmiana wartości zmiennej sekretnej (wartości są w planie zredagowane) | tylko tam, gdzie krok 0.4 potwierdził zmienną współdzieloną | Nie wiesz, skąd zmiana — **stop** |
 | `checkSuites` / „Wait for CI” | brak zmian | Wyłączenie — brak `KUKING_WAIT_FOR_CI=true`, krok 0.3 |
 | `kopia-bazy` | brak zmian, jeśli założona ręcznie pod tą nazwą; inaczej utworzenie | Utworzenie bez zmiennych `KOPIA_*`/`R2_KOPIE_*` da nocny błąd z alarmem, nie awarię strony. Zdecyduj: dokończ §7.3 KOPIE_I_ODTWORZENIE albo przyjmij świadomie. |

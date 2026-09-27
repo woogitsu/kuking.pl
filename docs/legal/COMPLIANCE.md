@@ -2,13 +2,13 @@
 
 > **To nie jest porada prawna.** To robocza analiza przygotowana przez AI na potrzeby planowania produktu, oparta na czytaniu tekstów aktów prawnych i wtórnych źródeł branżowych dostępnych we wrześniu 2026. Przed publicznym startem serwisu **każdy punkt oznaczony jako wymagający decyzji prawnej musi zostać zweryfikowany przez radcę prawnego/adwokata specjalizującego się w prawie nowych technologii**. Numery artykułów i progi kwotowe sprawdzano w wielu źródłach, ale prawo się zmienia — traktuj to jako punkt startowy do rozmowy z prawnikiem, nie jako gotowe zabezpieczenie.
 
-Założenia przyjęte w analizie: operator to mikro- lub mały przedsiębiorca (podmiot polski, self-hosted na Railway w UE), serwis nie jest wyznaczony jako VLOP (Very Large Online Platform — próg to 45 mln aktywnych odbiorców miesięcznie w UE), nie ma na starcie płatności/marketplace'u, nie kieruje reklam behawioralnych do dzieci, feed jest chronologiczny (brak systemu rekomendacji w rozumieniu DSA na MVP).
+Założenia przyjęte w analizie: operator to mikro- lub mały przedsiębiorca (podmiot polski, self-hosted na Railway w UE), serwis nie jest wyznaczony jako VLOP (Very Large Online Platform — próg to 45 mln aktywnych odbiorców miesięcznie w UE), nie ma na starcie płatności/marketplace'u, nie kieruje reklam behawioralnych do dzieci. Feed obserwowanych jest chronologiczny, ale **to nie znaczy, że Kuking nie ma systemów rekomendacji w rozumieniu DSA** — patrz §1.2a niżej: „Świeżo z Kuking”, automatyczna część „kuKINGi na dziś” i wyszukiwarka prawdopodobnie nimi są. Konsekwencja jest wąska: art. 27 (Sekcja 3) i tak nas nie wiąże, ale dlatego, że wyłącza go art. 19 dla mikro/małych przedsiębiorstw — nie dlatego, że systemu rekomendacji nie ma.
 
 ---
 
 ## 1. DSA (Rozporządzenie (UE) 2022/2065) — co dotyczy Kuking na starcie
 
-Kuking.pl to **hosting service** świadczący usługę **online platform** (umożliwia przechowywanie i publiczne rozpowszechnianie treści na żądanie odbiorców — zdjęcia, przepisy, komentarze). To kwalifikuje serwis do Rozdziału III RODO... nie, DSA — Sekcja 1 (wszyscy dostawcy usług pośrednich), Sekcja 2 (dodatkowo dla hostingu, w tym platform), Sekcja 3 (dodatkowo dla platform online, chyba że mikro/małe przedsiębiorstwo).
+Kuking.pl to **hosting service** świadczący usługę **online platform** (umożliwia przechowywanie i publiczne rozpowszechnianie treści na żądanie odbiorców — zdjęcia, przepisy, komentarze). To kwalifikuje serwis do Rozdziału III DSA — Sekcja 1 (wszyscy dostawcy usług pośrednich), Sekcja 2 (dodatkowo dla hostingu, w tym platform), Sekcja 3 (dodatkowo dla platform online, chyba że mikro/małe przedsiębiorstwo).
 
 ### 1.1 Obowiązki, które dotyczą Kuking **zawsze** (Sekcja 1 i 2 — brak zwolnienia dla małych podmiotów)
 
@@ -45,8 +45,64 @@ Zwolnione (dopóki Kuking spełnia progi mikro/małego przedsiębiorstwa i nie z
 - **Art. 24** (poza ust. 3) — pełne sprawozdanie przejrzystości platformy (statystyki moderacji, liczba sporów itd.) — niewymagane.
 - **Art. 25** — zakaz "dark patterns" w projektowaniu interfejsu — [do weryfikacji: literalnie w Sekcji 3, więc formalnie zwolniony, ale wiele kancelarii traktuje to jako "dobrą praktykę bezwzględną" i część krajowych organów konsumenckich może to egzekwować z innej podstawy (nieuczciwe praktyki rynkowe, UOKiK); rekomendacja: **stosować się tak, jakby obowiązywało** — to tani do wdrożenia standard, a ryzyko reputacyjne/konsumenckie jest niezależne od DSA].
 - **Art. 26** — transparentność reklam na platformie — niewymagany na starcie (Kuking nie sprzedaje reklam ukierunkowanych); istotne, gdy pojawi się model reklamowy.
-- **Art. 27** — transparentność systemu rekomendacji — niewymagany; i tak nieaktualny przy chronologicznym feedzie z MVP.
+- **Art. 27** — transparentność systemu rekomendacji — wyłączony u nas przez zwolnienie z art. 19 (Sekcja 3), **nie dlatego, że Kuking nie ma systemu rekomendacji w rozumieniu art. 3 lit. s DSA — prawdopodobnie ma** (patrz §1.2a niżej). Rozgraniczenie ma znaczenie: zwolnienie znika razem z całą Sekcją 3, gdy tylko operator utraci status mikro/małego przedsiębiorstwa (patrz zastrzeżenia wyżej), a wtedy art. 27 zacznie obowiązywać wprost, bo powierzchnie, które nim dziś rządzą, nigdzie nie znikają.
 - **Art. 28** — ochrona małoletnich online (wysoki poziom prywatności, bezpieczeństwa; zakaz reklam targetowanych do dzieci) — formalnie w Sekcji 3, więc też objęty zwolnieniem dla mikro/małych **w części** — ale UWAGA: Komisja Europejska wydała w 2025 r. wytyczne do Art. 28 ust. 1 sugerujące, że oczekiwania co do ochrony małoletnich stają się de facto standardem branżowym niezależnie od wielkości podmiotu, i część prawników ostrzega, że "small business" nie oznacza zerowej odpowiedzialności za bezpieczeństwo dzieci na platformie ([do weryfikacji z prawnikiem — to obszar świeży i politycznie wrażliwy]). **Rekomendacja produktowa: traktować ochronę małoletnich jako obowiązującą niezależnie od formalnego zwolnienia** — patrz sekcja 4 niżej.
+
+### 1.2a Czy Kuking ma „system rekomendacji” (art. 3 lit. s) — mimo chronologicznego feedu
+
+**Tak, prawdopodobnie ma — i to nie jest sprzeczne z tym, że feed obserwowanych jest chronologiczny.** Definicja w art. 3 lit. s DSA jest szeroka: system rekomendacji to każdy „w pełni lub częściowo zautomatyzowany system wykorzystywany przez platformę internetową w celu sugerowania odbiorcom usługi w jej interfejsie internetowym konkretnych informacji i ich szeregowanie, w tym na skutek wyszukiwania dokonanego przez odbiorcę usługi lub w inny sposób determinującego względną kolejność lub eksponowanie pokazywanych informacji”. Wytyczne EROD 3/2025 pkt 88 podają wprost przykład, który pasuje do nas: dostawca, który na landing page albo w feedzie aplikacji „chce zaproponować konkretną treść jako pierwszą lub w widocznym miejscu”, tworzy w ten sposób rekomendację — nawet gdy kryterium jest proste i nie personalizowane. Pkt 87 dodaje, że wyszukiwarki też mieszczą się w tej definicji, gdy szeregują wyniki.
+
+Surowo licząc, **nie** dotyczy to feedu obserwowanych (`WHERE author_id IN (...) ORDER BY published_at DESC` — czysta chronologia bez wyboru informacji), ale dotyczy to prawdopodobnie:
+
+- **„Świeżo z Kuking”** (`App\Domain\Feed\DiscoverFeed`) — wybiera i porządkuje, które wpisy pokazać nieznajomym: `DISTINCT ON (author_id)` ogranicza do jednego wpisu na osobę, zanim cokolwiek trafi do widoku. To jest filtrowanie i szeregowanie w rozumieniu art. 3 lit. s, mimo że wynikowa kolejność w obrębie wybranych wpisów jest chronologiczna.
+- **automatyczna część „kuKINGi na dziś”** (`App\Domain\Feed\DailyBoard`) — podobny mechanizm, plus warstwa redakcyjna (`daily_picks`), która jest wyborem wprost.
+- **wyszukiwarka** (`App\Domain\Search\SearchQuery`, `pg_trgm`/`word_similarity`) — szereguje wyniki według podobieństwa frazy, czyli „determinuje względną kolejność” w rozumieniu definicji.
+
+To nie jest „algorytmiczny feed” w znaczeniu, którego AGENTS.md zakazuje (personalizacja pod pojedynczego widza, uczenie na sygnałach behawioralnych) — żadna z tych trzech powierzchni nie różnicuje kolejności między widzami na podstawie ich zachowania. Ale definicja DSA nie pyta o personalizację, tylko o automatyczne sugerowanie i szeregowanie informacji, więc te trzy powierzchnie prawdopodobnie kwalifikują się.
+
+**Dlaczego to i tak nie rodzi obowiązku z art. 27.** Art. 27 leży w Sekcji 3 (Art. 19–28), a Sekcja 3 jest wobec Kuking wyłączona przez art. 19 — patrz §1.2 wyżej. Innymi słowy: art. 27 nas nie wiąże **z powodu wielkości przedsiębiorstwa, nie z powodu braku systemu rekomendacji**. Mylenie tych dwóch przyczyn jest ryzykowne, bo zwolnienie z art. 19 jest czasowe i zależne od progów (patrz zastrzeżenia w §1.2) — twierdzenie „nie mamy systemu rekomendacji” zestarzałoby się razem z utratą statusu mikroprzedsiębiorstwa, podczas gdy prawidłowe uzasadnienie („mamy zwolnienie z Sekcji 3”) samo nazywa moment, w którym przestanie być prawdziwe.
+
+**Rozjazd PL/EN w art. 27 ust. 1 — nie budować na nim wniosku.** Polska wersja mówi „Dostawcy **bardzo dużych** platform internetowych, którzy korzystają z systemów rekomendacji…”, podczas gdy angielska mówi „Providers of **online platforms** that use recommender systems…” (bez „very large”). To rozbieżność między wersjami językowymi tego samego rozporządzenia, nie świadoma różnica zakresu — art. 27 stoi w Sekcji 3 razem z art. 19–26, 28, które konsekwentnie mówią o „platformach internetowych” bez zawężenia do bardzo dużych (zawężenie do „bardzo dużych platform” pojawia się celowo dopiero w art. 38, dla dodatkowej opcji rekomendacji nieopartej na profilowaniu). Traktujemy angielską wersję jako rozstrzygającą co do zakresu podmiotowego i tak liczymy zwolnienie: przez art. 19, nie przez polskie brzmienie art. 27 ust. 1. Źródło do porównania wersji językowych: EUR-Lex, Rozporządzenie (UE) 2022/2065, art. 27 ([PL](https://eur-lex.europa.eu/legal-content/PL/TXT/?uri=CELEX:32022R2065), [EN](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R2065)) — sprawdzać rozbieżność bezpośrednio w Dzienniku Urzędowym, nie na słowo.
+
+**Okres przejściowy, gdyby status kiedyś się skończył.** Art. 19 ust. 1 akapit drugi DSA przedłuża zwolnienie o 12 miesięcy od utraty statusu mikro/małego przedsiębiorstwa (liczonego wg art. 4 ust. 2 zalecenia 2003/361/WE — utrata następuje dopiero po **dwóch kolejnych okresach obrachunkowych** powyżej progu). Łącznie: dwa lata powyżej progu, które i tak trzeba przeżyć, zanim status formalnie zniknie, plus 12 miesięcy zwolnienia z art. 19 na wdrożenie Sekcji 3 od dnia utraty. To wystarczająco dużo czasu, żeby art. 27 (regulaminowy opis parametrów Odkrywania, tablicy dnia i wyszukiwarki, z opcją zmiany) wdrożyć planowo, a nie w trybie awaryjnym.
+
+**Rekomendacja produktowa niezależna od obowiązku prawnego:** opisać w regulaminie krótko, jak dobieramy wpisy w „Świeżo z Kuking” i „kuKINGi na dziś” (jeden wpis na autora, bez liczenia popularności) — tym samym podejściem „stosować się tak, jakby obowiązywało”, którym wyżej potraktowano art. 25, niezależnie od tego, czy art. 27 formalnie wiąże.
+
+### 1.2b Parametry, które dziś rządzą tymi powierzchniami — i gdzie użytkownik je widzi
+
+To jest tabela „głównych parametrów” w rozumieniu art. 27 ust. 2 — pisana tak,
+jakby obowiązek wiązał (patrz rekomendacja wyżej), mimo że formalnie nie wiąże.
+Reguła nadrzędna, z której wynika każdy wiersz, to **zamknięta lista dozwolonych
+reguł doboru** (`AGENTS.md` §8, **D-275**, #1806): żadna z tych powierzchni nie
+szereguje ani nie przycina wpisów według reakcji innych osób (obserwujący,
+„Ugotowałem”, reakcje, zapisy, komentarze, odsłony) ani według przewidywania
+gustu widza z jego zachowania. To odróżnia definicję DSA (szeroką — patrz
+§1.2a) od profilowania w rozumieniu RODO (art. 4 pkt 4): Kuking ma dziś
+powierzchnie mieszczące się w pierwszej definicji, ale żadnej mieszczącej się
+w drugiej.
+
+| Powierzchnia | Jedyny dozwolony parametr | Gdzie widać wybór/wyjaśnienie | Stan na `main` |
+|---|---|---|---|
+| Start (Obserwowani) | czas (`published_at DESC`) + obserwowane osoby i tagi (**D-277**, #1808); bramki widoczności i blokady | Sama kolejność to jedyne „wyjaśnienie” — nic tu nie jest ukrywane poza bramkami | Wdrożone |
+| „Świeżo z Kuking” (`App\Domain\Feed\DiscoverFeed`) | równość autorów: rotacja — najpierw po jednym wpisie od każdej osoby, potem po drugim (**D-276**, #1807); nigdy popularność | Dziś: brak zdania w interfejsie i w `resources/legal/*` (luka opisana w `docs/research/PREFERENCJE_TRESCI.md` §1.3) — zamyka ją strona „Jak dobieramy wpisy” | **W toku**: issue #1811, decyzja **D-305**, PR #1879 (jeszcze niescalony) |
+| Automatyczna część „kuKINGi na dziś” (`App\Domain\Feed\DailyBoard`) | wybór gospodarza (`daily_picks`, kolejność gospodarza) + uzupełnienie po czasie | W interfejsie oznaczone wprost jako wybór gospodarza (AGENTS.md §8) | Wdrożone (oznaczenie); strona wyjaśniająca — jak wyżej, w PR #1879 |
+| Wyszukiwarka (`App\Domain\Search\SearchQuery`) | podobieństwo do **frazy, którą widz sam wpisał** (`pg_trgm`/`word_similarity`, próg 0,5) — nie do jego historii ani profilu | Wynik jest bezpośrednią odpowiedzią na to, co ktoś wpisał — nie wymaga osobnego wyjaśnienia w tym samym sensie co powierzchnie „podsuwane” | Wdrożone |
+| „Mój stół” | obserwowane tagi + jeden tag polecany przez gospodarza + wybór gospodarza na dziś, po jednym wpisie na osobę, bez ukrytych/zablokowanych; przy każdej pozycji podpis „Pokazujemy, bo…” i przycisk „Nie pokazuj mi tego” (opt-out per pozycja, nie profil) | Podpis przy pozycji + strona pomocy (`MojStol::DLACZEGO`) | **Nie na `main`** — decyzja **D-304** (#1749), gałąź `claude/1749-moj-stol`, jeszcze niescalona w chwili pisania tego rozdziału (26 września 2026) |
+| „Ukryj ten wpis” / „Ukryj tę osobę” (jawne polecenie widza z listy D-275) | wyłącznie polecenie samego widza, 30 dni, z listą do cofnięcia | Ustawienia → „Ukryte” | **Nie na `main`** — decyzja **D-278** (#1810), niescalona w chwili pisania tego rozdziału |
+
+**Opcja „bez profilowania” — czym jest u nas naprawdę.** Art. 38 DSA daje
+takie prawo tylko odbiorcom bardzo dużych platform (VLOP), więc formalnie
+nas nie dotyczy — ale pytanie ma sens niezależnie od obowiązku, bo ktoś może
+chcieć wiedzieć, czy istnieje wariant Kuking bez dopasowania do zachowania.
+**Odpowiedź: to nie jest osobny wariant do włączenia — to jest jedyny tryb,
+w jakim serwis działa.** D-275 zabrania profilowania na zachowaniu **na
+całym serwisie**, nie tylko na jednej powierzchni z przełącznikiem. Praktyczna
+rada dla kogoś, kto chce widzieć jak najmniej „podsuwania” w ogóle:
+korzystać ze Startu (Obserwowani) i pomijać „Świeżo z Kuking”, tablicę dnia
+i (docelowo) „Mój stół” — żadna z tych trzech nie zniknie funkcjonalnie inaczej
+niż nieodwiedzaniem jej, bo Kuking nie ma feedu głównego innego niż
+chronologiczny. To zdanie samo nie jest jeszcze nigdzie w interfejsie ani
+w dokumencie dla użytkownika — patrz luka opisana wyżej, zamykana przez #1811.
 
 ### 1.3 Co to oznacza praktycznie — minimalny zestaw DSA dla Kuking na start
 
@@ -87,20 +143,50 @@ Kuking.pl (operator) jest **administratorem danych** (data controller) dla danyc
 
 ### 2.2 Tabela: cel przetwarzania | dane | podstawa prawna | retencja
 
-| Cel | Dane | Podstawa prawna (Art. 6 RODO) | Sugerowana retencja |
+**Kolumna retencji podaje wartość, którą dziś egzekwuje kod i publikuje
+`resources/legal/polityka-prywatnosci.md` — nie rekomendację ani placeholder.
+Gdzie decyzja jest wciąż otwarta (prawna albo produktowa), mówi to wprost i
+nie miesza się z liczbami wdrożonymi — pełna lista otwartych pytań jest w
+akapicie „Otwarte decyzje" pod tabelą.**
+
+| Cel | Dane | Podstawa prawna (Art. 6 RODO) | Retencja (wdrożona w kodzie) |
 |---|---|---|---|
-| Założenie i obsługa konta | e-mail, hasło (hash), status konta, ustawienia (locale, text_scale) | Art. 6(1)(b) — wykonanie umowy (regulamin = umowa o świadczenie usługi drogą elektroniczną) | Przez czas trwania konta + [do ustalenia z prawnikiem, zwykle 30–90 dni] okres "soft delete" na wypadek pomyłki, potem trwałe usunięcie |
+| Założenie i obsługa konta | e-mail, hasło (hash), status konta, ustawienia (locale, text_scale) | Art. 6(1)(b) — wykonanie umowy (regulamin = umowa o świadczenie usługi drogą elektroniczną) | Przez czas trwania konta. Po zgłoszeniu usunięcia konto wchodzi na **30 dni** w stan tymczasowy (`config('kuking.account.delete_grace_days')`, `PurgeExpiredAccountDeletions`), w którym da się je jeszcze przywrócić; po tym terminie następuje trwałe usunięcie/anonimizacja. Ta sama liczba dni co karencja usunięcia treści niżej (`docs/decyzje/ADR_RETENCJE.md` §5.7; `resources/legal/polityka-prywatnosci.md` §7 pkt 2) |
 | Profil publiczny (username, display name, bio, avatar) | dane podane dobrowolnie przez użytkownika | Art. 6(1)(b) — realizacja funkcji usługi, do której użytkownik się zapisał | Do usunięcia konta lub zmiany przez użytkownika |
 | Zdjęcia (oryginały i warianty) | piksele, EXIF w oryginale (data, model aparatu, GPS) | Art. 6(1)(b) — realizacja usługi publikowania treści | Do usunięcia zdjęcia przez użytkownika **lub do usunięcia konta — wtedy kasowane są WSZYSTKIE**, razem z cache CDN-u (D-018) |
-| Treść tekstowa (posty, przepisy, komentarze) | tekst, historia wersji przepisu | Art. 6(1)(b) — realizacja usługi publikowania treści | Do usunięcia treści przez użytkownika. Przy usunięciu konta **decyduje sam użytkownik** (D-022, `users.delete_scope`): domyślnie **tekst zostaje, zanonimizowany** — podpisany „Użytkownik usunięty" (D-018); po zaznaczeniu haczyka na ekranie usuwania konta tekst jest **kasowany na stałe** razem z wpisami, przepisami, komentarzami, wykonaniami i zeszytami; wersje historyczne przepisu — do ustalenia limitu (np. ostatnie N wersji) |
+| Treść tekstowa (posty, przepisy, komentarze) | tekst, historia wersji przepisu | Art. 6(1)(b) — realizacja usługi publikowania treści | Usunięta przez autora treść znika z serwisu od razu, a z bazy — razem ze zdjęciami — najpóźniej **30 dni** po usunięciu (`config('kuking.usuniete_tresci.retention_days')`, `kuking:sprzataj-usuniete-tresci`, `docs/decyzje/ADR_RETENCJE.md` §5.7); wyjątek — treść objęta zgłoszeniem/moderacją czeka na retencję sprawy (wiersz niżej). Przy usunięciu konta **decyduje sam użytkownik** (D-022, `users.delete_scope`): domyślnie **tekst zostaje, zanonimizowany** — podpisany „Użytkownik usunięty" (D-018); po zaznaczeniu haczyka na ekranie usuwania konta tekst jest kasowany razem z wpisami, przepisami, komentarzami, wykonaniami i zeszytami. Limit historycznych wersji przepisu jest **otwartą decyzją produktową**, nie prawną — patrz „Otwarte decyzje" |
 | Relacje społecznościowe (follow, block) | ID obserwującego/obserwowanego | Art. 6(1)(b) | Do usunięcia relacji lub konta |
-| Zgłoszenia treści i moderacja | zgłaszający, zgłoszony, powód, decyzja, uzasadnienie | Art. 6(1)(c) — obowiązek prawny (DSA Art. 16–18) oraz Art. 6(1)(f) — uzasadniony interes (bezpieczeństwo platformy) | Dłuższa niż dane samej treści — rekomendacja [do ustalenia z prawnikiem]: 12–24 miesiące od zamknięcia sprawy, dla obrony przed roszczeniami i nadzoru DSA |
-| Logi bezpieczeństwa (audit log, próby logowania, IP) | IP, user agent, timestamp, typ zdarzenia | Art. 6(1)(f) — uzasadniony interes (bezpieczeństwo, wykrywanie nadużyć) | Krótka — rekomendacja 90 dni dla logów ogólnych, dłużej tylko dla zdarzeń związanych z aktywnym incydentem bezpieczeństwa |
-| Powiadomienia in-app | treść powiadomienia, status przeczytania | Art. 6(1)(b) | Do usunięcia/przeczytania + rozsądny bufor |
-| Analityka produktowa (PostHog) | zdarzenia UI, w miarę możliwości bez identyfikatorów bezpośrednich | Art. 6(1)(f) — uzasadniony interes, **o ile** spełnione warunki testu równoważenia i **niezależnie** od wymogu zgody na poziomie ePrivacy dla cookies/localStorage (patrz sekcja 5) | Krótka, rekomendacja 6–14 miesięcy, zagregowane dane bez limitu |
+| Zgłoszenia treści i moderacja (`reports`, `moderation_actions`, `appeals`) | zgłaszający, zgłoszony, powód, decyzja, uzasadnienie, treść odwołania | Art. 6(1)(c) — obowiązek prawny (DSA Art. 16–18) oraz Art. 6(1)(f) — uzasadniony interes z pisemnym testem równowagi (bezpieczeństwo platformy, obrona przed roszczeniami) | **36 miesięcy** od zamknięcia sprawy (decyzji moderatora albo rozstrzygnięcia odwołania, jeśli je złożono) — `config('kuking.moderation.case_retention_months')`, `docs/decyzje/ADR_RETENCJE.md` §5.3–§5.6. Dane kontaktowe zgłaszającego pozostają powiązane ze sprawą przez cały ten okres — to jest świadomie NIEZREALIZOWANA rekomendacja wcześniejszego skrócenia (ADR §6, §10), nie przeoczenie |
+| Logi bezpieczeństwa (audit log, próby logowania, IP) | IP, user agent, timestamp, typ zdarzenia | Art. 6(1)(f) — uzasadniony interes (bezpieczeństwo, wykrywanie nadużyć) | **12 miesięcy** od zapisania wpisu — `config('kuking.audit_log.retention_months')`, `docs/decyzje/ADR_RETENCJE.md` §5.1. Wyjątek: wpisy dokumentujące złożenie, cofnięcie albo wykonanie żądania usunięcia konta zostają **bezterminowo** jako dowód wykonania żądania (`AuditLogEntry::NIGDY_NIE_KASUJ`) |
+| Powiadomienia in-app | treść powiadomienia, status przeczytania | Art. 6(1)(b) | **3 miesiące** od otrzymania, niezależnie od tego, czy zostały przeczytane — `config('kuking.notifications.retention_months')`, `docs/decyzje/ADR_RETENCJE.md` §5.2. Wyjątek: powiadomienia o decyzji moderacyjnej i o wyniku odwołania żyją do upływu terminu na odwołanie, **co najmniej 6 miesięcy** od decyzji (DSA art. 20 ust. 1) — `Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA` |
+| Analityka produktowa własna (`App\Domain\Analytics\*`, tabela `product_signals`) | zdarzenia techniczne (nieudane wgranie zdjęcia, wykonane wyszukiwanie), bez identyfikatorów bezpośrednich | Art. 6(1)(f) — uzasadniony interes w ulepszaniu serwisu | **90 dni** — `config('kuking.analytics.signal_retention_days')`, `kuking:sprzataj-sygnaly` (issue #115, decyzja sprzed tego ADR-u — poza jego zakresem, patrz `docs/decyzje/ADR_RETENCJE.md` §7). **PostHog nigdy nie został wdrożony i nie wraca do rozważenia** (D-092) — poprzednia wersja tego wiersza go wymieniała błędnie, jako zamiar, nie stan |
 | Analityka odwiedzin (Cloudflare Web Analytics, **wdrożone** 10.09.2026 — D-092) | adres odsłoniętej strony i adres źródła wejścia (oba **bez query stringu** — skrypt czyści `search`, `hash`, `username` i `password`), rodzaj i wersja przeglądarki, czasy wczytania (Web Vitals), kraj doliczany przez Cloudflare z samego połączenia; **bez** ciasteczek, **bez** zapisu na urządzeniu, identyfikator odsłony losowany w pamięci na jedno wczytanie strony | Art. 6(1)(f) — uzasadniony interes (wiedza, czy serwis komukolwiek się przydaje); ePrivacy/PKE nie wchodzi w grę, bo nie ma zapisu ani odczytu na urządzeniu (sekcja 5.5) | Po stronie Cloudflare, agregaty bez limitu; my nie trzymamy kopii |
-| Błędy aplikacji (Sentry) | stack trace, czasem fragmenty requestu — **ryzyko wycieku PII w treści błędu** | Art. 6(1)(f) — uzasadniony interes (utrzymanie usługi) | Rekomendacja 30–90 dni; **skonfigurować scrubbing PII w Sentry (data scrubbing rules) przed startem** |
+| Błędy aplikacji | stack trace, czasem fragmenty żądania — **ryzyko wycieku PII w treści błędu** | Art. 6(1)(f) — uzasadniony interes (utrzymanie usługi) | **Sentry nie jest dziś wdrożone** (D-041 w `docs/DECISIONS.md` — zamiar na roadmapie, nie stan; zob. też wiersz „Monitoring" w tabeli Stack `AGENTS.md` §3) — błędy trafiają wyłącznie do dziennika serwera, który żyje tyle, ile działająca instancja (`resources/legal/polityka-prywatnosci.md`, wiersz „Wykrywanie i naprawa błędów technicznych"), bez ustalonego zewnętrznego okresu retencji. Gdyby Sentry albo inne narzędzie zewnętrzne weszło do użycia, ten wiersz i reguły scrubbingu PII wymagają aktualizacji PRZED startem, nie po |
 | Newsletter/e-mail transakcyjny (reset hasła, powiadomienia) | e-mail, treść wiadomości | Art. 6(1)(b) dla e-maili transakcyjnych; Art. 6(1)(a) zgoda dla e-maili marketingowych, jeśli takie się pojawią | Jak konto / do wycofania zgody |
+
+### Otwarte decyzje (prawne i produktowe) — NIE są dzisiejszą retencją
+
+Poniższe punkty **nie mają dziś wdrożonej liczby** i nie wolno ich czytać
+jako wiersz tabeli wyżej — każdy wymaga osobnej decyzji właściciela (i tam,
+gdzie zaznaczone, opinii prawnika), zanim trafi do polityki prywatności:
+
+- **Maksymalny czas życia kopii zapasowej bazy danych** po usunięciu wiersza
+  źródłowego — decyzja infrastrukturalna (Railway/`pg_dump`/harmonogram
+  backupów), poza zakresem retencji na poziomie aplikacji (`docs/decyzje/ADR_RETENCJE.md` §7, sekcja 2.8 niżej).
+- **Limit historycznych wersji przepisu** (`recipe_versions`) — kod dziś nie
+  narzuca żadnego limitu; czy w ogóle jest potrzebny i jaki, to decyzja
+  produktowa (`docs/decyzje/ADR_RETENCJE.md` §7).
+- **Podział retencji `reports` według `source`** (`community` vs.
+  `legal_notice`) — zostawiony jako opcja do rozważenia, nie decyzja
+  (`docs/decyzje/ADR_RETENCJE.md` §6, §7).
+- **Wcześniejsze usunięcie/redakcja danych kontaktowych zgłaszającego** (przed
+  upływem pełnych 36 miesięcy sprawy) — rekomendacja zewnętrznej oceny
+  prawnej świadomie NIEZREALIZOWANA w tej turze (`docs/decyzje/ADR_RETENCJE.md`
+  §5.6 pkt 4, 6, §10).
+- **Klasyfikacja danych szczególnych kategorii** (RODO Art. 9/10) w wolnym
+  tekście zgłoszeń i uzasadnień moderacyjnych — wymaga osobnej oceny prawnej,
+  kod dziś takich danych nie rozpoznaje (`docs/decyzje/ADR_RETENCJE.md` §5.6
+  pkt 8).
 
 **Dlaczego zdjęcia i tekst są tu rozdzielone** (D-018, audyt W4-01): tekst
 przepisu po podmianie podpisu przestaje być danymi osobowymi. Zdjęcie nie —
@@ -133,16 +219,21 @@ kilkanaście commitów; szczegóły i pomiar: `docs/DATABASE.md`, sekcja
 Każdy z poniższych podmiotów jest **procesorem** i wymaga **umowy powierzenia przetwarzania danych (DPA — data processing agreement, Art. 28 RODO)**:
 
 - **Railway** (hosting, PostgreSQL) — sprawdzić lokalizację centrów danych (deklarowane UE) i czy Railway oferuje standardową umowę DPA; jeśli infrastruktura Railway w praktyce korzysta z podwykonawców spoza UE (np. AWS/GCP regiony), potrzebne są **standardowe klauzule umowne (SCC)** — [do weryfikacji bezpośrednio w dokumentacji Railway, to się zmienia].
-- **Cloudflare R2 / S3** — podobnie: DPA + sprawdzić region bucketa (wymusić EU region), Cloudflare ma globalny DPA dostępny z poziomu panelu.
-- **Sentry** — DPA dostępny standardowo (Sentry/Functional Software Inc. — spółka US, ale oferuje hosting UE — **wybrać explicit region UE przy konfiguracji projektu** i podpiąć SCC).
-- **PostHog** — dostępny w wariancie **PostHog Cloud EU** (Frankfurt) — **wybrać ten wariant**, nie US-cloud, żeby uniknąć transferu poza EOG.
+- **Cloudflare** (R2, CDN/WAF, Web Analytics — wszystkie **wdrożone**, D-092, `docs/infra/INFRA_DECISION.md`) — podobnie: DPA + sprawdzić region bucketa R2 (wymusić EU region), Cloudflare ma globalny DPA dostępny z poziomu panelu.
 - **Dostawca poczty transakcyjnej** (np. Postmark/SES/Resend) — sprawdzić region wysyłki i DPA; e-maile zawierają dane osobowe (adres, czasem treść powiadomienia) więc też wymagają DPA.
+
+**Sentry i PostHog nie są tu wymienione, bo żadne z nich nie jest wdrożone.**
+Sentry stoi jako zamiar na roadmapie (D-041, `docs/DECISIONS.md`) — gdyby
+kiedyś wszedł do użycia, ten akapit i tabela wyżej wymagają aktualizacji
+PRZED startem, nie po. PostHog był rozważony i **odrzucony trwale** na rzecz
+Cloudflare Web Analytics (D-092) — „nie wraca do rozważenia" jest dosłownym
+sformułowaniem tej decyzji, nie tylko obecnym stanem.
 
 **Rekomendacja:** prowadzić prostą tabelę "Rejestr podprocesorów" (nazwa, cel, kraj/region, czy jest DPA podpisane, czy dane opuszczają EOG) — to samo w sobie ułatwia odpowiedź na pytania klientów/regulatora i jest dobrą praktyką nawet bez formalnego obowiązku publikacji takiej listy.
 
 ### 2.4 Transfery poza EOG
 
-Domyślnie: **unikać**. Wybierać regiony UE we wszystkich usługach (Railway, R2, Sentry, PostHog — wszystkie mają opcję UE). Jeśli jakikolwiek podprocesor jest spółką z siedzibą w USA (np. Sentry, część dostawców e-mail), nawet przy hostowaniu danych w UE **transfer może zachodzić** przez dostęp zdalny/wsparcie techniczne — od 2023 r. wielu dostawców USA jest certyfikowanych w ramach **EU-US Data Privacy Framework (DPF)**, co jest uznaną podstawą transferu — **sprawdzić certyfikację DPF konkretnego dostawcy przed podpisaniem umowy** [do weryfikacji per dostawca, lista certyfikowanych firm jest publiczna na stronie dataprivacyframework.gov].
+Domyślnie: **unikać**. Wybierać regiony UE we wszystkich usługach dziś w użyciu (Railway, Cloudflare R2/CDN/Web Analytics — wszystkie mają opcję UE). Jeśli jakikolwiek podprocesor jest spółką z siedzibą w USA (np. część dostawców e-mail), nawet przy hostowaniu danych w UE **transfer może zachodzić** przez dostęp zdalny/wsparcie techniczne — od 2023 r. wielu dostawców USA jest certyfikowanych w ramach **EU-US Data Privacy Framework (DPF)**, co jest uznaną podstawą transferu — **sprawdzić certyfikację DPF konkretnego dostawcy przed podpisaniem umowy** [do weryfikacji per dostawca, lista certyfikowanych firm jest publiczna na stronie dataprivacyframework.gov].
 
 ### 2.5 DPIA (ocena skutków dla ochrony danych)
 
@@ -156,7 +247,7 @@ Prawdopodobnie **niewymagana obowiązkowo** dla podstawowego zakresu Kuking MVP 
 
 | Prawo | Termin realizacji | Uwaga praktyczna |
 |---|---|---|
-| Dostęp (Art. 15) | bez zbędnej zwłoki, max 1 miesiąc (przedłużalne o 2 miesiące przy skomplikowanych wnioskach, z informacją do wnioskodawcy) | Kuking i tak buduje eksport danych w MVP — to naturalnie realizuje to prawo |
+| Dostęp (Art. 15) | bez zbędnej zwłoki, max 1 miesiąc (przedłużalne o 2 miesiące przy skomplikowanych wnioskach, z informacją do wnioskodawcy) | Paczka z ustawień (`CollectUserExportData`) plus droga na żądanie. Mapa „tabela/kolumna → eksport / na żądanie / nie dotyczy” to `app/Domain/Users/Exports/InwentarzDanychKonta.php`; test `EksportObejmujeKazdaTabeleKontaTest` oblewa, gdy w schemacie pojawi się kolumna wskazująca na konto bez rozstrzygnięcia (#953). Kategorie „na żądanie” paczka wypisuje w `kategorie_poza_paczka` z powodami — przy ręcznym żądaniu z art. 15 trzeba je wydać osobno (poświadczeń nie wydajemy nigdy) |
 | Sprostowanie (Art. 16) | jw. | Realizowane przez edycję profilu/treści przez użytkownika samodzielnie w większości przypadków |
 | Usunięcie / "prawo do bycia zapomnianym" (Art. 17) | jw. | Usunięcie konta w MVP — zwrócić uwagę na **backupy** (patrz niżej) i na **treści, które zostały skomentowane/cytowane przez innych** — trzeba mieć politykę, czy komentarze usuniętego użytkownika zostają (zwykle: tak, zanonimizowane jako "użytkownik usunięty") |
 | Przenoszenie danych (Art. 20) | jw. | Eksport w formacie strukturalnym (JSON/CSV) — MVP i tak to zakłada |
@@ -171,9 +262,9 @@ Prawdopodobnie **niewymagana obowiązkowo** dla podstawowego zakresu Kuking MVP 
 
 ### 2.8 Retencja i usuwanie konta
 
-- Zaprojektować **hard delete** po okresie karencji (rekomendacja: 30 dni "pending_delete" — kolumna `status` w schemacie już to przewiduje) — w tym czasie użytkownik może cofnąć decyzję.
-- Po 30 dniach: usunięcie/anonimizacja danych osobowych, natomiast **treści z realną wartością społeczną (np. przepis, do którego inni się odwoływali) mogą zostać zachowane w formie zanonimizowanej** ("autor: konto usunięte") — to standardowa praktyka portali społecznościowych, ale **musi być jasno opisana w regulaminie i polityce prywatności**, żeby nie zaskoczyć użytkownika.
-- **Backupy bazy danych** zawierają dane osobowe do czasu rotacji backupu — polityka prywatności musi podać maksymalny czas życia backupu (np. "usunięte dane mogą pozostawać w kopiach zapasowych do X dni") — to częsty błąd pomijany w politykach prywatności małych serwisów.
+- **Wdrożone, nie rekomendacja:** hard delete po **30 dniach** karencji (`config('kuking.account.delete_grace_days')`, `PurgeExpiredAccountDeletions`) — w tym czasie użytkownik może cofnąć decyzję. Patrz tabela w §2.2.
+- Po 30 dniach: usunięcie/anonimizacja danych osobowych, natomiast **treści z realną wartością społeczną (np. przepis, do którego inni się odwoływali) mogą zostać zachowane w formie zanonimizowanej** ("autor: konto usunięte") — to jest wdrożone i opisane w regulaminie i polityce prywatności (D-018, D-022 — patrz tabela w §2.2, wiersz „Treść tekstowa").
+- **OTWARTE, nie rozstrzygnięte kodem: maksymalny czas życia kopii zapasowej bazy danych.** Backupy zawierają dane osobowe do czasu rotacji backupu — to jest decyzja infrastrukturalna (Railway/`pg_dump`/harmonogram), poza zasięgiem retencji na poziomie aplikacji (`docs/decyzje/ADR_RETENCJE.md` §7). Polityka prywatności dziś **nie podaje** maksymalnego czasu życia backupu — to musi zostać ustalone i opisane osobno, zanim dokument twierdzi inaczej.
 
 ---
 
@@ -330,7 +421,7 @@ Pilnuje tego `DokumentyPrawneNieKlamiaTest::test_kazdy_wiersz_listy_gotowosci_ma
 | P0 | OpenAI: treść wpisu i pomniejszone zdjęcie wychodzą poza EOG — granica opisana w polityce i egzekwowana w kodzie | `app/Moderacja/KlientOpenAI.php`, polityka §„Przekazywanie poza EOG"; `PolitykaPrywatnosciWymieniaKazdaUslugeTest` | **Tak — podstawa przekazania** |
 | P0 | Logowanie kontem Google i Facebookiem: zakres danych zgodny z polityką | `PolitykaPrywatnosciWymieniaKazdaUslugeTest`; `/health` na produkcji potwierdza, że obie drogi są włączone | **Tak — rola Meta jako osobnego administratora** |
 | P0 | `SESSION_SECURE_COOKIE` ustawione na produkcji | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` w repozytorium stoi `.env.example:47 SESSION_SECURE_COOKIE=false` (wartość lokalna). Wartości produkcyjnej nie widać z kodu — odczytać w panelu Railway | Nie |
-| P0 | `zadania_nieudane` w `/health` wyjaśnione przed wpuszczeniem ludzi | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` `/health` mówi `degraded` wyłącznie na kolejce; tabeli `failed_jobs` nie da się odczytać bez konsoli produkcyjnej (#713 A1). Nie kasować bez zrozumienia przyczyny | Nie |
+| P0 | `zadania_nieudane` w `/health` wyjaśnione przed wpuszczeniem ludzi | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` `/health` mówi `degraded` wyłącznie na kolejce; tabeli `failed_jobs` nie da się odczytać bez konsoli produkcyjnej (#713 A1). Nie kasować bez zrozumienia przyczyny. Od 25.09.2026 wiersze starsze niż 30 dni kasuje harmonogram (`queue:prune-failed --hours=720`, decyzja właściciela w `docs/DECISIONS.md`) — zadania z 9.09.2026 znikną same około 10.10.2026, więc przyczynę trzeba zrozumieć przed tą datą | Nie |
 | P1 | Baner cookies — niepotrzebny, dopóki statystyka jest bezciasteczkowa (D-092); wrócić do tematu przy zmianie dostawcy albo dołożeniu identyfikatorów | `AnalitykaBezCiasteczekTest` — gdy padnie, ten wiersz staje się P0 | **Tak, przy zmianie dostawcy** |
 | P1 | Szablon zgłoszenia naruszenia do UODO + szablon powiadomienia użytkowników przygotowany z wyprzedzeniem | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` oba szablony i ścieżka decyzyjna stoją w `SZABLONY_NARUSZENIE_DANYCH.md`. Zostały dwie rzeczy, których dokument nie może rozstrzygnąć za właściciela: **kto stwierdza naruszenie i kto go zastępuje**, oraz **droga złożenia zgłoszenia do UODO sprawdzona ZANIM będzie potrzebna** | Zalecane |
 | P1 | Ustalenie i udokumentowanie polityki retencji backupów (max czas życia kopii z danymi po usunięciu konta) | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` retencja danych w aplikacji jest egzekwowana dziesięcioma komendami (§7.3), ale kopie zapasowe rządzą się osobnym cyklem — #193, #594 | Nie |

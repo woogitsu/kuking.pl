@@ -105,6 +105,59 @@ class CaddySpojnyZNaglowkamiLaravelaTest extends TestCase
     }
 
     /**
+     * Audyt A5-01, regresja #1052. Laravel wysyła `Referrer-Policy:
+     * no-referrer` na stronach z sekretem w adresie, a na pozostałych
+     * `strict-origin-when-cross-origin`. Caddy miał tu zwykłe `set`, które
+     * — przez odroczenie operacji w bloku z `-Server` — nadpisywało decyzję
+     * aplikacji i token wracał jako `document.referrer` następnej strony.
+     *
+     * Reguła ogólna: nagłówek, któremu aplikacja nadaje RÓŻNE wartości
+     * zależnie od strony, może w Caddy żyć tylko jako `?` (wartość domyślna),
+     * nigdy jako bezwarunkowe `set`. Porównanie tylko na `/` (test wyżej)
+     * tego nie widzi, bo tam obie warstwy mówią to samo.
+     */
+    public function test_naglowek_zalezny_od_strony_jest_w_caddy_tylko_wartoscia_domyslna(): void
+    {
+        $zwykla = $this->get('/');
+        $zwykla->assertOk();
+        $zSekretem = $this->get('/nowe-haslo/'.str_repeat('a', 64).'?email=ktos%40example.com');
+        $zSekretem->assertOk()->assertHeader('Referrer-Policy', 'no-referrer');
+
+        $wszystkie = $this->naglowkiZCaddyfile();
+        $domyslne = $this->naglowkiZCaddyfile(tylkoDomyslne: true);
+
+        // Kontrola dodatnia: parser widzi Referrer-Policy w Caddyfile.
+        // Bez tego usunięcie linii albo zmiana składni dałyby zielony test
+        // z pustą pętlą.
+        $this->assertArrayHasKey('Referrer-Policy', $wszystkie);
+
+        $zmienne = 0;
+
+        foreach (array_keys($wszystkie) as $nazwa) {
+            $a = $zwykla->headers->get($nazwa);
+            $b = $zSekretem->headers->get($nazwa);
+
+            if ($a === $b) {
+                continue;
+            }
+
+            $zmienne++;
+
+            $this->assertArrayHasKey(
+                $nazwa,
+                $domyslne,
+                "Nagłówek {$nazwa} ma w aplikacji różne wartości zależnie od strony "
+                ."(\"{$a}\" na /, \"{$b}\" na stronie z sekretem w adresie), a docker/Caddyfile "
+                .'ustawia go bezwarunkowo. Caddy odracza operacje w bloku z usunięciami, '
+                .'więc jego wartość nadpisze decyzję aplikacji. Użyj `?'.$nazwa.' "…"` '
+                .'(ustaw tylko, gdy brak).',
+            );
+        }
+
+        $this->assertGreaterThan(0, $zmienne, 'Referrer-Policy przestał się różnić między stronami — ten test niczego już nie sprawdza.');
+    }
+
+    /**
      * Nagłówki z BEZWARUNKOWEGO bloku `header` w Caddyfile, jako nazwa => wartość.
      *
      * Tylko z bezwarunkowego, czyli `header {`, a nie `header @dynamic {`
@@ -121,9 +174,13 @@ class CaddySpojnyZNaglowkamiLaravelaTest extends TestCase
      * `SAMEORIGIN` — asercja na literał trafiłaby we własne uzasadnienie
      * zamiast w konfigurację.
      *
+     * Prefiks `?` („ustaw, gdy brak") nie zmienia nazwy nagłówka — wartość
+     * domyślna też ma się zgadzać z aplikacją. `$tylkoDomyslne` zwraca
+     * wyłącznie nagłówki z tym prefiksem.
+     *
      * @return array<string, string>
      */
-    private function naglowkiZCaddyfile(): array
+    private function naglowkiZCaddyfile(bool $tylkoDomyslne = false): array
     {
         $tresc = (string) file_get_contents(base_path('docker/Caddyfile'));
 
@@ -134,7 +191,7 @@ class CaddySpojnyZNaglowkamiLaravelaTest extends TestCase
         }
 
         preg_match_all(
-            '/^\s*([A-Za-z][A-Za-z0-9-]*)\s+"([^"]*)"\s*$/m',
+            '/^\s*(\??)([A-Za-z][A-Za-z0-9-]*)\s+"([^"]*)"\s*$/m',
             $blok[1],
             $trafienia,
             PREG_SET_ORDER,
@@ -143,7 +200,11 @@ class CaddySpojnyZNaglowkamiLaravelaTest extends TestCase
         $naglowki = [];
 
         foreach ($trafienia as $trafienie) {
-            $naglowki[$trafienie[1]] = $trafienie[2];
+            if ($tylkoDomyslne && $trafienie[1] !== '?') {
+                continue;
+            }
+
+            $naglowki[$trafienie[2]] = $trafienie[3];
         }
 
         return $naglowki;

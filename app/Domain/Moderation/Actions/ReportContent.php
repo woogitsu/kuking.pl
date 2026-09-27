@@ -69,6 +69,9 @@ final class ReportContent
      */
     private const VIEW_ABILITY = [
         User::class => 'viewProfile',
+        // `report`, a nie `view`: podgląd ukrytego wpisu dla moderatora
+        // (#1018) przechodzi `view`, ale jest tylko do odczytu.
+        Post::class => 'report',
     ];
 
     public function __construct(

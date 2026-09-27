@@ -13,6 +13,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Tests\Support\StanGrupySygnalow;
 use Tests\TestCase;
 
 /**
@@ -31,6 +32,7 @@ use Tests\TestCase;
 class StatusZgloszeniaZwiazanyZRozstrzygnieciemTest extends TestCase
 {
     use RefreshDatabase;
+    use StanGrupySygnalow;
 
     private const OGRANICZENIE = 'reports_resolution_complete_check';
 
@@ -197,7 +199,7 @@ class StatusZgloszeniaZwiazanyZRozstrzygnieciemTest extends TestCase
         ]);
 
         $this->actingAs($moderator)
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), ...$this->stanGrupySygnalow((string) $autor->getKey())])
             ->assertSessionHasNoErrors();
 
         $oznaczenie->refresh();

@@ -35,7 +35,15 @@ class SamodzielneEkranyMarkiTest extends TestCase
     {
         $dom = $this->document(file_get_contents(public_path('offline.html')));
         $this->assertSame('Nie ma teraz połączenia z internetem', trim($dom->query('//main/h1')->item(0)->textContent));
-        $this->assertSame('/home', $dom->query('//main//a')->item(0)->getAttribute('href'));
+        // #749: „Spróbuj ponownie” ponawia adres, który się nie wczytał
+        // (pusty href = bieżący dokument), a strona główna ma własny napis.
+        // Zachowanie z prawdziwym workerem: scripts/offline-ponowienie.test.mjs.
+        $linki = $dom->query('//main//a');
+        $this->assertSame('Spróbuj ponownie', trim($linki->item(0)->textContent));
+        $this->assertSame('', $linki->item(0)->getAttribute('href'));
+        $this->assertTrue($linki->item(0)->hasAttribute('href'));
+        $this->assertSame('Przejdź na stronę główną', trim($linki->item(1)->textContent));
+        $this->assertSame('/home', $linki->item(1)->getAttribute('href'));
         $this->assertSame(0, $dom->query('//script | //link')->length);
         $css = $dom->query('//style')->item(0)->textContent;
         $this->assertBrand($css);

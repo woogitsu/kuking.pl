@@ -137,9 +137,21 @@
                     <p class="meta">
                         Wskazany adres:
                         <span class="kod-do-przepisania">{{ $report->target_url }}</span>
-                        @if($report->target_type === 'unknown')
-                            <strong>— nie rozpoznaliśmy, o którą treść chodzi.</strong>
-                        @endif
+                        {{-- Rodzaj adresu liczony z samej wartości, nie z `target_type`:
+                             zgłoszenie sprzed #1636 mogło przypiąć obcy adres do naszej
+                             treści, a moderator ma to zobaczyć przed decyzją. --}}
+                        @switch(\App\Domain\Moderation\AdresZgloszenia::rodzaj((string) $report->target_url))
+                            @case(\App\Domain\Moderation\AdresZgloszenia::ZEWNETRZNY)
+                                <strong>— to adres spoza Kuking albo w nietypowej postaci. Nie łączymy go z żadną naszą treścią — sprawdź go ręcznie, zanim podejmiesz decyzję.</strong>
+                                @break
+                            @case(\App\Domain\Moderation\AdresZgloszenia::NIEPOPRAWNY)
+                                <strong>— to nie jest adres strony, tylko opis. Poszukaj tej treści ręcznie.</strong>
+                                @break
+                            @default
+                                @if($report->target_type === 'unknown')
+                                    <strong>— adres Kuking, ale nie rozpoznaliśmy, o którą treść chodzi.</strong>
+                                @endif
+                        @endswitch
                     </p>
                 @endif
 
@@ -347,8 +359,18 @@
 
                     Przycisk pokazuje się tylko wtedy, gdy naprawdę jest co
                     przywracać — treść istnieje i nadal jest schowana.
+                    Przy WŁASNEJ treści patrzącego zamiast przycisku stoi
+                    informacja (#1479): akcja i tak by odmówiła. Tak samo
+                    u moderatora przy treści, którą ukrył administrator
+                    (#1748) — regułę rangi B2-01 czyta
+                    `RestoreContent::wolnoCofnac()`, ten sam warunek, którego
+                    pilnuje backend.
                 --}}
-                @if($przywracalne[$report->id] ?? false)
+                @if(($przywracalne[$report->id] ?? null) === 'wlasna')
+                    <p class="mt-4">
+                        To Twoja treść — przywrócić może inny moderator albo rozstrzygnie to odwołanie.
+                    </p>
+                @elseif(($przywracalne[$report->id] ?? null) === 'przywroc')
                     <form class="mt-4" method="POST" action="{{ route('admin.reports.restore', $report) }}">
                         @csrf
                         {{-- Ten sam identyfikator wiersza co w formularzu decyzji
@@ -373,6 +395,10 @@
 
                         <button class="btn btn-secondary" type="submit">Przywróć treść</button>
                     </form>
+                @elseif(($przywracalne[$report->id] ?? null) === 'tylko_admin')
+                    <p class="meta mt-4">
+                        <strong>Ukrył administrator.</strong> Przywrócić tę treść może tylko administrator — przekaż mu sprawę.
+                    </p>
                 @endif
             @endif
         </article>
@@ -380,5 +406,5 @@
         <x-empty-state title="Nic tu nie ma">Brak zgłoszeń w tej kategorii.</x-empty-state>
     @endforelse
 
-    <div class="mt-6">{{ $reports->links() }}</div>
+    <div class="mt-6"><x-paginacja-panelu :paginator="$reports" /></div>
 </x-layout>

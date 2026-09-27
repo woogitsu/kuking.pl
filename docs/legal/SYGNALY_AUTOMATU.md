@@ -156,7 +156,7 @@ Ta sama albo prawie ta sama treść (≥ 92% podobieństwa) opublikowana przez
 | **Poziomy zaufania (TL0–TL4)** | **REJECT na dziś** | poz. 3.13 — blisko publicznego rankingu użytkowników zakazanego w `AGENTS.md` §12. |
 | **Captcha** | **REJECT** | Bariera wejścia dla 50+. Zamiast niej — te sygnały. |
 | **Analiza przepisów (`recipes`)** | **ODŁOŻONE** | Tekst przepisu leży w trzech tabelach. Spam ląduje tam, gdzie jest najszybciej: w polu „napisz kilka słów" i pod cudzym zdjęciem. |
-| **Ponowna analiza po EDYCJI treści** | **KOMENTARZE: WDROŻONE (D-256). Wpisy: ODŁOŻONE, ze świadomą luką** | Poprawiony komentarz przechodzi analizę jeszcze raz (D-256, #909); jedno oznaczenie na treść zostaje, więc odrzucone nadal nie wraca. Dla wpisów: opublikować niewinny wpis i dopisać spam edycją to najprostsze obejście tego wykrywacza. Nie zamykamy go dziś, bo jedno oznaczenie na treść jest fundamentem obietnicy „odrzucone nie wraca", a ponowna analiza po każdej poprawce literówki kosztuje zadanie w kolejce za każdym razem. Ta luka jest zamykana zgłoszeniem od człowieka i **musi wrócić na stół**, gdy pojawi się pierwszy przypadek. |
+| **Ponowna analiza po EDYCJI treści** | **KOMENTARZE: WDROŻONE (D-256). WPISY: WDROŻONE (D-258)** | Poprawiony komentarz (D-256, #909) i poprawiony wpis — tekst, tytuł pytania, tagi — a także wpis wychodzący z „tylko ja” (D-258, #936) przechodzą analizę jeszcze raz; jedno oznaczenie na treść zostaje, więc odrzucone nadal nie wraca. Wpisu ukrytego lub usuniętego przez moderację nie da się edytować. Świadoma granica: treść, której oznaczenie moderator już odrzucił, po edycji nie wraca do kolejki automatu — zostaje zgłoszenie od człowieka. |
 
 ## 5. Kolejka: jak to ma przeżyć tysiąc kont przy jednym moderatorze
 
@@ -379,6 +379,18 @@ Testy i ograniczenia pomiaru: `docs/security/DZIENNIK_WYJATKOW_828_925.md`.
   publikacja dzieje się w innym żądaniu, a każdy błąd kończy się brakiem
   jednej pozycji w kolejce (sprawdza to
   `ModeracjaModelemTest::test_awaria_openai_nie_ma_zadnego_skutku`);
+- **awaria przejściowa jest ponawiana (#1662)** — timeout, zerwane
+  połączenie, HTTP 429 i 500/502/503/504 kończą się
+  `ModelChwilowoNiedostepny`, a `PrzeanalizujTresc` wraca do kolejki
+  (najwyżej 3 próby, opóźnienie ok. 30 s i 120 s z rozrzutem do 20%,
+  `Retry-After` w sekundach wydłuża je do najwyżej 600 s). Między próbami
+  nic nie jest zapisywane, a każda próba od nowa sprawdza status,
+  widoczność i `GranicaWysylki`. Po trzeciej porażce lokalne sygnały są
+  zapisane bez oceny modelu, w dzienniku zostaje
+  `stage=openai_retries_exhausted`, a zadanie trafia do `failed_jobs`.
+  Pozostałe 4xx, 501, brak klucza i odpowiedź w nieznanym kształcie nie są
+  ponawiane. Każda próba ma własny limit 30 s — ponowienia nie wydłużają
+  jednego uruchomienia (#829). Testy: `ModeracjaPonowienieModeluTest`;
 - do API nie idzie NIC identyfikującego autora: ani adres e-mail, ani nazwa
   konta, ani identyfikator wpisu, ani adres IP. Pilnuje tego test
   `test_do_openai_nie_wychodzi_nic_identyfikujacego_autora`;
