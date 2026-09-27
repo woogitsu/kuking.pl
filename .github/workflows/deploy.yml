@@ -713,7 +713,7 @@ jobs:
 
           echo "=== Uruchamiam migracje ==="
           railway ssh --service "$APP_SERVICE" --environment "$TARGET_ENV" \
-            "php artisan migrate --force --no-interaction"
+            "php artisan kuking:migruj-pod-blokada --no-interaction"
 
           echo "=== Stan migracji PO ==="
           railway ssh --service "$APP_SERVICE" --environment "$TARGET_ENV" \

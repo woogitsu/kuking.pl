@@ -51,7 +51,7 @@ final class WdrozenieImportujeWartosciOdzywczeTest extends TestCase
 
         $komendy = mb_substr($konfiguracja, $od, $do - $od);
 
-        $pozycjaMigracji = mb_strpos($komendy, 'artisan migrate');
+        $pozycjaMigracji = mb_strpos($komendy, 'artisan kuking:migruj-pod-blokada');
         $this->assertNotFalse($pozycjaMigracji, 'W komendach pre-deploy nie ma migracji — czytam zły fragment pliku.');
 
         $pozycjaImportu = mb_strpos($komendy, 'artisan kuking:importuj-wartosci-odzywcze');
