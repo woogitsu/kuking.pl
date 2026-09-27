@@ -48,12 +48,12 @@
                 <p>Link potwierdzający działa tylko w tej przeglądarce i tylko przez 10 minut.</p>
             @else
                 <label for="facebook-link-password">Hasło do Kuking</label>
-                <input id="facebook-link-password" name="password" type="password" autocomplete="current-password">
+                <input class="field-input" id="facebook-link-password" name="password" type="password" autocomplete="current-password">
                 <p>Wpisz obecne hasło, żeby potwierdzić połączenie.</p>
             @endif
             @if($maDrugiSkladnik ?? false)
                 <label for="facebook-link-code">Kod z aplikacji lub kod zapasowy</label>
-                <input id="facebook-link-code" name="two_factor_code" type="text" autocomplete="one-time-code" required>
+                <input class="field-input" id="facebook-link-code" name="two_factor_code" type="text" autocomplete="one-time-code" required>
             @endif
             <div class="form-actions">
                 <button class="btn btn-primary" type="submit">Połącz z Facebookiem</button>
