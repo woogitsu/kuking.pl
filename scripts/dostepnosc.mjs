@@ -1825,7 +1825,7 @@ if (idOdwolania === null) {
  * podzbiór tego samego układu.
  *
  * DECYZJA `no_action`, ŚWIADOMIE. Jako jedyna nie rusza ani treści, ani
- * konta (`ModerationController::applyAction()`), więc dołożenie tych danych
+ * konta (`RozstrzygnijZgloszenie::applyAction()`), więc dołożenie tych danych
  * nie zmienia ANI JEDNEGO innego ekranu z listy wyżej. `hide` ukryłby
  * demonstracyjny wpis oglądany przez trzy inne pozycje.
  *

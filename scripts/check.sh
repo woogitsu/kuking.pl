@@ -67,7 +67,12 @@ krok "PostgreSQL"
 _pg_host="${DB_HOST:-127.0.0.1}"
 _pg_port="${DB_PORT:-5432}"
 _pg_katalog="${KUKING_PG_LIB:-/usr/lib/postgresql}"
-sonda_pg() { pg_isready -q -h "$_pg_host" -p "$_pg_port" 2>/dev/null; }
+# Baza i użytkownik tylko wtedy, gdy są podane — bez nich sonda pyta jak
+# dotąd o sam host i port. Hasła tu nie ma: `pg_isready` go nie sprawdza.
+_pg_cel=(-h "$_pg_host" -p "$_pg_port")
+[ -n "${DB_DATABASE:-}" ] && _pg_cel+=(-d "$DB_DATABASE")
+[ -n "${DB_USERNAME:-}" ] && _pg_cel+=(-U "$DB_USERNAME")
+sonda_pg() { pg_isready -q "${_pg_cel[@]}" 2>/dev/null; }
 
 if ! sonda_pg; then
     if [ "$_pg_port" = 5432 ]; then
@@ -83,6 +88,7 @@ fi
 
 if sonda_pg; then
     ok "PostgreSQL odpowiada na $_pg_host:$_pg_port"
+    printf "  To nie sprawdza hasła ani tego, czy baza istnieje — sprawdzą to testy i migracje.\n"
 else
     zle "PostgreSQL nie odpowiada na $_pg_host:$_pg_port — testy Kuking nie chodzą na SQLite"
     if [ "$_pg_port" = 5432 ]; then
@@ -150,6 +156,10 @@ elif ! bash tests/skrypty/kontrola-sondy-wdrozenia.sh >/dev/null 2>&1; then
     # Sondy testu dymnego po wdrożeniu (#1012, #1332) chodzą tylko w GitHub
     # Actions, na produkcji — tu sprawdzamy je na atrapach curl, bez sieci.
     zle "Sondy testu dymnego oblewają — uruchom: bash tests/skrypty/kontrola-sondy-wdrozenia.sh"
+elif ! bash tests/skrypty/kontrola-czekania-preview.sh >/dev/null 2>&1; then
+    # Czekanie na gotowe preview (#1389) chodzi tylko w GitHub Actions — tu
+    # na atrapie `gh`, bez sieci: sam adres deploymentu to jeszcze nie gotowość.
+    zle "Czekanie na preview oblewa — uruchom: bash tests/skrypty/kontrola-czekania-preview.sh"
 else
     ok "Składnia i testy skryptów powłoki przechodzą"
 fi

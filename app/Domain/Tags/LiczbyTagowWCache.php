@@ -96,8 +96,10 @@ final class LiczbyTagowWCache
      */
     public function liczbyWpisow(array $tagIds): array
     {
+        // Wpis z własną treścią według własnej widoczności (issue #1377) —
+        // jak w `TagController::tylkoPubliczne()`.
         $wpisy = Post::query()->publiclyVisible()
-            ->tylkoOdAktywnychAutorow()->zWidocznymPrzepisem(null)
+            ->tylkoOdAktywnychAutorow()->zWidocznymPrzepisemAlboWlasnaTrescia(null)
             ->select('posts.id');
 
         return DB::query()->fromSub($wpisy, 'visible_posts')

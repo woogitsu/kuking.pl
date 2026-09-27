@@ -8,7 +8,9 @@
 #  2. w `check.sh` nie ma zaszytego portu stanowiska;
 #  3. lokalny start klastra działa jak dotąd dla portu domyślnego,
 #     a dla innego portu (cudza instancja) klaster nie jest ruszany;
-#  4. komunikat o niedostępności nazywa sprawdzany adres.
+#  4. komunikat o niedostępności nazywa sprawdzany adres;
+#  5. baza i użytkownik z DB_DATABASE / DB_USERNAME trafiają do sondy tylko
+#     wtedy, gdy są ustawione, a hasło nigdy nie trafia do wyjścia.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 TASK="$(mktemp -d)"
@@ -35,7 +37,7 @@ chmod +x "$TASK/bin/"*
 export PATH="$TASK/bin:$PATH" TRACE="$TASK/trace" KUKING_PG_LIB="$TASK/pglib"
 # Zmienne libpq nie mogą decydować o celu sondy.
 export PGHOST=zly PGPORT=1
-unset DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_URL READY_STATUS || true
+unset DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD DB_URL READY_STATUS || true
 
 failures=0
 blad() { echo "BŁĄD: $1"; failures=$((failures + 1)); }
@@ -72,6 +74,20 @@ grep -q '✓ PostgreSQL odpowiada na 127.0.0.1:5432' "$TASK/output" || blad "bra
 
 # 5. Portu stanowiska nie ma w skrypcie.
 grep -q '55439' <(grep -v '^[[:space:]]*#' "$ROOT/scripts/check.sh") && blad "check.sh ma zaszyty port 55439"
+
+# 6. Baza i użytkownik, gdy są podane, trafiają do sondy; hasło — nigdzie.
+(
+    export DB_PORT=55439 DB_DATABASE=kuking_test_zadanie DB_USERNAME=kuking DB_PASSWORD=tajne-haslo-732
+    run
+    grep -qx 'SONDA -q -h 127.0.0.1 -p 55439 -d kuking_test_zadanie -U kuking' "$TRACE" \
+        && ! grep -q 'tajne-haslo-732' "$TRACE" "$TASK/output" \
+        && grep -q 'nie sprawdza hasła' "$TASK/output"
+) || blad "DB_DATABASE/DB_USERNAME nie trafiły do sondy, hasło wyciekło albo brak zastrzeżenia o haśle"
+(
+    export READY_STATUS=1 DB_PORT=55439 DB_PASSWORD=tajne-haslo-732
+    run
+    ! grep -q 'tajne-haslo-732' "$TRACE" "$TASK/output"
+) || blad "przy niedostępnej bazie hasło trafiło do wyjścia"
 
 # Kontrola przyrządu: sonda bez portu MUSI zostać wykryta. Mutujemy kopię.
 sed -i 's/ -p "\$_pg_port"//' "$TASK/scripts/check.sh"

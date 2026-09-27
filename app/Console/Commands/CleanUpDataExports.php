@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Users\Exports\ExportFileNames;
+use App\Logging\BezpiecznyBlad;
 use App\Models\DataExport;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -126,7 +127,14 @@ class CleanUpDataExports extends Command
             : 'Gotowe. Usunięto '.$this->paczki($removed).'.',
         );
 
-        return self::SUCCESS;
+        // CZĘŚCIOWA PORAŻKA JEST PORAŻKĄ (issue #1331). Wcześniej komenda
+        // kończyła się sukcesem nawet wtedy, gdy nie usunęła ANI JEDNEJ
+        // paczki — a harmonogram (`Harmonogram::artisan()`) rozpoznaje błąd
+        // tylko po kodzie wyjścia. Reszta paczek jest już przetworzona, adresy
+        // nieudanych zostają do ponowienia. Utrzymującą się zaległość, także
+        // gdy ta komenda w ogóle nie chodzi, zgłasza osobna czujka
+        // `kuking:sprawdz-sprzatanie-eksportow`.
+        return $nieudane > 0 ? self::FAILURE : self::SUCCESS;
     }
 
     /** Polska odmiana: „1 wygasłą paczkę”, „2 wygasłe paczki”, „5 wygasłych paczek”. */
@@ -185,7 +193,9 @@ class CleanUpDataExports extends Command
                 'data_export_id' => $export->getKey(),
                 'disk' => $export->disk,
                 'object_key' => $export->object_key,
-                'error' => $e->getMessage(),
+                // Klucz obiektu jest wyżej, z modelu. Z wyjątku klasa i kod —
+                // komunikat klienta storage niesie adres żądania (#973).
+                'error' => BezpiecznyBlad::kontekst($e),
             ]);
 
             return false;

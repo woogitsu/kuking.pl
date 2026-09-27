@@ -62,7 +62,8 @@ class KursorStartuPamietaZrodloTest extends TestCase
             return $wpis;
         });
 
-        $this->assertDwieStronyBezDziur($widz, 'tagi', $wpisy->pluck('id')->all());
+        // Od #1808 (D-277) wpisy z tematów są w liście obserwowanych.
+        $this->assertDwieStronyBezDziur($widz, 'obserwowani', $wpisy->pluck('id')->all());
     }
 
     public function test_stabilne_odkrywanie_kontynuuje_bez_duplikatow_i_pominiec(): void
@@ -77,7 +78,7 @@ class KursorStartuPamietaZrodloTest extends TestCase
         $this->assertDwieStronyBezDziur($widz, 'odkrywanie', $wpisy->pluck('id')->all());
     }
 
-    public function test_obserwowani_zmienieni_na_tagi_zaczynaja_tagi_od_pierwszej_strony(): void
+    public function test_cofniete_obserwowanie_osoby_przy_temacie_zostaje_w_tej_samej_liscie(): void
     {
         [$widz, $autor] = $this->feedObserwowanych('do-tagow');
         $tag = $this->feedTagu($widz, 'tag-po-obserwowanych');
@@ -85,9 +86,11 @@ class KursorStartuPamietaZrodloTest extends TestCase
 
         $widz->following()->detach($autor->getKey());
 
-        $this->get($adres)->assertRedirect(route('home'));
+        // Źródło się nie zmieniło (osoby i tematy to od #1808 jedna lista),
+        // więc kursor dalej obowiązuje — bez przekierowania.
+        $this->get($adres)->assertOk()->assertViewHas('zrodloFeedu', 'obserwowani');
         $this->get(route('home'))->assertOk()
-            ->assertViewHas('zrodloFeedu', 'tagi')
+            ->assertViewHas('zrodloFeedu', 'obserwowani')
             ->assertSee($tag['najnowszy']);
     }
 
@@ -105,28 +108,24 @@ class KursorStartuPamietaZrodloTest extends TestCase
             ->assertSee($najnowszy);
     }
 
-    public function test_tagi_zmienione_na_obserwowanych_zaczynaja_obserwowanych_od_pierwszej_strony(): void
+    public function test_stary_odnosnik_ze_zrodlem_tagi_wraca_do_pierwszej_strony(): void
     {
+        // Przed #1808 feed tagów był osobnym źródłem i jego odnośniki niosły
+        // `zrodlo=tagi`. Takiego źródła już nie ma — zakładka ma wrócić do
+        // czystej pierwszej strony, nie wstawić kursora w inne zapytanie.
         $widz = $this->konto('widz-tagi-do-osob');
-        $tag = $this->feedTagu($widz, 'tagi-do-osob');
-        $adres = $this->adresNastepnejStrony($this->actingAs($widz)->get(route('home')), 'tagi');
-        $autor = $this->konto('autor-po-tagach');
-        $najnowszy = $this->wpisy($autor, 'Osoba po tagach', 3)->first()->body;
+        $this->feedTagu($widz, 'tagi-do-osob');
+        $adres = $this->adresNastepnejStrony($this->actingAs($widz)->get(route('home')), 'obserwowani');
 
-        $widz->following()->attach($autor->getKey(), ['created_at' => now()]);
-
-        $this->get($adres)->assertRedirect(route('home'));
-        $this->get(route('home'))->assertOk()
-            ->assertViewHas('zrodloFeedu', 'obserwowani')
-            ->assertSee($najnowszy);
+        $this->get($this->zParametrem($adres, 'zrodlo', 'tagi'))->assertRedirect(route('home'));
     }
 
-    public function test_tagi_zmienione_na_odkrywanie_zaczynaja_odkrywanie_od_pierwszej_strony(): void
+    public function test_tematy_zmienione_na_odkrywanie_zaczynaja_odkrywanie_od_pierwszej_strony(): void
     {
         $widz = $this->konto('widz-tagi-do-odkrywania');
         $tag = $this->feedTagu($widz, 'tagi-do-odkrywania');
         $najnowszy = $this->feedOdkrywania('odkrywanie-po-tagach');
-        $adres = $this->adresNastepnejStrony($this->actingAs($widz)->get(route('home')), 'tagi');
+        $adres = $this->adresNastepnejStrony($this->actingAs($widz)->get(route('home')), 'obserwowani');
 
         $widz->followedTags()->detach($tag['tag']->getKey());
 
@@ -152,12 +151,12 @@ class KursorStartuPamietaZrodloTest extends TestCase
             ->assertSee($najnowszy);
     }
 
-    public function test_odkrywanie_zmienione_na_tagi_zaczyna_tagi_od_pierwszej_strony(): void
+    public function test_odkrywanie_zmienione_na_tematy_zaczyna_obserwowanych_od_pierwszej_strony(): void
     {
         $widz = $this->konto('widz-odkrywanie-do-tagow');
         $tag = $this->feedTagu(null, 'tag-po-odkrywaniu');
-        // Odkrywanie pokazuje jeden wpis na autora (#940), więc druga strona
-        // potrzebuje kilku autorów, a nie trzech wpisów jednej osoby.
+        // Kilku autorów, żeby Odkrywanie miało drugą stronę niezależnie od
+        // tego, jak rotuje autorów (#1807).
         $this->feedOdkrywania('tlo-odkrywania-do-tagow');
         $adres = $this->adresNastepnejStrony($this->actingAs($widz)->get(route('home')), 'odkrywanie');
 
@@ -165,7 +164,7 @@ class KursorStartuPamietaZrodloTest extends TestCase
 
         $this->get($adres)->assertRedirect(route('home'));
         $this->get(route('home'))->assertOk()
-            ->assertViewHas('zrodloFeedu', 'tagi')
+            ->assertViewHas('zrodloFeedu', 'obserwowani')
             ->assertSee($tag['najnowszy']);
     }
 
@@ -204,8 +203,16 @@ class KursorStartuPamietaZrodloTest extends TestCase
     private function feedTagu(?User $widz, string $sufiks): array
     {
         $tag = Tag::factory()->create(['name' => "Tag {$sufiks}"]);
-        $autor = $this->konto("autor-tagu-{$sufiks}");
-        $wpisy = $this->wpisy($autor, "Tagi {$sufiks}", 3);
+        // Trzech RÓŻNYCH autorów, nie jeden. Od #940 „Świeżo z Kuking" pokazuje
+        // najwyżej jeden wpis od osoby, więc trzy wpisy jednego autora dawały
+        // w odkrywaniu jedną pozycję i żadnej drugiej strony — test startujący
+        // z odkrywania (`tag-po-odkrywaniu`) padał na fiksturze. Feed tagu
+        // i feed obserwowanych nie zależą od liczby autorów.
+        $wpisy = collect(range(1, 3))->map(fn (int $numer) => Post::factory()->create([
+            'author_id' => $this->konto("autor-tagu-{$sufiks}-{$numer}")->getKey(),
+            'body' => "Tagi {$sufiks} {$numer}",
+            'published_at' => now()->subMinutes($numer),
+        ]));
 
         foreach ($wpisy as $pozycja => $wpis) {
             $wpis->tags()->attach($tag->getKey(), ['position' => $pozycja]);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Kolejka\PolecenieZadania;
 use App\Models\Profile;
 use App\Models\User;
 use App\Notifications\UstawienieNowegoHasla;
@@ -229,8 +230,11 @@ class PanelKolejkiZadanTest extends TestCase
 
         // KONTROLA DODATNIA: żeton NAPRAWDĘ leży w ładunku. Bez tej asercji
         // `assertDontSee` niżej przechodziłby nad pustym miejscem.
+        // Od audytu A5-10 ładunek jest zaszyfrowany, więc żeton szukamy
+        // w nim PO odszyfrowaniu — tam, skąd dałoby się go wynieść.
         $surowy = (string) DB::table('failed_jobs')->value('payload');
-        $this->assertStringContainsString(self::ZETON, $surowy, 'Żeton miał być w ładunku — inaczej test niżej niczego nie mierzy.');
+        $polecenie = (string) (json_decode($surowy, true)['data']['command'] ?? '');
+        $this->assertStringContainsString(self::ZETON, PolecenieZadania::zserializowane($polecenie), 'Żeton miał być w ładunku — inaczej test niżej niczego nie mierzy.');
 
         $this->actingAs($this->admin())->get('/admin/kolejka')->assertOk()->assertDontSee(self::ZETON);
     }
