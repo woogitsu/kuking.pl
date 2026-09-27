@@ -1,4 +1,4 @@
-﻿# Co się zmieniło w Kuking
+# Co się zmieniło w Kuking
 
 ## Nieopublikowane
 
