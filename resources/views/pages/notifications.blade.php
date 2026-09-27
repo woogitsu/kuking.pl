@@ -426,7 +426,7 @@
     @endif
     @else
         <x-empty-state title="Nie ma jeszcze żadnych powiadomień">
-            Tu pojawi się informacja, kiedy ktoś ugotuje z Twojego przepisu albo napisze komentarz.
+            Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących oraz ważnych sprawach dotyczących Twojego konta.
         </x-empty-state>
     @endif
 
