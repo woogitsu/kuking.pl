@@ -1498,6 +1498,22 @@ return [
         'facebook_domkniecie' => '5,10',
 
         /*
+         * ODEBRANIE DOSTĘPU U FACEBOOKA — webhook, nie klik człowieka
+         * (issue #1869, audyt). Osobny koszyk od `facebook_*` wyżej: to woła
+         * serwer Facebooka, nie przeglądarka, więc mieszanie go z limitami
+         * kliknięć nie ma sensu — a licznik po adresie IP musiałby wtedy
+         * pomieścić naraz i ludzi klikających „Wejdź kontem Facebooka",
+         * i serwery Meta.
+         *
+         * Ta sama liczba i ten sam wzorzec co `csp_report` niżej: sześćdziesiąt
+         * na minutę, po adresie IP. Prawdziwe powiadomienia są RZADKIE — jedno
+         * na osobę, która akurat odebrała dostęp — więc ten limit nie gubi
+         * żadnego z nich w normalnym ruchu, a jednocześnie ogranicza koszt
+         * (HMAC + wpis w logu) każdego niepodpisanego żądania seryjnego.
+         */
+        'facebook_deauthorize' => '60,1',
+
+        /*
          * Ekran zaproszenia do założenia konta — POST-y z niego (D-085).
          *
          * OSOBNY KOSZYK od `login_link_wejscie`, choć liczba jest ta sama
@@ -1966,6 +1982,18 @@ return [
          * profil — a skrypt wgrywający obrazy potrzebowałby setek.
          */
         'ustawienia_profil' => '15,10',
+
+        /*
+         * WGRYWANIE PLIKU W KREATORZE PRZEPISU (endpoint Livewire
+         * `livewire/upload-file`, audyt A5-09). Podpinane w
+         * `config/livewire.php`, bo tej trasy nie ma w `routes/web.php`.
+         *
+         * Każde zdjęcie to jedno żądanie, wysyłane od razu po wyborze pliku.
+         * SKĄD 30 NA 10 MINUT. Długi przepis to zdjęcie dania i kilkanaście
+         * zdjęć kroków, plus kilka ponownych wyborów — mieści się z zapasem.
+         * Domyślne `60,1` pakietu pozwalało wgrać 900 MB na minutę.
+         */
+        'livewire_upload' => '30,10',
 
         /*
          * PACZKA Z DANYMI (RODO) — `POST /ustawienia/twoje-dane/eksport`.
