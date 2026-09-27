@@ -8,6 +8,7 @@ use App\Domain\Security\KomunikatZamknietegoKonta;
 use App\Domain\Security\LimitProbHasla;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Http\Controllers\Controller;
+use App\Models\AuditLogEntry;
 use App\Models\User;
 use App\Rules\TurnstileJestPotwierdzony;
 use App\Support\Turnstile;
@@ -99,6 +100,9 @@ class LoginController extends Controller
         // otwierając serwis samym hasłem.
         if ($user === null || ! Auth::validate(['email' => $user->email, 'password' => $data['password']])) {
             $this->limit->zapiszNieudanaProbe($data['login'], $adres);
+            // Aktor nie jest uwierzytelniony. Przy nieznanym loginie nie
+            // zapisujemy też podanej nazwy ani adresu e-mail.
+            AuditLogEntry::recordBezWywracania('account.password_login_failed', subject: $user, ip: $adres);
 
             throw ValidationException::withMessages([
                 'login' => 'Nie udało się zalogować. Sprawdź, czy nazwa i hasło są wpisane poprawnie. Jeśli nie pamiętasz hasła, kliknij „Nie pamiętam hasła”.',
@@ -124,6 +128,7 @@ class LoginController extends Controller
         if (in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true)) {
             // Bez `Auth::logout()` — `Auth::validate()` wyżej niczego nie
             // zalogowało, więc nie ma z czego wylogowywać.
+            AuditLogEntry::recordBezWywracania('account.password_login_failed', subject: $user, ip: $adres);
             throw ValidationException::withMessages([
                 'login' => KomunikatZamknietegoKonta::dla($user),
             ]);
@@ -153,6 +158,7 @@ class LoginController extends Controller
 
         $request->session()->regenerate();
         Auth::login($user, remember: true);
+        AuditLogEntry::recordBezWywracania('account.password_login_succeeded', $user, $user, ip: $adres);
 
         return redirect()->intended(route('home'));
     }

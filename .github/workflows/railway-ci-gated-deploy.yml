@@ -1,0 +1,39 @@
+# Przygotowana bramka #2025. Nie uruchamia wdrożeń, dopóki właściciel nie
+# wyłączy autodeploy w Railway i nie ustawi zmiennej poniżej na "true".
+name: Railway deploy after CI
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: railway-ci-gated-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy current green main to Railway
+    if: >-
+      vars.KUKING_CI_GATED_RAILWAY_DEPLOY == 'true' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON_MAIN || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    environment: production
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Sprawdź CI i wdrażaj dokładny SHA kolejnych usług
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RAILWAY_TOKEN_PRODUCTION: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
+          RAILWAY_PRODUCTION_PROJECT_ID: ${{ vars.RAILWAY_PRODUCTION_PROJECT_ID }}
+          RAILWAY_PRODUCTION_ENVIRONMENT_ID: ${{ vars.RAILWAY_PRODUCTION_ENVIRONMENT_ID }}
+          RAILWAY_PRODUCTION_SERVICES_JSON: ${{ vars.RAILWAY_PRODUCTION_SERVICES_JSON }}
+        run: python3 scripts/railway-ci-gated-deploy.py

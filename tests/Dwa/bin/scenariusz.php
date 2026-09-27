@@ -31,6 +31,8 @@ use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
+use App\Domain\Tags\Actions\MergeTags;
+use App\Domain\Tags\Actions\UpdateTagFollows;
 use App\Domain\Tags\PromowaneTagi;
 use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
@@ -206,6 +208,14 @@ try {
             User::query()->whereKey($argumenty['konto'])->firstOrFail(),
         ),
 
+        // Kandydat egzekutora wczytany PRZED lockiem (#2023). Bariera
+        // pozwala w tym czasie zatwierdzić nowy wniosek na tym samym koncie.
+        'kasowanie-wygaslego-wniosku' => (function () use ($argumenty): bool {
+            $kandydat = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+
+            return app(EraseAccountData::class)->handleExpiredRequest($kandydat);
+        })(),
+
         // Kara i usunięcie konta na NIEAKTUALNYM modelu (#980). Model jest
         // czytany zanim uczestnik stanie w kolejce po wiersz — jak formularz,
         // który sprawdził hasło, zanim moderator zdążył zbanować.
@@ -316,6 +326,22 @@ try {
             post: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
         )->getKey(),
 
+        // Obserwowanie tagu kontra scalenie (#853). Prawdziwe akcje: test
+        // ma pęknąć, gdy `UpdateTagFollows` przestanie sprawdzać świeży
+        // status pod `TagMutationLock`.
+        'obserwuj-tag' => (function () use ($argumenty): bool {
+            app(UpdateTagFollows::class)->follow(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                [$argumenty['tag']],
+            );
+
+            return true;
+        })(),
+
+        'scal-tagi' => (string) app(MergeTags::class)->handle(
+            Tag::query()->whereKey($argumenty['zrodlo'])->firstOrFail(),
+            Tag::query()->whereKey($argumenty['cel'])->firstOrFail(),
+        )->getKey(),
         // Zastąpienie wyboru redakcyjnego (#1027): prawdziwe akcje domenowe,
         // bariera po ich własnym DELETE.
         'tablica-dnia' => (function () use ($argumenty): array {

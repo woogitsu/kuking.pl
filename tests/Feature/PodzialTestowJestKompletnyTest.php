@@ -122,6 +122,11 @@ class PodzialTestowJestKompletnyTest extends TestCase
         $this->assertNotSame([], $this->naruszeniaWorkflow(
             str_replace('php artisan test "${pliki[@]}"', 'php artisan test', $workflow),
         ), 'Przyrząd przepuścił część uruchamiającą pełny zestaw zamiast swojej listy.');
+
+        $zaKrotkiLimit = preg_replace('/(^  test:\n.*?^    timeout-minutes: )40$/ms', '${1}25', $workflow, 1, $zamiany);
+        $this->assertSame(1, $zamiany, 'Przyrząd nie znalazł limitu czasu macierzy testów.');
+        $this->assertNotSame([], $this->naruszeniaWorkflow((string) $zaKrotkiLimit),
+            'Przyrząd przepuścił limit, który uciął kontrolę negatywną na main 64dbdefd.');
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -197,6 +202,10 @@ class PodzialTestowJestKompletnyTest extends TestCase
 
         if (! in_array('kontrole', $wpisy, true)) {
             $naruszenia[] = 'Macierz nie ma wpisu `kontrole` — odwracalność migracji i kontrole negatywne nie ruszą.';
+        }
+
+        if (preg_match('/^    timeout-minutes: (\d+)$/m', $test, $limit) !== 1 || (int) $limit[1] < 40) {
+            $naruszenia[] = 'Macierz testów ma limit poniżej 40 min — kontrola negatywna może zostać ucięta.';
         }
 
         if (preg_match('/php scripts\/podzial-testow\.php "\$\{\{ matrix\.czesc \}\}" (\d+) /', $test, $wywolanie) !== 1) {
