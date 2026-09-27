@@ -114,11 +114,12 @@ on:
         default: create
 
 permissions:
+  # Minimum na poziomie pliku (#1941). `pull-requests: write` i
+  # `deployments: read` są nadawane WYŁĄCZNIE tym jobom, które ich naprawdę
+  # potrzebują — patrz `permissions:` przy jobie `smoke` i przy
+  # `smoke-komentarz` niżej. Job, który uruchamia skrypty z checkoutu PR-a
+  # (`smoke`), nigdy nie dostaje `pull-requests: write` w tym samym joku.
   contents: read
-  pull-requests: write
-  # Odczyt deploymentów i ich statusów przez `gh api` w czekaj-na-preview.sh —
-  # w prywatnym repo bez tego API odmawia i smoke pada po limicie (#1389).
-  deployments: read
 
 concurrency:
   group: preview-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
@@ -144,6 +145,23 @@ jobs:
       vars.KUKING_DEPLOY_ENABLED == 'true' &&
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository
+
+    # #1941: ten job odpala `source scripts/czekaj-na-preview.sh` i
+    # `source scripts/sonda-wdrozenia.sh` z CHECKOUTU PR-A, czyli wykonuje
+    # kod dostarczony przez autora PR-a. Token dostępny w tym samym joku
+    # NIE MOŻE mieć prawa zapisu — inaczej zmieniony skrypt mógłby go użyć
+    # do zapisu komentarzy/metadanych PR-a. `deployments: read` zostaje
+    # (czekaj-na-preview.sh go potrzebuje), `pull-requests: write` idzie
+    # do osobnego, zaufanego joba `smoke-komentarz` niżej, który NIE
+    # checkoutuje ani nie uruchamia kodu z PR-a.
+    permissions:
+      contents: read
+      deployments: read
+
+    outputs:
+      found: ${{ steps.wait.outputs.found }}
+      url: ${{ steps.wait.outputs.url }}
+      wynik: ${{ steps.smoke.outcome }}
 
     steps:
       # -----------------------------------------------------------------------
@@ -224,14 +242,35 @@ jobs:
           check /        200
           exit $fail
 
+  # ===========================================================================
+  #  1b. Komentarz z wynikiem testu dymnego — osobny, zaufany job (#1941)
+  # ===========================================================================
+  #  Ten job NIE checkoutuje repozytorium i NIE uruchamia żadnego skryptu
+  #  z gałęzi PR-a — tylko `gh api` i wbudowane polecenia powłoki na
+  #  wartościach przekazanych jako `needs.smoke.outputs.*`. Dlatego, i TYLKO
+  #  dlatego, może dostać `pull-requests: write`: kod dostarczony przez
+  #  autora PR-a nigdy nie działa w środowisku, w którym ten token istnieje.
+  #  `needs: smoke` + `if: always()` — komentarz ma się pojawić także wtedy,
+  #  gdy sam test dymny padnie (RESULT=failure), a `always()` jest konieczne,
+  #  bo domyślnie `needs` blokuje job po porażce zależności.
+  # ===========================================================================
+  smoke-komentarz:
+    name: Komentarz w PR z wynikiem testu dymnego
+    needs: smoke
+    if: always() && needs.smoke.outputs.found == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+
+    steps:
       - name: Komentarz w PR
-        if: always() && steps.wait.outputs.found == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
-          URL: ${{ steps.wait.outputs.url }}
-          RESULT: ${{ steps.smoke.outcome }}
+          URL: ${{ needs.smoke.outputs.url }}
+          RESULT: ${{ needs.smoke.outputs.wynik }}
         run: |
           set -euo pipefail
           if [ "$RESULT" = "success" ]; then
