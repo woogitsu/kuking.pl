@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Support\Czas;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -45,17 +47,10 @@ use Illuminate\Support\Facades\Schema;
  * ponownie kwalifikuje się do listu.
  *
  * ROLLBACK
- * `down()` NIE odmawia (D-088 dotyczy wartości SEMANTYCZNYCH — zgody, zakresu
- * usunięcia, widoczności czyjejś decyzji). Ta kolumna nie niesie decyzji
- * człowieka: to wewnętrzna bariera przeciw podwójnemu zakolejkowaniu, ważna
- * WYŁĄCZNIE w dniu, w którym stoi, i zerująca się sama następnego dnia —
- * ta sama klasa wartości co `theme` czy `posts.display_mode`, świadomie bez
- * strażnika (uzasadnienie tamtych dwóch w D-088). Po cofnięciu komenda wraca
- * do zajmowania dnia na `birthday_email_sent_on` WYŁĄCZNIE wtedy, gdy kod
- * z przed tej zmiany też wróci — a to nie jest coś, co robi migracja.
- * Najgorszy skutek samego zdjęcia kolumny bez cofnięcia kodu: nowy kod
- * odwołujący się do brakującej kolumny rzuci błąd przy próbie wysyłki, co
- * jest bezpiecznym kierunkiem awarii (żaden list nie wyjdzie podwójnie).
+ * `down()` odmawia tylko przy DZISIEJSZEJ rezerwacji bez potwierdzenia
+ * wysyłki. Cofnięcie schematu razem ze starym kodem zgubiłoby wtedy barierę
+ * i mogło zakolejkować drugi list tego samego dnia. Po innym dniu albo po
+ * potwierdzonej wysyłce rollback jest bezpieczny i nie jest blokowany.
  */
 return new class extends Migration
 {
@@ -68,6 +63,16 @@ return new class extends Migration
 
     public function down(): void
     {
+        $dzis = Czas::dzisiajData();
+        $nierozstrzygniete = DB::table('users')
+            ->where('birthday_email_queued_on', $dzis)
+            ->where(fn ($q) => $q->whereNull('birthday_email_sent_on')->orWhere('birthday_email_sent_on', '<>', $dzis))
+            ->count();
+
+        if ($nierozstrzygniete > 0) {
+            throw new \RuntimeException("Nie można cofnąć birthday_email_queued_on: {$nierozstrzygniete} kont ma dzisiejszą rezerwację bez potwierdzonej wysyłki. Poczekaj do następnego dnia albo ręcznie rozstrzygnij zadania pocztowe przed rollbackiem.");
+        }
+
         Schema::table('users', function (Blueprint $table): void {
             $table->dropColumn('birthday_email_queued_on');
         });

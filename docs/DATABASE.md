@@ -2212,12 +2212,12 @@ przechodzi. Test: `tests/Feature/CofniecieMigracjiUrodzinTest.php`.
   CHECK-a nie da się przywrócić bez utraty dowodu). Test:
   `tests/Feature/ZyczeniaUrodzinoweMailemTest.php`.
 - **Rollback `birthday_email_queued_on`** (migracja
-  `2026_09_26_200000_add_birthday_email_queued_on_to_users`): `down()` NIE
-  odmawia. Kolumna nie niesie żadnej decyzji człowieka (D-088 dotyczy wartości
-  SEMANTYCZNYCH — zgody, zakresu usunięcia, widoczności), tylko wewnętrzną
-  barierę przed podwójnym zakolejkowaniem w JEDNYM dniu, zerującą się samą
-  następnego dnia — ta sama klasa co `theme`/`posts.display_mode` (D-088).
-  Test: `tests/Feature/UrodzinyOznaczonePoWysylceTest.php`.
+  `2026_09_26_200000_add_birthday_email_queued_on_to_users`): `down()` odmawia
+  tylko wtedy, gdy ktoś ma dzisiejszą rezerwację bez potwierdzonej wysyłki.
+  Cofnięcie schematu razem ze starym kodem zgubiłoby wtedy barierę i mogło
+  zakolejkować drugi list. Po zakończeniu dnia albo przy potwierdzonym
+  `birthday_email_sent_on` rollback jest dozwolony. Test odmowy i przejścia:
+  `tests/Feature/CofniecieRezerwacjiListuUrodzinowegoTest.php`.
 
 **Etap d** — migracja `2026_09_25_200300_add_birthday_visible_to_followers_to_users`:
 
