@@ -13,8 +13,11 @@ use Carbon\CarbonInterface;
  * Jedno miejsce z regułami limitu dobowego i ciszy nocnej, NIEZALEŻNE od
  * kanału. Web Push, a później może e-mail o zdarzeniu, mają pytać tę klasę,
  * zamiast każdy liczyć godziny po swojemu (`docs/product/RETENTION_LOOPS.md`
- * §3.2). Dziś żaden kanał jej nie woła, a flaga
- * `kuking.notifications.zewnetrzne.wlaczone` jest domyślnie wyłączona.
+ * §3.2). Woła ją Web Push (`App\Jobs\WyslijPowiadomieniePush`, D-303).
+ *
+ * Cisza nocna i limit mają wartości domyślne z konfiguracji, ale człowiek może
+ * je zmienić na `/ustawienia/powiadomienia` (D-303) — wtedy wołający podaje
+ * je jawnie (`$ciszaOd`, `$ciszaDo`, `$limit`).
  *
  * Klasa nie zapisuje niczego i nie czyta bazy: liczbę powiadomień wysłanych
  * odbiorcy w bieżącej dobie podaje wołający, licząc od `poczatekDoby()`.
@@ -39,25 +42,33 @@ final class TerminPowiadomieniaZewnetrznego
     /**
      * @return array{decyzja: string, wyslij_od: ?CarbonImmutable}
      */
-    public static function rozstrzygnij(CarbonInterface $teraz, int $wyslaneWTejDobie, ?string $strefa = null): array
-    {
-        $limit = (int) config('kuking.notifications.zewnetrzne.dzienny_limit', 1);
+    public static function rozstrzygnij(
+        CarbonInterface $teraz,
+        int $wyslaneWTejDobie,
+        ?string $strefa = null,
+        ?int $ciszaOd = null,
+        ?int $ciszaDo = null,
+        ?int $limit = null,
+    ): array {
+        $limit ??= (int) config('kuking.notifications.zewnetrzne.dzienny_limit', 1);
+        $ciszaOd ??= (int) config('kuking.notifications.zewnetrzne.cisza_od_godziny', 21);
+        $ciszaDo ??= (int) config('kuking.notifications.zewnetrzne.cisza_do_godziny', 8);
 
         if (! config('kuking.notifications.zewnetrzne.wlaczone', false) || $limit <= 0) {
             return ['decyzja' => self::KANAL_WYLACZONY, 'wyslij_od' => null];
         }
 
         $lokalnie = CarbonImmutable::instance($teraz)->setTimezone($strefa ?? self::strefa());
-        $koniecCiszy = (int) config('kuking.notifications.zewnetrzne.cisza_do_godziny', 8);
+        $koniecCiszy = $ciszaDo;
 
         if ($wyslaneWTejDobie >= $limit) {
             // Następna doba, ale nie w środku jej ciszy nocnej.
             $jutro = $lokalnie->addDay()->startOfDay();
 
-            return self::odloz(self::wCiszy($jutro) ? $jutro->setTime($koniecCiszy, 0) : $jutro);
+            return self::odloz(self::wCiszy($jutro, $ciszaOd, $ciszaDo) ? $jutro->setTime($koniecCiszy, 0) : $jutro);
         }
 
-        if (! self::wCiszy($lokalnie)) {
+        if (! self::wCiszy($lokalnie, $ciszaOd, $ciszaDo)) {
             return ['decyzja' => self::TERAZ, 'wyslij_od' => null];
         }
 
@@ -75,10 +86,8 @@ final class TerminPowiadomieniaZewnetrznego
             ->utc();
     }
 
-    private static function wCiszy(CarbonImmutable $lokalnie): bool
+    private static function wCiszy(CarbonImmutable $lokalnie, int $od, int $do): bool
     {
-        $od = (int) config('kuking.notifications.zewnetrzne.cisza_od_godziny', 21);
-        $do = (int) config('kuking.notifications.zewnetrzne.cisza_do_godziny', 8);
         $godzina = $lokalnie->hour;
 
         if ($od === $do) {
