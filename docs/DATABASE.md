@@ -1691,6 +1691,11 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 - pochodzenie: `source_type`, `source_url`, `source_person`, `source_note`,
   `family_since_year`, `source_scan_media_id` — patrz niżej;
 - `published_at`, `created_at`, `updated_at`, `deleted_at` (soft delete);
+- `content_revision` (`bigint`, domyślnie `0`) — licznik zapisu treści.
+  Formularz i kreator przekazują odczytaną rewizję; `PublishRecipe` porównuje
+  ją pod blokadą wiersza przepisu i zwiększa przy każdym zapisie, także
+  autozapisie. `updated_at` nie zastępuje licznika: może mieć ten sam czas
+  dla dwóch zapisów wykonanych w jednej sekundzie (issues #2034 i #2032);
 - „Moja wersja": `forked_from_id`, `forked_at` — patrz niżej;
 - `title_search`, `summary_search` — patrz „Kolumny `*_search`".
 
