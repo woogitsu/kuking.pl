@@ -1078,6 +1078,31 @@ D-022). Sama zmiana adresu na koncie idzie przez
 `pending_email_changes` — patrz niżej. Pilnuje tego
 `AdresEmailPozaMasowymPrzypisaniemTest`.
 
+#### `session_generation` — generacja sesji konta (issue #1046)
+
+`integer NOT NULL DEFAULT 0`, CHECK `users_session_generation_check`
+(`session_generation >= 0`). Migracja
+`2026_09_24_100000_add_session_generation_to_users`. Poza `$fillable`: pisze ją
+wyłącznie `User::invalidateSessions()`, jednym `UPDATE` razem z rotacją
+`remember_token` (`session_generation = session_generation + 1`).
+
+Po co: skasowanie wierszy w `sessions` nie jest trwałym unieważnieniem.
+Żądanie rozpoczęte przed „wyloguj wszędzie”, resetem/zmianą hasła, blokadą,
+zawieszeniem albo zgłoszeniem usunięcia, które w trakcie nadaje sesji nowy
+identyfikator (logowanie z ciasteczka „zapamiętaj mnie”, hasłem, linkiem,
+2FA), zapisuje wiersz z powrotem `INSERT`-em na końcu odpowiedzi. Każde
+logowanie zapisuje w sesji generację konta (listener `Login`
+w `AppServiceProvider`), a `App\Http\Middleware\SprawdzGeneracjeSesji`
+w grupie `web` wylogowuje sesję z generacją inną niż bieżąca. Brak klucza
+w sesji znaczy `0`, więc wdrożenie nikogo nie wylogowuje. Pomiar na dwóch
+procesach: `tests/Feature/SesjaPoUniewaznieniuNieWracaTest.php`.
+
+Rollback: `down()` kasuje wiersze `sessions` kont z `session_generation > 0`
+i usuwa kolumnę. Bez tego cykl down/up wyzerowałby licznik i sesja odrzucona
+przed rollbackiem znów byłaby zgodna. Skutek to tylko ponowne logowanie tych
+kont; nie ginie żadna treść ani decyzja. Licznik żyje w `users`, nie
+w magazynie sesji, więc zmiana sterownika sesji (#603) go nie dotyczy.
+
 #### `is_seeded` — treść zalążkowa na produkcji, ale jawnie oznaczona (D-025)
 
 Migracja `2026_09_07_700000_add_is_seeded_to_users`. Boolean, domyślnie
@@ -1692,6 +1717,11 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 - pochodzenie: `source_type`, `source_url`, `source_person`, `source_note`,
   `family_since_year`, `source_scan_media_id` — patrz niżej;
 - `published_at`, `created_at`, `updated_at`, `deleted_at` (soft delete);
+- `content_revision` (`bigint`, domyślnie `0`) — licznik zapisu treści.
+  Formularz i kreator przekazują odczytaną rewizję; `PublishRecipe` porównuje
+  ją pod blokadą wiersza przepisu i zwiększa przy każdym zapisie, także
+  autozapisie. `updated_at` nie zastępuje licznika: może mieć ten sam czas
+  dla dwóch zapisów wykonanych w jednej sekundzie (issues #2034 i #2032);
 - „Moja wersja": `forked_from_id`, `forked_at` — patrz niżej;
 - `title_search`, `summary_search` — patrz „Kolumny `*_search`".
 
@@ -2118,10 +2148,17 @@ naraz „nie mam ilości" i „mam 200 ml" — wtedy pytanie „czy to skalować
 nie ma poprawnej odpowiedzi. `PublishRecipe` rozstrzyga konflikt **przed**
 zapisem, kasując ilość, żeby CHECK nie zamienił się w błąd 500 na publikacji.
 
-**Rollback:** `down()` zdejmuje CHECK i kolumnę. Od D-284 skalowanie porcji
-(V2) jest wdrożone i czyta tę flagę, więc cofnięcie tej migracji znaczy utratę
-informacji, której nie da się odtworzyć — najpierw kopia tabeli. (Strażnika
-w `down()` ta starsza migracja nie ma; dołożenie go to osobna zmiana.)
+**Rollback (D-088):** `down()` sprawdza pod blokadą tabeli
+(`LOCK TABLE ... IN ACCESS EXCLUSIVE MODE`) istnienie `no_amount = true`
+i **odmawia**, gdy takie wiersze istnieją — dopiero wtedy liczy je do
+komunikatu. `SET LOCAL statement_timeout = '2s'` ogranicza czas trzymania
+blokady, która wstrzymuje także odczyty. Komunikat po polsku mówi ile ich
+jest i co zrobić (kopia tabeli, potem ponowne uruchomienie ze zmienną
+`KUKING_ROLLBACK_KASUJE_SKLADNIKI_BEZ_ILOSCI=1`). Na świeżej bazie, bez
+żadnego takiego składnika, `down()` przechodzi bez pytania. Powód odmowy:
+po wdrożeniu skalowania porcji (V2, D-284) ta flaga rozstrzyga, których
+składników NIE mnożyć, i nie da się jej odtworzyć z samego tekstu składnika —
+cichy `dropColumn` byłby utratą informacji bez śladu błędu.
 
 #### `group_name` — „Ciasto", „Farsz", „Do podania" (D-033)
 
@@ -2171,6 +2208,31 @@ przepisu, podgląd w kreatorze i przepis w eksporcie danych.
 nazwy grup zostają. Nieodwracalna jest jedna rzecz z `up()`: nazwy będące
 pustym ciągiem znaków stają się `NULL`. To nie jest utrata informacji, bo
 pusty ciąg nigdy nie był nazwą grupy.
+
+### „Mój stół” — `users.moj_stol_enabled` (issue #1749, D-304)
+
+Migracja `2026_09_26_190000_add_moj_stol_enabled_to_users`.
+
+- **`users.moj_stol_enabled`** (`boolean NOT NULL DEFAULT false`) — czy osoba
+  włączyła sobie dobrowolną półkę propozycji „Mój stół”. Domyślnie wyłączone:
+  półka jest propozycją serwisu, więc bez włączenia nie liczymy ani jednej
+  pozycji. W `$fillable` (preferencja wyświetlania, nie pole sterujące —
+  AGENTS.md §7), w eksporcie jako `konto.moj_stol_wlaczony`, a wymazanie konta
+  ustawia `false`.
+
+To **jedyne**, co zapisujemy o półce. Nie ma tabeli dopasowań, wag ani historii
+kliknięć — dobór liczy się przy każdym wyświetleniu z obserwowanych tagów,
+listy gospodarza (`tag_promotions`), wyboru gospodarza na dziś (`daily_picks`)
+i ukryć (`hides`), wyłącznie regułami
+z zamkniętej listy AGENTS.md §8. Dlatego nie ma też czego „resetować”.
+
+**Rollback:** `down()` zdejmuje kolumnę **bez odmowy**. Cykl
+`migrate:rollback` → `migrate` odtwarza ją z `DEFAULT false`, czyli wyłącza
+półkę tym, którzy ją włączyli. To świadome odstępstwo od odmowy z D-088:
+utracona wartość to preferencja wyświetlania (jak `theme`), a kierunek utraty
+jest bezpieczny — po cyklu nikt nie widzi propozycji, których nie chciał,
+najwyżej włączy półkę jeszcze raz. Cykl sprawdza
+`tests/Feature/MojStolTest.php::test_rollback_migracji_zdejmuje_kolumne_i_wraca_wylaczony`.
 
 ### Wspomnienia „Rok temu gotowałaś…" (issue #34)
 
@@ -2268,15 +2330,40 @@ przechodzi. Test: `tests/Feature/CofniecieMigracjiUrodzinTest.php`.
   daje. Zapis wyłącznie przez `App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem`,
   które dopisuje wiersz do `dziennik_zgod` (D-072). „Usuń datę” i wymazanie
   konta wycofują zgodę z wpisem w dzienniku.
-- **`users.birthday_email_sent_on`** (`date NULL`) — dzień (Europe/Warsaw)
-  ostatniego listu. Bariera przed dublem: `kuking:wyslij-zyczenia-urodzinowe`
-  zajmuje dzień warunkowym `UPDATE … WHERE birthday_email_sent_on IS NULL OR
-  birthday_email_sent_on <> dziś` przed `Mail::queue()`.
+- **`users.birthday_email_sent_on`** (`date NULL`) — dzień (Europe/Warsaw),
+  w którym transport pocztowy PRZYJĄŁ list z życzeniami (`App\Mail\
+  ZyczeniaUrodzinowe::send()`, po `parent::send()` bez wyjątku). Do
+  26 września 2026 (issue #1956) ustawiała ją komenda zaraz po
+  `Mail::queue()`, czyli po zakolejkowaniu, nie po wysyłce — awaria enqueue
+  albo trwała porażka workera zostawiały znacznik mimo braku listu, a to
+  jest jedyny list w roku dla tej osoby. Patrz `birthday_email_queued_on`.
+- **`users.birthday_email_queued_on`** (`date NULL`, migracja
+  `2026_09_26_200000_add_birthday_email_queued_on_to_users`, issue #1956) —
+  dzień, w którym komenda ZAJĘŁA miejsce dla tej osoby, niezależnie od tego,
+  czy list ostatecznie wyszedł. Bariera przed dublem:
+  `kuking:wyslij-zyczenia-urodzinowe` zajmuje dzień warunkowym
+  `UPDATE … WHERE birthday_email_queued_on IS NULL OR
+  birthday_email_queued_on <> dziś` przed `Mail::queue()`, a `kandydaci()`
+  wyklucza po TEJ kolumnie, nie po `birthday_email_sent_on`. Awaria samego
+  `Mail::queue()` zwalnia tę rezerwację w tym samym przebiegu (ponowienie
+  tego samego dnia wysyła dokładnie jeden list); trwała porażka workera
+  zostawia ją ustawioną (dzień jest „zużyty" wobec dostawcy) — świadomy
+  wybór „pominięcie zamiast duplikatu" DLA TEGO DNIA, ten sam co
+  `weekly_digest_sends` (D-077), ale bez wpływu na kolejne lata: rocznica
+  sprzed roku wraca normalnie, bo to już inny dzień.
 - `dziennik_zgod_cel_check` rozszerzony o `zyczenia_urodzinowe`.
-- **Rollback:** `down()` odmawia, gdy ktoś ma zgodę albo dziennik ma choć jeden
-  wiersz celu `zyczenia_urodzinowe` (wierszy dziennika nie wolno kasować,
-  więc starego CHECK-a nie da się przywrócić bez utraty dowodu). Test:
+- **Rollback `wants_birthday_email` / `birthday_email_sent_on`:** `down()`
+  odmawia, gdy ktoś ma zgodę albo dziennik ma choć jeden wiersz celu
+  `zyczenia_urodzinowe` (wierszy dziennika nie wolno kasować, więc starego
+  CHECK-a nie da się przywrócić bez utraty dowodu). Test:
   `tests/Feature/ZyczeniaUrodzinoweMailemTest.php`.
+- **Rollback `birthday_email_queued_on`** (migracja
+  `2026_09_26_200000_add_birthday_email_queued_on_to_users`): `down()` odmawia
+  tylko wtedy, gdy ktoś ma dzisiejszą rezerwację bez potwierdzonej wysyłki.
+  Cofnięcie schematu razem ze starym kodem zgubiłoby wtedy barierę i mogło
+  zakolejkować drugi list. Po zakończeniu dnia albo przy potwierdzonym
+  `birthday_email_sent_on` rollback jest dozwolony. Test odmowy i przejścia:
+  `tests/Feature/CofniecieRezerwacjiListuUrodzinowegoTest.php`.
 
 **Etap d** — migracja `2026_09_25_200300_add_birthday_visible_to_followers_to_users`:
 
@@ -2736,6 +2823,29 @@ ustawione, gdy `push_wyslano_at` jest puste (rezerwacja w toku albo trwała
 porażka — mierzalne zapytaniem `push_proba_at IS NOT NULL AND
 push_wyslano_at IS NULL`), ale nie odwrotnie.
 
+**`push_grupa_id uuid NULL`** (#1992, migracja
+`2026_09_26_200000_zakoncz_rezerwacje_push`) — jeden UUID dla wszystkich
+powiadomień objętych tą samą rezerwacją. Dwie osobne grupy mogą mieć
+identyczny `push_proba_at` (np. przy zamrożonym zegarze), więc limit liczy
+różne UUID, a nie różne znaczniki czasu. Historyczne wiersze bez UUID liczą
+się każdy osobno: może to ostrożnie odłożyć wysyłkę, ale nie przepuścić
+nadmiaru. Nullable bez defaultu, bez przepisywania tabeli.
+
+**`push_zakonczono_at timestamptz NULL`** (#1992, migracja
+`2026_09_26_200000_zakoncz_rezerwacje_push`) — koniec wszystkich prób
+transportu bez pełnego sukcesu. Dopóki pole jest puste, `push_proba_at`
+rezerwuje slot limitu także dla równoległego zadania i przez zmianę doby
+(najwyżej 48 godzin). Udany transport rozlicza slot według
+`push_wyslano_at`. Trwała porażka zajmuje slot do końca doby zakończenia,
+potem go zwalnia; grupa nie wraca do świeżego wyboru, bo `push_proba_at`
+pozostaje. Ponowienie starsze niż 48 godzin kończy się bez wysyłki.
+Zachowujemy ostrożny rachunek także przy częściowym dostarczeniu na jedno
+z urządzeń: zakończona grupa zajmuje slot w dobie zakończenia nawet wtedy,
+gdy pełne `push_wyslano_at` nadal jest puste. Kolumna jest nullable bez
+defaultu, więc dodanie nie przepisuje tabeli. Rollback odmawia, gdy są
+grupy albo zakończone rezerwacje: oba znaczniki są potrzebne do
+prawidłowego rachunku. Wtedy wycofujemy kod i osobno rozstrzygamy dane.
+
 **Retencja:** `config('kuking.notifications.retention_months')` — **3 miesiące**
 od `created_at`, **niezależnie od `read_at`** (wariant A z `docs/decyzje/ADR_RETENCJE.md`
 §6: jeden wiek dla wszystkich; wariant B trzymałby bezterminowo powiadomienia,
@@ -2874,7 +2984,7 @@ Kolumny dołożone dla drogi prawnej:
 | `illegality_explanation` | Uzasadnienie, osobne od swobodnego `details` (art. 16 ust. 2 lit. a). |
 | `good_faith_at` | Oświadczenie o dobrej wierze jako **znacznik czasu**, nie `boolean` — przy sporze liczy się, kiedy je złożono. |
 | `receipt_sent_at` | Potwierdzenie odbioru przekazane zgłaszającemu (ust. 4). |
-| `decision_sent_at` | Informacja o decyzji przekazana zgłaszającemu (ust. 5). |
+| `decision_sent_at` | Informacja o decyzji przekazana zgłaszającemu (ust. 5). Przy drodze prawnej stawia go list `DecyzjaWSprawieZgloszenia` **po wysłaniu**, nie akcja przy zakolejkowaniu (#1838, D-293). |
 
 Bez dwóch ostatnich kolumn nie da się odpowiedzieć na pytanie „czy
 powiadomiliśmy”, a przy audycie to jest pierwsze pytanie.
@@ -2887,6 +2997,14 @@ Kanał wynika z wiersza: `reporter_id` niepuste to zgłoszenie z konta,
 `notifier_email` niepuste — zgłoszenie prawne z adresem; nigdy oba naraz.
 Indeks częściowy `reports_pending_receipt_idx` dalej dotyczy **wyłącznie**
 zgłoszeń prawnych z adresem, więc ta zmiana znaczenia go nie rusza.
+
+**Zakolejkowany list to jeszcze nie „powiadomiliśmy”** (issue #1838, D-293).
+Przy drodze prawnej `decision_sent_at` stawia `afterSending()` listu z decyzją,
+gdy transport pocztowy przyjął wiadomość. Między decyzją a pracą workera
+kolumna jest pusta; po ostatecznej porażce zostaje pusta. Rozstrzygnięte
+sprawy prawne z adresem i pustym znacznikiem liczy
+`Report::decyzjaNieprzekazanaMailem()`; czy list czeka, czy przepadł, mówi
+`failed_jobs` (`php artisan queue:failed`), nie ta kolumna.
 
 #### `target_type = 'media'` — zdjęcie jako osobny cel (issue #237)
 
@@ -3973,7 +4091,7 @@ przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exp
 | Kolumna | Uwagi |
 |---|---|
 | `user_id` | Właściciel paczki. `cascadeOnDelete` — po usunięciu konta paczka i jej wpis nie mają już czego dotyczyć. |
-| `status` | `queued` → `processing` → `ready` **albo** `failed`, docelowo `expired`. CHECK w bazie (`data_exports_status_check`). |
+| `status` | `queued` → `processing` → `ready` **albo** `failed`, docelowo `expired`. CHECK w bazie (`data_exports_status_check`); komplet metadanych przy `ready` — CHECK `data_exports_ready_complete_check`, niżej. |
 | `disk`, `object_key` | Gdzie leży gotowe archiwum — wypełniane dopiero przy `ready`. |
 | `bytes` | Rozmiar gotowego pliku. |
 | `completed_at` | Kiedy paczka była gotowa. |
@@ -3989,6 +4107,31 @@ policzyć), `kuking:sprzataj-eksporty` przechodzi co noc po `failed` z ostatnich
 7 dni jako siatka, a `EraseAccountData` kasuje cały katalog
 `eksporty/<user_id>/` (`ExportFileNames::katalogKonta()`) po commicie.
 Bez zmiany schematu.
+
+#### `data_exports_ready_complete_check` — gotowa paczka ma komplet metadanych (issue #1365)
+
+Migracja `2026_09_24_200000_require_complete_ready_data_exports`. Przy
+`status = 'ready'` wymagane są: niepusty `disk` i `object_key`, `bytes > 0`,
+`completed_at` i `expires_at`. Wcześniej baza przyjmowała `ready` bez tych
+pól, a `DataExport::isDownloadable()` pokazywał taki wiersz jako gotową
+paczkę — „Pobierz” kończyło się 404. `isDownloadable()` sprawdza teraz ten
+sam komplet (obrona dla modelu w pamięci).
+
+Celowo **bez** warunku na czas: `EraseAccountData` unieważnia gotową paczkę,
+przestawiając `expires_at` w przeszłość (także przed `completed_at`),
+a `expires_at > now()` nie jest wyrażeniem niezmiennym, jakiego PostgreSQL
+wymaga od CHECK. `expired` nie ma wymagań — `CleanUpDataExports` zostawia
+adres po nieudanym kasowaniu, żeby ponowić.
+
+**Audyt przed CHECK:** migracja liczy `ready` bez kompletu i **odmawia**
+(`RuntimeException` z zapytaniem `SELECT` i instrukcją), zamiast zgadywać
+dysk, klucz albo rozmiar. Naprawa ręczna: uzupełnić prawdziwe wartości, gdy
+plik istnieje, albo `status = 'failed'`, `failure_reason = 'unknown'`, gdy
+go nie ma — człowiek zamówi paczkę ponownie.
+
+**Rollback:** `down()` zdejmuje CHECK bez odmowy. Ograniczenie nie przechowuje
+żadnej wartości (niczyjej decyzji, zgody ani zakresu w rozumieniu D-088) — po
+cofnięciu wraca poprzednia, luźniejsza granica, dane zostają bez zmian.
 
 ### password_reset_tokens (tabela Laravela)
 
@@ -4878,6 +5021,37 @@ bez pytań. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — kod
 z tej zmiany odkłada adresy do tej tabeli, a `/health` ją liczy. Pilnuje tego
 `tests/Feature/ZalegleCzyszczenieCdnTest.php`.
 
+### przypomnienia_dobowe
+
+Znaczniki „ten list już dziś wyszedł", migracja
+`2026_09_24_140000_utworz_przypomnienia_dobowe` (issue #1333). Do niej
+`kuking:pilnuj-terminow-odwolan` obiecywał jeden list na dobę tylko
+w komentarzu: każde wywołanie z zaległym odwołaniem (ręczne ponowienie,
+restart, zdublowany harmonogram) kolejkowało kolejny. `withoutOverlapping()`
+chroni tylko przed przebiegami NARAZ, a `Cache::add()` nie wystarcza, bo
+`docker/entrypoint.sh` czyści cache przy każdym starcie kontenera.
+
+| Kolumna | Opis |
+|---|---|
+| `rodzaj varchar(64) NOT NULL` | Rodzaj listu (`termin-odwolania`). CHECK `przypomnienia_dobowe_rodzaj_niepusty_check`: niepusty. |
+| `doba date NOT NULL` | Doba **UTC** — ta sama co dobowy sufit poczty (`DziennyBudzetListow`). |
+| `odbiorca char(64) NOT NULL` | SHA-256 adresu (małe litery, bez spacji), **nie adres**. CHECK `przypomnienia_dobowe_odbiorca_sha256_check`: `^[0-9a-f]{64}$`. Nowy adres alarmowy = nowy klucz = list tego samego dnia. |
+| `created_at timestamptz NOT NULL DEFAULT now()` | Kiedy zarezerwowano. |
+
+**Klucz główny `(rodzaj, doba, odbiorca)` jest rezerwacją:**
+`PrzypomnienieDobowe::zarezerwuj()` robi `insertOrIgnore` PRZED kolejkowaniem
+listu, więc z dwóch równoległych przebiegów wysyła tylko ten, który wiersz
+wstawił. Nieudane wstawienie listu do kolejki usuwa wiersz (`zwolnij()`)
+i komenda kończy się błędem — kolejny przebieg tego samego dnia próbuje
+ponownie. Wiersze starsze niż 30 dni kasuje `zarezerwuj()` przy okazji.
+Pilnuje tego `tests/Feature/TerminOdwolaniaJedenListNaDobeTest.php`.
+
+**Rollback:** `php artisan migrate:rollback --step=1` zrzuca tabelę **bez
+odmowy** — wiersz jest znacznikiem deduplikacji, nie decyzją człowieka
+(D-088 nie dotyczy). Kosztem jest najwyżej jeden powtórzony list tego dnia.
+**Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — kod z tej zmiany bez
+tabeli kończy komendę błędem i nie wysyła przypomnienia.
+
 ### personal_access_tokens
 Tokeny osobistego dostępu Laravel Sanctum — logowanie aplikacji mobilnej
 (D-014 zmienione decyzją właściciela 25.09.2026, D-270, migracja
@@ -4974,7 +5148,7 @@ człowieka — bo nikt tej tabeli nie „dodawał", więc nikt nie przeszedł ś
 | Kolumna | Uwagi |
 |---|---|
 | `id` | Identyfikator sesji z ciasteczka, `varchar` PRIMARY KEY. Nadaje go framework, nie my. |
-| `user_id` | Kto jest zalogowany; `null` dla gościa. **Kolumna, nie klucz obcy** — `foreignUuid()` bez `constrained()` tworzy samą kolumnę `uuid` z indeksem. Kasowanie konta zabiera te wiersze jawnie (`User::invalidateSessions()`, `EraseAccountData`), nie kaskadą. |
+| `user_id` | Kto jest zalogowany; `null` dla gościa. **Kolumna, nie klucz obcy** — `foreignUuid()` bez `constrained()` tworzy samą kolumnę `uuid` z indeksem. Kasowanie konta zabiera te wiersze jawnie (`User::invalidateSessions()`, `EraseAccountData`), nie kaskadą. Samo skasowanie nie jest trwałym unieważnieniem — wolne żądanie potrafi wiersz odtworzyć; odrzuca go dopiero generacja sesji (`users.session_generation`, #1046). |
 | `ip_address` | **ZGRUBNY adres IP, nie dokładny** (RZ-01). IPv4 bez ostatniego oktetu (`203.0.113.0`), IPv6 obcięty do `/48` (`2001:db8:1234::`). Zapisuje go `App\Support\Sesja\UchwytSesjiBezPelnegoAdresu` — nasze nadpisanie `DatabaseSessionHandler::ipAddress()`, zarejestrowane w `AppServiceProvider`. `varchar(45)` (długość na pełny IPv6) zostaje ze schematu frameworka. |
 | `user_agent` | **Pełny nagłówek `User-Agent`, do 500 znaków** — obcina go framework, nie my. To jest niezły odcisk palca przeglądarki i **dana osobowa**, gdy stoi obok `user_id`. Nie maskujemy go: to osobna decyzja, nie porządek przy okazji. |
 | `payload` | Zawartość sesji (`text`, base64 + `serialize`). Jedyna kolumna, którą obejmuje `SESSION_ENCRYPT` — patrz niżej. |

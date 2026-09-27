@@ -284,7 +284,11 @@ writeFileSync(join(katalogZdjec, 'kuking-b605-12mpx.jpg'), Buffer.alloc(2048, 7)
     '--manifest', plikManifestu,
     '--baza', stanowisko2.baza,
     '--nazwa', 'stanowisko',
-    '--rps', '40',
+    // 80, nie 40: `anon_tag` ma w mieszance wagę 4 ze 100, więc przy 40 rps
+    // przez 4 s seria losowała 4–10 żądań `/tag/*`, a czasem ZERO — wtedy
+    // asercja o deadline niżej oblewała bez żadnej usterki (CI, 26 września,
+    // #1607 i #1866). Przy 80 rps wychodzi 8–22 i ten sam czas serii.
+    '--rps', '80',
     '--czas', '4',
     '--zdjecia', katalogZdjec,
     '--wynik', plikWyniku,

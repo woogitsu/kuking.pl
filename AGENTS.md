@@ -362,6 +362,12 @@ następne zapytanie do `posts`, także zwykły `SELECT` z feedu. Dlatego:
 - **Nowa tabela** tych reguł nie potrzebuje — nikt jeszcze na nią nie czeka.
 - **Unikaj przepisania tabeli** (`ADD COLUMN … GENERATED … STORED`, zmiana
   typu kolumny) na gorących tabelach bez osobnego planu wdrożenia.
+- **Migracja `2026_09_24_120000_add_appeal_id_to_moderation_actions.php`
+  łamie powyższe** (indeks i FK/CHECK na istniejącej tabeli bez CONCURRENTLY
+  i bez NOT VALID) — jest już na produkcji i świadomie jej NIE poprawiamy,
+  ale `tests/Feature/NoweMigracjeTrzymajaSieParagrafu6Test.php`
+  (`App\Support\Baza\StraznikNowychMigracji`) pilnuje, żeby ten sam błąd nie
+  powtórzył się w żadnej migracji nowszej niż ta.
 
 ### `down()` przy wartościach semantycznych ODMAWIA, zamiast zgadywać (D-088)
 
@@ -488,9 +494,14 @@ Dozwolone są **wyłącznie**:
 - bramki widoczności i blokady;
 - jawne polecenia widza (obserwuj, ukryj) — z listą, na której może je cofnąć.
 
+Półka **„Mój stół”** (D-304, #1749) dobiera wyłącznie z tej listy: obserwowane
+tagi, tag z listy gospodarza, „kuKINGi na dziś” w kolejności gospodarza, czas,
+jeden przepis od osoby, bramki i ukrycia.
+
 W **Obserwowanych** nic nie znika poza bramkami i blokadami oraz wpisami, które
 widz sam ukrył („Ukryj ten wpis”, D-278 — z listą „Ukryte” do cofnięcia).
-Dopuszczalne jest tylko zwinięcie serii wpisów jednej osoby, bez zmiany
+Dopuszczalne jest tylko zwinięcie serii wpisów jednej osoby albo jednego
+obserwowanego tagu (D-279: dwa widać, reszta pod „Pokaż”), bez zmiany
 kolejności.
 
 Każda nowa reguła doboru = wpis w `docs/DECISIONS.md` + aktualizacja „Jak
@@ -635,7 +646,19 @@ użytkowników produkcyjnych.
 - ryzyka,
 - plan rollbacku,
 - aktualizację `docs/`,
-- opis zmiany w UI albo zrzut ekranu, jeśli dotyczy interfejsu.
+- opis zmiany w UI albo zrzut ekranu, jeśli dotyczy interfejsu,
+- **wpis w `CHANGELOG.md`, jeśli PR dodaje nową funkcję albo nowe zachowanie
+  widoczne dla użytkownika** — oznaczony na końcu wiersza dopiskiem
+  `[nowa funkcja]` (issue #1909). Poprawka, zmiana kosmetyczna i porządek za
+  kulisami tego dopisku NIE dostają — dla nich CHANGELOG zostaje zwykłym
+  wpisem bez znacznika. **Każdy wpis `[nowa funkcja]` w sekcji
+  „## Nieopublikowane” ma odpowiadający akapit** (nagłówek `### ...` i kilka
+  zdań prostym językiem: gdzie znaleźć, jak działa, co daje) **w sekcji
+  „## Najnowsze zmiany” pliku `resources/nowosci/tresc.md`** — strony „Co
+  nowego” pod numerem wersji w stopce. Pilnuje tego
+  `tests/Feature/StraznikNowosciKazdaNowaFunkcjaMaAkapitTest.php`
+  (kontrola ujemna w `scripts/kontrole-negatywne-alfa08.py`, wzorzec
+  z issue #1909).
 
 ### Bugfix zawsze zawiera test regresyjny
 
