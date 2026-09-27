@@ -2203,10 +2203,23 @@ W logach deployu poszukaj potwierdzenia, że wszystko działa jak zaplanowano:
 
 ```text
 Using detected Dockerfile!            ← Railway użył naszego Dockerfile
-Running pre-deploy command...         ← migracje
+Running pre-deploy command...         ← migracje, seed, import wartości odżywczych
 [entrypoint] rola=web env=production  ← entrypoint wybrał rolę
 [entrypoint] przebudowa cache konfiguracji...
 ```
+
+`preDeployCommand` wykonuje trzy komendy po kolei, a niezerowy kod
+którejkolwiek zatrzymuje deploy: `migrate`, `db:seed`, a od #1961 też
+`kuking:importuj-wartosci-odzywcze` (D-299) — wypełnia słowniki CIQUAL/USDA,
+bez których sekcja wartości odżywczych na stronie przepisu milczy. Druga
+i kolejne linie w logu tej trzeciej komendy powinny mówić „Pliki danych są
+w tej samej wersji co poprzedni import — pominięto" — to normalny, szybki
+przebieg. Zdanie „Wczytano: N składników…" bez słowa „pominięto" oznacza
+pierwszy import na tym środowisku albo świadomą zmianę plików CSV — też
+prawidłowe. Komunikat „Nie wczytano niczego: …” z niezerowym kodem wyjścia
+oznacza błędny plik CSV — deploy zatrzymuje się, zanim wypuści kod polegający
+na tych danych; napraw plik (numer wiersza jest w komunikacie) i wdróż
+ponownie.
 
 ### 11.3 Checklista smoke testów
 
@@ -2400,7 +2413,7 @@ testowych** poświadczeń. Kluczy produkcji nie kopiujemy nigdy.
 | Region | EU West (Amsterdam) | EU West | EU West |
 | Restart policy | On Failure / 10 | On Failure / 10 | **Always** |
 | Healthcheck Path | `/health` | — | — |
-| Pre-deploy Command | `php artisan migrate --force --no-interaction` | — | — |
+| Pre-deploy Command | trzy komendy, W TEJ KOLEJNOŚCI (issue #1932, D-318): `php artisan migrate --force --no-interaction` → `php artisan kuking:zarejestruj-wdrozenie --no-interaction` → `php artisan db:seed --force --no-interaction` | — | — |
 | **Pre-deploy Timeout** | **600 s** ← ustaw ręcznie | — | — |
 | Serverless | **OFF** | **OFF** | **OFF** |
 | **Wait for CI** | **ON** | **ON** | **ON** |
@@ -2410,6 +2423,32 @@ testowych** poświadczeń. Kluczy produkcji nie kopiujemy nigdy.
 > pre-deploy. Bez timeoutu zawieszona migracja blokuje deploy w nieskończoność.
 
 W środowisku `staging`: **Serverless ON** dla `web`.
+
+#### Numer wersji z końcówką: `kuking:zarejestruj-wdrozenie` (issue #1932, D-318)
+
+Trzecia komenda pre-deploy dopisuje bieżący commit do tabeli `wdrozenia`,
+żeby stopka i strona `/co-nowego` mogły pokazać „Alfa 0.68.005" zamiast
+samego „Alfa 0.68" (patrz `App\Support\Wersja::etykietaZNumerem()`,
+`docs/DATABASE.md` i D-318 w `docs/DECISIONS.md`).
+
+- **Stoi PO `migrate`** — potrzebuje tabeli `wdrozenia`, którą ta migracja
+  dopiero zakłada. **Stoi PRZED `db:seed`** — kolejność między nią a
+  seederem nie ma znaczenia, ale trzymamy migracje i rejestrację wdrożenia
+  razem, jako jeden logiczny krok „przygotuj bazę pod to wdrożenie".
+- **Idempotentna**: redeploy bez zmiany kodu (ten sam
+  `RAILWAY_GIT_COMMIT_SHA`) nie zakłada drugiego wiersza i nie zużywa
+  kolejnego numeru.
+- **Nieszkodliwa lokalnie i w podglądach**: bez `RAILWAY_GIT_COMMIT_SHA`
+  komenda kończy się natychmiast, kodem 0, jednym zdaniem — nie próbuje
+  zgadywać commita z `git rev-parse` (płytki klon builda Railwaya może dać
+  zły wynik bez żadnego widocznego błędu — dokładnie dlatego numer w ogóle
+  NIE jest liczony z historii gita).
+- **Jeśli ta komenda kiedyś zniknie z `preDeployCommand`** (np. przy ręcznym
+  ustawianiu panelu po incydencie z `railway.json`, patrz wyżej): stopka
+  i strona „Co nowego" po prostu wracają do stanu sprzed #1932 — samej
+  etykiety, bez końcówki i bez dopisków „od …". Nic się nie wywala; to jest
+  degradacja o jedną informację, ten sam wybór co przy braku znacznika daty
+  wydania.
 
 ### Alert budżetowy
 

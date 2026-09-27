@@ -38,9 +38,11 @@ use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\MojeWpisyController;
 use App\Http\Controllers\MojStolController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\NowosciController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PlanerController;
 use App\Http\Controllers\PodsumowanieTygodniaController;
@@ -73,6 +75,7 @@ use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\UkryciaController;
 use App\Http\Controllers\UrodzinyWypiszController;
+use App\Http\Controllers\WartosciOdzywczeController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use Illuminate\Support\Facades\Route;
@@ -101,7 +104,12 @@ $limits = config('kuking.limits');
 
 Route::get('/', [FeedController::class, 'landing'])->name('landing');
 Route::get('/otworz-link', ExternalLinkController::class)->middleware("throttle:{$limits['external_link']},external_link")->name('links.external');
-Route::get('/odkryj', [FeedController::class, 'discover'])->name('discover');
+// Limiter per adres IP gościa (issue #1952): zapytanie liczy row_number()
+// na wszystkich publicznych wpisach przed odcięciem strony — patrz
+// uzasadnienie przy `limits.discover` w config/kuking.php.
+Route::get('/odkryj', [FeedController::class, 'discover'])
+    ->middleware("throttle:{$limits['discover']},discover")
+    ->name('discover');
 Route::get('/pytania', [QuestionController::class, 'index'])
     ->middleware("throttle:{$limits['search']},search")
     ->name('questions.index');
@@ -148,6 +156,14 @@ Route::get('/zasady', [StaticPageController::class, 'rules'])->name('rules');
 Route::get('/o-kuking', [StaticPageController::class, 'about'])->name('about');
 Route::get('/regulamin', [StaticPageController::class, 'terms'])->name('terms');
 Route::get('/prywatnosc', [StaticPageController::class, 'privacy'])->name('privacy');
+
+/*
+ * „CO NOWEGO" — issue #1909. Wersja w stopce (`App\Support\Wersja`) linkuje
+ * tutaj, z kotwicą bieżącego wydania (`Wersja::kotwicaWydania()`). Publiczna
+ * jak reszta stron statycznych wyżej — bez `Policy`, bo nie ma tu cudzego
+ * zasobu do chronienia.
+ */
+Route::get('/co-nowego', [NowosciController::class, 'index'])->name('nowosci');
 
 /*
 |--------------------------------------------------------------------------
@@ -750,6 +766,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/przepisy/{recipe}', [RecipeController::class, 'update'])
         ->middleware("throttle:{$limits['post']},post")
         ->name('recipes.update');
+    // „Ukryj wartości odżywcze w moim przepisie” (D-299). Ustawienie widoku
+    // własnego przepisu, nie nowa wersja treści — osobny, luźniejszy limit.
+    Route::patch('/przepisy/{recipe}/wartosci-odzywcze', WartosciOdzywczeController::class)
+        ->middleware("throttle:{$limits['wartosci_odzywcze']},wartosci_odzywcze")
+        ->name('recipes.wartosci-odzywcze');
     Route::post('/przepisy/{recipe}/komentarz', [RecipeController::class, 'comment'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('recipes.comment');
@@ -805,6 +826,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/zeszyt', [CollectionController::class, 'store'])
         ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.store');
+    // „Moje wpisy” (D-328): własne wpisy autora, także szkice, prywatne
+    // i ukryte przez moderację. PRZED `/zeszyt/{collection}` — inaczej
+    // „moje-wpisy” trafiłoby do wiązania zeszytu po UUID. Nazwa pod
+    // `collections.*`, żeby pozycja „Moje” w nawigacji była bieżąca.
+    Route::get('/zeszyt/moje-wpisy', MojeWpisyController::class)->name('collections.own-posts');
     Route::get('/zeszyt/{collection}', [CollectionController::class, 'show'])->name('collections.show');
     // Cofnięcie publicznego udostępnienia bez kasowania zeszytu (issue #777).
     // Własny klucz `zeszyt`, nie `usuwanie` — to nie jest akcja destrukcyjna.

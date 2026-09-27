@@ -14,6 +14,7 @@ use App\Google\TozsamoscGoogle;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Support\Google;
+use App\Support\RejestracjaZamknieta;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -324,11 +325,8 @@ class GoogleLoginController extends Controller
             return $this->drogaZamknieta();
         }
 
-        if (! config('kuking.account.registration_open')) {
-            return redirect()->route('login')->with('status',
-                'Zakładanie nowych kont jest chwilowo zamknięte. Jeśli masz już konto, zaloguj się hasłem '
-                .'albo poproś o wiadomość z przyciskiem do zalogowania.',
-            );
+        if (RejestracjaZamknieta::czyZamknieta()) {
+            return RejestracjaZamknieta::przekierowanie();
         }
 
         $tozsamosc = $this->wejscie()->tozsamoscZSesji($request);
@@ -355,7 +353,11 @@ class GoogleLoginController extends Controller
         // Ta sama bramka co w `RegisterController::store()`. Bez niej
         // zamknięcie rejestracji zamykałoby jedną z dwóch dróg do tego
         // samego skutku — czyli nie zamykałoby jej wcale.
-        abort_unless(config('kuking.account.registration_open'), 503);
+        // Przekierowanie, nie 503: zamknięta rejestracja to nie awaria
+        // (`RejestracjaZamknieta`). Konto i tak nie powstaje.
+        if (RejestracjaZamknieta::czyZamknieta()) {
+            return RejestracjaZamknieta::przekierowanie();
+        }
 
         $tozsamosc = $this->wejscie()->tozsamoscDoZalozenia($request);
 

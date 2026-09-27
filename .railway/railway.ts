@@ -1102,9 +1102,71 @@ export default defineRailway((ctx) => {
       //  Pilnuje tego `WdrozenieUruchamiaTrescZalazkowaTest` — razem
       //  z kolejnością komend i z tym, że seed na produkcji nie wwozi danych
       //  demo.
+      //
+      // -----------------------------------------------------------------------
+      //  TRZECIA KOMENDA: `kuking:zarejestruj-wdrozenie` (issue #1932, D-318).
+      //
+      //  Numer wersji z KOŃCÓWKĄ — „Alfa 0.68.005" zamiast samego „Alfa 0.68",
+      //  które stoi tygodniami bez zmian i nie odróżnia dwóch wdrożeń tego
+      //  samego dnia. Komenda dopisuje BIEŻĄCY commit do tabeli `wdrozenia`
+      //  (`App\Domain\Wydania\Actions\ZarejestrujWdrozenie`) i, przy tej samej
+      //  okazji, zapisuje, pod jakim numerem pojawił się PIERWSZY RAZ każdy
+      //  nagłówek funkcji z `resources/nowosci/tresc.md` — to jest źródło
+      //  dopisku „od Alfa 0.68.NNN" na stronie `/co-nowego`.
+      //
+      //  STOI PO `migrate`, PRZED `db:seed` — musi iść PO migracjach, bo
+      //  dopiero wtedy istnieje tabela `wdrozenia`; PRZED seederem, bo seeder
+      //  nie ma z tym nic wspólnego i kolejność między nimi jest bez
+      //  znaczenia — trzymamy migracje i rejestrację wdrożenia razem, jako
+      //  jeden logiczny krok „przygotuj bazę pod to wdrożenie".
+      //
+      //  IDEMPOTENTNA: ten sam commit (redeploy bez zmiany kodu, ponowiony
+      //  krok po chwilowym błędzie) nie zakłada drugiego wiersza i nie zużywa
+      //  kolejnego numeru — `UNIQUE (commit)` w tabeli plus sprawdzenie
+      //  w akcji PRZED wstawieniem.
+      //
+      //  BEZPIECZNA PRZY RÓWNOLEGŁYM STARCIE: numer liczy się jako
+      //  `MAX(numer) + 1` pod `pg_advisory_xact_lock` — dwa równoległe starty
+      //  nie dostają tego samego numeru (test na dwóch połączeniach:
+      //  `tests/Dwa/RejestracjaWdrozeniaNaDwochPolaczeniachTest.php`).
+      //
+      //  LOKALNIE I W PODGLĄDACH bez `RAILWAY_GIT_COMMIT_SHA` komenda kończy
+      //  się natychmiast, z kodem 0 — nie wywala deployu ani lokalnego
+      //  środowiska, w którym ta zmienna nie istnieje.
+      //
+      // -----------------------------------------------------------------------
+      //  CZWARTA KOMENDA: `kuking:importuj-wartosci-odzywcze` (#1961, D-299).
+      //
+      //  PR #1900 dodał migrację trzech tabel słownikowych (`skladniki_odzywcze`,
+      //  `miary_domowe`, `aliasy_skladnikow`) i komendę, która je wypełnia
+      //  z `database/data/odzywcze/*.csv` — ale samą komendę zostawił jako
+      //  ręczny krok „uruchom to kiedyś w kontenerze". Nikt jej nie uruchomił:
+      //  migracja przechodzi, deploy wygląda na zielony, a tabele zostają
+      //  puste — sekcja wartości odżywczych na stronie przepisu milczy.
+      //  Dokładnie ten sam kształt usterki co brak `db:seed` wyżej.
+      //
+      //  Komenda jest bezpieczna w pre-deploy z tego samego powodu co seeder:
+      //  niezerowy exit zatrzymuje deploy, więc zła paczka danych (błąd
+      //  walidacji CSV) nie wypuści kodu, który na niej polega.
+      //
+      //  SZYBKOŚĆ: dane CIQUAL/USDA zmieniają się rzadko, a ta komenda leci
+      //  przy KAŻDYM wdrożeniu, nie tylko wtedy, gdy pliki się zmieniły.
+      //  `App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze` liczy hash
+      //  obu plików CSV i pomija cały import (bez parsowania, bez zapisu),
+      //  gdy hash jest ten sam co przy poprzednim udanym imporcie, a tabela
+      //  już ma dane — więc zwykły deploy bez zmiany danych kosztuje jedno
+      //  odpytanie cache'a, nie ponowne przepisanie ~600 wierszy.
+      //
+      //  Kolejność: po `db:seed`, bo obie komendy są niezależne (różne
+      //  tabele), a seeder jest ważniejszy dla pierwszego wrażenia — gdyby
+      //  import padł, chcemy mieć już treść zalążkową.
+      //
+      //  Pilnuje tego `WdrozenieImportujeWartosciOdzywczeTest`.
       preDeployCommand: [
         "php artisan migrate --force --no-interaction",
+        "php artisan kuking:zarejestruj-wdrozenie --no-interaction",
         "php artisan db:seed --force --no-interaction",
+        "php artisan kuking:importuj-wartosci-odzywcze",
       ],
 
       // -----------------------------------------------------------------------
