@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Wewnętrzne: kontrola zdrowia obrazu Docker sprawdza `/health` dla ról HTTP (`web` i `all`), a dla `worker` i `scheduler` nie oczekuje serwera WWW, którego te role nie uruchamiają. Odczytuje rzeczywistą rolę przekazaną entrypointowi, także gdy ma ona pierwszeństwo przed `APP_ROLE` (#2079).
 - Wewnętrzne: ręczne migracje i migracje przed wdrożeniem Railway korzystają z tej samej blokady PostgreSQL. Gdy jeden przebieg już migruje bazę, drugi kończy się błędem zamiast działać równolegle albo zgłosić pozorny sukces (#2082).
 - Obserwowanie osoby albo tagu rozpoczęte przed sankcją nie dopisze relacji po zawieszeniu, zablokowaniu lub zamknięciu konta. Można nadal przestać obserwować istniejące tagi (#2091).
 - W wyszukiwarce każda lista znalezionych przepisów lub osób ma własny widoczny nagłówek także po wybraniu zakresu „Przepisy”, „Do 30 minut” albo „Ludzie”. Ułatwia to znalezienie wyników przez nawigację po nagłówkach (#2081).

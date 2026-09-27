@@ -243,7 +243,8 @@ RUN install-php-extensions \
 COPY docker/php.ini      /usr/local/etc/php/conf.d/zz-kuking.ini
 COPY docker/Caddyfile    /etc/frankenphp/Caddyfile
 COPY docker/entrypoint.sh /usr/local/bin/kuking-entrypoint
-RUN chmod +x /usr/local/bin/kuking-entrypoint
+COPY docker/healthcheck.sh /usr/local/bin/kuking-healthcheck
+RUN chmod +x /usr/local/bin/kuking-entrypoint /usr/local/bin/kuking-healthcheck
 
 WORKDIR /app
 
@@ -373,7 +374,7 @@ EXPOSE 8080
 # Healthcheck dla uruchomień poza Railway (docker run / compose / Fly).
 # W Railway healthcheck robi platforma (healthcheck: "/health" w railway.ts).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-  CMD php -r 'exit(@file_get_contents("http://127.0.0.1:".(getenv("PORT")?:8080)."/health") ? 0 : 1);'
+  CMD ["/usr/local/bin/kuking-healthcheck"]
 
 # tini jako PID 1: przekazuje SIGTERM do entrypointu → Caddy robi graceful
 # drain, a queue:work kończy bieżący job zamiast go porzucić.
