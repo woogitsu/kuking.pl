@@ -14,6 +14,7 @@ use App\Rules\ReservedUsername;
 use App\Rules\TurnstileJestPotwierdzony;
 use App\Rules\UsernameNotTaken;
 use App\Support\NazwaUzytkownika;
+use App\Support\RejestracjaZamknieta;
 use App\Support\Turnstile;
 use App\Support\ZamiarObserwowania;
 use Illuminate\Http\RedirectResponse;
@@ -37,9 +38,12 @@ use Illuminate\View\View;
  */
 class RegisterController extends Controller
 {
-    public function show(Request $request, ZaproszenieWSesji $sesja, ZamiarObserwowania $zamiar): View
+    public function show(Request $request, ZaproszenieWSesji $sesja, ZamiarObserwowania $zamiar): View|RedirectResponse
     {
-        abort_unless(config('kuking.account.registration_open'), 503, 'Rejestracja jest chwilowo zamknięta.');
+        // Zamknięta rejestracja to nie awaria — patrz `RejestracjaZamknieta`.
+        if (RejestracjaZamknieta::czyZamknieta()) {
+            return RejestracjaZamknieta::przekierowanie();
+        }
 
         $zamiar->zapamietaj($request);
 
@@ -51,7 +55,9 @@ class RegisterController extends Controller
 
     public function store(Request $request, ZalozKonto $zalozKonto, ZaproszenieWSesji $sesja, ZamiarObserwowania $zamiar): RedirectResponse
     {
-        abort_unless(config('kuking.account.registration_open'), 503);
+        if (RejestracjaZamknieta::czyZamknieta()) {
+            return RejestracjaZamknieta::przekierowanie();
+        }
 
         /*
          * ═════════════════════════════════════════════════════════════════
