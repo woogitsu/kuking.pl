@@ -136,6 +136,43 @@ final class Wersja
     }
 
     /**
+     * Kotwica strony „Co nowego” (`nowosci.index`) dla BIEŻĄCEGO wydania —
+     * issue #1909: kliknięcie wersji w stopce ma otworzyć tę stronę OD RAZU
+     * przy opisie wydania, na które ktoś patrzy, nie od góry dokumentu.
+     *
+     * `resources/nowosci/tresc.md` ma nagłówek `## Alfa 0.68` dla tego
+     * wydania — BEZ podtytułu w samym nagłówku (podtytuł stoi zdaniem pod
+     * nim), właśnie po to, żeby jego kotwica dała się policzyć z SAMEJ
+     * etykiety. Liczymy ją algorytmem slugów GitHuba (GFM), tym samym, co
+     * `tests/Feature/DokumentyMdNieMajaMartwychOdnosnikowTest.php` używa do
+     * sprawdzania odnośników we WSZYSTKICH plikach `.md` repozytorium —
+     * ten plik nie jest wyjątkiem, więc kotwica MUSI się z nim zgadzać,
+     * inaczej ten ogólny strażnik i ten, węższy, przestają się zgadzać.
+     * Algorytm: małe litery, spacja → myślnik, potem zostają tylko litery
+     * (Unicode), cyfry, myślniki i podkreślenia — reszta (kropka, myślnik
+     * długi…) znika BEZ ZASTĘPCZEGO ZNAKU. „Alfa 0.68” → „alfa-068”.
+     *
+     * Nie używamy tu skrótu `Str::slug()` z innym zachowaniem separatorów —
+     * ważne jest, żeby dać DOKŁADNIE ten sam wynik co test wyżej, nie
+     * „podobny”.
+     */
+    public static function kotwicaWydania(): string
+    {
+        $tekst = mb_strtolower(trim(self::etykieta()));
+        $tekst = str_replace(' ', '-', $tekst);
+
+        $wynik = '';
+
+        foreach (mb_str_split($tekst) as $znak) {
+            if ($znak === '-' || $znak === '_' || preg_match('/\p{L}|\p{N}/u', $znak) === 1) {
+                $wynik .= $znak;
+            }
+        }
+
+        return $wynik !== '' ? $wynik : 'najnowsze-zmiany';
+    }
+
+    /**
      * PEŁNY SHA wdrożonego commita albo `null`, gdy nic nie wdrożono.
      *
      * Dla maszyn (`/wydanie`, test dymny po wdrożeniu — issue #1012), nie dla
