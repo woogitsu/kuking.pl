@@ -62,9 +62,12 @@ LABEL org.opencontainers.image.description="pg_dump 18 + szyfrowanie kluczem pub
 # tym samym argumentem co gdzie indziej, tylko z wyższą stawką.
 ARG SNAPSHOT_DEBIAN=20260926T082540Z
 
+# Obraz postgres:18 nie ma jeszcze zaufanych certyfikatów CA; właśnie je
+# instalujemy. HTTP nie osłabia kontroli pakietów: apt weryfikuje podpis
+# InRelease kluczem signed-by i sumy pakietów z podpisanych metadanych.
 RUN set -eux; \
     mkdir -p /tmp/apt-snapshot/puste; \
-    printf 'deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg check-valid-until=no] https://snapshot.debian.org/archive/debian/%s/ trixie main\n' "${SNAPSHOT_DEBIAN}" \
+    printf 'deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg check-valid-until=no] http://snapshot.debian.org/archive/debian/%s/ trixie main\n' "${SNAPSHOT_DEBIAN}" \
       > /tmp/apt-snapshot/snapshot.list; \
     apt-get -o Dir::Etc::sourcelist=/tmp/apt-snapshot/snapshot.list -o Dir::Etc::sourceparts=/tmp/apt-snapshot/puste update; \
     apt-get -o Dir::Etc::sourcelist=/tmp/apt-snapshot/snapshot.list -o Dir::Etc::sourceparts=/tmp/apt-snapshot/puste install -y --no-install-recommends \

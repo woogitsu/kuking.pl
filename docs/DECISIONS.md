@@ -18583,6 +18583,16 @@ archive-keyring.gpg` weryfikuje ten sam, oryginalny podpis GPG Debiana —
 migawka nie generuje własnego, więc `[trusted=yes]` (wyłączenie weryfikacji)
 nie jest tu potrzebne i nie jest używane.
 
+Pierwszy build w CI ujawnił, że obraz `postgres:18` nie ma jeszcze
+zaufanych certyfikatów CA, a właśnie pakiet `ca-certificates` ma pobrać
+z migawki. Dlatego obraz kopii bazy pobiera migawkę przez HTTP. Bezpieczeństwo
+pakietów nadal opiera się na podpisanym `InRelease` i sumach z podpisanych
+metadanych, sprawdzanych przez apt względem `debian-archive-keyring.gpg`;
+`trusted=yes` pozostaje zabronione. Główny obraz ma CA i używa HTTPS.
+Transport HTTP nie ukrywa metadanych ani nazw pakietów przed siecią.
+Łańcuch podpisanego `Release` i sum pakietów opisuje Debian w
+[`apt-secure(8)`](https://manpages.debian.org/testing/apt/apt-secure.8.en.html).
+
 **Podnoszenie wersji pakietów jest teraz ŚWIADOME, nie ciche.** Zmiana
 `SNAPSHOT_DEBIAN` na nowszą datę jest jedną linijką w PR-ze, widoczną
 w historii gita — dokładnie tak, jak Dependabot podbija digesty obrazów
@@ -18590,12 +18600,10 @@ bazowych. Sprawdzenie przed podniesieniem: migawka pod nową datą istnieje
 i ma `main/binary-amd64/Packages` z potrzebnymi pakietami
 (`https://snapshot.debian.org/archive/debian/<data>/dists/trixie/Release`).
 
-**Nie build-testowane w tej sesji.** Środowisko agenta nie ma demona Dockera
-(`docker info` → `failed to connect to the docker API`), więc zmiana nie
-przeszła przez rzeczywisty `docker build`. Job `docker-build` w `ci.yml`
-zbuduje oba obrazy przy pierwszym pchnięciu tej gałęzi — to jest pierwsza
-prawdziwa weryfikacja. Jeśli zawiedzie na etapie `apt-get update` migawki,
-najpierw sprawdź literalnie adres z komunikatu błędu w przeglądarce/`curl`.
+**Weryfikacja builda.** Pierwszy job `docker-build` w CI pobrał pakiety
+głównego obrazu z migawki, ale obraz kopii bazy zatrzymał się na TLS przed
+instalacją `ca-certificates`. Kolejny przebieg CI sprawdza wariant HTTP
+z niezmienioną weryfikacją podpisu. Lokalnie brak demona Dockera.
 
 ### Dowody
 `tests/Unit/AptPakietyPrzypieteDoMigawkiTest.php` — kształt przypięcia

@@ -29,7 +29,10 @@ use PHPUnit\Framework\TestCase;
  */
 final class AptPakietyPrzypieteDoMigawkiTest extends TestCase
 {
-    private const SNAPSHOT_URL = 'https://snapshot.debian.org/archive/debian/';
+    private const SNAPSHOT_URLS = [
+        'https://snapshot.debian.org/archive/debian/',
+        'http://snapshot.debian.org/archive/debian/',
+    ];
 
     private const TIMESTAMP = '/^\d{8}T\d{6}Z$/';
 
@@ -97,7 +100,7 @@ final class AptPakietyPrzypieteDoMigawkiTest extends TestCase
             'Wzorzec (patrz Dockerfile, etap `runtime`):',
             '  ARG SNAPSHOT_DEBIAN=<RRRRMMDDTHHMMSSZ>',
             "  RUN printf 'deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg check-valid-until=no] ".
-            'https://snapshot.debian.org/archive/debian/%s/ <codename> main\n\' "$SNAPSHOT_DEBIAN" > .../snapshot.list \\',
+            '<http(s)>://snapshot.debian.org/archive/debian/%s/ <codename> main\n\' "$SNAPSHOT_DEBIAN" > .../snapshot.list \\',
             '   && apt-get -o Dir::Etc::sourcelist=.../snapshot.list -o Dir::Etc::sourceparts=.../puste update \\',
             '   && apt-get -o Dir::Etc::sourcelist=.../snapshot.list -o Dir::Etc::sourceparts=.../puste install -y ...',
         ]));
@@ -137,8 +140,8 @@ final class AptPakietyPrzypieteDoMigawkiTest extends TestCase
         // dyrektywy — złapane ręczną kontrolą ujemną przy pisaniu tego testu
         // (zmiana samej dyrektywy na `check-valid-until=yes`, zostawiając
         // komentarz bez zmian, i tak przechodziła).
-        if (preg_match('/deb\s+\[([^\]]*)\]\s+https:\/\/snapshot\.debian\.org/', $tresc, $m) !== 1) {
-            $bledy[] = "{$wzgledna} — wspomina snapshot.debian.org, ale nie znaleziono linii `deb [...] https://snapshot.debian.org/...` — sprawdź, czy adres i nawiasy opcji stoją w jednej linii `printf`.";
+        if (preg_match('/deb\s+\[([^\]]*)\]\s+https?:\/\/snapshot\.debian\.org/', $tresc, $m) !== 1) {
+            $bledy[] = "{$wzgledna} — wspomina snapshot.debian.org, ale nie znaleziono linii `deb [...] http(s)://snapshot.debian.org/...` — sprawdź, czy adres i nawiasy opcji stoją w jednej linii `printf`.";
 
             return;
         }
@@ -179,13 +182,13 @@ final class AptPakietyPrzypieteDoMigawkiTest extends TestCase
                 continue;
             }
 
-            if (! str_contains($tresc, self::SNAPSHOT_URL)) {
+            if (! str_contains($tresc, self::SNAPSHOT_URLS[0]) && ! str_contains($tresc, self::SNAPSHOT_URLS[1])) {
                 $zNiewlasciwymAdresem[] = self::wzgledna($plik);
             }
         }
 
         $this->assertSame([], $zNiewlasciwymAdresem,
-            'Adres migawki nie zgadza się z `'.self::SNAPSHOT_URL."` w:\n".implode("\n", $zNiewlasciwymAdresem));
+            'Adres migawki nie zgadza się ze znanym adresem snapshot.debian.org w:'."\n".implode("\n", $zNiewlasciwymAdresem));
     }
 
     /**
