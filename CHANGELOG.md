@@ -28,6 +28,15 @@
 - Dla osób rozwijających serwis: nowy skrypt `scripts/railway/zmienne-spoza-iac.mjs` wypisuje nazwy zmiennych serwisu ustawionych tylko w panelu Railway, a nie w `railway.ts` (bez wartości), a `docs/infra/ZMIENNE_SPOZA_IAC.md` opisuje, jak przed pierwszym `railway config apply` sprawdzić, czy apply by je usunął — samym odczytem, bez stagingu. Komentarz w `railway-iac.yml` nie mówi już o apply „po merge'u” (audyt po fali 25.09, znaleziska 11 i 12).
 - „Zobacz” przy powiadomieniu o odpowiedzi przewija stronę dokładnie do tej odpowiedzi, także gdy rozmowa ma kilka stron. Gdy komentarz zniknął, zanim kliknęliście „Zobacz”, strona mówi o tym wprost zamiast pokazywać błąd (#759).
 - Bezpieczeństwo CI: `.github/workflows/preview.yml` już nie uruchamia kodu z checkoutu PR-a (test dymny) w tym samym jobie, który ma prawo zapisu do komentarzy PR-a (`pull-requests: write`). Publikację komentarza z wynikiem testu dymnego przejął osobny job `smoke-komentarz`, uruchamiany po `smoke` przez `needs`, który nie checkoutuje repozytorium ani nie wykonuje żadnego skryptu z gałęzi PR-a — działa tylko na wartościach przekazanych z `smoke` jako `needs.smoke.outputs`. Job `smoke` zachowuje jedynie `contents: read` i `deployments: read` (#1941).
+- Piksel śledzący otwarcia w listach transakcyjnych z EmailLabs (#204):
+  ponownie potwierdzone w oficjalnej dokumentacji dostawcy, że śledzenia
+  otwarć nie da się wyłączyć per wiadomość przez API — to wyłącznie
+  ustawienie konta wysyłkowego w panelu, w przeciwieństwie do śledzenia
+  odnośników (`X-TRACKING-OFF`), które serwis wyłącza już dla każdego listu.
+  `docs/infra/POCZTA_URUCHOMIENIE.md` (Krok 6) ma zaktualizowaną, niezależną
+  weryfikację; polityka prywatności nadal mówi prawdę o tym, co robi
+  EmailLabs. Do zrobienia zostaje wyłącznie krok po stronie właściciela:
+  przełącznik w panelu EmailLabs.
 - `/health` wykrywa teraz częściowo dokończone wdrożenie: kontrola `migrations` porównuje pliki migracji z bieżącego obrazu aplikacji z wierszami wykonanymi w bazie (tak jak `migrate:status`), zamiast sprawdzać tylko, czy tabela `migrations` jest niepusta. Wcześniej baza z choćby jedną starą migracją przechodziła kontrolę, mimo że kod korzystał już z nowej kolumny albo tabeli, których deploy nie zdążył wykonać — Railway kierował ruch na instancję z niezgodnym schematem (#1844).
 - Bezpieczeństwo: callback odebrania dostępu z Facebooka (`/wejdz/facebook/odebranie-dostepu`) odrzuca teraz zbyt duże żądania i pole `signed_request` przed dekodowaniem, oraz ma własny, celowo hojny limit żądań na adres IP (60 na minutę, ten sam wzorzec co zgłoszenia CSP) — bez zmiany zachowania dla prawdziwych powiadomień Facebooka (#1869).
 - Potwierdzenie pierwszej publikacji pokazuje teraz datę wpisu i jawny przycisk „Zobacz swój wpis” — tak jak obiecuje `docs/product/COLD_START.md` i `docs/product/SOUL.md`. Wcześniej komunikat mówił tylko „od teraz masz swoje archiwum”, bez daty i bez żadnego linku; przy dwóch i więcej zdjęciach, gdzie publikacja ląduje na ekranie doboru układu, przycisku nie było wcale (#1881).
