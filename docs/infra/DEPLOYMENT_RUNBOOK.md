@@ -515,34 +515,56 @@ Laravel przyjmuje wiadomość, zgłasza sukces i nie wysyła jej nikomu.
 
 ---
 
-## KROK 4. Sentry
+## KROK 4. Monitoring błędów — kanał `blad_webhook` (webhook na Slack/Discord)
 
-1. → sentry.io → nowy projekt, platforma **Laravel**, region **EU**.
-2. Skopiuj **DSN** → `SENTRY_LARAVEL_DSN`
-   (format: `https://xxxx@oyyyy.ingest.de.sentry.io/zzzz`).
-3. → **Settings → Auth Tokens** → nowy token z zakresem `project:releases`
-   → `SENTRY_AUTH_TOKEN` (do GitHub Actions).
-4. Zapisz nazwę organizacji i projektu → `SENTRY_ORG`, `SENTRY_PROJECT`.
+**Stan dziś (D-041, #599):** błąd 500 i awarie wykrywane przez `/health` idą
+kanałem logowania `blad_webhook` (`config/logging.php`,
+`App\Logging\WebhookBleduHandler`) na webhook Slacka albo Discorda. Włącza go
+jedna zmienna — `LOG_BLAD_WEBHOOK_URL`. Pusta = kanał wyłączony, nic nie pada.
+**Nic nie instalujesz i nie zmieniasz `composer.json` ani `composer.lock`** —
+kod kanału jest już w repozytorium.
 
-```bash
-composer require sentry/sentry-laravel
+1. Załóż webhook według [`MONITORING_BLEDOW.md`](./MONITORING_BLEDOW.md) §1
+   (Discord: adres webhooka z dopisanym `/slack` na końcu; Slack: „Webhook URL"
+   z Incoming Webhooks).
+2. Zapisz adres jako sekret → `LOG_BLAD_WEBHOOK_URL` (tabela w kroku 8,
+   osobno dla `production` i — jeśli chcesz — `staging`).
+3. Próba po wdrożeniu stoi w kroku 11.3 (punkt 19).
 
-# Podstaw swój DSN w miejsce wartości poniżej (cudzysłowy są istotne —
-# bez nich powłoka zinterpretuje znaki < > jako przekierowanie).
-php artisan sentry:publish --dsn="https://xxxx@oyyyy.ingest.de.sentry.io/zzzz"
-```
+> Treść wiadomości nie zawiera danych osobowych ani komunikatu wyjątku
+> (`MONITORING_BLEDOW.md` §3), ale adres webhooka traktuj jak sekret:
+> kto go zna, może pisać na Twój kanał.
 
-> Region **EU** — dane błędów mogą zawierać dane osobowe użytkowników.
+<details>
+<summary>Planowane, NIE wykonuj podczas wdrożenia: Sentry</summary>
+
+Sentry jest **zamiarem, nie stanem**: nie ma go w `composer.json`, nie ma
+`config/sentry.php`, a `SENTRY_LARAVEL_DSN` w `.env.example` jest
+przygotowane i nieczytane przez żadną linijkę PHP (z `.railway/railway.ts`
+usunięte w #1013).
+Wejście Sentry to zmiana produktu — przejrzany PR z pakietem, konfiguracją
+i aktualizacją dokumentów prawnych — a nie ręczny krok operatora w trakcie
+deployu. Warunek wejścia i uzasadnienie: **D-041**, #599, `docs/ROADMAP.md` §0,
+[`MONITORING_BLEDOW.md`](./MONITORING_BLEDOW.md) §5. Tabela stacku w
+`AGENTS.md` §3 opisuje stan (**D-104**) i Sentry wróci do niej dopiero
+razem z pakietem.
+
+</details>
 
 ---
 
-## KROK 5. PostHog
+## KROK 5. Analityka — bez nowego dostawcy
 
-1. → posthog.com → **EU Cloud** (`eu.i.posthog.com`), nie US.
-2. → **Project Settings** → skopiuj **Project API Key** → `POSTHOG_KEY`.
-3. `POSTHOG_HOST = https://eu.i.posthog.com`
+**Stan dziś:** statystyki produktu to **własne zdarzenia serwerowe w naszej
+bazie** (D-063), a odwiedziny liczy **Cloudflare Web Analytics** (D-092) —
+konfiguracja w kroku 8F, jedna zmienna `CLOUDFLARE_ANALYTICS_TOKEN`
+(tylko `production`). Żadnego konta do zakładania w tym kroku, żadnego klucza.
 
-Darmowy plan: 1 mln zdarzeń/mies. — na alfę i betę wystarczy z zapasem.
+**PostHog nie jest wdrożony** (D-063: „nie teraz"; D-092 wybrało Cloudflare).
+Nie zakładaj konta PostHog i nie ustawiaj `POSTHOG_KEY` — aplikacja nie wysyła
+tam żadnych danych, a nowy odbiorca danych wymagałby najpierw decyzji
+właściciela i poprawienia dokumentów prawnych. `POSTHOG_KEY`/`POSTHOG_HOST`
+zniknęły z `.railway/railway.ts` w #1013 — nie było dla nich odbiorcy w kodzie.
 
 ---
 
@@ -588,8 +610,11 @@ Jeśli kreator oferuje tylko 17:
 - **Opcja B:** utwórz serwis z obrazu `ghcr.io/railwayapp-templates/postgres-ssl:18.3`
   — tracisz wtedy część integracji panelu (Database View).
 
-→ Zmień nazwę serwisu na **`postgres`** (dokładnie tak — `railway.ts` się do
-niej odwołuje).
+→ Nazwij serwis **`Postgres`** — wielką literą, dokładnie tak jak
+`NAZWA_BAZY` w `.railway/railway.ts` (od 24.09.2026, #595; wcześniej stało tu
+`postgres`). Plan IaC porównuje plik z żywym środowiskiem **po nazwie**: przy
+innej nazwie `railway config apply` utworzy obok **nową, pustą bazę**
+i przepnie na nią `DB_URL` (`docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md`).
 
 ### 6.4 Backupy — **zrób to teraz, nie później**
 
@@ -598,7 +623,7 @@ niej odwołuje).
 > dokument w razie sprzeczności wygrywa. Tu zostaje tylko włączenie backupów
 > jako część wdrożenia od zera.
 
-→ serwis `postgres` → zakładka **Backups**:
+→ serwis `Postgres` → zakładka **Backups**:
 
 1. Włącz **Daily** (6 dni retencji)
 2. Włącz **Weekly** (1 miesiąc retencji)
@@ -668,6 +693,7 @@ sekretów.
 | `R2_ENDPOINT` | `https://<ACCOUNT_ID>.eu.r2.cloudflarestorage.com` | nie | Endpoint S3 API R2. **Wymagany format (D-255):** dokładnie `https://<32 znaki hex>.eu.r2.cloudflarestorage.com` — z segmentem `eu`, bez portu, ścieżki i danych logowania. Inny adres → dyski R2/S3 odmawiają budowy (zdjęcia, eksporty, czujka kopii nie działają), a `/health` pokazuje `checks.magazyn.error = magazyn_r2_zly_host`. Buckety muszą mieć jurysdykcję `eu` (`LOKALIZACJA_DANYCH_R2.md`) |
 | `R2_KOPIE_BUCKET`, `R2_KOPIE_ACCESS_KEY_ID`, `R2_KOPIE_SECRET_ACCESS_KEY`, `R2_KOPIE_ODCZYT_ACCESS_KEY_ID`, `R2_KOPIE_ODCZYT_SECRET_ACCESS_KEY`, `KOPIA_KLUCZ_PUBLICZNY` | z `KOPIE_I_ODTWORZENIE.md` §7.3 | **TAK** (poza nazwą bucketu) | Kopie bazy poza Railwayem — osobny bucket i **dwa** tokeny: zapis dla serwisu `kopia-bazy`, odczyt dla czujki `kuking:sprawdz-kopie` |
 | `R2_ZDJECIA_KOPIA_BUCKET`, `R2_ZDJECIA_KOPIA_ODCZYT_ACCESS_KEY_ID`, `R2_ZDJECIA_KOPIA_ODCZYT_SECRET_ACCESS_KEY` | z `DR_ZDJEC_R2.md` §4, kroki 2 i 6 (token **odczytu** kopii zdjęć) | **TAK** (poza nazwą bucketu) | Kopia zdjęć (#1497, D-257). `railway.ts` → `AWS_ZDJECIA_KOPIA_*` → dysk `r2_kopia_zdjec`, **tylko scheduler** (ręczne `kuking:sprawdz-kopie-zdjec`, `DR_ZDJEC_R2.md` §6). Dopóki kopii zdjęć nie ma, **załóż je z pustą wartością** — na referencję do zmiennej, której nie ma, nie polegamy. Pusto = komenda odmawia z komunikatem, nic więcej się nie psuje |
+| `KUKING_HEALTH_TOKEN` | losowy ciąg, np. `openssl rand -hex 32` | nie | Odsłania pole `checks` w `/health` zapytaniu z nagłówkiem `X-Kuking-Health-Token` (audyt A5-05). Bez niego `/health` oddaje tylko kod HTTP i `status` — healthcheck Railway i test dymny działają tak samo, ale polecenia `curl … \| jq '.checks…'` w tym runbooku zwracają `null`. Od 26.09.2026 zmienna jest przewleczona w `.railway/railway.ts` (`KUKING_HEALTH_TOKEN: ctx.shared.KUKING_HEALTH_TOKEN`, serwis WWW) — `ctx.shared` wymaga ISTNIEJĄCEJ zmiennej, więc kolejność zostaje: najpierw załóż ją w panelu Shared Variables, potem deploy. Zaznacz „Sealed" |
 | ~~`R2_PUBLIC_URL`~~ | — | — | **NIE USTAWIAJ.** Wycofane razem z §2.3 (D-020). Nic w kodzie tej zmiennej nie czyta — sprawdzone `rg -n R2_PUBLIC_URL config app routes resources`, zero trafień. Adresem zdjęcia jest trasa `/zdjecia/{media}/{wariant}`. Stary bucket, dopóki `kuking:przenies-zdjecia` nie dojdzie do końca, używa `AWS_LEGACY_URL` (dysk `r2_legacy`) — to inna zmienna i inny bucket. |
 | `MAIL_MAILER` | `emaillabs` | nie | **Wariant działający na Hobby** (D-116); `smtp` dopiero na planie Pro. **Ustaw RĘCZNIE:** `.railway/railway.ts` ma tę wartość wpisaną, ale `railway config apply` nie zostało uruchomione ani razu (stan na 11 IX 2026), więc z tego pliku nie obowiązuje dziś nic |
 | `EMAILLABS_APP_KEY` | z kroku 3.2 | nie | App Key EmailLabs — nagłówek `Application-Key` żądania API HTTPS |
@@ -677,6 +703,7 @@ sekretów.
 | ~~`MAIL_PORT`~~ | — | — | jw. — nie ustawiaj na Hobby |
 | ~~`MAIL_USERNAME`~~ | — | — | jw. — nie ustawiaj na Hobby |
 | ~~`MAIL_PASSWORD`~~ | — | — | jw. — nie ustawiaj na Hobby |
+| `LOG_BLAD_WEBHOOK_URL` | z kroku 4 | **TAK** | Adres webhooka Slacka/Discorda dla kanału `blad_webhook` (D-041). Pusty = powiadomienia o błędach 500 wyłączone |
 | `OPENAI_MODERATION_KEY` | z panelu OpenAI (projekt z dostępem tylko do `/v1/moderations`) | **TAK** | Moderacja modelem (D-055). **Tylko `production`** — poza nią `railway.ts` wpisuje pusty napis. **Tylko serwis z kolejką** (`PrzeanalizujTresc`): `worker` po rozdzieleniu usług, `kuking.pl` w roli `all` dziś. Pusto = moderacja modelem wyłączona bez błędu — zielony `/health` tego nie pokaże, sprawdź KROKIEM 8B |
 | `KUKING_MODEL_ALARM_EMAIL` | adres skrzynki moderatora | nie (dana osobowa, nie klucz) | Pilne alarmy i dzienne podsumowania automatu moderacji. **Tylko `production`** — poza nią `railway.ts` wpisuje pusty napis. Web (`AlarmujOPilnymZgloszeniu` — synchronicznie przy pilnym zgłoszeniu od człowieka, D-236), worker (`AlarmujModeratora`) i scheduler (`kuking:podsumowanie-automatu`, `kuking:pilnuj-terminow-odwolan`). Pusto = te listy nie wychodzą, zostaje sama kolejka w panelu |
 | `KUKING_PULS_HARMONOGRAMU_URL` | adres monitora *heartbeat* z `MONITORING_599_KROKI.md` B3 | **TAK** (token monitora w adresie) | Puls harmonogramu (#599). **Tylko scheduler** (`kuking:puls-harmonogramu`). Pusto = puls wyłączony bez błędu — **załóż z pustą wartością**, dopóki monitora nie ma. Na stagingu osobny monitor, nigdy adres produkcji |
@@ -692,6 +719,8 @@ sekretów.
 | `FACEBOOK_CLIENT_ID` | z kroku 8E | nie | **App ID** aplikacji Meta — wchodzi do adresu przekierowania, nie jest sekretem |
 | `FACEBOOK_CLIENT_SECRET` | z kroku 8E | **TAK** | **App Secret** aplikacji Meta (wejście kontem Facebooka, D-113). Tym samym sekretem weryfikuje się podpis żądania odebrania dostępu od Meta |
 | `CLOUDFLARE_ANALYTICS_TOKEN` | z kroku 8F | nie | Token serwisu Cloudflare Web Analytics — stoi w HTML-u każdej strony, nie jest sekretem (D-092). **Tylko `production`.** Brak tej zmiennej przy obietnicy w polityce prywatności = `/health` oddaje `analityka_bez_tokenu` |
+| `VAPID_PUBLIC_KEY` | z kroku 8G | nie | Klucz publiczny Web Push (#35, D-303) — trafia do przeglądarki przy włączaniu powiadomień. Web i worker. **Pusto = funkcji nie ma** (bez ekranu, przycisku i wysyłki) — załóż z pustą wartością, dopóki nie włączasz pushu. Na stagingu **osobna para**, nigdy klucze produkcji |
+| `VAPID_PRIVATE_KEY` | z kroku 8G | **TAK** | Klucz prywatny Web Push — podpisuje wysyłkę. **Tylko worker.** Nie zmieniaj pary na żywym środowisku: zapisane subskrypcje przestałyby działać |
 
 Zaznacz **Sealed** przy wszystkich oznaczonych „**TAK**" — Railway przestanie
 wtedy pokazywać wartość w panelu i w CLI.
@@ -700,7 +729,8 @@ wtedy pokazywać wartość w panelu i w CLI.
 
 `railway.ts` składa zestaw każdego serwisu z mniejszych grup (`appEnv`,
 `pocztaEnv`, `wejscieEnv`, `czyszczenieCdnEnv`, `modelEnv`,
-`alarmModeratoraEnv`, `kopieOdczytEnv`, `pulsHarmonogramuEnv`, `gospodarzEnv`). Serwis w roli `all` (staging,
+`alarmModeratoraEnv`, `kopieOdczytEnv`, `pulsHarmonogramuEnv`, `gospodarzEnv`,
+`pushPublicznyEnv`, `pushWysylkaEnv`). Serwis w roli `all` (staging,
 preview i dzisiejsza produkcja `kuking.pl`) dostaje **sumę** trzech kolumn.
 Macierz pilnuje test `ZmienneRailwayaPerRolaTest` — zmienna w roli, która jej
 nie czyta, oblewa go tak samo jak zmienna brakująca.
@@ -720,6 +750,8 @@ nie czyta, oblewa go tak samo jak zmienna brakująca.
 | `AWS_ZDJECIA_KOPIA_BUCKET`, `AWS_ZDJECIA_KOPIA_ACCESS_KEY_ID`, `AWS_ZDJECIA_KOPIA_SECRET_ACCESS_KEY` | — | — | ✔ | `kuking:sprawdz-kopie-zdjec`, uruchamiane ręcznie w konsoli schedulera (`DR_ZDJEC_R2.md` §6) |
 | `KUKING_PULS_HARMONOGRAMU_URL` | — | — | ✔ | `kuking:puls-harmonogramu` z harmonogramu |
 | `KUKING_HOST_USER_ID` | ✔ | — | ✔ | web: `ZalozKonto` (auto-obserwowanie), `PublishPost` (alert pierwszego wpisu); scheduler: `kuking:policz-kukingow` (`CookEligibility`) |
+| `VAPID_PUBLIC_KEY` | ✔ | ✔ | — | web: ekran `/ustawienia/powiadomienia` i klucz dla przeglądarki (`KanalPush`); worker: nagłówek VAPID w `WyslijPowiadomieniePush` |
+| `VAPID_PRIVATE_KEY` | — | ✔ | — | `WyslijPowiadomieniePush` → `TransportWebPush` (podpis VAPID) |
 
 Serwis `kopia-bazy` ma własną, zamkniętą listę bez żadnego zestawu aplikacji
 (`KopiaBazyPozaRailwayemTest`).
@@ -750,8 +782,13 @@ produkcji.
 `MAIL_FROM_ADDRESS`, `KUKING_CONTACT_EMAIL`, `PHP_WORKER_MEMORY_LIMIT`
 (`SENTRY_*` i `POSTHOG_HOST` usunięte w #1013 — nic ich nie czyta)
 
+Sentry (planowane, D-041) i PostHog (niewdrożony, D-063) nie mają dziś
+żadnej zmiennej — nie są powodem, by zakładać te konta (kroki 4 i 5).
+
 Railway dostarcza też sam: `PORT`, `RAILWAY_PUBLIC_DOMAIN`,
 `RAILWAY_PRIVATE_DOMAIN`, `RAILWAY_GIT_COMMIT_SHA`, `RAILWAY_ENVIRONMENT`.
+Token wydania Livewire (`livewire.release_token`, #977) bierze się z
+`RAILWAY_GIT_COMMIT_SHA`; bez tej zmiennej (lokalnie, testy, wdrożenie bez gita) jest stały `lokalnie`.
 
 > **`AWS_URL` zniknęło z tej listy i nie wróci.** Była to własna domena bucketa
 > wariantów i to ona była adresem każdego zdjęcia — adres, który nikogo o nic
@@ -887,7 +924,7 @@ EMAILLABS_SMTP_ACCOUNT=
 MAIL_FROM_ADDRESS=kontakt@kuking.pl
 ```
 
-oraz — jeśli moderacja modelem ma działać — `OPENAI_MODERATION_KEY`
+oraz opcjonalnie `LOG_BLAD_WEBHOOK_URL` (krok 4), a — jeśli moderacja modelem ma działać — `OPENAI_MODERATION_KEY`
 i `KUKING_MODEL_ALARM_EMAIL` (**tylko** na produkcji, nigdy na stagingu ani
 w PR), a na czas rotacji klucza `APP_PREVIOUS_KEYS`.
 
@@ -1048,7 +1085,7 @@ formularzy na tym adresie: aplikacja nie przyjmuje ruchu na ten host
 
 ```bash
 # 1. Healthcheck przestaje narzekać (przed wgraniem kluczy: "degraded")
-curl -s https://kuking.pl/health | jq '.status, .checks.turnstile'
+curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health | jq '.status, .checks.turnstile'
 # oczekiwane: "ok"  oraz  { "ok": true }
 
 # 2. Widget jest na stronie rejestracji
@@ -1218,7 +1255,7 @@ konta, ani sygnatura podpisanego adresu. Pilnuje tego test.
 
 > ## ✅ WYKONANE — potwierdzone 12 września 2026
 >
-> `curl -s https://kuking.pl/health | jq '.checks.google'` → `{ "ok": true }`,
+> `curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health | jq '.checks.google'` → `{ "ok": true }`,
 > a `/login` zawiera przycisk „Wejdź kontem Google". Klucze doszły do
 > aplikacji. Sprawdzone na żywej produkcji przy okazji domykania 8E.
 >
@@ -1336,7 +1373,7 @@ adres staginu do listy z 8D.1.
 
 ```bash
 # 1. Healthcheck przestaje narzekać (przed wgraniem kluczy: "degraded")
-curl -s https://kuking.pl/health | jq '.status, .checks.google'
+curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health | jq '.status, .checks.google'
 # oczekiwane: "ok"  oraz  { "ok": true }
 
 # 2. Przycisk jest na ekranie logowania i rejestracji
@@ -1415,7 +1452,7 @@ nie powiesz mu wprost `KUKING_ROLLBACK_KASUJ_TOZSAMOSCI_ZEWNETRZNE=true`.
 >
 > | co | polecenie | wynik |
 > |---|---|---|
-> | klucze doszły do aplikacji | `curl -s https://kuking.pl/health \| jq '.checks.facebook'` | `{ "ok": true }` |
+> | klucze doszły do aplikacji | `curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health \| jq '.checks.facebook'` | `{ "ok": true }` |
 > | przycisk jest na ekranie logowania | `curl -s https://kuking.pl/login \| grep -c 'wejdz/facebook'` | `1` |
 > | kolejność przycisków | odczyt napisów z `/login` | „Wejdź kontem Google", potem „Wejdź kontem Facebooka" — zgodnie z wymogiem 8E.3 („obok przycisku Google i **nie przed nim**") |
 >
@@ -1594,7 +1631,7 @@ jest już na liście z 8E.1 pkt 5.
 
 ```bash
 # 1. Healthcheck przestaje narzekać (przed wgraniem kluczy: "degraded")
-curl -s https://kuking.pl/health | jq '.status, .checks.facebook'
+curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health | jq '.status, .checks.facebook'
 # oczekiwane: "ok"  oraz  { "ok": true }
 
 # 2. Przycisk jest na ekranie logowania i rejestracji
@@ -1779,7 +1816,7 @@ i `/health` o niego nie pyta.
 
 ```bash
 # 1. Healthcheck przestaje narzekać (przed wpisaniem tokenu: "degraded")
-curl -s https://kuking.pl/health | jq '.status, .checks.analityka'
+curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health | jq '.status, .checks.analityka'
 # oczekiwane: "ok"  oraz  { "ok": true }
 
 # 2. Beacon jest w HTML-u DOKŁADNIE RAZ (dwa = włączone wstrzykiwanie z 8F.1 pkt 3)
@@ -1854,6 +1891,39 @@ Do czasu wykonania punktu 2 sygnał `/health` ma świecić i nie jest to usterka
 
 ---
 
+## KROK 8G. Powiadomienia na telefonie i komputerze — Web Push (klucze VAPID)
+
+**Kiedy:** gdy chcesz włączyć powiadomienia poza serwisem (#35, D-303). Do tego
+czasu zmienne zostają puste i funkcji po prostu nie ma — nic się nie psuje.
+
+**Zanim włączysz:** polityka prywatności musi opisywać Web Push (co zapisujemy:
+adres subskrypcji przeglądarki i ustawienia ciszy nocnej; kto przenosi treść:
+Google FCM, Mozilla, Apple, Microsoft — treść jest zaszyfrowana kluczem
+przeglądarki). To jest zmiana `resources/legal/polityka-prywatnosci.md`
+normalnym PR-em, z decyzją właściciela.
+
+1. W konsoli dowolnego serwisu aplikacji (albo lokalnie):
+   `php artisan kuking:klucze-vapid` — komenda wypisuje parę i niczego nie
+   zapisuje.
+2. Railway → środowisko **production** → **Shared Variables**:
+   `VAPID_PUBLIC_KEY` (zwykła) i `VAPID_PRIVATE_KEY` (**Sealed**). Staging:
+   **osobna para** z osobnego uruchomienia komendy.
+3. Opcjonalnie `VAPID_SUBJECT` (domyślnie `mailto:kontakt@kuking.pl`) — kontakt
+   dla operatorów usług push.
+4. Restart serwisów (web i worker). Sprawdzenie okiem: w „Ustawieniach" pojawia
+   się pozycja „Powiadomienia"; na telefonie z Chrome kliknij „Włącz
+   powiadomienia na tym urządzeniu", zgódź się w okienku przeglądarki, potem
+   z drugiego konta kliknij „Ugotowałem" pod przepisem pierwszego (poza ciszą
+   nocną 21–8). iPhone/iPad: push działa tylko po dodaniu Kuking do ekranu
+   początkowego (iOS 16.4+).
+
+**Wyłączenie awaryjne:** `KUKING_POWIADOMIENIA_ZEWNETRZNE=false` + restart gasi
+ekran i wysyłkę bez ruszania kluczy. **Nie wymieniaj pary kluczy** bez powodu —
+wszystkie zapisane subskrypcje przestaną przyjmować wysyłki i ludzie musieliby
+włączyć powiadomienia od nowa.
+
+---
+
 ## KROK 9. Zastosowanie infrastruktury (`railway.ts`)
 
 > ⚠️ **SPROSTOWANIE, 9 września 2026 — przeczytaj przed uruchomieniem czegokolwiek
@@ -1882,19 +1952,25 @@ railway login
 railway link                    # wybierz workspace → projekt kuking → środowisko production
 
 # PODGLĄD — nie zmienia niczego. Przeczytaj wynik uważnie.
-railway config plan
+# KUKING_WAIT_FOR_CI jest OBOWIĄZKOWE (#1390): "true", gdy „Wait for CI”
+# ma być włączone, "false" — gdy nie. Bez niej railway.ts odmawia.
+KUKING_WAIT_FOR_CI=true railway config plan
 ```
 
 Docelowo — jeśli plan wygląda tak, jak zakłada `railway.ts` — zobaczysz listę
-zmian: utworzenie serwisów `web`, `worker`, `scheduler`, przypisanie domen,
-zmiennych, healthchecku. Ale to jest opis ZAMIERZONEGO wyniku, nie gwarancja:
-skoro na produkcji istnieje dziś serwis o innej nazwie (`kuking.pl`, nie
-`web`), `plan` może pokazać coś innego niż samo „utworzenie" — czytaj wynik,
-nie tę listę.
+zmian: utworzenie serwisów `worker` i `scheduler`, zmianę konfiguracji
+ISTNIEJĄCEGO serwisu `kuking.pl` (w pliku to rola `web` pod nazwą
+`NAZWA_SERWISU_WWW`, od 24.09.2026, #595), przypisanie domen, zmiennych,
+healthchecku. **Utworzenie serwisu `web` albo drugiej bazy w planie = stop** —
+znaczy, że nazwy w `railway.ts` rozjechały się z żywymi zasobami. Ale to jest
+opis ZAMIERZONEGO wyniku, nie gwarancja — czytaj wynik, nie tę listę.
+Aktualna procedura rozbicia na trzy serwisy, krok po kroku, stoi
+w `docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md`; w razie sprzeczności
+wygrywa ona.
 
 ```bash
-# Zastosowanie (poprosi o potwierdzenie)
-railway config apply
+# Zastosowanie (poprosi o potwierdzenie) — ta sama wartość co przy planie
+KUKING_WAIT_FOR_CI=true railway config apply
 ```
 
 ~~Powtórz dla staginu~~ — **odłożone** (decyzja 25.09.2026, §8
@@ -1905,8 +1981,8 @@ produkcji z tej samej sekcji §8 — **przed** `railway config apply` wyżej.
 `sleepApplication`, `checkSuites`): usuń je z `railway.ts` i ustaw ręcznie
 w panelu (krok 12). Reszta konfiguracji zadziała bez zmian.
 
-**Sprawdź, że działa:** na kanwie projektu widzisz serwisy `web`, `worker`,
-`scheduler`, `postgres` w dwóch grupach: „Aplikacja" i „Dane" — **o ile
+**Sprawdź, że działa:** na kanwie projektu widzisz serwisy `kuking.pl` (rola
+`web`), `worker`, `scheduler`, `Postgres` w dwóch grupach: „Aplikacja" i „Dane" — **o ile
 `apply` zostało uruchomione i przebiegło zgodnie z planem**. Stan sprzed tego
 kroku (i stan na 9 września 2026, zanim ktokolwiek to uruchomił) to jeden
 serwis `kuking.pl` w trybie `all` + `Postgres`.
@@ -2100,11 +2176,12 @@ projektowe: jeden dla `production`, jeden dla `staging`.
 ```bash
 gh secret set RAILWAY_TOKEN_PRODUCTION   # wklej token produkcyjny
 gh secret set RAILWAY_TOKEN_STAGING      # wklej token staginu
-gh secret set SENTRY_AUTH_TOKEN          # z kroku 4
-
-gh variable set SENTRY_ORG     --body "twoja-organizacja"
-gh variable set SENTRY_PROJECT --body "kuking"
 ```
+
+`deploy.yml` ma nieblokujący krok rejestracji wydania w Sentry, który
+uruchamia się **tylko**, gdy ustawiono `vars.SENTRY_ORG` i `vars.SENTRY_PROJECT`.
+Dopóki Sentry nie jest wdrożone (D-041), **nie ustawiaj** `SENTRY_AUTH_TOKEN`,
+`SENTRY_ORG` ani `SENTRY_PROJECT` — krok zostaje pominięty.
 
 ### 11.2 Wdrożenie
 
@@ -2211,6 +2288,8 @@ curl -s https://kuking.pl/nie-ma-takiej-strony-12345 | grep -ci "ignition\|whoop
 # Od audytu B10-04 to samo mówi /health na produkcji: checks.debug.error =
 # debug_wlaczony (APP_DEBUG=true) i checks.sesja.error = sesja_bez_secure
 # (jawne SESSION_SECURE_COOKIE=false; bez zmiennej produkcja ma Secure).
+# Pole checks widać tylko z tokenem (A5-05):
+# curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health | jq '.checks.debug, .checks.sesja'
 
 # 10. Nagłówki bezpieczeństwa
 curl -sI https://kuking.pl/ | grep -i "x-content-type-options\|x-frame-options"
@@ -2229,8 +2308,8 @@ curl -sI https://kuking.pl/ | grep -i "x-content-type-options\|x-frame-options"
 | 16 | Interakcja Livewire (polubienie) | działa bez odświeżenia strony |
 | 17 | Instalacja PWA | przeglądarka proponuje „Dodaj do ekranu głównego" |
 | 18 | Logi Railway | serwis `worker` przetworzył zadanie zdjęcia |
-| 19 | Sentry | celowo wywołany błąd pojawia się z poprawnym `release` |
-| 20 | PostHog | zdarzenia wpadają do panelu |
+| 19 | Kanał `blad_webhook` | `railway ssh -- php artisan kuking:sprawdz-alarm` → wiadomość próbna na kanale Slacka/Discorda w kilka sekund (`MONITORING_BLEDOW.md` §1, §7) |
+| 20 | Cloudflare Web Analytics | `curl -s https://kuking.pl/ \| grep -c data-cf-beacon` → `1`, a `/health` bez `analityka_bez_tokenu`; odwiedziny w panelu Web Analytics (krok 8F) |
 
 > **Punkt 15 jest niepodlegający negocjacji.** Zdjęcie z kuchni zawiera
 > współrzędne domu użytkownika. Jeśli GPS przechodzi, wstrzymaj publiczne
@@ -2451,7 +2530,8 @@ curl -s https://kuking.pl/health          # aplikacja żyje?
 railway logs --service web --environment production | tail -50
 ```
 
-→ Sentry: czy pojawił się nowy typ błędu po ostatnim deployu?
+→ Kanał `blad_webhook` (Slack/Discord): czy po ostatnim deployu pojawił się nowy
+rodzaj błędu (nowy `odcisk`)?
 
 ### Ścieżka A — deploy BEZ migracji (najczęstsza, najbezpieczniejsza)
 
@@ -2516,7 +2596,7 @@ Zapewnia to, że rollback o jeden deploy w tył **zawsze** jest bezpieczny.
 
 ### Co tydzień (15 min)
 
-- [ ] Sentry: przegląd nowych błędów
+- [ ] Kanał `blad_webhook`: przegląd nowych błędów (nowe `odciski`)
 - [ ] Railway → Metrics: CPU/RAM per serwis — trend, nie chwila
 - [ ] Railway → Usage: zużycie vs budżet
 - [ ] Podsumowanie CI: `composer audit` / `npm audit`
@@ -2526,7 +2606,7 @@ Zapewnia to, że rollback o jeden deploy w tył **zawsze** jest bezpieczny.
 
 - [ ] Sprawdź, czy zaszły warunki do `PRODUCTION_SPLIT_SERVICES = true` (§5 decyzji)
 - [ ] Zużycie R2 vs darmowy limit
-- [ ] Zużycie darmowych limitów Sentry / PostHog
+- [ ] Cloudflare Web Analytics: odwiedziny wpadają (brak `analityka_bez_tokenu` w `/health`)
 - [ ] Zamknij zapomniane PR-y (każdy to działające środowisko)
 - [ ] Aktualizacje zależności (Dependabot / `composer outdated`)
 
@@ -2706,22 +2786,21 @@ wygoda (stare linki z maili i ciasteczka).
 |---|---|---|---|
 | 1 | Konto Railway + karta, plan **Hobby** | $5/mies. | 0.2, 6 |
 | 2 | Konto Cloudflare (domena już w strefie) | $0 (Free) | 0.3 |
-| 3 | Konto Sentry | $0 (Free) | 4 |
-| 4 | Konto PostHog (**EU Cloud**) | $0 (Free) | 5 |
-| 5 | Konto dostawcy poczty | $0–20/mies. | 3 |
-| 6 | Konto uptime monitoringu | $0 | 11.5 |
-| 7 | **2FA włączone wszędzie** | — | 0.6 |
+| 3 | Kanał Slacka/Discorda na alerty (webhook) | $0 | 4 |
+| 4 | Konto dostawcy poczty | $0–20/mies. | 3 |
+| 5 | Konto uptime monitoringu | $0 | 11.5 |
+| 6 | **2FA włączone wszędzie** | — | 0.6 |
 
 ### Decyzje do podjęcia
 
 | # | Decyzja | Rekomendacja | Krok |
 |---|---|---|---|
-| 8 | Dostawca poczty | **EmailLabs przez API HTTPS** (`MAIL_MAILER=emaillabs`) — jedyny wariant działający na planie Hobby, dane w UE, sterownik już w kodzie (D-047). Stało tu „Resend (alfa) → Brevo (beta)", co przeczyło rekomendacji z KROKU 0.5 w tym samym dokumencie; **Brevo z `POCZTA_URUCHOMIENIE.md` §2B idzie przez SMTP, więc na Hobby nie zadziała** i jako plan zapasowy wymagałby najpierw napisania transportu po API | 3 |
-| 9 | Major PostgreSQL, jeśli 18 niedostępne | 17 + upgrade in-place — **wyłącznie jako droga awaryjna odtworzenia**, nie stan docelowy (D-227) | 6.3 |
-| 10 | Topologia produkcji | `PRODUCTION_SPLIT_SERVICES = false` na alfę | §5 decyzji |
-| 11 | Limity budżetu Railway | soft $25 / hard $60 | 12 |
-| 12 | Adres e-mail alertów | `alerty@kuking.pl` | 0.4 |
-| 13 | Adres nadawcy poczty | `kontakt@kuking.pl` — **jeden adres w obie strony** (decyzja właściciela, 7 IX 2026: kod pokazywał ludziom `kontakt@`, a wysyłał z `kuchnia@`; z kodu nie dało się ustalić, która skrzynka odbiera). W repozytorium poprawione wszędzie, łącznie z `.railway/railway.ts`, który wcześniej pominięto i który przy `railway config apply` wpisywał `kuchnia@` z powrotem. **Zostaje jedna czynność ręczna: jeśli w panelu Railway `MAIL_FROM_ADDRESS` było ustawiane osobno, usuń je stamtąd albo popraw — wartość z panelu wygra z plikiem.** Pilnuje tego test `NadawcaPocztyNieJestNoreplyTest` | `railway.ts` |
+| 7 | Dostawca poczty | **EmailLabs przez API HTTPS** (`MAIL_MAILER=emaillabs`) — jedyny wariant działający na planie Hobby, dane w UE, sterownik już w kodzie (D-047). Stało tu „Resend (alfa) → Brevo (beta)", co przeczyło rekomendacji z KROKU 0.5 w tym samym dokumencie; **Brevo z `POCZTA_URUCHOMIENIE.md` §2B idzie przez SMTP, więc na Hobby nie zadziała** i jako plan zapasowy wymagałby najpierw napisania transportu po API | 3 |
+| 8 | Major PostgreSQL, jeśli 18 niedostępne | 17 + upgrade in-place — **wyłącznie jako droga awaryjna odtworzenia**, nie stan docelowy (D-227) | 6.3 |
+| 9 | Topologia produkcji | `PRODUCTION_SPLIT_SERVICES = false` na alfę | §5 decyzji |
+| 10 | Limity budżetu Railway | soft $25 / hard $60 | 12 |
+| 11 | Adres e-mail alertów | `alerty@kuking.pl` | 0.4 |
+| 12 | Adres nadawcy poczty | `kontakt@kuking.pl` — **jeden adres w obie strony** (decyzja właściciela, 7 IX 2026: kod pokazywał ludziom `kontakt@`, a wysyłał z `kuchnia@`; z kodu nie dało się ustalić, która skrzynka odbiera). W repozytorium poprawione wszędzie, łącznie z `.railway/railway.ts`, który wcześniej pominięto i który przy `railway config apply` wpisywał `kuchnia@` z powrotem. **Zostaje jedna czynność ręczna: jeśli w panelu Railway `MAIL_FROM_ADDRESS` było ustawiane osobno, usuń je stamtąd albo popraw — wartość z panelu wygra z plikiem.** Pilnuje tego test `NadawcaPocztyNieJestNoreplyTest` | `railway.ts` |
 
 ### Sekrety do wygenerowania i bezpiecznego zapisania
 
@@ -2730,31 +2809,29 @@ wygoda (stare linki z maili i ciasteczka).
 
 | # | Sekret | Skąd | Krok |
 |---|---|---|---|
-| 14 | `APP_KEY` — **produkcja** | `php artisan key:generate --show` | 7 |
-| 15 | `APP_KEY` — **staging** | to samo, drugie uruchomienie | 7 |
-| 16 | `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` (prod) | R2 API token na trzy buckety zdjęć | 2.2 |
-| 17 | `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` (staging) | R2 API token | 2.2 |
-| 18 | `R2_ENDPOINT` (zawiera Account ID) | panel R2 | 2.2 |
-| 19 | `EMAILLABS_APP_KEY` + `EMAILLABS_SECRET_KEY` + `EMAILLABS_SMTP_ACCOUNT` | EmailLabs → Konto → Ustawienia → API (API HTTPS — jedyny wariant działający na planie **Hobby**, D-116; `MAIL_USERNAME`/`MAIL_PASSWORD` dopiero na Pro). **Nie login i hasło SMTP** — API odpowie na nie 401 | 3.2 |
-| 19a | `R2_KOPIE_*` — dwa tokeny do bucketu kopii bazy (zapis i odczyt) | R2 API tokens | `KOPIE_I_ODTWORZENIE.md` §7.3 |
-| 19b | Klucz PRYWATNY kopii bazy (`kuking-kopie-PRYWATNY.pem`) | `openssl req` wg §7.1 — **nigdy do Railwaya ani do repozytorium** | `KOPIE_I_ODTWORZENIE.md` §7.1 |
-| 20 | `SENTRY_LARAVEL_DSN` | Sentry | 4 |
-| 21 | `SENTRY_AUTH_TOKEN` | Sentry, zakres `project:releases` | 4 |
-| 22 | `POSTHOG_KEY` | PostHog | 5 |
-| 23 | `RAILWAY_TOKEN_PRODUCTION` | Railway Project Tokens | 11.1 |
-| 24 | `RAILWAY_TOKEN_STAGING` | Railway Project Tokens | 11.1 |
-| 25 | ✅ `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | Google Cloud Console → Credentials → OAuth client ID (wejście kontem Google, D-069) | 8D |
-| 26 | ✅ `FACEBOOK_CLIENT_ID` + `FACEBOOK_CLIENT_SECRET` (= **App ID** i **App Secret**) | panel Meta → Settings → Basic (wejście kontem Facebooka, D-113). Panel krok po kroku: 8E.1; historyczne sprostowanie: [`FACEBOOK_LOGIN_URUCHOMIENIE.md`](./FACEBOOK_LOGIN_URUCHOMIENIE.md) | 8E |
+| 13 | `APP_KEY` — **produkcja** | `php artisan key:generate --show` | 7 |
+| 14 | `APP_KEY` — **staging** | to samo, drugie uruchomienie | 7 |
+| 15 | `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` (prod) | R2 API token na trzy buckety zdjęć | 2.2 |
+| 16 | `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` (staging) | R2 API token | 2.2 |
+| 17 | `R2_ENDPOINT` (zawiera Account ID) | panel R2 | 2.2 |
+| 18 | `EMAILLABS_APP_KEY` + `EMAILLABS_SECRET_KEY` + `EMAILLABS_SMTP_ACCOUNT` | EmailLabs → Konto → Ustawienia → API (API HTTPS — jedyny wariant działający na planie **Hobby**, D-116; `MAIL_USERNAME`/`MAIL_PASSWORD` dopiero na Pro). **Nie login i hasło SMTP** — API odpowie na nie 401 | 3.2 |
+| 18a | `R2_KOPIE_*` — dwa tokeny do bucketu kopii bazy (zapis i odczyt) | R2 API tokens | `KOPIE_I_ODTWORZENIE.md` §7.3 |
+| 18b | Klucz PRYWATNY kopii bazy (`kuking-kopie-PRYWATNY.pem`) | `openssl req` wg §7.1 — **nigdy do Railwaya ani do repozytorium** | `KOPIE_I_ODTWORZENIE.md` §7.1 |
+| 19 | `LOG_BLAD_WEBHOOK_URL` | Discord/Slack → webhook kanału alertów | 4 |
+| 20 | `RAILWAY_TOKEN_PRODUCTION` | Railway Project Tokens | 11.1 |
+| 21 | `RAILWAY_TOKEN_STAGING` | Railway Project Tokens | 11.1 |
+| 22 | ✅ `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | Google Cloud Console → Credentials → OAuth client ID (wejście kontem Google, D-069) | 8D |
+| 23 | ✅ `FACEBOOK_CLIENT_ID` + `FACEBOOK_CLIENT_SECRET` (= **App ID** i **App Secret**) | panel Meta → Settings → Basic (wejście kontem Facebooka, D-113). Panel krok po kroku: 8E.1; historyczne sprostowanie: [`FACEBOOK_LOGIN_URUCHOMIENIE.md`](./FACEBOOK_LOGIN_URUCHOMIENIE.md) | 8E |
 
 ### Zmiany w kodzie aplikacji (przed pierwszym deployem)
 
 | # | Co | Gdzie | Krok |
 |---|---|---|---|
-| 27 | Trasa `/health` sprawdzająca bazę | `routes/web.php` | 1 |
-| 28 | `NormalizeForwardedFor` + `trustProxies(at: '*')` z jawnym zestawem nagłówków | `bootstrap/app.php`, `config/proxy.php` | 1 |
-| 29 | Dyski `r2`, `r2_publiczne`, `r2_eksporty` (oraz `r2_legacy` i `r2_kopie`) | `config/filesystems.php` — **zrobione**, wraz z własnym sterownikiem `r2` bez `x-amz-acl` | 1 |
-| 30 | `healthcheck.railway.app` w `TrustHosts` (WŁĄCZONE, D-071) | `app/Support/ZaufaneHosty.php` | 1 |
-| 31 | Presigned upload + usuwanie EXIF/GPS | `app/Jobs/ProcessUploadedImage.php` | §7 decyzji |
+| 24 | Trasa `/health` sprawdzająca bazę | `routes/web.php` | 1 |
+| 25 | `NormalizeForwardedFor` + `trustProxies(at: '*')` z jawnym zestawem nagłówków | `bootstrap/app.php`, `config/proxy.php` | 1 |
+| 26 | Dyski `r2`, `r2_publiczne`, `r2_eksporty` (oraz `r2_legacy` i `r2_kopie`) | `config/filesystems.php` — **zrobione**, wraz z własnym sterownikiem `r2` bez `x-amz-acl` | 1 |
+| 27 | `healthcheck.railway.app` w `TrustHosts` (WŁĄCZONE, D-071) | `app/Support/ZaufaneHosty.php` | 1 |
+| 28 | Presigned upload + usuwanie EXIF/GPS | `app/Jobs/ProcessUploadedImage.php` | §7 decyzji |
 
 ### Wartości do pobrania z paneli, które NIE są sekretami
 
@@ -2765,7 +2842,7 @@ wygoda (stare linki z maili i ciasteczka).
 
 | # | Wartość | Skąd | Krok |
 |---|---|---|---|
-| 32 | `CLOUDFLARE_ANALYTICS_TOKEN` | Cloudflare → Web Analytics → serwis `kuking.pl` → pole `token` ze znacznika (D-092). **W tym samym panelu ustaw wariant zbierania danych obejmujący Unię Europejską i wyłącz automatyczne wstrzykiwanie beacona** — bez tego sam token nic nie da | 8F |
+| 29 | `CLOUDFLARE_ANALYTICS_TOKEN` | Cloudflare → Web Analytics → serwis `kuking.pl` → pole `token` ze znacznika (D-092). **W tym samym panelu ustaw wariant zbierania danych obejmujący Unię Europejską i wyłącz automatyczne wstrzykiwanie beacona** — bez tego sam token nic nie da | 8F |
 
 ---
 
@@ -2788,7 +2865,7 @@ wygoda (stare linki z maili i ciasteczka).
 | **Podwójne maile do użytkowników** | scheduler w 2 replikach | ustaw `numReplicas: 1` |
 | **Pierwsze wejście na staging zwraca 502** | Serverless uśpił serwis | to normalne; odśwież stronę |
 | **Rachunek Railway skoczył** | wyciek pamięci lub pętla w kolejce | Metrics per serwis, `failed_jobs`, limity z §12 |
-| **Panel Cloudflare Web Analytics pokazuje zero**, strona działa | brak `CLOUDFLARE_ANALYTICS_TOKEN` **albo** wariant zbierania danych wykluczający Unię Europejską | krok 8F.3 — najpierw `curl -s https://kuking.pl/health \| jq .checks.analityka` |
+| **Panel Cloudflare Web Analytics pokazuje zero**, strona działa | brak `CLOUDFLARE_ANALYTICS_TOKEN` **albo** wariant zbierania danych wykluczający Unię Europejską | krok 8F.3 — najpierw `curl -s -H "X-Kuking-Health-Token: $KUKING_HEALTH_TOKEN" https://kuking.pl/health \| jq .checks.analityka` |
 | **Jedno zadanie harmonogramu milczy** (np. liczniki panelu moderacji stoją), a pętla harmonogramu żyje | stara blokada `withoutOverlapping` po procesie zabitym bez sygnału (SIGKILL, OOM, ubity kontener) | sekcja „Stara blokada harmonogramu" niżej |
 
 ### Stara blokada harmonogramu (#1002)
@@ -2877,8 +2954,7 @@ dawny termin wygaśnięcia, nowy kod go nie skraca.
 **Pozostałe**
 - FrankenPHP Docker — https://frankenphp.dev/docs/docker/
 - Laravel — deployment — https://laravel.com/docs/13.x/deployment
-- Sentry Laravel — https://docs.sentry.io/platforms/php/guides/laravel/
-- PostHog — https://posthog.com/docs
+- Sentry Laravel (planowane, D-041) — https://docs.sentry.io/platforms/php/guides/laravel/
 - Resend SMTP — https://resend.com/docs/send-with-smtp
 - Brevo SMTP — https://help.brevo.com/hc/en-us/articles/209462765
 
@@ -2890,5 +2966,5 @@ dawny termin wygaśnięcia, nowy kod go nie skraca.
 | Akceptacja pól `deploy.*` / `source.checkSuites` przez `railway config plan` | są w typach SDK 3.11.0, nie w publicznej referencji IaC | 9, 12 |
 | Składnia `railway ssh <serwis> <komenda>` (nieinteraktywnie) | zależna od wersji CLI — sprawdź `railway ssh --help` | 14 |
 | Dokładna nazwa opcji uploadu Livewire 4 na S3 | potwierdź w dokumentacji Livewire 4 | 1, §7 decyzji |
-| Aktualne ceny Resend / Brevo / Sentry / PostHog | cenniki się zmieniają — sprawdź przed zakupem | 3, §12 decyzji |
+| Aktualne ceny Resend / Brevo | cenniki się zmieniają — sprawdź przed zakupem | 3, §12 decyzji |
 | Liczba reguł rate limiting na planie Cloudflare Free | limit bywa zmieniany | 10.6 |

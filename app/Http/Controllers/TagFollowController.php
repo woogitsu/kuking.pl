@@ -25,12 +25,37 @@ class TagFollowController extends Controller
             return back()->with('status', 'Tego tagu nie da się już obserwować. Wybierz inny tag.');
         }
 
-        return back()->with('status', "Obserwujesz tag „{$tag->name}”.");
+        // Issue #1809: komunikat mówi, co z tego wyniknie, i daje „Cofnij"
+        // (`status_powrot`, nie znika sam). „Tag", nie „temat" — jedno słowo
+        // na ekranie (decyzja z 11 września 2026, `JednoSlowoNaTagiTest`).
+        return back()
+            ->with('status', "Obserwujesz tag „{$tag->name}”. Nowe wpisy z tego tagu zobaczysz na Starcie.")
+            ->with('status_powrot', [
+                'akcja' => route('tags.unfollow', $tag),
+                'etykieta' => 'Cofnij',
+                'pola' => ['_method' => 'DELETE'],
+            ]);
     }
 
     public function unfollow(Request $request, Tag $tag, UpdateTagFollows $follows): RedirectResponse
     {
         $follows->unfollow($request->user(), $tag->getKey());
+
+        // Stary formularz ze strony tagu, który w międzyczasie scalono (#853).
+        // Obserwowanie przeszło na cel (`MergeTags`), więc „nie obserwujesz
+        // już” byłoby nieprawdą. Celu NIE zdejmujemy sami — ktoś mógł go
+        // obserwować niezależnie — tylko prowadzimy tam, gdzie da się
+        // zdecydować.
+        $tag->refresh();
+        $cel = $tag->tagKanoniczny();
+        if ($cel->isNot($tag) && $cel->isActive()) {
+            $zdanie = $request->user()->isFollowingTag($cel)
+                ? "Obserwujesz „{$cel->name}”. Jeśli nie chcesz, naciśnij „Przestań obserwować ten tag”."
+                : "Nie obserwujesz „{$cel->name}”.";
+
+            return redirect()->route('tags.show', $cel)
+                ->with('status', "Tag „{$tag->name}” połączyliśmy z tagiem „{$cel->name}”. {$zdanie}");
+        }
 
         return back()->with('status', "Nie obserwujesz już tagu „{$tag->name}”.");
     }

@@ -13,9 +13,11 @@ use App\Facebook\DostawcaWejsciaFacebook;
 use App\Facebook\KlientFacebook;
 use App\Facebook\TozsamoscFacebook;
 use App\Http\Controllers\Controller;
+use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Notifications\ProbaWejsciaKontemFacebooka;
 use App\Support\Facebook;
+use App\Support\RejestracjaZamknieta;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -281,8 +283,28 @@ class FacebookLoginController extends Controller
         $user = Auth::user();
 
         if ($powiazane !== null) {
-            // To samo konto — nie ma nic do zrobienia i nie ma o co krzyczeć.
+            /*
+             * TO SAMO KONTO — ALE ZGODA U FACEBOOKA WŁAŚNIE PADŁA NA NOWO.
+             *
+             * Tędy wraca przycisk „Połącz konto Facebooka jeszcze raz" z ekranu
+             * „Ustawienia → Bezpieczeństwo" (issue #1025). Człowiek przeszedł
+             * przez ekran zgody Facebooka, więc znacznik uśpienia gaśnie
+             * i zapisuje się granica tej zgody — dokładnie tak samo jak przy
+             * wejściu gościa w `wpusc()`. Bez tego przycisk byłby martwy
+             * (D-053): uśpienie by zostało, a stare powiadomienie o odebraniu
+             * dostępu dalej usypiałoby powiązanie.
+             */
             if ($powiazane->getKey() === $user->getKey()) {
+                $byloUspione = $user->dostepOdebranyU(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
+
+                $user->cofnijOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
+
+                if ($byloUspione) {
+                    return redirect()->route('settings.security')->with('status',
+                        'Połączenie z Facebookiem znów działa. Możesz logować się przyciskiem „Wejdź kontem Facebooka”.',
+                    );
+                }
+
                 return redirect()->route('settings.security')->with('status',
                     'To konto jest już połączone z Twoim kontem Facebooka. Możesz logować się przyciskiem „Wejdź kontem Facebooka”.',
                 );
@@ -385,11 +407,8 @@ class FacebookLoginController extends Controller
             return $this->drogaZamknieta();
         }
 
-        if (! config('kuking.account.registration_open')) {
-            return redirect()->route('login')->with('status',
-                'Zakładanie nowych kont jest chwilowo zamknięte. Jeśli masz już konto, zaloguj się hasłem '
-                .'albo poproś o wiadomość z przyciskiem do zalogowania.',
-            );
+        if (RejestracjaZamknieta::czyZamknieta()) {
+            return RejestracjaZamknieta::przekierowanie();
         }
 
         $tozsamosc = $this->wejscie()->tozsamoscZSesji($request);
@@ -414,7 +433,11 @@ class FacebookLoginController extends Controller
         // Ta sama bramka co w `RegisterController::store()`. Bez niej
         // zamknięcie rejestracji zamykałoby jedną z dróg do tego samego
         // skutku — czyli nie zamykałoby jej wcale.
-        abort_unless(config('kuking.account.registration_open'), 503);
+        // Przekierowanie, nie 503: zamknięta rejestracja to nie awaria
+        // (`RejestracjaZamknieta`). Konto i tak nie powstaje.
+        if (RejestracjaZamknieta::czyZamknieta()) {
+            return RejestracjaZamknieta::przekierowanie();
+        }
 
         $tozsamosc = $this->wejscie()->tozsamoscDoZalozenia($request);
 

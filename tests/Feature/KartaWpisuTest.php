@@ -594,7 +594,7 @@ class KartaWpisuTest extends TestCase
     /** Wycina HTML pierwszej karty wpisu ze strony — bez reszty strony wokół niej. */
     private function pierwszaKartaWpisu(string $html): string
     {
-        $start = strpos($html, '<article class="card post-card">');
+        $start = strpos($html, '<article class="card post-card"');
 
         $this->assertNotFalse($start, 'Na stronie nie ma ani jednej karty wpisu.');
 
