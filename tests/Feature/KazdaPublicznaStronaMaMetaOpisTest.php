@@ -124,6 +124,7 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
         'google.link' => 'wymaga tożsamości z Google w sesji; noindex w auth/google-link.blade.php',
         'facebook.finish' => 'wymaga tożsamości z Facebooka w sesji; noindex w auth/facebook-finish.blade.php',
         'facebook.link' => 'wymaga tożsamości z Facebooka w sesji i zalogowania; noindex w auth/facebook-link.blade.php',
+        'facebook.link.confirm' => 'wymaga zalogowania, tej samej sesji i ważnego tokenu; noindex w auth/facebook-link.blade.php',
     ];
 
     public function test_kazda_indeksowalna_strona_publiczna_ma_niepusty_meta_description(): void

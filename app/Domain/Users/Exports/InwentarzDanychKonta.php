@@ -97,6 +97,7 @@ final class InwentarzDanychKonta
         'reports.resolved_by' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
 
         'login_link_tokens.user_id' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
+        'facebook_connection_proofs.user_id' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
         'first_post_events.author_id' => [self::NIE_DOTYCZY, 'Znacznik techniczny „pierwszy wpis konta”. Nie niesie nic ponad listę wpisów, która jest w paczce.'],
     ];
 
