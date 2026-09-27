@@ -414,6 +414,29 @@ final class OdczytZdjeciaKartkiTest extends TestCase
         Queue::assertPushed(OdczytajPrzepis::class, 1);
     }
 
+    public function test_rozne_stare_odczyty_tego_szkicu_wskazuja_jedno_aktywne_ponowienie(): void
+    {
+        $this->zgoda();
+        Queue::fake();
+        $pierwsze = $this->zlecenieBezWysylki(ImportPrzepisu::STATUS_NIEUDANY);
+        $drugie = new ImportPrzepisu;
+        $drugie->forceFill([
+            'user_id' => $this->osoba->getKey(),
+            'recipe_id' => $pierwsze->recipe_id,
+            'zrodlo' => ImportPrzepisu::ZRODLO_ZDJECIE,
+            'status' => ImportPrzepisu::STATUS_NIEUDANY,
+            'kod_bledu' => ImportPrzepisu::KOD_MODEL_NIEDOSTEPNY,
+        ])->save();
+
+        $this->actingAs($this->osoba)->post(route('import.ponow', $pierwsze))->assertRedirect();
+        $aktywne = ImportPrzepisu::query()->whereNotIn('id', [$pierwsze->getKey(), $drugie->getKey()])->sole();
+        $this->actingAs($this->osoba)->post(route('import.ponow', $drugie))
+            ->assertRedirect(route('import.show', $aktywne));
+
+        $this->assertSame(3, ImportPrzepisu::query()->count());
+        Queue::assertPushed(OdczytajPrzepis::class, 1);
+    }
+
     public function test_nieczytelne_zdjecie(): void
     {
         $this->zgoda();

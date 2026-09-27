@@ -106,10 +106,24 @@ final class ZlecImportPrzepisu
                 ->whereKey($klucz)
                 ->where('user_id', $osoba->getKey())
                 ->first();
-            $szkic = $swieze?->recipe;
+            $szkic = $swieze === null ? null : Recipe::query()
+                ->whereKey($swieze->recipe_id)
+                ->where('author_id', $osoba->getKey())
+                ->lockForUpdate()
+                ->first();
 
             if ($swieze === null || ! $swieze->moznaPonowic() || $szkic === null || $szkic->status !== Recipe::STATUS_DRAFT) {
                 throw new BladDlaCzlowieka('Tego odczytu nie da się już powtórzyć. Otwórz szkic i wpisz przepis ręcznie — zdjęcie kartki jest przy nim.');
+            }
+
+            // Różne stare importy mogą wskazywać ten sam szkic. Pod blokadą
+            // jego wiersza drugi retry przejmuje już aktywne zlecenie.
+            $aktywne = ImportPrzepisu::query()
+                ->where('recipe_id', $szkic->getKey())
+                ->whereIn('status', [ImportPrzepisu::STATUS_OCZEKUJE, ImportPrzepisu::STATUS_W_TOKU])
+                ->first();
+            if ($aktywne !== null) {
+                return $aktywne;
             }
 
             // UUID poprzedniego zlecenia identyfikuje jedną generację retry.
