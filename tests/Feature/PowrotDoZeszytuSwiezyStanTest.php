@@ -54,6 +54,9 @@ final class PowrotDoZeszytuSwiezyStanTest extends TestCase
         $post = Post::factory()->create();
         $a = $this->zeszyt($owner, 'A');
         $b = $this->zeszyt($owner, 'B');
+        if (strcmp($a->id, $b->id) > 0) {
+            [$a, $b] = [$b, $a];
+        }
         $removed = [
             ['collection_id' => $a->id, 'note' => 'pierwszy', 'created_at' => now()->subDay()->toDateTimeString()],
             ['collection_id' => $b->id, 'note' => 'drugi', 'created_at' => 'nie-data'],
