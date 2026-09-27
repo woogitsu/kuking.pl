@@ -192,6 +192,22 @@ urósł jeszcze o Media i Analytics: `Users → Media` (`EraseAccountData`),
 Compliance, Media, Moderation, Security, Users. Do rozcięcia osobnym
 zadaniem.
 
+## Zmiana roli podczas uprzywilejowanej operacji
+
+Akcja domenowa, która zapisuje skutek moderatora lub administratora, nie może
+ufać obiektowi `User` wczytanemu na początku żądania. `ChangeUserRole` może
+w międzyczasie zatwierdzić degradację. `ZamekUprzywilejowanegoAktora` bierze
+w jednej transakcji wspólną blokadę ostatniego administratora, następnie
+blokadę wiersza aktora i przekazuje akcji świeży model. Policy i zapis skutku
+muszą nastąpić wewnątrz tej samej transakcji. Tę kolejność stosują
+`ResolveAppeal`, `ZdejmijZUrzedu` i przyjęcie odpowiedzi w
+`WyslijOdpowiedz`; wysłanie przyjętego listu może zakończyć się później.
+
+Nowe akcje przyjmujące aktora z rolą powinny korzystać z tego samego wzorca.
+Blokada aktora przed wspólną blokadą mogłaby zakleszczyć się ze zmianą roli
+lub karą konta. Przeploty z obu kolejności sprawdzają testy na dwóch
+połączeniach PostgreSQL (issue #2086).
+
 ## Queue
 
 MVP:
@@ -286,6 +302,11 @@ uporządkowany zbiór kont, istniejące obserwowania, zależności celu oraz rod
 i korzeń. Dopiero świeża kontrola dostępu pozwala zapisać komentarz razem
 z powiadomieniami. `DeleteComment` sprawdza odpowiedzi dopiero pod tym samym
 zamkiem komentarza; zachowuje dotychczasową decyzję placeholder albo usunięcie.
+`EditComment` przed blokadą komentarza blokuje świeży wiersz konta autora:
+sankcja zatwierdzona wcześniej odcina poprawkę, a poprawka rozpoczęta
+wcześniej kończy się przed sankcją. Kolejność konto → komentarz jest zgodna
+z publikacją odpowiedzi; sam model konta z początku żądania nie rozstrzyga
+uprawnienia do zapisu (#2090).
 Graf, koszt i granice pomiarów: [protokół komentarzy](research/2026-09-21-komentarz-biezacy-stan.md).
 
 ## Wybór redakcyjny: jeden pełny zestaw i audyt w tej samej transakcji
