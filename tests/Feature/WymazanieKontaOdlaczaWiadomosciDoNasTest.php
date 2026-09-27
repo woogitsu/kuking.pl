@@ -9,6 +9,7 @@ use App\Models\ContactMessage;
 use App\Models\ContactMessageReply;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -44,6 +45,7 @@ class WymazanieKontaOdlaczaWiadomosciDoNasTest extends TestCase
         $odchodzi = $this->user('odchodzi', [
             'status' => User::STATUS_PENDING_DELETE,
             'delete_requested_at' => now()->subDays(31),
+            'delete_request_generation' => (string) Str::uuid(),
             'delete_scope' => $zakres,
         ]);
         $zostaje = $this->user('zostaje');

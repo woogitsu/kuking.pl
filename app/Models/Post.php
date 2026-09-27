@@ -290,9 +290,11 @@ class Post extends Model
      *
      * Czego tu CELOWO nie ma: wyboru źródła, kolejności, paginacji ani bramki
      * widoczności przepisu. Bramka to bezpieczeństwo, nie prezentacja, i ma
-     * własny scope — `zWidocznymPrzepisem()` — który każda lista wywołuje
-     * jawnie (tablica dnia musi go mieć w podzapytaniu `DISTINCT ON`, nie
-     * w zapytaniu po modele).
+     * własny scope — `zWidocznymPrzepisemAlboWlasnaTrescia()` — który każda
+     * lista wywołuje jawnie (tablica dnia musi go mieć w podzapytaniu
+     * `DISTINCT ON`, nie dopiero w zapytaniu po modele). Po pobraniu listy
+     * `ukryjNiedostepnePrzepisy()` usuwa z kart własnej treści relację do
+     * przepisu, którego widz nie może otworzyć.
      *
      * `kafelek: true` — wariant tablicy dnia: jej kafelek nie pokazuje ani
      * tematów, ani liczby zapisów, więc nie ładuje tagów i nie dolicza zapisów.
