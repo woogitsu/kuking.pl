@@ -1102,9 +1102,38 @@ export default defineRailway((ctx) => {
       //  Pilnuje tego `WdrozenieUruchamiaTrescZalazkowaTest` — razem
       //  z kolejnością komend i z tym, że seed na produkcji nie wwozi danych
       //  demo.
+      // -----------------------------------------------------------------------
+      //  TRZECIA KOMENDA: `kuking:importuj-wartosci-odzywcze` (#1961, D-299).
+      //
+      //  PR #1900 dodał migrację trzech tabel słownikowych (`skladniki_odzywcze`,
+      //  `miary_domowe`, `aliasy_skladnikow`) i komendę, która je wypełnia
+      //  z `database/data/odzywcze/*.csv` — ale samą komendę zostawił jako
+      //  ręczny krok „uruchom to kiedyś w kontenerze". Nikt jej nie uruchomił:
+      //  migracja przechodzi, deploy wygląda na zielony, a tabele zostają
+      //  puste — sekcja wartości odżywczych na stronie przepisu milczy.
+      //  Dokładnie ten sam kształt usterki co brak `db:seed` wyżej.
+      //
+      //  Komenda jest bezpieczna w pre-deploy z tego samego powodu co seeder:
+      //  niezerowy exit zatrzymuje deploy, więc zła paczka danych (błąd
+      //  walidacji CSV) nie wypuści kodu, który na niej polega.
+      //
+      //  SZYBKOŚĆ: dane CIQUAL/USDA zmieniają się rzadko, a ta komenda leci
+      //  przy KAŻDYM wdrożeniu, nie tylko wtedy, gdy pliki się zmieniły.
+      //  `App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze` liczy hash
+      //  obu plików CSV i pomija cały import (bez parsowania, bez zapisu),
+      //  gdy hash jest ten sam co przy poprzednim udanym imporcie, a tabela
+      //  już ma dane — więc zwykły deploy bez zmiany danych kosztuje jedno
+      //  odpytanie cache'a, nie ponowne przepisanie ~600 wierszy.
+      //
+      //  Kolejność: po `db:seed`, bo obie komendy są niezależne (różne
+      //  tabele), a seeder jest ważniejszy dla pierwszego wrażenia — gdyby
+      //  import padł, chcemy mieć już treść zalążkową.
+      //
+      //  Pilnuje tego `WdrozenieImportujeWartosciOdzywczeTest`.
       preDeployCommand: [
         "php artisan migrate --force --no-interaction",
         "php artisan db:seed --force --no-interaction",
+        "php artisan kuking:importuj-wartosci-odzywcze",
       ],
 
       // -----------------------------------------------------------------------
