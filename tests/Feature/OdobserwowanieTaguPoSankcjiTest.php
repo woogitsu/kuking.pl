@@ -59,5 +59,7 @@ final class OdobserwowanieTaguPoSankcjiTest extends TestCase
 
         $this->assertSame([$a->getKey()], DB::table('tag_follows')->where('user_id', $user->getKey())
             ->pluck('tag_id')->all());
+        $this->assertSame($timestamp, DB::table('tag_follows')->where('user_id', $user->getKey())
+            ->where('tag_id', $a->getKey())->value('created_at'));
     }
 }

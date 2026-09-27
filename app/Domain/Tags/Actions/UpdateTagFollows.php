@@ -16,8 +16,6 @@ final class UpdateTagFollows
     /** Dodaje tylko nowe relacje; ponowienie nie przepisuje daty początku. */
     public function follow(User $user, array $ids, bool $promotedOnly = false): void
     {
-        $this->assertActive($user);
-
         DB::transaction(function () use ($user, $ids, $promotedOnly): void {
             TagMutationLock::forPost();
             $freshUser = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
@@ -41,12 +39,6 @@ final class UpdateTagFollows
     /** Różnica względem otwarcia formularza, nigdy względem całego obecnego zbioru. */
     public function save(User $user, array $selected, array $scope): void
     {
-        $initial = array_keys($scope['followed']);
-        $add = array_values(array_diff($selected, $initial));
-        if ($add !== []) {
-            $this->assertActive($user);
-        }
-
         DB::transaction(function () use ($user, $selected, $scope): void {
             TagMutationLock::forPost();
             $freshUser = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
