@@ -9,8 +9,6 @@ use App\Notifications\LinkDoLogowania;
 use App\Notifications\UstawienieHaslaZamiastLinku;
 use App\Notifications\UstawienieNowegoHasla;
 use Illuminate\Console\Command;
-use Illuminate\Contracts\Database\ModelIdentifier;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\SendQueuedNotifications;
 use Illuminate\Support\Carbon;
@@ -120,7 +118,7 @@ use Throwable;
  *     wyjątku — ślad stosu w Laravelu potrafi nieść argumenty wywołań
  *     (`App\Logging\WebhookBleduHandler`, ostrzeżenie przy
  *     `App\Support\Poczta::przeszkoda()`);
- *  3. `unserialize()` dostaje listę dozwolonych klas (`WOLNO_ODTWORZYC`),
+ *  3. `unserialize()` dostaje listę dozwolonych klas (`PolecenieZadania::WOLNO_ODTWORZYC`),
  *     na której klas powiadomień NIE MA. Obiekt `UstawienieNowegoHasla`
  *     w ogóle więc nie powstaje i nie ma z czego przeczytać właściwości.
  *     To jest druga bariera, niezależna od dyscypliny drukowania.
@@ -147,23 +145,6 @@ use Throwable;
  */
 class MartweZadania extends Command
 {
-    /**
-     * Klasy, które wolno odtworzyć z ładunku. Wszystko spoza tej listy wraca
-     * jako `__PHP_Incomplete_Class` — patrz punkt 3 w nagłówku klasy.
-     *
-     * `SendQueuedNotifications` musi tu być, bo to on niesie odbiorców.
-     * `ModelIdentifier` i kolekcja Eloquenta — bo tak Laravel zapisuje modele
-     * w kolejce (`SerializesModels`). Klas powiadomień na tej liście nie ma
-     * i nie wolno ich dopisywać.
-     *
-     * @var list<class-string>
-     */
-    private const WOLNO_ODTWORZYC = [
-        SendQueuedNotifications::class,
-        ModelIdentifier::class,
-        EloquentCollection::class,
-    ];
-
     /**
      * Powiadomienia niosące w ładunku ŻYWY SEKRET — i jedyne, które ta
      * komenda w ogóle rozważa do skasowania.
@@ -526,17 +507,18 @@ class MartweZadania extends Command
      * z imienia i adresu. Imię i adres pokazuje `kuking:kto-nie-dostal-listu`;
      * tej komendzie potrzebna jest tylko LICZBA różnych osób.
      *
-     * Jedyne miejsce, w którym ta komenda woła `unserialize()` — i woła je
-     * z listą dozwolonych klas, patrz `WOLNO_ODTWORZYC`.
+     * Jedyne miejsce, w którym ta komenda odtwarza ładunek — przez
+     * `PolecenieZadania::powiadomienie()`, czyli
+     * z listą dozwolonych klas, patrz `PolecenieZadania::WOLNO_ODTWORZYC`.
      *
      * @return list<string>
      */
     private function osoby(string $serializowane): array
     {
-        // Szyfrowane zadanie z żetonem (audyt A5-10) — najpierw odszyfrowanie.
-        $polecenie = @unserialize(PolecenieZadania::zserializowane($serializowane), ['allowed_classes' => self::WOLNO_ODTWORZYC]);
+        // Odszyfrowanie (audyt A5-10) i odtworzenie tylko dozwolonych klas.
+        $polecenie = PolecenieZadania::powiadomienie($serializowane);
 
-        if (! $polecenie instanceof SendQueuedNotifications) {
+        if ($polecenie === null) {
             return [];
         }
 
