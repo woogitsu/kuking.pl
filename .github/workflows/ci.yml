@@ -268,9 +268,8 @@ on:
   push:
     branches: [main, staging, 'codex/integracja-*']
   pull_request:
-    # Zmiana podstawy PR na gałąź integracyjną emituje `edited`.
-    # Pełne CI musi wtedy sprawdzić nowy wynik połączenia gałęzi.
-    types: [opened, synchronize, reopened, edited]
+    # Po zmianie podstawy PR scal gałąź integracyjną do jego headu.
+    # `synchronize` uruchomi CI wyniku połączenia bez przebiegu przy edycji opisu.
     branches: [main, staging, 'codex/integracja-*']
   # Zostaje obok wyzwalaczy automatycznych: pozwala puścić przebieg ręcznie
   # (Actions → CI → Run workflow) bez pustego commita — przydaje się przy
