@@ -810,6 +810,26 @@ wiedzieć, że śledzenie otwarć wciąż działa.
 właściciela.** Dopóki tak jest, polityka prywatności musi o tym mówić
 (sekcja 3, akapit o EmailLabs) — i mówi.
 
+**Ponowna weryfikacja dokumentacji dostawcy, 26 września 2026.** Sprawdzone
+niezależnie w oficjalnej dokumentacji EmailLabs (`docs.emaillabs.io`), osobno
+od specyfikacji API przywołanej wyżej:
+
+- strona „Open Tracking and Link Tracking" oraz strona konfiguracji Open
+  Trackingu opisują tę funkcję wyłącznie jako przełącznik **konta SMTP**
+  w panelu: „Go to the SMTP server settings. Locate the 'Open Tracking'
+  option and toggle the switch to activate it." — ani słowa o parametrze
+  żądania czy nagłówku;
+- **żadna** strona dokumentacji API (wysyłka wiadomości, ustawienia konta
+  SMTP) nie wymienia pola ani nagłówka, którym dałoby się sterować
+  śledzeniem OTWARĆ per wiadomość — w przeciwieństwie do Link Trackingu,
+  gdzie nagłówek `X-TRACKING-OFF` jest udokumentowany i już włączony w kodzie
+  (`App\Poczta\TransportEmailLabs`, `tests/Feature/PocztaPrzezApiEmailLabsTest.php::test_domyslnie_wylaczamy_sledzenie_odnosnikow`).
+
+Wniosek się nie zmienił: to konfiguracja konta wysyłkowego w panelu, nie coś,
+co da się przełączyć z tego repozytorium. Kroki 1–4 wyżej zostają aktualne —
+brakuje wyłącznie wykonania kroku 1 (panel) i wpisania tu wyniku kroku 3,
+z datą.
+
 ### `MAIL_FROM_NAME` zostaw NIEUSTAWIONE
 
 Tabele wariantów wyżej mówią „nie ustawiaj" i to nie jest przeoczenie.
