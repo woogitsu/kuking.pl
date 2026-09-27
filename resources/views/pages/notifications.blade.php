@@ -113,7 +113,7 @@
                     <x-avatar :user="$actor" :size="$zwykleZdarzenie ? 48 : 44" />
                 @endif
                 <div class="min-w-0 powiadomienie-tresc">
-                    <p class="m-0 mb-1">
+                    <p class="m-0 mb-1" id="powiadomienie-{{ $notification->getKey() }}-opis">
                         {{--
                             NIEPRZECZYTANE MA NIEŚĆ SŁOWO, nie tylko kreskę
                             z boku (WCAG 1.4.1; §13 systemu mówi to wprost).
@@ -348,7 +348,12 @@
                         --}}
                         <form class="mt-3 mx-0 mb-0" method="POST" action="{{ route('notifications.open', $notification) }}">
                             @csrf
-                            <button class="btn btn-secondary" type="submit">Zobacz</button>
+                            {{-- Własne ID dołącza widoczne „Zobacz” do zdania tej karty
+                                 w nazwie dostępnej (WAI-ARIA APG: names-and-descriptions).
+                                 Nie kopiujemy treści do atrybutu ani nie zmieniamy napisu. --}}
+                            <button class="btn btn-secondary" type="submit"
+                                    id="powiadomienie-{{ $notification->getKey() }}-zobacz"
+                                    aria-labelledby="powiadomienie-{{ $notification->getKey() }}-zobacz powiadomienie-{{ $notification->getKey() }}-opis">Zobacz</button>
                         </form>
                     @elseif($notification->isUnread())
                         {{--
