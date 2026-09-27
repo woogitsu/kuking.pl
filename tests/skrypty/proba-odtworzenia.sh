@@ -209,7 +209,7 @@ WYZWALACZY_FIKSTURY="$("${PSQL[@]}" -d "${BAZA_ZRODLOWA}" -Atc \
   "SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
      JOIN pg_namespace n ON n.oid=c.relnamespace
     WHERE NOT t.tgisinternal AND n.nspname='public'")"
-sprawdz "fikstura niesie cztery wyzwalacze gwarancji (D-072, D-080, #954)" "4" "${WYZWALACZY_FIKSTURY}"
+sprawdz "fikstura niesie pięć wyzwalaczy gwarancji (D-072, D-080, #954, #996)" "5" "${WYZWALACZY_FIKSTURY}"
 
 # =============================================================================
 echo
@@ -377,7 +377,7 @@ sprawdz_zawiera "…bezpiecznik 1 meldował się" "bezpiecznik 1" "${wyjscie}"
 sprawdz_zawiera "…bezpiecznik 2 pytał SERWER o nazwę bazy" \
   "serwer potwierdza bazę" "${wyjscie}"
 sprawdz_zawiera "…sprawdził wyzwalacze wprost" \
-  "wszystkie trzy nazwane obecne i włączone" "${wyjscie}"
+  "wszystkie nazwane obecne i włączone" "${wyjscie}"
 sprawdz_zawiera "…sprawdził, że wyzwalacz follows DZIAŁA" \
   "blokada ma pierwszeństwo przed obserwowaniem" "${wyjscie}"
 sprawdz_zawiera "…sprawdził, że dziennika zgód nie da się zmienić" \
@@ -955,7 +955,7 @@ sprawdz_zawiera "…i że to zrzut stracił gwarancję, nie baza" \
 # Bez tej asercji test nie odróżniałby „sonda złapała atrapę” od „coś
 # innego oblało się wcześniej” — czyli nie dowodziłby, po co są sondy.
 sprawdz_zawiera "…a kontrola obecności wyzwalaczy ją PRZEPUŚCIŁA" \
-  "wszystkie trzy nazwane obecne i włączone" "${wyjscie}"
+  "wszystkie nazwane obecne i włączone" "${wyjscie}"
 sprawdz_zawiera "…i kontrola ograniczeń też ją przepuściła" \
   "ograniczenia: CHECK" "${wyjscie}"
 

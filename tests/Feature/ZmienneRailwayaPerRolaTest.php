@@ -128,6 +128,14 @@ class ZmienneRailwayaPerRolaTest extends TestCase
                 .'sprawdza obecność na produkcji. Scheduler tylko kolejkuje job.',
         ],
         'CLOUDFLARE_PURGE_TOKEN' => ['role' => ['web', 'worker'], 'powod' => 'Jak CLOUDFLARE_ZONE_ID.'],
+        'VAPID_PUBLIC_KEY' => [
+            'role' => ['web', 'worker'],
+            'powod' => 'Web Push (#35, D-303): web pokazuje ekran i daje klucz przeglądarce, worker podpisuje wysyłkę.',
+        ],
+        'VAPID_PRIVATE_KEY' => [
+            'role' => ['worker'],
+            'powod' => 'Web Push (#35, D-303): podpis VAPID w jobie `WyslijPowiadomieniePush` — wysyła tylko worker.',
+        ],
         'OPENAI_MODERATION_KEY' => [
             'role' => ['worker'],
             'powod' => 'Job `PrzeanalizujTresc` → `KlientOpenAI` (#1014).',
@@ -468,6 +476,30 @@ class ZmienneRailwayaPerRolaTest extends TestCase
             array_keys($widziane),
             'Nie znalazłem w żadnej roli którejś ze zmiennych TYLKO_PRODUKCJA — parser zgubił blok albo zmienną.',
         );
+    }
+
+    /**
+     * Wyłącznik listów urodzinowych (#1755, D-269) to nie sekret, więc MACIERZ
+     * (która liczy referencje `ctx.shared`) go nie widzi. Pilnujemy go osobno:
+     * dostaje go WYŁĄCZNIE scheduler — jedyna rola, która woła
+     * `kuking:wyslij-zyczenia-urodzinowe` — i rola `all` (przez sumę), a
+     * wartość „true" stoi tylko na produkcji.
+     */
+    #[Test]
+    public function wylacznik_listow_urodzinowych_tylko_w_schedulerze_i_tylko_na_produkcji(): void
+    {
+        $role = $this->zmienneRol(surowe: true);
+
+        $this->assertSame(
+            'isProduction ? "true" : "false"',
+            $role['scheduler']['KUKING_URODZINY_MAIL_WLACZONY'] ?? null,
+            'Scheduler ma dostać KUKING_URODZINY_MAIL_WLACZONY włączony wyłącznie na produkcji — '
+            .'bez tego listy z życzeniami po scaleniu nie wychodzą (decyzja właściciela z 25.09.2026).',
+        );
+        $this->assertArrayHasKey('KUKING_URODZINY_MAIL_WLACZONY', $role['all'], 'Rola `all` też kolejkuje listy z harmonogramu.');
+        $this->assertArrayNotHasKey('KUKING_URODZINY_MAIL_WLACZONY', $role['web'], 'Web nie czyta wyłącznika listów urodzinowych.');
+        $this->assertArrayNotHasKey('KUKING_URODZINY_MAIL_WLACZONY', $role['worker'], 'Worker nie czyta wyłącznika listów urodzinowych.');
+        $this->assertContains('KUKING_URODZINY_MAIL_WLACZONY', $this->zmienneConfig(), 'Wyłącznika nie czyta żadne env() w config/*.php.');
     }
 
     /**

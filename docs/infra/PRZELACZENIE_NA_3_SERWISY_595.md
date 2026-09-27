@@ -48,9 +48,12 @@ ani że plan będzie taki, jak opisuję niżej. To rozstrzyga dopiero krok 2.
    `NAZWA_SERWISU_WWW` / `NAZWA_BAZY` w `.railway/railway.ts` i `APP_SERVICE`
    w `.github/workflows/deploy.yml` w osobnym PR-ze (strażnik pilnuje, że się
    zgadzają), dopiero potem wracaj tutaj.
-3. Gdy „Wait for CI” jest włączone: GitHub → Settings → Secrets and variables
-   → Actions → **Variables** → `KUKING_WAIT_FOR_CI` = `true`. Lokalnie
-   poprzedzaj każde `railway config plan/apply` przez `KUKING_WAIT_FOR_CI=true`.
+3. `KUKING_WAIT_FOR_CI` jest **obowiązkowe** (#1390): `true`, gdy „Wait for CI”
+   jest włączone, `false`, gdy nie. Brak zmiennej zatrzymuje plan i apply.
+   GitHub → Settings → Secrets and variables → Actions → **Variables** →
+   `KUKING_WAIT_FOR_CI` = `true` albo `false`. Lokalnie poprzedzaj każde
+   `railway config plan/apply` przez `KUKING_WAIT_FOR_CI=<ta sama wartość>`
+   (przykłady niżej zakładają `true`).
 4. Lista zmiennych współdzielonych, do których odwołuje się plik:
 
    ```bash
@@ -75,20 +78,21 @@ kroku 2 z tym samym czytaniem planu.
 
 ```bash
 railway link                                   # projekt, środowisko: staging
-KUKING_IAC_STAGING_ROZBITY=true railway config plan
-KUKING_IAC_STAGING_ROZBITY=true railway config apply   # interaktywnie, bez --yes
+KUKING_WAIT_FOR_CI=true KUKING_IAC_STAGING_ROZBITY=true railway config plan
+KUKING_WAIT_FOR_CI=true KUKING_IAC_STAGING_ROZBITY=true railway config apply   # interaktywnie, bez --yes
 ```
 
 Sprawdź na stagingu weryfikację z kroku 4 (wgranie zdjęcia, harmonogram,
 restart workera w trakcie zadania). Powrót stagingu do jednego kontenera:
-`railway config plan` / `apply` **bez** zmiennej — plan pokaże usunięcie
+`railway config plan` / `apply` **bez** `KUKING_IAC_STAGING_ROZBITY` (z samym
+`KUKING_WAIT_FOR_CI`) — plan pokaże usunięcie
 `worker` i `scheduler` na stagingu, na co tu wolno się zgodzić.
 
 ## Krok 2 — plan produkcji i jego czytanie
 
 ```bash
 railway link                                   # projekt, środowisko: production
-KUKING_WAIT_FOR_CI=true railway config plan    # zmienna tylko, jeśli krok 0.3
+KUKING_WAIT_FOR_CI=true railway config plan    # obowiązkowa; wartość z kroku 0.3
 ```
 
 Plan jest bezpieczny do uruchomienia. Wynik porównaj z tabelą:
