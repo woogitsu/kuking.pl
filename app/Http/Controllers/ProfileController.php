@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Domain\Collections\ZapisyWpisu;
 use App\Models\Block;
 use App\Models\CookedEvent;
 use App\Models\Media;
@@ -31,8 +30,6 @@ use Illuminate\View\View;
  */
 class ProfileController extends Controller
 {
-    public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
-
     public function show(Request $request, string $username): View
     {
         // Adres profilu bez rozróżniania wielkości liter (audyt A25).
@@ -233,30 +230,9 @@ class ProfileController extends Controller
                 'extract(year from published_at at time zone ?) = ?',
                 [Czas::strefa(), $rok],
             ))
-            // 'tags:id,slug,name,status' — patrz komentarz w
-            // FollowingFeed::paginate(): karta wpisu pokazuje tematy TYLKO
-            // gdy relacja jest już doładowana, więc bez tego archiwum
-            // profilu nie miałoby żadnych chipów tematów.
-            // `recipe:…` z `visibility` i `hero_media_id` plus `recipe.heroMedia`
-            // — dokładnie jak w `FollowingFeed`, `DiscoverFeed`, `DailyBoard`
-            // i `TagFeed` (issue #368). Archiwum profilu rysuje tę samą kartę
-            // `x-post-card`, a ta czyta z relacji `recipe` tytuł, odnośnik,
-            // `visibility` na plakietkę widoczności i zdjęcie główne. Bez tego
-            // każdy wpis wskazujący przepis dokładał osobne zapytanie na stronę
-            // (a `heroMedia` drugie), a plakietka widoczności schodziła przez
-            // `?? $post->visibility` do stałego `public` wpisu zapowiadającego.
-            ->with([
-                'media',
-                'author.profile.avatar',
-                'recipe:id,title,slug,visibility,hero_media_id',
-                'recipe.heroMedia',
-                'tags:id,slug,name,status',
-            ])
-            ->withVisibleCommentCount($viewer)
-            // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
-            // zapytaniem (issue #275, D-081). Reguły siedzą w `ZapisyWpisu`,
-            // tutaj jest tylko miejsce, w którym dokładamy kolumnę do SELECT-a.
-            ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
+            // Relacje karty, licznik komentarzy i zapisów — jeden kontrakt
+            // `Post::scopeDlaKarty()` (#1037), ten sam na każdej liście wpisów.
+            ->dlaKarty($viewer)
             ->latest('published_at')
             ->latest('id')
             ->paginate(12)
@@ -338,6 +314,22 @@ class ProfileController extends Controller
         }
 
         if ($isOwner) {
+            // ZAPOWIEDŹ USUNIĘTEGO PRZEPISU (#1395). Właściciel omija bramkę
+            // przepisu niżej, bo własne przepisy — także prywatne i ukryte —
+            // otwiera (`RecipePolicy::view()`). Wyjątkiem jest przepis
+            // usunięty miękko: relacja `recipe` go nie pobiera, karta traciła
+            // tytuł i zdjęcie, a odnośnik prowadził do 403 z `PostPolicy::view()`.
+            // Wiersz wpisu i jego komentarze ZOSTAJĄ w bazie (moderacja,
+            // odzyskanie) — znikają tylko z listy, lat i licznika naraz.
+            // Wpis z własną treścią albo zdjęciem nie jest zapowiedzią
+            // (`Post::czyJestZapowiedziaPrzepisu()`) i zostaje widoczny.
+            if ($query->getModel() instanceof Post) {
+                $query->where(fn ($w) => $w->whereNull('posts.recipe_id')
+                    ->orWhereHas('recipe')
+                    ->orWhereRaw("posts.body ~ '[^[:space:]]'")
+                    ->orWhereHas('media'));
+            }
+
             return;
         }
 
