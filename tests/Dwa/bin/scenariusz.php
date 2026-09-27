@@ -24,10 +24,12 @@ use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Contact\Actions\WyslijOdpowiedz;
 use App\Domain\Feed\Actions\ZapiszKolaz;
 use App\Domain\Feed\Actions\ZapiszTabliceDnia;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
+use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
@@ -35,6 +37,7 @@ use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Tags\Actions\MergeTags;
 use App\Domain\Tags\Actions\UpdateTagFollows;
 use App\Domain\Tags\PromowaneTagi;
+use App\Domain\Users\Actions\ChangeUserRole;
 use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Actions\RequestAccountDeletion;
@@ -46,6 +49,7 @@ use App\Http\Requests\Moderation\DecyzjaModeracyjnaRequest;
 use App\Models\Appeal;
 use App\Models\Collection;
 use App\Models\Comment;
+use App\Models\ContactMessage;
 use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -62,6 +66,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\Console\Output\BufferedOutput;
@@ -437,6 +442,25 @@ try {
             wynik: $argumenty['wynik'],
             uzasadnienie: $argumenty['uzasadnienie'],
         )->status,
+
+        'zmien-role' => app(ChangeUserRole::class)->handle(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            $argumenty['rola'],
+        )['changed'],
+
+        'zdejmij-z-urzedu' => (string) app(ZdejmijZUrzedu::class)->handle(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
+            'spam-reklama',
+            'Treść jest reklamą, nie rozmową o gotowaniu.',
+        )->getKey(),
+
+        'wyslij-odpowiedz' => (string) app(WyslijOdpowiedz::class)->handle(
+            ContactMessage::query()->whereKey($argumenty['wiadomosc'])->firstOrFail(),
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            'Odpowiedź z testu wyścigu.',
+            replyKey: (string) Str::uuid(),
+        )->getKey(),
 
         // Decyzja w sprawie zgłoszenia przez prawdziwy kontroler panelu
         // (#933: nowa kara równolegle z uchyleniem starej). Bez HTTP, tak jak
