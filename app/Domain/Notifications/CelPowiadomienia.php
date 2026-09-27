@@ -10,6 +10,7 @@ use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
+use App\Support\OdpowiedziWatku;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -82,7 +83,14 @@ final class CelPowiadomienia
             Notification::TYPE_BIRTHDAY => is_string($nazwa = $powiadomienie->actor?->profile?->username) && $nazwa !== ''
                 ? route('profile.show', $nazwa)
                 : null,
-            Notification::TYPE_FIRST_POST => route('admin.unanswered'),
+            // ISSUE #1371: wprost na wskazany wpis, nie na kolejkę — ta ma
+            // limit 50 i gubi wpis po pierwszej odpowiedzi. Adres z BIEŻĄCEGO
+            // wiersza (UUID, nie slug) i po bieżącej autoryzacji odbiorcy.
+            // Brak wpisu, brak `post_id` albo brak dostępu — kolejka
+            // (`Notification::pierwszyWpisNiedostepny()` mówi to człowiekowi słowami).
+            Notification::TYPE_FIRST_POST => ($wpis = $powiadomienie->pierwszyWpis()) !== null
+                ? route('posts.show', $wpis)
+                : route('admin.unanswered'),
             // Wprost na kolejkę odwołań. Bez identyfikatora w adresie:
             // kolejka nie ma ekranu jednej sprawy, a odwołania otwarte stoją
             // na niej najstarsze na górze, czyli to z najbliższym terminem
@@ -198,10 +206,20 @@ final class CelPowiadomienia
             })
             ->whereRaw('(comments.created_at, comments.id) < (root.created_at, root.id)');
 
+        // Odpowiedzi idą porcjami (issue #939, `OdpowiedziWatku`), więc przy
+        // odpowiedzi liczymy też, ile widocznych odpowiedzi tego wątku ją
+        // poprzedza. `cel` to ten sam wiersz co zewnętrzne `comments` —
+        // alias potrzebny, bo podzapytanie przez `widoczneDla()` przesłania
+        // nazwę `comments`. Ta sama kolejność co `Comment::replies()`.
+        $precedingReplies = Comment::query()->widoczneDla($viewer)->selectRaw('count(*)')
+            ->whereColumn('comments.parent_id', 'cel.parent_id')
+            ->whereRaw('(comments.created_at, comments.id) < (cel.created_at, cel.id)');
+
         $comments = Comment::query()
             ->join('comments as root', function ($join): void {
                 $join->whereRaw('root.id = coalesce(comments.parent_id, comments.id)');
             })
+            ->join('comments as cel', 'cel.id', '=', 'comments.id')
             ->leftJoin('posts', 'posts.id', '=', 'comments.post_id')
             ->leftJoin('recipes', 'recipes.id', '=', 'comments.recipe_id')
             ->leftJoin('cooked_events', 'cooked_events.id', '=', 'comments.cooked_event_id')
@@ -217,9 +235,12 @@ final class CelPowiadomienia
                     ->orWhere(fn (Builder $recipe) => $recipe->whereNotNull('recipes.id')->whereNull('recipes.deleted_at'))
                     ->orWhereNotNull('cooked_events.id');
             })
-            ->select(['comments.id', 'comments.post_id', 'comments.recipe_id', 'comments.cooked_event_id', 'posts.kind', 'recipes.slug'])
+            ->select(['comments.id', 'comments.parent_id', 'comments.post_id', 'comments.recipe_id', 'comments.cooked_event_id', 'posts.kind', 'recipes.slug'])
             ->selectSub($preceding, 'preceding_count')
+            ->selectSub($precedingReplies, 'preceding_replies')
             ->get();
+
+        $repliesPerThread = OdpowiedziWatku::rozmiarPorcji();
 
         $pageSize = (int) config('kuking.comments.page_size');
         foreach ($comments as $comment) {
@@ -238,6 +259,13 @@ final class CelPowiadomienia
             $url = $subject->url();
             if ($page > 1) {
                 $url .= (str_contains($url, '?') ? '&' : '?').'komentarze='.$page;
+            }
+            $replyPortion = intdiv((int) $comment->preceding_replies, $repliesPerThread) + 1;
+            if ($comment->parent_id !== null && $replyPortion > 1) {
+                $url .= (str_contains($url, '?') ? '&' : '?').http_build_query([
+                    OdpowiedziWatku::PARAMETR_WATKU => $comment->parent_id,
+                    OdpowiedziWatku::PARAMETR_PORCJI => $replyPortion,
+                ]);
             }
             $url .= '#komentarz-'.$comment->getKey();
             foreach ($byComment[(string) $comment->getKey()] as $id) {

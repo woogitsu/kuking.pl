@@ -69,10 +69,26 @@ use App\Models\User;
  */
 final class FollowUser
 {
+    /**
+     * Czy OSTATNIE udane `handle()` zostawiło obserwowanej osobie nowe
+     * powiadomienie (issue #1809). `NotifyUser` wycisza powtórkę tej samej
+     * pary w oknie (obserwuj → cofnij → obserwuj) i nie pisze do konta, które
+     * nie może czytać — komunikat po kliknięciu ma mówić to, co się stało,
+     * a nie to, co zwykle się dzieje.
+     */
+    private bool $powiadomiono = false;
+
     public function __construct(private readonly NotifyUser $notify) {}
+
+    public function czyPowiadomiono(): bool
+    {
+        return $this->powiadomiono;
+    }
 
     public function handle(User $follower, User $target): bool
     {
+        $this->powiadomiono = false;
+
         if ($follower->getKey() === $target->getKey()) {
             throw new BladDlaCzlowieka('Nie można obserwować samego siebie.');
         }
@@ -107,12 +123,12 @@ final class FollowUser
             // `$follower->profile`, nie `$obserwujacy->profile`: model
             // odczytany pod blokadą nie ma wczytanej relacji profilu, a to
             // ten sam wiersz konta.
-            $this->notify->handle(
+            $this->powiadomiono = $this->notify->handle(
                 recipient: $obserwowany,
                 type: Notification::TYPE_FOLLOW,
                 actor: $obserwujacy,
                 data: ['username' => $follower->profile?->username],
-            );
+            ) !== null;
 
             return true;
         });
