@@ -88,7 +88,7 @@ class KosztPrzepisuTest extends TestCase
         [$autor, $przepis] = $this->przepisAutora();
 
         $this->actingAs($autor)
-            ->put(route('recipes.update', $przepis->slug), $this->formularz(['estimated_cost_pln' => '24,50']))
+            ->put(route('recipes.update', $przepis->slug), $this->formularz($przepis, ['estimated_cost_pln' => '24,50']))
             ->assertSessionHasNoErrors();
 
         $this->assertSame(24.5, $przepis->fresh()->estimated_cost_pln);
@@ -134,7 +134,7 @@ class KosztPrzepisuTest extends TestCase
 
         $this->actingAs($autor)
             ->from($adres)
-            ->put(route('recipes.update', $przepis->slug), $this->formularz(['estimated_cost_pln' => $wpis]))
+            ->put(route('recipes.update', $przepis->slug), $this->formularz($przepis, ['estimated_cost_pln' => $wpis]))
             ->assertRedirect($adres)
             ->assertSessionHasErrors(['estimated_cost_pln']);
 
@@ -152,7 +152,7 @@ class KosztPrzepisuTest extends TestCase
         [$autor, $przepis] = $this->przepisAutora(['estimated_cost_pln' => 30]);
 
         $this->actingAs($autor)
-            ->put(route('recipes.update', $przepis->slug), $this->formularz(['estimated_cost_pln' => '']))
+            ->put(route('recipes.update', $przepis->slug), $this->formularz($przepis, ['estimated_cost_pln' => '']))
             ->assertSessionHasNoErrors();
 
         $this->assertNull($przepis->fresh()->estimated_cost_pln);
@@ -164,7 +164,7 @@ class KosztPrzepisuTest extends TestCase
         [$autor, $przepis] = $this->przepisAutora();
 
         $this->actingAs($autor)
-            ->put(route('recipes.update', $przepis->slug), $this->formularz(['estimated_cost_pln' => '0']))
+            ->put(route('recipes.update', $przepis->slug), $this->formularz($przepis, ['estimated_cost_pln' => '0']))
             ->assertSessionHasNoErrors();
 
         $this->assertSame(0.0, $przepis->fresh()->estimated_cost_pln);
@@ -179,7 +179,7 @@ class KosztPrzepisuTest extends TestCase
         // Żądanie bez klucza `estimated_cost_pln` — tak wysyła każda droga,
         // która tego pola nie zna.
         $this->actingAs($autor)
-            ->put(route('recipes.update', $przepis->slug), $this->formularz())
+            ->put(route('recipes.update', $przepis->slug), $this->formularz($przepis))
             ->assertSessionHasNoErrors();
 
         $this->assertSame(30.0, $przepis->fresh()->estimated_cost_pln);
@@ -192,7 +192,7 @@ class KosztPrzepisuTest extends TestCase
         $obcy = $this->user('obcy');
 
         $this->actingAs($obcy)
-            ->put(route('recipes.update', $przepis->slug), $this->formularz(['estimated_cost_pln' => '1']))
+            ->put(route('recipes.update', $przepis->slug), $this->formularz($przepis, ['estimated_cost_pln' => '1']))
             ->assertForbidden();
 
         $this->assertSame(30.0, $przepis->fresh()->estimated_cost_pln);
@@ -334,13 +334,14 @@ class KosztPrzepisuTest extends TestCase
      * @param  array<string, mixed>  $dodatkowo
      * @return array<string, mixed>
      */
-    private function formularz(array $dodatkowo = []): array
+    private function formularz(Recipe $przepis, array $dodatkowo = []): array
     {
         return [
             'title' => 'Bigos myśliwski',
             'visibility' => 'public',
             'source_type' => 'own',
             'action' => 'publish',
+            'content_revision' => $przepis->content_revision,
             'steps' => [['instruction' => 'Duś trzy godziny.']],
             ...$dodatkowo,
         ];
