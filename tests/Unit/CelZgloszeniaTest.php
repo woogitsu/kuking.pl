@@ -83,4 +83,18 @@ class CelZgloszeniaTest extends TestCase
         // Cięcie nastąpiło po całym słowie
         $this->assertStringEndsWith('slowo', $m[1]);
     }
+
+    /**
+     * Regresja: pierwszy wyraz dłuższy niż limit (długi link, ciąg znaków bez
+     * spacji) dawał „…” — cudzysłów bez treści, którego #794 zabrania. Teraz
+     * zostaje sama nazwa, jak przy treści pustej.
+     */
+    public function test_wyraz_dluzszy_niz_limit_nie_daje_pustego_cudzyslowu(): void
+    {
+        $this->assertNull(CelZgloszenia::formatujCytat(str_repeat('a', 300).' reszta'));
+        $this->assertNull(CelZgloszenia::formatujCytat('https://example.com/'.str_repeat('x', 250)));
+
+        // Kontrola dodatnia: gdy choć jeden pełny wyraz się mieści, cytat jest.
+        $this->assertSame('„ab…”', CelZgloszenia::formatujCytat('ab '.str_repeat('x', 300)));
+    }
 }
