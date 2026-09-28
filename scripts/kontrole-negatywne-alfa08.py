@@ -465,6 +465,13 @@ DIGEST_DOBOR = "app/Domain/Digest/ZbierzTresciDigestu.php"
 DIGEST_DOBOR_TEST = "test_zaden_feed_nie_sortuje_po_mierze_cudzych_reakcji"
 WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) {\n"
 
+# Dokumentacja API (D-270): każda trasa `/api/v1` ma wiersz w tabeli
+# `docs/API.md`. Mutacja wycina wiersz feedu — strażnik ma zauważyć trasę
+# bez opisu.
+DOKUMENTACJA_API = "docs/API.md"
+DOKUMENTACJA_API_TEST = "ApiJestUdokumentowaneTest"
+WIERSZ_FEEDU = "| `GET /api/v1/feed` | wpisy obserwowanych, chronologicznie | token | to samo zapytanie co strona główna |\n"
+
 # Prywatne ukrycia bez agregacji (#1810, D-278): moderacja i analityka nie
 # czytają tabeli `hides`. Mutacja dokłada do pliku moderacji import modelu
 # ukryć — strażnik skanujący `app/Domain/Moderation` ma zapalić się na czerwono.
@@ -1228,6 +1235,8 @@ checks = [
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
      lambda s: replace_once(s, "php /app/artisan event:clear  --no-interaction >/dev/null\n", "php /app/artisan event:clear  --no-interaction >/dev/null\nphp /app/artisan cache:clear --no-interaction >/dev/null 2>&1 || true\n")),
+    ("Trasa API bez wiersza w dokumentacji", DOKUMENTACJA_API, DOKUMENTACJA_API_TEST,
+     lambda s: replace_once(s, WIERSZ_FEEDU, "")),
     ("Powiadomienie o wykonaniu kucharza w karencji usunięcia", WIDOCZNOSC_TRESCI_SQL, POWIADOMIENIA_ZGODNE_Z_POLICY_TEST,
      lambda s: replace_once(s, KUCHARZ_W_KARENCJI, "")),
     ("Powiadomienie o komentarzu pod zapowiedzią ukrytego przepisu", WIDOCZNOSC_TRESCI_SQL, POWIADOMIENIA_ZGODNE_Z_POLICY_TEST,
@@ -1448,6 +1457,7 @@ run_test(TURNSTILE_AKCJA_TEST, True)
 run_test(GRAF_MODULOW_TEST, True)
 run_test(DEMO_SEEDER_HASLO_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
+run_test(DOKUMENTACJA_API_TEST, True)
 run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
 run_test(DIGEST_DOBOR_TEST, True)
 run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
