@@ -21,6 +21,7 @@ W CI nic się nie zmienia — tam gate przepuszcza jak dotąd.
 
 import hashlib
 import os
+import subprocess
 from pathlib import Path
 import tempfile
 
