@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Formularz kontaktowy nie zapisuje już sekretów z adresu strony w kontekście wiadomości. Dla starszych wpisów przygotowano osobną, świadomie uruchamianą komendę czyszczenia (#836).
+- Wewnętrzne: cofnięcie migracji wersji przepisu blokuje nowe zapisy przed sprawdzeniem istniejących wersji, aby nie zgubić ich pochodzenia podczas rollbacku (#2059).
 - Wewnętrzne: pilny alarm o zgłoszeniu od człowieka odzyskuje próbę po awarii zapisu do kolejki bez utraty blokady celu i budżetu poczty. Ponowienie tej samej sprawy tworzy najwyżej jedno zadanie, także gdy odpowiedź kolejki była niepewna (#2066).
 - Zdjęcia wyświetlane „Zwykle” stoją jedno pod drugim także na tablecie. Dwa zdjęcia o różnych proporcjach nie zostawiają już szarego pasa, a trzecie nie zostawia pustej prawej połowy. Kolaż i karuzela pozostają osobnymi wyborami (#2126).
 - Przełącznik wartości odżywczych sprawdza aktualny stan przepisu pod blokadą. Żądanie rozpoczęte przed zdjęciem lub usunięciem przepisu nie zapisze ustawienia po decyzji moderatora i pokaże czytelną odmowę (#2112).
