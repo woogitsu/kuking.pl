@@ -27,6 +27,7 @@ import './pokaz-wiecej.js';
 import './kopia-sasiedniego-pola.js';
 import './pokaz-haslo.js';
 import './powiadomienia-push.js';
+import './drukuj-przepis.js';
 import './postep-importu.js';
 import './powiadomienia-push-uzgodnij.js';
 import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza} from './minutnik-krok.js';

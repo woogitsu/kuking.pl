@@ -608,6 +608,12 @@ KOLAZ_PRIORYTET = """                                 @if($loop->first)
                                  loading="lazy"
                                  @endif
 """
+# Arkusz wydruku przepisu (#765): żadne pismo na kartce poniżej 12 pt.
+# Strażnik czyta `wydruk-przepisu.css` i zbiera rozmiary z bloku `@media print`;
+# mutacja zmniejsza pismo składników i kroków do 10 pt — test ma wtedy oblać,
+# dowód, że parser widzi reguły druku, a nie pusty zbiór.
+WYDRUK_CSS = "resources/css/wydruk-przepisu.css"
+WYDRUK_TEST = "test_arkusz_druku_ma_prog_12_pt_i_nie_schodzi_ponizej"
 # Zamknięcie grupy sygnałów tylko w stanie z ekranu (#1059, wariant b).
 # Znacznik to liczba i najnowsze oznaczenie; każda z dwóch połówek łapie
 # dopisanie, którego druga nie widzi. Mutacja 1 zdejmuje porównanie liczby
@@ -1269,6 +1275,8 @@ checks = [
      lambda s: replace_once(s, "+ var(--safe-bottom) + 76px)", "+ 76px)")),
     ("Edycja domyślnego zeszytu bez skutku dla przyszłych zapisów", EDYCJA_ZESZYTU, DOMYSLNY_ZESZYT_TEST,
      lambda s: replace_once(s, " i wszystko, co zapiszesz tu później", "")),
+    ("Wydruk przepisu z pismem poniżej 12 pt", WYDRUK_CSS, WYDRUK_TEST,
+     lambda s: replace_once(s, "font-size: calc(13pt * var(--druk-skala));", "font-size: calc(10pt * var(--druk-skala));")),
     ("Offline: „Spróbuj ponownie” znów prowadzi na /home (#749)", OFFLINE_HTML, OFFLINE_PONOWIENIE_TEST,
      lambda s: replace_once(s, '<a href="">Spróbuj ponownie</a>', '<a href="/home">Spróbuj ponownie</a>')),
     ("Kontrakt karty bez zdjęcia przepisu", KONTRAKT_KARTY, KONTRAKT_KARTY_TEST,
@@ -1535,6 +1543,7 @@ run_test(STABILNE_OKNA_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
 run_test(FONTY_TEST, True)
 run_test(BEZPIECZNY_OBSZAR_TEST, True)
+run_test(WYDRUK_TEST, True)
 run_test(OFFLINE_PONOWIENIE_TEST, True)
 run_test(KONTRAKT_KARTY_TEST, True)
 run_test(GRUPA_SYGNALOW_TEST, True)
