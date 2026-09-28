@@ -14,6 +14,7 @@ use App\Models\Report;
 use App\Models\User;
 use App\Notifications\PilneZgloszenieOdCzlowieka;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -417,7 +418,7 @@ class KolejkaModeracjiStawiaPilneNaGorzeTest extends TestCase
         $przed = DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte();
         $jobsPrzed = DB::table('jobs')->count();
         $wstrzyknieto = false;
-        DB::listen(static function (\Illuminate\Database\Events\QueryExecuted $zapytanie) use ($jobsPrzed, &$wstrzyknieto): void {
+        DB::listen(static function (QueryExecuted $zapytanie) use ($jobsPrzed, &$wstrzyknieto): void {
             if ($wstrzyknieto || preg_match('/^insert into ["`]?jobs["`]?\s/i', $zapytanie->sql) !== 1) {
                 return;
             }
