@@ -3,6 +3,10 @@
        początku (`\App\Models\Recipe::DIFFICULTY_LABELS` niżej). */
     $isEdit = $recipe !== null;
     $action = $isEdit ? route('recipes.update', $recipe->slug) : route('recipes.store');
+    $stareZdjecia = old('zachowane_zdjecia', []);
+    $zachowaneZdjecia = \App\Domain\Media\ZachowaneZdjeciaPrzepisu::przyjete(
+        is_array($stareZdjecia) ? $stareZdjecia : [], auth()->id()
+    );
 
     $oldIngredients = old('ingredients', $isEdit ? $recipe->ingredients->map(fn ($i) => ['text' => $i->ingredient_text, 'group_name' => $i->group_name, 'note' => $i->note, 'substitutes' => $i->substitutes, 'no_amount' => $i->no_amount])->all() : []);
 
@@ -206,6 +210,7 @@
                  resources/css/ekran-dodawania.css. --}}
             <div class="field @error('hero_photo') has-error @enderror">
                 <span class="pole-zdjecia-nazwa" id="f-hero_photo-etykieta">Zdjęcie gotowego dania</span>
+                @include('pages.recipes.partials.zachowane-zdjecie', ['klucz' => 'hero'])
                 <input class="visually-hidden pole-zdjecia-input" id="f-hero_photo" type="file" name="hero_photo"
                        accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                        aria-labelledby="f-hero_photo-etykieta f-hero_photo-tytul"
@@ -343,6 +348,7 @@
                  bezpośrednio przed nią. --}}
             <div class="field @error('source_scan') has-error @enderror">
                 <span class="pole-zdjecia-nazwa" id="f-source_scan-etykieta">Zdjęcie starej kartki albo zeszytu</span>
+                @include('pages.recipes.partials.zachowane-zdjecie', ['klucz' => 'scan'])
                 <input class="visually-hidden pole-zdjecia-input" id="f-source_scan" type="file" name="source_scan"
                        accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                        aria-labelledby="f-source_scan-etykieta f-source_scan-tytul"
@@ -537,6 +543,7 @@
 
                     <div class="field @error("steps.$i.photo") has-error @enderror">
                         <span class="pole-zdjecia-nazwa" id="f-steps-{{ $i }}-photo-etykieta">Zdjęcie do tego kroku <span class="meta">(nieobowiązkowe)</span></span>
+                        @include('pages.recipes.partials.zachowane-zdjecie', ['klucz' => 'step_'.$i])
 
                         @if($zdjecieKroku)
                             {{-- Zdjęcie, które ten krok już ma. Zostaje przy nim

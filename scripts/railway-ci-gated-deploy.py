@@ -64,6 +64,11 @@ def validate_services(raw: str) -> list[dict[str, str]]:
     return services
 
 
+def validate_run_attempt(raw: str) -> int:
+    require(raw.isdecimal() and int(raw) > 0, "Brak poprawnego GITHUB_RUN_ATTEMPT.")
+    return int(raw)
+
+
 def verify_ci(event: dict, repo: str, github_get) -> str:
     source = event.get("workflow_run") or {}
     run_id = source.get("id")
@@ -119,21 +124,35 @@ def verify_railway(token: str, project_id: str, environment_id: str,
 
 
 def deploy(token: str, sha: str, environment_id: str, services: list[dict[str, str]],
-           repo: str, github_get, call, sleep=time.sleep) -> None:
+           repo: str, github_get, call, run_attempt: int, sleep=time.sleep) -> None:
     mutation = """mutation($serviceId: String!, $environmentId: String!, $commitSha: String!) {
       serviceInstanceDeployV2(serviceId: $serviceId, environmentId: $environmentId, commitSha: $commitSha)
     }"""
     query = "query($id: String!) { deployment(id: $id) { id status } }"
+    # Railway nie obiecuje exactly-once dla mutacji. Bez pewnego ID i
+    # potwierdzonego SHA w metadanych nie wolno zgadywać, czy poprzednia
+    # próba już utworzyła deployment. Rerun wymaga ręcznego uzgodnienia.
+    require(run_attempt == 1,
+            f"Ponowienie workflow (próba {run_attempt}) dla SHA {sha}: "
+            "nie wywołuję mutacji Railway. Uzgodnij deploymenty każdej usługi "
+            "i środowiska w Railway przed osobnym wznowieniem.")
     # Po rozpoczęciu sekwencji wszystkie role muszą otrzymać ten sam SHA.
     # Przesunięcie main w jej trakcie uruchomi osobną, późniejszą sekwencję.
     require(github_get(f"/repos/{repo}/branches/main").get("commit", {}).get("sha") == sha,
             "Main przesunął się przed rozpoczęciem wdrożenia.")
     for service in services:
-        result = call(token, mutation, {"serviceId": service["id"],
-                                        "environmentId": environment_id, "commitSha": sha})
+        try:
+            result = call(token, mutation, {"serviceId": service["id"],
+                                            "environmentId": environment_id, "commitSha": sha})
+        except (OSError, RuntimeError, ValueError) as exc:
+            raise RuntimeError(
+                f"Railway {service['name']}, SHA {sha}: wynik mutacji jest niejednoznaczny. "
+                "Nie ponawiaj workflow; uzgodnij wdrożenie w Railway."
+            ) from exc
         deployment_id = result.get("serviceInstanceDeployV2")
         require(isinstance(deployment_id, str) and UUID.fullmatch(deployment_id) is not None,
-                "Railway nie potwierdził ID wdrożenia; nie ponawiaj mutacji bez sprawdzenia stanu.")
+                f"Railway {service['name']}, SHA {sha}: brak ID wdrożenia. "
+                "Nie ponawiaj workflow; uzgodnij wdrożenie w Railway.")
         print(f"Railway {service['name']}: deployment {deployment_id}, SHA {sha}", flush=True)
         for _ in range(60):
             state = (call(token, query, {"id": deployment_id}).get("deployment") or {}).get("status")
@@ -162,7 +181,9 @@ def main() -> None:
     github_get = lambda path: read_json(api_url + path, token)
     sha = verify_ci(event, repo, github_get)
     verify_railway(railway_token, project_id, environment_id, services, graphql)
-    deploy(railway_token, sha, environment_id, services, repo, github_get, graphql)
+    run_attempt = validate_run_attempt(os.environ.get("GITHUB_RUN_ATTEMPT", ""))
+    deploy(railway_token, sha, environment_id, services, repo, github_get,
+           graphql, run_attempt)
 
 
 if __name__ == "__main__":

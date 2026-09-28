@@ -38,6 +38,10 @@
         // „Dopisz przepis” z własnego wpisu (#1334) — `RecipeController::createFromPost()`.
         $zWpisu = $zWpisu ?? null;
         $zdjecieZWpisu = $zdjecieZWpisu ?? null;
+        $stareZdjecia = old('zachowane_zdjecia', []);
+        $zachowaneZdjecia = \App\Domain\Media\ZachowaneZdjeciaPrzepisu::przyjete(
+            is_array($stareZdjecia) ? $stareZdjecia : [], auth()->id()
+        );
     @endphp
 
     @if($zWpisu !== null)
@@ -112,6 +116,7 @@
 
         <div class="field @error('hero_photo') has-error @enderror">
             <span class="pole-zdjecia-nazwa" id="f-hero_photo-etykieta">{{ $zWpisu !== null ? 'Inne zdjęcie (nieobowiązkowo)' : 'Zdjęcie gotowego dania' }}</span>
+            @include('pages.recipes.partials.zachowane-zdjecie', ['klucz' => 'hero'])
             <input class="visually-hidden pole-zdjecia-input" id="f-hero_photo" type="file" name="hero_photo"
                    accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                    aria-labelledby="f-hero_photo-etykieta f-hero_photo-tytul"

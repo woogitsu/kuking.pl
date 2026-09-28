@@ -25,6 +25,10 @@ przepuścić wdrożenie, gdy inny workflow tego samego commita przeszedł.
    `commitSha` i czeka na `SUCCESS` przed następną. Porażka web zatrzymuje
    worker i scheduler. Po rozpoczęciu sekwencji przesunięcie `main` nie
    przerywa zestawu; następny commit ma własny przebieg bramki.
+6. Przy ponowieniu workflow (`GITHUB_RUN_ATTEMPT > 1`) zatrzymuje się przed
+   jakąkolwiek mutacją Railway. Jeśli odpowiedź mutacji zaginie albo nie zawiera
+   ID, pierwsza próba kończy się komunikatem o niejednoznacznym wyniku.
+   Ponowienie nie tworzy drugiego deploymentu.
 
 Railway dokumentuje [wdrożenie wskazanego SHA](https://docs.railway.com/integrations/api/manage-services)
 i [odczyt stanu deploymentu](https://docs.railway.com/integrations/api/manage-deployments).
@@ -68,3 +72,10 @@ uruchomiony job bramki, i dopiero wtedy przywróć autodeploy w panelu Railway.
 Przed kolejnym scaleniem potwierdź zielone CI, końcowy deployment i SHA strony.
 Jeżeli wdrożenie zatrzyma się między rolami, nie uruchamiaj kolejnej mutacji
 w ciemno: sprawdź stan każdego ID deploymentu z logu oraz migracje web.
+Przy zerwanym połączeniu sprawdź w Railway deploymenty wszystkich skonfigurowanych
+usług w danym środowisku, ich czas, SHA i stan. Rerun workflow celowo kończy
+się odmową nawet gdy poprzednia próba mogła zakończyć się przed mutacją;
+automatyczne uzgodnienie nie jest dostępne bez wiarygodnego, udokumentowanego
+identyfikatora tej konkretnej operacji w metadanych Railway. Po ręcznym
+uzgodnieniu wykonaj osobny plan naprawczy dla brakujących ról, uwzględniając
+stan migracji i aktualny `main`.
