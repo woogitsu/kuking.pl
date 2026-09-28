@@ -1281,13 +1281,13 @@ checks = [
     # działają — strażnik README ma to złapać, choć ci.yml mówi co innego.
     ("README: „Dopóki ich nie ma” wraca", README, README_SECURITY_TEST,
      lambda s: s + "\nDopóki ich nie ma, testy uruchamiasz lokalnie.\n"),
-    # Strona „Co nowego” (issue #1909): wpis CHANGELOGA oznaczony
-    # `[nowa funkcja]` musi mieć akapit w resources/nowosci/tresc.md. Mutacja
-    # zdejmuje znacznik z JEDYNEGO miejsca, w którym stoi razem z „(#1909)” —
-    # dwa oznaczone wpisy w CHANGELOGU zostają jednym, dwa akapity nowości
-    # zostają dwoma, licznik się rozjeżdża i strażnik ma zapalić.
-    ("Znacznik [nowa funkcja] zdjęty z jednego wpisu CHANGELOGA", CHANGELOG_NOWOSCI, STRAZNIK_NOWOSCI_TEST,
-     lambda s: replace_once(s, " (#1909). [nowa funkcja]", " (#1909).")),
+    # Strona „Co nowego” (issue #1909): nowa funkcja w sekcji
+    # „Nieopublikowane” musi mieć akapit w „Najnowszych zmianach”. Dodajemy
+    # osierocony wpis, zamiast zdejmować znacznik ze starego wydania: po
+    # nadaniu numeru wydania obie bieżące sekcje mogą być puste (0 = 0).
+    ("Nowa funkcja bez akapitu na stronie Co nowego", CHANGELOG_NOWOSCI, STRAZNIK_NOWOSCI_TEST,
+     lambda s: replace_once(s, "## Nieopublikowane\n",
+                            "## Nieopublikowane\n\n- Kontrola ujemna bez opisu. [nowa funkcja]\n")),
     # Dziennik wdrożeń (#1932, D-318, D-088): zdjęcie warunku odmowy z down()
     # ma zapalić strażnika cofnięcia — bez niego migracja ciągnie DROP TABLE
     # nawet na wypełnionym dzienniku.
