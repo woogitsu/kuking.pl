@@ -768,7 +768,7 @@ transmisje live, wypłaty dla twórców.
 
 **Spiżarnia („Co mam w domu”) zeszła z tej listy 26 września 2026** — sekcja
 V2 w `docs/FEATURES.md` wymienia „pantry” i „co ugotuję z tego, co mam”, a
-**D-282** pozwala je budować (szczegóły funkcji: **D-285**). Zakazana zostaje
+**D-282** pozwala je budować. Zakazana zostaje
 **spiżarnia z terminami ważności i priorytetem zużycia (#1903)** — stoi na
 liście „V2, ale nie teraz” i wymaga nowej decyzji właściciela.
 
