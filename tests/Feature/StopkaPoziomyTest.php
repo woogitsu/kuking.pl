@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use DOMDocument;
+use DOMElement;
+use DOMText;
+use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -28,6 +32,34 @@ use Tests\TestCase;
 class StopkaPoziomyTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_odnosnik_o_kuking_nie_traci_spacji_w_ukladzie_flex(): void
+    {
+        $html = (string) $this->get(route('landing'))->assertOk()->getContent();
+        $dokument = new DOMDocument;
+        @$dokument->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+        $linki = (new DOMXPath($dokument))->query('//nav[@aria-label="O serwisie"]//a[@href="'.route('about').'"]');
+
+        $this->assertSame(1, $linki->length);
+        $link = $linki->item(0);
+        $this->assertInstanceOf(DOMElement::class, $link);
+        $elementy = [];
+        $tekstBezposredni = '';
+
+        foreach ($link->childNodes as $dziecko) {
+            if ($dziecko instanceof DOMElement) {
+                $elementy[] = $dziecko;
+            } elseif ($dziecko instanceof DOMText) {
+                $tekstBezposredni .= trim($dziecko->textContent);
+            }
+        }
+
+        // Link jest flexem: tekst obok komponentu staje się anonimowym flex itemem
+        // i traci końcową spację. Cała etykieta musi być jednym elementem flex.
+        $this->assertSame('', $tekstBezposredni);
+        $this->assertCount(1, $elementy);
+        $this->assertStringStartsWith('O kuKING', (string) preg_replace('/\s+/u', ' ', $elementy[0]->textContent));
+    }
 
     /**
      * Odnośniki, które stopka miała PRZED przebudową i ma mieć nadal — dla każdego.

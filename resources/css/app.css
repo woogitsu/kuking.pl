@@ -4985,6 +4985,84 @@
     margin: 0 0 var(--spacing-3);
 }
 
+/* Checklista przygotowania składników (issue #2069). Układ pod pole działa
+   dopiero, gdy skrypt je odkryje (`data-przygotowanie-gotowe`) — bez niego
+   wiersz wygląda dokładnie jak dotąd: zwykły tekst, bez kursora „rączki”
+   i bez miejsca na pole, którego nie widać. */
+
+/* Etykieta wiersza nie dziedziczy wyglądu etykiety pola formularza
+   (`tokens.css`: pogrubienie, 18 px, margines) — tekst składnika ma
+   wyglądać tak samo jak przed #2069, z JS i bez niego. */
+.cook-skladnik {
+    display: block;
+    margin: 0;
+    font-weight: inherit;
+    font-size: inherit;
+    color: inherit;
+}
+
+.cook-ingredients[data-przygotowanie-gotowe] .cook-skladnik {
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: var(--spacing-2) var(--spacing-3);
+    /* Cała linia składnika jest celem dotyku, co najmniej 48 px. */
+    min-height: var(--control-height-min);
+    cursor: pointer;
+}
+
+.cook-ingredients[data-przygotowanie-gotowe] .cook-skladnik-pole {
+    width: 1.75rem;
+    height: 1.75rem;
+    flex-shrink: 0;
+    /* Pole na wysokości pierwszej linii tekstu, nie na środku długiego
+       wiersza z zamiennikiem. */
+    margin: 0.1rem 0 0;
+    accent-color: var(--color-success);
+}
+
+/* Długie słowo w składniku zawija się zamiast wypychać ekran w bok przy
+   320 px — ta sama pułapka co przy `.cook-wakelock > span`. */
+.cook-ingredients[data-przygotowanie-gotowe] .cook-skladnik-tresc {
+    flex: 1 1 10rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Stan SŁOWEM obok pola — nie samym kolorem ani przekreśleniem, które
+   sugerowałoby, że składnik jest już zużyty. */
+.cook-skladnik-stan:not([hidden]) {
+    display: inline-block;
+    flex-shrink: 0;
+    padding: 0 var(--spacing-2);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-success-tint);
+    color: var(--color-success-tint-ink);
+    font-size: var(--text-body);
+    font-weight: 700;
+}
+
+.cook-przygotowanie-wstep,
+.cook-przygotowanie-licznik {
+    margin: 0 0 var(--spacing-3);
+    font-size: var(--text-body);
+    color: var(--color-ink-muted);
+}
+
+.cook-przygotowanie-akcje {
+    margin-bottom: var(--spacing-3);
+}
+
+/* `.btn` ma `display: inline-flex`, który wygrałby z samym `[hidden]` —
+   ten sam problem co `.pokaz-haslo[hidden]`. */
+.cook-przygotowanie-wyczysc[hidden] {
+    display: none;
+}
+
+.cook-przygotowanie-skrot {
+    font-weight: 400;
+}
+
 .cook-step {
     background-color: var(--color-surface-raised);
     border-radius: var(--radius-lg);

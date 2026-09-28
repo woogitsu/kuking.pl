@@ -67,10 +67,27 @@ class NowosciController extends Controller
         $tresc = (string) file_get_contents($path);
         $tresc = $this->dopiszOdNumeru($tresc);
 
+        $html = ZaufanyMarkdown::doHtml($tresc);
+
+        // Markdown celowo ucieka surowy HTML. Wcześniejsze `<a id="...">`
+        // były więc widocznym tekstem, a linki spisu wydań nie miały celu.
+        // Identyfikatory powstają dopiero na bezpiecznie wyrenderowanych
+        // nagłówkach; `SlugGfm` daje te same kotwice co linki w spisie.
+        $htmlZKotwicami = preg_replace_callback('/<h2>(.*?)<\/h2>/su', static function (array $m): string {
+            $tekst = html_entity_decode(strip_tags($m[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $id = SlugGfm::z($tekst);
+
+            return '<h2 id="'.e($id).'">'.$m[1].'</h2>';
+        }, $html);
+
+        if ($htmlZKotwicami === null) {
+            throw new RuntimeException('Nie udało się przygotować kotwic strony „Co nowego”.');
+        }
+
         return view('pages.static.legal', [
             'pageTitle' => 'Co nowego w Kuking',
             'pageDescription' => 'Co nowego w Kuking: nowe funkcje po kolei, wydanie po wydaniu, i krótkie podsumowanie poprawek.',
-            'html' => ZaufanyMarkdown::doHtml($tresc),
+            'html' => $htmlZKotwicami,
         ]);
     }
 
