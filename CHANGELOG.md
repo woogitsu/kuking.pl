@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Dalsze strony wpisów pod tagiem mają własny adres dla wyszukiwarek i udostępniania. Adres wskazuje tę samą porcję wpisów, którą oglądacie, zamiast wracać do pierwszej strony (#2135).
 - Pod cudzym wpisem jest przycisk „Smakowicie wygląda” — lżejszy niż „Ugotowałem”. Nikt nie widzi, ile osób go nacisnęło; na stronie wpisu każdy widzi, kto to napisał (bez osób, z którymi jest blokada). Autor dostaje raz dziennie jedno powiadomienie, np. „3 osoby napisały: Smakowicie wygląda”, żeby nie zagłuszało „Ugotowałem”, które przychodzi od razu. Reakcję cofacie tym samym przyciskiem (#1813). [nowa funkcja]
 
 ## Alfa 0.70 — spokojniejsze wpisy i gotowanie
