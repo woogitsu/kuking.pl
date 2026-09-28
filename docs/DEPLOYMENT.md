@@ -124,10 +124,21 @@ Ręczne sterowanie, bez wdrożenia kodu (zmienna w panelu Railway + restart):
 
 Zatrzymanie (deploy, SIGTERM): entrypoint przekazuje TERM każdemu procesowi
 `queue:work` i czeka, aż dokończy bieżące zadanie. Okno na to daje
-`drainingSeconds` w `.railway/railway.ts` (serwis `worker` 120 s, rola `all`
-30 s — wystarcza na zdjęcie, nie zawsze na eksport); po nim Railway wysyła
-SIGKILL, a przerwane zadanie wraca do kolejki po `retry_after` i jest
-ponawiane.
+`drainingSeconds` w `.railway/railway.ts`:
+
+| Topologia IaC | Rola | `drainingSeconds` |
+| --- | --- | ---: |
+| `splitServices=false` | `all` | 130 s |
+| `splitServices=true` | `web` | 30 s |
+| `splitServices=true` | `worker` | 130 s |
+| `splitServices=true` | `scheduler` | 30 s |
+
+130 s obejmuje limit przetwarzania zdjęcia (120 s) i 10 s zapasu. Nie
+gwarantuje ukończenia eksportu danych, którego limit wynosi 900 s; przerwane
+zadanie wraca do kolejki po `retry_after` i jest ponawiane. Tabela opisuje
+konfigurację wyliczaną przez IaC, nie potwierdza ustawień aktualnie
+zastosowanych w panelu Railway. Przed zmianą topologii sprawdź wartości
+żywych usług w panelu i wynik `railway config plan`.
 
 ## Migrations
 

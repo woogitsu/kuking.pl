@@ -108,6 +108,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
     private const BEZ_IDENTYFIKATORA_OBIEKTU = [
         'password.reset' => 'Parametr {token} to jednorazowy token resetu hasła, nie identyfikator obiektu.',
         'login.link.confirm' => 'Parametr {token} to jednorazowy token logowania linkiem (D-056).',
+        'facebook.link.confirm' => 'Parametr {token} to jednorazowy dowód kontroli nad obecnym kontem Kuking, związany z sesją i Facebookiem (#2085).',
         'zaproszenie.pokaz' => 'Parametr {token} to jednorazowy token zaproszenia do rejestracji.',
     ];
 
@@ -783,6 +784,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('posts.hide', $wpis), [], [$W, $O, $O, $O, $O]);
         $dodaj('posts.unhide', 'cofnięcie ukrycia prywatnego wpisu', 'delete',
             route('posts.unhide', $wpis), [], [$W, $O, $O, $O, $O]);
+        // „Smakowicie wygląda” (#1813) pyta `PostPolicy::view`. Właściciel
+        // wchodzi i dostaje komunikat „pod własnym wpisem tego nie piszesz”.
+        $dodaj('posts.smakowicie', 'reakcja pod prywatnym wpisem', 'post',
+            route('posts.smakowicie', $wpis), [], [$W, $O, $O, $O, $O]);
+        $dodaj('posts.smakowicie.cofnij', 'cofnięcie reakcji pod prywatnym wpisem', 'delete',
+            route('posts.smakowicie.cofnij', $wpis), [], [$W, $O, $O, $O, $O]);
 
         // ─── PRZEPISY ────────────────────────────────────────────────────
         $dodaj('recipes.show', 'przepis prywatny', 'get',
@@ -793,6 +800,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('recipes.details', $przepis), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.update', 'zapis przepisu', 'put',
             route('recipes.update', $przepis), ['content_revision' => $przepis->fresh()->content_revision, 'title' => 'Nowy tytuł przepisu'], [$W, $O, $O, $O, $O]);
+        // „Ukryj wartości odżywcze” (D-299) — ustawienie widoku WŁASNEGO
+        // przepisu; moderator też nie przełącza go za autora.
+        $dodaj('recipes.wartosci-odzywcze', 'ukrycie wartości odżywczych przepisu', 'patch',
+            route('recipes.wartosci-odzywcze', $przepis), ['pokazuj' => '0'], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.comment', 'komentarz pod prywatnym przepisem', 'post',
             route('recipes.comment', $przepisPrywatny), ['body' => 'Komentarz do przepisu.'], [$W, $O, $O, $O, $O]);
         // „Moja wersja" (issue #23, D-301): własnego przepisu się nie kopiuje

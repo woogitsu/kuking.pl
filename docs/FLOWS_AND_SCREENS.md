@@ -151,6 +151,7 @@ Public:
 - `/wpisy/{post}`
 - `/pomoc`
 - `/prywatnosc`, `/regulamin`, `/zasady` — dokumenty prawne (nie ma wspólnego prefiksu `/legal/*`)
+- `/co-nowego` — „Co nowego”, strona pod numerem wersji w stopce (issue #1909, D-317)
 
 Auth:
 - `/login`
@@ -166,6 +167,7 @@ App:
 - `/przepisy/{recipe}/edycja`
 - `/przepisy/{recipe}/gotuj`
 - `/zeszyt`
+- `/zeszyt/moje-wpisy` — „Moje wpisy” (D-328): wszystkie własne wpisy, od najnowszego, z widocznością (publiczny, dla obserwujących, tylko dla mnie) i stanem (opublikowany, szkic, ukryty przez moderację). Tylko właściciel — adres bez identyfikatora; wejście z „Moje”
 - `/moj-stol` — „Mój stół”: dobrowolna półka przepisów, domyślnie wyłączona (#1749, D-304)
 - `/planer` — planer tygodnia (#27, D-310): dzień + przepis albo własny wpis, „Skopiuj poprzedni tydzień”. Prywatny; wejście z „Moje”, dodawanie przepisu z jego strony
 - `/powiadomienia`
