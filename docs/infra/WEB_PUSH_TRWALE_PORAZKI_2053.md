@@ -15,18 +15,21 @@ Każda grupa pushu to wiersze `notifications` z tym samym `push_grupa_id`
 
 | Stan | Warunek | Alarm? |
 |---|---|---|
-| w toku | `push_wyslano_at IS NULL`, `push_zakonczono_at IS NULL`, rezerwacja młodsza niż `KUKING_PUSH_OSIEROCENIE_MINUT` (30) **albo** w `jobs` czeka/trwa ponowienie `WyslijPowiadomieniePush` niosące ID **tego powiadomienia** | nie (zaległą kolejkę zgłasza `kuking:sprawdz-kolejke`) |
+| w toku | `push_wyslano_at IS NULL`, `push_zakonczono_at IS NULL`, rezerwacja młodsza niż `KUKING_PUSH_OSIEROCENIE_MINUT` (30) **albo** w `jobs` czeka/trwa ponowienie `WyslijPowiadomieniePush` niosące `push_grupa_id` **tej grupy** (od #2021) albo — w dawnym formacie — ID **tego powiadomienia** | nie (zaległą kolejkę zgłasza `kuking:sprawdz-kolejke`) |
 | **utracone ponowienie** | jak wyżej, ale rezerwacja starsza niż próg i **żadnego** ponowienia z jej ID w `jobs` | **tak** — kod `utracone_ponowienie` |
 | **trwała porażka** | `push_wynik = 'porazka_transportu'` — wyczerpane `KUKING_PUSH_MAKS_PROB_TRANSPORTU` prób | **tak** — kod `porazka_transportu` |
 | świadomie anulowane | `push_wynik = 'anulowano'` (przeczytane, niewidoczne, konto bez dostępu, rezerwacja > 48 h — #2052) | nie |
 | rozliczone ręcznie | `push_wynik = 'zamknieto_recznie'` | nie |
 | wysłane | `push_wyslano_at IS NOT NULL` | nie |
 
-Dlaczego osłoną jest ID powiadomienia, a nie odbiorca: retry z #1992 ginie
+Dlaczego osłoną jest ID grupy (albo powiadomienia), a nie odbiorca: retry z #1992 ginie
 właśnie przez zamek unikalności ŚWIEŻEGO zadania tego samego odbiorcy. To
 świeże zadanie przy limicie 1/dobę liczy sierotę jako zajęty slot, dostaje
 „odłóż” i przez 48 h wraca do `jobs`. Dopasowanie po odbiorcy zasłaniałoby
-sierotę na cały ten czas.
+sierotę na cały ten czas. Od #2021 retry niesie w payloadzie tylko
+`grupaId` (= `push_grupa_id`), nie listę ID powiadomień — lista rosła
+z wielkością grupy. Zadania sprzed wdrożenia nadal niosą listę, więc
+czujka i SQL w §3.1 sprawdzają oba warianty.
 
 Awaryjny wyłącznik (`KUKING_POWIADOMIENIA_ZEWNETRZNE=false`) wstrzymuje
 liczenie utraconych ponowień — przy wyłączonym kanale zadanie wraca bez
@@ -130,7 +133,9 @@ UPDATE notifications n
    AND NOT EXISTS (
        SELECT 1 FROM jobs j
         WHERE strpos(j.payload, 'WyslijPowiadomieniePush') > 0
-          AND strpos(j.payload, n.id::text) > 0);
+          AND (strpos(j.payload, n.id::text) > 0
+               OR (n.push_grupa_id IS NOT NULL
+                   AND strpos(j.payload, n.push_grupa_id::text) > 0)));
 
 COMMIT;
 ```
