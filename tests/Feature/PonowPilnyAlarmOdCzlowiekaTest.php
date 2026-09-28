@@ -105,6 +105,25 @@ class PonowPilnyAlarmOdCzlowiekaTest extends TestCase
         $this->assertFalse($notification->shouldSend(new \stdClass, 'mail'));
     }
 
+    public function test_odzyskiwanie_wymaga_stanu_potwierdzonej_odmowy(): void
+    {
+        $report = $this->report();
+        $id = HumanUrgentAlarmAttempt::create((string) $report->getKey());
+        DB::table('human_urgent_alarm_attempts')->where('id', $id)->update([
+            'state' => HumanUrgentAlarmAttempt::STARTED,
+            'failure_kind' => PowodOdmowy::PRZEJSCIOWA->value,
+        ]);
+        $zuzytyBudzet = DziennyBudzetListow::dlaAlarmuModeracji()->zuzyte();
+
+        $this->assertFalse(app(AlarmujOPilnymZgloszeniu::class)->recover($report));
+        $this->assertSame(0, DB::table('jobs')->count());
+        $this->assertSame(
+            1,
+            DB::table('human_urgent_alarm_attempts')->where('report_id', $report->getKey())->count(),
+        );
+        $this->assertSame($zuzytyBudzet, DziennyBudzetListow::dlaAlarmuModeracji()->zuzyte());
+    }
+
     public function test_rozwiazane_stare_automatyczne_i_wyczerpany_budzet_nie_wracaja(): void
     {
         foreach ([
