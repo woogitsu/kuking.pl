@@ -139,7 +139,7 @@ class ApiJestUdokumentowaneTest extends TestCase
     {
         $trasy = [];
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             if (str_starts_with($trasa->uri(), 'api/v1/') && ! str_starts_with($trasa->uri(), 'api/v1/_')) {
                 $trasy[] = $trasa;
             }
