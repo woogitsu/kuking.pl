@@ -14561,6 +14561,14 @@ z sąsiada, którego nie było widać, te są dwoma równymi pasami nad i pod zd
 414 px 145,7 → 0,0 (przy czcionce 200% analogicznie, wszystkie → 0,0).
 Karuzela: 320 px 220,5 → 125,1 · 414 px 292,9 → 167,1.
 
+**Uzupełnienie #2126 po zgłoszeniu właściciela z 28.09.2026.** Na tablecie
+domyślna siatka nadal miała dwa pola w wierszu: pod niższą fotografią
+zostawał duży pusty pas, a przy trzech zdjęciach prawe pole ostatniego
+wiersza pozostawało puste. Tryb „Zwykle” pokazuje odtąd zdjęcia jedno pod
+drugim przy każdej szerokości, zgodnie z opisem widocznym przy wyborze.
+Układ obok siebie pozostaje osobnym, świadomym wyborem „Kolaż”. Zdjęć nie
+przycinamy; powiększanie i kolejność nie zmieniają się.
+
 `min-height: 0` na polu slajdu nie jest ozdobą: bez niego proporcja działa tylko na
 zdjęciach poziomych, czyli poprawka poprawiałaby połowę przypadków i **wyglądała
 w pomiarze prawie jak poprawka**.

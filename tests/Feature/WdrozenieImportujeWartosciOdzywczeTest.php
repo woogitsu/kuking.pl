@@ -8,6 +8,7 @@ use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
 use App\Models\AliasSkladnika;
 use App\Models\MiaraDomowa;
 use App\Models\SkladnikOdzywczy;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +33,7 @@ use Tests\TestCase;
  *   2. drugie uruchomienie komendy na TYCH SAMYCH plikach jest szybkie —
  *      nie dotyka bazy — bo inaczej codzienny deploy bez zmiany danych
  *      przepisywałby ~600 wierszy za każdym razem.
+ * @bez-kontroli-dodatniej Nowe przypadki #2130 wykonują import na PostgreSQL i porównują zawartość trzech tabel; test czytający plik wdrożenia pochodzi z #1961.
  */
 final class WdrozenieImportujeWartosciOdzywczeTest extends TestCase
 {
@@ -186,7 +188,7 @@ final class WdrozenieImportujeWartosciOdzywczeTest extends TestCase
             try {
                 app(ImportujWartosciOdzywcze::class)->handle();
                 $this->fail('Wstrzyknięta awaria miała przerwać odbudowę.');
-            } catch (\Illuminate\Database\QueryException $e) {
+            } catch (QueryException $e) {
                 $this->assertStringContainsString('testowa awaria aliasu', $e->getMessage());
             }
             $this->assertSame($znacznik, Cache::get('odzywcze:import:hash-plikow'));
