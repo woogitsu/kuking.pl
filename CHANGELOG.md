@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Panel moderacji: ekran „Kolejka zadań” (widzi go tylko administrator) ma układ zgodny z resztą panelu. Lista nieudanych zadań jest jedną grupą z własnym nagłówkiem i odstępem od karty nad nią, a nazwa zadania, wyjątek, kolejka i daty czyta się pismem podstawowym (18 px, rośnie ze skalą tekstu), nie drobnym szarym. Na telefonie podpis stoi nad wartością. Odbiór panelu w przeglądarce obejmuje teraz i ten ekran, w stanie pustym i z danymi (#581).
+
 ## Alfa 0.75 — szukanie w wykonaniach i pewniejsze „Ugotowałem”
 
 - Podgląd przepisu bez składników wyjaśnia teraz spokojnie, że można je dopisać później; nie pokazuje braku składników jako błędu, bo nie blokuje on publikacji (#1991).
