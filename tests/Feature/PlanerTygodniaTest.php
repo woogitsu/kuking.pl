@@ -30,6 +30,9 @@ final class PlanerTygodniaTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** Druga połowa komunikatu kopii przy pozycjach poza oknem planera (#2036). */
+    private const POZA_ZAKRESEM = ' — planer przyjmuje dni najwyżej rok naprzód i 60 dni wstecz. Wybierz tydzień bliżej dzisiejszego dnia.';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -261,10 +264,78 @@ final class PlanerTygodniaTest extends TestCase
         $this->actingAs($ja)->post(route('planer.copy'), ['tydzien' => '2027-09-27'])
             ->assertRedirect(route('planer.show', ['tydzien' => '2027-09-27']))
             ->assertSessionHas('status',
-                'Skopiowane z poprzedniego tygodnia: 1 pozycja. Poza dozwolonym zakresem dat: 1 pozycja.');
+                'Skopiowane z poprzedniego tygodnia: 1 pozycja. Poza zakresem dat: 1 pozycja — planer przyjmuje dni najwyżej rok naprzód i 60 dni wstecz. Wybierz tydzień bliżej dzisiejszego dnia.');
 
         $this->assertDatabaseHas('meal_plan_entries', ['user_id' => $ja->getKey(), 'day' => '2027-10-01', 'label' => 'W granicy roku']);
         $this->assertDatabaseMissing('meal_plan_entries', ['user_id' => $ja->getKey(), 'day' => '2027-10-02', 'label' => 'Po granicy roku']);
+    }
+
+    /**
+     * #2036, dokładnie scenariusz z issue: dziś 1.10.2026, wpis dodany zwykłym
+     * formularzem na 1.10.2027 (dziś + 365, ostatni dozwolony dzień), potem
+     * „Skopiuj poprzedni tydzień” na tydzień od 4.10.2027 — kopia wypadłaby
+     * na 8.10.2027 (dziś + 372). Żaden rekord nie powstaje.
+     */
+    public function test_kopia_z_granicy_roku_nie_zapisuje_dnia_plus_372(): void
+    {
+        $ja = $this->user('planujaca');
+
+        $this->actingAs($ja)->post(route('planer.store'), ['day' => '2027-10-01', 'label' => 'Na sam koniec roku'])
+            ->assertSessionHasNoErrors();
+        $przed = MealPlanEntry::query()->count();
+        $this->assertSame(1, $przed);
+
+        $this->actingAs($ja)->post(route('planer.copy'), ['tydzien' => '2027-10-04'])
+            ->assertRedirect(route('planer.show', ['tydzien' => '2027-10-04']))
+            ->assertSessionHas('status',
+                'Nic nie zostało skopiowane. Poza zakresem dat: 1 pozycja'.self::POZA_ZAKRESEM);
+
+        $this->assertSame($przed, MealPlanEntry::query()->count());
+        $this->assertDatabaseMissing('meal_plan_entries', ['day' => '2027-10-08']);
+    }
+
+    /** #2036: część tygodnia w oknie, część poza — kopiuje się tylko to, co w oknie. */
+    public function test_czesciowa_kopia_na_granicy_roku_liczy_rekordy(): void
+    {
+        $ja = $this->user('planujaca');
+        // Poprzedni tydzień 20–26.09.2027; kopia na 27.09–3.10.2027, granica 1.10.2027.
+        $this->pozycja($ja, '2027-09-20', tekst: 'Poniedziałek');
+        $this->pozycja($ja, '2027-09-24', tekst: 'Piątek');
+        $this->pozycja($ja, '2027-09-25', tekst: 'Sobota');
+        $this->pozycja($ja, '2027-09-26', tekst: 'Niedziela');
+        $przed = MealPlanEntry::query()->count();
+
+        $this->actingAs($ja)->post(route('planer.copy'), ['tydzien' => '2027-09-27'])
+            ->assertSessionHas('status',
+                'Skopiowane z poprzedniego tygodnia: 2 pozycje. Poza zakresem dat: 2 pozycje'.self::POZA_ZAKRESEM);
+
+        $this->assertSame($przed + 2, MealPlanEntry::query()->count());
+        $this->assertSame(0, MealPlanEntry::query()->where('day', '>', '2027-10-01')->count());
+        $this->assertDatabaseHas('meal_plan_entries', ['day' => '2027-09-27', 'label' => 'Poniedziałek']);
+        $this->assertDatabaseHas('meal_plan_entries', ['day' => '2027-10-01', 'label' => 'Piątek']);
+
+        // Ponowne kliknięcie: nic nowego, nic poza oknem.
+        $this->actingAs($ja)->post(route('planer.copy'), ['tydzien' => '2027-09-27'])
+            ->assertSessionHas('status', 'Już w planie: 2 pozycje. Poza zakresem dat: 2 pozycje'.self::POZA_ZAKRESEM);
+        $this->assertSame($przed + 2, MealPlanEntry::query()->count());
+    }
+
+    /** #2036: cały tydzień za daleko wstecz — zero nowych rekordów i jasny komunikat. */
+    public function test_cala_kopia_poza_oknem_wstecz_nic_nie_zapisuje(): void
+    {
+        $ja = $this->user('planujaca');
+        // Poprzedni tydzień 13–19.07.2026; kopia na 20–26.07.2026, czyli przed 2.08.2026 (dziś − 60).
+        $this->pozycja($ja, '2026-07-13', tekst: 'Dawno temu');
+        $this->pozycja($ja, '2026-07-19', tekst: 'Też dawno');
+        $przed = MealPlanEntry::query()->count();
+
+        $this->actingAs($ja)->post(route('planer.copy'), ['tydzien' => '2026-07-20'])
+            ->assertRedirect(route('planer.show', ['tydzien' => '2026-07-20']))
+            ->assertSessionHas('status',
+                'Nic nie zostało skopiowane. Poza zakresem dat: 2 pozycje'.self::POZA_ZAKRESEM);
+
+        $this->assertSame($przed, MealPlanEntry::query()->count());
+        $this->assertSame(0, MealPlanEntry::query()->where('day', '>=', '2026-07-20')->count());
     }
 
     public function test_kopia_nie_przywraca_zbyt_starego_dnia(): void
@@ -275,7 +346,7 @@ final class PlanerTygodniaTest extends TestCase
 
         $this->actingAs($ja)->post(route('planer.copy'), ['tydzien' => '2026-07-27'])
             ->assertSessionHas('status',
-                'Skopiowane z poprzedniego tygodnia: 1 pozycja. Poza dozwolonym zakresem dat: 1 pozycja.');
+                'Skopiowane z poprzedniego tygodnia: 1 pozycja. Poza zakresem dat: 1 pozycja — planer przyjmuje dni najwyżej rok naprzód i 60 dni wstecz. Wybierz tydzień bliżej dzisiejszego dnia.');
 
         $this->assertDatabaseMissing('meal_plan_entries', ['user_id' => $ja->getKey(), 'day' => '2026-08-01', 'label' => 'Za wcześnie']);
         $this->assertDatabaseHas('meal_plan_entries', ['user_id' => $ja->getKey(), 'day' => '2026-08-02', 'label' => 'Pierwszy dozwolony dzień']);
@@ -304,7 +375,7 @@ final class PlanerTygodniaTest extends TestCase
     {
         $this->actingAs($this->user('planujaca'))
             ->post(route('planer.store'), ['day' => '2028-01-01', 'label' => 'Za rok z okładem'])
-            ->assertSessionHasErrors(['day' => 'Wybierz dzień z najbliższego roku.']);
+            ->assertSessionHasErrors(['day' => 'Wybierz dzień w zakresie planera: najwyżej rok naprzód i 60 dni wstecz.']);
         $this->assertSame(0, MealPlanEntry::query()->count());
     }
 
