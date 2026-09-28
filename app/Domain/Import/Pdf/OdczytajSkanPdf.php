@@ -6,8 +6,8 @@ namespace App\Domain\Import\Pdf;
 
 use App\Domain\Import\ImportOdrzucony;
 use App\Domain\Import\KlientLuna;
-use App\Domain\Import\OdczytKartki;
 use App\Domain\Import\OdczytanyPrzepis;
+use App\Domain\Import\OdczytKartki;
 use App\Domain\Import\PlatnyOdczytImportu;
 use App\Models\User;
 use Illuminate\Process\Exceptions\ProcessTimedOutException;
@@ -61,7 +61,7 @@ final class OdczytajSkanPdf
                 $dane = $this->model->odczytaj(
                     $osoba, $chceZgody, $probaId, KlientLuna::ZADANIE_OCR,
                     OdczytKartki::INSTRUKCJA, $tresc, OdczytKartki::NAZWA_SCHEMATU,
-                    OdczytKartki::schemat(), count($pliki),
+                    OdczytKartki::schemat(),
                 );
             } catch (ImportOdrzucony $e) {
                 if ($e->kod === ImportOdrzucony::BRAK_PRZEPISU) {

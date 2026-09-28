@@ -3553,7 +3553,8 @@ return [
             // moderacji nie dostaje szerszych uprawnień. Pusty = wyłączone.
             'klucz' => env('OPENAI_IMPORT_KEY'),
             'endpoint' => env('KUKING_IMPORT_ENDPOINT', 'https://api.openai.com/v1/responses'),
-            // Decyzja właściciela 26.09.2026: `gpt-6-luna`. Zmienialne w env.
+            // Decyzja właściciela 26.09.2026: `gpt-6-luna`. Inny model
+            // wyłącza płatny import do czasu ustalenia jego sufitu kosztu.
             'nazwa' => env('KUKING_IMPORT_MODEL', 'gpt-6-luna'),
             // Odczyt obrazu z rozumowaniem trwa dziesiątki sekund. Przycinane
             // w kliencie do 10–110 s (zadanie ma 120 s).
@@ -3579,13 +3580,8 @@ return [
              */
             'cena_wejscie_mln_usd' => env('KUKING_IMPORT_CENA_WEJSCIE'),
             'cena_wyjscie_mln_usd' => env('KUKING_IMPORT_CENA_WYJSCIE'),
-            // Szacunek tokenów WEJŚCIA jednego odczytu (instrukcja + obraz
-            // ≤ 2000 px) — do rezerwacji. Faktyczny koszt i tak liczy się
-            // z `usage` w odpowiedzi.
-            'szacunek_tokenow_wejscia' => [
-                'ocr' => (int) env('KUKING_IMPORT_SZACUNEK_WEJSCIE_OCR', 6000),
-                'tekst' => (int) env('KUKING_IMPORT_SZACUNEK_WEJSCIE_TEKST', 6000),
-            ],
+            // Rezerwacja kosztu używa pełnego okna kontekstu gpt-6-luna,
+            // bo szacunek 6000 tokenów nie był sufitem dla obrazów ani stron.
         ],
 
         // Decyzja właściciela 26.09.2026 (D-297): 5 USD dziennie, 100 USD

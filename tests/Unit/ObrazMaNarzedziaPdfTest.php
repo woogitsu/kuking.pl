@@ -32,7 +32,7 @@ final class ObrazMaNarzedziaPdfTest extends TestCase
         $etap = $nastepny === false ? $etap : substr($etap, 0, $nastepny);
 
         $this->assertMatchesRegularExpression(
-            '/apt-get install[^&]*\bpoppler-utils\b/s',
+            '/apt-get[^\n]*\binstall\b[^&]*\bpoppler-utils\b/s',
             $etap,
             'Etap `runtime` nie instaluje `poppler-utils` — import PDF na produkcji nie zadziała.',
         );

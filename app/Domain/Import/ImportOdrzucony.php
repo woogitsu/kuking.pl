@@ -103,7 +103,7 @@ final class ImportOdrzucony extends BladDlaCzlowieka
             .'albo wpisz go ręcznie.',
         self::NARZEDZIE_PDF_NIEDOSTEPNE => 'Odczyt plików PDF chwilowo nie działa. Spróbuj później '
             .'albo wpisz przepis ręcznie — nic nie zginęło.',
-        self::BRAK_ZGODY_AI => 'Ten przepis wymaga odczytu przez komputer firmy OpenAI. Zaznacz zgodę pod formularzem '
+        self::BRAK_ZGODY_AI => 'Ten przepis wymaga odczytu przez komputer firmy OpenAI. Wybierz zgodę pod formularzem '
             .'i wyślij go ponownie albo wpisz przepis ręcznie.',
         self::BUDZET_AI => 'Odczyt przez komputer jest teraz niedostępny, bo wyczerpał się budżet. '
             .'Spróbuj później albo wpisz przepis ręcznie.',

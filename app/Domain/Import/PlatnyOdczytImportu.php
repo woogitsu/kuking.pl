@@ -17,8 +17,8 @@ final class PlatnyOdczytImportu
     ) {}
 
     /**
-     * @param list<array<string, mixed>> $tresc
-     * @param array<string, mixed> $schemat
+     * @param  list<array<string, mixed>>  $tresc
+     * @param  array<string, mixed>  $schemat
      * @return array<string, mixed>
      */
     public function odczytaj(
@@ -30,7 +30,6 @@ final class PlatnyOdczytImportu
         array $tresc,
         string $nazwaSchematu,
         array $schemat,
-        int $mnoznikSzacunku = 1,
     ): array {
         // Zgoda na zdjęcie kartki NIE obejmuje tekstu cudzej strony ani skanu
         // PDF. Każdy płatny import ma własną, jawną zgodę z formularza.
@@ -45,7 +44,8 @@ final class PlatnyOdczytImportu
         if ($szacunek === null) {
             throw new ImportOdrzucony(ImportOdrzucony::MODEL_NIEDOSTEPNY);
         }
-        $rezerwacja = $this->budzet->zarezerwuj($szacunek * max(1, $mnoznikSzacunku), $probaId, 1);
+        // Okno kontekstu obejmuje cały request, także wszystkie strony skanu.
+        $rezerwacja = $this->budzet->zarezerwuj($szacunek, $probaId, 1);
         if (! $rezerwacja instanceof Rezerwacja) {
             throw new ImportOdrzucony($rezerwacja === BudzetAi::ODMOWA_POWTORZONA
                 ? ImportOdrzucony::MODEL_NIEDOSTEPNY : ImportOdrzucony::BUDZET_AI);

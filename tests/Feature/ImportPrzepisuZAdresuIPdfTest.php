@@ -20,6 +20,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
@@ -153,7 +154,7 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         $this->assertSame([$wiersze[1]], $recipe->ingredients()->pluck('ingredient_text')->all());
         $this->assertSame([$wiersze[2]], $recipe->steps()->pluck('instruction')->all());
         $this->assertSame('fragmenty', PrzepisZImportu::query()->findOrFail($recipe->getKey())->droga);
-        $this->assertNotNull(\Illuminate\Support\Facades\DB::table('proby_importu')->where('user_id', $autor->getKey())->value('zgoda_ai_at'));
+        $this->assertNotNull(DB::table('proby_importu')->where('user_id', $autor->getKey())->value('zgoda_ai_at'));
         Http::assertSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com')
             && ! str_contains(json_encode($r->data()), 'https://przepisy.example.pl/blog'));
     }
@@ -190,7 +191,7 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         $this->actingAs($autor)->post(route('recipes.import.url.store'), $dane)->assertRedirect();
         $this->actingAs($autor)->post(route('recipes.import.url.store'), $dane)->assertRedirect();
 
-        $this->assertSame(1, (int) \Illuminate\Support\Facades\DB::table('ai_budzet_dzienny')->sum('liczba_wywolan'));
+        $this->assertSame(1, (int) DB::table('ai_budzet_dzienny')->sum('liczba_wywolan'));
         $this->assertSame(1, Recipe::query()->where('author_id', $autor->getKey())->count());
         $this->assertSame(1, Http::recorded()->filter(fn (array $para): bool => str_contains($para[0]->url(), 'openai.com'))->count());
     }
@@ -427,6 +428,7 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
 
         $this->actingAs($autor)
             ->put(route('recipes.update', $recipe), [
+                'content_revision' => $recipe->fresh()->content_revision,
                 'title' => $recipe->title,
                 'visibility' => 'private',
                 'source_type' => 'own',
@@ -446,6 +448,7 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         $autor = $this->user();
         $recipe = $this->szkicZImportu($autor);
         $dane = [
+            'content_revision' => $recipe->fresh()->content_revision,
             'title' => $recipe->title,
             'visibility' => 'public',
             'action' => 'publish',
@@ -566,9 +569,9 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         $this->assertSame('Sernik ze skanu', $recipe->title);
         $this->assertSame('ocr', PrzepisZImportu::query()->findOrFail($recipe->getKey())->droga);
         $this->assertDatabaseHas('proby_importu', ['user_id' => $autor->getKey(), 'zrodlo' => 'pdf', 'status' => 'gotowy']);
-        $this->assertNotNull(\Illuminate\Support\Facades\DB::table('proby_importu')->where('user_id', $autor->getKey())->value('zgoda_ai_at'));
+        $this->assertNotNull(DB::table('proby_importu')->where('user_id', $autor->getKey())->value('zgoda_ai_at'));
         Http::assertSentCount(1);
-        Http::assertSent(fn (Request $r): bool => str_contains(json_encode($r->data()), 'data:image/jpeg;base64,'));
+        Http::assertSent(fn (Request $r): bool => str_contains(json_encode($r->data(), JSON_UNESCAPED_SLASHES), 'data:image/jpeg;base64,'));
     }
 
     public function test_skan_pdf_przy_wyczerpanym_budzecie_nie_wysyla_zadania(): void
@@ -604,7 +607,7 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         }
 
         Http::assertSentCount(1);
-        $this->assertSame(1, (int) \Illuminate\Support\Facades\DB::table('ai_budzet_dzienny')->sum('liczba_wywolan'));
+        $this->assertSame(1, (int) DB::table('ai_budzet_dzienny')->sum('liczba_wywolan'));
         $this->assertSame(1, Recipe::query()->where('author_id', $autor->getKey())->count());
     }
 

@@ -18248,8 +18248,12 @@ z projektu).
   na dzień w strefie `Europe/Warsaw`, kwoty w mikro-USD). Bez Redisa i bez
   cache'u — to są pieniądze, a licznik w cache'u znika przy restarcie.
 - **Rezerwacja przed wywołaniem, rozliczenie po nim** (`App\Domain\Import\BudzetAi`).
-  Rezerwacja = najgorszy przypadek: szacowane tokeny wejścia × cena wejścia +
-  sufit tokenów wyjścia (z rozumowaniem) × cena wyjścia. Zapis pod
+  Rezerwacja = najgorszy przypadek: pełne okno kontekstu zatwierdzonego
+  `gpt-6-luna` (1 050 000 tokenów, również dla wszystkich stron skanu PDF)
+  × 2 × cena wejścia + sufit tokenów wyjścia (z rozumowaniem) × 1,5 × cena
+  wyjścia (droższa taryfa modelu po 272 tys. tokenów wejścia).
+  Model inny niż `gpt-6-luna` lub cennik poniżej 0,10/0,50 USD za milion
+  tokenów wyłącza import, zamiast udawać twardy limit kosztu. Zapis pod
   `SELECT … FOR UPDATE` na wierszu dnia szereguje równoległe odczyty.
   Rozliczenie z `usage` zwalnia nadwyżkę; **brak `usage` = cała rezerwacja
   wydana** (żądanie mogło dojść i zostać policzone). Rezerwację zwalniamy bez

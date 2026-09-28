@@ -92,7 +92,7 @@ final class OdczytZdjeciaKartkiTest extends TestCase
             ->assertDontSee('Przepisz z kartki lub zeszytu')
             ->assertSee('Wklej adres strony')
             ->assertSee('Dodaj plik PDF')
-            ->assertSee('Wpiszę sam');
+            ->assertSee('Wpisz ręcznie');
 
         $this->actingAs($this->osoba)->get(route('import.zdjecie'))->assertRedirect(route('recipes.create'));
 
@@ -107,7 +107,7 @@ final class OdczytZdjeciaKartkiTest extends TestCase
         $this->actingAs($this->osoba)->get(route('add'))->assertSee(route('import.wybor'), false);
         $this->actingAs($this->osoba)->get(route('import.wybor'))
             ->assertSee('Przepisz z kartki lub zeszytu')
-            ->assertSee('Wpiszę sam')
+            ->assertSee('Wpisz ręcznie')
             ->assertSee('Wklej adres strony')
             ->assertSee('Dodaj plik PDF');
     }
@@ -380,8 +380,8 @@ final class OdczytZdjeciaKartkiTest extends TestCase
         $zlecenie = ImportPrzepisu::query()->sole();
         $this->assertSame(ImportPrzepisu::KOD_MODEL_NIEDOSTEPNY, $zlecenie->kod_bledu);
         $this->assertNotNull($zlecenie->recipe->source_scan_media_id);
-        // Najgorszy przypadek: 6000 × 2 + 8000 × 8 = 76 000 mikro-USD.
-        $this->assertSame(76_000, $this->budzetDzis());
+        // Całe okno modelu z droższą taryfą = 4 296 000 mikro-USD.
+        $this->assertSame(4_296_000, $this->budzetDzis());
 
         $this->actingAs($this->osoba)->get(route('import.show', $zlecenie))
             ->assertSee('Nic nie zginęło — zdjęcie jest zapisane.');

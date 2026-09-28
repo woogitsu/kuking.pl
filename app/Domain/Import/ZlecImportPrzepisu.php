@@ -16,6 +16,7 @@ use App\Support\Czas;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Zlecenie „przepisz mi tę kartkę” (V2, D-298).
@@ -161,7 +162,7 @@ final class ZlecImportPrzepisu
                     $proba = $this->limit->rezerwuj(
                         $osoba,
                         ImportPrzepisu::ZRODLO_ZDJECIE,
-                        $kluczWyslania ?? (string) \Illuminate\Support\Str::uuid7(),
+                        $kluczWyslania ?? (string) Str::uuid7(),
                     );
                     if ($proba === null) {
                         $status = ImportPrzepisu::STATUS_WSTRZYMANY_LIMITEM;

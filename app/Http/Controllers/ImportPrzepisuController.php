@@ -78,6 +78,7 @@ final class ImportPrzepisuController extends Controller
                 if ($proba !== null) {
                     $this->limit->zakoncz($proba['id'], false);
                 }
+
                 return back()->withInput()->withErrors(['adres' => $e->getMessage()]);
             }
 
@@ -168,6 +169,7 @@ final class ImportPrzepisuController extends Controller
             if ($proba !== null) {
                 $this->limit->zakoncz($proba['id'], false);
             }
+
             return back()->withErrors(['plik' => $e->getMessage()]);
         } catch (\Throwable $e) {
             if ($proba !== null) {
@@ -198,8 +200,8 @@ final class ImportPrzepisuController extends Controller
     }
 
     /**
-     * Cztery duże przyciski: kartka, adres strony, PDF, „Wpiszę sam”.
-     * Wyłączone źródło = brak przycisku (D-053). „Wpiszę sam” jest zawsze.
+     * Cztery duże przyciski: kartka, adres strony, PDF, „Wpisz ręcznie”.
+     * Wyłączone źródło = brak przycisku (D-053). „Wpisz ręcznie” jest zawsze.
      */
     public function wybor(): View
     {

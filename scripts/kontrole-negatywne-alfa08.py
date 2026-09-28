@@ -1231,6 +1231,8 @@ checks = [
     # ma wywrócić architektoniczny test „import nigdy nie publikuje”.
     ("Odczyt kartki publikuje przepis", "app/Jobs/OdczytajPrzepis.php", "test_import_nigdy_nie_publikuje_sprawdzone_w_kodzie",
      lambda s: replace_once(s, "publish: false,", "publish: true,")),
+    ("Wspólny limit ignoruje nowe próby importu", "app/Domain/Import/LimitImportowOsoby.php", "WspolnyLimitImportuTest",
+     lambda s: replace_once(s, "return $proby + $odczytyBezProby;", "return $odczytyBezProby;")),
     # D-298 „maszyna stanów płatnego wywołania” (#1973, #1974, #1977, #1980).
     # Każda mutacja przywraca dokładnie okno opisane w zgłoszeniu.
     # #1973: rezerwacja poza transakcją z licznikiem prób I `failed()` bez
@@ -1294,7 +1296,7 @@ checks = [
     # D-300: etap runtime obrazu bez poppler-utils — import PDF padałby
     # dopiero na produkcji; strażnik obrazu ma to złapać.
     ("Obraz runtime bez poppler-utils", OBRAZ_ASSETOW, OBRAZ_PDF_TEST,
-     lambda s: replace_once(s, "      postgresql-client \\\n      poppler-utils \\\n", "      postgresql-client \\\n")),
+     lambda s: replace_once(s, "      poppler-utils \\\n", "")),
     # D-088/D-300: down() migracji importu bez odmowy przy niesprawdzonym
     # szkicu — test cofnięcia ma oblać.
     ("Cofnięcie importu bez odmowy przy niesprawdzonym szkicu", MIGRACJA_IMPORTU, MIGRACJA_IMPORTU_TEST,

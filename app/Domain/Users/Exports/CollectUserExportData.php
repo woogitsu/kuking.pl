@@ -17,8 +17,8 @@ use App\Models\Hide;
 use App\Models\MealPlanEntry;
 use App\Models\Notification;
 use App\Models\Post;
-use App\Models\PrzepisZImportu;
 use App\Models\PostReaction;
+use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -214,6 +214,7 @@ final class CollectUserExportData
             'planer' => $this->mealPlan($user),
             'importy_przepisow' => $this->recipeImportOrigins($user),
             'odczyty_przepisow' => $this->recipeImports($user),
+            'proby_importu' => $this->recipeImportAttempts($user),
             'powiadomienia_poza_serwisem' => $this->externalNotifications($user),
         ];
     }
@@ -1034,6 +1035,21 @@ final class CollectUserExportData
                 'szkic_przepisu' => $zlecenie->przepis,
                 'zlecono' => $this->date($zlecenie->created_at),
                 'zakonczono' => $this->date($zlecenie->zakonczono_at),
+            ])->all();
+    }
+
+    /** Próby ze wspólnego limitu OCR/URL/PDF, bez technicznego klucza ponowienia. */
+    private function recipeImportAttempts(User $user): array
+    {
+        return DB::table('proby_importu')
+            ->where('user_id', $user->getKey())
+            ->orderBy('created_at')
+            ->get(['zrodlo', 'status', 'zgoda_ai_at', 'created_at'])
+            ->map(fn (object $proba): array => [
+                'zrodlo' => $proba->zrodlo,
+                'stan' => $proba->status,
+                'zgoda_na_odczyt_ai' => $this->date($proba->zgoda_ai_at),
+                'zlecono' => $this->date($proba->created_at),
             ])->all();
     }
 

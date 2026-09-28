@@ -221,7 +221,7 @@ final class ImportParseryTest extends TestCase
 
     public function test_zadanie_dla_modelu_bierze_wysilek_z_konfiguracji_i_nie_ma_pola_na_tekst(): void
     {
-        config(['kuking.import.model.effort_tekst' => 'low']);
+        config(['kuking.import.model.wysilek.tekst' => 'low']);
         $tresc = ZadanieFragmentow::tresc(['Bigos', '1 kg kapusty']);
 
         $this->assertSame(['effort' => 'low'], $tresc['reasoning']);
@@ -234,7 +234,7 @@ final class ImportParseryTest extends TestCase
         $this->assertFalse($element['additionalProperties']);
 
         // Kontrola dodatnia: zmiana konfiguracji zmienia żądanie.
-        config(['kuking.import.model.effort_tekst' => 'medium']);
+        config(['kuking.import.model.wysilek.tekst' => 'medium']);
         $this->assertSame(['effort' => 'medium'], ZadanieFragmentow::tresc(['x'])['reasoning']);
     }
 

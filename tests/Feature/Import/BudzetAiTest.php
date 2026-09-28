@@ -120,15 +120,32 @@ final class BudzetAiTest extends TestCase
         config([
             'kuking.import.model.cena_wejscie_mln_usd' => '2',
             'kuking.import.model.cena_wyjscie_mln_usd' => '8',
-            'kuking.import.model.szacunek_tokenow_wejscia.ocr' => 6000,
+            'kuking.import.model.nazwa' => 'gpt-6-luna',
             'kuking.import.model.max_wyjscie_tokenow' => 8000,
         ]);
 
-        // 6000 × 2 + 8000 × 8 = 76 000 mikro-USD = 0,076 USD.
-        $this->assertSame(76_000, BudzetAi::szacunek('ocr'));
+        // Droższa taryfa ponad 272 tys. wejścia: 1 050 000 × 2 × 2
+        // + 8000 × 8 × 1,5 = 4 296 000 mikro-USD.
+        $this->assertSame(4_296_000, BudzetAi::szacunek('ocr'));
+        $this->assertSame(4_296_000, BudzetAi::szacunek('tekst'));
 
+        config(['kuking.import.model.cena_wejscie_mln_usd' => '0.01']);
+        $this->assertNull(BudzetAi::szacunek('ocr'), 'Zaniżona cena nie może udawać twardego limitu.');
+
+        config(['kuking.import.model.cena_wejscie_mln_usd' => '2', 'kuking.import.model.nazwa' => 'inny-model']);
+        $this->assertNull(BudzetAi::szacunek('ocr'), 'Nieznane okno kontekstu wyłącza płatny import.');
+
+        config(['kuking.import.model.nazwa' => 'gpt-6-luna']);
         config(['kuking.import.model.cena_wejscie_mln_usd' => null]);
         $this->assertNull(BudzetAi::szacunek('ocr'));
+    }
+
+    public function test_rozliczenie_po_progu_272_tysiecy_stosuje_drozsza_taryfe_do_calego_zadania(): void
+    {
+        $cennik = new \App\Domain\Import\Cennik(2, 8);
+
+        $this->assertSame(272_000 * 2 + 100 * 8, $cennik->koszt(272_000, 100));
+        $this->assertSame(1_089_204, $cennik->koszt(272_001, 100));
     }
 
     /** Wartość z PLIKU konfiguracji (nie z `config()` nadpisanego w teście). */

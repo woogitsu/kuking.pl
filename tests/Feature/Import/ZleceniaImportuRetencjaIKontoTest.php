@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Import;
 
-use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Import\LimitImportu;
+use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportPhotoPlan;
 use App\Models\ImportPrzepisu;
@@ -69,6 +69,24 @@ final class ZleceniaImportuRetencjaIKontoTest extends TestCase
         $this->assertSame('zdjecie', $paczka['odczyty_przepisow'][0]['zrodlo']);
         $this->assertSame('Sernik z kartki', $paczka['odczyty_przepisow'][0]['szkic_przepisu']);
         $this->assertStringNotContainsString('TAJNY-TEKST-Z-KARTKI', json_encode($paczka, JSON_UNESCAPED_UNICODE) ?: '');
+    }
+
+    public function test_eksport_obejmuje_wlasne_proby_bez_kluczy_technicznych_i_cudzych_danych(): void
+    {
+        $osoba = User::factory()->create();
+        $inna = User::factory()->create();
+        $wlasnyKlucz = (string) Str::uuid();
+        $cudzyKlucz = (string) Str::uuid();
+        app(LimitImportu::class)->zuzyj($osoba, 'url', $wlasnyKlucz);
+        app(LimitImportu::class)->zuzyj($inna, 'pdf', $cudzyKlucz);
+
+        $paczka = app(CollectUserExportData::class)->handle($osoba, new ExportPhotoPlan($osoba), now());
+
+        $this->assertCount(1, $paczka['proby_importu']);
+        $this->assertSame('url', $paczka['proby_importu'][0]['zrodlo']);
+        $json = json_encode($paczka, JSON_UNESCAPED_UNICODE) ?: '';
+        $this->assertStringNotContainsString($wlasnyKlucz, $json);
+        $this->assertStringNotContainsString($cudzyKlucz, $json);
     }
 
     public function test_wymazanie_konta_kasuje_zlecenia_tej_osoby_i_tylko_jej(): void

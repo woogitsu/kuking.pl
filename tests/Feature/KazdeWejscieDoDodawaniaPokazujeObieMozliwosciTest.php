@@ -56,7 +56,7 @@ class KazdeWejscieDoDodawaniaPokazujeObieMozliwosciTest extends TestCase
     private const CEL_ZDJECIE = '/dodaj/zdjecie';
 
     /** Ścieżka kreatora „Cały przepis”. */
-    private const CEL_PRZEPIS = '/dodaj/przepis';
+    private const CEL_PRZEPIS = '/dodaj/przepis/skad';
 
     /** Ścieżka ekranu wyboru. */
     private const CEL_WYBOR = '/dodaj';

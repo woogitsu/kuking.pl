@@ -28,6 +28,7 @@ use App\Domain\Contact\Actions\WyslijOdpowiedz;
 use App\Domain\Feed\Actions\ZapiszKolaz;
 use App\Domain\Feed\Actions\ZapiszTabliceDnia;
 use App\Domain\Import\BudzetAi;
+use App\Domain\Import\ImportOdrzucony;
 use App\Domain\Import\LimitImportowOsoby;
 use App\Domain\Import\LimitImportu;
 use App\Domain\Import\Rezerwacja;
@@ -707,7 +708,7 @@ try {
             } else {
                 try {
                     $proba = app(LimitImportu::class)->zuzyj($osoba, $zrodlo, (string) Str::uuid());
-                } catch (\App\Domain\Import\ImportOdrzucony) {
+                } catch (ImportOdrzucony) {
                     $proba = null;
                 }
             }

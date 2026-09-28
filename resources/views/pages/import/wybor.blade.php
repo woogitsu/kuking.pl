@@ -4,7 +4,7 @@
 
         Wyłączone źródło NIE MA przycisku (D-053: bez martwych przycisków) —
         nie pokazujemy czegoś, co powie „niedostępne” dopiero po kliknięciu.
-        „Wpiszę sam” jest ZAWSZE i tej samej wielkości co pozostałe: awaria
+        „Wpisz ręcznie” jest ZAWSZE i tej samej wielkości co pozostałe: awaria
         albo wyłączenie importu nie zamyka drogi do dodania przepisu.
     --}}
     <h1>Skąd jest przepis?</h1>
@@ -33,7 +33,7 @@
         @endif
 
         <a class="kafel-akcji" href="{{ route('recipes.create') }}">
-            <h2 class="mt-0">Wpiszę sam</h2>
+            <h2 class="mt-0">Wpisz ręcznie</h2>
             <p class="mb-0">Składniki i przygotowanie, własnymi słowami. Możesz zapisać szkic i wrócić później.</p>
         </a>
     </div>
