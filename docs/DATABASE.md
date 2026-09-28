@@ -1343,6 +1343,41 @@ drzwiami w najgorszym momencie. Konflikt na tej stronie rozstrzyga
 `App\Domain\Social\Actions\BlockUser`, kasując obserwowanie w obie strony
 pod blokadą wierszy.
 
+### post_reactions
+Reakcja „Smakowicie wygląda” (issue #1813, D-280). Migracja
+`2026_09_26_110000_create_post_reactions_table.php`.
+
+- `id uuid` (PK, `gen_random_uuid()`),
+- `post_id uuid NOT NULL` → `posts` (`ON DELETE CASCADE`),
+- `user_id uuid NOT NULL` → `users` (`ON DELETE CASCADE`) — kto napisał,
+- `notified_at timestamptz NULL` — kiedy weszła do zbiorczego powiadomienia
+  (raz dziennie, `kuking:powiadom-smakowicie`); `NULL` = czeka,
+- `created_at timestamptz`.
+
+`UNIQUE (post_id, user_id)` — reakcja to STAN jednej osoby przy jednym wpisie
+(odwrotnie niż `cooked_events`, gdzie unikalność jest zakazana). Indeks
+częściowy `post_reactions_pending_idx (created_at) WHERE notified_at IS NULL`
+pod zbiorcze powiadomienie, indeks `user_id` pod kaskadę konta.
+
+Bez licznika: żadna lista nie sortuje ani nie przycina po tej tabeli
+(`FeedNieSortujePoMierzeReakcjiTest` zna słowo „reaction”). Stan widza na karcie
+to `EXISTS` w `ZapisyWpisu::dolicz()`. Kto zareagował — każdy widz na stronie
+wpisu (od 26.09.2026; wcześniej tylko autor), bez liczby, bez osób z blokadą
+autora albo widza i bez kont niedostępnych (`App\Domain\Reakcje\Smakowicie::ktoDla()`). Eksport:
+`moje_reakcje` i `reakcje_otrzymane` — ta druga z nazwą konta tylko przy
+osobach, które autor zobaczyłby przy wpisie (`osobyWidoczneDlaAutora()`, filtry autora z `ktoDla()`),
+reszta jako liczba w `reakcje_otrzymane_od_osob_niewidocznych`.
+
+**Kaskada działa tylko przy twardym usunięciu.** Konta się anonimizuje
+(D-022), więc reakcje wymazywanego konta (`user_id`) kasuje jawnie
+`EraseAccountData` — przy każdym `delete_scope`. Reakcja pod wpisem usuniętym
+(soft delete) zostaje w tabeli, ale zbiorcze powiadomienie jej nie liczy.
+
+**Rollback:** `down()` ODMAWIA, gdy w tabeli są reakcje (słowa ludzi do autorów,
+`up()` ich nie odtworzy — D-088); na pustej przechodzi. Ręcznie:
+`\copy post_reactions TO reakcje.csv CSV HEADER`, decyzja właściciela, potem
+usunięcie wierszy. Test: `SmakowicieWygladaTest::test_rollback_odmawia…`.
+
 ### hides
 Prywatne ukrycia jednego widza (issue #1810, D-278): „Ukryj ten wpis” i „Ukryj
 tę osobę”. Migracja `2026_09_26_100000_create_hides_table.php`.
@@ -1783,7 +1818,12 @@ tabeli), klucz obcy i CHECK przez `NOT VALID` + `VALIDATE`, indeks
 `migrate:rollback` → `migrate` kolumny wróciłyby puste, a każda wersja stałaby
 się po cichu przepisem swojego autora. Komunikat podaje zapytanie, którym
 zapisać powiązania przed ręcznym cofnięciem. Na bazie bez wersji cofnięcie
-przechodzi. Test: `tests/Feature/CofniecieMigracjiNieGubiPodpisuWersjiTest.php`.
+przechodzi. `down()` bierze `ACCESS EXCLUSIVE` przed liczeniem wersji i trzyma
+blokadę do końca usunięcia kolumn; dzięki temu równoległy zapis nie może wejść
+między strażnik a DDL (#2059). Zależny indeks znika razem z kolumną w tej
+samej transakcji, bez osobnego `DROP INDEX CONCURRENTLY`. Testy:
+`tests/Feature/CofniecieMigracjiNieGubiPodpisuWersjiTest.php` i
+`tests/Dwa/RollbackWersjiTrzymaBlokadeTest.php`.
 
 **`klucz_wyslania` — jedno wysłanie formularza to jeden przepis** (D-027,
 migracja `2026_09_12_600000_add_klucz_wyslania_to_recipes`).
@@ -2157,12 +2197,13 @@ transakcji: po nim baza zawiera dokładnie to, co pliki.
 **Wdrożenie (#1961).** Komenda stoi w `preDeployCommand` w `.railway/railway.ts`,
 po `migrate` i `db:seed` — leci automatycznie przy KAŻDYM wdrożeniu, nie tylko
 ręcznie (wcześniej migracja tworzyła puste tabele i nikt ich nie wypełniał).
-Żeby zwykły deploy bez zmiany plików CSV nie przepisywał ~600 wierszy za każdym
-razem, komenda liczy hash zawartości obu plików i pomija cały import (bez
-parsowania i bez zapisu), gdy hash jest ten sam co przy poprzednim udanym
-imporcie ORAZ tabela `skladniki_odzywcze` już ma dane — ten drugi warunek jest
-samoleczący: świeża/przywrócona baza z pasującym, starym hashem w cache i tak
-dostanie pełny import. `--wymus` wymusza import mimo pasującego hasza.
+Żeby zwykły deploy bez zmiany źródeł nie przepisywał ~600 wierszy za każdym
+razem, komenda przechowuje hash CSV i kodu normalizacji oraz odcisk wartości
+wszystkich trzech tabel po udanym imporcie. Szybka ścieżka odczytuje tabele,
+ale nie parsuje CSV i niczego nie zapisuje. Brak choćby jednego składnika,
+aliasu albo miary, zmieniona wartość przy tej samej liczbie wierszy lub stary
+znacznik w cache uruchamia pełną odbudowę (#2130). Nowy znacznik jest zapisywany
+dopiero po zatwierdzeniu transakcji; `--wymus` pomija szybkie sprawdzenie.
 
 `skladniki_odzywcze` — jedna pozycja tabeli źródłowej:
 
@@ -2859,6 +2900,19 @@ liczy je w `nieudaneModeracyjne`, komenda zwraca kod ≠ 0, a zadanie
 w harmonogramie rzuca wyjątek (#1342, `RetencjaPowiadomienCzesciowaPorazkaTest`).
 
 ### reports
+
+`alarm_czlowieka_obsluzony_at` (migracja
+`2026_09_28_120000_add_human_urgent_alarm_handled_at_to_reports`, #2066):
+trwały znacznik, że pilne zgłoszenie od człowieka zostało już obsłużone
+alarmem — zadanie pocztowe trafiło do kolejki albo inne zgłoszenie tego
+samego celu zajęło bieżące okno. `NULL` pozwala ponowić próbę po awarii,
+braku adresu lub wyczerpaniu budżetu. Nie jest to dowód doręczenia listu.
+Zapis znacznika, klucza celu, budżetu i zadania odbywa się na tym samym
+połączeniu PostgreSQL w jednej transakcji. `down()` odmawia skasowania
+niepustego śladu; świadome cofnięcie wymaga
+`KUKING_ROLLBACK_KASUJ_SLAD_ALARMOW_CZLOWIEKA=true`, gdyż powrót starego
+formularza mógłby wtedy ponownie zlecić list.
+
 Zgłoszenia — **dwie różne drogi w jednej tabeli**, rozróżniane kolumną
 `source` (migracja `2026_09_06_200000_add_legal_notice_fields_to_reports`,
 audyt G-08 / W5-01 / W5-02).
@@ -3483,6 +3537,19 @@ człowieka (`account.registered`, `content.reported`), idzie przez
 `AuditLogEntry::recordBezWywracania()`: awaria zapisu trafia do `report()`
 z nazwą brakującego wpisu, a człowiek dostaje odpowiedź udanej zmiany — nie
 błąd przy koncie czy sprawie, które już istnieją.
+
+**Klasyfikacja pięciu ścieżek konta (D-249, #1347, #1892–#1897).**
+`account.delete_requested` i `account.delete_cancelled` — **klasa 1**: razem
+są jedynym miejscem w bazie mówiącym, że ktoś zgłosił i (ewentualnie) cofnął
+usunięcie konta (`NIGDY_NIE_KASUJ` niżej). `account.suspension_expired`
+i `account.data_erased` — też **klasa 1**, mimo że decyzję podejmuje
+harmonogram, nie moderator: to jedyny zapis TEGO zdarzenia, więc awaria ma
+cofnąć zmianę konta i zostawić je do podjęcia przy następnym przebiegu tej
+samej komendy. `user.unblocked` i trzy wpisy zmiany adresu e-mail
+(`account.email_change_requested`, `account.email_changed`,
+`account.email_change_cancelled`) — **klasa 2**: ich autorytatywny ślad żyje
+w `blocks`/`pending_email_changes`/`users.email`. Pełne uzasadnienie
+i dowody: D-249 w `docs/DECISIONS.md`.
 
 **`user.role_changed`** — zmiana roli konta (`user` / `moderator` / `admin`),
 zapisywana przez `kuking:nadaj-role`. `actor_id` jest **pusty**, bo komendę
@@ -4663,7 +4730,7 @@ razy dłużej, niż potrzeba. Pilnuje tego
 | `kind` | `blad` \| `pomysl` \| `inne`. CHECK w bazie (`contact_messages_kind_check`). **Świadomie rozłączne z `Report::REASONS`** — gdyby tu było „Mowa nienawiści", ludzie zgłaszaliby sąsiada formularzem technicznym. |
 | `message` | `text`, nie `string`: to jedyne miejsce, gdzie człowiek OPISUJE awarię. Górną granicę (5000 znaków) trzyma walidacja; w bazie stoi CHECK `contact_messages_message_not_blank`, żeby nie dało się zapisać samych spacji. |
 | `contact_email` | Tylko dla GOŚCIA. Dla zalogowanego zostaje `NULL` — jego adres jest już na koncie, a kopiowanie go tutaj byłoby powielaniem danych osobowych bez powodu (RODO, minimalizacja). Odpowiedni adres podaje `ContactMessage::adresDoOdpowiedzi()`. |
-| `page_path` | **Sama ścieżka z naszego serwisu**, bez domeny, bez parametrów zapytania i bez fragmentu. `PageContext::clean()` usuwa także wrażliwe segmenty ekranów konta. Kontroler oczyszcza przed walidacją (ochrona sesji), a akcja domenowa ponawia ochronę przed zapisem. Obca domena, parametry, fragmenty i niejednoznaczne ścieżki nie trafiają do bazy (#836). |
+| `page_path` | **Sama ścieżka z naszego serwisu**, bez domeny, bez parametrów zapytania i bez fragmentu. `PageContext::clean()` z adresu trasy niosącej sekret (lista NAZW tras w `PageContext::SENSITIVE_ROUTES`: reset hasła, link logowania, zaproszenie, linki `signed`) zapisuje tylko stałą część ścieżki, np. `/nowe-haslo`. Wpisy sprzed poprawki czyści `php artisan kuking:oczysc-kontekst-kontaktu` — domyślnie podgląd, zapis dopiero z `--wykonaj`; nie wypisuje wartości i niczego nie kasuje. Kontroler oczyszcza przed walidacją (ochrona sesji), a akcja domenowa ponawia ochronę przed zapisem. Obca domena, parametry, fragmenty i niejednoznaczne ścieżki nie trafiają do bazy (#836). |
 | `wydanie` | `App\Support\Wersja::opisWydania()` w chwili wysłania. Nie jest daną osobową — to numer naszej wersji, i przy „u mnie nie działa" połowa diagnozy. |
 | `status` | `new` \| `in_progress` \| `done`, CHECK `contact_messages_status_check`. **Nie ma go w `$fillable`** — ta sama zasada, co dla `status` i `role` użytkownika (AGENTS.md §7). Jedyna droga zmiany: `ContactMessage::oznaczJako()`. |
 | `handled_by`, `handled_at` | Kto i kiedy. CHECK `contact_messages_handled_complete` wymusza: status `new` MUSI mieć `num_nonnulls(handled_by, handled_at) = 0`, a status inny niż `new` MUSI mieć `handled_at IS NOT NULL`. `handled_by` ma `nullOnDelete()` — usunięcie konta operatora zeruje tę kolumnę i nie wywraca bazy (poprawka w `2026_09_24_100000_allow_null_handled_by_on_contact_messages`, #844). `handled_at` pozostaje nienaruszone, bo od niego liczy się retencja. |

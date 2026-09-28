@@ -183,6 +183,14 @@
                                 @endif
                                 @if($wycinekKomentarza !== null) „{{ $wycinekKomentarza }}” @endif
                                 @break
+                            @case(\App\Models\Notification::TYPE_SMAKOWICIE)
+                                {{-- Zbiorcze, raz dziennie (issue #1813, D-280). Bez nazwisk:
+                                     kto napisał, autor zobaczy na stronie wpisu. --}}
+                                <strong>{{ $notification->naglowekSmakowicie() }}</strong>
+                                @if((int) ($data['wpisow'] ?? 1) > 1)
+                                    Pod kilkoma Twoimi wpisami.
+                                @endif
+                                @break
                             @case(\App\Models\Notification::TYPE_FOLLOW)
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} zaczyna Cię obserwować.</strong>
                                 @break
@@ -431,7 +439,7 @@
     @endif
     @else
         <x-empty-state title="Nie ma jeszcze żadnych powiadomień">
-            Tu pojawi się informacja, kiedy ktoś ugotuje z Twojego przepisu albo napisze komentarz.
+            Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących oraz ważnych sprawach dotyczących Twojego konta.
         </x-empty-state>
     @endif
 

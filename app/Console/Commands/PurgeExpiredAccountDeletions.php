@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Users\Actions\EraseAccountData;
-use App\Models\AuditLogEntry;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
@@ -277,17 +276,15 @@ class PurgeExpiredAccountDeletions extends Command
 
         $usuniete++;
 
-        // Wpis do audytu z aktorem `null` — decyzję podjął zegar, nie
-        // moderator ani sam użytkownik, tak samo jak przy wygasłych
-        // zawieszeniach (`kuking:zdejmij-wygasle-kary`).
-        // Zakres w metadanych: „co dokładnie zrobiliśmy temu kontu" musi
-        // dać się odczytać po fakcie, bez odtwarzania decyzji z pamięci
-        // (D-022). `delete_scope` czytamy ze ŚWIEŻEGO wiersza — akcja
-        // domenowa pracuje na własnym odczycie pod blokadą.
-        AuditLogEntry::record('account.data_erased', null, $user, metadata: [
-            'zakres' => $user->fresh()?->delete_scope,
-        ]);
-
+        // Wpis do audytu (`account.data_erased`, aktor `null` — decyzję
+        // podjął zegar, nie moderator ani sam użytkownik) NIE POWSTAJE TUTAJ.
+        // Od #1894 (D-249, klasa 1) `EraseAccountData::handle()` zapisuje go
+        // SAM, w TEJ SAMEJ transakcji co anonimizacja — inaczej awaria tego
+        // zapisu, wykonana PO powrocie stąd, nie miała już jak cofnąć
+        // zatwierdzonej zmiany: konto zostawało bez jedynego dowodu wykonania
+        // prawa z art. 17, a kolejny przebieg już go nie widział
+        // (`whereNull('data_erased_at')` przestaje pasować w chwili, w której
+        // ten warunek sam ustawia). Ta metoda tylko liczy i raportuje.
         $this->line("Usunięto dane konta: {$user->getKey()}");
     }
 

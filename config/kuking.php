@@ -1891,6 +1891,13 @@ return [
         'ukrycia' => '60,10',
 
         /*
+         * „SMAKOWICIE WYGLĄDA" (issue #1813) — zapis i cofnięcie reakcji.
+         * Nie powiadamia od razu (zbiorczo raz dziennie), więc limit chroni
+         * tylko bazę przed pętlą klikania, nie ludzi przed zalewem.
+         */
+        'reakcje' => '120,10',
+
+        /*
          * ZESZYT — zapis i wypisanie przepisu albo wpisu, założenie zeszytu.
          *
          * Szkoda z nadużycia: praktycznie żadna poza kontem sprawcy. Nikt
@@ -3498,7 +3505,7 @@ return [
         // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
         // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
         // wersji nie da się z niczym powiązać.
-        'etykieta' => 'Alfa 0.69',
+        'etykieta' => 'Alfa 0.70',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
         //

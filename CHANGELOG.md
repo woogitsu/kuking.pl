@@ -2,6 +2,28 @@
 
 ## Nieopublikowane
 
+- Pod cudzym wpisem jest przycisk „Smakowicie wygląda” — lżejszy niż „Ugotowałem”. Nikt nie widzi, ile osób go nacisnęło; na stronie wpisu każdy widzi, kto to napisał (bez osób, z którymi jest blokada). Autor dostaje raz dziennie jedno powiadomienie, np. „3 osoby napisały: Smakowicie wygląda”, żeby nie zagłuszało „Ugotowałem”, które przychodzi od razu. Reakcję cofacie tym samym przyciskiem (#1813). [nowa funkcja]
+
+## Alfa 0.70 — spokojniejsze wpisy i gotowanie
+
+- Formularz kontaktowy nie zapisuje już sekretów z adresu strony w kontekście wiadomości. Dla starszych wpisów przygotowano osobną, świadomie uruchamianą komendę czyszczenia (#836).
+- Wewnętrzne: cofnięcie migracji wersji przepisu blokuje nowe zapisy przed sprawdzeniem istniejących wersji, aby nie zgubić ich pochodzenia podczas rollbacku (#2059).
+- Po chwilowym błędzie Web Push ponowienie sprawdza, czy powiadomienie nadal jest nieprzeczytane i widoczne. Przeczytane lub ukryte nie wychodzi ponownie, a pozostałe dostają neutralny komunikat bez starego imienia i tytułu przepisu (#2052).
+- Przed wysłaniem „Ugotowałem” widać, kto może zobaczyć wykonanie, zdjęcia i odpowiedzi. Ich widoczność wynika z widoczności przepisu (#2071).
+- Wewnętrzne: instrukcja wdrożenia opisuje czas zamykania usług zależnie od topologii IaC i oddziela go od niepotwierdzonych ustawień panelu Railway (#2056).
+- Pusta lista powiadomień wyjaśnia teraz, że znajdziecie tu wiadomości o przepisach, wpisach, obserwujących i ważnych sprawach konta. Wcześniejszy opis wymieniał tylko ugotowanie i komentarze (#2060).
+- Kopiowanie tygodnia w Planerze pomija pozycje poza dozwolonym zakresem dat i podaje ich liczbę. Obowiązują te same granice co przy zwykłym dodawaniu (#2036).
+- Niepoprawny identyfikator w adresie przycisku „Zobacz” powiadomienie kończy się teraz zwykłą stroną 404, zanim trafi do bazy danych; poprawny identyfikator nieistniejącego powiadomienia nadal daje 404 (#1880).
+- Cofnięcie zgłoszonego usunięcia konta, odblokowanie kogoś oraz zamówienie, potwierdzenie i anulowanie zmiany adresu e-mail nie kończą się już błędem serwera, gdy zawiedzie tylko zapis w wewnętrznym dzienniku audytu — operacja, którą naprawdę wykonaliście, zostaje wykonana, a brak wpisu trafia do monitoringu zamiast do Was (#1893, #1896, #1897). Automatyczne przywracanie kont po wygasłej karze i trwałe usuwanie danych po karencji (#1894) w takiej samej sytuacji cofają całą zmianę i podejmują ją same przy najbliższym uruchomieniu, a jeden nieudany rekord nie zatrzymuje już obsługi pozostałych kont w tym samym przebiegu.
+- Naprawione: po częściowym odtworzeniu bazy import wartości odżywczych odbudowuje brakujące składniki, aliasy i miary. Kalkulator nie zostaje z niepełnym słownikiem tylko dlatego, że pamięć przechowała hash poprzedniego importu (#2130).
+- Wewnętrzne: pilny alarm o zgłoszeniu od człowieka odzyskuje próbę po awarii zapisu do kolejki bez utraty blokady celu i budżetu poczty. Ponowienie tej samej sprawy tworzy najwyżej jedno zadanie, także gdy odpowiedź kolejki była niepewna (#2066).
+- Zdjęcia wyświetlane „Zwykle” stoją jedno pod drugim także na tablecie. Dwa zdjęcia o różnych proporcjach nie zostawiają już szarego pasa, a trzecie nie zostawia pustej prawej połowy. Kolaż i karuzela pozostają osobnymi wyborami (#2126).
+- Przełącznik wartości odżywczych sprawdza aktualny stan przepisu pod blokadą. Żądanie rozpoczęte przed zdjęciem lub usunięciem przepisu nie zapisze ustawienia po decyzji moderatora i pokaże czytelną odmowę (#2112).
+- Eksport HTML przepisu zachowuje dokładną liczbę porcji, także przy dwóch cyfrach po przecinku (#2035).
+- Wewnętrzne: kontrola negatywna testów zachowuje dowód niezaliczonej asercji, nawet gdy log zawiera błędne bajty UTF-8; sama awaria procesu nadal nie zalicza kontroli (Refs #1011).
+- Naprawione: pusta zakładka „Ugotowane” na własnym profilu pokazuje teraz przycisk „Znajdź przepis” prowadzący do wyszukiwarki. Na profilu innej osoby ten przycisk się nie pojawia (#2054).
+- Strona tagu pokazuje każdemu wyłącznie publiczne wpisy. Własne wpisy „tylko dla mnie” i „tylko dla obserwujących” nie pojawiają się tam nawet autorowi; strona wyjaśnia to i prowadzi do „Moje wpisy”, gdzie nadal można je znaleźć (#1338, D-307).
+
 ## Alfa 0.69 — czytelniejsze powiadomienia i wygodniejsze gotowanie
 
 - Wewnętrzne: kontrola zdrowia obrazu Docker sprawdza `/health` dla ról HTTP (`web` i `all`), a dla `worker` i `scheduler` nie oczekuje serwera WWW, którego te role nie uruchamiają. Odczytuje rzeczywistą rolę przekazaną entrypointowi, także gdy ma ona pierwszeństwo przed `APP_ROLE` (#2079).
@@ -190,6 +212,7 @@
 - Chwilowa usterka po naszej stronie nie psuje już trzech rzeczy: jednorazowy link do logowania nie przepada, gdy wejście się nie udało — ekran mówi, że link nadal działa i wystarczy kliknąć „Zaloguj mnie” jeszcze raz (#1530); prośba o paczkę z danymi, która została przyjęta, kończy się potwierdzeniem zamiast komunikatu o błędzie (#1429); zablokowanie osoby kończy się komunikatem o blokadzie, a nie o błędzie, gdy blokada naprawdę zadziałała (#1573).
 - Na ekranie „Nie ma teraz połączenia z internetem” przycisk „Spróbuj ponownie” otwiera ponownie tę samą stronę, która się nie wczytała — przepis albo wyszukiwanie z wpisaną frazą — zamiast przenosić na stronę główną. Do strony głównej prowadzi osobny przycisk „Przejdź na stronę główną” (#749).
 
+- Wiadomość z „Napisz do nas” nie zapisuje już tokenu z adresu strony, z której przyszliście — np. z linku do ustawienia nowego hasła, logowania, zaproszenia czy potwierdzenia adresu e-mail. W zgłoszeniu zostaje tylko nazwa ekranu, a zwykłe strony, jak przepis, są zapisywane jak dotąd.
 - Wyszukiwarka nie kończy się już błędem dla zalogowanej osoby, gdy adres zawiera nietypowo zapisaną frazę (np. z innego programu); pokazuje wtedy zwykły, pusty ekran „Szukaj” (#738).
 - Na krótkim wpisie menu „…” i pytanie „Na pewno usunąć ten wpis?” nie są już ucinane przez dolną krawędź karty. Przycisk „Tak, usuń wpis” da się trafić myszą i dojść do niego klawiszem Tab, także przy powiększonym tekście (#1082).
 - Poprawka opublikowanego przepisu zapisana przyciskiem „Zapisz zmiany” albo przy wyjściu z edycji zostaje w historii jako nowa wersja przepisu. Zapis samoczynny w trakcie pisania wersji nie tworzy, a wcześniejsze wersje nigdy się nie zmieniają (#1316).

@@ -8,8 +8,10 @@ use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
 use App\Models\AliasSkladnika;
 use App\Models\MiaraDomowa;
 use App\Models\SkladnikOdzywczy;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -31,6 +33,8 @@ use Tests\TestCase;
  *   2. drugie uruchomienie komendy na TYCH SAMYCH plikach jest szybkie —
  *      nie dotyka bazy — bo inaczej codzienny deploy bez zmiany danych
  *      przepisywałby ~600 wierszy za każdym razem.
+ *
+ * @bez-kontroli-dodatniej Nowe przypadki #2130 wykonują import na PostgreSQL i porównują zawartość trzech tabel; test czytający plik wdrożenia pochodzi z #1961.
  */
 final class WdrozenieImportujeWartosciOdzywczeTest extends TestCase
 {
@@ -76,11 +80,18 @@ final class WdrozenieImportujeWartosciOdzywczeTest extends TestCase
         $this->assertFalse($pierwszy['pominieto']);
 
         $stanPrzed = [SkladnikOdzywczy::count(), AliasSkladnika::count(), MiaraDomowa::count()];
+        $zapisy = [];
+        DB::listen(static function ($query) use (&$zapisy): void {
+            if (preg_match('/\b(insert|update|delete)\b.*\b(skladniki_odzywcze|aliasy_skladnikow|miary_domowe)\b/i', $query->sql) === 1) {
+                $zapisy[] = $query->sql;
+            }
+        });
 
         $drugi = app(ImportujWartosciOdzywcze::class)->handle();
 
         $this->assertTrue($drugi['pominieto'], 'Drugi import na niezmienionych plikach powinien się pominąć, a nie przepisywać tabele przy każdym wdrożeniu.');
         $this->assertSame($stanPrzed, [SkladnikOdzywczy::count(), AliasSkladnika::count(), MiaraDomowa::count()]);
+        $this->assertSame([], $zapisy, 'Szybka ścieżka nie zapisuje żadnej z trzech tabel słownika.');
     }
 
     #[Test]
@@ -105,6 +116,88 @@ final class WdrozenieImportujeWartosciOdzywczeTest extends TestCase
 
         $this->assertFalse($wynik['pominieto'], 'Pusta tabela nie powinna zostać pominięta, nawet gdy cache pamięta hash poprzedniego importu.');
         $this->assertGreaterThan(0, SkladnikOdzywczy::count());
+    }
+
+    #[Test]
+    public function pasujacy_hash_nie_ukrywa_braku_aliasow_po_czesciowym_restore(): void
+    {
+        $pierwszy = app(ImportujWartosciOdzywcze::class)->handle();
+        $this->assertGreaterThan(0, $pierwszy['aliasy']);
+        AliasSkladnika::query()->delete();
+
+        $wynik = app(ImportujWartosciOdzywcze::class)->handle();
+
+        $this->assertFalse($wynik['pominieto']);
+        $this->assertSame($pierwszy['aliasy'], AliasSkladnika::query()->count());
+    }
+
+    #[Test]
+    public function pasujacy_hash_nie_ukrywa_braku_miar_po_czesciowym_restore(): void
+    {
+        $pierwszy = app(ImportujWartosciOdzywcze::class)->handle();
+        $this->assertGreaterThan(0, $pierwszy['miary']);
+        MiaraDomowa::query()->delete();
+
+        $wynik = app(ImportujWartosciOdzywcze::class)->handle();
+
+        $this->assertFalse($wynik['pominieto']);
+        $this->assertSame($pierwszy['miary'], MiaraDomowa::query()->count());
+    }
+
+    #[Test]
+    public function pasujacy_hash_nie_ukrywa_braku_jednego_skladnika(): void
+    {
+        $pierwszy = app(ImportujWartosciOdzywcze::class)->handle();
+        $this->assertGreaterThan(1, $pierwszy['skladniki']);
+        SkladnikOdzywczy::query()->firstOrFail()->delete();
+        $this->assertGreaterThan(0, SkladnikOdzywczy::query()->count());
+
+        $wynik = app(ImportujWartosciOdzywcze::class)->handle();
+
+        $this->assertFalse($wynik['pominieto']);
+        $this->assertSame($pierwszy['skladniki'], SkladnikOdzywczy::query()->count());
+        $this->assertSame($pierwszy['aliasy'], AliasSkladnika::query()->count());
+        $this->assertSame($pierwszy['miary'], MiaraDomowa::query()->count());
+    }
+
+    #[Test]
+    public function ta_sama_liczba_aliasow_nie_maskuje_zmienionej_tresci(): void
+    {
+        $pierwszy = app(ImportujWartosciOdzywcze::class)->handle();
+        $alias = AliasSkladnika::query()->firstOrFail();
+        $oryginal = $alias->alias;
+        $alias->forceFill(['alias' => 'testowo_zmieniony_alias'])->save();
+        $this->assertSame($pierwszy['aliasy'], AliasSkladnika::query()->count());
+
+        $wynik = app(ImportujWartosciOdzywcze::class)->handle();
+
+        $this->assertFalse($wynik['pominieto']);
+        $this->assertTrue(AliasSkladnika::query()->where('alias', $oryginal)->exists());
+        $this->assertFalse(AliasSkladnika::query()->where('alias', 'testowo_zmieniony_alias')->exists());
+    }
+
+    #[Test]
+    public function blad_odbudowy_nie_zmienia_znacznika_ani_nie_zostawia_pol_slownika(): void
+    {
+        app(ImportujWartosciOdzywcze::class)->handle();
+        $znacznik = Cache::get('odzywcze:import:hash-plikow');
+        AliasSkladnika::query()->delete();
+        DB::unprepared("CREATE FUNCTION test_import_alias_awaria() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'testowa awaria aliasu'; END $$");
+        DB::unprepared('CREATE TRIGGER test_import_alias_awaria BEFORE INSERT ON aliasy_skladnikow FOR EACH ROW EXECUTE FUNCTION test_import_alias_awaria()');
+
+        try {
+            try {
+                app(ImportujWartosciOdzywcze::class)->handle();
+                $this->fail('Wstrzyknięta awaria miała przerwać odbudowę.');
+            } catch (QueryException $e) {
+                $this->assertStringContainsString('testowa awaria aliasu', $e->getMessage());
+            }
+            $this->assertSame($znacznik, Cache::get('odzywcze:import:hash-plikow'));
+            $this->assertSame(0, AliasSkladnika::query()->count());
+        } finally {
+            DB::unprepared('DROP TRIGGER IF EXISTS test_import_alias_awaria ON aliasy_skladnikow');
+            DB::unprepared('DROP FUNCTION IF EXISTS test_import_alias_awaria()');
+        }
     }
 
     protected function tearDown(): void

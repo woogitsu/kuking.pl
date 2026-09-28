@@ -169,6 +169,13 @@ DB::statement("SET idle_in_transaction_session_timeout = '".(getenv('KUKING_STAT
 
 try {
     $wartosc = match ($scenariusz) {
+        'cofnij-podpis-wersji-2059' => (function (): bool {
+            $migracja = require base_path('database/migrations/2026_09_26_100000_add_forked_from_to_recipes.php');
+            $migracja->down();
+
+            return true;
+        })(),
+
         'nadaj-role' => (function () use ($argumenty): array {
             // Bariera należy wyłącznie do przyrządu. Mierzymy zapytanie
             // komendy/akcji, nie przepisujemy jej warunku do drugiego SQL-a.
@@ -323,6 +330,51 @@ try {
 
             return (string) $przepis->title;
         })(),
+
+        // #2112: prawdziwe żądanie HTTP przełącznika. Route binding i Policy
+        // czytają stan przed decyzją moderatora, a zapis czeka na blokadę.
+        'przelacz-wartosci-2112' => (function () use ($argumenty): array {
+            // W odwróconym przeplocie przyrząd zatrzymuje autora dopiero po
+            // rzeczywistym SELECT FOR UPDATE, kiedy trzyma on zamek przepisu.
+            if (isset($argumenty['bariera'])) {
+                $zatrzymany = false;
+                DB::listen(static function (QueryExecuted $query) use ($argumenty, &$zatrzymany): void {
+                    if (! $zatrzymany && str_contains($query->sql, 'from "recipes"')
+                        && str_contains(strtolower($query->sql), 'for update')) {
+                        $zatrzymany = true;
+                        DB::select('SELECT pg_advisory_xact_lock(2112, ?)', [(int) $argumenty['bariera']]);
+                    }
+                });
+            }
+
+            $autor = User::query()->whereKey($argumenty['autor'])->firstOrFail();
+            $recipe = Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail();
+            Auth::guard('web')->setUser($autor);
+
+            $zadanie = Request::create(route('recipes.wartosci-odzywcze', $recipe), 'PATCH', [
+                'pokazuj' => '0',
+            ], [], [], ['HTTP_REFERER' => route('recipes.show', $recipe)]);
+            $odpowiedz = app(HttpKernel::class)->handle($zadanie);
+            $sesja = $zadanie->hasSession() ? $zadanie->session() : null;
+            $bledy = $sesja?->get('errors');
+
+            return [
+                'status' => $odpowiedz->getStatusCode(),
+                'blad' => is_object($bledy)
+                    ? $bledy->first('pokazuj')
+                    : ($bledy['default']['messages']['pokazuj'][0] ?? null),
+                'zapisane' => $sesja?->get('status'),
+            ];
+        })(),
+
+        'moderuj-przepis-2112' => DB::transaction(static function () use ($argumenty): string {
+            $recipe = Recipe::query()->withTrashed()->whereKey($argumenty['przepis'])
+                ->lockForUpdate()->firstOrFail();
+            $recipe->status = Recipe::STATUS_HIDDEN;
+            $recipe->saveQuietly();
+
+            return (string) $recipe->status;
+        }),
 
         // Komentarz pod wpisem (audyt podwójnego wysłania, 12.09.2026).
         // Dwa procesy z IDENTYCZNĄ treścią odtwarzają podwójne kliknięcie,
