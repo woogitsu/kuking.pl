@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Recipes\Odzywcze\UstawWidocznoscWartosci;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Recipe;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,7 +30,12 @@ class WartosciOdzywczeController extends Controller
         );
 
         $pokazuj = (bool) $dane['pokazuj'];
-        $ustaw->handle($recipe, $pokazuj);
+        try {
+            $ustaw->handle($recipe, $request->user(), $pokazuj);
+        } catch (BladDlaCzlowieka $e) {
+            // Strona przepisu po usunięciu albo zdjęciu może być niedostępna.
+            return redirect()->route('home')->withErrors(['pokazuj' => $e->getMessage()]);
+        }
 
         return redirect()
             ->to(route('recipes.show', $recipe).'#wartosci-odzywcze')
