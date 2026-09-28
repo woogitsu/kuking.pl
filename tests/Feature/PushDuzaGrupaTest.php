@@ -193,6 +193,46 @@ final class PushDuzaGrupaTest extends TestCase
         $this->assertNotNull($przeczytane->push_proba_at, 'Rezerwacja zostaje — grupa nie wraca do puli.');
     }
 
+    /**
+     * Przegląd PR #2160 (plany EXPLAIN ANALYZE): zamknięcie wierszy, które
+     * w retry przestały się kwalifikować, liczy warunek NA WIERSZU grupy
+     * (`NOT EXISTS (SELECT 1 WHERE …)` bez `FROM`). Wersja
+     * `NOT IN (SELECT id FROM notifications …)` skanowała pulę drugi raz
+     * z pełnym filtrem widoczności; przy 3001 wierszach szacowany koszt
+     * 1,74 mln włączał JIT i sama kompilacja trwała 2,4 s
+     * (`docs/infra/WEB_PUSH_PLANY_2021.md`).
+     */
+    public function test_ponowna_kwalifikacja_nie_skanuje_puli_drugi_raz(): void
+    {
+        [$odbiorca] = $this->odbiorcaZDuzaPula('odbiorca_plan_2021', 50, 'Ala');
+        $pada = $this->subskrypcja($odbiorca, 'https://fcm.googleapis.com/fcm/send/pada-plan-2021');
+        $this->transport->odpowiadaj($pada->endpoint, WynikWysylkiPush::Blad);
+
+        $kolejka = Queue::fake();
+        (new WyslijPowiadomieniePush((string) $odbiorca->getKey()))->handle($this->transport);
+        $retry = $kolejka->pushed(WyslijPowiadomieniePush::class)->sole();
+
+        $przeczytane = $odbiorca->notifications()->where('push_grupa_id', $retry->grupaId)->reorder('created_at')->first();
+        $przeczytane->forceFill(['read_at' => now()])->save();
+
+        $zamkniecia = [];
+        DB::listen(function ($zapytanie) use (&$zamkniecia): void {
+            if (str_starts_with($zapytanie->sql, 'update "notifications" set "push_zakonczono_at"')) {
+                $zamkniecia[] = $zapytanie->sql;
+            }
+        });
+        $this->transport->odpowiadaj($pada->endpoint, WynikWysylkiPush::Wyslano);
+        Queue::fake();
+        $retry->handle($this->transport);
+
+        $this->assertCount(1, $zamkniecia, 'Kontrola dodatnia: retry zamyka wiersze, które przestały się kwalifikować.');
+        $this->assertStringNotContainsString('from "notifications"', $zamkniecia[0], 'Zamknięcie nie może skanować puli drugi raz.');
+        $this->assertStringContainsString('not exists (select 1 where', $zamkniecia[0]);
+        // Semantyka bez zmian: przeczytany zamknięty jako anulowany, reszta wysłana.
+        $this->assertSame(KodZamknieciaPush::Anulowano->value, $przeczytane->refresh()->push_wynik);
+        $this->assertSame(50, $odbiorca->notifications()->where('push_grupa_id', $retry->grupaId)->whereNotNull('push_wyslano_at')->count());
+    }
+
     public function test_trwala_porazka_duzej_grupy_zamyka_ja_kodem_przez_id_rezerwacji(): void
     {
         config(['kuking.notifications.zewnetrzne.push_maks_prob_transportu' => 2]);

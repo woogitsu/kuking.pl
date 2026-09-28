@@ -17,6 +17,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -299,10 +300,8 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
             return false;
         }
 
-        $aktualne = $this->kwalifikujace($user)->select('notifications.id');
-
         $this->otwartaGrupa($user)
-            ->whereNotIn('id', $aktualne)
+            ->whereNotExists($this->kwalifikujeTenWiersz($user))
             ->update(['push_zakonczono_at' => CarbonImmutable::now(), 'push_wynik' => KodZamknieciaPush::Anulowano->value]);
 
         return $this->otwartaGrupa($user)->exists();
@@ -349,6 +348,28 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
                 ->visibleTo($user)
                 ->whereNull('notifications.read_at'),
         );
+    }
+
+    /**
+     * Te same warunki co `kwalifikujace()`, ale jako `SELECT 1 WHERE …` BEZ
+     * `FROM`: kolumny `notifications.*` wskazują wtedy na wiersz grupy
+     * z zewnętrznego `UPDATE`, więc warunek liczy się dla każdego wiersza
+     * na miejscu, bez drugiego skanu puli (przegląd PR #2160).
+     *
+     * `NOT IN (SELECT id FROM notifications …)` robiło ten drugi skan
+     * z pełnym filtrem widoczności; na 3001 wierszach w puli 223 tys.
+     * szacowany koszt 1,74 mln przekraczał `jit_above_cost`, a sama
+     * kompilacja JIT trwała 2,4 s (`docs/infra/WEB_PUSH_PLANY_2021.md`).
+     * `NOT EXISTS` ma też właściwą semantykę NULL: warunek, który dla
+     * wiersza daje NULL (np. brak `question_answer`), nie kwalifikuje go,
+     * więc wiersz zostaje zamknięty — tak jak `dotyczy()` w PHP.
+     */
+    private function kwalifikujeTenWiersz(User $user): QueryBuilder
+    {
+        $warunki = $this->kwalifikujace($user)->toBase();
+
+        return DB::query()->selectRaw('1')
+            ->mergeWheres($warunki->wheres, $warunki->getRawBindings()['where']);
     }
 
     private function zablokujOdbiorce(User $user): void
