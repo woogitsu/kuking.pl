@@ -356,6 +356,54 @@ try {
             return $zapisz();
         })(),
 
+        // #2189: prawdziwy zapis przepisu (szkic, publikacja, edycja) przez
+        // `PublishRecipe`. Autor jest wczytany PRZED przeplotem, jak w
+        // żądaniu po middleware i Policy — to jego nieaktualny model ma
+        // wyglądać na aktywny, a akcja ma rozstrzygać na świeżym wierszu.
+        'zapisz-przepis-2189' => (function () use ($argumenty): string {
+            $autor = User::query()->whereKey($argumenty['autor'])->firstOrFail();
+            if (! $autor->isActive()) {
+                throw new RuntimeException('Przyrząd nie odczytał aktywnego autora przed przeplotem.');
+            }
+
+            // Odwrócony przeplot: zatrzymaj zapis dopiero PO prawdziwym
+            // zapytaniu blokującym autora. Nie zmienia kodu akcji.
+            $bariera = (int) ($argumenty['bariera'] ?? 0);
+            if ($bariera !== 0) {
+                $zatrzymany = false;
+                DB::listen(static function (QueryExecuted $query) use ($bariera, &$zatrzymany): void {
+                    if (! $zatrzymany && str_contains($query->sql, 'from "users"')
+                        && str_contains(strtolower($query->sql), 'for no key update')) {
+                        $zatrzymany = true;
+                        DB::select('SELECT pg_advisory_xact_lock(2189, ?)', [$bariera]);
+                    }
+                });
+            }
+
+            $tryb = $argumenty['tryb'];
+            $atrybuty = [
+                'title' => $argumenty['tytul'],
+                'visibility' => 'public',
+                'source_type' => Recipe::SOURCE_OWN,
+            ];
+            if (isset($argumenty['zdjecie'])) {
+                $atrybuty['hero_media_id'] = $argumenty['zdjecie'];
+            }
+
+            $przepis = app(PublishRecipe::class)->handle(
+                author: $autor,
+                attributes: $atrybuty,
+                ingredients: [['text' => 'lubczyk']],
+                steps: [['instruction' => 'Gotuj do miękkości.']],
+                publish: in_array($tryb, ['nowa_publikacja', 'edycja_publicznego'], true),
+                existing: isset($argumenty['przepis'])
+                    ? Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail()
+                    : null,
+            );
+
+            return (string) $przepis->getKey();
+        })(),
+
         // #2112: prawdziwe żądanie HTTP przełącznika. Route binding i Policy
         // czytają stan przed decyzją moderatora, a zapis czeka na blokadę.
         'przelacz-wartosci-2112' => (function () use ($argumenty): array {

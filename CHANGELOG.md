@@ -3,6 +3,7 @@
 ## Nieopublikowane
 
 - W Planerze przy każdym dniu tygodnia jest pole „Nazwa przepisu” i przycisk „Szukaj przepisu”. Znalezione przepisy dodajesz do tego dnia przyciskiem „Dodaj do planu”, bez wchodzenia na stronę przepisu; po dodaniu wracasz do tego samego dnia z tą samą frazą. Widok tygodnia ma własny limit odczytu (60 żądań na minutę), a błąd dodania pojawia się przy dniu, z którego przyszedł, nie przy dniu z adresu strony (#2037). [nowa funkcja]
+- Naprawione: zapis przepisu (szkic, publikacja albo edycja) rozpoczęty przed zawieszeniem, zablokowaniem lub usunięciem konta nie zapisze już niczego po zatwierdzeniu tej decyzji. Serwis sprawdza aktualny stan autora pod blokadą przed zapisem i wycofuje zdjęcia, składniki, wersję i wpis w strumieniu odrzuconej próby; zapis, który uzyskał blokadę pierwszy, kończy się normalnie. Odczyt przepisu ze zdjęcia przyjęty przed sankcją nie dopisze już treści do szkicu (#2189).
 
 ## Alfa 0.75 — szukanie w wykonaniach i pewniejsze „Ugotowałem”
 
