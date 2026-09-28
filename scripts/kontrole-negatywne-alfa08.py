@@ -359,6 +359,10 @@ AWANS_ROLI_TEST = "AwansRoliWymagaNowejSesjiTest"
 # sama obecność constraintu przeszłaby zielono; test ma zapalić na definicji.
 MIGRACJA_HERO_PICKS = "database/migrations/2026_09_24_100000_powiaz_hero_picks_z_post_media.php"
 HERO_PICKS_TEST = "test_schemat_wymusza_pare_wpisu_i_zdjecia_z_kaskada"
+# #1289: odnośnik „Zobacz…” na landingu nie może prowadzić gościa do trasy
+# z grupy `auth`. Mutacja przywraca stary cel pod nową etykietą.
+LANDING = "resources/views/pages/landing.blade.php"
+LANDING_PODGLAD_TEST = "test_odnosniki_podgladu_na_landingu_nie_odsylaja_goscia_do_logowania"
 # Token wydania Livewire (#977). Mutacja wraca do stałego 'a' sprzed poprawki:
 # karta sprzed wdrożenia znów wysyłałaby migawkę starego kodu bez odmowy.
 LIVEWIRE_KONFIG = "config/livewire.php"
@@ -1144,6 +1148,8 @@ checks = [
      lambda s: replace_once(s, "            $fresh->invalidateSessions();\n", "")),
     ("Wybór kolażu bez kaskady przy odpięciu zdjęcia", MIGRACJA_HERO_PICKS, HERO_PICKS_TEST,
      lambda s: replace_once(s, "\n            .'ON DELETE CASCADE',", "")),
+    ("Landing: podgląd prowadzi do trasy auth", LANDING, LANDING_PODGLAD_TEST,
+     lambda s: replace_once(s, "{{ route('help') }}#kto-widzi", "{{ route('posts.create') }}")),
     ("Autozapis kreatora #892 bez kroku CI", CI_WORKFLOW, AUTOZAPIS_892_TEST,
      lambda s: replace_once(s, "          node scripts/kreator-zachowanie.mjs autosave\n", "")),
     ("Stały token wydania Livewire", LIVEWIRE_KONFIG, LIVEWIRE_TOKEN_TEST,
@@ -1427,6 +1433,7 @@ run_test(STRAZNIK_R2_TEST, True)
 run_test(OSTRZEZENIE_888_TEST, True)
 run_test(AWANS_ROLI_TEST, True)
 run_test(HERO_PICKS_TEST, True)
+run_test(LANDING_PODGLAD_TEST, True)
 run_test(AUTOZAPIS_892_TEST, True)
 run_test(LIVEWIRE_TOKEN_TEST, True)
 run_test(KREATOR_ZAPIS_TEST, True)

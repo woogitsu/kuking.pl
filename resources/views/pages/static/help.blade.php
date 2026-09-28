@@ -12,7 +12,7 @@
         <p>„Mój stół” to dobrowolna półka, którą włączasz na stronie
             <a href="{{ route('moj-stol') }}">Mój stół</a>. {{ \App\Domain\Feed\MojStol::DLACZEGO }}</p>
 
-        <h2>Jak dodać zdjęcie swojego dania?</h2>
+        <h2 id="dodawanie-zdjecia">Jak dodać zdjęcie swojego dania?</h2>
         <ol>
             <li>Kliknij <strong>Dodaj</strong> — na telefonie znajdziesz ten przycisk na dole ekranu, pośrodku.</li>
             <li>Wybierz <strong>Zdjęcie i kilka słów</strong>.</li>
@@ -36,7 +36,7 @@
             Możesz dodać zdjęcie, ale nie musisz.
         </p>
 
-        <h2>Kto widzi to, co publikuję?</h2>
+        <h2 id="kto-widzi">Kto widzi to, co publikuję?</h2>
         {{-- „sam wybierasz" przypisywało czytelnikowi rodzaj męski
              (issue #38, COPY_STYLE.md §2) — „sam" nie wnosi tu informacji. --}}
         <p>
