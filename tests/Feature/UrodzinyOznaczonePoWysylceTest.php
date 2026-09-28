@@ -139,11 +139,9 @@ class UrodzinyOznaczonePoWysylceTest extends TestCase
 
         $this->assertSame(0, DB::table('failed_jobs')->count());
         $this->assertCount(1, $this->wyslaneListy(), 'Worker miał wysłać jeden list z życzeniami.');
-        $this->assertSame(
-            '2026-03-12',
-            $basia->refresh()->birthday_email_sent_on?->toDateString(),
-            'Udana wysyłka ma postawić znacznik.',
-        );
+        $wyslano = $basia->refresh()->birthday_email_sent_on;
+        $this->assertNotNull($wyslano, 'Udana wysyłka ma postawić znacznik.');
+        $this->assertSame('2026-03-12', $wyslano->toDateString());
     }
 
     /**

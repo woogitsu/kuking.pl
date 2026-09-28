@@ -115,7 +115,7 @@ class SkrotyObserwowaniaWMenuTest extends TestCase
         $this->assertTrue($widz->fresh()->isFollowing($obca));
         $this->assertSame(1, Notification::query()->where('user_id', $obca->id)->where('type', Notification::TYPE_FOLLOW)->count());
 
-        $powrot = $odpowiedz->getSession()->get('status_powrot');
+        $powrot = self::sesjaPrzekierowania($odpowiedz)->get('status_powrot');
         $this->assertSame('Cofnij', $powrot['etykieta']);
         $this->assertSame('DELETE', $powrot['pola']['_method']);
 
@@ -147,7 +147,7 @@ class SkrotyObserwowaniaWMenuTest extends TestCase
             ->assertSessionHas('status', 'Obserwujesz tag „Ciasta”. Nowe wpisy z tego tagu zobaczysz na Starcie.');
         $this->assertTrue($widz->fresh()->isFollowingTag($ciasta));
 
-        $powrot = $odpowiedz->getSession()->get('status_powrot');
+        $powrot = self::sesjaPrzekierowania($odpowiedz)->get('status_powrot');
         $this->assertSame('Cofnij', $powrot['etykieta']);
         $this->from(route('discover'))->post($powrot['akcja'], $powrot['pola']);
         $this->assertFalse($widz->fresh()->isFollowingTag($ciasta));

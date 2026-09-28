@@ -485,6 +485,7 @@ class MojStolTest extends TestCase
         $this->przepis($this->user('zosia'), 'Tarta Zosi', 5, $ostatni);
 
         $temat = app(MojStol::class)->dlaWidza($widz)['od_gospodarza'];
+        $this->assertNotNull($temat);
         $this->assertSame('Ostatni', $temat['tag']->name);
         $this->assertSame(['Nowy sernik Oli', 'Placek Ewy', 'Babka Izy'], array_map(fn (Post $p) => $p->recipe->title, $temat['wpisy']));
     }

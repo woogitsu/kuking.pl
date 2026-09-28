@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Route;
 use PHPUnit\Framework\Attributes\Test;
 use ReflectionClass;
 use ReflectionMethod;
-use SplFileInfo;
 use Symfony\Component\Finder\Finder;
+use Symfony\Component\Finder\SplFileInfo;
 use Tests\TestCase;
 
 /**
@@ -92,7 +92,7 @@ class RejestrPotwierdzenRodoNieMaEkranuTest extends TestCase
         $winne = [];
         $sprawdzone = 0;
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             $plik = $this->plikKontrolera($trasa->getActionName());
 
             if ($plik === null) {
@@ -193,7 +193,7 @@ class RejestrPotwierdzenRodoNieMaEkranuTest extends TestCase
         // przed którym ostrzega `App\Support\NumerZadaniaRodo`.
         $wiazane = [];
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             foreach ($trasa->signatureParameters() as $parametr) {
                 $typ = $parametr->getType();
 
