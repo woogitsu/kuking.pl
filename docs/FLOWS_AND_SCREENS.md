@@ -178,6 +178,7 @@ App:
 - `/ustawienia/prywatnosc`
 - `/ustawienia/urodziny` — dzień i miesiąc urodzin, bez roku; „Usuń datę” (#1755)
 - `/ustawienia/twoje-dane`
+- `/ustawienia/urzadzenia` — urządzenia z dostępem przez aplikację mobilną: lista (nazwa, kiedy zalogowane, kiedy ostatnio używane), odcięcie jednego albo wszystkich, z potwierdzeniem (D-270, D-271)
 
 Admin:
 - `/admin/zgloszenia`

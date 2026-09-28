@@ -25,6 +25,13 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Urządzenia z dostępem
+
+W Ustawieniach możecie otworzyć „Urządzenia z dostępem”. Gdy aplikacja
+Kuking na telefon będzie dostępna, zobaczycie tu urządzenia zalogowane na
+Wasze konto i odetniecie wybrane urządzenie albo wszystkie naraz. Dostęp
+do API aplikacji pozostaje na razie wyłączony.
+
 ### Smakowicie wygląda
 
 Pod cudzym wpisem możecie teraz nacisnąć „Smakowicie wygląda”, gdy chcecie
