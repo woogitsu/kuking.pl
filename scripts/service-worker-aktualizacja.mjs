@@ -13,8 +13,16 @@ const staryWorker = read('scripts/fixtures/sw-kuking-v1.js'); // cc1e3bf, przed 
 const rejestracja = read('resources/js/service-worker.js');
 assert.match(read('resources/js/app.js'), /import\s+['"]\.\/service-worker\.js['"]/, 'Aplikacja musi uruchamiać rzeczywisty moduł rejestracji');
 let noweWydanie = false;
+// Zerwane połączenie po stronie serwera. `context.setOffline` nie obejmuje
+// w Chromium workera uruchomionego ponownie po nawigacji — zmierzone: druga
+// nawigacja offline szła do sieci — więc awarię sieci podaje sam serwer.
+let bezSieci = false;
 const pobrania = [];
 const server = createServer((req, res) => {
+  if (bezSieci) {
+    req.socket.destroy();
+    return;
+  }
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname === '/sw.js') {
     pobrania.push(req.url);
@@ -82,6 +90,19 @@ try {
     await page.goto(adres + '/bez-sieci');
     assert.match(await page.content(), /Nie masz teraz połączenia|Brak połączenia|offline/i);
     assert(!((await page.content()).includes('Poprzedni ekran offline')));
+    await context.setOffline(false);
+    // #749: „Spróbuj ponownie" po powrocie sieci wraca na TEN SAM adres,
+    // z zapytaniem — nie na stronę główną.
+    for (const cel of ['/przepisy/rosol-fixture', '/szukaj?q=zupa']) {
+      bezSieci = true;
+      await page.goto(adres + cel);
+      assert.match(await page.content(), /Nie ma teraz połączenia z internetem/, `offline: ${cel}`);
+      bezSieci = false;
+      await Promise.all([page.waitForLoadState('load'), page.click('text=Spróbuj ponownie')]);
+      await page.waitForURL(adres + cel);
+      assert.equal(page.url(), adres + cel, `„Spróbuj ponownie" porzuciło ${cel}`);
+      assert.match(await page.content(), /Strona z sieci/);
+    }
     await context.close();
     console.log(`Aktualizacja workera, moduł ${pozny ? 'po load' : 'przed load'}: OK`);
   }

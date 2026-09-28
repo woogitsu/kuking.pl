@@ -24,29 +24,51 @@ use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Contact\Actions\WyslijOdpowiedz;
+use App\Domain\Feed\Actions\ZapiszKolaz;
+use App\Domain\Feed\Actions\ZapiszTabliceDnia;
 use App\Domain\Moderation\Actions\ReportContent;
+use App\Domain\Moderation\Actions\ResolveAppeal;
+use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
+use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
+use App\Domain\Tags\Actions\MergeTags;
+use App\Domain\Tags\Actions\UpdateTagFollows;
+use App\Domain\Tags\PromowaneTagi;
+use App\Domain\Users\Actions\ChangeUserRole;
 use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
+use App\Domain\Users\Actions\RequestAccountDeletion;
+use App\Domain\Wydania\Actions\ZarejestrujWdrozenie;
+use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
+use App\Http\Requests\Moderation\DecyzjaModeracyjnaRequest;
+use App\Models\Appeal;
+use App\Models\Collection;
 use App\Models\Comment;
+use App\Models\ContactMessage;
 use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\Report;
+use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\Console\Output\BufferedOutput;
 
 require __DIR__.'/../../bootstrap.php';
@@ -64,6 +86,24 @@ function barieraPoLiczeniuAdministratorow(): void
             && str_contains($query->sql, '"status" =')
             && (str_contains($query->sql, 'count(') || str_contains($query->sql, 'exists('))) {
             DB::select('SELECT pg_advisory_xact_lock(1016, 2)');
+        }
+    });
+}
+
+/**
+ * Bariera #1027: uczestnik staje PO rzeczywistym `DELETE` z tabeli wyboru,
+ * a PRZED pierwszym `INSERT`-em — dokładnie w szczelinie, w której dwa
+ * zastąpienia zestawu złączały się w A ∪ B. Czeka na blokadę doradczą
+ * trzymaną przez test; zwolnienie jej puszcza uczestnika dalej.
+ */
+function barieraPoKasowaniuWyboru(string $tabela): void
+{
+    $zatrzymany = false;
+
+    DB::listen(static function (QueryExecuted $query) use ($tabela, &$zatrzymany): void {
+        if (! $zatrzymany && str_starts_with(strtolower(ltrim($query->sql)), 'delete from "'.$tabela.'"')) {
+            $zatrzymany = true;
+            DB::select('SELECT pg_advisory_xact_lock(91027, 1)');
         }
     });
 }
@@ -129,6 +169,13 @@ DB::statement("SET idle_in_transaction_session_timeout = '".(getenv('KUKING_STAT
 
 try {
     $wartosc = match ($scenariusz) {
+        'cofnij-podpis-wersji-2059' => (function (): bool {
+            $migracja = require base_path('database/migrations/2026_09_26_100000_add_forked_from_to_recipes.php');
+            $migracja->down();
+
+            return true;
+        })(),
+
         'nadaj-role' => (function () use ($argumenty): array {
             // Bariera należy wyłącznie do przyrządu. Mierzymy zapytanie
             // komendy/akcji, nie przepisujemy jej warunku do drugiego SQL-a.
@@ -155,6 +202,37 @@ try {
             return (string) $konto->fresh()?->status;
         })(),
 
+        'opublikuj-wpis-2088' => (function () use ($argumenty): string {
+            $autor = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+            if (! $autor->isActive()) {
+                throw new RuntimeException('Przyrząd nie odczytał aktywnego autora przed przeplotem.');
+            }
+
+            // Kontrola odwróconej kolejności: zatrzymaj publikację dopiero PO
+            // prawdziwym zapytaniu blokującym autora. Nie zmienia kodu akcji.
+            $bariera = (int) ($argumenty['bariera'] ?? 0);
+            if ($bariera !== 0) {
+                $zatrzymany = false;
+                DB::listen(static function (QueryExecuted $query) use ($bariera, &$zatrzymany): void {
+                    if (! $zatrzymany && str_contains($query->sql, 'from "users"')
+                        && str_contains(strtolower($query->sql), 'for no key update')) {
+                        $zatrzymany = true;
+                        DB::select('SELECT pg_advisory_xact_lock(2088, ?)', [$bariera]);
+                    }
+                });
+            }
+
+            config(['queue.default' => 'database', 'kuking.community.host_user_id' => $argumenty['gospodarz']]);
+
+            return (string) app(PublishPost::class)->handle(
+                $autor,
+                'Rosół z kuchni 2088.',
+                mediaIds: isset($argumenty['zdjecie']) ? [$argumenty['zdjecie']] : [],
+                tagNames: isset($argumenty['tag']) ? [$argumenty['tag']] : [],
+                kluczWyslania: $argumenty['klucz'],
+            )->getKey();
+        })(),
+
         'zapis-do-zeszytu' => (function () use ($argumenty): string {
             $save = function () use ($argumenty): string {
                 $user = User::query()->findOrFail($argumenty['kto']);
@@ -175,6 +253,14 @@ try {
             User::query()->whereKey($argumenty['konto'])->firstOrFail(),
         ),
 
+        // Kandydat egzekutora wczytany PRZED lockiem (#2023). Bariera
+        // pozwala w tym czasie zatwierdzić nowy wniosek na tym samym koncie.
+        'kasowanie-wygaslego-wniosku' => (function () use ($argumenty): bool {
+            $kandydat = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+
+            return app(EraseAccountData::class)->handleExpiredRequest($kandydat);
+        })(),
+
         // Kara i usunięcie konta na NIEAKTUALNYM modelu (#980). Model jest
         // czytany zanim uczestnik stanie w kolejce po wiersz — jak formularz,
         // który sprawdził hasło, zanim moderator zdążył zbanować.
@@ -188,11 +274,30 @@ try {
             return (string) $konto->status;
         })(),
 
+        // Formularz „Usuń konto" (#1346): prawdziwa akcja przyjęcia żądania,
+        // na modelu czytanym przed kolejką po wiersz — jak formularz, który
+        // sprawdził hasło, zanim druga karta zdążyła wysłać swój.
+        'przyjmij-usuniecie' => (function () use ($argumenty): string {
+            $konto = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+            app(RequestAccountDeletion::class)->handle($konto, $argumenty['zakres']);
+
+            return (string) $konto->status;
+        })(),
+
         // „Obserwuj" (D-080).
         'obserwuj' => app(FollowUser::class)->handle(
             User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             User::query()->whereKey($argumenty['kogo'])->firstOrFail(),
         ),
+
+        // Scalenie tagu SUROWYM `UPDATE` (#996). Świadomie z pominięciem
+        // `MergeTags`: mierzymy barierę w PostgreSQL, która ma działać na
+        // KAŻDEJ drodze zapisu — `MergeTags` i tak serializuje się własną
+        // blokadą `TagMutationLock`, więc przez nią wyścigu nie widać.
+        'scal-tag-surowo' => DB::table('tags')->where('id', $argumenty['zrodlo'])->update([
+            'status' => 'merged',
+            'merged_into_tag_id' => $argumenty['cel'],
+        ]),
 
         // „Zablokuj" (D-090).
         'zablokuj' => (function () use ($argumenty): bool {
@@ -220,10 +325,56 @@ try {
                 steps: [['instruction' => 'Gotuj do miękkości.']],
                 publish: true,
                 existing: Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail(),
+                oczekiwanaRewizja: isset($argumenty['rewizja']) ? (int) $argumenty['rewizja'] : null,
             );
 
             return (string) $przepis->title;
         })(),
+
+        // #2112: prawdziwe żądanie HTTP przełącznika. Route binding i Policy
+        // czytają stan przed decyzją moderatora, a zapis czeka na blokadę.
+        'przelacz-wartosci-2112' => (function () use ($argumenty): array {
+            // W odwróconym przeplocie przyrząd zatrzymuje autora dopiero po
+            // rzeczywistym SELECT FOR UPDATE, kiedy trzyma on zamek przepisu.
+            if (isset($argumenty['bariera'])) {
+                $zatrzymany = false;
+                DB::listen(static function (QueryExecuted $query) use ($argumenty, &$zatrzymany): void {
+                    if (! $zatrzymany && str_contains($query->sql, 'from "recipes"')
+                        && str_contains(strtolower($query->sql), 'for update')) {
+                        $zatrzymany = true;
+                        DB::select('SELECT pg_advisory_xact_lock(2112, ?)', [(int) $argumenty['bariera']]);
+                    }
+                });
+            }
+
+            $autor = User::query()->whereKey($argumenty['autor'])->firstOrFail();
+            $recipe = Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail();
+            Auth::guard('web')->setUser($autor);
+
+            $zadanie = Request::create(route('recipes.wartosci-odzywcze', $recipe), 'PATCH', [
+                'pokazuj' => '0',
+            ], [], [], ['HTTP_REFERER' => route('recipes.show', $recipe)]);
+            $odpowiedz = app(HttpKernel::class)->handle($zadanie);
+            $sesja = $zadanie->hasSession() ? $zadanie->session() : null;
+            $bledy = $sesja?->get('errors');
+
+            return [
+                'status' => $odpowiedz->getStatusCode(),
+                'blad' => is_object($bledy)
+                    ? $bledy->first('pokazuj')
+                    : ($bledy['default']['messages']['pokazuj'][0] ?? null),
+                'zapisane' => $sesja?->get('status'),
+            ];
+        })(),
+
+        'moderuj-przepis-2112' => DB::transaction(static function () use ($argumenty): string {
+            $recipe = Recipe::query()->withTrashed()->whereKey($argumenty['przepis'])
+                ->lockForUpdate()->firstOrFail();
+            $recipe->status = Recipe::STATUS_HIDDEN;
+            $recipe->saveQuietly();
+
+            return (string) $recipe->status;
+        }),
 
         // Komentarz pod wpisem (audyt podwójnego wysłania, 12.09.2026).
         // Dwa procesy z IDENTYCZNĄ treścią odtwarzają podwójne kliknięcie,
@@ -256,12 +407,161 @@ try {
         'zapisz-przepis' => (string) app(SaveRecipeToCollection::class)->handle(
             user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             recipe: Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail(),
+            // Jawny zeszyt — jedna osoba zapisująca naraz do dwóch SWOICH
+            // zeszytów (przegląd PR #1213, D-070). Bez argumentu: domyślny.
+            collection: isset($argumenty['zeszyt']) ? Collection::query()->whereKey($argumenty['zeszyt'])->firstOrFail() : null,
         )->getKey(),
 
         'zapisz-wpis' => (string) app(SavePostToCollection::class)->handle(
             user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             post: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
         )->getKey(),
+
+        // Obserwowanie tagu kontra scalenie (#853). Prawdziwe akcje: test
+        // ma pęknąć, gdy `UpdateTagFollows` przestanie sprawdzać świeży
+        // status pod `TagMutationLock`.
+        'obserwuj-tag' => (function () use ($argumenty): bool {
+            app(UpdateTagFollows::class)->follow(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                [$argumenty['tag']],
+            );
+
+            return true;
+        })(),
+
+        // Zapis całego widocznego okna tagów (#2091): ten sam formularz,
+        // który może dodać relację po zmianie statusu konta w innym żądaniu.
+        'zapisz-obserwowane-tagi' => (function () use ($argumenty): bool {
+            app(UpdateTagFollows::class)->save(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                [$argumenty['tag']],
+                ['shown' => [$argumenty['tag']], 'followed' => []],
+            );
+
+            return true;
+        })(),
+
+        'scal-tagi' => (string) app(MergeTags::class)->handle(
+            Tag::query()->whereKey($argumenty['zrodlo'])->firstOrFail(),
+            Tag::query()->whereKey($argumenty['cel'])->firstOrFail(),
+        )->getKey(),
+        // Zastąpienie wyboru redakcyjnego (#1027): prawdziwe akcje domenowe,
+        // bariera po ich własnym DELETE.
+        'tablica-dnia' => (function () use ($argumenty): array {
+            barieraPoKasowaniuWyboru('daily_picks');
+
+            return app(ZapiszTabliceDnia::class)->zastap(
+                gospodarz: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                osoby: [],
+                wpisy: (array) json_decode($argumenty['wpisy'], true),
+                notatki: [],
+                przeslaneOsoby: 0,
+                przeslaneWpisy: count((array) json_decode($argumenty['wpisy'], true)),
+                ip: null,
+                dzien: $argumenty['dzien'],
+            );
+        })(),
+
+        'kolaz' => (function () use ($argumenty): int {
+            barieraPoKasowaniuWyboru('hero_picks');
+            /** @var array<string, string> $dopuszczone */
+            $dopuszczone = (array) json_decode($argumenty['zdjecia'], true);
+
+            return app(ZapiszKolaz::class)->zastap(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                array_keys($dopuszczone),
+                $dopuszczone,
+                null,
+            );
+        })(),
+
+        // Dwa RÓŻNE konta potwierdzają zmianę na ten sam wolny adres (#1435).
+        // Bariera przyrządu staje zaraz PO aplikacyjnym „czy adres wolny",
+        // więc oba procesy mają go już za sobą, gdy ruszają do zapisu.
+        // Blokada współdzielona: po zwolnieniu bariery oba idą naraz,
+        // a rozstrzyga dopiero `users_email_lower_unique`.
+        'potwierdz-wspolny-adres' => (function () use ($argumenty): string {
+            // Sesje w bazie, jak na produkcji — inaczej `invalidateSessions()`
+            // nie rusza tabeli `sessions` i test nie widziałby jej wycofania.
+            config(['session.driver' => 'database']);
+            DB::listen(static function (QueryExecuted $query): void {
+                if (str_contains($query->sql, 'exists(') && str_contains($query->sql, 'lower(email) = ?')) {
+                    DB::select('SELECT pg_advisory_xact_lock_shared(1435, 1)');
+                }
+            });
+
+            return app(ConfirmEmailChange::class)->handle(
+                User::query()->whereKey($argumenty['konto'])->firstOrFail(),
+                PendingEmailChange::query()->whereKey($argumenty['zmiana'])->firstOrFail(),
+                biezacaSesja: $argumenty['sesja'],
+            );
+        })(),
+
+        // Rozpatrzenie odwołania (#950). Odwołanie czytane PRZED akcją, tak
+        // jak zrobiłoby to wiązanie trasy w dwóch równoległych żądaniach —
+        // oba procesy trzymają w pamięci `open`.
+        'rozpatrz-odwolanie' => (string) app(ResolveAppeal::class)->handle(
+            moderator: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            odwolanie: Appeal::query()->whereKey($argumenty['odwolanie'])->firstOrFail(),
+            wynik: $argumenty['wynik'],
+            uzasadnienie: $argumenty['uzasadnienie'],
+        )->status,
+
+        'zmien-role' => app(ChangeUserRole::class)->handle(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            $argumenty['rola'],
+        )['changed'],
+
+        'zdejmij-z-urzedu' => (string) app(ZdejmijZUrzedu::class)->handle(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
+            'spam-reklama',
+            'Treść jest reklamą, nie rozmową o gotowaniu.',
+        )->getKey(),
+
+        'wyslij-odpowiedz' => (string) app(WyslijOdpowiedz::class)->handle(
+            ContactMessage::query()->whereKey($argumenty['wiadomosc'])->firstOrFail(),
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            'Odpowiedź z testu wyścigu.',
+            replyKey: (string) Str::uuid(),
+        )->getKey(),
+
+        // Decyzja w sprawie zgłoszenia przez prawdziwy kontroler panelu
+        // (#933: nowa kara równolegle z uchyleniem starej). Bez HTTP, tak jak
+        // `ModerationDecideRaceTest` — middleware 2FA nie jest tu mierzone.
+        'decyzja-zgloszenia' => (function () use ($argumenty): string {
+            $moderator = User::query()->whereKey($argumenty['kto'])->firstOrFail();
+            Auth::setUser($moderator);
+
+            $zgloszenie = Report::query()->whereKey($argumenty['zgloszenie'])->firstOrFail();
+
+            // Wejście przez ten sam FormRequest co trasa (#970, krok 2):
+            // rola, własna sprawa, stan zgłoszenia i reguły pól, potem kontroler.
+            $zadanie = DecyzjaModeracyjnaRequest::create('/admin/zgloszenia/x', 'POST', array_filter([
+                'action' => $argumenty['akcja'],
+                'reason_code' => 'harassment',
+                'suspend_days' => $argumenty['dni'] ?? null,
+                'user_message' => 'Decyzja z testu wyścigu.',
+            ]));
+            $zadanie->setContainer(app())->setRedirector(app('redirect'));
+            $zadanie->setLaravelSession(app('session.store'));
+            $zadanie->setUserResolver(static fn () => $moderator);
+            $trasa = (new Route('POST', '/admin/zgloszenia/{report}', []))->bind($zadanie);
+            $trasa->setParameter('report', $zgloszenie);
+            $zadanie->setRouteResolver(static fn () => $trasa);
+
+            try {
+                $zadanie->validateResolved();
+            } catch (ValidationException $e) {
+                return implode(' ', $e->validator->errors()->all());
+            }
+
+            $odpowiedz = app(ModerationController::class)->decide($zadanie, $zgloszenie);
+
+            $bledy = $odpowiedz->getSession()?->get('errors');
+
+            return $bledy === null ? 'ok' : implode(' ', $bledy->all());
+        })(),
 
         // Ustawienie nowego hasła PRAWDZIWYM kontrolerem (#1358): zmiana
         // w ustawieniach albo reset linkiem. Bariera przyrządu staje zaraz
@@ -325,6 +625,14 @@ try {
             details: 'To jest reklama.',
         )->getKey(),
 
+        // Zmiany listy tagów promowanych (#1308) — ta sama klasa, której
+        // używa panel gospodarza (`TagPromotionController`).
+        'promuj-tag' => app(PromowaneTagi::class)->dodaj(Tag::query()->findOrFail($argumenty['tag'])),
+
+        'przesun-promowany' => app(PromowaneTagi::class)->przesun(
+            Tag::query()->findOrFail($argumenty['tag']),
+            (int) $argumenty['kierunek'],
+        ),
         // Zmiana profilu przez PRAWDZIWE żądanie HTTP (#887): cały stos
         // middleware, walidacja i kontroler, a na koniec to, co zobaczyłby
         // człowiek — kod odpowiedzi, błąd pola i odłożone dane formularza.
@@ -356,6 +664,19 @@ try {
                 'zapisane' => $sesja?->get('status'),
             ];
         })(),
+
+        // Rejestracja wdrożenia (issue #1932, D-318): numer kolejny liczony
+        // pod `pg_advisory_xact_lock(hashtext($etykieta))` wewnątrz akcji —
+        // test na dwóch połączeniach trzyma TĘ SAMĄ blokadę na własnym
+        // połączeniu (ten sam klucz), żeby wymusić prawdziwe zderzenie dwóch
+        // równoległych rejestracji pod tą samą etykietą.
+        'zarejestruj-wdrozenie' => app(ZarejestrujWdrozenie::class)->handle(
+            $argumenty['commit'],
+            $argumenty['etykieta'],
+        ),
+
+        // Prawdziwa komenda używana przez obie ścieżki wdrożenia (#2082).
+        'migruj-pod-blokada' => Artisan::call('kuking:migruj-pod-blokada'),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),
     };

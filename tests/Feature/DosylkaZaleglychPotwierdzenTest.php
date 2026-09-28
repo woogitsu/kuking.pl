@@ -418,7 +418,7 @@ class DosylkaZaleglychPotwierdzenTest extends TestCase
     {
         $zadanie = $this->zadanieHarmonogramu();
 
-        $this->assertSame('35 * * * *', $zadanie->expression);
+        $this->assertSame('45 * * * *', $zadanie->expression);
         $this->assertTrue($zadanie->onOneServer, 'Dosyłka bez onOneServer() odpali się dwa razy przy wdrożeniu.');
         $this->assertTrue($zadanie->withoutOverlapping);
         $this->assertSame(50, $zadanie->expiresAt, 'Blokada zadania co godzinę ma wygasać przed następnym terminem (#1002).');

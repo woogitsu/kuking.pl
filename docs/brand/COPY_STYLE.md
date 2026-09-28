@@ -333,6 +333,11 @@ podsekcję „Poznaj ich kuchnie”. Wspólne zaproszenie gościa:
 wpisu, którego kliknięcie obejmuje również zdjęcie; nie dokładamy
 powtarzanego przycisku „Zobacz”. Pozostałe szyny zachowują swój wariant.
 
+Gdy gość wybiera obserwowanie konkretnej osoby, po rejestracji i pierwszych
+krokach wraca do jej profilu albo do przepisu, z którego przyszedł. Musi
+jeszcze sam kliknąć „Obserwuj”; samo założenie konta nikogo nie obserwuje.
+Obok rejestracji jest droga logowania dla osoby, która ma już konto.
+
 Sekcja z kilkoma osobami i kilkoma wpisami wartymi zobaczenia dzisiaj.
 Odpowiednik „Dla Ciebie" z innych portali, tylko **bez algorytmu i bez rankingu**.
 
@@ -483,6 +488,13 @@ Regresja: `tests/Feature/PytanieDniaTest.php`.
 | sekcja pod przepisem | Komu wyszło |
 | pod nagłówkiem | Zdjęcia od ludzi, którzy naprawdę to zrobili u siebie. |
 
+Pusty stan „Komu wyszło” mówi „Nie ma tu widocznych wykonań”. Brak kart
+może oznaczać zarówno brak wykonań, jak i wykonania ukryte przed bieżącym
+widzem przez blokadę. Nie obiecujemy, że jego wykonanie będzie pierwsze.
+Osobie uprawnionej pokazujemy „Dodaj swoje wykonanie”, a gościowi drogę
+do założenia konta i osobny link do logowania. Samo otwarcie tych stron
+nie dodaje wykonania.
+
 Instrukcja formularza może zapowiadać powiadomienie innego autora, który
 może czytać serwis. Przy własnym przepisie i autorze wymazanym mówi:
 „Zapisz wykonanie tego przepisu.” Zawieszony autor nadal może czytać
@@ -501,7 +513,7 @@ wyjątkach jest prawidłowy, a wcześniejsze powiadomienie może już nie istnie
 | puste archiwum, własne | Twoje archiwum jest jeszcze puste |
 | + wyjaśnienie | Od pierwszego zdjęcia zaczyna się Twoje archiwum. Za rok zobaczysz tu, co gotujesz dzisiaj. |
 | brak powiadomień | Nie ma jeszcze żadnych powiadomień |
-| + wyjaśnienie | Tu pojawi się informacja, kiedy ktoś ugotuje z Twojego przepisu albo napisze komentarz. |
+| + wyjaśnienie | Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących oraz ważnych sprawach dotyczących Twojego konta. |
 | brak wyników szukania | Nic nie znaleźliśmy |
 | + wyjaśnienie | Nie ma jeszcze przepisu, który by pasował do „{fraza}". Może to Ty go dodasz? |
 | brak wyników szukania, zakres „Wszystko” (przepisy i ludzie, #944) | Nic nie znaleźliśmy |
@@ -541,10 +553,21 @@ Tu obowiązuje **pełna szczerość i zero łagodzenia**.
 |---|---|
 | usunięcie wpisu | Na pewno usunąć ten wpis? Tej operacji nie da się cofnąć samodzielnie. |
 | usunięcie przepisu | Na pewno usunąć ten przepis? Wykonania i komentarze innych osób też przestaną być widoczne. |
-| blokada osoby | Zablokować {imię}? Nie zobaczycie już wzajemnie swoich treści. |
+| blokada osoby | Zablokować tę osobę? {nazwa, osobny wiersz, mianownik} Nie zobaczycie już wzajemnie swoich treści. |
 | przed usunięciem konta | Zanim to zrobisz, warto najpierw pobrać swoje dane. |
 | potwierdzenie | Rozumiem, że po 30 dniach moje wpisy, przepisy i zdjęcia zostaną usunięte na stałe |
 | po zgłoszeniu | Konto zostało oznaczone do usunięcia. Masz 30 dni, żeby zmienić zdanie — wystarczy, że się zalogujesz i napiszesz do nas. |
+
+**Blokada osoby (25 września 2026, issue #1819).** Wcześniej ten wiersz brzmiał
+„Zablokować {imię}?" — a widok składał to jako
+`'Zablokować '.$display_name.'?'`. Dla nazwy w mianowniku to pytanie wymaga
+biernika („Zablokować Anię?"), więc dowolna inna nazwa („Zablokować Marek?",
+„Zablokować Żaneta?") wyglądała na literówkę albo zepsute oprogramowanie —
+dokładnie ten sam błąd co „Po Nasze smaki" wyżej, tylko przy pytaniu, nie przy
+źródle przepisu. Poprawka: pytanie samo w sobie nie odmienia niczego
+(„Zablokować tę osobę?"), a nazwa stoi pod nim, w osobnym wierszu, dosłownie
+i w mianowniku — `<x-confirm-button :name="...">`,
+`resources/views/pages/profile/show.blade.php`.
 
 ### E-mail
 

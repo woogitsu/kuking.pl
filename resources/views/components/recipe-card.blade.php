@@ -1,11 +1,12 @@
 @props(['recipe', 'uklad' => 'wiersz', 'pokazWidocznosc' => false])
-<article @class(['card', 'recipe-card-kafel' => $uklad === 'kafel'])>
+<article @class(['card', 'recipe-card-kafel' => $uklad === 'kafel']) data-klucz="przepis-{{ $recipe->getKey() }}">
     <div class="flex gap-4 items-start recipe-card-uklad">
         @if($recipe->heroMedia)
             @if($uklad === 'kafel')
                 <div class="recipe-card-miniatura">
             @else
-                <a href="{{ route('recipes.show', $recipe->slug) }}" class="recipe-card-miniatura">
+                <a href="{{ route('recipes.show', $recipe->slug) }}" class="recipe-card-miniatura"
+                   aria-label="Zobacz przepis: {{ $recipe->title }}">
             @endif
                 {{-- `zoom` wyłączone: wiersz ma link na miniaturze,
                      a kafel jeden odnośnik rozszerzony na całą kartę.

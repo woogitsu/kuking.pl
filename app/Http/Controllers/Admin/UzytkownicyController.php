@@ -4,16 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Moderation\ListaKont;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ListaKontRequest;
 use App\Models\AuditLogEntry;
-use App\Models\ModerationAction;
 use App\Models\User;
-use App\Support\Czas;
-use Carbon\CarbonImmutable;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
@@ -26,6 +22,15 @@ use Illuminate\View\View;
  * już coś z nią było" był `psql`. Moderator, który przy zgłoszeniu musi
  * wiedzieć, czy pisze do kogoś, kto założył konto wczoraj, czy do kogoś, kto
  * gotuje z nami od pół roku, nie ma jak tego sprawdzić z przeglądarki.
+ *
+ * GDZIE CO LEŻY (issue #970, granica z docs/ARCHITECTURE.md)
+ *  * wejście z adresu — filtry, sortowanie, normalizacja frazy:
+ *    `App\Http\Requests\Admin\ListaKontRequest`;
+ *  * zapytania — lista, liczniki zakładek, historia decyzji:
+ *    `App\Domain\Moderation\ListaKont`;
+ *  * ten kontroler — autoryzacja, wpis do dziennika przy karcie konta
+ *    i złożenie odpowiedzi.
+ * Poniższe decyzje dotyczą całego ekranu, więc zostają w jednym miejscu.
  *
  * ══════════════════════════════════════════════════════════════════════════
  *  SKALA: TYSIĄCE KONT, NIE DWADZIEŚCIA
@@ -128,64 +133,33 @@ use Illuminate\View\View;
  */
 class UzytkownicyController extends Controller
 {
-    /**
-     * Ile kont na stronie.
-     *
-     * Ta sama liczba co w kolejce odwołań i wiadomości — jeden rytm
-     * stronicowania w całym panelu. Przy 25 wierszach tabela mieści się
-     * na ekranie razem z nagłówkiem, a osoba z powiększonym tekstem nie
-     * przewija pół dnia do stronicowania na dole.
-     */
-    private const NA_STRONIE = 25;
+    public function __construct(
+        private readonly ListaKont $listaKont,
+    ) {}
 
     /**
-     * Po czym wolno sortować — BIAŁA LISTA, nie nazwa kolumny z adresu.
-     *
-     * `?sortuj=` trafia wprost do `ORDER BY`, więc ta lista jest jedyną
-     * rzeczą, która dzieli ten ekran od wstrzyknięcia SQL. Klucze są po
-     * polsku, bo widać je w pasku adresu.
-     *
-     * @var array<string, string>
+     * Lista kont. Wejście z adresu (filtry, sortowanie) przygotowuje
+     * `ListaKontRequest`, zapytania wykonuje `ListaKont` (issue #970) —
+     * kontroler tylko składa odpowiedź.
      */
-    private const SORTOWANIA = [
-        'rejestracja' => 'users.created_at',
-        'aktywnosc' => 'users.ostatnio_widziany_at',
-        'wpisy' => 'wpisow_count',
-    ];
-
-    /**
-     * DOMYŚLNIE: NAJNOWSZE KONTA NA GÓRZE. Nigdy „najwięcej wpisów".
-     *
-     * AGENTS.md §12 zakazuje publicznych rankingów użytkowników. Lista
-     * posortowana domyślnie po liczbie wpisów malejąco JEST takim rankingiem
-     * — wystarczy zrzut ekranu, żeby wyszła z niej „czołówka najaktywniejszych"
-     * pokazana komukolwiek poza moderatorem. Sortowanie po wpisach zostaje
-     * dostępne, bo bywa potrzebne przy koncie zakładanym pod spam, ale trzeba
-     * je włączyć świadomie, klikając w nagłówek kolumny.
-     *
-     * Data rejestracji malejąco odpowiada na pytanie, które przy tej liście
-     * pada najczęściej, a przy fali z Garnek.pl będzie padać codziennie:
-     * „kto przyszedł dzisiaj".
-     */
-    private const SORTOWANIE_DOMYSLNE = 'rejestracja';
-
-    public function index(Request $request): View
+    public function index(ListaKontRequest $request): View
     {
-        // Middleware `moderator` pilnuje wejścia do całej grupy `/admin`,
-        // ale bramka na politykę zostaje TUTAJ — tak samo jak w
-        // `AppealController::index()`. Adres nie jest autoryzacją
-        // (AGENTS.md §7), a trasa może kiedyś trafić do innej grupy.
+        // Rolę sprawdza już `ListaKontRequest::authorize()`. Zostaje też
+        // tutaj, żeby wejście było widać w kontrolerze i żeby przeniesienie
+        // wejścia do Form Requestu go nie zgubiło. Adres nie jest
+        // autoryzacją (AGENTS.md §7), a trasa może kiedyś trafić do innej
+        // grupy niż ta za middleware `moderator`.
         $this->authorize('moderate', User::class);
 
-        $filtry = $this->filtry($request);
-        [$sortuj, $kierunek] = $this->sortowanie($request);
+        $filtry = $request->filtry();
+        [$sortuj, $kierunek] = $request->sortowanie();
 
         return view('pages.admin.uzytkownicy', [
-            'uzytkownicy' => $this->lista($filtry, $sortuj, $kierunek),
+            'uzytkownicy' => $this->listaKont->strona($filtry, $sortuj, $kierunek),
             'filtry' => $filtry,
             'sortuj' => $sortuj,
             'kierunek' => $kierunek,
-            'liczniki' => $this->liczniki(),
+            'liczniki' => $this->listaKont->liczniki(),
         ]);
     }
 
@@ -221,286 +195,7 @@ class UzytkownicyController extends Controller
 
         return view('pages.admin.uzytkownik', [
             'uzytkownik' => $user->load('profile'),
-            'decyzje' => $this->historiaDecyzji($user),
+            'decyzje' => $this->listaKont->historiaDecyzji($user),
         ]);
-    }
-
-    /**
-     * @param  array{status: string, od: ?CarbonImmutable, do: ?CarbonImmutable, bez_wpisow: bool, szukaj: string, fraza: string}  $filtry
-     * @return LengthAwarePaginator<int, User>
-     */
-    private function lista(array $filtry, string $sortuj, string $kierunek): LengthAwarePaginator
-    {
-        $zapytanie = User::query()
-            /*
-             * PROFIL PRZEZ `with()`, NIE W PĘTLI. Bez tego każdy z 25 wierszy
-             * dokładałby własne zapytanie o nazwę — czyli 26 zamiast 2.
-             *
-             * AWATARA ŚWIADOMIE TU NIE MA (`profile.avatar` nie jest
-             * doładowywane). To jest tabela do czytania, nie galeria: dodanie
-             * zdjęć dołożyłoby trzecie zapytanie i wariantów pliku na każdy
-             * wiersz, a tożsamość na tym ekranie niesie nazwa z `@username`.
-             * Awatar jest tam, gdzie ma znaczenie — na karcie konta.
-             */
-            ->with('profile')
-            /*
-             * `withCount` = PODZAPYTANIE W TYM SAMYM `SELECT`, zero dodatkowych
-             * zapytań niezależnie od liczby wierszy. Idzie po istniejącym
-             * indeksie `posts_author_published_idx (author_id, …) WHERE
-             * deleted_at IS NULL`.
-             *
-             * Liczy WPISY, nie „aktywność" w ogóle — moderatorowi chodzi o to,
-             * czy konto w ogóle czegokolwiek tu dodało. Soft delete sprawia,
-             * że usunięte wpisy się nie liczą, i tak ma być: pytamy o to, co
-             * dziś stoi w serwisie.
-             */
-            ->withCount(['posts as wpisow_count']);
-
-        if ($filtry['status'] !== 'wszystkie') {
-            $zapytanie->where('users.status', $filtry['status']);
-        }
-
-        if ($filtry['od'] instanceof CarbonImmutable) {
-            $zapytanie->where('users.created_at', '>=', $filtry['od']);
-        }
-
-        if ($filtry['do'] instanceof CarbonImmutable) {
-            $zapytanie->where('users.created_at', '<', $filtry['do']);
-        }
-
-        if ($filtry['bez_wpisow']) {
-            // `NOT EXISTS` po tym samym indeksie co `withCount` wyżej —
-            // nie liczy wpisów, tylko sprawdza, czy jest choć jeden.
-            $zapytanie->whereDoesntHave('posts');
-        }
-
-        if ($filtry['fraza'] !== '') {
-            $wzorzec = '%'.$this->doLike($filtry['fraza']).'%';
-
-            $zapytanie->where(function ($szukaj) use ($wzorzec): void {
-                // Adres e-mail leży w bazie już małymi literami (mutator
-                // `User::email`), ale przepuszczamy go przez tę samą funkcję
-                // co nazwy — inaczej „Michał@…" wpisane w pole szukania nie
-                // znalazłoby niczego, bo fraza jest znormalizowana, a kolumna
-                // nie. Indeks `users_email_trgm_idx` stoi na dokładnie tym
-                // wyrażeniu.
-                $szukaj->whereRaw('public.kuking_normalize(users.email) LIKE ?', [$wzorzec])
-                    ->orWhereHas('profile', function ($profil) use ($wzorzec): void {
-                        // KOLUMNY `*_search`, nie `kuking_normalize(kolumna)`.
-                        // To są kolumny generowane z issue #116, z gotowymi
-                        // indeksami trigramowymi — liczenie normalizacji od
-                        // nowa przy każdym wierszu było dokładnie tym kosztem,
-                        // który tamta migracja usunęła.
-                        $profil->where('profiles.username_search', 'like', $wzorzec)
-                            ->orWhere('profiles.display_name_search', 'like', $wzorzec);
-                    });
-            });
-        }
-
-        return $zapytanie
-            ->orderByRaw($this->klauzulaSortowania($sortuj, $kierunek))
-            /*
-             * DRUGI WARUNEK ROZSTRZYGA REMIS — ten sam powód co w
-             * `AppealController::index()`. Bez niego PostgreSQL oddaje wiersze
-             * o równej wartości w porządku fizycznym, a ten przestawia każdy
-             * UPDATE (choćby zapis `ostatnio_widziany_at`). Przy stronicowaniu
-             * po 25 znaczy to inny podział na strony między jednym kliknięciem
-             * a drugim: konto pokazane dwa razy albo pominięte. Przy sortowaniu
-             * po liczbie wpisów remisy są regułą, nie wyjątkiem — zero wpisów
-             * ma większość kont, a przy tysiącach kont to są całe strony
-             * nierozróżnialnych wierszy.
-             *
-             * `id` jest UUID-em v7, więc rozstrzyga tak samo jak czas założenia
-             * konta: starsze niżej przy DESC.
-             */
-            ->orderByDesc('users.id')
-            ->paginate(self::NA_STRONIE)
-            ->withQueryString();
-    }
-
-    /**
-     * Historia decyzji moderacyjnych DOTYCZĄCYCH tego konta.
-     *
-     * Po `subject_user_id`, nie po `moderator_id` — pytamy „co się z tą osobą
-     * działo", nie „co ta osoba rozstrzygnęła". Idzie po istniejącym indeksie
-     * `moderation_actions_subject_idx (subject_user_id, created_at DESC)`,
-     * więc nie potrzeba tu żadnej zmiany schematu.
-     *
-     * Bez stronicowania, za to z twardym limitem: to jest kontekst do sprawy,
-     * a nie druga kolejka do pracy. Konto z pięćdziesięcioma decyzjami jest
-     * i tak rozstrzygnięte na pierwszy rzut oka.
-     *
-     * @return EloquentCollection<int, ModerationAction>
-     */
-    private function historiaDecyzji(User $user): EloquentCollection
-    {
-        return ModerationAction::query()
-            ->where('subject_user_id', $user->getKey())
-            ->with('moderator.profile')
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->limit(50)
-            ->get();
-    }
-
-    /**
-     * Ile kont w każdym stanie — liczby przy zakładkach filtra.
-     *
-     * JEDNO zapytanie grupujące, nie pięć `count()`. To nie jest panel
-     * statystyk: te liczby istnieją po to, żeby moderator wiedział, czy
-     * zakładka „Zawieszone" jest pusta, ZANIM w nią kliknie — przy tysiącach
-     * kont wejście na pustą listę to strata, której da się uniknąć.
-     *
-     * @return array<string, int>
-     */
-    private function liczniki(): array
-    {
-        $wiersze = User::query()
-            ->selectRaw('status, count(*) as ile')
-            ->groupBy('status')
-            ->pluck('ile', 'status');
-
-        $liczniki = ['wszystkie' => 0];
-
-        foreach (array_keys(User::ETYKIETY_STATUSU) as $status) {
-            $liczniki[$status] = (int) ($wiersze[$status] ?? 0);
-            $liczniki['wszystkie'] += $liczniki[$status];
-        }
-
-        return $liczniki;
-    }
-
-    /**
-     * Filtry z adresu, sprowadzone do wartości, których nie da się podrobić.
-     *
-     * CZTERY, NIE OSIEM. Każdy odpowiada na pytanie, które moderator naprawdę
-     * zadaje przy tysiącu kont:
-     *
-     *  * `szukaj`     — „mam adres e-mail ze zgłoszenia, czyje to konto";
-     *  * `status`     — „pokaż zawieszone" (zakładki z licznikami);
-     *  * `od`/`do`    — „kto przyszedł dzisiaj / w zeszłym tygodniu";
-     *  * `bez_wpisow` — „kto założył konto i nic nie napisał", czyli lista
-     *    osób do powitania (issue #6: pierwsza reakcja od człowieka jest
-     *    ważniejsza niż którakolwiek funkcja z MVP).
-     *
-     * ŚWIADOMIE NIE MA FILTRA „konta z zawieszeniem w historii". Zakładka
-     * „Zawieszone" odpowiada na to pytanie dla stanu BIEŻĄCEGO, a pełną
-     * historię widać na karcie konta. Osobna lista „ludzie, którzy kiedyś
-     * dostali karę" jest tym samym, czym publiczny ranking najaktywniejszych
-     * (AGENTS.md §12), tylko z odwróconym znakiem — a decyzja 3.3
-     * (docs/INSPIRATION_DECISIONS.md) mówi wprost, że log samych kar wygląda
-     * jak akt oskarżenia.
-     *
-     * @return array{status: string, od: ?CarbonImmutable, do: ?CarbonImmutable, bez_wpisow: bool, szukaj: string, fraza: string}
-     */
-    private function filtry(Request $request): array
-    {
-        $wpisane = trim((string) $request->query('szukaj', ''));
-        $wpisane = mb_substr($wpisane, 0, 120);
-
-        $status = (string) $request->query('status', 'wszystkie');
-
-        return [
-            'status' => array_key_exists($status, User::ETYKIETY_STATUSU) ? $status : 'wszystkie',
-            'od' => $this->dzien($request, 'od'),
-            // Górna granica jest WŁĄCZAJĄCA dla całego wskazanego dnia:
-            // porównanie idzie do początku dnia następnego (`<`). Bez tego
-            // „do 9 września" gubiłoby wszystkie konta założone 9 września
-            // po północy, czyli praktycznie wszystkie z tego dnia.
-            'do' => $this->dzien($request, 'do')?->addDay(),
-            'bez_wpisow' => $request->query('bez_wpisow') === '1',
-            // Surowa fraza wraca do pola formularza (człowiek ma widzieć to,
-            // co wpisał), znormalizowana idzie do zapytania.
-            'szukaj' => $wpisane,
-            'fraza' => $wpisane === '' ? '' : $this->normalizuj($wpisane),
-        ];
-    }
-
-    /**
-     * Data z adresu jako początek dnia w strefie CZŁOWIEKA, nie w UTC.
-     *
-     * `users.created_at` jest w UTC, a moderator wpisuje „9 września" myśląc
-     * o polskim dniu. Bez `App\Support\Czas::strefa()` filtr „od dzisiaj"
-     * gubiłby konta założone między północą a drugą w nocy czasu polskiego —
-     * czyli te, które na liście widać z datą dzisiejszą.
-     */
-    private function dzien(Request $request, string $parametr): ?CarbonImmutable
-    {
-        $wartosc = trim((string) $request->query($parametr, ''));
-
-        if ($wartosc === '') {
-            return null;
-        }
-
-        try {
-            $dzien = CarbonImmutable::createFromFormat('Y-m-d', $wartosc, Czas::strefa());
-
-            return $dzien instanceof CarbonImmutable ? $dzien->startOfDay()->utc() : null;
-        } catch (\Throwable) {
-            // Data nie do odczytania = brak filtra. Świadomie bez błędu
-            // walidacji: to jest parametr z adresu, nie pole, które człowiek
-            // wypełnił źle — a ekran ma się otworzyć, nie nakrzyczeć.
-            return null;
-        }
-    }
-
-    /**
-     * Fraza znormalizowana tak samo jak kolumna po stronie bazy.
-     *
-     * Ta sama normalizacja co w `App\Domain\Search\SearchQuery`: `Str::ascii`
-     * odpowiada temu, co `unaccent` robi z polskimi znakami, więc „Żaneta"
-     * znajduje „zaneta".
-     */
-    private function normalizuj(string $fraza): string
-    {
-        return mb_strtolower(Str::ascii($fraza));
-    }
-
-    /**
-     * Fraza bezpieczna do wstawienia w `LIKE`.
-     *
-     * `%` i `_` są w `LIKE` znakami wieloznacznymi. Bez tego kroku wpisanie
-     * samego „%" oddawałoby WSZYSTKIE konta w serwisie jednym znakiem —
-     * a „_" cicho psułby szukanie nazw z podkreśleniem (`profiles.username`
-     * dopuszcza je wprost, CHECK `^[a-zA-Z0-9_]{3,40}$`). Backslash uciekamy
-     * jako pierwszy, inaczej uciekalibyśmy własne ucieczki.
-     */
-    private function doLike(string $fraza): string
-    {
-        return str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $fraza);
-    }
-
-    /**
-     * Wybrane sortowanie sprowadzone do pary, której nie da się podrobić
-     * z adresu.
-     *
-     * @return array{string, string}
-     */
-    private function sortowanie(Request $request): array
-    {
-        $sortuj = (string) $request->query('sortuj', self::SORTOWANIE_DOMYSLNE);
-        $kierunek = (string) $request->query('kierunek', 'desc');
-
-        return [
-            array_key_exists($sortuj, self::SORTOWANIA) ? $sortuj : self::SORTOWANIE_DOMYSLNE,
-            $kierunek === 'asc' ? 'asc' : 'desc',
-        ];
-    }
-
-    /**
-     * Klauzula `ORDER BY` — obie części wyłącznie z białej listy wyżej,
-     * żadnego fragmentu z żądania.
-     *
-     * `NULLS LAST` W OBIE STRONY I TO NIE JEST KOSMETYKA. PostgreSQL domyślnie
-     * stawia NULL-e na końcu przy `ASC` i na POCZĄTKU przy `DESC`. Kolumna
-     * `ostatnio_widziany_at` jest pusta u kont, które nigdy nie weszły
-     * (i u zanonimizowanych — `EraseAccountData` ją zeruje), więc sortowanie
-     * „ostatnio widziani, najnowsi na górze" zaczynałoby się od kilkudziesięciu
-     * wierszy z pustym polem. Pierwsza strona pokazywałaby dokładnie te konta,
-     * o które nikt nie pytał.
-     */
-    private function klauzulaSortowania(string $sortuj, string $kierunek): string
-    {
-        return self::SORTOWANIA[$sortuj].' '.strtoupper($kierunek).' NULLS LAST';
     }
 }

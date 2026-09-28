@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -55,13 +56,22 @@ use Illuminate\Support\Facades\Schema;
  * `TagSeeder::utworzBrakujaceTagi()`), nie coś, co formularz rejestracji
  * albo edycji profilu mógłby kiedykolwiek przypadkiem przekazać dalej.
  *
- * ROLLBACK
- * `down()` zdejmuje kolumnę. Bezpieczne: nic poza etykietą w interfejsie
- * i wykluczeniem z WAC nie czyta tej kolumny, więc po rollbacku dwanaście
- * kont z pliku staje się (w bazie) nie do odróżnienia od kont zwykłych —
- * ich treść ZOSTAJE (rollback tej migracji nigdy nie kasuje wierszy
- * `users`/`posts`/`recipes`/`comments`), znika tylko etykieta i wykluczenie
- * z metryki. To jest znany, opisany skutek, nie utrata danych.
+ * ROLLBACK — ODMAWIA, GDY JEST CO ZGUBIĆ (D-088, audyt B3 W4)
+ * `down()` zdejmuje kolumnę, ale tylko wtedy, gdy żadne konto nie ma
+ * `is_seeded = true`. Po cichym cofnięciu i ponownym `migrate` kolumna
+ * wróciłaby z `DEFAULT false` dla wszystkich: persony z pliku stałyby się
+ * nie do odróżnienia od ludzi — bez etykiety w interfejsie (D-025), w WAC
+ * i „Liczbie Kukingów" (`CookEligibility`, `LiczbaKukingow`) oraz w liście
+ * realnych kont dotkniętych naprawą #317 (`KontaBezPotwierdzonegoAdresu`).
+ * Żaden wiersz nie ginie, więc nie ma błędu do zauważenia — dokładnie
+ * choroba z tabeli w AGENTS.md §6. Wcześniej stało tu, że rollback jest
+ * „bezpieczny", a ochroną było zdanie w `docs/DATABASE.md` — czyli wzorzec,
+ * którego AGENTS.md §6 zabrania.
+ *
+ * Odmowa jest WĄSKA: świeża baza i baza bez kont z pliku przechodzą bez
+ * pytania (`CofniecieMigracjiNieGubiKontZalazkowychTest`). `LOCK TABLE`
+ * przed liczeniem, żeby równoległy zapis nie wszedł między sprawdzenie
+ * a zdjęcie kolumny (migracja chodzi w transakcji, blokada trwa do końca).
  */
 return new class extends Migration
 {
@@ -74,6 +84,31 @@ return new class extends Migration
 
     public function down(): void
     {
+        // Strażnik MUSI stać przed `dropColumn` — po zdjęciu kolumny nie ma
+        // już czego policzyć.
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('LOCK TABLE users IN ACCESS EXCLUSIVE MODE');
+        }
+
+        $zalazkowe = DB::table('users')->where('is_seeded', true)->count();
+
+        if ($zalazkowe > 0) {
+            throw new RuntimeException(
+                'Cofnięcie odmówione. Liczba kont z treści zalążkowej (is_seeded = true): '.$zalazkowe.'. '.
+                'Stary schemat nie ma tej kolumny: gdyby cofnięcie przeszło, kolejny `migrate` odtworzyłby ją '.
+                'z `DEFAULT false`, a persony z pliku (D-025) stałyby się nie do odróżnienia od ludzi — bez '.
+                'etykiety przy koncie, w WAC i „Liczbie Kukingów", w liście kont dotkniętych naprawą #317 '.
+                "(D-088, AGENTS.md §6).\n\n".
+                "CO ZROBIĆ:\n".
+                '  - jeśli cofasz z powodu awaryjnego rollbacku WDROŻENIA (obraz aplikacji), nie cofaj TEJ '.
+                "migracji — kod sprzed niej działa z tą kolumną bez zmian; wycofaj sam kod;\n".
+                "  - jeśli naprawdę trzeba cofnąć SCHEMAT, zapisz listę PRZED cofnięciem:\n".
+                "      SELECT id FROM users WHERE is_seeded = true;\n".
+                '    a po powrocie na tę wersję schematu odtwórz ją tym samym `UPDATE users SET is_seeded = true`, '.
+                'ZANIM ktokolwiek zobaczy te konta bez etykiety.',
+            );
+        }
+
         Schema::table('users', function (Blueprint $table): void {
             $table->dropColumn('is_seeded');
         });

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Domain\Moderation\CelZAdresuZgloszenia;
 use App\Domain\Moderation\ModeratedContent;
 use App\Models\Report;
 use App\Models\User;
@@ -88,6 +89,22 @@ class ReportPolicy
 
         if ($osoba !== null && $osoba->getKey() === $user->getKey()) {
             return Response::deny(self::SPRAWA_O_CIEBIE);
+        }
+
+        // Zgłoszenie prawne sprawdzamy jeszcze raz z ADRESU (audyt B2-02).
+        // `https://kuking.pl/@moderator` dawało kiedyś `unknown`, reguła nie
+        // miała kogo porównać i sprawę zamykał ten, na kogo ją złożono;
+        // `…/wpisy/{uuid}#komentarz-{uuid}` wskazywało wpis, więc autor
+        // komentarza pod cudzym wpisem rozstrzygał o własnym komentarzu.
+        // Formularz rozpoznaje to dziś przy przyjęciu, ale zgłoszenia sprzed
+        // tej zmiany leżą w kolejce z celem z tamtej chwili.
+        if (is_string($report->target_url) && $report->target_url !== '') {
+            [$typ, $id] = CelZAdresuZgloszenia::rozpoznaj($report->target_url);
+            $zAdresu = ModeratedContent::znajdz($typ, $id, zUsunietymi: true);
+
+            if ($zAdresu !== null && ModeratedContent::osoba($zAdresu)?->getKey() === $user->getKey()) {
+                return Response::deny(self::SPRAWA_O_CIEBIE);
+            }
         }
 
         return Response::allow();

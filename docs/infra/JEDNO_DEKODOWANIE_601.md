@@ -81,3 +81,38 @@ wymagają osobnego pomiaru. Ten PR nie zmienia synchronicznego podglądu.
 Poprzedni main f77bd4d ma nieudany deployment Railway 6481180494;
 przyczyna nie została ustalona. Nie scalać kolejnego pakietu przed jej
 wyjaśnieniem. Sukces CI nie jest potwierdzeniem działającej produkcji.
+## Odbiór na produkcji — kroki dla właściciela (dopisane 25.09.2026)
+
+Kod #625 jest wdrożony, ale definicja gotowości #601 wymaga **wykonanego
+prawdziwego zadania** `ProcessUploadedImage` na produkcji. Do tego służy
+komenda tylko do odczytu `kuking:odbior-zdjec`
+(`app/Console/Commands/OdbiorZdjec.php`, test `tests/Feature/OdbiorZdjecTest.php`).
+Nie zapisuje, nie kasuje i nie ponawia niczego; wypisuje wyłącznie UUID
+wierszy `media`, bez właściciela i bez kluczy obiektów.
+
+1. Zanotuj czas UTC tuż przed próbą, np. `2026-09-26T08:00:00Z`.
+2. Na **własnym koncie** opublikuj 2–3 zdjęcia kontrolne własnego autorstwa:
+   jedno poziome, jedno zrobione telefonem trzymanym pionowo (EXIF
+   `Orientation` 6) i jedno duże (≥ 24 MP). **Nigdy cudze zdjęcia.**
+3. Po 1–2 minutach, w konsoli kontenera aplikacji:
+
+   ```bash
+   php artisan kuking:odbior-zdjec --od=2026-09-26T08:00:00Z --pliki
+   ```
+
+4. Odczyt wyniku:
+   - kod `0` i „Odbiór przeszedł" — każde zdjęcie ma `thumb`/`feed`/`large`,
+     wymiary w limicie, poprawną orientację, pliki leżą w buckecie wariantów,
+     a w `failed_jobs` nie ma nieudanych zadań zdjęć od `--od`;
+   - kod `1` — raport mówi, które zdjęcie i co: `UTKNĘŁO` (worker `media`
+     nie działa), `ODRZUCONE`, `brak wariantu`, `zła orientacja`,
+     `nie leży w buckecie`; „jeszcze w toku" znaczy: uruchom ponownie za chwilę;
+   - kod `2` — w oknie nie ma ani jednego zdjęcia, czyli **nic nie zmierzono**.
+     To nie jest wynik pozytywny.
+5. Wpisz do #601: datę, SHA wdrożenia, liczbę zdjęć, medianę i maksimum
+   czasu „od wgrania do gotowości" z raportu oraz kod wyjścia.
+6. Zdjęcia kontrolne możesz potem usunąć zwykłym „Usuń" przy wpisie.
+
+**Czego ten odbiór nie dowodzi:** jakości obrazu i pamięci workera (to są
+pomiary wyżej) ani zachowania przy wielu równoczesnych wgraniach.
+Wycofanie: odwrócenie commita; brak migracji i zmiennych środowiskowych.

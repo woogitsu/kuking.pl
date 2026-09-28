@@ -101,11 +101,7 @@ final class SondaWdrozeniaTest extends TestCase
         array $forbiddenInOutput,
     ): void {
         $root = dirname(__DIR__, 2);
-        $workflow = file_get_contents($root.'/.github/workflows/preview.yml');
-        $count = preg_match_all('/      - name: Usuń środowisko PR\R        run: \|\R((?:          .*\R|\R)+)/u', $workflow, $matches);
-        $this->assertSame(1, $count, 'Test musi znaleźć dokładnie jeden wykonywany krok usuwania.');
-        $script = preg_replace('/^          /m', '', $matches[1][0]);
-        $script = str_replace('${{ github.event.inputs.pr_number }}', '999999', $script);
+        $script = self::skryptKrokuPreview('Usuń środowisko PR');
         $stub = <<<'BASH'
 railway() {
     case "$*" in
@@ -127,6 +123,9 @@ railway() {
 export -f railway
 BASH;
         $process = new Process(['bash', '-c', $stub."\n".$script], $root, [
+            // #1859: numer PR-a wchodzi do kroku przez `env:`, nie przez
+            // podstawienie w treści skryptu.
+            'PR_NUMBER' => '999999',
             'LIST_STDOUT' => $listStdout,
             'LIST_STDERR' => $listStderr,
             'LIST_CODE' => (string) $listCode,
@@ -147,6 +146,88 @@ BASH;
         } else {
             $this->assertStringNotContainsString('Gotowe.', $output);
         }
+    }
+
+    /**
+     * #1859: ręczne pole `pr_number` to tekst od człowieka. Krok tworzenia
+     * i krok usuwania mają go odrzucić, ZANIM cokolwiek zawoła Railway,
+     * i nie wykonać ani znaku z tego, co wpisano.
+     */
+    #[DataProvider('zleNumeryPr')]
+    public function test_reczne_kroki_preview_odrzucaja_numer_pr_inny_niz_cyfry(string $krok, string $numer): void
+    {
+        $root = dirname(__DIR__, 2);
+        $znacznik = sys_get_temp_dir().'/kuking-1859-'.bin2hex(random_bytes(6));
+        $numer = str_replace('ZNACZNIK', $znacznik, $numer);
+        $stub = "railway() { printf 'ATRAPA_RAILWAY_WYWOLANA: %s\\n' \"\$*\"; }\nexport -f railway\n";
+
+        $process = new Process(['bash', '-c', $stub.self::skryptKrokuPreview($krok)], $root, ['PR_NUMBER' => $numer]);
+        $process->run();
+        $output = $process->getOutput().$process->getErrorOutput();
+
+        $this->assertSame(1, $process->getExitCode(), $output);
+        $this->assertStringContainsString('Pole pr_number przyjmuje wyłącznie cyfry', $output);
+        $this->assertStringNotContainsString('ATRAPA_RAILWAY_WYWOLANA', $output);
+        $this->assertStringNotContainsString('WSTRZYKNIETE', $output);
+        $this->assertFileDoesNotExist($znacznik, 'Wpisany tekst wykonał się jako kod powłoki.');
+    }
+
+    public static function zleNumeryPr(): array
+    {
+        $zle = [
+            'cudzysłów i średnik' => '1"; echo WSTRZYKNIETE; touch ZNACZNIK; #',
+            'podstawienie polecenia' => '$(touch ZNACZNIK)',
+            'backtick' => '`touch ZNACZNIK`',
+            'nowa linia' => "1\ntouch ZNACZNIK",
+            'polecenie runnera' => '::set-env name=X::1',
+            'pusty' => '',
+            'z prefiksem' => 'pr-12',
+            'ujemny' => '-5',
+            'za długi' => '12345678901',
+        ];
+        $przypadki = [];
+        foreach (['Utwórz środowisko dla PR', 'Usuń środowisko PR'] as $krok) {
+            foreach ($zle as $opis => $numer) {
+                $przypadki["$krok — $opis"] = [$krok, $numer];
+            }
+        }
+
+        return $przypadki;
+    }
+
+    /**
+     * Kontrola dodatnia walidacji: poprawny numer przechodzi i trafia do CLI
+     * jako `pr-<numer>` — żeby czerwone wyniki wyżej nie znaczyły „krok
+     * odrzuca wszystko”.
+     */
+    public function test_reczne_tworzenie_preview_przyjmuje_numer_z_cyfr(): void
+    {
+        $stub = "railway() { printf 'ATRAPA_RAILWAY_WYWOLANA: %s\\n' \"\$*\"; }\nexport -f railway\n";
+        $process = new Process(['bash', '-c', $stub.self::skryptKrokuPreview('Utwórz środowisko dla PR')], dirname(__DIR__, 2), ['PR_NUMBER' => '1859']);
+        $process->run();
+        $output = $process->getOutput().$process->getErrorOutput();
+
+        $this->assertSame(0, $process->getExitCode(), $output);
+        $this->assertStringContainsString('ATRAPA_RAILWAY_WYWOLANA: environment new pr-1859 --copy staging', $output);
+    }
+
+    /**
+     * Treść `run:` jednego kroku z preview.yml, bez wcięcia YAML. Między
+     * `name:` a `run:` może stać blok `env:` (#1859).
+     */
+    private static function skryptKrokuPreview(string $krok): string
+    {
+        $workflow = (string) file_get_contents(dirname(__DIR__, 2).'/.github/workflows/preview.yml');
+        $count = preg_match_all(
+            '/      - name: '.preg_quote($krok, '/').'\R(?:        (?!run:)\S.*\R(?:          .*\R)*)*        run: \|\R((?:          .*\R|\R)+)/u',
+            $workflow,
+            $matches,
+        );
+        self::assertSame(1, $count, "Test musi znaleźć dokładnie jeden wykonywany krok „{$krok}”.");
+        $script = (string) preg_replace('/^          /m', '', $matches[1][0]);
+        self::assertStringNotContainsString('${{', $script, 'Wyrażenie GitHuba w treści kroku — dane mają wchodzić przez env: (#1859).');
+
+        return $script;
     }
 
     public static function deleteCases(): array

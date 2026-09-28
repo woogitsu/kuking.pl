@@ -59,9 +59,10 @@ use Throwable;
  *
  * CO Z TEGO TRACIMY I CZYM TO NADRABIAMY
  * Webhook przestaje być raportem, a staje się DZWONKIEM: mówi „coś się
- * zepsuło, tutaj, tego rodzaju". Pełny komunikat zostaje w logu serwera,
- * który nigdzie nie wychodzi. Żeby dało się jedno z drugim zestawić,
- * wiadomość niesie ODCISK — osiem znaków z klasy, pliku i linii. Ten sam
+ * zepsuło, tutaj, tego rodzaju". Komunikat zostaje w logu serwera — ale
+ * stderr czyta Railway, więc i tam przechodzi przez `BezDanychOsobowychWLogu`
+ * (e-mail, hash hasła i wartości z SQL-a są wycięte). Żeby dało się jedno
+ * z drugim zestawić, wiadomość niesie ODCISK — osiem znaków z klasy, pliku i linii. Ten sam
  * błąd ma zawsze ten sam odcisk, więc przy okazji widać, czy to nowa awaria,
  * czy dziesiąte powtórzenie tej samej.
  *
@@ -82,9 +83,19 @@ use Throwable;
  * 401 czy 404 jako zwykłą odpowiedź. Webhook z odwołanym adresem milczał
  * więc dokładnie tak samo jak webhook sprawny, i nie było ANI JEDNEGO
  * miejsca, z którego dałoby się to zobaczyć. Teraz: fakt niedodzwonienia się
- * idzie do dziennika serwera (`zapiszNiedodzwonienie()`, kanał `single` —
+ * idzie do dziennika serwera (`zapiszNiedodzwonienie()`, kanał `stderr` —
  * nigdy ten kanał, bo to byłaby pętla), a wołający może o wynik zapytać
  * (`ostatniaWysylkaSieUdala()`). Rzucanie dalej nadal nie wchodzi w grę.
+ *
+ * DLACZEGO KANAŁ `stderr`, A NIE `single` (poprawka #599)
+ * Do tej poprawki wpis szedł na kanał `single`, czyli do pliku
+ * `storage/logs/laravel.log` w kontenerze. Railway nie daje wglądu w pliki
+ * na dysku kontenera — jedyne, co widać w panelu, to strumień `stdout`/
+ * `stderr` procesu. Wpis o nieudanej wysyłce alarmu trafiał więc do miejsca,
+ * którego nikt nigdy nie zobaczy — dokładnie ta sama klasa usterki, którą ten
+ * plik ma naprawiać (cichy brak powiadomienia). Kanał `stderr`
+ * (`config/logging.php`) pisze na `php://stderr`, czyli tam, gdzie Railway
+ * naprawdę pokazuje logi serwisu.
  */
 final class WebhookBleduHandler extends AbstractProcessingHandler
 {
@@ -168,10 +179,13 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
      * Zapisuje sam FAKT, że dzwonek nie zadzwonił — do dziennika serwera,
      * nigdy na ten kanał.
      *
-     * DLACZEGO JAWNIE `single`, A NIE `Log::error()`
-     * Bo domyślny stos może kiedyś zawierać ten kanał (`LOG_STACK`), a wpis
-     * o nieudanej wysyłce na webhook, wysyłany na webhook, jest pętlą.
-     * `single` to plik na serwerze i nic więcej.
+     * DLACZEGO JAWNIE `stderr`, A NIE `Log::error()`
+     * Bo domyślny stos może kiedyś zawierać kanał `blad_webhook` (`LOG_STACK`),
+     * a wpis o nieudanej wysyłce na webhook, wysyłany na webhook, jest pętlą.
+     * `stderr` (`config/logging.php`) pisze na `php://stderr` i nic więcej —
+     * to jest też JEDYNY strumień, który Railway pokazuje w panelu logów
+     * serwisu (#599): kanał `single` pisał do pliku na dysku kontenera,
+     * którego nikt tam nie zobaczy.
      *
      * W TREŚCI SĄ WYŁĄCZNIE: powód (kod HTTP albo nazwa klasy wyjątku) i sam
      * fakt. Ani adresu webhooka (jest sekretem), ani treści wiadomości, która
@@ -180,7 +194,7 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
     private function zapiszNiedodzwonienie(string $powod): void
     {
         try {
-            Log::channel('single')->error(
+            Log::channel('stderr')->error(
                 'Nie udało się zadzwonić na webhook błędów. Wiadomość przepadła.',
                 ['powod' => $powod],
             );
@@ -214,6 +228,7 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
             // wywołania `Log::error()`.
             return $this->przytnij(implode("\n", array_filter([
                 $naglowek.' '.$this->jednalinia($record->message),
+                $this->powtorzenia($record->context['pominiete_powtorzenia'] ?? null),
                 $correlation,
                 $jobCorrelation,
                 $attemptCorrelation,
@@ -225,7 +240,8 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
             $this->kod($wyjatek),
             sprintf('%s:%d', $this->wzgledna($wyjatek->getFile()), $wyjatek->getLine()),
             $this->trasa(),
-            'odcisk: '.$this->odcisk($wyjatek),
+            'odcisk: '.self::odcisk($wyjatek),
+            $this->powtorzenia($record->context['pominiete_powtorzenia'] ?? null),
             $correlation,
             $jobCorrelation,
             $attemptCorrelation,
@@ -271,9 +287,20 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
      * odróżnić „nowy błąd" od „ten sam, dziesiąty raz", i odnaleźć wpis
      * w logu serwera.
      */
-    private function odcisk(Throwable $wyjatek): string
+    public static function odcisk(Throwable $wyjatek): string
     {
         return substr(sha1($wyjatek::class.'|'.$wyjatek->getFile().'|'.$wyjatek->getLine()), 0, 8);
+    }
+
+    /**
+     * Ile identycznych wystąpień `SeriaAlarmow` pominęła od poprzedniej
+     * wiadomości (#599). Tylko liczba całkowita — wszystko inne pomijamy.
+     */
+    private function powtorzenia(mixed $pominiete): ?string
+    {
+        return is_int($pominiete) && $pominiete > 0
+            ? sprintf('powtórzeń od poprzedniej wiadomości (nie wysłanych osobno): %d', $pominiete)
+            : null;
     }
 
     /**

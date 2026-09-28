@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Illuminate\Pagination\Paginator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use Tests\TestCase;
@@ -97,19 +98,27 @@ class PaginacjaToPokazWiecejTest extends TestCase
         );
     }
 
-    public function test_komponent_pokaz_wiecej_nie_wymaga_javascriptu(): void
+    public function test_komponent_pokaz_wiecej_bez_skryptu_jest_odnosnikiem_do_nastepnej_strony(): void
     {
-        $komponent = (string) file_get_contents(
-            base_path('resources/views/components/show-more.blade.php'),
+        // Renderujemy komponent, zamiast czytać jego źródło: liczy się to,
+        // co dostaje przeglądarka bez skryptu. Zwykły odnośnik z adresem
+        // następnej strony i etykietą, która mówi, że to NASTĘPNA STRONA —
+        // bo dokładanie porcji do listy robi dopiero `pokaz-wiecej.js`
+        // (#986). Bez skryptu, przy słabym zasięgu, ekran nadal działa.
+        $paginator = new Paginator(range(1, 3), 2, 1, ['path' => '/lista']);
+        $html = (string) $this->blade(
+            '<x-show-more :paginator="$p" czego="przepisów" lista="lista-przepisow" />',
+            ['p' => $paginator],
         );
 
-        // Zwykły odnośnik z adresem następnej strony. Gdyby ktoś zamienił to
-        // na przycisk doczytujący skryptem, strona przestałaby działać przy
-        // słabym zasięgu — a to jest w tym produkcie warunek, nie ulepszenie.
-        $this->assertStringContainsString('nextPageUrl()', $komponent);
-        $this->assertStringNotContainsString('onclick', $komponent);
-        $this->assertStringNotContainsString('x-on:', $komponent);
-        $this->assertStringNotContainsString('wire:', $komponent);
+        $this->assertMatchesRegularExpression(
+            '#<a class="btn btn-secondary" href="/lista\?page=2">Następna strona przepisów</a>#u',
+            $html,
+        );
+        $this->assertStringNotContainsString('<button', $html, 'Przycisk bez skryptu byłby martwy (D-053).');
+        $this->assertStringNotContainsString('onclick', $html);
+        $this->assertStringNotContainsString('x-on:', $html);
+        $this->assertStringNotContainsString('wire:', $html);
     }
 
     /** @return iterable<string> */

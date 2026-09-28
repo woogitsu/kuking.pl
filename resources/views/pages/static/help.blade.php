@@ -3,10 +3,14 @@
         <h1>Pomoc</h1>
 
         <h2 id="kolejnosc-wpisow">Jak działa kolejność wpisów?</h2>
-        <p>Na stronie Start wpisy obserwowanych osób pojawiają się od najnowszych.
-            Jeśli nie ma jeszcze takich wpisów, pokazujemy treści z obserwowanych tagów,
-            a gdy i tam jest pusto — najnowsze publiczne wpisy innych osób.
+        <p>Na stronie Start wpisy obserwowanych osób i obserwowanych tagów stoją razem,
+            od najnowszych. Przy wpisie, który trafił tu przez tag, jest napisane
+            „Z tagu: …”. Jeśli nie ma jeszcze takich wpisów, pokazujemy najnowsze
+            publiczne wpisy innych osób.
             Przełącznik „Świeżo z <x-kuking-word />” prowadzi do tej publicznej listy.</p>
+        {{-- „Mój stół" (#1749, D-304) — to samo zdanie co `MojStol::DLACZEGO`. --}}
+        <p>„Mój stół” to dobrowolna półka, którą włączasz na stronie
+            <a href="{{ route('moj-stol') }}">Mój stół</a>. {{ \App\Domain\Feed\MojStol::DLACZEGO }}</p>
 
         <h2 id="dodawanie-zdjecia">Jak dodać zdjęcie swojego dania?</h2>
         <ol>
