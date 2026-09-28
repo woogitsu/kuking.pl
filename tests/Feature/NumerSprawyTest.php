@@ -294,6 +294,8 @@ class NumerSprawyTest extends TestCase
     {
         // `numer_sprawy` nie jest w `$fillable` — tożsamość sprawy nadaje
         // serwer, nie człowiek (AGENTS.md §7, ta sama zasada co `status`).
+        // Ciche odrzucenie jak w produkcji, nie wyjątek trybu ścisłego (#976).
+        $this->mierzMasowePrzypisanieJakWProdukcji();
         $zgloszenie = new Report;
         $zgloszenie->fill(['numer_sprawy' => 'KU-2222-3333', 'reason' => 'spam']);
 

@@ -36,6 +36,15 @@ class AdresEmailPozaMasowymPrzypisaniemTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Cała klasa mierzy ciche odrzucenie pola z produkcji, nie wyjątek
+        // trybu ścisłego (#976) — patrz `TestCase::mierzMasowePrzypisanieJakWProdukcji()`.
+        $this->mierzMasowePrzypisanieJakWProdukcji();
+    }
+
     public function test_update_nie_ustawia_adresu_email(): void
     {
         $basia = $this->user('basia', ['email' => 'basia@example.test']);

@@ -65,8 +65,9 @@ class KomentarzeWykonaniaStronamiTest extends TestCase
                 'body' => sprintf('WATEK-938-%03d', $i),
                 'status' => Comment::STATUS_PUBLISHED,
                 // Jawny czas: kolejność stron ma być tą, w której pisano.
-                'created_at' => now()->subMinutes(1000 - $i),
-            ]);
+                // `created_at` spoza `$fillable` — w trybie ścisłym (#976)
+                // wchodzi przez `forceFill()`, nie masowe przypisanie.
+            ])->forceFill(['created_at' => now()->subMinutes(1000 - $i)])->save();
         }
 
         return $wykonanie;
@@ -254,8 +255,8 @@ class KomentarzeWykonaniaStronamiTest extends TestCase
             'author_id' => $korzen->getKey(),
             'body' => 'KORZEN-938',
             'status' => Comment::STATUS_PUBLISHED,
-            'created_at' => now()->subMinute(),
         ]);
+        $watek->forceFill(['created_at' => now()->subMinute()])->save();
 
         app(PublishComment::class)->handle($this->user('odpisuje938'), $wykonanie, 'ODPOWIEDZ-Z-DRUGIEJ-938', $watek);
 

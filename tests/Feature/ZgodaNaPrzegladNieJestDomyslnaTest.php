@@ -99,7 +99,10 @@ class ZgodaNaPrzegladNieJestDomyslnaTest extends TestCase
      */
     public function test_ekran_ustawien_nadal_pozwala_zapisac_sie_na_przeglad(): void
     {
-        $konto = User::factory()->create(['wants_weekly_digest' => false]);
+        // `refresh()`: w produkcji zalogowane konto przychodzi z bazy z kompletem
+        // kolumn; świeży model z fabryki nie ma tych z wartością domyślną z bazy,
+        // a tryb ścisły Eloquent (#976) nie pozwala ich czytać.
+        $konto = User::factory()->create(['wants_weekly_digest' => false])->refresh();
 
         $this->actingAs($konto)
             ->put(route('settings.privacy'), [

@@ -60,7 +60,10 @@ class PostResource extends JsonResource
             'tags' => $wpis->relationLoaded('tags')
                 ? $wpis->tags->map(fn ($tag) => ['slug' => $tag->slug, 'name' => $tag->name])->values()->all()
                 : [],
-            'comments_count' => $wpis->comments_count !== null ? (int) $wpis->comments_count : null,
+            // Licznik jest tylko tam, gdzie zapytanie go policzyło (`withCount`);
+            // wpis z publikacji go nie ma. W trybie ścisłym (#976) odczyt
+            // niepobranej kolumny rzuca, więc pytamy o atrybut wprost.
+            'comments_count' => ($licznik = $wpis->getAttributes()['comments_count'] ?? null) !== null ? (int) $licznik : null,
             'url' => $wpis->url(),
         ];
     }
