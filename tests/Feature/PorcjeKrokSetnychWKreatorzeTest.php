@@ -101,10 +101,10 @@ final class PorcjeKrokSetnychWKreatorzeTest extends TestCase
         $pole = (new DOMXPath($dom))->query('//input[@name="servings"]')->item(0);
 
         $this->assertNotNull($pole, 'Brak pola porcji w kreatorze.');
-        $this->assertSame('1.25', $pole->getAttribute('value'));
+        $this->assertSame('1.25', self::elementDom($pole)->getAttribute('value'));
         // 1.25 musi leżeć na siatce kroku, inaczej przeglądarka zgłasza stepMismatch.
-        $this->assertSame('0.01', $pole->getAttribute('step'), 'step kreatora nie zgadza się z decimal:0,2.');
-        $this->assertSame('0.5', $pole->getAttribute('min'));
+        $this->assertSame('0.01', self::elementDom($pole)->getAttribute('step'), 'step kreatora nie zgadza się z decimal:0,2.');
+        $this->assertSame('0.5', self::elementDom($pole)->getAttribute('min'));
 
         // Zapis bez zmiany liczby porcji przechodzi i niczego nie zaokrągla.
         $kreator->set('summary', 'Na chłodne dni.')->assertHasNoErrors()->assertSet('saveState', 'saved');

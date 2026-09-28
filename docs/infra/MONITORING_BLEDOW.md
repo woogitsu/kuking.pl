@@ -740,6 +740,7 @@ miejsce do patrzenia jest drugim miejscem do niepatrzenia.
 | `kuking:budzet-polaczen` | co godzinę, minuta 25 | zajętych backendów powyżej progu (50 / 125) |
 | `kuking:sprawdz-kolejke` | co 15 minut | zaległość ≥ 600 s, zawieszona rezerwacja, albo zadanie, które padło w ostatnich 3 h |
 | `kuking:sprawdz-sprzatanie-eksportow` | codziennie 06:25 UTC | paczka `ready`/`expired` z adresem pliku ponad 36 h po `expires_at`; same liczby, bez kluczy obiektów; powrót do normy daje jedno odwołanie (#1331) |
+| `kuking:sprawdz-push` | co godzinę, minuta 50 | grupa Web Push z trwałą porażką transportu albo z utraconym ponowieniem (rezerwacja > 30 min bez zadania w `jobs`), dopóki nie zostanie ręcznie rozliczona — widzi to, czego nie widzi `failed_jobs`; same liczby i kody (#2053, [`WEB_PUSH_TRWALE_PORAZKI_2053.md`](WEB_PUSH_TRWALE_PORAZKI_2053.md)) |
 
 **Dostarczenie sprawdzone na prawdziwym odbiorniku HTTP**, nie na atrapie
 w teście — lokalny serwer zapisujący każde żądanie, baza `kuking_599_odbiornik`

@@ -48,7 +48,7 @@ class PokazWiecejRozszerzaJednaListeTest extends TestCase
         $pasujace = [];
         foreach ((new DOMXPath($dom))->query('//main//a') as $a) {
             if (trim($a->textContent) === $podpis) {
-                $pasujace[] = $a->getAttribute('href');
+                $pasujace[] = self::elementDom($a)->getAttribute('href');
             }
         }
         $this->assertCount(1, $pasujace, "Na stronie powinien być dokładnie jeden odnośnik „{$podpis}”.");

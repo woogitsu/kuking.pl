@@ -185,7 +185,7 @@ final class KlientLunaTest extends TestCase
         }
     }
 
-    /** @return array<string, array{int}> */
+    /** @return array<int, array{int}> */
     public static function przejsciowe(): array
     {
         return ['429' => [429], '500' => [500], '503' => [503]];

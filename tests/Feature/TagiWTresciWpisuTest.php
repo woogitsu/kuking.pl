@@ -73,7 +73,7 @@ class TagiWTresciWpisuTest extends TestCase
         $odnosniki = $xpath->query('.//a', $ciala->item(0));
         $this->assertNotFalse($odnosniki);
 
-        return iterator_to_array($odnosniki);
+        return self::elementyDom($odnosniki);
     }
 
     private function tekstTresci(string $html): string
