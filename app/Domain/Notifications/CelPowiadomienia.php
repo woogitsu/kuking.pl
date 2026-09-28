@@ -164,6 +164,17 @@ final class CelPowiadomienia
      * jak przed tą poprawką dla WSZYSTKICH powiadomień o komentarzu. Sam
      * fakt niedostępności nie jest tu ujawniany bardziej, niż był wcześniej.
      */
+    private function adresKomentarza(Notification $powiadomienie, array $data): ?string
+    {
+        $viewer = $powiadomienie->user;
+
+        if ($viewer === null) {
+            return self::adresZapasowy($data);
+        }
+
+        return $this->adresy([$powiadomienie], $viewer)[(string) $powiadomienie->getKey()];
+    }
+
     /**
      * Wpis z digestu „Smakowicie wygląda", o ile istnieje i odbiorca może go
      * dziś otworzyć (`PostPolicy::view()`) — issue #1994.
@@ -230,17 +241,6 @@ final class CelPowiadomienia
             $wpis = $wpisy->get($id);
             $this->wpisySmakowicie[$id] = $wpis !== null && Gate::forUser($viewer)->allows('view', $wpis) ? $wpis : null;
         }
-    }
-
-    private function adresKomentarza(Notification $powiadomienie, array $data): ?string
-    {
-        $viewer = $powiadomienie->user;
-
-        if ($viewer === null) {
-            return self::adresZapasowy($data);
-        }
-
-        return $this->adresy([$powiadomienie], $viewer)[(string) $powiadomienie->getKey()];
     }
 
     private static function adresZapasowy(array $data): ?string
