@@ -3,6 +3,7 @@
 ## Nieopublikowane
 
 - Pusta lista powiadomień wyjaśnia teraz, że znajdziecie tu wiadomości o przepisach, wpisach, obserwujących i ważnych sprawach konta. Wcześniejszy opis wymieniał tylko ugotowanie i komentarze (#2060).
+- Wewnętrzne: pilny alarm o zgłoszeniu od człowieka odzyskuje próbę po awarii zapisu do kolejki bez utraty blokady celu i budżetu poczty. Ponowienie tej samej sprawy tworzy najwyżej jedno zadanie, także gdy odpowiedź kolejki była niepewna (#2066).
 - Zdjęcia wyświetlane „Zwykle” stoją jedno pod drugim także na tablecie. Dwa zdjęcia o różnych proporcjach nie zostawiają już szarego pasa, a trzecie nie zostawia pustej prawej połowy. Kolaż i karuzela pozostają osobnymi wyborami (#2126).
 - Przełącznik wartości odżywczych sprawdza aktualny stan przepisu pod blokadą. Żądanie rozpoczęte przed zdjęciem lub usunięciem przepisu nie zapisze ustawienia po decyzji moderatora i pokaże czytelną odmowę (#2112).
 - Eksport HTML przepisu zachowuje dokładną liczbę porcji, także przy dwóch cyfrach po przecinku (#2035).
@@ -196,6 +197,7 @@
 - Chwilowa usterka po naszej stronie nie psuje już trzech rzeczy: jednorazowy link do logowania nie przepada, gdy wejście się nie udało — ekran mówi, że link nadal działa i wystarczy kliknąć „Zaloguj mnie” jeszcze raz (#1530); prośba o paczkę z danymi, która została przyjęta, kończy się potwierdzeniem zamiast komunikatu o błędzie (#1429); zablokowanie osoby kończy się komunikatem o blokadzie, a nie o błędzie, gdy blokada naprawdę zadziałała (#1573).
 - Na ekranie „Nie ma teraz połączenia z internetem” przycisk „Spróbuj ponownie” otwiera ponownie tę samą stronę, która się nie wczytała — przepis albo wyszukiwanie z wpisaną frazą — zamiast przenosić na stronę główną. Do strony głównej prowadzi osobny przycisk „Przejdź na stronę główną” (#749).
 
+- Wiadomość z „Napisz do nas” nie zapisuje już tokenu z adresu strony, z której przyszliście — np. z linku do ustawienia nowego hasła, logowania, zaproszenia czy potwierdzenia adresu e-mail. W zgłoszeniu zostaje tylko nazwa ekranu, a zwykłe strony, jak przepis, są zapisywane jak dotąd.
 - Wyszukiwarka nie kończy się już błędem dla zalogowanej osoby, gdy adres zawiera nietypowo zapisaną frazę (np. z innego programu); pokazuje wtedy zwykły, pusty ekran „Szukaj” (#738).
 - Na krótkim wpisie menu „…” i pytanie „Na pewno usunąć ten wpis?” nie są już ucinane przez dolną krawędź karty. Przycisk „Tak, usuń wpis” da się trafić myszą i dojść do niego klawiszem Tab, także przy powiększonym tekście (#1082).
 - Poprawka opublikowanego przepisu zapisana przyciskiem „Zapisz zmiany” albo przy wyjściu z edycji zostaje w historii jako nowa wersja przepisu. Zapis samoczynny w trakcie pisania wersji nie tworzy, a wcześniejsze wersje nigdy się nie zmieniają (#1316).
