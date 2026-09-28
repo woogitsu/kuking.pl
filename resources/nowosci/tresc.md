@@ -10,6 +10,7 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Spis wydań
 
 - [Najnowsze zmiany](#najnowsze-zmiany)
+- [Alfa 0.73 — import przepisu i wygodniejsze gotowanie](#alfa-073)
 - [Alfa 0.72 — spokojniejsze zdjęcia i powiadomienia](#alfa-072)
 - [Alfa 0.71 — przepis z kartki i koszt dania](#alfa-071)
 - [Alfa 0.70 — spokojniejsze wpisy i gotowanie](#alfa-070)
@@ -32,6 +33,10 @@ Na stronie przepisu wybierzcie liczbę porcji przy składnikach, a potem otwórz
 „Gotuję”. Rozwinięta lista składników pokaże ilości przeliczone na ten wybór.
 Liczba porcji zostaje przy przechodzeniu między krokami i po rozpoczęciu od
 początku. Po zakończeniu gotowania wrócicie do przepisu z tym samym wyborem.
+
+## Alfa 0.73
+
+**Przepis ze strony lub PDF i składniki odhaczane podczas gotowania.**
 
 ### Przepis ze strony lub pliku PDF
 
