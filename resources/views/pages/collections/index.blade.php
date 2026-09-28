@@ -33,7 +33,7 @@
         {{--
             „SZUKAJ W MOICH ZESZYTACH” (issue #779). Zwykły formularz GET:
             działa bez JavaScriptu, a adres z frazą da się odświeżyć i wrócić
-            do niego przyciskiem „Wstecz”. Szuka po TYTULE przepisu wśród
+            do niego przyciskiem „Wstecz”. Szuka po TYTULE i SKŁADNIKACH przepisu (#2068) wśród
             zapisów tej osoby — tylko tego, co ona sama może dziś otworzyć
             (`CollectionController::szukajWZapisach()`). Błąd nie idzie przez
             `$errors`, bo ten otwierałby niżej formularz „Załóż nowy zeszyt”.
@@ -41,7 +41,7 @@
         <form class="panel-formularza mb-6" method="GET" action="{{ route('collections.index') }}" role="search" aria-label="Szukaj w moich zeszytach">
             <div class="field @if($bladSzukania) has-error @endif">
                 <label for="f-szukaj">Szukaj w moich zeszytach</label>
-                <span class="field-help" id="f-szukaj-help">Wpisz kawałek tytułu przepisu. Polskie znaki nie mają znaczenia — „zurek” znajdzie „Żurek”.</span>
+                <span class="field-help" id="f-szukaj-help">Wpisz kawałek tytułu albo składnik, np. „cukinia”. Polskie znaki nie mają znaczenia — „zurek” znajdzie „Żurek”.</span>
                 <input class="field-input" id="f-szukaj" name="szukaj" type="search" value="{{ $szukaj }}"
                        maxlength="{{ \App\Domain\Search\SearchQuery::MAX_PHRASE_LENGTH }}"
                        aria-describedby="f-szukaj-help{{ $bladSzukania ? ' f-szukaj-error' : '' }}"
@@ -58,7 +58,7 @@
                 <h2 id="wyniki-w-zeszytach" class="m-0">Wyniki dla „{{ $szukaj }}”</h2>
                 @if($wynikiSzukania->isEmpty())
                     {{-- Brak dopasowań to nie pusty zeszyt — mówimy, czego nie znaleźliśmy. --}}
-                    <p class="m-0">Nie znaleźliśmy w Twoich zeszytach przepisu, który ma w tytule „{{ $szukaj }}”. Spróbuj krótszego kawałka tytułu albo <a href="{{ route('search', ['q' => $szukaj, 'sekcja' => 'przepisy']) }}">poszukaj w całym Kuking</a>.</p>
+                    <p class="m-0">Nie znaleźliśmy w Twoich zeszytach przepisu, który ma w tytule albo w składnikach „{{ $szukaj }}”. Spróbuj krótszego słowa, np. bez końcówki, albo <a href="{{ route('search', ['q' => $szukaj, 'sekcja' => 'przepisy']) }}">poszukaj w całym Kuking</a>.</p>
                 @else
                     <ul class="stack list-none p-0 m-0">
                         @foreach($wynikiSzukania as $przepis)
@@ -70,11 +70,14 @@
                                         <a href="{{ route('collections.show', $zeszytWyniku) }}">{{ $zeszytWyniku->name }}</a>@if(! $loop->last), @endif
                                     @endforeach
                                 </p>
+                                @unless($przepis->w_tytule)
+                                    <p class="meta m-0">Pasuje przez składnik.</p>
+                                @endunless
                             </li>
                         @endforeach
                     </ul>
                     @if($wiecejWynikow)
-                        <p class="meta m-0">Pokazujemy pierwsze {{ $wynikiSzukania->count() }} przepisów. Wpisz dłuższy kawałek tytułu, żeby zawęzić wyniki.</p>
+                        <p class="meta m-0">Pokazujemy pierwsze {{ $wynikiSzukania->count() }} przepisów. Wpisz dłuższy kawałek tytułu albo składnika, żeby zawęzić wyniki.</p>
                     @endif
                 @endif
                 <p class="m-0"><a class="btn btn-secondary" href="{{ route('collections.index') }}">Wyczyść wyszukiwanie</a></p>

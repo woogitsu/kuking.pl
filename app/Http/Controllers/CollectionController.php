@@ -16,6 +16,7 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Rules\CollectionNameNotTaken;
+use App\Support\FrazaWyszukiwania;
 use App\Support\Odmiana;
 use App\Support\PaginationLinks;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -83,7 +84,8 @@ class CollectionController extends Controller
     }
 
     /**
-     * „Szukaj w moich zeszytach” — po TYTULE zapisanego przepisu (issue #779).
+     * „Szukaj w moich zeszytach” — po TYTULE albo SKŁADNIKU zapisanego
+     * przepisu (issue #779, #2068).
      *
      * Najprostsza wersja, na decyzję właściciela z 25.09.2026: jedno pole
      * na ekranie „Moje”, formularz GET działający bez JavaScriptu, jeden
@@ -94,6 +96,18 @@ class CollectionController extends Controller
      * polskich znaków) i tą samą normalizacją frazy po stronie PHP co
      * `SearchQuery` — „zurek” znajdzie „Żurek babci”. `LIKE` z ucieczką
      * metaznaków, bo `%` i `_` z frazy mają być dosłownym tekstem (#753).
+     *
+     * SKŁADNIKI (#2068): ta sama fraza pasuje też do
+     * `recipe_ingredients.ingredient_text_search` (indeks trigramowy
+     * `recipe_ingredients_text_trgm_idx`, ta sama gałąź co w `SearchQuery`).
+     * Składnik to `EXISTS` w `WHERE`, nie `JOIN`, więc przepis z pięcioma
+     * pasującymi składnikami nadal jest JEDNYM wierszem, a liczba zapytań
+     * nie zależy od liczby wyników. Widoczność się nie zmienia: składnik
+     * jest dopasowywany dopiero wśród przepisów, które bramka niżej już
+     * przepuściła, więc nie zdradza treści schowanych ani cudzych.
+     * Kolumna `w_tytule` mówi karcie, czy trafienie jest w tytule — jeśli
+     * nie, karta pisze „Pasuje przez składnik”, żeby nie wyglądało to
+     * na pomyłkę (tytuł nie zawiera frazy).
      *
      * WIDOCZNOŚĆ JAK WEWNĄTRZ ZESZYTU: `widoczneDla()` (widoczność, status,
      * blokady w obie strony) i `dostepnyJakoAutor()`. Do zeszytu odkłada się
@@ -116,19 +130,28 @@ class CollectionController extends Controller
             return ['bladSzukania' => 'Skróć tekst w polu „Szukaj w moich zeszytach” do '.SearchQuery::MAX_PHRASE_LENGTH.' znaków i spróbuj ponownie.'] + $pusto;
         }
 
-        if (mb_strlen($fraza) < 2) {
-            return ['bladSzukania' => 'Wpisz co najmniej dwie litery z tytułu przepisu.'] + $pusto;
+        // Długość PO normalizacji (#1050): fraza z samych emoji znika
+        // w `Str::ascii()` i dawałaby `LIKE '%%'`, czyli wszystko.
+        if (mb_strlen(FrazaWyszukiwania::normalizuj($fraza)) < 2) {
+            return ['bladSzukania' => 'Wpisz co najmniej dwie litery z tytułu przepisu albo ze składnika.'] + $pusto;
         }
 
         $user = $request->user();
         $limit = (int) config('kuking.zeszyt.szukaj_limit', 50);
-        $wzorzec = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], mb_strtolower(Str::ascii($fraza))).'%';
+        $wzorzec = '%'.FrazaWyszukiwania::doLike(FrazaWyszukiwania::normalizuj($fraza)).'%';
 
         $wyniki = Recipe::query()
             ->widoczneDla($user)
             ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
             ->whereHas('collections', fn ($zeszyt) => $zeszyt->where('collections.owner_id', $user->getKey()))
-            ->where('recipes.title_search', 'like', $wzorzec)
+            ->select('recipes.*')
+            ->selectRaw('(recipes.title_search LIKE ?) as w_tytule', [$wzorzec])
+            ->where(fn ($q) => $q
+                ->where('recipes.title_search', 'like', $wzorzec)
+                ->orWhereExists(fn ($skladnik) => $skladnik->select(DB::raw('1'))
+                    ->from('recipe_ingredients')
+                    ->whereColumn('recipe_ingredients.recipe_id', 'recipes.id')
+                    ->where('recipe_ingredients.ingredient_text_search', 'like', $wzorzec)))
             ->with(['collections' => fn ($zeszyt) => $zeszyt->where('collections.owner_id', $user->getKey())->orderBy('collections.name')])
             ->orderBy('recipes.title')
             ->orderBy('recipes.id')
