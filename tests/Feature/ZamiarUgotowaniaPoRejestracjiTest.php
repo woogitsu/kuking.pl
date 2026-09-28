@@ -11,6 +11,7 @@ use App\Models\Recipe;
 use App\Models\RecipeStep;
 use App\Models\User;
 use DOMDocument;
+use DOMElement;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -79,13 +80,27 @@ class ZamiarUgotowaniaPoRejestracjiTest extends TestCase
     /** @return iterable<string, array{0: \Closure(Recipe, User): void}> */
     public static function przepisyNiedostepne(): iterable
     {
-        yield 'prywatny' => [fn (Recipe $p) => $p->forceFill(['visibility' => 'private'])->save()];
-        yield 'dla obserwujących' => [fn (Recipe $p) => $p->forceFill(['visibility' => 'followers'])->save()];
-        yield 'ukryty' => [fn (Recipe $p) => $p->forceFill(['status' => Recipe::STATUS_HIDDEN])->save()];
-        yield 'szkic' => [fn (Recipe $p) => $p->forceFill(['status' => Recipe::STATUS_DRAFT, 'published_at' => null])->save()];
-        yield 'autor zbanowany' => [fn (Recipe $p, User $a) => $a->forceFill(['status' => User::STATUS_BANNED])->save()];
-        yield 'autor usuwa konto' => [fn (Recipe $p, User $a) => $a->forceFill(['status' => User::STATUS_PENDING_DELETE])->save()];
-        yield 'usunięty' => [fn (Recipe $p) => $p->delete()];
+        yield 'prywatny' => [static function (Recipe $p, User $a): void {
+            $p->forceFill(['visibility' => 'private'])->save();
+        }];
+        yield 'dla obserwujących' => [static function (Recipe $p, User $a): void {
+            $p->forceFill(['visibility' => 'followers'])->save();
+        }];
+        yield 'ukryty' => [static function (Recipe $p, User $a): void {
+            $p->forceFill(['status' => Recipe::STATUS_HIDDEN])->save();
+        }];
+        yield 'szkic' => [static function (Recipe $p, User $a): void {
+            $p->forceFill(['status' => Recipe::STATUS_DRAFT, 'published_at' => null])->save();
+        }];
+        yield 'autor zbanowany' => [static function (Recipe $p, User $a): void {
+            $a->forceFill(['status' => User::STATUS_BANNED])->save();
+        }];
+        yield 'autor usuwa konto' => [static function (Recipe $p, User $a): void {
+            $a->forceFill(['status' => User::STATUS_PENDING_DELETE])->save();
+        }];
+        yield 'usunięty' => [static function (Recipe $p, User $a): void {
+            $p->delete();
+        }];
     }
 
     #[DataProvider('przepisyNiedostepne')]
@@ -230,8 +245,12 @@ class ZamiarUgotowaniaPoRejestracjiTest extends TestCase
         @$dom->loadHTML('<?xml encoding="utf-8" ?>'.$html);
         $linki = (new DOMXPath($dom))->query('//section[contains(@class, "cook-finish")]//a');
         $this->assertSame(1, $linki->length, 'Na ostatnim kroku powinien być jeden odnośnik dla gościa.');
-        $href = (string) $linki->item(0)?->getAttribute('href');
-        $this->assertSame('Załóż konto', trim((string) $linki->item(0)?->textContent));
+        $link = $linki->item(0);
+        if (! $link instanceof DOMElement) {
+            throw new \UnexpectedValueException('Odnośnik rejestracji nie jest elementem HTML.');
+        }
+        $href = $link->getAttribute('href');
+        $this->assertSame('Załóż konto', trim($link->textContent));
 
         $this->get($href)->assertOk();
         $this->zarejestruj();
