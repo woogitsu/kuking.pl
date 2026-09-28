@@ -29,9 +29,9 @@ class TagPlacePagesTest extends TestCase
         $this->assertSame(1, $xpath->query('//section[@aria-labelledby="tag-title"]//a[@href="'.route('posts.create', ['tag' => $tag->slug]).'"]')->length);
         $tiles = $xpath->query('//*[@data-tag-collage]/a');
         $this->assertSame(1, $tiles->length);
-        $this->assertSame($post->url(), $tiles->item(0)->getAttribute('href'));
-        $this->assertSame($post->media->first()->url('feed'), $xpath->query('.//img', $tiles->item(0))->item(0)->getAttribute('src'));
-        $this->get($tiles->item(0)->getAttribute('href'))->assertOk()->assertSee($post->body);
+        $this->assertSame($post->url(), self::elementDom($tiles->item(0))->getAttribute('href'));
+        $this->assertSame($post->media->first()->url('feed'), self::elementDom($xpath->query('.//img', $tiles->item(0))->item(0))->getAttribute('src'));
+        $this->get(self::elementDom($tiles->item(0))->getAttribute('href'))->assertOk()->assertSee($post->body);
     }
 
     public function test_empty_tag_offers_a_selected_tag_without_fake_photo(): void
@@ -57,7 +57,7 @@ class TagPlacePagesTest extends TestCase
         $this->assertSame(2, $xpath->query('//nav[@aria-label="Wszystkie tagi, alfabetycznie"]//img')->length);
         $plainCard = $xpath->query('//nav[@aria-label="Wszystkie tagi, alfabetycznie"]/a[@href="'.route('tags.show', $plain).'"]')->item(0);
         $this->assertNotNull($plainCard);
-        $this->assertSame($plainPost->media->first()->url('feed'), $xpath->query('.//img', $plainCard)->item(0)->getAttribute('src'));
+        $this->assertSame($plainPost->media->first()->url('feed'), self::elementDom($xpath->query('.//img', $plainCard)->item(0))->getAttribute('src'));
         $this->assertStringContainsString('Zdjęcie: '.$plainPost->author->displayName(), $plainCard->textContent);
         $this->get(route('tags.show', $plain))->assertOk()->assertSee($plainPost->body);
         $this->assertSame(1, $xpath->query('//nav[@aria-label="Polecane tagi"]/a[@href="'.route('tags.show', $tag).'"]')->length);

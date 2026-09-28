@@ -150,7 +150,9 @@ class NieobecnyCelModeracjiTest extends TestCase
         $decyzja = ModerationAction::where('report_id', $zgloszenie->getKey())->sole();
         $this->assertSame(ModerationAction::ACTION_TARGET_UNAVAILABLE, $decyzja->action);
         $this->assertSame(Report::STATUS_RESOLVED, $zgloszenie->refresh()->status);
-        $this->assertNotNull($zgloszenie->decision_sent_at);
+        // `Notification::fake()` nie wysyła listu, więc znacznik ma zostać
+        // pusty: stawia go list po wysłaniu, nie zakolejkowanie (#1838, D-293).
+        $this->assertNull($zgloszenie->decision_sent_at);
 
         Notification::assertSentOnDemand(
             DecyzjaWSprawieZgloszenia::class,

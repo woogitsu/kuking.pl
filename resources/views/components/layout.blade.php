@@ -72,7 +72,10 @@
     // niezależnie od tego, co ustawił system operacyjny odwiedzającego.
     $theme = $user?->theme ?? request()->cookie(config('kuking.theme.cookie'));
     $theme = $theme === 'dark' ? 'dark' : 'light';
-    $unread = $user?->unreadNotificationsCount() ?? 0;
+    // Z sufitem (audyt B4 S1): powyżej 99 plakietka mówi „99+", a zapytanie
+    // nie liczy tysięcy zaległych na każdej stronie.
+    $unread = $user?->unreadNotificationsBadgeCount() ?? 0;
+    $unreadPonad = $unread > \App\Models\User::PLAKIETKA_POWIADOMIEN_DO;
 
     // Pozycja „Dodaj" (pasek dolny i nawigacja boczna, UI kit v2 etap D)
     // zostaje bieżącą pozycją przez CAŁY proces dodawania, nie tylko na
@@ -82,6 +85,10 @@
     // dopasowuje się przez wzorzec. Bez tego menu przestawało pokazywać,
     // gdzie jest użytkownik, w chwili gdy naprawdę coś dodawał.
     $naDodaj = request()->routeIs(['add', 'posts.create', 'recipes.create*']);
+    // „Moje"/„Mój zeszyt" i „Profil" są bieżące tylko wtedy, gdy oglądana
+    // treść należy do zalogowanej osoby — nie po samej nazwie trasy (#946).
+    $wMoimZeszycie = \App\Support\NawigacjaOsobista::mojZeszyt(request(), $user);
+    $naMoimProfilu = \App\Support\NawigacjaOsobista::mojProfil(request(), $user);
     $pageTitle = $title ? $title.' — Kuking' : 'Kuking — pokaż, co dziś ugotowałeś';
 
     // ------------------------------------------------------------------
@@ -375,7 +382,8 @@
      od 80rem belka i stopka biorą wtedy szerszy sufit, bo tyle ma treść
      z szyną obok. Poniżej 80rem szyna leci pod treścią i szerokość jest ta
      sama co bez niej — dlatego druga klasa nic tam nie robi. --}}
-<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($szerokaRama ? ' uklad-solo-z-szyna' : '') }} @endguest" data-marka="kuking-2026">
+<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($szerokaRama ? ' uklad-solo-z-szyna' : '') }} @endguest" data-marka="kuking-2026"
+      @auth @if(config('kuking.push.vapid_public_key')) data-push-uzgodnij="{{ route('settings.notifications.reconcile-device') }}" data-push-csrf="{{ csrf_token() }}" @endif @endauth>
     <a class="skip-link" href="#tresc">Przejdź do treści</a>
 
     {{--
@@ -435,11 +443,18 @@
                     belka ma tam pomieścić logotyp i powiadomienia, a „Szukaj"
                     stoi w pasku dolnym, w zasięgu kciuka.
                 --}}
+                @php
+                    // `q` może być tablicą (`?q[]=...`, issue #738) — `e()` na tablicy
+                    // to TypeError i 500 na każdej stronie z belką. Ten sam kontrakt
+                    // co w SearchController: nie-tekstowe `q` = brak frazy.
+                    $belkaQ = request()->routeIs('search') ? request()->query('q', '') : '';
+                    $belkaQ = is_string($belkaQ) ? $belkaQ : '';
+                @endphp
                 <form class="topbar-szukaj" method="GET" action="{{ route('search') }}" role="search">
                     <label class="visually-hidden" for="topbar-q">Szukaj przepisów, osób i składników</label>
                     <x-ikona nazwa="search" :rozmiar="22" class="topbar-szukaj-ikona" />
                     <input class="topbar-szukaj-pole" id="topbar-q" type="search" name="q"
-                           value="{{ request()->routeIs('search') ? request('q') : '' }}"
+                           value="{{ $belkaQ }}"
                            placeholder="Szukaj przepisów, osób i składników…">
                 </form>
             @endauth
@@ -450,7 +465,7 @@
                     <nav class="marka-nawigacja" aria-label="Nawigacja główna — komputer">
                         <a href="{{ route('home') }}" @if(request()->routeIs('home', 'landing')) aria-current="page" @endif>Start</a>
                         <a href="{{ route('discover') }}" @if(request()->routeIs('discover')) aria-current="page" @endif>Odkrywaj</a>
-                        <a href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif>Mój zeszyt</a>
+                        <a href="{{ route('collections.index') }}" @if($wMoimZeszycie) aria-current="page" @endif>Mój zeszyt</a>
                     </nav>
                 @endunless
             @endauth
@@ -494,8 +509,13 @@
                     <a class="btn btn-quiet topbar-mobile-only marka-powiadomienia-link" href="{{ route('notifications.index') }}">
                         Powiadomienia
                         @if($unread > 0)
-                            <span class="badge badge-cooked">{{ $unread }}</span>
-                            <span class="visually-hidden">nieprzeczytanych</span>
+                            @if($unreadPonad)
+                                <span class="badge badge-cooked" aria-hidden="true">{{ \App\Models\User::PLAKIETKA_POWIADOMIEN_DO }}+</span>
+                                <span class="visually-hidden">ponad {{ \App\Models\User::PLAKIETKA_POWIADOMIEN_DO }} nieprzeczytanych</span>
+                            @else
+                                <span class="badge badge-cooked">{{ $unread }}</span>
+                                <span class="visually-hidden">nieprzeczytanych</span>
+                            @endif
                         @endif
                     </a>
                     {{--
@@ -693,8 +713,8 @@
                             <li><a class="side-nav-item" href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif><x-ikona nazwa="home" /> Start</a></li>
                             <li><a class="side-nav-item" href="{{ route('search') }}" @if(request()->routeIs('search')) aria-current="page" @endif><x-ikona nazwa="search" /> Szukaj</a></li>
                             <li><a class="side-nav-item" href="{{ route('add') }}" @if($naDodaj) aria-current="page" @endif><x-ikona nazwa="plus" /> Dodaj</a></li>
-                            <li><a class="side-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif><x-ikona nazwa="book" /> Moje</a></li>
-                            <li><a class="side-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif><x-ikona nazwa="user" /> Profil</a></li>
+                            <li><a class="side-nav-item" href="{{ route('collections.index') }}" @if($wMoimZeszycie) aria-current="page" @endif><x-ikona nazwa="book" /> Moje</a></li>
+                            <li><a class="side-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if($naMoimProfilu) aria-current="page" @endif><x-ikona nazwa="user" /> Profil</a></li>
                         </ul>
                     @endif
 
@@ -888,8 +908,13 @@
                         <li><a class="side-nav-item" href="{{ route('notifications.index') }}" @if(request()->routeIs('notifications.*')) aria-current="page" @endif>
                             <x-ikona nazwa="bell" /> Powiadomienia
                             @if($unread > 0)
-                                <span class="badge badge-cooked">{{ $unread }}</span>
-                                <span class="visually-hidden">nieprzeczytanych</span>
+                                @if($unreadPonad)
+                                    <span class="badge badge-cooked" aria-hidden="true">{{ \App\Models\User::PLAKIETKA_POWIADOMIEN_DO }}+</span>
+                                    <span class="visually-hidden">ponad {{ \App\Models\User::PLAKIETKA_POWIADOMIEN_DO }} nieprzeczytanych</span>
+                                @else
+                                    <span class="badge badge-cooked">{{ $unread }}</span>
+                                    <span class="visually-hidden">nieprzeczytanych</span>
+                                @endif
                             @endif
                         </a></li>
                         {{-- Napis „Ustawienia" prowadzi na EKRAN O TYM TYTULE
@@ -944,14 +969,59 @@
                 używa), a nie rozpychanie całej strony.
             --}}
             <main class="app-main" id="tresc">
+                @auth @if(config('kuking.push.vapid_public_key'))
+                    <p class="flash" role="status" data-push-uzgodnij-komunikat hidden>
+                        Powiadomienia poprzedniej osoby zostały wyłączone w tej przeglądarce. Twoje powiadomienia możesz włączyć w ustawieniach.
+                    </p>
+                @endif @endauth
                 {{-- Komunikaty zwrotne. aria-live, żeby czytnik ekranu je ogłosił.
 
                      `komunikaty` jest tu po to, żeby układ pasów (strona
                      powitalna) miał co wyśrodkować — jego `<main>` nie ma
                      żadnego wcięcia, bo wcięcia robią same pasy. --}}
                 <div class="komunikaty" aria-live="polite">
+                    {{-- RODZAJ KOMUNIKATU (#988): sukces, informacja albo błąd —
+                         każdy z własnym kolorem, WIDOCZNĄ etykietą słowną (nie
+                         sam kolor, WCAG 1.4.1) i rolą. Błąd to `alert`, żeby
+                         odmowa nie brzmiała jak zwykłe potwierdzenie; sukces
+                         i informacja zostają w `aria-live="polite"` kontenera
+                         (bez drugiego, zagnieżdżonego `role="status"`). Sama
+                         treść zostaje w `<p class="flash">` — kilka testów
+                         i skryptów czyta ją dokładnie w tym kształcie.
+                         Rodzaj wybiera kontroler (`App\Support\Komunikat`),
+                         nie zgadujemy go po słowach. --}}
                     @if(session('status'))
-                        <p class="flash">{{ session('status') }}</p>
+                        @php $rodzajKomunikatu = \App\Support\Komunikat::rodzajZSesji(); @endphp
+                        <div class="flash-ramka flash-ramka-{{ $rodzajKomunikatu }}"
+                             data-rodzaj-komunikatu="{{ $rodzajKomunikatu }}"
+                             @if($rodzajKomunikatu === \App\Support\Komunikat::BLAD) role="alert" @endif>
+                            <p class="flash-etykieta">{{ \App\Support\Komunikat::ETYKIETY[$rodzajKomunikatu] }}</p>
+                            <p class="flash">{{ session('status') }}</p>
+                        </div>
+                    @endif
+                    {{--
+                        JAWNY KROK PO PIERWSZEJ PUBLIKACJI (issue #1881).
+
+                        `docs/product/COLD_START.md` i `docs/product/SOUL.md`
+                        obiecują po pierwszym „Opublikuj" nie tylko datę
+                        w komunikacie, ale JAWNY przycisk „Zobacz swój wpis" —
+                        nie samo poleganie na tym, że przekierowanie i tak
+                        czasem ląduje na wpisie. Przy dwóch i więcej zdjęciach
+                        ląduje ono na ekranie układu, więc bez tego przycisku
+                        obietnicy z dokumentu nigdzie nie było widać.
+
+                        Odnośnik, nie formularz: to jest samo OGLĄDANIE, a nie
+                        zmiana stanu — w przeciwieństwie do `status_powrot`
+                        niżej, które cofa akcję i dlatego idzie przez `POST`.
+                        Stoi w tym samym obszarze `aria-live`, więc czytnik
+                        ekranu ogłasza najpierw co się stało, a zaraz potem,
+                        co można z tym zrobić.
+                    --}}
+                    @php $statusAkcja = session('status_akcja'); @endphp
+                    @if(is_array($statusAkcja) && isset($statusAkcja['url'], $statusAkcja['etykieta']))
+                        <p class="flash-akcja">
+                            <a class="btn btn-primary" href="{{ $statusAkcja['url'] }}">{{ $statusAkcja['etykieta'] }}</a>
+                        </p>
                     @endif
                     {{--
                         DROGA POWROTU PRZY AKCJI ODWRACALNEJ (issue L1 z audytu
@@ -1127,7 +1197,7 @@
                     <nav class="site-footer-grupa" aria-label="O serwisie">
                         <p class="site-footer-naglowek" aria-hidden="true">O serwisie</p>
                         <ul>
-                            <li><a href="{{ route('about') }}">O <x-kuking-word /></a></li>
+                            <li><a href="{{ route('about') }}"><span>O <x-kuking-word /></span></a></li>
                             <li><a href="{{ route('rules') }}">Zasady</a></li>
                         </ul>
                     </nav>
@@ -1327,11 +1397,35 @@
                          najazdu kursorem, a informacja dostępna tylko przez
                          hover jest dla części osób niedostępna w ogóle
                          (UX_50_PLUS). Widoczna zawsze — nie chowamy jej pod
-                         hover ani pod `title`. --}}
-                    <span class="site-version">
-                        <strong class="site-version-etap">{{ \App\Support\Wersja::etykieta() }}</strong>
+                         hover ani pod `title`.
+
+                         ODNOŚNIK DO „CO NOWEGO" (issue #1909, decyzja
+                         właściciela 26 września 2026). Skrót commita i data
+                         ZOSTAJĄ WIDOCZNE — kryterium akceptacji wprost tego
+                         wymaga, bo służą do zgłaszania usterek niezależnie
+                         od tego, że wersja jest teraz też odnośnikiem. Adres
+                         niesie kotwicę BIEŻĄCEGO wydania
+                         (`Wersja::kotwicaWydania()`), więc strona otwiera się
+                         od razu przy opisie tego wydania, a nie od góry
+                         dokumentu — druga część tego samego kryterium.
+                         `aria-label` mówi, dokąd prowadzi odnośnik, bo sam
+                         tekst („Alfa 0.68 · wydanie …") tego nie mówi.
+
+                         KOŃCÓWKA WDROŻENIA (issue #1932, D-318): etap
+                         produktu pokazuje się tu z `etykietaZNumerem()`, nie
+                         z `etykieta()` — „Alfa 0.68.005" zamiast samego
+                         „Alfa 0.68", żeby dwa różne wdrożenia tego samego
+                         dnia dało się rozróżnić na pierwszy rzut oka. Bez
+                         wiersza w dzienniku (lokalnie, w testach, przy
+                         awarii bazy) `etykietaZNumerem()` sama wraca do
+                         samej etykiety — ten sam wybór co przy braku
+                         znacznika daty niżej. `aria-label` zostaje przy
+                         SAMEJ etykiecie: numer wdrożenia nic tam nie
+                         wnosi, a zdanie ma zostać krótkie. --}}
+                    <a class="site-version" href="{{ route('nowosci') }}#{{ \App\Support\Wersja::kotwicaWydania() }}" aria-label="Co nowego w wydaniu {{ \App\Support\Wersja::etykieta() }}">
+                        <strong class="site-version-etap">{{ \App\Support\Wersja::etykietaZNumerem() }}</strong>
                         <span class="site-version-wydanie">{{ \App\Support\Wersja::opisWydania() }}</span>
-                    </span>
+                    </a>
                 </div>
             </div>
         </footer>
@@ -1418,10 +1512,10 @@
             <a class="bottom-nav-item bottom-nav-item-glowna" href="{{ route('add') }}" @if($naDodaj) aria-current="page" @endif>
                 <span class="bottom-nav-kolko"><x-ikona nazwa="plus" class="bottom-nav-icon" :rozmiar="26" /></span> Dodaj
             </a>
-            <a class="bottom-nav-item" href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif>
+            <a class="bottom-nav-item" href="{{ route('collections.index') }}" @if($wMoimZeszycie) aria-current="page" @endif>
                 <x-ikona nazwa="book" class="bottom-nav-icon" :rozmiar="26" /> Moje
             </a>
-            <a class="bottom-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if(request()->routeIs('profile.show')) aria-current="page" @endif>
+            <a class="bottom-nav-item" href="{{ route('profile.show', $user->profile->username) }}" @if($naMoimProfilu) aria-current="page" @endif>
                 <x-ikona nazwa="user" class="bottom-nav-icon" :rozmiar="26" /> Profil
             </a>
         </nav>

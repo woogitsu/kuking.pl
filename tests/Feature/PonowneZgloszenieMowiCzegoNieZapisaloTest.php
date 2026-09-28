@@ -125,7 +125,7 @@ class PonowneZgloszenieMowiCzegoNieZapisaloTest extends TestCase
 
         $drugie->assertRedirect(route('reports.mine.show', $sprawa));
 
-        $status = (string) $drugie->getSession()->get('status');
+        $status = (string) self::sesjaPrzekierowania($drugie)->get('status');
         $this->assertStringContainsString('już u nas jest', $status);
         $this->assertStringContainsString($sprawa->numer_sprawy, $status);
         $this->assertStringNotContainsString('Zgłoszenie trafiło do nas', $status);
@@ -225,7 +225,7 @@ class PonowneZgloszenieMowiCzegoNieZapisaloTest extends TestCase
         $this->assertSame(2, Report::query()->count());
         $this->assertStringContainsString(
             'Zgłoszenie trafiło do nas',
-            (string) $nowe->getSession()->get('status'),
+            (string) self::sesjaPrzekierowania($nowe)->get('status'),
         );
     }
 

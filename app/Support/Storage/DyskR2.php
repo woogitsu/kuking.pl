@@ -99,7 +99,15 @@ final class DyskR2
             /** @param  array<string, mixed>  $konfiguracja */
             public function zbudujS3(array $konfiguracja): DyskLaravela
             {
-                return $this->createS3Driver($konfiguracja);
+                // Laravel obiecuje w sygnaturze tylko kontrakt `Cloud`,
+                // choć buduje `AwsS3V3Adapter` — sprawdzamy to jawnie (#1731).
+                $dysk = $this->createS3Driver($konfiguracja);
+
+                if (! $dysk instanceof DyskLaravela) {
+                    throw new \LogicException('createS3Driver() nie zbudował AwsS3V3Adapter, tylko '.$dysk::class.'.');
+                }
+
+                return $dysk;
             }
         };
 

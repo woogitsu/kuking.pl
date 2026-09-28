@@ -262,6 +262,11 @@ final class ReportContent
             $this->potwierdzenie->potwierdzBezWywracaniaSprawy($zgloszenie);
         }
 
+        // Przy ponowieniu po awarii zlecenia listu sprawa już istnieje,
+        // ale jej alarm nie ma trwałego znacznika. Akcja sama odróżnia
+        // to od spraw obsłużonych i od celów alarmowanych w tym oknie.
+        $this->alarm->handle($zgloszenie);
+
         return $zgloszenie;
     }
 

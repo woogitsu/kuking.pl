@@ -12,8 +12,11 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\TagSelection;
 use App\Models\Profile;
 use App\Models\Tag;
+use App\Support\ZamiarObserwowania;
+use App\Support\ZamiarUgotowania;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -166,6 +169,10 @@ class OnboardingController extends Controller
 
             return $oczekiwanyId === null || (string) $profile->user_id === $oczekiwanyId;
         });
+        // whereIn nie gwarantuje kolejności. Zachowaj kolejność wyboru także
+        // po kolejnych wyszukiwaniach, gdy identyfikatory w bazie są przemieszane.
+        $pozycjeWyboru = array_flip($selected);
+        $selectedProfiles = $selectedProfiles->sortBy(fn (Profile $profile) => $pozycjeWyboru[$profile->username] ?? PHP_INT_MAX)->values();
         $selected = $selectedProfiles->pluck('username')->all();
 
         return view('pages.onboarding.people', [
@@ -195,16 +202,45 @@ class OnboardingController extends Controller
         //
         // Ekran proponuje osiem osób (`people()` niżej). Dwadzieścia daje
         // zapas na zmianę tej liczby i nadal odcina nadużycie.
-        $data = $request->validate([
+        //
+        // `oczekiwani[nazwa] => id` (patrz niżej) WALIDUJEMY TYLKO DLA
+        // ZAZNACZONYCH OSÓB (issue #1600). Ekran renderuje tę parę przy
+        // KAŻDEJ widocznej osobie — wcześniej wybranych, wynikach szukania
+        // i polecanych — więc po jednym wyszukiwaniu z zachowanym wyborem
+        // pól technicznych bywa więcej niż 20, choć zaznaczeń jest mniej.
+        // Sufit na całej tablicy odrzucał wtedy poprawny wybór przez pola,
+        // których człowiek nie widzi i nie może poprawić. Po odfiltrowaniu
+        // lista ma najwyżej tyle par co `follow`, więc jej granicę trzyma
+        // już `follow.max`.
+        $follow = $request->input('follow');
+        $zaznaczone = [];
+
+        foreach (is_array($follow) ? $follow : [] as $nazwa) {
+            if (is_string($nazwa)) {
+                $zaznaczone[mb_strtolower($nazwa)] = true;
+            }
+        }
+
+        $oczekiwaniWejscie = $request->input('oczekiwani');
+        $oczekiwaniZaznaczonych = is_array($oczekiwaniWejscie)
+            ? array_filter(
+                $oczekiwaniWejscie,
+                fn ($nazwa) => isset($zaznaczone[mb_strtolower((string) $nazwa)]),
+                ARRAY_FILTER_USE_KEY,
+            )
+            : $oczekiwaniWejscie;
+
+        $data = Validator::make([
+            'follow' => $follow,
+            'oczekiwani' => $oczekiwaniZaznaczonych,
+        ], [
             'follow' => ['nullable', 'array', 'max:20'],
             'follow.*' => ['string'],
-            // `oczekiwani[nazwa] => id` — patrz niżej. Ten sam sufit co na
-            // `follow`: to lista sparowana z tamtą, nie osobne wejście.
-            'oczekiwani' => ['nullable', 'array', 'max:20'],
+            'oczekiwani' => ['nullable', 'array'],
             'oczekiwani.*' => ['string'],
         ], [
             'follow.max' => 'Zaznacz najwyżej :max osób. Odznacz pozostałe i kliknij „Dalej”.',
-        ]);
+        ])->validate();
 
         $user = $request->user();
         // Bez powtórzeń, bez rozróżniania wielkości liter (`Profile::poNazwie()`
@@ -242,7 +278,7 @@ class OnboardingController extends Controller
         // nazwy i ochrona po cichu przestawałaby działać.
         $oczekiwani = [];
 
-        foreach ($request->input('oczekiwani', []) as $nazwa => $id) {
+        foreach ($data['oczekiwani'] ?? [] as $nazwa => $id) {
             $oczekiwani[mb_strtolower((string) $nazwa)] = (string) $id;
         }
 
@@ -323,11 +359,26 @@ class OnboardingController extends Controller
         return $dalej->with('status', implode(' ', $komunikaty));
     }
 
-    public function done(Request $request): View
+    public function done(Request $request, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie): View|RedirectResponse
     {
         // Bez zapisu stanu konta: GET może przyjść z prefetchu przeglądarki,
         // więc samo otwarcie tej strony nie wyłącza przypomnienia (#985).
         $request->session()->forget('onboarding.selection');
+
+        // „Ugotowałem” PRZED obserwowaniem (#2058). Oba zamiary naraz
+        // w sesji nie powinny się zdarzyć — nowszy link wypiera starszy
+        // (`ZamiarUgotowania::zapamietaj`) — ale gdyby jednak, wygrywa
+        // czynność przerwana w pół: formularz „Ugotowałem” jest ważniejszy
+        // niż lajk (AGENTS.md §1), a przycisk „Obserwuj” autora i tak stoi
+        // przy przepisie. Zamiar ugotowania zużywa się tu przy każdym
+        // wejściu, także gdy przepis przestał być dostępny.
+        if ($cel = $gotowanie->celPoOnboardingu($request)) {
+            return redirect()->to($cel);
+        }
+
+        if ($cel = $zamiar->celPoOnboardingu($request)) {
+            return redirect()->to($cel);
+        }
 
         return view('pages.onboarding.done', [
             'name' => $request->user()->displayName(),

@@ -61,7 +61,7 @@ class PowiekszenieZachowujeOpisZastepczyTest extends TestCase
         $xpath = new \DOMXPath($dom);
 
         $wartosci = [];
-        foreach ($xpath->query('//a[@data-powieksz]') as $link) {
+        foreach (self::elementyDom($xpath->query('//a[@data-powieksz]')) as $link) {
             $wartosci[] = [
                 'data-alt' => $link->getAttribute('data-alt'),
                 'aria-label' => $link->getAttribute('aria-label'),

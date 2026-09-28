@@ -5,17 +5,12 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Support\Odmiana;
-use Database\Factories\RecipeStepFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RecipeStep extends Model
 {
-    /** @use HasFactory<RecipeStepFactory> */
-    use HasFactory;
-
     use HasUuids;
 
     public $timestamps = false;
@@ -36,11 +31,17 @@ class RecipeStep extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Recipe, $this>
+     */
     public function recipe(): BelongsTo
     {
         return $this->belongsTo(Recipe::class);
     }
 
+    /**
+     * @return BelongsTo<Media, $this>
+     */
     public function media(): BelongsTo
     {
         return $this->belongsTo(Media::class);
