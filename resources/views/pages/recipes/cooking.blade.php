@@ -2,6 +2,12 @@
     $poprzedniKrok = $krok > 1 ? $krok - 1 : null;
     $nastepnyKrok = $krok < $total ? $krok + 1 : null;
     $timerLabel = $aktualnyKrok->timerLabel(afterNa: true);
+    $adresGotowania = fn (?int $numer = null): string => route('cooking.show', array_filter([
+        'recipe' => $recipe->slug, 'krok' => $numer, 'porcje' => $parametrPorcji,
+    ], fn ($wartosc) => $wartosc !== null));
+    $adresPrzepisu = route('recipes.show', array_filter([
+        'recipe' => $recipe->slug, 'porcje' => $parametrPorcji,
+    ], fn ($wartosc) => $wartosc !== null));
 @endphp
 <x-layout
     :title="'Gotuję: '.$recipe->title"
@@ -24,7 +30,7 @@
                 nie kasuje. Dlatego to zwykły link, bez potwierdzenia —
                 potwierdzenie miałoby sens tylko, gdyby coś dało się stracić.
             --}}
-            <a class="btn btn-secondary cook-exit" href="{{ route('recipes.show', $recipe->slug) }}" data-minutniki-koniec>
+            <a class="btn btn-secondary cook-exit" href="{{ $adresPrzepisu }}" data-minutniki-koniec>
                 Zakończ gotowanie
             </a>
         </div>
@@ -37,7 +43,7 @@
             gdy taki minutnik się skończy. Bez JavaScriptu zostaje pusty
             i ukryty: minutnika w przeglądarce i tak wtedy nie ma.
         --}}
-        <div class="cook-alarmy stack" data-alarmy-recipe="{{ $recipe->slug }}" data-alarmy-krok="{{ $krok }}" data-alarmy-adres="{{ route('cooking.show', $recipe->slug) }}" hidden></div>
+        <div class="cook-alarmy stack" data-alarmy-recipe="{{ $recipe->slug }}" data-alarmy-krok="{{ $krok }}" data-alarmy-adres="{{ $adresGotowania() }}" hidden></div>
 
         <p class="meta m-0">{{ $recipe->title }}</p>
 
@@ -71,6 +77,9 @@
         --}}
         <details class="cook-ingredients" data-przygotowanie="{{ $recipe->getKey() }}">
             <summary>Składniki ({{ $recipe->ingredients->count() }})<span class="cook-przygotowanie-skrot" data-przygotowanie-podsumowanie hidden></span></summary>
+            @if($wyborPorcji->przeliczone())
+                <p class="meta">Przeliczone {{ \App\Domain\Recipes\Porcje\WyborPorcji::naIle($wyborPorcji->wybrane) }}. Autor podał ilości {{ \App\Domain\Recipes\Porcje\WyborPorcji::naIle($wyborPorcji->zPrzepisu) }}.</p>
+            @endif
             @if($recipe->ingredients->isEmpty())
                 <p class="meta">Autor jeszcze nie dodał składników.</p>
             @else
@@ -97,6 +106,7 @@
                     @endif
                     <ul class="ingredient-list">
                         @foreach($grupaSkladnikow['skladniki'] as $ingredient)
+                            @php($przeliczony = $wyborPorcji->przelicz($ingredient))
                             <li data-skladnik="{{ $ingredient->getKey() }}">
                                 {{-- Etykieta obejmuje cały wiersz — pole, treść,
                                      notatkę i zamiennik — więc cel dotyku to cała
@@ -104,7 +114,7 @@
                                 <label class="cook-skladnik">
                                 <input type="checkbox" class="cook-skladnik-pole" data-przygotowanie-pole hidden>
                                 <span class="cook-skladnik-tresc">
-                                {{ $ingredient->ingredient_text }}
+                                @if($przeliczony->zmieniony){{ $przeliczony->przed }}<strong class="skladnik-przeliczony">{{ $przeliczony->ilosc }}</strong>{{ $przeliczony->po }}@else{{ $ingredient->ingredient_text }}@endif
                                 {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
                                      tego sam w tekście składnika (issue #44).
                                      DOPISEK JEST CELOWY I TYLKO TUTAJ (D-232): to widok
@@ -218,6 +228,7 @@
             --}}
             <form method="POST" action="{{ route('cooking.zaznacz', $recipe->slug) }}" class="cook-zaznacz">
                 @csrf
+                @if($parametrPorcji !== null)<input type="hidden" name="porcje" value="{{ $parametrPorcji }}">@endif
                 <input type="hidden" name="krok" value="{{ $krok }}">
                 {{-- Tożsamość kroku, nie sam numer (issue #756): po zmianie kolejności przez autora numer wskazywałby inną czynność. --}}
                 <input type="hidden" name="krok_id" value="{{ $aktualnyKrok->getKey() }}">
@@ -244,12 +255,12 @@
         --}}
         <nav class="cook-nav" aria-label="Nawigacja krokami przepisu">
             @if($nastepnyKrok)
-                <a class="btn btn-primary btn-cook" href="{{ route('cooking.show', [$recipe->slug, 'krok' => $nastepnyKrok]) }}">
+                <a class="btn btn-primary btn-cook" href="{{ $adresGotowania($nastepnyKrok) }}">
                     Następny krok <span aria-hidden="true">→</span>
                 </a>
             @endif
             @if($poprzedniKrok)
-                <a class="btn btn-secondary btn-cook" href="{{ route('cooking.show', [$recipe->slug, 'krok' => $poprzedniKrok]) }}">
+                <a class="btn btn-secondary btn-cook" href="{{ $adresGotowania($poprzedniKrok) }}">
                     <span aria-hidden="true">←</span> Poprzedni krok
                 </a>
             @endif
@@ -280,9 +291,10 @@
                     <summary class="btn btn-secondary">Zacznij od początku</summary>
                     <div class="confirm-body stack">
                         <p>Usunąć odhaczenia wszystkich kroków tego przepisu? Pozostałe przepisy i zapisane wykonania zostaną bez zmian.</p>
-                        <a class="btn btn-secondary" href="{{ route('cooking.show', [$recipe->slug, 'krok' => $krok]) }}">Zostaw odhaczenia</a>
+                        <a class="btn btn-secondary" href="{{ $adresGotowania($krok) }}">Zostaw odhaczenia</a>
                         <form method="POST" action="{{ route('cooking.restart', $recipe->slug) }}">
                             @csrf
+                            @if($parametrPorcji !== null)<input type="hidden" name="porcje" value="{{ $parametrPorcji }}">@endif
                             <button type="submit" class="btn btn-danger">Usuń odhaczenia i zacznij od początku</button>
                         </form>
                     </div>
