@@ -22,7 +22,7 @@ use PHPUnit\Framework\Attributes\Group;
  * naprawie czeka na users, nie trzymając przepisu. Zwolnienie bariery
  * odtwarza dawny cykl 40P01 albo pozwala B skończyć przed A.
  *
- * Kontrola ujemna: usunięcie wstępnej blokady konta w
+ * Kontrola ujemna: przeniesienie blokady przepisu przed blokadę konta w
  * DecyzjaPoOdwolaniu::handle() powoduje 40P01 w tym teście.
  */
 #[Group('dwa-polaczenia')]

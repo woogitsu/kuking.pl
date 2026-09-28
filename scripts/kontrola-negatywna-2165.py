@@ -31,13 +31,13 @@ def replace_once(source: str, old: str, new: str) -> str:
 def odwroc_kolejnosc(source: str) -> str:
     source = replace_once(
         source,
-        "        $cel = $this->zablokujCel($pierwotna);\n\n        if ($cel === null",
-        "        if ($cel === null",
+        "        $zablokowanaOsoba = null;\n\n        if ($karaKonta) {",
+        "        $zablokowanaOsoba = null;\n        $cel = $this->zablokujCel($pierwotna);\n\n        if ($karaKonta) {",
     )
     return replace_once(
         source,
-        "        $zablokowanaOsoba = null;\n\n        if ($karaKonta) {",
-        "        $zablokowanaOsoba = null;\n        $cel = $this->zablokujCel($pierwotna);\n\n        if ($karaKonta) {",
+        "        $cel = $this->zablokujCel($pierwotna);\n\n        if ($cel === null",
+        "        if ($cel === null",
     )
 
 
