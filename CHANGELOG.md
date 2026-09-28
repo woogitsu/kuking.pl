@@ -3,6 +3,7 @@
 ## Nieopublikowane
 
 - Rozpatrzenie odwołania z blokadą konta nie zakleszcza się już z równoczesną edycją przepisu. Obie czynności kończą się bez błędu serwera (#2165).
+- Ekrany logowania i zakładania konta wykorzystują szerokość komputera: obok formularza widać od razu wejście przez Google lub Facebooka, a przy logowaniu także drogę przez link wysłany e-mailem. Na telefonie wszystko układa się w jedną kolumnę; żadne pole ani komunikat nie znika.
 
 ## Alfa 0.72 — spokojniejsze zdjęcia i powiadomienia
 
