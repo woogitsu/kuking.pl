@@ -30,7 +30,7 @@ class CofniecieDatyZmianyTresciPrzepisuTest extends TestCase
 
     private function migracja(): object
     {
-        return require database_path('migrations/2026_09_28_200000_add_tresc_zmieniona_at_to_recipes.php');
+        return require database_path('migrations/2026_09_28_210000_add_tresc_zmieniona_at_to_recipes.php');
     }
 
     public function test_kolumna_jest_timestamptz_null_bez_domyslnej(): void
