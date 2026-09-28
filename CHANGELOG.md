@@ -8,6 +8,7 @@
 - Mapa strony dla wyszukiwarek podaje teraz wszystkie publiczne strony wejściowe: Poradźcie (gdy dział pytań jest włączony), Tagi, O Kuking, Regulamin, Prywatność i „Napisz do nas” (#1032). Data zmiany profilu w mapie uwzględnia też publikację, edycję, ukrycie i usunięcie publicznych wpisów i przepisów autora (#1280).
 - Usunięcie komentarza sprawdza teraz stan konta osoby usuwającej dopiero w chwili zapisu. Jeśli zawieszenie, ban albo żądanie usunięcia konta zostanie zatwierdzone w trakcie takiego żądania, komentarz zostaje nietknięty: bez śladu usunięcia, bez zastąpienia treści komunikatem i bez powiadomienia dla jego autora (#2190).
 - Wewnętrzne: błędny kod 2FA lub kod zapasowy przy logowaniu przez API aplikacji zostawia w dzienniku audytu ten sam wpis `account.two_factor_login_failed` co na stronie, z kanałem `api` w metadanych (na stronie: `www`). Zapis jest teraz w jednej akcji sprawdzającej kod, więc żaden kanał go nie pominie; odpowiedzi odcięte limitem prób nadal nie dopisują wierszy, a w dzienniku nie ma kodu, sekretu ani surowego adresu IP (#2199).
+- Gość może kliknąć „Zapisz do zeszytu” przy przepisie, założyć konto (hasłem, przez Google lub Facebooka) albo się zalogować i wrócić na ten sam przepis z rozwiniętym wyborem zeszytu. Niczego nie zapisujemy za człowieka — przepis trafia do zeszytu dopiero po jego własnym wyborze, a przepis, który w międzyczasie przestał być dostępny, nie otwiera wyboru (#2028). [nowa funkcja]
 
 ## Alfa 0.75 — szukanie w wykonaniach i pewniejsze „Ugotowałem”
 

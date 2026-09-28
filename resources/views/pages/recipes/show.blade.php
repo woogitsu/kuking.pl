@@ -477,11 +477,15 @@
                             <button class="btn btn-secondary" type="submit" @if($publicznyCel) aria-describedby="cel-zapisu-{{ $recipe->getKey() }}" @endif><x-ikona nazwa="save" /> Zapisuję</button>
                         </form>
                     @endif
-                    <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" :content="$recipe" />
+                    <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" :content="$recipe" :otwarty="request()->boolean(\App\Support\ZamiarZapisu::ROZWIN)" />
                     {{-- Planer tygodnia (#27, D-310): prywatny, obok „Zapisuję”. --}}
                     <x-dodaj-do-planera :recipe="$recipe" />
                 @else
                     <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby dać znać autorowi</a>
+                    {{-- „Zapisz do zeszytu” dla gościa (#2028): link niesie UUID przepisu,
+                         po rejestracji wracamy tu z rozwiniętym wyborem zeszytu. --}}
+                    <a class="btn btn-secondary" href="{{ route('register', [\App\Support\ZamiarZapisu::PARAMETR => $recipe->getKey()]) }}"><x-ikona nazwa="save" /> Zapisz do zeszytu</a>
+                    <a class="btn btn-quiet" href="{{ route('login', [\App\Support\ZamiarZapisu::PARAMETR => $recipe->getKey()]) }}">Masz konto? Zaloguj się i zapisz</a>
                 @endauth
 
                 {{--

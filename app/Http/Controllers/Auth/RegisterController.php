@@ -19,6 +19,7 @@ use App\Support\RejestracjaZamknieta;
 use App\Support\Turnstile;
 use App\Support\ZamiarObserwowania;
 use App\Support\ZamiarUgotowania;
+use App\Support\ZamiarZapisu;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -40,7 +41,7 @@ use Illuminate\View\View;
  */
 class RegisterController extends Controller
 {
-    public function show(Request $request, ZaproszenieWSesji $sesja, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie, PowrotDoRozmowy $rozmowa): View|RedirectResponse
+    public function show(Request $request, ZaproszenieWSesji $sesja, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie, PowrotDoRozmowy $rozmowa, ZamiarZapisu $zapis): View|RedirectResponse
     {
         // Zamknięta rejestracja to nie awaria — patrz `RejestracjaZamknieta`.
         if (RejestracjaZamknieta::czyZamknieta()) {
@@ -50,6 +51,7 @@ class RegisterController extends Controller
         $zamiar->zapamietaj($request);
         $gotowanie->zapamietaj($request);
         $rozmowa->zapamietaj($request);
+        $zapis->zapamietaj($request);
 
         // `biezace()` sprawdza ważność przy każdym odczycie i czyści martwy
         // klucz w sesji — zaproszenie mogło wygasnąć albo zostać zużyte między
@@ -57,7 +59,7 @@ class RegisterController extends Controller
         return view('auth.register', ['zaproszenie' => $sesja->biezace()]);
     }
 
-    public function store(Request $request, ZalozKonto $zalozKonto, ZaproszenieWSesji $sesja, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie, PowrotDoRozmowy $rozmowa): RedirectResponse
+    public function store(Request $request, ZalozKonto $zalozKonto, ZaproszenieWSesji $sesja, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie, PowrotDoRozmowy $rozmowa, ZamiarZapisu $zapis): RedirectResponse
     {
         if (RejestracjaZamknieta::czyZamknieta()) {
             return RejestracjaZamknieta::przekierowanie();
@@ -256,6 +258,7 @@ class RegisterController extends Controller
         $zamiar->przypiszKonto($request);
         $gotowanie->przypiszKonto($request);
         $rozmowa->przypiszKonto($request);
+        $zapis->przypiszKonto($request);
 
         return redirect()->route('onboarding.interests')
             ->with('status', $konto->listPotwierdzajacyNieWyszedl
