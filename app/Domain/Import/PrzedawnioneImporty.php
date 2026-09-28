@@ -22,6 +22,8 @@ use Illuminate\Support\Facades\DB;
  * zwolniony) znika po tych samych 90 dniach. Otwartych retencja nie rusza —
  * domyka je `kuking:odzyskaj-importy`, a skasowanie otwartej zostawiłoby
  * jej kwotę w `zarezerwowano_mikrousd` na zawsze.
+ * Księga wspólnego limitu (`proby_importu`) znika po co najmniej 31 dniach,
+ * domyślnie razem ze zleceniami po 90 dniach. Bieżący miesiąc zostaje.
  *
  * JEDEN WYJĄTEK OD 90 DNI: zlecenie, którego szkic jest NADAL SZKICEM.
  * Wiersz zlecenia jest bramką publikacji (`BramkaPublikacjiOdczytu`): bez
@@ -32,7 +34,7 @@ use Illuminate\Support\Facades\DB;
  */
 final class PrzedawnioneImporty
 {
-    /** @return array{odpowiedzi: int, wiersze: int, rezerwacje: int} */
+    /** @return array{odpowiedzi: int, wiersze: int, rezerwacje: int, proby: int} */
     public function posprzataj(bool $naSucho = false): array
     {
         $odpowiedzi = ImportPrzepisu::query()
@@ -60,6 +62,12 @@ final class PrzedawnioneImporty
             ? $rezerwacje()->count()
             : UsuwanieWPartiach::zKonfiguracji()->usun($rezerwacje, 'id', 'ai_rezerwacje');
 
-        return ['odpowiedzi' => $ileOdpowiedzi, 'wiersze' => $ileWierszy, 'rezerwacje' => $ileRezerwacji];
+        $proby = fn () => DB::table('proby_importu')
+            ->where('created_at', '<', now()->subDays(max(31, (int) config('kuking.import.retencja.wiersz_dni'))));
+        $ileProb = $naSucho
+            ? $proby()->count()
+            : UsuwanieWPartiach::zKonfiguracji()->usun($proby, 'id', 'proby_importu');
+
+        return ['odpowiedzi' => $ileOdpowiedzi, 'wiersze' => $ileWierszy, 'rezerwacje' => $ileRezerwacji, 'proby' => $ileProb];
     }
 }
