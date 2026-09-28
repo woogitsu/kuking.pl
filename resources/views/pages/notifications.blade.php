@@ -190,6 +190,12 @@
                                 @if((int) ($data['wpisow'] ?? 1) > 1)
                                     Pod kilkoma Twoimi wpisami.
                                 @endif
+                                {{-- ISSUE #1994: wpis usunięty po zapisaniu digestu. Bez „Zobacz"
+                                     na 404 i bez cytatu z usuniętej treści. Cel liczy
+                                     `CelPowiadomienia` — brak adresu znaczy brak wpisu. --}}
+                                @if(($destinationUrls[(string) $notification->getKey()] ?? null) === null)
+                                    {{ \App\Http\Controllers\NotificationController::WPIS_SMAKOWICIE_NIEDOSTEPNY }}
+                                @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_FOLLOW)
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} zaczyna Cię obserwować.</strong>
