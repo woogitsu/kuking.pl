@@ -438,7 +438,9 @@
             @default
                 <div class="photo-grid">
                     @foreach($post->media as $media)
-                        <x-photo :media="$media" :priority="$priority && $loop->first" />
+                        <x-photo :media="$media"
+                                 :priority="$priority && $loop->first"
+                                 :alt="$media->alt_text ?: 'Zdjęcie '.$loop->iteration.' z '.$loop->count.' w tym wpisie'" />
                     @endforeach
                 </div>
         @endswitch
@@ -531,6 +533,36 @@
                 {{ $post->kind === \App\Models\Post::KIND_QUESTION ? 'Napisz odpowiedź' : 'Napisz komentarz' }}
             @endif
         </a>
+
+        @auth
+        @unless(\App\Policies\PostPolicy::tylkoPodgladObslugi(auth()->user(), $post))
+            {{--
+                „SMAKOWICIE WYGLĄDA" (issue #1813, D-280).
+
+                Lżejsze niż „Ugotowałem", więc wizualnie drugorzędne: zwykły
+                przycisk drugiego planu, za komentarzami, nigdy w kolorze marki.
+                Bez licznika — nikt nie widzi, ILE osób to napisało; autor widzi
+                KTO, na stronie swojego wpisu. Cofnięcie tym samym przyciskiem,
+                jednym dotknięciem, bez pytania (to nic nie kasuje). Stan niesie
+                NAPIS („— cofnij"), ten sam dla oka i czytnika ekranu. Stan (`czy_smakowicie`) dolicza `ZapisyWpisu::dolicz()`
+                — ekran, który go nie dolicza, dostaje przycisk dodania, a zapis
+                jest idempotentny. Pod własnym wpisem przycisku nie ma.
+            --}}
+            @if(auth()->id() !== $post->author_id)
+                @if($post->getAttribute('czy_smakowicie'))
+                    <form method="POST" action="{{ route('posts.smakowicie.cofnij', $post) }}">
+                        @csrf @method('DELETE')
+                        <button class="btn btn-secondary" type="submit" data-rola="smakowicie">Smakowicie wygląda — cofnij</button>
+                    </form>
+                @else
+                    <form method="POST" action="{{ route('posts.smakowicie', $post) }}">
+                        @csrf
+                        <button class="btn btn-secondary" type="submit" data-rola="smakowicie">Smakowicie wygląda</button>
+                    </form>
+                @endif
+            @endif
+        @endunless
+        @endauth
 
         @auth
         @unless(\App\Policies\PostPolicy::tylkoPodgladObslugi(auth()->user(), $post))

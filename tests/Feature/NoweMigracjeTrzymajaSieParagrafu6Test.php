@@ -44,7 +44,7 @@ class NoweMigracjeTrzymajaSieParagrafu6Test extends TestCase
         $this->assertSame(
             [],
             $naruszenia,
-            "Nowa migracja (nowsza niż StraznikNowychMigracji::PROG) łamie AGENTS.md §6 (DDL na gorącej bazie):\n\n"
+            "Nowa migracja (spoza zamrożonej listy historycznej) łamie AGENTS.md §6 (DDL na gorącej bazie):\n\n"
             .implode("\n\n", $naruszenia)
             ."\n\nCO ZROBIĆ: przepisz DDL na wzorzec z "
             .'2026_09_23_100000_powiaz_status_zgloszenia_z_rozstrzygnieciem.php — indeks przez `CREATE INDEX '
@@ -180,12 +180,12 @@ class NoweMigracjeTrzymajaSieParagrafu6Test extends TestCase
     }
 
     /**
-     * Próg naprawdę odcina historię (appeal_id, 24.09.2026) i naprawdę
-     * łapie plik z datą późniejszą — na katalogu fixture, żeby test nie
-     * zależał od tego, co akurat leży w `database/migrations` dzisiaj.
+     * Historia odcina tylko znane pliki, a nowy plik z datą cofniętą albo
+     * równą dawnemu progowi nadal trafia do kontroli. Katalog fixture nie
+     * zależy od tego, co akurat leży w `database/migrations` dzisiaj.
      */
     #[Test]
-    public function prog_pomija_historie_a_widzi_migracje_pozniejsze_niz_on_sam(): void
+    public function historia_pomija_znane_pliki_ale_widzi_nowosc_mimo_starej_daty(): void
     {
         $katalog = sys_get_temp_dir().'/straznik-par6-'.bin2hex(random_bytes(4));
         mkdir($katalog);
@@ -193,11 +193,21 @@ class NoweMigracjeTrzymajaSieParagrafu6Test extends TestCase
         try {
             file_put_contents($katalog.'/2026_09_24_120000_add_appeal_id_to_moderation_actions.php', '<?php');
             file_put_contents($katalog.'/2026_09_25_100000_create_tag_highlights_table.php', '<?php');
+            file_put_contents($katalog.'/2026_09_24_100000_add_session_generation_to_users.php', '<?php');
+            file_put_contents($katalog.'/2026_09_24_200000_require_complete_ready_data_exports.php', '<?php');
+            file_put_contents($katalog.'/2026_09_24_120001_nowy_indeks_bez_concurrently.php', "<?php DB::statement('CREATE INDEX zly ON posts (id)');");
+            file_put_contents($katalog.'/2026_09_25_200200_nowy_check_bez_not_valid.php', "<?php DB::statement('ALTER TABLE posts ADD CONSTRAINT zly CHECK (id IS NOT NULL)');");
             file_put_contents($katalog.'/2026_09_26_100000_cos_nowego.php', '<?php');
 
             $nowe = array_map('basename', StraznikNowychMigracji::nowePliki($katalog));
 
-            $this->assertSame(['2026_09_26_100000_cos_nowego.php'], $nowe);
+            $this->assertSame([
+                '2026_09_24_120001_nowy_indeks_bez_concurrently.php',
+                '2026_09_25_200200_nowy_check_bez_not_valid.php',
+                '2026_09_26_100000_cos_nowego.php',
+            ], $nowe);
+            $this->assertNotEmpty(StraznikNowychMigracji::sprawdzTresc((string) file_get_contents($katalog.'/'.$nowe[0])));
+            $this->assertNotEmpty(StraznikNowychMigracji::sprawdzTresc((string) file_get_contents($katalog.'/'.$nowe[1])));
         } finally {
             array_map('unlink', glob($katalog.'/*.php') ?: []);
             rmdir($katalog);

@@ -1724,6 +1724,11 @@ return [
         // się częściej niż pisanie komentarzy.
         'cooking_krok' => '60,1',
 
+        // Pokaż/ukryj szacunkowe wartości odżywcze przy własnym przepisie
+        // (D-299). Jedna kolumna w jednym wierszu, bez nowej wersji
+        // przepisu — ale to wciąż zapis, więc ma sufit jak każdy formularz.
+        'wartosci_odzywcze' => '20,1',
+
         // Weryfikacja kodu 2FA (logowanie i wyłączanie, issue #12). Kod ma
         // sześć cyfr — milion możliwości brzmi dużo, ale bez limitu prób to
         // pytanie o minuty, nie o bezpieczeństwo. Format „próby,minuty” jak
@@ -1884,6 +1889,13 @@ return [
          * obserwowania ani blokady (ta druga to narzędzie bezpieczeństwa).
          */
         'ukrycia' => '60,10',
+
+        /*
+         * „SMAKOWICIE WYGLĄDA" (issue #1813) — zapis i cofnięcie reakcji.
+         * Nie powiadamia od razu (zbiorczo raz dziennie), więc limit chroni
+         * tylko bazę przed pętlą klikania, nie ludzi przed zalewem.
+         */
+        'reakcje' => '120,10',
 
         /*
          * ZESZYT — zapis i wypisanie przepisu albo wpisu, założenie zeszytu.
@@ -3493,7 +3505,7 @@ return [
         // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
         // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
         // wersji nie da się z niczym powiązać.
-        'etykieta' => 'Alfa 0.68',
+        'etykieta' => 'Alfa 0.70',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
         //
@@ -3529,6 +3541,25 @@ return [
         // `bootstrap/`, nie `storage/`: `storage/` bywa wolumenem podpiętym
         // przy starcie kontenera i wtedy zasłania to, co leży w obrazie.
         'plik_wydania' => base_path('bootstrap/wydanie.txt'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Strona „Co nowego" (issue #1909, #1932)
+    |--------------------------------------------------------------------------
+    |
+    | Ścieżka jest jedna, ale POTRZEBUJE jej DWÓCH miejsc, które muszą liczyć
+    | slugi identycznie: `NowosciController` (renderuje stronę) i
+    | `App\Domain\Wydania\Actions\ZarejestrujWdrozenie` (zapisuje, pod jakim
+    | numerem wdrożenia pojawił się każdy nagłówek `###` z „## Najnowsze
+    | zmiany"). Konfigurowalna, a nie `resource_path()` wpisane w obu
+    | miejscach na twardo, żeby test mógł podmienić plik na własną, tymczasową
+    | treść bez nadpisywania PRAWDZIWEGO `resources/nowosci/tresc.md` — ten
+    | plik jest treścią redakcyjną w repozytorium, nie fixture'em testowym.
+    |
+    */
+    'nowosci' => [
+        'tresc' => resource_path('nowosci/tresc.md'),
     ],
 
     /*

@@ -67,6 +67,7 @@ use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SettingsIndexController;
 use App\Http\Controllers\Settings\TwoFactorSettingsController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\SmakowicieController;
 use App\Http\Controllers\SocialController;
 use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\TagController;
@@ -75,6 +76,7 @@ use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\UkryciaController;
 use App\Http\Controllers\UrodzinyWypiszController;
+use App\Http\Controllers\WartosciOdzywczeController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use Illuminate\Support\Facades\Route;
@@ -583,6 +585,12 @@ Route::get('/wejdz/facebook/polacz', [FacebookLoginController::class, 'linkForm'
 Route::post('/wejdz/facebook/polacz', [FacebookLoginController::class, 'link'])
     ->middleware("throttle:{$limits['facebook_domkniecie']},facebook_domkniecie")
     ->name('facebook.link.store');
+Route::post('/wejdz/facebook/polacz/link', [FacebookLoginController::class, 'requestLinkProof'])
+    ->middleware("throttle:{$limits['confirm_password']},confirm_password")
+    ->name('facebook.link.email');
+Route::get('/wejdz/facebook/polacz/link/{token}', [FacebookLoginController::class, 'confirmLinkProof'])
+    ->middleware("throttle:{$limits['facebook_domkniecie']},facebook_domkniecie")
+    ->name('facebook.link.confirm');
 
 // --------------------------------------------------------------------------
 // Odwołanie od decyzji moderacyjnej — droga dla osób ZABLOKOWANYCH (#10)
@@ -765,6 +773,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/przepisy/{recipe}', [RecipeController::class, 'update'])
         ->middleware("throttle:{$limits['post']},post")
         ->name('recipes.update');
+    // „Ukryj wartości odżywcze w moim przepisie” (D-299). Ustawienie widoku
+    // własnego przepisu, nie nowa wersja treści — osobny, luźniejszy limit.
+    Route::patch('/przepisy/{recipe}/wartosci-odzywcze', WartosciOdzywczeController::class)
+        ->middleware("throttle:{$limits['wartosci_odzywcze']},wartosci_odzywcze")
+        ->name('recipes.wartosci-odzywcze');
     Route::post('/przepisy/{recipe}/komentarz', [RecipeController::class, 'comment'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('recipes.comment');
@@ -890,6 +903,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['obserwowanie']},obserwowanie")
         ->name('social.unfollow');
 
+    // „SMAKOWICIE WYGLĄDA" (issue #1813, D-280) — własny koszyk `reakcje`.
+    Route::post('/wpisy/{post}/smakowicie', [SmakowicieController::class, 'dodaj'])
+        ->middleware("throttle:{$limits['reakcje']},reakcje")
+        ->name('posts.smakowicie');
+    Route::delete('/wpisy/{post}/smakowicie', [SmakowicieController::class, 'cofnij'])
+        ->middleware("throttle:{$limits['reakcje']},reakcje")
+        ->name('posts.smakowicie.cofnij');
+
     // PRYWATNE UKRYCIA (issue #1810, D-278) — własny koszyk `ukrycia`:
     // porządkowanie WŁASNEGO ekranu nie może zjadać budżetu obserwowania
     // ani blokady. Ekran wyboru przy osobie to GET, sam zapis POST.
@@ -943,6 +964,7 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // w `NotificationController::open()`.
     Route::post('/powiadomienia/{notification}/zobacz', [NotificationController::class, 'open'])
         ->middleware("throttle:{$limits['powiadomienia']},powiadomienia")
+        ->whereUuid('notification')
         ->name('notifications.open');
 
     // Ustawienia

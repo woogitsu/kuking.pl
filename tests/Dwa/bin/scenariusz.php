@@ -24,19 +24,24 @@ use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Contact\Actions\WyslijOdpowiedz;
 use App\Domain\Feed\Actions\ZapiszKolaz;
 use App\Domain\Feed\Actions\ZapiszTabliceDnia;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
+use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
+use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Tags\Actions\MergeTags;
 use App\Domain\Tags\Actions\UpdateTagFollows;
 use App\Domain\Tags\PromowaneTagi;
+use App\Domain\Users\Actions\ChangeUserRole;
 use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Actions\RequestAccountDeletion;
+use App\Domain\Wydania\Actions\ZarejestrujWdrozenie;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
@@ -44,6 +49,7 @@ use App\Http\Requests\Moderation\DecyzjaModeracyjnaRequest;
 use App\Models\Appeal;
 use App\Models\Collection;
 use App\Models\Comment;
+use App\Models\ContactMessage;
 use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -60,6 +66,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\Console\Output\BufferedOutput;
@@ -162,6 +169,13 @@ DB::statement("SET idle_in_transaction_session_timeout = '".(getenv('KUKING_STAT
 
 try {
     $wartosc = match ($scenariusz) {
+        'cofnij-podpis-wersji-2059' => (function (): bool {
+            $migracja = require base_path('database/migrations/2026_09_26_100000_add_forked_from_to_recipes.php');
+            $migracja->down();
+
+            return true;
+        })(),
+
         'nadaj-role' => (function () use ($argumenty): array {
             // Bariera należy wyłącznie do przyrządu. Mierzymy zapytanie
             // komendy/akcji, nie przepisujemy jej warunku do drugiego SQL-a.
@@ -186,6 +200,37 @@ try {
             });
 
             return (string) $konto->fresh()?->status;
+        })(),
+
+        'opublikuj-wpis-2088' => (function () use ($argumenty): string {
+            $autor = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+            if (! $autor->isActive()) {
+                throw new RuntimeException('Przyrząd nie odczytał aktywnego autora przed przeplotem.');
+            }
+
+            // Kontrola odwróconej kolejności: zatrzymaj publikację dopiero PO
+            // prawdziwym zapytaniu blokującym autora. Nie zmienia kodu akcji.
+            $bariera = (int) ($argumenty['bariera'] ?? 0);
+            if ($bariera !== 0) {
+                $zatrzymany = false;
+                DB::listen(static function (QueryExecuted $query) use ($bariera, &$zatrzymany): void {
+                    if (! $zatrzymany && str_contains($query->sql, 'from "users"')
+                        && str_contains(strtolower($query->sql), 'for no key update')) {
+                        $zatrzymany = true;
+                        DB::select('SELECT pg_advisory_xact_lock(2088, ?)', [$bariera]);
+                    }
+                });
+            }
+
+            config(['queue.default' => 'database', 'kuking.community.host_user_id' => $argumenty['gospodarz']]);
+
+            return (string) app(PublishPost::class)->handle(
+                $autor,
+                'Rosół z kuchni 2088.',
+                mediaIds: isset($argumenty['zdjecie']) ? [$argumenty['zdjecie']] : [],
+                tagNames: isset($argumenty['tag']) ? [$argumenty['tag']] : [],
+                kluczWyslania: $argumenty['klucz'],
+            )->getKey();
         })(),
 
         'zapis-do-zeszytu' => (function () use ($argumenty): string {
@@ -286,6 +331,51 @@ try {
             return (string) $przepis->title;
         })(),
 
+        // #2112: prawdziwe żądanie HTTP przełącznika. Route binding i Policy
+        // czytają stan przed decyzją moderatora, a zapis czeka na blokadę.
+        'przelacz-wartosci-2112' => (function () use ($argumenty): array {
+            // W odwróconym przeplocie przyrząd zatrzymuje autora dopiero po
+            // rzeczywistym SELECT FOR UPDATE, kiedy trzyma on zamek przepisu.
+            if (isset($argumenty['bariera'])) {
+                $zatrzymany = false;
+                DB::listen(static function (QueryExecuted $query) use ($argumenty, &$zatrzymany): void {
+                    if (! $zatrzymany && str_contains($query->sql, 'from "recipes"')
+                        && str_contains(strtolower($query->sql), 'for update')) {
+                        $zatrzymany = true;
+                        DB::select('SELECT pg_advisory_xact_lock(2112, ?)', [(int) $argumenty['bariera']]);
+                    }
+                });
+            }
+
+            $autor = User::query()->whereKey($argumenty['autor'])->firstOrFail();
+            $recipe = Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail();
+            Auth::guard('web')->setUser($autor);
+
+            $zadanie = Request::create(route('recipes.wartosci-odzywcze', $recipe), 'PATCH', [
+                'pokazuj' => '0',
+            ], [], [], ['HTTP_REFERER' => route('recipes.show', $recipe)]);
+            $odpowiedz = app(HttpKernel::class)->handle($zadanie);
+            $sesja = $zadanie->hasSession() ? $zadanie->session() : null;
+            $bledy = $sesja?->get('errors');
+
+            return [
+                'status' => $odpowiedz->getStatusCode(),
+                'blad' => is_object($bledy)
+                    ? $bledy->first('pokazuj')
+                    : ($bledy['default']['messages']['pokazuj'][0] ?? null),
+                'zapisane' => $sesja?->get('status'),
+            ];
+        })(),
+
+        'moderuj-przepis-2112' => DB::transaction(static function () use ($argumenty): string {
+            $recipe = Recipe::query()->withTrashed()->whereKey($argumenty['przepis'])
+                ->lockForUpdate()->firstOrFail();
+            $recipe->status = Recipe::STATUS_HIDDEN;
+            $recipe->saveQuietly();
+
+            return (string) $recipe->status;
+        }),
+
         // Komentarz pod wpisem (audyt podwójnego wysłania, 12.09.2026).
         // Dwa procesy z IDENTYCZNĄ treścią odtwarzają podwójne kliknięcie,
         // w którym oba żądania trafiły na serwer naprawdę jednocześnie —
@@ -334,6 +424,18 @@ try {
             app(UpdateTagFollows::class)->follow(
                 User::query()->whereKey($argumenty['kto'])->firstOrFail(),
                 [$argumenty['tag']],
+            );
+
+            return true;
+        })(),
+
+        // Zapis całego widocznego okna tagów (#2091): ten sam formularz,
+        // który może dodać relację po zmianie statusu konta w innym żądaniu.
+        'zapisz-obserwowane-tagi' => (function () use ($argumenty): bool {
+            app(UpdateTagFollows::class)->save(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                [$argumenty['tag']],
+                ['shown' => [$argumenty['tag']], 'followed' => []],
             );
 
             return true;
@@ -404,6 +506,25 @@ try {
             wynik: $argumenty['wynik'],
             uzasadnienie: $argumenty['uzasadnienie'],
         )->status,
+
+        'zmien-role' => app(ChangeUserRole::class)->handle(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            $argumenty['rola'],
+        )['changed'],
+
+        'zdejmij-z-urzedu' => (string) app(ZdejmijZUrzedu::class)->handle(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
+            'spam-reklama',
+            'Treść jest reklamą, nie rozmową o gotowaniu.',
+        )->getKey(),
+
+        'wyslij-odpowiedz' => (string) app(WyslijOdpowiedz::class)->handle(
+            ContactMessage::query()->whereKey($argumenty['wiadomosc'])->firstOrFail(),
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            'Odpowiedź z testu wyścigu.',
+            replyKey: (string) Str::uuid(),
+        )->getKey(),
 
         // Decyzja w sprawie zgłoszenia przez prawdziwy kontroler panelu
         // (#933: nowa kara równolegle z uchyleniem starej). Bez HTTP, tak jak
@@ -543,6 +664,19 @@ try {
                 'zapisane' => $sesja?->get('status'),
             ];
         })(),
+
+        // Rejestracja wdrożenia (issue #1932, D-318): numer kolejny liczony
+        // pod `pg_advisory_xact_lock(hashtext($etykieta))` wewnątrz akcji —
+        // test na dwóch połączeniach trzyma TĘ SAMĄ blokadę na własnym
+        // połączeniu (ten sam klucz), żeby wymusić prawdziwe zderzenie dwóch
+        // równoległych rejestracji pod tą samą etykietą.
+        'zarejestruj-wdrozenie' => app(ZarejestrujWdrozenie::class)->handle(
+            $argumenty['commit'],
+            $argumenty['etykieta'],
+        ),
+
+        // Prawdziwa komenda używana przez obie ścieżki wdrożenia (#2082).
+        'migruj-pod-blokada' => Artisan::call('kuking:migruj-pod-blokada'),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),
     };

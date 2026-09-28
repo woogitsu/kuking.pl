@@ -63,6 +63,7 @@ final class InwentarzDanychKonta
         'blocks.blocker_id' => [self::EKSPORT, 'zablokowane_osoby'],
         'tag_follows.user_id' => [self::EKSPORT, 'obserwowane_tagi'],
         'hides.user_id' => [self::EKSPORT, 'ukryte'],
+        'post_reactions.user_id' => [self::EKSPORT, 'moje_reakcje'],
         'notifications.user_id' => [self::EKSPORT, 'powiadomienia'],
         'media.owner_id' => [self::EKSPORT, 'zdjecia'],
         'dziennik_zgod.user_id' => [self::EKSPORT, 'dziennik_zgod'],
@@ -97,6 +98,7 @@ final class InwentarzDanychKonta
         'reports.resolved_by' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
 
         'login_link_tokens.user_id' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
+        'facebook_connection_proofs.user_id' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
         'first_post_events.author_id' => [self::NIE_DOTYCZY, 'Znacznik techniczny „pierwszy wpis konta”. Nie niesie nic ponad listę wpisów, która jest w paczce.'],
     ];
 

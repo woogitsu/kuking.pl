@@ -775,6 +775,22 @@ i nigdy nie było na produkcji: pierwsza wersja tej migracji je dokładała,
 ale została przepisana przed scaleniem (D-098). Powiązania z dostawcami
 tożsamości mieszkają w osobnej tabeli — patrz `tozsamosci_zewnetrzne` niżej.
 
+### facebook_connection_proofs
+
+Migracja `2026_09_27_120000_create_facebook_connection_proofs` (issue #2085).
+Jeden wiersz na konto: dziesięciominutowy, jednorazowy dowód kontroli nad
+obecnym, potwierdzonym adresem Kuking, używany tylko przy połączeniu lub
+ponownym uaktywnieniu Facebooka. `token_hash` to HMAC losowego tokenu z listu;
+`session_hash` wiąże link z tą samą przeglądarką, `facebook_id_hash` z
+rozpoznaną tożsamością dostawcy, a `account_state_hash` z hasłem, adresem,
+2FA (także kodami zapasowymi), rolą, statusem i generacją sesji. Pod blokadą konta token jest kasowany
+w tej samej transakcji co powiązanie. `UNIQUE (user_id)` unieważnia poprzedni
+link przy kolejnej prośbie; `UNIQUE (token_hash)` zapobiega kolizji.
+
+Rollback usuwa tylko oczekujące dowody. Nie usuwa istniejących powiązań i
+zamyka, zamiast otwierać, rozpoczęte próby połączenia; można poprosić o nowy
+link po ponownym wdrożeniu.
+
 ### tozsamosci_zewnetrzne
 
 Migracja `2026_09_10_500000_create_tozsamosci_zewnetrzne_table`
@@ -1327,6 +1343,41 @@ drzwiami w najgorszym momencie. Konflikt na tej stronie rozstrzyga
 `App\Domain\Social\Actions\BlockUser`, kasując obserwowanie w obie strony
 pod blokadą wierszy.
 
+### post_reactions
+Reakcja „Smakowicie wygląda” (issue #1813, D-280). Migracja
+`2026_09_26_110000_create_post_reactions_table.php`.
+
+- `id uuid` (PK, `gen_random_uuid()`),
+- `post_id uuid NOT NULL` → `posts` (`ON DELETE CASCADE`),
+- `user_id uuid NOT NULL` → `users` (`ON DELETE CASCADE`) — kto napisał,
+- `notified_at timestamptz NULL` — kiedy weszła do zbiorczego powiadomienia
+  (raz dziennie, `kuking:powiadom-smakowicie`); `NULL` = czeka,
+- `created_at timestamptz`.
+
+`UNIQUE (post_id, user_id)` — reakcja to STAN jednej osoby przy jednym wpisie
+(odwrotnie niż `cooked_events`, gdzie unikalność jest zakazana). Indeks
+częściowy `post_reactions_pending_idx (created_at) WHERE notified_at IS NULL`
+pod zbiorcze powiadomienie, indeks `user_id` pod kaskadę konta.
+
+Bez licznika: żadna lista nie sortuje ani nie przycina po tej tabeli
+(`FeedNieSortujePoMierzeReakcjiTest` zna słowo „reaction”). Stan widza na karcie
+to `EXISTS` w `ZapisyWpisu::dolicz()`. Kto zareagował — każdy widz na stronie
+wpisu (od 26.09.2026; wcześniej tylko autor), bez liczby, bez osób z blokadą
+autora albo widza i bez kont niedostępnych (`App\Domain\Reakcje\Smakowicie::ktoDla()`). Eksport:
+`moje_reakcje` i `reakcje_otrzymane` — ta druga z nazwą konta tylko przy
+osobach, które autor zobaczyłby przy wpisie (`osobyWidoczneDlaAutora()`, filtry autora z `ktoDla()`),
+reszta jako liczba w `reakcje_otrzymane_od_osob_niewidocznych`.
+
+**Kaskada działa tylko przy twardym usunięciu.** Konta się anonimizuje
+(D-022), więc reakcje wymazywanego konta (`user_id`) kasuje jawnie
+`EraseAccountData` — przy każdym `delete_scope`. Reakcja pod wpisem usuniętym
+(soft delete) zostaje w tabeli, ale zbiorcze powiadomienie jej nie liczy.
+
+**Rollback:** `down()` ODMAWIA, gdy w tabeli są reakcje (słowa ludzi do autorów,
+`up()` ich nie odtworzy — D-088); na pustej przechodzi. Ręcznie:
+`\copy post_reactions TO reakcje.csv CSV HEADER`, decyzja właściciela, potem
+usunięcie wierszy. Test: `SmakowicieWygladaTest::test_rollback_odmawia…`.
+
 ### hides
 Prywatne ukrycia jednego widza (issue #1810, D-278): „Ukryj ten wpis” i „Ukryj
 tę osobę”. Migracja `2026_09_26_100000_create_hides_table.php`.
@@ -1724,6 +1775,8 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
   dla dwóch zapisów wykonanych w jednej sekundzie (issues #2034 i #2032);
 - „Moja wersja": `forked_from_id`, `forked_at` — patrz niżej;
 - `title_search`, `summary_search` — patrz „Kolumny `*_search`".
+- `pokazuj_wartosci_odzywcze boolean NOT NULL DEFAULT true` — patrz
+  sekcja `skladniki_odzywcze` niżej (D-299).
 
 **`prep_minutes`, `cook_minutes` — puste to „nie wiem", zero to „nie ma"**
 (#1090). `NULL` oznacza, że autor nie podał czasu; `0` — że tego etapu nie ma
@@ -1766,7 +1819,12 @@ tabeli), klucz obcy i CHECK przez `NOT VALID` + `VALIDATE`, indeks
 `migrate:rollback` → `migrate` kolumny wróciłyby puste, a każda wersja stałaby
 się po cichu przepisem swojego autora. Komunikat podaje zapytanie, którym
 zapisać powiązania przed ręcznym cofnięciem. Na bazie bez wersji cofnięcie
-przechodzi. Test: `tests/Feature/CofniecieMigracjiNieGubiPodpisuWersjiTest.php`.
+przechodzi. `down()` bierze `ACCESS EXCLUSIVE` przed liczeniem wersji i trzyma
+blokadę do końca usunięcia kolumn; dzięki temu równoległy zapis nie może wejść
+między strażnik a DDL (#2059). Zależny indeks znika razem z kolumną w tej
+samej transakcji, bez osobnego `DROP INDEX CONCURRENTLY`. Testy:
+`tests/Feature/CofniecieMigracjiNieGubiPodpisuWersjiTest.php` i
+`tests/Dwa/RollbackWersjiTrzymaBlokadeTest.php`.
 
 **`klucz_wyslania` — jedno wysłanie formularza to jeden przepis** (D-027,
 migracja `2026_09_12_600000_add_klucz_wyslania_to_recipes`).
@@ -2233,6 +2291,82 @@ utracona wartość to preferencja wyświetlania (jak `theme`), a kierunek utraty
 jest bezpieczny — po cyklu nikt nie widzi propozycji, których nie chciał,
 najwyżej włączy półkę jeszcze raz. Cykl sprawdza
 `tests/Feature/MojStolTest.php::test_rollback_migracji_zdejmuje_kolumne_i_wraca_wylaczony`.
+
+### skladniki_odzywcze
+
+**Wartości odżywcze (V2, D-299)** — trzy tabele: `skladniki_odzywcze`,
+`miary_domowe`, `aliasy_skladnikow`.
+
+Szacunek kcal, białka, tłuszczu i węglowodanów na porcję, liczony w PHP
+(`App\Domain\Recipes\Odzywcze\KalkulatorWartosci`) z otwartych tabel CIQUAL
+2025 i USDA FoodData Central — bez modelu AI. Migracja
+`2026_09_26_400000_create_wartosci_odzywcze_tables`. Trzy tabele są
+**słownikami**: wypełnia je wyłącznie komenda
+`php artisan kuking:importuj-wartosci-odzywcze` z plików
+`database/data/odzywcze/skladniki.csv` i `miary.csv` (źródła i licencje:
+`database/data/odzywcze/ZRODLA.md`). Żadna trasa HTTP do nich nie pisze,
+aplikacja niczego nie pobiera z sieci. Import jest idempotentny i idzie w jednej
+transakcji: po nim baza zawiera dokładnie to, co pliki.
+
+**Wdrożenie (#1961).** Komenda stoi w `preDeployCommand` w `.railway/railway.ts`,
+po `migrate` i `db:seed` — leci automatycznie przy KAŻDYM wdrożeniu, nie tylko
+ręcznie (wcześniej migracja tworzyła puste tabele i nikt ich nie wypełniał).
+Żeby zwykły deploy bez zmiany źródeł nie przepisywał ~600 wierszy za każdym
+razem, komenda przechowuje hash CSV i kodu normalizacji oraz odcisk wartości
+wszystkich trzech tabel po udanym imporcie. Szybka ścieżka odczytuje tabele,
+ale nie parsuje CSV i niczego nie zapisuje. Brak choćby jednego składnika,
+aliasu albo miary, zmieniona wartość przy tej samej liczbie wierszy lub stary
+znacznik w cache uruchamia pełną odbudowę (#2130). Nowy znacznik jest zapisywany
+dopiero po zatwierdzeniu transakcji; `--wymus` pomija szybkie sprawdzenie.
+
+`skladniki_odzywcze` — jedna pozycja tabeli źródłowej:
+
+- `klucz varchar(80) UNIQUE` (CHECK `^[a-z0-9_]+$`), `nazwa` — polska nazwa;
+- `zrodlo` (CHECK `ciqual` \| `usda`), `zrodlo_id`, `zrodlo_nazwa` — skąd
+  pochodzą liczby, co do identyfikatora pozycji w źródle;
+- `kcal_100g numeric(7,2)` (CHECK 0–950), `bialko_100g`, `tluszcz_100g`,
+  `weglowodany_100g numeric(6,2)` (CHECK 0–100) — na 100 g części jadalnej;
+- `gestosc_g_ml numeric(5,3) NULL` (CHECK `> 0 AND < 3`) — do przeliczania
+  mililitrów; `NULL` = mililitrów tego składnika nie przeliczamy;
+- `pomijalny boolean` — sól, przyprawy, zioła, woda: wiersz BEZ ilości nie
+  blokuje wyniku (z ilością liczy się normalnie).
+
+### miary_domowe
+
+`miary_domowe` — `skladnik_odzywczy_id` → `skladniki_odzywcze` (`ON DELETE
+CASCADE`), `jednostka varchar(30)` (CHECK `^[a-z]+$`, kody z
+`JednostkiMiary::SLOWA`), `gramy numeric(8,2)` (CHECK `> 0 AND <= 10000`),
+`uwagi`; `UNIQUE (skladnik_odzywczy_id, jednostka)`. Miara jest per składnik,
+bo szklanka mąki (140 g) waży co innego niż szklanka cukru (220 g) —
+`units.unit_type` tego nie rozstrzyga.
+
+### aliasy_skladnikow
+
+`aliasy_skladnikow` — `alias varchar(240) UNIQUE` (CHECK: niepusty i małymi
+literami; zapisany po `ParserSkladnika::normalizuj()` i `oczyscNazwe()`, czyli
+bez ogonków), `skladnik_odzywczy_id` (`ON DELETE CASCADE`, indeks). Formy
+„mąka”, „mąki”, „mąki pszennej” wskazują tę samą pozycję. Ten sam alias przy
+dwóch pozycjach odrzuca import.
+
+**Dlaczego nie klucz obcy do `ingredients`** (jak w szkicu projektu):
+`ingredients` dostaje z formularza CAŁY tekst wiersza („2 szklanki mąki”
+i „mąka” to dwa hasła), więc przypinanie wartości do haseł wymagałoby
+ręcznej pracy przy każdym nowym przepisie. Słownik aliasów robi to raz.
+
+**Rollback (wszystkie trzy tabele):** `down()` zdejmuje trzy tabele. Bezstratnie — to kopia plików
+z repozytorium, którą import odtwarza w całości.
+
+**`recipes.pokazuj_wartosci_odzywcze boolean NOT NULL DEFAULT true`**
+(migracja `2026_09_26_400100_add_pokazuj_wartosci_odzywcze_to_recipes`) —
+autor może ukryć sekcję przy swoim przepisie (domyślnie widoczna, decyzja
+właściciela z 26.09.2026). Zapisuje ją tylko nazwana akcja
+`UstawWidocznoscWartosci` (bez `$fillable`, bez zmiany `updated_at`
+i bez nowej wersji przepisu). `ADD COLUMN … DEFAULT <stała>` nie przepisuje
+tabeli. **Rollback odmawia (D-088)**, gdy choć jeden przepis ma `false`:
+kolejny `migrate` odtworzyłby kolumnę z `DEFAULT true` i odkrył sekcję, którą
+autor schował. Komunikat mówi, co zapisać przed cofnięciem. Przy samych
+wartościach domyślnych cofnięcie przechodzi
+(`CofniecieMigracjiNiePokazujeUkrytychWartosciTest`).
 
 ### Wspomnienia „Rok temu gotowałaś…" (issue #34)
 
@@ -2880,6 +3014,19 @@ liczy je w `nieudaneModeracyjne`, komenda zwraca kod ≠ 0, a zadanie
 w harmonogramie rzuca wyjątek (#1342, `RetencjaPowiadomienCzesciowaPorazkaTest`).
 
 ### reports
+
+`alarm_czlowieka_obsluzony_at` (migracja
+`2026_09_28_120000_add_human_urgent_alarm_handled_at_to_reports`, #2066):
+trwały znacznik, że pilne zgłoszenie od człowieka zostało już obsłużone
+alarmem — zadanie pocztowe trafiło do kolejki albo inne zgłoszenie tego
+samego celu zajęło bieżące okno. `NULL` pozwala ponowić próbę po awarii,
+braku adresu lub wyczerpaniu budżetu. Nie jest to dowód doręczenia listu.
+Zapis znacznika, klucza celu, budżetu i zadania odbywa się na tym samym
+połączeniu PostgreSQL w jednej transakcji. `down()` odmawia skasowania
+niepustego śladu; świadome cofnięcie wymaga
+`KUKING_ROLLBACK_KASUJ_SLAD_ALARMOW_CZLOWIEKA=true`, gdyż powrót starego
+formularza mógłby wtedy ponownie zlecić list.
+
 Zgłoszenia — **dwie różne drogi w jednej tabeli**, rozróżniane kolumną
 `source` (migracja `2026_09_06_200000_add_legal_notice_fields_to_reports`,
 audyt G-08 / W5-01 / W5-02).
@@ -3009,18 +3156,28 @@ sprawy prawne z adresem i pustym znacznikiem liczy
 #### `target_type = 'media'` — zdjęcie jako osobny cel (issue #237)
 
 Migracja `2026_09_10_300000_zdjecie_jako_cel_oznaczenia` dopisuje do
-`reports_target_type_check` wartość **`media`**. Dziś trafia tu wyłącznie
-zdjęcie profilowe: model ocenia je po przetworzeniu (`PrzeanalizujAwatar`),
-a oznaczenie wskazuje `media.id`.
+`reports_target_type_check` wartość **`media`**. Wprowadził ją automat oceny
+zdjęć profilowych (issue #237), a oznaczenie wskazywało `media.id`.
 
-**Dlaczego zdjęcie, a nie konto.** Indeks `reports_jeden_automat_na_tresc`
+**Stan od D-240: wartości `media` nic dziś nie produkuje.** Zdjęcie profilowe
+nie jest wysyłane do modelu — `AvatarSettingsController` nie zleca
+`PrzeanalizujAwatar`, a samo zadanie jest pustym no-opem zostawionym wyłącznie
+dla zleceń sprzed wdrożenia. Awatar zgłoszony przez człowieka ma cel `user`
+(„Zgłoś” na profilu), nie `media`. Wartość zostaje w ograniczeniu dla
+**historycznych** oznaczeń awatarów sprzed D-240: to sprawy moderacyjne
+z decyzjami i odwołaniami, które dalej dają się rozpatrzyć. Ponowne włączenie
+oceny awatarów wymaga osobnej decyzji z celem zgody, ekranem jej udzielania
+i wycofania oraz sprawdzeniem zgody przed wysyłką
+(`docs/legal/SYGNALY_AUTOMATU.md` §9.1).
+
+**Dlaczego zdjęcie, a nie konto (uzasadnienie z #237).** Indeks `reports_jeden_automat_na_tresc`
 przepuszcza jedno oznaczenie automatu na (typ, identyfikator) na zawsze.
 Przy celu `user` oceniony zostałby pierwszy awatar konta i żaden następny,
 a podmiana zdjęcia to sekunda pracy.
 
 **Dlaczego `media`, a nie `avatar`.** `ModeratedContent::TYPY` mapuje klasę
 modelu, a klasa (`App\Models\Media`) jest ta sama dla awatara i dla zdjęcia
-we wpisie. Nazwa `avatar` byłaby prawdziwa dziś i kłamliwa pierwszego dnia,
+we wpisie. Nazwa `avatar` byłaby prawdziwa w #237 i kłamliwa pierwszego dnia,
 w którym oznaczymy zdjęcie z wpisu osobno.
 
 `ModerationAction::DOZWOLONE['media']` to `none`, `warn`, `suspend`, `ban` —
@@ -3494,6 +3651,19 @@ człowieka (`account.registered`, `content.reported`), idzie przez
 `AuditLogEntry::recordBezWywracania()`: awaria zapisu trafia do `report()`
 z nazwą brakującego wpisu, a człowiek dostaje odpowiedź udanej zmiany — nie
 błąd przy koncie czy sprawie, które już istnieją.
+
+**Klasyfikacja pięciu ścieżek konta (D-249, #1347, #1892–#1897).**
+`account.delete_requested` i `account.delete_cancelled` — **klasa 1**: razem
+są jedynym miejscem w bazie mówiącym, że ktoś zgłosił i (ewentualnie) cofnął
+usunięcie konta (`NIGDY_NIE_KASUJ` niżej). `account.suspension_expired`
+i `account.data_erased` — też **klasa 1**, mimo że decyzję podejmuje
+harmonogram, nie moderator: to jedyny zapis TEGO zdarzenia, więc awaria ma
+cofnąć zmianę konta i zostawić je do podjęcia przy następnym przebiegu tej
+samej komendy. `user.unblocked` i trzy wpisy zmiany adresu e-mail
+(`account.email_change_requested`, `account.email_changed`,
+`account.email_change_cancelled`) — **klasa 2**: ich autorytatywny ślad żyje
+w `blocks`/`pending_email_changes`/`users.email`. Pełne uzasadnienie
+i dowody: D-249 w `docs/DECISIONS.md`.
 
 **`user.role_changed`** — zmiana roli konta (`user` / `moderator` / `admin`),
 zapisywana przez `kuking:nadaj-role`. `actor_id` jest **pusty**, bo komendę
@@ -4674,7 +4844,7 @@ razy dłużej, niż potrzeba. Pilnuje tego
 | `kind` | `blad` \| `pomysl` \| `inne`. CHECK w bazie (`contact_messages_kind_check`). **Świadomie rozłączne z `Report::REASONS`** — gdyby tu było „Mowa nienawiści", ludzie zgłaszaliby sąsiada formularzem technicznym. |
 | `message` | `text`, nie `string`: to jedyne miejsce, gdzie człowiek OPISUJE awarię. Górną granicę (5000 znaków) trzyma walidacja; w bazie stoi CHECK `contact_messages_message_not_blank`, żeby nie dało się zapisać samych spacji. |
 | `contact_email` | Tylko dla GOŚCIA. Dla zalogowanego zostaje `NULL` — jego adres jest już na koncie, a kopiowanie go tutaj byłoby powielaniem danych osobowych bez powodu (RODO, minimalizacja). Odpowiedni adres podaje `ContactMessage::adresDoOdpowiedzi()`. |
-| `page_path` | **Sama ścieżka z naszego serwisu**, bez domeny, bez parametrów zapytania i bez fragmentu. `PageContext::clean()` usuwa także wrażliwe segmenty ekranów konta. Kontroler oczyszcza przed walidacją (ochrona sesji), a akcja domenowa ponawia ochronę przed zapisem. Obca domena, parametry, fragmenty i niejednoznaczne ścieżki nie trafiają do bazy (#836). |
+| `page_path` | **Sama ścieżka z naszego serwisu**, bez domeny, bez parametrów zapytania i bez fragmentu. `PageContext::clean()` z adresu trasy niosącej sekret (lista NAZW tras w `PageContext::SENSITIVE_ROUTES`: reset hasła, link logowania, zaproszenie, linki `signed`) zapisuje tylko stałą część ścieżki, np. `/nowe-haslo`. Wpisy sprzed poprawki czyści `php artisan kuking:oczysc-kontekst-kontaktu` — domyślnie podgląd, zapis dopiero z `--wykonaj`; nie wypisuje wartości i niczego nie kasuje. Kontroler oczyszcza przed walidacją (ochrona sesji), a akcja domenowa ponawia ochronę przed zapisem. Obca domena, parametry, fragmenty i niejednoznaczne ścieżki nie trafiają do bazy (#836). |
 | `wydanie` | `App\Support\Wersja::opisWydania()` w chwili wysłania. Nie jest daną osobową — to numer naszej wersji, i przy „u mnie nie działa" połowa diagnozy. |
 | `status` | `new` \| `in_progress` \| `done`, CHECK `contact_messages_status_check`. **Nie ma go w `$fillable`** — ta sama zasada, co dla `status` i `role` użytkownika (AGENTS.md §7). Jedyna droga zmiany: `ContactMessage::oznaczJako()`. |
 | `handled_by`, `handled_at` | Kto i kiedy. CHECK `contact_messages_handled_complete` wymusza: status `new` MUSI mieć `num_nonnulls(handled_by, handled_at) = 0`, a status inny niż `new` MUSI mieć `handled_at IS NOT NULL`. `handled_by` ma `nullOnDelete()` — usunięcie konta operatora zeruje tę kolumnę i nie wywraca bazy (poprawka w `2026_09_24_100000_allow_null_handled_by_on_contact_messages`, #844). `handled_at` pozostaje nienaruszone, bo od niego liczy się retencja. |
@@ -5967,3 +6137,111 @@ Strażnik: `tests/Feature/MigracjaCzysciZamrozoneWycinkiTest.php` — sprawdza
 trzy kierunki naraz (wycinek znika, reszta kluczy zostaje, obce typy są
 nietknięte), powtórzone uruchomienie i kontrolę dodatnią na wypadek, gdyby
 warunek przestał trafiać w jakikolwiek wiersz.
+
+## `wdrozenia` i `wdrozenia_funkcje` — numer wersji z końcówką (issue #1932, D-318)
+
+Dwie tabele odpowiadają na dwa różne pytania.
+
+### `wdrozenia`
+
+„Które wdrożenie to było" — jeden wiersz na KAŻDY commit, który realnie
+trafił na produkcję pod daną etykietą.
+
+- `id bigint` (bigincrements) — tabela wewnętrzna (dziennik operacyjny), nie
+  encja publiczna, więc bez UUID — ten sam wybór co `audit_log.id`;
+- `commit varchar(40) NOT NULL UNIQUE` — pełny SHA-1 gita
+  (`RAILWAY_GIT_COMMIT_SHA`, patrz `App\Support\Wersja::commit()`). UNIQUE
+  daje idempotencję: ten sam commit zarejestrowany drugi raz (redeploy bez
+  zmiany kodu) nie zakłada drugiego wiersza;
+- `etykieta varchar(40) NOT NULL` — `kuking.wersja.etykieta` w chwili
+  rejestracji, np. „Alfa 0.68". Etap produktu podbija się ręcznie i rzadko —
+  ta kolumna jest jego migawką, nie referencją na żywo;
+- `numer int NOT NULL` — kolejny numer wdrożenia POD TĄ ETYKIETĄ, liczony
+  jako `MAX(numer) WHERE etykieta = ?) + 1`. Wraca do 1 przy KAŻDEJ nowej
+  etykiecie (podbicie dużego numeru, AGENTS.md §3);
+- `created_at timestamptz`;
+- `UNIQUE (etykieta, numer)` — niezmiennik z drugiej strony: nawet gdyby
+  blokada doradcza w akcji (niżej) kiedyś przestała działać, baza nie
+  przyjmie dwóch wierszy z tym samym numerem pod tą samą etykietą.
+
+**Bezpieczeństwo przy równoległym starcie.** `numer` liczy
+`App\Domain\Wydania\Actions\ZarejestrujWdrozenie::handle()` wewnątrz
+`DB::transaction()`, która NAJPIERW bierze
+`pg_advisory_xact_lock(hashtext($etykieta))` — dwa równoległe starty (np.
+redeploy uruchomiony tuż po poprzednim) nie mogą dać tego samego numeru:
+drugi czeka na zwolnienie blokady (koniec transakcji pierwszego) i dopiero
+wtedy liczy `MAX` na nowo. Test na dwóch prawdziwych połączeniach:
+`tests/Dwa/RejestracjaWdrozeniaNaDwochPolaczeniachTest.php`.
+
+**Kto zapisuje.** Komenda `kuking:zarejestruj-wdrozenie`, wpięta
+w `.railway/railway.ts` (`preDeployCommand`) zaraz po `php artisan migrate
+--force` — patrz `docs/infra/DEPLOYMENT_RUNBOOK.md`. Lokalnie i w podglądach
+bez `RAILWAY_GIT_COMMIT_SHA` komenda kończy się bez błędu, nic nie zapisując.
+
+**Kto czyta.** `App\Support\Wersja::numerWdrozenia()` — dla BIEŻĄCEGO
+commita, z cache'em (10 minut, klucz niesie commit), bo metoda woła się
+z KAŻDEJ stopki na KAŻDEJ stronie. Brak wiersza (lokalnie, w testach, przy
+awarii bazy) daje `null` bez błędu — `Wersja::etykietaZNumerem()` wraca
+wtedy do samej etykiety, bez końcówki.
+
+### `wdrozenia_funkcje`
+
+„Pod jakim numerem funkcja pojawiła się PIERWSZY RAZ" — jeden wiersz na
+KAŻDY nagłówek `###`, zapisywany, póki jeszcze stoi w sekcji
+„## Najnowsze zmiany" pliku `resources/nowosci/tresc.md` (strona „Co
+nowego", issue #1909), i czytany PÓŹNIEJ niezależnie od tego, w której
+sekcji ten sam nagłówek dziś stoi (D-318, dopisek).
+
+- `id bigint` (bigincrements);
+- `etykieta varchar(40) NOT NULL`;
+- `naglowek_slug varchar(160) NOT NULL` — slug GFM nagłówka
+  (`App\Support\SlugGfm`, ten sam algorytm co kotwice wydań #1909). Strona
+  dopasowuje po slugu, nie po pełnym tekście — dopisanie zdania do akapitu
+  nie tworzy nowego wiersza (patrz niżej);
+- `naglowek_tekst varchar(300) NOT NULL` — pełny tekst nagłówka, do
+  czytelności w bazie i diagnozy;
+- `numer int NOT NULL` — numer wdrożenia (z `wdrozenia.numer`), pod którym
+  ten nagłówek pojawił się PIERWSZY RAZ, pod etykietą zapisaną OBOK niego
+  w tym samym wierszu (patrz niżej);
+- `created_at timestamptz`;
+- `UNIQUE (naglowek_slug)` — jeden wiersz na nagłówek W CAŁEJ TABELI, NIE
+  na parę (etykieta, slug). **Decyzja właściciela z 26 września 2026
+  (D-318, dopisek):** dopisek „od …" zostaje NA STAŁE, także gdy nagłówek
+  przechodzi z „## Najnowsze zmiany" do sekcji nazwanego wydania (np.
+  „## Alfa 0.69") — nagłówek trzyma tekst (i slug) bez zmian przy
+  przenosinach, więc slug sam w sobie jest kluczem trwałym, niezależnym od
+  etykiety, pod którą wiersz akurat powstał. Zapis idzie przez
+  `INSERT ... ON CONFLICT (naglowek_slug) DO NOTHING`: nagłówek widziany już
+  wcześniej — czy to pod TĄ SAMĄ etykietą (dopisano kolejne zdanie do tego
+  samego akapitu i wdrożono ponownie), czy pod WCZEŚNIEJSZĄ etykietą sprzed
+  podbicia dużego numeru — NIE dostaje nowego, późniejszego numeru: zostaje
+  przy numerze i etykiecie pierwszego pojawienia. To jest sens
+  „od Alfa 0.68.NNN": data pierwszego pojawienia się, nie data ostatniej
+  edycji ani bieżąca etykieta aplikacji.
+
+**Kto zapisuje.** Ta sama komenda i ta sama transakcja co `wdrozenia` —
+`ZarejestrujWdrozenie::handle()` zapisuje NOWE nagłówki zaraz po wstawieniu
+wiersza `wdrozenia`, w tej samej transakcji, więc obie tabele albo obie się
+zmieniają, albo żadna. Skanuje WYŁĄCZNIE sekcję „## Najnowsze zmiany" —
+celowo NIE sekcje wydań: tabela była pusta w chwili wdrożenia tej funkcji,
+więc skanowanie już wydanych sekcji przypisałoby świeżo policzony numer
+funkcjom sprzed tygodni (patrz komentarz klasy `ZarejestrujWdrozenie`).
+Trwałość dopisku przy przenosinach nagłówka do sekcji wydania załatwia sam
+slug (wyżej), nie ponowne skanowanie.
+
+**Kto czyta.** `NowosciController` — dla KAŻDEGO nagłówka `###` w CAŁYM
+dokumencie (nie tylko w „## Najnowsze zmiany" — patrz decyzja właściciela
+wyżej), którego slug ma wiersz w tabeli, dokleja kursywną linijkę
+„_od {etykieta}.{numer}_", biorąc etykietę i numer Z TEGO WIERSZA, nie
+bieżącą etykietę aplikacji. Brak wiersza nie wywala strony — nagłówek
+zostaje bez dopisku (to dotyczy też nagłówków z wydań SPRZED wprowadzenia
+tej funkcji, #1932 — nikt im nie przypisuje numeru wstecznie).
+
+### Rollback (D-088)
+
+`down()` obu tabel ODMAWIA, gdy którakolwiek ma choć jeden wiersz: numer
+wdrożenia jest już POKAZANY ludziom (stopka, „od Alfa 0.68.NNN"), a cofnięcie
+migracji na wypełnionej bazie i kolejny `migrate` zacząłby liczyć numery od 1
+dla każdej etykiety, mieszając je ze starymi. Na świeżej bazie (obie tabele
+puste) `down()` przechodzi bez pytania. Test odmowy i kontrola dodatnia:
+`tests/Feature/DziennikWdrozenCofnieciePrzyWartosciachTest.php`.

@@ -21,9 +21,11 @@ W CI nic się nie zmienia — tam gate przepuszcza jak dotąd.
 
 import hashlib
 import os
-from pathlib import Path
 import subprocess
+from pathlib import Path
 import tempfile
+
+from kontrola_wyjscia_testu import run_test
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -94,6 +96,8 @@ AKCJE_SHA_TEST = "AkcjeGithubPrzypieteDoShaTest"
 OBRAZ_ASSETOW = "Dockerfile"
 CENY_WARZYW_WORKFLOW = ".github/workflows/ceny-warzyw-auto.yml"
 CENY_WARZYW_TEST = "WorkflowCenNieUruchamiaKoduZTokenemZapisuTest"
+NOWOSCI_KONTROLER = "app/Http/Controllers/NowosciController.php"
+NOWOSCI_OD_NUMERU_TEST = "StronaCoNowegoOdNumeruTest"
 MIGRACJA_NO_AMOUNT = "database/migrations/2026_09_06_130000_add_no_amount_to_recipe_ingredients.php"
 MIGRACJA_NO_AMOUNT_TEST = "CofniecieMigracjiNieKasujeFlagiBrakuIlosciTest"
 MIGRACJA_PUSH = "database/migrations/2026_09_26_100000_utworz_powiadomienia_push.php"
@@ -203,6 +207,7 @@ WDROZENIE_WORKFLOW = ".github/workflows/deploy.yml"
 # leży w repozytorium bez jednego przebiegu.
 CI_WORKFLOW = ".github/workflows/ci.yml"
 AUTOZAPIS_892_TEST = "test_autozapis_kreatora_892_chodzi_w_ci"
+DEPLOY_WSTRZYKNIECIE_TEST = "DeployNieWklejaDanychZdarzeniaDoPowlokiTest"
 WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
 # Preview i IaC nie zgadują stanu (#1389, #1390). Strażnik czyta workflow
 # i railway.ts; mutacje przywracają: test dymny bez czekania na `success`,
@@ -225,6 +230,7 @@ WYDANIE_TEST = "WydanieWystawiaPelnyShaTest"
 # w Dockerfile'ach; mutacja zdejmuje digest z obrazu kopii i ma go zapalić —
 # dowód, że parser widzi też drugi Dockerfile, a nie tylko główny.
 OBRAZ_KOPII = "docker/kopia/Dockerfile"
+APT_MIGAWKA_TEST = "test_kazdy_apt_get_install_idzie_przez_przypieta_migawke"
 OBRAZY_DIGEST_TEST = "ObrazyBazowePrzypieteDoDigestowTest"
 
 # Oryginał zdjęcia traci XMP (issue #1004). Test czyta fixture'y zapisane
@@ -332,6 +338,16 @@ WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 # Ta sama mutacja strażnika co wyżej musi zapalić też test polityki — dowód,
 # że obietnica stoi na kodzie, a nie na zmiennej środowiskowej.
 POLITYKA_R2_TEST = "test_polityka_nie_obiecuje_jurysdykcji_r2_bez_pokrycia_w_endpoincie"
+
+# Dokumenty prywatności o awatarach zgodne z kodem (#1461, D-240). Mutacja 1
+# dopisuje w kontrolerze prawdziwe zlecenie zadania — dokumenty mówią wtedy
+# nieprawdę („nie zleca”) i test ma zapalić, bo źródłem prawdy jest kod.
+# Mutacja 2 przywraca w DATABASE.md dawne zdanie o aktywnej ocenie awatara.
+KONTROLER_AWATARA = "app/Http/Controllers/Settings/AvatarSettingsController.php"
+DOKUMENTACJA_AWATARA_TEST = "DokumentacjaAwataraZgodnaZKodemTest"
+AWATAR_KOMENTARZ = "        // Awatar dalej podlega zgłoszeniom od ludzi, jak każda treść.\n"
+DATABASE_DOC = "docs/DATABASE.md"
+AWATAR_DATABASE = "Wprowadził ją automat oceny\nzdjęć profilowych (issue #237), a oznaczenie wskazywało `media.id`."
 
 # Awans roli z powłoki gasi sesje sprzed awansu (#1315). Test chodzi po HTTP
 # w osobnych procesach; bez tej linijki stara sesja wchodzi do panelu.
@@ -569,6 +585,12 @@ IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
 # akapit (`### ...`) w sekcji „## Najnowsze zmiany" pliku nowości.
 CHANGELOG_NOWOSCI = "CHANGELOG.md"
 STRAZNIK_NOWOSCI_TEST = "StraznikNowosciKazdaNowaFunkcjaMaAkapitTest"
+# Dziennik wdrożeń (issue #1932, D-318, D-088): down() ma ODMÓWIĆ, gdy
+# tabele `wdrozenia`/`wdrozenia_funkcje` mają choć jeden wiersz — numer
+# wdrożenia jest już pokazany ludziom (stopka, „od Alfa 0.NN.NNN"), a cichy
+# DROP TABLE zgubiłby numerację. Mutacja zdejmuje warunek odmowy.
+MIGRACJA_DZIENNIK_WDROZEN = "database/migrations/2026_09_26_130000_utworz_dziennik_wdrozen.php"
+DZIENNIK_WDROZEN_TEST = "test_cofniecie_odmawia_gdy_dziennik_ma_wiersze"
 # Komendy IaC w dokumentacji z jawnym KUKING_WAIT_FOR_CI (#1390 × runbook,
 # audyt po fali 26.09.2026). Mutacja zdejmuje zmienną z `apply` w runbooku.
 RUNBOOK = "docs/infra/DEPLOYMENT_RUNBOOK.md"
@@ -578,19 +600,6 @@ RUNBOOK_APPLY_Z_BRAMKA = "\nKUKING_WAIT_FOR_CI=true railway config apply\n"
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
-
-
-def run_test(name, expected_success):
-    result = subprocess.run(
-        ["php", "artisan", "test", "--filter=" + name, "--no-ansi"],
-        text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        timeout=180,
-    )
-    print(result.stdout, flush=True)
-    if (result.returncode == 0) != expected_success:
-        raise RuntimeError("Nieoczekiwany wynik testu: " + name)
-    if not expected_success and "FAILED" not in result.stdout:
-        raise RuntimeError("Brak dowodu niezaliczonej asercji; sama awaria procesu nie wystarczy.")
 
 
 def replace_once(source, old, new):
@@ -929,6 +938,11 @@ def railway_cli_bez_przypietej_wersji(source):
 
 
 checks = [
+    # #1868: instalacja bez wskazania migawki wróciłaby do ruchomego mirrora.
+    ("APT install bez migawki", OBRAZ_KOPII, APT_MIGAWKA_TEST,
+     lambda s: replace_once(s,
+         "apt-get -o Dir::Etc::sourcelist=/tmp/apt-snapshot/snapshot.list -o Dir::Etc::sourceparts=/tmp/apt-snapshot/puste install",
+         "apt-get install")),
     # D-088: usunięcie odmowy rollbacku nie może przejść niezauważone, nawet
     # gdy osobny przypadek z wygasłym ukryciem poprawnie cofa migrację.
     ("Rollback aktywnych ukryć przestaje odmawiać", "database/migrations/2026_09_26_100000_create_hides_table.php", "CofniecieMigracjiUkrycNieOdslaniaTest",
@@ -1115,6 +1129,12 @@ checks = [
      lambda s: replace_once(s, KREATOR_ZAPIS, "$juzOpublikowany ? 'opublikowany' : 'szkic'")),
     ("Polityka obiecuje UE przy strażniku bez eu", STRAZNIK_R2, POLITYKA_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
+    ("Kontroler znów zleca analizę awatara", KONTROLER_AWATARA, DOKUMENTACJA_AWATARA_TEST,
+     lambda s: replace_once(s, AWATAR_KOMENTARZ, AWATAR_KOMENTARZ
+                            + "        \\App\\Jobs\\PrzeanalizujAwatar::dispatch((string) $zdjecie->getKey());\n")),
+    ("DATABASE.md znów mówi, że model ocenia awatar", DATABASE_DOC, DOKUMENTACJA_AWATARA_TEST,
+     lambda s: replace_once(s, AWATAR_DATABASE, "Dziś trafia tu wyłącznie\nzdjęcie profilowe: model ocenia je po "
+                            "przetworzeniu (`PrzeanalizujAwatar`),\na oznaczenie wskazuje `media.id`.")),
     ("Wyjęcie przepisu ze wszystkich zeszytów bez transakcji", WYJECIE_PRZEPISU, WYJECIE_ATOMOWE_TEST,
      lambda s: replace_once(s, "return DB::transaction(fn (): array => $this->zdejmij($user, $recipe, $collection));",
                             "return $this->zdejmij($user, $recipe, $collection);")),
@@ -1206,6 +1226,13 @@ checks = [
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
+    # D-299: wartości odżywcze tylko przy pokryciu >= 90% masy. Obniżony próg
+    # ma zapalić test przepisu z 85% pokrycia.
+    ("Wartości odżywcze liczone poniżej 90% pokrycia", "app/Domain/Recipes/Odzywcze/WynikWartosci.php", "KalkulatorWartosciOdzywczychTest",
+     lambda s: replace_once(s, "public const PROG_POKRYCIA = 0.9;", "public const PROG_POKRYCIA = 0.8;")),
+    # D-299: licencja CIQUAL (Etalab) wymaga wskazania źródła i wersji.
+    ("Źródła wartości odżywczych bez identyfikatora wersji CIQUAL", "database/data/odzywcze/ZRODLA.md", "WartosciOdzywczeImportTest",
+     lambda s: replace_once(s, "DOI **10.57745/RDMHWY**", "DOI (brak)")),
     ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
      plan_iac_bez_bramki_produkcji),
     ("unserialize ładunku kolejki bez allowed_classes", POLECENIE_ZADANIA, UNSERIALIZE_TEST,
@@ -1245,13 +1272,22 @@ checks = [
     # działają — strażnik README ma to złapać, choć ci.yml mówi co innego.
     ("README: „Dopóki ich nie ma” wraca", README, README_SECURITY_TEST,
      lambda s: s + "\nDopóki ich nie ma, testy uruchamiasz lokalnie.\n"),
-    # Strona „Co nowego” (issue #1909): wpis CHANGELOGA oznaczony
-    # `[nowa funkcja]` musi mieć akapit w resources/nowosci/tresc.md. Mutacja
-    # zdejmuje znacznik z JEDYNEGO miejsca, w którym stoi razem z „(#1909)” —
-    # dwa oznaczone wpisy w CHANGELOGU zostają jednym, dwa akapity nowości
-    # zostają dwoma, licznik się rozjeżdża i strażnik ma zapalić.
-    ("Znacznik [nowa funkcja] zdjęty z jednego wpisu CHANGELOGA", CHANGELOG_NOWOSCI, STRAZNIK_NOWOSCI_TEST,
-     lambda s: replace_once(s, " (#1909). [nowa funkcja]", " (#1909).")),
+    # Strona „Co nowego” (issue #1909): nowa funkcja w sekcji
+    # „Nieopublikowane” musi mieć akapit w „Najnowszych zmianach”. Dodajemy
+    # osierocony wpis, zamiast zdejmować znacznik ze starego wydania: po
+    # nadaniu numeru wydania obie bieżące sekcje mogą być puste (0 = 0).
+    ("Nowa funkcja bez akapitu na stronie Co nowego", CHANGELOG_NOWOSCI, STRAZNIK_NOWOSCI_TEST,
+     lambda s: replace_once(s, "## Nieopublikowane\n",
+                            "## Nieopublikowane\n\n- Kontrola ujemna bez opisu. [nowa funkcja]\n")),
+    # Dziennik wdrożeń (#1932, D-318, D-088): zdjęcie warunku odmowy z down()
+    # ma zapalić strażnika cofnięcia — bez niego migracja ciągnie DROP TABLE
+    # nawet na wypełnionym dzienniku.
+    ("Dziennik wdrożeń: down() bez warunku odmowy", MIGRACJA_DZIENNIK_WDROZEN, DZIENNIK_WDROZEN_TEST,
+     lambda s: replace_once(s, "if ($wierszyWdrozen > 0 || $wierszyFunkcji > 0) {", "if (false) {")),
+    # #1932 (D-318): „Co nowego” przestaje czytać mapę nagłówek → numer
+    # wdrożenia — dopisek „od Alfa …” znika, test strony ma oblać.
+    ("Co nowego bez dopisku „od numeru”", NOWOSCI_KONTROLER, NOWOSCI_OD_NUMERU_TEST,
+     lambda s: replace_once(s, "$dopisek = $mapa[$slug] ?? null;", "$dopisek = null;")),
     # D-088 (#44): down() migracji no_amount bez odmowy przy składnikach
     # oznaczonych „bez wymiernej ilości” — test cofnięcia ma oblać.
     ("Cofnięcie no_amount bez odmowy przy oznaczonych składnikach", MIGRACJA_NO_AMOUNT, MIGRACJA_NO_AMOUNT_TEST,
@@ -1269,6 +1305,11 @@ checks = [
     # konfiguracji gita bez zabezpieczenia; strażnik workflow ma oblać.
     ("Workflow cen: checkout z kodem bez persist-credentials: false", CENY_WARZYW_WORKFLOW, CENY_WARZYW_TEST,
      lambda s: replace_once(s, "          persist-credentials: false\n", "")),
+    # #1851: krok „Ustal adres środowiska" wraca do wklejania danych zdarzenia
+    # w treść skryptu — strażnik ma to złapać, zanim nazwa środowiska stanie
+    # się poleceniem na runnerze.
+    ("Deploy: dane zdarzenia wklejone do Basha", WDROZENIE_WORKFLOW, DEPLOY_WSTRZYKNIECIE_TEST,
+     lambda s: replace_once(s, 'env_name="${ZDARZENIE_SRODOWISKO:-}"', "env_name='${{ github.event.deployment.environment }}'")),
     ("Strażnik migracji ślepy na FK dodany przez Blueprint", STRAZNIK_MIGRACJI, STRAZNIK_MIGRACJI_TEST,
      lambda s: replace_once(s, "if (preg_match('/->\\s*(constrained|foreign)\\s*\\(/', $body)) {",
                             "if (false && preg_match('/->\\s*(constrained|foreign)\\s*\\(/', $body)) {")),
@@ -1296,6 +1337,7 @@ for label, filename, _test, mutate in checks:
 run_test(COLLECTION_TEST, True)
 run_test(COMPOSER_TEST, True)
 run_test(AKCJE_SHA_TEST, True)
+run_test(APT_MIGAWKA_TEST, True)
 run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
@@ -1336,6 +1378,7 @@ run_test(AUTOZAPIS_892_TEST, True)
 run_test(LIVEWIRE_TOKEN_TEST, True)
 run_test(KREATOR_ZAPIS_TEST, True)
 run_test(POLITYKA_R2_TEST, True)
+run_test(DOKUMENTACJA_AWATARA_TEST, True)
 run_test(WYJECIE_ATOMOWE_TEST, True)
 run_test(ODWOLANIE_AUTORA_TEST, True)
 run_test(ODWOLANIE_ZGLASZAJACEGO_TEST, True)
@@ -1365,6 +1408,8 @@ run_test(DIGEST_DOBOR_TEST, True)
 run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
 run_test(CENY_WARZYW_TEST, True)
+run_test(DEPLOY_WSTRZYKNIECIE_TEST, True)
+run_test(NOWOSCI_OD_NUMERU_TEST, True)
 run_test(MIGRACJA_NO_AMOUNT_TEST, True)
 run_test(MIGRACJA_PUSH_TEST, True)
 run_test(PLAN_IAC_TEST, True)
@@ -1373,6 +1418,7 @@ run_test(OBCE_KLASY_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
 run_test(README_SECURITY_TEST, True)
 run_test(STRAZNIK_NOWOSCI_TEST, True)
+run_test(DZIENNIK_WDROZEN_TEST, True)
 run_test(KOMENDY_IAC_TEST, True)
 run_test(STRAZNIK_MIGRACJI_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
