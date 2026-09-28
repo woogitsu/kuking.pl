@@ -49,7 +49,9 @@ final class SkopiujPoprzedniTydzien
                     continue;
                 }
 
-                $docelowyDzien = $pozycja['wpis']->day->addDays(7);
+                // Cast Eloquent `date` zwraca mutowalny Illuminate\Support\Carbon,
+                // a wspólny strażnik zakresu przyjmuje dzień niemutowalny.
+                $docelowyDzien = CarbonImmutable::instance($pozycja['wpis']->day)->addDays(7);
                 if (! ZakresDatPlanu::obejmuje($docelowyDzien)) {
                     $wynik['poza_zakresem']++;
 
