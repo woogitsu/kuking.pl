@@ -6,6 +6,7 @@
 - Naprawione: zapis przepisu (szkic, publikacja albo edycja) rozpoczęty przed zawieszeniem, zablokowaniem lub usunięciem konta nie zapisze już niczego po zatwierdzeniu tej decyzji. Serwis sprawdza aktualny stan autora pod blokadą przed zapisem i wycofuje zdjęcia, składniki, wersję i wpis w strumieniu odrzuconej próby; zapis, który uzyskał blokadę pierwszy, kończy się normalnie. Odczyt przepisu ze zdjęcia przyjęty przed sankcją nie dopisze już treści do szkicu (#2189).
 - Kod zapasowy przepisany z kartki przechodzi także ze spacją zamiast myślnika, bez myślnika albo małymi literami. Dotyczy to nowych i wydanych wcześniej kodów — żaden komplet nie został unieważniony. Litery i cyfry nadal muszą się zgadzać: O w miejscu 0 to inny kod.
 - Mapa strony dla wyszukiwarek podaje teraz wszystkie publiczne strony wejściowe: Poradźcie (gdy dział pytań jest włączony), Tagi, O Kuking, Regulamin, Prywatność i „Napisz do nas” (#1032). Data zmiany profilu w mapie uwzględnia też publikację, edycję, ukrycie i usunięcie publicznych wpisów i przepisów autora (#1280).
+- Usunięcie komentarza sprawdza teraz stan konta osoby usuwającej dopiero w chwili zapisu. Jeśli zawieszenie, ban albo żądanie usunięcia konta zostanie zatwierdzone w trakcie takiego żądania, komentarz zostaje nietknięty: bez śladu usunięcia, bez zastąpienia treści komunikatem i bez powiadomienia dla jego autora (#2190).
 
 ## Alfa 0.75 — szukanie w wykonaniach i pewniejsze „Ugotowałem”
 
