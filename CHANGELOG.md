@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione: rozstrzygnięcie zgłoszenia i przywrócenie ukrytej treści (także przyciskiem „Przywróć” w kolejce zgłoszeń) sprawdzają rolę moderatora pod tą samą blokadą co zmiana roli. Moderator zdegradowany w trakcie operacji nie zapisze już decyzji, a administrator zdegradowany do moderatora nie ukarze konta moderatora ani nie cofnie decyzji administratora (#2086).
 - Podgląd przepisu bez składników wyjaśnia teraz spokojnie, że można je dopisać później; nie pokazuje braku składników jako błędu, bo nie blokuje on publikacji (#1991).
 - Wewnętrzne: każda rzeczywiście sprawdzona i błędna próba kodu 2FA lub kodu zapasowego przy logowaniu zostawia w dzienniku audytu wpis `account.two_factor_login_failed` (rodzaj: aplikacja, zapasowy lub oba; adres IP tylko w postaci skrótu). Wpis nie zawiera kodu ani sekretu, a odpowiedzi odcięte limitem prób nie dopisują wierszy (#2042).
 - Wewnętrzne: rezerwacja budżetu AI bierze blokadę miesiąca przed wierszem dnia, a suma miesiąca obejmuje cały miesiąc kalendarzowy. Dwa odczyty z różnych dni tego samego miesiąca (np. tuż przed i tuż po północy) nie przekroczą już razem miesięcznego limitu kosztu (#2013).
