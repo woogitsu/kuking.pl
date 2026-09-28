@@ -68,6 +68,14 @@ PLANER_TEST = "PlanerTygodniaTest"
 PUSH_JOB = "app/Jobs/WyslijPowiadomieniePush.php"
 PUSH_DWA_POLACZENIA_TEST = "PowiadomieniaPushDwaPolaczeniaTest"
 
+# #2027: nowo utworzone konto po OAuth musi przejąć zamiar powrotu z wątku
+# komentarzy. Testy obu dostawców przechodzą przez onboarding i sprawdzają
+# końcowy adres; usunięcie przypisania do konta ma oblać każdą ścieżkę.
+POWROT_KOMENTARZA_GOOGLE = "app/Http/Controllers/Auth/GoogleLoginController.php"
+POWROT_KOMENTARZA_GOOGLE_TEST = "LogowanieKontemGoogleTest"
+POWROT_KOMENTARZA_FACEBOOK = "app/Http/Controllers/Auth/FacebookLoginController.php"
+POWROT_KOMENTARZA_FACEBOOK_TEST = "LogowanieKontemFacebookiemTest"
+
 CONTROLLER = "app/Http/Controllers/CollectionController.php"
 LAYOUT = "resources/views/components/layout.blade.php"
 CSS = "resources/css/app.css"
@@ -962,6 +970,12 @@ def railway_cli_bez_przypietej_wersji(source):
 
 
 checks = [
+    # #2027: rejestracja Google/Facebook wiąże zapamiętany cel z nowym
+    # kontem. Bez tej linijki onboarding kończy się na stronie domyślnej.
+    ("Nowe konto Google gubi powrót do rozmowy", POWROT_KOMENTARZA_GOOGLE, POWROT_KOMENTARZA_GOOGLE_TEST,
+     lambda s: replace_once(s, "        $rozmowa->przypiszKonto($request);\n", "")),
+    ("Nowe konto Facebook gubi powrót do rozmowy", POWROT_KOMENTARZA_FACEBOOK, POWROT_KOMENTARZA_FACEBOOK_TEST,
+     lambda s: replace_once(s, "        $rozmowa->przypiszKonto($request);\n", "")),
     # #1868: instalacja bez wskazania migawki wróciłaby do ruchomego mirrora.
     ("APT install bez migawki", OBRAZ_KOPII, APT_MIGAWKA_TEST,
      lambda s: replace_once(s,
