@@ -358,6 +358,15 @@
                            :href="route('profile.show', $p->username)">
                 Wybierz inny rok albo wróć do całego archiwum.
             </x-empty-state>
+        @elseif($posts->count() === 0 && ! $isOwner && $stats['recipes'] > 0)
+            {{-- Brak WPISÓW to nie brak TREŚCI (#2047). Licznik przepisów liczy
+                 się tym samym filtrem widoczności co zakładka „Przepisy”, więc
+                 przycisk prowadzi tylko do niepustej listy. --}}
+            <x-empty-state title="Ta osoba nie ma jeszcze wpisów"
+                           action="Zobacz przepisy"
+                           :href="route('profile.show', ['username' => $p->username, 'zakladka' => 'przepisy'])">
+                Przepisy tej osoby znajdziesz w zakładce „Przepisy”.
+            </x-empty-state>
         @elseif($posts->count() === 0)
             <x-empty-state :title="$isOwner ? 'Twoje archiwum jest jeszcze puste' : 'Ta osoba jeszcze nic nie pokazała'"
                            :action="$isOwner ? 'Dodaj pierwsze zdjęcie' : null"
