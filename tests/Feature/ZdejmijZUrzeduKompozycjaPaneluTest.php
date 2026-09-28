@@ -77,8 +77,10 @@ class ZdejmijZUrzeduKompozycjaPaneluTest extends TestCase
         // Przycisk usuwający: w panelu, ale za kreską `.danger-zone`.
         $przycisk = $xpath->query('.//*[contains(concat(" ", normalize-space(@class), " "), " danger-zone ")]//button[@type="submit"]', $panel);
         $this->assertSame(1, $przycisk->length, 'Przycisk „Zdejmij tę treść” nie stoi za kreską .danger-zone w panelu.');
-        $this->assertStringContainsString('Zdejmij tę treść', $przycisk->item(0)->textContent);
-        $this->assertStringContainsString('btn-danger', $przycisk->item(0)->getAttribute('class'));
+        $guzik = $przycisk->item(0);
+        $this->assertInstanceOf(DOMElement::class, $guzik);
+        $this->assertStringContainsString('Zdejmij tę treść', $guzik->textContent);
+        $this->assertStringContainsString('btn-danger', $guzik->getAttribute('class'));
 
         // Zwykła akcja nie siedzi obok destrukcyjnej.
         $powrot = $xpath->query('//a[normalize-space(.)="Wróć do treści"]');

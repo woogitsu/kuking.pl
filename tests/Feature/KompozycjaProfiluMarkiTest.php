@@ -45,17 +45,17 @@ class KompozycjaProfiluMarkiTest extends TestCase
         $this->assertSame(0, $xpath->query($header.'//a[@href="'.route('settings.avatar').'"]')->length);
         $this->assertSame(0, $xpath->query($header.'//a[@href="'.route('settings.profile').'"]')->length);
         $this->assertSame(1, $xpath->query($header.'//form[@action="'.route('social.follow', 'profilkompozycja').'"]')->length);
-        $this->assertSame(1, $xpath->query($header.'//a[@href="'.route('reports.create', ['type' => 'user', 'id' => 'profilkompozycja']).'"]')->length);
+        $this->assertSame(1, $xpath->query($header.'//a[@href="'.route('reports.create', ['type' => 'user', 'id' => $owner->getKey()]).'"]')->length);
     }
 
     public function test_gosc_ma_te_same_pola_liczb_i_zaproszenie_bez_akcji_wlasciciela(): void
     {
-        $this->user('profilkompozycja');
+        $osoba = $this->user('profilkompozycja');
         $html = $this->get(route('profile.show', 'profilkompozycja'))->assertOk()->getContent();
         $xpath = $this->sprawdzKompozycje($html, 0);
         $this->assertSame(0, $xpath->query('//aside[@aria-label="Skróty i podpowiedzi profilu"]')->length);
         $header = '//header[contains(@class,"marka-profil-kompozycja")]';
-        $this->assertSame(1, $xpath->query($header.'//a[@href="'.route('register').'"]')->length);
+        $this->assertSame(1, $xpath->query($header.'//a[@href="'.route('register', ['follow_user' => $osoba->getKey()]).'"]')->length);
         $this->assertSame(0, $xpath->query($header.'//form')->length);
     }
 

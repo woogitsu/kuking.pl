@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Users\Exports\ExportFileNames;
+use App\Domain\Users\Exports\PrzejecieEksportu;
 use App\Logging\BezpiecznyBlad;
 use App\Models\DataExport;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
@@ -52,9 +54,20 @@ class CleanUpDataExports extends Command
             // historię eksportów.
             ->lazyById(100);
 
-        if (! $dryRun) {
-            $this->skasujNiedokonczone();
-        }
+        // OSIEROCONE OBIEKTY PO NIEUDANYCH EKSPORTACH (issue #1840).
+        //
+        // Do 26 września 2026 ta ścieżka ruszała wyłącznie poza `--dry-run`
+        // (`if (! $dryRun)`), więc podgląd nie pokazywał NIC z tego, co
+        // `skasujNiedokonczone()` naprawdę usuwa. Operator widział pusty
+        // albo niepełny raport przed operacją, która kasuje kopie kont —
+        // dokładnie to, czego podgląd destrukcyjnej operacji nie wolno robić.
+        // Dziś obie gałęzie liczą się z TEGO SAMEGO zapytania
+        // (`niedokonczoneQuery()`): dry-run tylko wypisuje UUID-y, zwykły
+        // przebieg kasuje pliki. Żadnego zapisu do bazy ani do storage
+        // w trybie podglądu.
+        $osieroconeZnalezione = $dryRun
+            ? $this->pokazNiedokonczone()
+            : $this->skasujNiedokonczone();
 
         $removed = 0;
         $nieudane = 0;
@@ -104,7 +117,7 @@ class CleanUpDataExports extends Command
             }
         }
 
-        if ($znalezione === 0) {
+        if ($znalezione === 0 && $osieroconeZnalezione === 0) {
             $this->info('Nie ma wygasłych paczek do usunięcia.');
 
             return self::SUCCESS;
@@ -123,11 +136,19 @@ class CleanUpDataExports extends Command
         }
 
         $this->info($dryRun
-            ? 'Tryb podglądu: znaleziono '.$this->paczki($znalezione).'.'
+            ? 'Tryb podglądu: znaleziono '.$this->paczki($znalezione)
+                .' oraz '.$this->obiekty($osieroconeZnalezione).' po nieudanych eksportach.'
             : 'Gotowe. Usunięto '.$this->paczki($removed).'.',
         );
 
-        return self::SUCCESS;
+        // CZĘŚCIOWA PORAŻKA JEST PORAŻKĄ (issue #1331). Wcześniej komenda
+        // kończyła się sukcesem nawet wtedy, gdy nie usunęła ANI JEDNEJ
+        // paczki — a harmonogram (`Harmonogram::artisan()`) rozpoznaje błąd
+        // tylko po kodzie wyjścia. Reszta paczek jest już przetworzona, adresy
+        // nieudanych zostają do ponowienia. Utrzymującą się zaległość, także
+        // gdy ta komenda w ogóle nie chodzi, zgłasza osobna czujka
+        // `kuking:sprawdz-sprzatanie-eksportow`.
+        return $nieudane > 0 ? self::FAILURE : self::SUCCESS;
     }
 
     /** Polska odmiana: „1 wygasłą paczkę”, „2 wygasłe paczki”, „5 wygasłych paczek”. */
@@ -202,28 +223,87 @@ class CleanUpDataExports extends Command
      * bez `object_key`. Job kasuje taki plik sam (`GenerateUserExport::
      * usunOsieroconaPaczke()`), ale proces zabity bez `failed()` tego nie
      * zrobi. Klucz da się policzyć, a kasowanie nieistniejącego obiektu nic
-     * nie robi — więc co noc przechodzimy po `failed` z ostatnich 7 dni
-     * (starsze przeszły już przez wcześniejsze noce). Godzina karencji, żeby
-     * nie ścigać się z ponowieniem, które właśnie wgrywa ten sam klucz.
+     * nie robi — więc co noc przechodzimy po `failed` bez `object_key`.
+     * Godzina karencji, żeby nie ścigać się z ponowieniem, które właśnie
+     * wgrywa ten sam klucz.
+     *
+     * SAMA KARENCJA NIE WYSTARCZA (issue #2073): `queue:retry` może ponowić
+     * rekord `failed` sprzed wielu godzin dokładnie w chwili tego przebiegu.
+     * Dlatego kasowanie idzie przez `PrzejecieEksportu::dlaSprzatania()` —
+     * rewalidacja i `delete()` pod blokadą wiersza, na której czeka też
+     * przejście workera w `processing`.
+     *
+     * GÓRNA GRANICA 7 DNI ZOSTAŁA USUNIĘTA (issue #1842). Komentarz, który tu
+     * kiedyś stał, zakładał, że starszy rekord „przeszedł już przez
+     * wcześniejsze noce” — czyli że komenda działa NIEPRZERWANIE, co najmniej
+     * raz dziennie. Po przerwie harmonogramu, awarii workera albo wdrożeniu
+     * bez tej komendy dłużej niż tydzień to założenie jest fałszywe: rekord
+     * wypadał z JEDYNEGO zapytania, które umie policzyć jego klucz
+     * (`ExportFileNames::objectKey()`), i już nigdy nie wracał do sprzątania.
+     * Retencja paczki z danymi CAŁEGO konta nie może zależeć od tego, czy
+     * harmonogram działał bez przerwy — dlatego zostaje wyłącznie karencja
+     * godzinowa, a backlog po awarii jest teraz monotoniczny: kolejne
+     * uruchomienie zawsze widzi rekordy, których jeszcze nie sprzątnęło.
      */
-    private function skasujNiedokonczone(): void
+    private function skasujNiedokonczone(): int
     {
-        DataExport::query()
-            ->where('status', DataExport::STATUS_FAILED)
-            ->whereNull('object_key')
-            ->where('updated_at', '<', now()->subHour())
-            ->where('updated_at', '>=', now()->subDays(7))
+        $znalezione = 0;
+
+        $this->niedokonczoneQuery()
             ->lazyById(100)
-            ->each(function (DataExport $export): void {
-                try {
-                    Storage::disk((string) config('kuking.exports.disk'))->delete(ExportFileNames::objectKey($export));
-                } catch (Throwable $e) {
-                    Log::warning('Nie udało się skasować pliku nieudanej paczki z danymi', [
-                        'data_export_id' => $export->getKey(),
-                        'wyjatek' => $e::class,
-                    ]);
+            ->each(function (DataExport $export) use (&$znalezione): void {
+                $znalezione++;
+
+                // WYŚCIG Z PONOWIENIEM (issue #2073). Lista kandydatów jest
+                // przeczytana wcześniej; między nią a kasowaniem worker mógł
+                // ponowić ten eksport i zapisać paczkę pod TYM SAMYM kluczem.
+                // Kasujemy więc wyłącznie pod blokadą wiersza, po ponownym
+                // sprawdzeniu, że rekord nadal jest `failed` bez `object_key`.
+                $przejety = PrzejecieEksportu::dlaSprzatania((string) $export->getKey(), function (DataExport $aktualny): void {
+                    try {
+                        Storage::disk((string) config('kuking.exports.disk'))->delete(ExportFileNames::objectKey($aktualny));
+                    } catch (Throwable $e) {
+                        Log::warning('Nie udało się skasować pliku nieudanej paczki z danymi', [
+                            'data_export_id' => $aktualny->getKey(),
+                            'wyjatek' => $e::class,
+                        ]);
+                    }
+                });
+
+                if (! $przejety) {
+                    $this->line('Pominięto (eksport jest znowu w toku albo gotowy, plik zostaje): '.$export->getKey());
                 }
             });
+
+        return $znalezione;
+    }
+
+    /**
+     * DRY-RUN dla osieroconych obiektów (issue #1840).
+     *
+     * Wypisuje TO SAMO zapytanie co `skasujNiedokonczone()`, bez jednego
+     * zapisu do storage. Tylko UUID eksportu — bez adresu właściciela ani
+     * wyliczonego klucza obiektu — bo to jest jedyna informacja, którą wolno
+     * pokazać w bezpiecznej formie audytowej.
+     */
+    private function pokazNiedokonczone(): int
+    {
+        $znalezione = 0;
+
+        $this->niedokonczoneQuery()
+            ->lazyById(100)
+            ->each(function (DataExport $export) use (&$znalezione): void {
+                $znalezione++;
+                $this->line('Do usunięcia (osierocony obiekt po nieudanym eksporcie): '.$export->getKey());
+            });
+
+        return $znalezione;
+    }
+
+    /** Jedno źródło prawdy dla kandydatów obu ścieżek wyżej — patrz #1840. */
+    private function niedokonczoneQuery(): Builder
+    {
+        return PrzejecieEksportu::niedokonczone();
     }
 
     private function paczki(int $n): string
@@ -240,5 +320,22 @@ class CleanUpDataExports extends Command
         }
 
         return $n.' wygasłych paczek';
+    }
+
+    /** Polska odmiana: „1 osierocony obiekt”, „2 osierocone obiekty”, „5 osieroconych obiektów”. */
+    private function obiekty(int $n): string
+    {
+        $mod10 = $n % 10;
+        $mod100 = $n % 100;
+
+        if ($n === 1) {
+            return '1 osierocony obiekt';
+        }
+
+        if ($mod10 >= 2 && $mod10 <= 4 && ($mod100 < 12 || $mod100 > 14)) {
+            return $n.' osierocone obiekty';
+        }
+
+        return $n.' osieroconych obiektów';
     }
 }

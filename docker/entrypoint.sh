@@ -5,9 +5,11 @@
 #  Jeden obraz, cztery role. Rolę wybiera pierwszy argument albo APP_ROLE:
 #
 #    web        — serwer HTTP (FrankenPHP/Caddy). Tylko ten ma domenę publiczną.
-#    worker     — php artisan queue:work, proces na kolejkę (zdjęcia, maile, eksporty)
+#    worker     — php artisan queue:work, proces na kolejkę (zdjęcia, maile, eksporty);
+#                 przed startem czeka na migracje web (czekaj_na_migracje, #2044)
 #                 (w roli all: jeden proces dla wszystkich kolejek — listy_kolejek())
-#    scheduler  — pętla `schedule:run` na początku każdej minuty (nie `schedule:work`)
+#    scheduler  — pętla `schedule:run` na początku każdej minuty (nie `schedule:work`);
+#                 też czeka na migracje web (#2044)
 #    all        — web + worker + scheduler w jednym kontenerze.
 #
 #                 UWAGA: to jest DZIŚ TRYB PRODUKCYJNY, wbrew temu, co ten
@@ -369,6 +371,88 @@ czekaj_na_uslugi() {
   done
 }
 
+# -----------------------------------------------------------------------------
+#  BRAMKA MIGRACJI DLA WORKERA I SCHEDULERA (issue #2044)
+#
+#  W topologii split migracje uruchamia WYŁĄCZNIE serwis web, w pre-deploy
+#  (.railway/railway.ts, `kuking:migruj-pod-blokada`). Railway nie ma bramki
+#  między usługami: `worker` i `scheduler` wdrażają się z tego samego commita
+#  RÓWNOLEGLE z web, więc nowy kod potrafił ruszyć na schemacie sprzed migracji
+#  — zadanie odwołujące się do nowej kolumny padało, wracało do kolejki
+#  i zużywało próby (`--tries`), a harmonogram zapisywał błędy w logu.
+#
+#  Rozwiązanie nie dokłada usługi ani migratora w drugiej roli (trzy migratory
+#  to wyścig o blokady): worker i scheduler PRZED STARTEM czekają, aż
+#  `migrate:status` przestanie pokazywać oczekujące migracje z TEGO obrazu.
+#  Migracje nadal wykonuje wyłącznie web.
+#
+#    * czekanie jest ograniczone (MIGRACJE_LIMIT_S, domyślnie 900 s — pre-deploy
+#      ma 600 s, patrz docs/infra/DEPLOYMENT_RUNBOOK.md) i głośne: log co ~30 s
+#      mówi, na co czekamy i co sprawdzić;
+#    * po limicie kontener kończy się kodem 1 — Railway widzi porażkę
+#      i ponawia, zamiast uruchamiać kod na niegotowym schemacie. Typowa
+#      przyczyna: migracja web się nie powiodła (sprawdź jej log);
+#    * baza niedostępna albo brak tabeli `migrations` to też „jeszcze nie":
+#      surowego komunikatu z bazy nie wypisujemy;
+#    * schemat NOWSZY niż kod (rollback workera) nie blokuje — sprawdzamy tylko
+#      migracje, które ten obraz zna, a baza ich jeszcze nie ma;
+#    * MIGRACJE_BRAMKA=0 wyłącza bramkę (awaryjnie, gdyby sama blokowała start);
+#      MIGRACJE_ODSTEP_S (domyślnie 5) to przerwa między próbami.
+#
+#  Rola `all` bramki nie potrzebuje: chodzi w tym samym kontenerze co web,
+#  który wstaje dopiero po pre-deploy. Stare procesy, działające w oknie
+#  drenowania na nowym schemacie, chroni zgodność wsteczna migracji
+#  (expand/contract, docs/DEPLOYMENT.md, „Migrations").
+#
+#  Test na atrapie `php`: tests/skrypty/bramka-migracji.sh.
+# -----------------------------------------------------------------------------
+czekaj_na_migracje() {
+  local rola="${1:?czekaj_na_migracje: podaj rolę}"
+  local limit="${MIGRACJE_LIMIT_S:-900}" odstep="${MIGRACJE_ODSTEP_S:-5}"
+  local start="${SECONDS}" ostatni_log=0 proba=0 wynik kod oczekujace
+
+  if [[ "${MIGRACJE_BRAMKA:-1}" == 0 ]]; then
+    log "OSTRZEŻENIE: ${rola}: bramka migracji WYŁĄCZONA (MIGRACJE_BRAMKA=0) — start bez sprawdzenia schematu."
+    return 0
+  fi
+
+  [[ "${limit}" =~ ^[0-9]+$ ]] || { log "OSTRZEŻENIE: MIGRACJE_LIMIT_S nie jest liczbą — używam 900 s."; limit=900; }
+  [[ "${odstep}" =~ ^[1-9][0-9]*$ ]] || { log "OSTRZEŻENIE: MIGRACJE_ODSTEP_S nie jest liczbą dodatnią — używam 5 s."; odstep=5; }
+
+  while true; do
+    proba=$(( proba + 1 ))
+    kod=0
+    # `--pending=1`: kod wyjścia 1, gdy jest cokolwiek oczekującego (opcja
+    # przyjmuje wartość; sam `--pending` nie ustawia kodu wyjścia).
+    wynik="$(php /app/artisan migrate:status --pending=1 --no-ansi --no-interaction 2>&1)" || kod=$?
+
+    if (( kod == 0 )); then
+      log "${rola}: schemat bazy jest aktualny (brak oczekujących migracji) — startuję."
+      return 0
+    fi
+
+    if (( SECONDS - start >= limit )); then
+      log "BŁĄD: ${rola}: po ${limit} s migracje nadal nie są gotowe — nie startuję na starym schemacie."
+      log "  Sprawdź log pre-deploy serwisu web (migracja mogła się nie udać) i napraw ją."
+      log "  Railway ponowi ${rola} po kodzie 1; po wyczerpaniu prób zrestartuj go ręcznie."
+      log "  Awaryjnie: MIGRACJE_BRAMKA=0 wyłącza to czekanie."
+      return 1
+    fi
+
+    if (( proba == 1 )) || (( SECONDS - ostatni_log >= 30 )); then
+      ostatni_log="${SECONDS}"
+      oczekujace="$(grep -c 'Pending' <<< "${wynik}" || true)"
+      if (( oczekujace > 0 )); then
+        log "${rola}: czekam na migracje serwisu web — oczekujących: ${oczekujace} (już $(( SECONDS - start )) s, limit ${limit} s)."
+      else
+        log "${rola}: czekam na bazę i tabelę migracji (brak połączenia albo migracje jeszcze się nie zaczęły) — limit ${limit} s."
+      fi
+    fi
+
+    sleep "${odstep}"
+  done
+}
+
 start_worker() {
   # --max-time=3600   → worker sam się kończy po godzinie; NADZORCA go wskrzesza.
   #                     Zapobiega wyciekom pamięci w długożyjącym PHP.
@@ -401,6 +485,8 @@ start_worker() {
   # bitmapę poza licznikiem PHP. Ten limit chroni więc kod PHP, a przed
   # wyczerpaniem pamięci przy dekodowaniu obrazu chroni `--memory` wyżej
   # i limit kontenera, nie ta wartość.
+  czekaj_na_migracje worker || exit 1
+
   log "start queue:work (memory_limit=${PHP_WORKER_MEMORY_LIMIT:-512M})"
 
   # Pętla także w roli OSOBNEGO serwisu, nie tylko w `all`. Bez niej kontener
@@ -429,12 +515,20 @@ start_worker() {
 #          (same e-maile) — patrz uwaga o pamięci w .railway/railway.ts.
 #
 #    all (produkcja dziś: jeden kontener 1024 MB z FrankenPHP i harmonogramem)
-#        → JEDEN proces `high,default,media,low`, kolejność = priorytet, tak
-#          jak przed #1030. Trzy procesy mogą mieć szczyt naraz: `media` ~452 MB
-#          przy zdjęciu 50 Mpx, `low` do limitu 512M przy eksporcie, do tego
-#          WWW — OOM położyłby także stronę. Ceną jest głodzenie `media`
-#          i `low` przy stałej zaległości `default`; lekarstwem jest
-#          wydzielenie workera (PRODUCTION_SPLIT_SERVICES w .railway/railway.ts).
+#        → DWA procesy (D-311, issue #1860): lekki `high,default` (listy
+#          i purge CDN) oraz ciężki `media,low` (zdjęcia, eksport RODO,
+#          analiza treści). Szczyty pamięci `media` (~452 MB przy 50 Mpx)
+#          i `low` (do 512M przy eksporcie) dalej się NIE schodzą — to jeden
+#          proces, zadanie po zadaniu — a lekki proces dokłada tyle, ile pusty
+#          PHP z frameworkiem (rząd kilkudziesięciu MB, ta sama miara co
+#          `high` w roli `worker`). Zaległość maili nie wstrzymuje już więc
+#          zdjęć ani eksportu. Zostaje JEDNO nazwane ograniczenie: `low` czeka
+#          za stałą zaległością `media` — zdjęć przybywa tylko z publikacji
+#          ludzi, nie z automatu. Pełne lekarstwo to dalej wydzielony worker
+#          (PRODUCTION_SPLIT_SERVICES w .railway/railway.ts).
+#          Do 26.09.2026 był tu JEDEN proces `high,default,media,low` (#1030
+#          zostawił go świadomie) i pojedyncza zaległość `default` głodziła
+#          i zdjęcia, i eksport — luka wskazana w #1860.
 #
 #  Ręczne sterowanie, bez wdrożenia (docs/DEPLOYMENT.md, „Kolejki"):
 #    QUEUE_WORKERS — procesy rozdzielone SPACJĄ, w każdym lista po przecinku,
@@ -456,15 +550,17 @@ start_worker() {
 # -----------------------------------------------------------------------------
 listy_kolejek() {
   local osobne="high default media low"
-  local wspolny="${QUEUE_NAMES:-high,default,media,low}"
+  local wspolnyKontener="high,default media,low"
 
   if [[ -n "${QUEUE_WORKERS:-}" ]]; then
     [[ -n "${QUEUE_NAMES:-}" ]] && log "OSTRZEŻENIE: ustawione QUEUE_WORKERS i QUEUE_NAMES — QUEUE_NAMES jest pomijane"
     echo "${QUEUE_WORKERS}"
-  elif [[ -n "${QUEUE_NAMES:-}" || "$1" != worker ]]; then
-    echo "${wspolny}"
-  else
+  elif [[ -n "${QUEUE_NAMES:-}" ]]; then
+    echo "${QUEUE_NAMES}"
+  elif [[ "$1" == worker ]]; then
     echo "${osobne}"
+  else
+    echo "${wspolnyKontener}"
   fi
 }
 
@@ -547,6 +643,8 @@ start_scheduler() {
   # Źródło: https://docs.railway.com/cron-jobs (sekcja "Frequency")
   #
   # WAŻNE: dokładnie 1 replika. Dwie repliki = podwójne maile z digestem.
+  czekaj_na_migracje scheduler || exit 1
+
   log "start harmonogramu (schedule:run na początku każdej minuty)"
 
   petla_harmonogramu

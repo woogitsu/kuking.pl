@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -40,6 +41,11 @@ use Illuminate\Support\Facades\Log;
  * właściciela.
  *
  * @see maWariantDoPokazania()
+ *
+ * Kolejność zdjęcia z tabeli pośredniej — jest tylko wtedy, gdy zdjęcie
+ * wczytano przez `Post::media()` (`post_media`) albo `CookedEvent::media()`:
+ *
+ * @property-read Pivot&object{position: int} $pivot
  */
 class Media extends Model
 {
@@ -128,12 +134,17 @@ class Media extends Model
      * Potrzebne do bramki wlasnosci przy odzyskiwaniu zdjec po nieudanej
      * walidacji (audyt C1): zdjecie juz przypiete do wpisu nie moze zostac
      * podpiete pod drugi.
+     *
+     * @return BelongsToMany<Post, $this>
      */
     public function posts(): BelongsToMany
     {
         return $this->belongsToMany(Post::class, 'post_media');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');
@@ -306,6 +317,43 @@ class Media extends Model
     }
 
     /**
+     * Wartość atrybutu `srcset` z PRAWDZIWYCH szerokości istniejących
+     * wariantów (audyt T30, issue #430; wspólne od #1310 i #1326).
+     *
+     * Wcześniej ta pętla żyła tylko w `<x-photo>`, a miniatury tablicy
+     * i katalogu tagów pisały gołe `<img src=feed>` — przeglądarka nie miała
+     * z czego wybrać i do pola ~120–350 px pobierała wariant 960 px.
+     *
+     * `maWariant()`, nie `width()`: `width()` podstawia wariant zastępczy,
+     * więc przed zadaniem w tle cztery nazwy wskazywałyby na jeden `podglad`.
+     * Jeden kandydat na szerokość (od najmniejszego pliku), bo `scaleDown()`
+     * nie powiększa i przy małym zdjęciu `feed` i `large` mają równą
+     * szerokość. Oryginał nie jest wariantem i tu nie trafia nigdy.
+     */
+    public function srcset(): string
+    {
+        $kandydaci = [];
+
+        foreach (['thumb', 'podglad', 'feed', 'large'] as $nazwaWariantu) {
+            if (! $this->maWariant($nazwaWariantu)) {
+                continue;
+            }
+
+            $szerokosc = $this->width($nazwaWariantu);
+
+            if ($szerokosc === null || isset($kandydaci[$szerokosc])) {
+                continue;
+            }
+
+            $kandydaci[$szerokosc] = $this->url($nazwaWariantu).' '.$szerokosc.'w';
+        }
+
+        ksort($kandydaci);
+
+        return implode(', ', $kandydaci);
+    }
+
+    /**
      * Zapis JEDNEGO wariantu z metadanych, albo `null`.
      *
      * Istnieje po to, żeby `ProcessUploadedImage` mógł przenieść `podglad`
@@ -314,7 +362,7 @@ class Media extends Model
      * kształcie. Kształt opisuje jedno miejsce — `warianty()` — i wszystko,
      * co czyta warianty, ma iść przez nie.
      *
-     * @return array{key?: string, width?: int, height?: int}|null
+     * @return array{key?: string, width?: int, height?: int, bytes?: int}|null
      */
     public function wariant(string $nazwa): ?array
     {
@@ -387,7 +435,7 @@ class Media extends Model
      * w typie, obok kodu, który go czyta — i `is_array()` sprawdza go naprawdę,
      * bo w bazie mogą leżeć wiersze sprzed każdej zmiany tego formatu.
      *
-     * @return array<string, array{key?: string, width?: int, height?: int}>
+     * @return array<string, array{key?: string, width?: int, height?: int, bytes?: int}>
      */
     private function warianty(): array
     {

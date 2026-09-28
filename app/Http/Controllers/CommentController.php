@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Comments\Actions\DeleteComment;
 use App\Domain\Comments\Actions\EditComment;
+use App\Domain\Comments\KonfliktPoprawkiKomentarza;
 use App\Jobs\PrzeanalizujTresc;
 use App\Models\Comment;
 use Illuminate\Http\RedirectResponse;
@@ -27,6 +28,8 @@ use Illuminate\Http\Response;
  */
 class CommentController extends Controller
 {
+    private const ALREADY_DELETED = 'Ten komentarz był już usunięty. Nic więcej nie trzeba robić.';
+
     public function __construct(
         private readonly DeleteComment $deleteComment,
         private readonly EditComment $editComment,
@@ -64,9 +67,24 @@ class CommentController extends Controller
             'body.max' => 'Ten komentarz jest za długi. Zmieść się w 4000 znakach.',
         ]);
 
-        // Pod zamkiem korzenia `EditComment` pyta Policy jeszcze raz: odpowiedź
-        // zatwierdzona po `authorize()` wyżej zamyka poprawkę (#1337).
-        $poprawiony = $this->editComment->handle($request->user(), $comment, trim($data['body']));
+        // Pod zamkiem konta i potem komentarza `EditComment` pyta Policy
+        // jeszcze raz: sankcja albo odpowiedź zatwierdzona po `authorize()`
+        // wyżej zamyka poprawkę (#2090, #1337). Pod zamkiem komentarza
+        // porównuje też wersję treści z formularza (#982).
+        try {
+            $poprawiony = $this->editComment->handle(
+                $request->user(),
+                $comment,
+                trim($data['body']),
+                is_string($request->input('wersja')) ? $request->input('wersja') : null,
+            );
+        } catch (KonfliktPoprawkiKomentarza $e) {
+            // Issue #982: nic nie zapisano. Tekst wraca do pola (`withInput`),
+            // a wątek pokazuje nad nim zapisaną treść. Osobny klucz `wersja`,
+            // nie `body`: tekst jest poprawny, więc pole nie dostaje
+            // `aria-invalid`.
+            return back()->withInput()->withErrors(['wersja' => $e->getMessage()]);
+        }
         if ($poprawiony === null) {
             $request->session()->forget('comment_edit_recovery');
 
@@ -123,6 +141,13 @@ class CommentController extends Controller
 
         $actor = $request->user();
 
+        // Issue #911: stary formularz z drugiej karty albo ponowione wysłanie.
+        // Przed walidacją powodu — nie każemy uzasadniać czegoś, co już się stało.
+        // Komentarz bez odpowiedzi jest miękko usunięty (trasa ma withTrashed).
+        if ($comment->trashed() || $comment->body_removed_at !== null) {
+            return back()->with('status', self::ALREADY_DELETED);
+        }
+
         $isSelfDelete = $actor->getKey() === $comment->author_id;
         $isContentOwnerRemovingOthers = ! $isSelfDelete
             && $actor->getKey() === $comment->notifiableUserId();
@@ -134,8 +159,8 @@ class CommentController extends Controller
             'reason.max' => 'Powód jest za długi. Zmieść się w 500 znakach.',
         ]);
 
-        $this->deleteComment->handle($actor, $comment, $data['reason'] ?? null);
+        $deleted = $this->deleteComment->handle($actor, $comment, $data['reason'] ?? null);
 
-        return back()->with('status', 'Komentarz usunięty.');
+        return back()->with('status', $deleted ? 'Komentarz usunięty.' : self::ALREADY_DELETED);
     }
 }

@@ -75,7 +75,14 @@ final class CancelEmailChange
             return false;
         }
 
-        AuditLogEntry::record(
+        // POMOCNICZY, PO ZATWIERDZONYM SKASOWANIU (D-249, klasa 2; #1897).
+        // Autorytatywny ślad to zniknięty wiersz `pending_email_changes` —
+        // `delete()` wyżej już się zatwierdził. `record()` rzucający
+        // wyjątek dawał tu HTTP 500 mimo wykonanego anulowania, a przy
+        // wywołaniu z `SecuritySettingsController`/`PasswordResetController`
+        // ukrywał, że hasło jednak się zmieniło. `recordBezWywracania()`
+        // zgłasza awarię do `report()` i nie zamienia sukcesu w błąd.
+        AuditLogEntry::recordBezWywracania(
             'account.email_change_cancelled',
             $user,
             $user,

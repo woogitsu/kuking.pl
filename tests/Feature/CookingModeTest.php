@@ -8,7 +8,11 @@ use App\Models\Recipe;
 use App\Models\RecipeIngredient;
 use App\Models\RecipeStep;
 use App\Models\User;
+use DOMDocument;
+use DOMElement;
+use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
@@ -58,6 +62,80 @@ class CookingModeTest extends TestCase
             ->assertSee('Krok 1 z 3')
             ->assertSee('Krok numer 1.')
             ->assertSee('szklanka mąki');
+    }
+
+    public function test_wybrane_porcje_przechodza_przez_kroki_odznaczenie_restart_i_powrot(): void
+    {
+        $recipe = $this->przepisZKrokami($this->user('porcje'), 2);
+        $recipe->update(['servings' => 4]);
+        $recipe->ingredients()->delete();
+        RecipeIngredient::create([
+            'recipe_id' => $recipe->getKey(), 'ingredient_text' => '200 g mąki', 'position' => 0,
+        ]);
+
+        $strona = $this->get(route('recipes.show', ['recipe' => $recipe->slug, 'porcje' => 6]))->assertOk();
+        $wejscie = $this->xpath($strona)->query('//a[contains(normalize-space(.), "Gotuję — pokaż kroki")]')->item(0);
+        $this->assertInstanceOf(DOMElement::class, $wejscie);
+        $this->assertSame(route('cooking.show', ['recipe' => $recipe->slug, 'porcje' => 6]), $wejscie->getAttribute('href'));
+
+        $gotowanie = $this->get($wejscie->getAttribute('href'))->assertOk();
+        $xpath = $this->xpath($gotowanie);
+        $skladnik = $xpath->query('//details[contains(@class, "cook-ingredients")]//li[@data-skladnik]/label/span[@class="cook-skladnik-tresc"]')->item(0);
+        $this->assertInstanceOf(DOMElement::class, $skladnik);
+        $this->assertSame('300 g mąki', trim((string) preg_replace('/\s+/u', ' ', $skladnik->textContent)));
+        $this->assertSame(1, $xpath->query('//details[contains(@class, "cook-ingredients")]//input[@data-przygotowanie-pole]')->length, 'Przeliczenie nie może usunąć checklisty składników.');
+
+        $nastepny = $xpath->query('//nav[@class="cook-nav"]//a[contains(., "Następny krok")]')->item(0);
+        $this->assertInstanceOf(DOMElement::class, $nastepny);
+        $this->assertSame(route('cooking.show', ['recipe' => $recipe->slug, 'krok' => 2, 'porcje' => 6]), $nastepny->getAttribute('href'));
+        $krokDrugi = $this->get($nastepny->getAttribute('href'))->assertOk();
+        $this->assertSame('300 g mąki', trim((string) preg_replace('/\s+/u', ' ', $this->xpath($krokDrugi)->query('//li[@data-skladnik]/label/span[@class="cook-skladnik-tresc"]')->item(0)?->textContent)));
+
+        $wyjscie = $xpath->query('//a[contains(@class, "cook-exit")]')->item(0);
+        $this->assertInstanceOf(DOMElement::class, $wyjscie);
+        $this->assertSame(route('recipes.show', ['recipe' => $recipe->slug, 'porcje' => 6]), $wyjscie->getAttribute('href'));
+        $powrot = $this->get($wyjscie->getAttribute('href'))->assertOk();
+        $this->assertStringContainsString('300 g mąki', strip_tags((string) $powrot->getContent()));
+
+        $pole = $xpath->query('//form[contains(@class, "cook-zaznacz")]/input[@name="porcje"]')->item(0);
+        $this->assertInstanceOf(DOMElement::class, $pole);
+        $this->assertSame('6', $pole->getAttribute('value'));
+
+        $krok = $recipe->steps()->orderBy('position')->firstOrFail();
+        $this->post(route('cooking.zaznacz', $recipe->slug), [
+            'krok' => 1, 'krok_id' => $krok->getKey(), 'zrobiono' => 1, 'porcje' => 6,
+        ])->assertRedirect(route('cooking.show', ['recipe' => $recipe->slug, 'krok' => 1, 'porcje' => 6]));
+
+        $poOdhaczeniu = $this->get(route('cooking.show', ['recipe' => $recipe->slug, 'krok' => 1, 'porcje' => 6]))->assertOk();
+        $formularzRestartu = $this->xpath($poOdhaczeniu)->query('//form[contains(@action, "/od-poczatku")]/input[@name="porcje"]')->item(0);
+        $this->assertInstanceOf(DOMElement::class, $formularzRestartu);
+        $this->assertSame('6', $formularzRestartu->getAttribute('value'));
+
+        $this->post(route('cooking.restart', $recipe->slug), ['porcje' => 6])
+            ->assertRedirect(route('cooking.show', ['recipe' => $recipe->slug, 'porcje' => 6]));
+        $poRestarcie = $this->get(route('cooking.show', ['recipe' => $recipe->slug, 'porcje' => 6]))->assertOk();
+        $this->assertStringContainsString('300 g mąki', strip_tags((string) $poRestarcie->getContent()));
+
+        $this->get(route('cooking.show', $recipe->slug))
+            ->assertOk()->assertSee('200 g mąki', false)->assertDontSee('Przeliczone na');
+    }
+
+    public function test_nieprawidlowa_liczba_porcji_nie_przechodzi_dalej(): void
+    {
+        $recipe = $this->przepisZKrokami($this->user('porcjezle'), 2);
+        $recipe->update(['servings' => 4]);
+
+        $gotowanie = $this->get(route('cooking.show', ['recipe' => $recipe->slug, 'porcje' => 999]))->assertOk();
+        $this->assertStringContainsString('szklanka mąki', strip_tags((string) $gotowanie->getContent()));
+        $this->assertStringNotContainsString('porcje=999', html_entity_decode((string) $gotowanie->getContent()));
+    }
+
+    private function xpath(TestResponse $odpowiedz): DOMXPath
+    {
+        $dom = new DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$odpowiedz->getContent());
+
+        return new DOMXPath($dom);
     }
 
     /**
