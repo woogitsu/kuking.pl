@@ -53,7 +53,7 @@
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Odczytaj przepis</button>
-            <a class="btn btn-secondary" href="{{ route('recipes.create') }}">Wpiszę sam</a>
+            <a class="btn btn-secondary" href="{{ route('recipes.create') }}">Wpisz ręcznie</a>
         </div>
     </form>
 </x-layout>
