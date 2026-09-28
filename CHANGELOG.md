@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Paczka Twoich danych zachowuje przy każdym przepisie wybór, czy pokazywać szacunkowe wartości odżywcze. Po przeniesieniu danych można odróżnić celowo ukrytą sekcję od domyślnie widocznej (#1993).
+
 ## Alfa 0.74 — zdjęcia w formularzu i porcje przy gotowaniu
 
 - Zdjęcia wybrane przy dodawaniu lub edycji przepisu zostają w formularzu po błędzie innego pola. Nie trzeba ich wybierać ponownie po poprawieniu tytułu czy składników (#2050).
