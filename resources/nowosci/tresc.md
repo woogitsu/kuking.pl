@@ -28,6 +28,14 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Przepis do wybranego dnia prosto z Planera
+
+W Planerze przy każdym dniu tygodnia znajdziecie pole „Nazwa przepisu”.
+Wpiszcie kilka liter, kliknijcie „Szukaj przepisu” i przy znalezionym daniu
+wybierzcie „Dodaj do planu”. Nie trzeba już wchodzić na stronę przepisu.
+Po dodaniu wracacie do tego samego dnia z tą samą frazą, więc od razu możecie
+dopisać kolejne danie.
+
 ## Alfa 0.74
 
 **Zdjęcia przy przepisie i wybrana liczba porcji zostają z Wami.**

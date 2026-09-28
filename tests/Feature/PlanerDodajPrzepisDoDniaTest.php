@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Planer\PlanerTygodnia;
 use App\Models\MealPlanEntry;
 use App\Models\Recipe;
 use App\Models\User;
@@ -145,17 +146,114 @@ final class PlanerDodajPrzepisDoDniaTest extends TestCase
     public function test_pelny_dzien_nie_ma_szukania(): void
     {
         $user = $this->user('osoba11');
-        for ($i = 0; $i < 30; $i++) {
+        for ($i = 0; $i < PlanerTygodnia::wpisowNaDzien(); $i++) {
             $w = new MealPlanEntry(['day' => '2026-10-14', 'label' => "Pozycja {$i}"]);
             $w->user_id = $user->getKey();
-            try {
-                $w->save();
-            } catch (\Throwable) {
-                break;
-            }
+            $w->save();
         }
+        $this->assertSame(PlanerTygodnia::wpisowNaDzien(), MealPlanEntry::query()->count());
+
         $html = $this->actingAs($user)->get(route('planer.show', ['tydzien' => '2026-10-12']))->getContent();
         $this->assertStringContainsString('Ten dzień ma komplet', $this->sekcja($html, '2026-10-14'));
         $this->assertStringNotContainsString('Dodaj przepis do tego dnia', $this->sekcja($html, '2026-10-14'));
+        // Kontrola dodatnia: dzień obok ma panel.
+        $this->assertStringContainsString('Dodaj przepis do tego dnia', $this->sekcja($html, '2026-10-15'));
+    }
+
+    public function test_prywatny_przepis_innej_osoby_nie_pojawia_sie_w_wynikach(): void
+    {
+        $user = $this->user('osoba12');
+        $autor = $this->user('osoba13');
+        $this->przepis($autor, 'Bigos prywatny cudzy', ['visibility' => 'private']);
+        $this->przepis($autor, 'Bigos publiczny cudzy');
+        $mojPrywatny = $this->przepis($user, 'Bigos prywatny mój', ['visibility' => 'private']);
+
+        $html = $this->actingAs($user)
+            ->get(route('planer.show', ['tydzien' => '2026-10-12', 'dzien' => '2026-10-14', 'q' => 'bigos']))
+            ->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('Bigos prywatny cudzy', $html);
+        $this->assertStringContainsString('Bigos publiczny cudzy', $html);
+        $this->assertNotNull($mojPrywatny->getKey());
+        $this->assertStringContainsString('Bigos prywatny mój', $html, 'Własny prywatny przepis powinien być w wynikach.');
+    }
+
+    public function test_blad_pustego_wpisu_trafia_do_dnia_z_ktorego_przyszedl_post_a_nie_z_adresu(): void
+    {
+        $user = $this->user('osoba14');
+        $referer = route('planer.show', ['tydzien' => '2026-10-12', 'dzien' => '2026-10-15', 'q' => 'zupa']);
+
+        $this->actingAs($user)
+            ->from($referer)
+            ->post(route('planer.store'), ['day' => '2026-10-14', 'label' => '   ', '_wiersz' => '2026-10-14'])
+            ->assertRedirect($referer);
+
+        $html = $this->actingAs($user)->get($referer)->assertOk()->getContent();
+        $komunikat = 'Wpisz, co planujesz na ten dzień';
+
+        $this->assertStringContainsString($komunikat, $this->sekcja($html, '2026-10-14'));
+        $this->assertStringNotContainsString($komunikat, $this->sekcja($html, '2026-10-15'), 'Błąd z 14.10 pojawił się przy dniu z adresu (15.10).');
+        $this->assertStringNotContainsString('aria-invalid="true"', $this->sekcja($html, '2026-10-15'));
+    }
+
+    public function test_blad_dodania_z_wynikow_nie_trafia_do_dnia_z_adresu(): void
+    {
+        $user = $this->user('osoba15');
+        // Dzień poza zakresem planera: akcja rzuca błędem pola `day`. Formularz
+        // wyniku wysłał dzień 2000-01-03, a adres strony wskazuje 15.10 —
+        // komunikat NIE może wylądować przy polu wyszukiwania 15.10.
+        $przepis = $this->przepis($this->user('osoba16'), 'Sernik zakresowy');
+        $referer = route('planer.show', ['tydzien' => '2026-10-12', 'dzien' => '2026-10-15', 'q' => 'sernik']);
+
+        // Bez `assertSessionHasErrors`: pomocnik startuje sesję ponownie
+        // i zjada błędy, zanim zobaczy je następne żądanie.
+        $this->actingAs($user)
+            ->from($referer)
+            ->post(route('planer.store'), [
+                'day' => '2000-01-03', 'recipe_id' => $przepis->getKey(), 'z_planera' => 1, 'q' => 'sernik',
+            ])
+            ->assertRedirect($referer);
+
+        $html = $this->actingAs($user)->get($referer)->assertOk()->getContent();
+        $this->assertStringContainsString('Sernik zakresowy', $this->sekcja($html, '2026-10-15'), 'Panel dnia z adresu powinien działać.');
+        $this->assertStringNotContainsString('Wybierz dzień w zakresie planera', $this->sekcja($html, '2026-10-15'));
+        $this->assertStringContainsString('error-summary', $html, 'Błąd nadal ma być w podsumowaniu na górze.');
+    }
+
+    public function test_dodanie_pokazuje_jeden_komunikat_sukcesu(): void
+    {
+        $user = $this->user('osoba17');
+        $przepis = $this->przepis($this->user('osoba18'), 'Sernik jedyny');
+
+        $html = $this->actingAs($user)
+            ->followingRedirects()
+            ->post(route('planer.store'), ['day' => '2026-10-14', 'recipe_id' => $przepis->getKey(), 'z_planera' => 1, 'q' => 'sernik'])
+            ->getContent();
+
+        $this->assertSame(1, substr_count($html, 'Dodane do planu na'), 'Komunikat sukcesu pokazany więcej niż raz.');
+    }
+
+    public function test_limit_zapytan_odczytu_planera_ma_wlasny_koszyk_i_bez_martwego_punktu(): void
+    {
+        $user = $this->user('osoba19');
+        [$limit] = array_map('intval', explode(',', (string) config('kuking.limits.planer_szukaj')));
+        $adres = route('planer.show', ['tydzien' => '2026-10-12', 'dzien' => '2026-10-14', 'q' => 'zupa']);
+
+        for ($i = 0; $i < $limit; $i++) {
+            $this->assertNotSame(429, $this->actingAs($user)->get($adres)->getStatusCode(), "Żądanie {$i} w granicach limitu dostało 429.");
+        }
+
+        $odbicie = $this->actingAs($user)->get($adres);
+        $odbicie->assertStatus(429);
+        $odbicie->assertSee('Za dużo prób');
+        $odbicie->assertSee('Spróbuj ponownie za');
+        // D-053: ekran nie jest ślepą uliczką — jest przycisk, który dokądś prowadzi.
+        $odbicie->assertSee('Strona główna');
+        $odbicie->assertSee('href="'.route('home').'"', false);
+
+        // Zapisy planera mają inny koszyk: odbicie odczytu ich nie blokuje.
+        $this->actingAs($user)->post(route('planer.store'), ['day' => '2026-10-14', 'label' => 'Obiad'])
+            ->assertRedirect();
+        $this->assertSame(1, MealPlanEntry::query()->count());
     }
 }

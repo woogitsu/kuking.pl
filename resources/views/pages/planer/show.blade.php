@@ -88,13 +88,19 @@
                     @php
                         $aktywny = $szukanyDzien === $dataDnia;
                         $szukajId = 'szukaj-'.$dataDnia;
-                        $bladDnia = $aktywny ? ($bladFrazy ?? $errors->first('day') ?: $errors->first('label')) : null;
+                        // Błąd wyszukiwania (GET) należy do dnia z adresu. Błąd
+                        // dodania z wyników (POST) — do dnia, z którego ten POST
+                        // przyszedł (`old('day')` przy `z_planera`), a NIE do dnia
+                        // z adresu strony, z której człowiek wysłał formularz.
+                        // Błąd „Dopisz coś własnego” pokazuje samo pole `label`
+                        // (`_wiersz`), więc tu go nie powielamy.
+                        $zWynikow = old('z_planera') && old('day') === $dataDnia;
+                        $bladDnia = ($aktywny ? $bladFrazy : null)
+                            ?? ($zWynikow ? ($errors->first('day') ?: $errors->first('label') ?: $errors->first('q')) : null)
+                            ?: null;
                     @endphp
                     <div class="planer-szukaj mt-4" id="{{ $szukajId }}" tabindex="-1" role="group" aria-labelledby="{{ $szukajId }}-tytul">
                         <h3 class="mt-0" id="{{ $szukajId }}-tytul">Dodaj przepis do tego dnia</h3>
-                        @if($aktywny && session('status'))
-                            <p class="flash">{{ session('status') }}</p>
-                        @endif
                         <form class="planer-dopisz" method="GET" action="{{ route('planer.show') }}#{{ $szukajId }}">
                             <input type="hidden" name="tydzien" value="{{ $poniedzialek->toDateString() }}">
                             <input type="hidden" name="dzien" value="{{ $dataDnia }}">

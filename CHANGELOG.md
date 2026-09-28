@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- W Planerze przy każdym dniu tygodnia jest pole „Nazwa przepisu” i przycisk „Szukaj przepisu”. Znalezione przepisy dodajesz do tego dnia przyciskiem „Dodaj do planu”, bez wchodzenia na stronę przepisu; po dodaniu wracasz do tego samego dnia z tą samą frazą. Widok tygodnia ma własny limit odczytu (60 żądań na minutę), a błąd dodania pojawia się przy dniu, z którego przyszedł, nie przy dniu z adresu strony (#2037). [nowa funkcja]
 - Paczka Twoich danych zachowuje przy każdym przepisie wybór, czy pokazywać szacunkowe wartości odżywcze. Po przeniesieniu danych można odróżnić celowo ukrytą sekcję od domyślnie widocznej (#1993).
 
 ## Alfa 0.74 — zdjęcia w formularzu i porcje przy gotowaniu
