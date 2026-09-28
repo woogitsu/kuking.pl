@@ -12,6 +12,7 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\TagSelection;
 use App\Models\Profile;
 use App\Models\Tag;
+use App\Support\PowrotDoRozmowy;
 use App\Support\ZamiarObserwowania;
 use App\Support\ZamiarUgotowania;
 use Illuminate\Http\RedirectResponse;
@@ -359,7 +360,7 @@ class OnboardingController extends Controller
         return $dalej->with('status', implode(' ', $komunikaty));
     }
 
-    public function done(Request $request, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie): View|RedirectResponse
+    public function done(Request $request, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie, PowrotDoRozmowy $rozmowa): View|RedirectResponse
     {
         // Bez zapisu stanu konta: GET może przyjść z prefetchu przeglądarki,
         // więc samo otwarcie tej strony nie wyłącza przypomnienia (#985).
@@ -377,6 +378,13 @@ class OnboardingController extends Controller
         }
 
         if ($cel = $zamiar->celPoOnboardingu($request)) {
+            return redirect()->to($cel);
+        }
+
+        // Powrót do wątku komentarzy (#2027). Nowszy link wypiera starsze
+        // zamiary (`PowrotDoRozmowy::zapamietaj`), więc kolejność jest tylko
+        // zabezpieczeniem. Komentarz wysyła człowiek — tu tylko adres.
+        if ($cel = $rozmowa->celPoOnboardingu($request)) {
             return redirect()->to($cel);
         }
 

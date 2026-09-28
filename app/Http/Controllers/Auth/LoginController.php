@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\User;
 use App\Rules\TurnstileJestPotwierdzony;
+use App\Support\PowrotDoRozmowy;
 use App\Support\Turnstile;
 use App\Support\ZamiarObserwowania;
 use Illuminate\Http\RedirectResponse;
@@ -32,9 +33,15 @@ class LoginController extends Controller
 {
     public function __construct(private readonly SprawdzHasloPrzyLogowaniu $sprawdzHaslo) {}
 
-    public function show(Request $request, ZamiarObserwowania $zamiar): View
+    public function show(Request $request, ZamiarObserwowania $zamiar, PowrotDoRozmowy $rozmowa): View
     {
         if ($cel = $zamiar->celDoLogowania($request)) {
+            $request->session()->put('url.intended', $cel);
+        }
+
+        // Odnośnik z wątku komentarzy (#2027) jest nowszym zamiarem niż
+        // zapamiętane „Obserwuj”, więc nadpisuje cel.
+        if ($cel = $rozmowa->celDoLogowania($request)) {
             $request->session()->put('url.intended', $cel);
         }
 
