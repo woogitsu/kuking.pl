@@ -112,35 +112,37 @@ return new class extends Migration
             return;
         }
 
-        // STRAŻNIK STOI PRZED PIERWSZYM `DROP` — po zdjęciu kolumny nie ma
-        // już czego policzyć.
-        $wersji = (int) DB::table('recipes')->whereNotNull('forked_at')->count();
+        // Blokada musi poprzedzać odczyt i trwać do końca DDL. Inaczej nowa
+        // wersja może wejść między COUNT a DROP COLUMN i stracić podpis.
+        // DROP COLUMN sam usuwa zależny indeks, więc nie trzeba wykonywać
+        // DROP INDEX CONCURRENTLY poza tą transakcją.
+        DB::transaction(function (): void {
+            DB::statement('LOCK TABLE recipes IN ACCESS EXCLUSIVE MODE');
+            $wersji = (int) DB::table('recipes')->whereNotNull('forked_at')->count();
 
-        if ($wersji > 0) {
-            throw new RuntimeException(
-                'Cofnięcie odmówione. Liczba przepisów, które są czyjąś wersją cudzego przepisu '
-                .'(forked_at IS NOT NULL): '.$wersji.'. Kolumny forked_from_id i forked_at niosą '
-                .'podpis „Na podstawie przepisu…", czyli przypisanie autorstwa oryginału. Gdyby '
-                .'cofnięcie przeszło, kolejny `migrate` odtworzyłby je puste i każda z tych wersji '
-                .'stałaby się po cichu przepisem własnym swojego autora (issue #23, D-301, D-088).'
-                ."\n\nCO ZROBIĆ:\n"
-                .'  - jeśli cofasz z powodu awaryjnego rollbacku WDROŻENIA (obraz aplikacji), nie '
-                .'cofaj TEJ migracji — kod sprzed niej nie czyta tych kolumn i działa z nimi bez zmian;'
-                ."\n"
-                ."  - jeśli naprawdę trzeba cofnąć SCHEMAT, zapisz powiązania PRZED cofnięciem:\n"
-                ."      SELECT id, forked_from_id, forked_at FROM recipes WHERE forked_at IS NOT NULL;\n"
-                .'    a po powrocie na tę wersję schematu odtwórz je tym samym `UPDATE`, zanim '
-                .'ktokolwiek zobaczy te przepisy.',
-            );
-        }
+            if ($wersji > 0) {
+                throw new RuntimeException(
+                    'Cofnięcie odmówione. Liczba przepisów, które są czyjąś wersją cudzego przepisu '
+                    .'(forked_at IS NOT NULL): '.$wersji.'. Kolumny forked_from_id i forked_at niosą '
+                    .'podpis „Na podstawie przepisu…", czyli przypisanie autorstwa oryginału. Gdyby '
+                    .'cofnięcie przeszło, kolejny `migrate` odtworzyłby je puste i każda z tych wersji '
+                    .'stałaby się po cichu przepisem własnym swojego autora (issue #23, D-301, D-088).'
+                    ."\n\nCO ZROBIĆ:\n"
+                    .'  - jeśli cofasz z powodu awaryjnego rollbacku WDROŻENIA (obraz aplikacji), nie '
+                    .'cofaj TEJ migracji — kod sprzed niej nie czyta tych kolumn i działa z nimi bez zmian;'
+                    ."\n"
+                    ."  - jeśli naprawdę trzeba cofnąć SCHEMAT, zapisz powiązania PRZED cofnięciem:\n"
+                    ."      SELECT id, forked_from_id, forked_at FROM recipes WHERE forked_at IS NOT NULL;\n"
+                    .'    a po powrocie na tę wersję schematu odtwórz je tym samym `UPDATE`, zanim '
+                    .'ktokolwiek zobaczy te przepisy.',
+                );
+            }
 
-        $wspolbieznie = DB::transactionLevel() === 0 ? 'CONCURRENTLY ' : '';
-
-        DB::statement('DROP INDEX '.$wspolbieznie.'IF EXISTS '.self::INDEKS);
-        DB::statement('ALTER TABLE recipes DROP CONSTRAINT IF EXISTS '.self::CHECK);
-        DB::statement('ALTER TABLE recipes DROP CONSTRAINT IF EXISTS '.self::KLUCZ_OBCY);
-        DB::statement('ALTER TABLE recipes DROP COLUMN IF EXISTS forked_at');
-        DB::statement('ALTER TABLE recipes DROP COLUMN IF EXISTS forked_from_id');
+            DB::statement('ALTER TABLE recipes DROP CONSTRAINT IF EXISTS '.self::CHECK);
+            DB::statement('ALTER TABLE recipes DROP CONSTRAINT IF EXISTS '.self::KLUCZ_OBCY);
+            DB::statement('ALTER TABLE recipes DROP COLUMN IF EXISTS forked_at');
+            DB::statement('ALTER TABLE recipes DROP COLUMN IF EXISTS forked_from_id');
+        });
     }
 
     private function jestNiedokonczony(): bool
