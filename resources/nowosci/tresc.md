@@ -10,6 +10,7 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Spis wydań
 
 - [Najnowsze zmiany](#najnowsze-zmiany)
+- [Alfa 0.71 — przepis z kartki i koszt dania](#alfa-071)
 - [Alfa 0.70 — spokojniejsze wpisy i gotowanie](#alfa-070)
 - [Alfa 0.69 — czytelniejsze powiadomienia i wygodniejsze gotowanie](#alfa-069)
 - [Alfa 0.68 — minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu](#alfa-068)
@@ -24,6 +25,11 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Najnowsze zmiany
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
+
+<a id="alfa-071"></a>
+## Alfa 0.71
+
+**Przepis z kartki i orientacyjny koszt dania.**
 
 ### Ile może kosztować danie
 
