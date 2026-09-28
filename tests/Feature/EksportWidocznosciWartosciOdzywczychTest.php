@@ -34,6 +34,8 @@ class EksportWidocznosciWartosciOdzywczychTest extends TestCase
 
         $przepisy = collect($paczka['przepisy'])->keyBy('tytul');
         $this->assertCount(2, $przepisy);
+        $this->assertArrayHasKey('pokazuj_wartosci_odzywcze', $przepisy['Widoczny przepis']);
+        $this->assertArrayHasKey('pokazuj_wartosci_odzywcze', $przepisy['Ukryty przepis']);
         $this->assertSame(true, $przepisy['Widoczny przepis']['pokazuj_wartosci_odzywcze']);
         $this->assertSame(false, $przepisy['Ukryty przepis']['pokazuj_wartosci_odzywcze']);
 

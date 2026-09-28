@@ -529,6 +529,9 @@ def bez_kursora_wyszukiwania(source):
     return replace_once(source, "$poOsobie = $odOsoby > 0 ? $this->kursor($request, 'po_osobie') : null;", "$poOsobie = null;")
 EKSPORT_DANE = "app/Domain/Users/Exports/CollectUserExportData.php"
 EKSPORT_KLUCZE_TEST = "EksportKluczeBezRodzajuTest"
+# #1993: samo usunięcie pola z mapy eksportu musi oblać test obu wartości.
+EKSPORT_WIDOCZNOSC_TEST = "EksportWidocznosciWartosciOdzywczychTest"
+EKSPORT_WIDOCZNOSC_POLE = "            'pokazuj_wartosci_odzywcze' => (bool) $recipe->pokazuj_wartosci_odzywcze,\n"
 # Widoczność treści w filtrze powiadomień (#1687). Test kontraktowy porównuje
 # `WidocznoscTresciSql` z Policy na macierzy stanów; każda mutacja zdejmuje
 # jedną regułę z SQL i macierz ma pokazać rozjazd z Policy.
@@ -1197,6 +1200,8 @@ checks = [
     # #1750: klucz paczki RODO wraca do formy żeńskiej sprzed poprawki.
     ("Klucz eksportu z rodzajem", EKSPORT_DANE, EKSPORT_KLUCZE_TEST,
      lambda s: replace_once(s, "'na_czym_sie_znam' =>", "'w_czym_jestem_dobra' =>")),
+    ("Eksport gubi wybór widoczności wartości odżywczych", EKSPORT_DANE, EKSPORT_WIDOCZNOSC_TEST,
+     lambda s: replace_once(s, EKSPORT_WIDOCZNOSC_POLE, "")),
     # „jesteś zalogowany” wraca na ekran łączenia konta Google — wzorzec
     # `jestem_przymiotnik` w `WzorceRodzaju` ma to złapać.
     ("Rodzaj po „jesteś” na ekranie Google", GOOGLE_LINK_WIDOK, GOOGLE_LINK_TEST,
@@ -1450,6 +1455,7 @@ run_test(KOLEJKI_BEZ_GLODZENIA_TEST, True)
 run_test(UMOWA_KOLEJKI_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
 run_test(EKSPORT_KLUCZE_TEST, True)
+run_test(EKSPORT_WIDOCZNOSC_TEST, True)
 run_test(GOOGLE_LINK_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(STABILNE_OKNA_TEST, True)
