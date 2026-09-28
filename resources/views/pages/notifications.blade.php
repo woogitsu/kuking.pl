@@ -461,7 +461,7 @@
     @endif
     @else
         <x-empty-state title="Nie ma jeszcze żadnych powiadomień">
-            Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących, urodzinach obserwowanych osób oraz ważnych sprawach Twojego konta.
+            Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących, urodzinach obserwowanych osób, zaproszeniach do wspólnego zeszytu oraz ważnych sprawach Twojego konta.
         </x-empty-state>
     @endif
 

@@ -19714,6 +19714,18 @@ wspólnie, wracamy do tej decyzji. Nie rozbudowujemy wtedy modelu członkostwa.
    i przyjęcie (`collection.joined`). „Zobacz” przy zaproszeniu działa,
    dopóki da się na nie odpowiedzieć.
 
+9. **Granice modułów.** `Social` (blokada) i `Users` (wymazanie konta) nie
+   importują `Collections` — kończą wspólne zeszyty przez kontrakt
+   `App\Domain\Users\KoniecWspolnychZeszytow`, który implementuje
+   `ZerwijWspoldzielenie`, a wiąże `AppServiceProvider`. Dzięki temu graf
+   `app/Domain` nie dostaje nowych cykli (`GrafModulowDomenyBezCykliTest`).
+10. **Autoryzacja tras.** Ekran „Kto ma dostęp”, odwołanie zaproszenia
+    i odebranie dostępu: `CollectionPolicy::manageAccess()` (właściciel,
+    także zawieszony — to zawęża, nie pisze). Odejście: `leave()`.
+    Zaproszenie po nazwie: `CollectionInvitationPolicy::respond()` (tylko
+    adresat, każdy inny dostaje 404). Link-zaproszenie ma za poświadczenie
+    token w adresie.
+
 **Poza zakresem:** wspólne zeszyty poza najbliższymi (grupy, publiczne
 współtworzenie), role inne niż właściciel i współtwórca, historia zmian.
 

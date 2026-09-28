@@ -580,7 +580,7 @@ class GenerateUserExport implements ShouldQueue
      * Ile CUDZYCH przepisów leży w zeszycie tej osoby.
      *
      * Spis treści mówi o ograniczeniu, które dotyczy wyłącznie cudzych
-     * przepisów w zeszycie (tytuł, autor, notatka i data zapisania, bez
+     * przepisów w zeszycie (tytuł, autor, notatka, data zapisania i podpis „kto dodał”, bez
      * składników i kroków). Bez tej liczby zdanie o ograniczeniu wychodziło
      * także na koncie z pustym zeszytem — a wtedy opisuje coś, czego
      * w paczce nie ma. To ta sama zasada, co przy katalogach: paczka mówi

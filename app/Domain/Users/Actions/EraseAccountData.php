@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Actions;
 
-use App\Domain\Collections\Wspoldzielenie\ZerwijWspoldzielenie;
 use App\Domain\Compliance\DziennikWymazan;
 use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
 use App\Domain\Users\Exports\ExportFileNames;
+use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem;
@@ -198,7 +198,7 @@ final class EraseAccountData
             // kasuje zeszyty tej osoby, a my musimy jeszcze zobaczyć, które
             // z nich były wspólne. Niezależnie od zakresu: członkostwa
             // i zaproszenia to relacje z innymi osobami, jak obserwowanie.
-            app(ZerwijWspoldzielenie::class)->przyWymazaniu($fresh);
+            app(KoniecWspolnychZeszytow::class)->przyWymazaniu($fresh);
 
             if ($fresh->chceUsunacTresci()) {
                 $this->usunTresci($fresh);

@@ -135,6 +135,19 @@ class CollectionPolicy
     }
 
     /**
+     * Ekran „Kto ma dostęp" i odbieranie dostępu: wyłącznie właściciel.
+     *
+     * Nie wymaga aktywnego konta, w przeciwieństwie do `share()`: odebranie
+     * dostępu i odwołanie zaproszenia ZAWĘŻAJĄ, więc nie są pisaniem, którego
+     * zawieszenie zabrania (`DostepDoZeszytu::odbierz()`). Zapraszanie dalej
+     * idzie przez `share()`.
+     */
+    public function manageAccess(User $user, Collection $collection): bool
+    {
+        return $user->getKey() === $collection->owner_id;
+    }
+
+    /**
      * Odejście z cudzego zeszytu. Wystarczy być wpisanym — odejść wolno
      * zawsze, także przy zawieszeniu i przy zamkniętym koncie właściciela.
      */

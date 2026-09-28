@@ -46,7 +46,7 @@
     {{--
         Zdanie otwierające mówi, co w paczce JEST — nie „wszystko”.
         Zmierzone na prawdziwym archiwum: cudzy przepis zapisany w zeszycie
-        wychodzi w `dane.json` jako tytuł, autor, moja notatka i data zapisania
+        wychodzi w `dane.json` jako tytuł, autor, moja notatka, data zapisania i podpis „kto dodał”
         (`CollectUserExportData::collections()`), bez składników, kroków
         i zdjęć. „Kopia wszystkiego” obiecywała więc pełne cudze przepisy,
         których tu nie ma — a to jest plik, który człowiek czyta przed
@@ -77,7 +77,7 @@
             To jest kopia Twoich przepisów, wpisów, zdjęć i komentarzy.
             @if($savedOtherRecipeCount > 0)
                 Cudze przepisy zapisane w Twoim zeszycie są tu jako tytuł, autor,
-                Twoja notatka i data zapisania — bez składników, kroków i zdjęć.
+                Twoja notatka, data zapisania i podpis, kto ją dodał — bez składników, kroków i zdjęć.
             @endif
             @if(($savedHiddenCount ?? 0) > 0)
                 {{-- #1017: sama liczba, bez tytułów i autorów — tak jak ekran zeszytu. --}}

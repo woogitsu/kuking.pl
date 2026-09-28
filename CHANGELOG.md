@@ -2,7 +2,7 @@
 
 ## Nieopublikowane
 
-- Rodzinny zeszyt: zeszyt (poza domyślnym) można udostępnić bliskim — po nazwie konta albo jednorazowym linkiem. Zaproszone osoby dopisują i wyjmują przepisy i wpisy, a przy każdej pozycji widać, kto ją dodał. Zeszyt nadal ma jednego właściciela; najwyżej 5 osób z dostępem; blokada albo usunięcie konta kończy wspólne zapisywanie (#1743, D-302).
+- Rodzinny zeszyt: zeszyt (poza domyślnym) można udostępnić bliskim — po nazwie konta albo jednorazowym linkiem. Zaproszone osoby dopisują i wyjmują przepisy i wpisy, a przy każdej pozycji widać, kto ją dodał. Zeszyt nadal ma jednego właściciela; najwyżej 5 osób z dostępem; blokada albo usunięcie konta kończy wspólne zapisywanie (#1743, D-302). [nowa funkcja]
 - Podgląd przepisu bez składników wyjaśnia teraz spokojnie, że można je dopisać później; nie pokazuje braku składników jako błędu, bo nie blokuje on publikacji (#1991).
 - Wewnętrzne: każda rzeczywiście sprawdzona i błędna próba kodu 2FA lub kodu zapasowego przy logowaniu zostawia w dzienniku audytu wpis `account.two_factor_login_failed` (rodzaj: aplikacja, zapasowy lub oba; adres IP tylko w postaci skrótu). Wpis nie zawiera kodu ani sekretu, a odpowiedzi odcięte limitem prób nie dopisują wierszy (#2042).
 - Wewnętrzne: rezerwacja budżetu AI bierze blokadę miesiąca przed wierszem dnia, a suma miesiąca obejmuje cały miesiąc kalendarzowy. Dwa odczyty z różnych dni tego samego miesiąca (np. tuż przed i tuż po północy) nie przekroczą już razem miesięcznego limitu kosztu (#2013).

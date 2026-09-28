@@ -16,6 +16,8 @@ use Tests\TestCase;
  *
  * Obie migracje mają test odmowy I kontrolę dodatnią: strażnik, który
  * odmawia zawsze, blokowałby cofnięcie na świeżej bazie bez powodu.
+ *
+ * @bez-kontroli-dodatniej `database_path()` służy tylko do wykonania pliku migracji (`down()` i `up()` na bazie testowej); żadna asercja nie dotyczy tekstu źródła, a każda odmowa ma w pliku kontrolę dodatnią (cofnięcie na świeżej bazie przechodzi).
  */
 final class CofniecieMigracjiWspolnegoZeszytuTest extends TestCase
 {

@@ -35,7 +35,7 @@ class CollectionSharingController extends Controller
     /** Ekran właściciela: kto ma dostęp, zaproszenia, nowy link. */
     public function show(Request $request, Collection $collection): View
     {
-        abort_unless($request->user()->getKey() === $collection->owner_id, 403);
+        $this->authorize('manageAccess', $collection);
 
         return view('pages.collections.wspolny', [
             'collection' => $collection,
@@ -93,6 +93,8 @@ class CollectionSharingController extends Controller
 
     public function revoke(Request $request, Collection $collection, CollectionInvitation $invitation, DostepDoZeszytu $akcja): RedirectResponse
     {
+        $this->authorize('manageAccess', $collection);
+
         abort_unless($invitation->collection_id === $collection->getKey(), 404);
 
         try {
@@ -109,6 +111,8 @@ class CollectionSharingController extends Controller
 
     public function removeMember(Request $request, Collection $collection, string $member, DostepDoZeszytu $akcja): RedirectResponse
     {
+        $this->authorize('manageAccess', $collection);
+
         abort_unless(Str::isUuid($member), 404);
 
         $czlonek = $collection->members()->whereKey($member)->first();
@@ -128,6 +132,8 @@ class CollectionSharingController extends Controller
 
     public function leave(Request $request, Collection $collection, DostepDoZeszytu $akcja): RedirectResponse
     {
+        $this->authorize('leave', $collection);
+
         $akcja->odejdz($request->user(), $collection);
 
         return redirect()->route('collections.index')
@@ -137,7 +143,7 @@ class CollectionSharingController extends Controller
     /** Zaproszenie po nazwie konta — widzi je tylko adresat. */
     public function showInvitation(Request $request, CollectionInvitation $invitation): View
     {
-        $this->tylkoAdresat($request->user(), $invitation);
+        $this->authorize('respond', $invitation);
 
         return view('pages.collections.zaproszenie', $this->daneZaproszenia($request->user(), $invitation, [
             'przyjmij' => route('collections.invitations.accept', $invitation),
@@ -147,14 +153,14 @@ class CollectionSharingController extends Controller
 
     public function acceptInvitation(Request $request, CollectionInvitation $invitation, OdpowiedzNaZaproszenie $akcja): RedirectResponse
     {
-        $this->tylkoAdresat($request->user(), $invitation);
+        $this->authorize('respond', $invitation);
 
         return $this->przyjmij($request->user(), $invitation, $akcja);
     }
 
     public function declineInvitation(Request $request, CollectionInvitation $invitation, OdpowiedzNaZaproszenie $akcja): RedirectResponse
     {
-        $this->tylkoAdresat($request->user(), $invitation);
+        $this->authorize('respond', $invitation);
 
         return $this->odrzuc($request->user(), $invitation, $akcja);
     }
@@ -217,11 +223,6 @@ class CollectionSharingController extends Controller
         }
 
         return redirect()->route('collections.index')->with('status', 'Zaproszenie odrzucone. Nikt nie dostanie o tym powiadomienia.');
-    }
-
-    private function tylkoAdresat(User $user, CollectionInvitation $zaproszenie): void
-    {
-        abort_unless($zaproszenie->invitee_id === $user->getKey(), 404);
     }
 
     /**

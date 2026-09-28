@@ -12,6 +12,7 @@ use App\Models\CollectionInvitation;
 use App\Models\Notification;
 use App\Models\Profile;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -171,7 +172,7 @@ final class ZaprosDoZeszytu
             ?? throw new BladDlaCzlowieka('Tego zeszytu już nie ma — mógł zostać usunięty w innym oknie.');
     }
 
-    /** @return \Illuminate\Database\Eloquent\Relations\HasMany<CollectionInvitation, Collection> */
+    /** @return HasMany<CollectionInvitation, Collection> */
     private function oczekujace(Collection $zeszyt)
     {
         return $zeszyt->invitations()

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domain\Collections\Wspoldzielenie;
 
+use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Models\CollectionInvitation;
 use App\Models\User;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -18,6 +20,9 @@ use Illuminate\Support\Facades\DB;
  * zaprosić od nowa, tak jak po blokadzie trzeba od nowa zacząć obserwować.
  * Link bez adresata nie ma kogo wskazać; jego przyjęcie odmawia pod zamkiem
  * pary, gdy między stronami jest blokada (`OdpowiedzNaZaproszenie`).
+ *
+ * WOŁANE PRZEZ KONTRAKT `Users\KoniecWspolnychZeszytow` — `Social` i `Users`
+ * nie importują tego modułu (graf bez cykli, #971); wiąże je `AppServiceProvider`.
  *
  * USUNIĘCIE KONTA — `przyWymazaniu()`, wołane z `EraseAccountData`
  * w transakcji wymazania, niezależnie od zakresu (`minimum`/`everything`):
@@ -35,7 +40,7 @@ use Illuminate\Support\Facades\DB;
  * — różnej w obu transakcjach — i daje zakleszczenie. Dlatego najpierw
  * `SELECT … ORDER BY … FOR UPDATE`, potem `DELETE` po kluczu.
  */
-final class ZerwijWspoldzielenie
+final class ZerwijWspoldzielenie implements KoniecWspolnychZeszytow
 {
     public function miedzy(User $a, User $b): void
     {
@@ -91,7 +96,7 @@ final class ZerwijWspoldzielenie
             ->update(['added_by_id' => null]);
     }
 
-    private function skasujCzlonkostwa(\Illuminate\Database\Query\Builder $zapytanie): void
+    private function skasujCzlonkostwa(Builder $zapytanie): void
     {
         $wiersze = $zapytanie
             ->orderBy('collection_members.collection_id')
@@ -107,7 +112,7 @@ final class ZerwijWspoldzielenie
         }
     }
 
-    private function odwolajZaproszenia(\Illuminate\Database\Query\Builder $zapytanie): void
+    private function odwolajZaproszenia(Builder $zapytanie): void
     {
         $id = (clone $zapytanie)->orderBy('id')->lockForUpdate()->pluck('id')->all();
 

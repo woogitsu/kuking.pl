@@ -151,8 +151,8 @@ final class SaveRecipeToCollection
      * zostaje.
      *
      * @return list<array{collection_id: string, note: ?string, created_at: ?string, added_by_id?: ?string}>
-     *                                                                                Zdjęte wiersze w kolejności zdejmowania. Pusta lista znaczy
-     *                                                                                „nie było czego zdejmować" i to NIE jest błąd.
+     *                                                                                                       Zdjęte wiersze w kolejności zdejmowania. Pusta lista znaczy
+     *                                                                                                       „nie było czego zdejmować" i to NIE jest błąd.
      */
     public function remove(User $user, Recipe $recipe, ?Collection $collection = null): array
     {
