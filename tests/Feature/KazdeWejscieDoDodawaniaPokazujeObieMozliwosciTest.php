@@ -207,7 +207,7 @@ class KazdeWejscieDoDodawaniaPokazujeObieMozliwosciTest extends TestCase
         );
 
         $this->assertSame(
-            self::CEL_PRZEPIS,
+            $sciezka === self::CEL_WYBOR ? '/dodaj/przepis/skad' : self::CEL_PRZEPIS,
             $this->celOdnosnika($html, 'Cały przepis', null, true, $wejscie),
             "Wejście „{$wejscie}” kończy się na „{$sciezka}”, a tam nie ma drogi do ".
             '„Cały przepis”. To jest dokładnie usterka z issue #366: człowiek wchodzi '.

@@ -77,6 +77,11 @@ final class DostawcaWejsciaGoogle implements DostawcaWejscia
             && $user->email_verified_at !== null;
     }
 
+    public function wymagaSwiezegoPotwierdzenia(): bool
+    {
+        return false;
+    }
+
     public function przedWejsciem(User $user): void {}
 
     public function akcjaWejscia(): string

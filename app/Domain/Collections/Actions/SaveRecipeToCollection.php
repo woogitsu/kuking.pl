@@ -6,6 +6,7 @@ namespace App\Domain\Collections\Actions;
 
 use App\Domain\Collections\ZamekZapisuDoZeszytu;
 use App\Domain\Notifications\Actions\NotifyRecipeSaved;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Collection;
 use App\Models\Recipe;
 use App\Models\User;
@@ -212,57 +213,73 @@ final class SaveRecipeToCollection
      */
     public function restore(User $user, Recipe $recipe, array $zdjete): int
     {
-        // Pod blokadą partii, jak zapis i wycofanie (#906): „czy przepis
-        // leżał już gdzieś u tej osoby” i dopisanie jej do partii muszą być
-        // jednym krokiem względem równoległego zapisu do innego zeszytu.
+        usort($zdjete, static fn (array $a, array $b): int => strcmp(
+            (string) ($a['collection_id'] ?? ''),
+            (string) ($b['collection_id'] ?? ''),
+        ));
+
+        // Zamki konta, treści i kolejnych zeszytów z `zapisz()` są trzymane
+        // do końca tej transakcji. Powiadomienie też jest jej częścią.
         return DB::transaction(function () use ($user, $recipe, $zdjete): int {
-            $this->notify->zablokujPartie($recipe);
-
-            $lezalGdzies = $user->collections()
-                ->whereHas('recipes', fn ($q) => $q->whereKey($recipe->getKey()))
-                ->exists();
-
             $wrocilo = 0;
+            $swiezyKucharz = null;
+            $swiezyPrzepis = null;
 
             foreach ($zdjete as $pozycja) {
-                // Zeszyt mógł w międzyczasie zniknąć albo nigdy nie był tej osoby.
                 $zeszyt = $user->collections()->whereKey($pozycja['collection_id'] ?? null)->first();
-
                 if ($zeszyt === null) {
-                    continue;
+                    continue; // usunięty zeszyt albo ponowione kliknięcie
                 }
 
-                // Ktoś mógł zapisać przepis ponownie, zanim kliknął powrót —
-                // wtedy zostawiamy to, co jest, zamiast nadpisywać świeższy wiersz.
-                if ($zeszyt->recipes()->whereKey($recipe->getKey())->exists()) {
-                    continue;
-                }
+                $dodano = false;
 
                 try {
-                    // Punkt zapisu: w PostgreSQL błąd klucza w transakcji
-                    // unieważnia ją całą, więc łapiemy go tylko wewnątrz
-                    // zagnieżdżonej (SAVEPOINT), jak przy zwykłym zapisie.
-                    DB::transaction(fn () => $zeszyt->recipes()->attach($recipe->getKey(), [
-                        'note' => $pozycja['note'] ?? null,
-                        'created_at' => $pozycja['created_at'] ?? now(),
-                    ]));
+                    app(ZamekZapisuDoZeszytu::class)->zapisz(
+                        $user,
+                        $recipe,
+                        $zeszyt,
+                        function (User $swiezy, Recipe $przepis, Collection $cel) use ($pozycja, &$dodano, &$swiezyKucharz, &$swiezyPrzepis): Collection {
+                            Gate::forUser($swiezy)->authorize('update', $cel);
+
+                            if ($cel->recipes()->whereKey($przepis->getKey())->exists()) {
+                                return $cel; // nie nadpisuj nowszej notatki ani daty
+                            }
+
+                            DB::transaction(fn () => $cel->recipes()->attach($przepis->getKey(), [
+                                'note' => $pozycja['note'] ?? null,
+                                'created_at' => $pozycja['created_at'] ?? now(),
+                            ]));
+                            $dodano = true;
+                            $swiezyKucharz = $swiezy;
+                            $swiezyPrzepis = $przepis;
+
+                            return $cel;
+                        },
+                    );
                 } catch (UniqueConstraintViolationException) {
-                    // Dwa kliknięcia „wróć" naraz — dla człowieka to jeden powrót.
+                    continue;
+                } catch (BladDlaCzlowieka $e) {
+                    if ($e->getMessage() !== ZamekZapisuDoZeszytu::BRAK_ZESZYTU) {
+                        throw $e;
+                    }
+
                     continue;
                 }
 
-                $wrocilo++;
+                $wrocilo += (int) $dodano;
             }
 
-            // Powrót, po którym przepis znów leży u osoby, która nie miała go
-            // nigdzie, to dla autora ZAPIS od nowa (D-070): `remove()` wycofał
-            // jej udział z partii, więc bez tego „Cofnij” oddawałoby przepis
-            // do zeszytu, a powiadomienie o nim zostawiało zniknięte. Powrót
-            // do jednego z kilku zeszytów niczego w partii nie zmienia — jak
-            // zapis do drugiego zeszytu. Granice (aktywne konto, blokada,
-            // własny przepis) sprawdza `NotifyRecipeSaved::handle()`.
-            if ($wrocilo > 0 && ! $lezalGdzies) {
-                $this->notify->handle($user, $recipe);
+            // Aktor jest zablokowany przez zewnętrzną transakcję, więc
+            // liczba po zapisie minus nasze wstawienia to liczba sprzed
+            // restore. Powiadomienie idzie tylko przy pierwszym zeszycie.
+            if ($wrocilo > 0 && $swiezyKucharz !== null && $swiezyPrzepis !== null) {
+                $ileTeraz = $swiezyKucharz->collections()
+                    ->whereHas('recipes', fn ($q) => $q->whereKey($swiezyPrzepis->getKey()))
+                    ->count();
+
+                if ($ileTeraz === $wrocilo) {
+                    $this->notify->handle($swiezyKucharz, $swiezyPrzepis);
+                }
             }
 
             return $wrocilo;

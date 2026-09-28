@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Domain\Recipes\Actions;
 
 use App\Domain\Media\Actions\StoreUploadedImage;
+use App\Domain\Media\ZachowaneZdjeciaPrzepisu;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Models\Media;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
@@ -40,6 +42,7 @@ final class ZapiszPrzepisZFormularza
      * @param  array{recipe: array<string, mixed>, ingredients: list<array<string, mixed>>, steps: array<array-key, array<string, mixed>>}  $dane
      * @param  array<array-key, UploadedFile>  $zdjeciaKrokow  pliki pod TYMI SAMYMI kluczami, co `$dane['steps']`
      * @param  string|null  $zdjecieGlowneZWpisu  `media.id` zdjęcia z własnego wpisu (#1334), już po Policy
+     * @param  array<string, string>  $zachowaneZdjecia  identyfikatory z formularza, sprawdzane ponownie przed przypięciem
      *
      * @throws BladDlaCzlowieka
      * @throws ValidationException
@@ -55,12 +58,18 @@ final class ZapiszPrzepisZFormularza
         ?Recipe $existing = null,
         ?string $kluczWyslania = null,
         ?string $zdjecieGlowneZWpisu = null,
+        ?int $oczekiwanaRewizja = null,
+        array $zachowaneZdjecia = [],
     ): Recipe {
+        $zachowane = ZachowaneZdjeciaPrzepisu::przyjete($zachowaneZdjecia, $author->getKey());
+
         // Zdjęcie już wgrane — z własnego wpisu (#1334). Tylko przy NOWYM
         // przepisie i tylko wtedy, gdy formularz nie przysłał własnego pliku.
         // Czy to zdjęcie wolno przypiąć, sprawdza jeszcze `PublishRecipe`
         // pod blokadą (`ZdjeciaDoPrzypiecia`: właściciel = autor, nieusunięte).
-        $heroMediaId = $existing?->hero_media_id ?? $zdjecieGlowneZWpisu;
+        $heroMediaId = isset($zachowane['hero'])
+            ? $zachowane['hero']->getKey()
+            : ($existing?->hero_media_id ?? $zdjecieGlowneZWpisu);
 
         if ($zdjecieGlowne !== null) {
             $heroMediaId = $this->storeImage->handle($author, $zdjecieGlowne)->getKey();
@@ -70,7 +79,9 @@ final class ZapiszPrzepisZFormularza
         // przepisane ręcznie. PublishRecipe zapisuje dokładnie to, co
         // dostanie — pominięcie source_scan_media_id skasowałoby
         // zdjęcie kartki z zeszytu przy pierwszej edycji tytułu.
-        $scanMediaId = $existing?->source_scan_media_id;
+        $scanMediaId = isset($zachowane['scan'])
+            ? $zachowane['scan']->getKey()
+            : $existing?->source_scan_media_id;
 
         if ($skan !== null) {
             $scanMediaId = $this->storeImage->handle($author, $skan)->getKey();
@@ -89,7 +100,7 @@ final class ZapiszPrzepisZFormularza
             $attributes['source_type'] = $dane['recipe']['source_type'] ?? $existing->source_type;
         }
 
-        $steps = $this->zeZdjeciamiKrokow($author, $dane['steps'], $zdjeciaKrokow);
+        $steps = $this->zeZdjeciamiKrokow($author, $dane['steps'], $zdjeciaKrokow, $zachowane);
 
         // Edycja nie przekazuje klucza wysłania — tak było przed #970
         // i akcja domenowa dostaje wtedy swoje domyślne `null`.
@@ -111,6 +122,7 @@ final class ZapiszPrzepisZFormularza
                 publish: $publish,
                 existing: $existing,
                 ip: $ip,
+                oczekiwanaRewizja: $oczekiwanaRewizja,
             );
     }
 
@@ -128,14 +140,19 @@ final class ZapiszPrzepisZFormularza
      *
      * @param  array<array-key, array<string, mixed>>  $steps
      * @param  array<array-key, UploadedFile>  $zdjecia
+     * @param  array<string, Media>  $zachowane
      * @return list<array<string, mixed>>
      *
      * @throws ValidationException gdy zdjęcie odpadnie — komunikat trafia
      *                             PRZY POLE tego kroku, nie nad formularzem
      */
-    private function zeZdjeciamiKrokow(User $author, array $steps, array $zdjecia): array
+    private function zeZdjeciamiKrokow(User $author, array $steps, array $zdjecia, array $zachowane): array
     {
         foreach ($steps as $index => $row) {
+            if (isset($zachowane['step_'.$index]) && trim((string) ($row['instruction'] ?? '')) !== '') {
+                $steps[$index]['media_id'] = $zachowane['step_'.$index]->getKey();
+            }
+
             if (! isset($zdjecia[$index])) {
                 continue;
             }

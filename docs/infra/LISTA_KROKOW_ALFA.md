@@ -357,8 +357,9 @@ próbą — dlatego przed nim cztery rzeczy, **wszystkie**:
   `STOSUJE PLAN PRODUKCJI`, pole zmian destrukcyjnych **niezaznaczone**.
 - **Co się dzieje:** `kuking.pl` wdraża się w roli `web` (migracje
   w pre-deploy), `worker` i `scheduler` startują z tego samego obrazu,
-  powstaje `kopia-bazy`. Przez ok. 30 s stary kontener `all` może jeszcze
-  pracować równolegle — zadania harmonogramu mają `onOneServer()`, kolejka
+  powstaje `kopia-bazy`. Przez okno drenowania (`drainingSeconds`, odczyt
+  w panelu wg docs/DEPLOYMENT.md, sekcja „Kolejki”) stary kontener `all`
+  może jeszcze pracować równolegle — zadania harmonogramu mają `onOneServer()`, kolejka
   blokuje wiersze.
 - **Czas:** 15 min + wdrożenie. **Odblokowuje:** #595, a pośrednio #598,
   #599 (metryki per usługa), #600, #193 (serwis kopii), #1306 (token trafia

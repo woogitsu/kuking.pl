@@ -1111,7 +1111,7 @@ class LogowanieLinkiemTest extends TestCase
 
     private function komunikat(TestResponse $odpowiedz): string
     {
-        return (string) $odpowiedz->getSession()->get('status', '');
+        return (string) self::sesjaPrzekierowania($odpowiedz)->get('status', '');
     }
 
     private function uzytkownikZDwuetapowa(): User

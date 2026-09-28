@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Tests\TestCase;
@@ -59,13 +60,26 @@ class HarmonogramBezWspolnychSlotowTest extends TestCase
         $this->assertStringNotContainsString('w-porzadku', implode("\n", $kolizje));
     }
 
+    public function test_kontrola_dodatnia_wykrywa_kolizje_miedzy_strefami_latem_i_zima(): void
+    {
+        $schedule = new Schedule;
+        $schedule->call(fn () => null)->name('polski-czas')->dailyAt('17:47')->timezone('Europe/Warsaw');
+        $schedule->call(fn () => null)->name('kolizja-latem')->dailyAt('15:50')->timezone('UTC');
+        $schedule->call(fn () => null)->name('kolizja-zima')->dailyAt('16:50')->timezone('UTC');
+
+        $kolizje = $this->kolizje($this->codzienne($schedule->events()));
+
+        $this->assertCount(2, $kolizje, implode("\n", $kolizje));
+        $this->assertStringContainsString('kolizja-latem', implode("\n", $kolizje));
+        $this->assertStringContainsString('kolizja-zima', implode("\n", $kolizje));
+    }
+
     /**
      * @param  array<Event>  $events
-     * @return list<array{nazwa: string, minuta: int}> minuta doby, rosnąco
+     * @return list<array{nazwa: string, minuta: int, strefa: string}>
      */
     private function codzienne(array $events): array
     {
-        $strefy = [];
         $wynik = [];
 
         foreach ($events as $event) {
@@ -73,17 +87,12 @@ class HarmonogramBezWspolnychSlotowTest extends TestCase
                 continue;
             }
 
-            $strefy[(string) ($event->timezone ?? 'domyślna')] = true;
             $wynik[] = [
                 'nazwa' => $event->description ?? $event->expression,
                 'minuta' => (int) $m[2] * 60 + (int) $m[1],
+                'strefa' => (string) ($event->timezone ?? config('app.timezone')),
             ];
         }
-
-        // Porównanie godzin ma sens tylko w jednej strefie czasowej.
-        $this->assertLessThanOrEqual(1, count($strefy), 'Zadania codzienne w różnych strefach: '.implode(', ', array_keys($strefy)));
-
-        usort($wynik, fn (array $a, array $b): int => $a['minuta'] <=> $b['minuta']);
 
         return $wynik;
     }
@@ -91,38 +100,52 @@ class HarmonogramBezWspolnychSlotowTest extends TestCase
     /**
      * Każda para sąsiadów bliżej niż `ODSTEP_MINUT`, także przez północ.
      *
-     * @param  list<array{nazwa: string, minuta: int}>  $codzienne
+     * @param  list<array{nazwa: string, minuta: int, strefa: string}>  $codzienne
      * @return list<string>
      */
     private function kolizje(array $codzienne): array
     {
         $bledy = [];
-        $ile = count($codzienne);
 
-        // Kolejne pary po godzinie, a przy co najmniej trzech zadaniach
-        // także ostatnie z pierwszym przez północ (przy dwóch to ta sama para).
-        $pary = [];
-        for ($i = 0; $i < $ile - 1; $i++) {
-            $pary[] = [$codzienne[$i], $codzienne[$i + 1]];
-        }
-        if ($ile > 2) {
-            $pary[] = [$codzienne[$ile - 1], $codzienne[0]];
-        }
+        // Ten sam lokalny slot ma inną godzinę UTC latem i zimą. Obie pory
+        // sprawdzamy w jednej osi czasu; powtarzające się kolizje liczą się raz.
+        foreach (['2026-01-15', '2026-07-15'] as $dzien) {
+            $wUtc = array_map(function (array $event) use ($dzien): array {
+                $czas = CarbonImmutable::parse($dzien, $event['strefa'])
+                    ->startOfDay()->addMinutes($event['minuta'])->setTimezone('UTC');
 
-        foreach ($pary as [$teraz, $nastepne]) {
-            $odstep = ($nastepne['minuta'] - $teraz['minuta'] + 1440) % 1440;
+                return [
+                    'nazwa' => $event['nazwa'],
+                    'minuta' => (int) $czas->format('H') * 60 + (int) $czas->format('i'),
+                ];
+            }, $codzienne);
+            usort($wUtc, fn (array $a, array $b): int => $a['minuta'] <=> $b['minuta']);
 
-            if ($odstep < self::ODSTEP_MINUT) {
-                $bledy[] = sprintf(
-                    '%s (%s) i %s (%s): %d min',
-                    $teraz['nazwa'], $this->godzina($teraz['minuta']),
-                    $nastepne['nazwa'], $this->godzina($nastepne['minuta']),
-                    $odstep,
-                );
+            $ile = count($wUtc);
+            $pary = [];
+            for ($i = 0; $i < $ile - 1; $i++) {
+                $pary[] = [$wUtc[$i], $wUtc[$i + 1]];
+            }
+            if ($ile > 2) {
+                $pary[] = [$wUtc[$ile - 1], $wUtc[0]];
+            }
+
+            foreach ($pary as [$teraz, $nastepne]) {
+                $odstep = ($nastepne['minuta'] - $teraz['minuta'] + 1440) % 1440;
+
+                if ($odstep < self::ODSTEP_MINUT) {
+                    $opis = sprintf(
+                        '%s (%s UTC) i %s (%s UTC): %d min',
+                        $teraz['nazwa'], $this->godzina($teraz['minuta']),
+                        $nastepne['nazwa'], $this->godzina($nastepne['minuta']),
+                        $odstep,
+                    );
+                    $bledy[$opis] = true;
+                }
             }
         }
 
-        return $bledy;
+        return array_keys($bledy);
     }
 
     private function godzina(int $minuta): string

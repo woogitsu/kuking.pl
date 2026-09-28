@@ -12,6 +12,7 @@ use App\Models\Tag;
 use App\Models\TagPromotion;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -394,10 +395,20 @@ class TagiObserwowanieIntegralnoscTest extends TestCase
         $this->assertFalse($feed->isEmptyFor($user));
         $this->assertSame([$wpis->id], $feed->paginate($user)->pluck('id')->all());
 
-        // Cel ukryty — scalenie nie jest furtką do ukrytego tagu.
-        $cel->forceFill(['status' => Tag::STATUS_HIDDEN])->save();
-        $this->assertTrue($feed->isEmptyFor($user));
-        $this->assertSame([], $feed->paginate($user)->pluck('id')->all());
+        // Cel ukryty — scalenie nie jest furtką do ukrytego tagu. Od #996 tego
+        // stanu nie da się w ogóle zapisać: wyzwalacz `tags_scalenie_jednym_skokiem`
+        // odmawia ukrycia tagu, który jest celem scaleń („najpierw przepnij je
+        // na nowy cel”). Test pilnuje więc, że baza dalej tę furtkę zamyka,
+        // a feed się nie zmienia.
+        try {
+            DB::transaction(fn () => $cel->forceFill(['status' => Tag::STATUS_HIDDEN])->save());
+            $this->fail('Baza pozwoliła ukryć cel scalenia — scalone źródło prowadziłoby do ukrytego tagu (#996).');
+        } catch (QueryException $e) {
+            $this->assertStringContainsString('jest celem innych scalen', $e->getMessage());
+        }
+
+        $this->assertSame(Tag::STATUS_ACTIVE, $cel->fresh()?->status);
+        $this->assertSame([$wpis->id], $feed->paginate($user)->pluck('id')->all());
     }
 
     public function test_853_stary_formularz_rezygnacji_po_scaleniu_mowi_prawde_i_nie_zdejmuje_celu(): void
