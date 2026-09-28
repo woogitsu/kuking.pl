@@ -7,6 +7,7 @@ namespace App\Notifications;
 use App\Domain\Moderation\HumanUrgentAlarmAttempt;
 use App\Domain\Moderation\PriorytetSprawy;
 use App\Models\Report;
+use App\Poczta\ListZarezerwowany;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -123,7 +124,7 @@ final class PilneZgloszenieOdCzlowieka extends Notification implements ShouldQue
     {
         $prawne = $this->zgloszenie->source === Report::SOURCE_LEGAL_NOTICE;
 
-        $list = (new MailMessage)
+        $list = ListZarezerwowany::oznacz(new MailMessage)
             ->subject('Kuking: pilne zgłoszenie w kolejce moderacji')
             ->greeting('Dzień dobry.')
             ->line($prawne
