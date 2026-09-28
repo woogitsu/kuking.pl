@@ -3,7 +3,10 @@
 ## Nieopublikowane
 
 - Wewnętrzne: pilny alarm o zgłoszeniu od człowieka odzyskuje próbę po awarii zapisu do kolejki bez utraty blokady celu i budżetu poczty. Ponowienie tej samej sprawy tworzy najwyżej jedno zadanie, także gdy odpowiedź kolejki była niepewna (#2066).
-
+- Zdjęcia wyświetlane „Zwykle” stoją jedno pod drugim także na tablecie. Dwa zdjęcia o różnych proporcjach nie zostawiają już szarego pasa, a trzecie nie zostawia pustej prawej połowy. Kolaż i karuzela pozostają osobnymi wyborami (#2126).
+- Przełącznik wartości odżywczych sprawdza aktualny stan przepisu pod blokadą. Żądanie rozpoczęte przed zdjęciem lub usunięciem przepisu nie zapisze ustawienia po decyzji moderatora i pokaże czytelną odmowę (#2112).
+- Eksport HTML przepisu zachowuje dokładną liczbę porcji, także przy dwóch cyfrach po przecinku (#2035).
+- Wewnętrzne: kontrola negatywna testów zachowuje dowód niezaliczonej asercji, nawet gdy log zawiera błędne bajty UTF-8; sama awaria procesu nadal nie zalicza kontroli (Refs #1011).
 - Wewnętrzne: kontrola zdrowia obrazu Docker sprawdza `/health` dla ról HTTP (`web` i `all`), a dla `worker` i `scheduler` nie oczekuje serwera WWW, którego te role nie uruchamiają. Odczytuje rzeczywistą rolę przekazaną entrypointowi, także gdy ma ona pierwszeństwo przed `APP_ROLE` (#2079).
 - Wewnętrzne: strażnik bezpiecznych migracji rozpoznaje historię po zamrożonej liście plików, więc nowa migracja z cofniętym datownikiem nadal przechodzi kontrolę DDL (§6); dotychczasowe migracje pozostają bez zmian (#2080).
 - Wewnętrzne: obraz aplikacji nie obiecuje już awaryjnego `pg_dump` w wersji 17, który odmawiał zrzutu PostgreSQL 18. Jednorazowy zrzut prowadzi teraz runbook przez osobny obraz kopii z klientem 18, a CI sprawdza prawdziwy zrzut testowej bazy 18 (#2078).
