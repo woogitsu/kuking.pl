@@ -1056,6 +1056,10 @@ jobs:
 
       # Skrypt najpierw sprawdza niezmienione źródła, po każdej mutacji
       # przywraca kopię i ponawia test. Pełny zestaw idzie w częściach 1–4.
+      - name: Kontrola odczytu logu testów negatywnych
+        if: matrix.czesc == 'kontrole'
+        run: python3 -m unittest discover -s scripts -p 'test_kontrola_wyjscia_testu.py' -v
+
       - name: Kontrole negatywne regresji Alfa 0.8 i portu marki
         if: matrix.czesc == 'kontrole'
         run: python3 scripts/kontrole-negatywne-alfa08.py
@@ -2266,6 +2270,16 @@ jobs:
             exit 1
           fi
 
+          # Główny obraz nie może obiecywać awaryjnego zrzutu klientem
+          # Debiana 17, który odmówi pracy z produkcyjnym PostgreSQL 18.
+          # Do zrzutu służy osobny obraz kopii, sprawdzany poniżej.
+          echo "--- brak niezgodnego pg_dump w obrazie aplikacji ---"
+          if docker run --rm kuking:ci-${{ github.sha }} sh -c 'command -v pg_dump' >/dev/null 2>&1; then
+            echo "BŁĄD: obraz aplikacji zawiera pg_dump bez gwarancji majoru 18."
+            exit 1
+          fi
+          echo "OK   obraz aplikacji nie udaje narzędzia kopii"
+
       # =====================================================================
       #  DRUGI OBRAZ: serwis kopii bazy (issue #193, decyzja D-043)
       #
@@ -2309,6 +2323,28 @@ jobs:
             echo "      Starszy klient ODMAWIA zrzutu — kopii by nie było."
             exit 1
           fi
+
+          # Sama wersja wypisana przez --version nie dowodzi, że obraz umie
+          # połączyć się z bazą i wykonać zrzut. Próba jest lokalna w CI.
+          echo "--- prawdziwy pg_dump przeciwko serwerowi PostgreSQL 18 ---"
+          serwer=kuking-pg18-proba-${{ github.run_id }}
+          docker run -d --name "$serwer" -e POSTGRES_PASSWORD=ci-only -e POSTGRES_DB=probe \
+            postgres:18@sha256:86c951e05bf56c93d95d397747fb8820ac76cc3bedb78f43abd83eedbe3666ae >/dev/null
+          trap 'docker rm -f "$serwer" >/dev/null 2>&1 || true' EXIT
+          for proba in $(seq 1 30); do
+            if docker exec "$serwer" pg_isready -h 127.0.0.1 -U postgres -d probe >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker exec "$serwer" psql -U postgres -d probe -v ON_ERROR_STOP=1 \
+            -c 'CREATE TABLE client_major_probe (id integer PRIMARY KEY)' >/dev/null
+          docker run --rm --network "container:$serwer" -e PGPASSWORD=ci-only "$OBRAZ" \
+            pg_dump -h 127.0.0.1 -U postgres -d probe --schema-only --no-owner --no-privileges \
+            > /tmp/kuking-pg18-proba.sql
+          grep -q 'CREATE TABLE public.client_major_probe' /tmp/kuking-pg18-proba.sql
+          rm /tmp/kuking-pg18-proba.sql
+          docker rm -f "$serwer" >/dev/null
+          trap - EXIT
+          echo "OK   obraz kopii wykonał zrzut serwera 18"
 
           echo "--- narzędzia, bez których skrypt nie zaszyfruje i nie wyśle ---"
           for narzedzie in openssl curl psql pg_restore; do

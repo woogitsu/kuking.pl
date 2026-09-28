@@ -121,7 +121,7 @@ fi
 # „proces się skończył" od „proces padł".
 krok "Skrypty powłoki"
 _bledy_bash=""
-for _skrypt in docker/entrypoint.sh docker/klucz-preview.sh docker/kopia/*.sh scripts/*.sh tests/skrypty/*.sh; do
+for _skrypt in docker/entrypoint.sh docker/healthcheck.sh docker/klucz-preview.sh docker/kopia/*.sh scripts/*.sh tests/skrypty/*.sh; do
     [ -f "$_skrypt" ] || continue
     bash -n "$_skrypt" 2>/dev/null || _bledy_bash="$_bledy_bash $_skrypt"
 done
@@ -130,6 +130,8 @@ if [ -n "$_bledy_bash" ]; then
     zle "Błąd składni w:$_bledy_bash"
 elif ! bash tests/skrypty/entrypoint-nadzor.sh >/dev/null 2>&1; then
     zle "Testy entrypointu oblewają — uruchom: bash tests/skrypty/entrypoint-nadzor.sh"
+elif ! bash tests/skrypty/healthcheck-role.sh >/dev/null 2>&1; then
+    zle "Kontrola zdrowia ról kontenera oblewa — uruchom: bash tests/skrypty/healthcheck-role.sh"
 elif ! bash tests/skrypty/preflight-bazy.sh >/dev/null 2>&1; then
     zle "Preflight bazy w entrypoincie oblewa — uruchom: bash tests/skrypty/preflight-bazy.sh"
 elif ! bash tests/skrypty/php-ini-slady.sh >/dev/null 2>&1; then
