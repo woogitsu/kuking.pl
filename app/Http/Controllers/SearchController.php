@@ -94,18 +94,33 @@ class SearchController extends Controller
         // uczciwie powiedzieć „jest ich więcej", i nie kosztuje drugiego
         // zapytania liczącego (`COUNT`) — a przy sortowaniu po podobieństwie
         // kursor z feedu tu nie zadziała.
-        $ile = min(max((int) $request->query('ile', (string) self::NA_STRONIE), self::NA_STRONIE), self::MAKS);
+        //
+        // KAŻDA LISTA MA WŁASNY ROZMIAR OKNA (issue #984). Na zakładce
+        // „Wszystko" oba przyciski sterowały jednym `ile`, więc „Pokaż więcej
+        // przepisów" rozszerzało też listę osób — akcja robiła więcej, niż
+        // obiecywał jej podpis. Teraz `ile_przepisow` i `ile_osob` są osobne;
+        // wspólne `ile` zostaje wyłącznie jako wartość domyślna dla starych
+        // adresów i nigdy nie trafia do nowych odnośników.
+        $ile = $this->rozmiarOkna($request->query('ile'), self::NA_STRONIE);
+        $ilePrzepisow = $this->rozmiarOkna($request->query('ile_przepisow'), $ile);
+        $ileOsob = $this->rozmiarOkna($request->query('ile_osob'), $ile);
         $odPrzepisu = $szukaPrzepisow ? $this->offset($request, 'od_przepisu') : 0;
         $odOsoby = $szukaLudzi ? $this->offset($request, 'od_osoby') : 0;
-        $parametry = ['q' => $phrase, 'sekcja' => $section, 'ile' => $ile,
+        $parametry = ['q' => $phrase, 'sekcja' => $section,
+            'ile_przepisow' => $ilePrzepisow, 'ile_osob' => $ileOsob,
             'od_przepisu' => $odPrzepisu, 'od_osoby' => $odOsoby];
-        $nastepnePrzepisy = $parametry;
-        $nastepneOsoby = $parametry;
-        if ($ile < self::MAKS) {
-            $nastepnePrzepisy['ile'] = $nastepneOsoby['ile'] = min($ile + self::NA_STRONIE, self::MAKS);
+        // Odnośniki po wynikach oznaczają nawigację, bez nowego sygnału wyszukiwania.
+        $nastepnePrzepisy = $parametry + ['nawigacja' => 1];
+        $nastepneOsoby = $parametry + ['nawigacja' => 1];
+        if ($ilePrzepisow < self::MAKS) {
+            $nastepnePrzepisy['ile_przepisow'] = min($ilePrzepisow + self::NA_STRONIE, self::MAKS);
         } else {
-            $nastepnePrzepisy['od_przepisu'] += $ile;
-            $nastepneOsoby['od_osoby'] += $ile;
+            $nastepnePrzepisy['od_przepisu'] += $ilePrzepisow;
+        }
+        if ($ileOsob < self::MAKS) {
+            $nastepneOsoby['ile_osob'] = min($ileOsob + self::NA_STRONIE, self::MAKS);
+        } else {
+            $nastepneOsoby['od_osoby'] += $ileOsob;
         }
 
         // „ZA KRÓTKA" TO NIE „BEZ WYNIKÓW"
@@ -127,7 +142,7 @@ class SearchController extends Controller
         $przepisy = $szukaPrzepisow && $searchErrors->isEmpty()
             // Widz przekazywany po to, żeby wyszukiwarka respektowała blokady
             // (issue #41). Bez niego blokada kończyła się na widoku i liście.
-            ? $this->search->recipes($phrase, $request->user(), $ile + 1, $maksMinut, $odPrzepisu)
+            ? $this->search->recipes($phrase, $request->user(), $ilePrzepisow + 1, $maksMinut, $odPrzepisu)
             : collect();
 
         // Zakładka „Ludzie" liczy się DOKŁADNIE TAK SAMO, a nie „przy okazji".
@@ -137,7 +152,7 @@ class SearchController extends Controller
         // w miejscu, którego nie dało się rozpoznać: przy dwudziestu jeden
         // Basiach dwudziesta pierwsza po prostu nie istniała dla szukającego.
         $ludzie = $szukaLudzi && $searchErrors->isEmpty()
-            ? $this->search->people($phrase, $request->user(), $ile + 1, $odOsoby)
+            ? $this->search->people($phrase, $request->user(), $ileOsob + 1, $odOsoby)
             : collect();
 
         // SYGNAŁ `search_performed` (issue #115) — PO POLICZENIU WYNIKÓW,
@@ -159,7 +174,20 @@ class SearchController extends Controller
         // Fraza odrzucona przez `phraseValidator()` (za długa) też nie
         // odpytała bazy — `$przepisy`/`$ludzie` wyżej są wtedy puste — więc
         // z tego samego powodu nie ma czego zapisywać.
-        if ($phrase !== '' && ! $zaKrotka && $searchErrors->isEmpty()) {
+        //
+        // NAWIGACJA PO WYNIKACH TO NIE NOWE WYSZUKANIE (issue #943).
+        // `search_performed` liczy wysłanie frazy — formularzem na tej
+        // stronie, w pasku u góry albo z odnośnika spoza wyników. „Pokaż
+        // więcej", „Wróć do początku" i zakresy (Wszystko / Przepisy / Ludzie /
+        // Do 30 minut) przeglądają wyniki JUŻ policzonej frazy i niosą
+        // `nawigacja=1`. Bez tego jedno wyszukanie dawało kilka rekordów,
+        // a puste dalsze okno zapisywało `has_results=false` dla frazy,
+        // która w pierwszym oknie miała wyniki. Nie deduplikujemy po długości
+        // frazy ani w sesji: kolejne wysłanie tej samej frazy to nowe
+        // wyszukanie i liczy się ponownie.
+        $nawigacja = $request->query('nawigacja') === '1';
+
+        if ($phrase !== '' && ! $zaKrotka && $searchErrors->isEmpty() && ! $nawigacja) {
             $this->sygnaly->handle($request->user(), ZapiszSygnal::SEARCH_PERFORMED, [
                 'query_length' => mb_strlen($phrase),
                 'has_results' => ($przepisy->count() + $ludzie->count()) > 0,
@@ -175,18 +203,27 @@ class SearchController extends Controller
             'zaKrotka' => $zaKrotka,
             'szukaPrzepisow' => $szukaPrzepisow,
             'szukaLudzi' => $szukaLudzi,
-            'recipes' => $przepisy->take($ile),
-            'people' => $ludzie->take($ile),
-            'jestWiecej' => $przepisy->count() > $ile,
-            'jestWiecejOsob' => $ludzie->count() > $ile,
-            'nastepneIle' => min($ile + self::NA_STRONIE, self::MAKS),
+            'recipes' => $przepisy->take($ilePrzepisow),
+            'people' => $ludzie->take($ileOsob),
+            'jestWiecej' => $przepisy->count() > $ilePrzepisow,
+            'jestWiecejOsob' => $ludzie->count() > $ileOsob,
             'odPrzepisu' => $odPrzepisu,
             'odOsoby' => $odOsoby,
             'nastepnePrzepisy' => $nastepnePrzepisy,
             'nastepneOsoby' => $nastepneOsoby,
-            'poczatekPrzepisow' => array_replace($parametry, ['od_przepisu' => 0]),
-            'poczatekOsob' => array_replace($parametry, ['od_osoby' => 0]),
+            'poczatekPrzepisow' => array_replace($parametry, ['od_przepisu' => 0, 'nawigacja' => 1]),
+            'poczatekOsob' => array_replace($parametry, ['od_osoby' => 0, 'nawigacja' => 1]),
         ]);
+    }
+
+    /** Rozmiar okna z adresu: od 20 do 200; brak albo śmieci = wartość domyślna. */
+    private function rozmiarOkna(mixed $wartosc, int $domyslny): int
+    {
+        if (! is_string($wartosc) || $wartosc === '') {
+            return $domyslny;
+        }
+
+        return min(max((int) $wartosc, self::NA_STRONIE), self::MAKS);
     }
 
     private function offset(Request $request, string $key): int

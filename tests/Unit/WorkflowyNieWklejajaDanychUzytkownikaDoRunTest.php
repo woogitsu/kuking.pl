@@ -41,11 +41,7 @@ final class WorkflowyNieWklejajaDanychUzytkownikaDoRunTest extends TestCase
      *
      * @var array<string, string>
      */
-    private const ZNANE_DO_NAPRAWY = [
-        // `deploy.yml` wkleja `github.event.deployment.*` i `github.event.inputs.*`
-        // w `run:` — naprawa w #1851 (osobna gałąź). Po jej scaleniu usuń ten wpis.
-        '.github/workflows/deploy.yml' => '#1851',
-    ];
+    private const ZNANE_DO_NAPRAWY = [];
 
     private const DANE_UZYTKOWNIKA = '/(?<![\w.])(?:github\.event\.|inputs\.|github\.head_ref\b)/';
 

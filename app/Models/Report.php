@@ -263,6 +263,7 @@ class Report extends Model
             'receipt_sent_at' => 'datetime',
             'decision_sent_at' => 'datetime',
             'alarm_pilny_zlecony_at' => 'datetime',
+            'alarm_czlowieka_obsluzony_at' => 'datetime',
         ];
     }
 
@@ -314,6 +315,24 @@ class Report extends Model
             ->pilneBezAlarmu()
             ->whereIn('alarm_pilny_stan', [self::ALARM_ZALEGLY, self::ALARM_NIEUDANY, self::ALARM_BEZ_ADRESU])
             ->whereIn('status', self::STATUSY_OTWARTE);
+    }
+
+    /**
+     * Rozstrzygnięte zgłoszenia prawne z adresem, o których decyzji
+     * zgłaszającego jeszcze NIE poinformowaliśmy (issue #1838, D-293).
+     *
+     * `decision_sent_at` stawia list po wysłaniu, nie akcja przy
+     * zakolejkowaniu — więc ten zbiór to zarówno listy czekające na worker,
+     * jak i te, które ostatecznie przepadły. Rozróżnia je `failed_jobs`
+     * (`php artisan queue:failed`, `kuking:nieudane-listy`), nie ta kolumna.
+     */
+    public function scopeDecyzjaNieprzekazanaMailem(Builder $zapytanie): Builder
+    {
+        return $zapytanie
+            ->where('source', self::SOURCE_LEGAL_NOTICE)
+            ->whereNotNull('notifier_email')
+            ->whereIn('status', [self::STATUS_RESOLVED, self::STATUS_REJECTED])
+            ->whereNull('decision_sent_at');
     }
 
     public function reporter(): BelongsTo

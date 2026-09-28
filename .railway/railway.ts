@@ -1102,9 +1102,71 @@ export default defineRailway((ctx) => {
       //  Pilnuje tego `WdrozenieUruchamiaTrescZalazkowaTest` — razem
       //  z kolejnością komend i z tym, że seed na produkcji nie wwozi danych
       //  demo.
+      //
+      // -----------------------------------------------------------------------
+      //  TRZECIA KOMENDA: `kuking:zarejestruj-wdrozenie` (issue #1932, D-318).
+      //
+      //  Numer wersji z KOŃCÓWKĄ — „Alfa 0.68.005" zamiast samego „Alfa 0.68",
+      //  które stoi tygodniami bez zmian i nie odróżnia dwóch wdrożeń tego
+      //  samego dnia. Komenda dopisuje BIEŻĄCY commit do tabeli `wdrozenia`
+      //  (`App\Domain\Wydania\Actions\ZarejestrujWdrozenie`) i, przy tej samej
+      //  okazji, zapisuje, pod jakim numerem pojawił się PIERWSZY RAZ każdy
+      //  nagłówek funkcji z `resources/nowosci/tresc.md` — to jest źródło
+      //  dopisku „od Alfa 0.68.NNN" na stronie `/co-nowego`.
+      //
+      //  STOI PO `migrate`, PRZED `db:seed` — musi iść PO migracjach, bo
+      //  dopiero wtedy istnieje tabela `wdrozenia`; PRZED seederem, bo seeder
+      //  nie ma z tym nic wspólnego i kolejność między nimi jest bez
+      //  znaczenia — trzymamy migracje i rejestrację wdrożenia razem, jako
+      //  jeden logiczny krok „przygotuj bazę pod to wdrożenie".
+      //
+      //  IDEMPOTENTNA: ten sam commit (redeploy bez zmiany kodu, ponowiony
+      //  krok po chwilowym błędzie) nie zakłada drugiego wiersza i nie zużywa
+      //  kolejnego numeru — `UNIQUE (commit)` w tabeli plus sprawdzenie
+      //  w akcji PRZED wstawieniem.
+      //
+      //  BEZPIECZNA PRZY RÓWNOLEGŁYM STARCIE: numer liczy się jako
+      //  `MAX(numer) + 1` pod `pg_advisory_xact_lock` — dwa równoległe starty
+      //  nie dostają tego samego numeru (test na dwóch połączeniach:
+      //  `tests/Dwa/RejestracjaWdrozeniaNaDwochPolaczeniachTest.php`).
+      //
+      //  LOKALNIE I W PODGLĄDACH bez `RAILWAY_GIT_COMMIT_SHA` komenda kończy
+      //  się natychmiast, z kodem 0 — nie wywala deployu ani lokalnego
+      //  środowiska, w którym ta zmienna nie istnieje.
+      //
+      // -----------------------------------------------------------------------
+      //  CZWARTA KOMENDA: `kuking:importuj-wartosci-odzywcze` (#1961, D-299).
+      //
+      //  PR #1900 dodał migrację trzech tabel słownikowych (`skladniki_odzywcze`,
+      //  `miary_domowe`, `aliasy_skladnikow`) i komendę, która je wypełnia
+      //  z `database/data/odzywcze/*.csv` — ale samą komendę zostawił jako
+      //  ręczny krok „uruchom to kiedyś w kontenerze". Nikt jej nie uruchomił:
+      //  migracja przechodzi, deploy wygląda na zielony, a tabele zostają
+      //  puste — sekcja wartości odżywczych na stronie przepisu milczy.
+      //  Dokładnie ten sam kształt usterki co brak `db:seed` wyżej.
+      //
+      //  Komenda jest bezpieczna w pre-deploy z tego samego powodu co seeder:
+      //  niezerowy exit zatrzymuje deploy, więc zła paczka danych (błąd
+      //  walidacji CSV) nie wypuści kodu, który na niej polega.
+      //
+      //  SZYBKOŚĆ: dane CIQUAL/USDA zmieniają się rzadko, a ta komenda leci
+      //  przy KAŻDYM wdrożeniu, nie tylko wtedy, gdy pliki się zmieniły.
+      //  `App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze` liczy hash
+      //  obu plików CSV i pomija cały import (bez parsowania, bez zapisu),
+      //  gdy hash jest ten sam co przy poprzednim udanym imporcie, a tabela
+      //  już ma dane — więc zwykły deploy bez zmiany danych kosztuje jedno
+      //  odpytanie cache'a, nie ponowne przepisanie ~600 wierszy.
+      //
+      //  Kolejność: po `db:seed`, bo obie komendy są niezależne (różne
+      //  tabele), a seeder jest ważniejszy dla pierwszego wrażenia — gdyby
+      //  import padł, chcemy mieć już treść zalążkową.
+      //
+      //  Pilnuje tego `WdrozenieImportujeWartosciOdzywczeTest`.
       preDeployCommand: [
-        "php artisan migrate --force --no-interaction",
+        "php artisan kuking:migruj-pod-blokada --no-interaction",
+        "php artisan kuking:zarejestruj-wdrozenie --no-interaction",
         "php artisan db:seed --force --no-interaction",
+        "php artisan kuking:importuj-wartosci-odzywcze",
       ],
 
       // -----------------------------------------------------------------------
@@ -1194,12 +1256,14 @@ export default defineRailway((ctx) => {
       // izolacji awarii. Na staging/preview zawsze; na produkcji tylko
       // w fazie alfy (PRODUCTION_SPLIT_SERVICES = false).
       //
-      // Rola "all" uruchamia JEDEN proces `queue:work --queue=high,default,media,low`
-      // (kolejność = priorytet), nie proces na kolejkę jak rola "worker".
-      // Trzy procesy w tym kontenerze 1024 MB mogłyby mieć szczyt naraz —
-      // zdjęcie 50 Mpx ~452 MB, eksport do 512M, do tego FrankenPHP — a OOM
-      // kładzie też stronę. Ceną jest głodzenie `media`/`low` przy stałej
-      // zaległości `default` (#1030); lekarstwem jest osobny serwis `worker`.
+      // Rola "all" uruchamia DWA procesy `queue:work` (D-311): lekki
+      // `high,default` i ciężki `media,low`, nie proces na kolejkę jak rola
+      // "worker". Trzy procesy w tym kontenerze 1024 MB mogłyby mieć szczyt
+      // naraz — zdjęcie 50 Mpx ~452 MB, eksport do 512M, do tego FrankenPHP —
+      // a OOM kładzie też stronę; `media` i `low` dzielą więc jeden proces.
+      // Zaległość maili nie głodzi już zdjęć ani eksportu (#1030, #1860);
+      // zostaje `low` za stałą zaległością `media` — lekarstwem jest osobny
+      // serwis `worker`.
       // Ręczna zmiana bez wdrożenia: zmienna QUEUE_WORKERS (docs/DEPLOYMENT.md,
       // „Kolejki"), logika w `listy_kolejek()` w docker/entrypoint.sh.
       //

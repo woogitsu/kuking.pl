@@ -53,11 +53,14 @@ interface DostawcaWejscia
      * warunków łączenia.
      *
      * Google: adres od Google zgadza się z adresem konta i jest u nas
-     * potwierdzony (reguły 2 i 3 D-069). Facebook: nic więcej — dowodem jest
-     * to, że człowiek JEST ZALOGOWANY na to konto (D-098, punkt 4); adres
-     * z Facebooka nie dowodzi niczego.
+     * potwierdzony (reguły 2 i 3 D-069). Facebook: adres z dostawcy niczego
+     * nie dowodzi. Świeże potwierdzenie konta Kuking przy zapisie wymusza
+     * `wymagaSwiezegoPotwierdzenia()` (issue #2085).
      */
     public function dowodPolaczenia(User $user, TozsamoscOdDostawcy $tozsamosc): bool;
+
+    /** Facebook also needs a fresh Kuking credential at the moment of mutation. */
+    public function wymagaSwiezegoPotwierdzenia(): bool;
 
     /**
      * Skutek wejścia właściwy dostawcy, po bramkach i przed zapisem
