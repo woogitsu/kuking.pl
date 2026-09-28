@@ -110,6 +110,8 @@ class TokenController extends Controller
             $user,
             trim((string) ($dane['code'] ?? '')),
             trim((string) ($dane['backup_code'] ?? '')),
+            SprawdzKodDrugiegoSkladnika::KANAL_API,
+            $request->ip(),
         );
 
         if ($wynik === SprawdzKodDrugiegoSkladnika::ZA_DUZO_PROB) {

@@ -116,7 +116,8 @@ class AudytLogowaniaHaslemI2faTest extends TestCase
             $this->assertSame('User', $wpis->subject_type);
             $this->assertSame($user->getKey(), $wpis->subject_id);
             $this->assertSame(Skrot::hmac(self::ADRES), $wpis->ip_hash);
-            $this->assertSame(['rodzaj'], array_keys($wpis->metadata));
+            $this->assertEqualsCanonicalizing(['rodzaj', 'kanal'], array_keys($wpis->metadata));
+            $this->assertSame('www', $wpis->metadata['kanal']);
             $zapis = json_encode($wpis->getAttributes(), JSON_THROW_ON_ERROR);
             foreach (['niepoprawny', 'NIE-TEN-KOD', 'ZLY-TOTP', 'ZLY-ZAPASOWY', 'ZA-LIMITEM', 'ABCD-1234', $user->two_factor_secret, self::ADRES] as $sekret) {
                 $this->assertStringNotContainsString($sekret, $zapis);
