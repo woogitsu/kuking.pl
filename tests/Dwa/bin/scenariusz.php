@@ -345,7 +345,7 @@ try {
                     // B trzyma ten sam zamek, który PublishRecipe bierze przed
                     // przepisem. Bariera ustawia A w kolejce, zanim B zapisze.
                     if (DB::select('SELECT 1 FROM users WHERE id = ? FOR KEY SHARE', [$argumenty['autor']]) === []) {
-                        throw new \RuntimeException('Brak konta autora pod blokadą FOR KEY SHARE.');
+                        throw new RuntimeException('Brak konta autora pod blokadą FOR KEY SHARE.');
                     }
                     DB::select('SELECT pg_advisory_xact_lock(2165, 1)');
 
