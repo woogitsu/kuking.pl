@@ -657,6 +657,17 @@ RUNBOOK = "docs/infra/DEPLOYMENT_RUNBOOK.md"
 KOMENDY_IAC_TEST = "KomendyIacWDokumentachPodajaBramkeCiTest"
 RUNBOOK_APPLY_Z_BRAMKA = "\nKUKING_WAIT_FOR_CI=true railway config apply\n"
 
+# Pochodzenie żądania i zaufanie do proxy (#1306). Test bramki jest
+# behawioralny; mutacja wyłącza odrzucenie w trybie egzekwowania — żądanie
+# bez tokenu (czyli z pominięciem Cloudflare) wchodzi dalej i test ma oblać.
+BRAMKA_KRAWEDZI = "app/Http/Middleware/NormalizeForwardedFor.php"
+BRAMKA_KRAWEDZI_TEST = "test_egzekwowanie_odrzuca"
+BRAMKA_KRAWEDZI_WARUNEK = "            if ($egzekwowanie) {\n                if (! TokenKrawedzi::wolnoBezTokenu($request)) {\n"
+# Log Caddy a adres w aplikacji. Strażnik czyta `docker/Caddyfile` i odtwarza
+# regułę `trusted_proxies`; mutacje wracają do czytania nagłówka od lewej
+# i do zaufania każdemu peerowi — obie mają zapalić rozjazd log/aplikacja.
+CADDY_ZAUFANIE_TEST = "CaddyUfaTemuSamemuWpisowiCoAplikacjaTest"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -1313,6 +1324,12 @@ checks = [
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
     ("Instalacja Railway CLI bez sprawdzenia sumy kontrolnej", RAILWAY_CLI_WORKFLOW, RAILWAY_CLI_TEST,
      railway_cli_bez_przypietej_wersji),
+    ("Bramka tokenu krawędzi przepuszcza żądanie bez tokenu", BRAMKA_KRAWEDZI, BRAMKA_KRAWEDZI_TEST,
+     lambda s: replace_once(s, BRAMKA_KRAWEDZI_WARUNEK, BRAMKA_KRAWEDZI_WARUNEK.replace("if ($egzekwowanie) {", "if (false) {"))),
+    ("Caddy czyta X-Forwarded-For od lewej", CADDYFILE, CADDY_ZAUFANIE_TEST,
+     lambda s: replace_once(s, "\t\ttrusted_proxies_strict\n", "")),
+    ("Caddy ufa każdemu peerowi", CADDYFILE, CADDY_ZAUFANIE_TEST,
+     lambda s: replace_once(s, "trusted_proxies static private_ranges", "trusted_proxies static 0.0.0.0/0 ::/0")),
     # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
@@ -1577,6 +1594,8 @@ run_test(PLAN_IAC_TEST, True)
 run_test(UNSERIALIZE_TEST, True)
 run_test(OBCE_KLASY_TEST, True)
 run_test(RAILWAY_CLI_TEST, True)
+run_test(BRAMKA_KRAWEDZI_TEST, True)
+run_test(CADDY_ZAUFANIE_TEST, True)
 run_test(README_SECURITY_TEST, True)
 run_test(STRAZNIK_NOWOSCI_TEST, True)
 run_test(DZIENNIK_WDROZEN_TEST, True)
