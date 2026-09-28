@@ -44,10 +44,10 @@ class OnboardingMigracjaZnacznikaTest extends TestCase
 
         $migracja = $this->migracja();
         // Stan sprzed migracji: kolumny nie ma wcale.
-        $migracja->down();
+        self::wykonajMigracje($migracja, 'down');
         $this->assertFalse(Schema::hasColumn('users', 'onboarding_zakonczony_at'));
 
-        $migracja->up();
+        self::wykonajMigracje($migracja, 'up');
 
         $typ = DB::selectOne(
             "select data_type, is_nullable from information_schema.columns
@@ -67,8 +67,8 @@ class OnboardingMigracjaZnacznikaTest extends TestCase
         $niePrzypominaj = $this->user(null, ['onboarding_zakonczony_at' => now()->subDay()]);
 
         $migracja = $this->migracja();
-        $migracja->down();
-        $migracja->up();
+        self::wykonajMigracje($migracja, 'down');
+        self::wykonajMigracje($migracja, 'up');
 
         $this->assertSame(0, DB::table('users')->whereNull('onboarding_zakonczony_at')->count());
         $this->assertNull($wTrakcie->fresh()->onboardingDoDokonczenia());

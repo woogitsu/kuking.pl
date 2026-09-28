@@ -110,7 +110,7 @@ class FundamentApiTest extends TestCase
 
         $sprawdzone = 0;
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             if (! str_starts_with($trasa->uri(), 'api/')) {
                 continue;
             }

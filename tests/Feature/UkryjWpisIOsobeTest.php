@@ -16,8 +16,10 @@ use App\Models\Hide;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\Tag;
 use App\Models\User;
 use App\Support\Czas;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +33,11 @@ use Tests\TestCase;
  *  - `bezUkrytychWpisow()` zdjęte z `DiscoverFeed` → `test_ukryty_wpis_znika_ze_strumieni…`;
  *  - warunek `hides` zdjęty z `ZbierzTresciDigestu` → to samo (część listu);
  *  - `ukryteOsobyDla()` zdjęte z `DailyBoard::wykluczeniOsob()` → `test_ukryta_osoba…`;
- *  - `scopeAktywne()` bez warunku terminu → `test_po_terminie_wraca…`.
+ *  - `scopeAktywne()` bez warunku terminu → `test_po_terminie_wraca…`;
+ *  - `bezUkrytychOsob()` zdjęte z gałęzi tagów `FollowingFeed` →
+ *    `test_ukryta_osoba_znika_ze_startu_takze_przez_obserwowany_tag`;
+ *    przeniesione na całe zapytanie (obie gałęzie) → ten sam test (znika
+ *    wpis osoby obserwowanej wprost).
  */
 class UkryjWpisIOsobeTest extends TestCase
 {
@@ -59,6 +65,24 @@ class UkryjWpisIOsobeTest extends TestCase
         return (new DiscoverFeed)->paginate($widz, 50)->getCollection()->pluck('body')->all();
     }
 
+    private function dataKoncaUkrycia(): string
+    {
+        return Czas::lokalnie(now())->addDays(30)->translatedFormat('j F Y');
+    }
+
+    public function test_termin_ukrycia_liczy_dni_od_polskiej_daty_po_polnocy(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-26 22:30:00', 'UTC'));
+        $widz = $this->user('widz');
+        $wpis = $this->wpis($this->user('autorka'), 'Wpis po północy');
+
+        $this->actingAs($widz)->post(route('posts.hide', $wpis))
+            ->assertSessionHas('status', 'Ukryliśmy ten wpis tylko dla Ciebie do 27 października 2026. Inni widzą go jak dotąd.');
+
+        $ukrycie = Hide::query()->where('post_id', $wpis->id)->firstOrFail();
+        $this->assertSame('2026-10-27', Czas::lokalnie($ukrycie->hidden_until)->toDateString());
+    }
+
     public function test_ukryty_wpis_znika_ze_strumieni_i_zwija_sie_tam_gdzie_widz_przyszedl_sam(): void
     {
         $widz = $this->user('widz');
@@ -72,9 +96,9 @@ class UkryjWpisIOsobeTest extends TestCase
         ]);
 
         $odpowiedz = $this->actingAs($widz)->from(route('home'))->post(route('posts.hide', $ukryty))->assertRedirect(route('home'));
-        $data = Czas::data(now()->addDays(30), 'j F Y');
+        $data = $this->dataKoncaUkrycia();
         $odpowiedz->assertSessionHas('status', "Ukryliśmy ten wpis tylko dla Ciebie do {$data}. Inni widzą go jak dotąd.");
-        $powrot = $odpowiedz->getSession()->get('status_powrot');
+        $powrot = self::sesjaPrzekierowania($odpowiedz)->get('status_powrot');
         $this->assertSame('Cofnij', $powrot['etykieta']);
 
         // Strumienie z kartą: Start (obserwowani), Odkrywanie, tablica z wyborem gospodarza, list.
@@ -120,7 +144,7 @@ class UkryjWpisIOsobeTest extends TestCase
 
         $this->post(route('social.hide', $natretna->profile->username), ['oczekiwany_id' => $natretna->getKey(), 'wroc' => '/odkryj'])
             ->assertRedirect('/odkryj')
-            ->assertSessionHas('status', 'Ukryliśmy tę osobę tylko dla Ciebie do '.Czas::data(now()->addDays(30), 'j F Y').'. Nie powiadamiamy jej o tym.');
+            ->assertSessionHas('status', 'Ukryliśmy tę osobę tylko dla Ciebie do '.$this->dataKoncaUkrycia().'. Nie powiadamiamy jej o tym.');
 
         $this->assertSame(['Wpis innej'], $this->odkrywanie($widz));
         $tablica = app(DailyBoard::class)->forViewer($widz);
@@ -138,6 +162,45 @@ class UkryjWpisIOsobeTest extends TestCase
         // Po zaobserwowaniu Obserwowani pokazują wpisy — ukrycie osoby tam nie działa.
         $this->obserwuj($widz, $natretna);
         $this->assertContains('Kolejny wpis natrętnej', collect(app(FollowingFeed::class)->paginate($widz)->items())->pluck('body')->all());
+    }
+
+    /**
+     * Decyzja właściciela 26.09 (D-278, dopisek): tag podsuwa autora, którego
+     * widz nie wybrał, więc ukryta osoba znika też z wpisów „Z tagu: …".
+     * Osoba obserwowana wprost zostaje — nawet gdy jej wpis ma ten sam tag.
+     */
+    public function test_ukryta_osoba_znika_ze_startu_takze_przez_obserwowany_tag(): void
+    {
+        $widz = $this->user('widz');
+        $natretna = $this->user('natretna');
+        $obca = $this->user('obca');
+        $znajoma = $this->user('znajoma');
+        $this->obserwuj($widz, $znajoma);
+        $zupy = Tag::create(['slug' => 'zupy', 'name' => 'Zupy', 'normalized_name' => 'zupy']);
+        $widz->followedTags()->attach($zupy->getKey(), ['created_at' => now()]);
+        foreach ([[$natretna, 'Zupa natrętnej', 1], [$obca, 'Zupa obcej', 2], [$znajoma, 'Zupa znajomej', 3]] as [$autor, $tresc, $minut]) {
+            $zupy->posts()->attach($this->wpis($autor, $tresc, $minut)->getKey(), ['position' => 0]);
+        }
+
+        $this->actingAs($widz)->post(route('social.hide', $natretna->profile->username), ['oczekiwany_id' => $natretna->getKey(), 'wroc' => '/'])
+            ->assertRedirect('/');
+
+        $feed = app(FollowingFeed::class);
+        $this->assertSame(['Zupa obcej', 'Zupa znajomej'], collect($feed->paginate($widz)->items())->pluck('body')->all());
+
+        // Znajomą też ukrywamy (obejście przez bazę — akcja odmawia przy
+        // obserwowanej): obserwowana wprost dalej widoczna, mimo tagu.
+        Hide::query()->forceCreate(['user_id' => $widz->getKey(), 'hidden_user_id' => $znajoma->getKey(), 'hidden_until' => now()->addDays(30)]);
+        $this->assertSame(['Zupa obcej', 'Zupa znajomej'], collect($feed->paginate($widz)->items())->pluck('body')->all());
+
+        // `isEmptyFor()` liczy te same źródła: sam wpis ukrytej z tagu to pustka.
+        $samaUkryta = $this->user('sama');
+        $samaUkryta->followedTags()->attach($zupy->getKey(), ['created_at' => now()]);
+        Hide::query()->forceCreate(['user_id' => $samaUkryta->getKey(), 'hidden_user_id' => $natretna->getKey(), 'hidden_until' => now()->addDays(30)]);
+        Hide::query()->forceCreate(['user_id' => $samaUkryta->getKey(), 'hidden_user_id' => $obca->getKey(), 'hidden_until' => now()->addDays(30)]);
+        Hide::query()->forceCreate(['user_id' => $samaUkryta->getKey(), 'hidden_user_id' => $znajoma->getKey(), 'hidden_until' => now()->addDays(30)]);
+        $this->assertTrue($feed->isEmptyFor($samaUkryta));
+        $this->assertFalse($feed->isEmptyFor($widz));
     }
 
     public function test_obserwowanej_osoby_sie_nie_ukrywa_menu_proponuje_przestan_obserwowac(): void
@@ -171,14 +234,18 @@ class UkryjWpisIOsobeTest extends TestCase
 
         $lista = $this->get(route('settings.hidden'))->assertOk();
         $lista->assertSee('Ukryte wpisy')->assertSee('Ukryte osoby')
-            ->assertSee('Ukryte do '.Czas::data(now()->addDays(30), 'j F Y'))
+            ->assertSee('Ukryte do '.$this->dataKoncaUkrycia())
             ->assertSee('Zostaw ukryte')->assertSee('Przywróć');
 
         $ukrycieDrugiego = Hide::query()->where('post_id', $drugi->id)->firstOrFail();
         $this->patch(route('settings.hidden.keep', $ukrycieDrugiego))->assertSessionHasNoErrors();
         $this->assertNull($ukrycieDrugiego->fresh()->hidden_until);
 
-        $this->travel(31)->days();
+        $terminPierwszego = Hide::query()->where('post_id', $jeden->id)->firstOrFail()->hidden_until;
+        $this->assertNotNull($terminPierwszego);
+        // Ukrycie kończy się wraz z polskim dniem; 31 dób od kliknięcia
+        // może wypaść przed terminem, gdy po drodze zmieni się czas letni.
+        $this->travelTo($terminPierwszego->copy()->addSecond());
         $widoczne = $this->odkrywanie($widz);
         $this->assertContains('Pierwszy do ukrycia', $widoczne, 'Ukrycie po 30 dniach nie wygasło.');
         $this->assertNotContains('Drugi do ukrycia', $widoczne, '„Zostaw ukryte" nie trzyma bez terminu.');

@@ -53,7 +53,7 @@ final class FormularzeKlawiaturaINiezapisaneZmianyTest extends TestCase
         $meta = $this->xpath($html)->query('//head/meta[@name="viewport"]');
 
         $this->assertSame(1, $meta->length, 'Strona ma mieć dokładnie jeden meta viewport.');
-        $czesci = array_map('trim', explode(',', $meta->item(0)->getAttribute('content')));
+        $czesci = array_map('trim', explode(',', self::elementDom($meta->item(0))->getAttribute('content')));
 
         $this->assertContains('interactive-widget=resizes-content', $czesci);
         $this->assertContains('width=device-width', $czesci);
@@ -105,7 +105,7 @@ final class FormularzeKlawiaturaINiezapisaneZmianyTest extends TestCase
 
         $html = $this->from(route('recipes.edit', $szkic))
             ->followingRedirects()
-            ->put(route('recipes.update', $szkic), ['title' => '', 'action' => 'draft'])
+            ->put(route('recipes.update', $szkic), ['content_revision' => $szkic->fresh()->content_revision, 'title' => '', 'action' => 'draft'])
             ->assertOk()->getContent();
         $this->assertStringContainsString('formularz-szczegolow', $html, 'Po błędzie nie wróciliśmy na ekran szczegółów.');
         $xp = $this->xpath($html);

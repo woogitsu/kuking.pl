@@ -70,23 +70,35 @@ class Appeal extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<ModerationAction, $this>
+     */
     public function moderationAction(): BelongsTo
     {
         return $this->belongsTo(ModerationAction::class);
     }
 
     /** Osoba, która się odwołała. NULL przy odwołaniu zgłaszającego bez konta. */
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
     /** Zgłoszenie, którego dotyczy odwołanie ZGŁASZAJĄCEGO. NULL dla autora. */
+    /**
+     * @return BelongsTo<Report, $this>
+     */
     public function report(): BelongsTo
     {
         return $this->belongsTo(Report::class);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function decider(): BelongsTo
     {
         return $this->belongsTo(User::class, 'decided_by');
@@ -95,6 +107,8 @@ class Appeal extends Model
     /**
      * Decyzja podjęta po uznaniu tego odwołania (#989) — `moderation_actions.appeal_id`.
      * Istnieje wyłącznie przy odwołaniu zgłaszającego od decyzji bez działania.
+     *
+     * @return HasOne<ModerationAction, $this>
      */
     public function decisionAfterAppeal(): HasOne
     {

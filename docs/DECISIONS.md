@@ -1002,6 +1002,19 @@ osoby, która klika w pośpiechu.
 📄 `app/Domain/Users/Actions/EraseAccountData.php` · `app/Models/User.php` ·
 `resources/views/pages/settings/data.blade.php` · D-018
 
+### Uzupełnienie: ponowny wniosek rozpoczyna nową karencję (#2023)
+
+Każdy wniosek dostaje osobny `users.delete_request_generation` (UUID), także
+gdy dwa zgłoszenia przypadają w tej samej sekundzie. Migracja nadaje UUID
+również wnioskom oczekującym w chwili wdrożenia. Egzekutor przekazuje do
+`EraseAccountData` generację wybraną z listy kont po terminie. Akcja porównuje
+ją z bieżącą generacją **pod blokadą wiersza konta** i sprawdza, czy bieżące
+30 dni już minęło. Po cofnięciu i
+ponownym zgłoszeniu stary przebieg egzekutora pomija konto, nawet jeśli
+ponownie widzi status `pending_delete`. Dokończenie kasowania zdjęć po już
+wykonanym wymazaniu oraz odtworzenie wymazania z dziennika po przywróceniu
+bazy zachowują własne ścieżki; to nie są nowe wnioski o usunięcie.
+
 ---
 
 ## D-023 · Oryginał zdjęcia traci współrzędne GPS przy wgraniu
@@ -12923,8 +12936,24 @@ byłby zielony także nad pustym plikiem.
 Nie mówi, czy i jak promować instalację PWA — to jest issue #278 i osobna
 decyzja. Zdejmuje tylko przeszkodę, która kazała tamto odłożyć.
 
+### Uzupełnienie: `start_url` to `/`, nie `/home` (#1975, 26 września 2026)
+
+Manifest jest podlinkowany w każdym układzie, także dla gościa, więc
+aplikację da się zainstalować przed rejestracją. `start_url: /home` wskazywał
+trasę z grupy `auth` — gość po instalacji przy każdym uruchomieniu lądował
+na logowaniu. Teraz `start_url` to `/`: gość dostaje stronę powitalną
+z drogą do rejestracji i logowania, zalogowany — swój Start
+(`FeedController::landing` oddaje mu ten sam ekran co `/home`), bez
+dodatkowego przekierowania. Zachęta do instalacji z #278 zostaje tam, gdzie
+była (Start zalogowanej osoby). Skróty `shortcuts` (Dodaj zdjęcie, Zeszyt)
+zostają — to akcje zalogowanej osoby i gość po nie nie sięga. Pilnuje
+`tests/Feature/ManifestStartujeDlaGosciaIZalogowanegoTest.php` (czyta
+`start_url` z pliku, więc oblewa przy powrocie na dowolny adres za
+logowaniem).
+
 📄 `public/manifest.webmanifest` ·
 `tests/Feature/ManifestNieWymuszaOrientacjiTest.php` ·
+`tests/Feature/ManifestStartujeDlaGosciaIZalogowanegoTest.php` ·
 `docs/research/audyt-2026-09-10/08_SEO_PWA_UDOSTEPNIANIE.md` · issue #278
 
 ---
@@ -14532,6 +14561,14 @@ z sąsiada, którego nie było widać, te są dwoma równymi pasami nad i pod zd
 414 px 145,7 → 0,0 (przy czcionce 200% analogicznie, wszystkie → 0,0).
 Karuzela: 320 px 220,5 → 125,1 · 414 px 292,9 → 167,1.
 
+**Uzupełnienie #2126 po zgłoszeniu właściciela z 28.09.2026.** Na tablecie
+domyślna siatka nadal miała dwa pola w wierszu: pod niższą fotografią
+zostawał duży pusty pas, a przy trzech zdjęciach prawe pole ostatniego
+wiersza pozostawało puste. Tryb „Zwykle” pokazuje odtąd zdjęcia jedno pod
+drugim przy każdej szerokości, zgodnie z opisem widocznym przy wyborze.
+Układ obok siebie pozostaje osobnym, świadomym wyborem „Kolaż”. Zdjęć nie
+przycinamy; powiększanie i kolejność nie zmieniają się.
+
 `min-height: 0` na polu slajdu nie jest ozdobą: bez niego proporcja działa tylko na
 zdjęciach poziomych, czyli poprawka poprawiałaby połowę przypadków i **wyglądała
 w pomiarze prawie jak poprawka**.
@@ -14684,7 +14721,8 @@ Domyślną odpowiedzią na „dodajmy licznik reakcji na widoczne miejsce" jest 
 Jak wygląda lżejsza reakcja. Poprzednia wersja tego akapitu mówiła, że „lajk jest
 i zostaje” — **to było nieprawdą: polubienia w kodzie nie ma** (stan na 25 września
 2026). Ludzie potrzebują taniego sposobu, żeby powiedzieć „widzę cię”, i tym lżejszym
-sygnałem będzie reakcja **„Smakowicie wygląda”** (osobne issue #1813) — nie lajk.
+sygnałem jest reakcja **„Smakowicie wygląda”** (#1813, **D-280**) — nie lajk: bez
+licznika, powiadomienie zbiorczo raz dziennie, „Ugotowałem” powiadamia od razu.
 Ten wpis rozstrzyga wyłącznie **hierarchię** sygnałów: „Ugotowałem” stoi wyżej niż
 jakakolwiek lżejsza reakcja wszędzie tam, gdzie trzeba wybrać, który zobaczy człowiek.
 
@@ -16050,6 +16088,10 @@ a ekrany z #1168 zostają, bo bez nich nie ma jak wskazać zeszytu.
    i z pierwotnym `created_at`, więc zeszyt nie przestawia się na górę listy.
    Nie nadpisuje świeższego wiersza (ktoś zdążył zapisać ponownie), nie sięga
    zeszytu, który zniknął albo nigdy nie był tej osoby.
+   Uściślenie #2094: cały powrót odbywa się w jednej transakcji po ponownym
+   odczycie uprawnień do konta, treści i zeszytu pod blokadami. Dotyczy to
+   tak samo przepisu i wpisu; nie zmienia notatki, daty ani reguły
+   powiadomienia autora o pierwszym zapisaniu przepisu.
 3. **Droga powrotu czeka w sesji, nie we flashu.** Flash żyje jedno żądanie,
    a droga powrotu ma trzy (DELETE, GET z przyciskiem, POST po kliknięciu).
    `saveRecipe()` i `savePost()` sprawdzają najpierw, czy to nie jest powrót
@@ -16294,6 +16336,53 @@ w jednej transakcji z zawiadomieniami administratorów i zleceniem listu
 z potwierdzeniem w `jobs` (`FileAppeal`, `FileReporterAppeal`). Awaria
 dziennika nie cofa pisma z biegnącym terminem. Dowód:
 `ZlozenieOdwolaniaJestAtomoweTest::test_awaria_audytu_nie_cofa_zlozonego_pisma`.
+
+**Uzupełnienie (#1347, #1892–#1897, 26 września 2026).** Audyt zgłoszony
+jako „awaria dziennika daje 500 po zatwierdzonej zmianie konta" na pięciu
+niepowiązanych ścieżkach naraz — jedna rodzina, jedna reguła, klasyfikacja
+niżej:
+
+- `account.delete_requested` (#1347, `RequestAccountDeletion`) i
+  `account.delete_cancelled` (#1893, `CancelAccountDeletion`) — **klasa 1**.
+  Oba wpisy są, RAZEM, jedynym miejscem w całej bazie mówiącym, że ktoś
+  zgłosił usunięcie konta i (ewentualnie) się rozmyślił —
+  `AuditLogEntry::NIGDY_NIE_KASUJ` nazywa je z tego właśnie powodu. Sprawa
+  w `potwierdzenia_zadan_rodo` ma `zakres = NULL` w toku, a `cancelDeletion()`
+  zeruje `users.delete_scope`/`delete_requested_at` — więc bez tego wpisu nie
+  zostaje pełny ślad wyboru człowieka. Oba wpisy stoją więc W TEJ SAMEJ
+  transakcji co zmiana; awaria cofa całość, a formularz da się wysłać
+  jeszcze raz (stan konta wraca do tego sprzed kliknięcia).
+- `user.unblocked` (#1896, `UnblockUser`) — **klasa 2**, symetrycznie do
+  `user.blocked` (D-090/D-249 wyżej). Autorytatywny ślad to usunięty wiersz
+  `blocks`; odblokowania nie da się cofnąć drugim kliknięciem („Zablokuj"
+  ponownie to inna decyzja, z innym `created_at`), więc dziennik idzie przez
+  `recordBezWywracania()` PO wykonanym usunięciu.
+- `account.email_change_requested`, `account.email_changed`,
+  `account.email_change_cancelled` (#1897, `RequestEmailChange` /
+  `ConfirmEmailChange` / `CancelEmailChange`) — **klasa 2**. Autorytatywny
+  ślad każdej z trzech operacji to stan wiersza `pending_email_changes` albo
+  `users.email`, zapisany w transakcji tej samej akcji. W `RequestEmailChange`
+  dodatkowo: `record()` stał PRZED wysyłką obu listów, więc jego awaria
+  blokowała też pocztę — `recordBezWywracania()` nie rzuca, więc listy
+  wychodzą niezależnie od losu wpisu.
+- `account.suspension_expired` (#1894, `RestoreExpiredSuspensions`) i
+  `account.data_erased` (#1894, `EraseAccountData`, wołane z
+  `PurgeExpiredAccountDeletions`) — **klasa 1**, mimo że decyzję podejmuje
+  zegar, nie moderator. Dla obu wpis jest JEDYNYM zapisem TEGO zdarzenia
+  (`reinstate()` nie zostawia innego śladu „wygasła kara, nie inna droga
+  powrotu"; `account.data_erased` jest jedynym dowodem wykonania art. 17
+  RODO na koncie zanonimizowanym, nie skasowanym). Kluczowe dla komend:
+  obie zmiany stoją TERAZ w tej samej transakcji co wpis, więc awaria
+  zostawia konto w stanie SPRZED zmiany — a warunek kolejki tej samej komendy
+  (`status = suspended` / `data_erased_at IS NULL`) je odzyska same przy
+  następnym przebiegu, bez żadnego ręcznego backfillu. Wyjątek jednego konta
+  w pętli nie przerywa obsługi pozostałych (ta sama zasada co #1028 dla
+  drugiej z tych komend).
+
+Dowód: `tests/Feature/AccountDeletionCancellationTest.php` (#1893),
+`tests/Feature/AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest.php`
+(#1896, #1897) i `tests/Feature/AwariaAudytuKomendAutomatycznychTest.php`
+(#1894).
 
 ### Dowód
 
@@ -17573,10 +17662,75 @@ GraphQL-a i osobnych serwisów — API to drugi adapter w tym samym monolicie.
 problemu z tokenami bez terminu (np. wycieku), który lista urządzeń nie
 rozwiązuje.
 
+Dokumentacja dla autorów aplikacji: `docs/API.md` (pilnuje jej
+`tests/Feature/Api/ApiJestUdokumentowaneTest.php` — każda trasa w tabeli,
+każda poza logowaniem z `auth:sanctum`, każda z identyfikatorem w
+`KazdaTrasaZIdentyfikatoremPodPolicyTest`).
+
 📄 `config/sanctum.php` · `config/kuking.php` (`api`) · `routes/api.php` ·
 `app/Http/Middleware/BramaApi.php` · `app/Http/Api/BledyApi.php` ·
 `app/Providers/ApiServiceProvider.php` · `app/Models/PersonalAccessToken.php` ·
 `tests/Feature/Api/`
+
+## D-320 — Zakres tokenu API to zamknięty słownik, nigdy wildcard `*` (#1928, doprecyzowanie D-270, 26 września 2026)
+
+**Data:** 26 września 2026 · Znalezisko bezpieczeństwa (#1928) · Status: **obowiązuje**
+
+### Co
+
+`User::createToken()` wydawał domyślnie pakietowy wildcard Sanctum —
+`array $abilities = ['*']`. Etap 1 D-270 nie miał jeszcze ani jednej trasy
+produkcyjnej, więc problem był na razie teoretyczny, ale wildcard sam się
+nie naprawia: pierwsza trasa dodana bez świadomej migracji tokenów
+odziedziczyłaby uprawnienia każdego telefonu, który kiedykolwiek się
+zalogował.
+
+1. **Zamknięty słownik zakresów**, `App\Http\Api\ZakresyTokenu`: `profil:czytaj`,
+   `tresc:czytaj`, `tresc:pisz`. `ZakresyTokenu::waliduj()` odrzuca każdy
+   string spoza tej listy — w tym `*` — nawet gdy wołający poda abilities
+   jawnie, nie tylko przy domyślnym wywołaniu.
+2. **Domyślny zakres to CAŁY dzisiejszy słownik, wypisany jawnie**
+   (`User::DOMYSLNE_UPRAWNIENIA_API`), nie „nic" i nie `*`. Jedyny dziś klient
+   API to nasza własna aplikacja mobilna, więc zawężanie zakresu domyślnego
+   poniżej całego słownika byłoby teatrem bez realnego zysku — ale lista jest
+   jawna, więc dopisanie NOWEGO zakresu do słownika w przyszłości nie
+   rozszerza automatycznie uprawnień tokenów wydanych wcześniej (leżą
+   w bazie jako zapisana lista) ani tokenów wydanych tą metodą po dopisaniu
+   zakresu do słownika, dopóki ktoś świadomie nie doda go też do stałej
+   domyślnej.
+3. **Middleware `ability` / `abilities`** (`Laravel\Sanctum\Http\Middleware\CheckAbilities`
+   / `CheckForAnyAbility`) zarejestrowany jako alias w `bootstrap/app.php` —
+   Sanctum w Laravel 11+ nie robi tego sam. Trasa mutująca w `routes/api.php`
+   ma mieć `ability:<zakres>` OBOK `auth:sanctum`, nie zamiast niego.
+
+### Dlaczego tak, a nie inaczej
+
+- **Nie osobny „poziom zaufania" per token teraz.** Różnicowanie zakresów
+  między telefonami tej samej osoby (np. „tylko odczyt" dla urządzenia
+  gościa) nie ma dziś interfejsu, który by to ustawiał — dodanie tego bez
+  ekranu byłoby funkcją bez konsumenta (AGENTS.md §1). Zakres chroni dziś
+  przed przyszłymi trasami, nie przed różnicowaniem urządzeń.
+- **Żadnych wydanych tokenów do migracji.** `KUKING_API_ENABLED` jest
+  domyślnie zamknięte (D-270), `routes/api.php` nie ma jeszcze ani jednej
+  trasy `Route::`, a tabela `personal_access_tokens` powstała 25 września
+  2026 — nie ma więc na dziś ani jednego wydanego tokenu z `*`, którego
+  trzeba by wygaszać albo migrować. Gdyby taki token kiedyś się znalazł (np.
+  po odtworzeniu ze starszej kopii bazy), odwołanie należy do właściciela
+  (`invalidateApiTokens()` na koncie) — nie robimy tego tutaj z automatu.
+- **Strażnik CI dla nowych tras bez `ability`** z pierwotnego zgłoszenia
+  #1928 zostaje odłożony: dziś nie ma ani jednej trasy produkcyjnej do
+  pilnowania, a pisanie skanera pod pustą listę tras jest zgadywaniem
+  kształtu przyszłego kodu. Wraca razem z pierwszą prawdziwą trasą
+  mutującą.
+
+**Zmiana wymaga:** decyzji właściciela o różnicowaniu zakresów per
+urządzenie (potrzebny ekran) albo znalezienia w bazie tokenu z zakresem
+spoza słownika (dziś niemożliwe — `waliduj()` odrzuca go przy wydaniu).
+
+📄 `app/Http/Api/ZakresyTokenu.php` · `app/Models/User.php`
+(`createToken()`, `DOMYSLNE_UPRAWNIENIA_API`) · `bootstrap/app.php`
+(aliasy `ability`/`abilities`) · `routes/api.php` ·
+`tests/Feature/Api/ZakresyTokenuTest.php`
 
 ## D-275 — Reguła doboru treści: zamknięta lista dozwolonych reguł (#1806, #1781, sprostowanie D-194, 25 września 2026)
 
@@ -17814,11 +17968,18 @@ rozszerza).
 | | Start (Obserwowani) | Odkrywanie | Tablica: wybór gospodarza | Tablica: część automatyczna, propozycje osób | Tygodniowy list | Profil, wyszukiwarka, link |
 |---|---|---|---|---|---|---|
 | Ukryty wpis | znika | znika | znika | znika | znika | karta zwinięta: „Ten wpis ukrywasz tylko dla siebie. Pokaż” |
-| Ukryta osoba | **nie działa** | znika | **nie działa** | znika | nie działa | nie działa |
+| Ukryta osoba | **nie działa** dla osób obserwowanych; **znika** z wpisów „Z tagu: …” | znika | **nie działa** | znika | nie działa | nie działa |
 
 Ukrycie osoby działa wyłącznie tam, gdzie serwis sam podsuwa ludzi. W
 Obserwowanych nic nie znika poza bramkami, blokadami i tym, co widz sam
-wskazał palcem (pojedynczy wpis) — AGENTS.md §8. Kogoś, kogo się obserwuje,
+wskazał palcem (pojedynczy wpis albo osoba w gałęzi tagów) — AGENTS.md §8.
+
+> **Dopisek (26 września 2026, decyzja właściciela, #1781).** Wpis ukrytej
+> osoby, który przychodzi na Start **wyłącznie przez obserwowany tag**, znika
+> — tag podsuwa autora, którego widz nie wybrał (`FollowingFeed`: gałąź tagów
+> z `bezUkrytychOsob`). Wpisy osób obserwowanych wprost są zawsze widoczne,
+> także z obserwowanym tagiem. Test:
+> `UkryjWpisIOsobeTest::test_ukryta_osoba_znika_ze_startu_takze_przez_obserwowany_tag`. Kogoś, kogo się obserwuje,
 się nie ukrywa: menu pokazuje wtedy „Przestań obserwować”, a akcja odmawia.
 Wybór gospodarza to oznaczony wybór, nie podsunięcie — ukrycie osoby go nie
 zdejmuje (ukrycie konkretnego wpisu — tak).
@@ -17860,6 +18021,253 @@ i `User`, filtry w `FollowingFeed`, `DiscoverFeed`, `DailyBoard`,
 
 📄 `app/Domain/Ukrycia/Ukrycia.php` · `app/Http/Controllers/UkryciaController.php` ·
 `tests/Feature/UkryjWpisIOsobeTest.php` · `tests/Feature/CofniecieMigracjiUkrycNieOdslaniaTest.php` · D-275 · D-276
+
+## D-279 — Zwijanie serii w Obserwowanych i jeden wpis na autora w tygodniowym liście (#1812, #1781, 25 września 2026)
+
+**Data:** 25 września 2026 · Decyzja właściciela (#1781, kryteria #1812) · Status: **obowiązuje**
+
+Dwie reguły z listy D-275, obie po czasie, żadna po reakcjach:
+
+1. **Zwijanie serii (Obserwowani).** Więcej niż dwa kolejne wpisy tej samej
+   osoby na stronie — albo, od D-277, tego samego tagu (karty „Z tagu: …”) —
+   stoją jako dwa wpisy i `<details>` „{nazwa}: jeszcze N wpisów — Pokaż”.
+   Kolejność dokładnie ta z `FollowingFeed`, żaden wpis nie znika, bez JS.
+   W obrębie jednej strony (seria rozcięta przez „Pokaż więcej” zaczyna się
+   od nowa). Nazwa dosłownie, przed dwukropkiem; tag jako „Tag {nazwa}”.
+   `App\Domain\Feed\SerieWpisow`.
+2. **Tygodniowy list: najwyżej jeden wpis na autora** w sekcji obserwowanych —
+   najnowszy. Równość autorów: gospodarz publikujący codziennie nie zajmuje
+   całej sekcji. Dwa okna `row_number()` w `ZbierzTresciDigestu` (na autora,
+   potem na adresata), oba po `published_at`.
+
+### Zdanie do strony „Jak dobieramy wpisy” (#1811)
+
+> Gdy ktoś opublikuje kilka wpisów pod rząd, na Starcie widzisz dwa, a resztę
+> po naciśnięciu „Pokaż” — nic nie znika i kolejność się nie zmienia.
+> W tygodniowym e-mailu od każdej obserwowanej osoby jest jeden, najnowszy wpis.
+
+### Wycofanie
+
+Bez migracji: zdjąć grupowanie w `pages/home.blade.php` i wewnętrzne okno
+w `ZbierzTresciDigestu::wpisyObserwowanych()`.
+
+📄 `app/Domain/Feed/SerieWpisow.php` · `app/Domain/Digest/ZbierzTresciDigestu.php` ·
+`tests/Feature/ZwijanieSeriiWObserwowanychTest.php` · D-275 · D-277
+
+## D-280 — Reakcja „Smakowicie wygląda”: bez licznika, zbiorczo raz dziennie (#1813, #1781, 25 września 2026)
+
+**Data:** 25 września 2026 · Decyzja właściciela (#1781, kryteria #1813) · Status: **obowiązuje**
+
+### Decyzja
+
+Lżejsza reakcja niż „Ugotowałem”, o nazwie **„Smakowicie wygląda”** (D-194 —
+„Ugotowałem” stoi wyżej):
+
+- przycisk drugiego planu na karcie cudzego wpisu, za komentarzami; cofnięcie
+  tym samym przyciskiem („Smakowicie wygląda — cofnij”), bez pytania, bez JS;
+- **bez licznika** — nikt, także autor, nie widzi liczby; na stronie wpisu
+  **każdy widz** (także niezalogowany) widzi, KTO napisał — nazwy dosłownie,
+  bez osób z blokadą autora albo widza i bez kont niedostępnych (zmiana
+  26 września 2026, dopisek niżej);
+- **powiadomienie zbiorczo raz dziennie** (17:47 czasu polskiego — `->timezone(Czas::strefa())`, `kuking:powiadom-smakowicie`):
+  jedno na autora, „N osób napisało: Smakowicie wygląda”, liczy różne osoby, bez
+  zablokowanych i nieaktywnych; tylko w serwisie, bez poczty. „Ugotowałem”
+  powiadamia od razu i zostaje najcenniejszą wiadomością (AGENTS.md §1);
+- **nigdy nie sortuje i nie przycina list** (D-275) — strażnik zna słowa
+  „smakowic”, „reakcj” i „reaction” (tabela `post_reactions`);
+- pod własnym wpisem przycisku nie ma; blokady działają w obie strony (Policy
+  wpisu i akcja).
+
+„Respektuje ustawienia powiadomień”: jedynym ustawieniem powiadomień w serwisie
+jest zgoda na tygodniowy list (AGENTS.md §1), która tych powiadomień nie dotyczy;
+obowiązują granice `NotifyUser` (konto, które nie może czytać, nic nie dostaje).
+
+Dane: tabela `post_reactions` (docs/DATABASE.md), rollback odmawia przy
+niepustej tabeli (D-088). Eksport: `moje_reakcje`, `reakcje_otrzymane`.
+Reakcje nie są źródłem analityki (#1814).
+
+> **Dopisek (26 września 2026, decyzja właściciela, #1781).** Lista osób,
+> które napisały „Smakowicie wygląda”, jest widoczna dla **wszystkich** pod
+> wpisem (strona wpisu), nie tylko dla autora. Nadal bez licznika i bez
+> „i N innych”. Filtry: te same co dotąd dla autora (konto dostępne jako
+> autor, bez blokady z autorem w którąkolwiek stronę) oraz — dla
+> zalogowanego widza — bez osób, z którymi ma blokadę w którąkolwiek stronę.
+> Komunikat po reakcji mówi wprost: „Twoja nazwa jest teraz pod tym wpisem —
+> widzą ją wszyscy”. Polityka prywatności (#1816) opisuje, że nazwa
+> reagującego jest publiczna pod wpisem. Eksport bez zmian (`reakcje_otrzymane`
+> filtruje po autorze). Test:
+> `SmakowicieWygladaTest::test_kazdy_widzi_kto_napisal_bez_liczby_a_blokady_autora_i_widza_odcinaja`.
+
+### Wycofanie
+
+Wymaga decyzji, co z zapisanymi reakcjami (rollback migracji odmawia).
+
+📄 `app/Domain/Reakcje/Smakowicie.php` · `app/Domain/Reakcje/PowiadomOSmakowicie.php` ·
+`tests/Feature/SmakowicieWygladaTest.php` · D-194 · D-275
+---
+
+## D-271 — Logowanie aplikacji mobilnej: te same akcje co WWW, 2FA przez zaszyfrowane wyzwanie, lista urządzeń (25 września 2026)
+
+**Data:** 25 września 2026 · Etap 2 API (D-270) · Status: **obowiązuje**
+
+### Co
+
+1. **`POST /api/v1/tokeny`** (login + hasło + `device_name`) i
+   **`POST /api/v1/tokeny/kod`** (drugi krok) idą przez TE SAME akcje co
+   formularze WWW. Logika pierwszego kroku wyszła z `LoginController` do
+   `App\Domain\Security\Actions\SprawdzHasloPrzyLogowaniu`, drugiego —
+   z `TwoFactorChallengeController` do `SprawdzKodDrugiegoSkladnika`.
+   Kontrolery WWW i API są teraz adapterami tych samych reguł (D-014).
+2. **Wspólne koszyki limitów.** Trzy koszyki `LimitProbHasla`, koszyk prób
+   kodu po koncie (`TwoFactorAuthenticator::kluczLimituProb`) i prefiksy
+   `throttle:` (`login`, `two_factor`) są te same dla obu dróg. Zgadujący nie
+   podwoi budżetu, przeskakując między formularzem a aplikacją.
+3. **Konto z 2FA nie dostaje tokenu przed kodem.** Pierwszy krok zwraca 202
+   z zaszyfrowanym wyzwaniem (`App\Domain\Api\WyzwanieDwuetapowe`): konto,
+   odcisk jego stanu (ten sam co w sesji WWW, #931), nazwa urządzenia,
+   termin 10 minut. Bez tabeli — API nie ma sesji. Zmiana
+   hasła, statusu albo 2FA unieważnia wyzwanie od razu.
+   **Wyzwanie jest jednorazowe (#1972).** Ma losowe `id`; po poprawnym
+   kodzie, a przed wydaniem tokenu, `WyzwanieDwuetapowe::zuzyj()` zakłada
+   znacznik zużycia przez `Cache::add()` (sklep `database`: `INSERT … ON
+   CONFLICT DO NOTHING`, więc z równoległych żądań przechodzi jedno).
+   Powtórzone wyzwanie dostaje 422 na polu `challenge` bez sprawdzania kodu
+   — nie spala kodu zapasowego ani prób z limitu. Błędny kod wyzwania nie
+   zużywa. Znacznik żyje minutę dłużej niż wyzwanie.
+4. **Stan konta przy każdym żądaniu z tokenem**
+   (`EnsureApiAccountIsActive`, odpowiednik `EnsureAccountIsActive`):
+   zamknięte konto → token ginie, 401 `konto_zamkniete`; zawieszone → odczyt
+   tak, zapis 403 `konto_zawieszone`, wylogowanie zawsze. Zdania te same co
+   na WWW.
+5. **Tokeny giną razem z sesjami** (D-270) — zmiana hasła, „wyloguj inne
+   urządzenia", blokada, zawieszenie, usunięcie konta.
+6. **Ekran „Urządzenia z dostępem"** (`/ustawienia/urzadzenia`): lista
+   tokenów, odcięcie jednego i wszystkich. Bez hasła, świadomie: akcja
+   wyłącznie odbiera dostęp. Dostępna także przy zawieszeniu. Właścicielem
+   tokenu rozstrzyga `PersonalAccessTokenPolicy` — moderator też nie ma
+   dostępu, token to poświadczenie, nie treść.
+7. **Najwyżej 10 urządzeń na konto** (`kuking.api.max_urzadzen`); kolejne
+   logowanie odcina używane najdawniej, zamiast odmawiać.
+8. Wydanie i odwołanie tokenu zostawia wpis w `audit_log`
+   (`account.api_token_created`, `account.api_token_revoked`,
+   `account.api_tokens_revoked_all`).
+
+### Znany ubytek względem WWW: brak Turnstile
+
+Turnstile (D-050) jest captchą przeglądarkową; aplikacja nie ma jej jak
+pokazać. Logowanie w API chronią tylko limity z punktu 2 i limit na adres IP
+z `BramaApi`. To świadome i zapisane, nie przeoczone. Uzupełnieniem w etapie
+aplikacji jest atestacja urządzenia (Play Integrity / App Attest) — osobna
+decyzja, gdy aplikacja będzie istnieć.
+
+**Zmiana wymaga:** pomiaru ataku na logowanie przez API, którego limity nie
+łapią (wtedy atestacja albo zamknięcie `POST /api/v1/tokeny` flagą).
+
+📄 `app/Http/Controllers/Api/V1/TokenController.php` ·
+`app/Domain/Security/Actions/` · `app/Domain/Api/` ·
+`app/Http/Middleware/EnsureApiAccountIsActive.php` ·
+`app/Http/Controllers/Settings/DevicesSettingsController.php` ·
+`tests/Feature/Api/LogowanieApiTest.php` · `tests/Feature/UrzadzeniaZDostepemTest.php`
+
+---
+
+## D-272 — API: czytanie przez te same zapytania i Policy co WWW, zdjęcia tylko przez `DostepDoZdjecia` (25 września 2026)
+
+**Data:** 25 września 2026 · Etap 3 API (D-270) · Status: **obowiązuje**
+
+### Co
+
+- `GET /api/v1/feed` — ten sam `FollowingFeed` co strona główna:
+  chronologicznie, kursorowo (`?cursor=` z `meta.next_cursor`), te same
+  filtry widoczności, blokad, aktywnych autorów i widocznego przepisu.
+- `GET /api/v1/wpisy/{uuid}` i `/komentarze` — `PostPolicy::view`.
+- `GET /api/v1/przepisy/{uuid}` i `/komentarze` — `RecipePolicy::view`.
+  **Po UUID, nie po slugu** jak WWW: slug zmienia się z tytułem, aplikacja
+  trzyma identyfikator.
+- `GET /api/v1/profile/{username}` — `UserPolicy::viewProfile`.
+- Komentarze przez `Comment::scopeWidoczneDla()` — blokady w obie strony.
+- **Wątek niesie najwyżej `kuking.api.odpowiedzi_w_watku` (3) najstarszych
+  odpowiedzi (#1970)** — limit w SQL na wątek (`ROW_NUMBER()` przez
+  `limit()` w ograniczeniu relacji), obok `replies_count` (widoczne dla
+  widza) i `more_replies_url`. Dalsze odpowiedzi:
+  `GET /api/v1/komentarze/{uuid}/odpowiedzi` — od pierwszej, kursorowo,
+  strona `comments.page_size`, bramka `CommentPolicy::view`, dla odpowiedzi
+  (nie korzenia) 404. Logika w `App\Domain\Api\WatkiKomentarzy`.
+- **Widoczność przepisu na karcie wpisu z feedu rozstrzyga lista, nie
+  zasób (#1971).** `Post::ukryjNiedostepnePrzepisy()` (jedno zapytanie na
+  stronę, ostrzej niż polityka — bez furtki moderatora) oznacza wpis
+  `przepisRozstrzygnietyDla`; `PostResource` pyta `RecipePolicy::view()`
+  tylko o wpis spoza takiej listy (`GET /wpisy/{uuid}`). Wcześniej polityka
+  szła per wpis (N+1), a przy przepisie ładowanym bez `status`
+  i `author_id` odrzucała każdy przepis feedu — API nie pokazywało
+  przepisów na kartach wcale. Liczba zapytań feedu jest stała względem
+  liczby wpisów (test).
+- **Zdjęcia: `GET /api/v1/zdjecia/{uuid}/{wariant}` to ten sam
+  `MediaController` co `media.show`** — `DostepDoZdjecia` pyta Policy
+  rodzica. Zasoby JSON podają WYŁĄCZNIE adresy tej trasy
+  (`App\Http\Resources\Api\V1\Zdjecie`), nigdy klucz w buckecie; zdjęcie bez
+  gotowego wariantu nie trafia do odpowiedzi.
+- Zasoby (`app/Http/Resources/Api/V1`) nie wypuszczają pól prywatnych:
+  adresu e-mail (poza `GET /ja`), statusu moderacji, `klucz_wyslania`,
+  `hide_as_memory`, skanu źródła przepisu.
+- API nie ma gościa: bez tokenu 401 także tam, gdzie WWW wpuszcza bez
+  logowania. Trasy z identyfikatorem są w
+  `KazdaTrasaZIdentyfikatoremPodPolicyTest` (pięć ról).
+
+### Czego tu świadomie nie ma
+
+Listy wpisów i przepisów na profilu, „Świeżo z Kuking", wyszukiwarki
+i powiadomień — etap 2 aplikacji. Profil w WWW liczy widoczność prywatną
+metodą kontrolera (`ProfileController::tylkoWidoczne`); przed dodaniem tej
+listy do API trzeba ją najpierw wyciągnąć do domeny (D-014, pkt 2).
+
+📄 `app/Http/Controllers/Api/V1/` · `app/Http/Resources/Api/V1/` ·
+`tests/Feature/Api/CzytanieApiTest.php`
+
+---
+
+## D-273 — API: publikacja przez te same Akcje co WWW — wpis, „Ugotowałem", komentarz, obserwowanie (25 września 2026)
+
+**Data:** 25 września 2026 · Etap 4 API (D-270) · Status: **obowiązuje**
+
+### Co
+
+- **`POST /api/v1/wpisy`** (multipart: `photos[]`, `body`, `visibility`,
+  opcjonalnie `tags[]`) — główna akcja „Co dziś ugotowałeś?". Zdjęcia przez
+  `StoreUploadedImage` (te same limity typów i rozmiaru z `LimityZdjec`,
+  magic bytes, limit megapikseli, re-enkodowanie w tle zdejmujące EXIF/GPS),
+  wpis przez `PublishPost`. Nagłówek `Idempotency-Key` (UUID) pełni rolę
+  ukrytego `klucz_wyslania` z formularza: ponowienie przy słabym zasięgu nie
+  tworzy drugiego wpisu (201 za pierwszym razem, 200 przy powtórce).
+- **`POST /api/v1/przepisy/{uuid}/ugotowalem`** — `RecordCookedEvent` pod
+  `RecipePolicy::cook`. Powiadomienie autora robi ta sama akcja
+  (`NotifyUser`), więc trzy granice z AGENTS.md §1 obowiązują bez kopii:
+  własny przepis, konto autora zamknięte, blokada. Zmierzone w
+  `tests/Feature/Api/PublikacjaApiTest.php`.
+- **`POST /api/v1/wpisy/{uuid}/komentarze`** (`PostPolicy::comment`)
+  i **`POST /api/v1/przepisy/{uuid}/komentarze`** (`RecipePolicy::view`, jak
+  WWW) — `PublishComment`; rodzic odpowiedzi szukany tylko wśród komentarzy
+  widocznych dla piszącego.
+- **`POST`/`DELETE /api/v1/osoby/{uuid}/obserwuj`** — `FollowUser` /
+  `UnfollowUser` pod `UserPolicy::follow`/`unfollow`. **Po UUID osoby, nie
+  po nazwie** — nazwa może przejść na inne konto (#793).
+- Limity: te same prefiksy i progi co formularze WWW (`post`, `comment`,
+  `obserwowanie`) — wspólne wiadra. Zawieszone konto: 403
+  `konto_zawieszone` z `EnsureApiAccountIsActive`.
+- Błędy akcji domenowych (`BladDlaCzlowieka`) wracają jako 422 przy polu,
+  tym samym zdaniem co na WWW.
+
+**Czego tu nie ma:** edycji i usuwania wpisów, przepisów z aplikacji,
+zeszytów, blokowania, zgłoszeń — etap 2 aplikacji. Zgłaszanie treści
+(DSA art. 16) musi wejść do API **przed** publicznym wydaniem aplikacji, bo
+publikacja bez drogi zgłoszenia to luka prawna, nie funkcja do dołożenia.
+
+📄 `app/Http/Controllers/Api/V1/PublikacjaController.php` ·
+`app/Http/Controllers/Api/V1/UgotowalemController.php` ·
+`app/Http/Controllers/Api/V1/KomentarzController.php` ·
+`app/Http/Controllers/Api/V1/ObserwowanieController.php` ·
+`app/Http/Controllers/Api/V1/Concerns/PrzyjmujeZdjecia.php`
+
 ---
 
 ## D-274 — „Jeden wpis na autora” (#940) jest nadrzędny wobec wpisu z własną treścią (#1377) (25 września 2026)
@@ -17959,6 +18367,398 @@ ludzi (D-088) — opis w `docs/DATABASE.md` („Urodziny bez roku”). Wysyłkę
 maili wyłącza `KUKING_URODZINY_MAIL_WLACZONY=false` bez wdrożenia kodu.
 
 
+---
+
+## D-296 — Wyjątek od D-240: zdjęcie kartki wychodzi do OpenAI na osobną zgodę „odczyt AI” (26 września 2026)
+
+**Data:** 26 września 2026 · **Decyzja właściciela** · Status: **obowiązuje** ·
+Wąski wyjątek od **D-240** · Dotyczy: D-298 (import/OCR), D-072 (dziennik zgód),
+projekt `docs/research/V2_IMPORT_OCR_ODZYWCZE.md` §5
+
+**Decyzja właściciela dosłownie:** OCR prywatnego zdjęcia — wyjątek od D-240
+przez OSOBNĄ ZGODĘ „odczyt AI” w dzienniku zgód (wzór awatarów z D-240), do
+cofnięcia; na start dla WSZYSTKICH zalogowanych.
+
+### Problem
+
+D-240: do OpenAI wychodzi wyłącznie pomniejszona (≤ 320 px), publiczna treść;
+treść bez potwierdzonej zgody — nie. Odczyt pisma z kartki łamie oba warunki
+naraz: kartka jest prywatna, a 320 px nie wystarcza do przeczytania pisma.
+D-240 sam wskazał drogę (przy awatarze): „osobna decyzja: cel zgody, ekran
+udzielania i wycofania, sprawdzenie przed każdą wysyłką”.
+
+### Co obowiązuje
+
+- **Nowy cel w `dziennik_zgod`: `odczyt_ai`** i nowe źródło `ekran_importu`
+  (migracja `2026_09_26_100200_dziennik_zgod_cel_odczyt_ai`). Stanem zgody
+  jest OSTATNI wpis osoby dla tego celu — bez kolumny na `users`, więc nie ma
+  dwóch prawd (flaga i dowód). Zapisuje i czyta wyłącznie
+  `App\Domain\Zgody\PrzestawZgodeNaOdczytAi`; zdarzenie powstaje tylko przy
+  realnej zmianie.
+- **Ekran udzielania** przed pierwszym odczytem (`/dodaj/przepis/z-kartki`):
+  kto odczyta (OpenAI, USA), co wyślemy (samo zdjęcie kartki, bez imienia,
+  e-maila i danych z aparatu), prośba o zasłonięcie cudzych danych, jak
+  wycofać. Dwa przyciski: „Zgadzam się, odczytujcie moje kartki” / „Nie,
+  wpiszę przepis ręcznie”.
+- **Wycofanie** w `/ustawienia/prywatnosc` (osobny formularz), dostępne także
+  podczas zawieszenia konta (`EnsureAccountIsActive`, RODO art. 7 ust. 3).
+  Anonimizacja konta dopisuje `wycofana` / `usuniecie_konta`.
+- **Sprawdzenie przed każdą wysyłką:** zadanie `OdczytajPrzepis` czyta zgodę
+  świeżo z bazy jako OSTATNI krok przed żądaniem (po rezerwacji budżetu).
+  Wycofanie między zleceniem a wysyłką = zero wysłanych bajtów, rezerwacja
+  zwolniona (test).
+- **Co wychodzi:** wyłącznie zdjęcie kartki, na wyraźne żądanie jej autora,
+  przy każdym zleceniu z osobna — wariant przekodowany u nas do JPEG, dłuższy
+  bok ≤ 2000 px zmierzony z bajtów, bez EXIF/XMP/GPS; `store: false`; bez
+  e-maila, nazwy, IP, identyfikatorów i pola `user`.
+- **Poza tym wyjątkiem D-240 obowiązuje bez zmian** — moderacja dalej wysyła
+  tylko treść publiczną ≤ 320 px, awatar dalej nie wychodzi.
+- **Dla kogo:** wszyscy zalogowani (bez grupy testowej).
+
+### Warunki włączenia na produkcji (poza kodem)
+
+Umowa powierzenia (DPA) z OpenAI wpisana do `docs/legal/REJESTR_UMOW_POWIERZENIA.md`;
+nowa wersja polityki prywatności z drugim celem OpenAI (projekt tekstu:
+`docs/legal/projekty/POLITYKA_ODCZYT_AI.md`, wersję podbija osobny PR razem
+z pozostałymi zmianami polityki); nowa czynność w rejestrze czynności
+przetwarzania. Do tego czasu `OPENAI_IMPORT_KEY` zostaje pusty.
+
+### Dowód
+
+`tests/Feature/Import/OdczytZdjeciaKartkiTest.php` (ekran zgody, brak
+wysyłki bez zgody, wycofanie w trakcie kolejki, wycofanie przy zawieszeniu,
+usunięcie konta), `tests/Feature/Import/CofniecieZgodyOdczytuAiOdmawiaTest.php`
+(rollback odmawia przy istniejących zgodach — D-088).
+
+### Wycofanie
+
+Wyłączenie funkcji: usunąć `OPENAI_IMPORT_KEY`. Zgody w dzienniku zostają
+jako dowód i niczego nie uruchamiają. Migracja CHECK-ów cofa się tylko przy
+braku wpisów `odczyt_ai` (dziennik jest append-only).
+
+---
+
+## D-297 — Budżet i limity odczytu przepisów modelem: 5 USD dziennie, 100 USD miesięcznie, 5/30 odczytów na osobę (26 września 2026)
+
+**Data:** 26 września 2026 · **Decyzja właściciela** · Status: **obowiązuje** ·
+Dotyczy: V2 import/OCR (D-282, D-298), projekt `docs/research/V2_IMPORT_OCR_ODZYWCZE.md` §3.3
+
+**Decyzja właściciela dosłownie:** budżet 5 USD/dzień i 100 USD/mies.
+(w konfiguracji) + limit na osobę 5 importów/dzień i 30/mies. (propozycja
+z projektu).
+
+### Co obowiązuje
+
+- **Budżet serwisu w PostgreSQL**, tabela `ai_budzet_dzienny` (jeden wiersz
+  na dzień w strefie `Europe/Warsaw`, kwoty w mikro-USD). Bez Redisa i bez
+  cache'u — to są pieniądze, a licznik w cache'u znika przy restarcie.
+- **Rezerwacja przed wywołaniem, rozliczenie po nim** (`App\Domain\Import\BudzetAi`).
+  Rezerwacja = najgorszy przypadek: pełne okno kontekstu zatwierdzonego
+  `gpt-6-luna` (1 050 000 tokenów, również dla wszystkich stron skanu PDF)
+  × 2 × cena wejścia + sufit tokenów wyjścia (z rozumowaniem) × 1,5 × cena
+  wyjścia (droższa taryfa modelu po 272 tys. tokenów wejścia).
+  Model inny niż `gpt-6-luna` lub cennik poniżej 0,10/0,50 USD za milion
+  tokenów wyłącza import, zamiast udawać twardy limit kosztu. Zapis pod
+  `SELECT … FOR UPDATE` na wierszu dnia szereguje równoległe odczyty.
+  Rozliczenie z `usage` zwalnia nadwyżkę; **brak `usage` = cała rezerwacja
+  wydana** (żądanie mogło dojść i zostać policzone). Rezerwację zwalniamy bez
+  wydatku wyłącznie wtedy, gdy żądanie na pewno nie wyszło.
+- **Brak cennika = brak wywołań.** Ceny w USD za milion tokenów
+  (`KUKING_IMPORT_CENA_WEJSCIE`, `KUKING_IMPORT_CENA_WYJSCIE`) wpisuje się
+  ręcznie z cennika OpenAI; bez nich nie da się zarezerwować budżetu, więc
+  funkcja jest wyłączona tak samo jak bez klucza.
+- **Limit na osobę liczony z bazy** (`importy_przepisow`, dzień i miesiąc
+  w strefie człowieka), nie `RateLimiter`-em — ma być dokładny. Liczy się
+  zlecenie (także „Odczytaj jeszcze raz”); zlecenia zatrzymane na limicie
+  (`wstrzymany_limitem`) się nie liczą, bo do modelu nie poszły. Równoległe
+  zlecenia jednej osoby szereguje blokada doradcza na czas transakcji.
+  Osobno `throttle:import` (10 / 10 min) chroni samą trasę przed pętlą żądań.
+- **Próg ostrzegawczy 80%** dziennego budżetu: jeden `Log::warning`
+  (`stage=import_budzet_prog`) dziennie.
+- **Moderacja nie jest w tym budżecie** — jest bezpłatna, ma osobny klucz,
+  a wyczerpanie budżetu importu nie może jej zatrzymać.
+- **Druga linia obrony poza naszym kodem:** osobny projekt OpenAI z limitem
+  wydatków ustawionym w panelu dostawcy (krok właściciela).
+
+### Co widzi człowiek
+
+Wyczerpany budżet serwisu: przycisk zostaje, ale NAD nim stoi informacja,
+zanim ktoś kliknie; zlecenie złożone mimo to kończy się stanem
+`wstrzymany_limitem` z komunikatem „Twoje zdjęcie jest zapisane…”. Limit
+osoby: szkic ze zdjęciem i tak powstaje, a komunikat mówi, kiedy można dalej.
+
+### Dowód
+
+`tests/Feature/Import/BudzetAiTest.php`, `tests/Dwa/BudzetAiNaDwochPolaczeniachTest.php`
+(dwie rezerwacje naraz, limit na jedną — jedna przechodzi),
+`tests/Feature/Import/CofniecieBudzetuAiOdmawiaTest.php` (rollback odmawia
+przy wydatkach w bieżącym miesiącu — D-088).
+
+### Wycofanie / zmiana
+
+Kwoty i limity zmienia się w env (`KUKING_IMPORT_BUDZET_DZIEN`,
+`KUKING_IMPORT_BUDZET_MIESIAC`, `KUKING_IMPORT_NA_OSOBE_DZIEN`,
+`KUKING_IMPORT_NA_OSOBE_MIESIAC`) — zmiana domyślnych wartości w repo wymaga
+nowej decyzji właściciela.
+
+---
+
+## D-298 — Import przepisu i OCR zdjęcia kartki: architektura (26 września 2026)
+
+**Data:** 26 września 2026 · **Decyzja właściciela** (model, klucz, zakres) +
+rozstrzygnięcia wykonawcze opisane niżej · Status: **obowiązuje** ·
+Dotyczy: D-282 (V2 wolno budować), D-296 (zgoda „odczyt AI”), D-297 (budżet),
+projekt `docs/research/V2_IMPORT_OCR_ODZYWCZE.md`, issue #28
+
+### Decyzje właściciela z 26 września 2026
+
+- Model OpenAI **`gpt-6-luna`** — domyślna wartość `KUKING_IMPORT_MODEL`,
+  zmienialna w env. Osobny klucz **`OPENAI_IMPORT_KEY`**. **Brak klucza =
+  funkcja wyłączona, przycisk się nie pokazuje.**
+- **Intensywność myślenia (`reasoning.effort`) w konfiguracji, osobno per
+  zadanie:** odczyt zdjęcia zeszytu = `medium` (`KUKING_IMPORT_EFFORT_OCR`),
+  wyznaczanie fragmentów przepisu z URL/PDF = `low`
+  (`KUKING_IMPORT_EFFORT_TEKST`). Dozwolone wartości są w kodzie
+  (`KlientLuna::WYSILKI`: `minimal`, `low`, `medium`, `high`); wartość spoza
+  listy wyłącza TO JEDNO zadanie (żadnego żądania) i mówi o tym
+  `kuking:sprawdz-import`. Klient wysyła `reasoning.effort` dokładnie
+  z konfiguracji (test). Import z URL/PDF (osobna gałąź) używa klucza
+  `kuking.import.model.wysilek.tekst` i zadania `KlientLuna::ZADANIE_TEKST`.
+- Szkic z odczytu jest **zawsze `draft` i `private`, nigdy auto-publikacja**.
+- Przed publikacją szkicu z OCR: pole **„Sprawdziłem odczytany tekst”**,
+  a **niepewne słowa `[?…?]` blokują publikację**. Na ekranie pole brzmi
+  „Odczytany tekst jest sprawdzony ze zdjęciem” — forma „Sprawdziłem”
+  przypisuje czytelnikowi płeć, czego zabrania `docs/brand/COPY_STYLE.md` §2
+  (pilnuje `TekstyNiePrzypisujaPlciTest`); znaczenie i działanie bez zmian.
+- Na start funkcja dla **wszystkich zalogowanych**.
+
+### Architektura
+
+- **Import = zadanie w kolejce, które wypełnia prywatny SZKIC w istniejącym
+  kreatorze.** Szkic (`recipes`, `draft`, `private`) i zdjęcie kartki
+  (`recipes.source_scan_media_id`, zwykły potok zdjęć — EXIF zdjęty przed
+  czymkolwiek) powstają RAZEM ze zleceniem, zanim cokolwiek pójdzie do
+  modelu. Dlatego „zdjęcie jest zapisane” jest prawdą przy każdym błędzie,
+  limicie i wyłączonej funkcji, a zdjęcie ma od razu wszystkie ochrony skanu
+  kartki (eksport, kasowanie z kontem, `DostepDoZdjecia`). Jedno zdjęcie na
+  zlecenie w tym etapie (`source_scan_media_id` jest jedno).
+- Publikacja idzie **zwykłym `PublishRecipe`** i zwykłą moderacją.
+  `app/Domain/Import/**` nie odwołuje się do `PublishRecipe` z `publish: true`
+  (test architektoniczny). Bramkę „Sprawdziłem / `[?`” trzyma
+  `BramkaPublikacjiOdczytu` wołana z `PublishRecipe`, więc obejmuje kreator
+  i formularz bez JavaScriptu. **`PublishRecipe` (moduł `Recipes`) nie
+  importuje `Import` wprost** — woła kontrakt `App\Domain\Recipes\
+  BramkaPublikacjiSzkicu`, którego implementację (`BramkaPublikacjiOdczytu`)
+  wiąże `AppServiceProvider` (wzorem `ObserwowanieGospodarza`, issue #971).
+  Bezpośredni import zamykał cykl `Import → Recipes → Import`, bo `Import`
+  i tak zależy od `Recipes` przez `PublishRecipe` (`ZlecImportPrzepisu`,
+  `OdczytajPrzepis`) — pilnuje tego `GrafModulowDomenyBezCykliTest`.
+- **Klient `App\Domain\Import\KlientLuna`** — Responses API
+  (`POST https://api.openai.com/v1/responses`), host i ścieżka w kodzie
+  (`#^/v1/responses$#`, D-250), `store: false`, bez narzędzi, wyjście
+  w schemacie JSON (`strict`). Nie wysyła e-maila, nazwy, IP, identyfikatorów
+  ani pola `user`/`safety_identifier`. Trzy wyniki jak w moderacji (#1662).
+- **Obraz do modelu:** wariant `large` (≤ 1600 px) przekodowany przez GD do
+  JPEG, dłuższy bok ≤ 2000 px zmierzony z bajtów przed i po — bez EXIF/XMP/GPS.
+- **Kolejka `low`, nie osobna `import`.** Produkcja chodzi w roli `all`
+  (jeden proces na wszystkie kolejki), więc osobna kolejka trafiłaby do tego
+  samego procesu, a kosztowałaby zmianę `docker/entrypoint.sh`, IaC i
+  `UmowaKolejkiTest` oraz dodatkową pamięć po wydzieleniu workera. Po
+  wydzieleniu odczyt (do 90 s) stoi na `low` za moderacją, a nie przed
+  zdjęciami (`media`) i listami (`high`/`default`). Gdy pomiar pokaże, że
+  odczyty opóźniają moderację — wtedy osobna kolejka, nową decyzją.
+- **Tabela `importy_przepisow`** (ślad zlecenia, bez treści przepisu):
+  surowa odpowiedź modelu 30 dni, wiersz 90 dni (`kuking:sprzataj-importy`,
+  06:00). Wyjątek: wiersz szkicu, który nadal jest szkicem, zostaje jako
+  bramka publikacji. Eksport RODO: sekcja `odczyty_przepisow`; anonimizacja
+  konta kasuje wiersze.
+- **Brak powiadomienia w serwisie** w tym etapie: ekran postępu
+  `/import/{import}` (słowa, `aria-live`, działa bez JS) i lista „Moje szkice”.
+- Komenda **`kuking:sprawdz-import`** mówi, czego brakuje (klucz, model,
+  adres, intensywność, cennik, budżet) — bez wysyłania żądań.
+
+### Maszyna stanów płatnego wywołania (#1973, #1974, #1977, #1980)
+
+Audyt gałęzi pokazał cztery okna, w których awaria między dwoma zapisami
+psuła budżet albo zlecenie (zmierzone testami przed poprawką:
+`MaszynaStanowOdczytuTest`): rezerwacja zatwierdzona bez śladu w zleceniu
+(76 000 mikro-USD zablokowane na zawsze), rozliczenie policzone dwa razy
+(82 000 zamiast 76 000), zlecenie `oczekuje` bez zadania w kolejce (także po
+ponowieniu tym samym kluczem) i ponowienie zadania wysyłające DRUGIE płatne
+żądanie, choć odpowiedź pierwszego była zapisana. Jedna maszyna stanów
+zamiast czterech łatek:
+
+- **Księga `ai_rezerwacje`**, klucz `UNIQUE (import_id, proba)`, stany
+  `zarezerwowana → wyslana → rozliczona` albo `→ zwolniona`. Każde przejście
+  to warunkowy `UPDATE … WHERE stan IN (otwarte)`, więc powtórzone
+  rozliczenie niczego nie zmienia (#1974). Wiersz księgi powstaje w tej
+  samej transakcji co zwiększenie `zarezerwowano_mikrousd`, a zadanie
+  owija rezerwację i zwiększenie `importy_przepisow.proby` w jedną
+  transakcję (#1973). Kolumny `rezerwacja_mikrousd`/`rezerwacja_dzien`
+  zniknęły ze zlecenia (migracja gałęzi poprawiona w miejscu, przed
+  scaleniem).
+- **`wyslana` zapisywane PRZED żądaniem.** Dzięki temu rezerwacja porzucona
+  ma jednoznaczny los: niewysłana wraca do budżetu, wysłana idzie w wydatki
+  całą kwotą (D-297: lepiej zawyżyć). Domykają ją `failed()`, początek
+  następnej próby i **`kuking:odzyskaj-importy`** (co kwadrans; rezerwacja
+  otwarta ponad 30 minut — zadanie żyje najwyżej 120 s).
+- **Rozliczenie budżetu i zapis kosztu, tokenów i odpowiedzi w zleceniu —
+  jedna transakcja** (`RozliczenieOdczytu`). Koszt dopisywany w SQL
+  (`COALESCE(koszt_mikrousd, 0) + ?`), bo porzuconą rezerwację mógł domknąć
+  kto inny.
+- **Zapisana odpowiedź = etap „odczytano” zamknięty** (#1980). Ponowienie
+  zadania z `odpowiedz_modelu` odtwarza wynik (`OdpowiedzModelu::zZapisanej`)
+  i dokańcza BEZ rezerwacji i bez żądania. Zgody nie sprawdza drugi raz:
+  nic już nie wychodzi. Granica: `output_text` jest w zapisie ucięty do
+  20 000 znaków — dłuższy (niespotykany dla kartki) po wznowieniu kończy się
+  `odpowiedz_bledna`, nigdy drugim wywołaniem.
+- **Sufit płatnych żądań na zlecenie: `PROBY_MODELU` (3)** — liczony
+  z `proby`, więc obejmuje także ponowienia po zwykłym wyjątku, które
+  kolejka robi do `$tries` (8, bo obejmuje też czekanie na zdjęcie).
+- **Szkic i `gotowy` w jednej transakcji** — inaczej ponowienie po awarii
+  tuż za szkicem brało tekst modelu za pracę człowieka (`szkic_zmieniony`).
+- **Zlecenie i zadanie razem albo wcale** (#1977): `OdczytajPrzepis::dispatch()`
+  wewnątrz transakcji zapisu zlecenia — kolejka bazodanowa na tym samym
+  połączeniu, bez `after_commit`, ten sam outbox co `ZamowEksportDanych`
+  (A02) i `StoreUploadedImage` (#1456). `afterCommit()` odrzucone: przenosi
+  zapis zadania za commit, czyli zostawia to samo okno (kontrola ujemna
+  w `scripts/kontrole-negatywne-alfa08.py` robi dokładnie tę zmianę).
+  Zadanie zgubione inną drogą: zlecenie `oczekuje`/`w_toku` bez zmiany od
+  120 minut dostaje `nieudany`/`blad_wewnetrzny` i „Spróbuj jeszcze raz”.
+  **Nie wysyłamy zadania ponownie automatycznie** — gdyby „zgubione” zadanie
+  jednak żyło, dwa zadania to dwa płatne żądania; ponowienie należy do
+  człowieka i liczy się do jego limitu.
+
+### Czego ta decyzja NIE robi
+
+Nie włącza funkcji na produkcji: wymaga klucza, cennika, umowy powierzenia
+(DPA) z OpenAI i nowej wersji polityki prywatności (projekt tekstu:
+`docs/legal/projekty/POLITYKA_ODCZYT_AI.md`). Nie buduje importu z URL/PDF
+ani wartości odżywczych (osobne etapy i gałęzie).
+
+### Wycofanie
+
+Najszybciej: usunąć `OPENAI_IMPORT_KEY` — przyciski znikają, zlecenia
+w kolejce kończą się `wylaczony`, szkice ze zdjęciami zostają. Cofnięcie kodu:
+odwrócić commity; migracje `importy_przepisow` cofa się bez odmowy,
+`ai_budzet_dzienny` (razem z księgą `ai_rezerwacje`) odmawia przy wydatkach
+w bieżącym miesiącu (D-088).
+## D-304 — „Mój stół”: dobrowolna półka przepisów wyłącznie z zamkniętej listy doboru (#1749, D-275, 26 września 2026)
+
+**Data:** 26 września 2026 · **Decyzja właściciela** (26.09: „budujemy teraz”,
+twardy warunek: dobór wyłącznie z zamkniętej listy D-275) · Status: **obowiązuje**
+
+### Decyzja
+
+Budujemy „Mój stół” z issue #1749 — prywatną, **dobrowolną** półkę przepisów
+pod `/moj-stol`, ze skrótem w prawej szynie Startu. Obserwowani i „Świeżo
+z Kuking” zostają bez zmian (chronologia, D-276, D-277).
+
+**Dobór — tylko reguły z AGENTS.md §8 (D-275):**
+
+1. „Z tagów, które obserwujesz” — jawne polecenie widza (obserwowane, aktywne
+   tagi), w nim czas i równość autorów: najnowszy przepis każdej osoby, potem
+   od najnowszego, najwyżej 6 (`MojStol::NA_POLCE_Z_TAGOW`).
+2. „Wybór gospodarza: tag …” — oznaczony wybór gospodarza: pierwszy tag z listy
+   `tag_promotions` (w kolejności gospodarza), którego widz **nie** obserwuje
+   i w którym jest co pokazać; w nim czas i równość autorów, najwyżej 3.
+   To jest obowiązkowa pula „nowego tematu” z issue (przeciw bańce) i zimny
+   start dla kogoś bez obserwowanych tagów.
+3. Przed wyborem: bramki i blokady (publiczny, opublikowany, wskazuje widoczny
+   przepis, aktywne konto autora, blokady w obie strony) oraz ukrycia widza
+   z #1810 — wpis **i osoba** (półka to podsunięcie, jak Odkrywanie, D-278).
+   Własne przepisy widza pomijamy.
+4. Najwyżej jeden przepis od osoby na całej półce.
+5. „kuKINGi na dziś” (dopisane 26.09 po odpowiedzi właściciela, PR #1875) —
+   oznaczony wybór gospodarza na dziś (`daily_picks`, tylko wpisy wskazujące
+   przepis), w kolejności gospodarza (`daily_picks.position`), najwyżej 3
+   (`MojStol::NA_POLCE_NA_DZIS`). Trzecia sekcja półki z własnym nagłówkiem
+   i „Pokazujemy, bo gospodarz wybrał ten przepis na dziś.” Te same filtry co
+   reszta półki — **także ukrycie osoby** (na tablicy dnia ukrycie osoby
+   wyboru gospodarza nie zdejmuje, D-278; na półce właściciel chce jednego
+   zestawu filtrów). Autor, który już stoi na półce, nie wchodzi drugi raz;
+   z dwóch wyborów jednej osoby zostaje pierwszy w kolejności gospodarza.
+
+**„Dlaczego to widzę”** — reguła jednym zdaniem na półce, w szynie (odnośnik)
+i na stronie pomocy (`MojStol::DLACZEGO`):
+
+> Pokazujemy najnowsze przepisy z tagów, które obserwujesz, z jednego tagu
+> polecanego przez gospodarza i przepisy, które gospodarz wybrał na dziś — po
+> jednym od osoby, bez tego, co ukrywasz, i nigdy według liczby polubień ani
+> Twoich kliknięć.
+
+Przy każdej pozycji: „Pokazujemy, bo obserwujesz tag: …” albo „…bo gospodarz
+poleca tag: …”, i przycisk „Nie pokazuj mi tego” (= „Ukryj ten wpis” z #1810,
+z „Cofnij” i listą „Ukryte”).
+
+### Co z issue #1749 świadomie odpada
+
+- **Zapisane przepisy, ugotowane dania, podobieństwo składników i typu dania
+  jako źródło kandydatów** i „deterministyczny scoring” — to przewidywanie
+  gustu z zachowania widza, poza zamkniętą listą. Wymagałoby osobnej decyzji
+  właściciela (AGENTS.md §8: „reguła spoza tej listy wymaga decyzji
+  właściciela, nie PR-a”).
+- **„Resetuj moje dopasowanie”** — półka niczego nie zapamiętuje, więc nie ma
+  czego resetować. Strona mówi to wprost i prowadzi do listy „Ukryte”
+  i ustawień tagów.
+- **„Ukryj temat”** — ukrycia tagu nie ma jeszcze w #1810 („tag później”).
+  Na półce działa „Zmień obserwowane tagi”; tag od gospodarza po prostu
+  ustępuje następnemu, gdy widz zacznie go obserwować.
+- Metryki przed modelem uczonym (#1814) — model uczony nie powstaje.
+
+### Dane
+
+Jedna kolumna `users.moj_stol_enabled` (`boolean NOT NULL DEFAULT false`,
+docs/DATABASE.md). Wyłączona półka nie liczy żadnego zapytania o propozycje.
+Eksport: `konto.moj_stol_wlaczony`; wymazanie konta ustawia `false`.
+Rollback **przechodzi bez odmowy** — świadome odstępstwo od D-088: utracona
+wartość to preferencja wyświetlania, a kierunek utraty (wyłączenie) jest
+bezpieczny. **Właściciel zaakceptował to odstępstwo 26 września 2026**
+(odpowiedź na pytania do PR #1875).
+
+### Odpowiedzi właściciela z 26 września 2026 (PR #1875)
+
+1. Kandydaci z zapisów, wykonań i podobieństwa składników oraz scoring —
+   zostają poza półką, jak wyżej.
+2. Brak „resetu” i „ukryj temat” — zostaje, jak wyżej.
+3. Rollback bez odmowy — zaakceptowany.
+4. Na półce tylko wpisy wskazujące przepis — zostaje.
+5. „kuKINGi na dziś” — dodane jako trzecia sekcja (punkt 5 decyzji).
+
+### Strażnik
+
+`app/Domain/Feed/MojStol.php` leży w `app/Domain/Feed`, więc skan
+`FeedNieSortujePoMierzeReakcjiTest` obejmuje go z definicji katalogu;
+dodatkowo kotwica zasięgu i asercja, że skan widzi sortowanie półki po
+`posts.published_at` oraz „kuKINGów na dziś” po `daily_picks.position`. Dwie
+kontrole ujemne w `scripts/kontrole-negatywne-alfa08.py` podmieniają każde
+z tych sortowań na `cooked_events_count` — strażnik ma oblać (obie sprawdzone
+lokalnie).
+
+### Koszt wejścia jest stały (#1968)
+
+Temat od gospodarza nie odpytuje bazy osobno dla każdego promowanego tagu.
+Jedno zbiorcze zapytanie numeruje wpisy w oknie (tag, osoba) i (tag), z tymi
+samymi bramkami, blokadami, ukryciami i pominięciem autorów już na półce;
+wybór tematu (pierwszy w kolejności gospodarza, który ma co pokazać) zapada
+w PHP. Pula to najwyżej `MojStol::TEMATOW_DO_ROZPATRZENIA` (20) pierwszych
+tagów listy gospodarza — dalsze na półkę nie trafiają. „kuKINGi na dziś”
+numerują wybory po osobie i biorą `NA_POLCE_NA_DZIS` w samym zapytaniu.
+Test: ta sama liczba zapytań przy 1 i 10 promowanych tagach
+(`test_temat_gospodarza_ma_stala_liczbe_zapytan_niezalezna_od_liczby_tagow`).
+
+### Wycofanie
+
+Zdjęcie trasy `/moj-stol`, bloku w `szyna-startowa` i klasy `MojStol`;
+kolumnę można zostawić (kod bez niej działa) albo cofnąć migrację. Każde
+rozszerzenie doboru poza listę D-275 — nowa decyzja właściciela.
+
+📄 `app/Domain/Feed/MojStol.php` · `app/Http/Controllers/MojStolController.php` ·
+`resources/views/pages/moj-stol.blade.php` · `tests/Feature/MojStolTest.php` ·
+D-275 · D-276 · D-277 · D-278
+
+---
+
 ## D-303 — Ustawienia powiadomień dotyczą WYŁĄCZNIE kanałów zewnętrznych; Web Push przez VAPID (issue #35, 26 września 2026)
 
 **Data:** 26 września 2026 · Status: **obowiązuje** · **Decyzja właściciela** ·
@@ -18008,10 +18808,170 @@ publiczny dostaje web i worker, prywatny tylko worker (`.railway/railway.ts`).
 typ albo jakikolwiek przełącznik dla powiadomień w serwisie wymagają zmiany
 AGENTS.md §1 i testu `UgotowalemZawszePowiadamiaAutoraTest`.
 
+### Uzupełnienie: wylogowanie gasi push na tym urządzeniu (#1979, 26 września 2026)
+
+**Problem.** Subskrypcja Web Push należy do przeglądarki, nie do sesji.
+Po „Wyloguj się" na wspólnym komputerze wiersz `push_subscriptions` dalej
+wskazywał tę przeglądarkę, więc prywatne „X — ugotowane z Twojego
+przepisu…" pokazywało się osobie, która siedzi przy nim potem.
+
+**Rozstrzygnięcie.** Świadome „Wyloguj się" wyłącza push na urządzeniu,
+z którego człowiek wychodzi — bez dodatkowego pytania (jedna prosta akcja,
+bez okna „czy na pewno"; ekran ustawień mówi o tym jednym zdaniem).
+Wygaśnięcie sesji **nie** wyłącza: telefon, na którym sesja po prostu minęła,
+dostaje dalej. Inne urządzenia tej osoby — bez zmian.
+
+Serwer rozpoznaje urządzenie sam, bez polegania na skrypcie: identyfikator
+wiersza trafia do sesji przy włączeniu (`OdlaczUrzadzeniePush::KLUCZ_SESJI`).
+Skrypt formularza wylogowania dokłada adres subskrypcji (pokrywa
+przeglądarkę włączoną w dawnej sesji) i wywołuje `unsubscribe()`; każdy błąd
+albo zawieszenie po 3 s kończy się zwykłym wylogowaniem. Kasowanie działa
+wyłącznie w obrębie `$user->pushSubscriptions()` — adres albo identyfikator
+cudzego wiersza niczego nie skasuje. Adres nie trafia do HTML-a (pole
+w formularzu jest puste do chwili wysłania).
+
+**Czego to nie zmienia.** Treść pushu zostaje z imieniem i nazwą potrawy
+(RETENTION_LOOPS §3.3) — ukrywanie jej na ekranie blokady wymagałoby
+osobnej decyzji właściciela. Osoba, która zaloguje się w przeglądarce
+z subskrypcją kogoś, kto się **nie** wylogował (sesja wygasła), widzi
+„wyłączone" i może przepiąć przeglądarkę na siebie przyciskiem „Włącz";
+osobne ostrzeżenie o cudzej subskrypcji — do osobnego issue.
+
+**W kodzie.** `App\Domain\Notifications\Push\OdlaczUrzadzeniePush`,
+`LoginController::destroy`, `components/wyloguj.blade.php`,
+`resources/js/powiadomienia-push.js` (`przygotujWylogowanie`). Testy:
+`WylogowanieWylaczaPushNaUrzadzeniuTest`, `powiadomienia-push.test.mjs`.
+
 ### Wycofanie
 Usunąć klucze VAPID ze zmiennych środowiska — po restarcie usług ekran i wysyłka znikają,
 bez zmiany kodu. Wycofanie migracji odmawia, dopóki ktoś ma zapisane własne
 godziny ciszy lub limit (D-088; instrukcja w komunikacie migracji).
+## D-299 — Wartości odżywcze przepisu: szacunek z tabel CIQUAL/USDA, w PHP, bez AI (V2, etap 7; 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela
+(źródło danych, próg, widoczność) · Projekt:
+`docs/research/V2_IMPORT_OCR_ODZYWCZE.md` §8, etap 7, zadania I-9 i I-10,
+pytanie P-8.
+
+**Decyzja właściciela (26.09.2026, odpowiedź na P-8).** Źródło: darmowe,
+otwarte tabele CIQUAL i/lub USDA — licencje sprawdzone i zapisane
+w repozytorium, dane jako plik w repozytorium plus komenda importu, żadnego
+pobierania na produkcji. Wynik (kcal, białko, tłuszcz, węglowodany na
+porcję) tylko przy pokryciu ≥ 90% masy, z podpisem „Szacunek na podstawie
+tabel CIQUAL/USDA”, bez oświadczeń zdrowotnych i bez filtrów dietetycznych;
+przy mniejszym pokryciu — brak liczb i uczciwy komunikat. Autor może ukryć
+sekcję w swoim przepisie; **domyślnie widoczna**.
+
+**Co wdrożono.**
+
+1. **Dane.** `database/data/odzywcze/skladniki.csv` (218 pozycji: 200 z
+   CIQUAL 2025 — Licence Ouverte / Etalab 2.0, DOI 10.57745/RDMHWY; 18 z USDA
+   FoodData Central SR Legacy — CC0) i `miary.csv` (364 miary domowe). Źródła,
+   wersje, licencje i znane przybliżenia: `database/data/odzywcze/ZRODLA.md`.
+   Człowiek wybiera w pliku tylko źródło i identyfikator pozycji; wartości
+   dopisuje `scripts/odzywcze/uzupelnij_wartosci.py` z pobranych plików
+   źródłowych — każdą liczbę da się sprawdzić.
+2. **Baza.** `skladniki_odzywcze`, `miary_domowe`, `aliasy_skladnikow`
+   (CHECK-i na wartości ≥ 0, na źródło i na gramy) i
+   `recipes.pokazuj_wartosci_odzywcze` — `docs/DATABASE.md`. Import:
+   `php artisan kuking:importuj-wartosci-odzywcze`, idempotentny, w jednej
+   transakcji. Od poprawki #1961 (26.09.2026) komenda stoi w
+   `preDeployCommand` obok `migrate`/`db:seed` i leci przy każdym wdrożeniu;
+   pomija zapis, gdy hash źródeł oraz odcisk wszystkich trzech tabel są zgodne
+   z poprzednim udanym importem (#2130); deploy bez zmiany danych nie przepisuje
+   słownika, a częściowy restore odbudowuje go.
+3. **Liczenie** (`app/Domain/Recipes/Odzywcze`). Składnik jest wolnym
+   tekstem (D-017), więc `ParserSkladnika` czyta ilość, jednostkę i nazwę
+   z tekstu w chwili liczenia i niczego nie zapisuje („2 szklanki mąki”,
+   „mąka – 500 g”, „pół kostki masła”, „2–3 ząbki”, „1 puszka (400 g)”).
+   Kolumny `quantity`/`unit_id`, jeśli kiedyś będą wypełnione, mają
+   pierwszeństwo. `SlownikSkladnikow` dopasowuje najdłuższy fragment nazwy
+   do słownika polskich form (bez zgadywania: „mleko kokosowe” to nie
+   „mleko”). `KalkulatorWartosci` przelicza na gramy (nawias › g/dag/kg ›
+   szczypta 0,5 g › miara domowa składnika › ml × gęstość).
+4. **Zasada 90%.** Liczby tylko wtedy, gdy znamy masę każdego składnika,
+   którego nie pomijamy jawnie, a składniki z tabel to ≥ 90% tej masy.
+   Pomijamy jawnie: „Bez ilości” (`no_amount`), „do smaku / do podania /
+   ile weźmie / na oko”, a sól, pieprz, zioła i wodę — tylko gdy nie mają
+   ilości. „Olej do smażenia”, „trochę śmietany”, „kilka łyżek” blokują
+   wynik: nie wiemy, ile tego trafia do garnka. Komunikat mówi dlaczego,
+   podaje przykład wiersza autora i nigdy nie prosi o dopisanie gramów.
+5. **Widok.** Sekcja pod składnikami na stronie przepisu: nagłówek ze
+   słowem „szacunkowe”, energia zaokrąglona do 10 kcal, reszta do 1 g,
+   podpis „Szacunek na podstawie tabel CIQUAL/USDA.”, „Jak to liczymy”
+   (źródła z licencją i datą, miary, próg). Autor ma przycisk „Ukryj tę
+   sekcję w moim przepisie” (PATCH `recipes.wartosci-odzywcze`, Policy
+   `update`, limit `wartosci_odzywcze`). Ukrycie nie zmienia `updated_at`
+   ani wersji przepisu.
+6. **Skalowanie porcji.** Wartości są na jedną porcję z `recipes.servings`;
+   przeliczenie przepisu na inną liczbę porcji mnoży wszystko tym samym
+   mnożnikiem, więc liczby na porcję się nie zmieniają. Sekcja nie zależy od
+   kodu skalowania i nie dotyka jego plików.
+
+**Czego świadomie nie robimy.** Żadnych słów „zdrowe”, „dietetyczne”,
+„lekkie”, „fit”, „dla cukrzyków” (test negatywny słownictwa), żadnego
+filtrowania ani sortowania po kaloriach, żadnego profilu diety czy alergii
+(dane o zdrowiu, art. 9 RODO). Żadnego modelu AI — ani do liczenia, ani do
+dopasowań. Polskie tabele IŻŻ zostają poza zakresem (licencja płatna).
+
+**Odstępstwo od szkicu projektu.** Projekt (§8.1) wiązał tabelę wartości
+kluczem obcym z `ingredients`. `ingredients` dostaje z formularza cały tekst
+wiersza („2 szklanki mąki” i „mąka” to dwa hasła), więc zamiast tego jest
+słownik aliasów wspólny dla serwisu. Projekt proponował też sekcję
+„zwiniętą” — jest rozwinięta (cztery liczby są krótsze niż przycisk, który
+by je chował); zwinięte jest tylko „Jak to liczymy”.
+
+**Znane przybliżenia.** Twaróg (brak polskiego twarogu w CIQUAL i USDA —
+użyty cottage cheese, wynik serników raczej zaniżony), jedna pozycja dla
+wszystkich kiełbas, kurczak w całości jako 900 g części jadalnej. Szczegóły
+i propozycje poprawy: `ZRODLA.md`.
+
+**Pilnują tego:** `ParserSkladnikaTest`, `KalkulatorWartosciOdzywczychTest`
+(przepis wzorcowy z ręcznym rachunkiem, próg 90%, fikstura przepisów
+z seedów), `WartosciOdzywczeImportTest`,
+`WartosciOdzywczeNaStroniePrzepisuTest`,
+`CofniecieMigracjiNiePokazujeUkrytychWartosciTest` (D-088).
+
+### Wycofanie
+Usunąć `<x-wartosci-odzywcze>` z `pages/recipes/show.blade.php` — sekcja
+znika, dane zostają. Pełne cofnięcie schematu: migracja tabel cofa się
+bezstratnie; migracja kolumny `recipes.pokazuj_wartosci_odzywcze` odmawia,
+gdy którykolwiek autor sekcję ukrył (D-088) — komunikat mówi, co zapisać
+przed cofnięciem.
+
+## D-307 — Strona tagu pokazuje każdemu, także autorowi, tylko wpisy publiczne (#1338, 26 września 2026)
+
+**Decyzja właściciela z 26 września 2026.**
+
+**Reguła.** `/tag/{slug}` pokazuje KAŻDEMU widzowi — gościowi, zalogowanej
+osobie, obserwującej autora i samemu autorowi — wyłącznie opublikowane wpisy
+publiczne od aktywnych autorów. Własne wpisy „tylko dla obserwujących”
+i „tylko dla mnie” nie pojawiają się na stronie tagu autorowi; wpisy „tylko
+dla obserwujących” nie pojawiają się tam obserwującym. Zapowiedź przepisu
+idzie tą samą bramką z `null` — własny niepubliczny przepis autora też nie
+wypływa. Blokady (w którąkolwiek stronę) dalej odcinają publiczne wpisy
+przez `Post::widoczneDla($widz)`.
+
+**Dlaczego.** Strona tagu jest miejscem publicznym i indeksowanym. Jeden
+zakres dla listy, licznika w spisie (D-087) i warunku indeksowania (#1007)
+sprawia, że wszystkie trzy znaczą to samo; autor ma swoje niepubliczne wpisy
+w „Moje wpisy” (w „Moje”, D-328).
+
+**Skutek dla #681/#1392.** Zdanie „Jeden Twój wpis z tym tagiem widzisz
+tylko Ty…” zostaje, liczone osobnym zapytaniem ograniczonym do wpisów widza,
+i mówi teraz, że taki wpis się tu nie pojawia, z odnośnikiem do „Moje wpisy”
+(D-328) — listy wszystkich własnych wpisów z widocznością opisaną słowami.
+
+**Odwraca** pierwszy commit PR #1845, który przypinał odwrotną regułę
+(własne wpisy w każdej widoczności na stronie tagu).
+
+**Nie dotyczy** feedu obserwowanych tagów na Starcie (`TagFeed`) — tam
+zostaje `widoczneDla($widz)` z `published()` (#1561).
+
+**Pilnują:** `FeedTagowTylkoOpublikowaneTest::test_strona_tagu_pokazuje_kazdemu_tylko_wpisy_publiczne_takze_autorowi`,
+`TagiObserwowanieTest::test_obserwujacy_nie_widzi_na_stronie_tagu_wpisu_dla_obserwujacych`,
+`StronaTaguBramkaPrzepisuTest::test_obserwujaca_i_autorka_widza_tylko_zapowiedz_publicznego_przepisu`,
+`ZeroWpisowWSpisieTagowTest`.
 
 ## D-281 — „Komentarze (N)” pod zwykłym wpisem liczy odpowiedzi; pytanie nie (#1801, 26 września 2026)
 
@@ -18098,7 +19058,401 @@ wymagałoby osobnej, jawnej decyzji o wycofaniu konkretnej funkcji.
 
 📄 `AGENTS.md` §2, `AGENTS.md` §10, `CLAUDE.md`, `docs/FEATURES.md`,
 `docs/ROADMAP.md`, `config/kuking.php`
+## D-286 — Koszt dania: najpierw kwota wpisana przez autora, jawnie jako jego szacunek (V2, 26 września 2026)
 
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela
+(dopuszczenie V2 z `docs/FEATURES.md` od 26.09 — D-282; wybór „oba":
+koszt wg autora oraz przedział liczony z cen GUS, gdy autor nic nie wpisze)
+
+**Problem.** „Koszt" jest na liście V2. Serwis nie zna cen w sklepie
+czytelnika, a przepisy domowe nie mają gramów, więc każda liczba „od
+serwisu" byłaby zgadywaniem przedstawionym jako fakt.
+
+**Decyzja (część 1 — autor).**
+
+1. Autor **może** (nie musi) wpisać przybliżony koszt CAŁEGO przepisu
+   w złotych — w kreatorze i w formularzu szczegółów. Ekran dodawania
+   („sześć rzeczy", #364) tego pola nie dostaje.
+2. Walidacja: liczba ≥ 0, najwyżej 9999,99, najwyżej dwa miejsca po
+   przecinku; „24,50", „24 zł" i „1 200" są poprawne. Komunikaty po polsku
+   mówią, co zrobić. Źródło reguł i tekstów: `App\Domain\Recipes\KosztPrzepisu`.
+3. Strona przepisu mówi pełnym zdaniem: **„Szacunkowy koszt: ok. 24 zł
+   (wg autora)"**. Zawsze „ok." i zawsze „wg autora" — to deklaracja jednej
+   osoby, nie cennik.
+4. Brak kwoty to brak zdania. `0 zł` jest odpowiedzią i się wyświetla.
+5. Koszt **nie** wchodzi do `CoMoznaDopisac` — zaproszenie „Dopisz
+   szczegóły" nie ma namawiać do liczenia pieniędzy przy rodzinnym rosole.
+6. Wyszukiwarka dostaje zakres **„Do 20 zł"** (`sekcja=tanie`) — sam filtr,
+   bez żadnego wpływu na kolejność wyników (AGENTS.md §8: żadnego rankingu).
+   Przepis bez kosztu z tego zakresu wypada: brak kwoty nie znaczy „tanio".
+7. Skalowanie porcji (jeszcze nie na `main`): koszt przelicza się
+   proporcjonalnie (`KosztPrzepisu::naPorcje`), zaokrąglony do pełnych
+   złotych, z dopiskiem „przeliczone z kosztu podanego przez autora"
+   (`zdaniePrzeliczone`). Bez liczby porcji autora nie przeliczamy.
+   Strona przepisu niesie kwotę w `data-koszt-autora` dla tego przełącznika.
+
+**Rollback kolumny odmawia**, gdy ktoś już wpisał koszt (D-088; opis
+w `docs/DATABASE.md`, sekcja `estimated_cost_pln`).
+
+**Czego świadomie nie ma:** cen sklepów, linków afiliacyjnych, porównań,
+AI, sortowania po cenie.
+
+### Wycofanie
+Ukrycie funkcji: usunąć pole z dwóch formularzy, zdanie ze strony i zakres
+z wyszukiwarki — kolumna może zostać. Zdjęcie kolumny: patrz rollback
+migracji (najpierw kopia wartości).
+
+### Część 2 — przedział z cen GUS, gdy autor nic nie wpisał (26 września 2026)
+
+**Decyzja właściciela z 26.09 („oba").** Gdy autor nie podał kwoty, strona
+przepisu może pokazać **przedział** liczony deterministycznie w PHP z cen
+GUS — podpisany jako szacunek i tylko przy dostatecznym pokryciu
+składników. Projekt: `docs/research/V2_IMPORT_OCR_ODZYWCZE.md` §8.4
+(gałąź `claude/v2-import-ocr-plan`, PR #1854).
+
+1. **Kwota autora zawsze wygrywa.** Przedział liczy się tylko przy
+   `recipes.estimated_cost_pln IS NULL`.
+2. **Dane:** tabela `ceny_skladnikow` wczytywana komendą
+   `kuking:ceny-skladnikow` z pliku `database/data/ceny_skladnikow.csv`.
+   Produkcja niczego nie pobiera z sieci; plik odświeża osoba prowadząca
+   (`scripts/ceny-gus-pobierz.py`, API BDL GUS, temat P1466) i zmiana cen
+   przechodzi przegląd w PR-ze. Każdy wiersz ma `zrodlo`; jedyny wiersz
+   spoza GUS to woda z kranu (0 zł, poza pokryciem), opisany jako
+   założenie Kuking.
+3. **Rytm:** komenda raz na kwartał. Stan faktyczny źródła: BDL podaje dla
+   tego tematu **średnie roczne** (dziś 2025), a **nie podaje cen warzyw**
+   (ziemniaki, cebula, marchew są tylko w serii miesięcznej zakończonej
+   w 2019). Przepisy z dużą masą warzyw uczciwie nie dostaną przedziału,
+   dopóki właściciel nie zdecyduje o innym źródle albo ręcznym uzupełnieniu.
+4. **Liczenie** (`SzacunekKosztuZCen`): ilość z tekstu składnika
+   (`IloscZTekstu`) albo z rozbitych pól, dopasowanie całymi słowami
+   (`CennikSkladnikow`), miary domowe per składnik. Przedział ±15%,
+   zaokrąglony do pełnych złotych. Warunki: każdy składnik z ilością da się
+   przeliczyć na gramy, a składniki z ceną to ≥ 90% masy. `no_amount`,
+   drobiazgi bez ilości (sól, pieprz, zioła, „do smaku") i woda nie liczą
+   się do masy.
+5. **Tekst:** „Orientacyjny koszt: ok. 5–7 zł za całość (średnie ceny
+   detaliczne GUS z 2025 r.). W Twoim sklepie może być inaczej." Gdy
+   warunki nie są spełnione, ale choć jeden składnik ma cenę — jedno zdanie,
+   dlaczego nie liczymy. Gdy żaden składnik nie trafił w cennik — cisza.
+6. **Poza zakresem:** zakres „Do 20 zł" w wyszukiwarce patrzy wyłącznie na
+   kwotę autora (przedział nie jest zapisywany w bazie); skalowanie porcji
+   przedziału nie przelicza.
+
+**Zbieżność z wartościami odżywczymi.** Projekt §8.1 przewiduje osobne
+`miary_domowe` przy tabeli składników odżywczych. Tu miary siedzą w cenniku
+(kolumny `g_*`), bo cennik jest samodzielny i mały; gdy powstanie wspólna
+tabela miar, cennik ma z niej korzystać, a nie trzymać drugiej kopii.
+
+### Wycofanie części 2
+Usunąć przekazanie `szacunekKosztu` w `RecipeController::show` — strona
+wraca do samej kwoty autora. Tabela może zostać albo zniknąć rollbackiem
+(`DROP TABLE`, bez strat: odtwarza ją komenda z pliku).
+
+### Część 3 — ceny warzyw z MRiRW/ZSRIR, bo GUS ich nie ma (26 września 2026)
+
+**Problem właściciela.** Cennik z części 2 nie ma ANI JEDNEGO warzywa —
+GUS (BDL, temat P1466) podaje dziś ceny mięsa, nabiału, pieczywa i suchych
+produktów, ale seria z cenami ziemniaków, cebuli i marchwi jest MIESIĘCZNA
+i skończyła się w 2019 roku (sprawdzone bezpośrednio w BDL 26.09.2026 —
+metryka 1466 nie ma nowszych wartości dla tych trzech towarów). Właściciel:
+„Znajdź może jakieś źródło, skąd można wziąć aktualne detaliczne ceny
+warzyw. Jakiś sklep, jakaś hurtownia albo coś”.
+
+**Sprawdzone źródła:**
+
+| Źródło | Typ ceny | Aktualność | Format / API | Licencja | Ocena |
+|---|---|---|---|---|---|
+| GUS BDL, P1466 | detaliczna, średnia roczna | ziemniaki/cebula/marchew: **do 2019**; reszta towarów: 2025 | REST API (bez klucza) | dane publiczne GUS | źle pokrywa warzywa — stąd ten problem |
+| **MRiRW, ZSRIR** (dane.gov.pl, zbiór 912), arkusz „ZAKUP WARZ DETAL — do 2 kg” | **cena zakupu warzyw przez podmioty handlu detalicznego**, opakowania do 2 kg — najbliższy oficjalny odpowiednik ceny detalicznej | **cotygodniowa**, publikowana też tego samego dnia co research (25.09.2026) | xlsx (biuletyn), zbiór ma REST API (`api.dane.gov.pl`) do listowania i pobierania zasobów | **CC BY 4.0 / domena publiczna** — jawnie wolno pobierać automatycznie i publikować przeliczenia | **wybrane** dla 5 warzyw: ziemniaki, cebula (biała), marchew, papryka czerwona, pomidory (okrągłe) |
+| MRiRW, ZSRIR, arkusz „HURT WARZ” (Bronisze, Kalisz, Łódź, Poznań, Rzeszów) | **hurtowa**, min–max z 5 rynków | cotygodniowa | j.w. | j.w. | szersze pokrycie warzyw (kapusta, buraki, por, seler, pietruszka, sałata, ogórek…), ale **odrzucone jako automatyczne źródło** — patrz niżej |
+| Sklepy internetowe (Frisco, Auchan, Carrefour) i gazetki (Biedronka, Lidl) | detaliczna, realny sklep | bieżąca | brak API do tego celu; regulaminy zwykle zakazują automatycznego pobierania i republikacji cen | zastrzeżona, per-sklep | **odrzucone** — to byłby scraping wbrew regulaminowi, którego D-286 świadomie unika |
+| Eurostat (ceny konsumpcyjne) | wskaźniki zagregowane (HICP), nie ceny jednostkowe konkretnych warzyw w PLN | miesięczna | API/CSV, licencja otwarta | otwarta | **odrzucone** — nie da się z tego odtworzyć ceny za kg konkretnego warzywa |
+| dane.gov.pl (poza zbiorem 912) | — | — | — | — | żadnego innego zbioru z cenami detalicznymi warzyw nie znaleziono |
+
+**Dlaczego ZSRIR „do 2 kg”, a nie „HURT WARZ” z przelicznikiem.** Rozważono
+policzenie brakujących warzyw (kapusta, buraki, por, seler, pietruszka,
+sałata, ogórek) z arkusza hurtowego przez jeden, jawny mnożnik hurt→detal.
+Sprawdzono to empirycznie na warzywach, które są w OBU arkuszach tego
+samego biuletynu (cebula, marchew, ziemniaki, papryka czerwona): stosunek
+ceny detalicznej („do 2 kg”) do średniej ceny hurtowej z 5 rynków wyniósł
+odpowiednio ok. **1,0×** (cebula), **1,5×** (ziemniaki), **1,6×** (marchew)
+i **2,2×** (papryka) — rozrzut zbyt duży, żeby jeden mnożnik dla wszystkich
+warzyw był czymkolwiek innym niż zgadywaniem przedstawionym jako fakt.
+Zamiast zmyślać liczbę, zostawiamy te warzywa BEZ ceny — dokładnie jak dziś
+przy brakujących cenach GUS (`SzacunekKosztuZCen` już to obsługuje: milczy,
+gdy żaden składnik nie trafił w cennik, i tłumaczy się, gdy trafił tylko
+częściowo). Kalibrowany, PER-WARZYWO przelicznik jest możliwy w przyszłości,
+ale to osobna decyzja właściciela, nie coś do zgadnięcia przy okazji.
+
+**Wdrożenie.**
+
+1. `database/data/ceny_skladnikow.csv` ma teraz 5 nowych wierszy: `ziemniaki`,
+   `cebula`, `marchew`, `papryka_czerwona`, `pomidor`. `zrodlo` każdego
+   zaczyna się od `MRiRW` (nie `GUS`) — to jedyne miejsce, po którym kod
+   i testy rozpoznają źródło ceny (`SzacunekKosztuZCen::nazwaZrodla`).
+2. Nowy skrypt `scripts/ceny-warzyw-zsrir-pobierz.py` (analogiczny do
+   `ceny-gus-pobierz.py`) pobiera najnowszy biuletyn ZSRIR z dane.gov.pl,
+   czyta arkusz „ZAKUP WARZ DETAL - DO 2 KG” i aktualizuje TYLKO te pięć
+   wierszy. Uruchamia się na komputerze osoby prowadzącej, tak samo raz na
+   kwartał — produkcja nadal niczego nie pobiera z sieci.
+3. Zdanie na stronie przepisu wymienia oba źródła, gdy oba wystąpiły
+   w jednym przepisie: „Orientacyjny koszt: ok. 8–12 zł za całość (średnie
+   ceny detaliczne GUS i MRiRW/ZSRIR z 2025, 2026 r.). W Twoim sklepie może
+   być inaczej.” — zamiast dawnego sztywnego „GUS z {rok} r.”.
+4. Bez migracji: kolumny `ceny_skladnikow` już dopuszczały `zmienna_bdl`
+   jako `NULL` (wiersze spoza GUS go po prostu nie mają).
+
+**Stan do 26.09.2026 (druga tura decyzji, niżej):** kapusta, buraki
+ćwikłowe, por, seler, pietruszka korzeniowa, sałata, ogórek nie miały ceny
+z powodów opisanych wyżej. Właściciel, znając ten sam rozrzut 1,0×–2,2×,
+zdecydował inaczej niż proponowane „zostawić bez ceny” — patrz niżej.
+
+### Uzupełnienie z 26.09.2026 — decyzja właściciela: jednak hurt × 1,6,
+### jawnie nazwane, i odświeżanie co tydzień
+
+Właściciel, po przeczytaniu tabeli źródeł i zmierzonego rozrzutu (1,0×–2,2×)
+zdecydował **inaczej niż zaproponowane wyżej „zostawić bez ceny”**:
+
+> „DODAJ je jako cena hurtowa ZSRIR (środek min–max z rynków) × 1,6,
+> z jawnym opisem. W źródle i w zdaniu pod kosztem musi być wprost
+> napisane, że to szacunek z cen hurtowych. Mnożnik ma być jedną stałą
+> z komentarzem i uzasadnieniem. Odświeżanie warzyw co tydzień.”
+
+**1. Siedem warzyw dostaje cenę z arkusza „HURT WARZ”.** `kapusta`,
+`buraki`, `por`, `seler`, `pietruszka`, `salata`, `ogorek` — cena to
+średnia z min–max pięciu rynków (Bronisze, Kalisz, Łódź, Poznań,
+Rzeszów) w biuletynie z 14-22.09.2026, pomnożona przez
+`App\Domain\Recipes\Koszt\SzacunekKosztuZCen::MNOZNIK_HURT_DETAL = 1,6`
+— **jedna nazwana stała z komentarzem w kodzie**, nie liczba wpisana po
+cichu do CSV. 1,6 to środek zmierzonego zakresu 1,0×–2,2×, jawnie
+przybliżony, nie zmierzony osobno dla każdego warzywa. `por` i `salata`
+mają cenę **za sztukę** (arkusz notuje je w `szt.`, nie `kg`), pozostałe
+pięć — za kilogram.
+
+**2. Jawność w DWÓCH miejscach, nie jednym.** Pole `zrodlo` każdego z tych
+siedmiu wierszy zaczyna się od frazy „szacunek z cen hurtowych” i podaje
+sam mnożnik. `SzacunekKosztuZCen` wykrywa tę frazę i dokłada do zdania na
+stronie przepisu zdanie wprost: „(…; część cen to szacunek z cen
+hurtowych MRiRW/ZSRIR)” — czytelnik nie ma się domyślać z samego numeru
+ceny, że to nie jest zwykła cena detaliczna.
+
+**3. Odświeżanie: co tydzień, przez GitHub Actions, nie przez człowieka.**
+Nowy workflow `.github/workflows/ceny-warzyw-auto.yml` (harmonogram
+cotygodniowy + `workflow_dispatch`) uruchamia
+`scripts/ceny-warzyw-zsrir-pobierz.py --zapisz` — TEN SAM skrypt, który
+wcześniej uruchamiała tylko osoba prowadząca ręcznie. **Produkcja nadal
+niczego nie pobiera z sieci** — automatyzacja dotyczy wyłącznie CI. Gdy
+plik się zmieni, workflow pushuje gałąź `claude/ceny-warzyw-auto`
+(NIGDY `main` wprost) i otwiera PR do `main`. Merge PR-a jest ręczny:
+ktoś z zespołu przegląda różnicę cen, dokładnie jak dotąd.
+
+**Stan do 26.09.2026 (tego samego dnia, później tego dnia):** workflow
+pushował i otwierał PR domyślnym tokenem `GITHUB_TOKEN` tego przebiegu,
+a siedem warzyw hurtowych nie było w nim automatyzowane w ogóle (osobna
+ręczna aktualizacja arkusza „HURT WARZ”). Właściciel zmienił OBIE rzeczy
+tego samego dnia — patrz „Uzupełnienie” niżej.
+
+### Uzupełnienie z 26.09.2026 (dalszy ciąg) — osobisty token i wszystkie
+### 12 warzyw w jednym PR-ze
+
+Dwie kolejne decyzje właściciela z 26.09.2026, po uruchomieniu workflow
+z punktu 3:
+
+**A. `GITHUB_TOKEN` nie wystarcza — GitHub świadomie nie odpala CI na
+PR-ze, który sam otworzył.** GitHub Actions ma wbudowane zabezpieczenie
+przed pętlą automatów: `pull_request` NIE URUCHAMIA workflowów, gdy PR
+został otwarty (albo zaktualizowany) domyślnym `GITHUB_TOKEN` tego samego
+repozytorium. Efekt uboczny u nas: PR z cenami warzyw stał bez ani
+jednego przebiegu `ci.yml` — recenzent nie miał czym sprawdzić, czy
+zmiana w ogóle przechodzi testy, zanim scali.
+
+Rozwiązanie: workflow dostaje osobisty, fine-grained PAT zapisany jako
+sekret repozytorium — `CENY_WARZYW_PAT`. PR otwarty tym tokenem wygląda
+dla GitHuba jak otwarty przez człowieka, więc `pull_request` rusza
+normalnie. **Checkout i krok push/PR idą TYM SAMYM tokenem** — nie samym
+pushem, bo checkout bez tokenu i tak by nie miał czym push zautoryzować.
+
+*Uprawnienia PAT-a (minimalne, opisane też w
+`docs/infra/DEPLOYMENT_RUNBOOK.md`, sekcja „Co tydzień”):* wyłącznie to
+jedno repozytorium (nie „All repositories"), `Contents: Read and write`,
+`Pull requests: Read and write`, z ustawionym terminem ważności — nie
+„No expiration". Domyślny `GITHUB_TOKEN` zostaje w workflowie z uprawnieniem
+`contents: read` (nic więcej go już nie potrzebuje).
+
+*Gdy sekretu brakuje:* workflow ma osobny, pierwszy krok „Sprawdź sekret
+CENY_WARZYW_PAT”, który sprawdza jego obecność PRZED checkoutem i kończy
+przebieg czerwonym `::error::` po polsku, mówiącym dokładnie, co ustawić
+i gdzie (Settings → Secrets and variables → Actions →
+`CENY_WARZYW_PAT`) — nie cichym błędem gita czy `gh` przy pustym tokenie.
+
+**Poprawka bezpieczeństwa, 26.09.2026 (#1957): checkout i uruchomienie
+skryptu rozdzielone na dwa joby.** Zdanie wyżej — „checkout i krok
+push/PR idą TYM SAMYM tokenem” — było prawdziwe i było błędem: między
+tym checkoutem a pushem workflow uruchamiał
+`python3 scripts/ceny-warzyw-zsrir-pobierz.py`, czyli kod z repozytorium,
+mając już poświadczenie zapisu (`Contents`/`Pull requests: read/write`)
+zapisane w konfiguracji gita przez ten sam checkout. Skompromitowany
+skrypt (albo jego zależność `openpyxl`) mógł to poświadczenie odczytać
+(`git config --local --get-regexp 'credential|url'`) i wynieść poza
+kontrolę tego joba. Naprawa: `pobierz` (bez tokenu, `persist-credentials:
+false`, uruchamia skrypt) i `publikuj` (z tokenem, ale bez ani jednego
+wywołania kodu z `scripts/` — tylko `git`/`gh` z tego pliku workflow,
+plik CSV wędruje między jobami jako artefakt przebiegu). Strażnik:
+`tests/Feature/WorkflowCenNieUruchamiaKoduZTokenemZapisuTest.php`.
+
+**B. Automatyzacja obejmuje też siedem warzyw hurtowych — jeden PR
+tygodniowo na wszystkie 12 warzyw.** Ręczna aktualizacja arkusza
+„HURT WARZ” z punktu 3 była tymczasowa: skoro ten sam biuletyn niesie oba
+arkusze w jednym pliku xlsx, nie ma powodu automatyzować tylko jednego
+z nich. `scripts/ceny-warzyw-zsrir-pobierz.py` dostał drugą funkcję
+parsującą, `wyciagnij_ceny_hurt`, czytającą arkusz „HURT WARZ”: dla
+każdego z pięciu rynków (Bronisze, Kalisz, Łódź, Poznań, Rzeszów) liczy
+średnią z min–max, potem średnią arytmetyczną tych pięciu wartości (rynek
+bez notowania w danym tygodniu jest POMIJANY, nie liczy się jako zero),
+mnoży przez przelicznik i zapisuje jak dotąd z jawną klauzulą
+„szacunek z cen hurtowych” w `zrodlo`.
+
+**Mnożnik ma jedno źródło prawdy, także między językami.** Skrypt NIE
+trzyma własnej kopii liczby 1,6 — funkcja `mnoznik_hurt_detal()` czyta ją
+wprost z pliku PHP (`App\Domain\Recipes\Koszt\SzacunekKosztuZCen`,
+wyrażeniem regularnym na stałą `MNOZNIK_HURT_DETAL`) i kończy działanie
+czytelnym błędem, gdy tej stałej tam nie znajdzie — zamiast po cichu
+przyjąć wartość domyślną. Test zgodności
+(`MnoznikHurtDetalTest::test_czyta_stala_z_prawdziwego_pliku_php`) czyta
+PRAWDZIWY plik repozytorium, nie kopię, więc zmiana stałej w PHP bez
+odpowiadającej zmiany w Pythonie (albo odwrotnie) nie może po cichu
+przejść — któryś z dwóch testów by to złapał.
+
+Skrypt aktualizuje teraz WSZYSTKIE 12 wierszy (`MAPA` ∪ `MAPA_HURT`)
+w jednym przebiegu, więc workflow otwiera **jeden PR tygodniowo** z całym
+cennikiem warzyw, a nie dwa osobne progi przeglądu tej samej rzeczy.
+
+**4. Testy.** `KosztZCenGusTest::kapusniak_mowi_wprost_ze_kapusta_to_szacunek_z_hurtu`
+— ręcznie policzone danie (kiełbasa GUS + kapusta hurt×1,6), sprawdza
+kwotę I dokładny tekst zdania z klauzulą o cenach hurtowych; kontrola
+ujemna zepsuła wykrywanie frazy — test oblał, przywrócono, znów zielony.
+`KosztZCenGusTest::ceny_hurtowe_warzyw_w_pliku_sa_srednia_razy_mnoznik`
+— sprawdza, że KAŻDA z siedmiu cen w prawdziwym pliku CSV to naprawdę
+`hurt_średnia × MNOZNIK_HURT_DETAL` (żeby ktoś, kto zmieni jedno, nie
+zapomniał drugiego); kontrola ujemna zmieniła stałą — test oblał,
+przywrócono. `scripts/ceny_warzyw_zsrir_pobierz_test.py` (`unittest`,
+bez sieci, na małych fikturach .xlsx zbudowanych w pamięci) sprawdza
+parser skryptu — teraz uruchamiany automatycznie co tydzień, więc musi
+mieć własny test, nie tylko ręczne uruchomienie; ten test chodzi też jako
+krok w `ceny-warzyw-auto.yml`, PRZED prawdziwym pobraniem. Od uzupełnienia
+z 26.09.2026 dochodzą do niego: `WyciagnijCenyHurtTest` (parser arkusza
+„HURT WARZ”, z kontrolą ujemną na rynek bez notowania — gdyby liczył się
+jako zero zamiast być pominięty, średnia by spadła), `MnoznikHurtDetalTest`
+(test zgodności — czyta `MNOZNIK_HURT_DETAL` z prawdziwego pliku PHP,
+z kontrolą ujemną na plik bez tej stałej) i
+`MainAktualizujeWszystkie12WarzywTest` (uruchamia cały `main()` na
+fikturze z OBOMA arkuszami tego samego biuletynu i sprawdza, że
+wszystkie 12 kluczy — `MAPA` ∪ `MAPA_HURT` — dostaje nową cenę w jednym
+przebiegu, a klauzula „szacunek z cen hurtowych” trafia wyłącznie do
+siedmiu wierszy hurtowych).
+
+### Wycofanie części 3
+Usunąć pięć wierszy detalicznych (`ziemniaki`, `cebula`, `marchew`,
+`papryka_czerwona`, `pomidor`) i siedem wierszy hurtowych (`kapusta`,
+`buraki`, `por`, `seler`, `pietruszka`, `salata`, `ogorek`) z
+`database/data/ceny_skladnikow.csv`, skrypt
+`scripts/ceny-warzyw-zsrir-pobierz.py` z testem
+`scripts/ceny_warzyw_zsrir_pobierz_test.py` i workflow
+`.github/workflows/ceny-warzyw-auto.yml` (razem z sekretem
+`CENY_WARZYW_PAT`, jeśli nic innego go już nie używa). Bez migracji do
+cofnięcia — kod `SzacunekKosztuZCen` obsługuje brak tych wierszy tak samo
+jak dziś
+obsługuje brak cen warzyw w ogóle.
+
+
+## D-300 — Import przepisu z adresu strony i z PDF: granice prawne i techniczne (V2, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela ·
+Dotyczy projektu `docs/research/V2_IMPORT_OCR_ODZYWCZE.md` (PR #1854) §2.4, §4,
+etapów 4–5, pytań P-3, P-7, P-10, P-12 i issue #28
+
+**Problem.** Import z adresu strony to najprostsza droga do zamiany Kuking
+w agregator cudzych treści (AGENTS.md §9, §12: „masowy import cudzych
+przepisów" jest anty-wzorcem na zawsze) i zarazem furtka SSRF — serwer
+pobiera adres, który wkleił człowiek. Projekt proponował trzymać import URL
+za wyłącznikiem do opinii prawnika (P-3).
+
+**Decyzja właściciela (26.09.2026).** Import z adresu **od razu**, bez czekania
+na prawnika, dla wszystkich zalogowanych (P-7), w tych granicach:
+
+1. **Wynik to wyłącznie prywatny szkic** (`status = draft`, `visibility =
+   private`). Import nie ma drogi do publikacji — publikuje człowiek zwykłym
+   „Opublikuj".
+2. **Źródło obowiązkowe i zapisane:** `source_type = external`, `source_url`
+   = adres po przekierowaniach bez parametrów śledzących. W kreatorze
+   i formularzu źródła szkicu z adresu nie da się zmienić (`StrazImportu`
+   nadpisuje je przy każdym zapisie).
+3. **Zdjęć z cudzych stron nie pobieramy** — ani do szkicu, ani jako podgląd;
+   parser JSON-LD nie przenosi nawet adresu zdjęcia.
+4. **`robots.txt` szanowany** (RFC 9309: grupa `KukingImport` przed `*`;
+   4xx = wolno, 5xx i brak odpowiedzi = nie wolno), uczciwy `User-Agent`
+   `KukingImport/1.0 (+<adres serwisu>/o-kuking)`, bez obchodzenia zabezpieczeń.
+5. **Pełna ochrona SSRF:** tylko `http`/`https`, porty 80/443, bez
+   `user:hasło@`; blokada adresów prywatnych, pętli, link-local (w tym
+   metadanych chmury), CGNAT, zakresów zarezerwowanych, IPv6 lokalnych,
+   IPv4 zapisanych jako IPv6, NAT64/6to4, nazw jednoczłonowych i stref
+   `.internal`/`.local`/`.localhost`; KAŻDY adres IP nazwy musi być publiczny;
+   połączenie przypięte do sprawdzonego IP (`CURLOPT_RESOLVE`, bez proxy
+   ze zmiennych środowiskowych); host sprowadzany do jednej postaci
+   (małe litery, punycode, bez końcowej kropki, IPv4 z zapisów
+   `inet_aton`, IPv6 skrócony) i adres dla cURL-a składany z niej na nowo,
+   żeby przypięcie i żądanie miały ten sam klucz, a po połączeniu
+   `CURLOPT_PREREQFUNCTION` przerywa żądanie do adresu innego niż
+   sprawdzony (#1978); każde przekierowanie (najwyżej 3) i każdy
+   `robots.txt` przez strażnika od nowa; limit 2 MB liczony w trakcie
+   pobierania, bez rozpakowywania, 10 s na żądanie, 25 s na całość,
+   tylko `text/html`.
+6. **Bez masowego importu:** jeden adres albo jeden plik na wysłanie, brak
+   pola na listę adresów, wspólny dla OCR, adresu i PDF limit na osobę **5 dziennie / 30 miesięcznie**,
+   wspólny dla wszystkich źródeł importu (jak przy OCR), plus throttle trasy.
+7. **Ostrzeżenie (nie blokada, P-10)** przy publikacji, gdy opis
+   przygotowania jest podobny do strony źródłowej w ≥ 60% (`similarity()`
+   z `pg_trgm` wobec tekstu zapamiętanego przy imporcie).
+8. **„Sprawdziłem odczytany tekst" (P-12)** — pole wymagane przed pierwszą
+   publikacją szkicu z importu (adres, PDF, zdjęcie). Pilnuje go
+   `PublishRecipe` przez kontrakt `StrazPochodzeniaPrzepisu`, więc obowiązuje
+   w kreatorze, w formularzu jednostronicowym i w każdym przyszłym wejściu.
+9. **Model „GPT-6 Luna” (`gpt-6-luna`) tylko tam, gdzie bez niego się nie
+   da:** strona BEZ danych JSON-LD `Recipe` (tryb fragmentów — model zwraca
+   same granice wierszy z etykietami, PHP składa tekst z oryginału i odrzuca
+   odpowiedź bez pełnego pokrycia) i PDF BEZ warstwy tekstu (ścieżka OCR).
+   Strona z JSON-LD i PDF z tekstem idą lokalnie, bez kosztu. Wywołania
+   modelu wyłącznie przez klienta, budżet i zgodę z fundamentu importu;
+   wysiłek rozumowania dla wyznaczania fragmentów — `low`
+   (`KUKING_IMPORT_EFFORT_TEKST`, decyzja właściciela z 26.09.2026).
+   Każde takie wywołanie wymaga zgody zaznaczonej w danym formularzu;
+   wcześniejsza zgoda na odczyt zdjęcia kartki nie obejmuje tekstu strony
+   ani stron skanowanego PDF. Rezerwacja w istniejącym budżecie AI następuje
+   przed wysłaniem, a po wyczerpaniu budżetu model nie dostaje danych.
+
+**W kodzie.** `app/Domain/Import/` (`Url/StraznikAdresow`, `Url/PobieraczStron`,
+`Url/RobotsTxt`, `Url/ParserJsonLdPrzepisu`, `TrybFragmentow`,
+`Pdf/TekstZPdf` przez `poppler-utils`, `ParserTekstuPrzepisu`,
+`Actions/ZapiszSzkicZImportu`, `StrazImportu`, `PodobienstwoDoZrodla`,
+`LimitImportu`), tabela `przepisy_z_importu` (`docs/DATABASE.md`), trasy
+`/dodaj/przepis/z-adresu` i `/dodaj/przepis/z-pdf`, konfiguracja
+`kuking.import`. Testy: `ImportStraznikAdresowTest`, `ImportPobieraczStronTest`,
+`ImportParseryTest`, `ImportTekstZPdfTest`, `ImportPrzepisuZAdresuIPdfTest`,
+`CofniecieMigracjiImportuTest`, `ObrazMaNarzedziaPdfTest` — sieć wyłącznie
+przez `Http::fake`, DNS przez podstawioną mapę nazw.
+
+**Czego ta decyzja nie zmienia.** Nie otwiera masowego importu ani importu
+z serwisów wymagających logowania; nie pozwala AI „przepisać własnymi słowami"
+cudzego tekstu przed publikacją (to byłoby pranie cudzej treści). Nie zastępuje
+opinii prawnika — jeśli prawnik wskaże inaczej, import z adresu wyłącza się
+bez wdrożenia: `KUKING_IMPORT_URL=false` (przycisku wtedy nie ma, D-053).
+
+### Wycofanie
+`KUKING_IMPORT_URL=false` i/lub `KUKING_IMPORT_PDF=false` zdejmują przyciski
+i trasy (404). Istniejące szkice zostają prywatne i zachowują bramkę
+„Sprawdziłem". Zdjęcie tabeli `przepisy_z_importu` — tylko według rollbacku
+w `docs/DATABASE.md` (`down()` odmawia przy niesprawdzonych szkicach).
 ## D-284 — Skalowanie porcji i zamienniki składników od autora, bez AI (V2, 26 września 2026)
 
 **Data:** 26 września 2026 · Status: **obowiązuje** · Zakres dopuszczony przez
@@ -18145,8 +19499,13 @@ do składnika (placeholder kreatora wprost podpowiadał „albo masło roślinne
 **Znana granica.** Rzeczownika bez jednostki nie odmieniamy: „2 jajka” razy
 2,5 daje „5 jajka”, „1 cebula” razy 1,5 — „1½ cebula”. Poprawna odmiana
 wymaga słownika odmiany produktów. Łagodzi to informacja „Przeliczone na N
-porcji” i powrót jednym dotknięciem. Tryb gotowania pokazuje ilości autora
-(parametr `porcje` nie przechodzi do `/gotuj`) — do decyzji, czy przenosić.
+porcji” i powrót jednym dotknięciem. Przed #1984 tryb gotowania pokazywał
+ilości autora; uzupełnienie poniżej przenosi wybór do `/gotuj`.
+
+**Uzupełnienie #1984.** Wybór z adresu przechodzi do trybu gotowania i wraca
+z niego do strony przepisu. Oba widoki używają tego samego `WyborPorcji`;
+zmiana kroku i zapis odhaczenia zachowują zwalidowaną liczbę, a niepoprawna
+wartość wraca do ilości autora. Źródłowych składników to nie zmienia.
 
 **Czego świadomie NIE ma w tym kroku — propozycja na później.** Zamienniki
 podpowiadane przez AI. Model AI projektu ma być według zlecenia OpenAI
@@ -18351,6 +19710,33 @@ usuniętego korzenia liczony). Pilnuje `LicznikKomentarzyLiczyOdpowiedziTest`
 
 **Wycofanie.** Bez schematu i danych — powrót do liczenia wątków to zmiana
 dwóch linijek w kontrolerach i nowa decyzja właściciela.
+## D-264 — Zawieszone konto może zmienić hasło, wylogować inne urządzenia i przestawić 2FA (audyt B2-04, 25 września 2026)
+
+**Data:** 25 września 2026 · **Decyzja zespołu** wynikająca z audytu B2
+(bezpieczeństwo konta) · Status: **obowiązuje** · Uzupełnia D-253
+
+### Co było
+`EnsureAccountIsActive` odbijał podczas zawieszenia każdy zapis na ekranie
+bezpieczeństwa i 2FA. Konto przejęte przez spamera bywa zawieszane właśnie
+za to, co robił napastnik. Właściciel, który odzyskał dostęp resetem, nie mógł
+zmienić hasła, wylogować „innych urządzeń” (napastnik zostawał w sesji) ani
+wyłączyć albo przestawić 2FA aż do końca kary.
+
+### Decyzja
+Trasy `settings.security.password`, `settings.security.logout-others`,
+`settings.two_factor.confirm`, `settings.two_factor.disable`
+i `settings.two_factor.regenerate` są na liście
+`DOZWOLONE_MIMO_ZAWIESZENIA`. Niczego nie publikują, a każda z nich prosi
+o obecne hasło w kontrolerze. `OdzyskiwalneDane` dalej nie oddaje haseł
+do sesji (`SekretyNieWracajaNaEkranTest`).
+
+### Dowody
+`tests/Feature/ZawieszonyZabezpieczaKontoTest.php` — z kontrolą dodatnią, że
+komentarz dalej jest odbijany.
+
+### Wycofanie
+Usunąć pięć nazw tras z listy w `EnsureAccountIsActive`. Schemat bazy się nie
+zmienia.
 ## D-263 — Zawieszone konto może zablokować natręta i zgłosić treść (audyt B2-03, 25 września 2026)
 
 **Data:** 25 września 2026 · **Decyzja zespołu** wynikająca z audytu B2 (DSA
@@ -18382,6 +19768,222 @@ obserwowanie i komentarz dalej są odbijane.
 ### Wycofanie
 Usunąć cztery nazwy tras z listy w `EnsureAccountIsActive`. Schemat bazy się
 nie zmienia. Blokady i zgłoszenia złożone w czasie zawieszenia zostają.
+
+## D-317 — Strona „Co nowego”: osobny opis dla czytelników, oznaczenie „nowa funkcja” w CHANGELOGU (issue #1909, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela
+
+### Problem
+Wersja w stopce (`App\Support\Wersja`, D-051) mówi CO jest wdrożone
+(etap, data, skrót commita), ale nie mówi, co to NAPRAWDĘ zmienia dla
+człowieka. `CHANGELOG.md` to ma, ale pisze do wszystkich zmian naraz,
+technicznym tonem repozytorium, i nie jest z niczego wprost linkowany.
+
+### Decyzja właściciela
+1. **Osobna, publiczna strona** `/co-nowego` (nazwa trasy `nowosci`),
+   pod adresem, do którego prowadzi kliknięcie wersji w stopce. Treść leży
+   w `resources/nowosci/tresc.md` — jeden plik z sekcjami na wydania,
+   renderowany tym samym bezpiecznym Markdownem co `resources/legal/*.md`
+   (wydzielonym do `App\Support\ZaufanyMarkdown`), bez JavaScriptu.
+2. **Podział na wydania „Alfa 0.xx”**, z sekcją „Najnowsze zmiany” na
+   górze — to, co już działa, a nie ma jeszcze numeru wydania (odpowiednik
+   sekcji „## Nieopublikowane” w CHANGELOGU). Kliknięcie wersji w stopce
+   otwiera stronę przy kotwicy BIEŻĄCEGO wydania
+   (`App\Support\Wersja::kotwicaWydania()`), nie od góry dokumentu.
+3. **CHANGELOG.md zostaje pełną, techniczną listą zmian.** Strona nowości
+   ma OSOBNY, krótki opis pisany dla czytelników, nie automat z CHANGELOGU:
+   nowa funkcja jest rozpisana (gdzie ją znaleźć, jak działa, co daje),
+   a poprawki, zmiany kosmetyczne i porządek za kulisami są zebrane w jedno
+   zdanie na wydanie.
+4. **Strona jest publiczna**, widoczna także dla gości — jak `/zasady`
+   i `/regulamin`. Bez `Policy`: nie ma tu cudzego zasobu do chronienia.
+5. **Oznaczenie „nowa funkcja” w CHANGELOGU.** Najmniej uciążliwy sposób:
+   dopisek `[nowa funkcja]` na końcu wiersza, tylko przy wpisach, które
+   dostają rozpisany akapit na stronie nowości. Bez osobnej kolumny, bez
+   drugiego pliku. Zasada trafiła do `AGENTS.md` §10 („Pull Request
+   zawiera”): PR z takim wpisem w sekcji „## Nieopublikowane” musi mieć
+   odpowiadający akapit (`### ...`) w sekcji „## Najnowsze zmiany” pliku
+   nowości — i odwrotnie.
+
+### Dowody
+`tests/Feature/StronaCoNowegoTest.php` (200 gościowi, stopka linkuje
+z kotwicą bieżącego wydania, kotwica istnieje, spis wydań prowadzi do
+kotwic) i `tests/Feature/StraznikNowosciKazdaNowaFunkcjaMaAkapitTest.php`
+(kontrola ujemna w `scripts/kontrole-negatywne-alfa08.py`: zdjęcie znacznika
+`[nowa funkcja]` z CHANGELOGA ma zapalić strażnika).
+
+### Wycofanie
+Usunąć trasę `nowosci`, kontroler, plik treści i odnośnik w stopce (wraca
+do zwykłego `<span>`). CHANGELOG.md nie traci nic — dopiski
+`[nowa funkcja]` zostają nieszkodliwym tekstem, jeśli nikt ich nie sprząta.
+Schemat bazy się nie zmienia.
+
+## D-318 — Numer wersji z końcówką wdrożenia: dziennik `wdrozenia` w bazie, nie licznik z gita (issue #1932, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela
+
+### Problem
+`App\Support\Wersja::etykieta()` („Alfa 0.68") podbija się ręcznie, przy
+większych zmianach — stoi tygodniami bez ruchu. Między dwoma podbiciami
+ląduje na produkcji po kilkanaście wdrożeń dziennie, a stopka i strona
+„Co nowego" (D-317) nie miały jak ich rozróżnić: dwa różne wdrożenia tego
+samego dnia wyglądały identycznie, dopóki ktoś nie porównał skrótów commitów
+z pamięci.
+
+### Decyzja właściciela
+1. **Format wersji:** `Alfa 0.69.001`. Duży numer (`0.69`, `0.70`…) podbija
+   się ręcznie, przy większych zmianach — zasada się nie zmienia
+   (`config/kuking.php`, komentarz nad `wersja.etykieta`, AGENTS.md §3).
+   Końcówka `.001`, `.002`, `.003`… rośnie SAMA przy każdym wdrożeniu i
+   wraca do `.001` przy nowym dużym wydaniu — to jest NOWA sekwencja, nie
+   kontynuacja poprzedniej.
+2. **Licznik NIE liczy się z historii gita.** Build Railwaya może mieć
+   płytki klon — `git rev-list --count` liczyłby wtedy nie to, co trzeba,
+   bez żadnego widocznego błędu (licząca się liczba po prostu byłaby zła).
+   Zamiast tego: dziennik wdrożeń w bazie, dwie tabele —
+   `wdrozenia` (który commit pod jakim numerem) i `wdrozenia_funkcje`
+   (pod jakim numerem pojawiła się każda funkcja z „Najnowsze zmiany") —
+   opisane w `docs/DATABASE.md`.
+3. **Komenda w kroku wdrożenia**, tam gdzie dziś `migrate --force`:
+   `kuking:zarejestruj-wdrozenie`, wpięta w `.railway/railway.ts`
+   (`preDeployCommand`) zaraz PO migracjach. Jeśli bieżący
+   `RAILWAY_GIT_COMMIT_SHA` nie ma jeszcze wiersza, wstawia
+   `numer = MAX(numer) dla tej etykiety + 1` pod
+   `pg_advisory_xact_lock(hashtext(etykieta))` — dwa równoległe starty nie
+   dają tego samego numeru (test na dwóch połączeniach:
+   `tests/Dwa/RejestracjaWdrozeniaNaDwochPolaczeniachTest.php`). Jest
+   idempotentna: ten sam commit drugi raz nie zużywa kolejnego numeru
+   (`UNIQUE (commit)`).
+4. **Przy tym samym przebiegu** komenda zapisuje, które nagłówki funkcji
+   z `resources/nowosci/tresc.md` (sekcja „## Najnowsze zmiany") pojawiły
+   się pierwszy raz — strona „Co nowego" pokazuje przy nich
+   „_od Alfa 0.69.NNN_".
+   **Dopisek doprecyzowany 26 września 2026, tego samego dnia (D-318,
+   dopisek):** zostaje NA STAŁE. Gdy opis funkcji przechodzi z „Najnowsze
+   zmiany" do sekcji nazwanego wydania (np. „## Alfa 0.69" po kolejnym
+   podbiciu dużego numeru), strona „Co nowego" dalej pokazuje numer, pod
+   którym funkcja pojawiła się PIERWSZY RAZ — nie znika i nie przeskakuje na
+   numer bieżącego wdrożenia. Nagłówek nie zmienia tekstu (ani slugu) przy
+   przenosinach, więc `wdrozenia_funkcje.naglowek_slug` jest `UNIQUE` SAM
+   W SOBIE, nie para (etykieta, slug) — `ZarejestrujWdrozenie` dalej zapisuje
+   nowe nagłówki WYŁĄCZNIE ze skanu „Najnowsze zmiany" (skanowanie już
+   wydanych sekcji przy pierwszym uruchomieniu tej funkcji przypisałoby
+   świeży numer funkcjom sprzed tygodni — patrz komentarz klasy), a
+   `NowosciController` dopasowuje po samym slugu W CAŁYM dokumencie, biorąc
+   etykietę i numer z WŁASNEGO wiersza nagłówka, nie z bieżącej
+   `Wersja::etykieta()`.
+5. **Stopka** (`App\Support\Wersja::etykietaZNumerem()`) pokazuje
+   „Alfa 0.69.NNN · data · skrót commita", z cache'em (10 minut, klucz niesie
+   commit — inne wdrożenie samo unieważnia poprzedni wpis). Bez wiersza
+   w bazie (lokalnie, w testach, przy awarii bazy) zostaje dzisiejszy opis,
+   bez błędu — `Wersja::etykieta()` SAMA zostaje bez końcówki, celowo: czyta
+   ją dosłownie `PodbicieWersjiWymagaWpisuWChangelogTest`, porównując
+   z nagłówkiem CHANGELOG-a w formacie „Alfa 0.N", bez żadnej końcówki.
+
+### Rollback (D-088)
+`down()` migracji, która zakłada obie tabele, ODMAWIA, gdy którakolwiek ma
+choć jeden wiersz — numer wdrożenia jest wartością semantyczną, już
+pokazaną ludziom (stopka, „od Alfa 0.69.NNN"), a cofnięcie na wypełnionej
+bazie i kolejny `migrate` zacząłby liczyć numery od 1 dla każdej etykiety,
+mieszając je ze starymi. Na świeżej bazie przechodzi bez pytania. Test
+odmowy i kontrola dodatnia: `tests/Feature/DziennikWdrozenCofnieciePrzyWartosciachTest.php`.
+
+### Dowody
+`tests/Feature/ZarejestrujWdrozenieTest.php` (numeracja, idempotencja, mapa
+funkcji), `tests/Dwa/RejestracjaWdrozeniaNaDwochPolaczeniachTest.php`
+(bezpieczeństwo przy równoległym starcie, dwa prawdziwe połączenia),
+`tests/Feature/DziennikWdrozenCofnieciePrzyWartosciachTest.php` (rollback),
+`tests/Feature/WersjaWStopceTest.php` (numer w stopce, cache),
+`tests/Feature/StronaCoNowegoOdNumeruTest.php` („od Alfa 0.NN.NNN" przy
+funkcji, dopisek przeżywa przenosiny nagłówka do sekcji nazwanego wydania,
+brak wiersza nie wywala strony i nic nie dokleja).
+
+### Wycofanie
+Usunąć komendę `kuking:zarejestruj-wdrozenie` z `preDeployCommand`, cofnąć
+`Wersja::etykietaZNumerem()` do `Wersja::etykieta()` w stopce (D-088:
+migracja sama się nie cofa na wypełnionej bazie — patrz sekcja Rollback
+wyżej). Strona „Co nowego" wraca do samych nagłówków bez dopisku „od …".
+
+---
+
+## D-316 — Pakiety APT w Dockerfile-ach przypięte do migawki snapshot.debian.org, nie do wersji (audyt, issue #1868, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja z audytu
+bezpieczeństwa · Rozszerza **#952** (obrazy bazowe przypięte do digestu)
+
+**Problem.** Obraz bazowy każdego Dockerfile jest przypięty do digestu
+(`FROM ...@sha256:...`, issue #952), ale pakiety APT instalowane W ŚRODKU
+tych obrazów (`postgresql-client`, `tini` w głównym `Dockerfile`; `openssl`,
+`curl`, `ca-certificates` w `docker/kopia/Dockerfile`) schodziły ze zwykłego
+`deb.debian.org/debian trixie`. To jest mirror NAJNOWSZEGO PUNKTU WYDANIA,
+nie archiwum — starsza wersja pakietu znika z niego, gdy tylko wyjdzie
+kolejna poprawka. Ten sam commit i ten sam digest obrazu bazowego mogły więc
+w poniedziałek i w piątek dać dwa różne `pg_dump`/`tini`/`openssl` w środku
+obrazu, bez żadnej widocznej zmiany w repozytorium.
+
+**Rozważona i ODRZUCONA alternatywa: literalne przypięcie wersji
+(`apt-get install postgresql-client=X.Y-Z`).** To jest DOKŁADNIE pułapka,
+przed którą ostrzega treść zgłoszenia: `deb.debian.org` trzyma tylko
+najnowszy punkt wydania. Wersja przypięta dziś literalnie znika z niego przy
+następnej łatce bezpieczeństwa Debiana — i wtedy `apt-get install
+pakiet=stara-wersja` nie znajduje jej WCALE, a build, który wczoraj
+przechodził, dziś pada na `Version 'X.Y-Z' for 'pakiet' was not found`.
+Literalne przypięcie wersji byłoby więc MNIEJ stabilne niż stan wyjściowy,
+nie bardziej.
+
+**Decyzja: migawka `snapshot.debian.org`, nie numer wersji.** To jest pełne,
+zamrożone co ~6 godzin i NIGDY nie kasowane archiwum całej historii Debiana
+— usługa, którą sam projekt Debian utrzymuje właśnie do odtwarzania starych
+buildów. Zamiast pinować NUMER pakietu, pinujemy CZAS: `ARG
+SNAPSHOT_DEBIAN=<RRRRMMDDTHHMMSSZ>` w obu Dockerfile-ach wskazuje jedną,
+zamrożoną migawkę całego archiwum, a `apt-get install postgresql-client
+tini` (bez numerów wersji) bierze z niej to, co tam wtedy stało — zawsze te
+same bajty, bo migawka się nie zmienia.
+
+**Jak to jest spięte technicznie.** `-o Dir::Etc::sourcelist=…
+-o Dir::Etc::sourceparts=…` każe apt-owi użyć WYŁĄCZNIE jednego, tymczasowego
+pliku źródeł na czas tych dwóch komend (`update` i `install`) — domyślna
+konfiguracja repozytoriów obrazu bazowego (jakikolwiek ma format) zostaje
+nietknięta. `check-valid-until=no` jest konieczne, bo migawka ma w `Release`
+pole `Valid-Until` z przeszłości. `signed-by=/usr/share/keyrings/debian-
+archive-keyring.gpg` weryfikuje ten sam, oryginalny podpis GPG Debiana —
+migawka nie generuje własnego, więc `[trusted=yes]` (wyłączenie weryfikacji)
+nie jest tu potrzebne i nie jest używane.
+
+Pierwszy build w CI ujawnił, że obraz `postgres:18` nie ma jeszcze
+zaufanych certyfikatów CA, a właśnie pakiet `ca-certificates` ma pobrać
+z migawki. Dlatego obraz kopii bazy pobiera migawkę przez HTTP. Bezpieczeństwo
+pakietów nadal opiera się na podpisanym `InRelease` i sumach z podpisanych
+metadanych, sprawdzanych przez apt względem `debian-archive-keyring.gpg`;
+`trusted=yes` pozostaje zabronione. Główny obraz ma CA i używa HTTPS.
+Transport HTTP nie ukrywa metadanych ani nazw pakietów przed siecią.
+Łańcuch podpisanego `Release` i sum pakietów opisuje Debian w
+[`apt-secure(8)`](https://manpages.debian.org/testing/apt/apt-secure.8.en.html).
+
+**Podnoszenie wersji pakietów jest teraz ŚWIADOME, nie ciche.** Zmiana
+`SNAPSHOT_DEBIAN` na nowszą datę jest jedną linijką w PR-ze, widoczną
+w historii gita — dokładnie tak, jak Dependabot podbija digesty obrazów
+bazowych. Sprawdzenie przed podniesieniem: migawka pod nową datą istnieje
+i ma `main/binary-amd64/Packages` z potrzebnymi pakietami
+(`https://snapshot.debian.org/archive/debian/<data>/dists/trixie/Release`).
+
+**Weryfikacja builda.** Pierwszy job `docker-build` w CI pobrał pakiety
+głównego obrazu z migawki, ale obraz kopii bazy zatrzymał się na TLS przed
+instalacją `ca-certificates`. Kolejny przebieg CI sprawdza wariant HTTP
+z niezmienioną weryfikacją podpisu. Lokalnie brak demona Dockera.
+
+### Dowody
+`tests/Unit/AptPakietyPrzypieteDoMigawkiTest.php` — kształt przypięcia
+(wersja migawki, `check-valid-until=no`, `signed-by=`, brak `trusted=yes`,
+`apt-get install` zawsze z `Dir::Etc::sourcelist=` i towarzyszącym `apt-get
+update` z TĄ SAMĄ opcją w tym samym poleceniu). Cztery niezależne kontrole
+ujemne zmierzone ręcznie przy pisaniu testu (cofnięcie każdego elementu
+osobno łamie odpowiednie sprawdzenie).
+
+### Wycofanie
+Powrót do zwykłego `apt-get update && apt-get install` (bez `Dir::Etc::
+sourcelist=`) cofa reprodukowalność do stanu sprzed audytu — bez zmian
+schematu czy danych, to czysto build-time'owa zmiana dwóch Dockerfile-i.
 ## D-312 — PgBouncer jawnie uznany za jeszcze niepotrzebny; wraca przy nazwanych progach (#600, #598, 26 września 2026)
 
 Dotyczy **#600** (punkt definicji gotowości „PgBouncer jest wdrożony albo
@@ -18434,3 +20036,165 @@ po spełnieniu warunku to osobna zmiana (`DB_HOST`/port poolera w
 `.railway/railway.ts`, tryb transakcyjny wymaga sprawdzenia `SET` sesyjnych
 — m.in. `lock_timeout` z `LimitBlokadMigracji`, który migracje muszą
 dostawać z bezpośredniego połączenia).
+
+## D-328 — „Moje wpisy” w „Moje”: wszystkie własne wpisy autora w jednym miejscu (26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela
+
+**Problem.** „Moje” (`/zeszyt`, „Twój zeszyt”) miało zapisane cudze przepisy
+i wpisy oraz planer, ale nie miało wpisów samej osoby. Własne wpisy autor
+widział tylko w profilu, a profil pokazuje wyłącznie OPUBLIKOWANE
+(`ProfileController::postsFor()` → `published()`). Szkic i wpis ukryty przez
+moderację nie były więc widoczne dla autora nigdzie, a wpisy „tylko dla mnie”
+i „tylko dla obserwujących” były przemieszane z publicznymi bez jednego
+miejsca, w którym widać, kto co widzi.
+
+**Decyzja.** W „Moje” jest przycisk „Moje wpisy” obok „Planer tygodnia”,
+prowadzący do `/zeszyt/moje-wpisy` (`collections.own-posts`). Lista:
+
+- pokazuje WSZYSTKIE wpisy zalogowanej osoby — publiczne, dla obserwujących,
+  tylko dla mnie, szkice i ukryte przez moderację;
+- jest chronologiczna, od najnowszego; szkic (bez `published_at`) stoi według
+  chwili założenia, remis rozstrzyga `id`;
+- przy każdym wpisie mówi SŁOWAMI, kto go widzi („Publiczny”, „Dla
+  obserwujących”, „Tylko dla mnie”) i w jakim jest stanie („Opublikowany”,
+  „Szkic — jeszcze nieopublikowany”, „Ukryty przez moderację”);
+- zapowiedź przepisu (wpis bez własnej treści, #368) bierze widoczność
+  z przepisu — tak jak karta wpisu, bo jej `visibility = 'public'` nie jest
+  wyborem autora;
+- ma paginację wzorcem serwisu (`x-show-more`: bez skryptu „Następna strona”,
+  ze skryptem „Pokaż więcej”), po 20 wpisów.
+
+**Autoryzacja: trasa bez identyfikatora.** Zapytanie zawsze zawęża do
+`author_id` zalogowanej osoby; w adresie nie ma czego podmienić. Nie ma więc
+Policy do napisania — nie ma cudzej listy, do której dałoby się wejść.
+Wejście w pojedynczy wpis dalej idzie przez `PostPolicy::view()`, która
+szkic i wpis ukryty wpuszcza autora.
+
+**Czego na liście nie ma.** Wpisów miękko usuniętych (w tym zdjętych przez
+moderację, `removed`) — wiązanie trasy wpisu ich nie znajduje, więc karta
+prowadziłaby do 404; tę samą granicę ma profil. Pytań przy wyłączonym dziale
+pytań (`enabledKinds()`) — ta sama flaga odmawia wejścia na stronę pytania.
+
+**Wydajność.** Relacje karty (`media`, `recipe:id,title,slug,visibility`)
+ładowane z góry; `MojeWpisyTest::test_liczba_zapytan_nie_rosnie_z_liczba_wpisow`
+porównuje liczbę zapytań przy 2 i 12 wpisach (kontrola ujemna: bez `recipe`
+w `with()` 6 → 11 zapytań). Bez nowej migracji — sortowanie idzie po
+istniejącym zakresie `author_id`.
+
+**Bez JavaScriptu.** Lista to zwykłe odnośniki i przyciski ≥ 48 px.
+
+### Wycofanie
+Bez danych do cofania: trasa, kontroler (`MojeWpisyController`), klasa
+`App\Domain\Posts\MojeWpisy`, widok i przycisk w „Moje”. Zdjęcie ich
+przywraca stan sprzed zmiany; odnośniki do `collections.own-posts` (strona
+tagu, D-307) trzeba wtedy przepiąć z powrotem na profil.
+
+📄 `routes/web.php`, `app/Http/Controllers/MojeWpisyController.php`,
+`app/Domain/Posts/MojeWpisy.php`, `resources/views/pages/collections/moje-wpisy.blade.php`,
+`docs/FLOWS_AND_SCREENS.md`, `tests/Feature/MojeWpisyTest.php`
+## D-293 — `reports.decision_sent_at` stawia list z decyzją PO wysłaniu, a nie akcja przy zakolejkowaniu (#1838, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja techniczna
+sesji roboczej, do potwierdzenia przez właściciela · Dotyczy **#1838**
+
+**Problem.** `RozstrzygnijZgloszenie` stawiała `decision_sent_at` zaraz po
+`Notification::route('mail', …)->notify(new DecyzjaWSprawieZgloszenia(…))`.
+List jest `ShouldQueue`, więc znacznik powstawał w chwili utworzenia
+zadania. Worker mógł potem wyczerpać próby (list w `failed_jobs`), a kolumna
+opisana w `docs/DATABASE.md` jako „informacja o decyzji przekazana
+zgłaszającemu (ust. 5)” dalej twierdziła, że przekazaliśmy.
+
+**Decyzja.**
+
+1. Znacznik stawia **sam list**, w `afterSending()` — po tym, jak transport
+   pocztowy przyjął wiadomość. „Przyjęta przez transport” to nie „doszła do
+   skrzynki”, ale też nie „powstało zadanie”. Zapis warunkowy
+   (`WHERE decision_sent_at IS NULL`), więc znacznik stoi raz.
+2. `shouldSend()` pyta bazę o znacznik i pomija wysyłkę, gdy już stoi —
+   `queue:retry` albo drugie zakolejkowanie tej samej sprawy nie wyśle
+   drugiego listu.
+3. **„List przyjęty, zapis znacznika padł”**: wyjątek zapisu jest łapany
+   i trafia do dziennika z numerem sprawy (bez adresu). Zadanie NIE pada,
+   bo padnięcie znaczyłoby kolejną próbę, czyli kolejny identyczny list
+   prawny z linkiem do odwołania. Wybieramy stan fałszywie ostrożny (znacznik
+   pusty, choć list wyszedł) zamiast serii duplikatów.
+4. Ostateczna porażka (`failed()`) zostawia `Log::error` z numerem sprawy;
+   `mail_failures` i `/health` (D-062) działają jak dotąd. Sprawy bez
+   przekazanej decyzji liczy zakres `Report::decyzjaNieprzekazanaMailem()`.
+5. Kanał w serwisie dla zgłoszeń społecznościowych (`NotifyReporterDecision`)
+   zostaje bez zmian — tam powiadomienie powstaje w bazie od razu, więc
+   znacznik mówi prawdę w chwili zapisu.
+
+Znacznik jest związany ze sprawą (`reports`), nie z konkretnym wierszem
+`moderation_actions`: zgłoszenie ma jedną decyzję (`JednaDecyzjaNaZgloszenieTest`).
+
+**W kodzie.** `app/Notifications/DecyzjaWSprawieZgloszenia.php`,
+`app/Domain/Moderation/Actions/RozstrzygnijZgloszenie.php`,
+`App\Models\Report::scopeDecyzjaNieprzekazanaMailem()`. Pilnuje
+`tests/Feature/DecyzjaZgloszeniaOznaczanaPoWysylceTest.php` — prawdziwa
+kolejka `database` i `queue:work`, nie `Notification::fake()`; kontrole ujemne
+(przywrócenie znacznika w akcji, usunięcie `shouldSend()`, rzucanie wyjątku
+z `afterSending()`, brak zapisu w `afterSending()`, brak wpisu w `failed()`)
+wywracają co najmniej jeden test.
+
+**Czego tu nie ma.** Automatycznej dosyłki decyzji (odpowiednika
+`kuking:dosylaj-potwierdzenia-zgloszen`) ani sondy w `/health` dla spraw
+z `decyzjaNieprzekazanaMailem()`. Ponowienie to dziś `php artisan queue:retry`.
+Dołożenie którejś z nich to osobne issue.
+
+### Wycofanie
+Bez zmian schematu i danych. Cofnięcie kodu przywraca stawianie znacznika
+przy zakolejkowaniu; sprawy rozstrzygnięte w międzyczasie, których list
+jeszcze nie wyszedł, zostaną wtedy z pustym znacznikiem do czasu wysyłki
+(list stawia go sam tylko w nowym kodzie) — przed cofnięciem sprawdzić
+`Report::decyzjaNieprzekazanaMailem()->count()`.
+## D-311 — Rola `all` ma dwa procesy kolejki: lekki `high,default` i ciężki `media,low` (#1860, luka po #1030, 26 września 2026)
+
+Dotyczy **#1030**, **#1860**, PR-a #1622
+
+**Problem.** #1030 kazał dać każdej kolejce z producentem niezerową
+przepustowość także przy stałej zaległości kolejki wyżej. PR #1622 zrobił to
+w roli `worker` (proces na kolejkę), a rolę `all` — czyli produkcję dziś,
+jeden kontener 1024 MB z FrankenPHP i harmonogramem — świadomie zostawił przy
+jednym procesie `high,default,media,low`. Powodem była pamięć: trzy procesy
+mogłyby mieć szczyt naraz (zdjęcie 50 Mpx ~452 MB, eksport do 512M, WWW).
+Skutek: fala maili na `default` wstrzymywała zdjęcia i eksport RODO dokładnie
+tak, jak opisywał #1030 — na jedynej topologii, która dziś działa.
+
+**Decyzja.** Rola `all` uruchamia domyślnie **dwa** procesy:
+
+| Proces | Kolejki | Co tam jest |
+|---|---|---|
+| lekki | `high,default` | listy wejścia na konto, powiadomienia, purge CDN |
+| ciężki | `media,low` | przetwarzanie zdjęć, eksport danych, analiza treści i awatara |
+
+Argument pamięciowy z #1622 zostaje w mocy i właśnie dlatego procesy są dwa,
+a nie trzy: `media` i `low` dzielą jeden proces, więc ich szczyty się nie
+schodzą. Lekki proces dokłada tyle, ile pusty PHP z frameworkiem — ta sama
+miara, którą `.railway/railway.ts` przyjął dla czwartego procesu (`high`)
+w roli `worker`.
+
+**Świadomie zostaje jedno ograniczenie:** `low` czeka za stałą zaległością
+`media`. Zdjęć przybywa tylko z publikacji ludzi, nie z automatu, więc stała
+zaległość `media` sama jest awarią widoczną w `kuking:sprawdz-kolejke`.
+Pełnym lekarstwem pozostaje wydzielony worker (`PRODUCTION_SPLIT_SERVICES`).
+
+**W kodzie.** `listy_kolejek()` w `docker/entrypoint.sh`
+(`wspolnyKontener="high,default media,low"`). `QUEUE_WORKERS` i `QUEUE_NAMES`
+działają jak dotąd i wygrywają z wartością domyślną. Pilnują:
+`KolejkiBezGlodzeniaTest::test_rola_all_zdjecie_i_eksport_ruszaja_mimo_stalej_zaleglosci_default`
+(prawdziwy `Worker` na sterowniku `database`; kontrola ujemna — `low`
+w procesie z `default` — wywraca go),
+`UmowaKolejkiTest::test_rola_all_ma_lekki_proces_i_ciezki_ze_zdjeciem_przed_eksportem`
+i `tests/skrypty/entrypoint-nadzor.sh`.
+
+**Czego nie zmierzono.** Rzeczywistego RSS lekkiego procesu na produkcji.
+Po wdrożeniu właściciel sprawdza w panelu Railway szczyt pamięci serwisu
+w oknie 7 dni (przed zmianą: 0,53 GB z 1,0 GB, odczyt z 17.09.2026, #598).
+
+### Wycofanie
+Bez zmian schematu i danych. Natychmiast, bez wdrożenia kodu: zmienna
+`QUEUE_WORKERS="high,default,media,low"` w panelu Railway i restart — wraca
+jeden proces. Trwale: przywrócenie jednej listy w `listy_kolejek()` razem
+z testami.

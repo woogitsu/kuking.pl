@@ -85,7 +85,7 @@ class PowiekszanieZdjeciaTest extends TestCase
             'Zdjęcie nie jest linkiem. Bez JavaScriptu nie da się go wtedy powiększyć wcale.',
         );
 
-        $link = $linki->item(0);
+        $link = self::elementDom($linki->item(0));
 
         // Po W7-02 w `href` nie ma już nazwy pliku z bucketu — jest adres
         // trasy `media.show` z nazwą wariantu. Sprawdzana rzecz się nie

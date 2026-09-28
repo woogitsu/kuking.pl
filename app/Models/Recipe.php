@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Recipes\KosztPrzepisu;
 use App\Support\Odmiana;
 use Database\Factories\RecipeFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -13,8 +14,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Kolumny tabeli pośredniej `collection_items` — są tylko wtedy, gdy przepis
+ * wczytano przez `Collection::recipes()`:
+ *
+ * @property-read Pivot&object{note: string|null, created_at: string|null} $pivot
+ */
 class Recipe extends Model
 {
     /** @use HasFactory<RecipeFactory> */
@@ -90,6 +98,9 @@ class Recipe extends Model
         'slug',
         'summary',
         'servings',
+        // Szacunkowy koszt całego przepisu w złotych, wpisany przez autora
+        // (D-286). Treść przepisu, nie stan — jak `servings`.
+        'estimated_cost_pln',
         'prep_minutes',
         'cook_minutes',
         'difficulty',
@@ -108,8 +119,10 @@ class Recipe extends Model
     protected function casts(): array
     {
         return [
+            'content_revision' => 'integer',
             'published_at' => 'datetime',
             'servings' => 'float',
+            'estimated_cost_pln' => 'float',
             'prep_minutes' => 'integer',
             'cook_minutes' => 'integer',
             'family_since_year' => 'integer',
@@ -126,11 +139,17 @@ class Recipe extends Model
     // Relacje
     // ---------------------------------------------------------------------
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'author_id');
     }
 
+    /**
+     * @return BelongsTo<Media, $this>
+     */
     public function heroMedia(): BelongsTo
     {
         return $this->belongsTo(Media::class, 'hero_media_id');
@@ -174,6 +193,9 @@ class Recipe extends Model
         return $this->forked_at !== null;
     }
 
+    /**
+     * @return BelongsTo<Media, $this>
+     */
     public function sourceScan(): BelongsTo
     {
         return $this->belongsTo(Media::class, 'source_scan_media_id');
@@ -193,21 +215,33 @@ class Recipe extends Model
         return $this->belongsToMany(Collection::class, 'collection_items');
     }
 
+    /**
+     * @return HasMany<RecipeIngredient, $this>
+     */
     public function ingredients(): HasMany
     {
         return $this->hasMany(RecipeIngredient::class)->orderBy('position');
     }
 
+    /**
+     * @return HasMany<RecipeStep, $this>
+     */
     public function steps(): HasMany
     {
         return $this->hasMany(RecipeStep::class)->orderBy('position');
     }
 
+    /**
+     * @return HasMany<RecipeVersion, $this>
+     */
     public function versions(): HasMany
     {
         return $this->hasMany(RecipeVersion::class)->orderByDesc('version_number');
     }
 
+    /**
+     * @return HasMany<CookedEvent, $this>
+     */
     public function cookedEvents(): HasMany
     {
         // DRUGI KLUCZ SORTOWANIA NIE JEST OZDOBĄ — TO WARUNEK POPRAWNEJ
@@ -234,6 +268,9 @@ class Recipe extends Model
             ->latest('id');
     }
 
+    /**
+     * @return HasMany<Comment, $this>
+     */
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class)
@@ -456,6 +493,20 @@ class Recipe extends Model
         $tekst = rtrim(rtrim(number_format($liczba, 2, ',', ''), '0'), ',');
 
         return $tekst.' porcji';
+    }
+
+    /**
+     * „Szacunkowy koszt: ok. 24 zł (wg autora)" albo `null`, gdy autor
+     * kosztu nie podał (D-286). Tekst liczy `KosztPrzepisu` — to samo
+     * źródło, którego używa podgląd kreatora.
+     */
+    public function costLabel(): ?string
+    {
+        if ($this->estimated_cost_pln === null) {
+            return null;
+        }
+
+        return KosztPrzepisu::zdanie((float) $this->estimated_cost_pln);
     }
 
     /**
