@@ -37,6 +37,8 @@ use PHPUnit\Framework\TestCase;
  * `["a", "b"]`, cudzysłowy, komentarze), bo w vendorze nie ma symfony/yaml,
  * a dopisywanie zależności do composer.json dla jednego strażnika to
  * nieproporcjonalny koszt. Plik, którego nie umie przeczytać, oblewa test.
+ *
+ * @bez-kontroli-dodatniej Kontrola ujemna jest w samym teście: te same asercje biegną na zmutowanej w pamięci konfiguracji (przywrócony wildcard ignore, grupa bez update-types) i muszą oblać, a plik, którego parser nie przeczyta, daje czerwień, nie cichą zieleń.
  */
 final class DependabotProponujeMajorOsobnoTest extends TestCase
 {
