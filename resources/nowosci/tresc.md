@@ -10,6 +10,7 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Spis wydań
 
 - [Najnowsze zmiany](#najnowsze-zmiany)
+- [Alfa 0.69 — czytelniejsze powiadomienia i wygodniejsze gotowanie](#alfa-069)
 - [Alfa 0.68 — minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu](#alfa-068)
 - [Alfa 0.67 — tagi ze zdjęciami z Waszych kuchni](#alfa-067)
 - [Alfa 0.66 — porządek w rozmowach i przygotowanie „Poradźcie”](#alfa-066)
@@ -21,7 +22,12 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 <a id="najnowsze-zmiany"></a>
 ## Najnowsze zmiany
 
-To, co już działa, ale nie ma jeszcze numeru wydania.
+Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
+
+<a id="alfa-069"></a>
+## Alfa 0.69
+
+**Czytelniejsze powiadomienia i wygodniejsze gotowanie.**
 
 ### Szacunkowe wartości odżywcze przepisu
 
