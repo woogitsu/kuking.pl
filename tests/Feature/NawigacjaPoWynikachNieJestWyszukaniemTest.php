@@ -133,7 +133,7 @@ class NawigacjaPoWynikachNieJestWyszukaniemTest extends TestCase
 
         $pola = [];
         foreach ((new DOMXPath($formularz->ownerDocument))->query('.//input[@name]', $formularz) as $pole) {
-            $pola[$pole->getAttribute('name')] = $pole->getAttribute('value');
+            $pola[self::elementDom($pole)->getAttribute('name')] = self::elementDom($pole)->getAttribute('value');
         }
         $this->assertArrayHasKey('q', $pola);
         $pola['q'] = $fraza;
@@ -146,7 +146,7 @@ class NawigacjaPoWynikachNieJestWyszukaniemTest extends TestCase
         $linki = [];
         foreach ($this->xpath($odpowiedz)->query('//main//a') as $link) {
             if (trim($link->textContent) === $etykieta) {
-                $linki[] = $link->getAttribute('href');
+                $linki[] = self::elementDom($link)->getAttribute('href');
             }
         }
         $this->assertCount(1, $linki, "Oczekiwano jednego odnośnika „{$etykieta}”.");

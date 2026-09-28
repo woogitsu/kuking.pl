@@ -46,7 +46,9 @@ final class WatkiKomentarzy
                 'replies' => fn ($q) => $q->widoczneDla($widz)->orderBy('comments.id')->limit($limit),
                 'replies.author.profile.avatar',
             ])
-            ->withCount(['replies' => fn (Builder $q) => $q->widoczneDla($widz)])
+            ->withCount(['replies' => function (Builder $q) use ($widz): void {
+                (new Comment)->scopeWidoczneDla($q, $widz);
+            }])
             ->paginate((int) config('kuking.comments.page_size'));
     }
 

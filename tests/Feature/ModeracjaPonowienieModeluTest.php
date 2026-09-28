@@ -14,6 +14,7 @@ use App\Moderacja\OcenaModelem;
 use App\Notifications\PilnyAlarmModeracyjny;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Queue\Jobs\FakeJob;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -83,9 +84,10 @@ class ModeracjaPonowienieModeluTest extends TestCase
 
     private function proba(Post $wpis, int $numer): PrzeanalizujTresc
     {
+        $praca = new FakeJob;
+        $praca->attempts = $numer;
         $zadanie = (new PrzeanalizujTresc(PrzeanalizujTresc::TYP_WPIS, (string) $wpis->getKey()))
-            ->withFakeQueueInteractions();
-        $zadanie->job->attempts = $numer;
+            ->setJob($praca);
 
         app()->call([$zadanie, 'handle']);
 
@@ -101,8 +103,13 @@ class ModeracjaPonowienieModeluTest extends TestCase
     private function opoznienie(PrzeanalizujTresc $zadanie): int
     {
         $zadanie->assertReleased();
+        $praca = $zadanie->job;
 
-        return (int) $zadanie->job->releaseDelay;
+        if (! $praca instanceof FakeJob) {
+            $this->fail('Próba nie działała na FakeJob, więc nie ma skąd odczytać opóźnienia.');
+        }
+
+        return (int) $praca->releaseDelay;
     }
 
     public function test_timeout_wraca_do_kolejki_a_nastepna_proba_ocenia(): void

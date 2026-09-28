@@ -41,14 +41,14 @@ class PowiekszenieMaStanBleduIPonowienieTest extends TestCase
 
         $status = $xpath->query('//dialog[@id="powiekszenie"]//p[contains(concat(" ", normalize-space(@class), " "), " lightbox-status ")]');
         $this->assertCount(1, $status, 'Brak regionu stanu w nakładce powiększenia.');
-        $this->assertSame('status', $status->item(0)->getAttribute('role'));
-        $this->assertSame('polite', $status->item(0)->getAttribute('aria-live'));
-        $this->assertTrue($status->item(0)->hasAttribute('hidden'), 'Region stanu nie powinien być widoczny, dopóki nic się nie dzieje.');
+        $this->assertSame('status', self::elementDom($status->item(0))->getAttribute('role'));
+        $this->assertSame('polite', self::elementDom($status->item(0))->getAttribute('aria-live'));
+        $this->assertTrue(self::elementDom($status->item(0))->hasAttribute('hidden'), 'Region stanu nie powinien być widoczny, dopóki nic się nie dzieje.');
 
         $ponow = $xpath->query('//dialog[@id="powiekszenie"]//button[contains(concat(" ", normalize-space(@class), " "), " lightbox-ponow ")]');
         $this->assertCount(1, $ponow, 'Brak przycisku „Spróbuj ponownie” w nakładce powiększenia.');
-        $this->assertSame('button', $ponow->item(0)->getAttribute('type'), 'Przycisk ponowienia nie może być type="submit" formularza method="dialog" — zamknąłby dialog zamiast ponowić.');
-        $this->assertTrue($ponow->item(0)->hasAttribute('hidden'), 'Przycisk ponowienia nie powinien być widoczny, dopóki nie ma błędu.');
+        $this->assertSame('button', self::elementDom($ponow->item(0))->getAttribute('type'), 'Przycisk ponowienia nie może być type="submit" formularza method="dialog" — zamknąłby dialog zamiast ponowić.');
+        $this->assertTrue(self::elementDom($ponow->item(0))->hasAttribute('hidden'), 'Przycisk ponowienia nie powinien być widoczny, dopóki nie ma błędu.');
         $this->assertStringContainsString('Spróbuj ponownie', $ponow->item(0)->textContent);
 
         // „Zamknij” zostaje: przycisk ponowienia jest DODATKIEM, nie

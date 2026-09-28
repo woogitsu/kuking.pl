@@ -156,8 +156,8 @@ class OnboardingWznowienieTest extends TestCase
 
         /** @var Migration $migracja */
         $migracja = require base_path('database/migrations/2026_09_24_130000_add_onboarding_zakonczony_at_to_users.php');
-        $migracja->down();
-        $migracja->up();
+        self::wykonajMigracje($migracja, 'down');
+        self::wykonajMigracje($migracja, 'up');
 
         // Nowe żądanie czyta konto z bazy — `actingAs` trzymałby stary obiekt.
         $this->actingAs($user->fresh())->get(route('home'))->assertOk()->assertDontSee(self::ODNOSNIK);

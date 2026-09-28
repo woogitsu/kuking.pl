@@ -108,7 +108,7 @@ class KontekstKontaktuBezSekretowTest extends TestCase
     public function test_kazda_trasa_z_sekretem_jest_maskowana(): void
     {
         $brakujace = [];
-        foreach (Route::getRoutes() as $route) {
+        foreach (Route::getRoutes()->getRoutes() as $route) {
             if (! in_array('GET', $route->methods(), true) || $route->parameterNames() === []) {
                 continue;
             }

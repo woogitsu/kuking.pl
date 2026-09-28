@@ -40,6 +40,12 @@ final class ZamiarObserwowania
         }
     }
 
+    /** Nowszy jawny zamiar (`ZamiarUgotowania`) wypiera ten. */
+    public function zapomnij(Request $request): void
+    {
+        $request->session()->forget(self::KLUCZ);
+    }
+
     public function przypiszKonto(Request $request): void
     {
         $context = $request->session()->get(self::KLUCZ);
