@@ -111,6 +111,40 @@ class BladZdjeciaPowiazanyZPolemTest extends TestCase
     }
 
     /**
+     * Zepsuty identyfikator zachowanego zdjęcia (`media_ids.*`, #871) też
+     * opisuje pole plików — inaczej czytnik ekranu słyszy tylko pomoc.
+     */
+    #[DataProvider('ekranyZZachowanymiZdjeciami')]
+    public function test_zepsuty_identyfikator_zachowanego_zdjecia_opisuje_pole(string $ekran, string $akcja): void
+    {
+        $user = $this->user('basia');
+        $this->actingAs($user)->get($this->adres($ekran))->assertOk();
+        $html = $this->followingRedirects()->actingAs($user)->from($this->adres($ekran))
+            ->post($this->adres($akcja), [
+                'media_ids' => ['to-nie-jest-uuid'],
+                'body' => 'Rosół na niedzielę.',
+                'visibility' => 'private',
+            ])->assertOk()->getContent();
+        $this->followRedirects = false;
+
+        $pole = $this->pole($html, 'f-photos');
+        $this->assertSame('true', $pole['input']->getAttribute('aria-invalid'));
+        $this->assertSame('f-photos-help f-media-ids-error', $pole['input']->getAttribute('aria-describedby'));
+        $this->assertNotSame('', trim($pole['xpath']->query('//*[@id="f-media-ids-error"]')->item(0)->textContent));
+    }
+
+    /**
+     * @return array<string, array{string, string}>
+     */
+    public static function ekranyZZachowanymiZdjeciami(): array
+    {
+        return [
+            'wpis' => ['posts.create', 'posts.store'],
+            'ugotowałem' => ['cooked.create', 'cooked.store'],
+        ];
+    }
+
+    /**
      * @return array<string, array{int, string, string}>
      */
     public static function polaKreatora(): array
