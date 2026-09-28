@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Support\Czas;
 use App\Support\Harmonogram;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -64,6 +65,18 @@ Artisan::command('inspire', function () {
 Harmonogram::artisan('kuking:sprzataj-osierocone-zdjecia')
     ->dailyAt('03:40')
     ->name('sprzataj-osierocone-zdjecia')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
+// Zbiorcze powiadomienie „Smakowicie wygląda" (issue #1813, D-280) — raz
+// dziennie, po południu, gdy ludzie zaglądają do serwisu; „Ugotowałem"
+// powiadamia od razu i ma zostać najcenniejszą wiadomością dnia.
+Harmonogram::artisan('kuking:powiadom-smakowicie')
+    ->dailyAt('17:47')
+    // 17:47 czasu POLSKIEGO. Harmonogram liczy w `app.timezone` (UTC), więc
+    // bez strefy wychodziłoby 19:47 latem i 18:47 zimą (przegląd #1781).
+    ->timezone(Czas::strefa())
+    ->name('kuking:powiadom-smakowicie')
     ->onOneServer()
     ->withoutOverlapping(120);
 
@@ -331,6 +344,31 @@ Harmonogram::artisan('kuking:sprzataj-usuniete-tresci')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 06:00 — dziesięć minut po poprzednim zadaniu (05:50 zajęły treści usunięte
+// przez autora, więc zlecenia odczytu przepisu idą slot dalej).
+// Retencja zleceń odczytu przepisu (D-298): surowa odpowiedź modelu 30 dni
+// (bywa w niej tekst z czyjejś kartki), wiersz zlecenia 90 dni.
+Harmonogram::artisan('kuking:sprzataj-importy')
+    ->name('kuking:sprzataj-importy')
+    ->dailyAt('06:00')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
+// Odzyskiwanie odczytów przepisu (D-298 „maszyna stanów”, #1973, #1977).
+// Rezerwacja budżetu modelu porzucona przez zabity proces blokowałaby limit
+// dzienny dla WSZYSTKICH do północy, a zlecenie bez zadania wisiałoby
+// w „trwa” do retencji. CO KWADRANS, bo pierwsze to pieniądze i limit, drugie
+// to człowiek patrzący na ekran postępu. Progi: `kuking.import.odzyskiwanie`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+// Ten sam termin `*/15` co `kuking:sprawdz-kolejke` i `kuking:wyczysc-zalegle-cdn`
+// jest zamierzony (DOZWOLONE_WSPOLNE w HarmonogramBezKolizjiTerminowTest):
+// trzy lekkie zadania porządkowe o stałym rytmie, po kolei w jednym procesie.
+Harmonogram::artisan('kuking:odzyskaj-importy')
+    ->name('kuking:odzyskaj-importy')
+    ->everyFifteenMinutes()
+    ->onOneServer()
+    ->withoutOverlapping(10);
+
 // CZUJKA KOPII BAZY (issue #193, decyzja D-043).
 //
 // Kopię robi OSOBNY serwis Railway w obrazie bez PHP (`docker/kopia/`) — nie
@@ -396,6 +434,23 @@ Harmonogram::artisan('kuking:sprawdz-kolejke')
     ->everyFifteenMinutes()
     ->onOneServer()
     ->withoutOverlapping(10);
+
+// Czujka Web Push (issue #2053). Trwała porażka transportu kończy zadanie
+// sukcesem, a utracone ponowienie nie zostawia zadania wcale — czujka kolejki
+// wyżej widzi wtedy czyste `jobs` i `failed_jobs`. Ta liczy rezerwacje
+// w `notifications`, których nikt już nie dokończy ani nie rozliczy.
+//
+// CO GODZINĘ, nie co kwadrans: powiadomienie w serwisie i tak czeka, nie
+// dotarło tylko szturchnięcie — godzina opóźnienia alarmu nic tu nie psuje.
+// Minuta 50: 00, 25, 35 i 45 są zajęte (patrz `kuking:dosylaj-potwierdzenia-
+// zgloszen`), a 45 trafia też w rytm co kwadrans. Niczego nie wysyła ani nie
+// zamyka; powtórzeń pilnuje `AlarmWysylkiPush`. Kod wyjścia przy alarmie
+// jest 0 — uzasadnienie w `App\Console\Commands\SprawdzPush`.
+Harmonogram::artisan('kuking:sprawdz-push')
+    ->name('kuking:sprawdz-push')
+    ->hourlyAt(50)
+    ->onOneServer()
+    ->withoutOverlapping(50);
 
 // Puls harmonogramu (issue #599). Czujki wyżej uruchamia harmonogram — gdy
 // stanie on sam, zamilkną wszystkie naraz, a milczenie czujki wygląda jak

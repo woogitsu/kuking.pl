@@ -4,15 +4,22 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Recipes;
 
+use App\Domain\Media\Actions\StoreUploadedImage;
+use App\Domain\Media\ZachowaneZdjeciaPrzepisu;
+use App\Domain\Recipes\KosztPrzepisu;
 use App\Domain\Recipes\StepTimer;
 use App\Domain\Recipes\TekstNaWiersze;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Recipe;
+use App\Models\User;
 use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityTekstuPrzepisu;
 use App\Support\LimityZdjec;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Validator as ValidatorFactory;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -32,6 +39,98 @@ use Illuminate\Validation\ValidationException;
  */
 final class ZapisPrzepisuRequest extends FormRequest
 {
+    /** @var array<string, string>|null */
+    private ?array $przyjeteZdjecia = null;
+
+    /**
+     * FormRequest odrzuca błędne pola przed wejściem do kontrolera. Przy
+     * błędzie innego pola przyjmujemy poprawne pliki do `media`, zanim
+     * Laravel odeśle formularz; `old()` przeniesie już tylko ich UUID-y.
+     */
+    protected function failedValidation(Validator $validator)
+    {
+        $this->zachowajZdjecia($validator);
+
+        // Handler dostaje pierwotny Request, nie tę instancję FormRequest.
+        // Bez jawnego response odczytałby wejście sprzed dopisania UUID-ów.
+        throw new ValidationException($validator, redirect($this->getRedirectUrl())
+            ->withInput($this->input())
+            ->withErrors($validator->errors(), $this->errorBag));
+    }
+
+    /**
+     * @return array<string, string> `hero`, `scan` i `step_{numer wiersza}`
+     */
+    public function zachowajZdjecia(?Validator $validator = null): array
+    {
+        if ($this->przyjeteZdjecia !== null) {
+            return $this->przyjeteZdjecia;
+        }
+
+        $autor = $this->user();
+        if (! $autor instanceof User) {
+            return $this->przyjeteZdjecia = [];
+        }
+
+        $surowe = $this->input('zachowane_zdjecia', []);
+        $wlasne = ZachowaneZdjeciaPrzepisu::przyjete(is_array($surowe) ? $surowe : [], $autor->getKey());
+        $ids = [];
+        foreach ($wlasne as $pole => $zdjecie) {
+            if ($this->boolean('usun_zachowane.'.$pole)) {
+                continue;
+            }
+            if (str_starts_with((string) $pole, 'step_') && $this->boolean('steps.'.substr((string) $pole, 5).'.remove_photo')) {
+                continue;
+            }
+            $ids[$pole] = (string) $zdjecie->getKey();
+        }
+
+        $pliki = ['hero' => 'hero_photo', 'scan' => 'source_scan'];
+        $kroki = $this->file('steps', []);
+        if (is_array($kroki)) {
+            foreach ($kroki as $index => $row) {
+                if (is_array($row) && ($row['photo'] ?? null) instanceof UploadedFile
+                    && trim((string) $this->input("steps.{$index}.instruction")) !== '') {
+                    $pliki['step_'.$index] = "steps.{$index}.photo";
+                }
+            }
+        }
+
+        // To samo ograniczenie co w `daneZapisu()`: nie osieracamy plików,
+        // gdy formularz przyniósł więcej zdjęć kroków niż wolno zapisać.
+        $ileKrokow = count(array_filter(array_keys($pliki), static fn (string $pole): bool => str_starts_with($pole, 'step_')));
+        if ($ileKrokow > LimityZdjec::maksZdjecKrokowNaZapis()) {
+            $pliki = array_filter($pliki, static fn (string $pole): bool => ! str_starts_with($pole, 'steps.'));
+        }
+
+        foreach ($pliki as $klucz => $pole) {
+            $plik = $this->przeslanyPlik($pole);
+            if ($plik === null || $validator?->errors()->has($pole)) {
+                continue;
+            }
+
+            try {
+                $ids[$klucz] = (string) app(StoreUploadedImage::class)->handle($autor, $plik)->getKey();
+            } catch (BladDlaCzlowieka $e) {
+                if ($validator !== null) {
+                    $validator->errors()->add($pole, $e->getMessage());
+
+                    continue;
+                }
+                $this->merge(['zachowane_zdjecia' => $ids]);
+                $blad = ValidatorFactory::make([], []);
+                $blad->errors()->add($pole, $e->getMessage());
+                throw new ValidationException($blad, redirect($this->getRedirectUrl())
+                    ->withInput($this->input())
+                    ->withErrors($blad->errors(), $this->errorBag));
+            }
+        }
+
+        $this->merge(['zachowane_zdjecia' => $ids]);
+
+        return $this->przyjeteZdjecia = $ids;
+    }
+
     /**
      * KOLEJNOŚĆ: POLICY PRZED WALIDACJĄ — tak jak w kontrolerze przed #970.
      *
@@ -62,6 +161,29 @@ final class ZapisPrzepisuRequest extends FormRequest
     }
 
     /**
+     * „24,50" i „24 zł" to poprawny koszt po polsku — walidator `numeric`
+     * dostaje go już z kropką i bez dopisku (`KosztPrzepisu::normalizuj`).
+     *
+     * `validationData()`, a nie `prepareForValidation()` + `merge()`: żądanie
+     * zostaje takie, jak przyszło, więc po nieudanej walidacji `old()` oddaje
+     * w polu DOKŁADNIE to, co człowiek wpisał („24,555"), a nie naszą
+     * przeróbkę z kropką. Tylko wtedy, gdy pole PRZYSZŁO: ekran dodawania go
+     * nie ma, a brak pola znaczy „bez zmiany", nie „wyczyść" (D-286).
+     *
+     * @return array<string, mixed>
+     */
+    public function validationData(): array
+    {
+        $dane = parent::validationData();
+
+        if (array_key_exists('estimated_cost_pln', $dane)) {
+            $dane['estimated_cost_pln'] = KosztPrzepisu::normalizuj($dane['estimated_cost_pln']);
+        }
+
+        return $dane;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function rules(): array
@@ -89,10 +211,15 @@ final class ZapisPrzepisuRequest extends FormRequest
              * musi się z tym zgadzać, inaczej wraca ten sam błąd na nowo.
              */
             'servings' => ['nullable', 'numeric', 'min:0.5', 'max:999', 'decimal:0,2'],
+            // Szacunkowy koszt całego przepisu w złotych (D-286).
+            'estimated_cost_pln' => KosztPrzepisu::REGULY,
             'prep_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'cook_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'difficulty' => ['nullable', 'in:easy,medium,hard'],
             'visibility' => ['required', 'in:public,followers,private'],
+            // „Sprawdziłem odczytany tekst” — tylko szkic z importu (D-300);
+            // czy jest wymagane, rozstrzyga `StrazImportu` w `PublishRecipe`.
+            'sprawdzilem_odczyt' => ['nullable', 'boolean'],
             /*
              * `nullable`, nie `required` (issue #364). Ekran dodawania nie
              * pyta „ten przepis jest…" — to jedno z dziewięciu kółek wyboru,
@@ -159,6 +286,7 @@ final class ZapisPrzepisuRequest extends FormRequest
              * odciąć wklejenie całej książki kucharskiej, zanim zacznie
              * chodzić parser.
              */
+            'odczyt_sprawdzony' => ['nullable', 'boolean'],
             'skladniki_tekst' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['skladniki_tekst']],
             'przygotowanie_tekst' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['przygotowanie_tekst']],
         ];
@@ -182,6 +310,7 @@ final class ZapisPrzepisuRequest extends FormRequest
             'servings.min' => 'Liczba porcji musi być większa od zera. Wpisz na przykład 4.',
             'servings.max' => 'Ta liczba porcji jest nierealna. Wpisz najwyżej 999.',
             'servings.decimal' => 'Liczba porcji może mieć najwyżej dwa miejsca po przecinku (setne). Zamiast 1,255 wpisz 1,25 albo 1,26.',
+            ...KosztPrzepisu::KOMUNIKATY,
             'prep_minutes.integer' => 'Czas przygotowania podaj w pełnych minutach, na przykład 20.',
             'prep_minutes.min' => 'Czas przygotowania nie może być ujemny. Wpisz na przykład 20.',
             'prep_minutes.max' => 'Czas przygotowania jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',
@@ -247,7 +376,7 @@ final class ZapisPrzepisuRequest extends FormRequest
         $zdjeciaKrokow = 0;
 
         foreach (array_keys($data['steps'] ?? []) as $index) {
-            if ($this->hasFile("steps.{$index}.photo")) {
+            if (isset($this->zachowajZdjecia()['step_'.$index]) || $this->hasFile("steps.{$index}.photo")) {
                 $zdjeciaKrokow++;
             }
         }
@@ -361,21 +490,32 @@ final class ZapisPrzepisuRequest extends FormRequest
             );
         }
 
+        $przepis = [
+            'title' => $data['title'],
+            'summary' => $data['summary'] ?? null,
+            'servings' => $data['servings'] ?? null,
+            'prep_minutes' => $data['prep_minutes'] ?? null,
+            'cook_minutes' => $data['cook_minutes'] ?? null,
+            'difficulty' => $data['difficulty'] ?? null,
+            'visibility' => $data['visibility'],
+            'source_type' => $data['source_type'] ?? null,
+            'source_person' => $data['source_person'] ?? null,
+            'source_note' => $data['source_note'] ?? null,
+            'source_url' => $data['source_url'] ?? null,
+            'family_since_year' => $data['family_since_year'] ?? null,
+            // Bramka publikacji wymaga potwierdzenia tekstu odczytanego z kartki.
+            'odczyt_sprawdzony' => (bool) ($data['odczyt_sprawdzony'] ?? false),
+            'sprawdzilem_odczyt' => $this->boolean('sprawdzilem_odczyt'),
+        ];
+
+        // Koszt tylko wtedy, gdy formularz ma to pole (szczegóły tak, ekran
+        // dodawania nie). Brak klucza = `PublishRecipe` zostawia dawną kwotę.
+        if ($this->exists('estimated_cost_pln')) {
+            $przepis['estimated_cost_pln'] = KosztPrzepisu::naLiczbe($data['estimated_cost_pln'] ?? null);
+        }
+
         return [
-            'recipe' => [
-                'title' => $data['title'],
-                'summary' => $data['summary'] ?? null,
-                'servings' => $data['servings'] ?? null,
-                'prep_minutes' => $data['prep_minutes'] ?? null,
-                'cook_minutes' => $data['cook_minutes'] ?? null,
-                'difficulty' => $data['difficulty'] ?? null,
-                'visibility' => $data['visibility'],
-                'source_type' => $data['source_type'] ?? null,
-                'source_person' => $data['source_person'] ?? null,
-                'source_note' => $data['source_note'] ?? null,
-                'source_url' => $data['source_url'] ?? null,
-                'family_since_year' => $data['family_since_year'] ?? null,
-            ],
+            'recipe' => $przepis,
             'ingredients' => $ingredients,
             'steps' => $steps,
         ];

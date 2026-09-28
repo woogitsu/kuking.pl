@@ -15,6 +15,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Komentarz. Dotyczy dokładnie jednego obiektu — pilnuje tego CHECK w bazie.
+ *
+ * Pola z dołączonych zapytań w `CelPowiadomienia` są dostępne tylko w
+ * rezultatach tego zapytania; brak ich w zwykłym modelu daje null.
+ *
+ * @property string|null $kind
+ * @property string|null $slug
+ * @property int|string|null $preceding_count
+ * @property int|string|null $preceding_replies
  */
 class Comment extends Model
 {
@@ -175,16 +183,25 @@ class Comment extends Model
         'status',
     ];
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'author_id');
     }
 
+    /**
+     * @return BelongsTo<self, $this>
+     */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_id');
     }
 
+    /**
+     * @return HasMany<self, $this>
+     */
     public function replies(): HasMany
     {
         // `id` rozstrzyga remisy `created_at` — porcje odpowiedzi (issue
@@ -196,16 +213,25 @@ class Comment extends Model
             ->orderBy('id');
     }
 
+    /**
+     * @return BelongsTo<Post, $this>
+     */
     public function post(): BelongsTo
     {
         return $this->belongsTo(Post::class);
     }
 
+    /**
+     * @return BelongsTo<Recipe, $this>
+     */
     public function recipe(): BelongsTo
     {
         return $this->belongsTo(Recipe::class);
     }
 
+    /**
+     * @return BelongsTo<CookedEvent, $this>
+     */
     public function cookedEvent(): BelongsTo
     {
         return $this->belongsTo(CookedEvent::class);
@@ -228,5 +254,15 @@ class Comment extends Model
             $subject instanceof CookedEvent => $subject->user_id,
             default => null,
         };
+    }
+
+    /**
+     * Wersja treści, którą widzi formularz poprawki (issue #982). Odcisk
+     * `body`, a nie `updated_at`: sekundowy znacznik czasu remisuje przy
+     * dwóch szybkich zapisach, a poprawka zmienia tylko treść.
+     */
+    public function wersjaTresci(): string
+    {
+        return hash('sha256', (string) $this->body);
     }
 }

@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Domain\Recipes\Actions;
 
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
+use App\Domain\Recipes\BramkaPublikacjiSzkicu;
 use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\GrupySkladnikow;
 use App\Domain\Recipes\MojaWersja;
 use App\Domain\Recipes\RecipeStatusTransitions;
 use App\Domain\Recipes\StepTimer;
+use App\Domain\Recipes\StrazPochodzeniaPrzepisu;
 use App\Domain\Recipes\WpisWskazujacyPrzepis;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
@@ -90,6 +92,8 @@ final class PublishRecipe
     public function __construct(
         private readonly GenerateRecipeSlug $slugs,
         private readonly SnapshotRecipeVersion $snapshots,
+        private readonly StrazPochodzeniaPrzepisu $pochodzenie,
+        private readonly BramkaPublikacjiSzkicu $bramkaPublikacji,
         private readonly MojaWersja $mojaWersja,
     ) {}
 
@@ -147,6 +151,13 @@ final class PublishRecipe
         // zanim odczytamy jego relacje albo zaczniemy transakcję zapisu.
         if ($existing !== null) {
             Gate::forUser($author)->authorize('update', $existing);
+
+            // Pochodzenie przepisu (import z adresu, PDF-a, zdjęcia — D-300):
+            // zablokowane źródło i „Sprawdziłem odczytany tekst" przed
+            // publikacją. Stoi TU, a nie w kontrolerach, żeby kreator,
+            // formularz jednostronicowy i każde przyszłe wejście szły przez
+            // tę samą regułę (AGENTS.md §4).
+            $attributes = $this->pochodzenie->przedZapisem($author, $existing, $attributes, $publish);
         }
 
         $cleanIngredients = $this->cleanIngredients($ingredients);
@@ -193,6 +204,16 @@ final class PublishRecipe
         if ($bedziePubliczny) {
             if ($cleanSteps === []) {
                 throw new BladDlaCzlowieka('Opisz przynajmniej jeden krok przygotowania — bez tego przepis nie może być opublikowany.');
+            }
+
+            // Szkic z odczytu zdjęcia kartki (V2, D-298): „Sprawdziłem
+            // odczytany tekst” i zero znaczników `[?…?]`, zanim tekst
+            // odczytany przez komputer wyjdzie do ludzi. Tu, a nie
+            // w kontrolerze — obejmuje kreator i formularz bez JS. Tylko przy
+            // PIERWSZEJ publikacji szkicu: raz sprawdzony i opublikowany
+            // przepis edytuje się dalej zwyczajnie.
+            if ($existing !== null && $existing->status === Recipe::STATUS_DRAFT) {
+                $this->bramkaPublikacji->sprawdz($existing, $attributes, $title, $cleanIngredients, $cleanSteps);
             }
         }
 
@@ -305,6 +326,7 @@ final class PublishRecipe
              */
             DB::select('SELECT 1 FROM users WHERE id = ? FOR KEY SHARE', [(string) $author->getKey()]);
 
+            $bylSzkicem = false;
             // Czy przepis był UDOSTĘPNIONY innym (opublikowany i nie
             // prywatny) PRZED tym zapisem — potrzebne wyłącznie „Mojej
             // wersji": powiadomienie autora oryginału idzie przy pierwszym
@@ -328,6 +350,14 @@ final class PublishRecipe
                 'family_since_year' => $attributes['family_since_year'] ?? null,
                 'source_scan_media_id' => $this->zdjecieDoPrzypiecia($attributes['source_scan_media_id'] ?? null, $doPrzypiecia),
             ];
+
+            // Koszt wg autora (D-286). Klucz BRAKUJĄCY w atrybutach to NIE
+            // „wyczyść": droga, która tego pola nie zna (ekran dodawania),
+            // nie może po cichu skasować kwoty wpisanej wcześniej
+            // w szczegółach. Jawne `null` czyści.
+            if (array_key_exists('estimated_cost_pln', $attributes)) {
+                $payload['estimated_cost_pln'] = $attributes['estimated_cost_pln'];
+            }
 
             if ($existing === null) {
                 $payload['author_id'] = $author->getKey();
@@ -399,6 +429,7 @@ final class PublishRecipe
                 }
 
                 $recipe = $swiezy;
+                $bylSzkicem = $swiezy->status === Recipe::STATUS_DRAFT;
 
                 // Mapa sprzed blokady służy wyłącznie do wyboru zdjęć. Po
                 // czekaniu na inny zapis kroki mogły już zostać wymienione.
@@ -455,6 +486,10 @@ final class PublishRecipe
 
             $this->syncIngredients($recipe, $cleanIngredients);
             $this->syncSteps($recipe, $author, $cleanSteps, $istniejaceKroki, $doPrzypiecia);
+
+            if ($bylSzkicem && $recipe->isPublished()) {
+                $this->pochodzenie->poPublikacji($recipe);
+            }
 
             /*
              * „MOJA WERSJA" BEZ ŻADNEJ ZMIANY NIE WYCHODZI DO LUDZI (issue #23).

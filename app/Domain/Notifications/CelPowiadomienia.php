@@ -12,6 +12,8 @@ use App\Models\Recipe;
 use App\Models\User;
 use App\Support\OdpowiedziWatku;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 /**
  * DOKĄD PROWADZI POWIADOMIENIE (issue #1687, etap 2).
@@ -30,6 +32,15 @@ use Illuminate\Database\Eloquent\Builder;
  */
 final class CelPowiadomienia
 {
+    /**
+     * Wpisy digestów „Smakowicie wygląda" wczytane dla bieżącej strony listy
+     * (`wczytajWpisySmakowicie()`): `post_id` → wpis albo `null`, gdy go nie
+     * ma lub odbiorca nie może go otworzyć (issue #1994).
+     *
+     * @var array<string, Post|null>
+     */
+    private array $wpisySmakowicie = [];
+
     /**
      * Dokąd prowadzi przycisk „Zobacz" — albo `null`, gdy nie ma dokąd.
      *
@@ -91,6 +102,14 @@ final class CelPowiadomienia
             Notification::TYPE_FIRST_POST => ($wpis = $powiadomienie->pierwszyWpis()) !== null
                 ? route('posts.show', $wpis)
                 : route('admin.unanswered'),
+            // Najnowszy wpis z reakcją — autor zobaczy tam, KTO napisał (#1813).
+            // ISSUE #1994: digest zapisuje `post_id` raz dziennie, a wpis
+            // mógł zniknąć później (autor usuwa miękko, moderacja zdejmuje).
+            // Cel po BIEŻĄCYM wierszu i bieżącej autoryzacji odbiorcy, jak
+            // #771/#1034: brak wpisu = brak „Zobacz", nigdy 404.
+            Notification::TYPE_SMAKOWICIE => ($wpis = $this->wpisSmakowicie($powiadomienie)) !== null
+                ? route('posts.show', $wpis)
+                : null,
             // Wprost na kolejkę odwołań. Bez identyfikatora w adresie:
             // kolejka nie ma ekranu jednej sprawy, a odwołania otwarte stoją
             // na niej najstarsze na górze, czyli to z najbliższym terminem
@@ -156,6 +175,74 @@ final class CelPowiadomienia
         return $this->adresy([$powiadomienie], $viewer)[(string) $powiadomienie->getKey()];
     }
 
+    /**
+     * Wpis z digestu „Smakowicie wygląda", o ile istnieje i odbiorca może go
+     * dziś otworzyć (`PostPolicy::view()`) — issue #1994.
+     *
+     * Odbiorcą jest autor wpisu, więc zawężenie widoczności, ukrycie przez
+     * moderację i blokada z reagującą osobą go nie zamykają; zamyka go
+     * usunięcie (autor albo moderacja — oba miękkie, `SoftDeletes` nie
+     * zwraca wiersza) i rzadkie przypadki Policy (np. wyłączone pytania).
+     * Lista liczy to jednym zapytaniem na stronę (`adresy()`), kliknięcie —
+     * od nowa, dla stanu z chwili kliknięcia.
+     */
+    public function wpisSmakowicie(Notification $powiadomienie): ?Post
+    {
+        $id = ($powiadomienie->data ?? [])['post_id'] ?? null;
+
+        // Nie-UUID nie trafi w żaden wpis (a PostgreSQL odrzuciłby je błędem
+        // rzutowania), więc traktujemy je jak wpis, którego nie ma.
+        if ($powiadomienie->type !== Notification::TYPE_SMAKOWICIE || ! is_string($id) || ! Str::isUuid($id)) {
+            return null;
+        }
+
+        if (array_key_exists($id, $this->wpisySmakowicie)) {
+            return $this->wpisySmakowicie[$id];
+        }
+
+        $wpis = Post::query()->find($id);
+        $odbiorca = $powiadomienie->user;
+
+        return $wpis !== null && $odbiorca !== null && Gate::forUser($odbiorca)->allows('view', $wpis) ? $wpis : null;
+    }
+
+    /**
+     * Wpisy digestów z jednej strony listy — JEDNYM zapytaniem (jak
+     * `NotificationController::sprawdzPrzepisy()` przy #1034). Wynik żyje
+     * tylko w tej instancji, czyli w jednym wywołaniu `adresy()`.
+     *
+     * @param  list<Notification>  $notifications
+     */
+    private function wczytajWpisySmakowicie(array $notifications, User $viewer): void
+    {
+        $identyfikatory = [];
+
+        foreach ($notifications as $notification) {
+            $id = ($notification->data ?? [])['post_id'] ?? null;
+
+            // Tylko powiadomienia TEGO odbiorcy — Policy liczymy dla niego.
+            if ($notification->type === Notification::TYPE_SMAKOWICIE && is_string($id) && Str::isUuid($id)
+                && (string) $notification->user_id === (string) $viewer->getKey()) {
+                $identyfikatory[$id] = true;
+            }
+        }
+
+        if ($identyfikatory === []) {
+            return;
+        }
+
+        $wpisy = Post::query()
+            ->with(['author', 'recipe'])
+            ->whereIn('id', array_keys($identyfikatory))
+            ->get()
+            ->keyBy(fn (Post $wpis): string => (string) $wpis->getKey());
+
+        foreach (array_keys($identyfikatory) as $id) {
+            $wpis = $wpisy->get($id);
+            $this->wpisySmakowicie[$id] = $wpis !== null && Gate::forUser($viewer)->allows('view', $wpis) ? $wpis : null;
+        }
+    }
+
     private static function adresZapasowy(array $data): ?string
     {
         return is_string($data['url'] ?? null) && $data['url'] !== '' ? $data['url'] : null;
@@ -173,6 +260,8 @@ final class CelPowiadomienia
     {
         $urls = [];
         $byComment = [];
+        $notifications = is_array($notifications) ? $notifications : iterator_to_array($notifications, false);
+        $this->wczytajWpisySmakowicie($notifications, $viewer);
 
         foreach ($notifications as $notification) {
             $id = (string) $notification->getKey();

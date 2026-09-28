@@ -190,9 +190,20 @@ Nowe brzmienie ma być **krótsze albo równie krótkie** jak stare. Przy grupie
 
 Reguła jest sprawdzana maszynowo przez `tests/Feature/TekstyNiePrzypisujaPlciTest.php`:
 skan widoków, tekstów prawnych, tłumaczeń i napisów składanych w PHP, z jawną
-listą czterech wyjątków. Wyjątkiem jest **fraza**, nie słowo — hasło główne
-(„co dziś ugotowałeś") i nazwa przycisku („Ugotowałem") przechodzą, ale nowe
-zdanie z formą rodzajową oblewa, choćby użyło tego samego czasownika.
+listą pięciu wyjątków. Wyjątkiem jest **fraza**, nie słowo — hasło główne
+(„co dziś ugotowałeś"), nazwa przycisku („Ugotowałem") i etykieta pola wyboru
+(„Sprawdziłem odczytany tekst") przechodzą, ale nowe zdanie z formą rodzajową
+oblewa, choćby użyło tego samego czasownika.
+
+> **„Sprawdziłem odczytany tekst" — wyjątek z decyzji właściciela
+> (26 września 2026, PR #1899).** To etykieta pola wyboru, które trzeba
+> zaznaczyć przed publikacją szkicu z importu z adresu albo z PDF (D-300).
+> Stoi w trzech miejscach: w kreatorze przepisu, w formularzu edycji przepisu
+> i w komunikacie `StrazImportu::KOMUNIKAT_SPRAWDZ`, który cytuje ją
+> w cudzysłowie. Traktujemy ją jak „Ugotowałem": nazwę kontrolki, którą
+> czytelnik wypowiada w pierwszej osobie. Wyjątek obejmuje **dokładnie tę
+> frazę z wielkiej litery** — inne zdania z „sprawdziłem", „wkleiłem",
+> „dodałem" itp. dalej przebudowujemy bez rodzaju.
 
 ### Nie doklejaj przyimka do cudzych słów (11 września 2026)
 
@@ -513,7 +524,7 @@ wyjątkach jest prawidłowy, a wcześniejsze powiadomienie może już nie istnie
 | puste archiwum, własne | Twoje archiwum jest jeszcze puste |
 | + wyjaśnienie | Od pierwszego zdjęcia zaczyna się Twoje archiwum. Za rok zobaczysz tu, co gotujesz dzisiaj. |
 | brak powiadomień | Nie ma jeszcze żadnych powiadomień |
-| + wyjaśnienie | Tu pojawi się informacja, kiedy ktoś ugotuje z Twojego przepisu albo napisze komentarz. |
+| + wyjaśnienie | Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących oraz ważnych sprawach dotyczących Twojego konta. |
 | brak wyników szukania | Nic nie znaleźliśmy |
 | + wyjaśnienie | Nie ma jeszcze przepisu, który by pasował do „{fraza}". Może to Ty go dodasz? |
 | brak wyników szukania, zakres „Wszystko” (przepisy i ludzie, #944) | Nic nie znaleźliśmy |

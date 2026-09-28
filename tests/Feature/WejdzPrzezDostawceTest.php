@@ -15,6 +15,7 @@ use App\Facebook\TozsamoscFacebook;
 use App\Google\DostawcaWejsciaGoogle;
 use App\Google\TozsamoscGoogle;
 use App\Models\User;
+use App\Support\RejestracjaZamknieta;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -259,7 +260,15 @@ class WejdzPrzezDostawceTest extends TestCase
         $wejscie = $this->wejscie($klasa);
         $basia = $this->konto();
 
-        $polaczone = $wejscie->polacz($this->zadanie(), $basia, $this->tozsamosc($wejscie));
+        $request = $this->zadanie();
+        $tozsamosc = $this->tozsamosc($wejscie);
+        if ($wejscie->dostawca()->wymagaSwiezegoPotwierdzenia()) {
+            $this->assertNull($wejscie->polacz($request, $basia, $tozsamosc),
+                'Facebook nie może ominąć świeżego dowodu przez bezpośrednie wywołanie akcji.');
+        }
+
+        $polaczone = $wejscie->polacz($request, $basia, $tozsamosc,
+            $wejscie->dostawca()->wymagaSwiezegoPotwierdzenia() ? static fn (User $fresh): bool => true : null);
 
         $this->assertNotNull($polaczone);
         $this->assertTrue($wejscie->dostawca()->kontoPowiazane(self::IDENTYFIKATOR)?->is($basia));
@@ -431,8 +440,9 @@ class WejdzPrzezDostawceTest extends TestCase
         $nazwa = (new $klasa)->nazwa();
 
         $this->get(route($nazwa.'.finish'))->assertRedirect(route('login'));
-        $this->assertStringContainsString('chwilowo zamknięte', (string) session('status'));
-        $this->post(route($nazwa.'.finish'))->assertStatus(503);
+        $this->assertSame(RejestracjaZamknieta::KOMUNIKAT, session('status'));
+        // Przekierowanie, nie 503 — zamknięta rejestracja to nie awaria.
+        $this->post(route($nazwa.'.finish'))->assertRedirect(route('login'));
         $this->assertSame(0, User::count());
     }
 

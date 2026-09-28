@@ -362,6 +362,14 @@ następne zapytanie do `posts`, także zwykły `SELECT` z feedu. Dlatego:
 - **Nowa tabela** tych reguł nie potrzebuje — nikt jeszcze na nią nie czeka.
 - **Unikaj przepisania tabeli** (`ADD COLUMN … GENERATED … STORED`, zmiana
   typu kolumny) na gorących tabelach bez osobnego planu wdrożenia.
+- **Migracja `2026_09_24_120000_add_appeal_id_to_moderation_actions.php`
+  łamie powyższe** (indeks i FK/CHECK na istniejącej tabeli bez CONCURRENTLY
+  i bez NOT VALID) — jest już na produkcji i świadomie jej NIE poprawiamy,
+  ale `tests/Feature/NoweMigracjeTrzymajaSieParagrafu6Test.php`
+  (`App\Support\Baza\StraznikNowychMigracji`) pilnuje, żeby ten sam błąd nie
+  powtórzył się w żadnej migracji dodanej po wprowadzeniu strażnika, nawet
+  jeśli jej datownik jest wcześniejszy. Wyjątki historyczne są jawnie zapisane
+  w `app/Support/Baza/migracje-historyczne-par6.txt`.
 
 ### `down()` przy wartościach semantycznych ODMAWIA, zamiast zgadywać (D-088)
 
@@ -405,6 +413,27 @@ zostają świadomie bez strażnika (uzasadnienie w D-088).
 
 **Nigdy nie wykonuj destrukcyjnych operacji na produkcyjnej bazie
 bez jawnej zgody właściciela.**
+
+### Numer wersji: DUŻY numer ręcznie, KOŃCÓWKA sama (issue #1932, D-318)
+
+`kuking.wersja.etykieta` w `config/kuking.php` (np. „Alfa 0.68") to DUŻY
+numer wydania — podbijasz go RĘCZNIE, w Pull Requeście, razem z wpisem na
+górze `CHANGELOG.md` (pilnuje tego
+`tests/Feature/PodbicieWersjiWymagaWpisuWChangelogTest.php`). Zasada, KIEDY
+go podbić, stoi w komentarzu nad samą wartością w `config/kuking.php`: przy
+każdej zmianie, którą człowiek ZOBACZY — nowy ekran, zmieniony układ, nowa
+funkcja, inne zachowanie formularza. Poprawki bez śladu w interfejsie (testy,
+refaktor, dokumentacja) go nie ruszają.
+
+KOŃCÓWKA (`.005` w „Alfa 0.68.005") jest INNĄ rzeczą i NIE dotykasz jej
+ręcznie nigdy — rośnie sama, o jeden, przy KAŻDYM wdrożeniu, licząc od
+dziennika w tabeli `wdrozenia` (`kuking:zarejestruj-wdrozenie`, wpięta
+w krok `preDeployCommand` obok `migrate`). Gdy podbijasz DUŻY numer, końcówka
+WRACA DO `.001` SAMA — to jest nowa sekwencja liczona od nowa, nie ciąg
+dalszy poprzedniej, i nie ma tu nic do ustawienia ręcznie: pierwsze
+wdrożenie pod nową etykietą po prostu dostaje numer 1. Pełny mechanizm,
+tabele i bezpieczeństwo przy równoległym starcie: `docs/DATABASE.md`
+(sekcja „`wdrozenia` i `wdrozenia_funkcje`") i D-318.
 
 ---
 
@@ -493,7 +522,9 @@ tagi, tag z listy gospodarza, „kuKINGi na dziś” w kolejności gospodarza, c
 jeden przepis od osoby, bramki i ukrycia.
 
 W **Obserwowanych** nic nie znika poza bramkami i blokadami oraz wpisami, które
-widz sam ukrył („Ukryj ten wpis”, D-278 — z listą „Ukryte” do cofnięcia).
+widz sam ukrył („Ukryj ten wpis”, a przy wpisach z obserwowanego tagu także
+„Ukryj tę osobę”; D-278 — z listą „Ukryte” do cofnięcia). Osoby obserwowane
+wprost nie znikają nigdy.
 Dopuszczalne jest tylko zwinięcie serii wpisów jednej osoby albo jednego
 obserwowanego tagu (D-279: dwa widać, reszta pod „Pokaż”), bez zmiany
 kolejności.
@@ -640,7 +671,19 @@ użytkowników produkcyjnych.
 - ryzyka,
 - plan rollbacku,
 - aktualizację `docs/`,
-- opis zmiany w UI albo zrzut ekranu, jeśli dotyczy interfejsu.
+- opis zmiany w UI albo zrzut ekranu, jeśli dotyczy interfejsu,
+- **wpis w `CHANGELOG.md`, jeśli PR dodaje nową funkcję albo nowe zachowanie
+  widoczne dla użytkownika** — oznaczony na końcu wiersza dopiskiem
+  `[nowa funkcja]` (issue #1909). Poprawka, zmiana kosmetyczna i porządek za
+  kulisami tego dopisku NIE dostają — dla nich CHANGELOG zostaje zwykłym
+  wpisem bez znacznika. **Każdy wpis `[nowa funkcja]` w sekcji
+  „## Nieopublikowane” ma odpowiadający akapit** (nagłówek `### ...` i kilka
+  zdań prostym językiem: gdzie znaleźć, jak działa, co daje) **w sekcji
+  „## Najnowsze zmiany” pliku `resources/nowosci/tresc.md`** — strony „Co
+  nowego” pod numerem wersji w stopce. Pilnuje tego
+  `tests/Feature/StraznikNowosciKazdaNowaFunkcjaMaAkapitTest.php`
+  (kontrola ujemna w `scripts/kontrole-negatywne-alfa08.py`, wzorzec
+  z issue #1909).
 
 ### Bugfix zawsze zawiera test regresyjny
 
@@ -711,6 +754,12 @@ W skrócie:
 - komunikat błędu ma powiedzieć, **co zrobić**;
 - unikamy konstrukcji zakładających rodzaj, gdzie da się inaczej
   („Co dziś gotujesz?” zamiast form z „-łeś/-łaś”).
+  **Jawne wyjątki są frazami, nie słowami**, i pilnuje ich lista `WYJATKI`
+  w `tests/Support/WzorceRodzaju.php`: hasło główne („co dziś ugotowałeś”),
+  nazwa przycisku „Ugotowałem” oraz etykieta pola wyboru **„Sprawdziłem
+  odczytany tekst”** przy szkicu z importu (decyzja właściciela z 26 września
+  2026, PR #1899, D-300 — ta sama logika co „Ugotowałem”: nazwa kontrolki
+  cytowana w komunikacie). Kolejny wyjątek wymaga decyzji właściciela.
 
 Pełny słownik i lista słów zakazanych: `docs/brand/BRAND_EXTENDED.md`.
 
@@ -720,8 +769,20 @@ Pełny słownik i lista słów zakazanych: `docs/brand/BRAND_EXTENDED.md`.
 
 Poza MVP (patrz `docs/FEATURES.md` i `docs/ROADMAP.md`):
 wiadomości prywatne, natywne aplikacje, planer posiłków, lista zakupów,
-spiżarnia, OCR, generator przepisów AI, rozbudowana gamifikacja, marketplace,
+generator przepisów AI, rozbudowana gamifikacja, marketplace,
 transmisje live, wypłaty dla twórców.
+
+**Spiżarnia („Co mam w domu”) zeszła z tej listy 26 września 2026** — sekcja
+V2 w `docs/FEATURES.md` wymienia „pantry” i „co ugotuję z tego, co mam”, a
+**D-282** pozwala je budować. Zakazana zostaje
+**spiżarnia z terminami ważności i priorytetem zużycia (#1903)** — stoi na
+liście „V2, ale nie teraz” i wymaga nowej decyzji właściciela.
+
+**OCR starych zeszytów zszedł z tej listy 26 września 2026** — V2 wolno budować
+od decyzji **D-282**, a odczyt zdjęcia kartki działa według **D-296** (zgoda
+„odczyt AI”, wyjątek od D-240), **D-297** (budżet i limity) i **D-298**
+(architektura: zawsze prywatny szkic, nigdy publikacja). „Generator przepisów
+AI” zostaje zakazany: odczyt przepisuje kartkę człowieka, nie wymyśla przepisu.
 
 Anty-wzorce, których **nie wprowadzamy nigdy**:
 streaki i punkty za liczbę postów, publiczne rankingi użytkowników,

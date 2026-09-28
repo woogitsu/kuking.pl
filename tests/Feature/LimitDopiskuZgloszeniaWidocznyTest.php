@@ -41,8 +41,7 @@ class LimitDopiskuZgloszeniaWidocznyTest extends TestCase
         libxml_clear_errors();
         $xpath = new DOMXPath($dom);
 
-        $pole = $xpath->query('//textarea[@name="details"]')->item(0);
-        $this->assertNotNull($pole, 'Kontrola testu: pole dopisku musi być w formularzu.');
+        $pole = self::elementDom($xpath->query('//textarea[@name="details"]')->item(0), 'Kontrola testu: pole dopisku musi być w formularzu.');
 
         $opisy = preg_split('/\s+/', trim($pole->getAttribute('aria-describedby')));
         $zdaniaOpisu = [];

@@ -47,7 +47,9 @@ final readonly class WyborPorcji
             return new self($zPrzepisu, $zPrzepisu, false);
         }
 
-        $liczba = is_string($zAdresu) ? str_replace(',', '.', trim($zAdresu)) : null;
+        $liczba = is_int($zAdresu) || is_float($zAdresu)
+            ? (string) $zAdresu
+            : (is_string($zAdresu) ? str_replace(',', '.', trim($zAdresu)) : null);
 
         if ($liczba === null || preg_match('/^\d{1,3}(?:\.\d{1,2})?$/', $liczba) !== 1) {
             return new self($zPrzepisu, $zPrzepisu, true);

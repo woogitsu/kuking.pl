@@ -65,6 +65,13 @@ class RailwayCiGateTest(unittest.TestCase):
             with self.subTest(wrong=wrong), self.assertRaises(RuntimeError):
                 gate["validate_services"](json.dumps(wrong))
 
+    def test_run_attempt_requires_explicit_positive_number(self):
+        self.assertEqual(1, gate["validate_run_attempt"]("1"))
+        self.assertEqual(2, gate["validate_run_attempt"]("2"))
+        for wrong in ("", "0", "-1", "1.0", "first"):
+            with self.subTest(wrong=wrong), self.assertRaises(RuntimeError):
+                gate["validate_run_attempt"](wrong)
+
     def test_wrong_project_token_stops_before_service_deploy(self):
         service = {"name": "kuking.pl", "id": "11111111-1111-4111-8111-111111111111"}
         calls = []
@@ -97,7 +104,8 @@ class RailwayCiGateTest(unittest.TestCase):
             return {"deployment": {"id": variables["id"], "status": "SUCCESS"}}
 
         gate["deploy"]("token", self.sha, "environment", [web, worker], self.repo,
-                       lambda _path: {"commit": {"sha": self.sha}}, railway, lambda _seconds: None)
+                       lambda _path: {"commit": {"sha": self.sha}}, railway, 1,
+                       lambda _seconds: None)
         self.assertEqual([("deploy", web["id"], self.sha), ("poll", deployment_ids[0]),
                           ("deploy", worker["id"], self.sha), ("poll", deployment_ids[1])], actions)
 
@@ -111,14 +119,53 @@ class RailwayCiGateTest(unittest.TestCase):
 
         with self.assertRaises(RuntimeError):
             gate["deploy"]("token", self.sha, "environment", [web, worker], self.repo,
-                           lambda _path: {"commit": {"sha": self.sha}}, failed, lambda _seconds: None)
+                           lambda _path: {"commit": {"sha": self.sha}}, failed, 1,
+                           lambda _seconds: None)
         self.assertEqual(2, len(actions), "Awaria web musi zatrzymać worker.")
 
         actions.clear()
         with self.assertRaises(RuntimeError):
             gate["deploy"]("token", self.sha, "environment", [web], self.repo,
-                           lambda _path: {"commit": {"sha": "b" * 40}}, railway, lambda _seconds: None)
+                           lambda _path: {"commit": {"sha": "b" * 40}}, railway, 1,
+                           lambda _seconds: None)
         self.assertEqual([], actions, "Przesunięty main musi zatrzymać mutację Railway.")
+
+    def test_lost_mutation_response_and_rerun_never_repeat_deploy(self):
+        web = {"name": "kuking.pl", "id": "11111111-1111-4111-8111-111111111111"}
+        calls = []
+
+        def lost_response(_token, query, variables):
+            calls.append((query, variables))
+            raise OSError("connection reset after Railway accepted the request")
+
+        with self.assertRaisesRegex(RuntimeError, "wynik mutacji jest niejednoznaczny"):
+            gate["deploy"]("token", self.sha, "environment", [web], self.repo,
+                           lambda _path: {"commit": {"sha": self.sha}}, lost_response, 1,
+                           lambda _seconds: None)
+        self.assertEqual(1, len(calls))
+        self.assertIn("serviceInstanceDeployV2", calls[0][0])
+
+        calls.clear()
+        with self.assertRaisesRegex(RuntimeError, "nie wywołuję mutacji Railway"):
+            gate["deploy"]("token", self.sha, "environment", [web], self.repo,
+                           lambda _path: {"commit": {"sha": self.sha}}, lost_response, 2,
+                           lambda _seconds: None)
+        self.assertEqual([], calls, "Rerun nie może wywołać mutacji ani odpytywania Railway.")
+
+    def test_rerun_stops_before_mutating_later_roles_even_after_success(self):
+        web = {"name": "kuking.pl", "id": "11111111-1111-4111-8111-111111111111"}
+        worker = {"name": "worker", "id": "22222222-2222-4222-8222-222222222222"}
+        calls = []
+
+        def railway(_token, query, _variables):
+            calls.append(query)
+            return {"serviceInstanceDeployV2": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}
+
+        with self.assertRaisesRegex(RuntimeError, "nie wywołuję mutacji Railway"):
+            gate["deploy"]("token", self.sha, "environment", [web, worker], self.repo,
+                           lambda _path: {"commit": {"sha": self.sha}}, railway, 2,
+                           lambda _seconds: None)
+        self.assertEqual([], calls)
 
 
 if __name__ == "__main__":

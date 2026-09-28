@@ -8,7 +8,10 @@ use App\Domain\Security\WyslijPotwierdzenieAdresu;
 use App\Domain\Users\OstatniAdministrator;
 use App\Domain\Users\ZamekKonta;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Http\Api\ZakresyTokenu;
 use App\Notifications\UstawienieNowegoHasla;
+use App\Support\Sesja\GeneracjaSesji;
+use Carbon\CarbonInterface;
 use Database\Factories\UserFactory;
 use DateTimeInterface;
 use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
@@ -23,7 +26,6 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Notifications\Notification as PowiadomienieFrameworka;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -309,6 +311,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * samo). Kolejność alfabetyczna po nazwie: w odróżnieniu od Tematu,
      * tagi nie mają redakcyjnej kolejności (`position`) — to jest atrybut
      * PROMOCJI (`tag_promotions.position`), nie samego tagu.
+     *
+     * @return BelongsToMany<Tag, $this>
      */
     public function followedTags(): BelongsToMany
     {
@@ -355,6 +359,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // tygodniu, wbrew obietnicy „nigdy więcej niż jeden".
             'weekly_digest_sent_at' => 'datetime',
             'text_scale' => 'integer',
+            // #1046: poza `$fillable` — pisze ją wyłącznie `invalidateSessions()`.
+            'session_generation' => 'integer',
             'memories_enabled' => 'boolean',
             'moj_stol_enabled' => 'boolean',
             // Urodziny bez roku (issue #1755). Poza `$fillable` — zapis
@@ -366,6 +372,11 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // `PrzestawZgodeNaZyczeniaMailem` (dowód w dzienniku zgód).
             'wants_birthday_email' => 'boolean',
             'birthday_email_sent_on' => 'date',
+            // Bariera przed podwójnym zakolejkowaniem tego samego dnia
+            // (issue #1956) — osobna od `birthday_email_sent_on`, która
+            // znaczy teraz dosłownie „list wyszedł". Zapis wyłącznie przez
+            // `WyslijZyczeniaUrodzinowe` i `ZyczeniaUrodzinowe::send()`.
+            'birthday_email_queued_on' => 'date',
             'birthday_visible_to_followers' => 'boolean',
             'is_seeded' => 'boolean',
 
@@ -386,31 +397,49 @@ class User extends Authenticatable implements MustVerifyEmailContract
     // Relacje
     // ---------------------------------------------------------------------
 
+    /**
+     * @return HasOne<Profile, $this>
+     */
     public function profile(): HasOne
     {
         return $this->hasOne(Profile::class);
     }
 
+    /**
+     * @return HasMany<Post, $this>
+     */
     public function posts(): HasMany
     {
         return $this->hasMany(Post::class, 'author_id');
     }
 
+    /**
+     * @return HasMany<Recipe, $this>
+     */
     public function recipes(): HasMany
     {
         return $this->hasMany(Recipe::class, 'author_id');
     }
 
+    /**
+     * @return HasMany<CookedEvent, $this>
+     */
     public function cookedEvents(): HasMany
     {
         return $this->hasMany(CookedEvent::class);
     }
 
+    /**
+     * @return HasMany<Comment, $this>
+     */
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class, 'author_id');
     }
 
+    /**
+     * @return HasMany<Collection, $this>
+     */
     public function collections(): HasMany
     {
         return $this->hasMany(Collection::class, 'owner_id');
@@ -422,11 +451,17 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(MealPlanEntry::class);
     }
 
+    /**
+     * @return HasMany<Media, $this>
+     */
     public function media(): HasMany
     {
         return $this->hasMany(Media::class, 'owner_id');
     }
 
+    /**
+     * @return HasMany<DataExport, $this>
+     */
     public function dataExports(): HasMany
     {
         return $this->hasMany(DataExport::class);
@@ -437,12 +472,17 @@ class User extends Authenticatable implements MustVerifyEmailContract
      *
      * `HasOne`, bo `pending_email_changes.user_id` jest unikalne: jedno
      * konto ma najwyżej jedno oczekujące żądanie, a nowe zastępuje stare.
+     *
+     * @return HasOne<PendingEmailChange, $this>
      */
     public function pendingEmailChange(): HasOne
     {
         return $this->hasOne(PendingEmailChange::class);
     }
 
+    /**
+     * @return HasMany<Notification, $this>
+     */
     public function notifications(): HasMany
     {
         // Drugi klucz sortowania — powiadomienia sypią się seriami w tej
@@ -454,6 +494,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /** Osoby, które TEN użytkownik obserwuje. */
+    /**
+     * @return BelongsToMany<self, $this>
+     */
     public function following(): BelongsToMany
     {
         return $this->belongsToMany(self::class, 'follows', 'follower_id', 'followed_id')
@@ -461,6 +504,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /** Osoby, które obserwują TEGO użytkownika. */
+    /**
+     * @return BelongsToMany<self, $this>
+     */
     public function followers(): BelongsToMany
     {
         return $this->belongsToMany(self::class, 'follows', 'followed_id', 'follower_id')
@@ -468,6 +514,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /** Osoby zablokowane PRZEZ tego użytkownika. */
+    /**
+     * @return BelongsToMany<self, $this>
+     */
     public function blocking(): BelongsToMany
     {
         return $this->belongsToMany(self::class, 'blocks', 'blocker_id', 'blocked_id')
@@ -475,6 +524,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /** Osoby, które zablokowały TEGO użytkownika. */
+    /**
+     * @return BelongsToMany<self, $this>
+     */
     public function blockedBy(): BelongsToMany
     {
         return $this->belongsToMany(self::class, 'blocks', 'blocked_id', 'blocker_id')
@@ -900,6 +952,39 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /**
+     * Od ilu nieprzeczytanych plakietka w belce przestaje liczyć dokładnie
+     * i pokazuje „99+" (audyt B4 S1).
+     */
+    public const PLAKIETKA_POWIADOMIEN_DO = 99;
+
+    /**
+     * Licznik do PLAKIETKI w belce — z sufitem, bo stoi na każdej stronie
+     * zalogowanej osoby (audyt B4 S1).
+     *
+     * `unreadNotificationsCount()` liczy WSZYSTKIE nieprzeczytane przez pełne
+     * `visibleTo` (blokady, konta, łańcuch widoczności komentarzy) na każdym
+     * wierszu. Najwięcej płacił ten, kto najrzadziej zagląda do powiadomień:
+     * tysiące nieprzeczytanych na każdej stronie. Plakietka i tak nie
+     * pokazuje liczby większej niż `PLAKIETKA_POWIADOMIEN_DO` — więc liczymy
+     * najwyżej o jeden wiersz dalej (`LIMIT` w podzapytaniu) i koszt przestaje
+     * rosnąć z zaległościami.
+     *
+     * Ten sam filtr co lista i co `unreadNotificationsCount()`, więc przy
+     * małych liczbach wynik jest identyczny; różni się dopiero powyżej sufitu.
+     */
+    public function unreadNotificationsBadgeCount(): int
+    {
+        $nieprzeczytane = $this->notifications()
+            ->visibleTo($this)
+            ->whereNull('read_at')
+            ->select('notifications.id')
+            ->limit(self::PLAKIETKA_POWIADOMIEN_DO + 1)
+            ->toBase();
+
+        return DB::query()->fromSub($nieprzeczytane, 'nieprzeczytane')->count();
+    }
+
+    /**
      * Treść ostatniej decyzji moderacyjnej skierowanej do tej osoby.
      *
      * Potrzebna poza listą powiadomień, bo osoba zbanowana do serwisu nie
@@ -1087,19 +1172,29 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * zamówił DWÓCH dostawców (Google i Facebook), a przy dwóch byłyby
      * cztery kolumny na `users` i dwa osobne CHECK-i „obie kolumny albo
      * żadna".
+     *
+     * @return HasMany<TozsamoscZewnetrzna, $this>
      */
     public function tozsamosciZewnetrzne(): HasMany
     {
         return $this->hasMany(TozsamoscZewnetrzna::class, 'user_id');
     }
 
-    /** Przeglądarki z włączonym Web Push (issue #35, D-303). */
+    /**
+     * Przeglądarki z włączonym Web Push (issue #35, D-303).
+     *
+     * @return HasMany<PushSubscription, $this>
+     */
     public function pushSubscriptions(): HasMany
     {
         return $this->hasMany(PushSubscription::class);
     }
 
-    /** Cisza nocna i limit kanałów poza serwisem; brak wiersza = domyślne (D-303). */
+    /**
+     * Cisza nocna i limit kanałów poza serwisem; brak wiersza = domyślne (D-303).
+     *
+     * @return HasOne<UstawieniaPowiadomienZewnetrznych, $this>
+     */
     public function ustawieniaPowiadomienZewnetrznych(): HasOne
     {
         return $this->hasOne(UstawieniaPowiadomienZewnetrznych::class);
@@ -1409,7 +1504,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * pierwszym przebiegu PO tej chwili — nigdy przed nią. Data podana
      * człowiekowi jest więc bezpieczna: do niej cofnięcie na pewno działa.
      */
-    public function deletionGraceEndsAt(): ?Carbon
+    public function deletionGraceEndsAt(): ?CarbonInterface
     {
         if ($this->status !== self::STATUS_PENDING_DELETE || $this->delete_requested_at === null) {
             return null;
@@ -1577,7 +1672,27 @@ class User extends Authenticatable implements MustVerifyEmailContract
         // Token należy do konta, więc wyjątek dla bieżącej SESJI nie jest
         // wyjątkiem dla starego ciasteczka: po utracie tej sesji trzeba się
         // zalogować ponownie. Nie dotykamy guarda moderatora ani jego cookies.
-        $this->forceFill(['remember_token' => Str::random(60)])->save();
+        //
+        // W TYM SAMYM `UPDATE` rośnie generacja sesji (#1046). Skasowanie
+        // wierszy niżej nie wystarcza: żądanie rozpoczęte wcześniej potrafi
+        // zapisać sesję z powrotem, a `SprawdzGeneracjeSesji` odrzuci ją
+        // po starej generacji. Jedno zapytanie, bo logowanie z recallera
+        // czyta token i generację jednym odczytem wiersza — nie może trafić
+        // na nowy token ze starą generacją ani odwrotnie.
+        $wiersz = DB::selectOne(
+            'UPDATE users SET remember_token = ?, session_generation = session_generation + 1, updated_at = ? '
+            .'WHERE id = ? RETURNING remember_token, session_generation, updated_at',
+            [Str::random(60), $this->fromDateTime($this->freshTimestamp()), $this->getKey()],
+        );
+        $this->forceFill((array) $wiersz)->syncOriginalAttributes(array_keys((array) $wiersz));
+
+        // Bieżąca przeglądarka zostaje ważna tylko wtedy, gdy dostanie nową
+        // generację — inaczej wyjątek `$exceptSessionId` wylogowałby ją
+        // przy następnym żądaniu.
+        $biezaca = request()->hasSession() ? request()->session() : null;
+        if ($exceptSessionId !== null && $biezaca?->getId() === $exceptSessionId && auth('web')->id() === $this->getKey()) {
+            GeneracjaSesji::zapamietaj($biezaca, $this);
+        }
 
         // OCZEKUJĄCY LINK DO LOGOWANIA GINIE RAZEM Z SESJAMI (issue #25, D-056).
         //
@@ -1660,6 +1775,23 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /**
+     * Domyślny zakres tokenu wydawanego bez jawnych abilities (D-320, #1928).
+     *
+     * CAŁY dzisiejszy słownik z `ZakresyTokenu`, wypisany jawnie — NIGDY
+     * `['*']`. Dodanie nowego zakresu do `ZakresyTokenu` samo z siebie nie
+     * poszerza tej listy: trzeba dopisać go tutaj świadomie, więc nowa klasa
+     * endpointów nie rozszerza uprawnień tokenów wydanych wcześniej ani
+     * tokenów wydanych tą metodą PRZED tą zmianą.
+     *
+     * @var list<string>
+     */
+    public const DOMYSLNE_UPRAWNIENIA_API = [
+        ZakresyTokenu::PROFIL_CZYTAJ,
+        ZakresyTokenu::TRESC_CZYTAJ,
+        ZakresyTokenu::TRESC_PISZ,
+    ];
+
+    /**
      * Wydanie tokenu aplikacji mobilnej — nadpisanie metody z `HasApiTokens`.
      *
      * Pakiet zapisuje wiersz przez `create([... 'token' => ...])`, czyli
@@ -1668,10 +1800,18 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * kolumny `token`. Postać jawna wraca WYŁĄCZNIE w `NewAccessToken`
      * i nie jest nigdzie zapisywana.
      *
+     * Zakres (`abilities`) jest zawsze jawną listą z zamkniętego słownika
+     * `ZakresyTokenu` — nigdy pakietowym wildcardem `*` (D-320, #1928).
+     * `ZakresyTokenu::waliduj()` odrzuca każdy nieznany zakres, więc nie da
+     * się tędy wydać tokenu z uprawnieniem spoza słownika, nawet podając
+     * abilities jawnie.
+     *
      * @param  array<int, string>  $abilities
      */
-    public function createToken(string $name, array $abilities = ['*'], ?DateTimeInterface $expiresAt = null): NewAccessToken
+    public function createToken(string $name, array $abilities = self::DOMYSLNE_UPRAWNIENIA_API, ?DateTimeInterface $expiresAt = null): NewAccessToken
     {
+        ZakresyTokenu::waliduj($abilities);
+
         $jawny = $this->generateTokenString();
 
         $token = new PersonalAccessToken;
@@ -1705,6 +1845,46 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'two_factor_backup_codes' => null,
             'two_factor_last_used_at' => null,
         ])->save();
+    }
+
+    /**
+     * Początek włączania 2FA z ekranu włączenia (GET) — TYLKO gdy konfiguracja
+     * naprawdę się jeszcze nie zaczęła (issue #2061).
+     *
+     * Decyzja zapada na ŚWIEŻYM wierszu pod blokadą (`ZamekKonta`), nie na
+     * modelu wczytanym na początku żądania. Stary model potrafił mieć
+     * `two_factor_secret = NULL` sprzed sekundy, w której druga karta zapisała
+     * sekret A i właściciel go potwierdził — i wtedy `beginTwoFactorSetup()`
+     * wpisywało sekret B, a `two_factor_confirmed_at` i kody zapasowe, na tym
+     * modelu wciąż NULL i niezmienione, zostawały w bazie. Konto wymagało kodu,
+     * którego nie liczył żaden telefon.
+     *
+     * Wystarczy sprawdzić sekret: potwierdzone 2FA zawsze go ma
+     * (`hasTwoFactorConfirmed()`), więc „już zaczęte" obejmuje „już
+     * potwierdzone". Świadome „ustaw od nowa" idzie przez wyłączenie
+     * (POST z hasłem), nie przez tę metodę.
+     *
+     * Na koniec model wywołującego przyjmuje stan z bazy — ten sekret, który
+     * trzeba pokazać w kodzie QR, albo potwierdzone 2FA, przy którym ekranu
+     * włączenia pokazywać nie wolno.
+     *
+     * @return bool czy zapisano NOWY sekret
+     */
+    public function beginTwoFactorSetupIfNotStarted(string $secret): bool
+    {
+        $zapisano = ZamekKonta::zablokuj($this, static function (?self $swiezy) use ($secret): bool {
+            if ($swiezy === null || $swiezy->two_factor_secret !== null) {
+                return false;
+            }
+
+            $swiezy->beginTwoFactorSetup($secret);
+
+            return true;
+        });
+
+        $this->refresh();
+
+        return $zapisano;
     }
 
     /**

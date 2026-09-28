@@ -9,7 +9,9 @@ use App\Domain\Notifications\Actions\NotifyUser;
 use App\Domain\Notifications\Push\TransportPush;
 use App\Domain\Notifications\Push\WynikWysylkiPush;
 use App\Domain\Recipes\Actions\RecordCookedEvent;
+use App\Domain\Social\Actions\BlockUser;
 use App\Jobs\WyslijPowiadomieniePush;
+use App\Models\Comment;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\PushSubscription;
@@ -405,7 +407,10 @@ final class PowiadomieniaPushTest extends TestCase
 
         Queue::assertPushed(WyslijPowiadomieniePush::class, fn (WyslijPowiadomieniePush $job): bool => $job->userId === $autor->getKey()
             && $job->probaTransportu === 2
-            && $job->notificationIds === [(string) $powiadomienie->getKey()]
+            // #2021: retry niesie ID grupy, nie listę powiadomień.
+            && $job->notificationIds === []
+            && $job->grupaId === $powiadomienie->push_grupa_id
+            && $job->grupaId !== null
             && $job->pominieteSubskrypcje === []);
     }
 
@@ -436,6 +441,129 @@ final class PowiadomieniaPushTest extends TestCase
 
         $this->assertCount(2, $this->transport->wyslane, 'Druga próba ma faktycznie spróbować wysłać.');
         $this->assertNotNull($powiadomienie->refresh()->push_wyslano_at, 'Udane ponowienie ma postawić znacznik.');
+    }
+
+    public function test_retry_po_odczytaniu_nie_wysyla_i_zamyka_rezerwacje(): void
+    {
+        $autor = $this->user('autor_retry_odczyt');
+        $sub = $this->subskrypcja($autor, 'https://fcm.googleapis.com/fcm/send/retry-odczyt');
+        $this->transport->odpowiadaj($sub->endpoint, WynikWysylkiPush::Blad);
+        Queue::fake();
+        $powiadomienie = $this->powiadomienie($autor, 'Prywatny rosół');
+        $this->uruchomZadanie($autor);
+        $this->assertCount(1, $this->transport->wyslane, 'Kontrola dodatnia: pierwsza próba naprawdę doszła do transportu.');
+
+        $powiadomienie->forceFill(['read_at' => now()])->save();
+        $this->transport->odpowiadaj($sub->endpoint, WynikWysylkiPush::Wyslano);
+        (new WyslijPowiadomieniePush($autor->getKey(), [(string) $powiadomienie->getKey()],
+            (string) json_encode(['body' => 'Prywatny rosół']), probaTransportu: 2))->handle($this->transport);
+
+        $this->assertCount(1, $this->transport->wyslane, 'Retry nie może wysłać przeczytanego powiadomienia.');
+        $this->assertNull($powiadomienie->refresh()->push_wyslano_at);
+        $this->assertNotNull($powiadomienie->push_zakonczono_at, 'Anulowana rezerwacja ma mieć trwały koniec.');
+    }
+
+    public function test_retry_po_blokadzie_aktora_nie_ujawnia_jego_imienia(): void
+    {
+        $autor = $this->user('autor_retry_blokada');
+        $sub = $this->subskrypcja($autor, 'https://fcm.googleapis.com/fcm/send/retry-blokada');
+        $this->transport->odpowiadaj($sub->endpoint, WynikWysylkiPush::Blad);
+        Queue::fake();
+        $powiadomienie = $this->powiadomienie($autor, 'Sekretny piernik');
+        $this->uruchomZadanie($autor);
+        $this->assertCount(1, $this->transport->wyslane);
+
+        app(BlockUser::class)->handle($autor, $powiadomienie->actor()->firstOrFail());
+        $this->transport->odpowiadaj($sub->endpoint, WynikWysylkiPush::Wyslano);
+        (new WyslijPowiadomieniePush($autor->getKey(), [(string) $powiadomienie->getKey()],
+            (string) json_encode(['body' => 'Sekretny piernik']), probaTransportu: 2))->handle($this->transport);
+
+        $this->assertCount(1, $this->transport->wyslane);
+        $this->assertNotNull($powiadomienie->refresh()->push_zakonczono_at);
+        $this->assertNull($powiadomienie->push_wyslano_at);
+    }
+
+    public function test_retry_po_blokadzie_odbiorcy_przez_aktora_nie_wysyla(): void
+    {
+        $odbiorca = $this->user('odbiorca_retry_blokada_wstecz');
+        $sub = $this->subskrypcja($odbiorca, 'https://fcm.googleapis.com/fcm/send/retry-blokada-wstecz');
+        $this->transport->odpowiadaj($sub->endpoint, WynikWysylkiPush::Blad);
+        Queue::fake();
+        $powiadomienie = $this->powiadomienie($odbiorca, 'Sekretny chleb');
+        $this->uruchomZadanie($odbiorca);
+        $this->assertCount(1, $this->transport->wyslane);
+
+        app(BlockUser::class)->handle($powiadomienie->actor()->firstOrFail(), $odbiorca);
+        (new WyslijPowiadomieniePush($odbiorca->getKey(), [(string) $powiadomienie->getKey()],
+            (string) json_encode(['body' => 'Sekretny chleb']), probaTransportu: 2))->handle($this->transport);
+
+        $this->assertCount(1, $this->transport->wyslane);
+        $this->assertNotNull($powiadomienie->refresh()->push_zakonczono_at);
+        $this->assertNull($powiadomienie->push_wyslano_at);
+    }
+
+    public function test_retry_po_ukryciu_wpisu_nie_wysyla_starego_payloadu(): void
+    {
+        $odbiorca = $this->user('odbiorca_retry_ukryty_wpis');
+        $autorWpisu = $this->user('autor_retry_ukryty_wpis');
+        $aktor = $this->user('aktor_retry_ukryty_wpis');
+        $sub = $this->subskrypcja($odbiorca, 'https://fcm.googleapis.com/fcm/send/retry-ukryty-wpis');
+        $this->transport->odpowiadaj($sub->endpoint, WynikWysylkiPush::Blad);
+        Queue::fake();
+        $wpis = Post::factory()->for($autorWpisu, 'author')->create();
+        $komentarz = Comment::factory()->for($aktor, 'author')->for($wpis)->create();
+        $powiadomienie = Notification::create([
+            'user_id' => $odbiorca->getKey(),
+            'actor_id' => $aktor->getKey(),
+            'type' => Notification::TYPE_REPLY,
+            'data' => ['comment_id' => (string) $komentarz->getKey()],
+        ]);
+        $this->uruchomZadanie($odbiorca);
+        $this->assertCount(1, $this->transport->wyslane);
+
+        $wpis->forceFill(['visibility' => Post::VISIBILITY_PRIVATE])->save();
+        (new WyslijPowiadomieniePush($odbiorca->getKey(), [(string) $powiadomienie->getKey()],
+            (string) json_encode(['body' => 'Aktor — nowa odpowiedź.']), probaTransportu: 2))->handle($this->transport);
+
+        $this->assertCount(1, $this->transport->wyslane);
+        $this->assertNotNull($powiadomienie->refresh()->push_zakonczono_at);
+        $this->assertNull($powiadomienie->push_wyslano_at);
+    }
+
+    public function test_czesciowo_widoczna_grupa_ponawia_tylko_nieudane_urzadzenie_z_neutralna_trescia(): void
+    {
+        $autor = $this->user('autor_retry_czesc');
+        $udane = $this->subskrypcja($autor, 'https://fcm.googleapis.com/fcm/send/retry-udane');
+        $nieudane = $this->subskrypcja($autor, 'https://fcm.googleapis.com/fcm/send/retry-nieudane');
+        $this->transport->odpowiadaj($nieudane->endpoint, WynikWysylkiPush::Blad);
+        Queue::fake();
+        $przeczytane = $this->powiadomienie($autor, 'Sekretny barszcz');
+        $aktualne = $this->powiadomienie($autor, 'Zupa');
+        $this->uruchomZadanie($autor);
+        $this->assertCount(2, $this->transport->wyslane);
+
+        $przeczytane->forceFill(['read_at' => now()])->save();
+        $obcy = $this->powiadomienie($this->user('obcy_retry_czesc'), 'Cudzy sekret');
+        $obcy->forceFill(['push_proba_at' => now()])->save();
+        $this->transport->odpowiadaj($nieudane->endpoint, WynikWysylkiPush::Wyslano);
+        (new WyslijPowiadomieniePush(
+            $autor->getKey(),
+            [(string) $przeczytane->getKey(), (string) $aktualne->getKey(), (string) $obcy->getKey(), (string) Str::uuid()],
+            (string) json_encode(['body' => 'Sekretny barszcz']),
+            [(string) $udane->getKey()],
+            2,
+        ))->handle($this->transport);
+
+        $adresy = array_column($this->transport->wyslane, 'endpoint');
+        $this->assertCount(3, $adresy);
+        $this->assertSame(1, count(array_filter($adresy, fn (string $adres): bool => $adres === $udane->endpoint)));
+        $this->assertSame(2, count(array_filter($adresy, fn (string $adres): bool => $adres === $nieudane->endpoint)));
+        $this->assertSame($nieudane->endpoint, $adresy[2]);
+        $this->assertSame('Masz nowe powiadomienie.', $this->transport->wyslane[2]['tresc']['body']);
+        $this->assertNotNull($przeczytane->refresh()->push_zakonczono_at);
+        $this->assertNull($przeczytane->push_wyslano_at);
+        $this->assertNotNull($aktualne->refresh()->push_wyslano_at);
+        $this->assertNull($obcy->refresh()->push_zakonczono_at);
     }
 
     /**

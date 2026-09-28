@@ -4,6 +4,12 @@
     // Jedna odpowiedź na „ile porcji" dla znaczka i dla structured data
     // (audyt A28) — dwa osobne teksty to dwie okazje do rozjazdu.
     $porcje = $recipe->servingsLabel();
+    $parametrPorcjiGotowania = $wyborPorcji->przeliczone()
+        ? $wyborPorcji->doAdresu((float) $wyborPorcji->wybrane)
+        : null;
+    $adresGotowania = route('cooking.show', array_filter([
+        'recipe' => $recipe->slug, 'porcje' => $parametrPorcjiGotowania,
+    ], fn ($wartosc) => $wartosc !== null));
     // Dokąd iść po wymianę odrzuconego zdjęcia (#752). Pyta Policy, tak jak
     // przycisk edycji niżej — przepis ukryty przez moderację edycji nie ma.
     // Konto zawieszone edycję otworzy, ale jej nie zapisze
@@ -254,7 +260,7 @@
                     {{ config('kuking.community.contact_email') }}
                 </p>
             @elseif(! $recipe->isPublished())
-                <p class="notice kolumna-czytania"><strong>To jest szkic.</strong> Widzisz go tylko Ty. Kliknij „Edytuj”, żeby dokończyć i opublikować.</p>
+                <p class="notice kolumna-czytania"><strong>To jest szkic.</strong> Widzisz go tylko Ty. Kliknij „{{ \App\Domain\Recipes\CoMoznaDopisac::jest($recipe) ? 'Dopisz szczegóły' : 'Edytuj przepis' }}”, żeby dokończyć i opublikować.</p>
             @endif
 
             <div class="przepis-autor">
@@ -348,6 +354,17 @@
                     @endif
                 </ul>
             @endif
+            {{-- Koszt wg autora (D-286). Pełnym zdaniem, z „ok." i „wg autora",
+                 a nie jako kolejna „liczba" obok czasu i porcji: to szacunek
+                 jednej osoby, nie cena, którą serwis za coś ręczy. --}}
+            @if($recipe->costLabel())
+                <p class="przepis-koszt kolumna-czytania" data-koszt-autora="{{ $recipe->estimated_cost_pln }}">{{ $recipe->costLabel() }}</p>
+            @elseif(($szacunekKosztu ?? null) !== null)
+                {{-- Bez kwoty autora: przedział z cen GUS albo zdanie, dlaczego
+                     go nie ma (D-286, część 2). Zawsze „orientacyjny", zawsze
+                     ze źródłem i z zastrzeżeniem o sklepie. --}}
+                <p class="przepis-koszt kolumna-czytania" data-koszt-szacunek="{{ $szacunekKosztu->jestPrzedzial() ? 'przedzial' : 'brak' }}">{{ $szacunekKosztu->zdanie() }}</p>
+            @endif
 
 
             </div>
@@ -432,7 +449,12 @@
                     @else
                         <form method="POST" action="{{ route('collections.save', $recipe->slug) }}">
                             @csrf
-                            <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Zapisuję</button>
+                            @php $publicznyCel = app(\App\Domain\Collections\ZeszytyDoWyboru::class)->publicznyDomyslny(request()); @endphp
+                            @if($publicznyCel)
+                                {{-- Cel szybkiego zapisu jest publiczny — mówimy to przy przycisku (issue #1400). --}}
+                                <p class="pomoc" id="cel-zapisu-{{ $recipe->getKey() }}">Zapiszemy w zeszycie „{{ $publicznyCel->name }}”. Ten zeszyt widzą inne zalogowane osoby.</p>
+                            @endif
+                            <button class="btn btn-secondary" type="submit" @if($publicznyCel) aria-describedby="cel-zapisu-{{ $recipe->getKey() }}" @endif><x-ikona nazwa="save" /> Zapisuję</button>
                         </form>
                     @endif
                     <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" :content="$recipe" />
@@ -449,7 +471,7 @@
                     z czytelnym komunikatem, gdyby ktoś trafił tu wprost.
                 --}}
                 @if($recipe->steps->isNotEmpty())
-                    <a class="btn btn-secondary" href="{{ route('cooking.show', $recipe->slug) }}">Gotuję — pokaż kroki na cały ekran</a>
+                    <a class="btn btn-secondary" href="{{ $adresGotowania }}">Gotuję — pokaż kroki na cały ekran</a>
                 @endif
             </div>
 
@@ -612,6 +634,10 @@
                         </ul>
                     @endforeach
                 @endif
+                {{-- Szacunkowe wartości odżywcze (D-299): pod składnikami,
+                     bo liczą się z nich. Komponent sam nic nie pokazuje,
+                     gdy składników nie ma albo autor sekcję ukrył. --}}
+                <x-wartosci-odzywcze :recipe="$recipe" />
             </section>
 
             <section class="sekcja-strony">

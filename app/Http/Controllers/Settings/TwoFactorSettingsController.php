@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Settings;
 
 use App\Domain\Security\TwoFactorAuthenticator;
+use App\Domain\Users\ZamekKonta;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -62,11 +64,7 @@ class TwoFactorSettingsController extends Controller
         // wykonywanej raz na kilka lat — i żadnej drogi, w której samo wejście
         // na stronę zdejmuje zabezpieczenie.
         if ($user->hasTwoFactorConfirmed()) {
-            return redirect()->route('settings.two_factor.edit')->with(
-                'status',
-                'Weryfikacja dwuetapowa jest już włączona. Żeby ustawić ją na nowym telefonie, '
-                .'najpierw ją wyłącz — poprosimy o hasło.',
-            );
+            return $this->juzWlaczone();
         }
 
         // Sekret zapisujemy PRZY WEJŚCIU na ten ekran, nie dopiero po
@@ -77,9 +75,22 @@ class TwoFactorSettingsController extends Controller
         // Tu jesteśmy wyłącznie wtedy, gdy 2FA NIE jest potwierdzone, więc nie
         // ma czego zepsuć: albo zaczynamy od zera, albo wracamy do przerwanego
         // ustawiania i pokazujemy ten sam sekret co poprzednio.
-        if ($user->two_factor_secret === null) {
-            $user->beginTwoFactorSetup($this->totp->generateSecret());
-            $user->refresh();
+        //
+        // „NULL" wyżej to jednak odczyt z POCZĄTKU żądania (#2061). Druga
+        // karta mogła w tym czasie zapisać własny sekret, a właściciel już go
+        // zeskanować i potwierdzić. Dlatego zapis rozstrzyga świeży wiersz pod
+        // blokadą konta, a `$user` wraca z niego z tym, co jest w bazie: tym
+        // samym sekretem co w drugiej karcie albo potwierdzonym 2FA.
+        //
+        // Świeży stan czytamy też wtedy, gdy na początku żądania sekret już
+        // BYŁ, tylko niepotwierdzony: druga karta mogła go w tym czasie
+        // potwierdzić, a wtedy ten sam kod QR pokazany jeszcze raz wyglądałby
+        // na „dokończ włączanie" przy 2FA, która już chroni konto. Przy
+        // istniejącym sekrecie metoda niczego nie zapisuje, tylko odświeża.
+        $user->beginTwoFactorSetupIfNotStarted($this->totp->generateSecret());
+
+        if ($user->hasTwoFactorConfirmed()) {
+            return $this->juzWlaczone();
         }
 
         $otpAuthUri = $this->totp->otpAuthUri($user, $user->two_factor_secret);
@@ -88,6 +99,15 @@ class TwoFactorSettingsController extends Controller
             'sekret' => $user->two_factor_secret,
             'qr' => $this->totp->qrCodeSvg($otpAuthUri),
         ]);
+    }
+
+    private function juzWlaczone(): RedirectResponse
+    {
+        return redirect()->route('settings.two_factor.edit')->with(
+            'status',
+            'Weryfikacja dwuetapowa jest już włączona. Żeby ustawić ją na nowym telefonie, '
+            .'najpierw ją wyłącz — poprosimy o hasło.',
+        );
     }
 
     /**
@@ -122,24 +142,61 @@ class TwoFactorSettingsController extends Controller
             return redirect()->route('settings.two_factor.enable');
         }
 
+        // Stary formularz włączenia przy JUŻ włączonej 2FA: bez sprawdzania
+        // i zużywania kodu, bez nowego kompletu kodów zapasowych (#2061).
+        if ($user->hasTwoFactorConfirmed()) {
+            return $this->juzWlaczone();
+        }
+
         if (! Hash::check($data['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'password' => 'Wpisz ponownie hasło do Kuking. Jeśli go nie pamiętasz, skorzystaj z instrukcji przy formularzu.',
             ]);
         }
 
-        if (! $this->totp->verifyCode($user, $user->two_factor_secret, $data['code'])) {
+        $sekret = $user->two_factor_secret;
+
+        if (! $this->totp->verifyCode($user, $sekret, $data['code'])) {
             throw ValidationException::withMessages([
                 'code' => 'Kod jest nieprawidłowy. Sprawdź, czy godzina w telefonie jest ustawiona poprawnie, i spróbuj ponownie.',
             ]);
         }
 
-        $byloWlaczone = $user->hasTwoFactorConfirmed();
+        // POTWIERDZENIE ROZSTRZYGA ŚWIEŻY WIERSZ POD BLOKADĄ KONTA (#2061).
+        //
+        // `$user` wczytano na początku żądania. Druga karta mogła w tym czasie
+        // potwierdzić 2FA i pokazać kody zapasowe, które człowiek właśnie
+        // przepisuje. Dotąd ten zapis wymieniał je na nowy komplet — kartka
+        // przestawała działać, zanim ktokolwiek się o tym dowiedział. Pod
+        // blokadą sprawdzamy więc jeszcze raz: sekret ten sam, który
+        // zweryfikował kod, i 2FA wciąż niepotwierdzone. Inaczej nic nie
+        // zapisujemy. Nowy komplet przy WŁĄCZONEJ 2FA daje tylko
+        // „Wygeneruj nowe kody zapasowe" (`regenerateCodes()`).
+        //
+        // Skróty liczymy PRZED blokadą — bcrypt dziesięć razy nie ma czego
+        // szukać w transakcji, która trzyma wiersz konta.
         $kodyJawne = $this->totp->generateBackupCodes();
-        $user->confirmTwoFactor($this->totp->hashBackupCodes($kodyJawne));
-        if (! $byloWlaczone) {
-            AuditLogEntry::recordBezWywracania('account.two_factor_enabled', $user, $user, ip: $request->ip());
+        $skroty = $this->totp->hashBackupCodes($kodyJawne);
+
+        $wlaczono = ZamekKonta::zablokuj($user, static function (?User $swiezy) use ($sekret, $skroty): bool {
+            if ($swiezy === null || $swiezy->two_factor_secret !== $sekret || $swiezy->hasTwoFactorConfirmed()) {
+                return false;
+            }
+
+            $swiezy->confirmTwoFactor($skroty);
+
+            return true;
+        });
+
+        $user->refresh();
+
+        if (! $wlaczono) {
+            return $user->hasTwoFactorConfirmed()
+                ? $this->juzWlaczone()
+                : redirect()->route('settings.two_factor.enable');
         }
+
+        AuditLogEntry::recordBezWywracania('account.two_factor_enabled', $user, $user, ip: $request->ip());
 
         // STARE POŚWIADCZENIA JEDNOSKŁADNIKOWE GASNĄ (#930, D-245).
         //
@@ -151,6 +208,10 @@ class TwoFactorSettingsController extends Controller
         // i kod. Zły kod albo złe hasło kończą się wyjątkiem wyżej, więc
         // niczego nie odwołują.
         $user->invalidateSessions($request->session()->getId());
+
+        // Kod padł właśnie w tej sesji, więc moderator wchodzi do panelu bez
+        // ponownego logowania (`moderator.2fa`, #930).
+        $request->session()->put(TwoFactorAuthenticator::dowodSesji($user->refresh()));
 
         // Kody zapasowe idą do sesji TYLKO na ten jeden, następny widok
         // (`->with()` = flash na jedno żądanie) — to jest jedyny moment,
@@ -250,6 +311,16 @@ class TwoFactorSettingsController extends Controller
         if ($byloWlaczone) {
             AuditLogEntry::recordBezWywracania('account.two_factor_disabled', $user, $user, ip: $request->ip());
         }
+
+        // WYŁĄCZENIE ZAMYKA INNE URZĄDZENIA JAK WŁĄCZENIE (#930).
+        //
+        // Zmiana drugiego składnika jest zmianą zabezpieczeń konta tej samej
+        // wagi co zmiana hasła: inne przeglądarki i ciasteczka „zapamiętaj
+        // mnie" muszą zalogować się od nowa, na nowych zasadach. Bieżąca sesja
+        // zostaje — to w niej właściciel właśnie podał hasło. Jej dowód 2FA
+        // traci sens, bo 2FA już nie ma.
+        $request->user()->invalidateSessions($request->session()->getId());
+        $request->session()->forget(TwoFactorAuthenticator::KLUCZ_DOWODU_SESJI);
 
         return redirect()->route('settings.two_factor.edit')
             ->with('status', 'Weryfikacja dwuetapowa jest wyłączona.');

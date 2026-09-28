@@ -24,7 +24,10 @@ use Tests\TestCase;
  * do osoby, która właśnie patrzy.
  *
  * Usterką był BRAK ZDANIA, które to łączy: autor widział swój wpis na stronie
- * tagu i zero w spisie, i nic tego nie tłumaczyło. Ten test pilnuje trzech
+ * tagu i zero w spisie, i nic tego nie tłumaczyło. Od decyzji właściciela
+ * z 26.09 (#1338) strona tagu pokazuje każdemu, także autorowi, tylko wpisy
+ * publiczne — zdanie tłumaczy teraz, dlaczego własnego wpisu nie ma ani na
+ * liście, ani w liczniku. Ten test pilnuje trzech
  * rzeczy naraz:
  *   1. liczba w spisie NIE rośnie od wpisu niepublicznego (to jest granica
  *      prywatności i nie wolno jej „naprawić", żeby licznik ładniej wyglądał),
@@ -157,17 +160,21 @@ class ZeroWpisowWSpisieTagowTest extends TestCase
             'Wpis niepubliczny NIE MOŻE podnosić liczby w spisie tagów — to liczba wpisów widocznych dla wszystkich (D-087).',
         );
 
-        // 2. Na stronie tagu autor widzi swój wpis i dostaje wyjaśnienie.
+        // 2. Na stronie tagu autor NIE widzi swojego niepublicznego wpisu
+        //    (decyzja właściciela z 26.09, #1338), ale dostaje wyjaśnienie.
         $strona = $this->actingAs($this->swiezy($autor))->get(route('tags.show', $tag))->assertOk();
         $wyjasnienie = $this->wyjasnienie($strona->getContent());
         $this->assertStringContainsString($oczekiwane, $wyjasnienie, 'Wyjaśnienie musi opisywać faktyczną widoczność wpisu (#1392).');
         $this->assertStringNotContainsString($zakazane, $wyjasnienie, 'Wyjaśnienie opisało widoczność, której ten wpis nie ma (#1392).');
-        $this->assertStringContainsString('W spisie tagów liczymy wpisy widoczne dla wszystkich', $wyjasnienie);
+        $this->assertStringContainsString('Na stronie tagu pokazujemy, a w spisie tagów liczymy tylko wpisy widoczne dla wszystkich', $wyjasnienie);
+        $this->assertStringContainsString('ten wpis się tu nie pojawia', $wyjasnienie);
+        $this->assertStringContainsString('„Moje wpisy”', $wyjasnienie, 'Autor ma dostać wskazówkę, gdzie swój wpis znajdzie (D-328).');
         $this->assertSame(
-            1,
+            0,
             $this->liczbaKartWpisow($strona->getContent()),
-            'Autor ma widzieć swój własny wpis na stronie tagu — inaczej wyjaśnienie dotyczyłoby czegoś, czego nie widać.',
+            'Strona tagu pokazuje każdemu, także autorowi, tylko wpisy publiczne (#1338).',
         );
+        $this->assertStringNotContainsString(self::SEKRET, $strona->getContent(), 'Treść niepublicznego wpisu wypłynęła przez stronę tagu do autora (#1338).');
     }
 
     public function test_gosc_i_obca_osoba_nie_widza_ani_wpisu_ani_wyjasnienia(): void
@@ -213,9 +220,9 @@ class ZeroWpisowWSpisieTagowTest extends TestCase
         $wyjasnienie = $this->wyjasnienie($html);
 
         $this->assertStringContainsString('2 Twoje wpisy z tym tagiem nie są widoczne dla wszystkich.', $wyjasnienie);
-        $this->assertStringContainsString('te wpisy się tam nie liczą', $wyjasnienie);
+        $this->assertStringContainsString('te wpisy się tu nie pojawiają', $wyjasnienie);
         $this->assertStringNotContainsString('widzisz tylko Ty', $wyjasnienie, 'Część tych wpisów widzą obserwujący — „tylko Ty" byłoby nieprawdą.');
-        $this->assertSame(2, $this->liczbaKartWpisow($html));
+        $this->assertSame(0, $this->liczbaKartWpisow($html), 'Strona tagu pokazuje każdemu, także autorowi, tylko wpisy publiczne (#1338).');
     }
 
     /** Liczebnik 5+ wymaga dopełniacza: „5 Twoich wpisów", nie „5 Twoje wpisy". */

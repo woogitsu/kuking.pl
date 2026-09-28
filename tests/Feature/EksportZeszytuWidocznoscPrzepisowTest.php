@@ -145,7 +145,7 @@ class EksportZeszytuWidocznoscPrzepisowTest extends TestCase
     }
 
     /**
-     * @return array<string, array{Closure(User, User, Recipe): void}>
+     * @return array<string, array{Closure(User, User, Recipe): mixed}>
      */
     public static function granice(): array
     {
