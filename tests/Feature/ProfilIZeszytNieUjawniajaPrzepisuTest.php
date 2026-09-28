@@ -52,7 +52,7 @@ class ProfilIZeszytNieUjawniajaPrzepisuTest extends TestCase
         $html = $response->getContent();
         $this->assertStringContainsString($public->title, $html, 'Kontrola dodatnia: publiczna karta musi zostać.');
         $this->assertFalse(str_contains($html, $recipe->title), 'WYCIEK_1036: tytuł niedostępnego przepisu.');
-        $this->assertSame(1, substr_count($html, '<article class="card post-card">'));
+        $this->assertSame(1, substr_count($html, '<article class="card post-card"'));
         $this->assertStringNotContainsString($recipe->slug, $html);
         $this->assertStringNotContainsString($recipe->hero_media_id, $html);
         $this->assertSame(1, $response->viewData('posts')->total());
@@ -71,7 +71,7 @@ class ProfilIZeszytNieUjawniajaPrzepisuTest extends TestCase
         foreach ([$viewer, $author] as $person) {
             foreach ([route('profile.show', $owner->profile->username), route('collections.show', $collection)] as $url) {
                 $response = $this->actingAs($person)->get($url)->assertOk();
-                $this->assertSame(2, substr_count($response->getContent(), '<article class="card post-card">'));
+                $this->assertSame(2, substr_count($response->getContent(), '<article class="card post-card"'));
                 $response->assertSee($recipe->title)->assertSee($recipe->slug);
             }
         }
@@ -97,7 +97,7 @@ class ProfilIZeszytNieUjawniajaPrzepisuTest extends TestCase
         $collection->posts()->attach($ordinary->id);
         foreach ([route('profile.show', $owner->profile->username), route('collections.show', $collection)] as $url) {
             $response = $this->actingAs($viewer)->get($url)->assertOk()->assertSee($recipe->title)->assertSee($ordinary->body);
-            $this->assertSame(3, substr_count($response->getContent(), '<article class="card post-card">'));
+            $this->assertSame(3, substr_count($response->getContent(), '<article class="card post-card"'));
         }
     }
 
@@ -112,7 +112,7 @@ class ProfilIZeszytNieUjawniajaPrzepisuTest extends TestCase
         foreach ([route('profile.show', $owner->profile->username), route('collections.show', $collection)] as $url) {
             $response = $this->actingAs($viewer)->get($url)->assertOk()->assertSee($public->title)->assertDontSee($recipe->title);
             $this->assertSame(1, $response->viewData('posts')->total());
-            $this->assertSame(1, substr_count($response->getContent(), '<article class="card post-card">'));
+            $this->assertSame(1, substr_count($response->getContent(), '<article class="card post-card"'));
         }
     }
 
@@ -127,7 +127,7 @@ class ProfilIZeszytNieUjawniajaPrzepisuTest extends TestCase
             $response = $this->get($url)->assertOk();
             $queries = DB::getQueryLog();
             DB::disableQueryLog();
-            $this->assertSame($cards, substr_count($response->getContent(), '<article class="card post-card">'));
+            $this->assertSame($cards, substr_count($response->getContent(), '<article class="card post-card"'));
             foreach ($response->viewData('posts')->items() as $post) {
                 $this->assertTrue($post->relationLoaded('recipe'));
                 $this->assertTrue($post->recipe->relationLoaded('heroMedia'));

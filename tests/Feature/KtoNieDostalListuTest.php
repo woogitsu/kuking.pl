@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Kolejka\PolecenieZadania;
 use App\Models\Profile;
 use App\Models\User;
 use App\Notifications\UstawienieNowegoHasla;
@@ -154,9 +155,13 @@ class KtoNieDostalListuTest extends TestCase
         // KONTROLA DODATNIA — bez niej cały ten test jest zielony nad niczym.
         // Dowodzi, że token NAPRAWDĘ leży w ładunku, a więc że komenda ma co
         // przed nami ukryć.
+        // Od audytu A5-10 ładunek jest zaszyfrowany — token leży w nim po
+        // odszyfrowaniu, czyli tam, gdzie czyta go komenda.
+        $polecenie = (string) (json_decode((string) DB::table('failed_jobs')->value('payload'), true)['data']['command'] ?? '');
+
         $this->assertStringContainsString(
             $token,
-            (string) DB::table('failed_jobs')->value('payload'),
+            PolecenieZadania::zserializowane($polecenie),
             'Token miał być w ładunku — jeśli go tam nie ma, asercje niżej nie mierzą niczego.',
         );
 

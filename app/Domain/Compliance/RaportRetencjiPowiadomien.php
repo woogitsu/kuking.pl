@@ -9,7 +9,7 @@ namespace App\Domain\Compliance;
  *
  * Dwie ścieżki w jednym raporcie — zwykłe powiadomienia (Wzorzec B, partiami
  * `DELETE` wg jednego progu) i powiadomienia moderacyjne (własny termin,
- * `Notification::terminOchronyOdwolawczej()`) — bo od issue #19/ADR §5.2
+ * `TerminOchronyOdwolawczej::dla()`) — bo od issue #19/ADR §5.2
  * i §5.6 to już nie jest jedna liczba dla całej tabeli. Bez tego rozbicia
  * nikt by nie zauważył, że automat np. przestał w ogóle rozpoznawać
  * powiadomienia moderacyjne i kasuje je jak zwykłe.

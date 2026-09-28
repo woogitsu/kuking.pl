@@ -81,8 +81,20 @@ class BramkaZakresuNiePomijaJobowCzytajacychTest extends TestCase
 
     public function test_joby_przegladarkowe_nie_sa_pomijane_przy_zmianie_pliku_ktory_otwieraja(): void
     {
+        $wejscia = [];
+
+        foreach (self::JOBY_SKRYPTOW as $job) {
+            $wejscia[$job] = $this->wejsciaJoba($job);
+        }
+
         foreach ($this->sciezkiOtwieraneZ('scripts') as $sciezka => $ktoCzyta) {
             foreach (self::JOBY_SKRYPTOW as $job) {
+                // Skrypt Railway uruchamia job `assets`, nie porty przeglądarkowe.
+                // Łączymy czytany plik tylko z jobem, który uruchamia czytelnika.
+                if (! in_array($ktoCzyta, $wejscia[$job], true)) {
+                    continue;
+                }
+
                 $this->assertTrue(
                     $this->jobRusza($job, [$sciezka]),
                     "Bramka pomija job `{$job}` przy zmianie `{$sciezka}`, a otwiera ją `{$ktoCzyta}` — "
@@ -91,6 +103,19 @@ class BramkaZakresuNiePomijaJobowCzytajacychTest extends TestCase
                 );
             }
         }
+    }
+
+    public function test_build_assetow_sprawdza_dokumentacje_czytana_przez_test_railway(): void
+    {
+        $this->assertContains(
+            'scripts/railway/iac.test.mjs',
+            $this->wejsciaJoba('assets'),
+            'Test grafu Railway nie jest już uruchamiany w jobie `assets`.',
+        );
+        $this->assertTrue(
+            $this->jobRusza('assets', ['docs/DEPLOYMENT.md']),
+            'Job `assets` pomija dokumentację wdrożenia, którą czyta test grafu Railway.',
+        );
     }
 
     /**

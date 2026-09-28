@@ -8,9 +8,14 @@ use App\Domain\Moderation\PriorytetSprawy;
 use App\Domain\Security\DziennyBudzetListow;
 use App\Models\Report;
 use App\Notifications\PilneZgloszenieOdCzlowieka;
+use Illuminate\Queue\DatabaseQueue;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
+use LogicException;
+use Throwable;
 
 /**
  * LIST DO MODERATORA PRZY ZGŁOSZENIU OD CZŁOWIEKA, KTÓRE NIE MOŻE CZEKAĆ.
@@ -90,34 +95,82 @@ final class AlarmujOPilnymZgloszeniu
             return false;
         }
 
-        $kluczCelu = self::kluczCelu($zgloszenie);
-        $okno = max(1, (int) config('kuking.moderation.alarm_czlowieka.okno_celu_godzin', 6));
+        try {
+            $this->sprawdzWspolnaBaze();
 
-        if (Cache::add($kluczCelu, (string) $zgloszenie->getKey(), now()->addHours($okno)) !== true) {
+            return DB::transaction(function () use ($zgloszenie, $adres): bool {
+                $swieze = Report::query()->whereKey($zgloszenie->getKey())->lockForUpdate()->first();
+
+                if ($swieze === null || ! $swieze->isOpen()
+                    || $swieze->alarm_czlowieka_obsluzony_at !== null
+                    || PriorytetSprawy::dla($swieze) !== PilneZgloszenieOdCzlowieka::prog()) {
+                    return false;
+                }
+
+                $kluczCelu = self::kluczCelu($swieze);
+                $okno = max(1, (int) config('kuking.moderation.alarm_czlowieka.okno_celu_godzin', 6));
+
+                if (Cache::add($kluczCelu, (string) $swieze->getKey(), now()->addHours($okno)) !== true) {
+                    // Inne zgłoszenie tego celu już obudziło moderatora. Powrót
+                    // do starego wiersza po wygaśnięciu okna nie może wysłać listu.
+                    // Stary, osierocony klucz sprzed #2066 nie jest dowodem
+                    // zlecenia: właściciel musi mieć trwały znacznik.
+                    $wlasciciel = Report::query()->whereKey(Cache::get($kluczCelu))->first();
+                    if ($wlasciciel?->alarm_czlowieka_obsluzony_at !== null) {
+                        $swieze->forceFill(['alarm_czlowieka_obsluzony_at' => now()])->save();
+                    }
+
+                    return false;
+                }
+
+                $budzet = DziennyBudzetListow::dlaAlarmuModeracji();
+
+                if (! $budzet->sprobujZarezerwowac()) {
+                    Cache::forget($kluczCelu);
+                    Log::warning('Pilne zgłoszenie bez listu alarmowego: dobowy sufit alarmów albo pula poczty wyczerpane.', [
+                        'numer_sprawy' => $swieze->numer_sprawy,
+                        'co_zrobic' => 'Sprawdź kolejkę /admin/zgloszenia — sprawa jest na górze z napisem „Nie może czekać".',
+                    ]);
+
+                    return false;
+                }
+
+                // Database cache, budżet i database queue zapisują do tej samej
+                // transakcji. Wyjątek po INSERT do jobs cofa także blokadę celu
+                // i oba liczniki; niepewny wynik COMMIT rozstrzyga stan bazy.
+                Notification::route('mail', $adres)->notify(new PilneZgloszenieOdCzlowieka(
+                    $swieze,
+                    ostatniDzis: $budzet->zostalo() === 0,
+                ));
+                $swieze->forceFill(['alarm_czlowieka_obsluzony_at' => now()])->save();
+
+                return true;
+            });
+        } catch (Throwable $awaria) {
+            report($awaria);
+
             return false;
         }
+    }
 
-        $budzet = DziennyBudzetListow::dlaAlarmuModeracji();
-
-        if (! $budzet->sprobujZarezerwowac()) {
-            Cache::forget($kluczCelu);
-
-            // Sprawa i tak stoi pierwsza w kolejce; dziennik mówi, dlaczego
-            // tym razem bez listu. Bez treści i bez danych zgłaszającego.
-            Log::warning('Pilne zgłoszenie bez listu alarmowego: dobowy sufit alarmów albo pula poczty wyczerpane.', [
-                'numer_sprawy' => $zgloszenie->numer_sprawy,
-                'co_zrobic' => 'Sprawdź kolejkę /admin/zgloszenia — sprawa jest na górze z napisem „Nie może czekać".',
-            ]);
-
-            return false;
+    private function sprawdzWspolnaBaze(): void
+    {
+        if (! app()->environment('production')) {
+            return;
         }
 
-        Notification::route('mail', $adres)->notify(new PilneZgloszenieOdCzlowieka(
-            $zgloszenie,
-            ostatniDzis: $budzet->zostalo() === 0,
-        ));
+        $kolejka = Queue::connection();
+        $baza = DB::connection();
+        $cache = config('cache.stores.database');
 
-        return true;
+        if (! $kolejka instanceof DatabaseQueue
+            || $kolejka->getDatabase() !== $baza
+            || config('queue.connections.database.after_commit') !== false
+            || config('cache.default') !== 'database'
+            || DB::connection($cache['connection'] ?? null) !== $baza
+            || DB::connection($cache['lock_connection'] ?? null) !== $baza) {
+            throw new LogicException('Pilny alarm wymaga wspólnej bazy dla cache, budżetu i kolejki oraz after_commit=false.');
+        }
     }
 
     /**

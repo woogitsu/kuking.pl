@@ -191,7 +191,7 @@ class DodawaniePrzepisuSzescKontrolekTest extends TestCase
 
         // Ekran „Dopisz szczegóły" — te same cztery wiersze wracają POST-em
         // razem z tym, co człowiek właśnie dopisał.
-        $this->actingAs($basia)->put(route('recipes.update', $recipe->slug), [
+        $this->actingAs($basia)->put(route('recipes.update', $recipe->slug), ['content_revision' => $recipe->fresh()->content_revision,
             'title' => 'Placki ziemniaczane',
             'summary' => 'Takie, jakie robiła babcia w piątki.',
             'servings' => 4,

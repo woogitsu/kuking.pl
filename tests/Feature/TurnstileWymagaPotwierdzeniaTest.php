@@ -645,7 +645,7 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
         // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
         config(['app.debug' => false, 'session.secure' => true]);
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             // Świadomie 200, nie 503: healthcheck oddający 503 już raz położył
             // ten serwis. Monitoring pilnuje TREŚCI odpowiedzi.
             ->assertOk()
@@ -674,7 +674,7 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
         // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
         config(['app.debug' => false, 'session.secure' => true]);
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.turnstile.ok', true);
@@ -691,7 +691,7 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
 
         $this->wylaczTurnstile();
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.turnstile.ok', true);
@@ -722,7 +722,7 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
         // inaczej `/health` zgłosi własną, niezwiązaną awarię (audyt B10-04).
         config(['app.debug' => false, 'session.secure' => true]);
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.turnstile.ok', true);

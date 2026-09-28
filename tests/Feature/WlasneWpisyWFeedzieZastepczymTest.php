@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Feed\DiscoverFeed;
-use App\Domain\Feed\TagFeed;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
@@ -124,34 +123,32 @@ class WlasneWpisyWFeedzieZastepczymTest extends TestCase
         $this->assertNotContains((string) $mojStarszy->getKey(), array_slice($idy, 0, 2), 'Własny starszy wpis ominął regułę jednego wpisu na autora.');
     }
 
-    public function test_feed_tagow_dokleja_wlasne_bez_tagu_i_nie_dubluje_wlasnego_z_tagiem(): void
+    /**
+     * Od #1808 (D-277) osoby i tagi to jeden feed obserwowanych. Osoba, która
+     * obserwuje tylko tag bez żadnej treści od innych, dostaje Odkrywanie —
+     * i własny wpis „tylko dla obserwujących" ma tam stać tak samo.
+     */
+    public function test_obserwowany_tag_bez_tresci_nie_gubi_wlasnego_wpisu_dla_obserwujacych(): void
     {
         $zupy = Tag::create(['slug' => 'zupy', 'name' => 'Zupy', 'normalized_name' => 'zupy']);
         $basia = $this->user('basia');
         $ola = $this->user('ola');
         $basia->followedTags()->attach($zupy->getKey(), ['created_at' => now()]);
 
-        $cudzyZTagiem = $this->wpis($ola, 'Zupa Oli', ['published_at' => now()->subHours(2)]);
-        $cudzyZTagiem->tags()->attach($zupy->getKey(), ['position' => 0]);
-
-        $mojZTagiem = $this->wpis($basia, 'Moja zupa publiczna', ['published_at' => now()->subHour()]);
-        $mojZTagiem->tags()->attach($zupy->getKey(), ['position' => 0]);
-
-        $mojBezTagu = $this->wpis($basia, 'Moje pierogi dla obserwujacych', [
+        $this->wpis($ola, 'Kotlet Oli bez tagu', ['published_at' => now()->subHour()]);
+        $moj = $this->wpis($basia, 'Moje pierogi dla obserwujacych', [
             'visibility' => Post::VISIBILITY_FOLLOWERS,
             'published_at' => now(),
         ]);
 
-        $this->assertSame(
-            [(string) $mojBezTagu->getKey(), (string) $mojZTagiem->getKey(), (string) $cudzyZTagiem->getKey()],
-            $this->idy(app(TagFeed::class)->paginate($basia, zWlasnymi: true)),
-        );
-
         $this->actingAs($basia)->get(route('home'))
             ->assertOk()
             ->assertSee('Moje pierogi dla obserwujacych')
-            ->assertSee('Najnowsze z Twoich tagów i Twoje wpisy')
-            ->assertSee('To wpisy z tagów, które obserwujesz, i Twoje własne.');
+            // KONTROLA DODATNIA: Odkrywanie zostaje.
+            ->assertSee('Kotlet Oli bez tagu')
+            ->assertSee('Twoje wpisy i najnowsze z innych kuchni');
+
+        $this->assertSame((string) $moj->getKey(), $this->idy(app(DiscoverFeed::class)->paginate($basia, zWlasnymi: true))[0]);
     }
 
     public function test_w_feedzie_zastepczym_tylko_opublikowane_i_bez_prywatnych(): void

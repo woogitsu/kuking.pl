@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Media\Actions;
 
 use App\Domain\Analytics\ZapiszSygnal;
+use App\Domain\Media\LokalnaKopiaZdjecia;
 use App\Domain\Media\PodgladOdRazu;
 use App\Domain\Media\UsunGps;
 use App\Exceptions\BladDlaCzlowieka;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use League\Flysystem\UnableToWriteFile;
 
 /**
  * Przyjęcie zdjęcia od użytkownika.
@@ -56,6 +58,19 @@ final class StoreUploadedImage
     ) {}
 
     public function handle(User $owner, UploadedFile $file, ?string $altText = null): Media
+    {
+        // Plik z dysku tymczasowego Livewire na R2 nie ma lokalnej ścieżki,
+        // a sprawdzenia niżej czytają plik z dysku (audyt A5-08).
+        $kopia = LokalnaKopiaZdjecia::zapewnij($file);
+
+        try {
+            return $this->przyjmij($owner, $kopia->plik, $altText);
+        } finally {
+            $kopia->sprzataj();
+        }
+    }
+
+    private function przyjmij(User $owner, UploadedFile $file, ?string $altText): Media
     {
         $maxBytes = (int) config('kuking.media.max_bytes');
         $bytes = $file->getSize();
@@ -202,7 +217,18 @@ final class StoreUploadedImage
         // więc takiego obiektu nie znalazłoby już nic. Kasujemy go więc tu,
         // od razu, a pierwotny wyjątek leci dalej do wywołującego.
         try {
-            Storage::disk($disk)->put($objectKey, $oryginal);
+            // `false` Z `put()` TO BŁĄD MAGAZYNU, NIE SUKCES (issue #961).
+            //
+            // Dysk z `throw => false` (lokalny `local`/`public`) nie rzuca przy
+            // nieudanym zapisie, tylko oddaje `false`. Bez tego sprawdzenia
+            // powstawał wiersz `media` i zadanie dla oryginału, którego nie
+            // ma — a człowiek dostawał „Opublikowane" i po chwili odrzucone
+            // zdjęcie. Rzucamy TEN SAM wyjątek, co dysk z `throw => true`
+            // (R2), więc dalej wszystko idzie jedną drogą: kompensacja niżej
+            // i strona błędu, bez zależności od ustawień konkretnego dysku.
+            if (Storage::disk($disk)->put($objectKey, $oryginal) === false) {
+                throw UnableToWriteFile::atLocation($objectKey, 'Dysk zwrócił false z put() dla oryginału zdjęcia.');
+            }
 
             // Orientację czytamy TERAZ, dopóki mamy plik na dysku — zadanie w tle
             // dostaje ze storage same bajty, a dekoder chodzi z wyłączonym

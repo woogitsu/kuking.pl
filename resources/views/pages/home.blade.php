@@ -8,7 +8,7 @@
         (docs/product/COLD_START.md).
     --}}
     <x-slot:rail>
-        <x-szyna-startowa :board="$board" :zeszyt="$zeszyt ?? null" />
+        <x-szyna-startowa :board="$board" :zeszyt="$zeszyt ?? null" :mojStol="$mojStol ?? null" />
     </x-slot:rail>
 
     <header class="start-naglowek">
@@ -48,6 +48,35 @@
 
     <x-pwa-install :eligible="$pwaEligible ?? false" :context="$pwaContext ?? null" />
 
+    @if($zyczenia ?? null)
+        {{--
+            ŻYCZENIA URODZINOWE (issue #1755, etap b). Jedno zdanie od
+            gospodarza, tylko u tej osoby i tylko w dniu jej urodzin. Nie jest
+            wpisem w feedzie i nie ma pustego stanu. Wyłącznik stoi przy dacie
+            (Ustawienia → Urodziny). Tekst składa `Urodziny::tekstZyczen()`.
+        --}}
+        <section class="notice zyczenia" aria-label="Życzenia urodzinowe">
+            <p>{{ $zyczenia }}</p>
+            <p class="meta">— {{ $podpisZyczen }}</p>
+        </section>
+    @endif
+
+    @if($pierwszeKroki ?? null)
+        {{-- Przerwany onboarding (#985): droga powrotu bez przymusu.
+             Znika po dojściu do końca albo po „Nie przypominaj”. --}}
+        <section class="ramka-pomocnicza" aria-labelledby="pierwsze-kroki">
+            <h2 id="pierwsze-kroki">Pierwsze kroki nie są jeszcze dokończone</h2>
+            <p>Wybierz, co lubisz gotować i kogo obserwować — wtedy Start pokaże więcej wpisów dla Ciebie. To zajmie minutę i nie jest obowiązkowe.</p>
+            <div class="form-actions">
+                <a class="btn btn-primary" href="{{ route($pierwszeKroki) }}">Dokończ pierwsze kroki</a>
+                <form method="POST" action="{{ route('onboarding.dismiss') }}">
+                    @csrf
+                    <button class="btn btn-quiet" type="submit">Nie przypominaj</button>
+                </form>
+            </div>
+        </section>
+    @endif
+
     @if($tagTygodnia ?? null)
         {{-- TAG TYGODNIA (issue #18). Zaproszenie, nie obowiązek: jeden
              odnośnik do zwykłego formularza wpisu z zaznaczonym tagiem, który
@@ -62,6 +91,20 @@
                 <a class="btn btn-primary" href="{{ route('posts.create', ['tag' => $tagTygodnia->tag->slug]) }}">Dodaj wpis z tym tagiem</a>
                 <a class="btn btn-secondary" href="{{ route('tags.show', $tagTygodnia->tag) }}">Zobacz wpisy z tym tagiem</a>
             </div>
+        </section>
+    @endif
+
+    @if($rocznica ?? null)
+        {{--
+            ROCZNICA DOŁĄCZENIA (issue #1754). Jedno zdanie od gospodarza,
+            raz w roku, tylko u tej jednej osoby. Nie jest wpisem w feedzie
+            i nie ma pustego stanu. Wyłącza je ten sam przełącznik co
+            wspomnienia (Ustawienia → Prywatność), bo rocznica też potrafi
+            zaboleć. Tekst składa `RocznicaDolaczenia::tekst()`, nie widok.
+        --}}
+        <section class="notice rocznica" aria-label="Rocznica">
+            <p>{{ $rocznica }}</p>
+            <p class="meta">— {{ $podpisRocznicy }}</p>
         </section>
     @endif
 
@@ -97,21 +140,6 @@
         </section>
     @endif
 
-    @if(($zrodloFeedu ?? 'obserwowani') === 'tagi')
-        {{-- Feed tagów (D-021, zastępuje usunięty już feed tematów z issue #31).
-             Człowiek MUSI wiedzieć, skąd się wzięły te wpisy: feed, którego
-             pochodzenia nie da się wytłumaczyć, wygląda jak algorytm,
-             a tego tu nie ma i nie będzie. --}}
-        <div class="notice">
-            @if($wlasneWFeedzie ?? false)
-                <strong>To wpisy z tagów, które obserwujesz, i Twoje własne.</strong>
-            @else
-                <strong>To wpisy z tagów, które obserwujesz.</strong>
-            @endif
-            Kiedy zaczniesz obserwować ludzi, w tym miejscu pojawią się ich wpisy.
-            <a href="{{ route('settings.tags') }}">Zmień swoje tagi</a>.
-        </div>
-    @endif
 
     {{--
         ZAKŁADKI FEEDU (UI kit v2, ekrany 01 i 05).
@@ -125,14 +153,11 @@
         przy samym odnośniku niżej.
     --}}
     <div class="start-feed-naglowek">
-        {{-- Z własnymi wpisami w feedzie zastępczym (issue #1318) nagłówek
-             nie może obiecywać samych cudzych — człowiek widzi pod nim swój
-             wpis i ma wiedzieć, że to nie pomyłka. --}}
+        {{-- Od #1808 (D-277) lista obserwowanych łączy osoby i tematy — nagłówek
+             mówi o obu, a każda karta z tagu ma własny podpis „Z tagu: …". --}}
         <h2>{{ $showingDiscover
             ? (($wlasneWFeedzie ?? false) ? 'Twoje wpisy i najnowsze z innych kuchni' : 'Najnowsze z innych kuchni')
-            : (($zrodloFeedu ?? 'obserwowani') === 'tagi'
-                ? (($wlasneWFeedzie ?? false) ? 'Najnowsze z Twoich tagów i Twoje wpisy' : 'Najnowsze z Twoich tagów')
-                : 'Najnowsze od obserwowanych') }}</h2>
+            : 'Najnowsze od osób i tagów, które obserwujesz' }}</h2>
         <a href="{{ route('help') }}#kolejnosc-wpisow">Jak działa kolejność?</a>
     </div>
     <nav class="tabs feed-tabs start-feed-wybor" aria-label="Co pokazujemy">
@@ -186,6 +211,8 @@
         --}}
         <div class="notice">
             @if($wlasneWFeedzie ?? false)
+                {{-- Własne wpisy w feedzie zastępczym (issue #1318): komunikat nie
+                     może twierdzić, że strona jest pusta, gdy stoi na niej wpis autora. --}}
                 <strong>Nikogo jeszcze nie obserwujesz.</strong>
                 Poniżej są Twoje wpisy i to, co ostatnio ugotowali inni. Kiedy zaczniesz kogoś
                 obserwować, w tym miejscu będą pojawiać się także jego wpisy.
@@ -197,18 +224,44 @@
         </div>
     @endif
 
-    @if($posts->count() === 0)
+    @if($posts->count() === 0 && $showingDiscover)
+        {{-- Issue #1807: pusty Start po przejściu do Odkrywania też ma wyjście. --}}
+        <x-pusty-stan-odkrywania :ileUkrywasz="$ileUkrywasz ?? 0" />
+    @elseif($posts->count() === 0)
         <x-empty-state title="Jeszcze nic tu nie ma" action="Dodaj pierwsze zdjęcie" :href="route('posts.create')">
             Zacznij od zdjęcia tego, co dziś ugotowałeś.
         </x-empty-state>
     @else
-        <div class="stack">
-            @foreach($posts as $post)
-                <x-post-card :post="$post" />
-            @endforeach
+        <div class="stack" id="lista-wpisow">
+            @if($showingDiscover)
+                @foreach($posts as $post)
+                    <x-post-card :post="$post" />
+                @endforeach
+            @else
+                {{-- ZWIJANIE SERII (issue #1812, AGENTS.md §8 / D-275). Więcej
+                     niż dwa kolejne wpisy jednej osoby albo jednego tagu:
+                     dwa widać, reszta w `<details>` — kolejność bez zmian,
+                     nic nie znika, otwiera się bez JavaScriptu. Cel dotknięcia
+                     `summary` 48 px (`.seria-wpisow > summary`). --}}
+                @foreach(\App\Domain\Feed\SerieWpisow::grupuj($posts) as $seria)
+                    @foreach($seria['widoczne'] as $post)
+                        <x-post-card :post="$post" />
+                    @endforeach
+                    @if($seria['zwiniete'] !== [])
+                        <details class="seria-wpisow" data-seria-wpisow>
+                            <summary><span>{{ $seria['podpis'] }}</span> <span class="seria-wpisow-pokaz">— Pokaż</span></summary>
+                            <div class="stack">
+                                @foreach($seria['zwiniete'] as $post)
+                                    <x-post-card :post="$post" />
+                                @endforeach
+                            </div>
+                        </details>
+                    @endif
+                @endforeach
+            @endif
         </div>
 
-        <x-show-more :paginator="$posts" />
+        <x-show-more :paginator="$posts" lista="lista-wpisow" />
     @endif
     <section class="marka-start-pomoc" aria-labelledby="start-jak-dziala">
         <p class="nadtytul">Gotowanie łączy</p>
