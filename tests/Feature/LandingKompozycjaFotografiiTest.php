@@ -16,7 +16,7 @@ class LandingKompozycjaFotografiiTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_kroki_prowadza_do_prawdziwych_akcji_a_potem_do_bloku_ugotowalem(): void
+    public function test_kroki_prowadza_do_publicznych_podgladow_a_potem_do_bloku_ugotowalem(): void
     {
         $dom = $this->landing();
         $steps = $dom->query('//*[@id="jak-dziala"]');
@@ -26,8 +26,11 @@ class LandingKompozycjaFotografiiTest extends TestCase
         $this->assertMatchesRegularExpression('/^Zdjęcie\. Kilka słów\.\s*I rozmowa przy okazji\.$/u', $this->tekst($heading->textContent));
         $links = $dom->query('.//ol/li//a', $steps->item(0));
         $this->assertSame(3, $links->length);
-        foreach (['posts.create', 'recipes.create', 'discover'] as $i => $route) {
-            $this->assertSame(route($route), $links->item($i)->getAttribute('href'));
+        // #1289: landing widzi tylko gość — kroki prowadzą do publicznych
+        // podglądów, nie do tras za logowaniem.
+        $cele = [route('help').'#dodawanie-zdjecia', route('search', ['sekcja' => 'przepisy']), route('discover')];
+        foreach ($cele as $i => $cel) {
+            $this->assertSame($cel, $links->item($i)->getAttribute('href'));
         }
         $next = $dom->query('following-sibling::section[1]', $steps->item(0));
         $this->assertSame('ugotowalem', $next->item(0)?->getAttribute('id'));

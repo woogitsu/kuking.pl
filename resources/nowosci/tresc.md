@@ -36,6 +36,29 @@ zdjęć z niej nie pobieramy. Przed publikacją potwierdzacie, że tekst został
 sprawdzony. Jeśli strona nie pozwala na pobranie przepisu, zapisujemy sam
 adres i podpowiadamy, jak wpisać treść ręcznie.
 Każda droga importu dzieli limit 5 prób dziennie i 30 miesięcznie.
+### Ile może kosztować danie
+
+Przy swoim przepisie możecie podać przybliżony koszt całego dania. Wpiszcie
+kwotę w złotych; pole można też zostawić puste. Jeśli koszt podał autor,
+zobaczycie go przy przepisie, a w wyszukiwarce znajdziecie przepisy do 20 zł.
+Gdy kwoty nie ma, Kuking może pokazać orientacyjny przedział obliczony z
+publicznych cen składników. Źródło cen jest podane przy wyniku, a cena w Waszym
+sklepie może być inna.
+
+### Przepis z kartki lub zeszytu
+
+Jeśli macie przepis zapisany na kartce, możecie dodać jego zdjęcie zamiast
+przepisywać wszystko ręcznie. Odczytany tekst trafi do prywatnego szkicu;
+sprawdźcie go ze zdjęciem i poprawcie niepewne słowa przed pokazaniem przepisu
+innym. Odczyt wymaga osobnej zgody. Gdy ta możliwość nie jest dostępna,
+nadal możecie wpisać przepis samodzielnie.
+
+### Urządzenia z dostępem
+
+W Ustawieniach możecie otworzyć „Urządzenia z dostępem”. Gdy aplikacja
+Kuking na telefon będzie dostępna, zobaczycie tu urządzenia zalogowane na
+Wasze konto i odetniecie wybrane urządzenie albo wszystkie naraz. Dostęp
+do API aplikacji pozostaje na razie wyłączony.
 
 ### Smakowicie wygląda
 
