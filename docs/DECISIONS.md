@@ -59,7 +59,15 @@ Mechanika — **nowa decyzja to nowy plik, nigdy dopisek w tym indeksie**:
    w tym pliku).
 
 Dwa PR-y z tym samym numerem nie dają konfliktu w gicie (różne slugi), tylko
-czerwony test po scaleniu drugiego: młodszy bierze następny wolny numer.
+czerwony test po scaleniu drugiego. Koordynator przed scaleniem sprawdza
+aktualny `origin/main`, gałąź integracyjną i żywe gałęzie z decyzjami; numer
+ostateczny przydziela przy włączaniu PR-u do integracji, według największego
+zajętego numeru plus jeden. Jeśli dwie gałęzie wybrały ten sam numer, młodsza
+ustępuje: zmienia nazwę pliku, nagłówek i wszystkie odwołania, odświeża
+indeks i ponownie przechodzi CI na nowej bazie. Nie zostawia znacznika
+`ROBOCZA` w aktywnym wpisie. Historyczna
+[mapa kolizji](flota/MAPA_NUMEROW_DECYZJI.md) jest źródłem uzasadnień, a nie
+aktualną listą wolnych numerów.
 Gałąź, która dopisała decyzję do starego, jednoplikowego dziennika, przenosi
 ją według [`docs/flota/PRZENIESIENIE_PO_PODZIALE.md`](flota/PRZENIESIENIE_PO_PODZIALE.md).
 
@@ -318,7 +326,7 @@ ją według [`docs/flota/PRZENIESIENIE_PO_PODZIALE.md`](flota/PRZENIESIENIE_PO_P
 | D-301 | „Moja wersja”: przepis na podstawie cudzego, z nieusuwalnym podpisem oryginału (issue #23, 26 września 2026) | obowiązuje | [D-301-moja-wersja-przepis-na-podstawie-cudzego.md](decyzje/D-301-moja-wersja-przepis-na-podstawie-cudzego.md) |
 | D-309 | Ta sama liczba komentarzy wszędzie: przepis i „Ugotowałem” też liczą odpowiedzi (#1801, 26 września 2026) | obowiązuje | [D-309-ta-sama-liczba-komentarzy-wszedzie-przepis.md](decyzje/D-309-ta-sama-liczba-komentarzy-wszedzie-przepis.md) |
 | D-312 | PgBouncer jawnie uznany za jeszcze niepotrzebny; wraca przy nazwanych progach (#600, #598, 26 września 2026) | — | [D-312-pgbouncer-jawnie-uznany-za-jeszcze-niepotrzebny.md](decyzje/D-312-pgbouncer-jawnie-uznany-za-jeszcze-niepotrzebny.md) |
-| D-1009-ROBOCZA | Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026) | — | [D-1009-robocza-pierwszy-wklad-jest-jednorazowym-zdarzeniem.md](decyzje/D-1009-robocza-pierwszy-wklad-jest-jednorazowym-zdarzeniem.md) |
+| D-329 | Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026) | — | [D-329-pierwszy-wklad-jest-jednorazowym-zdarzeniem.md](decyzje/D-329-pierwszy-wklad-jest-jednorazowym-zdarzeniem.md) |
 | Uzupełnienie #369 | Próg prezentacji publicznej aktywności (20 września 2026) | — | [U-369-prog-prezentacji-publicznej-aktywnosci.md](decyzje/U-369-prog-prezentacji-publicznej-aktywnosci.md) |
 
 <!-- indeks-decyzji:koniec -->

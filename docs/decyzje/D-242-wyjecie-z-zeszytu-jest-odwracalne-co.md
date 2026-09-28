@@ -42,8 +42,8 @@ a ekrany z #1168 zostają, bo bez nich nie ma jak wskazać zeszytu.
 **Numer.** D-230 i D-231 są na `main` zajęte przez #1168, a D-232–D-241 oraz
 D-243 (numery na gałęziach, nie na `main` w chwili tego wpisu) przez inne
 gałęzie. Ta decyzja nosiła najpierw D-241, który wcześniej
-wypchnęła `flota/scal-786` (#966), więc ustąpiła na D-242 (D-235: ustępuje
-strona, która wzięła cudzy numer). Potem obie gałęzie ustąpiły sobie
+wypchnęła `flota/scal-786` (#966), więc ustąpiła na D-242 (zasada
+rozstrzygania kolizji jest w [mapie numerów decyzji](../flota/MAPA_NUMEROW_DECYZJI.md)). Potem obie gałęzie ustąpiły sobie
 nawzajem naraz: o 23:54Z `flota/scal-786` oddała D-242 tej decyzji i wzięła
 D-243, a o 23:59Z ta decyzja — nie widząc tamtego pchnięcia, bo hak
 `pre-push` trwa kilkanaście minut — przeszła na D-243. D-243 pierwsza

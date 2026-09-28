@@ -1,6 +1,7 @@
-## D-1009-ROBOCZA — Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026)
+## D-329 — Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026)
 
-Numer ostateczny przydziela koordynator przy scalaniu. Właściciel rozstrzygnął
+Numer D-329 nadano po sprawdzeniu aktualnego dziennika i gałęzi zdalnych.
+Właściciel rozstrzygnął
 wprost: pierwszy wkład nie powtarza się po usunięciu wpisu. Zatwierdził także
 odtworzenie tylko na podstawie zachowanych danych, bez zaległych alertów;
 pełna gwarancja zaczyna się od wdrożenia.

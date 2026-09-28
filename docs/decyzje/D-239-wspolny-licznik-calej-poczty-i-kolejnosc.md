@@ -4,11 +4,10 @@
 > a ten numer (i D-226, D-227 — numery zajęte na gałęziach, nie na `main`,
 > bez własnego nagłówka w tym dzienniku) zajęły w międzyczasie inne decyzje
 > na `main`. D-239 to pierwszy numer wolny na `origin/main` i na wszystkich
-> gałęziach zdalnych w dniu przeniesienia (reguła D-235: ustępuje gałąź,
-> której numeru nie ma jeszcze na `main` — reguła koordynacji numeracji
-> między gałęziami, opisana w `docs/flota/MAPA_NUMEROW_DECYZJI.md` i
-> `docs/flota/KOLEJNOSC_SCALANIA.md`; D-235 sama nigdy nie scaliła się jako
-> osobny wpis, więc pod tym numerem nie szukaj nagłówka w tym pliku).
+> gałęziach zdalnych w dniu przeniesienia. Zasada pierwszeństwa wpisu już
+> obecnego na `main` i sposób sprawdzania gałęzi są opisane w
+> [mapie numerów decyzji](../flota/MAPA_NUMEROW_DECYZJI.md) oraz
+> [kolejności scalania](../flota/KOLEJNOSC_SCALANIA.md).
 > Treść to intencja tamtej gałęzi przeniesiona na
 > obecny kod, bez części o drodze zgłoszenia DSA (osobna decyzja, nie ta).
 
