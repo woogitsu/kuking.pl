@@ -97,7 +97,7 @@ class QuestionListTest extends TestCase
         Comment::factory()->create(['post_id' => $question->id, 'author_id' => $owner->id]);
         $list = new QuestionList;
 
-        $this->assertSame(0, $list->query(null)->findOrFail($question->id)->answer_count);
+        $this->assertSame(0, $list->query(null)->findOrFail($question->id)->getAttribute('answer_count'));
         $this->assertTrue($list->query(null, true)->whereKey($question)->exists());
         $this->assertTrue($list->query($owner, true)->whereKey($question)->exists());
         $this->assertSame(1, app(PytaniaBezOdpowiedzi::class)->dla(null));
@@ -105,7 +105,7 @@ class QuestionListTest extends TestCase
 
         Comment::factory()->create(['post_id' => $question->id]);
 
-        $this->assertSame(1, $list->query(null)->findOrFail($question->id)->answer_count);
+        $this->assertSame(1, $list->query(null)->findOrFail($question->id)->getAttribute('answer_count'));
         $this->assertFalse($list->query(null, true)->whereKey($question)->exists());
         $this->assertSame(0, app(PytaniaBezOdpowiedzi::class)->dla(null));
         $this->assertFalse((new UnansweredContent)->questions($this->user('gospodarz2'))->whereKey($question)->exists());
