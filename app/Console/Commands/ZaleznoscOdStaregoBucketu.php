@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Domain\Media\WariantyKontrakt;
+use App\Domain\Media\WariantyMetadanychNiepelne;
 use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
 use App\Support\Odmiana;
@@ -131,6 +133,7 @@ class ZaleznoscOdStaregoBucketu extends Command
         $dysk = Storage::disk(self::STARY);
         $sprawdzone = 0;
         $utracone = 0;
+        $niepewne = 0;
         $bledy = 0;
 
         foreach ($zapytanie->cursor() as $zdjecie) {
@@ -143,6 +146,11 @@ class ZaleznoscOdStaregoBucketu extends Command
                         $braki[] = $co;
                     }
                 }
+            } catch (WariantyMetadanychNiepelne) {
+                $niepewne++;
+                $this->warn('NIEPEWNE media '.$zdjecie->getKey().': metadata.variants puste albo uszkodzone.');
+
+                continue;
             } catch (Throwable $e) {
                 $bledy++;
                 $opis = BezpiecznyBlad::kontekst($e);
@@ -161,9 +169,10 @@ class ZaleznoscOdStaregoBucketu extends Command
         $this->newLine();
         $this->info('Sprawdzone gotowe zdjęcia: '.$sprawdzone.'.');
         $this->info('Z brakującym plikiem (UTRACONE — nie ma ich nigdzie indziej): '.$utracone.'.');
+        $this->info('Z niepełnymi metadata.variants (NIEPEWNE): '.$niepewne.'.');
 
-        if ($bledy > 0) {
-            $this->error('Odczytów, które się nie udały: '.$bledy.'. Wynik jest NIEPEŁNY.');
+        if ($bledy > 0 || $niepewne > 0) {
+            $this->error('Odczytów, które się nie udały: '.$bledy.'. Wierszy z niepełnymi wariantami: '.$niepewne.'. Wynik jest NIEPEŁNY.');
         }
     }
 
@@ -181,11 +190,11 @@ class ZaleznoscOdStaregoBucketu extends Command
             $klucze['oryginał'] = (string) $zdjecie->object_key;
         }
 
+        $warianty = WariantyKontrakt::wyciagnij($zdjecie);
+
         if ($zdjecie->variantsDisk() === self::STARY) {
-            foreach ((array) ($zdjecie->metadata['variants'] ?? []) as $nazwa => $wariant) {
-                if (is_array($wariant) && isset($wariant['key'])) {
-                    $klucze['wariant '.(string) $nazwa] = (string) $wariant['key'];
-                }
+            foreach ($warianty as $nazwa => $klucz) {
+                $klucze['wariant '.$nazwa] = $klucz;
             }
         }
 

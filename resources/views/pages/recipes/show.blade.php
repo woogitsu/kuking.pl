@@ -317,6 +317,10 @@
                         @endif
                     @endif
                 @endauth
+                @guest
+                    <a class="btn btn-secondary" href="{{ route('register', ['follow_user' => $recipe->author_id, 'follow_recipe' => $recipe->slug]) }}">Załóż konto, żeby obserwować autora</a>
+                    <a class="btn btn-quiet" href="{{ route('login', ['follow_user' => $recipe->author_id, 'follow_recipe' => $recipe->slug]) }}">Zaloguj się do swojego konta</a>
+                @endguest
             </div>
                 {{-- Opis i dane autora należą do tekstowej połowy hero. --}}
         @if($recipe->summary)
@@ -428,7 +432,12 @@
                     @else
                         <form method="POST" action="{{ route('collections.save', $recipe->slug) }}">
                             @csrf
-                            <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Zapisuję</button>
+                            @php $publicznyCel = app(\App\Domain\Collections\ZeszytyDoWyboru::class)->publicznyDomyslny(request()); @endphp
+                            @if($publicznyCel)
+                                {{-- Cel szybkiego zapisu jest publiczny — mówimy to przy przycisku (issue #1400). --}}
+                                <p class="pomoc" id="cel-zapisu-{{ $recipe->getKey() }}">Zapiszemy w zeszycie „{{ $publicznyCel->name }}”. Ten zeszyt widzą inne zalogowane osoby.</p>
+                            @endif
+                            <button class="btn btn-secondary" type="submit" @if($publicznyCel) aria-describedby="cel-zapisu-{{ $recipe->getKey() }}" @endif><x-ikona nazwa="save" /> Zapisuję</button>
                         </form>
                     @endif
                     <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" :content="$recipe" />
@@ -608,6 +617,10 @@
                         </ul>
                     @endforeach
                 @endif
+                {{-- Szacunkowe wartości odżywcze (D-299): pod składnikami,
+                     bo liczą się z nich. Komponent sam nic nie pokazuje,
+                     gdy składników nie ma albo autor sekcję ukrył. --}}
+                <x-wartosci-odzywcze :recipe="$recipe" />
             </section>
 
             <section class="sekcja-strony">
@@ -779,12 +792,24 @@
                 </div>
                 <x-show-more :paginator="$cookedEvents" czego="wykonań" lista="lista-wykonan" />
             @else
-                {{-- C3: przepis z zerem wykonań wyglądał jak odrzucony — sekcja
-                     po prostu znikała ze strony. SOUL 4.2 wymienia to jako
-                     ryzyko wprost i podaje ten tekst. --}}
-                <x-empty-state title="Jeszcze nikt tego nie gotował">
-                    <p class="mb-0">Twoje wykonanie będzie pierwsze.</p>
-                </x-empty-state>
+                {{-- Pusty wynik dotyczy tego widza: blokady mogą ukryć wszystkie
+                     wykonania, więc tekst nie ocenia, czy ktoś już gotował. --}}
+                @guest
+                    <x-empty-state title="Nie ma tu widocznych wykonań" action="Załóż konto, żeby dodać wykonanie" :href="route('register')">
+                        <span>Po ugotowaniu możesz dodać zdjęcie i kilka słów.</span>
+                    </x-empty-state>
+                    <p class="meta">Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
+                @else
+                    @can('cook', $recipe)
+                        <x-empty-state title="Nie ma tu widocznych wykonań" action="Dodaj swoje wykonanie" :href="route('cooked.create', $recipe->slug)">
+                            <span>Po ugotowaniu możesz dodać zdjęcie i kilka słów.</span>
+                        </x-empty-state>
+                    @else
+                        <x-empty-state title="Nie ma tu widocznych wykonań">
+                            <span>Tutaj pojawią się wykonania dostępne dla Ciebie.</span>
+                        </x-empty-state>
+                    @endcan
+                @endguest
             @endif
         </section>
 
