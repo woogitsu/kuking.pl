@@ -363,7 +363,7 @@ final class CollectUserExportData
         // Sortujemy po dacie, którą użytkownik WIDZI w paczce (publikacji,
         // a dla szkicu — utworzenia), żeby „po kolei” zgadzało się z datami.
         $recipes = $user->recipes()
-            ->with(['ingredients.ingredient', 'ingredients.unit', 'steps', ...$this->granica->relacjeKomentarzy()])
+            ->with(['ingredients.ingredient', 'ingredients.unit', 'steps', 'forkedFrom', ...$this->granica->relacjeKomentarzy()])
             // Licznik wykonań JEDNYM podzapytaniem dla wszystkich przepisów
             // (#956). `$recipe->cookedEvents()->count()` w mapperze niżej
             // robiło osobny COUNT na każdy przepis — konto z 500 przepisami
@@ -712,7 +712,13 @@ final class CollectUserExportData
                 'autor' => $comment->author?->displayName() ?? 'Konto usunięte',
                 'tresc' => $comment->body,
                 'napisano' => $this->date($comment->created_at),
-                'odpowiedzi' => $this->foreignComments($comment->replies),
+                // Odpowiedzi tylko z tego, co doładowała `GranicaCudzychDanych`
+                // (już przefiltrowane widocznością). Odpowiedź na odpowiedź nie
+                // istnieje, a sięgnięcie po nią leniwie robiłoby zapytanie
+                // bez tej granicy dla każdej odpowiedzi osobno (#976).
+                'odpowiedzi' => $comment->relationLoaded('replies')
+                    ? $this->foreignComments($comment->replies)
+                    : [],
             ];
         }
 

@@ -108,15 +108,40 @@ abstract class TestCase extends BaseTestCase
             return $this;
         }
 
-        $generacja = array_key_exists('session_generation', $user->getAttributes())
-            ? (int) $user->session_generation
-            : (int) User::query()->whereKey($user->getKey())->value('session_generation');
+        $this->dopelnijAtrybutyZBazy($user);
+
+        $generacja = (int) $user->session_generation;
 
         if ($generacja > 0 || $this->app['session']->has(GeneracjaSesji::KLUCZ)) {
             $this->withSession([GeneracjaSesji::KLUCZ => $generacja]);
         }
 
         return $this;
+    }
+
+    /**
+     * Konto prosto z `create()` niesie tylko to, co fabryka ustawiła — bez
+     * kolumn z domyślną wartością w bazie (`session_generation`,
+     * `ostatnio_widziany_at`, `two_factor_confirmed_at`…). Na produkcji model
+     * zalogowanej osoby zawsze pochodzi z bazy i ma komplet, a middleware
+     * czytają te kolumny z NIEGO. Tryb ścisły Eloquent (#976) rzuca przy
+     * odczycie brakującego atrybutu, więc `actingAs()` dopełnia go z bazy —
+     * tylko brakujące kolumny, bez ruszania niezapisanych zmian w teście.
+     */
+    private function dopelnijAtrybutyZBazy(User $user): void
+    {
+        $wiersz = $user->newQueryWithoutScopes()->toBase()->where($user->getKeyName(), $user->getKey())->first();
+
+        if ($wiersz === null) {
+            return;
+        }
+
+        foreach ((array) $wiersz as $kolumna => $wartosc) {
+            if (! array_key_exists($kolumna, $user->getAttributes())) {
+                $user->setRawAttributes([...$user->getAttributes(), $kolumna => $wartosc]);
+                $user->syncOriginalAttribute($kolumna);
+            }
+        }
     }
 
     /**
