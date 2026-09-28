@@ -124,12 +124,14 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 > „Nie wcześnie” poniżej pozostaje zakazana bez zmian.
 
 - OCR starych zeszytów;
-- import URL/PDF/zdjęcie;
+- import URL/PDF/zdjęcie — **URL i PDF wdrożone jako prywatny szkic** (D-300); zdjęcie/OCR w pracy;
 - pantry;
 - „co ugotuję z tego, co mam”;
-- zamienniki;
-- skalowanie porcji;
-- nutrition;
+- zamienniki — **od autora wdrożone (D-284)**: tekst przy składniku,
+  „Zamiast tego: …” na stronie przepisu; podpowiedzi AI — jeszcze nie;
+- skalowanie porcji — **wdrożone (D-284)**: „Na ile porcji?” na stronie
+  przepisu, ilości przeliczane z tekstu składnika, zaokrąglenie kuchenne;
+- wartości odżywcze — szacunek na porcję z tabel CIQUAL/USDA, wdrożone (D-299); bez filtrów dietetycznych i bez profilu diety;
 - koszt;
 - native apps, jeśli PWA potwierdzi retencję.
 
@@ -140,7 +142,14 @@ z audytu zapisane na później. Nie budować bez nowej decyzji, mimo D-282:
 - spiżarnia z terminami ważności i priorytetem zużycia (#1903), jako
   rozszerzenie pantry;
 - wybrane przepisy do czytania offline w PWA (#1904);
-- głosowy tryb gotowania bez dotykania telefonu (#1906).
+- głosowy tryb gotowania bez dotykania telefonu (#1906);
+- udostępnianie publicznego zeszytu (#2000);
+- prywatne podsumowanie AI uwag z wykonań przepisu (#1999);
+- kilka jawnych zakresów czasu w wyszukiwarce przepisów (#1997);
+- widoczne kalorie na porcję w danych SEO przepisu / JSON-LD (#1996);
+- historia i porównanie publicznych wersji przepisu (#2024);
+- opcjonalna synchronizacja postępu gotowania między urządzeniami (#2016);
+- typowy rzeczywisty czas przygotowania z wykonań społeczności (#2067).
 
 ## Nie wcześnie
 
@@ -150,6 +159,8 @@ z audytu zapisane na później. Nie budować bez nowej decyzji, mimo D-282:
 - marketplace;
 - payouts;
 - punkty za liczbę postów;
-- masowy import cudzych treści.
+- masowy import cudzych treści — w tym import wielu adresów naraz, całych
+  blogów, map witryn i kanałów RSS, import zdjęć z cudzych stron oraz
+  „przepisywanie własnymi słowami” przez AI przed publikacją (D-300).
 
 Wysoki koszt moderacji i spam nie są potrzebne do udowodnienia wartości Kuking.

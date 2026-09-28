@@ -58,6 +58,7 @@ class MojaWersjaPrzepisuTest extends TestCase
     private function opublikujPrzezFormularz(User $kto, Recipe $wersja, array $zmiany = []): TestResponse
     {
         return $this->actingAs($kto)->put(route('recipes.update', $wersja), array_merge([
+            'content_revision' => $wersja->fresh()->content_revision,
             'title' => $wersja->title,
             'visibility' => 'public',
             'ingredients' => [['text' => '1 kura rosołowa'], ['text' => '2 marchewki'], ['text' => 'pietruszka', 'note' => 'korzeń']],

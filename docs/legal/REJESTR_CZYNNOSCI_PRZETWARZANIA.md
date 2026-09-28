@@ -386,6 +386,14 @@ egzekwuje.
   (także plik próby, która padła przed zapisaniem paczki); przy wymazaniu
   konta znika od razu cały katalog paczek konta (audyt B5 pkt 4);
   konto po karencji 30 dni — `kuking:usun-wygasle-konta`.
+- **Dziennik wykonanych wymazań (poza bazą, audyt B5 pkt 3):** obiekt
+  `dziennik-wymazan/<user_id>.json` na dysku `kuking.dziennik_wymazan.dysk`
+  (Cloudflare R2, bucket eksportów) — identyfikator konta, chwila wymazania,
+  wykonany zakres; bez e-maila i nazwy. Cel: ponowne wymazanie po odtworzeniu
+  bazy z kopii (`kuking:wymaz-ponownie`, `docs/infra/KOPIE_I_ODTWORZENIE.md`
+  §3.1). Termin: **120 dni** od wymazania (dłużej niż najstarsza kopia),
+  przycina `kuking:dziennik-wymazan`. Podstawa: art. 6 ust. 1 lit. c w zw.
+  z art. 17 RODO.
 - **Znane ograniczenie, opisane osobno:** paczka **nie zawiera** ośmiu
   kategorii danych, które serwis przechowuje (tożsamości zewnętrzne,
   wiadomości „Napisz do nas", zgłoszenia i decyzje moderacyjne, dziennik
@@ -419,6 +427,30 @@ egzekwuje.
   `konto.pokazuj_zyczenia_urodzinowe`, `konto.chce_zyczen_urodzinowych_mailem`,
   `konto.pokazuj_urodziny_obserwujacym`.
 
+### 3.19 Dziennik serwera (błędy techniczne)
+
+- **Cel:** wykrywanie i naprawa błędów technicznych.
+- **Dane:** zapis błędu (bez zamierzonego zbierania treści prywatnych),
+  kod żądania (`docs/infra/MONITORING_BLEDOW.md`).
+- **Podstawa:** art. 6 ust. 1 lit. f RODO.
+- **Odbiorcy:** Railway. Produkcja pisze dziennik na `stderr`
+  (`.railway/railway.ts` → `LOG_CHANNEL`), a Railway przechwytuje
+  `stdout`/`stderr` do własnego narzędzia dzienników — wpisy **przeżywają**
+  restart i wymianę instancji.
+- **Termin usunięcia:** okres przechowywania dzienników u Railway, zależny
+  od planu konta. **Plan Hobby — 7 dni** (decyzja właściciela 24.09.2026;
+  liczba wg dokumentacji Railway: Hobby 7, Pro 30). Przy publicznym starcie
+  produkcji — przejście na Pro, 30 dni. Procedura po zmianie planu albo
+  odbiornika: `docs/DEPLOYMENT.md` → „Dziennik serwera i polityka
+  prywatności”.
+- **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA (#994):**
+  - fizyczna lokalizacja (kraj/region) przechowywania logów przez Railway —
+    polityka mówi dziś, że tego nie potwierdziliśmy;
+  - czy na produkcji ustawiono `LOG_BLAD_WEBHOOK_URL` (Slack/Discord) — jeśli
+    tak, ten kanał jest kolejnym odbiorcą zapisu błędu i musi trafić do
+    polityki i do §4;
+  - czy istnieją eksporty logów poza Railway (drain, pobrane pliki).
+
 ---
 
 ## 4. Kategorie odbiorców (art. 30 ust. 1 lit. d)
@@ -434,8 +466,8 @@ brakuje.
 
 | Odbiorca | Rola | Co dostaje | Kraj |
 |---|---|---|---|
-| Railway | podmiot przetwarzający | cała aplikacja i baza | deklarowana UE — **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** region usługi odczytany z panelu |
-| Cloudflare R2 | podmiot przetwarzający | zdjęcia i ich warianty, paczki eksportu, zaszyfrowane zrzuty bazy (`AWS_KOPIE_BUCKET`, retencja 30 dni — `KOPIA_RETENCJA_DNI`) | **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** lokalizacja bucketu; `AWS_DEFAULT_REGION` ma domyślnie `auto` |
+| Railway | podmiot przetwarzający | cała aplikacja, baza i dziennik serwera | deklarowana UE — **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** region usługi odczytany z panelu |
+| Cloudflare R2 | podmiot przetwarzający | zdjęcia i ich warianty, paczki eksportu, zaszyfrowane zrzuty bazy (`AWS_KOPIE_BUCKET`, retencja 30 dni — `KOPIA_RETENCJA_DNI`) | jurysdykcja UE — właściciel potwierdził 24.09.2026, że `AWS_ENDPOINT` ma segment `.eu.`, a buckety są w jurysdykcji UE; od D-255 (PR #1463) aplikacja odmawia endpointu bez `.eu.` (`App\Support\Storage\DozwolonyHostR2`, `/health`) |
 | Cloudflare Turnstile | podmiot przetwarzający | adres IP i cechy przeglądarki przy siedmiu formularzach | USA |
 | Cloudflare Web Analytics | podmiot przetwarzający | adres strony, odnośnik, rodzaj przeglądarki, czas wczytania | USA |
 | OpenAI | podmiot przetwarzający | treść wpisu i pomniejszone zdjęcie, bez danych wskazujących osobę | USA |

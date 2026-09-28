@@ -204,11 +204,17 @@ final class RozstrzygnijZgloszenie
             // `source = legal_notice`, a `reporter_id` ustawia wyłącznie droga
             // społecznościowa (`ReportContent`). Nikt nie dostanie odpowiedzi
             // dwa razy.
+            //
+            // ZNACZNIKA `decision_sent_at` TU NIE MA (issue #1838, D-293).
+            // `notify()` tylko KOLEJKUJE list (`ShouldQueue`), a zakolejkowany
+            // list to jeszcze nie informacja przekazana zgłaszającemu. Znacznik
+            // stawia sam list po udanym wysłaniu (`afterSending()`), a gdy
+            // worker wyczerpie próby, sprawa zostaje z pustym znacznikiem.
+            // Zadanie powstaje w tej samej transakcji co decyzja (kolejka
+            // `database`), więc decyzji bez zadania dalej nie ma.
             if ($zablokowane->maAdresDoOdpowiedzi()) {
                 Notification::route('mail', $zablokowane->notifier_email)
                     ->notify(new DecyzjaWSprawieZgloszenia($zablokowane, $akcja));
-
-                $zablokowane->forceFill(['decision_sent_at' => now()])->save();
             }
 
             $this->powiadomZglaszajacego->handle($zablokowane, $akcja);

@@ -2,6 +2,12 @@
     $poprzedniKrok = $krok > 1 ? $krok - 1 : null;
     $nastepnyKrok = $krok < $total ? $krok + 1 : null;
     $timerLabel = $aktualnyKrok->timerLabel(afterNa: true);
+    $adresGotowania = fn (?int $numer = null): string => route('cooking.show', array_filter([
+        'recipe' => $recipe->slug, 'krok' => $numer, 'porcje' => $parametrPorcji,
+    ], fn ($wartosc) => $wartosc !== null));
+    $adresPrzepisu = route('recipes.show', array_filter([
+        'recipe' => $recipe->slug, 'porcje' => $parametrPorcji,
+    ], fn ($wartosc) => $wartosc !== null));
 @endphp
 <x-layout
     :title="'Gotuję: '.$recipe->title"
@@ -24,7 +30,7 @@
                 nie kasuje. Dlatego to zwykły link, bez potwierdzenia —
                 potwierdzenie miałoby sens tylko, gdyby coś dało się stracić.
             --}}
-            <a class="btn btn-secondary cook-exit" href="{{ route('recipes.show', $recipe->slug) }}" data-minutniki-koniec>
+            <a class="btn btn-secondary cook-exit" href="{{ $adresPrzepisu }}" data-minutniki-koniec>
                 Zakończ gotowanie
             </a>
         </div>
@@ -37,7 +43,7 @@
             gdy taki minutnik się skończy. Bez JavaScriptu zostaje pusty
             i ukryty: minutnika w przeglądarce i tak wtedy nie ma.
         --}}
-        <div class="cook-alarmy stack" data-alarmy-recipe="{{ $recipe->slug }}" data-alarmy-krok="{{ $krok }}" data-alarmy-adres="{{ route('cooking.show', $recipe->slug) }}" hidden></div>
+        <div class="cook-alarmy stack" data-alarmy-recipe="{{ $recipe->slug }}" data-alarmy-krok="{{ $krok }}" data-alarmy-adres="{{ $adresGotowania() }}" hidden></div>
 
         <p class="meta m-0">{{ $recipe->title }}</p>
 
@@ -53,11 +59,31 @@
             mąki", jest tańsze niż opuszczenie trybu — a to jest jedyna
             alternatywa, z którą to porównujemy.
         --}}
-        <details class="cook-ingredients">
-            <summary>Składniki ({{ $recipe->ingredients->count() }})</summary>
+        {{--
+            CHECKLISTA PRZYGOTOWANIA (issue #2069) — „mam już odmierzone”,
+            nie „już dodane do garnka”. Odhaczenia są PAMIĘCIĄ TEJ KARTY
+            (`sessionStorage`), tak samo jak przełącznik „Nie usypiaj
+            ekranu” niżej: przeżywają zmianę kroku i odświeżenie, ale nie
+            są danymi konta i nie wędrują na inne urządzenie (to osobne
+            #2016). Kluczem jest ID przepisu i ID składnika — nie pozycja
+            na liście, więc zmiana kolejności nie przeniesie odhaczenia na
+            inny wiersz. Całość okablowuje `resources/js/skladniki-gotowania.js`.
+
+            BEZ SKRYPTU nic tu się nie zmienia: pola, stan „Przygotowane”,
+            licznik i „Wyczyść…” mają `hidden` i odkrywa je wyłącznie
+            skrypt — lista zostaje zwykłą listą do czytania, bez kontrolki,
+            która udawałaby, że coś zapamięta (D-053: żadnego martwego
+            przycisku). Sekcja nadal startuje zwinięta.
+        --}}
+        <details class="cook-ingredients" data-przygotowanie="{{ $recipe->getKey() }}">
+            <summary>Składniki ({{ $recipe->ingredients->count() }})<span class="cook-przygotowanie-skrot" data-przygotowanie-podsumowanie hidden></span></summary>
+            @if($wyborPorcji->przeliczone())
+                <p class="meta">Przeliczone {{ \App\Domain\Recipes\Porcje\WyborPorcji::naIle($wyborPorcji->wybrane) }}. Autor podał ilości {{ \App\Domain\Recipes\Porcje\WyborPorcji::naIle($wyborPorcji->zPrzepisu) }}.</p>
+            @endif
             @if($recipe->ingredients->isEmpty())
                 <p class="meta">Autor jeszcze nie dodał składników.</p>
             @else
+                <p class="cook-przygotowanie-wstep" data-przygotowanie-wstep hidden>Możesz zaznaczyć składniki, które już masz odmierzone. Zaznaczenie zostaje w tej karcie przeglądarki, także po przejściu do innego kroku.</p>
                 {{--
                     GRUPY SKŁADNIKÓW I „DO SMAKU" (issue #764).
                     Ta lista pokazywała składniki płaską, jedną pętlą po
@@ -80,8 +106,15 @@
                     @endif
                     <ul class="ingredient-list">
                         @foreach($grupaSkladnikow['skladniki'] as $ingredient)
-                            <li>
-                                {{ $ingredient->ingredient_text }}
+                            @php($przeliczony = $wyborPorcji->przelicz($ingredient))
+                            <li data-skladnik="{{ $ingredient->getKey() }}">
+                                {{-- Etykieta obejmuje cały wiersz — pole, treść,
+                                     notatkę i zamiennik — więc cel dotyku to cała
+                                     linia składnika, nie sam kwadracik. --}}
+                                <label class="cook-skladnik">
+                                <input type="checkbox" class="cook-skladnik-pole" data-przygotowanie-pole hidden>
+                                <span class="cook-skladnik-tresc">
+                                @if($przeliczony->zmieniony){{ $przeliczony->przed }}<strong class="skladnik-przeliczony">{{ $przeliczony->ilosc }}</strong>{{ $przeliczony->po }}@else{{ $ingredient->ingredient_text }}@endif
                                 {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
                                      tego sam w tekście składnika (issue #44).
                                      DOPISEK JEST CELOWY I TYLKO TUTAJ (D-232): to widok
@@ -92,10 +125,24 @@
                                     <span class="meta"> — do smaku</span>
                                 @endif
                                 @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
+                                @if($ingredient->substitutes)<span class="skladnik-zamiennik">Zamiast tego: {{ $ingredient->substitutes }}</span>@endif
+                                </span>
+                                {{-- Stan słowem, nie tylko znaczkiem pola i kolorem.
+                                     `aria-hidden`: czytnik ekranu dostaje ten sam stan
+                                     z pola („zaznaczone”), bez powtórzenia. --}}
+                                <span class="cook-skladnik-stan" data-przygotowanie-stan aria-hidden="true" hidden>Przygotowane</span>
+                                </label>
                             </li>
                         @endforeach
                     </ul>
                 @endforeach
+                {{-- Wyczyszczenie dotyczy WYŁĄCZNIE tej checklisty: to zwykły
+                     przycisk skryptu, nie formularz, więc nie dotyka odhaczeń
+                     kroków w sesji (te kasuje tylko „Zacznij od początku”). --}}
+                <div class="cook-przygotowanie-akcje" data-przygotowanie-akcje hidden>
+                    <p class="cook-przygotowanie-licznik" data-przygotowanie-licznik aria-live="polite"></p>
+                    <button type="button" class="btn btn-secondary cook-przygotowanie-wyczysc" data-przygotowanie-wyczysc hidden>Wyczyść zaznaczenie składników</button>
+                </div>
             @endif
         </details>
 
@@ -181,6 +228,7 @@
             --}}
             <form method="POST" action="{{ route('cooking.zaznacz', $recipe->slug) }}" class="cook-zaznacz">
                 @csrf
+                @if($parametrPorcji !== null)<input type="hidden" name="porcje" value="{{ $parametrPorcji }}">@endif
                 <input type="hidden" name="krok" value="{{ $krok }}">
                 {{-- Tożsamość kroku, nie sam numer (issue #756): po zmianie kolejności przez autora numer wskazywałby inną czynność. --}}
                 <input type="hidden" name="krok_id" value="{{ $aktualnyKrok->getKey() }}">
@@ -207,12 +255,12 @@
         --}}
         <nav class="cook-nav" aria-label="Nawigacja krokami przepisu">
             @if($nastepnyKrok)
-                <a class="btn btn-primary btn-cook" href="{{ route('cooking.show', [$recipe->slug, 'krok' => $nastepnyKrok]) }}">
+                <a class="btn btn-primary btn-cook" href="{{ $adresGotowania($nastepnyKrok) }}">
                     Następny krok <span aria-hidden="true">→</span>
                 </a>
             @endif
             @if($poprzedniKrok)
-                <a class="btn btn-secondary btn-cook" href="{{ route('cooking.show', [$recipe->slug, 'krok' => $poprzedniKrok]) }}">
+                <a class="btn btn-secondary btn-cook" href="{{ $adresGotowania($poprzedniKrok) }}">
                     <span aria-hidden="true">←</span> Poprzedni krok
                 </a>
             @endif
@@ -232,7 +280,7 @@
                 @else
                     @guest
                         <p>Załóż konto, żeby dać znać autorowi, że Ci wyszło.</p>
-                        <a class="btn btn-primary btn-cook" href="{{ route('register') }}">Załóż konto</a>
+                        <a class="btn btn-primary btn-cook" href="{{ route('register', ['cook_recipe' => $recipe->getKey()]) }}">Załóż konto</a>
                     @endguest
                 @endcan
             </section>
@@ -243,9 +291,10 @@
                     <summary class="btn btn-secondary">Zacznij od początku</summary>
                     <div class="confirm-body stack">
                         <p>Usunąć odhaczenia wszystkich kroków tego przepisu? Pozostałe przepisy i zapisane wykonania zostaną bez zmian.</p>
-                        <a class="btn btn-secondary" href="{{ route('cooking.show', [$recipe->slug, 'krok' => $krok]) }}">Zostaw odhaczenia</a>
+                        <a class="btn btn-secondary" href="{{ $adresGotowania($krok) }}">Zostaw odhaczenia</a>
                         <form method="POST" action="{{ route('cooking.restart', $recipe->slug) }}">
                             @csrf
+                            @if($parametrPorcji !== null)<input type="hidden" name="porcje" value="{{ $parametrPorcji }}">@endif
                             <button type="submit" class="btn btn-danger">Usuń odhaczenia i zacznij od początku</button>
                         </form>
                     </div>

@@ -1,0 +1,82 @@
+/*
+ * ekran-planera.css — planer tygodnia (#27, D-310) i panel „Dodaj do planera”
+ * na stronie przepisu.
+ *
+ * Osobny plik z tego samego powodu co `ekran-tagi.css`: jeden obszar, jeden
+ * plik, bez ruszania kruchych reguł w app.css. Żadnej wartości koloru,
+ * rozmiaru tekstu ani odstępu na sztywno — wszystko przez var(--...).
+ * Bez przeciągania: każda akcja to zwykły przycisk w formularzu.
+ */
+
+@layer components {
+  .planer-nawigacja {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+  }
+
+  .planer-dni {
+    display: grid;
+    gap: var(--spacing-4);
+  }
+
+  .planer-dzien-naglowek {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--spacing-2);
+  }
+
+  .planer-dzis {
+    font-weight: 700;
+    color: var(--color-brand);
+  }
+
+  .planer-pozycje {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--spacing-3);
+  }
+
+  .planer-pozycja {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-3);
+    padding-block: var(--spacing-2);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .planer-pozycja-tresc {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .planer-dopisz {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--spacing-3);
+  }
+
+  .planer-dopisz .field {
+    flex: 1 1 16rem;
+    min-width: 0;
+    margin: 0;
+  }
+
+  /* Panel „Dodaj do planera” — ten sam układ co „Wybierz zeszyt”. */
+  .wybor-dnia {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .wybor-dnia[open] { flex-basis: 100%; }
+  .wybor-dnia > summary { width: fit-content; max-width: 100%; }
+  .wybor-dnia-lista { min-width: 0; border: 0; padding: 0; }
+  .wybor-dnia-opcja { display: flex; align-items: flex-start; gap: var(--spacing-2); min-height: 48px; padding-block: var(--spacing-2); cursor: pointer; }
+  .wybor-dnia-opcja input { flex: 0 0 auto; margin-top: .35em; }
+  .wybor-dnia-opcja span { min-width: 0; overflow-wrap: anywhere; }
+}

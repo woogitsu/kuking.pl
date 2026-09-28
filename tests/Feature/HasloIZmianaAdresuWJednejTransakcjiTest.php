@@ -120,7 +120,7 @@ class HasloIZmianaAdresuWJednejTransakcjiTest extends TestCase
         }
 
         $this->assertNicSieNieZmienilo($basia, $staryHash);
-        $this->assertTrue(Password::broker()->tokenExists($basia->fresh(), $token),
+        $this->assertTrue(self::brokerHasel()->tokenExists($basia->fresh(), $token),
             'Link resetu przepadł, choć hasła nie ustawiliśmy — człowiek nie ma jak spróbować ponownie.');
     }
 
@@ -157,7 +157,7 @@ class HasloIZmianaAdresuWJednejTransakcjiTest extends TestCase
 
         $this->assertTrue(Hash::check(self::NOWE_HASLO, $basia->fresh()->password));
         $this->assertSame(0, PendingEmailChange::query()->where('user_id', $basia->getKey())->count());
-        $this->assertFalse(Password::broker()->tokenExists($basia->fresh(), $token));
+        $this->assertFalse(self::brokerHasel()->tokenExists($basia->fresh(), $token));
         $this->assertSame(1, AuditLogEntry::query()->where('action', 'account.password_reset')->where('subject_id', $basia->getKey())->count());
         $this->assertSame(1, AuditLogEntry::query()->where('action', 'account.email_change_cancelled')->where('subject_id', $basia->getKey())->count());
     }
@@ -172,7 +172,7 @@ class HasloIZmianaAdresuWJednejTransakcjiTest extends TestCase
         $inna = $this->user('inna', ['email' => 'inna@example.test']);
         $tokenBasi = Password::createToken($basia);
         $tokenInnej = Password::createToken($inna);
-        $this->assertTrue(Password::broker()->tokenExists($basia, $tokenBasi), 'Kontrola dodatnia: link resetu istnieje.');
+        $this->assertTrue(self::brokerHasel()->tokenExists($basia, $tokenBasi), 'Kontrola dodatnia: link resetu istnieje.');
 
         $this->actingAs($basia)->put(route('settings.security.password'), [
             'current_password' => 'haslo-testowe-123',
@@ -180,9 +180,9 @@ class HasloIZmianaAdresuWJednejTransakcjiTest extends TestCase
             'password_confirmation' => self::NOWE_HASLO,
         ])->assertRedirect()->assertSessionHasNoErrors();
 
-        $this->assertFalse(Password::broker()->tokenExists($basia->fresh(), $tokenBasi),
+        $this->assertFalse(self::brokerHasel()->tokenExists($basia->fresh(), $tokenBasi),
             'Link resetu wysłany przed zmianą hasła nadal działa.');
-        $this->assertTrue(Password::broker()->tokenExists($inna, $tokenInnej),
+        $this->assertTrue(self::brokerHasel()->tokenExists($inna, $tokenInnej),
             'Zmiana hasła jednego konta skasowała link resetu innego konta.');
 
         // I naprawdę nie da się nim już ustawić hasła.

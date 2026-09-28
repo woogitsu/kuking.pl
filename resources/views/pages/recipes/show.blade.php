@@ -4,6 +4,12 @@
     // Jedna odpowiedź na „ile porcji" dla znaczka i dla structured data
     // (audyt A28) — dwa osobne teksty to dwie okazje do rozjazdu.
     $porcje = $recipe->servingsLabel();
+    $parametrPorcjiGotowania = $wyborPorcji->przeliczone()
+        ? $wyborPorcji->doAdresu((float) $wyborPorcji->wybrane)
+        : null;
+    $adresGotowania = route('cooking.show', array_filter([
+        'recipe' => $recipe->slug, 'porcje' => $parametrPorcjiGotowania,
+    ], fn ($wartosc) => $wartosc !== null));
     // Dokąd iść po wymianę odrzuconego zdjęcia (#752). Pyta Policy, tak jak
     // przycisk edycji niżej — przepis ukryty przez moderację edycji nie ma.
     // Konto zawieszone edycję otworzy, ale jej nie zapisze
@@ -254,7 +260,7 @@
                     {{ config('kuking.community.contact_email') }}
                 </p>
             @elseif(! $recipe->isPublished())
-                <p class="notice kolumna-czytania"><strong>To jest szkic.</strong> Widzisz go tylko Ty. Kliknij „Edytuj”, żeby dokończyć i opublikować.</p>
+                <p class="notice kolumna-czytania"><strong>To jest szkic.</strong> Widzisz go tylko Ty. Kliknij „{{ \App\Domain\Recipes\CoMoznaDopisac::jest($recipe) ? 'Dopisz szczegóły' : 'Edytuj przepis' }}”, żeby dokończyć i opublikować.</p>
             @endif
 
             <div class="przepis-autor">
@@ -317,6 +323,10 @@
                         @endif
                     @endif
                 @endauth
+                @guest
+                    <a class="btn btn-secondary" href="{{ route('register', ['follow_user' => $recipe->author_id, 'follow_recipe' => $recipe->slug]) }}">Załóż konto, żeby obserwować autora</a>
+                    <a class="btn btn-quiet" href="{{ route('login', ['follow_user' => $recipe->author_id, 'follow_recipe' => $recipe->slug]) }}">Zaloguj się do swojego konta</a>
+                @endguest
             </div>
                 {{-- Opis i dane autora należą do tekstowej połowy hero. --}}
         @if($recipe->summary)
@@ -343,6 +353,17 @@
                         </li>
                     @endif
                 </ul>
+            @endif
+            {{-- Koszt wg autora (D-286). Pełnym zdaniem, z „ok." i „wg autora",
+                 a nie jako kolejna „liczba" obok czasu i porcji: to szacunek
+                 jednej osoby, nie cena, którą serwis za coś ręczy. --}}
+            @if($recipe->costLabel())
+                <p class="przepis-koszt kolumna-czytania" data-koszt-autora="{{ $recipe->estimated_cost_pln }}">{{ $recipe->costLabel() }}</p>
+            @elseif(($szacunekKosztu ?? null) !== null)
+                {{-- Bez kwoty autora: przedział z cen GUS albo zdanie, dlaczego
+                     go nie ma (D-286, część 2). Zawsze „orientacyjny", zawsze
+                     ze źródłem i z zastrzeżeniem o sklepie. --}}
+                <p class="przepis-koszt kolumna-czytania" data-koszt-szacunek="{{ $szacunekKosztu->jestPrzedzial() ? 'przedzial' : 'brak' }}">{{ $szacunekKosztu->zdanie() }}</p>
             @endif
 
 
@@ -428,10 +449,17 @@
                     @else
                         <form method="POST" action="{{ route('collections.save', $recipe->slug) }}">
                             @csrf
-                            <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Zapisuję</button>
+                            @php $publicznyCel = app(\App\Domain\Collections\ZeszytyDoWyboru::class)->publicznyDomyslny(request()); @endphp
+                            @if($publicznyCel)
+                                {{-- Cel szybkiego zapisu jest publiczny — mówimy to przy przycisku (issue #1400). --}}
+                                <p class="pomoc" id="cel-zapisu-{{ $recipe->getKey() }}">Zapiszemy w zeszycie „{{ $publicznyCel->name }}”. Ten zeszyt widzą inne zalogowane osoby.</p>
+                            @endif
+                            <button class="btn btn-secondary" type="submit" @if($publicznyCel) aria-describedby="cel-zapisu-{{ $recipe->getKey() }}" @endif><x-ikona nazwa="save" /> Zapisuję</button>
                         </form>
                     @endif
                     <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" :content="$recipe" />
+                    {{-- Planer tygodnia (#27, D-310): prywatny, obok „Zapisuję”. --}}
+                    <x-dodaj-do-planera :recipe="$recipe" />
                 @else
                     <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby dać znać autorowi</a>
                 @endauth
@@ -443,7 +471,7 @@
                     z czytelnym komunikatem, gdyby ktoś trafił tu wprost.
                 --}}
                 @if($recipe->steps->isNotEmpty())
-                    <a class="btn btn-secondary" href="{{ route('cooking.show', $recipe->slug) }}">Gotuję — pokaż kroki na cały ekran</a>
+                    <a class="btn btn-secondary" href="{{ $adresGotowania }}">Gotuję — pokaż kroki na cały ekran</a>
                 @endif
             </div>
 
@@ -545,11 +573,12 @@
                  nie osobnymi kartami w strumieniu. Cień zostaje panelowi wyżej,
                  bo tam stoi „Ugotowałem", i kartom cudzych wykonań i komentarzy
                  niżej. --}}
-            <section class="sekcja-strony">
+            <section class="sekcja-strony" id="skladniki">
                 <h2>Składniki</h2>
                 @if($recipe->ingredients->isEmpty())
                     <p class="meta">Autor jeszcze nie dodał składników.</p>
                 @else
+                    @include('pages.recipes._wybor-porcji', ['wyborPorcji' => $wyborPorcji, 'recipe' => $recipe])
                     {{--
                         GRUPY SKŁADNIKÓW — „Ciasto”, „Farsz”, „Do podania”
                         (D-033, część pierwsza).
@@ -584,19 +613,31 @@
                         @endif
                         <ul class="ingredient-list">
                             @foreach($grupaSkladnikow['skladniki'] as $ingredient)
+                                @php($przeliczony = $wyborPorcji->przelicz($ingredient))
                                 <li>
-                                    {{ $ingredient->ingredient_text }}
+                                    {{-- Przeliczona ilość jest pogrubiona, reszta to zdanie
+                                         autora co do znaku (D-284). Bez przeliczenia —
+                                         dokładnie `ingredient_text`. Jedna linia, żeby Blade
+                                         nie wstawił spacji w środek „300 g”. --}}
+                                    @if($przeliczony->zmieniony){{ $przeliczony->przed }}<strong class="skladnik-przeliczony">{{ $przeliczony->ilosc }}</strong>{{ $przeliczony->po }}@else{{ $ingredient->ingredient_text }}@endif
                                     {{-- „Bez ilości” nie określa sposobu dozowania.
                                          Pokazujemy tekst autora bez dopisków (#878).
                                          BRAK DOPISKU JEST CELOWY (D-232): ten ekran
                                          jest tekstem autora co do znaku. Tryb gotowania
                                          świadomie robi to inaczej — nie „ujednolicaj”. --}}
                                     @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
+                                    {{-- Zamiennik od autora (D-284), osobną linią pod
+                                         składnikiem — tekstem ≥ 18 px, nie drobnym dopiskiem. --}}
+                                    @if($ingredient->substitutes)<span class="skladnik-zamiennik">Zamiast tego: {{ $ingredient->substitutes }}</span>@endif
                                 </li>
                             @endforeach
                         </ul>
                     @endforeach
                 @endif
+                {{-- Szacunkowe wartości odżywcze (D-299): pod składnikami,
+                     bo liczą się z nich. Komponent sam nic nie pokazuje,
+                     gdy składników nie ma albo autor sekcję ukrył. --}}
+                <x-wartosci-odzywcze :recipe="$recipe" />
             </section>
 
             <section class="sekcja-strony">
@@ -768,12 +809,24 @@
                 </div>
                 <x-show-more :paginator="$cookedEvents" czego="wykonań" lista="lista-wykonan" />
             @else
-                {{-- C3: przepis z zerem wykonań wyglądał jak odrzucony — sekcja
-                     po prostu znikała ze strony. SOUL 4.2 wymienia to jako
-                     ryzyko wprost i podaje ten tekst. --}}
-                <x-empty-state title="Jeszcze nikt tego nie gotował">
-                    <p class="mb-0">Twoje wykonanie będzie pierwsze.</p>
-                </x-empty-state>
+                {{-- Pusty wynik dotyczy tego widza: blokady mogą ukryć wszystkie
+                     wykonania, więc tekst nie ocenia, czy ktoś już gotował. --}}
+                @guest
+                    <x-empty-state title="Nie ma tu widocznych wykonań" action="Załóż konto, żeby dodać wykonanie" :href="route('register')">
+                        <span>Po ugotowaniu możesz dodać zdjęcie i kilka słów.</span>
+                    </x-empty-state>
+                    <p class="meta">Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
+                @else
+                    @can('cook', $recipe)
+                        <x-empty-state title="Nie ma tu widocznych wykonań" action="Dodaj swoje wykonanie" :href="route('cooked.create', $recipe->slug)">
+                            <span>Po ugotowaniu możesz dodać zdjęcie i kilka słów.</span>
+                        </x-empty-state>
+                    @else
+                        <x-empty-state title="Nie ma tu widocznych wykonań">
+                            <span>Tutaj pojawią się wykonania dostępne dla Ciebie.</span>
+                        </x-empty-state>
+                    @endcan
+                @endguest
             @endif
         </section>
 

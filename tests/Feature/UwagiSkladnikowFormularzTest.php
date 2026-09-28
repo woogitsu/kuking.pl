@@ -25,7 +25,7 @@ class UwagiSkladnikowFormularzTest extends TestCase
         $this->actingAs($author);
         $data = $this->form($this->get(route('recipes.edit', $recipe))->assertOk()->getContent());
         $data['title'] = 'Nowa nazwa ciasta';
-        $this->put(route('recipes.update', $recipe), $data)->assertSessionHasNoErrors();
+        $this->put(route('recipes.update', $recipe), [...$data, 'content_revision' => $recipe->fresh()->content_revision])->assertSessionHasNoErrors();
         $this->assertSame(['PROBA_UWAGI — w temperaturze pokojowej', 'Przesiej dwa razy'], $recipe->ingredients()->pluck('note')->all());
         $this->get(route('recipes.show', $recipe))->assertSee('PROBA_UWAGI — w temperaturze pokojowej');
     }
@@ -44,16 +44,16 @@ class UwagiSkladnikowFormularzTest extends TestCase
         $data['ingredients'] = array_values($data['ingredients']);
         $data['ingredients'][0]['note'] = 'Nowa uwaga po usunięciu masła';
         $data['title'] = 'x';
-        $this->from($url)->put(route('recipes.update', $recipe), $data)->assertSessionHasErrors('title');
+        $this->from($url)->put(route('recipes.update', $recipe), [...$data, 'content_revision' => $recipe->fresh()->content_revision])->assertSessionHasErrors('title');
         $data = $this->form($this->get($url)->assertOk()->getContent());
         $this->assertSame('Nowa uwaga po usunięciu masła', $data['ingredients'][0]['note'] ?? null);
         $data['title'] = 'Przepis poprawiony';
-        $this->put(route('recipes.update', $recipe), $data)->assertSessionHasNoErrors();
+        $this->put(route('recipes.update', $recipe), [...$data, 'content_revision' => $recipe->fresh()->content_revision])->assertSessionHasNoErrors();
         $this->assertSame(['mąka'], $recipe->ingredients()->pluck('ingredient_text')->all());
         $this->assertSame(['Nowa uwaga po usunięciu masła'], $recipe->ingredients()->pluck('note')->all());
         $data = $this->form($this->get($url)->assertOk()->getContent());
         $data['ingredients'][0]['note'] = '';
-        $this->put(route('recipes.update', $recipe), $data)->assertSessionHasNoErrors();
+        $this->put(route('recipes.update', $recipe), [...$data, 'content_revision' => $recipe->fresh()->content_revision])->assertSessionHasNoErrors();
         $this->assertNull($recipe->ingredients()->first()->note);
     }
 
@@ -64,7 +64,7 @@ class UwagiSkladnikowFormularzTest extends TestCase
         $this->actingAs($author);
         $url = route('recipes.edit', $recipe);
         $data = ['title' => 'Ciasto domowe', 'visibility' => 'public', 'ingredients' => [['text' => 'masło', 'note' => str_repeat('a', 301)]]];
-        $html = $this->followingRedirects()->from($url)->put(route('recipes.update', $recipe), $data)->assertOk()->getContent();
+        $html = $this->followingRedirects()->from($url)->put(route('recipes.update', $recipe), [...$data, 'content_revision' => $recipe->fresh()->content_revision])->assertOk()->getContent();
         $this->assertSame(str_repeat('a', 301), $this->form($html)['ingredients'][0]['note'] ?? null);
         $this->assertStringContainsString('aria-invalid="true"', $html);
         $this->assertStringContainsString('href="#f-ingredients-0-note"', $html);
@@ -79,7 +79,7 @@ class UwagiSkladnikowFormularzTest extends TestCase
         $fields = $xpath->query('//form[.//input[@name="title"]]//*[self::input or self::textarea or self::select][@name]');
         $this->assertGreaterThan(10, $fields->length, 'Parser musi czytać właściwy formularz.');
         $pairs = [];
-        foreach ($fields as $field) {
+        foreach (self::elementyDom($fields) as $field) {
             $type = $field->getAttribute('type');
             if (in_array($type, ['file', 'submit', 'button'], true) || $field->hasAttribute('disabled')) {
                 continue;
@@ -90,7 +90,7 @@ class UwagiSkladnikowFormularzTest extends TestCase
             $value = $field->tagName === 'textarea' ? $field->textContent : $field->getAttribute('value');
             if ($field->tagName === 'select') {
                 $option = $xpath->query('.//option[@selected]', $field)->item(0) ?? $xpath->query('.//option', $field)->item(0);
-                $value = $option?->getAttribute('value') ?? '';
+                $value = $option === null ? '' : self::elementDom($option)->getAttribute('value');
             }
             $pairs[] = rawurlencode($field->getAttribute('name')).'='.rawurlencode($value);
         }

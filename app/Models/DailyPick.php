@@ -40,6 +40,9 @@ class DailyPick extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function curator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'curator_id');

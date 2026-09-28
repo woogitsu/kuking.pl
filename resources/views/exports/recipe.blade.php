@@ -44,10 +44,11 @@
     @endif
 
     <p class="fakty">
-        @if($recipe->servings)<span>Porcje: {{ rtrim(rtrim(number_format($recipe->servings, 1, ',', ' '), '0'), ',') }}</span>@endif
+        @if($recipe->servingsLabel())<span>{{ $recipe->servingsLabel() }}</span>@endif
         @if($recipe->prep_minutes)<span>Przygotowanie: {{ $recipe->prep_minutes }} min</span>@endif
         @if($recipe->cook_minutes)<span>Gotowanie: {{ $recipe->cook_minutes }} min</span>@endif
         @if($recipe->difficultyLabel())<span>Trudność: {{ $recipe->difficultyLabel() }}</span>@endif
+        @if($recipe->costLabel())<span>{{ $recipe->costLabel() }}</span>@endif
     </p>
 
     @if($recipe->ingredients->isNotEmpty())
@@ -76,6 +77,7 @@
                     <li>
                         {{ $item->ingredient_text }}
                         @if($item->note)<span class="podpis"> — {{ $item->note }}</span>@endif
+                        @if($item->substitutes)<br><span class="podpis">Zamiast tego: {{ $item->substitutes }}</span>@endif
                     </li>
                 @endforeach
             </ul>

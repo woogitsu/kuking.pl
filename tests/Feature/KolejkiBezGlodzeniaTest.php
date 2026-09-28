@@ -30,10 +30,13 @@ use Tests\TestCase;
  * entrypoincie `local osobne="high,default,media,low"` wywraca
  * test_media_i_low_ruszaja_mimo_stalej_zaleglosci_default.
  *
- * Rola `all` (jeden kontener z WWW) CELOWO zostaje przy jednym procesie
- * i tym samym głodzeniu, które pokazuje kontrola ujemna — trzy szczyty
- * pamięci naraz groziłyby OOM całej strony. Pilnuje tego UmowaKolejkiTest
- * i tests/skrypty/entrypoint-nadzor.sh; lekarstwem jest wydzielony worker.
+ * Rola `all` (jeden kontener z WWW, produkcja dziś) ma DWA procesy
+ * (D-311, #1860): `high,default` i `media,low`. Ten sam test obraca też je —
+ * zaległość `default` nie wstrzymuje już ani zdjęcia, ani eksportu. Do
+ * 26.09.2026 rola `all` miała jeden proces i głodziła dokładnie tak, jak
+ * pokazuje kontrola ujemna. Świadomie zostaje jedno: `low` za stałą
+ * zaległością `media` — ciężkie zadania idą jedno po drugim, żeby szczyty
+ * pamięci zdjęcia i eksportu nie zeszły się z WWW.
  */
 class KolejkiBezGlodzeniaTest extends TestCase
 {
@@ -54,10 +57,10 @@ class KolejkiBezGlodzeniaTest extends TestCase
     }
 
     /** @return list<string> */
-    private function procesyZEntrypointu(): array
+    private function procesyZEntrypointu(string $zmienna = 'osobne'): array
     {
         $entrypoint = (string) file_get_contents(base_path('docker/entrypoint.sh'));
-        $this->assertSame(1, preg_match('/local osobne="([a-z, ]+)"/', $entrypoint, $trafienie));
+        $this->assertSame(1, preg_match('/local '.$zmienna.'="([a-z, ]+)"/', $entrypoint, $trafienie));
 
         return preg_split('/ +/', trim($trafienie[1]));
     }
@@ -111,6 +114,23 @@ class KolejkiBezGlodzeniaTest extends TestCase
                 0,
                 $obrot,
                 "Zadanie z kolejki `{$kolejka}` nie ruszyło w ".self::OBROTY.' obrotach przy stałej zaległości `default` — głodzenie (#1030).',
+            );
+        }
+        $this->assertContains('default', ZadanieZnacznik::$wykonane, 'Kontrola: `default` też ma być obsługiwany.');
+    }
+
+    public function test_rola_all_zdjecie_i_eksport_ruszaja_mimo_stalej_zaleglosci_default(): void
+    {
+        $procesy = $this->procesyZEntrypointu('wspolnyKontener');
+        $this->assertCount(2, $procesy, 'Rola `all` ma mieć dwa procesy: lekki i ciężki (D-311).');
+
+        $pierwszy = $this->obracaj($procesy, self::OBROTY);
+
+        foreach ($pierwszy as $kolejka => $obrot) {
+            $this->assertGreaterThan(
+                0,
+                $obrot,
+                "Rola `all`: zadanie z `{$kolejka}` nie ruszyło w ".self::OBROTY.' obrotach przy stałej zaległości `default` (#1860).',
             );
         }
         $this->assertContains('default', ZadanieZnacznik::$wykonane, 'Kontrola: `default` też ma być obsługiwany.');
