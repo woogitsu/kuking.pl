@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Domain\Planer\Actions;
 
 use App\Domain\Planer\PlanerTygodnia;
+use App\Domain\Planer\ZakresDatPlanu;
 use App\Models\MealPlanEntry;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Policies\RecipePolicy;
-use App\Support\Czas;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -30,10 +30,6 @@ use Illuminate\Validation\ValidationException;
  */
 final class DodajDoPlanu
 {
-    public const DNI_WSTECZ = 60;
-
-    public const DNI_DO_PRZODU = 365;
-
     public function __construct(private readonly RecipePolicy $przepisy = new RecipePolicy) {}
 
     public function handle(User $user, CarbonImmutable $dzien, ?Recipe $przepis, ?string $tekst): ?MealPlanEntry
@@ -57,8 +53,7 @@ final class DodajDoPlanu
             throw new AuthorizationException;
         }
 
-        $dzis = CarbonImmutable::parse(Czas::dzisiajData());
-        if ($dzien->lt($dzis->subDays(self::DNI_WSTECZ)) || $dzien->gt($dzis->addDays(self::DNI_DO_PRZODU))) {
+        if (! ZakresDatPlanu::obejmuje($dzien)) {
             throw ValidationException::withMessages([
                 'day' => 'Wybierz dzień z najbliższego roku.',
             ]);

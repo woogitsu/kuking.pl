@@ -162,9 +162,17 @@ class PrzenosinyZdjecDoNowychBucketowTest extends TestCase
             'disk' => 'r2_legacy',
             'variants_disk' => null,
             'object_key' => 'incoming/basia/2026/09/pierogi.jpg',
-            'metadata' => ['variants' => []],
+            // NIEPUSTE warianty (issue #1905): status jest `ready` (domyślny
+            // w fabryce), a pusta tablica wariantów przy tym statusie jest od
+            // tej poprawki błędem danych, nie „zdrowym, bez wariantów do
+            // sprawdzenia" — inaczej ten test mierzyłby dokładnie usterkę,
+            // którą #1905 zamyka.
+            'metadata' => ['variants' => [
+                'feed' => ['key' => 'media/basia/2026/09/pierogi_feed.webp'],
+            ]],
         ]);
         Storage::disk('r2_legacy')->put($zdrowe->object_key, 'pierogi');
+        Storage::disk('r2_legacy')->put($zdrowe->metadata['variants']['feed']['key'], 'wariant');
 
         // Kontrola: bez kursora ten sam uszkodzony wiersz wraca w kółko.
         foreach ([1, 2] as $przebieg) {
@@ -377,6 +385,70 @@ class PrzenosinyZdjecDoNowychBucketowTest extends TestCase
         $migracja->up();
 
         $this->assertTrue(true);
+    }
+
+    /**
+     * #1905: `metadata.variants` pusta przy statusie `ready` jest błędem
+     * DANYCH, nie „nic do skopiowania". Migrator nie wolno mu przestawić
+     * wiersza, którego kompletu wariantów nigdy nie potwierdził.
+     */
+    public function test_pusta_tablica_wariantow_przy_ready_nie_przestawia_wiersza(): void
+    {
+        $media = Media::factory()->create([
+            'disk' => 'r2_legacy',
+            'variants_disk' => null,
+            'object_key' => 'incoming/basia/2026/09/pusty.jpg',
+            'metadata' => ['variants' => []],
+        ]);
+        Storage::disk('r2_legacy')->put($media->object_key, 'oryginal');
+
+        $this->artisan('kuking:przenies-zdjecia')
+            ->expectsOutputToContain('metadata.variants niepełne')
+            ->assertFailed();
+
+        // Oryginał mógł się już skopiować (kopiowany jest PRZED sprawdzeniem
+        // wariantów) — jak przy brakującym wariancie w
+        // `test_brak_jednego_wariantu_zatrzymuje_przenosiny_w_polowie`. SEDNO
+        // tego testu jest niżej: wiersz NIE jest przestawiony.
+        $media->refresh();
+        $this->assertSame('r2_legacy', $media->disk);
+        $this->assertNull($media->variants_disk);
+    }
+
+    /** #1905: wariant bez pola `key` (kształt `{feed: {width: 640}}` z opisu zgłoszenia). */
+    public function test_wariant_bez_klucza_nie_przestawia_wiersza(): void
+    {
+        $media = Media::factory()->create([
+            'disk' => 'r2_legacy',
+            'variants_disk' => null,
+            'object_key' => 'incoming/basia/2026/09/uszkodzony.jpg',
+            'metadata' => ['variants' => ['feed' => ['width' => 640]]],
+        ]);
+        Storage::disk('r2_legacy')->put($media->object_key, 'oryginal');
+
+        $this->artisan('kuking:przenies-zdjecia')
+            ->expectsOutputToContain('metadata.variants niepełne')
+            ->assertFailed();
+
+        $this->assertSame('r2_legacy', $media->refresh()->disk);
+    }
+
+    /** #1905: `metadata.variants` = null (a nie tablica) jest tym samym błędem co pusta tablica. */
+    public function test_warianty_null_nie_przestawiaja_wiersza(): void
+    {
+        $media = Media::factory()->create([
+            'disk' => 'r2_legacy',
+            'variants_disk' => null,
+            'object_key' => 'incoming/basia/2026/09/null.jpg',
+            'metadata' => ['variants' => null],
+        ]);
+        Storage::disk('r2_legacy')->put($media->object_key, 'oryginal');
+
+        $this->artisan('kuking:przenies-zdjecia')
+            ->expectsOutputToContain('metadata.variants niepełne')
+            ->assertFailed();
+
+        $this->assertSame('r2_legacy', $media->refresh()->disk);
     }
 
     public function test_dysk_zgodnosci_ma_publiczny_adres_a_dysk_oryginalow_nie(): void

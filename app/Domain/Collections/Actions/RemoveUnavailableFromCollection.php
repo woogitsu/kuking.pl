@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Domain\Collections\Actions;
 
 use App\Domain\Collections\WidocznaZawartoscZeszytu;
+use App\Domain\Collections\ZamekZapisuDoZeszytu;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Collection;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
 
 /**
  * Wyjęcie z JEDNEGO zeszytu zapisów, których właściciel już nie widzi (#773).
@@ -39,26 +39,22 @@ final class RemoveUnavailableFromCollection
      */
     public function handle(User $user, Collection $collection, string $odcisk): int
     {
-        Gate::forUser($user)->authorize('update', $collection);
-
-        return DB::transaction(function () use ($user, $collection, $odcisk): int {
-            Collection::query()->whereKey($collection->getKey())->lockForUpdate()->first();
-
-            $niedostepne = $this->zawartosc->niedostepne($collection, $user);
+        return app(ZamekZapisuDoZeszytu::class)->mutuj($user, $collection, function (User $swiezy, Collection $zeszyt) use ($odcisk): int {
+            $niedostepne = $this->zawartosc->niedostepne($zeszyt, $swiezy);
             $ile = count($niedostepne['przepisy']) + count($niedostepne['wpisy']);
 
             if ($ile === 0) {
                 return 0;
             }
 
-            if (! hash_equals($this->zawartosc->odcisk($collection, $niedostepne), $odcisk)) {
+            if (! hash_equals($this->zawartosc->odcisk($zeszyt, $niedostepne), $odcisk)) {
                 throw new BladDlaCzlowieka(
                     'Od otwarcia tego zeszytu zmieniło się, które zapisy są niedostępne. '
                     .'Niczego nie wyjęliśmy. Sprawdź nową liczbę poniżej i potwierdź jeszcze raz.',
                 );
             }
 
-            $pozycje = DB::table('collection_items')->where('collection_id', $collection->getKey());
+            $pozycje = DB::table('collection_items')->where('collection_id', $zeszyt->getKey());
 
             return (clone $pozycje)->whereIn('recipe_id', $niedostepne['przepisy'])->delete()
                 + (clone $pozycje)->whereIn('post_id', $niedostepne['wpisy'])->delete();

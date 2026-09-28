@@ -252,6 +252,35 @@ final class PlanerTygodniaTest extends TestCase
         $this->assertSame(6, MealPlanEntry::query()->count());
     }
 
+    public function test_kopia_zatrzymuje_sie_na_ostatnim_dozwolonym_dniu(): void
+    {
+        $ja = $this->user('planujaca');
+        $this->pozycja($ja, '2027-09-24', tekst: 'W granicy roku');
+        $this->pozycja($ja, '2027-09-25', tekst: 'Po granicy roku');
+
+        $this->actingAs($ja)->post(route('planer.copy'), ['tydzien' => '2027-09-27'])
+            ->assertRedirect(route('planer.show', ['tydzien' => '2027-09-27']))
+            ->assertSessionHas('status',
+                'Skopiowane z poprzedniego tygodnia: 1 pozycja. Poza dozwolonym zakresem dat: 1 pozycja.');
+
+        $this->assertDatabaseHas('meal_plan_entries', ['user_id' => $ja->getKey(), 'day' => '2027-10-01', 'label' => 'W granicy roku']);
+        $this->assertDatabaseMissing('meal_plan_entries', ['user_id' => $ja->getKey(), 'day' => '2027-10-02', 'label' => 'Po granicy roku']);
+    }
+
+    public function test_kopia_nie_przywraca_zbyt_starego_dnia(): void
+    {
+        $ja = $this->user('planujaca');
+        $this->pozycja($ja, '2026-07-25', tekst: 'Za wcześnie');
+        $this->pozycja($ja, '2026-07-26', tekst: 'Pierwszy dozwolony dzień');
+
+        $this->actingAs($ja)->post(route('planer.copy'), ['tydzien' => '2026-07-27'])
+            ->assertSessionHas('status',
+                'Skopiowane z poprzedniego tygodnia: 1 pozycja. Poza dozwolonym zakresem dat: 1 pozycja.');
+
+        $this->assertDatabaseMissing('meal_plan_entries', ['user_id' => $ja->getKey(), 'day' => '2026-08-01', 'label' => 'Za wcześnie']);
+        $this->assertDatabaseHas('meal_plan_entries', ['user_id' => $ja->getKey(), 'day' => '2026-08-02', 'label' => 'Pierwszy dozwolony dzień']);
+    }
+
     public function test_dzien_ma_limit_pozycji(): void
     {
         $ja = $this->user('planujaca');

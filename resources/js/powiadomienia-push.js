@@ -13,6 +13,10 @@
  * PO ODMOWIE NIE NALEGAMY. Przy `denied` przycisku nie ma — jest jedno zdanie,
  * gdzie to zmienić, jeśli ktoś sam zechce. Żadnych własnych okienek.
  *
+ * WYLOGOWANIE (#1979): formularz `[data-wyloguj]` przed wysłaniem wypisuje
+ * tę przeglądarkę z Web Push i podaje serwerowi jej adres — patrz
+ * `przygotujWylogowanie()`.
+ *
  * Czyste funkcje są eksportowane dla `powiadomienia-push.test.mjs` (Node).
  */
 
@@ -61,6 +65,30 @@ export function stanEkranu({ wspierane, zgoda, wlaczoneTutaj }) {
     return { tekst: 'Powiadomienia na tym urządzeniu są wyłączone.', wlacz: true, wylacz: false };
 }
 
+/**
+ * Wpisuje stan do akapitu `[data-push-stan]` i przełącza przyciski (#1976).
+ *
+ * Akapit jest regionem `role="status"` — czytnik ekranu ogłasza wynik
+ * sprawdzenia przeglądarki bez przesuwania fokusu (WCAG 2.2, 4.1.3).
+ * Tekst podmieniamy TYLKO wtedy, gdy się zmienił: ponowne wpisanie tego
+ * samego zdania (np. `odswiez()` po kliknięciu) część czytników ogłasza
+ * drugi raz, a powtórzenie niczego nie mówi.
+ *
+ * @param {{stanEl: ?{textContent: string}, wlacz: ?{hidden: boolean}, wylacz: ?{hidden: boolean}}} elementy
+ * @param {{tekst: string, wlacz: boolean, wylacz: boolean}} stan
+ * @returns {boolean} czy tekst się zmienił (czyli czy będzie ogłoszony)
+ */
+export function pokazStan({ stanEl, wlacz, wylacz }, stan) {
+    let zmiana = false;
+    if (stanEl && stanEl.textContent.trim() !== stan.tekst) {
+        stanEl.textContent = stan.tekst;
+        zmiana = true;
+    }
+    if (wlacz) wlacz.hidden = !stan.wlacz;
+    if (wylacz) wylacz.hidden = !stan.wylacz;
+    return zmiana;
+}
+
 async function skrot(tekst) {
     const bajty = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(tekst));
     return Array.from(new Uint8Array(bajty), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -91,11 +119,7 @@ function setup(sekcja) {
     const wspierane = 'serviceWorker' in navigator && 'PushManager' in window
         && 'Notification' in window && window.isSecureContext && Boolean(klucz);
 
-    const pokaz = (stan) => {
-        if (stanEl) stanEl.textContent = stan.tekst;
-        if (wlacz) wlacz.hidden = !stan.wlacz;
-        if (wylacz) wylacz.hidden = !stan.wylacz;
-    };
+    const pokaz = (stan) => pokazStan({ stanEl, wlacz, wylacz }, stan);
 
     const powiedz = (tekst) => { if (komunikat) komunikat.textContent = tekst; };
 
@@ -176,8 +200,58 @@ function setup(sekcja) {
     odswiez();
 }
 
+/**
+ * Przed wylogowaniem (#1979): adres subskrypcji tej przeglądarki dla serwera
+ * i `unsubscribe()` w przeglądarce. Po „Wyloguj się" nikt na tym urządzeniu
+ * nie jest zalogowany, więc żadna subskrypcja, która tu została, nie ma już
+ * dla kogo pokazywać powiadomień — także taka po kimś, kto wcześniej nie
+ * wylogował się sam.
+ *
+ * NIGDY NIE ZATRZYMUJE WYLOGOWANIA. Każdy błąd i każde zawieszenie kończy
+ * się pustym adresem po `limitMs`; wtedy serwer i tak gasi urządzenie
+ * rozpoznane po sesji (`OdlaczUrzadzeniePush`).
+ *
+ * @param {object} nav  `navigator` (w testach atrapa)
+ * @param {number} limitMs
+ * @returns {Promise<string>} adres subskrypcji albo ''
+ */
+export function przygotujWylogowanie(nav, limitMs = 3000) {
+    const praca = (async () => {
+        if (!nav || !nav.serviceWorker || typeof nav.serviceWorker.getRegistration !== 'function') return '';
+        const rejestracja = await nav.serviceWorker.getRegistration('/');
+        const subskrypcja = rejestracja && rejestracja.pushManager
+            ? await rejestracja.pushManager.getSubscription()
+            : null;
+        if (!subskrypcja) return '';
+        const adres = typeof subskrypcja.endpoint === 'string' ? subskrypcja.endpoint : '';
+        try { await subskrypcja.unsubscribe(); } catch { /* serwer i tak skasuje wiersz */ }
+        return adres;
+    })().catch(() => '');
+
+    return Promise.race([praca, new Promise((gotowe) => setTimeout(() => gotowe(''), limitMs))]);
+}
+
+function setupWylogowanie(formularz) {
+    if (formularz.dataset.wylogujReady) return;
+    formularz.dataset.wylogujReady = '1';
+
+    formularz.addEventListener('submit', async (zdarzenie) => {
+        if (formularz.dataset.wylogujWysylane) return;
+        zdarzenie.preventDefault();
+        formularz.dataset.wylogujWysylane = '1';
+        const pole = formularz.querySelector('[data-wyloguj-push]');
+        const adres = await przygotujWylogowanie(typeof navigator !== 'undefined' ? navigator : null);
+        if (pole) pole.value = adres;
+        // `submit()` nie wywołuje ponownie zdarzenia `submit`.
+        formularz.submit();
+    });
+}
+
 if (typeof document !== 'undefined') {
-    const start = () => document.querySelectorAll('[data-push]').forEach(setup);
+    const start = () => {
+        document.querySelectorAll('[data-push]').forEach(setup);
+        document.querySelectorAll('form[data-wyloguj]').forEach(setupWylogowanie);
+    };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
     else start();
 }
