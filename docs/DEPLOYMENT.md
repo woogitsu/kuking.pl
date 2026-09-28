@@ -183,6 +183,56 @@ build
 Ryzykowne zmiany:
 `expand → migrate/backfill → switch → contract`.
 
+### Kolejność w topologii split: worker i scheduler czekają na migracje (#2044)
+
+Migracje uruchamia **wyłącznie `web`**, w pre-deploy (`kuking:migruj-pod-blokada`).
+Railway nie ma bramki między usługami, a `worker` i `scheduler` wdrażają się
+z tego samego commita równolegle z `web`. Dlatego pilnuje tego sam obraz,
+w `docker/entrypoint.sh` (`czekaj_na_migracje`), bez nowej usługi i bez zmian
+w panelu:
+
+```text
+web:        pre-deploy (migrate → wdrożenie → seed → import) → healthcheck → ruch
+worker:     start kontenera → czeka, aż `migrate:status` nie ma oczekujących → queue:work
+scheduler:  start kontenera → czeka, aż `migrate:status` nie ma oczekujących → schedule:run
+```
+
+Jak to działa i co widać w logach:
+
+- Czekanie sprawdza migracje **z obrazu tej usługi** (`php artisan migrate:status
+  --pending=1`). Worker nie migruje sam — trzy migratory to wyścig o blokady.
+- Log workera/schedulera: `czekam na migracje serwisu web — oczekujących: N`
+  (co ok. 30 s), a na końcu `schemat bazy jest aktualny … — startuję`.
+  Baza niedostępna albo pusta (brak tabeli `migrations`) to też „jeszcze nie";
+  surowego komunikatu z bazy nie wypisujemy.
+- **Limit czekania: 900 s** (`MIGRACJE_LIMIT_S`; pre-deploy web ma 600 s).
+  Po nim kontener kończy się kodem 1 i log mówi: `nie startuję na starym
+  schemacie`. Najczęstsza przyczyna: migracja web się nie udała — sprawdź log
+  jej pre-deploy. Railway ponawia worker (`ON_FAILURE`, 10 prób) i scheduler
+  (`ALWAYS`); po wyczerpaniu prób zrestartuj usługę ręcznie.
+- Przerwa między próbami: `MIGRACJE_ODSTEP_S` (domyślnie 5 s).
+- **Awaryjne wyłączenie**: `MIGRACJE_BRAMKA=0` w zmiennych usługi (log ostrzega
+  wprost). Używaj tylko wtedy, gdy sama bramka blokuje start, a schemat jest
+  sprawdzony ręcznie.
+- Rola `all` (dzisiejsza produkcja) bramki nie potrzebuje: działa w kontenerze
+  web, który wstaje dopiero po pre-deploy.
+- Cofnięcie kodu workera (schemat NOWSZY niż kod) nie blokuje startu: liczą się
+  tylko migracje, które obraz zna, a baza ich jeszcze nie ma.
+
+Czego bramka **nie** załatwia — to nadal zgodność wsteczna migracji:
+
+- W trakcie przełączenia **stare** procesy (okno drenowania `worker`/`scheduler`,
+  stary kontener `all`) pracują dalej na już zmigrowanym schemacie. Migracja
+  musi więc być zgodna z kodem poprzedniej wersji (expand → switch → contract);
+  `DROP`/`RENAME` kolumny w jednym wdrożeniu z jej użyciem jest zakazane
+  (ścieżka C w `docs/infra/DEPLOYMENT_RUNBOOK.md`, „Rollback").
+- Przez czas czekania nowy worker nie przetwarza kolejki, a zadania czekają
+  w tabeli `jobs` (nie giną). Długa migracja = dłuższa cisza workera.
+
+Test: `bash tests/skrypty/bramka-migracji.sh` (atrapa `php`, bez bazy; ten sam
+plik ma kontrole ujemne na sześciu zepsutych kopiach bramki), wołany z
+`scripts/check.sh`.
+
 ## Konto gospodarza (`KUKING_HOST_USER_ID`, #1089)
 
 Mechanizmy społeczności (auto-obserwowanie przy rejestracji, alert pierwszego
