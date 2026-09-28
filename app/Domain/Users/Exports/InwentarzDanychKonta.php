@@ -63,6 +63,7 @@ final class InwentarzDanychKonta
         'blocks.blocker_id' => [self::EKSPORT, 'zablokowane_osoby'],
         'tag_follows.user_id' => [self::EKSPORT, 'obserwowane_tagi'],
         'hides.user_id' => [self::EKSPORT, 'ukryte'],
+        'post_reactions.user_id' => [self::EKSPORT, 'moje_reakcje'],
         'notifications.user_id' => [self::EKSPORT, 'powiadomienia'],
         'media.owner_id' => [self::EKSPORT, 'zdjecia'],
         'dziennik_zgod.user_id' => [self::EKSPORT, 'dziennik_zgod'],
