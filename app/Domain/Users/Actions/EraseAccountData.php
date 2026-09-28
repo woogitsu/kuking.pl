@@ -16,6 +16,7 @@ use App\Models\DataExport;
 use App\Models\Hide;
 use App\Models\MailFailure;
 use App\Models\Media;
+use App\Models\PostReaction;
 use App\Models\User;
 use App\Models\WpisZgody;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -274,6 +275,18 @@ final class EraseAccountData
             Hide::query()->where('user_id', $fresh->getKey())->delete();
 
             /*
+             * „SMAKOWICIE WYGLĄDA" (`post_reactions`, #1813) ZNIKA RAZEM
+             * Z KONTEM (przegląd #1781) — z tego samego powodu co ukrycia
+             * wyżej: kaskada klucza obcego przy anonimizacji nie zadziała.
+             * Bez tego autorzy dalej widzieliby przy swoich wpisach reakcję
+             * „Użytkownika usuniętego". Tylko reakcje NAPISANE przez to konto
+             * (`user_id`); reakcje innych pod jego wpisami to słowa tamtych
+             * osób. Kluczem jest `user_id`, więc dwie egzekucje nie mają
+             * wspólnego wiersza (D-093).
+             */
+            PostReaction::query()->where('user_id', $fresh->getKey())->delete();
+
+            /*
              * DRUGI SKŁADNIK LOGOWANIA ZNIKA RAZEM Z KONTEM (G05).
              *
              * Sekret i kody zapasowe leżą pod castem `encrypted`, więc to
@@ -404,6 +417,9 @@ final class EraseAccountData
                 'wants_birthday_email' => false,
                 'birthday_visible_to_followers' => false,
                 'birthday_email_sent_on' => null,
+                // Bariera przed dublem (issue #1956) — czyścimy razem z resztą
+                // śladu urodzin, żeby nie zostawić samotnej daty bez znaczenia.
+                'birthday_email_queued_on' => null,
                 // `ostatnio_widziany_at` (issue #114/#115) jest DANĄ OSOBOWĄ
                 // tego samego rodzaju co reszta pól wyżej — mówi, kiedy
                 // KONKRETNA osoba ostatnio korzystała z serwisu. Konto

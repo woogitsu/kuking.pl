@@ -176,9 +176,7 @@
         @endif
 
         @if($szukaPrzepisow && $recipes->isNotEmpty())
-            @if($section === 'wszystko')
-                <h2 class="mt-6">Przepisy</h2>
-            @endif
+            <h2 class="mt-6">{{ $section === 'szybkie' ? 'Do 30 minut' : 'Przepisy' }}</h2>
 
             <p class="meta">
                 @if($odPrzepisu > 0 && $recipes->count() === 1)
@@ -210,9 +208,7 @@
         @endif
 
         @if($szukaLudzi && $people->isNotEmpty())
-            @if($section === 'wszystko')
-                <h2 class="mt-8">Ludzie</h2>
-            @endif
+            <h2 class="mt-8">Ludzie</h2>
 
             <p class="meta">
                 @if($odOsoby > 0 && $people->count() === 1)
