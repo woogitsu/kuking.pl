@@ -15289,10 +15289,10 @@ mierzonych stronach i reguł o zasięgu masowym (ponad 300 elementów — wewnę
 reguły Tailwinda). Wszystkie trzy są RAPORTOWANE jako `niezmierzone`, nigdy
 pomijane po cichu: cisza wyglądałaby jak wynik pozytywny.
 
-## D-1009-ROBOCZA — Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026)
+## D-329 — Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026)
 
-Numer ostateczny przydziela koordynator przy scalaniu. Właściciel rozstrzygnął
-wprost: pierwszy wkład nie powtarza się po usunięciu wpisu. Zatwierdził także
+Właściciel rozstrzygnął wprost: pierwszy wkład nie powtarza się po usunięciu
+wpisu. Zatwierdził także
 odtworzenie tylko na podstawie zachowanych danych, bez zaległych alertów;
 pełna gwarancja zaczyna się od wdrożenia.
 
@@ -15785,11 +15785,11 @@ jest zamierzone: pilnują, żeby strażnik nie blokował za dużo.
 > a ten numer (i D-226, D-227 — numery zajęte na gałęziach, nie na `main`,
 > bez własnego nagłówka w tym dzienniku) zajęły w międzyczasie inne decyzje
 > na `main`. D-239 to pierwszy numer wolny na `origin/main` i na wszystkich
-> gałęziach zdalnych w dniu przeniesienia (reguła D-235: ustępuje gałąź,
-> której numeru nie ma jeszcze na `main` — reguła koordynacji numeracji
-> między gałęziami, opisana w `docs/flota/MAPA_NUMEROW_DECYZJI.md` i
-> `docs/flota/KOLEJNOSC_SCALANIA.md`; D-235 sama nigdy nie scaliła się jako
-> osobny wpis, więc pod tym numerem nie szukaj nagłówka w tym pliku).
+> gałęziach zdalnych w dniu przeniesienia (reguła koordynacji numeracji:
+> ustępuje gałąź, której numeru nie ma jeszcze na `main` — opisana w sekcji
+> „Procedura nadawania numeru" w `docs/flota/MAPA_NUMEROW_DECYZJI.md` oraz
+> w `docs/flota/KOLEJNOSC_SCALANIA.md` §2; to nie jest osobny wpis dziennika,
+> więc nie szukaj jej pod żadnym numerem D-NNN).
 > Treść to intencja tamtej gałęzi przeniesiona na
 > obecny kod, bez części o drodze zgłoszenia DSA (osobna decyzja, nie ta).
 
@@ -16115,8 +16115,9 @@ a ekrany z #1168 zostają, bo bez nich nie ma jak wskazać zeszytu.
 **Numer.** D-230 i D-231 są na `main` zajęte przez #1168, a D-232–D-241 oraz
 D-243 (numery na gałęziach, nie na `main` w chwili tego wpisu) przez inne
 gałęzie. Ta decyzja nosiła najpierw D-241, który wcześniej
-wypchnęła `flota/scal-786` (#966), więc ustąpiła na D-242 (D-235: ustępuje
-strona, która wzięła cudzy numer). Potem obie gałęzie ustąpiły sobie
+wypchnęła `flota/scal-786` (#966), więc ustąpiła na D-242 (reguła numeracji:
+ustępuje strona, która wzięła cudzy numer — „Procedura nadawania numeru"
+w `docs/flota/MAPA_NUMEROW_DECYZJI.md`). Potem obie gałęzie ustąpiły sobie
 nawzajem naraz: o 23:54Z `flota/scal-786` oddała D-242 tej decyzji i wzięła
 D-243, a o 23:59Z ta decyzja — nie widząc tamtego pchnięcia, bo hak
 `pre-push` trwa kilkanaście minut — przeszła na D-243. D-243 pierwsza
