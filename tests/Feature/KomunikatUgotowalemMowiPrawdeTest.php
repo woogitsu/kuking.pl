@@ -15,6 +15,47 @@ class KomunikatUgotowalemMowiPrawdeTest extends TestCase
 {
     use RefreshDatabase;
 
+    #[DataProvider('widocznoscPrzepisu')]
+    public function test_formularz_przed_wyslaniem_wyjasnia_kto_zobaczy_wykonanie(
+        string $widocznosc,
+        bool $wlasnyPrzepis,
+    ): void {
+        $autor = $this->user('autor_widocznosci');
+        $kucharz = $wlasnyPrzepis ? $autor : $this->user('kucharz_widocznosci');
+        $przepis = Recipe::factory()->for($autor, 'author')->create([
+            'status' => Recipe::STATUS_PUBLISHED,
+            'visibility' => $widocznosc,
+            'published_at' => now()->subDay(),
+        ]);
+
+        $html = $this->actingAs($kucharz)
+            ->get(route('cooked.create', $przepis->slug))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('name="photos[]"', $html);
+        $this->assertStringContainsString('name="note"', $html);
+        $this->assertStringContainsString('name="changes_note"', $html);
+        $this->assertStringContainsString('<button class="btn btn-primary" type="submit">Wyślij</button>', $html);
+        $this->assertStringContainsString(
+            'Twoje wykonanie, zdjęcia i odpowiedzi zobaczą osoby, które mogą zobaczyć ten przepis.',
+            $html,
+        );
+        $this->assertLessThan(
+            strpos($html, '<button class="btn btn-primary" type="submit">Wyślij</button>'),
+            strpos($html, 'Kto to zobaczy?'),
+        );
+    }
+
+    /** @return array<string, array{string, bool}> */
+    public static function widocznoscPrzepisu(): array
+    {
+        return [
+            'publiczny' => ['public', false],
+            'prywatny_autora' => ['private', true],
+        ];
+    }
+
     /** @return array<string, array{bool, string, int}> */
     public static function autorzy(): array
     {

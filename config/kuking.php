@@ -386,6 +386,14 @@ return [
         // ma być wszędzie podobny, żeby człowiek wiedział, czego się
         // spodziewać (UX_50_PLUS.md: przewidywalność przed bogactwem).
         'page_size' => (int) env('KUKING_COMMENTS_PAGE_SIZE', 12),
+
+        // Ile ODPOWIEDZI jednego wątku pokazuje strona naraz (issue #939).
+        // Nic nie ogranicza, ile razy ta sama osoba odpowie w wątku, więc bez
+        // tego limitu jeden gorący wątek ładował całą rozmowę mimo paginacji
+        // wątków. Dalsze porcje: link „Pokaż dalsze odpowiedzi (N)”, bez JS
+        // (`App\Domain\Comments\OdpowiedziWatku`). Ta sama liczba co
+        // `page_size` — jeden krok ma być wszędzie podobny.
+        'replies_per_thread' => (int) env('KUKING_COMMENT_REPLIES_PER_THREAD', 12),
     ],
 
     'collections' => [
@@ -1490,6 +1498,22 @@ return [
         'facebook_domkniecie' => '5,10',
 
         /*
+         * ODEBRANIE DOSTĘPU U FACEBOOKA — webhook, nie klik człowieka
+         * (issue #1869, audyt). Osobny koszyk od `facebook_*` wyżej: to woła
+         * serwer Facebooka, nie przeglądarka, więc mieszanie go z limitami
+         * kliknięć nie ma sensu — a licznik po adresie IP musiałby wtedy
+         * pomieścić naraz i ludzi klikających „Wejdź kontem Facebooka",
+         * i serwery Meta.
+         *
+         * Ta sama liczba i ten sam wzorzec co `csp_report` niżej: sześćdziesiąt
+         * na minutę, po adresie IP. Prawdziwe powiadomienia są RZADKIE — jedno
+         * na osobę, która akurat odebrała dostęp — więc ten limit nie gubi
+         * żadnego z nich w normalnym ruchu, a jednocześnie ogranicza koszt
+         * (HMAC + wpis w logu) każdego niepodpisanego żądania seryjnego.
+         */
+        'facebook_deauthorize' => '60,1',
+
+        /*
          * Ekran zaproszenia do założenia konta — POST-y z niego (D-085).
          *
          * OSOBNY KOSZYK od `login_link_wejscie`, choć liczba jest ta sama
@@ -1617,6 +1641,34 @@ return [
         // więc pięć prób na godzinę nikomu nie przeszkadza.
         'appeal' => '5,60',
         'search' => '60,1',
+
+        /*
+         * „ŚWIEŻO Z KUKING" (`/odkryj`, trasa `discover`) — issue #1952.
+         *
+         * Trasa jest PUBLICZNA, dostępna bez konta i bez limitu do 26 września
+         * 2026 — dokładnie tak, jak przy `zdjecie` wyżej, to jest nowa, tania
+         * droga do zalania serwisu, tylko droższa: `DiscoverFeed::paginate()`
+         * liczy `row_number() OVER (PARTITION BY posts.author_id ...)` na
+         * WSZYSTKICH publicznych wpisach PRZED odcięciem strony (issue #1807),
+         * dokłada podzapytanie widoczności i doładowuje autora, zdjęcia,
+         * przepis, zdjęcie przepisu, tagi i liczniki komentarzy/zapisów.
+         * Landing (`/`) woła to samo zapytanie dla gościa (`FeedController::landing()`),
+         * ale ma własną, mniejszą trasę (`landing`) i świadomie zostaje poza
+         * tym limitem: to jedyne wejście na cały serwis, a `PublicznyHtmlGoscia`
+         * i tak trzyma dla niej gotowy (dziś wyłączony, `KUKING_HTML_EDGE_CACHE_SECONDS=0`)
+         * wspólny cache brzegu — `/odkryj` z tego cache świadomie NIE korzysta
+         * (`PublicznyHtmlGoscia::TRASY`, komentarz przy tej stałej), więc jedyną
+         * bramką kosztu zostaje limit zapytań, nie cache HTML.
+         *
+         * TEN SAM RZĄD WIELKOŚCI CO `search` WYŻEJ, z tego samego powodu: to
+         * jest zasób strony, nie formularz, a paginacja „Pokaż więcej" (AGENTS.md
+         * §5) generuje jedno żądanie na kliknięcie. Sześćdziesiąt na minutę
+         * mieści wieczór przeglądania i kilka osób za jednym łączem (limit
+         * liczy się PO ADRESIE IP dla gościa), a nie starcza na powtarzalne,
+         * automatyczne odpytywanie, przed którym stoi to zgłoszenie.
+         */
+        'discover' => '60,1',
+
         // Autouzupełnianie z debounce; osobny budżet od pełnej wyszukiwarki.
         'tag_suggestions' => '120,1',
         // Podpowiedzi tagów podczas pisania wpisu (SPEC §1.5). Ten sam rząd
@@ -1625,6 +1677,23 @@ return [
         // tabeli, i ta sama osoba już i tak korzysta z jednego budżetu
         // zapytań na konto.
         'tag_suggest' => '60,1',
+
+        /*
+         * „MÓJ STÓŁ" — strona (issue #1749, D-304). Ten sam wzorzec co
+         * `search`: to jest strona za logowaniem, otwierana zwykłym
+         * przewijaniem/odświeżaniem, nie formularz — więc koszyk ma ten sam
+         * rząd wielkości, sześćdziesiąt na minutę, żeby nie łapać człowieka,
+         * który wraca na tę stronę kilka razy w trakcie gotowania.
+         *
+         * OSOBNY PREFIKS OD `search`, mimo tej samej liczby: to inna trasa
+         * i inna szkoda z nadużycia (patrz
+         * `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest` — jeden prefiks to
+         * zawsze jedna trasa). Zapis stanu (przełącznik włącz/wyłącz) ma już
+         * własny limit zapisu (`ustawienia`, PUT `/moj-stol`); ten koszyk
+         * dotyczy tylko odczytu strony (GET `/moj-stol`), który wcześniej nie
+         * miał żadnego limitu.
+         */
+        'moj_stol' => '60,1',
 
         /*
          * Serwowanie zdjęcia (audyt W7-02) — trasa `media.show`.
@@ -1654,6 +1723,11 @@ return [
         // bo klikanie „poprzedni/następny krok” w trakcie gotowania zdarza
         // się częściej niż pisanie komentarzy.
         'cooking_krok' => '60,1',
+
+        // Pokaż/ukryj szacunkowe wartości odżywcze przy własnym przepisie
+        // (D-299). Jedna kolumna w jednym wierszu, bez nowej wersji
+        // przepisu — ale to wciąż zapis, więc ma sufit jak każdy formularz.
+        'wartosci_odzywcze' => '20,1',
 
         // Weryfikacja kodu 2FA (logowanie i wyłączanie, issue #12). Kod ma
         // sześć cyfr — milion możliwości brzmi dużo, ale bez limitu prób to
@@ -1817,6 +1891,13 @@ return [
         'ukrycia' => '60,10',
 
         /*
+         * „SMAKOWICIE WYGLĄDA" (issue #1813) — zapis i cofnięcie reakcji.
+         * Nie powiadamia od razu (zbiorczo raz dziennie), więc limit chroni
+         * tylko bazę przed pętlą klikania, nie ludzi przed zalewem.
+         */
+        'reakcje' => '120,10',
+
+        /*
          * ZESZYT — zapis i wypisanie przepisu albo wpisu, założenie zeszytu.
          *
          * Szkoda z nadużycia: praktycznie żadna poza kontem sprawcy. Nikt
@@ -1941,6 +2022,18 @@ return [
          * profil — a skrypt wgrywający obrazy potrzebowałby setek.
          */
         'ustawienia_profil' => '15,10',
+
+        /*
+         * WGRYWANIE PLIKU W KREATORZE PRZEPISU (endpoint Livewire
+         * `livewire/upload-file`, audyt A5-09). Podpinane w
+         * `config/livewire.php`, bo tej trasy nie ma w `routes/web.php`.
+         *
+         * Każde zdjęcie to jedno żądanie, wysyłane od razu po wyborze pliku.
+         * SKĄD 30 NA 10 MINUT. Długi przepis to zdjęcie dania i kilkanaście
+         * zdjęć kroków, plus kilka ponownych wyborów — mieści się z zapasem.
+         * Domyślne `60,1` pakietu pozwalało wgrać 900 MB na minutę.
+         */
+        'livewire_upload' => '30,10',
 
         /*
          * PACZKA Z DANYMI (RODO) — `POST /ustawienia/twoje-dane/eksport`.
@@ -2881,6 +2974,31 @@ return [
         'budzet' => (int) env('KUKING_RETENCJA_BUDZET', 50000),
     ],
 
+    // DZIENNIK WYMAZAŃ KONT POZA BAZĄ (audyt B5, znalezisko 3, 25.09.2026).
+    //
+    // Odtworzenie bazy z kopii przywraca konta wymazane po dacie kopii,
+    // a ślad wymazania leży w tej samej bazie. Dziennik — jeden obiekt na
+    // konto: identyfikator, chwila, zakres — leży w magazynie obiektów
+    // (`App\Domain\Compliance\DziennikWymazan`) i czyta go
+    // `kuking:wymaz-ponownie`, obowiązkowy krok procedury odtworzenia
+    // (`docs/infra/KOPIE_I_ODTWORZENIE.md`).
+    //
+    // DYSK: domyślnie ten sam prywatny dysk co paczki eksportu (na produkcji
+    // `r2_eksporty`), prefiks `dziennik-wymazan/`. NIE bucket kopii bazy —
+    // tam aplikacja nie ma prawa zapisu (D-043), i NIE baza.
+    //
+    // 120 DNI: dłużej niż najstarsza kopia, z której konto mogłoby wrócić
+    // (zrzut offsite 30 dni, PITR ok. 4 tygodni, miesięczny Volume Backup
+    // Railwaya 89 dni — KOPIE_I_ODTWORZENIE.md §5.3). Starszy wpis nie ma już
+    // przed czym chronić, więc znika.
+    'dziennik_wymazan' => [
+        'dysk' => env('KUKING_DZIENNIK_WYMAZAN_DYSK', env(
+            'KUKING_EXPORT_DISK',
+            env('FILESYSTEM_DISK', 'local') === 'r2' ? 'r2_eksporty' : 'local',
+        )),
+        'retention_days' => (int) env('KUKING_DZIENNIK_WYMAZAN_DNI', 120),
+    ],
+
     // TREŚCI USUNIĘTE PRZEZ AUTORA (audyt B5, znalezisko 1, 25.09.2026).
     //
     // „Usuń wpis”, „Usuń przepis” i „Usuń komentarz” robią miękkie
@@ -3387,7 +3505,7 @@ return [
         // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
         // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
         // wersji nie da się z niczym powiązać.
-        'etykieta' => 'Alfa 0.68',
+        'etykieta' => 'Alfa 0.70',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
         //
@@ -3423,6 +3541,25 @@ return [
         // `bootstrap/`, nie `storage/`: `storage/` bywa wolumenem podpiętym
         // przy starcie kontenera i wtedy zasłania to, co leży w obrazie.
         'plik_wydania' => base_path('bootstrap/wydanie.txt'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Strona „Co nowego" (issue #1909, #1932)
+    |--------------------------------------------------------------------------
+    |
+    | Ścieżka jest jedna, ale POTRZEBUJE jej DWÓCH miejsc, które muszą liczyć
+    | slugi identycznie: `NowosciController` (renderuje stronę) i
+    | `App\Domain\Wydania\Actions\ZarejestrujWdrozenie` (zapisuje, pod jakim
+    | numerem wdrożenia pojawił się każdy nagłówek `###` z „## Najnowsze
+    | zmiany"). Konfigurowalna, a nie `resource_path()` wpisane w obu
+    | miejscach na twardo, żeby test mógł podmienić plik na własną, tymczasową
+    | treść bez nadpisywania PRAWDZIWEGO `resources/nowosci/tresc.md` — ten
+    | plik jest treścią redakcyjną w repozytorium, nie fixture'em testowym.
+    |
+    */
+    'nowosci' => [
+        'tresc' => resource_path('nowosci/tresc.md'),
     ],
 
     /*

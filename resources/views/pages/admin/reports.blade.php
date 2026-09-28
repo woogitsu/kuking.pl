@@ -137,9 +137,21 @@
                     <p class="meta">
                         Wskazany adres:
                         <span class="kod-do-przepisania">{{ $report->target_url }}</span>
-                        @if($report->target_type === 'unknown')
-                            <strong>— nie rozpoznaliśmy, o którą treść chodzi.</strong>
-                        @endif
+                        {{-- Rodzaj adresu liczony z samej wartości, nie z `target_type`:
+                             zgłoszenie sprzed #1636 mogło przypiąć obcy adres do naszej
+                             treści, a moderator ma to zobaczyć przed decyzją. --}}
+                        @switch(\App\Domain\Moderation\AdresZgloszenia::rodzaj((string) $report->target_url))
+                            @case(\App\Domain\Moderation\AdresZgloszenia::ZEWNETRZNY)
+                                <strong>— to adres spoza Kuking albo w nietypowej postaci. Nie łączymy go z żadną naszą treścią — sprawdź go ręcznie, zanim podejmiesz decyzję.</strong>
+                                @break
+                            @case(\App\Domain\Moderation\AdresZgloszenia::NIEPOPRAWNY)
+                                <strong>— to nie jest adres strony, tylko opis. Poszukaj tej treści ręcznie.</strong>
+                                @break
+                            @default
+                                @if($report->target_type === 'unknown')
+                                    <strong>— adres Kuking, ale nie rozpoznaliśmy, o którą treść chodzi.</strong>
+                                @endif
+                        @endswitch
                     </p>
                 @endif
 

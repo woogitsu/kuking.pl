@@ -16,7 +16,9 @@ use Tests\TestCase;
  * polecenia widza. Ten plik pilnuje jej mierzalnej części — żadna lista nie
  * jest układana po mierze cudzych reakcji. Zasięg: `app/Domain/Feed`,
  * `app/Domain/Digest` (tygodniowy list to czwarta powierzchnia z wpisami,
- * obok Obserwowanych, Odkrywania i tablicy) i każdy plik z `publiclyVisible()`.
+ * obok Obserwowanych, Odkrywania i tablicy), półkę „Mój stół” (`MojStol`,
+ * #1749, D-304 — w `app/Domain/Feed`, więc w zasięgu z definicji katalogu,
+ * z kotwicą niżej; sortuje po czasie i po kolejności gospodarza) i każdy plik z `publiclyVisible()`.
  *
  * ═══════════════════════════════════════════════════════════════════════
  *  CO TEN TEST MIERZY I DLACZEGO AKURAT TO
@@ -111,7 +113,7 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
      * warunkiem, nie kluczem), a samo „obserwujący" tym bardziej. Zakazane
      * jest dopiero LICZENIE reakcji.
      */
-    private const WZORZEC_REAKCJI = '/(cooked|wykona|obserw|follow|zapis|collection|zeszyt|comment|komentarz|like|polub|reakcj|ulubion|smakowic|odslon|wyswietl|views)/i';
+    private const WZORZEC_REAKCJI = '/(cooked|wykona|obserw|follow|zapis|collection|zeszyt|comment|komentarz|like|polub|reakcj|ulubion|smakowic|reaction|odslon|wyswietl|views)/i';
 
     private const WZORZEC_LICZENIA = '/(?<![a-z])(count|sum|liczb|ile|total|avg|srednia)/i';
 
@@ -503,6 +505,7 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
             'app/Domain/Feed/HeroKolaz.php',
             'app/Domain/Search/SearchQuery.php',
             'app/Domain/Digest/ZbierzTresciDigestu.php',
+            'app/Domain/Feed/MojStol.php',
         ] as $kotwica) {
             $this->assertContains($kotwica, $pliki, "Skan nie widzi {$kotwica} — zasięg strażnika przestał obejmować feed.");
         }
@@ -543,6 +546,18 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
         $this->assertContains("'published_at'", $argumentyDigestu, 'Skan nie widzi sortowania wpisów w tygodniowym liście.');
         $this->assertContains("'cooked_events.cooked_at'", $argumentyDigestu, 'Skan nie widzi sortowania wykonań w tygodniowym liście.');
 
+        // „Mój stół” (#1749, D-304): półka propozycji to piąta powierzchnia
+        // z wpisami. Skan musi widzieć jej sortowanie po czasie — kontrola
+        // ujemna w `scripts/kontrole-negatywne-alfa08.py` podmienia je na
+        // licznik wykonań i ten plik ma wtedy oblać.
+        $argumentyStolu = array_column($this->sortowania('app/Domain/Feed/MojStol.php'), 'argument');
+        $this->assertContains("'posts.published_at'", $argumentyStolu, 'Skan nie widzi sortowania półki „Mój stół”.');
+        // Trzecia sekcja półki — „kuKINGi na dziś” (PR #1875): kolejność
+        // gospodarza, nie miara reakcji. Druga kontrola ujemna podmienia ją
+        // na licznik wykonań.
+        $this->assertContains("'daily_picks.position'", $argumentyStolu, 'Skan nie widzi kolejności „kuKINGów na dziś” na półce.');
+        $this->assertSame('neutralne', $this->rozstrzygnij('orderBy', "'daily_picks.position'", $this->kolumnySchematu()));
+
         $kolumny = $this->kolumnySchematu();
         $this->assertSame('neutralne', $this->rozstrzygnij('orderByDesc', "'cooked_events.cooked_at'", $kolumny));
         $this->assertGreaterThanOrEqual(20, count($kolumny), 'Skan nie widzi schematu bazy — bez niego każda kolumna wyglądałaby na wyrażenie.');
@@ -578,6 +593,10 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
             ["'views_count'", 'nietykalne'],
             ["'liczba_odslon DESC'", 'nietykalne'],
             ["'smakowicie_count'", 'nietykalne'],
+            // #1813: tabela reakcji ma angielską nazwę `post_reactions` —
+            // słowo „reaction" musi zapalać strażnika tak samo jak „reakcj".
+            ["'post_reactions_count'", 'nietykalne'],
+            ["'reakcje_count DESC'", 'nietykalne'],
 
             // czas i porządek — wolno
             ["'published_at'", 'neutralne'],

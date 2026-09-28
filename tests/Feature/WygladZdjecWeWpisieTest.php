@@ -494,6 +494,37 @@ class WygladZdjecWeWpisieTest extends TestCase
         );
     }
 
+    public function test_kolaz_dopasowuje_szerokosci_do_formatu_i_nie_zostawia_pustego_kafla(): void
+    {
+        $autor = $this->user('basia');
+        $wpis = $this->wpisZeZdjeciami($autor, 3, Post::DISPLAY_COLLAGE);
+
+        foreach ($wpis->media as $index => $media) {
+            $metadata = $media->metadata;
+            $metadata['variants']['thumb']['width'] = $index === 1 ? 240 : 320;
+            $metadata['variants']['thumb']['height'] = $index === 1 ? 320 : ($index === 2 ? 320 : 240);
+            $media->update(['metadata' => $metadata]);
+        }
+
+        $html = $this->get($wpis->url())->assertOk()->getContent();
+        $document = new \DOMDocument;
+        @$document->loadHTML($html);
+        $xpath = new \DOMXPath($document);
+        $kolaz = $xpath->query('//*[@class="kolaz" and @role="list"]')->item(0);
+
+        $this->assertNotNull($kolaz);
+        $wiersze = $xpath->query('./*[@class="kolaz-wiersz"]', $kolaz);
+        $this->assertCount(2, $wiersze, 'Trzecie zdjęcie ma dostać własny wiersz.');
+        $this->assertCount(2, $xpath->query('./*[contains(concat(" ", normalize-space(@class), " "), " kolaz-pole ")]', $wiersze->item(0)));
+        $this->assertCount(1, $xpath->query('./*[contains(concat(" ", normalize-space(@class), " "), " kolaz-pole ")]', $wiersze->item(1)));
+
+        $pola = $xpath->query('.//*[contains(concat(" ", normalize-space(@class), " "), " kolaz-pole ")]', $kolaz);
+        $this->assertSame('kolaz-pole kolaz-format-11', $pola->item(0)?->attributes?->getNamedItem('class')?->nodeValue);
+        $this->assertSame('kolaz-pole kolaz-format-6', $pola->item(1)?->attributes?->getNamedItem('class')?->nodeValue);
+        $this->assertSame('kolaz-pole kolaz-format-8', $pola->item(2)?->attributes?->getNamedItem('class')?->nodeValue);
+        $this->assertCount(3, $xpath->query('.//a[@data-powieksz]', $kolaz));
+    }
+
     public function test_na_waskim_telefonie_kolaz_schodzi_do_jednej_kolumny(): void
     {
         // DECYZJA WŁAŚCICIELA. Przy 320 px pole kolażu ma około 155 px,

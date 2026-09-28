@@ -36,7 +36,7 @@
         <section class="panel-formularza">
             <h2>Co się stanie</h2>
             <ul>
-                <li>Przez {{ $dni }} dni nie zobaczysz wpisów tej osoby w „Świeżo z <x-kuking-word />”, na tablicy na dziś ani wśród propozycji osób.</li>
+                <li>Przez {{ $dni }} dni nie zobaczysz wpisów tej osoby w „Świeżo z <x-kuking-word />”, na tablicy na dziś, wśród propozycji osób ani na Starcie z obserwowanych tagów.</li>
                 <li>To działa tylko dla Ciebie. Inni widzą tę osobę jak dotąd.</li>
                 <li>Nie powiadamiamy tej osoby.</li>
                 <li>Jej profil, przepisy w wyszukiwarce i wpisy pod linkiem dalej otworzysz.</li>

@@ -26,9 +26,26 @@ class Comment extends Model
 
     public const STATUS_PUBLISHED = 'published';
 
+    /**
+     * Ile odpowiedzi widz widzi w CAŁYM wątku i która porcja jest wczytana
+     * (issue #939, `OdpowiedziWatku::uzupelnij()`). Zwykłe właściwości, nie
+     * atrybuty — nie trafiają do zapisu. `null` = nikt nie policzył, więc
+     * wątek nie pokazuje linków do dalszych odpowiedzi.
+     */
+    public ?int $odpowiedziRazem = null;
+
+    public int $porcjaOdpowiedzi = 1;
+
     public const STATUS_HIDDEN = 'hidden';
 
     public const STATUS_REMOVED = 'removed';
+
+    /**
+     * Ślad usuniętego korzenia z odpowiedziami (#1317). Stoi na modelu, nie
+     * w `DeleteComment`, bo czyta go też `Moderation\RestoreContent` — import
+     * akcji z modułu Comments zamykałby cykl modułów domeny (#971).
+     */
+    public const DELETED_PLACEHOLDER = 'Komentarz usunięty.';
 
     /**
      * Komentarze, które WOLNO pokazać temu widzowi (issue #41, audyt komentarzy).
@@ -170,9 +187,13 @@ class Comment extends Model
 
     public function replies(): HasMany
     {
+        // `id` rozstrzyga remisy `created_at` — porcje odpowiedzi (issue
+        // #939) inaczej potrafią pokazać tę samą odpowiedź dwa razy. Ta sama
+        // kolejność co w `CelPowiadomienia::adresy()`.
         return $this->hasMany(self::class, 'parent_id')
             ->where('status', self::STATUS_PUBLISHED)
-            ->oldest();
+            ->oldest()
+            ->orderBy('id');
     }
 
     public function post(): BelongsTo
@@ -207,5 +228,15 @@ class Comment extends Model
             $subject instanceof CookedEvent => $subject->user_id,
             default => null,
         };
+    }
+
+    /**
+     * Wersja treści, którą widzi formularz poprawki (issue #982). Odcisk
+     * `body`, a nie `updated_at`: sekundowy znacznik czasu remisuje przy
+     * dwóch szybkich zapisach, a poprawka zmienia tylko treść.
+     */
+    public function wersjaTresci(): string
+    {
+        return hash('sha256', (string) $this->body);
     }
 }
