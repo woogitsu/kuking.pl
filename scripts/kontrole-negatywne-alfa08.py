@@ -647,6 +647,12 @@ IAC_PRODUKCJA_TEST = "IacProdukcjaTylkoZPrDoMainTest"
 README = "README.md"
 README_SECURITY_TEST = "ReadmeISecurityMowiaPrawdeTest"
 IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
+# CHANGELOG bez zdublowanych wpisów (audyt po fali 26.09.2026): rozwiązanie
+# konfliktu „obie strony” wstawiało ten sam wpis dwa razy. Mutacja wstawia
+# dwa identyczne wpisy na początek „Nieopublikowane”.
+CHANGELOG = "CHANGELOG.md"
+CHANGELOG_DUPLIKATY_TEST = "ChangelogBezZdublowanychWpisowTest"
+CHANGELOG_NAGLOWEK = "## Nieopublikowane\n\n"
 # Strażnik strony „Co nowego” (issue #1909, AGENTS.md §10): wpis CHANGELOGA
 # oznaczony `[nowa funkcja]` w sekcji „## Nieopublikowane" ma odpowiadający
 # akapit (`### ...`) w sekcji „## Najnowsze zmiany" pliku nowości.
@@ -1468,6 +1474,9 @@ checks = [
     # działają — strażnik README ma to złapać, choć ci.yml mówi co innego.
     ("README: „Dopóki ich nie ma” wraca", README, README_SECURITY_TEST,
      lambda s: s + "\nDopóki ich nie ma, testy uruchamiasz lokalnie.\n"),
+    ("CHANGELOG z tym samym wpisem dwa razy", CHANGELOG, CHANGELOG_DUPLIKATY_TEST,
+     lambda s: replace_once(s, CHANGELOG_NAGLOWEK, CHANGELOG_NAGLOWEK
+                            + "- Wpis zdublowany przez kontrolę dodatnią.\n" * 2)),
     # Strona „Co nowego” (issue #1909): nowa funkcja w sekcji
     # „Nieopublikowane” musi mieć akapit w „Najnowszych zmianach”. Dodajemy
     # osierocony wpis, zamiast zdejmować znacznik ze starego wydania: po
@@ -1630,6 +1639,7 @@ run_test(RAILWAY_CLI_TEST, True)
 run_test(BRAMKA_KRAWEDZI_TEST, True)
 run_test(CADDY_ZAUFANIE_TEST, True)
 run_test(README_SECURITY_TEST, True)
+run_test(CHANGELOG_DUPLIKATY_TEST, True)
 run_test(STRAZNIK_NOWOSCI_TEST, True)
 run_test(DZIENNIK_WDROZEN_TEST, True)
 run_test(KOMENDY_IAC_TEST, True)
