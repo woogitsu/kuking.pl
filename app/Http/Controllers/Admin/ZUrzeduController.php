@@ -11,7 +11,8 @@ use App\Domain\Moderation\PodstawaDecyzji;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\Comment;
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Post;
+use App\Models\Recipe;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -94,18 +95,25 @@ class ZUrzeduController extends Controller
      * prywatna, ukryta). Tej ostatniej moderator z urzędu nie ogląda wcale:
      * po samym UUID nie dowie się nawet, że istnieje (D-251, zakres).
      */
-    private function cel(string $typ, string $id): Model
+    private function cel(string $typ, string $id): Post|Recipe|Comment
     {
         $klasa = ZdejmijZUrzedu::TYPY[$typ] ?? abort(404);
 
         $cel = ModeratedContent::znajdz($typ, $id);
 
-        abort_unless($cel instanceof $klasa && ZdejmijZUrzedu::widocznaDlaInnych($cel), 404);
+        // Trzy klasy wypisane jawnie to te same trzy co w `ZdejmijZUrzedu::TYPY`
+        // — `instanceof $klasa` sprawdza je w czasie wykonania, ale typu nie
+        // zawęża, a `adresTresci()` woła `url()`, którego `Model` nie ma (#1731).
+        if (! ($cel instanceof Post || $cel instanceof Recipe || $cel instanceof Comment)
+            || ! $cel instanceof $klasa
+            || ! ZdejmijZUrzedu::widocznaDlaInnych($cel)) {
+            abort(404);
+        }
 
         return $cel;
     }
 
-    private function adresTresci(Model $cel): ?string
+    private function adresTresci(Post|Recipe|Comment $cel): ?string
     {
         return $cel instanceof Comment ? $cel->subject()?->url() : $cel->url();
     }

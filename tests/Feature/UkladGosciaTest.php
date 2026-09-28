@@ -108,9 +108,7 @@ class UkladGosciaTest extends TestCase
 
         $xpath = new \DOMXPath($dom);
 
-        $body = $xpath->query("//div[contains(concat(' ', normalize-space(@class), ' '), ' app-body ')]")->item(0);
-
-        $this->assertNotNull($body, 'W dokumencie nie ma elementu .app-body — układ strony się zmienił.');
+        $body = self::elementDom($xpath->query("//div[contains(concat(' ', normalize-space(@class), ' '), ' app-body ')]")->item(0), 'W dokumencie nie ma elementu .app-body — układ strony się zmienił.');
 
         $klasy = ' '.preg_replace('/\s+/', ' ', (string) $body->getAttribute('class')).' ';
 

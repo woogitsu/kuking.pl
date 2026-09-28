@@ -33,7 +33,10 @@
 
         @if($maZdjecie)
             <div class="rounded-md overflow-hidden">
-                <x-photo :media="$zdjecia->first()" variant="large" :priority="true" class="post-photo" />
+                {{-- Zdjęcie wykonania to treść, nie ozdobnik (#769): bez opisu
+                     autora dostaje ten sam zastępczy co karta wykonania. --}}
+                <x-photo :media="$zdjecia->first()" variant="large" :priority="true" class="post-photo"
+                         :alt="$zdjecia->first()->alt_text ?: 'Zdjęcie wykonania'" />
             </div>
         @endif
 

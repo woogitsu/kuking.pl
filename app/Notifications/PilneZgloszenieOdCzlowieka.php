@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Domain\Moderation\HumanUrgentAlarmAttempt;
 use App\Domain\Moderation\PriorytetSprawy;
 use App\Models\Report;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * LIST, KTÓRY NIE MOŻE CZEKAĆ — ZGŁOSZENIE OD CZŁOWIEKA.
@@ -48,6 +51,9 @@ final class PilneZgloszenieOdCzlowieka extends Notification implements ShouldQue
 {
     use Queueable;
 
+    /** Nie ponawiaj po niepewnym wyniku transportu ani po śmierci workera. */
+    public int $tries = 1;
+
     /**
      * @param  bool  $ostatniDzis  ten list zajął ostatnie miejsce dobowego
      *                             sufitu alarmów (`AlarmujOPilnymZgloszeniu`) —
@@ -57,7 +63,55 @@ final class PilneZgloszenieOdCzlowieka extends Notification implements ShouldQue
     public function __construct(
         private readonly Report $zgloszenie,
         private readonly bool $ostatniDzis = false,
+        private readonly ?string $probaId = null,
     ) {}
+
+    /** Worker podjął zadanie. Stara próba ponowiona ręcznie nie wysyła duplikatu. */
+    public function shouldSend(object $notifiable, string $channel): bool
+    {
+        if ($this->probaId === null) {
+            return true; // historyczne zadania sprzed migracji
+        }
+
+        return HumanUrgentAlarmAttempt::start($this->probaId);
+    }
+
+    /** Dostawca przyjął list; nie twierdzimy tu, że dotarł do skrzynki. */
+    public function afterSending(object $notifiable, string $channel, mixed $response): void
+    {
+        if ($this->probaId === null) {
+            return;
+        }
+
+        try {
+            HumanUrgentAlarmAttempt::accepted($this->probaId);
+        } catch (Throwable $error) {
+            // Po przyjęciu przez dostawcę nie wolno ponowić listu tylko dlatego,
+            // że zapis lokalnego potwierdzenia nie zadziałał.
+            Log::error('Nie udało się zapisać przyjęcia pilnego alarmu od człowieka.', [
+                'proba' => $this->probaId,
+                'wyjatek' => $error::class,
+            ]);
+        }
+    }
+
+    /** Dopiero ostateczna porażka workera. Nie zapisujemy komunikatu wyjątku. */
+    public function failed(Throwable $error): void
+    {
+        if ($this->probaId === null) {
+            return;
+        }
+
+        try {
+            HumanUrgentAlarmAttempt::failed($this->probaId, $error);
+        } catch (Throwable $zapis) {
+            // Wyjątek z tego haka mógłby przerwać zapis do failed_jobs.
+            Log::error('Nie udało się zapisać terminalnej porażki pilnego alarmu od człowieka.', [
+                'proba' => $this->probaId,
+                'wyjatek' => $zapis::class,
+            ]);
+        }
+    }
 
     /** @return list<string> */
     public function via(object $notifiable): array

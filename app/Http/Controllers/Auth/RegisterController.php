@@ -14,7 +14,11 @@ use App\Rules\ReservedUsername;
 use App\Rules\TurnstileJestPotwierdzony;
 use App\Rules\UsernameNotTaken;
 use App\Support\NazwaUzytkownika;
+use App\Support\PowrotDoRozmowy;
+use App\Support\RejestracjaZamknieta;
 use App\Support\Turnstile;
+use App\Support\ZamiarObserwowania;
+use App\Support\ZamiarUgotowania;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -36,9 +40,16 @@ use Illuminate\View\View;
  */
 class RegisterController extends Controller
 {
-    public function show(ZaproszenieWSesji $sesja): View
+    public function show(Request $request, ZaproszenieWSesji $sesja, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie, PowrotDoRozmowy $rozmowa): View|RedirectResponse
     {
-        abort_unless(config('kuking.account.registration_open'), 503, 'Rejestracja jest chwilowo zamknięta.');
+        // Zamknięta rejestracja to nie awaria — patrz `RejestracjaZamknieta`.
+        if (RejestracjaZamknieta::czyZamknieta()) {
+            return RejestracjaZamknieta::przekierowanie();
+        }
+
+        $zamiar->zapamietaj($request);
+        $gotowanie->zapamietaj($request);
+        $rozmowa->zapamietaj($request);
 
         // `biezace()` sprawdza ważność przy każdym odczycie i czyści martwy
         // klucz w sesji — zaproszenie mogło wygasnąć albo zostać zużyte między
@@ -46,9 +57,11 @@ class RegisterController extends Controller
         return view('auth.register', ['zaproszenie' => $sesja->biezace()]);
     }
 
-    public function store(Request $request, ZalozKonto $zalozKonto, ZaproszenieWSesji $sesja): RedirectResponse
+    public function store(Request $request, ZalozKonto $zalozKonto, ZaproszenieWSesji $sesja, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie, PowrotDoRozmowy $rozmowa): RedirectResponse
     {
-        abort_unless(config('kuking.account.registration_open'), 503);
+        if (RejestracjaZamknieta::czyZamknieta()) {
+            return RejestracjaZamknieta::przekierowanie();
+        }
 
         /*
          * ═════════════════════════════════════════════════════════════════
@@ -236,8 +249,13 @@ class RegisterController extends Controller
                 ->withErrors(['email' => $e->getMessage()]);
         }
 
-        Auth::login($konto->user, remember: true);
+        // `status` ma domyślną wartość w bazie; odświeżony model musi ją
+        // widzieć także w tej sesji, zanim Policy oceni przycisk „Obserwuj”.
+        Auth::login($konto->user->refresh(), remember: true);
         $request->session()->regenerate();
+        $zamiar->przypiszKonto($request);
+        $gotowanie->przypiszKonto($request);
+        $rozmowa->przypiszKonto($request);
 
         return redirect()->route('onboarding.interests')
             ->with('status', $konto->listPotwierdzajacyNieWyszedl
