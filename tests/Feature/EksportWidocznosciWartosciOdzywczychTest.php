@@ -37,9 +37,14 @@ class EksportWidocznosciWartosciOdzywczychTest extends TestCase
         $this->assertSame(true, $przepisy['Widoczny przepis']['pokazuj_wartosci_odzywcze']);
         $this->assertSame(false, $przepisy['Ukryty przepis']['pokazuj_wartosci_odzywcze']);
 
-        // Format dane.json zachowuje typ boolean, zamiast zamieniać false na
-        // tekst albo pomijać klucz przy ukrytym przepisie.
-        $json = json_decode(json_encode($paczka, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
-        $this->assertSame(false, collect($json['przepisy'])->firstWhere('tytul', 'Ukryty przepis')['pokazuj_wartosci_odzywcze']);
+        // Generator paczki koduje tę samą tablicę do dane.json. Obie wartości
+        // muszą pozostać booleanami także po serializacji, nie tekstem ani 0/1.
+        $json = json_decode(json_encode(
+            $paczka,
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
+        ), true, 512, JSON_THROW_ON_ERROR);
+        $przepisyJson = collect($json['przepisy'])->keyBy('tytul');
+        $this->assertSame(true, $przepisyJson['Widoczny przepis']['pokazuj_wartosci_odzywcze']);
+        $this->assertSame(false, $przepisyJson['Ukryty przepis']['pokazuj_wartosci_odzywcze']);
     }
 }
