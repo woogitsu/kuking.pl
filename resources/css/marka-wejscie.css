@@ -7,8 +7,17 @@
   .marka-wejscie {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-    gap: clamp(24px, 4vw, 56px);
+    column-gap: clamp(24px, 4vw, 56px);
+    row-gap: var(--spacing-6);
     align-items: start;
+  }
+
+  .marka-wejscie-naglowek { grid-column: 1 / -1; min-width: 0; }
+  .marka-wejscie-naglowek h1 {
+    font-size: var(--text-title-lg);
+    line-height: var(--leading-title-wiele);
+    letter-spacing: -.04em;
+    margin: 0;
   }
 
   .marka-wejscie-zaproszenie { min-width: 0; padding-block: var(--spacing-6); }
@@ -31,16 +40,9 @@
 
   .marka-wejscie-dalsze > p { margin: 0; overflow-wrap: anywhere; }
 
-  .marka-wejscie-alternatywa {
-    padding: var(--spacing-6);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-xl);
-    background: var(--color-surface-raised);
-    overflow-wrap: anywhere;
-  }
-
-  .marka-wejscie-alternatywa h2 { margin-top: 0; }
-  .marka-wejscie-alternatywa .form-actions { margin-bottom: 0; }
+  /* OAuth ma własne mt-6 w komponencie współdzielonym. W tej kompozycji
+     odstęp liczy wyłącznie grid, także gdy dostawcy są wyłączeni. */
+  .marka-wejscie-dalsze > .sekcja-strony.mt-6 { margin-top: 0 !important; }
 
   .marka-wejscie-karta {
     min-width: 0;
@@ -50,13 +52,6 @@
     box-shadow: var(--shadow-card);
     border: 1px solid var(--color-border);
     overflow-wrap: anywhere;
-  }
-
-  .marka-wejscie-karta > h1 {
-    font-size: var(--text-title-lg);
-    line-height: var(--leading-title-wiele);
-    letter-spacing: -.04em;
-    margin-bottom: var(--spacing-6);
   }
 
   [data-marka] .marka-wejscie-karta .panel-formularza {

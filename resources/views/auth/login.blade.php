@@ -1,10 +1,11 @@
 <x-layout title="Zaloguj się" :noindex="true">
     <x-marka-wejscie opis="Twoja kuchnia, przepisy i ludzie, którzy naprawdę gotują.">
+    <x-slot:naglowek><h1>Zaloguj się</h1></x-slot:naglowek>
     <x-slot:uzupelnienie>
         <x-wejscia-zewnetrzne />
         {{-- Równorzędna droga bez hasła pozostaje widoczna obok formularza. --}}
         @if(config('kuking.login_link.wlaczone'))
-            <div class="marka-wejscie-alternatywa">
+            <div class="sekcja-strony">
                 <h2>Nie pamiętasz hasła? Nie musisz go wpisywać</h2>
                 <p>
                     Wyślemy Ci wiadomość z linkiem. Otwórz go, a na stronie kliknij „Zaloguj mnie”.
@@ -20,10 +21,6 @@
         <p>Twoje konto zostało zablokowane albo zawieszone i uważasz, że to pomyłka?
             <a href="{{ route('appeals.guest') }}">Złóż odwołanie</a>.</p>
     </x-slot:uzupelnienie>
-    <h1>Zaloguj się</h1>
-
-    {{-- Dostawcy i link stoją w lewej kolumnie; w DOM nadal przed polami. --}}
-
     <x-error-summary />
 
     <form class="panel-formularza" method="POST" action="{{ route('login') }}">

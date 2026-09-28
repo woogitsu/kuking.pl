@@ -256,12 +256,15 @@ class OdstepMiedzyDrogamiWejsciaTest extends TestCase
 
         $html = $this->get(route($trasa))->assertOk()->getContent();
         $dom = new \DOMDocument;
-        @$dom->loadHTML('<?xml encoding="UTF-8"}'.(string) $html, LIBXML_NOERROR | LIBXML_NOWARNING);
+        @$dom->loadHTML('<?xml encoding="UTF-8"?>'.(string) $html, LIBXML_NOERROR | LIBXML_NOWARNING);
         $xpath = new \DOMXPath($dom);
 
         $rama = $xpath->query("//main//*[contains(concat(' ', normalize-space(@class), ' '), ' marka-wejscie ')]");
         $this->assertNotFalse($rama);
         $this->assertSame(1, $rama->length);
+        $naglowek = $xpath->query("./*[contains(concat(' ', normalize-space(@class), ' '), ' marka-wejscie-naglowek ')]/h1", $rama->item(0));
+        $this->assertNotFalse($naglowek);
+        $this->assertSame(1, $naglowek->length);
         $zaproszenie = $xpath->query("./*[contains(concat(' ', normalize-space(@class), ' '), ' marka-wejscie-zaproszenie ')]", $rama->item(0));
         $karta = $xpath->query("./*[contains(concat(' ', normalize-space(@class), ' '), ' marka-wejscie-karta ')]", $rama->item(0));
         $this->assertNotFalse($zaproszenie);
@@ -275,6 +278,8 @@ class OdstepMiedzyDrogamiWejsciaTest extends TestCase
         );
         $this->assertNotFalse($wejscia);
         $this->assertSame(2, $wejscia->length, 'Obie drogi dostawców muszą pozostać widoczne w lewej kolumnie.');
+        $this->assertNotSame(0, $naglowek->item(0)->compareDocumentPosition($wejscia->item(0)) & \DOMNode::DOCUMENT_POSITION_FOLLOWING);
+        $this->assertNotSame(0, $naglowek->item(0)->compareDocumentPosition($zaproszenie->item(0)) & \DOMNode::DOCUMENT_POSITION_FOLLOWING);
         $this->assertSame(0, $xpath->query('.//form', $zaproszenie->item(0))->length);
         $formularz = $xpath->query('./form[contains(@class,"panel-formularza")]', $karta->item(0));
         $this->assertNotFalse($formularz);

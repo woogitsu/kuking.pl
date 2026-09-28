@@ -1,5 +1,6 @@
 <x-layout title="Załóż konto" description="Załóż darmowe konto w Kuking i pokaż, co dziś ugotowałeś.">
     <x-marka-wejscie opis="Zachowaj swoje potrawy i rodzinne przepisy.">
+    <x-slot:naglowek><h1>Zostań <x-kuking-word forma="iem" /></h1></x-slot:naglowek>
     <x-slot:uzupelnienie>
         <p class="rejestracja-zapowiedz">
             Cztery pola i gotowe — konto zaczyna działać od razu. Potem zapytamy jeszcze
@@ -9,7 +10,6 @@
         <x-wejscia-zewnetrzne rodzaj="rejestracja" />
         <p>Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
     </x-slot:uzupelnienie>
-    <h1>Zostań <x-kuking-word forma="iem" /></h1>
     {{-- Zapowiedź dalszych kroków i dostępni dostawcy stoją obok formularza,
          a w DOM przed polami; testy pilnują obu części układu. --}}
 

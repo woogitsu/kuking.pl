@@ -21,9 +21,14 @@ class KompozycjaWejsciaMarkiTest extends TestCase
             $dom = new DOMXPath($document);
             $card = $dom->query('//*[@id="tresc"]//*[contains(concat(" ",normalize-space(@class)," ")," marka-wejscie-karta ")]');
             $this->assertSame(1, $card->length);
-            $this->assertSame(1, $dom->query('./h1', $card->item(0))->length);
+            $header = $dom->query('preceding-sibling::*[contains(@class,"marka-wejscie-naglowek")]', $card->item(0));
+            $this->assertSame(1, $header->length);
+            $this->assertSame(1, $dom->query('./h1', $header->item(0))->length);
+            $this->assertSame(1, $dom->query('.//h1', $card->item(0)->parentNode)->length);
+            $this->assertSame(0, $dom->query('.//h2|.//a|.//button|.//input', $header->item(0))->length);
             $aside = $dom->query('preceding-sibling::*[contains(@class,"marka-wejscie-zaproszenie")]', $card->item(0));
             $this->assertSame(1, $aside->length);
+            $this->assertNotSame(0, $header->item(0)->compareDocumentPosition($aside->item(0)) & \DOMNode::DOCUMENT_POSITION_FOLLOWING);
             $this->assertSame(1, $dom->query('.//svg', $aside->item(0))->length);
             $form = $dom->query('.//form[@action="'.route($route).'" and @method="POST"]', $card->item(0));
             $this->assertSame(1, $form->length);
