@@ -67,6 +67,8 @@ WYMAZANIE_KONTA = "app/Domain/Users/Actions/EraseAccountData.php"
 PLANER_TEST = "PlanerTygodniaTest"
 PUSH_JOB = "app/Jobs/WyslijPowiadomieniePush.php"
 PUSH_DWA_POLACZENIA_TEST = "PowiadomieniaPushDwaPolaczeniaTest"
+ALARM_RECOVERY = "app/Domain/Moderation/Actions/AlarmujOPilnymZgloszeniu.php"
+ALARM_RECOVERY_TEST = "PonowPilnyAlarmOdCzlowiekaTest"
 
 # #2027: nowo utworzone konto po OAuth musi przejąć zamiar powrotu z wątku
 # komentarzy. Testy obu dostawców przechodzą przez onboarding i sprawdzają
@@ -1340,6 +1342,8 @@ checks = [
     ("Limit push nie liczy rezerwacji w transporcie", PUSH_JOB, PUSH_DWA_POLACZENIA_TEST,
      lambda s: replace_once(s, "            ->where($wlicz)\n            ->distinct()",
                             "            ->whereNotNull('push_wyslano_at')\n            ->distinct()")),
+    ("Recover alarmu pomija potwierdzona odmowe", ALARM_RECOVERY, ALARM_RECOVERY_TEST,
+     lambda s: replace_once(s, "$poprzednia->state !== HumanUrgentAlarmAttempt::REJECTED", "false")),
     ("Preview wkleja ręczny pr_number w run:", PREVIEW_WORKFLOW, WKLEJANIE_DO_RUN_TEST,
      lambda s: replace_once(s, '          env_name="pr-${PR_NUMBER}"\n          echo "Tworzę', '          env_name="pr-${{ github.event.inputs.pr_number }}"\n          echo "Tworzę')),
     ("IaC wkleja inputs.* w podsumowanie", IAC_WORKFLOW, WKLEJANIE_DO_RUN_TEST,

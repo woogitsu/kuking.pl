@@ -3055,6 +3055,36 @@ niepustego śladu; świadome cofnięcie wymaga
 `KUKING_ROLLBACK_KASUJ_SLAD_ALARMOW_CZLOWIEKA=true`, gdyż powrót starego
 formularza mógłby wtedy ponownie zlecić list.
 
+### human_urgent_alarm_attempts
+
+Jedna próba alarmu od człowieka to jeden wiersz z UUID `id` przekazanym do
+`PilneZgloszenieOdCzlowieka`. `report_id` wskazuje sprawę i znika wraz z nią
+po okresie retencji zgłoszenia. Wiersz nie zawiera adresu, treści zgłoszenia
+ani komunikatu wyjątku. `state` ma zamknięty CHECK: `queued` (zadanie zapisano
+we wspólnej transakcji z budżetem), `started` (worker podjął), `accepted`
+(dostawca przyjął, **nie** potwierdzenie doręczenia), `rejected` (dostawca
+potwierdził odmowę możliwą do ponowienia), `uncertain` (np. timeout po
+wysyłce), `blocked` (odmowa trwała lub nierozpoznana), `retried` (nowa próba
+zajęła budżet i została zakolejkowana). `failure_kind` jest wyłącznie kodem
+`PowodOdmowy`, bez wiadomości dostawcy. Znaczniki czasu odpowiadają kolejnym
+stanom i pozwalają odróżnić zlecenie od pracy workera.
+
+Komenda `kuking:ponow-pilne-alarmy-od-ludzi` bierze tylko potwierdzone
+odmowy nadal otwartych pilnych spraw od ludzi młodszych niż 72 h. Blokada
+wiersza `reports` i celu oraz transakcja obejmują zmianę `retried`, nową
+próbę, rezerwację budżetu i wpis w `jobs`. Timeout i każdy niejednoznaczny
+wynik pozostają do ręcznej interwencji; komenda zgłasza je kodem błędu,
+bez ujawniania treści. Próba ma jedną wysyłkę workera; ponowne uruchomienie
+tego samego zadania nie wysyła listu, także po stanie `started`. Stany
+`queued` i `started` starsze niż dwie godziny dają sygnał operacyjny,
+ponieważ worker mógł umrzeć bez zapisu wyniku.
+
+Rollback migracji tworzącej tabelę działa tylko przy tabeli pustej. Przy
+niepustej odmawia usunięcia śladów: utrata stanu po ponownym wdrożeniu
+mogłaby wysłać duplikat alarmu. Wycofanie produkcyjne wymaga najpierw
+zatrzymania nowej komendy i workerów, wyjaśnienia wszystkich prób oraz
+osobno zatwierdzonego planu danych; nie uruchamiać `down()` na skróty.
+
 Zgłoszenia — **dwie różne drogi w jednej tabeli**, rozróżniane kolumną
 `source` (migracja `2026_09_06_200000_add_legal_notice_fields_to_reports`,
 audyt G-08 / W5-01 / W5-02).
