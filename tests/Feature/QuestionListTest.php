@@ -41,17 +41,17 @@ class QuestionListTest extends TestCase
         $question = Post::factory()->question()->create();
         $answer = Comment::factory()->create(['post_id' => $question->id, 'author_id' => $respondent->id]);
         $list = new QuestionList;
-        $this->assertSame(1, $list->query($viewer)->findOrFail($question->id)->answer_count);
+        $this->assertSame(1, $list->query($viewer)->findOrFail($question->id)->getAttribute('answer_count'));
 
         $answer->update(['status' => Comment::STATUS_HIDDEN]);
-        $this->assertSame(0, $list->query($viewer)->findOrFail($question->id)->answer_count);
+        $this->assertSame(0, $list->query($viewer)->findOrFail($question->id)->getAttribute('answer_count'));
         $this->assertTrue($list->query($viewer, true)->whereKey($question)->exists());
 
         $answer->update(['status' => Comment::STATUS_PUBLISHED]);
         app(BlockUser::class)->handle($respondent, $viewer);
-        $this->assertSame(0, $list->query($viewer)->findOrFail($question->id)->answer_count);
+        $this->assertSame(0, $list->query($viewer)->findOrFail($question->id)->getAttribute('answer_count'));
         $this->assertTrue($list->query($viewer, true)->whereKey($question)->exists());
-        $this->assertSame(1, $list->query(null)->findOrFail($question->id)->answer_count);
+        $this->assertSame(1, $list->query(null)->findOrFail($question->id)->getAttribute('answer_count'));
     }
 
     public function test_cursor_does_not_duplicate_or_skip_questions_with_the_same_publication_time(): void
@@ -75,10 +75,10 @@ class QuestionListTest extends TestCase
         Comment::factory()->create(['post_id' => $question->id, 'parent_id' => $answer->id]);
         $list = new QuestionList;
 
-        $this->assertSame(1, $list->query(null)->findOrFail($question->id)->answer_count);
+        $this->assertSame(1, $list->query(null)->findOrFail($question->id)->getAttribute('answer_count'));
         $this->assertFalse($list->query(null, true)->whereKey($question)->exists());
         $answer->delete();
-        $this->assertSame(0, $list->query(null)->findOrFail($question->id)->answer_count);
+        $this->assertSame(0, $list->query(null)->findOrFail($question->id)->getAttribute('answer_count'));
         $this->assertTrue($list->query(null, true)->whereKey($question)->exists());
     }
 

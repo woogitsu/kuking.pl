@@ -48,11 +48,11 @@ class PolecaneTagiWSzukajTest extends TestCase
                 $this->assertSame(1, $xpath->query($scope.'//a[@href="'.route('tags.index').'" and normalize-space(.)="Wszystkie tagi"]')->length);
                 $links = $xpath->query($scope.'//li/a');
                 $this->assertSame(2, $links->length);
-                $this->assertSame(route('tags.show', $first), $links->item(0)->getAttribute('href'));
-                $this->assertSame(route('tags.show', $second), $links->item(1)->getAttribute('href'));
+                $this->assertSame(route('tags.show', $first), self::elementDom($links->item(0))->getAttribute('href'));
+                $this->assertSame(route('tags.show', $second), self::elementDom($links->item(1))->getAttribute('href'));
                 $this->assertSame($first->name, $xpath->query($scope.'//li/h3')->item(0)->textContent);
                 $this->assertSame($second->name, $xpath->query($scope.'//li/h3')->item(1)->textContent);
-                $this->assertSame('Zobacz tag: '.$first->name, $links->item(0)->getAttribute('aria-label'));
+                $this->assertSame('Zobacz tag: '.$first->name, self::elementDom($links->item(0))->getAttribute('aria-label'));
                 $this->assertSame('Zdanie gospodarza <script>alert(1)</script>', $xpath->query($scope.'//li/p')->item(0)->textContent);
                 $this->assertSame(1, $xpath->query($scope.'//li/p')->length);
                 $this->assertSame(0, $xpath->query($scope.'//script')->length);

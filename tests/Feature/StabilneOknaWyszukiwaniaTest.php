@@ -227,7 +227,7 @@ class StabilneOknaWyszukiwaniaTest extends TestCase
         $matches = [];
         foreach ((new DOMXPath($dom))->query('//main//a') as $link) {
             if (trim($link->textContent) === $label) {
-                $matches[] = html_entity_decode($link->getAttribute('href'));
+                $matches[] = html_entity_decode(self::elementDom($link)->getAttribute('href'));
             }
         }
 

@@ -154,7 +154,9 @@ class DziennikWymazanPozaBazaTest extends TestCase
 
         $wpisy = app(DziennikWymazan::class)->wpisyOd();
         $this->assertCount(1, $wpisy);
-        $this->assertSame((string) $konto->getKey(), $wpisy[0]['user_id']);
+        $pierwszy = $wpisy[0] ?? null;
+        $this->assertNotNull($pierwszy);
+        $this->assertSame((string) $konto->getKey(), $pierwszy['user_id']);
     }
 
     public function test_wpisy_starsze_niz_retencja_znikaja(): void
