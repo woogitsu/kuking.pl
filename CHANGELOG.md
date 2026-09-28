@@ -2,7 +2,13 @@
 
 ## Nieopublikowane
 
+## Alfa 0.72 — spokojniejsze zdjęcia i powiadomienia
+
 - Zdjęcie, którego przygotowanie chwilowo się nie udało, dalej pokazuje „Twoje zdjęcie się jeszcze przygotowuje”, dopóki serwis próbuje ponownie. Komunikat „Nie udało się przygotować tego zdjęcia” z radą, żeby usunąć i dodać wpis, pojawia się dopiero po ostatniej nieudanej próbie — nie trzeba już kasować wpisu ze zdjęciem, które za chwilę by się pokazało (#1349).
+
+## Alfa 0.71 — przepis z kartki i koszt dania
+
+- Na stronie „Co nowego” spis wydań prowadzi do właściwych nagłówków, a znaczniki kotwic nie pojawiają się już jako tekst. W stopce jest też czytelna spacja między „O” a nazwą serwisu.
 - API dla aplikacji: lista komentarzy wpisu i przepisu niesie przy każdym wątku najwyżej trzy pierwsze odpowiedzi, liczbę wszystkich widocznych odpowiedzi (`replies_count`) i adres dalszych (`more_replies_url`). Nowy adres `GET /api/v1/komentarze/{id}/odpowiedzi` oddaje odpowiedzi wątku stronami, od najstarszej, z tymi samymi blokadami i tą samą kontrolą dostępu co komentarz. Wcześniej jeden popularny wątek przychodził w całości, niezależnie od stronicowania (#1970).
 - API dla aplikacji: feed pokazuje na kartach wpisów przepisy, które widz może zobaczyć — wcześniej sprawdzenie dostępu w API odrzucało każdy przepis feedu. To sprawdzenie nie pyta już bazy osobno dla każdego wpisu: liczba zapytań na stronę feedu jest stała (#1971).
 - API dla aplikacji (logowanie z weryfikacją dwuetapową): wyzwanie z pierwszego kroku działa tylko raz. Po wydaniu tokenu ponowne wysłanie tego samego wyzwania — także równolegle, z innym ważnym kodem — kończy się prośbą o zalogowanie od nowa i nie wydaje drugiego tokenu, więc nie wypycha innych urządzeń z listy. Powtórzone wyzwanie nie zużywa też kodu zapasowego (#1972).
