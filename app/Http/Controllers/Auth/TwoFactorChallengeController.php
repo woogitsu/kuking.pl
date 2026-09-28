@@ -94,6 +94,18 @@ class TwoFactorChallengeController extends Controller
         }
 
         if ($wynik === SprawdzKodDrugiegoSkladnika::BLEDNY) {
+            // Jeden wpis na rzeczywiście sprawdzony kod (#2042). Odpowiedź
+            // ZA_DUZO_PROB wyżej nie dopisuje nic, więc limiter ogranicza też
+            // wolumen dziennika. Wpisanego kodu ani sekretu 2FA nie
+            // przekazujemy do dziennika — tylko rodzaj sprawdzonego kodu.
+            $rodzaj = $kod !== '' && $kodZapasowy !== '' ? 'oba' : ($kod !== '' ? 'totp' : 'zapasowy');
+            AuditLogEntry::recordBezWywracania(
+                'account.two_factor_login_failed',
+                subject: $user,
+                metadata: ['rodzaj' => $rodzaj],
+                ip: $request->ip(),
+            );
+
             return back()->withErrors([
                 $field => $field === 'backup_code'
                     ? 'Ten kod nie pozwala się zalogować. Wpisz inny niewykorzystany kod zapasowy.'

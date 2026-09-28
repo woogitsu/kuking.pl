@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Wewnętrzne: każda rzeczywiście sprawdzona i błędna próba kodu 2FA lub kodu zapasowego przy logowaniu zostawia w dzienniku audytu wpis `account.two_factor_login_failed` (rodzaj: aplikacja, zapasowy lub oba; adres IP tylko w postaci skrótu). Wpis nie zawiera kodu ani sekretu, a odpowiedzi odcięte limitem prób nie dopisują wierszy (#2042).
 - Paczka Twoich danych zachowuje przy każdym przepisie wybór, czy pokazywać szacunkowe wartości odżywcze. Po przeniesieniu danych można odróżnić celowo ukrytą sekcję od domyślnie widocznej (#1993).
 
 ## Alfa 0.74 — zdjęcia w formularzu i porcje przy gotowaniu
