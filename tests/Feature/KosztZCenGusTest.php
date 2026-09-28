@@ -333,17 +333,15 @@ class KosztZCenGusTest extends TestCase
     /**
      * Zbieżność z miarami domowymi wartości odżywczych (D-286, „Zbieżność”):
      * dopóki koszt trzyma własną masę kotleta, nie może się ona rozjechać
-     * z `database/data/odzywcze/miary.csv`. Plik wchodzi z PR #1900 — do
-     * tego czasu nie ma z czym porównać.
+     * z `database/data/odzywcze/miary.csv`. To wymagany zasób importu;
+     * jego zniknięcie musi oblać test, zamiast wyłączyć kontrolę.
      */
     #[Test]
     public function masa_kotleta_zgadza_sie_z_miarami_domowymi(): void
     {
         $plik = base_path('database/data/odzywcze/miary.csv');
 
-        if (! is_file($plik)) {
-            $this->markTestSkipped('Brak database/data/odzywcze/miary.csv (PR #1900 jeszcze nie scalony).');
-        }
+        $this->assertFileExists($plik, 'Brak wymaganego pliku database/data/odzywcze/miary.csv.');
 
         $miary = [];
         foreach (array_slice(file($plik, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [], 1) as $linia) {
