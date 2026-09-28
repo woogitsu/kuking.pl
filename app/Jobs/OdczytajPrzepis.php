@@ -11,6 +11,7 @@ use App\Domain\Import\OdczytKartki;
 use App\Domain\Import\OdpowiedzModelu;
 use App\Domain\Import\Rezerwacja;
 use App\Domain\Import\RozliczenieOdczytu;
+use App\Domain\Posts\KontoNieMozePublikowac;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Models\ImportPrzepisu;
@@ -302,7 +303,16 @@ class OdczytajPrzepis implements ShouldQueue
             return;
         }
 
-        $this->wpiszDoSzkicu($zlecenie, $szkic, $wynik, $przepisy);
+        try {
+            $this->wpiszDoSzkicu($zlecenie, $szkic, $wynik, $przepisy);
+        } catch (KontoNieMozePublikowac) {
+            // #2189: zadanie przyjęte przed sankcją nie dopisuje treści do
+            // szkicu po jej zatwierdzeniu (zawieszenie to dostęp tylko do
+            // odczytu). Transakcja zapisu wróciła w całości, a zlecenie
+            // kończy się jawnie i bez ponawiania — odpowiedź modelu i jej
+            // koszt są już rozliczone.
+            $this->zakoncz($zlecenie, ImportPrzepisu::KOD_BLAD_WEWNETRZNY);
+        }
     }
 
     private function szkicNietkniety(?Recipe $szkic): bool

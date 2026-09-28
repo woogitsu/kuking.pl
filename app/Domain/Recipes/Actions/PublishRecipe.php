@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Recipes\Actions;
 
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
+use App\Domain\Posts\KontoNieMozePublikowac;
 use App\Domain\Recipes\BramkaPublikacjiSzkicu;
 use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\GrupySkladnikow;
@@ -312,19 +313,41 @@ final class PublishRecipe
              * `recipe_versions`. To nie jest więc skutek A01, tylko rzecz
              * przy nim znaleziona.
              *
-             * `FOR KEY SHARE`, a nie `ZamekKonta` i nie `FOR UPDATE`, z dwóch
-             * powodów naraz. Po pierwsze `ZamekKonta` wziąłby `users` PRZED
-             * `media`, a kolejność `media` → `users` jest w tym repozytorium
-             * ustalona i zmierzona (D-103, komentarz klasy `PrzypnijAwatar`)
-             * — byłoby zakleszczenie w drugą stronę. Po drugie to jest
-             * DOKŁADNIE ta blokada, którą i tak za chwilę weźmie sprawdzenie
-             * klucza obcego przy zapisie wersji; bierzemy ją tylko WCZEŚNIEJ.
-             * Nie jest więc silniejsza od tej, którą ta transakcja i tak
-             * trzymała na końcu, i nie ustawia w kolejce ani dwóch
-             * równoległych edycji (`FOR KEY SHARE` nie jest w konflikcie sam
-             * ze sobą), ani czyjegoś „Obserwuj".
+             * `FOR NO KEY UPDATE`, a nie `ZamekKonta` i nie `FOR UPDATE`.
+             * `ZamekKonta` wziąłby `users` PRZED `media`, a kolejność
+             * `media` → `users` jest w tym repozytorium ustalona i zmierzona
+             * (D-103, komentarz klasy `PrzypnijAwatar`) — byłoby zakleszczenie
+             * w drugą stronę. `FOR NO KEY UPDATE` (jak w `PublishPost`) jest
+             * w konflikcie z zapisem statusu konta (kara), więc kara i zapis
+             * przepisu ustawiają się w jednej kolejce, a jednocześnie nie
+             * blokuje sprawdzeń klucza obcego (`FOR KEY SHARE`) — nie
+             * zatrzymuje więc czyjegoś „Obserwuj" ani zapisu wersji. Do
+             * 28.09.2026 stało tu samo `FOR KEY SHARE`, które chroniło
+             * kolejność blokad, ale nie pozwalało zobaczyć nowej kary
+             * (issue #2189) — patrz niżej.
              */
-            DB::select('SELECT 1 FROM users WHERE id = ? FOR KEY SHARE', [(string) $author->getKey()]);
+            $author = User::query()->whereKey($author->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
+
+            /*
+             * STAN AUTORA ROZSTRZYGAMY NA ŚWIEŻYM WIERSZU, POD TĄ BLOKADĄ
+             * (issue #2189).
+             *
+             * Middleware i Policy sprawdziły konto na modelu wczytanym na
+             * początku żądania. Kara mogła zostać zatwierdzona, gdy ten zapis
+             * czekał na blokadę — bez ponownego sprawdzenia zapisałby szkic
+             * albo zmienił publiczny przepis mimo zawieszenia lub bana.
+             * Reguła jest ta sama co w `PublishPost`: wygasłą karę zdejmujemy,
+             * nieaktywnemu kontu odmawiamy, a cała transakcja (zdjęcia,
+             * składniki, wersja, audyt, wpis w strumieniu) wraca bez skutku.
+             */
+            if ($author->punishmentHasExpired()) {
+                $author->reinstate();
+            }
+            if (! $author->isActive()) {
+                throw new KontoNieMozePublikowac(
+                    'Stan Twojego konta zmienił się podczas zapisywania przepisu. Odśwież stronę, aby zobaczyć aktualną informację.',
+                );
+            }
 
             $bylSzkicem = false;
             // Czy przepis był UDOSTĘPNIONY innym (opublikowany i nie

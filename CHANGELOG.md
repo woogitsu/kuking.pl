@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione: zapis przepisu (szkic, publikacja albo edycja) rozpoczęty przed zawieszeniem, zablokowaniem lub usunięciem konta nie zapisze już niczego po zatwierdzeniu tej decyzji. Serwis sprawdza aktualny stan autora pod blokadą przed zapisem i wycofuje zdjęcia, składniki, wersję i wpis w strumieniu odrzuconej próby; zapis, który uzyskał blokadę pierwszy, kończy się normalnie. Odczyt przepisu ze zdjęcia przyjęty przed sankcją nie dopisze już treści do szkicu (#2189).
 - Paczka Twoich danych zachowuje przy każdym przepisie wybór, czy pokazywać szacunkowe wartości odżywcze. Po przeniesieniu danych można odróżnić celowo ukrytą sekcję od domyślnie widocznej (#1993).
 
 ## Alfa 0.74 — zdjęcia w formularzu i porcje przy gotowaniu
