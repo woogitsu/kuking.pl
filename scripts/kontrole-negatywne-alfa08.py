@@ -306,6 +306,8 @@ POLITYKA_DZIENNIK_ZDANIE = "Jak długo go tam trzyma, zależy od planu, który m
 # Liczba dni z planu Railway (decyzja właściciela 24.09.2026: Hobby, 7 dni).
 POLITYKA_DZIENNIK_DNI = " Obecnie jest to **do 7 dni**."
 TWARDE_USUNIECIE_TEST = "TwardeUsuniecieTresciTest"
+POLITYKA_SESJE_TEST = "PolitykaOpisujeSesjeKopieIR2Test"
+PRZEDAWNIONE_WPISY_AUDYTU = "app/Domain/Compliance/PrzedawnioneWpisyAudytu.php"
 
 # Cache manifestu Vite (#809). Strażnik czyta `docker/Caddyfile`: pliki
 # z hashem w `/build/assets/*` dostają rok `immutable`, manifest `no-cache`.
@@ -1303,6 +1305,10 @@ checks = [
      lambda s: replace_once(s, "use App\\Domain\\Users\\ObserwowanieGospodarza;\n", "use App\\Domain\\Social\\Actions\\FollowUser;\nuse App\\Domain\\Users\\ObserwowanieGospodarza;\n")),
     ("DemoSeeder wypisuje hasło z KUKING_DEMO_HASLO", DEMO_SEEDER, DEMO_SEEDER_HASLO_TEST,
      lambda s: replace_once(s, WARUNEK_HASLA_Z_OTOCZENIA, "        if (false) {")),
+    ("Polityka z okresem sesji innym niż życie sesji na produkcji", POLITYKA, POLITYKA_SESJE_TEST,
+     lambda s: replace_once(s, "Do **30 dni** od ostatniej aktywności", "Do **7 dni** od ostatniej aktywności")),
+    ("Sprzątanie audytu zostawia skrót IP we wpisach dowodowych", PRZEDAWNIONE_WPISY_AUDYTU, POLITYKA_SESJE_TEST,
+     lambda s: replace_once(s, "$zeSkrotem->update(['ip_hash' => null])", "0")),
     ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
     ("Instalacja Railway CLI bez sprawdzenia sumy kontrolnej", RAILWAY_CLI_WORKFLOW, RAILWAY_CLI_TEST,
