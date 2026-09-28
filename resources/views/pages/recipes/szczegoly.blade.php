@@ -124,7 +124,23 @@
         <x-ostrzezenie-niezapisanych id="ostrzezenie-kreatora-gora" :href="$kreatorUrl" :zapisz="$przyciskZapisu" />
     @endif
 
+    @php
+        // Szkic z odczytu zdjęcia kartki (V2, D-298): baner, zdjęcie nad
+        // polami i „Odczytany tekst jest sprawdzony” przed publikacją — ta sama
+        // bramka co w kreatorze, bo obie drogi kończą w `PublishRecipe`.
+        $zOdczytu = $isEdit && $recipe->status === \App\Models\Recipe::STATUS_DRAFT
+            && \App\Domain\Import\BramkaPublikacjiOdczytu::maOdczyt($recipe);
+    @endphp
+
     <x-error-summary />
+
+    @if($zOdczytu)
+        @include('pages.import.partials.baner', ['niepewnych' => \App\Domain\Import\BramkaPublikacjiOdczytu::ileNiepewnych(
+            (string) $recipe->title, (string) $recipe->summary,
+            ...$recipe->ingredients->pluck('ingredient_text')->map(fn ($t) => (string) $t)->all(),
+            ...$recipe->steps->pluck('instruction')->map(fn ($t) => (string) $t)->all(),
+        )])
+    @endif
 
     {{-- PANEL JEST JEDEN I SIEDZI NA `<form>`, nie na czterech sekcjach.
 
@@ -206,6 +222,15 @@
                 <x-field name="cook_minutes" label="Gotowanie / pieczenie (minuty)" type="number" inputmode="numeric"
                          :value="$isEdit ? $recipe->cook_minutes : null" :min="0" :max="10080" />
             </div>
+
+            {{-- Koszt wg autora (D-286). `type="text"` z `inputmode="decimal"`,
+                 a nie `type="number"`: po polsku pisze się „24,50", a pole
+                 liczbowe w części przeglądarek odrzuca przecinek po cichu —
+                 wysyła pusty ciąg i kwota znika. Przecinek, spacje i dopisek
+                 „zł" normalizuje serwer (`KosztPrzepisu::normalizuj`). --}}
+            <x-field name="estimated_cost_pln" label="Przybliżony koszt całego przepisu (zł)" inputmode="decimal"
+                     :value="$isEdit ? \App\Domain\Recipes\KosztPrzepisu::doPola($recipe->estimated_cost_pln) : null"
+                     help="Ile mniej więcej kosztują składniki na cały przepis. Wpisz samą liczbę złotych, na przykład 24 albo 24,50. Na stronie przepisu pokażemy to jako szacunek autora." />
 
             {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty
                  ARIA wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
@@ -329,6 +354,9 @@
         ---------------------------------------------------------------- --}}
         <section class="form-section">
             <h2 class="form-section-title">3. Składniki</h2>
+            @if($zOdczytu)
+                @include('pages.import.partials.oryginal', ['skan' => $recipe->sourceScan])
+            @endif
             <p class="meta mb-4">
                 Pisz tak, jak mówisz: „szklanka mąki”, „2 duże cebule”, „mleko — ile weźmie”.
                 Nie musisz nic przeliczać na gramy. Puste wiersze zostaną pominięte.
@@ -434,6 +462,9 @@
         ---------------------------------------------------------------- --}}
         <section class="form-section" id="f-steps">
             <h2 class="form-section-title">4. Przygotowanie</h2>
+            @if($zOdczytu)
+                @include('pages.import.partials.oryginal', ['skan' => $recipe->sourceScan])
+            @endif
             <p class="meta mb-4">
                 Jeden krok to jedna czynność. Krótkie kroki łatwiej czytać przy garnku.
                 Przy każdym kroku możesz dopisać, ile minut ma trwać, i dodać zdjęcie —
@@ -544,6 +575,21 @@
                 </fieldset>
             @endforeach
         </section>
+
+        @if($zOdczytu)
+            <div class="field mt-4 @error('odczyt_sprawdzony') has-error @enderror">
+                <label class="choice" for="f-odczyt_sprawdzony">
+                    <input id="f-odczyt_sprawdzony" type="checkbox" name="odczyt_sprawdzony" value="1"
+                           @error('odczyt_sprawdzony') aria-invalid="true" aria-describedby="f-odczyt_sprawdzony-error" @enderror
+                           @checked(old('odczyt_sprawdzony'))>
+                    <span>
+                        <span class="choice-label">Odczytany tekst jest sprawdzony ze zdjęciem</span>
+                        <span class="choice-help">Każda linijka zgadza się z kartką, a znaczniki [? ?] są usunięte.</span>
+                    </span>
+                </label>
+                @error('odczyt_sprawdzony')<span class="field-error" id="f-odczyt_sprawdzony-error">{{ $message }}</span>@enderror
+            </div>
+        @endif
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit" name="action" value="publish">

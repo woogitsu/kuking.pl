@@ -17626,6 +17626,11 @@ GraphQL-a i osobnych serwisów — API to drugi adapter w tym samym monolicie.
 problemu z tokenami bez terminu (np. wycieku), który lista urządzeń nie
 rozwiązuje.
 
+Dokumentacja dla autorów aplikacji: `docs/API.md` (pilnuje jej
+`tests/Feature/Api/ApiJestUdokumentowaneTest.php` — każda trasa w tabeli,
+każda poza logowaniem z `auth:sanctum`, każda z identyfikatorem w
+`KazdaTrasaZIdentyfikatoremPodPolicyTest`).
+
 📄 `config/sanctum.php` · `config/kuking.php` (`api`) · `routes/api.php` ·
 `app/Http/Middleware/BramaApi.php` · `app/Http/Api/BledyApi.php` ·
 `app/Providers/ApiServiceProvider.php` · `app/Models/PersonalAccessToken.php` ·
@@ -18065,6 +18070,170 @@ Wymaga decyzji, co z zapisanymi reakcjami (rollback migracji odmawia).
 `tests/Feature/SmakowicieWygladaTest.php` · D-194 · D-275
 ---
 
+## D-271 — Logowanie aplikacji mobilnej: te same akcje co WWW, 2FA przez zaszyfrowane wyzwanie, lista urządzeń (25 września 2026)
+
+**Data:** 25 września 2026 · Etap 2 API (D-270) · Status: **obowiązuje**
+
+### Co
+
+1. **`POST /api/v1/tokeny`** (login + hasło + `device_name`) i
+   **`POST /api/v1/tokeny/kod`** (drugi krok) idą przez TE SAME akcje co
+   formularze WWW. Logika pierwszego kroku wyszła z `LoginController` do
+   `App\Domain\Security\Actions\SprawdzHasloPrzyLogowaniu`, drugiego —
+   z `TwoFactorChallengeController` do `SprawdzKodDrugiegoSkladnika`.
+   Kontrolery WWW i API są teraz adapterami tych samych reguł (D-014).
+2. **Wspólne koszyki limitów.** Trzy koszyki `LimitProbHasla`, koszyk prób
+   kodu po koncie (`TwoFactorAuthenticator::kluczLimituProb`) i prefiksy
+   `throttle:` (`login`, `two_factor`) są te same dla obu dróg. Zgadujący nie
+   podwoi budżetu, przeskakując między formularzem a aplikacją.
+3. **Konto z 2FA nie dostaje tokenu przed kodem.** Pierwszy krok zwraca 202
+   z zaszyfrowanym wyzwaniem (`App\Domain\Api\WyzwanieDwuetapowe`): konto,
+   odcisk jego stanu (ten sam co w sesji WWW, #931), nazwa urządzenia,
+   termin 10 minut. Bez tabeli — API nie ma sesji. Zmiana
+   hasła, statusu albo 2FA unieważnia wyzwanie od razu.
+   **Wyzwanie jest jednorazowe (#1972).** Ma losowe `id`; po poprawnym
+   kodzie, a przed wydaniem tokenu, `WyzwanieDwuetapowe::zuzyj()` zakłada
+   znacznik zużycia przez `Cache::add()` (sklep `database`: `INSERT … ON
+   CONFLICT DO NOTHING`, więc z równoległych żądań przechodzi jedno).
+   Powtórzone wyzwanie dostaje 422 na polu `challenge` bez sprawdzania kodu
+   — nie spala kodu zapasowego ani prób z limitu. Błędny kod wyzwania nie
+   zużywa. Znacznik żyje minutę dłużej niż wyzwanie.
+4. **Stan konta przy każdym żądaniu z tokenem**
+   (`EnsureApiAccountIsActive`, odpowiednik `EnsureAccountIsActive`):
+   zamknięte konto → token ginie, 401 `konto_zamkniete`; zawieszone → odczyt
+   tak, zapis 403 `konto_zawieszone`, wylogowanie zawsze. Zdania te same co
+   na WWW.
+5. **Tokeny giną razem z sesjami** (D-270) — zmiana hasła, „wyloguj inne
+   urządzenia", blokada, zawieszenie, usunięcie konta.
+6. **Ekran „Urządzenia z dostępem"** (`/ustawienia/urzadzenia`): lista
+   tokenów, odcięcie jednego i wszystkich. Bez hasła, świadomie: akcja
+   wyłącznie odbiera dostęp. Dostępna także przy zawieszeniu. Właścicielem
+   tokenu rozstrzyga `PersonalAccessTokenPolicy` — moderator też nie ma
+   dostępu, token to poświadczenie, nie treść.
+7. **Najwyżej 10 urządzeń na konto** (`kuking.api.max_urzadzen`); kolejne
+   logowanie odcina używane najdawniej, zamiast odmawiać.
+8. Wydanie i odwołanie tokenu zostawia wpis w `audit_log`
+   (`account.api_token_created`, `account.api_token_revoked`,
+   `account.api_tokens_revoked_all`).
+
+### Znany ubytek względem WWW: brak Turnstile
+
+Turnstile (D-050) jest captchą przeglądarkową; aplikacja nie ma jej jak
+pokazać. Logowanie w API chronią tylko limity z punktu 2 i limit na adres IP
+z `BramaApi`. To świadome i zapisane, nie przeoczone. Uzupełnieniem w etapie
+aplikacji jest atestacja urządzenia (Play Integrity / App Attest) — osobna
+decyzja, gdy aplikacja będzie istnieć.
+
+**Zmiana wymaga:** pomiaru ataku na logowanie przez API, którego limity nie
+łapią (wtedy atestacja albo zamknięcie `POST /api/v1/tokeny` flagą).
+
+📄 `app/Http/Controllers/Api/V1/TokenController.php` ·
+`app/Domain/Security/Actions/` · `app/Domain/Api/` ·
+`app/Http/Middleware/EnsureApiAccountIsActive.php` ·
+`app/Http/Controllers/Settings/DevicesSettingsController.php` ·
+`tests/Feature/Api/LogowanieApiTest.php` · `tests/Feature/UrzadzeniaZDostepemTest.php`
+
+---
+
+## D-272 — API: czytanie przez te same zapytania i Policy co WWW, zdjęcia tylko przez `DostepDoZdjecia` (25 września 2026)
+
+**Data:** 25 września 2026 · Etap 3 API (D-270) · Status: **obowiązuje**
+
+### Co
+
+- `GET /api/v1/feed` — ten sam `FollowingFeed` co strona główna:
+  chronologicznie, kursorowo (`?cursor=` z `meta.next_cursor`), te same
+  filtry widoczności, blokad, aktywnych autorów i widocznego przepisu.
+- `GET /api/v1/wpisy/{uuid}` i `/komentarze` — `PostPolicy::view`.
+- `GET /api/v1/przepisy/{uuid}` i `/komentarze` — `RecipePolicy::view`.
+  **Po UUID, nie po slugu** jak WWW: slug zmienia się z tytułem, aplikacja
+  trzyma identyfikator.
+- `GET /api/v1/profile/{username}` — `UserPolicy::viewProfile`.
+- Komentarze przez `Comment::scopeWidoczneDla()` — blokady w obie strony.
+- **Wątek niesie najwyżej `kuking.api.odpowiedzi_w_watku` (3) najstarszych
+  odpowiedzi (#1970)** — limit w SQL na wątek (`ROW_NUMBER()` przez
+  `limit()` w ograniczeniu relacji), obok `replies_count` (widoczne dla
+  widza) i `more_replies_url`. Dalsze odpowiedzi:
+  `GET /api/v1/komentarze/{uuid}/odpowiedzi` — od pierwszej, kursorowo,
+  strona `comments.page_size`, bramka `CommentPolicy::view`, dla odpowiedzi
+  (nie korzenia) 404. Logika w `App\Domain\Api\WatkiKomentarzy`.
+- **Widoczność przepisu na karcie wpisu z feedu rozstrzyga lista, nie
+  zasób (#1971).** `Post::ukryjNiedostepnePrzepisy()` (jedno zapytanie na
+  stronę, ostrzej niż polityka — bez furtki moderatora) oznacza wpis
+  `przepisRozstrzygnietyDla`; `PostResource` pyta `RecipePolicy::view()`
+  tylko o wpis spoza takiej listy (`GET /wpisy/{uuid}`). Wcześniej polityka
+  szła per wpis (N+1), a przy przepisie ładowanym bez `status`
+  i `author_id` odrzucała każdy przepis feedu — API nie pokazywało
+  przepisów na kartach wcale. Liczba zapytań feedu jest stała względem
+  liczby wpisów (test).
+- **Zdjęcia: `GET /api/v1/zdjecia/{uuid}/{wariant}` to ten sam
+  `MediaController` co `media.show`** — `DostepDoZdjecia` pyta Policy
+  rodzica. Zasoby JSON podają WYŁĄCZNIE adresy tej trasy
+  (`App\Http\Resources\Api\V1\Zdjecie`), nigdy klucz w buckecie; zdjęcie bez
+  gotowego wariantu nie trafia do odpowiedzi.
+- Zasoby (`app/Http/Resources/Api/V1`) nie wypuszczają pól prywatnych:
+  adresu e-mail (poza `GET /ja`), statusu moderacji, `klucz_wyslania`,
+  `hide_as_memory`, skanu źródła przepisu.
+- API nie ma gościa: bez tokenu 401 także tam, gdzie WWW wpuszcza bez
+  logowania. Trasy z identyfikatorem są w
+  `KazdaTrasaZIdentyfikatoremPodPolicyTest` (pięć ról).
+
+### Czego tu świadomie nie ma
+
+Listy wpisów i przepisów na profilu, „Świeżo z Kuking", wyszukiwarki
+i powiadomień — etap 2 aplikacji. Profil w WWW liczy widoczność prywatną
+metodą kontrolera (`ProfileController::tylkoWidoczne`); przed dodaniem tej
+listy do API trzeba ją najpierw wyciągnąć do domeny (D-014, pkt 2).
+
+📄 `app/Http/Controllers/Api/V1/` · `app/Http/Resources/Api/V1/` ·
+`tests/Feature/Api/CzytanieApiTest.php`
+
+---
+
+## D-273 — API: publikacja przez te same Akcje co WWW — wpis, „Ugotowałem", komentarz, obserwowanie (25 września 2026)
+
+**Data:** 25 września 2026 · Etap 4 API (D-270) · Status: **obowiązuje**
+
+### Co
+
+- **`POST /api/v1/wpisy`** (multipart: `photos[]`, `body`, `visibility`,
+  opcjonalnie `tags[]`) — główna akcja „Co dziś ugotowałeś?". Zdjęcia przez
+  `StoreUploadedImage` (te same limity typów i rozmiaru z `LimityZdjec`,
+  magic bytes, limit megapikseli, re-enkodowanie w tle zdejmujące EXIF/GPS),
+  wpis przez `PublishPost`. Nagłówek `Idempotency-Key` (UUID) pełni rolę
+  ukrytego `klucz_wyslania` z formularza: ponowienie przy słabym zasięgu nie
+  tworzy drugiego wpisu (201 za pierwszym razem, 200 przy powtórce).
+- **`POST /api/v1/przepisy/{uuid}/ugotowalem`** — `RecordCookedEvent` pod
+  `RecipePolicy::cook`. Powiadomienie autora robi ta sama akcja
+  (`NotifyUser`), więc trzy granice z AGENTS.md §1 obowiązują bez kopii:
+  własny przepis, konto autora zamknięte, blokada. Zmierzone w
+  `tests/Feature/Api/PublikacjaApiTest.php`.
+- **`POST /api/v1/wpisy/{uuid}/komentarze`** (`PostPolicy::comment`)
+  i **`POST /api/v1/przepisy/{uuid}/komentarze`** (`RecipePolicy::view`, jak
+  WWW) — `PublishComment`; rodzic odpowiedzi szukany tylko wśród komentarzy
+  widocznych dla piszącego.
+- **`POST`/`DELETE /api/v1/osoby/{uuid}/obserwuj`** — `FollowUser` /
+  `UnfollowUser` pod `UserPolicy::follow`/`unfollow`. **Po UUID osoby, nie
+  po nazwie** — nazwa może przejść na inne konto (#793).
+- Limity: te same prefiksy i progi co formularze WWW (`post`, `comment`,
+  `obserwowanie`) — wspólne wiadra. Zawieszone konto: 403
+  `konto_zawieszone` z `EnsureApiAccountIsActive`.
+- Błędy akcji domenowych (`BladDlaCzlowieka`) wracają jako 422 przy polu,
+  tym samym zdaniem co na WWW.
+
+**Czego tu nie ma:** edycji i usuwania wpisów, przepisów z aplikacji,
+zeszytów, blokowania, zgłoszeń — etap 2 aplikacji. Zgłaszanie treści
+(DSA art. 16) musi wejść do API **przed** publicznym wydaniem aplikacji, bo
+publikacja bez drogi zgłoszenia to luka prawna, nie funkcja do dołożenia.
+
+📄 `app/Http/Controllers/Api/V1/PublikacjaController.php` ·
+`app/Http/Controllers/Api/V1/UgotowalemController.php` ·
+`app/Http/Controllers/Api/V1/KomentarzController.php` ·
+`app/Http/Controllers/Api/V1/ObserwowanieController.php` ·
+`app/Http/Controllers/Api/V1/Concerns/PrzyjmujeZdjecia.php`
+
+---
+
 ## D-274 — „Jeden wpis na autora” (#940) jest nadrzędny wobec wpisu z własną treścią (#1377) (25 września 2026)
 
 **Data:** 25 września 2026 · Status: **obowiązuje** · Decyzja właściciela ·
@@ -18164,6 +18333,276 @@ maili wyłącza `KUKING_URODZINY_MAIL_WLACZONY=false` bez wdrożenia kodu.
 
 ---
 
+## D-296 — Wyjątek od D-240: zdjęcie kartki wychodzi do OpenAI na osobną zgodę „odczyt AI” (26 września 2026)
+
+**Data:** 26 września 2026 · **Decyzja właściciela** · Status: **obowiązuje** ·
+Wąski wyjątek od **D-240** · Dotyczy: D-298 (import/OCR), D-072 (dziennik zgód),
+projekt `docs/research/V2_IMPORT_OCR_ODZYWCZE.md` §5
+
+**Decyzja właściciela dosłownie:** OCR prywatnego zdjęcia — wyjątek od D-240
+przez OSOBNĄ ZGODĘ „odczyt AI” w dzienniku zgód (wzór awatarów z D-240), do
+cofnięcia; na start dla WSZYSTKICH zalogowanych.
+
+### Problem
+
+D-240: do OpenAI wychodzi wyłącznie pomniejszona (≤ 320 px), publiczna treść;
+treść bez potwierdzonej zgody — nie. Odczyt pisma z kartki łamie oba warunki
+naraz: kartka jest prywatna, a 320 px nie wystarcza do przeczytania pisma.
+D-240 sam wskazał drogę (przy awatarze): „osobna decyzja: cel zgody, ekran
+udzielania i wycofania, sprawdzenie przed każdą wysyłką”.
+
+### Co obowiązuje
+
+- **Nowy cel w `dziennik_zgod`: `odczyt_ai`** i nowe źródło `ekran_importu`
+  (migracja `2026_09_26_100200_dziennik_zgod_cel_odczyt_ai`). Stanem zgody
+  jest OSTATNI wpis osoby dla tego celu — bez kolumny na `users`, więc nie ma
+  dwóch prawd (flaga i dowód). Zapisuje i czyta wyłącznie
+  `App\Domain\Zgody\PrzestawZgodeNaOdczytAi`; zdarzenie powstaje tylko przy
+  realnej zmianie.
+- **Ekran udzielania** przed pierwszym odczytem (`/dodaj/przepis/z-kartki`):
+  kto odczyta (OpenAI, USA), co wyślemy (samo zdjęcie kartki, bez imienia,
+  e-maila i danych z aparatu), prośba o zasłonięcie cudzych danych, jak
+  wycofać. Dwa przyciski: „Zgadzam się, odczytujcie moje kartki” / „Nie,
+  wpiszę przepis ręcznie”.
+- **Wycofanie** w `/ustawienia/prywatnosc` (osobny formularz), dostępne także
+  podczas zawieszenia konta (`EnsureAccountIsActive`, RODO art. 7 ust. 3).
+  Anonimizacja konta dopisuje `wycofana` / `usuniecie_konta`.
+- **Sprawdzenie przed każdą wysyłką:** zadanie `OdczytajPrzepis` czyta zgodę
+  świeżo z bazy jako OSTATNI krok przed żądaniem (po rezerwacji budżetu).
+  Wycofanie między zleceniem a wysyłką = zero wysłanych bajtów, rezerwacja
+  zwolniona (test).
+- **Co wychodzi:** wyłącznie zdjęcie kartki, na wyraźne żądanie jej autora,
+  przy każdym zleceniu z osobna — wariant przekodowany u nas do JPEG, dłuższy
+  bok ≤ 2000 px zmierzony z bajtów, bez EXIF/XMP/GPS; `store: false`; bez
+  e-maila, nazwy, IP, identyfikatorów i pola `user`.
+- **Poza tym wyjątkiem D-240 obowiązuje bez zmian** — moderacja dalej wysyła
+  tylko treść publiczną ≤ 320 px, awatar dalej nie wychodzi.
+- **Dla kogo:** wszyscy zalogowani (bez grupy testowej).
+
+### Warunki włączenia na produkcji (poza kodem)
+
+Umowa powierzenia (DPA) z OpenAI wpisana do `docs/legal/REJESTR_UMOW_POWIERZENIA.md`;
+nowa wersja polityki prywatności z drugim celem OpenAI (projekt tekstu:
+`docs/legal/projekty/POLITYKA_ODCZYT_AI.md`, wersję podbija osobny PR razem
+z pozostałymi zmianami polityki); nowa czynność w rejestrze czynności
+przetwarzania. Do tego czasu `OPENAI_IMPORT_KEY` zostaje pusty.
+
+### Dowód
+
+`tests/Feature/Import/OdczytZdjeciaKartkiTest.php` (ekran zgody, brak
+wysyłki bez zgody, wycofanie w trakcie kolejki, wycofanie przy zawieszeniu,
+usunięcie konta), `tests/Feature/Import/CofniecieZgodyOdczytuAiOdmawiaTest.php`
+(rollback odmawia przy istniejących zgodach — D-088).
+
+### Wycofanie
+
+Wyłączenie funkcji: usunąć `OPENAI_IMPORT_KEY`. Zgody w dzienniku zostają
+jako dowód i niczego nie uruchamiają. Migracja CHECK-ów cofa się tylko przy
+braku wpisów `odczyt_ai` (dziennik jest append-only).
+
+---
+
+## D-297 — Budżet i limity odczytu przepisów modelem: 5 USD dziennie, 100 USD miesięcznie, 5/30 odczytów na osobę (26 września 2026)
+
+**Data:** 26 września 2026 · **Decyzja właściciela** · Status: **obowiązuje** ·
+Dotyczy: V2 import/OCR (D-282, D-298), projekt `docs/research/V2_IMPORT_OCR_ODZYWCZE.md` §3.3
+
+**Decyzja właściciela dosłownie:** budżet 5 USD/dzień i 100 USD/mies.
+(w konfiguracji) + limit na osobę 5 importów/dzień i 30/mies. (propozycja
+z projektu).
+
+### Co obowiązuje
+
+- **Budżet serwisu w PostgreSQL**, tabela `ai_budzet_dzienny` (jeden wiersz
+  na dzień w strefie `Europe/Warsaw`, kwoty w mikro-USD). Bez Redisa i bez
+  cache'u — to są pieniądze, a licznik w cache'u znika przy restarcie.
+- **Rezerwacja przed wywołaniem, rozliczenie po nim** (`App\Domain\Import\BudzetAi`).
+  Rezerwacja = najgorszy przypadek: szacowane tokeny wejścia × cena wejścia +
+  sufit tokenów wyjścia (z rozumowaniem) × cena wyjścia. Zapis pod
+  `SELECT … FOR UPDATE` na wierszu dnia szereguje równoległe odczyty.
+  Rozliczenie z `usage` zwalnia nadwyżkę; **brak `usage` = cała rezerwacja
+  wydana** (żądanie mogło dojść i zostać policzone). Rezerwację zwalniamy bez
+  wydatku wyłącznie wtedy, gdy żądanie na pewno nie wyszło.
+- **Brak cennika = brak wywołań.** Ceny w USD za milion tokenów
+  (`KUKING_IMPORT_CENA_WEJSCIE`, `KUKING_IMPORT_CENA_WYJSCIE`) wpisuje się
+  ręcznie z cennika OpenAI; bez nich nie da się zarezerwować budżetu, więc
+  funkcja jest wyłączona tak samo jak bez klucza.
+- **Limit na osobę liczony z bazy** (`importy_przepisow`, dzień i miesiąc
+  w strefie człowieka), nie `RateLimiter`-em — ma być dokładny. Liczy się
+  zlecenie (także „Odczytaj jeszcze raz”); zlecenia zatrzymane na limicie
+  (`wstrzymany_limitem`) się nie liczą, bo do modelu nie poszły. Równoległe
+  zlecenia jednej osoby szereguje blokada doradcza na czas transakcji.
+  Osobno `throttle:import` (10 / 10 min) chroni samą trasę przed pętlą żądań.
+- **Próg ostrzegawczy 80%** dziennego budżetu: jeden `Log::warning`
+  (`stage=import_budzet_prog`) dziennie.
+- **Moderacja nie jest w tym budżecie** — jest bezpłatna, ma osobny klucz,
+  a wyczerpanie budżetu importu nie może jej zatrzymać.
+- **Druga linia obrony poza naszym kodem:** osobny projekt OpenAI z limitem
+  wydatków ustawionym w panelu dostawcy (krok właściciela).
+
+### Co widzi człowiek
+
+Wyczerpany budżet serwisu: przycisk zostaje, ale NAD nim stoi informacja,
+zanim ktoś kliknie; zlecenie złożone mimo to kończy się stanem
+`wstrzymany_limitem` z komunikatem „Twoje zdjęcie jest zapisane…”. Limit
+osoby: szkic ze zdjęciem i tak powstaje, a komunikat mówi, kiedy można dalej.
+
+### Dowód
+
+`tests/Feature/Import/BudzetAiTest.php`, `tests/Dwa/BudzetAiNaDwochPolaczeniachTest.php`
+(dwie rezerwacje naraz, limit na jedną — jedna przechodzi),
+`tests/Feature/Import/CofniecieBudzetuAiOdmawiaTest.php` (rollback odmawia
+przy wydatkach w bieżącym miesiącu — D-088).
+
+### Wycofanie / zmiana
+
+Kwoty i limity zmienia się w env (`KUKING_IMPORT_BUDZET_DZIEN`,
+`KUKING_IMPORT_BUDZET_MIESIAC`, `KUKING_IMPORT_NA_OSOBE_DZIEN`,
+`KUKING_IMPORT_NA_OSOBE_MIESIAC`) — zmiana domyślnych wartości w repo wymaga
+nowej decyzji właściciela.
+
+---
+
+## D-298 — Import przepisu i OCR zdjęcia kartki: architektura (26 września 2026)
+
+**Data:** 26 września 2026 · **Decyzja właściciela** (model, klucz, zakres) +
+rozstrzygnięcia wykonawcze opisane niżej · Status: **obowiązuje** ·
+Dotyczy: D-282 (V2 wolno budować), D-296 (zgoda „odczyt AI”), D-297 (budżet),
+projekt `docs/research/V2_IMPORT_OCR_ODZYWCZE.md`, issue #28
+
+### Decyzje właściciela z 26 września 2026
+
+- Model OpenAI **`gpt-6-luna`** — domyślna wartość `KUKING_IMPORT_MODEL`,
+  zmienialna w env. Osobny klucz **`OPENAI_IMPORT_KEY`**. **Brak klucza =
+  funkcja wyłączona, przycisk się nie pokazuje.**
+- **Intensywność myślenia (`reasoning.effort`) w konfiguracji, osobno per
+  zadanie:** odczyt zdjęcia zeszytu = `medium` (`KUKING_IMPORT_EFFORT_OCR`),
+  wyznaczanie fragmentów przepisu z URL/PDF = `low`
+  (`KUKING_IMPORT_EFFORT_TEKST`). Dozwolone wartości są w kodzie
+  (`KlientLuna::WYSILKI`: `minimal`, `low`, `medium`, `high`); wartość spoza
+  listy wyłącza TO JEDNO zadanie (żadnego żądania) i mówi o tym
+  `kuking:sprawdz-import`. Klient wysyła `reasoning.effort` dokładnie
+  z konfiguracji (test). Import z URL/PDF (osobna gałąź) używa klucza
+  `kuking.import.model.wysilek.tekst` i zadania `KlientLuna::ZADANIE_TEKST`.
+- Szkic z odczytu jest **zawsze `draft` i `private`, nigdy auto-publikacja**.
+- Przed publikacją szkicu z OCR: pole **„Sprawdziłem odczytany tekst”**,
+  a **niepewne słowa `[?…?]` blokują publikację**. Na ekranie pole brzmi
+  „Odczytany tekst jest sprawdzony ze zdjęciem” — forma „Sprawdziłem”
+  przypisuje czytelnikowi płeć, czego zabrania `docs/brand/COPY_STYLE.md` §2
+  (pilnuje `TekstyNiePrzypisujaPlciTest`); znaczenie i działanie bez zmian.
+- Na start funkcja dla **wszystkich zalogowanych**.
+
+### Architektura
+
+- **Import = zadanie w kolejce, które wypełnia prywatny SZKIC w istniejącym
+  kreatorze.** Szkic (`recipes`, `draft`, `private`) i zdjęcie kartki
+  (`recipes.source_scan_media_id`, zwykły potok zdjęć — EXIF zdjęty przed
+  czymkolwiek) powstają RAZEM ze zleceniem, zanim cokolwiek pójdzie do
+  modelu. Dlatego „zdjęcie jest zapisane” jest prawdą przy każdym błędzie,
+  limicie i wyłączonej funkcji, a zdjęcie ma od razu wszystkie ochrony skanu
+  kartki (eksport, kasowanie z kontem, `DostepDoZdjecia`). Jedno zdjęcie na
+  zlecenie w tym etapie (`source_scan_media_id` jest jedno).
+- Publikacja idzie **zwykłym `PublishRecipe`** i zwykłą moderacją.
+  `app/Domain/Import/**` nie odwołuje się do `PublishRecipe` z `publish: true`
+  (test architektoniczny). Bramkę „Sprawdziłem / `[?`” trzyma
+  `BramkaPublikacjiOdczytu` wołana z `PublishRecipe`, więc obejmuje kreator
+  i formularz bez JavaScriptu. **`PublishRecipe` (moduł `Recipes`) nie
+  importuje `Import` wprost** — woła kontrakt `App\Domain\Recipes\
+  BramkaPublikacjiSzkicu`, którego implementację (`BramkaPublikacjiOdczytu`)
+  wiąże `AppServiceProvider` (wzorem `ObserwowanieGospodarza`, issue #971).
+  Bezpośredni import zamykał cykl `Import → Recipes → Import`, bo `Import`
+  i tak zależy od `Recipes` przez `PublishRecipe` (`ZlecImportPrzepisu`,
+  `OdczytajPrzepis`) — pilnuje tego `GrafModulowDomenyBezCykliTest`.
+- **Klient `App\Domain\Import\KlientLuna`** — Responses API
+  (`POST https://api.openai.com/v1/responses`), host i ścieżka w kodzie
+  (`#^/v1/responses$#`, D-250), `store: false`, bez narzędzi, wyjście
+  w schemacie JSON (`strict`). Nie wysyła e-maila, nazwy, IP, identyfikatorów
+  ani pola `user`/`safety_identifier`. Trzy wyniki jak w moderacji (#1662).
+- **Obraz do modelu:** wariant `large` (≤ 1600 px) przekodowany przez GD do
+  JPEG, dłuższy bok ≤ 2000 px zmierzony z bajtów przed i po — bez EXIF/XMP/GPS.
+- **Kolejka `low`, nie osobna `import`.** Produkcja chodzi w roli `all`
+  (jeden proces na wszystkie kolejki), więc osobna kolejka trafiłaby do tego
+  samego procesu, a kosztowałaby zmianę `docker/entrypoint.sh`, IaC i
+  `UmowaKolejkiTest` oraz dodatkową pamięć po wydzieleniu workera. Po
+  wydzieleniu odczyt (do 90 s) stoi na `low` za moderacją, a nie przed
+  zdjęciami (`media`) i listami (`high`/`default`). Gdy pomiar pokaże, że
+  odczyty opóźniają moderację — wtedy osobna kolejka, nową decyzją.
+- **Tabela `importy_przepisow`** (ślad zlecenia, bez treści przepisu):
+  surowa odpowiedź modelu 30 dni, wiersz 90 dni (`kuking:sprzataj-importy`,
+  06:00). Wyjątek: wiersz szkicu, który nadal jest szkicem, zostaje jako
+  bramka publikacji. Eksport RODO: sekcja `odczyty_przepisow`; anonimizacja
+  konta kasuje wiersze.
+- **Brak powiadomienia w serwisie** w tym etapie: ekran postępu
+  `/import/{import}` (słowa, `aria-live`, działa bez JS) i lista „Moje szkice”.
+- Komenda **`kuking:sprawdz-import`** mówi, czego brakuje (klucz, model,
+  adres, intensywność, cennik, budżet) — bez wysyłania żądań.
+
+### Maszyna stanów płatnego wywołania (#1973, #1974, #1977, #1980)
+
+Audyt gałęzi pokazał cztery okna, w których awaria między dwoma zapisami
+psuła budżet albo zlecenie (zmierzone testami przed poprawką:
+`MaszynaStanowOdczytuTest`): rezerwacja zatwierdzona bez śladu w zleceniu
+(76 000 mikro-USD zablokowane na zawsze), rozliczenie policzone dwa razy
+(82 000 zamiast 76 000), zlecenie `oczekuje` bez zadania w kolejce (także po
+ponowieniu tym samym kluczem) i ponowienie zadania wysyłające DRUGIE płatne
+żądanie, choć odpowiedź pierwszego była zapisana. Jedna maszyna stanów
+zamiast czterech łatek:
+
+- **Księga `ai_rezerwacje`**, klucz `UNIQUE (import_id, proba)`, stany
+  `zarezerwowana → wyslana → rozliczona` albo `→ zwolniona`. Każde przejście
+  to warunkowy `UPDATE … WHERE stan IN (otwarte)`, więc powtórzone
+  rozliczenie niczego nie zmienia (#1974). Wiersz księgi powstaje w tej
+  samej transakcji co zwiększenie `zarezerwowano_mikrousd`, a zadanie
+  owija rezerwację i zwiększenie `importy_przepisow.proby` w jedną
+  transakcję (#1973). Kolumny `rezerwacja_mikrousd`/`rezerwacja_dzien`
+  zniknęły ze zlecenia (migracja gałęzi poprawiona w miejscu, przed
+  scaleniem).
+- **`wyslana` zapisywane PRZED żądaniem.** Dzięki temu rezerwacja porzucona
+  ma jednoznaczny los: niewysłana wraca do budżetu, wysłana idzie w wydatki
+  całą kwotą (D-297: lepiej zawyżyć). Domykają ją `failed()`, początek
+  następnej próby i **`kuking:odzyskaj-importy`** (co kwadrans; rezerwacja
+  otwarta ponad 30 minut — zadanie żyje najwyżej 120 s).
+- **Rozliczenie budżetu i zapis kosztu, tokenów i odpowiedzi w zleceniu —
+  jedna transakcja** (`RozliczenieOdczytu`). Koszt dopisywany w SQL
+  (`COALESCE(koszt_mikrousd, 0) + ?`), bo porzuconą rezerwację mógł domknąć
+  kto inny.
+- **Zapisana odpowiedź = etap „odczytano” zamknięty** (#1980). Ponowienie
+  zadania z `odpowiedz_modelu` odtwarza wynik (`OdpowiedzModelu::zZapisanej`)
+  i dokańcza BEZ rezerwacji i bez żądania. Zgody nie sprawdza drugi raz:
+  nic już nie wychodzi. Granica: `output_text` jest w zapisie ucięty do
+  20 000 znaków — dłuższy (niespotykany dla kartki) po wznowieniu kończy się
+  `odpowiedz_bledna`, nigdy drugim wywołaniem.
+- **Sufit płatnych żądań na zlecenie: `PROBY_MODELU` (3)** — liczony
+  z `proby`, więc obejmuje także ponowienia po zwykłym wyjątku, które
+  kolejka robi do `$tries` (8, bo obejmuje też czekanie na zdjęcie).
+- **Szkic i `gotowy` w jednej transakcji** — inaczej ponowienie po awarii
+  tuż za szkicem brało tekst modelu za pracę człowieka (`szkic_zmieniony`).
+- **Zlecenie i zadanie razem albo wcale** (#1977): `OdczytajPrzepis::dispatch()`
+  wewnątrz transakcji zapisu zlecenia — kolejka bazodanowa na tym samym
+  połączeniu, bez `after_commit`, ten sam outbox co `ZamowEksportDanych`
+  (A02) i `StoreUploadedImage` (#1456). `afterCommit()` odrzucone: przenosi
+  zapis zadania za commit, czyli zostawia to samo okno (kontrola ujemna
+  w `scripts/kontrole-negatywne-alfa08.py` robi dokładnie tę zmianę).
+  Zadanie zgubione inną drogą: zlecenie `oczekuje`/`w_toku` bez zmiany od
+  120 minut dostaje `nieudany`/`blad_wewnetrzny` i „Spróbuj jeszcze raz”.
+  **Nie wysyłamy zadania ponownie automatycznie** — gdyby „zgubione” zadanie
+  jednak żyło, dwa zadania to dwa płatne żądania; ponowienie należy do
+  człowieka i liczy się do jego limitu.
+
+### Czego ta decyzja NIE robi
+
+Nie włącza funkcji na produkcji: wymaga klucza, cennika, umowy powierzenia
+(DPA) z OpenAI i nowej wersji polityki prywatności (projekt tekstu:
+`docs/legal/projekty/POLITYKA_ODCZYT_AI.md`). Nie buduje importu z URL/PDF
+ani wartości odżywczych (osobne etapy i gałęzie).
+
+### Wycofanie
+
+Najszybciej: usunąć `OPENAI_IMPORT_KEY` — przyciski znikają, zlecenia
+w kolejce kończą się `wylaczony`, szkice ze zdjęciami zostają. Cofnięcie kodu:
+odwrócić commity; migracje `importy_przepisow` cofa się bez odmowy,
+`ai_budzet_dzienny` (razem z księgą `ai_rezerwacje`) odmawia przy wydatkach
+w bieżącym miesiącu (D-088).
 ## D-304 — „Mój stół”: dobrowolna półka przepisów wyłącznie z zamkniętej listy doboru (#1749, D-275, 26 września 2026)
 
 **Data:** 26 września 2026 · **Decyzja właściciela** (26.09: „budujemy teraz”,
@@ -18579,6 +19018,313 @@ wymagałoby osobnej, jawnej decyzji o wycofaniu konkretnej funkcji.
 
 📄 `AGENTS.md` §2, `AGENTS.md` §10, `CLAUDE.md`, `docs/FEATURES.md`,
 `docs/ROADMAP.md`, `config/kuking.php`
+## D-286 — Koszt dania: najpierw kwota wpisana przez autora, jawnie jako jego szacunek (V2, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela
+(dopuszczenie V2 z `docs/FEATURES.md` od 26.09 — D-282; wybór „oba":
+koszt wg autora oraz przedział liczony z cen GUS, gdy autor nic nie wpisze)
+
+**Problem.** „Koszt" jest na liście V2. Serwis nie zna cen w sklepie
+czytelnika, a przepisy domowe nie mają gramów, więc każda liczba „od
+serwisu" byłaby zgadywaniem przedstawionym jako fakt.
+
+**Decyzja (część 1 — autor).**
+
+1. Autor **może** (nie musi) wpisać przybliżony koszt CAŁEGO przepisu
+   w złotych — w kreatorze i w formularzu szczegółów. Ekran dodawania
+   („sześć rzeczy", #364) tego pola nie dostaje.
+2. Walidacja: liczba ≥ 0, najwyżej 9999,99, najwyżej dwa miejsca po
+   przecinku; „24,50", „24 zł" i „1 200" są poprawne. Komunikaty po polsku
+   mówią, co zrobić. Źródło reguł i tekstów: `App\Domain\Recipes\KosztPrzepisu`.
+3. Strona przepisu mówi pełnym zdaniem: **„Szacunkowy koszt: ok. 24 zł
+   (wg autora)"**. Zawsze „ok." i zawsze „wg autora" — to deklaracja jednej
+   osoby, nie cennik.
+4. Brak kwoty to brak zdania. `0 zł` jest odpowiedzią i się wyświetla.
+5. Koszt **nie** wchodzi do `CoMoznaDopisac` — zaproszenie „Dopisz
+   szczegóły" nie ma namawiać do liczenia pieniędzy przy rodzinnym rosole.
+6. Wyszukiwarka dostaje zakres **„Do 20 zł"** (`sekcja=tanie`) — sam filtr,
+   bez żadnego wpływu na kolejność wyników (AGENTS.md §8: żadnego rankingu).
+   Przepis bez kosztu z tego zakresu wypada: brak kwoty nie znaczy „tanio".
+7. Skalowanie porcji (jeszcze nie na `main`): koszt przelicza się
+   proporcjonalnie (`KosztPrzepisu::naPorcje`), zaokrąglony do pełnych
+   złotych, z dopiskiem „przeliczone z kosztu podanego przez autora"
+   (`zdaniePrzeliczone`). Bez liczby porcji autora nie przeliczamy.
+   Strona przepisu niesie kwotę w `data-koszt-autora` dla tego przełącznika.
+
+**Rollback kolumny odmawia**, gdy ktoś już wpisał koszt (D-088; opis
+w `docs/DATABASE.md`, sekcja `estimated_cost_pln`).
+
+**Czego świadomie nie ma:** cen sklepów, linków afiliacyjnych, porównań,
+AI, sortowania po cenie.
+
+### Wycofanie
+Ukrycie funkcji: usunąć pole z dwóch formularzy, zdanie ze strony i zakres
+z wyszukiwarki — kolumna może zostać. Zdjęcie kolumny: patrz rollback
+migracji (najpierw kopia wartości).
+
+### Część 2 — przedział z cen GUS, gdy autor nic nie wpisał (26 września 2026)
+
+**Decyzja właściciela z 26.09 („oba").** Gdy autor nie podał kwoty, strona
+przepisu może pokazać **przedział** liczony deterministycznie w PHP z cen
+GUS — podpisany jako szacunek i tylko przy dostatecznym pokryciu
+składników. Projekt: `docs/research/V2_IMPORT_OCR_ODZYWCZE.md` §8.4
+(gałąź `claude/v2-import-ocr-plan`, PR #1854).
+
+1. **Kwota autora zawsze wygrywa.** Przedział liczy się tylko przy
+   `recipes.estimated_cost_pln IS NULL`.
+2. **Dane:** tabela `ceny_skladnikow` wczytywana komendą
+   `kuking:ceny-skladnikow` z pliku `database/data/ceny_skladnikow.csv`.
+   Produkcja niczego nie pobiera z sieci; plik odświeża osoba prowadząca
+   (`scripts/ceny-gus-pobierz.py`, API BDL GUS, temat P1466) i zmiana cen
+   przechodzi przegląd w PR-ze. Każdy wiersz ma `zrodlo`; jedyny wiersz
+   spoza GUS to woda z kranu (0 zł, poza pokryciem), opisany jako
+   założenie Kuking.
+3. **Rytm:** komenda raz na kwartał. Stan faktyczny źródła: BDL podaje dla
+   tego tematu **średnie roczne** (dziś 2025), a **nie podaje cen warzyw**
+   (ziemniaki, cebula, marchew są tylko w serii miesięcznej zakończonej
+   w 2019). Przepisy z dużą masą warzyw uczciwie nie dostaną przedziału,
+   dopóki właściciel nie zdecyduje o innym źródle albo ręcznym uzupełnieniu.
+4. **Liczenie** (`SzacunekKosztuZCen`): ilość z tekstu składnika
+   (`IloscZTekstu`) albo z rozbitych pól, dopasowanie całymi słowami
+   (`CennikSkladnikow`), miary domowe per składnik. Przedział ±15%,
+   zaokrąglony do pełnych złotych. Warunki: każdy składnik z ilością da się
+   przeliczyć na gramy, a składniki z ceną to ≥ 90% masy. `no_amount`,
+   drobiazgi bez ilości (sól, pieprz, zioła, „do smaku") i woda nie liczą
+   się do masy.
+5. **Tekst:** „Orientacyjny koszt: ok. 5–7 zł za całość (średnie ceny
+   detaliczne GUS z 2025 r.). W Twoim sklepie może być inaczej." Gdy
+   warunki nie są spełnione, ale choć jeden składnik ma cenę — jedno zdanie,
+   dlaczego nie liczymy. Gdy żaden składnik nie trafił w cennik — cisza.
+6. **Poza zakresem:** zakres „Do 20 zł" w wyszukiwarce patrzy wyłącznie na
+   kwotę autora (przedział nie jest zapisywany w bazie); skalowanie porcji
+   przedziału nie przelicza.
+
+**Zbieżność z wartościami odżywczymi.** Projekt §8.1 przewiduje osobne
+`miary_domowe` przy tabeli składników odżywczych. Tu miary siedzą w cenniku
+(kolumny `g_*`), bo cennik jest samodzielny i mały; gdy powstanie wspólna
+tabela miar, cennik ma z niej korzystać, a nie trzymać drugiej kopii.
+
+### Wycofanie części 2
+Usunąć przekazanie `szacunekKosztu` w `RecipeController::show` — strona
+wraca do samej kwoty autora. Tabela może zostać albo zniknąć rollbackiem
+(`DROP TABLE`, bez strat: odtwarza ją komenda z pliku).
+
+### Część 3 — ceny warzyw z MRiRW/ZSRIR, bo GUS ich nie ma (26 września 2026)
+
+**Problem właściciela.** Cennik z części 2 nie ma ANI JEDNEGO warzywa —
+GUS (BDL, temat P1466) podaje dziś ceny mięsa, nabiału, pieczywa i suchych
+produktów, ale seria z cenami ziemniaków, cebuli i marchwi jest MIESIĘCZNA
+i skończyła się w 2019 roku (sprawdzone bezpośrednio w BDL 26.09.2026 —
+metryka 1466 nie ma nowszych wartości dla tych trzech towarów). Właściciel:
+„Znajdź może jakieś źródło, skąd można wziąć aktualne detaliczne ceny
+warzyw. Jakiś sklep, jakaś hurtownia albo coś”.
+
+**Sprawdzone źródła:**
+
+| Źródło | Typ ceny | Aktualność | Format / API | Licencja | Ocena |
+|---|---|---|---|---|---|
+| GUS BDL, P1466 | detaliczna, średnia roczna | ziemniaki/cebula/marchew: **do 2019**; reszta towarów: 2025 | REST API (bez klucza) | dane publiczne GUS | źle pokrywa warzywa — stąd ten problem |
+| **MRiRW, ZSRIR** (dane.gov.pl, zbiór 912), arkusz „ZAKUP WARZ DETAL — do 2 kg” | **cena zakupu warzyw przez podmioty handlu detalicznego**, opakowania do 2 kg — najbliższy oficjalny odpowiednik ceny detalicznej | **cotygodniowa**, publikowana też tego samego dnia co research (25.09.2026) | xlsx (biuletyn), zbiór ma REST API (`api.dane.gov.pl`) do listowania i pobierania zasobów | **CC BY 4.0 / domena publiczna** — jawnie wolno pobierać automatycznie i publikować przeliczenia | **wybrane** dla 5 warzyw: ziemniaki, cebula (biała), marchew, papryka czerwona, pomidory (okrągłe) |
+| MRiRW, ZSRIR, arkusz „HURT WARZ” (Bronisze, Kalisz, Łódź, Poznań, Rzeszów) | **hurtowa**, min–max z 5 rynków | cotygodniowa | j.w. | j.w. | szersze pokrycie warzyw (kapusta, buraki, por, seler, pietruszka, sałata, ogórek…), ale **odrzucone jako automatyczne źródło** — patrz niżej |
+| Sklepy internetowe (Frisco, Auchan, Carrefour) i gazetki (Biedronka, Lidl) | detaliczna, realny sklep | bieżąca | brak API do tego celu; regulaminy zwykle zakazują automatycznego pobierania i republikacji cen | zastrzeżona, per-sklep | **odrzucone** — to byłby scraping wbrew regulaminowi, którego D-286 świadomie unika |
+| Eurostat (ceny konsumpcyjne) | wskaźniki zagregowane (HICP), nie ceny jednostkowe konkretnych warzyw w PLN | miesięczna | API/CSV, licencja otwarta | otwarta | **odrzucone** — nie da się z tego odtworzyć ceny za kg konkretnego warzywa |
+| dane.gov.pl (poza zbiorem 912) | — | — | — | — | żadnego innego zbioru z cenami detalicznymi warzyw nie znaleziono |
+
+**Dlaczego ZSRIR „do 2 kg”, a nie „HURT WARZ” z przelicznikiem.** Rozważono
+policzenie brakujących warzyw (kapusta, buraki, por, seler, pietruszka,
+sałata, ogórek) z arkusza hurtowego przez jeden, jawny mnożnik hurt→detal.
+Sprawdzono to empirycznie na warzywach, które są w OBU arkuszach tego
+samego biuletynu (cebula, marchew, ziemniaki, papryka czerwona): stosunek
+ceny detalicznej („do 2 kg”) do średniej ceny hurtowej z 5 rynków wyniósł
+odpowiednio ok. **1,0×** (cebula), **1,5×** (ziemniaki), **1,6×** (marchew)
+i **2,2×** (papryka) — rozrzut zbyt duży, żeby jeden mnożnik dla wszystkich
+warzyw był czymkolwiek innym niż zgadywaniem przedstawionym jako fakt.
+Zamiast zmyślać liczbę, zostawiamy te warzywa BEZ ceny — dokładnie jak dziś
+przy brakujących cenach GUS (`SzacunekKosztuZCen` już to obsługuje: milczy,
+gdy żaden składnik nie trafił w cennik, i tłumaczy się, gdy trafił tylko
+częściowo). Kalibrowany, PER-WARZYWO przelicznik jest możliwy w przyszłości,
+ale to osobna decyzja właściciela, nie coś do zgadnięcia przy okazji.
+
+**Wdrożenie.**
+
+1. `database/data/ceny_skladnikow.csv` ma teraz 5 nowych wierszy: `ziemniaki`,
+   `cebula`, `marchew`, `papryka_czerwona`, `pomidor`. `zrodlo` każdego
+   zaczyna się od `MRiRW` (nie `GUS`) — to jedyne miejsce, po którym kod
+   i testy rozpoznają źródło ceny (`SzacunekKosztuZCen::nazwaZrodla`).
+2. Nowy skrypt `scripts/ceny-warzyw-zsrir-pobierz.py` (analogiczny do
+   `ceny-gus-pobierz.py`) pobiera najnowszy biuletyn ZSRIR z dane.gov.pl,
+   czyta arkusz „ZAKUP WARZ DETAL - DO 2 KG” i aktualizuje TYLKO te pięć
+   wierszy. Uruchamia się na komputerze osoby prowadzącej, tak samo raz na
+   kwartał — produkcja nadal niczego nie pobiera z sieci.
+3. Zdanie na stronie przepisu wymienia oba źródła, gdy oba wystąpiły
+   w jednym przepisie: „Orientacyjny koszt: ok. 8–12 zł za całość (średnie
+   ceny detaliczne GUS i MRiRW/ZSRIR z 2025, 2026 r.). W Twoim sklepie może
+   być inaczej.” — zamiast dawnego sztywnego „GUS z {rok} r.”.
+4. Bez migracji: kolumny `ceny_skladnikow` już dopuszczały `zmienna_bdl`
+   jako `NULL` (wiersze spoza GUS go po prostu nie mają).
+
+**Stan do 26.09.2026 (druga tura decyzji, niżej):** kapusta, buraki
+ćwikłowe, por, seler, pietruszka korzeniowa, sałata, ogórek nie miały ceny
+z powodów opisanych wyżej. Właściciel, znając ten sam rozrzut 1,0×–2,2×,
+zdecydował inaczej niż proponowane „zostawić bez ceny” — patrz niżej.
+
+### Uzupełnienie z 26.09.2026 — decyzja właściciela: jednak hurt × 1,6,
+### jawnie nazwane, i odświeżanie co tydzień
+
+Właściciel, po przeczytaniu tabeli źródeł i zmierzonego rozrzutu (1,0×–2,2×)
+zdecydował **inaczej niż zaproponowane wyżej „zostawić bez ceny”**:
+
+> „DODAJ je jako cena hurtowa ZSRIR (środek min–max z rynków) × 1,6,
+> z jawnym opisem. W źródle i w zdaniu pod kosztem musi być wprost
+> napisane, że to szacunek z cen hurtowych. Mnożnik ma być jedną stałą
+> z komentarzem i uzasadnieniem. Odświeżanie warzyw co tydzień.”
+
+**1. Siedem warzyw dostaje cenę z arkusza „HURT WARZ”.** `kapusta`,
+`buraki`, `por`, `seler`, `pietruszka`, `salata`, `ogorek` — cena to
+średnia z min–max pięciu rynków (Bronisze, Kalisz, Łódź, Poznań,
+Rzeszów) w biuletynie z 14-22.09.2026, pomnożona przez
+`App\Domain\Recipes\Koszt\SzacunekKosztuZCen::MNOZNIK_HURT_DETAL = 1,6`
+— **jedna nazwana stała z komentarzem w kodzie**, nie liczba wpisana po
+cichu do CSV. 1,6 to środek zmierzonego zakresu 1,0×–2,2×, jawnie
+przybliżony, nie zmierzony osobno dla każdego warzywa. `por` i `salata`
+mają cenę **za sztukę** (arkusz notuje je w `szt.`, nie `kg`), pozostałe
+pięć — za kilogram.
+
+**2. Jawność w DWÓCH miejscach, nie jednym.** Pole `zrodlo` każdego z tych
+siedmiu wierszy zaczyna się od frazy „szacunek z cen hurtowych” i podaje
+sam mnożnik. `SzacunekKosztuZCen` wykrywa tę frazę i dokłada do zdania na
+stronie przepisu zdanie wprost: „(…; część cen to szacunek z cen
+hurtowych MRiRW/ZSRIR)” — czytelnik nie ma się domyślać z samego numeru
+ceny, że to nie jest zwykła cena detaliczna.
+
+**3. Odświeżanie: co tydzień, przez GitHub Actions, nie przez człowieka.**
+Nowy workflow `.github/workflows/ceny-warzyw-auto.yml` (harmonogram
+cotygodniowy + `workflow_dispatch`) uruchamia
+`scripts/ceny-warzyw-zsrir-pobierz.py --zapisz` — TEN SAM skrypt, który
+wcześniej uruchamiała tylko osoba prowadząca ręcznie. **Produkcja nadal
+niczego nie pobiera z sieci** — automatyzacja dotyczy wyłącznie CI. Gdy
+plik się zmieni, workflow pushuje gałąź `claude/ceny-warzyw-auto`
+(NIGDY `main` wprost) i otwiera PR do `main`. Merge PR-a jest ręczny:
+ktoś z zespołu przegląda różnicę cen, dokładnie jak dotąd.
+
+**Stan do 26.09.2026 (tego samego dnia, później tego dnia):** workflow
+pushował i otwierał PR domyślnym tokenem `GITHUB_TOKEN` tego przebiegu,
+a siedem warzyw hurtowych nie było w nim automatyzowane w ogóle (osobna
+ręczna aktualizacja arkusza „HURT WARZ”). Właściciel zmienił OBIE rzeczy
+tego samego dnia — patrz „Uzupełnienie” niżej.
+
+### Uzupełnienie z 26.09.2026 (dalszy ciąg) — osobisty token i wszystkie
+### 12 warzyw w jednym PR-ze
+
+Dwie kolejne decyzje właściciela z 26.09.2026, po uruchomieniu workflow
+z punktu 3:
+
+**A. `GITHUB_TOKEN` nie wystarcza — GitHub świadomie nie odpala CI na
+PR-ze, który sam otworzył.** GitHub Actions ma wbudowane zabezpieczenie
+przed pętlą automatów: `pull_request` NIE URUCHAMIA workflowów, gdy PR
+został otwarty (albo zaktualizowany) domyślnym `GITHUB_TOKEN` tego samego
+repozytorium. Efekt uboczny u nas: PR z cenami warzyw stał bez ani
+jednego przebiegu `ci.yml` — recenzent nie miał czym sprawdzić, czy
+zmiana w ogóle przechodzi testy, zanim scali.
+
+Rozwiązanie: workflow dostaje osobisty, fine-grained PAT zapisany jako
+sekret repozytorium — `CENY_WARZYW_PAT`. PR otwarty tym tokenem wygląda
+dla GitHuba jak otwarty przez człowieka, więc `pull_request` rusza
+normalnie. **Checkout i krok push/PR idą TYM SAMYM tokenem** — nie samym
+pushem, bo checkout bez tokenu i tak by nie miał czym push zautoryzować.
+
+*Uprawnienia PAT-a (minimalne, opisane też w
+`docs/infra/DEPLOYMENT_RUNBOOK.md`, sekcja „Co tydzień”):* wyłącznie to
+jedno repozytorium (nie „All repositories"), `Contents: Read and write`,
+`Pull requests: Read and write`, z ustawionym terminem ważności — nie
+„No expiration". Domyślny `GITHUB_TOKEN` zostaje w workflowie z uprawnieniem
+`contents: read` (nic więcej go już nie potrzebuje).
+
+*Gdy sekretu brakuje:* workflow ma osobny, pierwszy krok „Sprawdź sekret
+CENY_WARZYW_PAT”, który sprawdza jego obecność PRZED checkoutem i kończy
+przebieg czerwonym `::error::` po polsku, mówiącym dokładnie, co ustawić
+i gdzie (Settings → Secrets and variables → Actions →
+`CENY_WARZYW_PAT`) — nie cichym błędem gita czy `gh` przy pustym tokenie.
+
+**Poprawka bezpieczeństwa, 26.09.2026 (#1957): checkout i uruchomienie
+skryptu rozdzielone na dwa joby.** Zdanie wyżej — „checkout i krok
+push/PR idą TYM SAMYM tokenem” — było prawdziwe i było błędem: między
+tym checkoutem a pushem workflow uruchamiał
+`python3 scripts/ceny-warzyw-zsrir-pobierz.py`, czyli kod z repozytorium,
+mając już poświadczenie zapisu (`Contents`/`Pull requests: read/write`)
+zapisane w konfiguracji gita przez ten sam checkout. Skompromitowany
+skrypt (albo jego zależność `openpyxl`) mógł to poświadczenie odczytać
+(`git config --local --get-regexp 'credential|url'`) i wynieść poza
+kontrolę tego joba. Naprawa: `pobierz` (bez tokenu, `persist-credentials:
+false`, uruchamia skrypt) i `publikuj` (z tokenem, ale bez ani jednego
+wywołania kodu z `scripts/` — tylko `git`/`gh` z tego pliku workflow,
+plik CSV wędruje między jobami jako artefakt przebiegu). Strażnik:
+`tests/Feature/WorkflowCenNieUruchamiaKoduZTokenemZapisuTest.php`.
+
+**B. Automatyzacja obejmuje też siedem warzyw hurtowych — jeden PR
+tygodniowo na wszystkie 12 warzyw.** Ręczna aktualizacja arkusza
+„HURT WARZ” z punktu 3 była tymczasowa: skoro ten sam biuletyn niesie oba
+arkusze w jednym pliku xlsx, nie ma powodu automatyzować tylko jednego
+z nich. `scripts/ceny-warzyw-zsrir-pobierz.py` dostał drugą funkcję
+parsującą, `wyciagnij_ceny_hurt`, czytającą arkusz „HURT WARZ”: dla
+każdego z pięciu rynków (Bronisze, Kalisz, Łódź, Poznań, Rzeszów) liczy
+średnią z min–max, potem średnią arytmetyczną tych pięciu wartości (rynek
+bez notowania w danym tygodniu jest POMIJANY, nie liczy się jako zero),
+mnoży przez przelicznik i zapisuje jak dotąd z jawną klauzulą
+„szacunek z cen hurtowych” w `zrodlo`.
+
+**Mnożnik ma jedno źródło prawdy, także między językami.** Skrypt NIE
+trzyma własnej kopii liczby 1,6 — funkcja `mnoznik_hurt_detal()` czyta ją
+wprost z pliku PHP (`App\Domain\Recipes\Koszt\SzacunekKosztuZCen`,
+wyrażeniem regularnym na stałą `MNOZNIK_HURT_DETAL`) i kończy działanie
+czytelnym błędem, gdy tej stałej tam nie znajdzie — zamiast po cichu
+przyjąć wartość domyślną. Test zgodności
+(`MnoznikHurtDetalTest::test_czyta_stala_z_prawdziwego_pliku_php`) czyta
+PRAWDZIWY plik repozytorium, nie kopię, więc zmiana stałej w PHP bez
+odpowiadającej zmiany w Pythonie (albo odwrotnie) nie może po cichu
+przejść — któryś z dwóch testów by to złapał.
+
+Skrypt aktualizuje teraz WSZYSTKIE 12 wierszy (`MAPA` ∪ `MAPA_HURT`)
+w jednym przebiegu, więc workflow otwiera **jeden PR tygodniowo** z całym
+cennikiem warzyw, a nie dwa osobne progi przeglądu tej samej rzeczy.
+
+**4. Testy.** `KosztZCenGusTest::kapusniak_mowi_wprost_ze_kapusta_to_szacunek_z_hurtu`
+— ręcznie policzone danie (kiełbasa GUS + kapusta hurt×1,6), sprawdza
+kwotę I dokładny tekst zdania z klauzulą o cenach hurtowych; kontrola
+ujemna zepsuła wykrywanie frazy — test oblał, przywrócono, znów zielony.
+`KosztZCenGusTest::ceny_hurtowe_warzyw_w_pliku_sa_srednia_razy_mnoznik`
+— sprawdza, że KAŻDA z siedmiu cen w prawdziwym pliku CSV to naprawdę
+`hurt_średnia × MNOZNIK_HURT_DETAL` (żeby ktoś, kto zmieni jedno, nie
+zapomniał drugiego); kontrola ujemna zmieniła stałą — test oblał,
+przywrócono. `scripts/ceny_warzyw_zsrir_pobierz_test.py` (`unittest`,
+bez sieci, na małych fikturach .xlsx zbudowanych w pamięci) sprawdza
+parser skryptu — teraz uruchamiany automatycznie co tydzień, więc musi
+mieć własny test, nie tylko ręczne uruchomienie; ten test chodzi też jako
+krok w `ceny-warzyw-auto.yml`, PRZED prawdziwym pobraniem. Od uzupełnienia
+z 26.09.2026 dochodzą do niego: `WyciagnijCenyHurtTest` (parser arkusza
+„HURT WARZ”, z kontrolą ujemną na rynek bez notowania — gdyby liczył się
+jako zero zamiast być pominięty, średnia by spadła), `MnoznikHurtDetalTest`
+(test zgodności — czyta `MNOZNIK_HURT_DETAL` z prawdziwego pliku PHP,
+z kontrolą ujemną na plik bez tej stałej) i
+`MainAktualizujeWszystkie12WarzywTest` (uruchamia cały `main()` na
+fikturze z OBOMA arkuszami tego samego biuletynu i sprawdza, że
+wszystkie 12 kluczy — `MAPA` ∪ `MAPA_HURT` — dostaje nową cenę w jednym
+przebiegu, a klauzula „szacunek z cen hurtowych” trafia wyłącznie do
+siedmiu wierszy hurtowych).
+
+### Wycofanie części 3
+Usunąć pięć wierszy detalicznych (`ziemniaki`, `cebula`, `marchew`,
+`papryka_czerwona`, `pomidor`) i siedem wierszy hurtowych (`kapusta`,
+`buraki`, `por`, `seler`, `pietruszka`, `salata`, `ogorek`) z
+`database/data/ceny_skladnikow.csv`, skrypt
+`scripts/ceny-warzyw-zsrir-pobierz.py` z testem
+`scripts/ceny_warzyw_zsrir_pobierz_test.py` i workflow
+`.github/workflows/ceny-warzyw-auto.yml` (razem z sekretem
+`CENY_WARZYW_PAT`, jeśli nic innego go już nie używa). Bez migracji do
+cofnięcia — kod `SzacunekKosztuZCen` obsługuje brak tych wierszy tak samo
+jak dziś
+obsługuje brak cen warzyw w ogóle.
+
 
 ## D-284 — Skalowanie porcji i zamienniki składników od autora, bez AI (V2, 26 września 2026)
 
