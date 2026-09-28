@@ -76,7 +76,7 @@ class ZamiarUgotowaniaPoRejestracjiTest extends TestCase
         $this->get(route('onboarding.done'))->assertOk()->assertViewIs('pages.onboarding.done');
     }
 
-    /** @return iterable<string, array{0: \Closure(Recipe, User): void}> */
+    /** @return iterable<string, array{0: \Closure(Recipe, User): mixed}> */
     public static function przepisyNiedostepne(): iterable
     {
         yield 'prywatny' => [fn (Recipe $p) => $p->forceFill(['visibility' => 'private'])->save()];
@@ -230,8 +230,10 @@ class ZamiarUgotowaniaPoRejestracjiTest extends TestCase
         @$dom->loadHTML('<?xml encoding="utf-8" ?>'.$html);
         $linki = (new DOMXPath($dom))->query('//section[contains(@class, "cook-finish")]//a');
         $this->assertSame(1, $linki->length, 'Na ostatnim kroku powinien być jeden odnośnik dla gościa.');
-        $href = (string) $linki->item(0)?->getAttribute('href');
-        $this->assertSame('Załóż konto', trim((string) $linki->item(0)?->textContent));
+        $link = $linki->item(0);
+        $this->assertInstanceOf(\DOMElement::class, $link);
+        $href = $link->getAttribute('href');
+        $this->assertSame('Załóż konto', trim($link->textContent));
 
         $this->get($href)->assertOk();
         $this->zarejestruj();
