@@ -889,9 +889,20 @@ def akcje_poza_filtrem_widoku(source):
     )
 
 
+# Polskie litery w `unicode-range` Inter (#1000). Strażnik parsuje zakresy
+# z `fonts.css`; mutacja wycina „Ą ą" (U+0104–0105) z podzbioru latin-ext.
+FONTY_CSS = "resources/css/fonts.css"
+FONTY_TEST = "PodzbiorFontuMaPolskieZnakiTest"
+# Kontrakt bezpiecznego obszaru (#987, D-260): meta viewport z `cover`
+# i boki dolnej belki oraz dół podpowiedzi wyglądu przez tokeny `--safe-*`.
+BEZPIECZNY_OBSZAR_TEST = "BezpiecznyObszarMaJedenKontraktTest"
+MARKA_RAMA_CSS = "resources/css/marka-rama.css"
+SZYBKI_WYGLAD_CSS = "resources/css/szybki-wyglad.css"
 # Publiczny domyślny zeszyt a przyszłe szybkie zapisy (#1400).
 EDYCJA_ZESZYTU = "resources/views/pages/collections/edit.blade.php"
 DOMYSLNY_ZESZYT_TEST = "PublicznyDomyslnyZeszytJawnyPrzyZapisieTest"
+
+
 def dockerfile_poza_wzorcem_obrazu(source):
     """KONTROLA DODATNIA: `Dockerfile` wypada ze wzorca `obraz`.
 
@@ -1242,6 +1253,14 @@ checks = [
      bez_kursora_wyszukiwania),
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
      lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
+    ("Podzbiór fontu bez „ą\"", FONTY_CSS, FONTY_TEST,
+     lambda s: replace_once(s, "unicode-range: U+0100-02BA,", "unicode-range: U+0100-0103, U+0106-02BA,")),
+    ("Viewport bez viewport-fit=cover", LAYOUT, BEZPIECZNY_OBSZAR_TEST,
+     lambda s: replace_once(s, ", viewport-fit=cover", "")),
+    ("Dolna belka bez lewego insetu", MARKA_RAMA_CSS, BEZPIECZNY_OBSZAR_TEST,
+     lambda s: replace_once(s, "left: calc(8px + var(--safe-left));", "left: 8px;")),
+    ("Podpowiedź wyglądu bez dolnego insetu", SZYBKI_WYGLAD_CSS, BEZPIECZNY_OBSZAR_TEST,
+     lambda s: replace_once(s, "+ var(--safe-bottom) + 76px)", "+ 76px)")),
     ("Edycja domyślnego zeszytu bez skutku dla przyszłych zapisów", EDYCJA_ZESZYTU, DOMYSLNY_ZESZYT_TEST,
      lambda s: replace_once(s, " i wszystko, co zapiszesz tu później", "")),
     ("Offline: „Spróbuj ponownie” znów prowadzi na /home (#749)", OFFLINE_HTML, OFFLINE_PONOWIENIE_TEST,
@@ -1507,6 +1526,8 @@ run_test(GOOGLE_LINK_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(STABILNE_OKNA_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
+run_test(FONTY_TEST, True)
+run_test(BEZPIECZNY_OBSZAR_TEST, True)
 run_test(OFFLINE_PONOWIENIE_TEST, True)
 run_test(KONTRAKT_KARTY_TEST, True)
 run_test(GRUPA_SYGNALOW_TEST, True)
