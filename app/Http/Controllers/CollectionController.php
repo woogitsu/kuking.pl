@@ -72,72 +72,6 @@ class CollectionController extends Controller
     }
 
     /**
-     * Liczby na kartach zeszytów: ile WIDOCZNYCH przepisów i wpisów leży
-     * w każdym (issue #774, #1319, #2030).
-     *
-     * LICZBA WIDOCZNA — DOKŁADNIE TA SAMA, KTÓRĄ CZŁOWIEK ZOBACZY PO WEJŚCIU
-     * (issue #774). PRZED TAMTĄ ZMIANĄ karta liczyła bez żadnego filtra
-     * widoczności ani statusu autora, a `show()` filtrował OBOMA
-     * (`widoczneDla()` i `dostepnyJakoAutor()`, audyt W5-08). Dwa ekrany tego
-     * samego zeszytu liczyły więc dwie różne rzeczy — i to NIE PO RÓWNO:
-     * prywatna treść była wliczona w obie liczby, a treść miękko usunięta
-     * (SoftDeletes dodaje globalny zakres) wypadała tylko z karty, nie
-     * z wnętrza zeszytu. Jedna reguła zamiast dwóch przypadkowo różnych:
-     * karta pokazuje WIDOCZNE, wnętrze dokłada „N nie jest dostępnych" —
-     * i te dwie liczby razem dają całość. Wpisy liczy ta sama reguła co
-     * wnętrze zeszytu, łącznie z bramką przepisu i statusem jego autora (#1319).
-     *
-     * JEDNO ZAPYTANIE NA RODZAJ, NIE PODZAPYTANIE NA ZESZYT (#2030). Do tej
-     * zmiany te dwie liczby były skorelowanymi podzapytaniami `withCount()`
-     * w zapytaniu o listę. Pracy było tyle samo, ale planer mnożył koszt
-     * jednego podzapytania przez liczbę zeszytów. Przy 200 zeszytach
-     * szacunek przekraczał `jit_inline_above_cost` i PostgreSQL kompilował
-     * zapytanie przez JIT z inliningiem i optymalizacją — ok. 0,6–0,7 s
-     * na samą kompilację przy ok. 0,1 s właściwej pracy
-     * (docs/infra/ZESZYTY_KOSZT_2030.md). Zgrupowane zliczenie po
-     * `collection_items` daje te same liczby i jeden, mniejszy szacunek.
-     *
-     * `join` z `collection_items`, NIE z `collections`: tabela zeszytów ma
-     * kolumnę `visibility`, a zakresy widoczności pytają o nią bez nazwy
-     * tabeli (patrz `ostatnioZapisane()`). Zeszyty wybiera podzapytanie po
-     * właścicielu — to te same zeszyty, które wypisuje lista.
-     *
-     * @param  EloquentCollection<int, Collection>  $zeszyty
-     */
-    private function policzWidoczne(EloquentCollection $zeszyty, User $user): void
-    {
-        if ($zeszyty->isEmpty()) {
-            return;
-        }
-
-        $wlasne = Collection::query()->where('owner_id', $user->getKey())->select('id');
-
-        $przepisy = Recipe::query()
-            ->widoczneDla($user)
-            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
-            ->join('collection_items', 'collection_items.recipe_id', '=', 'recipes.id')
-            ->whereIn('collection_items.collection_id', $wlasne)
-            ->groupBy('collection_items.collection_id')
-            ->toBase()
-            ->selectRaw('collection_items.collection_id, count(*) as ile')
-            ->pluck('ile', 'collection_id');
-
-        $wpisy = Post::query()
-            ->widoczneWZeszycieDla($user)
-            ->join('collection_items', 'collection_items.post_id', '=', 'posts.id')
-            ->whereIn('collection_items.collection_id', $wlasne)
-            ->groupBy('collection_items.collection_id')
-            ->toBase()
-            ->selectRaw('collection_items.collection_id, count(*) as ile')
-            ->pluck('ile', 'collection_id');
-
-        foreach ($zeszyty as $zeszyt) {
-            $zeszyt->setAttribute('recipes_count', (int) ($przepisy[$zeszyt->getKey()] ?? 0));
-            $zeszyt->setAttribute('posts_count', (int) ($wpisy[$zeszyt->getKey()] ?? 0));
-        }
-    }
-
-    /**
      * „Szukaj w moich zeszytach” — po TYTULE zapisanego przepisu (issue #779).
      *
      * Najprostsza wersja, na decyzję właściciela z 25.09.2026: jedno pole
@@ -386,6 +320,72 @@ class CollectionController extends Controller
         } while ($dalej);
 
         return $znalezione->load($relacje);
+    }
+
+    /**
+     * Liczby na kartach zeszytów: ile WIDOCZNYCH przepisów i wpisów leży
+     * w każdym (issue #774, #1319, #2030).
+     *
+     * LICZBA WIDOCZNA — DOKŁADNIE TA SAMA, KTÓRĄ CZŁOWIEK ZOBACZY PO WEJŚCIU
+     * (issue #774). PRZED TAMTĄ ZMIANĄ karta liczyła bez żadnego filtra
+     * widoczności ani statusu autora, a `show()` filtrował OBOMA
+     * (`widoczneDla()` i `dostepnyJakoAutor()`, audyt W5-08). Dwa ekrany tego
+     * samego zeszytu liczyły więc dwie różne rzeczy — i to NIE PO RÓWNO:
+     * prywatna treść była wliczona w obie liczby, a treść miękko usunięta
+     * (SoftDeletes dodaje globalny zakres) wypadała tylko z karty, nie
+     * z wnętrza zeszytu. Jedna reguła zamiast dwóch przypadkowo różnych:
+     * karta pokazuje WIDOCZNE, wnętrze dokłada „N nie jest dostępnych" —
+     * i te dwie liczby razem dają całość. Wpisy liczy ta sama reguła co
+     * wnętrze zeszytu, łącznie z bramką przepisu i statusem jego autora (#1319).
+     *
+     * JEDNO ZAPYTANIE NA RODZAJ, NIE PODZAPYTANIE NA ZESZYT (#2030). Do tej
+     * zmiany te dwie liczby były skorelowanymi podzapytaniami `withCount()`
+     * w zapytaniu o listę. Pracy było tyle samo, ale planer mnożył koszt
+     * jednego podzapytania przez liczbę zeszytów. Przy 200 zeszytach
+     * szacunek przekraczał `jit_inline_above_cost` i PostgreSQL kompilował
+     * zapytanie przez JIT z inliningiem i optymalizacją — ok. 0,6–0,7 s
+     * na samą kompilację przy ok. 0,1 s właściwej pracy
+     * (docs/infra/ZESZYTY_KOSZT_2030.md). Zgrupowane zliczenie po
+     * `collection_items` daje te same liczby i jeden, mniejszy szacunek.
+     *
+     * `join` z `collection_items`, NIE z `collections`: tabela zeszytów ma
+     * kolumnę `visibility`, a zakresy widoczności pytają o nią bez nazwy
+     * tabeli (patrz `ostatnioZapisane()`). Zeszyty wybiera podzapytanie po
+     * właścicielu — to te same zeszyty, które wypisuje lista.
+     *
+     * @param  EloquentCollection<int, Collection>  $zeszyty
+     */
+    private function policzWidoczne(EloquentCollection $zeszyty, User $user): void
+    {
+        if ($zeszyty->isEmpty()) {
+            return;
+        }
+
+        $wlasne = Collection::query()->where('owner_id', $user->getKey())->select('id');
+
+        $przepisy = Recipe::query()
+            ->widoczneDla($user)
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->join('collection_items', 'collection_items.recipe_id', '=', 'recipes.id')
+            ->whereIn('collection_items.collection_id', $wlasne)
+            ->groupBy('collection_items.collection_id')
+            ->toBase()
+            ->selectRaw('collection_items.collection_id, count(*) as ile')
+            ->pluck('ile', 'collection_id');
+
+        $wpisy = Post::query()
+            ->widoczneWZeszycieDla($user)
+            ->join('collection_items', 'collection_items.post_id', '=', 'posts.id')
+            ->whereIn('collection_items.collection_id', $wlasne)
+            ->groupBy('collection_items.collection_id')
+            ->toBase()
+            ->selectRaw('collection_items.collection_id, count(*) as ile')
+            ->pluck('ile', 'collection_id');
+
+        foreach ($zeszyty as $zeszyt) {
+            $zeszyt->setAttribute('recipes_count', (int) ($przepisy[$zeszyt->getKey()] ?? 0));
+            $zeszyt->setAttribute('posts_count', (int) ($wpisy[$zeszyt->getKey()] ?? 0));
+        }
     }
 
     public function show(Request $request, Collection $collection): View|RedirectResponse
