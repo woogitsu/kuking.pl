@@ -167,4 +167,24 @@ class DziennikWymazanPrzezOdtworzenieTest extends TestCase
         $this->artisan('kuking:dziennik-wymazan', ['--dopisz' => $uuid, '--zakres' => User::DELETE_SCOPE_EVERYTHING, '--kiedy' => now()->subHour()->toIso8601ZuluString()])->assertSuccessful();
         $this->assertSame([$uuid], array_column(app(DziennikWymazan::class)->wpisyOd(), 'user_id'));
     }
+
+    public function test_reczne_dopisanie_nie_nadpisuje_istniejacego_wymazania_innym_zakresem(): void
+    {
+        $uuid = '00000000-0000-4000-8000-000000000002';
+        $klucz = DziennikWymazan::PREFIKS.$uuid.'.json';
+        $istniejacyWpis = json_encode([
+            'user_id' => $uuid,
+            'wymazano_at' => now()->subDays(2)->toIso8601ZuluString(),
+            'zakres' => User::DELETE_SCOPE_EVERYTHING,
+        ], JSON_THROW_ON_ERROR);
+        Storage::disk('dziennik_test')->put($klucz, $istniejacyWpis);
+
+        $this->artisan('kuking:dziennik-wymazan', [
+            '--dopisz' => $uuid,
+            '--zakres' => User::DELETE_SCOPE_MINIMUM,
+            '--kiedy' => now()->subDay()->toIso8601ZuluString(),
+        ])->assertFailed();
+
+        $this->assertSame($istniejacyWpis, Storage::disk('dziennik_test')->get($klucz));
+    }
 }

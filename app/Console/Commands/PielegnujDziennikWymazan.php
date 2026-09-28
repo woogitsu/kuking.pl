@@ -80,6 +80,22 @@ class PielegnujDziennikWymazan extends Command
             return self::FAILURE;
         }
 
+        // Ręczne odtwarzanie z logu nie może zastąpić istniejącego śladu
+        // innym zakresem ani datą. Przy błędzie odczytu także odmawiamy.
+        try {
+            $juzIstnieje = $dziennik->dysk()->exists(DziennikWymazan::PREFIKS.$userId.'.json');
+        } catch (Throwable) {
+            $this->error('Nie udało się sprawdzić istniejącego wpisu dziennika — niczego nie dopisano.');
+
+            return self::FAILURE;
+        }
+
+        if ($juzIstnieje) {
+            $this->error('Wpis tego konta już istnieje w dzienniku — nie został nadpisany. Sprawdź jego zakres i datę przed dalszym działaniem.');
+
+            return self::FAILURE;
+        }
+
         if (! $dziennik->zapisz($userId, $zakres, $kiedy)) {
             $this->error('Nie udało się zapisać wpisu — magazyn dziennika dalej nie odpowiada. Spróbuj ponownie za kilka minut.');
 
