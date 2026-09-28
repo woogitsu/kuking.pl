@@ -11,6 +11,7 @@ use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
 use Random\Engine\Secure;
@@ -42,6 +43,9 @@ use Random\Randomizer;
  */
 class TwoFactorAuthenticator
 {
+    /** Klucz sesji z dowodem drugiego składnika (#930), patrz `dowodSesji()`. */
+    public const KLUCZ_DOWODU_SESJI = 'dwuetapowa.dowod';
+
     private Google2FA $engine;
 
     private readonly Randomizer $random;
@@ -121,6 +125,44 @@ class TwoFactorAuthenticator
     }
 
     /**
+     * Dowód drugiego składnika W TEJ SESJI (#930).
+     *
+     * `moderator.2fa` sprawdzało dotąd stan KONTA, nie przebieg logowania:
+     * każda zalogowana sesja konta z potwierdzoną 2FA wchodziła do `/admin`,
+     * także taka, która powstała na samym haśle przed włączeniem 2FA.
+     * `invalidateSessions()` przy włączeniu kasuje je z tabeli, ale tylko przy
+     * sterowniku `database` — ten znacznik nie zależy od sterownika.
+     *
+     * Znacznik zapisują wyłącznie dwie chwile, w których w tej sesji padł
+     * poprawny kod: dokończone logowanie (`TwoFactorChallengeController`)
+     * i włączenie 2FA (`TwoFactorSettingsController::confirm`). Wiąże się
+     * z `two_factor_confirmed_at`, więc wyłączenie i ponowne włączenie 2FA
+     * unieważnia znaczniki sprzed niego. HMAC, bo sesje leżą w bazie.
+     *
+     * @return array<string, string>
+     */
+    public static function dowodSesji(User $user): array
+    {
+        return [self::KLUCZ_DOWODU_SESJI => self::odciskDowoduSesji($user)];
+    }
+
+    public static function sesjaMaDowod(User $user, mixed $dowod): bool
+    {
+        return $user->hasTwoFactorConfirmed()
+            && is_string($dowod)
+            && hash_equals(self::odciskDowoduSesji($user), $dowod);
+    }
+
+    private static function odciskDowoduSesji(User $user): string
+    {
+        return hash_hmac('sha256', implode("\0", [
+            'sesja-2fa',
+            (string) $user->getKey(),
+            (string) $user->two_factor_confirmed_at?->toIso8601String(),
+        ]), (string) config('app.key'));
+    }
+
+    /**
      * @return array{0: int, 1: int} [maksimum prób, minuty do odblokowania]
      */
     public static function limitProb(): array
@@ -128,6 +170,45 @@ class TwoFactorAuthenticator
         [$max, $minuty] = explode(',', (string) config('kuking.limits.two_factor'));
 
         return [(int) $max, (int) $minuty];
+    }
+
+    /**
+     * Rezerwuje JEDNĄ próbę kodu z koszyka konta — PRZED sprawdzeniem kodu
+     * (issue #2043). Zwraca `null`, gdy próbę dopuszczono (i już policzono),
+     * albo liczbę minut blokady, gdy kodu nie wolno nawet sprawdzać.
+     *
+     * Stary porządek „`tooManyAttempts()` → weryfikacja → `hit()` po złym
+     * kodzie" nie był atomowy: równoległe żądania (z innych sesji i adresów
+     * IP, więc throttle trasy po IP ich nie łapie) czytały licznik, zanim
+     * pierwsze zdążyło go zwiększyć, i każde szło do weryfikacji.
+     *
+     * Teraz o dopuszczeniu decyduje WYNIK zwiększenia licznika: przejście
+     * dostaje tylko próba z numerem ≤ limit, więc żaden przeplot między
+     * odczytem a zapisem nie daje dodatkowego kodu do sprawdzenia. Magazyn
+     * `database` (produkcja) zwiększa licznik pod blokadą wiersza cache, ale
+     * np. `file` robi odczyt i zapis osobno — dlatego całość idzie jeszcze
+     * pod blokadą wiersza konta (`podBlokada()`), tą samą, pod którą
+     * `verifyCode()` i `consumeBackupCode()` czytają stan 2FA. Kolejność
+     * blokad jak w tamtych metodach: najpierw konto, potem (w cache) licznik.
+     *
+     * Próba odrzucona PRZED zwiększeniem (limit już pełny) nie jest liczona
+     * — jak dotąd. Poprawny kod czyści licznik u wołającego, też jak dotąd.
+     */
+    public function zarezerwujProbe(User $user): ?int
+    {
+        [$maxProb, $decayMinuty] = self::limitProb();
+        $klucz = self::kluczLimituProb($user);
+
+        return DB::transaction(static function () use ($user, $klucz, $maxProb, $decayMinuty): ?int {
+            self::podBlokada($user);
+
+            if (! RateLimiter::tooManyAttempts($klucz, $maxProb)
+                && RateLimiter::increment($klucz, $decayMinuty * 60) <= $maxProb) {
+                return null;
+            }
+
+            return max(1, (int) ceil(RateLimiter::availableIn($klucz) / 60));
+        });
     }
 
     /**

@@ -5,15 +5,49 @@ declare(strict_types=1);
 namespace Tests;
 
 use App\Domain\Security\TwoFactorAuthenticator;
+use App\Http\Controllers\HealthController;
 use App\Models\Profile;
 use App\Models\User;
+use App\Support\Sesja\GeneracjaSesji;
+use Illuminate\Auth\Passwords\PasswordBroker;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Migrations\Migration;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Mail\Transport\ArrayTransport;
+use Illuminate\Session\Store;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use Livewire\Livewire;
+use Mockery;
+use Mockery\MockInterface;
 
 abstract class TestCase extends BaseTestCase
 {
+    /** Anonimowa migracja zwrócona z pliku deklaruje up/down na swojej klasie. */
+    protected static function wykonajMigracje(Migration $migracja, string $kierunek): void
+    {
+        if (! in_array($kierunek, ['up', 'down'], true) || ! is_callable([$migracja, $kierunek])) {
+            self::fail('Migracja nie udostępnia metody '.$kierunek.'.');
+        }
+
+        call_user_func([$migracja, $kierunek]);
+    }
+
+    /** Broker Laravel z metodami zarządzania żetonami używanymi przez testy. */
+    protected static function brokerHasel(): PasswordBroker
+    {
+        $broker = Password::broker();
+
+        if (! $broker instanceof PasswordBroker) {
+            self::fail('Test wymaga brokera haseł Laravel, a skonfigurowano '.$broker::class.'.');
+        }
+
+        return $broker;
+    }
+
     /**
      * Testy nie zależą od zbudowanych assetów.
      *
@@ -32,6 +66,53 @@ abstract class TestCase extends BaseTestCase
         $this->withoutVite();
         Http::preventStrayRequests();
         $this->wyzerujStanLivewire();
+    }
+
+    /**
+     * `actingAs()` jako prawdziwe logowanie także w generacji sesji (#1046).
+     *
+     * Na produkcji każde logowanie zapisuje w sesji generację konta
+     * (listener `Login`), a `SprawdzGeneracjeSesji` odrzuca sesję ze starszą.
+     * `actingAs()` omija zdarzenie `Login`, więc bez tego konto po
+     * `suspend()`/`ban()` (generacja > 0) byłoby w teście wylogowywane przy
+     * pierwszym żądaniu — czego na produkcji nie widać, bo po odcięciu sesji
+     * ta osoba loguje się od nowa i dostaje bieżącą generację.
+     *
+     * Wartość z TEGO modelu, bo to z nim middleware porównuje (guard trzyma
+     * dokładnie tę instancję) — i bez zapytania, które psułoby testy liczące
+     * zapytania. Zapis tylko wtedy, gdy coś zmienia: brak klucza znaczy 0,
+     * a zbędny zapis do sesji między żądaniami potrafi zgubić dane flash.
+     */
+    public function be(Authenticatable $user, $guard = null)
+    {
+        parent::be($user, $guard);
+
+        if (! $user instanceof User || ($guard ?? 'web') !== 'web') {
+            return $this;
+        }
+
+        $generacja = array_key_exists('session_generation', $user->getAttributes())
+            ? (int) $user->session_generation
+            : (int) User::query()->whereKey($user->getKey())->value('session_generation');
+
+        if ($generacja > 0 || $this->app['session']->has(GeneracjaSesji::KLUCZ)) {
+            $this->withSession([GeneracjaSesji::KLUCZ => $generacja]);
+        }
+
+        return $this;
+    }
+
+    /**
+     * `/health` Z POLEM `checks` — czyli tak, jak widzi go właściciel
+     * z tokenem w nagłówku (audyt A5-05). Bez tokenu odpowiedź ma tylko kod
+     * HTTP i `status`; to, co widzi ktokolwiek inny, mierzy
+     * `HealthSzczegolyTylkoZTokenemTest`.
+     */
+    protected function zdrowieZeSzczegolami(): TestResponse
+    {
+        config(['kuking.health.token' => 'token-zdrowia-do-testow']);
+
+        return $this->get('/health', [HealthController::NAGLOWEK_TOKENU => 'token-zdrowia-do-testow']);
     }
 
     /**
@@ -108,6 +189,30 @@ abstract class TestCase extends BaseTestCase
         ]);
 
         return $user->refresh();
+    }
+
+    /**
+     * `actingAs()` udaje PEŁNE logowanie — więc dla konta z potwierdzoną 2FA
+     * także przebyty drugi składnik (#930). Bez tego każdy test panelu
+     * wołający `actingAs($this->moderator())` padałby na
+     * `EnsureModeratorHasTwoFactor`, zanim dotarłby do sprawdzanej logiki.
+     * Testy sesji BEZ dowodu kodu wołają gołe `be()`.
+     */
+    public function actingAs(Authenticatable $user, $guard = null)
+    {
+        parent::actingAs($user, $guard);
+
+        // Tylko gdy dowodu jeszcze nie ma: ponowne `withSession()` między
+        // żądaniami gubiło flash z poprzedniego (zmierzone na
+        // TerminZawieszeniaTest, który po nieudanej walidacji czyta `old()`).
+        if ($user instanceof User && $user->hasTwoFactorConfirmed() && ! TwoFactorAuthenticator::sesjaMaDowod(
+            $user,
+            $this->app['session']->get(TwoFactorAuthenticator::KLUCZ_DOWODU_SESJI),
+        )) {
+            $this->withSession(TwoFactorAuthenticator::dowodSesji($user));
+        }
+
+        return $this;
     }
 
     /**
@@ -195,5 +300,111 @@ abstract class TestCase extends BaseTestCase
                 var_export($wartosc, true), $sekundy, $sekundy - 1,
             ),
         );
+    }
+
+    /**
+     * Węzeł z `DOMXPath::query()` jako ELEMENT HTML — albo czytelna porażka.
+     *
+     * `query()` oddaje `DOMNodeList<DOMNode>`, a `getAttribute()` ma dopiero
+     * `DOMElement`. Wołane wprost na `->item(0)` działało, dopóki selektor
+     * trafiał w element; gdy nie trafiał (zmieniony widok), test kończył się
+     * „Call to a member function getAttribute() on null" zamiast zdaniem,
+     * czego zabrakło. Analiza (PHPStan, poziom 2 — issue #1731) zgłaszała
+     * to samo w ponad stu miejscach.
+     */
+    protected static function elementDom(?\DOMNode $wezel, string $komunikat = 'Zapytanie XPath nie zwróciło elementu HTML — układ strony się zmienił.'): \DOMElement
+    {
+        if (! $wezel instanceof \DOMElement) {
+            self::fail($komunikat.' Dostałem: '.($wezel === null ? 'nic' : $wezel::class).'.');
+        }
+
+        return $wezel;
+    }
+
+    /**
+     * Wszystkie węzły wyniku jako elementy HTML — patrz `elementDom()`.
+     *
+     * @param  iterable<\DOMNode>  $wezly
+     * @return list<\DOMElement>
+     */
+    protected static function elementyDom(iterable $wezly): array
+    {
+        $elementy = [];
+
+        foreach ($wezly as $wezel) {
+            $elementy[] = self::elementDom($wezel);
+        }
+
+        return $elementy;
+    }
+
+    /**
+     * Sesja przekierowania z odpowiedzi testowej.
+     *
+     * `getSession()` ma tylko `Illuminate\Http\RedirectResponse` — test,
+     * który ją woła, zakłada więc, że dostał przekierowanie. Dotąd było to
+     * założenie ukryte za `__call()` odpowiedzi testowej (PHPStan, poziom 2 —
+     * issue #1731): gdyby trasa zaczęła odpowiadać stroną zamiast
+     * przekierowania, test padłby na „undefined method" zamiast powiedzieć,
+     * co się zmieniło.
+     */
+    protected static function sesjaPrzekierowania(TestResponse $odpowiedz): Store
+    {
+        $przekierowanie = $odpowiedz->baseResponse;
+
+        if (! $przekierowanie instanceof RedirectResponse) {
+            self::fail('Oczekiwano przekierowania z sesją, a odpowiedź to '.$przekierowanie::class.' (HTTP '.$przekierowanie->getStatusCode().').');
+        }
+
+        $sesja = $przekierowanie->getSession();
+
+        if ($sesja === null) {
+            self::fail('Przekierowanie nie ma przypiętej sesji.');
+        }
+
+        return $sesja;
+    }
+
+    /**
+     * Transport poczty w testach — `MAIL_MAILER=array` z phpunit.xml.
+     *
+     * `messages()` ma tylko `ArrayTransport`; wołane wprost na
+     * `getSymfonyTransport()` działało wyłącznie dzięki konfiguracji
+     * i przy innym mailerze kończyło się „undefined method" (issue #1731).
+     */
+    protected static function transportTablicowy(): ArrayTransport
+    {
+        $transport = app('mailer')->getSymfonyTransport();
+
+        if (! $transport instanceof ArrayTransport) {
+            self::fail('Testy wysyłki czytają listy z transportu `array`, a skonfigurowany jest '.$transport::class.'.');
+        }
+
+        return $transport;
+    }
+
+    /**
+     * Atrapa Mockery z typem klasy, którą udaje.
+     *
+     * `Mockery::mock(Klasa::class)` zwraca dla analizy samo `MockInterface`,
+     * więc atrapa podstawiana tam, gdzie kod wymaga `Klasa` (typ zwracany
+     * metody, właściwość), była dla PHPStana obcym typem (poziom 3 — issue
+     * #1731). Tutaj jest jawne sprawdzenie, a typ mówi prawdę: to jest i atrapa,
+     * i `Klasa`.
+     *
+     * @template T of object
+     *
+     * @param  class-string<T>  $klasa
+     * @return T&MockInterface
+     */
+    protected static function atrapa(string $klasa): MockInterface
+    {
+        $atrapa = Mockery::mock($klasa);
+
+        if (! $atrapa instanceof $klasa) {
+            self::fail("Mockery nie zbudował atrapy {$klasa}.");
+        }
+
+        return $atrapa;
     }
 }

@@ -1,4 +1,6 @@
-/* Rzeczywisty zoom, klawiatura i czytanie treści po odpięciu niskiego nagłówka. */
+/* Rzeczywisty zoom i czytanie treści po odpięciu niskiego nagłówka.
+   Klawiatury ekranowej ten skrypt NIE mierzy — setViewportSize() to nie
+   klawiatura. Tę ścieżkę sprawdza scripts/przegladarka/klawiatura-belki.test.mjs (#947). */
 import { chromium } from "playwright";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";

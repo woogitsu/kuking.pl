@@ -69,6 +69,9 @@ class AutoryzacjaTrasZWiazaniemModeluTest extends TestCase
         // zdjęcia (wpisu, przepisu, wykonania, profilu) i `MediaController`
         // odmawia przez `abort_unless($decyzja->dlaWidza, 404)`.
         'media.show' => 'Bramka w App\Domain\Media\DostepDoZdjecia (Gate na Policy rodzica).',
+        // Ten sam kontroler pod `/api/v1` (D-272) — i ta sama bramka. Zmierzone
+        // żądaniem w `KazdaTrasaZIdentyfikatoremPodPolicyTest` (pięć ról).
+        'api.zdjecia.show' => 'Ten sam MediaController co media.show: bramka w DostepDoZdjecia.',
 
         // Odwołanie od decyzji moderacyjnej: własnościowa bramka stoi
         // w prywatnej metodzie `AppealController::sprawdzWlascicielaSprawy()`
@@ -118,7 +121,7 @@ class AutoryzacjaTrasZWiazaniemModeluTest extends TestCase
         $przeskanowane = 0;
         $bezBramki = [];
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             $metoda = $this->metodaKontrolera($trasa);
 
             if ($metoda === null) {
@@ -167,7 +170,7 @@ class AutoryzacjaTrasZWiazaniemModeluTest extends TestCase
     {
         $istniejace = [];
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             if ($trasa->getName() !== null) {
                 $istniejace[$trasa->getName()] = true;
             }
@@ -377,10 +380,18 @@ class AutoryzacjaTrasZWiazaniemModeluTest extends TestCase
         return preg_match('/\b(findOrFail|firstOrFail)\s*\(/', $zrodlo) === 1;
     }
 
-    /** Czy trasa ma jakąkolwiek bramkę autoryzacji (patrz docblock testu). */
+    /**
+     * Czy trasa ma jakąkolwiek bramkę autoryzacji (patrz docblock testu).
+     *
+     * Napis `authorize(` liczy się tylko w KODZIE (audyt B7-17): wcześniej
+     * wystarczał zakomentowany `// $this->authorize(...)` albo to słowo
+     * w napisie, żeby trasa bez bramki przeszła skan. Czy bramka pilnuje
+     * WŁAŚCIWEJ zdolności na WŁAŚCIWYM modelu, skan nadal nie wie — to mierzy
+     * żądaniami `KazdaTrasaZIdentyfikatoremPodPolicyTest`.
+     */
     private function maBramke(TrasaFrameworku $trasa, string $zrodlo): bool
     {
-        if (preg_match('/authorize\s*\(|Gate::/', $zrodlo) === 1) {
+        if (preg_match('/authorize\s*\(|Gate::/', $this->samKod($zrodlo)) === 1) {
             return true;
         }
 
@@ -399,5 +410,33 @@ class AutoryzacjaTrasZWiazaniemModeluTest extends TestCase
         }
 
         return false;
+    }
+
+    /**
+     * Źródło metody bez komentarzy i bez literałów napisowych — to, co PHP
+     * faktycznie wykona. Tokenizer, nie wyrażenie regularne: komentarz
+     * blokowy w środku linii albo `//` w napisie zmyliłyby każde wyrażenie.
+     */
+    private function samKod(string $zrodlo): string
+    {
+        $kod = '';
+
+        foreach (token_get_all('<?php '.$zrodlo) as $token) {
+            if (is_array($token)) {
+                if (in_array($token[0], [T_COMMENT, T_DOC_COMMENT, T_CONSTANT_ENCAPSED_STRING, T_ENCAPSED_AND_WHITESPACE, T_OPEN_TAG], true)) {
+                    $kod .= ' ';
+
+                    continue;
+                }
+
+                $kod .= $token[1];
+
+                continue;
+            }
+
+            $kod .= $token;
+        }
+
+        return $kod;
     }
 }

@@ -135,9 +135,11 @@ on:
         options: [smoke, migrate, redeploy, instrukcja-cofniecia]
         default: smoke
 
+# MINIMALNE UPRAWNIENIA TOKENU (#1851, #2025). Dane wdrożenia przychodzą
+# w zdarzeniu `deployment_status`. Pozostałe joby potrzebują tylko odczytu
+# repozytorium; audyt CI dostaje osobno odczyt przebiegów Actions.
 permissions:
   contents: read
-  deployments: read
 
 # Nie pozwalamy dwóm operacjom na tym samym środowisku biec równolegle.
 # cancel-in-progress: false — przerwanie migracji w połowie jest gorsze
@@ -147,6 +149,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Alarm po fakcie: dokumentowana semantyka Railway przepuszcza anulowane
+  # CI, jeśli inny workflow tego SHA miał success. Ten job wykrywa rozbieżność,
+  # ale nie zastępuje bramki wdrożeniowej przed zmianą ruchu.
+  audit_ci:
+    name: Produkcyjny SHA miał zielone CI przed deployem
+    permissions:
+      contents: read
+      actions: read # #2025: odczyt wyniku CI dla SHA wdrożonego na produkcji
+    if: >-
+      github.event_name == 'deployment_status' &&
+      github.event.deployment_status.state == 'success'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+      - name: Porównaj SHA wdrożenia z zakończonym CI
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DEPLOY_SHA: ${{ github.event.deployment.sha }}
+          DEPLOYED_AT: ${{ github.event.deployment_status.created_at }}
+          DEPLOY_ENV: ${{ github.event.deployment.environment }}
+        run: node scripts/ci-po-wdrozeniu.mjs
+
   # ===========================================================================
   #  A) WERYFIKACJA PO DEPLOYU  (automatyczna)
   # ===========================================================================
@@ -222,12 +250,51 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # -----------------------------------------------------------------------
+      #  DANE ZDARZENIA TYLKO PRZEZ `env:` (issue #1851).
+      #
+      #  Stało tu `env_name='${{ github.event.deployment.environment }}'`
+      #  wprost w `run:`. GitHub podstawia wyrażenie do TREŚCI skryptu przed
+      #  uruchomieniem Basha, więc apostrof albo nowa linia w nazwie
+      #  środowiska (np. `production' ; touch /tmp/x ; #`) stawały się kodem
+      #  wykonywanym na runnerze — także na własnych maszynach z CI_RUNS_ON.
+      #  Zmienna środowiskowa dociera do powłoki jako DANE, nie jako kod.
+      #
+      #  Druga warstwa: nazwa jest walidowana względem jawnej listy, ZANIM
+      #  trafi do logu i do `$GITHUB_OUTPUT`. Znaki spoza listy albo nowa
+      #  linia mogłyby dopisać własne wyjście kroku (`url=…`) lub polecenie
+      #  przebiegu (`::…`) — taka wartość nie jest nawet wypisywana.
+      # -----------------------------------------------------------------------
       - name: Ustal adres środowiska
         id: target
+        env:
+          ZDARZENIE_SRODOWISKO: ${{ github.event.deployment.environment }}
+          ZDARZENIE_STAN: ${{ github.event.deployment_status.state }}
         run: |
           set -euo pipefail
-          env_name='${{ github.event.deployment.environment }}'
-          stan='${{ github.event.deployment_status.state }}'
+          env_name="${ZDARZENIE_SRODOWISKO:-}"
+          stan="${ZDARZENIE_STAN:-}"
+
+          # Dozwolony kształt całej nazwy: „<projekt> / <środowisko>" albo
+          # gołe „<środowisko>". Litery, cyfry, spacja, kropka, podkreślnik,
+          # myślnik i ukośnik; najwyżej 100 znaków. Nic poza tym — w tym
+          # apostrofów, `$`, średników i znaków nowej linii.
+          dozwolony_ksztalt='^[A-Za-z0-9][A-Za-z0-9 ._/-]{0,99}$'
+          if ! [[ "$env_name" =~ $dozwolony_ksztalt ]] || [[ "$env_name" == *$'\n'* ]]; then
+            echo "::error title=Niedozwolona nazwa środowiska::deployment.environment ma znaki spoza listy dozwolonych (długość: ${#env_name}). Wartości nie wypisuję. Testu dymnego nie uruchamiam."
+            echo "pomin=1" >> "$GITHUB_OUTPUT"
+            echo "env=nieprawidlowe" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          case "$stan" in
+            success|failure|error|inactive|in_progress|queued|pending) ;;
+            *)
+              echo "::error title=Niedozwolony stan wdrożenia::deployment_status.state spoza listy stanów GitHuba (długość: ${#stan}). Wartości nie wypisuję."
+              echo "pomin=1" >> "$GITHUB_OUTPUT"
+              echo "env=nieprawidlowe" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
 
           # DIAGNOSTYKA, nie ozdoba. To jest jedyne miejsce, w którym da się
           # zobaczyć, jak Railway naprawdę nazywa środowisko — dokumentacja
@@ -262,6 +329,10 @@ jobs:
 
           echo "  środowisko po obcięciu    = '${srodowisko}'"
 
+          # JAWNA LISTA DOZWOLONYCH ŚRODOWISK (#1851): production, staging
+          # i preview-<litery/cyfry/myślniki>. Wszystko inne jest odrzucane
+          # i do `$GITHUB_OUTPUT` idzie stała `nieprawidlowe`, nie wartość
+          # ze zdarzenia.
           case "$srodowisko" in
             production)
               echo "url=https://kuking.pl" >> "$GITHUB_OUTPUT"
@@ -269,11 +340,20 @@ jobs:
             staging)
               echo "url=https://staging.kuking.pl" >> "$GITHUB_OUTPUT"
               ;;
+            preview-*)
+              if ! [[ "$srodowisko" =~ ^preview-[A-Za-z0-9-]{1,63}$ ]]; then
+                echo "::error title=Niedozwolona nazwa środowiska::Człon środowiska wygląda na preview, ale ma znaki spoza listy dozwolonych."
+                srodowisko="nieprawidlowe"
+              fi
+              echo "Środowisko '${srodowisko}' to preview — test dymny po deployu obsługuje tylko production i staging."
+              echo "pomin=1" >> "$GITHUB_OUTPUT"
+              ;;
             *)
               echo "Środowisko '${env_name}' (człon: '${srodowisko}') nie jest ani production, ani staging."
               echo "Testu dymnego nie uruchamiam — nie wiem, pod jakim adresem go szukać."
               echo "JEŚLI TO NAZWA, KTÓRA POWINNA BYĆ OBSŁUGIWANA, dopisz ją w tym case."
               echo "pomin=1" >> "$GITHUB_OUTPUT"
+              srodowisko="nieprawidlowe"
               ;;
           esac
 
@@ -449,27 +529,37 @@ jobs:
         if: >-
           steps.target.outputs.pomin == '1' &&
           github.event.deployment_status.state == 'success'
+        env:
+          SRODOWISKO: ${{ steps.target.outputs.env }}
         run: |
-          echo "::error title=Test dymny nie został uruchomiony::Wdrożenie zakończyło się sukcesem, ale nie ustaliliśmy adresu środowiska '${{ steps.target.outputs.env }}', więc żadna ścieżka użytkownika nie została sprawdzona. To NIE jest zielony deploy — patrz krok „Ustal adres środowiska" po nazwę, która przyszła w zdarzeniu."
+          echo "::error title=Test dymny nie został uruchomiony::Wdrożenie zakończyło się sukcesem, ale nie ustaliliśmy adresu środowiska '${SRODOWISKO}', więc żadna ścieżka użytkownika nie została sprawdzona. To NIE jest zielony deploy — patrz krok „Ustal adres środowiska" po nazwę, która przyszła w zdarzeniu."
           exit 1
 
       - name: Podsumowanie
         if: always()
+        # Wartości przez `env:`, nie `${{ … }}` w skrypcie (#1851).
+        env:
+          SRODOWISKO: ${{ steps.target.outputs.env }}
+          ADRES: ${{ steps.target.outputs.url || 'NIE USTALONO' }}
+          SHA_OCZEKIWANY: ${{ steps.dymny.outputs.oczekiwany || github.event.deployment.sha }}
+          SHA_POTWIERDZONY: ${{ steps.dymny.outputs.potwierdzony || 'NIE POTWIERDZONO' }}
+          WYNIK_DYMNEGO: ${{ steps.dymny.outcome }}
+          STATUS_JOBA: ${{ job.status }}
         run: |
           # `steps.<id>.outcome` mówi, co się z krokiem STAŁO (`success`,
           # `failure`, `skipped`), a `job.status` mówi tylko, czy job jako
           # całość przeszedł. Stało tu `job.status`, więc podsumowanie
           # pisało „success" nad pominiętym testem.
           {
-            echo "## Deploy: ${{ steps.target.outputs.env }}"
+            echo "## Deploy: ${SRODOWISKO}"
             echo ""
             echo "| | |"
             echo "|---|---|"
-            echo "| Adres | ${{ steps.target.outputs.url || 'NIE USTALONO' }} |"
-            echo "| Commit oczekiwany (zdarzenie) | \`${{ steps.dymny.outputs.oczekiwany || github.event.deployment.sha }}\` |"
-            echo "| Commit potwierdzony pod adresem | \`${{ steps.dymny.outputs.potwierdzony || 'NIE POTWIERDZONO' }}\` |"
-            echo "| Test dymny | ${{ steps.dymny.outcome }} |"
-            echo "| Job jako całość | ${{ job.status }} |"
+            echo "| Adres | ${ADRES} |"
+            echo "| Commit oczekiwany (zdarzenie) | \`${SHA_OCZEKIWANY}\` |"
+            echo "| Commit potwierdzony pod adresem | \`${SHA_POTWIERDZONY}\` |"
+            echo "| Test dymny | ${WYNIK_DYMNEGO} |"
+            echo "| Job jako całość | ${STATUS_JOBA} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ===========================================================================
@@ -489,13 +579,16 @@ jobs:
     # Zdecydowanie to włącz — inaczej jedno kliknięcie robi rollback produkcji.
     environment: ${{ github.event.inputs.environment }}
 
+    # RAILWAY_TOKEN nie stoi tu, na poziomie joba (audyt B10-02): token
+    # projektowy Railway trafiałby wtedy do KAŻDEGO kroku — także checkoutu,
+    # konfiguracji Node i instalacji CLI z npm, które go nie potrzebują.
+    # Im więcej kroków go widzi (zwłaszcza instalacja pakietu z npm), tym
+    # większa powierzchnia na wyciek albo niepowołane użycie. Token dostają
+    # WYŁĄCZNIE kroki, które faktycznie wołają `railway` — każdy ma własny
+    # blok `env:` niżej z tą samą definicją (token projektowy jest przypisany
+    # do KONKRETNEGO środowiska Railway, dlatego dwa osobne sekrety, a nie
+    # jeden — to ogranicza szkody: token staginu nie tknie produkcji).
     env:
-      # Token projektowy jest przypisany do KONKRETNEGO środowiska Railway —
-      # dlatego mamy dwa osobne sekrety, a nie jeden. To ogranicza szkody:
-      # token staginu nie tknie produkcji.
-      RAILWAY_TOKEN: ${{ github.event.inputs.environment == 'production'
-        && secrets.RAILWAY_TOKEN_PRODUCTION
-        || secrets.RAILWAY_TOKEN_STAGING }}
       TARGET_ENV: ${{ github.event.inputs.environment }}
       # Nazwa serwisu aplikacyjnego w Railway — JEDNO miejsce, nie trzy.
       #
@@ -515,19 +608,71 @@ jobs:
       APP_SERVICE: kuking.pl
 
     steps:
+      # Obrona w głąb (#1851): `type: choice` sprawdza wartość w formularzu,
+      # ale `TARGET_ENV` trafia potem do poleceń Railway CLI. Zanim cokolwiek
+      # się zainstaluje albo połączy, wartość musi być z jawnej listy.
+      - name: Sprawdź środowisko docelowe
+        run: |
+          set -euo pipefail
+          case "${TARGET_ENV:-}" in
+            production|staging) echo "Środowisko docelowe: ${TARGET_ENV}" ;;
+            *)
+              echo "::error title=Niedozwolone środowisko::Dozwolone są tylko production i staging. Operacja przerwana, nic nie zostało zmienione."
+              exit 1
+              ;;
+          esac
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Konfiguracja Node (dla Railway CLI)
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "22"
-
       - name: Instalacja Railway CLI
+        # Wersja I SUMA KONTROLNA PRZYPIĘTE (audyt B10-02, dopełnienie —
+        # issue #1865). `npm install -g @railway/cli@5.62.1` naprawiał tylko
+        # POŁOWĘ problemu: numer wersji jest przypięty, ale pakiet npm
+        # (`postinstall.js` w `@railway/cli`) i tak tylko POBIERA prawdziwą
+        # binarkę z GitHub Releases pod adresem zbudowanym z tego numeru
+        # wersji — i robi to BEZ ŻADNEJ WERYFIKACJI SUMY KONTROLNEJ. To
+        # właśnie ta binarka, nie pakiet npm, dostaje RAILWAY_TOKEN w kroku
+        # niżej. Sprawdzone w źródle paczki (`npm pack @railway/cli@5.62.1`,
+        # `npm-install/postinstall.js`, 26.09.2026): brak tam jakiegokolwiek
+        # `sha256`/`integrity` na pobranym pliku.
+        #
+        # Więc pobieramy tę samą binarkę SAMI, wprost z GitHub Releases —
+        # bez npm, bez Node'a, bez nieprzejrzystego postinstalla — i sami
+        # sprawdzamy jej sumę SHA-256 przed rozpakowaniem. Mniej ruchomych
+        # części niesie też mniejsze ryzyko: nie ma już node_modules ani
+        # skryptu innej firmy, który dostawałby uprawnienia do zapisu na
+        # dysku runnera przed jakąkolwiek weryfikacją.
+        #
+        # Runner (`ubuntu-latest`) jest x86_64 Linux — stąd target
+        # `x86_64-unknown-linux-musl` (ten sam, którego używa `npm install -g`
+        # na Linuksie x64 — musl, nie gnu, patrz `TARGETS` w postinstallu).
+        # Podnoszenie wersji: pobierz nową sumę kontrolną razem z numerem —
+        # ta sama zasada co przy każdej innej przypiętej zależności:
+        #   curl -fsSL -o /tmp/r.tgz \
+        #     https://github.com/railwayapp/cli/releases/download/vX.Y.Z/railway-vX.Y.Z-x86_64-unknown-linux-musl.tar.gz
+        #   sha256sum /tmp/r.tgz
+        env:
+          RAILWAY_CLI_VERSION: "5.62.1"
+          RAILWAY_CLI_SHA256: "2d04f08360b4c55f52b9e458e04987ec988261f16d2fb4fc4e7b2d43ad4a6cb2"
         run: |
-          npm install -g @railway/cli
+          set -euo pipefail
+          curl -fsSL -o /tmp/railway-cli.tar.gz \
+            "https://github.com/railwayapp/cli/releases/download/v${RAILWAY_CLI_VERSION}/railway-v${RAILWAY_CLI_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          echo "${RAILWAY_CLI_SHA256}  /tmp/railway-cli.tar.gz" | sha256sum -c -
+          sudo tar -xzf /tmp/railway-cli.tar.gz -C /usr/local/bin railway
+          sudo chmod +x /usr/local/bin/railway
+          rm -f /tmp/railway-cli.tar.gz
           railway --version
 
       - name: Kontrola połączenia
+        env:
+          # Kotwica YAML (&railway_token): definicja tokenu stoi w JEDNYM
+          # miejscu, a kroki Migracje/Redeploy/Instrukcja cofnięcia niżej
+          # tylko się do niej odwołują (*railway_token) — bez czterech kopii
+          # tego samego wyrażenia do zsynchronizowania ręcznie.
+          RAILWAY_TOKEN: &railway_token ${{ github.event.inputs.environment == 'production'
+            && secrets.RAILWAY_TOKEN_PRODUCTION
+            || secrets.RAILWAY_TOKEN_STAGING }}
         run: |
           set -euo pipefail
           if [ -z "${RAILWAY_TOKEN:-}" ]; then
@@ -558,6 +703,8 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Migracje
         if: github.event.inputs.action == 'migrate'
+        env:
+          RAILWAY_TOKEN: *railway_token
         run: |
           set -euo pipefail
           echo "=== Stan migracji PRZED ==="
@@ -566,7 +713,7 @@ jobs:
 
           echo "=== Uruchamiam migracje ==="
           railway ssh --service "$APP_SERVICE" --environment "$TARGET_ENV" \
-            "php artisan migrate --force --no-interaction"
+            "php artisan kuking:migruj-pod-blokada --no-interaction"
 
           echo "=== Stan migracji PO ==="
           railway ssh --service "$APP_SERVICE" --environment "$TARGET_ENV" \
@@ -580,6 +727,8 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Redeploy
         if: github.event.inputs.action == 'redeploy'
+        env:
+          RAILWAY_TOKEN: *railway_token
         run: |
           set -euo pipefail
           # Jeden serwis, bo produkcja ma jeden serwis aplikacyjny w trybie
@@ -623,6 +772,8 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Instrukcja cofnięcia (niczego nie cofa)
         if: github.event.inputs.action == 'instrukcja-cofniecia'
+        env:
+          RAILWAY_TOKEN: *railway_token
         run: |
           set -euo pipefail
           echo "=========================================================="
@@ -679,16 +830,21 @@ jobs:
 
       - name: Podsumowanie
         if: always()
+        # Wartości przez `env:`, nie `${{ … }}` w skrypcie (#1851).
+        env:
+          AKCJA: ${{ github.event.inputs.action }}
+          URUCHOMIL: ${{ github.actor }}
+          STATUS_JOBA: ${{ job.status }}
         run: |
           {
-            echo "## Operacja: ${{ github.event.inputs.action }}"
+            echo "## Operacja: ${AKCJA}"
             echo ""
             echo "| | |"
             echo "|---|---|"
-            echo "| Środowisko | ${{ github.event.inputs.environment }} |"
-            echo "| Uruchomił | @${{ github.actor }} |"
-            echo "| Wynik | ${{ job.status }} |"
-            if [ "${{ github.event.inputs.action }}" = "instrukcja-cofniecia" ]; then
+            echo "| Środowisko | ${TARGET_ENV} |"
+            echo "| Uruchomił | @${URUCHOMIL} |"
+            echo "| Wynik | ${STATUS_JOBA} |"
+            if [ "$AKCJA" = "instrukcja-cofniecia" ]; then
               echo ""
               echo "**Nic nie zostało cofnięte — środowisko NIE zostało zmienione.** Ta akcja wypisuje tylko instrukcję; rollback wykonuje się w panelu Railway (docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 14)."
             fi

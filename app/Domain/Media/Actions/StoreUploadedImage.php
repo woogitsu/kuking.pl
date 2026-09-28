@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Domain\Media\Actions;
 
 use App\Domain\Analytics\ZapiszSygnal;
+use App\Domain\Media\LokalnaKopiaZdjecia;
 use App\Domain\Media\PodgladOdRazu;
 use App\Domain\Media\UsunGps;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Jobs\ProcessUploadedImage;
+use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
 use App\Models\User;
 use App\Support\RozpoznanieZdjecia;
@@ -17,6 +19,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use League\Flysystem\UnableToWriteFile;
+use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 /**
  * Przyjęcie zdjęcia od użytkownika.
@@ -55,6 +60,69 @@ final class StoreUploadedImage
     ) {}
 
     public function handle(User $owner, UploadedFile $file, ?string $altText = null): Media
+    {
+        // Plik z dysku tymczasowego Livewire na R2 nie ma lokalnej ścieżki,
+        // a sprawdzenia niżej czytają plik z dysku (audyt A5-08).
+        $kopia = LokalnaKopiaZdjecia::zapewnij($file);
+
+        try {
+            $media = $this->przyjmij($owner, $kopia->plik, $altText);
+            $this->usunZapisanyPlikTymczasowy($file);
+
+            return $media;
+        } finally {
+            $kopia->sprzataj();
+        }
+    }
+
+    /**
+     * Po utrwaleniu oryginału w `incoming/` źródło Livewire nie jest już
+     * potrzebne. Nie kasujemy go przy błędzie walidacji ani zapisu: wtedy
+     * człowiek może poprawić formularz z tym samym zdjęciem (#2050).
+     * Nieudane sprzątanie nie zmienia wyniku zapisu; reguła lifecycle R2
+     * pozostaje drugą linią obrony (#2051, #2178).
+     */
+    private function usunZapisanyPlikTymczasowy(UploadedFile $file): void
+    {
+        if (! $file instanceof TemporaryUploadedFile) {
+            return;
+        }
+
+        try {
+            $dysk = (string) (config('livewire.temporary_file_upload.disk') ?: config('filesystems.default'));
+            $klucz = (string) FileUploadConfiguration::path($file->getFilename(), false);
+        } catch (\Throwable $blad) {
+            Log::warning('Nie udało się przygotować sprzątania tymczasowego pliku Livewire po zapisie zdjęcia', [
+                'error' => BezpiecznyBlad::kontekst($blad),
+            ]);
+
+            return;
+        }
+
+        foreach (['zdjecie' => $klucz, 'metadane' => $klucz.'.json'] as $rodzaj => $sciezka) {
+            try {
+                $magazyn = Storage::disk($dysk);
+                if ($magazyn->exists($sciezka)) {
+                    $magazyn->delete($sciezka);
+                }
+
+                if ($magazyn->exists($sciezka)) {
+                    Log::warning('Tymczasowy plik Livewire nadal istnieje po zapisie zdjęcia', [
+                        'dysk' => $dysk,
+                        'rodzaj' => $rodzaj,
+                    ]);
+                }
+            } catch (\Throwable $blad) {
+                Log::warning('Nie udało się usunąć tymczasowego pliku Livewire po zapisie zdjęcia', [
+                    'dysk' => $dysk,
+                    'rodzaj' => $rodzaj,
+                    'error' => BezpiecznyBlad::kontekst($blad),
+                ]);
+            }
+        }
+    }
+
+    private function przyjmij(User $owner, UploadedFile $file, ?string $altText): Media
     {
         $maxBytes = (int) config('kuking.media.max_bytes');
         $bytes = $file->getSize();
@@ -201,7 +269,18 @@ final class StoreUploadedImage
         // więc takiego obiektu nie znalazłoby już nic. Kasujemy go więc tu,
         // od razu, a pierwotny wyjątek leci dalej do wywołującego.
         try {
-            Storage::disk($disk)->put($objectKey, $oryginal);
+            // `false` Z `put()` TO BŁĄD MAGAZYNU, NIE SUKCES (issue #961).
+            //
+            // Dysk z `throw => false` (lokalny `local`/`public`) nie rzuca przy
+            // nieudanym zapisie, tylko oddaje `false`. Bez tego sprawdzenia
+            // powstawał wiersz `media` i zadanie dla oryginału, którego nie
+            // ma — a człowiek dostawał „Opublikowane" i po chwili odrzucone
+            // zdjęcie. Rzucamy TEN SAM wyjątek, co dysk z `throw => true`
+            // (R2), więc dalej wszystko idzie jedną drogą: kompensacja niżej
+            // i strona błędu, bez zależności od ustawień konkretnego dysku.
+            if (Storage::disk($disk)->put($objectKey, $oryginal) === false) {
+                throw UnableToWriteFile::atLocation($objectKey, 'Dysk zwrócił false z put() dla oryginału zdjęcia.');
+            }
 
             // Orientację czytamy TERAZ, dopóki mamy plik na dysku — zadanie w tle
             // dostaje ze storage same bajty, a dekoder chodzi z wyłączonym
@@ -351,7 +430,7 @@ final class StoreUploadedImage
                 Log::error('Nie udało się usunąć pliku zdjęcia bez wiersza media', [
                     'dysk' => $nazwaDysku,
                     'klucz' => $klucz,
-                    'error' => $blad->getMessage(),
+                    'error' => BezpiecznyBlad::kontekst($blad),
                 ]);
             }
         }

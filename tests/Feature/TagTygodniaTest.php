@@ -219,10 +219,46 @@ class TagTygodniaTest extends TestCase
         $wyroznienie = $this->wyroznij($tag, '2026-11-16', '2026-11-22');
 
         $this->actingAs($this->moderator())
-            ->delete(route('admin.tag-highlights.destroy', $wyroznienie))
+            ->delete(route('admin.tag-highlights.destroy', $wyroznienie), ['potwierdzam' => '1'])
             ->assertRedirect(route('admin.tag-promotions'));
 
         $this->assertDatabaseCount('tag_highlights', 0);
         $this->assertDatabaseHas('tags', ['id' => $tag->getKey()]);
+    }
+
+    /**
+     * Audyt po fali 25.09, pkt 10: „Usuń to wyróżnienie” to akcja
+     * destrukcyjna (AGENTS.md §5) — bez potwierdzenia plan zostaje.
+     */
+    public function test_usuniecie_wyroznienia_bez_potwierdzenia_nic_nie_usuwa(): void
+    {
+        $tag = $this->tag('pierogi', 'Pierogi');
+        $wyroznienie = $this->wyroznij($tag, '2026-11-16', '2026-11-22');
+
+        $this->actingAs($this->moderator())
+            ->delete(route('admin.tag-highlights.destroy', $wyroznienie))
+            ->assertRedirect(route('admin.tag-promotions'))
+            ->assertSessionHas('status', fn ($s) => str_starts_with($s, 'Nic nie usunięto.'));
+
+        $this->assertDatabaseCount('tag_highlights', 1);
+        $this->assertDatabaseMissing('audit_log', ['action' => 'tag_highlight.removed']);
+    }
+
+    public function test_usuniecie_wyroznienia_z_potwierdzeniem_zapisuje_audyt(): void
+    {
+        $tag = $this->tag('pierogi', 'Pierogi');
+        $wyroznienie = $this->wyroznij($tag, '2026-11-16', '2026-11-22');
+
+        $this->actingAs($this->moderator())
+            ->get(route('admin.tag-promotions'))
+            ->assertOk()
+            ->assertSee('Usunąć to wyróżnienie?', false)
+            ->assertSee('Tak, usuń to wyróżnienie');
+
+        $this->delete(route('admin.tag-highlights.destroy', $wyroznienie), ['potwierdzam' => '1'])
+            ->assertRedirect(route('admin.tag-promotions'));
+
+        $this->assertDatabaseCount('tag_highlights', 0);
+        $this->assertDatabaseHas('audit_log', ['action' => 'tag_highlight.removed']);
     }
 }

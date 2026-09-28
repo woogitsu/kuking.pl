@@ -130,6 +130,46 @@ class ZdjeciaPoPrzenosinachTest extends TestCase
             ->assertFailed();
     }
 
+    /**
+     * #1905: rekord `ready` z pustą `metadata.variants` NIE jest „komplet na
+     * miejscu" — poprzednia wersja `brakujaceKlucze()` po prostu nie miała po
+     * czym iterować i wiersz wypadał z raportu jako czysty.
+     */
+    public function test_pusta_tablica_wariantow_przy_ready_jest_niepewna_nie_czysta(): void
+    {
+        $media = Media::factory()->create([
+            'disk' => 'nowe_oryginaly',
+            'variants_disk' => 'nowe_publiczne',
+            'status' => Media::STATUS_READY,
+            'object_key' => 'incoming/basia/2026/09/pusty.jpg',
+            'metadata' => ['variants' => []],
+        ]);
+        Storage::disk('nowe_oryginaly')->put((string) $media->object_key, 'oryginal');
+
+        $this->artisan('kuking:sprawdz-zdjecia-po-przenosinach')
+            ->expectsOutputToContain('NIEPEWNE metadata.variants')
+            ->expectsOutputToContain('NIEPEWNE (metadata.variants puste albo uszkodzone): 1 wiersz')
+            ->expectsOutputToContain('UTRACONE (pliku nie ma nigdzie): 0')
+            ->assertFailed();
+    }
+
+    /** #1905: wariant bez `key` jest tym samym „nie wiadomo, co sprawdzić", nie brakiem pliku. */
+    public function test_wariant_bez_klucza_jest_niepewny(): void
+    {
+        $media = Media::factory()->create([
+            'disk' => 'nowe_oryginaly',
+            'variants_disk' => 'nowe_publiczne',
+            'status' => Media::STATUS_READY,
+            'object_key' => 'incoming/basia/2026/09/uszkodzony.jpg',
+            'metadata' => ['variants' => ['feed' => ['width' => 640]]],
+        ]);
+        Storage::disk('nowe_oryginaly')->put((string) $media->object_key, 'oryginal');
+
+        $this->artisan('kuking:sprawdz-zdjecia-po-przenosinach')
+            ->expectsOutputToContain('NIEPEWNE metadata.variants')
+            ->assertFailed();
+    }
+
     public function test_narzedzie_niczego_nie_kasuje_i_niczego_nie_przestawia(): void
     {
         // Przy zerowej liczbie kopii zapasowych bazy produkcyjnej automatyczne

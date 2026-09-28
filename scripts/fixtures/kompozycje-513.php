@@ -87,7 +87,7 @@ if (! $owner->notifications()->where('data->pomiar', '513')->exists()) {
     $comment = Comment::factory()->create(['author_id' => $actor->id, 'post_id' => $post->id]);
     $event = CookedEvent::factory()->create(['user_id' => $actor->id, 'recipe_id' => $recipe->id]);
     foreach ([Notification::TYPE_COOKED, Notification::TYPE_COMMENT, Notification::TYPE_REPLY, Notification::TYPE_FOLLOW, Notification::TYPE_SAVED] as $type) {
-        $owner->notifications()->create(['actor_id' => $actor->id, 'type' => $type, 'data' => ['pomiar' => '513', 'cooked_event_id' => $event->id, 'url' => route('posts.show', $post->id, false).'#komentarz-'.$comment->id, 'recipe_title' => $recipe->title, 'recipe_slug' => $recipe->slug, 'comment_id' => $comment->id, 'excerpt' => str_repeat('Długi komentarz o wspólnym gotowaniu. ', 5).'KONIEC513', 'username' => 'basia']]);
+        $owner->notifications()->create(['actor_id' => $actor->id, 'type' => $type, 'data' => ['pomiar' => '513', 'cooked_event_id' => $event->id, 'url' => route('posts.show', $post->id, false).'#komentarz-'.$comment->id, 'recipe_id' => $recipe->id, 'recipe_title' => $recipe->title, 'recipe_slug' => $recipe->slug, 'comment_id' => $comment->id, 'excerpt' => str_repeat('Długi komentarz o wspólnym gotowaniu. ', 5).'KONIEC513', 'username' => 'basia']]);
     }
     $owner->notifications()->create(['actor_id' => null, 'type' => Notification::TYPE_SAVED, 'data' => ['pomiar' => '513', 'recipe_title' => 'Bez autora i celu513']]);
     $read = $owner->notifications()->create(['actor_id' => $actor->id, 'type' => Notification::TYPE_FOLLOW, 'data' => ['pomiar' => '513', 'username' => 'basia']]);

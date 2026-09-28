@@ -229,8 +229,8 @@ class ZmianaAdresuEmailTest extends TestCase
 
         // Link do ustawienia hasła czekający w STAREJ skrzynce — ta tabela
         // jest kluczowana adresem, nie kontem.
-        $tokenResetu = Password::broker()->createToken($basia);
-        $this->assertTrue(Password::broker()->tokenExists($basia, $tokenResetu), 'Kontrola dodatnia: token resetu istnieje.');
+        $tokenResetu = self::brokerHasel()->createToken($basia);
+        $this->assertTrue(self::brokerHasel()->tokenExists($basia, $tokenResetu), 'Kontrola dodatnia: token resetu istnieje.');
 
         $tokenPrzed = $basia->fresh()->remember_token;
 
@@ -464,8 +464,8 @@ class ZmianaAdresuEmailTest extends TestCase
         $zajety->assertRedirect(route('settings.email'))->assertSessionHasNoErrors();
 
         $this->assertSame(
-            $wolny->getSession()->get('status'),
-            $zajety->getSession()->get('status'),
+            self::sesjaPrzekierowania($wolny)->get('status'),
+            self::sesjaPrzekierowania($zajety)->get('status'),
             'Odpowiedź różni się dla adresu zajętego i wolnego — formularz zamienia się w wyrocznię '
             .'„kto ma konto w Kuking".',
         );
