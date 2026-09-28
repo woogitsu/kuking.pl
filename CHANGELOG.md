@@ -6,8 +6,10 @@
 
 ## Alfa 0.75 — szukanie w wykonaniach i pewniejsze „Ugotowałem”
 
+- Po zalogowaniu albo założeniu konta z linku pod komentarzami (także przez Google lub Facebooka) wracacie do tej samej rozmowy, zamiast szukać jej od nowa (#2027).
+- Pilne zgłoszenie od człowieka ma trwały ślad wysyłki alarmu. Potwierdzoną odmowę dostawcy dla nadal otwartej sprawy z ostatnich 72 godzin system może bezpiecznie ponowić w granicach budżetu poczty; niepewny wynik lub przerwany worker wymaga ręcznego sprawdzenia, bez ryzyka automatycznego duplikatu (#2169).
 - Podgląd przepisu bez składników wyjaśnia teraz spokojnie, że można je dopisać później; nie pokazuje braku składników jako błędu, bo nie blokuje on publikacji (#1991).
-- Wewnętrzne: każda rzeczywiście sprawdzona i błędna próba kodu 2FA lub kodu zapasowego przy logowaniu zostawia w dzienniku audytu wpis `account.two_factor_login_failed` (rodzaj: aplikacja, zapasowy lub oba; adres IP tylko w postaci skrótu). Wpis nie zawiera kodu ani sekretu, a odpowiedzi odcięte limitem prób nie dopisują wierszy (#2042).
+- Wewnętrzne: każda rzeczywiście sprawdzona i błędna próba kodu 2FA lub kodu zapasowego przy logowaniu zostawia w dzienniku audytu wpis `account.two_factor_login_failed` (rodzaj: `totp`, `zapasowy` lub `oba`; adres IP tylko w postaci skrótu). Wpis nie zawiera kodu ani sekretu, a odpowiedzi odcięte limitem prób nie dopisują wierszy (#2042).
 - Wewnętrzne: rezerwacja budżetu AI bierze blokadę miesiąca przed wierszem dnia, a suma miesiąca obejmuje cały miesiąc kalendarzowy. Dwa odczyty z różnych dni tego samego miesiąca (np. tuż przed i tuż po północy) nie przekroczą już razem miesięcznego limitu kosztu (#2013).
 - Paczka Twoich danych zachowuje przy każdym przepisie wybór, czy pokazywać szacunkowe wartości odżywcze. Po przeniesieniu danych można odróżnić celowo ukrytą sekcję od domyślnie widocznej (#1993).
 - Na własnej zakładce „Ugotowane” w profilu jest pole „Szukaj w moich wykonaniach”. Wpisujecie kawałek tytułu przepisu i widzicie tylko pasujące wykonania; polskie znaki nie mają znaczenia („zurek” znajdzie „Żurek”). Pole działa bez JavaScriptu, ma podpowiedź i wyraźny komunikat, gdy nic nie znaleziono, a „Pokaż więcej” zachowuje wpisaną frazę. Pole widać tylko na własnym profilu, gdy macie już jakieś wykonania (#2070). [nowa funkcja]
@@ -17,8 +19,7 @@
 - Panel moderacji, „Tagi promowane”: „Zdejmij z promowanych” i „Usuń to wyróżnienie” (tag tygodnia) najpierw pytają i mówią, co zniknie — tag i jego wpisy zostają. Dopiero „Tak, …” wykonuje akcję; wcześniej jedno kliknięcie usuwało od razu (#1827).
 - Zdjęcia dań w tablicy „kuKINGi na dziś” i zdjęcia na kartach w spisie tagów wczytują się w rozmiarze dopasowanym do miejsca i ekranu. Telefon o zwykłej gęstości pikseli nie pobiera już pliku 960 px do małej karty, a ekran o wysokiej gęstości nadal dostaje ostre zdjęcie (#1310, #1326).
 - „Ugotowałem” nie zapisuje już wykonania ani nie powiadamia autora, jeśli w trakcie wysyłania przepis stał się prywatny, został ukryty albo zdjęty przez moderację, konto autora zbanowano lub oznaczono do usunięcia, konto kucharza zawieszono albo między nimi pojawiła się blokada (#2017).
-- Po rejestracji z końca trybu gotowania i pominięciu pierwszych kroków wrócisz do formularza „Ugotowałem” właściwego przepisu. Samo wykonanie nadal wymaga Twojego wysłania (#2058).
-- W formularzu „Ugotowałem” zdanie „Kto to zobaczy?” stoi teraz nad polem zdjęcia i notatką, a nie tuż nad przyciskiem „Wyślij”. Dowiadujecie się, kto zobaczy wykonanie, zdjęcia i odpowiedzi, zanim napiszecie osobistą uwagę. Treść i zasady widoczności bez zmian (#2071).
+- W formularzu „Ugotowałem” zdanie „Kto to zobaczy?” stoi teraz nad polem zdjęcia i notatką, a nie tuż nad przyciskiem „Wyślij”. Dowiadujecie się, kto zobaczy wykonanie, zdjęcia i odpowiedzi, zanim napiszecie osobistą uwagę. Zdanie mówi teraz także, że wgląd mogą mieć moderatorzy; zasady widoczności bez zmian (#2071).
 - Pusta lista powiadomień wymienia teraz także przypomnienia o urodzinach obserwowanych osób, bo takie powiadomienia naprawdę do Was przychodzą (#2060).
 - Strona główna ma limit zapytań dla gościa (120 na minutę z jednego adresu), tak jak „Odkryj”, żeby automaty nie obciążały serwisu. Zwykłe przeglądanie go nie osiąga. Gdy ktoś go przekroczy, strona z komunikatem o zbyt wielu zapytaniach ma przycisk „Zobacz dania i przepisy”, który prowadzi do „Odkryj” (#1952).
 - Po jednoczesnym kliknięciu „Wygeneruj nowe kody” w dwóch oknach pokaże się tylko jeden komplet kodów zapasowych — ten, który naprawdę działa. Drugie okno dostaje wyjaśnienie, co zrobić, zamiast kodów, które już nie działają (#2057).
@@ -32,6 +33,7 @@
 
 ## Alfa 0.74 — zdjęcia w formularzu i porcje przy gotowaniu
 
+- Po rejestracji z końca trybu gotowania i pominięciu pierwszych kroków wrócisz do formularza „Ugotowałem” właściwego przepisu. Samo wykonanie nadal wymaga Twojego wysłania (#2058).
 - Zdjęcia wybrane przy dodawaniu lub edycji przepisu zostają w formularzu po błędzie innego pola. Nie trzeba ich wybierać ponownie po poprawieniu tytułu czy składników (#2050).
 - Wybrana liczba porcji nie znika po wejściu w tryb gotowania: składniki przy krokach są przeliczone tak samo jak na stronie przepisu, a wybór zostaje przy zmianie kroku, odhaczaniu, rozpoczęciu od początku i powrocie do przepisu (#1984). [nowa funkcja]
 - Rozpatrzenie odwołania z blokadą konta nie zakleszcza się już z równoczesną edycją przepisu. Obie czynności kończą się bez błędu serwera (#2165).
@@ -44,7 +46,6 @@
 - Przepis ze strony internetowej albo z pliku PDF można zapisać jako szkic: na ekranie „Dodaj przepis” są przyciski „Wklej adres strony” i „Dodaj plik PDF”. Szkic widzisz tylko Ty, adres strony zostaje przy przepisie jako źródło i nie da się go zmienić, a zdjęć ze strony nie pobieramy. Przed publikacją trzeba zaznaczyć „Sprawdziłem odczytany tekst”; gdy opis przygotowania jest prawie taki sam jak na stronie, pokazujemy ostrzeżenie, żeby napisać go własnymi słowami. Strony, które nie pozwalają pobierać przepisów, szanujemy — wtedy zapisujemy sam adres i mówimy, co zrobić. Dziennie można odczytać 5 przepisów, miesięcznie 30. PDF-y z tekstem odczytujemy u siebie; skanowane strony może odczytać komputer OpenAI po osobnej zgodzie. Tekst strony bez danych przepisu może trafić do modelu tylko za zgodą. Wszystkie drogi mają wspólny limit 5 dziennie i 30 miesięcznie oraz budżet AI (D-300). [nowa funkcja]
 - W trybie „Gotuję” możesz odhaczać składniki, które już masz odmierzone. Zaznaczenie zostaje w tej karcie przeglądarki, także po przejściu do kolejnego kroku, i nie rusza odhaczonych kroków (#2069). [nowa funkcja]
 - Ekrany logowania i zakładania konta wykorzystują szerokość komputera: obok formularza widać od razu wejście przez Google lub Facebooka, a przy logowaniu także drogę przez link wysłany e-mailem. Na telefonie wszystko układa się w jedną kolumnę; żadne pole ani komunikat nie znika.
-- Pilne zgłoszenie od człowieka ma trwały ślad wysyłki alarmu. Potwierdzoną odmowę dostawcy dla nadal otwartej sprawy z ostatnich 72 godzin system może bezpiecznie ponowić w granicach budżetu poczty; niepewny wynik lub przerwany worker wymaga ręcznego sprawdzenia, bez ryzyka automatycznego duplikatu (#2169).
 
 ## Alfa 0.72 — spokojniejsze zdjęcia i powiadomienia
 
