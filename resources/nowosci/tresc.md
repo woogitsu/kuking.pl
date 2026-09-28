@@ -38,6 +38,15 @@ sprawdzony. Jeśli strona nie pozwala na pobranie przepisu, zapisujemy sam
 adres i podpowiadamy, jak wpisać treść ręcznie.
 Każda droga importu dzieli limit 5 prób dziennie i 30 miesięcznie.
 
+### Składniki odhaczane w trybie „Gotuję”
+
+Przy dłuższym przepisie łatwo zgubić się w tym, co już jest odmierzone.
+W trybie „Gotuję” rozwiń „Składniki” i dotknij składnika, który masz
+przygotowany — pojawi się przy nim „Przygotowane”, a pod listą zobaczysz, ile
+jeszcze zostało. Zaznaczenie pamięta ta karta przeglądarki, także po przejściu
+do następnego kroku. Przycisk „Wyczyść zaznaczenie składników” zaczyna listę
+od nowa i nie rusza odhaczonych kroków.
+
 ## Alfa 0.72
 
 **Spokojniejsze zdjęcia i powiadomienia.**
