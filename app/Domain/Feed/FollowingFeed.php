@@ -30,7 +30,9 @@ use Illuminate\Support\Facades\DB;
  * użytkowników na tych "widzianych" i "niewidzianych".
  *
  * Zapytanie jest celowo proste: WHERE author_id IN (...) OR (publiczny
- * AND EXISTS obserwowany tag) + kursor.
+ * AND EXISTS obserwowany tag) + kursor. Bramki widoczności i blokad
+ * (`Post::widoczneDla()`) stoją w TYM SAMYM zapytaniu, dla obu gałęzi —
+ * patrz `zrodla()`, issue #2026.
  * Żadnego fanout-on-write, żadnej osobnej tabeli feedu — dopóki pomiar nie
  * pokaże, że jest potrzebna (docs/ARCHITECTURE.md).
  */
@@ -111,8 +113,9 @@ final class FollowingFeed
             ->where(function (Builder $zrodla) use ($viewer, $authorIds, $tagIds, $zWlasnymi): void {
                 // 1. Obserwowane osoby (i widz): publiczne oraz „tylko dla
                 //    obserwujących" — te drugie widzi obserwujący i autor.
-                //    Blokada kasuje obserwowanie w obie strony, więc osobnej
-                //    bramki blokad ta gałąź nie potrzebuje.
+                //    Lista `$authorIds` to tylko ZAWĘŻENIE źródła, nie
+                //    uprawnienie: bramki blokad i obserwowania liczy
+                //    `widoczneDla()` niżej, w chwili tego zapytania (#2026).
                 $zrodla->where(fn (Builder $osoby) => $osoby
                     ->whereIn('posts.author_id', $authorIds)
                     ->whereIn('posts.visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS]));
@@ -124,9 +127,10 @@ final class FollowingFeed
                 // 2. Obserwowane tematy: WYŁĄCZNIE wpisy publiczne. Obserwowanie
                 //    tematu nie jest relacją z autorem, więc nie otwiera „tylko
                 //    dla obserwujących" ani prywatnych — także własnych (te
-                //    wchodzą gałęzią pierwszą, z jej regułami). `widoczneDla()`
-                //    dokłada blokady w OBIE strony: temat nie może być obejściem
-                //    blokady. `whereHas` to `EXISTS`, nie `JOIN` — wpis z trzema
+                //    wchodzą gałęzią pierwszą, z jej regułami). Blokady w OBIE
+                //    strony dokłada `widoczneDla()` niżej, wspólne dla obu
+                //    gałęzi: temat nie może być obejściem blokady.
+                //    `whereHas` to `EXISTS`, nie `JOIN` — wpis z trzema
                 //    obserwowanymi tematami wychodzi raz (SPEC §1.9).
                 //    Tylko tematy aktywne: temat ukryty albo scalony przez
                 //    moderację nie prowadzi już wpisów na Start.
@@ -135,7 +139,6 @@ final class FollowingFeed
                     ->whereHas('tags', fn ($q) => $q
                         ->whereIn('tags.id', $tagIds)
                         ->where('tags.status', Tag::STATUS_ACTIVE))
-                    ->widoczneDla($viewer)
                     // „Ukryj tę osobę" (#1810, D-278, decyzja właściciela
                     // 26.09) działa też tutaj: wpis z tagu PODSUWA autora,
                     // którego widz nie wybrał. Tylko w tej gałęzi — osoby
@@ -144,6 +147,17 @@ final class FollowingFeed
                     ->bezUkrytychOsob($viewer)
                     ->when(! $zWlasnymi, fn (Builder $q) => $q->where('posts.author_id', '!=', $viewer->getKey())));
             })
+            // BLOKADA I OBSERWOWANIE W CHWILI ZAPYTANIA (issue #2026), dla OBU
+            // gałęzi. Do #2026 gałąź osób ufała liście `$authorIds` pobranej
+            // osobnym zapytaniem („blokada kasuje obserwowanie"). Blokada
+            // zatwierdzona między tamtym odczytem a tym zapytaniem (READ
+            // COMMITTED) zostawiała autora na liście, a jego wpis — także
+            // „tylko dla obserwujących" — wychodził na Start. `widoczneDla()`
+            // dokłada tu `NOT EXISTS` po `blocks` w obie strony i `EXISTS` po
+            // `follows` dla „tylko dla obserwujących": to samo zapytanie, które
+            // zwraca treść, sprawdza aktualny stan. Bez dodatkowych zapytań.
+            // Własne wpisy widza przechodzi zawsze (autor widzi swoje).
+            ->widoczneDla($viewer)
             // Wąski próg (`status = active`), nie `jestDostepnyJakoAutor()`,
             // dla OBU gałęzi. Do #1808 stał tu komentarz o luce, przez którą
             // wpis zbanowanego autora stał w feedzie każdego, kto tę osobę

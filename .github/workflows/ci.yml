@@ -639,6 +639,9 @@ jobs:
       - name: Testy bramki Railway po CI
         run: python3 -m unittest discover -s scripts -p test_railway_ci_gated_deploy.py -v
 
+      - name: Kontrole ujemne budżetu pominiętych testów
+        run: python3 -m unittest discover -s scripts -p test_sprawdz_pominiete_testy.py -v
+
       # =====================================================================
       #  TESTY SKRYPTU KOPII BAZY (issue #193, D-043/D-049)
       #
@@ -1102,7 +1105,23 @@ jobs:
             echo ""
             echo "Plików testów w tej części: **${#pliki[@]}**"
           } >> "$GITHUB_STEP_SUMMARY"
-          php artisan test "${pliki[@]}"
+          php artisan test "${pliki[@]}" --log-junit "$RUNNER_TEMP/phpunit-czesc-${{ matrix.czesc }}.xml"
+
+      - name: Raport i budżet pominiętych testów
+        if: always() && matrix.czesc != 'kontrole'
+        run: |
+          set -euo pipefail
+          raport="$RUNNER_TEMP/phpunit-czesc-${{ matrix.czesc }}.xml"
+          set +e
+          python3 scripts/sprawdz-pominiete-testy.py "$raport" 2>&1 | tee "$RUNNER_TEMP/pominiete-czesc-${{ matrix.czesc }}.txt"
+          wynik=${PIPESTATUS[0]}
+          set -e
+          {
+            echo "### Pominięte testy — część ${{ matrix.czesc }}/4"
+            echo
+            cat "$RUNNER_TEMP/pominiete-czesc-${{ matrix.czesc }}.txt"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$wynik"
 
   # ===========================================================================
   #  3a. Zbiorczy wynik testów — WYMAGANY CHECK „Testy (PostgreSQL 18)"

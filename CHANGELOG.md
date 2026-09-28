@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Paczka Twoich danych zachowuje przy każdym przepisie wybór, czy pokazywać szacunkowe wartości odżywcze. Po przeniesieniu danych można odróżnić celowo ukrytą sekcję od domyślnie widocznej (#1993).
+
 ## Alfa 0.74 — zdjęcia w formularzu i porcje przy gotowaniu
 
 - Zdjęcia wybrane przy dodawaniu lub edycji przepisu zostają w formularzu po błędzie innego pola. Nie trzeba ich wybierać ponownie po poprawieniu tytułu czy składników (#2050).
@@ -16,6 +18,7 @@
 - Przepis ze strony internetowej albo z pliku PDF można zapisać jako szkic: na ekranie „Dodaj przepis” są przyciski „Wklej adres strony” i „Dodaj plik PDF”. Szkic widzisz tylko Ty, adres strony zostaje przy przepisie jako źródło i nie da się go zmienić, a zdjęć ze strony nie pobieramy. Przed publikacją trzeba zaznaczyć „Sprawdziłem odczytany tekst”; gdy opis przygotowania jest prawie taki sam jak na stronie, pokazujemy ostrzeżenie, żeby napisać go własnymi słowami. Strony, które nie pozwalają pobierać przepisów, szanujemy — wtedy zapisujemy sam adres i mówimy, co zrobić. Dziennie można odczytać 5 przepisów, miesięcznie 30. PDF-y z tekstem odczytujemy u siebie; skanowane strony może odczytać komputer OpenAI po osobnej zgodzie. Tekst strony bez danych przepisu może trafić do modelu tylko za zgodą. Wszystkie drogi mają wspólny limit 5 dziennie i 30 miesięcznie oraz budżet AI (D-300). [nowa funkcja]
 - W trybie „Gotuję” możesz odhaczać składniki, które już masz odmierzone. Zaznaczenie zostaje w tej karcie przeglądarki, także po przejściu do kolejnego kroku, i nie rusza odhaczonych kroków (#2069). [nowa funkcja]
 - Ekrany logowania i zakładania konta wykorzystują szerokość komputera: obok formularza widać od razu wejście przez Google lub Facebooka, a przy logowaniu także drogę przez link wysłany e-mailem. Na telefonie wszystko układa się w jedną kolumnę; żadne pole ani komunikat nie znika.
+- Pilne zgłoszenie od człowieka ma trwały ślad wysyłki alarmu. Potwierdzoną odmowę dostawcy dla nadal otwartej sprawy z ostatnich 72 godzin system może bezpiecznie ponowić w granicach budżetu poczty; niepewny wynik lub przerwany worker wymaga ręcznego sprawdzenia, bez ryzyka automatycznego duplikatu (#2169).
 
 ## Alfa 0.72 — spokojniejsze zdjęcia i powiadomienia
 
