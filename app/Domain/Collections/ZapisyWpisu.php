@@ -143,6 +143,13 @@ final class ZapisyWpisu
         // „czy JA to mam w zeszycie", a na to odpowiada wyłącznie właściciel
         // zeszytu; status ani blokada nie mają tu nic do rzeczy.
         $query->withExists(['collections as czy_zapisany' => fn ($q) => $q->where('collections.owner_id', $widz->getKey())]);
+
+        // „Smakowicie wygląda" (issue #1813) — stan TEGO widza na karcie, tym
+        // samym zapytaniem. Nie jest to zapis do zeszytu, ale to jest jedyne
+        // miejsce, przez które każdy ekran z kartą dokłada stan widza do
+        // SELECT-a; osobny haczyk znaczyłby osiem nowych wywołań do pamiętania.
+        // Samo `EXISTS` dla widza — nigdy liczba (D-280).
+        $query->withExists(['reakcje as czy_smakowicie' => fn ($q) => $q->where('post_reactions.user_id', $widz->getKey())]);
     }
 
     /**
@@ -176,6 +183,7 @@ final class ZapisyWpisu
 
         $post->setAttribute('zapisow_count', $dane->getAttribute('zapisow_count'));
         $post->setAttribute('czy_zapisany', $dane->getAttribute('czy_zapisany'));
+        $post->setAttribute('czy_smakowicie', $dane->getAttribute('czy_smakowicie'));
     }
 
     /**
