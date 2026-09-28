@@ -28,6 +28,9 @@ use App\Domain\Contact\Actions\WyslijOdpowiedz;
 use App\Domain\Feed\Actions\ZapiszKolaz;
 use App\Domain\Feed\Actions\ZapiszTabliceDnia;
 use App\Domain\Import\BudzetAi;
+use App\Domain\Import\ImportOdrzucony;
+use App\Domain\Import\LimitImportowOsoby;
+use App\Domain\Import\LimitImportu;
 use App\Domain\Import\Rezerwacja;
 use App\Domain\Import\ZlecImportPrzepisu;
 use App\Domain\Moderation\Actions\ReportContent;
@@ -714,6 +717,27 @@ try {
                 User::query()->findOrFail($argumenty['kto']),
                 ImportPrzepisu::query()->findOrFail($argumenty['poprzednie']),
             )->getKey();
+        })(),
+        'wspolny-limit-importu' => (function () use ($argumenty): string {
+            config([
+                'kuking.import.limity.na_osobe_dzien' => (int) ($argumenty['limit_dzienny'] ?? 1),
+                'kuking.import.limity.na_osobe_miesiac' => (int) ($argumenty['limit_miesieczny'] ?? 30),
+            ]);
+            $osoba = User::query()->findOrFail($argumenty['kto']);
+            $zrodlo = (string) $argumenty['zrodlo'];
+
+            if ($zrodlo === 'zdjecie') {
+                $proba = DB::transaction(static fn () => app(LimitImportowOsoby::class)
+                    ->rezerwuj($osoba, 'zdjecie', (string) Str::uuid()));
+            } else {
+                try {
+                    $proba = app(LimitImportu::class)->zuzyj($osoba, $zrodlo, (string) Str::uuid());
+                } catch (ImportOdrzucony) {
+                    $proba = null;
+                }
+            }
+
+            return $proba === null ? 'odmowa' : 'rezerwacja';
         })(),
         // Rejestracja wdrożenia (issue #1932, D-318): numer kolejny liczony
         // pod `pg_advisory_xact_lock(hashtext($etykieta))` wewnątrz akcji —

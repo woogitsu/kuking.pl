@@ -407,7 +407,10 @@ final class PowiadomieniaPushTest extends TestCase
 
         Queue::assertPushed(WyslijPowiadomieniePush::class, fn (WyslijPowiadomieniePush $job): bool => $job->userId === $autor->getKey()
             && $job->probaTransportu === 2
-            && $job->notificationIds === [(string) $powiadomienie->getKey()]
+            // #2021: retry niesie ID grupy, nie listę powiadomień.
+            && $job->notificationIds === []
+            && $job->grupaId === $powiadomienie->push_grupa_id
+            && $job->grupaId !== null
             && $job->pominieteSubskrypcje === []);
     }
 
