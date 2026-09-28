@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Collections\Wspoldzielenie;
 
 use App\Domain\Notifications\Actions\NotifyUser;
+use App\Domain\Social\ZamekPary;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Collection;
 use App\Models\CollectionInvitation;
@@ -51,16 +52,39 @@ final class ZaprosDoZeszytu
         Gate::forUser($wlasciciel)->authorize('share', $zeszyt);
 
         $profil = Profile::poNazwie(ltrim(trim($nazwa), '@'));
-        $adresat = $profil?->user;
+        $adresatPrzedZamkiem = $profil?->user;
 
-        if ($adresat === null || ! $adresat->mozeCzytac() || $wlasciciel->hasBlockRelationWith($adresat)) {
+        // Wstępne sprawdzenie na odczycie sprzed zamka oszczędza zamki przy
+        // oczywistej odmowie. NIE rozstrzyga: blokada mogła powstać w
+        // międzyczasie, więc ta sama kontrola powtarza się niżej pod zamkiem.
+        if ($adresatPrzedZamkiem === null || ! $adresatPrzedZamkiem->mozeCzytac() || $wlasciciel->hasBlockRelationWith($adresatPrzedZamkiem)) {
             throw new BladDlaCzlowieka(self::NIE_DA_SIE);
         }
 
-        if ($adresat->getKey() === $wlasciciel->getKey()) {
+        if ($adresatPrzedZamkiem->getKey() === $wlasciciel->getKey()) {
             throw new BladDlaCzlowieka('To jest Twój zeszyt — masz do niego dostęp. Wpisz nazwę konta osoby, którą chcesz zaprosić.');
         }
 
+        // Ten sam zamek pary co `BlockUser`, `FollowUser` i przyjęcie
+        // zaproszenia (#2077): kontrola blokady i zapis zaproszenia dzieją
+        // się w jednej sekcji krytycznej. Blokada, która zdąży pierwsza,
+        // odmawia zaproszenia; ta, która przyjdzie po nim, odwołuje je przez
+        // `ZerwijWspoldzielenie::miedzy()`. Kolejność blokad: konta, potem
+        // zeszyt — tak samo jak w `OdpowiedzNaZaproszenie::przyjmij()`.
+        return ZamekPary::zablokuj($wlasciciel, $adresatPrzedZamkiem, function (?User $swiezyWlasciciel, ?User $adresat) use ($zeszyt): CollectionInvitation {
+            // Konto mogło zniknąć albo zmienić stan między odczytem a zamkiem.
+            // Jedno zdanie także tutaj — nie zdradzamy, że ktoś zablokował.
+            if ($swiezyWlasciciel === null || $adresat === null
+                || ! $adresat->mozeCzytac() || $swiezyWlasciciel->hasBlockRelationWith($adresat)) {
+                throw new BladDlaCzlowieka(self::NIE_DA_SIE);
+            }
+
+            return $this->zapiszZaproszenie($swiezyWlasciciel, $adresat, $zeszyt);
+        });
+    }
+
+    private function zapiszZaproszenie(User $wlasciciel, User $adresat, Collection $zeszyt): CollectionInvitation
+    {
         return DB::transaction(function () use ($wlasciciel, $zeszyt, $adresat): CollectionInvitation {
             $swiezy = $this->zablokujZeszyt($zeszyt);
 
