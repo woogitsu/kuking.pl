@@ -9,6 +9,16 @@
          w tę stronę, w którą człowiek nie sprawdzi, bo nie spróbuje. --}}
     <p class="mb-5">Przepisy i wpisy, które chcesz zachować na potem. Tylko Ty je widzisz, chyba że ustawisz inaczej.</p>
 
+    {{-- Planer tygodnia (#27, D-310) mieszka w „Moje”: dolna nawigacja ma
+         najwyżej pięć pozycji (AGENTS.md §5), a plan to też „moje na potem”. --}}
+    {{-- „Moje wpisy” (D-328): własne wpisy autora, także prywatne, dla
+         obserwujących, szkice i ukryte przez moderację. Obok planera, bo to
+         ta sama półka „moje” — zwykły odnośnik, działa bez JavaScriptu. --}}
+    <p class="mb-5 flex flex-wrap gap-3">
+        <a class="btn btn-secondary" href="{{ route('collections.own-posts') }}">Moje wpisy</a>
+        <a class="btn btn-secondary" href="{{ route('planer.show') }}">Planer tygodnia</a>
+    </p>
+
     {{-- Błąd przy polu ORAZ w podsumowaniu (docs/UX_50_PLUS.md). Bez tego
          komunikat „Masz już zeszyt o tej nazwie” nie miał gdzie się pokazać:
          jedyny formularz na tej stronie siedzi w zwiniętym <details>. --}}

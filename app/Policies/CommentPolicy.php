@@ -147,7 +147,8 @@ class CommentPolicy
         // już edytowalny. Inaczej autor mógł w oknie 15 minut podmienić treść,
         // którą moderator właśnie ocenił — a przy odwołaniu (DSA art. 20)
         // moderator oglądałby inny tekst niż ten, o którym zdecydował.
-        return $user->getKey() === $comment->author_id
+        return $user->isActive()
+            && $user->getKey() === $comment->author_id
             && $comment->status === Comment::STATUS_PUBLISHED
             && $comment->getAttribute('body_removed_at') === null
             && $comment->created_at?->diffInMinutes(now()) < 15

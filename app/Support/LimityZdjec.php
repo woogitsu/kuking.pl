@@ -193,8 +193,21 @@ final class LimityZdjec
      */
     public static function komunikatNieudanejWysylki(): string
     {
-        return 'Nie udało się wysłać tego zdjęcia. Sprawdź, czy plik waży mniej niż '
+        return 'Nie udało się wysłać tego zdjęcia. Sprawdź, czy to plik '
+            .self::formatyDlaCzlowieka().' i czy waży mniej niż '
             .self::maksMegabajtowDoKomunikatu().' MB, i spróbuj jeszcze raz.';
+    }
+
+    /**
+     * Zepsuty identyfikator zachowanego zdjęcia w `media_ids[]` (issue #871).
+     *
+     * Zwykły formularz wysyła tam wyłącznie UUID-y zdjęć, które już leżą na
+     * serwerze — ten komunikat widzi ktoś z uszkodzonym albo spreparowanym
+     * formularzem. Mówi, co zrobić, zamiast „musi być poprawnym UUID".
+     */
+    public static function komunikatZepsutegoZachowanegoZdjecia(): string
+    {
+        return 'Nie udało się odczytać jednego z zachowanych zdjęć. Jeśli go nie widzisz, wybierz to zdjęcie jeszcze raz.';
     }
 
     /**

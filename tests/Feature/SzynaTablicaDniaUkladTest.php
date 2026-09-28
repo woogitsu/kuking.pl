@@ -270,7 +270,7 @@ class SzynaTablicaDniaUkladTest extends TestCase
 
             $this->assertStringContainsString(
                 'kuking-board-post-link',
-                (string) $odnosniki->item(0)?->getAttribute('class'),
+                (string) self::elementDom($odnosniki->item(0))?->getAttribute('class'),
                 'Jedyny odnośnik karty dania nie jest wierszem `.kuking-board-post-link`.',
             );
 

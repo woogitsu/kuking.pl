@@ -32,7 +32,7 @@ namespace Tests\Support;
 final class WzorceRodzaju
 {
     /**
-     * WYJĄTKI — trzy nazwane brzmienia i jedno zdanie diagnostyczne.
+     * WYJĄTKI — cztery nazwane brzmienia i jedno zdanie diagnostyczne.
      *
      * Lista jest krótka celowo. Szeroki wyjątek („cały ten plik", „słowo
      * «ugotowałeś» wszędzie") sprawia, że test przestaje czegokolwiek pilnować,
@@ -47,7 +47,13 @@ final class WzorceRodzaju
      *   3.   „Ugotowałem" z wielkiej litery — NAZWA PRZYCISKA brana
      *        w cudzysłów, ustalona w PR #235. Cytowanie nazwy przycisku nie
      *        mówi nic o płci czytelnika. Zapis małą literą wyjątku nie ma.
-     *   4.   Udawany wpis podawany modelowi moderacji w `kuking:sprawdz-model`.
+     *   4.   „Sprawdziłem odczytany tekst" z wielkiej litery — ETYKIETA
+     *        POLA WYBORU przed publikacją szkicu z importu (D-300, PR #1899).
+     *        Decyzja właściciela z 26.09.2026: wyjątek na tej samej zasadzie
+     *        co „Ugotowałem" — nazwa kontrolki wypowiadana w pierwszej
+     *        osobie, cytowana też w komunikacie `StrazImportu`. Inne zdania
+     *        z „sprawdziłem" wyjątku nie mają.
+     *   5.   Udawany wpis podawany modelowi moderacji w `kuking:sprawdz-model`.
      *        To treść użytkownika w roli próbki, nie tekst serwisu do nikogo —
      *        i akurat na niej sprawdzamy, że model nie flaguje zwykłego rosołu.
      *
@@ -61,6 +67,7 @@ final class WzorceRodzaju
         'co dziś ugotowałeś' => 'hasło główne, utrwalone w COPY_STYLE.md §2',
         'co ugotowałeś' => 'to samo hasło w przycisku dodawania zdjęcia',
         'Ugotowałem' => 'nazwa przycisku w cudzysłowie (PR #235)',
+        'Sprawdziłem odczytany tekst' => 'etykieta pola wyboru przy imporcie (decyzja właściciela 26.09.2026, PR #1899)',
         'Dziś ugotowałam rosół' => 'udawany wpis podawany modelowi moderacji',
     ];
 
@@ -143,6 +150,64 @@ final class WzorceRodzaju
     ];
 
     /**
+     * „sam"/„sama" W ROLI PODMIOTU — zaimek, który dopisuje czytelnikowi rodzaj
+     * (decyzja właściciela z 26.09.2026, PR #1899).
+     *
+     * SKĄD TO SIĘ WZIĘŁO
+     * Import przepisu z adresu (PR #1899) mówił do każdego „Nic się nie
+     * opublikuje, dopóki sam nie klikniesz", „Wolę wpisać przepis sam",
+     * „albo wpisz przepis sam". Wzorce z `WZORCE` szukają „ł" i końcówek
+     * rodzajowych, a w „sam" nie ma ani jednego, ani drugiego — więc
+     * strażnik był zielony. Poprawka: „dopóki nie klikniesz", „wpisz
+     * przepis ręcznie" (COPY_STYLE.md §2: przebudowa zdania, nie „sam/sama").
+     *
+     * DLACZEGO OSOBNA STAŁA, A NIE DOPISEK DO `WZORCE`
+     * `WZORCE` czytają też teksty prawne i przewodnik. W regulaminie
+     * i polityce prywatności stoi „sam wybierasz", „sam decydujesz" — teksty
+     * prawne mają osobny reżim i osobne zlecenie (COPY_STYLE.md §6, ten sam
+     * powód co przy `WZORCE_TYLKO_WIDOKI` w `TekstyNiePrzypisujaPlciTest`).
+     * Test decyduje, gdzie ten wzorzec przykłada; stała żyje tu, żeby nie
+     * powstała druga kopia.
+     *
+     * DLACZEGO TAK WĄSKO
+     * „sam" jest w polszczyźnie przede wszystkim przymiotnikiem: „ten sam
+     * przepis", „taki sam jak na stronie", „Sam przepis zostaje", „szkic
+     * zapisuje się sam", „Kolaż dobierze zdjęcia sam", „Wpisz sam czas
+     * w minutach" (= tylko czas). Żadne z nich nie mówi nic o płci
+     * czytelnika. Wzorce łapią więc „sam" wyłącznie przy formie, która
+     * wskazuje na CZYTELNIKA — 2. osobie („klikniesz", „decydujesz"),
+     * rozkaźniku na początku zdania („wpisz", „wklej", „dodaj") albo
+     * 1. osobie w jego imieniu („Wolę") — a w dwóch ostatnich tylko wtedy,
+     * gdy „sam" zamyka zdanie. Trzecia osoba („Automat sam nie ukrywa")
+     * przechodzi. Przykłady do oblania i do przepuszczenia stoją
+     * w `TekstyNiePrzypisujaPlciTest::test_wzorce_sam_lapia_podmiot_i_przepuszczaja_przymiotnik`.
+     *
+     * @var array<string, string>
+     */
+    public const WZORCE_SAM = [
+        // „sam(a)" [+ „nie"/„też"] + 2. osoba l.poj.: „dopóki sam nie klikniesz",
+        // „sama wybierasz". Nie po „ten/ta/to/taki/taka/tak" (to przymiotnik
+        // „ten sam"). „gulasz" to rzeczownik na „-asz", nie czasownik.
+        'sam_przed_czasownikiem' => '/(?<![\p{L}])(?<!ten\s)(?<!ta\s)(?<!to\s)(?<!taki\s)(?<!taka\s)(?<!tak\s)sama?\s+(?:nie\s+|też\s+)?(?!gulasz(?![\p{L}]))\p{L}{2,}[aeiy]sz(?![\p{L}])/iu',
+
+        // 2. osoba l.poj. + najwyżej trzy słowa + „sam(a)" na końcu zdania:
+        // „ciemny włączasz sam,", „zdjęcie wybierzesz sama.". Przecinek
+        // przerywa łańcuch, więc „Możesz zamknąć stronę, szkic zapisze się
+        // sam." nie łapie.
+        'sam_po_czasowniku' => '/(?<![\p{L}])(?!gulasz(?![\p{L}]))\p{L}{2,}[aeiy]sz(?:\s+\p{L}+){0,3}\s+sama?(?=[\s*_]*(?:[.,;:!?…—–)"”»\'<]|$))/iu',
+
+        // Rozkaźnik albo 1. osoba NA POCZĄTKU zdania (po znaku interpunkcji,
+        // tagu albo „albo/lub/i/a/potem/wtedy/to") + najwyżej pięć słów +
+        // „sam(a)" na końcu zdania: „albo wpisz przepis sam.", „i wklej go
+        // sam.", „Wolę wpisać przepis sam</a>". Końcówki rozkaźnika: „-aj",
+        // „-uj", „-ij", „-oj", „-yj", „-lej", „-grzej", „-sz". Przysłówki
+        // na „-ej" („dalej", „inaczej", „tej") i „dzisiaj/tutaj/wczoraj"
+        // odpadają, bo inaczej „Dzisiaj tablica dobierze treści sama"
+        // wyglądałoby jak rozkaz.
+        'sam_po_rozkazie' => '/(?:^|[.,;:!?—–(„"”>]\s*|(?<![\p{L}])(?:albo|lub|i|a|potem|wtedy|to)\s+)(?!(?:dzisiaj|tutaj|wczoraj|dalej|nasz|wasz|gulasz)(?![\p{L}]))(?:\p{L}{2,}(?:aj|uj|ij|oj|yj|lej|grzej|sz)|wolę|chcę|mogę|muszę|wpiszę|przepiszę|zrobię)(?:\s+\p{L}+){0,5}\s+sama?(?=[\s*_]*(?:[.,;:!?…—–)"”»\'<]|$))/iu',
+    ];
+
+    /**
      * Trafienia w tekście, linia po linii, po wycięciu nazwanych wyjątków
      * i homografów.
      *
@@ -152,13 +217,35 @@ final class WzorceRodzaju
      */
     public static function trafienia(string $tresc, array $dodatkoweWyjatki = []): array
     {
+        return self::dopasuj($tresc, self::WZORCE, $dodatkoweWyjatki);
+    }
+
+    /**
+     * To samo co `trafienia()`, ale wzorcami `WZORCE_SAM` — patrz komentarz
+     * przy tej stałej, dlaczego są osobno.
+     *
+     * @param  array<string, string>  $dodatkoweWyjatki  fragment => dlaczego wolno
+     * @return list<string> „numer linii → cytat"
+     */
+    public static function trafieniaSam(string $tresc, array $dodatkoweWyjatki = []): array
+    {
+        return self::dopasuj($tresc, self::WZORCE_SAM, $dodatkoweWyjatki);
+    }
+
+    /**
+     * @param  array<string, string>  $wzorce
+     * @param  array<string, string>  $dodatkoweWyjatki
+     * @return list<string>
+     */
+    private static function dopasuj(string $tresc, array $wzorce, array $dodatkoweWyjatki): array
+    {
         $wyjatki = array_merge(self::WYJATKI, $dodatkoweWyjatki);
         $trafienia = [];
 
         foreach (explode("\n", $tresc) as $numer => $linia) {
             $doSprawdzenia = str_replace(array_keys($wyjatki), ' ', $linia);
 
-            foreach (self::WZORCE as $nazwa => $wzorzec) {
+            foreach ($wzorce as $nazwa => $wzorzec) {
                 if (preg_match_all($wzorzec, $doSprawdzenia, $dopasowania) === 0) {
                     continue;
                 }

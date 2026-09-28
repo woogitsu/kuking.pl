@@ -44,16 +44,16 @@ class AdresZrodlaPrzepisuTest extends TestCase
         $recipe = app(PublishRecipe::class)->handle($author, ['title' => 'Stary przepis', 'source_type' => 'external', 'source_url' => 'ftp://example.invalid/stary'], [], [['instruction' => 'Gotuj.']], true);
         $this->actingAs($author);
         $data = ['title' => 'Poprawiony tytuł', 'visibility' => 'public', 'source_type' => 'external', 'source_url' => $recipe->source_url, 'steps' => [['instruction' => 'Gotuj.']]];
-        $this->put(route('recipes.update', $recipe), $data)->assertSessionHasNoErrors();
+        $this->put(route('recipes.update', $recipe), [...$data, 'content_revision' => $recipe->fresh()->content_revision])->assertSessionHasNoErrors();
         $this->assertSame('ftp://example.invalid/stary', $recipe->fresh()->source_url);
         $data['source_url'] = 'ftp://example.invalid/nowy';
-        $this->put(route('recipes.update', $recipe), $data)->assertSessionHasErrors('source_url');
+        $this->put(route('recipes.update', $recipe), [...$data, 'content_revision' => $recipe->fresh()->content_revision])->assertSessionHasErrors('source_url');
         $this->assertSame('ftp://example.invalid/stary', $recipe->fresh()->source_url);
         $data['source_url'] = 'http://example.invalid/nowy';
-        $this->put(route('recipes.update', $recipe), $data)->assertSessionHasNoErrors();
+        $this->put(route('recipes.update', $recipe), [...$data, 'content_revision' => $recipe->fresh()->content_revision])->assertSessionHasNoErrors();
         $this->assertSame($data['source_url'], $recipe->fresh()->source_url);
         $data['source_url'] = '';
-        $this->put(route('recipes.update', $recipe), $data)->assertSessionHasNoErrors();
+        $this->put(route('recipes.update', $recipe), [...$data, 'content_revision' => $recipe->fresh()->content_revision])->assertSessionHasNoErrors();
         $this->assertNull($recipe->fresh()->source_url);
     }
 

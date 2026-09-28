@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Comments\Actions\DeleteComment;
+use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
 use App\Domain\Moderation\UzasadnienieDecyzji;
+use App\Domain\Users\Actions\ChangeUserRole;
 use App\Models\Appeal;
 use App\Models\Comment;
 use App\Models\CookedEvent;
@@ -15,7 +17,9 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Report;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -127,6 +131,29 @@ class ZdejmijZUrzeduTest extends TestCase
         $this->assertNotSoftDeleted($post);
         $this->assertSame(0, ModerationAction::count());
         $this->assertSame(0, Notification::query()->where('type', Notification::TYPE_MODERATION)->count());
+    }
+
+    public function test_stary_model_moderatora_nie_zdejmuje_tresci_po_degradacji(): void
+    {
+        $this->admin();
+        $moderator = $this->moderator();
+        $stary = User::query()->findOrFail($moderator->getKey());
+        $wpis = $this->tresc('post', $this->user('autor'));
+
+        app(ChangeUserRole::class)->handle($moderator, User::ROLE_USER);
+
+        // Kontrola ujemna: Policy na starym modelu nadal pozwala zdjąć wpis.
+        $this->assertTrue(Gate::forUser($stary)->allows('removeExOfficio', $wpis));
+
+        try {
+            app(ZdejmijZUrzedu::class)->handle($stary, $wpis, 'spam-reklama', self::UZASADNIENIE);
+            $this->fail('Stary model moderatora zdjął wpis po degradacji.');
+        } catch (AuthorizationException) {
+            // świeża kontrola pod blokadą odmawia
+        }
+
+        $this->assertNotSoftDeleted($wpis);
+        $this->assertSame(0, ModerationAction::count());
     }
 
     public function test_zwykly_uzytkownik_dostaje_404(): void

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Domain\Collections\ZapisyWpisu;
 use App\Domain\Tags\LiczbyTagowWCache;
 use App\Domain\Tags\TagCollage;
 use App\Models\Post;
 use App\Models\Tag;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -30,7 +30,6 @@ use Illuminate\View\View;
 class TagController extends Controller
 {
     public function __construct(
-        private readonly ZapisyWpisu $zapisy = new ZapisyWpisu,
         private readonly LiczbyTagowWCache $liczby = new LiczbyTagowWCache,
         private readonly TagCollage $collage = new TagCollage,
     ) {}
@@ -57,11 +56,12 @@ class TagController extends Controller
         // przy każdej odsłonie. Liczba jest ta sama dla każdego widza, więc
         // cache jej nie zmienia — tylko przesuwa świeżość o kilka minut.
         //
-        // ŚWIADOMIE NIE `Post::widoczneDla($widz)` (jak w `show()` niżej):
-        // tamten zakres liczy się PER WIDZ (blokady, obserwowanie), a liczba
+        // ŚWIADOMIE BEZ `Post::widoczneDla($widz)` (który `show()` niżej
+        // dokłada dla blokad): tamten zakres liczy się PER WIDZ, a liczba
         // w spisie ma znaczyć to samo dla każdego — to, co zobaczy gość
-        // wchodząc na `/tag/{slug}`. Dla zalogowanej osoby to bezpieczne
-        // niedoszacowanie, nigdy zawyżenie.
+        // wchodząc na `/tag/{slug}`. Od #1338 lista na stronie tagu to ten
+        // sam zakres publiczny dla każdego widza; różnić się może tylko
+        // o wpisy osób, z którymi widz ma blokadę.
         //
         // Wpis z własną treścią liczy się według własnej widoczności — tak
         // jak stoi na stronie tagu (issue #1377); `LiczbyTagowWCache` trzyma
@@ -124,55 +124,23 @@ class TagController extends Controller
 
         $wpisy = Post::query()
             ->whereHas('tags', fn ($q) => $q->whereKey($tag->getKey()))
-            ->published()
-            // Ta sama macierz widoczności co wszędzie indziej: wpisy tylko
-            // dla obserwujących i prywatne NIE MOGĄ wypłynąć przez tag.
+            // TYLKO WPISY PUBLICZNE — DLA KAŻDEGO, TAKŻE DLA AUTORA (decyzja
+            // właściciela z 26.09, #1338). Strona tagu jest miejscem
+            // publicznym: każdy widz, zalogowany czy nie, widzi na niej to
+            // samo co gość. Wpisy „tylko dla obserwujących" i „tylko dla
+            // mnie" nie wypływają tu ani obserwującemu, ani samemu autorowi
+            // — autor ma je w „Moje wpisy” (w „Moje”, D-328). Zakres jest ten sam
+            // co licznik w spisie i warunek indeksowania (`tylkoPubliczne()`
+            // niżej), więc liczba, dyrektywa robota i lista znaczą jedno.
+            // Pilnuje `FeedTagowTylkoOpublikowaneTest::test_strona_tagu_pokazuje_kazdemu_tylko_wpisy_publiczne_takze_autorowi`.
+            ->tap(fn ($query) => $this->tylkoPubliczne($query))
+            // `widoczneDla($widz)` zostaje dla BLOKAD: publiczny wpis osoby,
+            // z którą widz ma blokadę (w którąkolwiek stronę), nadal nie
+            // może wypłynąć przez tag.
             ->widoczneDla($widz)
-            // Zapowiedź przepisu (issue #368) jest na stałe `public`, bo
-            // widoczność trzyma PRZEPIS, nie jego zapowiedź — `widoczneDla()`
-            // wyżej jej więc nie odcina. Bez tej drugiej bramki strona tagu
-            // wypisywała tytuł i zdjęcie główne cudzego przepisu „tylko dla
-            // obserwujących" (issue #941). Ten sam zakres i w tej samej roli
-            // stoi w `TagFeed`, `TagCollage`, `TagPublicStats`, `FollowingFeed`,
-            // `DiscoverFeed`, `DailyBoard` i `PodpowiedziTagow`.
-            //
-            // Wpis z własną treścią zostaje według własnej widoczności
-            // (issue #1377); przepis zdejmuje z karty
-            // `Post::ukryjNiedostepnePrzepisy()` po paginacji.
-            ->zWidocznymPrzepisemAlboWlasnaTrescia($widz)
-            // Strona tagu POLECA treść nieznajomym, tak jak „Świeżo z Kuking":
-            // konto pod sankcją nie ma być z niej promowane (audyt A5).
-            ->tylkoOdAktywnychAutorow()
-            ->with([
-                'author.profile.avatar',
-                'media',
-                'tags:id,slug,name,status',
-                // ZMIERZONE, NIE ZAŁOŻONE (pomiar N+1, `scripts/pomiar-n1.php`).
-                // `components/post-card.blade.php` czyta z wpisu WSKAZUJĄCEGO
-                // PRZEPIS trzy rzeczy: widoczność (`$post->recipe?->visibility`),
-                // tytuł z odnośnikiem i — gdy wpis nie ma własnych zdjęć —
-                // zdjęcie główne przepisu. Bez tej linijki każda z tych rzeczy
-                // szła osobnym `select * from recipes where id = ?`.
-                //
-                // Pomiar na stronie tagu (10 000 wpisów, po `ANALYZE`):
-                // 25 / 31 / 36 zapytań przy 5 / 15 / 25 wpisach na stronie —
-                // czyli jedno zapytanie na każdy wpis wskazujący przepis.
-                // Po tej zmianie liczba jest TA SAMA przy 5, 15 i 25 wierszach: 23.
-                //
-                // Ten sam zestaw kolumn co w `FollowingFeed`, `DiscoverFeed`
-                // i `TagFeed` (issue #368) i z tego samego powodu: kolumna
-                // pominięta w selekcie wraca jako `null`, więc karta po cichu
-                // napisałaby „publicznie" pod przepisem widocznym tylko dla
-                // obserwujących. Strona tagu była JEDYNYM z czterech strumieni
-                // wpisów bez tego `with()`.
-                'recipe:id,title,slug,visibility,hero_media_id',
-                'recipe.heroMedia',
-            ])
-            ->withVisibleCommentCount($widz)
-            // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
-            // zapytaniem (issue #275, D-081). Reguły siedzą w `ZapisyWpisu`,
-            // tutaj jest tylko miejsce, w którym dokładamy kolumnę do SELECT-a.
-            ->tap(fn ($query) => $this->zapisy->dolicz($query, $widz))
+            // Publiczny zakres uwzględnia także dostępność przepisu i autora.
+            // Kartę wpisu wczytujemy jednym kontraktem, wspólnym dla list (#1037).
+            ->dlaKarty($widz)
             ->latest('published_at')
             ->latest('id')
             // Kursor, nie OFFSET (audyt B4 W2): `paginate()` liczył przy
@@ -195,8 +163,28 @@ class TagController extends Controller
             Post::query()->whereHas('tags', fn ($q) => $q->whereKey($tag->getKey())),
         )->exists();
 
+        // Własne niepubliczne wpisy widza z tym tagiem — TYLKO do zdania,
+        // które tłumaczy autorowi, dlaczego ich tu nie ma (#681, #1392,
+        // #1338). Od #1338 lista wyżej ich nie pokazuje, więc bez tego
+        // zdania autor widziałby „dodałem wpis z tagiem i go nie ma".
+        // Liczymy wyłącznie wpisy widza: o cudzych, niewidocznych wpisach
+        // nie mówimy nawet półsłówkiem.
+        $wlasneNiepubliczne = $widz === null ? [] : Post::query()
+            ->whereHas('tags', fn ($q) => $q->whereKey($tag->getKey()))
+            ->enabledKinds()
+            ->published()
+            ->where('author_id', $widz->getKey())
+            ->where('visibility', '!=', Post::VISIBILITY_PUBLIC)
+            ->selectRaw('visibility, count(*) as liczba')
+            ->groupBy('visibility')
+            ->toBase()
+            ->pluck('liczba', 'visibility')
+            ->map(fn ($liczba): int => (int) $liczba)
+            ->all();
+
         return view('pages.tags.show', [
             'tag' => $tag,
+            'wlasneNiepubliczne' => $wlasneNiepubliczne,
             'indeksowalny' => $maPublicznyWpis,
             'collage' => $this->collage->forTagsWCache([$tag->getKey()], $widz)[$tag->getKey()],
             'tagNote' => $tag->promotion?->note,
@@ -220,10 +208,8 @@ class TagController extends Controller
      * ukrycie cudzego przepisu zdejmowałoby z licznika i z indeksowania
      * wpis, który dalej stoi na liście.
      *
-     * @template TQuery of \Illuminate\Database\Eloquent\Builder
-     *
-     * @param  TQuery  $query
-     * @return TQuery
+     * @param  Builder<Post>  $query
+     * @return Builder<Post>
      */
     private function tylkoPubliczne($query)
     {
