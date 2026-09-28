@@ -63,6 +63,7 @@ final class InwentarzDanychKonta
         'blocks.blocker_id' => [self::EKSPORT, 'zablokowane_osoby'],
         'tag_follows.user_id' => [self::EKSPORT, 'obserwowane_tagi'],
         'hides.user_id' => [self::EKSPORT, 'ukryte'],
+        'post_reactions.user_id' => [self::EKSPORT, 'moje_reakcje'],
         'notifications.user_id' => [self::EKSPORT, 'powiadomienia'],
         'media.owner_id' => [self::EKSPORT, 'zdjecia'],
         'dziennik_zgod.user_id' => [self::EKSPORT, 'dziennik_zgod'],
@@ -97,6 +98,7 @@ final class InwentarzDanychKonta
         'reports.resolved_by' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
 
         'login_link_tokens.user_id' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
+        'facebook_connection_proofs.user_id' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
         'first_post_events.author_id' => [self::NIE_DOTYCZY, 'Znacznik techniczny „pierwszy wpis konta”. Nie niesie nic ponad listę wpisów, która jest w paczce.'],
     ];
 
@@ -121,6 +123,7 @@ final class InwentarzDanychKonta
         'created_at' => [self::EKSPORT, 'konto'],
         'updated_at' => [self::EKSPORT, 'konto'],
         'status_expires_at' => [self::EKSPORT, 'konto'],
+        // Kara odłożona na czas usuwania konta (#980) — ta sama dana co `status`.
         'punishment_status' => [self::EKSPORT, 'konto'],
         'punishment_expires_at' => [self::EKSPORT, 'konto'],
         'delete_requested_at' => [self::EKSPORT, 'konto'],
@@ -140,12 +143,20 @@ final class InwentarzDanychKonta
         'birthday_visible_to_followers' => [self::EKSPORT, 'konto'],
 
         'id' => [self::NIE_DOTYCZY, 'Wewnętrzny numer konta. Nie mówi nic o osobie, a paczka świadomie nie podaje identyfikatorów.'],
+        // Bariera przed podwójnym zakolejkowaniem listu tego samego dnia
+        // (issue #1956) — WEWNĘTRZNA księgowość komendy, nie informacja
+        // o osobie: prawie zawsze równa `birthday_email_sent_on`, który
+        // JUŻ jest w paczce, a różni się od niego wyłącznie w oknie między
+        // zakolejkowaniem a potwierdzoną wysyłką albo po trwałej porażce
+        // dostawcy (`docs/DATABASE.md`, etap c).
+        'birthday_email_queued_on' => [self::NIE_DOTYCZY, 'Wewnętrzna bariera przed podwójnym zakolejkowaniem listu urodzinowego tego samego dnia; co realnie wyszło, mówi `birthday_email_sent_on`, który jest w paczce.'],
         'is_seeded' => [self::NIE_DOTYCZY, 'Znacznik kont przykładowych z danych demonstracyjnych; dla prawdziwego konta zawsze „nie”.'],
         'password' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
         'remember_token' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
         'two_factor_secret' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
         'two_factor_backup_codes' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
         'two_factor_last_used_at' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
+        'session_generation' => [self::NIE_DOTYCZY, 'Znacznik techniczny bezpieczeństwa sesji (#1046): licznik unieważnień zalogowanych urządzeń, nie dana o osobie.'],
     ];
 
     /**
