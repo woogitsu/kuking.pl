@@ -4,22 +4,30 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Users\Actions\RequestEmailChange;
 use App\Domain\Users\Actions\ZalozoneKonto;
 use App\Jobs\PrzeanalizujTresc;
 use App\Models\AuditLogEntry;
+use App\Models\Block;
+use App\Models\DataExport;
 use App\Models\ModerationAction;
 use App\Models\Notification;
+use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Report;
 use App\Models\User;
+use App\Notifications\PotwierdzenieNowegoAdresu;
+use App\Notifications\ZgloszonaZmianaAdresu;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Notification as Powiadomienia;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Testing\TestResponse;
 use RuntimeException;
+use Tests\Support\StanGrupySygnalow;
 use Tests\TestCase;
 
 /**
@@ -50,6 +58,7 @@ use Tests\TestCase;
 class AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest extends TestCase
 {
     use RefreshDatabase;
+    use StanGrupySygnalow;
 
     /** Przełącznik awarii — `DB::listen` nie da się odpiąć, więc ponowienie po „naprawie" gasi go tutaj. */
     private bool $awaria = true;
@@ -303,7 +312,7 @@ class AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest extends TestCase
 
         $this->actingAs($moderator)
             ->from(route('admin.sygnaly'))
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), ...$this->stanGrupySygnalow((string) $autor->getKey())])
             ->assertRedirect(route('admin.sygnaly'))
             ->assertSessionHasErrors(['autor' => 'Nie udało się zamknąć tej grupy i nic się w niej nie zmieniło. Spróbuj jeszcze raz za chwilę.'])
             ->assertSessionMissing('status');
@@ -320,7 +329,7 @@ class AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest extends TestCase
 
         $this->actingAs($moderator)
             ->from(route('admin.sygnaly'))
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), ...$this->stanGrupySygnalow((string) $autor->getKey())])
             ->assertRedirect(route('admin.sygnaly'))
             ->assertSessionHasNoErrors()
             ->assertSessionHas('status');
@@ -337,7 +346,7 @@ class AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest extends TestCase
         $autor = $this->oznaczonyAutor();
 
         $this->actingAs($moderator)
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey()])
+            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey(), ...$this->stanGrupySygnalow((string) $autor->getKey())])
             ->assertSessionHasNoErrors();
 
         $this->assertSame(1, $this->wpisy('moderation.automat_dismissed'));
@@ -363,5 +372,241 @@ class AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest extends TestCase
         });
 
         Exceptions::assertReported(RuntimeException::class);
+    }
+
+    // ------------------------------------------------------------------
+    // #1429 — zlecenie eksportu danych
+    // ------------------------------------------------------------------
+
+    /**
+     * Rekord `data_exports` i zadanie w `jobs` zatwierdzają się razem (A02);
+     * wpis `data.export_requested` stoi za nimi jako pomocniczy. Kolejka
+     * bazodanowa jak na produkcji — przy `sync` nie byłoby czego liczyć.
+     */
+    public function test_awaria_audytu_eksportu_potwierdza_przyjecie_zamiast_500(): void
+    {
+        config(['queue.default' => 'database']);
+        Exceptions::fake();
+        $basia = $this->user('basia');
+        $this->zepsujWpis('data.export_requested');
+
+        $odpowiedz = $this->actingAs($basia)->post(route('settings.data.export'))
+            ->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertStringContainsString('Przygotowujemy paczkę', (string) $odpowiedz->getSession()->get('status'));
+        $this->assertSame(1, DataExport::query()->where('user_id', $basia->getKey())->count());
+        $this->assertSame(1, DB::table('jobs')->count());
+        $this->assertSame(0, $this->wpisy('data.export_requested'));
+        $this->assertZgloszonoBrakWpisu('data.export_requested');
+        Exceptions::assertReported(fn (RuntimeException $e): bool => str_contains($e->getMessage(), '„data.export_requested"')
+            && ! str_contains($e->getMessage(), $basia->email));
+    }
+
+    public function test_kontrola_dodatnia_eksport_bez_awarii_zapisuje_wpis(): void
+    {
+        config(['queue.default' => 'database']);
+        Exceptions::fake();
+        $basia = $this->user('basia');
+
+        $this->actingAs($basia)->post(route('settings.data.export'))->assertRedirect();
+
+        $this->assertSame(1, DB::table('jobs')->count());
+        $this->assertSame(1, $this->wpisy('data.export_requested'));
+        $this->assertNieZgloszonoBrakuWpisu();
+    }
+
+    // ------------------------------------------------------------------
+    // #1573 — blokada
+    // ------------------------------------------------------------------
+
+    /**
+     * Blokada ma się udać zawsze (D-080, D-090): jej autorytatywny ślad to
+     * wiersz `blocks`. Awaria dziennika nie zamienia jej w „nie udało się",
+     * a oba odcięcia obserwowania zostają.
+     */
+    public function test_awaria_audytu_blokady_zostawia_blokade_i_mowi_o_sukcesie(): void
+    {
+        Exceptions::fake();
+        $basia = $this->user('basia');
+        $zenek = $this->user('zenek');
+        $basia->following()->attach($zenek->getKey(), ['created_at' => now()]);
+        $zenek->following()->attach($basia->getKey(), ['created_at' => now()]);
+        $this->zepsujWpis('user.blocked');
+
+        $odpowiedz = $this->actingAs($basia)->post(route('social.block', ['username' => 'zenek']))
+            ->assertRedirect(route('home'))->assertSessionHasNoErrors();
+
+        $this->assertStringContainsString('Zablokowano', (string) $odpowiedz->getSession()->get('status'));
+        $this->assertTrue(Block::query()->where('blocker_id', $basia->getKey())->where('blocked_id', $zenek->getKey())->exists());
+        $this->assertSame(0, DB::table('follows')->count());
+        $this->assertSame(0, $this->wpisy('user.blocked'));
+        $this->assertZgloszonoBrakWpisu('user.blocked');
+    }
+
+    public function test_kontrola_dodatnia_blokada_bez_awarii_zapisuje_wpis(): void
+    {
+        Exceptions::fake();
+        $basia = $this->user('basia');
+        $this->user('zenek');
+
+        $this->actingAs($basia)->post(route('social.block', ['username' => 'zenek']))->assertRedirect(route('home'));
+
+        $this->assertSame(1, Block::query()->count());
+        $this->assertSame(1, $this->wpisy('user.blocked'));
+        $this->assertNieZgloszonoBrakuWpisu();
+    }
+
+    // ------------------------------------------------------------------
+    // #1896 — odblokowanie
+    // ------------------------------------------------------------------
+
+    /**
+     * `UnblockUser` wołał rzucający `record()`, choć bliźniacza `BlockUser`
+     * (D-249, klasa 2; #1573) używa `recordBezWywracania()`. Autorytatywny
+     * ślad odblokowania to usunięty wiersz `blocks` — usuwamy go PRZED
+     * wpisem, więc rzucający `record()` dawał HTTP 500 PO wykonanym
+     * odblokowaniu, bez żadnej drogi ponowienia (blokady, którą retry miałby
+     * odtworzyć, już nie ma).
+     */
+    public function test_awaria_audytu_odblokowania_mowi_o_sukcesie(): void
+    {
+        Exceptions::fake();
+        $basia = $this->user('basia');
+        $zenek = $this->user('zenek');
+        Block::query()->create(['blocker_id' => $basia->getKey(), 'blocked_id' => $zenek->getKey(), 'created_at' => now()]);
+        $this->zepsujWpis('user.unblocked');
+
+        $odpowiedz = $this->actingAs($basia)->delete(route('social.unblock', ['username' => 'zenek']))
+            ->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertStringContainsString('Blokada zdjęta', (string) $odpowiedz->getSession()->get('status'));
+        $this->assertFalse(Block::query()->where('blocker_id', $basia->getKey())->where('blocked_id', $zenek->getKey())->exists());
+        $this->assertSame(0, $this->wpisy('user.unblocked'));
+        $this->assertZgloszonoBrakWpisu('user.unblocked');
+    }
+
+    public function test_kontrola_dodatnia_odblokowanie_bez_awarii_zapisuje_wpis(): void
+    {
+        Exceptions::fake();
+        $basia = $this->user('basia');
+        $zenek = $this->user('zenek');
+        Block::query()->create(['blocker_id' => $basia->getKey(), 'blocked_id' => $zenek->getKey(), 'created_at' => now()]);
+
+        $this->actingAs($basia)->delete(route('social.unblock', ['username' => 'zenek']))->assertSessionHasNoErrors();
+
+        $this->assertSame(0, Block::query()->count());
+        $this->assertSame(1, $this->wpisy('user.unblocked'));
+        $this->assertNieZgloszonoBrakuWpisu();
+    }
+
+    // ------------------------------------------------------------------
+    // #1897 — cykl zmiany adresu e-mail
+    // ------------------------------------------------------------------
+
+    /**
+     * `RequestEmailChange` wołał rzucający `record()` PRZED wysyłką obu
+     * listów — awaria dziennika dawała HTTP 500 i ŻADEN z listów nie
+     * wychodził, choć żądanie było już zapisane. Autorytatywny ślad to
+     * wiersz `pending_email_changes`.
+     */
+    public function test_awaria_audytu_zamowienia_zmiany_adresu_nie_blokuje_listow(): void
+    {
+        config(['mail.default' => 'smtp']);
+        Powiadomienia::fake();
+        Exceptions::fake();
+        $basia = $this->user('basia');
+        $this->zepsujWpis('account.email_change_requested');
+
+        $this->actingAs($basia)
+            ->post(route('settings.email.request'), ['email' => 'nowy@example.test', 'current_password' => 'haslo-testowe-123'])
+            ->assertRedirect(route('settings.email'))->assertSessionHasNoErrors();
+
+        $this->assertSame(1, PendingEmailChange::query()->where('user_id', $basia->getKey())->count());
+        $this->assertSame(0, $this->wpisy('account.email_change_requested'));
+        $this->assertZgloszonoBrakWpisu('account.email_change_requested');
+        Powiadomienia::assertSentOnDemand(PotwierdzenieNowegoAdresu::class);
+        Powiadomienia::assertSentOnDemand(ZgloszonaZmianaAdresu::class);
+    }
+
+    public function test_kontrola_dodatnia_zamowienie_zmiany_adresu_bez_awarii_zapisuje_wpis(): void
+    {
+        config(['mail.default' => 'smtp']);
+        Powiadomienia::fake();
+        Exceptions::fake();
+        $basia = $this->user('basia');
+
+        $this->actingAs($basia)
+            ->post(route('settings.email.request'), ['email' => 'nowy@example.test', 'current_password' => 'haslo-testowe-123'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(1, $this->wpisy('account.email_change_requested'));
+        $this->assertNieZgloszonoBrakuWpisu();
+    }
+
+    /**
+     * `ConfirmEmailChange` wołał rzucający `record()` PO zatwierdzonej
+     * zmianie adresu — HTTP 500 mimo już zmienionego `users.email`, a link
+     * jest jednorazowy, więc bez ponowienia.
+     */
+    public function test_awaria_audytu_potwierdzenia_zmiany_adresu_mowi_o_sukcesie(): void
+    {
+        Exceptions::fake();
+        $basia = $this->user('basia');
+        $zmiana = app(RequestEmailChange::class)->handle($basia, 'nowy@example.test');
+        $this->zepsujWpis('account.email_changed');
+
+        $this->actingAs($basia)
+            ->get(URL::signedRoute('settings.email.confirm', ['zmiana' => $zmiana->getKey()]))
+            ->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame('nowy@example.test', $basia->fresh()->email);
+        $this->assertSame(0, $this->wpisy('account.email_changed'));
+        $this->assertZgloszonoBrakWpisu('account.email_changed');
+    }
+
+    public function test_kontrola_dodatnia_potwierdzenie_zmiany_adresu_bez_awarii_zapisuje_wpis(): void
+    {
+        Exceptions::fake();
+        $basia = $this->user('basia');
+        $zmiana = app(RequestEmailChange::class)->handle($basia, 'nowy@example.test');
+
+        $this->actingAs($basia)
+            ->get(URL::signedRoute('settings.email.confirm', ['zmiana' => $zmiana->getKey()]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(1, $this->wpisy('account.email_changed'));
+        $this->assertNieZgloszonoBrakuWpisu();
+    }
+
+    /**
+     * `CancelEmailChange` wołał rzucający `record()` PO usuniętym już
+     * wierszu `pending_email_changes` — HTTP 500 mimo wykonanego anulowania.
+     */
+    public function test_awaria_audytu_anulowania_zmiany_adresu_mowi_o_sukcesie(): void
+    {
+        Exceptions::fake();
+        $basia = $this->user('basia');
+        app(RequestEmailChange::class)->handle($basia, 'nowy@example.test');
+        $this->zepsujWpis('account.email_change_cancelled');
+
+        $this->actingAs($basia)
+            ->post(route('settings.email.cancel'))
+            ->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame(0, PendingEmailChange::query()->where('user_id', $basia->getKey())->count());
+        $this->assertSame(0, $this->wpisy('account.email_change_cancelled'));
+        $this->assertZgloszonoBrakWpisu('account.email_change_cancelled');
+    }
+
+    public function test_kontrola_dodatnia_anulowanie_zmiany_adresu_bez_awarii_zapisuje_wpis(): void
+    {
+        Exceptions::fake();
+        $basia = $this->user('basia');
+        app(RequestEmailChange::class)->handle($basia, 'nowy@example.test');
+
+        $this->actingAs($basia)->post(route('settings.email.cancel'))->assertSessionHasNoErrors();
+
+        $this->assertSame(1, $this->wpisy('account.email_change_cancelled'));
+        $this->assertNieZgloszonoBrakuWpisu();
     }
 }

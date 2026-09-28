@@ -63,6 +63,7 @@ final class RequestEmailChange
         $nowyAdres = User::normalizeEmail($nowyAdres);
 
         $godzin = max(1, (int) config('kuking.account.email_change_ttl_hours'));
+        $oldAddress = (string) $user->email;
 
         // TA SAMA KOLEJNOŚĆ BLOKAD CO PRZY POTWIERDZANIU I ANULOWANIU
         // (AUTH-03 / RACE-06). Stawka jest tu mniejsza niż przy tamtych dwóch,
@@ -71,7 +72,8 @@ final class RequestEmailChange
         // równoległe zamówienia mogły więc oba dojść do `INSERT` i jedno
         // odbić się o unikalność, dając 500 zamiast przewidywalnego
         // „ostatnie zamówienie wygrywa". Pod blokadą jest jednoznacznie.
-        $zmiana = ZamekKonta::zablokuj($user, function (?User $swiezy) use ($user, $nowyAdres, $godzin): PendingEmailChange {
+        $zmiana = ZamekKonta::zablokuj($user, function (?User $swiezy) use ($user, $nowyAdres, $godzin, &$oldAddress): PendingEmailChange {
+            $oldAddress = (string) ($swiezy?->email ?? $user->email);
             // Kasujemy i zakładamy od nowa, zamiast aktualizować w miejscu.
             // Nowe żądanie to nowy identyfikator, więc podpisany link
             // z poprzedniego listu przestaje wskazywać cokolwiek — a to jest
@@ -89,15 +91,22 @@ final class RequestEmailChange
         });
 
         // Wpis w dzienniku audytu PRZED wysyłką listów: zmiana adresu jest
-        // zdarzeniem bezpieczeństwa (AGENTS.md §7 — piąte z pięciu pytań),
-        // a awaria poczty nie może skasować śladu, że ktoś o nią poprosił.
+        // zdarzeniem bezpieczeństwa (AGENTS.md §7 — piąte z pięciu pytań).
         //
         // W metadanych stoi adres W SKRÓCIE, nie w całości. Dziennik audytu
         // z założenia notuje FAKT i AKTORA, nie treść (`AuditLogEntry`),
         // a pełny adres jest daną osobową, która po potwierdzeniu i tak
         // znajdzie się w `users.email`. Skrót wystarcza, żeby przy zgłoszeniu
         // („nie zamawiałem tego") powiedzieć, dokąd ta zmiana prowadziła.
-        AuditLogEntry::record(
+        //
+        // POMOCNICZY (D-249, klasa 2; #1897). Autorytatywny ślad żądania to
+        // wiersz `pending_email_changes`, zapisany w transakcji wyżej.
+        // `record()` rzucający wyjątek robił tu podwójną szkodę: HTTP 500
+        // mimo zapisanego żądania I zablokowaną wysyłkę obu listów, bo stała
+        // za nim w kodzie. `recordBezWywracania()` nie rzuca — awaria idzie
+        // do `report()` z nazwą wpisu, a listy niżej wychodzą bez względu
+        // na to, czy audyt się zapisał.
+        AuditLogEntry::recordBezWywracania(
             'account.email_change_requested',
             $user,
             $user,
@@ -115,11 +124,12 @@ final class RequestEmailChange
             $user->profile?->display_name,
         ));
 
-        // Na STARY adres — zwykłe `notify()`, bo `users.email` jest wciąż
-        // stary i taki ma pozostać do potwierdzenia.
-        $user->notify(new ZgloszonaZmianaAdresu(
+        // Odbiorcę utrwalamy przy zleceniu. Worker może ruszyć dopiero po
+        // potwierdzeniu zmiany, gdy odtworzony User ma już inny adres (#888).
+        Notification::route('mail', $oldAddress)->notify(new ZgloszonaZmianaAdresu(
             AdresEmail::maska($nowyAdres),
             $zmiana->expires_at,
+            $user->profile?->display_name,
         ));
 
         return $zmiana;

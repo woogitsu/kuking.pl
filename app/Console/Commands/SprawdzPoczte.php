@@ -198,7 +198,10 @@ class SprawdzPoczte extends Command
         }
 
         if ($transport === 'emaillabs') {
-            $wiersze[] = ['Adres API', (string) config('services.emaillabs.endpoint')];
+            // Sam host, nie pełny adres: zmienna bywa wklejana razem z tokenem,
+            // a tabelka ląduje w czatach i zgłoszeniach (#991). O tym, czy
+            // adres jest dozwolony, mówi niżej błąd budowy transportu.
+            $wiersze[] = ['Adres API (host)', $this->hostAdresu((string) config('services.emaillabs.endpoint'))];
             $wiersze[] = ['Konto SMTP w API (EMAILLABS_SMTP_ACCOUNT)', $this->pusteJakoMyslnik((string) config('services.emaillabs.smtp_account'))];
             $wiersze[] = ['Klucz aplikacji (EMAILLABS_APP_KEY)', $this->czyUstawione((string) config('services.emaillabs.key'))];
             $wiersze[] = ['Klucz autoryzacyjny (EMAILLABS_SECRET_KEY)', $this->czyUstawione((string) config('services.emaillabs.secret'))];
@@ -704,6 +707,17 @@ class SprawdzPoczte extends Command
     private function czyUstawione(string $wartosc): string
     {
         return $wartosc === '' ? 'BRAK' : 'ustawione';
+    }
+
+    private function hostAdresu(string $adres): string
+    {
+        if ($adres === '') {
+            return '— puste —';
+        }
+
+        $host = parse_url($adres, PHP_URL_HOST);
+
+        return is_string($host) && $host !== '' ? $host : '(nie da się odczytać)';
     }
 
     private function pusteJakoMyslnik(string $wartosc): string

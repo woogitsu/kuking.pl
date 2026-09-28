@@ -12,6 +12,7 @@ use App\Models\Post;
 use App\Support\Czas;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -596,6 +597,11 @@ class DailyBoardTest extends TestCase
      */
     private function policzZapytania(callable $akcja): int
     {
+        // Każdy pomiar na zimno: kandydaci tablicy „Kuking na dziś” leżą
+        // w cache (audyt B4 W1). Bez tego drugi pomiar byłby tańszy o samo
+        // liczenie kandydatów, a nie o brak wachlarza zapytań.
+        Cache::flush();
+
         DB::enableQueryLog();
         DB::flushQueryLog();
 

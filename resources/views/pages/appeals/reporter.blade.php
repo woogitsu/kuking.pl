@@ -70,6 +70,12 @@
                 <h3 class="text-title-sm">Nasza odpowiedź</h3>
                 <p class="meta">{{ \App\Support\Czas::data($odwolanie->decided_at, 'j F Y') }}</p>
                 <p class="whitespace-pre-line">{{ $odwolanie->decision_note }}</p>
+                @if($odwolanie->status === \App\Models\Appeal::STATUS_OVERTURNED && $odwolanie->decisionAfterAppeal)
+                    {{-- #989: skutek nowej decyzji, tym samym zdaniem co wyżej
+                         i z tą samą granicą — bez rodzaju kary (#800). --}}
+                    @php($poOdwolaniu = \App\Domain\Moderation\OdpowiedzDlaZglaszajacego::skutek($odwolanie->decisionAfterAppeal))
+                    <p><strong>{{ $poOdwolaniu['naglowek'] }}</strong> {{ $poOdwolaniu['reszta'] }}</p>
+                @endif
                 <p class="meta">
                     Odwołanie rozpatrujemy raz. Jeśli pojawiły się nowe okoliczności,
                     napisz na {{ config('kuking.community.contact_email') }}.

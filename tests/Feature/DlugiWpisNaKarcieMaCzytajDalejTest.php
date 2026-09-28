@@ -45,7 +45,7 @@ class DlugiWpisNaKarcieMaCzytajDalejTest extends TestCase
      */
     private function karta(string $html): string
     {
-        $start = strpos($html, '<article class="card post-card">');
+        $start = strpos($html, '<article class="card post-card"');
 
         $this->assertNotFalse(
             $start,

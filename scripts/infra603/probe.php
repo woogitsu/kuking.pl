@@ -103,7 +103,8 @@ if ($mode === 'http') {
         throw new RuntimeException('Żądanie nie doszło do działającej strony.');
     }
 } elseif ($mode === 'idle-worker') {
-    // Te same cztery kolejki i sleep co w entrypoincie, ograniczony czas.
+    // Ta sama lista i sleep co jedyny proces roli `all` w entrypoincie
+    // (`listy_kolejek()`, #1030), ograniczony czas.
     $details['exit'] = Artisan::call('queue:work', ['--queue' => 'high,default,media,low', '--sleep' => 1,
         '--max-time' => 10, '--no-interaction' => true]);
 } elseif ($mode === 'queue-pop') {

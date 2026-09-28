@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
-use App\Models\User;
 use App\Support\Czas;
 use Carbon\CarbonInterface;
 use Illuminate\Bus\Queueable;
@@ -28,8 +27,7 @@ use Illuminate\Notifications\Notification;
  *
  * Dlatego mówi trzy rzeczy w tej kolejności:
  *
- *  1. NIC SIĘ JESZCZE NIE ZMIENIŁO — konto nadal działa na tym adresie.
- *     To zdejmuje panikę i jest prawdą (`users.email` jest nietknięty);
+ *  1. sama prośba nie zmienia adresu; list może dotrzeć po potwierdzeniu;
  *  2. jeśli to Ty — nie musisz nic robić, list poszedł też na tamten adres;
  *  3. jeśli to NIE Ty — zmień hasło. Zmiana hasła unieważnia to żądanie
  *     (`App\Domain\Users\Actions\CancelEmailChange`), więc ta rada
@@ -54,6 +52,7 @@ final class ZgloszonaZmianaAdresu extends Notification implements ShouldQueue
     public function __construct(
         private readonly string $nowyAdresSkrot,
         private readonly CarbonInterface $waznyDo,
+        private readonly ?string $displayName = null,
     ) {}
 
     /** @return list<string> */
@@ -62,9 +61,6 @@ final class ZgloszonaZmianaAdresu extends Notification implements ShouldQueue
         return ['mail'];
     }
 
-    /**
-     * @param  User  $notifiable
-     */
     public function toMail($notifiable): MailMessage
     {
         return (new MailMessage)
@@ -72,7 +68,7 @@ final class ZgloszonaZmianaAdresu extends Notification implements ShouldQueue
             ->view('mail.zgloszona-zmiana-adresu', [
                 'nowyAdresSkrot' => $this->nowyAdresSkrot,
                 'waznyDo' => Czas::data($this->waznyDo, 'j F Y, H:i'),
-                'displayName' => $notifiable->profile?->display_name,
+                'displayName' => $this->displayName ?? null,
                 'linkHaslo' => route('settings.security'),
             ]);
     }

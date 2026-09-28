@@ -14,8 +14,10 @@ use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification as Powiadomienia;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -181,5 +183,68 @@ class ZawieszonyModeratorBezUprawnienTest extends TestCase
         // Zawieszenie działa tak samo jak odebranie roli.
         $a->suspend(now()->addDays(3));
         $this->assertSame(0, $a->refresh()->unreadNotificationsCount());
+    }
+
+    /**
+     * `post.first` — ta sama zasada co `appeal.filed` (issue #1351): alert
+     * prowadzi do kolejki „Bez odpowiedzi", więc widzi go tylko osoba, która
+     * TERAZ ma `moderate`. Wiersz i `first_post_events` zostają.
+     */
+    public function test_alert_o_pierwszym_wpisie_znika_po_odebraniu_roli_i_wraca_po_nadaniu(): void
+    {
+        $m = $this->moderator();
+        $this->moderator();
+
+        $zawiadomienie = app(NotifyUser::class)->handle(
+            recipient: $m,
+            type: Notification::TYPE_FIRST_POST,
+            actor: $this->user('nowahalina', ['display_name' => 'Halina Debiutantka']),
+            data: ['post_id' => '00000000-0000-0000-0000-000000000000', 'display_name' => 'Halina Debiutantka'],
+        );
+        $this->assertNotNull($zawiadomienie);
+
+        $this->actingAs($m)->get(route('notifications.index'))->assertOk()->assertSee('Halina Debiutantka');
+        $this->assertSame(1, $m->unreadNotificationsCount());
+
+        app(ChangeUserRole::class)->handle($m, User::ROLE_USER);
+        $m->refresh();
+
+        $this->actingAs($m)->get(route('notifications.index'))->assertOk()->assertDontSee('Halina Debiutantka');
+        $this->assertSame(0, $m->unreadNotificationsCount());
+        $this->actingAs($m)->post(route('notifications.open', $zawiadomienie))->assertNotFound();
+        $this->assertNull($zawiadomienie->refresh()->read_at);
+
+        app(ChangeUserRole::class)->handle($m, User::ROLE_MODERATOR);
+        $m->refresh();
+
+        $this->actingAs($m)->get(route('notifications.index'))->assertOk()->assertSee('Halina Debiutantka');
+        $this->assertSame(1, $m->unreadNotificationsCount());
+
+        $m->suspend(now()->addDays(3));
+        $this->assertSame(0, $m->refresh()->unreadNotificationsCount());
+    }
+
+    /**
+     * `host_username` wskazujący zwykłe konto: `PublishPost` zapisuje alert
+     * i zdarzenie (bez zmian), ale na liście i w liczniku go nie ma, bo
+     * „Zobacz" prowadziłoby do odmowy dostępu.
+     */
+    public function test_gospodarz_bez_prawa_moderacji_nie_widzi_alertu_o_pierwszym_wpisie(): void
+    {
+        Storage::fake('public');
+        $gospodarz = $this->user('gospodarz');
+        config(['kuking.community.host_username' => 'gospodarz']);
+
+        $this->actingAs($this->user('nowa', ['display_name' => 'Halina Debiutantka']))->post(route('posts.store'), [
+            'body' => 'Mój pierwszy rosół',
+            'visibility' => 'public',
+        ])->assertRedirect();
+
+        $this->assertSame(1, Notification::query()->where('user_id', $gospodarz->getKey())
+            ->where('type', Notification::TYPE_FIRST_POST)->count());
+        $this->assertSame(1, DB::table('first_post_events')->count());
+
+        $this->assertSame(0, $gospodarz->unreadNotificationsCount());
+        $this->actingAs($gospodarz)->get(route('notifications.index'))->assertOk()->assertDontSee('Halina Debiutantka');
     }
 }

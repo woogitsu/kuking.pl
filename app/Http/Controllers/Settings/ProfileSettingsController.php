@@ -135,6 +135,9 @@ class ProfileSettingsController extends Controller
          * unikalności leci dalej do zwykłej obsługi błędów — zamiana jej na
          * „nazwa zajęta" schowałaby prawdziwą awarię. Wyjątku nie logujemy:
          * jego komunikat zawiera wartości z zapytania.
+         *
+         * Nazwę ograniczenia czytamy wyłącznie z PIERWSZEJ linii diagnostyki
+         * PostgreSQL — treść pól w DETAIL nie może udawać nazwy indeksu.
          */
         try {
             DB::transaction(fn () => $profile->update($data));
@@ -150,7 +153,7 @@ class ProfileSettingsController extends Controller
             // ValidationException wraca na formularz z `withInput()`, więc
             // imię, opis, region i specjalność zostają w polach.
             throw ValidationException::withMessages([
-                'username' => 'Ta nazwa jest już zajęta — wybierz inną. Ktoś zajął ją przed chwilą. Pozostałe pola zostały bez zmian — popraw tylko nazwę i kliknij „Zapisz”.',
+                'username' => 'Ta nazwa jest już zajęta — wybierz inną. Ktoś zajął ją przed chwilą. Spróbuj dodać coś na końcu. Pozostałe pola zostały bez zmian — popraw tylko nazwę i kliknij „Zapisz”.',
             ]);
         }
 
@@ -164,12 +167,12 @@ class ProfileSettingsController extends Controller
      */
     private static function naruszonoIndeksNazwy(UniqueConstraintViolationException $e): bool
     {
-        for ($wyjatek = $e; $wyjatek !== null; $wyjatek = $wyjatek->getPrevious()) {
-            if (preg_match('/"profiles_username(_lower)?_unique"/', $wyjatek->getMessage()) === 1) {
-                return true;
-            }
-        }
+        // Pierwsza linia komunikatu PostgreSQL kończy się nazwą ograniczenia.
+        // DETAIL niesie wartości z formularza, więc wpisana treść
+        // „profiles_username_unique" nie może tu niczego rozstrzygnąć.
+        $diagnostyka = (string) ($e->errorInfo[2] ?? '');
+        $pierwszaLinia = trim(explode("\n", $diagnostyka, 2)[0]);
 
-        return false;
+        return preg_match('/"profiles_username_(?:lower_)?unique"$/', $pierwszaLinia) === 1;
     }
 }

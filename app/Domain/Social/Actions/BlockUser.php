@@ -65,6 +65,14 @@ use App\Models\User;
  * Tak jak dotąd, i to jest wybór, nie przeoczenie. Wpis audytowy ma powstać
  * wtedy, gdy blokada NAPRAWDĘ się zapisała; wciągnięty pod blokadę zniknąłby
  * razem z wycofaną transakcją, a jest osobnym śladem, nie częścią relacji.
+ *
+ * I DLATEGO `recordBezWywracania()`, a nie `record()` (D-249, klasa 2; #1573).
+ * Blokada ma się udać zawsze (D-080), a jej autorytatywny ślad to wiersz
+ * `blocks` z `created_at`. Rzucające `record()` za transakcją dawało wariant
+ * pośredni: blokada i oba odcięcia obserwowania trwałe, a człowiek widział
+ * „nie udało się" — i po blokadzie często nie ma już drogi do ponowienia.
+ * Teraz awaria dziennika idzie do `report()` z nazwą brakującego wpisu,
+ * a blokada zostaje sukcesem.
  */
 final class BlockUser
 {
@@ -89,7 +97,7 @@ final class BlockUser
             $blokowany->following()->detach($blokujacy->getKey());
         });
 
-        AuditLogEntry::record(
+        AuditLogEntry::recordBezWywracania(
             action: 'user.blocked',
             actor: $blocker,
             subject: $target,

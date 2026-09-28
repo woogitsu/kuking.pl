@@ -14,6 +14,7 @@ use App\Models\Tag;
 use App\Models\User;
 use Closure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -98,20 +99,28 @@ class StronaTaguBramkaPrzepisuTest extends TestCase
     }
 
     /**
-     * Druga strona granicy: obserwująca widzi przepis „dla obserwujących",
-     * autorka widzi własny prywatny. Bez tego „nikt nie widzi" przechodziłoby
-     * na bramce, która odcina za dużo.
+     * Decyzja właściciela z 26.09 (#1338): strona tagu pokazuje KAŻDEMU
+     * tylko to, co publiczne — zapowiedź przepisu „dla obserwujących" nie
+     * wypływa tu obserwującej, a zapowiedź prywatnego przepisu nie wypływa
+     * samej autorce. Kontrola dodatnia: gdy przepis wraca do publicznego,
+     * zapowiedź stoi u obu — bez tego „nikt nie widzi" przechodziłoby na
+     * bramce, która odcina wszystko.
      */
-    public function test_obserwujaca_i_autorka_widza_to_co_im_wolno(): void
+    public function test_obserwujaca_i_autorka_widza_tylko_zapowiedz_publicznego_przepisu(): void
     {
         [$tag, $autorka, $widz, $przepis, $zapowiedz] = $this->scena();
 
         $przepis->forceFill(['visibility' => 'followers'])->save();
         app(FollowUser::class)->handle($widz, $autorka);
-        $this->assertContains((string) $zapowiedz->getKey(), $this->idNaStronie($tag, $widz->fresh()));
+        $this->assertNotContains((string) $zapowiedz->getKey(), $this->idNaStronie($tag, $widz->fresh()));
+        $this->assertNotContains((string) $zapowiedz->getKey(), $this->idNaStronie($tag, $autorka->fresh()));
 
         $przepis->forceFill(['visibility' => 'private'])->save();
         $this->assertNotContains((string) $zapowiedz->getKey(), $this->idNaStronie($tag, $widz->fresh()));
+        $this->assertNotContains((string) $zapowiedz->getKey(), $this->idNaStronie($tag, $autorka->fresh()));
+
+        $przepis->forceFill(['visibility' => 'public'])->save();
+        $this->assertContains((string) $zapowiedz->getKey(), $this->idNaStronie($tag, $widz->fresh()));
         $this->assertContains((string) $zapowiedz->getKey(), $this->idNaStronie($tag, $autorka->fresh()));
     }
 
@@ -137,6 +146,10 @@ class StronaTaguBramkaPrzepisuTest extends TestCase
 
     private function licznik(Tag $tag, ?User $widz): int
     {
+        // Liczby spisu leżą w cache (audyt B4 W2); ten test sprawdza regułę
+        // liczenia po każdej zmianie przepisu, nie świeżość cache.
+        Cache::flush();
+
         $odp = $widz === null ? $this->get(route('tags.index')) : $this->actingAs($widz)->get(route('tags.index'));
 
         return (int) $odp->assertOk()->viewData('tagi')->getCollection()->firstWhere('id', $tag->getKey())->posts_count;

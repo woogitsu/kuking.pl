@@ -159,9 +159,26 @@ class CspReportController extends Controller
      */
     private function sciezkaBezSekretow(string $sciezka): string
     {
-        $segmenty = array_map(static function (string $segment): string {
-            if ($segment === '') {
-                return $segment;
+        $segmenty = array_map(static function (string $surowy): string {
+            if ($surowy === '') {
+                return $surowy;
+            }
+
+            // KLASYFIKUJEMY POSTAĆ ODKODOWANĄ (issue #1083).
+            //
+            // Przeglądarka może przysłać `/%40basia` zamiast `/@basia` —
+            // to ten sam profil, ale test `str_starts_with(..., '@')` na
+            // surowym tekście go nie widział, a segment jest za krótki na
+            // próg tokenu. Dekodujemy więc DOPIERO PO podziale na segmenty
+            // (zakodowany `%2F` nie przesuwa granic) i kilka razy, bo
+            // `%2540` to `%40` zakodowane drugi raz.
+            $segment = $surowy;
+            for ($i = 0; $i < 3; $i++) {
+                $odkodowany = rawurldecode($segment);
+                if ($odkodowany === $segment) {
+                    break;
+                }
+                $segment = $odkodowany;
             }
 
             // NAZWA KONTA (`/@ania`) — identyfikuje CZŁOWIEKA, nie stronę
@@ -186,6 +203,13 @@ class CspReportController extends Controller
                 return '@[UZYTKOWNIK]';
             }
 
+            // Zakodowany ukośnik w środku segmentu (`przepis%2F%40ania`):
+            // żadna nasza trasa go nie używa, a po odkodowaniu mógłby
+            // przemycić profil za niewinnym prefiksem. Nie zgadujemy.
+            if (str_contains($segment, '/')) {
+                return '[UKRYTE]';
+            }
+
             // UUID — identyfikator konta albo treści.
             if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $segment) === 1) {
                 return '[ID]';
@@ -199,7 +223,8 @@ class CspReportController extends Controller
                 return '[UKRYTE]';
             }
 
-            return $segment;
+            // Nic nie wykryto — zapisujemy dokładnie to, co przyszło.
+            return $surowy;
         }, explode('/', $sciezka));
 
         return implode('/', $segmenty);

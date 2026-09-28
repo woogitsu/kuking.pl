@@ -151,6 +151,57 @@ class LogCspNieZapisujeSekretowTest extends TestCase
         );
     }
 
+    /**
+     * `%40` to `@` zakodowane w adresie — ten sam profil, inna pisownia
+     * (issue #1083). Wcześniej rozpoznawany był tylko dosłowny `@`, a krótka
+     * nazwa nie łapała się na próg tokenu, więc szła do logu wprost.
+     *
+     * DODATNIA: znacznik `@[UZYTKOWNIK]` i zachowany sufiks trasy dowodzą,
+     * że segment rozpoznano, a nie zgubiono cały wpis.
+     */
+    public function test_nazwa_konta_zakodowana_procentowo_nie_trafia_do_logu(): void
+    {
+        $log = Log::spy();
+
+        $this->zglos(
+            'https://kuking.pl/%40basia-z-podlasia/obserwujacy',
+            'https://kuking.pl/%2540jankowalski',
+        );
+
+        $log->shouldHaveReceived('info')->once()->withArgs(
+            function (string $wiadomosc, array $kontekst): bool {
+                $wszystko = (string) json_encode($kontekst, JSON_UNESCAPED_SLASHES);
+
+                $this->assertStringNotContainsString('basia-z-podlasia', $wszystko);
+                $this->assertStringNotContainsString('jankowalski', $wszystko);
+                $this->assertSame('https://kuking.pl/@[UZYTKOWNIK]/obserwujacy', $kontekst['strona']);
+                $this->assertSame('https://kuking.pl/@[UZYTKOWNIK]', $kontekst['zablokowane']);
+
+                return true;
+            },
+        );
+    }
+
+    /**
+     * Zakodowany ukośnik nie może przesunąć granicy segmentu tak, by profil
+     * schował się za niewinnym prefiksem.
+     */
+    public function test_zakodowany_ukosnik_nie_przemyca_nazwy_konta(): void
+    {
+        $log = Log::spy();
+
+        $this->zglos('https://kuking.pl/przepis%2F%40basia-z-podlasia/obserwujacy');
+
+        $log->shouldHaveReceived('info')->once()->withArgs(
+            function (string $wiadomosc, array $kontekst): bool {
+                $this->assertStringNotContainsString('basia-z-podlasia', (string) $kontekst['strona']);
+                $this->assertSame('https://kuking.pl/[UKRYTE]/obserwujacy', $kontekst['strona']);
+
+                return true;
+            },
+        );
+    }
+
     public function test_zwykly_adres_przepisu_zostaje_czytelny(): void
     {
         // Kontrola w drugą stronę: gdyby czyszczenie było zbyt szerokie,

@@ -7,8 +7,12 @@
     <form class="panel-formularza" method="POST" action="{{ route('settings.profile') }}">
         @csrf @method('PUT')
 
-        <x-field name="display_name" label="Jak mamy Cię nazywać?" required :value="$profile->display_name" />
+        {{-- Te same tokeny co w rejestracji i dokończeniu Google/Facebook (#949,
+             WCAG 1.3.5): pole nie traci znaczenia przy późniejszej edycji. --}}
+        <x-field name="display_name" label="Jak mamy Cię nazywać?" required :value="$profile->display_name"
+                 autocomplete="name" />
         <x-field name="username" label="Nazwa użytkownika" required :value="$profile->username"
+                 autocomplete="username"
                  help="Zmiana nazwy zmienia adres Twojego profilu. Stare linki przestaną działać." />
         <x-field name="bio" label="Kilka słów o sobie" type="textarea" :rows="4" :value="$profile->bio"
                  help="Na przykład: „Gotuję od czterdziestu lat. Najlepiej wychodzą mi zupy i ciasto drożdżowe.”" />

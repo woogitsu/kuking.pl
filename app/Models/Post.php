@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Collections\ZapisyWpisu;
+use App\Domain\Tags\UniewaznijCacheTagow;
 use Database\Factories\PostFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -61,6 +63,40 @@ class Post extends Model
 
     /** Siatka: wszystkie zdjęcia na jednym ekranie. */
     public const DISPLAY_COLLAGE = 'collage';
+
+    /**
+     * Relacje, które czyta każdy kafelek wpisu — `<x-post-card>` i kafelek
+     * tablicy dnia (`kuking-board/posts`): autor z awatarem, własne zdjęcia
+     * i przepis, na który wpis wskazuje (#1037).
+     *
+     * `visibility` i `hero_media_id` MUSZĄ być w selekcie przepisu (#368,
+     * #447): kolumna pominięta w selekcie nie jest błędem, tylko cichym
+     * `null`. Bez `hero_media_id` relacja `heroMedia` nie ma po czym trafić
+     * i karta nie rysuje zdjęcia; bez `visibility` plakietka schodzi przez
+     * `?? $post->visibility` do stałego `public` wpisu zapowiadającego.
+     *
+     * Do 24.09.2026 ta lista stała ręcznie przepisana w siedmiu zapytaniach
+     * (trzy strumienie, dwa miejsca tablicy dnia, profil, strona tagu,
+     * zeszyt) i już się rozjechała: zeszyt nie ładował tagów, więc ta sama
+     * karta była tam bez tematów. Teraz każda lista bierze ją przez
+     * `scopeDlaKarty()`, a pilnuje tego `KartaWpisuJednymKontraktemTest`.
+     */
+    public const RELACJE_KAFELKA = [
+        'author.profile.avatar',
+        'media',
+        'recipe:id,title,slug,visibility,hero_media_id',
+        'recipe.heroMedia',
+    ];
+
+    /**
+     * Pełna karta (`<x-post-card>`) dokłada tematy. Karta pokazuje je TYLKO
+     * przy `relationLoaded('tags')` — celowo nie dociąga ich sama, żeby nie
+     * odpalić zapytania per wpis — więc lista bez tej relacji nie ma chipów.
+     */
+    public const RELACJE_KARTY = [
+        ...self::RELACJE_KAFELKA,
+        'tags:id,slug,name,status',
+    ];
 
     /**
      * `kind` NIE JEST TU CELOWO — patrz `oznaczJakoPytanie()` niżej.
@@ -124,6 +160,41 @@ class Post extends Model
     }
 
     /**
+     * Cache stron tagów dla gościa (kolaż, liczby) czyści się po każdej
+     * zmianie wpisu — publikacji, edycji, ukryciu, usunięciu,
+     * przywróceniu. Reguły i powód „po commicie": `UniewaznijCacheTagow`.
+     * `deleting`, nie `deleted`: przy trwałym usunięciu tagi trzeba
+     * przeczytać, zanim kaskada zdejmie `post_tags`.
+     */
+    protected static function booted(): void
+    {
+        static::saved(fn (self $post) => UniewaznijCacheTagow::poZmianieWpisu($post));
+        static::deleting(fn (self $post) => UniewaznijCacheTagow::poZmianieWpisu($post));
+        static::restored(fn (self $post) => UniewaznijCacheTagow::poZmianieWpisu($post));
+    }
+
+    /**
+     * Zdjęcie, które „Dopisz przepis” (issue #1334) podstawia jako zdjęcie
+     * główne przepisu: pierwsze GOTOWE zdjęcie wpisu tego samego autora.
+     * Zdjęcie odrzucone, w obróbce albo cudze nie przechodzi — wtedy akcji
+     * nie ma wcale.
+     */
+    public function zdjecieDoPrzepisu(): ?Media
+    {
+        // Karta wpisu ma zdjęcia już załadowane — bez tego `@can` w menu
+        // karty dokładałby jedno zapytanie na każdy własny wpis w strumieniu.
+        if ($this->relationLoaded('media')) {
+            return $this->media->first(fn (Media $zdjecie): bool => $zdjecie->owner_id === $this->author_id
+                && $zdjecie->status === Media::STATUS_READY);
+        }
+
+        return $this->media()
+            ->where('media.owner_id', $this->author_id)
+            ->where('media.status', Media::STATUS_READY)
+            ->first();
+    }
+
+    /**
      * Tagi wpisu (D-021) — maksymalnie 5, w kolejności, w jakiej autor je
      * dodał. Limit i tworzenie nowych tagów pilnuje
      * `App\Domain\Tags\Actions\ResolveTagsForPost`, nie ten model.
@@ -134,6 +205,17 @@ class Post extends Model
             ->using(PostTag::class)
             ->withPivot('position', 'dodany_recznie')
             ->orderBy('post_tags.position');
+    }
+
+    /**
+     * „Smakowicie wygląda" pod tym wpisem (issue #1813, D-280). Bez liczników
+     * gdziekolwiek w listach — patrz `FeedNieSortujePoMierzeReakcjiTest`.
+     *
+     * @return HasMany<PostReaction, $this>
+     */
+    public function reakcje(): HasMany
+    {
+        return $this->hasMany(PostReaction::class, 'post_id');
     }
 
     public function comments(): HasMany
@@ -158,16 +240,91 @@ class Post extends Model
     // Zakresy
     // ---------------------------------------------------------------------
 
-    /** Licznik kart: ślad usunięcia zachowuje rozmowę, ale nie jest odpowiedzią.
-     * @param  Builder<Post>  $query
+    /**
+     * Licznik komentarzy karty i nagłówka rozmowy — jedna definicja (#1801).
+     *
+     * ZWYKŁY WPIS liczy WSZYSTKO, co widz przeczyta po rozwinięciu rozmowy:
+     * komentarze główne i odpowiedzi (decyzja właściciela z 26.09.2026). Do
+     * tego dnia licznik szedł po `comments()`, czyli po samych korzeniach,
+     * więc wpis z jednym komentarzem i trzema odpowiedziami pokazywał na
+     * karcie „Komentarze (1)”, a na stronie cztery wypowiedzi.
+     *
+     * PYTANIE liczy wyłącznie odpowiedzi najwyższego poziomu (#372) —
+     * rozmowa pod odpowiedzią nie jest kolejną odpowiedzią.
+     *
+     * Granice widoczności są te same co w widoku (`PostController::show`):
+     * - każda wypowiedź przechodzi `Comment::widoczneDla()` (blokada w obie
+     *   strony, konto autora, status),
+     * - odpowiedź liczy się tylko pod korzeniem, który widz też widzi — gdy
+     *   korzeń odpada, strona nie pokazuje jego odpowiedzi (#1396), więc
+     *   licznik ich nie obiecuje,
+     * - ślad usunięcia („Komentarz usunięty.”) liczy się przy daniu, bo
+     *   zachowuje rozmowę; przy pytaniu nie, bo nie jest odpowiedzią.
+     *
+     * Wynik ląduje w `comments_count`, jak dotąd — karta i
+     * `jestSamymPrzepisem()` nie muszą wiedzieć, skąd przyszedł.
+     *
+     * @return array<string, \Closure>
      */
+    public static function licznikWidocznychKomentarzy(?User $viewer): array
+    {
+        return ['allComments as comments_count' => fn (Builder $comments) => $comments
+            ->widoczneDla($viewer)
+            ->where(fn (Builder $liczone) => $liczone
+                ->where(fn (Builder $korzen) => $korzen
+                    ->whereNull('comments.parent_id')
+                    ->where(fn (Builder $tresc) => $tresc
+                        ->whereNull('comments.body_removed_at')
+                        ->orWhere('posts.kind', self::KIND_DISH)))
+                ->orWhere(fn (Builder $odpowiedz) => $odpowiedz
+                    ->where('posts.kind', self::KIND_DISH)
+                    // Podzapytanie ma własne `from comments`, więc `comments.*`
+                    // wewnątrz `widoczneDla()` wskazuje KORZEŃ, nie odpowiedź.
+                    ->whereIn('comments.parent_id', Comment::query()
+                        ->select('comments.id')
+                        ->whereColumn('comments.post_id', 'posts.id')
+                        ->whereNull('comments.parent_id')
+                        ->widoczneDla($viewer))))];
+    }
+
+    /** @param  Builder<Post>  $query */
     public function scopeWithVisibleCommentCount(Builder $query, ?User $viewer): void
     {
-        $query->withCount(['comments' => fn (Builder $comments) => $comments
-            ->widoczneDla($viewer)
-            ->where(fn (Builder $counted) => $counted
-                ->whereNull('comments.body_removed_at')
-                ->orWhere('posts.kind', self::KIND_DISH))]);
+        $query->withCount(self::licznikWidocznychKomentarzy($viewer));
+    }
+
+    /**
+     * Kontrakt danych karty wpisu na LIŚCIE (#1037): relacje czytane przez
+     * kartę, licznik widocznych komentarzy i — dla pełnej karty — liczba
+     * zapisów ze stanem „mam to w zeszycie" (`ZapisyWpisu::dolicz()`, D-081),
+     * wszystko w TYM SAMYM zapytaniu, co lista.
+     *
+     * Czego tu CELOWO nie ma: wyboru źródła, kolejności, paginacji ani bramki
+     * widoczności przepisu. Bramka to bezpieczeństwo, nie prezentacja, i ma
+     * własny scope — `zWidocznymPrzepisemAlboWlasnaTrescia()` — który każda
+     * lista wywołuje jawnie (tablica dnia musi go mieć w podzapytaniu
+     * `DISTINCT ON`, nie dopiero w zapytaniu po modele). Po pobraniu listy
+     * `ukryjNiedostepnePrzepisy()` usuwa z kart własnej treści relację do
+     * przepisu, którego widz nie może otworzyć.
+     *
+     * `kafelek: true` — wariant tablicy dnia: jej kafelek nie pokazuje ani
+     * tematów, ani liczby zapisów, więc nie ładuje tagów i nie dolicza zapisów.
+     *
+     * Wariant rozszerzony: strona jednego wpisu (`PostController::show()`)
+     * dostaje model z wiązania trasy i ładuje `recipe` w CAŁOŚCI plus
+     * `recipe.author`, bo nad kartą stoi `RecipePolicy::view()`. Relacje
+     * karty są tam te same; licznik zapisów dolicza `doliczDoWpisu()`.
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeDlaKarty(Builder $query, ?User $widz, bool $kafelek = false): void
+    {
+        $query->with($kafelek ? self::RELACJE_KAFELKA : self::RELACJE_KARTY)
+            ->withVisibleCommentCount($widz);
+
+        if (! $kafelek) {
+            app(ZapisyWpisu::class)->dolicz($query, $widz);
+        }
     }
 
     /** @param  Builder<Post>  $query */
@@ -228,6 +385,51 @@ class Post extends Model
     }
 
     /**
+     * Bez wpisów, które TEN widz ukrył sobie („Ukryj ten wpis", #1810, D-278).
+     *
+     * Tylko w strumieniach z kartą (Start, Odkrywanie, tablica, tygodniowy
+     * list). Profil, wyszukiwarka i strona wpisu wpisu nie wycinają — karta
+     * zwija się tam do „Ten wpis ukrywasz. Pokaż". Gość nic nie ukrywa.
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeBezUkrytychWpisow(Builder $query, ?User $widz): void
+    {
+        if ($widz === null) {
+            return;
+        }
+
+        $query->whereNotExists(fn ($sub) => $sub->selectRaw('1')
+            ->from('hides')
+            ->where('hides.user_id', $widz->getKey())
+            ->whereColumn('hides.post_id', 'posts.id')
+            ->where(fn ($q) => $q->whereNull('hides.hidden_until')->orWhere('hides.hidden_until', '>', now())));
+    }
+
+    /**
+     * Bez wpisów osób, które TEN widz ukrył sobie („Ukryj tę osobę", #1810).
+     *
+     * Wyłącznie tam, gdzie serwis sam PODSUWA ludzi: Odkrywanie, automatyczna
+     * część tablicy i wpisy z obserwowanego tagu na Starcie (26.09). Nie przy
+     * osobach obserwowanych wprost, nie w wyszukiwarce i nie pod linkiem
+     * — tam człowiek przyszedł po tę osobę sam (AGENTS.md §8, D-278).
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeBezUkrytychOsob(Builder $query, ?User $widz): void
+    {
+        if ($widz === null) {
+            return;
+        }
+
+        $query->whereNotExists(fn ($sub) => $sub->selectRaw('1')
+            ->from('hides')
+            ->where('hides.user_id', $widz->getKey())
+            ->whereColumn('hides.hidden_user_id', 'posts.author_id')
+            ->where(fn ($q) => $q->whereNull('hides.hidden_until')->orWhere('hides.hidden_until', '>', now())));
+    }
+
+    /**
      * Wpisy, których PRZEPIS wolno dziś pokazać temu widzowi — czyli wpisy
      * bez przepisu (zwykłe „co dziś ugotowałem") ORAZ wpisy wskazujące
      * przepis, który jest opublikowany, nieusunięty i widoczny dla widza.
@@ -253,9 +455,10 @@ class Post extends Model
      * na tabeli wymagałby pamiętania o tym warunku — a to jest dokładnie ten
      * rodzaj rzeczy, który się zapomina przy drugiej kopii.
      *
-     * DLACZEGO NIE REUŻYWAMY `Notification::wierszTresciWidoczny()`
-     * Tamten pomocnik odpowiada na to samo pytanie, ale jest prywatny,
-     * zbudowany na surowym `Query\Builder` z aliasem tabeli i wymaga
+     * DLACZEGO NIE REUŻYWAMY `WidocznoscTresciSql::wpisLubPrzepis()`
+     * Tamta specyfikacja (#1687, dawniej prywatny pomocnik `Notification`)
+     * odpowiada na podobne pytanie, ale jest zbudowana na surowym
+     * `Query\Builder` z aliasem tabeli i wymaga
      * NIEPUSTEGO widza — a strumienie („Świeżo z Kuking", tablica dnia,
      * strona powitalna) pytają także za gościa, czyli z `?User = null`.
      * Kanonicznym odpowiednikiem w warstwie Eloquenta jest
@@ -281,6 +484,85 @@ class Post extends Model
                     $przepis->published()->widoczneDla($widz);
                 });
         });
+    }
+
+    /**
+     * Wpisy z WŁASNĄ treścią — niepustym tekstem albo choć jednym zdjęciem.
+     * SQL-owa strona `czyJestZapowiedziaPrzepisu()`: wpis, który ją spełnia,
+     * nie jest zapowiedzią, więc `PostPolicy::view()` nie bramkuje go
+     * przepisem (issue #1377).
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeZWlasnaTrescia(Builder $query): void
+    {
+        $query->where(function (Builder $w): void {
+            // `~ '\S'` = `filled()` z PHP: sam biały znak to brak treści.
+            $w->whereRaw("posts.body ~ '\\S'")
+                ->orWhereExists(function ($sub): void {
+                    $sub->selectRaw('1')->from('post_media')->whereColumn('post_media.post_id', 'posts.id');
+                });
+        });
+    }
+
+    /**
+     * Zapowiedź przepisu wychodzi na listy tylko z widocznym przepisem
+     * (`zWidocznymPrzepisem()`, #368/#941), a wpis z własną treścią — według
+     * WŁASNEJ widoczności, jak na swojej stronie (`PostPolicy::view()`,
+     * issue #1377). Lista, która go pokazuje, musi przed kartą zdjąć
+     * niedostępną relację: `ukryjNiedostepnePrzepisy()`.
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeZWidocznymPrzepisemAlboWlasnaTrescia(Builder $query, ?User $widz): void
+    {
+        $query->where(function (Builder $w) use ($widz): void {
+            $w->where(fn (Builder $tresc) => $tresc->zWlasnaTrescia())
+                ->orWhere(fn (Builder $zapowiedz) => $zapowiedz->zWidocznymPrzepisem($widz));
+        });
+    }
+
+    /**
+     * Zdejmuje z wpisów relację przepisu, którego widz nie może zobaczyć —
+     * to samo `setRelation('recipe', null)` co `PostController::show()`,
+     * tylko jednym zapytaniem na stronę listy (issue #1377). Karta czyta
+     * z relacji tytuł, slug, zdjęcie, plakietkę i przycisk „Ugotowałem”;
+     * bez relacji pokazuje sam wpis z jego własną widocznością.
+     *
+     * Reguły `RecipePolicy::view()` w SQL: `Recipe::widoczneDla()` (własne
+     * zawsze, cudze opublikowane, widoczność, blokada) plus dostępny autor
+     * cudzego przepisu. Bez furtki moderatora — ostrzej, nigdy luźniej.
+     *
+     * @param  iterable<Post>  $wpisy
+     */
+    public static function ukryjNiedostepnePrzepisy(iterable $wpisy, ?User $widz): void
+    {
+        $zPrzepisem = collect($wpisy)->filter(
+            fn (Post $wpis): bool => $wpis->relationLoaded('recipe') && $wpis->recipe !== null,
+        );
+
+        if ($zPrzepisem->isEmpty()) {
+            return;
+        }
+
+        $widoczne = Recipe::query()
+            ->whereIn('recipes.id', $zPrzepisem->pluck('recipe_id')->unique()->values())
+            ->widoczneDla($widz)
+            ->where(function (Builder $autor) use ($widz): void {
+                $autor->whereHas('author', fn ($a) => $a->dostepnyJakoAutor());
+                if ($widz !== null) {
+                    $autor->orWhere('recipes.author_id', $widz->getKey());
+                }
+            })
+            ->pluck('recipes.id')
+            ->map(fn ($id): string => (string) $id)
+            ->all();
+
+        foreach ($zPrzepisem as $wpis) {
+            if (! in_array((string) $wpis->recipe_id, $widoczne, true)) {
+                $wpis->setRelation('recipe', null);
+            }
+        }
     }
 
     /**
@@ -350,6 +632,42 @@ class Post extends Model
                         });
                 });
         });
+    }
+
+    /**
+     * Zapisane wpisy, które widz może OTWORZYĆ — jedna reguła dla wnętrza
+     * zeszytu, licznika na jego karcie i szyny „Ostatnio zapisane" (#1319).
+     *
+     * Cztery granice, wszystkie obowiązkowe: widoczność wpisu, bramka
+     * przepisu (`zWidocznymPrzepisem()`, #368), status konta autora wpisu
+     * i status konta autora PRZEPISU (W5-08) — ten ostatni osobno, bo
+     * zapowiedź przepisu może należeć do kogo innego niż przepis.
+     *
+     * Wcześniej tylko `CollectionController::show()` miał komplet; karta
+     * zeszytu i „Ostatnio zapisane" miały tylko pierwszą i trzecią.
+     * Zapowiedź schowanego przepisu znikała z wnętrza
+     * zeszytu, a karta dalej mówiła „1 wpis", szyna zaś dawała odnośnik,
+     * który `PostPolicy::view()` kończy odmową.
+     *
+     * Gałąź `recipe_id IS NULL` przepuszcza zwykłe wpisy bez przepisu.
+     *
+     * OBIE BRAMKI PRZEPISU DOTYCZĄ TYLKO CZYSTEJ ZAPOWIEDZI (#1377, komentarz
+     * w #1319 z 23.09). Wpis z własnym tekstem albo zdjęciem, który wskazuje
+     * przepis, `PostPolicy::view()` wpuszcza według WŁASNEJ widoczności —
+     * więc zostaje we wnętrzu, na karcie i w „Ostatnio zapisane", a nie
+     * wpada do „niedostępnych". Wnętrze zeszytu zdejmuje mu wtedy przepis
+     * z karty (`ukryjNiedostepnePrzepisy()` w `CollectionController::show()`).
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeWidoczneWZeszycieDla(Builder $query, ?User $widz): void
+    {
+        $query->widoczneDla($widz)
+            ->zWidocznymPrzepisemAlboWlasnaTrescia($widz)
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->where(fn ($w) => $w->whereNull('posts.recipe_id')
+                ->orWhere(fn ($tresc) => $tresc->zWlasnaTrescia())
+                ->orWhereHas('recipe.author', fn ($autor) => $autor->dostepnyJakoAutor()));
     }
 
     /**
@@ -447,6 +765,16 @@ class Post extends Model
         }
 
         return trim(trim((string) $this->title)."\n\n".$body);
+    }
+
+    /**
+     * Wpis ukryty albo zdjęty decyzją moderatora (issue #936). Taki wpis
+     * zostaje w stanie, o którym moderator zdecydował — patrz
+     * `PostPolicy::update()`.
+     */
+    public function jestPodDecyzjaModeracji(): bool
+    {
+        return in_array($this->status, [self::STATUS_HIDDEN, self::STATUS_REMOVED], true);
     }
 
     public function isPublished(): bool

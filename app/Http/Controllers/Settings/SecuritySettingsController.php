@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Settings;
 
 use App\Domain\Users\Actions\CancelEmailChange;
+use App\Domain\Users\Actions\UstawNoweHaslo;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use Illuminate\Http\RedirectResponse;
@@ -38,7 +39,7 @@ class SecuritySettingsController extends Controller
         return view('pages.settings.security');
     }
 
-    public function updatePassword(Request $request, CancelEmailChange $anuluj): RedirectResponse
+    public function updatePassword(Request $request, UstawNoweHaslo $ustaw): RedirectResponse
     {
         // Kontekst ustala obsługiwana akcja, nie wartość przysłana z formularza.
         $request->merge(['_wiersz' => 'zmiana']);
@@ -63,30 +64,24 @@ class SecuritySettingsController extends Controller
                 ->withInput(['_wiersz' => 'zmiana']);
         }
 
-        // Jedna nazwana droga do hasła — `password` jest poza `$fillable`.
-        $user->assignPassword($data['password'])->save();
-
-        // Rotacja sesji (issue #12): stare sesje — te, w których mogła siedzieć
-        // osoba, przez którą hasło było zmieniane — przestają działać od razu.
-        // Bieżąca sesja (ta, w której właśnie ktoś ustawił nowe hasło) zostaje
-        // ważna: to jego własna, dobra decyzja, nie powód do wylogowania.
-        $user->invalidateSessions($request->session()->getId());
-
-        // ZMIANA HASŁA UNIEWAŻNIA ZAMÓWIONĄ ZMIANĘ ADRESU E-MAIL (issue #195).
-        //
-        // List ostrzegawczy, który dostaje stary adres, mówi wprost: „jeśli
-        // to nie Ty — zmień hasło". Gdyby zmiana hasła nie kasowała
-        // oczekującego żądania, ta rada byłaby nieprawdziwa: napastnik
-        // dokończyłby przejęcie konta swoim odnośnikiem, mimo nowego hasła
-        // — czyli właśnie wtedy, gdy człowiek zrobił dokładnie to, o co go
-        // poprosiliśmy. Uzasadnienie w `CancelEmailChange`.
-        $anulowanaZmianaAdresu = $anuluj->handle(
+        // Hasło, sesje, link resetu i zamówiona zmiana adresu — jedną
+        // transakcją pod blokadą konta (#1358). Stare sesje przestają
+        // działać, bieżąca zostaje: to własna, dobra decyzja (issue #12).
+        // Zmiana hasła kasuje też zamówioną zmianę adresu (issue #195):
+        // list ostrzegawczy mówi „jeśli to nie Ty — zmień hasło".
+        // Uzasadnienie kolejności w `UstawNoweHaslo`.
+        $anulowanaZmianaAdresu = $ustaw->handle(
             $user,
+            $data['password'],
             CancelEmailChange::POWOD_ZMIANA_HASLA,
             $request->ip(),
+            $request->session()->getId(),
         );
 
-        AuditLogEntry::record('account.password_changed', $user, $user, ip: $request->ip());
+        // Nowy identyfikator bieżącej sesji po zmianie hasła. Gdyby stary
+        // znał ktoś obcy, sam wyjątek dla bieżącej sesji zostawiłby go na
+        // koncie. `true` kasuje stary wiersz z tabeli sesji.
+        $request->session()->regenerate(true);
 
         return back()->with('status',
             'Hasło zmienione. Wylogowaliśmy wszystkie inne urządzenia zalogowane na to konto — ten komputer/telefon zostaje zalogowany.'

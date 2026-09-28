@@ -157,6 +157,14 @@ final class ProcesRownolegly
         ];
     }
 
+    /** Czy proces jeszcze pracuje — bez czekania na jego wynik. */
+    public function trwa(): bool
+    {
+        $this->zbierz();
+
+        return is_resource($this->uchwyt) && proc_get_status($this->uchwyt)['running'] === true;
+    }
+
     public function zabij(): void
     {
         if (! is_resource($this->uchwyt)) {

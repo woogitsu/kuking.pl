@@ -32,10 +32,16 @@ class StabilneOknaWyszukiwaniaTest extends TestCase
     {
         $author = $this->user('autor_stabilnych_okien');
         $expected = $this->przepisy($author, 201);
+        $this->user('kalarepa_osoba', ['display_name' => 'Kalarepa']);
 
-        [$first, $link] = $this->pierwszeOkno('przepisy', 'recipes', 'Pokaż więcej przepisów');
+        // „Wszystko” trzyma dwa niezależne rozmiary (#984). Kursor przepisu
+        // nie może przy okazji powiększyć ani przesunąć listy osób.
+        [$first, $link] = $this->pierwszeOkno('wszystko', 'recipes', 'Pokaż więcej przepisów', 'Kalarepa',
+            ['ile_przepisow' => 200, 'ile_osob' => 20]);
         $this->assertStringContainsString('po_przepisie=', $link);
         $this->assertStringNotContainsString('po_osobie=', $link);
+        $this->assertStringContainsString('ile_przepisow=200', $link);
+        $this->assertStringContainsString('ile_osob=20', $link);
 
         // Dokładny tytuł wchodzi na pozycję 1 — nad granicą okna.
         $nowy = Recipe::factory()->create([
@@ -47,6 +53,7 @@ class StabilneOknaWyszukiwaniaTest extends TestCase
 
         $next = $this->get($link)->assertOk();
         $ids = $next->viewData('recipes')->modelKeys();
+        $this->assertCount(1, $next->viewData('people'));
         $this->assertSame([], array_values(array_intersect($first, $ids)), 'Dalsze okno powtórzyło już pokazany przepis.');
         $this->assertEqualsCanonicalizing($expected, array_merge($first, $ids));
         $next->assertSee('Pokazujemy przepis 201.', false);
@@ -168,10 +175,13 @@ class StabilneOknaWyszukiwaniaTest extends TestCase
         return $ids;
     }
 
-    /** @return array{0: list<string>, 1: string} klucze pierwszego okna i odnośnik dalej */
-    private function pierwszeOkno(string $sekcja, string $klucz, string $etykieta, string $q = 'Kalarepa'): array
+    /**
+     * @param  array<string, int>  $okna
+     * @return array{0: list<string>, 1: string} klucze pierwszego okna i odnośnik dalej
+     */
+    private function pierwszeOkno(string $sekcja, string $klucz, string $etykieta, string $q = 'Kalarepa', array $okna = ['ile' => 200]): array
     {
-        $response = $this->get(route('search', ['q' => $q, 'sekcja' => $sekcja, 'ile' => 200]))->assertOk();
+        $response = $this->get(route('search', ['q' => $q, 'sekcja' => $sekcja] + $okna))->assertOk();
         $first = $response->viewData($klucz)->modelKeys();
         $this->assertCount(200, $first);
         $links = $this->links((string) $response->getContent(), $etykieta);

@@ -101,9 +101,12 @@ Prywatny **oryginał** (dla eksportu danych) przechodzi przy wgraniu przez
 
 Długość pliku się nie zmienia (przesunięcia w EXIF-ie zostają ważne), a PNG
 dostaje nowe sumy CRC przepisanych chunków. AVIF jest czyszczony przez
-szukanie pakietu w bajtach, bez parsera ISOBMFF. Pilnują tego
-`OryginalTraciWspolrzedneGpsTest`, `OryginalTraciGpsTakzeWPngIWebpTest`
-i `OryginalTraciGpsZXmpTest` (fixture'y zapisane niezależną biblioteką,
+szukanie pakietu w bajtach, bez parsera ISOBMFF — EXIF po `Exif\0\0` albo,
+gdy prefiksu nie ma, po samym nagłówku TIFF. JPEG z kilkoma obrazami (MPF:
+podgląd, mapa wzmocnienia HDR) jest czyszczony w każdym obrazie, nie tylko
+w pierwszym (audyt B5 pkt 5). Pilnują tego
+`OryginalTraciWspolrzedneGpsTest`, `OryginalTraciGpsTakzeWPngIWebpTest`,
+`OryginalTraciGpsWKazdymObrazieTest` i `OryginalTraciGpsZXmpTest` (fixture'y zapisane niezależną biblioteką,
 `tests/Fixtures/xmp-gps/`).
 
 Pliki położone do storage PRZED powstaniem wiersza `media` (oryginał,
