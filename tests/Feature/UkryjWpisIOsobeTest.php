@@ -98,7 +98,7 @@ class UkryjWpisIOsobeTest extends TestCase
         $odpowiedz = $this->actingAs($widz)->from(route('home'))->post(route('posts.hide', $ukryty))->assertRedirect(route('home'));
         $data = $this->dataKoncaUkrycia();
         $odpowiedz->assertSessionHas('status', "Ukryliśmy ten wpis tylko dla Ciebie do {$data}. Inni widzą go jak dotąd.");
-        $powrot = $odpowiedz->getSession()->get('status_powrot');
+        $powrot = self::sesjaPrzekierowania($odpowiedz)->get('status_powrot');
         $this->assertSame('Cofnij', $powrot['etykieta']);
 
         // Strumienie z kartą: Start (obserwowani), Odkrywanie, tablica z wyborem gospodarza, list.

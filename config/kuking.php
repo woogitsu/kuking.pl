@@ -977,6 +977,19 @@ return [
             // czeka (push jest szturchnięciem, nie listem poleconym) —
             // trwała porażka zostawia mierzalny, pusty `push_wyslano_at`.
             'push_maks_prob_transportu' => (int) env('KUKING_PUSH_MAKS_PROB_TRANSPORTU', 3),
+
+            // CZUJKA `kuking:sprawdz-push` (issue #2053). Rezerwacja bez
+            // wysyłki, bez zamknięcia i bez zadania odbiorcy w `jobs`, starsza
+            // niż tyle minut, to UTRACONE PONOWIENIE. Zdrowy przebieg trwa
+            // najwyżej kilka minut (3 próby × 60 s timeoutu + 30 s odstępu),
+            // porzucone zadanie wraca po `retry_after` 960 s — 30 min ma zapas
+            // na oba. Kod nie przyjmie mniej niż 10.
+            'push_osierocenie_minut' => (int) env('KUKING_PUSH_OSIEROCENIE_MINUT', 30),
+
+            // Nierozliczona porażka trwa do ręcznego rozliczenia (runbook
+            // `docs/infra/WEB_PUSH_TRWALE_PORAZKI_2053.md`), więc powtórka
+            // raz na dobę, nie co godzinę przebiegu czujki.
+            'push_alarm_cisza_godzin' => (int) env('KUKING_PUSH_ALARM_CISZA_GODZIN', 24),
         ],
 
         // RETENCJA (issue #19, docs/decyzje/ADR_RETENCJE.md §5.2).
@@ -3643,7 +3656,7 @@ return [
         // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
         // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
         // wersji nie da się z niczym powiązać.
-        'etykieta' => 'Alfa 0.71',
+        'etykieta' => 'Alfa 0.72',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
         //

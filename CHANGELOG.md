@@ -2,6 +2,12 @@
 
 ## Nieopublikowane
 
+## Alfa 0.72 — spokojniejsze zdjęcia i powiadomienia
+
+- Zdjęcie, którego przygotowanie chwilowo się nie udało, dalej pokazuje „Twoje zdjęcie się jeszcze przygotowuje”, dopóki serwis próbuje ponownie. Komunikat „Nie udało się przygotować tego zdjęcia” z radą, żeby usunąć i dodać wpis, pojawia się dopiero po ostatniej nieudanej próbie — nie trzeba już kasować wpisu ze zdjęciem, które za chwilę by się pokazało (#1349).
+- Powiadomienie o wpisie usuniętym po „Smakowicie wygląda” pokazuje informację zamiast prowadzić do strony 404 (#1994).
+- Kopiowanie tygodnia w Planerze pomija pozycje spoza dozwolonego zakresu dat i wyjaśnia, ile ich było, dlaczego oraz co zrobić dalej (#2036).
+
 ## Alfa 0.71 — przepis z kartki i koszt dania
 
 - Na stronie „Co nowego” spis wydań prowadzi do właściwych nagłówków, a znaczniki kotwic nie pojawiają się już jako tekst. W stopce jest też czytelna spacja między „O” a nazwą serwisu.
@@ -36,7 +42,6 @@
 - Przed wysłaniem „Ugotowałem” widać, kto może zobaczyć wykonanie, zdjęcia i odpowiedzi. Ich widoczność wynika z widoczności przepisu (#2071).
 - Wewnętrzne: instrukcja wdrożenia opisuje czas zamykania usług zależnie od topologii IaC i oddziela go od niepotwierdzonych ustawień panelu Railway (#2056).
 - Pusta lista powiadomień wyjaśnia teraz, że znajdziecie tu wiadomości o przepisach, wpisach, obserwujących i ważnych sprawach konta. Wcześniejszy opis wymieniał tylko ugotowanie i komentarze (#2060).
-- Kopiowanie tygodnia w Planerze pomija pozycje poza dozwolonym zakresem dat i podaje ich liczbę. Obowiązują te same granice co przy zwykłym dodawaniu (#2036).
 - Niepoprawny identyfikator w adresie przycisku „Zobacz” powiadomienie kończy się teraz zwykłą stroną 404, zanim trafi do bazy danych; poprawny identyfikator nieistniejącego powiadomienia nadal daje 404 (#1880).
 - Cofnięcie zgłoszonego usunięcia konta, odblokowanie kogoś oraz zamówienie, potwierdzenie i anulowanie zmiany adresu e-mail nie kończą się już błędem serwera, gdy zawiedzie tylko zapis w wewnętrznym dzienniku audytu — operacja, którą naprawdę wykonaliście, zostaje wykonana, a brak wpisu trafia do monitoringu zamiast do Was (#1893, #1896, #1897). Automatyczne przywracanie kont po wygasłej karze i trwałe usuwanie danych po karencji (#1894) w takiej samej sytuacji cofają całą zmianę i podejmują ją same przy najbliższym uruchomieniu, a jeden nieudany rekord nie zatrzymuje już obsługi pozostałych kont w tym samym przebiegu.
 - Naprawione: po częściowym odtworzeniu bazy import wartości odżywczych odbudowuje brakujące składniki, aliasy i miary. Kalkulator nie zostaje z niepełnym słownikiem tylko dlatego, że pamięć przechowała hash poprzedniego importu (#2130).

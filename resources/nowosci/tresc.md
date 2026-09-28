@@ -10,6 +10,7 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Spis wydań
 
 - [Najnowsze zmiany](#najnowsze-zmiany)
+- [Alfa 0.72 — spokojniejsze zdjęcia i powiadomienia](#alfa-072)
 - [Alfa 0.71 — przepis z kartki i koszt dania](#alfa-071)
 - [Alfa 0.70 — spokojniejsze wpisy i gotowanie](#alfa-070)
 - [Alfa 0.69 — czytelniejsze powiadomienia i wygodniejsze gotowanie](#alfa-069)
@@ -24,6 +25,20 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Najnowsze zmiany
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
+
+## Alfa 0.72
+
+**Spokojniejsze zdjęcia i powiadomienia.**
+
+Gdy przygotowanie zdjęcia chwilowo się nie uda, wpis dalej pokaże, że zdjęcie
+jest w trakcie przygotowania. Informacja o niepowodzeniu pojawi się dopiero
+po ostatniej próbie. Nie trzeba usuwać wpisu ze zdjęciem, które może się
+jeszcze pokazać.
+
+Jeśli wpis, o którym przyszło powiadomienie „Smakowicie wygląda”, został
+usunięty, powiadomienie powie o tym zamiast prowadzić do pustej strony.
+Przy kopiowaniu tygodnia Planer poda też liczbę pominiętych pozycji spoza
+dozwolonego zakresu dat i podpowie, jaki tydzień wybrać.
 
 ## Alfa 0.71
 

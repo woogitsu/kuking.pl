@@ -81,12 +81,11 @@ class PowtorzonyKrokPrzepisuTest extends TestCase
             $this->assertNotNull($field);
             $this->assertSame($row['instruction'], trim($field->textContent));
             foreach (['id', 'timer_minutes'] as $name) {
-                $input = $xpath->query('//input[@name="steps['.$index.']['.$name.']"]')->item(0);
-                $this->assertNotNull($input);
+                $input = self::elementDom($xpath->query('//input[@name="steps['.$index.']['.$name.']"]')->item(0));
                 $this->assertSame($row[$name], $input->getAttribute('value'));
             }
         }
-        $field = $xpath->query('//textarea[@name="steps[1][instruction]"]')->item(0);
+        $field = self::elementDom($xpath->query('//textarea[@name="steps[1][instruction]"]')->item(0));
         $this->assertSame('true', $field->getAttribute('aria-invalid'), $dom->saveHTML($field->parentNode));
         $errorId = $field->getAttribute('aria-describedby');
         $this->assertStringContainsString($message, $xpath->query('//*[@id="'.$errorId.'"]')->item(0)->textContent);

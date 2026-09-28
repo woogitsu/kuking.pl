@@ -30,7 +30,7 @@ final class SprawdzKodDrugiegoSkladnika
     /** Kod poprawny: licznik prób wyzerowany, kod zapasowy (jeśli był) zużyty. */
     public const POPRAWNY = 'poprawny';
 
-    /** Kod niepoprawny albo już użyty: próba policzona. */
+    /** Kod niepoprawny albo już użyty: próba policzona (zarezerwowana przed sprawdzeniem). */
     public const BLEDNY = 'bledny';
 
     /** Limit prób wyczerpany: kodu nawet nie sprawdzono. */
@@ -43,11 +43,12 @@ final class SprawdzKodDrugiegoSkladnika
      */
     public function handle(User $user, string $kod, string $kodZapasowy): array
     {
-        [$maxProb, $decayMinuty] = TwoFactorAuthenticator::limitProb();
-        $klucz = TwoFactorAuthenticator::kluczLimituProb($user);
+        // Próba liczona PRZED sprawdzeniem kodu, atomowo (#2043) — patrz
+        // `TwoFactorAuthenticator::zarezerwujProbe()`.
+        $minuty = $this->totp->zarezerwujProbe($user);
 
-        if (RateLimiter::tooManyAttempts($klucz, $maxProb)) {
-            return [self::ZA_DUZO_PROB, max(1, (int) ceil(RateLimiter::availableIn($klucz) / 60))];
+        if ($minuty !== null) {
+            return [self::ZA_DUZO_PROB, $minuty];
         }
 
         $poprawny = false;
@@ -61,12 +62,10 @@ final class SprawdzKodDrugiegoSkladnika
         }
 
         if (! $poprawny) {
-            RateLimiter::hit($klucz, $decayMinuty * 60);
-
             return [self::BLEDNY, null];
         }
 
-        RateLimiter::clear($klucz);
+        RateLimiter::clear(TwoFactorAuthenticator::kluczLimituProb($user));
 
         return [self::POPRAWNY, null];
     }

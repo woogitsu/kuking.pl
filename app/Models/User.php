@@ -11,6 +11,7 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Api\ZakresyTokenu;
 use App\Notifications\UstawienieNowegoHasla;
 use App\Support\Sesja\GeneracjaSesji;
+use Carbon\CarbonInterface;
 use Database\Factories\UserFactory;
 use DateTimeInterface;
 use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
@@ -25,7 +26,6 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Notifications\Notification as PowiadomienieFrameworka;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -311,6 +311,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * samo). Kolejność alfabetyczna po nazwie: w odróżnieniu od Tematu,
      * tagi nie mają redakcyjnej kolejności (`position`) — to jest atrybut
      * PROMOCJI (`tag_promotions.position`), nie samego tagu.
+     *
+     * @return BelongsToMany<Tag, $this>
      */
     public function followedTags(): BelongsToMany
     {
@@ -395,31 +397,49 @@ class User extends Authenticatable implements MustVerifyEmailContract
     // Relacje
     // ---------------------------------------------------------------------
 
+    /**
+     * @return HasOne<Profile, $this>
+     */
     public function profile(): HasOne
     {
         return $this->hasOne(Profile::class);
     }
 
+    /**
+     * @return HasMany<Post, $this>
+     */
     public function posts(): HasMany
     {
         return $this->hasMany(Post::class, 'author_id');
     }
 
+    /**
+     * @return HasMany<Recipe, $this>
+     */
     public function recipes(): HasMany
     {
         return $this->hasMany(Recipe::class, 'author_id');
     }
 
+    /**
+     * @return HasMany<CookedEvent, $this>
+     */
     public function cookedEvents(): HasMany
     {
         return $this->hasMany(CookedEvent::class);
     }
 
+    /**
+     * @return HasMany<Comment, $this>
+     */
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class, 'author_id');
     }
 
+    /**
+     * @return HasMany<Collection, $this>
+     */
     public function collections(): HasMany
     {
         return $this->hasMany(Collection::class, 'owner_id');
@@ -431,11 +451,17 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(MealPlanEntry::class);
     }
 
+    /**
+     * @return HasMany<Media, $this>
+     */
     public function media(): HasMany
     {
         return $this->hasMany(Media::class, 'owner_id');
     }
 
+    /**
+     * @return HasMany<DataExport, $this>
+     */
     public function dataExports(): HasMany
     {
         return $this->hasMany(DataExport::class);
@@ -446,12 +472,17 @@ class User extends Authenticatable implements MustVerifyEmailContract
      *
      * `HasOne`, bo `pending_email_changes.user_id` jest unikalne: jedno
      * konto ma najwyżej jedno oczekujące żądanie, a nowe zastępuje stare.
+     *
+     * @return HasOne<PendingEmailChange, $this>
      */
     public function pendingEmailChange(): HasOne
     {
         return $this->hasOne(PendingEmailChange::class);
     }
 
+    /**
+     * @return HasMany<Notification, $this>
+     */
     public function notifications(): HasMany
     {
         // Drugi klucz sortowania — powiadomienia sypią się seriami w tej
@@ -463,6 +494,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /** Osoby, które TEN użytkownik obserwuje. */
+    /**
+     * @return BelongsToMany<self, $this>
+     */
     public function following(): BelongsToMany
     {
         return $this->belongsToMany(self::class, 'follows', 'follower_id', 'followed_id')
@@ -470,6 +504,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /** Osoby, które obserwują TEGO użytkownika. */
+    /**
+     * @return BelongsToMany<self, $this>
+     */
     public function followers(): BelongsToMany
     {
         return $this->belongsToMany(self::class, 'follows', 'followed_id', 'follower_id')
@@ -477,6 +514,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /** Osoby zablokowane PRZEZ tego użytkownika. */
+    /**
+     * @return BelongsToMany<self, $this>
+     */
     public function blocking(): BelongsToMany
     {
         return $this->belongsToMany(self::class, 'blocks', 'blocker_id', 'blocked_id')
@@ -484,6 +524,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /** Osoby, które zablokowały TEGO użytkownika. */
+    /**
+     * @return BelongsToMany<self, $this>
+     */
     public function blockedBy(): BelongsToMany
     {
         return $this->belongsToMany(self::class, 'blocks', 'blocked_id', 'blocker_id')
@@ -1129,19 +1172,29 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * zamówił DWÓCH dostawców (Google i Facebook), a przy dwóch byłyby
      * cztery kolumny na `users` i dwa osobne CHECK-i „obie kolumny albo
      * żadna".
+     *
+     * @return HasMany<TozsamoscZewnetrzna, $this>
      */
     public function tozsamosciZewnetrzne(): HasMany
     {
         return $this->hasMany(TozsamoscZewnetrzna::class, 'user_id');
     }
 
-    /** Przeglądarki z włączonym Web Push (issue #35, D-303). */
+    /**
+     * Przeglądarki z włączonym Web Push (issue #35, D-303).
+     *
+     * @return HasMany<PushSubscription, $this>
+     */
     public function pushSubscriptions(): HasMany
     {
         return $this->hasMany(PushSubscription::class);
     }
 
-    /** Cisza nocna i limit kanałów poza serwisem; brak wiersza = domyślne (D-303). */
+    /**
+     * Cisza nocna i limit kanałów poza serwisem; brak wiersza = domyślne (D-303).
+     *
+     * @return HasOne<UstawieniaPowiadomienZewnetrznych, $this>
+     */
     public function ustawieniaPowiadomienZewnetrznych(): HasOne
     {
         return $this->hasOne(UstawieniaPowiadomienZewnetrznych::class);
@@ -1451,7 +1504,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * pierwszym przebiegu PO tej chwili — nigdy przed nią. Data podana
      * człowiekowi jest więc bezpieczna: do niej cofnięcie na pewno działa.
      */
-    public function deletionGraceEndsAt(): ?Carbon
+    public function deletionGraceEndsAt(): ?CarbonInterface
     {
         if ($this->status !== self::STATUS_PENDING_DELETE || $this->delete_requested_at === null) {
             return null;

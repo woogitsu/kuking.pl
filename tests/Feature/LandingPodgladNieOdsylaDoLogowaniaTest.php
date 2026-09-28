@@ -89,7 +89,7 @@ class LandingPodgladNieOdsylaDoLogowaniaTest extends TestCase
 
         $wynik = [];
         foreach ($wezly as $a) {
-            $wynik[trim(preg_replace('/\s+/u', ' ', $a->textContent))] = $a->getAttribute('href');
+            $wynik[trim(preg_replace('/\s+/u', ' ', $a->textContent))] = self::elementDom($a)->getAttribute('href');
         }
 
         return $wynik;
