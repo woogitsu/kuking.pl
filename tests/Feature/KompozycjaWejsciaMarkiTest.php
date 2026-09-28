@@ -50,7 +50,7 @@ class KompozycjaWejsciaMarkiTest extends TestCase
         // #1289: karta zeszytu nie udaje, że gość zajrzy do zeszytu bez konta,
         // a karta widoczności prowadzi do publicznej Pomocy, nie za logowanie.
         $this->assertSame(0, $dom->query('.//a', $cards->item(0))->length);
-        $this->assertSame(route('help').'#kto-widzi', $dom->query('.//a', $cards->item(1))->item(0)->getAttribute('href'));
+        $this->assertSame(route('help').'#kto-widzi', self::elementDom($dom->query('.//a', $cards->item(1))->item(0))->getAttribute('href'));
         $this->assertStringContainsString('przygotujemy ją i damy znać', $cards->item(2)->textContent);
         $this->assertStringContainsString('Otworzysz ją na swoim komputerze', $cards->item(2)->textContent);
         $this->assertSame(0, $dom->query('.//button|.//form', $cards->item(2))->length, 'Informacja nie może udawać wykonania eksportu.');

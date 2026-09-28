@@ -142,7 +142,7 @@ class BiuletynNieZabieraListowWejsciaTest extends TestCase
         $odpowiedz->assertRedirect(route('login.link'));
         Notification::assertNotSentTo($basia, LinkDoLogowania::class);
 
-        $komunikat = (string) $odpowiedz->getSession()->get('status', '');
+        $komunikat = (string) self::sesjaPrzekierowania($odpowiedz)->get('status', '');
 
         $this->assertStringContainsString('nie czekaj na niego', $komunikat);
         $this->assertStringContainsString('Zaloguj się hasłem', $komunikat);

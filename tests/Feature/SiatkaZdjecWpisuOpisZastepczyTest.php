@@ -86,10 +86,10 @@ class SiatkaZdjecWpisuOpisZastepczyTest extends TestCase
             foreach (range(1, $ile) as $numer) {
                 $zdjecie = $zdjecia->item($numer - 1);
                 $opis = 'Potrawa, ujęcie '.$numer;
-                $this->assertSame($opis, $zdjecie?->getAttribute('alt'));
-                $this->assertSame($numer === 1 ? '720' : '960', $zdjecie?->getAttribute('width'));
-                $this->assertSame($numer === 1 ? '960' : '540', $zdjecie?->getAttribute('height'));
-                $this->assertSame($opis, $linki->item($numer - 1)?->getAttribute('data-alt'));
+                $this->assertSame($opis, self::elementDom($zdjecie)->getAttribute('alt'));
+                $this->assertSame($numer === 1 ? '720' : '960', self::elementDom($zdjecie)->getAttribute('width'));
+                $this->assertSame($numer === 1 ? '960' : '540', self::elementDom($zdjecie)->getAttribute('height'));
+                $this->assertSame($opis, self::elementDom($linki->item($numer - 1))->getAttribute('data-alt'));
             }
         }
     }

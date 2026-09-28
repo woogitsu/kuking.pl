@@ -52,16 +52,14 @@ class SzynaGosciaTest extends TestCase
     /** Klasa na <body> — steruje szerokością belki i stopki. */
     private const KLASA_BELKI = 'uklad-solo-z-szyna';
 
-    /** @return array<string, string> nazwa widoku => klasy z atrybutu `.app-body` */
+    /** Klasy z atrybutu `.app-body`, ze spacją na początku i końcu (do szukania całych słów). */
     private function klasyUkladu(string $html): string
     {
         $dom = new \DOMDocument;
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
 
         $xpath = new \DOMXPath($dom);
-        $body = $xpath->query("//div[contains(concat(' ', normalize-space(@class), ' '), ' app-body ')]")->item(0);
-
-        $this->assertNotNull($body, 'W dokumencie nie ma elementu .app-body — układ strony się zmienił.');
+        $body = self::elementDom($xpath->query("//div[contains(concat(' ', normalize-space(@class), ' '), ' app-body ')]")->item(0), 'W dokumencie nie ma elementu .app-body — układ strony się zmienił.');
 
         return ' '.preg_replace('/\s+/', ' ', (string) $body->getAttribute('class')).' ';
     }

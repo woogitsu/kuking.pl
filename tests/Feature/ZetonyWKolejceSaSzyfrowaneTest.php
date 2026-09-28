@@ -17,7 +17,6 @@ use Illuminate\Notifications\Notification as Powiadomienie;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -102,7 +101,7 @@ class ZetonyWKolejceSaSzyfrowaneTest extends TestCase
         $this->assertSame(0, DB::table('failed_jobs')->count(), 'Worker nie odczytał zaszyfrowanego zadania.');
         $this->assertSame(0, DB::table('jobs')->count());
 
-        $wyslane = Mail::mailer('array')->getSymfonyTransport()->messages();
+        $wyslane = self::transportTablicowy()->messages();
 
         $this->assertCount(1, $wyslane);
         $this->assertStringContainsString(self::ZETON, $wyslane->first()->toString());
