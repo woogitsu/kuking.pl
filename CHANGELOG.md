@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Kreator przepisu: gdy podsumowanie błędów wskazuje wybór „Jak trudny jest ten przepis?”, „Kto ma widzieć ten przepis?” albo „Ten przepis jest…”, kliknięcie komunikatu przenosi teraz do tej grupy i ustawia na niej fokus, a komunikat jest odczytywany razem z grupą. Wcześniej odnośnik nie prowadził nigdzie. Karta z kreatorem otwarta przed tą zmianą poprosi o odświeżenie strony, zamiast zapisać przepis ze zgubionymi ustawieniami; wszystko, co zapisało się wcześniej, zostaje (#1387).
+
 ## Alfa 0.75 — szukanie w wykonaniach i pewniejsze „Ugotowałem”
 
 - Podgląd przepisu bez składników wyjaśnia teraz spokojnie, że można je dopisać później; nie pokazuje braku składników jako błędu, bo nie blokuje on publikacji (#1991).
