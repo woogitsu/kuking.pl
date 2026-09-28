@@ -236,6 +236,7 @@ RUN install-php-extensions \
       > /tmp/apt-snapshot/snapshot.list \
   && apt-get -o Dir::Etc::sourcelist=/tmp/apt-snapshot/snapshot.list -o Dir::Etc::sourceparts=/tmp/apt-snapshot/puste update \
   && apt-get -o Dir::Etc::sourcelist=/tmp/apt-snapshot/snapshot.list -o Dir::Etc::sourceparts=/tmp/apt-snapshot/puste install -y --no-install-recommends \
+      poppler-utils \
       tini \
   && rm -rf /var/lib/apt/lists/* /tmp/apt-snapshot
 #  tini              → poprawny init w PID 1 (reaping zombie, przekazywanie sygnałów)

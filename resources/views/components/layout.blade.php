@@ -1193,7 +1193,7 @@
                     <nav class="site-footer-grupa" aria-label="O serwisie">
                         <p class="site-footer-naglowek" aria-hidden="true">O serwisie</p>
                         <ul>
-                            <li><a href="{{ route('about') }}">O <x-kuking-word /></a></li>
+                            <li><a href="{{ route('about') }}"><span>O <x-kuking-word /></span></a></li>
                             <li><a href="{{ route('rules') }}">Zasady</a></li>
                         </ul>
                     </nav>
