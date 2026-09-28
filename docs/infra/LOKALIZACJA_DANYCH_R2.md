@@ -441,9 +441,13 @@ kroki 2 i 2a są zamiarem, a nie stanem:
 ### Czego świadomie NIE rekomendujemy
 
 - **Rygla na buckecie oryginałów** — powód wyżej;
-- **wersjonowania obiektów zamiast kopii** — R2 trzyma wtedy stare wersje
-  w TYM SAMYM buckecie i pod tymi samymi poświadczeniami, więc token z prawem
-  zapisu nadal je dosięga. To nie chroni przed scenariuszem z #617;
+- **wersjonowania obiektów zamiast kopii** — R2 nie oferuje wersjonowania
+  w stylu S3 `[do potwierdzenia w dokumentacji Cloudflare: tabela zgodności
+  API S3]`, więc nie ma czego „włączyć". Gdyby było (S3, MinIO), stare wersje
+  leżałyby w TYM SAMYM buckecie, a ich usunięcie zależy od osobnego prawa
+  (`DeleteObjectVersion`) i od retencji — sam zapis nie oznacza kasowania
+  wersji, ale token z pełnym dostępem do bucketu zwykle je ma. To nie chroni
+  przed scenariuszem z #617 tak, jak osobny bucket kopii z ryglem;
 - **nazywania trwałości R2 kopią zapasową.** Jedenaście dziewiątek dotyczy
   awarii nośnika, a nie poprawnie wykonanego `DELETE` (wariant C z #617 wolno
   wybrać, ale trzeba go wtedy **nazwać** akceptacją ryzyka, z datą powrotu);
