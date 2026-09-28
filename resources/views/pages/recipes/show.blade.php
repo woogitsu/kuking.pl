@@ -4,6 +4,12 @@
     // Jedna odpowiedź na „ile porcji" dla znaczka i dla structured data
     // (audyt A28) — dwa osobne teksty to dwie okazje do rozjazdu.
     $porcje = $recipe->servingsLabel();
+    $parametrPorcjiGotowania = $wyborPorcji->przeliczone()
+        ? $wyborPorcji->doAdresu((float) $wyborPorcji->wybrane)
+        : null;
+    $adresGotowania = route('cooking.show', array_filter([
+        'recipe' => $recipe->slug, 'porcje' => $parametrPorcjiGotowania,
+    ], fn ($wartosc) => $wartosc !== null));
     // Dokąd iść po wymianę odrzuconego zdjęcia (#752). Pyta Policy, tak jak
     // przycisk edycji niżej — przepis ukryty przez moderację edycji nie ma.
     // Konto zawieszone edycję otworzy, ale jej nie zapisze
@@ -480,7 +486,7 @@
                     z czytelnym komunikatem, gdyby ktoś trafił tu wprost.
                 --}}
                 @if($recipe->steps->isNotEmpty())
-                    <a class="btn btn-secondary" href="{{ route('cooking.show', $recipe->slug) }}">Gotuję — pokaż kroki na cały ekran</a>
+                    <a class="btn btn-secondary" href="{{ $adresGotowania }}">Gotuję — pokaż kroki na cały ekran</a>
                 @endif
             </div>
 

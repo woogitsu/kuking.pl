@@ -3,6 +3,10 @@
        początku (`\App\Models\Recipe::DIFFICULTY_LABELS` niżej). */
     $isEdit = $recipe !== null;
     $action = $isEdit ? route('recipes.update', $recipe->slug) : route('recipes.store');
+    $stareZdjecia = old('zachowane_zdjecia', []);
+    $zachowaneZdjecia = \App\Domain\Media\ZachowaneZdjeciaPrzepisu::przyjete(
+        is_array($stareZdjecia) ? $stareZdjecia : [], auth()->id()
+    );
 
     $oldIngredients = old('ingredients', $isEdit ? $recipe->ingredients->map(fn ($i) => ['text' => $i->ingredient_text, 'group_name' => $i->group_name, 'note' => $i->note, 'substitutes' => $i->substitutes, 'no_amount' => $i->no_amount])->all() : []);
 
@@ -125,12 +129,25 @@
     @endif
 
     @php
+        // Szkic z importu (D-300): baner, zablokowane źródło, „Sprawdziłem”.
+        $pochodzenie = $isEdit ? \App\Models\PrzepisZImportu::query()->find($recipe->getKey()) : null;
+        $wymagaSprawdzenia = $pochodzenie !== null && ! $pochodzenie->sprawdzony() && ! $recipe->isPublished();
+        $ostrzezeniePodobienstwa = $wymagaSprawdzenia && app(\App\Domain\Import\PodobienstwoDoZrodla::class)
+            ->ostrzegac($recipe, $recipe->steps->pluck('instruction')->implode("\n"));
         // Szkic z odczytu zdjęcia kartki (V2, D-298): baner, zdjęcie nad
         // polami i „Odczytany tekst jest sprawdzony” przed publikacją — ta sama
         // bramka co w kreatorze, bo obie drogi kończą w `PublishRecipe`.
         $zOdczytu = $isEdit && $recipe->status === \App\Models\Recipe::STATUS_DRAFT
             && \App\Domain\Import\BramkaPublikacjiOdczytu::maOdczyt($recipe);
     @endphp
+    @if($pochodzenie !== null && ! $recipe->isPublished())
+        <div class="notice" role="note">
+            <p class="mt-0 mb-0">
+                <strong>Ten tekst odczytał komputer.</strong>
+                Porównaj każdą linijkę ze źródłem i popraw, co trzeba. Nic się nie opublikuje, dopóki nie klikniesz „Opublikuj przepis”.
+            </p>
+        </div>
+    @endif
 
     <x-error-summary />
 
@@ -193,6 +210,7 @@
                  resources/css/ekran-dodawania.css. --}}
             <div class="field @error('hero_photo') has-error @enderror">
                 <span class="pole-zdjecia-nazwa" id="f-hero_photo-etykieta">Zdjęcie gotowego dania</span>
+                @include('pages.recipes.partials.zachowane-zdjecie', ['klucz' => 'hero'])
                 <input class="visually-hidden pole-zdjecia-input" id="f-hero_photo" type="file" name="hero_photo"
                        accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                        aria-labelledby="f-hero_photo-etykieta f-hero_photo-tytul"
@@ -292,7 +310,7 @@
                 <div class="choice-grid">
                     @foreach(\App\Models\Recipe::SOURCE_LABELS as $value => $label)
                         <label class="choice">
-                            <input type="radio" name="source_type" value="{{ $value }}"
+                            <input type="radio" name="source_type" value="{{ $value }}" @disabled(($pochodzenie?->zrodlo ?? null) === 'url')
                                    @checked(old('source_type', $isEdit ? $recipe->source_type : 'own') === $value)>
                             <span class="choice-label">{{ $label }}</span>
                         </label>
@@ -330,6 +348,7 @@
                  bezpośrednio przed nią. --}}
             <div class="field @error('source_scan') has-error @enderror">
                 <span class="pole-zdjecia-nazwa" id="f-source_scan-etykieta">Zdjęcie starej kartki albo zeszytu</span>
+                @include('pages.recipes.partials.zachowane-zdjecie', ['klucz' => 'scan'])
                 <input class="visually-hidden pole-zdjecia-input" id="f-source_scan" type="file" name="source_scan"
                        accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                        aria-labelledby="f-source_scan-etykieta f-source_scan-tytul"
@@ -524,6 +543,7 @@
 
                     <div class="field @error("steps.$i.photo") has-error @enderror">
                         <span class="pole-zdjecia-nazwa" id="f-steps-{{ $i }}-photo-etykieta">Zdjęcie do tego kroku <span class="meta">(nieobowiązkowe)</span></span>
+                        @include('pages.recipes.partials.zachowane-zdjecie', ['klucz' => 'step_'.$i])
 
                         @if($zdjecieKroku)
                             {{-- Zdjęcie, które ten krok już ma. Zostaje przy nim
@@ -575,6 +595,24 @@
                 </fieldset>
             @endforeach
         </section>
+
+        @if($wymagaSprawdzenia)
+            @if($ostrzezeniePodobienstwa)
+                <div class="notice" role="note">
+                    <p class="mt-0 mb-0">
+                        <strong>Opis przygotowania jest prawie taki sam jak na stronie źródłowej.</strong>
+                        Napisz go własnymi słowami, zanim opublikujesz — cudzy tekst należy do jego autora.
+                    </p>
+                </div>
+            @endif
+            <div class="field @error('sprawdzilem_odczyt') has-error @enderror">
+                <label class="choice">
+                    <input type="checkbox" name="sprawdzilem_odczyt" value="1" id="f-sprawdzilem_odczyt" @checked(old('sprawdzilem_odczyt'))>
+                    <span class="choice-label">Sprawdziłem odczytany tekst</span>
+                </label>
+                <span class="field-help">Zaznacz, gdy porównasz składniki i kroki ze źródłem. Bez tego przepis zapisze się tylko jako szkic.</span>
+            </div>
+        @endif
 
         @if($zOdczytu)
             <div class="field mt-4 @error('odczyt_sprawdzony') has-error @enderror">

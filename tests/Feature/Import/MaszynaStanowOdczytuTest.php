@@ -52,8 +52,8 @@ final class MaszynaStanowOdczytuTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** Najgorszy przypadek z cennika testu: 6000 × 2 + 8000 × 8. */
-    private const REZERWACJA = 76_000;
+    /** Całe okno modelu w droższej taryfie: 1 050 000 × 2 × 2 + 8000 × 8 × 1,5. */
+    private const REZERWACJA = 4_296_000;
 
     /** Koszt z `usage` atrapy: 1000 × 2 + 500 × 8. */
     private const KOSZT_Z_USAGE = 6_000;

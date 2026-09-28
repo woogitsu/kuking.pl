@@ -4,16 +4,22 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Recipes;
 
+use App\Domain\Media\Actions\StoreUploadedImage;
+use App\Domain\Media\ZachowaneZdjeciaPrzepisu;
 use App\Domain\Recipes\KosztPrzepisu;
 use App\Domain\Recipes\StepTimer;
 use App\Domain\Recipes\TekstNaWiersze;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Recipe;
+use App\Models\User;
 use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityTekstuPrzepisu;
 use App\Support\LimityZdjec;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Validator as ValidatorFactory;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -33,6 +39,98 @@ use Illuminate\Validation\ValidationException;
  */
 final class ZapisPrzepisuRequest extends FormRequest
 {
+    /** @var array<string, string>|null */
+    private ?array $przyjeteZdjecia = null;
+
+    /**
+     * FormRequest odrzuca błędne pola przed wejściem do kontrolera. Przy
+     * błędzie innego pola przyjmujemy poprawne pliki do `media`, zanim
+     * Laravel odeśle formularz; `old()` przeniesie już tylko ich UUID-y.
+     */
+    protected function failedValidation(Validator $validator)
+    {
+        $this->zachowajZdjecia($validator);
+
+        // Handler dostaje pierwotny Request, nie tę instancję FormRequest.
+        // Bez jawnego response odczytałby wejście sprzed dopisania UUID-ów.
+        throw new ValidationException($validator, redirect($this->getRedirectUrl())
+            ->withInput($this->input())
+            ->withErrors($validator->errors(), $this->errorBag));
+    }
+
+    /**
+     * @return array<string, string> `hero`, `scan` i `step_{numer wiersza}`
+     */
+    public function zachowajZdjecia(?Validator $validator = null): array
+    {
+        if ($this->przyjeteZdjecia !== null) {
+            return $this->przyjeteZdjecia;
+        }
+
+        $autor = $this->user();
+        if (! $autor instanceof User) {
+            return $this->przyjeteZdjecia = [];
+        }
+
+        $surowe = $this->input('zachowane_zdjecia', []);
+        $wlasne = ZachowaneZdjeciaPrzepisu::przyjete(is_array($surowe) ? $surowe : [], $autor->getKey());
+        $ids = [];
+        foreach ($wlasne as $pole => $zdjecie) {
+            if ($this->boolean('usun_zachowane.'.$pole)) {
+                continue;
+            }
+            if (str_starts_with((string) $pole, 'step_') && $this->boolean('steps.'.substr((string) $pole, 5).'.remove_photo')) {
+                continue;
+            }
+            $ids[$pole] = (string) $zdjecie->getKey();
+        }
+
+        $pliki = ['hero' => 'hero_photo', 'scan' => 'source_scan'];
+        $kroki = $this->file('steps', []);
+        if (is_array($kroki)) {
+            foreach ($kroki as $index => $row) {
+                if (is_array($row) && ($row['photo'] ?? null) instanceof UploadedFile
+                    && trim((string) $this->input("steps.{$index}.instruction")) !== '') {
+                    $pliki['step_'.$index] = "steps.{$index}.photo";
+                }
+            }
+        }
+
+        // To samo ograniczenie co w `daneZapisu()`: nie osieracamy plików,
+        // gdy formularz przyniósł więcej zdjęć kroków niż wolno zapisać.
+        $ileKrokow = count(array_filter(array_keys($pliki), static fn (string $pole): bool => str_starts_with($pole, 'step_')));
+        if ($ileKrokow > LimityZdjec::maksZdjecKrokowNaZapis()) {
+            $pliki = array_filter($pliki, static fn (string $pole): bool => ! str_starts_with($pole, 'steps.'));
+        }
+
+        foreach ($pliki as $klucz => $pole) {
+            $plik = $this->przeslanyPlik($pole);
+            if ($plik === null || $validator?->errors()->has($pole)) {
+                continue;
+            }
+
+            try {
+                $ids[$klucz] = (string) app(StoreUploadedImage::class)->handle($autor, $plik)->getKey();
+            } catch (BladDlaCzlowieka $e) {
+                if ($validator !== null) {
+                    $validator->errors()->add($pole, $e->getMessage());
+
+                    continue;
+                }
+                $this->merge(['zachowane_zdjecia' => $ids]);
+                $blad = ValidatorFactory::make([], []);
+                $blad->errors()->add($pole, $e->getMessage());
+                throw new ValidationException($blad, redirect($this->getRedirectUrl())
+                    ->withInput($this->input())
+                    ->withErrors($blad->errors(), $this->errorBag));
+            }
+        }
+
+        $this->merge(['zachowane_zdjecia' => $ids]);
+
+        return $this->przyjeteZdjecia = $ids;
+    }
+
     /**
      * KOLEJNOŚĆ: POLICY PRZED WALIDACJĄ — tak jak w kontrolerze przed #970.
      *
@@ -119,6 +217,9 @@ final class ZapisPrzepisuRequest extends FormRequest
             'cook_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'difficulty' => ['nullable', 'in:easy,medium,hard'],
             'visibility' => ['required', 'in:public,followers,private'],
+            // „Sprawdziłem odczytany tekst” — tylko szkic z importu (D-300);
+            // czy jest wymagane, rozstrzyga `StrazImportu` w `PublishRecipe`.
+            'sprawdzilem_odczyt' => ['nullable', 'boolean'],
             /*
              * `nullable`, nie `required` (issue #364). Ekran dodawania nie
              * pyta „ten przepis jest…" — to jedno z dziewięciu kółek wyboru,
@@ -275,7 +376,7 @@ final class ZapisPrzepisuRequest extends FormRequest
         $zdjeciaKrokow = 0;
 
         foreach (array_keys($data['steps'] ?? []) as $index) {
-            if ($this->hasFile("steps.{$index}.photo")) {
+            if (isset($this->zachowajZdjecia()['step_'.$index]) || $this->hasFile("steps.{$index}.photo")) {
                 $zdjeciaKrokow++;
             }
         }
@@ -404,6 +505,7 @@ final class ZapisPrzepisuRequest extends FormRequest
             'family_since_year' => $data['family_since_year'] ?? null,
             // Bramka publikacji wymaga potwierdzenia tekstu odczytanego z kartki.
             'odczyt_sprawdzony' => (bool) ($data['odczyt_sprawdzony'] ?? false),
+            'sprawdzilem_odczyt' => $this->boolean('sprawdzilem_odczyt'),
         ];
 
         // Koszt tylko wtedy, gdy formularz ma to pole (szczegóły tak, ekran
