@@ -1793,7 +1793,9 @@ całkowitego i nie trafia do szybkich wyników. Bez zmiany schematu.
 **`tresc_zmieniona_at` — data zmiany treści, nie zapisu wiersza** (#2014,
 migracja `2026_09_28_210000_add_tresc_zmieniona_at_to_recipes`).
 
-    ALTER TABLE recipes ADD COLUMN tresc_zmieniona_at timestamptz NULL;
+```sql
+ALTER TABLE recipes ADD COLUMN tresc_zmieniona_at timestamptz NULL;
+```
 
 Ustawia ją wyłącznie `PublishRecipe` (kolumna poza `$fillable`): przy
 pierwszej publikacji równą `published_at`, potem `now()` tylko wtedy, gdy
@@ -1815,6 +1817,7 @@ człowieka. Po ponownym `up()` wraca `NULL`, czyli stan, w którym JSON-LD
 pomija opcjonalne pole — nic nie odwraca się w stronę nieprawdy; traci się
 tylko dokładność `dateModified` do następnej zmiany treści. Pilnuje
 `tests/Feature/CofniecieDatyZmianyTresciPrzepisuTest.php`.
+
 **`forked_from_id`, `forked_at` — „Moja wersja", przepis na podstawie
 cudzego** (issue #23, D-301, migracja `2026_09_26_100000_add_forked_from_to_recipes`).
 

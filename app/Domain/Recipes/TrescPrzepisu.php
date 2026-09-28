@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\DB;
  * (źródło `dateModified` w JSON-LD). Dlatego odcisk NIE obejmuje stanu
  * przepisu ani jego obiegu: `status`, `visibility`, `published_at`,
  * `content_revision`, `slug` i znaczników czasu. Zmiana widoczności,
- * moderacja i zapis bez zmian nie są zmianą treści.
+ * moderacja i zapis bez zmian nie są zmianą treści. Poza odciskiem jest też
+ * `pokazuj_wartosci_odzywcze` — to ustawienie wyświetlania, nie treść przepisu.
  *
  * Obejmuje natomiast zdjęcia (główne, skan źródła, zdjęcia kroków) — czego
  * migawka wersji (`SnapshotRecipeVersion`) nie robi, więc to nie jest ta

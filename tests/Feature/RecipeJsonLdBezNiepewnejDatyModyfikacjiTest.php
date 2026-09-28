@@ -47,6 +47,37 @@ class RecipeJsonLdBezNiepewnejDatyModyfikacjiTest extends TestCase
         $this->assertSame('2026-09-01', $dane['dateModified'] ?? null);
     }
 
+    public function test_poprawki_szkicu_przed_pierwsza_publikacja_nie_sa_modyfikacja(): void
+    {
+        // Szkic → poprawka szkicu (zmiana treści) → pierwsza publikacja.
+        $this->travelTo(Carbon::parse(self::T_PUBLIKACJA, 'UTC'));
+        $autorka = $this->user('zofia2014');
+        $zdjecie = Media::factory()->create(['owner_id' => $autorka->getKey()]);
+        $szkic = app(PublishRecipe::class)->handle(
+            author: $autorka,
+            attributes: ['title' => 'Rosol babci Zofii', 'summary' => 'Pierwszy zarys.', 'visibility' => 'public', 'source_type' => 'own', 'hero_media_id' => (string) $zdjecie->getKey()],
+            ingredients: [['text' => '1 kurczak']],
+            steps: [['instruction' => 'Zalej woda i gotuj powoli.']],
+            publish: false,
+        );
+
+        $this->travelTo(Carbon::parse(self::T_ZMIANA_TRESCI, 'UTC'));
+        $this->zapisz($autorka, $szkic, opis: 'Rosol na niedziele.', publish: false);
+        // Kontrola dodatnia: poprawka szkicu była zmianą treści i zostawiła ślad.
+        $this->assertDataZmiany(self::T_ZMIANA_TRESCI, $szkic);
+
+        $this->travelTo(Carbon::parse('2026-09-07 10:00:00', 'UTC'));
+        $this->zapisz($autorka, $szkic, publish: true);
+
+        $przepis = Recipe::findOrFail($szkic->getKey());
+        $this->assertSame(Recipe::STATUS_PUBLISHED, $przepis->status);
+        $this->assertTrue($przepis->published_at->equalTo(Carbon::parse('2026-09-07 10:00:00', 'UTC')));
+        $this->assertTrue($przepis->tresc_zmieniona_at?->equalTo($przepis->published_at), 'Pierwsza publikacja ma zrównać datę zmiany treści z datą publikacji.');
+        $dane = $this->recipeJsonLd($przepis);
+        $this->assertSame('2026-09-07', $dane['datePublished'] ?? null);
+        $this->assertSame($dane['datePublished'] ?? null, $dane['dateModified'] ?? null);
+    }
+
     public function test_zmiana_tresci_podaje_date_tej_zmiany(): void
     {
         [$autorka, $przepis] = $this->opublikowanyPrzepis();
