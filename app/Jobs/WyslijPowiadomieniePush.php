@@ -58,6 +58,9 @@ use Illuminate\Support\Str;
  *    WYŁĄCZNIE dostarczenie do urządzeń, które go jeszcze nie dostały
  *    (`$pominieteSubskrypcje` rośnie o te, które już się udały) — udane
  *    urządzenie nie dostaje drugiej kopii tego samego pushu;
+ *  - przed ponowieniem aktualna widoczność i stan odczytu są sprawdzane
+ *    ponownie; retry wysyła neutralną treść bez zapamiętanego imienia
+ *    i tytułu, a odrzucone wiersze zamyka jako niewysłane (#2052);
  *  - po `kuking.notifications.zewnetrzne.push_maks_prob_transportu` próbach
  *    transportu rezygnujemy z automatycznego ponawiania (push jest
  *    szturchnięciem, nie listem poleconym — powiadomienie w serwisie i tak
@@ -86,9 +89,9 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
      *                                         w `zaplanuj()`; niepuste znaczy „ponowienie
      *                                         po błędzie transportu", które pomija ciszę
      *                                         nocną i dzienny limit (już raz rozstrzygnięte).
-     * @param  string|null  $tresc  Treść pushu ZAMROŻONA z pierwszej próby — ponowienie nie
-     *                              przelicza jej na nowo, żeby nie zmieniło się w trakcie
-     *                              (np. inna liczba zgrupowanych powiadomień).
+     * @param  string|null  $tresc  Dawna treść pierwszej próby; retry jej nie
+     *                              używa, bo po zmianie widoczności mogłaby
+     *                              ujawnić imię lub tytuł przepisu (#2052).
      * @param  list<string>  $pominieteSubskrypcje  ID subskrypcji, które już dostały TĘ
      *                                              grupę — nie próbujemy ich drugi raz.
      * @param  int  $probaTransportu  Która to próba DOSTARCZENIA (nie: cisza/limit).
@@ -121,8 +124,19 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
         }
 
         $user = User::with('ustawieniaPowiadomienZewnetrznych')->find($this->userId);
+        $ponowienie = $this->notificationIds !== [];
 
-        if ($user === null || ! $user->mozeCzytac()) {
+        if ($user === null) {
+            return;
+        }
+
+        if (! $user->mozeCzytac()) {
+            if ($ponowienie) {
+                DB::transaction(function () use ($user): void {
+                    $this->zakonczProby($this->kwalifikujPonowienie($user));
+                });
+            }
+
             return;
         }
 
@@ -130,26 +144,9 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
             ->when($this->pominieteSubskrypcje !== [], fn ($q) => $q->whereNotIn('id', $this->pominieteSubskrypcje))
             ->get();
 
-        $ponowienie = $this->notificationIds !== [];
-
         if ($ponowienie) {
-            // Stary job nie może dostarczyć grupy po zwolnieniu jej slotu.
-            // Zaległe rezerwacje liczymy przez 48 h, także przez północ.
-            $grupa = Notification::query()
-                ->where('user_id', $user->getKey())
-                ->whereKey($this->notificationIds)
-                ->whereNotNull('push_proba_at')
-                ->whereNull('push_wyslano_at')
-                ->whereNull('push_zakonczono_at');
-            $liczba = (clone $grupa)->count();
-            $zarezerwowano = (clone $grupa)->min('push_proba_at');
-            if ($liczba !== count($this->notificationIds) || $zarezerwowano === null) {
-                return;
-            }
-
-            if (CarbonImmutable::parse($zarezerwowano)->lessThan(CarbonImmutable::now()->subHours(48))) {
-                $this->zakonczProby($this->notificationIds);
-
+            $this->notificationIds = DB::transaction(fn (): array => $this->kwalifikujPonowienie($user));
+            if ($this->notificationIds === []) {
                 return;
             }
         }
@@ -166,7 +163,10 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
         }
 
         if ($ponowienie) {
-            $tresc = (string) $this->tresc;
+            // Stan może zmienić się także po ponownym odczycie, przed I/O.
+            // Retry niesie tylko neutralne szturchnięcie, bez starego imienia
+            // aktora i tytułu przepisu z pierwszej próby.
+            $tresc = (string) json_encode(TrescPush::neutralna(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         } else {
             $teraz = CarbonImmutable::now();
             $plan = DB::transaction(fn (): ?array => $this->zaplanuj($user, $subskrypcje->min('created_at'), $teraz));
@@ -231,6 +231,54 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
             [...$this->pominieteSubskrypcje, ...$udaneId],
             $this->probaTransportu + 1,
         )->delay(CarbonImmutable::now()->addSeconds($opoznienieSekund));
+    }
+
+    /**
+     * Pod blokadą odbiorcy ponownie sprawdza aktualne powiadomienia grupy.
+     * Odpadające zamyka, żeby nie udawały wysłanych ani nie wisiały wiecznie.
+     *
+     * @return list<string>
+     */
+    private function kwalifikujPonowienie(User $user): array
+    {
+        DB::selectOne(
+            'SELECT pg_advisory_xact_lock('.self::PRZESTRZEN_BLOKAD.', hashtext(?))',
+            [(string) $user->getKey()],
+        );
+
+        $id = array_values(array_filter($this->notificationIds, static fn (mixed $id): bool => is_string($id) && Str::isUuid($id)));
+        $grupa = Notification::query()
+            ->where('user_id', $user->getKey())
+            ->whereKey($id)
+            ->whereNotNull('push_proba_at')
+            ->whereNull('push_wyslano_at')
+            ->whereNull('push_zakonczono_at')
+            ->get();
+
+        if ($grupa->isEmpty()) {
+            return [];
+        }
+
+        $idGrupy = array_map(strval(...), $grupa->modelKeys());
+        $zarezerwowano = $grupa->min('push_proba_at');
+        if ($zarezerwowano === null || CarbonImmutable::parse($zarezerwowano)->lessThan(CarbonImmutable::now()->subHours(48))) {
+            $this->zakonczProby($idGrupy);
+
+            return [];
+        }
+
+        $widoczne = Notification::query()
+            ->where('notifications.user_id', $user->getKey())
+            ->whereKey($idGrupy)
+            ->visibleTo($user)
+            ->whereNull('notifications.read_at')
+            ->whereIn('notifications.type', KanalPush::TYPY)
+            ->get()
+            ->filter(fn (Notification $n): bool => KanalPush::dotyczy($n->type, is_array($n->data) ? $n->data : []));
+        $aktualneId = array_map(strval(...), $widoczne->modelKeys());
+        $this->zakonczProby(array_values(array_diff($idGrupy, $aktualneId)));
+
+        return $aktualneId;
     }
 
     /**
