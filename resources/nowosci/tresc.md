@@ -27,7 +27,16 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
-Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
+To, co już działa, ale nie ma jeszcze numeru wydania.
+
+### Szukajcie w zeszytach także po składniku
+
+Pole „Szukaj w moich zeszytach” znajduje teraz zapisane przepisy nie tylko po
+tytule, ale i po składniku — wpiszcie na przykład „cukinia”, a zobaczycie
+przepisy z Waszych zeszytów, w których cukinia jest na liście składników. Gdy
+tytuł nie zawiera wpisanego słowa, pod wynikiem stoi „Pasuje przez składnik”.
+Polskie znaki nadal nie mają znaczenia, a widzicie tylko te przepisy, które
+możecie dziś otworzyć.
 
 ### Co mam w domu i co z tego ugotuję
 
@@ -240,8 +249,8 @@ różne notatki. Żeby ją usunąć, wystarczy wyczyścić pole i zapisać.
 ### Szukajcie we własnych zeszytach
 
 Na ekranie „Twój zeszyt” jest pole „Szukaj w moich zeszytach”. Wystarczy
-wpisać kawałek tytułu przepisu, żeby go znaleźć wśród swoich zapisów, bez
-pamiętania, do którego zeszytu trafił — przy każdym wyniku widać zeszyty,
+wpisać kawałek tytułu przepisu albo składnika, żeby go znaleźć wśród swoich
+zapisów, bez pamiętania, do którego zeszytu trafił — przy każdym wyniku widać zeszyty,
 w których leży. Polskie znaki nie mają znaczenia.
 
 ### Dopiszcie przepis do własnego wpisu
