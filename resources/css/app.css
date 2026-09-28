@@ -6058,6 +6058,13 @@
     overflow-wrap: anywhere;
 }
 
+/* Wiersz progów czasu (#1997) stoi pod widoczną etykietą „Ile masz
+   czasu?" — bez dużego górnego odstępu `.chipsy`, żeby etykieta i jej
+   chipsy czytały się jako jedna grupa, a nie dwa osobne bloki. */
+.chipsy.chipsy-czasu {
+  margin-top: var(--spacing-2);
+}
+
 .chip:hover {
   background-color: var(--color-surface-sunken);
 }

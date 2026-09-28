@@ -29,6 +29,13 @@ class SearchController extends Controller
      */
     private const MAKS = 200;
 
+    /**
+     * Progi czasu całkowitego w minutach (`?czas=`, issue #1997). Brak
+     * parametru = bez limitu. Czas liczy `Recipe::scopeGotoweWCiagu()` —
+     * przepis bez podanego czasu nie trafia do żadnego progu.
+     */
+    public const PROGI_CZASU = [15, 30, 60];
+
     public function __construct(
         private readonly SearchQuery $search,
         // Etap D kitu v2 (ekran 03) — prawa szyna obok wyników. Kit rysuje
@@ -60,7 +67,8 @@ class SearchController extends Controller
         // GET renderuje błąd w miejscu, bez przekierowania na ten sam długi URL.
         $searchErrors = SearchQuery::phraseValidator($phrase)->errors();
 
-        // ZAKRESY WEDŁUG KITU (ekran 03): Wszystko / Przepisy / Ludzie / Do 30 minut.
+        // ZAKRESY WEDŁUG KITU (ekran 03): Wszystko / Przepisy / Ludzie / Do 20 zł;
+        // czas przygotowania jest osobnym wierszem progów (#1997, niżej).
         //
         // Domyślnie „wszystko" — człowiek, który wpisał „pierogi", nie wie
         // jeszcze, czy szuka przepisu, czy osoby, która je robi. Wymuszanie
@@ -70,20 +78,46 @@ class SearchController extends Controller
         // przeszukuje składniki wewnątrz przepisów (`recipe_ingredients`
         // w SearchQuery), więc osobny zakres sugerowałby, że gdzie indziej
         // ich nie szuka — a to nieprawda.
-        $section = match ($request->query('sekcja')) {
+        $sekcjaSurowa = $request->query('sekcja');
+        $section = match ($sekcjaSurowa) {
             'ludzie' => 'ludzie',
-            'przepisy' => 'przepisy',
-            'szybkie' => 'szybkie',
+            // Stary zakres „Do 30 minut" (sprzed #1997) to dziś „Przepisy"
+            // z `czas=30`. Adres zostaje ważny: linki w zakładkach, wysłane
+            // komuś i propozycje pilota AI (`sekcja=szybkie`) dalej działają.
+            'przepisy', 'szybkie' => 'przepisy',
             'tanie' => 'tanie',
             default => 'wszystko',
         };
 
-        // „Do 30 minut" to zakres przepisów z dodatkowym warunkiem, nie
-        // osobny rodzaj treści.
-        $maksMinut = $section === 'szybkie' ? 30 : null;
-        // „Do 20 zł" tak samo: przepisy z kosztem wg autora (D-286).
+        // CZAS PRZYGOTOWANIA (issue #1997): jawne progi zamiast jednego chipa.
+        //
+        // Czas to warunek NA PRZEPISY, nie osobny rodzaj treści — dlatego
+        // stoi obok zakresu, a nie w nim. Wybrany próg zawęża „Przepisy"
+        // i „Do 20 zł"; „Wszystko" z progiem staje się „Przepisy", bo
+        // ludzie nie mają czasu przygotowania, a pokazanie ich obok
+        // przefiltrowanych przepisów mówiłoby, że filtr ich też dotyczy.
+        // Na „Ludziach" próg nie ma czego zawężać i jest pomijany.
+        //
+        // Nieznana wartość (`czas=45`, `czas=abc`, `czas[]=…`) NIE filtruje
+        // po cichu najbliższym progiem ani nie daje 500: wyniki są bez
+        // limitu, a ekran mówi to wprost (`$czasNieznany`).
+        $czasSurowy = $request->query('czas');
+        $maksMinut = is_string($czasSurowy) && in_array($czasSurowy, array_map('strval', self::PROGI_CZASU), true)
+            ? (int) $czasSurowy
+            : null;
+        if ($maksMinut === null && $sekcjaSurowa === 'szybkie') {
+            $maksMinut = 30;
+        }
+        $czasNieznany = $maksMinut === null && $czasSurowy !== null && $czasSurowy !== '';
+        if ($section === 'ludzie') {
+            $maksMinut = null;
+            $czasNieznany = false;
+        } elseif ($maksMinut !== null && $section === 'wszystko') {
+            $section = 'przepisy';
+        }
+        // „Do 20 zł" to przepisy z kosztem wg autora (D-286).
         $maksKosztZl = $section === 'tanie' ? KosztPrzepisu::TANIE_DO : null;
-        $szukaPrzepisow = in_array($section, ['wszystko', 'przepisy', 'szybkie', 'tanie'], true);
+        $szukaPrzepisow = in_array($section, ['wszystko', 'przepisy', 'tanie'], true);
         $szukaLudzi = in_array($section, ['wszystko', 'ludzie'], true);
 
         // ILE WYNIKÓW, I SKĄD SIĘ BIERZE „POKAŻ WIĘCEJ"
@@ -118,7 +152,7 @@ class SearchController extends Controller
         // (okno bez numeru i bez powrotu), więc wtedy jest ignorowany.
         $poPrzepisie = $odPrzepisu > 0 ? $this->kursor($request, 'po_przepisie') : null;
         $poOsobie = $odOsoby > 0 ? $this->kursor($request, 'po_osobie') : null;
-        $parametry = array_filter(['q' => $phrase, 'sekcja' => $section,
+        $parametry = array_filter(['q' => $phrase, 'sekcja' => $section, 'czas' => $maksMinut,
             'ile_przepisow' => $ilePrzepisow, 'ile_osob' => $ileOsob,
             'od_przepisu' => $odPrzepisu, 'od_osoby' => $odOsoby,
             'po_przepisie' => $poPrzepisie, 'po_osobie' => $poOsobie], fn ($v) => $v !== null);
@@ -202,7 +236,7 @@ class SearchController extends Controller
         // `search_performed` liczy wysłanie frazy — formularzem na tej
         // stronie, w pasku u góry albo z odnośnika spoza wyników. „Pokaż
         // więcej", „Wróć do początku" i zakresy (Wszystko / Przepisy / Ludzie /
-        // Do 30 minut) przeglądają wyniki JUŻ policzonej frazy i niosą
+        // Do 20 zł) oraz progi czasu przeglądają wyniki JUŻ policzonej frazy i niosą
         // `nawigacja=1`. Bez tego jedno wyszukanie dawało kilka rekordów,
         // a puste dalsze okno zapisywało `has_results=false` dla frazy,
         // która w pierwszym oknie miała wyniki. Nie deduplikujemy po długości
@@ -223,6 +257,8 @@ class SearchController extends Controller
             'searchErrors' => $searchErrors,
             'promowaneTagi' => $phrase === '' ? Tag::promowane()->get() : collect(),
             'section' => $section,
+            'maksMinut' => $maksMinut,
+            'czasNieznany' => $czasNieznany,
             'zaKrotka' => $zaKrotka,
             'szukaPrzepisow' => $szukaPrzepisow,
             'szukaLudzi' => $szukaLudzi,
