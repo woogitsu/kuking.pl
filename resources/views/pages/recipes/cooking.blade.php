@@ -53,11 +53,28 @@
             mąki", jest tańsze niż opuszczenie trybu — a to jest jedyna
             alternatywa, z którą to porównujemy.
         --}}
-        <details class="cook-ingredients">
-            <summary>Składniki ({{ $recipe->ingredients->count() }})</summary>
+        {{--
+            CHECKLISTA PRZYGOTOWANIA (issue #2069) — „mam już odmierzone”,
+            nie „już dodane do garnka”. Odhaczenia są PAMIĘCIĄ TEJ KARTY
+            (`sessionStorage`), tak samo jak przełącznik „Nie usypiaj
+            ekranu” niżej: przeżywają zmianę kroku i odświeżenie, ale nie
+            są danymi konta i nie wędrują na inne urządzenie (to osobne
+            #2016). Kluczem jest ID przepisu i ID składnika — nie pozycja
+            na liście, więc zmiana kolejności nie przeniesie odhaczenia na
+            inny wiersz. Całość okablowuje `resources/js/skladniki-gotowania.js`.
+
+            BEZ SKRYPTU nic tu się nie zmienia: pola, stan „Przygotowane”,
+            licznik i „Wyczyść…” mają `hidden` i odkrywa je wyłącznie
+            skrypt — lista zostaje zwykłą listą do czytania, bez kontrolki,
+            która udawałaby, że coś zapamięta (D-053: żadnego martwego
+            przycisku). Sekcja nadal startuje zwinięta.
+        --}}
+        <details class="cook-ingredients" data-przygotowanie="{{ $recipe->getKey() }}">
+            <summary>Składniki ({{ $recipe->ingredients->count() }})<span class="cook-przygotowanie-skrot" data-przygotowanie-podsumowanie hidden></span></summary>
             @if($recipe->ingredients->isEmpty())
                 <p class="meta">Autor jeszcze nie dodał składników.</p>
             @else
+                <p class="cook-przygotowanie-wstep" data-przygotowanie-wstep hidden>Możesz zaznaczyć składniki, które już masz odmierzone. Zaznaczenie zostaje w tej karcie przeglądarki, także po przejściu do innego kroku.</p>
                 {{--
                     GRUPY SKŁADNIKÓW I „DO SMAKU" (issue #764).
                     Ta lista pokazywała składniki płaską, jedną pętlą po
@@ -80,7 +97,13 @@
                     @endif
                     <ul class="ingredient-list">
                         @foreach($grupaSkladnikow['skladniki'] as $ingredient)
-                            <li>
+                            <li data-skladnik="{{ $ingredient->getKey() }}">
+                                {{-- Etykieta obejmuje cały wiersz — pole, treść,
+                                     notatkę i zamiennik — więc cel dotyku to cała
+                                     linia składnika, nie sam kwadracik. --}}
+                                <label class="cook-skladnik">
+                                <input type="checkbox" class="cook-skladnik-pole" data-przygotowanie-pole hidden>
+                                <span class="cook-skladnik-tresc">
                                 {{ $ingredient->ingredient_text }}
                                 {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
                                      tego sam w tekście składnika (issue #44).
@@ -93,10 +116,23 @@
                                 @endif
                                 @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
                                 @if($ingredient->substitutes)<span class="skladnik-zamiennik">Zamiast tego: {{ $ingredient->substitutes }}</span>@endif
+                                </span>
+                                {{-- Stan słowem, nie tylko znaczkiem pola i kolorem.
+                                     `aria-hidden`: czytnik ekranu dostaje ten sam stan
+                                     z pola („zaznaczone”), bez powtórzenia. --}}
+                                <span class="cook-skladnik-stan" data-przygotowanie-stan aria-hidden="true" hidden>Przygotowane</span>
+                                </label>
                             </li>
                         @endforeach
                     </ul>
                 @endforeach
+                {{-- Wyczyszczenie dotyczy WYŁĄCZNIE tej checklisty: to zwykły
+                     przycisk skryptu, nie formularz, więc nie dotyka odhaczeń
+                     kroków w sesji (te kasuje tylko „Zacznij od początku”). --}}
+                <div class="cook-przygotowanie-akcje" data-przygotowanie-akcje hidden>
+                    <p class="cook-przygotowanie-licznik" data-przygotowanie-licznik aria-live="polite"></p>
+                    <button type="button" class="btn btn-secondary cook-przygotowanie-wyczysc" data-przygotowanie-wyczysc hidden>Wyczyść zaznaczenie składników</button>
+                </div>
             @endif
         </details>
 

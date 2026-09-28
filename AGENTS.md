@@ -754,6 +754,12 @@ W skrócie:
 - komunikat błędu ma powiedzieć, **co zrobić**;
 - unikamy konstrukcji zakładających rodzaj, gdzie da się inaczej
   („Co dziś gotujesz?” zamiast form z „-łeś/-łaś”).
+  **Jawne wyjątki są frazami, nie słowami**, i pilnuje ich lista `WYJATKI`
+  w `tests/Support/WzorceRodzaju.php`: hasło główne („co dziś ugotowałeś”),
+  nazwa przycisku „Ugotowałem” oraz etykieta pola wyboru **„Sprawdziłem
+  odczytany tekst”** przy szkicu z importu (decyzja właściciela z 26 września
+  2026, PR #1899, D-300 — ta sama logika co „Ugotowałem”: nazwa kontrolki
+  cytowana w komunikacie). Kolejny wyjątek wymaga decyzji właściciela.
 
 Pełny słownik i lista słów zakazanych: `docs/brand/BRAND_EXTENDED.md`.
 
@@ -763,8 +769,14 @@ Pełny słownik i lista słów zakazanych: `docs/brand/BRAND_EXTENDED.md`.
 
 Poza MVP (patrz `docs/FEATURES.md` i `docs/ROADMAP.md`):
 wiadomości prywatne, natywne aplikacje, planer posiłków, lista zakupów,
-spiżarnia, generator przepisów AI, rozbudowana gamifikacja, marketplace,
+generator przepisów AI, rozbudowana gamifikacja, marketplace,
 transmisje live, wypłaty dla twórców.
+
+**Spiżarnia („Co mam w domu”) zeszła z tej listy 26 września 2026** — sekcja
+V2 w `docs/FEATURES.md` wymienia „pantry” i „co ugotuję z tego, co mam”, a
+**D-282** pozwala je budować. Zakazana zostaje
+**spiżarnia z terminami ważności i priorytetem zużycia (#1903)** — stoi na
+liście „V2, ale nie teraz” i wymaga nowej decyzji właściciela.
 
 **OCR starych zeszytów zszedł z tej listy 26 września 2026** — V2 wolno budować
 od decyzji **D-282**, a odczyt zdjęcia kartki działa według **D-296** (zgoda
