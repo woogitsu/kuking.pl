@@ -4168,9 +4168,20 @@ kalendarzowy w strefie `Europe/Warsaw`.
 
 CHECK `ai_budzet_dzienny_kwoty_check`: wszystkie liczby ≥ 0.
 
-**Rezerwacja pod `SELECT … FOR UPDATE` na wierszu dnia** szereguje równoległe
-odczyty — drugi widzi rezerwację pierwszego (`tests/Dwa/BudzetAiNaDwochPolaczeniachTest`).
-Miesiąc = suma wierszy od 1. dnia miesiąca. W cache'u tego nie trzymamy:
+**Rezerwacja bierze dwie blokady, zawsze w tej kolejności (#2013):** najpierw
+blokadę **miesiąca** — `pg_advisory_xact_lock(20130, hashtext('YYYY-MM'))`,
+zwalnianą z końcem transakcji — potem `SELECT … FOR UPDATE` na wierszu **dnia**.
+Sam wiersz dnia szeregował tylko rezerwacje z tej samej daty, a limit miesięczny
+jest wspólny: dwa odczyty z różnych dni tego samego miesiąca (tuż przed i tuż
+po północy) blokowały różne wiersze, czytały tę samą sumę miesiąca i oba ją
+przekraczały. Blokada miesiąca szereguje je wszystkie — drugi widzi rezerwację
+pierwszego (`tests/Dwa/BudzetAiNaDwochPolaczeniachTest`). Rozliczenie
+i zwolnienie rezerwacji blokady miesiąca **nie biorą** (suma miesiąca może
+się przy nich tylko zmniejszyć albo zostać bez zmian), więc nie ma odwrotnej
+kolejności blokad ani zakleszczenia.
+Miesiąc = suma wierszy **całego miesiąca kalendarzowego** (od 1. dnia do
+ostatniego, także dni po dniu rezerwacji): rezerwacja z późniejszej daty zużywa
+ten sam limit. W cache'u tego nie trzymamy:
 to są pieniądze, a licznik w cache'u znika przy restarcie (AGENTS.md §3 — bez Redisa).
 Retencji brak: wiersz na dzień to kilkadziesiąt bajtów, a historia wydatków
 jest potrzebna do rozliczeń.
