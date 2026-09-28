@@ -306,4 +306,39 @@ class CookingModeTest extends TestCase
 
         $odpowiedz->assertSeeInOrder(['Ciasto', 'mąka', 'Farsz', 'sól', 'do smaku']);
     }
+
+    // --- „Zacznij od początku” (issue #903) ------------------------------
+    // Reset, 405 dla GET, CSRF i Policy sprawdza GotowanieOdPoczatkuTest.
+    // Tu zostaje tylko to, czego tam nie ma: kształt formularza w widoku.
+
+    /** Odhacza krok tak jak formularz widoku: numer i tożsamość kroku (#756). */
+    private function odhacz(Recipe $recipe, int $krok): void
+    {
+        $this->post(route('cooking.zaznacz', $recipe->slug), [
+            'krok' => $krok,
+            'krok_id' => $recipe->steps()->orderBy('position')->get()->get($krok - 1)->getKey(),
+            'zrobiono' => 1,
+        ]);
+    }
+
+    /** Kontrola dodatnia widoku: przy postępie jest formularz POST z CSRF i droga wycofania. */
+    public function test_903_przy_postepie_jest_potwierdzenie_z_formularzem_post_i_wycofaniem(): void
+    {
+        $recipe = $this->przepisZKrokami($this->user('autorka903b'), 2);
+        $this->odhacz($recipe, 1);
+
+        $html = $this->get(route('cooking.show', [$recipe->slug, 'krok' => 2]))
+            ->assertOk()
+            ->assertSee('Zacznij od początku')
+            ->assertSee('Zostaw odhaczenia')
+            ->assertSee('Usuń odhaczenia i zacznij od początku')
+            ->getContent();
+
+        $akcja = preg_quote(route('cooking.restart', $recipe->slug), '#');
+        $this->assertMatchesRegularExpression(
+            '#<form method="POST" action="'.$akcja.'">\s*<input type="hidden" name="_token"#',
+            $html,
+            'Reset musi być formularzem POST z tokenem CSRF — działa bez JavaScriptu.',
+        );
+    }
 }

@@ -16,6 +16,7 @@ import { sprawdzTagi } from './tagi-marki.mjs';
 import { sprawdzSzybkiWyglad } from './szybki-wyglad.mjs';
 import { sprawdzPasek } from './pasek-przewijany.mjs';
 import { sprawdzZwarteKolumny } from './zwarte-kolumny.mjs';
+import { sprawdzListeOsob } from './lista-osob-szerokosc.mjs';
 import { sprawdzPrzyciskRejestracji } from './przycisk-rejestracji.mjs';
 import { sprawdzHeroNadZgieciem } from './hero-nad-zgieciem.mjs';
 import { sprawdzInstalacjePwa } from './pwa-install-browser.mjs';
@@ -156,7 +157,7 @@ async function podniesSerwer() {
     });
   } catch { /* baza już istnieje */ }
 
-  console.log(`Przygotowuję dane demonstracyjne w bazie ${env().DB_DATABASE}...`);
+  console.log(`Przygotowuję dane demonstracyjne w bazie z DB_DATABASE (nazwa ustawiona, wartość nie jest logowana)...`);
   execFileSync('php', ['artisan', 'migrate:fresh', '--seed', '--seeder=DemoSeeder', '--force'], {
     stdio: 'ignore',
     env: env(),
@@ -482,6 +483,7 @@ try {
   await sprawdzKompozycje513({ browser: przegladarka, adres, sesja, phpEnv: env(), ...paczka513 });
   await sprawdzPodpowiedzi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzZwarteKolumny({ browser: przegladarka, adres });
+  await sprawdzListeOsob({ browser: przegladarka, adres, sesja });
   await sprawdzPrzyciskRejestracji({ browser: przegladarka, adres });
   /* `sprawdzPrzyciskRejestracji` mierzy w oknie 900 px wysokości, więc odpowiada
      na pytanie „czy przycisk jest sprawny", a nie „czy widać go bez przewijania".

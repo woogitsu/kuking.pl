@@ -293,6 +293,15 @@
         (RODO art. 15 i 20 — prawo dostępu do danych i prawo do ich przeniesienia).
         Komentarze innych osób są tu z treścią, datą i podpisem — bez ich adresów e-mail.
     </p>
+    {{-- #953: paczka nie realizuje art. 15 sama. Zdanie jest bezwarunkowe,
+         bo wyłączenia są regułą eksportu (`InwentarzDanychKonta`), a nie
+         cechą tego konta — pełna lista z powodami stoi w `dane.json`. --}}
+    <p class="stopka">
+        Kilku rodzajów danych w tej paczce nie ma, na przykład dziennika bezpieczeństwa konta
+        i informacji o tym, kto zablokował Twoje konto. Plik dane.json wymienia je wszystkie
+        z powodami (w polu „kategorie_poza_paczka”). Hasła i kodów do logowania nie wydajemy nikomu.
+        Pozostałe dane wyślemy Ci na prośbę — napisz do nas: {{ config('kuking.community.contact_email') }}.
+    </p>
 </div>
 </body>
 </html>

@@ -69,6 +69,9 @@ final class ReportContent
      */
     private const VIEW_ABILITY = [
         User::class => 'viewProfile',
+        // `report`, a nie `view`: podgląd ukrytego wpisu dla moderatora
+        // (#1018) przechodzi `view`, ale jest tylko do odczytu.
+        Post::class => 'report',
     ];
 
     public function __construct(
@@ -258,6 +261,11 @@ final class ReportContent
         if ($zgloszenie->receipt_sent_at === null) {
             $this->potwierdzenie->potwierdzBezWywracaniaSprawy($zgloszenie);
         }
+
+        // Przy ponowieniu po awarii zlecenia listu sprawa już istnieje,
+        // ale jej alarm nie ma trwałego znacznika. Akcja sama odróżnia
+        // to od spraw obsłużonych i od celów alarmowanych w tym oknie.
+        $this->alarm->handle($zgloszenie);
 
         return $zgloszenie;
     }

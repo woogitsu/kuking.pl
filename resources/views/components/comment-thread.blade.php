@@ -37,10 +37,14 @@
             @endcan
         @endif
     @endif
-    @if($errors->has('body') || $errors->has('reason'))
+    @if($errors->has('body') || $errors->has('reason') || $errors->has('wersja'))
         <x-error-summary />
     @endif
 
+    {{-- Kontener `lista-komentarzy`: do niego „Pokaż więcej komentarzy”
+         dokleja kolejną porcję (#986). Własny `.stack` trzyma ten sam rytm
+         między kartami, co sekcja wokół. --}}
+    <div class="stack" id="lista-komentarzy">
     @forelse($comments as $comment)
         <article class="card" id="komentarz-{{ $comment->id }}">
             <div class="flex gap-3 items-center mb-2">
@@ -76,8 +80,25 @@
                 <p class="tekst-jak-napisano">{{ \App\Support\LinkiWTekscie::render($comment->body) }}</p>
             @endif
 
+            {{--
+                ODPOWIEDZI PORCJAMI (issue #939). Kontroler wczytuje jedną
+                porcję (`kuking.comments.replies_per_thread`), a dalsze
+                odsłania zwykły link z kotwicą wątku — bez JavaScriptu, bez
+                przewijania bez końca. Jedna porcja naraz, więc strona nie
+                rośnie od klikania. `odpowiedziRazem === null` znaczy, że
+                ekran nie liczył odpowiedzi — wtedy linków nie ma.
+            --}}
+            @php($porcjaOdpowiedzi = $comment->porcjaOdpowiedzi)
+            @php($dalszychOdpowiedzi = $comment->odpowiedziRazem === null ? 0 : max(0, $comment->odpowiedziRazem - $porcjaOdpowiedzi * \App\Support\OdpowiedziWatku::rozmiarPorcji()))
+            @if($porcjaOdpowiedzi > 1)
+                <p class="m-0">
+                    <a class="btn btn-quiet" href="{{ ($porcjaOdpowiedzi === 2 ? request()->fullUrlWithoutQuery([\App\Support\OdpowiedziWatku::PARAMETR_WATKU, \App\Support\OdpowiedziWatku::PARAMETR_PORCJI]) : request()->fullUrlWithQuery([\App\Support\OdpowiedziWatku::PARAMETR_WATKU => $comment->id, \App\Support\OdpowiedziWatku::PARAMETR_PORCJI => $porcjaOdpowiedzi - 1])).'#komentarz-'.$comment->id }}">Pokaż wcześniejsze odpowiedzi</a>
+                </p>
+            @endif
+
             @foreach($comment->replies as $reply)
-                <div class="watek-odpowiedzi">
+                {{-- ISSUE #759: kotwica odpowiedzi — „Zobacz" z powiadomienia prowadzi tu wprost. --}}
+                <div class="watek-odpowiedzi" id="komentarz-{{ $reply->id }}">
                     <div class="flex gap-2 items-center">
                         <x-avatar :user="$reply->author" :size="32" />
                         <a class="author-name" href="{{ route('profile.show', $reply->author->profile->username) }}">{{ $reply->author->displayName() }}</a>
@@ -128,6 +149,9 @@
                                                 @csrf
                                                 @method('PUT')
                                                 <input type="hidden" name="_wiersz" value="popraw-{{ $reply->id }}">
+                                                {{-- Issue #982: wersja wyrenderowanej treści — druga karta nie nadpisze po cichu nowszej poprawki. --}}
+                                                <input type="hidden" name="wersja" value="{{ $reply->wersjaTresci() }}">
+                                                <x-konflikt-poprawki-komentarza :comment="$reply" :wiersz="'popraw-'.$reply->id" />
                                                 <x-field name="body" :wiersz="'popraw-'.$reply->id" label="Popraw swoją odpowiedź" type="textarea" :rows="3" :value="$reply->body" :licznik-znakow="4000" required />
                                                 <button class="btn btn-primary" type="submit">Zapisz poprawkę</button>
                                             </form>
@@ -176,6 +200,12 @@
                 </div>
             @endforeach
 
+            @if($dalszychOdpowiedzi > 0)
+                <p class="m-0">
+                    <a class="btn btn-quiet" href="{{ request()->fullUrlWithQuery([\App\Support\OdpowiedziWatku::PARAMETR_WATKU => $comment->id, \App\Support\OdpowiedziWatku::PARAMETR_PORCJI => $porcjaOdpowiedzi + 1]).'#komentarz-'.$comment->id }}">Pokaż dalsze odpowiedzi ({{ $dalszychOdpowiedzi }})</a>
+                </p>
+            @endif
+
             @auth
                 @php($commentRemainingMinutes = 15 - (int) $comment->created_at->diffInMinutes(now()))
                 @php($commentContentOwnerRemovingOthers = auth()->id() !== $comment->author_id && auth()->id() === $comment->notifiableUserId())
@@ -223,6 +253,9 @@
                                         @csrf
                                         @method('PUT')
                                         <input type="hidden" name="_wiersz" value="popraw-{{ $comment->id }}">
+                                        {{-- Issue #982: wersja wyrenderowanej treści — druga karta nie nadpisze po cichu nowszej poprawki. --}}
+                                        <input type="hidden" name="wersja" value="{{ $comment->wersjaTresci() }}">
+                                        <x-konflikt-poprawki-komentarza :comment="$comment" :wiersz="'popraw-'.$comment->id" />
                                         <x-field name="body" :wiersz="'popraw-'.$comment->id" label="Popraw swój komentarz" type="textarea" :rows="4" :value="$comment->body" :licznik-znakow="4000" required />
                                         <button class="btn btn-primary" type="submit">Zapisz poprawkę</button>
                                     </form>
@@ -271,6 +304,7 @@
     @empty
         <p class="meta">{{ $answers ? 'To pytanie czeka na odpowiedź. Podziel się swoim doświadczeniem.' : 'Jeszcze nikt tu nic nie napisał. Napisz pierwszy komentarz.' }}</p>
     @endforelse
+    </div>
 
     @auth
         @if($canComment)
@@ -314,6 +348,6 @@
     @endauth
 
     @if($comments instanceof \Illuminate\Contracts\Pagination\Paginator)
-        <x-show-more :paginator="$comments" czego="komentarzy" />
+        <x-show-more :paginator="$comments" czego="komentarzy" lista="lista-komentarzy" />
     @endif
 </section>

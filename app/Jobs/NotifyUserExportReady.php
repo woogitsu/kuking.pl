@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Logging\BezpiecznyBlad;
 use App\Mail\DataExportReady;
 use App\Mail\DataExportReadyInGracePeriod;
 use App\Models\DataExport;
 use App\Models\User;
-use App\Poczta\BezpiecznyKomunikat;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
@@ -98,14 +98,14 @@ class NotifyUserExportReady implements ShouldQueue
                 ->where('notified_at', $zajete)
                 ->update(['notified_at' => null]);
 
-            // KOMUNIKAT PRZEZ REDAKCJĘ: transport przy odrzuconym odbiorcy
-            // wkleja w tekst JEGO ADRES („550 5.1.1 <basia@wp.pl>: …").
-            // Dziennik nie jest miejscem na adresy (AGENTS.md §7).
+            // BEZ KOMUNIKATU: transport przy odrzuconym odbiorcy wkleja
+            // w tekst JEGO ADRES („550 5.1.1 <basia@wp.pl>: …"), a odpowiedź
+            // dostawcy może nieść token i CR/LF. Dziennik nie jest miejscem
+            // na adresy (AGENTS.md §7) — idzie klasa, kod i odcisk (#973).
             Log::warning('Paczka z danymi gotowa, ale e-mail nie wyszedł', [
                 'data_export_id' => $this->dataExportId,
                 'proba' => $this->attempts(),
-                'wyjatek' => $e::class,
-                'error' => BezpiecznyKomunikat::z($e->getMessage()),
+                'error' => BezpiecznyBlad::kontekst($e),
             ]);
 
             // Nowy wyjątek BEZ `previous`: kolejka serializuje wyjątek do

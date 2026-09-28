@@ -42,6 +42,9 @@ use Random\Randomizer;
  */
 class TwoFactorAuthenticator
 {
+    /** Klucz sesji z dowodem drugiego składnika (#930), patrz `dowodSesji()`. */
+    public const KLUCZ_DOWODU_SESJI = 'dwuetapowa.dowod';
+
     private Google2FA $engine;
 
     private readonly Randomizer $random;
@@ -116,6 +119,44 @@ class TwoFactorAuthenticator
             (string) $user->getAuthPassword(),
             (string) $user->getRememberToken(),
             (string) $user->status,
+            (string) $user->two_factor_confirmed_at?->toIso8601String(),
+        ]), (string) config('app.key'));
+    }
+
+    /**
+     * Dowód drugiego składnika W TEJ SESJI (#930).
+     *
+     * `moderator.2fa` sprawdzało dotąd stan KONTA, nie przebieg logowania:
+     * każda zalogowana sesja konta z potwierdzoną 2FA wchodziła do `/admin`,
+     * także taka, która powstała na samym haśle przed włączeniem 2FA.
+     * `invalidateSessions()` przy włączeniu kasuje je z tabeli, ale tylko przy
+     * sterowniku `database` — ten znacznik nie zależy od sterownika.
+     *
+     * Znacznik zapisują wyłącznie dwie chwile, w których w tej sesji padł
+     * poprawny kod: dokończone logowanie (`TwoFactorChallengeController`)
+     * i włączenie 2FA (`TwoFactorSettingsController::confirm`). Wiąże się
+     * z `two_factor_confirmed_at`, więc wyłączenie i ponowne włączenie 2FA
+     * unieważnia znaczniki sprzed niego. HMAC, bo sesje leżą w bazie.
+     *
+     * @return array<string, string>
+     */
+    public static function dowodSesji(User $user): array
+    {
+        return [self::KLUCZ_DOWODU_SESJI => self::odciskDowoduSesji($user)];
+    }
+
+    public static function sesjaMaDowod(User $user, mixed $dowod): bool
+    {
+        return $user->hasTwoFactorConfirmed()
+            && is_string($dowod)
+            && hash_equals(self::odciskDowoduSesji($user), $dowod);
+    }
+
+    private static function odciskDowoduSesji(User $user): string
+    {
+        return hash_hmac('sha256', implode("\0", [
+            'sesja-2fa',
+            (string) $user->getKey(),
             (string) $user->two_factor_confirmed_at?->toIso8601String(),
         ]), (string) config('app.key'));
     }

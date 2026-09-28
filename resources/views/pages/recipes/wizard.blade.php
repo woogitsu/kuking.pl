@@ -45,6 +45,14 @@
     </noscript>
 
     <h1>{{ $naglowek }}</h1>
+    {{-- „Moja wersja" (issue #23, D-301): podpis widać już w kreatorze, a żaden
+         krok kreatora nie ma pola, które by go zdejmowało. --}}
+    @if($draft !== null)
+        <x-na-podstawie-przepisu :recipe="$draft" />
+        @if($draft->jestWersja() && ! $draft->isPublished())
+            <p class="notice">Zmień to, co robisz po swojemu — składniki, kroki, czas albo liczbę porcji. Wersji bez żadnej zmiany nie da się opublikować.</p>
+        @endif
+    @endif
     <p class="mb-5">
         @if($opublikowany)
             Przepis jest już opublikowany — tu dopisujesz to, co chcesz dodać:

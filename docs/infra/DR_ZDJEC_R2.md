@@ -95,7 +95,10 @@ wszystkiego” i niezerowy kod wyjścia.
   kopią całego konta. Druga kopia byłaby wyłącznie dodatkowym ryzykiem;
 - `r2_legacy` — dopóki jakiekolwiek wiersze mają `disk = r2_legacy`,
   najpierw dokończ przenosiny (`kuking:przenies-zdjecia`,
-  `kuking:sprawdz-zdjecia-po-przenosinach`). Sprawdzenie kopii pokaże takie
+  `kuking:sprawdz-zdjecia-po-przenosinach`). Ile wierszy zależy od starego
+  bucketu, pokazuje `kuking:zaleznosc-od-starego-bucketu`; migawkę starego
+  bucketu przed przenosinami i bramkę przed jego czyszczeniem opisuje
+  [`STARY_BUCKET_R2_LEGACY.md`](STARY_BUCKET_R2_LEGACY.md). Sprawdzenie kopii pokaże takie
   wiersze jako BRAK W KOPII, bo migawka ich nie zawiera;
 - baza — ma własną warstwę (`KOPIE_I_ODTWORZENIE.md` §7).
 

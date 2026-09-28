@@ -18,6 +18,7 @@ final class LimityTekstuPrzepisu
         'ingredients.*.text' => 240,
         'ingredients.*.group_name' => 120,
         'ingredients.*.note' => 300,
+        'ingredients.*.substitutes' => 300,
         'steps.*.instruction' => 4000,
         'skladniki_tekst' => 30000,
         'przygotowanie_tekst' => 120000,
@@ -39,8 +40,8 @@ final class LimityTekstuPrzepisu
 
     public static function maksPol(): int
     {
-        // Cztery wartości składnika, cztery kroku; 32 miejsca na metrykę,
+        // Pięć wartości składnika (z zamiennikiem, D-284), cztery kroku; 32 miejsca na metrykę,
         // dwa pola tekstowe, klucz wysłania, akcję i pola wyboru plików.
-        return Recipe::MAX_INGREDIENTS * 4 + Recipe::MAX_STEPS * 4 + 32;
+        return Recipe::MAX_INGREDIENTS * 5 + Recipe::MAX_STEPS * 4 + 32;
     }
 }

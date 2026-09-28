@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Domain\Collections\Actions;
 
 use App\Domain\Collections\ZamekZapisuDoZeszytu;
-use App\Domain\Notifications\Actions\NotifyUser;
+use App\Domain\Notifications\Actions\NotifyRecipeSaved;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Collection;
-use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\Gate;
  */
 final class SaveRecipeToCollection
 {
-    public function __construct(private readonly NotifyUser $notify) {}
+    public function __construct(private readonly NotifyRecipeSaved $notify) {}
 
     public function handle(User $user, Recipe $recipe, ?Collection $collection = null, ?string $note = null): Collection
     {
@@ -86,20 +86,38 @@ final class SaveRecipeToCollection
             return $collection;
         }
 
-        // Autor dowiaduje się, że ktoś odłożył jego przepis "na potem".
-        // To jedno z najprzyjemniejszych powiadomień w serwisie.
-        if ($user->isActive()) {
-            $this->notify->handle(
-                recipient: $recipe->author,
-                type: Notification::TYPE_SAVED,
-                actor: $user,
-                data: [
-                    'recipe_id' => $recipe->getKey(),
-                    'recipe_title' => $recipe->title,
-                    'recipe_slug' => $recipe->slug,
-                ],
-            );
+        // JEDNA OSOBA, KILKA SWOICH ZESZYTÓW = JEDEN ZAPIS (issue #906,
+        // decyzja właściciela z 20.09.2026). Klucz główny na
+        // `collection_items` broni tylko PARY (zeszyt, przepis) — ta sama
+        // osoba, ten sam przepis, ale DRUGI jej zeszyt, przechodzi przez
+        // niego bez przeszkód, więc dopiero tutaj liczymy, ile WŁASNYCH
+        // zeszytów tej osoby ma już ten przepis. Więcej niż jeden (ten,
+        // do którego dopiero co dopisaliśmy) znaczy, że powiadomienie za tę
+        // osobę już poszło przy jej pierwszym zeszycie — nowe by je
+        // zdublowało.
+        //
+        // Liczymy POD blokadą partii (przegląd PR #1213): dwa równoległe
+        // zapisy tej samej osoby do dwóch jej zeszytów bez niej oba widzą
+        // tylko własny, niezatwierdzony wiersz, oba liczą „1” i oba uznają
+        // się za pierwszy zapis. Z blokadą drugi liczy dopiero po
+        // zatwierdzeniu pierwszego i widzi „2”. Jesteśmy w transakcji
+        // z `handle()`, więc blokada trzyma do jej końca.
+        $this->notify->zablokujPartie($recipe);
+
+        $wlasneZeszytyZTymPrzepisem = $user->collections()
+            ->whereHas('recipes', fn ($q) => $q->whereKey($recipe->getKey()))
+            ->count();
+
+        if ($wlasneZeszytyZTymPrzepisem > 1) {
+            return $collection;
         }
+
+        // Autor dowiaduje się, że ktoś odłożył jego przepis "na potem".
+        // To jedno z najprzyjemniejszych powiadomień w serwisie — pierwsza
+        // osoba dostaje je natychmiast, kolejne różne osoby dokładają się
+        // do tej samej, jeszcze nieprzeczytanej wiadomości
+        // (`NotifyRecipeSaved`, issue #906).
+        $this->notify->handle($user, $recipe);
 
         return $collection;
     }
@@ -134,6 +152,18 @@ final class SaveRecipeToCollection
      */
     public function remove(User $user, Recipe $recipe, ?Collection $collection = null): array
     {
+        // JEDNA TRANSAKCJA NA CAŁE WYJĘCIE (issue #1384). Bez niej każdy
+        // `detach()` zatwierdzał się osobno: awaria przy drugim zeszycie
+        // zostawiała pierwszy już pusty, a człowiek dostawał błąd zamiast
+        // zdania, co zniknęło — razem z notatką, której nie ma skąd odtworzyć.
+        // Teraz albo zeszły wszystkie wskazane wiersze, albo żaden, a lista
+        // zdjętych (i komunikat z ich liczbą) wraca dopiero po zatwierdzeniu.
+        return DB::transaction(fn (): array => $this->zdejmij($user, $recipe, $collection));
+    }
+
+    /** @return list<array{collection_id: string, note: ?string, created_at: ?string}> */
+    private function zdejmij(User $user, Recipe $recipe, ?Collection $collection): array
+    {
         $zeszyty = $collection !== null
             // Przez `$user->collections()`, a nie prosto po `$collection` —
             // cudzy zeszyt ma tu wyjść jako brak zeszytu, a nie jako zeszyt.
@@ -162,6 +192,11 @@ final class SaveRecipeToCollection
             $zeszyt->recipes()->detach($recipe->getKey());
         }
 
+        // Wyjęcie z JEDNEGO zeszytu nie wycofuje zapisu, dopóki przepis
+        // leży w innym zeszycie tej osoby — powiadomienie za nią poszło
+        // raz (#906) i zostaje, póki jej zapis trwa gdziekolwiek.
+        $this->cofnijJesliNigdzieNieZostal($user, $recipe);
+
         return $zdjete;
     }
 
@@ -178,35 +213,102 @@ final class SaveRecipeToCollection
      */
     public function restore(User $user, Recipe $recipe, array $zdjete): int
     {
-        $wrocilo = 0;
+        usort($zdjete, static fn (array $a, array $b): int => strcmp(
+            (string) ($a['collection_id'] ?? ''),
+            (string) ($b['collection_id'] ?? ''),
+        ));
 
-        foreach ($zdjete as $pozycja) {
-            // Zeszyt mógł w międzyczasie zniknąć albo nigdy nie był tej osoby.
-            $zeszyt = $user->collections()->whereKey($pozycja['collection_id'] ?? null)->first();
+        // Zamki konta, treści i kolejnych zeszytów z `zapisz()` są trzymane
+        // do końca tej transakcji. Powiadomienie też jest jej częścią.
+        return DB::transaction(function () use ($user, $recipe, $zdjete): int {
+            $wrocilo = 0;
+            $swiezyKucharz = null;
+            $swiezyPrzepis = null;
 
-            if ($zeszyt === null) {
-                continue;
+            foreach ($zdjete as $pozycja) {
+                $zeszyt = $user->collections()->whereKey($pozycja['collection_id'] ?? null)->first();
+                if ($zeszyt === null) {
+                    continue; // usunięty zeszyt albo ponowione kliknięcie
+                }
+
+                $dodano = false;
+
+                try {
+                    app(ZamekZapisuDoZeszytu::class)->zapisz(
+                        $user,
+                        $recipe,
+                        $zeszyt,
+                        function (User $swiezy, Recipe $przepis, Collection $cel) use ($pozycja, &$dodano, &$swiezyKucharz, &$swiezyPrzepis): Collection {
+                            Gate::forUser($swiezy)->authorize('update', $cel);
+
+                            if ($cel->recipes()->whereKey($przepis->getKey())->exists()) {
+                                return $cel; // nie nadpisuj nowszej notatki ani daty
+                            }
+
+                            DB::transaction(fn () => $cel->recipes()->attach($przepis->getKey(), [
+                                'note' => $pozycja['note'] ?? null,
+                                'created_at' => $pozycja['created_at'] ?? now(),
+                            ]));
+                            $dodano = true;
+                            $swiezyKucharz = $swiezy;
+                            $swiezyPrzepis = $przepis;
+
+                            return $cel;
+                        },
+                    );
+                } catch (UniqueConstraintViolationException) {
+                    continue;
+                } catch (BladDlaCzlowieka $e) {
+                    if ($e->getMessage() !== ZamekZapisuDoZeszytu::BRAK_ZESZYTU) {
+                        throw $e;
+                    }
+
+                    continue;
+                }
+
+                $wrocilo += (int) $dodano;
             }
 
-            // Ktoś mógł zapisać przepis ponownie, zanim kliknął powrót —
-            // wtedy zostawiamy to, co jest, zamiast nadpisywać świeższy wiersz.
-            if ($zeszyt->recipes()->whereKey($recipe->getKey())->exists()) {
-                continue;
+            // Aktor jest zablokowany przez zewnętrzną transakcję, więc
+            // liczba po zapisie minus nasze wstawienia to liczba sprzed
+            // restore. Powiadomienie idzie tylko przy pierwszym zeszycie.
+            if ($wrocilo > 0 && $swiezyKucharz !== null && $swiezyPrzepis !== null) {
+                $ileTeraz = $swiezyKucharz->collections()
+                    ->whereHas('recipes', fn ($q) => $q->whereKey($swiezyPrzepis->getKey()))
+                    ->count();
+
+                if ($ileTeraz === $wrocilo) {
+                    $this->notify->handle($swiezyKucharz, $swiezyPrzepis);
+                }
             }
 
-            try {
-                $zeszyt->recipes()->attach($recipe->getKey(), [
-                    'note' => $pozycja['note'] ?? null,
-                    'created_at' => $pozycja['created_at'] ?? now(),
-                ]);
-            } catch (UniqueConstraintViolationException) {
-                // Dwa kliknięcia „wróć" naraz — dla człowieka to jeden powrót.
-                continue;
+            return $wrocilo;
+        });
+    }
+
+    /**
+     * Wycofanie PRZED przeczytaniem cofa też udział tej osoby w partii
+     * zbiorczego powiadomienia — patrz `NotifyRecipeSaved::cofnij()`.
+     * Tylko gdy przepisu nie ma już w ŻADNYM jej zeszycie: to lustro
+     * warunku z zapisu, który powiadamia wyłącznie przy pierwszym zeszycie.
+     */
+    private function cofnijJesliNigdzieNieZostal(User $user, Recipe $recipe): void
+    {
+        // Ta sama blokada partii co przy zapisie: sprawdzenie „nigdzie nie
+        // został” i wycofanie z partii muszą być jednym krokiem względem
+        // równoległego zapisu tej osoby do innego zeszytu — inaczej zapis
+        // liczy wyjmowany jeszcze zeszyt, nie powiadamia, a wycofanie
+        // potem wyrzuca tę osobę z partii, choć przepis u niej leży.
+        DB::transaction(function () use ($user, $recipe): void {
+            $this->notify->zablokujPartie($recipe);
+
+            $zostal = $user->collections()
+                ->whereHas('recipes', fn ($q) => $q->whereKey($recipe->getKey()))
+                ->exists();
+
+            if (! $zostal) {
+                $this->notify->cofnij($user, $recipe);
             }
-
-            $wrocilo++;
-        }
-
-        return $wrocilo;
+        });
     }
 }

@@ -14,6 +14,7 @@ use App\Models\Report;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Tests\Support\StanGrupySygnalow;
 use Tests\TestCase;
 
 /**
@@ -30,6 +31,7 @@ use Tests\TestCase;
 class AnalizaPoEdycjiKomentarzaTest extends TestCase
 {
     use RefreshDatabase;
+    use StanGrupySygnalow;
 
     private const NEUTRALNY = 'Pyszny rosół, dziękuję za przepis.';
 
@@ -197,7 +199,11 @@ class AnalizaPoEdycjiKomentarzaTest extends TestCase
         $this->assertCount(1, $this->oznaczenia());
 
         $this->actingAs($moderator)
-            ->post(route('admin.sygnaly.dismiss'), ['autor' => (string) $autor->getKey()])
+            ->post(route('admin.sygnaly.dismiss'), [
+                'autor' => (string) $autor->getKey(),
+                // Formularz grupy niesie znacznik stanu z ekranu (#1059).
+                ...$this->stanGrupySygnalow((string) $autor->getKey()),
+            ])
             ->assertSessionHasNoErrors();
 
         $this->actingAs($autor)

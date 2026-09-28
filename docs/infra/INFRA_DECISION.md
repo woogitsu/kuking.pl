@@ -137,7 +137,7 @@ staging, PR → środowisko preview), a infrastruktura jest opisana w
 ║                                  └─ sukces ──► deploy.yml: smoke + Sentry  ║
 ║  push staging ──► CI ──► Railway wdraża staging                            ║
 ║  PR otwarty   ──► CI ──► Railway tworzy pr-N ──► preview.yml: smoke        ║
-║  PR .railway/*──► railway-iac.yml: plan w komentarzu ──► merge ──► apply   ║
+║  PR .railway/*──► railway-iac.yml: plan w komentarzu; apply ręcznie (#595) ║
 ╚════════════════════════════════════════════════════════════════════════════╝
 
         ┌──────────────┐  ┌──────────────┐  ┌────────────────────────┐

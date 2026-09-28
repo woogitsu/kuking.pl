@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Domain\Notifications\PrzypomnienieDobowe;
 use App\Models\Appeal;
 use App\Notifications\TerminOdwolaniaBlisko;
 use App\Support\Czas;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Throwable;
 
 /**
  * PILNOWANIE TERMINU Z DSA ART. 20 (D-060).
@@ -25,17 +28,26 @@ use Illuminate\Support\Facades\Notification;
  * A dodatkowo: EmailLabs daje 300 listów na dobę na CAŁY serwis (D-047),
  * dzielone z potwierdzeniami rejestracji.
  *
+ * „JEDEN NA DOBĘ" PILNUJE BAZA, NIE HARMONOGRAM (#1333). `withoutOverlapping()`
+ * chroni tylko przed dwoma przebiegami NARAZ; ręczne ponowienie albo restart
+ * tego samego dnia kolejkowały drugi list. Przed kolejkowaniem zajmujemy
+ * wiersz w `przypomnienia_dobowe` (`PrzypomnienieDobowe`) — kto go nie
+ * zajął, ten nie wysyła. Nieudane kolejkowanie oddaje miejsce i kończy się
+ * błędem, żeby kolejny przebieg mógł spróbować.
+ *
  * LIST NIE WYCHODZI, GDY NIE MA O CZYM PISAĆ. „0 spraw po terminie"
  * codziennie przez trzy tygodnie to najlepszy sposób, żeby czwarty list
  * przeszedł niezauważony.
  */
 class PilnujTerminowOdwolan extends Command
 {
+    public const RODZAJ = 'termin-odwolania';
+
     protected $signature = 'kuking:pilnuj-terminow-odwolan';
 
     protected $description = 'Wysyła jeden list, gdy termin odpowiedzi na odwołanie jest blisko albo minął (DSA art. 20)';
 
-    public function handle(): int
+    public function handle(PrzypomnienieDobowe $przypomnienie): int
     {
         $adres = config('kuking.moderation.model.alarm_email');
 
@@ -80,11 +92,44 @@ class PilnujTerminowOdwolan extends Command
             ->sortBy(fn (Appeal $o) => $o->responseDeadline()->getTimestamp())
             ->first();
 
-        Notification::route('mail', $adres)->notify(new TerminOdwolaniaBlisko(
-            poTerminie: $poTerminie->count(),
-            blisko: $blisko->count(),
-            najblizszyTermin: Czas::data($najblizszy->responseDeadline(), 'j F Y'),
-        ));
+        try {
+            $zarezerwowano = $przypomnienie->zarezerwuj(self::RODZAJ, $adres);
+        } catch (Throwable $e) {
+            // Bez rezerwacji nie wysyłamy: duplikat jest tu gorszy niż
+            // przypomnienie przesunięte do następnego przebiegu.
+            Log::error('Przypomnienie o terminach odwołań: nie udało się zarezerwować dzisiejszego listu.', [
+                'wyjatek' => $e::class,
+            ]);
+            $this->error('Nie udało się sprawdzić, czy dzisiejsze przypomnienie już wyszło — list nie wyszedł. '
+                .'Sprawdź połączenie z bazą i uruchom komendę ponownie.');
+
+            return self::FAILURE;
+        }
+
+        if (! $zarezerwowano) {
+            $this->info('Dzisiejsze przypomnienie o terminach odwołań już wyszło — kolejne jutro, jeśli sprawy nadal będą czekać.');
+
+            return self::SUCCESS;
+        }
+
+        try {
+            Notification::route('mail', $adres)->notify(new TerminOdwolaniaBlisko(
+                poTerminie: $poTerminie->count(),
+                blisko: $blisko->count(),
+                najblizszyTermin: Czas::data($najblizszy->responseDeadline(), 'j F Y'),
+            ));
+        } catch (Throwable $e) {
+            // List nie trafił do kolejki, więc nie wyszedł — oddajemy dzisiejsze
+            // miejsce, żeby kolejny przebieg mógł spróbować.
+            $przypomnienie->zwolnij(self::RODZAJ, $adres);
+            Log::error('Przypomnienie o terminach odwołań: nie udało się wstawić listu do kolejki.', [
+                'wyjatek' => $e::class,
+            ]);
+            $this->error('Nie udało się wstawić przypomnienia do kolejki. Sprawdź kolejkę '
+                .'(`php artisan kuking:sprawdz-kolejke`) i uruchom komendę ponownie.');
+
+            return self::FAILURE;
+        }
 
         $this->info('Wysłano przypomnienie: po terminie '.$poTerminie->count()
             .', blisko terminu '.$blisko->count().'.');

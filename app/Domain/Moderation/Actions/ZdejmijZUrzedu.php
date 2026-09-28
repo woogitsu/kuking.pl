@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
+use App\Domain\Users\ZamekUprzywilejowanegoAktora;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Comment;
@@ -16,7 +17,6 @@ use App\Models\Report;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -102,7 +102,9 @@ final class ZdejmijZUrzedu
         ?string $note = null,
         ?string $ip = null,
     ): ModerationAction {
-        return DB::transaction(function () use ($moderator, $target, $reasonCode, $userMessage, $note, $ip): ModerationAction {
+        return ZamekUprzywilejowanegoAktora::wykonaj($moderator, function (User $swiezy) use ($target, $reasonCode, $userMessage, $note, $ip): ModerationAction {
+            $moderator = $swiezy;
+
             $typ = ModeratedContent::typ($target);
 
             if ($typ === null || ! isset(self::TYPY[$typ])) {
@@ -155,7 +157,7 @@ final class ZdejmijZUrzedu
             ]);
 
             // Ten sam mechanizm co „Usuń” ze zgłoszenia
-            // (`ModerationController::applyAction()`): miękkie usunięcie.
+            // (`RozstrzygnijZgloszenie::applyAction()`): miękkie usunięcie.
             // „Cofam” po odwołaniu przywraca je przez `RestoreContent`
             // — też tak samo jak decyzję ze zgłoszenia.
             $cel->delete();

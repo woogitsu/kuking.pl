@@ -156,7 +156,7 @@ class MinutnikIZdjecieKrokuTest extends TestCase
             'timer_minutes' => (string) StepTimer::minutesFromSeconds($krok->timer_seconds),
         ])->all();
 
-        $this->actingAs($basia)->put(route('recipes.update', $przepis->slug), [
+        $this->actingAs($basia)->put(route('recipes.update', $przepis->slug), ['content_revision' => $przepis->fresh()->content_revision,
             'action' => 'publish',
             'title' => $przepis->title,
             'visibility' => 'public',
@@ -211,7 +211,7 @@ class MinutnikIZdjecieKrokuTest extends TestCase
             'timer_minutes' => (string) StepTimer::minutesFromSeconds($krok->timer_seconds),
         ])->all();
 
-        $this->actingAs($basia)->put(route('recipes.update', $przepis->slug), [
+        $this->actingAs($basia)->put(route('recipes.update', $przepis->slug), ['content_revision' => $przepis->fresh()->content_revision,
             'action' => 'publish',
             'title' => $przepis->title,
             'visibility' => 'public',
@@ -250,7 +250,7 @@ class MinutnikIZdjecieKrokuTest extends TestCase
             'timer_minutes' => (string) StepTimer::minutesFromSeconds($krok->timer_seconds),
         ])->all();
 
-        $this->actingAs($basia)->put(route('recipes.update', $przepis->slug), [
+        $this->actingAs($basia)->put(route('recipes.update', $przepis->slug), ['content_revision' => $przepis->fresh()->content_revision,
             'action' => 'publish',
             'title' => 'Ziemniaki z piekarnika po babci',
             'visibility' => 'public',
@@ -284,7 +284,7 @@ class MinutnikIZdjecieKrokuTest extends TestCase
             'remove_photo' => $i === 1 ? '1' : null,
         ], static fn ($v): bool => $v !== null))->all();
 
-        $this->actingAs($basia)->put(route('recipes.update', $przepis->slug), [
+        $this->actingAs($basia)->put(route('recipes.update', $przepis->slug), ['content_revision' => $przepis->fresh()->content_revision,
             'action' => 'publish',
             'title' => $przepis->title,
             'visibility' => 'public',
@@ -733,7 +733,7 @@ class MinutnikIZdjecieKrokuTest extends TestCase
         // Podajemy `id` kroku z CUDZEGO przepisu. Mapa tożsamości jest
         // budowana wyłącznie z kroków TEGO przepisu, więc nie ma czego
         // dopasować (AGENTS.md §7: UUID w POST-cie nie jest autoryzacją).
-        $this->actingAs($basia)->put(route('recipes.update', $moj->slug), [
+        $this->actingAs($basia)->put(route('recipes.update', $moj->slug), ['content_revision' => $moj->fresh()->content_revision,
             'action' => 'publish',
             'title' => $moj->title,
             'visibility' => 'public',
@@ -756,7 +756,7 @@ class MinutnikIZdjecieKrokuTest extends TestCase
         $basia = $this->user('basia');
         $moj = $this->przepisBezZdjec($basia);
 
-        $this->actingAs($basia)->put(route('recipes.update', $moj->slug), [
+        $this->actingAs($basia)->put(route('recipes.update', $moj->slug), ['content_revision' => $moj->fresh()->content_revision,
             'action' => 'publish',
             'title' => $moj->title,
             'visibility' => 'public',

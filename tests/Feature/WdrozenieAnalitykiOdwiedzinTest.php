@@ -401,7 +401,7 @@ class WdrozenieAnalitykiOdwiedzinTest extends TestCase
         $this->produkcjaBezSzumu();
         $this->bezTokenu();
 
-        $odpowiedz = $this->get('/health');
+        $odpowiedz = $this->zdrowieZeSzczegolami();
 
         $odpowiedz->assertOk()
             ->assertJsonPath('status', 'degraded')
@@ -432,7 +432,7 @@ class WdrozenieAnalitykiOdwiedzinTest extends TestCase
 
         config(['kuking.analytics.cloudflare.token' => 'udawany-token']);
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.analityka.ok', true);
@@ -465,7 +465,7 @@ class WdrozenieAnalitykiOdwiedzinTest extends TestCase
             .'obiecuje, sprawdza teraz coś innego, niż mówi jego nazwa.',
         );
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.analityka.ok', true);
@@ -485,7 +485,7 @@ class WdrozenieAnalitykiOdwiedzinTest extends TestCase
 
         config(['kuking.analytics.cloudflare.obietnica.dokument' => 'legal/nie-ma-takiego-pliku.md']);
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.analityka.ok', true);
@@ -503,7 +503,7 @@ class WdrozenieAnalitykiOdwiedzinTest extends TestCase
         Artisan::call('storage:link');
         $this->bezTokenu();
 
-        $this->get('/health')
+        $this->zdrowieZeSzczegolami()
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('checks.analityka.ok', true);
@@ -523,7 +523,7 @@ class WdrozenieAnalitykiOdwiedzinTest extends TestCase
         $this->produkcjaBezSzumu();
         $this->bezTokenu();
 
-        $tresc = (string) $this->get('/health')->getContent();
+        $tresc = (string) $this->zdrowieZeSzczegolami()->getContent();
 
         foreach ([self::ZMIENNA, 'DEPLOYMENT_RUNBOOK', 'Web Analytics'] as $tajne) {
             $this->assertStringNotContainsString(

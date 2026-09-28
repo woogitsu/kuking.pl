@@ -32,7 +32,7 @@ na obecną bazę gałęzi.
 
 ## Zmiana
 
-`Notification::destinationUrls()` rozwiązuje adresy całej strony jednym
+`CelPowiadomienia::adresy()` (do #1687 `Notification::destinationUrls()`) rozwiązuje adresy całej strony jednym
 zapytaniem. Używa tego samego zakresu `Comment::widoczneDla()` co rozmowa,
 korzenia wątku oraz porządku `(created_at, id)`. Zliczanie wcześniejszych
 korzeni jest podzapytaniem SQL; PHP nie pobiera całych rozmów do pamięci.

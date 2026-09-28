@@ -54,18 +54,26 @@
     <p class="meta mb-5">
         {{ $collection->isPublic() ? 'Ten zeszyt widzą wszyscy.' : 'Ten zeszyt widzisz tylko Ty.' }}
     </p>
+    {{-- Błąd notatki (#978) ma własny worek, żeby nie mieszać się z błędem
+         wyboru zeszytu, który layout pokazuje osobno. --}}
+    <x-error-summary :error-bag="\App\Domain\Collections\Actions\UpdateCollectionItemNote::WOREK_BLEDOW" />
 
     @if($recipes->count() === 0 && ($posts ?? collect())->count() === 0 && ($niewidoczne ?? 0) === 0)
         <x-empty-state title="W tym zeszycie nic jeszcze nie ma" action="Poszukaj przepisów" :href="route('search', ['sekcja' => 'przepisy'])" />
     @else
         @if($recipes->count() > 0)
             <h2>Przepisy</h2>
-            <div class="marka-zeszyt-przepisy">
+            <div class="marka-zeszyt-przepisy" id="lista-przepisow">
                 @foreach($recipes as $recipe)
-                    <x-recipe-card :recipe="$recipe" uklad="kafel" />
+                    {{-- Opakowanie jest pozycją siatki: pod kartą właściciel
+                         ma swoją notatkę (#978). --}}
+                    <div class="marka-zeszyt-pozycja">
+                        <x-recipe-card :recipe="$recipe" uklad="kafel" />
+                        <x-notatka-zapisu :zeszyt="$collection" typ="przepis" :pozycja="$recipe" />
+                    </div>
                 @endforeach
             </div>
-            <x-show-more :paginator="$recipes" czego="przepisów" />
+            <x-show-more :paginator="$recipes" czego="przepisów" lista="lista-przepisow" />
         @endif
 
         @if(($posts ?? collect())->count() > 0)
@@ -73,15 +81,18 @@
                  a nie wymieszane z przepisami: to są dwie różne rzeczy i dwa
                  różne powody, dla których się je zapisuje. --}}
             <h2 class="mt-8">Zapisane wpisy</h2>
-            <div class="stack">
+            <div class="stack" id="lista-zapisanych-wpisow">
                 @foreach($posts as $post)
                     {{-- `:zeszyt` daje karcie kontekst TEGO zeszytu, więc
                          zamiast odnośnika „Masz to w zeszycie" pokazuje
                          przycisk usuwający TYLKO stąd (issue #775, #776). --}}
-                    <x-post-card :post="$post" :zeszyt="$collection" />
+                    <div class="marka-zeszyt-pozycja">
+                        <x-post-card :post="$post" :zeszyt="$collection" />
+                        <x-notatka-zapisu :zeszyt="$collection" typ="wpis" :pozycja="$post" />
+                    </div>
                 @endforeach
             </div>
-            <x-show-more :paginator="$posts" czego="zapisanych wpisów" />
+            <x-show-more :paginator="$posts" czego="zapisanych wpisów" lista="lista-zapisanych-wpisow" />
         @endif
 
         @if(($niewidoczne ?? 0) > 0)
@@ -99,6 +110,21 @@
                 {{ \App\Support\Odmiana::rzeczownik($niewidoczne, 'zapis nie jest dla Ciebie dostępny', 'zapisy nie są dla Ciebie dostępne', 'zapisów nie jest dla Ciebie dostępnych') }}.
                 Te zapisy nadal są w tym zeszycie.
             </p>
+            @error('zakres')
+                <p class="notice mt-4" role="alert">{{ $message }}</p>
+            @enderror
+            {{-- Porządkowanie bez kasowania całego zeszytu (#773). Tylko
+                 właściciel; formularz niesie odcisk zbioru z tej chwili, więc
+                 serwer nie wyjmie innej grupy niż ta, którą tu policzono. --}}
+            @if($odciskNiedostepnych ?? null)
+                <div class="mt-4">
+                    <x-confirm-button
+                        :action="route('collections.unavailable.destroy', $collection)"
+                        label="Wyjmij niedostępne zapisy"
+                        :fields="['zakres' => $odciskNiedostepnych]"
+                        :question="'Wyjąć z tego zeszytu '.$niewidoczne.' '.\App\Support\Odmiana::rzeczownik($niewidoczne, 'niedostępny zapis', 'niedostępne zapisy', 'niedostępnych zapisów').'? Nie wrócą same, nawet gdy autor znowu je udostępni. Widoczne zapisy i inne zeszyty zostaną bez zmian.'" />
+                </div>
+            @endif
         @endif
     @endif
 

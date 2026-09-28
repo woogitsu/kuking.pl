@@ -15,7 +15,7 @@
     <h1>Dodaj zdjęcie</h1>
     <p class="mb-5">Wybierz zdjęcie z telefonu, napisz kilka słów i kliknij „Opublikuj”. To wszystko.</p>
 
-    <x-error-summary />
+    <x-error-summary :field-ids="['photos.*' => 'f-photos', 'media_ids' => 'f-photos', 'media_ids.*' => 'f-photos']" />
 
     <form class="panel-formularza" method="POST" action="{{ route('posts.store') }}" enctype="multipart/form-data">
         @csrf
@@ -50,10 +50,8 @@
                 // Wracają jako identyfikatory, bo przeglądarka nie pozwala
                 // wypełnić pola pliku z serwera — i dobrze robi, inaczej strona
                 // mogłaby podkraść plik z dysku.
-                $zachowane = \App\Models\Media::query()
-                    ->whereIn('id', (array) old('media_ids', []))
-                    ->where('owner_id', auth()->id())
-                    ->get();
+                // Kolejność z `media_ids[]`, nie z planu bazy (issue #934).
+                $zachowane = \App\Domain\Media\ZachowaneZdjecia::wKolejnosci(old('media_ids', []), auth()->id());
             @endphp
 
             @if($zachowane->isNotEmpty())
@@ -90,6 +88,7 @@
             <input class="visually-hidden pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
                    accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                    multiple
+                   data-usuwanie-zdjec
                    aria-labelledby="f-photos-etykieta f-photos-tytul"
                    aria-describedby="f-photos-help">
             <label class="pole-zdjecia" for="f-photos">
@@ -97,11 +96,13 @@
                 <span class="pole-zdjecia-tytul" id="f-photos-tytul">Dodaj zdjęcie</span>
                 <span class="field-help" id="f-photos-help">
                     Na telefonie kliknij tutaj, a potem wybierz „Galeria” albo „Zrób zdjęcie”.
+                    {{ \App\Support\LimityZdjec::pomocLiczbyZdjec($zachowane->count()) }}
                     Największy plik: {{ \App\Support\LimityZdjec::maksMegabajtowDoKomunikatu() }} MB.
                 </span>
             </label>
             @error('photos')<span class="field-error">{{ $message }}</span>@enderror
             @error('photos.*')<span class="field-error">{{ $message }}</span>@enderror
+            @error('media_ids.*')<span class="field-error">{{ $message }}</span>@enderror
         </div>
 
         <div data-tagi-opis data-tagi-endpoint="{{ route('tags.suggestions') }}"

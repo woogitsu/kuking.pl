@@ -86,6 +86,16 @@ use App\Support\Czas;
  * Gdy podział wiadra wejdzie na `main`, właściwym miejscem na pocztę
  * o odwołaniach jest dobowe podsumowanie kolejki (jeden list, własna
  * pozycja w podziale), nie list na każde odwołanie.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ *  WSZYSCY ALBO NIKT (issue #1305)
+ * ────────────────────────────────────────────────────────────────────────
+ *
+ * Pętla niżej zapisuje osobny wiersz dla każdego administratora. Sama
+ * w sobie nie jest atomowa — i nie musi: `FileAppeal` i `FileReporterAppeal`
+ * wołają ją WEWNĄTRZ transakcji tworzącej pismo. Awaria przy drugim
+ * administratorze cofa więc pismo i pierwsze zawiadomienie razem, zamiast
+ * zostawić sprawę, o której wie połowa zespołu.
  */
 final class PowiadomOOdwolaniu
 {

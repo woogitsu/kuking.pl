@@ -26,8 +26,10 @@
     @endif
     <x-okruszki :elementy="$okruszki" />
     <h1>{{ $post->title }}</h1>
+    <x-wpis-ukryty-przez-moderacje :post="$post" />
     <x-post-card :post="$post" :show-question-title="false" />
     <x-podziel-sie :tresc="$post" />
     <x-comment-thread :comments="$komentarze" :ile="$komentarzyRazem"
-                      :action="route('posts.comment', $post)" :answers="true" />
+                      :action="route('posts.comment', $post)" :answers="true"
+                      :can-comment="auth()->user()?->can('comment', $post) ?? false" />
 </x-layout>
