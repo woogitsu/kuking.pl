@@ -115,17 +115,36 @@ final class InformacjaPrzedZgodaOdczytuAiTest extends TestCase
 
     /**
      * Karta ustawień otwarta przed wdrożeniem #2033 ma goły przycisk bez
-     * informacji i bez pola wersji — taka zgoda nie może się zapisać.
+     * informacji i bez pola wersji — taka zgoda nie może się zapisać. Droga
+     * `skad` pochodzi od klienta, więc dopisane `skad=import` (podszycie się
+     * pod ekran importu) niczego nie zmienia (przegląd PR #2162).
      */
-    public function test_zgoda_z_ustawien_bez_wersji_informacji_nie_zapisuje_sie(): void
+    public function test_zgoda_bez_wersji_informacji_nie_zapisuje_sie_z_zadnej_drogi(): void
+    {
+        $przypadki = [
+            'stary przycisk ustawień' => [[], route('settings.privacy').'#odczyt-ai'],
+            'podszycie się pod import' => [['skad' => 'import'], route('import.zdjecie')],
+        ];
+
+        foreach ($przypadki as $opis => [$pola, $przekierowanie]) {
+            $this->actingAs($this->osoba)
+                ->post(route('zgoda.odczyt-ai.udziel'), $pola)
+                ->assertRedirect($przekierowanie)
+                ->assertSessionHasErrors(['informacja'], null, InformacjaOdczytuAi::WOREK_BLEDOW);
+
+            $this->assertFalse(app(PrzestawZgodeNaOdczytAi::class)->udzielona($this->osoba), "Zgoda zapisała się bez wersji informacji ({$opis}).");
+        }
+
+        $this->assertSame(0, WpisZgody::query()->where('user_id', $this->osoba->getKey())->count());
+    }
+
+    public function test_kontrola_dodatnia_zgoda_z_importu_z_aktualna_wersja_zapisuje_sie(): void
     {
         $this->actingAs($this->osoba)
-            ->post(route('zgoda.odczyt-ai.udziel'))
-            ->assertRedirect(route('settings.privacy').'#odczyt-ai')
-            ->assertSessionHasErrors(['informacja'], null, InformacjaOdczytuAi::WOREK_BLEDOW);
+            ->post(route('zgoda.odczyt-ai.udziel'), ['skad' => 'import', 'informacja' => InformacjaOdczytuAi::WERSJA])
+            ->assertRedirect(route('import.zdjecie'));
 
-        $this->assertFalse(app(PrzestawZgodeNaOdczytAi::class)->udzielona($this->osoba));
-        $this->assertSame(0, WpisZgody::query()->where('user_id', $this->osoba->getKey())->count());
+        $this->assertSame(WpisZgody::ZRODLO_EKRAN_IMPORTU, WpisZgody::query()->where('user_id', $this->osoba->getKey())->value('zrodlo'));
     }
 
     /** Wnętrze bloku informacji — ten sam fragment HTML na obu stronach. */

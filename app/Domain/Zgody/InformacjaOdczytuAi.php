@@ -37,20 +37,13 @@ final class InformacjaOdczytuAi
     /**
      * Czy formularz niesie wersję informacji, która jest dziś aktualna.
      *
-     * Brak pola (`null`) przepuszczamy WYŁĄCZNIE z ekranu importu: ten ekran
-     * już przed #2033 pokazywał pełną informację przed przyciskiem, a test
-     * z aktywnej gałęzi importu (`tests/Feature/Import/OdczytZdjeciaKartkiTest.php`)
-     * wysyła zgodę bez pola. Z ustawień brak pola znaczy stary goły przycisk
-     * bez informacji — taka zgoda się nie zapisuje. Po scaleniu #1899 test
-     * importu dostaje pole, a `null` przestaje być aktualną wersją na obu
-     * drogach (issue #2033).
+     * Brak pola (`null`) NIE jest aktualną wersją na żadnej drodze. Droga
+     * (`skad`) przychodzi od klienta, więc nie może rozstrzygać o tym, czy
+     * człowiek widział informację: stary goły przycisk z ustawień z dopisanym
+     * `skad=import` zapisałby zgodę bez niej (przegląd PR #2162).
      */
-    public static function aktualna(mixed $wersja, bool $zEkranuImportu): bool
+    public static function aktualna(mixed $wersja): bool
     {
-        if ($wersja === null) {
-            return $zEkranuImportu;
-        }
-
         return $wersja === self::WERSJA;
     }
 }
