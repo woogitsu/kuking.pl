@@ -25,6 +25,15 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Składniki odhaczane w trybie „Gotuję”
+
+Przy dłuższym przepisie łatwo zgubić się w tym, co już jest odmierzone.
+W trybie „Gotuję” rozwiń „Składniki” i dotknij składnika, który masz
+przygotowany — pojawi się przy nim „Przygotowane”, a pod listą zobaczysz, ile
+jeszcze zostało. Zaznaczenie pamięta ta karta przeglądarki, także po przejściu
+do następnego kroku. Przycisk „Wyczyść zaznaczenie składników” zaczyna listę
+od nowa i nie rusza odhaczonych kroków.
+
 ### Ile może kosztować danie
 
 Przy swoim przepisie możecie podać przybliżony koszt całego dania. Wpiszcie

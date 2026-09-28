@@ -1312,6 +1312,12 @@ jobs:
       - name: Regresja „Pokaż więcej” (DOM w Chromium)
         run: node --test scripts/przegladarka/pokaz-wiecej.test.mjs
 
+      # Checklista składników w trybie „Gotuję” (#2069): niezależne wiersze,
+      # stan po zmianie kroku i w drugiej karcie, reset niezależny od kroków,
+      # klawiatura, 320 px i cele dotyku, widok bez JS. Też potrzebuje Chromium.
+      - name: Regresja checklisty składników w trybie „Gotuję” (DOM w Chromium)
+        run: node --test scripts/przegladarka/skladniki-gotowania.test.mjs
+
       # Weryfikacja, że build faktycznie coś wyprodukował. Vite potrafi
       # zakończyć się sukcesem z pustym manifestem przy błędnej konfiguracji,
       # a wtedy produkcja dostaje stronę bez CSS.

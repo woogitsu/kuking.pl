@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- W trybie „Gotuję” możesz odhaczać składniki, które już masz odmierzone. Zaznaczenie zostaje w tej karcie przeglądarki, także po przejściu do kolejnego kroku, i nie rusza odhaczonych kroków (#2069). [nowa funkcja]
+
 - Ekrany logowania i zakładania konta wykorzystują szerokość komputera: obok formularza widać od razu wejście przez Google lub Facebooka, a przy logowaniu także drogę przez link wysłany e-mailem. Na telefonie wszystko układa się w jedną kolumnę; żadne pole ani komunikat nie znika.
 
 - Zdjęcie, którego przygotowanie chwilowo się nie udało, dalej pokazuje „Twoje zdjęcie się jeszcze przygotowuje”, dopóki serwis próbuje ponownie. Komunikat „Nie udało się przygotować tego zdjęcia” z radą, żeby usunąć i dodać wpis, pojawia się dopiero po ostatniej nieudanej próbie — nie trzeba już kasować wpisu ze zdjęciem, które za chwilę by się pokazało (#1349).
