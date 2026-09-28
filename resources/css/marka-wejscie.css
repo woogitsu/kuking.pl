@@ -40,6 +40,11 @@
 
   .marka-wejscie-dalsze > p { margin: 0; overflow-wrap: anywhere; }
 
+  /* Przy czcionce przeglądarki 200% siatka nie może brać minimalnej
+     szerokości długiego napisu przycisku jako szerokości całej karty. */
+  .marka-wejscie-dalsze > .sekcja-strony,
+  .marka-wejscie-po-formularzu > .sekcja-strony { min-width: 0; }
+
   /* OAuth ma własne mt-6 w komponencie współdzielonym. W tej kompozycji
      odstęp liczy wyłącznie grid, także gdy dostawcy są wyłączeni. */
   .marka-wejscie-dalsze > .sekcja-strony.mt-6 { margin-top: 0 !important; }

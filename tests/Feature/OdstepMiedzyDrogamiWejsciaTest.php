@@ -320,6 +320,11 @@ class OdstepMiedzyDrogamiWejsciaTest extends TestCase
             '/\.marka-wejscie-dalsze\s*\{[^}]*gap:\s*var\(--spacing-6\)/s',
             $css,
         );
+        $this->assertMatchesRegularExpression(
+            '/\.marka-wejscie-dalsze\s*>\s*\.sekcja-strony,\s*\.marka-wejscie-po-formularzu\s*>\s*\.sekcja-strony\s*\{\s*min-width:\s*0;/s',
+            $css,
+            'Przy czcionce 200% karty OAuth i linku nie mogą poszerzać siatki poza 320 px.',
+        );
     }
 
     /**
