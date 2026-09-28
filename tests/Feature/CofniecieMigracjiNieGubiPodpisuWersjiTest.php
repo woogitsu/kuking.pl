@@ -6,8 +6,8 @@ namespace Tests\Feature;
 
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Models\Recipe;
-use Illuminate\Database\QueryException;
 use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -70,8 +70,7 @@ class CofniecieMigracjiNieGubiPodpisuWersjiTest extends TestCase
 
         Artisan::call('migrate:rollback', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
         $blokada = array_search('LOCK TABLE recipes IN ACCESS EXCLUSIVE MODE', $zapytania, true);
-        $liczenie = array_find_key($zapytania, static fn (string $sql): bool =>
-            str_contains($sql, 'count(*)') && str_contains($sql, 'forked_at'));
+        $liczenie = array_find_key($zapytania, static fn (string $sql): bool => str_contains($sql, 'count(*)') && str_contains($sql, 'forked_at'));
         $this->assertIsInt($blokada, 'Rollback nie wykonał blokady tabeli recipes.');
         $this->assertIsInt($liczenie, 'Rollback nie sprawdził, czy istnieją wersje.');
         $this->assertLessThan($liczenie, $blokada, 'Blokada musi poprzedzać sprawdzenie wersji.');
