@@ -127,6 +127,13 @@ final class RegeneracjaKodowZapasowychNaDwochPolaczeniachTest extends TestDwochP
         }
 
         $this->assertGreaterThanOrEqual(1, $pokazane);
+
+        // Kontrola dodatnia rewalidacji: B naprawdę dotarł pod blokadę,
+        // zobaczył komplet A i powiedział człowiekowi, co zrobić — a nie
+        // zniknął po drodze na przyrządzie.
+        $this->assertNull($wynikB['wartosc']['kody'], 'B pokazał drugi komplet obok kompletu A.');
+        $this->assertStringContainsString('w innym oknie lub karcie', (string) $wynikB['wartosc']['status']);
+        $this->assertStringEndsWith('/ustawienia/2fa', (string) $wynikB['wartosc']['dokad']);
     }
 
     public function test_pojedyncza_regeneracja_tym_przyrzadem_daje_dzialajacy_komplet(): void
