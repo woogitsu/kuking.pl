@@ -79,6 +79,13 @@ powstrzymują duplikat. Ponowienie starej sprawy po upływie okna również nie
 wysyła drugiego listu. Pusty adres i odmowa budżetu nie oznaczają sprawy
 jako obsłużonej; można je ponowić, gdy przeszkoda zniknie.
 
+**Granica migracji:** klucz celu zapisany przez starszy kod nie mówi, czy
+powiadomienie trafiło do kolejki, a zadanie mogło już zostać wykonane i
+usunięte z `jobs`. Jeżeli klucz nadal istnieje, a starsza sprawa nie ma
+znacznika, automatyczne ponowienie czeka do końca okna. Po upływie okna
+wynik historycznej próby pozostaje niepewny; ponowienie może oznaczać
+drugi list. Pełna gwarancja atomowa dotyczy alarmów obsłużonych nowym kodem.
+
 **Plakietka i priorytet tylko dla otwartych.** Sprawa w innym stanie nie ma
 napisu „Nie może czekać"/„Na dziś", a w zakładce „Wszystkie" stoi za
 wszystkimi otwartymi, po dacie (`PriorytetSprawy::wKolejce`,

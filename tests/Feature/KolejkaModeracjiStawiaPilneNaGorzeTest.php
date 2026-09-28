@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Moderation\Actions\AlarmujOPilnymZgloszeniu;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ZglosNielegalnaTresc;
 use App\Domain\Moderation\PriorytetSprawy;
@@ -16,7 +17,6 @@ use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -402,7 +402,6 @@ class KolejkaModeracjiStawiaPilneNaGorzeTest extends TestCase
      */
     public function test_awaria_po_zapisie_joba_cofa_calosc_i_ponowienie_nie_dubluje_alarmu(): void
     {
-        Exceptions::fake();
         config([
             'kuking.moderation.model.alarm_email' => 'moderacja@kuking.test',
             'cache.default' => 'database',
@@ -412,17 +411,26 @@ class KolejkaModeracjiStawiaPilneNaGorzeTest extends TestCase
         Cache::purge('database');
 
         $adresat = Notification::getFacadeRoot();
+        $wstrzyknieto = false;
         Notification::shouldReceive('route')->once()->andReturnUsing(
-            static function (string $kanal, string $adres) use ($adresat): object {
+            static function (string $kanal, string $adres) use ($adresat, &$wstrzyknieto): object {
                 $prawdziwaTrasa = $adresat->route($kanal, $adres);
 
-                return new class($prawdziwaTrasa)
+                return new class($adresat, $prawdziwaTrasa, $wstrzyknieto)
                 {
-                    public function __construct(private readonly object $trasa) {}
+                    public function __construct(
+                        private readonly object $dyspozytor,
+                        private readonly object $trasa,
+                        private bool &$wstrzyknieto,
+                    ) {}
 
                     public function notify(object $powiadomienie): void
                     {
-                        $this->trasa->notify($powiadomienie);
+                        // AnonymousNotifiable::notify() pobiera dyspozytor
+                        // ponownie z kontenera, gdzie stoi teraz mock. Wołamy
+                        // prawdziwy dyspozytor wprost, żeby INSERT był realny.
+                        $this->dyspozytor->send($this->trasa, $powiadomienie);
+                        $this->wstrzyknieto = true;
                         throw new RuntimeException('Utracona odpowiedź po zapisie do jobs.');
                     }
                 };
@@ -435,7 +443,7 @@ class KolejkaModeracjiStawiaPilneNaGorzeTest extends TestCase
         $jobsPrzed = DB::table('jobs')->count();
 
         $pierwsze = app(ReportContent::class)->handle($zglaszajacy, $wpis, 'minor');
-        Exceptions::assertReported(RuntimeException::class);
+        $this->assertTrue($wstrzyknieto, 'Test nie doszedł do awarii po prawdziwym INSERT do jobs.');
         $this->assertSame($jobsPrzed, DB::table('jobs')->count());
         $this->assertSame($przed, DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte());
         $this->assertSame(0, DziennyBudzetListow::dlaAlarmuModeracji()->zuzyte());
@@ -451,6 +459,25 @@ class KolejkaModeracjiStawiaPilneNaGorzeTest extends TestCase
         $this->travel(7)->hours();
         app(ReportContent::class)->handle($zglaszajacy, $wpis, 'minor');
         $this->assertSame($jobsPrzed + 1, DB::table('jobs')->count(), 'Stara sprawa wysłała drugi list po wygaśnięciu okna.');
+    }
+
+    /** Stary klucz bez trwałego znacznika nie jest dowodem zlecenia listu. */
+    public function test_historyczny_niepewny_klucz_nie_oznacza_sprawy_jako_obsluzonej(): void
+    {
+        Notification::fake();
+        config(['kuking.moderation.model.alarm_email' => null]);
+
+        $wpis = $this->wpis('autorhistorycznegoalarmu');
+        $zglaszajacy = $this->user('zglaszajacyhistorycznegoalarmu');
+        $sprawa = app(ReportContent::class)->handle($zglaszajacy, $wpis, 'minor');
+
+        $klucz = (new \ReflectionMethod(AlarmujOPilnymZgloszeniu::class, 'kluczCelu'))->invoke(null, $sprawa);
+        Cache::put($klucz, (string) $sprawa->getKey(), now()->addHours(6));
+        config(['kuking.moderation.model.alarm_email' => 'moderacja@kuking.test']);
+
+        $this->assertFalse(app(AlarmujOPilnymZgloszeniu::class)->handle($sprawa));
+        $this->assertNull($sprawa->refresh()->alarm_czlowieka_obsluzony_at);
+        Notification::assertNothingSent();
     }
 
     // ---------------------------------------------------------------

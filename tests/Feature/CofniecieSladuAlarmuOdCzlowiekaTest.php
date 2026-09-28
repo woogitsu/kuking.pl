@@ -12,7 +12,13 @@ use Illuminate\Support\Str;
 use RuntimeException;
 use Tests\TestCase;
 
-/** #2066 / AGENTS §6: rollback nie może zapomnieć, który alarm już obsłużono. */
+/**
+ * #2066 / AGENTS §6: rollback nie może zapomnieć, który alarm już obsłużono.
+ *
+ * @bez-kontroli-dodatniej Plik migracji jest ładowany wyłącznie po to, by
+ * wykonać up()/down() na PostgreSQL; test nie skanuje treści plików.
+ * Kontrola dodatnia bezpiecznego cofnięcia jest w drugim teście.
+ */
 class CofniecieSladuAlarmuOdCzlowiekaTest extends TestCase
 {
     use RefreshDatabase;
