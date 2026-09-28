@@ -521,6 +521,7 @@ uzasadnienie liczby.
 | `zeszyt` | 60 / 10 min | zapis i wypisanie przepisu albo wpisu |
 | `ustawienia` | 30 / 10 min | czytelność, prywatność, tagi, motyw, powiadomienia, zapis profilu, usunięcie zdjęcia profilowego |
 | `ustawienia_profil` | 15 / 10 min | `POST /ustawienia/zdjecie` — jedyny ekran ustawień z plikiem |
+| `livewire_upload` | 30 / 10 min | `livewire/upload-file` — wgrywanie zdjęć w kreatorze przepisu; trasa pakietu, podpięta w `config/livewire.php` (audyt A5-09, dopisane 25.09.2026) |
 | `eksport` | 10 / 60 min | paczka RODO |
 | `confirm_password` (bez zmian) | 5 / 10 min | akcje proszące o hasło — teraz także wyłączenie 2FA i zgłoszenie usunięcia konta |
 | `moderacja` | 120 / 10 min | cały panel `/admin` |

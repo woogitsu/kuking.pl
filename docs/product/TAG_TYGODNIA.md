@@ -148,7 +148,8 @@ Obsługa obecnego mechanizmu, bez wdrożenia:
    Jeśli tag już jest na liście, edytuj istniejącą pozycję.
 4. Wklej tekst do **Notatka**, wybierz **Zapisz notatkę**. Kolejność ustawiaj
    **W górę / W dół**. Otwórz **Zobacz stronę tagu** i sprawdź efekt.
-5. Po zakończeniu wybierz **Zdejmij z promowanych** przy sezonowej pozycji.
+5. Po zakończeniu wybierz **Zdejmij z promowanych** przy sezonowej pozycji
+   i potwierdź przyciskiem **Tak, zdejmij z promowanych**.
    Jeśli tag był wcześniej stałym poleceniem, przywróć zapisaną wcześniejszą
    notatkę i pozycję zamiast usuwać go z listy. Promocje obsługują również
    zainteresowania nowych kont; nie zastępuj całej listy jednym tagiem.

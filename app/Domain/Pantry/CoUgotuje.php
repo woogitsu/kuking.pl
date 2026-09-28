@@ -29,7 +29,7 @@ use Illuminate\Support\Facades\DB;
  * ma wszystkie swoje rdzenie w rdzeniach tej linijki:
  * `pantry_items.rdzenie <@ public.kuking_rdzenie_skladnika(ingredient_text)`.
  * Reguła rdzeni (małe litery, bez polskich znaków, słownik form krótkich
- * słów, prosta liczba mnoga dłuższych — #1969) jest opisana w migracji `2026_09_26_120000_create_pantry_items_table`
+ * słów, prosta liczba mnoga dłuższych — #1969) jest opisana w migracji `2026_09_28_233700_create_pantry_items_table`
  * i mieszka wyłącznie w bazie. Bez AI.
  *
  * KTÓRE PRZEPISY W OGÓLE WCHODZĄ

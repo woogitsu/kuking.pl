@@ -38,6 +38,70 @@ dopóki ćwiczenie z §4A nie zostanie wykonane i wpisane do tabeli w §5.
 Tam, gdzie to ma znaczenie, jest to powiedziane wprost drugi raz — bo to jest
 dokładnie ta różnica, o którą chodzi w „restore przetestowany".
 
+### Awaryjny zrzut, gdy automatyczny serwis kopii nie jest dostępny (#2078)
+
+**Nie używaj `pg_dump` z kontenera aplikacji.** Nie zawiera on klienta bazy;
+ogólny pakiet `postgresql-client` w Debianie Trixie dawał wersję 17, która
+odmawia zrzutu serwera PostgreSQL 18. Obraz `docker/kopia/Dockerfile` bazuje na
+przypiętym `postgres:18`; CI sprawdza jego wersję i wykonuje z niego prawdziwy
+zrzut testowej bazy PostgreSQL 18. To test narzędzia, **nie dowód**, że
+produkcyjny serwis kopii działa albo że powstała produkcyjna kopia.
+
+Jednorazowa ścieżka na komputerze operatora z Dockerem i terminalem Bash/WSL2:
+
+1. Ustal adres bazy, do którego **kontener Docker** może się połączyć. Adres
+   `localhost` tunelu na hoście nie jest adresem hosta wewnątrz kontenera;
+   przy tunelu użyj `host.docker.internal` (Docker Desktop) albo równoważnej
+   trasy. Nie zmieniaj ustawień produkcji tylko po to, by wykonać ten zrzut.
+2. Utwórz prywatny katalog i przygotuj w nim plik `polaczenie.env` z `PGHOST`, `PGPORT`,
+   `PGUSER`, `PGDATABASE`, `PGPASSWORD` i `PGSSLMODE=require`. Nie wpisuj hasła
+   w argumentach `docker run`, historii terminala ani w repozytorium. Plik
+   powinien być czytelny wyłącznie dla operatora (`chmod 600`). Wypełnij go
+   rzeczywistymi danymi dostępu, po jednej parze `NAZWA=wartość` w linii:
+
+```bash
+umask 077
+mkdir -p "$HOME/kuking-awaryjny/zrzuty"
+chmod 700 "$HOME/kuking-awaryjny" "$HOME/kuking-awaryjny/zrzuty"
+```
+
+```dotenv
+PGHOST=adres-bazy-dostepny-z-kontenera
+PGPORT=5432
+PGUSER=uzytkownik
+PGDATABASE=nazwa_bazy
+PGPASSWORD=haslo
+PGSSLMODE=require
+```
+
+   Nadaj uprawnienia: `chmod 600 "$HOME/kuking-awaryjny/polaczenie.env"`.
+3. Z katalogu repozytorium wykonaj poniższe polecenia. Zrzut pozostaje na
+   lokalnym dysku operatora; nie uruchamia migracji ani nie zapisuje bazy:
+
+```bash
+docker build -f docker/kopia/Dockerfile -t kuking-kopia-awaryjna .
+docker run --rm --entrypoint pg_dump kuking-kopia-awaryjna --version
+
+plik="kuking-$(date -u +%Y%m%dT%H%M%SZ)-pg18.dump"
+docker run --rm --user "$(id -u):$(id -g)" --entrypoint pg_dump \
+  --env-file "$HOME/kuking-awaryjny/polaczenie.env" \
+  --mount "type=bind,src=$HOME/kuking-awaryjny/zrzuty,dst=/kopie" \
+  kuking-kopia-awaryjna --format=custom --no-owner --no-privileges \
+  --file="/kopie/$plik"
+
+test -s "$HOME/kuking-awaryjny/zrzuty/$plik"
+docker run --rm --user "$(id -u):$(id -g)" --entrypoint pg_restore \
+  --mount "type=bind,src=$HOME/kuking-awaryjny/zrzuty,dst=/kopie,readonly" \
+  kuking-kopia-awaryjna --list "/kopie/$plik" >/dev/null
+```
+
+Jeśli `pg_dump` albo odczyt spisu `pg_restore` zakończy się błędem, **kopii nie
+ma**. Zapisany zrzut zawiera dane osobowe: trzymaj go w katalogu dostępnym
+tylko dla operatora, nie wysyłaj jawnego pliku i zastosuj szyfrowanie/offsite
+opisane w §7.3 lub `scripts/kopia-lokalna.sh`. Ten krok wytwarza wyłącznie
+lokalny zrzut. Próbę odtworzenia przeprowadź według §4A/§4B z klientem 18;
+sam niepusty plik i jego spis nie zamykają bramki restore drill.
+
 ---
 
 ## 1. Co dokładnie trzeba uratować
@@ -280,6 +344,9 @@ Produkcja działa dalej przez cały czas — nic dodatkowo nie tracisz, próbuj�
    SQL
    ```
 6. Usuń pomocniczy serwis `postgres-restored-<data>` — kosztuje, jeśli zostanie.
+7. Jeśli wczytana naprawa dotyka tabel `users`, `profiles`, `posts`,
+   `recipes` albo `comments` — wykonaj §3.1 („wymaż ponownie”) z `--od`
+   równym chwili, z której pochodzi naprawa.
 
 **RPO:** ~0 (PITR ma ziarnistość WAL, praktycznie do sekundy) — **o ile PITR
 jest włączony** (patrz pytanie 2 w §2.3). Jeśli nie, jedyna opcja to ostatni
@@ -340,6 +407,12 @@ railway variables --set "DB_URL=<nowy_DATABASE_URL>" --service kuking.pl --envir
 
 # 5. Redeploy i weryfikacja
 curl -s https://kuking.pl/health   # oczekiwane: {"status":"ok"}
+
+# 6. OBOWIĄZKOWO: wymaż ponownie konta wymazane po dacie kopii (§3.1)
+railway run --service kuking.pl --environment production \
+  php artisan kuking:wymaz-ponownie --od="<chwila kopii, np. 2026-10-05 02:17>" --na-sucho
+railway run --service kuking.pl --environment production \
+  php artisan kuking:wymaz-ponownie --od="<chwila kopii>"
 ```
 
 Potem: odtwórz DNS/WAF/Cache Rules wg `DEPLOYMENT_RUNBOOK.md` KROK 10 (jeśli
@@ -354,6 +427,84 @@ do 24 h, a wiek ostatniej kopii mówi `kuking:sprawdz-kopie`**).
 **RTO:** **oszacowanie 1-4 h** w zależności od tego, czy trzeba tylko przywrócić
 bazę, czy całe środowisko od zera wg `DEPLOYMENT_RUNBOOK.md` (tam: „3-4 godziny
 plus czekanie na DNS") — **niezmierzone.**
+
+### 3.1 Po KAŻDYM odtworzeniu: „wymaż ponownie” (audyt B5, znalezisko 3)
+
+**Dotyczy 3(a), 3(b) i ćwiczeń z §4, jeśli odtworzona baza ma obsługiwać
+ruch.** Kopia pochodzi sprzed awarii, więc zawiera konta, które po jej dacie
+wymazaliśmy na prośbę ludzi (RODO art. 17) — z prawdziwym e-mailem, profilem
+i treściami. Ślad wymazania (`users.data_erased_at`,
+`potwierdzenia_zadan_rodo`, `audit_log`) leży w tej samej bazie, więc wraca
+do stanu sprzed wymazania. Nocne zadania tego nie naprawią: konto ma w kopii
+status `active` i nikt nie prosi o jego usunięcie.
+
+Dlatego każde wymazanie zapisuje wpis **poza bazą**: obiekt
+`dziennik-wymazan/<user_id>.json` na dysku `kuking.dziennik_wymazan.dysk`
+(produkcja: bucket eksportów, `r2_eksporty`). Wpis to sam identyfikator
+konta, chwila i wykonany zakres (`minimum`/`everything`) — bez e-maila i bez
+nazwy. Wpisy żyją 120 dni (dłużej niż najstarsza kopia), dopisuje je
+i przycina `kuking:dziennik-wymazan` co noc o 05:30.
+
+#### Zanim odtworzysz: okno awarii dziennika (issue #2038)
+
+Wpis powstaje **po** zatwierdzeniu wymazania. Gdy zapis padnie
+(`DziennikWymazan::zapisz()` próbuje 3 razy, odstęp 1 s i 3 s), brakujący
+wpis dopisuje nocne `kuking:dziennik-wymazan` o 05:30 — szukając kont po
+`users.data_erased_at` w **bieżącej** bazie. Jeśli między tą awarią
+a najbliższym udanym uzupełnieniem odtworzysz kopię sprzed wymazania,
+znacznika już nie ma: noc nie dopisze niczego, a `kuking:wymaz-ponownie`
+nie zobaczy konta. Wymazanie z ok. 03:50 (`kuking:usun-wygasle-konta`) ma
+takie okno co najmniej do 05:30 tej samej nocy; przy dłuższej awarii
+magazynu — do pierwszej nocy, w której zapis znów się uda.
+
+Dlatego przed odtworzeniem:
+
+1. **Jeśli bieżąca baza jeszcze się czyta** (zawsze w 3(a), często
+   w 3(b)) — uruchom na niej `php artisan kuking:dziennik-wymazan`
+   i sprawdź, że w logu nie pojawiła się linia z punktu 2. Dopiero wtedy
+   dziennik zawiera wszystkie wymazania, które odtworzenie cofnie.
+2. **Przeszukaj dziennik Railwaya** od chwili kopii do teraz po frazie
+   `Dziennik wymazań: nie udało się zapisać wpisu`. Każda taka linia
+   (poziom `error`) ma pola `user_id`, `zakres` i `wymazano_at`. Dla każdej,
+   której wpisu nie ma w dzienniku, dopisz go ręcznie:
+   ```bash
+   php artisan kuking:dziennik-wymazan --dopisz=<user_id> --zakres=<zakres> --kiedy=<wymazano_at>
+   ```
+   Komenda niczego nie wymazuje, tylko wpisuje do dziennika; wymazuje
+   dopiero krok niżej.
+
+**Czego to NIE gwarantuje.** Dziennik Railwaya nie jest magazynem
+z potwierdzoną retencją (repozytorium jej nie zna) i ginie razem
+z projektem Railway. Jeśli baza jest nieczytelna, a linii logu już nie ma,
+takie konto wróci z kopii bez śladu. Pełne domknięcie okna wymaga decyzji
+właściciela — warianty w issue #2038 (wstrzymanie
+wymazania do udanego zapisu dziennika albo drugi, niezależny od bazy
+magazyn wpisów).
+
+Krok, **zanim odtworzona baza przyjmie ruch** (albo najpóźniej zaraz po
+podpięciu `DB_URL`):
+
+```bash
+# podgląd — lista kont do ponownego wymazania, nic nie zmienia
+php artisan kuking:wymaz-ponownie --od="<chwila, z której pochodzi kopia>" --na-sucho
+# wykonanie
+php artisan kuking:wymaz-ponownie --od="<chwila, z której pochodzi kopia>"
+```
+
+- `--od` to chwila kopii (nazwa pliku zrzutu offsite, moment PITR, data
+  Volume Backupu). Przy wątpliwości **pomiń `--od`** — komenda weźmie cały
+  dziennik; wolniej, ale nie da się pomylić daty. Konto już wymazane
+  w kopii jest pomijane, więc nadmiarowy przebieg nic nie psuje.
+- Komenda wymazuje tym samym zakresem, jaki wykonaliśmy za pierwszym razem,
+  i kończy się kodem ≠ 0, gdy któreś konto się nie udało — powtórz ją,
+  a przy stałym błędzie wymaż konto ręcznie.
+- Zdjęć w R2 nie trzeba odtwarzać: skasowane pliki nie wracają z kopii bazy.
+  Wiersze `media` z kopii wskazują nieistniejące pliki i znikną razem
+  z ponownym wymazaniem konta.
+- Test, który pilnuje tej drogi: `tests/Feature/DziennikWymazanPozaBazaTest.php`
+  (odtworzenie wierszy sprzed wymazania → `kuking:wymaz-ponownie` → `erased`);
+  okno awarii dziennika przed odtworzeniem:
+  `tests/Feature/DziennikWymazanPrzezOdtworzenieTest.php`.
 
 ### 3(c) Utracone zdjęcia
 

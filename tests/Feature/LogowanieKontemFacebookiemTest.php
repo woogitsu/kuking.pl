@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Actions\ZalozoneKonto;
+use App\Models\Recipe;
 use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Notifications\PotwierdzenieAdresu;
@@ -681,6 +682,8 @@ class LogowanieKontemFacebookiemTest extends TestCase
     #[Test]
     public function test_nowe_konto_z_facebooka_ma_adres_niepotwierdzony(): void
     {
+        $przepis = Recipe::factory()->create();
+        $this->get(route('register', ['comment_on' => 'recipe:'.$przepis->getKey()]))->assertOk();
         $this->wlaczFacebooka();
         $this->wracamyZFacebooka();
 
@@ -696,6 +699,9 @@ class LogowanieKontemFacebookiemTest extends TestCase
         $this->assertNotNull($basia);
         $this->assertAuthenticatedAs($basia);
         $this->assertSame(self::FB_ID, $this->identyfikatorFacebooka($basia));
+
+        $this->post(route('onboarding.skip'))->assertRedirect(route('onboarding.done'));
+        $this->get(route('onboarding.done'))->assertRedirect($przepis->url().'#komentarze');
 
         // TO JEST TA JEDNA RÓŻNICA WZGLĘDEM GOOGLE (D-098).
         $this->assertNull($basia->email_verified_at,
@@ -735,7 +741,7 @@ class LogowanieKontemFacebookiemTest extends TestCase
             'username' => 'basia',
             'age_confirmed' => '1',
             'terms_accepted' => '1',
-        ])->assertStatus(503);
+        ])->assertRedirect(route('login'));
 
         $this->assertDatabaseCount('users', 0);
     }
@@ -849,7 +855,8 @@ class LogowanieKontemFacebookiemTest extends TestCase
         $this->assertNull($this->identyfikatorFacebooka($basia->refresh()));
 
         // Dopiero POST tworzy powiązanie.
-        $this->post(route('facebook.link.store'))->assertRedirect(route('settings.security'));
+        $this->post(route('facebook.link.store'), ['password' => 'haslo-testowe-123'])
+            ->assertRedirect(route('settings.security'));
         $this->assertStringNotContainsString('jednym kliknięciem', (string) session('status'));
         $this->assertStringContainsString('Wejdź kontem Facebooka', (string) session('status'));
 
@@ -911,7 +918,7 @@ class LogowanieKontemFacebookiemTest extends TestCase
         // więc o dostępie nie rozstrzyga stan sprzed sprawdzenia.
         $basia->ban();
 
-        $this->post(route('facebook.link.store'));
+        $this->post(route('facebook.link.store'), ['password' => 'haslo-testowe-123']);
 
         $this->assertNull($this->identyfikatorFacebooka($basia->refresh()),
             'O dostępie do konta nie może rozstrzygać stan z przeszłości.');
@@ -932,7 +939,7 @@ class LogowanieKontemFacebookiemTest extends TestCase
         // mieć powiązania — a rola mogła zostać nadana po pokazaniu ekranu.
         $basia->forceFill(['role' => User::ROLE_MODERATOR])->save();
 
-        $this->post(route('facebook.link.store'));
+        $this->post(route('facebook.link.store'), ['password' => 'haslo-testowe-123']);
 
         $this->assertNull($this->identyfikatorFacebooka($basia->refresh()));
     }
@@ -1009,7 +1016,11 @@ class LogowanieKontemFacebookiemTest extends TestCase
         Carbon::setTestNow('2026-09-20 11:00:00');
 
         $this->actingAs($basia);
-        $this->wracamyZFacebooka()->assertRedirect(route('settings.security'));
+        $this->wracamyZFacebooka()->assertRedirect(route('facebook.link'));
+        $this->assertTrue($basia->fresh()->dostepOdebranyU(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK),
+            'Sama zgoda Facebooka nie jest dowodem właściciela konta Kuking.');
+        $this->post(route('facebook.link.store'), ['password' => 'haslo-testowe-123'])
+            ->assertRedirect(route('settings.security'));
 
         $status = (string) session('status');
         $this->assertStringContainsString('znów działa', $status);

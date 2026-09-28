@@ -34,6 +34,14 @@
                     <span class="choice-label">Wszyscy</span>
                 </label>
             </div>
+            @if($collection->is_default)
+                {{--
+                    SKUTEK DLA PRZYSZŁYCH ZAPISÓW, NIE TYLKO DZISIEJSZYCH (issue #1400).
+                    Szybkie „Zapisuję” bez wyboru zeszytu trafia właśnie tutaj,
+                    więc „Wszyscy” pokazuje też to, co człowiek zapisze jutro.
+                --}}
+                <p class="notice mt-2" id="skutek-domyslnego-zeszytu">To Twój główny zeszyt. Przycisk „Zapisuję” wkłada tu każdy przepis i wpis, jeśli nie wybierzesz innego zeszytu. Gdy wybierzesz „Wszyscy”, inne zalogowane osoby zobaczą to, co już tu jest, i wszystko, co zapiszesz tu później.</p>
+            @endif
             @if($collection->isPublic())
                 <p class="meta mt-2">Zmiana na „Tylko ja” od razu zamyka dotychczasowy bezpośredni adres dla innych osób.</p>
             @endif

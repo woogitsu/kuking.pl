@@ -42,7 +42,7 @@ Koszt: **S** = do ~1 dnia pracy, **M** = 2–5 dni, **L** = powyżej tygodnia lu
 | Nazwa | Co widzi użytkownik | Dlaczego to działa emocjonalnie | Koszt | Kiedy | Ryzyka |
 |---|---|---|---|---|---|
 | **Pytanie dnia jako pierwszy element ekranu** | Na górze `/home`, nad feedem: duże, ciepłe „Co dziś ugotowałeś, Basiu?” + jeden przycisk `[ Dodaj zdjęcie ]`. Nie pole tekstowe, nie „utwórz post” | Pytanie zwrócone do mnie po imieniu zobowiązuje bardziej niż puste pole. Jest jak zapytanie sąsiadki przez płot | S | MVP | Może zmęczyć przy codziennym wejściu — potrzebny wariant „już dodałaś dziś, dziękujemy” zamiast powtarzania pytania |
-| **Wariant pytania zależny od pory dnia i sezonu** | Rano: „Co dziś na śniadanie?”. Wieczorem: „Co było na obiad?”. W październiku: „Kisisz coś w tym tygodniu?” | Produkt wydaje się przytomny, a nie automatyczny. Buduje wrażenie, że ktoś tam jest | S | MVP | Zbyt sprytne warianty brzmią jak bot. Maks. 8–10 zdań w rotacji, wszystkie napisane ręcznie |
+| **Wariant pytania zależny od pory dnia i sezonu** | Rano: „Co dziś na śniadanie?”. Wieczorem: „Co było na obiad?”. W październiku: „Kisisz coś w tym tygodniu?” | Produkt wydaje się przytomny, a nie automatyczny. Buduje wrażenie, że ktoś tam jest | S | **Nie ma** — D-207: stałe „Dzień dobry, …”, bez rozpoznawania pory dnia; wariant sezonowy wymaga nowej decyzji (D-026: sezon zostaje w pliku) | Zbyt sprytne warianty brzmią jak bot. Maks. 8–10 zdań w rotacji, wszystkie napisane ręcznie |
 | **Potwierdzenie zamiast pustki po publikacji** | Po `Opublikuj`: „Gotowe. Twoje danie jest w Kuking — 3 września 2026.” + link `Zobacz swój wpis` | Data od pierwszej sekundy komunikuje: to archiwum, nie strumień. Buduje poczucie odkładania czegoś na półkę | S | MVP | Brak |
 | **Licznik „dni w kuchni” zamiast streaka** | Na profilu: „Basia gotuje z nami od 14 miesięcy · 212 dań” | Podliczamy dorobek, a nie ciągłość. Nie da się „stracić” dorobku, więc nie ma lęku | S | V1 | Osoba z 3 wpisami może czuć się mała — dlatego nie pokazujemy tego w feedzie, tylko na własnym profilu |
 | **„Dziś w kuchniach Kuking”** | Pasek pod pytaniem dnia: „Dziś ugotowano 47 dań · najczęściej: placki ziemniaczane” | Dowód, że ktoś jest po drugiej stronie, bez pokazywania rankingu osób | S | MVP | Przy 5 aktywnych osobach liczba żenuje — pokazywać tylko powyżej progu (np. ≥15 dań/dobę), niżej ukryć element |
@@ -101,16 +101,39 @@ Zasada bezpieczeństwa emocjonalnego: **przypominamy tylko to, co użytkownik sa
 
 ### 4.6 Sezon i kalendarz polskiej kuchni
 
-Sposób wplecenia: **sezon nigdy nie jest pop-upem ani banerem.** Sezon zmienia (a) pytanie dnia, (b) temat tygodnia, (c) jeden pasek w Discover, (d) treść digestu.
+Sposób wplecenia: **sezon nigdy nie jest pop-upem ani banerem.** Pierwotny plan: sezon zmienia (a) pytanie dnia, (b) temat tygodnia, (c) jeden pasek w Discover, (d) treść digestu.
+
+> **Stan po D-021 i D-026 (korekta z 28 września 2026, issue #2083).** Sezon
+> nie ma w aplikacji żadnego automatu. D-026 odrzuciła nawet kolumnę
+> `sezonowy` na tagach: „Informacja zostaje w pliku.” D-021 oddała rolę
+> redakcyjną zwykłym tagom promowanym, bez osobnego obiektu „temat” — więc
+> „temat tygodnia” czytaj jako **tag tygodnia**. Co dziś działa z czterech
+> punktów wyżej:
+>
+> - (a) pytanie dnia — **nie zmienia się z sezonem**: powitanie jest stałe
+>   („Dzień dobry, …”, D-207), bez rozpoznawania pory dnia;
+> - (b) tag tygodnia — **datowane wyróżnienie zwykłego tagu** (`tag_highlights`,
+>   #18) z blokiem na `/home`, za flagą `kuking.tag_tygodnia.wlaczony`,
+>   domyślnie wyłączoną; sezonowy tag wybiera człowiek;
+> - (c) pasek w Discover — **nie istnieje**; to nierozstrzygnięty pomysł,
+>   który wymaga osobnej decyzji właściciela;
+> - (d) digest — gospodarz może dopisać jedno zdanie na końcu listu;
+>   sam z sezonu nic się nie zmienia.
+>
+> Kalendarz sezonowy jest **ręcznym materiałem redakcyjnym**:
+> [`dane/kalendarz-polskiej-kuchni.json`](dane/kalendarz-polskiej-kuchni.json),
+> którego aplikacja nie wczytuje (`TAG_TYGODNIA.md` §2). Automatyczne
+> wyświetlanie sezonu czeka na decyzję właściciela. Tabeli `seasonal_moments`
+> nie budujemy bez tej decyzji. Wiersze poniżej mówią stan, nie dawny plan.
 
 | Nazwa | Co widzi użytkownik | Dlaczego to działa emocjonalnie | Koszt | Kiedy | Ryzyka |
 |---|---|---|---|---|---|
-| **Kalendarz sezonowy jako dane, nie kod** | Nie widzi nic wprost. Widzi trafne pytania dnia i tematy tygodnia | Redakcja może zmieniać rok kulinarny bez deploya. Warunek konieczny, żeby reszta była tania | S (tabela `seasonal_moments`: data od–do, hasło, teksty) | **MVP** | Trzeba to ręcznie napisać na 12 miesięcy — jednorazowo ~1 dzień pracy redakcyjnej |
-| **Pasek „Teraz sezon na…”** | W `/odkryj`: „**Teraz sezon na śliwki**” + 6 przepisów ze śliwkami od użytkowników | Rozwiązuje realny problem: mam skrzynkę śliwek, co z tym zrobić. Praktyczne, nie dekoracyjne | S | **MVP** | Przy pustej bazie pasek będzie pusty → fallback: pokazać zamiast tego temat tygodnia |
-| **Temat tygodnia z sezonu** | Na `/home`: „**Temat tygodnia: przetwory ze śliwek.** Pokaż, co zamykasz w słoikach.” + `[ Dodaj ]` + wpisy innych | Wspólne zadanie w tym samym tygodniu tworzy poczucie, że wszyscy siedzą w jednej kuchni | S (mechanika) | **MVP** | Temat bez uczestników jest gorszy niż brak tematu → gospodarz zawsze publikuje pierwszy (patrz `COLD_START.md`) |
-| **Wielkie momenty roku** | Osobne, mocniejsze oprawy dla: Wigilia, Wielkanoc, tłusty czwartek (4 II 2027), Boże Ciało, dożynki/wykopki, św. Marcin (11 XI, gęsina), Andrzejki, Dzień Babci (21 I) | To dni, w których cała Polska gotuje jednocześnie. Naturalny szczyt aktywności — wystarczy nie przeszkadzać | S–M | **MVP** dla Wigilii i tłustego czwartku, resztę dokładać | Przeciążenie świętami = kicz. Maks. 8–10 „wielkich momentów” w roku, resztę traktować jako zwykłe tematy |
+| **Kalendarz sezonowy jako materiał redakcji, nie kod** | Nie widzi nic wprost. Widzi tag tygodnia, który gospodarz wybrał z kalendarza | Redakcja planuje rok kulinarny bez deploya: wybiera z pliku i wpisuje w istniejący panel | S (plik `dane/kalendarz-polskiej-kuchni.json`, aplikacja go nie czyta; D-026) | **JEST jako plik redakcyjny**; tabela `seasonal_moments` — dawny pomysł, bez decyzji | Plik nic nie publikuje. Każdy tydzień przenosi do panelu człowiek (`TAG_TYGODNIA.md` §5) |
+| **Pasek „Teraz sezon na…”** | W `/odkryj`: „**Teraz sezon na śliwki**” + 6 przepisów ze śliwkami od użytkowników | Rozwiązuje realny problem: mam skrzynkę śliwek, co z tym zrobić. Praktyczne, nie dekoracyjne | S | **Nierozstrzygnięte** — nie ma w kodzie; wymaga osobnej decyzji właściciela (D-026) | Przy pustej bazie pasek byłby pusty. Automat sezonowy wybierałby treść bez człowieka |
+| **Tag tygodnia z sezonu** | Na `/home`: „**Tag tygodnia: przetwory.** Pokaż, co zamykasz w słoikach.” + `[ Dodaj wpis z tym tagiem ]` + `[ Zobacz wpisy z tym tagiem ]` | Wspólne zadanie w tym samym tygodniu tworzy poczucie, że wszyscy siedzą w jednej kuchni | S (mechanika) | **JEST za flagą** `kuking.tag_tygodnia.wlaczony` (domyślnie wyłączona): zwykły tag z datami od–do, bez obiektu „temat” (D-021, #18) | Temat bez uczestników jest gorszy niż brak tematu → gospodarz zawsze publikuje pierwszy (patrz `COLD_START.md`) |
+| **Wielkie momenty roku** | Zwykły tag promowany albo tag tygodnia, dodany przez gospodarza kilka tygodni wcześniej, bez osobnej oprawy ani mechanizmu (D-021, `COLD_START.md`) dla: Wigilia, Wielkanoc, tłusty czwartek (4 II 2027), Boże Ciało, dożynki/wykopki, św. Marcin (11 XI, gęsina), Andrzejki, Dzień Babci (21 I) | To dni, w których cała Polska gotuje jednocześnie. Naturalny szczyt aktywności — wystarczy nie przeszkadzać | S–M | **MVP** dla Wigilii i tłustego czwartku, resztę dokładać | Przeciążenie świętami = kicz. Maks. 8–10 „wielkich momentów” w roku, resztę traktować jako zwykłe tematy |
 | **Sezonowy blok w kreatorze przepisu** | Krok 1, delikatna podpowiedź: „Wrzesień — dużo osób szuka teraz przepisów na powidła i grzyby” | Podpowiedź, co warto opisać teraz, żeby ktoś to znalazł. Autor czuje, że jego przepis trafi na czas | S | V1 | Nie może wyglądać jak SEO-instrukcja („optymalizuj pod frazę”) |
-| **Sezonowe kolekcje redakcyjne z treści użytkowników** | „Grzyby 2026 — 34 dania od 19 osób”, kolekcja prowadzona przez gospodarza | Bycie wybraną do kolekcji jest formą docenienia bez rankingu. Zero kosztu, duża wartość dla wybranego | S | **MVP** | Poczucie faworyzowania → zasada: w każdej kolekcji maks. 2 wpisy tej samej osoby |
+| **Sezonowe kolekcje redakcyjne z treści użytkowników** | „Grzyby 2026 — 34 dania od 19 osób”, kolekcja prowadzona przez gospodarza | Bycie wybraną do kolekcji jest formą docenienia bez rankingu. Zero kosztu, duża wartość dla wybranego | S | **Ręcznie**: gospodarz składa zwykły publiczny zeszyt; sezonowego mechanizmu nie ma (D-021) | Poczucie faworyzowania → zasada redakcji: w każdej kolekcji maks. 2 wpisy tej samej osoby. Kod tego nie pilnuje |
 | **Przypomnienie sezonowe z własnego archiwum** | „W zeszłym roku kisiłaś w trzecim tygodniu października. Zaczynasz?” | Połączenie sezonu z osobistą pamięcią — najsilniejszy trigger w całym produkcie | M | V1 | Jak przy „rok temu” — musi mieć wyłącznik |
 
 ### 4.7 Koła / grupy tematyczne (V1) — jak zapowiedzieć wcześniej
@@ -262,7 +285,7 @@ Rzeczy z tej listy, które **muszą** być w MVP, bo bez nich Kuking jest CRUD-e
 | 5 | „W rodzinie od [rok]” + skan zeszytu jako zdjęcie | S | …tracimy najbardziej wzruszającą treść, jaką ludzie mają w szufladach |
 | 6 | Archiwum profilu po miesiącach | M | …nie ma powodu, żeby zostać na dłużej niż tydzień |
 | 7 | Cztery nazwane akcje (`Ugotowałem`/`Zapisuję`/`Ładne!`/`Pytanie`) + brak publicznych liczb | S | …stajemy się małym Instagramem |
-| 8 | Tematy tygodnia + kalendarz sezonowy jako dane | S | …nie ma rytmu ani wspólnego zajęcia |
+| 8 | Tag tygodnia (D-021) + kalendarz sezonowy jako ręczny plik redakcji (D-026) | S | …nie ma rytmu ani wspólnego zajęcia |
 | 9 | Tematy tematyczne (zamknięta lista ~30) + zapisy na przyszłe koła | M | …feed nowego użytkownika jest pusty, a my nie wiemy, jakie koła otwierać |
 | 10 | Wszystkie puste stany napisane po ludzku | S | …nowi odpadają w pierwszych 2 minutach |
 | 11 | Wołacz/imię i spójny słownik języka w `lang/pl` | S | …produkt brzmi jak tłumaczenie z angielskiego |

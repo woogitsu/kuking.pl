@@ -11,6 +11,7 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\PendingEmailChange;
 use App\Models\User;
+use App\Support\Komunikat;
 use App\Support\Poczta;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -110,7 +111,8 @@ class EmailSettingsController extends Controller
         // dokładnie to, czego tu trzeba, bez własnej listy pól do pilnowania.
         if (! Hash::check($data['current_password'], $user->password)) {
             throw ValidationException::withMessages([
-                'current_password' => 'To hasło jest nieprawidłowe.',
+                // Mówi, co zrobić — nie tylko, że się nie zgadza (audyt B1, zn. 5).
+                'current_password' => 'To hasło nie pasuje do konta. Wpisz swoje obecne hasło — to, którym logujesz się dziś.',
             ]);
         }
 
@@ -126,7 +128,7 @@ class EmailSettingsController extends Controller
         // człowieka z żądaniem, którego nie da się potwierdzić, i ze zdaniem
         // „sprawdź skrzynkę" pod nosem.
         if (! Poczta::dziala()) {
-            return back()->with('status', $this->komunikatBrakuPoczty());
+            return back()->with(Komunikat::blad($this->komunikatBrakuPoczty()));
         }
 
         // ADRESU ZAJĘTEGO PRZEZ INNE KONTO TU NIE SPRAWDZAMY — odpowiedź
@@ -168,10 +170,10 @@ class EmailSettingsController extends Controller
             ->first();
 
         if ($oczekujaca === null) {
-            return redirect()->route('settings.email')->with('status',
+            return redirect()->route('settings.email')->with(Komunikat::blad(
                 'Ten odnośnik już nie działa — zmiana adresu została potwierdzona, anulowana albo minął jej termin. '
                 .'Jeśli nadal chcesz zmienić adres, zamów zmianę jeszcze raz.',
-            );
+            ));
         }
 
         try {
@@ -213,9 +215,9 @@ class EmailSettingsController extends Controller
             $request->ip(),
         );
 
-        return redirect()->route('settings.email')->with('status', $bylo
-            ? 'Anulowaliśmy zmianę adresu. Twoje konto zostaje przy dotychczasowym adresie, a odnośnik z listu już nie działa.'
-            : 'Nie było czego anulować — Twoje konto nie ma zamówionej zmiany adresu.',
+        return redirect()->route('settings.email')->with($bylo
+            ? Komunikat::sukces('Anulowaliśmy zmianę adresu. Twoje konto zostaje przy dotychczasowym adresie, a odnośnik z listu już nie działa.')
+            : Komunikat::informacja('Nie było czego anulować — Twoje konto nie ma zamówionej zmiany adresu.'),
         );
     }
 

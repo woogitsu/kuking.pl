@@ -39,6 +39,7 @@ railway ssh -- php artisan kuking:zaleznosc-od-starego-bucketu --pliki   # też 
 | kod `1`, „STARY BUCKET JEST JEDYNĄ KOPIĄ N …” | nie ruszaj starego bucketu; przejdź §3 |
 | kod `1`, „NIE SERWUJĄ SIĘ” | `AWS_LEGACY_BUCKET` jest puste, a wiersze na niego wskazują — te zdjęcia dziś się nie wyświetlają; ustaw zmienną (`DEPLOYMENT_RUNBOOK.md` §2.1) |
 | `UTRACONE media <id>` przy `--pliki` | wiersz wskazuje stary bucket, a pliku tam nie ma — **nie ma go nigdzie** |
+| `NIEPEWNE media <id>` przy `--pliki` | gotowe zdjęcie ma puste lub uszkodzone `metadata.variants`; lista plików jest nieznana, więc nie wnioskuj o ich utracie ani kompletności i nie przenoś tego wiersza |
 
 Raport podaje identyfikatory wierszy, nie klucze obiektów ani komunikaty
 wyjątków (#973). Liczba bez `--pliki` nie mówi, czy pliki istnieją —
@@ -85,7 +86,8 @@ wiersz. **Oryginałów w starym buckecie nie kasuje.**
 4. **Sprawdzenie po przenosinach:**
    `railway ssh -- php artisan kuking:sprawdz-zdjecia-po-przenosinach`
    — wiersze przestawione, których pliku nie ma w nowym buckecie
-   (DO ODZYSKANIA ze starego / UTRACONE). Ma dać zero obu.
+   (DO ODZYSKANIA ze starego / UTRACONE / NIEPEWNE). Ma dać zero we
+   wszystkich trzech kategoriach.
 
 5. **Pomiar z §2 jeszcze raz**, aż da kod `0`.
 
@@ -96,7 +98,7 @@ Wszystkie punkty, każdy z datą w §5. Brak jednego = bramka zamknięta.
 | # | Warunek | Czym sprawdzić |
 |---|---|---|
 | 1 | żaden wiersz nie wskazuje starego bucketu | `kuking:zaleznosc-od-starego-bucketu` → kod `0` |
-| 2 | żaden przestawiony wiersz nie wskazuje pliku, którego nie ma | `kuking:sprawdz-zdjecia-po-przenosinach` → UTRACONE 0, DO ODZYSKANIA 0 |
+| 2 | żaden przestawiony wiersz nie wskazuje pliku, którego nie ma, a lista wariantów jest znana | `kuking:sprawdz-zdjecia-po-przenosinach` → UTRACONE 0, DO ODZYSKANIA 0, NIEPEWNE 0 |
 | 3 | nowe buckety są w migawce kopii i migawka jest sprawdzona | `kuking:sprawdz-kopie-zdjec --prefiks=migawka-…/` → kod `0` (`DR_ZDJEC_R2.md` §6) |
 | 4 | istnieje migawka STAREGO bucketu z §3 krok 1, zgodna co do liczby i rozmiaru | `rclone size` źródła i kopii |
 | 5 | minęło co najmniej jedno pełne okno retencji migawki (31 dni) od punktu 1 | data |
@@ -113,7 +115,7 @@ przeniesione zdjęcie usunięte przez autora nie zostaje w `r2_legacy`.
 
 | Data | Krok | Wynik | Kto |
 |---|---|---|---|
-| | §2 pomiar (liczba wierszy, `--pliki`: utracone) | | |
+| | §2 pomiar (liczba wierszy, `--pliki`: utracone i niepewne) | | |
 | | §3.1 migawka starego bucketu (obiektów / bajtów: źródło = kopia?) | | |
 | | §3.3 przenosiny zakończone (ostatni przebieg: „Nie ma zdjęć do przeniesienia”) | | |
 | | §3.4 sprawdzenie po przenosinach | | |

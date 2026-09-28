@@ -23,7 +23,7 @@ class CofniecieMigracjiNieKasujeListCoMamWDomuTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const SCIEZKA = 'database/migrations/2026_09_26_120000_create_pantry_items_table.php';
+    private const SCIEZKA = 'database/migrations/2026_09_28_233700_create_pantry_items_table.php';
 
     protected function tearDown(): void
     {

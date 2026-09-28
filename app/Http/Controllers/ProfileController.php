@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Domain\Collections\ZapisyWpisu;
+use App\Domain\Search\FrazaWUgotowanych;
 use App\Models\Block;
 use App\Models\CookedEvent;
 use App\Models\Media;
@@ -31,8 +31,6 @@ use Illuminate\View\View;
  */
 class ProfileController extends Controller
 {
-    public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
-
     public function show(Request $request, string $username): View
     {
         // Adres profilu bez rozróżniania wielkości liter (audyt A25).
@@ -76,14 +74,32 @@ class ProfileController extends Controller
         // filtr co archiwum chroni treści prywatne i dla obserwujących.
         $zdjeciaSzyny = ! $isOwner && $zeszytySzyny->isEmpty() && $tagiSzyny->isEmpty()
             ? $owner->posts()->published()
-                ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
+                ->tap(fn ($query) => $this->tylkoWidoczneWpisy($query, $owner, $viewer, $isOwner))
                 ->whereHas('media', fn ($query) => $query->where('status', Media::STATUS_READY))
                 ->with(['media' => fn ($query) => $query->where('status', Media::STATUS_READY)])
                 ->latest('published_at')->latest('id')->limit(3)->get()
             : collect();
 
+        // Issue #1394: na WŁASNEJ zakładce „Ugotowane" lista nie jest
+        // filtrowana, więc wykonanie przepisu osoby, z którą właściciel
+        // ma blokadę, zostaje (to jego zdjęcie i notatka). Karta ma wtedy
+        // nie pokazywać tytułu ani adresu przepisu. Jedno zapytanie na
+        // stronę zamiast `hasBlockRelationWith()` na każdą kartę. Obcy
+        // widz tego nie potrzebuje: `tylkoZWidocznychPrzepisow()` wycina
+        // mu takie wykonania już na liście. Ta sama lista zawęża frazę
+        // „Szukaj w moich wykonaniach" (#2070), żeby wynik nie zdradzał
+        // tytułu, który karta chowa.
+        $autorzyZaBlokada = $tab === 'ugotowane' && $isOwner
+            ? $this->osobyZBlokada($owner)
+            : [];
+
+        // Fraza działa WYŁĄCZNIE na własnej zakładce (#2070). Na cudzym
+        // profilu `?szukaj=` w adresie jest ignorowane: publiczny profil
+        // wygląda tak samo jak przed tą zmianą.
+        $frazaUgotowanych = FrazaWUgotowanych::zAdresu($tab === 'ugotowane' && $isOwner ? $request->query('szukaj') : null);
+
         $cookedEvents = $tab === 'ugotowane'
-            ? $this->cookedEventsDlaProfilu($owner, $viewer, $isOwner)
+            ? $this->cookedEventsDlaProfilu($owner, $viewer, $isOwner, $frazaUgotowanych, $autorzyZaBlokada)
             : null;
 
         return view('pages.profile.show', [
@@ -118,19 +134,11 @@ class ProfileController extends Controller
                 : null,
             'cookedEvents' => $cookedEvents,
             'przepisyWidoczneNaKartach' => $this->przepisyWidoczneNaKartach($cookedEvents, $viewer, $isOwner),
-            // Issue #1394: na WŁASNEJ zakładce „Ugotowane" lista nie jest
-            // filtrowana, więc wykonanie przepisu osoby, z którą właściciel
-            // ma blokadę, zostaje (to jego zdjęcie i notatka). Karta ma wtedy
-            // nie pokazywać tytułu ani adresu przepisu. Jedno zapytanie na
-            // stronę zamiast `hasBlockRelationWith()` na każdą kartę. Obcy
-            // widz tego nie potrzebuje: `tylkoZWidocznychPrzepisow()` wycina
-            // mu takie wykonania już na liście.
-            'autorzyZaBlokada' => $tab === 'ugotowane' && $isOwner
-                ? $this->osobyZBlokada($owner)
-                : [],
+            'autorzyZaBlokada' => $autorzyZaBlokada,
+            'frazaUgotowanych' => $frazaUgotowanych,
             'stats' => [
                 'posts' => $owner->posts()->published()
-                    ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))->count(),
+                    ->tap(fn ($query) => $this->tylkoWidoczneWpisy($query, $owner, $viewer, $isOwner))->count(),
                 'recipes' => $owner->recipes()->published()
                     ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))->count(),
                 'cooked' => $owner->cookedEvents()
@@ -191,7 +199,7 @@ class ProfileController extends Controller
      * ZAWARTOŚĆ wpisów prywatnych — dokładnie ten sam kształt wycieku co
      * tytuł przepisu w liście wykonań (patrz `tylkoZWidocznychPrzepisow()`).
      * Dlatego podzapytanie przechodzi przez `published()` i przez ten sam
-     * `tylkoWidoczne()`, którym idzie archiwum obok.
+     * `tylkoWidoczneWpisy()`, którym idzie archiwum obok.
      *
      * BEZ SORTOWANIA PO LICZBIE WPISÓW, alfabetycznie. „Najczęstszy tag tej
      * osoby" jest miarą aktywności, a `AGENTS.md` §12 nie chce liczników
@@ -209,7 +217,7 @@ class ProfileController extends Controller
             ->whereHas('posts', function ($query) use ($owner, $viewer, $isOwner): void {
                 $query->where('posts.author_id', $owner->getKey())->published();
 
-                $this->tylkoWidoczne($query, $owner, $viewer, $isOwner);
+                $this->tylkoWidoczneWpisy($query, $owner, $viewer, $isOwner);
             })
             ->orderBy('name')
             ->limit(6)
@@ -221,7 +229,7 @@ class ProfileController extends Controller
     {
         return $owner->posts()
             ->published()
-            ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
+            ->tap(fn ($query) => $this->tylkoWidoczneWpisy($query, $owner, $viewer, $isOwner))
             // `at time zone`, a nie samo `extract(year from …)`. `published_at`
             // jest kolumną `timestamptz`, więc gołe `extract()` czyta rok w UTC,
             // a człowiek widzi przy tym wpisie datę lokalną (`App\Support\Czas`).
@@ -233,30 +241,9 @@ class ProfileController extends Controller
                 'extract(year from published_at at time zone ?) = ?',
                 [Czas::strefa(), $rok],
             ))
-            // 'tags:id,slug,name,status' — patrz komentarz w
-            // FollowingFeed::paginate(): karta wpisu pokazuje tematy TYLKO
-            // gdy relacja jest już doładowana, więc bez tego archiwum
-            // profilu nie miałoby żadnych chipów tematów.
-            // `recipe:…` z `visibility` i `hero_media_id` plus `recipe.heroMedia`
-            // — dokładnie jak w `FollowingFeed`, `DiscoverFeed`, `DailyBoard`
-            // i `TagFeed` (issue #368). Archiwum profilu rysuje tę samą kartę
-            // `x-post-card`, a ta czyta z relacji `recipe` tytuł, odnośnik,
-            // `visibility` na plakietkę widoczności i zdjęcie główne. Bez tego
-            // każdy wpis wskazujący przepis dokładał osobne zapytanie na stronę
-            // (a `heroMedia` drugie), a plakietka widoczności schodziła przez
-            // `?? $post->visibility` do stałego `public` wpisu zapowiadającego.
-            ->with([
-                'media',
-                'author.profile.avatar',
-                'recipe:id,title,slug,visibility,hero_media_id',
-                'recipe.heroMedia',
-                'tags:id,slug,name,status',
-            ])
-            ->withVisibleCommentCount($viewer)
-            // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
-            // zapytaniem (issue #275, D-081). Reguły siedzą w `ZapisyWpisu`,
-            // tutaj jest tylko miejsce, w którym dokładamy kolumnę do SELECT-a.
-            ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
+            // Relacje karty, licznik komentarzy i zapisów — jeden kontrakt
+            // `Post::scopeDlaKarty()` (#1037), ten sam na każdej liście wpisów.
+            ->dlaKarty($viewer)
             ->latest('published_at')
             ->latest('id')
             ->paginate(12)
@@ -277,7 +264,7 @@ class ProfileController extends Controller
     {
         return $owner->posts()
             ->published()
-            ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
+            ->tap(fn ($query) => $this->tylkoWidoczneWpisy($query, $owner, $viewer, $isOwner))
             // Ta sama strefa co filtr w `postsFor()` — inaczej lista lat i lista
             // wpisów odpowiadałyby na to samo pytanie inaczej, i rok kliknięty
             // z listy potrafiłby nie mieć ani jednego wpisu.
@@ -329,15 +316,34 @@ class ProfileController extends Controller
      * i sam liczy „własny przepis widza" — dlatego wolno go wywołać po
      * `$isOwner`, nie zamiast.
      *
-     * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $query
+     * Dla wpisów wołaj `tylkoWidoczneWpisy()` — ta metoda sama zna tylko
+     * widoczność względem autora, wspólną dla obu rodzajów treści. Podział
+     * na dwie metody (issue #1731) zastąpił `instanceof Post` na modelu
+     * zapytania: tamto sprawdzenie działało dopiero w czasie wykonania,
+     * a typ `Builder<Post>` zapisuje tę samą granicę jawnie w sygnaturze
+     * (od poziomu 5 PHPStan sprawdza ją przy każdym wywołaniu).
+     *
+     * @param  Builder<Post>|Builder<Recipe>  $query
      */
     private function tylkoWidoczne($query, $owner, $viewer, bool $isOwner): void
     {
-        if ($query->getModel() instanceof Post) {
-            $query->enabledKinds();
-        }
-
         if ($isOwner) {
+            // ZAPOWIEDŹ USUNIĘTEGO PRZEPISU (#1395). Właściciel omija bramkę
+            // przepisu niżej, bo własne przepisy — także prywatne i ukryte —
+            // otwiera (`RecipePolicy::view()`). Wyjątkiem jest przepis
+            // usunięty miękko: relacja `recipe` go nie pobiera, karta traciła
+            // tytuł i zdjęcie, a odnośnik prowadził do 403 z `PostPolicy::view()`.
+            // Wiersz wpisu i jego komentarze ZOSTAJĄ w bazie (moderacja,
+            // odzyskanie) — znikają tylko z listy, lat i licznika naraz.
+            // Wpis z własną treścią albo zdjęciem nie jest zapowiedzią
+            // (`Post::czyJestZapowiedziaPrzepisu()`) i zostaje widoczny.
+            if ($query->getModel() instanceof Post) {
+                $query->where(fn ($w) => $w->whereNull('posts.recipe_id')
+                    ->orWhereHas('recipe')
+                    ->orWhereRaw("posts.body ~ '[^[:space:]]'")
+                    ->orWhereHas('media'));
+            }
+
             return;
         }
 
@@ -349,38 +355,55 @@ class ProfileController extends Controller
         }
 
         $query->whereIn('visibility', $widocznosci);
+    }
 
-        // Bramka PRZEPISU — patrz akapit w opisie metody. Tylko dla `Post`:
-        // zakładka „Przepisy" pyta wprost o `Recipe` i ma tu już swój warunek
-        // wyżej, a `recipes.recipe_id` nie istnieje.
-        if ($query->getModel() instanceof Post) {
-            // Wpis z własną treścią idzie za WŁASNĄ widocznością, jak na
-            // swojej stronie (issue #1377); przepis zdejmuje z karty
-            // `Post::ukryjNiedostepnePrzepisy()` w `postsFor()`.
-            $query->zWidocznymPrzepisemAlboWlasnaTrescia($viewer);
+    /**
+     * `tylkoWidoczne()` plus bramki, które istnieją tylko dla WPISÓW: włączone
+     * rodzaje wpisów i widoczność PRZEPISU, na który wpis wskazuje — opis obu
+     * granic przy `tylkoWidoczne()`. Tym idzie każde z sześciu zapytań
+     * o wpisy na tym ekranie.
+     *
+     * @param  Builder<Post>  $query
+     */
+    private function tylkoWidoczneWpisy($query, $owner, $viewer, bool $isOwner): void
+    {
+        $query->enabledKinds();
 
-            // BRAMKA AUTORA PRZEPISU, OSOBNA OD BRAMKI WYŻEJ (ustalenie W5-08).
-            //
-            // `zWidocznymPrzepisem()` schodzi do `Recipe::widoczneDla()`, a ten
-            // zakres CELOWO nie zna statusu konta — mówi o tym wprost komentarz
-            // przy `User::scopeDostepnyJakoAutor()`. Filtr `whereIn('visibility')`
-            // wyżej pyta o WPIS, czyli o autora WPISU, a nie o autora PRZEPISU.
-            // To są dwie różne osoby: wpis użytkownika A może wskazywać przepis
-            // użytkownika B. Gdy B zostanie zbanowany albo oznaczony do
-            // usunięcia, jego przepis znika z własnego profilu i daje 403 pod
-            // swoim adresem — ale wpis A dalej rysował kartę z tytułem tego
-            // przepisu, jego zdjęciem głównym i odnośnikiem, w którym slug
-            // niesie ten sam tytuł. Obie bramki wyżej przepuszczały ten wiersz,
-            // bo obie pytały o kogo innego.
-            //
-            // Gałąź na `recipe_id IS NULL` jest obowiązkowa: większość wierszy
-            // archiwum profilu NIE MA przepisu i samo `whereHas('recipe.author')`
-            // skasowałoby całe zwykłe archiwum. Idiom jest już w repozytorium —
-            // `App\Domain\Tags\PodpowiedziTagow` liczy tak samo.
-            $query->where(fn ($w) => $w->whereNull('posts.recipe_id')
-                ->orWhere(fn ($tresc) => $tresc->zWlasnaTrescia())
-                ->orWhereHas('recipe.author', fn ($autor) => $autor->dostepnyJakoAutor()));
+        $this->tylkoWidoczne($query, $owner, $viewer, $isOwner);
+
+        if ($isOwner) {
+            return;
         }
+
+        // Bramka PRZEPISU — patrz akapit w opisie `tylkoWidoczne()`. Tylko dla
+        // wpisów: zakładka „Przepisy" pyta wprost o `Recipe`, jej granicą jest
+        // `visibility` samego przepisu, a `recipes.recipe_id` nie istnieje.
+        // Wpis z własną treścią idzie za WŁASNĄ widocznością, jak na
+        // swojej stronie (issue #1377); przepis zdejmuje z karty
+        // `Post::ukryjNiedostepnePrzepisy()` w `postsFor()`.
+        $query->zWidocznymPrzepisemAlboWlasnaTrescia($viewer);
+
+        // BRAMKA AUTORA PRZEPISU, OSOBNA OD BRAMKI WYŻEJ (ustalenie W5-08).
+        //
+        // `zWidocznymPrzepisem()` schodzi do `Recipe::widoczneDla()`, a ten
+        // zakres CELOWO nie zna statusu konta — mówi o tym wprost komentarz
+        // przy `User::scopeDostepnyJakoAutor()`. Filtr `whereIn('visibility')`
+        // wyżej pyta o WPIS, czyli o autora WPISU, a nie o autora PRZEPISU.
+        // To są dwie różne osoby: wpis użytkownika A może wskazywać przepis
+        // użytkownika B. Gdy B zostanie zbanowany albo oznaczony do
+        // usunięcia, jego przepis znika z własnego profilu i daje 403 pod
+        // swoim adresem — ale wpis A dalej rysował kartę z tytułem tego
+        // przepisu, jego zdjęciem głównym i odnośnikiem, w którym slug
+        // niesie ten sam tytuł. Obie bramki wyżej przepuszczały ten wiersz,
+        // bo obie pytały o kogo innego.
+        //
+        // Gałąź na `recipe_id IS NULL` jest obowiązkowa: większość wierszy
+        // archiwum profilu NIE MA przepisu i samo `whereHas('recipe.author')`
+        // skasowałoby całe zwykłe archiwum. Idiom jest już w repozytorium —
+        // `App\Domain\Tags\PodpowiedziTagow` liczy tak samo.
+        $query->where(fn ($w) => $w->whereNull('posts.recipe_id')
+            ->orWhere(fn ($tresc) => $tresc->zWlasnaTrescia())
+            ->orWhereHas('recipe.author', fn ($autor) => $autor->dostepnyJakoAutor()));
     }
 
     /**
@@ -413,7 +436,7 @@ class ProfileController extends Controller
      * `$owner` nie jest już potrzebny i dlatego go tu nie ma — parametr,
      * który wygląda na używany, a nie jest, to zaproszenie do pomyłki.
      *
-     * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $query
+     * @param  Builder<CookedEvent>  $query
      */
     private function tylkoZWidocznychPrzepisow($query, $viewer, bool $isOwner): void
     {
@@ -453,8 +476,12 @@ class ProfileController extends Controller
      *    bez gubienia i dublowania wierszy przy remisach czasu (#735).
      * 2. Związanie znanego $owner z każdym wierszem wykonania eliminuje
      *    powtarzane zapytania o kucharza i jego profil/awatar na każdej karcie (#736).
+     * 3. `$fraza` zawęża listę właściciela do wykonań przepisu o danym
+     *    tytule (#2070) — tylko zawęża, nic nie dokłada (`FrazaWUgotowanych`).
+     *
+     * @param  list<string>  $autorzyZaBlokada
      */
-    private function cookedEventsDlaProfilu(User $owner, ?User $viewer, bool $isOwner): LengthAwarePaginator
+    private function cookedEventsDlaProfilu(User $owner, ?User $viewer, bool $isOwner, FrazaWUgotowanych $fraza, array $autorzyZaBlokada): LengthAwarePaginator
     {
         // OSOBA, KTÓRA GOTOWAŁA, JEST TU TREŚCIĄ GŁÓWNĄ — i to ona była
         // źródłem wachlarza zapytań. Karta wykonania
@@ -473,6 +500,10 @@ class ProfileController extends Controller
 
         $paginator = $owner->cookedEvents()
             ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $viewer, $isOwner))
+            // Fraza tylko ZAWĘŻA tę samą listę — porządek, paginacja
+            // i `withQueryString()` (niesie `szukaj` do „Pokaż więcej")
+            // zostają te same (#2070).
+            ->tap(fn ($query) => $fraza->zawez($query, $autorzyZaBlokada))
             ->latest('cooked_at')
             ->latest('id')
             ->with(['recipe.author.profile', 'media'])

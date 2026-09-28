@@ -37,10 +37,13 @@ use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\ImportPrzepisuController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\MojeWpisyController;
 use App\Http\Controllers\MojStolController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\NowosciController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PantryController;
 use App\Http\Controllers\PlanerController;
@@ -58,6 +61,7 @@ use App\Http\Controllers\Settings\AccessibilitySettingsController;
 use App\Http\Controllers\Settings\AvatarSettingsController;
 use App\Http\Controllers\Settings\BirthdaySettingsController;
 use App\Http\Controllers\Settings\DataSettingsController;
+use App\Http\Controllers\Settings\DevicesSettingsController;
 use App\Http\Controllers\Settings\EmailSettingsController;
 use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
@@ -66,6 +70,7 @@ use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SettingsIndexController;
 use App\Http\Controllers\Settings\TwoFactorSettingsController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\SmakowicieController;
 use App\Http\Controllers\SocialController;
 use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\TagController;
@@ -74,8 +79,10 @@ use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\UkryciaController;
 use App\Http\Controllers\UrodzinyWypiszController;
+use App\Http\Controllers\WartosciOdzywczeController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
+use App\Http\Controllers\ZgodaOdczytuAiController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -100,9 +107,18 @@ $limits = config('kuking.limits');
 // Publiczne
 // --------------------------------------------------------------------------
 
-Route::get('/', [FeedController::class, 'landing'])->name('landing');
+// Limiter strony głównej (issue #1952): gość dostaje tu to samo zapytanie
+// co na `/odkryj` — uzasadnienie progu przy `limits.landing`.
+Route::get('/', [FeedController::class, 'landing'])
+    ->middleware("throttle:{$limits['landing']},landing")
+    ->name('landing');
 Route::get('/otworz-link', ExternalLinkController::class)->middleware("throttle:{$limits['external_link']},external_link")->name('links.external');
-Route::get('/odkryj', [FeedController::class, 'discover'])->name('discover');
+// Limiter per adres IP gościa (issue #1952): zapytanie liczy row_number()
+// na wszystkich publicznych wpisach przed odcięciem strony — patrz
+// uzasadnienie przy `limits.discover` w config/kuking.php.
+Route::get('/odkryj', [FeedController::class, 'discover'])
+    ->middleware("throttle:{$limits['discover']},discover")
+    ->name('discover');
 Route::get('/pytania', [QuestionController::class, 'index'])
     ->middleware("throttle:{$limits['search']},search")
     ->name('questions.index');
@@ -149,6 +165,14 @@ Route::get('/zasady', [StaticPageController::class, 'rules'])->name('rules');
 Route::get('/o-kuking', [StaticPageController::class, 'about'])->name('about');
 Route::get('/regulamin', [StaticPageController::class, 'terms'])->name('terms');
 Route::get('/prywatnosc', [StaticPageController::class, 'privacy'])->name('privacy');
+
+/*
+ * „CO NOWEGO" — issue #1909. Wersja w stopce (`App\Support\Wersja`) linkuje
+ * tutaj, z kotwicą bieżącego wydania (`Wersja::kotwicaWydania()`). Publiczna
+ * jak reszta stron statycznych wyżej — bez `Policy`, bo nie ma tu cudzego
+ * zasobu do chronienia.
+ */
+Route::get('/co-nowego', [NowosciController::class, 'index'])->name('nowosci');
 
 /*
 |--------------------------------------------------------------------------
@@ -550,12 +574,18 @@ Route::post('/wejdz/facebook/domknij', [FacebookLoginController::class, 'finish'
  * STAGING TYCH POWIADOMIEŃ NIE DOSTANIE. To nie jest usterka do naprawienia
  * w kodzie.
  *
- * Bez ogranicznika liczby żądań: każde żądanie bez poprawnego podpisu kończy
- * się odrzuceniem po jednym `hash_hmac`, a ogranicznik ustawiony za nisko
- * zaczyna gubić prawdziwe powiadomienia — których Facebook nie ponawia
- * w nieskończoność.
+ * OGRANICZNIK ŻĄDAŃ JEST, i to CELOWO HOJNY (issue #1869, audyt — poprawia
+ * wcześniejszy wpis, który mówił, że limitu tu nie ma). Każde żądanie bez
+ * poprawnego podpisu i tak kończy się odrzuceniem po jednym `hash_hmac`,
+ * ale to wciąż praca CPU i wpis w logu na próbę — a bez ogranicznika
+ * seria takich żądań z jednego adresu robi jedno i drugie bez końca.
+ * Ogranicznik ustawiony ZA NISKO gubiłby prawdziwe powiadomienia, których
+ * Facebook nie ponawia w nieskończoność — ale to jest argument za DOBOREM
+ * liczby (`facebook_deauthorize` w `config/kuking.php`, ten sam wzorzec
+ * co `csp_report` niżej), nie za brakiem limitu w ogóle.
  */
 Route::post('/wejdz/facebook/odebranie-dostepu', FacebookDeauthorizeController::class)
+    ->middleware("throttle:{$limits['facebook_deauthorize']},facebook_deauthorize")
     ->name('facebook.deauthorize');
 
 Route::get('/wejdz/facebook/polacz', [FacebookLoginController::class, 'linkForm'])
@@ -563,6 +593,12 @@ Route::get('/wejdz/facebook/polacz', [FacebookLoginController::class, 'linkForm'
 Route::post('/wejdz/facebook/polacz', [FacebookLoginController::class, 'link'])
     ->middleware("throttle:{$limits['facebook_domkniecie']},facebook_domkniecie")
     ->name('facebook.link.store');
+Route::post('/wejdz/facebook/polacz/link', [FacebookLoginController::class, 'requestLinkProof'])
+    ->middleware("throttle:{$limits['confirm_password']},confirm_password")
+    ->name('facebook.link.email');
+Route::get('/wejdz/facebook/polacz/link/{token}', [FacebookLoginController::class, 'confirmLinkProof'])
+    ->middleware("throttle:{$limits['facebook_domkniecie']},facebook_domkniecie")
+    ->name('facebook.link.confirm');
 
 // --------------------------------------------------------------------------
 // Odwołanie od decyzji moderacyjnej — droga dla osób ZABLOKOWANYCH (#10)
@@ -728,9 +764,57 @@ Route::middleware('auth')->group(function () use ($limits): void {
      *                                 adresów, które ludzie mają zapisane;
      *                                 nic już do niego nie linkuje.
      */
+    /*
+     * IMPORT PRZEPISU I ODCZYT ZDJĘCIA KARTKI (V2, D-296, D-297, D-298).
+     *
+     * /dodaj/przepis/skad        — cztery duże przyciski: kartka, adres
+     *                              strony, PDF, „Wpiszę sam”. Wyłączone
+     *                              źródło = brak przycisku (D-053).
+     * /dodaj/przepis/z-kartki    — zgoda „odczyt AI” (raz), potem zdjęcie.
+     *                              Zwykły POST, bez JavaScriptu.
+     * /import/{import}             — postęp słowami; tylko właściciel (Policy).
+     *                                 Odpytywana co 5 s przez JS (`?fragment=1`,
+     *                                 `resources/js/postep-importu.js`) — własny
+     *                                 koszyk `import_postep`, żeby zwykły
+     *                                 polling nie dzielił budżetu ze zleceniem
+     *                                 odczytu (issue #1959).
+     *
+     * `throttle:import` to bramka na pętlę żądań; właściwy limit osoby
+     * (5 dziennie / 30 miesięcznie) liczy się w bazie (D-297).
+     */
+    Route::get('/dodaj/przepis/skad', [ImportPrzepisuController::class, 'wybor'])->name('import.wybor');
+    Route::get('/dodaj/przepis/z-kartki', [ImportPrzepisuController::class, 'zdjecie'])->name('import.zdjecie');
+    Route::post('/dodaj/przepis/z-kartki', [ImportPrzepisuController::class, 'zlec'])
+        ->middleware("throttle:{$limits['import']},import")
+        ->name('import.zlec');
+    Route::get('/import/{import}', [ImportPrzepisuController::class, 'show'])
+        ->middleware("throttle:{$limits['import_postep']},import_postep")
+        ->name('import.show');
+    Route::post('/import/{import}/ponow', [ImportPrzepisuController::class, 'ponow'])
+        ->middleware("throttle:{$limits['import']},import")
+        ->name('import.ponow');
+    Route::post('/ustawienia/zgoda-odczyt-ai', [ZgodaOdczytuAiController::class, 'udziel'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('zgoda.odczyt-ai.udziel');
+    Route::delete('/ustawienia/zgoda-odczyt-ai', [ZgodaOdczytuAiController::class, 'wycofaj'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('zgoda.odczyt-ai.wycofaj');
+
     Route::get('/dodaj/przepis', [RecipeController::class, 'create'])->name('recipes.create');
     Route::get('/dodaj/szkice', [RecipeController::class, 'drafts'])->name('recipes.drafts');
     Route::get('/dodaj/przepis/jedna-strona', [RecipeController::class, 'createSimple'])->name('recipes.create.simple');
+    // Import przepisu z adresu strony i z pliku PDF (V2, D-300). Wynik to
+    // zawsze prywatny szkic w kreatorze; limit na osobę w `LimitImportu`,
+    // throttle trasy łapie serie wysłań. Jeden adres albo jeden plik na
+    // wysłanie — drogi importu wielu adresów naraz celowo nie ma.
+    Route::get('/dodaj/przepis/z-adresu', [ImportPrzepisuController::class, 'adresForm'])->name('recipes.import.url');
+    Route::post('/dodaj/przepis/z-adresu', [ImportPrzepisuController::class, 'adres'])
+        ->middleware("throttle:{$limits['import']},import")
+        ->name('recipes.import.url.store');
+    Route::get('/dodaj/przepis/z-pdf', [ImportPrzepisuController::class, 'pdfForm'])->name('recipes.import.pdf');
+    Route::post('/dodaj/przepis/z-pdf', [ImportPrzepisuController::class, 'pdf'])
+        ->middleware("throttle:{$limits['import']},import")
+        ->name('recipes.import.pdf.store');
     // „Dopisz przepis” z własnego wpisu ze zdjęciem (#1334): ten sam
     // formularz sześciu rzeczy, ze zdjęciem wpisu zamiast nowego pliku.
     Route::get('/wpisy/{post}/dopisz-przepis', [RecipeController::class, 'createFromPost'])->name('recipes.create.from-post');
@@ -745,6 +829,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/przepisy/{recipe}', [RecipeController::class, 'update'])
         ->middleware("throttle:{$limits['post']},post")
         ->name('recipes.update');
+    // „Ukryj wartości odżywcze w moim przepisie” (D-299). Ustawienie widoku
+    // własnego przepisu, nie nowa wersja treści — osobny, luźniejszy limit.
+    Route::patch('/przepisy/{recipe}/wartosci-odzywcze', WartosciOdzywczeController::class)
+        ->middleware("throttle:{$limits['wartosci_odzywcze']},wartosci_odzywcze")
+        ->name('recipes.wartosci-odzywcze');
     Route::post('/przepisy/{recipe}/komentarz', [RecipeController::class, 'comment'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('recipes.comment');
@@ -820,6 +909,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/zeszyt', [CollectionController::class, 'store'])
         ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.store');
+    // „Moje wpisy” (D-328): własne wpisy autora, także szkice, prywatne
+    // i ukryte przez moderację. PRZED `/zeszyt/{collection}` — inaczej
+    // „moje-wpisy” trafiłoby do wiązania zeszytu po UUID. Nazwa pod
+    // `collections.*`, żeby pozycja „Moje” w nawigacji była bieżąca.
+    Route::get('/zeszyt/moje-wpisy', MojeWpisyController::class)->name('collections.own-posts');
     Route::get('/zeszyt/{collection}', [CollectionController::class, 'show'])->name('collections.show');
     // Cofnięcie publicznego udostępnienia bez kasowania zeszytu (issue #777).
     // Własny klucz `zeszyt`, nie `usuwanie` — to nie jest akcja destrukcyjna.
@@ -885,6 +979,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['obserwowanie']},obserwowanie")
         ->name('social.unfollow');
 
+    // „SMAKOWICIE WYGLĄDA" (issue #1813, D-280) — własny koszyk `reakcje`.
+    Route::post('/wpisy/{post}/smakowicie', [SmakowicieController::class, 'dodaj'])
+        ->middleware("throttle:{$limits['reakcje']},reakcje")
+        ->name('posts.smakowicie');
+    Route::delete('/wpisy/{post}/smakowicie', [SmakowicieController::class, 'cofnij'])
+        ->middleware("throttle:{$limits['reakcje']},reakcje")
+        ->name('posts.smakowicie.cofnij');
+
     // PRYWATNE UKRYCIA (issue #1810, D-278) — własny koszyk `ukrycia`:
     // porządkowanie WŁASNEGO ekranu nie może zjadać budżetu obserwowania
     // ani blokady. Ekran wyboru przy osobie to GET, sam zapis POST.
@@ -938,6 +1040,7 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // w `NotificationController::open()`.
     Route::post('/powiadomienia/{notification}/zobacz', [NotificationController::class, 'open'])
         ->middleware("throttle:{$limits['powiadomienia']},powiadomienia")
+        ->whereUuid('notification')
         ->name('notifications.open');
 
     // Ustawienia
@@ -1038,6 +1141,9 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/ustawienia/powiadomienia/urzadzenie', [NotificationSettingsController::class, 'unsubscribe'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('settings.notifications.unsubscribe');
+    Route::post('/ustawienia/powiadomienia/urzadzenie/uzgodnij', [NotificationSettingsController::class, 'reconcileDevice'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.notifications.reconcile-device');
     Route::delete('/ustawienia/powiadomienia/wszedzie', [NotificationSettingsController::class, 'disableAll'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('settings.notifications.disable-all');
@@ -1092,6 +1198,20 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/ustawienia/bezpieczenstwo/wyloguj-inne', [SecuritySettingsController::class, 'logoutOtherSessions'])
         ->middleware("throttle:{$limits['confirm_password']},confirm_password")
         ->name('settings.security.logout-others');
+
+    // Urządzenia z dostępem przez aplikację mobilną (D-270). Odwołanie NIE
+    // prosi o hasło, świadomie: to akcja wyłącznie odbierająca dostęp —
+    // napastnik z otwartą sesją nic nią nie zyskuje, a właściciel, który
+    // właśnie zgubił telefon, nie ma czekać na przypomnienie hasła.
+    // Identyfikator urządzenia w adresie przechodzi przez Policy.
+    Route::get('/ustawienia/urzadzenia', [DevicesSettingsController::class, 'index'])->name('settings.devices');
+    Route::delete('/ustawienia/urzadzenia/{urzadzenie}', [DevicesSettingsController::class, 'destroy'])
+        ->whereUuid('urzadzenie')
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.devices.destroy');
+    Route::delete('/ustawienia/urzadzenia', [DevicesSettingsController::class, 'destroyAll'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.devices.destroy-all');
     /*
      * Adres e-mail (issue #195).
      *

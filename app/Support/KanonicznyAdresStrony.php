@@ -57,7 +57,7 @@ final class KanonicznyAdresStrony
     private const PARAMETRY_TRAS = [
         'profile.show' => ['zakladka', 'rok', 'page'],
         'tags.index' => ['page'],
-        'tags.show' => ['page'],
+        'tags.show' => ['cursor'],
         'questions.index' => ['filtr', 'tag', 'cursor'],
         'discover' => ['cursor'],
     ];

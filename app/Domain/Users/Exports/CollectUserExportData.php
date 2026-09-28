@@ -6,6 +6,7 @@ namespace App\Domain\Users\Exports;
 
 use App\Domain\Notifications\WycinkiKomentarzy;
 use App\Domain\Planer\PlanerTygodnia;
+use App\Domain\Reakcje\Smakowicie;
 use App\Domain\Rocznice\Urodziny;
 use App\Domain\Ukrycia\Ukrycia;
 use App\Models\Collection;
@@ -16,6 +17,8 @@ use App\Models\Hide;
 use App\Models\MealPlanEntry;
 use App\Models\Notification;
 use App\Models\Post;
+use App\Models\PostReaction;
+use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -190,6 +193,12 @@ final class CollectUserExportData
             'obserwowane_tagi' => $this->followedTags($user),
             'co_mam_w_domu' => $this->pantry($user),
             'ukryte' => $this->hides($user),
+            // „Smakowicie wygląda" (#1813, D-280): napisane przez tę osobę
+            // i otrzymane pod jej wpisami. Otrzymane z nazwą konta — autor
+            // i tak widzi ją przy swoim wpisie.
+            'moje_reakcje' => $this->reakcjeDane($user),
+            'reakcje_otrzymane' => $this->reakcjeOtrzymane($user),
+            'reakcje_otrzymane_od_osob_niewidocznych' => $this->reakcjeOtrzymaneBezNazwy($user),
             'dziennik_zgod' => $this->consentLog($user),
             'polaczone_konta' => $this->externalIdentities($user),
             'aktywne_sesje' => $this->activeSessions($user),
@@ -204,6 +213,9 @@ final class CollectUserExportData
             'odwolania' => $this->appeals($user),
             // Planer tygodnia (#27, D-310).
             'planer' => $this->mealPlan($user),
+            'importy_przepisow' => $this->recipeImportOrigins($user),
+            'odczyty_przepisow' => $this->recipeImports($user),
+            'proby_importu' => $this->recipeImportAttempts($user),
             'powiadomienia_poza_serwisem' => $this->externalNotifications($user),
         ];
     }
@@ -243,6 +255,30 @@ final class CollectUserExportData
                     'zmienione' => $this->date($urzadzenie->updated_at),
                 ])->all(),
         ];
+    }
+
+    /**
+     * Przepisy zapisane z importu (D-300): kiedy, z jakiego źródła, z jakiego
+     * adresu i czy tekst został sprawdzony. Bez `tekst_zrodla` — to cudzy tekst
+     * ze strony, który i tak jest w szkicu (sekcja „przepisy").
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function recipeImportOrigins(User $user): array
+    {
+        return PrzepisZImportu::query()
+            ->where('user_id', $user->getKey())
+            ->orderBy('created_at')
+            ->orderBy('recipe_id')
+            ->get()
+            ->map(fn (PrzepisZImportu $wiersz): array => [
+                'przepis_id' => $wiersz->recipe_id,
+                'zrodlo' => $wiersz->zrodlo,
+                'adres_strony' => $wiersz->source_url,
+                'sprawdzony' => $this->date($wiersz->sprawdzone_at),
+                'zapisany' => $this->date($wiersz->created_at),
+            ])
+            ->all();
     }
 
     /** @return array<string, mixed> */
@@ -344,6 +380,11 @@ final class CollectUserExportData
             'plik_do_czytania' => 'przepisy/'.ExportFileNames::recipeFile($recipe),
             'krotki_opis' => $recipe->summary,
             'porcje' => $recipe->servings,
+            // Wybór autora musi przetrwać przeniesienie danych; brak pola
+            // odróżniałby ukrycie od domyślnej widoczności (D-299, #1993).
+            'pokazuj_wartosci_odzywcze' => (bool) $recipe->pokazuj_wartosci_odzywcze,
+            // Szacunek autora w złotych za CAŁY przepis (D-286); `null` = nie podano.
+            'szacunkowy_koszt_zl' => $recipe->estimated_cost_pln,
             'przygotowanie_minuty' => $recipe->prep_minutes,
             'gotowanie_minuty' => $recipe->cook_minutes,
             'trudnosc' => $recipe->difficulty,
@@ -924,6 +965,55 @@ final class CollectUserExportData
             ])->all();
     }
 
+    /** @return list<array<string, mixed>> */
+    private function reakcjeDane(User $user): array
+    {
+        return PostReaction::query()
+            ->where('user_id', $user->getKey())
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn (PostReaction $r): array => [
+                'reakcja' => 'Smakowicie wygląda',
+                'wpis' => route('posts.show', $r->post_id),
+                'kiedy' => $this->date($r->created_at),
+            ])->all();
+    }
+
+    /**
+     * Reakcje pod wpisami tej osoby — z nazwą konta TYLKO przy osobach, które
+     * autor widzi przy wpisie (`Smakowicie::osobyWidoczneDlaAutora()`, te same
+     * filtry co `ktoDla()`; przegląd #1781). Reakcja kogoś, z kim jest
+     * blokada, albo konta zamkniętego idzie do liczby niżej, bez nazwy.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function reakcjeOtrzymane(User $user): array
+    {
+        return PostReaction::query()
+            ->join('posts', 'posts.id', '=', 'post_reactions.post_id')
+            ->where('posts.author_id', $user->getKey())
+            ->whereIn('post_reactions.user_id', app(Smakowicie::class)->osobyWidoczneDlaAutora($user)->select('users.id'))
+            ->with('user.profile')
+            ->orderBy('post_reactions.created_at')
+            ->get(['post_reactions.*'])
+            ->map(fn (PostReaction $r): array => [
+                'reakcja' => 'Smakowicie wygląda',
+                'wpis' => route('posts.show', $r->post_id),
+                'od' => $r->user?->profile?->username,
+                'kiedy' => $this->date($r->created_at),
+            ])->all();
+    }
+
+    /** Ile reakcji pod wpisami tej osoby pochodzi od osób, których nie nazywamy. */
+    private function reakcjeOtrzymaneBezNazwy(User $user): int
+    {
+        return PostReaction::query()
+            ->join('posts', 'posts.id', '=', 'post_reactions.post_id')
+            ->where('posts.author_id', $user->getKey())
+            ->whereNotIn('post_reactions.user_id', app(Smakowicie::class)->osobyWidoczneDlaAutora($user)->select('users.id'))
+            ->count();
+    }
+
     /**
      * Dziennik zgód (D-072) — każda decyzja osobno, także wycofania.
      *
@@ -942,6 +1032,50 @@ final class CollectUserExportData
                 'skad' => $wpis->zrodlo,
                 'wersja_polityki' => $wpis->wersja_polityki,
                 'kiedy' => $this->date($wpis->wystapilo_at),
+            ])->all();
+    }
+
+    /**
+     * Zlecenia odczytu przepisu ze zdjęcia kartki (V2, D-298). Bez surowej
+     * odpowiedzi modelu: odczytany tekst jest w szkicu przepisu (sekcja
+     * `przepisy`), a zdjęcie kartki w sekcji `zdjecia`.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function recipeImports(User $user): array
+    {
+        return DB::table('importy_przepisow')
+            ->leftJoin('recipes', 'recipes.id', '=', 'importy_przepisow.recipe_id')
+            ->where('importy_przepisow.user_id', $user->getKey())
+            ->orderBy('importy_przepisow.created_at')
+            ->get([
+                'importy_przepisow.zrodlo', 'importy_przepisow.status', 'importy_przepisow.kod_bledu',
+                'importy_przepisow.source_url', 'importy_przepisow.created_at', 'importy_przepisow.zakonczono_at',
+                'recipes.title as przepis',
+            ])
+            ->map(fn (object $zlecenie): array => [
+                'zrodlo' => $zlecenie->zrodlo,
+                'stan' => $zlecenie->status,
+                'powod_niepowodzenia' => $zlecenie->kod_bledu,
+                'adres_strony' => $zlecenie->source_url,
+                'szkic_przepisu' => $zlecenie->przepis,
+                'zlecono' => $this->date($zlecenie->created_at),
+                'zakonczono' => $this->date($zlecenie->zakonczono_at),
+            ])->all();
+    }
+
+    /** Próby ze wspólnego limitu OCR/URL/PDF, bez technicznego klucza ponowienia. */
+    private function recipeImportAttempts(User $user): array
+    {
+        return DB::table('proby_importu')
+            ->where('user_id', $user->getKey())
+            ->orderBy('created_at')
+            ->get(['zrodlo', 'status', 'zgoda_ai_at', 'created_at'])
+            ->map(fn (object $proba): array => [
+                'zrodlo' => $proba->zrodlo,
+                'stan' => $proba->status,
+                'zgoda_na_odczyt_ai' => $this->date($proba->zgoda_ai_at),
+                'zlecono' => $this->date($proba->created_at),
             ])->all();
     }
 

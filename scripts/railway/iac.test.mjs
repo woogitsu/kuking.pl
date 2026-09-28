@@ -109,8 +109,10 @@ function bledy(g, { srodowisko, rozbity, nazwaWww, limitZdjec }) {
     if (jestWww && produkcja && JSON.stringify(domeny.sort()) !== JSON.stringify(["kuking.pl", "www.kuking.pl"])) {
       b.push(`${s.name}: domeny produkcji ${domeny.join(", ")}, oczekiwane kuking.pl i www.kuking.pl`);
     }
-    const migruje = (s.deploy?.preDeployCommand ?? []).some((c) => c.includes("migrate"));
-    if (jestWww && !migruje) b.push(`${s.name}: brak migracji w preDeployCommand`);
+    const komendyPrzedWdrozeniem = s.deploy?.preDeployCommand ?? [];
+    const maWspolnaBlokade = komendyPrzedWdrozeniem.some((c) => c.includes("kuking:migruj-pod-blokada"));
+    const migruje = komendyPrzedWdrozeniem.some((c) => c.includes("migrate") || c.includes("kuking:migruj-pod-blokada"));
+    if (jestWww && !maWspolnaBlokade) b.push(`${s.name}: brak migracji ze wspólną blokadą w preDeployCommand`);
     // Migracje raz na wdrożenie, w jednym serwisie. Trzy serwisy z tym
     // samym preDeploy to trzy równoległe `migrate` na jednej bazie.
     if (!jestWww && migruje) b.push(`${s.name}: preDeployCommand z migracją poza serwisem WWW`);
@@ -263,6 +265,22 @@ test("serwis WWW nazywa się jak żywy serwis i jak APP_SERVICE w deploy.yml", (
 const PROD = graf("production");
 const STAGING = graf("staging");
 const usluga = (g, nazwa) => g.resources.find((r) => r.name === nazwa);
+
+test("instrukcja wdrożenia podaje czasy zamykania z grafu IaC (#2056)", () => {
+  const dokument = readFileSync(resolve(KORZEN, "docs/DEPLOYMENT.md"), "utf8");
+  const przypadki = [
+    ["splitServices=false", "all", usluga(STAGING, KONTEKST.nazwaWww)],
+    ["splitServices=true", "web", usluga(PROD, KONTEKST.nazwaWww)],
+    ["splitServices=true", "worker", usluga(PROD, "worker")],
+    ["splitServices=true", "scheduler", usluga(PROD, "scheduler")],
+  ];
+
+  for (const [topologia, rola, serwis] of przypadki) {
+    assert.ok(serwis, `brak serwisu ${rola} w grafie IaC`);
+    const wiersz = `| \`${topologia}\` | \`${rola}\` | ${serwis.deploy.drainingSeconds} s |`;
+    assert.ok(dokument.includes(wiersz), `docs/DEPLOYMENT.md nie zgadza się z IaC: ${wiersz}`);
+  }
+});
 
 const MUTACJE = [
   ["dawna nazwa `web` zamiast żywej", PROD, (g) => { usluga(g, "kuking.pl").name = "web"; }],
