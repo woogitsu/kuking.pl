@@ -5,6 +5,7 @@
 - Po chwilowym błędzie Web Push ponowienie sprawdza, czy powiadomienie nadal jest nieprzeczytane i widoczne. Przeczytane lub ukryte nie wychodzi ponownie, a pozostałe dostają neutralny komunikat bez starego imienia i tytułu przepisu (#2052).
 - Przed wysłaniem „Ugotowałem” widać, kto może zobaczyć wykonanie, zdjęcia i odpowiedzi. Ich widoczność wynika z widoczności przepisu (#2071).
 - Wewnętrzne: instrukcja wdrożenia opisuje czas zamykania usług zależnie od topologii IaC i oddziela go od niepotwierdzonych ustawień panelu Railway (#2056).
+- Pusta lista powiadomień wyjaśnia teraz, że znajdziecie tu wiadomości o przepisach, wpisach, obserwujących i ważnych sprawach konta. Wcześniejszy opis wymieniał tylko ugotowanie i komentarze (#2060).
 - Wewnętrzne: pilny alarm o zgłoszeniu od człowieka odzyskuje próbę po awarii zapisu do kolejki bez utraty blokady celu i budżetu poczty. Ponowienie tej samej sprawy tworzy najwyżej jedno zadanie, także gdy odpowiedź kolejki była niepewna (#2066).
 - Zdjęcia wyświetlane „Zwykle” stoją jedno pod drugim także na tablecie. Dwa zdjęcia o różnych proporcjach nie zostawiają już szarego pasa, a trzecie nie zostawia pustej prawej połowy. Kolaż i karuzela pozostają osobnymi wyborami (#2126).
 - Przełącznik wartości odżywczych sprawdza aktualny stan przepisu pod blokadą. Żądanie rozpoczęte przed zdjęciem lub usunięciem przepisu nie zapisze ustawienia po decyzji moderatora i pokaże czytelną odmowę (#2112).
