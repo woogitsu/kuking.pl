@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione: po częściowym odtworzeniu bazy import wartości odżywczych odbudowuje brakujące składniki, aliasy i miary. Kalkulator nie zostaje z niepełnym słownikiem tylko dlatego, że pamięć przechowała hash poprzedniego importu (#2130).
 - Eksport HTML przepisu zachowuje dokładną liczbę porcji, także przy dwóch cyfrach po przecinku (#2035).
 - Wewnętrzne: kontrola negatywna testów zachowuje dowód niezaliczonej asercji, nawet gdy log zawiera błędne bajty UTF-8; sama awaria procesu nadal nie zalicza kontroli (Refs #1011).
 - Wewnętrzne: kontrola zdrowia obrazu Docker sprawdza `/health` dla ról HTTP (`web` i `all`), a dla `worker` i `scheduler` nie oczekuje serwera WWW, którego te role nie uruchamiają. Odczytuje rzeczywistą rolę przekazaną entrypointowi, także gdy ma ona pierwszeństwo przed `APP_ROLE` (#2079).

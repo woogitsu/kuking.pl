@@ -2192,12 +2192,13 @@ transakcji: po nim baza zawiera dokładnie to, co pliki.
 **Wdrożenie (#1961).** Komenda stoi w `preDeployCommand` w `.railway/railway.ts`,
 po `migrate` i `db:seed` — leci automatycznie przy KAŻDYM wdrożeniu, nie tylko
 ręcznie (wcześniej migracja tworzyła puste tabele i nikt ich nie wypełniał).
-Żeby zwykły deploy bez zmiany plików CSV nie przepisywał ~600 wierszy za każdym
-razem, komenda liczy hash zawartości obu plików i pomija cały import (bez
-parsowania i bez zapisu), gdy hash jest ten sam co przy poprzednim udanym
-imporcie ORAZ tabela `skladniki_odzywcze` już ma dane — ten drugi warunek jest
-samoleczący: świeża/przywrócona baza z pasującym, starym hashem w cache i tak
-dostanie pełny import. `--wymus` wymusza import mimo pasującego hasza.
+Żeby zwykły deploy bez zmiany źródeł nie przepisywał ~600 wierszy za każdym
+razem, komenda przechowuje hash CSV i kodu normalizacji oraz odcisk wartości
+wszystkich trzech tabel po udanym imporcie. Szybka ścieżka odczytuje tabele,
+ale nie parsuje CSV i niczego nie zapisuje. Brak choćby jednego składnika,
+aliasu albo miary, zmieniona wartość przy tej samej liczbie wierszy lub stary
+znacznik w cache uruchamia pełną odbudowę (#2130). Nowy znacznik jest zapisywany
+dopiero po zatwierdzeniu transakcji; `--wymus` pomija szybkie sprawdzenie.
 
 `skladniki_odzywcze` — jedna pozycja tabeli źródłowej:
 
