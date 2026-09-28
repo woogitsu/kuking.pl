@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Rozpatrzenie odwołania z blokadą konta nie zakleszcza się już z równoczesną edycją przepisu. Obie czynności kończą się bez błędu serwera (#2165).
+
 ## Alfa 0.73 — import przepisu i wygodniejsze gotowanie
 
 - Dalsze strony wpisów pod tagiem mają własny adres dla wyszukiwarek i udostępniania. Adres wskazuje tę samą porcję wpisów, którą oglądacie, zamiast wracać do pierwszej strony (#2135).
