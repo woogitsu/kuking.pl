@@ -1513,10 +1513,10 @@ miary = ROOT / "database/data/odzywcze/miary.csv"
 oryginal_miar = miary.read_bytes()
 try:
     miary.unlink()
-    run_test("test_masa_kotleta_zgadza_sie_z_miarami_domowymi", False)
+    run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", False)
 finally:
     miary.write_bytes(oryginal_miar)
-run_test("test_masa_kotleta_zgadza_sie_z_miarami_domowymi", True)
+run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", True)
 # Liczebnik bierzemy z `len(checks)`, nie z tekstu. Wcześniej stało tu wpisane
 # słowo „Pięć": po dodaniu szóstego wpisu CI nadal wypisywałoby „Pięć", a to
 # jedyne miejsce, z którego człowiek czyta wynik tego kroku.
