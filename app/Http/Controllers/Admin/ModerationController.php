@@ -266,8 +266,14 @@ class ModerationController extends Controller
      * przycisk byłby martwy (AGENTS.md §5). Autora bierzemy tą samą drogą
      * co reguła w akcji — `ModeratedContent::osoba()`.
      *
+     * Treść, którą ukrył administrator, dostaje u zwykłego moderatora
+     * `tylko_admin` (#1748): regułę rangi B2-01 czytamy z
+     * `RestoreContent::wolnoCofnac()`, nie z kopii. Kolejność jak w akcji —
+     * najpierw własna treść, potem ranga — więc informacja w widoku mówi to
+     * samo, co powiedziałaby odmowa.
+     *
      * @param  list<Report>  $reports
-     * @return array<string, 'przywroc'|'wlasna'> klucz: id zgłoszenia
+     * @return array<string, 'przywroc'|'wlasna'|'tylko_admin'> klucz: id zgłoszenia
      */
     private function przywracalne(array $reports, User $moderator): array
     {
@@ -293,13 +299,23 @@ class ModerationController extends Controller
             $usunieta = method_exists($cel, 'trashed') && $cel->trashed();
             $schowana = ModeratedContent::jestUkryta($cel) || $usunieta;
 
+            if (! $schowana) {
+                continue;
+            }
+
             // Treść schowana przez autora albo właściciela wpisu nie dostaje
             // przycisku — `RestoreContent` i tak by odmówił (B2-01).
-            if ($schowana && RestoreContent::zdjeciePrzezModeracje($decyzja->target_type, (string) $decyzja->target_id, $usunieta) !== null) {
-                $wynik[(string) $decyzja->report_id] = ModeratedContent::osoba($cel)?->getKey() === $moderator->getKey()
-                    ? 'wlasna'
-                    : 'przywroc';
+            $zdjecie = RestoreContent::zdjeciePrzezModeracje($decyzja->target_type, (string) $decyzja->target_id, $usunieta);
+
+            if ($zdjecie === null) {
+                continue;
             }
+
+            $wynik[(string) $decyzja->report_id] = match (true) {
+                ModeratedContent::osoba($cel)?->getKey() === $moderator->getKey() => 'wlasna',
+                ! RestoreContent::wolnoCofnac($moderator, $zdjecie) => 'tylko_admin',
+                default => 'przywroc',
+            };
         }
 
         return $wynik;

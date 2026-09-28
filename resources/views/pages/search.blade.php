@@ -60,6 +60,10 @@
         wyników musi działać bez JavaScriptu (AGENTS.md), a każdy zakres ma
         własny adres, który da się zapisać w zakładkach i wysłać komuś.
 
+        Przy wpisanej frazie zakres niesie `nawigacja=1`: to przeglądanie
+        wyników już wyszukanej frazy, nie nowe wyszukanie (issue #943,
+        `SearchController`).
+
         `aria-current="page"` zamiast samego koloru: który zakres jest włączony,
         musi być słyszalne dla czytnika ekranu, a nie tylko widoczne.
     --}}
@@ -71,7 +75,7 @@
             'szybkie' => 'Do 30 minut',
         ] as $klucz => $etykieta)
             <a class="chip"
-               href="{{ route('search', ['q' => $phrase, 'sekcja' => $klucz]) }}"
+               href="{{ route('search', ['q' => $phrase] + ($phrase === '' ? [] : ['nawigacja' => 1]) + ['sekcja' => $klucz]) }}"
                @if($section === $klucz) aria-current="page" @endif>{{ $etykieta }}</a>
         @endforeach
     </nav>
@@ -172,9 +176,7 @@
         @endif
 
         @if($szukaPrzepisow && $recipes->isNotEmpty())
-            @if($section === 'wszystko')
-                <h2 class="mt-6">Przepisy</h2>
-            @endif
+            <h2 class="mt-6">{{ $section === 'szybkie' ? 'Do 30 minut' : 'Przepisy' }}</h2>
 
             <p class="meta">
                 @if($odPrzepisu > 0 && $recipes->count() === 1)
@@ -206,9 +208,7 @@
         @endif
 
         @if($szukaLudzi && $people->isNotEmpty())
-            @if($section === 'wszystko')
-                <h2 class="mt-8">Ludzie</h2>
-            @endif
+            <h2 class="mt-8">Ludzie</h2>
 
             <p class="meta">
                 @if($odOsoby > 0 && $people->count() === 1)

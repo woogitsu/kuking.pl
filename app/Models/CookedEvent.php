@@ -81,7 +81,11 @@ class CookedEvent extends Model
         return $this->hasMany(Comment::class)
             ->whereNull('parent_id')
             ->where('status', Comment::STATUS_PUBLISHED)
-            ->oldest();
+            // `id` rozstrzyga remisy `created_at` — bez tego paginacja
+            // (issue #938) potrafi pokazać komentarz na dwóch stronach.
+            // Ta sama kolejność co w `Notification::destinationUrls()`.
+            ->oldest()
+            ->orderBy('id');
     }
 
     public function url(): string

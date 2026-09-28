@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Contact\Actions\WyslijOdpowiedz;
+use App\Domain\Users\Actions\ChangeUserRole;
 use App\Mail\OdpowiedzNaWiadomosc;
 use App\Models\AuditLogEntry;
 use App\Models\ContactMessage;
@@ -12,6 +13,7 @@ use App\Models\ContactMessageReply;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -75,5 +77,30 @@ class WyslijOdpowiedzUprawnieniaTest extends TestCase
         $this->assertSame(ContactMessageReply::STATUS_WYSLANA, $odpowiedz->refresh()->status);
         Mail::assertSent(OdpowiedzNaWiadomosc::class, 1);
         $this->assertSame(1, AuditLogEntry::where('action', 'admin.contact_reply_sent')->count());
+    }
+
+    public function test_model_wczytany_przed_degradacja_nie_przyjmuje_odpowiedzi(): void
+    {
+        Mail::fake();
+        $this->admin();
+        $moderator = $this->moderator();
+        $stary = User::query()->findOrFail($moderator->getKey());
+        $wiadomosc = ContactMessage::factory()->create(['contact_email' => 'test@example.test']);
+
+        app(ChangeUserRole::class)->handle($moderator, User::ROLE_USER);
+
+        // Kontrola ujemna: bez ponownego odczytu ta sama Policy przepuszcza.
+        $this->assertTrue(Gate::forUser($stary)->allows('reply', $wiadomosc));
+
+        try {
+            app(WyslijOdpowiedz::class)->handle($wiadomosc, $stary, 'Nie wysyłaj.', replyKey: (string) Str::uuid());
+            $this->fail('Stary model moderatora wysłał odpowiedź po degradacji.');
+        } catch (AuthorizationException) {
+            // świeża kontrola pod blokadą odmawia
+        }
+
+        $this->assertSame(0, ContactMessageReply::count());
+        Mail::assertNothingSent();
+        $this->assertSame(0, AuditLogEntry::where('action', 'like', 'admin.contact_reply_%')->count());
     }
 }

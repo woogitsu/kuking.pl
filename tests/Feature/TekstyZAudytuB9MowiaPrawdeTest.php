@@ -37,11 +37,11 @@ class TekstyZAudytuB9MowiaPrawdeTest extends TestCase
             ->where('user_id', $piszaca->getKey())
             ->where('type', Notification::TYPE_MODERATION)
             ->sole();
-        $this->assertSame('Twój komentarz usunęła osoba, która dodała ten wpis.', $powiadomienie->data['title']);
+        $this->assertSame('Twój komentarz został usunięty przez autora wpisu.', $powiadomienie->data['title']);
 
         $html = (string) $this->actingAs($piszaca)->get(route('notifications.index'))->assertOk()->getContent();
 
-        $this->assertStringContainsString('Twój komentarz usunęła osoba, która dodała ten wpis.', $html);
+        $this->assertStringContainsString('Twój komentarz został usunięty przez autora wpisu.', $html);
         $this->assertStringNotContainsString('od moderacji', $html);
     }
 

@@ -20,7 +20,8 @@ use Tests\TestCase;
  * `isEmptyFor()` / `maTresci()` i `paginate()` to osobne zapytania; przy Read
  * Committed każde widzi inny zatwierdzony stan. Test wstrzymuje żądanie
  * DOKŁADNIE między nimi: po N-tym `select exists(... from "posts" ...)`
- * (1. = `FollowingFeed::isEmptyFor()`, 2. = `TagFeed::maTresci()`) wykonuje
+ * (1. = `FollowingFeed::isEmptyFor()`; od #1808 tematy są w tej samej liście
+ * co osoby, więc osobnego `TagFeed::maTresci()` już nie ma) wykonuje
  * zmianę, którą w produkcji zatwierdziłaby druga sesja. W teście idzie tym
  * samym połączeniem — dla kontrolera to jest to samo: następne zapytanie
  * widzi już nowy stan.
@@ -71,7 +72,7 @@ class StartNieZostajePustyPoZmianieZrodlaTest extends TestCase
         return $odpowiedz->viewData('posts')->getCollection()->pluck('body')->all();
     }
 
-    public function test_cofniete_obserwowanie_przechodzi_do_tagow(): void
+    public function test_cofniete_obserwowanie_osoby_zostawia_wpisy_z_tematu(): void
     {
         $widz = $this->user('widz');
         $znajoma = $this->user('znajoma');
@@ -84,7 +85,9 @@ class StartNieZostajePustyPoZmianieZrodlaTest extends TestCase
 
         $odpowiedz = $this->startZeZmianaPo($widz, 1, fn () => DB::table('follows')->delete());
 
-        $odpowiedz->assertViewHas('zrodloFeedu', 'tagi')->assertViewHas('showingDiscover', false);
+        // Od #1808 tematy są w tej samej liście co osoby — po cofnięciu
+        // obserwowania zostaje wpis z tematu, bez przeskoku źródła.
+        $odpowiedz->assertViewHas('zrodloFeedu', 'obserwowani')->assertViewHas('showingDiscover', false);
         $this->assertSame(['Z tagu'], $this->tresci($odpowiedz));
     }
 
@@ -131,7 +134,7 @@ class StartNieZostajePustyPoZmianieZrodlaTest extends TestCase
         $this->wpis($obcy, 'Z tagu', $zupy);
         $widz->followedTags()->attach($zupy->getKey(), ['created_at' => now()]);
 
-        $odpowiedz = $this->startZeZmianaPo($widz, 2, fn () => DB::table('tag_follows')->delete());
+        $odpowiedz = $this->startZeZmianaPo($widz, 1, fn () => DB::table('tag_follows')->delete());
 
         $odpowiedz->assertViewHas('zrodloFeedu', 'odkrywanie')->assertViewHas('showingDiscover', true);
         $this->assertSame(['Z tagu'], $this->tresci($odpowiedz));
@@ -148,11 +151,13 @@ class StartNieZostajePustyPoZmianieZrodlaTest extends TestCase
         $this->wpis($znajoma, 'Od znajomej');
         $widz->followedTags()->attach($zupy->getKey(), ['created_at' => now()]);
 
-        // Bez obserwowanych ludzi własny wpis nie wystarcza — wygrywają tagi.
-        $this->actingAs($widz)->get(route('home'))->assertViewHas('zrodloFeedu', 'tagi');
+        // Bez obserwowanych ludzi własny wpis nie wystarcza — ale temat tak.
+        $odpowiedz = $this->actingAs($widz)->get(route('home'))->assertViewHas('zrodloFeedu', 'obserwowani');
+        $this->assertSame(['Z tagu', 'Mój własny'], $this->tresci($odpowiedz));
 
+        // Osoba dochodzi do tej samej listy, tematy nie znikają (#1808).
         $this->obserwuj($widz, $znajoma);
         $odpowiedz = $this->actingAs($widz)->get(route('home'))->assertViewHas('zrodloFeedu', 'obserwowani');
-        $this->assertSame(['Od znajomej', 'Mój własny'], $this->tresci($odpowiedz));
+        $this->assertSame(['Od znajomej', 'Z tagu', 'Mój własny'], $this->tresci($odpowiedz));
     }
 }
