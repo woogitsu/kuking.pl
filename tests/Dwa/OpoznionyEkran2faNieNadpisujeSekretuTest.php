@@ -119,6 +119,37 @@ final class OpoznionyEkran2faNieNadpisujeSekretuTest extends TestDwochPolaczen
     }
 
     /**
+     * Drugi przeplot `create()` (przegląd #2173): konfiguracja już się
+     * zaczęła, więc karta B wczytuje konto z sekretem, ale BEZ potwierdzenia.
+     * Stoi po tym odczycie, a karta A potwierdza ten sekret. Dotąd B nie
+     * sięgała po świeży wiersz (sekret nie był NULL) i pokazywała kod QR
+     * sekretu, który już chroni konto, jakby włączanie trwało dalej.
+     */
+    public function test_opozniony_ekran_przy_zaczetej_konfiguracji_nie_pokazuje_qr_po_potwierdzeniu(): void
+    {
+        $konto = $this->konto();
+        $sekret = app(TwoFactorAuthenticator::class)->generateSecret();
+        $konto->beginTwoFactorSetup($sekret);
+        $bariera = $this->bariera('SELECT pg_advisory_xact_lock(2061, 1)', []);
+
+        $opozniony = $this->uczestnik('wejdz', $konto, ['pauza' => 'po_odczycie']);
+        $this->czekajNaZablokowane(1);
+
+        $potwierdzenie = $this->uczestnik('potwierdz', $konto)->wynik();
+        $this->assertTrue($potwierdzenie['ok'], 'Potwierdzenie padło: '.$potwierdzenie['komunikat']);
+        $this->assertStringEndsWith('/ustawienia/2fa/kody-zapasowe', (string) ($potwierdzenie['wartosc']['cel'] ?? ''), 'Kontrola dodatnia: A potwierdził 2FA.');
+
+        $this->zwolnijBariere($bariera);
+        $wynikB = $opozniony->wynik();
+
+        $this->assertBezZakleszczenia($wynikB, 'opóźnione wejście na ekran');
+        $this->assertTrue($wynikB['ok'], 'Opóźnione wejście padło: '.$wynikB['komunikat']);
+        $this->assertSpojne2fa($konto, $sekret);
+        $this->assertSame('przekierowanie', $wynikB['wartosc']['typ'] ?? null, 'Opóźniony ekran pokazał kod QR sekretu, który już chroni konto.');
+        $this->assertStringEndsWith('/ustawienia/2fa', (string) ($wynikB['wartosc']['cel'] ?? ''));
+    }
+
+    /**
      * Ten sam błąd po stronie POST-a (zgłoszone przy #2057): druga karta
      * wczytała konto z niepotwierdzonym 2FA i stoi. Pierwsza potwierdza
      * i człowiek zapisuje pokazane kody zapasowe. Druga rusza z ważnym kodem
