@@ -81,12 +81,16 @@ class TwoFactorSettingsController extends Controller
         // zeskanować i potwierdzić. Dlatego zapis rozstrzyga świeży wiersz pod
         // blokadą konta, a `$user` wraca z niego z tym, co jest w bazie: tym
         // samym sekretem co w drugiej karcie albo potwierdzonym 2FA.
-        if ($user->two_factor_secret === null) {
-            $user->beginTwoFactorSetupIfNotStarted($this->totp->generateSecret());
+        //
+        // Świeży stan czytamy też wtedy, gdy na początku żądania sekret już
+        // BYŁ, tylko niepotwierdzony: druga karta mogła go w tym czasie
+        // potwierdzić, a wtedy ten sam kod QR pokazany jeszcze raz wyglądałby
+        // na „dokończ włączanie" przy 2FA, która już chroni konto. Przy
+        // istniejącym sekrecie metoda niczego nie zapisuje, tylko odświeża.
+        $user->beginTwoFactorSetupIfNotStarted($this->totp->generateSecret());
 
-            if ($user->hasTwoFactorConfirmed()) {
-                return $this->juzWlaczone();
-            }
+        if ($user->hasTwoFactorConfirmed()) {
+            return $this->juzWlaczone();
         }
 
         $otpAuthUri = $this->totp->otpAuthUri($user, $user->two_factor_secret);
