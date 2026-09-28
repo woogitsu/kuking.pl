@@ -378,7 +378,7 @@ class LinkLogowaniaNieWpuszczaNaNiepotwierdzoneKontoTest extends TestCase
         $token = $this->tokenZWiadomosciZHaslem($konto);
 
         $this->assertTrue(
-            Password::broker()->tokenExists($konto, $token),
+            self::brokerHasel()->tokenExists($konto, $token),
             'Token z wiadomości nie pasuje do wiersza w `password_reset_tokens` — '
             .'to nie jest token resetu hasła, tylko coś wystawionego obok.',
         );

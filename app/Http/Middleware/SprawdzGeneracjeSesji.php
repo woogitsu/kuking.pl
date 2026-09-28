@@ -7,8 +7,10 @@ namespace App\Http\Middleware;
 use App\Models\User;
 use App\Support\Sesja\GeneracjaSesji;
 use Closure;
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use LogicException;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -27,13 +29,18 @@ class SprawdzGeneracjeSesji
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $user = Auth::guard('web')->user();
+        $guard = Auth::guard('web');
+        $user = $guard->user();
 
         if (! $user instanceof User || ! $request->hasSession() || GeneracjaSesji::zgodna($request->session(), $user)) {
             return $next($request);
         }
 
-        Auth::guard('web')->logoutCurrentDevice();
+        if (! $guard instanceof SessionGuard) {
+            throw new LogicException('Web guard musi obsługiwać wylogowanie bieżącego urządzenia.');
+        }
+
+        $guard->logoutCurrentDevice();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

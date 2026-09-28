@@ -229,8 +229,8 @@ class ZmianaAdresuEmailTest extends TestCase
 
         // Link do ustawienia hasła czekający w STAREJ skrzynce — ta tabela
         // jest kluczowana adresem, nie kontem.
-        $tokenResetu = Password::broker()->createToken($basia);
-        $this->assertTrue(Password::broker()->tokenExists($basia, $tokenResetu), 'Kontrola dodatnia: token resetu istnieje.');
+        $tokenResetu = self::brokerHasel()->createToken($basia);
+        $this->assertTrue(self::brokerHasel()->tokenExists($basia, $tokenResetu), 'Kontrola dodatnia: token resetu istnieje.');
 
         $tokenPrzed = $basia->fresh()->remember_token;
 

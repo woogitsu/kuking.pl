@@ -8,7 +8,6 @@ use App\Models\Hide;
 use App\Models\Post;
 use App\Models\User;
 use Carbon\CarbonImmutable;
-use Illuminate\Contracts\Pagination\CursorPaginator as CursorPaginatorContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\Cursor;
 use Illuminate\Pagination\CursorPaginator;
@@ -40,9 +39,9 @@ final class DiscoverFeed
     /**
      * @param  string|null  $stan  wartość parametru `stan` z adresu DALSZEJ
      *                             strony (patrz niżej); pierwsza strona podaje `null`
-     * @return CursorPaginatorContract<int, Post>
+     * @return CursorPaginator<int, Post>
      */
-    public function paginate(?User $viewer, ?int $perPage = null, ?string $stan = null): CursorPaginatorContract
+    public function paginate(?User $viewer, ?int $perPage = null, ?string $stan = null): CursorPaginator
     {
         $perPage ??= (int) config('kuking.feed.page_size');
 

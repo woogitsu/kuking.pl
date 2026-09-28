@@ -479,7 +479,7 @@ class AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest extends TestCase
         $odpowiedz = $this->actingAs($basia)->delete(route('social.unblock', ['username' => 'zenek']))
             ->assertRedirect()->assertSessionHasNoErrors();
 
-        $this->assertStringContainsString('Blokada zdjęta', (string) $odpowiedz->getSession()->get('status'));
+        $this->assertStringContainsString('Blokada zdjęta', (string) self::sesjaPrzekierowania($odpowiedz)->get('status'));
         $this->assertFalse(Block::query()->where('blocker_id', $basia->getKey())->where('blocked_id', $zenek->getKey())->exists());
         $this->assertSame(0, $this->wpisy('user.unblocked'));
         $this->assertZgloszonoBrakWpisu('user.unblocked');

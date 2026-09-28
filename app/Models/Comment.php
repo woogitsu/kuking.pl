@@ -15,6 +15,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Komentarz. Dotyczy dokładnie jednego obiektu — pilnuje tego CHECK w bazie.
+ *
+ * Pola z dołączonych zapytań w `CelPowiadomienia` są dostępne tylko w
+ * rezultatach tego zapytania; brak ich w zwykłym modelu daje null.
+ *
+ * @property string|null $kind
+ * @property string|null $slug
+ * @property int|string|null $preceding_count
+ * @property int|string|null $preceding_replies
  */
 class Comment extends Model
 {

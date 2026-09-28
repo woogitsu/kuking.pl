@@ -9,12 +9,15 @@ use App\Http\Controllers\HealthController;
 use App\Models\Profile;
 use App\Models\User;
 use App\Support\Sesja\GeneracjaSesji;
+use Illuminate\Auth\Passwords\PasswordBroker;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Migrations\Migration;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Mail\Transport\ArrayTransport;
 use Illuminate\Session\Store;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Livewire\Livewire;
@@ -23,6 +26,28 @@ use Mockery\MockInterface;
 
 abstract class TestCase extends BaseTestCase
 {
+    /** Anonimowa migracja zwrócona z pliku deklaruje up/down na swojej klasie. */
+    protected static function wykonajMigracje(Migration $migracja, string $kierunek): void
+    {
+        if (! in_array($kierunek, ['up', 'down'], true) || ! is_callable([$migracja, $kierunek])) {
+            self::fail('Migracja nie udostępnia metody '.$kierunek.'.');
+        }
+
+        call_user_func([$migracja, $kierunek]);
+    }
+
+    /** Broker Laravel z metodami zarządzania żetonami używanymi przez testy. */
+    protected static function brokerHasel(): PasswordBroker
+    {
+        $broker = Password::broker();
+
+        if (! $broker instanceof PasswordBroker) {
+            self::fail('Test wymaga brokera haseł Laravel, a skonfigurowano '.$broker::class.'.');
+        }
+
+        return $broker;
+    }
+
     /**
      * Testy nie zależą od zbudowanych assetów.
      *

@@ -6,7 +6,7 @@ namespace App\Support;
 
 use App\Models\Comment;
 use App\Models\User;
-use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 /**
@@ -38,7 +38,12 @@ final class OdpowiedziWatku
         return max(1, (int) config('kuking.comments.replies_per_thread'));
     }
 
-    /** Ograniczenie relacji `replies`: widoczność + pierwsza porcja. */
+    /**
+     * Ograniczenie relacji `replies`: widoczność + pierwsza porcja.
+     *
+     * @param  Builder<Comment>  $query
+     * @return Builder<Comment>
+     */
     public static function pierwszaPorcja(Builder $query, ?User $widz): Builder
     {
         return $query->widoczneDla($widz)->limit(self::rozmiarPorcji());

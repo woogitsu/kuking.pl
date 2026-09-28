@@ -8,6 +8,7 @@ use App\Domain\Users\ZamekKonta;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\User;
+use Illuminate\Auth\Passwords\PasswordBroker;
 use Illuminate\Support\Facades\Password;
 use InvalidArgumentException;
 
@@ -90,7 +91,11 @@ final class UstawNoweHaslo
             // konto — po zmianie hasła w ustawieniach dalej ustawiłby nowe.
             // Przy resecie broker skasowałby go sam, ale dopiero po tej
             // transakcji; tu znika razem z hasłem.
-            Password::broker()->deleteToken($swiezy);
+            $broker = Password::broker();
+            if (! $broker instanceof PasswordBroker) {
+                throw new \LogicException('Skonfigurowany broker haseł nie udostępnia usuwania żetonów.');
+            }
+            $broker->deleteToken($swiezy);
 
             // ZMIANA HASŁA UNIEWAŻNIA ZAMÓWIONĄ ZMIANĘ ADRESU (issue #195) —
             // pod tą samą blokadą, więc potwierdzenie nie wejdzie pomiędzy.

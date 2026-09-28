@@ -91,18 +91,18 @@ class SzczegolyZachowujaKluczeWierszyTest extends TestCase
             $error = $xpath->query("//*[@id='f-$fieldId-error']")->item(0);
             $this->assertNotNull($field, $fieldId);
             $this->assertNotNull($error, $fieldId);
-            $this->assertSame('true', $field->getAttribute('aria-invalid'), $fieldId);
-            $this->assertContains('f-'.$fieldId.'-error', preg_split('/\s+/', trim($field->getAttribute('aria-describedby'))), $fieldId);
+            $this->assertSame('true', self::elementDom($field)->getAttribute('aria-invalid'), $fieldId);
+            $this->assertContains('f-'.$fieldId.'-error', preg_split('/\s+/', trim(self::elementDom($field)->getAttribute('aria-describedby'))), $fieldId);
             $this->assertNotSame('', trim($error->textContent), $fieldId);
         }
 
         $timer = $xpath->query("//*[@id='f-steps-3-timer_minutes']")->item(0);
-        $this->assertContains('f-steps-3-timer_minutes-help', preg_split('/\s+/', trim($timer->getAttribute('aria-describedby'))));
+        $this->assertContains('f-steps-3-timer_minutes-help', preg_split('/\s+/', trim(self::elementDom($timer)->getAttribute('aria-describedby'))));
 
         foreach (['ingredients-0-text', 'ingredients-0-group_name', 'steps-0-timer_minutes'] as $fieldId) {
             $field = $xpath->query("//*[@id='f-$fieldId']")->item(0);
             $this->assertNotNull($field, $fieldId);
-            $this->assertFalse($field->hasAttribute('aria-invalid'), $fieldId);
+            $this->assertFalse(self::elementDom($field)->hasAttribute('aria-invalid'), $fieldId);
             $this->assertSame(0, $xpath->query("//*[@id='f-$fieldId-error']")->length, $fieldId);
         }
     }

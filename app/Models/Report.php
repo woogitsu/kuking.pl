@@ -17,6 +17,7 @@ use Illuminate\Support\Carbon;
  *
  * @property string|null $alarm_pilny_stan jedna z `Report::ALARM_*`
  * @property Carbon|null $alarm_pilny_zlecony_at
+ * @property Carbon|null $alarm_czlowieka_obsluzony_at
  */
 class Report extends Model
 {

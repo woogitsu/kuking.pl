@@ -11,7 +11,6 @@ use App\Support\KluczeLimitow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\MessageBag;
 use Illuminate\Support\ViewErrorBag;
@@ -412,7 +411,7 @@ class LimitHaselPrzedLogowaniemTest extends TestCase
             'Kontrola: po wyczerpaniu koszyka konta właścicielka powinna dostać odmowę.',
         );
 
-        $token = Password::broker()->createToken($osoba);
+        $token = self::brokerHasel()->createToken($osoba);
 
         $this->post('/nowe-haslo', [
             'token' => $token,
@@ -454,7 +453,7 @@ class LimitHaselPrzedLogowaniemTest extends TestCase
             ], $this->adres($i));
         }
 
-        $token = Password::broker()->createToken($osoba);
+        $token = self::brokerHasel()->createToken($osoba);
 
         $this->post('/nowe-haslo', [
             'token' => $token,
@@ -508,7 +507,7 @@ class LimitHaselPrzedLogowaniemTest extends TestCase
             RateLimiter::hit($kluczKonta, 900);
         }
 
-        $token = Password::broker()->createToken($napastnik);
+        $token = self::brokerHasel()->createToken($napastnik);
 
         $this->post('/nowe-haslo', [
             'token' => $token,

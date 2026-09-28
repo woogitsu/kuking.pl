@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  *
  * @property string $kind
  * @property string|null $title
+ * @property-read Tag|null $zrodloTematu Podpis karty ustawiany jako wczytana relacja feedu.
  *
  * Kolumny tabeli pośredniej `collection_items` — są tylko wtedy, gdy wpis
  * wczytano przez `Collection::posts()`:
@@ -290,9 +291,11 @@ class Post extends Model
      */
     public static function licznikWidocznychKomentarzy(?User $viewer): array
     {
-        return ['allComments as comments_count' => fn (Builder $comments) => $comments
-            ->widoczneDla($viewer)
-            ->where(fn (Builder $liczone) => $liczone
+        /** @param Builder<Comment> $comments */
+        $widoczne = function (Builder $comments) use ($viewer): Builder {
+            (new Comment)->scopeWidoczneDla($comments, $viewer);
+
+            return $comments->where(fn (Builder $liczone) => $liczone
                 ->where(fn (Builder $korzen) => $korzen
                     ->whereNull('comments.parent_id')
                     ->where(fn (Builder $tresc) => $tresc
@@ -306,7 +309,10 @@ class Post extends Model
                         ->select('comments.id')
                         ->whereColumn('comments.post_id', 'posts.id')
                         ->whereNull('comments.parent_id')
-                        ->widoczneDla($viewer))))];
+                        ->widoczneDla($viewer))));
+        };
+
+        return ['allComments as comments_count' => $widoczne];
     }
 
     /** @param  Builder<Post>  $query */

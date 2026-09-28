@@ -10,8 +10,8 @@ use App\Domain\Users\ZamekKonta;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Api\ZakresyTokenu;
 use App\Notifications\UstawienieNowegoHasla;
-use Carbon\CarbonInterface;
 use App\Support\Sesja\GeneracjaSesji;
+use Carbon\CarbonInterface;
 use Database\Factories\UserFactory;
 use DateTimeInterface;
 use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
@@ -1180,13 +1180,21 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(TozsamoscZewnetrzna::class, 'user_id');
     }
 
-    /** Przeglądarki z włączonym Web Push (issue #35, D-303). */
+    /**
+     * Przeglądarki z włączonym Web Push (issue #35, D-303).
+     *
+     * @return HasMany<PushSubscription, $this>
+     */
     public function pushSubscriptions(): HasMany
     {
         return $this->hasMany(PushSubscription::class);
     }
 
-    /** Cisza nocna i limit kanałów poza serwisem; brak wiersza = domyślne (D-303). */
+    /**
+     * Cisza nocna i limit kanałów poza serwisem; brak wiersza = domyślne (D-303).
+     *
+     * @return HasOne<UstawieniaPowiadomienZewnetrznych, $this>
+     */
     public function ustawieniaPowiadomienZewnetrznych(): HasOne
     {
         return $this->hasOne(UstawieniaPowiadomienZewnetrznych::class);
