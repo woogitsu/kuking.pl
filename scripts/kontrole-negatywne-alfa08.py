@@ -94,6 +94,9 @@ AKCJE_SHA_TEST = "AkcjeGithubPrzypieteDoShaTest"
 # byłoby zawsze prawdziwe, a test świeciłby na zielono nad niczym — dokładnie
 # ta klasa usterki, dla której powstał mechanizm kontroli dodatnich.
 OBRAZ_ASSETOW = "Dockerfile"
+OBRAZ_PDF_TEST = "ObrazMaNarzedziaPdfTest"
+MIGRACJA_IMPORTU = "database/migrations/2026_09_26_100000_create_przepisy_z_importu_table.php"
+MIGRACJA_IMPORTU_TEST = "CofniecieMigracjiImportuTest"
 CENY_WARZYW_WORKFLOW = ".github/workflows/ceny-warzyw-auto.yml"
 CENY_WARZYW_TEST = "WorkflowCenNieUruchamiaKoduZTokenemZapisuTest"
 NOWOSCI_KONTROLER = "app/Http/Controllers/NowosciController.php"
@@ -1264,6 +1267,8 @@ checks = [
     # ma wywrócić architektoniczny test „import nigdy nie publikuje”.
     ("Odczyt kartki publikuje przepis", "app/Jobs/OdczytajPrzepis.php", "test_import_nigdy_nie_publikuje_sprawdzone_w_kodzie",
      lambda s: replace_once(s, "publish: false,", "publish: true,")),
+    ("Wspólny limit ignoruje nowe próby importu", "app/Domain/Import/LimitImportowOsoby.php", "WspolnyLimitImportuTest",
+     lambda s: replace_once(s, "return $proby + $odczytyBezProby;", "return $odczytyBezProby;")),
     # D-298 „maszyna stanów płatnego wywołania” (#1973, #1974, #1977, #1980).
     # Każda mutacja przywraca dokładnie okno opisane w zgłoszeniu.
     # #1973: rezerwacja poza transakcją z licznikiem prób I `failed()` bez
@@ -1324,6 +1329,14 @@ checks = [
     # (`scheduler`, długo działający `schedule:work`), nie `cron`.
     ("DEPLOYMENT.md nazywa scheduler „cron”", "docs/DEPLOYMENT.md", "DeploymentSchedulerNieNazywaSieCronTest",
      lambda s: replace_once(s, "├── scheduler\n", "├── cron\n")),
+    # D-300: etap runtime obrazu bez poppler-utils — import PDF padałby
+    # dopiero na produkcji; strażnik obrazu ma to złapać.
+    ("Obraz runtime bez poppler-utils", OBRAZ_ASSETOW, OBRAZ_PDF_TEST,
+     lambda s: replace_once(s, "      poppler-utils \\\n", "")),
+    # D-088/D-300: down() migracji importu bez odmowy przy niesprawdzonym
+    # szkicu — test cofnięcia ma oblać.
+    ("Cofnięcie importu bez odmowy przy niesprawdzonym szkicu", MIGRACJA_IMPORTU, MIGRACJA_IMPORTU_TEST,
+     lambda s: replace_once(s, "            if ($ile > 0) {", "            if ($ile > 0 && false) {")),
     # #1741: `.env.example` zna obie zmienne czyszczenia CDN, które czyta
     # `config/kuking.php` — bez nich wdrożenie z szablonu ma czyszczenie wyłączone.
     ("Szablon .env bez tokenu czyszczenia CDN", ".env.example", "EnvExampleMaZmienneCzyszczeniaCdnTest",
@@ -1473,6 +1486,8 @@ run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
 run_test(DIGEST_DOBOR_TEST, True)
 run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
+run_test(OBRAZ_PDF_TEST, True)
+run_test(MIGRACJA_IMPORTU_TEST, True)
 run_test(CENY_WARZYW_TEST, True)
 run_test(DEPLOY_WSTRZYKNIECIE_TEST, True)
 run_test(NOWOSCI_OD_NUMERU_TEST, True)

@@ -22,9 +22,10 @@ use Throwable;
  * CZTERY STANY REZERWACJI (`push_proba_at IS NOT NULL AND push_wyslano_at IS NULL`):
  *
  *  - W TOKU: `push_zakonczono_at` puste, rezerwacja świeższa niż próg ALBO
- *    w `jobs` czeka (lub trwa) ponowienie niosące ID TEGO powiadomienia
- *    (`notificationIds`). Samo zadanie tego odbiorcy NIE osłania: retry z
- *    #1992 ginie właśnie przez zamek świeżego zadania tego odbiorcy, a to
+ *    w `jobs` czeka (lub trwa) ponowienie niosące `push_grupa_id` TEJ
+ *    grupy (`grupaId`, od #2021) albo — w dawnym formacie — ID TEGO
+ *    powiadomienia (`notificationIds`). Samo zadanie tego odbiorcy NIE
+ *    osłania: retry z #1992 ginie właśnie przez zamek świeżego zadania tego odbiorcy, a to
  *    przy limicie liczy sierotę jako zajęty slot, dostaje ODLOZ i wraca do
  *    `jobs` przez 48 h — dopasowanie po `user_id` zasłaniałoby sierotę
  *    na cały ten czas. Opóźniony retry
@@ -122,7 +123,9 @@ final class StanWysylkiPush
                   AND NOT EXISTS (
                       SELECT 1 FROM {$tabelaZadan} j
                       WHERE strpos(j.payload, ?) > 0
-                        AND strpos(j.payload, n.id::text) > 0
+                        AND (strpos(j.payload, n.id::text) > 0
+                             OR (n.push_grupa_id IS NOT NULL
+                                 AND strpos(j.payload, n.push_grupa_id::text) > 0))
                   )
                 SQL, [$teraz->copy()->subMinutes($prog), class_basename(WyslijPowiadomieniePush::class)]);
         } catch (Throwable) {

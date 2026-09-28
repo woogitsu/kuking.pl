@@ -79,9 +79,11 @@ final class InwentarzDanychKonta
         'moderation_actions.subject_user_id' => [self::EKSPORT, 'decyzje_moderacji'],
         'appeals.user_id' => [self::EKSPORT, 'odwolania'],
         'meal_plan_entries.user_id' => [self::EKSPORT, 'planer'],
+        'przepisy_z_importu.user_id' => [self::EKSPORT, 'importy_przepisow'],
         'push_subscriptions.user_id' => [self::EKSPORT, 'powiadomienia_poza_serwisem'],
         'ustawienia_powiadomien_zewnetrznych.user_id' => [self::EKSPORT, 'powiadomienia_poza_serwisem'],
         'importy_przepisow.user_id' => [self::EKSPORT, 'odczyty_przepisow'],
+        'proby_importu.user_id' => [self::EKSPORT, 'proby_importu'],
 
         'blocks.blocked_id' => [self::NA_ZADANIE, 'Kto zablokował to konto. Ujawnienie tego naraziłoby osobę, która się odcięła (RODO art. 15 ust. 4); na żądanie powiemy, ile jest takich blokad.'],
         'hides.hidden_user_id' => [self::NA_ZADANIE, 'Kto ukrył sobie to konto („Ukryj tę osobę”, #1810). Ujawnienie tego naraziłoby osobę, która tylko porządkowała własny ekran (RODO art. 15 ust. 4) — tak samo jak przy blokadach; na żądanie powiemy, ile jest takich ukryć.'],

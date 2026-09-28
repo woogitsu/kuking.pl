@@ -10,6 +10,8 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Spis wydań
 
 - [Najnowsze zmiany](#najnowsze-zmiany)
+- [Alfa 0.74 — zdjęcia w formularzu i porcje przy gotowaniu](#alfa-074)
+- [Alfa 0.73 — import przepisu i wygodniejsze gotowanie](#alfa-073)
 - [Alfa 0.72 — spokojniejsze zdjęcia i powiadomienia](#alfa-072)
 - [Alfa 0.71 — przepis z kartki i koszt dania](#alfa-071)
 - [Alfa 0.70 — spokojniejsze wpisy i gotowanie](#alfa-070)
@@ -25,6 +27,48 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Najnowsze zmiany
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
+
+## Alfa 0.74
+
+**Zdjęcia przy przepisie i wybrana liczba porcji zostają z Wami.**
+
+### Zdjęcia zostają po poprawieniu formularza
+
+Jeśli przy dodawaniu lub edycji przepisu wybierzecie zdjęcia, a inne pole
+wymaga poprawki, formularz pokaże wybrane już zdjęcia. Możecie poprawić tekst
+i wysłać przepis ponownie bez szukania tych samych plików w telefonie.
+
+### Wybrane porcje zostają przy gotowaniu
+
+Na stronie przepisu wybierzcie liczbę porcji przy składnikach, a potem otwórzcie
+„Gotuję”. Rozwinięta lista składników pokaże ilości przeliczone na ten wybór.
+Liczba porcji zostaje przy przechodzeniu między krokami i po rozpoczęciu od
+początku. Po zakończeniu gotowania wrócicie do przepisu z tym samym wyborem.
+
+## Alfa 0.73
+
+**Przepis ze strony lub PDF i składniki odhaczane podczas gotowania.**
+
+### Przepis ze strony lub pliku PDF
+
+Na ekranie „Dodaj przepis” możecie wkleić adres strony z przepisem albo dodać
+plik PDF. PDF z tekstem odczytujemy u siebie; skanowane strony oraz tekst strony
+bez danych przepisu mogą trafić do OpenAI tylko po zgodzie dla tego wysłania.
+Odczytana treść trafia do prywatnego szkicu, który możecie
+poprawić przed publikacją. Adres źródłowej strony zostaje przy przepisie;
+zdjęć z niej nie pobieramy. Przed publikacją potwierdzacie, że tekst został
+sprawdzony. Jeśli strona nie pozwala na pobranie przepisu, zapisujemy sam
+adres i podpowiadamy, jak wpisać treść ręcznie.
+Każda droga importu dzieli limit 5 prób dziennie i 30 miesięcznie.
+
+### Składniki odhaczane w trybie „Gotuję”
+
+Przy dłuższym przepisie łatwo zgubić się w tym, co już jest odmierzone.
+W trybie „Gotuję” rozwiń „Składniki” i dotknij składnika, który masz
+przygotowany — pojawi się przy nim „Przygotowane”, a pod listą zobaczysz, ile
+jeszcze zostało. Zaznaczenie pamięta ta karta przeglądarki, także po przejściu
+do następnego kroku. Przycisk „Wyczyść zaznaczenie składników” zaczyna listę
+od nowa i nie rusza odhaczonych kroków.
 
 ## Alfa 0.72
 

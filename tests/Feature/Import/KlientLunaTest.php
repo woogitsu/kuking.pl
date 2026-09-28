@@ -57,6 +57,19 @@ final class KlientLunaTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_inny_model_lub_zanizony_cennik_nie_omija_twardej_rezerwacji(): void
+    {
+        Http::fake();
+        config(['kuking.import.model.nazwa' => 'gpt-6-astra']);
+        $this->assertFalse(KlientLuna::skonfigurowany(KlientLuna::ZADANIE_OCR));
+        $this->assertNull($this->zapytaj());
+
+        config(['kuking.import.model.nazwa' => 'gpt-6-luna', 'kuking.import.model.cena_wejscie_mln_usd' => '0.01']);
+        $this->assertFalse(KlientLuna::skonfigurowany(KlientLuna::ZADANIE_TEKST));
+        $this->assertNull($this->zapytaj());
+        Http::assertNothingSent();
+    }
+
     public function test_kontrola_dodatnia_pelna_konfiguracja_jest_gotowa(): void
     {
         $this->assertSame([], KlientLuna::braki(KlientLuna::ZADANIE_OCR));

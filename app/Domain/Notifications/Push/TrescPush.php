@@ -37,8 +37,20 @@ final class TrescPush
     public static function zbuduj(Collection $powiadomienia): array
     {
         $pierwsze = $powiadomienia->first();
-        $zdanie = $pierwsze instanceof Notification ? self::zdanie($pierwsze) : 'Masz nowe powiadomienie.';
-        $reszta = $powiadomienia->count() - 1;
+
+        return self::zGrupy($pierwsze instanceof Notification ? $pierwsze : null, $powiadomienia->count());
+    }
+
+    /**
+     * Ta sama treść bez całej kolekcji: najnowsze powiadomienie i liczba
+     * wszystkich w grupie (issue #2021 — duża grupa nie jest hydratowana).
+     *
+     * @return array{title: string, body: string, url: string, tag: string}
+     */
+    public static function zGrupy(?Notification $najnowsze, int $ileWGrupie): array
+    {
+        $zdanie = $najnowsze !== null ? self::zdanie($najnowsze) : 'Masz nowe powiadomienie.';
+        $reszta = $ileWGrupie - 1;
 
         if ($reszta > 0) {
             $zdanie .= ' Do tego '.self::inne($reszta).'.';

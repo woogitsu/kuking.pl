@@ -17,6 +17,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -75,6 +76,21 @@ use Illuminate\Support\Str;
  *    nie wraca grupy do puli i niczego nie wysyła ponownie;
  *  - wygasła subskrypcja (404/410) jest kasowana od razu, jak dotąd —
  *    tego reguła nie zmienia.
+ *
+ * GRUPA MA STAŁY KOSZT, NIEZALEŻNIE OD LICZBY ZDARZEŃ (issue #2021). Do
+ * 28 września 2026 `zaplanuj()` hydratowało całą pulę z 48 h (z aktorem
+ * i profilem), filtrowało ją w PHP i wkładało jej UUID do `WHERE id IN`
+ * oraz do payloadu każdego retry. Dziś kwalifikacja (`KanalPush::zawez()`)
+ * i rezerwacja idą jednym `UPDATE` w SQL, liczbę daje sam `UPDATE`, a do
+ * treści hydratuje się JEDEN — najnowszy — wiersz. Retry niesie `grupaId`
+ * (`push_grupa_id`), nie listę: po tym UUID czujka #2053
+ * (`StanWysylkiPush`) rozpoznaje w `jobs`, że rezerwacja jest w toku.
+ * Limitu liczby wierszy w grupie celowo NIE ma: nadmiar nad limitem albo
+ * wysłałby osobne pushe o tej samej zaległości (i zjadł dzienny limit),
+ * albo musiałby zostać zamknięty bez pushu — obie rzeczy zmieniałyby
+ * obietnicę „jeden push z tym, co czeka”. Pula i tak jest ograniczona
+ * oknem `push_maks_wiek_godzin`, a zestawowy `UPDATE` nie trzyma wierszy
+ * w pamięci PHP.
  */
 final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, ShouldQueue
 {
@@ -91,17 +107,30 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
     public int $uniqueFor = 172800;
 
     /**
-     * @param  list<string>  $notificationIds  ID powiadomień z JUŻ ZDECYDOWANEJ grupy —
-     *                                         puste znaczy „świeże zadanie, policz od zera"
-     *                                         w `zaplanuj()`; niepuste znaczy „ponowienie
-     *                                         po błędzie transportu", które pomija ciszę
-     *                                         nocną i dzienny limit (już raz rozstrzygnięte).
+     * `push_grupa_id` zarezerwowanej grupy — niepuste znaczy „ponowienie”
+     * (issue #2021). Zwykła właściwość z wartością domyślną, nie promowana
+     * w konstruktorze: zadania z `jobs` sprzed wdrożenia nie mają jej
+     * w serializacji, a typowana właściwość bez domyślnej zostałaby po
+     * odtworzeniu niezainicjowana.
+     */
+    public ?string $grupaId = null;
+
+    /**
+     * @param  list<string>  $notificationIds  DAWNY format ponowienia (sprzed #2021): ID
+     *                                         powiadomień zdecydowanej grupy. Nowe retry
+     *                                         zostawia to puste i niesie `$grupaId`; lista
+     *                                         zostaje tylko po to, żeby zadania już stojące
+     *                                         w `jobs` w chwili wdrożenia dało się dokończyć.
+     *                                         Oba pola puste = „świeże zadanie, policz od
+     *                                         zera"; ponowienie pomija ciszę nocną i dzienny
+     *                                         limit (już raz rozstrzygnięte).
      * @param  string|null  $tresc  Dawna treść pierwszej próby; retry jej nie
      *                              używa, bo po zmianie widoczności mogłaby
      *                              ujawnić imię lub tytuł przepisu (#2052).
      * @param  list<string>  $pominieteSubskrypcje  ID subskrypcji, które już dostały TĘ
      *                                              grupę — nie próbujemy ich drugi raz.
      * @param  int  $probaTransportu  Która to próba DOSTARCZENIA (nie: cisza/limit).
+     * @param  string|null  $grupaId  `push_grupa_id` grupy, którą to retry dokańcza.
      */
     public function __construct(
         public string $userId,
@@ -109,7 +138,9 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
         public ?string $tresc = null,
         public array $pominieteSubskrypcje = [],
         public int $probaTransportu = 1,
+        ?string $grupaId = null,
     ) {
+        $this->grupaId = $grupaId;
         $this->onQueue('default');
     }
 
@@ -131,7 +162,7 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
         }
 
         $user = User::with('ustawieniaPowiadomienZewnetrznych')->find($this->userId);
-        $ponowienie = $this->notificationIds !== [];
+        $ponowienie = $this->grupaId !== null || $this->notificationIds !== [];
 
         if ($user === null) {
             return;
@@ -140,7 +171,8 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
         if (! $user->mozeCzytac()) {
             if ($ponowienie) {
                 DB::transaction(function () use ($user): void {
-                    $this->zakonczProby($this->kwalifikujPonowienie($user), KodZamknieciaPush::Anulowano);
+                    $this->zablokujOdbiorce($user);
+                    $this->zakonczProby($user, KodZamknieciaPush::Anulowano);
                 });
             }
 
@@ -151,11 +183,8 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
             ->when($this->pominieteSubskrypcje !== [], fn ($q) => $q->whereNotIn('id', $this->pominieteSubskrypcje))
             ->get();
 
-        if ($ponowienie) {
-            $this->notificationIds = DB::transaction(fn (): array => $this->kwalifikujPonowienie($user));
-            if ($this->notificationIds === []) {
-                return;
-            }
+        if ($ponowienie && ! DB::transaction(fn (): bool => $this->kwalifikujPonowienie($user))) {
+            return;
         }
 
         if ($subskrypcje->isEmpty()) {
@@ -163,7 +192,7 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
             // zniknęła między próbami): reszta już dostała tę grupę, więc
             // z punktu widzenia dostarczenia jest gotowa.
             if ($ponowienie) {
-                $this->potwierdzWyslanie($this->notificationIds);
+                $this->potwierdzWyslanie($user);
             }
 
             return;
@@ -188,7 +217,7 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
                 return;
             }
 
-            $this->notificationIds = $plan['id_powiadomien'];
+            $this->grupaId = $plan['grupa_id'];
             $tresc = (string) json_encode($plan['tresc'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         }
 
@@ -203,7 +232,7 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
         }
 
         if ($nieudane === []) {
-            $this->potwierdzWyslanie($this->notificationIds);
+            $this->potwierdzWyslanie($user);
 
             return;
         }
@@ -211,7 +240,7 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
         $maksProb = (int) config('kuking.notifications.zewnetrzne.push_maks_prob_transportu', 3);
 
         if ($this->probaTransportu >= $maksProb) {
-            $this->zakonczProby($this->notificationIds, KodZamknieciaPush::PorazkaTransportu);
+            $this->zakonczProby($user, KodZamknieciaPush::PorazkaTransportu);
             // TRWAŁA PORAŻKA — bez adresu subskrypcji (poświadczenie),
             // z liczbą, żeby dało się to policzyć i zauważyć trend.
             Log::error('Web Push: trwała porażka transportu — rezygnuję z ponawiania po wyczerpaniu prób.', [
@@ -236,75 +265,130 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
 
         $opoznienieSekund = (int) config('kuking.notifications.zewnetrzne.push_ponowienie_sekund', 30);
 
+        // Bez treści: retry i tak wysyła neutralną (#2052), a stara treść
+        // w `jobs` to tylko imię aktora i tytuł przepisu w kolejce.
         self::dispatch(
             $this->userId,
-            $this->notificationIds,
-            $tresc,
+            $this->grupaId !== null ? [] : $this->notificationIds,
+            null,
             [...$this->pominieteSubskrypcje, ...$udaneId],
             $this->probaTransportu + 1,
+            $this->grupaId,
         )->delay(CarbonImmutable::now()->addSeconds($opoznienieSekund));
     }
 
     /**
      * Pod blokadą odbiorcy ponownie sprawdza aktualne powiadomienia grupy.
      * Odpadające zamyka, żeby nie udawały wysłanych ani nie wisiały wiecznie.
+     * Wszystko w SQL, bez hydratacji grupy (#2021).
      *
-     * @return list<string>
+     * @return bool czy w grupie zostało coś do dostarczenia
      */
-    private function kwalifikujPonowienie(User $user): array
+    private function kwalifikujPonowienie(User $user): bool
+    {
+        $this->zablokujOdbiorce($user);
+
+        $zarezerwowano = $this->otwartaGrupa($user)->min('push_proba_at');
+
+        if ($zarezerwowano === null) {
+            return false;
+        }
+
+        if (CarbonImmutable::parse($zarezerwowano)->lessThan(CarbonImmutable::now()->subHours(48))) {
+            $this->zakonczProby($user, KodZamknieciaPush::Anulowano);
+
+            return false;
+        }
+
+        $this->otwartaGrupa($user)
+            ->whereNotExists($this->kwalifikujeTenWiersz($user))
+            ->update(['push_zakonczono_at' => CarbonImmutable::now(), 'push_wynik' => KodZamknieciaPush::Anulowano->value]);
+
+        return $this->otwartaGrupa($user)->exists();
+    }
+
+    /**
+     * Wiersze tej grupy, które wciąż czekają na dostarczenie. Grupa to
+     * `push_grupa_id` albo — w dawnym retry — lista ID; zawsze tylko
+     * wiersze TEGO odbiorcy, choćby payload niósł cudze ID.
+     *
+     * @return Builder<Notification>
+     */
+    private function otwartaGrupa(User $user): Builder
+    {
+        $query = Notification::query()->where('user_id', $user->getKey());
+
+        if ($this->grupaId !== null) {
+            // Zepsuty UUID nie może zamienić się w `IS NULL` (a więc
+            // w każdą dawną rezerwację bez grupy) — wtedy grupa jest pusta.
+            Str::isUuid($this->grupaId)
+                ? $query->where('push_grupa_id', $this->grupaId)
+                : $query->whereRaw('false');
+        } else {
+            $id = array_values(array_filter($this->notificationIds, static fn (mixed $id): bool => is_string($id) && Str::isUuid($id)));
+            $query->whereKey($id);
+        }
+
+        return $query->whereNotNull('push_proba_at')
+            ->whereNull('push_wyslano_at')
+            ->whereNull('push_zakonczono_at');
+    }
+
+    /**
+     * Powiadomienia odbiorcy, które w tej chwili WOLNO wysłać pushem:
+     * widoczne, nieprzeczytane, z kanału push (`KanalPush::zawez()`).
+     *
+     * @return Builder<Notification>
+     */
+    private function kwalifikujace(User $user): Builder
+    {
+        return KanalPush::zawez(
+            Notification::query()
+                ->where('notifications.user_id', $user->getKey())
+                ->visibleTo($user)
+                ->whereNull('notifications.read_at'),
+        );
+    }
+
+    /**
+     * Te same warunki co `kwalifikujace()`, ale jako `SELECT 1 WHERE …` BEZ
+     * `FROM`: kolumny `notifications.*` wskazują wtedy na wiersz grupy
+     * z zewnętrznego `UPDATE`, więc warunek liczy się dla każdego wiersza
+     * na miejscu, bez drugiego skanu puli (przegląd PR #2160).
+     *
+     * `NOT IN (SELECT id FROM notifications …)` robiło ten drugi skan
+     * z pełnym filtrem widoczności; na 3001 wierszach w puli 223 tys.
+     * szacowany koszt 1,74 mln przekraczał `jit_above_cost`, a sama
+     * kompilacja JIT trwała 2,4 s (`docs/infra/WEB_PUSH_PLANY_2021.md`).
+     * `NOT EXISTS` ma też właściwą semantykę NULL: warunek, który dla
+     * wiersza daje NULL (np. brak `question_answer`), nie kwalifikuje go,
+     * więc wiersz zostaje zamknięty — tak jak `dotyczy()` w PHP.
+     */
+    private function kwalifikujeTenWiersz(User $user): QueryBuilder
+    {
+        $warunki = $this->kwalifikujace($user)->toBase();
+
+        return DB::query()->selectRaw('1')
+            ->mergeWheres($warunki->wheres, $warunki->getRawBindings()['where']);
+    }
+
+    private function zablokujOdbiorce(User $user): void
     {
         DB::selectOne(
             'SELECT pg_advisory_xact_lock('.self::PRZESTRZEN_BLOKAD.', hashtext(?))',
             [(string) $user->getKey()],
         );
-
-        $id = array_values(array_filter($this->notificationIds, static fn (mixed $id): bool => is_string($id) && Str::isUuid($id)));
-        $grupa = Notification::query()
-            ->where('user_id', $user->getKey())
-            ->whereKey($id)
-            ->whereNotNull('push_proba_at')
-            ->whereNull('push_wyslano_at')
-            ->whereNull('push_zakonczono_at')
-            ->get();
-
-        if ($grupa->isEmpty()) {
-            return [];
-        }
-
-        $idGrupy = array_map(strval(...), $grupa->modelKeys());
-        $zarezerwowano = $grupa->min('push_proba_at');
-        if ($zarezerwowano === null || CarbonImmutable::parse($zarezerwowano)->lessThan(CarbonImmutable::now()->subHours(48))) {
-            $this->zakonczProby($idGrupy, KodZamknieciaPush::Anulowano);
-
-            return [];
-        }
-
-        $widoczne = Notification::query()
-            ->where('notifications.user_id', $user->getKey())
-            ->whereKey($idGrupy)
-            ->visibleTo($user)
-            ->whereNull('notifications.read_at')
-            ->whereIn('notifications.type', KanalPush::TYPY)
-            ->get()
-            ->filter(fn (Notification $n): bool => KanalPush::dotyczy($n->type, is_array($n->data) ? $n->data : []));
-        $aktualneId = array_map(strval(...), $widoczne->modelKeys());
-        $this->zakonczProby(array_values(array_diff($idGrupy, $aktualneId)), KodZamknieciaPush::Anulowano);
-
-        return $aktualneId;
     }
 
     /**
      * Pod blokadą doradczą odbiorcy: co czeka, czy wolno teraz, i REZERWACJA
      * (nie: potwierdzenie) grupy jednym znacznikiem `push_proba_at`.
      *
-     * @return array{odloz: CarbonImmutable}|array{id_powiadomien: list<string>, tresc: array<string, string>}|null
+     * @return array{odloz: CarbonImmutable}|array{grupa_id: string, tresc: array<string, string>}|null
      */
     private function zaplanuj(User $user, mixed $najstarszaSubskrypcja, CarbonImmutable $teraz): ?array
     {
-        DB::selectOne(
-            'SELECT pg_advisory_xact_lock('.self::PRZESTRZEN_BLOKAD.', hashtext(?))',
-            [(string) $user->getKey()],
-        );
+        $this->zablokujOdbiorce($user);
 
         // Nic sprzed włączenia pushu na pierwszym urządzeniu i nic starszego
         // niż limit wieku — push mówi o tym, co się dzieje, nie o archiwum.
@@ -314,23 +398,15 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
             $od = CarbonImmutable::instance($najstarszaSubskrypcja);
         }
 
-        $oczekujace = $user->notifications()
-            ->visibleTo($user)
-            ->whereIn('notifications.type', KanalPush::TYPY)
+        $pula = $this->kwalifikujace($user)
             ->whereNull('notifications.push_wyslano_at')
             // Grupa już ZAREZERWOWANA (rezerwacja w toku albo trwale
             // nieudana) nie wraca do puli przez zwykłe zdarzenie — jedyna
-            // droga powrotu to jawne ponowienie z `$notificationIds` wyżej.
+            // droga powrotu to jawne ponowienie z `$grupaId` wyżej.
             ->whereNull('notifications.push_proba_at')
-            ->whereNull('notifications.read_at')
-            ->where('notifications.created_at', '>=', $od)
-            ->with('actor.profile')
-            ->reorder('notifications.created_at', 'desc')
-            ->get()
-            ->filter(fn (Notification $n): bool => KanalPush::dotyczy($n->type, is_array($n->data) ? $n->data : []))
-            ->values();
+            ->where('notifications.created_at', '>=', $od);
 
-        if ($oczekujace->isEmpty()) {
+        if (! (clone $pula)->exists()) {
             return null;
         }
 
@@ -353,17 +429,30 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
             return ['odloz' => $decyzja['wyslij_od']];
         }
 
-        $id = $oczekujace->modelKeys();
-
-        Notification::query()
-            ->whereKey($id)
+        // Rezerwacja zestawowo: podzapytanie zamiast listy UUID w `IN (...)`,
+        // a liczba zarezerwowanych wierszy to wynik samego `UPDATE`.
+        $grupaId = (string) Str::uuid();
+        $ile = Notification::query()
+            ->whereIn('id', $pula->select('notifications.id'))
             ->update([
                 'push_proba_at' => $teraz,
-                'push_grupa_id' => (string) Str::uuid(),
+                'push_grupa_id' => $grupaId,
             ]);
 
-        /** @var list<string> $id */
-        return ['id_powiadomien' => array_map(strval(...), $id), 'tresc' => TrescPush::zbuduj($oczekujace)];
+        if ($ile === 0) {
+            return null;
+        }
+
+        // Do treści wystarczy najnowsze zdarzenie i liczba reszty.
+        $najnowsze = Notification::query()
+            ->where('user_id', $user->getKey())
+            ->where('push_grupa_id', $grupaId)
+            ->with('actor.profile')
+            ->reorder('created_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        return ['grupa_id' => $grupaId, 'tresc' => TrescPush::zGrupy($najnowsze, $ile)];
     }
 
     /**
@@ -411,17 +500,9 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
      * Zakończona grupa nie wraca do puli, ale przestaje być aktywnym slotem.
      * Kod mówi czujce, czy to awaria, czy świadome anulowanie (#2053).
      */
-    private function zakonczProby(array $notificationIds, KodZamknieciaPush $kod): void
+    private function zakonczProby(User $user, KodZamknieciaPush $kod): void
     {
-        if ($notificationIds === []) {
-            return;
-        }
-
-        Notification::query()
-            ->whereKey($notificationIds)
-            ->whereNotNull('push_proba_at')
-            ->whereNull('push_wyslano_at')
-            ->whereNull('push_zakonczono_at')
+        $this->otwartaGrupa($user)
             ->update(['push_zakonczono_at' => CarbonImmutable::now(), 'push_wynik' => $kod->value]);
     }
 
@@ -429,20 +510,12 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
      * Transport przyjął wiadomość na WSZYSTKIE urządzenia tej grupy —
      * dopiero teraz grupa jest „wysłana". `whereNull` chroni przed
      * przesunięciem znacznika, gdyby to samo zadanie (np. przez ponowienie
-     * kolejki) wykonało się dwa razy.
-     *
-     * @param  list<string>  $notificationIds
+     * kolejki) wykonało się dwa razy. Wiersz zamknięty w ponowieniu
+     * (`push_zakonczono_at`, np. przeczytany) nie staje się „wysłanym”.
      */
-    private function potwierdzWyslanie(array $notificationIds): void
+    private function potwierdzWyslanie(User $user): void
     {
-        if ($notificationIds === []) {
-            return;
-        }
-
-        Notification::query()
-            ->whereKey($notificationIds)
-            ->whereNull('push_wyslano_at')
-            ->update(['push_wyslano_at' => CarbonImmutable::now()]);
+        $this->otwartaGrupa($user)->update(['push_wyslano_at' => CarbonImmutable::now()]);
     }
 
     private function wyslijNa(TransportPush $transport, PushSubscription $subskrypcja, string $tresc): WynikWysylkiPush

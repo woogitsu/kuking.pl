@@ -2,6 +2,19 @@
 
 ## Nieopublikowane
 
+## Alfa 0.74 — zdjęcia w formularzu i porcje przy gotowaniu
+
+- Zdjęcia wybrane przy dodawaniu lub edycji przepisu zostają w formularzu po błędzie innego pola. Nie trzeba ich wybierać ponownie po poprawieniu tytułu czy składników (#2050).
+- Wybrana liczba porcji nie znika po wejściu w tryb gotowania: składniki przy krokach są przeliczone tak samo jak na stronie przepisu, a wybór zostaje przy zmianie kroku, odhaczaniu, rozpoczęciu od początku i powrocie do przepisu (#1984). [nowa funkcja]
+- Rozpatrzenie odwołania z blokadą konta nie zakleszcza się już z równoczesną edycją przepisu. Obie czynności kończą się bez błędu serwera (#2165).
+- Bramka wdrożenia nie ponawia automatycznie niejednoznacznego żądania do Railway; wymaga uzgodnienia stanu, żeby nie uruchomić drugiego wdrożenia (#2048).
+
+## Alfa 0.73 — import przepisu i wygodniejsze gotowanie
+
+- Dalsze strony wpisów pod tagiem mają własny adres dla wyszukiwarek i udostępniania. Adres wskazuje tę samą porcję wpisów, którą oglądacie, zamiast wracać do pierwszej strony (#2135).
+- Bezpieczeństwo importu przepisu z adresu strony: adres z kropką na końcu nazwy (`przepisy.example.pl./`), wielkimi literami, z polskimi znakami albo z adresem IP zapisanym liczbą, ósemkowo lub szesnastkowo trafia teraz do pobierania w jednej, sprawdzonej postaci. Wcześniej końcowa kropka omijała przypięcie sprawdzonego adresu IP i serwer mógł drugi raz zapytać DNS, czyli połączyć się z adresem, którego nikt nie sprawdził. Dodatkowo pobieranie przerywa połączenie z adresem innym niż sprawdzony, zanim wyśle zapytanie, liczy limit 2 MB w trakcie pobierania i naprawdę idzie przez cURL — wcześniej opcja strumieniowania wyłączała przypięcie całkowicie (#1978).
+- Przepis ze strony internetowej albo z pliku PDF można zapisać jako szkic: na ekranie „Dodaj przepis” są przyciski „Wklej adres strony” i „Dodaj plik PDF”. Szkic widzisz tylko Ty, adres strony zostaje przy przepisie jako źródło i nie da się go zmienić, a zdjęć ze strony nie pobieramy. Przed publikacją trzeba zaznaczyć „Sprawdziłem odczytany tekst”; gdy opis przygotowania jest prawie taki sam jak na stronie, pokazujemy ostrzeżenie, żeby napisać go własnymi słowami. Strony, które nie pozwalają pobierać przepisów, szanujemy — wtedy zapisujemy sam adres i mówimy, co zrobić. Dziennie można odczytać 5 przepisów, miesięcznie 30. PDF-y z tekstem odczytujemy u siebie; skanowane strony może odczytać komputer OpenAI po osobnej zgodzie. Tekst strony bez danych przepisu może trafić do modelu tylko za zgodą. Wszystkie drogi mają wspólny limit 5 dziennie i 30 miesięcznie oraz budżet AI (D-300). [nowa funkcja]
+- W trybie „Gotuję” możesz odhaczać składniki, które już masz odmierzone. Zaznaczenie zostaje w tej karcie przeglądarki, także po przejściu do kolejnego kroku, i nie rusza odhaczonych kroków (#2069). [nowa funkcja]
 - Ekrany logowania i zakładania konta wykorzystują szerokość komputera: obok formularza widać od razu wejście przez Google lub Facebooka, a przy logowaniu także drogę przez link wysłany e-mailem. Na telefonie wszystko układa się w jedną kolumnę; żadne pole ani komunikat nie znika.
 
 ## Alfa 0.72 — spokojniejsze zdjęcia i powiadomienia
