@@ -15,7 +15,7 @@
     <h1>Dodaj zdjęcie</h1>
     <p class="mb-5">Wybierz zdjęcie z telefonu, napisz kilka słów i kliknij „Opublikuj”. To wszystko.</p>
 
-    <x-error-summary />
+    <x-error-summary :field-ids="['photos.*' => 'f-photos', 'media_ids' => 'f-photos', 'media_ids.*' => 'f-photos']" />
 
     <form class="panel-formularza" method="POST" action="{{ route('posts.store') }}" enctype="multipart/form-data">
         @csrf
@@ -50,10 +50,8 @@
                 // Wracają jako identyfikatory, bo przeglądarka nie pozwala
                 // wypełnić pola pliku z serwera — i dobrze robi, inaczej strona
                 // mogłaby podkraść plik z dysku.
-                $zachowane = \App\Models\Media::query()
-                    ->whereIn('id', (array) old('media_ids', []))
-                    ->where('owner_id', auth()->id())
-                    ->get();
+                // Kolejność z `media_ids[]`, nie z planu bazy (issue #934).
+                $zachowane = \App\Domain\Media\ZachowaneZdjecia::wKolejnosci(old('media_ids', []), auth()->id());
             @endphp
 
             @if($zachowane->isNotEmpty())
@@ -95,8 +93,9 @@
                     'f-photos-help' => true,
                     'f-photos-error' => $errors->has('photos'),
                     'f-photos-plik-error' => $errors->has('photos.*'),
+                    'f-media-ids-error' => $errors->has('media_ids.*'),
                 ])));
-                $bladZdjec = $errors->has('photos') || $errors->has('photos.*');
+                $bladZdjec = $errors->has('photos') || $errors->has('photos.*') || $errors->has('media_ids.*');
             @endphp
             <input class="visually-hidden pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
                    accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
@@ -115,6 +114,7 @@
             </label>
             @error('photos')<span class="field-error" id="f-photos-error">{{ $message }}</span>@enderror
             @error('photos.*')<span class="field-error" id="f-photos-plik-error">{{ $message }}</span>@enderror
+            @error('media_ids.*')<span class="field-error" id="f-media-ids-error">{{ $message }}</span>@enderror
         </div>
 
         <div data-tagi-opis data-tagi-endpoint="{{ route('tags.suggestions') }}"

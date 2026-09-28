@@ -10,6 +10,7 @@ use App\Domain\Media\KasujZdjecie;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Rules\ObslugiwaneZdjecie;
+use App\Support\Komunikat;
 use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -143,8 +144,8 @@ class AvatarSettingsController extends Controller
         // do dowolnego zdjęcia. Brak pola w starej karcie również oznacza odmowę.
         if ($request->input('avatar_media_id') !== (string) $zdjecie->getKey()) {
             return redirect()->route('settings.avatar')
-                ->with('status', 'Zdjęcie profilowe zmieniło się lub formularz jest nieaktualny. '
-                    .'Sprawdź aktualne zdjęcie i ponownie wybierz „Usuń zdjęcie”, jeśli chcesz je usunąć. Nic nie usunęliśmy.');
+                ->with(Komunikat::blad('Zdjęcie profilowe zmieniło się lub formularz jest nieaktualny. '
+                    .'Sprawdź aktualne zdjęcie i ponownie wybierz „Usuń zdjęcie”, jeśli chcesz je usunąć. Nic nie usunęliśmy.'));
         }
 
         // Odpięcie PRZED kasowaniem — inaczej `KasujZdjecie::jestUzywane()`
@@ -160,8 +161,8 @@ class AvatarSettingsController extends Controller
         if (! $this->przypnijAwatar->odepnij($request->user(), $zdjecie)) {
             return redirect()
                 ->route('settings.avatar')
-                ->with('status', 'Zdjęcie profilowe zmieniło się w międzyczasie — nic nie usunęliśmy. '
-                    .'Sprawdź, które zdjęcie masz teraz, i kliknij „Usuń zdjęcie” jeszcze raz, jeśli nadal chcesz je usunąć.');
+                ->with(Komunikat::blad('Zdjęcie profilowe zmieniło się w międzyczasie — nic nie usunęliśmy. '
+                    .'Sprawdź, które zdjęcie masz teraz, i kliknij „Usuń zdjęcie” jeszcze raz, jeśli nadal chcesz je usunąć.'));
         }
 
         // PLIKI LECĄ OD RAZU, A NIE PRZEZ SPRZĄTANIE OSIEROCONYCH.

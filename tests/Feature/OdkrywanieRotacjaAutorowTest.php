@@ -8,9 +8,9 @@ use App\Domain\Feed\DiscoverFeed;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
-use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Pagination\Cursor;
+use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 

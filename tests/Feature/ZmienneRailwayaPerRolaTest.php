@@ -128,10 +128,24 @@ class ZmienneRailwayaPerRolaTest extends TestCase
                 .'sprawdza obecność na produkcji. Scheduler tylko kolejkuje job.',
         ],
         'CLOUDFLARE_PURGE_TOKEN' => ['role' => ['web', 'worker'], 'powod' => 'Jak CLOUDFLARE_ZONE_ID.'],
+        'VAPID_PUBLIC_KEY' => [
+            'role' => ['web', 'worker'],
+            'powod' => 'Web Push (#35, D-303): web pokazuje ekran i daje klucz przeglądarce, worker podpisuje wysyłkę.',
+        ],
+        'VAPID_PRIVATE_KEY' => [
+            'role' => ['worker'],
+            'powod' => 'Web Push (#35, D-303): podpis VAPID w jobie `WyslijPowiadomieniePush` — wysyła tylko worker.',
+        ],
         'OPENAI_MODERATION_KEY' => [
             'role' => ['worker'],
             'powod' => 'Job `PrzeanalizujTresc` → `KlientOpenAI` (#1014).',
         ],
+        'OPENAI_IMPORT_KEY' => [
+            'role' => ['web', 'worker'],
+            'powod' => 'Web: przycisk „Przepisz z kartki” i budżet przed zleceniem; worker: job `OdczytajPrzepis` → `KlientLuna` (D-298).',
+        ],
+        'KUKING_IMPORT_CENA_WEJSCIE' => ['role' => ['web', 'worker'], 'powod' => 'Jak OPENAI_IMPORT_KEY — bez cennika nie ma wywołań (D-297).'],
+        'KUKING_IMPORT_CENA_WYJSCIE' => ['role' => ['web', 'worker'], 'powod' => 'Jak OPENAI_IMPORT_KEY.'],
         'KUKING_MODEL_ALARM_EMAIL' => [
             'role' => ['web', 'worker', 'scheduler'],
             'powod' => 'Web: `AlarmujOPilnymZgloszeniu` synchronicznie w żądaniu zgłoszenia od człowieka '
@@ -286,7 +300,7 @@ class ZmienneRailwayaPerRolaTest extends TestCase
      * Środowisko PR jest kopią bazowego, więc bez warunku preview wysyłałby
      * treści pod produkcyjnym kluczem modelu, a alarmy do prawdziwego moderatora.
      */
-    private const TYLKO_PRODUKCJA = ['OPENAI_MODERATION_KEY', 'KUKING_MODEL_ALARM_EMAIL'];
+    private const TYLKO_PRODUKCJA = ['OPENAI_MODERATION_KEY', 'KUKING_MODEL_ALARM_EMAIL', 'OPENAI_IMPORT_KEY'];
 
     /** Warunek „tylko produkcja” w `railway.ts`; `%s` = nazwa zmiennej. */
     private const WZOR_TYLKO_PRODUKCJA = '/^isProduction\s*\?\s*ctx\.shared\.%s\s*:\s*""$/';

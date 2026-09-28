@@ -150,6 +150,14 @@ dysków, zmiennych środowiskowych. Nie ma migracji ani numeru decyzji.
 
 ## 7. Kroki dla właściciela (wariant A, ok. 10 minut)
 
+> **Od 28.09.2026 obowiązuje pełny runbook
+> [`LIVEWIRE_TMP_R2_RETENCJA_2051.md`](LIVEWIRE_TMP_R2_RETENCJA_2051.md)
+> (#2051):** osobno staging i produkcja, Bucket Lock, multipart, oczekiwany
+> dowód i kontrola okresowa. Kroki niżej zostają jako skrót; przy rozjeździe
+> rozstrzyga runbook. Dowód wklejać w #2051, nie w #602.
+>
+> Prefiks reguły lifecycle: `livewire-tmp/`
+
 1. Cloudflare → R2 → bucket oryginałów (ten sam, na który wskazuje dysk
    `r2`) → *Settings* → *Object lifecycle rules* → *Add rule*.
 2. Prefiks: `livewire-tmp/` (dokładnie; jeśli `config/livewire.php`

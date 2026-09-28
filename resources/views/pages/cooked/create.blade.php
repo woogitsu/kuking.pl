@@ -9,7 +9,9 @@
         <strong>Nie musisz wypełniać żadnego pola</strong> — wystarczy, że klikniesz „Wyślij”.
     </p>
 
-    <x-error-summary />
+    {{-- Błąd pojedynczego pliku ma klucz `photos.0`, a pole plików jest jedno:
+         `f-photos` (issue #874). --}}
+    <x-error-summary :field-ids="['photos.*' => 'f-photos', 'media_ids' => 'f-photos', 'media_ids.*' => 'f-photos']" />
 
     <form class="panel-formularza" method="POST" action="{{ route('cooked.store', $recipe->slug) }}" enctype="multipart/form-data">
         @csrf
@@ -38,6 +40,27 @@
              obwódkę fokusu rysuje reguła sąsiedztwa. --}}
         <div class="field @error('photos') has-error @enderror @error('photos.*') has-error @enderror">
             <span class="pole-zdjecia-nazwa" id="f-photos-etykieta">Zdjęcie tego, co Ci wyszło</span>
+
+            {{-- Zdjęcia, które przetrwały błąd innego pola (issue #872).
+                 Przeglądarka nie pozwala wypełnić pola pliku z serwera, więc
+                 wracają jako identyfikatory. Listę przygotowuje kontroler
+                 i przepuszcza przez bramkę właściciela (issue #871). --}}
+            @if(($zachowane ?? collect())->isNotEmpty())
+                <div class="notice">
+                    <strong>Twoje zdjęcia są zachowane.</strong>
+                    Nie musisz wybierać ich jeszcze raz — popraw tylko to, co wypisaliśmy na górze formularza.
+                    <ul class="stack-tight lista-naga mt-3">
+                        @foreach($zachowane as $zdjecie)
+                            <li>
+                                <input type="hidden" name="media_ids[]" value="{{ $zdjecie->getKey() }}">
+                                <x-photo :media="$zdjecie" variant="thumb" :zoom="false" />
+                                <button class="btn btn-quiet" type="submit" name="usun_zdjecie" value="{{ $zdjecie->getKey() }}" formnovalidate>Usuń to zdjęcie</button>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             {{-- Przy błędzie opis pola rośnie o TREŚĆ BŁĘDU (issue #1572),
                  żeby czytnik ekranu po przejściu z podsumowania do pola
                  przeczytał, co jest nie tak. Pomoc zostaje pierwsza. --}}
@@ -46,8 +69,9 @@
                     'f-photos-help' => true,
                     'f-photos-error' => $errors->has('photos'),
                     'f-photos-plik-error' => $errors->has('photos.*'),
+                    'f-media-ids-error' => $errors->has('media_ids.*'),
                 ])));
-                $bladZdjec = $errors->has('photos') || $errors->has('photos.*');
+                $bladZdjec = $errors->has('photos') || $errors->has('photos.*') || $errors->has('media_ids.*');
             @endphp
             <input class="visually-hidden pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
                    accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
@@ -66,6 +90,7 @@
             </label>
             @error('photos')<span class="field-error" id="f-photos-error">{{ $message }}</span>@enderror
             @error('photos.*')<span class="field-error" id="f-photos-plik-error">{{ $message }}</span>@enderror
+            @error('media_ids.*')<span class="field-error" id="f-media-ids-error">{{ $message }}</span>@enderror
         </div>
 
         <x-field name="note" label="Jak wyszło?" type="textarea" :rows="4"
@@ -132,6 +157,11 @@
             </div>
             <x-blad-grupy name="perceived_difficulty" />
         </fieldset>
+
+        <p class="notice">
+            <strong>Kto to zobaczy?</strong>
+            Twoje wykonanie, zdjęcia i odpowiedzi zobaczą osoby, które mogą zobaczyć ten przepis.
+        </p>
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Wyślij</button>

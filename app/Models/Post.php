@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Collections\ZapisyWpisu;
 use App\Domain\Tags\UniewaznijCacheTagow;
 use Database\Factories\PostFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -22,6 +24,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  *
  * @property string $kind
  * @property string|null $title
+ * @property-read Tag|null $zrodloTematu Podpis karty ustawiany jako wczytana relacja feedu.
+ *
+ * Kolumny tabeli pośredniej `collection_items` — są tylko wtedy, gdy wpis
+ * wczytano przez `Collection::posts()`:
+ * @property-read Pivot&object{note: string|null, created_at: string|null} $pivot
  */
 class Post extends Model
 {
@@ -64,6 +71,40 @@ class Post extends Model
     public const DISPLAY_COLLAGE = 'collage';
 
     /**
+     * Relacje, które czyta każdy kafelek wpisu — `<x-post-card>` i kafelek
+     * tablicy dnia (`kuking-board/posts`): autor z awatarem, własne zdjęcia
+     * i przepis, na który wpis wskazuje (#1037).
+     *
+     * `visibility` i `hero_media_id` MUSZĄ być w selekcie przepisu (#368,
+     * #447): kolumna pominięta w selekcie nie jest błędem, tylko cichym
+     * `null`. Bez `hero_media_id` relacja `heroMedia` nie ma po czym trafić
+     * i karta nie rysuje zdjęcia; bez `visibility` plakietka schodzi przez
+     * `?? $post->visibility` do stałego `public` wpisu zapowiadającego.
+     *
+     * Do 24.09.2026 ta lista stała ręcznie przepisana w siedmiu zapytaniach
+     * (trzy strumienie, dwa miejsca tablicy dnia, profil, strona tagu,
+     * zeszyt) i już się rozjechała: zeszyt nie ładował tagów, więc ta sama
+     * karta była tam bez tematów. Teraz każda lista bierze ją przez
+     * `scopeDlaKarty()`, a pilnuje tego `KartaWpisuJednymKontraktemTest`.
+     */
+    public const RELACJE_KAFELKA = [
+        'author.profile.avatar',
+        'media',
+        'recipe:id,title,slug,visibility,hero_media_id',
+        'recipe.heroMedia',
+    ];
+
+    /**
+     * Pełna karta (`<x-post-card>`) dokłada tematy. Karta pokazuje je TYLKO
+     * przy `relationLoaded('tags')` — celowo nie dociąga ich sama, żeby nie
+     * odpalić zapytania per wpis — więc lista bez tej relacji nie ma chipów.
+     */
+    public const RELACJE_KARTY = [
+        ...self::RELACJE_KAFELKA,
+        'tags:id,slug,name,status',
+    ];
+
+    /**
      * `kind` NIE JEST TU CELOWO — patrz `oznaczJakoPytanie()` niżej.
      *
      * `title` ZOSTAJE, i to też jest decyzja, a nie przeoczenie: tytuł jest
@@ -89,6 +130,18 @@ class Post extends Model
         'published_at',
     ];
 
+    /**
+     * Dla kogo `ukryjNiedostepnePrzepisy()` rozstrzygnęło już relację
+     * `recipe` (issue #1971): klucz widza, `''` dla gościa, `null` — nikt.
+     *
+     * Zwykła właściwość PHP, NIE atrybut: nie trafia do bazy, do `toArray()`
+     * ani do kolejki. Żyje tyle, co ten obiekt w jednym żądaniu. Pozwala
+     * zasobowi API (`PostResource`) nie pytać `RecipePolicy::view()` drugi
+     * raz — per wpis, z niezaładowanym autorem, blokadami i obserwowaniem —
+     * o coś, co lista rozstrzygnęła już jednym zapytaniem na stronę.
+     */
+    public ?string $przepisRozstrzygnietyDla = null;
+
     protected function casts(): array
     {
         return [
@@ -97,11 +150,17 @@ class Post extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'author_id');
     }
 
+    /**
+     * @return BelongsTo<Recipe, $this>
+     */
     public function recipe(): BelongsTo
     {
         return $this->belongsTo(Recipe::class);
@@ -117,6 +176,9 @@ class Post extends Model
         return $this->belongsToMany(Collection::class, 'collection_items');
     }
 
+    /**
+     * @return BelongsToMany<Media, $this>
+     */
     public function media(): BelongsToMany
     {
         return $this->belongsToMany(Media::class, 'post_media')
@@ -163,6 +225,8 @@ class Post extends Model
      * Tagi wpisu (D-021) — maksymalnie 5, w kolejności, w jakiej autor je
      * dodał. Limit i tworzenie nowych tagów pilnuje
      * `App\Domain\Tags\Actions\ResolveTagsForPost`, nie ten model.
+     *
+     * @return BelongsToMany<Tag, $this, PostTag>
      */
     public function tags(): BelongsToMany
     {
@@ -172,6 +236,20 @@ class Post extends Model
             ->orderBy('post_tags.position');
     }
 
+    /**
+     * „Smakowicie wygląda" pod tym wpisem (issue #1813, D-280). Bez liczników
+     * gdziekolwiek w listach — patrz `FeedNieSortujePoMierzeReakcjiTest`.
+     *
+     * @return HasMany<PostReaction, $this>
+     */
+    public function reakcje(): HasMany
+    {
+        return $this->hasMany(PostReaction::class, 'post_id');
+    }
+
+    /**
+     * @return HasMany<Comment, $this>
+     */
     public function comments(): HasMany
     {
         // `->orderBy('id')` rozstrzyga remisy `created_at` (sekundowa
@@ -185,6 +263,9 @@ class Post extends Model
             ->orderBy('id');
     }
 
+    /**
+     * @return HasMany<Comment, $this>
+     */
     public function allComments(): HasMany
     {
         return $this->hasMany(Comment::class);
@@ -222,9 +303,11 @@ class Post extends Model
      */
     public static function licznikWidocznychKomentarzy(?User $viewer): array
     {
-        return ['allComments as comments_count' => fn (Builder $comments) => $comments
-            ->widoczneDla($viewer)
-            ->where(fn (Builder $liczone) => $liczone
+        /** @param Builder<Comment> $comments */
+        $widoczne = function (Builder $comments) use ($viewer): Builder {
+            (new Comment)->scopeWidoczneDla($comments, $viewer);
+
+            return $comments->where(fn (Builder $liczone) => $liczone
                 ->where(fn (Builder $korzen) => $korzen
                     ->whereNull('comments.parent_id')
                     ->where(fn (Builder $tresc) => $tresc
@@ -238,13 +321,50 @@ class Post extends Model
                         ->select('comments.id')
                         ->whereColumn('comments.post_id', 'posts.id')
                         ->whereNull('comments.parent_id')
-                        ->widoczneDla($viewer))))];
+                        ->widoczneDla($viewer))));
+        };
+
+        return ['allComments as comments_count' => $widoczne];
     }
 
     /** @param  Builder<Post>  $query */
     public function scopeWithVisibleCommentCount(Builder $query, ?User $viewer): void
     {
         $query->withCount(self::licznikWidocznychKomentarzy($viewer));
+    }
+
+    /**
+     * Kontrakt danych karty wpisu na LIŚCIE (#1037): relacje czytane przez
+     * kartę, licznik widocznych komentarzy i — dla pełnej karty — liczba
+     * zapisów ze stanem „mam to w zeszycie" (`ZapisyWpisu::dolicz()`, D-081),
+     * wszystko w TYM SAMYM zapytaniu, co lista.
+     *
+     * Czego tu CELOWO nie ma: wyboru źródła, kolejności, paginacji ani bramki
+     * widoczności przepisu. Bramka to bezpieczeństwo, nie prezentacja, i ma
+     * własny scope — `zWidocznymPrzepisemAlboWlasnaTrescia()` — który każda
+     * lista wywołuje jawnie (tablica dnia musi go mieć w podzapytaniu
+     * `DISTINCT ON`, nie dopiero w zapytaniu po modele). Po pobraniu listy
+     * `ukryjNiedostepnePrzepisy()` usuwa z kart własnej treści relację do
+     * przepisu, którego widz nie może otworzyć.
+     *
+     * `kafelek: true` — wariant tablicy dnia: jej kafelek nie pokazuje ani
+     * tematów, ani liczby zapisów, więc nie ładuje tagów i nie dolicza zapisów.
+     *
+     * Wariant rozszerzony: strona jednego wpisu (`PostController::show()`)
+     * dostaje model z wiązania trasy i ładuje `recipe` w CAŁOŚCI plus
+     * `recipe.author`, bo nad kartą stoi `RecipePolicy::view()`. Relacje
+     * karty są tam te same; licznik zapisów dolicza `doliczDoWpisu()`.
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeDlaKarty(Builder $query, ?User $widz, bool $kafelek = false): void
+    {
+        $query->with($kafelek ? self::RELACJE_KAFELKA : self::RELACJE_KARTY)
+            ->withVisibleCommentCount($widz);
+
+        if (! $kafelek) {
+            app(ZapisyWpisu::class)->dolicz($query, $widz);
+        }
     }
 
     /** @param  Builder<Post>  $query */
@@ -302,6 +422,51 @@ class Post extends Model
     public function scopeTylkoOdAktywnychAutorow(Builder $query): void
     {
         $query->whereHas('author', fn ($autor) => $autor->where('status', User::STATUS_ACTIVE));
+    }
+
+    /**
+     * Bez wpisów, które TEN widz ukrył sobie („Ukryj ten wpis", #1810, D-278).
+     *
+     * Tylko w strumieniach z kartą (Start, Odkrywanie, tablica, tygodniowy
+     * list). Profil, wyszukiwarka i strona wpisu wpisu nie wycinają — karta
+     * zwija się tam do „Ten wpis ukrywasz. Pokaż". Gość nic nie ukrywa.
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeBezUkrytychWpisow(Builder $query, ?User $widz): void
+    {
+        if ($widz === null) {
+            return;
+        }
+
+        $query->whereNotExists(fn ($sub) => $sub->selectRaw('1')
+            ->from('hides')
+            ->where('hides.user_id', $widz->getKey())
+            ->whereColumn('hides.post_id', 'posts.id')
+            ->where(fn ($q) => $q->whereNull('hides.hidden_until')->orWhere('hides.hidden_until', '>', now())));
+    }
+
+    /**
+     * Bez wpisów osób, które TEN widz ukrył sobie („Ukryj tę osobę", #1810).
+     *
+     * Wyłącznie tam, gdzie serwis sam PODSUWA ludzi: Odkrywanie, automatyczna
+     * część tablicy i wpisy z obserwowanego tagu na Starcie (26.09). Nie przy
+     * osobach obserwowanych wprost, nie w wyszukiwarce i nie pod linkiem
+     * — tam człowiek przyszedł po tę osobę sam (AGENTS.md §8, D-278).
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeBezUkrytychOsob(Builder $query, ?User $widz): void
+    {
+        if ($widz === null) {
+            return;
+        }
+
+        $query->whereNotExists(fn ($sub) => $sub->selectRaw('1')
+            ->from('hides')
+            ->where('hides.user_id', $widz->getKey())
+            ->whereColumn('hides.hidden_user_id', 'posts.author_id')
+            ->where(fn ($q) => $q->whereNull('hides.hidden_until')->orWhere('hides.hidden_until', '>', now())));
     }
 
     /**
@@ -437,7 +602,25 @@ class Post extends Model
             if (! in_array((string) $wpis->recipe_id, $widoczne, true)) {
                 $wpis->setRelation('recipe', null);
             }
+
+            $wpis->przepisRozstrzygnietyDla = self::kluczWidza($widz);
         }
+    }
+
+    /**
+     * Czy relacja `recipe` tego wpisu jest już przycięta do tego, co `$widz`
+     * może zobaczyć (`ukryjNiedostepnePrzepisy()`) — wtedy niepusta relacja
+     * ZNACZY „widoczny" i nie trzeba pytać polityki (issue #1971).
+     */
+    public function przepisRozstrzygnietyDla(?User $widz): bool
+    {
+        return $this->przepisRozstrzygnietyDla !== null
+            && $this->przepisRozstrzygnietyDla === self::kluczWidza($widz);
+    }
+
+    private static function kluczWidza(?User $widz): string
+    {
+        return $widz === null ? '' : (string) $widz->getKey();
     }
 
     /**

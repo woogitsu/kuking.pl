@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Polaczenia;
 
-use Illuminate\Database\ConnectionInterface;
+use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Throwable;
@@ -77,7 +77,7 @@ final class StanPolaczenBazy
      *     baza: string|null
      * }
      */
-    public function sprawdz(?ConnectionInterface $polaczenie = null): array
+    public function sprawdz(?Connection $polaczenie = null): array
     {
         $polaczenie ??= DB::connection();
 
@@ -164,7 +164,7 @@ final class StanPolaczenBazy
     /**
      * @return array{max_connections: int, rezerwa_superusera: int, rezerwa_zwykla: int}
      */
-    private function ustawienia(ConnectionInterface $polaczenie): array
+    private function ustawienia(Connection $polaczenie): array
     {
         // Jedno zapytanie do `pg_settings` zamiast trzech `SHOW`: `SHOW`
         // rzuca błędem na nieznanej nazwie, a `reserved_connections` istnieje
@@ -196,7 +196,7 @@ final class StanPolaczenBazy
     /**
      * @return array{serwer: int, baza: int, bezczynne: int, aktywne: int, w_transakcji: int, nazwa_bazy: string}
      */
-    private function liczby(ConnectionInterface $polaczenie): array
+    private function liczby(Connection $polaczenie): array
     {
         $wiersz = $polaczenie->selectOne(
             "SELECT

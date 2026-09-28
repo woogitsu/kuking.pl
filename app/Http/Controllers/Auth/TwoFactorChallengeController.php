@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Domain\Security\Actions\SprawdzKodDrugiegoSkladnika;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Http\Controllers\Controller;
+use App\Models\AuditLogEntry;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 
@@ -26,7 +27,7 @@ use Illuminate\View\View;
  */
 class TwoFactorChallengeController extends Controller
 {
-    public function __construct(private readonly TwoFactorAuthenticator $totp) {}
+    public function __construct(private readonly SprawdzKodDrugiegoSkladnika $sprawdzKod) {}
 
     public function show(Request $request): View|RedirectResponse
     {
@@ -82,34 +83,17 @@ class TwoFactorChallengeController extends Controller
             ])->withInput([]);
         }
 
-        // Limit liczony PO KONCIE, nie po adresie IP — kod ma sześć cyfr,
-        // więc bez limitu prób jest do odgadnięcia, a rozproszony atak
-        // z wielu adresów miałby ominąć zwykły throttle po IP.
-        [$maxProb, $decayMinuty] = TwoFactorAuthenticator::limitProb();
-        $throttleKey = TwoFactorAuthenticator::kluczLimituProb($user);
+        // Limit prób (po koncie, wspólny z API), kolejność kodów i zużycie
+        // kodu zapasowego: `SprawdzKodDrugiegoSkladnika` (D-270).
+        [$wynik, $minuty] = $this->sprawdzKod->handle($user, $kod, $kodZapasowy);
 
-        if (RateLimiter::tooManyAttempts($throttleKey, $maxProb)) {
-            $sekundy = RateLimiter::availableIn($throttleKey);
-            $minuty = max(1, (int) ceil($sekundy / 60));
-
+        if ($wynik === SprawdzKodDrugiegoSkladnika::ZA_DUZO_PROB) {
             return back()->withErrors([
                 $field => "Za dużo prób. Spróbuj ponownie za {$minuty} min.",
             ])->withInput([]);
         }
 
-        $poprawny = false;
-
-        if ($kod !== '') {
-            $poprawny = $this->totp->verifyCode($user, $user->two_factor_secret, $kod);
-        }
-
-        if (! $poprawny && $kodZapasowy !== '') {
-            $poprawny = $this->totp->consumeBackupCode($user, $kodZapasowy);
-        }
-
-        if (! $poprawny) {
-            RateLimiter::hit($throttleKey, $decayMinuty * 60);
-
+        if ($wynik === SprawdzKodDrugiegoSkladnika::BLEDNY) {
             return back()->withErrors([
                 $field => $field === 'backup_code'
                     ? 'Ten kod nie pozwala się zalogować. Wpisz inny niewykorzystany kod zapasowy.'
@@ -117,7 +101,6 @@ class TwoFactorChallengeController extends Controller
             ])->withInput([]);
         }
 
-        RateLimiter::clear($throttleKey);
         $request->session()->forget(['logowanie.2fa.user_id', 'logowanie.2fa.odcisk']);
         $request->session()->regenerate();
 
@@ -128,6 +111,10 @@ class TwoFactorChallengeController extends Controller
         // wymagany przy KAŻDYM logowaniu. Konto bez 2FA nadal jest
         // zapamiętywane normalnie (LoginController::store()).
         Auth::login($user, remember: false);
+        AuditLogEntry::recordBezWywracania('account.password_login_succeeded', $user, $user, ip: $request->ip());
+
+        // Dowód kodu w TEJ sesji — tylko z nim `moderator.2fa` wpuszcza do panelu (#930).
+        $request->session()->put(TwoFactorAuthenticator::dowodSesji($user));
 
         return redirect()->intended(route('home'));
     }
