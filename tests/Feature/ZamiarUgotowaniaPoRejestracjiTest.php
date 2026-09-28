@@ -124,6 +124,23 @@ class ZamiarUgotowaniaPoRejestracjiTest extends TestCase
         $this->get(route('onboarding.done'))->assertOk()->assertViewIs('pages.onboarding.done');
     }
 
+    /**
+     * Zamiar zapisał GOŚĆ na przepisie publicznym. Jeśli autor zawęził
+     * widoczność, nie otwieramy formularza nawet wtedy, gdy Policy by
+     * pozwoliła (nowe konto zdążyło zaobserwować autora w onboardingu).
+     */
+    public function test_przepis_zawezony_do_obserwujacych_nie_otwiera_formularza_takze_obserwujacemu(): void
+    {
+        [$autor, $przepis] = $this->przepis();
+
+        $this->rejestracjaZTrybuGotowania($przepis);
+        $this->nowy()->following()->attach($autor->getKey(), ['created_at' => now()]);
+        $przepis->forceFill(['visibility' => 'followers'])->save();
+        $this->post(route('onboarding.skip'));
+
+        $this->get(route('onboarding.done'))->assertOk()->assertViewIs('pages.onboarding.done');
+    }
+
     public function test_zamiar_wygasa(): void
     {
         [, $przepis] = $this->przepis();
