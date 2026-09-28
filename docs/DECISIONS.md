@@ -18573,6 +18573,11 @@ wymaga słownika odmiany produktów. Łagodzi to informacja „Przeliczone na N
 porcji” i powrót jednym dotknięciem. Tryb gotowania pokazuje ilości autora
 (parametr `porcje` nie przechodzi do `/gotuj`) — do decyzji, czy przenosić.
 
+**Uzupełnienie #1984.** Wybór z adresu przechodzi do trybu gotowania i wraca
+z niego do strony przepisu. Oba widoki używają tego samego `WyborPorcji`;
+zmiana kroku i zapis odhaczenia zachowują zwalidowaną liczbę, a niepoprawna
+wartość wraca do ilości autora. Źródłowych składników to nie zmienia.
+
 **Czego świadomie NIE ma w tym kroku — propozycja na później.** Zamienniki
 podpowiadane przez AI. Model AI projektu ma być według zlecenia OpenAI
 „GPT-6 Luna”, wybierany konfiguracją — w repozytorium takiego wpisu jeszcze

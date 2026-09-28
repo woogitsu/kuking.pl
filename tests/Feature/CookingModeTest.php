@@ -60,6 +60,51 @@ class CookingModeTest extends TestCase
             ->assertSee('szklanka mąki');
     }
 
+    public function test_wybrane_porcje_przechodza_przez_kroki_odznaczenie_restart_i_powrot(): void
+    {
+        $recipe = $this->przepisZKrokami($this->user('porcje'), 2);
+        $recipe->update(['servings' => 4]);
+        $recipe->ingredients()->delete();
+        RecipeIngredient::create([
+            'recipe_id' => $recipe->getKey(), 'ingredient_text' => '200 g mąki', 'position' => 0,
+        ]);
+
+        $strona = $this->get(route('recipes.show', ['recipe' => $recipe->slug, 'porcje' => 6]))->assertOk();
+        $this->assertStringContainsString(
+            route('cooking.show', ['recipe' => $recipe->slug, 'porcje' => 6]),
+            html_entity_decode((string) $strona->getContent()),
+        );
+
+        $gotowanie = $this->get(route('cooking.show', ['recipe' => $recipe->slug, 'porcje' => 6]))->assertOk();
+        $this->assertStringContainsString('300 g mąki', strip_tags((string) $gotowanie->getContent()));
+        $this->assertStringContainsString(
+            route('cooking.show', ['recipe' => $recipe->slug, 'krok' => 2, 'porcje' => 6]),
+            html_entity_decode((string) $gotowanie->getContent()),
+        );
+        $this->assertStringContainsString(
+            route('recipes.show', ['recipe' => $recipe->slug, 'porcje' => 6]),
+            html_entity_decode((string) $gotowanie->getContent()),
+        );
+
+        $krok = $recipe->steps()->orderBy('position')->firstOrFail();
+        $this->post(route('cooking.zaznacz', $recipe->slug), [
+            'krok' => 1, 'krok_id' => $krok->getKey(), 'zrobiono' => 1, 'porcje' => 6,
+        ])->assertRedirect(route('cooking.show', ['recipe' => $recipe->slug, 'krok' => 1, 'porcje' => 6]));
+
+        $this->post(route('cooking.restart', $recipe->slug), ['porcje' => 6])
+            ->assertRedirect(route('cooking.show', ['recipe' => $recipe->slug, 'porcje' => 6]));
+    }
+
+    public function test_nieprawidlowa_liczba_porcji_nie_przechodzi_dalej(): void
+    {
+        $recipe = $this->przepisZKrokami($this->user('porcjezle'), 2);
+        $recipe->update(['servings' => 4]);
+
+        $gotowanie = $this->get(route('cooking.show', ['recipe' => $recipe->slug, 'porcje' => 999]))->assertOk();
+        $this->assertStringContainsString('szklanka mąki', strip_tags((string) $gotowanie->getContent()));
+        $this->assertStringNotContainsString('porcje=999', html_entity_decode((string) $gotowanie->getContent()));
+    }
+
     /**
      * Dowód wprost na wymóg zadania: widoczność idzie przez ISTNIEJĄCĄ
      * `RecipePolicy::view()`, nie przez osobny warunek w kontrolerze.
