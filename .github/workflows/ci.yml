@@ -1056,6 +1056,10 @@ jobs:
 
       # Skrypt najpierw sprawdza niezmienione źródła, po każdej mutacji
       # przywraca kopię i ponawia test. Pełny zestaw idzie w częściach 1–4.
+      - name: Kontrola odczytu logu testów negatywnych
+        if: matrix.czesc == 'kontrole'
+        run: python3 -m unittest discover -s scripts -p 'test_kontrola_wyjscia_testu.py' -v
+
       - name: Kontrole negatywne regresji Alfa 0.8 i portu marki
         if: matrix.czesc == 'kontrole'
         run: python3 scripts/kontrole-negatywne-alfa08.py
