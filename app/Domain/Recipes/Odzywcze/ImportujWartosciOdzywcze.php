@@ -10,6 +10,7 @@ use App\Models\MiaraDomowa;
 use App\Models\SkladnikOdzywczy;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -30,12 +31,11 @@ use Illuminate\Support\Str;
  * wdrożeniu, nie tylko wtedy, gdy pliki się zmieniły. Parsowanie
  * ~600 wierszy i przepisanie trzech tabel w transakcji przy każdym
  * deployu byłoby zbędnym kosztem czasu release'u, więc przed jakąkolwiek
- * pracą liczymy hash zawartości obu plików CSV i porównujemy go z hashem
- * zapisanym po poprzednim udanym imporcie (`Cache`, sterownik `database`
- * — bez Redisa). Ten sam hash i choć jeden wiersz w tabeli → pomijamy
- * całość i zwracamy bieżący stan bazy. Inny hash, pusta tabela albo
- * `$wymus === true` → import leci normalnie i zapisuje nowy hash dopiero
- * PO udanej transakcji (błąd importu nie ma prawa uśpić następnego razu).
+ * pracą liczymy hash źródeł i porównujemy go ze znacznikiem ostatniego
+ * udanego importu. Znacznik zawiera też odcisk zawartości TRZECH tabel.
+ * Sam hash plików nie dowodzi kompletności bazy po częściowym restore
+ * (#2130). Przy niezgodności odbudowujemy słownik; nowy znacznik zapisujemy
+ * dopiero PO udanej transakcji.
  */
 final class ImportujWartosciOdzywcze
 {
@@ -60,14 +60,25 @@ final class ImportujWartosciOdzywcze
 
         $hash = $this->hashPlikow($sciezkaSkladnikow, $sciezkaMiar);
 
-        if (! $wymus && $hash !== null && Cache::get(self::CACHE_KLUCZ) === $hash && SkladnikOdzywczy::query()->exists()) {
-            return [
-                'skladniki' => SkladnikOdzywczy::query()->count(),
-                'aliasy' => AliasSkladnika::query()->count(),
-                'miary' => MiaraDomowa::query()->count(),
-                'usuniete' => 0,
-                'pominieto' => true,
-            ];
+        $znacznik = $wymus ? null : Cache::get(self::CACHE_KLUCZ);
+        if (! $wymus && $hash !== null && is_array($znacznik) && ($znacznik['hash'] ?? null) === $hash) {
+            $stan = $this->stanBazy();
+            if ($stan['skladniki'] > 0 && ($znacznik['odcisk'] ?? null) === $stan['odcisk']) {
+                return [
+                    'skladniki' => $stan['skladniki'],
+                    'aliasy' => $stan['aliasy'],
+                    'miary' => $stan['miary'],
+                    'usuniete' => 0,
+                    'pominieto' => true,
+                ];
+            }
+
+            Log::warning('Słownik wartości odżywczych różni się od udanego importu — odbudowuję go.', [
+                'oczekiwane' => $znacznik['licznosci'] ?? null,
+                'obecne' => [$stan['skladniki'], $stan['aliasy'], $stan['miary']],
+            ]);
+        } elseif (! $wymus && $hash !== null && $znacznik === $hash) {
+            Log::warning('Stary znacznik importu nie potwierdza trzech tabel — odbudowuję słownik.');
         }
 
         $skladniki = $this->czytajCsv($sciezkaSkladnikow, self::KOLUMNY_SKLADNIKOW);
@@ -76,7 +87,10 @@ final class ImportujWartosciOdzywcze
         [$pozycje, $aliasy] = $this->sprawdzSkladniki($skladniki);
         $miaryDoZapisu = $this->sprawdzMiary($miary, $pozycje);
 
-        $wynik = DB::transaction(function () use ($pozycje, $aliasy, $miaryDoZapisu): array {
+        [$wynik, $stanPo] = DB::transaction(function () use ($pozycje, $aliasy, $miaryDoZapisu): array {
+            // Dwie instancje pre-deploy nie mogą jednocześnie usuwać i pisać
+            // słowników, nawet gdy obie zobaczyły stary znacznik cache.
+            DB::selectOne('SELECT pg_advisory_xact_lock(2130, 0)');
             $usuniete = SkladnikOdzywczy::query()->whereNotIn('klucz', array_keys($pozycje))->delete();
             $idPoKluczu = [];
 
@@ -96,39 +110,77 @@ final class ImportujWartosciOdzywcze
                 MiaraDomowa::query()->insert($paczka);
             }
 
-            return [
+            $wynik = [
                 'skladniki' => count($pozycje),
                 'aliasy' => count($aliasy),
                 'miary' => count($miaryDoZapisu),
                 'usuniete' => (int) $usuniete,
                 'pominieto' => false,
             ];
+
+            return [$wynik, $this->stanBazy()];
         });
 
         // Hash zapisujemy DOPIERO PO udanej transakcji — błąd w połowie
         // importu (rzucony wyżej jako BladDlaCzlowieka albo wyjątek bazy)
         // nie ma prawa uśpić kolejnego uruchomienia fałszywym „już zrobione”.
         if ($hash !== null) {
-            Cache::forever(self::CACHE_KLUCZ, $hash);
+            Cache::forever(self::CACHE_KLUCZ, [
+                'hash' => $hash,
+                'odcisk' => $stanPo['odcisk'],
+                'licznosci' => [$stanPo['skladniki'], $stanPo['aliasy'], $stanPo['miary']],
+            ]);
         }
 
         return $wynik;
     }
 
-    /** Hash zawartości obu plików razem albo null, gdy któregoś nie da się przeczytać. */
+    /** Hash danych i kodu normalizacji albo null, gdy czegoś nie da się przeczytać. */
     private function hashPlikow(string $sciezkaSkladnikow, string $sciezkaMiar): ?string
     {
-        if (! is_readable($sciezkaSkladnikow) || ! is_readable($sciezkaMiar)) {
-            return null;
+        $sciezki = [$sciezkaSkladnikow, $sciezkaMiar, __FILE__, __DIR__.'/SlownikSkladnikow.php', __DIR__.'/ParserSkladnika.php'];
+        $tresci = [];
+        foreach ($sciezki as $sciezka) {
+            if (! is_readable($sciezka)) {
+                return null;
+            }
+            $tresc = file_get_contents($sciezka);
+            if ($tresc === false) {
+                return null;
+            }
+            $tresci[] = $tresc;
         }
 
-        $tresc = file_get_contents($sciezkaSkladnikow);
-        $tresc2 = file_get_contents($sciezkaMiar);
-        if ($tresc === false || $tresc2 === false) {
-            return null;
-        }
+        return hash('sha256', implode('|', $tresci));
+    }
 
-        return hash('sha256', $tresc.'|'.$tresc2);
+    /**
+     * Odcisk wartości słowników, bez UUID wierszy: ponowny import może
+     * wygenerować nowe UUID aliasów i miar przy identycznych danych.
+     *
+     * @return array{skladniki: int, aliasy: int, miary: int, odcisk: string}
+     */
+    private function stanBazy(): array
+    {
+        $skladniki = DB::table('skladniki_odzywcze')
+            ->orderBy('klucz')
+            ->get(['klucz', 'nazwa', 'zrodlo', 'zrodlo_id', 'zrodlo_nazwa', 'kcal_100g', 'bialko_100g', 'tluszcz_100g', 'weglowodany_100g', 'gestosc_g_ml', 'pomijalny']);
+        $aliasy = DB::table('aliasy_skladnikow as a')
+            ->join('skladniki_odzywcze as s', 's.id', '=', 'a.skladnik_odzywczy_id')
+            ->orderBy('a.alias')
+            ->get(['a.alias', 's.klucz as skladnik']);
+        $miary = DB::table('miary_domowe as m')
+            ->join('skladniki_odzywcze as s', 's.id', '=', 'm.skladnik_odzywczy_id')
+            ->orderBy('s.klucz')
+            ->orderBy('m.jednostka')
+            ->get(['s.klucz as skladnik', 'm.jednostka', 'm.gramy', 'm.uwagi']);
+
+        return [
+            'skladniki' => $skladniki->count(),
+            'aliasy' => $aliasy->count(),
+            'miary' => $miary->count(),
+            'odcisk' => hash('sha256', json_encode([$skladniki, $aliasy, $miary], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)),
+        ];
     }
 
     /**

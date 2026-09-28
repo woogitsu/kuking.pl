@@ -437,7 +437,9 @@ jobs:
           # warunki tych jobów są pilnowane przez `PortMarkiMaWlasnaBramkeCiTest`
           # i mają zostać proste. Ta sama ścieżka jest też w filtrze warstwy
           # widoku niżej.
-          WZORCE_MARKI="$(echo "${ZMIENIONE}" | grep -E '^docs/design/references/' || true)"
+          # Test grafu Railway w jobie `assets` czyta docs/DEPLOYMENT.md.
+          # Ta instrukcja jest więc wejściem testu tak samo jak wzorce marki.
+          WZORCE_MARKI="$(echo "${ZMIENIONE}" | grep -E '^(docs/design/references/|docs/DEPLOYMENT\.md$)' || true)"
 
           if [ -n "${WZORCE_MARKI}" ]; then
             POZA="$(printf '%s\n%s\n' "${POZA}" "${WZORCE_MARKI}" | grep -v '^$' || true)"

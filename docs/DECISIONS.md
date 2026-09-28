@@ -14561,6 +14561,14 @@ z sąsiada, którego nie było widać, te są dwoma równymi pasami nad i pod zd
 414 px 145,7 → 0,0 (przy czcionce 200% analogicznie, wszystkie → 0,0).
 Karuzela: 320 px 220,5 → 125,1 · 414 px 292,9 → 167,1.
 
+**Uzupełnienie #2126 po zgłoszeniu właściciela z 28.09.2026.** Na tablecie
+domyślna siatka nadal miała dwa pola w wierszu: pod niższą fotografią
+zostawał duży pusty pas, a przy trzech zdjęciach prawe pole ostatniego
+wiersza pozostawało puste. Tryb „Zwykle” pokazuje odtąd zdjęcia jedno pod
+drugim przy każdej szerokości, zgodnie z opisem widocznym przy wyborze.
+Układ obok siebie pozostaje osobnym, świadomym wyborem „Kolaż”. Zdjęć nie
+przycinamy; powiększanie i kolejność nie zmieniają się.
+
 `min-height: 0` na polu slajdu nie jest ozdobą: bez niego proporcja działa tylko na
 zdjęciach poziomych, czyli poprawka poprawiałaby połowę przypadków i **wyglądała
 w pomiarze prawie jak poprawka**.
@@ -16328,6 +16336,53 @@ w jednej transakcji z zawiadomieniami administratorów i zleceniem listu
 z potwierdzeniem w `jobs` (`FileAppeal`, `FileReporterAppeal`). Awaria
 dziennika nie cofa pisma z biegnącym terminem. Dowód:
 `ZlozenieOdwolaniaJestAtomoweTest::test_awaria_audytu_nie_cofa_zlozonego_pisma`.
+
+**Uzupełnienie (#1347, #1892–#1897, 26 września 2026).** Audyt zgłoszony
+jako „awaria dziennika daje 500 po zatwierdzonej zmianie konta" na pięciu
+niepowiązanych ścieżkach naraz — jedna rodzina, jedna reguła, klasyfikacja
+niżej:
+
+- `account.delete_requested` (#1347, `RequestAccountDeletion`) i
+  `account.delete_cancelled` (#1893, `CancelAccountDeletion`) — **klasa 1**.
+  Oba wpisy są, RAZEM, jedynym miejscem w całej bazie mówiącym, że ktoś
+  zgłosił usunięcie konta i (ewentualnie) się rozmyślił —
+  `AuditLogEntry::NIGDY_NIE_KASUJ` nazywa je z tego właśnie powodu. Sprawa
+  w `potwierdzenia_zadan_rodo` ma `zakres = NULL` w toku, a `cancelDeletion()`
+  zeruje `users.delete_scope`/`delete_requested_at` — więc bez tego wpisu nie
+  zostaje pełny ślad wyboru człowieka. Oba wpisy stoją więc W TEJ SAMEJ
+  transakcji co zmiana; awaria cofa całość, a formularz da się wysłać
+  jeszcze raz (stan konta wraca do tego sprzed kliknięcia).
+- `user.unblocked` (#1896, `UnblockUser`) — **klasa 2**, symetrycznie do
+  `user.blocked` (D-090/D-249 wyżej). Autorytatywny ślad to usunięty wiersz
+  `blocks`; odblokowania nie da się cofnąć drugim kliknięciem („Zablokuj"
+  ponownie to inna decyzja, z innym `created_at`), więc dziennik idzie przez
+  `recordBezWywracania()` PO wykonanym usunięciu.
+- `account.email_change_requested`, `account.email_changed`,
+  `account.email_change_cancelled` (#1897, `RequestEmailChange` /
+  `ConfirmEmailChange` / `CancelEmailChange`) — **klasa 2**. Autorytatywny
+  ślad każdej z trzech operacji to stan wiersza `pending_email_changes` albo
+  `users.email`, zapisany w transakcji tej samej akcji. W `RequestEmailChange`
+  dodatkowo: `record()` stał PRZED wysyłką obu listów, więc jego awaria
+  blokowała też pocztę — `recordBezWywracania()` nie rzuca, więc listy
+  wychodzą niezależnie od losu wpisu.
+- `account.suspension_expired` (#1894, `RestoreExpiredSuspensions`) i
+  `account.data_erased` (#1894, `EraseAccountData`, wołane z
+  `PurgeExpiredAccountDeletions`) — **klasa 1**, mimo że decyzję podejmuje
+  zegar, nie moderator. Dla obu wpis jest JEDYNYM zapisem TEGO zdarzenia
+  (`reinstate()` nie zostawia innego śladu „wygasła kara, nie inna droga
+  powrotu"; `account.data_erased` jest jedynym dowodem wykonania art. 17
+  RODO na koncie zanonimizowanym, nie skasowanym). Kluczowe dla komend:
+  obie zmiany stoją TERAZ w tej samej transakcji co wpis, więc awaria
+  zostawia konto w stanie SPRZED zmiany — a warunek kolejki tej samej komendy
+  (`status = suspended` / `data_erased_at IS NULL`) je odzyska same przy
+  następnym przebiegu, bez żadnego ręcznego backfillu. Wyjątek jednego konta
+  w pętli nie przerywa obsługi pozostałych (ta sama zasada co #1028 dla
+  drugiej z tych komend).
+
+Dowód: `tests/Feature/AccountDeletionCancellationTest.php` (#1893),
+`tests/Feature/AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest.php`
+(#1896, #1897) i `tests/Feature/AwariaAudytuKomendAutomatycznychTest.php`
+(#1894).
 
 ### Dowód
 
@@ -18343,8 +18398,9 @@ sekcję w swoim przepisie; **domyślnie widoczna**.
    `php artisan kuking:importuj-wartosci-odzywcze`, idempotentny, w jednej
    transakcji. Od poprawki #1961 (26.09.2026) komenda stoi w
    `preDeployCommand` obok `migrate`/`db:seed` i leci przy każdym wdrożeniu;
-   pomija całą pracę (hash plików CSV bez zmian i tabela już ma dane), więc
-   deploy bez zmiany danych jej nie spowalnia.
+   pomija zapis, gdy hash źródeł oraz odcisk wszystkich trzech tabel są zgodne
+   z poprzednim udanym importem (#2130); deploy bez zmiany danych nie przepisuje
+   słownika, a częściowy restore odbudowuje go.
 3. **Liczenie** (`app/Domain/Recipes/Odzywcze`). Składnik jest wolnym
    tekstem (D-017), więc `ParserSkladnika` czyta ilość, jednostkę i nazwę
    z tekstu w chwili liczenia i niczego nie zapisuje („2 szklanki mąki”,

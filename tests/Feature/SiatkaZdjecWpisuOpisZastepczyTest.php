@@ -6,6 +6,8 @@ namespace Tests\Feature;
 
 use App\Models\Media;
 use App\Models\Post;
+use DOMDocument;
+use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
 use Tests\TestCase;
@@ -50,6 +52,46 @@ class SiatkaZdjecWpisuOpisZastepczyTest extends TestCase
         $this->assertStringContainsString('data-alt="Domowy rosół w misce"', $siatka);
         $this->assertStringContainsString('aria-label="Powiększ zdjęcie: Domowy rosół w misce"', $siatka);
         $this->assertStringNotContainsString('Zdjęcie 1 z 1 w tym wpisie', $siatka);
+    }
+
+    public function test_dwa_i_trzy_zdjecia_o_roznych_proporcjach_zachowuja_kolejnosc_i_powiekszanie(): void
+    {
+        foreach ([2, 3] as $ile) {
+            $post = Post::factory()->create(['display_mode' => Post::DISPLAY_NORMAL]);
+            foreach (range(1, $ile) as $numer) {
+                $media = Media::factory()->create([
+                    'owner_id' => $post->author_id,
+                    'alt_text' => 'Potrawa, ujęcie '.$numer,
+                ]);
+                $metadata = $media->metadata;
+                $metadata['variants']['feed']['width'] = $numer === 1 ? 720 : 960;
+                $metadata['variants']['feed']['height'] = $numer === 1 ? 960 : 540;
+                $media->update(['metadata' => $metadata]);
+                $post->media()->attach($media->getKey(), ['position' => $numer - 1]);
+            }
+
+            $html = Blade::render('<x-post-card :post="$post" />', ['post' => $post->fresh()]);
+            $dom = new DOMDocument;
+            @$dom->loadHTML('<?xml encoding="utf-8" ?>'.$html);
+            $xpath = new DOMXPath($dom);
+            $siatka = $xpath->query('//div[@class="photo-grid"]')->item(0);
+
+            $this->assertNotNull($siatka);
+            $this->assertCount($ile, $xpath->query('./div[@class="photo-zoom"]', $siatka));
+            $zdjecia = $xpath->query('./div[@class="photo-zoom"]//img', $siatka);
+            $linki = $xpath->query('./div[@class="photo-zoom"]//a[@data-powieksz]', $siatka);
+            $this->assertCount($ile, $zdjecia);
+            $this->assertCount($ile, $linki);
+
+            foreach (range(1, $ile) as $numer) {
+                $zdjecie = $zdjecia->item($numer - 1);
+                $opis = 'Potrawa, ujęcie '.$numer;
+                $this->assertSame($opis, $zdjecie?->getAttribute('alt'));
+                $this->assertSame($numer === 1 ? '720' : '960', $zdjecie?->getAttribute('width'));
+                $this->assertSame($numer === 1 ? '960' : '540', $zdjecie?->getAttribute('height'));
+                $this->assertSame($opis, $linki->item($numer - 1)?->getAttribute('data-alt'));
+            }
+        }
     }
 
     private function siatka(string $html): string

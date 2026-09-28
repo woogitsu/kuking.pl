@@ -263,6 +263,7 @@ class Report extends Model
             'receipt_sent_at' => 'datetime',
             'decision_sent_at' => 'datetime',
             'alarm_pilny_zlecony_at' => 'datetime',
+            'alarm_czlowieka_obsluzony_at' => 'datetime',
         ];
     }
 
