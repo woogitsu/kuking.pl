@@ -94,6 +94,8 @@ AKCJE_SHA_TEST = "AkcjeGithubPrzypieteDoShaTest"
 # byłoby zawsze prawdziwe, a test świeciłby na zielono nad niczym — dokładnie
 # ta klasa usterki, dla której powstał mechanizm kontroli dodatnich.
 OBRAZ_ASSETOW = "Dockerfile"
+CENY_WARZYW_WORKFLOW = ".github/workflows/ceny-warzyw-auto.yml"
+CENY_WARZYW_TEST = "WorkflowCenNieUruchamiaKoduZTokenemZapisuTest"
 NOWOSCI_KONTROLER = "app/Http/Controllers/NowosciController.php"
 NOWOSCI_OD_NUMERU_TEST = "StronaCoNowegoOdNumeruTest"
 MIGRACJA_NO_AMOUNT = "database/migrations/2026_09_06_130000_add_no_amount_to_recipe_ingredients.php"
@@ -1304,6 +1306,11 @@ checks = [
      lambda s: replace_once(s, "        if (Schema::hasTable('ustawienia_powiadomien_zewnetrznych')\n", "        if (false && Schema::hasTable('ustawienia_powiadomien_zewnetrznych')\n")),
     ("Runbook: railway config apply bez KUKING_WAIT_FOR_CI", RUNBOOK, KOMENDY_IAC_TEST,
      lambda s: replace_once(s, RUNBOOK_APPLY_Z_BRAMKA, "\nrailway config apply\n")),
+    # #1957: job, który uruchamia kod repozytorium, traci
+    # `persist-credentials: false` — token zapisu mógłby wrócić do jego
+    # konfiguracji gita bez zabezpieczenia; strażnik workflow ma oblać.
+    ("Workflow cen: checkout z kodem bez persist-credentials: false", CENY_WARZYW_WORKFLOW, CENY_WARZYW_TEST,
+     lambda s: replace_once(s, "          persist-credentials: false\n", "")),
     # #1851: krok „Ustal adres środowiska" wraca do wklejania danych zdarzenia
     # w treść skryptu — strażnik ma to złapać, zanim nazwa środowiska stanie
     # się poleceniem na runnerze.
@@ -1406,6 +1413,7 @@ run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
 run_test(DIGEST_DOBOR_TEST, True)
 run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
+run_test(CENY_WARZYW_TEST, True)
 run_test(DEPLOY_WSTRZYKNIECIE_TEST, True)
 run_test(NOWOSCI_OD_NUMERU_TEST, True)
 run_test(MIGRACJA_NO_AMOUNT_TEST, True)

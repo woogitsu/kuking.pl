@@ -59,6 +59,15 @@ składnika, powiemy dlaczego nie możemy ich obliczyć. Pod „Jak to liczymy”
 znajdziecie źródła danych i sposób przeliczania miar. Autor przepisu może
 ukryć tę sekcję i później znów ją pokazać.
 
+### Ile może kosztować danie
+
+Przy swoim przepisie możecie podać przybliżony koszt całego dania. Wpiszcie
+kwotę w złotych; pole można też zostawić puste. Jeśli koszt podał autor,
+zobaczycie go przy przepisie, a w wyszukiwarce znajdziecie przepisy do 20 zł.
+Gdy kwoty nie ma, Kuking może pokazać orientacyjny przedział obliczony z
+publicznych cen składników. Źródło cen jest podane przy wyniku, a cena w Waszym
+sklepie może być inna.
+
 ### Moje wpisy
 
 W zakładce „Moje” znajdziecie teraz przycisk „Moje wpisy”. Prowadzi do
