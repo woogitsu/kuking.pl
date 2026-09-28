@@ -31,30 +31,45 @@ class StronaCoNowegoOdNumeruTest extends TestCase
 
     public function test_strona_pokazuje_od_numeru_dla_znanego_naglowka_w_najnowszych_zmianach(): void
     {
-        $tresc = (string) file_get_contents(config('kuking.nowosci.tresc'));
-
-        if (preg_match('/^##\s+Najnowsze zmiany\R(.*?)(?=^##\s|\z)/msu', $tresc, $dopasowanie) !== 1
-            || preg_match('/^###\s+(.+)$/mu', $dopasowanie[1], $naglowek) !== 1) {
-            $this->markTestSkipped('resources/nowosci/tresc.md nie ma obecnie żadnego nagłówka „###” w „## Najnowsze zmiany”.');
-        }
-
-        $slug = SlugGfm::z(trim($naglowek[1]));
+        $naglowek = 'Zapisany przepis w moim zeszycie';
+        $slug = SlugGfm::z($naglowek);
+        $plik = tempnam(sys_get_temp_dir(), 'nowosci-2167-');
+        $this->assertNotFalse($plik);
+        file_put_contents($plik, "# Co nowego w Kuking\n\n## Najnowsze zmiany\n\n### {$naglowek}\n\nOpis funkcji.\n");
+        config(['kuking.nowosci.tresc' => $plik]);
 
         DB::table('wdrozenia_funkcje')->insert([
             'etykieta' => Wersja::etykieta(),
             'naglowek_slug' => $slug,
-            'naglowek_tekst' => trim($naglowek[1]),
+            'naglowek_tekst' => $naglowek,
             'numer' => 42,
             'created_at' => now(),
         ]);
 
-        $html = (string) $this->get(route('nowosci'))->assertOk()->getContent();
+        try {
+            $html = (string) $this->get(route('nowosci'))->assertOk()->getContent();
+            $this->assertStringContainsString($naglowek, $html);
+            $this->assertStringContainsString('od '.Wersja::etykieta().'.042', $html);
+        } finally {
+            unlink($plik);
+        }
+    }
 
-        $this->assertStringContainsString(
-            'od '.Wersja::etykieta().'.042',
-            $html,
-            'Strona „Co nowego” nie pokazuje „od '.Wersja::etykieta().'.042” przy nagłówku „'.trim($naglowek[1]).'”.',
-        );
+    public function test_pusta_sekcja_najnowszych_zmian_jest_poprawnym_stanem_po_wydaniu(): void
+    {
+        $plik = tempnam(sys_get_temp_dir(), 'nowosci-2167-');
+        $this->assertNotFalse($plik);
+        file_put_contents($plik, "# Co nowego w Kuking\n\n## Najnowsze zmiany\n\n## Alfa 0.71\n\n### Wydana funkcja\n\nOpis.\n");
+        config(['kuking.nowosci.tresc' => $plik]);
+
+        try {
+            $html = (string) $this->get(route('nowosci'))->assertOk()->getContent();
+            $this->assertStringContainsString('Najnowsze zmiany', $html);
+            $this->assertStringContainsString('Wydana funkcja', $html);
+            $this->assertStringNotContainsString('od '.Wersja::etykieta().'.', $html);
+        } finally {
+            unlink($plik);
+        }
     }
 
     public function test_bez_wiersza_w_bazie_strona_dziala_i_nic_nie_dokleja(): void
@@ -122,16 +137,12 @@ class StronaCoNowegoOdNumeruTest extends TestCase
     {
         $tresc = (string) file_get_contents(config('kuking.nowosci.tresc'));
 
-        if (preg_match('/^##\s+Najnowsze zmiany\R.*?(?=^##\s|\z)/msu', $tresc, $dopasowanie, PREG_OFFSET_CAPTURE) !== 1) {
-            $this->markTestSkipped('resources/nowosci/tresc.md nie ma sekcji „## Najnowsze zmiany”.');
-        }
+        $this->assertSame(1, preg_match('/^##\s+Najnowsze zmiany\R.*?(?=^##\s|\z)/msu', $tresc, $dopasowanie, PREG_OFFSET_CAPTURE), 'Dokument „Co nowego” wymaga sekcji „## Najnowsze zmiany”.');
 
         $koniecSekcji = $dopasowanie[0][1] + strlen($dopasowanie[0][0]);
         $reszta = substr($tresc, $koniecSekcji);
 
-        if (preg_match('/^###\s+(.+)$/mu', $reszta, $naglowek) !== 1) {
-            $this->markTestSkipped('resources/nowosci/tresc.md nie ma żadnego nagłówka „###” poza „## Najnowsze zmiany”.');
-        }
+        $this->assertSame(1, preg_match('/^###\s+(.+)$/mu', $reszta, $naglowek), 'Dokument „Co nowego” wymaga co najmniej jednej nazwanej funkcji z poprzedniego wydania.');
 
         $tekst = trim($naglowek[1]);
 

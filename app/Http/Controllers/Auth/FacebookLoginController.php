@@ -21,6 +21,7 @@ use App\Notifications\ProbaWejsciaKontemFacebooka;
 use App\Support\Facebook;
 use App\Support\Komunikat;
 use App\Support\Poczta;
+use App\Support\PowrotDoRozmowy;
 use App\Support\RejestracjaZamknieta;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -431,7 +432,7 @@ class FacebookLoginController extends Controller
     /**
      * Zakładamy konto — dopiero teraz i dopiero z dwoma oświadczeniami.
      */
-    public function finish(Request $request, ZalozKonto $zalozKonto): RedirectResponse
+    public function finish(Request $request, ZalozKonto $zalozKonto, PowrotDoRozmowy $rozmowa): RedirectResponse
     {
         if (! Facebook::dziala()) {
             return $this->drogaZamknieta();
@@ -479,6 +480,11 @@ class FacebookLoginController extends Controller
                 .'o wiadomość z przyciskiem do zalogowania.',
             ));
         }
+
+        // Rejestracja przez dostawcę zaczęta z wątku komentarzy też wraca
+        // do niego po onboardingu. Zamiar jest zapamiętany w sesji ekranu
+        // rejestracji i wiążemy go wyłącznie z właśnie utworzonym kontem.
+        $rozmowa->przypiszKonto($request);
 
         // „Wysłaliśmy Ci wiadomość" pada tylko wtedy, gdy to prawda (#1373).
         if ($konto->listPotwierdzajacyNieWyszedl) {

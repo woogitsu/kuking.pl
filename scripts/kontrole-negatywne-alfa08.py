@@ -68,6 +68,14 @@ PLANER_TEST = "PlanerTygodniaTest"
 PUSH_JOB = "app/Jobs/WyslijPowiadomieniePush.php"
 PUSH_DWA_POLACZENIA_TEST = "PowiadomieniaPushDwaPolaczeniaTest"
 
+# #2027: nowo utworzone konto po OAuth musi przejąć zamiar powrotu z wątku
+# komentarzy. Testy obu dostawców przechodzą przez onboarding i sprawdzają
+# końcowy adres; usunięcie przypisania do konta ma oblać każdą ścieżkę.
+POWROT_KOMENTARZA_GOOGLE = "app/Http/Controllers/Auth/GoogleLoginController.php"
+POWROT_KOMENTARZA_GOOGLE_TEST = "LogowanieKontemGoogleTest"
+POWROT_KOMENTARZA_FACEBOOK = "app/Http/Controllers/Auth/FacebookLoginController.php"
+POWROT_KOMENTARZA_FACEBOOK_TEST = "LogowanieKontemFacebookiemTest"
+
 CONTROLLER = "app/Http/Controllers/CollectionController.php"
 LAYOUT = "resources/views/components/layout.blade.php"
 CSS = "resources/css/app.css"
@@ -101,6 +109,7 @@ CENY_WARZYW_WORKFLOW = ".github/workflows/ceny-warzyw-auto.yml"
 CENY_WARZYW_TEST = "WorkflowCenNieUruchamiaKoduZTokenemZapisuTest"
 NOWOSCI_KONTROLER = "app/Http/Controllers/NowosciController.php"
 NOWOSCI_OD_NUMERU_TEST = "StronaCoNowegoOdNumeruTest"
+NOWOSCI_OD_NUMERU_FIXTURE = "tests/Feature/StronaCoNowegoOdNumeruTest.php"
 MIGRACJA_NO_AMOUNT = "database/migrations/2026_09_06_130000_add_no_amount_to_recipe_ingredients.php"
 MIGRACJA_NO_AMOUNT_TEST = "CofniecieMigracjiNieKasujeFlagiBrakuIlosciTest"
 MIGRACJA_PUSH = "database/migrations/2026_09_26_100000_utworz_powiadomienia_push.php"
@@ -962,6 +971,12 @@ def railway_cli_bez_przypietej_wersji(source):
 
 
 checks = [
+    # #2027: rejestracja Google/Facebook wiąże zapamiętany cel z nowym
+    # kontem. Bez tej linijki onboarding kończy się na stronie domyślnej.
+    ("Nowe konto Google gubi powrót do rozmowy", POWROT_KOMENTARZA_GOOGLE, POWROT_KOMENTARZA_GOOGLE_TEST,
+     lambda s: replace_once(s, "        $rozmowa->przypiszKonto($request);\n", "")),
+    ("Nowe konto Facebook gubi powrót do rozmowy", POWROT_KOMENTARZA_FACEBOOK, POWROT_KOMENTARZA_FACEBOOK_TEST,
+     lambda s: replace_once(s, "        $rozmowa->przypiszKonto($request);\n", "")),
     # #1868: instalacja bez wskazania migawki wróciłaby do ruchomego mirrora.
     ("APT install bez migawki", OBRAZ_KOPII, APT_MIGAWKA_TEST,
      lambda s: replace_once(s,
@@ -1360,6 +1375,9 @@ checks = [
     # wdrożenia — dopisek „od Alfa …” znika, test strony ma oblać.
     ("Co nowego bez dopisku „od numeru”", NOWOSCI_KONTROLER, NOWOSCI_OD_NUMERU_TEST,
      lambda s: replace_once(s, "$dopisek = $mapa[$slug] ?? null;", "$dopisek = null;")),
+    ("Co nowego: brak nagłówka w fixture integracyjnej", NOWOSCI_OD_NUMERU_FIXTURE,
+     "test_strona_pokazuje_od_numeru_dla_znanego_naglowka_w_najnowszych_zmianach",
+     lambda s: replace_once(s, r'### {$naglowek}\n\nOpis funkcji.', r'Bez nagłówka {$naglowek}\n\nOpis funkcji.')),
     # D-088 (#44): down() migracji no_amount bez odmowy przy składnikach
     # oznaczonych „bez wymiernej ilości” — test cofnięcia ma oblać.
     ("Cofnięcie no_amount bez odmowy przy oznaczonych składnikach", MIGRACJA_NO_AMOUNT, MIGRACJA_NO_AMOUNT_TEST,
@@ -1518,6 +1536,16 @@ with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
             if restored != before:
                 raise RuntimeError("Przywrócone źródło różni się od oryginału.")
         run_test(test, True)
+# #2167: usunięcie wymaganego CSV ma zakończyć test porażką, nie skipem.
+# Robimy to osobno, bo kontrola usuwa plik zamiast podmieniać jego treść.
+miary = ROOT / "database/data/odzywcze/miary.csv"
+oryginal_miar = miary.read_bytes()
+try:
+    miary.unlink()
+    run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", False)
+finally:
+    miary.write_bytes(oryginal_miar)
+run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", True)
 # Liczebnik bierzemy z `len(checks)`, nie z tekstu. Wcześniej stało tu wpisane
 # słowo „Pięć": po dodaniu szóstego wpisu CI nadal wypisywałoby „Pięć", a to
 # jedyne miejsce, z którego człowiek czyta wynik tego kroku.
