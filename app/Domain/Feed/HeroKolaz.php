@@ -68,11 +68,19 @@ final class HeroKolaz
      * Wpisy, z których gospodarz może wybierać w panelu — najnowsze
      * publiczne, od aktywnych kont, z co najmniej jednym gotowym zdjęciem.
      *
+     * Warunek „gotowe zdjęcie” stoi w SQL PRZED limitem (#1802). Do
+     * 25.09.2026 limit brał 60 najnowszych wpisów, a filtr działał dopiero
+     * w PHP — 60 świeżych wpisów bez gotowych zdjęć (np. zdjęcia jeszcze
+     * w obróbce) dawało pustą listę, choć starsze wpisy miały czym się
+     * pokazać. Filtr w PHP zostaje jako druga kontrola tej samej reguły
+     * (`Media::isReady()`), nie jako jedyna.
+     *
      * @return Collection<int, Post>
      */
     public function kandydaci(int $limit = 60): Collection
     {
         return $this->wpisyDoPokazania()
+            ->whereHas('media', fn ($query) => $query->where('status', Media::STATUS_READY))
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->limit($limit)

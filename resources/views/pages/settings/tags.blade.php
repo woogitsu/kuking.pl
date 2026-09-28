@@ -59,7 +59,7 @@
     <h1>Twoje tagi</h1>
 
     <p class="text-lead">
-        Gdy nie ma wpisów od obserwowanych osób, pokazujemy wpisy z Twoich tagów. Jeśli i tam jest pusto, zobaczysz najnowsze publiczne wpisy.
+        Wpisy z Twoich tagów stoją na Starcie razem z wpisami osób, które obserwujesz, od najnowszych — przy każdym jest napisane, z jakiego tagu przyszedł. Jeśli i tam jest pusto, zobaczysz najnowsze publiczne wpisy.
     </p>
 
     <x-error-summary />

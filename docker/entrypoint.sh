@@ -429,12 +429,20 @@ start_worker() {
 #          (same e-maile) — patrz uwaga o pamięci w .railway/railway.ts.
 #
 #    all (produkcja dziś: jeden kontener 1024 MB z FrankenPHP i harmonogramem)
-#        → JEDEN proces `high,default,media,low`, kolejność = priorytet, tak
-#          jak przed #1030. Trzy procesy mogą mieć szczyt naraz: `media` ~452 MB
-#          przy zdjęciu 50 Mpx, `low` do limitu 512M przy eksporcie, do tego
-#          WWW — OOM położyłby także stronę. Ceną jest głodzenie `media`
-#          i `low` przy stałej zaległości `default`; lekarstwem jest
-#          wydzielenie workera (PRODUCTION_SPLIT_SERVICES w .railway/railway.ts).
+#        → DWA procesy (D-311, issue #1860): lekki `high,default` (listy
+#          i purge CDN) oraz ciężki `media,low` (zdjęcia, eksport RODO,
+#          analiza treści). Szczyty pamięci `media` (~452 MB przy 50 Mpx)
+#          i `low` (do 512M przy eksporcie) dalej się NIE schodzą — to jeden
+#          proces, zadanie po zadaniu — a lekki proces dokłada tyle, ile pusty
+#          PHP z frameworkiem (rząd kilkudziesięciu MB, ta sama miara co
+#          `high` w roli `worker`). Zaległość maili nie wstrzymuje już więc
+#          zdjęć ani eksportu. Zostaje JEDNO nazwane ograniczenie: `low` czeka
+#          za stałą zaległością `media` — zdjęć przybywa tylko z publikacji
+#          ludzi, nie z automatu. Pełne lekarstwo to dalej wydzielony worker
+#          (PRODUCTION_SPLIT_SERVICES w .railway/railway.ts).
+#          Do 26.09.2026 był tu JEDEN proces `high,default,media,low` (#1030
+#          zostawił go świadomie) i pojedyncza zaległość `default` głodziła
+#          i zdjęcia, i eksport — luka wskazana w #1860.
 #
 #  Ręczne sterowanie, bez wdrożenia (docs/DEPLOYMENT.md, „Kolejki"):
 #    QUEUE_WORKERS — procesy rozdzielone SPACJĄ, w każdym lista po przecinku,
@@ -456,15 +464,17 @@ start_worker() {
 # -----------------------------------------------------------------------------
 listy_kolejek() {
   local osobne="high default media low"
-  local wspolny="${QUEUE_NAMES:-high,default,media,low}"
+  local wspolnyKontener="high,default media,low"
 
   if [[ -n "${QUEUE_WORKERS:-}" ]]; then
     [[ -n "${QUEUE_NAMES:-}" ]] && log "OSTRZEŻENIE: ustawione QUEUE_WORKERS i QUEUE_NAMES — QUEUE_NAMES jest pomijane"
     echo "${QUEUE_WORKERS}"
-  elif [[ -n "${QUEUE_NAMES:-}" || "$1" != worker ]]; then
-    echo "${wspolny}"
-  else
+  elif [[ -n "${QUEUE_NAMES:-}" ]]; then
+    echo "${QUEUE_NAMES}"
+  elif [[ "$1" == worker ]]; then
     echo "${osobne}"
+  else
+    echo "${wspolnyKontener}"
   fi
 }
 

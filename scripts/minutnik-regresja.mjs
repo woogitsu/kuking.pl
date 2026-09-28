@@ -42,6 +42,7 @@ const importLine = `import { pozostaloSekund, formatMinutySekundy, kluczStanu, z
 const stepPage = (krok, seconds) => '<p class="cook-progress">Krok ' + krok + '</p>'
   + alarmyTemplate.replaceAll('{{ $recipe->slug }}', 'zupa')
     .replaceAll('{{ $krok }}', String(krok))
+    .replaceAll('{{ $adresGotowania() }}', '/gotuj')
     .replace(/\{\{ route\([^}]*\}\}/, '/gotuj')
   + (seconds ? html(seconds).replaceAll('{{ $recipe->slug }}', 'zupa').replaceAll('{{ $krok }}', String(krok)) : '');
 // Wyjście z trybu gotowania (przegląd #1301) — oba linki z realnego Blade.
@@ -49,6 +50,7 @@ const zakonczTemplate = blade.match(/<a class="btn btn-secondary cook-exit"[\s\S
 const ugotowalemTemplate = blade.match(/<a class="btn btn-primary btn-cook" href="\{\{ route\('cooked\.create'[^\n]*?<\/a>/)?.[0];
 assert(zakonczTemplate && ugotowalemTemplate, 'Nie znaleziono rzeczywistych linków „Zakończ gotowanie” i „Ugotowałem”');
 const withExits = body => zakonczTemplate.replace(/\{\{ route\([^}]*\}\}/, '/przepis')
+  .replaceAll('{{ $adresPrzepisu }}', '/przepis')
   + ugotowalemTemplate.replace(/\{\{ route\([^}]*\}\}/, '/ugotowalem') + body;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 // Wstrzyknięty moduł wykonuje się ASYNCHRONICZNIE — dopiero po pobraniu

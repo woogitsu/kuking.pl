@@ -263,6 +263,8 @@ export default defineRailway((ctx) => {
     // restarcie. JsonFormatter daje w Railway structured logs (filtrowanie
     // po polach, nie po regexie).
     // https://docs.railway.com/guides/laravel#logging
+    // Railway przechowuje te logi wg planu konta — zmiana odbiornika albo planu
+    // wymaga poprawki polityki prywatności (docs/DEPLOYMENT.md, #994).
     LOG_CHANNEL: "stderr",
     LOG_STDERR_FORMATTER: "\\Monolog\\Formatter\\JsonFormatter",
     LOG_LEVEL: isProduction ? "warning" : "debug",
@@ -708,6 +710,29 @@ export default defineRailway((ctx) => {
     // zostaje pusty — nasz ruch jest niemal w całości unijny. Krok po kroku:
     // docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 8F.
     CLOUDFLARE_ANALYTICS_TOKEN: ctx.shared.CLOUDFLARE_ANALYTICS_TOKEN,
+
+    // --- „Tag tygodnia" (config/kuking.php, kuking.tag_tygodnia) --------------
+    // Wyróżnienie tagu na tablicy „kuKINGi na dziś" (FeedController) i panel
+    // admina (Admin\TagHighlightController, Admin\TagPromotionController).
+    // Stała TYLKO w panelu serwisu `kuking.pl` — pierwsze `railway config
+    // apply` by ją usunął. Idzie przez `ctx.shared`, jak przełączniki brzegu
+    // niżej (`brzegWebEnv`, #1775): to pokrętło właściciela per środowisko,
+    // nie stała projektu. PUSTE (Shared Variable nie założona) = `false`,
+    // czyli wyróżnienie wyłączone — bezpieczny kierunek, nie awaria.
+    // UWAGA PRZED `apply`: jeśli stoi dziś w panelu jako zmienna SERWISU,
+    // przenieś wartość do Shared Variables środowiska.
+    KUKING_TAG_TYGODNIA: ctx.shared.KUKING_TAG_TYGODNIA,
+
+    // --- Token szczegółów /health (config/kuking.php, health.token, audyt A5-05) ---
+    // Nagłówek `X-Kuking-Health-Token` odsłania pole `checks` w odpowiedzi
+    // `/health`; bez tokenu (albo z błędnym) `/health` oddaje tylko `status`
+    // — healthcheck Railwaya i test dymny działają tak samo w obu
+    // przypadkach. Stał TYLKO w panelu serwisu `kuking.pl`: `ctx.shared`
+    // wymaga ISTNIEJĄCEJ Shared Variable, więc kolejność jest ważna —
+    // najpierw założyć ją w panelu (wartość: `openssl rand -hex 32`),
+    // *potem* wdrożyć tę linię (docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 8).
+    // Sekret — w panelu Railway zaznacz „Sealed".
+    KUKING_HEALTH_TOKEN: ctx.shared.KUKING_HEALTH_TOKEN,
   };
 
   //  --- Czyszczenie cache CDN: worker + web ---------------------------------
@@ -740,6 +765,22 @@ export default defineRailway((ctx) => {
   //  Pilnuje `ZmienneRailwayaPerRolaTest::klucz_modelu_i_adres_alarmu_tylko_na_produkcji`.
   const modelEnv = {
     OPENAI_MODERATION_KEY: isProduction ? ctx.shared.OPENAI_MODERATION_KEY : "",
+  };
+
+  //  --- Odczyt przepisu ze zdjęcia kartki: web + worker (V2, D-298) ---------
+  //  Web: przycisk „Przepisz z kartki” pokazuje się tylko przy kluczu
+  //  i cenniku (`ZlecImportPrzepisu::dostepnyOdczytZdjecia`, D-053), a budżet
+  //  sprawdzany jest przed zleceniem. Worker: job `OdczytajPrzepis` →
+  //  `KlientLuna` (kolejka `low`). PUSTY klucz = funkcja wyłączona bez błędu.
+  //  Osobny klucz niż moderacja — najlepiej osobny projekt OpenAI z limitem
+  //  wydatków w panelu. TYLKO PRODUKCJA, z tego samego powodu co klucz
+  //  moderacji wyżej. Cennik nie jest sekretem, ale bez niego nie ma wywołań
+  //  (D-297), więc idzie tą samą drogą. Sprawdzenie: `php artisan
+  //  kuking:sprawdz-import` (bez żądań do API).
+  const importEnv = {
+    OPENAI_IMPORT_KEY: isProduction ? ctx.shared.OPENAI_IMPORT_KEY : "",
+    KUKING_IMPORT_CENA_WEJSCIE: ctx.shared.KUKING_IMPORT_CENA_WEJSCIE,
+    KUKING_IMPORT_CENA_WYJSCIE: ctx.shared.KUKING_IMPORT_CENA_WYJSCIE,
   };
 
   //  --- Adres alarmów moderacji: web + worker + scheduler (#1014) -----------
@@ -818,6 +859,32 @@ export default defineRailway((ctx) => {
     KUKING_HOST_USER_ID: ctx.shared.KUKING_HOST_USER_ID,
   };
 
+  //  --- Listy z życzeniami urodzinowymi: TYLKO scheduler (#1755, D-269) -----
+  //  Wyłącznik `kuking.urodziny.mail_wlaczony` czyta WYŁĄCZNIE komenda
+  //  `kuking:wyslij-zyczenia-urodzinowe`, która chodzi z harmonogramu; worker
+  //  tylko wysyła to, co już jest w kolejce (i sam sprawdza zgodę w chwili
+  //  wysyłki). Decyzja właściciela z 25.09.2026: po scaleniu wysyłka włączona.
+  //  TYLKO PRODUKCJA: staging i PR-y nie wysyłają ludziom życzeń z kopii
+  //  danych — tak samo jak alarmy moderacji wyżej.
+  const urodzinyEnv = {
+    KUKING_URODZINY_MAIL_WLACZONY: isProduction ? "true" : "false",
+  };
+
+  //  --- Web Push: klucz publiczny web + worker, prywatny TYLKO worker (#35, D-303)
+  //  PUSTE = funkcji nie ma: brak ekranu `/ustawienia/powiadomienia`,
+  //  przycisku i wysyłki (`KanalPush`). Web potrzebuje klucza publicznego,
+  //  żeby pokazać ekran i przekazać go przeglądarce przy zapisie; wysyła
+  //  WYŁĄCZNIE worker (`WyslijPowiadomieniePush`), więc tylko on ma klucz
+  //  prywatny. Para kluczy jest INNA w każdym środowisku — staging i preview
+  //  nie mogą podpisywać pushy kluczem produkcji. Klucz prywatny „Sealed".
+  //  Generowanie: `php artisan kuking:klucze-vapid` (DEPLOYMENT_RUNBOOK.md, KROK 8).
+  const pushPublicznyEnv = {
+    VAPID_PUBLIC_KEY: ctx.shared.VAPID_PUBLIC_KEY,
+  };
+  const pushWysylkaEnv = {
+    VAPID_PRIVATE_KEY: ctx.shared.VAPID_PRIVATE_KEY,
+  };
+
   //  --- Przełączniki brzegu i bramka R2: TYLKO web --------------------------
   //  Do 25.09.2026 żadnej z tych trzech zmiennych nie było w tym pliku, choć
   //  czyta je kod — ustawienie ich w panelu serwisu `kuking.pl` zniknęłoby
@@ -843,15 +910,18 @@ export default defineRailway((ctx) => {
     KUKING_R2_PUBLICZNE_ADRESY: ctx.shared.KUKING_R2_PUBLICZNE_ADRESY,
   };
 
-  const webEnv = { ...appEnv, ...gospodarzEnv, ...pocztaEnv, ...wejscieEnv, ...brzegWebEnv, ...czyszczenieCdnEnv, ...alarmModeratoraEnv };
+  const webEnv = { ...appEnv, ...gospodarzEnv, ...pocztaEnv, ...wejscieEnv, ...brzegWebEnv, ...czyszczenieCdnEnv, ...alarmModeratoraEnv, ...pushPublicznyEnv, ...importEnv };
   const workerEnv = {
     ...appEnv,
     ...pocztaEnv,
     ...czyszczenieCdnEnv,
     ...modelEnv,
+    ...importEnv,
     ...alarmModeratoraEnv,
+    ...pushPublicznyEnv,
+    ...pushWysylkaEnv,
   };
-  const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ...pulsHarmonogramuEnv, ...gospodarzEnv };
+  const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ...pulsHarmonogramuEnv, ...gospodarzEnv, ...urodzinyEnv };
   const wszystkieRoleEnv = { ...webEnv, ...workerEnv, ...schedulerEnv };
 
   // ---------------------------------------------------------------------------
@@ -1049,9 +1119,71 @@ export default defineRailway((ctx) => {
       //  Pilnuje tego `WdrozenieUruchamiaTrescZalazkowaTest` — razem
       //  z kolejnością komend i z tym, że seed na produkcji nie wwozi danych
       //  demo.
+      //
+      // -----------------------------------------------------------------------
+      //  TRZECIA KOMENDA: `kuking:zarejestruj-wdrozenie` (issue #1932, D-318).
+      //
+      //  Numer wersji z KOŃCÓWKĄ — „Alfa 0.68.005" zamiast samego „Alfa 0.68",
+      //  które stoi tygodniami bez zmian i nie odróżnia dwóch wdrożeń tego
+      //  samego dnia. Komenda dopisuje BIEŻĄCY commit do tabeli `wdrozenia`
+      //  (`App\Domain\Wydania\Actions\ZarejestrujWdrozenie`) i, przy tej samej
+      //  okazji, zapisuje, pod jakim numerem pojawił się PIERWSZY RAZ każdy
+      //  nagłówek funkcji z `resources/nowosci/tresc.md` — to jest źródło
+      //  dopisku „od Alfa 0.68.NNN" na stronie `/co-nowego`.
+      //
+      //  STOI PO `migrate`, PRZED `db:seed` — musi iść PO migracjach, bo
+      //  dopiero wtedy istnieje tabela `wdrozenia`; PRZED seederem, bo seeder
+      //  nie ma z tym nic wspólnego i kolejność między nimi jest bez
+      //  znaczenia — trzymamy migracje i rejestrację wdrożenia razem, jako
+      //  jeden logiczny krok „przygotuj bazę pod to wdrożenie".
+      //
+      //  IDEMPOTENTNA: ten sam commit (redeploy bez zmiany kodu, ponowiony
+      //  krok po chwilowym błędzie) nie zakłada drugiego wiersza i nie zużywa
+      //  kolejnego numeru — `UNIQUE (commit)` w tabeli plus sprawdzenie
+      //  w akcji PRZED wstawieniem.
+      //
+      //  BEZPIECZNA PRZY RÓWNOLEGŁYM STARCIE: numer liczy się jako
+      //  `MAX(numer) + 1` pod `pg_advisory_xact_lock` — dwa równoległe starty
+      //  nie dostają tego samego numeru (test na dwóch połączeniach:
+      //  `tests/Dwa/RejestracjaWdrozeniaNaDwochPolaczeniachTest.php`).
+      //
+      //  LOKALNIE I W PODGLĄDACH bez `RAILWAY_GIT_COMMIT_SHA` komenda kończy
+      //  się natychmiast, z kodem 0 — nie wywala deployu ani lokalnego
+      //  środowiska, w którym ta zmienna nie istnieje.
+      //
+      // -----------------------------------------------------------------------
+      //  CZWARTA KOMENDA: `kuking:importuj-wartosci-odzywcze` (#1961, D-299).
+      //
+      //  PR #1900 dodał migrację trzech tabel słownikowych (`skladniki_odzywcze`,
+      //  `miary_domowe`, `aliasy_skladnikow`) i komendę, która je wypełnia
+      //  z `database/data/odzywcze/*.csv` — ale samą komendę zostawił jako
+      //  ręczny krok „uruchom to kiedyś w kontenerze". Nikt jej nie uruchomił:
+      //  migracja przechodzi, deploy wygląda na zielony, a tabele zostają
+      //  puste — sekcja wartości odżywczych na stronie przepisu milczy.
+      //  Dokładnie ten sam kształt usterki co brak `db:seed` wyżej.
+      //
+      //  Komenda jest bezpieczna w pre-deploy z tego samego powodu co seeder:
+      //  niezerowy exit zatrzymuje deploy, więc zła paczka danych (błąd
+      //  walidacji CSV) nie wypuści kodu, który na niej polega.
+      //
+      //  SZYBKOŚĆ: dane CIQUAL/USDA zmieniają się rzadko, a ta komenda leci
+      //  przy KAŻDYM wdrożeniu, nie tylko wtedy, gdy pliki się zmieniły.
+      //  `App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze` liczy hash
+      //  obu plików CSV i pomija cały import (bez parsowania, bez zapisu),
+      //  gdy hash jest ten sam co przy poprzednim udanym imporcie, a tabela
+      //  już ma dane — więc zwykły deploy bez zmiany danych kosztuje jedno
+      //  odpytanie cache'a, nie ponowne przepisanie ~600 wierszy.
+      //
+      //  Kolejność: po `db:seed`, bo obie komendy są niezależne (różne
+      //  tabele), a seeder jest ważniejszy dla pierwszego wrażenia — gdyby
+      //  import padł, chcemy mieć już treść zalążkową.
+      //
+      //  Pilnuje tego `WdrozenieImportujeWartosciOdzywczeTest`.
       preDeployCommand: [
-        "php artisan migrate --force --no-interaction",
+        "php artisan kuking:migruj-pod-blokada --no-interaction",
+        "php artisan kuking:zarejestruj-wdrozenie --no-interaction",
         "php artisan db:seed --force --no-interaction",
+        "php artisan kuking:importuj-wartosci-odzywcze",
       ],
 
       // -----------------------------------------------------------------------
@@ -1141,12 +1273,14 @@ export default defineRailway((ctx) => {
       // izolacji awarii. Na staging/preview zawsze; na produkcji tylko
       // w fazie alfy (PRODUCTION_SPLIT_SERVICES = false).
       //
-      // Rola "all" uruchamia JEDEN proces `queue:work --queue=high,default,media,low`
-      // (kolejność = priorytet), nie proces na kolejkę jak rola "worker".
-      // Trzy procesy w tym kontenerze 1024 MB mogłyby mieć szczyt naraz —
-      // zdjęcie 50 Mpx ~452 MB, eksport do 512M, do tego FrankenPHP — a OOM
-      // kładzie też stronę. Ceną jest głodzenie `media`/`low` przy stałej
-      // zaległości `default` (#1030); lekarstwem jest osobny serwis `worker`.
+      // Rola "all" uruchamia DWA procesy `queue:work` (D-311): lekki
+      // `high,default` i ciężki `media,low`, nie proces na kolejkę jak rola
+      // "worker". Trzy procesy w tym kontenerze 1024 MB mogłyby mieć szczyt
+      // naraz — zdjęcie 50 Mpx ~452 MB, eksport do 512M, do tego FrankenPHP —
+      // a OOM kładzie też stronę; `media` i `low` dzielą więc jeden proces.
+      // Zaległość maili nie głodzi już zdjęć ani eksportu (#1030, #1860);
+      // zostaje `low` za stałą zaległością `media` — lekarstwem jest osobny
+      // serwis `worker`.
       // Ręczna zmiana bez wdrożenia: zmienna QUEUE_WORKERS (docs/DEPLOYMENT.md,
       // „Kolejki"), logika w `listy_kolejek()` w docker/entrypoint.sh.
       //
@@ -1488,6 +1622,8 @@ export default defineRailway((ctx) => {
 //      OPENAI_MODERATION_KEY (Sealed), KUKING_MODEL_ALARM_EMAIL,
 //      CLOUDFLARE_ZONE_ID, CLOUDFLARE_PURGE_TOKEN (Sealed),
 //      APP_PREVIOUS_KEYS (Sealed; puste poza rotacją APP_KEY).
+//   3c. Web Push (#35, D-303): VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY (Sealed) —
+//      osobna para w każdym środowisku; puste = funkcja wyłączona.
 //      Które serwisy je dostają: „ZESTAWY PER ROLA" wyżej
 //      i DEPLOYMENT_RUNBOOK.md, KROK 8.
 //   4. Alerty budżetowe — Workspace → Usage → Usage Limits.

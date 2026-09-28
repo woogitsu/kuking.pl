@@ -21,7 +21,7 @@ use Tests\TestCase;
  * wymagały przynajmniej zalogowania albo obserwowania tagu.
  *
  * WPIS ZAPOWIADAJĄCY PRZEPIS JEST TRWALE `public`
- * (`WpisWskazujacyPrzepis::dopisz()`), a `ProfileController::tylkoWidoczne()`
+ * (`WpisWskazujacyPrzepis::dopisz()`), a `ProfileController::tylkoWidoczneWpisy()`
  * pyta wyłącznie o `posts.visibility`. Zapowiedź przechodziła więc przez
  * filtr archiwum w każdym stanie przepisu, a karta wpisu rysuje tytuł
  * i zdjęcie główne z relacji `$post->recipe`.
@@ -31,8 +31,8 @@ use Tests\TestCase;
  * `bigos-z-kapusty-kiszonej`. Asercja czytająca sam tytuł przepuściłaby
  * poprawkę, która usuwa napis, a zostawia odnośnik.
  *
- * DLACZEGO BRAMKA LĄDUJE W `tylkoWidoczne()`, A NIE W SAMYM `postsFor()`
- * Bo `tylkoWidoczne()` jest wspólnym filtrem SZEŚCIU zapytań tego ekranu:
+ * DLACZEGO BRAMKA LĄDUJE W `tylkoWidoczneWpisy()`, A NIE W SAMYM `postsFor()`
+ * Bo `tylkoWidoczneWpisy()` jest wspólnym filtrem SZEŚCIU zapytań tego ekranu:
  * archiwum, lista lat, oba liczniki, szyna tematów i szyna zdjęć. Każde
  * z nich ma w tym pliku komentarz mówiący, że MUSI odpowiadać na to samo
  * pytanie co archiwum — bo licznik, który nie zgadza się z listą, i rok,

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Domain\Security\FacebookConnectionConfirmation;
 use App\Domain\Security\KomunikatZamknietegoKonta;
+use App\Domain\Security\WejsciePrzezDostawce\TozsamoscOdDostawcy;
 use App\Domain\Security\WejsciePrzezDostawce\WejdzPrzezDostawce;
 use App\Domain\Security\WejsciePrzezDostawce\WynikWejscia;
 use App\Domain\Users\Actions\ZalozKonto;
@@ -13,11 +15,16 @@ use App\Facebook\DostawcaWejsciaFacebook;
 use App\Facebook\KlientFacebook;
 use App\Facebook\TozsamoscFacebook;
 use App\Http\Controllers\Controller;
+use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Notifications\ProbaWejsciaKontemFacebooka;
 use App\Support\Facebook;
+use App\Support\Komunikat;
+use App\Support\Poczta;
+use App\Support\RejestracjaZamknieta;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -60,11 +67,10 @@ use Illuminate\View\View;
  *      i mówimy, co zrobić. Nie łączymy, nie logujemy, nie zakładamy
  *      drugiego konta.
  *   4. **Powiązanie z istniejącym kontem powstaje tylko na życzenie osoby,
- *      która JUŻ JEST ZALOGOWANA** na to konto (hasłem albo linkiem
- *      e-mail) — czyli dowiodła, że jest jego właścicielem CZYNNOŚCIĄ,
- *      a nie twierdzeniem. To jest cała rola trasy `/wejdz/facebook/polacz`
- *      i przycisku „Połącz konto Facebooka" w Ustawieniach →
- *      Bezpieczeństwo.
+ *      która JUŻ JEST ZALOGOWANA** na to konto. Przy zapisie dodatkowo
+ *      potwierdza obecną drogę wejścia do Kuking (#2085): hasło albo
+ *      link na potwierdzony adres, a przy 2FA także dotychczasowy kod.
+ *      Facebook i jego adres nie są takim dowodem.
  *
  * DLACZEGO TE TRASY NIE SĄ W GRUPIE `guest` (a trasy Google są). Bo punkt 4
  * wymaga człowieka ZALOGOWANEGO. Gdyby `/wejdz/facebook` było tylko dla
@@ -134,7 +140,10 @@ class FacebookLoginController extends Controller
      */
     private const KLUCZ_STATE = 'wejscie_facebook.state';
 
-    public function __construct(private readonly DostawcaWejsciaFacebook $dostawca) {}
+    public function __construct(
+        private readonly DostawcaWejsciaFacebook $dostawca,
+        private readonly FacebookConnectionConfirmation $potwierdzenie,
+    ) {}
 
     /**
      * Kliknięcie „Wejdź kontem Facebooka" albo „Połącz konto Facebooka" —
@@ -212,11 +221,11 @@ class FacebookLoginController extends Controller
                 'blad' => (string) $request->query('error'),
             ]);
 
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'Nie weszliśmy kontem Facebooka — zgoda nie została udzielona. Nic się nie stało. '
                 .'Możesz spróbować jeszcze raz albo zalogować się hasłem, a jeśli go nie pamiętasz, '
                 .'poproś o wiadomość z przyciskiem do zalogowania.',
-            );
+            ));
         }
 
         $kod = (string) $request->query('code', '');
@@ -235,22 +244,22 @@ class FacebookLoginController extends Controller
             || ! hash_equals($state, (string) $request->query('state', ''))) {
             Log::warning('Powrót z Facebooka odrzucony: nie zgadza się `state` albo brakuje kodu.');
 
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'Wejście kontem Facebooka nie doszło do końca — to sprawdzenie mogło wygasnąć, '
                 .'jeśli od kliknięcia minęła dłuższa chwila. Kliknij „Wejdź kontem Facebooka" jeszcze raz. '
                 .'Możesz też zalogować się hasłem albo poprosić o wiadomość z przyciskiem do zalogowania.',
-            );
+            ));
         }
 
         $tozsamosc = $klient->wymienKod($kod, $this->adresPowrotu());
 
         if ($tozsamosc === null) {
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'Nie udało się dokończyć wejścia kontem Facebooka — po stronie Facebooka coś nie zagrało. '
                 .'Spróbuj jeszcze raz za chwilę. Jeśli to się powtarza, zaloguj się hasłem albo poproś '
                 .'o wiadomość z przyciskiem do zalogowania. Napisz też do nas na '
                 .config('kuking.community.contact_email').' — odpisuje człowiek.',
-            );
+            ));
         }
 
         // ROZPOZNANIE PO IDENTYFIKATORZE — jedyna droga rozpoznania konta
@@ -281,11 +290,31 @@ class FacebookLoginController extends Controller
         $user = Auth::user();
 
         if ($powiazane !== null) {
-            // To samo konto — nie ma nic do zrobienia i nie ma o co krzyczeć.
+            /*
+             * TO SAMO KONTO — ALE ZGODA U FACEBOOKA WŁAŚNIE PADŁA NA NOWO.
+             *
+             * Tędy wraca przycisk „Połącz konto Facebooka jeszcze raz" z ekranu
+             * „Ustawienia → Bezpieczeństwo" (issue #1025). Człowiek przeszedł
+             * przez ekran zgody Facebooka, więc znacznik uśpienia gaśnie
+             * i zapisuje się granica tej zgody — dokładnie tak samo jak przy
+             * wejściu gościa w `wpusc()`. Bez tego przycisk byłby martwy
+             * (D-053): uśpienie by zostało, a stare powiadomienie o odebraniu
+             * dostępu dalej usypiałoby powiązanie.
+             */
             if ($powiazane->getKey() === $user->getKey()) {
-                return redirect()->route('settings.security')->with('status',
+                $byloUspione = $user->dostepOdebranyU(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
+
+                if ($byloUspione) {
+                    $this->zapiszTozsamosc($request, $tozsamosc);
+
+                    return redirect()->route('facebook.link');
+                }
+
+                $user->cofnijOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
+
+                return redirect()->route('settings.security')->with(Komunikat::informacja(
                     'To konto jest już połączone z Twoim kontem Facebooka. Możesz logować się przyciskiem „Wejdź kontem Facebooka”.',
-                );
+                ));
             }
 
             /*
@@ -299,11 +328,11 @@ class FacebookLoginController extends Controller
              */
             Log::warning('Odmowa połączenia: to konto Facebooka jest już powiązane z innym kontem Kuking.');
 
-            return redirect()->route('settings.security')->with('status',
+            return redirect()->route('settings.security')->with(Komunikat::blad(
                 'Tego konta Facebooka nie połączymy — jest już połączone z innym kontem w Kuking. '
                 .'Jeśli to Twoje drugie konto, wejdź na nie i tam rozłącz Facebooka (napisz do nas na '
                 .config('kuking.community.contact_email').' — odpisuje człowiek), a potem wróć tutaj.',
-            );
+            ));
         }
 
         $this->zapiszTozsamosc($request, $tozsamosc);
@@ -359,14 +388,14 @@ class FacebookLoginController extends Controller
 
             $this->powiadomOProbie($istniejace);
 
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'Na adres e-mail z Twojego Facebooka jest już konto w Kuking, ale Facebook nie potwierdza nam, '
                 .'że ta skrzynka naprawdę do Ciebie należy — dlatego tą drogą Cię nie wpuścimy. To zabezpieczenie: '
                 .'inaczej ktoś mógłby wpisać cudzy adres w swoim koncie na Facebooku i wejść na cudze konto. '
                 .'Wejdź na swoje konto tak jak zwykle: hasłem albo poproś o wiadomość z przyciskiem do zalogowania. '
                 .'Potem w Ustawieniach → Bezpieczeństwo kliknij „Połącz konto Facebooka" — i od następnego razu '
                 .'możesz logować się przyciskiem „Wejdź kontem Facebooka”.',
-            );
+            ));
         }
 
         // NOWA OSOBA — nie zakładamy konta po cichu. Idzie na ekran
@@ -385,11 +414,8 @@ class FacebookLoginController extends Controller
             return $this->drogaZamknieta();
         }
 
-        if (! config('kuking.account.registration_open')) {
-            return redirect()->route('login')->with('status',
-                'Zakładanie nowych kont jest chwilowo zamknięte. Jeśli masz już konto, zaloguj się hasłem '
-                .'albo poproś o wiadomość z przyciskiem do zalogowania.',
-            );
+        if (RejestracjaZamknieta::czyZamknieta()) {
+            return RejestracjaZamknieta::przekierowanie();
         }
 
         $tozsamosc = $this->wejscie()->tozsamoscZSesji($request);
@@ -414,7 +440,11 @@ class FacebookLoginController extends Controller
         // Ta sama bramka co w `RegisterController::store()`. Bez niej
         // zamknięcie rejestracji zamykałoby jedną z dróg do tego samego
         // skutku — czyli nie zamykałoby jej wcale.
-        abort_unless(config('kuking.account.registration_open'), 503);
+        // Przekierowanie, nie 503: zamknięta rejestracja to nie awaria
+        // (`RejestracjaZamknieta`). Konto i tak nie powstaje.
+        if (RejestracjaZamknieta::czyZamknieta()) {
+            return RejestracjaZamknieta::przekierowanie();
+        }
 
         $tozsamosc = $this->wejscie()->tozsamoscDoZalozenia($request);
 
@@ -444,10 +474,10 @@ class FacebookLoginController extends Controller
         $konto = $this->wejscie()->zalozKonto($request, $tozsamosc, $dane, $zalozKonto);
 
         if ($konto === null) {
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'W tym czasie powstało już konto na ten adres. Zaloguj się — hasłem albo poproś '
                 .'o wiadomość z przyciskiem do zalogowania.',
-            );
+            ));
         }
 
         // „Wysłaliśmy Ci wiadomość" pada tylko wtedy, gdy to prawda (#1373).
@@ -474,14 +504,56 @@ class FacebookLoginController extends Controller
         $user = Auth::user();
         $tozsamosc = $this->wejscie()->tozsamoscZSesji($request);
 
-        if (! $user instanceof User || $tozsamosc === null || ! $this->wejscie()->wolnoPolaczyc($user, $tozsamosc)) {
+        if (! $user instanceof User || $tozsamosc === null || ! $this->moznaPokazacPolaczenie($user, $tozsamosc->identyfikator)) {
             return $this->trzebaZaczacOdNowa();
         }
 
         return view('auth.facebook-link', [
             'displayName' => $user->profile?->display_name,
             'imieZFacebooka' => $tozsamosc->imie,
+            'adresPotwierdzony' => $user->hasVerifiedEmail(),
+            'maDrugiSkladnik' => $user->hasTwoFactorConfirmed(),
         ]);
+    }
+
+    /** A link is sent only to the current verified Kuking address. */
+    public function requestLinkProof(Request $request): RedirectResponse
+    {
+        $user = Auth::user();
+        $identity = $this->wejscie()->tozsamoscZSesji($request);
+        if (! $user instanceof User || $identity === null || ! $this->moznaPokazacPolaczenie($user, $identity->identyfikator)) {
+            return $this->trzebaZaczacOdNowa();
+        }
+
+        if (! Poczta::dziala()) {
+            return redirect()->route('facebook.link')->with('status', Poczta::komunikatBrakuPoczty('link potwierdzający'));
+        }
+
+        if (! $this->potwierdzenie->requestEmailProof($request, $user, $identity->identyfikator)) {
+            return $this->trzebaZaczacOdNowa();
+        }
+
+        return redirect()->route('facebook.link')->with('status',
+            'Wysłaliśmy link potwierdzający na Twój obecny adres e-mail w Kuking. Otwórz go w tej samej przeglądarce w ciągu 10 minut.',
+        );
+    }
+
+    public function confirmLinkProof(Request $request, string $token): Response|RedirectResponse
+    {
+        $user = Auth::user();
+        $identity = $this->wejscie()->tozsamoscZSesji($request);
+        if (! $user instanceof User || $identity === null || ! $this->moznaPokazacPolaczenie($user, $identity->identyfikator)
+            || ! $this->potwierdzenie->emailProofIsAvailable($request, $user, $identity->identyfikator, $token)) {
+            return $this->trzebaZaczacOdNowa();
+        }
+
+        return response()->view('auth.facebook-link', [
+            'displayName' => $user->profile?->display_name,
+            'imieZFacebooka' => $identity->imie,
+            'adresPotwierdzony' => true,
+            'maDrugiSkladnik' => $user->hasTwoFactorConfirmed(),
+            'proofToken' => $token,
+        ])->header('Cache-Control', 'no-store, private');
     }
 
     /**
@@ -506,21 +578,44 @@ class FacebookLoginController extends Controller
          * kilkanaście minut: konto mogło dostać rolę moderatora, zostać
          * zablokowane albo już zostać połączone z sąsiedniej karty.
          */
-        $polaczone = $this->wejscie()->polacz($request, $user, $tozsamosc);
+        $powiazane = $this->dostawca->kontoPowiazane($tozsamosc->identyfikator);
+        if ($powiazane?->getKey() === $user->getKey()) {
+            $polaczone = $this->potwierdzenie->reactivate($request, $user, $tozsamosc->identyfikator);
+        } else {
+            $potwierdz = fn (User $fresh): bool => $this->potwierdzenie->consume($request, $fresh, $tozsamosc->identyfikator);
+            $polaczone = $this->wejscie()->polacz($request, $user, $tozsamosc, $potwierdz);
+        }
+
+        if ($polaczone === null) {
+            return redirect()->route('facebook.link')->with('status',
+                'Nie połączyliśmy konta. Sprawdź hasło lub kod i spróbuj ponownie. Jeśli link wygasł, poproś o nowy.',
+            );
+        }
 
         $this->wejscie()->zapomnij($request);
 
-        if ($polaczone === null) {
-            return redirect()->route('settings.security')->with('status',
-                'Nie połączyliśmy tego konta z Facebookiem — w trakcie coś się zmieniło. Spróbuj jeszcze raz. '
-                .'Jeśli to się powtarza, napisz do nas na '.config('kuking.community.contact_email').'.',
-            );
+        if ($powiazane?->getKey() === $user->getKey()) {
+            return redirect()->route('settings.security')->with(Komunikat::informacja(
+                'Połączenie z Facebookiem znów działa. Możesz logować się przyciskiem „Wejdź kontem Facebooka”.',
+            ));
         }
 
         return redirect()->route('settings.security')->with('status',
             'Gotowe — możesz logować się na to konto przyciskiem „Wejdź kontem Facebooka". '
-            .'Twoje hasło działa dalej tak samo jak wcześniej.',
+            .'Twoje dotychczasowe sposoby logowania działają dalej.',
         );
+    }
+
+    private function moznaPokazacPolaczenie(User $user, string $facebookId): bool
+    {
+        $powiazane = $this->dostawca->kontoPowiazane($facebookId);
+        if ($powiazane?->getKey() === $user->getKey()) {
+            return $this->potwierdzenie->mayReactivate($user, $facebookId);
+        }
+
+        return $this->wejscie()->wolnoPolaczyc($user, new TozsamoscOdDostawcy(
+            identyfikator: $facebookId, email: null, emailPotwierdzony: false, imie: '',
+        ));
     }
 
     /**
@@ -532,11 +627,11 @@ class FacebookLoginController extends Controller
     private function wpusc(Request $request, User $user): RedirectResponse
     {
         return match ($this->wejscie()->wpusc($request, $user)) {
-            WynikWejscia::KontoZamkniete => redirect()->route('login')->with('status', KomunikatZamknietegoKonta::dla($user)),
-            WynikWejscia::KontoObslugi => redirect()->route('login')->with('status',
+            WynikWejscia::KontoZamkniete => redirect()->route('login')->with(Komunikat::blad(KomunikatZamknietegoKonta::dla($user))),
+            WynikWejscia::KontoObslugi => redirect()->route('login')->with(Komunikat::blad(
                 'Konta obsługi serwisu wchodzą hasłem i kodem z aplikacji — nie kontem Facebooka. '
                 .'Zaloguj się poniżej.',
-            ),
+            )),
             WynikWejscia::DrugiSkladnik => redirect()->route('login.two_factor'),
             WynikWejscia::Wpuszczony => redirect()->intended(route('home')),
         };
@@ -624,11 +719,11 @@ class FacebookLoginController extends Controller
 
     private function trzebaZaczacOdNowa(): RedirectResponse
     {
-        return redirect()->route('login')->with('status',
+        return redirect()->route('login')->with(Komunikat::blad(
             'Wejście kontem Facebooka wymaga ponownego potwierdzenia. '
             .'Kliknij „Wejdź kontem Facebooka" jeszcze raz. Możesz też zalogować się hasłem albo poprosić '
             .'o wiadomość z przyciskiem do zalogowania.',
-        );
+        ));
     }
 
     /**
@@ -639,9 +734,9 @@ class FacebookLoginController extends Controller
      */
     private function drogaZamknieta(): RedirectResponse
     {
-        return redirect()->route('login')->with('status',
+        return redirect()->route('login')->with(Komunikat::blad(
             'Wejście kontem Facebooka jest teraz wyłączone. Zaloguj się hasłem — Twoje konto działa '
             .'normalnie. Jeśli nie pamiętasz hasła, poproś o wiadomość z przyciskiem do zalogowania.',
-        );
+        ));
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Collections\Actions;
 
 use App\Domain\Collections\ZamekZapisuDoZeszytu;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Collection;
 use App\Models\Post;
 use App\Models\User;
@@ -89,6 +90,13 @@ final class SavePostToCollection
      */
     public function remove(User $user, Post $post, ?Collection $collection = null): array
     {
+        // Jedna transakcja na całe wyjęcie — powód przy przepisie (#1384).
+        return DB::transaction(fn (): array => $this->zdejmij($user, $post, $collection));
+    }
+
+    /** @return list<array{collection_id: string, note: ?string, created_at: ?string}> */
+    private function zdejmij(User $user, Post $post, ?Collection $collection): array
+    {
         $zeszyty = $collection !== null
             ? $user->collections()->whereKey($collection->getKey())->get()
             : $user->collections()->get();
@@ -123,32 +131,61 @@ final class SavePostToCollection
      */
     public function restore(User $user, Post $post, array $zdjete): int
     {
-        $wrocilo = 0;
+        // Kolejność zeszytów jest stała, żeby dwa powroty obejmujące kilka
+        // zeszytów nie brały ich zamków w przeciwnym porządku.
+        usort($zdjete, static fn (array $a, array $b): int => strcmp(
+            (string) ($a['collection_id'] ?? ''),
+            (string) ($b['collection_id'] ?? ''),
+        ));
 
-        foreach ($zdjete as $pozycja) {
-            $zeszyt = $user->collections()->whereKey($pozycja['collection_id'] ?? null)->first();
+        return DB::transaction(function () use ($user, $post, $zdjete): int {
+            $wrocilo = 0;
 
-            if ($zeszyt === null) {
-                continue;
+            foreach ($zdjete as $pozycja) {
+                $zeszyt = $user->collections()->whereKey($pozycja['collection_id'] ?? null)->first();
+                if ($zeszyt === null) {
+                    continue; // usunięty zeszyt: ponowione kliknięcie jest idempotentne
+                }
+
+                $dodano = false;
+
+                try {
+                    app(ZamekZapisuDoZeszytu::class)->zapisz(
+                        $user,
+                        $post,
+                        $zeszyt,
+                        function (User $swiezy, Post $wpis, Collection $cel) use ($pozycja, &$dodano): Collection {
+                            Gate::forUser($swiezy)->authorize('save', $wpis);
+                            Gate::forUser($swiezy)->authorize('update', $cel);
+
+                            if ($cel->posts()->whereKey($wpis->getKey())->exists()) {
+                                return $cel;
+                            }
+
+                            DB::transaction(fn () => $cel->posts()->attach($wpis->getKey(), [
+                                'note' => $pozycja['note'] ?? null,
+                                'created_at' => $pozycja['created_at'] ?? now(),
+                            ]));
+                            $dodano = true;
+
+                            return $cel;
+                        },
+                    );
+                } catch (UniqueConstraintViolationException) {
+                    continue;
+                } catch (BladDlaCzlowieka $e) {
+                    if ($e->getMessage() !== ZamekZapisuDoZeszytu::BRAK_ZESZYTU) {
+                        throw $e;
+                    }
+
+                    continue;
+                }
+
+                $wrocilo += (int) $dodano;
             }
 
-            if ($zeszyt->posts()->whereKey($post->getKey())->exists()) {
-                continue;
-            }
-
-            try {
-                $zeszyt->posts()->attach($post->getKey(), [
-                    'note' => $pozycja['note'] ?? null,
-                    'created_at' => $pozycja['created_at'] ?? now(),
-                ]);
-            } catch (UniqueConstraintViolationException) {
-                continue;
-            }
-
-            $wrocilo++;
-        }
-
-        return $wrocilo;
+            return $wrocilo;
+        });
     }
 
     /** Czy ta osoba ma już ten wpis w którymkolwiek ze swoich zeszytów. */
