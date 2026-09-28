@@ -3,6 +3,7 @@
 ## Nieopublikowane
 
 - Niepoprawny identyfikator w adresie przycisku „Zobacz” powiadomienie kończy się teraz zwykłą stroną 404, zanim trafi do bazy danych; poprawny identyfikator nieistniejącego powiadomienia nadal daje 404 (#1880).
+- Wewnętrzne: kontrola negatywna testów zachowuje dowód niezaliczonej asercji, nawet gdy log zawiera błędne bajty UTF-8; sama awaria procesu nadal nie zalicza kontroli (Refs #1011).
 - Wewnętrzne: kontrola zdrowia obrazu Docker sprawdza `/health` dla ról HTTP (`web` i `all`), a dla `worker` i `scheduler` nie oczekuje serwera WWW, którego te role nie uruchamiają. Odczytuje rzeczywistą rolę przekazaną entrypointowi, także gdy ma ona pierwszeństwo przed `APP_ROLE` (#2079).
 - Wewnętrzne: strażnik bezpiecznych migracji rozpoznaje historię po zamrożonej liście plików, więc nowa migracja z cofniętym datownikiem nadal przechodzi kontrolę DDL (§6); dotychczasowe migracje pozostają bez zmian (#2080).
 - Wewnętrzne: obraz aplikacji nie obiecuje już awaryjnego `pg_dump` w wersji 17, który odmawiał zrzutu PostgreSQL 18. Jednorazowy zrzut prowadzi teraz runbook przez osobny obraz kopii z klientem 18, a CI sprawdza prawdziwy zrzut testowej bazy 18 (#2078).
