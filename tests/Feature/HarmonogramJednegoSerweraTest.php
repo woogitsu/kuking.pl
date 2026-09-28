@@ -66,9 +66,10 @@ class HarmonogramJednegoSerweraTest extends TestCase
         $this->assertGreaterThanOrEqual(20, count($events), 'Nie wczytano harmonogramu aplikacji.');
         foreach ($events as $event) {
             // Minuta w strefie ZADANIA, tak jak liczy ją `Event::isDue()`.
-            // Zadanie z `->timezone(Czas::strefa())` (#1813: 17:47 czasu
-            // polskiego) w UTC trafiałoby w 17:47 UTC, czyli 19:47 w Polsce —
-            // scheduler słusznie by go wtedy nie uruchomił.
+            // Zadanie z własnym `->timezone(...)` liczone w UTC trafiałoby
+            // w złą minutę i scheduler słusznie by go wtedy nie uruchomił.
+            // Dziś wszystkie zadania chodzą w strefie harmonogramu
+            // (`HarmonogramBezWspolnychSlotowTest`), ale ta ścieżka zostaje.
             $strefa = $event->timezone instanceof DateTimeZone
                 ? $event->timezone->getName()
                 : ($event->timezone ?: 'UTC');

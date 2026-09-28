@@ -50,7 +50,7 @@ final class PrzestawZgodeNaOdczytAi
                 'czynnosc' => $chce ? WpisZgody::UDZIELONA : WpisZgody::WYCOFANA,
                 'zrodlo' => $zrodlo,
                 'wystapilo_at' => now(),
-                'wersja_polityki' => (string) config('kuking.zgody.wersja_polityki'),
+                'wersja_polityki' => WersjaDokumentu::polityka()->obowiazujaca(),
             ]);
 
             return true;

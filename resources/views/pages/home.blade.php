@@ -158,7 +158,9 @@
         <h2>{{ $showingDiscover
             ? (($wlasneWFeedzie ?? false) ? 'Twoje wpisy i najnowsze z innych kuchni' : 'Najnowsze z innych kuchni')
             : 'Najnowsze od osób i tagów, które obserwujesz' }}</h2>
-        <a href="{{ route('help') }}#kolejnosc-wpisow">Jak działa kolejność?</a>
+        {{-- Od #1811 odnośnik prowadzi na „Jak dobieramy wpisy" — tam jest opis
+             każdej listy i droga do obserwowanych osób, tagów i „Ukrytych". --}}
+        <a href="{{ route('feed-rules') }}">Skąd te wpisy i jak to zmienić</a>
     </div>
     <nav class="tabs feed-tabs start-feed-wybor" aria-label="Co pokazujemy">
         <a class="tab" href="{{ route('home') }}" @if(! $showingDiscover) aria-current="page" @endif>Obserwowani</a>

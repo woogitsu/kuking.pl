@@ -17798,6 +17798,10 @@ Strony „Jak dobieramy wpisy” na `main` jeszcze nie ma (stan na 25 września
 2026); jej powstanie jest osobną częścią wdrożenia #1781. Do tego czasu
 wymóg jej aktualizacji oznacza opis nowej reguły w tym dzienniku.
 
+> **Dopisek (26 września 2026, #1811, D-305).** Strona już jest:
+> `/jak-dobieramy-wpisy`. Nowa reguła = zdanie w `App\Domain\Feed\JakDobieramyWpisy`
+> i dowód w `JakDobieramyWpisyMowiPrawdeTest`.
+
 ### Sprostowanie D-194
 
 D-194 dostaje zdanie „Liczba »Ugotowałem« ani reakcji nie wpływa na kolejność
@@ -18079,7 +18083,7 @@ Lżejsza reakcja niż „Ugotowałem”, o nazwie **„Smakowicie wygląda”** 
   **każdy widz** (także niezalogowany) widzi, KTO napisał — nazwy dosłownie,
   bez osób z blokadą autora albo widza i bez kont niedostępnych (zmiana
   26 września 2026, dopisek niżej);
-- **powiadomienie zbiorczo raz dziennie** (17:47 czasu polskiego — `->timezone(Czas::strefa())`, `kuking:powiadom-smakowicie`):
+- **powiadomienie zbiorczo raz dziennie** (15:47 UTC, czyli 17:47 latem i 16:47 zimą w Polsce — dopisek niżej, `kuking:powiadom-smakowicie`):
   jedno na autora, „N osób napisało: Smakowicie wygląda”, liczy różne osoby, bez
   zablokowanych i nieaktywnych; tylko w serwisie, bez poczty. „Ugotowałem”
   powiadamia od razu i zostaje najcenniejszą wiadomością (AGENTS.md §1);
@@ -18107,6 +18111,18 @@ Reakcje nie są źródłem analityki (#1814).
 > reagującego jest publiczna pod wpisem. Eksport bez zmian (`reakcje_otrzymane`
 > filtruje po autorze). Test:
 > `SmakowicieWygladaTest::test_kazdy_widzi_kto_napisal_bez_liczby_a_blokady_autora_i_widza_odcinaja`.
+
+> **Dopisek (26 września 2026, pora powiadomienia).** Pierwsza wersja
+> ustawiała 17:47 czasu polskiego (`->timezone(Czas::strefa())`, przegląd
+> #1781: 17:47 UTC to 19:47 latem). Po scaleniu `main`
+> `HarmonogramBezWspolnychSlotowTest` (#1717) wymaga, żeby wszystkie zadania
+> codzienne chodziły w jednej strefie — inaczej odstęp dziesięciu minut
+> między nimi nie da się sprawdzić, a zadanie w czasie polskim przesuwa się
+> względem reszty o godzinę dwa razy w roku. Zadanie chodzi więc o **15:47
+> UTC** w strefie harmonogramu (wolny slot, najbliższe zadanie codzienne
+> o 08:40), jak życzenia urodzinowe: w Polsce 17:47 latem i 16:47 zimą,
+> zawsze po południu. Komenda nie liczy „dziś”, więc pora nie zmienia jej
+> wyniku. Test: `SmakowicieWygladaTest::test_harmonogram_ma_zbiorcze_powiadomienie_raz_dziennie`.
 
 ### Wycofanie
 
@@ -19125,6 +19141,165 @@ wymagałoby osobnej, jawnej decyzji o wycofaniu konkretnej funkcji.
 
 📄 `AGENTS.md` §2, `AGENTS.md` §10, `CLAUDE.md`, `docs/FEATURES.md`,
 `docs/ROADMAP.md`, `config/kuking.php`
+## D-305 — Strona „Jak dobieramy wpisy”: zdania z rejestru, każde z dowodem w kodzie (#1811, #1781, 26 września 2026)
+
+**Data:** 26 września 2026 · Decyzja właściciela (#1781, kryteria #1811) · Status: **obowiązuje**
+
+### Decyzja
+
+Strona `/jak-dobieramy-wpisy` (trasa `feed-rules`, publiczna) opisuje po kolei
+każdą listę wpisów: Start, „Świeżo z Kuking”, tablicę na dziś i polecane tagi,
+wyszukiwarkę, tygodniowy e-mail, ukrywanie i „czego nie robimy”. Zdania stoją
+w `App\Domain\Feed\JakDobieramyWpisy`, widok rysuje wyłącznie je, a
+`JakDobieramyWpisyMowiPrawdeTest` (wzorem `TabelaStackuMowiPrawdeTest`, D-104)
+trzyma dla każdego klucza dowody w trzech dozwolonych kształtach: `test:`
+(metoda testu istnieje), `kod:` (plik zawiera fragment), `config:` (liczba
+w zdaniu = wartość konfiguracji). Zdanie bez dowodu, dowód bez zdania, liczba
+bez konfiguracji i akapit dopisany wprost w widoku oblewają. Trzy obietnice
+mają testy zachowania w tym samym pliku: reakcje, „Ugotowałem” i komentarze
+nie zmieniają kolejności (Start i Odkrywanie); w bazie nie ma miejsca na zapis,
+kto oglądał który wpis; wybór gospodarza jest podpisany.
+
+Nigdzie nie piszemy „nie mamy systemu rekomendacji” — dobór wpisów jest systemem
+rekomendacji w rozumieniu DSA, tyle że prostym i jawnym; test skanuje widoki
+i dokumenty prawne.
+
+**Linia w „Świeżo z Kuking”.** Pod nagłówkiem stała linia „Skąd te wpisy i jak
+to zmienić” → strona; przy aktywnych ukryciach druga: „Ukrywasz wpisy N osób.
+Zmień” (albo „Ukrywasz N wpisów”, gdy ukryte są tylko wpisy) → Ustawienia →
+Ukryte. Liczby tylko z ukryć tego widza (`Ukrycia::ileOsob()`, `ileWpisow()`).
+Odnośnik „Jak działa kolejność?” na Starcie prowadzi teraz na tę stronę.
+Na stronie zalogowany ma odnośniki do obserwowanych osób, tagów i „Ukrytych”.
+
+**Wybór gospodarza podpisany.** AGENTS.md §8 dopuszcza wybór gospodarza
+„oznaczony w interfejsie jako jego wybór”, a tablica go nie oznaczała. Od teraz
+pozycja z `daily_picks` ma napis „Wybór gospodarza” (`DailyBoard` zwraca
+`wybrane`); pozycje dołożone przez automat do sufitu — nie.
+
+**Słowo „tag”**, nie „temat” (decyzja właściciela z 11.09, `JednoSlowoNaTagiTest`).
+
+Regulamin (§2, „Jak dobieramy wpisy”) odsyła do strony — zmiana ogłoszona
+według D-306.
+
+### Wycofanie
+
+Bez migracji: usunąć trasę `feed-rules`, `JakDobieramyWpisy`, widok, linie
+w `discover.blade.php`/`home.blade.php` i test; napis na tablicy zostawić
+(wymaga go AGENTS.md §8).
+
+📄 `app/Domain/Feed/JakDobieramyWpisy.php` · `resources/views/pages/static/jak-dobieramy-wpisy.blade.php` ·
+`tests/Feature/JakDobieramyWpisyMowiPrawdeTest.php` · `app/Domain/Feed/DailyBoard.php` · D-275 · D-276 · D-277 · D-278 · D-279 · D-280
+
+## D-306 — Zmiana regulaminu ogłaszana paskiem w serwisie, wersja z datą w konfiguracji (#1811, 26 września 2026)
+
+**Data:** 26 września 2026 · Decyzja właściciela (26.09.2026) · Status: **obowiązuje**
+
+### Decyzja
+
+Zmianę regulaminu ogłaszamy **komunikatem w serwisie, bez maili**:
+
+- wersja regulaminu to data w `kuking.zgody.wersja_regulaminu`, tym samym
+  kształtem co `wersja_polityki` (D-072): dzień stanu dokumentu z nagłówka
+  „opisuje stan serwisu na …”, podbijany ręcznie razem z nim;
+- dokument ma na górze sekcję „Co się zmieniło” (kotwica `#co-sie-zmienilo`)
+  z wpisem datowanym dniem wersji; `ZmianaRegulaminuTest` pilnuje zgodności
+  nagłówka, sekcji i konfiguracji;
+- zalogowane konto założone przed dniem wersji widzi na każdym ekranie pasek
+  „Zmieniliśmy regulamin. Zobacz, co się zmieniło” z przyciskiem „Zamknij”
+  (POST, bez JS); zamknięcie zapisuje wersję w
+  `users.terms_notice_dismissed_version` i przy tej wersji pasek nie wraca.
+  Konto założone w dniu wersji albo później paska nie dostaje;
+- zamknięcie paska **nie jest akceptacją** regulaminu — to ślad, że komunikat
+  dotarł. Eksport: `konto.pasek_zmiany_regulaminu_zamkniety_dla_wersji`;
+  wymazanie konta zeruje pole. Rollback migracji odmawia, gdy ktoś pasek
+  zamknął (D-088, wzorem `pwa_prompt_state`).
+
+Pierwsza wersja: 26 września 2026 — dopisany opis doboru wpisów i odnośnik do
+„Jak dobieramy wpisy” (D-305). Zmiana opisuje działanie serwisu i nie dodaje
+obowiązków, dlatego weszła od razu; §11 regulaminu (14 dni przy zmianach
+istotnych) zostaje bez zmian — **pytanie do właściciela/prawnika**, czy przy
+następnej zmianie istotnej pasek ma się pokazywać z wyprzedzeniem (data
+wejścia w życie osobno od daty publikacji).
+
+**Rozstrzygnięte 26 września 2026 w D-327:** tak — przy zmianie istotnej
+data wejścia w życie jest osobna od daty publikacji (+14 dni).
+
+### Wycofanie
+
+Kod: `ZmianaRegulaminu`, `ZmianaRegulaminuController`, trasa
+`terms.notice.dismiss`, komponent `pasek-zmiany-regulaminu`. Kolumny nie
+cofać, gdy ktoś pasek zamknął (migracja odmówi).
+
+📄 `app/Domain/Zgody/ZmianaRegulaminu.php` · `resources/views/components/pasek-zmiany-regulaminu.blade.php` ·
+`database/migrations/2026_09_26_120000_add_terms_notice_dismissed_version_to_users.php` ·
+`tests/Feature/ZmianaRegulaminuTest.php` · `resources/legal/regulamin.md` · D-072 · D-088 · D-305
+
+## D-327 — Dokument prawny: data publikacji osobno od daty wejścia w życie; zmiana istotna po 14 dniach (#1811, #1781, 26 września 2026)
+
+**Data:** 26 września 2026 · Decyzja właściciela (26.09.2026) · Status: **obowiązuje** ·
+Rozstrzyga pytanie otwarte w D-306 · Dotyczy D-072 (dziennik zgód), #1816
+
+### Decyzja
+
+Przy **istotnej** zmianie polityki prywatności albo regulaminu data wejścia
+w życie jest osobna od daty publikacji. Pasek o zmianie pokazuje się od
+publikacji, a nowa wersja obowiązuje **14 dni później**; do tego dnia
+obowiązuje poprzednia. **Drobne** poprawki (redakcyjne, bez zmiany praw
+i obowiązków) wchodzą od razu.
+
+### Jak to jest zapisane
+
+- `kuking.zgody.wersja_polityki` / `wersja_regulaminu` — bez zmian: data
+  PUBLIKACJI, ta sama co w nagłówku dokumentu („opisuje stan serwisu na …”);
+- `kuking.zgody.zmiana_polityki` / `zmiana_regulaminu` — **jawne**
+  oznaczenie: `istotna` (true/false, bez wartości domyślnej — brak klucza
+  albo inna wartość to wyjątek), `poprzednia` (data dotychczasowej wersji,
+  wymagana przy istotnej) i `obowiazuje_od` (null = publikacja + 14 dni;
+  wolno później, nigdy wcześniej; przy drobnej zabronione);
+- `kuking.zgody.okres_istotnej_zmiany_dni` = 14, w repozytorium, nie w `.env`.
+  `WersjaDokumentuTest` pilnuje, że regulamin §11 obiecuje tę samą liczbę;
+- logika w jednym miejscu: `App\Domain\Zgody\WersjaDokumentu`
+  (`obowiazujeOd()`, `wOkresiePrzejsciowym()`, `obowiazujaca()`).
+
+### Co z tego wynika
+
+- **Pasek regulaminu** (D-306) pokazuje się od dnia publikacji jak dotąd.
+  Przy zmianie istotnej mówi „Nowa wersja obowiązuje od <data>. Do tego dnia
+  obowiązuje poprzednia.”, a od dnia wejścia w życie — samo „Nowa wersja
+  obowiązuje od <data>.”. Przy drobnej nie podaje żadnego terminu.
+- **Zgoda** (`dziennik_zgod.wersja_polityki`, D-072) zapisuje wersję
+  OBOWIĄZUJĄCĄ w chwili zdarzenia (`WersjaDokumentu::polityka()->obowiazujaca()`),
+  nie ostatnio opublikowaną — we wszystkich zapisach: digest, życzenia mailem
+  i zgoda „odczyt AI” (`PrzestawZgodeNaOdczytAi`). **Akceptacji regulaminu repozytorium nie
+  zapisuje z wersją** (`terms_accepted` jest tylko walidowane przy
+  rejestracji), więc tu nie ma czego przeliczać.
+- Obecne wersje: polityka 2026-09-10 (sprzed rozróżnienia) i regulamin
+  2026-09-26 (opis doboru wpisów, D-305) są oznaczone jako **drobne** —
+  opisują działanie serwisu, nie zmieniają praw i obowiązków.
+
+### Przy następnym podbiciu (np. #1816)
+
+1. Podbij datę w nagłówku dokumentu i `wersja_*` na dzień publikacji.
+2. Ustaw `zmiana_*.istotna` jawnie. Przy `true` wpisz `poprzednia`,
+   a we wpisie „Co się zmieniło” podaj dzień wejścia w życie.
+3. **Polityka nie ma dziś własnego paska**, a §9 polityki obiecuje przy
+   zmianie istotnej powiadomienie w serwisie. `WersjaDokumentuTest`
+   oblewa, gdy `zmiana_polityki.istotna` = true bez komponentu
+   `pasek-zmiany-polityki` — pasek polityki trzeba dołożyć razem z #1816.
+4. Poprzedni tekst nie jest dziś osobno publikowany; w okresie przejściowym
+   strona dokumentu pokazuje już nowy. Jeśli prawnik uzna, że poprzednia
+   wersja musi być dostępna do przeczytania, to osobna zmiana.
+
+### Wycofanie
+
+Bez migracji. Wycofanie kodu przywraca D-306 (pasek bez terminu, zgoda
+z `config('kuking.zgody.wersja_polityki')`). Wpisy dziennika zgód zapisane
+w okresie przejściowym zostają z wersją poprzednią — to prawda o chwili
+zgody, nie błąd do poprawienia.
+
+📄 `app/Domain/Zgody/WersjaDokumentu.php` · `app/Domain/Zgody/ZmianaRegulaminu.php` ·
+`resources/views/components/pasek-zmiany-regulaminu.blade.php` · `config/kuking.php` (`zgody`) ·
+`tests/Feature/WersjaDokumentuTest.php` · D-072 · D-306
 ## D-286 — Koszt dania: najpierw kwota wpisana przez autora, jawnie jako jego szacunek (V2, 26 września 2026)
 
 **Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela
