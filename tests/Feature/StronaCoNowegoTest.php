@@ -72,7 +72,9 @@ class StronaCoNowegoTest extends TestCase
         @$dokument->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
         $xpath = new DOMXPath($dokument);
 
-        $odsylacze = $xpath->query('//a[starts-with(@href, "#")]');
+        // Globalny skip link `#tresc` celuje w kontener strony, a spis wydań
+        // wyłącznie w nagłówki. Nie mieszamy tych dwóch rodzajów kotwic.
+        $odsylacze = $xpath->query('//a[@href="#najnowsze-zmiany" or starts-with(@href, "#alfa-")]');
         $this->assertGreaterThanOrEqual(11, $odsylacze->length);
 
         foreach ($odsylacze as $odsylacz) {
