@@ -89,7 +89,8 @@ final class ZapisPrzepisuRequest extends FormRequest
         $kroki = $this->file('steps', []);
         if (is_array($kroki)) {
             foreach ($kroki as $index => $row) {
-                if (is_array($row) && ($row['photo'] ?? null) instanceof UploadedFile) {
+                if (is_array($row) && ($row['photo'] ?? null) instanceof UploadedFile
+                    && trim((string) $this->input("steps.{$index}.instruction")) !== '') {
                     $pliki['step_'.$index] = "steps.{$index}.photo";
                 }
             }
