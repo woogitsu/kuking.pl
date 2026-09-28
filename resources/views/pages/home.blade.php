@@ -8,7 +8,7 @@
         (docs/product/COLD_START.md).
     --}}
     <x-slot:rail>
-        <x-szyna-startowa :board="$board" :zeszyt="$zeszyt ?? null" />
+        <x-szyna-startowa :board="$board" :zeszyt="$zeszyt ?? null" :mojStol="$mojStol ?? null" />
     </x-slot:rail>
 
     <header class="start-naglowek">
@@ -48,6 +48,35 @@
 
     <x-pwa-install :eligible="$pwaEligible ?? false" :context="$pwaContext ?? null" />
 
+    @if($zyczenia ?? null)
+        {{--
+            ŻYCZENIA URODZINOWE (issue #1755, etap b). Jedno zdanie od
+            gospodarza, tylko u tej osoby i tylko w dniu jej urodzin. Nie jest
+            wpisem w feedzie i nie ma pustego stanu. Wyłącznik stoi przy dacie
+            (Ustawienia → Urodziny). Tekst składa `Urodziny::tekstZyczen()`.
+        --}}
+        <section class="notice zyczenia" aria-label="Życzenia urodzinowe">
+            <p>{{ $zyczenia }}</p>
+            <p class="meta">— {{ $podpisZyczen }}</p>
+        </section>
+    @endif
+
+    @if($pierwszeKroki ?? null)
+        {{-- Przerwany onboarding (#985): droga powrotu bez przymusu.
+             Znika po dojściu do końca albo po „Nie przypominaj”. --}}
+        <section class="ramka-pomocnicza" aria-labelledby="pierwsze-kroki">
+            <h2 id="pierwsze-kroki">Pierwsze kroki nie są jeszcze dokończone</h2>
+            <p>Wybierz, co lubisz gotować i kogo obserwować — wtedy Start pokaże więcej wpisów dla Ciebie. To zajmie minutę i nie jest obowiązkowe.</p>
+            <div class="form-actions">
+                <a class="btn btn-primary" href="{{ route($pierwszeKroki) }}">Dokończ pierwsze kroki</a>
+                <form method="POST" action="{{ route('onboarding.dismiss') }}">
+                    @csrf
+                    <button class="btn btn-quiet" type="submit">Nie przypominaj</button>
+                </form>
+            </div>
+        </section>
+    @endif
+
     @if($tagTygodnia ?? null)
         {{-- TAG TYGODNIA (issue #18). Zaproszenie, nie obowiązek: jeden
              odnośnik do zwykłego formularza wpisu z zaznaczonym tagiem, który
@@ -62,6 +91,20 @@
                 <a class="btn btn-primary" href="{{ route('posts.create', ['tag' => $tagTygodnia->tag->slug]) }}">Dodaj wpis z tym tagiem</a>
                 <a class="btn btn-secondary" href="{{ route('tags.show', $tagTygodnia->tag) }}">Zobacz wpisy z tym tagiem</a>
             </div>
+        </section>
+    @endif
+
+    @if($rocznica ?? null)
+        {{--
+            ROCZNICA DOŁĄCZENIA (issue #1754). Jedno zdanie od gospodarza,
+            raz w roku, tylko u tej jednej osoby. Nie jest wpisem w feedzie
+            i nie ma pustego stanu. Wyłącza je ten sam przełącznik co
+            wspomnienia (Ustawienia → Prywatność), bo rocznica też potrafi
+            zaboleć. Tekst składa `RocznicaDolaczenia::tekst()`, nie widok.
+        --}}
+        <section class="notice rocznica" aria-label="Rocznica">
+            <p>{{ $rocznica }}</p>
+            <p class="meta">— {{ $podpisRocznicy }}</p>
         </section>
     @endif
 
@@ -180,9 +223,32 @@
         </x-empty-state>
     @else
         <div class="stack" id="lista-wpisow">
-            @foreach($posts as $post)
-                <x-post-card :post="$post" />
-            @endforeach
+            @if($showingDiscover)
+                @foreach($posts as $post)
+                    <x-post-card :post="$post" />
+                @endforeach
+            @else
+                {{-- ZWIJANIE SERII (issue #1812, AGENTS.md §8 / D-275). Więcej
+                     niż dwa kolejne wpisy jednej osoby albo jednego tagu:
+                     dwa widać, reszta w `<details>` — kolejność bez zmian,
+                     nic nie znika, otwiera się bez JavaScriptu. Cel dotknięcia
+                     `summary` 48 px (`.seria-wpisow > summary`). --}}
+                @foreach(\App\Domain\Feed\SerieWpisow::grupuj($posts) as $seria)
+                    @foreach($seria['widoczne'] as $post)
+                        <x-post-card :post="$post" />
+                    @endforeach
+                    @if($seria['zwiniete'] !== [])
+                        <details class="seria-wpisow" data-seria-wpisow>
+                            <summary><span>{{ $seria['podpis'] }}</span> <span class="seria-wpisow-pokaz">— Pokaż</span></summary>
+                            <div class="stack">
+                                @foreach($seria['zwiniete'] as $post)
+                                    <x-post-card :post="$post" />
+                                @endforeach
+                            </div>
+                        </details>
+                    @endif
+                @endforeach
+            @endif
         </div>
 
         <x-show-more :paginator="$posts" lista="lista-wpisow" />

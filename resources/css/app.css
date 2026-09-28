@@ -43,6 +43,7 @@
 @import "./ekran-tagi.css";
 @import "./ekran-profilu.css";
 @import "./ekran-dodawania.css";
+@import "./ekran-planera.css";
 @import "./karta-ugotowania.css";
 @import "./strony-publiczne.css";
 @import "./ekran-uzytkownikow.css";
@@ -51,6 +52,8 @@
 /* Osobny arkusz jednego nowego elementu strony wpisu ("kolejne zdjęcie",
    Garnek.pl) — nie sekcja tutaj, żeby nie ruszać reszty tego pliku. */
 @import "./wpis-nawigacja-sasiedzi.css";
+/* Szacunkowe wartości odżywcze pod składnikami przepisu (D-299). */
+@import "./wartosci-odzywcze.css";
 
 @layer components {
 
@@ -1799,14 +1802,42 @@
      Komunikaty
      --------------------------------------------------------------------- */
 
-  .flash {
+  /* Plakietka komunikatu po akcji — trzy rodzaje (#988). Każdy ma własne
+     tło, ramkę i WIDOCZNĄ etykietę (`.flash-etykieta`), więc sukcesu od
+     odmowy nie odróżnia sam kolor (WCAG 1.4.1). Pary tło/tekst to
+     istniejące tokeny `*-tint` / `*-tint-ink` z policzonym kontrastem AA
+     w obu motywach (`tokens.css`) — tu nie powstaje żaden nowy kolor.
+     Informacja bierze paletę `.notice`, błąd — paletę błędu formularza. */
+  .flash-ramka {
     border-radius: var(--radius-md);
     padding: var(--spacing-4);
     margin-bottom: var(--spacing-5);
-    font-weight: 600;
     background-color: var(--color-success-tint);
     color: var(--color-success-tint-ink);
     border: 2px solid var(--color-success);
+  }
+
+  .flash-ramka-informacja {
+    background-color: var(--color-accent-tint);
+    color: var(--color-accent-tint-ink);
+    border-color: var(--color-accent-tint-ink);
+  }
+
+  .flash-ramka-blad {
+    background-color: var(--color-danger-tint);
+    color: var(--color-danger-tint-ink);
+    border-color: var(--color-danger);
+    border-left-width: 0.5rem;
+  }
+
+  .flash-etykieta {
+    margin: 0 0 var(--spacing-1);
+    font-weight: 700;
+  }
+
+  .flash {
+    margin: 0;
+    font-weight: 600;
   }
 
   /* Droga powrotu pod komunikatem — przycisk „Zapisz ponownie" po wyjęciu
@@ -1818,11 +1849,21 @@
      odstępu, gdy przycisk za nią stoi. `:has` w przeglądarce bez obsługi po
      prostu nic nie zmienia — zostaje zwykły, większy odstęp, czyli stan
      sprzed tej zmiany. */
-  .flash:has(+ .flash-powrot) {
+  .flash-ramka:has(+ .flash-powrot),
+  .flash-ramka:has(+ .flash-akcja),
+  .flash:has(+ .flash-powrot),
+  .flash:has(+ .flash-akcja) {
     margin-bottom: var(--spacing-3);
   }
 
   .flash-powrot {
+    margin-bottom: var(--spacing-5);
+  }
+
+  /* Jawny krok „Zobacz swój wpis" po pierwszej publikacji (issue #1881) —
+     ten sam odstęp co `.flash-powrot`, bo stoi w tym samym miejscu w układzie
+     i pełni tę samą rolę: jedna akcja tuż pod plakietką potwierdzenia. */
+  .flash-akcja {
     margin-bottom: var(--spacing-5);
   }
 
@@ -1923,6 +1964,28 @@
   .post-card {
     padding: 0;
     overflow: hidden;
+  }
+
+  /* OTWARTE MENU „…" ZDEJMUJE PRZYCINANIE KARTY (issue #1082).
+     Panel menu (`.post-card-menu-tresc`) jest `position: absolute`, więc
+     nie powiększa karty. Na krótkim wpisie bez zdjęcia rozwinięte
+     „Usuń wpis" → „Tak, usuń wpis" wychodziło poza dół karty i `overflow:
+     hidden` je ucinało. Zmierzone w Chromium (`scripts/menu-karty-wpisu.mjs`,
+     wpis „Zupa.", 1280 px): karta 231 px, rozwinięty panel sięga 338 px
+     poniżej jej dołu (390 px: 203 px). Myszą nie dało się trafić „Tak, usuń
+     wpis", a Tab przewijał TREŚĆ WEWNĄTRZ karty o 339 px — nagłówek i tekst
+     znikały nad jej górną krawędzią. Wpis ze zdjęciem jest wystarczająco
+     wysoki i przycięcia nie miał.
+
+     Dlaczego tylko przy otwartym menu, a nie w ogóle bez `overflow`:
+     przycinanie zostaje stanem spoczynku, więc zamknięta karta wygląda
+     dokładnie jak przedtem. Zdjęcia nigdy nie stoją w rogu karty (pierwsza
+     jest główka, ostatni pasek akcji), więc na czas otwartego menu nic nie
+     wychodzi poza zaokrąglenie. `z-index` panelu nie pomógłby — przycina
+     przodek, nie kolejność warstw. Bez JavaScriptu: `details[open]` to stan
+     z HTML-a. */
+  .post-card:has(.post-card-menu[open]) {
+    overflow: visible;
   }
 
   /*
@@ -2418,71 +2481,16 @@
     background-color: var(--color-surface-sunken);
   }
 
-  /* ---------------------------------------------------------------------
-     GALERIA „ZWYKLE" PRZY MIESZANYCH ORIENTACJACH (issue #431)
-
-     ZGŁOSZENIE. „Jedno zdjęcie pionowe, drugie poziome, przez to jest
-     rozjazd i bierze całą wysokość najwyższego zdjęcia nawet jak nie jest
-     wyświetlane."
-
-     CO SIĘ DZIAŁO. Dwie kolumny w jednym wierszu siatki mają wspólną
-     wysokość — wysokość NAJWYŻSZEGO zdjęcia. Zdjęcie poziome zajmowało
-     w tym wierszu mniej niż połowę tego, co pionowe, a reszta pola
-     zostawała pusta. ZMIERZONE (scripts/galeria-orientacje.mjs, zdjęcia
-     1200×1600 i 1600×900, motyw jasny):
-
-         szerokość   zdjęcie poziome   martwe pod nim
-            320 px        79,9 px          109,5 px
-            360 px        91,1 px          124,9 px
-            390 px        99,5 px          136,4 px
-            414 px       106,3 px          145,7 px
-
-     Martwego miejsca było WIĘCEJ niż samego zdjęcia. Przy czcionce
-     przeglądarki 200% wychodziło 97–133 px, czyli tak samo źle.
-
-     DLACZEGO JEDNA KOLUMNA, A NIE WYRÓWNANIE W WIERSZU. Bo przy 320 px
-     kolumna ma 142 px, a zdjęcie poziome mieści się w niej na 80 px
-     wysokości. Ośmiu centymetrów jedzenia nie da się obejrzeć — a
-     oglądanie jedzenia jest jedynym powodem, dla którego ktoś tu wchodzi.
-     To jest dokładnie ten sam argument i ten sam próg, na który właściciel
-     zgodził się już przy kolażu (patrz komentarz przy `.kolaz` niżej):
-     poniżej 30rem siatka schodzi do jednej kolumny, a każde zdjęcie dostaje
-     tyle wysokości, ile samo potrzebuje. Martwe pole znika wtedy nie
-     dlatego, że je czymś zasłoniliśmy, tylko dlatego, że przestaje istnieć.
-
-     `gap` rośnie z 2 px do odstępu tekstowego: dwa zdjęcia JEDNO POD DRUGIM
-     w odległości 2 px czytają się jak jedno rozcięte zdjęcie. W wierszu
-     obok siebie 2 px było w porządku i tam zostaje.
-
-     OD 30rem W GÓRĘ SIATKA ZOSTAJE DWUKOLUMNOWA I WIERSZ DALEJ MA WYSOKOŚĆ
-     NAJWYŻSZEGO ZDJĘCIA. To jest świadomie NIE naprawione: tam kolumna ma
-     już ponad 300 px, zdjęcie poziome jest widoczne, a zabranie drugiej
-     kolumny byłoby zmianą wyglądu całego serwisu na desktopie, o którą
-     nikt nie prosił. Zgłoszenie przyszło z telefonu.
-     --------------------------------------------------------------------- */
+  /* „Zwykle” to zdjęcia jedno pod drugim na każdym ekranie. W dwóch
+     kolumnach mieszane proporcje zostawiały pusty pas pod niższym zdjęciem,
+     a przy trzech zdjęciach prawą połowę ostatniego wiersza. Pojedyncza
+     kolumna pokazuje całe zdjęcia w kolejności, bez sztucznej wysokości;
+     układ obok siebie pozostaje świadomym wyborem „Kolaż”. */
   .photo-grid {
     display: grid;
-    gap: 2px;
-    grid-template-columns: repeat(auto-fit, minmax(48%, 1fr));
-    /*
-     * POLE NIE ROZCIĄGA SIĘ DO WYSOKOŚCI WIERSZA.
-     *
-     * Samo zdjęcie nigdy się nie rozciągało — `<img>` ma proporcję własną,
-     * więc `align-items: normal` zachowuje się dla niego jak `start`
-     * (zmierzone zniekształcenie: 0,0–0,4%, czyli zaokrąglenia). Rozciągał
-     * się natomiast ODNOŚNIK `.photo-zoom`, który zdjęcie owija — i przez
-     * to obszar „powiększ zdjęcie" sięgał przez całe martwe pole pod
-     * zdjęciem poziomym. Kliknięcie w puste miejsce otwierało powiększenie
-     * zdjęcia, którego tam nie było widać.
-     */
+    gap: var(--spacing-3);
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
-  }
-
-  @media (max-width: 30rem) {
-    .photo-grid {
-      grid-template-columns: minmax(0, 1fr);
-      gap: var(--spacing-3);
-    }
   }
 
   /* ---------------------------------------------------------------------
@@ -2660,18 +2668,12 @@
      KOLAŻ (issue #92)
 
      KOLAŻ NIE OBCINA JEDZENIA
-     Pola siatki są równe (kwadrat), ale zdjęcie mieści się w polu w CAŁOŚCI:
-     `object-fit: contain`, nie `cover`. Kadrowanie do kwadratu ucina to, co
-     człowiek chciał pokazać — a zdjęcie jedzenia jest w tym produkcie samą
-     treścią wpisu, nie tłem pod tekstem.
-
-     Cena jest widoczna: przy zdjęciach o różnych proporcjach zostają puste
-     marginesy na tle `--color-surface-sunken`. To jest świadomy wybór —
-     pusty margines da się zignorować, uciętego jedzenia nie da się odzyskać.
+     Dwa zdjęcia w wierszu dzielą szerokość według własnych proporcji.
+     Pokazują się całe, z równą wysokością, bez szarego kwadratu z pustymi
+     pasami. Samotne ostatnie zdjęcie wypełnia kolejny wiersz.
 
      NA WĄSKIM TELEFONIE KOLAŻ SCHODZI DO JEDNEJ KOLUMNY — DECYZJA WŁAŚCICIELA
-     Przy 320 px pole ma około 155 px, a przy zdjęciu poziomym zostaje z tego
-     jakieś 116 px wysokości obrazu. To jest za mało, żeby obejrzeć jedzenie —
+     Przy 320 px połowa karty jest za mała, żeby obejrzeć jedzenie —
      a oglądanie jedzenia jest jedynym powodem, dla którego ktoś tu wchodzi.
      Poniżej 30rem kolaż pokazuje się więc jako zwykła lista dużych zdjęć.
 
@@ -2684,84 +2686,78 @@
 
   .kolaz {
     display: grid;
-    gap: 2px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--spacing-2);
     margin: 0;
     padding: 0;
-    list-style: none;
+  }
+
+  .kolaz-wiersz {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--spacing-2);
   }
 
   .kolaz-pole {
-    aspect-ratio: 1;
-    background-color: var(--color-surface-sunken);
-    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
   }
+
+  /* Skok co 1/8 proporcji obrazu wystarcza do wyrównania pary bez
+     stylów inline, które blokuje produkcyjny CSP. */
+  .kolaz-format-4 { flex-grow: 4; }
+  .kolaz-format-5 { flex-grow: 5; }
+  .kolaz-format-6 { flex-grow: 6; }
+  .kolaz-format-7 { flex-grow: 7; }
+  .kolaz-format-8 { flex-grow: 8; }
+  .kolaz-format-9 { flex-grow: 9; }
+  .kolaz-format-10 { flex-grow: 10; }
+  .kolaz-format-11 { flex-grow: 11; }
+  .kolaz-format-12 { flex-grow: 12; }
+  .kolaz-format-13 { flex-grow: 13; }
+  .kolaz-format-14 { flex-grow: 14; }
+  .kolaz-format-15 { flex-grow: 15; }
+  .kolaz-format-16 { flex-grow: 16; }
+  .kolaz-format-17 { flex-grow: 17; }
+  .kolaz-format-18 { flex-grow: 18; }
+  .kolaz-format-19 { flex-grow: 19; }
+  .kolaz-format-20 { flex-grow: 20; }
+  .kolaz-format-21 { flex-grow: 21; }
+  .kolaz-format-22 { flex-grow: 22; }
+  .kolaz-format-23 { flex-grow: 23; }
+  .kolaz-format-24 { flex-grow: 24; }
 
   .kolaz-pole .photo-zoom-media,
   .kolaz-pole .post-photo {
     width: 100%;
-    height: 100%;
+    height: auto;
   }
 
   .kolaz-pole .post-photo {
     object-fit: contain;
   }
 
-  /* Kwadrat należy do zdjęcia, podpis linku ma własne miejsce pod nim. */
-  .kolaz-pole:has(.photo-zoom) {
-    aspect-ratio: auto;
-  }
-
-  .kolaz-pole .photo-zoom-media {
-    aspect-ratio: 1;
-    height: auto;
-  }
-
   /* POLE Z KOMUNIKATEM ZAMIAST ZDJĘCIA IDZIE NA CAŁĄ SZEROKOŚĆ (issue #432).
      ZMIERZONE 12.09.2026, kolaż z trzema zdjęciami bez wariantów: przy 600 px
-     blok zastępczy miał 282 px z 568 px karty (50%) i komunikat łamał się na
-     15 wierszy; przy 768 px — 342 px z 688 px i 12 wierszy. To jest dokładnie
-     to, co widać na zrzucie właściciela: „mniej niż połowa szerokości karty,
-     a po prawej pusty biały obszar".
-
-     Kwadratowe pół karty jest dobrą miarą dla ZDJĘCIA i złą dla ZDANIA.
-     `grid-column: 1 / -1` daje temu jednemu polu obie kolumny, a
-     `aspect-ratio: auto` zdejmuje z niego kwadrat — komunikat jest wysoki na
-     tyle, na ile ma treści, i nie udaje wysokości zdjęcia, którego nie ma.
-
-     `:has()` NIE JEST TU RYZYKIEM. Przeglądarka, która go nie zna, pomija
-     całą regułę i dostaje układ sprzed tej zmiany — czyli gorszy, ale
-     działający. To jest ulepszenie stopniowe, nie warunek czytelności:
-     samą szerokość bloku w jego polu załatwia `width: 100%` na
-     `.photo-placeholder`, bez żadnego `:has()`. */
+     blok zastępczy miał tylko połowę karty. Wiersz zawija pole zastępcze
+     na pełną szerokość, aby komunikat pozostał czytelny. */
   .kolaz-pole:has(.photo-placeholder) {
-    grid-column: 1 / -1;
-    aspect-ratio: auto;
+    flex-basis: 100%;
   }
 
   /* Wąski telefon: jedna kolumna i naturalna wysokość zdjęcia, czyli
-     dokładnie to samo, co widok „zwykły". Kwadratowe pole i `contain` mają
-     sens dopiero wtedy, gdy pole jest na tyle duże, żeby coś w nim było
-     widać. `aspect-ratio: auto` zdejmuje kwadrat, a `height: auto` pozwala
-     zdjęciu zająć tyle, ile potrzebuje. */
+     dokładnie to samo, co widok „zwykły". */
   @media (max-width: 30rem) {
     .kolaz {
       grid-template-columns: minmax(0, 1fr);
       gap: var(--spacing-3);
     }
 
-    .kolaz-pole {
-      aspect-ratio: auto;
-      background-color: transparent;
-    }
-
-    .kolaz-pole .photo-zoom-media,
-    .kolaz-pole .post-photo {
-      height: auto;
-    }
-
-    .kolaz-pole .photo-zoom-media {
-      aspect-ratio: auto;
+    .kolaz-wiersz {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--spacing-3);
     }
   }
 
@@ -3330,6 +3326,50 @@
     padding: var(--spacing-3) 0;
     border-bottom: 1px solid var(--color-border);
     font-size: var(--text-body-lg);
+  }
+
+  /* Zamiennik od autora pod składnikiem (D-284). Osobna linia i pełne 18 px —
+     `.meta` ma 16 px, a to jest informacja, której widz SZUKA, gdy czegoś
+     nie ma w domu, nie drobny dopisek. */
+  .skladnik-zamiennik {
+    display: block;
+    margin-top: var(--spacing-1);
+    font-size: var(--text-body);
+    color: var(--color-ink-muted);
+  }
+
+  /* Wybór liczby porcji nad listą składników (D-284). Przyciski mają
+     wysokość z `.btn` (≥ 48 px); zawijają się pod siebie przy 320 px
+     i przy 200 % powiększenia, zamiast wychodzić poza ekran. */
+  .porcje-wybor {
+    margin-bottom: var(--spacing-4);
+  }
+
+  .porcje-wybor-tytul {
+    margin: 0 0 var(--spacing-2);
+    font-size: var(--text-body);
+    font-weight: 700;
+  }
+
+  .porcje-wybor-przyciski {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-3);
+  }
+
+  .porcje-wybor-liczba {
+    min-width: 7ch;
+    text-align: center;
+    font-size: var(--text-body-lg);
+  }
+
+  .porcje-wybor-uwaga {
+    margin: 0 0 var(--spacing-4);
+    padding: var(--spacing-3) var(--spacing-4);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-sunken);
+    font-size: var(--text-body);
   }
 
   .step-list li {
@@ -4618,6 +4658,15 @@
     display: inline-flex;
     flex-wrap: wrap;
     gap: 0 var(--spacing-2);
+    /* Od issue #1909 to odnośnik do „Co nowego" — podkreślenie WIDOCZNE
+       ZAWSZE (nie tylko na hover), bo AGENTS.md §5 zakazuje ważnej akcji
+       polegającej wyłącznie na hoverze/kolorze. Element sam nie zmienia
+       koloru na hover: reszta serwisu tego nie robi (D-053 mówi
+       o wymogu JavaScriptu, nie o hoverze), a to jedyny sygnał klikalności,
+       jaki ma ten mały tekst. */
+    text-decoration: underline;
+    text-decoration-color: currentColor;
+    text-underline-offset: 2px;
   }
 
   /* Etap produktu („Alfa 0.1") pełnym atramentem, reszta stonowana — to jest
@@ -4934,6 +4983,84 @@
 
 .cook-ingredients .ingredient-list {
     margin: 0 0 var(--spacing-3);
+}
+
+/* Checklista przygotowania składników (issue #2069). Układ pod pole działa
+   dopiero, gdy skrypt je odkryje (`data-przygotowanie-gotowe`) — bez niego
+   wiersz wygląda dokładnie jak dotąd: zwykły tekst, bez kursora „rączki”
+   i bez miejsca na pole, którego nie widać. */
+
+/* Etykieta wiersza nie dziedziczy wyglądu etykiety pola formularza
+   (`tokens.css`: pogrubienie, 18 px, margines) — tekst składnika ma
+   wyglądać tak samo jak przed #2069, z JS i bez niego. */
+.cook-skladnik {
+    display: block;
+    margin: 0;
+    font-weight: inherit;
+    font-size: inherit;
+    color: inherit;
+}
+
+.cook-ingredients[data-przygotowanie-gotowe] .cook-skladnik {
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: var(--spacing-2) var(--spacing-3);
+    /* Cała linia składnika jest celem dotyku, co najmniej 48 px. */
+    min-height: var(--control-height-min);
+    cursor: pointer;
+}
+
+.cook-ingredients[data-przygotowanie-gotowe] .cook-skladnik-pole {
+    width: 1.75rem;
+    height: 1.75rem;
+    flex-shrink: 0;
+    /* Pole na wysokości pierwszej linii tekstu, nie na środku długiego
+       wiersza z zamiennikiem. */
+    margin: 0.1rem 0 0;
+    accent-color: var(--color-success);
+}
+
+/* Długie słowo w składniku zawija się zamiast wypychać ekran w bok przy
+   320 px — ta sama pułapka co przy `.cook-wakelock > span`. */
+.cook-ingredients[data-przygotowanie-gotowe] .cook-skladnik-tresc {
+    flex: 1 1 10rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Stan SŁOWEM obok pola — nie samym kolorem ani przekreśleniem, które
+   sugerowałoby, że składnik jest już zużyty. */
+.cook-skladnik-stan:not([hidden]) {
+    display: inline-block;
+    flex-shrink: 0;
+    padding: 0 var(--spacing-2);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-success-tint);
+    color: var(--color-success-tint-ink);
+    font-size: var(--text-body);
+    font-weight: 700;
+}
+
+.cook-przygotowanie-wstep,
+.cook-przygotowanie-licznik {
+    margin: 0 0 var(--spacing-3);
+    font-size: var(--text-body);
+    color: var(--color-ink-muted);
+}
+
+.cook-przygotowanie-akcje {
+    margin-bottom: var(--spacing-3);
+}
+
+/* `.btn` ma `display: inline-flex`, który wygrałby z samym `[hidden]` —
+   ten sam problem co `.pokaz-haslo[hidden]`. */
+.cook-przygotowanie-wyczysc[hidden] {
+    display: none;
+}
+
+.cook-przygotowanie-skrot {
+    font-weight: 400;
 }
 
 .cook-step {
@@ -5910,7 +6037,12 @@
   box-shadow: var(--shadow-popover);
 }
 
-.post-card-menu-tresc a {
+/* Skróty „Obserwuj tę osobę" / „Obserwuj tag: …" (issue #1809) to przyciski
+   formularzy POST — wyglądają i mierzą tyle samo co odnośniki menu: 48 px
+   celu, tekst w rozmiarze karty, wyrównanie do lewej. */
+.post-card-menu-tresc a,
+.post-card-menu-tresc [data-skrot-obserwuj],
+.post-card-menu-tresc [data-menu-akcja] {
   display: flex;
   align-items: center;
   min-height: var(--control-height-min);
@@ -5920,8 +6052,49 @@
   color: inherit;
 }
 
-.post-card-menu-tresc a:hover {
+.post-card-menu-tresc [data-skrot-obserwuj],
+.post-card-menu-tresc [data-menu-akcja] {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.post-card-menu-tresc a:hover,
+.post-card-menu-tresc [data-skrot-obserwuj]:hover,
+.post-card-menu-tresc [data-menu-akcja]:hover {
   background-color: var(--color-surface-sunken);
+}
+
+/* --- Zwinięta seria wpisów w Obserwowanych (issue #1812) ----------------
+   `<details>` bez JavaScriptu. `summary` to przycisk z tekstem: 48 px celu,
+   tekst w rozmiarze podstawowym, obwódka jak przy innych przyciskach —
+   bez niej zwinięta seria wyglądałaby na zwykły napis. Po rozwinięciu
+   „— Pokaż" znika, bo nie ma już czego pokazać.
+   ------------------------------------------------------------------------ */
+
+.seria-wpisow > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-1);
+  min-height: var(--control-height-min);
+  padding: var(--spacing-2) var(--spacing-4);
+  border: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-raised);
+  cursor: pointer;
+  list-style: none;
+}
+
+.seria-wpisow > summary::-webkit-details-marker { display: none; }
+
+.seria-wpisow[open] > summary .seria-wpisow-pokaz { display: none; }
+
+.seria-wpisow > .stack {
+  margin-top: var(--spacing-4);
 }
 
 /* --- Chipsy zakresu wyszukiwania (UI kit v2, ekran 03) -------------------
@@ -6222,14 +6395,29 @@
 
 /* Osoba na liście obserwujących: zdjęcie i nazwa jako jeden cel do kliknięcia.
    `min-width` pilnuje, żeby przy dwóch kolumnach nazwa nie łamała się po jednej
-   literze. */
+   literze.
+
+   `min(14rem, 100%)`, NIE SAMO `14rem` (#1341). `rem` rośnie z czcionką
+   przeglądarki: przy 200% samo minimum miało 448 px i w oknie 320 px wypychało
+   stronę w bok — `flex-wrap` karty przenosi link do nowego wiersza, ale nie
+   zdejmuje jego minimalnej szerokości. Teraz minimum nigdy nie przekracza
+   karty; gdy miejsca jest dość, zostaje wygodne 14rem. Pismo i cel dotknięcia
+   się nie zmieniają — zwija się tekst: `min-width: 0` pozwala części z nazwą
+   zejść poniżej długości najdłuższego słowa, a `overflow-wrap: anywhere` łamie
+   długą nazwę bez ukrywania jej fragmentu. Pomiar w przeglądarce:
+   `scripts/lista-osob-szerokosc.mjs`. */
 .osoba-link {
   display: flex;
   gap: var(--spacing-3);
   align-items: center;
   text-decoration: none;
   color: inherit;
-  min-width: 14rem;
+  min-width: min(14rem, 100%);
+}
+
+.osoba-link > :last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Kod zapasowy i sekret dwuetapowej weryfikacji. Odstępy między znakami, bo
@@ -6636,5 +6824,33 @@
 @media (max-width: 15rem) {
   .wejscia-dostawcow .logo-dostawcy {
     display: none;
+  }
+}
+
+/* ODCZYT ZDJĘCIA KARTKI (V2, D-298) — oryginał obok tekstu.
+   Na telefonie zdjęcie stoi NAD polami (zwykły przepływ dokumentu), na
+   szerokim ekranie opływa je kolumna pól, więc każdą linijkę da się
+   porównać ze zdjęciem bez skakania po stronie. Przy 320 px i 200%
+   powiększenia to jedna kolumna. */
+@layer components {
+  .oryginal-kartki {
+    margin: 0 0 1.5rem;
+  }
+
+  .lista-postepu {
+    padding-left: 1.5rem;
+  }
+
+  @media (min-width: 64rem) {
+    .oryginal-kartki {
+      float: right;
+      width: 40%;
+      margin-left: 1.5rem;
+    }
+
+    /* Panel obejmuje opływane zdjęcie, zamiast dać mu wystać pod spód. */
+    .panel-formularza:has(> .oryginal-kartki) {
+      display: flow-root;
+    }
   }
 }

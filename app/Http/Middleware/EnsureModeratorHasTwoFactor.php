@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Domain\Security\TwoFactorAuthenticator;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -29,6 +30,19 @@ class EnsureModeratorHasTwoFactor
 
         if ($user !== null && ! $user->hasTwoFactorConfirmed()) {
             return response()->view('pages.admin.wymagane_2fa', [], 403);
+        }
+
+        // KONTO MA 2FA, ALE TA SESJA KODU NIE WIDZIAŁA (#930).
+        //
+        // Stan konta nie mówi, jak powstała bieżąca sesja: mogła zostać
+        // z logowania samym hasłem sprzed włączenia 2FA albo odtworzyć się
+        // ze starego ciasteczka „zapamiętaj mnie". Do panelu wpuszcza więc
+        // dopiero dowód, że w tej sesji padł poprawny kod.
+        if ($user !== null && ! TwoFactorAuthenticator::sesjaMaDowod(
+            $user,
+            $request->session()->get(TwoFactorAuthenticator::KLUCZ_DOWODU_SESJI),
+        )) {
+            return response()->view('pages.admin.wymagane_2fa_w_sesji', [], 403);
         }
 
         return $next($request);

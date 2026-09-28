@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Analytics\ZapiszSygnal;
+use App\Domain\Monitoring\SeriaAlarmow;
 use App\Exceptions\OdzyskanyFormularz;
 use App\Http\Api\BledyApi;
 use App\Http\Controllers\WydanieController;
@@ -16,8 +17,10 @@ use App\Http\Middleware\EnsureUserIsModerator;
 use App\Http\Middleware\NormalizeForwardedFor;
 use App\Http\Middleware\PreventRequestForgeryExceptMediaCookie;
 use App\Http\Middleware\PreventSharedSessionCache;
+use App\Http\Middleware\SprawdzGeneracjeSesji;
 use App\Http\Middleware\StartSessionExceptAnonymousMedia;
 use App\Logging\QueueCorrelation;
+use App\Logging\WebhookBleduHandler;
 use App\Support\ZaufaneHosty;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -30,6 +33,8 @@ use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
+use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -238,6 +243,12 @@ return Application::configure(basePath: dirname(__DIR__))
             // zalogowany, więc na trasach gościa nie robi nic.
             EnsureAccountIsActive::class,
 
+            // #1046: sesja odtworzona przez żądanie, które skończyło się PO
+            // „wyloguj wszędzie”/resecie hasła, niesie starą generację i tu
+            // odpada. Po `EnsureAccountIsActive`, żeby zbanowane konto dostało
+            // tamten komunikat. Uzasadnienie: `App\Support\Sesja\GeneracjaSesji`.
+            SprawdzGeneracjeSesji::class,
+
             // PO `EnsureAccountIsActive`, CELOWO (issue #114/#115, bramka V1
             // z `docs/ROADMAP.md`). Konto właśnie wylogowane przez middleware
             // wyżej (zbanowane/`pending_delete`/`erased`) nie ma tu już
@@ -329,6 +340,15 @@ return Application::configure(basePath: dirname(__DIR__))
             // Zawsze DRUGI w trasie, po 'moderator' — issue #12, patrz
             // komentarz klasy: zakłada, że użytkownik jest już moderatorem.
             'moderator.2fa' => EnsureModeratorHasTwoFactor::class,
+            // Zamknięty zakres tokenu API (D-320, #1928). Sanctum niesie te
+            // dwie klasy, ale w Laravel 11+ nie rejestruje ich aliasów samo —
+            // bez tego wpisu `middleware('ability:...')` na trasie rzucałoby
+            // "Target class [ability] does not exist.", a trasa byłaby
+            // dostępna KAŻDYM tokenem, nie tylko tym z właściwym zakresem.
+            // 'ability' wymaga WSZYSTKICH podanych zakresów naraz,
+            // 'abilities' — dowolnego jednego z nich.
+            'ability' => CheckAbilities::class,
+            'abilities' => CheckForAnyAbility::class,
         ]);
 
         // DWA adresy wyjęte spod ochrony CSRF — i oba dlatego, że żąda ich
@@ -582,10 +602,25 @@ return Application::configure(basePath: dirname(__DIR__))
             // z komunikatem, który przy `QueryException` niesie e-mail i hash
             // hasła (A6-01). Skoro nie jest do niczego potrzebny, nie ma po co
             // go tu wkładać.
-            Log::channel('blad_webhook')->error($e::class, [
-                'exception' => $e,
-                ...app(QueueCorrelation::class)->forException($e),
-            ]);
+            // SERIA IDENTYCZNYCH BŁĘDÓW = JEDNA WIADOMOŚĆ NA OKNO (#599).
+            // Odcisk to klasa|plik|linia — bez komunikatu i bez adresu.
+            // Dziennik serwera dostaje każde wystąpienie i tak (raport
+            // domyślny Laravela), ograniczamy wyłącznie zewnętrzny kanał.
+            // Pełny kontrakt: `App\Domain\Monitoring\SeriaAlarmow`.
+            app(SeriaAlarmow::class)->zglos(
+                'wyjatek:'.WebhookBleduHandler::odcisk($e),
+                (int) config('kuking.monitoring.seria_okno_minut'),
+                function (int $pominiete) use ($e): bool {
+                    WebhookBleduHandler::zapomnijOstatniaWysylke();
+                    Log::channel('blad_webhook')->error($e::class, [
+                        'exception' => $e,
+                        'pominiete_powtorzenia' => $pominiete,
+                        ...app(QueueCorrelation::class)->forException($e),
+                    ]);
+
+                    return WebhookBleduHandler::ostatniaWysylkaSieUdala() === true;
+                },
+            );
         });
 
         // ------------------------------------------------------------------

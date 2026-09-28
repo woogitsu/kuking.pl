@@ -78,7 +78,7 @@
                        @checked(session()->hasOldInput() ? old('memories_enabled', false) : auth()->user()->memories_enabled)>
                 <span>
                     <span class="choice-label">Przypominaj mi moje wpisy z tego dnia w poprzednich latach</span>
-                    <span class="choice-help">Na stronie głównej pojawia się wtedy jeden Twój dawny wpis z tego samego dnia. Możesz to wyłączyć w każdej chwili — a pojedyncze wspomnienie schować przyciskiem przy nim.</span>
+                    <span class="choice-help">Na stronie głównej pojawia się wtedy jeden Twój dawny wpis z tego samego dnia, a w rocznicę założenia konta jedno zdanie od nas. Możesz to wyłączyć w każdej chwili — a pojedyncze wspomnienie schować przyciskiem przy nim.</span>
                 </span>
             </label>
             @if($errors->hasAny(['memories_enabled', 'original_memories']))
@@ -89,10 +89,53 @@
         <button class="btn btn-primary mt-4" type="submit">Zapisz</button>
     </form>
 
+    {{--
+        ZGODA „ODCZYT AI” (D-296) — udzielenie i wycofanie w jednym miejscu.
+
+        Sekcja jest wtedy, gdy odczyt działa ALBO gdy ktoś ma zgodę: wycofanie
+        musi być możliwe zawsze, także po wyłączeniu funkcji (RODO art. 7
+        ust. 3). Osobny formularz, nie haczyk w formularzu wyżej — zgoda ma
+        własny dziennik i nie może się przestawić przy okazji zapisu digestu.
+    --}}
+    @php
+        $zgodaNaOdczyt = app(\App\Domain\Zgody\PrzestawZgodeNaOdczytAi::class)->udzielona(auth()->user());
+        $odczytDziala = (bool) config('kuking.import.zrodla.zdjecie') && \App\Domain\Import\KlientLuna::skonfigurowany('ocr');
+    @endphp
+    @if($zgodaNaOdczyt || $odczytDziala)
+        <section class="mt-8" id="odczyt-ai">
+            <h2>Odczyt zdjęć kartek przez komputer</h2>
+            @if($zgodaNaOdczyt)
+                <p>Zgoda jest udzielona: zdjęcia kartek, które dodasz do odczytu, czyta komputer firmy OpenAI (USA). Wysyłamy samo zdjęcie — bez imienia, adresu e-mail i danych z aparatu.</p>
+                <form method="POST" action="{{ route('zgoda.odczyt-ai.wycofaj') }}">
+                    @csrf @method('DELETE')
+                    <button class="btn btn-secondary" type="submit">Wycofaj zgodę na odczyt</button>
+                </form>
+                <p class="field-help">Po wycofaniu zdjęcia kartek dalej dodasz do przepisów — tekst wpiszesz wtedy ręcznie.</p>
+            @else
+                {{--
+                    Ta sama informacja i ten sam formularz co na ekranie
+                    „Przepisz z kartki” (issue #2033): zgoda z ustawień nie
+                    może mieć za sobą skromniejszej informacji. Odmowa = nie
+                    klikać; nic się wtedy nie wysyła.
+                --}}
+                <p>Zgody nie ma, więc nie wysyłamy żadnych Twoich zdjęć do odczytu. Jeśli chcesz, żeby komputer przepisywał Twoje kartki, przeczytaj, jak to działa:</p>
+                <div class="panel-formularza stack">
+                    <x-zgoda-odczyt-ai skad="ustawienia" :glowny="false" />
+                </div>
+            @endif
+        </section>
+    @endif
+
     <section class="mt-8" id="zablokowane">
         <h2>Zablokowane osoby</h2>
-        @if($blocked->isEmpty())
+        @if($blocked->isEmpty() && $blocked->onFirstPage())
             <p class="meta">Nikogo nie blokujesz.</p>
+        @elseif($blocked->isEmpty())
+            {{-- Dalsza strona bywa pusta, gdy ktoś zdjął na niej ostatnią
+                 blokadę — „Nikogo nie blokujesz" byłoby wtedy nieprawdą
+                 o osobach z początku listy. --}}
+            <p>Dalej na liście nie ma już nikogo.</p>
+            <p><a class="btn btn-secondary" href="{{ route('settings.privacy') }}#zablokowane">Wróć do początku listy</a></p>
         @else
             <p>Te osoby nie widzą Twoich treści, a Ty nie widzisz ich.</p>
             <div class="stack-tight">
@@ -113,6 +156,10 @@
                     </div>
                 @endforeach
             </div>
+
+            {{-- Lista idzie stronami po 20 (#1366) — kursorem, bez numerów
+                 stron; zasady przycisku: components/show-more.blade.php. --}}
+            <x-show-more :paginator="$blocked" czego="osób" />
         @endif
     </section>
 

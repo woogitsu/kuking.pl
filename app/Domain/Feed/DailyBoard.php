@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Feed;
 
 use App\Models\DailyPick;
+use App\Models\Hide;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -110,7 +111,7 @@ final class DailyBoard
     private const KLUCZ_KANDYDACI_DAN = 'tablica-dnia:kandydaci-dan';
 
     /**
-     * @return array{people: Collection<int, User>, posts: Collection<int, Post>, curated: bool, notes: array<string, string>}
+     * @return array{people: EloquentCollection<int, User>, posts: EloquentCollection<int, Post>, curated: bool, notes: array<string, string>}
      */
     public function forViewer(?User $viewer): array
     {
@@ -154,8 +155,8 @@ final class DailyBoard
      * ktoś ostatnio coś pokazał, i najwyżej jedną pozycję od osoby — żadna
      * miara popularności nie wchodzi tu ani w wybór, ani w kolejność.
      *
-     * @param  array{people: Collection<int, User>, posts: Collection<int, Post>, curated: bool, notes: array<string, string>}  $tablica
-     * @return array{people: Collection<int, User>, posts: Collection<int, Post>, curated: bool, notes: array<string, string>}
+     * @param  array{people: EloquentCollection<int, User>, posts: EloquentCollection<int, Post>, curated: bool, notes: array<string, string>}  $tablica
+     * @return array{people: EloquentCollection<int, User>, posts: EloquentCollection<int, Post>, curated: bool, notes: array<string, string>}
      */
     private function uzupelnijDoSufitu(array $tablica, ?User $viewer): array
     {
@@ -189,7 +190,7 @@ final class DailyBoard
      * pustej karty ani zdradzić, że coś tu było.
      *
      * @param  Collection<int, DailyPick>  $picks
-     * @return array{people: Collection<int, User>, posts: Collection<int, Post>, curated: bool, notes: array<string, string>}
+     * @return array{people: EloquentCollection<int, User>, posts: EloquentCollection<int, Post>, curated: bool, notes: array<string, string>}
      */
     private function fromCuratedPicks(Collection $picks, ?User $viewer): array
     {
@@ -213,26 +214,23 @@ final class DailyBoard
             ->whereIn('id', $picks->where('subject_type', DailyPick::TYPE_POST)->pluck('subject_id'))
             ->publiclyVisible()
             ->whereNotIn('author_id', $hidden)
+            // „Ukryj ten wpis" (#1810) działa także na wybór gospodarza —
+            // widz wskazał TEN wpis palcem. Ukrycie osoby wyboru gospodarza
+            // nie zdejmuje (D-278): to jest oznaczony wybór, nie podsunięcie.
+            ->bezUkrytychWpisow($viewer)
             // Konto autora aktywne (audyt A5) — ta tablica żyje na tej samej
             // stronie /odkryj co reszta feedu i redakcja mogła wybrać wpis
             // wcześniej, zanim autora zawieszono albo zbanowano.
             ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
             // Przepis schowany, usunięty albo zawężony PO wyborze gospodarza
             // zabiera ze sobą wpis, który go wskazuje (issue #368) — tak samo
-            // jak zabiera go ukrycie samego wpisu dwie linijki wyżej. Wpis
-            // z własną treścią zostaje za swoją widocznością (issue #1377).
+            // jak zabiera go ukrycie samego wpisu dwie linijki wyżej.
+            // Wpis z własną treścią idzie za własną widocznością (issue #1377).
             ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)
-            ->with([
-                'author.profile.avatar',
-                'media',
-                // Wpis wskazujący przepis (issue #368) nie ma ani treści, ani
-                // własnych zdjęć — kafelek tablicy bierze z relacji tytuł
-                // przepisu i jego zdjęcie główne. Bez tych dwóch pozycji
-                // pokazałby samo imię autora.
-                'recipe:id,title,slug,visibility,hero_media_id',
-                'recipe.heroMedia',
-            ])
-            ->withVisibleCommentCount($viewer)
+            // Kontrakt kafelka (#1037): autor, zdjęcia, przepis z `heroMedia`
+            // i licznik komentarzy — `Post::scopeDlaKarty()`. Wariant
+            // `kafelek`, bo tablica nie pokazuje ani tematów, ani liczby zapisów.
+            ->dlaKarty($viewer, kafelek: true)
             ->get()
             ->tap(fn (Collection $wpisy) => Post::ukryjNiedostepnePrzepisy($wpisy, $viewer));
 
@@ -249,6 +247,13 @@ final class DailyBoard
             $picks->where('subject_type', DailyPick::TYPE_POST)
                 ->map(fn (DailyPick $pick) => $postsById->get($pick->subject_id))
                 ->filter()
+                // Najwyżej jedno danie od osoby TAKŻE w części redakcyjnej
+                // (#1296). Panel już tego pilnuje przy zapisie, ale zastane
+                // albo ręcznie wstawione `daily_picks` mogą mieć dwa dania
+                // jednego autora. Zostaje pierwsze według pozycji gospodarza
+                // (`forDate()` sortuje po `position`, `id`), a zwolnione
+                // miejsce uzupełnia automat w `uzupelnijDoSufitu()`.
+                ->unique('author_id')
                 ->values(),
         );
 
@@ -268,9 +273,9 @@ final class DailyBoard
      * i onboarding. Dwie różne odpowiedzi na to samo pytanie rozjechałyby się
      * przy pierwszej zmianie.
      *
-     * @return Collection<int, User>
+     * @return EloquentCollection<int, User>
      */
-    public function peopleToFollow(?User $viewer, int $limit = self::PEOPLE, array $pomin = []): Collection
+    public function peopleToFollow(?User $viewer, int $limit = self::PEOPLE, array $pomin = []): EloquentCollection
     {
         $excluded = $this->wykluczeniOsob($viewer, $pomin);
 
@@ -326,7 +331,8 @@ final class DailyBoard
         // Parametr, a nie odsiewanie po pobraniu: limit jest narzucany w SQL,
         // więc odsianie „po fakcie" zwracałoby MNIEJ pozycji niż proszono
         // i dziura zostawałaby otwarta.
-        $excluded = [...$this->hiddenAuthorIdsFor($viewer), ...$pomin];
+        // Ukryte osoby (#1810, D-278) — propozycje to podsuwanie ludzi.
+        $excluded = [...$this->hiddenAuthorIdsFor($viewer), ...$this->ukryteOsobyDla($viewer), ...$pomin];
 
         if ($viewer !== null) {
             $excluded = [
@@ -425,15 +431,20 @@ final class DailyBoard
     /**
      * Świeże wpisy, maksymalnie jeden od osoby.
      *
-     * @return Collection<int, Post>
+     * @return EloquentCollection<int, Post>
      */
-    private function automaticPosts(?User $viewer, int $limit = self::POSTS, array $pominAutorow = []): Collection
+    private function automaticPosts(?User $viewer, int $limit = self::POSTS, array $pominAutorow = []): EloquentCollection
     {
         // `$pominAutorow` — autorzy, których danie już stoi na tablicy
         // z wyboru gospodarza. Wykluczamy AUTORA, nie sam wpis, bo reguła
         // „najwyżej jedno danie od osoby" obowiązuje w całej tablicy, a nie
         // osobno w części redakcyjnej i osobno w dobranej.
-        $hidden = array_values(array_unique([...$this->hiddenAuthorIdsFor($viewer), ...$pominAutorow]));
+        // Ukryte osoby (#1810, D-278) — automatyczna część tablicy podsuwa ludzi.
+        $hidden = array_values(array_unique([...$this->hiddenAuthorIdsFor($viewer), ...$this->ukryteOsobyDla($viewer), ...$pominAutorow]));
+        // Ukryte wpisy odsiewamy przy przeglądaniu kandydatów z cache, nie
+        // dopiero w `pelneWpisy()`: tam brak wpisu wyglądałby jak nieaktualny
+        // cache i każdy widz z ukryciem kasowałby go wszystkim.
+        $ukryteWpisy = array_flip($this->ukryteWpisyDla($viewer));
 
         // DISTINCT ON (author_id), NIE „pobierz z zapasem i odsiej".
         //
@@ -480,12 +491,12 @@ final class DailyBoard
 
         $wybrane = [];
         foreach ($kandydaci as [$wpis, $autor]) {
-            if (! isset($ukryci[$autor])) {
+            if (! isset($ukryci[$autor]) && ! isset($ukryteWpisy[$wpis])) {
                 $wybrane[] = $wpis;
             }
         }
 
-        $wpisy = $wybrane === [] ? new Collection : $this->pelneWpisy($viewer, $wybrane, $limit);
+        $wpisy = $wybrane === [] ? new EloquentCollection : $this->pelneWpisy($viewer, $wybrane, $limit);
 
         // Jak przy osobach: kandydat odrzucony przez bramki (wpis schowany,
         // konto zawieszone, baza postawiona od nowa) znaczy nieaktualny cache.
@@ -502,14 +513,14 @@ final class DailyBoard
         // Rezerwa: kandydatów zabrakło po odsianiu, a mogą być następni.
         $wybrane = $this->najnowszyKazdegoAutora($viewer, $hidden, $limit)->pluck('id')->all();
 
-        return $wybrane === [] ? new Collection : $this->pelneWpisy($viewer, $wybrane, $limit);
+        return $wybrane === [] ? new EloquentCollection : $this->pelneWpisy($viewer, $wybrane, $limit);
     }
 
     /**
      * Najnowszy publiczny wpis każdego autora, najświeższe najpierw.
      *
      * @param  list<string>  $hidden
-     * @return Collection<int, object{id: string, author_id: string, published_at: string}>
+     * @return Collection<int, \stdClass> wiersze `DB::query()`: id, author_id, published_at
      */
     private function najnowszyKazdegoAutora(?User $viewer, array $hidden, int $limit): Collection
     {
@@ -517,6 +528,10 @@ final class DailyBoard
             ->selectRaw('DISTINCT ON (posts.author_id) posts.id, posts.author_id, posts.published_at')
             ->publiclyVisible()
             ->when($hidden !== [], fn ($query) => $query->whereNotIn('posts.author_id', $hidden))
+            // W podzapytaniu, przed `DISTINCT ON`: ukryty wpis oddaje miejsce
+            // starszemu wpisowi tego autora (#1810). Dla `null` (kandydaci
+            // do cache) nic nie robi.
+            ->bezUkrytychWpisow($viewer)
             // Konto autora aktywne (audyt A5) — patrz uzasadnienie przy
             // DiscoverFeed::paginate(): to jest promowanie treści, więc próg
             // jest surowszy niż zwykłe wejście na adres wpisu.
@@ -541,9 +556,9 @@ final class DailyBoard
 
     /**
      * @param  list<string>  $wybrane
-     * @return Collection<int, Post>
+     * @return EloquentCollection<int, Post>
      */
-    private function pelneWpisy(?User $viewer, array $wybrane, int $limit): Collection
+    private function pelneWpisy(?User $viewer, array $wybrane, int $limit): EloquentCollection
     {
         // Drugie zapytanie po pełne modele z relacjami. Osobno, bo
         // `DISTINCT ON` nie znosi `with()`/`withCount()` w tym samym
@@ -553,26 +568,44 @@ final class DailyBoard
             // Te same bramki co przy wyborze kandydatów, liczone dla TEGO
             // widza: kandydaci z cache mogli zostać schowani po zapisaniu.
             ->publiclyVisible()
+            ->bezUkrytychWpisow($viewer)
             ->whereHas('author', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
-            // Wpis z własną treścią zostaje za swoją widocznością (issue #1377);
-            // przepis zdejmuje z kafelka `Post::ukryjNiedostepnePrzepisy()`.
             ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer)
-            ->with([
-                'author.profile.avatar',
-                'media',
-                // Wpis wskazujący przepis (issue #368) nie ma ani treści, ani
-                // własnych zdjęć — kafelek tablicy bierze z relacji tytuł
-                // przepisu i jego zdjęcie główne. Bez tych dwóch pozycji
-                // pokazałby samo imię autora.
-                'recipe:id,title,slug,visibility,hero_media_id',
-                'recipe.heroMedia',
-            ])
-            ->withVisibleCommentCount($viewer)
+            // Kontrakt kafelka (#1037): autor, zdjęcia, przepis z `heroMedia`
+            // i licznik komentarzy — `Post::scopeDlaKarty()`. Wariant
+            // `kafelek`, bo tablica nie pokazuje ani tematów, ani liczby zapisów.
+            ->dlaKarty($viewer, kafelek: true)
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->limit($limit)
             ->get()
             ->tap(fn (Collection $wpisy) => Post::ukryjNiedostepnePrzepisy($wpisy, $viewer));
+    }
+
+    /**
+     * Osoby, które widz ukrył sobie (#1810, D-278) — aktywne ukrycia.
+     *
+     * @return list<string>
+     */
+    private function ukryteOsobyDla(?User $viewer): array
+    {
+        if ($viewer === null) {
+            return [];
+        }
+
+        return Hide::query()->aktywne()->where('user_id', $viewer->getKey())
+            ->whereNotNull('hidden_user_id')->pluck('hidden_user_id')->all();
+    }
+
+    /** @return list<string> */
+    private function ukryteWpisyDla(?User $viewer): array
+    {
+        if ($viewer === null) {
+            return [];
+        }
+
+        return Hide::query()->aktywne()->where('user_id', $viewer->getKey())
+            ->whereNotNull('post_id')->pluck('post_id')->all();
     }
 
     /** @return list<string> */

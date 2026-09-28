@@ -130,7 +130,11 @@ class WeeklyActiveCooksTest extends TestCase
         Post::factory()->create(['author_id' => $gospodarz->getKey(), 'published_at' => $this->wTygodniu()]);
         Post::factory()->create(['author_id' => $podszywajacy->getKey(), 'published_at' => $this->wTygodniu('13:00:00')]);
 
-        $wykluczeni = app(CookEligibility::class)->excludedUserIds();
+        // `excludedUserIds()` zniknęło w #1309 — wykluczenie jest filtrem SQL.
+        $liczeni = User::query();
+        app(CookEligibility::class)->tylkoLiczeni($liczeni, 'users.id');
+        $liczeniId = $liczeni->pluck('id')->all();
+        $wykluczeni = array_values(array_diff([$gospodarz->getKey(), $podszywajacy->getKey()], $liczeniId));
         $tydzien = $this->tydzienZWyniku($this->wac()->weekly(), self::TYDZIEN_START);
 
         $this->assertContains($gospodarz->getKey(), $wykluczeni);

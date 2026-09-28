@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domain\Feed;
 
-use App\Domain\Collections\ZapisyWpisu;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
-use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Feed obserwowanych — osoby RAZEM z tematami, chronologicznie, bez algorytmu.
@@ -30,20 +30,14 @@ use Illuminate\Support\Collection;
  * użytkowników na tych "widzianych" i "niewidzianych".
  *
  * Zapytanie jest celowo proste: WHERE author_id IN (...) OR (publiczny
- * AND EXISTS obserwowany tag) + kursor.
+ * AND EXISTS obserwowany tag) + kursor. Bramki widoczności i blokad
+ * (`Post::widoczneDla()`) stoją w TYM SAMYM zapytaniu, dla obu gałęzi —
+ * patrz `zrodla()`, issue #2026.
  * Żadnego fanout-on-write, żadnej osobnej tabeli feedu — dopóki pomiar nie
  * pokaże, że jest potrzebna (docs/ARCHITECTURE.md).
  */
 final class FollowingFeed
 {
-    /**
-     * `new ZapisyWpisu` jako domyślna wartość — tak samo jak
-     * `LiczbaKukingow` bierze `CookEligibility`. Kontener i tak wstrzyknie
-     * tę klasę (nie ma zależności), a domyślna wartość sprawia, że test
-     * wołający `new FollowingFeed` wprost nie musi o niej wiedzieć.
-     */
-    public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
-
     /** @return CursorPaginator<int, Post> */
     public function paginate(User $viewer, ?int $perPage = null): CursorPaginator
     {
@@ -57,32 +51,9 @@ final class FollowingFeed
         $authorIds = array_values(array_unique([...$followedIds, $viewer->getKey()]));
 
         $strona = $this->zrodla(Post::query(), $viewer, $authorIds, $tagIds, zWlasnymi: true)
-            ->with([
-                'author.profile.avatar',
-                'media',
-                // `visibility` i `hero_media_id` W SELEKCIE, a `heroMedia`
-                // doładowane (issue #368): karta wpisu wskazującego przepis
-                // bierze z relacji WSZYSTKO — tytuł, zdjęcie i plakietkę
-                // widoczności — bo wpis niczego z przepisu nie kopiuje.
-                // Kolumna pominięta w selekcie wróciłaby jako `null`, czyli
-                // karta po cichu napisałaby „publicznie" pod przepisem
-                // widocznym tylko dla obserwujących.
-                'recipe:id,title,slug,visibility,hero_media_id',
-                'recipe.heroMedia',
-                // Bez tego karta wpisu (post-card.blade.php) nie pokaże
-                // tematów tego wpisu — `relationLoaded()` tam celowo NIE
-                // dociąga ich sama, żeby nie odpalić zapytania per wpis.
-                'tags:id,slug,name,status',
-            ])
-            ->withVisibleCommentCount($viewer)
-            // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
-            // zapytaniem, co wszystko powyżej (issue #275, D-081). Reguły
-            // (kto się liczy, od ilu osób widać liczbę) siedzą w
-            // `ZapisyWpisu`; tutaj jest tylko miejsce, w którym dokładamy
-            // kolumnę do SELECT-a. Bez tego karta wpisu nie pokazałaby ani
-            // liczby, ani potwierdzenia — dokładnie jak z `tags:id,slug,name,status`
-            // wyżej.
-            ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
+            // Relacje karty, licznik komentarzy i zapisów — jeden kontrakt
+            // `Post::scopeDlaKarty()` (#1037), ten sam na każdej liście wpisów.
+            ->dlaKarty($viewer)
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->cursorPaginate($perPage);
@@ -142,8 +113,9 @@ final class FollowingFeed
             ->where(function (Builder $zrodla) use ($viewer, $authorIds, $tagIds, $zWlasnymi): void {
                 // 1. Obserwowane osoby (i widz): publiczne oraz „tylko dla
                 //    obserwujących" — te drugie widzi obserwujący i autor.
-                //    Blokada kasuje obserwowanie w obie strony, więc osobnej
-                //    bramki blokad ta gałąź nie potrzebuje.
+                //    Lista `$authorIds` to tylko ZAWĘŻENIE źródła, nie
+                //    uprawnienie: bramki blokad i obserwowania liczy
+                //    `widoczneDla()` niżej, w chwili tego zapytania (#2026).
                 $zrodla->where(fn (Builder $osoby) => $osoby
                     ->whereIn('posts.author_id', $authorIds)
                     ->whereIn('posts.visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS]));
@@ -155,9 +127,10 @@ final class FollowingFeed
                 // 2. Obserwowane tematy: WYŁĄCZNIE wpisy publiczne. Obserwowanie
                 //    tematu nie jest relacją z autorem, więc nie otwiera „tylko
                 //    dla obserwujących" ani prywatnych — także własnych (te
-                //    wchodzą gałęzią pierwszą, z jej regułami). `widoczneDla()`
-                //    dokłada blokady w OBIE strony: temat nie może być obejściem
-                //    blokady. `whereHas` to `EXISTS`, nie `JOIN` — wpis z trzema
+                //    wchodzą gałęzią pierwszą, z jej regułami). Blokady w OBIE
+                //    strony dokłada `widoczneDla()` niżej, wspólne dla obu
+                //    gałęzi: temat nie może być obejściem blokady.
+                //    `whereHas` to `EXISTS`, nie `JOIN` — wpis z trzema
                 //    obserwowanymi tematami wychodzi raz (SPEC §1.9).
                 //    Tylko tematy aktywne: temat ukryty albo scalony przez
                 //    moderację nie prowadzi już wpisów na Start.
@@ -166,9 +139,25 @@ final class FollowingFeed
                     ->whereHas('tags', fn ($q) => $q
                         ->whereIn('tags.id', $tagIds)
                         ->where('tags.status', Tag::STATUS_ACTIVE))
-                    ->widoczneDla($viewer)
+                    // „Ukryj tę osobę" (#1810, D-278, decyzja właściciela
+                    // 26.09) działa też tutaj: wpis z tagu PODSUWA autora,
+                    // którego widz nie wybrał. Tylko w tej gałęzi — osoby
+                    // obserwowane wprost (gałąź 1.) zostają zawsze widoczne,
+                    // także gdy ich wpis ma obserwowany tag.
+                    ->bezUkrytychOsob($viewer)
                     ->when(! $zWlasnymi, fn (Builder $q) => $q->where('posts.author_id', '!=', $viewer->getKey())));
             })
+            // BLOKADA I OBSERWOWANIE W CHWILI ZAPYTANIA (issue #2026), dla OBU
+            // gałęzi. Do #2026 gałąź osób ufała liście `$authorIds` pobranej
+            // osobnym zapytaniem („blokada kasuje obserwowanie"). Blokada
+            // zatwierdzona między tamtym odczytem a tym zapytaniem (READ
+            // COMMITTED) zostawiała autora na liście, a jego wpis — także
+            // „tylko dla obserwujących" — wychodził na Start. `widoczneDla()`
+            // dokłada tu `NOT EXISTS` po `blocks` w obie strony i `EXISTS` po
+            // `follows` dla „tylko dla obserwujących": to samo zapytanie, które
+            // zwraca treść, sprawdza aktualny stan. Bez dodatkowych zapytań.
+            // Własne wpisy widza przechodzi zawsze (autor widzi swoje).
+            ->widoczneDla($viewer)
             // Wąski próg (`status = active`), nie `jestDostepnyJakoAutor()`,
             // dla OBU gałęzi. Do #1808 stał tu komentarz o luce, przez którą
             // wpis zbanowanego autora stał w feedzie każdego, kto tę osobę
@@ -176,6 +165,10 @@ final class FollowingFeed
             // Poluzowanie tego do granicy z polityki (czyli wpuszczenie
             // zawieszonych) to osobna decyzja, nie poprawka luki.
             ->tylkoOdAktywnychAutorow()
+            // „Ukryj ten wpis" (#1810, D-278) — jawne polecenie widza, dla obu
+            // gałęzi. Ukrycie OSOBY działa tylko w gałęzi tagów (wyżej): osób
+            // obserwowanych wprost się nie ukrywa (AGENTS.md §8).
+            ->bezUkrytychWpisow($viewer)
             // WPIS WSKAZUJĄCY PRZEPIS WYCHODZI TYLKO Z WIDOCZNYM PRZEPISEM
             // (issue #368). Widoczność liczy się Z PRZEPISU, nie z kopii na
             // wpisie — patrz `Post::scopeZWidocznymPrzepisem()`. Dla gałęzi
@@ -215,6 +208,26 @@ final class FollowingFeed
     /** @return list<string> */
     private function obserwowaneTematy(User $viewer): array
     {
-        return $viewer->followedTags()->pluck('tags.id')->all();
+        // Tylko tagi AKTYWNE (#853). Wiersz `tag_follows` do tagu ukrytego albo
+        // scalonego może zostać z czasów sprzed bramki w `UpdateTagFollows`
+        // — i nie może zasilać Startu: ukryty tag ma 404 na własnej stronie,
+        // a jego chip karta i tak chowa, więc widz nie miałby jak zobaczyć,
+        // skąd wpis. Scalony tag prowadzi do CELU, jeśli ten jest aktywny —
+        // ta sama semantyka co w `MergeTags::przepnijObserwacje()`.
+        // Warunek stoi tutaj, nie w relacji `followedTags()` (#1824): ekran
+        // ustawień musi nadal widzieć zastany ukryty tag, żeby człowiek mógł
+        // go sam zdjąć w „Twoich tagach”; ten sam warunek decyduje też
+        // w `isEmptyFor()`.
+        $obserwowane = DB::table('tag_follows')->select('tag_id')->where('user_id', $viewer->getKey());
+
+        return Tag::query()->aktywne()
+            ->where(fn ($q) => $q->whereIn('id', $obserwowane)->orWhereIn(
+                'id',
+                Tag::query()->select('merged_into_tag_id')
+                    ->where('status', Tag::STATUS_MERGED)
+                    ->whereIn('id', $obserwowane),
+            ))
+            ->pluck('id')
+            ->all();
     }
 }

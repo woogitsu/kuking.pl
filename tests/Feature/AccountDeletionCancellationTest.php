@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\AuditLogEntry;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Exceptions;
+use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -179,5 +183,86 @@ class AccountDeletionCancellationTest extends TestCase
 
         $this->assertSame(User::STATUS_ERASED, $basia->status);
         $this->assertNotNull($basia->data_erased_at);
+    }
+
+    // ------------------------------------------------------------------
+    // #1893 — awaria dziennika audytu po zatwierdzonym cofnięciu
+    // ------------------------------------------------------------------
+
+    /**
+     * `CancelAccountDeletion::handle()` zapisywał `account.delete_cancelled`
+     * PO zatwierdzonej transakcji (kontroler, poza `handle()`). Awaria tego
+     * `INSERT`-a dawała HTTP 500 mimo już cofniętego usunięcia — a ponowienie
+     * odbijało się o „to konto nie jest oznaczone do usunięcia — nie ma
+     * czego cofać", bo konto było już `active`.
+     *
+     * D-249 (klasa 1): ten wpis jest — razem z `account.delete_requested` —
+     * jedynym śladem w całej bazie, że ktoś zgłosił usunięcie i się rozmyślił
+     * (`cancelDeletion()` zeruje `delete_requested_at`). Dlatego stoi w TEJ
+     * SAMEJ transakcji: awaria cofa cofnięcie, konto zostaje
+     * `pending_delete`, a formularz da się wysłać jeszcze raz.
+     *
+     * Kontrola ujemna (wykonana ręcznie): przeniesienie `AuditLogEntry::
+     * record()` z powrotem do kontrolera, po `handle()`, daje na tym teście
+     * HTTP 500 zamiast przekierowania z błędem — dokładnie to, co ten test
+     * ma złapać.
+     */
+    public function test_awaria_dziennika_cofa_takze_cofniecie_a_ponowienie_daje_jeden_komplet(): void
+    {
+        Exceptions::fake();
+        $basia = $this->user('basia', [
+            'status' => User::STATUS_PENDING_DELETE,
+            'delete_requested_at' => now()->subDays(5),
+        ]);
+        $awaria = true;
+
+        // Awaria PO wykonaniu INSERT-u (`DB::listen` woła się po zapytaniu).
+        DB::listen(function ($zapytanie) use (&$awaria): void {
+            if ($awaria
+                && str_contains($zapytanie->sql, 'insert into "audit_log"')
+                && in_array('account.delete_cancelled', $zapytanie->bindings, true)) {
+                throw new RuntimeException('Wstrzyknięta awaria dziennika: account.delete_cancelled');
+            }
+        });
+
+        $this->post(route('account.delete.cancel.store'), [
+            'login' => 'basia',
+            'password' => 'haslo-testowe-123',
+        ])->assertSessionHasErrors('login');
+
+        $stan = $basia->fresh();
+        $this->assertSame(User::STATUS_PENDING_DELETE, $stan->status, 'Cofnięcie miało się cofnąć razem z awarią dziennika.');
+        $this->assertNotNull($stan->delete_requested_at);
+        $this->assertSame(0, AuditLogEntry::query()->where('action', 'account.delete_cancelled')->count());
+        Exceptions::assertReported(fn (RuntimeException $e): bool => str_contains($e->getMessage(), 'Wstrzyknięta awaria dziennika'));
+
+        // Awaria minęła — człowiek klika jeszcze raz.
+        $awaria = false;
+
+        $this->post(route('account.delete.cancel.store'), [
+            'login' => 'basia',
+            'password' => 'haslo-testowe-123',
+        ])->assertRedirect(route('login'))->assertSessionHasNoErrors();
+
+        $this->assertSame(User::STATUS_ACTIVE, $basia->fresh()->status);
+        $this->assertSame(1, AuditLogEntry::query()->where('action', 'account.delete_cancelled')->count());
+    }
+
+    public function test_kontrola_dodatnia_cofniecie_bez_awarii_zapisuje_jeden_wpis(): void
+    {
+        Exceptions::fake();
+        $basia = $this->user('basia', [
+            'status' => User::STATUS_PENDING_DELETE,
+            'delete_requested_at' => now()->subDays(5),
+        ]);
+
+        $this->post(route('account.delete.cancel.store'), [
+            'login' => 'basia',
+            'password' => 'haslo-testowe-123',
+        ])->assertRedirect(route('login'))->assertSessionHasNoErrors();
+
+        $this->assertSame(User::STATUS_ACTIVE, $basia->fresh()->status);
+        $this->assertSame(1, AuditLogEntry::query()->where('action', 'account.delete_cancelled')->count());
+        Exceptions::assertNotReported(fn (RuntimeException $e): bool => str_contains($e->getMessage(), 'dziennika audytu'));
     }
 }

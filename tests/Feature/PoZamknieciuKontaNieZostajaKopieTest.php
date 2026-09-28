@@ -108,6 +108,56 @@ class PoZamknieciuKontaNieZostajaKopieTest extends TestCase
         Storage::disk('local')->assertMissing($klucz);
     }
 
+    /**
+     * #1842: rekord starszy niż 7 dni ma nadal drogę do sprzątania.
+     *
+     * Do 26 września 2026 zapytanie miało górną granicę
+     * `updated_at >= now()->subDays(7)`, z założeniem, że starsze rekordy
+     * „przeszły już przez wcześniejsze noce”. Po przerwie harmonogramu to
+     * założenie jest fałszywe — ten test symuluje dokładnie taką przerwę:
+     * rekord ma 10 dni i NIGDY wcześniej nie był sprzątnięty (plik wciąż
+     * leży w magazynie).
+     */
+    public function test_sprzatanie_zabiera_plik_nieudanej_proby_starszej_niz_tydzien(): void
+    {
+        $basia = $this->user('basia');
+        $export = DataExport::create(['user_id' => $basia->getKey(), 'status' => DataExport::STATUS_QUEUED]);
+        $klucz = ExportFileNames::objectKey($export);
+        Storage::disk('local')->put($klucz, 'zip');
+        DB::table('data_exports')->where('id', $export->getKey())->update([
+            'status' => DataExport::STATUS_FAILED, 'failure_reason' => DataExport::REASON_UNKNOWN,
+            'updated_at' => now()->subDays(10),
+        ]);
+
+        $this->artisan('kuking:sprzataj-eksporty')->assertSuccessful();
+
+        Storage::disk('local')->assertMissing($klucz);
+    }
+
+    /**
+     * #1840: `--dry-run` musi pokazać osierocone obiekty po nieudanych
+     * eksportach i NIE WOLNO mu ich kasować.
+     */
+    public function test_dry_run_pokazuje_osierocony_plik_nieudanej_proby_i_go_nie_kasuje(): void
+    {
+        $basia = $this->user('basia');
+        $export = DataExport::create(['user_id' => $basia->getKey(), 'status' => DataExport::STATUS_QUEUED]);
+        $klucz = ExportFileNames::objectKey($export);
+        Storage::disk('local')->put($klucz, 'zip');
+        DB::table('data_exports')->where('id', $export->getKey())->update([
+            'status' => DataExport::STATUS_FAILED, 'failure_reason' => DataExport::REASON_UNKNOWN,
+            'updated_at' => now()->subHours(2),
+        ]);
+
+        $this->artisan('kuking:sprzataj-eksporty', ['--dry-run' => true])
+            ->assertSuccessful()
+            ->expectsOutputToContain('Do usunięcia (osierocony obiekt po nieudanym eksporcie): '.$export->getKey());
+
+        // Podgląd nie zmienia niczego: plik zostaje, rekord też.
+        Storage::disk('local')->assertExists($klucz);
+        $this->assertSame(DataExport::STATUS_FAILED, $export->fresh()->status);
+    }
+
     public function test_wymazanie_konta_kasuje_wszystkie_paczki_i_link_resetu_hasla(): void
     {
         $basia = $this->user('basia', ['email' => 'Basia.Kowalska@example.com']);

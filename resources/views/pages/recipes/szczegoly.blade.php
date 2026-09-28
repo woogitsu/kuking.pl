@@ -3,8 +3,12 @@
        początku (`\App\Models\Recipe::DIFFICULTY_LABELS` niżej). */
     $isEdit = $recipe !== null;
     $action = $isEdit ? route('recipes.update', $recipe->slug) : route('recipes.store');
+    $stareZdjecia = old('zachowane_zdjecia', []);
+    $zachowaneZdjecia = \App\Domain\Media\ZachowaneZdjeciaPrzepisu::przyjete(
+        is_array($stareZdjecia) ? $stareZdjecia : [], auth()->id()
+    );
 
-    $oldIngredients = old('ingredients', $isEdit ? $recipe->ingredients->map(fn ($i) => ['text' => $i->ingredient_text, 'group_name' => $i->group_name, 'note' => $i->note, 'no_amount' => $i->no_amount])->all() : []);
+    $oldIngredients = old('ingredients', $isEdit ? $recipe->ingredients->map(fn ($i) => ['text' => $i->ingredient_text, 'group_name' => $i->group_name, 'note' => $i->note, 'substitutes' => $i->substitutes, 'no_amount' => $i->no_amount])->all() : []);
 
     /*
      * KAŻDY WIERSZ KROKU NIESIE SWOJĄ TOŻSAMOŚĆ (audyt zewnętrzny T12/T24).
@@ -68,6 +72,11 @@
 
 <x-layout :title="$isEdit ? 'Dopisz szczegóły' : 'Dodaj przepis ze szczegółami'" :noindex="true">
     <h1>{{ $isEdit ? 'Dopisz szczegóły' : 'Dodaj przepis ze szczegółami' }}</h1>
+    {{-- „Moja wersja" (issue #23, D-301): podpis widać też tu, a formularz
+         nie ma pola, które by go zdejmowało. --}}
+    @if($recipe)
+        <x-na-podstawie-przepisu :recipe="$recipe" />
+    @endif
     {{-- ZDANIE „NIE MUSISZ NIC PRZEWIJAĆ ANI SZUKAĆ" ZNIKŁO, BO BYŁO NIEPRAWDĄ.
 
          Zmierzone 11 września 2026 Chromium 1243 na postawionej lokalnie
@@ -119,7 +128,36 @@
         <x-ostrzezenie-niezapisanych id="ostrzezenie-kreatora-gora" :href="$kreatorUrl" :zapisz="$przyciskZapisu" />
     @endif
 
+    @php
+        // Szkic z importu (D-300): baner, zablokowane źródło, „Sprawdziłem”.
+        $pochodzenie = $isEdit ? \App\Models\PrzepisZImportu::query()->find($recipe->getKey()) : null;
+        $wymagaSprawdzenia = $pochodzenie !== null && ! $pochodzenie->sprawdzony() && ! $recipe->isPublished();
+        $ostrzezeniePodobienstwa = $wymagaSprawdzenia && app(\App\Domain\Import\PodobienstwoDoZrodla::class)
+            ->ostrzegac($recipe, $recipe->steps->pluck('instruction')->implode("\n"));
+        // Szkic z odczytu zdjęcia kartki (V2, D-298): baner, zdjęcie nad
+        // polami i „Odczytany tekst jest sprawdzony” przed publikacją — ta sama
+        // bramka co w kreatorze, bo obie drogi kończą w `PublishRecipe`.
+        $zOdczytu = $isEdit && $recipe->status === \App\Models\Recipe::STATUS_DRAFT
+            && \App\Domain\Import\BramkaPublikacjiOdczytu::maOdczyt($recipe);
+    @endphp
+    @if($pochodzenie !== null && ! $recipe->isPublished())
+        <div class="notice" role="note">
+            <p class="mt-0 mb-0">
+                <strong>Ten tekst odczytał komputer.</strong>
+                Porównaj każdą linijkę ze źródłem i popraw, co trzeba. Nic się nie opublikuje, dopóki nie klikniesz „Opublikuj przepis”.
+            </p>
+        </div>
+    @endif
+
     <x-error-summary />
+
+    @if($zOdczytu)
+        @include('pages.import.partials.baner', ['niepewnych' => \App\Domain\Import\BramkaPublikacjiOdczytu::ileNiepewnych(
+            (string) $recipe->title, (string) $recipe->summary,
+            ...$recipe->ingredients->pluck('ingredient_text')->map(fn ($t) => (string) $t)->all(),
+            ...$recipe->steps->pluck('instruction')->map(fn ($t) => (string) $t)->all(),
+        )])
+    @endif
 
     {{-- PANEL JEST JEDEN I SIEDZI NA `<form>`, nie na czterech sekcjach.
 
@@ -139,7 +177,10 @@
     <form class="panel-formularza" id="formularz-szczegolow" method="POST" action="{{ $action }}" enctype="multipart/form-data"
           @if($errors->any()) data-niezapisane-od-serwera @endif>
         @csrf
-        @if($isEdit) @method('PUT') @endif
+        @if($isEdit)
+            @method('PUT')
+            <input type="hidden" name="content_revision" value="{{ old('content_revision', $recipe->content_revision) }}">
+        @endif
 
         {{-- TOŻSAMOŚĆ TEGO WYSŁANIA (ADR docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md).
              Tylko przy DODAWANIU: edycja pracuje na przepisie, który już
@@ -169,6 +210,7 @@
                  resources/css/ekran-dodawania.css. --}}
             <div class="field @error('hero_photo') has-error @enderror">
                 <span class="pole-zdjecia-nazwa" id="f-hero_photo-etykieta">Zdjęcie gotowego dania</span>
+                @include('pages.recipes.partials.zachowane-zdjecie', ['klucz' => 'hero'])
                 <input class="visually-hidden pole-zdjecia-input" id="f-hero_photo" type="file" name="hero_photo"
                        accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                        aria-labelledby="f-hero_photo-etykieta f-hero_photo-tytul"
@@ -188,7 +230,7 @@
             <div class="siatka-pol">
                 {{-- Krok 0,01 (setne) — decyzja właściciela z 20.09.2026 (#750).
                      Kolumna `servings` to decimal(6,2); `step` musi się zgadzać
-                     z walidacją serwera (`RecipeController::validated()`),
+                     z walidacją serwera (`ZapisPrzepisuRequest`),
                      inaczej przeglądarka odrzuca poprawną wartość jako
                      `stepMismatch`, zanim żądanie w ogóle wyjdzie. --}}
                 <x-field name="servings" label="Na ile porcji" type="number" inputmode="decimal"
@@ -198,6 +240,15 @@
                 <x-field name="cook_minutes" label="Gotowanie / pieczenie (minuty)" type="number" inputmode="numeric"
                          :value="$isEdit ? $recipe->cook_minutes : null" :min="0" :max="10080" />
             </div>
+
+            {{-- Koszt wg autora (D-286). `type="text"` z `inputmode="decimal"`,
+                 a nie `type="number"`: po polsku pisze się „24,50", a pole
+                 liczbowe w części przeglądarek odrzuca przecinek po cichu —
+                 wysyła pusty ciąg i kwota znika. Przecinek, spacje i dopisek
+                 „zł" normalizuje serwer (`KosztPrzepisu::normalizuj`). --}}
+            <x-field name="estimated_cost_pln" label="Przybliżony koszt całego przepisu (zł)" inputmode="decimal"
+                     :value="$isEdit ? \App\Domain\Recipes\KosztPrzepisu::doPola($recipe->estimated_cost_pln) : null"
+                     help="Ile mniej więcej kosztują składniki na cały przepis. Wpisz samą liczbę złotych, na przykład 24 albo 24,50. Na stronie przepisu pokażemy to jako szacunek autora." />
 
             {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty
                  ARIA wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
@@ -259,7 +310,7 @@
                 <div class="choice-grid">
                     @foreach(\App\Models\Recipe::SOURCE_LABELS as $value => $label)
                         <label class="choice">
-                            <input type="radio" name="source_type" value="{{ $value }}"
+                            <input type="radio" name="source_type" value="{{ $value }}" @disabled(($pochodzenie?->zrodlo ?? null) === 'url')
                                    @checked(old('source_type', $isEdit ? $recipe->source_type : 'own') === $value)>
                             <span class="choice-label">{{ $label }}</span>
                         </label>
@@ -297,6 +348,7 @@
                  bezpośrednio przed nią. --}}
             <div class="field @error('source_scan') has-error @enderror">
                 <span class="pole-zdjecia-nazwa" id="f-source_scan-etykieta">Zdjęcie starej kartki albo zeszytu</span>
+                @include('pages.recipes.partials.zachowane-zdjecie', ['klucz' => 'scan'])
                 <input class="visually-hidden pole-zdjecia-input" id="f-source_scan" type="file" name="source_scan"
                        accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                        aria-labelledby="f-source_scan-etykieta f-source_scan-tytul"
@@ -321,6 +373,9 @@
         ---------------------------------------------------------------- --}}
         <section class="form-section">
             <h2 class="form-section-title">3. Składniki</h2>
+            @if($zOdczytu)
+                @include('pages.import.partials.oryginal', ['skan' => $recipe->sourceScan])
+            @endif
             <p class="meta mb-4">
                 Pisz tak, jak mówisz: „szklanka mąki”, „2 duże cebule”, „mleko — ile weźmie”.
                 Nie musisz nic przeliczać na gramy. Puste wiersze zostaną pominięte.
@@ -338,8 +393,9 @@
                     <input class="field-input" id="f-ingredients-{{ $i }}-text"
                            name="ingredients[{{ $i }}][text]" type="text" maxlength="240"
                            value="{{ $oldIngredients[$i]['text'] ?? '' }}"
-                           @if($i === 0) placeholder="1 kurczak, najlepiej zagrodowy" @endif>
-                    @error("ingredients.$i.text")<span class="field-error">{{ $message }}</span>@enderror
+                           @if($i === 0) placeholder="1 kurczak, najlepiej zagrodowy" @endif
+                           @error("ingredients.$i.text") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-text-error" @enderror>
+                    @error("ingredients.$i.text")<span class="field-error" id="f-ingredients-{{ $i }}-text-error">{{ $message }}</span>@enderror
 
                     {{--
                         GRUPA SKŁADNIKÓW — „Ciasto”, „Farsz”, „Do podania”
@@ -369,8 +425,9 @@
                     <input class="field-input" id="f-ingredients-{{ $i }}-group_name"
                            name="ingredients[{{ $i }}][group_name]" type="text" maxlength="120"
                            value="{{ $oldIngredients[$i]['group_name'] ?? '' }}"
-                           @if($i === 0) placeholder="Ciasto" @endif>
-                    @error("ingredients.$i.group_name")<span class="field-error">{{ $message }}</span>@enderror
+                           @if($i === 0) placeholder="Ciasto" @endif
+                           @error("ingredients.$i.group_name") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-group_name-error" @enderror>
+                    @error("ingredients.$i.group_name")<span class="field-error" id="f-ingredients-{{ $i }}-group_name-error">{{ $message }}</span>@enderror
 
                     <label class="mt-3" for="f-ingredients-{{ $i }}-note">Uwagi do składnika <span class="meta">(nieobowiązkowe)</span></label>
                     <input class="field-input" id="f-ingredients-{{ $i }}-note"
@@ -379,10 +436,21 @@
                            @error("ingredients.$i.note") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-note-error" @enderror>
                     @error("ingredients.$i.note")<span class="field-error" id="f-ingredients-{{ $i }}-note-error">{{ $message }}</span>@enderror
 
+                    {{-- Zamiennik od autora (D-284) — na stronie przepisu stoi
+                         pod składnikiem jako „Zamiast tego: …”. Ta sama nazwa
+                         pola co w kreatorze, więc przechodzi między drogami. --}}
+                    <label class="mt-3" for="f-ingredients-{{ $i }}-substitutes">Czym można to zastąpić <span class="meta">(nieobowiązkowe)</span></label>
+                    <input class="field-input" id="f-ingredients-{{ $i }}-substitutes"
+                           name="ingredients[{{ $i }}][substitutes]" type="text" maxlength="300"
+                           value="{{ $ingredient['substitutes'] ?? '' }}"
+                           @if($i === 0) placeholder="margaryna albo olej kokosowy" @endif
+                           @error("ingredients.$i.substitutes") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-substitutes-error" @enderror>
+                    @error("ingredients.$i.substitutes")<span class="field-error" id="f-ingredients-{{ $i }}-substitutes-error">{{ $message }}</span>@enderror
+
                     {{-- „Bez ilości” — sól do smaku (issue #44). Zwykły
                          checkbox, działa bez JavaScriptu. Nieobowiązkowy
                          i domyślnie wyłączony: ma znaczenie dopiero przy
-                         przyszłym przeliczaniu porcji (V2, jeszcze niewdrożonym). --}}
+                         przeliczaniu porcji na stronie przepisu (V2, D-284). --}}
                     <label class="choice mt-2">
                         <input type="checkbox" name="ingredients[{{ $i }}][no_amount]" value="1"
                                @checked($oldIngredients[$i]['no_amount'] ?? false)>
@@ -413,6 +481,9 @@
         ---------------------------------------------------------------- --}}
         <section class="form-section" id="f-steps">
             <h2 class="form-section-title">4. Przygotowanie</h2>
+            @if($zOdczytu)
+                @include('pages.import.partials.oryginal', ['skan' => $recipe->sourceScan])
+            @endif
             <p class="meta mb-4">
                 Jeden krok to jedna czynność. Krótkie kroki łatwiej czytać przy garnku.
                 Przy każdym kroku możesz dopisać, ile minut ma trwać, i dodać zdjęcie —
@@ -465,12 +536,14 @@
                                type="number" inputmode="numeric" name="steps[{{ $i }}][timer_minutes]"
                                min="0" max="{{ \App\Domain\Recipes\StepTimer::MAX_MINUTES }}" step="1"
                                value="{{ $oldSteps[$i]['timer_minutes'] ?? '' }}"
-                               aria-describedby="f-steps-{{ $i }}-timer_minutes-help">
-                        @error("steps.$i.timer_minutes")<span class="field-error">{{ $message }}</span>@enderror
+                               aria-describedby="f-steps-{{ $i }}-timer_minutes-help{{ $errors->has('steps.'.$i.'.timer_minutes') ? ' f-steps-'.$i.'-timer_minutes-error' : '' }}"
+                               @error("steps.$i.timer_minutes") aria-invalid="true" @enderror>
+                        @error("steps.$i.timer_minutes")<span class="field-error" id="f-steps-{{ $i }}-timer_minutes-error">{{ $message }}</span>@enderror
                     </div>
 
                     <div class="field @error("steps.$i.photo") has-error @enderror">
                         <span class="pole-zdjecia-nazwa" id="f-steps-{{ $i }}-photo-etykieta">Zdjęcie do tego kroku <span class="meta">(nieobowiązkowe)</span></span>
+                        @include('pages.recipes.partials.zachowane-zdjecie', ['klucz' => 'step_'.$i])
 
                         @if($zdjecieKroku)
                             {{-- Zdjęcie, które ten krok już ma. Zostaje przy nim
@@ -522,6 +595,39 @@
                 </fieldset>
             @endforeach
         </section>
+
+        @if($wymagaSprawdzenia)
+            @if($ostrzezeniePodobienstwa)
+                <div class="notice" role="note">
+                    <p class="mt-0 mb-0">
+                        <strong>Opis przygotowania jest prawie taki sam jak na stronie źródłowej.</strong>
+                        Napisz go własnymi słowami, zanim opublikujesz — cudzy tekst należy do jego autora.
+                    </p>
+                </div>
+            @endif
+            <div class="field @error('sprawdzilem_odczyt') has-error @enderror">
+                <label class="choice">
+                    <input type="checkbox" name="sprawdzilem_odczyt" value="1" id="f-sprawdzilem_odczyt" @checked(old('sprawdzilem_odczyt'))>
+                    <span class="choice-label">Sprawdziłem odczytany tekst</span>
+                </label>
+                <span class="field-help">Zaznacz, gdy porównasz składniki i kroki ze źródłem. Bez tego przepis zapisze się tylko jako szkic.</span>
+            </div>
+        @endif
+
+        @if($zOdczytu)
+            <div class="field mt-4 @error('odczyt_sprawdzony') has-error @enderror">
+                <label class="choice" for="f-odczyt_sprawdzony">
+                    <input id="f-odczyt_sprawdzony" type="checkbox" name="odczyt_sprawdzony" value="1"
+                           @error('odczyt_sprawdzony') aria-invalid="true" aria-describedby="f-odczyt_sprawdzony-error" @enderror
+                           @checked(old('odczyt_sprawdzony'))>
+                    <span>
+                        <span class="choice-label">Odczytany tekst jest sprawdzony ze zdjęciem</span>
+                        <span class="choice-help">Każda linijka zgadza się z kartką, a znaczniki [? ?] są usunięte.</span>
+                    </span>
+                </label>
+                @error('odczyt_sprawdzony')<span class="field-error" id="f-odczyt_sprawdzony-error">{{ $message }}</span>@enderror
+            </div>
+        @endif
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit" name="action" value="publish">
