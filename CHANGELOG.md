@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Gość może kliknąć „Zapisz do zeszytu” przy przepisie, założyć konto (hasłem, przez Google lub Facebooka) albo się zalogować i wrócić na ten sam przepis z rozwiniętym wyborem zeszytu. Niczego nie zapisujemy za człowieka — przepis trafia do zeszytu dopiero po jego własnym wyborze, a przepis, który w międzyczasie przestał być dostępny, nie otwiera wyboru (#2028). [nowa funkcja]
 - Podgląd przepisu bez składników wyjaśnia teraz spokojnie, że można je dopisać później; nie pokazuje braku składników jako błędu, bo nie blokuje on publikacji (#1991).
 - Wewnętrzne: każda rzeczywiście sprawdzona i błędna próba kodu 2FA lub kodu zapasowego przy logowaniu zostawia w dzienniku audytu wpis `account.two_factor_login_failed` (rodzaj: aplikacja, zapasowy lub oba; adres IP tylko w postaci skrótu). Wpis nie zawiera kodu ani sekretu, a odpowiedzi odcięte limitem prób nie dopisują wierszy (#2042).
 - Wewnętrzne: rezerwacja budżetu AI bierze blokadę miesiąca przed wierszem dnia, a suma miesiąca obejmuje cały miesiąc kalendarzowy. Dwa odczyty z różnych dni tego samego miesiąca (np. tuż przed i tuż po północy) nie przekroczą już razem miesięcznego limitu kosztu (#2013).

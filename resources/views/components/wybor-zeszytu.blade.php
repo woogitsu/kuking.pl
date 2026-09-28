@@ -1,4 +1,4 @@
-@props(['action', 'wiersz', 'content' => null])
+@props(['action', 'wiersz', 'content' => null, 'otwarty' => false])
 @php
     $zeszyty = app(\App\Domain\Collections\ZeszytyDoWyboru::class)->dla(request());
     $aktywny = \App\Support\WierszFormularza::jestAktywny($wiersz);
@@ -6,9 +6,12 @@
     $wybrany = \App\Support\WierszFormularza::stareLubDomyslne('collection_id', $wiersz, '');
     $id = 'f-collection_id-'.str_replace(['[', ']', '.'], '-', $wiersz);
 @endphp
-<details class="wybor-zeszytu" @if($blad) open @endif>
+<details class="wybor-zeszytu" @if($otwarty) id="wybor-zeszytu-{{ str_replace(['[', ']', '.'], '-', $wiersz) }}" @endif @if($blad || $otwarty) open @endif>
     <summary class="btn btn-secondary">Wybierz zeszyt</summary>
     <div class="panel-formularza mt-3">
+        @if($otwarty)
+            <p class="notice">Wybierz zeszyt, w którym zapisać ten przepis. Jeszcze niczego nie zapisaliśmy — zrobimy to dopiero po Twoim wyborze.</p>
+        @endif
         <form method="POST" action="{{ $action }}">
             @csrf
             <input type="hidden" name="_wiersz" value="{{ $wiersz }}">

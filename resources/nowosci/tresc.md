@@ -28,6 +28,15 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Zapisz przepis do zeszytu jeszcze przed założeniem konta
+
+Czytacie przepis bez konta i chcecie go zachować? Kliknijcie „Zapisz do zeszytu”
+przy przepisie, załóżcie konto albo zalogujcie się (przycisk „Masz konto?
+Zaloguj się i zapisz”). Po pierwszych krokach wrócicie na ten sam przepis,
+z rozwiniętym wyborem zeszytu. Niczego nie zapisujemy za Was — przepis trafi
+do zeszytu dopiero wtedy, gdy sami go wybierzecie. Jeśli w międzyczasie autor
+ukryje przepis albo zmieni jego widoczność, nie otworzymy wyboru zeszytu.
+
 ## Alfa 0.74
 
 **Zdjęcia przy przepisie i wybrana liczba porcji zostają z Wami.**
