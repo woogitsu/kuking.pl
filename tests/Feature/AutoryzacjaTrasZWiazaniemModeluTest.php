@@ -69,6 +69,9 @@ class AutoryzacjaTrasZWiazaniemModeluTest extends TestCase
         // zdjęcia (wpisu, przepisu, wykonania, profilu) i `MediaController`
         // odmawia przez `abort_unless($decyzja->dlaWidza, 404)`.
         'media.show' => 'Bramka w App\Domain\Media\DostepDoZdjecia (Gate na Policy rodzica).',
+        // Ten sam kontroler pod `/api/v1` (D-272) — i ta sama bramka. Zmierzone
+        // żądaniem w `KazdaTrasaZIdentyfikatoremPodPolicyTest` (pięć ról).
+        'api.zdjecia.show' => 'Ten sam MediaController co media.show: bramka w DostepDoZdjecia.',
 
         // Odwołanie od decyzji moderacyjnej: własnościowa bramka stoi
         // w prywatnej metodzie `AppealController::sprawdzWlascicielaSprawy()`

@@ -254,7 +254,7 @@
                     {{ config('kuking.community.contact_email') }}
                 </p>
             @elseif(! $recipe->isPublished())
-                <p class="notice kolumna-czytania"><strong>To jest szkic.</strong> Widzisz go tylko Ty. Kliknij „Edytuj”, żeby dokończyć i opublikować.</p>
+                <p class="notice kolumna-czytania"><strong>To jest szkic.</strong> Widzisz go tylko Ty. Kliknij „{{ \App\Domain\Recipes\CoMoznaDopisac::jest($recipe) ? 'Dopisz szczegóły' : 'Edytuj przepis' }}”, żeby dokończyć i opublikować.</p>
             @endif
 
             <div class="przepis-autor">
@@ -347,6 +347,17 @@
                         </li>
                     @endif
                 </ul>
+            @endif
+            {{-- Koszt wg autora (D-286). Pełnym zdaniem, z „ok." i „wg autora",
+                 a nie jako kolejna „liczba" obok czasu i porcji: to szacunek
+                 jednej osoby, nie cena, którą serwis za coś ręczy. --}}
+            @if($recipe->costLabel())
+                <p class="przepis-koszt kolumna-czytania" data-koszt-autora="{{ $recipe->estimated_cost_pln }}">{{ $recipe->costLabel() }}</p>
+            @elseif(($szacunekKosztu ?? null) !== null)
+                {{-- Bez kwoty autora: przedział z cen GUS albo zdanie, dlaczego
+                     go nie ma (D-286, część 2). Zawsze „orientacyjny", zawsze
+                     ze źródłem i z zastrzeżeniem o sklepie. --}}
+                <p class="przepis-koszt kolumna-czytania" data-koszt-szacunek="{{ $szacunekKosztu->jestPrzedzial() ? 'przedzial' : 'brak' }}">{{ $szacunekKosztu->zdanie() }}</p>
             @endif
 
 
