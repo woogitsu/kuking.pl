@@ -5,11 +5,17 @@ declare(strict_types=1);
 namespace App\Domain\Compliance;
 
 use App\Models\User;
+use App\Support\Storage\R2Adapter;
+use Aws\Exception\AwsException;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Sleep;
+use League\Flysystem\Local\LocalFilesystemAdapter;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -38,36 +44,159 @@ use Throwable;
  *
  * ZAPIS NIE MOŻE ZATRZYMAĆ WYMAZANIA
  * Wymazanie jest ważniejsze niż jego dziennik. Nieudany zapis kończy się
- * ostrzeżeniem w logu, a nocne `uzupelnij()` dopisuje brakujące wpisy dla
+ * błędem w logu, a nocne `uzupelnij()` dopisuje brakujące wpisy dla
  * kont wymazanych w oknie kopii — bez osobnej kolejki i bez kolumny w bazie.
+ *
+ * OKNO, KTÓREGO NOC NIE ZAMYKA (issue #2038)
+ * `uzupelnij()` szuka kont po `users.data_erased_at` w BIEŻĄCEJ bazie. Gdy
+ * zapis padnie, a przed najbliższym udanym uzupełnieniem ktoś odtworzy
+ * kopię sprzed wymazania, znacznika już nie ma i noc nie ma czego dopisać.
+ * Dlatego:
+ *  - `zapisz()` próbuje `PROBY` razy z odstępem — chwilowa czkawka
+ *    magazynu nie otwiera okna wcale;
+ *  - po ostatniej próbie linia logu (`error`) niesie KOMPLET wpisu
+ *    (identyfikator, zakres, chwila). Log wychodzi na stderr, do dziennika
+ *    Railwaya, czyli poza bazę — i przeżywa jej odtworzenie. Z tej linii
+ *    `kuking:dziennik-wymazan --dopisz=… --zakres=… --kiedy=…` odtwarza
+ *    wpis ręcznie (`docs/infra/KOPIE_I_ODTWORZENIE.md` §3.1).
+ * Log nie jest magazynem z gwarancją retencji; pełne domknięcie okna czeka
+ * na decyzję właściciela (opis wariantów w §3.1).
  */
 final class DziennikWymazan
 {
     public const PREFIKS = 'dziennik-wymazan/';
+
+    public const DOPISANO = 'dopisano';
+
+    public const ISTNIEJE = 'istnieje';
+
+    public const BLAD = 'blad';
 
     public function dysk(): Filesystem
     {
         return Storage::disk((string) config('kuking.dziennik_wymazan.dysk'));
     }
 
+    /** Ile razy próbujemy zapisać wpis, zanim zostanie tylko linia logu. */
+    public const PROBY = 3;
+
+    /** Odstępy między próbami, w sekundach (wołają to wyłącznie komendy konsoli). */
+    private const ODSTEPY_SEKUND = [1, 3];
+
     public function zapisz(string $userId, string $zakres, CarbonInterface $kiedy): bool
     {
-        try {
-            $this->dysk()->put(self::PREFIKS.$userId.'.json', (string) json_encode([
-                'user_id' => $userId,
-                'wymazano_at' => $kiedy->toIso8601ZuluString(),
-                'zakres' => $zakres,
-            ]));
+        return $this->zapiszWariant($userId, $zakres, $kiedy, false) === self::DOPISANO;
+    }
 
-            return true;
-        } catch (Throwable $e) {
-            Log::warning('Dziennik wymazań: nie udało się zapisać wpisu; dopisze go nocne uzupełnienie.', [
-                'user_id' => $userId,
-                'wyjatek' => $e::class,
-            ]);
+    /** Atomowo dopisuje brakujący wpis, bez możliwości zastąpienia istniejącego. */
+    public function dopiszJesliBrak(string $userId, string $zakres, CarbonInterface $kiedy): string
+    {
+        return $this->zapiszWariant($userId, $zakres, $kiedy, true);
+    }
 
-            return false;
+    private function zapiszWariant(string $userId, string $zakres, CarbonInterface $kiedy, bool $tylkoJesliBrak): string
+    {
+        $wymazanoAt = $kiedy->toIso8601ZuluString();
+        $tresc = (string) json_encode([
+            'user_id' => $userId,
+            'wymazano_at' => $wymazanoAt,
+            'zakres' => $zakres,
+        ]);
+        $ostatni = null;
+
+        for ($proba = 1; $proba <= self::PROBY; $proba++) {
+            try {
+                if ($tylkoJesliBrak) {
+                    if (! $this->putJesliBrak(self::PREFIKS.$userId.'.json', $tresc)) {
+                        return self::ISTNIEJE;
+                    }
+                } elseif ($this->dysk()->put(self::PREFIKS.$userId.'.json', $tresc) !== true) {
+                    throw new RuntimeException('Dysk dziennika zwrócił false przy zapisie.');
+                }
+
+                return self::DOPISANO;
+            } catch (Throwable $e) {
+                $ostatni = $e;
+
+                if ($proba < self::PROBY) {
+                    Sleep::for(self::ODSTEPY_SEKUND[$proba - 1] ?? 3)->seconds();
+                }
+            }
         }
+
+        // Komplet wpisu w kontekście: po odtworzeniu kopii sprzed wymazania
+        // ta linia jest jedynym śladem poza bazą (issue #2038).
+        Log::error('Dziennik wymazań: nie udało się zapisać wpisu. Dopisze go nocne uzupełnienie — ale jeśli przedtem odtworzysz kopię bazy, dopisz go ręcznie z tej linii (docs/infra/KOPIE_I_ODTWORZENIE.md §3.1).', [
+            'user_id' => $userId,
+            'zakres' => $zakres,
+            'wymazano_at' => $wymazanoAt,
+            'proby' => self::PROBY,
+            'wyjatek' => $ostatni instanceof Throwable ? $ostatni::class : null,
+        ]);
+
+        return self::BLAD;
+    }
+
+    /**
+     * R2: warunkowy PutObject (412 oznacza, że wpis już powstał).
+     * Dysk lokalny w testach: fopen(x) daje tę samą atomową własność.
+     */
+    private function putJesliBrak(string $klucz, string $tresc): bool
+    {
+        $dysk = $this->dysk();
+
+        if (! $dysk instanceof FilesystemAdapter) {
+            throw new RuntimeException('Dysk dziennika nie obsługuje atomowego dopisania.');
+        }
+
+        if ($dysk->getAdapter() instanceof R2Adapter) {
+            try {
+                if ($dysk->put($klucz, $tresc, ['IfNoneMatch' => '*']) !== true) {
+                    throw new RuntimeException('Dysk dziennika zwrócił false przy dopisywaniu.');
+                }
+
+                return true;
+            } catch (Throwable $e) {
+                for ($przyczyna = $e; $przyczyna !== null; $przyczyna = $przyczyna->getPrevious()) {
+                    if ($przyczyna instanceof AwsException && $przyczyna->getStatusCode() === 412) {
+                        return false;
+                    }
+                }
+
+                throw $e;
+            }
+        }
+
+        if (! $dysk->getAdapter() instanceof LocalFilesystemAdapter) {
+            throw new RuntimeException('Dysk dziennika nie obsługuje atomowego dopisania.');
+        }
+
+        $dysk->makeDirectory(rtrim(self::PREFIKS, '/'));
+        $sciezka = $dysk->path($klucz);
+        $uchwyt = @fopen($sciezka, 'xb');
+
+        if ($uchwyt === false) {
+            if (is_file($sciezka)) {
+                return false;
+            }
+
+            throw new RuntimeException('Nie udało się utworzyć wpisu dziennika.');
+        }
+
+        try {
+            if (fwrite($uchwyt, $tresc) !== strlen($tresc)) {
+                throw new RuntimeException('Nie udało się zapisać całego wpisu dziennika.');
+            }
+        } catch (Throwable $e) {
+            fclose($uchwyt);
+            @unlink($sciezka);
+
+            throw $e;
+        }
+
+        fclose($uchwyt);
+
+        return true;
     }
 
     /**
@@ -114,13 +243,9 @@ final class DziennikWymazan
             ->where('data_erased_at', '>=', now()->subDays($dni))
             ->orderBy('data_erased_at')
             ->each(function (User $konto) use (&$dopisane): void {
-                if ($this->dysk()->exists(self::PREFIKS.$konto->getKey().'.json')) {
-                    return;
-                }
-
                 $zakres = $konto->delete_scope ?? User::DELETE_SCOPE_MINIMUM;
 
-                if ($this->zapisz((string) $konto->getKey(), $zakres, $konto->data_erased_at)) {
+                if ($this->dopiszJesliBrak((string) $konto->getKey(), $zakres, $konto->data_erased_at) === self::DOPISANO) {
                     $dopisane++;
                 }
             });
