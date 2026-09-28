@@ -77,6 +77,30 @@ class RecipeJsonLdTylkoZeZdjeciemTest extends TestCase
         }
     }
 
+    public function test_publiczny_przepis_podaje_prawdziwa_date_zmiany_tresci(): void
+    {
+        $przepis = Recipe::factory()->zeZdjeciem()->create(['published_at' => '2026-09-01 12:00:00']);
+        $przepis->update(['summary' => 'Treść przepisu po poprawce autora.']);
+        $przepis->refresh();
+
+        $dane = collect($this->blokiJsonLd($przepis))->firstWhere('@type', 'Recipe');
+
+        $this->assertNotNull($dane);
+        $this->assertSame('2026-09-01', $dane['datePublished']);
+        $this->assertSame($przepis->updated_at->toIso8601String(), $dane['dateModified']);
+        $this->assertNotSame($dane['datePublished'], substr($dane['dateModified'], 0, 10));
+    }
+
+    public function test_prywatny_przepis_nie_publikuje_daty_modyfikacji_w_json_ld(): void
+    {
+        $przepis = Recipe::factory()->zeZdjeciem()->create(['visibility' => 'private']);
+
+        $bloki = $this->blokiJsonLd($przepis);
+
+        $this->assertNotContains('Recipe', array_column($bloki, '@type'));
+        $this->assertStringNotContainsString('dateModified', json_encode($bloki, JSON_THROW_ON_ERROR));
+    }
+
     /** @return list<array<string, mixed>> */
     private function blokiJsonLd(Recipe $przepis): array
     {

@@ -59,6 +59,7 @@
                 'name' => $recipe->title,
                 'description' => $recipe->summary,
                 'datePublished' => $recipe->published_at?->toDateString(),
+                'dateModified' => $recipe->updated_at?->toIso8601String(),
                 /*
                  * AUTOR TO KONTO, KTÓRE PRZEPIS OPUBLIKOWAŁO — I TYLKO ONO.
                  *
