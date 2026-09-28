@@ -33,6 +33,7 @@ use App\Domain\Import\ZlecImportPrzepisu;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
+use App\Domain\Moderation\NowaDecyzja;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
@@ -318,21 +319,38 @@ try {
         // razem — przepisany do testu SQL byłby zielony także po zmianie
         // kolejności w `PublishRecipe`.
         'edytuj-przepis' => (function () use ($argumenty): string {
-            $przepis = app(PublishRecipe::class)->handle(
-                author: User::query()->whereKey($argumenty['autor'])->firstOrFail(),
-                attributes: [
-                    'title' => $argumenty['tytul'],
-                    'visibility' => 'public',
-                    'source_type' => Recipe::SOURCE_OWN,
-                ],
-                ingredients: [['text' => $argumenty['skladnik']]],
-                steps: [['instruction' => 'Gotuj do miękkości.']],
-                publish: true,
-                existing: Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail(),
-                oczekiwanaRewizja: isset($argumenty['rewizja']) ? (int) $argumenty['rewizja'] : null,
-            );
+            $zapisz = static function () use ($argumenty): string {
+                $przepis = app(PublishRecipe::class)->handle(
+                    author: User::query()->whereKey($argumenty['autor'])->firstOrFail(),
+                    attributes: [
+                        'title' => $argumenty['tytul'],
+                        'visibility' => 'public',
+                        'source_type' => Recipe::SOURCE_OWN,
+                    ],
+                    ingredients: [['text' => $argumenty['skladnik']]],
+                    steps: [['instruction' => 'Gotuj do miękkości.']],
+                    publish: true,
+                    existing: Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail(),
+                    oczekiwanaRewizja: isset($argumenty['rewizja']) ? (int) $argumenty['rewizja'] : null,
+                );
 
-            return (string) $przepis->title;
+                return (string) $przepis->title;
+            };
+
+            if (isset($argumenty['bariera_2165'])) {
+                return DB::transaction(static function () use ($argumenty, $zapisz): string {
+                    // B trzyma ten sam zamek, który PublishRecipe bierze przed
+                    // przepisem. Bariera ustawia A w kolejce, zanim B zapisze.
+                    if (DB::select('SELECT 1 FROM users WHERE id = ? FOR KEY SHARE', [$argumenty['autor']]) === []) {
+                        throw new \RuntimeException('Brak konta autora pod blokadą FOR KEY SHARE.');
+                    }
+                    DB::select('SELECT pg_advisory_xact_lock(2165, 1)');
+
+                    return $zapisz();
+                });
+            }
+
+            return $zapisz();
         })(),
 
         // #2112: prawdziwe żądanie HTTP przełącznika. Route binding i Policy
@@ -509,6 +527,9 @@ try {
             odwolanie: Appeal::query()->whereKey($argumenty['odwolanie'])->firstOrFail(),
             wynik: $argumenty['wynik'],
             uzasadnienie: $argumenty['uzasadnienie'],
+            nowaDecyzja: isset($argumenty['nowa_akcja'])
+                ? new NowaDecyzja($argumenty['nowa_akcja'], $argumenty['podstawa'], $argumenty['wiadomosc'])
+                : null,
         )->status,
 
         'zmien-role' => app(ChangeUserRole::class)->handle(

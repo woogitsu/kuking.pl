@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Rozpatrzenie odwołania z blokadą konta nie zakleszcza się już z równoczesną edycją przepisu. Obie czynności kończą się bez błędu serwera (#2165).
+
 ## Alfa 0.72 — spokojniejsze zdjęcia i powiadomienia
 
 - Zdjęcie, którego przygotowanie chwilowo się nie udało, dalej pokazuje „Twoje zdjęcie się jeszcze przygotowuje”, dopóki serwis próbuje ponownie. Komunikat „Nie udało się przygotować tego zdjęcia” z radą, żeby usunąć i dodać wpis, pojawia się dopiero po ostatniej nieudanej próbie — nie trzeba już kasować wpisu ze zdjęciem, które za chwilę by się pokazało (#1349).
