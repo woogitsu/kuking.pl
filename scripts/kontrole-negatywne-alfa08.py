@@ -67,6 +67,16 @@ WYMAZANIE_KONTA = "app/Domain/Users/Actions/EraseAccountData.php"
 PLANER_TEST = "PlanerTygodniaTest"
 PUSH_JOB = "app/Jobs/WyslijPowiadomieniePush.php"
 PUSH_DWA_POLACZENIA_TEST = "PowiadomieniaPushDwaPolaczeniaTest"
+ALARM_RECOVERY = "app/Domain/Moderation/Actions/AlarmujOPilnymZgloszeniu.php"
+ALARM_RECOVERY_TEST = "PonowPilnyAlarmOdCzlowiekaTest"
+
+# #2027: nowo utworzone konto po OAuth musi przejąć zamiar powrotu z wątku
+# komentarzy. Testy obu dostawców przechodzą przez onboarding i sprawdzają
+# końcowy adres; usunięcie przypisania do konta ma oblać każdą ścieżkę.
+POWROT_KOMENTARZA_GOOGLE = "app/Http/Controllers/Auth/GoogleLoginController.php"
+POWROT_KOMENTARZA_GOOGLE_TEST = "LogowanieKontemGoogleTest"
+POWROT_KOMENTARZA_FACEBOOK = "app/Http/Controllers/Auth/FacebookLoginController.php"
+POWROT_KOMENTARZA_FACEBOOK_TEST = "LogowanieKontemFacebookiemTest"
 
 CONTROLLER = "app/Http/Controllers/CollectionController.php"
 LAYOUT = "resources/views/components/layout.blade.php"
@@ -101,6 +111,7 @@ CENY_WARZYW_WORKFLOW = ".github/workflows/ceny-warzyw-auto.yml"
 CENY_WARZYW_TEST = "WorkflowCenNieUruchamiaKoduZTokenemZapisuTest"
 NOWOSCI_KONTROLER = "app/Http/Controllers/NowosciController.php"
 NOWOSCI_OD_NUMERU_TEST = "StronaCoNowegoOdNumeruTest"
+NOWOSCI_OD_NUMERU_FIXTURE = "tests/Feature/StronaCoNowegoOdNumeruTest.php"
 MIGRACJA_NO_AMOUNT = "database/migrations/2026_09_06_130000_add_no_amount_to_recipe_ingredients.php"
 MIGRACJA_NO_AMOUNT_TEST = "CofniecieMigracjiNieKasujeFlagiBrakuIlosciTest"
 MIGRACJA_PUSH = "database/migrations/2026_09_26_100000_utworz_powiadomienia_push.php"
@@ -532,6 +543,9 @@ def bez_kursora_wyszukiwania(source):
     return replace_once(source, "$poOsobie = $odOsoby > 0 ? $this->kursor($request, 'po_osobie') : null;", "$poOsobie = null;")
 EKSPORT_DANE = "app/Domain/Users/Exports/CollectUserExportData.php"
 EKSPORT_KLUCZE_TEST = "EksportKluczeBezRodzajuTest"
+# #1993: samo usunięcie pola z mapy eksportu musi oblać test obu wartości.
+EKSPORT_WIDOCZNOSC_TEST = "EksportWidocznosciWartosciOdzywczychTest"
+EKSPORT_WIDOCZNOSC_POLE = "            'pokazuj_wartosci_odzywcze' => (bool) $recipe->pokazuj_wartosci_odzywcze,\n"
 # Widoczność treści w filtrze powiadomień (#1687). Test kontraktowy porównuje
 # `WidocznoscTresciSql` z Policy na macierzy stanów; każda mutacja zdejmuje
 # jedną regułę z SQL i macierz ma pokazać rozjazd z Policy.
@@ -962,6 +976,12 @@ def railway_cli_bez_przypietej_wersji(source):
 
 
 checks = [
+    # #2027: rejestracja Google/Facebook wiąże zapamiętany cel z nowym
+    # kontem. Bez tej linijki onboarding kończy się na stronie domyślnej.
+    ("Nowe konto Google gubi powrót do rozmowy", POWROT_KOMENTARZA_GOOGLE, POWROT_KOMENTARZA_GOOGLE_TEST,
+     lambda s: replace_once(s, "        $rozmowa->przypiszKonto($request);\n", "")),
+    ("Nowe konto Facebook gubi powrót do rozmowy", POWROT_KOMENTARZA_FACEBOOK, POWROT_KOMENTARZA_FACEBOOK_TEST,
+     lambda s: replace_once(s, "        $rozmowa->przypiszKonto($request);\n", "")),
     # #1868: instalacja bez wskazania migawki wróciłaby do ruchomego mirrora.
     ("APT install bez migawki", OBRAZ_KOPII, APT_MIGAWKA_TEST,
      lambda s: replace_once(s,
@@ -1200,6 +1220,8 @@ checks = [
     # #1750: klucz paczki RODO wraca do formy żeńskiej sprzed poprawki.
     ("Klucz eksportu z rodzajem", EKSPORT_DANE, EKSPORT_KLUCZE_TEST,
      lambda s: replace_once(s, "'na_czym_sie_znam' =>", "'w_czym_jestem_dobra' =>")),
+    ("Eksport gubi wybór widoczności wartości odżywczych", EKSPORT_DANE, EKSPORT_WIDOCZNOSC_TEST,
+     lambda s: replace_once(s, EKSPORT_WIDOCZNOSC_POLE, "")),
     # „jesteś zalogowany” wraca na ekran łączenia konta Google — wzorzec
     # `jestem_przymiotnik` w `WzorceRodzaju` ma to złapać.
     ("Rodzaj po „jesteś” na ekranie Google", GOOGLE_LINK_WIDOK, GOOGLE_LINK_TEST,
@@ -1320,6 +1342,8 @@ checks = [
     ("Limit push nie liczy rezerwacji w transporcie", PUSH_JOB, PUSH_DWA_POLACZENIA_TEST,
      lambda s: replace_once(s, "            ->where($wlicz)\n            ->distinct()",
                             "            ->whereNotNull('push_wyslano_at')\n            ->distinct()")),
+    ("Recover alarmu pomija potwierdzona odmowe", ALARM_RECOVERY, ALARM_RECOVERY_TEST,
+     lambda s: replace_once(s, "$poprzednia->state !== HumanUrgentAlarmAttempt::REJECTED", "false")),
     ("Preview wkleja ręczny pr_number w run:", PREVIEW_WORKFLOW, WKLEJANIE_DO_RUN_TEST,
      lambda s: replace_once(s, '          env_name="pr-${PR_NUMBER}"\n          echo "Tworzę', '          env_name="pr-${{ github.event.inputs.pr_number }}"\n          echo "Tworzę')),
     ("IaC wkleja inputs.* w podsumowanie", IAC_WORKFLOW, WKLEJANIE_DO_RUN_TEST,
@@ -1360,6 +1384,9 @@ checks = [
     # wdrożenia — dopisek „od Alfa …” znika, test strony ma oblać.
     ("Co nowego bez dopisku „od numeru”", NOWOSCI_KONTROLER, NOWOSCI_OD_NUMERU_TEST,
      lambda s: replace_once(s, "$dopisek = $mapa[$slug] ?? null;", "$dopisek = null;")),
+    ("Co nowego: brak nagłówka w fixture integracyjnej", NOWOSCI_OD_NUMERU_FIXTURE,
+     "test_strona_pokazuje_od_numeru_dla_znanego_naglowka_w_najnowszych_zmianach",
+     lambda s: replace_once(s, r'### {$naglowek}\n\nOpis funkcji.', r'Bez nagłówka {$naglowek}\n\nOpis funkcji.')),
     # D-088 (#44): down() migracji no_amount bez odmowy przy składnikach
     # oznaczonych „bez wymiernej ilości” — test cofnięcia ma oblać.
     ("Cofnięcie no_amount bez odmowy przy oznaczonych składnikach", MIGRACJA_NO_AMOUNT, MIGRACJA_NO_AMOUNT_TEST,
@@ -1463,6 +1490,7 @@ run_test(KOLEJKI_BEZ_GLODZENIA_TEST, True)
 run_test(UMOWA_KOLEJKI_TEST, True)
 run_test(EKSPORT_PORAZKA_TEST, True)
 run_test(EKSPORT_KLUCZE_TEST, True)
+run_test(EKSPORT_WIDOCZNOSC_TEST, True)
 run_test(GOOGLE_LINK_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
 run_test(STABILNE_OKNA_TEST, True)
@@ -1518,6 +1546,16 @@ with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
             if restored != before:
                 raise RuntimeError("Przywrócone źródło różni się od oryginału.")
         run_test(test, True)
+# #2167: usunięcie wymaganego CSV ma zakończyć test porażką, nie skipem.
+# Robimy to osobno, bo kontrola usuwa plik zamiast podmieniać jego treść.
+miary = ROOT / "database/data/odzywcze/miary.csv"
+oryginal_miar = miary.read_bytes()
+try:
+    miary.unlink()
+    run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", False)
+finally:
+    miary.write_bytes(oryginal_miar)
+run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", True)
 # Liczebnik bierzemy z `len(checks)`, nie z tekstu. Wcześniej stało tu wpisane
 # słowo „Pięć": po dodaniu szóstego wpisu CI nadal wypisywałoby „Pięć", a to
 # jedyne miejsce, z którego człowiek czyta wynik tego kroku.

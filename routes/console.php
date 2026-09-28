@@ -546,6 +546,13 @@ Harmonogram::artisan('kuking:doslij-pilne-alarmy')
     ->onOneServer()
     ->withoutOverlapping(50);
 
+// Terminalna odmowa listu od człowieka ma własną, ograniczoną do 72 h drogę.
+// Minuta 40 rozsuwa tę pracę od automatu (:35) i potwierdzeń (:45).
+Harmonogram::artisan('kuking:ponow-pilne-alarmy-od-ludzi')
+    ->hourlyAt(40)
+    ->onOneServer()
+    ->withoutOverlapping(50);
+
 // Pilnowanie terminu odpowiedzi na odwołanie (DSA art. 20, D-060).
 //
 // 07:10, dziesięć minut po podsumowaniu kolejki automatu: te dwa listy mówią

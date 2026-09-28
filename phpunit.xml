@@ -44,6 +44,7 @@
     <groups>
         <exclude>
             <group>dwa-polaczenia</group>
+            <group>pomiar</group>
         </exclude>
     </groups>
     <source>
