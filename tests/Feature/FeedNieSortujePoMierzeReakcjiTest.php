@@ -113,7 +113,7 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
      * warunkiem, nie kluczem), a samo „obserwujący" tym bardziej. Zakazane
      * jest dopiero LICZENIE reakcji.
      */
-    private const WZORZEC_REAKCJI = '/(cooked|wykona|obserw|follow|zapis|collection|zeszyt|comment|komentarz|like|polub|reakcj|ulubion|smakowic|odslon|wyswietl|views)/i';
+    private const WZORZEC_REAKCJI = '/(cooked|wykona|obserw|follow|zapis|collection|zeszyt|comment|komentarz|like|polub|reakcj|ulubion|smakowic|reaction|odslon|wyswietl|views)/i';
 
     private const WZORZEC_LICZENIA = '/(?<![a-z])(count|sum|liczb|ile|total|avg|srednia)/i';
 
@@ -593,6 +593,10 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
             ["'views_count'", 'nietykalne'],
             ["'liczba_odslon DESC'", 'nietykalne'],
             ["'smakowicie_count'", 'nietykalne'],
+            // #1813: tabela reakcji ma angielską nazwę `post_reactions` —
+            // słowo „reaction" musi zapalać strażnika tak samo jak „reakcj".
+            ["'post_reactions_count'", 'nietykalne'],
+            ["'reakcje_count DESC'", 'nietykalne'],
 
             // czas i porządek — wolno
             ["'published_at'", 'neutralne'],
