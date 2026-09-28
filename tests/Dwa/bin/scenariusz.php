@@ -668,6 +668,9 @@ try {
             $argumenty['etykieta'],
         ),
 
+        // Prawdziwa komenda używana przez obie ścieżki wdrożenia (#2082).
+        'migruj-pod-blokada' => Artisan::call('kuking:migruj-pod-blokada'),
+
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),
     };
 

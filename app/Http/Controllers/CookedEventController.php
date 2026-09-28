@@ -117,6 +117,15 @@ class CookedEventController extends Controller
 
         $user = $request->user();
 
+        // Zakończone wysłanie rozpoznaj przed ponownym zapisaniem zdjęć.
+        // Autoryzacja jest już sprawdzona, a współbieżne żądania nadal
+        // rozstrzyga unikalny klucz w RecordCookedEvent (#873).
+        $zapisane = $this->record->wykonanieZTegoWyslania($user, $this->kluczZZadania($request));
+
+        if ($zapisane !== null) {
+            return $this->odpowiedzNaPonowienie($zapisane);
+        }
+
         // ZDJĘCIA NAJPIERW, RESZTA PÓŹNIEJ — TA SAMA ZASADA CO C1
         // W `PostController::store` (issue #872).
         //
@@ -254,15 +263,20 @@ class CookedEventController extends Controller
         // gotowania (D-005). Nie obiecuje powiadomienia: własne wykonanie
         // i autor, który nie może czytać, mają świadome wyjątki (AGENTS §1).
         if (! $event->wasRecentlyCreated) {
-            return redirect()->route('cooked.show', $event)->with(
-                'status',
-                'To wykonanie już zapisaliśmy. '
-                .'Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
-            );
+            return $this->odpowiedzNaPonowienie($event);
         }
 
         return redirect()->route('cooked.show', $event)->with('status',
             'Wykonanie zapisane.',
+        );
+    }
+
+    private function odpowiedzNaPonowienie(CookedEvent $event): RedirectResponse
+    {
+        return redirect()->route('cooked.show', $event)->with(
+            'status',
+            'To wykonanie już zapisaliśmy. '
+            .'Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
         );
     }
 

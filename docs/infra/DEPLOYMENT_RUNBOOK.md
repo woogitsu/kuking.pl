@@ -25,10 +25,10 @@ node --version        # musi być >= 22
 npm install -g @railway/cli
 railway --version     # musi być >= 5.42.1 (IaC wymaga tej wersji)
 
-# Klient PostgreSQL (backupy i restore drill)
-#   macOS:   brew install libpq && brew link --force libpq
-#   Debian:  sudo apt-get install postgresql-client
-pg_dump --version
+# Backupy i restore drill wymagają klienta PostgreSQL 18. Nie instaluj
+# ogólnego postgresql-client na Debianie Trixie (daje wersję 17).
+# Awaryjny zrzut klientem 18 z przypiętego obrazu: KOPIE_I_ODTWORZENIE.md.
+docker --version
 
 # GitHub CLI (opcjonalnie, ułatwia ustawianie sekretów)
 gh --version
@@ -2208,8 +2208,9 @@ Running pre-deploy command...         ← migracje, seed, import wartości odży
 [entrypoint] przebudowa cache konfiguracji...
 ```
 
-`preDeployCommand` wykonuje trzy komendy po kolei, a niezerowy kod
-którejkolwiek zatrzymuje deploy: `migrate`, `db:seed`, a od #1961 też
+`preDeployCommand` wykonuje komendy po kolei, a niezerowy kod
+którejkolwiek zatrzymuje deploy: `kuking:migruj-pod-blokada`,
+`kuking:zarejestruj-wdrozenie`, `db:seed`, a od #1961 też
 `kuking:importuj-wartosci-odzywcze` (D-299) — wypełnia słowniki CIQUAL/USDA,
 bez których sekcja wartości odżywczych na stronie przepisu milczy. Druga
 i kolejne linie w logu tej trzeciej komendy powinny mówić „Pliki danych są
@@ -2413,7 +2414,7 @@ testowych** poświadczeń. Kluczy produkcji nie kopiujemy nigdy.
 | Region | EU West (Amsterdam) | EU West | EU West |
 | Restart policy | On Failure / 10 | On Failure / 10 | **Always** |
 | Healthcheck Path | `/health` | — | — |
-| Pre-deploy Command | trzy komendy, W TEJ KOLEJNOŚCI (issue #1932, D-318): `php artisan migrate --force --no-interaction` → `php artisan kuking:zarejestruj-wdrozenie --no-interaction` → `php artisan db:seed --force --no-interaction` | — | — |
+| Pre-deploy Command | najpierw `php artisan kuking:migruj-pod-blokada --no-interaction` (wspólna blokada z ręcznym workflow, #2082), następnie `php artisan kuking:zarejestruj-wdrozenie --no-interaction`, `php artisan db:seed --force --no-interaction` i `php artisan kuking:importuj-wartosci-odzywcze` | — | — |
 | **Pre-deploy Timeout** | **600 s** ← ustaw ręcznie | — | — |
 | Serverless | **OFF** | **OFF** | **OFF** |
 | **Wait for CI** | **ON** | **ON** | **ON** |
