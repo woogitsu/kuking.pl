@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Security\Actions;
 
 use App\Domain\Security\TwoFactorAuthenticator;
+use App\Models\AuditLogEntry;
 use App\Models\User;
 use Illuminate\Support\Facades\RateLimiter;
 
@@ -22,6 +23,14 @@ use Illuminate\Support\Facades\RateLimiter;
  * limitu prób jest do odgadnięcia, a rozproszony atak z wielu adresów miałby
  * ominąć zwykły throttle po IP.
  *
+ * DZIENNIK AUDYTU (#2042, #2199): każdy rzeczywiście sprawdzony i błędny kod
+ * zostawia wpis `account.two_factor_login_failed` — zapis jest TU, a nie
+ * w kontrolerach, żeby żaden kanał (WWW, API) nie mógł go pominąć. Kanał
+ * (`kanal` w metadanych) mówi, którędy przyszła próba. Odpowiedź
+ * `ZA_DUZO_PROB` nie dopisuje nic, więc limit ogranicza też wolumen dziennika.
+ * Wpisanego kodu ani sekretu 2FA do dziennika nie przekazujemy — tylko rodzaj
+ * sprawdzonego kodu i skrót adresu IP (liczy go `AuditLogEntry`).
+ *
  * Zwraca liczbę minut blokady albo wynik sprawdzenia — komunikat dla
  * człowieka pisze wołający, bo formularz i aplikacja mówią o polach inaczej.
  */
@@ -36,12 +45,20 @@ final class SprawdzKodDrugiegoSkladnika
     /** Limit prób wyczerpany: kodu nawet nie sprawdzono. */
     public const ZA_DUZO_PROB = 'za_duzo_prob';
 
+    /** Kanał próby w metadanych wpisu audytu: formularz w przeglądarce. */
+    public const KANAL_WWW = 'www';
+
+    /** Kanał próby w metadanych wpisu audytu: API aplikacji mobilnej. */
+    public const KANAL_API = 'api';
+
     public function __construct(private readonly TwoFactorAuthenticator $totp) {}
 
     /**
+     * @param  self::KANAL_WWW|self::KANAL_API  $kanal  którędy przyszła próba (tylko do dziennika audytu)
+     * @param  string|null  $ip  adres żądania; do dziennika trafia wyłącznie jego skrót
      * @return array{0: self::POPRAWNY|self::BLEDNY|self::ZA_DUZO_PROB, 1: int|null} wynik i minuty blokady
      */
-    public function handle(User $user, string $kod, string $kodZapasowy): array
+    public function handle(User $user, string $kod, string $kodZapasowy, string $kanal, ?string $ip): array
     {
         // Próba liczona PRZED sprawdzeniem kodu, atomowo (#2043) — patrz
         // `TwoFactorAuthenticator::zarezerwujProbe()`.
@@ -62,6 +79,14 @@ final class SprawdzKodDrugiegoSkladnika
         }
 
         if (! $poprawny) {
+            $rodzaj = $kod !== '' && $kodZapasowy !== '' ? 'oba' : ($kod !== '' ? 'totp' : 'zapasowy');
+            AuditLogEntry::recordBezWywracania(
+                'account.two_factor_login_failed',
+                subject: $user,
+                metadata: ['rodzaj' => $rodzaj, 'kanal' => $kanal],
+                ip: $ip,
+            );
+
             return [self::BLEDNY, null];
         }
 

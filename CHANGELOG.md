@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Wewnętrzne: błędny kod 2FA lub kod zapasowy przy logowaniu przez API aplikacji zostawia w dzienniku audytu ten sam wpis `account.two_factor_login_failed` co na stronie, z kanałem `api` w metadanych (na stronie: `www`). Zapis jest teraz w jednej akcji sprawdzającej kod, więc żaden kanał go nie pominie; odpowiedzi odcięte limitem prób nadal nie dopisują wierszy, a w dzienniku nie ma kodu, sekretu ani surowego adresu IP (#2199).
+
 ## Alfa 0.75 — szukanie w wykonaniach i pewniejsze „Ugotowałem”
 
 - Podgląd przepisu bez składników wyjaśnia teraz spokojnie, że można je dopisać później; nie pokazuje braku składników jako błędu, bo nie blokuje on publikacji (#1991).
