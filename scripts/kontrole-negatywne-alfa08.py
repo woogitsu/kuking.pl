@@ -22,8 +22,9 @@ W CI nic się nie zmienia — tam gate przepuszcza jak dotąd.
 import hashlib
 import os
 from pathlib import Path
-import subprocess
 import tempfile
+
+from kontrola_wyjscia_testu import run_test
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -596,19 +597,6 @@ RUNBOOK_APPLY_Z_BRAMKA = "\nKUKING_WAIT_FOR_CI=true railway config apply\n"
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
-
-
-def run_test(name, expected_success):
-    result = subprocess.run(
-        ["php", "artisan", "test", "--filter=" + name, "--no-ansi"],
-        text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        timeout=180,
-    )
-    print(result.stdout, flush=True)
-    if (result.returncode == 0) != expected_success:
-        raise RuntimeError("Nieoczekiwany wynik testu: " + name)
-    if not expected_success and "FAILED" not in result.stdout:
-        raise RuntimeError("Brak dowodu niezaliczonej asercji; sama awaria procesu nie wystarczy.")
 
 
 def replace_once(source, old, new):
