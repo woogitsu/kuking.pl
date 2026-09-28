@@ -8,6 +8,7 @@ use App\Domain\Security\DziennyBudzetListow;
 use App\Domain\Security\LimitProbHasla;
 use App\Domain\Users\Actions\CancelEmailChange;
 use App\Domain\Users\Actions\UstawNoweHaslo;
+use App\Domain\Users\LinkResetuNieaktualny;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Rules\TurnstileJestPotwierdzony;
@@ -190,12 +191,43 @@ class PasswordResetController extends Controller
         // Ten sam powód co przy wysyłce linku: token jest przypisany do adresu
         // zapisanego małymi literami. Formularz podstawia adres z linku, ale
         // pole jest edytowalne i klawiatura telefonu podnosi pierwszą literę.
-        $status = Password::reset(
+        // Tablica w miejscu tokenu nie jest żadnym linkiem — broker odrzuci
+        // pusty napis tak samo jak zmyślony.
+        $token = $request->input('token');
+        $token = is_string($token) ? $token : '';
+
+        try {
+            $status = $this->ustawHasloLinkiem($request, $token, $ustaw, $limit);
+        } catch (LinkResetuNieaktualny) {
+            // Równoległe żądanie z tym samym linkiem zdążyło przed nami
+            // (albo link wygasł w trakcie) — sprawdzone pod blokadą konta,
+            // przed zapisem hasła (#2055). Dla człowieka to ten sam
+            // zużyty link, więc i to samo zdanie niżej.
+            $status = Password::InvalidToken;
+        }
+
+        if ($status !== Password::PasswordReset) {
+            return back()->withErrors([
+                'email' => 'Ten link do ustawienia hasła jest już nieaktualny. Poproś o nowy.',
+            ]);
+        }
+
+        return redirect()->route('login')->with('status', 'Hasło zmienione. Możesz się zalogować.');
+    }
+
+    /**
+     * @throws LinkResetuNieaktualny gdy token przestał być ważny, zanim
+     *                               żądanie wzięło blokadę konta
+     */
+    private function ustawHasloLinkiem(Request $request, #[\SensitiveParameter] string $token, UstawNoweHaslo $ustaw, LimitProbHasla $limit): string
+    {
+        return Password::reset(
             [
-                ...$request->only('password', 'password_confirmation', 'token'),
+                ...$request->only('password', 'password_confirmation'),
+                'token' => $token,
                 'email' => User::normalizeEmail((string) $request->input('email', '')),
             ],
-            function ($user, string $password) use ($request, $ustaw, $limit): void {
+            function ($user, string $password) use ($request, $token, $ustaw, $limit): void {
                 // Hasło, sesje, link resetu, zamówiona zmiana adresu i wpis
                 // dziennika — jedną transakcją pod blokadą konta (#1358).
                 //
@@ -210,7 +242,12 @@ class PasswordResetController extends Controller
                 // odzyskuje kontrolę. Pod tą samą blokadą co zapis hasła,
                 // bo inaczej potwierdzenie mieści się pomiędzy
                 // (`App\Domain\Users\Actions\UstawNoweHaslo`).
-                $ustaw->handle($user, $password, CancelEmailChange::POWOD_RESET_HASLA, $request->ip());
+                //
+                // Token idzie razem z hasłem: broker sprawdził go PRZED tym
+                // wywołaniem, a skasuje PO nim, więc drugie żądanie z tym
+                // samym linkiem czekało na blokadę z „ważnym" tokenem (#2055).
+                // Pod blokadą sprawdzamy go jeszcze raz.
+                $ustaw->handle($user, $password, CancelEmailChange::POWOD_RESET_HASLA, $request->ip(), tokenResetu: $token);
 
                 // KLIKNIĘCIE W TEN LINK POTWIERDZA ADRES (issue #317).
                 //
@@ -265,13 +302,5 @@ class PasswordResetController extends Controller
                 event(new PasswordReset($user));
             },
         );
-
-        if ($status !== Password::PasswordReset) {
-            return back()->withErrors([
-                'email' => 'Ten link do ustawienia hasła jest już nieaktualny. Poproś o nowy.',
-            ]);
-        }
-
-        return redirect()->route('login')->with('status', 'Hasło zmienione. Możesz się zalogować.');
     }
 }
