@@ -1320,6 +1320,10 @@ export default defineRailway((ctx) => {
 
       // Brak preDeployCommand: migracje uruchamia WYŁĄCZNIE serwis web.
       // Trzy serwisy migrujące równolegle to wyścig o blokady w Postgresie.
+      // Kolejność zapewnia entrypoint (#2044): rola `worker` przed startem
+      // czeka, aż `migrate:status` nie pokaże oczekujących migracji
+      // (`czekaj_na_migracje`, limit 900 s, potem kod 1). Nie zmieniaj komendy
+      // startowej na nic, co omija `kuking-entrypoint`.
 
       region: REGION,
       numReplicas: 1,
@@ -1390,6 +1394,7 @@ export default defineRailway((ctx) => {
     build,
 
     deploy: {
+      // Jak worker: entrypoint przed startem czeka na migracje web (#2044).
       startCommand: "/usr/local/bin/kuking-entrypoint scheduler",
 
       region: REGION,

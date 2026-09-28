@@ -134,6 +134,10 @@ elif ! bash tests/skrypty/healthcheck-role.sh >/dev/null 2>&1; then
     zle "Kontrola zdrowia ról kontenera oblewa — uruchom: bash tests/skrypty/healthcheck-role.sh"
 elif ! bash tests/skrypty/preflight-bazy.sh >/dev/null 2>&1; then
     zle "Preflight bazy w entrypoincie oblewa — uruchom: bash tests/skrypty/preflight-bazy.sh"
+elif ! bash tests/skrypty/bramka-migracji.sh >/dev/null 2>&1; then
+    # Worker i scheduler czekają na migracje web, zamiast startować na starym
+    # schemacie (#2044). Atrapa `php`, bez bazy; kontrole ujemne w tym samym pliku.
+    zle "Bramka migracji workera i schedulera oblewa — uruchom: bash tests/skrypty/bramka-migracji.sh"
 elif ! bash tests/skrypty/php-ini-slady.sh >/dev/null 2>&1; then
     # Obraz FrankenPHP nie ma php.ini-production — bez tej dyrektywy w
     # docker/php.ini ślady wyjątków niosą prefiksy argumentów, także sekretów.
