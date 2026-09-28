@@ -142,7 +142,7 @@ FROM composer:2@sha256:a5f59b9fd2faf31218632be4809dc6491761085e8064c31dc3b84378c
 # -----------------------------------------------------------------------------
 # Ten sam obraz bazowy co runtime, żeby platform-check Composera i skompilowane
 # rozszerzenia zgadzały się 1:1 z tym, na czym aplikacja faktycznie pobiegnie.
-FROM dunglas/frankenphp:1-php8.4-trixie@sha256:856e8b16de5ee5e081d4b82d86705d6d6bb052ae377f99173dd4ecb75e955901 AS vendor
+FROM dunglas/frankenphp:1-php8.4-trixie@sha256:035fcb2fab91aacf77d70ee555d51b9bb084d057b16cf8a644bf1f93e28d4e3e AS vendor
 
 # install-php-extensions jest częścią obrazu FrankenPHP
 # (docker-php-extension-installer).
@@ -181,7 +181,7 @@ RUN COMPOSER_CACHE_DIR=/tmp/composer-cache \
 # -----------------------------------------------------------------------------
 # ETAP 3 — obraz runtime
 # -----------------------------------------------------------------------------
-FROM dunglas/frankenphp:1-php8.4-trixie@sha256:856e8b16de5ee5e081d4b82d86705d6d6bb052ae377f99173dd4ecb75e955901 AS runtime
+FROM dunglas/frankenphp:1-php8.4-trixie@sha256:035fcb2fab91aacf77d70ee555d51b9bb084d057b16cf8a644bf1f93e28d4e3e AS runtime
 
 LABEL org.opencontainers.image.title="kuking.pl"
 LABEL org.opencontainers.image.source="https://github.com/woogitsu/kuking.pl"
