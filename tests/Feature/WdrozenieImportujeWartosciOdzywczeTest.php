@@ -33,6 +33,7 @@ use Tests\TestCase;
  *   2. drugie uruchomienie komendy na TYCH SAMYCH plikach jest szybkie —
  *      nie dotyka bazy — bo inaczej codzienny deploy bez zmiany danych
  *      przepisywałby ~600 wierszy za każdym razem.
+ *
  * @bez-kontroli-dodatniej Nowe przypadki #2130 wykonują import na PostgreSQL i porównują zawartość trzech tabel; test czytający plik wdrożenia pochodzi z #1961.
  */
 final class WdrozenieImportujeWartosciOdzywczeTest extends TestCase
