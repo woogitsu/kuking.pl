@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Support\Wersja;
+use DOMDocument;
+use DOMElement;
+use DOMXPath;
 use Tests\TestCase;
 
 /**
@@ -64,6 +67,24 @@ class StronaCoNowegoTest extends TestCase
         $html = (string) $this->get(route('nowosci'))->assertOk()->getContent();
 
         $this->assertStringContainsString('href="#najnowsze-zmiany"', $html);
-        $this->assertStringContainsString('id="najnowsze-zmiany"', $html);
+
+        $dokument = new DOMDocument;
+        @$dokument->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+        $xpath = new DOMXPath($dokument);
+
+        $odsylacze = $xpath->query('//a[starts-with(@href, "#")]');
+        $this->assertGreaterThanOrEqual(11, $odsylacze->length);
+
+        foreach ($odsylacze as $odsylacz) {
+            $this->assertInstanceOf(DOMElement::class, $odsylacz);
+            $kotwica = substr($odsylacz->getAttribute('href'), 1);
+            $this->assertSame(
+                1,
+                $xpath->query('//h2[@id="'.$kotwica.'"]')->length,
+                "Kotwica #{$kotwica} musi należeć do prawdziwego nagłówka, nie do tekstu escaped HTML.",
+            );
+        }
+
+        $this->assertStringNotContainsString('&lt;a id=', $html);
     }
 }

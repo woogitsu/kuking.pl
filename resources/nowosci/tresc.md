@@ -21,12 +21,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 - [Alfa 0.63 — zobacz, co gotują inni pod tym tagiem](#alfa-063)
 - [Alfa 0.62 — zdjęcia i osoby przy tagach](#alfa-062)
 
-<a id="najnowsze-zmiany"></a>
 ## Najnowsze zmiany
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
-<a id="alfa-071"></a>
 ## Alfa 0.71
 
 **Przepis z kartki i orientacyjny koszt dania.**
@@ -63,7 +61,6 @@ Na stronie wpisu widać, kto tak napisał, bez pokazywania liczby reakcji.
 Autor dostanie o nich jedną wiadomość dziennie, żeby nie zagłuszały
 „Ugotowałem”.
 
-<a id="alfa-070"></a>
 ## Alfa 0.70
 
 **Spokojniejsze wpisy i gotowanie.**
@@ -75,7 +72,6 @@ Przy pustej zakładce „Ugotowane” można od razu przejść do wyszukiwarki
 przepisów. Poprawiliśmy też zachowanie wartości odżywczych po decyzji
 moderatora.
 
-<a id="alfa-069"></a>
 ## Alfa 0.69
 
 **Czytelniejsze powiadomienia i wygodniejsze gotowanie.**
@@ -166,7 +162,6 @@ komunikaty błędów, bezpieczniejsza obsługa zgłoszeń i odwołań w panelu
 moderacji oraz kilka poprawek szybkości i wyszukiwania. Pełna, techniczna
 lista — jak zawsze — w `CHANGELOG.md`.
 
-<a id="alfa-068"></a>
 ## Alfa 0.68
 
 **Minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu.**
@@ -190,7 +185,6 @@ powiększone zdjęcie i wyszukiwarka działają dokładniej, a stopka, okruszki,
 komentarze i kilka ekranów moderacji mają czytelniejsze i bezpieczniejsze
 zachowanie.
 
-<a id="alfa-067"></a>
 ## Alfa 0.67
 
 **Tagi ze zdjęciami z Waszych kuchni.**
@@ -206,7 +200,6 @@ Poprawki tego wydania w jednym zdaniu: dla osób rozwijających Kuking
 kontrola przed wysłaniem zmian nauczyła się liczyć testy szybciej, bez
 wpływu na to, co widzicie na ekranie.
 
-<a id="alfa-066"></a>
 ## Alfa 0.66
 
 **Porządek w rozmowach i przygotowanie „Poradźcie”.**
@@ -222,7 +215,6 @@ Poprawki tego wydania w jednym zdaniu: formularz odpowiedzi i poprawki
 komentarza nie gubi już wpisanego tekstu przy błędzie, a usunięta odpowiedź
 z dalszą rozmową nie zawyża już licznika odpowiedzi na pytanie.
 
-<a id="alfa-065"></a>
 ## Alfa 0.65
 
 **Odnośniki prowadzą tam, gdzie obiecują.**
@@ -231,7 +223,6 @@ Same poprawki, jedno zdanie: „Poszukaj przepisów” w pustym zeszycie otwiera
 teraz wyszukiwarkę przepisów, a odnośnik do tablicy wpisów nazywa się tak
 samo, jak strona, do której prowadzi.
 
-<a id="alfa-064"></a>
 ## Alfa 0.64
 
 **Wykonania i odpowiedzi liczone uczciwie.**
@@ -240,7 +231,6 @@ Same poprawki, jedno zdanie: liczba „Ugotowałem” przy przepisie liczy teraz
 także kolejne gotowania tej samej osoby, a podpisy mówią o wykonaniach
 i odpowiedziach, a nie o liczbie osób.
 
-<a id="alfa-063"></a>
 ## Alfa 0.63
 
 **Zobaczcie, co gotują inni pod tym tagiem.**
@@ -253,7 +243,6 @@ wpisu. Najpopularniejsze tematy mają dodatkowo własną kartę ze zdjęciem
 i krótkim zaproszeniem; pozostałe wciąż znajdziecie na liście
 alfabetycznej.
 
-<a id="alfa-062"></a>
 ## Alfa 0.62
 
 **Zdjęcia i osoby przy tagach.**
