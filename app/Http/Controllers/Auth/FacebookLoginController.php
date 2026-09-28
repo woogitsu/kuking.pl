@@ -19,6 +19,7 @@ use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Notifications\ProbaWejsciaKontemFacebooka;
 use App\Support\Facebook;
+use App\Support\Komunikat;
 use App\Support\Poczta;
 use App\Support\RejestracjaZamknieta;
 use Illuminate\Http\RedirectResponse;
@@ -220,11 +221,11 @@ class FacebookLoginController extends Controller
                 'blad' => (string) $request->query('error'),
             ]);
 
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'Nie weszliśmy kontem Facebooka — zgoda nie została udzielona. Nic się nie stało. '
                 .'Możesz spróbować jeszcze raz albo zalogować się hasłem, a jeśli go nie pamiętasz, '
                 .'poproś o wiadomość z przyciskiem do zalogowania.',
-            );
+            ));
         }
 
         $kod = (string) $request->query('code', '');
@@ -243,22 +244,22 @@ class FacebookLoginController extends Controller
             || ! hash_equals($state, (string) $request->query('state', ''))) {
             Log::warning('Powrót z Facebooka odrzucony: nie zgadza się `state` albo brakuje kodu.');
 
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'Wejście kontem Facebooka nie doszło do końca — to sprawdzenie mogło wygasnąć, '
                 .'jeśli od kliknięcia minęła dłuższa chwila. Kliknij „Wejdź kontem Facebooka" jeszcze raz. '
                 .'Możesz też zalogować się hasłem albo poprosić o wiadomość z przyciskiem do zalogowania.',
-            );
+            ));
         }
 
         $tozsamosc = $klient->wymienKod($kod, $this->adresPowrotu());
 
         if ($tozsamosc === null) {
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'Nie udało się dokończyć wejścia kontem Facebooka — po stronie Facebooka coś nie zagrało. '
                 .'Spróbuj jeszcze raz za chwilę. Jeśli to się powtarza, zaloguj się hasłem albo poproś '
                 .'o wiadomość z przyciskiem do zalogowania. Napisz też do nas na '
                 .config('kuking.community.contact_email').' — odpisuje człowiek.',
-            );
+            ));
         }
 
         // ROZPOZNANIE PO IDENTYFIKATORZE — jedyna droga rozpoznania konta
@@ -311,9 +312,9 @@ class FacebookLoginController extends Controller
 
                 $user->cofnijOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
 
-                return redirect()->route('settings.security')->with('status',
+                return redirect()->route('settings.security')->with(Komunikat::informacja(
                     'To konto jest już połączone z Twoim kontem Facebooka. Możesz logować się przyciskiem „Wejdź kontem Facebooka”.',
-                );
+                ));
             }
 
             /*
@@ -327,11 +328,11 @@ class FacebookLoginController extends Controller
              */
             Log::warning('Odmowa połączenia: to konto Facebooka jest już powiązane z innym kontem Kuking.');
 
-            return redirect()->route('settings.security')->with('status',
+            return redirect()->route('settings.security')->with(Komunikat::blad(
                 'Tego konta Facebooka nie połączymy — jest już połączone z innym kontem w Kuking. '
                 .'Jeśli to Twoje drugie konto, wejdź na nie i tam rozłącz Facebooka (napisz do nas na '
                 .config('kuking.community.contact_email').' — odpisuje człowiek), a potem wróć tutaj.',
-            );
+            ));
         }
 
         $this->zapiszTozsamosc($request, $tozsamosc);
@@ -387,14 +388,14 @@ class FacebookLoginController extends Controller
 
             $this->powiadomOProbie($istniejace);
 
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'Na adres e-mail z Twojego Facebooka jest już konto w Kuking, ale Facebook nie potwierdza nam, '
                 .'że ta skrzynka naprawdę do Ciebie należy — dlatego tą drogą Cię nie wpuścimy. To zabezpieczenie: '
                 .'inaczej ktoś mógłby wpisać cudzy adres w swoim koncie na Facebooku i wejść na cudze konto. '
                 .'Wejdź na swoje konto tak jak zwykle: hasłem albo poproś o wiadomość z przyciskiem do zalogowania. '
                 .'Potem w Ustawieniach → Bezpieczeństwo kliknij „Połącz konto Facebooka" — i od następnego razu '
                 .'możesz logować się przyciskiem „Wejdź kontem Facebooka”.',
-            );
+            ));
         }
 
         // NOWA OSOBA — nie zakładamy konta po cichu. Idzie na ekran
@@ -473,10 +474,10 @@ class FacebookLoginController extends Controller
         $konto = $this->wejscie()->zalozKonto($request, $tozsamosc, $dane, $zalozKonto);
 
         if ($konto === null) {
-            return redirect()->route('login')->with('status',
+            return redirect()->route('login')->with(Komunikat::blad(
                 'W tym czasie powstało już konto na ten adres. Zaloguj się — hasłem albo poproś '
                 .'o wiadomość z przyciskiem do zalogowania.',
-            );
+            ));
         }
 
         // „Wysłaliśmy Ci wiadomość" pada tylko wtedy, gdy to prawda (#1373).
@@ -594,9 +595,9 @@ class FacebookLoginController extends Controller
         $this->wejscie()->zapomnij($request);
 
         if ($powiazane?->getKey() === $user->getKey()) {
-            return redirect()->route('settings.security')->with('status',
+            return redirect()->route('settings.security')->with(Komunikat::informacja(
                 'Połączenie z Facebookiem znów działa. Możesz logować się przyciskiem „Wejdź kontem Facebooka”.',
-            );
+            ));
         }
 
         return redirect()->route('settings.security')->with('status',
@@ -626,11 +627,11 @@ class FacebookLoginController extends Controller
     private function wpusc(Request $request, User $user): RedirectResponse
     {
         return match ($this->wejscie()->wpusc($request, $user)) {
-            WynikWejscia::KontoZamkniete => redirect()->route('login')->with('status', KomunikatZamknietegoKonta::dla($user)),
-            WynikWejscia::KontoObslugi => redirect()->route('login')->with('status',
+            WynikWejscia::KontoZamkniete => redirect()->route('login')->with(Komunikat::blad(KomunikatZamknietegoKonta::dla($user))),
+            WynikWejscia::KontoObslugi => redirect()->route('login')->with(Komunikat::blad(
                 'Konta obsługi serwisu wchodzą hasłem i kodem z aplikacji — nie kontem Facebooka. '
                 .'Zaloguj się poniżej.',
-            ),
+            )),
             WynikWejscia::DrugiSkladnik => redirect()->route('login.two_factor'),
             WynikWejscia::Wpuszczony => redirect()->intended(route('home')),
         };
@@ -718,11 +719,11 @@ class FacebookLoginController extends Controller
 
     private function trzebaZaczacOdNowa(): RedirectResponse
     {
-        return redirect()->route('login')->with('status',
+        return redirect()->route('login')->with(Komunikat::blad(
             'Wejście kontem Facebooka wymaga ponownego potwierdzenia. '
             .'Kliknij „Wejdź kontem Facebooka" jeszcze raz. Możesz też zalogować się hasłem albo poprosić '
             .'o wiadomość z przyciskiem do zalogowania.',
-        );
+        ));
     }
 
     /**
@@ -733,9 +734,9 @@ class FacebookLoginController extends Controller
      */
     private function drogaZamknieta(): RedirectResponse
     {
-        return redirect()->route('login')->with('status',
+        return redirect()->route('login')->with(Komunikat::blad(
             'Wejście kontem Facebooka jest teraz wyłączone. Zaloguj się hasłem — Twoje konto działa '
             .'normalnie. Jeśli nie pamiętasz hasła, poproś o wiadomość z przyciskiem do zalogowania.',
-        );
+        ));
     }
 }

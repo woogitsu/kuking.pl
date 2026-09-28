@@ -69,7 +69,10 @@
             <p class="mb-0">Najprostsza rzecz. Wybierasz zdjęcie, piszesz jedno zdanie i gotowe.</p>
         </a>
 
-        <a class="kafel-akcji" href="{{ route('recipes.create') }}">
+        {{-- Gdy działa odczyt przepisu (V2, D-298), „Cały przepis” prowadzi
+             najpierw do wyboru źródła: kartka, adres strony, PDF albo „Wpiszę
+             sam”. Gdy nie działa — prosto do formularza, bez pustego kroku. --}}
+        <a class="kafel-akcji" href="{{ \App\Domain\Import\ZlecImportPrzepisu::dostepnyOdczytZdjecia() ? route('import.wybor') : route('recipes.create') }}">
             <h2 class="mt-0">Cały przepis</h2>
             <p class="mb-0">Składniki i przygotowanie, żeby ktoś inny mógł to u siebie zrobić. Możesz zapisać szkic i wrócić później.</p>
         </a>
