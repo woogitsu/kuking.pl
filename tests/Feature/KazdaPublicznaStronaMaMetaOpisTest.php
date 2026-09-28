@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Digest\OdnosnikWypisania;
+use App\Domain\Rocznice\OdnosnikWypisaniaZUrodzin;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\RecipeStep;
@@ -123,6 +124,7 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
         'google.link' => 'wymaga tożsamości z Google w sesji; noindex w auth/google-link.blade.php',
         'facebook.finish' => 'wymaga tożsamości z Facebooka w sesji; noindex w auth/facebook-finish.blade.php',
         'facebook.link' => 'wymaga tożsamości z Facebooka w sesji i zalogowania; noindex w auth/facebook-link.blade.php',
+        'facebook.link.confirm' => 'wymaga zalogowania, tej samej sesji i ważnego tokenu; noindex w auth/facebook-link.blade.php',
     ];
 
     public function test_kazda_indeksowalna_strona_publiczna_ma_niepusty_meta_description(): void
@@ -143,6 +145,7 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             'terms' => route('terms'),
             'privacy' => route('privacy'),
             'rules' => route('rules'),
+            'nowosci' => route('nowosci'),
             'kontakt' => route('kontakt'),
             'kontakt.potwierdzenie' => route('kontakt.potwierdzenie'),
             'zglos.nielegalna' => route('zglos.nielegalna'),
@@ -191,6 +194,8 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             // kliknięciem.
             'podsumowanie.wypisz' => OdnosnikWypisania::dla($autor),
             'podsumowanie.wracam' => OdnosnikWypisania::powrotDla($autor),
+            // Wypisanie z listu urodzinowego (#1755) — podpisany adres, `noindex`.
+            'urodziny.wypisz' => OdnosnikWypisaniaZUrodzin::dla($autor),
         ];
 
         $zbadanych = 0;

@@ -878,6 +878,67 @@ moderacyjne zbliżają się do danych o naruszeniach prawa (art. 10 RODO).
 
 ---
 
+**Dopisane 25 września 2026, issue #1817** (część wdrożenia decyzji
+właściciela z 25.09.2026 w sprawie #1781). Siedem pytań poniżej nie ma
+jeszcze dowodu z kodu ani odczytu repozytorium — to są pytania wprost od
+recenzentów zewnętrznych, przekazane prawnikowi bez pośredniej analizy.
+
+### P-10 · Czy Kuking jest platformą internetową (art. 3 lit. i DSA) mimo rejestracji z zaproszenia?
+
+Publiczne wpisy i przepisy są czytelne bez zalogowania, niezależnie od tego,
+czy w danym okresie rejestracja jest otwarta czy działa na zaproszenia
+(**R-17** opisuje bieżący stan: dziś jest otwarta). Pytanie: czy dostępność
+treści bez konta rozstrzyga kwalifikację serwisu jako platformy internetowej
+w rozumieniu DSA, niezależnie od modelu wejścia nowych osób.
+
+### P-11 · Jak czytać art. 27 ust. 1 DSA w wersji polskiej („bardzo dużych”) wobec wersji angielskiej?
+
+Sygnalizowana rozbieżność między polskim tłumaczeniem rozporządzenia
+a wersją angielską dotyczy zakresu podmiotowego obowiązku z art. 27 ust. 1.
+Pytanie: która wersja językowa jest wiążąca przy rozbieżności i czy różnica
+ma znaczenie dla obowiązków serwisu tej skali.
+
+### P-12 · Status mikro/małego przedsiębiorstwa razem z podmiotami partnerskimi i powiązanymi
+
+Zalecenie Komisji 2003/361/WE każe liczyć podmioty partnerskie i powiązane
+przy ustalaniu progów zatrudnienia i obrotu dla statusu MŚP. Pytanie: czy
+taka konsolidacja zmienia kwalifikację właściciela serwisu i czy wpływa to
+na zwolnienia przewidziane w DSA dla mikro- i małych przedsiębiorstw.
+
+### P-13 · Podstawa prawna dla ukryć i obserwowanych tematów: art. 6 ust. 1 lit. b czy f RODO?
+
+Funkcje „ukryj” (`app/Domain/Feed`) i obserwowane tagi (`tag_follows`,
+patrz **R-01**) przetwarzają preferencje treściowe człowieka. Pytanie: czy
+podstawą jest wykonanie umowy (lit. b, bo to część usługi, o którą osoba
+poprosiła) czy uzasadniony interes administratora (lit. f), i czy odpowiedź
+zmienia to, co polityka prywatności musi ujawniać wprost.
+
+### P-14 · Art. 9 RODO przy tagach dietetycznych i religijnych na listach obserwowanych/ukrytych
+
+Tagi w rodzaju „wegańskie”, „koszerne” czy „postne” mogą pośrednio ujawniać
+przekonania religijne albo dane o zdrowiu osoby, która je obserwuje albo
+ukrywa. Pytanie: czy samo obserwowanie/ukrywanie takiego tagu tworzy dane
+szczególnej kategorii w rozumieniu art. 9, i jeśli tak — jaka podstawa
+z art. 9 ust. 2 dopuszcza ich przetwarzanie tutaj.
+
+### P-15 · Art. 15 ust. 4 RODO: czy ukrytemu autorowi wolno ujawnić tylko liczbę ukryć?
+
+Gdy autor przepisu składa wniosek o dane dotyczące go, fakt, że inne osoby
+ukryły jego wpisy, jest jednocześnie danymi tych osób (kto kogo ukrył).
+Pytanie: czy ograniczenie odpowiedzi do samej **liczby** ukryć, bez
+tożsamości ukrywających, wystarcza, żeby nie naruszyć praw i wolności osób
+trzecich, o których mówi art. 15 ust. 4.
+
+### P-16 · Data wejścia w życie ustawy z 4 września 2026 (wdrożenie DSA) i obowiązki wobec Prezesa UKE
+
+Krajowa ustawa wdrażająca DSA została podpisana 25 września 2026 (**R-15**
+i **R-17** dotyczą pokrewnych braków dat w dokumentach serwisu). Pytanie: od
+kiedy faktycznie biegną obowiązki wobec Prezesa UKE jako koordynatora usług
+cyfrowych, i czy serwis tej skali ma wobec niego obowiązki rejestracyjne
+albo informacyjne przed pełnym wdrożeniem krajowych przepisów wykonawczych.
+
+---
+
 ## 4. Czego NIE sprawdzaliśmy — jawna lista białych plam
 
 Dokument, który udaje kompletny, jest gorszy niż krótki i uczciwy.
@@ -955,4 +1016,5 @@ kolizja nazw), issue #836 (pomiar na syntetycznym znaczniku), issue #8
 **Issues:** #8 (przegląd prawny), #953, #832, #825, #823, #824, #821, #692
 (rodzina eksportu), #912 (zdjęcie do OpenAI), #880 (zgoda na list), #836
 (token w kontekście kontaktu), #619 (jurysdykcja R2), #617 (DR zdjęć),
-#204 (piksel otwarć).
+#204 (piksel otwarć), #1781 (zestawienie 8 opinii zewnętrznych, decyzja
+właściciela 25.09.2026), #1817 (P-10–P-16, pytania do prawnika #8).

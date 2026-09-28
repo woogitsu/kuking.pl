@@ -3,10 +3,13 @@
 declare(strict_types=1);
 
 use App\Domain\Analytics\ZapiszSygnal;
+use App\Domain\Monitoring\SeriaAlarmow;
 use App\Exceptions\OdzyskanyFormularz;
+use App\Http\Api\BledyApi;
 use App\Http\Controllers\WydanieController;
 use App\Http\Middleware\AktualizujOstatniaWizyte;
 use App\Http\Middleware\ApplySecurityHeaders;
+use App\Http\Middleware\BramaApi;
 use App\Http\Middleware\CorrelateRequest;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureModeratorHasTwoFactor;
@@ -14,12 +17,15 @@ use App\Http\Middleware\EnsureUserIsModerator;
 use App\Http\Middleware\NormalizeForwardedFor;
 use App\Http\Middleware\PreventRequestForgeryExceptMediaCookie;
 use App\Http\Middleware\PreventSharedSessionCache;
+use App\Http\Middleware\SprawdzGeneracjeSesji;
 use App\Http\Middleware\StartSessionExceptAnonymousMedia;
 use App\Logging\QueueCorrelation;
+use App\Logging\WebhookBleduHandler;
 use App\Support\ZaufaneHosty;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
@@ -27,11 +33,19 @@ use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
+use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        // Publiczne API dla aplikacji mobilnej (D-014, D-270). Wersja stoi
+        // w prefiksie, nie w nagłówku: `/api/v2` będzie osobnym plikiem tras
+        // obok tego, a `v1` zostanie, dopóki działają aplikacje, które go
+        // wołają. Grupa `api` jest skonfigurowana niżej, w `withMiddleware`.
+        api: __DIR__.'/../routes/api.php',
+        apiPrefix: 'api/v1',
         commands: __DIR__.'/../routes/console.php',
         // Railway healthcheck celuje w /health (App\Http\Controllers\HealthController),
         // który sprawdza bazę. Frameworkowy /up zostaje jako najprostszy sygnał
@@ -229,6 +243,12 @@ return Application::configure(basePath: dirname(__DIR__))
             // zalogowany, więc na trasach gościa nie robi nic.
             EnsureAccountIsActive::class,
 
+            // #1046: sesja odtworzona przez żądanie, które skończyło się PO
+            // „wyloguj wszędzie”/resecie hasła, niesie starą generację i tu
+            // odpada. Po `EnsureAccountIsActive`, żeby zbanowane konto dostało
+            // tamten komunikat. Uzasadnienie: `App\Support\Sesja\GeneracjaSesji`.
+            SprawdzGeneracjeSesji::class,
+
             // PO `EnsureAccountIsActive`, CELOWO (issue #114/#115, bramka V1
             // z `docs/ROADMAP.md`). Konto właśnie wylogowane przez middleware
             // wyżej (zbanowane/`pending_delete`/`erased`) nie ma tu już
@@ -290,11 +310,45 @@ return Application::configure(basePath: dirname(__DIR__))
             PreventRequestForgeryExceptMediaCookie::class,
         );
 
+        // GRUPA `api` (D-270). Framework daje jej samo `SubstituteBindings`;
+        // dokładamy dwie rzeczy:
+        //
+        //  - `BramaApi` NA POCZĄTKU — wyłącznik `KUKING_API_ENABLED`
+        //    i wymuszone `Accept: application/json`;
+        //  - limiter `api` (`App\Providers\ApiServiceProvider`): osobny
+        //    koszyk na token i na adres IP, liczby w `config/kuking.php`.
+        //
+        // Grupa NIE MA sesji, ciasteczek ani ochrony CSRF — i nie ma mieć:
+        // uwierzytelnia wyłącznie token w nagłówku (`config/sanctum.php`),
+        // a żądanie, które nie niesie ciasteczka, nie ma czego podrobić.
+        $middleware->api(prepend: [BramaApi::class]);
+        $middleware->throttleApi('api');
+
+        // `BramaApi` PIERWSZA NA LIŚCIE PRIORYTETÓW, przed wszystkim, co
+        // framework na niej trzyma. Bez tego sortowanie middleware'u
+        // (`Kernel::$middlewarePriority`) wyniosłoby `auth:sanctum`
+        // i `throttle` PRZED nią: zamknięte API odpowiadałoby 401 na trasie,
+        // która istnieje, i 404 na tej, której nie ma — czyli zdradzałoby
+        // swoją mapę — a każde odbicie zjadałoby licznik limitu.
+        $middleware->prependToPriorityList(
+            before: HandlePrecognitiveRequests::class,
+            prepend: BramaApi::class,
+        );
+
         $middleware->alias([
             'moderator' => EnsureUserIsModerator::class,
             // Zawsze DRUGI w trasie, po 'moderator' — issue #12, patrz
             // komentarz klasy: zakłada, że użytkownik jest już moderatorem.
             'moderator.2fa' => EnsureModeratorHasTwoFactor::class,
+            // Zamknięty zakres tokenu API (D-320, #1928). Sanctum niesie te
+            // dwie klasy, ale w Laravel 11+ nie rejestruje ich aliasów samo —
+            // bez tego wpisu `middleware('ability:...')` na trasie rzucałoby
+            // "Target class [ability] does not exist.", a trasa byłaby
+            // dostępna KAŻDYM tokenem, nie tylko tym z właściwym zakresem.
+            // 'ability' wymaga WSZYSTKICH podanych zakresów naraz,
+            // 'abilities' — dowolnego jednego z nich.
+            'ability' => CheckAbilities::class,
+            'abilities' => CheckForAnyAbility::class,
         ]);
 
         // DWA adresy wyjęte spod ochrony CSRF — i oba dlatego, że żąda ich
@@ -548,10 +602,41 @@ return Application::configure(basePath: dirname(__DIR__))
             // z komunikatem, który przy `QueryException` niesie e-mail i hash
             // hasła (A6-01). Skoro nie jest do niczego potrzebny, nie ma po co
             // go tu wkładać.
-            Log::channel('blad_webhook')->error($e::class, [
-                'exception' => $e,
-                ...app(QueueCorrelation::class)->forException($e),
-            ]);
+            // SERIA IDENTYCZNYCH BŁĘDÓW = JEDNA WIADOMOŚĆ NA OKNO (#599).
+            // Odcisk to klasa|plik|linia — bez komunikatu i bez adresu.
+            // Dziennik serwera dostaje każde wystąpienie i tak (raport
+            // domyślny Laravela), ograniczamy wyłącznie zewnętrzny kanał.
+            // Pełny kontrakt: `App\Domain\Monitoring\SeriaAlarmow`.
+            app(SeriaAlarmow::class)->zglos(
+                'wyjatek:'.WebhookBleduHandler::odcisk($e),
+                (int) config('kuking.monitoring.seria_okno_minut'),
+                function (int $pominiete) use ($e): bool {
+                    WebhookBleduHandler::zapomnijOstatniaWysylke();
+                    Log::channel('blad_webhook')->error($e::class, [
+                        'exception' => $e,
+                        'pominiete_powtorzenia' => $pominiete,
+                        ...app(QueueCorrelation::class)->forException($e),
+                    ]);
+
+                    return WebhookBleduHandler::ostatniaWysylkaSieUdala() === true;
+                },
+            );
+        });
+
+        // ------------------------------------------------------------------
+        //  API: JEDEN FORMAT BŁĘDU, PO POLSKU (D-270)
+        //
+        //  OSTATNIE z wywołań `render`, celowo: dwa wyżej (419 i 429) dla
+        //  `api/*` oddają `null` — 429 po zapisaniu śladu w logu — i sprawa
+        //  trafia tutaj. Format i zdania: `App\Http\Api\BledyApi`.
+        //
+        //  Wywołanie przyjmuje `Throwable`, więc obejmuje też wyjątki,
+        //  które framework zamienia sam (`ModelNotFoundException` → 404,
+        //  `AuthorizationException` → 403): Laravel woła te wywołania PO
+        //  `prepareException()`, na już zamienionym wyjątku.
+        // ------------------------------------------------------------------
+        $exceptions->render(function (Throwable $e, Request $request) {
+            return BledyApi::dotyczy($request) ? BledyApi::odpowiedz($e) : null;
         });
 
         // Wygaśnięcie sesji to zdarzenie normalne, nie awaria. Zgłaszanie go

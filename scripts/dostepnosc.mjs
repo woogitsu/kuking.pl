@@ -464,6 +464,10 @@ const EKRANY = [
   { nazwa: 'polityka prywatności', adres: '/prywatnosc' },
   { nazwa: 'regulamin', adres: '/regulamin' },
   { nazwa: 'zasady', adres: '/zasady' },
+  // „Co nowego” pod numerem wersji w stopce (issue #1909) — długa strona
+  // z nagłówkami wydań i spisem treści prowadzącym do kotwic, ten sam
+  // kształt ryzyka co trzy dokumenty prawne wyżej.
+  { nazwa: 'co nowego', adres: '/co-nowego' },
 
   /* ===========================================================================
    * SIEDEM STRON PUBLICZNYCH DOPISANYCH 11 WRZEŚNIA — SPŁATA DŁUGU Z D-099
@@ -1825,7 +1829,7 @@ if (idOdwolania === null) {
  * podzbiór tego samego układu.
  *
  * DECYZJA `no_action`, ŚWIADOMIE. Jako jedyna nie rusza ani treści, ani
- * konta (`ModerationController::applyAction()`), więc dołożenie tych danych
+ * konta (`RozstrzygnijZgloszenie::applyAction()`), więc dołożenie tych danych
  * nie zmienia ANI JEDNEGO innego ekranu z listy wyżej. `hide` ukryłby
  * demonstracyjny wpis oglądany przez trzy inne pozycje.
  *

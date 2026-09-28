@@ -20,6 +20,8 @@ Produktowa reguła:
 - ważne buttony min. 48 px wysokości;
 - duży odstęp między akcją normalną i destrukcyjną;
 - ważna akcja ma tekst.
+- rozwijane wyjaśnienie na `<details>/<summary>` ma widoczny wskaźnik stanu;
+  zachowaj natywny marker albo zapewnij własny, zmieniający się po otwarciu.
 
 Dobre:
 `[ Zapisz ] [ Komentuj ] [ Ugotowałem ]`

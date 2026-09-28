@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
+use League\Flysystem\UnableToWriteFile;
 
 /**
  * Przetworzenie wgranego zdjęcia.
@@ -36,8 +37,9 @@ use Intervention\Image\ImageManager;
  * komunikat po polsku, a nie pustą ramkę. Między próbami zdjęcie zostaje
  * w `processing` (issue #1349): `rejected` jest dla widoku ostateczne.
  *
- * Zdjęcie NIGDY nie zostaje w `processing` — pilnuje tego zarówno `catch`
- * w `handle()`, jak i hook `failed()`. Ten drugi jest konieczny, bo przy
+ * Zdjęcie nie zostaje w `processing` NA ZAWSZE: nieudany `handle()` pozostawia
+ * je tam tylko do kolejnej próby, a po wyczerpaniu prób domyka je `failed()`.
+ * Ten hook jest konieczny również dlatego, że przy
  * przekroczeniu `$timeout` proces dostaje sygnał w środku wykonania i nie ma
  * już żadnego wyjątku do przechwycenia: `catch` się nie wykona, a zdjęcie
  * zostałoby w `processing` na zawsze. Widok dla tego stanu mówi „odśwież
@@ -191,7 +193,19 @@ class ProcessUploadedImage implements ShouldQueue
                 // (`App\Support\Storage\R2Adapter`), który nie wysyła ACL
                 // wcale — podanie tu widoczności byłoby dziś błędem, nie
                 // pustym gestem, i padnie od razu.
-                $publiczny->put($variantKey, (string) $encoded);
+                //
+                // `false` Z `put()` TO BŁĄD, NIE SUKCES (issue #961). Dysk
+                // z `throw => false` nie rzuca — bez tego sprawdzenia wariant
+                // trafiał do `variants`, a zdjęcie dostawało `ready` z adresem
+                // pliku, którego nie ma: trwale martwy obrazek, bez ponowienia
+                // i bez śladu w `failed_jobs`. Wyjątek idzie do `catch` niżej,
+                // czyli tą samą drogą co awaria dysku `throw => true`:
+                // między próbami zostaje `processing`, a po ostatniej próbie
+                // dostaje `rejected` (issue #1349).
+                if ($publiczny->put($variantKey, (string) $encoded) === false) {
+                    throw UnableToWriteFile::atLocation($variantKey, 'Dysk zwrócił false z put() dla wariantu zdjęcia.');
+                }
+
                 $zapisane[] = $variantKey;
 
                 $variants[$name] = [

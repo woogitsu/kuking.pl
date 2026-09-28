@@ -152,15 +152,35 @@ return [
          | a który `config/kuking.php` jawnie dopuszcza. Czy plik NAPRAWDĘ
          | jest obrazem, rozstrzygają magic bytes w `StoreUploadedImage`,
          | nie rozszerzenie od klienta (AGENTS.md §7).
+         |
+         | `mimetypes:` Z `LimityZdjec::dozwoloneTypy()` (audyt A5-09). To NIE
+         | jest `mimes:` po rozszerzeniu: Laravel sprawdza tu typ rozpoznany
+         | z ZAWARTOŚCI pliku (finfo), więc nazwa od klienta nic nie zmienia.
+         | Bez tej reguły endpoint przyjmował do `livewire-tmp/` plik dowolnego
+         | typu — film, archiwum, cokolwiek do 15 MB. Magic bytes
+         | w `StoreUploadedImage` zostają prawdziwą granicą; ta reguła tylko
+         | nie wpuszcza śmieci do bucketu.
          */
-        'rules' => ['required', 'file', 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
-        'directory' => null,                                  // Example: 'tmp'                     | Default: 'livewire-tmp'
-        'middleware' => null,                                 // Example: 'throttle:5,1'            | Default: 'throttle:60,1'
-        'preview_mimes' => [                                  // Supported file types for temporary pre-signed file URLs...
-            'png', 'gif', 'bmp', 'svg', 'wav', 'mp4',
-            'mov', 'avi', 'wmv', 'mp3', 'm4a',
-            'jpg', 'jpeg', 'mpga', 'webp', 'wma',
+        'rules' => [
+            'required',
+            'file',
+            'max:'.LimityZdjec::maksKilobajtowDoWalidacji(),
+            'mimetypes:'.implode(',', LimityZdjec::dozwoloneTypy()),
         ],
+        'directory' => null,                                  // Example: 'tmp'                     | Default: 'livewire-tmp'
+        /*
+         | Limit wgrywania z `config/kuking.php` (`limits.livewire_upload`),
+         | z własnym prefiksem licznika. Domyślne `throttle:60,1` pakietu to
+         | 60 plików po 15 MB na minutę na osobę (audyt A5-09).
+         */
+        'middleware' => 'throttle:'.config('kuking.limits.livewire_upload').',livewire_upload',
+        /*
+         | Podgląd tymczasowy tylko dla formatów zdjęć, które przyjmujemy.
+         | Domyślna lista pakietu zawierała `svg` (skrypt w obrazku), filmy
+         | i dźwięk (audyt A5-09). AVIF-a pakiet nie podgląda — nie ma go
+         | na jego liście obsługiwanych podglądów, więc nie dopisujemy.
+         */
+        'preview_mimes' => ['jpg', 'jpeg', 'png', 'webp'],
         'max_upload_time' => 5, // Max duration (in minutes) before an upload is invalidated...
         'cleanup' => true, // Should cleanup temporary uploads older than 24 hrs...
     ],
@@ -270,7 +290,33 @@ return [
     |
     */
 
-    'release_token' => 'a',
+    // KUKING (issue #977): token = SHA wdrożonego commita, nie stałe 'a'.
+    //
+    // Przy stałym tokenie karta otwarta przed wdrożeniem wysyłała po nim
+    // migawkę komponentu z poprzedniego kodu — z właściwościami, których
+    // nowy kod może już nie znać — i Livewire nie miał jak tego rozpoznać.
+    // Z SHA pierwsze żądanie takiej karty dostaje 419 i komunikat po polsku
+    // z przyciskiem „Odśwież stronę”.
+    //
+    // To samo źródło co wersja w stopce (`kuking.wersja.commit`): Railway
+    // wstrzykuje RAILWAY_GIT_COMMIT_SHA do KAŻDEGO wdrożenia w runtime,
+    // a `config:cache` robi `php artisan optimize` w docker/entrypoint.sh
+    // przy starcie kontenera — nie w buildzie — więc zapieka SHA tego
+    // wdrożenia, a nie pustą wartość z builda.
+    //
+    // Lokalnie i w testach zmiennej nie ma: stały zapas 'lokalnie', żeby
+    // token nie zmieniał się między żądaniami (losowy zapas wywalałby
+    // każdą kartę po restarcie serwera deweloperskiego).
+    //
+    // UWAGA: wdrożenie bez gita (`railway up` z lokalnego katalogu) też nie
+    // ma RAILWAY_GIT_COMMIT_SHA — dostaje stały token 'lokalnie', więc karty
+    // sprzed takiego wdrożenia NIE zostaną odrzucone (jak przy dawnym 'a').
+    // Ochrona z #977 działa tylko dla wdrożeń z commita.
+    //
+    // Niezgodność kończy się 419; Livewire pokazałby wtedy własne angielskie
+    // `confirm()`. Zastępuje je polski komunikat z
+    // `resources/js/strona-nieaktualna.js`.
+    'release_token' => strtolower(trim((string) env('RAILWAY_GIT_COMMIT_SHA'))) ?: 'lokalnie',
 
     /*
     |---------------------------------------------------------------------------
