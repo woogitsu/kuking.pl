@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Moderation\Actions\AlarmujOPilnymZgloszeniu;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ZglosNielegalnaTresc;
 use App\Domain\Moderation\PriorytetSprawy;
@@ -13,9 +14,13 @@ use App\Models\Report;
 use App\Models\User;
 use App\Notifications\PilneZgloszenieOdCzlowieka;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -390,6 +395,77 @@ class KolejkaModeracjiStawiaPilneNaGorzeTest extends TestCase
         app(ReportContent::class)->handle($this->user('zglaszajacypuli2'), $wpis, 'minor');
 
         Notification::assertSentOnDemandTimes(PilneZgloszenieOdCzlowieka::class, 1);
+    }
+
+    /**
+     * #2066: wyjątek po INSERT do database queue ma wycofać także cache i
+     * rezerwację. Ponowienie tej SAMEJ sprawy tworzy dokładnie jeden job.
+     */
+    public function test_awaria_po_zapisie_joba_cofa_calosc_i_ponowienie_nie_dubluje_alarmu(): void
+    {
+        config([
+            'kuking.moderation.model.alarm_email' => null,
+            'cache.default' => 'database',
+            'queue.default' => 'database',
+            'queue.connections.database.after_commit' => false,
+        ]);
+        Cache::purge('database');
+
+        $wpis = $this->wpis('autorawariialarmu');
+        $zglaszajacy = $this->user('zglaszajacyawariialarmu');
+        $pierwsze = app(ReportContent::class)->handle($zglaszajacy, $wpis, 'minor');
+        config(['kuking.moderation.model.alarm_email' => 'moderacja@kuking.test']);
+        $przed = DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte();
+        $jobsPrzed = DB::table('jobs')->count();
+        $wstrzyknieto = false;
+        DB::listen(static function (QueryExecuted $zapytanie) use ($jobsPrzed, &$wstrzyknieto): void {
+            if ($wstrzyknieto || preg_match('/^insert into ["`]?jobs["`]?\s/i', $zapytanie->sql) !== 1) {
+                return;
+            }
+
+            if (DB::table('jobs')->count() <= $jobsPrzed) {
+                throw new RuntimeException('Przyrząd testu nie utworzył zadania przed awarią.');
+            }
+
+            $wstrzyknieto = true;
+            throw new RuntimeException('Utracona odpowiedź po zapisie do jobs.');
+        });
+
+        $this->assertFalse(app(AlarmujOPilnymZgloszeniu::class)->handle($pierwsze));
+        $this->assertTrue($wstrzyknieto, 'Test nie doszedł do awarii po prawdziwym INSERT do jobs.');
+        $this->assertSame($jobsPrzed, DB::table('jobs')->count());
+        $this->assertSame($przed, DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte());
+        $this->assertSame(0, DziennyBudzetListow::dlaAlarmuModeracji()->zuzyte());
+        $this->assertNull($pierwsze->refresh()->alarm_czlowieka_obsluzony_at);
+
+        $drugie = app(ReportContent::class)->handle($zglaszajacy, $wpis, 'minor');
+        $this->assertSame($pierwsze->getKey(), $drugie->getKey());
+        $this->assertSame($jobsPrzed + 1, DB::table('jobs')->count());
+        $this->assertSame($przed + 1, DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte());
+        $this->assertNotNull($drugie->refresh()->alarm_czlowieka_obsluzony_at);
+
+        $this->travel(7)->hours();
+        app(ReportContent::class)->handle($zglaszajacy, $wpis, 'minor');
+        $this->assertSame($jobsPrzed + 1, DB::table('jobs')->count(), 'Stara sprawa wysłała drugi list po wygaśnięciu okna.');
+    }
+
+    /** Stary klucz bez trwałego znacznika nie jest dowodem zlecenia listu. */
+    public function test_historyczny_niepewny_klucz_nie_oznacza_sprawy_jako_obsluzonej(): void
+    {
+        Notification::fake();
+        config(['kuking.moderation.model.alarm_email' => null]);
+
+        $wpis = $this->wpis('autorhistorycznegoalarmu');
+        $zglaszajacy = $this->user('zglaszajacyhistorycznegoalarmu');
+        $sprawa = app(ReportContent::class)->handle($zglaszajacy, $wpis, 'minor');
+
+        $klucz = (new \ReflectionMethod(AlarmujOPilnymZgloszeniu::class, 'kluczCelu'))->invoke(null, $sprawa);
+        Cache::put($klucz, (string) $sprawa->getKey(), now()->addHours(6));
+        config(['kuking.moderation.model.alarm_email' => 'moderacja@kuking.test']);
+
+        $this->assertFalse(app(AlarmujOPilnymZgloszeniu::class)->handle($sprawa));
+        $this->assertNull($sprawa->refresh()->alarm_czlowieka_obsluzony_at);
+        Notification::assertNothingSent();
     }
 
     // ---------------------------------------------------------------
