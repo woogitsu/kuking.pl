@@ -964,6 +964,7 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // w `NotificationController::open()`.
     Route::post('/powiadomienia/{notification}/zobacz', [NotificationController::class, 'open'])
         ->middleware("throttle:{$limits['powiadomienia']},powiadomienia")
+        ->whereUuid('notification')
         ->name('notifications.open');
 
     // Ustawienia

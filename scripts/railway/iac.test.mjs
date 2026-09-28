@@ -266,6 +266,22 @@ const PROD = graf("production");
 const STAGING = graf("staging");
 const usluga = (g, nazwa) => g.resources.find((r) => r.name === nazwa);
 
+test("instrukcja wdrożenia podaje czasy zamykania z grafu IaC (#2056)", () => {
+  const dokument = readFileSync(resolve(KORZEN, "docs/DEPLOYMENT.md"), "utf8");
+  const przypadki = [
+    ["splitServices=false", "all", usluga(STAGING, KONTEKST.nazwaWww)],
+    ["splitServices=true", "web", usluga(PROD, KONTEKST.nazwaWww)],
+    ["splitServices=true", "worker", usluga(PROD, "worker")],
+    ["splitServices=true", "scheduler", usluga(PROD, "scheduler")],
+  ];
+
+  for (const [topologia, rola, serwis] of przypadki) {
+    assert.ok(serwis, `brak serwisu ${rola} w grafie IaC`);
+    const wiersz = `| \`${topologia}\` | \`${rola}\` | ${serwis.deploy.drainingSeconds} s |`;
+    assert.ok(dokument.includes(wiersz), `docs/DEPLOYMENT.md nie zgadza się z IaC: ${wiersz}`);
+  }
+});
+
 const MUTACJE = [
   ["dawna nazwa `web` zamiast żywej", PROD, (g) => { usluga(g, "kuking.pl").name = "web"; }],
   ["baza `postgres` małą literą", PROD, (g) => { g.resources.find((r) => r.type === "database").name = "postgres"; }],

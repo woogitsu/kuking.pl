@@ -2197,12 +2197,13 @@ transakcji: po nim baza zawiera dokładnie to, co pliki.
 **Wdrożenie (#1961).** Komenda stoi w `preDeployCommand` w `.railway/railway.ts`,
 po `migrate` i `db:seed` — leci automatycznie przy KAŻDYM wdrożeniu, nie tylko
 ręcznie (wcześniej migracja tworzyła puste tabele i nikt ich nie wypełniał).
-Żeby zwykły deploy bez zmiany plików CSV nie przepisywał ~600 wierszy za każdym
-razem, komenda liczy hash zawartości obu plików i pomija cały import (bez
-parsowania i bez zapisu), gdy hash jest ten sam co przy poprzednim udanym
-imporcie ORAZ tabela `skladniki_odzywcze` już ma dane — ten drugi warunek jest
-samoleczący: świeża/przywrócona baza z pasującym, starym hashem w cache i tak
-dostanie pełny import. `--wymus` wymusza import mimo pasującego hasza.
+Żeby zwykły deploy bez zmiany źródeł nie przepisywał ~600 wierszy za każdym
+razem, komenda przechowuje hash CSV i kodu normalizacji oraz odcisk wartości
+wszystkich trzech tabel po udanym imporcie. Szybka ścieżka odczytuje tabele,
+ale nie parsuje CSV i niczego nie zapisuje. Brak choćby jednego składnika,
+aliasu albo miary, zmieniona wartość przy tej samej liczbie wierszy lub stary
+znacznik w cache uruchamia pełną odbudowę (#2130). Nowy znacznik jest zapisywany
+dopiero po zatwierdzeniu transakcji; `--wymus` pomija szybkie sprawdzenie.
 
 `skladniki_odzywcze` — jedna pozycja tabeli źródłowej:
 
@@ -3536,6 +3537,19 @@ człowieka (`account.registered`, `content.reported`), idzie przez
 `AuditLogEntry::recordBezWywracania()`: awaria zapisu trafia do `report()`
 z nazwą brakującego wpisu, a człowiek dostaje odpowiedź udanej zmiany — nie
 błąd przy koncie czy sprawie, które już istnieją.
+
+**Klasyfikacja pięciu ścieżek konta (D-249, #1347, #1892–#1897).**
+`account.delete_requested` i `account.delete_cancelled` — **klasa 1**: razem
+są jedynym miejscem w bazie mówiącym, że ktoś zgłosił i (ewentualnie) cofnął
+usunięcie konta (`NIGDY_NIE_KASUJ` niżej). `account.suspension_expired`
+i `account.data_erased` — też **klasa 1**, mimo że decyzję podejmuje
+harmonogram, nie moderator: to jedyny zapis TEGO zdarzenia, więc awaria ma
+cofnąć zmianę konta i zostawić je do podjęcia przy następnym przebiegu tej
+samej komendy. `user.unblocked` i trzy wpisy zmiany adresu e-mail
+(`account.email_change_requested`, `account.email_changed`,
+`account.email_change_cancelled`) — **klasa 2**: ich autorytatywny ślad żyje
+w `blocks`/`pending_email_changes`/`users.email`. Pełne uzasadnienie
+i dowody: D-249 w `docs/DECISIONS.md`.
 
 **`user.role_changed`** — zmiana roli konta (`user` / `moderator` / `admin`),
 zapisywana przez `kuking:nadaj-role`. `actor_id` jest **pusty**, bo komendę
