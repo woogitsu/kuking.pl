@@ -1680,13 +1680,10 @@ return [
          * WSZYSTKICH publicznych wpisach PRZED odcięciem strony (issue #1807),
          * dokłada podzapytanie widoczności i doładowuje autora, zdjęcia,
          * przepis, zdjęcie przepisu, tagi i liczniki komentarzy/zapisów.
-         * Landing (`/`) woła to samo zapytanie dla gościa (`FeedController::landing()`),
-         * ale ma własną, mniejszą trasę (`landing`) i świadomie zostaje poza
-         * tym limitem: to jedyne wejście na cały serwis, a `PublicznyHtmlGoscia`
-         * i tak trzyma dla niej gotowy (dziś wyłączony, `KUKING_HTML_EDGE_CACHE_SECONDS=0`)
-         * wspólny cache brzegu — `/odkryj` z tego cache świadomie NIE korzysta
-         * (`PublicznyHtmlGoscia::TRASY`, komentarz przy tej stałej), więc jedyną
-         * bramką kosztu zostaje limit zapytań, nie cache HTML.
+         * Landing (`/`) woła to samo zapytanie dla gościa (`FeedController::landing()`)
+         * i ma własny koszyk `landing` niżej. `/odkryj` nie korzysta z cache
+         * brzegu (`PublicznyHtmlGoscia::TRASY`, komentarz przy tej stałej),
+         * więc jedyną bramką kosztu zostaje limit zapytań, nie cache HTML.
          *
          * TEN SAM RZĄD WIELKOŚCI CO `search` WYŻEJ, z tego samego powodu: to
          * jest zasób strony, nie formularz, a paginacja „Pokaż więcej" (AGENTS.md
@@ -1696,6 +1693,23 @@ return [
          * automatyczne odpytywanie, przed którym stoi to zgłoszenie.
          */
         'discover' => '60,1',
+
+        /*
+         * STRONA GŁÓWNA (`/`, trasa `landing`) — issue #1952, druga połowa.
+         * Gość dostaje tu to samo zapytanie co na `/odkryj` plus tablicę dnia
+         * i kolaż; pomiar (docs/infra/ODKRYJ_KOSZT_1952.md) daje ten sam koszt
+         * SQL co `/odkryj`, a trasa nie miała żadnego limitu. Cache brzegu
+         * (`KUKING_HTML_EDGE_CACHE_SECONDS`) jest domyślnie wyłączony, a gdy
+         * działa, ten licznik widzi tylko żądania, które doszły do aplikacji.
+         *
+         * DWA RAZY WIĘCEJ NIŻ `discover`, świadomie: to jedyne wejście na serwis
+         * i cel powrotów z każdej strony („Wróć na stronę główną", wylogowanie),
+         * a przy źle ustawionym `KUKING_ZAUFANE_PRZESKOKI` wiele osób dzieli
+         * jeden adres. Sto dwadzieścia na minutę to dwa żądania na sekundę bez
+         * przerwy — człowiek tam nie dochodzi, automat już tak. Zalogowany ma
+         * koszyk po koncie, nie po adresie, więc cudza seria go nie odcina.
+         */
+        'landing' => '120,1',
 
         // Autouzupełnianie z debounce; osobny budżet od pełnej wyszukiwarki.
         'tag_suggestions' => '120,1',
