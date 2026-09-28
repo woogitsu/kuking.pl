@@ -18,6 +18,8 @@ use Throwable;
  *
  * WZORZEC: `App\Moderacja\KlientOpenAI` (D-055, D-240, D-250) — bez paczki
  * Composera, klucz i nazwa modelu w konfiguracji, host i ścieżka W KODZIE.
+ * Płatny import dopuszcza tylko zatwierdzony gpt-6-luna, bo budżet wymaga
+ * znanego twardego limitu kontekstu i dolnej granicy cennika.
  * Klient moderacji celowo nie przyjmuje innej ścieżki niż `/v1/moderations`,
  * więc import ma własny klient z własną, równie wąską ścieżką.
  *
@@ -46,6 +48,9 @@ final class KlientLuna
     public const SCIEZKA = '#^/v1/responses$#';
 
     public const ADRES = 'https://api.openai.com/v1/responses';
+
+    /** Oficjalne okno kontekstu zatwierdzonego modelu; obejmuje wszystkie strony PDF naraz. */
+    public const MAKS_TOKENOW_KONTEKSTU = 1_050_000;
 
     /** Zadania, które znają konfiguracja i klient. */
     public const ZADANIE_OCR = 'ocr';
@@ -88,8 +93,8 @@ final class KlientLuna
             $braki[] = 'Brak klucza OPENAI_IMPORT_KEY — odczyt przepisów jest wyłączony.';
         }
 
-        if (trim((string) config('kuking.import.model.nazwa')) === '') {
-            $braki[] = 'Pusta nazwa modelu KUKING_IMPORT_MODEL.';
+        if (trim((string) config('kuking.import.model.nazwa')) !== 'gpt-6-luna') {
+            $braki[] = 'KUKING_IMPORT_MODEL musi wskazywać gpt-6-luna — tylko dla tego modelu znamy twardy sufit kosztu importu.';
         }
 
         $adres = DozwolonyHostApi::powod((string) config('kuking.import.model.endpoint'), self::HOSTY, self::SCIEZKA);
@@ -105,8 +110,9 @@ final class KlientLuna
             $braki[] = "Zmienna {$zmienna} ma wartość spoza listy (".implode(', ', self::WYSILKI).').';
         }
 
-        if (Cennik::zKonfiguracji() === null) {
-            $braki[] = 'Brak cennika KUKING_IMPORT_CENA_WEJSCIE / KUKING_IMPORT_CENA_WYJSCIE (USD za milion tokenów) — bez niego nie da się zarezerwować budżetu.';
+        $cennik = Cennik::zKonfiguracji();
+        if ($cennik === null || $cennik->wejscieZaMilion < 0.10 || $cennik->wyjscieZaMilion < 0.50) {
+            $braki[] = 'Cennik importu musi podawać co najmniej 0,10 USD za milion tokenów wejścia i 0,50 USD za milion wyjścia gpt-6-luna.';
         }
 
         return $braki;

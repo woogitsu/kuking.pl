@@ -119,6 +119,9 @@ final class ZapisPrzepisuRequest extends FormRequest
             'cook_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'difficulty' => ['nullable', 'in:easy,medium,hard'],
             'visibility' => ['required', 'in:public,followers,private'],
+            // „Sprawdziłem odczytany tekst” — tylko szkic z importu (D-300);
+            // czy jest wymagane, rozstrzyga `StrazImportu` w `PublishRecipe`.
+            'sprawdzilem_odczyt' => ['nullable', 'boolean'],
             /*
              * `nullable`, nie `required` (issue #364). Ekran dodawania nie
              * pyta „ten przepis jest…" — to jedno z dziewięciu kółek wyboru,
@@ -404,6 +407,7 @@ final class ZapisPrzepisuRequest extends FormRequest
             'family_since_year' => $data['family_since_year'] ?? null,
             // Bramka publikacji wymaga potwierdzenia tekstu odczytanego z kartki.
             'odczyt_sprawdzony' => (bool) ($data['odczyt_sprawdzony'] ?? false),
+            'sprawdzilem_odczyt' => $this->boolean('sprawdzilem_odczyt'),
         ];
 
         // Koszt tylko wtedy, gdy formularz ma to pole (szczegóły tak, ekran
