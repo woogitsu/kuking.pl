@@ -9,58 +9,70 @@ use App\Domain\Users\OdmowaOstatniegoAdministratora;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
- * Zgłoszenie usunięcia konta (RODO art. 17, D-022) — przypadek użycia
- * wyjęty z `DataSettingsController::requestDeletion()` bez zmiany zachowania
- * (issue #970). Para do `CancelAccountDeletion`: tamta klasa cofa, ta
- * przyjmuje. Hasło i haczyki sprawdza wcześniej warstwa HTTP
- * (`ProsbaOUsuniecieKontaRequest` i kontroler); tutaj jest transakcja
- * oznaczenia konta razem ze sprawą w rejestrze RODO i wpis w dzienniku.
+ * Przyjęcie żądania usunięcia konta (RODO art. 17, D-022) — TRZY ZAPISY,
+ * JEDNA TRANSAKCJA. Przypadek użycia wyjęty z
+ * `DataSettingsController::requestDeletion()` (issue #970); para do
+ * `CancelAccountDeletion`. Hasło i haczyki sprawdza wcześniej warstwa HTTP
+ * (`ProsbaOUsuniecieKontaRequest` i kontroler).
+ *
+ *  1. `users`: `pending_delete` z wybranym zakresem i datą zgłoszenia,
+ *  2. `potwierdzenia_zadan_rodo`: sprawa `w_toku`
+ *     (`docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md`),
+ *  3. `audit_log`: `account.delete_requested` z zakresem.
+ *
+ * DZIENNIK W TEJ SAMEJ TRANSAKCJI (#1347, D-249 klasa 1). Wpis stał za
+ * zatwierdzeniem: jego awaria dawała 500 przy koncie już oznaczonym do
+ * usunięcia, bez wylogowania i bez komunikatu o karencji, a ponowienie
+ * odbijało się od „to konto jest już oznaczone". Ten wpis jest jedynym
+ * trwałym zapisem, CO człowiek wybrał (`NIGDY_NIE_KASUJ`): sprawa w rejestrze
+ * ma `zakres = NULL` do wykonania, a `cancelDeletion()` zeruje
+ * `delete_scope`. Bez niego nie zostaje pełny ślad — więc pada razem z resztą.
+ * Awaria cofa wszystko, konto działa jak dotąd, a ponowienie daje jeden komplet.
+ *
+ * DRUGIE RÓWNOLEGŁE ŻĄDANIE (#1346). Rozstrzyga świeży wiersz konta pod
+ * `ZamekKonta` w `markForDeletion()` (#980): drugie dostaje `BladDlaCzlowieka`
+ * i nie nadpisuje zakresu ani daty pierwszego. Indeks częściowy
+ * `potwierdzenia_zadan_rodo_jedna_w_toku_na_konto` jest drugą warstwą — w bazie.
  */
 final class RequestAccountDeletion
 {
-    /** Wartość domyślna — ten sam powód co w `CancelAccountDeletion`. */
     public function __construct(private readonly RejestrPotwierdzenRodo $rejestr = new RejestrPotwierdzenRodo) {}
 
     /**
      * @param  User::DELETE_SCOPE_*  $zakres
      *
-     * @throws OdmowaOstatniegoAdministratora ostatni czynny administrator (#1016) — nic nie zapisano
-     * @throws BladDlaCzlowieka konto już jest w usuwaniu (drugie kliknięcie, druga karta — #980)
+     * @throws BladDlaCzlowieka konto już jest w usuwaniu
+     * @throws OdmowaOstatniegoAdministratora
      */
     public function handle(User $user, string $zakres, ?string $ip = null): void
     {
-        // OZNACZENIE KONTA I OTWARCIE SPRAWY W REJESTRZE RODO — JEDNA
-        // TRANSAKCJA, nie dwie instrukcje obok siebie.
-        //
-        // `potwierdzenia_zadan_rodo` ma jedną sprawę na jedno żądanie
-        // (`docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md`). Gdyby te dwa zapisy
-        // szły osobno, zostawałby stan pośredni: konto oznaczone do usunięcia
-        // BEZ sprawy w rejestrze (żądanie, którego nie ma jak potwierdzić —
-        // i którego egzekutor karencji za 30 dni nie będzie miał czym
-        // domknąć) albo sprawa w rejestrze bez oznaczonego konta (rejestr
-        // twierdzący, że coś przyjęliśmy, choć nic się nie dzieje).
-        //
-        // Ta sama zasada, z tego samego powodu, wiąże domknięcie sprawy
-        // z `EraseAccountData` i `CancelAccountDeletion`.
-        // Transakcja z połączenia modelu — to samo połączenie co zapis konta.
-        $user->getConnection()->transaction(function () use ($user, $zakres): void {
-            $user->markForDeletion($zakres);
+        // `markForDeletion()` przepisuje świeży wiersz do `$user`. Po
+        // wycofaniu transakcji model ma znów mówić to, co baza — inaczej
+        // reszta żądania widziałaby `pending_delete`, którego nie ma.
+        $przed = $user->getAttributes();
 
-            $this->rejestr->przyjmijZadanieUsunieciaKonta($user);
-        });
+        try {
+            DB::transaction(function () use ($user, $zakres, $ip): void {
+                $user->markForDeletion($zakres);
 
-        // Zakres w audycie, bo to jest jedyny zapis tego, CO człowiek wybrał
-        // i kiedy. Gdyby ktoś kiedyś zapytał „dlaczego moje przepisy
-        // zniknęły" (albo „dlaczego NIE zniknęły"), odpowiedź musi dać się
-        // znaleźć bez zgadywania.
-        AuditLogEntry::record(
-            'account.delete_requested',
-            $user,
-            $user,
-            metadata: ['zakres' => $zakres],
-            ip: $ip,
-        );
+                $this->rejestr->przyjmijZadanieUsunieciaKonta($user);
+
+                AuditLogEntry::record(
+                    'account.delete_requested',
+                    $user,
+                    $user,
+                    metadata: ['zakres' => $zakres],
+                    ip: $ip,
+                );
+            });
+        } catch (Throwable $e) {
+            $user->setRawAttributes($przed, true);
+
+            throw $e;
+        }
     }
 }

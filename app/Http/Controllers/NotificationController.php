@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Notifications\CelPowiadomienia;
 use App\Domain\Notifications\QuestionNotificationContext;
+use App\Domain\Notifications\WycinkiKomentarzy;
 use App\Models\CookedEvent;
 use App\Models\ModerationAction;
 use App\Models\Notification;
@@ -17,6 +19,9 @@ use Illuminate\View\View;
 
 class NotificationController extends Controller
 {
+    /** Karta i komunikat po kliknięciu — to samo zdanie, jak przy #1034 (issue #1994). */
+    public const WPIS_SMAKOWICIE_NIEDOSTEPNY = 'Ten wpis został usunięty albo nie jest już dostępny.';
+
     public function index(Request $request, QuestionNotificationContext $questionContext): View
     {
         $user = $request->user();
@@ -44,12 +49,12 @@ class NotificationController extends Controller
             'saNieprzeczytane' => collect($notifications->items())->contains(fn (Notification $n): bool => $n->read_at === null)
                 || $user->unreadNotificationsCount() > 0,
             'questionTitles' => $questionContext->titles($notifications->items(), $user),
-            'destinationUrls' => Notification::destinationUrls($notifications->items(), $user),
+            'destinationUrls' => app(CelPowiadomienia::class)->adresy($notifications->items(), $user),
             'decyzjeModeracyjne' => $this->decyzje($notifications->items()),
             // ISSUE #758 / D-229: wycinek komentarza liczy się z AKTUALNEJ
             // treści, przy wyświetlaniu — i tak samo jak decyzje wyżej idzie
             // JEDNYM zapytaniem na całą stronę, a nie jednym na wiersz.
-            'wycinkiKomentarzy' => Notification::zyweWycinkiKomentarzy($notifications->items()),
+            'wycinkiKomentarzy' => app(WycinkiKomentarzy::class)->zywe($notifications->items()),
         ]);
     }
 
@@ -346,6 +351,12 @@ class NotificationController extends Controller
 
         $cel = $powiadomienie->adresDocelowy();
 
+        // ISSUE #1994: to samo dla wpisu z dziennego „Smakowicie wygląda" —
+        // usuniętego po zapisaniu digestu albo niedostępnego dla odbiorcy.
+        if ($cel === null && $powiadomienie->type === Notification::TYPE_SMAKOWICIE) {
+            return back()->with('status', self::WPIS_SMAKOWICIE_NIEDOSTEPNY);
+        }
+
         // ODESŁANIE TYLKO W OBRĘBIE SERWISU (issue #733) — patrz `adresWewnetrzny()`.
         $cel = $cel === null ? null : $this->adresWewnetrzny($cel);
 
@@ -354,6 +365,12 @@ class NotificationController extends Controller
         }
 
         $odeslanie = redirect()->to($cel);
+
+        // ISSUE #1371: wpis z alertu zniknął albo nie ma już do niego dostępu —
+        // mówimy to wprost, zamiast udawać, że kolejka go pokazuje.
+        if ($powiadomienie->pierwszyWpisNiedostepny()) {
+            $odeslanie->with('status', 'Tego wpisu nie da się już otworzyć — mógł zostać usunięty albo ukryty. Poniżej są wpisy, które nadal czekają na odpowiedź.');
+        }
 
         // ISSUE #770: PIERWSZE „Zobacz" przy ugotowaniu ma pokazać ekran
         // „Komuś wyszło". `celebrate()` rozpoznaje „już pokazano" po `read_at`,

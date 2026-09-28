@@ -51,18 +51,19 @@ class PolitykaOpisujeUsuniecieZgodnieZKodemTest extends TestCase
     {
         $uzytkownik = $this->user('kucharka');
 
-        // Bez oznaczenia do usunięcia `handle()` nic nie robi i zwraca false —
-        // podpis zostawał „Testowa osoba”, czego test nie widział (#976).
-        $uzytkownik->markForDeletion(User::DELETE_SCOPE_MINIMUM);
+        // Anonimizacja rusza WYŁĄCZNIE konto w karencji usunięcia — na
+        // aktywnym koncie `handle()` nic nie robi. Test przez długi czas
+        // wołał ją na koncie aktywnym i czytał `users.display_name`, którego
+        // nie ma (nazwa jest w `profiles`), więc porównywał pusty napis
+        // i przechodził zawsze. Znalazł to PHPStan na poziomie 2 (#1731).
+        $uzytkownik->forceFill(['status' => User::STATUS_PENDING_DELETE])->save();
+
         $this->assertTrue(
             app(EraseAccountData::class)->handle($uzytkownik->fresh()),
-            'Kontrola: anonimizacja naprawdę się wykonała.',
+            'Anonimizacja się nie wykonała — nie ma czego porównywać z polityką.',
         );
 
-        // Podpis siedzi w profilu, nie w `users` — `$user->display_name` był
-        // zawsze pusty, więc obie asercje niżej przechodziły na pustym
-        // napisie niezależnie od polityki (ujawnił to tryb ścisły, #976).
-        $podpis = (string) $uzytkownik->fresh()?->displayName();
+        $podpis = (string) $uzytkownik->fresh()?->profile?->display_name;
 
         // Kontrola: bez tej asercji test przechodziłby, gdyby anonimizacja
         // w ogóle nie zmieniła nazwy.

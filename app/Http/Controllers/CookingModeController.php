@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Models\Recipe;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -70,13 +71,17 @@ class CookingModeController extends Controller
         $this->authorize('view', $model);
 
         $model->load(['steps.media', 'ingredients.unit']);
+        $wyborPorcji = WyborPorcji::dla($model, $request->query('porcje'));
+        $parametrPorcji = $wyborPorcji->przeliczone() ? $wyborPorcji->doAdresu((float) $wyborPorcji->wybrane) : null;
         $steps = $model->steps;
 
         if ($steps->isEmpty()) {
             // Bez kroków nie ma czego pokazywać krok-po-kroku — zamiast
             // pustego ekranu z przyciskami donikąd, wracamy tam, skąd
             // dało się w ogóle trafić w ten tryb.
-            return redirect()->route('recipes.show', $model->slug)
+            return redirect()->route('recipes.show', array_filter([
+                'recipe' => $model->slug, 'porcje' => $parametrPorcji,
+            ], fn ($wartosc) => $wartosc !== null))
                 ->with('status', 'Ten przepis nie ma jeszcze opisanych kroków, więc nie da się go gotować krok po kroku.');
         }
 
@@ -94,6 +99,8 @@ class CookingModeController extends Controller
             'aktualnyKrok' => $aktualny,
             'krokZrobiony' => in_array($aktualny->getKey(), $zrobione, true),
             'hasProgress' => $steps->contains(fn ($step) => in_array($step->getKey(), $zrobione, true)),
+            'wyborPorcji' => $wyborPorcji,
+            'parametrPorcji' => $parametrPorcji,
         ]);
     }
 
@@ -103,7 +110,9 @@ class CookingModeController extends Controller
         $this->authorize('view', $model);
         $request->session()->forget($this->sessionKey($model));
 
-        return redirect()->route('cooking.show', $model->slug)
+        return redirect()->route('cooking.show', array_filter([
+            'recipe' => $model->slug, 'porcje' => $this->parametrPorcji($model, $request->input('porcje')),
+        ], fn ($wartosc) => $wartosc !== null))
             ->with('status', 'Odhaczenia usunięte. Możesz zacząć od pierwszego kroku.');
     }
 
@@ -144,7 +153,11 @@ class CookingModeController extends Controller
             // usunął) albo formularz nie powiedział, o który krok chodzi
             // (strona otwarta przed tą zmianą). Nie zgadujemy po numerze
             // ani po podobnym tekście — mówimy wprost, co zrobić.
-            return redirect()->route('cooking.show', [$model->slug, 'krok' => $this->wyczyscKrok($data['krok'] ?? 1, $total)])
+            return redirect()->route('cooking.show', array_filter([
+                'recipe' => $model->slug,
+                'krok' => $this->wyczyscKrok($data['krok'] ?? 1, $total),
+                'porcje' => $this->parametrPorcji($model, $request->input('porcje')),
+            ], fn ($wartosc) => $wartosc !== null))
                 ->with('status', 'Przepis zmienił się, odkąd otworzono ten krok, więc nic nie zostało oznaczone. Przeczytaj krok widoczny teraz na ekranie i oznacz go jeszcze raz, jeśli jest zrobiony.');
         }
 
@@ -163,7 +176,17 @@ class CookingModeController extends Controller
 
         $request->session()->put($klucz, $zrobione);
 
-        return redirect()->route('cooking.show', [$model->slug, 'krok' => $krok]);
+        return redirect()->route('cooking.show', array_filter([
+            'recipe' => $model->slug, 'krok' => $krok,
+            'porcje' => $this->parametrPorcji($model, $request->input('porcje')),
+        ], fn ($wartosc) => $wartosc !== null));
+    }
+
+    private function parametrPorcji(Recipe $recipe, mixed $surowe): ?string
+    {
+        $wybor = WyborPorcji::dla($recipe, $surowe);
+
+        return $wybor->przeliczone() ? $wybor->doAdresu((float) $wybor->wybrane) : null;
     }
 
     /**

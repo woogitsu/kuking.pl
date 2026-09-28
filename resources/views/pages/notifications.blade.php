@@ -57,7 +57,7 @@
              * ISSUE #758 / D-229 — WYCINEK KOMENTARZA JEST ŻYWY.
              *
              * Bierzemy go z mapy policzonej JEDNYM zapytaniem na całą stronę
-             * (`Notification::zyweWycinkiKomentarzy()`), a nie z `data.excerpt`.
+             * (`WycinkiKomentarzy::zywe()`), a nie z `data.excerpt`.
              * Zamrożona kopia z chwili publikacji cytowała treść sprzed
              * poprawki autora; stare wiersze dalej ją mają w bazie i właśnie
              * dlatego NIE MA tu planu zapasowego „weź `data.excerpt`, gdy mapa
@@ -72,6 +72,10 @@
                 \App\Models\Notification::TYPE_REPLY,
                 \App\Models\Notification::TYPE_FOLLOW,
                 \App\Models\Notification::TYPE_SAVED,
+                \App\Models\Notification::TYPE_BIRTHDAY,
+                // „Moja wersja" (issue #23, D-301) — zwykłe zdarzenie od
+                // jednej osoby, dołożone świadomie, nie z automatu.
+                \App\Models\Notification::TYPE_FORKED,
             ], true);
 
             /*
@@ -109,7 +113,7 @@
                     <x-avatar :user="$actor" :size="$zwykleZdarzenie ? 48 : 44" />
                 @endif
                 <div class="min-w-0 powiadomienie-tresc">
-                    <p class="m-0 mb-1">
+                    <p class="m-0 mb-1" id="powiadomienie-{{ $notification->getKey() }}-opis">
                         {{--
                             NIEPRZECZYTANE MA NIEŚĆ SŁOWO, nie tylko kreskę
                             z boku (WCAG 1.4.1; §13 systemu mówi to wprost).
@@ -179,6 +183,20 @@
                                 @endif
                                 @if($wycinekKomentarza !== null) „{{ $wycinekKomentarza }}” @endif
                                 @break
+                            @case(\App\Models\Notification::TYPE_SMAKOWICIE)
+                                {{-- Zbiorcze, raz dziennie (issue #1813, D-280). Bez nazwisk:
+                                     kto napisał, autor zobaczy na stronie wpisu. --}}
+                                <strong>{{ $notification->naglowekSmakowicie() }}</strong>
+                                @if((int) ($data['wpisow'] ?? 1) > 1)
+                                    Pod kilkoma Twoimi wpisami.
+                                @endif
+                                {{-- ISSUE #1994: wpis usunięty po zapisaniu digestu. Bez „Zobacz"
+                                     na 404 i bez cytatu z usuniętej treści. Cel liczy
+                                     `CelPowiadomienia` — brak adresu znaczy brak wpisu. --}}
+                                @if(($destinationUrls[(string) $notification->getKey()] ?? null) === null)
+                                    {{ \App\Http\Controllers\NotificationController::WPIS_SMAKOWICIE_NIEDOSTEPNY }}
+                                @endif
+                                @break
                             @case(\App\Models\Notification::TYPE_FOLLOW)
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} zaczyna Cię obserwować.</strong>
                                 @break
@@ -202,6 +220,25 @@
                                 {{-- ISSUE #1034: przepis usunięty po zapisaniu. Bez „Zobacz" na 404. --}}
                                 @if($notification->przepisUsuniety())
                                     Ten przepis został usunięty.
+                                @endif
+                                @break
+                            @case(\App\Models\Notification::TYPE_BIRTHDAY)
+                                {{-- Urodziny osoby obserwowanej (#1755, etap d). Tylko
+                                     wtedy, gdy ona sama to włączyła. Bez roku, bez
+                                     rodzaju, bez zachęty do czegokolwiek. --}}
+                                <strong>Dziś urodziny: {{ $actor?->displayName() ?? 'ktoś, kogo obserwujesz' }}.</strong>
+                                @break
+                            @case(\App\Models\Notification::TYPE_FORKED)
+                                {{-- „MOJA WERSJA" (issue #23, D-301). Miłe, nie
+                                     alarmujące: ktoś robi Twój przepis po
+                                     swojemu, a Twój przepis stoi podpisany na
+                                     jego stronie. Bez formy rodzajowej. --}}
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — własna wersja Twojego przepisu</strong>
+                                „{{ $data['recipe_title'] ?? 'przepis' }}”.
+                                @if($notification->wersjaDoPokazania())
+                                    Twój przepis jest podpisany na jej stronie.
+                                @else
+                                    Ta wersja nie jest już dostępna.
                                 @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_FIRST_POST)
@@ -325,7 +362,12 @@
                         --}}
                         <form class="mt-3 mx-0 mb-0" method="POST" action="{{ route('notifications.open', $notification) }}">
                             @csrf
-                            <button class="btn btn-secondary" type="submit">Zobacz</button>
+                            {{-- Własne ID dołącza widoczne „Zobacz” do zdania tej karty
+                                 w nazwie dostępnej (WAI-ARIA APG: names-and-descriptions).
+                                 Nie kopiujemy treści do atrybutu ani nie zmieniamy napisu. --}}
+                            <button class="btn btn-secondary" type="submit"
+                                    id="powiadomienie-{{ $notification->getKey() }}-zobacz"
+                                    aria-labelledby="powiadomienie-{{ $notification->getKey() }}-zobacz powiadomienie-{{ $notification->getKey() }}-opis">Zobacz</button>
                         </form>
                     @elseif($notification->isUnread())
                         {{--
@@ -403,7 +445,7 @@
     @endif
     @else
         <x-empty-state title="Nie ma jeszcze żadnych powiadomień">
-            Tu pojawi się informacja, kiedy ktoś ugotuje z Twojego przepisu albo napisze komentarz.
+            Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących oraz ważnych sprawach dotyczących Twojego konta.
         </x-empty-state>
     @endif
 

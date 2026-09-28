@@ -195,7 +195,7 @@ class GrupySkladnikowTest extends TestCase
         // Formularz odsyła to, co widzi w polach — więc gdyby pola grupy
         // tam nie było, ten zapis skasowałby grupy i nikt by tego nie
         // zauważył aż do otwarcia przepisu.
-        $this->actingAs($basia)->put(route('recipes.update', $przepis->slug), [
+        $this->actingAs($basia)->put(route('recipes.update', $przepis->slug), ['content_revision' => $przepis->fresh()->content_revision,
             'action' => 'publish',
             'title' => 'Sernik z kruszonką',
             'visibility' => 'public',

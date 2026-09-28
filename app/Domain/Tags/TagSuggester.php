@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Domain\Tags;
 
 use App\Models\Tag;
+use App\Support\FrazaWyszukiwania;
 use App\Support\LimityTagow;
 use App\Support\ProgPodobienstwa;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 /**
  * Podpowiedzi tagów bez AI (SPEC §1.5), wzorem `App\Domain\Search\SearchQuery`.
@@ -70,7 +70,17 @@ final class TagSuggester
             return new Collection;
         }
 
-        $needle = $this->normalize($fraza);
+        $needle = FrazaWyszukiwania::normalizuj(mb_substr($fraza, 0, LimityTagow::maksZnakow()));
+
+        // DŁUGOŚĆ PO NORMALIZACJI — ta sama poprawka co w wyszukiwarce
+        // (#1050, `SearchQuery::jestPrzeszukiwalna()`). `Str::ascii()` wycina
+        // znaki, których nie umie zapisać, więc fraza z samych emoji przechodziła
+        // próg wyżej i zostawała pustym `$needle`: trzecia gałąź dostawała
+        // `LIKE '%'` i podpowiadała osiem pierwszych lepszych tagów.
+        if (mb_strlen($needle) < LimityTagow::minZnakow()) {
+            return new Collection;
+        }
+
         $limit = LimityTagow::maksPodpowiedzi();
 
         // TA SAMA POPRAWKA CO W `SearchQuery` (7 września 2026): operator `%`
@@ -127,7 +137,7 @@ final class TagSuggester
             SELECT id, 3 AS priorytet, word_similarity(?, kuking_normalize(name)) AS waga,
                    name AS nazwa FROM tags
                 WHERE status = 'active' AND ? <% kuking_normalize(name)
-            SQL, [$needle, $needle, $needle.'%', $needle, $needle]);
+            SQL, [$needle, $needle, FrazaWyszukiwania::doLike($needle).'%', $needle, $needle]);
 
         $idsWKolejnosci = collect($wiersze)
             // `nazwa` jako OSTATNIE kryterium: bez niego dwie nazwy o tej
@@ -154,16 +164,5 @@ final class TagSuggester
             ->keyBy('id');
 
         return $idsWKolejnosci->map(fn (string $id) => $tagi[$id])->values();
-    }
-
-    /**
-     * Fraza po stronie PHP znormalizowana TAK SAMO jak kolumna po stronie
-     * bazy (`kuking_normalize`) — inaczej „Żurek” nie znajdzie „żurek”.
-     * Skopiowane z `SearchQuery::normalize()` — to jest ta sama reguła,
-     * nie przypadkowe podobieństwo.
-     */
-    private function normalize(string $fraza): string
-    {
-        return mb_strtolower(Str::ascii(mb_substr($fraza, 0, LimityTagow::maksZnakow())));
     }
 }
