@@ -403,7 +403,7 @@ class KolejkaModeracjiStawiaPilneNaGorzeTest extends TestCase
     public function test_awaria_po_zapisie_joba_cofa_calosc_i_ponowienie_nie_dubluje_alarmu(): void
     {
         config([
-            'kuking.moderation.model.alarm_email' => 'moderacja@kuking.test',
+            'kuking.moderation.model.alarm_email' => null,
             'cache.default' => 'database',
             'queue.default' => 'database',
             'queue.connections.database.after_commit' => false,
@@ -412,47 +412,31 @@ class KolejkaModeracjiStawiaPilneNaGorzeTest extends TestCase
 
         $wpis = $this->wpis('autorawariialarmu');
         $zglaszajacy = $this->user('zglaszajacyawariialarmu');
+        $pierwsze = app(ReportContent::class)->handle($zglaszajacy, $wpis, 'minor');
+        config(['kuking.moderation.model.alarm_email' => 'moderacja@kuking.test']);
         $przed = DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte();
         $jobsPrzed = DB::table('jobs')->count();
-        $adresat = Notification::getFacadeRoot();
         $wstrzyknieto = false;
-        Notification::shouldReceive('route')->once()->andReturnUsing(
-            static function (string $kanal, string $adres) use ($adresat, $jobsPrzed, &$wstrzyknieto): object {
-                $prawdziwaTrasa = $adresat->route($kanal, $adres);
+        DB::listen(static function (\Illuminate\Database\Events\QueryExecuted $zapytanie) use ($jobsPrzed, &$wstrzyknieto): void {
+            if ($wstrzyknieto || preg_match('/^insert into ["`]?jobs["`]?\s/i', $zapytanie->sql) !== 1) {
+                return;
+            }
 
-                return new class($adresat, $prawdziwaTrasa, $jobsPrzed, $wstrzyknieto)
-                {
-                    public function __construct(
-                        private readonly object $dyspozytor,
-                        private readonly object $trasa,
-                        private readonly int $jobsPrzed,
-                        private bool &$wstrzyknieto,
-                    ) {}
+            if (DB::table('jobs')->count() <= $jobsPrzed) {
+                throw new RuntimeException('Przyrząd testu nie utworzył zadania przed awarią.');
+            }
 
-                    public function notify(object $powiadomienie): void
-                    {
-                        // AnonymousNotifiable::notify() pobiera dyspozytor
-                        // ponownie z kontenera, gdzie stoi teraz mock. Wołamy
-                        // prawdziwy dyspozytor wprost, żeby INSERT był realny.
-                        $this->dyspozytor->send($this->trasa, $powiadomienie);
-                        if (DB::table('jobs')->count() <= $this->jobsPrzed) {
-                            throw new RuntimeException('Przyrząd testu nie utworzył zadania przed awarią.');
-                        }
-                        $this->wstrzyknieto = true;
-                        throw new RuntimeException('Utracona odpowiedź po zapisie do jobs.');
-                    }
-                };
-            },
-        );
+            $wstrzyknieto = true;
+            throw new RuntimeException('Utracona odpowiedź po zapisie do jobs.');
+        });
 
-        $pierwsze = app(ReportContent::class)->handle($zglaszajacy, $wpis, 'minor');
+        $this->assertFalse(app(AlarmujOPilnymZgloszeniu::class)->handle($pierwsze));
         $this->assertTrue($wstrzyknieto, 'Test nie doszedł do awarii po prawdziwym INSERT do jobs.');
         $this->assertSame($jobsPrzed, DB::table('jobs')->count());
         $this->assertSame($przed, DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte());
         $this->assertSame(0, DziennyBudzetListow::dlaAlarmuModeracji()->zuzyte());
         $this->assertNull($pierwsze->refresh()->alarm_czlowieka_obsluzony_at);
 
-        Notification::swap($adresat);
         $drugie = app(ReportContent::class)->handle($zglaszajacy, $wpis, 'minor');
         $this->assertSame($pierwsze->getKey(), $drugie->getKey());
         $this->assertSame($jobsPrzed + 1, DB::table('jobs')->count());
