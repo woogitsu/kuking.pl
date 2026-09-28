@@ -15,6 +15,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Support\Google;
 use App\Support\Komunikat;
+use App\Support\PowrotDoRozmowy;
 use App\Support\RejestracjaZamknieta;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -345,7 +346,7 @@ class GoogleLoginController extends Controller
     /**
      * Zakładamy konto — dopiero teraz i dopiero z dwoma oświadczeniami.
      */
-    public function finish(Request $request, ZalozKonto $zalozKonto): RedirectResponse
+    public function finish(Request $request, ZalozKonto $zalozKonto, PowrotDoRozmowy $rozmowa): RedirectResponse
     {
         if (! Google::dziala()) {
             return $this->drogaZamknieta();
@@ -381,6 +382,11 @@ class GoogleLoginController extends Controller
                 .'albo poproś o wiadomość z przyciskiem do zalogowania.',
             ));
         }
+
+        // Rejestracja przez dostawcę zaczęta z wątku komentarzy też wraca
+        // do niego po onboardingu. Zamiar jest zapamiętany w sesji ekranu
+        // rejestracji i wiążemy go wyłącznie z właśnie utworzonym kontem.
+        $rozmowa->przypiszKonto($request);
 
         return redirect()->route('onboarding.interests')
             ->with('status', 'Konto gotowe. Miło Cię widzieć w Kuking.');
