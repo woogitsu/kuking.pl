@@ -8,7 +8,6 @@ use App\Domain\Import\Actions\ZapiszSzkicZImportu;
 use App\Domain\Import\OdczytanyPrzepis;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Models\PrzepisZImportu;
-use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
@@ -25,7 +24,7 @@ final class CofniecieMigracjiImportuTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function migracja(): Migration
+    private function migracja(): object
     {
         return require base_path('database/migrations/2026_09_26_100000_create_przepisy_z_importu_table.php');
     }
