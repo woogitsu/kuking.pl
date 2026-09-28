@@ -2,6 +2,14 @@
 
 ## Nieopublikowane
 
+- Zdjęcia wyświetlane „Zwykle” stoją jedno pod drugim także na tablecie. Dwa zdjęcia o różnych proporcjach nie zostawiają już szarego pasa, a trzecie nie zostawia pustej prawej połowy. Kolaż i karuzela pozostają osobnymi wyborami (#2126).
+- Przełącznik wartości odżywczych sprawdza aktualny stan przepisu pod blokadą. Żądanie rozpoczęte przed zdjęciem lub usunięciem przepisu nie zapisze ustawienia po decyzji moderatora i pokaże czytelną odmowę (#2112).
+- Eksport HTML przepisu zachowuje dokładną liczbę porcji, także przy dwóch cyfrach po przecinku (#2035).
+- Wewnętrzne: kontrola negatywna testów zachowuje dowód niezaliczonej asercji, nawet gdy log zawiera błędne bajty UTF-8; sama awaria procesu nadal nie zalicza kontroli (Refs #1011).
+- Naprawione: pusta zakładka „Ugotowane” na własnym profilu pokazuje teraz przycisk „Znajdź przepis” prowadzący do wyszukiwarki. Na profilu innej osoby ten przycisk się nie pojawia (#2054).
+- Strona tagu pokazuje każdemu wyłącznie publiczne wpisy. Własne wpisy „tylko dla mnie” i „tylko dla obserwujących” nie pojawiają się tam nawet autorowi; strona wyjaśnia to i prowadzi do „Moje wpisy”, gdzie nadal można je znaleźć (#1338, D-307).
+- Pod cudzym wpisem jest przycisk „Smakowicie wygląda” — lżejszy niż „Ugotowałem”. Nikt nie widzi, ile osób go nacisnęło; na stronie wpisu każdy widzi, kto to napisał (bez osób, z którymi jest blokada). Autor dostaje raz dziennie jedno powiadomienie, np. „3 osoby napisały: Smakowicie wygląda”, żeby nie zagłuszało „Ugotowałem”, które przychodzi od razu. Reakcję cofacie tym samym przyciskiem (#1813).
+
 ## Alfa 0.69 — czytelniejsze powiadomienia i wygodniejsze gotowanie
 
 - Wewnętrzne: kontrola zdrowia obrazu Docker sprawdza `/health` dla ról HTTP (`web` i `all`), a dla `worker` i `scheduler` nie oczekuje serwera WWW, którego te role nie uruchamiają. Odczytuje rzeczywistą rolę przekazaną entrypointowi, także gdy ma ona pierwszeństwo przed `APP_ROLE` (#2079).

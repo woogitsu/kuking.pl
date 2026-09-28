@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Recipes\Odzywcze;
 
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Recipe;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Autor pokazuje albo ukrywa szacunkowe wartości odżywcze przy swoim
@@ -20,11 +24,26 @@ use App\Models\Recipe;
  */
 final class UstawWidocznoscWartosci
 {
-    public function handle(Recipe $recipe, bool $pokazuj): void
+    public function handle(Recipe $recipe, User $author, bool $pokazuj): void
     {
-        $recipe->forceFill(['pokazuj_wartosci_odzywcze' => $pokazuj]);
-        $recipe->timestamps = false;
-        $recipe->saveQuietly();
-        $recipe->timestamps = true;
+        DB::transaction(function () use ($recipe, $author, $pokazuj): void {
+            // Ten sam wiersz i ten sam porządek co decyzje moderacyjne. Model
+            // z route bindingu mógł już stać się nieedytowalny albo usunięty.
+            $swiezy = Recipe::query()->withTrashed()->whereKey($recipe->getKey())
+                ->lockForUpdate()->first();
+
+            if ($swiezy === null || $swiezy->trashed()
+                || ! Gate::forUser($author)->allows('update', $swiezy)) {
+                throw new BladDlaCzlowieka('Przepis zmienił stan i nie można już zmienić widoczności wartości odżywczych.');
+            }
+
+            $timestamps = $swiezy->timestamps;
+            try {
+                $swiezy->timestamps = false;
+                $swiezy->forceFill(['pokazuj_wartosci_odzywcze' => $pokazuj])->saveQuietly();
+            } finally {
+                $swiezy->timestamps = $timestamps;
+            }
+        });
     }
 }
