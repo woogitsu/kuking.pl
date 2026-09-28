@@ -240,6 +240,13 @@ class LimityTrasZapisujacychTest extends TestCase
             // kto właśnie próbuje ją zamknąć.
             'logout',
 
+            // To samo w aplikacji mobilnej (D-270): „Wyloguj" odwołuje token,
+            // którym przyszło żądanie. Limitu na trasie nie ma z tego samego
+            // powodu co wyżej, ale trasa NIE jest bez limitu — grupa `api`
+            // liczy każde żądanie na token (limiter `api`) i na adres IP
+            // (`BramaApi`), czego ten skan nie widzi, bo patrzy na trasę.
+            'api.tokeny.biezacy.destroy',
+
             // NIE NASZA TRASA. `PUT /storage/{path}` rejestruje sam framework
             // dla każdego dysku, który ma `serve => true` — u nas dysk `local`
             // (`config/filesystems.php`). W `routes/web.php` jej nie ma i nie
@@ -254,33 +261,17 @@ class LimityTrasZapisujacychTest extends TestCase
             // zaraz pod tą regułą.
             'storage.local.upload',
 
-            /*
-             * POWIADOMIENIE O ODEBRANIU DOSTĘPU Z FACEBOOKA (issue #259).
-             *
-             * Woła to serwer Facebooka, nie człowiek — a limit liczy żądania
-             * po adresie IP. Ustawiony na tyle nisko, żeby cokolwiek chronił,
-             * zaczyna GUBIĆ PRAWDZIWE POWIADOMIENIA, gdy Facebook wyśle ich
-             * kilka naraz (jedna osoba usuwa kilka aplikacji, serwery Meta
-             * wychodzą z tej samej puli adresów). A Facebook nie ponawia
-             * w nieskończoność: zgubione powiadomienie znaczy, że człowiek
-             * odebrał nam dostęp, a my nadal pokazujemy mu „połączone".
-             *
-             * Co chroni tę trasę zamiast limitu: każde żądanie bez poprawnego
-             * podpisu `signed_request` kończy się odrzuceniem po JEDNYM
-             * `hash_hmac`, przed dotknięciem bazy. Bez sekretu aplikacji nie
-             * da się takiego podpisu wytworzyć, więc zalewanie tej trasy jest
-             * zalewaniem procesora, a nie drogą do zmiany czegokolwiek —
-             * i przed tym broni warstwa przed aplikacją (Cloudflare), a nie
-             * `throttle:`. Pilnują tego testy w `OdebranieDostepuFacebookaTest`,
-             * w szczególności `test_zly_podpis_niczego_nie_zmienia`.
-             */
-            'facebook.deauthorize',
+            // `facebook.deauthorize` MIAŁO tu stać (issue #259) — ale po
+            // audycie (issue #1869) dostało własny, celowo hojny limit
+            // (`facebook_deauthorize` w `config/kuking.php`, wzorzec
+            // `csp_report`), więc wyjątek znika. Uzasadnienie limitu stoi
+            // dziś przy trasie w `routes/web.php` i w `FacebookDeauthorizeController`.
         ];
 
         $bezLimitu = [];
         $zbadanych = 0;
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             $metody = array_diff($trasa->methods(), ['GET', 'HEAD', 'OPTIONS']);
 
             if ($metody === []) {

@@ -29,6 +29,8 @@ class UgotowalemDostepTest extends TestCase
         $reader = $this->user();
         $this->actingAs($reader)->get(route($screen, $recipe->slug))->assertOk()->assertSee($url, false);
         $reader->suspend(now()->addDay());
+        // `suspend()` odcina sesje (#1046) — zawieszona osoba loguje się od nowa.
+        $this->actingAs($reader);
         $this->get($url)->assertForbidden();
         $this->get(route($screen, $recipe->slug))->assertOk()->assertDontSee($url, false);
     }

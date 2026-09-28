@@ -188,7 +188,7 @@ class OkruszkiWpisowPytanIProfiliTest extends TestCase
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
         $odnosniki = (new DOMXPath($dom))->query('//nav[@aria-label="Gdzie jesteś"]/ol[contains(@class,"okruchy")]/li/a');
         $wynik = [];
-        foreach ($odnosniki as $a) {
+        foreach (self::elementyDom($odnosniki) as $a) {
             $wynik[] = [trim($a->textContent), $a->getAttribute('href')];
         }
 

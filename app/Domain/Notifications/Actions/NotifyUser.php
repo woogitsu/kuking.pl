@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Notifications\Actions;
 
+use App\Domain\Notifications\Push\KanalPush;
+use App\Jobs\WyslijPowiadomieniePush;
 use App\Models\Notification;
 use App\Models\User;
 
@@ -70,12 +72,41 @@ final class NotifyUser
             return null;
         }
 
-        return Notification::create([
+        $powiadomienie = Notification::create([
             'user_id' => $recipient->getKey(),
             'actor_id' => $actor?->getKey(),
             'type' => $type,
             'data' => $data,
         ]);
+
+        $this->zaplanujPush($recipient, $type, $data);
+
+        return $powiadomienie;
+    }
+
+    /**
+     * WEB PUSH JEST DODATKIEM DO WIERSZA WYŻEJ, NIE JEGO WARUNKIEM (D-303).
+     *
+     * Powiadomienie w serwisie już powstało i zostaje bez względu na to, co
+     * stanie się z pushem — wyłączony push, cisza nocna ani wygasła
+     * subskrypcja nie mają prawa go dotknąć. Zadanie idzie PO zatwierdzeniu
+     * transakcji (`afterCommit`), bo woła się to zwykle z wnętrza
+     * `RecordCookedEvent`/`PublishComment`, a worker nie może szukać
+     * powiadomienia, którego jeszcze nie widać.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function zaplanujPush(User $recipient, string $type, array $data): void
+    {
+        if (! KanalPush::dotyczy($type, $data) || ! KanalPush::dostepny()) {
+            return;
+        }
+
+        if (! $recipient->pushSubscriptions()->exists()) {
+            return;
+        }
+
+        WyslijPowiadomieniePush::dispatch((string) $recipient->getKey())->afterCommit();
     }
 
     /**

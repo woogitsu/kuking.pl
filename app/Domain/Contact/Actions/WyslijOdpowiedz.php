@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Contact\Actions;
 
 use App\Domain\Security\DziennyBudzetListow;
+use App\Domain\Users\ZamekUprzywilejowanegoAktora;
 use App\Mail\OdpowiedzNaWiadomosc;
 use App\Models\AuditLogEntry;
 use App\Models\ContactMessage;
@@ -64,7 +65,12 @@ final class WyslijOdpowiedz
             throw ValidationException::withMessages(['reply_key' => 'Otwórz ponownie kartę wiadomości przed wysłaniem. Zachowaj tekst odpowiedzi.']);
         }
 
-        $odpowiedz = DB::transaction(function () use ($wiadomosc, $moderator, $tresc, $replyKey): ContactMessageReply {
+        $odpowiedz = ZamekUprzywilejowanegoAktora::wykonaj($moderator, function (User $swiezy) use ($wiadomosc, $tresc, $replyKey): ContactMessageReply {
+            // Wiersz odpowiedzi jest punktem przyjęcia. Po zatwierdzeniu
+            // degradacja może już nastąpić, a wysyłka dokończy przyjęty list.
+            Gate::forUser($swiezy)->authorize('reply', $wiadomosc);
+            $moderator = $swiezy;
+
             // Blokada rodzica serializuje tworzenie, UNIQUE chroni także inne drogi zapisu.
             ContactMessage::query()->whereKey($wiadomosc->getKey())->lockForUpdate()->firstOrFail();
             $existing = $wiadomosc->odpowiedzi()->where('reply_key', $replyKey)->first();
