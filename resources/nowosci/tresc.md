@@ -29,6 +29,18 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Co mam w domu i co z tego ugotuję
+
+W zeszycie jest nowa sekcja „Co mam w domu”. Wpisujecie, co macie w kuchni —
+jeden produkt naraz, a pod polem pojawiają się podpowiedzi ze składników
+z przepisów. Potem wystarczy dotknąć „Co ugotuję z tego, co mam?”, żeby
+zobaczyć przepisy, do których brakuje Wam najmniej. Przy każdym stoi
+dopisek, na przykład „Masz 5 z 7 składników. Brakuje: …”. Kolejność jest
+jedna i napisana na ekranie: najpierw przepisy z najmniejszą liczbą brakujących
+składników, a przy remisie te krótsze w przygotowaniu — popularność
+przepisu nie ma na nią wpływu. Listę widzicie tylko Wy, na jednej liście może
+być do 150 produktów, a przy wymazaniu konta znika razem z nim.
+
 ### Zapisz przepis do zeszytu jeszcze przed założeniem konta
 
 Czytacie przepis bez konta i chcecie go zachować? Kliknijcie „Zapisz do zeszytu”

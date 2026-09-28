@@ -26,6 +26,7 @@ import './niezapisane-zmiany.js';
 import './pokaz-wiecej.js';
 import './kopia-sasiedniego-pola.js';
 import './pokaz-haslo.js';
+import './co-mam-w-domu.js';
 import './powiadomienia-push.js';
 import './drukuj-przepis.js';
 import './postep-importu.js';
