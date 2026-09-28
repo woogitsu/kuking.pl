@@ -19,7 +19,7 @@ class CanonicalKursoraTaguTest extends TestCase
         config(['kuking.feed.page_size' => 2]);
 
         $tag = Tag::factory()->create();
-        $autor = $this->user('autor-tagu-canonical');
+        $autor = $this->user('autor_tagu_canonical');
         $wpisy = [];
         foreach (range(1, 3) as $numer) {
             $wpis = Post::factory()->create([
