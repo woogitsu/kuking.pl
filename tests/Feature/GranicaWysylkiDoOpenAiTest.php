@@ -69,7 +69,7 @@ class GranicaWysylkiDoOpenAiTest extends TestCase
         // Jedna atrapa na cały test, a odpowiedź podmienia `$this->odpowiedz`.
         // Kolejne `Http::fake()` DOKŁADAJĄ wzorce za pierwszym, więc wzorzec
         // `*` z tego miejsca przykryłby każdą awarię ustawioną w teście.
-        $this->odpowiedz = fn () => Http::response(['results' => [['category_scores' => ['hate' => 0.95]]]]);
+        $this->odpowiedz = fn (Request $r) => Http::response(['results' => [['category_scores' => ['hate' => 0.95]]]]);
         Http::fake(fn (Request $r) => ($this->odpowiedz)($r));
     }
 
