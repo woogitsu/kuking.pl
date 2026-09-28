@@ -39,10 +39,18 @@ final class AlarmWysylkiPush
             alarmujace: self::ALARMUJACE,
             ciszaGodzin: (int) config('kuking.notifications.zewnetrzne.push_alarm_cisza_godzin', 24),
             trescAlarmu: fn (): string => $this->tresc($wynik),
-            trescOdwolania: fn (string $poprzedni): string => sprintf(
-                'Web Push: wszystkie grupy bez wysyłki są rozliczone (poprzedni stan: %s).',
-                $poprzedni,
-            ),
+            trescOdwolania: fn (string $poprzedni): string => ($wynik['kanal_wylaczony'] ?? false) === true
+                // Spokój przy wyłączonym kanale NIE znaczy „rozliczone”:
+                // utraconych ponowień wtedy nie liczymy (`StanWysylkiPush`).
+                ? sprintf(
+                    'Web Push: kanał jest awaryjnie wyłączony, więc utraconych ponowień teraz nie liczymy — '
+                    .'to NIE jest rozliczenie (poprzedni stan: %s). Po włączeniu kanału nierozliczone grupy zgłoszą się ponownie.',
+                    $poprzedni,
+                )
+                : sprintf(
+                    'Web Push: wszystkie grupy bez wysyłki są rozliczone (poprzedni stan: %s).',
+                    $poprzedni,
+                ),
         );
     }
 

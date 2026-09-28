@@ -234,6 +234,23 @@ final class CzujkaTrwalychPorazekPushTest extends TestCase
         $this->assertSame(1, app(StanWysylkiPush::class)->sprawdz()['utracone_ponowienia']);
     }
 
+    public function test_wylaczenie_kanalu_w_trakcie_alarmu_nie_udaje_rozliczenia(): void
+    {
+        $this->rezerwacja(minutTemu: 90);
+        $this->wlaczKanalAlarmu();
+        $this->artisan('kuking:sprawdz-push')->assertExitCode(0);
+        Http::assertSentCount(1);
+
+        config(['kuking.notifications.zewnetrzne.wlaczone' => false]);
+        $this->artisan('kuking:sprawdz-push')->assertExitCode(0);
+
+        Http::assertSentCount(2);
+        $odwolanie = $this->wyslanaTresc(1);
+        $this->assertStringContainsString('kanał jest awaryjnie wyłączony', $odwolanie);
+        $this->assertStringContainsString('to NIE jest rozliczenie', $odwolanie);
+        $this->assertStringNotContainsString('są rozliczone', $odwolanie);
+    }
+
     public function test_dziennik_trwalej_porazki_mowi_ile_urzadzen_juz_dostalo_push(): void
     {
         $odbiorca = $this->user('odbiorca_dziennik_2053');
@@ -244,13 +261,13 @@ final class CzujkaTrwalychPorazekPushTest extends TestCase
 
         Queue::fake();
         (new WyslijPowiadomieniePush((string) $odbiorca->getKey()))->handle($this->transport);
-        Log::spy();
+        $dziennik = Log::spy();
         (new WyslijPowiadomieniePush((string) $odbiorca->getKey(), [(string) $powiadomienie->getKey()],
             pominieteSubskrypcje: [(string) $dziala->getKey()], probaTransportu: 2))->handle($this->transport);
 
         // „nieudane = wszystkie = 1” wygląda jak pełna awaria — a jedno
         // urządzenie już ma ten push. Runbook §3.2 czyta `juz_obsluzone`.
-        Log::shouldHaveReceived('error')->withArgs(fn (string $wiadomosc, array $kontekst = []): bool => str_contains($wiadomosc, 'trwała porażka transportu')
+        $dziennik->shouldHaveReceived('error')->withArgs(fn (string $wiadomosc, array $kontekst = []): bool => str_contains($wiadomosc, 'trwała porażka transportu')
             && ($kontekst['nieudane_urzadzenia'] ?? null) === 1
             && ($kontekst['wszystkie_urzadzenia'] ?? null) === 1
             && ($kontekst['juz_obsluzone'] ?? null) === 1

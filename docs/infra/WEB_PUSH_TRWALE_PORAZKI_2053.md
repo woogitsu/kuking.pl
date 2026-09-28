@@ -31,7 +31,8 @@ sierotę na cały ten czas.
 Awaryjny wyłącznik (`KUKING_POWIADOMIENIA_ZEWNETRZNE=false`) wstrzymuje
 liczenie utraconych ponowień — przy wyłączonym kanale zadanie wraca bez
 zamknięcia rezerwacji i każda wyglądałaby na utraconą. Tabela czujki
-pokazuje wtedy „kanał wyłączony: tak”. Po ponownym włączeniu rezerwacje,
+pokazuje wtedy „kanał wyłączony: tak”. Jeśli trwał alarm o utraconych ponowieniach,
+wyłączenie kanału wyśle odwołanie z dopiskiem, że to NIE jest rozliczenie. Po ponownym włączeniu rezerwacje,
 których ponowienie przepadło w tym czasie, zgłoszą się jako
 `utracone_ponowienie` — rozlicz je według §3.1. Trwałe porażki są liczone
 zawsze. Brak `VAPID_PRIVATE_KEY` przy WŁĄCZONYM kanale nie jest wyjątkiem:
