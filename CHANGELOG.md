@@ -9,6 +9,7 @@
 - Usunięcie komentarza sprawdza teraz stan konta osoby usuwającej dopiero w chwili zapisu. Jeśli zawieszenie, ban albo żądanie usunięcia konta zostanie zatwierdzone w trakcie takiego żądania, komentarz zostaje nietknięty: bez śladu usunięcia, bez zastąpienia treści komunikatem i bez powiadomienia dla jego autora (#2190).
 - Wewnętrzne: błędny kod 2FA lub kod zapasowy przy logowaniu przez API aplikacji zostawia w dzienniku audytu ten sam wpis `account.two_factor_login_failed` co na stronie, z kanałem `api` w metadanych (na stronie: `www`). Zapis jest teraz w jednej akcji sprawdzającej kod, więc żaden kanał go nie pominie; odpowiedzi odcięte limitem prób nadal nie dopisują wierszy, a w dzienniku nie ma kodu, sekretu ani surowego adresu IP (#2199).
 - Gość może kliknąć „Zapisz do zeszytu” przy przepisie, założyć konto (hasłem, przez Google lub Facebooka) albo się zalogować i wrócić na ten sam przepis z rozwiniętym wyborem zeszytu. Niczego nie zapisujemy za człowieka — przepis trafia do zeszytu dopiero po jego własnym wyborze, a przepis, który w międzyczasie przestał być dostępny, nie otwiera wyboru (#2028). [nowa funkcja]
+- Naprawione: rozstrzygnięcie zgłoszenia i przywrócenie ukrytej treści (także przyciskiem „Przywróć” w kolejce zgłoszeń) sprawdzają rolę moderatora pod tą samą blokadą co zmiana roli. Moderator zdegradowany w trakcie operacji nie zapisze już decyzji, a administrator zdegradowany do moderatora nie ukarze konta moderatora ani nie cofnie decyzji administratora (#2086).
 
 ## Alfa 0.75 — szukanie w wykonaniach i pewniejsze „Ugotowałem”
 

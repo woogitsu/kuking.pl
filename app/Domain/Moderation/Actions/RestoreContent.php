@@ -6,14 +6,18 @@ namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\WlasnejTresciNiePrzywracasz;
+use App\Domain\Users\ZamekUprzywilejowanegoAktora;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Comment;
 use App\Models\ModerationAction;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use LogicException;
 
 /**
  * Cofnięcie ukrycia albo usunięcia treści (issue #65).
@@ -69,6 +73,48 @@ final class RestoreContent
         ?string $ip = null,
         bool $zPowiadomieniem = true,
     ): ModerationAction {
+        // AKTOR POD BLOKADĄ (#2086). Bezpośrednie wejście (`ModerationController::restore()`)
+        // dostawało moderatora z początku żądania, a rangę i własną treść
+        // sprawdzało na nim — degradacja zatwierdzona w międzyczasie nie
+        // była widoczna. Wspólny zamek ról → wiersz aktora → treść.
+        return ZamekUprzywilejowanegoAktora::wykonaj(
+            $moderator,
+            fn (User $swiezy): ModerationAction => $this->podZamkiem($swiezy, $target, $reasonCode, $note, $userMessage, $ip, $zPowiadomieniem),
+        );
+    }
+
+    /**
+     * To samo co `handle()`, dla wołającego, który JUŻ trzyma
+     * `ZamekUprzywilejowanegoAktora` i przekazuje aktora zwróconego przez
+     * niego (`ResolveAppeal`). Drugi raz brany w tej samej transakcji zamek
+     * tylko dokładałby zbędne blokady, więc wejście chronione i wewnętrzne
+     * są dwiema metodami (#2086). Wołana poza transakcją zamku — odmawia.
+     *
+     * @param  User  $swiezy  aktor odczytany pod blokadą, nie model z żądania
+     *
+     * @throws AuthorizationException gdy aktor nie jest już moderatorem
+     * @throws WlasnejTresciNiePrzywracasz
+     * @throws BladDlaCzlowieka
+     */
+    public function podZamkiem(
+        User $swiezy,
+        Model $target,
+        string $reasonCode,
+        ?string $note = null,
+        ?string $userMessage = null,
+        ?string $ip = null,
+        bool $zPowiadomieniem = true,
+    ): ModerationAction {
+        if (DB::transactionLevel() === 0) {
+            throw new LogicException('RestoreContent::podZamkiem() wymaga transakcji z ZamekUprzywilejowanegoAktora.');
+        }
+
+        $moderator = $swiezy;
+
+        // Policy na świeżym aktorze: kto nie jest (już) czynnym moderatorem,
+        // nie tworzy `unhide`. Kontroler pyta o to samo na modelu z żądania.
+        Gate::forUser($moderator)->authorize('moderate', User::class);
+
         $typ = ModeratedContent::typ($target);
 
         if ($typ === null || ! ModeratedContent::daSieUkryc($target)) {

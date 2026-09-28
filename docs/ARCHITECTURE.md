@@ -200,8 +200,13 @@ w międzyczasie zatwierdzić degradację. `ZamekUprzywilejowanegoAktora` bierze
 w jednej transakcji wspólną blokadę ostatniego administratora, następnie
 blokadę wiersza aktora i przekazuje akcji świeży model. Policy i zapis skutku
 muszą nastąpić wewnątrz tej samej transakcji. Tę kolejność stosują
-`ResolveAppeal`, `ZdejmijZUrzedu` i przyjęcie odpowiedzi w
+`ResolveAppeal`, `ZdejmijZUrzedu`, `RozstrzygnijZgloszenie`, `RestoreContent`
+(także `ModerationController::restore()`) i przyjęcie odpowiedzi w
 `WyslijOdpowiedz`; wysłanie przyjętego listu może zakończyć się później.
+Kolejność blokad: zamek ról → aktor → zgłoszenie/treść/sprawa → konto celu.
+Akcja wołana z innej akcji, która już trzyma zamek (`RestoreContent` z
+`ResolveAppeal`), ma osobne wejście „pod zamkiem” (`podZamkiem()`) przyjmujące
+świeżego aktora — chronione wejście publiczne nie bierze protokołu drugi raz.
 
 Nowe akcje przyjmujące aktora z rolą powinny korzystać z tego samego wzorca.
 Blokada aktora przed wspólną blokadą mogłaby zakleszczyć się ze zmianą roli

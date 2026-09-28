@@ -36,6 +36,7 @@ use App\Domain\Import\Rezerwacja;
 use App\Domain\Import\ZlecImportPrzepisu;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
+use App\Domain\Moderation\Actions\RestoreContent;
 use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
 use App\Domain\Moderation\NowaDecyzja;
 use App\Domain\Posts\Actions\PublishPost;
@@ -651,6 +652,39 @@ try {
             }
 
             $odpowiedz = app(ModerationController::class)->decide($zadanie, $zgloszenie);
+
+            $bledy = $odpowiedz->getSession()?->get('errors');
+
+            return $bledy === null ? 'ok' : implode(' ', $bledy->all());
+        })(),
+
+        // Bezpośrednie przywrócenie treści akcją domenową (#2086).
+        'przywroc-tresc' => (string) app(RestoreContent::class)->handle(
+            moderator: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            target: Post::query()->withTrashed()->whereKey($argumenty['wpis'])->firstOrFail(),
+            reasonCode: 'appeal_overturned',
+            note: 'Przywrócenie z testu wyścigu.',
+            userMessage: 'Przywracamy Twoją treść.',
+        )->getKey(),
+
+        // Przywrócenie PRAWDZIWYM kontrolerem panelu (`ModerationController::restore()`,
+        // #2086). Bez HTTP: middleware 2FA nie jest tu mierzone, rola z początku
+        // żądania jest sprawdzana bramką kontrolera tak jak w trasie.
+        'przywroc-z-panelu' => (function () use ($argumenty): string {
+            $moderator = User::query()->whereKey($argumenty['kto'])->firstOrFail();
+            Auth::setUser($moderator);
+
+            $zgloszenie = Report::query()->whereKey($argumenty['zgloszenie'])->firstOrFail();
+
+            $zadanie = Request::create('/admin/zgloszenia/x/przywroc', 'POST', [
+                'reason_code' => 'appeal_overturned',
+                'user_message' => 'Przywracamy Twoją treść.',
+            ]);
+            $zadanie->setLaravelSession(app('session.store'));
+            $zadanie->setUserResolver(static fn () => $moderator);
+            app()->instance('request', $zadanie);
+
+            $odpowiedz = app(ModerationController::class)->restore($zadanie, $zgloszenie);
 
             $bledy = $odpowiedz->getSession()?->get('errors');
 

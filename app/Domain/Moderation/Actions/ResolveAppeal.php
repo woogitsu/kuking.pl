@@ -285,8 +285,10 @@ final class ResolveAppeal
         }
 
         try {
-            $this->przywroc->handle(
-                moderator: $moderator,
+            // `podZamkiem`, nie `handle`: zamek aktora trzyma już `handle()`
+            // tej klasy, a `$moderator` to jego świeży model (#2086).
+            $this->przywroc->podZamkiem(
+                swiezy: $moderator,
                 target: $tresc,
                 reasonCode: 'appeal_overturned',
                 note: 'Cofnięte po odwołaniu.',

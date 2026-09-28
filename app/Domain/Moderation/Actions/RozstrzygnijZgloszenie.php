@@ -7,14 +7,13 @@ namespace App\Domain\Moderation\Actions;
 use App\Domain\Moderation\DlugoscZawieszenia;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Users\OdmowaOstatniegoAdministratora;
-use App\Domain\Users\OstatniAdministrator;
+use App\Domain\Users\ZamekUprzywilejowanegoAktora;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
 use App\Models\Report;
 use App\Models\User;
 use App\Notifications\DecyzjaWSprawieZgloszenia;
 use Carbon\CarbonInterface;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
@@ -73,15 +72,23 @@ final class RozstrzygnijZgloszenie
          * transakcji, a ponowne sprawdzenie statusu JUŻ POD BLOKADĄ rozstrzyga
          * je jednoznacznie. Powiadomienie zostaje w środku świadomie: ma nie
          * wyjść, jeśli zapis się nie powiedzie.
+         *
+         * AKTOR TEŻ POD BLOKADĄ (#2086). `ZamekUprzywilejowanegoAktora` bierze
+         * wspólny zamek ról (ten sam, którego chce ChangeUserRole), potem
+         * wiersz aktora, i oddaje ŚWIEŻY model. Rola z początku żądania mogła
+         * zostać odebrana, zanim tu doszliśmy — `decide()` i `sanctionAccount`
+         * pytamy więc wyłącznie o `$swiezy`. Zamek wspólny jest przy okazji
+         * tym samym, który wcześniej brała sama sankcja konta (#1016): dalej
+         * stoi PRZED pierwszym zapisem (INSERT do `moderation_actions` bierze
+         * `FOR KEY SHARE` na wierszu osoby). Kolejność blokad: zamek ról →
+         * aktor → zgłoszenie → osoba ukarana.
          */
-        return DB::transaction(function () use ($report, $data, $moderator, $termin, $ip) {
-            // Kara na koncie idzie pod wspólny zamek ostatniego administratora
-            // (#1016) PRZED pierwszym zapisem: INSERT do `moderation_actions`
-            // bierze `FOR KEY SHARE` na wierszu osoby i zamek wzięty po nim
-            // zakleszczyłby się z równoległą zmianą roli.
-            if (in_array($data['action'], [ModerationAction::ACTION_SUSPEND, ModerationAction::ACTION_BAN], true)) {
-                OstatniAdministrator::zablokuj();
-            }
+        return ZamekUprzywilejowanegoAktora::wykonaj($moderator, function (User $swiezy) use ($report, $data, $termin, $ip) {
+            $moderator = $swiezy;
+
+            // Bramka wejścia panelu, powtórzona na świeżym aktorze: po
+            // degradacji moderator → użytkownik to 403, nie „popraw formularz".
+            Gate::forUser($moderator)->authorize('moderate', User::class);
 
             $zablokowane = Report::query()->whereKey($report->getKey())->lockForUpdate()->first();
 
