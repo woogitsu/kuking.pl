@@ -2,8 +2,12 @@
 
 ## Nieopublikowane
 
-- Rozpatrzenie odwołania z blokadą konta nie zakleszcza się już z równoczesną edycją przepisu. Obie czynności kończą się bez błędu serwera (#2165).
+## Alfa 0.74 — zdjęcia w formularzu i porcje przy gotowaniu
+
+- Zdjęcia wybrane przy dodawaniu lub edycji przepisu zostają w formularzu po błędzie innego pola. Nie trzeba ich wybierać ponownie po poprawieniu tytułu czy składników (#2050).
 - Wybrana liczba porcji nie znika po wejściu w tryb gotowania: składniki przy krokach są przeliczone tak samo jak na stronie przepisu, a wybór zostaje przy zmianie kroku, odhaczaniu, rozpoczęciu od początku i powrocie do przepisu (#1984). [nowa funkcja]
+- Rozpatrzenie odwołania z blokadą konta nie zakleszcza się już z równoczesną edycją przepisu. Obie czynności kończą się bez błędu serwera (#2165).
+- Bramka wdrożenia nie ponawia automatycznie niejednoznacznego żądania do Railway; wymaga uzgodnienia stanu, żeby nie uruchomić drugiego wdrożenia (#2048).
 
 ## Alfa 0.73 — import przepisu i wygodniejsze gotowanie
 

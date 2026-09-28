@@ -10,6 +10,7 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Spis wydań
 
 - [Najnowsze zmiany](#najnowsze-zmiany)
+- [Alfa 0.74 — zdjęcia w formularzu i porcje przy gotowaniu](#alfa-074)
 - [Alfa 0.73 — import przepisu i wygodniejsze gotowanie](#alfa-073)
 - [Alfa 0.72 — spokojniejsze zdjęcia i powiadomienia](#alfa-072)
 - [Alfa 0.71 — przepis z kartki i koszt dania](#alfa-071)
@@ -26,6 +27,16 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Najnowsze zmiany
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
+
+## Alfa 0.74
+
+**Zdjęcia przy przepisie i wybrana liczba porcji zostają z Wami.**
+
+### Zdjęcia zostają po poprawieniu formularza
+
+Jeśli przy dodawaniu lub edycji przepisu wybierzecie zdjęcia, a inne pole
+wymaga poprawki, formularz pokaże wybrane już zdjęcia. Możecie poprawić tekst
+i wysłać przepis ponownie bez szukania tych samych plików w telefonie.
 
 ### Wybrane porcje zostają przy gotowaniu
 
