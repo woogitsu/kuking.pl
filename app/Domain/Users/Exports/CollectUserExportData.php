@@ -18,6 +18,7 @@ use App\Models\MealPlanEntry;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\PostReaction;
+use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -211,7 +212,9 @@ final class CollectUserExportData
             'odwolania' => $this->appeals($user),
             // Planer tygodnia (#27, D-310).
             'planer' => $this->mealPlan($user),
+            'importy_przepisow' => $this->recipeImportOrigins($user),
             'odczyty_przepisow' => $this->recipeImports($user),
+            'proby_importu' => $this->recipeImportAttempts($user),
             'powiadomienia_poza_serwisem' => $this->externalNotifications($user),
         ];
     }
@@ -251,6 +254,30 @@ final class CollectUserExportData
                     'zmienione' => $this->date($urzadzenie->updated_at),
                 ])->all(),
         ];
+    }
+
+    /**
+     * Przepisy zapisane z importu (D-300): kiedy, z jakiego źródła, z jakiego
+     * adresu i czy tekst został sprawdzony. Bez `tekst_zrodla` — to cudzy tekst
+     * ze strony, który i tak jest w szkicu (sekcja „przepisy").
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function recipeImportOrigins(User $user): array
+    {
+        return PrzepisZImportu::query()
+            ->where('user_id', $user->getKey())
+            ->orderBy('created_at')
+            ->orderBy('recipe_id')
+            ->get()
+            ->map(fn (PrzepisZImportu $wiersz): array => [
+                'przepis_id' => $wiersz->recipe_id,
+                'zrodlo' => $wiersz->zrodlo,
+                'adres_strony' => $wiersz->source_url,
+                'sprawdzony' => $this->date($wiersz->sprawdzone_at),
+                'zapisany' => $this->date($wiersz->created_at),
+            ])
+            ->all();
     }
 
     /** @return array<string, mixed> */
@@ -1010,6 +1037,21 @@ final class CollectUserExportData
                 'szkic_przepisu' => $zlecenie->przepis,
                 'zlecono' => $this->date($zlecenie->created_at),
                 'zakonczono' => $this->date($zlecenie->zakonczono_at),
+            ])->all();
+    }
+
+    /** Próby ze wspólnego limitu OCR/URL/PDF, bez technicznego klucza ponowienia. */
+    private function recipeImportAttempts(User $user): array
+    {
+        return DB::table('proby_importu')
+            ->where('user_id', $user->getKey())
+            ->orderBy('created_at')
+            ->get(['zrodlo', 'status', 'zgoda_ai_at', 'created_at'])
+            ->map(fn (object $proba): array => [
+                'zrodlo' => $proba->zrodlo,
+                'stan' => $proba->status,
+                'zgoda_na_odczyt_ai' => $this->date($proba->zgoda_ai_at),
+                'zlecono' => $this->date($proba->created_at),
             ])->all();
     }
 
