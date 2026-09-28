@@ -238,6 +238,15 @@ Route::post('/motyw', [ThemeController::class, 'update'])
 
 Route::get('/przepisy/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
 
+// Zeszyt „Wszyscy" jest dla wszystkich — także bez konta (issue #965).
+// Poza grupą `auth` stoi WYŁĄCZNIE odczyt; dostęp rozstrzyga
+// `CollectionPolicy::view(?User)`: gość widzi tylko publiczny zeszyt
+// dostępnego właściciela, prywatny dostaje 403. Tworzenie, edycja,
+// usuwanie i zapisy zostają niżej, za logowaniem.
+Route::get('/zeszyt/{collection}', [CollectionController::class, 'show'])
+    ->whereUuid('collection')
+    ->name('collections.show');
+
 // Tryb gotowania (issue #24). Widoczność jak strona przepisu — patrz
 // komentarz nad CookingModeController — więc te trasy stoją tutaj, w bloku
 // bez wymogu zalogowania, a nie w grupie `auth` niżej. Zapis (odznaczanie
@@ -893,7 +902,6 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // „moje-wpisy” trafiłoby do wiązania zeszytu po UUID. Nazwa pod
     // `collections.*`, żeby pozycja „Moje” w nawigacji była bieżąca.
     Route::get('/zeszyt/moje-wpisy', MojeWpisyController::class)->name('collections.own-posts');
-    Route::get('/zeszyt/{collection}', [CollectionController::class, 'show'])->name('collections.show');
     // Cofnięcie publicznego udostępnienia bez kasowania zeszytu (issue #777).
     // Własny klucz `zeszyt`, nie `usuwanie` — to nie jest akcja destrukcyjna.
     Route::get('/zeszyt/{collection}/edytuj', [CollectionController::class, 'edit'])->name('collections.edit');

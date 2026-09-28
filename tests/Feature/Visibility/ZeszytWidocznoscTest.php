@@ -10,10 +10,10 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Zeszyt (kolekcja) — tylko `public` i `private` (CHECK w bazie).
  *
- * Różnica wobec pozostałych typów: trasa `/zeszyt/{collection}` żyje w grupie
- * `auth`, więc gość nie zobaczy NAWET zeszytu publicznego — dostaje
- * przekierowanie do logowania. To jest świadoma decyzja produktowa, nie luka,
- * ale musi być zapisana w tabeli prawdy, bo inaczej macierz kłamie.
+ * Do issue #965 trasa `/zeszyt/{collection}` żyła w grupie `auth` i gość nie
+ * widział NAWET zeszytu publicznego. To przeczyło etykiecie „Wszyscy"
+ * z formularza i `CollectionPolicy::view(?User)`, więc odczyt wyszedł spod
+ * `auth`: gość widzi zeszyt publiczny, prywatny dostaje odmowę.
  */
 class ZeszytWidocznoscTest extends WidocznoscTestCase
 {
@@ -29,7 +29,7 @@ class ZeszytWidocznoscTest extends WidocznoscTestCase
             'obserwujący' => ['public' => true, 'private' => false],
             'obcy' => ['public' => true, 'private' => false],
             'zablokowany' => ['public' => false, 'private' => false],
-            'niezalogowany' => ['public' => false, 'private' => false],
+            'niezalogowany' => ['public' => true, 'private' => false],
         ];
     }
 
@@ -47,11 +47,4 @@ class ZeszytWidocznoscTest extends WidocznoscTestCase
     {
         return route('collections.show', $tresc);
     }
-
-    /**
-     * Gość nie zobaczy nawet zeszytu publicznego, więc test bazowy (który
-     * zakłada 403 dla blokującego) trzeba dopasować: tu blokujący JEST
-     * zalogowany, więc 403 jest poprawnym oczekiwaniem — zostawiamy wersję
-     * z klasy bazowej bez zmian.
-     */
 }
