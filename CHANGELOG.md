@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- „Szukaj w moich zeszytach” znajduje teraz zapisane przepisy także po składniku, nie tylko po tytule: fraza „cukinia” pokaże przepisy z Waszych zeszytów, które mają cukinię na liście składników. Gdy tytuł nie zawiera frazy, wynik podpisuje „Pasuje przez składnik”. Widoczność bez zmian — wynik nie zdradza przepisów, których nie możecie dziś otworzyć; szukanie nie zależy od liczby składników (jedno zapytanie) (#2068). [nowa funkcja]
+
 ## Alfa 0.75 — szukanie w wykonaniach i pewniejsze „Ugotowałem”
 
 - Podgląd przepisu bez składników wyjaśnia teraz spokojnie, że można je dopisać później; nie pokazuje braku składników jako błędu, bo nie blokuje on publikacji (#1991).
