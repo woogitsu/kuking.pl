@@ -61,9 +61,12 @@ final class AkcjeGithubPrzypieteDoShaTest extends TestCase
             ...$bledy,
         ]));
 
-        // Parser, który nic nie znajduje, przepuszcza wszystko. Obecnie jest
-        // ponad 50 zewnętrznych odwołań w pięciu workflowach i akcji PHP.
-        $this->assertGreaterThanOrEqual(50, $zewnetrznych, 'Test przestał widzieć `uses:` — stracił przedmiot.');
+        // Parser, który nic nie znajduje, przepuszcza wszystko. Próg obniżony
+        // z 50 na 48 (issue #1865): trzy kroki `actions/setup-node` w
+        // deploy.yml/preview.yml zniknęły, bo Railway CLI instaluje się dziś
+        // wprost z GitHub Releases (curl + suma kontrolna), bez npm i bez
+        // Node'a — jedno `uses:` mniej na krok, razy trzy kroki.
+        $this->assertGreaterThanOrEqual(48, $zewnetrznych, 'Test przestał widzieć `uses:` — stracił przedmiot.');
 
         foreach ([
             '.github/workflows/ci.yml',

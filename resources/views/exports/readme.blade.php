@@ -55,7 +55,7 @@ przepisy/
     powodu mówić o koncie dwóch różnych rzeczy w dwóch swoich plikach.
 --}}
 przepisy/
-    Tego katalogu w tej paczce NIE MA — nie weszedł do niej żaden
+    Tego katalogu w tej paczce NIE MA — nie wszedł do niej żaden
     przepis. Pojawi się, gdy dodasz przepis i poprosisz o paczkę
     ponownie.
 @endif
@@ -202,6 +202,16 @@ Pod Twoimi wpisami i przepisami są komentarze innych ludzi. Zapisaliśmy
 ich treść, datę i podpis, którym te osoby się przedstawiały. NIE ma tu
 ich adresów e-mail ani żadnych ich danych kontaktowych — to nie są Twoje
 dane i nie możemy Ci ich przekazać.
+
+
+CZEGO W TEJ PACZCE NIE MA
+-------------------------
+
+Nie ma tu hasła ani kodów do logowania — nie wydajemy ich nikomu.
+Nie ma też kilku rodzajów danych, które wydajemy tylko na prośbę,
+na przykład dziennika bezpieczeństwa konta. Plik dane.json wymienia
+je wszystkie z powodami (w polu "kategorie_poza_paczka"). Jeśli chcesz
+je dostać, napisz do nas: {{ $contactEmail }}
 
 
 DLACZEGO TA PACZKA ISTNIEJE

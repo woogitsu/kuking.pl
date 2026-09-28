@@ -60,8 +60,45 @@ class EmailVerificationController extends Controller
         ]);
     }
 
-    public function verify(EmailVerificationRequest $request): RedirectResponse
+    /**
+     * GET pokazuje ekran pośredni, POST potwierdza (issue #1862).
+     *
+     * Do 26 września 2026 samo `GET` na tym adresie wołało `fulfill()` —
+     * czyli ustawiało `email_verified_at` bez żadnego świadomego działania
+     * człowieka. Link z maila otwiera dziś niejeden program: skaner
+     * odnośników w bramce antywirusowej, podgląd w kliencie pocztowym,
+     * funkcja prefetch przeglądarki. Każdy z nich robi dokładnie ten sam
+     * `GET`, w kontekście tej samej aktywnej sesji (`auth` przed `signed`
+     * w trasie) — i każdy z nich potrafił „potwierdzić" cudzy adres e-mail,
+     * zanim właściciel konta w ogóle otworzył wiadomość.
+     *
+     * Rozwiązanie jest tym samym wzorcem co `login.link.confirm` (D-056)
+     * i `appeals.reporter` wyżej w tym pliku: JEDNA trasa, GET i POST,
+     * `signed` w trasie pilnuje obu. GET tylko POKAZUJE stronę z przyciskiem
+     * — link z maila dalej działa jednym kliknięciem, a `fulfill()` woła
+     * dopiero POST z tego przycisku, z CSRF. Podpis i termin ważności linku
+     * niesie `$request->fullUrl()` w `action` formularza — to ten sam
+     * podpisany adres, z którego przyszło żądanie, więc drugie kliknięcie
+     * nie wymaga nowego linku ani nowego maila.
+     *
+     * Gdy adres jest już potwierdzony (drugie kliknięcie starego linku,
+     * konto potwierdzone inną drogą), obie metody po prostu przekierowują
+     * na stronę główną — bez różnicowania po GET/POST, żeby nie było komu
+     * zgadywać, którędy to sprawdzić.
+     */
+    public function verify(EmailVerificationRequest $request): RedirectResponse|View
     {
+        if ($request->user()->hasVerifiedEmail()) {
+            return redirect()->route('home');
+        }
+
+        if ($request->isMethod('get')) {
+            return view('auth.potwierdz-adres-formularz', [
+                'potwierdzUrl' => $request->fullUrl(),
+                'email' => (string) $request->user()->email,
+            ]);
+        }
+
         $request->fulfill();
 
         return redirect()->route('home')->with('status', 'Adres e-mail potwierdzony. Dziękujemy.');

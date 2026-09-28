@@ -91,7 +91,7 @@
                         czyta dwa razy (D-054).
                     --}}
                     <span class="btn btn-secondary profil-awatar-zmiana-akcja">
-                        {{ $p->avatar?->isReady() ? 'Zmień zdjęcie profilowe' : 'Dodaj zdjęcie profilowe' }}
+                        {{ $p->zdjecieDoPokazania() !== null ? 'Zmień zdjęcie profilowe' : 'Dodaj zdjęcie profilowe' }}
                     </span>
                 </a>
             @else
@@ -272,7 +272,7 @@
                 @elseif(! $owner->isActive())
                     <p class="mb-0">To konto jest teraz zawieszone. Nie można go obserwować, dopóki zawieszenie nie zostanie zdjęte.</p>
                 @endif
-                <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'user', 'id' => $p->username]) }}">Zgłoś</a>
+                <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'user', 'id' => $owner->getKey()]) }}">Zgłoś</a>
                 @if($hasBlocked)
                     <form method="POST" action="{{ route('social.unblock', $p->username) }}">
                         @csrf @method('DELETE')
@@ -283,15 +283,23 @@
                         <button class="btn btn-quiet" type="submit">Zdejmij blokadę</button>
                     </form>
                 @else
+                    {{-- #1819: pytanie NIE odmienia nazwy konta — polskiej
+                         odmiany nie da się policzyć z dowolnego ciągu znaków
+                         (COPY_STYLE.md, „Nie doklejaj przyimka do cudzych
+                         słów"). Nazwa stoi osobno, w mianowniku, pod pytaniem
+                         (`:name`), a samo pytanie jest kompletnym zdaniem
+                         bez niej. --}}
                     <x-confirm-button
                         :action="route('social.block', $p->username)"
                         method="POST"
                         label="Zablokuj"
-                        :question="'Zablokować '.$p->display_name.'? Nie zobaczycie już wzajemnie swoich treści.'"
+                        question="Zablokować tę osobę? Nie zobaczycie już wzajemnie swoich treści."
+                        :name="$p->display_name"
                         :fields="['oczekiwany_id' => $owner->getKey()]" />
                 @endif
             @else
-                <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby obserwować</a>
+                <a class="btn btn-primary" href="{{ route('register', ['follow_user' => $owner->getKey()]) }}">Załóż konto, żeby obserwować</a>
+                <a class="btn btn-quiet" href="{{ route('login', ['follow_user' => $owner->getKey()]) }}">Zaloguj się do swojego konta</a>
             @endif
         </div>
     </header>
@@ -350,6 +358,15 @@
                            :href="route('profile.show', $p->username)">
                 Wybierz inny rok albo wróć do całego archiwum.
             </x-empty-state>
+        @elseif($posts->count() === 0 && ! $isOwner && $stats['recipes'] > 0)
+            {{-- Brak WPISÓW to nie brak TREŚCI (#2047). Licznik przepisów liczy
+                 się tym samym filtrem widoczności co zakładka „Przepisy”, więc
+                 przycisk prowadzi tylko do niepustej listy. --}}
+            <x-empty-state title="Ta osoba nie ma jeszcze wpisów"
+                           action="Zobacz przepisy"
+                           :href="route('profile.show', ['username' => $p->username, 'zakladka' => 'przepisy'])">
+                Przepisy tej osoby znajdziesz w zakładce „Przepisy”.
+            </x-empty-state>
         @elseif($posts->count() === 0)
             <x-empty-state :title="$isOwner ? 'Twoje archiwum jest jeszcze puste' : 'Ta osoba jeszcze nic nie pokazała'"
                            :action="$isOwner ? 'Dodaj pierwsze zdjęcie' : null"
@@ -361,17 +378,20 @@
         @else
             {{-- Archiwum pogrupowane po miesiącach — jak stary fotoblog. --}}
             @php $currentMonth = null; @endphp
-            <div class="stack">
+            <div class="stack" id="lista-wpisow">
                 @foreach($posts as $post)
                     @php $month = \App\Support\Czas::dataLubNic($post->published_at, 'F Y'); @endphp
                     @if($month !== $currentMonth)
                         @php $currentMonth = $month; @endphp
-                        <h2 class="mt-8">{{ \Illuminate\Support\Str::ucfirst($month) }}</h2>
+                        {{-- `data-klucz`: kolejna porcja doklejona przez „Pokaż więcej”
+                             zaczyna od nagłówka swojego miesiąca; jeśli to ten sam
+                             miesiąc, co na końcu poprzedniej, nie powtarzamy go (#986). --}}
+                        <h2 class="mt-8" data-klucz="miesiac-{{ $month }}">{{ \Illuminate\Support\Str::ucfirst($month) }}</h2>
                     @endif
                     <x-post-card :post="$post" />
                 @endforeach
             </div>
-            <x-show-more :paginator="$posts" />
+            <x-show-more :paginator="$posts" lista="lista-wpisow" />
         @endif
     @elseif($tab === 'przepisy')
         @if($recipes->count() === 0)
@@ -379,27 +399,31 @@
                            :action="$isOwner ? 'Dodaj przepis' : null"
                            :href="$isOwner ? route('recipes.create') : null" />
         @else
-            <div class="stack">
+            <div class="stack" id="lista-przepisow">
                 @foreach($recipes as $recipe)
                     <x-recipe-card :recipe="$recipe" />
                 @endforeach
             </div>
-            <x-show-more :paginator="$recipes" czego="przepisów" />
+            <x-show-more :paginator="$recipes" czego="przepisów" lista="lista-przepisow" />
         @endif
     @else
         @if($cookedEvents->count() === 0)
-            <x-empty-state :title="$isOwner ? 'Nie masz jeszcze żadnego wykonania' : 'Brak wykonań'">
+            <x-empty-state :title="$isOwner ? 'Nie masz jeszcze żadnego wykonania' : 'Brak wykonań'"
+                           :action="$isOwner ? 'Znajdź przepis' : null"
+                           :href="$isOwner ? route('search') : null">
                 @if($isOwner)
                     Kiedy ugotujesz z czyjegoś przepisu, kliknij „Ugotowałem”. Autor się o tym dowie, a Ty będziesz mieć to zapisane.
                 @endif
             </x-empty-state>
         @else
-            <div class="stack">
+            <div class="stack" id="lista-wykonan">
                 @foreach($cookedEvents as $event)
-                    <x-cooked-card :event="$event" :showRecipe="true" />
+                    <x-cooked-card :event="$event" :showRecipe="true"
+                        :przepisDostepny="$przepisyWidoczneNaKartach === null || in_array((string) $event->recipe_id, $przepisyWidoczneNaKartach, true) ? true : null"
+                        :przepisZaBlokada="$event->recipe !== null && in_array($event->recipe->author_id, $autorzyZaBlokada, true)" />
                 @endforeach
             </div>
-            <x-show-more :paginator="$cookedEvents" czego="wykonań" />
+            <x-show-more :paginator="$cookedEvents" czego="wykonań" lista="lista-wykonan" />
         @endif
     @endif
     </div>

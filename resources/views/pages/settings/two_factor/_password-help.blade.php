@@ -1,6 +1,6 @@
 <p>
-    Jeśli logujesz się przez Google i nie masz jeszcze hasła do Kuking,
-    ustaw je przez odnośnik z wiadomości e-mail. Nie wpisuj tutaj hasła do Google.
+    Jeśli logujesz się przez Google albo Facebooka i nie masz jeszcze hasła do Kuking,
+    ustaw je przez odnośnik z wiadomości e-mail. Nie wpisuj tutaj hasła do Google ani Facebooka.
 </p>
 @if(\App\Support\Poczta::dziala())
     <p>

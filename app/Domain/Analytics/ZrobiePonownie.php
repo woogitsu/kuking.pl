@@ -67,13 +67,14 @@ final class ZrobiePonownie
     public function policz(?CarbonImmutable $teraz = null): array
     {
         $teraz ??= CarbonImmutable::now();
-        $wykluczeni = $this->eligibility->excludedUserIds();
 
-        $wiersze = DB::table('cooked_events')
+        $zapytanie = DB::table('cooked_events')
             ->join('recipes', 'recipes.id', '=', 'cooked_events.recipe_id')
             ->where('cooked_events.cooked_at', '>', $teraz->subDays(self::DNI))
-            ->where('cooked_events.cooked_at', '<=', $teraz)
-            ->when($wykluczeni !== [], fn ($q) => $q->whereNotIn('cooked_events.user_id', $wykluczeni))
+            ->where('cooked_events.cooked_at', '<=', $teraz);
+        $this->eligibility->tylkoLiczeni($zapytanie, 'cooked_events.user_id');
+
+        $wiersze = $zapytanie
             ->selectRaw('(recipes.author_id = cooked_events.user_id) AS wlasny')
             ->selectRaw('count(*) FILTER (WHERE cooked_events.would_make_again IS TRUE) AS tak')
             ->selectRaw('count(*) FILTER (WHERE cooked_events.would_make_again IS FALSE) AS nie')

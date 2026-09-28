@@ -41,8 +41,16 @@ class SitemapController extends Controller
             // zbanowany albo kasuje konto. Bez tego mapa podawała Google'owi
             // adresy, pod którymi zwykły człowiek dostaje 403 — czyli
             // zapraszała do drzwi, które sama zamknęła.
+            // „Moja wersja" (issue #23, D-301) poza mapą, WSZYSTKIE wersje.
+            // Próg unikalności (`MojaWersja::czyIndeksowac()`) porównuje
+            // tekst z oryginałem, czyli czyta składniki i kroki dwóch
+            // przepisów — w pętli po całej mapie to byłyby tysiące zapytań.
+            // Mapa ma być podzbiorem stron indeksowalnych, nie ich pełną
+            // listą: wersja z własną wartością nadal jest `index` na swojej
+            // stronie i Google dojdzie do niej linkiem z oryginału.
             Recipe::query()
                 ->publiclyVisible()
+                ->whereNull('forked_at')
                 ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
                 ->select(['id', 'slug', 'updated_at'])
                 ->chunkById(500, function ($recipes) use (&$urls): void {
@@ -115,8 +123,19 @@ class SitemapController extends Controller
             Profile::query()
                 ->whereHas('user', fn ($autor) => $autor->widocznyJakoOsoba())
                 ->where(function ($maPubliczonaTresc): void {
+                    // Wpis liczy się tak, jak liczy go sam profil dla gościa
+                    // (`ProfileController::tylkoWidoczne()`): wpis z własną
+                    // treścią — według własnej widoczności, a czysta
+                    // zapowiedź przepisu — tylko z przepisem, który gość
+                    // może zobaczyć (issue #1805). Zapowiedź jest zawsze
+                    // `public`, także przy przepisie „tylko dla
+                    // obserwujących", prywatnym albo ukrytym przez
+                    // moderację; bez tej bramki wpuszczała do mapy profil,
+                    // na którym gość nie ma czego oglądać.
                     $maPubliczonaTresc
-                        ->whereHas('user.posts', fn ($query) => $query->publiclyVisible())
+                        ->whereHas('user.posts', fn ($query) => $query
+                            ->publiclyVisible()
+                            ->zWidocznymPrzepisemAlboWlasnaTrescia(null))
                         ->orWhereHas('user.recipes', fn ($query) => $query->publiclyVisible());
                 })
                 ->select(['user_id', 'username', 'updated_at'])

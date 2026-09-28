@@ -5,18 +5,28 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Import\StrazImportu;
 use App\Domain\Recipes\Actions\ZapiszPrzepisZFormularza;
+use App\Domain\Recipes\Actions\ZrobWlasnaWersje;
 use App\Domain\Recipes\CoMoznaDopisac;
+use App\Domain\Recipes\ExistingStepDuplicates;
+use App\Domain\Recipes\Koszt\SzacunekKosztuZCen;
+use App\Domain\Recipes\MojaWersja;
+use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\Recipes\ZapisPrzepisuRequest;
+use App\Models\Comment;
+use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Unit;
+use App\Support\OdpowiedziWatku;
 use App\Support\PaginationLinks;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -42,7 +52,8 @@ use Illuminate\View\View;
  * BAZA SIĘ NIE ZMIENIŁA. Oba pola tekstowe z punktu 1 serwer rozbija
  * z powrotem na `recipe_ingredients` i `recipe_steps`
  * (`App\Domain\Recipes\TekstNaWiersze`). Szukanie po składnikach nadal
- * czyta te same wiersze. Skalowanie porcji pozostaje niewdrożonym planem V2.
+ * czyta te same wiersze. Skalowanie porcji (V2, D-284) czyta ilość z tekstu
+ * wiersza w chwili pokazania — `App\Domain\Recipes\Porcje\PrzeliczSkladnik`.
  *
  * Wszystkie drogi kończą się w tej samej akcji domenowej `PublishRecipe`
  * (formularze bez JavaScriptu przez `ZapiszPrzepisZFormularza`, walidacja
@@ -56,6 +67,7 @@ class RecipeController extends Controller
     public function __construct(
         private readonly ZapiszPrzepisZFormularza $zapiszPrzepis,
         private readonly PublishComment $publishComment,
+        private readonly ZrobWlasnaWersje $zrobWlasnaWersje,
     ) {}
 
     /**
@@ -190,23 +202,65 @@ class RecipeController extends Controller
         ]);
     }
 
+    /**
+     * „Dopisz przepis” z własnego wpisu ze zdjęciem (issue #1334).
+     *
+     * WERSJA NAJPROSTSZA, BEZ MIGRACJI DANYCH. Otwiera ten sam formularz
+     * sześciu rzeczy co „Dodaj przepis”, ze zdjęciem wpisu zamiast pola
+     * pliku (można wybrać inne). Niczego nie publikuje sama i NIE RUSZA
+     * wpisu: jego treść, komentarze, adres i widoczność zostają takie, jakie
+     * były. Przepis jest nowym, osobnym obiektem — dostaje własną
+     * zapowiedź w strumieniu (#368), jak każdy przepis. Zdjęcie jest jednym
+     * wierszem `media` wskazanym z obu miejsc; `KasujZdjecie` nie skasuje go,
+     * dopóki wskazuje je choć jedno.
+     */
+    public function createFromPost(Request $request, Post $post): View
+    {
+        $this->authorize('dopiszPrzepis', $post);
+
+        return view('pages.recipes.create', [
+            'kluczWyslania' => $this->kluczDlaFormularza(),
+            'zWpisu' => $post,
+            'zdjecieZWpisu' => $post->zdjecieDoPrzepisu(),
+        ]);
+    }
+
     public function store(ZapisPrzepisuRequest $request): RedirectResponse
     {
-        $data = $request->daneZapisu();
+        $zachowaneZdjecia = $request->zachowajZdjecia();
+        try {
+            $data = $request->daneZapisu();
+        } catch (ValidationException $e) {
+            return back()->withInput($request->input())->withErrors($e->errors());
+        }
+
+        // Zdjęcie z własnego wpisu (#1334) — ta sama Policy co przy wejściu
+        // na formularz, sprawdzona jeszcze raz przy zapisie: identyfikator
+        // w polu ukrytym to nie autoryzacja (AGENTS.md §7). Własny plik
+        // z formularza ma pierwszeństwo.
+        $zdjecieZWpisu = null;
+
+        if ($request->zWpisu() !== null && ! isset($zachowaneZdjecia['hero'])) {
+            $wpis = Post::query()->findOrFail($request->zWpisu());
+            $this->authorize('dopiszPrzepis', $wpis);
+            $zdjecieZWpisu = $wpis->zdjecieDoPrzepisu()?->getKey();
+        }
 
         try {
             $recipe = $this->zapiszPrzepis->handle(
                 author: $request->user(),
                 dane: $data,
-                zdjecieGlowne: $request->przeslanyPlik('hero_photo'),
-                skan: $request->przeslanyPlik('source_scan'),
-                zdjeciaKrokow: $request->zdjeciaKrokow($data['steps']),
+                zdjecieGlowne: null,
+                skan: null,
+                zdjeciaKrokow: [],
                 publish: $request->input('action') !== 'draft',
                 ip: $request->ip(),
                 kluczWyslania: $this->kluczZZadania($request),
+                zdjecieGlowneZWpisu: $zdjecieZWpisu,
+                zachowaneZdjecia: $zachowaneZdjecia,
             );
         } catch (BladDlaCzlowieka $e) {
-            return back()->withInput()->withErrors(['title' => $e->getMessage()]);
+            return back()->withInput($request->input())->withErrors(['title' => $e->getMessage()]);
         }
 
         /*
@@ -271,21 +325,36 @@ class RecipeController extends Controller
         // w kontrolerze i żeby przeniesienie walidacji go nie zgubiło.
         $this->authorize('update', $recipe);
 
-        $data = $request->daneZapisu();
+        $zachowaneZdjecia = $request->zachowajZdjecia();
+        try {
+            $data = $request->daneZapisu();
+        } catch (ValidationException $e) {
+            return back()->withInput($request->input())->withErrors($e->errors());
+        }
+        $duplicateErrors = ExistingStepDuplicates::errors($data['steps'] ?? [], $recipe->steps()->pluck('id'));
+        if ($duplicateErrors !== []) {
+            return back()->withInput($request->input())->withErrors($duplicateErrors);
+        }
 
         try {
             $recipe = $this->zapiszPrzepis->handle(
                 author: $request->user(),
                 dane: $data,
-                zdjecieGlowne: $request->przeslanyPlik('hero_photo'),
-                skan: $request->przeslanyPlik('source_scan'),
-                zdjeciaKrokow: $request->zdjeciaKrokow($data['steps']),
+                zdjecieGlowne: null,
+                skan: null,
+                zdjeciaKrokow: [],
                 publish: $request->input('action') !== 'draft',
                 ip: $request->ip(),
                 existing: $recipe,
+                oczekiwanaRewizja: (int) $request->validated('content_revision'),
+                zachowaneZdjecia: $zachowaneZdjecia,
             );
         } catch (BladDlaCzlowieka $e) {
-            return back()->withInput()->withErrors(['title' => $e->getMessage()]);
+            // Brak „Sprawdziłem odczytany tekst” przy szkicu z importu (D-300)
+            // — błąd przy tym polu, nie przy nazwie przepisu (AGENTS.md §5).
+            $pole = $e->getMessage() === StrazImportu::KOMUNIKAT_SPRAWDZ ? 'sprawdzilem_odczyt' : 'title';
+
+            return back()->withInput($request->input())->withErrors([$pole => $e->getMessage()]);
         }
 
         return redirect()->route($recipe->isPublished() ? 'recipes.show' : 'recipes.edit', $recipe)
@@ -343,15 +412,14 @@ class RecipeController extends Controller
 
         // Komentarze filtrowane przez blokady (issue #41) — bez tego
         // zablokowana osoba nadal była widoczna pod cudzymi treściami — i od
-        // dziś PAGINOWANE. Odpowiedzi jednego wątku dociągamy w całości: mają
-        // tylko jeden poziom (`comment-thread.blade.php`) i są ograniczone
-        // liczbą osób, które weszły w JEDNĄ rozmowę, a nie popularnością
-        // całego przepisu.
+        // dziś PAGINOWANE. Odpowiedzi jednego wątku też idą porcjami
+        // (issue #939): nic nie ogranicza, ile razy ta sama osoba odpowie,
+        // więc „ograniczone liczbą osób w rozmowie” nie było prawdą.
         $komentarze = $model->comments()
             ->widoczneDla($request->user())
             ->with([
                 'author.profile.avatar',
-                'replies' => fn ($query) => $query->widoczneDla($request->user()),
+                'replies' => fn ($query) => OdpowiedziWatku::pierwszaPorcja($query, $request->user()),
                 'replies.author.profile.avatar',
                 // TO NIE JEST NADMIAROWE, CHOĆ PRZEPIS STOI OBOK W `$model`.
                 //
@@ -372,6 +440,7 @@ class RecipeController extends Controller
                 'replies.recipe',
             ])
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
+        OdpowiedziWatku::uzupelnij($komentarze, $request, ['author.profile.avatar', 'recipe']);
 
         // Widoczne dla widza (audyt A4) — bez tego galeria „Komu wyszło"
         // pokazywała każde wykonanie, nie pytając, czy widz zablokował
@@ -395,15 +464,40 @@ class RecipeController extends Controller
             ->with(['user.profile.avatar', 'media'])
             ->paginate(12, ['*'], 'wykonania');
 
-        PaginationLinks::preserveOtherPage($komentarze, $cookedEvents);
-        PaginationLinks::preserveOtherPage($cookedEvents, $komentarze);
+        // „Wersje innych osób" (issue #23, D-301) — osobna, trzecia
+        // paginacja na tym ekranie, z własnym parametrem adresu. Liczba
+        // wszystkich wersji NIE trafia do widoku: lista ma wyróżniać autora
+        // oryginału, a nie tworzyć licznika popularności (AGENTS.md §12).
+        $wersje = MojaWersja::wersjeDlaWidza($model, $request->user())
+            ->paginate(6, ['*'], 'wersje');
+
+        foreach ([$komentarze, $cookedEvents, $wersje] as $cel) {
+            foreach ([$komentarze, $cookedEvents, $wersje] as $inna) {
+                if ($cel !== $inna) {
+                    PaginationLinks::preserveOtherPage($cel, $inna);
+                }
+            }
+        }
 
         return view('pages.recipes.show', [
             'recipe' => $model,
+            // Na ile porcji pokazać ilości (D-284). Wybór żyje w adresie
+            // (`?porcje=6`), przeliczenie w `App\Domain\Recipes\Porcje`.
+            'wyborPorcji' => WyborPorcji::dla($model, $request->query('porcje')),
+            // Orientacyjny koszt z cen GUS — tylko gdy autor nie podał
+            // własnej kwoty; kwota autora zawsze wygrywa (D-286).
+            'szacunekKosztu' => $model->estimated_cost_pln === null
+                ? app(SzacunekKosztuZCen::class)->dla($model)
+                : null,
+            // Wersja zbyt podobna do publicznego oryginału nie idzie do
+            // indeksu (docs/seo/SEO_TECHNICAL.md §1.4 pkt 4).
+            'wersjaDoIndeksu' => MojaWersja::czyIndeksowac($model),
+            'wersje' => $wersje,
             'komentarze' => $komentarze,
-            // Liczba WSZYSTKICH wątków, nie tylko tych na stronie — inaczej
-            // nagłówek „Komentarze (12)" kłamałby pod treścią, która ma ich sto.
-            'komentarzyRazem' => $komentarze->total(),
+            // Cała rozmowa, nie tylko ta strona — i razem z odpowiedziami,
+            // jak na karcie i stronie wpisu (D-281, D-309). `total()`
+            // stronicowania liczy same wątki, więc zostaje do paginacji.
+            'komentarzyRazem' => Comment::policzRozmowe($model->comments(), $request->user()),
             'cookedEvents' => $cookedEvents,
             // LICZNIK LICZY DOKŁADNIE TO, CO POKAZUJE GALERIA WYŻEJ.
             //
@@ -515,6 +609,24 @@ class RecipeController extends Controller
         }
 
         return back()->with('status', 'Komentarz dodany.');
+    }
+
+    /**
+     * „Zrób swoją wersję" (issue #23, D-301) — prywatny szkic kopii cudzego
+     * przepisu, od razu w kreatorze. Reguły (kto może, co się kopiuje,
+     * drugie kliknięcie) żyją w `ZrobWlasnaWersje` i `RecipePolicy::fork()`.
+     */
+    public function fork(Request $request, Recipe $recipe): RedirectResponse
+    {
+        $this->authorize('fork', $recipe);
+
+        $wersja = $this->zrobWlasnaWersje->handle($request->user(), $recipe, $request->ip());
+
+        return redirect()
+            ->route('recipes.create', ['szkic' => $wersja->getKey()])
+            ->with('status', $wersja->wasRecentlyCreated
+                ? 'Masz swoją wersję tego przepisu. Widzisz ją tylko Ty. Zmień to, co robisz po swojemu, i opublikuj, kiedy zechcesz.'
+                : 'Masz już rozpoczętą swoją wersję tego przepisu — to jest ona. Nic nie zginęło.');
     }
 
     public function destroy(Request $request, string $recipe): RedirectResponse

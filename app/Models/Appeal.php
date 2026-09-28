@@ -8,6 +8,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Odwołanie od decyzji moderacyjnej (issue #10 i #23, DSA art. 17 i 20).
@@ -69,26 +70,65 @@ class Appeal extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<ModerationAction, $this>
+     */
     public function moderationAction(): BelongsTo
     {
         return $this->belongsTo(ModerationAction::class);
     }
 
     /** Osoba, która się odwołała. NULL przy odwołaniu zgłaszającego bez konta. */
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
     /** Zgłoszenie, którego dotyczy odwołanie ZGŁASZAJĄCEGO. NULL dla autora. */
+    /**
+     * @return BelongsTo<Report, $this>
+     */
     public function report(): BelongsTo
     {
         return $this->belongsTo(Report::class);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function decider(): BelongsTo
     {
         return $this->belongsTo(User::class, 'decided_by');
+    }
+
+    /**
+     * Decyzja podjęta po uznaniu tego odwołania (#989) — `moderation_actions.appeal_id`.
+     * Istnieje wyłącznie przy odwołaniu zgłaszającego od decyzji bez działania.
+     *
+     * @return HasOne<ModerationAction, $this>
+     */
+    public function decisionAfterAppeal(): HasOne
+    {
+        return $this->hasOne(ModerationAction::class, 'appeal_id');
+    }
+
+    /**
+     * Czy uznanie tego odwołania wymaga NOWEJ decyzji (#989, DSA art. 20 ust. 4).
+     *
+     * Zgłaszający odwołuje się od decyzji, która niczego nie zrobiła
+     * (`no_action`, `target_unavailable`). Cofnięcie takiej decyzji nie ma
+     * czego przywrócić — odwrócić ją można tylko nową decyzją wobec treści.
+     */
+    public function wymagaNowejDecyzji(): bool
+    {
+        return $this->isFromReporter()
+            && in_array($this->moderationAction?->action, [
+                ModerationAction::ACTION_NONE,
+                ModerationAction::ACTION_TARGET_UNAVAILABLE,
+            ], true);
     }
 
     public function isOpen(): bool

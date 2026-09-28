@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Media;
 
+use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
+use League\Flysystem\UnableToWriteFile;
 
 /**
  * Jeden mały wariant zdjęcia, zrobiony OD RAZU — w żądaniu, które je wgrywa
@@ -122,7 +124,13 @@ final class PodgladOdRazu
 
             $klucz = Media::kluczPublicznegoWariantu($objectKey, self::NAZWA);
 
-            Storage::disk($dyskWariantow)->put($klucz, $zakodowane);
+            // `false` z dysku `throw => false` to nieudany zapis (issue #961):
+            // bez tego `metadata.variants` deklarowałoby plik, którego nie ma,
+            // a pierwszy render pokazałby martwy obrazek zamiast uczciwego
+            // „zdjęcie się przygotowuje". Wyjątek ląduje w `catch` niżej.
+            if (Storage::disk($dyskWariantow)->put($klucz, $zakodowane) === false) {
+                throw UnableToWriteFile::atLocation($klucz, 'Dysk zwrócił false z put() dla podglądu.');
+            }
 
             return [self::NAZWA => [
                 'key' => $klucz,
@@ -136,7 +144,7 @@ final class PodgladOdRazu
             // za duże na próg — a to dwie zupełnie różne rzeczy.
             Log::warning('Nie udało się zrobić podglądu od razu; zdjęcie pokaże się po przetworzeniu w tle', [
                 'object_key' => $objectKey,
-                'error' => $e->getMessage(),
+                'error' => BezpiecznyBlad::kontekst($e),
             ]);
 
             return [];

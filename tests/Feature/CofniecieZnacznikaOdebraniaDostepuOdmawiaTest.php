@@ -83,7 +83,7 @@ class CofniecieZnacznikaOdebraniaDostepuOdmawiaTest extends TestCase
         $osoba->connectFacebook($identyfikator);
 
         if ($odebrany) {
-            $osoba->oznaczOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
+            $osoba->oznaczOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK, now());
         }
 
         return $osoba;

@@ -51,9 +51,14 @@ w `tests/Feature/UgotowalemZawszePowiadamiaAutoraTest.php`:
 3. **Między autorem a kucharzem jest blokada** (w którąkolwiek stronę). Wtedy
    nie powstaje samo wykonanie.
 
-Czego na tej liście nie ma i mieć nie ma: **ustawienia użytkownika**. Jedyna
-zgoda, jaką człowiek tu przestawia, dotyczy tygodniowego listu
-(`users.wants_weekly_digest`) i powiadomień w serwisie nie dotyka. Ugotowanie
+Czego na tej liście nie ma i mieć nie ma: **ustawienia użytkownika**.
+Powiadomienia w serwisie nie wycisza żaden przełącznik. **Wyjątek dotyczy
+wyłącznie kanałów zewnętrznych (D-303):** na `/ustawienia/powiadomienia`
+człowiek włącza albo wyłącza Web Push (per urządzenie) i ustawia ciszę nocną
+oraz dzienny limit — to decyduje, czy i kiedy dowie się o powiadomieniu POZA
+serwisem, nigdy o tym, czy powiadomienie w serwisie powstanie. Bez ustawień
+per typ. Osobną zgodą jest tygodniowy list (`users.wants_weekly_digest`),
+który powiadomień w serwisie też nie dotyka. Ugotowanie
 **cofnięte i zrobione ponownie** powiadamia drugi raz, a ta sama osoba
 gotująca ten sam przepis dwa razy daje dwa powiadomienia — to są ZDARZENIA,
 nie STAN (`NotifyUser::TYPY_WYCISZANE_W_OKNIE`). Jedno ograniczenie jest
@@ -83,7 +88,10 @@ Przeczytaj w tej kolejności:
 5. `docs/ARCHITECTURE.md` — jak to jest zbudowane,
 6. `docs/DATABASE.md` — model danych,
 7. `docs/ROADMAP.md` i `docs/FEATURES.md` (lista V2 jest w sekcji „V2” tego
-   drugiego) — **żeby nie budować funkcji z V2 podczas prac nad MVP**,
+   drugiego) — **od D-282 (26 września 2026) V2 wolno budować**; sprawdź
+   tę sekcję, żeby wiedzieć, co to jest, i pracować po kolei (P0 → P1 → P2,
+   §10), nie po to, żeby tego unikać. Lista „Nie wcześnie” w tym samym pliku
+   pozostaje zakazana bez zmian,
 8. **`docs/DECISIONS.md` — dziennik decyzji już podjętych.** Czytaj go, zanim
    zaproponujesz zmianę architektury, pakiet albo inny sposób pisania tekstów.
    Połowa „dobrych pomysłów" jest tam już rozstrzygnięta wraz z uzasadnieniem;
@@ -116,6 +124,7 @@ Jeśli nad wdrożeniem: `docs/infra/`.
 | Monitoring | dziennik serwera + kanał `blad_webhook` na Slack/Discord (D-041) | w repozytorium: `app/Logging/WebhookBleduHandler.php` |
 | Analityka | własna, serwerowa (`App\Domain\Analytics\*`) + Cloudflare Web Analytics (bez ciasteczek — D-092) | w repozytorium: `app/Domain/Analytics`, `app/Support/AnalitykaCloudflare.php` · usługa zewnętrzna |
 | Mobile | PWA | w repozytorium: `public/manifest.webmanifest` |
+| API dla aplikacji mobilnej | prefiks `api/v1`, Laravel Sanctum (tokeny osobistego dostępu, bez sesji), domyślnie wyłączone flagą `KUKING_API_ENABLED` (D-270) | `composer.json`: `laravel/sanctum` · w repozytorium: `routes/api.php` |
 
 Feed, wyszukiwanie, komentarze i „Ugotowałem” korzystają z kontrolerów
 i widoków Blade, z JavaScriptem jako ulepszeniem. Livewire obsługuje złożony
@@ -229,10 +238,24 @@ Każdy nowy ekran MUSI spełniać:
 - przy 200% powiększenia i przy szerokości 320 px strona pozostaje używalna,
 - cel: **WCAG 2.2 AA**.
 
-Te dwie reguły mają jeden nazwany, udokumentowany wyjątek — metryczka wersji
-i przełącznik motywu w stopce, na świadomą decyzję właściciela: patrz
-`docs/DECISIONS.md`, **D-051**. To nie jest furtka ogólna: gdziekolwiek
-indziej w serwisie te reguły obowiązują bez zmian.
+Te dwie reguły mają dwa nazwane, udokumentowane wyjątki — oba na świadomą
+decyzję właściciela:
+
+- **D-051** — metryczka wersji i przełącznik motywu w stopce
+  (`docs/DECISIONS.md`, D-051);
+- **D-262** — tylko reguła 18 px i tylko panel moderacji: napisy pomocnicze
+  15–16 px w czterech selektorach — `.side-nav-moderacja-naglowek`
+  i `.sygnal-podglad-cytat` (`resources/css/app.css:1512` i `:1632`),
+  `.tabela-kont .drobne` i `.stan-konta`
+  (`resources/css/ekran-uzytkownikow.css:282` i `:294`). Numery linii
+  wskazują komentarz z odwołaniem do D-262 nad regułą (stan z 25 września
+  2026); przy rozjeździe wiążąca jest nazwa selektora. Przyciski i inne cele
+  dotyku w panelu mają nadal ≥ 48 px (`docs/DECISIONS.md`, D-262).
+
+To nie jest furtka ogólna: gdziekolwiek indziej w serwisie — także na innych
+ekranach panelu moderacji i w publicznych widokach odwołań — te reguły
+obowiązują bez zmian. Kolejny wyjątek wymaga nowej decyzji właściciela
+i dopisania go tutaj.
 
 **Reguła „ikona nigdy nie jest jedynym opisem ważnej akcji" ma jeden nazwany
 wyjątek: menu „więcej" na karcie wpisu** (`components/post-card.blade.php`,
@@ -316,6 +339,38 @@ Zasady modelu:
 Ta sama osoba może gotować ten sam przepis dziesiątki razy przez lata
 i każde takie wykonanie jest osobnym, wartościowym wydarzeniem.
 
+### DDL na istniejącej tabeli nie może zatrzymać serwisu (audyt B3 W3)
+
+Migracje chodzą na **żywej** bazie (rola `migrate`). `ALTER TABLE posts`
+czekający na blokadę za długim zapytaniem ustawia za sobą w kolejce KAŻDE
+następne zapytanie do `posts`, także zwykły `SELECT` z feedu. Dlatego:
+
+- **Każda migracja chodzi z `lock_timeout = 5s`** — ustawia go
+  `App\Support\Baza\LimitBlokadMigracji` na zdarzeniach migratora, nie
+  trzeba nic dopisywać. DDL, który nie dostał blokady, pada i daje się
+  powtórzyć. Pilnuje `tests/Feature/MigracjeMajaLimitBlokadTest.php`.
+- **Indeks na istniejącej tabeli** to `CREATE INDEX CONCURRENTLY IF NOT EXISTS`
+  w migracji z `public $withinTransaction = false;` (`CONCURRENTLY` nie działa
+  w transakcji). Przerwana budowa zostawia indeks INVALID pod tą samą nazwą —
+  migracja ma go przed budową zdjąć, bo `IF NOT EXISTS` by go przepuściło.
+  `down()`: `DROP INDEX CONCURRENTLY IF EXISTS`.
+- **CHECK i klucz obcy na istniejącej tabeli** to `ADD CONSTRAINT … NOT VALID`,
+  a potem osobno `VALIDATE CONSTRAINT` — obie rzeczy poza jedną transakcją
+  (`$withinTransaction = false`), inaczej blokada z pierwszego kroku trwa do
+  końca drugiego. Wzorzec:
+  `2026_09_23_100000_powiaz_status_zgloszenia_z_rozstrzygnieciem.php`.
+- **Nowa tabela** tych reguł nie potrzebuje — nikt jeszcze na nią nie czeka.
+- **Unikaj przepisania tabeli** (`ADD COLUMN … GENERATED … STORED`, zmiana
+  typu kolumny) na gorących tabelach bez osobnego planu wdrożenia.
+- **Migracja `2026_09_24_120000_add_appeal_id_to_moderation_actions.php`
+  łamie powyższe** (indeks i FK/CHECK na istniejącej tabeli bez CONCURRENTLY
+  i bez NOT VALID) — jest już na produkcji i świadomie jej NIE poprawiamy,
+  ale `tests/Feature/NoweMigracjeTrzymajaSieParagrafu6Test.php`
+  (`App\Support\Baza\StraznikNowychMigracji`) pilnuje, żeby ten sam błąd nie
+  powtórzył się w żadnej migracji dodanej po wprowadzeniu strażnika, nawet
+  jeśli jej datownik jest wcześniejszy. Wyjątki historyczne są jawnie zapisane
+  w `app/Support/Baza/migracje-historyczne-par6.txt`.
+
 ### `down()` przy wartościach semantycznych ODMAWIA, zamiast zgadywać (D-088)
 
 > **`down()` nie ma prawa przywracać stanu groźnego ani zmieniać znaczenia
@@ -358,6 +413,27 @@ zostają świadomie bez strażnika (uzasadnienie w D-088).
 
 **Nigdy nie wykonuj destrukcyjnych operacji na produkcyjnej bazie
 bez jawnej zgody właściciela.**
+
+### Numer wersji: DUŻY numer ręcznie, KOŃCÓWKA sama (issue #1932, D-318)
+
+`kuking.wersja.etykieta` w `config/kuking.php` (np. „Alfa 0.68") to DUŻY
+numer wydania — podbijasz go RĘCZNIE, w Pull Requeście, razem z wpisem na
+górze `CHANGELOG.md` (pilnuje tego
+`tests/Feature/PodbicieWersjiWymagaWpisuWChangelogTest.php`). Zasada, KIEDY
+go podbić, stoi w komentarzu nad samą wartością w `config/kuking.php`: przy
+każdej zmianie, którą człowiek ZOBACZY — nowy ekran, zmieniony układ, nowa
+funkcja, inne zachowanie formularza. Poprawki bez śladu w interfejsie (testy,
+refaktor, dokumentacja) go nie ruszają.
+
+KOŃCÓWKA (`.005` w „Alfa 0.68.005") jest INNĄ rzeczą i NIE dotykasz jej
+ręcznie nigdy — rośnie sama, o jeden, przy KAŻDYM wdrożeniu, licząc od
+dziennika w tabeli `wdrozenia` (`kuking:zarejestruj-wdrozenie`, wpięta
+w krok `preDeployCommand` obok `migrate`). Gdy podbijasz DUŻY numer, końcówka
+WRACA DO `.001` SAMA — to jest nowa sekwencja liczona od nowa, nie ciąg
+dalszy poprzedniej, i nie ma tu nic do ustawienia ręcznie: pierwsze
+wdrożenie pod nową etykietą po prostu dostaje numer 1. Pełny mechanizm,
+tabele i bezpieczeństwo przy równoległym starcie: `docs/DATABASE.md`
+(sekcja „`wdrozenia` i `wdrozenia_funkcje`") i D-318.
 
 ---
 
@@ -416,15 +492,46 @@ w EXIF-ie siedzi dokładna lokalizacja kuchni, w której zrobiono zdjęcie.
 
 ## 8. Feed
 
-MVP: obserwowani, **chronologicznie**.
+MVP: obserwowani — osoby **razem z** obserwowanymi tagami (D-277, #1808),
+**chronologicznie**.
 
 ```sql
-WHERE author_id IN (...) ORDER BY published_at DESC, id DESC
+WHERE (author_id IN (...)                                  -- obserwowane osoby i widz
+       OR (visibility = 'public' AND EXISTS (tag z obserwowanych)))
+ORDER BY published_at DESC, id DESC
 ```
 
-Paginacja kursorowa. Bez fanout-on-write. **Nie projektuj skomplikowanego
-rankingu bez danych** — algorytmiczny feed natychmiast dzieli użytkowników
+Paginacja kursorowa. Bez fanout-on-write.
+
+**Reguła doboru treści — zamknięta lista (D-275, #1806).** Żadna lista wpisów
+ani osób nie jest układana ani przycinana według reakcji innych (obserwujący,
+„Ugotowałem”, reakcje, zapisy w zeszytach, komentarze, odsłony) ani według
+przewidywania gustu z zachowania widza. Taki dobór natychmiast dzieli ludzi
 na „widzianych” i „niewidzianych” i wyłącza publikowanie u większości.
+
+Dozwolone są **wyłącznie**:
+
+- kolejność po czasie;
+- równość autorów (np. rotacja w „Świeżo z Kuking”: najpierw po jednym wpisie od każdej osoby, potem po drugim — D-276);
+- wybór gospodarza, oznaczony w interfejsie jako jego wybór;
+- bramki widoczności i blokady;
+- jawne polecenia widza (obserwuj, ukryj) — z listą, na której może je cofnąć.
+
+Półka **„Mój stół”** (D-304, #1749) dobiera wyłącznie z tej listy: obserwowane
+tagi, tag z listy gospodarza, „kuKINGi na dziś” w kolejności gospodarza, czas,
+jeden przepis od osoby, bramki i ukrycia.
+
+W **Obserwowanych** nic nie znika poza bramkami i blokadami oraz wpisami, które
+widz sam ukrył („Ukryj ten wpis”, a przy wpisach z obserwowanego tagu także
+„Ukryj tę osobę”; D-278 — z listą „Ukryte” do cofnięcia). Osoby obserwowane
+wprost nie znikają nigdy.
+Dopuszczalne jest tylko zwinięcie serii wpisów jednej osoby albo jednego
+obserwowanego tagu (D-279: dwa widać, reszta pod „Pokaż”), bez zmiany
+kolejności.
+
+Każda nowa reguła doboru = wpis w `docs/DECISIONS.md` + aktualizacja „Jak
+dobieramy wpisy” + strażnik (`tests/Feature/FeedNieSortujePoMierzeReakcjiTest.php`
+albo nowy). Reguła spoza tej listy wymaga decyzji właściciela, nie PR-a.
 
 Gdy feed obserwowanych jest pusty, pokazujemy „Świeżo z Kuking” i propozycje
 osób. Pusty ekran u nowego użytkownika to koniec korzystania z serwisu.
@@ -564,7 +671,19 @@ użytkowników produkcyjnych.
 - ryzyka,
 - plan rollbacku,
 - aktualizację `docs/`,
-- opis zmiany w UI albo zrzut ekranu, jeśli dotyczy interfejsu.
+- opis zmiany w UI albo zrzut ekranu, jeśli dotyczy interfejsu,
+- **wpis w `CHANGELOG.md`, jeśli PR dodaje nową funkcję albo nowe zachowanie
+  widoczne dla użytkownika** — oznaczony na końcu wiersza dopiskiem
+  `[nowa funkcja]` (issue #1909). Poprawka, zmiana kosmetyczna i porządek za
+  kulisami tego dopisku NIE dostają — dla nich CHANGELOG zostaje zwykłym
+  wpisem bez znacznika. **Każdy wpis `[nowa funkcja]` w sekcji
+  „## Nieopublikowane” ma odpowiadający akapit** (nagłówek `### ...` i kilka
+  zdań prostym językiem: gdzie znaleźć, jak działa, co daje) **w sekcji
+  „## Najnowsze zmiany” pliku `resources/nowosci/tresc.md`** — strony „Co
+  nowego” pod numerem wersji w stopce. Pilnuje tego
+  `tests/Feature/StraznikNowosciKazdaNowaFunkcjaMaAkapitTest.php`
+  (kontrola ujemna w `scripts/kontrole-negatywne-alfa08.py`, wzorzec
+  z issue #1909).
 
 ### Bugfix zawsze zawiera test regresyjny
 
@@ -635,6 +754,12 @@ W skrócie:
 - komunikat błędu ma powiedzieć, **co zrobić**;
 - unikamy konstrukcji zakładających rodzaj, gdzie da się inaczej
   („Co dziś gotujesz?” zamiast form z „-łeś/-łaś”).
+  **Jawne wyjątki są frazami, nie słowami**, i pilnuje ich lista `WYJATKI`
+  w `tests/Support/WzorceRodzaju.php`: hasło główne („co dziś ugotowałeś”),
+  nazwa przycisku „Ugotowałem” oraz etykieta pola wyboru **„Sprawdziłem
+  odczytany tekst”** przy szkicu z importu (decyzja właściciela z 26 września
+  2026, PR #1899, D-300 — ta sama logika co „Ugotowałem”: nazwa kontrolki
+  cytowana w komunikacie). Kolejny wyjątek wymaga decyzji właściciela.
 
 Pełny słownik i lista słów zakazanych: `docs/brand/BRAND_EXTENDED.md`.
 
@@ -644,12 +769,24 @@ Pełny słownik i lista słów zakazanych: `docs/brand/BRAND_EXTENDED.md`.
 
 Poza MVP (patrz `docs/FEATURES.md` i `docs/ROADMAP.md`):
 wiadomości prywatne, natywne aplikacje, planer posiłków, lista zakupów,
-spiżarnia, OCR, generator przepisów AI, rozbudowana gamifikacja, marketplace,
+generator przepisów AI, rozbudowana gamifikacja, marketplace,
 transmisje live, wypłaty dla twórców.
+
+**Spiżarnia („Co mam w domu”) zeszła z tej listy 26 września 2026** — sekcja
+V2 w `docs/FEATURES.md` wymienia „pantry” i „co ugotuję z tego, co mam”, a
+**D-282** pozwala je budować. Zakazana zostaje
+**spiżarnia z terminami ważności i priorytetem zużycia (#1903)** — stoi na
+liście „V2, ale nie teraz” i wymaga nowej decyzji właściciela.
+
+**OCR starych zeszytów zszedł z tej listy 26 września 2026** — V2 wolno budować
+od decyzji **D-282**, a odczyt zdjęcia kartki działa według **D-296** (zgoda
+„odczyt AI”, wyjątek od D-240), **D-297** (budżet i limity) i **D-298**
+(architektura: zawsze prywatny szkic, nigdy publikacja). „Generator przepisów
+AI” zostaje zakazany: odczyt przepisuje kartkę człowieka, nie wymyśla przepisu.
 
 Anty-wzorce, których **nie wprowadzamy nigdy**:
 streaki i punkty za liczbę postów, publiczne rankingi użytkowników,
-algorytmiczny feed, masowy import cudzych przepisów, sztuczne konta,
+ranking po popularności i uczenie z zachowania (§8), masowy import cudzych przepisów, sztuczne konta,
 liczniki lajków wyeksponowane w interfejsie.
 
 **Jeden wyjątek, i tylko ten: „ile osób zapisało to u siebie w zeszycie"**

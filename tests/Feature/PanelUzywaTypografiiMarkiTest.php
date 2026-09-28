@@ -39,7 +39,7 @@ class PanelUzywaTypografiiMarkiTest extends TestCase
     /**
      * Ekrany panelu, które otwierają się akapitem wprowadzającym.
      *
-     * @return list<array{0: string, 1: string}>
+     * @return array<string, array{0: string, 1: string}>
      */
     public static function ekranyZWprowadzeniem(): array
     {

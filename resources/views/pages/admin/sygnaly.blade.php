@@ -132,6 +132,12 @@
                 jego kopia tutaj rozjechałaby się z tamtą przy pierwszej
                 zmianie w pouczeniu.
             --}}
+            {{-- Własnych oznaczeń moderator nie zamyka (audyt A5-11) —
+                 kontroler i tak by odmówił, więc zamiast martwego przycisku
+                 stoi informacja (AGENTS.md §5). --}}
+            @if($kluczGrupy === strtolower((string) auth()->user()->getKey()))
+            <p class="mt-4">{{ \App\Http\Controllers\Admin\SygnalyController::WLASNE_OZNACZENIA }}</p>
+            @else
             <form class="mt-4" method="POST" action="{{ route('admin.sygnaly.dismiss') }}">
                 @csrf
                 <input type="hidden" name="autor" value="{{ $kluczGrupy }}">
@@ -139,6 +145,11 @@
                      notatki i `old()` po nieudanej walidacji dubluje się na całą
                      stronę — patrz `App\Support\WierszFormularza`. --}}
                 <input type="hidden" name="{{ \App\Support\WierszFormularza::POLE }}" value="{{ $kluczGrupy }}">
+                {{-- Znacznik stanu grupy z chwili wyświetlenia (#1059): ile
+                     oznaczeń i które najnowsze. Serwer zamyka całą grupę tylko
+                     wtedy, gdy od tej chwili nic do niej nie doszło. --}}
+                <input type="hidden" name="stan_ile" value="{{ $ile }}">
+                <input type="hidden" name="stan_najnowsze" value="{{ $grupa->getAttribute('najnowsze') }}">
 
                 <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2" :wiersz="$kluczGrupy"
                          help="Zostaje w logu moderacji. Autor treści jej nie zobaczy — przy tej decyzji nie dostaje żadnego powiadomienia." />
@@ -147,6 +158,7 @@
                     To nic takiego — zamknij {{ $ile === 1 ? 'to oznaczenie' : 'wszystkie '.$ile }}
                 </button>
             </form>
+            @endif
 
             <p class="meta mt-4">
                 Jeśli jednak jest tu co robić:
@@ -160,5 +172,5 @@
         </x-empty-state>
     @endforelse
 
-    <div class="mt-6">{{ $grupy->links() }}</div>
+    <div class="mt-6"><x-paginacja-panelu :paginator="$grupy" /></div>
 </x-layout>

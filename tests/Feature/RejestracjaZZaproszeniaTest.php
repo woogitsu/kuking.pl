@@ -410,7 +410,11 @@ class RejestracjaZZaproszeniaTest extends TestCase
                 $this->assertTrue($invite->fresh()->jestWazne());
                 $invite->forceFill(['created_at' => now()->subDays(2), 'expires_at' => now()->subMinute()])->save();
 
-                return Http::response(['success' => true, 'hostname' => 'kuking.pl']);
+                return Http::response([
+                    'success' => true,
+                    'hostname' => parse_url((string) config('app.url'), PHP_URL_HOST),
+                    'action' => 'rejestracja',
+                ]);
             },
             'https://api.pwnedpasswords.com/*' => Http::response('', 200),
         ]);
@@ -426,7 +430,7 @@ class RejestracjaZZaproszeniaTest extends TestCase
         foreach (['display_name' => 'Basia', 'username' => 'basia_z_podkarpacia', 'email' => 'basia@example.com', 'password' => ''] as $name => $value) {
             $field = $xpath->query('//input[@name="'.$name.'"]');
             $this->assertSame(1, $field->length, $name);
-            $this->assertSame($value, $field->item(0)->getAttribute('value'));
+            $this->assertSame($value, self::elementDom($field->item(0))->getAttribute('value'));
         }
         foreach (['age_confirmed', 'terms_accepted'] as $name) {
             $this->assertSame(1, $xpath->query('//input[@name="'.$name.'" and @checked]')->length);

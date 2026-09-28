@@ -245,6 +245,48 @@ final class Turnstile
             .'zapytań. Instrukcja: docs/infra/DEPLOYMENT_RUNBOOK.md, krok 8A.';
     }
 
+    /**
+     * Wartość `data-action` widgetu i oczekiwane `action` z Siteverify.
+     *
+     * To sam klucz miejsca: Cloudflare przyjmuje do 32 znaków `[a-zA-Z0-9_-]`,
+     * a najdłuższy klucz (`zgloszenie_nielegalnej_tresci`) ma 29. Pilnuje
+     * tego `TurnstileWiazeTokenZHostemIFormularzemTest`.
+     */
+    public static function akcja(string $miejsce): string
+    {
+        return $miejsce;
+    }
+
+    /**
+     * Hosty, na których wystawiony token przyjmujemy (issue #992).
+     *
+     * Host z `APP_URL` (kanoniczny host TEGO środowiska: `kuking.pl` na
+     * produkcji, `staging.kuking.pl` na stagingu) plus jawnie nazwane hosty
+     * stagingu z `TURNSTILE_HOSTY_STAGINGU`. NIGDY host bieżącego żądania —
+     * wtedy lista byłaby tym, co przysłał klient.
+     *
+     * Lista hostnames widgetu w panelu Cloudflare musi obejmować te hosty
+     * (runbook, krok 8A.1); host dopuszczony tylko tam i tak zostanie tu
+     * odrzucony.
+     *
+     * @return list<string>
+     */
+    public static function dozwoloneHosty(): array
+    {
+        $hosty = [parse_url((string) config('app.url'), PHP_URL_HOST)];
+
+        foreach ((array) config('kuking.turnstile.hosty_stagingu', []) as $host) {
+            $hosty[] = $host;
+        }
+
+        $hosty = array_map(
+            static fn (mixed $host): string => is_string($host) ? strtolower(trim($host)) : '',
+            $hosty,
+        );
+
+        return array_values(array_unique(array_filter($hosty, static fn (string $host): bool => $host !== '')));
+    }
+
     /** @return array<string, bool> */
     public static function miejsca(): array
     {

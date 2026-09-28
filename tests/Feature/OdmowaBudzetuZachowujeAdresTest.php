@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Domain\Security\DziennyBudzetListow;
 use App\Notifications\LinkDoLogowania;
 use App\Support\Poczta;
+use App\Support\Turnstile;
 use App\Turnstile\KlientTurnstile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -34,7 +35,12 @@ class OdmowaBudzetuZachowujeAdresTest extends TestCase
             'kuking.turnstile.miejsca.logowanie_linkiem' => true,
         ]);
         Http::preventStrayRequests();
-        Http::fake([KlientTurnstile::ADRES => Http::response(['success' => true, 'hostname' => 'localhost'])]);
+        // Host z `APP_URL` i akcja tego formularza — od #992 bez nich odmowa.
+        Http::fake([KlientTurnstile::ADRES => Http::response([
+            'success' => true,
+            'hostname' => parse_url((string) config('app.url'), PHP_URL_HOST),
+            'action' => Turnstile::akcja('logowanie_linkiem'),
+        ])]);
         Notification::fake();
         $this->assertTrue(Poczta::dziala()); // Kontrola konfiguracji, bez połączenia z dostawcą.
         $user = $this->user();
@@ -63,8 +69,7 @@ class OdmowaBudzetuZachowujeAdresTest extends TestCase
         $html = $this->get(route('login.link'))->assertOk()->getContent();
         $dom = new \DOMDocument;
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
-        $input = (new \DOMXPath($dom))->query('//input[@name="email"]')->item(0);
-        $this->assertNotNull($input);
+        $input = self::elementDom((new \DOMXPath($dom))->query('//input[@name="email"]')->item(0));
         $this->assertSame($user->email, $input->getAttribute('value'));
         if ($contention) {
             $this->from(route('login.link'))->post(route('login.link.send'), [

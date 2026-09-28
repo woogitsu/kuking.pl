@@ -69,5 +69,5 @@
         </x-empty-state>
     @endforelse
 
-    <div class="mt-6">{{ $wiadomosci->links() }}</div>
+    <div class="mt-6"><x-paginacja-panelu :paginator="$wiadomosci" /></div>
 </x-layout>
