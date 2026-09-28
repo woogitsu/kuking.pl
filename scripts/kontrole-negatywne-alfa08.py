@@ -1561,6 +1561,14 @@ checks = [
     ("Strażnik migracji ślepy na CHECK/FK bez NOT VALID", STRAZNIK_MIGRACJI, STRAZNIK_MIGRACJI_TEST,
      lambda s: replace_once(s, "if (stripos($instrukcja, 'NOT VALID') === false) {\n                    $rodzaj",
                             "if (false) {\n                    $rodzaj")),
+    # Audyt A4 5.1: job `lint` wraca do samego `kopia-bazy.sh` zamiast
+    # wspólnego `scripts/kontrole-powloki.sh` — rozjazd CI i check.sh.
+    ("Job lint bez wspólnych kontroli powłoki", ".github/workflows/ci.yml", "KontrolePowlokiLokalnieIWCiTest",
+     lambda s: replace_once(s, "        run: bash scripts/kontrole-powloki.sh\n", "        run: bash tests/skrypty/kopia-bazy.sh\n")),
+    # Ten sam audyt: test powłoki wypada z listy wspólnego skryptu — bez
+    # strażnika `tests/skrypty/*.sh` zostałby pominięty w check.sh i w CI.
+    ("Test powłoki wypada z listy wspólnego skryptu", "scripts/kontrole-powloki.sh", "KontrolePowlokiLokalnieIWCiTest",
+     lambda s: replace_once(s, "tests/skrypty/bramka-migracji.sh|Bramka migracji workera i schedulera oblewa\n", "")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
