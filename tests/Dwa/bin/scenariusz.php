@@ -22,6 +22,7 @@ declare(strict_types=1);
 
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
+use App\Domain\Comments\Actions\DeleteComment;
 use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Contact\Actions\WyslijOdpowiedz;
@@ -425,6 +426,23 @@ try {
             comment: Comment::query()->whereKey($argumenty['komentarz'])->firstOrFail(),
             body: $argumenty['tresc'],
         ) === null ? 'odmowa' : 'zapisano',
+
+        // Usunięcie komentarza kontra sankcja wykonawcy (#2190). Wykonawca jest
+        // wczytany jako AKTYWNY przed zatwierdzeniem sankcji (jak model z
+        // middleware); prawdziwa akcja ma sama odczytać świeży stan pod zamkiem.
+        // Komentarz z `withTrashed()`, jak w trasie `comments.destroy`.
+        'usun-komentarz' => (function () use ($argumenty): string {
+            $wykonawca = User::query()->whereKey($argumenty['kto'])->firstOrFail();
+            if (! $wykonawca->isActive()) {
+                throw new RuntimeException('Przyrząd nie odczytał aktywnego wykonawcy przed przeplotem.');
+            }
+
+            return app(DeleteComment::class)->handle(
+                $wykonawca,
+                Comment::withTrashed()->whereKey($argumenty['komentarz'])->firstOrFail(),
+                'Powód usunięcia.',
+            ) ? 'usunieto' : 'juz-usuniety';
+        })(),
 
         // Pierwszy zapis do zeszytu (#1095). Te scenariusze celowo wołają
         // akcje domenowe, a nie przepisany SQL: test ma pęknąć, jeśli wróci
