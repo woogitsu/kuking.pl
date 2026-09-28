@@ -92,7 +92,7 @@ class PowtorzonyKrokPrzepisuTest extends TestCase
         $this->assertGreaterThan(0, $xpath->query('//a[@href="#'.$field->getAttribute('id').'"]')->length);
     }
 
-    public function test_http_odmawia_przed_uploadem_i_zachowuje_oryginalny_indeks(): void
+    public function test_http_odmawia_zapisu_przepisu_i_zachowuje_zdjecia_pod_oryginalnym_indeksem(): void
     {
         [$author, $recipe, $steps] = $this->fixture();
         $before = $this->state();
@@ -104,13 +104,14 @@ class PowtorzonyKrokPrzepisuTest extends TestCase
 
         $response = $this->actingAs($author)->put(route('recipes.update', $recipe), [...$data, 'content_revision' => $recipe->fresh()->content_revision]);
 
-        $this->assertSame([], Storage::disk('public')->allFiles(), 'Odmowa HTTP musi poprzedzać zapis zdjęcia.');
-        Queue::assertNotPushed(ProcessUploadedImage::class);
         $response->assertSessionHasErrors(['steps.7.instruction'])->assertSessionMissing('status');
 
         $this->assertSame($steps[1]['instruction'], session()->getOldInput('steps.7.instruction'));
-        $this->assertSame($before, $this->state());
-        $this->assertSame([], Storage::disk('public')->allFiles());
+        $this->assertSame(['hero', 'scan', 'step_7'], array_keys(session()->getOldInput('zachowane_zdjecia')));
+        $po = $this->state();
+        $this->assertCount(count($before['media']) + 3, $po['media'], 'Zdjęcia przetrwają błąd instrukcji.');
+        unset($before['media'], $po['media']);
+        $this->assertSame($before, $po, 'Odmowa nadal nie zmienia przepisu ani jego kroków.');
     }
 
     public function test_livewire_nie_nadpisuje_przepisu_i_zachowuje_tekst_po_odmowie(): void
