@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- W Planerze przy każdym dniu tygodnia jest pole „Nazwa przepisu” i przycisk „Szukaj przepisu”. Znalezione przepisy dodajesz do tego dnia przyciskiem „Dodaj do planu”, bez wchodzenia na stronę przepisu; po dodaniu wracasz do tego samego dnia z tą samą frazą. Widok tygodnia ma własny limit odczytu (60 żądań na minutę), a błąd dodania pojawia się przy dniu, z którego przyszedł, nie przy dniu z adresu strony (#2037). [nowa funkcja]
+
 ## Alfa 0.75 — szukanie w wykonaniach i pewniejsze „Ugotowałem”
 
 - Po zalogowaniu albo założeniu konta z linku pod komentarzami (także przez Google lub Facebooka) wracacie do tej samej rozmowy, zamiast szukać jej od nowa (#2027).

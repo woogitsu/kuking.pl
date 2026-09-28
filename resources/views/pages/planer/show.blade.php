@@ -34,7 +34,7 @@
         </form>
     @endif
 
-    <p class="meta mb-5">Przepis dodasz z jego strony — przycisk „Dodaj do planera”. Tutaj możesz dopisać coś własnego, np. „obiad u mamy”.</p>
+    <p class="meta mb-5">Przy każdym dniu wyszukasz przepis i dodasz go do planu. Możesz też dopisać coś własnego, np. „obiad u mamy”. Przepis dodasz również z jego strony — przyciskiem „Dodaj do planera”.</p>
 
     <div class="planer-dni">
         @foreach($dni as $dataDnia => $dzien)
@@ -85,6 +85,58 @@
                 @endif
 
                 @if(count($dzien['pozycje']) < $wpisowNaDzien)
+                    @php
+                        $aktywny = $szukanyDzien === $dataDnia;
+                        $szukajId = 'szukaj-'.$dataDnia;
+                        // Błąd wyszukiwania (GET) należy do dnia z adresu. Błąd
+                        // dodania z wyników (POST) — do dnia, z którego ten POST
+                        // przyszedł (`old('day')` przy `z_planera`), a NIE do dnia
+                        // z adresu strony, z której człowiek wysłał formularz.
+                        // Błąd „Dopisz coś własnego” pokazuje samo pole `label`
+                        // (`_wiersz`), więc tu go nie powielamy.
+                        $zWynikow = old('z_planera') && old('day') === $dataDnia;
+                        $bladDnia = ($aktywny ? $bladFrazy : null)
+                            ?? ($zWynikow ? ($errors->first('day') ?: $errors->first('label') ?: $errors->first('q')) : null)
+                            ?: null;
+                    @endphp
+                    <div class="planer-szukaj mt-4" id="{{ $szukajId }}" tabindex="-1" role="group" aria-labelledby="{{ $szukajId }}-tytul">
+                        <h3 class="mt-0" id="{{ $szukajId }}-tytul">Dodaj przepis do tego dnia</h3>
+                        <form class="planer-dopisz" method="GET" action="{{ route('planer.show') }}#{{ $szukajId }}">
+                            <input type="hidden" name="tydzien" value="{{ $poniedzialek->toDateString() }}">
+                            <input type="hidden" name="dzien" value="{{ $dataDnia }}">
+                            <div class="field @if($bladDnia) has-error @endif">
+                                <label for="q-{{ $dataDnia }}">Nazwa przepisu</label>
+                                <input class="field-input" id="q-{{ $dataDnia }}" type="search" name="q" value="{{ $aktywny ? $fraza : '' }}" autocomplete="off"
+                                       @if($bladDnia) aria-invalid="true" aria-describedby="q-{{ $dataDnia }}-blad" @endif>
+                                @if($bladDnia)
+                                    <span class="field-error" id="q-{{ $dataDnia }}-blad">{{ $bladDnia }}</span>
+                                @endif
+                            </div>
+                            <button class="btn btn-secondary" type="submit">Szukaj przepisu</button>
+                        </form>
+                        @if($aktywny && $fraza !== '' && ! $bladFrazy)
+                            @if($wyniki->isEmpty())
+                                <p class="meta">Nic nie znaleźliśmy dla „{{ $fraza }}”. Spróbuj krótszego słowa, np. samej nazwy dania.</p>
+                            @else
+                                <ul class="planer-pozycje mt-3" aria-label="Znalezione przepisy">
+                                    @foreach($wyniki as $znaleziony)
+                                        <li class="planer-pozycja">
+                                            <span class="planer-pozycja-tresc">{{ $znaleziony->title }}</span>
+                                            <form method="POST" action="{{ route('planer.store') }}">
+                                                @csrf
+                                                <input type="hidden" name="day" value="{{ $dataDnia }}">
+                                                <input type="hidden" name="recipe_id" value="{{ $znaleziony->getKey() }}">
+                                                <input type="hidden" name="z_planera" value="1">
+                                                <input type="hidden" name="q" value="{{ $fraza }}">
+                                                <button class="btn btn-secondary" type="submit">Dodaj do planu<span class="visually-hidden">: {{ $znaleziony->title }}</span></button>
+                                            </form>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                        @endif
+                    </div>
+
                     <form class="planer-dopisz mt-4" method="POST" action="{{ route('planer.store') }}">
                         @csrf
                         <input type="hidden" name="_wiersz" value="{{ $dataDnia }}">

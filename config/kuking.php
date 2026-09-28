@@ -1992,6 +1992,26 @@ return [
         'planer' => '60,10',
 
         /*
+         * PLANER TYGODNIA — ODCZYT (`GET /planer`, #2037).
+         *
+         * Od wyszukiwania przepisu przy każdym dniu ta sama trasa, która
+         * rysuje tydzień, uruchamia też wyszukiwarkę trigramową
+         * (`SearchQuery::recipes`, ten sam koszt co `/szukaj`) — a jest
+         * zwykłym GET-em, więc pętla mogłaby ją odpytywać bez końca.
+         * Zapisy planera mają swój koszyk `planer` wyżej; ten jest tylko dla
+         * odczytu i osobny (jeden prefiks = jedna trasa,
+         * `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`).
+         *
+         * TEN SAM RZĄD WIELKOŚCI CO `search`: sześćdziesiąt na minutę.
+         * Limit stoi na CAŁEJ trasie, nie tylko na żądaniach z frazą:
+         * wariant „tylko z q" wymagałby limitera nazwanego, który wypada
+         * z reguły prefiksu. Zwykłe wejście na tydzień i przełączanie
+         * tygodni to pojedyncze żądania na minutę, więc człowiek nie ma
+         * szans tego dotknąć.
+         */
+        'planer_szukaj' => '60,1',
+
+        /*
          * USTAWIENIA PRYWATNE I DROBNE PRZEŁĄCZNIKI — czytelność,
          * prywatność, „Twoje tagi", wygląd jasny/ciemny, oznaczenie
          * powiadomień jako przeczytane, ukrycie wspomnienia, krok

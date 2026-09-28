@@ -882,7 +882,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
 
     // Planer tygodnia (#27, D-310) — prywatny, tylko właściciel. Wszystkie
     // zapisy pod własnym koszykiem `planer`.
-    Route::get('/planer', [PlanerController::class, 'show'])->name('planer.show');
+    // Odczyt ma własny koszyk `planer_szukaj`: ta sama trasa uruchamia
+    // wyszukiwarkę przepisów do dnia (#2037) — patrz `limits.planer_szukaj`.
+    Route::get('/planer', [PlanerController::class, 'show'])
+        ->middleware("throttle:{$limits['planer_szukaj']},planer_szukaj")
+        ->name('planer.show');
     Route::post('/planer', [PlanerController::class, 'store'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.store');
