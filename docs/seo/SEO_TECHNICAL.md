@@ -125,7 +125,6 @@ Pełny, poprawny przykład (zwalidowany `python3 -m json.tool`):
     "url": "https://kuking.pl/@basia_kowalska"
   },
   "datePublished": "2026-01-12T18:04:00+01:00",
-  "dateModified": "2026-02-03T09:12:00+01:00",
   "description": "Tradycyjny bigos gotowany dwa dni, z kapustą kiszoną, białą kapustą i trzema rodzajami mięsa. Przepis od babci, sprawdzony przez lata.",
   "prepTime": "PT30M",
   "cookTime": "PT180M",
@@ -187,7 +186,7 @@ Mapowanie na kolumny (żeby implementacja była jednoznaczna):
 | `image` | `media` powiązane przez `recipes.hero_media_id` + warianty z `MEDIA_PIPELINE.md` |
 | `author.name`, `author.url` | `profiles.display_name`, `profiles.username` autora (`recipes.author_id`) |
 | `datePublished` | `recipes.published_at` |
-| `dateModified` | `recipes.updated_at` (albo `MAX(recipe_versions.created_at)`) |
+| `dateModified` | **nie emitujemy** — dziś nie ma wiarygodnego źródła daty zmiany treści (niżej, #2014) |
 | `description` | `recipes.summary` |
 | `prepTime`, `cookTime` | `ISO8601(recipes.prep_minutes)`, `ISO8601(recipes.cook_minutes)` — konwersja `PT{n}M` |
 | `totalTime` | `ISO8601(prep_minutes + cook_minutes)` |
@@ -195,6 +194,28 @@ Mapowanie na kolumny (żeby implementacja była jednoznaczna):
 | `recipeIngredient` | `recipe_ingredients` posortowane po `position`, sformatowane `quantity unit ingredient_text` |
 | `recipeInstructions[].text` | `recipe_steps.instruction` posortowane po `position` |
 | `recipeInstructions[].image` | `recipe_steps.media_id` jeśli ustawione |
+
+**`dateModified` — dlaczego go nie ma (#2014).** Pole jest w Google tylko
+zalecane, a data niezgodna z treścią strony jest gorsza niż brak daty
+(`sd-policies`, sekcja 2). Oba źródła z pierwszej wersji tej tabeli mierzą
+co innego niż „kiedy zmieniła się treść przepisu”:
+
+- `recipes.updated_at` przesuwa każdy zapis wiersza: ukrycie i przywrócenie
+  przez moderację (`RozstrzygnijZgloszenie`, `RestoreContent` — `forceFill(['status' => …])->save()`),
+  zmiana widoczności i zapis bez żadnej zmiany (`PublishRecipe` zawsze podbija
+  `content_revision`, więc `UPDATE` leci zawsze);
+- `MAX(recipe_versions.created_at)` przesuwa każde „Zapisz” z publikacją, także
+  bez zmiany (`SnapshotRecipeVersion::handle()` nie porównuje migawek), a nie
+  przesuwa go autozapis kreatora, który zmienia opublikowaną treść bez wersji
+  (`$wersjaPoprawki = false`, #1316). Migawka nie obejmuje też zdjęć.
+
+Obie przesłanki mierzy `tests/Feature/RecipeJsonLdBezNiepewnejDatyModyfikacjiTest.php`.
+`dateModified` wraca dopiero z osobnym źródłem ustawianym tylko przy
+rzeczywistej zmianie treści (np. kolumna zapisywana w `PublishRecipe`, gdy
+treść albo zdjęcia się różnią), emitowanym wyłącznie dla przepisu
+publicznego i opublikowanego i nigdy wcześniejszym niż `datePublished`.
+Taka kolumna to zmiana schematu (migracja, `docs/DATABASE.md`, rollback) —
+osobna decyzja.
 
 **`aggregateRating` — uczciwa dyskusja.** Google wymaga, żeby `aggregateRating` **odzwierciedlał prawdziwe, zebrane oceny** i wprost zabrania samodzielnie ustalanych/"self-serving" ocen (np. sztywnego „4.8” wpisanego przez właściciela strony). Ma też wymagane pola `ratingValue`, `ratingCount`/`reviewCount` i typowo skalę 1–5 (`bestRating`/`worstRating`).
 
