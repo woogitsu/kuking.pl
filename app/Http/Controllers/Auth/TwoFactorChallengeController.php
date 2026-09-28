@@ -131,6 +131,9 @@ class TwoFactorChallengeController extends Controller
         Auth::login($user, remember: false);
         AuditLogEntry::recordBezWywracania('account.password_login_succeeded', $user, $user, ip: $request->ip());
 
+        // Dowód kodu w TEJ sesji — tylko z nim `moderator.2fa` wpuszcza do panelu (#930).
+        $request->session()->put(TwoFactorAuthenticator::dowodSesji($user));
+
         return redirect()->intended(route('home'));
     }
 

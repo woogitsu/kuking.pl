@@ -272,7 +272,7 @@
                 @elseif(! $owner->isActive())
                     <p class="mb-0">To konto jest teraz zawieszone. Nie można go obserwować, dopóki zawieszenie nie zostanie zdjęte.</p>
                 @endif
-                <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'user', 'id' => $p->username]) }}">Zgłoś</a>
+                <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'user', 'id' => $owner->getKey()]) }}">Zgłoś</a>
                 @if($hasBlocked)
                     <form method="POST" action="{{ route('social.unblock', $p->username) }}">
                         @csrf @method('DELETE')
@@ -399,7 +399,9 @@
         @endif
     @else
         @if($cookedEvents->count() === 0)
-            <x-empty-state :title="$isOwner ? 'Nie masz jeszcze żadnego wykonania' : 'Brak wykonań'">
+            <x-empty-state :title="$isOwner ? 'Nie masz jeszcze żadnego wykonania' : 'Brak wykonań'"
+                           :action="$isOwner ? 'Znajdź przepis' : null"
+                           :href="$isOwner ? route('search') : null">
                 @if($isOwner)
                     Kiedy ugotujesz z czyjegoś przepisu, kliknij „Ugotowałem”. Autor się o tym dowie, a Ty będziesz mieć to zapisane.
                 @endif

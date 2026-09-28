@@ -4,12 +4,14 @@ Kuking rośnie krok po kroku. Tu piszemy, co się zmieniło — prostym językie
 bez fachowych słów. Pełna, techniczna lista wszystkich zmian (także tych,
 które widać tylko „pod maską”) jest w `CHANGELOG.md` w repozytorium.
 
-Numer wydania (np. „Alfa 0.68”) widzicie w stopce każdej strony, razem
+Numer wydania (np. „Alfa 0.68.005”) widzicie w stopce każdej strony, razem
 z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Spis wydań
 
 - [Najnowsze zmiany](#najnowsze-zmiany)
+- [Alfa 0.70 — spokojniejsze wpisy i gotowanie](#alfa-070)
+- [Alfa 0.69 — czytelniejsze powiadomienia i wygodniejsze gotowanie](#alfa-069)
 - [Alfa 0.68 — minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu](#alfa-068)
 - [Alfa 0.67 — tagi ze zdjęciami z Waszych kuchni](#alfa-067)
 - [Alfa 0.66 — porządek w rozmowach i przygotowanie „Poradźcie”](#alfa-066)
@@ -21,7 +23,49 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 <a id="najnowsze-zmiany"></a>
 ## Najnowsze zmiany
 
-To, co już działa, ale nie ma jeszcze numeru wydania.
+Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
+
+### Smakowicie wygląda
+
+Pod cudzym wpisem możecie teraz nacisnąć „Smakowicie wygląda”, gdy chcecie
+dać znać, że danie wpadło Wam w oko. Ten sam przycisk pozwala to cofnąć.
+Na stronie wpisu widać, kto tak napisał, bez pokazywania liczby reakcji.
+Autor dostanie o nich jedną wiadomość dziennie, żeby nie zagłuszały
+„Ugotowałem”.
+
+<a id="alfa-070"></a>
+## Alfa 0.70
+
+**Spokojniejsze wpisy i gotowanie.**
+
+Zdjęcia we wpisach układają się czytelnie także wtedy, gdy mają różne
+proporcje albo są trzy. Strona tagu pokazuje tylko publiczne wpisy;
+własne mniej widoczne wpisy nadal znajdziecie w „Moich wpisach”.
+Przy pustej zakładce „Ugotowane” można od razu przejść do wyszukiwarki
+przepisów. Poprawiliśmy też zachowanie wartości odżywczych po decyzji
+moderatora.
+
+<a id="alfa-069"></a>
+## Alfa 0.69
+
+**Czytelniejsze powiadomienia i wygodniejsze gotowanie.**
+
+### Szacunkowe wartości odżywcze przepisu
+
+Pod składnikami przepisu możecie zobaczyć szacunkowe wartości na porcję:
+energię, białko, tłuszcz i węglowodany. Pokazujemy liczby tylko wtedy,
+gdy znamy skład co najmniej 90% masy potrawy. Jeśli brakuje ilości ważnego
+składnika, powiemy dlaczego nie możemy ich obliczyć. Pod „Jak to liczymy”
+znajdziecie źródła danych i sposób przeliczania miar. Autor przepisu może
+ukryć tę sekcję i później znów ją pokazać.
+
+### Moje wpisy
+
+W zakładce „Moje” znajdziecie teraz przycisk „Moje wpisy”. Prowadzi do
+Waszych wpisów od najnowszego — również tych prywatnych, dla
+obserwujących oraz szkiców. Zobaczycie tam także własne wpisy ukryte
+przez moderację. Przy każdym jest napisane, kto może go zobaczyć i w jakim
+jest stanie. Tę listę otworzycie tylko Wy.
 
 ### Ta strona
 
@@ -29,6 +73,17 @@ Numer wersji w stopce każdej strony prowadzi teraz właśnie tutaj — na tę
 stronę. Kliknięcie otwiera ją od razu przy opisie bieżącego wydania, a nie
 od góry. Skrót commita i data w stopce zostają na swoim miejscu — nadal
 przydadzą się, gdy będziecie zgłaszać nam usterkę.
+
+### Numer wersji z końcówką wdrożenia
+
+Numer w stopce ma teraz dodatkową końcówkę, np. „Alfa 0.68.005” zamiast
+samego „Alfa 0.68” — dwa różne wdrożenia tego samego dnia dają się teraz
+odróżnić na pierwszy rzut oka, bez porównywania skrótów kodu z pamięci.
+Końcówka rośnie sama, przy każdym wdrożeniu, i wraca do „.001”, gdy
+zmienia się duży numer wydania. Przy każdej nowej funkcji na tej stronie
+zobaczycie teraz też, od którego dokładnie wydania działa — „od Alfa
+0.68.005”, i to na stałe: dopisek zostaje przy tym opisie, nawet gdy
+wydanie doczeka się własnego numeru i wprowadzka trafi do jego sekcji.
 
 ### Zróbcie swoją wersję cudzego przepisu
 

@@ -208,10 +208,17 @@ ani `AGENT_TOOLSDIRECTORY` na katalog wspólny dla kilku rejestracji runnera.**
 Zmierzone 10.09.2026 w logu joba dostępności: Node siedzi w `_work/_tool`
 KAŻDEGO runnera osobno (`Found in cache @ …/actions-runner-kuking-03/_work/_tool/node/22.23.2/x64`),
 a jeden runner wykonuje jeden job naraz — dlatego wyścig z #262 dotyczył
-Composera, a nie Node'a. Wspólny toolcache przeniósłby go na binarkę Node'a. Joby: `assets`, `dostepnosc`, `audit`, a w `deploy.yml`
-job `operate` dokłada `npm install -g @railway/cli` — czyli **globalna
-instalacja npm musi się udać bez `sudo`** (prefiks npm w katalogu domowym
-użytkownika runnera albo nvm).
+Composera, a nie Node'a. Wspólny toolcache przeniósłby go na binarkę Node'a.
+Joby: `assets`, `dostepnosc`, `audit`.
+
+**`deploy.yml` (`operate`) i `preview.yml` (`manual-create`,
+`manual-delete`) od issue #1865 NIE stawiają już Node'a.** Railway CLI
+instalują dziś wprost z GitHub Releases (`curl` + `sha256sum -c`, krok
+„Instalacja Railway CLI"), nie przez `npm install -g @railway/cli` — ten
+pakiet npm i tak tylko pobierał tę samą binarkę, bez żadnej weryfikacji
+sumy kontrolnej. Te trzy joby wymagają więc dziś `sudo` bez hasła (binarka
+ląduje w `/usr/local/bin`, tak jak Playwright w sekcji 6), a NIE wymagają
+już sieci do `registry.npmjs.org` ani globalnej instalacji npm.
 
 ---
 
@@ -246,6 +253,7 @@ proxy, „could not authenticate"):
 | `repo.packagist.org` | `composer install` (metadane) |
 | **`api.github.com` dla dowolnego repozytorium** | `composer install` — pakiety dystrybucyjne idą z `https://api.github.com/repos/<owner>/<repo>/zipball/<ref>`. **To jest realna pułapka:** `phpstan/phpstan` ma w `composer.lock` `"source": null`, czyli JEDYNIE dystrybucję z tego adresu. Środowisko, które ogranicza `api.github.com` do własnych repozytoriów, nie zainstaluje go w ogóle (zmierzone w tej sesji: HTTP 403 i `Could not authenticate against github.com`) |
 | `registry.npmjs.org` | `npm ci`, `npx playwright install` |
+| `github.com` (przekierowanie na `release-assets.githubusercontent.com`) | krok „Instalacja Railway CLI" w `deploy.yml`/`preview.yml` (issue #1865) — pobiera binarkę wprost z `github.com/railwayapp/cli/releases/download/…`, `github.com` sam odpowiada 302 na adres na `release-assets.githubusercontent.com`; to NIE jest `registry.npmjs.org`, mimo że narzędzie nazywa się `@railway/cli` |
 | Docker Hub | `postgres:18-alpine`, buildx |
 | repozytoria pakietów systemowych (`ppa.launchpadcontent.net`, `deb.debian.org` / `archive.ubuntu.com`) | `setup-php`, `playwright install --with-deps` |
 | `railway.com` / API Railway | tylko `deploy.yml` i `railway-iac.yml` |
