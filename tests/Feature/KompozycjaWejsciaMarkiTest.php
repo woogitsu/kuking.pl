@@ -22,7 +22,9 @@ class KompozycjaWejsciaMarkiTest extends TestCase
             $card = $dom->query('//*[@id="tresc"]//*[contains(concat(" ",normalize-space(@class)," ")," marka-wejscie-karta ")]');
             $this->assertSame(1, $card->length);
             $this->assertSame(1, $dom->query('./h1', $card->item(0))->length);
-            $this->assertSame(1, $dom->query('preceding-sibling::*[contains(@class,"marka-wejscie-zaproszenie")]//svg', $card->item(0))->length);
+            $aside = $dom->query('preceding-sibling::*[contains(@class,"marka-wejscie-zaproszenie")]', $card->item(0));
+            $this->assertSame(1, $aside->length);
+            $this->assertSame(1, $dom->query('.//svg', $aside->item(0))->length);
             $form = $dom->query('.//form[@action="'.route($route).'" and @method="POST"]', $card->item(0));
             $this->assertSame(1, $form->length);
             foreach ([...$fields, '_token'] as $name) {
@@ -30,11 +32,11 @@ class KompozycjaWejsciaMarkiTest extends TestCase
             }
             $this->assertSame(0, $dom->query('.//form//form', $card->item(0))->length);
             $alternate = $route === 'login' ? 'register' : 'login';
-            $this->assertSame(1, $dom->query('.//a[@href="'.route($alternate).'"]', $card->item(0))->length);
+            $this->assertSame(1, $dom->query('.//a[@href="'.route($alternate).'"]', $aside->item(0))->length);
             if ($route === 'login') {
                 $this->assertSame(1, $dom->query('.//a[@href="'.route('password.request').'"]', $card->item(0))->length);
                 if (config('kuking.login_link.wlaczone')) {
-                    $this->assertSame(1, $dom->query('.//a[@href="'.route('login.link').'"]', $card->item(0))->length);
+                    $this->assertSame(1, $dom->query('.//a[@href="'.route('login.link').'"]', $aside->item(0))->length);
                 }
             }
         }

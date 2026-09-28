@@ -247,78 +247,57 @@ class OdstepMiedzyDrogamiWejsciaTest extends TestCase
         );
     }
 
-    /**
-     * Reguła `.app-main > … + …` działa tylko wtedy, gdy te dwie karty
-     * naprawdę są SĄSIADUJĄCYM rodzeństwem w kolumnie głównej. Owinięcie
-     * którejkolwiek z nich dodatkowym `<div>`-em albo wstawienie między nie
-     * czegokolwiek, co nie jest powierzchnią, wyłącza regułę bez jednego
-     * czerwonego przebiegu w arkuszu.
-     */
+    /** Nowa kompozycja: dostawcy są w zaproszeniu, przed formularzem w DOM. */
     #[Test]
     #[DataProvider('ekranyZObiemaDrogami')]
-    public function test_karta_wejsc_i_panel_formularza_sa_sasiadujacym_rodzenstwem(string $trasa): void
+    public function test_dostawcy_stoja_w_lewej_kolumnie_przed_formularzem(string $trasa): void
     {
         $this->wlaczObieDrogi();
 
         $html = $this->get(route($trasa))->assertOk()->getContent();
-
         $dom = new \DOMDocument;
-        @$dom->loadHTML('<?xml encoding="UTF-8">'.(string) $html, LIBXML_NOERROR | LIBXML_NOWARNING);
+        @$dom->loadHTML('<?xml encoding="UTF-8"}'.(string) $html, LIBXML_NOERROR | LIBXML_NOWARNING);
         $xpath = new \DOMXPath($dom);
 
-        $panele = $xpath->query(
-            "//main[contains(concat(' ', normalize-space(@class), ' '), ' app-main ')]".
-            "//*[contains(concat(' ', normalize-space(@class), ' '), ' marka-wejscie-karta ')]".
-            "/*[contains(concat(' ', normalize-space(@class), ' '), ' panel-formularza ')]",
-        );
+        $rama = $xpath->query("//main//*[contains(concat(' ', normalize-space(@class), ' '), ' marka-wejscie ')]");
+        $this->assertNotFalse($rama);
+        $this->assertSame(1, $rama->length);
+        $zaproszenie = $xpath->query("./*[contains(concat(' ', normalize-space(@class), ' '), ' marka-wejscie-zaproszenie ')]", $rama->item(0));
+        $karta = $xpath->query("./*[contains(concat(' ', normalize-space(@class), ' '), ' marka-wejscie-karta ')]", $rama->item(0));
+        $this->assertNotFalse($zaproszenie);
+        $this->assertNotFalse($karta);
+        $this->assertSame(1, $zaproszenie->length);
+        $this->assertSame(1, $karta->length);
 
-        $this->assertNotFalse($panele);
-        $this->assertSame(
-            1,
-            $panele->length,
-            "Trasa „{$trasa}”: panel formularza nie jest bezpośrednim dzieckiem ".
-            '`<div class="marka-wejscie-karta">` — reguła odstępu z `tokens.css` nic tu nie '.
-            'zrobi, a karty znów się skleją.',
-        );
-
-        $panel = $panele->item(0);
-        $this->assertNotNull($panel);
-
-        $poprzednie = $xpath->query('preceding-sibling::*[1]', $panel);
-        $this->assertNotFalse($poprzednie);
-        $this->assertSame(
-            1,
-            $poprzednie->length,
-            "Trasa „{$trasa}”: nad panelem formularza nie stoi nic — karta wejść ".
-            'kontem Google i Facebooka zniknęła z tego ekranu?',
-        );
-
-        $sasiad = $poprzednie->item(0);
-        $this->assertInstanceOf(\DOMElement::class, $sasiad);
-
-        $klasy = ' '.trim((string) $sasiad->getAttribute('class')).' ';
-
-        $this->assertStringContainsString(
-            ' sekcja-strony ',
-            $klasy,
-            "Trasa „{$trasa}”: bezpośrednio nad panelem formularza stoi element bez ".
-            "klasy `sekcja-strony` (jest: „{$klasy}”). Reguła odstępu łączy dwie ".
-            'POWIERZCHNIE — element spoza tej listy przerywa parę i odstęp wraca do zera.',
-        );
-
-        // KONTROLA DODATNIA: to naprawdę jest karta wejść kontem u dostawcy,
-        // a nie przypadkowa inna sekcja, która akurat stanęła w tym miejscu.
         $wejscia = $xpath->query(
             ".//a[contains(@href, '/wejdz/google')] | .//a[contains(@href, '/wejdz/facebook')]",
-            $sasiad,
+            $zaproszenie->item(0),
         );
         $this->assertNotFalse($wejscia);
-        $this->assertSame(
-            2,
-            $wejscia->length,
-            "Trasa „{$trasa}”: sekcja nad formularzem nie zawiera obu wejść ".
-            '(Google i Facebook) — mierzymy odstęp nie od tej karty, o którą '.
-            'chodziło w zgłoszeniu.',
+        $this->assertSame(2, $wejscia->length, 'Obie drogi dostawców muszą pozostać widoczne w lewej kolumnie.');
+        $this->assertSame(0, $xpath->query('.//form', $zaproszenie->item(0))->length);
+        $formularz = $xpath->query('./form[contains(@class,"panel-formularza")]', $karta->item(0));
+        $this->assertNotFalse($formularz);
+        $this->assertSame(1, $formularz->length);
+        $this->assertNotSame(0, $zaproszenie->item(0)->compareDocumentPosition($formularz->item(0)) & \DOMNode::DOCUMENT_POSITION_FOLLOWING);
+    }
+
+    #[Test]
+    public function test_kompozycja_ma_dwie_kolumny_na_desktopie_i_jedna_na_waskim_ekranie(): void
+    {
+        $css = (string) file_get_contents(resource_path('css/marka-wejscie.css'));
+
+        $this->assertMatchesRegularExpression(
+            '/\.marka-wejscie\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(0,\s*1\.2fr\)/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/@media\s*\(max-width:\s*900px\)[^{]*\{\s*\.marka-wejscie\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.marka-wejscie-dalsze\s*\{[^}]*gap:\s*var\(--spacing-6\)/s',
+            $css,
         );
     }
 

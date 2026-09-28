@@ -1,26 +1,46 @@
-/* Kompozycja wejścia z oryginału: zaproszenie obok działającego formularza.
-   Karta obejmuje także alternatywne drogi logowania i komunikaty błędów. */
+/* Zaproszenie i działające alternatywy obok formularza; na wąskim ekranie
+   ta sama kolejność w jednej kolumnie. */
   [data-marka] .marka-rama:not([data-tryb-panelu]) > .app-main:has(.marka-wejscie) {
-    max-width: 1040px;
+    max-width: 1200px;
   }
 
   .marka-wejscie {
     display: grid;
-    grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
-    gap: clamp(32px, 5vw, 70px);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: clamp(24px, 4vw, 56px);
     align-items: start;
   }
 
-  .marka-wejscie-zaproszenie { padding-block: var(--spacing-10); }
+  .marka-wejscie-zaproszenie { min-width: 0; padding-block: var(--spacing-6); }
   .marka-wejscie-znak { color: var(--color-brand); width: 80px; }
   .marka-wejscie-znak svg { width: 100%; height: auto; }
-  .marka-wejscie-zaproszenie p {
-    max-width: 22ch;
+  .marka-wejscie-zaproszenie > p {
+    max-width: 26ch;
     margin-top: var(--spacing-6);
     font-size: var(--text-title);
     line-height: 1.5;
     color: var(--color-ink-muted);
   }
+
+  .marka-wejscie-dalsze {
+    display: grid;
+    gap: var(--spacing-6);
+    margin-top: var(--spacing-6);
+    min-width: 0;
+  }
+
+  .marka-wejscie-dalsze > p { margin: 0; overflow-wrap: anywhere; }
+
+  .marka-wejscie-alternatywa {
+    padding: var(--spacing-6);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface-raised);
+    overflow-wrap: anywhere;
+  }
+
+  .marka-wejscie-alternatywa h2 { margin-top: 0; }
+  .marka-wejscie-alternatywa .form-actions { margin-bottom: 0; }
 
   .marka-wejscie-karta {
     min-width: 0;
@@ -48,7 +68,8 @@
 
   @media (max-width: 900px) {
     .marka-wejscie { grid-template-columns: minmax(0, 1fr); gap: var(--spacing-6); }
-    .marka-wejscie-zaproszenie { padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-4); }
-    .marka-wejscie-znak { width: 48px; flex: none; }
-    .marka-wejscie-zaproszenie p { flex: 1 1 240px; min-width: 0; margin: 0; max-width: none; font-size: var(--text-body); overflow-wrap: anywhere; }
+    .marka-wejscie-zaproszenie { padding: 0; }
+    .marka-wejscie-znak { width: 48px; }
+    .marka-wejscie-zaproszenie > p { max-width: none; margin-top: var(--spacing-4); font-size: var(--text-body); overflow-wrap: anywhere; }
+    .marka-wejscie-karta { padding: var(--spacing-5); }
   }

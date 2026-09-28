@@ -1,31 +1,17 @@
 <x-layout title="Załóż konto" description="Załóż darmowe konto w Kuking i pokaż, co dziś ugotowałeś.">
     <x-marka-wejscie opis="Zachowaj swoje potrawy i rodzinne przepisy.">
+    <x-slot:uzupelnienie>
+        <p class="rejestracja-zapowiedz">
+            Cztery pola i gotowe — konto zaczyna działać od razu. Potem zapytamy jeszcze
+            o parę rzeczy, żeby dobrać Ci pierwsze wpisy, ale to całkiem opcjonalne
+            i można to pominąć. Nie pytamy o numer telefonu ani o datę urodzenia.
+        </p>
+        <x-wejscia-zewnetrzne rodzaj="rejestracja" />
+        <p>Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
+    </x-slot:uzupelnienie>
     <h1>Zostań <x-kuking-word forma="iem" /></h1>
-    {{--
-        Kontrakt projektowy 60+ (docs/research/AUDYT_60_PLUS.md, ranking
-        pkt 3 i 9; test regresyjny: RejestracjaOnboardingKopiaTest).
-        „Cztery pola i gotowe" musi zapowiadać, co będzie DALEJ — inaczej
-        „Krok 1 z 3" zaraz potem czyta się jak „jednak coś nie wyszło".
-    --}}
-    <p class="mb-5 rejestracja-zapowiedz">
-        Cztery pola i gotowe — konto zaczyna działać od razu. Potem zapytamy jeszcze
-        o parę rzeczy, żeby dobrać Ci pierwsze wpisy, ale to całkiem opcjonalne
-        i można to pominąć. Nie pytamy o numer telefonu ani o datę urodzenia.
-    </p>
-
-    {{-- Drogi dodatkowe: konto Google (issue #258, D-069) i konto Facebooka
-         (issue #259, D-098). Przycisk dostawcy znika razem z jego kluczami,
-         a cały blok — gdy nie działa żaden.
-
-         NAD FORMULARZEM, NIE POD NIM — zgłoszenie właściciela.
-
-         Pod formularzem ten blok widziała wyłącznie osoba, która przewinęła
-         przez cztery pola, Turnstile i przycisk — czyli ta, która już
-         postanowiła wymyślić hasło. Człowiek, dla którego to wejście
-         powstało, odbijał się wcześniej. Większość naszej grupy ma konto
-         Google albo Facebooka i to jest dla niej droga krótsza, nie
-         dodatek. --}}
-    <x-wejscia-zewnetrzne rodzaj="rejestracja" />
+    {{-- Zapowiedź dalszych kroków i dostępni dostawcy stoją obok formularza,
+         a w DOM przed polami; testy pilnują obu części układu. --}}
 
     <x-error-summary />
 
@@ -168,6 +154,5 @@
         </form>
     @endif
 
-    <p class="mt-6">Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
     </x-marka-wejscie>
 </x-layout>
