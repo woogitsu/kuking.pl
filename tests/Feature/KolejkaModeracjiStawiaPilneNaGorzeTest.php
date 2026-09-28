@@ -410,17 +410,22 @@ class KolejkaModeracjiStawiaPilneNaGorzeTest extends TestCase
         ]);
         Cache::purge('database');
 
+        $wpis = $this->wpis('autorawariialarmu');
+        $zglaszajacy = $this->user('zglaszajacyawariialarmu');
+        $przed = DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte();
+        $jobsPrzed = DB::table('jobs')->count();
         $adresat = Notification::getFacadeRoot();
         $wstrzyknieto = false;
         Notification::shouldReceive('route')->once()->andReturnUsing(
-            static function (string $kanal, string $adres) use ($adresat, &$wstrzyknieto): object {
+            static function (string $kanal, string $adres) use ($adresat, $jobsPrzed, &$wstrzyknieto): object {
                 $prawdziwaTrasa = $adresat->route($kanal, $adres);
 
-                return new class($adresat, $prawdziwaTrasa, $wstrzyknieto)
+                return new class($adresat, $prawdziwaTrasa, $jobsPrzed, $wstrzyknieto)
                 {
                     public function __construct(
                         private readonly object $dyspozytor,
                         private readonly object $trasa,
+                        private readonly int $jobsPrzed,
                         private bool &$wstrzyknieto,
                     ) {}
 
@@ -430,17 +435,15 @@ class KolejkaModeracjiStawiaPilneNaGorzeTest extends TestCase
                         // ponownie z kontenera, gdzie stoi teraz mock. Wołamy
                         // prawdziwy dyspozytor wprost, żeby INSERT był realny.
                         $this->dyspozytor->send($this->trasa, $powiadomienie);
+                        if (DB::table('jobs')->count() <= $this->jobsPrzed) {
+                            throw new RuntimeException('Przyrząd testu nie utworzył zadania przed awarią.');
+                        }
                         $this->wstrzyknieto = true;
                         throw new RuntimeException('Utracona odpowiedź po zapisie do jobs.');
                     }
                 };
             },
         );
-
-        $wpis = $this->wpis('autorawariialarmu');
-        $zglaszajacy = $this->user('zglaszajacyawariialarmu');
-        $przed = DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte();
-        $jobsPrzed = DB::table('jobs')->count();
 
         $pierwsze = app(ReportContent::class)->handle($zglaszajacy, $wpis, 'minor');
         $this->assertTrue($wstrzyknieto, 'Test nie doszedł do awarii po prawdziwym INSERT do jobs.');
