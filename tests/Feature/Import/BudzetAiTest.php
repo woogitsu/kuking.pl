@@ -66,6 +66,18 @@ final class BudzetAiTest extends TestCase
         $this->assertSame(BudzetAi::ODMOWA_MIESIAC, $this->budzet->zarezerwuj(1, (string) Str::uuid(), 1));
     }
 
+    /** #2013: rezerwacja z PÓŹNIEJSZEGO dnia miesiąca zużywa ten sam limit miesięczny. */
+    public function test_limit_miesieczny_liczy_tez_pozniejsze_dni_miesiaca(): void
+    {
+        config(['kuking.import.budzet.dzienny_usd' => 100.0, 'kuking.import.budzet.miesieczny_usd' => 10.0]);
+        Carbon::setTestNow(Carbon::parse('2026-05-16 00:00:01', 'Europe/Warsaw'));
+        $this->assertInstanceOf(Rezerwacja::class, $this->budzet->zarezerwuj(6_000_000, (string) Str::uuid(), 1));
+
+        Carbon::setTestNow(Carbon::parse('2026-05-15 23:59:59', 'Europe/Warsaw'));
+        $this->assertSame(BudzetAi::ODMOWA_MIESIAC, $this->budzet->zarezerwuj(6_000_000, (string) Str::uuid(), 1));
+        $this->assertInstanceOf(Rezerwacja::class, $this->budzet->zarezerwuj(4_000_000, (string) Str::uuid(), 1));
+    }
+
     public function test_dzien_to_dzien_w_polsce_nie_w_utc(): void
     {
         // 23:30 UTC 30 września = 01:30 1 października w Warszawie.

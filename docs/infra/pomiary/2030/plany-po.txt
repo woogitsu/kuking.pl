@@ -1,0 +1,735 @@
+# Ekran /zeszyt — pełne plany wszystkich SELECT-ów jednego wejścia, gałąź claude/2030-zeszyty-koszt (po #2030)
+# Harness i dane: docs/infra/ZESZYTY_KOSZT_2030.md. EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT) w SAVEPOINT tuż przed właściwym zapytaniem, potem ROLLBACK TO SAVEPOINT.
+# Kontrola przebiegu: {"zeszytow": 200, "zapisow_wlasciciela": 20000, "zapisow_razem": 70000, "suma_licznikow": 14110, "suma_calosci": 20000, "liczniki_jak_stary_kod": true, "szyna_jak_stary_kod": true, "ostatnio_zapisane": ["Przepis pomiarowy 4903 @ 2026-09-25 09:06:00+00", "Wpis pomiarowy 4903 @ 2026-09-25 09:06:00+00", "Przepis pomiarowy 1459 @ 2026-09-25 04:13:00+00", "Wpis pomiarowy 1459 @ 2026-09-25 04:13:00+00", "Przepis pomiarowy 1477 @ 2026-09-25 02:34:00+00"]}
+
+====================================================================================================
+## Zapytanie 1 — parametrów: 1
+
+SQL:
+select "collections".*, (select count(*) from "recipes" inner join "collection_items" on "recipes"."id" = "collection_items"."recipe_id" where "collections"."id" = "collection_items"."collection_id") as "recipes_total_count", (select count(*) from "posts" inner join "collection_items" on "posts"."id" = "collection_items"."post_id" where "collections"."id" = "collection_items"."collection_id") as "posts_total_count" from "collections" where "collections"."owner_id" = ? and "collections"."owner_id" is not null order by "is_default" desc, "name" asc
+
+PLAN:
+Sort  (cost=203896.44..203896.94 rows=200 width=597) (actual time=20.182..20.192 rows=200.00 loops=1)
+  Sort Key: collections.is_default DESC, collections.name
+  Sort Method: quicksort  Memory: 46kB
+  Buffers: shared hit=2161
+  ->  Bitmap Heap Scan on collections  (cost=5.70..203888.79 rows=200 width=597) (actual time=13.162..20.013 rows=200.00 loops=1)
+        Recheck Cond: (owner_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+        Heap Blocks: exact=3
+        Buffers: shared hit=2161
+        ->  Bitmap Index Scan on collections_owner_id_created_at_index  (cost=0.00..5.65 rows=200 width=0) (actual time=0.013..0.014 rows=200.00 loops=1)
+              Index Cond: (owner_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+              Index Searches: 1
+              Buffers: shared hit=1
+        SubPlan 1
+          ->  Aggregate  (cost=536.67..536.68 rows=1 width=8) (actual time=0.024..0.024 rows=1.00 loops=200)
+                Buffers: shared hit=1109
+                ->  Hash Join  (cost=384.81..536.42 rows=100 width=0) (actual time=0.013..0.022 rows=50.00 loops=200)
+                      Hash Cond: (collection_items.recipe_id = recipes.id)
+                      Buffers: shared hit=1109
+                      ->  Bitmap Heap Scan on collection_items  (cost=4.82..156.16 rows=100 width=16) (actual time=0.005..0.008 rows=50.00 loops=200)
+                            Recheck Cond: ((collections.id = collection_id) AND (recipe_id IS NOT NULL))
+                            Heap Blocks: exact=309
+                            Buffers: shared hit=909
+                            ->  Bitmap Index Scan on collection_items_recipe_unique  (cost=0.00..4.79 rows=50 width=0) (actual time=0.003..0.003 rows=50.20 loops=200)
+                                  Index Cond: (collection_id = collections.id)
+                                  Index Searches: 200
+                                  Buffers: shared hit=600
+                      ->  Hash  (cost=280.00..280.00 rows=8000 width=16) (actual time=1.390..1.391 rows=8000.00 loops=1)
+                            Buckets: 8192  Batches: 1  Memory Usage: 439kB
+                            Buffers: shared hit=200
+                            ->  Seq Scan on recipes  (cost=0.00..280.00 rows=8000 width=16) (actual time=0.009..0.537 rows=8000.00 loops=1)
+                                  Buffers: shared hit=200
+        SubPlan 2
+          ->  Aggregate  (cost=482.67..482.68 rows=1 width=8) (actual time=0.025..0.025 rows=1.00 loops=200)
+                Buffers: shared hit=1048
+                ->  Hash Join  (cost=330.81..482.42 rows=100 width=0) (actual time=0.014..0.023 rows=50.00 loops=200)
+                      Hash Cond: (collection_items_1.post_id = posts.id)
+                      Buffers: shared hit=1048
+                      ->  Bitmap Heap Scan on collection_items collection_items_1  (cost=4.82..156.16 rows=100 width=16) (actual time=0.005..0.008 rows=50.00 loops=200)
+                            Recheck Cond: ((collections.id = collection_id) AND (post_id IS NOT NULL))
+                            Heap Blocks: exact=302
+                            Buffers: shared hit=902
+                            ->  Bitmap Index Scan on collection_items_post_unique  (cost=0.00..4.79 rows=50 width=0) (actual time=0.003..0.003 rows=50.00 loops=200)
+                                  Index Cond: (collection_id = collections.id)
+                                  Index Searches: 200
+                                  Buffers: shared hit=600
+                      ->  Hash  (cost=226.00..226.00 rows=8000 width=16) (actual time=1.604..1.605 rows=8000.00 loops=1)
+                            Buckets: 8192  Batches: 1  Memory Usage: 439kB
+                            Buffers: shared hit=146
+                            ->  Seq Scan on posts  (cost=0.00..226.00 rows=8000 width=16) (actual time=0.019..0.511 rows=8000.00 loops=1)
+                                  Buffers: shared hit=146
+Planning:
+  Buffers: shared hit=280
+Planning Time: 0.608 ms
+JIT:
+  Functions: 32
+  Options: Inlining false, Optimization false, Expressions true, Deforming true
+  Timing: Generation 1.493 ms (Deform 0.573 ms), Inlining 0.000 ms, Optimization 0.656 ms, Emission 9.319 ms, Total 11.468 ms
+Execution Time: 48.438 ms
+
+====================================================================================================
+## Zapytanie 2 — parametrów: 10
+
+SQL:
+select collection_items.collection_id, count(*) as ile from "recipes" inner join "collection_items" on "collection_items"."recipe_id" = "recipes"."id" where not exists (select 1 from "blocks" where ("blocks"."blocker_id" = ? and "blocks"."blocked_id" = "recipes"."author_id") or ("blocks"."blocker_id" = "recipes"."author_id" and "blocks"."blocked_id" = ?)) and ("recipes"."author_id" = ? or ("status" = ? and "published_at" is not null and ("visibility" = ? or ("visibility" = ? and exists (select 1 from "follows" where "follows"."follower_id" = ? and "follows"."followed_id" = "recipes"."author_id"))))) and exists (select * from "users" where "recipes"."author_id" = "users"."id" and "status" not in (?, ?)) and "collection_items"."collection_id" in (select "id" from "collections" where "owner_id" = ?) and "recipes"."deleted_at" is null group by "collection_items"."collection_id"
+
+PLAN:
+HashAggregate  (cost=11001.98..11008.98 rows=700 width=24) (actual time=14.949..14.973 rows=200.00 loops=1)
+  Group Key: collection_items.collection_id
+  Batches: 1  Memory Usage: 57kB
+  Buffers: shared hit=873
+  ->  Hash Join  (cost=9328.07..10937.03 rows=12989 width=16) (actual time=4.648..14.321 rows=7055.00 loops=1)
+        Hash Cond: (collection_items.recipe_id = recipes.id)
+        Buffers: shared hit=873
+        ->  Hash Join  (cost=19.70..1488.56 rows=20000 width=32) (actual time=0.047..8.246 rows=20000.00 loops=1)
+              Hash Cond: (collection_items.collection_id = collections.id)
+              Buffers: shared hit=588
+              ->  Seq Scan on collection_items  (cost=0.00..1284.00 rows=70000 width=32) (actual time=0.005..3.357 rows=70000.00 loops=1)
+                    Buffers: shared hit=584
+              ->  Hash  (cost=17.20..17.20 rows=200 width=16) (actual time=0.039..0.041 rows=200.00 loops=1)
+                    Buckets: 1024  Batches: 1  Memory Usage: 18kB
+                    Buffers: shared hit=4
+                    ->  Bitmap Heap Scan on collections  (cost=5.70..17.20 rows=200 width=16) (actual time=0.008..0.022 rows=200.00 loops=1)
+                          Recheck Cond: (owner_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                          Heap Blocks: exact=3
+                          Buffers: shared hit=4
+                          ->  Bitmap Index Scan on collections_owner_id_created_at_index  (cost=0.00..5.65 rows=200 width=0) (actual time=0.004..0.005 rows=200.00 loops=1)
+                                Index Cond: (owner_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                                Index Searches: 1
+                                Buffers: shared hit=1
+        ->  Hash  (cost=9243.43..9243.43 rows=5195 width=16) (actual time=4.595..4.598 rows=5638.00 loops=1)
+              Buckets: 8192  Batches: 1  Memory Usage: 329kB
+              Buffers: shared hit=285
+              ->  Nested Loop Anti Join  (cost=276.19..9243.43 rows=5195 width=16) (actual time=0.469..4.121 rows=5638.00 loops=1)
+                    Join Filter: (((blocks.blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) AND (blocks.blocked_id = recipes.author_id)) OR ((blocks.blocker_id = recipes.author_id) AND (blocks.blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)))
+                    Rows Removed by Join Filter: 11457
+                    Buffers: shared hit=285
+                    ->  Hash Join  (cost=276.19..8998.24 rows=5465 width=32) (actual time=0.461..2.203 rows=6000.00 loops=1)
+                          Hash Cond: (recipes.author_id = users.id)
+                          Buffers: shared hit=284
+                          ->  Bitmap Heap Scan on recipes  (cost=268.69..8975.76 rows=5544 width=32) (actual time=0.426..1.456 rows=6000.00 loops=1)
+                                Recheck Cond: (((author_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) AND (deleted_at IS NULL)) OR ((published_at IS NOT NULL) AND (deleted_at IS NULL)))
+                                Filter: ((author_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (((status)::text = 'published'::text) AND (published_at IS NOT NULL) AND (((visibility)::text = 'public'::text) OR (((visibility)::text = 'followers'::text) AND (ANY (author_id = (hashed SubPlan 2).col1))))))
+                                Rows Removed by Filter: 1271
+                                Heap Blocks: exact=200
+                                Buffers: shared hit=280
+                                ->  BitmapOr  (cost=268.69..268.69 rows=7271 width=0) (actual time=0.396..0.397 rows=0.00 loops=1)
+                                      Buffers: shared hit=79
+                                      ->  Bitmap Index Scan on recipes_author_published_idx  (cost=0.00..4.29 rows=1 width=0) (actual time=0.003..0.004 rows=0.00 loops=1)
+                                            Index Cond: (author_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                                            Index Searches: 1
+                                            Buffers: shared hit=2
+                                      ->  Bitmap Index Scan on recipes_author_published_idx  (cost=0.00..261.62 rows=7271 width=0) (actual time=0.392..0.392 rows=7271.00 loops=1)
+                                            Index Cond: (published_at IS NOT NULL)
+                                            Index Searches: 1
+                                            Buffers: shared hit=77
+                                SubPlan 2
+                                  ->  Seq Scan on follows  (cost=0.00..1.12 rows=10 width=16) (actual time=0.003..0.004 rows=10.00 loops=1)
+                                        Filter: (follower_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                                        Buffers: shared hit=1
+                          ->  Hash  (cost=5.76..5.76 rows=139 width=16) (actual time=0.034..0.034 rows=139.00 loops=1)
+                                Buckets: 1024  Batches: 1  Memory Usage: 15kB
+                                Buffers: shared hit=4
+                                ->  Seq Scan on users  (cost=0.00..5.76 rows=139 width=16) (actual time=0.004..0.023 rows=139.00 loops=1)
+                                      Filter: ((status)::text <> ALL ('{banned,pending_delete}'::text[]))
+                                      Rows Removed by Filter: 2
+                                      Buffers: shared hit=4
+                    ->  Materialize  (cost=0.00..1.04 rows=2 width=32) (actual time=0.000..0.000 rows=1.97 loops=6000)
+                          Storage: Memory  Maximum Storage: 17kB
+                          Buffers: shared hit=1
+                          ->  Seq Scan on blocks  (cost=0.00..1.03 rows=2 width=32) (actual time=0.002..0.003 rows=2.00 loops=1)
+                                Filter: ((blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid))
+                                Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=189
+Planning Time: 0.740 ms
+Execution Time: 15.023 ms
+
+====================================================================================================
+## Zapytanie 3 — parametrów: 21
+
+SQL:
+select collection_items.collection_id, count(*) as ile from "posts" inner join "collection_items" on "collection_items"."post_id" = "posts"."id" where "posts"."kind" = ? and not exists (select 1 from "blocks" where ("blocks"."blocker_id" = ? and "blocks"."blocked_id" = "posts"."author_id") or ("blocks"."blocker_id" = "posts"."author_id" and "blocks"."blocked_id" = ?)) and ("posts"."author_id" = ? or ("status" = ? and "published_at" is not null and ("visibility" = ? or ("visibility" = ? and exists (select 1 from "follows" where "follows"."follower_id" = ? and "follows"."followed_id" = "posts"."author_id"))))) and (((posts.body ~ '\S' or exists (select 1 from "post_media" where "post_media"."post_id" = "posts"."id"))) or (("posts"."recipe_id" is null or exists (select * from "recipes" where "posts"."recipe_id" = "recipes"."id" and "status" = ? and "published_at" is not null and not exists (select 1 from "blocks" where ("blocks"."blocker_id" = ? and "blocks"."blocked_id" = "recipes"."author_id") or ("blocks"."blocker_id" = "recipes"."author_id" and "blocks"."blocked_id" = ?)) and ("recipes"."author_id" = ? or ("status" = ? and "published_at" is not null and ("visibility" = ? or ("visibility" = ? and exists (select 1 from "follows" where "follows"."follower_id" = ? and "follows"."followed_id" = "recipes"."author_id"))))) and "recipes"."deleted_at" is null)))) and exists (select * from "users" where "posts"."author_id" = "users"."id" and "status" not in (?, ?)) and ("posts"."recipe_id" is null or ((posts.body ~ '\S' or exists (select 1 from "post_media" where "post_media"."post_id" = "posts"."id"))) or exists (select * from "recipes" where "posts"."recipe_id" = "recipes"."id" and exists (select * from "users" where "recipes"."author_id" = "users"."id" and "status" not in (?, ?)) and "recipes"."deleted_at" is null)) and "collection_items"."collection_id" in (select "id" from "collections" where "owner_id" = ?) and "posts"."deleted_at" is null group by "collection_items"."collection_id"
+
+PLAN:
+HashAggregate  (cost=166453.56..166460.56 rows=700 width=24) (actual time=52.335..52.362 rows=200.00 loops=1)
+  Group Key: collection_items.collection_id
+  Batches: 1  Memory Usage: 57kB
+  Buffers: shared hit=24442
+  ->  Nested Loop  (cost=20.15..166388.61 rows=12989 width=16) (actual time=26.975..51.482 rows=7055.00 loops=1)
+        Buffers: shared hit=24442
+        ->  Nested Loop Anti Join  (cost=19.99..166053.66 rows=13176 width=32) (actual time=26.961..49.618 rows=7055.00 loops=1)
+              Join Filter: (((blocks.blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) AND (blocks.blocked_id = posts.author_id)) OR ((blocks.blocker_id = posts.author_id) AND (blocks.blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)))
+              Rows Removed by Join Filter: 14342
+              Buffers: shared hit=24380
+              ->  Nested Loop  (cost=19.99..165433.41 rows=13860 width=32) (actual time=26.934..47.118 rows=7513.00 loops=1)
+                    Buffers: shared hit=24379
+                    ->  Hash Join  (cost=19.70..1488.56 rows=20000 width=32) (actual time=22.511..30.755 rows=20000.00 loops=1)
+                          Hash Cond: (collection_items.collection_id = collections.id)
+                          Buffers: shared hit=588
+                          ->  Seq Scan on collection_items  (cost=0.00..1284.00 rows=70000 width=32) (actual time=0.008..3.389 rows=70000.00 loops=1)
+                                Buffers: shared hit=584
+                          ->  Hash  (cost=17.20..17.20 rows=200 width=16) (actual time=22.483..22.484 rows=200.00 loops=1)
+                                Buckets: 1024  Batches: 1  Memory Usage: 18kB
+                                Buffers: shared hit=4
+                                ->  Bitmap Heap Scan on collections  (cost=5.70..17.20 rows=200 width=16) (actual time=22.429..22.448 rows=200.00 loops=1)
+                                      Recheck Cond: (owner_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                                      Heap Blocks: exact=3
+                                      Buffers: shared hit=4
+                                      ->  Bitmap Index Scan on collections_owner_id_created_at_index  (cost=0.00..5.65 rows=200 width=0) (actual time=0.011..0.011 rows=200.00 loops=1)
+                                            Index Cond: (owner_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                                            Index Searches: 1
+                                            Buffers: shared hit=1
+                    ->  Memoize  (cost=0.29..25.75 rows=1 width=32) (actual time=0.001..0.001 rows=0.38 loops=20000)
+                          Cache Key: collection_items.post_id
+                          Cache Mode: logical
+                          Hits: 12069  Misses: 7931  Evictions: 0  Overflows: 0  Memory Usage: 992kB
+                          Buffers: shared hit=23791
+                          ->  Index Scan using posts_pkey on posts  (cost=0.28..25.74 rows=1 width=32) (actual time=0.001..0.001 rows=0.75 loops=7931)
+                                Index Cond: (id = collection_items.post_id)
+                                Filter: ((deleted_at IS NULL) AND ((kind)::text = 'dish'::text) AND ((author_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (((status)::text = 'published'::text) AND (published_at IS NOT NULL) AND (((visibility)::text = 'public'::text) OR (((visibility)::text = 'followers'::text) AND (ANY (author_id = (hashed SubPlan 2).col1)))))) AND (((body)::text ~ '\S'::text) OR EXISTS(SubPlan 3) OR (recipe_id IS NULL) OR EXISTS(SubPlan 7)) AND ((recipe_id IS NULL) OR ((body)::text ~ '\S'::text) OR EXISTS(SubPlan 11) OR EXISTS(SubPlan 13)))
+                                Rows Removed by Filter: 0
+                                Index Searches: 7930
+                                Buffers: shared hit=23791
+                                SubPlan 2
+                                  ->  Seq Scan on follows  (cost=0.00..1.12 rows=10 width=16) (actual time=0.106..0.110 rows=10.00 loops=1)
+                                        Filter: (follower_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                                        Buffers: shared hit=1
+                                SubPlan 3
+                                  ->  Seq Scan on post_media  (cost=0.00..0.00 rows=1 width=0) (never executed)
+                                        Filter: (post_id = posts.id)
+                                SubPlan 7
+                                  ->  Nested Loop Anti Join  (cost=0.28..10.53 rows=1 width=0) (never executed)
+                                        Join Filter: (((blocks_1.blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) AND (blocks_1.blocked_id = recipes.author_id)) OR ((blocks_1.blocker_id = recipes.author_id) AND (blocks_1.blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)))
+                                        ->  Index Scan using recipes_pkey on recipes  (cost=0.28..9.46 rows=1 width=16) (never executed)
+                                              Index Cond: (id = posts.recipe_id)
+                                              Filter: ((published_at IS NOT NULL) AND (deleted_at IS NULL) AND ((status)::text = 'published'::text) AND ((author_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (((status)::text = 'published'::text) AND (published_at IS NOT NULL) AND (((visibility)::text = 'public'::text) OR (((visibility)::text = 'followers'::text) AND (ANY (author_id = (hashed SubPlan 6).col1)))))))
+                                              Index Searches: 0
+                                              SubPlan 6
+                                                ->  Seq Scan on follows follows_1  (cost=0.00..1.12 rows=10 width=16) (never executed)
+                                                      Filter: (follower_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                                        ->  Seq Scan on blocks blocks_1  (cost=0.00..1.03 rows=2 width=32) (never executed)
+                                              Filter: ((blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid))
+                                SubPlan 11
+                                  ->  Seq Scan on post_media post_media_1  (cost=0.00..0.00 rows=1 width=0) (never executed)
+                                        Filter: (post_id = posts.id)
+                                SubPlan 13
+                                  ->  Merge Join  (cost=8.46..13.73 rows=1 width=0) (never executed)
+                                        Merge Cond: (users_1.id = recipes_1.author_id)
+                                        ->  Index Scan using users_pkey on users users_1  (cost=0.14..17.61 rows=139 width=16) (never executed)
+                                              Filter: ((status)::text <> ALL ('{banned,pending_delete}'::text[]))
+                                              Index Searches: 0
+                                        ->  Sort  (cost=8.31..8.32 rows=1 width=16) (never executed)
+                                              Sort Key: recipes_1.author_id
+                                              ->  Index Scan using recipes_pkey on recipes recipes_1  (cost=0.28..8.30 rows=1 width=16) (never executed)
+                                                    Index Cond: (id = posts.recipe_id)
+                                                    Filter: (deleted_at IS NULL)
+                                                    Index Searches: 0
+              ->  Materialize  (cost=0.00..1.04 rows=2 width=32) (actual time=0.000..0.000 rows=1.97 loops=7513)
+                    Storage: Memory  Maximum Storage: 17kB
+                    Buffers: shared hit=1
+                    ->  Seq Scan on blocks  (cost=0.00..1.03 rows=2 width=32) (actual time=0.010..0.011 rows=2.00 loops=1)
+                          Filter: ((blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid))
+                          Buffers: shared hit=1
+        ->  Memoize  (cost=0.15..0.18 rows=1 width=16) (actual time=0.000..0.000 rows=1.00 loops=7055)
+              Cache Key: posts.author_id
+              Cache Mode: logical
+              Hits: 7024  Misses: 31  Evictions: 0  Overflows: 0  Memory Usage: 4kB
+              Buffers: shared hit=62
+              ->  Index Scan using users_pkey on users  (cost=0.14..0.17 rows=1 width=16) (actual time=0.001..0.001 rows=1.00 loops=31)
+                    Index Cond: (id = posts.author_id)
+                    Filter: ((status)::text <> ALL ('{banned,pending_delete}'::text[]))
+                    Index Searches: 31
+                    Buffers: shared hit=62
+Planning:
+  Buffers: shared hit=86 read=1
+Planning Time: 1.382 ms
+JIT:
+  Functions: 116
+  Options: Inlining false, Optimization false, Expressions true, Deforming true
+  Timing: Generation 2.586 ms (Deform 0.976 ms), Inlining 0.000 ms, Optimization 1.502 ms, Emission 22.045 ms, Total 26.133 ms
+Execution Time: 55.047 ms
+
+====================================================================================================
+## Zapytanie 4 — parametrów: 1
+
+SQL:
+select "collection_items"."recipe_id" as "id", "collection_items"."created_at" from "collection_items" where "collection_items"."collection_id" in (select "id" from "collections" where "owner_id" = ?) and "collection_items"."recipe_id" is not null order by "collection_items"."created_at" desc, "collection_items"."recipe_id" desc limit 21
+
+PLAN:
+Limit  (cost=1666.65..1666.70 rows=21 width=24) (actual time=6.158..6.163 rows=21.00 loops=1)
+  Buffers: shared hit=588
+  ->  Sort  (cost=1666.65..1691.71 rows=10025 width=24) (actual time=6.157..6.160 rows=21.00 loops=1)
+        Sort Key: collection_items.created_at DESC, collection_items.recipe_id DESC
+        Sort Method: top-N heapsort  Memory: 27kB
+        Buffers: shared hit=588
+        ->  Hash Join  (cost=19.70..1396.36 rows=10025 width=24) (actual time=0.045..5.363 rows=10000.00 loops=1)
+              Hash Cond: (collection_items.collection_id = collections.id)
+              Buffers: shared hit=588
+              ->  Seq Scan on collection_items  (cost=0.00..1284.00 rows=35086 width=40) (actual time=0.005..3.099 rows=35000.00 loops=1)
+                    Filter: (recipe_id IS NOT NULL)
+                    Rows Removed by Filter: 35000
+                    Buffers: shared hit=584
+              ->  Hash  (cost=17.20..17.20 rows=200 width=16) (actual time=0.037..0.038 rows=200.00 loops=1)
+                    Buckets: 1024  Batches: 1  Memory Usage: 18kB
+                    Buffers: shared hit=4
+                    ->  Bitmap Heap Scan on collections  (cost=5.70..17.20 rows=200 width=16) (actual time=0.008..0.020 rows=200.00 loops=1)
+                          Recheck Cond: (owner_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                          Heap Blocks: exact=3
+                          Buffers: shared hit=4
+                          ->  Bitmap Index Scan on collections_owner_id_created_at_index  (cost=0.00..5.65 rows=200 width=0) (actual time=0.004..0.005 rows=200.00 loops=1)
+                                Index Cond: (owner_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                                Index Searches: 1
+                                Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=19
+Planning Time: 0.157 ms
+Execution Time: 6.182 ms
+
+====================================================================================================
+## Zapytanie 5 — parametrów: 20
+
+SQL:
+select * from "recipes" where not exists (select 1 from "blocks" where ("blocks"."blocker_id" = ? and "blocks"."blocked_id" = "recipes"."author_id") or ("blocks"."blocker_id" = "recipes"."author_id" and "blocks"."blocked_id" = ?)) and ("recipes"."author_id" = ? or ("status" = ? and "published_at" is not null and ("visibility" = ? or ("visibility" = ? and exists (select 1 from "follows" where "follows"."follower_id" = ? and "follows"."followed_id" = "recipes"."author_id"))))) and exists (select * from "users" where "recipes"."author_id" = "users"."id" and "status" not in (?, ?)) and "recipes"."id" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) and "recipes"."deleted_at" is null
+
+PLAN:
+Nested Loop Anti Join  (cost=92.67..99.44 rows=8 width=1634) (actual time=0.059..0.060 rows=0.00 loops=1)
+  Join Filter: (((blocks.blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) AND (blocks.blocked_id = recipes.author_id)) OR ((blocks.blocker_id = recipes.author_id) AND (blocks.blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)))
+  Buffers: shared hit=28
+  ->  Merge Join  (cost=92.67..98.05 rows=8 width=1634) (actual time=0.059..0.059 rows=0.00 loops=1)
+        Merge Cond: (users.id = recipes.author_id)
+        Buffers: shared hit=28
+        ->  Index Scan using users_pkey on users  (cost=0.14..17.61 rows=139 width=16) (actual time=0.004..0.004 rows=1.00 loops=1)
+              Filter: ((status)::text <> ALL ('{banned,pending_delete}'::text[]))
+              Index Searches: 1
+              Buffers: shared hit=2
+        ->  Sort  (cost=92.53..92.55 rows=8 width=1634) (actual time=0.053..0.054 rows=0.00 loops=1)
+              Sort Key: recipes.author_id
+              Sort Method: quicksort  Memory: 25kB
+              Buffers: shared hit=26
+              ->  Bitmap Heap Scan on recipes  (cost=43.22..92.41 rows=8 width=1634) (actual time=0.051..0.051 rows=0.00 loops=1)
+                    Recheck Cond: (id = ANY ('{bd5682a6-e5a5-4a2e-bc6b-8fa670881e92,a3883e1a-e03e-433a-9e21-66d7d42cfd2c,664aa58d-6e12-4503-932e-1e403f9e24b4,626478f6-d508-476a-b84f-c713c1bbab4e,88ae401a-0f9f-489a-82f4-b0973e4dc715,e5264bc8-c63b-4d0b-ac05-a98feaba81ce,941babdd-dc67-4a60-8c50-07e5fe902b82,f0a5caa7-d8c7-4d55-a9d7-859f4c37107a,3f77ab10-0cfa-4424-9736-c94d15378714,2727c505-2a7e-4d93-85d0-6b68dd927d39,ba12a494-77aa-493b-ade9-73838f4767de}'::uuid[]))
+                    Filter: ((deleted_at IS NULL) AND ((author_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (((status)::text = 'published'::text) AND (published_at IS NOT NULL) AND (((visibility)::text = 'public'::text) OR (((visibility)::text = 'followers'::text) AND (ANY (author_id = (hashed SubPlan 2).col1)))))))
+                    Rows Removed by Filter: 11
+                    Heap Blocks: exact=5
+                    Buffers: shared hit=26
+                    ->  Bitmap Index Scan on recipes_pkey  (cost=0.00..43.19 rows=11 width=0) (actual time=0.030..0.030 rows=11.00 loops=1)
+                          Index Cond: (id = ANY ('{bd5682a6-e5a5-4a2e-bc6b-8fa670881e92,a3883e1a-e03e-433a-9e21-66d7d42cfd2c,664aa58d-6e12-4503-932e-1e403f9e24b4,626478f6-d508-476a-b84f-c713c1bbab4e,88ae401a-0f9f-489a-82f4-b0973e4dc715,e5264bc8-c63b-4d0b-ac05-a98feaba81ce,941babdd-dc67-4a60-8c50-07e5fe902b82,f0a5caa7-d8c7-4d55-a9d7-859f4c37107a,3f77ab10-0cfa-4424-9736-c94d15378714,2727c505-2a7e-4d93-85d0-6b68dd927d39,ba12a494-77aa-493b-ade9-73838f4767de}'::uuid[]))
+                          Index Searches: 10
+                          Buffers: shared hit=20
+                    SubPlan 2
+                      ->  Seq Scan on follows  (cost=0.00..1.12 rows=10 width=16) (actual time=0.002..0.004 rows=10.00 loops=1)
+                            Filter: (follower_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                            Buffers: shared hit=1
+  ->  Materialize  (cost=0.00..1.04 rows=2 width=32) (never executed)
+        ->  Seq Scan on blocks  (cost=0.00..1.03 rows=2 width=32) (never executed)
+              Filter: ((blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid))
+Planning:
+  Buffers: shared hit=80
+Planning Time: 0.336 ms
+Execution Time: 0.100 ms
+
+====================================================================================================
+## Zapytanie 6 — parametrów: 3
+
+SQL:
+select "collection_items"."recipe_id" as "id", "collection_items"."created_at" from "collection_items" where "collection_items"."collection_id" in (select "id" from "collections" where "owner_id" = ?) and "collection_items"."recipe_id" is not null and (collection_items.created_at, collection_items.recipe_id) < (?::timestamptz, ?::uuid) order by "collection_items"."created_at" desc, "collection_items"."recipe_id" desc limit 81
+
+PLAN:
+Limit  (cost=2070.72..2070.92 rows=81 width=24) (actual time=6.688..6.698 rows=81.00 loops=1)
+  Buffers: shared hit=463
+  ->  Sort  (cost=2070.72..2095.78 rows=10024 width=24) (actual time=6.687..6.692 rows=81.00 loops=1)
+        Sort Key: collection_items.created_at DESC, collection_items.recipe_id DESC
+        Sort Method: top-N heapsort  Memory: 34kB
+        Buffers: shared hit=463
+        ->  Hash Join  (cost=499.91..1702.85 rows=10024 width=24) (actual time=1.086..5.872 rows=9980.00 loops=1)
+              Hash Cond: (collection_items.collection_id = collections.id)
+              Buffers: shared hit=463
+              ->  Bitmap Heap Scan on collection_items  (cost=480.21..1590.50 rows=35083 width=40) (actual time=1.018..3.564 rows=34980.00 loops=1)
+                    Recheck Cond: (recipe_id IS NOT NULL)
+                    Filter: (ROW(created_at, recipe_id) < ROW('2026-09-25 09:59:41+00'::timestamp with time zone, 'ba12a494-77aa-493b-ade9-73838f4767de'::uuid))
+                    Rows Removed by Filter: 20
+                    Heap Blocks: exact=385
+                    Buffers: shared hit=459
+                    ->  Bitmap Index Scan on collection_items_recipe_id_index  (cost=0.00..471.44 rows=35086 width=0) (actual time=0.986..0.986 rows=35040.00 loops=1)
+                          Index Cond: (recipe_id IS NOT NULL)
+                          Index Searches: 1
+                          Buffers: shared hit=74
+              ->  Hash  (cost=17.20..17.20 rows=200 width=16) (actual time=0.065..0.066 rows=200.00 loops=1)
+                    Buckets: 1024  Batches: 1  Memory Usage: 18kB
+                    Buffers: shared hit=4
+                    ->  Bitmap Heap Scan on collections  (cost=5.70..17.20 rows=200 width=16) (actual time=0.010..0.022 rows=200.00 loops=1)
+                          Recheck Cond: (owner_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                          Heap Blocks: exact=3
+                          Buffers: shared hit=4
+                          ->  Bitmap Index Scan on collections_owner_id_created_at_index  (cost=0.00..5.65 rows=200 width=0) (actual time=0.004..0.004 rows=200.00 loops=1)
+                                Index Cond: (owner_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                                Index Searches: 1
+                                Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=6
+Planning Time: 0.122 ms
+Execution Time: 6.729 ms
+
+====================================================================================================
+## Zapytanie 7 — parametrów: 84
+
+SQL:
+select * from "recipes" where not exists (select 1 from "blocks" where ("blocks"."blocker_id" = ? and "blocks"."blocked_id" = "recipes"."author_id") or ("blocks"."blocker_id" = "recipes"."author_id" and "blocks"."blocked_id" = ?)) and ("recipes"."author_id" = ? or ("status" = ? and "published_at" is not null and ("visibility" = ? or ("visibility" = ? and exists (select 1 from "follows" where "follows"."follower_id" = ? and "follows"."followed_id" = "recipes"."author_id"))))) and exists (select * from "users" where "recipes"."author_id" = "users"."id" and "status" not in (?, ?)) and "recipes"."id" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) and "recipes"."deleted_at" is null
+
+PLAN:
+Nested Loop Anti Join  (cost=59.96..298.92 rows=48 width=1634) (actual time=0.172..0.246 rows=41.00 loops=1)
+  Join Filter: (((blocks.blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) AND (blocks.blocked_id = recipes.author_id)) OR ((blocks.blocker_id = recipes.author_id) AND (blocks.blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)))
+  Rows Removed by Join Filter: 84
+  Buffers: shared hit=104
+  ->  Hash Join  (cost=59.96..295.61 rows=51 width=1634) (actual time=0.166..0.225 rows=44.00 loops=1)
+        Hash Cond: (recipes.author_id = users.id)
+        Buffers: shared hit=103
+        ->  Bitmap Heap Scan on recipes  (cost=52.46..287.97 rows=52 width=1634) (actual time=0.123..0.174 rows=44.00 loops=1)
+              Recheck Cond: (id = ANY ('{74c576a6-77f9-4705-a7d6-36d00596a416,09fd4073-69e8-4a7b-8992-1de4a22d30d4,be2adee7-3343-4706-9b41-2b46d573080b,952f2eb1-59e0-4e00-9f9e-2ce1dc21f13e,8805fb49-9027-423d-b017-a75e52ecae12,4166f328-5291-432b-9940-9fe8450aec8c,7e6ab0fd-7aa8-4864-9035-1b03c0ed440b,2985111b-8170-4876-8d2f-4e674588fa65,9729b08d-bd4d-49c7-b584-545773defc88,287d7870-702e-45a6-8fa3-d31a3ed904ba,d54725db-ca61-4783-a10a-57494c0769e9,13537fa1-1104-40fd-b6d7-6d66c9044a1a,d1c2c0bd-8ffd-4923-b459-622c0d5e5256,a5a038b9-c6a9-4eb8-8432-2e9f3cd3b731,a25e33f3-11e6-4382-aaac-64ea61cfde0b,cb368848-457e-48a5-80c4-6312563d7a88,fcb8e9d9-5660-4c7d-a3c1-c71f002a5090,65d2329b-3b12-47a2-9bcf-2b21592f99a5,cab7f05d-318f-4a60-b544-2fa718c385bc,653a9209-e334-4f13-b7ba-f8aa14fd4988,6ee13e59-401b-4c4a-b260-9d77f93abbfe,f02dff64-9214-4efd-aeda-d3c9b7c59aff,ccabac1d-a0b5-48a9-8eaa-4d58fbcc3997,7f9ee503-0701-4cc7-96eb-fff97d9a7364,dcfcea8b-fb0d-4fce-9eec-15d650a64d63,f2c90ad9-4626-4ea1-b4b4-ae7f6ec1bda3,5e24d7a5-3d87-4680-a347-e282559a1aef,56b16318-8994-4c2c-887e-90ff2dbe4aea,41ba0da3-c541-4ce2-8a56-4bcf6757f354,14511ae6-cdf7-49d4-a5c2-b8d8a2c77e37,39500a40-0001-4b03-999d-a15794bce482,0806ba3d-b1b5-4115-8634-b638ed9bb5fd,53029ba5-33f5-4866-bc5c-e5139518cd44,fea4fc5c-111b-4166-ab9e-e6062beb12c6,473cb4ad-2252-4cf0-9152-71679e89239d,f2bee647-411b-4b0a-9d31-c7347536d80e,a597f879-37ec-4662-99c4-e37b05538f0c,c08f7571-0986-499a-9277-10f7b02af6c4,e8994a12-cf4e-42a4-9eb3-d6930c691eb1,223fbe59-cd6b-4c68-bf36-d4fbc161297c,573d01ba-f6ed-4dc6-b031-435deddc175a,7615c2b4-fc9b-4d16-8f82-274459567c12,cd9d6229-bceb-416e-b7fb-154dbbc08ee5,b9f0c519-b337-4b33-822b-b92fb67658ba,b42f05ea-747d-4c4d-8e50-1d2a1142d534,7f8d38bf-546d-4d86-88f1-08d451fb54c3,f4b7c89b-35c4-4a7f-972f-7ac230f82ae2,78ab5e0c-265c-4cec-a00c-401744c599cd,2b0c2529-b778-41b0-8f3c-db34832d32a2,b1c6adda-7593-424f-8a7c-17c79acc9e63,a708d7d1-eb07-4e07-bb01-352a6cb88526,7f3499cc-da85-44d9-bf1a-ff8b91269293,5f80506d-cb2c-45c8-810d-15a215fa4e66,8f5c48fc-2d26-4808-ab51-1f84990b812e,eefbaaef-5280-4cb4-8b16-83caf0cc6dcf,bf770f2c-e760-465d-813d-25855fe9a047,e983a435-1a97-4ec0-aec9-b575806a887f,aa12a996-fba9-471c-b063-f0774da65fc2,a2d45612-259d-45a4-a70d-b59345316c19,4265e321-0d56-43e0-ad2d-74cc02cbf91d,62accdcd-9f3f-4e83-a052-bffd0c099858,6224748c-df68-4f5e-8d24-cd0b1a3ce0ba,4c6ee7e0-9d23-4d8f-a941-3c82db6ad68f,8590aa1b-34a4-4d34-96d0-3ca5cc2e3107,15c969c3-4fef-4988-bba7-4efe20ea73d2,1cd8738e-6352-4fad-a69e-9f998c03e691,8f861a4a-fe3a-4c5f-a43c-6ab0876d9011,96d518c3-fc36-4fb5-a0a7-7d0d285f8d98,60f7d5b3-74f1-428f-ba1a-40bcfbbceab9,bfb787be-deac-4650-8832-4d9ae3e656ef,15b5e7e8-f9bd-4e80-a015-f1979118827c,37c18616-d709-44ac-8200-3a01b34cf9eb,b224e6ea-e414-4ad1-8429-a87edd8383ef,4b2f830f-5f55-4fee-a107-a7017a6e0606,14afe4b7-aa4f-4b3b-aa0d-410229384596}'::uuid[]))
+              Filter: ((deleted_at IS NULL) AND ((author_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (((status)::text = 'published'::text) AND (published_at IS NOT NULL) AND (((visibility)::text = 'public'::text) OR (((visibility)::text = 'followers'::text) AND (ANY (author_id = (hashed SubPlan 2).col1)))))))
+              Rows Removed by Filter: 31
+              Heap Blocks: exact=38
+              Buffers: shared hit=99
+              ->  Bitmap Index Scan on recipes_pkey  (cost=0.00..52.26 rows=75 width=0) (actual time=0.115..0.115 rows=75.00 loops=1)
+                    Index Cond: (id = ANY ('{74c576a6-77f9-4705-a7d6-36d00596a416,09fd4073-69e8-4a7b-8992-1de4a22d30d4,be2adee7-3343-4706-9b41-2b46d573080b,952f2eb1-59e0-4e00-9f9e-2ce1dc21f13e,8805fb49-9027-423d-b017-a75e52ecae12,4166f328-5291-432b-9940-9fe8450aec8c,7e6ab0fd-7aa8-4864-9035-1b03c0ed440b,2985111b-8170-4876-8d2f-4e674588fa65,9729b08d-bd4d-49c7-b584-545773defc88,287d7870-702e-45a6-8fa3-d31a3ed904ba,d54725db-ca61-4783-a10a-57494c0769e9,13537fa1-1104-40fd-b6d7-6d66c9044a1a,d1c2c0bd-8ffd-4923-b459-622c0d5e5256,a5a038b9-c6a9-4eb8-8432-2e9f3cd3b731,a25e33f3-11e6-4382-aaac-64ea61cfde0b,cb368848-457e-48a5-80c4-6312563d7a88,fcb8e9d9-5660-4c7d-a3c1-c71f002a5090,65d2329b-3b12-47a2-9bcf-2b21592f99a5,cab7f05d-318f-4a60-b544-2fa718c385bc,653a9209-e334-4f13-b7ba-f8aa14fd4988,6ee13e59-401b-4c4a-b260-9d77f93abbfe,f02dff64-9214-4efd-aeda-d3c9b7c59aff,ccabac1d-a0b5-48a9-8eaa-4d58fbcc3997,7f9ee503-0701-4cc7-96eb-fff97d9a7364,dcfcea8b-fb0d-4fce-9eec-15d650a64d63,f2c90ad9-4626-4ea1-b4b4-ae7f6ec1bda3,5e24d7a5-3d87-4680-a347-e282559a1aef,56b16318-8994-4c2c-887e-90ff2dbe4aea,41ba0da3-c541-4ce2-8a56-4bcf6757f354,14511ae6-cdf7-49d4-a5c2-b8d8a2c77e37,39500a40-0001-4b03-999d-a15794bce482,0806ba3d-b1b5-4115-8634-b638ed9bb5fd,53029ba5-33f5-4866-bc5c-e5139518cd44,fea4fc5c-111b-4166-ab9e-e6062beb12c6,473cb4ad-2252-4cf0-9152-71679e89239d,f2bee647-411b-4b0a-9d31-c7347536d80e,a597f879-37ec-4662-99c4-e37b05538f0c,c08f7571-0986-499a-9277-10f7b02af6c4,e8994a12-cf4e-42a4-9eb3-d6930c691eb1,223fbe59-cd6b-4c68-bf36-d4fbc161297c,573d01ba-f6ed-4dc6-b031-435deddc175a,7615c2b4-fc9b-4d16-8f82-274459567c12,cd9d6229-bceb-416e-b7fb-154dbbc08ee5,b9f0c519-b337-4b33-822b-b92fb67658ba,b42f05ea-747d-4c4d-8e50-1d2a1142d534,7f8d38bf-546d-4d86-88f1-08d451fb54c3,f4b7c89b-35c4-4a7f-972f-7ac230f82ae2,78ab5e0c-265c-4cec-a00c-401744c599cd,2b0c2529-b778-41b0-8f3c-db34832d32a2,b1c6adda-7593-424f-8a7c-17c79acc9e63,a708d7d1-eb07-4e07-bb01-352a6cb88526,7f3499cc-da85-44d9-bf1a-ff8b91269293,5f80506d-cb2c-45c8-810d-15a215fa4e66,8f5c48fc-2d26-4808-ab51-1f84990b812e,eefbaaef-5280-4cb4-8b16-83caf0cc6dcf,bf770f2c-e760-465d-813d-25855fe9a047,e983a435-1a97-4ec0-aec9-b575806a887f,aa12a996-fba9-471c-b063-f0774da65fc2,a2d45612-259d-45a4-a70d-b59345316c19,4265e321-0d56-43e0-ad2d-74cc02cbf91d,62accdcd-9f3f-4e83-a052-bffd0c099858,6224748c-df68-4f5e-8d24-cd0b1a3ce0ba,4c6ee7e0-9d23-4d8f-a941-3c82db6ad68f,8590aa1b-34a4-4d34-96d0-3ca5cc2e3107,15c969c3-4fef-4988-bba7-4efe20ea73d2,1cd8738e-6352-4fad-a69e-9f998c03e691,8f861a4a-fe3a-4c5f-a43c-6ab0876d9011,96d518c3-fc36-4fb5-a0a7-7d0d285f8d98,60f7d5b3-74f1-428f-ba1a-40bcfbbceab9,bfb787be-deac-4650-8832-4d9ae3e656ef,15b5e7e8-f9bd-4e80-a015-f1979118827c,37c18616-d709-44ac-8200-3a01b34cf9eb,b224e6ea-e414-4ad1-8429-a87edd8383ef,4b2f830f-5f55-4fee-a107-a7017a6e0606,14afe4b7-aa4f-4b3b-aa0d-410229384596}'::uuid[]))
+                    Index Searches: 27
+                    Buffers: shared hit=60
+              SubPlan 2
+                ->  Seq Scan on follows  (cost=0.00..1.12 rows=10 width=16) (actual time=0.001..0.002 rows=10.00 loops=1)
+                      Filter: (follower_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                      Buffers: shared hit=1
+        ->  Hash  (cost=5.76..5.76 rows=139 width=16) (actual time=0.041..0.041 rows=139.00 loops=1)
+              Buckets: 1024  Batches: 1  Memory Usage: 15kB
+              Buffers: shared hit=4
+              ->  Seq Scan on users  (cost=0.00..5.76 rows=139 width=16) (actual time=0.010..0.028 rows=139.00 loops=1)
+                    Filter: ((status)::text <> ALL ('{banned,pending_delete}'::text[]))
+                    Rows Removed by Filter: 2
+                    Buffers: shared hit=4
+  ->  Materialize  (cost=0.00..1.04 rows=2 width=32) (actual time=0.000..0.000 rows=1.98 loops=44)
+        Storage: Memory  Maximum Storage: 17kB
+        Buffers: shared hit=1
+        ->  Seq Scan on blocks  (cost=0.00..1.03 rows=2 width=32) (actual time=0.001..0.002 rows=2.00 loops=1)
+              Filter: ((blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid))
+              Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=8
+Planning Time: 0.281 ms
+Execution Time: 0.272 ms
+
+====================================================================================================
+## Zapytanie 8 — parametrów: 5
+
+SQL:
+select * from "users" where "users"."id" in (?, ?, ?, ?, ?)
+
+PLAN:
+Seq Scan on users  (cost=0.00..6.29 rows=5 width=716) (actual time=0.006..0.015 rows=5.00 loops=1)
+  Filter: (id = ANY ('{01a0e81a-225a-711f-9b5e-7ceeb22d5448,01a0e81a-2266-7060-bd25-b0a6b9c391fa,01a0e81a-226e-7195-8f5b-878a578e58f2,01a0e81a-227d-7010-a853-06960286770b,01a0e81a-22b4-73aa-8852-f199c8eab426}'::uuid[]))
+  Rows Removed by Filter: 136
+  Buffers: shared hit=4
+Planning:
+  Buffers: shared hit=119
+Planning Time: 0.173 ms
+Execution Time: 0.023 ms
+
+====================================================================================================
+## Zapytanie 9 — parametrów: 5
+
+SQL:
+select * from "profiles" where "profiles"."user_id" in (?, ?, ?, ?, ?)
+
+PLAN:
+Seq Scan on profiles  (cost=0.00..5.29 rows=5 width=1045) (actual time=0.007..0.016 rows=5.00 loops=1)
+  Filter: (user_id = ANY ('{01a0e81a-225a-711f-9b5e-7ceeb22d5448,01a0e81a-2266-7060-bd25-b0a6b9c391fa,01a0e81a-226e-7195-8f5b-878a578e58f2,01a0e81a-227d-7010-a853-06960286770b,01a0e81a-22b4-73aa-8852-f199c8eab426}'::uuid[]))
+  Rows Removed by Filter: 136
+  Buffers: shared hit=3
+Planning:
+  Buffers: shared hit=84
+Planning Time: 0.163 ms
+Execution Time: 0.021 ms
+
+====================================================================================================
+## Zapytanie 10 — parametrów: 1
+
+SQL:
+select "collection_items"."post_id" as "id", "collection_items"."created_at" from "collection_items" where "collection_items"."collection_id" in (select "id" from "collections" where "owner_id" = ?) and "collection_items"."post_id" is not null order by "collection_items"."created_at" desc, "collection_items"."post_id" desc limit 21
+
+PLAN:
+Limit  (cost=1664.85..1664.90 rows=21 width=24) (actual time=6.205..6.210 rows=21.00 loops=1)
+  Buffers: shared hit=588
+  ->  Sort  (cost=1664.85..1689.78 rows=9975 width=24) (actual time=6.204..6.207 rows=21.00 loops=1)
+        Sort Key: collection_items.created_at DESC, collection_items.post_id DESC
+        Sort Method: top-N heapsort  Memory: 27kB
+        Buffers: shared hit=588
+        ->  Hash Join  (cost=19.70..1395.91 rows=9975 width=24) (actual time=0.354..5.412 rows=10000.00 loops=1)
+              Hash Cond: (collection_items.collection_id = collections.id)
+              Buffers: shared hit=588
+              ->  Seq Scan on collection_items  (cost=0.00..1284.00 rows=34914 width=40) (actual time=0.312..3.177 rows=35000.00 loops=1)
+                    Filter: (post_id IS NOT NULL)
+                    Rows Removed by Filter: 35000
+                    Buffers: shared hit=584
+              ->  Hash  (cost=17.20..17.20 rows=200 width=16) (actual time=0.039..0.040 rows=200.00 loops=1)
+                    Buckets: 1024  Batches: 1  Memory Usage: 18kB
+                    Buffers: shared hit=4
+                    ->  Bitmap Heap Scan on collections  (cost=5.70..17.20 rows=200 width=16) (actual time=0.010..0.022 rows=200.00 loops=1)
+                          Recheck Cond: (owner_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                          Heap Blocks: exact=3
+                          Buffers: shared hit=4
+                          ->  Bitmap Index Scan on collections_owner_id_created_at_index  (cost=0.00..5.65 rows=200 width=0) (actual time=0.005..0.005 rows=200.00 loops=1)
+                                Index Cond: (owner_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                                Index Searches: 1
+                                Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=6
+Planning Time: 0.111 ms
+Execution Time: 6.225 ms
+
+====================================================================================================
+## Zapytanie 11 — parametrów: 40
+
+SQL:
+select * from "posts" where "posts"."kind" = ? and not exists (select 1 from "blocks" where ("blocks"."blocker_id" = ? and "blocks"."blocked_id" = "posts"."author_id") or ("blocks"."blocker_id" = "posts"."author_id" and "blocks"."blocked_id" = ?)) and ("posts"."author_id" = ? or ("status" = ? and "published_at" is not null and ("visibility" = ? or ("visibility" = ? and exists (select 1 from "follows" where "follows"."follower_id" = ? and "follows"."followed_id" = "posts"."author_id"))))) and (((posts.body ~ '\S' or exists (select 1 from "post_media" where "post_media"."post_id" = "posts"."id"))) or (("posts"."recipe_id" is null or exists (select * from "recipes" where "posts"."recipe_id" = "recipes"."id" and "status" = ? and "published_at" is not null and not exists (select 1 from "blocks" where ("blocks"."blocker_id" = ? and "blocks"."blocked_id" = "recipes"."author_id") or ("blocks"."blocker_id" = "recipes"."author_id" and "blocks"."blocked_id" = ?)) and ("recipes"."author_id" = ? or ("status" = ? and "published_at" is not null and ("visibility" = ? or ("visibility" = ? and exists (select 1 from "follows" where "follows"."follower_id" = ? and "follows"."followed_id" = "recipes"."author_id"))))) and "recipes"."deleted_at" is null)))) and exists (select * from "users" where "posts"."author_id" = "users"."id" and "status" not in (?, ?)) and ("posts"."recipe_id" is null or ((posts.body ~ '\S' or exists (select 1 from "post_media" where "post_media"."post_id" = "posts"."id"))) or exists (select * from "recipes" where "posts"."recipe_id" = "recipes"."id" and exists (select * from "users" where "recipes"."author_id" = "users"."id" and "status" not in (?, ?)) and "recipes"."deleted_at" is null)) and "posts"."id" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) and "posts"."deleted_at" is null
+
+PLAN:
+Hash Join  (cost=59.42..625.40 rows=13 width=522) (actual time=0.104..0.127 rows=13.00 loops=1)
+  Hash Cond: (posts.author_id = users.id)
+  Buffers: shared hit=51
+  ->  Nested Loop Anti Join  (cost=51.92..617.86 rows=13 width=522) (actual time=0.061..0.081 rows=13.00 loops=1)
+        Join Filter: (((blocks.blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) AND (blocks.blocked_id = posts.author_id)) OR ((blocks.blocker_id = posts.author_id) AND (blocks.blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)))
+        Rows Removed by Join Filter: 27
+        Buffers: shared hit=47
+        ->  Bitmap Heap Scan on posts  (cost=51.92..616.20 rows=14 width=522) (actual time=0.055..0.070 rows=14.00 loops=1)
+              Recheck Cond: (id = ANY ('{f67e65a5-5c98-4132-ae82-ac3ba4a9d7f4,b7f3cb57-11a6-4e9e-9997-362a1caba90e,91c6d4df-d9f6-4e68-88d0-f6270620c7f5,eaac4827-7f2c-442f-be36-dba594238e80,6afb3932-b508-4201-9c6c-fae20a2be888,d19a06d2-7bdf-47b9-8158-4af7d16bf8da,f2c3b962-9b4a-469b-9708-2d3dadbb82f1,70406c3e-39e5-4e58-9921-bfb70aef43dc,d1270332-d78f-4d5d-ba92-eec993b3f43d,38a080bc-293e-4a68-a67c-d0015f5843a7,a088157c-b0d7-417e-a279-54723041e652,e9f46f9c-1c07-4fd1-b918-ede6e16712e0,a10239c6-0520-4a42-ac8f-806629d2ec8c,1af76e14-36eb-440b-adc2-a0f5b9f9709b,a5c54f3e-41d1-46ae-b744-66fdaa465e73,dc044f56-07ad-4674-890a-87ea573a2c4d,3d05e2ae-3f87-4041-9cbc-cb32016ca0ce,c0fc51b2-e7fe-4aa2-ae5a-593a183877a1,aa723bfe-b1e8-4408-8ed2-1c95bd7ed837,735358ce-69f6-487d-96eb-72b531eaea4e}'::uuid[]))
+              Filter: ((deleted_at IS NULL) AND ((kind)::text = 'dish'::text) AND ((author_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (((status)::text = 'published'::text) AND (published_at IS NOT NULL) AND (((visibility)::text = 'public'::text) OR (((visibility)::text = 'followers'::text) AND (ANY (author_id = (hashed SubPlan 2).col1)))))) AND (((body)::text ~ '\S'::text) OR EXISTS(SubPlan 3) OR (recipe_id IS NULL) OR EXISTS(SubPlan 7)) AND ((recipe_id IS NULL) OR ((body)::text ~ '\S'::text) OR EXISTS(SubPlan 11) OR (ANY (recipe_id = (hashed SubPlan 14).col1))))
+              Rows Removed by Filter: 6
+              Heap Blocks: exact=13
+              Buffers: shared hit=46
+              ->  Bitmap Index Scan on posts_pkey  (cost=0.00..51.87 rows=20 width=0) (actual time=0.041..0.041 rows=20.00 loops=1)
+                    Index Cond: (id = ANY ('{f67e65a5-5c98-4132-ae82-ac3ba4a9d7f4,b7f3cb57-11a6-4e9e-9997-362a1caba90e,91c6d4df-d9f6-4e68-88d0-f6270620c7f5,eaac4827-7f2c-442f-be36-dba594238e80,6afb3932-b508-4201-9c6c-fae20a2be888,d19a06d2-7bdf-47b9-8158-4af7d16bf8da,f2c3b962-9b4a-469b-9708-2d3dadbb82f1,70406c3e-39e5-4e58-9921-bfb70aef43dc,d1270332-d78f-4d5d-ba92-eec993b3f43d,38a080bc-293e-4a68-a67c-d0015f5843a7,a088157c-b0d7-417e-a279-54723041e652,e9f46f9c-1c07-4fd1-b918-ede6e16712e0,a10239c6-0520-4a42-ac8f-806629d2ec8c,1af76e14-36eb-440b-adc2-a0f5b9f9709b,a5c54f3e-41d1-46ae-b744-66fdaa465e73,dc044f56-07ad-4674-890a-87ea573a2c4d,3d05e2ae-3f87-4041-9cbc-cb32016ca0ce,c0fc51b2-e7fe-4aa2-ae5a-593a183877a1,aa723bfe-b1e8-4408-8ed2-1c95bd7ed837,735358ce-69f6-487d-96eb-72b531eaea4e}'::uuid[]))
+                    Index Searches: 16
+                    Buffers: shared hit=32
+              SubPlan 2
+                ->  Seq Scan on follows  (cost=0.00..1.12 rows=10 width=16) (actual time=0.002..0.002 rows=10.00 loops=1)
+                      Filter: (follower_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                      Buffers: shared hit=1
+              SubPlan 3
+                ->  Seq Scan on post_media  (cost=0.00..0.00 rows=1 width=0) (never executed)
+                      Filter: (post_id = posts.id)
+              SubPlan 7
+                ->  Nested Loop Anti Join  (cost=0.28..10.53 rows=1 width=0) (never executed)
+                      Join Filter: (((blocks_1.blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) AND (blocks_1.blocked_id = recipes.author_id)) OR ((blocks_1.blocker_id = recipes.author_id) AND (blocks_1.blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)))
+                      ->  Index Scan using recipes_pkey on recipes  (cost=0.28..9.46 rows=1 width=16) (never executed)
+                            Index Cond: (id = posts.recipe_id)
+                            Filter: ((published_at IS NOT NULL) AND (deleted_at IS NULL) AND ((status)::text = 'published'::text) AND ((author_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (((status)::text = 'published'::text) AND (published_at IS NOT NULL) AND (((visibility)::text = 'public'::text) OR (((visibility)::text = 'followers'::text) AND (ANY (author_id = (hashed SubPlan 6).col1)))))))
+                            Index Searches: 0
+                            SubPlan 6
+                              ->  Seq Scan on follows follows_1  (cost=0.00..1.12 rows=10 width=16) (never executed)
+                                    Filter: (follower_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                      ->  Seq Scan on blocks blocks_1  (cost=0.00..1.03 rows=2 width=32) (never executed)
+                            Filter: ((blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid))
+              SubPlan 11
+                ->  Seq Scan on post_media post_media_1  (cost=0.00..0.00 rows=1 width=0) (never executed)
+                      Filter: (post_id = posts.id)
+              SubPlan 14
+                ->  Hash Join  (cost=7.50..308.39 rows=7615 width=16) (never executed)
+                      Hash Cond: (recipes_1.author_id = users_1.id)
+                      ->  Seq Scan on recipes recipes_1  (cost=0.00..280.00 rows=7725 width=32) (never executed)
+                            Filter: (deleted_at IS NULL)
+                      ->  Hash  (cost=5.76..5.76 rows=139 width=16) (never executed)
+                            ->  Seq Scan on users users_1  (cost=0.00..5.76 rows=139 width=16) (never executed)
+                                  Filter: ((status)::text <> ALL ('{banned,pending_delete}'::text[]))
+        ->  Materialize  (cost=0.00..1.04 rows=2 width=32) (actual time=0.000..0.000 rows=2.00 loops=14)
+              Storage: Memory  Maximum Storage: 17kB
+              Buffers: shared hit=1
+              ->  Seq Scan on blocks  (cost=0.00..1.03 rows=2 width=32) (actual time=0.001..0.002 rows=2.00 loops=1)
+                    Filter: ((blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid))
+                    Buffers: shared hit=1
+  ->  Hash  (cost=5.76..5.76 rows=139 width=16) (actual time=0.033..0.033 rows=139.00 loops=1)
+        Buckets: 1024  Batches: 1  Memory Usage: 15kB
+        Buffers: shared hit=4
+        ->  Seq Scan on users  (cost=0.00..5.76 rows=139 width=16) (actual time=0.005..0.020 rows=139.00 loops=1)
+              Filter: ((status)::text <> ALL ('{banned,pending_delete}'::text[]))
+              Rows Removed by Filter: 2
+              Buffers: shared hit=4
+Planning:
+  Buffers: shared hit=60
+Planning Time: 0.789 ms
+Execution Time: 0.165 ms
+
+====================================================================================================
+## Zapytanie 12 — parametrów: 5
+
+SQL:
+select "media".*, "post_media"."post_id" as "pivot_post_id", "post_media"."media_id" as "pivot_media_id", "post_media"."position" as "pivot_position" from "media" inner join "post_media" on "media"."id" = "post_media"."media_id" where "post_media"."post_id" in (?, ?, ?, ?, ?) order by "post_media"."position" asc
+
+PLAN:
+Sort  (cost=0.02..0.03 rows=1 width=1934) (actual time=0.005..0.006 rows=0.00 loops=1)
+  Sort Key: post_media."position"
+  Sort Method: quicksort  Memory: 25kB
+  ->  Nested Loop  (cost=0.00..0.01 rows=1 width=1934) (actual time=0.003..0.003 rows=0.00 loops=1)
+        Join Filter: (media.id = post_media.media_id)
+        ->  Seq Scan on media  (cost=0.00..0.00 rows=1 width=1900) (actual time=0.003..0.003 rows=0.00 loops=1)
+        ->  Seq Scan on post_media  (cost=0.00..0.00 rows=1 width=34) (never executed)
+              Filter: (post_id = ANY ('{6afb3932-b508-4201-9c6c-fae20a2be888,70406c3e-39e5-4e58-9921-bfb70aef43dc,91c6d4df-d9f6-4e68-88d0-f6270620c7f5,b7f3cb57-11a6-4e9e-9997-362a1caba90e,f2c3b962-9b4a-469b-9708-2d3dadbb82f1}'::uuid[]))
+Planning:
+  Buffers: shared hit=24
+Planning Time: 0.144 ms
+Execution Time: 0.017 ms
+
+====================================================================================================
+## Zapytanie 13 — parametrów: 5
+
+SQL:
+select * from "users" where "users"."id" in (?, ?, ?, ?, ?)
+
+PLAN:
+Seq Scan on users  (cost=0.00..6.29 rows=5 width=716) (actual time=0.006..0.020 rows=5.00 loops=1)
+  Filter: (id = ANY ('{01a0e81a-225a-711f-9b5e-7ceeb22d5448,01a0e81a-2266-7060-bd25-b0a6b9c391fa,01a0e81a-226e-7195-8f5b-878a578e58f2,01a0e81a-227d-7010-a853-06960286770b,01a0e81a-22b4-73aa-8852-f199c8eab426}'::uuid[]))
+  Rows Removed by Filter: 136
+  Buffers: shared hit=4
+Planning:
+  Buffers: shared hit=2
+Planning Time: 0.049 ms
+Execution Time: 0.027 ms
+
+====================================================================================================
+## Zapytanie 14 — parametrów: 5
+
+SQL:
+select * from "profiles" where "profiles"."user_id" in (?, ?, ?, ?, ?)
+
+PLAN:
+Seq Scan on profiles  (cost=0.00..5.29 rows=5 width=1045) (actual time=0.006..0.019 rows=5.00 loops=1)
+  Filter: (user_id = ANY ('{01a0e81a-225a-711f-9b5e-7ceeb22d5448,01a0e81a-2266-7060-bd25-b0a6b9c391fa,01a0e81a-226e-7195-8f5b-878a578e58f2,01a0e81a-227d-7010-a853-06960286770b,01a0e81a-22b4-73aa-8852-f199c8eab426}'::uuid[]))
+  Rows Removed by Filter: 136
+  Buffers: shared hit=3
+Planning:
+  Buffers: shared hit=1
+Planning Time: 0.035 ms
+Execution Time: 0.036 ms
+
+====================================================================================================
+## Zapytanie 15 — parametrów: 66
+
+SQL:
+select count(*) as "aggregate" from (select "notifications"."id" from "notifications" where "notifications"."user_id" = ? and "notifications"."user_id" is not null and not exists (select 1 from "blocks" where "notifications"."type" != ? and (("blocks"."blocker_id" = ? and "blocks"."blocked_id" = "notifications"."actor_id") or ("blocks"."blocker_id" = "notifications"."actor_id" and "blocks"."blocked_id" = ?))) and "notifications"."type" != ? and "notifications"."type" != ? and not exists (select 1 from "users" as "sprawcy" where "notifications"."type" != ? and "sprawcy"."id" = "notifications"."actor_id" and "sprawcy"."status" in (?, ?)) and ("notifications"."type" != ? or "notifications"."actor_id" is null or exists (select 1 from jsonb_array_elements_text(COALESCE(notifications.data->'savers', jsonb_build_array(notifications.actor_id))) AS zapisujacy_z_partii(id) inner join "users" as "zapisujacy" on "zapisujacy"."id" = zapisujacy_z_partii.id::uuid where "zapisujacy"."status" not in (?, ?) and not exists (select 1 from "blocks" where (("blocks"."blocker_id" = ? and "blocks"."blocked_id" = "zapisujacy"."id") or ("blocks"."blocker_id" = "zapisujacy"."id" and "blocks"."blocked_id" = ?))))) and ("notifications"."type" not in (?, ?) or exists (select 1 from "comments" as "pc" where pc.id = (notifications.data->>'comment_id')::uuid and "pc"."status" = ? and "pc"."deleted_at" is null and "pc"."body_removed_at" is null and ("pc"."parent_id" is null or exists (select 1 from "comments" as "kw" where "kw"."id" = "pc"."parent_id" and "kw"."parent_id" is null and kw.post_id is not distinct from pc.post_id and kw.recipe_id is not distinct from pc.recipe_id and kw.cooked_event_id is not distinct from pc.cooked_event_id and "kw"."status" = ? and "kw"."deleted_at" is null and not exists (select 1 from "users" as "autorzy_korzeni" where "autorzy_korzeni"."id" = "kw"."author_id" and "autorzy_korzeni"."status" in (?, ?)) and not exists (select 1 from "blocks" where ("blocks"."blocker_id" = ? and "blocks"."blocked_id" = "kw"."author_id") or ("blocks"."blocker_id" = "kw"."author_id" and "blocks"."blocked_id" = ?)))) and ((exists (select 1 from "posts" as "tw" where "tw"."kind" = ? and "tw"."id" = "pc"."post_id" and "tw"."deleted_at" is null and ("tw"."author_id" = ? or ("tw"."status" = ? and "tw"."published_at" is not null and not exists (select 1 from "users" as "autorzy_tresci" where "autorzy_tresci"."id" = "tw"."author_id" and "autorzy_tresci"."status" in (?, ?)) and not exists (select 1 from "blocks" where ("blocks"."blocker_id" = ? and "blocks"."blocked_id" = "tw"."author_id") or ("blocks"."blocker_id" = "tw"."author_id" and "blocks"."blocked_id" = ?)) and ("tw"."visibility" = ? or ("tw"."visibility" = ? and exists (select 1 from "follows" where "follows"."follower_id" = ? and "follows"."followed_id" = "tw"."author_id"))))) and ("tw"."recipe_id" is null or btrim(coalesce(tw.body, ''), E' \t\n\r\x0B') <> '' or exists (select 1 from "post_media" where "post_media"."post_id" = "tw"."id") or ("tw"."author_id" = ? and ("tw"."status" != ? or "tw"."published_at" is null)) or exists (select 1 from "recipes" as "przepis_zapowiedzi" where "przepis_zapowiedzi"."id" = "tw"."recipe_id" and "przepis_zapowiedzi"."deleted_at" is null and ("przepis_zapowiedzi"."author_id" = ? or ("przepis_zapowiedzi"."status" = ? and "przepis_zapowiedzi"."published_at" is not null and not exists (select 1 from "users" as "autorzy_tresci" where "autorzy_tresci"."id" = "przepis_zapowiedzi"."author_id" and "autorzy_tresci"."status" in (?, ?)) and not exists (select 1 from "blocks" where ("blocks"."blocker_id" = ? and "blocks"."blocked_id" = "przepis_zapowiedzi"."author_id") or ("blocks"."blocker_id" = "przepis_zapowiedzi"."author_id" and "blocks"."blocked_id" = ?)) and ("przepis_zapowiedzi"."visibility" = ? or ("przepis_zapowiedzi"."visibility" = ? and exists (select 1 from "follows" where "follows"."follower_id" = ? and "follows"."followed_id" = "przepis_zapowiedzi"."author_id"))))))))) or (exists (select 1 from "recipes" as "tw" where "tw"."id" = "pc"."recipe_id" and "tw"."deleted_at" is null and ("tw"."author_id" = ? or ("tw"."status" = ? and "tw"."published_at" is not null and not exists (select 1 from "users" as "autorzy_tresci" where "autorzy_tresci"."id" = "tw"."author_id" and "autorzy_tresci"."status" in (?, ?)) and not exists (select 1 from "blocks" where ("blocks"."blocker_id" = ? and "blocks"."blocked_id" = "tw"."author_id") or ("blocks"."blocker_id" = "tw"."author_id" and "blocks"."blocked_id" = ?)) and ("tw"."visibility" = ? or ("tw"."visibility" = ? and exists (select 1 from "follows" where "follows"."follower_id" = ? and "follows"."followed_id" = "tw"."author_id"))))))) or (exists (select 1 from "cooked_events" as "ce" where "ce"."id" = "pc"."cooked_event_id" and not exists (select 1 from "blocks" where ("blocks"."blocker_id" = ? and "blocks"."blocked_id" = "ce"."user_id") or ("blocks"."blocker_id" = "ce"."user_id" and "blocks"."blocked_id" = ?)) and ("ce"."user_id" = ? or not exists (select 1 from "users" as "kucharze" where "kucharze"."id" = "ce"."user_id" and "kucharze"."status" = ?)) and ("ce"."user_id" = ? or exists (select 1 from "recipes" as "tw" where "tw"."id" = "ce"."recipe_id" and "tw"."deleted_at" is null and ("tw"."author_id" = ? or ("tw"."status" = ? and "tw"."published_at" is not null and not exists (select 1 from "users" as "autorzy_tresci" where "autorzy_tresci"."id" = "tw"."author_id" and "autorzy_tresci"."status" in (?, ?)) and not exists (select 1 from "blocks" where ("blocks"."blocker_id" = ? and "blocks"."blocked_id" = "tw"."author_id") or ("blocks"."blocker_id" = "tw"."author_id" and "blocks"."blocked_id" = ?)) and ("tw"."visibility" = ? or ("tw"."visibility" = ? and exists (select 1 from "follows" where "follows"."follower_id" = ? and "follows"."followed_id" = "tw"."author_id")))))))))))) and "read_at" is null order by "created_at" desc, "id" desc limit 100) as "nieprzeczytane"
+
+PLAN:
+Aggregate  (cost=6.90..6.91 rows=1 width=8) (actual time=0.019..0.024 rows=1.00 loops=1)
+  ->  Limit  (cost=6.88..6.88 rows=1 width=24) (actual time=0.017..0.022 rows=0.00 loops=1)
+        ->  Sort  (cost=6.88..6.88 rows=1 width=24) (actual time=0.017..0.021 rows=0.00 loops=1)
+              Sort Key: notifications.created_at DESC, notifications.id DESC
+              Sort Method: quicksort  Memory: 25kB
+              ->  Nested Loop Anti Join  (cost=0.00..6.87 rows=1 width=24) (actual time=0.007..0.012 rows=0.00 loops=1)
+                    Join Filter: (((notifications.type)::text <> 'recipe.saved'::text) AND (sprawcy.id = notifications.actor_id))
+                    ->  Nested Loop Anti Join  (cost=0.00..1.07 rows=1 width=218) (actual time=0.007..0.012 rows=0.00 loops=1)
+                          Join Filter: (((notifications.type)::text <> 'recipe.saved'::text) AND (((blocks.blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) AND (blocks.blocked_id = notifications.actor_id)) OR ((blocks.blocker_id = notifications.actor_id) AND (blocks.blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid))))
+                          ->  Seq Scan on notifications  (cost=0.00..0.00 rows=1 width=218) (actual time=0.007..0.011 rows=0.00 loops=1)
+                                Filter: ((read_at IS NULL) AND ((type)::text <> 'appeal.filed'::text) AND ((type)::text <> 'post.first'::text) AND (((type)::text <> ALL ('{comment.created,comment.replied}'::text[])) OR EXISTS(SubPlan 85)) AND (user_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) AND (((type)::text <> 'recipe.saved'::text) OR (actor_id IS NULL) OR EXISTS(SubPlan 1)))
+                                SubPlan 85
+                                  ->  Seq Scan on comments pc  (cost=0.00..0.00 rows=1 width=0) (never executed)
+                                        Filter: ((deleted_at IS NULL) AND (body_removed_at IS NULL) AND ((status)::text = 'published'::text) AND (id = ((notifications.data ->> 'comment_id'::text))::uuid) AND ((parent_id IS NULL) OR EXISTS(SubPlan 2)) AND (EXISTS(SubPlan 22) OR EXISTS(SubPlan 48) OR (ANY (cooked_event_id = (hashed SubPlan 84).col1))))
+                                        SubPlan 2
+                                          ->  Nested Loop Anti Join  (cost=0.00..6.86 rows=1 width=0) (never executed)
+                                                Join Filter: (((blocks_2.blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) AND (blocks_2.blocked_id = kw.author_id)) OR ((blocks_2.blocker_id = kw.author_id) AND (blocks_2.blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)))
+                                                ->  Nested Loop Anti Join  (cost=0.00..5.79 rows=1 width=16) (never executed)
+                                                      Join Filter: (autorzy_korzeni.id = kw.author_id)
+                                                      ->  Seq Scan on comments kw  (cost=0.00..0.00 rows=1 width=16) (never executed)
+                                                            Filter: ((parent_id IS NULL) AND (deleted_at IS NULL) AND (NOT (post_id IS DISTINCT FROM pc.post_id)) AND (NOT (recipe_id IS DISTINCT FROM pc.recipe_id)) AND (NOT (cooked_event_id IS DISTINCT FROM pc.cooked_event_id)) AND (id = pc.parent_id) AND ((status)::text = 'published'::text))
+                                                      ->  Seq Scan on users autorzy_korzeni  (cost=0.00..5.76 rows=2 width=16) (never executed)
+                                                            Filter: ((status)::text = ANY ('{banned,pending_delete}'::text[]))
+                                                ->  Seq Scan on blocks blocks_2  (cost=0.00..1.03 rows=2 width=32) (never executed)
+                                                      Filter: ((blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid))
+                                        SubPlan 22
+                                          ->  Index Scan using posts_pkey on posts tw  (cost=0.28..33.24 rows=1 width=0) (never executed)
+                                                Index Cond: (id = pc.post_id)
+                                                Filter: ((deleted_at IS NULL) AND ((kind)::text = 'dish'::text) AND ((author_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (((status)::text = 'published'::text) AND (published_at IS NOT NULL) AND (NOT (ANY (author_id = (hashed SubPlan 4).col1))) AND (NOT EXISTS(SubPlan 5)) AND (((visibility)::text = 'public'::text) OR (((visibility)::text = 'followers'::text) AND (ANY (author_id = (hashed SubPlan 7).col1)))))) AND ((recipe_id IS NULL) OR (btrim((COALESCE(body, ''::character varying))::text, ' 	
+'::text) <> ''::text) OR EXISTS(SubPlan 8) OR ((author_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) AND (((status)::text <> 'published'::text) OR (published_at IS NULL))) OR EXISTS(SubPlan 15)))
+                                                Index Searches: 0
+                                                SubPlan 4
+                                                  ->  Seq Scan on users autorzy_tresci  (cost=0.00..5.76 rows=2 width=16) (never executed)
+                                                        Filter: ((status)::text = ANY ('{banned,pending_delete}'::text[]))
+                                                SubPlan 5
+                                                  ->  Seq Scan on blocks blocks_3  (cost=0.00..1.04 rows=1 width=0) (never executed)
+                                                        Filter: (((blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) AND (blocked_id = tw.author_id)) OR ((blocker_id = tw.author_id) AND (blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)))
+                                                SubPlan 7
+                                                  ->  Seq Scan on follows  (cost=0.00..1.12 rows=10 width=16) (never executed)
+                                                        Filter: (follower_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                                                SubPlan 8
+                                                  ->  Seq Scan on post_media  (cost=0.00..0.00 rows=1 width=0) (never executed)
+                                                        Filter: (post_id = tw.id)
+                                                SubPlan 15
+                                                  ->  Index Scan using recipes_pkey on recipes przepis_zapowiedzi  (cost=0.28..16.61 rows=1 width=0) (never executed)
+                                                        Index Cond: (id = tw.recipe_id)
+                                                        Filter: ((deleted_at IS NULL) AND ((author_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (((status)::text = 'published'::text) AND (published_at IS NOT NULL) AND (NOT (ANY (author_id = (hashed SubPlan 11).col1))) AND (NOT EXISTS(SubPlan 12)) AND (((visibility)::text = 'public'::text) OR (((visibility)::text = 'followers'::text) AND (ANY (author_id = (hashed SubPlan 14).col1)))))))
+                                                        Index Searches: 0
+                                                        SubPlan 11
+                                                          ->  Seq Scan on users autorzy_tresci_1  (cost=0.00..5.76 rows=2 width=16) (never executed)
+                                                                Filter: ((status)::text = ANY ('{banned,pending_delete}'::text[]))
+                                                        SubPlan 12
+                                                          ->  Seq Scan on blocks blocks_4  (cost=0.00..1.04 rows=1 width=0) (never executed)
+                                                                Filter: (((blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) AND (blocked_id = przepis_zapowiedzi.author_id)) OR ((blocker_id = przepis_zapowiedzi.author_id) AND (blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)))
+                                                        SubPlan 14
+                                                          ->  Seq Scan on follows follows_1  (cost=0.00..1.12 rows=10 width=16) (never executed)
+                                                                Filter: (follower_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                                        SubPlan 48
+                                          ->  Index Scan using recipes_pkey on recipes tw_1  (cost=0.28..16.61 rows=1 width=0) (never executed)
+                                                Index Cond: (id = pc.recipe_id)
+                                                Filter: ((deleted_at IS NULL) AND ((author_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (((status)::text = 'published'::text) AND (published_at IS NOT NULL) AND (NOT (ANY (author_id = (hashed SubPlan 44).col1))) AND (NOT EXISTS(SubPlan 45)) AND (((visibility)::text = 'public'::text) OR (((visibility)::text = 'followers'::text) AND (ANY (author_id = (hashed SubPlan 47).col1)))))))
+                                                Index Searches: 0
+                                                SubPlan 44
+                                                  ->  Seq Scan on users autorzy_tresci_2  (cost=0.00..5.76 rows=2 width=16) (never executed)
+                                                        Filter: ((status)::text = ANY ('{banned,pending_delete}'::text[]))
+                                                SubPlan 45
+                                                  ->  Seq Scan on blocks blocks_5  (cost=0.00..1.04 rows=1 width=0) (never executed)
+                                                        Filter: (((blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) AND (blocked_id = tw_1.author_id)) OR ((blocker_id = tw_1.author_id) AND (blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)))
+                                                SubPlan 47
+                                                  ->  Seq Scan on follows follows_2  (cost=0.00..1.12 rows=10 width=16) (never executed)
+                                                        Filter: (follower_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                                        SubPlan 84
+                                          ->  Nested Loop Anti Join  (cost=0.00..1.07 rows=1 width=16) (never executed)
+                                                Join Filter: (((blocks_7.blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) AND (blocks_7.blocked_id = ce.user_id)) OR ((blocks_7.blocker_id = ce.user_id) AND (blocks_7.blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)))
+                                                ->  Seq Scan on cooked_events ce  (cost=0.00..0.00 rows=1 width=32) (never executed)
+                                                      Filter: (((user_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (NOT (ANY (user_id = (hashed SubPlan 71).col1)))) AND ((user_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR EXISTS(SubPlan 77)))
+                                                      SubPlan 71
+                                                        ->  Seq Scan on users kucharze  (cost=0.00..5.76 rows=1 width=16) (never executed)
+                                                              Filter: ((status)::text = 'pending_delete'::text)
+                                                      SubPlan 77
+                                                        ->  Index Scan using recipes_pkey on recipes tw_2  (cost=0.28..16.61 rows=1 width=0) (never executed)
+                                                              Index Cond: (id = ce.recipe_id)
+                                                              Filter: ((deleted_at IS NULL) AND ((author_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (((status)::text = 'published'::text) AND (published_at IS NOT NULL) AND (NOT (ANY (author_id = (hashed SubPlan 73).col1))) AND (NOT EXISTS(SubPlan 74)) AND (((visibility)::text = 'public'::text) OR (((visibility)::text = 'followers'::text) AND (ANY (author_id = (hashed SubPlan 76).col1)))))))
+                                                              Index Searches: 0
+                                                              SubPlan 73
+                                                                ->  Seq Scan on users autorzy_tresci_3  (cost=0.00..5.76 rows=2 width=16) (never executed)
+                                                                      Filter: ((status)::text = ANY ('{banned,pending_delete}'::text[]))
+                                                              SubPlan 74
+                                                                ->  Seq Scan on blocks blocks_6  (cost=0.00..1.04 rows=1 width=0) (never executed)
+                                                                      Filter: (((blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) AND (blocked_id = tw_2.author_id)) OR ((blocker_id = tw_2.author_id) AND (blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)))
+                                                              SubPlan 76
+                                                                ->  Seq Scan on follows follows_3  (cost=0.00..1.12 rows=10 width=16) (never executed)
+                                                                      Filter: (follower_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)
+                                                ->  Seq Scan on blocks blocks_7  (cost=0.00..1.03 rows=2 width=32) (never executed)
+                                                      Filter: ((blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid))
+                                SubPlan 1
+                                  ->  Nested Loop Anti Join  (cost=0.16..47.23 rows=98 width=0) (never executed)
+                                        Join Filter: (((blocks_1.blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) AND (blocks_1.blocked_id = zapisujacy.id)) OR ((blocks_1.blocker_id = zapisujacy.id) AND (blocks_1.blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid)))
+                                        ->  Nested Loop  (cost=0.16..41.75 rows=99 width=16) (never executed)
+                                              ->  Function Scan on jsonb_array_elements_text zapisujacy_z_partii  (cost=0.01..1.01 rows=100 width=32) (never executed)
+                                              ->  Index Scan using users_pkey on users zapisujacy  (cost=0.15..0.41 rows=1 width=16) (never executed)
+                                                    Index Cond: (id = (zapisujacy_z_partii.id)::uuid)
+                                                    Filter: ((status)::text <> ALL ('{banned,pending_delete}'::text[]))
+                                                    Index Searches: 0
+                                        ->  Materialize  (cost=0.00..1.04 rows=2 width=32) (never executed)
+                                              ->  Seq Scan on blocks blocks_1  (cost=0.00..1.03 rows=2 width=32) (never executed)
+                                                    Filter: ((blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid))
+                          ->  Seq Scan on blocks  (cost=0.00..1.03 rows=2 width=32) (never executed)
+                                Filter: ((blocker_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid) OR (blocked_id = '01a0e81a-220f-7369-bfda-0994f5b4ecfc'::uuid))
+                    ->  Seq Scan on users sprawcy  (cost=0.00..5.76 rows=2 width=16) (never executed)
+                          Filter: ((status)::text = ANY ('{banned,pending_delete}'::text[]))
+Planning:
+  Buffers: shared hit=321 read=3
+Planning Time: 4.797 ms
+Execution Time: 0.949 ms
+

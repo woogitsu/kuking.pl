@@ -31,6 +31,27 @@
             <input type="hidden" name="klucz_wyslania" value="{{ $kluczWyslania }}">
         @endif
 
+        {{-- KTO TO ZOBACZY — PRZED PIERWSZYM POLEM, NIE DOPIERO PRZY „WYŚLIJ" (#2071).
+
+             Wykonanie nie ma własnej widoczności: `CookedEventPolicy::view()`
+             oddaje decyzję `RecipePolicy::view()` dla powiązanego przepisu
+             (blokada z kucharzem i konto kucharza mogą ją tylko zawęzić —
+             stąd „mogą zobaczyć”, a nie „zobaczą”). Zdanie mówi więc
+             o odbiorcach przepisu, a nie o „autorze", i nie udaje wyboru
+             prywatności, którego ten formularz nie ma. Moderatorów wymienia
+             wprost (przegląd PR #2156): `CookedEventPolicy` wpuszcza ich
+             z urzędu także do wykonania przepisu prywatnego, którego
+             `RecipePolicy::view()` im nie pokazuje.
+
+             Stoi nad zdjęciem i notatką, bo formularz wypełnia się z góry na
+             dół: informacja pod ostatnim polem przychodziła, gdy osobista
+             uwaga była już napisana. Zgodność zdania z Policy dla każdej
+             widoczności przepisu pilnuje `KomunikatUgotowalemMowiPrawdeTest`. --}}
+        <p class="notice">
+            <strong>Kto to zobaczy?</strong>
+            Twoje wykonanie, zdjęcia i odpowiedzi mogą zobaczyć osoby, które mogą zobaczyć ten przepis. Dostęp do nich mogą mieć także moderatorzy Kuking.
+        </p>
+
         {{-- Ten sam obszar wyboru zdjęcia co na „Dodaj zdjęcie" i w formularzu
              przepisu (`.pole-zdjecia`, resources/css/ekran-dodawania.css).
              Do tej zmiany stał tu goły `<input type="file">` z angielskim
@@ -145,11 +166,6 @@
             </div>
             <x-blad-grupy name="perceived_difficulty" />
         </fieldset>
-
-        <p class="notice">
-            <strong>Kto to zobaczy?</strong>
-            Twoje wykonanie, zdjęcia i odpowiedzi zobaczą osoby, które mogą zobaczyć ten przepis.
-        </p>
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Wyślij</button>

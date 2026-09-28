@@ -187,7 +187,7 @@ Mapowanie na kolumny (żeby implementacja była jednoznaczna):
 | `image` | `media` powiązane przez `recipes.hero_media_id` + warianty z `MEDIA_PIPELINE.md` |
 | `author.name`, `author.url` | `profiles.display_name`, `profiles.username` autora (`recipes.author_id`) |
 | `datePublished` | `recipes.published_at` |
-| `dateModified` | `recipes.updated_at` (albo `MAX(recipe_versions.created_at)`) |
+| `dateModified` | `recipes.tresc_zmieniona_at` — tylko gdy nie jest `NULL` i nie jest wcześniejsza niż `published_at` (niżej, #2014) |
 | `description` | `recipes.summary` |
 | `prepTime`, `cookTime` | `ISO8601(recipes.prep_minutes)`, `ISO8601(recipes.cook_minutes)` — konwersja `PT{n}M` |
 | `totalTime` | `ISO8601(prep_minutes + cook_minutes)` |
@@ -195,6 +195,35 @@ Mapowanie na kolumny (żeby implementacja była jednoznaczna):
 | `recipeIngredient` | `recipe_ingredients` posortowane po `position`, sformatowane `quantity unit ingredient_text` |
 | `recipeInstructions[].text` | `recipe_steps.instruction` posortowane po `position` |
 | `recipeInstructions[].image` | `recipe_steps.media_id` jeśli ustawione |
+
+**`dateModified` — skąd data i kiedy ją podajemy (#2014).** Pole jest
+w Google tylko zalecane, a data niezgodna z treścią strony jest gorsza niż
+brak daty (`sd-policies`, sekcja 2). Dlatego nie bierzemy ani
+`recipes.updated_at`, ani `MAX(recipe_versions.created_at)`:
+
+- `updated_at` przesuwa każdy zapis wiersza: ukrycie i przywrócenie przez
+  moderację (`RozstrzygnijZgloszenie`, `RestoreContent`), zmianę widoczności
+  i zapis bez żadnej zmiany (`PublishRecipe` zawsze podbija `content_revision`);
+- wersja powstaje przy każdym „Zapisz” z publikacją, także bez zmiany,
+  a autozapis kreatora zmienia opublikowaną treść bez wersji (#1316).
+  Migawka wersji nie obejmuje też zdjęć.
+
+Źródłem jest osobna kolumna `recipes.tresc_zmieniona_at`, którą ustawia
+wyłącznie `PublishRecipe` (poza `$fillable`):
+
+- przy pierwszej publikacji — dokładnie `published_at`;
+- później — czas zapisu, ale TYLKO gdy odcisk treści
+  (`App\Domain\Recipes\TrescPrzepisu`: pola przepisu, składniki, kroki,
+  zdjęcie główne, skan źródła i zdjęcia kroków) różni się od stanu sprzed
+  zapisu; dotyczy to też autozapisu i „Zapisz zmiany”;
+- moderacja, widoczność i zapis bez zmian jej nie ruszają.
+
+Emisja: tylko w bloku `Recipe`, czyli dla przepisu publicznego
+i opublikowanego z gotowym zdjęciem; tylko gdy kolumna nie jest `NULL`
+(przepisy sprzed kolumny jej nie mają — bez backfillu, bo zgadnięta data
+byłaby nieprawdą) i nie jest wcześniejsza niż `published_at`. Format jak
+`datePublished` (data `RRRR-MM-DD`). Pilnuje
+`tests/Feature/RecipeJsonLdBezNiepewnejDatyModyfikacjiTest.php`.
 
 **`aggregateRating` — uczciwa dyskusja.** Google wymaga, żeby `aggregateRating` **odzwierciedlał prawdziwe, zebrane oceny** i wprost zabrania samodzielnie ustalanych/"self-serving" ocen (np. sztywnego „4.8” wpisanego przez właściciela strony). Ma też wymagane pola `ratingValue`, `ratingCount`/`reviewCount` i typowo skalę 1–5 (`bestRating`/`worstRating`).
 

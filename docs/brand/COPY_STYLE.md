@@ -524,7 +524,7 @@ wyjątkach jest prawidłowy, a wcześniejsze powiadomienie może już nie istnie
 | puste archiwum, własne | Twoje archiwum jest jeszcze puste |
 | + wyjaśnienie | Od pierwszego zdjęcia zaczyna się Twoje archiwum. Za rok zobaczysz tu, co gotujesz dzisiaj. |
 | brak powiadomień | Nie ma jeszcze żadnych powiadomień |
-| + wyjaśnienie | Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących oraz ważnych sprawach dotyczących Twojego konta. |
+| + wyjaśnienie | Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących, urodzinach obserwowanych osób oraz ważnych sprawach Twojego konta. |
 | brak wyników szukania | Nic nie znaleźliśmy |
 | + wyjaśnienie | Nie ma jeszcze przepisu, który by pasował do „{fraza}". Może to Ty go dodasz? |
 | brak wyników szukania, zakres „Wszystko” (przepisy i ludzie, #944) | Nic nie znaleźliśmy |

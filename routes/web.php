@@ -106,7 +106,11 @@ $limits = config('kuking.limits');
 // Publiczne
 // --------------------------------------------------------------------------
 
-Route::get('/', [FeedController::class, 'landing'])->name('landing');
+// Limiter strony głównej (issue #1952): gość dostaje tu to samo zapytanie
+// co na `/odkryj` — uzasadnienie progu przy `limits.landing`.
+Route::get('/', [FeedController::class, 'landing'])
+    ->middleware("throttle:{$limits['landing']},landing")
+    ->name('landing');
 Route::get('/otworz-link', ExternalLinkController::class)->middleware("throttle:{$limits['external_link']},external_link")->name('links.external');
 // Limiter per adres IP gościa (issue #1952): zapytanie liczy row_number()
 // na wszystkich publicznych wpisach przed odcięciem strony — patrz

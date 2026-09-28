@@ -121,6 +121,8 @@ class Recipe extends Model
         return [
             'content_revision' => 'integer',
             'published_at' => 'datetime',
+            // Ustawia wyłącznie `PublishRecipe` (#2014) — poza `$fillable`.
+            'tresc_zmieniona_at' => 'datetime',
             'servings' => 'float',
             'estimated_cost_pln' => 'float',
             'prep_minutes' => 'integer',

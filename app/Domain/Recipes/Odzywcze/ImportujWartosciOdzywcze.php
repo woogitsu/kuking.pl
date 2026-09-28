@@ -84,6 +84,12 @@ final class ImportujWartosciOdzywcze
         $skladniki = $this->czytajCsv($sciezkaSkladnikow, self::KOLUMNY_SKLADNIKOW);
         $miary = $this->czytajCsv($sciezkaMiar, self::KOLUMNY_MIAR);
 
+        // Plik ucięty do samego nagłówka jest poprawnym CSV, ale import
+        // skasowałby cały słownik (usuwa wszystko, czego nie ma w pliku).
+        if ($skladniki === [] || $miary === []) {
+            throw new BladDlaCzlowieka('skladniki.csv i miary.csv muszą mieć co najmniej jeden wiersz z danymi — plik wygląda na ucięty, a słownik został bez zmian. Przywróć oba pliki z repozytorium (git checkout -- database/data/odzywcze) i uruchom komendę ponownie.');
+        }
+
         [$pozycje, $aliasy] = $this->sprawdzSkladniki($skladniki);
         $miaryDoZapisu = $this->sprawdzMiary($miary, $pozycje);
 

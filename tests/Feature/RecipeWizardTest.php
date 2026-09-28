@@ -114,6 +114,18 @@ class RecipeWizardTest extends TestCase
         $this->assertSame('Wymieszać wszystko.', $recipe->steps->first()->instruction);
     }
 
+    public function test_podglad_bez_skladnikow_pokazuje_neutralna_informacje_a_nie_blad(): void
+    {
+        Livewire::actingAs($this->user('pustepodglad'))
+            ->test(self::COMPONENT)
+            ->set('title', 'Przepis z późniejszymi składnikami')
+            ->set('steps.0.instruction', 'Wymieszać.')
+            ->set('step', 4)
+            ->assertSeeHtml('<p class="meta">Nie dodano jeszcze składników. Możesz dopisać je później.</p>')
+            ->assertDontSee('Wróć do kroku 2 i dopisz przynajmniej jeden.')
+            ->assertHasNoErrors();
+    }
+
     public function test_publikacja_bez_krokow_nie_kasuje_wpisanych_danych(): void
     {
         $basia = $this->user('basia');

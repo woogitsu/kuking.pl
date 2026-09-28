@@ -449,6 +449,10 @@ Nigdy:
 - hardcoded hasło administratora,
 - `status` ani `role` użytkownika w `$fillable` — zmiana stanu konta jest
   zawsze jawną, nazwaną metodą (`suspend()`, `ban()`, `markForDeletion()`).
+- `kind` wpisu (`posts.kind`) w `$fillable` — to trzecie pole sterujące, tej
+  samej rodziny co `status` i `role` (D-006): rozstrzyga, czy wpis jest daniem,
+  czy pytaniem, więc też o strumieniach, adresie i Policy. Zmienia je wyłącznie
+  nazwana metoda `Post::oznaczJakoPytanie()`.
 - **żadnego POŚWIADCZENIA w `$fillable`, w żadnej tabeli** — `password`,
   `remember_token`, `two_factor_*`, każde `*_token`, `*_secret`, `*_token_hash`.
   Kto zapisze taką kolumnę, ten wchodzi na konto bez znajomości hasła.

@@ -638,7 +638,8 @@ class TekstyMowiaPrawdeTest extends TestCase
 
         $zacheta = $this->elementZLinkiem(
             $this->get(route('posts.show', $wpis))->assertOk()->getContent(),
-            route('register'),
+            // Link niesie powrót do tej rozmowy (#2027).
+            route('register', ['comment_on' => 'post:'.$wpis->getKey()]),
             'p[contains(@class, "notice")]',
         );
 

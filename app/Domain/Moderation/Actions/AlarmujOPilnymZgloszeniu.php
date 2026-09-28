@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Domain\Moderation\Actions;
 
+use App\Domain\Moderation\HumanUrgentAlarmAttempt;
 use App\Domain\Moderation\PriorytetSprawy;
 use App\Domain\Security\DziennyBudzetListow;
 use App\Models\Report;
 use App\Notifications\PilneZgloszenieOdCzlowieka;
+use App\Poczta\PowodOdmowy;
 use Illuminate\Queue\DatabaseQueue;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -109,6 +112,7 @@ final class AlarmujOPilnymZgloszeniu
 
                 $kluczCelu = self::kluczCelu($swieze);
                 $okno = max(1, (int) config('kuking.moderation.alarm_czlowieka.okno_celu_godzin', 6));
+                self::zablokujCel($kluczCelu);
 
                 if (Cache::add($kluczCelu, (string) $swieze->getKey(), now()->addHours($okno)) !== true) {
                     // Inne zgłoszenie tego celu już obudziło moderatora. Powrót
@@ -138,9 +142,11 @@ final class AlarmujOPilnymZgloszeniu
                 // Database cache, budżet i database queue zapisują do tej samej
                 // transakcji. Wyjątek po INSERT do jobs cofa także blokadę celu
                 // i oba liczniki; niepewny wynik COMMIT rozstrzyga stan bazy.
+                $probaId = HumanUrgentAlarmAttempt::create((string) $swieze->getKey());
                 Notification::route('mail', $adres)->notify(new PilneZgloszenieOdCzlowieka(
                     $swieze,
                     ostatniDzis: $budzet->zostalo() === 0,
+                    probaId: $probaId,
                 ));
                 $swieze->forceFill(['alarm_czlowieka_obsluzony_at' => now()])->save();
 
@@ -151,6 +157,94 @@ final class AlarmujOPilnymZgloszeniu
 
             return false;
         }
+    }
+
+    /** Ponowienie wyłącznie potwierdzonej odmowy dostawcy, bez zgadywania po timeout. */
+    public function recover(Report $zgloszenie): bool
+    {
+        $adres = config('kuking.moderation.model.alarm_email');
+        if (! is_string($adres) || $adres === '') {
+            return false;
+        }
+
+        try {
+            $this->sprawdzWspolnaBaze();
+
+            return DB::transaction(function () use ($zgloszenie, $adres): bool {
+                $swieze = Report::query()->whereKey($zgloszenie->getKey())->lockForUpdate()->first();
+                if ($swieze === null || ! $swieze->isOpen()
+                    || $swieze->source === Report::SOURCE_AUTOMAT
+                    || $swieze->created_at->lt(now()->subHours(72))
+                    || PriorytetSprawy::dla($swieze) !== PilneZgloszenieOdCzlowieka::prog()) {
+                    return false;
+                }
+
+                $poprzednia = DB::table('human_urgent_alarm_attempts')
+                    ->where('report_id', $swieze->getKey())
+                    ->orderByDesc('queued_at')
+                    ->orderByDesc('id')
+                    ->first();
+                if ($poprzednia === null || $poprzednia->state !== HumanUrgentAlarmAttempt::REJECTED) {
+                    return false;
+                }
+                if ($poprzednia->failure_kind === PowodOdmowy::LIMIT_DOBOWY->value
+                    && Carbon::parse($poprzednia->failed_at ?? $poprzednia->queued_at)->utc()->isSameDay(now('UTC'))) {
+                    return false;
+                }
+                if (! in_array($poprzednia->failure_kind, [PowodOdmowy::PRZEJSCIOWA->value, PowodOdmowy::LIMIT_DOBOWY->value], true)) {
+                    return false;
+                }
+
+                $kluczCelu = self::kluczCelu($swieze);
+                self::zablokujCel($kluczCelu);
+                $wlasciciel = Cache::get($kluczCelu);
+                $nowyKlucz = false;
+                if ($wlasciciel === null) {
+                    $okno = max(1, (int) config('kuking.moderation.alarm_czlowieka.okno_celu_godzin', 6));
+                    if (Cache::add($kluczCelu, (string) $swieze->getKey(), now()->addHours($okno)) !== true) {
+                        return false;
+                    }
+                    $nowyKlucz = true;
+                } elseif ((string) $wlasciciel !== (string) $swieze->getKey()) {
+                    return false;
+                }
+
+                $budzet = DziennyBudzetListow::dlaAlarmuModeracji();
+                if (! $budzet->sprobujZarezerwowac()) {
+                    if ($nowyKlucz) {
+                        Cache::forget($kluczCelu);
+                    }
+
+                    return false;
+                }
+
+                if (! $nowyKlucz) {
+                    $okno = max(1, (int) config('kuking.moderation.alarm_czlowieka.okno_celu_godzin', 6));
+                    Cache::put($kluczCelu, (string) $swieze->getKey(), now()->addHours($okno));
+                }
+
+                DB::table('human_urgent_alarm_attempts')->where('id', $poprzednia->id)
+                    ->update(['state' => HumanUrgentAlarmAttempt::RETRIED, 'retried_at' => now()]);
+                $probaId = HumanUrgentAlarmAttempt::create((string) $swieze->getKey());
+                Notification::route('mail', $adres)->notify(new PilneZgloszenieOdCzlowieka(
+                    $swieze,
+                    ostatniDzis: $budzet->zostalo() === 0,
+                    probaId: $probaId,
+                ));
+
+                return true;
+            });
+        } catch (Throwable $awaria) {
+            report($awaria);
+
+            return false;
+        }
+    }
+
+    /** Jeden zamek także między różnymi zgłoszeniami tego samego celu. */
+    private static function zablokujCel(string $klucz): void
+    {
+        DB::select('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [$klucz]);
     }
 
     private function sprawdzWspolnaBaze(): void

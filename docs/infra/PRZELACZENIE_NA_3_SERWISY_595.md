@@ -129,7 +129,13 @@ Jedna z dwóch dróg, **nie obie**:
 
 Co się dzieje: `kuking.pl` wdraża się ponownie w roli `web` (migracje
 w pre-deploy, healthcheck `/health`), `worker` i `scheduler` budują ten sam
-obraz i startują. Przez okno drenowania (`drainingSeconds`; faktyczną
+obraz i startują — ale **przed startem procesu czekają na migracje web**
+(`czekaj_na_migracje` w `docker/entrypoint.sh`, #2044; limit 900 s, potem
+kod 1 — szczegóły i zmienne w `docs/DEPLOYMENT.md`, „Migrations”). W ich
+logach do czasu końca migracji widać `czekam na migracje serwisu web`, potem
+`schemat bazy jest aktualny … — startuję`. Nic w panelu nie trzeba zmieniać:
+komendy startowe `…kuking-entrypoint worker` i `… scheduler` są już w pliku.
+Przez okno drenowania (`drainingSeconds`; faktyczną
 wartość odczytaj w panelu — docs/DEPLOYMENT.md, sekcja „Kolejki”)
 stary kontener `all` może jeszcze
 wykonywać kolejkę i harmonogram równolegle z nowymi serwisami — to jest
@@ -140,7 +146,11 @@ wiersza. Zdjęcia przez chwilę mogą czekać w kolejce — nie giną.
 ## Krok 4 — weryfikacja (w ciągu 15 minut)
 
 1. Panel: trzy serwisy aplikacji **Active**, to samo SHA co `main`.
-2. Logi, pierwsza linia entrypointu każdego serwisu:
+2. Logi **workera** i **schedulera**: `schemat bazy jest aktualny` przed
+   `start queue:work` / `start harmonogramu`. Jeśli zamiast tego jest `nie
+   startuję na starym schemacie` — migracja web się nie udała; napraw ją,
+   nie obchodź bramki (`MIGRACJE_BRAMKA=0` tylko awaryjnie).
+   Logi, pierwsza linia entrypointu każdego serwisu:
    `[entrypoint] rola=web …`, `rola=worker …`, `rola=scheduler …`. **Nie może** być
    `tryb ALL`. Worker: `start queue:work …`; scheduler:
    `start harmonogramu …`.

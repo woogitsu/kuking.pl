@@ -172,6 +172,8 @@ zdjecia/
 dane.json
     Ten sam zestaw danych w formacie dla programów. Przydaje się,
     jeśli zechcesz przenieść swoje przepisy do innego serwisu.
+    Przy każdym przepisie zapisuje też Twój wybór, czy pokazywać
+    szacunkowe wartości odżywcze.
     Nie musisz go otwierać — dla człowieka jest index.html.
 
 CZYTAJ-TO-NAJPIERW.txt
