@@ -3,7 +3,9 @@
     <x-slot:naglowek><h1>Zaloguj się</h1></x-slot:naglowek>
     <x-slot:uzupelnienie>
         <x-wejscia-zewnetrzne />
-        {{-- Równorzędna droga bez hasła pozostaje widoczna obok formularza. --}}
+    </x-slot:uzupelnienie>
+    <x-slot:poFormularzu>
+        {{-- Na wąskim ekranie pomoc jest po formularzu w DOM; na desktopie po lewej. --}}
         @if(config('kuking.login_link.wlaczone'))
             <div class="sekcja-strony">
                 <h2>Nie pamiętasz hasła? Nie musisz go wpisywać</h2>
@@ -20,7 +22,7 @@
         <p>Nie masz konta? <a href="{{ route('register') }}">Załóż konto</a>.</p>
         <p>Twoje konto zostało zablokowane albo zawieszone i uważasz, że to pomyłka?
             <a href="{{ route('appeals.guest') }}">Złóż odwołanie</a>.</p>
-    </x-slot:uzupelnienie>
+    </x-slot:poFormularzu>
     <x-error-summary />
 
     <form class="panel-formularza" method="POST" action="{{ route('login') }}">

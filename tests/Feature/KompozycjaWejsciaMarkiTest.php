@@ -36,12 +36,16 @@ class KompozycjaWejsciaMarkiTest extends TestCase
                 $this->assertSame(1, $dom->query('.//input[@name="'.$name.'"]', $form->item(0))->length, $route.': '.$name);
             }
             $this->assertSame(0, $dom->query('.//form//form', $card->item(0))->length);
+            $followup = $dom->query('following-sibling::*[contains(@class,"marka-wejscie-po-formularzu")]', $card->item(0));
+            $this->assertSame(1, $followup->length);
+            $this->assertNotSame(0, $form->item(0)->compareDocumentPosition($followup->item(0)) & \DOMNode::DOCUMENT_POSITION_FOLLOWING);
             $alternate = $route === 'login' ? 'register' : 'login';
-            $this->assertSame(1, $dom->query('.//a[@href="'.route($alternate).'"]', $aside->item(0))->length);
+            $this->assertSame(1, $dom->query('.//a[@href="'.route($alternate).'"]', $followup->item(0))->length);
             if ($route === 'login') {
                 $this->assertSame(1, $dom->query('.//a[@href="'.route('password.request').'"]', $card->item(0))->length);
                 if (config('kuking.login_link.wlaczone')) {
-                    $this->assertSame(1, $dom->query('.//a[@href="'.route('login.link').'"]', $aside->item(0))->length);
+                    $this->assertSame(1, $dom->query('.//a[@href="'.route('login.link').'"]', $followup->item(0))->length);
+                    $this->assertSame(1, $dom->query('.//div[contains(@class,"sekcja-strony")][.//a[@href="'.route('login.link').'"]]', $followup->item(0))->length);
                 }
             }
         }

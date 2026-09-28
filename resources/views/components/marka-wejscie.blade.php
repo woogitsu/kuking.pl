@@ -12,4 +12,7 @@
     <div class="marka-wejscie-karta">
         {{ $slot }}
     </div>
+    @isset($poFormularzu)
+        <div class="marka-wejscie-po-formularzu">{{ $poFormularzu }}</div>
+    @endisset
 </div>

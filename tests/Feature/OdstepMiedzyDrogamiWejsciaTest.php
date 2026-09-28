@@ -287,6 +287,15 @@ class OdstepMiedzyDrogamiWejsciaTest extends TestCase
         $this->assertSame(2, $wejscia->length, 'Obie drogi dostawców muszą pozostać widoczne w lewej kolumnie.');
         $this->assertNotSame(0, $naglowek->item(0)->compareDocumentPosition($wejscia->item(0)) & \DOMNode::DOCUMENT_POSITION_FOLLOWING);
         $this->assertNotSame(0, $naglowek->item(0)->compareDocumentPosition($zaproszenie->item(0)) & \DOMNode::DOCUMENT_POSITION_FOLLOWING);
+        $ostrzezenie = $xpath->query('.//div[contains(@class,"sekcja-strony")]/p[not(@class)][1]', $zaproszenie->item(0));
+        $this->assertSame(1, $ostrzezenie->length);
+        $this->assertStringContainsString('Przeniesiemy Cię', $ostrzezenie->item(0)->textContent);
+        $this->assertStringContainsString('wrócisz do Kuking', $ostrzezenie->item(0)->textContent);
+        $this->assertNotSame(0, $ostrzezenie->item(0)->compareDocumentPosition($wejscia->item(0)) & \DOMNode::DOCUMENT_POSITION_FOLLOWING);
+        $dane = $xpath->query('.//div[contains(@class,"sekcja-strony")]/p[contains(@class,"meta")]', $zaproszenie->item(0));
+        $this->assertSame(1, $dane->length);
+        $this->assertStringContainsString('Nie bierzemy zdjęcia', $dane->item(0)->textContent);
+        $this->assertNotSame(0, $wejscia->item(1)->compareDocumentPosition($dane->item(0)) & \DOMNode::DOCUMENT_POSITION_FOLLOWING);
         $this->assertSame(0, $xpath->query('.//form', $zaproszenie->item(0))->length);
         $formularz = $xpath->query('./form[contains(@class,"panel-formularza")]', $karta->item(0));
         $this->assertNotFalse($formularz);

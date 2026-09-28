@@ -2,14 +2,16 @@
     <x-marka-wejscie opis="Zachowaj swoje potrawy i rodzinne przepisy.">
     <x-slot:naglowek><h1>Zostań <x-kuking-word forma="iem" /></h1></x-slot:naglowek>
     <x-slot:uzupelnienie>
+        <x-wejscia-zewnetrzne rodzaj="rejestracja" />
+    </x-slot:uzupelnienie>
+    <x-slot:poFormularzu>
         <p class="rejestracja-zapowiedz">
             Cztery pola i gotowe — konto zaczyna działać od razu. Potem zapytamy jeszcze
             o parę rzeczy, żeby dobrać Ci pierwsze wpisy, ale to całkiem opcjonalne
             i można to pominąć. Nie pytamy o numer telefonu ani o datę urodzenia.
         </p>
-        <x-wejscia-zewnetrzne rodzaj="rejestracja" />
         <p>Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
-    </x-slot:uzupelnienie>
+    </x-slot:poFormularzu>
     {{-- Zapowiedź dalszych kroków i dostępni dostawcy stoją obok formularza,
          a w DOM przed polami; testy pilnują obu części układu. --}}
 

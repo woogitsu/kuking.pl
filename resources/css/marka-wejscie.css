@@ -45,6 +45,8 @@
   .marka-wejscie-dalsze > .sekcja-strony.mt-6 { margin-top: 0 !important; }
 
   .marka-wejscie-karta {
+    grid-column: 2;
+    grid-row: 2 / span 2;
     min-width: 0;
     padding: clamp(20px, 3vw, 44px);
     border-radius: var(--radius-xl);
@@ -53,6 +55,17 @@
     border: 1px solid var(--color-border);
     overflow-wrap: anywhere;
   }
+
+  .marka-wejscie-po-formularzu {
+    grid-column: 1;
+    grid-row: 3;
+    display: grid;
+    align-content: start;
+    gap: var(--spacing-6);
+    min-width: 0;
+  }
+
+  .marka-wejscie-po-formularzu > p { margin: 0; overflow-wrap: anywhere; }
 
   [data-marka] .marka-wejscie-karta .panel-formularza {
     padding: 0;
@@ -64,7 +77,8 @@
   @media (max-width: 900px) {
     .marka-wejscie { grid-template-columns: minmax(0, 1fr); gap: var(--spacing-6); }
     .marka-wejscie-zaproszenie { padding: 0; }
-    .marka-wejscie-znak { width: 48px; }
-    .marka-wejscie-zaproszenie > p { max-width: none; margin-top: var(--spacing-4); font-size: var(--text-body); overflow-wrap: anywhere; }
-    .marka-wejscie-karta { padding: var(--spacing-5); }
+    .marka-wejscie-znak { display: none; }
+    .marka-wejscie-zaproszenie > p { max-width: none; margin-top: 0; font-size: var(--text-body); overflow-wrap: anywhere; }
+    .marka-wejscie-karta { grid-column: auto; grid-row: auto; padding: var(--spacing-5); }
+    .marka-wejscie-po-formularzu { grid-column: auto; grid-row: auto; }
   }
