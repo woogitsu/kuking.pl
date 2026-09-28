@@ -110,7 +110,7 @@ Eksperymenty dodatkowe na tej samej bazie (z indeksem, niezapisane w skrypcie):
 ### Wniosek
 
 - **Indeks częściowy jest potrzebny i dodany:** migracja
-  `2026_09_25_200000_add_questions_published_index_to_posts`
+  `2026_09_28_233800_add_questions_published_index_to_posts`
   (`posts (published_at DESC, id DESC) WHERE kind = 'question' AND deleted_at IS NULL AND status = 'published'`),
   `CONCURRENTLY`, rollback bezstratny (`docs/DATABASE.md`, rozdział
   „Indeks częściowy opublikowanych pytań”). Usuwa pełny przegląd `posts`
@@ -273,7 +273,7 @@ Flaga jest już włączona. Punkty 1–2 trzeba sprawdzić **po scaleniu tej
 gałęzi**: wdrożona migracja indeksu i działający worker kolejki, bo to on
 przelicza licznik.
 
-1. Na `main` jest migracja `2026_09_25_200000_add_questions_published_index_to_posts`
+1. Na `main` jest migracja `2026_09_28_233800_add_questions_published_index_to_posts`
    i wdrożenie po niej zakończyło się sukcesem.
 2. Indeks istnieje i jest ważny (zapytanie tylko do odczytu):
    ```sql

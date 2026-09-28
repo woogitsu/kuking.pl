@@ -35,7 +35,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parent.parent
 DANE = ROOT / "scripts" / "pomiar-pytan-372-dane.sql"
 ZAPYTANIA = ROOT / "scripts" / "pomiar-pytan-372-zapytania.sql"
-MIGRACJA = ROOT / "database" / "migrations" / "2026_09_25_200000_add_questions_published_index_to_posts.php"
+MIGRACJA = ROOT / "database" / "migrations" / "2026_09_28_233800_add_questions_published_index_to_posts.php"
 PRZEDROSTEK = "kuking_pomiar_pytan_"
 POWTORZEN = 7
 TAG = "tag-0"

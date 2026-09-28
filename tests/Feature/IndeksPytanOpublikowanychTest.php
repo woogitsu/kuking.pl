@@ -34,7 +34,7 @@ class IndeksPytanOpublikowanychTest extends TestCase
 
     private function migracja(): object
     {
-        return require database_path('migrations/2026_09_25_200000_add_questions_published_index_to_posts.php');
+        return require database_path('migrations/2026_09_28_233800_add_questions_published_index_to_posts.php');
     }
 
     /** Plan COUNT-u takiego, jaki liczą `PytaniaBezOdpowiedzi::przelicz()` i poprawka widza (`QuestionList::query(..., true)`). */

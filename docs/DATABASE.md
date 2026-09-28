@@ -6197,7 +6197,7 @@ i świadomie zostały poza tą migracją.
 
 ## Indeks częściowy opublikowanych pytań (#372)
 
-Migracja `2026_09_25_200000_add_questions_published_index_to_posts`:
+Migracja `2026_09_28_233800_add_questions_published_index_to_posts`:
 
 ```sql
 CREATE INDEX CONCURRENTLY IF NOT EXISTS posts_questions_published_idx
