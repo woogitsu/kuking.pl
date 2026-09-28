@@ -38,6 +38,70 @@ dopóki ćwiczenie z §4A nie zostanie wykonane i wpisane do tabeli w §5.
 Tam, gdzie to ma znaczenie, jest to powiedziane wprost drugi raz — bo to jest
 dokładnie ta różnica, o którą chodzi w „restore przetestowany".
 
+### Awaryjny zrzut, gdy automatyczny serwis kopii nie jest dostępny (#2078)
+
+**Nie używaj `pg_dump` z kontenera aplikacji.** Nie zawiera on klienta bazy;
+ogólny pakiet `postgresql-client` w Debianie Trixie dawał wersję 17, która
+odmawia zrzutu serwera PostgreSQL 18. Obraz `docker/kopia/Dockerfile` bazuje na
+przypiętym `postgres:18`; CI sprawdza jego wersję i wykonuje z niego prawdziwy
+zrzut testowej bazy PostgreSQL 18. To test narzędzia, **nie dowód**, że
+produkcyjny serwis kopii działa albo że powstała produkcyjna kopia.
+
+Jednorazowa ścieżka na komputerze operatora z Dockerem i terminalem Bash/WSL2:
+
+1. Ustal adres bazy, do którego **kontener Docker** może się połączyć. Adres
+   `localhost` tunelu na hoście nie jest adresem hosta wewnątrz kontenera;
+   przy tunelu użyj `host.docker.internal` (Docker Desktop) albo równoważnej
+   trasy. Nie zmieniaj ustawień produkcji tylko po to, by wykonać ten zrzut.
+2. Utwórz prywatny katalog i przygotuj w nim plik `polaczenie.env` z `PGHOST`, `PGPORT`,
+   `PGUSER`, `PGDATABASE`, `PGPASSWORD` i `PGSSLMODE=require`. Nie wpisuj hasła
+   w argumentach `docker run`, historii terminala ani w repozytorium. Plik
+   powinien być czytelny wyłącznie dla operatora (`chmod 600`). Wypełnij go
+   rzeczywistymi danymi dostępu, po jednej parze `NAZWA=wartość` w linii:
+
+```bash
+umask 077
+mkdir -p "$HOME/kuking-awaryjny/zrzuty"
+chmod 700 "$HOME/kuking-awaryjny" "$HOME/kuking-awaryjny/zrzuty"
+```
+
+```dotenv
+PGHOST=adres-bazy-dostepny-z-kontenera
+PGPORT=5432
+PGUSER=uzytkownik
+PGDATABASE=nazwa_bazy
+PGPASSWORD=haslo
+PGSSLMODE=require
+```
+
+   Nadaj uprawnienia: `chmod 600 "$HOME/kuking-awaryjny/polaczenie.env"`.
+3. Z katalogu repozytorium wykonaj poniższe polecenia. Zrzut pozostaje na
+   lokalnym dysku operatora; nie uruchamia migracji ani nie zapisuje bazy:
+
+```bash
+docker build -f docker/kopia/Dockerfile -t kuking-kopia-awaryjna .
+docker run --rm --entrypoint pg_dump kuking-kopia-awaryjna --version
+
+plik="kuking-$(date -u +%Y%m%dT%H%M%SZ)-pg18.dump"
+docker run --rm --user "$(id -u):$(id -g)" --entrypoint pg_dump \
+  --env-file "$HOME/kuking-awaryjny/polaczenie.env" \
+  --mount "type=bind,src=$HOME/kuking-awaryjny/zrzuty,dst=/kopie" \
+  kuking-kopia-awaryjna --format=custom --no-owner --no-privileges \
+  --file="/kopie/$plik"
+
+test -s "$HOME/kuking-awaryjny/zrzuty/$plik"
+docker run --rm --user "$(id -u):$(id -g)" --entrypoint pg_restore \
+  --mount "type=bind,src=$HOME/kuking-awaryjny/zrzuty,dst=/kopie,readonly" \
+  kuking-kopia-awaryjna --list "/kopie/$plik" >/dev/null
+```
+
+Jeśli `pg_dump` albo odczyt spisu `pg_restore` zakończy się błędem, **kopii nie
+ma**. Zapisany zrzut zawiera dane osobowe: trzymaj go w katalogu dostępnym
+tylko dla operatora, nie wysyłaj jawnego pliku i zastosuj szyfrowanie/offsite
+opisane w §7.3 lub `scripts/kopia-lokalna.sh`. Ten krok wytwarza wyłącznie
+lokalny zrzut. Próbę odtworzenia przeprowadź według §4A/§4B z klientem 18;
+sam niepusty plik i jego spis nie zamykają bramki restore drill.
+
 ---
 
 ## 1. Co dokładnie trzeba uratować
@@ -197,7 +261,7 @@ pytania nie mają odpowiedzi w kodzie, bo kod nie mówi, co ktoś kliknął w pa
 | 5 | Czy serwis `postgres` w środowisku `production` w ogóle już istnieje (czy wdrożenie z `DEPLOYMENT_RUNBOOK.md` zostało wykonane), czy dokument nadal opisuje plan? | Railway → kanwa projektu `kuking` → środowisko `production` |
 | 6 | **Rozstrzygnięte 11 września 2026 przez właściciela:** zdjęcia stoją na Cloudflare R2, czyli `FILESYSTEM_DISK=r2`. Pytania, które mają dziś sens: czy `KUKING_MEDIA_DISK` też jest `r2`, czy ustawiony jest **osobny** `AWS_PUBLIC_BUCKET` (bez niego oba dyski wskazują jeden bucket) i czy ustawiony jest `AWS_EXPORTS_BUCKET` | Railway → `production` → **Variables**; szybciej i pewniej: `railway ssh -- php artisan kuking:bramka-r2 --zapis` (melduje m.in. `TEN SAM bucket`) |
 | 7 | **Rozstrzygnięte (D-043) — nie pytanie, tylko fakt:** offsite `pg_dump` działa w OSOBNYM, minimalnym serwisie Railway (`docker/kopia/`, serwis `kopia-bazy`), nie w kontenerze aplikacji i nie w GitHub Actions. Pytanie, które ma dziś sens: **kiedy zostaną wykonane cztery czynności z §7.3** (bucket R2, dwa tokeny, klucz szyfrujący, serwis cron)? | `docs/DECISIONS.md` → `## D-043`; §7.3 tego dokumentu; postęp: issue #193 |
-| 8 | Ile zdjęć ma dziś `disk = 'r2_legacy'` (czyli ile kont wciąż zależy WYŁĄCZNIE od tego jednego, starego bucketu jako jedynej kopii) — i czy `AWS_LEGACY_BUCKET` jest w ogóle ustawiony? Bez tej zmiennej dysk `r2_legacy` nie ma bucketu, a te zdjęcia znikają z serwisu | `railway ssh -- php artisan tinker` → `App\Models\Media::where('disk', 'r2_legacy')->count()` |
+| 8 | Ile zdjęć ma dziś `disk = 'r2_legacy'` (czyli ile kont wciąż zależy WYŁĄCZNIE od tego jednego, starego bucketu jako jedynej kopii) — i czy `AWS_LEGACY_BUCKET` jest w ogóle ustawiony? Bez tej zmiennej dysk `r2_legacy` nie ma bucketu, a te zdjęcia znikają z serwisu | `railway ssh -- php artisan kuking:zaleznosc-od-starego-bucketu --pliki` (tylko odczyt; liczy też warianty i sprawdza pliki) — procedura i bramka przed czyszczeniem: [`STARY_BUCKET_R2_LEGACY.md`](STARY_BUCKET_R2_LEGACY.md) |
 | 9 | **Przeformułowane 11 września 2026.** Pytanie brzmiało: „czy ludzie wgrywają już zdjęcia przy `FILESYSTEM_DISK=local`". Odpadło razem z ustaleniem, że zdjęcia są na R2. **Pytanie, które je zastępuje i jest P0:** czy `kuking:bramka-r2 --zapis` została kiedykolwiek uruchomiona na produkcji i z jakim wynikiem — czyli czy oryginał ze współrzędnymi GPS kuchni jest publicznie dostępny, czy nie | `railway ssh -- php artisan kuking:bramka-r2 --zapis`; wynik z datą → `docs/infra/BRAMKA_R2.md` §3 |
 | 10 | Czy zdjęcia, które powstały PRZED przejściem na R2 (na dysku `local`), zostały przeniesione — czy przepadły przy którymś redeployu? W repozytorium nie ma komendy, która przenosi z `local` do R2 (`kuking:przenies-zdjecia` chodzi tylko między bucketami) | do ustalenia z właścicielem wprost; poszlaka: `App\Models\Media::where('disk', 'local')->count()` |
 
@@ -280,6 +344,9 @@ Produkcja działa dalej przez cały czas — nic dodatkowo nie tracisz, próbuj�
    SQL
    ```
 6. Usuń pomocniczy serwis `postgres-restored-<data>` — kosztuje, jeśli zostanie.
+7. Jeśli wczytana naprawa dotyka tabel `users`, `profiles`, `posts`,
+   `recipes` albo `comments` — wykonaj §3.1 („wymaż ponownie”) z `--od`
+   równym chwili, z której pochodzi naprawa.
 
 **RPO:** ~0 (PITR ma ziarnistość WAL, praktycznie do sekundy) — **o ile PITR
 jest włączony** (patrz pytanie 2 w §2.3). Jeśli nie, jedyna opcja to ostatni
@@ -340,6 +407,12 @@ railway variables --set "DB_URL=<nowy_DATABASE_URL>" --service kuking.pl --envir
 
 # 5. Redeploy i weryfikacja
 curl -s https://kuking.pl/health   # oczekiwane: {"status":"ok"}
+
+# 6. OBOWIĄZKOWO: wymaż ponownie konta wymazane po dacie kopii (§3.1)
+railway run --service kuking.pl --environment production \
+  php artisan kuking:wymaz-ponownie --od="<chwila kopii, np. 2026-10-05 02:17>" --na-sucho
+railway run --service kuking.pl --environment production \
+  php artisan kuking:wymaz-ponownie --od="<chwila kopii>"
 ```
 
 Potem: odtwórz DNS/WAF/Cache Rules wg `DEPLOYMENT_RUNBOOK.md` KROK 10 (jeśli
@@ -354,6 +427,46 @@ do 24 h, a wiek ostatniej kopii mówi `kuking:sprawdz-kopie`**).
 **RTO:** **oszacowanie 1-4 h** w zależności od tego, czy trzeba tylko przywrócić
 bazę, czy całe środowisko od zera wg `DEPLOYMENT_RUNBOOK.md` (tam: „3-4 godziny
 plus czekanie na DNS") — **niezmierzone.**
+
+### 3.1 Po KAŻDYM odtworzeniu: „wymaż ponownie” (audyt B5, znalezisko 3)
+
+**Dotyczy 3(a), 3(b) i ćwiczeń z §4, jeśli odtworzona baza ma obsługiwać
+ruch.** Kopia pochodzi sprzed awarii, więc zawiera konta, które po jej dacie
+wymazaliśmy na prośbę ludzi (RODO art. 17) — z prawdziwym e-mailem, profilem
+i treściami. Ślad wymazania (`users.data_erased_at`,
+`potwierdzenia_zadan_rodo`, `audit_log`) leży w tej samej bazie, więc wraca
+do stanu sprzed wymazania. Nocne zadania tego nie naprawią: konto ma w kopii
+status `active` i nikt nie prosi o jego usunięcie.
+
+Dlatego każde wymazanie zapisuje wpis **poza bazą**: obiekt
+`dziennik-wymazan/<user_id>.json` na dysku `kuking.dziennik_wymazan.dysk`
+(produkcja: bucket eksportów, `r2_eksporty`). Wpis to sam identyfikator
+konta, chwila i wykonany zakres (`minimum`/`everything`) — bez e-maila i bez
+nazwy. Wpisy żyją 120 dni (dłużej niż najstarsza kopia), dopisuje je
+i przycina `kuking:dziennik-wymazan` co noc o 05:30.
+
+Krok, **zanim odtworzona baza przyjmie ruch** (albo najpóźniej zaraz po
+podpięciu `DB_URL`):
+
+```bash
+# podgląd — lista kont do ponownego wymazania, nic nie zmienia
+php artisan kuking:wymaz-ponownie --od="<chwila, z której pochodzi kopia>" --na-sucho
+# wykonanie
+php artisan kuking:wymaz-ponownie --od="<chwila, z której pochodzi kopia>"
+```
+
+- `--od` to chwila kopii (nazwa pliku zrzutu offsite, moment PITR, data
+  Volume Backupu). Przy wątpliwości **pomiń `--od`** — komenda weźmie cały
+  dziennik; wolniej, ale nie da się pomylić daty. Konto już wymazane
+  w kopii jest pomijane, więc nadmiarowy przebieg nic nie psuje.
+- Komenda wymazuje tym samym zakresem, jaki wykonaliśmy za pierwszym razem,
+  i kończy się kodem ≠ 0, gdy któreś konto się nie udało — powtórz ją,
+  a przy stałym błędzie wymaż konto ręcznie.
+- Zdjęć w R2 nie trzeba odtwarzać: skasowane pliki nie wracają z kopii bazy.
+  Wiersze `media` z kopii wskazują nieistniejące pliki i znikną razem
+  z ponownym wymazaniem konta.
+- Test, który pilnuje tej drogi: `tests/Feature/DziennikWymazanPozaBazaTest.php`
+  (odtworzenie wierszy sprzed wymazania → `kuking:wymaz-ponownie` → `erased`).
 
 ### 3(c) Utracone zdjęcia
 

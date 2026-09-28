@@ -23,7 +23,7 @@
     BAZA SIĘ NIE ZMIENIA. Oba pola tekstowe serwer rozbija z powrotem na
     `recipe_ingredients` i `recipe_steps` (`App\Domain\Recipes\TekstNaWiersze`),
     więc szukanie po składnikach nadal czyta te same wiersze.
-    Skalowanie porcji pozostaje niewdrożonym planem V2.
+    Skalowanie porcji (V2, D-284) czyta ilość z tekstu wiersza przy pokazaniu.
 
     RESZTA NIE ZNIKA, TYLKO PRZESTAJE STAĆ NA DRODZE. Krótko o przepisie,
     porcje, czasy, trudność, „po kim", historia, rok, źródło, grupy
@@ -38,6 +38,10 @@
         // „Dopisz przepis” z własnego wpisu (#1334) — `RecipeController::createFromPost()`.
         $zWpisu = $zWpisu ?? null;
         $zdjecieZWpisu = $zdjecieZWpisu ?? null;
+        $stareZdjecia = old('zachowane_zdjecia', []);
+        $zachowaneZdjecia = \App\Domain\Media\ZachowaneZdjeciaPrzepisu::przyjete(
+            is_array($stareZdjecia) ? $stareZdjecia : [], auth()->id()
+        );
     @endphp
 
     @if($zWpisu !== null)
@@ -52,6 +56,19 @@
             Wystarczy zdjęcie, nazwa i to, co robisz. Resztę — porcje, czasy, historię
             przepisu — dopiszesz później, jeśli zechcesz.
         </p>
+        {{-- Import V2 (D-300): przycisku nie ma, gdy źródło jest wyłączone —
+             bez martwych przycisków (D-053). Oba prowadzą do prywatnego szkicu. --}}
+        @if(config('kuking.import.url.wlaczony') || config('kuking.import.pdf.wlaczony'))
+            <p class="mb-2">Masz przepis na stronie internetowej albo w pliku PDF? Zapiszemy go jako szkic dla Ciebie.</p>
+            <p class="mb-5 flex flex-wrap gap-2">
+                @if(config('kuking.import.url.wlaczony'))
+                    <a class="btn btn-secondary" href="{{ route('recipes.import.url') }}">Wklej adres strony</a>
+                @endif
+                @if(config('kuking.import.pdf.wlaczony'))
+                    <a class="btn btn-secondary" href="{{ route('recipes.import.pdf') }}">Dodaj plik PDF</a>
+                @endif
+            </p>
+        @endif
     @endif
 
     <x-error-summary />
@@ -99,6 +116,7 @@
 
         <div class="field @error('hero_photo') has-error @enderror">
             <span class="pole-zdjecia-nazwa" id="f-hero_photo-etykieta">{{ $zWpisu !== null ? 'Inne zdjęcie (nieobowiązkowo)' : 'Zdjęcie gotowego dania' }}</span>
+            @include('pages.recipes.partials.zachowane-zdjecie', ['klucz' => 'hero'])
             <input class="visually-hidden pole-zdjecia-input" id="f-hero_photo" type="file" name="hero_photo"
                    accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                    aria-labelledby="f-hero_photo-etykieta f-hero_photo-tytul"

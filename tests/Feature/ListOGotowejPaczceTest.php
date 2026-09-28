@@ -293,7 +293,9 @@ class ListOGotowejPaczceTest extends TestCase
         $odpowiedz = $this->actingAs($basia)->get(route('settings.data'))->assertOk();
 
         $odpowiedz->assertDontSee('Pobierz paczkę');
-        $odpowiedz->assertDontSee('— gotowa', false);
+        // Nie `assertDontSee('— gotowa')`: między myślnikiem a stanem jest
+        // łamanie wiersza, więc tamta asercja nie mogła oblać (issue #819).
+        $this->assertDoesNotMatchRegularExpression('/—\s+gotowa\b/u', (string) $odpowiedz->getContent());
         $odpowiedz->assertSee('Tej paczki nie można już pobrać.');
     }
 

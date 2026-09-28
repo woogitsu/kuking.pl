@@ -266,9 +266,11 @@ name: CI
 
 on:
   push:
-    branches: [main, staging]
+    branches: [main, staging, 'codex/integracja-*']
   pull_request:
-    branches: [main, staging]
+    # Po zmianie podstawy PR scal gałąź integracyjną do jego headu.
+    # `synchronize` uruchomi CI wyniku połączenia bez przebiegu przy edycji opisu.
+    branches: [main, staging, 'codex/integracja-*']
   # Zostaje obok wyzwalaczy automatycznych: pozwala puścić przebieg ręcznie
   # (Actions → CI → Run workflow) bez pustego commita — przydaje się przy
   # pierwszym uruchomieniu i przy sprawdzaniu, czy problem nie był chwilowy.
@@ -435,7 +437,9 @@ jobs:
           # warunki tych jobów są pilnowane przez `PortMarkiMaWlasnaBramkeCiTest`
           # i mają zostać proste. Ta sama ścieżka jest też w filtrze warstwy
           # widoku niżej.
-          WZORCE_MARKI="$(echo "${ZMIENIONE}" | grep -E '^docs/design/references/' || true)"
+          # Test grafu Railway w jobie `assets` czyta docs/DEPLOYMENT.md.
+          # Ta instrukcja jest więc wejściem testu tak samo jak wzorce marki.
+          WZORCE_MARKI="$(echo "${ZMIENIONE}" | grep -E '^(docs/design/references/|docs/DEPLOYMENT\.md$)' || true)"
 
           if [ -n "${WZORCE_MARKI}" ]; then
             POZA="$(printf '%s\n%s\n' "${POZA}" "${WZORCE_MARKI}" | grep -v '^$' || true)"
@@ -497,7 +501,7 @@ jobs:
           # „pełny" — pomyłka w konfiguracji ma dać nadmiarowy przebieg,
           # nie pominięty pomiar. `scripts/panel-*` są na liście, bo od
           # 24.09 filtr pilnuje także `port_panelu`.
-          if [ "${ZDARZENIE:-}" != "pull_request" ] || grep -qE '^(app/|routes/|config/|bootstrap/|lang/|database/|composer\.(json|lock)$|resources/|public/|scripts/(referrer-sekret-browser|hero-nad-zgieciem|dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|przegladarka/strona-nieaktualna\.test|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus|lib/stan-ustalony)\.mjs|scripts/panel-[a-z-]+\.(mjs|php)$|scripts/fixtures/|docs/design/references/|docker/Caddyfile|package(-lock)?\.json|\.github/(workflows/ci\.yml|actions/))' <<< "${ZMIENIONE}"; then
+          if [ "${ZDARZENIE:-}" != "pull_request" ] || grep -qE '^(app/|routes/|config/|bootstrap/|lang/|database/|composer\.(json|lock)$|resources/|public/|scripts/(referrer-sekret-browser|hero-nad-zgieciem|dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|lista-osob-szerokosc|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|menu-karty-wpisu|kroki-kreatora|kreator-zachowanie|przegladarka/strona-nieaktualna\.test|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus|lib/stan-ustalony)\.mjs|scripts/panel-[a-z-]+\.(mjs|php)$|scripts/fixtures/|docs/design/references/|docker/Caddyfile|package(-lock)?\.json|\.github/(workflows/ci\.yml|actions/))' <<< "${ZMIENIONE}"; then
             echo "widok=true" >> "$GITHUB_OUTPUT"
           else
             echo "Warstwa widoku nietknięta — joby przeglądarkowe pominięte."
@@ -546,7 +550,7 @@ jobs:
 
           ciezki obraz '^(Dockerfile$|docker/|\.dockerignore$|composer\.(json|lock)$|package(-lock)?\.json$|\.npmrc$|\.railway/|railway\.(json|toml)$|vite\.config\.[cm]?[jt]s$|(tailwind|postcss)\.config\.|artisan$|bootstrap/|config/|app/Providers/|resources/js/[^/]+\.test\.mjs$|scripts/([^/]+|fixtures/[^/]+)\.test\.mjs$|scripts/kontrast-marki\.mjs$|\.github/workflows/ci\.yml$)'
           ciezki obciazenie '^(scripts/[^/]*605[^/]*$|\.github/workflows/ci\.yml$)'
-          ciezki wyscigi '^(app/|bootstrap/|config/|database/|routes/|lang/|resources/views/|artisan$|composer\.(json|lock)$|phpunit\.xml$|\.env\.example$|tests/(Dwa/|Support/|TestCase\.php$|bootstrap\.php$)|scripts/testy-dwa-polaczenia\.sh$|\.github/(workflows/ci\.yml$|actions/php/))'
+          ciezki wyscigi '^(app/|bootstrap/|config/|database/|routes/|lang/|resources/views/|artisan$|composer\.(json|lock)$|phpunit\.xml$|\.env\.example$|tests/(Dwa/|Support/|TestCase\.php$|bootstrap\.php$)|scripts/(testy-dwa-polaczenia\.sh|kontrola-negatywna-2165\.py)$|\.github/(workflows/ci\.yml$|actions/php/))'
 
       # =====================================================================
       #  CO TA ZIELEŃ ZNACZY — wypisane na wierzchu przebiegu.
@@ -629,6 +633,11 @@ jobs:
       # Naprawa lokalnie: `vendor/bin/pint`
       - name: Pint
         run: vendor/bin/pint --test -v
+
+      # Bramka produkcyjna #2025 używa tylko biblioteki standardowej Pythona.
+      # Jej kontrole muszą biec w CI, zanim pozwolimy jej decydować o deployu.
+      - name: Testy bramki Railway po CI
+        run: python3 -m unittest discover -s scripts -p test_railway_ci_gated_deploy.py -v
 
       # =====================================================================
       #  TESTY SKRYPTU KOPII BAZY (issue #193, D-043/D-049)
@@ -868,9 +877,12 @@ jobs:
     # 24.09.2026: pełny zestaw trwał 14 min na szybkich runnerach i do 24 min
     # na wolniejszych (i5-6500T, WSL), a przy 25 min przebiegi #1081 i #1464
     # zostały ucięte w trakcie zielonych testów — stąd było 40. Część ma
-    # ćwierć plików, więc 25 min zostawia ten sam zapas na wolny runner,
-    # a zawieszony test nadal zostanie przerwany.
-    timeout-minutes: 25
+    # ćwierć plików, ale część `kontrole` uruchamia również odwracalność
+    # migracji i kontrole negatywne. Na main 64dbdefd ta część została ucięta
+    # po 25 min w trakcie testów (run 36268510588), mimo że cztery zwykłe
+    # części przeszły. Przywracamy 40 min dla całej macierzy; job nadal ma
+    # twardą granicę czasu, a szybkie części nie zużyją dodatkowych minut.
+    timeout-minutes: 40
     strategy:
       # Bez tego pierwsza czerwona część anulowałaby pozostałe i raport
       # pokazywałby jedną przyczynę zamiast wszystkich.
@@ -1030,6 +1042,26 @@ jobs:
             *) echo "::error::Klient PostgreSQL 18 NIE zostal zainstalowany (${wersja}). Skrypty kopii bazy odmowilyby odczytu ZDROWEGO archiwum, meldujac to jako uszkodzenie."; exit 1 ;;
           esac
 
+      # =====================================================================
+      #  POPPLER-UTILS — `pdfinfo`, `pdftotext`, `pdftoppm` (D-300)
+      #
+      #  Testy `ImportTekstZPdfTest` wołają PRAWDZIWE narzędzia (tekst, brak
+      #  tekstu, liczba stron, uszkodzony plik) i bez nich padają z nazwą
+      #  pakietu — nie są pomijane. Na produkcji ten sam pakiet instaluje
+      #  etap `runtime` Dockerfile (pilnuje `ObrazMaNarzedziaPdfTest`).
+      #  Gdy narzędzie już jest (runner self-hosted), apt zostaje nietknięty.
+      # =====================================================================
+      - name: poppler-utils (import PDF)
+        run: |
+          set -euo pipefail
+          if command -v pdftotext >/dev/null 2>&1 && command -v pdfinfo >/dev/null 2>&1 && command -v pdftoppm >/dev/null 2>&1; then
+            echo "poppler-utils juz jest - apt nietkniety."
+            exit 0
+          fi
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends poppler-utils
+          pdftotext -v 2>&1 | head -1
+
       # Migracje osobnym krokiem, nie w ramach testów: jeśli padnie migracja,
       # chcemy zobaczyć w raporcie "migracje", a nie 300 padniętych testów.
       - name: Migracje
@@ -1046,6 +1078,10 @@ jobs:
 
       # Skrypt najpierw sprawdza niezmienione źródła, po każdej mutacji
       # przywraca kopię i ponawia test. Pełny zestaw idzie w częściach 1–4.
+      - name: Kontrola odczytu logu testów negatywnych
+        if: matrix.czesc == 'kontrole'
+        run: python3 -m unittest discover -s scripts -p 'test_kontrola_wyjscia_testu.py' -v
+
       - name: Kontrole negatywne regresji Alfa 0.8 i portu marki
         if: matrix.czesc == 'kontrole'
         run: python3 scripts/kontrole-negatywne-alfa08.py
@@ -1276,12 +1312,31 @@ jobs:
       - name: Regresja szybkiego panelu wyglądu (DOM w Chromium)
         run: node --test scripts/przegladarka/wyglad-nawigacja.test.mjs
 
+      # #947: pole z fokusem przy klawiaturze (emulowanej przez
+      # `interactive-widget=resizes-content`) nie chowa się pod belkami —
+      # zbudowany CSS, 390×844 / 844×390 / 768×500, z kontrolą ujemną w teście.
+      # Czyta `public/build`, więc stoi po „Build”. Uzasadnienie w nagłówku pliku.
+      - name: Regresja belek przy klawiaturze ekranowej (Chromium)
+        run: node --test scripts/przegladarka/klawiatura-belki.test.mjs
+
+      # #899: klik w oba odnośniki do kreatora przy zmienionym formularzu
+      # pokazuje ramkę i nie przechodzi; przy niezmienionym — przechodzi.
+      # Zbudowany pakiet app.js, więc wycięty import też tu pada.
+      - name: Regresja pytania o niezapisane zmiany (DOM w Chromium)
+        run: node --test scripts/przegladarka/niezapisane-zmiany.test.mjs
+
       # Test DOM „Pokaż więcej” (#986): kolejne porcje doklejane do listy,
       # fokus, `aria-live`, odświeżenie, powrót i błąd pobrania. Stoi TU,
       # a nie na liście `node --test` w `build`, z tego samego powodu co dwa
       # kroki wyżej — potrzebuje Chromium.
       - name: Regresja „Pokaż więcej” (DOM w Chromium)
         run: node --test scripts/przegladarka/pokaz-wiecej.test.mjs
+
+      # Checklista składników w trybie „Gotuję” (#2069): niezależne wiersze,
+      # stan po zmianie kroku i w drugiej karcie, reset niezależny od kroków,
+      # klawiatura, 320 px i cele dotyku, widok bez JS. Też potrzebuje Chromium.
+      - name: Regresja checklisty składników w trybie „Gotuję” (DOM w Chromium)
+        run: node --test scripts/przegladarka/skladniki-gotowania.test.mjs
 
       # Weryfikacja, że build faktycznie coś wyprodukował. Vite potrafi
       # zakończyć się sukcesem z pustym manifestem przy błędnej konfiguracji,
@@ -1710,6 +1765,17 @@ jobs:
           DB_DATABASE: kuking_port_pomiar
         run: node scripts/kroki-kreatora.mjs
 
+      # Jedyny test regresji #892: po zmianie tekstu plakietka nie może dalej
+      # mówić „Szkic zapisany.” / „Zmiany zapisane.” o poprzedniej wersji —
+      # ani przed wysłaniem, ani w trakcie żądania, ani po starszej odpowiedzi.
+      # Skrypt czeka na stan DOM, nie na zegar (debounce 3000 ms).
+      - name: Autozapis kreatora — plakietka nie obiecuje zapisu starszej wersji
+        env:
+          DB_DATABASE: kuking_port_pomiar
+        run: |
+          node scripts/kreator-zachowanie.mjs autosave
+          node scripts/kreator-zachowanie.mjs published
+
       # #977: 419 z Livewire (token wydania) → polski komunikat zamiast
       # angielskiego `confirm()`. Tu, a nie w zadaniu `assets`, bo test czyta
       # prawdziwy klient Livewire z `vendor/` (tam nie ma `composer install`)
@@ -1985,6 +2051,11 @@ jobs:
       - name: Fokus, kliknięcia i dialog zdjęć (#561)
         run: node scripts/fokus-zdjec.mjs
 
+      # Po `fokus-zdjec`, przed `dostepnosc`: ten skrypt dokłada do bazy
+      # krótki wpis, a `dostepnosc.mjs` i tak sieje bazę od nowa.
+      - name: Menu karty wpisu i potwierdzenie usunięcia bez przycięcia (#1082)
+        run: node scripts/menu-karty-wpisu.mjs
+
       - name: axe-core (aktualna macierz ekranów i wariantów)
         run: node scripts/dostepnosc.mjs
 
@@ -2227,6 +2298,16 @@ jobs:
             exit 1
           fi
 
+          # Główny obraz nie może obiecywać awaryjnego zrzutu klientem
+          # Debiana 17, który odmówi pracy z produkcyjnym PostgreSQL 18.
+          # Do zrzutu służy osobny obraz kopii, sprawdzany poniżej.
+          echo "--- brak niezgodnego pg_dump w obrazie aplikacji ---"
+          if docker run --rm kuking:ci-${{ github.sha }} sh -c 'command -v pg_dump' >/dev/null 2>&1; then
+            echo "BŁĄD: obraz aplikacji zawiera pg_dump bez gwarancji majoru 18."
+            exit 1
+          fi
+          echo "OK   obraz aplikacji nie udaje narzędzia kopii"
+
       # =====================================================================
       #  DRUGI OBRAZ: serwis kopii bazy (issue #193, decyzja D-043)
       #
@@ -2270,6 +2351,28 @@ jobs:
             echo "      Starszy klient ODMAWIA zrzutu — kopii by nie było."
             exit 1
           fi
+
+          # Sama wersja wypisana przez --version nie dowodzi, że obraz umie
+          # połączyć się z bazą i wykonać zrzut. Próba jest lokalna w CI.
+          echo "--- prawdziwy pg_dump przeciwko serwerowi PostgreSQL 18 ---"
+          serwer=kuking-pg18-proba-${{ github.run_id }}
+          docker run -d --name "$serwer" -e POSTGRES_PASSWORD=ci-only -e POSTGRES_DB=probe \
+            postgres:18@sha256:86c951e05bf56c93d95d397747fb8820ac76cc3bedb78f43abd83eedbe3666ae >/dev/null
+          trap 'docker rm -f "$serwer" >/dev/null 2>&1 || true' EXIT
+          for proba in $(seq 1 30); do
+            if docker exec "$serwer" pg_isready -h 127.0.0.1 -U postgres -d probe >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker exec "$serwer" psql -U postgres -d probe -v ON_ERROR_STOP=1 \
+            -c 'CREATE TABLE client_major_probe (id integer PRIMARY KEY)' >/dev/null
+          docker run --rm --network "container:$serwer" -e PGPASSWORD=ci-only "$OBRAZ" \
+            pg_dump -h 127.0.0.1 -U postgres -d probe --schema-only --no-owner --no-privileges \
+            > /tmp/kuking-pg18-proba.sql
+          grep -q 'CREATE TABLE public.client_major_probe' /tmp/kuking-pg18-proba.sql
+          rm /tmp/kuking-pg18-proba.sql
+          docker rm -f "$serwer" >/dev/null
+          trap - EXIT
+          echo "OK   obraz kopii wykonał zrzut serwera 18"
 
           echo "--- narzędzia, bez których skrypt nie zaszyfruje i nie wyśle ---"
           for narzedzie in openssl curl psql pg_restore; do

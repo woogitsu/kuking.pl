@@ -147,7 +147,7 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         'v1', 'auth',
     ];
 
-    private const NIE_TRASA_TAGI_HTML = ['div', 'span', 'button', 'header', 'h1', 'strong', 'svg', 'title', 'a', 'b'];
+    private const NIE_TRASA_TAGI_HTML = ['div', 'span', 'button', 'header', 'h1', 'strong', 'svg', 'title', 'a', 'b', 'script'];
 
     /** @return list<string> */
     private function wszystkiePlikiMd(): array
@@ -461,7 +461,7 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         // tras POST-only (np. `/logout`, `/wejdz/facebook/odebranie-dostepu`,
         // `/ustawienia/twoje-dane/eksport`) — trasa „nie istnieje" oznacza
         // tu 404 dla KAŻDEJ metody, nie tylko brak GET-a.
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             $wynik[$this->znormalizujTrase('/'.$trasa->uri())] = true;
         }
 

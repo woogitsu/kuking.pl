@@ -151,21 +151,22 @@ class StronyTresciBezWachlarzaZapytanTest extends TestCase
         $this->komentarzeWykonania($wykonanie, self::MALO);
         $malo = $this->policzZapytania(fn () => $this->get(route('cooked.show', $wykonanie))->assertOk());
 
-        // Ten ekran wciąga komentarze przez `->load()`, BEZ paginacji —
-        // więc rośnie bez górnej granicy i jest jedynym z czterech, na
-        // którym „dużo" nie jest ograniczone rozmiarem strony.
-        $this->komentarzeWykonania($wykonanie, 18, od: self::MALO);
+        // Od issue #938 ten ekran paginuje komentarze jak wpis i przepis,
+        // więc „dużo" to pełna strona. Brak N+1 na dłuższej rozmowie
+        // pilnuje `KomentarzeWykonaniaStronamiTest`.
+        $pelna = $this->pelnaStronaKomentarzy();
+        $this->komentarzeWykonania($wykonanie, $pelna - self::MALO, od: self::MALO);
 
         $html = $this->get(route('cooked.show', $wykonanie))->assertOk()->getContent();
         $this->assertStringContainsString(
-            'Komentarz numer 19',
+            'Komentarz numer '.($pelna - 1).' ',
             $html,
             'Na stronie wykonania nie ma ostatniego komentarza — pomiar nie mierzy rozmowy.',
         );
 
         $duzo = $this->policzZapytania(fn () => $this->get(route('cooked.show', $wykonanie))->assertOk());
 
-        $this->assertSame($malo, $duzo, $this->komunikat('/ugotowane/{id}', $malo, $duzo, 20));
+        $this->assertSame($malo, $duzo, $this->komunikat('/ugotowane/{id}', $malo, $duzo, $pelna));
     }
 
     /**

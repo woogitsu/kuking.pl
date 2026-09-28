@@ -70,6 +70,23 @@ class DataExportTest extends TestCase
         $this->assertSame('dismissed', $data['konto']['stan_zachety_instalacji']);
     }
 
+    /**
+     * Urodziny (issue #1755): w paczce sam dzień i miesiąc, bez roku —
+     * i `null` u osoby, która daty nie podała, a nie pusty klucz do zgadywania.
+     */
+    public function test_paczka_zawiera_urodziny_bez_roku(): void
+    {
+        $basia = $this->user('basia');
+        $basia->forceFill(['birthday_day' => 7, 'birthday_month' => 3])->save();
+        $marek = $this->user('marek');
+
+        $this->assertSame('07-03', $this->jsonFromArchive($this->runExportFor($basia->fresh()))['konto']['urodziny']);
+
+        $daneMarka = $this->jsonFromArchive($this->runExportFor($marek));
+        $this->assertArrayHasKey('urodziny', $daneMarka['konto']);
+        $this->assertNull($daneMarka['konto']['urodziny']);
+    }
+
     public function test_job_tworzy_plik_i_ustawia_status_rozmiar_i_termin_waznosci(): void
     {
         $basia = $this->user('basia', ['display_name' => 'Basia']);
@@ -131,6 +148,30 @@ class DataExportTest extends TestCase
         $readme = $this->readFromArchive($export, 'CZYTAJ-TO-NAJPIERW.txt');
         $this->assertStringContainsString('index.html', $readme);
         $this->assertStringContainsString('Kliknij dwa razy', $readme);
+    }
+
+    public function test_html_przepisu_w_paczce_zachowuje_dokladna_liczbe_porcji(): void
+    {
+        $autor = $this->user('autor_porcji');
+        $przypadki = [
+            ['2.25', '2,25 porcji'],
+            ['0.75', '0,75 porcji'],
+            ['1.50', '1,5 porcji'],
+            ['4.00', '4 porcje'],
+        ];
+        $przepisy = [];
+
+        foreach ($przypadki as [$liczba, $oczekiwane]) {
+            $przepis = Recipe::factory()->for($autor, 'author')->create(['servings' => $liczba]);
+            $przepisy[$przepis->getKey()] = [$przepis, $oczekiwane];
+        }
+
+        $export = $this->runExportFor($autor);
+
+        foreach ($przepisy as [$przepis, $oczekiwane]) {
+            $html = $this->readFromArchive($export, 'przepisy/'.ExportFileNames::recipeFile($przepis));
+            $this->assertStringContainsString('<span>'.$oczekiwane.'</span>', $html);
+        }
     }
 
     public function test_eksport_zawiera_prywatne_wpisy_i_szkice_przepisow(): void
@@ -797,6 +838,7 @@ class DataExportTest extends TestCase
                 'disk' => 'local',
                 'object_key' => $key,
                 'bytes' => 8,
+                'completed_at' => now()->subDays(8),
                 // Kolejność terminów celowo nie odpowiada UUID-om.
                 'expires_at' => now()->subMinutes(($i * 37) % 101 + 1),
             ]);
@@ -830,6 +872,12 @@ class DataExportTest extends TestCase
 
     public function test_gotowy_rekord_bez_pliku_jest_domykany_tylko_raz(): void
     {
+        // Stan sprzed CHECK `data_exports_ready_complete_check` (issue #1365):
+        // baza takiego `ready` już nie przyjmie, ale sprzątanie nadal ma
+        // domknąć wiersz, który powstał wcześniej. DDL w PostgreSQL jest
+        // transakcyjny — `RefreshDatabase` przywraca CHECK po teście.
+        DB::statement('ALTER TABLE data_exports DROP CONSTRAINT data_exports_ready_complete_check');
+
         $export = DataExport::create([
             'user_id' => $this->user('basia')->getKey(),
             'status' => DataExport::STATUS_READY,
