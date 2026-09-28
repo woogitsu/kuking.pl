@@ -19,6 +19,9 @@ use Illuminate\View\View;
 
 class NotificationController extends Controller
 {
+    /** Karta i komunikat po kliknięciu — to samo zdanie, jak przy #1034 (issue #1994). */
+    public const WPIS_SMAKOWICIE_NIEDOSTEPNY = 'Ten wpis został usunięty albo nie jest już dostępny.';
+
     public function index(Request $request, QuestionNotificationContext $questionContext): View
     {
         $user = $request->user();
@@ -347,6 +350,12 @@ class NotificationController extends Controller
         }
 
         $cel = $powiadomienie->adresDocelowy();
+
+        // ISSUE #1994: to samo dla wpisu z dziennego „Smakowicie wygląda" —
+        // usuniętego po zapisaniu digestu albo niedostępnego dla odbiorcy.
+        if ($cel === null && $powiadomienie->type === Notification::TYPE_SMAKOWICIE) {
+            return back()->with('status', self::WPIS_SMAKOWICIE_NIEDOSTEPNY);
+        }
 
         // ODESŁANIE TYLKO W OBRĘBIE SERWISU (issue #733) — patrz `adresWewnetrzny()`.
         $cel = $cel === null ? null : $this->adresWewnetrzny($cel);
