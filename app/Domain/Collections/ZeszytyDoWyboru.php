@@ -34,4 +34,17 @@ final class ZeszytyDoWyboru
 
         return $zeszyty;
     }
+
+    /**
+     * Domyślny zeszyt, gdy jest publiczny — cel szybkiego „Zapisuję” bez
+     * wyboru zeszytu (issue #1400). Przy prywatnym zwraca null, bo wtedy
+     * przycisk nie potrzebuje żadnej wskazówki. Korzysta z tego samego
+     * pobrania co `dla()`, więc karty nie dokładają zapytań.
+     */
+    public function publicznyDomyslny(Request $request): ?Collection
+    {
+        $domyslny = $this->dla($request)->firstWhere('is_default', true);
+
+        return $domyslny?->isPublic() ? $domyslny : null;
+    }
 }

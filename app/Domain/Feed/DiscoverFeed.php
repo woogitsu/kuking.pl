@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domain\Feed;
 
-use App\Domain\Collections\ZapisyWpisu;
+use App\Models\Hide;
 use App\Models\Post;
 use App\Models\User;
 use Carbon\CarbonImmutable;
-use Illuminate\Contracts\Pagination\CursorPaginator as CursorPaginatorContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\Cursor;
 use Illuminate\Pagination\CursorPaginator;
@@ -31,14 +30,6 @@ use Illuminate\Pagination\CursorPaginator;
 final class DiscoverFeed
 {
     /**
-     * `new ZapisyWpisu` jako domyślna wartość — tak samo jak
-     * `LiczbaKukingow` bierze `CookEligibility`. Kontener i tak wstrzyknie
-     * tę klasę (nie ma zależności), a domyślna wartość sprawia, że test
-     * wołający `new DiscoverFeed` wprost nie musi o niej wiedzieć.
-     */
-    public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
-
-    /**
      * Najdalszy wstecz „stan", jaki przyjmujemy z adresu. Kursor starszy niż
      * doba to zakładka, nie przeglądanie — wtedy lista zaczyna się od
      * początku (kursor też odpada, patrz `paginate()`).
@@ -48,9 +39,9 @@ final class DiscoverFeed
     /**
      * @param  string|null  $stan  wartość parametru `stan` z adresu DALSZEJ
      *                             strony (patrz niżej); pierwsza strona podaje `null`
-     * @return CursorPaginatorContract<int, Post>
+     * @return CursorPaginator<int, Post>
      */
-    public function paginate(?User $viewer, ?int $perPage = null, ?string $stan = null): CursorPaginatorContract
+    public function paginate(?User $viewer, ?int $perPage = null, ?string $stan = null): CursorPaginator
     {
         $perPage ??= (int) config('kuking.feed.page_size');
 
@@ -114,33 +105,9 @@ final class DiscoverFeed
         $strona = Post::query()
             ->select('posts.*', 'rotacja.runda')
             ->joinSub($rundy, 'rotacja', 'rotacja.id', '=', 'posts.id')
-            ->with([
-                'author.profile.avatar',
-                'media',
-                // `visibility` i `hero_media_id` W SELEKCIE, a `heroMedia`
-                // doładowane (issue #368): karta wpisu wskazującego przepis
-                // bierze z relacji WSZYSTKO — tytuł, zdjęcie i plakietkę
-                // widoczności — bo wpis niczego z przepisu nie kopiuje.
-                // Kolumna pominięta w selekcie wróciłaby jako `null`, czyli
-                // karta po cichu napisałaby „publicznie" pod przepisem
-                // widocznym tylko dla obserwujących.
-                'recipe:id,title,slug,visibility,hero_media_id',
-                'recipe.heroMedia',
-                // Patrz komentarz w FollowingFeed::paginate() — karta wpisu
-                // pokazuje tematy TYLKO wtedy, gdy relacja jest już
-                // doładowana, więc bez tego wpisy na „Świeżo z Kuking"
-                // nie miałyby żadnych chipów tematów.
-                'tags:id,slug,name,status',
-            ])
-            ->withVisibleCommentCount($viewer)
-            // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
-            // zapytaniem, co wszystko powyżej (issue #275, D-081). Reguły
-            // (kto się liczy, od ilu osób widać liczbę) siedzą w
-            // `ZapisyWpisu`; tutaj jest tylko miejsce, w którym dokładamy
-            // kolumnę do SELECT-a. Bez tego karta wpisu nie pokazałaby ani
-            // liczby, ani potwierdzenia — dokładnie jak z `tags:id,slug,name,status`
-            // wyżej.
-            ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
+            // Relacje karty, licznik komentarzy i zapisów — jeden kontrakt
+            // `Post::scopeDlaKarty()` (#1037), ten sam na każdej liście wpisów.
+            ->dlaKarty($viewer)
             // Runda, w niej czas, a remis czasu rozstrzyga identyfikator —
             // ta sama trójka, którą kursor zapisuje i odtwarza.
             ->orderBy('rotacja.runda')
@@ -216,11 +183,14 @@ final class DiscoverFeed
      */
     private function bezUkrytychPrzez($query, User $viewer): void
     {
-        $query->whereNotIn('posts.author_id', $this->hiddenAuthorIdsFor($viewer));
+        $query->whereNotIn('posts.author_id', $this->hiddenAuthorIdsFor($viewer))
+            // Prywatne ukrycia (#1810, D-278): wpis i osoba.
+            ->bezUkrytychWpisow($viewer)
+            ->bezUkrytychOsob($viewer);
     }
 
     /**
-     * Ile osób widz sam ukrywa (dziś: blokuje). Pusty stan Odkrywania mówi
+     * Ile rzeczy widz sam ukrywa: blokady i aktywne ukrycia wpisów i osób (#1810). Pusty stan Odkrywania mówi
      * wtedy „część ukrywasz" i prowadzi do listy, na której da się to cofnąć
      * (AGENTS.md §8: jawne polecenie widza zawsze z listą do cofnięcia).
      *
@@ -229,7 +199,7 @@ final class DiscoverFeed
      */
     public function ileUkrywa(User $viewer): int
     {
-        return $viewer->blocking()->count();
+        return $viewer->blocking()->count() + Hide::query()->aktywne()->where('user_id', $viewer->getKey())->count();
     }
 
     /** @return list<string> */

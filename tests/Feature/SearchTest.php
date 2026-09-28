@@ -344,6 +344,45 @@ class SearchTest extends TestCase
         );
     }
 
+    public static function zakresyINaglowkiWynikow(): array
+    {
+        return [
+            'wszystko' => ['wszystko', ['h1:Szukaj', 'h2:Przepisy', 'h3:Kalarepa pieczona', 'h2:Ludzie']],
+            'przepisy' => ['przepisy', ['h1:Szukaj', 'h2:Przepisy', 'h3:Kalarepa pieczona']],
+            'do 30 minut' => ['szybkie', ['h1:Szukaj', 'h2:Do 30 minut', 'h3:Kalarepa pieczona']],
+            'ludzie' => ['ludzie', ['h1:Szukaj', 'h2:Ludzie']],
+        ];
+    }
+
+    /** #2081: każda widoczna grupa wyników ma własny punkt orientacyjny H2. */
+    #[DataProvider('zakresyINaglowkiWynikow')]
+    public function test_wyniki_w_kazdym_zakresie_maja_spojna_hierarchie_naglowkow(string $sekcja, array $oczekiwane): void
+    {
+        $autor = $this->user('autor_kalarepy');
+        Recipe::factory()->create([
+            'author_id' => $autor->getKey(),
+            'title' => 'Kalarepa pieczona',
+            'slug' => 'kalarepa-pieczona',
+            'prep_minutes' => 10,
+            'cook_minutes' => 10,
+        ]);
+        $this->user('kalarepa', ['display_name' => 'Kalarepa']);
+
+        $html = (string) $this->get(route('search', ['q' => 'Kalarepa', 'sekcja' => $sekcja]))
+            ->assertOk()->getContent();
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+        $naglowki = (new \DOMXPath($dom))->query('//main[@id="tresc"]//*[self::h1 or self::h2 or self::h3]');
+        $this->assertNotFalse($naglowki);
+
+        $rzeczywiste = [];
+        foreach ($naglowki as $naglowek) {
+            $rzeczywiste[] = $naglowek->nodeName.':'.trim($naglowek->textContent);
+        }
+
+        $this->assertSame($oczekiwane, $rzeczywiste);
+    }
+
     public function test_strona_wyszukiwania_nie_jest_indeksowana(): void
     {
         $this->get(route('search', ['q' => 'rosol']))

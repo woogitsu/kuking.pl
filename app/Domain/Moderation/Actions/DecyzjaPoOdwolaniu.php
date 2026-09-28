@@ -13,6 +13,7 @@ use App\Models\ModerationAction;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 /**
  * Wykonanie nowej decyzji po uznaniu odwołania zgłaszającego od decyzji bez
@@ -71,6 +72,22 @@ final class DecyzjaPoOdwolaniu
             throw new BladDlaCzlowieka('Ta decyzja nie ma zastosowania do zgłoszonej treści. Wybierz jedną z pokazanych.');
         }
 
+        $karaKonta = in_array($nowa->akcja, [ModerationAction::ACTION_SUSPEND, ModerationAction::ACTION_BAN], true);
+        $zablokowanaOsoba = null;
+
+        if ($karaKonta) {
+            // PublishRecipe bierze users FOR KEY SHARE przed recipes FOR UPDATE.
+            // Kara za przepis musi wejść w tę samą kolejność. Odczyt celu
+            // służy tu tylko ustaleniu autora; stan celu sprawdzamy ponownie
+            // dopiero pod blokadą poniżej.
+            $wstepnyCel = ModeratedContent::znajdz($pierwotna->target_type, $pierwotna->target_id, zUsunietymi: true);
+            $wstepnaOsoba = $wstepnyCel instanceof Model ? ModeratedContent::osoba($wstepnyCel) : null;
+
+            if ($wstepnaOsoba !== null) {
+                $zablokowanaOsoba = User::query()->whereKey($wstepnaOsoba->getKey())->lockForUpdate()->first();
+            }
+        }
+
         $cel = $this->zablokujCel($pierwotna);
 
         if ($cel === null || (method_exists($cel, 'trashed') && $cel->trashed())) {
@@ -86,10 +103,15 @@ final class DecyzjaPoOdwolaniu
         }
 
         $osoba = ModeratedContent::osoba($cel);
-        $karaKonta = in_array($nowa->akcja, [ModerationAction::ACTION_SUSPEND, ModerationAction::ACTION_BAN], true);
 
-        if ($karaKonta && $osoba === null) {
-            throw new BladDlaCzlowieka('Nie da się ustalić konta autora tej treści, więc nie ma kogo zawiesić ani zablokować.');
+        if ($karaKonta) {
+            if (! $osoba instanceof User || ! $zablokowanaOsoba instanceof User
+                || (string) $osoba->getKey() !== (string) $zablokowanaOsoba->getKey()) {
+                throw new BladDlaCzlowieka('Nie da się ustalić konta autora tej treści, więc nie ma kogo zawiesić ani zablokować.');
+            }
+
+            // Policy i przejście stanu pracują na świeżym koncie spod blokady.
+            $osoba = $zablokowanaOsoba;
         }
 
         // Ta sama reguła rang co w `RozstrzygnijZgloszenie::handle()` (#1408).
@@ -171,8 +193,10 @@ final class DecyzjaPoOdwolaniu
 
         $zapytanie = $cel::query();
 
+        // To samo co `withTrashed()` — przez nazwę zakresu, bo `$cel::query()`
+        // to `Builder<Model>` bez makr `SoftDeletes` (PHPStan, issue #1731).
         if (method_exists($cel, 'trashed')) {
-            $zapytanie->withTrashed();
+            $zapytanie->withoutGlobalScope(SoftDeletingScope::class);
         }
 
         return $zapytanie->whereKey($cel->getKey())->lockForUpdate()->first();
