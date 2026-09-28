@@ -80,6 +80,24 @@ final class DependabotProponujeMajorOsobnoTest extends TestCase
     }
 
     #[Test]
+    public function wildcard_ignore_bez_update_types_oblewa_bo_wylacza_tez_major(): void
+    {
+        $tresc = (string) file_get_contents(self::sciezka());
+        $zepsuta = preg_replace(
+            '/(- package-ecosystem: "npm"\n)/',
+            "$1    ignore:\n      - dependency-name: \"*\"\n",
+            $tresc,
+            1,
+            $ile,
+        );
+        $this->assertSame(1, $ile, 'Nie znalazłem bloku npm — kontrola ujemna straciła przedmiot.');
+
+        $bledy = implode("\n", self::naruszenia((string) $zepsuta));
+
+        $this->assertStringContainsString('npm: ignore', $bledy);
+    }
+
+    #[Test]
     public function grupa_bez_update_types_oblewa_bo_wciagnelaby_major(): void
     {
         $tresc = (string) file_get_contents(self::sciezka());
@@ -139,7 +157,8 @@ final class DependabotProponujeMajorOsobnoTest extends TestCase
                 $nazwa = (string) ($regula['dependency-name'] ?? '');
                 $typy = (array) ($regula['update-types'] ?? []);
 
-                if (str_contains($nazwa, '*') && in_array('version-update:semver-major', $typy, true)) {
+                // Wildcard bez `update-types` wyłącza wszystkie aktualizacje, więc też major.
+                if (str_contains($nazwa, '*') && ($typy === [] || in_array('version-update:semver-major', $typy, true))) {
                     $bledy[] = "$ekosystem: ignore `$nazwa` z version-update:semver-major wyłącza WSZYSTKIE PR-y major, "
                         .'zamiast wysłać je osobno. Usuń ten wpis; major i tak nie trafi do grupy minor/patch.';
                 }
