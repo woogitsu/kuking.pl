@@ -698,7 +698,10 @@ try {
             )->getKey();
         })(),
         'wspolny-limit-importu' => (function () use ($argumenty): string {
-            config(['kuking.import.limity.na_osobe_dzien' => 1, 'kuking.import.limity.na_osobe_miesiac' => 30]);
+            config([
+                'kuking.import.limity.na_osobe_dzien' => (int) ($argumenty['limit_dzienny'] ?? 1),
+                'kuking.import.limity.na_osobe_miesiac' => (int) ($argumenty['limit_miesieczny'] ?? 30),
+            ]);
             $osoba = User::query()->findOrFail($argumenty['kto']);
             $zrodlo = (string) $argumenty['zrodlo'];
 
