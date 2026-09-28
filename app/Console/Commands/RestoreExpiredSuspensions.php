@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Models\AuditLogEntry;
+use App\Domain\Moderation\Actions\ZdejmijWygasleZawieszenie;
 use App\Models\User;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -68,7 +67,7 @@ class RestoreExpiredSuspensions extends Command
 
     protected $description = 'Przywraca konta, którym minął termin zawieszenia';
 
-    public function handle(): int
+    public function handle(ZdejmijWygasleZawieszenie $zdejmij): int
     {
         $dryRun = (bool) $this->option('dry-run');
 
@@ -86,6 +85,7 @@ class RestoreExpiredSuspensions extends Command
         }
 
         $nieudane = 0;
+        $pominiete = 0;
 
         foreach ($expired as $user) {
             if ($dryRun) {
@@ -105,8 +105,8 @@ class RestoreExpiredSuspensions extends Command
             // (np. cofnięciem odwołania).
             //
             // Dlatego `record()` — nie `recordBezWywracania()` — WEWNĄTRZ
-            // `DB::transaction()`: gdy zapis audytu padnie, transakcja się
-            // wycofuje razem z `reinstate()`, konto ZOSTAJE `suspended`
+            // transakcji `ZamekKonta` (w `ZdejmijWygasleZawieszenie`): gdy
+            // zapis audytu padnie, transakcja się wycofuje razem z `reinstate()`, konto ZOSTAJE `suspended`
             // i to samo uruchomienie komendy za godzinę znajdzie je znowu
             // w zapytaniu wyżej. Bez tego jedno uruchomienie wcześniej
             // zamieniało zapis w HTTP 500 tej komendy: `record()` rzucał
@@ -119,12 +119,15 @@ class RestoreExpiredSuspensions extends Command
             // z audytu, bo `reinstate()` sam w sobie rzadko zawodzi) nie ma
             // przerywać przywracania reszty — ta sama zasada co
             // w `kuking:usun-wygasle-konta` (#1028).
+            //
+            // LISTA WYŻEJ JEST TYLKO KANDYDATAMI (#2019). Czytana bez blokady,
+            // więc zanim dojdziemy do tego konta, moderator mógł je zbanować
+            // albo zawiesić na nowy termin. `ZdejmijWygasleZawieszenie`
+            // sprawdza warunek jeszcze raz na świeżym wierszu pod
+            // `ZamekKonta` i wtedy nie zmienia niczego ani nie zapisuje
+            // „kara wygasła” — nowsza decyzja człowieka wygrywa z zegarem.
             try {
-                DB::transaction(function () use ($user): void {
-                    $user->reinstate();
-
-                    AuditLogEntry::record('account.suspension_expired', null, $user);
-                });
+                $przywrocone = $zdejmij->handle($user);
             } catch (Throwable $e) {
                 $nieudane++;
                 $this->error("Nie udało się przywrócić konta {$user->getKey()} — spróbuję przy następnym przebiegu.");
@@ -136,12 +139,20 @@ class RestoreExpiredSuspensions extends Command
                 continue;
             }
 
+            if (! $przywrocone) {
+                $pominiete++;
+                $this->line("Pominięto: {$user->getKey()} — kara zmieniła się w międzyczasie, zostaje bez zmian.");
+
+                continue;
+            }
+
             $this->line("Przywrócono: {$user->getKey()}");
         }
 
         $this->info($dryRun
             ? 'Kar z minionym terminem: '.$expired->count().' (nic nie zmieniono).'
-            : 'Przywrócono kont: '.($expired->count() - $nieudane).'.'
+            : 'Przywrócono kont: '.($expired->count() - $nieudane - $pominiete).'.'
+                .($pominiete > 0 ? ' Pominięte (nowsza decyzja moderatora): '.$pominiete.'.' : '')
                 .($nieudane > 0 ? ' Nieudane: '.$nieudane.' (spróbujemy przy następnym przebiegu).' : ''));
 
         return self::SUCCESS;
