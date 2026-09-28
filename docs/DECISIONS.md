@@ -19463,8 +19463,13 @@ do składnika (placeholder kreatora wprost podpowiadał „albo masło roślinne
 **Znana granica.** Rzeczownika bez jednostki nie odmieniamy: „2 jajka” razy
 2,5 daje „5 jajka”, „1 cebula” razy 1,5 — „1½ cebula”. Poprawna odmiana
 wymaga słownika odmiany produktów. Łagodzi to informacja „Przeliczone na N
-porcji” i powrót jednym dotknięciem. Tryb gotowania pokazuje ilości autora
-(parametr `porcje` nie przechodzi do `/gotuj`) — do decyzji, czy przenosić.
+porcji” i powrót jednym dotknięciem. Przed #1984 tryb gotowania pokazywał
+ilości autora; uzupełnienie poniżej przenosi wybór do `/gotuj`.
+
+**Uzupełnienie #1984.** Wybór z adresu przechodzi do trybu gotowania i wraca
+z niego do strony przepisu. Oba widoki używają tego samego `WyborPorcji`;
+zmiana kroku i zapis odhaczenia zachowują zwalidowaną liczbę, a niepoprawna
+wartość wraca do ilości autora. Źródłowych składników to nie zmienia.
 
 **Czego świadomie NIE ma w tym kroku — propozycja na później.** Zamienniki
 podpowiadane przez AI. Model AI projektu ma być według zlecenia OpenAI
