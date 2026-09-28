@@ -17,6 +17,7 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Mail\Transport\ArrayTransport;
 use Illuminate\Session\Store;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
@@ -130,13 +131,19 @@ abstract class TestCase extends BaseTestCase
      */
     private function dopelnijAtrybutyZBazy(User $user): void
     {
-        $wiersz = $user->newQueryWithoutScopes()->toBase()->where($user->getKeyName(), $user->getKey())->first();
+        // Przez gołe PDO, nie przez builder: testy liczące zapytania mierzą
+        // to, co robi aplikacja, a nie to, co dokłada asekuracja `actingAs()`.
+        $zapytanie = DB::connection()->getPdo()->prepare(
+            'select * from '.$user->getTable().' where '.$user->getKeyName().' = ?',
+        );
+        $zapytanie->execute([$user->getKey()]);
+        $wiersz = $zapytanie->fetch(\PDO::FETCH_ASSOC);
 
-        if ($wiersz === null) {
+        if ($wiersz === false) {
             return;
         }
 
-        foreach ((array) $wiersz as $kolumna => $wartosc) {
+        foreach ($wiersz as $kolumna => $wartosc) {
             if (! array_key_exists($kolumna, $user->getAttributes())) {
                 $user->setRawAttributes([...$user->getAttributes(), $kolumna => $wartosc]);
                 $user->syncOriginalAttribute($kolumna);
