@@ -146,6 +146,11 @@
             <x-blad-grupy name="perceived_difficulty" />
         </fieldset>
 
+        <p class="notice">
+            <strong>Kto to zobaczy?</strong>
+            Twoje wykonanie, zdjęcia i odpowiedzi zobaczą osoby, które mogą zobaczyć ten przepis.
+        </p>
+
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Wyślij</button>
             <a class="btn btn-quiet" href="{{ route('recipes.show', $recipe->slug) }}">Wróć do przepisu</a>
