@@ -45,7 +45,7 @@ def run_test(expect_success: bool) -> None:
     env = os.environ.copy()
     env["APP_BASE_PATH"] = str(ROOT)
     result = subprocess.run(
-        ["php", "artisan", "test", "tests/Dwa/OdwolanieNieZakleszczaEdycjiPrzepisuTest.php",
+        ["php", "artisan", "test", "--group=dwa-polaczenia",
          "--filter=" + TEST, "--no-ansi"],
         cwd=ROOT,
         env=env,
