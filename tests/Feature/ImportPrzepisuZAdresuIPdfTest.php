@@ -404,7 +404,7 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         $kreator = Livewire::actingAs($autor)
             ->test('recipe-wizard', ['recipeId' => (string) $recipe->getKey()])
             ->assertSee('Ten tekst odczytał komputer ze strony internetowej.')
-            ->set('source_type', 'own')
+            ->set('form.source_type', 'own')
             ->set('step', 4)
             ->assertSee('Sprawdziłem odczytany tekst')
             ->assertSee('Opis przygotowania jest prawie taki sam jak na stronie źródłowej.')
