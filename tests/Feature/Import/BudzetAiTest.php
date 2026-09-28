@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Import;
 
 use App\Domain\Import\BudzetAi;
+use App\Domain\Import\Cennik;
 use App\Domain\Import\Rezerwacja;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -142,7 +143,7 @@ final class BudzetAiTest extends TestCase
 
     public function test_rozliczenie_po_progu_272_tysiecy_stosuje_drozsza_taryfe_do_calego_zadania(): void
     {
-        $cennik = new \App\Domain\Import\Cennik(2, 8);
+        $cennik = new Cennik(2, 8);
 
         $this->assertSame(272_000 * 2 + 100 * 8, $cennik->koszt(272_000, 100));
         $this->assertSame(1_089_204, $cennik->koszt(272_001, 100));

@@ -389,6 +389,9 @@ final class OdczytZdjeciaKartkiTest extends TestCase
 
     public function test_ponowienie_po_awarii_liczy_sie_do_limitu_i_wypelnia_ten_sam_szkic(): void
     {
+        // Testowy cennik 2/8 USD wymaga 4,296 USD rezerwacji na każdą próbę.
+        // Podnieś tylko budżet tego testu, aby mierzyć retry przy wolnym miejscu.
+        config(['kuking.import.budzet.dzienny_usd' => 10]);
         $this->zgoda();
         Http::fake(['api.openai.com/*' => Http::sequence()->push([], 503)->push($this->odpowiedzModelu(self::ODPOWIEDZ))]);
 
