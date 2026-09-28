@@ -49,7 +49,7 @@ class KolejnoscZachowanychZdjecPoBledzieTest extends TestCase
         $wynik = [];
 
         foreach ((new \DOMXPath($dom))->query('//input[@type="hidden"][@name="media_ids[]"]') as $pole) {
-            $wynik[] = $pole->getAttribute('value');
+            $wynik[] = self::elementDom($pole)->getAttribute('value');
         }
 
         return $wynik;

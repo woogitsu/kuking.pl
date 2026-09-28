@@ -66,7 +66,7 @@ final class CookRetentionCohorts
     ) {}
 
     /**
-     * @return Collection<int, object{signup_week: string, week_offset: int, active_users: int}>
+     * @return Collection<int, \stdClass> wiersze `DB::query()`: signup_week, week_offset, active_users
      */
     public function weekly(): Collection
     {

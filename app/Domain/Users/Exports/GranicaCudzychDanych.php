@@ -57,7 +57,9 @@ final class GranicaCudzychDanych
         $widzId = $this->widz->getKey();
 
         return $zapytanie
-            ->widocznyJakoOsoba()
+            // Ta sama granica co User::scopeWidocznyJakoOsoba(); działa także
+            // na relacji, dla której analizator nie może wywnioskować scope.
+            ->whereNotIn('status', User::STATUSY_ZAMKNIETEGO_KONTA)
             ->whereNotExists(fn ($sub) => $sub->selectRaw('1')
                 ->from('blocks')
                 ->where(fn ($w) => $w->where('blocks.blocker_id', $widzId)->whereColumn('blocks.blocked_id', 'users.id'))

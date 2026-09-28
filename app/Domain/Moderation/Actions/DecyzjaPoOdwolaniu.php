@@ -13,6 +13,7 @@ use App\Models\ModerationAction;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 /**
  * Wykonanie nowej decyzji po uznaniu odwołania zgłaszającego od decyzji bez
@@ -171,8 +172,10 @@ final class DecyzjaPoOdwolaniu
 
         $zapytanie = $cel::query();
 
+        // To samo co `withTrashed()` — przez nazwę zakresu, bo `$cel::query()`
+        // to `Builder<Model>` bez makr `SoftDeletes` (PHPStan, issue #1731).
         if (method_exists($cel, 'trashed')) {
-            $zapytanie->withTrashed();
+            $zapytanie->withoutGlobalScope(SoftDeletingScope::class);
         }
 
         return $zapytanie->whereKey($cel->getKey())->lockForUpdate()->first();

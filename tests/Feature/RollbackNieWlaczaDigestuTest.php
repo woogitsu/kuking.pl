@@ -61,14 +61,27 @@ class RollbackNieWlaczaDigestuTest extends TestCase
         return strtolower(trim((string) $wiersz->column_default));
     }
 
-    private function migracjaDomyslnejZgody(): Migration
+    /**
+     * Uruchamia `up()` albo `down()` migracji domyślnej zgody.
+     *
+     * Klasa bazowa `Migration` nie deklaruje ani `up()`, ani `down()` — ma je
+     * dopiero anonimowa klasa z pliku. Dawny `@var Migration` obiecywał więc
+     * metody, których typ nie ma (PHPStan, poziom 2 — issue #1731); teraz
+     * sprawdzamy je jawnie.
+     *
+     * @param  'up'|'down'  $kierunek
+     */
+    private function uruchomMigracjeDomyslnejZgody(string $kierunek): void
     {
-        /** @var Migration $migracja */
         $migracja = require base_path(
             'database/migrations/2026_09_07_400000_default_weekly_digest_to_off.php',
         );
 
-        return $migracja;
+        if (! $migracja instanceof Migration || ! method_exists($migracja, 'up') || ! method_exists($migracja, 'down')) {
+            self::fail('Plik migracji domyślnej zgody nie zwraca już migracji z up() i down().');
+        }
+
+        $kierunek === 'up' ? $migracja->up() : $migracja->down();
     }
 
     /** Autor, którego przepis ktoś w tym tygodniu ugotował — czyli ktoś z realną treścią w liście. */
@@ -99,8 +112,7 @@ class RollbackNieWlaczaDigestuTest extends TestCase
     {
         $this->assertStringStartsWith('false', $this->domyslnaWartoscZgody());
 
-        $migracja = $this->migracjaDomyslnejZgody();
-        $migracja->down();
+        $this->uruchomMigracjeDomyslnejZgody('down');
 
         $this->assertStringStartsWith(
             'false',
@@ -108,7 +120,7 @@ class RollbackNieWlaczaDigestuTest extends TestCase
             'Cofnięcie migracji przywróciło zapisywanie nowych kont na mailing bez zgody (DB2).',
         );
 
-        $migracja->up();
+        $this->uruchomMigracjeDomyslnejZgody('up');
 
         $this->assertStringStartsWith('false', $this->domyslnaWartoscZgody());
     }

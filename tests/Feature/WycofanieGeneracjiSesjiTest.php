@@ -50,13 +50,13 @@ class WycofanieGeneracjiSesjiTest extends TestCase
         $this->sesja('stara-sesja-odwolanego', $odwolane->getKey());
         $this->sesja('sesja-nietknietego', $nietkniete->getKey());
 
-        $this->migracja()->down();
+        self::wykonajMigracje($this->migracja(), 'down');
 
         $this->assertFalse(Schema::hasColumn('users', 'session_generation'));
         $this->assertDatabaseMissing('sessions', ['id' => 'stara-sesja-odwolanego']);
         $this->assertDatabaseHas('sessions', ['id' => 'sesja-nietknietego']);
 
-        $this->migracja()->up();
+        self::wykonajMigracje($this->migracja(), 'up');
 
         $this->assertTrue(Schema::hasColumn('users', 'session_generation'));
         $this->assertSame(0, (int) DB::table('users')->where('id', $odwolane->getKey())->value('session_generation'));
@@ -64,12 +64,12 @@ class WycofanieGeneracjiSesjiTest extends TestCase
 
     public function test_down_jest_bezpieczny_przy_powtorzeniu(): void
     {
-        $this->migracja()->down();
-        $this->migracja()->down();
+        self::wykonajMigracje($this->migracja(), 'down');
+        self::wykonajMigracje($this->migracja(), 'down');
 
         $this->assertFalse(Schema::hasColumn('users', 'session_generation'));
 
-        $this->migracja()->up();
+        self::wykonajMigracje($this->migracja(), 'up');
 
         $this->assertTrue(Schema::hasColumn('users', 'session_generation'));
     }
