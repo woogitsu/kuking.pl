@@ -8,6 +8,7 @@ use App\Models\AuditLogEntry;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -129,6 +130,7 @@ class AwariaAudytuKomendAutomatycznychTest extends TestCase
         return $this->user($username, [
             'status' => User::STATUS_PENDING_DELETE,
             'delete_requested_at' => now()->subDays(31),
+            'delete_request_generation' => (string) Str::uuid(),
         ]);
     }
 
