@@ -438,7 +438,9 @@
             @default
                 <div class="photo-grid">
                     @foreach($post->media as $media)
-                        <x-photo :media="$media" :priority="$priority && $loop->first" />
+                        <x-photo :media="$media"
+                                 :priority="$priority && $loop->first"
+                                 :alt="$media->alt_text ?: 'Zdjęcie '.$loop->iteration.' z '.$loop->count.' w tym wpisie'" />
                     @endforeach
                 </div>
         @endswitch
@@ -713,7 +715,12 @@
             @else
                 <form method="POST" action="{{ route('collections.save-post', $post) }}">
                     @csrf
-                    <button class="btn btn-secondary" type="submit">
+                    @php $publicznyCel = app(\App\Domain\Collections\ZeszytyDoWyboru::class)->publicznyDomyslny(request()); @endphp
+                    @if($publicznyCel)
+                        {{-- Cel szybkiego zapisu jest publiczny — mówimy to przy przycisku (issue #1400). --}}
+                        <p class="pomoc" id="cel-zapisu-wpis-{{ $post->getKey() }}">Zapiszemy w zeszycie „{{ $publicznyCel->name }}”. Ten zeszyt widzą inne zalogowane osoby.</p>
+                    @endif
+                    <button class="btn btn-secondary" type="submit" @if($publicznyCel) aria-describedby="cel-zapisu-wpis-{{ $post->getKey() }}" @endif>
                         <x-ikona nazwa="book" :rozmiar="22" />
                         Zapisuję
                     </button>

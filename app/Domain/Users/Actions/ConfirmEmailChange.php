@@ -215,7 +215,14 @@ final class ConfirmEmailChange
             $user->setRawAttributes($swiezy->getAttributes(), sync: true);
         });
 
-        AuditLogEntry::record(
+        // POMOCNICZY, PO ZATWIERDZONEJ ZMIANIE (D-249, klasa 2; #1897).
+        // Autorytatywny ślad to `users.email` (i unieważnione sesje/reset),
+        // zapisane w transakcji wyżej. `record()` rzucający wyjątek dawał
+        // tu HTTP 500 mimo już zmienionego adresu — ponowienie kliknięcia
+        // w ten sam, już zużyty link kończyło się „link nie działa",
+        // zaciemniając stan konta. `recordBezWywracania()` zgłasza awarię do
+        // `report()` z nazwą wpisu i nie zamienia wykonanej zmiany w błąd.
+        AuditLogEntry::recordBezWywracania(
             'account.email_changed',
             $user,
             $user,

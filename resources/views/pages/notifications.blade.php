@@ -113,7 +113,7 @@
                     <x-avatar :user="$actor" :size="$zwykleZdarzenie ? 48 : 44" />
                 @endif
                 <div class="min-w-0 powiadomienie-tresc">
-                    <p class="m-0 mb-1">
+                    <p class="m-0 mb-1" id="powiadomienie-{{ $notification->getKey() }}-opis">
                         {{--
                             NIEPRZECZYTANE MA NIEŚĆ SŁOWO, nie tylko kreskę
                             z boku (WCAG 1.4.1; §13 systemu mówi to wprost).
@@ -189,6 +189,12 @@
                                 <strong>{{ $notification->naglowekSmakowicie() }}</strong>
                                 @if((int) ($data['wpisow'] ?? 1) > 1)
                                     Pod kilkoma Twoimi wpisami.
+                                @endif
+                                {{-- ISSUE #1994: wpis usunięty po zapisaniu digestu. Bez „Zobacz"
+                                     na 404 i bez cytatu z usuniętej treści. Cel liczy
+                                     `CelPowiadomienia` — brak adresu znaczy brak wpisu. --}}
+                                @if(($destinationUrls[(string) $notification->getKey()] ?? null) === null)
+                                    {{ \App\Http\Controllers\NotificationController::WPIS_SMAKOWICIE_NIEDOSTEPNY }}
                                 @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_FOLLOW)
@@ -356,7 +362,12 @@
                         --}}
                         <form class="mt-3 mx-0 mb-0" method="POST" action="{{ route('notifications.open', $notification) }}">
                             @csrf
-                            <button class="btn btn-secondary" type="submit">Zobacz</button>
+                            {{-- Własne ID dołącza widoczne „Zobacz” do zdania tej karty
+                                 w nazwie dostępnej (WAI-ARIA APG: names-and-descriptions).
+                                 Nie kopiujemy treści do atrybutu ani nie zmieniamy napisu. --}}
+                            <button class="btn btn-secondary" type="submit"
+                                    id="powiadomienie-{{ $notification->getKey() }}-zobacz"
+                                    aria-labelledby="powiadomienie-{{ $notification->getKey() }}-zobacz powiadomienie-{{ $notification->getKey() }}-opis">Zobacz</button>
                         </form>
                     @elseif($notification->isUnread())
                         {{--
@@ -434,7 +445,7 @@
     @endif
     @else
         <x-empty-state title="Nie ma jeszcze żadnych powiadomień">
-            Tu pojawi się informacja, kiedy ktoś ugotuje z Twojego przepisu albo napisze komentarz.
+            Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących oraz ważnych sprawach dotyczących Twojego konta.
         </x-empty-state>
     @endif
 

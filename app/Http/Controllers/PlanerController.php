@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Planer\Actions\DodajDoPlanu;
 use App\Domain\Planer\Actions\SkopiujPoprzedniTydzien;
 use App\Domain\Planer\PlanerTygodnia;
+use App\Domain\Planer\ZakresDatPlanu;
 use App\Models\MealPlanEntry;
 use App\Models\Recipe;
 use App\Support\Czas;
@@ -91,15 +92,27 @@ class PlanerController extends Controller
         if ($wynik['skopiowane'] > 0) {
             $zdania[] = 'Skopiowane z poprzedniego tygodnia: '.$wynik['skopiowane'].' '
                 .Odmiana::rzeczownik($wynik['skopiowane'], 'pozycja', 'pozycje', 'pozycji').'.';
-        } elseif ($wynik['juz_byly'] > 0) {
+        } elseif ($wynik['juz_byly'] > 0 && $wynik['poza_zakresem'] === 0) {
             $zdania[] = 'Wszystko z poprzedniego tygodnia już jest w tym tygodniu.';
-        } elseif ($wynik['pominiete'] === 0) {
+        } elseif ($wynik['juz_byly'] > 0) {
+            $zdania[] = 'Już w planie: '.$wynik['juz_byly'].' '
+                .Odmiana::rzeczownik($wynik['juz_byly'], 'pozycja', 'pozycje', 'pozycji').'.';
+        } elseif ($wynik['pominiete'] === 0 && $wynik['poza_zakresem'] === 0) {
             $zdania[] = 'Poprzedni tydzień jest pusty — nie ma czego skopiować.';
+        } else {
+            $zdania[] = 'Nic nie zostało skopiowane.';
         }
         if ($wynik['pominiete'] > 0) {
             $zdania[] = 'Pominięte: '.$wynik['pominiete'].' '
                 .Odmiana::rzeczownik($wynik['pominiete'], 'pozycja', 'pozycje', 'pozycji')
                 .' — przepis jest już niedostępny albo dzień ma komplet.';
+        }
+        if ($wynik['poza_zakresem'] > 0) {
+            // Ile, dlaczego i co zrobić (#2036) — zakres z tej samej reguły,
+            // która pilnuje zapisu, nie wpisany osobno w zdaniu.
+            $zdania[] = 'Poza zakresem dat: '.$wynik['poza_zakresem'].' '
+                .Odmiana::rzeczownik($wynik['poza_zakresem'], 'pozycja', 'pozycje', 'pozycji')
+                .' — planer przyjmuje dni '.ZakresDatPlanu::opis().'. Wybierz tydzień bliżej dzisiejszego dnia.';
         }
 
         return redirect()->route('planer.show', ['tydzien' => $poniedzialek->toDateString()])

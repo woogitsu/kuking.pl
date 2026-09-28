@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Database\Factories\CollectionFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -16,9 +14,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  */
 class Collection extends Model
 {
-    /** @use HasFactory<CollectionFactory> */
-    use HasFactory;
-
     use HasUuids;
 
     protected $fillable = [
@@ -36,11 +31,17 @@ class Collection extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');
     }
 
+    /**
+     * @return BelongsToMany<Recipe, $this>
+     */
     public function recipes(): BelongsToMany
     {
         // `orderByDesc('recipes.id')` rozstrzyga remisy `created_at` na

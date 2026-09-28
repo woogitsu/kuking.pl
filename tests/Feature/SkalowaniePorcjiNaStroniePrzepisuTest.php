@@ -51,10 +51,10 @@ final class SkalowaniePorcjiNaStroniePrzepisuTest extends TestCase
 
         $this->assertNotNull($mniej, 'Brak linku „Mniej”.');
         $this->assertNotNull($wiecej, 'Brak linku „Więcej”.');
-        $this->assertStringEndsWith('?porcje=3#skladniki', $mniej->getAttribute('href'));
-        $this->assertStringEndsWith('?porcje=5#skladniki', $wiecej->getAttribute('href'));
-        $this->assertSame('nofollow', $wiecej->getAttribute('rel'), 'Warianty porcji nie mają trafiać do wyszukiwarki.');
-        $this->assertStringContainsString('Mniej', (string) $mniej->getAttribute('aria-label'), 'Nazwa dostępna musi zawierać widoczny napis (WCAG 2.5.3).');
+        $this->assertStringEndsWith('?porcje=3#skladniki', self::elementDom($mniej)->getAttribute('href'));
+        $this->assertStringEndsWith('?porcje=5#skladniki', self::elementDom($wiecej)->getAttribute('href'));
+        $this->assertSame('nofollow', self::elementDom($wiecej)->getAttribute('rel'), 'Warianty porcji nie mają trafiać do wyszukiwarki.');
+        $this->assertStringContainsString('Mniej', (string) self::elementDom($mniej)->getAttribute('aria-label'), 'Nazwa dostępna musi zawierać widoczny napis (WCAG 2.5.3).');
     }
 
     public function test_porcje_z_adresu_przeliczaja_liste(): void
@@ -84,11 +84,11 @@ final class SkalowaniePorcjiNaStroniePrzepisuTest extends TestCase
 
         $powrot = $xpath->query('//a[normalize-space(.)="Pokaż ilości z przepisu"]')->item(0);
         $this->assertNotNull($powrot);
-        $this->assertSame(route('recipes.show', $przepis->slug).'#skladniki', $powrot->getAttribute('href'));
+        $this->assertSame(route('recipes.show', $przepis->slug).'#skladniki', self::elementDom($powrot)->getAttribute('href'));
 
         // Canonical i dane dla wyszukiwarek zostają przy przepisie autora.
         $canonical = $xpath->query('//link[@rel="canonical"]')->item(0);
-        $this->assertSame(route('recipes.show', $przepis->slug), $canonical?->getAttribute('href'));
+        $this->assertSame(route('recipes.show', $przepis->slug), self::elementDom($canonical)->getAttribute('href'));
         $jsonLd = [];
         foreach ($xpath->query('//script[@type="application/ld+json"]') as $skrypt) {
             $jsonLd[] = json_decode($skrypt->textContent, true);
@@ -136,8 +136,8 @@ final class SkalowaniePorcjiNaStroniePrzepisuTest extends TestCase
         $xpath = $this->xpath($odpowiedz);
 
         $odpowiedz->assertSee('Przeliczone na 2,5 porcji.');
-        $this->assertStringEndsWith('?porcje=2#skladniki', $xpath->query('//div[@class="porcje-wybor-przyciski"]/a[contains(., "Mniej")]')->item(0)?->getAttribute('href') ?? '');
-        $this->assertStringEndsWith('?porcje=3#skladniki', $xpath->query('//div[@class="porcje-wybor-przyciski"]/a[contains(., "Więcej")]')->item(0)?->getAttribute('href') ?? '');
+        $this->assertStringEndsWith('?porcje=2#skladniki', self::elementDom($xpath->query('//div[@class="porcje-wybor-przyciski"]/a[contains(., "Mniej")]')->item(0))->getAttribute('href'));
+        $this->assertStringEndsWith('?porcje=3#skladniki', self::elementDom($xpath->query('//div[@class="porcje-wybor-przyciski"]/a[contains(., "Więcej")]')->item(0))->getAttribute('href'));
     }
 
     public function test_nieuzywalna_liczba_pokazuje_przepis_autora_i_mowi_co_zrobic(): void
