@@ -1,0 +1,14 @@
+SELECT 10000
+VACUUM
+      tabela       | wiersze 
+-------------------+---------
+ posts             |  200000
+ posts (pytania)   |   10000
+ comments          |  396809
+ users             |   20001
+ follows           |  199630
+ blocks            |    5188
+ post_tags         |  296534
+ post_tags z tag-0 |   33032
+(8 rows)
+
