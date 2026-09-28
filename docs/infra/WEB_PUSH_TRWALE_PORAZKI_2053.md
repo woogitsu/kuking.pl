@@ -15,12 +15,27 @@ Każda grupa pushu to wiersze `notifications` z tym samym `push_grupa_id`
 
 | Stan | Warunek | Alarm? |
 |---|---|---|
-| w toku | `push_wyslano_at IS NULL`, `push_zakonczono_at IS NULL`, rezerwacja młodsza niż `KUKING_PUSH_OSIEROCENIE_MINUT` (30) **albo** w `jobs` czeka/trwa zadanie `WyslijPowiadomieniePush` tego odbiorcy | nie (zaległą kolejkę zgłasza `kuking:sprawdz-kolejke`) |
-| **utracone ponowienie** | jak wyżej, ale rezerwacja starsza niż próg i **żadnego** zadania odbiorcy w `jobs` | **tak** — kod `utracone_ponowienie` |
+| w toku | `push_wyslano_at IS NULL`, `push_zakonczono_at IS NULL`, rezerwacja młodsza niż `KUKING_PUSH_OSIEROCENIE_MINUT` (30) **albo** w `jobs` czeka/trwa ponowienie `WyslijPowiadomieniePush` niosące ID **tego powiadomienia** | nie (zaległą kolejkę zgłasza `kuking:sprawdz-kolejke`) |
+| **utracone ponowienie** | jak wyżej, ale rezerwacja starsza niż próg i **żadnego** ponowienia z jej ID w `jobs` | **tak** — kod `utracone_ponowienie` |
 | **trwała porażka** | `push_wynik = 'porazka_transportu'` — wyczerpane `KUKING_PUSH_MAKS_PROB_TRANSPORTU` prób | **tak** — kod `porazka_transportu` |
 | świadomie anulowane | `push_wynik = 'anulowano'` (przeczytane, niewidoczne, konto bez dostępu, rezerwacja > 48 h — #2052) | nie |
 | rozliczone ręcznie | `push_wynik = 'zamknieto_recznie'` | nie |
 | wysłane | `push_wyslano_at IS NOT NULL` | nie |
+
+Dlaczego osłoną jest ID powiadomienia, a nie odbiorca: retry z #1992 ginie
+właśnie przez zamek unikalności ŚWIEŻEGO zadania tego samego odbiorcy. To
+świeże zadanie przy limicie 1/dobę liczy sierotę jako zajęty slot, dostaje
+„odłóż” i przez 48 h wraca do `jobs`. Dopasowanie po odbiorcy zasłaniałoby
+sierotę na cały ten czas.
+
+Awaryjny wyłącznik (`KUKING_POWIADOMIENIA_ZEWNETRZNE=false`) wstrzymuje
+liczenie utraconych ponowień — przy wyłączonym kanale zadanie wraca bez
+zamknięcia rezerwacji i każda wyglądałaby na utraconą. Tabela czujki
+pokazuje wtedy „kanał wyłączony: tak”. Po ponownym włączeniu rezerwacje,
+których ponowienie przepadło w tym czasie, zgłoszą się jako
+`utracone_ponowienie` — rozlicz je według §3.1. Trwałe porażki są liczone
+zawsze. Brak `VAPID_PRIVATE_KEY` przy WŁĄCZONYM kanale nie jest wyjątkiem:
+to błąd konfiguracji i alarmuje.
 
 Dlaczego `failed_jobs` tego nie widzi: trwała porażka kończy zadanie
 **sukcesem** (push nie jest listem poleconym, zadanie nie ma czego ponawiać),
@@ -73,7 +88,7 @@ GROUP BY 1 ORDER BY 1;
 Co sprawdzić obok:
 
 - dziennik serwera: `Web Push: trwała porażka transportu` (pola `proby`,
-  `nieudane_urzadzenia`, `wszystkie_urzadzenia`) i `Web Push: nieudana
+  `nieudane_urzadzenia`, `wszystkie_urzadzenia`, `juz_obsluzone`) i `Web Push: nieudana
   wysyłka` (pole `usluga` — np. FCM, Mozilla). Skok na jednej usłudze = jej
   awaria, nie nasza;
 - `Web Push: brak VAPID_PRIVATE_KEY w procesie kolejki` — wtedy **każde**
@@ -114,7 +129,7 @@ UPDATE notifications n
    AND NOT EXISTS (
        SELECT 1 FROM jobs j
         WHERE strpos(j.payload, 'WyslijPowiadomieniePush') > 0
-          AND strpos(j.payload, n.user_id::text) > 0);
+          AND strpos(j.payload, n.id::text) > 0);
 
 COMMIT;
 ```
@@ -126,9 +141,15 @@ jedno odwołanie. `push_proba_at` zostaje — grupa nie wraca do puli.
 
 Tylko gdy **wszystkie** trzy warunki są spełnione:
 
-1. dziennik pokazuje pełną awarię usługi (`nieudane_urzadzenia` =
-   `wszystkie_urzadzenia` w każdym wpisie z okresu awarii) — czyli żadne
-   urządzenie tych grup nic nie dostało;
+1. dziennik pokazuje pełną awarię usługi w KAŻDYM wpisie „trwała porażka”
+   z okresu awarii: `juz_obsluzone = 0` **i** `nieudane_urzadzenia` =
+   `wszystkie_urzadzenia`. Samo „nieudane = wszystkie” NIE wystarcza:
+   w ponowieniu `wszystkie_urzadzenia` liczy tylko urządzenia, które
+   jeszcze nie dostały pushu, a te, które dostały go w pierwszej próbie,
+   stoją w `juz_obsluzone`. Przy `juz_obsluzone > 0` choćby w jednym
+   wpisie **ponowienie jest zakazane** — te urządzenia dostałyby drugą
+   kopię; takie grupy tylko zamykasz (§3.1). Wpisy sprzed #2053 nie mają
+   tego pola — dla nich też tylko zamknięcie;
 2. powiadomienia są młodsze niż `KUKING_PUSH_MAKS_WIEK_GODZIN` (48 h)
    i nieprzeczytane (`read_at IS NULL`) — starszych zadanie i tak nie wyśle;
 3. właściciel świadomie się zgodził (to jest operacja na danych produkcji).

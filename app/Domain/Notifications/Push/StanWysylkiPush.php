@@ -22,11 +22,16 @@ use Throwable;
  * CZTERY STANY REZERWACJI (`push_proba_at IS NOT NULL AND push_wyslano_at IS NULL`):
  *
  *  - W TOKU: `push_zakonczono_at` puste, rezerwacja świeższa niż próg ALBO
- *    w `jobs` czeka (lub trwa) zadanie tego odbiorcy. Opóźniony retry
+ *    w `jobs` czeka (lub trwa) ponowienie niosące ID TEGO powiadomienia
+ *    (`notificationIds`). Samo zadanie tego odbiorcy NIE osłania: retry z
+ *    #1992 ginie właśnie przez zamek świeżego zadania tego odbiorcy, a to
+ *    przy limicie liczy sierotę jako zajęty slot, dostaje ODLOZ i wraca do
+ *    `jobs` przez 48 h — dopasowanie po `user_id` zasłaniałoby sierotę
+ *    na cały ten czas. Opóźniony retry
  *    i zaległa kolejka NIE są tutejszym alarmem — zaległość zgłasza
  *    `kuking:sprawdz-kolejke`;
  *  - UTRACONE PONOWIENIE: `push_zakonczono_at` puste, rezerwacja starsza niż
- *    `push_osierocenie_minut` i żadnego zadania tego odbiorcy w `jobs`.
+ *    `push_osierocenie_minut` i żadnego ponowienia z jej ID w `jobs`.
  *    Nikt już jej nie dokończy ani nie zamknie;
  *  - TRWAŁA PORAŻKA: `push_wynik = porazka_transportu` — wyczerpane próby;
  *  - ANULOWANE / ROZLICZONE: `anulowano`, `zamknieto_recznie` albo zamknięcie
@@ -62,7 +67,8 @@ final class StanWysylkiPush
      *     utracone_ponowienia: int|null,
      *     najstarsze_utracone_sekundy: int|null,
      *     prog_osierocenia_minut: int,
-     *     kody: list<string>
+     *     kody: list<string>,
+     *     kanal_wylaczony: bool
      * }
      */
     public function sprawdz(?Carbon $teraz = null): array
@@ -78,6 +84,7 @@ final class StanWysylkiPush
             'najstarsze_utracone_sekundy' => null,
             'prog_osierocenia_minut' => $prog,
             'kody' => [],
+            'kanal_wylaczony' => ! (bool) config('kuking.notifications.zewnetrzne.wlaczone', true),
         ];
 
         try {
@@ -96,7 +103,15 @@ final class StanWysylkiPush
                 SQL);
 
             $tabelaZadan = (string) config('queue.connections.database.table', 'jobs');
-            $utracone = DB::selectOne(<<<SQL
+            // AWARYJNY WYŁĄCZNIK (`wlaczone = false`) to świadoma decyzja, nie
+            // awaria: zadanie wraca wtedy bez wysyłki i bez zamknięcia, więc
+            // każda otwarta rezerwacja po 30 min wyglądałaby na utraconą.
+            // Nie liczymy ich, póki kanał jest wyłączony; po włączeniu te,
+            // których ponowienie przepadło, zgłoszą się jako utracone — bo
+            // naprawdę są. Brak klucza prywatnego przy włączonym kanale NIE
+            // jest tu wyjątkiem: to błąd konfiguracji i ma alarmować.
+            $kanalWlaczony = (bool) config('kuking.notifications.zewnetrzne.wlaczone', true);
+            $utracone = ! $kanalWlaczony ? (object) ['grupy' => 0, 'najstarsza' => null] : DB::selectOne(<<<SQL
                 SELECT count(DISTINCT COALESCE(n.push_grupa_id::text, n.id::text)) AS grupy,
                        min(n.push_proba_at) AS najstarsza
                 FROM notifications n
@@ -107,7 +122,7 @@ final class StanWysylkiPush
                   AND NOT EXISTS (
                       SELECT 1 FROM {$tabelaZadan} j
                       WHERE strpos(j.payload, ?) > 0
-                        AND strpos(j.payload, n.user_id::text) > 0
+                        AND strpos(j.payload, n.id::text) > 0
                   )
                 SQL, [$teraz->copy()->subMinutes($prog), class_basename(WyslijPowiadomieniePush::class)]);
         } catch (Throwable) {

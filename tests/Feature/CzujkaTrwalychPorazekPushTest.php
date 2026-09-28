@@ -177,20 +177,84 @@ final class CzujkaTrwalychPorazekPushTest extends TestCase
         $this->assertSame(StanWysylkiPush::NIEROZLICZONE, app(StanWysylkiPush::class)->sprawdz()['stan']);
     }
 
-    public function test_retry_czekajacy_w_kolejce_nie_alarmuje_nawet_po_progu(): void
+    public function test_ponowienie_z_id_tej_rezerwacji_w_kolejce_nie_alarmuje_nawet_po_progu(): void
     {
         $powiadomienie = $this->rezerwacja(minutTemu: 120);
-        $innyOdbiorca = $this->user('inny_odbiorca_2053');
+        $this->assertSame(StanWysylkiPush::NIEROZLICZONE, app(StanWysylkiPush::class)->sprawdz()['stan'], 'Kontrola dodatnia: bez zadania to sierota.');
 
-        // Zadanie INNEGO odbiorcy nie osłania tej rezerwacji.
-        $this->polozZadaniePush((string) $innyOdbiorca->getKey());
-        $this->assertSame(StanWysylkiPush::NIEROZLICZONE, app(StanWysylkiPush::class)->sprawdz()['stan']);
+        // Prawdziwe wstawienie przez sterownik `database`, nie ręczny payload.
+        config(['queue.default' => 'database']);
+        WyslijPowiadomieniePush::dispatch((string) $powiadomienie->user_id, [(string) $powiadomienie->getKey()], null, [], 2)
+            ->delay(now()->addSeconds(30));
+        $this->assertSame(1, DB::table('jobs')->count());
 
-        // Ponowienie tego odbiorcy czeka (np. zaległa kolejka) — to nie jest utrata.
-        $this->polozZadaniePush((string) $powiadomienie->user_id);
+        // Czeka (np. zaległa kolejka) — to jest „w toku”, nie utrata.
         $wynik = app(StanWysylkiPush::class)->sprawdz();
         $this->assertSame(StanWysylkiPush::SPOKOJNY, $wynik['stan']);
         $this->assertSame(0, $wynik['utracone_ponowienia']);
+    }
+
+    /**
+     * Scenariusz #1992 na prawdziwej kolejce: świeże zadanie odbiorcy trzyma
+     * zamek unikalności (np. odłożone przez limit), więc wstawienie retry
+     * przepada po cichu. W `jobs` stoi zadanie TEGO odbiorcy — i ono nie
+     * może zasłonić sieroty, bo nie niesie ID jej powiadomień.
+     */
+    public function test_swieze_zadanie_tego_odbiorcy_bez_id_rezerwacji_nie_zaslania_sieroty(): void
+    {
+        $powiadomienie = $this->rezerwacja(minutTemu: 120);
+        $userId = (string) $powiadomienie->user_id;
+        config(['queue.default' => 'database']);
+
+        WyslijPowiadomieniePush::dispatch($userId)->delay(now()->addHours(20));
+        WyslijPowiadomieniePush::dispatch($userId, [(string) $powiadomienie->getKey()], null, [], 2)
+            ->delay(now()->addSeconds(30));
+
+        $this->assertSame(1, DB::table('jobs')->count(), 'Zamek unikalności połknął retry — dokładnie tak ginie on w #1992.');
+        $this->assertStringContainsString($userId, (string) DB::table('jobs')->value('payload'), 'Kontrola: w kolejce stoi zadanie TEGO odbiorcy.');
+
+        $wynik = app(StanWysylkiPush::class)->sprawdz();
+        $this->assertSame(StanWysylkiPush::NIEROZLICZONE, $wynik['stan']);
+        $this->assertSame(1, $wynik['utracone_ponowienia']);
+    }
+
+    public function test_wylaczony_kanal_nie_udaje_utraconych_ponowien_a_porazki_liczy(): void
+    {
+        $this->pelnaAwaria();
+        $this->rezerwacja(minutTemu: 90);
+        config(['kuking.notifications.zewnetrzne.wlaczone' => false]);
+
+        $wynik = app(StanWysylkiPush::class)->sprawdz();
+        $this->assertTrue($wynik['kanal_wylaczony']);
+        $this->assertSame(0, $wynik['utracone_ponowienia'], 'Świadomy wyłącznik to nie utrata ponowienia.');
+        $this->assertSame(1, $wynik['trwale_porazki'], 'Porażka sprzed wyłączenia nadal jest do rozliczenia.');
+
+        // Kontrola dodatnia: po włączeniu kanału sierota się zgłasza.
+        config(['kuking.notifications.zewnetrzne.wlaczone' => true]);
+        $this->assertSame(1, app(StanWysylkiPush::class)->sprawdz()['utracone_ponowienia']);
+    }
+
+    public function test_dziennik_trwalej_porazki_mowi_ile_urzadzen_juz_dostalo_push(): void
+    {
+        $odbiorca = $this->user('odbiorca_dziennik_2053');
+        $dziala = $this->subskrypcja($odbiorca, 'https://fcm.googleapis.com/fcm/send/dziala-dziennik');
+        $pada = $this->subskrypcja($odbiorca, self::ENDPOINT);
+        $this->transport->odpowiadaj($pada->endpoint, WynikWysylkiPush::Blad);
+        $powiadomienie = $this->powiadomienie($odbiorca);
+
+        Queue::fake();
+        (new WyslijPowiadomieniePush((string) $odbiorca->getKey()))->handle($this->transport);
+        Log::spy();
+        (new WyslijPowiadomieniePush((string) $odbiorca->getKey(), [(string) $powiadomienie->getKey()],
+            pominieteSubskrypcje: [(string) $dziala->getKey()], probaTransportu: 2))->handle($this->transport);
+
+        // „nieudane = wszystkie = 1” wygląda jak pełna awaria — a jedno
+        // urządzenie już ma ten push. Runbook §3.2 czyta `juz_obsluzone`.
+        Log::shouldHaveReceived('error')->withArgs(fn (string $wiadomosc, array $kontekst = []): bool => str_contains($wiadomosc, 'trwała porażka transportu')
+            && ($kontekst['nieudane_urzadzenia'] ?? null) === 1
+            && ($kontekst['wszystkie_urzadzenia'] ?? null) === 1
+            && ($kontekst['juz_obsluzone'] ?? null) === 1
+            && ! str_contains((string) json_encode($kontekst), 'fcm.googleapis.com'))->once();
     }
 
     public function test_swiadomie_anulowana_grupa_nie_jest_awaria(): void
@@ -315,22 +379,6 @@ final class CzujkaTrwalychPorazekPushTest extends TestCase
         ])->save();
 
         return $powiadomienie;
-    }
-
-    private function polozZadaniePush(string $userId): void
-    {
-        $komenda = serialize(new WyslijPowiadomieniePush($userId, [], null, [], 2));
-        DB::table('jobs')->insert([
-            'queue' => 'default',
-            'payload' => (string) json_encode([
-                'displayName' => WyslijPowiadomieniePush::class,
-                'data' => ['commandName' => WyslijPowiadomieniePush::class, 'command' => $komenda],
-            ]),
-            'attempts' => 0,
-            'reserved_at' => null,
-            'available_at' => now()->getTimestamp() + 30,
-            'created_at' => now()->getTimestamp(),
-        ]);
     }
 
     private function wlaczKanalAlarmu(): void

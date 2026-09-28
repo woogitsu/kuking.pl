@@ -44,6 +44,7 @@ class SprawdzPush extends Command
                 ['grupy z utraconym ponowieniem', (string) $wynik['utracone_ponowienia']],
                 ['najstarsze utracone (s)', (string) ($wynik['najstarsze_utracone_sekundy'] ?? '—')],
                 ['próg osierocenia (min)', (string) $wynik['prog_osierocenia_minut']],
+                ['kanał wyłączony (utraconych nie liczymy)', $wynik['kanal_wylaczony'] ? 'tak' : 'nie'],
             ]);
 
             $wynik['stan'] === StanWysylkiPush::SPOKOJNY

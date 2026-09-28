@@ -2993,8 +2993,10 @@ nie umiała odróżnić awarii od anulowania. Zamknięta lista
 `docs/infra/WEB_PUSH_TRWALE_PORAZKI_2053.md`). Zamknięcia sprzed migracji
 zostają bez kodu i nie alarmują. Stany rezerwacji, które liczy
 `kuking:sprawdz-push` (`StanWysylkiPush`): **w toku** (bez zamknięcia,
-świeższa niż `push_osierocenie_minut` albo z zadaniem odbiorcy w `jobs`),
-**utracone ponowienie** (bez zamknięcia, starsza niż próg, bez zadania),
+świeższa niż `push_osierocenie_minut` albo z ponowieniem w `jobs` niosącym ID
+tego powiadomienia — samo zadanie odbiorcy nie wystarcza, #1992),
+**utracone ponowienie** (bez zamknięcia, starsza niż próg, bez takiego
+ponowienia; nie liczone przy wyłączonym kanale),
 **trwała porażka** (`porazka_transportu`). Częściowy indeks
 `notifications_push_nierozliczone_idx` na `(push_proba_at)` `WHERE
 push_proba_at IS NOT NULL AND push_wyslano_at IS NULL AND (push_zakonczono_at

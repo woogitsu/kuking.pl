@@ -218,6 +218,11 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
                 'proby' => $this->probaTransportu,
                 'nieudane_urzadzenia' => count($nieudane),
                 'wszystkie_urzadzenia' => $subskrypcje->count(),
+                // Urządzenia, które dostały tę grupę we wcześniejszej próbie —
+                // w retry NIE ma ich w `$subskrypcje`, więc „nieudane =
+                // wszystkie” nie znaczy „nikt nie dostał”. Runbook #2053
+                // zakazuje ręcznego ponowienia, gdy to pole jest > 0.
+                'juz_obsluzone' => count($this->pominieteSubskrypcje),
             ]);
 
             return;
