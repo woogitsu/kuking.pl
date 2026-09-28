@@ -10,6 +10,7 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Spis wydań
 
 - [Najnowsze zmiany](#najnowsze-zmiany)
+- [Alfa 0.75 — szukanie w wykonaniach i pewniejsze „Ugotowałem”](#alfa-075)
 - [Alfa 0.74 — zdjęcia w formularzu i porcje przy gotowaniu](#alfa-074)
 - [Alfa 0.73 — import przepisu i wygodniejsze gotowanie](#alfa-073)
 - [Alfa 0.72 — spokojniejsze zdjęcia i powiadomienia](#alfa-072)
@@ -36,6 +37,20 @@ Zaloguj się i zapisz”). Po pierwszych krokach wrócicie na ten sam przepis,
 z rozwiniętym wyborem zeszytu. Niczego nie zapisujemy za Was — przepis trafi
 do zeszytu dopiero wtedy, gdy sami go wybierzecie. Jeśli w międzyczasie autor
 ukryje przepis albo zmieni jego widoczność, nie otworzymy wyboru zeszytu.
+
+## Alfa 0.75
+
+**Znajdziecie swoje wcześniejsze wykonania, a „Ugotowałem” jest jeszcze pewniejsze.**
+
+### Szukajcie we własnych wykonaniach
+
+Na swoim profilu, w zakładce „Ugotowane”, jest pole „Szukaj w moich
+wykonaniach”. Wpiszcie kawałek tytułu przepisu, żeby zobaczyć tylko te razy,
+kiedy go gotowaliście — na przykład żeby porównać dzisiejszy żurek z zeszłorocznym.
+Polskie znaki nie mają znaczenia: „zurek” znajdzie „Żurek”. Wpisana fraza
+zostaje po kliknięciu „Pokaż więcej”, a gdy nic nie pasuje, dostaniecie
+podpowiedź i przycisk „Pokaż wszystkie wykonania”. Pole widać tylko na
+własnym profilu i dopiero wtedy, gdy macie już jakieś wykonania.
 
 ## Alfa 0.74
 
