@@ -31,7 +31,7 @@ class ZgodaOdczytuAiController extends Controller
     {
         $zEkranuImportu = $request->input('skad') === 'import';
 
-        if (! InformacjaOdczytuAi::aktualna($request->input(InformacjaOdczytuAi::POLE))) {
+        if (! InformacjaOdczytuAi::aktualna($request->input(InformacjaOdczytuAi::POLE), $zEkranuImportu)) {
             $powrot = $zEkranuImportu
                 ? redirect()->route('import.zdjecie')
                 : redirect()->to(route('settings.privacy').'#odczyt-ai');

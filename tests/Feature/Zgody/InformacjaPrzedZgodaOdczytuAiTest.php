@@ -113,6 +113,21 @@ final class InformacjaPrzedZgodaOdczytuAiTest extends TestCase
         $this->assertSame(0, WpisZgody::query()->where('user_id', $this->osoba->getKey())->count());
     }
 
+    /**
+     * Karta ustawień otwarta przed wdrożeniem #2033 ma goły przycisk bez
+     * informacji i bez pola wersji — taka zgoda nie może się zapisać.
+     */
+    public function test_zgoda_z_ustawien_bez_wersji_informacji_nie_zapisuje_sie(): void
+    {
+        $this->actingAs($this->osoba)
+            ->post(route('zgoda.odczyt-ai.udziel'))
+            ->assertRedirect(route('settings.privacy').'#odczyt-ai')
+            ->assertSessionHasErrors(['informacja'], null, InformacjaOdczytuAi::WOREK_BLEDOW);
+
+        $this->assertFalse(app(PrzestawZgodeNaOdczytAi::class)->udzielona($this->osoba));
+        $this->assertSame(0, WpisZgody::query()->where('user_id', $this->osoba->getKey())->count());
+    }
+
     /** Wnętrze bloku informacji — ten sam fragment HTML na obu stronach. */
     private function informacja(string $html): string
     {

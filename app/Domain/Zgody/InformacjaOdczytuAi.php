@@ -37,13 +37,20 @@ final class InformacjaOdczytuAi
     /**
      * Czy formularz niesie wersję informacji, która jest dziś aktualna.
      *
-     * Brak pola (`null`) na razie przepuszczamy: test z aktywnej gałęzi importu
-     * (`tests/Feature/Import/OdczytZdjeciaKartkiTest.php`) wysyła zgodę bez
-     * niego. Po scaleniu #1899 ten test dostaje pole, a tutaj `null` przestaje
-     * być aktualną wersją (issue #2033).
+     * Brak pola (`null`) przepuszczamy WYŁĄCZNIE z ekranu importu: ten ekran
+     * już przed #2033 pokazywał pełną informację przed przyciskiem, a test
+     * z aktywnej gałęzi importu (`tests/Feature/Import/OdczytZdjeciaKartkiTest.php`)
+     * wysyła zgodę bez pola. Z ustawień brak pola znaczy stary goły przycisk
+     * bez informacji — taka zgoda się nie zapisuje. Po scaleniu #1899 test
+     * importu dostaje pole, a `null` przestaje być aktualną wersją na obu
+     * drogach (issue #2033).
      */
-    public static function aktualna(mixed $wersja): bool
+    public static function aktualna(mixed $wersja, bool $zEkranuImportu): bool
     {
-        return $wersja === null || $wersja === self::WERSJA;
+        if ($wersja === null) {
+            return $zEkranuImportu;
+        }
+
+        return $wersja === self::WERSJA;
     }
 }
