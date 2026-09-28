@@ -72,7 +72,7 @@
         {{-- Gdy działa odczyt przepisu (V2, D-298), „Cały przepis” prowadzi
              najpierw do wyboru źródła: kartka, adres strony, PDF albo „Wpiszę
              sam”. Gdy nie działa — prosto do formularza, bez pustego kroku. --}}
-        <a class="kafel-akcji" href="{{ \App\Domain\Import\ZlecImportPrzepisu::dostepnyOdczytZdjecia() ? route('import.wybor') : route('recipes.create') }}">
+        <a class="kafel-akcji" href="{{ \App\Domain\Import\ZlecImportPrzepisu::dostepnyOdczytZdjecia() || config('kuking.import.url.wlaczony') || config('kuking.import.pdf.wlaczony') ? route('import.wybor') : route('recipes.create') }}">
             <h2 class="mt-0">Cały przepis</h2>
             <p class="mb-0">Składniki i przygotowanie, żeby ktoś inny mógł to u siebie zrobić. Możesz zapisać szkic i wrócić później.</p>
         </a>
