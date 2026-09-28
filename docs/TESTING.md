@@ -1,5 +1,27 @@
 # Testing
 
+## Pominięte testy (#2167)
+
+Domyślna bramka ma sprawdzać kontrakt repozytorium. Brak wymaganego CSV,
+sekcji dokumentu lub fixture oblewa test; nie jest powodem do
+`markTestSkipped()`. Testy integracyjne używają własnej, deterministycznej
+fixture, gdy treść redakcyjna może być legalnie pusta po wydaniu.
+
+CI zapisuje raport JUnit dla każdej z czterech części PHPUnit. Skrypt
+`scripts/sprawdz-pominiete-testy.py` wypisuje liczbę, dokładne nazwy i powody
+skipów w podsumowaniu joba oraz porównuje je z
+`tests/pominiete-allowlista.json`. Nowy skip albo zmiana jego powodu oblewa
+required check `Testy (PostgreSQL 18)`. Czasowy wyjątek wymaga dokładnej nazwy
+testu, powodu, numeru issue i daty końcowej `do` (RRRR-MM-DD); po tej dacie
+bramka odmawia. Pusta allowlista jest pożądanym stanem. Test skryptu zawiera
+kontrolę ujemną dodatkowego skipu i zmienionego powodu.
+
+Pomiar wymagający żywego S3 należy do grupy `pomiar`, wyłączonej ze zwykłego
+`php artisan test`. Uruchamia się go jawnie z przygotowanym własnym magazynem
+i bazą przez `php artisan test --group=pomiar`. Brak zewnętrznej usługi nie
+wpływa na wynik testów produktu. Analogicznie grupa `dwa-polaczenia` ma
+osobny skrypt przygotowujący izolowaną bazę.
+
 ## Bramka testów risky (#1056)
 
 `phpunit.xml` ustawia `failOnRisky="true"`: test bez asercji nie może
