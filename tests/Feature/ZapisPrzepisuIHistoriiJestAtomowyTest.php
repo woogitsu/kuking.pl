@@ -160,7 +160,7 @@ class ZapisPrzepisuIHistoriiJestAtomowyTest extends TestCase
         $zlapany = null;
 
         try {
-            $this->put(route('recipes.update', $przepis), [
+            $this->put(route('recipes.update', $przepis), ['content_revision' => $przepis->fresh()->content_revision,
                 'action' => 'publish',
                 'title' => 'Rosół babci Zofii — poprawiony',
                 'visibility' => 'public',

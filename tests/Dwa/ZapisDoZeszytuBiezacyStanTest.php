@@ -172,6 +172,35 @@ final class ZapisDoZeszytuBiezacyStanTest extends TestDwochPolaczen
         }
     }
 
+    public function test_powrot_po_zawieszeniu_w_dwoch_polaczeniach_nie_zmienia_publicznego_zeszytu(): void
+    {
+        foreach (['post', 'recipe'] as $type) {
+            $saver = $this->konto();
+            $author = $this->konto();
+            $subject = $type === 'recipe'
+                ? Recipe::factory()->for($author, 'author')->create(['status' => 'published', 'visibility' => 'public', 'published_at' => now()->subDay()])
+                : Post::factory()->for($author, 'author')->create(['status' => 'published', 'visibility' => 'public', 'published_at' => now()->subDay()]);
+            $collection = Collection::create(['owner_id' => $saver->id, 'name' => 'Publiczny '.bin2hex(random_bytes(3)), 'visibility' => 'public']);
+            $name = 'zeszyt-restore-'.bin2hex(random_bytes(5));
+            $barrier = $this->bariera('SELECT pg_advisory_xact_lock(9157, hashtext(?))', [$name]);
+            $restoring = $this->worker('restore', [
+                'name' => $name, 'type' => $type, 'subject' => $subject->id,
+                'actor' => $saver->id, 'collection' => $collection->id, 'pause' => 'po_sprawdzeniu',
+            ]);
+            $this->waitFor($name, $barrier);
+            $change = $this->worker('status', ['name' => $name.'-status', 'type' => $type, 'subject' => $subject->id, 'actor' => $saver->id, 'transition' => 'zawies']);
+            $changed = $change->wynik(12);
+            $this->zwolnijBariere($barrier);
+            $restored = $restoring->wynik(12);
+
+            $this->assertTrue($changed['ok'], (string) $changed['komunikat']);
+            $this->assertFalse($restored['ok'], (string) $restored['komunikat']);
+            $this->assertSame(AuthorizationException::class, $restored['wyjatek']);
+            $this->assertSame(0, DB::table('collection_items')->where('collection_id', $collection->id)->count());
+            $this->assertSame(0, Notification::query()->where('user_id', $author->id)->where('type', Notification::TYPE_SAVED)->count());
+        }
+    }
+
     /**
      * @param  array<string, string>  $change
      * @return array{0: string, 1: array<string, string>}
