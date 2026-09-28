@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Search\FrazaWUgotowanych;
 use App\Models\Block;
 use App\Models\CookedEvent;
 use App\Models\Media;
@@ -79,8 +80,26 @@ class ProfileController extends Controller
                 ->latest('published_at')->latest('id')->limit(3)->get()
             : collect();
 
+        // Issue #1394: na WŁASNEJ zakładce „Ugotowane" lista nie jest
+        // filtrowana, więc wykonanie przepisu osoby, z którą właściciel
+        // ma blokadę, zostaje (to jego zdjęcie i notatka). Karta ma wtedy
+        // nie pokazywać tytułu ani adresu przepisu. Jedno zapytanie na
+        // stronę zamiast `hasBlockRelationWith()` na każdą kartę. Obcy
+        // widz tego nie potrzebuje: `tylkoZWidocznychPrzepisow()` wycina
+        // mu takie wykonania już na liście. Ta sama lista zawęża frazę
+        // „Szukaj w moich wykonaniach" (#2070), żeby wynik nie zdradzał
+        // tytułu, który karta chowa.
+        $autorzyZaBlokada = $tab === 'ugotowane' && $isOwner
+            ? $this->osobyZBlokada($owner)
+            : [];
+
+        // Fraza działa WYŁĄCZNIE na własnej zakładce (#2070). Na cudzym
+        // profilu `?szukaj=` w adresie jest ignorowane: publiczny profil
+        // wygląda tak samo jak przed tą zmianą.
+        $frazaUgotowanych = FrazaWUgotowanych::zAdresu($tab === 'ugotowane' && $isOwner ? $request->query('szukaj') : null);
+
         $cookedEvents = $tab === 'ugotowane'
-            ? $this->cookedEventsDlaProfilu($owner, $viewer, $isOwner)
+            ? $this->cookedEventsDlaProfilu($owner, $viewer, $isOwner, $frazaUgotowanych, $autorzyZaBlokada)
             : null;
 
         return view('pages.profile.show', [
@@ -115,16 +134,8 @@ class ProfileController extends Controller
                 : null,
             'cookedEvents' => $cookedEvents,
             'przepisyWidoczneNaKartach' => $this->przepisyWidoczneNaKartach($cookedEvents, $viewer, $isOwner),
-            // Issue #1394: na WŁASNEJ zakładce „Ugotowane" lista nie jest
-            // filtrowana, więc wykonanie przepisu osoby, z którą właściciel
-            // ma blokadę, zostaje (to jego zdjęcie i notatka). Karta ma wtedy
-            // nie pokazywać tytułu ani adresu przepisu. Jedno zapytanie na
-            // stronę zamiast `hasBlockRelationWith()` na każdą kartę. Obcy
-            // widz tego nie potrzebuje: `tylkoZWidocznychPrzepisow()` wycina
-            // mu takie wykonania już na liście.
-            'autorzyZaBlokada' => $tab === 'ugotowane' && $isOwner
-                ? $this->osobyZBlokada($owner)
-                : [],
+            'autorzyZaBlokada' => $autorzyZaBlokada,
+            'frazaUgotowanych' => $frazaUgotowanych,
             'stats' => [
                 'posts' => $owner->posts()->published()
                     ->tap(fn ($query) => $this->tylkoWidoczneWpisy($query, $owner, $viewer, $isOwner))->count(),
@@ -465,8 +476,12 @@ class ProfileController extends Controller
      *    bez gubienia i dublowania wierszy przy remisach czasu (#735).
      * 2. Związanie znanego $owner z każdym wierszem wykonania eliminuje
      *    powtarzane zapytania o kucharza i jego profil/awatar na każdej karcie (#736).
+     * 3. `$fraza` zawęża listę właściciela do wykonań przepisu o danym
+     *    tytule (#2070) — tylko zawęża, nic nie dokłada (`FrazaWUgotowanych`).
+     *
+     * @param  list<string>  $autorzyZaBlokada
      */
-    private function cookedEventsDlaProfilu(User $owner, ?User $viewer, bool $isOwner): LengthAwarePaginator
+    private function cookedEventsDlaProfilu(User $owner, ?User $viewer, bool $isOwner, FrazaWUgotowanych $fraza, array $autorzyZaBlokada): LengthAwarePaginator
     {
         // OSOBA, KTÓRA GOTOWAŁA, JEST TU TREŚCIĄ GŁÓWNĄ — i to ona była
         // źródłem wachlarza zapytań. Karta wykonania
@@ -485,6 +500,10 @@ class ProfileController extends Controller
 
         $paginator = $owner->cookedEvents()
             ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $viewer, $isOwner))
+            // Fraza tylko ZAWĘŻA tę samą listę — porządek, paginacja
+            // i `withQueryString()` (niesie `szukaj` do „Pokaż więcej")
+            // zostają te same (#2070).
+            ->tap(fn ($query) => $fraza->zawez($query, $autorzyZaBlokada))
             ->latest('cooked_at')
             ->latest('id')
             ->with(['recipe.author.profile', 'media'])
