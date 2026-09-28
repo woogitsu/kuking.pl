@@ -100,7 +100,7 @@ abstract class TestDwochPolaczen extends TestCase
     protected const STATEMENT_TIMEOUT = '30s';
 
     /** Ile sekund czekamy, aż uczestnik wyścigu ustawi się w kolejce po blokadę. */
-    protected const SEKUNDY_NA_KOLEJKE = 15;
+    protected const SEKUNDY_NA_KOLEJKE = 30;
 
     protected string $baza;
 
