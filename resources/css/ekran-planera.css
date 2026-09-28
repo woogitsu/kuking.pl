@@ -68,6 +68,15 @@
     margin: 0;
   }
 
+  /* Wyszukiwanie przepisu w dniu (#2037). Fokus programowy (tabindex -1)
+     ląduje tu po dodaniu — bez obwódki na samym kontenerze. */
+  .planer-szukaj {
+    min-width: 0;
+    padding-block-start: var(--spacing-3);
+    border-top: 1px solid var(--color-border);
+  }
+  .planer-szukaj:focus { outline: none; }
+
   /* Panel „Dodaj do planera” — ten sam układ co „Wybierz zeszyt”. */
   .wybor-dnia {
     min-width: 0;
