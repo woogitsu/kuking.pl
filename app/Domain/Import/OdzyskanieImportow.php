@@ -65,6 +65,10 @@ final class OdzyskanieImportow
                     'kod_bledu' => ImportPrzepisu::KOD_BLAD_WEWNETRZNY,
                     'zakonczono_at' => now(),
                 ])->save();
+                DB::table('proby_importu')->where('import_id', $id)->update([
+                    'status' => 'nieudany',
+                    'updated_at' => now(),
+                ]);
 
                 return true;
             });
