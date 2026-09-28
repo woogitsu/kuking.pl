@@ -26,6 +26,13 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Wybrane porcje zostają przy gotowaniu
+
+Na stronie przepisu wybierzcie liczbę porcji przy składnikach, a potem otwórzcie
+„Gotuję”. Rozwinięta lista składników pokaże ilości przeliczone na ten wybór.
+Liczba porcji zostaje przy przechodzeniu między krokami i po rozpoczęciu od
+początku. Po zakończeniu gotowania wrócicie do przepisu z tym samym wyborem.
+
 ### Przepis ze strony lub pliku PDF
 
 Na ekranie „Dodaj przepis” możecie wkleić adres strony z przepisem albo dodać
