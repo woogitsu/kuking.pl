@@ -1848,6 +1848,46 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /**
+     * Początek włączania 2FA z ekranu włączenia (GET) — TYLKO gdy konfiguracja
+     * naprawdę się jeszcze nie zaczęła (issue #2061).
+     *
+     * Decyzja zapada na ŚWIEŻYM wierszu pod blokadą (`ZamekKonta`), nie na
+     * modelu wczytanym na początku żądania. Stary model potrafił mieć
+     * `two_factor_secret = NULL` sprzed sekundy, w której druga karta zapisała
+     * sekret A i właściciel go potwierdził — i wtedy `beginTwoFactorSetup()`
+     * wpisywało sekret B, a `two_factor_confirmed_at` i kody zapasowe, na tym
+     * modelu wciąż NULL i niezmienione, zostawały w bazie. Konto wymagało kodu,
+     * którego nie liczył żaden telefon.
+     *
+     * Wystarczy sprawdzić sekret: potwierdzone 2FA zawsze go ma
+     * (`hasTwoFactorConfirmed()`), więc „już zaczęte" obejmuje „już
+     * potwierdzone". Świadome „ustaw od nowa" idzie przez wyłączenie
+     * (POST z hasłem), nie przez tę metodę.
+     *
+     * Na koniec model wywołującego przyjmuje stan z bazy — ten sekret, który
+     * trzeba pokazać w kodzie QR, albo potwierdzone 2FA, przy którym ekranu
+     * włączenia pokazywać nie wolno.
+     *
+     * @return bool czy zapisano NOWY sekret
+     */
+    public function beginTwoFactorSetupIfNotStarted(string $secret): bool
+    {
+        $zapisano = ZamekKonta::zablokuj($this, static function (?self $swiezy) use ($secret): bool {
+            if ($swiezy === null || $swiezy->two_factor_secret !== null) {
+                return false;
+            }
+
+            $swiezy->beginTwoFactorSetup($secret);
+
+            return true;
+        });
+
+        $this->refresh();
+
+        return $zapisano;
+    }
+
+    /**
      * Potwierdzenie 2FA pierwszym poprawnym kodem — od teraz konto go wymaga.
      *
      * @param  array<int, string>  $zahaszowaneKodyZapasowe
