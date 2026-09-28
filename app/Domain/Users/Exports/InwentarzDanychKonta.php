@@ -62,6 +62,8 @@ final class InwentarzDanychKonta
         'follows.followed_id' => [self::EKSPORT, 'obserwuja_mnie'],
         'blocks.blocker_id' => [self::EKSPORT, 'zablokowane_osoby'],
         'tag_follows.user_id' => [self::EKSPORT, 'obserwowane_tagi'],
+        'hides.user_id' => [self::EKSPORT, 'ukryte'],
+        'post_reactions.user_id' => [self::EKSPORT, 'moje_reakcje'],
         'notifications.user_id' => [self::EKSPORT, 'powiadomienia'],
         'media.owner_id' => [self::EKSPORT, 'zdjecia'],
         'dziennik_zgod.user_id' => [self::EKSPORT, 'dziennik_zgod'],
@@ -77,8 +79,14 @@ final class InwentarzDanychKonta
         'moderation_actions.subject_user_id' => [self::EKSPORT, 'decyzje_moderacji'],
         'appeals.user_id' => [self::EKSPORT, 'odwolania'],
         'meal_plan_entries.user_id' => [self::EKSPORT, 'planer'],
+        'przepisy_z_importu.user_id' => [self::EKSPORT, 'importy_przepisow'],
+        'push_subscriptions.user_id' => [self::EKSPORT, 'powiadomienia_poza_serwisem'],
+        'ustawienia_powiadomien_zewnetrznych.user_id' => [self::EKSPORT, 'powiadomienia_poza_serwisem'],
+        'importy_przepisow.user_id' => [self::EKSPORT, 'odczyty_przepisow'],
+        'proby_importu.user_id' => [self::EKSPORT, 'proby_importu'],
 
         'blocks.blocked_id' => [self::NA_ZADANIE, 'Kto zablokował to konto. Ujawnienie tego naraziłoby osobę, która się odcięła (RODO art. 15 ust. 4); na żądanie powiemy, ile jest takich blokad.'],
+        'hides.hidden_user_id' => [self::NA_ZADANIE, 'Kto ukrył sobie to konto („Ukryj tę osobę”, #1810). Ujawnienie tego naraziłoby osobę, która tylko porządkowała własny ekran (RODO art. 15 ust. 4) — tak samo jak przy blokadach; na żądanie powiemy, ile jest takich ukryć.'],
         'notifications.actor_id' => [self::NA_ZADANIE, 'Powiadomienia, które inne osoby dostały o Twoich działaniach. To są ich skrzynki; same działania (wpisy, komentarze, „Ugotowałem”) są w paczce.'],
         'reports.autor_tresci_id' => [self::NA_ZADANIE, 'Zgłoszenia Twoich treści przez inne osoby. Chronimy zgłaszających; decyzje, które wtedy zapadły, są w sekcji decyzje_moderacji.'],
         'audit_log.actor_id' => [self::NA_ZADANIE, 'Dziennik bezpieczeństwa (logowania, zmiany konta, skrót adresu IP). Wydajemy go na żądanie, bo zestawienie w paczce ułatwiałoby przejęcie konta komuś, kto ją zdobędzie.'],
@@ -93,6 +101,7 @@ final class InwentarzDanychKonta
         'reports.resolved_by' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
 
         'login_link_tokens.user_id' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
+        'facebook_connection_proofs.user_id' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
         'first_post_events.author_id' => [self::NIE_DOTYCZY, 'Znacznik techniczny „pierwszy wpis konta”. Nie niesie nic ponad listę wpisów, która jest w paczce.'],
     ];
 
@@ -111,19 +120,23 @@ final class InwentarzDanychKonta
         'wants_weekly_digest' => [self::EKSPORT, 'konto'],
         'weekly_digest_sent_at' => [self::EKSPORT, 'konto'],
         'memories_enabled' => [self::EKSPORT, 'konto'],
+        'moj_stol_enabled' => [self::EKSPORT, 'konto'],
         'age_confirmed_at' => [self::EKSPORT, 'konto'],
         'email_verified_at' => [self::EKSPORT, 'konto'],
         'created_at' => [self::EKSPORT, 'konto'],
         'updated_at' => [self::EKSPORT, 'konto'],
         'status_expires_at' => [self::EKSPORT, 'konto'],
+        // Kara odłożona na czas usuwania konta (#980) — ta sama dana co `status`.
         'punishment_status' => [self::EKSPORT, 'konto'],
         'punishment_expires_at' => [self::EKSPORT, 'konto'],
         'delete_requested_at' => [self::EKSPORT, 'konto'],
+        'delete_request_generation' => [self::NIE_DOTYCZY, 'Losowy techniczny identyfikator generacji wniosku o usunięcie; nie opisuje osoby ani treści wniosku.'],
         'delete_scope' => [self::EKSPORT, 'konto'],
         'data_erased_at' => [self::EKSPORT, 'konto'],
         'two_factor_confirmed_at' => [self::EKSPORT, 'konto'],
         'ostatnio_widziany_at' => [self::EKSPORT, 'konto'],
         'pwa_prompt_state' => [self::EKSPORT, 'konto'],
+        'onboarding_zakonczony_at' => [self::EKSPORT, 'konto'],
         // Urodziny (#1755): dzień i miesiąc bez roku oraz wybory i ślad listu.
         'birthday_day' => [self::EKSPORT, 'konto'],
         'birthday_month' => [self::EKSPORT, 'konto'],
@@ -133,12 +146,20 @@ final class InwentarzDanychKonta
         'birthday_visible_to_followers' => [self::EKSPORT, 'konto'],
 
         'id' => [self::NIE_DOTYCZY, 'Wewnętrzny numer konta. Nie mówi nic o osobie, a paczka świadomie nie podaje identyfikatorów.'],
+        // Bariera przed podwójnym zakolejkowaniem listu tego samego dnia
+        // (issue #1956) — WEWNĘTRZNA księgowość komendy, nie informacja
+        // o osobie: prawie zawsze równa `birthday_email_sent_on`, który
+        // JUŻ jest w paczce, a różni się od niego wyłącznie w oknie między
+        // zakolejkowaniem a potwierdzoną wysyłką albo po trwałej porażce
+        // dostawcy (`docs/DATABASE.md`, etap c).
+        'birthday_email_queued_on' => [self::NIE_DOTYCZY, 'Wewnętrzna bariera przed podwójnym zakolejkowaniem listu urodzinowego tego samego dnia; co realnie wyszło, mówi `birthday_email_sent_on`, który jest w paczce.'],
         'is_seeded' => [self::NIE_DOTYCZY, 'Znacznik kont przykładowych z danych demonstracyjnych; dla prawdziwego konta zawsze „nie”.'],
         'password' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
         'remember_token' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
         'two_factor_secret' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
         'two_factor_backup_codes' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
         'two_factor_last_used_at' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
+        'session_generation' => [self::NIE_DOTYCZY, 'Znacznik techniczny bezpieczeństwa sesji (#1046): licznik unieważnień zalogowanych urządzeń, nie dana o osobie.'],
     ];
 
     /**

@@ -39,13 +39,12 @@ class Ustawienia2faBledyTest extends TestCase
         $form = "//form[@action='".route('settings.two_factor.'.$route)."']";
         $this->assertSame(1, $xpath->query($form.'/ancestor::details[@open]')->length, 'Błąd hasła musi otworzyć właściwy details.');
         $ids = [];
-        foreach ($xpath->query('//*[@id]') as $node) {
+        foreach (self::elementyDom($xpath->query('//*[@id]')) as $node) {
             $id = $node->getAttribute('id');
             $this->assertFalse(isset($ids[$id]), 'Powielony identyfikator pola lub opisu.');
             $ids[$id] = true;
         }
-        $field = $xpath->query($form.'//input[@name="password"]')->item(0);
-        $this->assertNotNull($field);
+        $field = self::elementDom($xpath->query($form.'//input[@name="password"]')->item(0));
         $this->assertSame('', $field->getAttribute('value'));
         $this->assertSame('true', $field->getAttribute('aria-invalid'));
         $id = $field->getAttribute('id');

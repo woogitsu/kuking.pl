@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Planer\Actions;
 
 use App\Domain\Planer\PlanerTygodnia;
+use App\Domain\Planer\ZakresDatPlanu;
 use App\Models\MealPlanEntry;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -29,7 +30,7 @@ final class SkopiujPoprzedniTydzien
     public function __construct(private readonly PlanerTygodnia $planer = new PlanerTygodnia) {}
 
     /**
-     * @return array{skopiowane: int, juz_byly: int, pominiete: int}
+     * @return array{skopiowane: int, juz_byly: int, pominiete: int, poza_zakresem: int}
      */
     public function handle(User $user, CarbonImmutable $poniedzialek): array
     {
@@ -38,7 +39,7 @@ final class SkopiujPoprzedniTydzien
         return DB::transaction(function () use ($user, $zrodlo): array {
             User::query()->whereKey($user->getKey())->lockForUpdate()->first();
 
-            $wynik = ['skopiowane' => 0, 'juz_byly' => 0, 'pominiete' => 0];
+            $wynik = ['skopiowane' => 0, 'juz_byly' => 0, 'pominiete' => 0, 'poza_zakresem' => 0];
             $liczniki = [];
 
             foreach ($zrodlo as $pozycja) {
@@ -48,7 +49,16 @@ final class SkopiujPoprzedniTydzien
                     continue;
                 }
 
-                $dzien = $pozycja['wpis']->day->addDays(7)->toDateString();
+                // Cast Eloquent `date` zwraca mutowalny Illuminate\Support\Carbon,
+                // a wspólny strażnik zakresu przyjmuje dzień niemutowalny.
+                $docelowyDzien = CarbonImmutable::instance($pozycja['wpis']->day)->addDays(7);
+                if (! ZakresDatPlanu::obejmuje($docelowyDzien)) {
+                    $wynik['poza_zakresem']++;
+
+                    continue;
+                }
+
+                $dzien = $docelowyDzien->toDateString();
                 $liczniki[$dzien] ??= MealPlanEntry::query()
                     ->where('user_id', $user->getKey())
                     ->where('day', $dzien)
