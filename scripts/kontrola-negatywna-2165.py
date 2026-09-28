@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "app/Domain/Moderation/Actions/DecyzjaPoOdwolaniu.php"
-TEST = "OdwolanieNieZakleszczaEdycjiPrzepisuTest::test_ban_po_odwolaniu_i_edycja_tego_samego_przepisu_nie_zakleszczaja_sie"
+TEST = "test_ban_po_odwolaniu_i_edycja_tego_samego_przepisu_nie_zakleszczaja_sie"
 
 
 if os.environ.get("CI") != "true":
