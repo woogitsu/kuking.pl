@@ -145,7 +145,7 @@ class ZamiarObserwowaniaPoRejestracjiTest extends TestCase
     {
         $links = $xpath->query('//a[normalize-space()="'.$text.'"]');
         $this->assertSame(1, $links->length, 'Oczekiwany link powinien wystąpić raz: '.$text);
-        $this->assertSame($href, $links->item(0)?->getAttribute('href'));
+        $this->assertSame($href, self::elementDom($links->item(0))->getAttribute('href'));
     }
 
     private function assertFollowForm(string $html, string $username): void
@@ -155,6 +155,6 @@ class ZamiarObserwowaniaPoRejestracjiTest extends TestCase
         $this->assertSame(1, $buttons->length, 'Na stronie nie ma jawnej akcji obserwowania.');
         $form = $buttons->item(0)?->parentNode;
         $this->assertSame('form', $form?->nodeName);
-        $this->assertSame(route('social.follow', $username), $form->getAttribute('action'));
+        $this->assertSame(route('social.follow', $username), self::elementDom($form)->getAttribute('action'));
     }
 }

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -23,6 +24,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  *
  * @property string $kind
  * @property string|null $title
+ * @property-read Tag|null $zrodloTematu Podpis karty ustawiany jako wczytana relacja feedu.
+ *
+ * Kolumny tabeli pośredniej `collection_items` — są tylko wtedy, gdy wpis
+ * wczytano przez `Collection::posts()`:
+ * @property-read Pivot&object{note: string|null, created_at: string|null} $pivot
  */
 class Post extends Model
 {
@@ -144,11 +150,17 @@ class Post extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'author_id');
     }
 
+    /**
+     * @return BelongsTo<Recipe, $this>
+     */
     public function recipe(): BelongsTo
     {
         return $this->belongsTo(Recipe::class);
@@ -164,6 +176,9 @@ class Post extends Model
         return $this->belongsToMany(Collection::class, 'collection_items');
     }
 
+    /**
+     * @return BelongsToMany<Media, $this>
+     */
     public function media(): BelongsToMany
     {
         return $this->belongsToMany(Media::class, 'post_media')
@@ -210,6 +225,8 @@ class Post extends Model
      * Tagi wpisu (D-021) — maksymalnie 5, w kolejności, w jakiej autor je
      * dodał. Limit i tworzenie nowych tagów pilnuje
      * `App\Domain\Tags\Actions\ResolveTagsForPost`, nie ten model.
+     *
+     * @return BelongsToMany<Tag, $this, PostTag>
      */
     public function tags(): BelongsToMany
     {
@@ -230,6 +247,9 @@ class Post extends Model
         return $this->hasMany(PostReaction::class, 'post_id');
     }
 
+    /**
+     * @return HasMany<Comment, $this>
+     */
     public function comments(): HasMany
     {
         // `->orderBy('id')` rozstrzyga remisy `created_at` (sekundowa
@@ -243,6 +263,9 @@ class Post extends Model
             ->orderBy('id');
     }
 
+    /**
+     * @return HasMany<Comment, $this>
+     */
     public function allComments(): HasMany
     {
         return $this->hasMany(Comment::class);
@@ -280,9 +303,11 @@ class Post extends Model
      */
     public static function licznikWidocznychKomentarzy(?User $viewer): array
     {
-        return ['allComments as comments_count' => fn (Builder $comments) => $comments
-            ->widoczneDla($viewer)
-            ->where(fn (Builder $liczone) => $liczone
+        /** @param Builder<Comment> $comments */
+        $widoczne = function (Builder $comments) use ($viewer): Builder {
+            (new Comment)->scopeWidoczneDla($comments, $viewer);
+
+            return $comments->where(fn (Builder $liczone) => $liczone
                 ->where(fn (Builder $korzen) => $korzen
                     ->whereNull('comments.parent_id')
                     ->where(fn (Builder $tresc) => $tresc
@@ -296,7 +321,10 @@ class Post extends Model
                         ->select('comments.id')
                         ->whereColumn('comments.post_id', 'posts.id')
                         ->whereNull('comments.parent_id')
-                        ->widoczneDla($viewer))))];
+                        ->widoczneDla($viewer))));
+        };
+
+        return ['allComments as comments_count' => $widoczne];
     }
 
     /** @param  Builder<Post>  $query */

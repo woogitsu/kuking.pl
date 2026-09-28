@@ -25,7 +25,8 @@ class QuestionMemoryGateTest extends TestCase
         ]);
         $html = $this->actingAs($owner)->get(route('home'))->assertOk()->getContent();
         $this->assertStringNotContainsString($question->body, $html);
-        $this->assertNull(app(Wspomnienia::class)->dlaOsoby($owner));
+        $przedWpisem = app(Wspomnienia::class)->dlaOsoby($owner);
+        $this->assertNull($przedWpisem);
         $dish = Post::factory()->private()->create([
             'author_id' => $owner->id, 'published_at' => now()->subYears(2),
             'body' => 'Moje prywatne wspomnienie obiadu.',
@@ -37,9 +38,11 @@ class QuestionMemoryGateTest extends TestCase
         }
         config(['kuking.questions.enabled' => false]);
         $this->post(route('wspomnienia.ukryj', $dish))->assertRedirect();
-        $this->assertNull(app(Wspomnienia::class)->dlaOsoby($owner));
+        $przedWpisem = app(Wspomnienia::class)->dlaOsoby($owner);
+        $this->assertNull($przedWpisem);
         $dish->forceFill(['hide_as_memory' => false])->save();
         $owner->forceFill(['memories_enabled' => false])->save();
-        $this->assertNull(app(Wspomnienia::class)->dlaOsoby($owner));
+        $przedWpisem = app(Wspomnienia::class)->dlaOsoby($owner);
+        $this->assertNull($przedWpisem);
     }
 }
