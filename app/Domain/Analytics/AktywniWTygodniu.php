@@ -45,12 +45,12 @@ final class AktywniWTygodniu
     public function liczba(?CarbonInterface $teraz = null): int
     {
         $teraz ??= now();
-        $wykluczeni = $this->eligibility->excludedUserIds();
 
-        return User::query()
+        $aktywni = User::query()
             ->whereNotNull('ostatnio_widziany_at')
-            ->where('ostatnio_widziany_at', '>=', $teraz->copy()->subDays(7))
-            ->when($wykluczeni !== [], fn ($q) => $q->whereNotIn('id', $wykluczeni))
-            ->count();
+            ->where('ostatnio_widziany_at', '>=', $teraz->copy()->subDays(7));
+        $this->eligibility->tylkoLiczeni($aktywni, 'users.id');
+
+        return $aktywni->count();
     }
 }

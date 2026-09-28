@@ -81,6 +81,14 @@ done
 printf "\n"
 
 if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
+    if [ "${CI:-}" = "true" ]; then
+        # #2165: na tej samej izolowanej bazie odwrócenie kolejności musi
+        # wywołać 40P01, a przywrócone źródło ponownie przejść test.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2165.py; then
+            printf "${CZERWONY}Kontrola ujemna kolejności blokad #2165 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
+    fi
     printf "${ZIELONY}Przebiegów zielonych: %s z %s.${RESET}\n" "$PRZESZLO" "$PRZEBIEGI"
     exit 0
 fi

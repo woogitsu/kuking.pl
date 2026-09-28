@@ -270,7 +270,7 @@ class SzynaTablicaDniaUkladTest extends TestCase
 
             $this->assertStringContainsString(
                 'kuking-board-post-link',
-                (string) $odnosniki->item(0)?->getAttribute('class'),
+                (string) self::elementDom($odnosniki->item(0))?->getAttribute('class'),
                 'Jedyny odnośnik karty dania nie jest wierszem `.kuking-board-post-link`.',
             );
 
@@ -521,8 +521,10 @@ class SzynaTablicaDniaUkladTest extends TestCase
             ['position' => 0],
         );
 
+        // Inna osoba niż `kucharka`: tablica pokazuje najwyżej jedno danie
+        // od osoby także w wyborze gospodarza (#1296).
         $bezZdjecia = Post::factory()->create([
-            'author_id' => $kucharka->getKey(),
+            'author_id' => $this->user('kucharz', ['display_name' => 'Jan Nowak'])->getKey(),
             'body' => 'Naleśniki po pracy. Dzieci zjadły wszystko.',
             'published_at' => now()->subMinutes(11),
         ]);

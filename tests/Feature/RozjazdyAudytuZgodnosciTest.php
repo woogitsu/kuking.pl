@@ -92,9 +92,8 @@ class RozjazdyAudytuZgodnosciTest extends TestCase
      * Historia wersji istnieje WYŁĄCZNIE dla przepisów (`recipe_versions`).
      *
      * Test pyta schemat, nie dokument: dopóki nie ma tabeli wersji dla wpisów
-     * ani komentarzy, polityka nie ma prawa ich obiecywać. Gdyby taka tabela
-     * kiedyś powstała, sprawdzenie samo się wyłączy — i wtedy zdanie
-     * w polityce będzie można rozszerzyć zgodnie z prawdą.
+     * ani komentarzy, polityka nie ma prawa ich obiecywać. Gdy historia
+     * powstanie, polityka musi ją jawnie opisać — test nie może zniknąć.
      */
     public function test_polityka_nie_obiecuje_historii_edycji_ktorej_nie_ma(): void
     {
@@ -106,23 +105,20 @@ class RozjazdyAudytuZgodnosciTest extends TestCase
         $historiaWpisow = Schema::hasTable('post_versions') || Schema::hasColumn('posts', 'edited_at');
         $historiaKomentarzy = Schema::hasTable('comment_versions') || Schema::hasColumn('comments', 'edited_at');
 
-        if ($historiaWpisow && $historiaKomentarzy) {
-            $this->markTestSkipped('Historia edycji wpisów i komentarzy istnieje — polityka może o niej mówić.');
-        }
-
         $polityka = $this->polityka();
 
-        $this->assertStringNotContainsString(
-            'komentarze i ich historia edycji',
-            $polityka,
-            'Polityka obiecuje historię edycji komentarzy, a w bazie jej nie ma. '
-            .'To jest naddeklarowanie zbierania danych: człowiek myśli, że trzymamy o nim więcej, niż trzymamy.',
-        );
-
+        foreach (['wpisów' => $historiaWpisow, 'komentarzy' => $historiaKomentarzy] as $rodzaj => $istnieje) {
+            $opis = 'historia edycji '.$rodzaj;
+            if ($istnieje) {
+                $this->assertStringContainsString($opis, $polityka, "Polityka nie opisuje przechowywanej historii edycji {$rodzaj}.");
+            } else {
+                $this->assertStringNotContainsString($opis, $polityka, "Polityka obiecuje nieistniejącą historię edycji {$rodzaj}.");
+            }
+        }
         $this->assertStringNotContainsString(
             'wpisy, komentarze i ich historia',
             $polityka,
-            'Polityka obiecuje historię edycji wpisów, a w bazie jej nie ma.',
+            'Ten zbiorczy opis nie rozróżnia, dla których treści historia naprawdę istnieje.',
         );
     }
 

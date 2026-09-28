@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Compliance\DziennikWymazan;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Jobs\ProcessUploadedImage;
 use App\Models\Media;
+use App\Models\User;
 use Aws\CommandInterface;
+use Aws\Exception\AwsException;
 use Aws\Result;
 use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Promise\PromiseInterface;
+use GuzzleHttp\Psr7\Response;
 use GuzzleHttp\Psr7\Utils;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -65,6 +69,31 @@ class ZapisDoR2BezAclTest extends TestCase
      * @var array<string, string>
      */
     private array $obiekty = [];
+
+    public function test_warunkowy_zapis_dziennika_wysyla_if_none_match_bez_acl(): void
+    {
+        $dysk = $this->dyskR2('r2_probny');
+        $dysk->put('dziennik-wymazan/konto.json', '{}', ['IfNoneMatch' => '*']);
+
+        $zadanie = $this->jednoZadanie('PutObject');
+        $this->assertSame('*', $zadanie->getHeaderLine('If-None-Match'));
+        $this->assertFalse($zadanie->hasHeader('x-amz-acl'));
+    }
+
+    public function test_drugie_dopisanie_na_r2_dostaje_412_i_nie_nadpisuje_wpisu(): void
+    {
+        $this->dyskR2('r2_probny');
+        config(['kuking.dziennik_wymazan.dysk' => 'r2_probny']);
+        $dziennik = app(DziennikWymazan::class);
+        $uuid = '00000000-0000-4000-8000-000000000004';
+
+        $this->assertSame(DziennikWymazan::DOPISANO, $dziennik->dopiszJesliBrak($uuid, User::DELETE_SCOPE_EVERYTHING, now()->subDay()));
+        $klucz = DziennikWymazan::PREFIKS.$uuid.'.json';
+        $pierwszy = $this->obiekty[$klucz];
+
+        $this->assertSame(DziennikWymazan::ISTNIEJE, $dziennik->dopiszJesliBrak($uuid, User::DELETE_SCOPE_MINIMUM, now()));
+        $this->assertSame($pierwszy, $this->obiekty[$klucz]);
+    }
 
     public function test_zapis_zdjecia_nie_wysyla_naglowka_x_amz_acl(): void
     {
@@ -340,6 +369,15 @@ class ZapisDoR2BezAclTest extends TestCase
             $this->zadania[] = ['polecenie' => $polecenie->getName(), 'zadanie' => $zadanie];
 
             $klucz = ltrim($zadanie->getUri()->getPath(), '/');
+
+            if ($polecenie->getName() === 'PutObject'
+                && $zadanie->getHeaderLine('If-None-Match') === '*'
+                && array_key_exists($klucz, $this->obiekty)) {
+                return Create::rejectionFor(new AwsException('Obiekt już istnieje.', $polecenie, [
+                    'code' => 'PreconditionFailed',
+                    'response' => new Response(412),
+                ]));
+            }
 
             return Create::promiseFor(match ($polecenie->getName()) {
                 'PutObject' => $this->zapisz($klucz, (string) $zadanie->getBody(), '"etag"'),

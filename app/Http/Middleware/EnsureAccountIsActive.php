@@ -71,9 +71,19 @@ class EnsureAccountIsActive
         'logout',
         'settings.data',
         'settings.data.export',
+        // #1364: żądanie usunięcia konta (RODO art. 17). Formularz stoi na
+        // „Twoich danych", które zawieszone konto widzi — bez tej trasy
+        // wysyłka odbijała się tu przed kontrolerem, a przy zawieszeniu
+        // bez terminu samoobsługowa droga była zamknięta na zawsze. Kara
+        // nie ginie: `markForDeletion()` odkłada ją do `punishment_status`
+        // (#980) i wraca po cofnięciu usunięcia.
+        'settings.data.delete',
         'settings.email.request',
         'settings.email.cancel',
         'appeals.store',
+        // D-296: wycofanie zgody „odczyt AI” — RODO art. 7 ust. 3, tak łatwe
+        // jak udzielenie. Udzielenie (`zgoda.odczyt-ai.udziel`) celowo NIE.
+        'zgoda.odczyt-ai.wycofaj',
         // #926: prywatny zeszyt i postęp gotowania zostają dostępne.
         // Widoczności zeszytu i treści nadal pilnują ich polityki.
         'collections.store',
@@ -84,6 +94,33 @@ class EnsureAccountIsActive
         'collections.unsave-post',
         'cooking.zaznacz',
         'cooking.restart',
+        // D-270: odcięcie telefonu od konta tylko ODBIERA dostęp — zawieszenie
+        // nie może zostawić człowieka z zalogowanym, zgubionym urządzeniem.
+        'settings.devices.destroy',
+        'settings.devices.destroy-all',
+        // D-264 (audyt B2-04): bezpieczeństwo własnego konta. Konto
+        // przejęte przez spamera bywa zawieszane właśnie za to, co robił
+        // napastnik. Właściciel, który odzyska dostęp, musi móc zmienić
+        // hasło, wylogować inne urządzenia (napastnik zostaje w sesji)
+        // i przestawić 2FA — od razu, nie po końcu kary. Te trasy niczego
+        // nie publikują.
+        'settings.security.password',
+        'settings.security.logout-others',
+        'settings.two_factor.confirm',
+        'settings.two_factor.disable',
+        'settings.two_factor.regenerate',
+        // D-263 (audyt B2-03): zawieszenie odcina od pisania, nie od
+        // ochrony. Zawieszona osoba dalej czyta serwis, więc widzi też
+        // tego, kto ją nęka — blokada niczego nie publikuje, a zdjęcie
+        // blokady to decyzja wyłącznie o własnym widoku. Zgłoszenie treści
+        // (także formularzem prawnym) to prawo z DSA art. 16, niezależne od
+        // stanu konta zgłaszającego. Przyciski „Zablokuj” i „Zgłoś” stoją na
+        // stronach, które zawieszone konto widzi — bez tych tras byłyby
+        // martwe (D-053).
+        'social.block',
+        'social.unblock',
+        'reports.store',
+        'zglos.nielegalna.store',
     ];
 
     public function handle(Request $request, Closure $next): Response
@@ -120,8 +157,9 @@ class EnsureAccountIsActive
             // ZAMIERZONA, a mimo to nie ma powodu karać człowieka utratą tego,
             // co napisał.
             //
-            // Stało tu jednak GOŁE `withInput()`, a ekran bezpieczeństwa jest
-            // podczas zawieszenia do odczytu. Osoba zawieszona, która wysłała
+            // Stało tu jednak GOŁE `withInput()`, a ekran bezpieczeństwa był
+            // wtedy podczas zawieszenia do odczytu (od D-264 już nie jest).
+            // Osoba zawieszona, która wysłała
             // formularz zmiany hasła, wkładała w ten sposób `password`
             // i `current_password` do sesji, skąd `old()` wstawiało je
             // z powrotem do `value=` pola typu password. Sesja jest na
@@ -133,7 +171,7 @@ class EnsureAccountIsActive
             // z pamięci, nie tekst, którego szkoda.
             return back()
                 ->withInput(OdzyskiwalneDane::zZadania($request))
-                ->withErrors(['konto' => $this->komunikatZawieszenia($user)]);
+                ->withErrors(['konto' => self::komunikatZawieszenia($user)]);
         }
 
         return $next($request);
@@ -156,7 +194,7 @@ class EnsureAccountIsActive
         return ! in_array($request->route()?->getName(), self::DOZWOLONE_MIMO_ZAWIESZENIA, true);
     }
 
-    private function komunikatZawieszenia(User $user): string
+    public static function komunikatZawieszenia(User $user): string
     {
         // Bez gry słowem „kuKING" — D-009 zabrania jej w wiadomościach
         // moderacyjnych i komunikatach błędu.

@@ -67,7 +67,12 @@ krok "PostgreSQL"
 _pg_host="${DB_HOST:-127.0.0.1}"
 _pg_port="${DB_PORT:-5432}"
 _pg_katalog="${KUKING_PG_LIB:-/usr/lib/postgresql}"
-sonda_pg() { pg_isready -q -h "$_pg_host" -p "$_pg_port" 2>/dev/null; }
+# Baza i użytkownik tylko wtedy, gdy są podane — bez nich sonda pyta jak
+# dotąd o sam host i port. Hasła tu nie ma: `pg_isready` go nie sprawdza.
+_pg_cel=(-h "$_pg_host" -p "$_pg_port")
+[ -n "${DB_DATABASE:-}" ] && _pg_cel+=(-d "$DB_DATABASE")
+[ -n "${DB_USERNAME:-}" ] && _pg_cel+=(-U "$DB_USERNAME")
+sonda_pg() { pg_isready -q "${_pg_cel[@]}" 2>/dev/null; }
 
 if ! sonda_pg; then
     if [ "$_pg_port" = 5432 ]; then
@@ -83,6 +88,7 @@ fi
 
 if sonda_pg; then
     ok "PostgreSQL odpowiada na $_pg_host:$_pg_port"
+    printf "  To nie sprawdza hasła ani tego, czy baza istnieje — sprawdzą to testy i migracje.\n"
 else
     zle "PostgreSQL nie odpowiada na $_pg_host:$_pg_port — testy Kuking nie chodzą na SQLite"
     if [ "$_pg_port" = 5432 ]; then
@@ -115,7 +121,7 @@ fi
 # „proces się skończył" od „proces padł".
 krok "Skrypty powłoki"
 _bledy_bash=""
-for _skrypt in docker/entrypoint.sh docker/klucz-preview.sh docker/kopia/*.sh scripts/*.sh tests/skrypty/*.sh; do
+for _skrypt in docker/entrypoint.sh docker/healthcheck.sh docker/klucz-preview.sh docker/kopia/*.sh scripts/*.sh tests/skrypty/*.sh; do
     [ -f "$_skrypt" ] || continue
     bash -n "$_skrypt" 2>/dev/null || _bledy_bash="$_bledy_bash $_skrypt"
 done
@@ -124,8 +130,14 @@ if [ -n "$_bledy_bash" ]; then
     zle "Błąd składni w:$_bledy_bash"
 elif ! bash tests/skrypty/entrypoint-nadzor.sh >/dev/null 2>&1; then
     zle "Testy entrypointu oblewają — uruchom: bash tests/skrypty/entrypoint-nadzor.sh"
+elif ! bash tests/skrypty/healthcheck-role.sh >/dev/null 2>&1; then
+    zle "Kontrola zdrowia ról kontenera oblewa — uruchom: bash tests/skrypty/healthcheck-role.sh"
 elif ! bash tests/skrypty/preflight-bazy.sh >/dev/null 2>&1; then
     zle "Preflight bazy w entrypoincie oblewa — uruchom: bash tests/skrypty/preflight-bazy.sh"
+elif ! bash tests/skrypty/bramka-migracji.sh >/dev/null 2>&1; then
+    # Worker i scheduler czekają na migracje web, zamiast startować na starym
+    # schemacie (#2044). Atrapa `php`, bez bazy; kontrole ujemne w tym samym pliku.
+    zle "Bramka migracji workera i schedulera oblewa — uruchom: bash tests/skrypty/bramka-migracji.sh"
 elif ! bash tests/skrypty/php-ini-slady.sh >/dev/null 2>&1; then
     # Obraz FrankenPHP nie ma php.ini-production — bez tej dyrektywy w
     # docker/php.ini ślady wyjątków niosą prefiksy argumentów, także sekretów.
@@ -150,6 +162,10 @@ elif ! bash tests/skrypty/kontrola-sondy-wdrozenia.sh >/dev/null 2>&1; then
     # Sondy testu dymnego po wdrożeniu (#1012, #1332) chodzą tylko w GitHub
     # Actions, na produkcji — tu sprawdzamy je na atrapach curl, bez sieci.
     zle "Sondy testu dymnego oblewają — uruchom: bash tests/skrypty/kontrola-sondy-wdrozenia.sh"
+elif ! bash tests/skrypty/kontrola-czekania-preview.sh >/dev/null 2>&1; then
+    # Czekanie na gotowe preview (#1389) chodzi tylko w GitHub Actions — tu
+    # na atrapie `gh`, bez sieci: sam adres deploymentu to jeszcze nie gotowość.
+    zle "Czekanie na preview oblewa — uruchom: bash tests/skrypty/kontrola-czekania-preview.sh"
 else
     ok "Składnia i testy skryptów powłoki przechodzą"
 fi

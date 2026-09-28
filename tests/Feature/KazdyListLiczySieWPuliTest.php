@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Security\DziennyBudzetListow;
+use App\Mail\ZyczeniaUrodzinowe;
 use App\Models\Report;
+use App\Models\User;
 use App\Notifications\PilnyAlarmModeracyjny;
 use App\Poczta\ListZarezerwowany;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -52,6 +54,7 @@ class KazdyListLiczySieWPuliTest extends TestCase
         'app/Notifications/PilnyAlarmModeracyjny.php' => 'app/Domain/Moderation/Actions/AlarmujModeratora.php',
         'app/Mail/OdpowiedzNaWiadomosc.php' => 'app/Domain/Contact/Actions/WyslijOdpowiedz.php',
         'app/Mail/PodsumowanieTygodnia.php' => 'app/Console/Commands/WyslijPodsumowaniaTygodnia.php',
+        'app/Mail/ZyczeniaUrodzinowe.php' => 'app/Console/Commands/WyslijZyczeniaUrodzinowe.php',
     ];
 
     #[Test]
@@ -110,6 +113,27 @@ class KazdyListLiczySieWPuliTest extends TestCase
         foreach ($wyslane as $list) {
             $this->assertFalse($list->getHeaders()->has(ListZarezerwowany::NAGLOWEK), 'Wewnętrzny znacznik wyszedł do dostawcy.');
         }
+    }
+
+    #[Test]
+    public function zyczenia_urodzinowe_zarezerwowane_przez_komende_nie_sa_liczone_drugi_raz(): void
+    {
+        config(['kuking.urodziny.mail_wlaczony' => true]);
+        $osoba = User::factory()->create([
+            'status' => User::STATUS_ACTIVE,
+            'email_verified_at' => now(),
+            'birthday_day' => 12,
+            'birthday_month' => 3,
+            'wants_birthday_email' => true,
+            'birthday_wishes_enabled' => true,
+        ]);
+
+        Mail::to((string) $osoba->email)->send(new ZyczeniaUrodzinowe($osoba));
+
+        $this->assertSame(0, $this->pula()->zuzyte(), 'Życzenia urodzinowe policzone drugi raz: komenda już zajęła miejsce.');
+        $wyslane = $this->wyslane();
+        $this->assertCount(1, $wyslane);
+        $this->assertFalse($wyslane[0]->getHeaders()->has(ListZarezerwowany::NAGLOWEK), 'Wewnętrzny znacznik wyszedł do dostawcy.');
     }
 
     #[Test]

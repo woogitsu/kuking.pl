@@ -301,15 +301,44 @@ webhookowi obiekt wyjątku w tablicę (bez klasy, pliku:linii i odcisku).
 
 ### Czego ten kanał NIE robi (żeby nie było niespodzianek)
 
-- **Nie grupuje powtórzeń.** Ten sam błąd wywalający się 50 razy na minutę
-  (np. zepsute zapytanie na często odwiedzanej stronie) to 50 wiadomości.
-  Sentry grupuje i pokazuje „x50" — to jest jeden z powodów, dla których jest
-  docelowym wyborem, nie tymczasowym.
+- **Grupuje tylko najprościej (od 25 września 2026, #599).** Ten sam odcisk
+  (klasa|plik|linia) idzie na kanał najwyżej raz na
+  `KUKING_SERIA_ALARMOW_OKNO_MINUT` (domyślnie 15), a pierwsza wiadomość po
+  oknie ma linię „powtórzeń od poprzedniej wiadomości (nie wysłanych osobno):
+  N". Inny odcisk przechodzi od razu. Webhook, który odpowie 429/500 albo nie
+  odpowie, nie kupuje okna — dostaje minutę przerwy, żeby burza nie wołała
+  martwego kanału przy każdym żądaniu. Dziennik serwera dostaje każde
+  wystąpienie jak dotąd. Kontrakt: `App\Domain\Monitoring\SeriaAlarmow`,
+  test: `SeriaIdentycznychAlarmowTest`. Sentry grupuje mądrzej (per wydanie,
+  z wykresem) — to nadal jeden z powodów, dla których jest docelowym wyborem.
 - **Nie ma dashboardu ani historii poza tym, co zostaje na kanale Discorda.**
 - **Nie łapie błędów JavaScriptu w przeglądarce** — tylko wyjątki po stronie
   serwera PHP.
 - **Nie mówi, ilu ludzi to dotknęło** ani czy to jest ten sam człowiek, czy
   stu różnych.
+
+### Od 25 września 2026: wolna baza i zły sekret Turnstile (#599)
+
+**Łączny czas zapytań SQL jednego żądania HTTP.** `App\Domain\Monitoring\CzasZapytan`
+rejestruje `DB::whenQueryingForLongerThan()` z progiem
+`KUKING_CZAS_BAZY_PROG_MS` (domyślnie 1000 ms, `0` wyłącza). Łapie jedno wolne
+zapytanie i N+1 ze stu szybkich. Po wysłaniu odpowiedzi zapisuje w dzienniku
+jedno ostrzeżenie na żądanie („Łączny czas zapytań SQL żądania przekroczył
+próg.”, pola `trasa`, `czas_bazy_ms`, `prog_ms`) i dzwoni na ten kanał —
+przez `SeriaAlarmow`, więc sto wolnych wejść na tę samą trasę to jedna
+wiadomość. Wychodzi WZORZEC trasy (`GET /przepisy/{recipe}`), nigdy SQL,
+parametry, query string ani adres. Mierzy wyłącznie żądania HTTP; komendy
+i worker kolejki nie są objęte (suma z wielu zadań nie byłaby czasem „jednego
+żądania”). 1000 ms to wartość startowa: po tygodniu odczytów `czas_bazy_ms`
+ustaw próg nad p99 zwykłego ruchu.
+
+**Zły sekret Turnstile.** `invalid-input-secret`, `missing-input-secret`
+i `bad-request` z `siteverify` otwierają epizod `AlarmTurnstile` (ta sama
+maszyna co czujki kolejki i połączeń: jedna wiadomość, cisza 6 h, jedno
+odwołanie po pierwszej udanej weryfikacji albo odrzuconym tokenie). Formularz
+dalej przechodzi (D-050). `internal-error` to awaria u Cloudflare, nie nasza
+konfiguracja — nie dzwoni. `/health` nadal widzi tylko obecność kluczy;
+o ich poprawności mówi dopiero ten alarm.
 
 ### Od 10 września 2026: ten sam kanał dzwoni też o awariach, których żaden błąd 500 nie wywoła
 
@@ -353,7 +382,9 @@ połykał wyjątek połączenia, a nieudane żądanie HTTP wyjątku nawet nie rz
 Kanał wyciszony i kanał sprawny wyglądały identycznie. Teraz
 `WebhookBleduHandler` zapisuje sam fakt niedodzwonienia się do dziennika
 serwera („Nie udało się zadzwonić na webhook błędów. Wiadomość przepadła.",
-kanał `single` — nigdy ten kanał, bo to byłaby pętla), a `/health` **oddaje
+kanał `stderr` — nigdy ten kanał, bo to byłaby pętla; do 24 września 2026 był
+to kanał `single`, ale Railway pokazuje w panelu wyłącznie `stdout`/`stderr`,
+nie plik na dysku kontenera, patrz #599), a `/health` **oddaje
 wtedy swój 30-minutowy odstęp**, więc następne odpytanie dzwoni jeszcze raz.
 Jedna sekunda niedostępności Discorda nie kupuje pół godziny ciszy
 o trwającej awarii.
@@ -663,6 +694,7 @@ a `NIE WIEMY` jest nieprzejściem bramki, nie sukcesem (`docs/OTWARCIE.md`).
 | martwe zadania (świeże `failed_jobs`) | `kuking:sprawdz-kolejke`, co 15 min | **NOWE** (ten dokument) — dostarczenie sprawdzone lokalnie | §7.2 niżej |
 | opóźnienie kolejki / martwy worker | `kuking:sprawdz-kolejke`, co 15 min | **NOWE** — wcześniej nie mierzyło tego NIC | §7.2 niżej |
 | wyczerpywanie połączeń PostgreSQL | `kuking:budzet-polaczen`, co godzinę | **NOWE** — progi i wyprowadzenie w `docs/DATABASE.md` | §7.2 niżej |
+| wygasłe paczki z danymi nadal w storage (nieudane albo niechodzące sprzątanie) | `kuking:sprawdz-sprzatanie-eksportow`, codziennie 06:25 UTC | **NOWE** (issue #1331, 24.09.2026) — dzwoni tylko przy ustawionym `LOG_BLAD_WEBHOOK_URL` | `tests/Feature/SprzatanieEksportowDajeAlarmTest.php` (atrapa HTTP, nie prawdziwy odbiornik) |
 | awaria całej aplikacji (strona nie odpowiada) | zewnętrzny monitor `/health` | **NIEZROBIONE** | §6 wyżej opisuje, jak to założyć; to jest czynność właściciela |
 | stojący harmonogram (milkną wszystkie czujki) | `kuking:puls-harmonogramu` co 5 min → zewnętrzny monitor *heartbeat* | **KOD JEST, WYŁĄCZONY** bez `KUKING_PULS_HARMONOGRAMU_URL` (dopisane 25.09.2026) | [`MONITORING_599_KROKI.md`](MONITORING_599_KROKI.md) §B3 |
 
@@ -691,7 +723,10 @@ zadań. Żeton resetu hasła wygasa `config/auth.php` → `expire` minut od
 wystawienia, więc zbiorowe `queue:retry` po tygodniu wysłałoby czterem
 osobom martwy link. Rozliczenie tabeli jest osobną czynnością na produkcji
 (`php artisan kuking:martwe-zadania`, bez `--skasuj` niczego nie usuwa)
-i należy do właściciela, nie do tej zmiany.
+i należy do właściciela, nie do tej zmiany. **Dopisek z 25.09.2026:** od tego
+dnia wiersze starsze niż 30 dni kasuje harmonogram (`queue:prune-failed
+--hours=720`, decyzja właściciela), więc te cztery zadania znikną same około
+10 października 2026 — rozliczenie z odbiorcami trzeba zrobić przed tą datą.
 
 ### 7.2. Trzy nowe czujki i jak sprawdzono, że naprawdę wysyłają
 
@@ -704,6 +739,8 @@ miejsce do patrzenia jest drugim miejscem do niepatrzenia.
 | `kuking:sprawdz-kopie` | codziennie 06:15 | brak świeżej kopii (dziś: wyłączona brakiem bucketu) |
 | `kuking:budzet-polaczen` | co godzinę, minuta 25 | zajętych backendów powyżej progu (50 / 125) |
 | `kuking:sprawdz-kolejke` | co 15 minut | zaległość ≥ 600 s, zawieszona rezerwacja, albo zadanie, które padło w ostatnich 3 h |
+| `kuking:sprawdz-sprzatanie-eksportow` | codziennie 06:25 UTC | paczka `ready`/`expired` z adresem pliku ponad 36 h po `expires_at`; same liczby, bez kluczy obiektów; powrót do normy daje jedno odwołanie (#1331) |
+| `kuking:sprawdz-push` | co godzinę, minuta 50 | grupa Web Push z trwałą porażką transportu albo z utraconym ponowieniem (rezerwacja > 30 min bez zadania w `jobs`), dopóki nie zostanie ręcznie rozliczona — widzi to, czego nie widzi `failed_jobs`; same liczby i kody (#2053, [`WEB_PUSH_TRWALE_PORAZKI_2053.md`](WEB_PUSH_TRWALE_PORAZKI_2053.md)) |
 
 **Dostarczenie sprawdzone na prawdziwym odbiorniku HTTP**, nie na atrapie
 w teście — lokalny serwer zapisujący każde żądanie, baza `kuking_599_odbiornik`
@@ -916,7 +953,9 @@ czyli asercją, że żeton i znacznik śladu stosu NAPRAWDĘ leżą w bazie.
 `queue:retry` na starym żetonie resetu hasła wysyła człowiekowi martwy link,
 a skasowany wiersz to skasowany jedyny ślad po awarii. Obie decyzje zostają
 w `kuking:martwe-zadania`, gdzie podejmuje je człowiek po zobaczeniu, kogo
-dotyczą.
+dotyczą. Wyjątkiem są wiersze starsze niż 30 dni: te od 25.09.2026 kasuje
+harmonogram (`queue:prune-failed --hours=720`, decyzja właściciela,
+`docs/DECISIONS.md`, sekcja „TOKEN W BAZIE LEŻY WYŁĄCZNIE JAKO SKRÓT”).
 
 **Dlaczego nie log.** Bo `LOG_LEVEL` na produkcji bywa ustawiony na
 `warning`, a wszystko na poziomie `info` przepada po drodze. Przyrząd oparty

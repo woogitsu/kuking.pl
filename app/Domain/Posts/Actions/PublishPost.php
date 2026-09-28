@@ -8,6 +8,7 @@ use App\Domain\Community\HostUserResolver;
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
 use App\Domain\Moderation\UnansweredContent;
 use App\Domain\Notifications\Actions\NotifyUser;
+use App\Domain\Posts\KontoNieMozePublikowac;
 use App\Domain\Posts\PublicationAnalysisQueue;
 use App\Domain\Tags\Actions\ResolvePostTags;
 use App\Exceptions\BladDlaCzlowieka;
@@ -140,7 +141,18 @@ final class PublishPost
 
                 // Media przed kontem (D-103), konto przed INSERT i rozstrzygnięciem pierwszeństwa.
                 // NO KEY UPDATE serializuje publikacje, ale nie blokuje odczytów FK KEY SHARE.
-                User::query()->whereKey($author->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
+                $author = User::query()->whereKey($author->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
+                // Middleware sprawdziło konto przed wejściem w żądanie. Kara mogła
+                // jednak zostać zatwierdzona, gdy ta publikacja czekała na zamek.
+                // Rozstrzygamy na świeżym wierszu, pod tą samą blokadą co zapis.
+                if ($author->punishmentHasExpired()) {
+                    $author->reinstate();
+                }
+                if (! $author->isActive()) {
+                    throw new KontoNieMozePublikowac(
+                        'Stan Twojego konta zmienił się podczas wysyłania wpisu. Odśwież stronę, aby zobaczyć aktualną informację.',
+                    );
+                }
 
                 // Zachowujemy kolejność wybraną przez użytkownika —
                 // `zablokuj()` oddaje kolejność blokowania, nie formularza.
@@ -150,6 +162,18 @@ final class PublishPost
                 ));
 
                 $orderedMedia = array_slice($orderedMedia, 0, (int) config('kuking.media.max_per_post'));
+
+                // Pierwsza kontrola wyżej widzi tylko identyfikatory z
+                // żądania. Dopiero rewalidacja pod blokadą mówi, czy któreś
+                // zdjęcie nadal wolno przypiąć (issue #1093). Jeśli wszystkie
+                // odpadły, zwykły wpis bez tekstu nadal jest pusty — nie
+                // wolno zapisać pustej karty i dopiero potem powiedzieć, że
+                // publikacja się udała.
+                if ($kind === Post::KIND_DISH && $body === null && $orderedMedia === []) {
+                    throw new BladDlaCzlowieka(
+                        'Wybrane zdjęcie nie jest już dostępne. Wybierz je ponownie albo napisz kilka słów.',
+                    );
+                }
 
                 // Sposób wyświetlania zdjęć (issue #92). Przy jednym zdjęciu
                 // wybór nie znaczy nic — karuzela z jednym slajdem i kolaż
@@ -245,8 +269,13 @@ final class PublishPost
      * autoryzacją (`AGENTS.md` §7). Klucz podstawiony z cudzego formularza
      * nie może więc pokazać cudzego wpisu — indeks jest na parze
      * (autor, klucz), więc nawet nie zablokuje własnego wysłania.
+     *
+     * Publiczne, bo kontroler pyta o to PRZED zapisem zdjęć (issue #873):
+     * ponowione, już zakończone wysłanie nie przetwarza plików drugi raz.
+     * Rozstrzyga nadal indeks UNIQUE — dwa współbieżne żądania mogą oba
+     * minąć to pytanie, a wtedy drugie zatrzyma się na indeksie jak dotąd.
      */
-    private function wpisZTegoWyslania(User $author, ?string $kluczWyslania): ?Post
+    public function wpisZTegoWyslania(User $author, ?string $kluczWyslania): ?Post
     {
         if ($kluczWyslania === null) {
             return null;

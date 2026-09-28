@@ -223,7 +223,9 @@ wejścia kontem Facebooka) ani alarmu automatu o pilnym oznaczeniu. Teraz:
   prawdziwe zużycie. Nagłówek jest zdejmowany przed wysyłką do dostawcy;
 - nagłówek (`App\Poczta\ListZarezerwowany`) niosą wyłącznie listy, których
   droga zarezerwowała miejsce przed wysyłką. Rejestr tych klas jest zamknięty
-  w obie strony w `tests/Feature/KazdyListLiczySieWPuliTest.php`;
+  w obie strony w `tests/Feature/KazdyListLiczySieWPuliTest.php` (od scalenia
+  z życzeniami urodzinowymi także `ZyczeniaUrodzinowe`, które rezerwuje komenda
+  `kuking:wyslij-zyczenia-urodzinowe`);
 - alarm automatu (`AlarmujModeratora`) idzie spod
   `DziennyBudzetListow::dlaAlarmuAutomatu()`: klasa `wejscie` i własny sufit
   `moderation.model.alarm_dzienny_sufit` (domyślnie 10, `KUKING_MODEL_ALARM_SUFIT`),
