@@ -188,7 +188,7 @@ async function podniesSerwer() {
       });
     } catch { /* baza już istnieje */ }
 
-    console.log(`Przygotowuję dane demonstracyjne w bazie ${env().DB_DATABASE}...`);
+    console.log(`Przygotowuję dane demonstracyjne w bazie z DB_DATABASE (nazwa ustawiona, wartość nie jest logowana)...`);
     execFileSync('php', ['artisan', 'migrate:fresh', '--seed', '--seeder=DemoSeeder', '--force'], {
       stdio: 'ignore',
       env: env(),

@@ -10,6 +10,9 @@ use App\Models\Comment;
 use App\Models\ContactMessage;
 use App\Models\CookedEvent;
 use App\Models\DataExport;
+use App\Models\Hide;
+use App\Models\ImportPrzepisu;
+use App\Models\MealPlanEntry;
 use App\Models\Media;
 use App\Models\ModerationAction;
 use App\Models\Notification;
@@ -106,6 +109,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
     private const BEZ_IDENTYFIKATORA_OBIEKTU = [
         'password.reset' => 'Parametr {token} to jednorazowy token resetu hasła, nie identyfikator obiektu.',
         'login.link.confirm' => 'Parametr {token} to jednorazowy token logowania linkiem (D-056).',
+        'facebook.link.confirm' => 'Parametr {token} to jednorazowy dowód kontroli nad obecnym kontem Kuking, związany z sesją i Facebookiem (#2085).',
         'zaproszenie.pokaz' => 'Parametr {token} to jednorazowy token zaproszenia do rejestracji.',
     ];
 
@@ -191,7 +195,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $zParametrem = 0;
         $niepokryte = [];
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             if (! str_contains($trasa->uri(), '{')) {
                 continue;
             }
@@ -352,6 +356,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         foreach ($this->przypadki as $przypadek) {
             $oczekiwane = $przypadek['oczekiwania'][$rola];
 
+            // Świeży token przed każdą trasą API: trasy WWW wyżej w tabeli
+            // (zmiana hasła, „wyloguj inne urządzenia") kasują tokeny razem
+            // z sesjami — i mają to robić (D-270).
+            if (str_starts_with($przypadek['trasa'], 'api.')) {
+                $this->zaloguj($rola);
+            }
+
             $odpowiedz = $this->from(route('home'))
                 ->{$przypadek['metoda']}($przypadek['url'], $przypadek['dane']);
 
@@ -366,7 +377,9 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
                 .'Odmowa to 403 albo 404 — nigdy 500.');
 
             if ($oczekiwane === self::ODMOWA) {
-                $this->assertTrue(in_array($kod, [403, 404], true) || $naLogowanie,
+                // 401 to odmowa API dla żądania bez tokenu (D-272) — odpowiednik
+                // przekierowania na logowanie z WWW.
+                $this->assertTrue(in_array($kod, [401, 403, 404], true) || $naLogowanie,
                     "Wejście przez sam identyfikator: {$gdzie}, a miała być odmowa.\n"
                     .'AGENTS.md §7: UUID w adresie NIE JEST autoryzacją — każde wejście na cudzą treść przez Policy.');
             } elseif ($oczekiwane === self::WOLNO) {
@@ -392,8 +405,15 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
     {
         $this->app['auth']->forgetGuards();
 
+        $this->flushHeaders();
+
         if ($rola !== 'gosc') {
             $this->actingAs($this->osoby[$rola]);
+
+            // API (D-272) nie czyta sesji, tylko token w nagłówku — ta sama
+            // rola wchodzi obiema drogami. Na trasach WWW nagłówek niczego
+            // nie zmienia: strażnik `web` go nie czyta.
+            $this->withHeader('Authorization', 'Bearer '.$this->osoby[$rola]->createToken('Pomiar')->plainTextToken);
         }
     }
 
@@ -425,6 +445,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // `ZdjeciaLimitZapytanTest`).
         $this->withoutMiddleware(ThrottleRequests::class);
         Storage::fake('public');
+        config(['kuking.api.wlaczone' => true]);
 
         $wlasciciel = $this->user('wlascicielka');
         $obcy = $this->user('obcaosoba');
@@ -451,6 +472,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
 
         // Osobny wpis dla „Zdejmij z urzędu” (G31) — udany POST go zdejmuje.
         $wpisZUrzedu = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
+        // Ukrycie właściciela (#1810) — cel `settings.hidden.*`.
+        $ukrycieWlasciciela = new Hide;
+        $ukrycieWlasciciela->forceFill([
+            'user_id' => $wlasciciel->getKey(),
+            'post_id' => Post::factory()->create(['author_id' => $przedmiot->getKey()])->getKey(),
+            'hidden_until' => now()->addDays(30),
+        ])->save();
 
         $przepis = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
         $przepisPrywatny = Recipe::factory()->create(['author_id' => $wlasciciel->getKey(), 'visibility' => 'private']);
@@ -472,6 +500,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $komentarzDoKasacji = Comment::factory()->create([
             'author_id' => $wlasciciel->getKey(),
             'post_id' => $wpisPubliczny->getKey(),
+        ]);
+        // Wątek pod wpisem PRYWATNYM — dla `api.komentarze.odpowiedzi` (#1970):
+        // bramką jest `CommentPolicy::view`, która pyta Policy rodzica.
+        $komentarzPodPrywatnym = Comment::factory()->create([
+            'author_id' => $wlasciciel->getKey(),
+            'post_id' => $wpis->getKey(),
         ]);
 
         $zeszyt = Collection::create([
@@ -612,6 +646,22 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('social.block', $przedmiot->profile->username), [], [$W, $W, $W, $W, $O]);
         $dodaj('social.unblock', 'odblokowuję kogoś trzeciego', 'delete',
             route('social.unblock', $przedmiot->profile->username), [], [$W, $W, $W, $W, $O]);
+        // Prywatne ukrycia (#1810, D-278). Ekran wyboru i zapis pytają
+        // `UserPolicy::viewProfile` (blokada wycina), a siebie nie da się
+        // ukryć — stąd odmowa właściciela. Cofnięcie działa jak `unfollow`:
+        // kasuje wiersz OSOBY DZIAŁAJĄCEJ, więc cel to ktoś trzeci.
+        $dodaj('social.hide.confirm', 'ekran „Ukryj tę osobę”', 'get',
+            route('social.hide.confirm', $wlasciciel->profile->username), [], [$O, $W, $O, $W, $O]);
+        $dodaj('social.hide', 'ukrycie właściciela', 'post',
+            route('social.hide', $wlasciciel->profile->username), [], [$O, $W, $O, $W, $O]);
+        $dodaj('social.unhide', 'cofnięcie ukrycia kogoś trzeciego', 'delete',
+            route('social.unhide', $przedmiot->profile->username), [], [$W, $W, $W, $W, $O]);
+        // Wiersz z listy „Ukryte” należy do jednej osoby (`HidePolicy`).
+        // „Zostaw” przed „Przywróć”: drugi kasuje wiersz.
+        $dodaj('settings.hidden.keep', 'zostaw ukryte — cudzy wiersz', 'patch',
+            route('settings.hidden.keep', $ukrycieWlasciciela), [], [$W, $O, $O, $O, $O]);
+        $dodaj('settings.hidden.restore', 'przywróć — cudzy wiersz', 'delete',
+            route('settings.hidden.restore', $ukrycieWlasciciela), [], [$W, $O, $O, $O, $O]);
 
         // ─── PANEL MODERACJI ─────────────────────────────────────────────
         // 404, nie 403: `EnsureUserIsModerator` celowo nie potwierdza
@@ -692,6 +742,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             ]), [], [$W, $O, $O, $O, $O]);
         $dodaj('notifications.open', 'otwarcie cudzego powiadomienia', 'post',
             route('notifications.open', $powiadomienie), [], [$W, $O, $O, $O, $O]);
+        // Token aplikacji mobilnej (D-270): odciąć go może tylko właściciel
+        // konta — moderator też nie (`PersonalAccessTokenPolicy`).
+        $dodaj('settings.devices.destroy', 'odcięcie cudzego urządzenia', 'delete',
+            route('settings.devices.destroy', $wlasciciel->createToken('Telefon')->accessToken), [], [$W, $O, $O, $O, $O]);
         $dodaj('settings.data.download', 'pobranie paczki RODO', 'get',
             URL::temporarySignedRoute('settings.data.download', now()->addHour(), ['export' => $this->paczka->getKey()]),
             [], [$W, $O, $O, $O, $O]);
@@ -747,16 +801,47 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // `recipes.destroy`, `cooked.destroy` i `comments.destroy` niżej.
         $dodaj('posts.destroy', 'usunięcie wpisu', 'delete',
             route('posts.destroy', $wpisDoKasacji), [], [$W, $O, $O, $O, $O]);
+        // „Ukryj ten wpis” (#1810) pyta `PostPolicy::view` — prywatnego
+        // wpisu nie ukryje nikt, kto go nie widzi. Właściciel wchodzi
+        // i dostaje komunikat „własnego wpisu nie ukrywasz” (302, nie 403).
+        $dodaj('posts.hide', 'ukrycie prywatnego wpisu', 'post',
+            route('posts.hide', $wpis), [], [$W, $O, $O, $O, $O]);
+        $dodaj('posts.unhide', 'cofnięcie ukrycia prywatnego wpisu', 'delete',
+            route('posts.unhide', $wpis), [], [$W, $O, $O, $O, $O]);
+        // „Smakowicie wygląda” (#1813) pyta `PostPolicy::view`. Właściciel
+        // wchodzi i dostaje komunikat „pod własnym wpisem tego nie piszesz”.
+        $dodaj('posts.smakowicie', 'reakcja pod prywatnym wpisem', 'post',
+            route('posts.smakowicie', $wpis), [], [$W, $O, $O, $O, $O]);
+        $dodaj('posts.smakowicie.cofnij', 'cofnięcie reakcji pod prywatnym wpisem', 'delete',
+            route('posts.smakowicie.cofnij', $wpis), [], [$W, $O, $O, $O, $O]);
 
         // ─── PRZEPISY ────────────────────────────────────────────────────
         $dodaj('recipes.show', 'przepis prywatny', 'get',
             route('recipes.show', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.edit', 'edycja przepisu', 'get',
             route('recipes.edit', $przepis), [], [$W, $O, $O, $O, $O]);
+        // Zlecenie odczytu zdjęcia kartki (V2, D-298) — prywatny szkic ze
+        // zdjęciem; moderator też nie ma tu wstępu (`ImportPrzepisuPolicy`).
+        $zlecenieOdczytu = new ImportPrzepisu;
+        $zlecenieOdczytu->forceFill([
+            'user_id' => $wlasciciel->getKey(),
+            'recipe_id' => $przepisPrywatny->getKey(),
+            'zrodlo' => ImportPrzepisu::ZRODLO_ZDJECIE,
+            'status' => ImportPrzepisu::STATUS_NIEUDANY,
+            'kod_bledu' => ImportPrzepisu::KOD_MODEL_NIEDOSTEPNY,
+        ])->save();
+        $dodaj('import.show', 'postęp odczytu zdjęcia kartki', 'get',
+            route('import.show', $zlecenieOdczytu), [], [$W, $O, $O, $O, $O]);
+        $dodaj('import.ponow', 'ponowienie odczytu zdjęcia kartki', 'post',
+            route('import.ponow', $zlecenieOdczytu), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.details', 'szczegóły przepisu', 'get',
             route('recipes.details', $przepis), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.update', 'zapis przepisu', 'put',
-            route('recipes.update', $przepis), ['title' => 'Nowy tytuł przepisu'], [$W, $O, $O, $O, $O]);
+            route('recipes.update', $przepis), ['content_revision' => $przepis->fresh()->content_revision, 'title' => 'Nowy tytuł przepisu'], [$W, $O, $O, $O, $O]);
+        // „Ukryj wartości odżywcze” (D-299) — ustawienie widoku WŁASNEGO
+        // przepisu; moderator też nie przełącza go za autora.
+        $dodaj('recipes.wartosci-odzywcze', 'ukrycie wartości odżywczych przepisu', 'patch',
+            route('recipes.wartosci-odzywcze', $przepis), ['pokazuj' => '0'], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.comment', 'komentarz pod prywatnym przepisem', 'post',
             route('recipes.comment', $przepisPrywatny), ['body' => 'Komentarz do przepisu.'], [$W, $O, $O, $O, $O]);
         // „Moja wersja" (issue #23, D-301): własnego przepisu się nie kopiuje
@@ -847,6 +932,15 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.note', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
             ['note' => 'Mniej soli'], [$W, $O, $O, $O, $O]);
 
+        // ─── PLANER TYGODNIA ─────────────────────────────────────────────
+        // Planer jest prywatny (#27, D-310): pozycję usuwa wyłącznie
+        // właściciel planu, bez wyjątku dla moderatora.
+        $pozycjaPlanu = new MealPlanEntry(['day' => '2026-11-18', 'label' => 'Obiad u mamy']);
+        $pozycjaPlanu->user_id = $wlasciciel->getKey();
+        $pozycjaPlanu->save();
+        $dodaj('planer.destroy', 'pozycja planera tygodnia', 'delete',
+            route('planer.destroy', $pozycjaPlanu), [], [$W, $O, $O, $O, $O]);
+
         // ─── TAGI ────────────────────────────────────────────────────────
         // Tag jest wspólną nawigacją serwisu, nie czyjąś własnością
         // (`docs/FEATURES.md`); obserwowanie zapisuje się w relacji osoby
@@ -867,6 +961,39 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // rola nie otwiera już bajtów każdego zdjęcia (#1360, AUTHZ-02).
         $dodaj('media.show', 'zdjęcie z prywatnego wpisu', 'get',
             route('media.show', ['media' => $zdjecie, 'wariant' => 'feed']), [], [$W, $O, $O, $O, $O]);
+
+        // ─── API (D-272) ─────────────────────────────────────────────────
+        // Te same zasoby co wiersze WWW wyżej i ta sama Policy. Różnica
+        // jedna i zamierzona: API nie ma gościa — bez tokenu jest 401,
+        // także tam, gdzie WWW wpuszcza bez logowania (profil publiczny).
+        $dodaj('api.wpisy.show', 'API: wpis prywatny', 'getJson',
+            route('api.wpisy.show', $wpis), [], [$W, $O, $O, $O, $O]);
+        $dodaj('api.wpisy.komentarze', 'API: komentarze wpisu prywatnego', 'getJson',
+            route('api.wpisy.komentarze', $wpis), [], [$W, $O, $O, $O, $O]);
+        $dodaj('api.przepisy.show', 'API: przepis prywatny', 'getJson',
+            route('api.przepisy.show', $przepisPrywatny->getKey()), [], [$W, $O, $O, $O, $O]);
+        $dodaj('api.przepisy.komentarze', 'API: komentarze przepisu prywatnego', 'getJson',
+            route('api.przepisy.komentarze', $przepisPrywatny->getKey()), [], [$W, $O, $O, $O, $O]);
+        $dodaj('api.komentarze.odpowiedzi', 'API: odpowiedzi w wątku pod wpisem prywatnym', 'getJson',
+            route('api.komentarze.odpowiedzi', $komentarzPodPrywatnym), [], [$W, $O, $O, $O, $O]);
+        $dodaj('api.profile.show', 'API: profil', 'getJson',
+            route('api.profile.show', $wlasciciel->profile->username), [], [$W, $W, $O, $W, $O]);
+        // Ten sam MediaController i ta sama `DostepDoZdjecia` co `media.show`,
+        // więc moderator ma tu ODMOWĘ jak na WWW (#1360, AUTHZ-02).
+        $dodaj('api.zdjecia.show', 'API: zdjęcie z prywatnego wpisu', 'get',
+            route('api.zdjecia.show', ['media' => $zdjecie, 'wariant' => 'feed']), [], [$W, $O, $O, $O, $O]);
+        // Publikacja (D-273) — lustro wierszy `posts.comment`, `recipes.comment`,
+        // `cooked.store`, `social.follow` i `social.unfollow` wyżej.
+        $dodaj('api.wpisy.komentarze.store', 'API: komentarz pod prywatnym wpisem', 'postJson',
+            route('api.wpisy.komentarze.store', $wpis), ['body' => 'Komentarz z aplikacji.'], [$W, $O, $O, $O, $O]);
+        $dodaj('api.przepisy.komentarze.store', 'API: komentarz pod prywatnym przepisem', 'postJson',
+            route('api.przepisy.komentarze.store', $przepisPrywatny->getKey()), ['body' => 'Komentarz z aplikacji.'], [$W, $O, $O, $O, $O]);
+        $dodaj('api.przepisy.ugotowalem', 'API: „Ugotowałem" przy prywatnym przepisie', 'postJson',
+            route('api.przepisy.ugotowalem', $przepisPrywatny->getKey()), ['note' => 'Wyszło.'], [$W, $O, $O, $O, $O]);
+        $dodaj('api.osoby.obserwuj', 'API: obserwowanie właściciela', 'postJson',
+            route('api.osoby.obserwuj', $wlasciciel), [], [$O, $W, $O, $W, $O]);
+        $dodaj('api.osoby.przestan', 'API: przestaję obserwować kogoś trzeciego', 'deleteJson',
+            route('api.osoby.przestan', $przedmiot), [], [$W, $W, $W, $W, $O]);
 
         // ─── TRASY, NA KTÓRYCH SAM IDENTYFIKATOR NIE WYSTARCZA ───────────
         // Te same trzy trasy co wyżej, tylko BEZ podpisu. Bez nich wiersze

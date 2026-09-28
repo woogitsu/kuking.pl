@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Users\Actions\EraseAccountData;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -50,9 +51,19 @@ class PolitykaOpisujeUsuniecieZgodnieZKodemTest extends TestCase
     {
         $uzytkownik = $this->user('kucharka');
 
-        app(EraseAccountData::class)->handle($uzytkownik->fresh());
+        // Anonimizacja rusza WYŁĄCZNIE konto w karencji usunięcia — na
+        // aktywnym koncie `handle()` nic nie robi. Test przez długi czas
+        // wołał ją na koncie aktywnym i czytał `users.display_name`, którego
+        // nie ma (nazwa jest w `profiles`), więc porównywał pusty napis
+        // i przechodził zawsze. Znalazł to PHPStan na poziomie 2 (#1731).
+        $uzytkownik->forceFill(['status' => User::STATUS_PENDING_DELETE])->save();
 
-        $podpis = (string) $uzytkownik->fresh()?->display_name;
+        $this->assertTrue(
+            app(EraseAccountData::class)->handle($uzytkownik->fresh()),
+            'Anonimizacja się nie wykonała — nie ma czego porównywać z polityką.',
+        );
+
+        $podpis = (string) $uzytkownik->fresh()?->profile?->display_name;
 
         // Kontrola: bez tej asercji test przechodziłby, gdyby anonimizacja
         // w ogóle nie zmieniła nazwy.

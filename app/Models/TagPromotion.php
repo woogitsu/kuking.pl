@@ -50,6 +50,9 @@ class TagPromotion extends Model
         $query->orderBy('position')->orderBy('created_at')->orderBy('tag_id');
     }
 
+    /**
+     * @return BelongsTo<Tag, $this>
+     */
     public function tag(): BelongsTo
     {
         return $this->belongsTo(Tag::class);

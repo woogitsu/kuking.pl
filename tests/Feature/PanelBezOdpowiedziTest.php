@@ -412,14 +412,18 @@ class PanelBezOdpowiedziTest extends TestCase
         $alert = Notification::query()->where('user_id', $gospodarz->getKey())
             ->where('type', Notification::TYPE_FIRST_POST)->sole();
         $this->assertSame(Post::KIND_QUESTION, $alert->data['kind']);
-        $this->assertSame(route('admin.unanswered', ['typ' => 'pytania']), $alert->adresDocelowy());
+        // Istniejące pytanie: alert prowadzi wprost do niego (#1371).
+        $this->assertSame(route('posts.show', $pytanie), $alert->adresDocelowy());
 
         $this->actingAs($gospodarz)->get(route('notifications.index'))->assertOk()
             ->assertSee('pierwsze pytanie w Kuking')->assertDontSee('pierwszy wpis w Kuking');
         // Cel naprawdę zawiera to pytanie.
-        $this->get($alert->adresDocelowy())->assertOk()->assertSee($pytanie->title);
+        $this->followingRedirects()->get($alert->adresDocelowy())->assertOk()->assertSee($pytanie->title);
 
-        // Wyłączona flaga: zakładka pytań to 404, więc alert nie ma celu.
+        // Pytanie znikło (autor usunął): wraca zakładka pytań, a przy
+        // wyłączonej fladze — brak celu zamiast 404.
+        $pytanie->forceDelete();
+        $this->assertSame(route('admin.unanswered', ['typ' => 'pytania']), $alert->fresh()->adresDocelowy());
         config(['kuking.questions.enabled' => false]);
         $this->assertNull($alert->fresh()->adresDocelowy());
     }
@@ -438,7 +442,10 @@ class PanelBezOdpowiedziTest extends TestCase
         $alert = Notification::query()->where('user_id', $gospodarz->getKey())
             ->where('type', Notification::TYPE_FIRST_POST)->sole();
         $this->assertSame(Post::KIND_DISH, $alert->data['kind']);
-        $this->assertSame(route('admin.unanswered'), $alert->adresDocelowy());
+        // Istniejące danie: wprost na wpis (#1371); kolejka wpisów tylko jako zapas.
+        $this->assertSame(route('posts.show', $alert->data['post_id']), $alert->adresDocelowy());
+        Post::query()->whereKey($alert->data['post_id'])->forceDelete();
+        $this->assertSame(route('admin.unanswered'), $alert->fresh()->adresDocelowy());
         $this->actingAs($gospodarz)->get(route('notifications.index'))->assertOk()
             ->assertSee('pierwszy wpis w Kuking')->assertDontSee('pierwsze pytanie w Kuking');
     }
