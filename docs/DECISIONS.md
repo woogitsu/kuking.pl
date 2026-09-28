@@ -19233,7 +19233,8 @@ i obowiązków) wchodzą od razu.
   obowiązuje od <data>.”. Przy drobnej nie podaje żadnego terminu.
 - **Zgoda** (`dziennik_zgod.wersja_polityki`, D-072) zapisuje wersję
   OBOWIĄZUJĄCĄ w chwili zdarzenia (`WersjaDokumentu::polityka()->obowiazujaca()`),
-  nie ostatnio opublikowaną. **Akceptacji regulaminu repozytorium nie
+  nie ostatnio opublikowaną — we wszystkich zapisach: digest, życzenia mailem
+  i zgoda „odczyt AI” (`PrzestawZgodeNaOdczytAi`). **Akceptacji regulaminu repozytorium nie
   zapisuje z wersją** (`terms_accepted` jest tylko walidowane przy
   rejestracji), więc tu nie ma czego przeliczać.
 - Obecne wersje: polityka 2026-09-10 (sprzed rozróżnienia) i regulamin

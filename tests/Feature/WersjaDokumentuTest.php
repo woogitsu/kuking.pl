@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
+use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Domain\Zgody\WersjaDokumentu;
 use App\Models\User;
 use App\Models\WpisZgody;
@@ -161,6 +162,25 @@ class WersjaDokumentuTest extends TestCase
             ->orderBy('wystapilo_at')->pluck('wersja_polityki')->all();
 
         $this->assertSame(['2026-09-10', self::PUBLIKACJA], $wersje);
+    }
+
+    /**
+     * Ten sam zapis co wyżej, ale dla zgody „odczyt AI” (ekran „Przepisz
+     * z kartki”, D-296): drugi zapis do dziennika zgód też bierze wersję
+     * obowiązującą, nie ostatnio opublikowaną (D-327).
+     */
+    public function test_zgoda_na_odczyt_ai_zapisuje_wersje_polityki_obowiazujaca(): void
+    {
+        config([
+            'kuking.zgody.wersja_polityki' => self::PUBLIKACJA,
+            'kuking.zgody.zmiana_polityki' => ['istotna' => true, 'poprzednia' => '2026-09-10', 'obowiazuje_od' => null],
+        ]);
+        $osoba = $this->user('zgoda_ai_w_przejsciu');
+
+        $this->travelTo($this->dzien(self::PUBLIKACJA)->addDays(5));
+        app(PrzestawZgodeNaOdczytAi::class)->handle($osoba, true, WpisZgody::ZRODLO_EKRAN_IMPORTU);
+
+        $this->assertSame('2026-09-10', WpisZgody::query()->where('user_id', $osoba->getKey())->value('wersja_polityki'));
     }
 
     /** Kontrola ujemna do poprzedniego: drobna zmiana polityki — od razu nowa. */
