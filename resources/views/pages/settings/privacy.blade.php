@@ -102,7 +102,7 @@
         $odczytDziala = (bool) config('kuking.import.zrodla.zdjecie') && \App\Domain\Import\KlientLuna::skonfigurowany('ocr');
     @endphp
     @if($zgodaNaOdczyt || $odczytDziala)
-        <section class="mt-8">
+        <section class="mt-8" id="odczyt-ai">
             <h2>Odczyt zdjęć kartek przez komputer</h2>
             @if($zgodaNaOdczyt)
                 <p>Zgoda jest udzielona: zdjęcia kartek, które dodasz do odczytu, czyta komputer firmy OpenAI (USA). Wysyłamy samo zdjęcie — bez imienia, adresu e-mail i danych z aparatu.</p>
@@ -112,11 +112,16 @@
                 </form>
                 <p class="field-help">Po wycofaniu zdjęcia kartek dalej dodasz do przepisów — tekst wpiszesz wtedy ręcznie.</p>
             @else
-                <p>Zgody nie ma: nie wysyłamy żadnych Twoich zdjęć do odczytu. Możesz ją dać tutaj albo na ekranie „Przepisz z kartki”.</p>
-                <form method="POST" action="{{ route('zgoda.odczyt-ai.udziel') }}">
-                    @csrf
-                    <button class="btn btn-secondary" type="submit">Zgadzam się na odczyt moich kartek</button>
-                </form>
+                {{--
+                    Ta sama informacja i ten sam formularz co na ekranie
+                    „Przepisz z kartki” (issue #2033): zgoda z ustawień nie
+                    może mieć za sobą skromniejszej informacji. Odmowa = nie
+                    klikać; nic się wtedy nie wysyła.
+                --}}
+                <p>Zgody nie ma, więc nie wysyłamy żadnych Twoich zdjęć do odczytu. Jeśli chcesz, żeby komputer przepisywał Twoje kartki, przeczytaj, jak to działa:</p>
+                <div class="panel-formularza stack">
+                    <x-zgoda-odczyt-ai skad="ustawienia" :glowny="false" />
+                </div>
             @endif
         </section>
     @endif

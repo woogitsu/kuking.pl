@@ -19,9 +19,11 @@ use Illuminate\Support\Facades\Log;
  *     KlientLuna::odczytaj() -- żądanie
  *     rozlicz(rezerwacja, koszt z usage)
  *
- * Szacunek to NAJGORSZY przypadek: szacowane tokeny wejścia × cena wejścia
- * + sufit tokenów wyjścia (z rozumowaniem) × cena wyjścia. Dzięki temu suma
- * rezerwacji nigdy nie wypuści wywołania, które mogłoby przebić limit.
+ * Rezerwacja obejmuje CAŁE okno kontekstu zatwierdzonego modelu gpt-6-luna
+ * oraz sufit tokenów wyjścia (z rozumowaniem). Dla wejścia powyżej 272 tys.
+ * tokenów model ma droższą taryfę (2× wejście, 1,5× wyjście), którą
+ * uwzględniamy już w rezerwacji. Dzięki temu wielostronicowy
+ * obraz albo nietypowy tekst nie przekroczy kwoty zarezerwowanej przed HTTP.
  *
  * BLOKADA WIERSZA DNIA SZEREGUJE WSZYSTKIE REZERWACJE — dwa odczyty naraz
  * czekają na siebie i drugi widzi już rezerwację pierwszego. Miesiąc liczymy
@@ -295,19 +297,20 @@ final class BudzetAi
         ];
     }
 
-    /** Najgorszy koszt jednego wywołania zadania — `null`, gdy nie ma cennika. */
+    /** Twardy sufit kosztu jednego wywołania: pełne okno modelu i max output. */
     public static function szacunek(string $zadanie): ?int
     {
         $cennik = Cennik::zKonfiguracji();
 
-        if ($cennik === null) {
+        if (! in_array($zadanie, KlientLuna::ZADANIA, true)
+            || trim((string) config('kuking.import.model.nazwa')) !== 'gpt-6-luna'
+            || $cennik === null
+            || $cennik->wejscieZaMilion < 0.10
+            || $cennik->wyjscieZaMilion < 0.50) {
             return null;
         }
 
-        return $cennik->koszt(
-            max(0, (int) config("kuking.import.model.szacunek_tokenow_wejscia.{$zadanie}")),
-            KlientLuna::maxWyjscie(),
-        );
+        return $cennik->koszt(KlientLuna::MAKS_TOKENOW_KONTEKSTU, KlientLuna::maxWyjscie());
     }
 
     public static function limitDzienny(): int

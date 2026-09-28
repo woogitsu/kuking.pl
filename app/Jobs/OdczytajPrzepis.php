@@ -373,6 +373,11 @@ class OdczytajPrzepis implements ShouldQueue
                 'kod_bledu' => null,
                 'zakonczono_at' => now(),
             ])->save();
+            DB::table('proby_importu')->where('import_id', $zlecenie->getKey())->update([
+                'status' => 'gotowy',
+                'recipe_id' => $szkic->getKey(),
+                'updated_at' => now(),
+            ]);
 
             return true;
         });
@@ -389,6 +394,10 @@ class OdczytajPrzepis implements ShouldQueue
             'kod_bledu' => $kod,
             'zakonczono_at' => now(),
         ])->save();
+        DB::table('proby_importu')->where('import_id', $zlecenie->getKey())->update([
+            'status' => 'nieudany',
+            'updated_at' => now(),
+        ]);
     }
 
     private function wroci(): bool

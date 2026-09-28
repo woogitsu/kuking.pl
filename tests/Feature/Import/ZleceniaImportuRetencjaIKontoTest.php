@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Import;
 
+use App\Domain\Import\LimitImportu;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportPhotoPlan;
@@ -14,6 +15,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -69,6 +71,24 @@ final class ZleceniaImportuRetencjaIKontoTest extends TestCase
         $this->assertStringNotContainsString('TAJNY-TEKST-Z-KARTKI', json_encode($paczka, JSON_UNESCAPED_UNICODE) ?: '');
     }
 
+    public function test_eksport_obejmuje_wlasne_proby_bez_kluczy_technicznych_i_cudzych_danych(): void
+    {
+        $osoba = User::factory()->create();
+        $inna = User::factory()->create();
+        $wlasnyKlucz = (string) Str::uuid();
+        $cudzyKlucz = (string) Str::uuid();
+        app(LimitImportu::class)->zuzyj($osoba, 'url', $wlasnyKlucz);
+        app(LimitImportu::class)->zuzyj($inna, 'pdf', $cudzyKlucz);
+
+        $paczka = app(CollectUserExportData::class)->handle($osoba, new ExportPhotoPlan($osoba), now());
+
+        $this->assertCount(1, $paczka['proby_importu']);
+        $this->assertSame('url', $paczka['proby_importu'][0]['zrodlo']);
+        $json = json_encode($paczka, JSON_UNESCAPED_UNICODE) ?: '';
+        $this->assertStringNotContainsString($wlasnyKlucz, $json);
+        $this->assertStringNotContainsString($cudzyKlucz, $json);
+    }
+
     public function test_wymazanie_konta_kasuje_zlecenia_tej_osoby_i_tylko_jej(): void
     {
         $odchodzi = User::factory()->create([
@@ -78,10 +98,14 @@ final class ZleceniaImportuRetencjaIKontoTest extends TestCase
         $zostaje = User::factory()->create();
         $this->zlecenie($odchodzi, null, now()->subDay());
         $cudze = $this->zlecenie($zostaje, null, now()->subDay());
+        $wlasnaProba = app(LimitImportu::class)->zuzyj($odchodzi, 'url', (string) Str::uuid());
+        $cudzaProba = app(LimitImportu::class)->zuzyj($zostaje, 'pdf', (string) Str::uuid());
 
         $this->assertTrue(app(EraseAccountData::class)->handle($odchodzi));
 
         $this->assertSame(0, ImportPrzepisu::query()->where('user_id', $odchodzi->getKey())->count());
+        $this->assertDatabaseMissing('proby_importu', ['id' => $wlasnaProba['id']]);
+        $this->assertDatabaseHas('proby_importu', ['id' => $cudzaProba['id']]);
         $this->assertNotNull($cudze->fresh());
     }
 

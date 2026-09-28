@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Zgody\InformacjaOdczytuAi;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Models\WpisZgody;
 use Illuminate\Http\RedirectResponse;
@@ -17,12 +18,28 @@ use Illuminate\Http\Request;
  * konta (`EnsureAccountIsActive`): RODO art. 7 ust. 3 — wycofanie ma być
  * tak łatwe jak udzielenie, a zawieszenie jest karą za pisanie, nie za
  * korzystanie z prawa.
+ *
+ * UDZIELENIE TYLKO Z AKTUALNĄ INFORMACJĄ (issue #2033). Formularz zgody jest
+ * wyłącznie w komponencie `x-zgoda-odczyt-ai`, który przed przyciskiem
+ * pokazuje odbiorcę, zakres i skutek odczytu, i niesie wersję tej
+ * informacji. Strona otwarta przed zmianą treści nie zapisuje zgody — wraca
+ * do aktualnej informacji z wyjaśnieniem.
  */
 class ZgodaOdczytuAiController extends Controller
 {
     public function udziel(Request $request, PrzestawZgodeNaOdczytAi $zgoda): RedirectResponse
     {
         $zEkranuImportu = $request->input('skad') === 'import';
+
+        if (! InformacjaOdczytuAi::aktualna($request->input(InformacjaOdczytuAi::POLE))) {
+            $powrot = $zEkranuImportu
+                ? redirect()->route('import.zdjecie')
+                : redirect()->to(route('settings.privacy').'#odczyt-ai');
+
+            return $powrot->withErrors([
+                InformacjaOdczytuAi::POLE => 'Informacja o odczycie zmieniła się od chwili, gdy otworzono tę stronę, więc zgody nie zapisaliśmy. Przeczytaj aktualną informację i zdecyduj jeszcze raz.',
+            ], InformacjaOdczytuAi::WOREK_BLEDOW);
+        }
 
         $zgoda->handle(
             $request->user(),
