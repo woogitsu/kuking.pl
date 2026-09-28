@@ -117,7 +117,6 @@ return new class extends Migration
         // DROP COLUMN sam usuwa zależny indeks, więc nie trzeba wykonywać
         // DROP INDEX CONCURRENTLY poza tą transakcją.
         DB::transaction(function (): void {
-            DB::statement('LOCK TABLE recipes IN ACCESS EXCLUSIVE MODE');
             $wersji = (int) DB::table('recipes')->whereNotNull('forked_at')->count();
 
             if ($wersji > 0) {
