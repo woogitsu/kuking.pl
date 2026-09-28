@@ -506,6 +506,16 @@ EKSPORT_PORAZKA_TEST = "test_niepowodzenie_ustawia_status_failed_z_powodem|test_
 # mutacji to samo sprzątanie paczki tuż przed `throw $e;`.
 EKSPORT_BEZ_RETHROW = "            $this->usunOsieroconaPaczke($export);\n\n"
 EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
+# Dalsze okna wyszukiwania za kursorem rankingu (#1023). Mutacja gubi kursor
+# obu list, czyli wraca do samego liczbowego `OFFSET`; test dopisania ma
+# zobaczyć duplikat, test ukrycia — pominięcie.
+SZUKAJ_KONTROLER = "app/Http/Controllers/SearchController.php"
+STABILNE_OKNA_TEST = "StabilneOknaWyszukiwaniaTest"
+
+
+def bez_kursora_wyszukiwania(source):
+    source = replace_once(source, "$poPrzepisie = $odPrzepisu > 0 ? $this->kursor($request, 'po_przepisie') : null;", "$poPrzepisie = null;")
+    return replace_once(source, "$poOsobie = $odOsoby > 0 ? $this->kursor($request, 'po_osobie') : null;", "$poOsobie = null;")
 EKSPORT_DANE = "app/Domain/Users/Exports/CollectUserExportData.php"
 EKSPORT_KLUCZE_TEST = "EksportKluczeBezRodzajuTest"
 # Widoczność treści w filtrze powiadomień (#1687). Test kontraktowy porównuje
@@ -1180,6 +1190,8 @@ checks = [
      lambda s: replace_once(s, "jakie konto Google jest zalogowane", "jakim kontem Google jesteś zalogowany")),
     ("Entrypoint bez klucza preview", ENTRYPOINT, KLUCZ_PREVIEW_TEST,
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
+    ("Dalsze okno wyszukiwania bez kursora rankingu", SZUKAJ_KONTROLER, STABILNE_OKNA_TEST,
+     bez_kursora_wyszukiwania),
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
      lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
     ("Edycja domyślnego zeszytu bez skutku dla przyszłych zapisów", EDYCJA_ZESZYTU, DOMYSLNY_ZESZYT_TEST,
@@ -1424,6 +1436,7 @@ run_test(EKSPORT_PORAZKA_TEST, True)
 run_test(EKSPORT_KLUCZE_TEST, True)
 run_test(GOOGLE_LINK_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
+run_test(STABILNE_OKNA_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
 run_test(OFFLINE_PONOWIENIE_TEST, True)
 run_test(KONTRAKT_KARTY_TEST, True)
