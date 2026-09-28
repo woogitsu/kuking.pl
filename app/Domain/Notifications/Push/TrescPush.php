@@ -52,6 +52,17 @@ final class TrescPush
         ];
     }
 
+    /** Retry nie ujawnia danych, które mogły zniknąć po pierwszej próbie. */
+    public static function neutralna(): array
+    {
+        return [
+            'title' => 'Kuking',
+            'body' => 'Masz nowe powiadomienie.',
+            'url' => route('notifications.index', absolute: false),
+            'tag' => self::TAG,
+        ];
+    }
+
     public static function zdanie(Notification $powiadomienie): string
     {
         $kto = $powiadomienie->actor?->displayName() ?? 'Ktoś';
