@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Models\Recipe;
 use Illuminate\Database\QueryException;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -53,6 +54,7 @@ class CofniecieMigracjiNieGubiPodpisuWersjiTest extends TestCase
         }
 
         $this->assertTrue(Schema::hasColumn('recipes', 'forked_from_id'));
+        $this->assertNotNull(DB::selectOne("SELECT to_regclass('public.recipes_forked_from_idx') AS indeks")->indeks);
         $this->assertSame(
             $oryginal->getKey(),
             DB::table('recipes')->where('author_id', $jan->getKey())->value('forked_from_id'),
@@ -61,9 +63,21 @@ class CofniecieMigracjiNieGubiPodpisuWersjiTest extends TestCase
 
     public function test_cofniecie_przechodzi_na_bazie_bez_wersji_i_migracja_wraca(): void
     {
+        $zapytania = [];
+        DB::listen(static function (QueryExecuted $query) use (&$zapytania): void {
+            $zapytania[] = $query->sql;
+        });
+
         Artisan::call('migrate:rollback', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
+        $blokada = array_search('LOCK TABLE recipes IN ACCESS EXCLUSIVE MODE', $zapytania, true);
+        $liczenie = array_find_key($zapytania, static fn (string $sql): bool =>
+            str_contains($sql, 'count(*)') && str_contains($sql, 'forked_at'));
+        $this->assertIsInt($blokada, 'Rollback nie wykonał blokady tabeli recipes.');
+        $this->assertIsInt($liczenie, 'Rollback nie sprawdził, czy istnieją wersje.');
+        $this->assertLessThan($liczenie, $blokada, 'Blokada musi poprzedzać sprawdzenie wersji.');
         $this->assertFalse(Schema::hasColumn('recipes', 'forked_from_id'));
         $this->assertFalse(Schema::hasColumn('recipes', 'forked_at'));
+        $this->assertNull(DB::selectOne("SELECT to_regclass('public.recipes_forked_from_idx') AS indeks")->indeks);
 
         Artisan::call('migrate', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
         $this->assertTrue(Schema::hasColumn('recipes', 'forked_from_id'));

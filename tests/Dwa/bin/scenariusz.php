@@ -169,6 +169,13 @@ DB::statement("SET idle_in_transaction_session_timeout = '".(getenv('KUKING_STAT
 
 try {
     $wartosc = match ($scenariusz) {
+        'cofnij-podpis-wersji-2059' => (function (): bool {
+            $migracja = require base_path('database/migrations/2026_09_26_100000_add_forked_from_to_recipes.php');
+            $migracja->down();
+
+            return true;
+        })(),
+
         'nadaj-role' => (function () use ($argumenty): array {
             // Bariera należy wyłącznie do przyrządu. Mierzymy zapytanie
             // komendy/akcji, nie przepisujemy jej warunku do drugiego SQL-a.

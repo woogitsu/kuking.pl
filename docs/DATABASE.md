@@ -1818,7 +1818,12 @@ tabeli), klucz obcy i CHECK przez `NOT VALID` + `VALIDATE`, indeks
 `migrate:rollback` → `migrate` kolumny wróciłyby puste, a każda wersja stałaby
 się po cichu przepisem swojego autora. Komunikat podaje zapytanie, którym
 zapisać powiązania przed ręcznym cofnięciem. Na bazie bez wersji cofnięcie
-przechodzi. Test: `tests/Feature/CofniecieMigracjiNieGubiPodpisuWersjiTest.php`.
+przechodzi. `down()` bierze `ACCESS EXCLUSIVE` przed liczeniem wersji i trzyma
+blokadę do końca usunięcia kolumn; dzięki temu równoległy zapis nie może wejść
+między strażnik a DDL (#2059). Zależny indeks znika razem z kolumną w tej
+samej transakcji, bez osobnego `DROP INDEX CONCURRENTLY`. Testy:
+`tests/Feature/CofniecieMigracjiNieGubiPodpisuWersjiTest.php` i
+`tests/Dwa/RollbackWersjiTrzymaBlokadeTest.php`.
 
 **`klucz_wyslania` — jedno wysłanie formularza to jeden przepis** (D-027,
 migracja `2026_09_12_600000_add_klucz_wyslania_to_recipes`).
