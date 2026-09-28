@@ -83,7 +83,7 @@ class ZdjeciaFormularzyPoBledzieTest extends TestCase
         $wynik = [];
 
         foreach ($this->xpath($html)->query('//input[@type="hidden"][@name="media_ids[]"]') as $pole) {
-            $wynik[] = $pole->getAttribute('value');
+            $wynik[] = self::elementDom($pole)->getAttribute('value');
         }
 
         return $wynik;
@@ -112,7 +112,7 @@ class ZdjeciaFormularzyPoBledzieTest extends TestCase
         $this->assertGreaterThan(0, $linki->length, 'Brak podsumowania błędów na stronie.');
 
         foreach ($linki as $link) {
-            $cel = ltrim($link->getAttribute('href'), '#');
+            $cel = ltrim(self::elementDom($link)->getAttribute('href'), '#');
             $cele[] = $cel;
             $this->assertSame(
                 1,
@@ -228,7 +228,7 @@ class ZdjeciaFormularzyPoBledzieTest extends TestCase
         $formularz = route('cooked.create', $recipe->slug);
 
         $html = $this->actingAs($kucharz)->get($formularz)->assertOk()->getContent();
-        $klucz = $this->xpath($html)->query('//input[@name="klucz_wyslania"]')->item(0)?->getAttribute('value');
+        $klucz = self::elementDom($this->xpath($html)->query('//input[@name="klucz_wyslania"]')->item(0))->getAttribute('value');
 
         // 1. Poprawne zdjęcie + zły czas.
         $html = $this->wyslij($formularz, route('cooked.store', $recipe->slug), [

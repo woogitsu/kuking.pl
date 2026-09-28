@@ -12,7 +12,6 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Report;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -51,7 +50,7 @@ class KorzenZUkrytaOdpowiedziaTest extends TestCase
     }
 
     /**
-     * @return array{0: Model, 1: array<string, string>}
+     * @return array{0: Post|Recipe|CookedEvent, 1: array<string, string|null>}
      */
     private function miejsce(string $rodzaj): array
     {

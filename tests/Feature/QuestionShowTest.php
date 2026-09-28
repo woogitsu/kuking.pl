@@ -37,7 +37,7 @@ class QuestionShowTest extends TestCase
             ->assertSee('"suggestedAnswer":[]', false)->assertSee('"answerCount":0', false);
         $this->assertTrue($queue->questions($host)->whereKey($post)->exists());
         $listed = app(QuestionList::class)->query($owner, true)->whereKey($post)->sole();
-        $this->assertSame(0, $listed->answer_count);
+        $this->assertSame(0, $listed->getAttribute('answer_count'));
         $card = Post::query()->withVisibleCommentCount($owner)->findOrFail($post->id);
         $this->assertSame(0, $card->comments_count);
         $dish = Post::factory()->create();

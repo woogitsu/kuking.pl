@@ -7,8 +7,8 @@ namespace App\Domain\Feed;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
-use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
