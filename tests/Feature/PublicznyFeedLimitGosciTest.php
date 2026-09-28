@@ -131,6 +131,13 @@ class PublicznyFeedLimitGosciTest extends TestCase
         $odbicie->assertSee('Spróbuj ponownie za 1 min.');
         $odbicie->assertDontSee('Too Many Requests');
 
+        // Główny przycisk nie może prowadzić z powrotem na tę samą, wciąż
+        // zablokowaną stronę główną — odsyła na `/odkryj` z osobnym budżetem.
+        $odbicie->assertDontSee('class="btn btn-primary" href="'.route('landing').'"', false);
+        $odbicie->assertSee('class="btn btn-primary" href="'.route('discover').'"', false);
+        $odbicie->assertSee('Zobacz dania i przepisy');
+        $this->get(route('discover'))->assertOk();
+
         // Po minucie budżet wraca sam — nikt nie zostaje odcięty na dłużej.
         $this->travel(61)->seconds();
         $this->get(route('landing'))->assertOk();

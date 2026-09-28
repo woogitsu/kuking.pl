@@ -15,7 +15,7 @@ chronią, zanim dobierzemy próg.
    limitu** — automat nie musiał nawet szukać `/odkryj`.
 3. Wdrożono jeden nowy koszyk: `limits.landing` = 120/min na trasie `landing`.
    Cache pierwszej strony nie jest dziś uzasadniony pomiarem przy obecnej
-   skali i wymagałby zmian w plikach aktywnego PR-a #1786 — to etap 2.
+   skali i wymagałby zmian w plikach, które zmieniał PR #1786 (już scalony, b50c8769e) — to etap 2.
 
 ## Środowisko
 
@@ -150,7 +150,7 @@ To jest zadanie brzegu — niżej.
 3. **Cache pierwszej strony w aplikacji** (np. 30–60 s, tylko gość, klucz
    bez stanu widza). Pomiar go dziś nie uzasadnia (poniżej 30 ms SQL przy
    20 tys. wpisów) i wymaga edycji `DiscoverFeed` / `FeedController`,
-   które zmienia aktywny PR #1786. Wrócić po jego scaleniu i po pomiarze
+   które zmieniał PR #1786 (już scalony). Wrócić po pomiarze
    z produkcyjną liczbą wpisów.
 4. **Zapytanie bez numeracji całego zbioru** (np. `row_number()` tylko na
    oknie czasowym albo materializowana runda). To zmiana zachowania rotacji
