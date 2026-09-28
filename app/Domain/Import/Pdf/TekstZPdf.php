@@ -141,7 +141,7 @@ final class TekstZPdf
 
     private function maksStron(): int
     {
-        return (int) config('kuking.import.pdf.max_stron', 5);
+        return min(5, max(1, (int) config('kuking.import.pdf.max_stron', 5)));
     }
 
     private function limitCzasu(): int

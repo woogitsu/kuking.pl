@@ -18,15 +18,21 @@
         <li>Zdjęć ze strony nie pobieramy — dodasz własne, kiedy ugotujesz.</li>
         <li>Tekst odczyta komputer. Przed publikacją porównaj go ze stroną, a opis przygotowania napisz własnymi słowami.</li>
         <li>Niektóre strony nie pozwalają pobierać przepisów — wtedy powiemy, co zrobić.</li>
+        <li>Jeśli strona nie ma danych przepisu, jej tekst może odczytać komputer firmy OpenAI — tylko za Twoją zgodą.</li>
     </ul>
 
     <x-error-summary />
 
     <form class="panel-formularza" method="POST" action="{{ route('recipes.import.url.store') }}">
         @csrf
+        <input type="hidden" name="klucz_wyslania" value="{{ $kluczWyslania }}">
         <x-field name="adres" label="Adres strony z przepisem" type="url" required :bezOznaczenia="true"
                  inputmode="url" autocomplete="url"
                  help="Skopiuj go z paska adresu przeglądarki. Zaczyna się od https://" />
+        <label class="field"><input type="checkbox" name="zgoda_ai" value="1" @checked(old('zgoda_ai'))>
+            Zgadzam się, by w razie potrzeby wysłać tekst tej strony do OpenAI w USA w celu wyznaczenia części przepisu.
+            Ta zgoda dotyczy tylko tego wysłania.
+        </label>
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Zapisz jako szkic</button>

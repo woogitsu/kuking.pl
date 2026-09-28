@@ -69,6 +69,7 @@ final class ZapisPrzepisuRequest extends FormRequest
         $existing = $this->przepis();
 
         return [
+            'content_revision' => $existing === null ? ['prohibited'] : ['required', 'integer', 'min:0'],
             'title' => ['required', 'string', 'min:3', 'max:'.LimityTekstuPrzepisu::POLA['title']],
             'summary' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['summary']],
             /*
@@ -161,6 +162,7 @@ final class ZapisPrzepisuRequest extends FormRequest
              * odciąć wklejenie całej książki kucharskiej, zanim zacznie
              * chodzić parser.
              */
+            'odczyt_sprawdzony' => ['nullable', 'boolean'],
             'skladniki_tekst' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['skladniki_tekst']],
             'przygotowanie_tekst' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['przygotowanie_tekst']],
         ];
@@ -172,6 +174,10 @@ final class ZapisPrzepisuRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'content_revision.required' => 'Odśwież formularz przepisu przed zapisem — brakuje informacji, którą wersję edytujesz.',
+            'content_revision.integer' => 'Odśwież formularz przepisu przed zapisem — informacja o wersji jest nieprawidłowa.',
+            'content_revision.min' => 'Odśwież formularz przepisu przed zapisem — informacja o wersji jest nieprawidłowa.',
+            'content_revision.prohibited' => 'Przy dodawaniu nowego przepisu nie podawaj wersji edycji.',
             'title.required' => 'Podaj nazwę przepisu — na przykład „Rosół babci Zofii”.',
             'title.min' => 'Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.',
             'title.max' => 'Nazwa przepisu jest za długa. Skróć ją do 180 znaków.',
@@ -374,6 +380,9 @@ final class ZapisPrzepisuRequest extends FormRequest
                 'source_url' => $data['source_url'] ?? null,
                 'family_since_year' => $data['family_since_year'] ?? null,
                 'sprawdzilem_odczyt' => $this->boolean('sprawdzilem_odczyt'),
+                // „Odczytany tekst jest sprawdzony” — tylko przy szkicu z odczytu
+                // zdjęcia kartki; czyta go `BramkaPublikacjiOdczytu` (D-298).
+                'odczyt_sprawdzony' => (bool) ($data['odczyt_sprawdzony'] ?? false),
             ],
             'ingredients' => $ingredients,
             'steps' => $steps,

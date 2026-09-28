@@ -14,17 +14,11 @@ namespace App\Domain\Import;
  *    pola, w które dałoby się wpisać tekst (obrona przed „zignoruj polecenia"
  *    na stronie i przed dopisywaniem słów);
  *  - `store: false`;
- *  - wysiłek rozumowania z konfiguracji (`kuking.import.model.effort_tekst`,
+ *  - wysiłek rozumowania z konfiguracji (`kuking.import.model.wysilek.tekst`,
  *    domyślnie `low` — decyzja właściciela z 26.09.2026).
  *
- * STAN NA 26.09.2026: klasa jest gotowa, ale jeszcze NIEUŻYWANA — `WyznaczaczFragmentow`
- * jest tu na razie związany z `BezModeluFragmentow` (`AppServiceProvider`), bo klient HTTP
- * do modelu („fundament importu" — `KlientLuna`, budżet, zgoda) buduje równolegle gałąź
- * `claude/v2-import-ocr`. Strona bez JSON-LD `Recipe` kończy się do czasu tego scalenia
- * uczciwym „nie znaleźliśmy przepisu", bez żadnego żądania do OpenAI (zgodnie z D-300 —
- * brak fundamentu = funkcja wyłączona, nic nie pada). Kiedy fundament wyląduje, nowa klasa
- * implementująca `WyznaczaczFragmentow` woła `KlientLuna::wyslij(ZadanieFragmentow::tresc(...))`
- * i podmienia wiązanie w `AppServiceProvider`.
+ * `ModelFragmentow` używa schematu tej klasy przez klienta importu i wspólną
+ * księgę budżetu. Gdy brak zgody lub budżetu, nie wysyła żadnego żądania.
  */
 final class ZadanieFragmentow
 {
@@ -50,7 +44,7 @@ final class ZadanieFragmentow
         return [
             'model' => (string) config('kuking.import.model.nazwa', 'gpt-6-luna'),
             'store' => false,
-            'reasoning' => ['effort' => (string) config('kuking.import.model.effort_tekst', 'low')],
+            'reasoning' => ['effort' => (string) config('kuking.import.model.wysilek.tekst', 'low')],
             'instructions' => self::INSTRUKCJA,
             'input' => implode("\n", $ponumerowane),
             'text' => [

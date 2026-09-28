@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Import;
 
+use App\Models\User;
+
 /**
  * Model, który dostaje ponumerowane wiersze tekstu i oddaje WYŁĄCZNIE
  * granice fragmentów z etykietami — nigdy tekstu (wymaganie z pilota #814,
@@ -21,5 +23,5 @@ interface WyznaczaczFragmentow
      *                                                 budżet wyczerpany albo
      *                                                 odpowiedź bez sensu
      */
-    public function fragmenty(array $wiersze): ?array;
+    public function fragmenty(array $wiersze, ?User $osoba = null, bool $chceZgody = false, ?string $probaId = null): ?array;
 }

@@ -7,7 +7,7 @@ namespace Tests\Unit;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Import przepisu z PDF (D-300) woła `pdfinfo` i `pdftotext` z pakietu
+ * Import przepisu z PDF (D-300) woła `pdfinfo`, `pdftotext` i `pdftoppm` z pakietu
  * systemowego `poppler-utils`. To nie jest zależność Composera, więc
  * `composer install` jej nie dociągnie, a jej brak nie wywróci budowy obrazu
  * — wyjdzie dopiero na produkcji, komunikatem „odczyt PDF chwilowo nie

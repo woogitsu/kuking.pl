@@ -386,6 +386,14 @@ return [
         // ma być wszędzie podobny, żeby człowiek wiedział, czego się
         // spodziewać (UX_50_PLUS.md: przewidywalność przed bogactwem).
         'page_size' => (int) env('KUKING_COMMENTS_PAGE_SIZE', 12),
+
+        // Ile ODPOWIEDZI jednego wątku pokazuje strona naraz (issue #939).
+        // Nic nie ogranicza, ile razy ta sama osoba odpowie w wątku, więc bez
+        // tego limitu jeden gorący wątek ładował całą rozmowę mimo paginacji
+        // wątków. Dalsze porcje: link „Pokaż dalsze odpowiedzi (N)”, bez JS
+        // (`App\Domain\Comments\OdpowiedziWatku`). Ta sama liczba co
+        // `page_size` — jeden krok ma być wszędzie podobny.
+        'replies_per_thread' => (int) env('KUKING_COMMENT_REPLIES_PER_THREAD', 12),
     ],
 
     'collections' => [
@@ -1490,6 +1498,22 @@ return [
         'facebook_domkniecie' => '5,10',
 
         /*
+         * ODEBRANIE DOSTĘPU U FACEBOOKA — webhook, nie klik człowieka
+         * (issue #1869, audyt). Osobny koszyk od `facebook_*` wyżej: to woła
+         * serwer Facebooka, nie przeglądarka, więc mieszanie go z limitami
+         * kliknięć nie ma sensu — a licznik po adresie IP musiałby wtedy
+         * pomieścić naraz i ludzi klikających „Wejdź kontem Facebooka",
+         * i serwery Meta.
+         *
+         * Ta sama liczba i ten sam wzorzec co `csp_report` niżej: sześćdziesiąt
+         * na minutę, po adresie IP. Prawdziwe powiadomienia są RZADKIE — jedno
+         * na osobę, która akurat odebrała dostęp — więc ten limit nie gubi
+         * żadnego z nich w normalnym ruchu, a jednocześnie ogranicza koszt
+         * (HMAC + wpis w logu) każdego niepodpisanego żądania seryjnego.
+         */
+        'facebook_deauthorize' => '60,1',
+
+        /*
          * Ekran zaproszenia do założenia konta — POST-y z niego (D-085).
          *
          * OSOBNY KOSZYK od `login_link_wejscie`, choć liczba jest ta sama
@@ -1523,11 +1547,21 @@ return [
         // bo następna osoba podniesie tę liczbę i uzna sprawę za załatwioną.
         'comment' => '10,1',
         'post' => '20,10',
-        // Import przepisu z adresu strony / PDF-a (D-300) — bramka przed
-        // kontrolerem. Właściwy limit (5 dziennie, 30 miesięcznie) liczy
-        // `LimitImportu` z sekcji `import`; ta liczba łapie serię wysłań,
-        // np. próbę skanowania adresów przez formularz.
-        'import' => '6,10',
+        // Zlecenie odczytu przepisu ze zdjęcia kartki (D-297) — bramka na
+        // pętlę żądań. Właściwy limit na osobę (5 dziennie, 30 miesięcznie)
+        // liczy się w PostgreSQL z `importy_przepisow`, nie tutaj.
+        'import' => '10,10',
+        // Postęp importu (`import.show`, issue #1959) — OSOBNY koszyk od
+        // `import` wyżej: to jest odpytywanie o STAN, nie zlecanie nowego
+        // odczytu, więc nie ma dzielić budżetu z `import.zlec`/`import.ponow`
+        // (ten sam powód co rozdzielenie `zdjecie` od `post` wyżej —
+        // `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`). JS odpytuje co
+        // 5 s (`resources/js/postep-importu.js`, `CO_ILE_MS`) — 12/min na
+        // ZAKŁADKĘ. 40/min zostawia zapas na kilka otwartych zakładek/importów
+        // naraz i na okno startowe licznika (D-076-podobny efekt brzegu na
+        // granicy minuty), a dalej odcina pętlę czy bota: 40 razy więcej niż
+        // realny polling jednej osoby.
+        'import_postep' => '40,1',
         'report' => '10,10',
 
         /*
@@ -1622,6 +1656,34 @@ return [
         // więc pięć prób na godzinę nikomu nie przeszkadza.
         'appeal' => '5,60',
         'search' => '60,1',
+
+        /*
+         * „ŚWIEŻO Z KUKING" (`/odkryj`, trasa `discover`) — issue #1952.
+         *
+         * Trasa jest PUBLICZNA, dostępna bez konta i bez limitu do 26 września
+         * 2026 — dokładnie tak, jak przy `zdjecie` wyżej, to jest nowa, tania
+         * droga do zalania serwisu, tylko droższa: `DiscoverFeed::paginate()`
+         * liczy `row_number() OVER (PARTITION BY posts.author_id ...)` na
+         * WSZYSTKICH publicznych wpisach PRZED odcięciem strony (issue #1807),
+         * dokłada podzapytanie widoczności i doładowuje autora, zdjęcia,
+         * przepis, zdjęcie przepisu, tagi i liczniki komentarzy/zapisów.
+         * Landing (`/`) woła to samo zapytanie dla gościa (`FeedController::landing()`),
+         * ale ma własną, mniejszą trasę (`landing`) i świadomie zostaje poza
+         * tym limitem: to jedyne wejście na cały serwis, a `PublicznyHtmlGoscia`
+         * i tak trzyma dla niej gotowy (dziś wyłączony, `KUKING_HTML_EDGE_CACHE_SECONDS=0`)
+         * wspólny cache brzegu — `/odkryj` z tego cache świadomie NIE korzysta
+         * (`PublicznyHtmlGoscia::TRASY`, komentarz przy tej stałej), więc jedyną
+         * bramką kosztu zostaje limit zapytań, nie cache HTML.
+         *
+         * TEN SAM RZĄD WIELKOŚCI CO `search` WYŻEJ, z tego samego powodu: to
+         * jest zasób strony, nie formularz, a paginacja „Pokaż więcej" (AGENTS.md
+         * §5) generuje jedno żądanie na kliknięcie. Sześćdziesiąt na minutę
+         * mieści wieczór przeglądania i kilka osób za jednym łączem (limit
+         * liczy się PO ADRESIE IP dla gościa), a nie starcza na powtarzalne,
+         * automatyczne odpytywanie, przed którym stoi to zgłoszenie.
+         */
+        'discover' => '60,1',
+
         // Autouzupełnianie z debounce; osobny budżet od pełnej wyszukiwarki.
         'tag_suggestions' => '120,1',
         // Podpowiedzi tagów podczas pisania wpisu (SPEC §1.5). Ten sam rząd
@@ -1630,6 +1692,23 @@ return [
         // tabeli, i ta sama osoba już i tak korzysta z jednego budżetu
         // zapytań na konto.
         'tag_suggest' => '60,1',
+
+        /*
+         * „MÓJ STÓŁ" — strona (issue #1749, D-304). Ten sam wzorzec co
+         * `search`: to jest strona za logowaniem, otwierana zwykłym
+         * przewijaniem/odświeżaniem, nie formularz — więc koszyk ma ten sam
+         * rząd wielkości, sześćdziesiąt na minutę, żeby nie łapać człowieka,
+         * który wraca na tę stronę kilka razy w trakcie gotowania.
+         *
+         * OSOBNY PREFIKS OD `search`, mimo tej samej liczby: to inna trasa
+         * i inna szkoda z nadużycia (patrz
+         * `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest` — jeden prefiks to
+         * zawsze jedna trasa). Zapis stanu (przełącznik włącz/wyłącz) ma już
+         * własny limit zapisu (`ustawienia`, PUT `/moj-stol`); ten koszyk
+         * dotyczy tylko odczytu strony (GET `/moj-stol`), który wcześniej nie
+         * miał żadnego limitu.
+         */
+        'moj_stol' => '60,1',
 
         /*
          * Serwowanie zdjęcia (audyt W7-02) — trasa `media.show`.
@@ -1659,6 +1738,11 @@ return [
         // bo klikanie „poprzedni/następny krok” w trakcie gotowania zdarza
         // się częściej niż pisanie komentarzy.
         'cooking_krok' => '60,1',
+
+        // Pokaż/ukryj szacunkowe wartości odżywcze przy własnym przepisie
+        // (D-299). Jedna kolumna w jednym wierszu, bez nowej wersji
+        // przepisu — ale to wciąż zapis, więc ma sufit jak każdy formularz.
+        'wartosci_odzywcze' => '20,1',
 
         // Weryfikacja kodu 2FA (logowanie i wyłączanie, issue #12). Kod ma
         // sześć cyfr — milion możliwości brzmi dużo, ale bez limitu prób to
@@ -1822,6 +1906,13 @@ return [
         'ukrycia' => '60,10',
 
         /*
+         * „SMAKOWICIE WYGLĄDA" (issue #1813) — zapis i cofnięcie reakcji.
+         * Nie powiadamia od razu (zbiorczo raz dziennie), więc limit chroni
+         * tylko bazę przed pętlą klikania, nie ludzi przed zalewem.
+         */
+        'reakcje' => '120,10',
+
+        /*
          * ZESZYT — zapis i wypisanie przepisu albo wpisu, założenie zeszytu.
          *
          * Szkoda z nadużycia: praktycznie żadna poza kontem sprawcy. Nikt
@@ -1946,6 +2037,18 @@ return [
          * profil — a skrypt wgrywający obrazy potrzebowałby setek.
          */
         'ustawienia_profil' => '15,10',
+
+        /*
+         * WGRYWANIE PLIKU W KREATORZE PRZEPISU (endpoint Livewire
+         * `livewire/upload-file`, audyt A5-09). Podpinane w
+         * `config/livewire.php`, bo tej trasy nie ma w `routes/web.php`.
+         *
+         * Każde zdjęcie to jedno żądanie, wysyłane od razu po wyborze pliku.
+         * SKĄD 30 NA 10 MINUT. Długi przepis to zdjęcie dania i kilkanaście
+         * zdjęć kroków, plus kilka ponownych wyborów — mieści się z zapasem.
+         * Domyślne `60,1` pakietu pozwalało wgrać 900 MB na minutę.
+         */
+        'livewire_upload' => '30,10',
 
         /*
          * PACZKA Z DANYMI (RODO) — `POST /ustawienia/twoje-dane/eksport`.
@@ -2886,6 +2989,31 @@ return [
         'budzet' => (int) env('KUKING_RETENCJA_BUDZET', 50000),
     ],
 
+    // DZIENNIK WYMAZAŃ KONT POZA BAZĄ (audyt B5, znalezisko 3, 25.09.2026).
+    //
+    // Odtworzenie bazy z kopii przywraca konta wymazane po dacie kopii,
+    // a ślad wymazania leży w tej samej bazie. Dziennik — jeden obiekt na
+    // konto: identyfikator, chwila, zakres — leży w magazynie obiektów
+    // (`App\Domain\Compliance\DziennikWymazan`) i czyta go
+    // `kuking:wymaz-ponownie`, obowiązkowy krok procedury odtworzenia
+    // (`docs/infra/KOPIE_I_ODTWORZENIE.md`).
+    //
+    // DYSK: domyślnie ten sam prywatny dysk co paczki eksportu (na produkcji
+    // `r2_eksporty`), prefiks `dziennik-wymazan/`. NIE bucket kopii bazy —
+    // tam aplikacja nie ma prawa zapisu (D-043), i NIE baza.
+    //
+    // 120 DNI: dłużej niż najstarsza kopia, z której konto mogłoby wrócić
+    // (zrzut offsite 30 dni, PITR ok. 4 tygodni, miesięczny Volume Backup
+    // Railwaya 89 dni — KOPIE_I_ODTWORZENIE.md §5.3). Starszy wpis nie ma już
+    // przed czym chronić, więc znika.
+    'dziennik_wymazan' => [
+        'dysk' => env('KUKING_DZIENNIK_WYMAZAN_DYSK', env(
+            'KUKING_EXPORT_DISK',
+            env('FILESYSTEM_DISK', 'local') === 'r2' ? 'r2_eksporty' : 'local',
+        )),
+        'retention_days' => (int) env('KUKING_DZIENNIK_WYMAZAN_DNI', 120),
+    ],
+
     // TREŚCI USUNIĘTE PRZEZ AUTORA (audyt B5, znalezisko 1, 25.09.2026).
     //
     // „Usuń wpis”, „Usuń przepis” i „Usuń komentarz” robią miękkie
@@ -3368,19 +3496,22 @@ return [
     ],
 
     /*
-     * IMPORT PRZEPISU Z ADRESU STRONY I Z PLIKU PDF (V2, D-300).
-     *
-     * Decyzja właściciela z 26.09.2026: import z adresu działa od razu, dla
-     * wszystkich zalogowanych, ale wynik to ZAWSZE prywatny szkic ze
-     * źródłem zapisanym obowiązkowo, bez zdjęć z cudzej strony, z szacunkiem
-     * dla robots.txt, pełną ochroną SSRF i limitem na osobę. Projekt:
-     * `docs/research/V2_IMPORT_OCR_ODZYWCZE.md` §2.4, §4.
-     *
-     * Strona z danymi JSON-LD `Recipe` i PDF z warstwą tekstu idą LOKALNIE,
-     * bez modelu i bez kosztu. Model wchodzi tylko dla strony bez JSON-LD
-     * (tryb fragmentów) i dla PDF-a bez warstwy tekstu — przez klienta
-     * i budżet z fundamentu importu.
-     */
+    |--------------------------------------------------------------------------
+    | Import przepisu i odczyt zdjęcia kartki (V2) — D-296, D-297, D-298
+    |--------------------------------------------------------------------------
+    |
+    | Import kończy się ZAWSZE prywatnym szkicem przepisu — nigdy publikacją.
+    | Model OpenAI („GPT-6 Luna”, decyzja właściciela z 26.09.2026) jest używany tylko tam, gdzie bez
+    | niego się nie da: do odczytu pisma ze zdjęcia kartki (`ocr`) i do
+    | wyznaczania fragmentów przepisu w tekście strony/PDF (`tekst`, osobny
+    | etap). Wzorzec jak `moderation.model` wyżej: klucz i nazwa w `.env`,
+    | host i ścieżka w KODZIE (`App\Domain\Import\KlientLuna`, D-250).
+    |
+    | BRAK KLUCZA = FUNKCJA WYŁĄCZONA. Przycisku „Przepisz z kartki” wtedy nie
+    | ma w ogóle (bez martwych przycisków, D-053). Tak jest lokalnie, w CI
+    | i w testach. Co jeszcze brakuje do działania, mówi
+    | `php artisan kuking:sprawdz-import`.
+    */
     'import' => [
         'url' => [
             // Wyłącznik źródła. false = przycisku „Wklej adres strony" nie ma
@@ -3401,22 +3532,105 @@ return [
             // procesu na dłużej.
             'limit_czasu' => (int) env('KUKING_IMPORT_PDF_LIMIT_CZASU', 20),
         ],
-        // Limit na osobę — WSPÓLNY dla wszystkich źródeł importu (adres, PDF,
-        // zdjęcie). Liczy się zlecenie, nie odświeżenie strony. Brak drogi
-        // importu wielu adresów naraz jest w kodzie, nie w tej liczbie.
+        /*
+         * KOLEJKA `low`, NIE OSOBNA `import` (D-298). Produkcja chodzi dziś
+         * w roli `all` — jeden proces na wszystkie kolejki — więc osobna
+         * kolejka i tak trafiłaby do tego samego procesu, a kosztowałaby
+         * zmianę w `docker/entrypoint.sh`, w IaC i w `UmowaKolejkiTest`.
+         * Po wydzieleniu workera `low` ma własny proces i odczyt (do 90 s)
+         * stoi tam za moderacją, a nie przed zdjęciami i listami.
+         */
+        'kolejka' => 'low',
+
+        // Przełącznik OCR; adres i PDF mają własne ustawienia powyżej.
+        'zrodla' => [
+            'zdjecie' => (bool) env('KUKING_IMPORT_ZDJECIE', true),
+        ],
+
+        'model' => [
+            // Osobny klucz, najlepiej z osobnego projektu OpenAI z limitem
+            // wydatków w panelu dostawcy — druga linia obrony budżetu, i klucz
+            // moderacji nie dostaje szerszych uprawnień. Pusty = wyłączone.
+            'klucz' => env('OPENAI_IMPORT_KEY'),
+            'endpoint' => env('KUKING_IMPORT_ENDPOINT', 'https://api.openai.com/v1/responses'),
+            // Decyzja właściciela 26.09.2026: `gpt-6-luna`. Zmienialne w env.
+            'nazwa' => env('KUKING_IMPORT_MODEL', 'gpt-6-luna'),
+            // Odczyt obrazu z rozumowaniem trwa dziesiątki sekund. Przycinane
+            // w kliencie do 10–110 s (zadanie ma 120 s).
+            'limit_czasu' => (int) env('KUKING_IMPORT_LIMIT_CZASU', 90),
+            // Sufit tokenów wyjścia RAZEM Z ROZUMOWANIEM — to on wyznacza
+            // najgorszy koszt jednego odczytu, czyli wielkość rezerwacji.
+            'max_wyjscie_tokenow' => (int) env('KUKING_IMPORT_MAX_WYJSCIE', 8000),
+            /*
+             * INTENSYWNOŚĆ MYŚLENIA (`reasoning.effort`) — osobno per zadanie
+             * (decyzja właściciela 26.09.2026, D-298). Dozwolone wartości:
+             * `KlientLuna::WYSILKI`. Wartość spoza listy WYŁĄCZA to jedno
+             * zadanie (żadnego żądania) i mówi o tym `kuking:sprawdz-import`
+             * — zamiast po cichu wysyłać coś, czego API nie przyjmie.
+             */
+            'wysilek' => [
+                'ocr' => env('KUKING_IMPORT_EFFORT_OCR', 'medium'),
+                'tekst' => env('KUKING_IMPORT_EFFORT_TEKST', 'low'),
+            ],
+            /*
+             * CENNIK w USD za MILION tokenów — wpisywany ręcznie z cennika
+             * OpenAI. BRAK CENY = BRAK WYWOŁAŃ: bez ceny nie da się
+             * zarezerwować budżetu przed żądaniem (D-297).
+             */
+            'cena_wejscie_mln_usd' => env('KUKING_IMPORT_CENA_WEJSCIE'),
+            'cena_wyjscie_mln_usd' => env('KUKING_IMPORT_CENA_WYJSCIE'),
+            // Szacunek tokenów WEJŚCIA jednego odczytu (instrukcja + obraz
+            // ≤ 2000 px) — do rezerwacji. Faktyczny koszt i tak liczy się
+            // z `usage` w odpowiedzi.
+            'szacunek_tokenow_wejscia' => [
+                'ocr' => (int) env('KUKING_IMPORT_SZACUNEK_WEJSCIE_OCR', 6000),
+                'tekst' => (int) env('KUKING_IMPORT_SZACUNEK_WEJSCIE_TEKST', 6000),
+            ],
+        ],
+
+        // Decyzja właściciela 26.09.2026 (D-297): 5 USD dziennie, 100 USD
+        // miesięcznie. Liczone w PostgreSQL (`ai_budzet_dzienny`).
+        'budzet' => [
+            'dzienny_usd' => (float) env('KUKING_IMPORT_BUDZET_DZIEN', 5.00),
+            'miesieczny_usd' => (float) env('KUKING_IMPORT_BUDZET_MIESIAC', 100.00),
+            // Od tego ułamka dziennego budżetu jeden `Log::warning` dziennie.
+            'prog_ostrzezenia' => 0.8,
+        ],
+
+        // Limit na osobę (D-297). Liczy się ZLECENIE (także „Odczytaj jeszcze
+        // raz”), nie odświeżenie strony postępu.
         'limity' => [
             'na_osobe_dzien' => (int) env('KUKING_IMPORT_NA_OSOBE_DZIEN', 5),
             'na_osobe_miesiac' => (int) env('KUKING_IMPORT_NA_OSOBE_MIESIAC', 30),
+            // Dłuższy bok obrazu wysyłanego do modelu, zmierzony z bajtów.
+            'max_bok_px' => 2000,
         ],
-        'model' => [
-            // Decyzja właściciela z 26.09.2026: wysiłek rozumowania modelu
-            // per zadanie. Wyznaczanie granic fragmentów przepisu ze strony
-            // bez JSON-LD to zadanie proste — „low".
-            'effort_tekst' => (string) env('KUKING_IMPORT_EFFORT_TEKST', 'low'),
+
+        // D-298: surowa odpowiedź modelu 30 dni, wiersz zlecenia 90 dni.
+        'retencja' => [
+            'odpowiedz_dni' => 30,
+            'wiersz_dni' => 90,
         ],
-        // Od jakiego podobieństwa (pg_trgm similarity, 0–1) opis przygotowania
-        // szkicu z adresu uznajemy za „prawie taki sam jak na stronie" i
-        // ostrzegamy przed publikacją (projekt §4 pkt 4, P-10 = ostrzeżenie).
+
+        /*
+         * ODZYSKIWANIE PO CZASIE (D-298 „maszyna stanów”, #1973, #1977) —
+         * `kuking:odzyskaj-importy`, co kwadrans.
+         *
+         * `rezerwacja_minut`: rezerwacja budżetu żyje najwyżej jedno
+         * wykonanie zadania (`OdczytajPrzepis::$timeout` = 120 s) — jest
+         * domykana przed każdym `release()` i w `failed()`. Otwarta dłużej
+         * niż pół godziny znaczy proces zabity bez `failed()`.
+         *
+         * `zlecenie_minut`: zlecenie `oczekuje`/`w_toku` odświeża
+         * `updated_at` przy każdej próbie; najdłuższa legalna przerwa to
+         * opóźnienie ponowienia (≤ 12 min) plus kolejka `low`. Dwie
+         * godziny ciszy = zadanie zgubione — zlecenie dostaje jawny błąd
+         * z „Spróbuj jeszcze raz”, zamiast wisieć w „trwa” do retencji.
+         */
+        'odzyskiwanie' => [
+            'rezerwacja_minut' => 30,
+            'zlecenie_minut' => 120,
+        ],
         'podobienstwo_ostrzezenie' => (float) env('KUKING_IMPORT_PODOBIENSTWO', 0.6),
     ],
 
@@ -3445,7 +3659,7 @@ return [
         // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
         // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
         // wersji nie da się z niczym powiązać.
-        'etykieta' => 'Alfa 0.68',
+        'etykieta' => 'Alfa 0.70',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
         //
@@ -3481,6 +3695,25 @@ return [
         // `bootstrap/`, nie `storage/`: `storage/` bywa wolumenem podpiętym
         // przy starcie kontenera i wtedy zasłania to, co leży w obrazie.
         'plik_wydania' => base_path('bootstrap/wydanie.txt'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Strona „Co nowego" (issue #1909, #1932)
+    |--------------------------------------------------------------------------
+    |
+    | Ścieżka jest jedna, ale POTRZEBUJE jej DWÓCH miejsc, które muszą liczyć
+    | slugi identycznie: `NowosciController` (renderuje stronę) i
+    | `App\Domain\Wydania\Actions\ZarejestrujWdrozenie` (zapisuje, pod jakim
+    | numerem wdrożenia pojawił się każdy nagłówek `###` z „## Najnowsze
+    | zmiany"). Konfigurowalna, a nie `resource_path()` wpisane w obu
+    | miejscach na twardo, żeby test mógł podmienić plik na własną, tymczasową
+    | treść bez nadpisywania PRAWDZIWEGO `resources/nowosci/tresc.md` — ten
+    | plik jest treścią redakcyjną w repozytorium, nie fixture'em testowym.
+    |
+    */
+    'nowosci' => [
+        'tresc' => resource_path('nowosci/tresc.md'),
     ],
 
     /*

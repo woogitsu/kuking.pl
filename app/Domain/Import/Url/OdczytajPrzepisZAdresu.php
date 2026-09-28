@@ -7,6 +7,7 @@ namespace App\Domain\Import\Url;
 use App\Domain\Import\ImportOdrzucony;
 use App\Domain\Import\TrybFragmentow;
 use App\Domain\Import\WyznaczaczFragmentow;
+use App\Models\User;
 
 /**
  * Adres strony → odczytany przepis (D-300).
@@ -32,7 +33,7 @@ final class OdczytajPrzepisZAdresu
     /**
      * @throws ImportOdrzucony
      */
-    public function handle(string $url): OdczytanaStrona
+    public function handle(string $url, ?User $osoba = null, bool $chceZgody = false, ?string $probaId = null): OdczytanaStrona
     {
         $strona = $this->pobieracz->pobierz($url);
 
@@ -48,7 +49,7 @@ final class OdczytajPrzepisZAdresu
             throw new ImportOdrzucony(ImportOdrzucony::BRAK_PRZEPISU);
         }
 
-        $przepis = $this->tryb->zloz($wiersze, $this->fragmenty->fragmenty($wiersze));
+        $przepis = $this->tryb->zloz($wiersze, $this->fragmenty->fragmenty($wiersze, $osoba, $chceZgody, $probaId));
 
         if ($przepis === null) {
             throw new ImportOdrzucony(ImportOdrzucony::BRAK_PRZEPISU);

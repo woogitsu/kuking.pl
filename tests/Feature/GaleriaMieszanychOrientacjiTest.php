@@ -16,10 +16,11 @@ use Tests\TestCase;
  *
  * To były dwie osobne usterki w dwóch różnych układach:
  *
- *   .photo-grid   dwie kolumny w jednym wierszu siatki mają wspólną wysokość,
+ *   .photo-grid   dwie kolumny w jednym wierszu siatki miały wspólną wysokość,
  *                 więc pod zdjęciem poziomym zostawało puste pole. Zmierzone:
- *                 109,5 px przy 320 px, przy zdjęciu wysokim na 79,9 px —
- *                 czyli martwego miejsca było WIĘCEJ niż zdjęcia.
+ *                 109,5 px przy 320 px. Po ponownym zgłoszeniu właściciela
+ *                 jedna kolumna obowiązuje także na tablecie: przy trzech
+ *                 zdjęciach nie zostaje pusta prawa połowa ostatniego wiersza.
  *   .karuzela     taśma jest jednym rzędem elastycznym, więc jej wysokość to
  *                 wysokość NAJWYŻSZEGO slajdu, także gdy widać inny. Zmierzone:
  *                 220,5 px pustego pola pod zdjęciem poziomym przy 320 px.
@@ -108,18 +109,21 @@ class GaleriaMieszanychOrientacjiTest extends TestCase
     }
 
     #[Test]
-    public function test_siatka_zdjec_schodzi_na_telefonie_do_jednej_kolumny(): void
+    public function test_zwykla_galeria_ma_jedna_kolumne_takze_na_tablecie(): void
     {
         $arkusz = $this->arkusz();
+        $blok = $this->blok($arkusz, '.photo-grid {');
 
-        // Reguła mediów dla siatki — węższa niż 30rem, czyli telefon.
+        // Reguła podstawowa działa na 320, 414 i 768 px oraz przy 200%
+        // rozmiaru czcionki. Gdyby siedziała wyłącznie w media query,
+        // tablet nadal dostałby dwie kolumny i pustą połowę trzeciego wiersza.
         $this->assertMatchesRegularExpression(
-            '/@media\s*\(max-width:\s*30rem\)\s*\{\s*\.photo-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/u',
-            $arkusz,
-            'Siatka zdjęć nie schodzi na telefonie do jednej kolumny. W dwóch '.
-            'kolumnach wiersz ma wysokość najwyższego zdjęcia, więc pod zdjęciem '.
-            'poziomym wraca martwe pole (zmierzone: 109,5 px przy 320 px).',
+            '/grid-template-columns:\s*minmax\(0,\s*1fr\)\s*;/u',
+            $blok,
+            'Domyślna galeria znów dzieli zdjęcia na kolumny. Przy dwóch wraca pas pod krótszym zdjęciem, przy trzech pusta prawa połowa.',
         );
+        $this->assertSame(1, substr_count($arkusz, '.photo-grid {'), 'Późniejsza reguła szerokości może przywrócić dwie kolumny na tablecie.');
+        $this->assertMatchesRegularExpression('/gap:\s*var\(--spacing-3\)\s*;/u', $blok);
     }
 
     #[Test]
@@ -219,13 +223,15 @@ class GaleriaMieszanychOrientacjiTest extends TestCase
             );
         }
 
-        // Komplet szerokości z warunku właściciela — wszystkie cztery.
-        foreach (['320', '360', '390', '414'] as $szerokosc) {
+        // Telefony z pierwotnego pomiaru i tablet z ponownego zgłoszenia.
+        foreach (['320', '360', '390', '414', '768'] as $szerokosc) {
             $this->assertMatchesRegularExpression(
                 '/SZEROKOSCI\s*=\s*\[[^\]]*\b'.$szerokosc.'\b/u',
                 $tresc,
                 "Pomiar przestał obejmować szerokość {$szerokosc} px.",
             );
         }
+        $this->assertStringContainsString("'zwykle-3'", $tresc, 'Pomiar musi objąć też trzecie zdjęcie bez pustej prawej połowy.');
+        $this->assertStringContainsString('galeria.kolumny !== 1', $tresc, 'Pomiar nie sprawdza jednokolumnowego układu „Zwykle”.');
     }
 }

@@ -53,7 +53,15 @@ final class ImportOdrzucony extends BladDlaCzlowieka
 
     public const PDF_BEZ_TEKSTU = 'pdf_bez_tekstu';
 
+    public const PDF_BRAK_PRZEPISU = 'pdf_brak_przepisu';
+
     public const NARZEDZIE_PDF_NIEDOSTEPNE = 'narzedzie_pdf_niedostepne';
+
+    public const BRAK_ZGODY_AI = 'brak_zgody_ai';
+
+    public const BUDZET_AI = 'budzet_ai';
+
+    public const MODEL_NIEDOSTEPNY = 'model_niedostepny';
 
     public const LIMIT_OSOBY = 'limit_osoby';
 
@@ -91,8 +99,16 @@ final class ImportOdrzucony extends BladDlaCzlowieka
             .'bez hasła i dodaj ją jeszcze raz.',
         self::PDF_BEZ_TEKSTU => 'Ten plik PDF to zeskanowane strony, bez tekstu do odczytania. Zrób zdjęcie '
             .'strony z przepisem i dodaj je przyciskiem „Przepisz z kartki lub zeszytu” albo wpisz przepis ręcznie.',
+        self::PDF_BRAK_PRZEPISU => 'Nie znaleźliśmy przepisu w tym pliku PDF. Sprawdź, czy wybrany plik ma przepis, '
+            .'albo wpisz go ręcznie.',
         self::NARZEDZIE_PDF_NIEDOSTEPNE => 'Odczyt plików PDF chwilowo nie działa. Spróbuj później '
             .'albo wpisz przepis ręcznie — nic nie zginęło.',
+        self::BRAK_ZGODY_AI => 'Ten przepis wymaga odczytu przez komputer firmy OpenAI. Zaznacz zgodę pod formularzem '
+            .'i wyślij go ponownie albo wpisz przepis ręcznie.',
+        self::BUDZET_AI => 'Odczyt przez komputer jest teraz niedostępny, bo wyczerpał się budżet. '
+            .'Spróbuj później albo wpisz przepis ręcznie.',
+        self::MODEL_NIEDOSTEPNY => 'Odczyt przez komputer chwilowo nie działa. Spróbuj ponownie później '
+            .'albo wpisz przepis ręcznie.',
         self::LIMIT_OSOBY => 'Dziś odczytaliśmy już :limit Twoich przepisów — to dzienny limit. Jutro będzie można '
             .'dalej. Możesz też od razu wpisać przepis ręcznie.',
         self::LIMIT_OSOBY_MIESIAC => 'W tym miesiącu odczytaliśmy już :limit Twoich przepisów — to miesięczny limit. '

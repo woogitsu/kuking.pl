@@ -5,38 +5,40 @@ declare(strict_types=1);
 namespace App\Domain\Import;
 
 use App\Models\User;
-use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\DB;
 
 /**
- * Limit importów na osobę — dzienny i miesięczny, WSPÓLNY dla adresu, PDF-a
- * i zdjęcia (D-300: „żadnego masowego importu, limit na osobę jak przy OCR").
- *
- * Liczy się ZLECENIE (wysłany formularz), nie wejście na stronę. Odmowa
- * wymienia limit i mówi, co zrobić. RateLimiter stoi na cache'u z bazy danych
- * (bez Redisa, AGENTS.md §3).
+ * Wspólna rezerwacja prób OCR, adresu strony i PDF-a (D-300).
  */
 final class LimitImportu
 {
+    public function __construct(private readonly LimitImportowOsoby $limit) {}
+
     /**
+     * Powtórzony POST z tym samym kluczem nie pobiera źródła ponownie.
+     *
+     * @return array{id: string, status: string, recipe_id: ?string, istnieje: bool}
+     *
      * @throws ImportOdrzucony
      */
-    public function zuzyj(User $user): void
+    public function zuzyj(User $user, string $zrodlo, string $klucz): array
     {
-        $dzien = (int) config('kuking.import.limity.na_osobe_dzien', 5);
-        $miesiac = (int) config('kuking.import.limity.na_osobe_miesiac', 30);
+        return DB::transaction(function () use ($user, $zrodlo, $klucz): array {
+            $proba = $this->limit->rezerwuj($user, $zrodlo, $klucz);
+            if ($proba !== null) {
+                return $proba;
+            }
 
-        $kluczDnia = 'import-przepisu:dzien:'.$user->getKey();
-        $kluczMiesiaca = 'import-przepisu:miesiac:'.$user->getKey();
+            $miesiac = $this->limit->przekroczony($user) === LimitImportowOsoby::MIESIAC;
+            throw new ImportOdrzucony(
+                $miesiac ? ImportOdrzucony::LIMIT_OSOBY_MIESIAC : ImportOdrzucony::LIMIT_OSOBY,
+                ['limit' => (int) config($miesiac ? 'kuking.import.limity.na_osobe_miesiac' : 'kuking.import.limity.na_osobe_dzien')],
+            );
+        });
+    }
 
-        if (RateLimiter::tooManyAttempts($kluczMiesiaca, $miesiac)) {
-            throw new ImportOdrzucony(ImportOdrzucony::LIMIT_OSOBY_MIESIAC, ['limit' => $miesiac]);
-        }
-
-        if (RateLimiter::tooManyAttempts($kluczDnia, $dzien)) {
-            throw new ImportOdrzucony(ImportOdrzucony::LIMIT_OSOBY, ['limit' => $dzien]);
-        }
-
-        RateLimiter::hit($kluczDnia, 86_400);
-        RateLimiter::hit($kluczMiesiaca, 30 * 86_400);
+    public function zakoncz(string $id, bool $powodzenie, ?string $recipeId = null): void
+    {
+        $this->limit->zakoncz($id, $powodzenie, $recipeId);
     }
 }

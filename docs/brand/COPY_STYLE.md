@@ -344,6 +344,11 @@ podsekcję „Poznaj ich kuchnie”. Wspólne zaproszenie gościa:
 wpisu, którego kliknięcie obejmuje również zdjęcie; nie dokładamy
 powtarzanego przycisku „Zobacz”. Pozostałe szyny zachowują swój wariant.
 
+Gdy gość wybiera obserwowanie konkretnej osoby, po rejestracji i pierwszych
+krokach wraca do jej profilu albo do przepisu, z którego przyszedł. Musi
+jeszcze sam kliknąć „Obserwuj”; samo założenie konta nikogo nie obserwuje.
+Obok rejestracji jest droga logowania dla osoby, która ma już konto.
+
 Sekcja z kilkoma osobami i kilkoma wpisami wartymi zobaczenia dzisiaj.
 Odpowiednik „Dla Ciebie" z innych portali, tylko **bez algorytmu i bez rankingu**.
 
@@ -494,6 +499,13 @@ Regresja: `tests/Feature/PytanieDniaTest.php`.
 | sekcja pod przepisem | Komu wyszło |
 | pod nagłówkiem | Zdjęcia od ludzi, którzy naprawdę to zrobili u siebie. |
 
+Pusty stan „Komu wyszło” mówi „Nie ma tu widocznych wykonań”. Brak kart
+może oznaczać zarówno brak wykonań, jak i wykonania ukryte przed bieżącym
+widzem przez blokadę. Nie obiecujemy, że jego wykonanie będzie pierwsze.
+Osobie uprawnionej pokazujemy „Dodaj swoje wykonanie”, a gościowi drogę
+do założenia konta i osobny link do logowania. Samo otwarcie tych stron
+nie dodaje wykonania.
+
 Instrukcja formularza może zapowiadać powiadomienie innego autora, który
 może czytać serwis. Przy własnym przepisie i autorze wymazanym mówi:
 „Zapisz wykonanie tego przepisu.” Zawieszony autor nadal może czytać
@@ -512,7 +524,7 @@ wyjątkach jest prawidłowy, a wcześniejsze powiadomienie może już nie istnie
 | puste archiwum, własne | Twoje archiwum jest jeszcze puste |
 | + wyjaśnienie | Od pierwszego zdjęcia zaczyna się Twoje archiwum. Za rok zobaczysz tu, co gotujesz dzisiaj. |
 | brak powiadomień | Nie ma jeszcze żadnych powiadomień |
-| + wyjaśnienie | Tu pojawi się informacja, kiedy ktoś ugotuje z Twojego przepisu albo napisze komentarz. |
+| + wyjaśnienie | Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących oraz ważnych sprawach dotyczących Twojego konta. |
 | brak wyników szukania | Nic nie znaleźliśmy |
 | + wyjaśnienie | Nie ma jeszcze przepisu, który by pasował do „{fraza}". Może to Ty go dodasz? |
 | brak wyników szukania, zakres „Wszystko” (przepisy i ludzie, #944) | Nic nie znaleźliśmy |

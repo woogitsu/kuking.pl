@@ -5,35 +5,42 @@ declare(strict_types=1);
 namespace App\Domain\Import\Pdf;
 
 use App\Domain\Import\ImportOdrzucony;
-use App\Domain\Import\OdczytanyPrzepis;
 use App\Domain\Import\ParserTekstuPrzepisu;
+use App\Models\User;
 
 /**
- * Plik PDF → odczytany przepis, w całości LOKALNIE (D-300): `pdftotext`
- * i prosty parser nagłówków. Bez modelu i bez kosztu.
- *
- * PDF bez warstwy tekstu (skan) kończy się `PDF_BEZ_TEKSTU` — to jest
- * jedyny przypadek PDF-a, w którym potrzebny byłby model (odczyt obrazu
- * stron ścieżką OCR z fundamentu importu).
+ * PDF z tekstem jest odczytywany lokalnie; wyłącznie skan trafia do OCR
+ * po zgodzie osoby i rezerwacji w globalnym budżecie AI.
  */
 final class OdczytajPrzepisZPdf
 {
     public function __construct(
         private readonly TekstZPdf $tekst,
         private readonly ParserTekstuPrzepisu $parser,
+        private readonly OdczytajSkanPdf $skan,
     ) {}
 
     /**
      * @throws ImportOdrzucony
      */
-    public function handle(string $sciezka): OdczytanyPrzepis
+    public function handle(string $sciezka, User $osoba, bool $chceZgody, string $probaId): OdczytanyPdf
     {
-        $przepis = $this->parser->odczytaj($this->tekst->odczytaj($sciezka));
+        try {
+            $tekst = $this->tekst->odczytaj($sciezka);
+        } catch (ImportOdrzucony $e) {
+            if ($e->kod !== ImportOdrzucony::PDF_BEZ_TEKSTU) {
+                throw $e;
+            }
 
-        if ($przepis === null) {
-            throw new ImportOdrzucony(ImportOdrzucony::PDF_BEZ_TEKSTU);
+            return new OdczytanyPdf($this->skan->handle($sciezka, $osoba, $chceZgody, $probaId), 'ocr');
         }
 
-        return $przepis;
+        $przepis = $this->parser->odczytaj($tekst);
+
+        if ($przepis === null) {
+            throw new ImportOdrzucony(ImportOdrzucony::PDF_BRAK_PRZEPISU);
+        }
+
+        return new OdczytanyPdf($przepis, 'tekst_pdf');
     }
 }

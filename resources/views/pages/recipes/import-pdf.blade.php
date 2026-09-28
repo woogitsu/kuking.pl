@@ -1,9 +1,8 @@
 {{--
     IMPORT PRZEPISU Z PLIKU PDF (V2, D-300).
 
-    Plik z tekstem odczytujemy u siebie, bez wysyłania go dokądkolwiek.
-    Skan bez tekstu dostaje komunikat, co zrobić (zdjęcie strony albo ręczne
-    przepisanie). Limity stron i rozmiaru są napisane PRZED wyborem pliku.
+    Plik z tekstem odczytujemy u siebie. Skan bez tekstu może być odczytany
+    modelem po wyraźnej zgodzie. Limity stron i rozmiaru stoją przed wyborem.
 --}}
 <x-layout title="Przepis z pliku PDF" :noindex="true">
     <x-zakladki-dodawania aktywna="przepis" />
@@ -11,7 +10,8 @@
     <h1>Przepis z pliku PDF</h1>
     <p>
         Wybierz plik PDF z przepisem. Odczytamy z niego tekst i zapiszemy jako
-        <strong>szkic, który widzisz tylko Ty</strong>. Pliku nigdzie nie wysyłamy.
+        <strong>szkic, który widzisz tylko Ty</strong>. PDF z warstwą tekstową odczytamy u siebie.
+        Jeśli to skan, wyślemy do OpenAI w USA obrazy stron bez metadanych, tylko za Twoją zgodą.
     </p>
     <p class="mb-5">Plik może mieć najwyżej {{ $maksMb }} MB i {{ $maksStron }} stron.</p>
 
@@ -19,6 +19,7 @@
 
     <form class="panel-formularza" method="POST" action="{{ route('recipes.import.pdf.store') }}" enctype="multipart/form-data">
         @csrf
+        <input type="hidden" name="klucz_wyslania" value="{{ $kluczWyslania }}">
         <div class="field @error('plik') has-error @enderror">
             {{-- Ten sam wzorzec pola pliku co w kreatorze (D-035): pole schowane
                  klasą, klikalna jest duża etykieta z ikoną i napisem. --}}
@@ -33,6 +34,9 @@
             <span class="field-help" id="f-plik-help">Po wybraniu pliku kliknij „Zapisz jako szkic”.</span>
             @error('plik')<span class="field-error" id="f-plik-error">{{ $message }}</span>@enderror
         </div>
+        <label class="field"><input type="checkbox" name="zgoda_ai" value="1" @checked(old('zgoda_ai'))>
+            Zgadzam się na odczyt skanowanych stron przez OpenAI. Ta zgoda dotyczy tylko tego wysłania.
+        </label>
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Zapisz jako szkic</button>

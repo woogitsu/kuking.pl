@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Support\Czas;
 use App\Support\Harmonogram;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -67,9 +68,35 @@ Harmonogram::artisan('kuking:sprzataj-osierocone-zdjecia')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// Zbiorcze powiadomienie „Smakowicie wygląda" (issue #1813, D-280) — raz
+// dziennie, po południu, gdy ludzie zaglądają do serwisu; „Ugotowałem"
+// powiadamia od razu i ma zostać najcenniejszą wiadomością dnia.
+Harmonogram::artisan('kuking:powiadom-smakowicie')
+    ->dailyAt('17:47')
+    // 17:47 czasu POLSKIEGO. Harmonogram liczy w `app.timezone` (UTC), więc
+    // bez strefy wychodziłoby 19:47 latem i 18:47 zimą (przegląd #1781).
+    ->timezone(Czas::strefa())
+    ->name('kuking:powiadom-smakowicie')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 Harmonogram::artisan('kuking:sprzataj-eksporty')
     ->name('kuking:sprzataj-eksporty')
     ->dailyAt('03:20')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
+// Czujka sprzątania paczek z danymi (issue #1331). Sprzątanie wyżej kończy się
+// błędem, gdy nie usunie którejś paczki — ale komenda, która w ogóle nie
+// chodzi, nie może o sobie donieść. Czujka patrzy na STAN w bazie: wygasła
+// paczka z adresem pliku ponad 36 h po terminie dzwoni na `blad_webhook`
+// (same liczby, bez kluczy obiektów i danych osób), powrót do normy daje
+// jedno odwołanie. 06:25 UTC — po nocnym sprzątaniu, przy porannej kawie
+// właściciela, obok czujki kopii (06:15) i nie na minucie innego zadania.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('kuking:sprawdz-sprzatanie-eksportow')
+    ->name('kuking:sprawdz-sprzatanie-eksportow')
+    ->dailyAt('06:25')
     ->onOneServer()
     ->withoutOverlapping(120);
 
@@ -279,6 +306,17 @@ Harmonogram::artisan('queue:prune-failed', ['--hours' => 720])
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 05:30 — dziesięć minut po poprzednim zadaniu (uzasadnienie odstępów wyżej).
+// Dziennik wymazań kont POZA bazą (audyt B5, znalezisko 3): dopisuje wpisy,
+// których zapis przy wymazaniu się nie udał, i kasuje wpisy starsze niż
+// najstarsza kopia bazy. Wejście procedury „wymaż ponownie” po odtworzeniu
+// kopii (`kuking:wymaz-ponownie`, docs/infra/KOPIE_I_ODTWORZENIE.md).
+Harmonogram::artisan('kuking:dziennik-wymazan')
+    ->name('kuking:dziennik-wymazan')
+    ->dailyAt('05:30')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // 05:40 — dziesięć minut po poprzednim zadaniu (uzasadnienie odstępów wyżej).
 // Wygasłe żetony resetu hasła (audyt B5, znalezisko 6). `password_reset_tokens`
 // jest kluczowana adresem e-mail zapisanym jawnie; bez tego zadania wiersz
@@ -305,6 +343,31 @@ Harmonogram::artisan('kuking:sprzataj-usuniete-tresci')
     ->dailyAt('05:50')
     ->onOneServer()
     ->withoutOverlapping(120);
+
+// 06:00 — dziesięć minut po poprzednim zadaniu (05:50 zajęły treści usunięte
+// przez autora, więc zlecenia odczytu przepisu idą slot dalej).
+// Retencja zleceń odczytu przepisu (D-298): surowa odpowiedź modelu 30 dni
+// (bywa w niej tekst z czyjejś kartki), wiersz zlecenia 90 dni.
+Harmonogram::artisan('kuking:sprzataj-importy')
+    ->name('kuking:sprzataj-importy')
+    ->dailyAt('06:00')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
+// Odzyskiwanie odczytów przepisu (D-298 „maszyna stanów”, #1973, #1977).
+// Rezerwacja budżetu modelu porzucona przez zabity proces blokowałaby limit
+// dzienny dla WSZYSTKICH do północy, a zlecenie bez zadania wisiałoby
+// w „trwa” do retencji. CO KWADRANS, bo pierwsze to pieniądze i limit, drugie
+// to człowiek patrzący na ekran postępu. Progi: `kuking.import.odzyskiwanie`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+// Ten sam termin `*/15` co `kuking:sprawdz-kolejke` i `kuking:wyczysc-zalegle-cdn`
+// jest zamierzony (DOZWOLONE_WSPOLNE w HarmonogramBezKolizjiTerminowTest):
+// trzy lekkie zadania porządkowe o stałym rytmie, po kolei w jednym procesie.
+Harmonogram::artisan('kuking:odzyskaj-importy')
+    ->name('kuking:odzyskaj-importy')
+    ->everyFifteenMinutes()
+    ->onOneServer()
+    ->withoutOverlapping(10);
 
 // CZUJKA KOPII BAZY (issue #193, decyzja D-043).
 //

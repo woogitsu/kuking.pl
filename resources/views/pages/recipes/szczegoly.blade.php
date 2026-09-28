@@ -130,6 +130,11 @@
         $wymagaSprawdzenia = $pochodzenie !== null && ! $pochodzenie->sprawdzony() && ! $recipe->isPublished();
         $ostrzezeniePodobienstwa = $wymagaSprawdzenia && app(\App\Domain\Import\PodobienstwoDoZrodla::class)
             ->ostrzegac($recipe, $recipe->steps->pluck('instruction')->implode("\n"));
+        // Szkic z odczytu zdjęcia kartki (V2, D-298): baner, zdjęcie nad
+        // polami i „Odczytany tekst jest sprawdzony” przed publikacją — ta sama
+        // bramka co w kreatorze, bo obie drogi kończą w `PublishRecipe`.
+        $zOdczytu = $isEdit && $recipe->status === \App\Models\Recipe::STATUS_DRAFT
+            && \App\Domain\Import\BramkaPublikacjiOdczytu::maOdczyt($recipe);
     @endphp
     @if($pochodzenie !== null && ! $recipe->isPublished())
         <div class="notice" role="note">
@@ -141,6 +146,14 @@
     @endif
 
     <x-error-summary />
+
+    @if($zOdczytu)
+        @include('pages.import.partials.baner', ['niepewnych' => \App\Domain\Import\BramkaPublikacjiOdczytu::ileNiepewnych(
+            (string) $recipe->title, (string) $recipe->summary,
+            ...$recipe->ingredients->pluck('ingredient_text')->map(fn ($t) => (string) $t)->all(),
+            ...$recipe->steps->pluck('instruction')->map(fn ($t) => (string) $t)->all(),
+        )])
+    @endif
 
     {{-- PANEL JEST JEDEN I SIEDZI NA `<form>`, nie na czterech sekcjach.
 
@@ -160,7 +173,10 @@
     <form class="panel-formularza" id="formularz-szczegolow" method="POST" action="{{ $action }}" enctype="multipart/form-data"
           @if($errors->any()) data-niezapisane-od-serwera @endif>
         @csrf
-        @if($isEdit) @method('PUT') @endif
+        @if($isEdit)
+            @method('PUT')
+            <input type="hidden" name="content_revision" value="{{ old('content_revision', $recipe->content_revision) }}">
+        @endif
 
         {{-- TOŻSAMOŚĆ TEGO WYSŁANIA (ADR docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md).
              Tylko przy DODAWANIU: edycja pracuje na przepisie, który już
@@ -209,7 +225,7 @@
             <div class="siatka-pol">
                 {{-- Krok 0,01 (setne) — decyzja właściciela z 20.09.2026 (#750).
                      Kolumna `servings` to decimal(6,2); `step` musi się zgadzać
-                     z walidacją serwera (`RecipeController::validated()`),
+                     z walidacją serwera (`ZapisPrzepisuRequest`),
                      inaczej przeglądarka odrzuca poprawną wartość jako
                      `stepMismatch`, zanim żądanie w ogóle wyjdzie. --}}
                 <x-field name="servings" label="Na ile porcji" type="number" inputmode="decimal"
@@ -342,6 +358,9 @@
         ---------------------------------------------------------------- --}}
         <section class="form-section">
             <h2 class="form-section-title">3. Składniki</h2>
+            @if($zOdczytu)
+                @include('pages.import.partials.oryginal', ['skan' => $recipe->sourceScan])
+            @endif
             <p class="meta mb-4">
                 Pisz tak, jak mówisz: „szklanka mąki”, „2 duże cebule”, „mleko — ile weźmie”.
                 Nie musisz nic przeliczać na gramy. Puste wiersze zostaną pominięte.
@@ -359,8 +378,9 @@
                     <input class="field-input" id="f-ingredients-{{ $i }}-text"
                            name="ingredients[{{ $i }}][text]" type="text" maxlength="240"
                            value="{{ $oldIngredients[$i]['text'] ?? '' }}"
-                           @if($i === 0) placeholder="1 kurczak, najlepiej zagrodowy" @endif>
-                    @error("ingredients.$i.text")<span class="field-error">{{ $message }}</span>@enderror
+                           @if($i === 0) placeholder="1 kurczak, najlepiej zagrodowy" @endif
+                           @error("ingredients.$i.text") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-text-error" @enderror>
+                    @error("ingredients.$i.text")<span class="field-error" id="f-ingredients-{{ $i }}-text-error">{{ $message }}</span>@enderror
 
                     {{--
                         GRUPA SKŁADNIKÓW — „Ciasto”, „Farsz”, „Do podania”
@@ -390,8 +410,9 @@
                     <input class="field-input" id="f-ingredients-{{ $i }}-group_name"
                            name="ingredients[{{ $i }}][group_name]" type="text" maxlength="120"
                            value="{{ $oldIngredients[$i]['group_name'] ?? '' }}"
-                           @if($i === 0) placeholder="Ciasto" @endif>
-                    @error("ingredients.$i.group_name")<span class="field-error">{{ $message }}</span>@enderror
+                           @if($i === 0) placeholder="Ciasto" @endif
+                           @error("ingredients.$i.group_name") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-group_name-error" @enderror>
+                    @error("ingredients.$i.group_name")<span class="field-error" id="f-ingredients-{{ $i }}-group_name-error">{{ $message }}</span>@enderror
 
                     <label class="mt-3" for="f-ingredients-{{ $i }}-note">Uwagi do składnika <span class="meta">(nieobowiązkowe)</span></label>
                     <input class="field-input" id="f-ingredients-{{ $i }}-note"
@@ -445,6 +466,9 @@
         ---------------------------------------------------------------- --}}
         <section class="form-section" id="f-steps">
             <h2 class="form-section-title">4. Przygotowanie</h2>
+            @if($zOdczytu)
+                @include('pages.import.partials.oryginal', ['skan' => $recipe->sourceScan])
+            @endif
             <p class="meta mb-4">
                 Jeden krok to jedna czynność. Krótkie kroki łatwiej czytać przy garnku.
                 Przy każdym kroku możesz dopisać, ile minut ma trwać, i dodać zdjęcie —
@@ -497,8 +521,9 @@
                                type="number" inputmode="numeric" name="steps[{{ $i }}][timer_minutes]"
                                min="0" max="{{ \App\Domain\Recipes\StepTimer::MAX_MINUTES }}" step="1"
                                value="{{ $oldSteps[$i]['timer_minutes'] ?? '' }}"
-                               aria-describedby="f-steps-{{ $i }}-timer_minutes-help">
-                        @error("steps.$i.timer_minutes")<span class="field-error">{{ $message }}</span>@enderror
+                               aria-describedby="f-steps-{{ $i }}-timer_minutes-help{{ $errors->has('steps.'.$i.'.timer_minutes') ? ' f-steps-'.$i.'-timer_minutes-error' : '' }}"
+                               @error("steps.$i.timer_minutes") aria-invalid="true" @enderror>
+                        @error("steps.$i.timer_minutes")<span class="field-error" id="f-steps-{{ $i }}-timer_minutes-error">{{ $message }}</span>@enderror
                     </div>
 
                     <div class="field @error("steps.$i.photo") has-error @enderror">
@@ -570,6 +595,21 @@
                     <span class="choice-label">Sprawdziłem odczytany tekst</span>
                 </label>
                 <span class="field-help">Zaznacz, gdy porównasz składniki i kroki ze źródłem. Bez tego przepis zapisze się tylko jako szkic.</span>
+            </div>
+        @endif
+
+        @if($zOdczytu)
+            <div class="field mt-4 @error('odczyt_sprawdzony') has-error @enderror">
+                <label class="choice" for="f-odczyt_sprawdzony">
+                    <input id="f-odczyt_sprawdzony" type="checkbox" name="odczyt_sprawdzony" value="1"
+                           @error('odczyt_sprawdzony') aria-invalid="true" aria-describedby="f-odczyt_sprawdzony-error" @enderror
+                           @checked(old('odczyt_sprawdzony'))>
+                    <span>
+                        <span class="choice-label">Odczytany tekst jest sprawdzony ze zdjęciem</span>
+                        <span class="choice-help">Każda linijka zgadza się z kartką, a znaczniki [? ?] są usunięte.</span>
+                    </span>
+                </label>
+                @error('odczyt_sprawdzony')<span class="field-error" id="f-odczyt_sprawdzony-error">{{ $message }}</span>@enderror
             </div>
         @endif
 

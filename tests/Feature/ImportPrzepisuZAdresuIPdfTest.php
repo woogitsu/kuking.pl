@@ -9,6 +9,7 @@ use App\Domain\Import\ImportOdrzucony;
 use App\Domain\Import\OdczytanyPrzepis;
 use App\Domain\Import\StrazImportu;
 use App\Domain\Import\Url\RozwiazywaczNazw;
+use App\Domain\Import\Url\TekstStrony;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportPhotoPlan;
@@ -20,7 +21,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Tests\Support\MalyPdf;
 use Tests\Support\MapaNazw;
@@ -86,6 +87,112 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
             ->assertRedirect();
 
         return Recipe::query()->where('author_id', $autor->getKey())->latest('created_at')->firstOrFail();
+    }
+
+    private function modelTestowy(): void
+    {
+        config([
+            'kuking.import.model.klucz' => 'sk-test-import',
+            'kuking.import.model.nazwa' => 'gpt-6-luna',
+            'kuking.import.model.cena_wejscie_mln_usd' => '2',
+            'kuking.import.model.cena_wyjscie_mln_usd' => '8',
+        ]);
+    }
+
+    /** @param array<string, mixed> $dane */
+    private function odpowiedzModelu(array $dane): array
+    {
+        return [
+            'status' => 'completed',
+            'output' => [['type' => 'message', 'content' => [['type' => 'output_text', 'text' => json_encode($dane)]]]],
+            'usage' => ['input_tokens' => 1000, 'output_tokens' => 500],
+        ];
+    }
+
+    public function test_powtorzony_adres_z_tym_samym_kluczem_nie_pobiera_strony_drugi_raz(): void
+    {
+        $autor = $this->user();
+        $this->udawajStrone();
+        $dane = ['adres' => 'https://przepisy.example.pl/sernik', 'klucz_wyslania' => (string) Str::uuid()];
+
+        $pierwsza = $this->actingAs($autor)->post(route('recipes.import.url.store'), $dane);
+        $this->assertSame(1, Recipe::query()->where('author_id', $autor->getKey())->count());
+        $liczbaZadan = Http::recorded()->count();
+        $this->assertGreaterThan(0, $liczbaZadan, 'Kontrola dodatnia: pierwsze wysłanie pobrało źródło.');
+
+        $powtorka = $this->actingAs($autor)->post(route('recipes.import.url.store'), $dane);
+
+        $powtorka->assertRedirect($pierwsza->headers->get('Location'));
+        $this->assertSame($liczbaZadan, Http::recorded()->count());
+        $this->assertSame(1, Recipe::query()->where('author_id', $autor->getKey())->count());
+    }
+
+    public function test_strona_bez_json_ld_po_zgodzie_dostaje_tylko_granice_a_tekst_szkicu_pochodzi_ze_strony(): void
+    {
+        $this->modelTestowy();
+        $autor = $this->user();
+        $html = '<html><body><h1>Sernik domowy</h1><p>1 kg twarogu</p><p>Piecz godzinę.</p></body></html>';
+        $wiersze = TekstStrony::wiersze($html);
+        $this->assertCount(3, $wiersze, 'Kontrola dodatnia: czysty tekst strony ma trzy wiersze.');
+        Http::fake([
+            'https://przepisy.example.pl/robots.txt' => Http::response('', 404),
+            'https://przepisy.example.pl/blog' => Http::response($html, 200, ['Content-Type' => 'text/html']),
+            'api.openai.com/*' => Http::response($this->odpowiedzModelu(['fragmenty' => [
+                ['do' => 1, 'etykieta' => 'tytul'],
+                ['do' => 2, 'etykieta' => 'skladnik'],
+                ['do' => 3, 'etykieta' => 'krok'],
+            ]])),
+        ]);
+
+        $this->actingAs($autor)->post(route('recipes.import.url.store'), [
+            'adres' => 'https://przepisy.example.pl/blog', 'zgoda_ai' => '1',
+        ])->assertRedirect();
+
+        $recipe = Recipe::query()->where('author_id', $autor->getKey())->firstOrFail();
+        $this->assertSame($wiersze[0], $recipe->title);
+        $this->assertSame([$wiersze[1]], $recipe->ingredients()->pluck('ingredient_text')->all());
+        $this->assertSame([$wiersze[2]], $recipe->steps()->pluck('instruction')->all());
+        $this->assertSame('fragmenty', PrzepisZImportu::query()->findOrFail($recipe->getKey())->droga);
+        $this->assertNotNull(\Illuminate\Support\Facades\DB::table('proby_importu')->where('user_id', $autor->getKey())->value('zgoda_ai_at'));
+        Http::assertSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com')
+            && ! str_contains(json_encode($r->data()), 'https://przepisy.example.pl/blog'));
+    }
+
+    public function test_strona_bez_json_ld_przy_wyczerpanym_budzecie_nie_wysyla_modelu(): void
+    {
+        $this->modelTestowy();
+        config(['kuking.import.budzet.dzienny_usd' => 0]);
+        $autor = $this->user();
+        $this->udawajStrone();
+
+        $this->actingAs($autor)->post(route('recipes.import.url.store'), [
+            'adres' => 'https://przepisy.example.pl/blog', 'zgoda_ai' => '1',
+        ])->assertSessionHasErrors(['adres' => ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BUDZET_AI]]);
+
+        Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com'));
+        $this->assertSame(0, Recipe::query()->where('author_id', $autor->getKey())->count());
+    }
+
+    public function test_powtorzony_klucz_strony_bez_json_ld_nie_placi_za_drugi_model(): void
+    {
+        $this->modelTestowy();
+        $autor = $this->user();
+        $html = '<html><body><h1>Sernik</h1><p>Piecz godzinę.</p></body></html>';
+        Http::fake([
+            'https://przepisy.example.pl/robots.txt' => Http::response('', 404),
+            'https://przepisy.example.pl/blog' => Http::response($html, 200, ['Content-Type' => 'text/html']),
+            'api.openai.com/*' => Http::response($this->odpowiedzModelu(['fragmenty' => [
+                ['do' => 1, 'etykieta' => 'tytul'], ['do' => 2, 'etykieta' => 'krok'],
+            ]])),
+        ]);
+        $dane = ['adres' => 'https://przepisy.example.pl/blog', 'zgoda_ai' => '1', 'klucz_wyslania' => (string) Str::uuid()];
+
+        $this->actingAs($autor)->post(route('recipes.import.url.store'), $dane)->assertRedirect();
+        $this->actingAs($autor)->post(route('recipes.import.url.store'), $dane)->assertRedirect();
+
+        $this->assertSame(1, (int) \Illuminate\Support\Facades\DB::table('ai_budzet_dzienny')->sum('liczba_wywolan'));
+        $this->assertSame(1, Recipe::query()->where('author_id', $autor->getKey())->count());
+        $this->assertSame(1, Http::recorded()->filter(fn (array $para): bool => str_contains($para[0]->url(), 'openai.com'))->count());
     }
 
     // ---------------------------------------------------------------
@@ -165,8 +272,6 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
                 ->assertSessionHasErrors(['adres' => ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::ADRES_NIEPUBLICZNY]])
                 ->assertSessionHasInput('adres', $adres);
 
-            RateLimiter::clear('import-przepisu:dzien:'.$autor->getKey());
-            RateLimiter::clear('import-przepisu:miesiac:'.$autor->getKey());
         }
 
         $this->assertSame(0, Recipe::query()->count());
@@ -196,7 +301,6 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         config(['kuking.import.limity.na_osobe_dzien' => 5]);
 
         for ($i = 0; $i < 5; $i++) {
-            RateLimiter::clear('import');
             $this->actingAs($autor)->post(route('recipes.import.url.store'), ['adres' => 'https://przepisy.example.pl/sernik'])
                 ->assertSessionHasNoErrors();
         }
@@ -431,17 +535,77 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_pdf_bez_tekstu_nie_tworzy_szkicu_i_mowi_co_zrobic(): void
+    public function test_pdf_bez_tekstu_i_bez_zgody_nic_nie_wysyla(): void
     {
         $autor = $this->user();
         Http::fake();
         $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
 
         $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf])
-            ->assertSessionHasErrors(['plik' => ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::PDF_BEZ_TEKSTU]]);
+            ->assertSessionHasErrors(['plik' => ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BRAK_ZGODY_AI]]);
 
         $this->assertSame(0, Recipe::query()->count());
         Http::assertNothingSent();
+    }
+
+    public function test_skan_pdf_po_zgodzie_idzie_do_modelu_pod_budzetem_i_zostaje_prywatnym_szkicem(): void
+    {
+        $this->modelTestowy();
+        $autor = $this->user();
+        Http::fake(['api.openai.com/*' => Http::response($this->odpowiedzModelu([
+            'nieczytelne' => false, 'tytul' => 'Sernik ze skanu', 'porcje' => '8',
+            'skladniki' => [['tekst' => '1 kg twarogu', 'grupa' => null]],
+            'kroki' => [['tekst' => 'Piecz godzinę.']], 'uwagi' => null,
+        ]))]);
+        $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
+
+        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf, 'zgoda_ai' => '1'])->assertRedirect();
+
+        $recipe = Recipe::query()->where('author_id', $autor->getKey())->firstOrFail();
+        $this->assertSame('private', $recipe->visibility);
+        $this->assertSame('Sernik ze skanu', $recipe->title);
+        $this->assertSame('ocr', PrzepisZImportu::query()->findOrFail($recipe->getKey())->droga);
+        $this->assertDatabaseHas('proby_importu', ['user_id' => $autor->getKey(), 'zrodlo' => 'pdf', 'status' => 'gotowy']);
+        $this->assertNotNull(\Illuminate\Support\Facades\DB::table('proby_importu')->where('user_id', $autor->getKey())->value('zgoda_ai_at'));
+        Http::assertSentCount(1);
+        Http::assertSent(fn (Request $r): bool => str_contains(json_encode($r->data()), 'data:image/jpeg;base64,'));
+    }
+
+    public function test_skan_pdf_przy_wyczerpanym_budzecie_nie_wysyla_zadania(): void
+    {
+        $this->modelTestowy();
+        config(['kuking.import.budzet.dzienny_usd' => 0]);
+        $autor = $this->user();
+        Http::fake();
+        $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
+
+        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf, 'zgoda_ai' => '1'])
+            ->assertSessionHasErrors(['plik' => ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BUDZET_AI]]);
+
+        $this->assertSame(0, Recipe::query()->count());
+        Http::assertNothingSent();
+    }
+
+    public function test_powtorzony_skan_pdf_nie_wysyla_drugiego_platnego_zadania(): void
+    {
+        $this->modelTestowy();
+        $autor = $this->user();
+        Http::fake(['api.openai.com/*' => Http::response($this->odpowiedzModelu([
+            'nieczytelne' => false, 'tytul' => 'Sernik', 'porcje' => null,
+            'skladniki' => [], 'kroki' => [['tekst' => 'Piecz godzinę.']], 'uwagi' => null,
+        ]))]);
+        $klucz = (string) Str::uuid();
+
+        for ($i = 0; $i < 2; $i++) {
+            $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
+            $this->actingAs($autor)->post(route('recipes.import.pdf.store'), [
+                'plik' => $pdf, 'zgoda_ai' => '1', 'klucz_wyslania' => $klucz,
+            ])->assertRedirect();
+        }
+
+        Http::assertSentCount(1);
+        $this->assertSame(1, (int) \Illuminate\Support\Facades\DB::table('ai_budzet_dzienny')->sum('liczba_wywolan'));
+        $this->assertSame(1, Recipe::query()->where('author_id', $autor->getKey())->count());
     }
 
     public function test_plik_udajacy_pdf_jest_odrzucony(): void
