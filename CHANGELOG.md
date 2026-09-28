@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Wewnętrzne: rezerwacja budżetu AI bierze blokadę miesiąca przed wierszem dnia, a suma miesiąca obejmuje cały miesiąc kalendarzowy. Dwa odczyty z różnych dni tego samego miesiąca (np. tuż przed i tuż po północy) nie przekroczą już razem miesięcznego limitu kosztu (#2013).
 - Paczka Twoich danych zachowuje przy każdym przepisie wybór, czy pokazywać szacunkowe wartości odżywcze. Po przeniesieniu danych można odróżnić celowo ukrytą sekcję od domyślnie widocznej (#1993).
 
 ## Alfa 0.74 — zdjęcia w formularzu i porcje przy gotowaniu
