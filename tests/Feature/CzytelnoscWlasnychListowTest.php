@@ -40,9 +40,9 @@ class CzytelnoscWlasnychListowTest extends TestCase
             }
             $this->assertGreaterThanOrEqual(48, max($minimum, $naturalna), trim($link->textContent));
         }
-        $this->assertStringEndsWith('/ugotowane/12345678-1234-4234-8234-123456789abd', $linki->item(0)->getAttribute('href'));
-        $this->assertStringEndsWith('/wpisy/12345678-1234-4234-8234-123456789abe', $linki->item(1)->getAttribute('href'));
-        $this->assertSame('https://kuking.test/podsumowanie/wypisz/test?signature='.str_repeat('c', 64), $linki->item(2)->getAttribute('href'));
+        $this->assertStringEndsWith('/ugotowane/12345678-1234-4234-8234-123456789abd', self::elementDom($linki->item(0))->getAttribute('href'));
+        $this->assertStringEndsWith('/wpisy/12345678-1234-4234-8234-123456789abe', self::elementDom($linki->item(1))->getAttribute('href'));
+        $this->assertSame('https://kuking.test/podsumowanie/wypisz/test?signature='.str_repeat('c', 64), self::elementDom($linki->item(2))->getAttribute('href'));
     }
 
     public function test_termin_eksportu_podaje_godzine_w_polskiej_strefie(): void

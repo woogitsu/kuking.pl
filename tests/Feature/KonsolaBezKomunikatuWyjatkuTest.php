@@ -44,7 +44,7 @@ class KonsolaBezKomunikatuWyjatkuTest extends TestCase
 
     private function dyskKtoryPada(): FilesystemAdapter
     {
-        $dysk = Mockery::mock(FilesystemAdapter::class);
+        $dysk = self::atrapa(FilesystemAdapter::class);
         $dysk->shouldReceive('exists')->andThrow(new RuntimeException(self::ZLY_KOMUNIKAT));
 
         return $dysk;
@@ -143,6 +143,18 @@ class KonsolaBezKomunikatuWyjatkuTest extends TestCase
             ],
             'Commands/NadajRole.php' => [
                 '$this->error($exception->getMessage())' => 'DomainException z ChangeUserRole — własne zdanie po polsku',
+            ],
+            'Commands/ImportujWartosciOdzywcze.php' => [
+                "\$this->error('Nie wczytano niczego: '.\$e->getMessage())" => 'BladDlaCzlowieka z importu tabeli — wyjątek z założenia niesie zdanie dla człowieka, bez danych użytkownika',
+            ],
+            'Commands/PrzeniesZdjeciaDoNowychBucketow.php' => [
+                '\'metadata.variants niepełne: \'.$e->getMessage()' => 'WariantyMetadanychNiepelne — własny wyjątek bez identyfikatora medium i treści właściciela (#1905)',
+            ],
+            'Commands/SprawdzZdjeciaPoPrzenosinach.php' => [
+                '\'klucz\' => $e->getMessage()' => 'WariantyMetadanychNiepelne — własny wyjątek bez identyfikatora medium i treści właściciela (#1905)',
+            ],
+            'Commands/RaportPrzejrzystosci.php' => [
+                '$this->error($e->getMessage())' => 'InvalidArgumentException z własnej dzien() — zdanie po polsku z datą, którą operator sam wpisał w --od/--do',
             ],
             'Commands/SprawdzPoczte.php' => [
                 '$this->bezZnacznikow($e->getMessage())' => 'list kontrolny na adres, który operator sam wpisał; znaczniki ucieczkowane',

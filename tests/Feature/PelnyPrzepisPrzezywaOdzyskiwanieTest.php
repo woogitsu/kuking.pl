@@ -72,7 +72,7 @@ class PelnyPrzepisPrzezywaOdzyskiwanieTest extends TestCase
         $xpath = new \DOMXPath($doc);
         $expected = Arr::dot($dane);
         $encoded = [];
-        foreach ($xpath->query('//main//form//input[@name] | //main//form//textarea[@name]') as $field) {
+        foreach (self::elementyDom($xpath->query('//main//form//input[@name] | //main//form//textarea[@name]')) as $field) {
             $encoded[] = rawurlencode($field->getAttribute('name')).'='.rawurlencode($field->tagName === 'textarea' ? $field->textContent : $field->getAttribute('value'));
         }
         parse_str(implode('&', $encoded), $actual);
@@ -151,6 +151,7 @@ class PelnyPrzepisPrzezywaOdzyskiwanieTest extends TestCase
             $step['instruction'] = str_repeat('b', 3996).sprintf('%04d', $i);
         }
         unset($step);
+        $dane['content_revision'] = $recipe->content_revision;
         $url = route('recipes.update', $recipe);
         if ($status === 429) {
             for ($i = 0; $i < 19; $i++) {
@@ -172,6 +173,7 @@ class PelnyPrzepisPrzezywaOdzyskiwanieTest extends TestCase
         $this->assertSame('POST', $form['method']);
         $this->assertArrayHasKey('_method', $form['data']);
         $this->assertSame('PUT', $form['data']['_method']);
+        $this->assertSame((string) $dane['content_revision'], $form['data']['content_revision']);
         $this->assertSame($dane['steps'], $form['data']['steps']);
         $this->assertSame($ids, $recipe->steps()->orderBy('position')->pluck('id')->all());
         $this->assertSame($przed->pluck('instruction')->all(), $recipe->steps()->orderBy('position')->pluck('instruction')->all());
@@ -205,14 +207,14 @@ class PelnyPrzepisPrzezywaOdzyskiwanieTest extends TestCase
         $forms = $xpath->query('//main//form');
         $this->assertCount(1, $forms);
         $fields = [];
-        foreach ($xpath->query('.//input[@name] | .//textarea[@name]', $forms->item(0)) as $field) {
+        foreach (self::elementyDom($xpath->query('.//input[@name] | .//textarea[@name]', $forms->item(0))) as $field) {
             $value = $field->tagName === 'textarea' ? $field->textContent : $field->getAttribute('value');
             $fields[] = rawurlencode($field->getAttribute('name')).'='.rawurlencode($value);
         }
         parse_str(implode('&', $fields), $data);
         $this->assertNotEmpty($data['_token']);
 
-        return ['action' => $forms->item(0)->getAttribute('action'), 'method' => strtoupper($forms->item(0)->getAttribute('method')), 'data' => $data];
+        return ['action' => self::elementDom($forms->item(0))->getAttribute('action'), 'method' => strtoupper(self::elementDom($forms->item(0))->getAttribute('method')), 'data' => $data];
     }
 
     /**

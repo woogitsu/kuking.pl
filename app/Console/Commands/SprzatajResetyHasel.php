@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use Illuminate\Auth\Passwords\PasswordBroker;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Password;
+use LogicException;
 
 /**
  * Wygasłe żetony resetu hasła (audyt B5, znalezisko 6).
@@ -25,7 +27,13 @@ class SprzatajResetyHasel extends Command
 
     public function handle(): int
     {
-        Password::broker((string) config('auth.defaults.passwords'))->getRepository()->deleteExpired();
+        $broker = Password::broker((string) config('auth.defaults.passwords'));
+
+        if (! $broker instanceof PasswordBroker) {
+            throw new LogicException('Skonfigurowany broker haseł nie udostępnia usuwania wygasłych żetonów.');
+        }
+
+        $broker->getRepository()->deleteExpired();
 
         $this->info('Wygasłe żetony resetu hasła skasowane.');
 

@@ -344,7 +344,7 @@ Wspólne reguły:
 - min. rozmiar czcionki **18px**, min. wysokość 48px, padding 12px.
 - **Etykieta zawsze widoczna nad polem** (`<label>` prawdziwy, powiązany `for`/`id`) — **placeholder nigdy nie zastępuje etykiety**. Placeholder wolno używać wyłącznie jako dodatkowy przykład treści (np. „Np. Pierwszy raz robiłam...”), nigdy jako jedyny opis pola.
 - Tekst pomocniczy pod polem (`--text-help`, `ink-muted`) — stały, nie znika po fokusie.
-- Stan błędu: czerwona ramka (`border-strong` zamieniona na `--color-danger`) + komunikat pod polem w kolorze `danger` + ikona ostrzeżenia z `aria-hidden` (bo komunikat tekstowy już niesie informację) + `aria-describedby` wskazujący na komunikat + `aria-invalid="true"`.
+- Stan błędu: czerwona ramka (`border-strong` zamieniona na `--color-danger`) + komunikat pod polem w kolorze `danger`, w rozmiarze `--text-body` (18 px — komunikat stoi sam, więc wyjątek `--text-help` go nie obejmuje) + ikona ostrzeżenia z `aria-hidden` (bo komunikat tekstowy już niesie informację) + `aria-describedby` wskazujący na komunikat + `aria-invalid="true"`.
 - Focus: pierścień jak w 3.4, dodatkowo tło pola pozostaje `surface-sunken` (nie zmienia się gwałtownie), żeby nie dezorientować.
 
 ### 4.3 Checkbox / radio
@@ -411,8 +411,10 @@ Nie odtwarzamy fikcyjnych osób, liczników ani symulowanych operacji z HTML.
 ### `PostCard`
 Awatar, nazwa i czas → kilka słów → duże zdjęcie → rzeczywiste akcje wpisu.
 Kadrowanie respektuje wybrany tryb zdjęcia; nie wymuszamy 4:3 na każdej
-fotografii. Karta jest jasna w jasnym motywie, ma miękki cień i zaokrąglenia
-według konstytucji. Menu otwierają same trzy kropki z nazwą dostępną
+fotografii. W kolażu dwie fotografie dzielą wiersz według swoich proporcji,
+a ostatnia z nieparzystej grupy zajmuje cały wiersz. Na wąskim telefonie
+fotografie stoją jedna pod drugą. Karta jest jasna w jasnym motywie, ma miękki
+cień i zaokrąglenia według konstytucji. Menu otwierają same trzy kropki z nazwą dostępną
 „Więcej przy tym wpisie” oraz celem 48 × 48 px (wyjątek AGENTS.md).
 Pozycje menu i pozostałe ważne akcje zachowują widoczne opisy oraz kontrolę
 uprawnień. „Ugotowałem” odnosi się do wykonania przepisu, nie polubienia wpisu.

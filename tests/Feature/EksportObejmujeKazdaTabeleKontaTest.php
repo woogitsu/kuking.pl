@@ -140,6 +140,7 @@ final class EksportObejmujeKazdaTabeleKontaTest extends TestCase
             'remember_token' => 'REMEMBER-NIE-WYCHODZI',
             'two_factor_secret' => 'SEKRET-2FA-NIE-WYCHODZI',
             'two_factor_confirmed_at' => now(),
+            'onboarding_zakonczony_at' => '2026-09-20 10:00:00',
         ])->save();
 
         DB::table('login_link_tokens')->insert([
@@ -164,6 +165,7 @@ final class EksportObejmujeKazdaTabeleKontaTest extends TestCase
         $this->assertSame('203.0.113.7', $paczka['aktywne_sesje'][0]['adres_ip']);
         $this->assertSame('Firefox Basi', $paczka['aktywne_sesje'][0]['przegladarka']);
         $this->assertNotNull($paczka['konto']['weryfikacja_dwuetapowa_od']);
+        $this->assertStringStartsWith('2026-09-20', (string) $paczka['konto']['pierwsze_kroki_zakonczone']);
 
         // Kontrola ujemna: poświadczenia i cudze dane nie wychodzą.
         foreach ([

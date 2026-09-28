@@ -10,7 +10,7 @@ use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Collections\CollectionSaveContext;
 use App\Domain\Collections\Wspoldzielenie\ZaproszeniaDoZeszytow;
 use App\Domain\Collections\WidocznaZawartoscZeszytu;
-use App\Domain\Collections\ZapisyWpisu;
+use App\Domain\Search\SearchQuery;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Collection;
 use App\Models\Post;
@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Rules\CollectionNameNotTaken;
 use App\Support\Odmiana;
 use App\Support\PaginationLinks;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,7 +38,6 @@ class CollectionController extends Controller
     public function __construct(
         private readonly SaveRecipeToCollection $save,
         private readonly SavePostToCollection $savePost,
-        private readonly ZapisyWpisu $zapisy = new ZapisyWpisu,
         private readonly WidocznaZawartoscZeszytu $zawartosc = new WidocznaZawartoscZeszytu,
     ) {}
 
@@ -53,30 +53,18 @@ class CollectionController extends Controller
             'collections' => $user->collections()
                 ->withCount('members')
                 ->withCount([
-                    // LICZBA WIDOCZNA — DOKŁADNIE TA SAMA, KTÓRĄ CZŁOWIEK
-                    // ZOBACZY PO WEJŚCIU (issue #774).
+                    // LICZBY WIDOCZNE (`recipes_count`, `posts_count`) dolicza
+                    // `policzWidoczne()` niżej — jednym zapytaniem na rodzaj
+                    // dla wszystkich zeszytów naraz, nie podzapytaniem na
+                    // każdy zeszyt (#2030). Reguła i powody są tam.
                     //
-                    // PRZED TĄ ZMIANĄ ta karta liczyła bez żadnego filtra
-                    // widoczności ani statusu autora, a `show()` niżej filtrował
-                    // OBOMA (`widoczneDla()` i `dostepnyJakoAutor()`, audyt
-                    // W5-08). Dwa ekrany tego samego zeszytu liczyły więc dwie
-                    // różne rzeczy — i to NIE PO RÓWNO: prywatna treść była
-                    // wliczona w obie liczby, a treść miękko usunięta (SoftDeletes
-                    // dodaje globalny zakres) wypadała tylko z tej karty, nie
-                    // z wnętrza zeszytu. Jedna reguła zamiast dwóch przypadkowo
-                    // różnych: karta pokazuje WIDOCZNE, wnętrze dokłada „N nie
-                    // jest dostępnych" — i te dwie liczby razem dają całość.
-                    'recipes as recipes_count' => fn ($q) => $q->widoczneDla($user)
-                        ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()),
-                    // Wpisy — ta sama reguła co wnętrze zeszytu, łącznie
-                    // z bramką przepisu i statusem jego autora (#1319).
-                    'posts as posts_count' => fn ($q) => $q->widoczneWZeszycieDla($user),
                     // CAŁKOWITA LICZBA ZACHOWANYCH ZAPISÓW — łącznie z tymi
                     // miękko usuniętymi (`withTrashed()`, tak jak w `show()`) —
                     // po to, żeby policzyć RÓŻNICĘ, nie żeby ją pokazać wprost.
                     'recipes as recipes_total_count' => fn ($q) => $q->withTrashed(),
                     'posts as posts_total_count' => fn ($q) => $q->withTrashed(),
                 ])
+                ->afterQuery(fn (EloquentCollection $zeszyty) => $this->policzWidoczne($zeszyty, $user))
                 ->orderByDesc('is_default')
                 ->orderBy('name')
                 ->get(),
@@ -99,7 +87,66 @@ class CollectionController extends Controller
                 ->orderBy('name')
                 ->get(),
             'zaproszenia' => app(ZaproszeniaDoZeszytow::class)->oczekujaceDla($user),
-        ]);
+        ] + $this->szukajWZapisach($request));
+    }
+
+    /**
+     * „Szukaj w moich zeszytach” — po TYTULE zapisanego przepisu (issue #779).
+     *
+     * Najprostsza wersja, na decyzję właściciela z 25.09.2026: jedno pole
+     * na ekranie „Moje”, formularz GET działający bez JavaScriptu, jeden
+     * wynik na przepis z listą zeszytów, w których leży — nie kilka kopii.
+     *
+     * BEZ NOWEGO SILNIKA. Porównanie idzie po tej samej kolumnie
+     * `recipes.title_search` (`kuking_normalize(title)`: małe litery, bez
+     * polskich znaków) i tą samą normalizacją frazy po stronie PHP co
+     * `SearchQuery` — „zurek” znajdzie „Żurek babci”. `LIKE` z ucieczką
+     * metaznaków, bo `%` i `_` z frazy mają być dosłownym tekstem (#753).
+     *
+     * WIDOCZNOŚĆ JAK WEWNĄTRZ ZESZYTU: `widoczneDla()` (widoczność, status,
+     * blokady w obie strony) i `dostepnyJakoAutor()`. Do zeszytu odkłada się
+     * CUDZE przepisy; po zmianie ich widoczności wynik znika, a nie zdradza
+     * tytułu. Zeszyty w wyniku i sam zakres szukania to wyłącznie zeszyty
+     * zalogowanej osoby (`owner_id`).
+     *
+     * @return array{szukaj: string, wynikiSzukania: ?\Illuminate\Support\Collection<int, Recipe>, bladSzukania: ?string, wiecejWynikow: bool}
+     */
+    private function szukajWZapisach(Request $request): array
+    {
+        $fraza = trim((string) $request->query('szukaj', ''));
+        $pusto = ['szukaj' => $fraza, 'wynikiSzukania' => null, 'bladSzukania' => null, 'wiecejWynikow' => false];
+
+        if ($fraza === '') {
+            return $pusto;
+        }
+
+        if (mb_strlen($fraza) > SearchQuery::MAX_PHRASE_LENGTH) {
+            return ['bladSzukania' => 'Skróć tekst w polu „Szukaj w moich zeszytach” do '.SearchQuery::MAX_PHRASE_LENGTH.' znaków i spróbuj ponownie.'] + $pusto;
+        }
+
+        if (mb_strlen($fraza) < 2) {
+            return ['bladSzukania' => 'Wpisz co najmniej dwie litery z tytułu przepisu.'] + $pusto;
+        }
+
+        $user = $request->user();
+        $limit = (int) config('kuking.zeszyt.szukaj_limit', 50);
+        $wzorzec = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], mb_strtolower(Str::ascii($fraza))).'%';
+
+        $wyniki = Recipe::query()
+            ->widoczneDla($user)
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->whereHas('collections', fn ($zeszyt) => $zeszyt->where('collections.owner_id', $user->getKey()))
+            ->where('recipes.title_search', 'like', $wzorzec)
+            ->with(['collections' => fn ($zeszyt) => $zeszyt->where('collections.owner_id', $user->getKey())->orderBy('collections.name')])
+            ->orderBy('recipes.title')
+            ->orderBy('recipes.id')
+            ->limit($limit + 1)
+            ->get();
+
+        return [
+            'wynikiSzukania' => $wyniki->take($limit)->values(),
+            'wiecejWynikow' => $wyniki->count() > $limit,
+        ] + $pusto;
     }
 
     /**
@@ -132,52 +179,45 @@ class CollectionController extends Controller
      * się CUDZE treści, a ich autor może potem zmienić widoczność, cofnąć
      * obserwowanie albo zostać zbanowany.
      *
-     * KOSZT NIE ROŚNIE Z ZAWARTOŚCIĄ ZESZYTU: dwa zapytania po `limit(5)`
-     * plus dociągnięcie zdjęć i autorów, niezależnie od tego, czy w zeszytach
-     * leży pięć rzeczy, czy pięćset (`SzynaBezWachlarzaZapytanTest`).
+     * KOSZT NIE ROŚNIE Z ZAWARTOŚCIĄ ZESZYTU: na każdy rodzaj jedno zapytanie
+     * o zapisy i jedno o widoczność kandydatów, plus dociągnięcie zdjęć
+     * i autorów, niezależnie od tego, czy w zeszytach leży pięć rzeczy, czy
+     * pięćset (`SzynaBezWachlarzaZapytanTest`).
      *
-     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     * I NIE ROŚNIE Z HISTORIĄ W ŚRODKU TYCH ZAPYTAŃ (#2030). Wcześniej każde
+     * z nich liczyło `max(collection_items.created_at)` i pełną regułę
+     * widoczności dla KAŻDEJ rzeczy kiedykolwiek odłożonej, sortowało wszystko
+     * i dopiero wtedy brało pięć. Teraz `ostatnioOdlozone()` idzie po zapisach
+     * od najnowszego i sprawdza widoczność tylko małej partii kandydatów —
+     * wynik i kolejność są te same (dowód: `SzynaOstatnioZapisanychKosztTest`,
+     * pomiar: docs/infra/ZESZYTY_KOSZT_2030.md).
+     *
+     * @return \Illuminate\Support\Collection<int, covariant array{href: string, nazwa: string, podpis: string, media: \App\Models\Media|null, zapisano_at: mixed}>
      */
     private function ostatnioZapisane(User $user): \Illuminate\Support\Collection
     {
         $ile = 5;
 
-        $zapisano = fn (string $kolumna, string $tabela) => DB::table('collection_items')
-            ->join('collections', 'collections.id', '=', 'collection_items.collection_id')
-            ->whereColumn('collection_items.'.$kolumna, $tabela.'.id')
-            ->where('collections.owner_id', $user->getKey())
-            ->selectRaw('max(collection_items.created_at)');
-
-        $przepisy = Recipe::query()
+        $przepisy = $this->ostatnioOdlozone($user, 'recipe_id', $ile, ['heroMedia', 'author.profile'], fn (array $id) => Recipe::query()
             ->widoczneDla($user)
             ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
-            ->whereHas('collections', fn ($q) => $q->where('collections.owner_id', $user->getKey()))
-            ->addSelect(['zapisano_at' => $zapisano('recipe_id', 'recipes')])
-            ->with(['heroMedia', 'author.profile'])
-            ->orderByDesc('zapisano_at')
-            ->orderByDesc('recipes.id')
-            ->limit($ile)
-            ->get()
+            ->whereKey($id)
+            ->get())
             ->map(fn (Recipe $przepis) => [
                 'href' => $przepis->url(),
                 'nazwa' => $przepis->title,
                 'podpis' => 'Przepis · '.$przepis->author->displayName(),
                 'media' => $przepis->heroMedia,
-                'zapisano_at' => $przepis->zapisano_at,
+                'zapisano_at' => $przepis->getAttribute('zapisano_at'),
             ]);
 
         // Wpisy przez pełną regułę wnętrza zeszytu (#1319): zapowiedź
         // schowanego przepisu nie może zająć miejsca w pięciu pozycjach
         // ani dać odnośnika, który Policy kończy odmową.
-        $wpisy = Post::query()
+        $wpisy = $this->ostatnioOdlozone($user, 'post_id', $ile, ['media', 'author.profile'], fn (array $id) => Post::query()
             ->widoczneWZeszycieDla($user)
-            ->whereHas('collections', fn ($q) => $q->where('collections.owner_id', $user->getKey()))
-            ->addSelect(['zapisano_at' => $zapisano('post_id', 'posts')])
-            ->with(['media', 'author.profile'])
-            ->orderByDesc('zapisano_at')
-            ->orderByDesc('posts.id')
-            ->limit($ile)
-            ->get()
+            ->whereKey($id)
+            ->get())
             ->map(fn (Post $wpis) => $wpis->kind === Post::KIND_QUESTION ? [
                 'href' => $wpis->url(),
                 // Pytanie ma własny tytuł i często nic poza nim — to on
@@ -185,7 +225,7 @@ class CollectionController extends Controller
                 'nazwa' => (string) $wpis->title,
                 'podpis' => 'Pytanie · '.$wpis->author->displayName(),
                 'media' => $wpis->media->first(),
-                'zapisano_at' => $wpis->zapisano_at,
+                'zapisano_at' => $wpis->getAttribute('zapisano_at'),
             ] : [
                 'href' => $wpis->url(),
                 // Danie nie ma tytułu. Pierwsze słowa są tym, po czym człowiek
@@ -196,7 +236,7 @@ class CollectionController extends Controller
                     : 'Zdjęcie bez opisu',
                 'podpis' => 'Wpis · '.$wpis->author->displayName(),
                 'media' => $wpis->media->first(),
-                'zapisano_at' => $wpis->zapisano_at,
+                'zapisano_at' => $wpis->getAttribute('zapisano_at'),
             ]);
 
         // Sortowanie po ZNACZNIKU CZASU, nie po tekście z bazy. `timestamptz`
@@ -206,6 +246,165 @@ class CollectionController extends Controller
             ->sortByDesc(fn (array $pozycja) => Carbon::parse($pozycja['zapisano_at'])->getTimestamp())
             ->take($ile)
             ->values();
+    }
+
+    /**
+     * Do `$ile` WIDOCZNYCH rzeczy jednego rodzaju, od odłożonej najpóźniej
+     * (#2030) — ta sama lista i kolejność, którą dawało
+     * `ORDER BY max(collection_items.created_at) DESC, id DESC LIMIT $ile`.
+     *
+     * DLACZEGO TO JEST TA SAMA KOLEJNOŚĆ. Zapisy konta czytamy od najnowszego
+     * po (`created_at` DESC, id DESC). Pierwsze spotkanie danej rzeczy to jej
+     * NAJPÓŹNIEJSZY zapis, czyli dokładnie `max()` po wszystkich zeszytach;
+     * dalsze spotkania tej samej rzeczy są starsze i je pomijamy. Kolejność
+     * pierwszych spotkań to więc (max DESC, id DESC) — bez agregacji całej
+     * historii.
+     *
+     * WIDOCZNOŚĆ SPRAWDZA `$widoczne` — ta sama reguła co dotąd (blokady,
+     * widoczność, status autora, bramka przepisu wpisu), tylko na partii
+     * kandydatów zamiast na wszystkim, co kiedykolwiek odłożono. Rzecz
+     * niewidoczna odpada i czytamy dalej, więc pięć schowanych zapisów na
+     * górze nie zabiera miejsca ani nie skraca listy.
+     *
+     * PARTIE ROSNĄ (20, 80, 320, 1000…), żeby konto, którego najnowsze zapisy
+     * w większości zniknęły z widoku, nie płaciło setek zapytań. Zwykle
+     * wystarcza pierwsza partia — liczba zapytań się nie zmienia
+     * (`SzynaBezWachlarzaZapytanTest`).
+     *
+     * Zakres zeszytów przez `whereIn` z podzapytaniem, nie `join`: tabela
+     * `collections` ma kolumnę `visibility` (patrz wyżej). Relacje
+     * (`$relacje`) dociągamy dopiero do wybranych `$ile` rzeczy, nie do
+     * całej partii.
+     *
+     * @template TModel of Recipe|Post
+     *
+     * @param  'recipe_id'|'post_id'  $kolumna
+     * @param  list<string>  $relacje
+     * @param  \Closure(list<string>): EloquentCollection<int, TModel>  $widoczne
+     * @return EloquentCollection<int, TModel>
+     */
+    private function ostatnioOdlozone(User $user, string $kolumna, int $ile, array $relacje, \Closure $widoczne): EloquentCollection
+    {
+        /** @var EloquentCollection<int, TModel> $znalezione */
+        $znalezione = new EloquentCollection;
+        $obejrzane = [];
+        $kursor = null;
+        $partia = 20;
+
+        do {
+            $zapisy = DB::table('collection_items')
+                ->whereIn('collection_items.collection_id', Collection::query()->where('owner_id', $user->getKey())->select('id'))
+                ->whereNotNull('collection_items.'.$kolumna)
+                ->when($kursor !== null, fn ($q) => $q->whereRaw(
+                    '(collection_items.created_at, collection_items.'.$kolumna.') < (?::timestamptz, ?::uuid)',
+                    $kursor,
+                ))
+                ->orderByDesc('collection_items.created_at')
+                ->orderByDesc('collection_items.'.$kolumna)
+                // Jeden wiersz ponad partię mówi tylko, czy jest dalszy ciąg —
+                // bez niego pełna partia kosztowałaby puste zapytanie.
+                ->limit($partia + 1)
+                ->get(['collection_items.'.$kolumna.' as id', 'collection_items.created_at']);
+            $dalej = $zapisy->count() > $partia;
+            $zapisy = $zapisy->take($partia);
+
+            /** @var array<string, string> $kandydaci id => najpóźniejszy zapis */
+            $kandydaci = [];
+
+            foreach ($zapisy as $zapis) {
+                if (! isset($obejrzane[$zapis->id])) {
+                    $obejrzane[$zapis->id] = true;
+                    $kandydaci[$zapis->id] = $zapis->created_at;
+                }
+            }
+
+            if ($kandydaci !== []) {
+                $modele = $widoczne(array_map('strval', array_keys($kandydaci)))
+                    ->keyBy(fn ($model) => (string) $model->getKey());
+
+                foreach ($kandydaci as $id => $zapisano) {
+                    if (isset($modele[$id])) {
+                        $znalezione->push($modele[$id]->setAttribute('zapisano_at', $zapisano));
+
+                        if ($znalezione->count() === $ile) {
+                            return $znalezione->load($relacje);
+                        }
+                    }
+                }
+            }
+
+            $ostatni = $zapisy->last();
+            $kursor = $ostatni === null ? null : [$ostatni->created_at, $ostatni->id];
+            $partia = min($partia * 4, 1000);
+        } while ($dalej);
+
+        return $znalezione->load($relacje);
+    }
+
+    /**
+     * Liczby na kartach zeszytów: ile WIDOCZNYCH przepisów i wpisów leży
+     * w każdym (issue #774, #1319, #2030).
+     *
+     * LICZBA WIDOCZNA — DOKŁADNIE TA SAMA, KTÓRĄ CZŁOWIEK ZOBACZY PO WEJŚCIU
+     * (issue #774). PRZED TAMTĄ ZMIANĄ karta liczyła bez żadnego filtra
+     * widoczności ani statusu autora, a `show()` filtrował OBOMA
+     * (`widoczneDla()` i `dostepnyJakoAutor()`, audyt W5-08). Dwa ekrany tego
+     * samego zeszytu liczyły więc dwie różne rzeczy — i to NIE PO RÓWNO:
+     * prywatna treść była wliczona w obie liczby, a treść miękko usunięta
+     * (SoftDeletes dodaje globalny zakres) wypadała tylko z karty, nie
+     * z wnętrza zeszytu. Jedna reguła zamiast dwóch przypadkowo różnych:
+     * karta pokazuje WIDOCZNE, wnętrze dokłada „N nie jest dostępnych" —
+     * i te dwie liczby razem dają całość. Wpisy liczy ta sama reguła co
+     * wnętrze zeszytu, łącznie z bramką przepisu i statusem jego autora (#1319).
+     *
+     * JEDNO ZAPYTANIE NA RODZAJ, NIE PODZAPYTANIE NA ZESZYT (#2030). Do tej
+     * zmiany te dwie liczby były skorelowanymi podzapytaniami `withCount()`
+     * w zapytaniu o listę. Pracy było tyle samo, ale planer mnożył koszt
+     * jednego podzapytania przez liczbę zeszytów. Przy 200 zeszytach
+     * szacunek przekraczał `jit_inline_above_cost` i PostgreSQL kompilował
+     * zapytanie przez JIT z inliningiem i optymalizacją — ok. 0,6–0,7 s
+     * na samą kompilację przy ok. 0,1 s właściwej pracy
+     * (docs/infra/ZESZYTY_KOSZT_2030.md). Zgrupowane zliczenie po
+     * `collection_items` daje te same liczby i jeden, mniejszy szacunek.
+     *
+     * `join` z `collection_items`, NIE z `collections`: tabela zeszytów ma
+     * kolumnę `visibility`, a zakresy widoczności pytają o nią bez nazwy
+     * tabeli (patrz `ostatnioZapisane()`). Zeszyty wybiera podzapytanie po
+     * właścicielu — to te same zeszyty, które wypisuje lista.
+     *
+     * @param  EloquentCollection<int, Collection>  $zeszyty
+     */
+    private function policzWidoczne(EloquentCollection $zeszyty, User $user): void
+    {
+        if ($zeszyty->isEmpty()) {
+            return;
+        }
+
+        $wlasne = Collection::query()->where('owner_id', $user->getKey())->select('id');
+
+        $przepisy = Recipe::query()
+            ->widoczneDla($user)
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->join('collection_items', 'collection_items.recipe_id', '=', 'recipes.id')
+            ->whereIn('collection_items.collection_id', $wlasne)
+            ->groupBy('collection_items.collection_id')
+            ->toBase()
+            ->selectRaw('collection_items.collection_id, count(*) as ile')
+            ->pluck('ile', 'collection_id');
+
+        $wpisy = Post::query()
+            ->widoczneWZeszycieDla($user)
+            ->join('collection_items', 'collection_items.post_id', '=', 'posts.id')
+            ->whereIn('collection_items.collection_id', $wlasne)
+            ->groupBy('collection_items.collection_id')
+            ->toBase()
+            ->selectRaw('collection_items.collection_id, count(*) as ile')
+            ->pluck('ile', 'collection_id');
+
+        foreach ($zeszyty as $zeszyt) {
+            $zeszyt->setAttribute('recipes_count', (int) ($przepisy[$zeszyt->getKey()] ?? 0));
+            $zeszyt->setAttribute('posts_count', (int) ($wpisy[$zeszyt->getKey()] ?? 0));
+        }
     }
 
     public function show(Request $request, Collection $collection): View|RedirectResponse
@@ -219,23 +418,11 @@ class CollectionController extends Controller
             ->with(Recipe::RELACJE_KARTY)
             ->paginate(12);
 
+        // Granice widoczności: `WidocznaZawartoscZeszytu` (#773, ta sama reguła
+        // liczy niżej niedostępne zapisy). Relacje karty, licznik komentarzy
+        // i zapisów — jeden kontrakt `Post::scopeDlaKarty()` (#1037).
         $posts = $this->zawartosc->wpisy($collection, $request->user())
-            // `recipe:…` + `recipe.heroMedia` — jak w czterech strumieniach
-            // (issue #368). Zeszyt rysuje tę samą kartę `x-post-card`, która
-            // czyta z przepisu tytuł, odnośnik, `visibility` na plakietkę
-            // i zdjęcie główne; bez doładowania każdy taki wpis to dwa osobne
-            // zapytania na stronę.
-            ->with([
-                'author.profile.avatar',
-                'media',
-                'recipe:id,title,slug,visibility,hero_media_id',
-                'recipe.heroMedia',
-            ])
-            ->withVisibleCommentCount($request->user())
-            // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
-            // zapytaniem (issue #275, D-081). Reguły siedzą
-            // w `ZapisyWpisu`; tutaj dokładamy tylko kolumnę do SELECT-a.
-            ->tap(fn ($q) => $this->zapisy->dolicz($q, $request->user()))
+            ->dlaKarty($request->user())
             ->paginate(
                 (int) config('kuking.collections.saved_posts_page_size'),
                 ['*'],
@@ -546,7 +733,11 @@ class CollectionController extends Controller
         // ma chronić. Dlatego najpierw sprawdzamy, czy to nie jest powrót po
         // wyjęciu, które sami przed chwilą zrobiliśmy.
         if ($collection === null && $request->input('note') === null) {
-            $powrot = $this->przywrocPoWyjeciu($request, 'przepis', (string) $model->getKey());
+            try {
+                $powrot = $this->przywrocPoWyjeciu($request, 'przepis', (string) $model->getKey());
+            } catch (BladDlaCzlowieka $e) {
+                return back()->withErrors(['collection_id' => $e->getMessage()]);
+            }
 
             if ($powrot !== null) {
                 return back()->with('status', $powrot);
@@ -659,7 +850,11 @@ class CollectionController extends Controller
 
         // Powrót po wyjęciu — uzasadnienie przy `saveRecipe()`.
         if ($collection === null && $request->input('note') === null) {
-            $powrot = $this->przywrocPoWyjeciu($request, 'wpis', (string) $post->getKey());
+            try {
+                $powrot = $this->przywrocPoWyjeciu($request, 'wpis', (string) $post->getKey());
+            } catch (BladDlaCzlowieka $e) {
+                return back()->withErrors(['collection_id' => $e->getMessage()]);
+            }
 
             if ($powrot !== null) {
                 return back()->with('status', $powrot);

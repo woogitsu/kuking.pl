@@ -38,6 +38,16 @@
     // innego niż nasze wywołanie zwrotne, człowiek dostaje tę samą stronę,
     // tyle że bez odzyskanej treści — zamiast „Undefined variable".
     $formularz ??= \App\Exceptions\OdzyskanyFormularz::zZadania(request());
+
+    // Dokąd prowadzi „Strona główna". Gość odbity limitem SAMEJ strony
+    // głównej (#1952) dostałby z tego przycisku znowu 429 aż do końca
+    // przerwy — martwy przycisk. `/odkryj` ma osobny budżet, więc tam
+    // odsyłamy, pod nazwą, która mówi, co się otworzy.
+    [$powrotAdres, $powrotNapis] = match (true) {
+        auth()->check() => [route('home'), 'Strona główna'],
+        request()->routeIs('landing') => [route('discover'), 'Zobacz dania i przepisy'],
+        default => [route('landing'), 'Strona główna'],
+    };
 @endphp
 
 <x-layout title="Za dużo prób" :noindex="true">
@@ -144,7 +154,7 @@
 
             <div class="form-actions">
                 <button class="btn btn-primary" type="submit">Wyślij jeszcze raz</button>
-                <a class="btn btn-quiet" href="{{ auth()->check() ? route('home') : route('landing') }}">Strona główna</a>
+                <a class="btn btn-quiet" href="{{ $powrotAdres }}">{{ $powrotNapis }}</a>
             </div>
         </form>
     @else
@@ -170,7 +180,7 @@
         </p>
 
         <div class="form-actions">
-            <a class="btn btn-primary" href="{{ auth()->check() ? route('home') : route('landing') }}">Strona główna</a>
+            <a class="btn btn-primary" href="{{ $powrotAdres }}">{{ $powrotNapis }}</a>
             <a class="btn btn-quiet" href="{{ route('help') }}">Pomoc</a>
         </div>
     @endif

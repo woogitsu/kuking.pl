@@ -8,6 +8,7 @@ use App\Jobs\GenerateUserExport;
 use App\Models\AuditLogEntry;
 use App\Models\DataExport;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -102,6 +103,16 @@ final class ZamowEksportDanych
             }
 
             return $this->przejmijTrwajacy($aktywny);
+        } catch (QueryException $e) {
+            // Baza nie przyjęła rekordu albo zadania (issue #824). Transakcja
+            // wyżej cofnęła OBA, więc nie zostaje `queued` bez wykonawcy —
+            // ale człowiek nie może dostać ekranu 500, tylko zdanie, co
+            // zrobić. Konflikt unikalności łapie gałąź wyżej; `LogicException`
+            // z `zlecWykonanie()` (zła kolejka) celowo przelatuje — to błąd
+            // wdrożenia, nie chwilowa awaria.
+            report($e);
+
+            return WynikZamowieniaEksportu::Nieprzyjety;
         }
 
         // WPIS POMOCNICZY ZA TRANSAKCJĄ (D-249, klasa 2; #1429). Autorytatywny

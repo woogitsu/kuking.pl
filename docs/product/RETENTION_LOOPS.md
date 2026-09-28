@@ -56,7 +56,7 @@ Format: **trigger → akcja → nagroda → inwestycja**. „Inwestycja” = to,
 
 | | |
 |---|---|
-| **Trigger** | Pytanie dnia na `/home`: „Co dziś ugotowałaś, Basiu?” (wariant zależny od pory dnia/sezonu) |
+| **Trigger** | Pytanie dnia na `/home`: „Co dziś ugotowałaś, Basiu?” (dziś stałe powitanie „Dzień dobry, …” — D-207; wariantu pory dnia ani sezonu nie ma) |
 | **Akcja** | Zdjęcie z galerii + kilka słów + `Opublikuj` (<60 s) |
 | **Nagroda** | Komentarz z konkretem w 2 h + „Ładne!” od kilku osób + potwierdzenie z datą („Twoje danie jest w Kuking — 4 listopada 2026”) |
 | **Inwestycja** | Wpis wchodzi do archiwum profilu → rośnie własna kolekcja życia, której nie chce się porzucić |
@@ -90,15 +90,25 @@ Format: **trigger → akcja → nagroda → inwestycja**. „Inwestycja” = to,
 
 ### Pętla 5 — Sezon → potrzeba teraz → przepis → wykonanie
 
+> **Stan po D-021 i D-026 (korekta z 28 września 2026, issue #2083).**
+> Sezon nie ma w aplikacji automatu. D-026: „Informacja zostaje w pliku.”
+> Kalendarz [`dane/kalendarz-polskiej-kuchni.json`](dane/kalendarz-polskiej-kuchni.json)
+> to ręczny bank propozycji; aplikacja go nie wczytuje (`TAG_TYGODNIA.md` §2).
+> Sezon trafia do ludzi tylko przez wybór gospodarza: tag promowany albo
+> tag tygodnia (D-021; datowane wyróżnienie z #18, za flagą
+> `kuking.tag_tygodnia.wlaczony`, domyślnie wyłączoną). Pasek „Teraz sezon
+> na…” w Discover i tabela `seasonal_moments` **nie istnieją**. To
+> nierozstrzygnięty pomysł, który wymaga osobnej decyzji właściciela.
+
 | | |
 |---|---|
-| **Trigger** | Sezon: „Teraz sezon na śliwki” (Discover) albo z własnego archiwum: „W zeszłym roku kisiłaś w trzecim tygodniu października” |
+| **Trigger** | Sezonowy tag tygodnia albo tag promowany wybrany przez gospodarza z kalendarza (dziś). Pomysły bez decyzji: pasek „Teraz sezon na śliwki” w Discover; z własnego archiwum: „W zeszłym roku kisiłaś w trzecim tygodniu października” (V1) |
 | **Akcja** | Szukanie przepisu → gotowanie → `Ugotowałem` albo własny wpis |
-| **Nagroda** | Rozwiązany realny problem (mam 5 kg śliwek) + wykonanie trafia do sezonowej kolekcji |
+| **Nagroda** | Rozwiązany realny problem (mam 5 kg śliwek) + wykonanie może trafić do sezonowego zeszytu, który gospodarz składa ręcznie |
 | **Inwestycja** | Powstaje treść sezonowa, która za rok będzie triggerem dla kogoś innego → **pętla roczna, najtrwalsza w produkcie** |
-| **Koszt / kiedy** | S (kalendarz jako dane) / **MVP**; wariant z archiwum: M / V1 |
+| **Koszt / kiedy** | Kalendarz jako ręczny plik redakcji: **jest**; tag tygodnia: **jest za flagą**; automatyczny sezon w Discover: **nierozstrzygnięte**, osobna decyzja; wariant z archiwum: M / V1 |
 | **Miara** | `wykonania przepisów sezonowych / tydzień`, `powroty rok do roku w tym samym tygodniu sezonowym` (mierzalne od 2. roku) |
-| **Jak się psuje** | Sezon staje się banerem, który się ignoruje. **Naprawa: sezon zmienia teksty (pytanie dnia, temat, digest), nigdy nie jest pop-upem** |
+| **Jak się psuje** | Sezon staje się banerem, który się ignoruje. **Naprawa: sezon to wybór gospodarza w tagu tygodnia i zdanie w digeście, nigdy pop-up** |
 
 ### Pętla 6 — Rodzinny przepis → wzruszenie rodziny → zaproszenie → nowa osoba
 
@@ -182,16 +192,19 @@ Format: **trigger → akcja → nagroda → inwestycja**. „Inwestycja” = to,
 
 ### 3.2 Limity częstotliwości (twarde)
 
-> **Stan (issue #35, etap 1): reguły są w kodzie, kanału jeszcze nie ma.**
+> **Stan (issue #35, D-303, 26.09.2026): reguły i kanał Web Push są w kodzie.**
 > Cisza nocna i limit dobowy dla powiadomień POZA serwisem żyją w jednym
 > miejscu, niezależnym od dostawcy:
 > `app/Domain/Notifications/TerminPowiadomieniaZewnetrznego.php`
-> (konfiguracja: `kuking.notifications.zewnetrzne`). Cisza i wyczerpany limit
-> **odkładają** zdarzenie do 8:00 w strefie odbiorcy, nigdy go nie kasują.
-> Flaga `KUKING_POWIADOMIENIA_ZEWNETRZNE` jest domyślnie wyłączona i żaden
-> kanał (Web Push, e-mail o zdarzeniu) tej klasy jeszcze nie woła.
-> Grupowanie, preferencje per typ i „wyłącz wszystkie” — dalsza część etapu 1.
-> Powiadomienia w serwisie tych reguł nie dotyczą.
+> (domyślne: `kuking.notifications.zewnetrzne`; człowiek może je zmienić na
+> `/ustawienia/powiadomienia`). Cisza i wyczerpany limit **odkładają**
+> zdarzenie do końca ciszy / rana następnej doby, nigdy go nie kasują, a to,
+> co czekało, idzie JEDNYM pushem (grupowanie). Web Push działa dopiero po
+> wpisaniu kluczy VAPID; zgoda przeglądarki wyłącznie po kliknięciu
+> w ustawieniach. **Decyzja właściciela (D-303): bez preferencji per typ** —
+> jest przełącznik per kanał (push per urządzenie, „wyłącz na wszystkich
+> urządzeniach"), cisza nocna i limit. Punkt 6 z §3.3 („wyłączniki per typ")
+> jest przez to nieaktualny. Powiadomienia w serwisie tych reguł nie dotyczą.
 
 | Reguła | Wartość |
 |---|---|
@@ -429,7 +442,7 @@ Kolejność ma znaczenie — pierwsze cztery są śmiertelne, reszta jest bolesn
 | Pętla 2 (pytanie dnia + obietnica odzewu + panel „wpisy bez odpowiedzi”) | S + operacje | **tak** |
 | Pętla 3 (sobotnie przypomnienie o 1 zapisanym przepisie) | S | **tak** |
 | Pętla 4 (temat tygodnia + piątkowa kolekcja) | S | **tak** |
-| Pętla 5 (sezon jako dane: pytanie dnia, temat, pasek w Discover) | S | **tak** |
+| Pętla 5 (sezon: kalendarz jako ręczny plik redakcji + tag tygodnia wybierany przez gospodarza; D-021, D-026) | S | częściowo — tag tygodnia za flagą; pasek w Discover i sezonowe pytanie dnia: **nie**, nierozstrzygnięte bez decyzji właściciela |
 | Pętla 6 (pola „po kim” / „skąd ten przepis” / „w rodzinie od” / skan) | S | **tak** |
 | Pętla 9 (digest tygodniowy) | M | **tak** |
 | Powiadomienia in-app + e-mail z limitami i ciszą nocną | M | **tak** |

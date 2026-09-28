@@ -23,12 +23,12 @@ final class CofniecieMigracjiWspolnegoZeszytuTest extends TestCase
 
     private function tabele(): object
     {
-        return require database_path('migrations/2026_09_26_120000_create_collection_sharing_tables.php');
+        return require database_path('migrations/2026_09_29_100000_create_collection_sharing_tables.php');
     }
 
     private function autorstwo(): object
     {
-        return require database_path('migrations/2026_09_26_120100_add_added_by_to_collection_items.php');
+        return require database_path('migrations/2026_09_29_100100_add_added_by_to_collection_items.php');
     }
 
     private function zeszyt(): Collection

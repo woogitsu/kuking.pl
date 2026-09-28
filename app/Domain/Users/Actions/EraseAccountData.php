@@ -5,17 +5,25 @@ declare(strict_types=1);
 namespace App\Domain\Users\Actions;
 
 use App\Domain\Collections\Wspoldzielenie\ZerwijWspoldzielenie;
+use App\Domain\Compliance\DziennikWymazan;
 use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
+use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
+use App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem;
+use App\Models\AuditLogEntry;
 use App\Models\ContactMessage;
 use App\Models\DataExport;
+use App\Models\Hide;
 use App\Models\MailFailure;
 use App\Models\Media;
+use App\Models\PostReaction;
+use App\Models\PrzepisZImportu;
 use App\Models\User;
 use App\Models\WpisZgody;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -81,11 +89,26 @@ final class EraseAccountData
         private readonly KasujZdjecie $kasujZdjecie = new KasujZdjecie,
         private readonly PrzestawZgodeNaDigest $przestawZgode = new PrzestawZgodeNaDigest,
         private readonly RejestrPotwierdzenRodo $rejestr = new RejestrPotwierdzenRodo,
+        private readonly PrzestawZgodeNaOdczytAi $zgodaNaOdczytAi = new PrzestawZgodeNaOdczytAi,
+        private readonly DziennikWymazan $dziennik = new DziennikWymazan,
+        private readonly PrzestawZgodeNaZyczeniaMailem $zgodaNaZyczenia = new PrzestawZgodeNaZyczeniaMailem,
     ) {}
 
     /** @return bool Prawda, jeśli TO wywołanie faktycznie coś usunęło. */
     public function handle(User $user): bool
     {
+        return $this->wymaz($user, false);
+    }
+
+    /** Egzekucja zwykłej karencji wymaga TEJ SAMEJ generacji wniosku. */
+    public function handleExpiredRequest(User $kandydat): bool
+    {
+        return $this->wymaz($kandydat, true);
+    }
+
+    private function wymaz(User $user, bool $wymagajWygaslegoWniosku): bool
+    {
+        $oczekiwanaGeneracja = $user->delete_request_generation;
         $fresh = User::query()->whereKey($user->getKey())->first();
 
         // PONOWIENIE (audyt/issue #17): konto jest JUŻ zanonimizowane
@@ -114,8 +137,9 @@ final class EraseAccountData
 
         /** @var list<Media> $doSkasowania */
         $doSkasowania = [];
+        $zakresDoDziennika = null;
 
-        $wymazano = DB::transaction(function () use ($user, &$doSkasowania): bool {
+        $wymazano = DB::transaction(function () use ($user, $wymagajWygaslegoWniosku, $oczekiwanaGeneracja, &$doSkasowania, &$zakresDoDziennika): bool {
             // Świeży odczyt pod blokadą, nie ufamy stanowi z argumentu —
             // między zapytaniem, które wybrało konta do egzekucji, a tym
             // wywołaniem ktoś mógł cofnąć usunięcie albo inny proces mógł
@@ -127,6 +151,25 @@ final class EraseAccountData
                 || $fresh->data_erased_at !== null
             ) {
                 return false;
+            }
+
+            // Egzekutor przekazuje generację wniosku z materializowanej listy.
+            // Cofnięcie i ponowne zgłoszenie może przywrócić pending_delete,
+            // ale nie może skrócić NOWEJ karencji przez stary przebieg workera.
+            // Odtwarzanie po backupie (`WymazPonownie`) używa `handle()`:
+            // odtwarza wymazanie już wykonane i zapisane w dzienniku.
+            if ($wymagajWygaslegoWniosku) {
+                $koniecKarencji = $fresh->deletionGraceEndsAt();
+
+                if ($oczekiwanaGeneracja === null
+                    || $fresh->delete_request_generation === null
+                    || $fresh->delete_requested_at === null
+                    || $koniecKarencji === null
+                    || $koniecKarencji->isFuture()
+                    || $fresh->delete_request_generation !== $oczekiwanaGeneracja
+                ) {
+                    return false;
+                }
             }
 
             $profile = $fresh->profile;
@@ -217,6 +260,44 @@ final class EraseAccountData
             $fresh->followedTags()->detach();
 
             /*
+             * PLANER TYGODNIA ZNIKA RAZEM Z KONTEM (#27, D-310).
+             *
+             * To prywatne notatki jednej osoby („obiad u mamy”, przepis na
+             * wtorek) — nikt inny ich nie widział i nikomu nie są potrzebne,
+             * więc nie ma tu nic do zachowania ani do anonimizowania.
+             * Bezwarunkowo, jak relacje wyżej: zakres usunięcia („minimum” /
+             * „wszystko”) dotyczy treści pokazanych innym, a plan nigdy nie
+             * był pokazany. Wiersze kluczem `user_id` — dwie egzekucje nie
+             * mają wspólnych wierszy (ten sam argument co przy `tag_follows`).
+             */
+            $fresh->mealPlanEntries()->delete();
+
+            /*
+             * PRYWATNE UKRYCIA (`hides`, #1810) ZNIKAJĄ RAZEM Z KONTEM
+             * (przegląd #1781). To są decyzje tej osoby o tym, czego nie chce
+             * widzieć — dane o niej, bez wartości po wymazaniu. Jawnie, a nie
+             * kaskadą `ON DELETE CASCADE` z migracji: kont z Kuking się nie
+             * kasuje, tylko anonimizuje (D-022), więc kaskada nigdy tu nie
+             * zadziała. Tylko wiersze PO STRONIE WIDZA (`user_id`) — ukrycia,
+             * w których to konto jest ukrytą osobą, należą do innych ludzi.
+             * Kluczem jest `user_id`, więc dwie egzekucje różnych kont nie
+             * mają wspólnego wiersza (ten sam rachunek co `tag_follows`, D-093).
+             */
+            Hide::query()->where('user_id', $fresh->getKey())->delete();
+
+            /*
+             * „SMAKOWICIE WYGLĄDA" (`post_reactions`, #1813) ZNIKA RAZEM
+             * Z KONTEM (przegląd #1781) — z tego samego powodu co ukrycia
+             * wyżej: kaskada klucza obcego przy anonimizacji nie zadziała.
+             * Bez tego autorzy dalej widzieliby przy swoich wpisach reakcję
+             * „Użytkownika usuniętego". Tylko reakcje NAPISANE przez to konto
+             * (`user_id`); reakcje innych pod jego wpisami to słowa tamtych
+             * osób. Kluczem jest `user_id`, więc dwie egzekucje nie mają
+             * wspólnego wiersza (D-093).
+             */
+            PostReaction::query()->where('user_id', $fresh->getKey())->delete();
+
+            /*
              * DRUGI SKŁADNIK LOGOWANIA ZNIKA RAZEM Z KONTEM (G05).
              *
              * Sekret i kody zapasowe leżą pod castem `encrypted`, więc to
@@ -267,8 +348,33 @@ final class EraseAccountData
              */
             $fresh->tozsamosciZewnetrzne()->delete();
 
+            /*
+             * WEB PUSH ZNIKA RAZEM Z KONTEM (D-303).
+             *
+             * Subskrypcja to adres, pod który serwer może pisać na czyjś
+             * ekran, a ustawienia ciszy nocnej mówią, kiedy ta osoba śpi.
+             * Konto bez właściciela nie ma komu wysyłać ani czego chronić.
+             * Jawnie, nie kaskadą — kont się nie kasuje (D-022).
+             */
+            $fresh->pushSubscriptions()->delete();
+            $fresh->ustawieniaPowiadomienZewnetrznych()->delete();
+
+            /*
+             * ZLECENIA ODCZYTU PRZEPISU ZNIKAJĄ RAZEM Z KONTEM (V2, D-298).
+             *
+             * Wiersz nie niesie treści przepisu, ale niesie surową odpowiedź
+             * modelu (do 30 dni — bywa w niej tekst z kartki) i ślad, kiedy
+             * ta osoba z czego korzystała. Klucz obcy ma `ON DELETE CASCADE`,
+             * ale kont się tu nie kasuje, tylko anonimizuje (D-022) — więc
+             * jawnie, jak przy `pending_email_changes` wyżej. Szkic i zdjęcie
+             * kartki idą drogą każdego przepisu i każdego zdjęcia tej osoby.
+             */
+            DB::table('proby_importu')->where('user_id', $fresh->getKey())->delete();
+            DB::table('importy_przepisow')->where('user_id', $fresh->getKey())->delete();
+
             $this->odlaczWiadomosciDoOperatora($fresh);
             $this->odlaczSladyNieudanychListow($fresh);
+            $this->usunPochodzenieImportow($fresh);
 
             /*
              * ZGODA NA POCZTĘ GAŚNIE Z DOWODEM, NIE PO CICHU (D-072).
@@ -297,6 +403,28 @@ final class EraseAccountData
              * (`PrzestawZgodeNaDigest`), a nie rzucany dalej.
              */
             $this->przestawZgode->handle($fresh, false, WpisZgody::ZRODLO_USUNIECIE_KONTA);
+            // Zgoda na mail urodzinowy (issue #1755) — tak samo: wycofanie
+            // z dowodem w dzienniku, nigdy nie wywraca kasowania konta.
+            $this->zgodaNaZyczenia->handle($fresh, false, WpisZgody::ZRODLO_USUNIECIE_KONTA);
+
+            /*
+             * ZGODA „ODCZYT AI” GAŚNIE TAK SAMO (D-296): wiersz `wycofana`
+             * ze źródłem `usuniecie_konta` domyka historię. Stanem tej zgody
+             * jest sam dziennik, więc bez tego wpisu dowód mówiłby „udzielona”
+             * do dziś. Jak przy digeście: nieudany zapis dowodu NIE wywraca
+             * kasowania konta (SAVEPOINT + dziennik aplikacji) — po
+             * anonimizacji nie ma już kogo odczytywać, a zlecenia odczytu
+             * znikają wyżej.
+             */
+            try {
+                DB::transaction(fn (): bool => $this->zgodaNaOdczytAi->handle($fresh, false, WpisZgody::ZRODLO_USUNIECIE_KONTA));
+            } catch (Throwable $awaria) {
+                Log::error('Nie udało się zapisać wycofania zgody na odczyt AI przy usuwaniu konta.', [
+                    'user_id' => (string) $fresh->getKey(),
+                    'wyjatek' => $awaria::class,
+                    'sqlstate' => $awaria instanceof QueryException ? (string) $awaria->getCode() : null,
+                ]);
+            }
 
             if ($profile !== null) {
                 $profile->forceFill([
@@ -324,6 +452,18 @@ final class EraseAccountData
                 'remember_token' => null,
                 'email_verified_at' => null,
                 'wants_weekly_digest' => false,
+                // „Mój stół" (#1749, D-304): usunięcie konta zdejmuje też
+                // preferencję półki propozycji — issue wymaga tego wprost.
+                'moj_stol_enabled' => false,
+                // Urodziny (issue #1755) — dana osobowa podana przez człowieka.
+                'birthday_day' => null,
+                'birthday_month' => null,
+                'wants_birthday_email' => false,
+                'birthday_visible_to_followers' => false,
+                'birthday_email_sent_on' => null,
+                // Bariera przed dublem (issue #1956) — czyścimy razem z resztą
+                // śladu urodzin, żeby nie zostawić samotnej daty bez znaczenia.
+                'birthday_email_queued_on' => null,
                 // `ostatnio_widziany_at` (issue #114/#115) jest DANĄ OSOBOWĄ
                 // tego samego rodzaju co reszta pól wyżej — mówi, kiedy
                 // KONKRETNA osoba ostatnio korzystała z serwisu. Konto
@@ -409,9 +549,40 @@ final class EraseAccountData
             // z 21.09.2026, razem z jej ceną, opisana w
             // `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §3.3 punkt 7.
             $this->rejestr->domknijJakoWykonane($fresh, $zakresWykonany);
+            $zakresDoDziennika = $zakresWykonany;
+
+            // WPIS `account.data_erased` W TEJ SAMEJ TRANSAKCJI (D-249,
+            // klasa 1; #1894) — NIE `recordBezWywracania()` po `COMMIT`.
+            //
+            // `AuditLogEntry::NIGDY_NIE_KASUJ` nazywa ten wpis JEDYNYM
+            // dowodem, że prawo do usunięcia konta zostało FAKTYCZNIE
+            // wykonane — wiersz `users` jest anonimizowany, nie skasowany,
+            // więc nic innego w bazie nie odpowie na pytanie „czy i kiedy".
+            // Wcześniej ten zapis szedł z egzekutora (`PurgeExpiredAccount
+            // Deletions::wymazKonto()`) PO powrocie z tej metody: awaria
+            // dziennika nie cofała już zatwierdzonej anonimizacji, więc
+            // konto zostawało bez wpisu NA ZAWSZE — kolejny przebieg
+            // pomija je przez `whereNull('data_erased_at')`, warunek, który
+            // ta anonimizacja właśnie ustawiła. Tu, w transakcji, awaria
+            // audytu cofa całą anonimizację: konto zostaje `pending_delete`
+            // z `data_erased_at` nadal pustym i trafia w kolejny przebieg
+            // egzekutora — jeden komplet albo żaden.
+            AuditLogEntry::record('account.data_erased', null, $fresh, metadata: [
+                'zakres' => $zakresWykonany,
+            ]);
 
             return true;
         });
+
+        // DZIENNIK POZA BAZĄ — PO COMMICIE (audyt B5, znalezisko 3).
+        // Odtworzenie bazy z kopii cofnęłoby wszystko, co zapisaliśmy wyżej;
+        // ten wpis przeżywa odtworzenie i jest wejściem `kuking:wymaz-ponownie`.
+        // Po commicie, bo wpis o wymazaniu, które się wycofało, byłby
+        // nieprawdą. Nieudany zapis nie zatrzymuje wymazania — dopisze go
+        // nocne `kuking:dziennik-wymazan`.
+        if ($wymazano && $zakresDoDziennika !== null) {
+            $this->dziennik->zapisz((string) $user->getKey(), $zakresDoDziennika, now());
+        }
 
         // KASOWANIE PLIKU POZA TRANSAKCJĄ, I TO NIE JEST DROBIAZG.
         //
@@ -666,6 +837,20 @@ final class EraseAccountData
      * `handled_by` (operator, który sprawę załatwił) celowo zostaje: obietnica
      * dotyczy nadawcy wiadomości, nie osoby obsługującej panel.
      */
+    /**
+     * POCHODZENIE SZKICÓW Z IMPORTU (D-300) — kasowane przy każdym zakresie.
+     *
+     * Wiersz mówi „ta osoba zapisała sobie przepis z TEGO adresu" i trzyma
+     * tekst kroków ze strony do ostrzeżenia o podobieństwie. To jest ślad
+     * zachowania osoby, nie treść dla społeczności — przy `minimum` przepis
+     * zostaje (ma własne `source_url`), ale ślad importu znika. Jawnie,
+     * bo konta się nie kasuje, więc `ON DELETE CASCADE` się nie uruchomi.
+     */
+    private function usunPochodzenieImportow(User $user): void
+    {
+        PrzepisZImportu::query()->where('user_id', $user->getKey())->delete();
+    }
+
     private function odlaczWiadomosciDoOperatora(User $user): void
     {
         ContactMessage::query()
