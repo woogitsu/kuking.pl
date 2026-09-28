@@ -172,7 +172,7 @@ class KreatorPrzyjmujeZdjecieZDyskuZdalnegoTest extends TestCase
         });
         config(['filesystems.disks.udawany-r2.driver' => 'udawany-zdalny-blokuje-kasowanie']);
         Storage::forgetDisk('udawany-r2');
-        Log::spy();
+        $dziennik = Log::spy();
 
         $media = app(StoreUploadedImage::class)->handle(
             owner: $this->user('kucharka'),
@@ -182,7 +182,7 @@ class KreatorPrzyjmujeZdjecieZDyskuZdalnegoTest extends TestCase
         Storage::disk('testowy')->assertExists($media->object_key);
         Storage::disk('udawany-r2')->assertExists('livewire-tmp/abc123-meta.jpg');
         Storage::disk('udawany-r2')->assertExists('livewire-tmp/abc123-meta.jpg.json');
-        Log::shouldHaveReceived('warning')->twice()->withArgs(function (string $wiadomosc, array $kontekst): bool {
+        $dziennik->shouldHaveReceived('warning')->twice()->withArgs(function (string $wiadomosc, array $kontekst): bool {
             $zapis = json_encode([$wiadomosc, $kontekst], JSON_THROW_ON_ERROR);
 
             return ! str_contains($zapis, 'abc123-meta') && ! str_contains($zapis, 'tajny-klucz-zdjecia');
