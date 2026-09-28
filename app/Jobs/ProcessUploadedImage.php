@@ -32,12 +32,14 @@ use League\Flysystem\UnableToWriteFile;
  * 3. Dopiero na końcu status zmienia się na `ready`. Do tego momentu zdjęcie
  *    nie pokazuje się nigdzie w interfejsie.
  *
- * Jeśli cokolwiek pójdzie nie tak, zdjęcie dostaje status `rejected`, a powód
- * ląduje w metadanych — użytkownik widzi wtedy komunikat po polsku, a nie
- * pustą ramkę.
+ * Jeśli cokolwiek pójdzie nie tak, a kolejka nie ma już prób, zdjęcie dostaje
+ * status `rejected`, a powód ląduje w metadanych — użytkownik widzi wtedy
+ * komunikat po polsku, a nie pustą ramkę. Między próbami zdjęcie zostaje
+ * w `processing` (issue #1349): `rejected` jest dla widoku ostateczne.
  *
- * Zdjęcie NIGDY nie zostaje w `processing` — pilnuje tego zarówno `catch`
- * w `handle()`, jak i hook `failed()`. Ten drugi jest konieczny, bo przy
+ * Zdjęcie nie zostaje w `processing` NA ZAWSZE: nieudany `handle()` pozostawia
+ * je tam tylko do kolejnej próby, a po wyczerpaniu prób domyka je `failed()`.
+ * Ten hook jest konieczny również dlatego, że przy
  * przekroczeniu `$timeout` proces dostaje sygnał w środku wykonania i nie ma
  * już żadnego wyjątku do przechwycenia: `catch` się nie wykona, a zdjęcie
  * zostałoby w `processing` na zawsze. Widok dla tego stanu mówi „odśwież
@@ -198,7 +200,8 @@ class ProcessUploadedImage implements ShouldQueue
                 // pliku, którego nie ma: trwale martwy obrazek, bez ponowienia
                 // i bez śladu w `failed_jobs`. Wyjątek idzie do `catch` niżej,
                 // czyli tą samą drogą co awaria dysku `throw => true`:
-                // `rejected` i ponowienie.
+                // między próbami zostaje `processing`, a po ostatniej próbie
+                // dostaje `rejected` (issue #1349).
                 if ($publiczny->put($variantKey, (string) $encoded) === false) {
                     throw UnableToWriteFile::atLocation($variantKey, 'Dysk zwrócił false z put() dla wariantu zdjęcia.');
                 }
@@ -266,11 +269,22 @@ class ProcessUploadedImage implements ShouldQueue
             // `rejected` NIE nadpisuje `deleted` (issue #1003). Zdjęcie, które
             // w międzyczasie zaczęło odchodzić, dostaje zamiast tego sprzątnięcie
             // plików, które to zadanie zdążyło położyć przed błędem.
-            $odrzucone = DB::transaction(function (): bool {
+            $zostaje = DB::transaction(function (): bool {
                 $swieze = Media::query()->whereKey($this->mediaId)->lockForUpdate()->first();
 
                 if ($this->odchodzi($swieze)) {
                     return false;
+                }
+
+                // `rejected` DOPIERO WTEDY, GDY KOLEJNEJ PRÓBY NIE BĘDZIE
+                // (issue #1349). Widok traktuje `rejected` jako porażkę
+                // ostateczną i radzi usunąć wpis — a kolejka za chwilę ponowi
+                // zadanie, które może się udać. Między próbami zdjęcie zostaje
+                // w `processing` (ustawionym przez `przejmij()`), z kluczami
+                // wariantów w trakcie, a widok mówi „przygotowuje się". Ostatnią
+                // próbę i timeout domyka `failed()`.
+                if ($this->bedzieKolejnaProba()) {
+                    return true;
                 }
 
                 $swieze->update([
@@ -283,7 +297,7 @@ class ProcessUploadedImage implements ShouldQueue
                 return true;
             });
 
-            if (! $odrzucone) {
+            if (! $zostaje) {
                 $this->sprzatnijWlasnePliki($media, $zapisane);
 
                 return;
@@ -300,8 +314,8 @@ class ProcessUploadedImage implements ShouldQueue
      *
      * `null`, gdy wiersza nie ma, gdy zdjęcie jest już gotowe (spóźniona
      * kopia zadania) albo gdy odchodzi (`deleted`, issue #1003). Każdy inny
-     * stan — `pending`, `processing` po przerwanej próbie, `rejected` przed
-     * ponowieniem — wolno przetworzyć.
+     * stan — `pending`, `processing` po przerwanej lub nieudanej próbie,
+     * `rejected` z wcześniejszego zlecenia — wolno przetworzyć.
      */
     private function przejmij(): ?Media
     {
@@ -352,6 +366,19 @@ class ProcessUploadedImage implements ShouldQueue
 
             return $media;
         });
+    }
+
+    /**
+     * Czy kolejka jeszcze raz uruchomi to zadanie po wyjątku z `handle()`
+     * (issue #1349, ten sam wzorzec co w `GenerateUserExport`).
+     *
+     * Bez zadania kolejki (`handle()` wołane wprost) nikt niczego nie ponowi,
+     * więc porażka jest od razu ostateczna. `$tries` liczy WSZYSTKIE próby
+     * razem z bieżącą — przy ostatniej kolejka woła już `failed()`.
+     */
+    private function bedzieKolejnaProba(): bool
+    {
+        return $this->job !== null && $this->attempts() < $this->tries;
     }
 
     /**
