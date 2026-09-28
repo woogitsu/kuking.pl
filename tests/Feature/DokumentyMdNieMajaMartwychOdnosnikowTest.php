@@ -60,6 +60,10 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
      * jako twierdzenie, że trasa istnieje dziś.
      */
     private const WYKLUCZONE_Z_TRAS_PREFIKSY = [
+        // Raporty audytów datowane (2026-09-25 i późniejsze): cytują adresy
+        // z wyników prób i z kodu SPRZED poprawek (`/zglos/post/abc`,
+        // `/wpisy`, `/swiezo`) jako dowód usterki, nie jako obietnicę produktu.
+        'docs/audyt/',
         'docs/research/',
         'docs/zlecenia/',
         'docs/design/system-v3.1/',
@@ -77,6 +81,7 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
     private const WYKLUCZONE_Z_TRAS_PLIKI = [
         'docs/AUDYT_2026-09.md',
         'docs/AUDYT_GPT_2026-09.md',
+        'docs/AUDYT_2026-09-13.md',
         'R1-tagi-kopia.md',
         // Dziennik decyzji: zapisuje też decyzje POŹNIEJ zmienione albo
         // adresy z etapu, zanim je zbudowano — z definicji historyczny.
