@@ -2,6 +2,10 @@
 
 ## Nieopublikowane
 
+- Pod cudzym wpisem jest przycisk „Smakowicie wygląda” — lżejszy niż „Ugotowałem”. Nikt nie widzi, ile osób go nacisnęło; na stronie wpisu każdy widzi, kto to napisał (bez osób, z którymi jest blokada). Autor dostaje raz dziennie jedno powiadomienie, np. „3 osoby napisały: Smakowicie wygląda”, żeby nie zagłuszało „Ugotowałem”, które przychodzi od razu. Reakcję cofacie tym samym przyciskiem (#1813). [nowa funkcja]
+
+## Alfa 0.70 — spokojniejsze wpisy i gotowanie
+
 - Formularz kontaktowy nie zapisuje już sekretów z adresu strony w kontekście wiadomości. Dla starszych wpisów przygotowano osobną, świadomie uruchamianą komendę czyszczenia (#836).
 - Wewnętrzne: cofnięcie migracji wersji przepisu blokuje nowe zapisy przed sprawdzeniem istniejących wersji, aby nie zgubić ich pochodzenia podczas rollbacku (#2059).
 - Wewnętrzne: pilny alarm o zgłoszeniu od człowieka odzyskuje próbę po awarii zapisu do kolejki bez utraty blokady celu i budżetu poczty. Ponowienie tej samej sprawy tworzy najwyżej jedno zadanie, także gdy odpowiedź kolejki była niepewna (#2066).
@@ -11,7 +15,6 @@
 - Wewnętrzne: kontrola negatywna testów zachowuje dowód niezaliczonej asercji, nawet gdy log zawiera błędne bajty UTF-8; sama awaria procesu nadal nie zalicza kontroli (Refs #1011).
 - Naprawione: pusta zakładka „Ugotowane” na własnym profilu pokazuje teraz przycisk „Znajdź przepis” prowadzący do wyszukiwarki. Na profilu innej osoby ten przycisk się nie pojawia (#2054).
 - Strona tagu pokazuje każdemu wyłącznie publiczne wpisy. Własne wpisy „tylko dla mnie” i „tylko dla obserwujących” nie pojawiają się tam nawet autorowi; strona wyjaśnia to i prowadzi do „Moje wpisy”, gdzie nadal można je znaleźć (#1338, D-307).
-- Pod cudzym wpisem jest przycisk „Smakowicie wygląda” — lżejszy niż „Ugotowałem”. Nikt nie widzi, ile osób go nacisnęło; na stronie wpisu każdy widzi, kto to napisał (bez osób, z którymi jest blokada). Autor dostaje raz dziennie jedno powiadomienie, np. „3 osoby napisały: Smakowicie wygląda”, żeby nie zagłuszało „Ugotowałem”, które przychodzi od razu. Reakcję cofacie tym samym przyciskiem (#1813).
 
 ## Alfa 0.69 — czytelniejsze powiadomienia i wygodniejsze gotowanie
 

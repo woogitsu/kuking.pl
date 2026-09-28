@@ -10,6 +10,7 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Spis wydań
 
 - [Najnowsze zmiany](#najnowsze-zmiany)
+- [Alfa 0.70 — spokojniejsze wpisy i gotowanie](#alfa-070)
 - [Alfa 0.69 — czytelniejsze powiadomienia i wygodniejsze gotowanie](#alfa-069)
 - [Alfa 0.68 — minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu](#alfa-068)
 - [Alfa 0.67 — tagi ze zdjęciami z Waszych kuchni](#alfa-067)
@@ -23,6 +24,26 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Najnowsze zmiany
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
+
+### Smakowicie wygląda
+
+Pod cudzym wpisem możecie teraz nacisnąć „Smakowicie wygląda”, gdy chcecie
+dać znać, że danie wpadło Wam w oko. Ten sam przycisk pozwala to cofnąć.
+Na stronie wpisu widać, kto tak napisał, bez pokazywania liczby reakcji.
+Autor dostanie o nich jedną wiadomość dziennie, żeby nie zagłuszały
+„Ugotowałem”.
+
+<a id="alfa-070"></a>
+## Alfa 0.70
+
+**Spokojniejsze wpisy i gotowanie.**
+
+Zdjęcia we wpisach układają się czytelnie także wtedy, gdy mają różne
+proporcje albo są trzy. Strona tagu pokazuje tylko publiczne wpisy;
+własne mniej widoczne wpisy nadal znajdziecie w „Moich wpisach”.
+Przy pustej zakładce „Ugotowane” można od razu przejść do wyszukiwarki
+przepisów. Poprawiliśmy też zachowanie wartości odżywczych po decyzji
+moderatora.
 
 <a id="alfa-069"></a>
 ## Alfa 0.69
