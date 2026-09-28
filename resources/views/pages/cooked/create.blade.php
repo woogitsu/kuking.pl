@@ -82,12 +82,24 @@
                 </div>
             @endif
 
+            {{-- Przy błędzie opis pola rośnie o TREŚĆ BŁĘDU (issue #1572),
+                 żeby czytnik ekranu po przejściu z podsumowania do pola
+                 przeczytał, co jest nie tak. Pomoc zostaje pierwsza. --}}
+            @php
+                $opisZdjec = implode(' ', array_keys(array_filter([
+                    'f-photos-help' => true,
+                    'f-photos-error' => $errors->has('photos'),
+                    'f-photos-plik-error' => $errors->has('photos.*'),
+                    'f-media-ids-error' => $errors->has('media_ids.*'),
+                ])));
+                $bladZdjec = $errors->has('photos') || $errors->has('photos.*') || $errors->has('media_ids.*');
+            @endphp
             <input class="visually-hidden pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
                    accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                    multiple
                    data-usuwanie-zdjec
                    aria-labelledby="f-photos-etykieta f-photos-tytul"
-                   aria-describedby="f-photos-help">
+                   aria-describedby="{{ $opisZdjec }}" @if($bladZdjec) aria-invalid="true" @endif>
             <label class="pole-zdjecia" for="f-photos">
                 <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
                 <span class="pole-zdjecia-tytul" id="f-photos-tytul">Dodaj zdjęcie</span>
@@ -97,9 +109,9 @@
                     Największy plik: {{ \App\Support\LimityZdjec::maksMegabajtowDoKomunikatu() }} MB.
                 </span>
             </label>
-            @error('photos')<span class="field-error">{{ $message }}</span>@enderror
-            @error('photos.*')<span class="field-error">{{ $message }}</span>@enderror
-            @error('media_ids.*')<span class="field-error">{{ $message }}</span>@enderror
+            @error('photos')<span class="field-error" id="f-photos-error">{{ $message }}</span>@enderror
+            @error('photos.*')<span class="field-error" id="f-photos-plik-error">{{ $message }}</span>@enderror
+            @error('media_ids.*')<span class="field-error" id="f-media-ids-error">{{ $message }}</span>@enderror
         </div>
 
         <x-field name="note" label="Jak wyszło?" type="textarea" :rows="4"
