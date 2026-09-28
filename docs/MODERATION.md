@@ -70,6 +70,15 @@ celów — ostatni mówi, że kolejnych dziś nie będzie — i każdy list zajm
 miejsce we wspólnym liczniku poczty (D-239, klasa `wejscie`). Powyżej sufitu
 sprawa stoi w kolejce z plakietką, a dziennik mówi, dlaczego bez listu.
 
+**Awaria zlecenia alarmu (#2066).** Blokada celu, oba liczniki poczty,
+wiersz zadania w bazodanowej kolejce i znacznik obsłużenia zgłoszenia są
+zapisywane w jednej transakcji. Gdy zlecenie rzuci wyjątek, całość wraca,
+a ponowienie tej samej sprawy może spróbować jeszcze raz. Gdy transakcja
+została zatwierdzona mimo utraconej odpowiedzi, znacznik i klucz celu
+powstrzymują duplikat. Ponowienie starej sprawy po upływie okna również nie
+wysyła drugiego listu. Pusty adres i odmowa budżetu nie oznaczają sprawy
+jako obsłużonej; można je ponowić, gdy przeszkoda zniknie.
+
 **Plakietka i priorytet tylko dla otwartych.** Sprawa w innym stanie nie ma
 napisu „Nie może czekać"/„Na dziś", a w zakładce „Wszystkie" stoi za
 wszystkimi otwartymi, po dacie (`PriorytetSprawy::wKolejce`,

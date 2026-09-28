@@ -2894,6 +2894,19 @@ liczy je w `nieudaneModeracyjne`, komenda zwraca kod ≠ 0, a zadanie
 w harmonogramie rzuca wyjątek (#1342, `RetencjaPowiadomienCzesciowaPorazkaTest`).
 
 ### reports
+
+`alarm_czlowieka_obsluzony_at` (migracja
+`2026_09_28_120000_add_human_urgent_alarm_handled_at_to_reports`, #2066):
+trwały znacznik, że pilne zgłoszenie od człowieka zostało już obsłużone
+alarmem — zadanie pocztowe trafiło do kolejki albo inne zgłoszenie tego
+samego celu zajęło bieżące okno. `NULL` pozwala ponowić próbę po awarii,
+braku adresu lub wyczerpaniu budżetu. Nie jest to dowód doręczenia listu.
+Zapis znacznika, klucza celu, budżetu i zadania odbywa się na tym samym
+połączeniu PostgreSQL w jednej transakcji. `down()` odmawia skasowania
+niepustego śladu; świadome cofnięcie wymaga
+`KUKING_ROLLBACK_KASUJ_SLAD_ALARMOW_CZLOWIEKA=true`, gdyż powrót starego
+formularza mógłby wtedy ponownie zlecić list.
+
 Zgłoszenia — **dwie różne drogi w jednej tabeli**, rozróżniane kolumną
 `source` (migracja `2026_09_06_200000_add_legal_notice_fields_to_reports`,
 audyt G-08 / W5-01 / W5-02).

@@ -14,8 +14,12 @@ use App\Models\User;
 use App\Notifications\PilneZgloszenieOdCzlowieka;
 use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -390,6 +394,63 @@ class KolejkaModeracjiStawiaPilneNaGorzeTest extends TestCase
         app(ReportContent::class)->handle($this->user('zglaszajacypuli2'), $wpis, 'minor');
 
         Notification::assertSentOnDemandTimes(PilneZgloszenieOdCzlowieka::class, 1);
+    }
+
+    /**
+     * #2066: wyjątek po INSERT do database queue ma wycofać także cache i
+     * rezerwację. Ponowienie tej SAMEJ sprawy tworzy dokładnie jeden job.
+     */
+    public function test_awaria_po_zapisie_joba_cofa_calosc_i_ponowienie_nie_dubluje_alarmu(): void
+    {
+        Exceptions::fake();
+        config([
+            'kuking.moderation.model.alarm_email' => 'moderacja@kuking.test',
+            'cache.default' => 'database',
+            'queue.default' => 'database',
+            'queue.connections.database.after_commit' => false,
+        ]);
+        Cache::purge('database');
+
+        $adresat = Notification::getFacadeRoot();
+        Notification::shouldReceive('route')->once()->andReturnUsing(
+            static function (string $kanal, string $adres) use ($adresat): object {
+                $prawdziwaTrasa = $adresat->route($kanal, $adres);
+
+                return new class($prawdziwaTrasa)
+                {
+                    public function __construct(private readonly object $trasa) {}
+
+                    public function notify(object $powiadomienie): void
+                    {
+                        $this->trasa->notify($powiadomienie);
+                        throw new RuntimeException('Utracona odpowiedź po zapisie do jobs.');
+                    }
+                };
+            },
+        );
+
+        $wpis = $this->wpis('autorawariialarmu');
+        $zglaszajacy = $this->user('zglaszajacyawariialarmu');
+        $przed = DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte();
+        $jobsPrzed = DB::table('jobs')->count();
+
+        $pierwsze = app(ReportContent::class)->handle($zglaszajacy, $wpis, 'minor');
+        Exceptions::assertReported(RuntimeException::class);
+        $this->assertSame($jobsPrzed, DB::table('jobs')->count());
+        $this->assertSame($przed, DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte());
+        $this->assertSame(0, DziennyBudzetListow::dlaAlarmuModeracji()->zuzyte());
+        $this->assertNull($pierwsze->refresh()->alarm_czlowieka_obsluzony_at);
+
+        Notification::swap($adresat);
+        $drugie = app(ReportContent::class)->handle($zglaszajacy, $wpis, 'minor');
+        $this->assertSame($pierwsze->getKey(), $drugie->getKey());
+        $this->assertSame($jobsPrzed + 1, DB::table('jobs')->count());
+        $this->assertSame($przed + 1, DziennyBudzetListow::wspolny(DziennyBudzetListow::KLASA_WEJSCIE)->zuzyte());
+        $this->assertNotNull($drugie->refresh()->alarm_czlowieka_obsluzony_at);
+
+        $this->travel(7)->hours();
+        app(ReportContent::class)->handle($zglaszajacy, $wpis, 'minor');
+        $this->assertSame($jobsPrzed + 1, DB::table('jobs')->count(), 'Stara sprawa wysłała drugi list po wygaśnięciu okna.');
     }
 
     // ---------------------------------------------------------------
