@@ -233,7 +233,7 @@
                 @else
                     @guest
                         <p>Załóż konto, żeby dać znać autorowi, że Ci wyszło.</p>
-                        <a class="btn btn-primary btn-cook" href="{{ route('register') }}">Załóż konto</a>
+                        <a class="btn btn-primary btn-cook" href="{{ route('register', ['cook_recipe' => $recipe->slug]) }}">Załóż konto</a>
                     @endguest
                 @endcan
             </section>

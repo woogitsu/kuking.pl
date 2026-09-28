@@ -13,6 +13,7 @@ use App\Http\Requests\TagSelection;
 use App\Models\Profile;
 use App\Models\Tag;
 use App\Support\ZamiarObserwowania;
+use App\Support\ZamiarUgotowania;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -358,11 +359,15 @@ class OnboardingController extends Controller
         return $dalej->with('status', implode(' ', $komunikaty));
     }
 
-    public function done(Request $request, ZamiarObserwowania $zamiar): View|RedirectResponse
+    public function done(Request $request, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie): View|RedirectResponse
     {
         // Bez zapisu stanu konta: GET może przyjść z prefetchu przeglądarki,
         // więc samo otwarcie tej strony nie wyłącza przypomnienia (#985).
         $request->session()->forget('onboarding.selection');
+
+        if ($cel = $gotowanie->celPoOnboardingu($request)) {
+            return redirect()->to($cel);
+        }
 
         if ($cel = $zamiar->celPoOnboardingu($request)) {
             return redirect()->to($cel);
