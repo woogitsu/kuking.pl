@@ -27,6 +27,9 @@ use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Contact\Actions\WyslijOdpowiedz;
 use App\Domain\Feed\Actions\ZapiszKolaz;
 use App\Domain\Feed\Actions\ZapiszTabliceDnia;
+use App\Domain\Import\BudzetAi;
+use App\Domain\Import\Rezerwacja;
+use App\Domain\Import\ZlecImportPrzepisu;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
@@ -50,6 +53,7 @@ use App\Models\Appeal;
 use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\ContactMessage;
+use App\Models\ImportPrzepisu;
 use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -665,6 +669,31 @@ try {
             ];
         })(),
 
+        // Rezerwacja budżetu modelu importu (D-297): PRAWDZIWE `BudzetAi`,
+        // z limitem dziennym podanym przez test.
+        'rezerwacja-budzetu' => (function () use ($argumenty): string {
+            config(['kuking.import.budzet.dzienny_usd' => (float) $argumenty['limit_usd']]);
+            config(['kuking.import.budzet.miesieczny_usd' => 1000.0]);
+            $wynik = app(BudzetAi::class)->zarezerwuj((int) $argumenty['kwota'], (string) Str::uuid(), 1);
+
+            return $wynik instanceof Rezerwacja ? 'zarezerwowano' : 'odmowa:'.$wynik;
+        })(),
+
+        'ponow-import' => (function () use ($argumenty): string {
+            config([
+                'kuking.import.model.klucz' => 'sk-test-import',
+                'kuking.import.model.nazwa' => 'gpt-6-luna',
+                'kuking.import.model.cena_wejscie_mln_usd' => '2',
+                'kuking.import.model.cena_wyjscie_mln_usd' => '8',
+                'kuking.import.zrodla.zdjecie' => true,
+                'queue.default' => 'database',
+            ]);
+
+            return (string) app(ZlecImportPrzepisu::class)->ponow(
+                User::query()->findOrFail($argumenty['kto']),
+                ImportPrzepisu::query()->findOrFail($argumenty['poprzednie']),
+            )->getKey();
+        })(),
         // Rejestracja wdrożenia (issue #1932, D-318): numer kolejny liczony
         // pod `pg_advisory_xact_lock(hashtext($etykieta))` wewnątrz akcji —
         // test na dwóch połączeniach trzyma TĘ SAMĄ blokadę na własnym
