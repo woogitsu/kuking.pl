@@ -12,7 +12,7 @@
         <p>„Mój stół” to dobrowolna półka, którą włączasz na stronie
             <a href="{{ route('moj-stol') }}">Mój stół</a>. {{ \App\Domain\Feed\MojStol::DLACZEGO }}</p>
 
-        <h2>Jak dodać zdjęcie swojego dania?</h2>
+        <h2 id="dodawanie-zdjecia">Jak dodać zdjęcie swojego dania?</h2>
         <ol>
             <li>Kliknij <strong>Dodaj</strong> — na telefonie znajdziesz ten przycisk na dole ekranu, pośrodku.</li>
             <li>Wybierz <strong>Zdjęcie i kilka słów</strong>.</li>
@@ -32,11 +32,11 @@
         <h2>Co to znaczy „Ugotowałem”?</h2>
         <p>
             To najważniejszy przycisk w <x-kuking-word />. Klikasz go, kiedy naprawdę ugotujesz coś
-            z czyjegoś przepisu. Autor dostanie o tym wiadomość — i to jest tu najmilsza rzecz.
+            z czyjegoś przepisu. Autor przepisu zobaczy to w powiadomieniach — i to jest tu najmilsza rzecz.
             Możesz dodać zdjęcie, ale nie musisz.
         </p>
 
-        <h2>Kto widzi to, co publikuję?</h2>
+        <h2 id="kto-widzi">Kto widzi to, co publikuję?</h2>
         {{-- „sam wybierasz" przypisywało czytelnikowi rodzaj męski
              (issue #38, COPY_STYLE.md §2) — „sam" nie wnosi tu informacji. --}}
         <p>
@@ -64,7 +64,8 @@
 
         <h2>Ktoś zachowuje się nieprzyjemnie</h2>
         <p>
-            Pod każdą treścią jest przycisk <strong>Zgłoś</strong>. Przeczytamy każde zgłoszenie.
+            Przy każdym przepisie i komentarzu jest przycisk <strong>Zgłoś</strong>. Przy wpisie
+            otwórz menu z trzema kropkami i wybierz <strong>Zgłoś ten wpis</strong>. Przeczytamy każde zgłoszenie.
             Możesz też zablokować konkretną osobę na jej profilu — wtedy nie zobaczycie
             już wzajemnie swoich treści.
         </p>
