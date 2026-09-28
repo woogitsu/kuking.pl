@@ -55,7 +55,7 @@ final class DodajDoPlanu
 
         if (! ZakresDatPlanu::obejmuje($dzien)) {
             throw ValidationException::withMessages([
-                'day' => 'Wybierz dzień z najbliższego roku.',
+                'day' => 'Wybierz dzień w zakresie planera: '.ZakresDatPlanu::opis().'.',
             ]);
         }
 

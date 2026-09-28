@@ -135,10 +135,39 @@ Zatrzymanie (deploy, SIGTERM): entrypoint przekazuje TERM każdemu procesowi
 
 130 s obejmuje limit przetwarzania zdjęcia (120 s) i 10 s zapasu. Nie
 gwarantuje ukończenia eksportu danych, którego limit wynosi 900 s; przerwane
-zadanie wraca do kolejki po `retry_after` i jest ponawiane. Tabela opisuje
-konfigurację wyliczaną przez IaC, nie potwierdza ustawień aktualnie
-zastosowanych w panelu Railway. Przed zmianą topologii sprawdź wartości
-żywych usług w panelu i wynik `railway config plan`.
+zadanie wraca do kolejki po `retry_after` i jest ponawiane.
+
+Trzy różne rzeczy — nie myl ich (#2056):
+
+1. **Wartość wyliczana przez IaC.** Tabela wyżej to wartość wyliczana przez
+   IaC z `.railway/railway.ts`, nie potwierdzona konfiguracja produkcji.
+   Plik ma `PRODUCTION_SPLIT_SERVICES = true`, więc `railway config apply`
+   na produkcji wyliczy wariant rozdzielony (`web` 30 s, `worker` 130 s,
+   `scheduler` 30 s) i przy okazji rozbije produkcję na trzy serwisy
+   (#595, docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md). Wiersz
+   `splitServices=false` / `all` / 130 s dotyczy dziś stagingu
+   i środowisk PR.
+2. **Stan odczytany 28.09.2026 (migawka, tylko do odczytu).** Produkcja
+   działa jako jeden serwis `kuking.pl` w roli `all` (Start Command
+   `/usr/local/bin/kuking-entrypoint all`). W sekcji `deploy` tego serwisu
+   pole `drainingSeconds` **nie było ustawione** — obowiązuje domyślna
+   wartość Railway, nie 130 s z pliku. IaC na produkcji nie został jeszcze
+   zastosowany. Migawka może być nieaktualna: przed wnioskami odczytaj
+   stan jeszcze raz.
+3. **Jak odczytać faktyczną wartość.** Panel Railway → projekt →
+   środowisko `production` → serwis `kuking.pl` → Settings → Deploy →
+   sekcja zamykania wdrożenia (Teardown), pole czasu drenowania
+   (Draining time, w sekundach). Puste pole = domyślna Railway. Sprawdź
+   też Variables, czy nie ma tam `RAILWAY_DEPLOYMENT_DRAINING_SECONDS`.
+   Druga droga, bez klikania: `KUKING_WAIT_FOR_CI=true railway config plan`
+   na produkcji — różnica w `drainingSeconds` między plikiem a żywą usługą
+   pojawi się w planie. Plan niczego nie zmienia; przy odczycie nie
+   uruchamiaj `apply`.
+
+Ustawienie 130 s dla dzisiejszej roli `all` to decyzja właściciela:
+`apply` z tego pliku nie da produkcyjnej roli `all` 130 s, tylko rozdzieli
+usługi. Zostaje ręczne pole w panelu albo przełączenie z #595. Wpis
+w panelu rozjeżdża się z plikiem — następny `plan` pokaże go jako zmianę.
 
 ## Migrations
 
