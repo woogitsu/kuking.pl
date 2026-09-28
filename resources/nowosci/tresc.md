@@ -10,6 +10,7 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Spis wydań
 
 - [Najnowsze zmiany](#najnowsze-zmiany)
+- [Alfa 0.73 — import przepisu i wygodniejsze gotowanie](#alfa-073)
 - [Alfa 0.72 — spokojniejsze zdjęcia i powiadomienia](#alfa-072)
 - [Alfa 0.71 — przepis z kartki i koszt dania](#alfa-071)
 - [Alfa 0.70 — spokojniejsze wpisy i gotowanie](#alfa-070)
@@ -25,6 +26,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Najnowsze zmiany
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
+
+## Alfa 0.73
+
+**Przepis ze strony lub PDF i składniki odhaczane podczas gotowania.**
 
 ### Przepis ze strony lub pliku PDF
 
