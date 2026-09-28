@@ -8,6 +8,7 @@ use App\Domain\Import\KlientLuna;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Users\Actions\EraseAccountData;
+use App\Domain\Zgody\InformacjaOdczytuAi;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Jobs\OdczytajPrzepis;
 use App\Models\ImportPrzepisu;
@@ -133,10 +134,10 @@ final class OdczytZdjeciaKartkiTest extends TestCase
 
     public function test_zgoda_z_ekranu_importu_trafia_do_dziennika_i_da_sie_ja_wycofac(): void
     {
-        $this->actingAs($this->osoba)->post(route('zgoda.odczyt-ai.udziel'), ['skad' => 'import', 'informacja' => \App\Domain\Zgody\InformacjaOdczytuAi::WERSJA])
+        $this->actingAs($this->osoba)->post(route('zgoda.odczyt-ai.udziel'), ['skad' => 'import', 'informacja' => InformacjaOdczytuAi::WERSJA])
             ->assertRedirect(route('import.zdjecie'));
         // Podwójne kliknięcie nie dopisuje drugiego wiersza.
-        $this->actingAs($this->osoba)->post(route('zgoda.odczyt-ai.udziel'), ['skad' => 'import', 'informacja' => \App\Domain\Zgody\InformacjaOdczytuAi::WERSJA]);
+        $this->actingAs($this->osoba)->post(route('zgoda.odczyt-ai.udziel'), ['skad' => 'import', 'informacja' => InformacjaOdczytuAi::WERSJA]);
 
         $this->actingAs($this->osoba)->get(route('settings.privacy'))->assertSee('Wycofaj zgodę na odczyt');
         $this->actingAs($this->osoba)->delete(route('zgoda.odczyt-ai.wycofaj'))->assertRedirect(route('settings.privacy'));
