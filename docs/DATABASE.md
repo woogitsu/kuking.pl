@@ -1773,6 +1773,9 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
   ją pod blokadą wiersza przepisu i zwiększa przy każdym zapisie, także
   autozapisie. `updated_at` nie zastępuje licznika: może mieć ten sam czas
   dla dwóch zapisów wykonanych w jednej sekundzie (issues #2034 i #2032);
+- `tresc_zmieniona_at` (`timestamptz NULL`, bez DEFAULT) — kiedy ostatnio
+  zmieniła się TREŚĆ przepisu; źródło `dateModified` w JSON-LD (#2014) —
+  patrz niżej.
 - „Moja wersja": `forked_from_id`, `forked_at` — patrz niżej;
 - `title_search`, `summary_search` — patrz „Kolumny `*_search`".
 - `pokazuj_wartosci_odzywcze boolean NOT NULL DEFAULT true` — patrz
@@ -1786,6 +1789,35 @@ kolumnach różnych od `NULL` i sumie większej od zera. Jedna reguła w modelu:
 kreatora) i jej odpowiednik SQL `Recipe::scopeGotoweWCiagu()` (filtr
 „Do 30 minut"). Przepis z samym czasem przygotowania nie pokazuje czasu
 całkowitego i nie trafia do szybkich wyników. Bez zmiany schematu.
+
+**`tresc_zmieniona_at` — data zmiany treści, nie zapisu wiersza** (#2014,
+migracja `2026_09_28_210000_add_tresc_zmieniona_at_to_recipes`).
+
+```sql
+ALTER TABLE recipes ADD COLUMN tresc_zmieniona_at timestamptz NULL;
+```
+
+Ustawia ją wyłącznie `PublishRecipe` (kolumna poza `$fillable`): przy
+pierwszej publikacji równą `published_at`, potem `now()` tylko wtedy, gdy
+odcisk treści (`App\Domain\Recipes\TrescPrzepisu` — pola przepisu,
+składniki, kroki, zdjęcie główne, skan źródła, zdjęcia kroków) różni się od
+stanu sprzed zapisu, także przy autozapisie. Moderacja, zmiana widoczności
+i zapis bez zmian jej nie ruszają — `updated_at` przesuwają wszystkie trzy,
+a `recipe_versions` powstaje przy każdym „Zapisz” z publikacją i nie powstaje
+przy autozapisie, więc żadne z nich nie jest datą zmiany treści.
+`NULL` znaczy „nie wiemy” (przepisy sprzed migracji — bez backfillu, bo
+zgadnięta data byłaby nieprawdą w danych strukturalnych); wtedy strona pomija
+`dateModified`, tak samo jak przy dacie wcześniejszej niż `published_at`.
+`ADD COLUMN … NULL` bez DEFAULT zmienia tylko katalog, bez przepisywania
+tabeli (§6).
+
+**Rollback:** `ALTER TABLE recipes DROP COLUMN tresc_zmieniona_at`. `down()`
+nie odmawia (D-088): kolumna niesie wyliczony znacznik, nie decyzję
+człowieka. Po ponownym `up()` wraca `NULL`, czyli stan, w którym JSON-LD
+pomija opcjonalne pole — nic nie odwraca się w stronę nieprawdy; traci się
+tylko dokładność `dateModified` do następnej zmiany treści. Pilnuje
+`tests/Feature/CofniecieDatyZmianyTresciPrzepisuTest.php`.
+
 **`forked_from_id`, `forked_at` — „Moja wersja", przepis na podstawie
 cudzego** (issue #23, D-301, migracja `2026_09_26_100000_add_forked_from_to_recipes`).
 

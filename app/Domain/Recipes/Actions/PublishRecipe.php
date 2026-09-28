@@ -12,6 +12,7 @@ use App\Domain\Recipes\MojaWersja;
 use App\Domain\Recipes\RecipeStatusTransitions;
 use App\Domain\Recipes\StepTimer;
 use App\Domain\Recipes\StrazPochodzeniaPrzepisu;
+use App\Domain\Recipes\TrescPrzepisu;
 use App\Domain\Recipes\WpisWskazujacyPrzepis;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
@@ -334,6 +335,11 @@ final class PublishRecipe
             // mnie" (issue #23, D-301, decyzja właściciela z 26.09.2026).
             $byloUdostepnione = false;
 
+            // Treść i data publikacji SPRZED zapisu — do `tresc_zmieniona_at`
+            // niżej (#2014). Nowy przepis nie ma treści, z którą się porównać.
+            $trescPrzed = null;
+            $bylaPublikacja = false;
+
             $payload = [
                 'title' => $title,
                 'summary' => $this->nullIfBlank($attributes['summary'] ?? null),
@@ -429,6 +435,10 @@ final class PublishRecipe
                 }
 
                 $recipe = $swiezy;
+                // Pod blokadą: równoległy zapis nie zmieni treści między tym
+                // odczytem a naszym `UPDATE`.
+                $trescPrzed = TrescPrzepisu::odcisk((string) $recipe->getKey());
+                $bylaPublikacja = $recipe->published_at !== null;
                 $bylSzkicem = $swiezy->status === Recipe::STATUS_DRAFT;
 
                 // Mapa sprzed blokady służy wyłącznie do wyboru zdjęć. Po
@@ -489,6 +499,28 @@ final class PublishRecipe
 
             if ($bylSzkicem && $recipe->isPublished()) {
                 $this->pochodzenie->poPublikacji($recipe);
+            }
+
+            /*
+             * DATA ZMIANY TREŚCI (`dateModified` w JSON-LD, #2014).
+             *
+             * `updated_at` się do tego nie nadaje: przesuwa go moderacja,
+             * zmiana widoczności i zapis bez zmian (`content_revision` wyżej
+             * brudzi wiersz zawsze). Wersje też nie: powstają przy każdym
+             * „Zapisz" z publikacją, a autozapis zmienia treść bez wersji.
+             *
+             * Dlatego osobna kolumna i dwie reguły:
+             * - pierwsza publikacja → dokładnie `published_at`; wcześniejsze
+             *   poprawki szkicu nie były publiczne, więc nie są „modyfikacją";
+             * - poza tym → `now()` TYLKO przy różnicy odcisku treści (także
+             *   zdjęć), czyli także przy autozapisie i poprawce.
+             * Poza `$fillable` (tak jak `content_revision`): ustawia ją
+             * wyłącznie ta akcja.
+             */
+            if ($recipe->published_at !== null && ! $bylaPublikacja) {
+                $recipe->forceFill(['tresc_zmieniona_at' => $recipe->published_at])->save();
+            } elseif ($trescPrzed !== null && $trescPrzed !== TrescPrzepisu::odcisk((string) $recipe->getKey())) {
+                $recipe->forceFill(['tresc_zmieniona_at' => now()])->save();
             }
 
             /*
