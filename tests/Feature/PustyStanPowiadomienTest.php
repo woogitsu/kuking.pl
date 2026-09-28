@@ -9,6 +9,11 @@ use App\Models\Notification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
+/**
+ * Pusty stan listy powiadomień (#2060).
+ *
+ * @bez-kontroli-dodatniej Skan app/ na miejsca powstawania typów sprawdzono ręcznie przy #2060 (atrapowy typ, usunięte miejsce powstania i usunięty fragment tekstu oblewają test); wpis w scripts/kontrole-negatywne-alfa08.py zostaje koordynatorowi, bo ta fala nie pozwala edytować tego skryptu.
+ */
 class PustyStanPowiadomienTest extends TestCase
 {
     use RefreshDatabase;
@@ -19,7 +24,7 @@ class PustyStanPowiadomienTest extends TestCase
             ->get(route('notifications.index'))
             ->assertOk()
             ->assertSee('Nie ma jeszcze żadnych powiadomień')
-            ->assertSee('Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących oraz ważnych sprawach dotyczących Twojego konta.')
+            ->assertSee('Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących, urodzinach obserwowanych osób oraz ważnych sprawach Twojego konta.')
             ->assertDontSee('Tu pojawi się informacja, kiedy ktoś ugotuje z Twojego przepisu albo napisze komentarz.');
     }
 
@@ -40,7 +45,7 @@ class PustyStanPowiadomienTest extends TestCase
             ->assertOk()
             ->assertSee('Basia')
             ->assertDontSee('Nie ma jeszcze żadnych powiadomień')
-            ->assertDontSee('Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących oraz ważnych sprawach dotyczących Twojego konta.');
+            ->assertDontSee('Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących, urodzinach obserwowanych osób oraz ważnych sprawach Twojego konta.');
     }
 
     /**
@@ -59,7 +64,8 @@ class PustyStanPowiadomienTest extends TestCase
     {
         $przepisyIWpisy = 'Twoich przepisach i wpisach';
         $obserwujacy = 'nowych obserwujących';
-        $konto = 'ważnych sprawach dotyczących Twojego konta';
+        $urodziny = 'urodzinach obserwowanych osób';
+        $konto = 'ważnych sprawach Twojego konta';
 
         $wymienione = [
             'TYPE_COOKED' => $przepisyIWpisy,
@@ -69,6 +75,7 @@ class PustyStanPowiadomienTest extends TestCase
             'TYPE_FORKED' => $przepisyIWpisy,
             'TYPE_SMAKOWICIE' => $przepisyIWpisy,
             'TYPE_FOLLOW' => $obserwujacy,
+            'TYPE_BIRTHDAY' => $urodziny,
             'TYPE_WELCOME' => $konto,
             'TYPE_MODERATION' => $konto,
             'TYPE_REPORT_RECEIVED' => $konto,
@@ -79,9 +86,6 @@ class PustyStanPowiadomienTest extends TestCase
             // Tylko dla gospodarza/administratora — nie obiecujemy ich każdemu.
             'TYPE_FIRST_POST' => 'tylko gospodarz',
             'TYPE_APPEAL_FILED' => 'tylko administrator',
-            // Działa (kuking:przypomnij-o-urodzinach), ale opis go nie wymienia:
-            // dopisanie wymaga zmiany tekstu w COPY_STYLE — decyzja przy #2060.
-            'TYPE_BIRTHDAY' => 'świadomie niewymienione',
         ];
 
         $typyZKodu = array_keys(array_filter(
