@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Notifications\Push;
 
 use App\Models\Notification;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Czy Web Push w ogóle działa i których powiadomień dotyczy (D-303).
@@ -71,6 +72,26 @@ final class KanalPush
             Notification::TYPE_COMMENT => ($data['question_answer'] ?? false) === true,
             default => false,
         };
+    }
+
+    /**
+     * `dotyczy()` w SQL — żeby pulę pushu dało się policzyć i zarezerwować
+     * bez hydratacji każdego wiersza (issue #2021). Obie wersje muszą mówić
+     * to samo: `'true'::jsonb` pasuje wyłącznie do logicznego `true`, tak
+     * jak `=== true` wyżej (tekst `"true"` i brak klucza — nie).
+     *
+     * @param  Builder<Notification>  $query
+     * @return Builder<Notification>
+     */
+    public static function zawez(Builder $query): Builder
+    {
+        return $query->where(function (Builder $typ): void {
+            $typ->whereIn('notifications.type', [Notification::TYPE_COOKED, Notification::TYPE_REPLY])
+                ->orWhere(function (Builder $pytanie): void {
+                    $pytanie->where('notifications.type', Notification::TYPE_COMMENT)
+                        ->whereRaw("notifications.data -> 'question_answer' = 'true'::jsonb");
+                });
+        });
     }
 
     /**

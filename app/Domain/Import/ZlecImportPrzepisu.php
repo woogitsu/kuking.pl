@@ -16,6 +16,7 @@ use App\Support\Czas;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Zlecenie „przepisz mi tę kartkę” (V2, D-298).
@@ -150,7 +151,26 @@ final class ZlecImportPrzepisu
             $zlecenie = DB::transaction(function () use ($osoba, $szkic, $kluczWyslania): ImportPrzepisu {
                 $this->limit->zablokuj($osoba);
 
+                if ($kluczWyslania !== null && $juz = $this->zTegoWyslania($osoba, $kluczWyslania)) {
+                    return $juz;
+                }
+
                 [$status, $kod] = $this->stanStartowy($osoba);
+
+                $proba = null;
+                if ($status === ImportPrzepisu::STATUS_OCZEKUJE) {
+                    $proba = $this->limit->rezerwuj(
+                        $osoba,
+                        ImportPrzepisu::ZRODLO_ZDJECIE,
+                        $kluczWyslania ?? (string) Str::uuid7(),
+                    );
+                    if ($proba === null) {
+                        $status = ImportPrzepisu::STATUS_WSTRZYMANY_LIMITEM;
+                        $kod = ImportPrzepisu::KOD_LIMIT_OSOBY;
+                    } elseif ($proba['istnieje']) {
+                        throw new \LogicException('Próba OCR ma klucz bez odpowiadającego zlecenia.');
+                    }
+                }
 
                 $zlecenie = new ImportPrzepisu;
                 $zlecenie->forceFill([
@@ -162,6 +182,11 @@ final class ZlecImportPrzepisu
                     'klucz_wyslania' => $kluczWyslania,
                     'zakonczono_at' => $kod === null ? null : now(),
                 ])->save();
+
+                if ($proba !== null) {
+                    DB::table('proby_importu')->where('id', $proba['id'])
+                        ->update(['import_id' => $zlecenie->getKey()]);
+                }
 
                 // ZLECENIE I ZADANIE W JEDNEJ TRANSAKCJI (#1977). Kolejka jest
                 // bazodanowa, na tym samym połączeniu, z `after_commit => false`

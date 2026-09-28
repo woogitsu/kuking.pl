@@ -30,7 +30,14 @@ final class Cennik
 
     public function koszt(int $tokenyWejscia, int $tokenyWyjscia): int
     {
-        return (int) ceil(max(0, $tokenyWejscia) * $this->wejscieZaMilion + max(0, $tokenyWyjscia) * $this->wyjscieZaMilion);
+        // GPT-6 Luna: po 272 tys. tokenów wejścia droższa taryfa obejmuje
+        // CAŁE żądanie, nie tylko nadwyżkę (dokumentacja cen OpenAI).
+        $drogie = $tokenyWejscia > 272_000;
+
+        return (int) ceil(
+            max(0, $tokenyWejscia) * $this->wejscieZaMilion * ($drogie ? 2 : 1)
+            + max(0, $tokenyWyjscia) * $this->wyjscieZaMilion * ($drogie ? 1.5 : 1),
+        );
     }
 
     private static function liczba(mixed $wartosc): ?float
