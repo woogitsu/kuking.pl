@@ -185,7 +185,10 @@ class ManifestNieWymuszaOrientacjiTest extends TestCase
             );
         }
 
-        $this->assertSame('/home', $manifest['start_url'], 'Manifest przestał startować na tablicy.');
+        // `/`, nie `/home` (#1975): manifest jest publiczny, a `/home` stoi za
+        // logowaniem. Zachowanie `/` dla gościa i zalogowanego pilnuje
+        // `ManifestStartujeDlaGosciaIZalogowanegoTest`.
+        $this->assertSame('/', $manifest['start_url'], 'Manifest przestał startować na stronie głównej.');
         $this->assertSame('/', $manifest['scope'], 'Manifest przestał obejmować cały serwis.');
         $this->assertSame('standalone', $manifest['display'], 'Manifest przestał się instalować jako aplikacja.');
 

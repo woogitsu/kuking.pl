@@ -23,7 +23,8 @@ class PanelTablicyZachowujeWyborTest extends TestCase
         $this->freezeTime();
         $this->actingAs($this->moderator());
         $author = $this->user();
-        $older = Post::factory()->create(['author_id' => $author->id, 'published_at' => now()->subDays(2)]);
+        // Starszy wpis od innej osoby: dwa dania jednej osoby panel odrzuca (#1296).
+        $older = Post::factory()->create(['author_id' => $this->user()->id, 'published_at' => now()->subDays(2)]);
         $this->pick('post', $older->id, 'Notatka starszego wpisu');
         $newer = Post::factory()->count(40)->create(['author_id' => $author->id, 'published_at' => now()->subHour()])->first();
         $this->pick('post', $newer->id, 'Notatka nowego wpisu');

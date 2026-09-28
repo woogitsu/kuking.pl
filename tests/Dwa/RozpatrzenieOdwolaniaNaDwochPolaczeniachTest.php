@@ -11,7 +11,9 @@ use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Report;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use PDOException;
 use PHPUnit\Framework\Attributes\Group;
 
@@ -135,6 +137,87 @@ final class RozpatrzenieOdwolaniaNaDwochPolaczeniachTest extends TestDwochPolacz
             ->where('user_id', $autor->getKey())
             ->where('type', Notification::TYPE_MODERATION)
             ->count(), 'Autor dostał dwie odpowiedzi na jedno odwołanie.');
+    }
+
+    public function test_zatwierdzona_degradacja_wyprzedza_rozpatrzenie_na_starym_modelu(): void
+    {
+        $tworcaDecyzji = $this->konto(['role' => User::ROLE_ADMIN]);
+        $aktor = $this->konto(['role' => User::ROLE_ADMIN]);
+        $this->konto(['role' => User::ROLE_ADMIN]); // degradacja nie dotyczy ostatniego administratora
+        $autor = $this->konto();
+        $odwolanie = $this->odwolanieOdBlokady($tworcaDecyzji, $autor);
+
+        // Kontrola ujemna: model wczytany przed zmianą roli rzeczywiście
+        // przechodzi starą Policy, dopóki nie odczytamy aktora z bazy.
+        $stary = User::query()->findOrFail($aktor->getKey());
+
+        $bariera = $this->bariera('SELECT pg_advisory_xact_lock(1016, 1)', []);
+        $degradacja = $this->wTle('zmien-role', [
+            'kto' => (string) $aktor->getKey(),
+            'rola' => User::ROLE_MODERATOR,
+        ]);
+        $this->czekajNaZablokowane(1);
+
+        $decyzja = $this->wTle('rozpatrz-odwolanie', [
+            'kto' => (string) $aktor->getKey(),
+            'odwolanie' => (string) $odwolanie->getKey(),
+            'wynik' => Appeal::STATUS_UPHELD,
+            'uzasadnienie' => 'Decyzja nadal obowiązuje.',
+        ]);
+        $this->czekajNaZablokowane(2);
+        $this->zwolnijBariere($bariera);
+
+        $wynikDegradacji = $degradacja->wynik();
+        $wynikDecyzji = $decyzja->wynik();
+        $this->assertBezZakleszczenia($wynikDegradacji, 'degradacja');
+        $this->assertBezZakleszczenia($wynikDecyzji, 'rozpatrzenie');
+        $this->assertTrue($wynikDegradacji['ok']);
+        $this->assertTrue($wynikDegradacji['wartosc']);
+
+        $this->assertSame(User::ROLE_ADMIN, $stary->role);
+        $this->assertTrue(Gate::forUser($stary)->allows('resolveAppeals', User::class));
+        $this->assertSame(User::ROLE_MODERATOR, $aktor->fresh()?->role);
+        $this->assertFalse($wynikDecyzji['ok'], 'Stary model rozstrzygnął sprawę po degradacji.');
+        $this->assertSame(AuthorizationException::class, $wynikDecyzji['wyjatek']);
+        $this->assertSame(Appeal::STATUS_OPEN, $odwolanie->fresh()?->status);
+        $this->assertSame(0, DB::table('audit_log')->where('action', 'appeal.resolved')
+            ->where('subject_id', $odwolanie->getKey())->count());
+    }
+
+    public function test_przyjeta_decyzja_konczy_sie_przed_oczekujaca_degradacja(): void
+    {
+        $tworcaDecyzji = $this->konto(['role' => User::ROLE_ADMIN]);
+        $aktor = $this->konto(['role' => User::ROLE_ADMIN]);
+        $this->konto(['role' => User::ROLE_ADMIN]);
+        $autor = $this->konto();
+        $odwolanie = $this->odwolanieOdBlokady($tworcaDecyzji, $autor);
+
+        $bariera = $this->bariera('SELECT pg_advisory_xact_lock(1016, 1)', []);
+        $decyzja = $this->wTle('rozpatrz-odwolanie', [
+            'kto' => (string) $aktor->getKey(),
+            'odwolanie' => (string) $odwolanie->getKey(),
+            'wynik' => Appeal::STATUS_UPHELD,
+            'uzasadnienie' => 'Decyzja nadal obowiązuje.',
+        ]);
+        $this->czekajNaZablokowane(1);
+        $degradacja = $this->wTle('zmien-role', [
+            'kto' => (string) $aktor->getKey(),
+            'rola' => User::ROLE_MODERATOR,
+        ]);
+        $this->czekajNaZablokowane(2);
+        $this->zwolnijBariere($bariera);
+
+        $wynikDecyzji = $decyzja->wynik();
+        $wynikDegradacji = $degradacja->wynik();
+        $this->assertBezZakleszczenia($wynikDecyzji, 'przyjęta decyzja');
+        $this->assertBezZakleszczenia($wynikDegradacji, 'oczekująca degradacja');
+        $this->assertTrue($wynikDecyzji['ok'], $wynikDecyzji['komunikat']);
+        $this->assertSame(Appeal::STATUS_UPHELD, $wynikDecyzji['wartosc']);
+        $this->assertTrue($wynikDegradacji['ok'], $wynikDegradacji['komunikat']);
+        $this->assertSame(User::ROLE_MODERATOR, $aktor->fresh()?->role);
+        $this->assertSame(Appeal::STATUS_UPHELD, $odwolanie->fresh()?->status);
+        $this->assertSame(1, DB::table('audit_log')->where('action', 'appeal.resolved')
+            ->where('subject_id', $odwolanie->getKey())->count());
     }
 
     private function odwolanieOdBlokady(User $moderator, User $autor): Appeal

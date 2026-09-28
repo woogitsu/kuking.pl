@@ -40,6 +40,11 @@
     'media' => null,
     'variant' => 'feed',
     'priority' => false,
+    // Zdjęcie, które prawdopodobnie jest w pierwszym widoku, ale nie jest
+    // głównym obrazem strony (issue #1368): bez `loading="lazy"`, żeby
+    // przeglądarka nie czekała z pobraniem na wyliczenie układu, i bez
+    // `fetchpriority="high"`, którego nie uzasadnia żaden pomiar.
+    'leniwie' => true,
     'class' => 'post-photo',
     'zoom' => true,
     'alt' => null,
@@ -157,7 +162,7 @@
          alt="{{ $efektywnyAlt }}"
          width="{{ $media->width($variant) }}"
          height="{{ $media->height($variant) }}"
-         @if($priority) fetchpriority="high" @else loading="lazy" decoding="async" @endif>
+         @if($priority) fetchpriority="high" @elseif($leniwie) loading="lazy" decoding="async" @else decoding="async" @endif>
     @if($zoom)
             </div>
         {{-- Jeden krótki przystanek Tab; pseudo-element tego samego linku

@@ -250,7 +250,7 @@ class MapaStronyProfileAutorowTest extends TestCase
      * wady takiej, jaką widział człowiek — a nie tylko stanu złożonego
      * fabryką.
      */
-    private function autorkaPoPublikacjiPrzepisu(string $nazwa): User
+    private function autorkaPoPublikacjiPrzepisu(string $nazwa, string $widocznosc = 'public'): User
     {
         $autorka = $this->user($nazwa);
 
@@ -258,7 +258,7 @@ class MapaStronyProfileAutorowTest extends TestCase
             author: $autorka,
             attributes: [
                 'title' => 'Żurek na zakwasie',
-                'visibility' => 'public',
+                'visibility' => $widocznosc,
                 'source_type' => 'own',
             ],
             ingredients: [['text' => 'zakwas żytni']],
@@ -304,5 +304,73 @@ class MapaStronyProfileAutorowTest extends TestCase
             'Ukryta przez moderację zapowiedź wypchnęła autorkę z mapy, choć jej '
             .'przepis nadal jest publiczny.',
         );
+    }
+
+    /**
+     * Issue #1805 — zapowiedź NIEPUBLICZNEGO przepisu nie wpuszcza profilu.
+     *
+     * Przypadki z `niepublicznePrzepisy()` wyżej zakładają przepis fabryką,
+     * czyli BEZ zapowiedzi — i dlatego przechodziły, choć w serwisie ta sama
+     * sytuacja kończyła się inaczej. Publikacja przepisu „tylko dla
+     * obserwujących" albo prywatnego zakłada zapowiedź z `visibility =
+     * public`, a gałąź `user.posts` pytała tylko o `publiclyVisible()`.
+     * Profil szedł do mapy, choć gość nie widzi na nim żadnej treści —
+     * `ProfileController::tylkoWidoczne()` taką zapowiedź odrzuca.
+     *
+     * Kontrola ujemna: bez `zWidocznymPrzepisemAlboWlasnaTrescia(null)`
+     * w `SitemapController` wszystkie trzy przypadki oblewają.
+     * Kontrola dodatnia: `test_zapowiedz_publicznego_przepisu_wpuszcza_profil`
+     * niżej i `test_autor_samego_publicznego_wpisu_dalej_jest_w_mapie` wyżej.
+     *
+     * @return array<string, array{0: string, 1: string|null}>
+     */
+    public static function zapowiedziNiedostepnychPrzepisow(): array
+    {
+        return [
+            'przepis tylko dla obserwujących' => ['followers', null],
+            'przepis prywatny' => ['private', null],
+            'przepis ukryty przez moderację' => ['public', Recipe::STATUS_HIDDEN],
+        ];
+    }
+
+    #[DataProvider('zapowiedziNiedostepnychPrzepisow')]
+    public function test_zapowiedz_niedostepnego_przepisu_nie_wpuszcza_profilu(
+        string $widocznosc,
+        ?string $statusPrzepisu,
+    ): void {
+        $autorka = $this->autorkaPoPublikacjiPrzepisu('schowana', $widocznosc);
+
+        if ($statusPrzepisu !== null) {
+            Recipe::query()->where('author_id', $autorka->getKey())->update(['status' => $statusPrzepisu]);
+        }
+
+        // Stan, o który chodzi: zapowiedź jest publiczna i opublikowana —
+        // bez tego test mierzyłby brak zapowiedzi, a nie jej bramkę.
+        $this->assertSame(
+            1,
+            Post::query()->where('author_id', $autorka->getKey())->publiclyVisible()->count(),
+            'Zapowiedź przestała być publiczna — przypadek mierzy wtedy co innego.',
+        );
+
+        $this->assertNotContains(
+            route('profile.show', 'schowana'),
+            $this->adresyZMapy(),
+            'Mapa strony ogłasza profil, na którym gość widzi tylko zapowiedź przepisu, '
+            .'którego sam nie może otworzyć.',
+        );
+    }
+
+    public function test_zapowiedz_publicznego_przepisu_wpuszcza_profil(): void
+    {
+        $autorka = $this->autorkaPoPublikacjiPrzepisu('jawna');
+
+        // Sama zapowiedź, bez gałęzi `user.recipes` — przepis zostaje
+        // publiczny, ale ta kontrola ma dowieść, że bramka wpisów nie
+        // odrzuca zapowiedzi WIDOCZNEGO przepisu.
+        $this->assertTrue(
+            Post::query()->where('author_id', $autorka->getKey())->publiclyVisible()->zWidocznymPrzepisemAlboWlasnaTrescia(null)->exists(),
+        );
+
+        $this->assertContains(route('profile.show', 'jawna'), $this->adresyZMapy());
     }
 }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Domain\Collections\ZapisyWpisu;
+use App\Models\Block;
 use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
@@ -30,8 +30,6 @@ use Illuminate\View\View;
  */
 class ProfileController extends Controller
 {
-    public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
-
     public function show(Request $request, string $username): View
     {
         // Adres profilu bez rozróżniania wielkości liter (audyt A25).
@@ -81,6 +79,10 @@ class ProfileController extends Controller
                 ->latest('published_at')->latest('id')->limit(3)->get()
             : collect();
 
+        $cookedEvents = $tab === 'ugotowane'
+            ? $this->cookedEventsDlaProfilu($owner, $viewer, $isOwner)
+            : null;
+
         return view('pages.profile.show', [
             'profile' => $profile,
             'owner' => $owner,
@@ -111,9 +113,18 @@ class ProfileController extends Controller
                     ->paginate(12)
                     ->withQueryString()
                 : null,
-            'cookedEvents' => $tab === 'ugotowane'
-                ? $this->cookedEventsDlaProfilu($owner, $viewer, $isOwner)
-                : null,
+            'cookedEvents' => $cookedEvents,
+            'przepisyWidoczneNaKartach' => $this->przepisyWidoczneNaKartach($cookedEvents, $viewer, $isOwner),
+            // Issue #1394: na WŁASNEJ zakładce „Ugotowane" lista nie jest
+            // filtrowana, więc wykonanie przepisu osoby, z którą właściciel
+            // ma blokadę, zostaje (to jego zdjęcie i notatka). Karta ma wtedy
+            // nie pokazywać tytułu ani adresu przepisu. Jedno zapytanie na
+            // stronę zamiast `hasBlockRelationWith()` na każdą kartę. Obcy
+            // widz tego nie potrzebuje: `tylkoZWidocznychPrzepisow()` wycina
+            // mu takie wykonania już na liście.
+            'autorzyZaBlokada' => $tab === 'ugotowane' && $isOwner
+                ? $this->osobyZBlokada($owner)
+                : [],
             'stats' => [
                 'posts' => $owner->posts()->published()
                     ->tap(fn ($query) => $this->tylkoWidoczneWpisy($query, $owner, $viewer, $isOwner))->count(),
@@ -219,30 +230,9 @@ class ProfileController extends Controller
                 'extract(year from published_at at time zone ?) = ?',
                 [Czas::strefa(), $rok],
             ))
-            // 'tags:id,slug,name,status' — patrz komentarz w
-            // FollowingFeed::paginate(): karta wpisu pokazuje tematy TYLKO
-            // gdy relacja jest już doładowana, więc bez tego archiwum
-            // profilu nie miałoby żadnych chipów tematów.
-            // `recipe:…` z `visibility` i `hero_media_id` plus `recipe.heroMedia`
-            // — dokładnie jak w `FollowingFeed`, `DiscoverFeed`, `DailyBoard`
-            // i `TagFeed` (issue #368). Archiwum profilu rysuje tę samą kartę
-            // `x-post-card`, a ta czyta z relacji `recipe` tytuł, odnośnik,
-            // `visibility` na plakietkę widoczności i zdjęcie główne. Bez tego
-            // każdy wpis wskazujący przepis dokładał osobne zapytanie na stronę
-            // (a `heroMedia` drugie), a plakietka widoczności schodziła przez
-            // `?? $post->visibility` do stałego `public` wpisu zapowiadającego.
-            ->with([
-                'media',
-                'author.profile.avatar',
-                'recipe:id,title,slug,visibility,hero_media_id',
-                'recipe.heroMedia',
-                'tags:id,slug,name,status',
-            ])
-            ->withVisibleCommentCount($viewer)
-            // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
-            // zapytaniem (issue #275, D-081). Reguły siedzą w `ZapisyWpisu`,
-            // tutaj jest tylko miejsce, w którym dokładamy kolumnę do SELECT-a.
-            ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
+            // Relacje karty, licznik komentarzy i zapisów — jeden kontrakt
+            // `Post::scopeDlaKarty()` (#1037), ten sam na każdej liście wpisów.
+            ->dlaKarty($viewer)
             ->latest('published_at')
             ->latest('id')
             ->paginate(12)
@@ -327,6 +317,22 @@ class ProfileController extends Controller
     private function tylkoWidoczne($query, $owner, $viewer, bool $isOwner): void
     {
         if ($isOwner) {
+            // ZAPOWIEDŹ USUNIĘTEGO PRZEPISU (#1395). Właściciel omija bramkę
+            // przepisu niżej, bo własne przepisy — także prywatne i ukryte —
+            // otwiera (`RecipePolicy::view()`). Wyjątkiem jest przepis
+            // usunięty miękko: relacja `recipe` go nie pobiera, karta traciła
+            // tytuł i zdjęcie, a odnośnik prowadził do 403 z `PostPolicy::view()`.
+            // Wiersz wpisu i jego komentarze ZOSTAJĄ w bazie (moderacja,
+            // odzyskanie) — znikają tylko z listy, lat i licznika naraz.
+            // Wpis z własną treścią albo zdjęciem nie jest zapowiedzią
+            // (`Post::czyJestZapowiedziaPrzepisu()`) i zostaje widoczny.
+            if ($query->getModel() instanceof Post) {
+                $query->where(fn ($w) => $w->whereNull('posts.recipe_id')
+                    ->orWhereHas('recipe')
+                    ->orWhereRaw("posts.body ~ '[^[:space:]]'")
+                    ->orWhereHas('media'));
+            }
+
             return;
         }
 
@@ -434,6 +440,25 @@ class ProfileController extends Controller
     }
 
     /**
+     * Identyfikatory osób związanych z `$user` blokadą w którąkolwiek stronę.
+     *
+     * @return list<string>
+     */
+    private function osobyZBlokada(User $user): array
+    {
+        return Block::query()
+            ->where('blocker_id', $user->getKey())
+            ->orWhere('blocked_id', $user->getKey())
+            ->get(['blocker_id', 'blocked_id'])
+            ->flatMap(fn (Block $blokada) => [$blokada->blocker_id, $blokada->blocked_id])
+            ->reject(fn ($id) => $id === $user->getKey())
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
      * Wykonania kucharza w zakładce profilu (issue #735, #736).
      *
      * 1. Jawny porządek `cooked_at DESC, id DESC` gwarantuje stabilną paginację
@@ -471,6 +496,47 @@ class ProfileController extends Controller
         });
 
         return $paginator;
+    }
+
+    /**
+     * Które przepisy z kart „Ugotowane” patrzący może otworzyć (issue #766).
+     *
+     * Karta wykonania pokazuje odnośnik do przepisu tylko wtedy, gdy
+     * `RecipePolicy::view` go wpuści — inaczej kucharz na własnym profilu
+     * klikał w przepis, który autor zrobił prywatnym albo moderacja ukryła,
+     * i dostawał 403. Pytanie polityki na każdej karcie osobno to jednak
+     * zapytanie o blokadę na kartę, a tego pilnuje
+     * `ProfilUgotowaneBezWachlarzaZapytanTest`.
+     *
+     * Stąd jedno zapytanie na stronę, tym samym zakresem co
+     * `tylkoZWidocznychPrzepisow()`:
+     *  - `null` — cudzy profil: lista jest już przefiltrowana tym zakresem,
+     *    więc każdy przepis na niej jest widoczny;
+     *  - lista id — własny profil (lista bez filtra): przepis spoza niej
+     *    karta sprawdza polityką sama, bo polityka bywa szersza od zakresu
+     *    (moderator). Tych kart jest mało i tylko one kosztują zapytanie.
+     *
+     * @return list<string>|null
+     */
+    private function przepisyWidoczneNaKartach(?LengthAwarePaginator $cookedEvents, ?User $viewer, bool $isOwner): ?array
+    {
+        if ($cookedEvents === null || ! $isOwner) {
+            return null;
+        }
+
+        $idPrzepisow = collect($cookedEvents->items())->pluck('recipe_id')->filter()->unique()->values();
+
+        if ($idPrzepisow->isEmpty()) {
+            return [];
+        }
+
+        return Recipe::query()
+            ->whereKey($idPrzepisow->all())
+            ->widoczneDla($viewer)
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
     }
 
     /**
