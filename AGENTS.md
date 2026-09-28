@@ -522,7 +522,9 @@ tagi, tag z listy gospodarza, „kuKINGi na dziś” w kolejności gospodarza, c
 jeden przepis od osoby, bramki i ukrycia.
 
 W **Obserwowanych** nic nie znika poza bramkami i blokadami oraz wpisami, które
-widz sam ukrył („Ukryj ten wpis”, D-278 — z listą „Ukryte” do cofnięcia).
+widz sam ukrył („Ukryj ten wpis”, a przy wpisach z obserwowanego tagu także
+„Ukryj tę osobę”; D-278 — z listą „Ukryte” do cofnięcia). Osoby obserwowane
+wprost nie znikają nigdy.
 Dopuszczalne jest tylko zwinięcie serii wpisów jednej osoby albo jednego
 obserwowanego tagu (D-279: dwa widać, reszta pod „Pokaż”), bez zmiany
 kolejności.
