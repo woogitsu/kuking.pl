@@ -1163,7 +1163,7 @@ export default defineRailway((ctx) => {
       //
       //  Pilnuje tego `WdrozenieImportujeWartosciOdzywczeTest`.
       preDeployCommand: [
-        "php artisan migrate --force --no-interaction",
+        "php artisan kuking:migruj-pod-blokada --no-interaction",
         "php artisan kuking:zarejestruj-wdrozenie --no-interaction",
         "php artisan db:seed --force --no-interaction",
         "php artisan kuking:importuj-wartosci-odzywcze",

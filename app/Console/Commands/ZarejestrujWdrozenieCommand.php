@@ -15,7 +15,7 @@ use Throwable;
  * końcówką, np. „Alfa 0.68.005".
  *
  * WPIĘTA W `.railway/railway.ts`, `preDeployCommand`, ZARAZ PO
- * `php artisan migrate --force` — tam, gdzie dziś zaczyna się cała
+ * `php artisan kuking:migruj-pod-blokada` — tam, gdzie dziś zaczyna się cała
  * automatyka wdrożenia (patrz komentarz w tym pliku przy `preDeployCommand`
  * i `docs/infra/DEPLOYMENT_RUNBOOK.md`). Musi iść PO migracjach: potrzebuje
  * tabeli `wdrozenia`, którą ta migracja dopiero zakłada.
