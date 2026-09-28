@@ -18398,8 +18398,9 @@ sekcję w swoim przepisie; **domyślnie widoczna**.
    `php artisan kuking:importuj-wartosci-odzywcze`, idempotentny, w jednej
    transakcji. Od poprawki #1961 (26.09.2026) komenda stoi w
    `preDeployCommand` obok `migrate`/`db:seed` i leci przy każdym wdrożeniu;
-   pomija całą pracę (hash plików CSV bez zmian i tabela już ma dane), więc
-   deploy bez zmiany danych jej nie spowalnia.
+   pomija zapis, gdy hash źródeł oraz odcisk wszystkich trzech tabel są zgodne
+   z poprzednim udanym importem (#2130); deploy bez zmiany danych nie przepisuje
+   słownika, a częściowy restore odbudowuje go.
 3. **Liczenie** (`app/Domain/Recipes/Odzywcze`). Składnik jest wolnym
    tekstem (D-017), więc `ParserSkladnika` czyta ilość, jednostkę i nazwę
    z tekstu w chwili liczenia i niczego nie zapisuje („2 szklanki mąki”,
