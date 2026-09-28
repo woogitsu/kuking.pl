@@ -59,8 +59,7 @@ final class WspolnyLimitImportuNaDwochPolaczeniachTest extends TestDwochPolaczen
         int $zajete = 0,
         ?string $wyczerpany = LimitImportowOsoby::DZIEN,
         array $oczekiwane = ['rezerwacja', 'odmowa'],
-    ): void
-    {
+    ): void {
         $osoba = $this->konto();
         config([
             'kuking.import.limity.na_osobe_dzien' => $limitDzienny,
