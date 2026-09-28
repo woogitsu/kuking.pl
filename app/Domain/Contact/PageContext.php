@@ -22,6 +22,7 @@ final class PageContext
     public const SENSITIVE_ROUTES = [
         'password.reset',
         'login.link.confirm',
+        'facebook.link.confirm',
         'zaproszenie.pokaz',
         'verification.verify',
         'settings.email.confirm',
