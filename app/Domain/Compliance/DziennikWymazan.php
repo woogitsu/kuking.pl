@@ -5,12 +5,17 @@ declare(strict_types=1);
 namespace App\Domain\Compliance;
 
 use App\Models\User;
+use App\Support\Storage\R2Adapter;
+use Aws\Exception\AwsException;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
+use League\Flysystem\Local\LocalFilesystemAdapter;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -61,6 +66,12 @@ final class DziennikWymazan
 {
     public const PREFIKS = 'dziennik-wymazan/';
 
+    public const DOPISANO = 'dopisano';
+
+    public const ISTNIEJE = 'istnieje';
+
+    public const BLAD = 'blad';
+
     public function dysk(): Filesystem
     {
         return Storage::disk((string) config('kuking.dziennik_wymazan.dysk'));
@@ -74,6 +85,17 @@ final class DziennikWymazan
 
     public function zapisz(string $userId, string $zakres, CarbonInterface $kiedy): bool
     {
+        return $this->zapiszWariant($userId, $zakres, $kiedy, false) === self::DOPISANO;
+    }
+
+    /** Atomowo dopisuje brakujący wpis, bez możliwości zastąpienia istniejącego. */
+    public function dopiszJesliBrak(string $userId, string $zakres, CarbonInterface $kiedy): string
+    {
+        return $this->zapiszWariant($userId, $zakres, $kiedy, true);
+    }
+
+    private function zapiszWariant(string $userId, string $zakres, CarbonInterface $kiedy, bool $tylkoJesliBrak): string
+    {
         $wymazanoAt = $kiedy->toIso8601ZuluString();
         $tresc = (string) json_encode([
             'user_id' => $userId,
@@ -84,9 +106,15 @@ final class DziennikWymazan
 
         for ($proba = 1; $proba <= self::PROBY; $proba++) {
             try {
-                $this->dysk()->put(self::PREFIKS.$userId.'.json', $tresc);
+                if ($tylkoJesliBrak) {
+                    if (! $this->putJesliBrak(self::PREFIKS.$userId.'.json', $tresc)) {
+                        return self::ISTNIEJE;
+                    }
+                } elseif ($this->dysk()->put(self::PREFIKS.$userId.'.json', $tresc) !== true) {
+                    throw new RuntimeException('Dysk dziennika zwrócił false przy zapisie.');
+                }
 
-                return true;
+                return self::DOPISANO;
             } catch (Throwable $e) {
                 $ostatni = $e;
 
@@ -106,7 +134,69 @@ final class DziennikWymazan
             'wyjatek' => $ostatni instanceof Throwable ? $ostatni::class : null,
         ]);
 
-        return false;
+        return self::BLAD;
+    }
+
+    /**
+     * R2: warunkowy PutObject (412 oznacza, że wpis już powstał).
+     * Dysk lokalny w testach: fopen(x) daje tę samą atomową własność.
+     */
+    private function putJesliBrak(string $klucz, string $tresc): bool
+    {
+        $dysk = $this->dysk();
+
+        if (! $dysk instanceof FilesystemAdapter) {
+            throw new RuntimeException('Dysk dziennika nie obsługuje atomowego dopisania.');
+        }
+
+        if ($dysk->getAdapter() instanceof R2Adapter) {
+            try {
+                if ($dysk->put($klucz, $tresc, ['IfNoneMatch' => '*']) !== true) {
+                    throw new RuntimeException('Dysk dziennika zwrócił false przy dopisywaniu.');
+                }
+
+                return true;
+            } catch (Throwable $e) {
+                for ($przyczyna = $e; $przyczyna !== null; $przyczyna = $przyczyna->getPrevious()) {
+                    if ($przyczyna instanceof AwsException && $przyczyna->getStatusCode() === 412) {
+                        return false;
+                    }
+                }
+
+                throw $e;
+            }
+        }
+
+        if (! $dysk->getAdapter() instanceof LocalFilesystemAdapter) {
+            throw new RuntimeException('Dysk dziennika nie obsługuje atomowego dopisania.');
+        }
+
+        $dysk->makeDirectory(rtrim(self::PREFIKS, '/'));
+        $sciezka = $dysk->path($klucz);
+        $uchwyt = @fopen($sciezka, 'xb');
+
+        if ($uchwyt === false) {
+            if (is_file($sciezka)) {
+                return false;
+            }
+
+            throw new RuntimeException('Nie udało się utworzyć wpisu dziennika.');
+        }
+
+        try {
+            if (fwrite($uchwyt, $tresc) !== strlen($tresc)) {
+                throw new RuntimeException('Nie udało się zapisać całego wpisu dziennika.');
+            }
+        } catch (Throwable $e) {
+            fclose($uchwyt);
+            @unlink($sciezka);
+
+            throw $e;
+        }
+
+        fclose($uchwyt);
+
+        return true;
     }
 
     /**
@@ -153,13 +243,9 @@ final class DziennikWymazan
             ->where('data_erased_at', '>=', now()->subDays($dni))
             ->orderBy('data_erased_at')
             ->each(function (User $konto) use (&$dopisane): void {
-                if ($this->dysk()->exists(self::PREFIKS.$konto->getKey().'.json')) {
-                    return;
-                }
-
                 $zakres = $konto->delete_scope ?? User::DELETE_SCOPE_MINIMUM;
 
-                if ($this->zapisz((string) $konto->getKey(), $zakres, $konto->data_erased_at)) {
+                if ($this->dopiszJesliBrak((string) $konto->getKey(), $zakres, $konto->data_erased_at) === self::DOPISANO) {
                     $dopisane++;
                 }
             });

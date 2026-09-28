@@ -160,6 +160,9 @@ class DziennikWymazanPrzezOdtworzenieTest extends TestCase
         $this->artisan('kuking:dziennik-wymazan', ['--dopisz' => $uuid, '--zakres' => 'polowa', '--kiedy' => now()->toIso8601ZuluString()])->assertFailed();
         $this->artisan('kuking:dziennik-wymazan', ['--dopisz' => $uuid, '--zakres' => User::DELETE_SCOPE_MINIMUM])->assertFailed();
         $this->artisan('kuking:dziennik-wymazan', ['--dopisz' => $uuid, '--zakres' => User::DELETE_SCOPE_MINIMUM, '--kiedy' => ''])->assertFailed();
+        $this->artisan('kuking:dziennik-wymazan', ['--dopisz' => $uuid, '--zakres' => User::DELETE_SCOPE_MINIMUM, '--kiedy' => 'yesterday'])->assertFailed();
+        $this->artisan('kuking:dziennik-wymazan', ['--dopisz' => $uuid, '--zakres' => User::DELETE_SCOPE_MINIMUM, '--kiedy' => '2026-02-30T03:50:00Z'])->assertFailed();
+        $this->artisan('kuking:dziennik-wymazan', ['--dopisz' => $uuid, '--zakres' => User::DELETE_SCOPE_MINIMUM, '--kiedy' => now()->toDateTimeString()])->assertFailed();
         $this->artisan('kuking:dziennik-wymazan', ['--dopisz' => $uuid, '--zakres' => User::DELETE_SCOPE_MINIMUM, '--kiedy' => now()->addDay()->toIso8601ZuluString()])->assertFailed();
 
         $this->assertSame([], app(DziennikWymazan::class)->wpisyOd());
@@ -179,6 +182,12 @@ class DziennikWymazanPrzezOdtworzenieTest extends TestCase
         ], JSON_THROW_ON_ERROR);
         Storage::disk('dziennik_test')->put($klucz, $istniejacyWpis);
 
+        // Stary odczyt może jeszcze zwrócić „brak”, choć inny proces już dopisał.
+        // Dawne exists() + zwykły put() nadpisywały wtedy ten wpis.
+        $dyskZeStarymOdczytem = Mockery::mock(Storage::disk('dziennik_test'))->makePartial();
+        $dyskZeStarymOdczytem->shouldReceive('exists')->andReturn(false);
+        Storage::set('dziennik_test', $dyskZeStarymOdczytem);
+
         $this->artisan('kuking:dziennik-wymazan', [
             '--dopisz' => $uuid,
             '--zakres' => User::DELETE_SCOPE_MINIMUM,
@@ -186,5 +195,61 @@ class DziennikWymazanPrzezOdtworzenieTest extends TestCase
         ])->assertFailed();
 
         $this->assertSame($istniejacyWpis, Storage::disk('dziennik_test')->get($klucz));
+    }
+
+    public function test_nocne_uzupelnienie_nie_nadpisuje_wpisu_ktory_powstal_w_miedzyczasie(): void
+    {
+        $konto = User::factory()->create();
+        $konto->forceFill([
+            'status' => User::STATUS_ERASED,
+            'data_erased_at' => now()->subHour(),
+            'delete_scope' => User::DELETE_SCOPE_MINIMUM,
+        ])->save();
+        $klucz = DziennikWymazan::PREFIKS.$konto->getKey().'.json';
+        $wpisZLogu = json_encode([
+            'user_id' => (string) $konto->getKey(),
+            'wymazano_at' => now()->subHours(2)->toIso8601ZuluString(),
+            'zakres' => User::DELETE_SCOPE_EVERYTHING,
+        ], JSON_THROW_ON_ERROR);
+        Storage::disk('dziennik_test')->put($klucz, $wpisZLogu);
+
+        $dyskZeStarymOdczytem = Mockery::mock(Storage::disk('dziennik_test'))->makePartial();
+        $dyskZeStarymOdczytem->shouldReceive('exists')->andReturn(false);
+        Storage::set('dziennik_test', $dyskZeStarymOdczytem);
+
+        $this->assertSame(0, app(DziennikWymazan::class)->uzupelnij(120));
+        $this->assertSame($wpisZLogu, Storage::disk('dziennik_test')->get($klucz));
+        $this->assertSame(
+            DziennikWymazan::ISTNIEJE,
+            app(DziennikWymazan::class)->dopiszJesliBrak((string) $konto->getKey(), User::DELETE_SCOPE_MINIMUM, now()),
+        );
+        $this->assertSame($wpisZLogu, Storage::disk('dziennik_test')->get($klucz));
+    }
+
+    public function test_false_z_dysku_jest_powtarzane_a_trwala_awaria_zostawia_pelny_log(): void
+    {
+        $prawdziwy = Storage::disk('dziennik_test');
+        $licznik = 0;
+        $dysk = Mockery::mock($prawdziwy)->makePartial();
+        $dysk->shouldReceive('put')->andReturnUsing(function () use (&$licznik): bool {
+            $licznik++;
+
+            return false;
+        });
+        Storage::set('dziennik_test', $dysk);
+        $zLogu = null;
+        Log::listen(function ($zdarzenie) use (&$zLogu): void {
+            if (str_starts_with($zdarzenie->message, 'Dziennik wymazań: nie udało się zapisać')) {
+                $zLogu = $zdarzenie->context;
+            }
+        });
+
+        $uuid = '00000000-0000-4000-8000-000000000003';
+        $this->assertFalse(app(DziennikWymazan::class)->zapisz($uuid, User::DELETE_SCOPE_EVERYTHING, now()));
+        $this->assertSame(DziennikWymazan::PROBY, $licznik);
+        $this->assertSame($uuid, $zLogu['user_id']);
+        $this->assertSame(User::DELETE_SCOPE_EVERYTHING, $zLogu['zakres']);
+        $this->assertNotEmpty($zLogu['wymazano_at']);
+        $this->assertSame(DziennikWymazan::PROBY, $zLogu['proby']);
     }
 }

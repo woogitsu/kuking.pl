@@ -65,38 +65,30 @@ class PielegnujDziennikWymazan extends Command
             return self::FAILURE;
         }
 
-        // Pusta wartość to brak, nie „teraz” — `parse('')` dałoby bieżącą chwilę.
+        // Akceptujemy tylko dokładny format emitowany do logu, bez dat względnych.
         $surowe = trim((string) $this->option('kiedy'));
 
         try {
-            $kiedy = $surowe === '' ? null : CarbonImmutable::parse($surowe);
+            $kiedy = $surowe === '' ? null : CarbonImmutable::createFromFormat('!Y-m-d\TH:i:s\Z', $surowe, 'UTC');
         } catch (Throwable) {
             $kiedy = null;
         }
 
-        if ($kiedy === null || $kiedy->isFuture()) {
-            $this->error('--kiedy musi być chwilą wymazania z pola wymazano_at w tej samej linii logu (nie z przyszłości).');
+        if (! $kiedy instanceof CarbonImmutable || $kiedy->toIso8601ZuluString() !== $surowe || $kiedy->isFuture()) {
+            $this->error('--kiedy musi być dokładną chwilą UTC z pola wymazano_at w tej samej linii logu (np. 2026-09-28T03:50:00Z).');
 
             return self::FAILURE;
         }
 
-        // Ręczne odtwarzanie z logu nie może zastąpić istniejącego śladu
-        // innym zakresem ani datą. Przy błędzie odczytu także odmawiamy.
-        try {
-            $juzIstnieje = $dziennik->dysk()->exists(DziennikWymazan::PREFIKS.$userId.'.json');
-        } catch (Throwable) {
-            $this->error('Nie udało się sprawdzić istniejącego wpisu dziennika — niczego nie dopisano.');
+        $wynik = $dziennik->dopiszJesliBrak($userId, $zakres, $kiedy);
 
-            return self::FAILURE;
-        }
-
-        if ($juzIstnieje) {
+        if ($wynik === DziennikWymazan::ISTNIEJE) {
             $this->error('Wpis tego konta już istnieje w dzienniku — nie został nadpisany. Sprawdź jego zakres i datę przed dalszym działaniem.');
 
             return self::FAILURE;
         }
 
-        if (! $dziennik->zapisz($userId, $zakres, $kiedy)) {
+        if ($wynik === DziennikWymazan::BLAD) {
             $this->error('Nie udało się zapisać wpisu — magazyn dziennika dalej nie odpowiada. Spróbuj ponownie za kilka minut.');
 
             return self::FAILURE;
