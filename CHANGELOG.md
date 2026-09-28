@@ -3,6 +3,7 @@
 ## Nieopublikowane
 
 - Kopiowanie tygodnia w Planerze pomija pozycje poza dozwolonym zakresem dat i podaje ich liczbę. Obowiązują te same granice co przy zwykłym dodawaniu (#2036).
+- Zdjęcia wyświetlane „Zwykle” stoją jedno pod drugim także na tablecie. Dwa zdjęcia o różnych proporcjach nie zostawiają już szarego pasa, a trzecie nie zostawia pustej prawej połowy. Kolaż i karuzela pozostają osobnymi wyborami (#2126).
 - Przełącznik wartości odżywczych sprawdza aktualny stan przepisu pod blokadą. Żądanie rozpoczęte przed zdjęciem lub usunięciem przepisu nie zapisze ustawienia po decyzji moderatora i pokaże czytelną odmowę (#2112).
 - Eksport HTML przepisu zachowuje dokładną liczbę porcji, także przy dwóch cyfrach po przecinku (#2035).
 - Wewnętrzne: kontrola negatywna testów zachowuje dowód niezaliczonej asercji, nawet gdy log zawiera błędne bajty UTF-8; sama awaria procesu nadal nie zalicza kontroli (Refs #1011).
