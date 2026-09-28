@@ -2866,6 +2866,32 @@ defaultu, więc dodanie nie przepisuje tabeli. Rollback odmawia, gdy są
 grupy albo zakończone rezerwacje: oba znaczniki są potrzebne do
 prawidłowego rachunku. Wtedy wycofujemy kod i osobno rozstrzygamy dane.
 
+**`push_wynik varchar(32) NULL`** (#2053, migracja
+`2026_09_28_200000_add_push_wynik_to_notifications`) — DLACZEGO rezerwacja
+zamknęła się bez wysyłki. `push_zakonczono_at` stawiała zarówno trwała
+porażka transportu, jak i świadome anulowanie ponowienia (#2052), więc czujka
+nie umiała odróżnić awarii od anulowania. Zamknięta lista
+(`App\Domain\Notifications\Push\KodZamknieciaPush`), pilnowana CHECK-iem
+`notifications_push_wynik_check`: `NULL` albo — tylko przy niepustym
+`push_zakonczono_at` — `porazka_transportu` (wyczerpane próby; alarmuje),
+`anulowano` (przeczytane, niewidoczne, konto bez dostępu, rezerwacja ponad
+48 h; nie alarmuje), `zamknieto_recznie` (operator rozliczył grupę według
+`docs/infra/WEB_PUSH_TRWALE_PORAZKI_2053.md`). Zamknięcia sprzed migracji
+zostają bez kodu i nie alarmują. Stany rezerwacji, które liczy
+`kuking:sprawdz-push` (`StanWysylkiPush`): **w toku** (bez zamknięcia,
+świeższa niż `push_osierocenie_minut` albo z zadaniem odbiorcy w `jobs`),
+**utracone ponowienie** (bez zamknięcia, starsza niż próg, bez zadania),
+**trwała porażka** (`porazka_transportu`). Częściowy indeks
+`notifications_push_nierozliczone_idx` na `(push_proba_at)` `WHERE
+push_proba_at IS NOT NULL AND push_wyslano_at IS NULL AND (push_zakonczono_at
+IS NULL OR push_wynik = 'porazka_transportu')` trzyma tylko te wiersze, które
+czujka ogląda. Kolumna nullable bez defaultu (bez przepisywania tabeli), CHECK
+jako `NOT VALID` + `VALIDATE`, indeks `CONCURRENTLY` (AGENTS.md §6).
+Rollback NIE odmawia: kod nie jest decyzją człowieka o jego danych; po
+`down()` i ponownym `migrate` zamknięte grupy wracają bez kodu, czyli jako
+„zamknięte, nie alarmują” — ginie tylko diagnostyka czujki, żaden push nie
+idzie drugi raz (`push_proba_at` i `push_zakonczono_at` zostają).
+
 **Retencja:** `config('kuking.notifications.retention_months')` — **3 miesiące**
 od `created_at`, **niezależnie od `read_at`** (wariant A z `docs/decyzje/ADR_RETENCJE.md`
 §6: jeden wiek dla wszystkich; wariant B trzymałby bezterminowo powiadomienia,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Domain\Notifications\Push\KanalPush;
+use App\Domain\Notifications\Push\KodZamknieciaPush;
 use App\Domain\Notifications\Push\TransportPush;
 use App\Domain\Notifications\Push\TrescPush;
 use App\Domain\Notifications\Push\WynikWysylkiPush;
@@ -66,6 +67,12 @@ use Illuminate\Support\Str;
  *    szturchnięciem, nie listem poleconym — powiadomienie w serwisie i tak
  *    czeka) i zostawiamy TRWALE puste `push_wyslano_at` z wpisem w dzienniku;
  *    `push_zakonczono_at` zamyka rezerwację limitu (#1992);
+ *  - KAŻDE zamknięcie niesie kod w `push_wynik` (#2053): `porazka_transportu`
+ *    po wyczerpanych próbach, `anulowano` przy świadomym odrzuceniu retry.
+ *    Sam dziennik nie wystarczał — zadanie kończyło się sukcesem, bez
+ *    `failed_jobs`, więc czujka kolejki nie miała czego zobaczyć. Trwałą
+ *    porażkę i utracone ponowienie liczy `kuking:sprawdz-push`; kod NIGDY
+ *    nie wraca grupy do puli i niczego nie wysyła ponownie;
  *  - wygasła subskrypcja (404/410) jest kasowana od razu, jak dotąd —
  *    tego reguła nie zmienia.
  */
@@ -133,7 +140,7 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
         if (! $user->mozeCzytac()) {
             if ($ponowienie) {
                 DB::transaction(function () use ($user): void {
-                    $this->zakonczProby($this->kwalifikujPonowienie($user));
+                    $this->zakonczProby($this->kwalifikujPonowienie($user), KodZamknieciaPush::Anulowano);
                 });
             }
 
@@ -204,7 +211,7 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
         $maksProb = (int) config('kuking.notifications.zewnetrzne.push_maks_prob_transportu', 3);
 
         if ($this->probaTransportu >= $maksProb) {
-            $this->zakonczProby($this->notificationIds);
+            $this->zakonczProby($this->notificationIds, KodZamknieciaPush::PorazkaTransportu);
             // TRWAŁA PORAŻKA — bez adresu subskrypcji (poświadczenie),
             // z liczbą, żeby dało się to policzyć i zauważyć trend.
             Log::error('Web Push: trwała porażka transportu — rezygnuję z ponawiania po wyczerpaniu prób.', [
@@ -262,7 +269,7 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
         $idGrupy = array_map(strval(...), $grupa->modelKeys());
         $zarezerwowano = $grupa->min('push_proba_at');
         if ($zarezerwowano === null || CarbonImmutable::parse($zarezerwowano)->lessThan(CarbonImmutable::now()->subHours(48))) {
-            $this->zakonczProby($idGrupy);
+            $this->zakonczProby($idGrupy, KodZamknieciaPush::Anulowano);
 
             return [];
         }
@@ -276,7 +283,7 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
             ->get()
             ->filter(fn (Notification $n): bool => KanalPush::dotyczy($n->type, is_array($n->data) ? $n->data : []));
         $aktualneId = array_map(strval(...), $widoczne->modelKeys());
-        $this->zakonczProby(array_values(array_diff($idGrupy, $aktualneId)));
+        $this->zakonczProby(array_values(array_diff($idGrupy, $aktualneId)), KodZamknieciaPush::Anulowano);
 
         return $aktualneId;
     }
@@ -395,8 +402,11 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
         return $nowe + $stare;
     }
 
-    /** Zakończona grupa nie wraca do puli, ale przestaje być aktywnym slotem. */
-    private function zakonczProby(array $notificationIds): void
+    /**
+     * Zakończona grupa nie wraca do puli, ale przestaje być aktywnym slotem.
+     * Kod mówi czujce, czy to awaria, czy świadome anulowanie (#2053).
+     */
+    private function zakonczProby(array $notificationIds, KodZamknieciaPush $kod): void
     {
         if ($notificationIds === []) {
             return;
@@ -407,7 +417,7 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
             ->whereNotNull('push_proba_at')
             ->whereNull('push_wyslano_at')
             ->whereNull('push_zakonczono_at')
-            ->update(['push_zakonczono_at' => CarbonImmutable::now()]);
+            ->update(['push_zakonczono_at' => CarbonImmutable::now(), 'push_wynik' => $kod->value]);
     }
 
     /**
