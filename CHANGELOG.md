@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Podgląd przepisu bez składników wyjaśnia teraz spokojnie, że można je dopisać później; nie pokazuje braku składników jako błędu, bo nie blokuje on publikacji (#1991).
 - Paczka Twoich danych zachowuje przy każdym przepisie wybór, czy pokazywać szacunkowe wartości odżywcze. Po przeniesieniu danych można odróżnić celowo ukrytą sekcję od domyślnie widocznej (#1993).
 
 ## Alfa 0.74 — zdjęcia w formularzu i porcje przy gotowaniu
