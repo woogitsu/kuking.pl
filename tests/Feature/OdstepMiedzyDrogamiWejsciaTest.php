@@ -217,6 +217,13 @@ class OdstepMiedzyDrogamiWejsciaTest extends TestCase
                     continue;
                 }
 
+                // W siatce wejścia odstęp ustawia `gap`, więc trzeba wyzerować
+                // odziedziczone mt-6 współdzielonego komponentu OAuth.
+                if (trim(preg_replace('~/\*.*?\*/~s', '', $selektor) ?? '') === '.marka-wejscie-dalsze > .sekcja-strony.mt-6'
+                    && preg_match('/^\s*margin-top:\s*0\s*!important\s*;?\s*$/', $tresc) === 1) {
+                    continue;
+                }
+
                 // Nowa rama panelu ma własny slot; ta reguła nie może objąć logowania.
                 $czystySelektor = trim(preg_replace('/\s+/', ' ', preg_replace('~/\*.*?\*/~s', '', $selektor) ?? '') ?? '');
                 if ($czystySelektor === '[data-marka-panel] .marka-panel-tresc > '
