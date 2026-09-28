@@ -250,12 +250,11 @@ class AccountDeletionController extends Controller
             ]);
         }
 
-        [$maxProb, $decayMinuty] = TwoFactorAuthenticator::limitProb();
-        $klucz = TwoFactorAuthenticator::kluczLimituProb($osoba);
+        // Próba liczona PRZED sprawdzeniem kodu, atomowo (#2043) — patrz
+        // `TwoFactorAuthenticator::zarezerwujProbe()`.
+        $minuty = $this->totp->zarezerwujProbe($osoba);
 
-        if (RateLimiter::tooManyAttempts($klucz, $maxProb)) {
-            $minuty = max(1, (int) ceil(RateLimiter::availableIn($klucz) / 60));
-
+        if ($minuty !== null) {
             $this->odmow($request, [
                 'code' => "Za dużo prób kodu. Spróbuj ponownie za {$minuty} min.",
             ]);
@@ -270,15 +269,13 @@ class AccountDeletionController extends Controller
                 : $this->totp->backupCodeMatches($osoba, $kod));
 
         if (! $poprawny) {
-            RateLimiter::hit($klucz, $decayMinuty * 60);
-
             $this->odmow($request, [
                 'code' => 'Kod jest nieprawidłowy albo już wykorzystany. Sprawdź godzinę w telefonie, '
                     .'wpisz nowy kod z aplikacji (albo niewykorzystany kod zapasowy) i jeszcze raz hasło.',
             ]);
         }
 
-        RateLimiter::clear($klucz);
+        RateLimiter::clear(TwoFactorAuthenticator::kluczLimituProb($osoba));
     }
 
     /**
