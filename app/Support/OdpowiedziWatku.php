@@ -7,6 +7,7 @@ namespace App\Support;
 use App\Models\Comment;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 
 /**
@@ -41,12 +42,20 @@ final class OdpowiedziWatku
     /**
      * Ograniczenie relacji `replies`: widoczność + pierwsza porcja.
      *
-     * @param  Builder<Comment>  $query
-     * @return Builder<Comment>
+     * Eager loading przekazuje relację `HasMany`, a ręczne zapytanie builder.
+     * Oba muszą zachować swój typ zwracany dla kodu wywołującego.
+     *
+     * @template T of Builder|Relation
+     *
+     * @param  T  $query
+     * @return T
      */
-    public static function pierwszaPorcja(Builder $query, ?User $widz): Builder
+    public static function pierwszaPorcja(Builder|Relation $query, ?User $widz): Builder|Relation
     {
-        return $query->widoczneDla($widz)->limit(self::rozmiarPorcji());
+        $komentarze = $query instanceof Relation ? $query->getQuery() : $query;
+        (new Comment)->scopeWidoczneDla($komentarze, $widz);
+
+        return $query->limit(self::rozmiarPorcji());
     }
 
     /**
