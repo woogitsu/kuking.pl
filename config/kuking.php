@@ -3526,6 +3526,25 @@ return [
     | `php artisan kuking:sprawdz-import`.
     */
     'import' => [
+        'url' => [
+            // Wyłącznik źródła. false = przycisku „Wklej adres strony" nie ma
+            // w ogóle (bez martwych przycisków, D-053).
+            'wlaczony' => (bool) env('KUKING_IMPORT_URL', true),
+            // Najwięcej bajtów strony czytanych strumieniowo; większa = odmowa.
+            'max_bajtow' => (int) env('KUKING_IMPORT_URL_MAX_BAJTOW', 2_000_000),
+            // Limit czasu JEDNEGO żądania (strona, przekierowanie, robots.txt).
+            'limit_czasu' => (int) env('KUKING_IMPORT_URL_LIMIT_CZASU', 10),
+            // Limit czasu całego pobrania razem z przekierowaniami i robots.txt.
+            'limit_czasu_calosci' => (int) env('KUKING_IMPORT_URL_LIMIT_CALOSCI', 25),
+        ],
+        'pdf' => [
+            'wlaczony' => (bool) env('KUKING_IMPORT_PDF', true),
+            'max_mb' => (int) env('KUKING_IMPORT_PDF_MAX_MB', 10),
+            'max_stron' => (int) env('KUKING_IMPORT_PDF_MAX_STRON', 5),
+            // Limit czasu pdfinfo/pdftotext — spreparowany plik nie zajmie
+            // procesu na dłużej.
+            'limit_czasu' => (int) env('KUKING_IMPORT_PDF_LIMIT_CZASU', 20),
+        ],
         /*
          * KOLEJKA `low`, NIE OSOBNA `import` (D-298). Produkcja chodzi dziś
          * w roli `all` — jeden proces na wszystkie kolejki — więc osobna
@@ -3536,13 +3555,9 @@ return [
          */
         'kolejka' => 'low',
 
-        // Przełączniki źródeł. Wyłączone źródło = brak przycisku.
-        // `url` i `pdf` należą do osobnych etapów (D-298) — dopóki ich trasy
-        // nie istnieją, przycisku nie ma niezależnie od tej wartości.
+        // Przełącznik OCR; adres i PDF mają własne ustawienia powyżej.
         'zrodla' => [
             'zdjecie' => (bool) env('KUKING_IMPORT_ZDJECIE', true),
-            'url' => (bool) env('KUKING_IMPORT_URL', false),
-            'pdf' => (bool) env('KUKING_IMPORT_PDF', false),
         ],
 
         'model' => [
@@ -3551,7 +3566,8 @@ return [
             // moderacji nie dostaje szerszych uprawnień. Pusty = wyłączone.
             'klucz' => env('OPENAI_IMPORT_KEY'),
             'endpoint' => env('KUKING_IMPORT_ENDPOINT', 'https://api.openai.com/v1/responses'),
-            // Decyzja właściciela 26.09.2026: `gpt-6-luna`. Zmienialne w env.
+            // Decyzja właściciela 26.09.2026: `gpt-6-luna`. Inny model
+            // wyłącza płatny import do czasu ustalenia jego sufitu kosztu.
             'nazwa' => env('KUKING_IMPORT_MODEL', 'gpt-6-luna'),
             // Odczyt obrazu z rozumowaniem trwa dziesiątki sekund. Przycinane
             // w kliencie do 10–110 s (zadanie ma 120 s).
@@ -3577,13 +3593,8 @@ return [
              */
             'cena_wejscie_mln_usd' => env('KUKING_IMPORT_CENA_WEJSCIE'),
             'cena_wyjscie_mln_usd' => env('KUKING_IMPORT_CENA_WYJSCIE'),
-            // Szacunek tokenów WEJŚCIA jednego odczytu (instrukcja + obraz
-            // ≤ 2000 px) — do rezerwacji. Faktyczny koszt i tak liczy się
-            // z `usage` w odpowiedzi.
-            'szacunek_tokenow_wejscia' => [
-                'ocr' => (int) env('KUKING_IMPORT_SZACUNEK_WEJSCIE_OCR', 6000),
-                'tekst' => (int) env('KUKING_IMPORT_SZACUNEK_WEJSCIE_TEKST', 6000),
-            ],
+            // Rezerwacja kosztu używa pełnego okna kontekstu gpt-6-luna,
+            // bo szacunek 6000 tokenów nie był sufitem dla obrazów ani stron.
         ],
 
         // Decyzja właściciela 26.09.2026 (D-297): 5 USD dziennie, 100 USD
@@ -3629,6 +3640,7 @@ return [
             'rezerwacja_minut' => 30,
             'zlecenie_minut' => 120,
         ],
+        'podobienstwo_ostrzezenie' => (float) env('KUKING_IMPORT_PODOBIENSTWO', 0.6),
     ],
 
     'wersja' => [
