@@ -116,6 +116,7 @@ final class PonowieniePilnegoAlarmuNaDwochPolaczeniachTest extends TestDwochPola
                 'SESSION_DRIVER' => 'array',
                 'KUKING_LOCK_TIMEOUT' => self::LOCK_TIMEOUT,
                 'KUKING_STATEMENT_TIMEOUT' => self::STATEMENT_TIMEOUT,
+                'KUKING_MODEL_ALARM_EMAIL' => 'moderacja@kuking.test',
             ],
         );
 
