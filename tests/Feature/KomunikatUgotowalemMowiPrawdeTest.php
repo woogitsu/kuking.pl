@@ -9,6 +9,7 @@ use App\Domain\Social\Actions\FollowUser;
 use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Recipe;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -17,6 +18,8 @@ use Tests\TestCase;
 class KomunikatUgotowalemMowiPrawdeTest extends TestCase
 {
     use RefreshDatabase;
+
+    private const KOMUNIKAT = 'Twoje wykonanie, zdjęcia i odpowiedzi mogą zobaczyć osoby, które mogą zobaczyć ten przepis. Dostęp do nich mogą mieć także moderatorzy Kuking.';
 
     #[DataProvider('widocznoscPrzepisu')]
     public function test_formularz_przed_wyslaniem_wyjasnia_kto_zobaczy_wykonanie(
@@ -45,7 +48,7 @@ class KomunikatUgotowalemMowiPrawdeTest extends TestCase
         $this->assertStringContainsString('name="changes_note"', $html);
         $this->assertStringContainsString('<button class="btn btn-primary" type="submit">Wyślij</button>', $html);
         $this->assertStringContainsString(
-            'Twoje wykonanie, zdjęcia i odpowiedzi zobaczą osoby, które mogą zobaczyć ten przepis.',
+            self::KOMUNIKAT,
             $html,
         );
         // Informacja PRZED polami, które niosą osobiste treści (#2071):
@@ -64,18 +67,20 @@ class KomunikatUgotowalemMowiPrawdeTest extends TestCase
     }
 
     /**
-     * Zdanie „zobaczą osoby, które mogą zobaczyć ten przepis” jest prawdą
-     * tylko wtedy, gdy `CookedEventPolicy::view()` nigdy nie wpuszcza
+     * Zdanie „mogą zobaczyć osoby, które mogą zobaczyć ten przepis” jest
+     * prawdą tylko wtedy, gdy `CookedEventPolicy::view()` nigdy nie wpuszcza
      * nikogo, kogo nie wpuszcza `RecipePolicy::view()`, i wpuszcza każdego,
-     * kogo ona wpuszcza — poza osobami, które wyklucza blokada z kucharzem.
+     * kogo ona wpuszcza — poza osobami, które wyklucza blokada z kucharzem
+     * (stąd „mogą”, nie „zobaczą”).
      *
      * Najłatwiej się tu pomylić przy przepisie „dla obserwujących”: liczą się
      * obserwujący AUTORA PRZEPISU, nie osoby, która ugotowała. Obserwująca
      * kucharza nie zobaczy więc jej wykonania, jeśli sama nie obserwuje autora.
      *
      * Moderacja jest poza tą macierzą świadomie: `CookedEventPolicy` wpuszcza
-     * ją z urzędu do każdego wykonania, a zdanie w formularzu mówi o zwykłych
-     * odbiorcach, tak jak inne teksty o widoczności w serwisie.
+     * ją z urzędu do każdego wykonania, więc zdanie wymienia ją osobno
+     * („Dostęp do nich mogą mieć także moderatorzy Kuking.”) — pilnuje tego
+     * `test_prywatny_przepis_komunikat_wymienia_moderatorow_zgodnie_z_policy`.
      */
     #[DataProvider('widocznosciDlaMacierzy')]
     public function test_kto_to_zobaczy_zgadza_sie_z_policy_wykonania(string $widocznosc): void
@@ -130,6 +135,42 @@ class KomunikatUgotowalemMowiPrawdeTest extends TestCase
         $this->assertSame($widocznosc !== 'private', Gate::forUser($obserwujacaAutora)->allows('view', $wykonanie));
         $this->assertSame($widocznosc === 'public', Gate::forUser($obserwujacaKucharza)->allows('view', $wykonanie));
         $this->assertFalse(Gate::forUser($blokujacaAutora)->allows('view', $wykonanie));
+    }
+
+    /**
+     * Przegląd PR #2156: przy przepisie prywatnym `RecipePolicy::view()` nie
+     * wpuszcza moderatora, a `CookedEventPolicy` wpuszcza go do wykonania
+     * z urzędu. Zdanie w formularzu musi to powiedzieć — inaczej obiecuje
+     * autorowi prywatnego przepisu, że nikt poza nim nie zobaczy zdjęć.
+     */
+    public function test_prywatny_przepis_komunikat_wymienia_moderatorow_zgodnie_z_policy(): void
+    {
+        $autor = $this->user('autor_prywatny_mod');
+        $przepis = Recipe::factory()->for($autor, 'author')->create([
+            'status' => Recipe::STATUS_PUBLISHED,
+            'visibility' => 'private',
+            'published_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs($autor)
+            ->get(route('cooked.create', $przepis->slug))
+            ->assertOk()
+            ->assertSeeInOrder(['Kto to zobaczy?', self::KOMUNIKAT, 'name="photos[]"'], false);
+
+        $wykonanie = CookedEvent::factory()->create([
+            'recipe_id' => $przepis->getKey(),
+            'user_id' => $autor->getKey(),
+        ]);
+        $moderator = $this->user('moderator_prywatny', ['role' => User::ROLE_MODERATOR]);
+        $obcy = $this->user('obcy_prywatny_mod');
+
+        // Dokładnie ten wyjątek, który zdanie wymienia: przepisu moderator nie
+        // widzi, wykonanie — tak. Obcej osobie nie wolno ani jednego, ani drugiego.
+        $this->assertTrue($moderator->isModerator());
+        $this->assertFalse(Gate::forUser($moderator)->allows('view', $przepis));
+        $this->assertTrue(Gate::forUser($moderator)->allows('view', $wykonanie));
+        $this->assertFalse(Gate::forUser($obcy)->allows('view', $przepis));
+        $this->assertFalse(Gate::forUser($obcy)->allows('view', $wykonanie));
     }
 
     /** @return array<string, array{string}> */

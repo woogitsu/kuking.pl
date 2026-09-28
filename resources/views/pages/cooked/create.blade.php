@@ -35,9 +35,13 @@
 
              Wykonanie nie ma własnej widoczności: `CookedEventPolicy::view()`
              oddaje decyzję `RecipePolicy::view()` dla powiązanego przepisu
-             (blokada z kucharzem i konto kucharza mogą ją tylko zawęzić).
-             Zdanie mówi więc o odbiorcach przepisu, a nie o „autorze", i nie
-             udaje wyboru prywatności, którego ten formularz nie ma.
+             (blokada z kucharzem i konto kucharza mogą ją tylko zawęzić —
+             stąd „mogą zobaczyć”, a nie „zobaczą”). Zdanie mówi więc
+             o odbiorcach przepisu, a nie o „autorze", i nie udaje wyboru
+             prywatności, którego ten formularz nie ma. Moderatorów wymienia
+             wprost (przegląd PR #2156): `CookedEventPolicy` wpuszcza ich
+             z urzędu także do wykonania przepisu prywatnego, którego
+             `RecipePolicy::view()` im nie pokazuje.
 
              Stoi nad zdjęciem i notatką, bo formularz wypełnia się z góry na
              dół: informacja pod ostatnim polem przychodziła, gdy osobista
@@ -45,7 +49,7 @@
              widoczności przepisu pilnuje `KomunikatUgotowalemMowiPrawdeTest`. --}}
         <p class="notice">
             <strong>Kto to zobaczy?</strong>
-            Twoje wykonanie, zdjęcia i odpowiedzi zobaczą osoby, które mogą zobaczyć ten przepis.
+            Twoje wykonanie, zdjęcia i odpowiedzi mogą zobaczyć osoby, które mogą zobaczyć ten przepis. Dostęp do nich mogą mieć także moderatorzy Kuking.
         </p>
 
         {{-- Ten sam obszar wyboru zdjęcia co na „Dodaj zdjęcie" i w formularzu
