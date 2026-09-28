@@ -435,6 +435,23 @@ Harmonogram::artisan('kuking:sprawdz-kolejke')
     ->onOneServer()
     ->withoutOverlapping(10);
 
+// Czujka Web Push (issue #2053). Trwała porażka transportu kończy zadanie
+// sukcesem, a utracone ponowienie nie zostawia zadania wcale — czujka kolejki
+// wyżej widzi wtedy czyste `jobs` i `failed_jobs`. Ta liczy rezerwacje
+// w `notifications`, których nikt już nie dokończy ani nie rozliczy.
+//
+// CO GODZINĘ, nie co kwadrans: powiadomienie w serwisie i tak czeka, nie
+// dotarło tylko szturchnięcie — godzina opóźnienia alarmu nic tu nie psuje.
+// Minuta 50: 00, 25, 35 i 45 są zajęte (patrz `kuking:dosylaj-potwierdzenia-
+// zgloszen`), a 45 trafia też w rytm co kwadrans. Niczego nie wysyła ani nie
+// zamyka; powtórzeń pilnuje `AlarmWysylkiPush`. Kod wyjścia przy alarmie
+// jest 0 — uzasadnienie w `App\Console\Commands\SprawdzPush`.
+Harmonogram::artisan('kuking:sprawdz-push')
+    ->name('kuking:sprawdz-push')
+    ->hourlyAt(50)
+    ->onOneServer()
+    ->withoutOverlapping(50);
+
 // Puls harmonogramu (issue #599). Czujki wyżej uruchamia harmonogram — gdy
 // stanie on sam, zamilkną wszystkie naraz, a milczenie czujki wygląda jak
 // spokój. Dlatego co 5 minut znak życia do ZEWNĘTRZNEGO monitora, który

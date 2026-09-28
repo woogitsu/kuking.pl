@@ -30,7 +30,7 @@ use Illuminate\Support\Str;
  */
 final class IloscZTekstu
 {
-    /** @var array<string, array{0: string, 1: float}> forma słowa → [miara, mnożnik] */
+    /** @var array<string, array{0: string, 1: int|float}> forma słowa → [miara, mnożnik] */
     private const JEDNOSTKI = [
         'g' => ['g', 1], 'gr' => ['g', 1], 'gram' => ['g', 1], 'gramy' => ['g', 1], 'gramow' => ['g', 1],
         'dag' => ['g', 10], 'dkg' => ['g', 10], 'deko' => ['g', 10], 'dekagram' => ['g', 10], 'dekagramy' => ['g', 10], 'dekagramow' => ['g', 10],

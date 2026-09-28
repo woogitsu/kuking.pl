@@ -53,7 +53,7 @@ final class FormularzeKlawiaturaINiezapisaneZmianyTest extends TestCase
         $meta = $this->xpath($html)->query('//head/meta[@name="viewport"]');
 
         $this->assertSame(1, $meta->length, 'Strona ma mieć dokładnie jeden meta viewport.');
-        $czesci = array_map('trim', explode(',', $meta->item(0)->getAttribute('content')));
+        $czesci = array_map('trim', explode(',', self::elementDom($meta->item(0))->getAttribute('content')));
 
         $this->assertContains('interactive-widget=resizes-content', $czesci);
         $this->assertContains('width=device-width', $czesci);

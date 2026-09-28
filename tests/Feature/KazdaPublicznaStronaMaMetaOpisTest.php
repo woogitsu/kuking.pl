@@ -201,7 +201,7 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
         $zbadanych = 0;
         $bezOpisu = [];
 
-        foreach (Route::getRoutes() as $trasa) {
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
             if (! in_array('GET', $trasa->methods(), true)) {
                 continue;
             }

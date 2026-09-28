@@ -88,7 +88,7 @@ class KomuWyszloUkladTest extends TestCase
         $this->assertSame(route('register'), $this->actionHref($xpath));
         $this->assertSame(
             route('login'),
-            $xpath->query('//section[@aria-labelledby="komu-wyszlo"]//a[normalize-space()="Zaloguj się"]')->item(0)?->getAttribute('href'),
+            self::elementDom($xpath->query('//section[@aria-labelledby="komu-wyszlo"]//a[normalize-space()="Zaloguj się"]')->item(0))->getAttribute('href'),
         );
     }
 
@@ -147,7 +147,7 @@ class KomuWyszloUkladTest extends TestCase
 
     private function actionHref(DOMXPath $xpath): ?string
     {
-        return $xpath->query('//section[@aria-labelledby="komu-wyszlo"]//div[contains(@class,"empty-state")]//a[contains(@class,"btn")]')->item(0)?->getAttribute('href');
+        return self::elementDom($xpath->query('//section[@aria-labelledby="komu-wyszlo"]//div[contains(@class,"empty-state")]//a[contains(@class,"btn")]')->item(0))->getAttribute('href');
     }
 
     /**

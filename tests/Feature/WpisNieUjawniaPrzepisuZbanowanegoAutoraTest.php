@@ -16,7 +16,7 @@ use Tests\TestCase;
  * BRAMKA LICZONA NA AUTORZE PRZEPISU, A NIE NA AUTORZE WPISU.
  *
  * CO STAŁO W ZAPYTANIU
- * Archiwum profilu (`ProfileController::tylkoWidoczne()`) i ekran zeszytu
+ * Archiwum profilu (`ProfileController::tylkoWidoczneWpisy()`) i ekran zeszytu
  * (`CollectionController::show()`) mają po dwa warunki:
  *
  *  - `zWidocznymPrzepisem($widz)` — schodzi do `Recipe::scopeWidoczneDla()`,

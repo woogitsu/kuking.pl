@@ -82,7 +82,10 @@ class ReservedUsername implements ValidationRule
      * kilka różnych liter naraz, a każde takie zgadywanie to kolejna szansa
      * na zablokowanie kogoś, kto nikogo nie udaje.
      *
-     * @var array<string, string>
+     * Klucze `'0'`, `'1'` itd. PHP zamienia na liczby — dla `strtr()` to bez
+     * różnicy, ale typ musi to mówić (issue #1731).
+     *
+     * @var array<int|string, string>
      */
     private const HOMOGLYPHS = [
         '0' => 'o',

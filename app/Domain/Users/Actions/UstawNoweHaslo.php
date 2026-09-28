@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Actions;
 
+use App\Domain\Users\LinkResetuNieaktualny;
 use App\Domain\Users\ZamekKonta;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\User;
+use Illuminate\Auth\Passwords\PasswordBroker;
 use Illuminate\Support\Facades\Password;
 use InvalidArgumentException;
 
@@ -49,6 +51,17 @@ use InvalidArgumentException;
  * wołamy tu W ŚRODKU blokady — `ZamekKonta` wolno zagnieździć, a jego
  * wpis do dziennika wejdzie do tej samej transakcji.
  *
+ * RESET LINKIEM SPRAWDZA TOKEN JESZCZE RAZ, POD BLOKADĄ (issue #2055).
+ * `PasswordBroker::reset()` sprawdza token PRZED wywołaniem zwrotnym,
+ * a kasuje go dopiero PO nim. Dwa równoległe żądania z tym samym linkiem
+ * przechodziły więc walidację brokera, ustawiały się w kolejce po tę
+ * blokadę — i drugie, gdy już ją dostało, nadpisywało hasło pierwszego
+ * tokenem, którego od chwili nie było. Sprawdzenie brokera zostaje jako
+ * szybka odmowa; rozstrzyga to pod blokadą, w tej samej transakcji, w której
+ * token znika. Tokeny tego konta kasuje się pod tą blokadą (niżej), więc
+ * blokada wiersza konta wystarcza — wiersza tokenu nie trzeba blokować
+ * osobno.
+ *
  * CZEGO TO NIE ZAŁATWIA: potwierdzenia, które zakończyło się CAŁE, zanim ta
  * operacja wzięła blokadę. Takie potwierdzenie jest wcześniejszym,
  * zamkniętym zdarzeniem; nowe hasło go nie cofa.
@@ -61,21 +74,45 @@ final class UstawNoweHaslo
      * @param  string  $powod  `CancelEmailChange::POWOD_ZMIANA_HASLA` albo `POWOD_RESET_HASLA`
      * @param  string|null  $zachowajSesje  identyfikator bieżącej sesji, która ma przeżyć
      *                                      zmianę; `null` kasuje wszystkie (reset)
+     * @param  string|null  $tokenResetu  token z linku — wymagany przy resecie,
+     *                                    sprawdzany ponownie pod blokadą (#2055)
      * @return bool czy anulowaliśmy przy tym zamówioną zmianę adresu
      *
      * @throws BladDlaCzlowieka gdy konta już nie ma
+     * @throws LinkResetuNieaktualny gdy link resetu nie jest już ważny pod blokadą
      */
-    public function handle(User $user, string $haslo, string $powod, ?string $ip = null, ?string $zachowajSesje = null): bool
-    {
+    public function handle(
+        User $user,
+        #[\SensitiveParameter] string $haslo,
+        string $powod,
+        ?string $ip = null,
+        ?string $zachowajSesje = null,
+        #[\SensitiveParameter] ?string $tokenResetu = null,
+    ): bool {
         $zdarzenie = match ($powod) {
             CancelEmailChange::POWOD_ZMIANA_HASLA => 'account.password_changed',
             CancelEmailChange::POWOD_RESET_HASLA => 'account.password_reset',
             default => throw new InvalidArgumentException('Nieznany powód ustawienia hasła: '.$powod),
         };
 
-        return ZamekKonta::zablokuj($user, function (?User $swiezy) use ($user, $haslo, $powod, $ip, $zachowajSesje, $zdarzenie): bool {
+        // Reset bez tokenu to błąd wywołującego, nie człowieka: bez tokenu
+        // nie ma czego sprawdzić pod blokadą, a właśnie to zamyka #2055.
+        if ($powod === CancelEmailChange::POWOD_RESET_HASLA && ($tokenResetu === null || $tokenResetu === '')) {
+            throw new InvalidArgumentException('Reset hasła wymaga tokenu z linku.');
+        }
+
+        return ZamekKonta::zablokuj($user, function (?User $swiezy) use ($user, $haslo, $powod, $ip, $zachowajSesje, $zdarzenie, $tokenResetu): bool {
             if ($swiezy === null) {
                 throw new BladDlaCzlowieka('Tego konta już nie ma, więc nie ustawiliśmy nowego hasła.');
+            }
+
+            // TEN SAM token, na świeżym modelu, pod blokadą (#2055): równoległe
+            // żądanie z tym samym linkiem mogło go zużyć, gdy to czekało
+            // w kolejce. `tokenExists()` sprawdza skrót i termin tak samo jak
+            // walidacja brokera. Przed jakimkolwiek zapisem — odmowa niczego
+            // nie zmienia.
+            if ($tokenResetu !== null && ! Password::broker()->tokenExists($swiezy, $tokenResetu)) {
+                throw new LinkResetuNieaktualny;
             }
 
             // Jedna nazwana droga do hasła — `password` jest poza `$fillable`.
@@ -90,7 +127,11 @@ final class UstawNoweHaslo
             // konto — po zmianie hasła w ustawieniach dalej ustawiłby nowe.
             // Przy resecie broker skasowałby go sam, ale dopiero po tej
             // transakcji; tu znika razem z hasłem.
-            Password::broker()->deleteToken($swiezy);
+            $broker = Password::broker();
+            if (! $broker instanceof PasswordBroker) {
+                throw new \LogicException('Skonfigurowany broker haseł nie udostępnia usuwania żetonów.');
+            }
+            $broker->deleteToken($swiezy);
 
             // ZMIANA HASŁA UNIEWAŻNIA ZAMÓWIONĄ ZMIANĘ ADRESU (issue #195) —
             // pod tą samą blokadą, więc potwierdzenie nie wejdzie pomiędzy.

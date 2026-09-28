@@ -197,7 +197,7 @@ class UkryciaOdporneNaZnikanieIWyscigTest extends TestCase
         $linki = (new \DOMXPath($dom))->query('//article[@data-wpis-ukryty]//a[contains(@href, "pokaz=1")]');
 
         $this->assertSame(1, $linki->length, 'Kontrola: zwinięta karta ma „Pokaż”.');
-        $this->assertContains('btn', preg_split('/\s+/', (string) $linki->item(0)->getAttribute('class')), '„Pokaż” bez klasy przycisku — cel mniejszy niż 48 px.');
+        $this->assertContains('btn', preg_split('/\s+/', (string) self::elementDom($linki->item(0))->getAttribute('class')), '„Pokaż” bez klasy przycisku — cel mniejszy niż 48 px.');
     }
 
     public function test_odmowa_ukrycia_widac_na_strumieniu(): void

@@ -44,7 +44,7 @@ class KonsolaBezKomunikatuWyjatkuTest extends TestCase
 
     private function dyskKtoryPada(): FilesystemAdapter
     {
-        $dysk = Mockery::mock(FilesystemAdapter::class);
+        $dysk = self::atrapa(FilesystemAdapter::class);
         $dysk->shouldReceive('exists')->andThrow(new RuntimeException(self::ZLY_KOMUNIKAT));
 
         return $dysk;

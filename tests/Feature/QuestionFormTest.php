@@ -37,7 +37,7 @@ class QuestionFormTest extends TestCase
         $xpath = new \DOMXPath($dom);
         $buttons = $xpath->query('//button[@name="usun_tag" or @name="szukaj_tagu" or @name="dodaj_tag"]');
         $this->assertGreaterThanOrEqual(2, $buttons->length);
-        foreach ($buttons as $button) {
+        foreach (self::elementyDom($buttons) as $button) {
             $this->assertTrue($button->hasAttribute('formnovalidate'));
         }
         $this->assertDatabaseCount('posts', 0);

@@ -12,6 +12,7 @@ use App\Models\Comment;
 use App\Models\ModerationAction;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -89,8 +90,12 @@ final class RestoreContent
         return DB::transaction(function () use ($moderator, $target, $typ, $reasonCode, $note, $userMessage, $ip, $zPowiadomieniem): ModerationAction {
             $zapytanie = $target::query();
 
+            // `withoutGlobalScope(SoftDeletingScope::class)` to dokładnie to,
+            // co robi makro `withTrashed()` — tyle że istnieje na każdym
+            // zapytaniu, a nie tylko na modelu z `SoftDeletes`, więc analiza
+            // widzi prawdziwą metodę zamiast makra (issue #1731).
             if (method_exists($target, 'trashed')) {
-                $zapytanie->withTrashed();
+                $zapytanie->withoutGlobalScope(SoftDeletingScope::class);
             }
 
             $cel = $zapytanie->whereKey($target->getKey())->lockForUpdate()->first();
@@ -183,7 +188,7 @@ final class RestoreContent
             'user_message' => $userMessage,
         ]);
 
-        if ($bylaUsunieta) {
+        if ($bylaUsunieta && method_exists($target, 'restore')) {
             $target->restore();
         }
 
