@@ -5,19 +5,29 @@ Zdjęcia są kluczową częścią Kuking i jednym z głównych kosztów.
 ## Flow
 
 ```text
-client
-→ backend: prepare upload
-→ signed URL
-→ object storage
-→ complete
-→ background job
-→ validation
-→ EXIF/GPS strip
-→ resize
-→ variants
-→ moderation
+przeglądarka → Laravel (zwykły POST formularza)
+→ walidacja: rozmiar, magic bytes, MIME z bajtów, megapiksele
+→ UsunGps: usunięcie współrzędnych GPS PRZED zapisem (reszta EXIF oryginału zostaje, D-023)
+→ zapis oryginału do prywatnego bucketu (prefiks incoming/), status pending
+→ synchroniczny podgląd WebP (jeśli pozwala limit megapikseli)
+→ ProcessUploadedImage w kolejce `media`: dekodowanie, obrót z EXIF, warianty WebP bez EXIF
 → ready
 ```
+
+Wcześniejszy diagram (`prepare upload → signed URL → object storage → complete`)
+opisywał propozycję, nie działający upload: w kodzie nie ma endpointów
+`prepare`/`complete` ani podpisanych adresów do wgrywania (audyt 2026-09,
+`docs/AUDYT_2026-09.md`, wiersz 6). Bezpośredni upload do kwarantanny w R2
+rozważa `docs/infra/DIRECT_UPLOAD_R2_ANALIZA_602.md` — jako decyzję, nie jako
+stan obecny. Kroku moderacji obrazu **nie ma** (patrz „Moderacja" niżej).
+
+Co dzieje się z tymi plikami po awarii albo po błędnym usunięciu: bucketów
+zdjęć nie odtwarza kopia bazy. Procedura, komenda sprawdzająca migawkę
+i próba odtworzenia: [`docs/infra/DR_ZDJEC_R2.md`](infra/DR_ZDJEC_R2.md) (#617).
+Klucze, na których ta procedura się opiera — `media.object_key` (oryginał),
+`metadata.variants.*.key`/`bytes` (warianty) i `media.checksum_sha256` — pilnuje
+`OdtworzenieZdjecZMigawkiTest`. Zmiana ich kształtu w potoku wymaga zmiany
+układu migawki w runbooku.
 
 ## Walidacja
 
