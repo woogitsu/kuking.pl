@@ -9,6 +9,7 @@ use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
+use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem;
 use App\Models\AuditLogEntry;
 use App\Models\ContactMessage;
@@ -20,6 +21,7 @@ use App\Models\PostReaction;
 use App\Models\User;
 use App\Models\WpisZgody;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -85,6 +87,7 @@ final class EraseAccountData
         private readonly KasujZdjecie $kasujZdjecie = new KasujZdjecie,
         private readonly PrzestawZgodeNaDigest $przestawZgode = new PrzestawZgodeNaDigest,
         private readonly RejestrPotwierdzenRodo $rejestr = new RejestrPotwierdzenRodo,
+        private readonly PrzestawZgodeNaOdczytAi $zgodaNaOdczytAi = new PrzestawZgodeNaOdczytAi,
         private readonly DziennikWymazan $dziennik = new DziennikWymazan,
         private readonly PrzestawZgodeNaZyczeniaMailem $zgodaNaZyczenia = new PrzestawZgodeNaZyczeniaMailem,
     ) {}
@@ -348,6 +351,18 @@ final class EraseAccountData
             $fresh->pushSubscriptions()->delete();
             $fresh->ustawieniaPowiadomienZewnetrznych()->delete();
 
+            /*
+             * ZLECENIA ODCZYTU PRZEPISU ZNIKAJĄ RAZEM Z KONTEM (V2, D-298).
+             *
+             * Wiersz nie niesie treści przepisu, ale niesie surową odpowiedź
+             * modelu (do 30 dni — bywa w niej tekst z kartki) i ślad, kiedy
+             * ta osoba z czego korzystała. Klucz obcy ma `ON DELETE CASCADE`,
+             * ale kont się tu nie kasuje, tylko anonimizuje (D-022) — więc
+             * jawnie, jak przy `pending_email_changes` wyżej. Szkic i zdjęcie
+             * kartki idą drogą każdego przepisu i każdego zdjęcia tej osoby.
+             */
+            DB::table('importy_przepisow')->where('user_id', $fresh->getKey())->delete();
+
             $this->odlaczWiadomosciDoOperatora($fresh);
             $this->odlaczSladyNieudanychListow($fresh);
 
@@ -381,6 +396,25 @@ final class EraseAccountData
             // Zgoda na mail urodzinowy (issue #1755) — tak samo: wycofanie
             // z dowodem w dzienniku, nigdy nie wywraca kasowania konta.
             $this->zgodaNaZyczenia->handle($fresh, false, WpisZgody::ZRODLO_USUNIECIE_KONTA);
+
+            /*
+             * ZGODA „ODCZYT AI” GAŚNIE TAK SAMO (D-296): wiersz `wycofana`
+             * ze źródłem `usuniecie_konta` domyka historię. Stanem tej zgody
+             * jest sam dziennik, więc bez tego wpisu dowód mówiłby „udzielona”
+             * do dziś. Jak przy digeście: nieudany zapis dowodu NIE wywraca
+             * kasowania konta (SAVEPOINT + dziennik aplikacji) — po
+             * anonimizacji nie ma już kogo odczytywać, a zlecenia odczytu
+             * znikają wyżej.
+             */
+            try {
+                DB::transaction(fn (): bool => $this->zgodaNaOdczytAi->handle($fresh, false, WpisZgody::ZRODLO_USUNIECIE_KONTA));
+            } catch (Throwable $awaria) {
+                Log::error('Nie udało się zapisać wycofania zgody na odczyt AI przy usuwaniu konta.', [
+                    'user_id' => (string) $fresh->getKey(),
+                    'wyjatek' => $awaria::class,
+                    'sqlstate' => $awaria instanceof QueryException ? (string) $awaria->getCode() : null,
+                ]);
+            }
 
             if ($profile !== null) {
                 $profile->forceFill([

@@ -81,6 +81,9 @@ class EnsureAccountIsActive
         'settings.email.request',
         'settings.email.cancel',
         'appeals.store',
+        // D-296: wycofanie zgody „odczyt AI” — RODO art. 7 ust. 3, tak łatwe
+        // jak udzielenie. Udzielenie (`zgoda.odczyt-ai.udziel`) celowo NIE.
+        'zgoda.odczyt-ai.wycofaj',
         // #926: prywatny zeszyt i postęp gotowania zostają dostępne.
         // Widoczności zeszytu i treści nadal pilnują ich polityki.
         'collections.store',

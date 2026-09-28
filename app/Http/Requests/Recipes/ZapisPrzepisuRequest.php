@@ -185,6 +185,7 @@ final class ZapisPrzepisuRequest extends FormRequest
              * odciąć wklejenie całej książki kucharskiej, zanim zacznie
              * chodzić parser.
              */
+            'odczyt_sprawdzony' => ['nullable', 'boolean'],
             'skladniki_tekst' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['skladniki_tekst']],
             'przygotowanie_tekst' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['przygotowanie_tekst']],
         ];
@@ -401,6 +402,8 @@ final class ZapisPrzepisuRequest extends FormRequest
             'source_note' => $data['source_note'] ?? null,
             'source_url' => $data['source_url'] ?? null,
             'family_since_year' => $data['family_since_year'] ?? null,
+            // Bramka publikacji wymaga potwierdzenia tekstu odczytanego z kartki.
+            'odczyt_sprawdzony' => (bool) ($data['odczyt_sprawdzony'] ?? false),
         ];
 
         // Koszt tylko wtedy, gdy formularz ma to pole (szczegóły tak, ekran
