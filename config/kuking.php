@@ -1560,6 +1560,21 @@ return [
         // bo następna osoba podniesie tę liczbę i uzna sprawę za załatwioną.
         'comment' => '10,1',
         'post' => '20,10',
+        // Zlecenie odczytu przepisu ze zdjęcia kartki (D-297) — bramka na
+        // pętlę żądań. Właściwy limit na osobę (5 dziennie, 30 miesięcznie)
+        // liczy się w PostgreSQL z `importy_przepisow`, nie tutaj.
+        'import' => '10,10',
+        // Postęp importu (`import.show`, issue #1959) — OSOBNY koszyk od
+        // `import` wyżej: to jest odpytywanie o STAN, nie zlecanie nowego
+        // odczytu, więc nie ma dzielić budżetu z `import.zlec`/`import.ponow`
+        // (ten sam powód co rozdzielenie `zdjecie` od `post` wyżej —
+        // `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`). JS odpytuje co
+        // 5 s (`resources/js/postep-importu.js`, `CO_ILE_MS`) — 12/min na
+        // ZAKŁADKĘ. 40/min zostawia zapas na kilka otwartych zakładek/importów
+        // naraz i na okno startowe licznika (D-076-podobny efekt brzegu na
+        // granicy minuty), a dalej odcina pętlę czy bota: 40 razy więcej niż
+        // realny polling jednej osoby.
+        'import_postep' => '40,1',
         'report' => '10,10',
 
         /*
@@ -3493,6 +3508,129 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Import przepisu i odczyt zdjęcia kartki (V2) — D-296, D-297, D-298
+    |--------------------------------------------------------------------------
+    |
+    | Import kończy się ZAWSZE prywatnym szkicem przepisu — nigdy publikacją.
+    | Model OpenAI („GPT-6 Luna”, decyzja właściciela z 26.09.2026) jest używany tylko tam, gdzie bez
+    | niego się nie da: do odczytu pisma ze zdjęcia kartki (`ocr`) i do
+    | wyznaczania fragmentów przepisu w tekście strony/PDF (`tekst`, osobny
+    | etap). Wzorzec jak `moderation.model` wyżej: klucz i nazwa w `.env`,
+    | host i ścieżka w KODZIE (`App\Domain\Import\KlientLuna`, D-250).
+    |
+    | BRAK KLUCZA = FUNKCJA WYŁĄCZONA. Przycisku „Przepisz z kartki” wtedy nie
+    | ma w ogóle (bez martwych przycisków, D-053). Tak jest lokalnie, w CI
+    | i w testach. Co jeszcze brakuje do działania, mówi
+    | `php artisan kuking:sprawdz-import`.
+    */
+    'import' => [
+        /*
+         * KOLEJKA `low`, NIE OSOBNA `import` (D-298). Produkcja chodzi dziś
+         * w roli `all` — jeden proces na wszystkie kolejki — więc osobna
+         * kolejka i tak trafiłaby do tego samego procesu, a kosztowałaby
+         * zmianę w `docker/entrypoint.sh`, w IaC i w `UmowaKolejkiTest`.
+         * Po wydzieleniu workera `low` ma własny proces i odczyt (do 90 s)
+         * stoi tam za moderacją, a nie przed zdjęciami i listami.
+         */
+        'kolejka' => 'low',
+
+        // Przełączniki źródeł. Wyłączone źródło = brak przycisku.
+        // `url` i `pdf` należą do osobnych etapów (D-298) — dopóki ich trasy
+        // nie istnieją, przycisku nie ma niezależnie od tej wartości.
+        'zrodla' => [
+            'zdjecie' => (bool) env('KUKING_IMPORT_ZDJECIE', true),
+            'url' => (bool) env('KUKING_IMPORT_URL', false),
+            'pdf' => (bool) env('KUKING_IMPORT_PDF', false),
+        ],
+
+        'model' => [
+            // Osobny klucz, najlepiej z osobnego projektu OpenAI z limitem
+            // wydatków w panelu dostawcy — druga linia obrony budżetu, i klucz
+            // moderacji nie dostaje szerszych uprawnień. Pusty = wyłączone.
+            'klucz' => env('OPENAI_IMPORT_KEY'),
+            'endpoint' => env('KUKING_IMPORT_ENDPOINT', 'https://api.openai.com/v1/responses'),
+            // Decyzja właściciela 26.09.2026: `gpt-6-luna`. Zmienialne w env.
+            'nazwa' => env('KUKING_IMPORT_MODEL', 'gpt-6-luna'),
+            // Odczyt obrazu z rozumowaniem trwa dziesiątki sekund. Przycinane
+            // w kliencie do 10–110 s (zadanie ma 120 s).
+            'limit_czasu' => (int) env('KUKING_IMPORT_LIMIT_CZASU', 90),
+            // Sufit tokenów wyjścia RAZEM Z ROZUMOWANIEM — to on wyznacza
+            // najgorszy koszt jednego odczytu, czyli wielkość rezerwacji.
+            'max_wyjscie_tokenow' => (int) env('KUKING_IMPORT_MAX_WYJSCIE', 8000),
+            /*
+             * INTENSYWNOŚĆ MYŚLENIA (`reasoning.effort`) — osobno per zadanie
+             * (decyzja właściciela 26.09.2026, D-298). Dozwolone wartości:
+             * `KlientLuna::WYSILKI`. Wartość spoza listy WYŁĄCZA to jedno
+             * zadanie (żadnego żądania) i mówi o tym `kuking:sprawdz-import`
+             * — zamiast po cichu wysyłać coś, czego API nie przyjmie.
+             */
+            'wysilek' => [
+                'ocr' => env('KUKING_IMPORT_EFFORT_OCR', 'medium'),
+                'tekst' => env('KUKING_IMPORT_EFFORT_TEKST', 'low'),
+            ],
+            /*
+             * CENNIK w USD za MILION tokenów — wpisywany ręcznie z cennika
+             * OpenAI. BRAK CENY = BRAK WYWOŁAŃ: bez ceny nie da się
+             * zarezerwować budżetu przed żądaniem (D-297).
+             */
+            'cena_wejscie_mln_usd' => env('KUKING_IMPORT_CENA_WEJSCIE'),
+            'cena_wyjscie_mln_usd' => env('KUKING_IMPORT_CENA_WYJSCIE'),
+            // Szacunek tokenów WEJŚCIA jednego odczytu (instrukcja + obraz
+            // ≤ 2000 px) — do rezerwacji. Faktyczny koszt i tak liczy się
+            // z `usage` w odpowiedzi.
+            'szacunek_tokenow_wejscia' => [
+                'ocr' => (int) env('KUKING_IMPORT_SZACUNEK_WEJSCIE_OCR', 6000),
+                'tekst' => (int) env('KUKING_IMPORT_SZACUNEK_WEJSCIE_TEKST', 6000),
+            ],
+        ],
+
+        // Decyzja właściciela 26.09.2026 (D-297): 5 USD dziennie, 100 USD
+        // miesięcznie. Liczone w PostgreSQL (`ai_budzet_dzienny`).
+        'budzet' => [
+            'dzienny_usd' => (float) env('KUKING_IMPORT_BUDZET_DZIEN', 5.00),
+            'miesieczny_usd' => (float) env('KUKING_IMPORT_BUDZET_MIESIAC', 100.00),
+            // Od tego ułamka dziennego budżetu jeden `Log::warning` dziennie.
+            'prog_ostrzezenia' => 0.8,
+        ],
+
+        // Limit na osobę (D-297). Liczy się ZLECENIE (także „Odczytaj jeszcze
+        // raz”), nie odświeżenie strony postępu.
+        'limity' => [
+            'na_osobe_dzien' => (int) env('KUKING_IMPORT_NA_OSOBE_DZIEN', 5),
+            'na_osobe_miesiac' => (int) env('KUKING_IMPORT_NA_OSOBE_MIESIAC', 30),
+            // Dłuższy bok obrazu wysyłanego do modelu, zmierzony z bajtów.
+            'max_bok_px' => 2000,
+        ],
+
+        // D-298: surowa odpowiedź modelu 30 dni, wiersz zlecenia 90 dni.
+        'retencja' => [
+            'odpowiedz_dni' => 30,
+            'wiersz_dni' => 90,
+        ],
+
+        /*
+         * ODZYSKIWANIE PO CZASIE (D-298 „maszyna stanów”, #1973, #1977) —
+         * `kuking:odzyskaj-importy`, co kwadrans.
+         *
+         * `rezerwacja_minut`: rezerwacja budżetu żyje najwyżej jedno
+         * wykonanie zadania (`OdczytajPrzepis::$timeout` = 120 s) — jest
+         * domykana przed każdym `release()` i w `failed()`. Otwarta dłużej
+         * niż pół godziny znaczy proces zabity bez `failed()`.
+         *
+         * `zlecenie_minut`: zlecenie `oczekuje`/`w_toku` odświeża
+         * `updated_at` przy każdej próbie; najdłuższa legalna przerwa to
+         * opóźnienie ponowienia (≤ 12 min) plus kolejka `low`. Dwie
+         * godziny ciszy = zadanie zgubione — zlecenie dostaje jawny błąd
+         * z „Spróbuj jeszcze raz”, zamiast wisieć w „trwa” do retencji.
+         */
+        'odzyskiwanie' => [
+            'rezerwacja_minut' => 30,
+            'zlecenie_minut' => 120,
+        ],
+    ],
+
     'wersja' => [
         // ETAP PRODUKTU — podbijany RĘCZNIE. Trzymany w repo, nie w zmiennej
         // środowiskowej, żeby zmiana wersji przechodziła przez recenzję jak
@@ -3621,6 +3759,39 @@ return [
             'na_token' => '120,1',
             'na_adres' => '300,1',
         ],
+
+        /*
+         * ILE MINUT ŻYJE WYZWANIE DRUGIEGO KROKU (konto z 2FA).
+         *
+         * Po haśle aplikacja dostaje zaszyfrowane „wyzwanie" zamiast tokenu
+         * (`App\Domain\Api\WyzwanieDwuetapowe`) i ma tyle czasu na kod.
+         * Dziesięć, nie pięć: osoba 50+ przełącza się do aplikacji
+         * z kodami, szuka właściwego wpisu i przepisuje sześć cyfr — a kod
+         * z aplikacji zmienia się co 30 sekund, więc pośpiech tylko szkodzi.
+         * Wyzwanie samo niczego nie otwiera: bez kodu jest bezużyteczne,
+         * a zmiana hasła albo stanu konta unieważnia je od razu.
+         */
+        'wyzwanie_minut' => 10,
+
+        /*
+         * Ile odpowiedzi niesie JEDEN wątek na liście komentarzy wpisu
+         * i przepisu (issue #1970). Najstarsze, w kolejności rozmowy; resztę
+         * aplikacja pobiera stronami z `more_replies_url`
+         * (`/api/v1/komentarze/{id}/odpowiedzi`, rozmiar strony
+         * `comments.page_size`). Bez tej granicy strona 12 wątków potrafiła
+         * nieść tysiąc odpowiedzi jednego z nich.
+         */
+        'odpowiedzi_w_watku' => 3,
+
+        /*
+         * ILE URZĄDZEŃ NA JEDNO KONTO. Kolejne logowanie ponad ten próg
+         * odwołuje token używany najdawniej (`WydajTokenAplikacji`).
+         *
+         * Dziesięć mieści telefon, tablet i kilka reinstalacji aplikacji —
+         * a zamyka drogę do tysięcy tokenów na jednym koncie przez skrypt
+         * logujący się w pętli poprawnym hasłem.
+         */
+        'max_urzadzen' => 10,
     ],
 
     'demo' => [
