@@ -28,6 +28,7 @@ final class PageContext
         'settings.data.download',
         'podsumowanie.wypisz',
         'podsumowanie.wracam',
+        'urodziny.wypisz',
         'appeals.reporter',
     ];
 
