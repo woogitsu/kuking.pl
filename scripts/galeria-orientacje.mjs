@@ -32,11 +32,11 @@
  *  Dokładnie pułapka 5 z `docs/PULAPKI_TESTOW.md`: narzędzie melduje sukces,
  *  nie zmierzywszy niczego.
  *
- *  Dlatego ten skrypt sam dokłada do bazy trzy wpisy — po jednym na każdy
- *  tryb wyświetlania — a w każdym PRAWDZIWE pliki PNG o prawdziwych
+ *  Dlatego ten skrypt sam dokłada wpisy dla wszystkich trybów, w tym
+ *  „Zwykle” z dwoma i trzema zdjęciami, z PRAWDZIWYMI plikami PNG o
  *  wymiarach: jeden pionowy 1200×1600 i jeden poziomy 1600×900. I ZATRZYMUJE
- *  SIĘ Z BŁĘDEM, jeśli na zmierzonej stronie nie znalazł galerii, w której
- *  naprawdę stoją obok siebie zdjęcie pionowe i poziome.
+ *  SIĘ Z BŁĘDEM, jeśli na zmierzonej stronie nie znalazł galerii z pionowym
+ *  i poziomym zdjęciem.
  *
  *  LOGUJEMY SIĘ RAZ, POTEM NIESIEMY CIASTECZKO
  *  Serwis ma throttle na logowaniu. Osiem przebiegów (cztery szerokości ×
@@ -47,7 +47,7 @@
  *  kontekstu.
  *
  *  CO MIERZYMY I DLACZEGO AKURAT TYLE
- *  320 / 360 / 390 / 414 px — minimum z WCAG i trzy najczęstsze telefony.
+ *  320 / 360 / 390 / 414 / 768 px — telefony i tablet ze zgłoszenia.
  *  Do tego czcionka przeglądarki 200% (CDP `Page.setFontSizes`, `standard`
  *  i `fixed` = 32), bo to jest twardy warunek właściciela dla wszystkich
  *  usterek mobilnych, a `rem`-owe progi liczą się wtedy inaczej — podmiana
@@ -78,8 +78,8 @@ const HASLO = 'haslo-testowe-123';
    `migrate:fresh` bez jawnego `DB_DATABASE`). */
 const BAZA_DOMYSLNA = 'kuking_galeria';
 
-/* Szerokości z warunku właściciela: minimum WCAG i trzy najczęstsze telefony. */
-const SZEROKOSCI = [320, 360, 390, 414];
+/* Telefony z pierwotnego pomiaru i tablet z nowego zgłoszenia. */
+const SZEROKOSCI = [320, 360, 390, 414, 768];
 
 /** Znacznik wariantu „czcionka przeglądarki podwojona". */
 const PRZEGLADARKA_200 = 'przegladarka-200';
@@ -218,13 +218,7 @@ function polozZdjecie(nazwa, wymiary, kolor) {
   return warianty;
 }
 
-/* =============================================================================
- *  TRZY WPISY POMIAROWE — PO JEDNYM NA TRYB WYŚWIETLANIA
- *
- *  Każdy ma DOKŁADNIE dwa zdjęcia: pionowe i poziome. Kolejność jest zawsze
- *  ta sama (najpierw pionowe), bo w galerii dwukolumnowej to ONO dyktuje
- *  wysokość wiersza — a właśnie o tę wysokość poszło zgłoszenie.
- * ========================================================================== */
+/* Dwa i trzy zdjęcia „Zwykle” oraz po dwa w pozostałych trybach. */
 function przygotujWpisy() {
   const wariantyPionowe = JSON.stringify(polozZdjecie('pionowe', PIONOWE, [214, 92, 60]));
   const wariantyPoziome = JSON.stringify(polozZdjecie('poziome', POZIOME, [60, 120, 180]));
@@ -248,26 +242,27 @@ function przygotujWpisy() {
         'poziome' => 'Zdjęcie poziome (dane pomiarowe, issue 431)',
     ];
 
-    $tryby = [
-        App\\Models\\Post::DISPLAY_NORMAL   => 'zwykle',
-        App\\Models\\Post::DISPLAY_CAROUSEL => 'karuzela',
-        App\\Models\\Post::DISPLAY_COLLAGE  => 'kolaz',
+    $przypadki = [
+        [App\\Models\\Post::DISPLAY_NORMAL, 'zwykle', ['pionowe', 'poziome']],
+        [App\\Models\\Post::DISPLAY_NORMAL, 'zwykle-3', ['pionowe', 'poziome', 'pionowe']],
+        [App\\Models\\Post::DISPLAY_CAROUSEL, 'karuzela', ['pionowe', 'poziome']],
+        [App\\Models\\Post::DISPLAY_COLLAGE, 'kolaz', ['pionowe', 'poziome']],
     ];
 
     $adresy = [];
     $minuta = 1;
 
-    foreach ($tryby as $tryb => $nazwa) {
+    foreach ($przypadki as [$tryb, $nazwa, $ksztalty]) {
         $wpis = App\\Models\\Post::create([
             'author_id' => $autor,
-            'body' => 'Pomiar orientacji zdjęć (' . $nazwa . '): jedno pionowe, jedno poziome.',
+            'body' => 'Pomiar orientacji zdjęć (' . $nazwa . '): pionowe i poziome.',
             'visibility' => App\\Models\\Post::VISIBILITY_PUBLIC,
             'status' => App\\Models\\Post::STATUS_PUBLISHED,
             'display_mode' => $tryb,
             'published_at' => now()->subMinutes($minuta++),
         ]);
 
-        foreach (['pionowe', 'poziome'] as $pozycja => $ksztalt) {
+        foreach ($ksztalty as $pozycja => $ksztalt) {
             $zdjecie = App\\Models\\Media::create([
                 'owner_id' => $autor,
                 'disk' => 'public',
@@ -491,6 +486,8 @@ const POMIAR = () => {
 
       return {
         pole: zaokr(pp.height),
+        x: zaokr(pp.left),
+        szerokoscPola: zaokr(pp.width),
         ...obraz,
         martwe: zaokr(pp.height - obraz.malowanaWysokosc),
       };
@@ -500,6 +497,8 @@ const POMIAR = () => {
       galerie.push({
         rodzaj: 'zwykle (.photo-grid)',
         wysokoscCalosci: zaokr(siatka.getBoundingClientRect().height),
+        x: zaokr(siatka.getBoundingClientRect().left),
+        szerokoscGalerii: zaokr(siatka.getBoundingClientRect().width),
         /* Ile kolumn naprawdę wyszło — dwa zdjęcia obok siebie czy jedno
            pod drugim. Bez tej liczby nie da się przeczytać pozostałych. */
         kolumny: getComputedStyle(siatka).gridTemplateColumns.split(' ').filter(Boolean).length,
@@ -711,6 +710,15 @@ try {
         for (const galeria of wynik.galerie) {
           widziane.rodzaje.add(galeria.rodzaj);
 
+          if (galeria.rodzaj === 'zwykle (.photo-grid)' && nazwaTrybu.startsWith('zwykle')) {
+            const oczekiwane = nazwaTrybu === 'zwykle-3' ? 3 : 2;
+            if (galeria.kolumny !== 1 || galeria.pola.length !== oczekiwane
+              || galeria.pola.some((p) => Math.abs(p.x - galeria.x) > 1
+                || Math.abs(p.szerokoscPola - galeria.szerokoscGalerii) > 1)) {
+              naruszenia.push(etykieta + ' · ' + nazwaTrybu + ': zdjęcia nie zajmują kolejnych pełnych wierszy');
+            }
+          }
+
           const orientacje = new Set(galeria.pola.map((p) => p.orientacja));
           const mieszana = orientacje.has('pionowe') && orientacje.has('poziome');
 
@@ -776,15 +784,14 @@ if (brakujace.length > 0) {
 }
 
 if (widziane.galerieMieszane === 0) {
-  console.error('\nBŁĄD: na żadnej zmierzonej galerii nie stanęły obok siebie zdjęcie');
-  console.error('pionowe i poziome — a to jest JEDYNA rzecz, o którą poszło issue #431.');
+  console.error('\nBŁĄD: żadna zmierzona galeria nie zawierała pionowego i poziomego zdjęcia.');
   console.error('Zero martwych pikseli w takim przebiegu nie znaczy „naprawione",');
   console.error('tylko „nie było czego zmierzyć".');
   process.exit(1);
 }
 
 if (naruszenia.length > 0) {
-  console.error(`\nPRZEPEŁNIENIE POZIOME — ${naruszenia.length}:`);
+  console.error(`\nNARUSZENIA UKŁADU — ${naruszenia.length}:`);
   for (const n of naruszenia) console.error(`  ${n}`);
   process.exit(1);
 }
