@@ -26,6 +26,27 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Przepis ze strony lub pliku PDF
+
+Na ekranie „Dodaj przepis” możecie wkleić adres strony z przepisem albo dodać
+plik PDF. PDF z tekstem odczytujemy u siebie; skanowane strony oraz tekst strony
+bez danych przepisu mogą trafić do OpenAI tylko po zgodzie dla tego wysłania.
+Odczytana treść trafia do prywatnego szkicu, który możecie
+poprawić przed publikacją. Adres źródłowej strony zostaje przy przepisie;
+zdjęć z niej nie pobieramy. Przed publikacją potwierdzacie, że tekst został
+sprawdzony. Jeśli strona nie pozwala na pobranie przepisu, zapisujemy sam
+adres i podpowiadamy, jak wpisać treść ręcznie.
+Każda droga importu dzieli limit 5 prób dziennie i 30 miesięcznie.
+
+### Składniki odhaczane w trybie „Gotuję”
+
+Przy dłuższym przepisie łatwo zgubić się w tym, co już jest odmierzone.
+W trybie „Gotuję” rozwiń „Składniki” i dotknij składnika, który masz
+przygotowany — pojawi się przy nim „Przygotowane”, a pod listą zobaczysz, ile
+jeszcze zostało. Zaznaczenie pamięta ta karta przeglądarki, także po przejściu
+do następnego kroku. Przycisk „Wyczyść zaznaczenie składników” zaczyna listę
+od nowa i nie rusza odhaczonych kroków.
+
 ## Alfa 0.72
 
 **Spokojniejsze zdjęcia i powiadomienia.**
