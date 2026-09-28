@@ -60,6 +60,8 @@
         'tags' => ['settings.tags', 'Tagi', 'Co Cię interesuje w kuchni'],
         'email' => ['settings.email', 'Adres e-mail', 'Zobacz i zmień adres do wiadomości z Kuking'],
         'security' => ['settings.security', 'Bezpieczeństwo', 'Zmiana hasła, wylogowanie z innych urządzeń'],
+        // Aplikacja mobilna (D-270): telefony i tablety z dostępem do konta.
+        'devices' => ['settings.devices', 'Urządzenia z dostępem', 'Telefony i tablety zalogowane w aplikacji'],
         'two_factor' => ['settings.two_factor.edit', 'Weryfikacja dwuetapowa', 'Drugi krok przy logowaniu — kod z telefonu'],
         'notifications' => ['settings.notifications', 'Powiadomienia', 'Powiadomienia na telefonie i komputerze, cisza nocna'],
         'privacy' => ['settings.privacy', 'Prywatność', 'Kto widzi Twoje treści, zablokowane osoby'],

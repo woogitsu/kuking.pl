@@ -94,6 +94,8 @@ AKCJE_SHA_TEST = "AkcjeGithubPrzypieteDoShaTest"
 # byłoby zawsze prawdziwe, a test świeciłby na zielono nad niczym — dokładnie
 # ta klasa usterki, dla której powstał mechanizm kontroli dodatnich.
 OBRAZ_ASSETOW = "Dockerfile"
+CENY_WARZYW_WORKFLOW = ".github/workflows/ceny-warzyw-auto.yml"
+CENY_WARZYW_TEST = "WorkflowCenNieUruchamiaKoduZTokenemZapisuTest"
 NOWOSCI_KONTROLER = "app/Http/Controllers/NowosciController.php"
 NOWOSCI_OD_NUMERU_TEST = "StronaCoNowegoOdNumeruTest"
 MIGRACJA_NO_AMOUNT = "database/migrations/2026_09_06_130000_add_no_amount_to_recipe_ingredients.php"
@@ -357,6 +359,10 @@ AWANS_ROLI_TEST = "AwansRoliWymagaNowejSesjiTest"
 # sama obecność constraintu przeszłaby zielono; test ma zapalić na definicji.
 MIGRACJA_HERO_PICKS = "database/migrations/2026_09_24_100000_powiaz_hero_picks_z_post_media.php"
 HERO_PICKS_TEST = "test_schemat_wymusza_pare_wpisu_i_zdjecia_z_kaskada"
+# #1289: odnośnik „Zobacz…” na landingu nie może prowadzić gościa do trasy
+# z grupy `auth`. Mutacja przywraca stary cel pod nową etykietą.
+LANDING = "resources/views/pages/landing.blade.php"
+LANDING_PODGLAD_TEST = "test_odnosniki_podgladu_na_landingu_nie_odsylaja_goscia_do_logowania"
 # Token wydania Livewire (#977). Mutacja wraca do stałego 'a' sprzed poprawki:
 # karta sprzed wdrożenia znów wysyłałaby migawkę starego kodu bez odmowy.
 LIVEWIRE_KONFIG = "config/livewire.php"
@@ -463,6 +469,13 @@ DIGEST_DOBOR = "app/Domain/Digest/ZbierzTresciDigestu.php"
 DIGEST_DOBOR_TEST = "test_zaden_feed_nie_sortuje_po_mierze_cudzych_reakcji"
 WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) {\n"
 
+# Dokumentacja API (D-270): każda trasa `/api/v1` ma wiersz w tabeli
+# `docs/API.md`. Mutacja wycina wiersz feedu — strażnik ma zauważyć trasę
+# bez opisu.
+DOKUMENTACJA_API = "docs/API.md"
+DOKUMENTACJA_API_TEST = "ApiJestUdokumentowaneTest"
+WIERSZ_FEEDU = "| `GET /api/v1/feed` | wpisy obserwowanych, chronologicznie | token | to samo zapytanie co strona główna |\n"
+
 # Prywatne ukrycia bez agregacji (#1810, D-278): moderacja i analityka nie
 # czytają tabeli `hides`. Mutacja dokłada do pliku moderacji import modelu
 # ukryć — strażnik skanujący `app/Domain/Moderation` ma zapalić się na czerwono.
@@ -504,6 +517,16 @@ EKSPORT_PORAZKA_TEST = "test_niepowodzenie_ustawia_status_failed_z_powodem|test_
 # mutacji to samo sprzątanie paczki tuż przed `throw $e;`.
 EKSPORT_BEZ_RETHROW = "            $this->usunOsieroconaPaczke($export);\n\n"
 EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
+# Dalsze okna wyszukiwania za kursorem rankingu (#1023). Mutacja gubi kursor
+# obu list, czyli wraca do samego liczbowego `OFFSET`; test dopisania ma
+# zobaczyć duplikat, test ukrycia — pominięcie.
+SZUKAJ_KONTROLER = "app/Http/Controllers/SearchController.php"
+STABILNE_OKNA_TEST = "StabilneOknaWyszukiwaniaTest"
+
+
+def bez_kursora_wyszukiwania(source):
+    source = replace_once(source, "$poPrzepisie = $odPrzepisu > 0 ? $this->kursor($request, 'po_przepisie') : null;", "$poPrzepisie = null;")
+    return replace_once(source, "$poOsobie = $odOsoby > 0 ? $this->kursor($request, 'po_osobie') : null;", "$poOsobie = null;")
 EKSPORT_DANE = "app/Domain/Users/Exports/CollectUserExportData.php"
 EKSPORT_KLUCZE_TEST = "EksportKluczeBezRodzajuTest"
 # Widoczność treści w filtrze powiadomień (#1687). Test kontraktowy porównuje
@@ -1015,6 +1038,12 @@ checks = [
      lambda s: replace_once(s, "'error' => BezpiecznyBlad::kontekst($e),", "'error' => BezpiecznyKomunikat::z($e->getMessage()),")),
     ("Skaner logów ślepy na report()", "tests/Feature/LogOperacyjnyBezKomunikatuWyjatkuTest.php", LOG_OPERACYJNY_TEST,
      lambda s: replace_once(s, "(?:logger|report)", "(?:logger)")),
+    # Audyt B1, zn. 9: nieistniejąca zmienna koloru ma zapalić strażnika.
+    ("Kolor z niezdefiniowanej zmiennej", "resources/css/tagi-w-opisie.css", "UzyteZmienneKolorowIstniejaTest",
+     lambda s: replace_once(s, "color: var(--color-ink);", "color: var(--color-text);")),
+    # Audyt B1, zn. 8: sztywny rem zamiast tokenu ignoruje skalę tekstu.
+    ("Linki sąsiednich wpisów bez skali tekstu", "resources/css/wpis-nawigacja-sasiedzi.css", "TekstyZAudytuB9MowiaPrawdeTest",
+     lambda s: replace_once(s, "font-size: var(--text-body);", "font-size: 1.125rem;")),
     ("Cofnięcie CHECK-a kontaktu bez odmowy przy sierotach", KONTAKT_MIGRACJA, KONTAKT_MIGRACJA_TEST,
      lambda s: replace_once(s, "        if ($istniejaSieroty) {\n", "        if (false && $istniejaSieroty) {\n")),
     ("Cofnięcie znaczników odpowiedzi bez odmowy", KONTAKT_ZNACZNIKI, KONTAKT_ZNACZNIKI_TEST,
@@ -1074,7 +1103,7 @@ checks = [
     # i komend WIDZI digest wołający `Mail::` z procesu schedulera.
     # Web czyta adres synchronicznie w `AlarmujOPilnymZgloszeniu` (D-236).
     ("Web bez adresu alarmów moderacji", RAILWAY_IAC, ZMIENNE_ROL_TEST,
-     lambda s: replace_once(s, "...czyszczenieCdnEnv, ...alarmModeratoraEnv, ...pushPublicznyEnv };", "...czyszczenieCdnEnv, ...pushPublicznyEnv };")),
+     lambda s: replace_once(s, "...czyszczenieCdnEnv, ...alarmModeratoraEnv, ...pushPublicznyEnv, ...importEnv };", "...czyszczenieCdnEnv, ...pushPublicznyEnv, ...importEnv };")),
     ("Klucz modelu bez warunku produkcji", RAILWAY_IAC, TYLKO_PRODUKCJA_TEST,
      lambda s: replace_once(s, 'OPENAI_MODERATION_KEY: isProduction ? ctx.shared.OPENAI_MODERATION_KEY : "",', "OPENAI_MODERATION_KEY: ctx.shared.OPENAI_MODERATION_KEY,")),
     ("Adres alarmu bez warunku produkcji", RAILWAY_IAC, TYLKO_PRODUKCJA_TEST,
@@ -1119,6 +1148,8 @@ checks = [
      lambda s: replace_once(s, "            $fresh->invalidateSessions();\n", "")),
     ("Wybór kolażu bez kaskady przy odpięciu zdjęcia", MIGRACJA_HERO_PICKS, HERO_PICKS_TEST,
      lambda s: replace_once(s, "\n            .'ON DELETE CASCADE',", "")),
+    ("Landing: podgląd prowadzi do trasy auth", LANDING, LANDING_PODGLAD_TEST,
+     lambda s: replace_once(s, "{{ route('help') }}#kto-widzi", "{{ route('posts.create') }}")),
     ("Autozapis kreatora #892 bez kroku CI", CI_WORKFLOW, AUTOZAPIS_892_TEST,
      lambda s: replace_once(s, "          node scripts/kreator-zachowanie.mjs autosave\n", "")),
     ("Stały token wydania Livewire", LIVEWIRE_KONFIG, LIVEWIRE_TOKEN_TEST,
@@ -1172,6 +1203,8 @@ checks = [
      lambda s: replace_once(s, "jakie konto Google jest zalogowane", "jakim kontem Google jesteś zalogowany")),
     ("Entrypoint bez klucza preview", ENTRYPOINT, KLUCZ_PREVIEW_TEST,
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
+    ("Dalsze okno wyszukiwania bez kursora rankingu", SZUKAJ_KONTROLER, STABILNE_OKNA_TEST,
+     bez_kursora_wyszukiwania),
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
      lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
     ("Edycja domyślnego zeszytu bez skutku dla przyszłych zapisów", EDYCJA_ZESZYTU, DOMYSLNY_ZESZYT_TEST,
@@ -1208,6 +1241,8 @@ checks = [
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
      lambda s: replace_once(s, "php /app/artisan event:clear  --no-interaction >/dev/null\n", "php /app/artisan event:clear  --no-interaction >/dev/null\nphp /app/artisan cache:clear --no-interaction >/dev/null 2>&1 || true\n")),
+    ("Trasa API bez wiersza w dokumentacji", DOKUMENTACJA_API, DOKUMENTACJA_API_TEST,
+     lambda s: replace_once(s, WIERSZ_FEEDU, "")),
     ("Powiadomienie o wykonaniu kucharza w karencji usunięcia", WIDOCZNOSC_TRESCI_SQL, POWIADOMIENIA_ZGODNE_Z_POLICY_TEST,
      lambda s: replace_once(s, KUCHARZ_W_KARENCJI, "")),
     ("Powiadomienie o komentarzu pod zapowiedzią ukrytego przepisu", WIDOCZNOSC_TRESCI_SQL, POWIADOMIENIA_ZGODNE_Z_POLICY_TEST,
@@ -1224,6 +1259,32 @@ checks = [
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
+    # V2 import/OCR (D-298): zadanie odczytu zapisujące szkic jako publikację
+    # ma wywrócić architektoniczny test „import nigdy nie publikuje”.
+    ("Odczyt kartki publikuje przepis", "app/Jobs/OdczytajPrzepis.php", "test_import_nigdy_nie_publikuje_sprawdzone_w_kodzie",
+     lambda s: replace_once(s, "publish: false,", "publish: true,")),
+    # D-298 „maszyna stanów płatnego wywołania” (#1973, #1974, #1977, #1980).
+    # Każda mutacja przywraca dokładnie okno opisane w zgłoszeniu.
+    # #1973: rezerwacja poza transakcją z licznikiem prób I `failed()` bez
+    # domykania księgi — obie warstwy naraz, bo każda z osobna zamyka okno.
+    ("Odczyt: rezerwacja bez śladu po awarii zapisu", "app/Jobs/OdczytajPrzepis.php", "MaszynaStanowOdczytuTest::test_1973_awaria_po_rezerwacji",
+     lambda s: replace_once(replace_once(replace_once(s,
+        "        $rezerwacja = DB::transaction(function () use ($budzet, $zlecenie, $proba): Rezerwacja|string {",
+        "        $rezerwacja = (function () use ($budzet, $zlecenie, $proba): Rezerwacja|string {"),
+        "            return $wynik;\n        });",
+        "            return $wynik;\n        })();"),
+        "    {\n        app(RozliczenieOdczytu::class)->zamknijPorzucone($this->importId);\n",
+        "    {\n")),
+    ("Odczyt: porzucona rezerwacja nie wygasa", "app/Domain/Import/OdzyskanieImportow.php", "MaszynaStanowOdczytuTest::test_1973_rezerwacja_osierocona",
+     lambda s: replace_once(s, "            $this->rozliczenie->zamknijPorzucone($importId, $granicaRezerwacji);\n", "")),
+    ("Odczyt: rozliczenie bez strażnika stanu", "app/Domain/Import/BudzetAi.php", "MaszynaStanowOdczytuTest::test_1974",
+     lambda s: replace_once(s, "            if ($zamknieta !== 1) {\n                return null;\n            }\n", "")),
+    # #1977: `afterCommit()` przenosi zapis zadania za commit — czyli
+    # odtwarza okno, zamiast je zamknąć (tak jak w `ZamowEksportDanych`).
+    ("Odczyt: zadanie za commitem zlecenia", "app/Domain/Import/ZlecImportPrzepisu.php", "MaszynaStanowOdczytuTest::test_1977_awaria_kolejki",
+     lambda s: replace_once(s, "OdczytajPrzepis::dispatch((string) $zlecenie->getKey());", "OdczytajPrzepis::dispatch((string) $zlecenie->getKey())->afterCommit();")),
+    ("Odczyt: ponowienie woła model mimo zapisanej odpowiedzi", "app/Jobs/OdczytajPrzepis.php", "MaszynaStanowOdczytuTest::test_1980_ponowienie",
+     lambda s: replace_once(s, "        if (is_array($zlecenie->odpowiedz_modelu)) {", "        if (false && is_array($zlecenie->odpowiedz_modelu)) {")),
     # D-299: wartości odżywcze tylko przy pokryciu >= 90% masy. Obniżony próg
     # ma zapalić test przepisu z 85% pokrycia.
     ("Wartości odżywcze liczone poniżej 90% pokrycia", "app/Domain/Recipes/Odzywcze/WynikWartosci.php", "KalkulatorWartosciOdzywczychTest",
@@ -1298,6 +1359,11 @@ checks = [
      lambda s: replace_once(s, "        if (Schema::hasTable('ustawienia_powiadomien_zewnetrznych')\n", "        if (false && Schema::hasTable('ustawienia_powiadomien_zewnetrznych')\n")),
     ("Runbook: railway config apply bez KUKING_WAIT_FOR_CI", RUNBOOK, KOMENDY_IAC_TEST,
      lambda s: replace_once(s, RUNBOOK_APPLY_Z_BRAMKA, "\nrailway config apply\n")),
+    # #1957: job, który uruchamia kod repozytorium, traci
+    # `persist-credentials: false` — token zapisu mógłby wrócić do jego
+    # konfiguracji gita bez zabezpieczenia; strażnik workflow ma oblać.
+    ("Workflow cen: checkout z kodem bez persist-credentials: false", CENY_WARZYW_WORKFLOW, CENY_WARZYW_TEST,
+     lambda s: replace_once(s, "          persist-credentials: false\n", "")),
     # #1851: krok „Ustal adres środowiska" wraca do wklejania danych zdarzenia
     # w treść skryptu — strażnik ma to złapać, zanim nazwa środowiska stanie
     # się poleceniem na runnerze.
@@ -1367,6 +1433,7 @@ run_test(STRAZNIK_R2_TEST, True)
 run_test(OSTRZEZENIE_888_TEST, True)
 run_test(AWANS_ROLI_TEST, True)
 run_test(HERO_PICKS_TEST, True)
+run_test(LANDING_PODGLAD_TEST, True)
 run_test(AUTOZAPIS_892_TEST, True)
 run_test(LIVEWIRE_TOKEN_TEST, True)
 run_test(KREATOR_ZAPIS_TEST, True)
@@ -1385,6 +1452,7 @@ run_test(EKSPORT_PORAZKA_TEST, True)
 run_test(EKSPORT_KLUCZE_TEST, True)
 run_test(GOOGLE_LINK_TEST, True)
 run_test(KLUCZ_PREVIEW_TEST, True)
+run_test(STABILNE_OKNA_TEST, True)
 run_test(EPIZOD_ALARMU_TEST, True)
 run_test(OFFLINE_PONOWIENIE_TEST, True)
 run_test(KONTRAKT_KARTY_TEST, True)
@@ -1396,10 +1464,12 @@ run_test(TURNSTILE_AKCJA_TEST, True)
 run_test(GRAF_MODULOW_TEST, True)
 run_test(DEMO_SEEDER_HASLO_TEST, True)
 run_test(ADAPTERY_DOSTAWCOW_TEST, True)
+run_test(DOKUMENTACJA_API_TEST, True)
 run_test(POWIADOMIENIA_ZGODNE_Z_POLICY_TEST, True)
 run_test(DIGEST_DOBOR_TEST, True)
 run_test(UKRYCIA_BEZ_AGREGACJI_TEST, True)
 run_test(IAC_PRODUKCJA_TEST, True)
+run_test(CENY_WARZYW_TEST, True)
 run_test(DEPLOY_WSTRZYKNIECIE_TEST, True)
 run_test(NOWOSCI_OD_NUMERU_TEST, True)
 run_test(MIGRACJA_NO_AMOUNT_TEST, True)

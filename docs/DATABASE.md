@@ -1762,6 +1762,7 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 - `summary` — patrz niżej;
 - `servings`, `prep_minutes`, `cook_minutes`, `difficulty`
   (CHECK: `easy` \| `medium` \| `hard`) — o czasach patrz niżej;
+- `estimated_cost_pln` — szacunkowy koszt wg autora, patrz niżej (D-286);
 - `visibility` (`public` \| `followers` \| `private`),
   `status` (`draft` \| `published` \| `hidden` \| `removed`), `hero_media_id`;
 - pochodzenie: `source_type`, `source_url`, `source_person`, `source_note`,
@@ -1871,6 +1872,46 @@ i do `description` w JSON-LD, więc jest tekstem, który człowiek zobaczy
 w wynikach wyszukiwania. `NULL` jest stanem normalnym — przepis bez opisu
 publikuje się tak samo.
 
+#### `estimated_cost_pln` — szacunkowy koszt całego przepisu wg autora (V2, D-286)
+
+Migracja `2026_09_26_100000_add_estimated_cost_pln_to_recipes`.
+
+```sql
+ALTER TABLE recipes ADD COLUMN estimated_cost_pln numeric(6,2) NULL;
+ALTER TABLE recipes ADD CONSTRAINT recipes_estimated_cost_pln_check
+    CHECK (estimated_cost_pln IS NULL OR estimated_cost_pln >= 0) NOT VALID;
+ALTER TABLE recipes VALIDATE CONSTRAINT recipes_estimated_cost_pln_check;
+```
+
+- **Złote z groszami za CAŁY przepis** (nie za porcję), najwyżej
+  9999,99 zł — sufit niesie sam typ `numeric(6,2)`, dolną granicę CHECK.
+- **`NULL` = autor nie podał** i strona przepisu o koszcie milczy. **`0` to
+  odpowiedź** („z tego, co w ogródku"), dlatego kolumna nie ma `DEFAULT`
+  ani backfillu.
+- Wpisuje ją wyłącznie autor: kreator (`KrokOPrzepisie`) i formularz
+  szczegółów (`ZapisPrzepisuRequest`), wspólne reguły i komunikaty
+  w `App\Domain\Recipes\KosztPrzepisu` (przecinek, spacje i dopisek „zł"
+  są przyjmowane; więcej niż dwa miejsca po przecinku — komunikat, nie
+  ciche zaokrąglenie). **Brak pola w żądaniu nie czyści kwoty**
+  (`PublishRecipe` zapisuje ją tylko, gdy klucz przyszedł) — ekran dodawania
+  tego pola nie ma.
+- Idzie do snapshotu wersji (`SnapshotRecipeVersion`), do paczki danych
+  (`CollectUserExportData`: `szacunkowy_koszt_zl`) i do czytelnego pliku
+  przepisu w paczce. Sekcja `przepisy` jest już w `InwentarzDanychKonta`
+  przez `recipes.author_id`, więc rejestr nie wymagał nowego wpisu.
+- Wyszukiwarka: zakres „Do 20 zł" (`sekcja=tanie`) to sam warunek
+  `estimated_cost_pln <= 20`, bez wpływu na kolejność; przepis bez kosztu
+  wypada. Bez indeksu — warunek działa na zbiorze kandydatów z trigramów,
+  tak jak „Do 30 minut".
+
+**Rollback:** `down()` **odmawia**, gdy choć jeden przepis ma koszt —
+zdjęcie kolumny skasowałoby liczbę wpisaną przez człowieka, a kolejny
+`migrate` odtworzyłby ją jako `NULL` bez śladu (D-088). Komunikat mówi, jak
+najpierw zachować wartości (kopia tabeli), wyczyścić kolumnę i powtórzyć.
+Przy samych `NULL`-ach i na świeżej bazie przechodzi bez pytania
+(`tests/Feature/KosztPrzepisuMigracjaTest.php`: odmowa + dwie kontrole
+dodatnie).
+
 #### Pochodzenie przepisu: `source_type`, `source_person`, `source_note`, `source_url`
 
 Cztery kolumny z pierwszej migracji przepisów
@@ -1922,6 +1963,79 @@ dziennej; więcej nie zbieramy. `source_scan_media_id uuid NULL` → `media`
 To zdjęcie bywa skanem odręcznej kartki z nazwiskami, więc dostęp do niego
 idzie tą samą drogą co do każdego innego zdjęcia przepisu
 (`App\Domain\Media\DostepDoZdjecia`).
+
+### ceny_skladnikow
+Cennik składników do **orientacyjnego kosztu dania**, gdy autor nie wpisał
+własnej kwoty (V2, D-286 część 2; migracja
+`2026_09_26_110000_create_ceny_skladnikow_table`).
+
+To **słownik, nie treść użytkowników**. Jedyna droga zapisu to komenda
+`php artisan kuking:ceny-skladnikow`, która wczytuje plik
+`database/data/ceny_skladnikow.csv` z repozytorium — w całości albo wcale,
+w jednej transakcji; wiersze spoza pliku znikają. Produkcja niczego nie
+pobiera z sieci: plik odświeża osoba prowadząca dwoma skryptami, jednym na
+źródło (D-286, część 3):
+
+- `scripts/ceny-gus-pobierz.py` — mięso, nabiał, pieczywo, produkty suche:
+  API Banku Danych Lokalnych GUS, temat P1466, średnie roczne ceny
+  detaliczne dla Polski. Wiersz ma numer zmiennej w `zmienna_bdl`.
+- `scripts/ceny-warzyw-zsrir-pobierz.py` — **warzywa detaliczne**
+  (`ziemniaki`, `cebula`, `marchew`, `papryka_czerwona`, `pomidor`):
+  GUS/BDL nie podaje dziś ich cen (seria miesięczna z ziemniakami, cebulą
+  i marchwią kończy się w 2019 r.). Zamiennik to Zintegrowany System
+  Rolniczej Informacji Rynkowej (ZSRIR) Ministerstwa Rolnictwa i Rozwoju
+  Wsi — otwarte dane dane.gov.pl (zbiór 912, CC BY 4.0), arkusz „ZAKUP
+  WARZ DETAL — do 2 kg” (cena zakupu warzyw przez detal, opakowania do
+  2 kg — najbliższy oficjalny odpowiednik detalu, jaki ZSRIR ma). Od
+  26.09.2026 (D-286, część 3, decyzja właściciela) ten skrypt uruchamia
+  się **automatycznie, co tydzień**, w GitHub Actions
+  (`.github/workflows/ceny-warzyw-auto.yml`) — produkcja nadal niczego
+  nie pobiera z sieci, automatyzacja dotyczy wyłącznie CI, a wynik idzie
+  do `main` przez zwykły PR, który merguje człowiek.
+- **Warzywa liczone hurtowo × przelicznik** (`kapusta`, `buraki`, `por`,
+  `seler`, `pietruszka`, `salata`, `ogorek`): ZSRIR notuje je TYLKO
+  hurtowo (arkusz „HURT WARZ”, pięć rynków: Bronisze, Kalisz, Łódź,
+  Poznań, Rzeszów). Cena w pliku to średnia z min–max tych pięciu
+  rynków razy `App\Domain\Recipes\Koszt\SzacunekKosztuZCen::MNOZNIK_HURT_DETAL`
+  (`1,6` — decyzja właściciela z 26.09.2026, uzasadnienie stałej w kodzie
+  i w `docs/DECISIONS.md`, D-286 część 3). Liczone RĘCZNIE, nie przez
+  żaden skrypt — arkusz „HURT WARZ” ma inny układ kolumn (pięć rynków,
+  min i max osobno) i nie jest dziś zautomatyzowany. `zrodlo` każdego
+  z tych wierszy zaczyna się od frazy „szacunek z cen hurtowych” —
+  `SzacunekKosztuZCen` wykrywa tę frazę i dokłada do zdania na stronie
+  przepisu wprost napisaną klauzulę, że to szacunek z hurtu, nie zwykła
+  cena detaliczna.
+
+Wszystkie trzy źródła (GUS, ZSRIR detal, ZSRIR hurt × przelicznik)
+zmieniają WYŁĄCZNIE wiersze swojego źródła; zmiana cen przechodzi
+przegląd w PR-ze jak każda inna — ręcznie albo (dla warzyw detalicznych)
+przez automatyczny PR z `ceny-warzyw-auto.yml`.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `klucz` | `varchar(60)` PK | stały klucz z pliku (`maka_pszenna`) |
+| `nazwa` | `varchar(160)` | nazwa dla człowieka |
+| `wzorce` | `text` | formy słowa w tekście składnika, ASCII, rozdzielone `\|`; dopasowanie CAŁYMI słowami (CHECK: niepuste) |
+| `wyklucz` | `text NULL` | początki słów, które odrzucają dopasowanie („ziemniaczan") |
+| `cena_zl`, `za_ilosc`, `jednostka` | `numeric(8,2)`, `numeric(8,3)`, `varchar(3)` | cena za `za_ilosc` jednostek `kg` \| `l` \| `szt` (CHECK) |
+| `g_na_jednostke` | `numeric(8,2)` | ile gramów waży jednostka ceny (1 l oleju ≈ 920 g, 1 jajko ≈ 60 g) |
+| `g_szklanka`, `g_lyzka`, `g_lyzeczka`, `g_sztuka` | `numeric(8,2) NULL` | miary domowe TEGO składnika w gramach |
+| `kolejnosc` | `smallint` | kolejność dopasowania — pierwszy pasujący wiersz wygrywa |
+| `okres`, `zrodlo`, `zmienna_bdl` | `varchar` | skąd jest cena: rok, opis źródła, numer zmiennej GUS (`NULL` dla wierszy spoza GUS, np. ZSRIR) |
+| `zaimportowano_at` | `timestamptz` | kiedy komenda wczytała wiersz |
+
+CHECK `ceny_skladnikow_liczby_check`: `cena_zl >= 0`, `za_ilosc > 0`,
+`g_na_jednostke > 0`, miary domowe `NULL` albo `> 0`. `cena_zl = 0` ma
+dokładnie jeden sens: składnik bez kosztu (woda), który **nie liczy się do
+pokrycia** masy przepisu.
+
+Szacunek liczy `App\Domain\Recipes\Koszt\SzacunekKosztuZCen` — w PHP,
+deterministycznie, bez AI: przedział ±15% wokół sumy, tylko gdy składniki
+z ceną to ≥ 90% masy przepisu i każdy składnik z ilością da się przeliczyć
+na gramy. Tekst składnika nie jest zmieniany.
+
+**Rollback:** `DROP TABLE ceny_skladnikow` bez strażnika — nikt tu nic nie
+wpisał, a ponowne uruchomienie komendy odtwarza stan z pliku.
 
 ### recipe_slug_redirects
 Stary adres przepisu nadal działa po zmianie tytułu — link wysłany córce
@@ -3785,9 +3899,9 @@ odklikał i czy po wycofaniu wysyłka nie szła dalej.
 |---|---|
 | `id` | `bigserial`. Nie UUID — wiersz nigdy nie jest adresowany z zewnątrz (tak samo jak `audit_log` i `product_signals`). Rosnący klucz trzyma KOLEJNOŚĆ dwóch zdarzeń z tej samej sekundy. |
 | `user_id` | `uuid`, **NOT NULL**, FK do `users` z `ON DELETE RESTRICT` (patrz niżej). |
-| `cel` | Cel zgody. Dziś jedna wartość: `tygodniowy_digest`. CHECK `dziennik_zgod_cel_check` — zbiór zamknięty, druga zgoda wymaga migracji i recenzji. |
+| `cel` | Cel zgody: `tygodniowy_digest` \| `zyczenia_urodzinowe` (od migracji `2026_09_25_200200_add_birthday_email_consent_to_users`, #1755) \| `odczyt_ai` (od migracji `2026_09_26_100200_dziennik_zgod_cel_odczyt_ai`, D-296 — zgoda na odczyt zdjęć kartek przez OpenAI). CHECK `dziennik_zgod_cel_check` — zbiór zamknięty, każda kolejna zgoda wymaga migracji i recenzji. |
 | `czynnosc` | `udzielona` \| `wycofana`. CHECK `dziennik_zgod_czynnosc_check`. Dwie wartości, bo to są dwie rzeczy, które RODO każe umieć wykazać (art. 7 ust. 1 i ust. 3). |
-| `zrodlo` | `ustawienia` \| `link_wypisania` \| `link_powrotny` \| `usuniecie_konta`. CHECK `dziennik_zgod_zrodlo_check`. Część dowodu: „gdzie człowiek wtedy był". |
+| `zrodlo` | `ustawienia` \| `link_wypisania` \| `link_powrotny` \| `usuniecie_konta` \| `ekran_importu` (zgoda „odczyt AI” dana na ekranie „Przepisz z kartki”, D-296). CHECK `dziennik_zgod_zrodlo_check`. Część dowodu: „gdzie człowiek wtedy był". |
 | `wersja_polityki` | Wersja polityki prywatności z chwili zdarzenia, z `config('kuking.zgody.wersja_polityki')`. Bez niej dowód mówi „zgodził się", ale nie mówi NA CO. |
 | `wystapilo_at` | `timestamptz`, `useCurrent()`. Moment ZDARZENIA, nie zapisu wiersza — dlatego tabela nie ma `created_at`/`updated_at`. |
 
@@ -3857,6 +3971,16 @@ rośnie wolniej niż `product_signals`. Docelowy okres należy dopisać do
 `docs/decyzje/ADR_RETENCJE.md` razem z resztą dowodów zgód, przy przeglądzie
 prawnym (issue #8).
 
+**Zgoda `odczyt_ai` (D-296) nie ma kolumny na `users`.** Jej stanem jest
+OSTATNI wpis osoby dla tego celu (`App\Domain\Zgody\PrzestawZgodeNaOdczytAi`),
+czytany świeżo z bazy także w zadaniu odczytu tuż przed wysłaniem zdjęcia.
+Anonimizacja konta dopisuje `wycofana` / `usuniecie_konta` jak przy digeście.
+Rozszerzenie CHECK-ów (`2026_09_26_100200_…`, `NOT VALID` + `VALIDATE`) cofa
+się bez pytania, dopóki nie ma wierszy z `odczyt_ai` ani `ekran_importu`;
+przy takich wierszach `down()` **odmawia** (D-088) — dziennik jest append-only,
+więc węższy CHECK nie ma jak wrócić bez skasowania dowodu zgody
+(`CofniecieZgodyOdczytuAiOdmawiaTest`).
+
 **Rollback:** `php artisan migrate:rollback --step=1`. `down()` **ODMAWIA**,
 gdy w dzienniku jest choć jeden zapis (D-088) — bo razem z tabelą znika jedyny
 dowód na to, kto i kiedy wyraził zgodę, a boolean na `users` tego nie odtworzy.
@@ -3881,6 +4005,135 @@ Pilnuje tego `DowodZgodyNaDigestTest` (udzielenie, wycofanie, ciąg
 włącz → wyłącz → włącz, trzy źródła, brak PII, append-only w modelu i w bazie,
 usunięcie konta) oraz `CofniecieDziennikaZgodOdmawiaTest` (odmowa, kontrola
 dodatnia na pustym dzienniku, zgoda wypowiedziana wprost, wąskość skutków).
+
+### importy_przepisow
+Jedno zlecenie odczytu przepisu (V2 — OCR zdjęcia kartki; później adres strony
+i PDF), migracja `2026_09_26_100000_create_importy_przepisow_table`,
+`docs/DECISIONS.md` **D-298** (architektura), **D-297** (limity), **D-296** (zgoda).
+
+**Wiersz nie niesie treści przepisu.** Treść od pierwszej chwili stoi w zwykłym
+szkicu (`recipes`, `status = draft`, `visibility = private`), a zdjęcie kartki
+w `recipes.source_scan_media_id` — zapisane, ZANIM cokolwiek pójdzie do modelu.
+Dlatego tabela celowo **nie wskazuje na `media`**: zdjęcie ma już wszystkie
+ochrony skanu kartki (eksport, kasowanie z kontem, `DostepDoZdjecia`,
+`KasujZdjecie`), a nowy rodzic zdjęcia trzeba by dopisać w pięciu miejscach.
+
+| Kolumna | Znaczenie |
+|---|---|
+| `id` | `uuid`, `DEFAULT gen_random_uuid()`. Widoczny w adresie ekranu postępu `/import/{import}` — wejście i tak idzie przez właściciela (UUID ≠ autoryzacja). |
+| `user_id` | `uuid NOT NULL`, FK `users` `ON DELETE CASCADE`. Anonimizacja konta (`EraseAccountData`) kasuje wiersze jawnie. |
+| `recipe_id` | `uuid NULL`, FK `recipes` `ON DELETE SET NULL` — szkic, do którego trafia odczyt. |
+| `zrodlo` | `zdjecie` \| `url` \| `pdf`. CHECK `importy_przepisow_zrodlo_check`. |
+| `status` | `oczekuje` \| `w_toku` \| `gotowy` \| `nieudany` \| `wstrzymany_limitem`. CHECK. **Poza `$fillable`** (AGENTS.md §7). |
+| `kod_bledu` | Zamknięta lista (CHECK `importy_przepisow_kod_bledu_check`): `limit_osoby`, `budzet_dzienny`, `budzet_miesieczny`, `brak_zgody`, `wylaczony`, `model_niedostepny`, `nieczytelne`, `odpowiedz_bledna`, `zdjecie_niedostepne`, `szkic_zmieniony`, `blad_wewnetrzny`. CHECK `importy_przepisow_kod_przy_bledzie_check`: kod jest **dokładnie** przy `nieudany`/`wstrzymany_limitem`. |
+| `source_url` | `text NULL`, tylko przy `zrodlo = 'url'` (CHECK). Etap importu z adresu. |
+| `proby` | Liczba prób wywołania modelu (ponowienia przy 429/5xx/timeout). Zwiększana w tej samej transakcji co rezerwacja budżetu — numer próby jest częścią klucza `ai_rezerwacje (import_id, proba)`. |
+| `koszt_mikrousd`, `tokeny_wejscia`, `tokeny_wyjscia` | Suma rozliczeń wszystkich prób (z `usage`, a bez niego cała rezerwacja). Dopisywana w tej samej transakcji co rozliczenie budżetu (`RozliczenieOdczytu`). Kwota ≥ 0 (CHECK `importy_przepisow_kwoty_check`). Rezerwacje **nie** stoją w tym wierszu — są w `ai_rezerwacje`. |
+| `odpowiedz_modelu` | `jsonb NULL` — odpowiedź bez rozumowania, do diagnozy błędów odczytu. Może zawierać tekst z kartki → **30 dni**, potem `NULL`. Zapisana = etap „odczytano” zamknięty: ponowienie zadania dokańcza z niej, **bez drugiego płatnego żądania** (#1980). |
+| `klucz_wyslania` | `uuid NULL`; `UNIQUE (user_id, klucz_wyslania) WHERE klucz_wyslania IS NOT NULL` — jedno wysłanie formularza = jedno zlecenie. |
+| `rozpoczeto_at`, `zakonczono_at`, `created_at`, `updated_at` | `timestamptz`. |
+
+Indeksy: `(user_id, created_at DESC)` — limit na osobę (5 dziennie / 30
+miesięcznie liczone w strefie `Europe/Warsaw`, bez zleceń `wstrzymany_limitem`);
+`(created_at)` — retencja; `(recipe_id) WHERE recipe_id IS NOT NULL` — bramka
+publikacji szkicu z odczytu; `importy_przepisow_przejsciowe_idx (updated_at)
+WHERE status IN ('oczekuje', 'w_toku')` — odzyskiwanie porzuconych zleceń.
+
+**Zlecenie i zadanie razem albo wcale (#1977).** `ZlecImportPrzepisu` wysyła
+`OdczytajPrzepis` wewnątrz transakcji zapisu zlecenia — kolejka jest bazodanowa,
+na tym samym połączeniu, bez `after_commit`, więc wiersz w `jobs` zatwierdza się
+razem ze zleceniem. Zlecenie `oczekuje`/`w_toku` bez zmiany od 120 minut (zadanie
+zgubione inną drogą) `kuking:odzyskaj-importy` kończy jako `nieudany` /
+`blad_wewnetrzny` — ekran pokazuje „Spróbuj jeszcze raz”.
+
+**Retencja** (`kuking:sprzataj-importy`, codziennie 06:00): `odpowiedz_modelu`
+→ `NULL` po 30 dniach, wiersz znika po 90. **Wyjątek:** wiersz, którego szkic
+jest nadal szkicem, zostaje (bez surowej odpowiedzi), bo jest bramką publikacji
+(„Odczytany tekst jest sprawdzony”) — znika najbliższym przebiegiem po publikacji
+albo usunięciu szkicu.
+
+**Eksport RODO:** sekcja `odczyty_przepisow` (źródło, stan, powód
+niepowodzenia, szkic, daty) — bez surowej odpowiedzi; odczytany tekst jest
+w sekcji `przepisy`, zdjęcie w `zdjecia`.
+
+**Rollback:** `php artisan migrate:rollback` kasuje tabelę bez odmowy. Dane są
+pochodne (ślad zleceń bez treści i bez zdjęć); po ponownym `migrate` limity
+na osobę liczą się od zera, co najwyżej pozwala komuś na kilka odczytów więcej
+jednego dnia — dalej pod budżetem kwotowym z `ai_budzet_dzienny`. Szkice
+z odczytu zostają zwykłymi szkicami (znika tylko bramka „Tekst sprawdzony”), więc
+przed cofnięciem na produkcji wyłącz funkcję (`OPENAI_IMPORT_KEY=`).
+
+### ai_budzet_dzienny
+Ile pieniędzy na płatny model OpenAI poszło danego dnia (D-297), migracja
+`2026_09_26_100100_create_ai_budzet_dzienny_table`. Jeden wiersz na dzień
+kalendarzowy w strefie `Europe/Warsaw`.
+
+| Kolumna | Znaczenie |
+|---|---|
+| `dzien` | `date PRIMARY KEY`. |
+| `zarezerwowano_mikrousd` | Suma rezerwacji jeszcze nierozliczonych (1 USD = 1 000 000). |
+| `wydano_mikrousd` | Suma rozliczonych kosztów z `usage`; brak `usage` = cała rezerwacja. |
+| `liczba_wywolan` | Ile rezerwacji (wywołań) danego dnia. |
+| `created_at`, `updated_at` | `timestamptz`. |
+
+CHECK `ai_budzet_dzienny_kwoty_check`: wszystkie liczby ≥ 0.
+
+**Rezerwacja pod `SELECT … FOR UPDATE` na wierszu dnia** szereguje równoległe
+odczyty — drugi widzi rezerwację pierwszego (`tests/Dwa/BudzetAiNaDwochPolaczeniachTest`).
+Miesiąc = suma wierszy od 1. dnia miesiąca. W cache'u tego nie trzymamy:
+to są pieniądze, a licznik w cache'u znika przy restarcie (AGENTS.md §3 — bez Redisa).
+Retencji brak: wiersz na dzień to kilkadziesiąt bajtów, a historia wydatków
+jest potrzebna do rozliczeń.
+
+**Rollback:** `down()` **odmawia**, gdy w bieżącym miesiącu są wydatki (D-088):
+po ponownym `migrate` licznik zaczynałby od zera, a serwis mógłby wydać drugi
+raz tyle samo. Najpierw wyłącz funkcję (`OPENAI_IMPORT_KEY=`); świadome
+skasowanie: `KUKING_ROLLBACK_KASUJ_BUDZET_AI=true php artisan migrate:rollback`.
+Ta sama migracja i ten sam `down()` kasują `ai_rezerwacje` (niżej) — otwarte
+rezerwacje są już policzone w `zarezerwowano_mikrousd`, więc odmowa obejmuje
+także je.
+
+### ai_rezerwacje
+Księga rezerwacji budżetu modelu — jeden wiersz na **jedną próbę płatnego
+wywołania** (D-298 „maszyna stanów płatnego wywołania”, #1973, #1974). Ta sama
+migracja co `ai_budzet_dzienny` (`2026_09_26_100100_create_ai_budzet_dzienny_table`).
+
+| Kolumna | Znaczenie |
+|---|---|
+| `id` | `bigint` identity. |
+| `import_id` | `uuid NOT NULL` — zlecenie z `importy_przepisow`. **Bez klucza obcego, świadomie:** usunięcie konta kasuje zlecenia, a otwarta rezerwacja musi przeżyć zlecenie, żeby sprzątanie ją domknęło (kaskada zostawiłaby kwotę w `zarezerwowano_mikrousd` na zawsze). Po skasowaniu zlecenia UUID nikogo nie wskazuje. |
+| `proba` | `smallint NOT NULL`, ≥ 1 — numer próby zlecenia (`importy_przepisow.proby`). |
+| `dzien` | `date NOT NULL`, FK `ai_budzet_dzienny(dzien)` `ON DELETE RESTRICT` — rozliczenie trafia do tego samego dnia, także po północy. |
+| `mikrousd` | Kwota zarezerwowana (najgorszy przypadek z cennika), ≥ 0. |
+| `stan` | `zarezerwowana` \| `wyslana` \| `rozliczona` \| `zwolniona` (CHECK `ai_rezerwacje_stan_check`). |
+| `wydano_mikrousd` | Kwota wpisana w wydatki — **dokładnie** przy `rozliczona` (CHECK `ai_rezerwacje_wydano_check`). |
+| `zamknieto_at` | `timestamptz` — **dokładnie** przy `rozliczona`/`zwolniona` (CHECK `ai_rezerwacje_zamkniecie_check`). |
+| `created_at`, `updated_at` | `timestamptz`. |
+
+Indeksy: `UNIQUE (import_id, proba)` (`ai_rezerwacje_import_proba_unique`) —
+klucz idempotencji; `(created_at) WHERE stan IN ('zarezerwowana', 'wyslana')` —
+sprzątanie po czasie. CHECK `ai_rezerwacje_kwoty_check`: `proba ≥ 1`, kwoty ≥ 0.
+
+**Przejścia** — wyłącznie warunkowym `UPDATE … WHERE stan IN ('zarezerwowana', 'wyslana')`:
+
+    zarezerwowana ──(przed żądaniem)──► wyslana ──(usage / brak usage)──► rozliczona
+          └──(zgoda cofnięta, 4xx, porzucona niewysłana)──► zwolniona
+    porzucona `wyslana` (failed(), następna próba, odzyskiwanie) ──► rozliczona całą kwotą
+
+- Wiersz powstaje w **tej samej transakcji** co zwiększenie `zarezerwowano_mikrousd`
+  (i co zwiększenie `importy_przepisow.proby`) — nie ma rezerwacji bez śladu (#1973).
+- Drugie rozliczenie tej samej próby nie trafia w żaden wiersz, więc nie dotyka
+  budżetu (#1974). Rozliczenie budżetu i zapis kosztu/odpowiedzi w zleceniu idą
+  w jednej transakcji (`RozliczenieOdczytu`).
+- Otwartą rezerwację domyka `OdczytajPrzepis::failed()`, początek następnej próby
+  i `kuking:odzyskaj-importy` (co kwadrans, po 30 minutach).
+
+**Retencja** (`kuking:sprzataj-importy`): wiersz **zamknięty** znika po 90 dniach;
+otwartych retencja nie rusza. **Eksport RODO / kasowanie konta:** tabela nie ma
+`user_id` i nie niesie treści — nie wchodzi do paczki; zlecenia znikają z kontem,
+a osierocone wiersze księgi niczego nie wskazują.
+
+**Rollback:** razem z `ai_budzet_dzienny` (wyżej) — ta sama odmowa.
 
 ### pending_email_changes
 Zamówiona, ale **jeszcze nieobowiązująca** zmiana adresu e-mail (issue #195,
