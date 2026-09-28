@@ -3055,7 +3055,7 @@ niepustego śladu; świadome cofnięcie wymaga
 `KUKING_ROLLBACK_KASUJ_SLAD_ALARMOW_CZLOWIEKA=true`, gdyż powrót starego
 formularza mógłby wtedy ponownie zlecić list.
 
-#### `human_urgent_alarm_attempts` (#2169)
+### `human_urgent_alarm_attempts` (#2169)
 
 Jedna próba alarmu od człowieka to jeden wiersz z UUID `id` przekazanym do
 `PilneZgloszenieOdCzlowieka`. `report_id` wskazuje sprawę i znika wraz z nią
