@@ -15,24 +15,19 @@ use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
- * `dateModified` w JSON-LD przepisu — dopiero z wiarygodnego źródła (#2014).
+ * `dateModified` w JSON-LD przepisu — tylko prawdziwa data zmiany treści (#2014).
  *
- * `docs/seo/SEO_TECHNICAL.md` mapował `dateModified` na `recipes.updated_at`
- * „albo `MAX(recipe_versions.created_at)`". Żadne z nich nie jest dziś datą
- * zmiany TREŚCI, a Google traktuje dane strukturalne niezgodne z treścią
- * strony jako naruszenie wytycznych (`sd-policies`, SEO_TECHNICAL.md §2):
+ * `recipes.updated_at` przesuwa moderacja, zmiana widoczności i zapis bez
+ * zmian; wersje powstają przy każdym „Zapisz" z publikacją, a autozapis
+ * zmienia treść bez wersji. Źródłem jest więc `recipes.tresc_zmieniona_at`,
+ * ustawiane wyłącznie przez `PublishRecipe` przy realnej zmianie treści
+ * albo zdjęć, a przy pierwszej publikacji równe `published_at`.
  *
- * - `updated_at` przesuwa ukrycie i przywrócenie przez moderację, zmiana
- *   widoczności i zapis bez zmian (`PublishRecipe` zawsze podbija
- *   `content_revision`);
- * - wersja powstaje przy KAŻDYM „Zapisz" z publikacją, także bez zmiany,
- *   a autozapis kreatora zmienia opublikowaną treść bez wersji.
+ * Wszystko idzie prawdziwymi drogami: `PublishRecipe` (tak jak formularz
+ * i kreator), trasy moderacji, `travelTo`. JSON-LD czytamy z HTML-u
+ * i dekodujemy, nie szukamy podciągu.
  *
- * Dwa pierwsze testy mierzą te przesłanki na prawdziwych akcjach. Jeśli
- * któryś zacznie oblewać, źródło mogło stać się wiarygodne — wtedy wróć do
- * decyzji w SEO_TECHNICAL.md, zamiast kasować test.
- *
- * @bez-kontroli-dodatniej Jedyny test tekstowy czyta specyfikację w docs/seo, nie źródło aplikacji; kontrola dodatnia stoi w nim (wiersz `datePublished` musi się znaleźć), a kontrola ujemna (przywrócony stary wiersz mapowania) wykonana ręcznie przy #2014.
+ * @bez-kontroli-dodatniej Jedyny test tekstowy czyta specyfikację w docs/seo, nie źródło aplikacji; kontrola dodatnia stoi w nim (wiersz `datePublished` musi się znaleźć), a kontrola ujemna (stary wiersz mapowania) wykonana ręcznie przy #2014.
  */
 class RecipeJsonLdBezNiepewnejDatyModyfikacjiTest extends TestCase
 {
@@ -42,69 +37,123 @@ class RecipeJsonLdBezNiepewnejDatyModyfikacjiTest extends TestCase
 
     private const T_ZMIANA_TRESCI = '2026-09-05 10:00:00';
 
-    private const T_ZDARZENIE_BEZ_TRESCI = '2026-09-10 10:00:00';
-
-    public function test_updated_at_przesuwa_moderacja_bez_zmiany_tresci(): void
+    public function test_pierwsza_publikacja_podaje_date_publikacji(): void
     {
-        [$autorka, $przepis] = $this->opublikowanyPrzepis();
-        $this->zmienTresc($autorka, $przepis, 'Rosol na niedziele, poprawiony.');
-        $przedModeracja = Recipe::findOrFail($przepis->getKey());
-        $this->assertTrue($przedModeracja->updated_at->equalTo(Carbon::parse(self::T_ZMIANA_TRESCI, 'UTC')));
+        [, $przepis] = $this->opublikowanyPrzepis();
 
-        $this->travelTo(Carbon::parse(self::T_ZDARZENIE_BEZ_TRESCI, 'UTC'));
-        $this->ukryjIPrzywroc($przepis);
-
-        $poModeracji = Recipe::findOrFail($przepis->getKey());
-        $this->assertSame(Recipe::STATUS_PUBLISHED, $poModeracji->status, 'Przywrócenie nie wróciło przepisu — test mierzyłby nie to.');
-        $this->assertSame($przedModeracja->summary, $poModeracji->summary);
-        $this->assertTrue(
-            $poModeracji->updated_at->equalTo(Carbon::parse(self::T_ZDARZENIE_BEZ_TRESCI, 'UTC')),
-            'Przesłanka #2014: `updated_at` przesuwa się przy moderacji bez zmiany treści.',
-        );
-    }
-
-    public function test_wersje_przepisu_nie_sa_rejestrem_zmian_tresci(): void
-    {
-        [$autorka, $przepis] = $this->opublikowanyPrzepis();
-        $this->assertSame(1, $przepis->versions()->count());
-
-        // „Zapisz" bez żadnej zmiany: nowa wersja, choć treść ta sama.
-        $this->travelTo(Carbon::parse(self::T_ZDARZENIE_BEZ_TRESCI, 'UTC'));
-        $this->zapisz($autorka, $przepis, 'Rosol na niedziele.', publish: true);
-        $this->assertSame(2, $przepis->versions()->count(), 'Przesłanka #2014: zapis bez zmiany tworzy wersję.');
-
-        // Autozapis kreatora na opublikowanym przepisie: treść zmieniona
-        // publicznie, wersji brak.
-        $this->travelTo(Carbon::parse('2026-09-12 10:00:00', 'UTC'));
-        $this->zapisz($autorka, $przepis, 'Rosol z autozapisu.', publish: false, wersjaPoprawki: false);
-        $this->assertSame('Rosol z autozapisu.', Recipe::findOrFail($przepis->getKey())->summary);
-        $this->assertSame(2, $przepis->versions()->count(), 'Przesłanka #2014: autozapis zmienia treść bez wersji.');
-    }
-
-    public function test_publiczny_przepis_po_zmianie_tresci_i_moderacji_nie_podaje_niepewnej_daty_modyfikacji(): void
-    {
-        [$autorka, $przepis] = $this->opublikowanyPrzepis();
-        $this->zmienTresc($autorka, $przepis, 'Rosol na niedziele, poprawiony.');
-        $this->travelTo(Carbon::parse(self::T_ZDARZENIE_BEZ_TRESCI, 'UTC'));
-        $this->ukryjIPrzywroc($przepis);
-
-        $dane = collect($this->blokiJsonLd($przepis))->firstWhere('@type', 'Recipe');
-
-        // Kontrola dodatnia: blok jest i niesie datę publikacji — inaczej brak
-        // `dateModified` niżej niczego by nie dowodził.
-        $this->assertIsArray($dane, 'Publiczny przepis z gotowym zdjęciem musi wystawić `Recipe`.');
+        $this->assertTrue($przepis->tresc_zmieniona_at?->equalTo($przepis->published_at));
+        $dane = $this->recipeJsonLd($przepis);
         $this->assertSame('2026-09-01', $dane['datePublished'] ?? null);
+        $this->assertSame('2026-09-01', $dane['dateModified'] ?? null);
+    }
+
+    public function test_zmiana_tresci_podaje_date_tej_zmiany(): void
+    {
+        [$autorka, $przepis] = $this->opublikowanyPrzepis();
+
+        $this->travelTo(Carbon::parse(self::T_ZMIANA_TRESCI, 'UTC'));
+        $this->zapisz($autorka, $przepis, opis: 'Rosol na niedziele, poprawiony.');
+
+        $this->assertDataZmiany(self::T_ZMIANA_TRESCI, $przepis);
+        $dane = $this->recipeJsonLd($przepis);
+        $this->assertSame('2026-09-01', $dane['datePublished'] ?? null);
+        $this->assertSame('2026-09-05', $dane['dateModified'] ?? null);
         $this->assertSame('Rosol na niedziele, poprawiony.', $dane['description'] ?? null);
-        $this->assertArrayNotHasKey('dateModified', $dane, 'Bez wiarygodnej daty zmiany treści pole ma nie powstać (#2014).');
+    }
+
+    public function test_zmiana_samego_zdjecia_glownego_przesuwa_date(): void
+    {
+        [$autorka, $przepis] = $this->opublikowanyPrzepis();
+
+        $this->travelTo(Carbon::parse(self::T_ZMIANA_TRESCI, 'UTC'));
+        $noweZdjecie = Media::factory()->create(['owner_id' => $autorka->getKey()]);
+        $this->zapisz($autorka, $przepis, zdjecie: (string) $noweZdjecie->getKey());
+
+        $this->assertSame((string) $noweZdjecie->getKey(), (string) Recipe::findOrFail($przepis->getKey())->hero_media_id, 'Zdjęcie się nie zmieniło — test mierzyłby nie to.');
+        $this->assertDataZmiany(self::T_ZMIANA_TRESCI, $przepis);
+        $this->assertSame('2026-09-05', $this->recipeJsonLd($przepis)['dateModified'] ?? null);
+    }
+
+    public function test_zmiana_samego_zdjecia_kroku_przesuwa_date(): void
+    {
+        [$autorka, $przepis] = $this->opublikowanyPrzepis();
+
+        $this->travelTo(Carbon::parse(self::T_ZMIANA_TRESCI, 'UTC'));
+        $zdjecieKroku = Media::factory()->create(['owner_id' => $autorka->getKey()]);
+        $this->zapisz($autorka, $przepis, zdjecieKroku: (string) $zdjecieKroku->getKey());
+
+        $this->assertSame((string) $zdjecieKroku->getKey(), (string) Recipe::findOrFail($przepis->getKey())->steps()->value('media_id'), 'Zdjęcie kroku się nie przypięło — test mierzyłby nie to.');
+        $this->assertDataZmiany(self::T_ZMIANA_TRESCI, $przepis);
+    }
+
+    public function test_autozapis_kreatora_tez_przesuwa_date(): void
+    {
+        [$autorka, $przepis] = $this->opublikowanyPrzepis();
+
+        $this->travelTo(Carbon::parse(self::T_ZMIANA_TRESCI, 'UTC'));
+        $this->zapisz($autorka, $przepis, opis: 'Rosol z autozapisu.', publish: false, wersjaPoprawki: false);
+
+        // Autozapis nie zostawia wersji — właśnie dlatego wersje nie mogły być źródłem.
+        $this->assertSame(1, $przepis->versions()->count());
+        $this->assertDataZmiany(self::T_ZMIANA_TRESCI, $przepis);
+    }
+
+    public function test_zapis_bez_zmian_widocznosc_i_moderacja_nie_przesuwaja_daty(): void
+    {
+        [$autorka, $przepis] = $this->opublikowanyPrzepis();
+        $this->travelTo(Carbon::parse(self::T_ZMIANA_TRESCI, 'UTC'));
+        $this->zapisz($autorka, $przepis, opis: 'Rosol na niedziele, poprawiony.');
+
+        $zdarzenia = [
+            '2026-09-10 10:00:00' => fn () => $this->zapisz($autorka, $przepis),
+            '2026-09-11 10:00:00' => fn () => $this->zapisz($autorka, $przepis, widocznosc: 'followers'),
+            '2026-09-12 10:00:00' => fn () => $this->zapisz($autorka, $przepis, widocznosc: 'public'),
+            '2026-09-13 10:00:00' => fn () => $this->ukryjIPrzywroc($przepis),
+        ];
+
+        foreach ($zdarzenia as $kiedy => $zdarzenie) {
+            $this->travelTo(Carbon::parse($kiedy, 'UTC'));
+            $zdarzenie();
+
+            // Kontrola dodatnia: zdarzenie naprawdę zapisało wiersz przepisu.
+            $this->assertTrue(Recipe::findOrFail($przepis->getKey())->updated_at->equalTo(Carbon::parse($kiedy, 'UTC')), "Zdarzenie z {$kiedy} nie zapisało przepisu — test mierzyłby nie to.");
+            $this->assertDataZmiany(self::T_ZMIANA_TRESCI, $przepis, "Zdarzenie z {$kiedy} nie zmienia treści, a przesunęło datę.");
+        }
+
+        $this->assertSame(Recipe::STATUS_PUBLISHED, Recipe::findOrFail($przepis->getKey())->status);
+        $this->assertSame('2026-09-05', $this->recipeJsonLd($przepis)['dateModified'] ?? null);
+    }
+
+    public function test_przepis_bez_daty_zmiany_nie_podaje_pola(): void
+    {
+        // Przepis sprzed kolumny: `tresc_zmieniona_at` = NULL.
+        $przepis = Recipe::factory()->zeZdjeciem()->create(['published_at' => Carbon::parse(self::T_PUBLIKACJA, 'UTC')]);
+        $this->assertNull($przepis->refresh()->tresc_zmieniona_at);
+
+        $dane = $this->recipeJsonLd($przepis);
+        $this->assertSame('2026-09-01', $dane['datePublished'] ?? null);
+        $this->assertArrayNotHasKey('dateModified', $dane);
+    }
+
+    public function test_data_sprzed_publikacji_nie_jest_podawana(): void
+    {
+        $przepis = Recipe::factory()->zeZdjeciem()->create(['published_at' => Carbon::parse(self::T_PUBLIKACJA, 'UTC')]);
+        $przepis->forceFill(['tresc_zmieniona_at' => Carbon::parse('2026-08-31 10:00:00', 'UTC')])->save();
+
+        $dane = $this->recipeJsonLd($przepis);
+        $this->assertSame('2026-09-01', $dane['datePublished'] ?? null);
+        $this->assertArrayNotHasKey('dateModified', $dane);
     }
 
     public function test_przepis_niepubliczny_nie_wystawia_recipe_ani_daty(): void
     {
         [$autorka, $przepis] = $this->opublikowanyPrzepis();
-        // Kontrola dodatnia: ten sam przepis publicznie wystawia `Recipe`.
-        $this->assertContains('Recipe', array_column($this->blokiJsonLd($przepis), '@type'));
+        // Kontrola dodatnia: ten sam przepis publicznie ma datę zmiany.
+        $this->assertArrayHasKey('dateModified', $this->recipeJsonLd($przepis));
 
-        $this->zmienTresc($autorka, $przepis, 'Rosol na niedziele, poprawiony.', widocznosc: 'private');
+        $this->travelTo(Carbon::parse(self::T_ZMIANA_TRESCI, 'UTC'));
+        $this->zapisz($autorka, $przepis, opis: 'Rosol na niedziele, poprawiony.', widocznosc: 'private');
+        $this->assertNotNull(Recipe::findOrFail($przepis->getKey())->tresc_zmieniona_at);
 
         // Autorka widzi swój prywatny przepis; danych strukturalnych nie ma
         // żadnych, więc nie ma też żadnej daty.
@@ -112,14 +161,15 @@ class RecipeJsonLdBezNiepewnejDatyModyfikacjiTest extends TestCase
         $this->assertSame([], $this->blokiJsonLd($przepis));
     }
 
-    public function test_specyfikacja_nie_mapuje_date_modified_na_niewiarygodne_zrodlo(): void
+    public function test_specyfikacja_mapuje_date_modified_na_date_zmiany_tresci(): void
     {
         $specyfikacja = file_get_contents(base_path('docs/seo/SEO_TECHNICAL.md'));
         $this->assertIsString($specyfikacja);
         $this->assertStringContainsString('| `datePublished` | `recipes.published_at` |', $specyfikacja, 'Nie znaleziono tabeli mapowania — test mierzyłby nie to.');
 
         preg_match('/^\| `dateModified` \|(.*)$/m', $specyfikacja, $wiersz);
-        $this->assertNotEmpty($wiersz, 'Mapowanie musi mówić, co z `dateModified` — także że go nie emitujemy.');
+        $this->assertNotEmpty($wiersz, 'Mapowanie musi mówić, skąd bierze się `dateModified`.');
+        $this->assertStringContainsString('`recipes.tresc_zmieniona_at`', $wiersz[1] ?? '');
         $this->assertStringNotContainsString('recipes.updated_at`', $wiersz[1] ?? '');
         $this->assertStringNotContainsString('MAX(recipe_versions.created_at)', $wiersz[1] ?? '');
     }
@@ -129,38 +179,57 @@ class RecipeJsonLdBezNiepewnejDatyModyfikacjiTest extends TestCase
     {
         $this->travelTo(Carbon::parse(self::T_PUBLIKACJA, 'UTC'));
         $autorka = $this->user('zofia2014');
+        // Gotowe zdjęcie, bez którego `Recipe` w JSON-LD nie powstaje (#1005).
+        $zdjecie = Media::factory()->create(['owner_id' => $autorka->getKey()]);
         $przepis = app(PublishRecipe::class)->handle(
             author: $autorka,
-            attributes: ['title' => 'Rosol babci Zofii', 'summary' => 'Rosol na niedziele.', 'visibility' => 'public', 'source_type' => 'own'],
+            attributes: ['title' => 'Rosol babci Zofii', 'summary' => 'Rosol na niedziele.', 'visibility' => 'public', 'source_type' => 'own', 'hero_media_id' => (string) $zdjecie->getKey()],
             ingredients: [['text' => '1 kurczak']],
             steps: [['instruction' => 'Zalej woda i gotuj powoli.']],
             publish: true,
         );
-        // Gotowe zdjęcie, bez którego `Recipe` w JSON-LD nie powstaje (#1005).
-        $zdjecie = Media::factory()->create(['owner_id' => $autorka->getKey()]);
-        $przepis->forceFill(['hero_media_id' => $zdjecie->getKey()])->save();
+        $this->assertSame((string) $zdjecie->getKey(), (string) $przepis->hero_media_id, 'Zdjęcie nie przypięło się przy publikacji.');
 
         return [$autorka, $przepis->refresh()];
     }
 
-    private function zmienTresc(User $autorka, Recipe $przepis, string $opis, string $widocznosc = 'public'): void
-    {
-        $this->travelTo(Carbon::parse(self::T_ZMIANA_TRESCI, 'UTC'));
-        $this->zapisz($autorka, $przepis, $opis, publish: true, widocznosc: $widocznosc);
-    }
-
-    private function zapisz(User $autorka, Recipe $przepis, string $opis, bool $publish, bool $wersjaPoprawki = true, string $widocznosc = 'public'): void
-    {
+    private function zapisz(
+        User $autorka,
+        Recipe $przepis,
+        ?string $opis = null,
+        ?string $zdjecie = null,
+        ?string $zdjecieKroku = null,
+        bool $publish = true,
+        bool $wersjaPoprawki = true,
+        string $widocznosc = 'public',
+    ): void {
         $swiezy = Recipe::findOrFail($przepis->getKey());
         app(PublishRecipe::class)->handle(
             author: $autorka,
-            attributes: ['title' => $swiezy->title, 'summary' => $opis, 'visibility' => $widocznosc, 'source_type' => 'own', 'hero_media_id' => $swiezy->hero_media_id],
+            attributes: [
+                'title' => $swiezy->title,
+                'summary' => $opis ?? $swiezy->summary,
+                'visibility' => $widocznosc,
+                'source_type' => 'own',
+                'hero_media_id' => $zdjecie ?? $swiezy->hero_media_id,
+            ],
             ingredients: [['text' => '1 kurczak']],
-            steps: $swiezy->steps()->get()->map(fn ($krok) => ['id' => $krok->getKey(), 'instruction' => $krok->instruction])->all(),
+            steps: $swiezy->steps()->get()->map(fn ($krok) => array_filter([
+                'id' => $krok->getKey(),
+                'instruction' => $krok->instruction,
+                'media_id' => $zdjecieKroku,
+            ]))->all(),
             publish: $publish,
             existing: $swiezy,
             wersjaPoprawki: $wersjaPoprawki,
         );
+    }
+
+    private function assertDataZmiany(string $oczekiwana, Recipe $przepis, string $komunikat = ''): void
+    {
+        $zapisana = Recipe::findOrFail($przepis->getKey())->tresc_zmieniona_at;
+        $this->assertNotNull($zapisana, $komunikat);
+        $this->assertSame(Carbon::parse($oczekiwana, 'UTC')->toIso8601String(), $zapisana->utc()->toIso8601String(), $komunikat);
     }
 
     private function ukryjIPrzywroc(Recipe $przepis): void
@@ -193,6 +262,15 @@ class RecipeJsonLdBezNiepewnejDatyModyfikacjiTest extends TestCase
             ->assertSessionHasNoErrors();
 
         auth()->logout();
+    }
+
+    /** @return array<string, mixed> */
+    private function recipeJsonLd(Recipe $przepis): array
+    {
+        $dane = collect($this->blokiJsonLd($przepis))->firstWhere('@type', 'Recipe');
+        $this->assertIsArray($dane, 'Publiczny przepis z gotowym zdjęciem musi wystawić `Recipe`.');
+
+        return $dane;
     }
 
     /** @return list<array<string, mixed>> */

@@ -60,6 +60,21 @@
                 'description' => $recipe->summary,
                 'datePublished' => $recipe->published_at?->toDateString(),
                 /*
+                 * DATA ZMIANY TREŚCI, NIE ZAPISU WIERSZA (#2014).
+                 *
+                 * `tresc_zmieniona_at` przestawia tylko `PublishRecipe` i tylko
+                 * przy realnej zmianie treści albo zdjęć — nie moderacja, nie
+                 * widoczność, nie zapis bez zmian (`updated_at` przesuwają
+                 * wszystkie trzy). `NULL` (przepis sprzed kolumny) i data
+                 * sprzed publikacji to „nie wiemy": wtedy pola nie ma, bo
+                 * zgadnięta data byłaby niezgodna z treścią (`sd-policies`).
+                 * Format jak `datePublished`.
+                 */
+                'dateModified' => $recipe->published_at !== null
+                    && $recipe->tresc_zmieniona_at?->greaterThanOrEqualTo($recipe->published_at)
+                        ? $recipe->tresc_zmieniona_at->toDateString()
+                        : null,
+                /*
                  * AUTOR TO KONTO, KTÓRE PRZEPIS OPUBLIKOWAŁO — I TYLKO ONO.
                  *
                  * Do 11 września 2026 `name` brało się z `source_person`,
