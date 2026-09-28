@@ -27,52 +27,57 @@ Pomiar do przeglądu PR #2160, wykonany 28 września 2026: `EXPLAIN (ANALYZE, BU
 
 Payload retry w `jobs`: **152 584 B**, bo lista 3001 UUID. Hydratacja: 3001 modeli z `actor.profile`.
 
-| Etap | Zapytanie | Parametrów | Koszt (plan) | Czas wykonania | Bufory (shared) | JIT |
-|---|---|---:|---:|---:|---:|---:|
-| pierwsza proba | hydratacja puli (`get()` + `actor.profile`) | 70 | 30 595 | 5.9 ms | 12 080 | — |
-| pierwsza proba | limit dobowy: grupy | 5 | 5 399 | 2.4 ms | 618 | — |
-| pierwsza proba | limit dobowy: dawne wiersze | 5 | 5 399 | 2.1 ms | 618 | — |
-| pierwsza proba | rezerwacja (`UPDATE`) | 3003 | 5 611 | 45.1 ms | 56 192 | — |
-| ponowienie | retry: grupa po liście ID | 3002 | 726 | 0.8 ms | 138 | — |
-| ponowienie | retry: widoczne z grupy | 3070 | 24 030 | 6.3 ms | 3 327 | — |
-| ponowienie | potwierdzenie (`UPDATE`) | 3002 | 5 705 | 69.8 ms | 54 622 | — |
-| **suma** | | | | **132.3 ms** | **127 595** | |
+| Nr w pliku | Etap | Zapytanie | Parametrów | Koszt (plan) | Czas wykonania | Bufory (shared) | JIT |
+|---:|---|---|---:|---:|---:|---:|---:|
+| 1 | pierwsza proba | hydratacja puli (`get()` + `actor.profile`) | 70 | 30 595 | 6.3 ms | 12 080 | — |
+| 2 | pierwsza proba | limit dobowy: grupy | 5 | 5 420 | 2.4 ms | 618 | — |
+| 3 | pierwsza proba | limit dobowy: dawne wiersze | 5 | 5 420 | 2.1 ms | 618 | — |
+| 4 | pierwsza proba | rezerwacja (`UPDATE`) | 3003 | 5 616 | 56.7 ms | 56 180 | — |
+| 5 | ponowienie | retry: grupa po liście ID | 3002 | 740 | 0.8 ms | 138 | — |
+| 6 | ponowienie | retry: widoczne z grupy | 3070 | 24 034 | 5.8 ms | 3 319 | — |
+| 7 | ponowienie | potwierdzenie (`UPDATE`) | 3002 | 5 705 | 48.3 ms | 54 573 | — |
+| | **suma** | | | | **122.3 ms** | **127 526** | |
+
+Pełne plany wszystkich zapytań tego przebiegu (SQL i `EXPLAIN` bez skrótów): [`pomiary/2021/plany-przed.txt`](pomiary/2021/plany-przed.txt).
 
 ## Po, wersja 1 (`512307aa5`)
 
 Payload retry: **525 B**. Hydratacja: 1 model.
 
-| Etap | Zapytanie | Parametrów | Koszt (plan) | Czas wykonania | Bufory (shared) | JIT |
-|---|---|---:|---:|---:|---:|---:|
-| pierwsza proba | czy pula niepusta (`exists`) | 70 | 670 | 1.6 ms | 11 | — |
-| pierwsza proba | limit dobowy: grupy | 5 | 5 437 | 2.6 ms | 618 | — |
-| pierwsza proba | limit dobowy: dawne wiersze | 5 | 5 437 | 2.4 ms | 618 | — |
-| pierwsza proba | rezerwacja (`UPDATE`) | 72 | 31 830 | 59.6 ms | 77 266 | — |
-| pierwsza proba | najnowsze do treści | 2 | 5 404 | 2.9 ms | 746 | — |
-| ponowienie | retry: wiek rezerwacji | 2 | 693 | 0.2 ms | 71 | — |
-| ponowienie | retry: zamknięcie niekwalifikujących | 73 | 1 741 612 | 2518.4 ms | 18 861 | 2386 ms |
-| ponowienie | retry: czy coś zostało | 2 | 693 | 0.1 ms | 5 | — |
-| ponowienie | potwierdzenie (`UPDATE`) | 3 | 697 | 75.7 ms | 51 589 | — |
-| **suma** | | | | **2663.6 ms** | **149 785** | |
+| Nr w pliku | Etap | Zapytanie | Parametrów | Koszt (plan) | Czas wykonania | Bufory (shared) | JIT |
+|---:|---|---|---:|---:|---:|---:|---:|
+| 1 | pierwsza proba | czy pula niepusta (`exists`) | 70 | 689 | 1.1 ms | 11 | — |
+| 2 | pierwsza proba | limit dobowy: grupy | 5 | 5 428 | 2.2 ms | 618 | — |
+| 3 | pierwsza proba | limit dobowy: dawne wiersze | 5 | 5 428 | 2.1 ms | 618 | — |
+| 4 | pierwsza proba | rezerwacja (`UPDATE`) | 72 | 31 352 | 57.5 ms | 77 298 | — |
+| 5 | pierwsza proba | najnowsze do treści | 2 | 5 395 | 2.4 ms | 746 | — |
+| 6 | ponowienie | retry: wiek rezerwacji | 2 | 696 | 0.2 ms | 71 | — |
+| 7 | ponowienie | retry: zamknięcie niekwalifikujących | 73 | 1 726 083 | 2247.9 ms | 18 865 | 2130 ms |
+| 8 | ponowienie | retry: czy coś zostało | 2 | 696 | 0.0 ms | 5 | — |
+| 9 | ponowienie | potwierdzenie (`UPDATE`) | 3 | 699 | 51.1 ms | 51 685 | — |
+| | **suma** | | | | **2364.5 ms** | **149 917** | |
+
+Pełne plany wszystkich zapytań tego przebiegu (SQL i `EXPLAIN` bez skrótów): [`pomiary/2021/plany-po-v1.txt`](pomiary/2021/plany-po-v1.txt).
 
 **Regresja znaleziona tym pomiarem.** W retry wiersze, które przestały się kwalifikować, były
 zamykane przez `… AND id NOT IN (SELECT notifications.id FROM notifications WHERE <pełny filtr widoczności>)`.
 Podzapytanie drugi raz skanowało pulę 3001 wierszy z całym filtrem widoczności. Planer oszacował
-koszt na 1,74 mln, co przekracza `jit_above_cost`. Samo wykonanie trwało kilkanaście milisekund,
-ale kompilacja JIT zajęła 2,4 s:
+koszt na ok. 1,73 mln, co przekracza `jit_above_cost`. Samo wykonanie trwało kilkanaście milisekund,
+ale kompilacja JIT zajęła ok. 2,1–2,4 s (dwa przebiegi):
 
 ```
-Update on notifications  (cost=1740867.62..1741612.28 rows=0 width=0) (actual time=2327.383..2327.476 rows=0.00 loops=1)
-  Buffers: shared hit=18861
-  ->  Index Scan using notifications_push_nierozliczone_idx on notifications  (cost=1740867.62..1741612.28 rows=1 width=96) (actual time=2327.381..2327.474 rows=0.00 l…
+Update on notifications  (cost=1725335.68..1726082.87 rows=0 width=0) (actual time=2093.420..2093.437 rows=0.00 loops=1)
+  Buffers: shared hit=18865
+  ->  Index Scan using notifications_push_nierozliczone_idx on notifications  (cost=1725335.68..1726082.87 rows=1 width=96) (actual time=2093.419..2093.434 rows=0.00 l…
         Index Cond: (push_proba_at IS NOT NULL)
-        Filter: ((push_wyslano_at IS NULL) AND (push_zakonczono_at IS NULL) AND (NOT (ANY (id = (hashed SubPlan 170).col1))) AND (user_id = '01a0e7c2-35e3-7395-8f89-a3…
+        Filter: ((push_wyslano_at IS NULL) AND (push_zakonczono_at IS NULL) AND (NOT (ANY (id = (hashed SubPlan 170).col1))) AND (user_id = '01a0e7d0-f062-7006-a843-2d…
         Rows Removed by Filter: 3001
 …
 JIT:
   Functions: 764
-  Timing: Generation 65.859 ms, Inlining 231.661 ms, Optimization 1131.313 ms, Emission 956.723 ms, Total 2385.556 ms
-Execution Time: 2518.414 ms
+  Options: Inlining true, Optimization true, Expressions true, Deforming true
+  Timing: Generation 44.091 ms (Deform 19.760 ms), Inlining 88.813 ms, Optimization 1065.249 ms, Emission 932.013 ms, Total 2130.165 ms
+Execution Time: 2247.922 ms
 ```
 
 ## Po (poprawka tego pomiaru)
@@ -86,26 +91,28 @@ Kontrola ujemna: wersja z `NOT IN` ten test oblewa.
 
 Payload retry: **525 B**. Hydratacja: 1 model.
 
-| Etap | Zapytanie | Parametrów | Koszt (plan) | Czas wykonania | Bufory (shared) | JIT |
-|---|---|---:|---:|---:|---:|---:|
-| pierwsza proba | czy pula niepusta (`exists`) | 70 | 674 | 1.3 ms | 11 | — |
-| pierwsza proba | limit dobowy: grupy | 5 | 5 427 | 2.5 ms | 618 | — |
-| pierwsza proba | limit dobowy: dawne wiersze | 5 | 5 427 | 2.2 ms | 618 | — |
-| pierwsza proba | rezerwacja (`UPDATE`) | 72 | 31 365 | 55.5 ms | 77 268 | — |
-| pierwsza proba | najnowsze do treści | 2 | 5 395 | 2.8 ms | 746 | — |
-| ponowienie | retry: wiek rezerwacji | 2 | 690 | 0.2 ms | 71 | — |
-| ponowienie | retry: zamknięcie niekwalifikujących | 73 | 940 | 7.3 ms | 18 078 | — |
-| ponowienie | retry: czy coś zostało | 2 | 690 | 0.0 ms | 5 | — |
-| ponowienie | potwierdzenie (`UPDATE`) | 3 | 693 | 54.7 ms | 51 575 | — |
-| **suma** | | | | **126.5 ms** | **148 990** | |
+| Nr w pliku | Etap | Zapytanie | Parametrów | Koszt (plan) | Czas wykonania | Bufory (shared) | JIT |
+|---:|---|---|---:|---:|---:|---:|---:|
+| 1 | pierwsza proba | czy pula niepusta (`exists`) | 70 | 669 | 1.2 ms | 11 | — |
+| 2 | pierwsza proba | limit dobowy: grupy | 5 | 5 400 | 2.1 ms | 618 | — |
+| 3 | pierwsza proba | limit dobowy: dawne wiersze | 5 | 5 400 | 2.0 ms | 618 | — |
+| 4 | pierwsza proba | rezerwacja (`UPDATE`) | 72 | 31 138 | 60.8 ms | 77 256 | — |
+| 5 | pierwsza proba | najnowsze do treści | 2 | 5 371 | 2.4 ms | 746 | — |
+| 6 | ponowienie | retry: wiek rezerwacji | 2 | 676 | 0.2 ms | 71 | — |
+| 7 | ponowienie | retry: zamknięcie niekwalifikujących | 73 | 926 | 7.2 ms | 18 078 | — |
+| 8 | ponowienie | retry: czy coś zostało | 2 | 676 | 0.0 ms | 5 | — |
+| 9 | ponowienie | potwierdzenie (`UPDATE`) | 3 | 679 | 51.5 ms | 51 635 | — |
+| | **suma** | | | | **127.4 ms** | **149 038** | |
+
+Pełne plany wszystkich zapytań tego przebiegu (SQL i `EXPLAIN` bez skrótów): [`pomiary/2021/plany-po.txt`](pomiary/2021/plany-po.txt).
 
 ```
-Update on notifications  (cost=0.28..939.81 rows=0 width=0) (actual time=6.763..6.772 rows=0.00 loops=1)
+Update on notifications  (cost=0.28..925.99 rows=0 width=0) (actual time=6.780..6.789 rows=0.00 loops=1)
   Buffers: shared hit=18078
-  ->  Nested Loop Anti Join  (cost=0.28..939.81 rows=1 width=96) (actual time=6.762..6.771 rows=0.00 loops=1)
-        Join Filter: ((notifications.read_at IS NULL) AND (notifications.user_id = '01a0e7c4-97bb-719b-a700-1c1accba14a0'::uuid) AND ((notifications.type)::text <> 'ap…
+  ->  Nested Loop Anti Join  (cost=0.28..925.99 rows=1 width=96) (actual time=6.779..6.788 rows=0.00 loops=1)
+        Join Filter: ((notifications.read_at IS NULL) AND (notifications.user_id = '01a0e7d1-1baa-713d-8d4e-5909cc6a2e07'::uuid) AND ((notifications.type)::text <> 'ap…
         Buffers: shared hit=18078
-        ->  Index Scan using notifications_push_nierozliczone_idx on notifications  (cost=0.28..693.26 rows=1 width=96) (actual time=0.013..0.555 rows=3001.00 loops=1)
+        ->  Index Scan using notifications_push_nierozliczone_idx on notifications  (cost=0.28..679.44 rows=1 width=96) (actual time=0.013..0.506 rows=3001.00 loops=1)
 ```
 
 ## Porównanie
@@ -115,14 +122,14 @@ Update on notifications  (cost=0.28..939.81 rows=0 width=0) (actual time=6.763..
 | Payload retry w `jobs` | 152 584 B | 525 B |
 | Modele `Notification` w pamięci PHP | 3001 (+ aktorzy i profile) | 1 |
 | Parametrów w największym zapytaniu | 3070 | 73 |
-| Czas wykonania zapytań o `notifications` (suma) | 132,3 ms | 126,5 ms (powtórka: 156,8 ms) |
-| Bufory (suma) | 127 595 | 148 990 |
-| Najwyższy szacowany koszt planu | 30 595 | 31 365 |
+| Czas wykonania zapytań o `notifications` (suma) | 122,3 ms | 127,4 ms |
+| Bufory (suma) | 127 526 | 149 038 |
+| Najwyższy szacowany koszt planu | 30 595 | 31 138 |
 | Zapytania z JIT | 0 | 0 |
 
 Wnioski:
 
-1. **Czas bazy jest ten sam w granicach rozrzutu.** Powtórka „po” na tym samym kodzie dała 156,8 ms, przy identycznym SQL i buforach. Na tej skali oba warianty kosztują łącznie około 130 ms. Zysk
+1. **Czas bazy jest ten sam w granicach rozrzutu.** Wcześniejsze przebiegi tego samego pomiaru dały 132,3 ms („przed”) oraz 126,5 i 156,8 ms („po”), przy identycznym SQL i buforach. Na tej skali oba warianty kosztują łącznie około 130 ms. Zysk
    #2021 leży poza bazą: PHP nie trzyma 3001 modeli z aktorami i profilami, a retry nie niesie
    152 KB w `jobs`. Stary retry deserializował tę listę i wysyłał ją jako 3000 parametrów
    w trzech zapytaniach.
@@ -139,6 +146,14 @@ Wnioski:
    większych oba warianty przekroczą `jit_above_cost` w tym samym miejscu. To nie jest skutek
    #2021. Gdyby taki rozmiar pojawił się na produkcji, decyzja dotyczy ustawienia `jit` całej bazy,
    a nie tego joba.
+
+## Surowe plany
+
+Pełne wyniki każdego zapytania joba o `notifications` (SQL, liczba parametrów, `EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)` bez skrótów), z tych samych przebiegów, z których pochodzą tabele wyżej:
+
+- [`pomiary/2021/plany-przed.txt`](pomiary/2021/plany-przed.txt): kod bazy `b8b61ab70`. Plik ma ok. 880 KB, bo plany zawierają dosłowne listy 3001 UUID z `WHERE id IN (…)`, które ten PR usuwa;
+- [`pomiary/2021/plany-po-v1.txt`](pomiary/2021/plany-po-v1.txt): pierwsza wersja PR (`512307aa5`, `NOT IN`, z JIT);
+- [`pomiary/2021/plany-po.txt`](pomiary/2021/plany-po.txt): wersja końcowa.
 
 ## Jak powtórzyć
 
@@ -256,7 +271,7 @@ final class PomiarPlanowPush2021Test extends TestCase
             $plan = implode("\n", $st->fetchAll(\PDO::FETCH_COLUMN));
             $pdo->exec('ROLLBACK TO SAVEPOINT pomiar_2021');
             $wPlanie = false;
-            $plany[] = ['etap' => $etap, 'sql' => mb_substr(preg_replace('/\s+/', ' ', $sql), 0, 400),
+            $plany[] = ['etap' => $etap, 'sql' => preg_replace('/\s+/', ' ', $sql),
                 'parametrow' => count($bindings), 'plan' => $plan];
         });
 
