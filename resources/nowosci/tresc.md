@@ -35,6 +35,11 @@ jest w trakcie przygotowania. Informacja o niepowodzeniu pojawi się dopiero
 po ostatniej próbie. Nie trzeba usuwać wpisu ze zdjęciem, które może się
 jeszcze pokazać.
 
+Jeśli wpis, o którym przyszło powiadomienie „Smakowicie wygląda”, został
+usunięty, powiadomienie powie o tym zamiast prowadzić do pustej strony.
+Przy kopiowaniu tygodnia Planer poda też liczbę pominiętych pozycji spoza
+dozwolonego zakresu dat i podpowie, jaki tydzień wybrać.
+
 ## Alfa 0.71
 
 **Przepis z kartki i orientacyjny koszt dania.**
