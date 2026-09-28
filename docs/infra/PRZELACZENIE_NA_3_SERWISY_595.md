@@ -129,7 +129,9 @@ Jedna z dwóch dróg, **nie obie**:
 
 Co się dzieje: `kuking.pl` wdraża się ponownie w roli `web` (migracje
 w pre-deploy, healthcheck `/health`), `worker` i `scheduler` budują ten sam
-obraz i startują. Przez 30 s drenowania stary kontener `all` może jeszcze
+obraz i startują. Przez okno drenowania (`drainingSeconds`; faktyczną
+wartość odczytaj w panelu — docs/DEPLOYMENT.md, sekcja „Kolejki”)
+stary kontener `all` może jeszcze
 wykonywać kolejkę i harmonogram równolegle z nowymi serwisami — to jest
 bezpieczne: każde zadanie harmonogramu ma `->onOneServer()`
 (`routes/console.php`), a kolejka bazy danych rezerwuje zadania blokadą
