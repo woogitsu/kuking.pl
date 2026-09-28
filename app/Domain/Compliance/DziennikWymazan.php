@@ -10,6 +10,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Sleep;
 use Throwable;
 
 /**
@@ -38,8 +39,23 @@ use Throwable;
  *
  * ZAPIS NIE MOŻE ZATRZYMAĆ WYMAZANIA
  * Wymazanie jest ważniejsze niż jego dziennik. Nieudany zapis kończy się
- * ostrzeżeniem w logu, a nocne `uzupelnij()` dopisuje brakujące wpisy dla
+ * błędem w logu, a nocne `uzupelnij()` dopisuje brakujące wpisy dla
  * kont wymazanych w oknie kopii — bez osobnej kolejki i bez kolumny w bazie.
+ *
+ * OKNO, KTÓREGO NOC NIE ZAMYKA (issue #2038)
+ * `uzupelnij()` szuka kont po `users.data_erased_at` w BIEŻĄCEJ bazie. Gdy
+ * zapis padnie, a przed najbliższym udanym uzupełnieniem ktoś odtworzy
+ * kopię sprzed wymazania, znacznika już nie ma i noc nie ma czego dopisać.
+ * Dlatego:
+ *  - `zapisz()` próbuje `PROBY` razy z odstępem — chwilowa czkawka
+ *    magazynu nie otwiera okna wcale;
+ *  - po ostatniej próbie linia logu (`error`) niesie KOMPLET wpisu
+ *    (identyfikator, zakres, chwila). Log wychodzi na stderr, do dziennika
+ *    Railwaya, czyli poza bazę — i przeżywa jej odtworzenie. Z tej linii
+ *    `kuking:dziennik-wymazan --dopisz=… --zakres=… --kiedy=…` odtwarza
+ *    wpis ręcznie (`docs/infra/KOPIE_I_ODTWORZENIE.md` §3.1).
+ * Log nie jest magazynem z gwarancją retencji; pełne domknięcie okna czeka
+ * na decyzję właściciela (opis wariantów w §3.1).
  */
 final class DziennikWymazan
 {
@@ -50,24 +66,47 @@ final class DziennikWymazan
         return Storage::disk((string) config('kuking.dziennik_wymazan.dysk'));
     }
 
+    /** Ile razy próbujemy zapisać wpis, zanim zostanie tylko linia logu. */
+    public const PROBY = 3;
+
+    /** Odstępy między próbami, w sekundach (wołają to wyłącznie komendy konsoli). */
+    private const ODSTEPY_SEKUND = [1, 3];
+
     public function zapisz(string $userId, string $zakres, CarbonInterface $kiedy): bool
     {
-        try {
-            $this->dysk()->put(self::PREFIKS.$userId.'.json', (string) json_encode([
-                'user_id' => $userId,
-                'wymazano_at' => $kiedy->toIso8601ZuluString(),
-                'zakres' => $zakres,
-            ]));
+        $wymazanoAt = $kiedy->toIso8601ZuluString();
+        $tresc = (string) json_encode([
+            'user_id' => $userId,
+            'wymazano_at' => $wymazanoAt,
+            'zakres' => $zakres,
+        ]);
+        $ostatni = null;
 
-            return true;
-        } catch (Throwable $e) {
-            Log::warning('Dziennik wymazań: nie udało się zapisać wpisu; dopisze go nocne uzupełnienie.', [
-                'user_id' => $userId,
-                'wyjatek' => $e::class,
-            ]);
+        for ($proba = 1; $proba <= self::PROBY; $proba++) {
+            try {
+                $this->dysk()->put(self::PREFIKS.$userId.'.json', $tresc);
 
-            return false;
+                return true;
+            } catch (Throwable $e) {
+                $ostatni = $e;
+
+                if ($proba < self::PROBY) {
+                    Sleep::for(self::ODSTEPY_SEKUND[$proba - 1] ?? 3)->seconds();
+                }
+            }
         }
+
+        // Komplet wpisu w kontekście: po odtworzeniu kopii sprzed wymazania
+        // ta linia jest jedynym śladem poza bazą (issue #2038).
+        Log::error('Dziennik wymazań: nie udało się zapisać wpisu. Dopisze go nocne uzupełnienie — ale jeśli przedtem odtworzysz kopię bazy, dopisz go ręcznie z tej linii (docs/infra/KOPIE_I_ODTWORZENIE.md §3.1).', [
+            'user_id' => $userId,
+            'zakres' => $zakres,
+            'wymazano_at' => $wymazanoAt,
+            'proby' => self::PROBY,
+            'wyjatek' => $ostatni instanceof Throwable ? $ostatni::class : null,
+        ]);
+
+        return false;
     }
 
     /**
