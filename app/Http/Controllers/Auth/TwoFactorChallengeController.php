@@ -110,6 +110,16 @@ class TwoFactorChallengeController extends Controller
 
         if (! $poprawny) {
             RateLimiter::hit($throttleKey, $decayMinuty * 60);
+            // Jeden wpis na rzeczywiście sprawdzony kod. Odpowiedzi odcięte
+            // limiterem nie dopisują kolejnych wierszy; wejściowego kodu
+            // ani sekretu 2FA nigdy nie przekazujemy do dziennika.
+            $rodzaj = $kod !== '' && $kodZapasowy !== '' ? 'oba' : ($kod !== '' ? 'totp' : 'zapasowy');
+            AuditLogEntry::recordBezWywracania(
+                'account.two_factor_login_failed',
+                subject: $user,
+                metadata: ['rodzaj' => $rodzaj],
+                ip: $request->ip(),
+            );
 
             return back()->withErrors([
                 $field => $field === 'backup_code'
