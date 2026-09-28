@@ -6,6 +6,7 @@ namespace App\Domain\Security\Actions;
 
 use App\Domain\Security\KomunikatZamknietegoKonta;
 use App\Domain\Security\LimitProbHasla;
+use App\Models\AuditLogEntry;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -80,6 +81,8 @@ final class SprawdzHasloPrzyLogowaniu
         // otwierając serwis samym hasłem.
         if ($user === null || ! Auth::validate(['email' => $user->email, 'password' => $haslo])) {
             $this->limit->zapiszNieudanaProbe($login, $adres);
+            // Tylko znane konto jako podmiot; obcy login pozostaje poza dziennikiem.
+            AuditLogEntry::recordBezWywracania('account.password_login_failed', subject: $user, ip: $adres);
 
             throw ValidationException::withMessages([
                 $pole => 'Nie udało się zalogować. Sprawdź, czy nazwa i hasło są wpisane poprawnie. Jeśli nie pamiętasz hasła, kliknij „Nie pamiętam hasła”.',
@@ -105,6 +108,7 @@ final class SprawdzHasloPrzyLogowaniu
         if (in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true)) {
             // Bez `Auth::logout()` — `Auth::validate()` wyżej niczego nie
             // zalogowało, więc nie ma z czego wylogowywać.
+            AuditLogEntry::recordBezWywracania('account.password_login_failed', subject: $user, ip: $adres);
             throw ValidationException::withMessages([
                 $pole => KomunikatZamknietegoKonta::dla($user),
             ]);
