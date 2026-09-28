@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Dalsze strony wpisów pod tagiem mają własny adres dla wyszukiwarek i udostępniania. Adres wskazuje tę samą porcję wpisów, którą oglądacie, zamiast wracać do pierwszej strony (#2135).
 - Ekrany logowania i zakładania konta wykorzystują szerokość komputera: obok formularza widać od razu wejście przez Google lub Facebooka, a przy logowaniu także drogę przez link wysłany e-mailem. Na telefonie wszystko układa się w jedną kolumnę; żadne pole ani komunikat nie znika.
 
 ## Alfa 0.72 — spokojniejsze zdjęcia i powiadomienia
