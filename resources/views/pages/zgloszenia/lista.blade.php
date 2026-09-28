@@ -37,7 +37,12 @@
 
                     @if($zgloszenie->jestRozstrzygniete() && $decyzja !== null)
                         @php
-                            $skutek = \App\Domain\Moderation\OdpowiedzDlaZglaszajacego::skutek($decyzja);
+                            // Aktualny skutek (#1024): po cofnięciu zdjęcia
+                            // treści w odwołaniu pierwsza odpowiedź przestała
+                            // być prawdą. Historia obu decyzji jest na karcie.
+                            $skutek = isset($zmiany[(string) $decyzja->getKey()])
+                                ? \App\Domain\Moderation\OdpowiedzDlaZglaszajacego::skutekPoZmianie()
+                                : \App\Domain\Moderation\OdpowiedzDlaZglaszajacego::skutek($decyzja);
                         @endphp
                         <p><strong>{{ $skutek['naglowek'] }}</strong> {{ $skutek['reszta'] }}</p>
                     @elseif($zgloszenie->jestRozstrzygniete())
@@ -62,7 +67,8 @@
         <x-show-more :paginator="$zgloszenia" czego="zgłoszeń" lista="lista-zgloszen" />
     @else
         <x-empty-state title="Nie masz jeszcze żadnych zgłoszeń.">
-            Pod każdym wpisem, przepisem i komentarzem jest przycisk „Zgłoś".
+            Przy każdym przepisie i komentarzu jest przycisk „Zgłoś”, a przy wpisie —
+            „Zgłoś ten wpis” w menu z trzema kropkami.
             Jeśli coś jest nie w porządku, napisz nam o tym — sprawdzimy i tutaj
             zobaczysz, co z tym zrobiliśmy.
         </x-empty-state>

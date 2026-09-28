@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 /**
@@ -76,6 +77,7 @@ use Tests\TestCase;
  * DO CSV NIE TRAFIA ANI JEDEN PODPISANY ADRES ANI KLUCZ OBIEKTU — czasy, kody,
  * nagłówki, skróty i treść błędu magazynu tak; `<Key>` z odpowiedzi MinIO nie.
  */
+#[Group('pomiar')]
 class PomiarOdcieciaDostepuDoPlikuTest extends TestCase
 {
     use RefreshDatabase;

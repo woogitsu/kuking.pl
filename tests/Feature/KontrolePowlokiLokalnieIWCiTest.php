@@ -28,6 +28,8 @@ class KontrolePowlokiLokalnieIWCiTest extends TestCase
     /** Zestawy, które `check.sh` uruchamiał przed wydzieleniem — nie może ubyć żadnego. */
     private const ZESTAWY = [
         'tests/skrypty/entrypoint-nadzor.sh',
+        'tests/skrypty/healthcheck-role.sh',
+        'tests/skrypty/bramka-migracji.sh',
         'tests/skrypty/kopia-bazy.sh',
         'tests/skrypty/cache-assetow.sh',
         'tests/skrypty/kontrola-ujemna.sh',
@@ -70,9 +72,49 @@ class KontrolePowlokiLokalnieIWCiTest extends TestCase
 
         $this->assertStringContainsString('bash -n "$skrypt"', $wspolny);
 
-        foreach (['docker/entrypoint.sh', 'docker/kopia/*.sh', 'scripts/*.sh', 'tests/skrypty/*.sh'] as $wzorzec) {
+        foreach (['docker/entrypoint.sh', 'docker/healthcheck.sh', 'docker/kopia/*.sh', 'scripts/*.sh', 'tests/skrypty/*.sh'] as $wzorzec) {
             $this->assertStringContainsString($wzorzec, $wspolny, "Składnia {$wzorzec} nie jest już sprawdzana.");
         }
+    }
+
+    /** Nazwy plików z jednego z bloków `NAZWA=$(cat <<'KONIEC' … KONIEC)` w skrypcie wspólnym. */
+    private function wpisyBloku(string $nazwa): array
+    {
+        $this->assertSame(
+            1,
+            preg_match('/^'.$nazwa.'=\$\(cat <<\'KONIEC\'\n(.*?)^KONIEC$/ms', $this->plik(self::WSPOLNY), $m),
+            "Nie ma bloku {$nazwa} w ".self::WSPOLNY.'.',
+        );
+
+        return array_map(
+            fn (string $wiersz): string => explode('|', $wiersz)[0],
+            array_values(array_filter(explode("\n", $m[1]))),
+        );
+    }
+
+    public function test_zaden_plik_z_tests_skrypty_nie_jest_pominiety(): void
+    {
+        // Strażnik przeciw cichemu pominięciu: nowy tests/skrypty/*.sh, którego
+        // nikt nie dopisał do listy, nie chodzi ani w check.sh, ani w CI.
+        $lista = $this->wpisyBloku('LISTA');
+        $poza = $this->wpisyBloku('POZA_LISTA');
+        $naDysku = array_map(
+            fn (string $sciezka): string => 'tests/skrypty/'.basename($sciezka),
+            glob(base_path('tests/skrypty/*.sh')) ?: [],
+        );
+
+        $this->assertNotEmpty($naDysku, 'Brak plików w tests/skrypty/ — zła ścieżka?');
+        $this->assertSame([], array_values(array_intersect($lista, $poza)), 'Plik jest naraz na LISTA i POZA_LISTA.');
+        $this->assertSame(
+            [],
+            array_values(array_diff($naDysku, $lista, $poza)),
+            'Test powłoki poza listą w '.self::WSPOLNY.' — dopisz go do LISTA (albo do POZA_LISTA z powodem).',
+        );
+        $this->assertSame(
+            [],
+            array_values(array_diff(array_merge($lista, $poza), $naDysku)),
+            'Lista w '.self::WSPOLNY.' wskazuje plik, którego nie ma na dysku.',
+        );
     }
 
     public function test_nikt_nie_uruchamia_testow_powloki_obok_wspolnego_skryptu(): void

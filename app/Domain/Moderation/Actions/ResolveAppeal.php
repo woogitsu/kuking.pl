@@ -7,13 +7,13 @@ namespace App\Domain\Moderation\Actions;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\NowaDecyzja;
 use App\Domain\Moderation\WlasnejTresciNiePrzywracasz;
+use App\Domain\Users\ZamekUprzywilejowanegoAktora;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Appeal;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -76,6 +76,7 @@ final class ResolveAppeal
         private readonly RestoreContent $przywroc,
         private readonly NotifyAppealOutcome $powiadom,
         private readonly NotifyReporterAppealOutcome $powiadomZglaszajacego,
+        private readonly NotifyReporterDecisionChanged $skorygujZglaszajacemu,
         private readonly DecyzjaPoOdwolaniu $decyzjaPoOdwolaniu,
     ) {}
 
@@ -121,6 +122,8 @@ final class ResolveAppeal
         // Kontroler NIE traci swojego `authorize()`: tam bramka odpowiada
         // za kod HTTP i za to, że walidacja formularza w ogóle się nie
         // uruchamia. Ta jest ostatnią linią, nie jedyną.
+        // Wstępna odmowa. Autorytatywna kontrola jest niżej, na świeżym
+        // aktorze pod blokadą trzymaną przez całą decyzję (#2086).
         Gate::forUser($moderator)->authorize('resolveAppeals', User::class);
 
         // Tanie sprawdzenie na wejściu — ten sam komunikat co pod blokadą
@@ -160,11 +163,15 @@ final class ResolveAppeal
         // wiersz w `jobs` też jest częścią tej transakcji — po wycofaniu nie
         // wyjdzie, a po zatwierdzeniu ponawia go kolejka, nie człowiek.
         //
-        // Kolejność blokad: najpierw odwołanie, potem treść (`RestoreContent`)
-        // albo konto. Nikt inny nie bierze blokady odwołania, więc ta
-        // kolejność nie ma z kim się odwrócić. Pomiar na dwóch połączeniach:
+        // Kolejność blokad: wspólny zamek roli → aktor → odwołanie →
+        // treść (`RestoreContent`) albo konto. Nikt inny nie bierze blokady
+        // odwołania, więc ta kolejność nie ma z kim się odwrócić. Pomiar:
         // `tests/Dwa/RozpatrzenieOdwolaniaNaDwochPolaczeniachTest.php`.
-        return DB::transaction(function () use ($moderator, $odwolanie, $wynik, $uzasadnienie, $ip, $nowaDecyzja): Appeal {
+        return ZamekUprzywilejowanegoAktora::wykonaj($moderator, function (User $swiezy) use ($odwolanie, $wynik, $uzasadnienie, $ip, $nowaDecyzja): Appeal {
+            Gate::forUser($swiezy)->authorize('resolveAppeals', User::class);
+
+            $moderator = $swiezy;
+
             $zablokowane = Appeal::query()->whereKey($odwolanie->getKey())->lockForUpdate()->first();
 
             if ($zablokowane === null || ! $zablokowane->isOpen()) {
@@ -203,6 +210,10 @@ final class ResolveAppeal
                 $this->powiadomZglaszajacego->handle($zablokowane);
             } else {
                 $this->powiadom->handle($zablokowane, $dopisek);
+                // Druga strona sprawy (#1024): zgłaszający dostał „treści nie
+                // ma", a po cofnięciu treść wraca. Klasa sama sprawdza, czy
+                // skutek naprawdę się zmienił — przy `upheld` nic nie robi.
+                $this->skorygujZglaszajacemu->handle($zablokowane);
             }
 
             AuditLogEntry::record(

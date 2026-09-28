@@ -59,16 +59,25 @@ class CookedEvent extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return BelongsTo<Recipe, $this>
+     */
     public function recipe(): BelongsTo
     {
         return $this->belongsTo(Recipe::class);
     }
 
+    /**
+     * @return BelongsToMany<Media, $this>
+     */
     public function media(): BelongsToMany
     {
         return $this->belongsToMany(Media::class, 'cooked_event_media')
@@ -76,12 +85,19 @@ class CookedEvent extends Model
             ->orderBy('cooked_event_media.position');
     }
 
+    /**
+     * @return HasMany<Comment, $this>
+     */
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class)
             ->whereNull('parent_id')
             ->where('status', Comment::STATUS_PUBLISHED)
-            ->oldest();
+            // `id` rozstrzyga remisy `created_at` — bez tego paginacja
+            // (issue #938) potrafi pokazać komentarz na dwóch stronach.
+            // Ta sama kolejność co w `Notification::destinationUrls()`.
+            ->oldest()
+            ->orderBy('id');
     }
 
     public function url(): string

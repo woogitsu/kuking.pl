@@ -63,7 +63,7 @@ class PowtorzonyKrokPrzepisuTest extends TestCase
         [$author, $recipe, $steps] = $this->fixture();
         $before = $this->state();
         $edit = route('recipes.edit', $recipe);
-        $response = $this->actingAs($author)->from($edit)->put(route('recipes.update', $recipe), $this->payload($steps));
+        $response = $this->actingAs($author)->from($edit)->put(route('recipes.update', $recipe), [...$this->payload($steps), 'content_revision' => $recipe->fresh()->content_revision]);
 
         $response->assertRedirect($edit)->assertSessionHasErrors(['steps.1.instruction'])->assertSessionMissing('status');
         $this->assertSame($steps, session()->getOldInput('steps'));
@@ -81,19 +81,18 @@ class PowtorzonyKrokPrzepisuTest extends TestCase
             $this->assertNotNull($field);
             $this->assertSame($row['instruction'], trim($field->textContent));
             foreach (['id', 'timer_minutes'] as $name) {
-                $input = $xpath->query('//input[@name="steps['.$index.']['.$name.']"]')->item(0);
-                $this->assertNotNull($input);
+                $input = self::elementDom($xpath->query('//input[@name="steps['.$index.']['.$name.']"]')->item(0));
                 $this->assertSame($row[$name], $input->getAttribute('value'));
             }
         }
-        $field = $xpath->query('//textarea[@name="steps[1][instruction]"]')->item(0);
+        $field = self::elementDom($xpath->query('//textarea[@name="steps[1][instruction]"]')->item(0));
         $this->assertSame('true', $field->getAttribute('aria-invalid'), $dom->saveHTML($field->parentNode));
         $errorId = $field->getAttribute('aria-describedby');
         $this->assertStringContainsString($message, $xpath->query('//*[@id="'.$errorId.'"]')->item(0)->textContent);
         $this->assertGreaterThan(0, $xpath->query('//a[@href="#'.$field->getAttribute('id').'"]')->length);
     }
 
-    public function test_http_odmawia_przed_uploadem_i_zachowuje_oryginalny_indeks(): void
+    public function test_http_odmawia_zapisu_przepisu_i_zachowuje_zdjecia_pod_oryginalnym_indeksem(): void
     {
         [$author, $recipe, $steps] = $this->fixture();
         $before = $this->state();
@@ -103,15 +102,16 @@ class PowtorzonyKrokPrzepisuTest extends TestCase
         $data['hero_photo'] = UploadedFile::fake()->image('danie.jpg');
         $data['source_scan'] = UploadedFile::fake()->image('kartka.jpg');
 
-        $response = $this->actingAs($author)->put(route('recipes.update', $recipe), $data);
+        $response = $this->actingAs($author)->put(route('recipes.update', $recipe), [...$data, 'content_revision' => $recipe->fresh()->content_revision]);
 
-        $this->assertSame([], Storage::disk('public')->allFiles(), 'Odmowa HTTP musi poprzedzać zapis zdjęcia.');
-        Queue::assertNotPushed(ProcessUploadedImage::class);
         $response->assertSessionHasErrors(['steps.7.instruction'])->assertSessionMissing('status');
 
         $this->assertSame($steps[1]['instruction'], session()->getOldInput('steps.7.instruction'));
-        $this->assertSame($before, $this->state());
-        $this->assertSame([], Storage::disk('public')->allFiles());
+        $this->assertSame(['hero', 'scan', 'step_7'], array_keys(session()->getOldInput('zachowane_zdjecia')));
+        $po = $this->state();
+        $this->assertCount(count($before['media']) + 3, $po['media'], 'Zdjęcia przetrwają błąd instrukcji.');
+        unset($before['media'], $po['media']);
+        $this->assertSame($before, $po, 'Odmowa nadal nie zmienia przepisu ani jego kroków.');
     }
 
     public function test_livewire_nie_nadpisuje_przepisu_i_zachowuje_tekst_po_odmowie(): void
@@ -194,7 +194,7 @@ class PowtorzonyKrokPrzepisuTest extends TestCase
             ['id' => null, 'instruction' => 'Nowy z null.'],
             ['id' => '', 'instruction' => 'Nowy z pustym identyfikatorem.'],
         ];
-        $this->actingAs($author)->put(route('recipes.update', $recipe), $this->payload($rows))->assertSessionHasNoErrors();
+        $this->actingAs($author)->put(route('recipes.update', $recipe), [...$this->payload($rows), 'content_revision' => $recipe->fresh()->content_revision])->assertSessionHasNoErrors();
         $saved = $recipe->steps()->orderBy('position')->get();
         $this->assertCount(5, $saved);
         $this->assertSame([$ids[1], $ids[0]], $saved->take(2)->pluck('id')->all());
@@ -224,7 +224,7 @@ class PowtorzonyKrokPrzepisuTest extends TestCase
             $rows[] = ['id' => $id, 'instruction' => 'Nowy krok '.$index];
         }
         if ($path === 'http') {
-            $this->actingAs($author)->put(route('recipes.update', $recipe), $this->payload($rows))->assertSessionHasNoErrors();
+            $this->actingAs($author)->put(route('recipes.update', $recipe), [...$this->payload($rows), 'content_revision' => $recipe->fresh()->content_revision])->assertSessionHasNoErrors();
         } else {
             app(PublishRecipe::class)->handle($author, ['title' => 'Nowy tytuł'], steps: $rows, existing: $recipe);
         }

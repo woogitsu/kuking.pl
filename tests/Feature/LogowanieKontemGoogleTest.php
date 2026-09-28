@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Google\KlientGoogle;
+use App\Models\Recipe;
 use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Support\Google;
@@ -616,6 +617,8 @@ class LogowanieKontemGoogleTest extends TestCase
     #[Test]
     public function test_domkniecie_zaklada_konto_bez_hasla_i_bez_wiadomosci(): void
     {
+        $przepis = Recipe::factory()->create();
+        $this->get(route('register', ['comment_on' => 'recipe:'.$przepis->getKey()]))->assertOk();
         $this->wlaczGoogle();
         $this->wracamyZGoogle();
 
@@ -632,6 +635,9 @@ class LogowanieKontemGoogleTest extends TestCase
         $this->assertAuthenticatedAs($basia);
         $this->assertSame('109876543210987654321', $this->identyfikatorGoogle($basia));
         $this->assertNotNull($this->kiedyPolaczono($basia));
+
+        $this->post(route('onboarding.skip'))->assertRedirect(route('onboarding.done'));
+        $this->get(route('onboarding.done'))->assertRedirect($przepis->url().'#komentarze');
 
         // ADRES JEST OD RAZU POTWIERDZONY — Google to potwierdziło, więc nie
         // pytamy o to samo drugi raz (i nie zużywamy listu z dobowej puli).
@@ -707,7 +713,7 @@ class LogowanieKontemGoogleTest extends TestCase
             'username' => 'basia',
             'age_confirmed' => '1',
             'terms_accepted' => '1',
-        ])->assertStatus(503);
+        ])->assertRedirect(route('login'));
 
         $this->assertDatabaseCount('users', 0);
     }
@@ -943,7 +949,9 @@ class LogowanieKontemGoogleTest extends TestCase
             // o stanie powiązania („dostawca powiadomił nas, że ta osoba cofnęła
             // zgodę"), a nie dana O CZŁOWIEKU wzięta od dostawcy. Pola na token
             // nadal nie ma i nie wolno go dołożyć bez decyzji.
-            ['connected_at', 'dostawca', 'dostep_odebrany_at', 'id', 'identyfikator', 'user_id'],
+            // `zgoda_potwierdzona_at` (issue #1025) — też nasz znacznik: kiedy
+            // człowiek ostatni raz wszedł przez dostawcę.
+            ['connected_at', 'dostawca', 'dostep_odebrany_at', 'id', 'identyfikator', 'user_id', 'zgoda_potwierdzona_at'],
             collect(Schema::getColumnListing('tozsamosci_zewnetrzne'))->sort()->values()->all(),
             'Zmiana zakresu danych o człowieku wymaga decyzji, nie refaktoru (AGENTS.md §6).',
         );

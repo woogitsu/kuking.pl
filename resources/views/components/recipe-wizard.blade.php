@@ -2,14 +2,19 @@
 
 declare(strict_types=1);
 
+use App\Domain\Import\PodobienstwoDoZrodla;
+use App\Domain\Import\BramkaPublikacjiOdczytu;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
+use App\Domain\Recipes\Actions\SnapshotRecipeVersion;
 use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\GrupySkladnikow;
 use App\Domain\Recipes\StepTimer;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
 use App\Models\RecipeStep;
+use App\Domain\Recipes\KosztPrzepisu;
 use App\Support\KreatorPrzepisu\KrokOPrzepisie;
 use App\Support\KreatorPrzepisu\WierszePrzepisu;
 use Illuminate\Support\Facades\Gate;
@@ -27,7 +32,7 @@ use Livewire\WithFileUploads;
  * skasować niczego, co człowiek już wpisał. Dlatego:
  *
  *  - szkic zapisuje się po każdym kroku ORAZ po ~3 s bezczynności w polu
- *    (wire:model.live.debounce.3000ms → hook updated() → saveDraft()),
+ *    (wire:model.live.debounce.3000ms → hook updated() → autozapis(), bez wersji przepisu),
  *  - jeden szkic na całą sesję kreatora: pierwszy zapis tworzy przepis,
  *    każdy następny go aktualizuje (dlatego $recipeId jest #[Locked]),
  *  - nieudana walidacja NICZEGO nie czyści — komunikat pojawia się nad
@@ -87,11 +92,41 @@ new class extends Component
     #[Locked]
     public bool $juzOpublikowany = false;
 
+    /**
+     * Szkic z importu (D-300): `url`, `pdf` albo `zdjecie`; `null` = zwykły
+     * przepis. `#[Locked]`, bo decyduje o zablokowanym źródle i o bramce
+     * „Sprawdziłem odczytany tekst" — i tak pilnuje ich `PublishRecipe`,
+     * a to pole tylko rysuje baner i pole wyboru.
+     */
+    #[Locked]
+    public ?string $zrodloImportu = null;
+
+    /** Czy przed publikacją trzeba zaznaczyć „Sprawdziłem odczytany tekst". */
+    #[Locked]
+    public bool $wymagaSprawdzenia = false;
+
+    public bool $sprawdzilemOdczyt = false;
+
+    /**
+     * Szkic z odczytu zdjęcia kartki (V2, D-298): baner, zdjęcie obok pól
+     * i bramka „Odczytany tekst jest sprawdzony” przed publikacją. `#[Locked]`,
+     * bo o tym, czy bramka obowiązuje, decyduje baza, nie przeglądarka —
+     * a ostatecznie i tak `BramkaPublikacjiOdczytu` w `PublishRecipe`.
+     */
+    #[Locked]
+    public bool $zOdczytu = false;
+
+    /** Pole „Odczytany tekst jest sprawdzony ze zdjęciem” na podglądzie. */
+    public bool $odczytSprawdzony = false;
+
     public string $title = '';
 
     public string $summary = '';
 
     public string $servings = '';
+
+    /** Koszt całego przepisu w złotych, tak jak go wpisano („24,50") — D-286. */
+    public string $estimated_cost_pln = '';
 
     public string $prep_minutes = '';
 
@@ -111,7 +146,7 @@ new class extends Component
 
     public string $family_since_year = '';
 
-    /** @var list<array{_key: string, group_name: string, text: string, note: string, no_amount: bool}> */
+    /** @var list<array{_key: string, group_name: string, text: string, note: string, substitutes: string, no_amount: bool}> */
     public array $ingredients = [];
 
     /**
@@ -139,6 +174,10 @@ new class extends Component
 
     #[Locked]
     public int $acknowledgedRevision = 0;
+
+    /** Rewizja treści z bazy; różna od licznika zmian interfejsu. */
+    #[Locked]
+    public int $contentRevision = 0;
 
     /** Licznik stabilnych kluczy wierszy — bez nich zmiana kolejności gubi treść pól. */
     public int $rowCounter = 0;
@@ -176,13 +215,20 @@ new class extends Component
     private function fillFrom(Recipe $recipe): void
     {
         $this->recipeId = $recipe->getKey();
+        $this->contentRevision = $recipe->content_revision;
         $this->juzOpublikowany = $recipe->isPublished();
+
+        $pochodzenie = PrzepisZImportu::query()->find($recipe->getKey());
+        $this->zrodloImportu = $pochodzenie?->zrodlo;
+        $this->wymagaSprawdzenia = $pochodzenie !== null && ! $pochodzenie->sprawdzony() && ! $recipe->isPublished();
+        $this->zOdczytu = ! $this->juzOpublikowany && BramkaPublikacjiOdczytu::maOdczyt($recipe);
         $this->heroMediaId = $recipe->hero_media_id;
         $this->sourceScanMediaId = $recipe->source_scan_media_id;
 
         $this->title = (string) $recipe->title;
         $this->summary = (string) $recipe->summary;
         $this->servings = $this->numberToText($recipe->servings);
+        $this->estimated_cost_pln = KosztPrzepisu::doPola($recipe->estimated_cost_pln);
         $this->prep_minutes = $this->numberToText($recipe->prep_minutes);
         $this->cook_minutes = $this->numberToText($recipe->cook_minutes);
         $this->difficulty = (string) $recipe->difficulty;
@@ -199,6 +245,7 @@ new class extends Component
                 'group_name' => (string) $row->group_name,
                 'text' => (string) $row->ingredient_text,
                 'note' => (string) $row->note,
+                'substitutes' => (string) $row->substitutes,
                 'no_amount' => (bool) $row->no_amount,
             ])
             ->all();
@@ -234,7 +281,7 @@ new class extends Component
             return;
         }
 
-        if (! $this->saveDraft()) {
+        if (! $this->autozapis()) {
             if (! $this->validateAboutStep()) {
                 $this->step = 1;
             } else {
@@ -253,7 +300,7 @@ new class extends Component
 
         // Zapis PRZED cofnięciem — inaczej „Wstecz” wyglądałoby jak utrata
         // tego, co człowiek właśnie wpisał.
-        $this->saveDraft();
+        $this->autozapis();
 
         $this->step = max($this->step - 1, 1);
     }
@@ -275,7 +322,7 @@ new class extends Component
             // Obejmuje zarówno `steps` (błąd „opisz przynajmniej jeden
             // krok”) jak i `steps.N.instruction` / `steps.N.photo`.
             str_starts_with($key, 'steps') => 3,
-            $key === 'publikacja' => self::STEP_PREVIEW,
+            $key === 'publikacja', $key === 'odczyt_sprawdzony' => self::STEP_PREVIEW,
             default => 1,
         };
     }
@@ -301,7 +348,7 @@ new class extends Component
     public function addIngredient(): void
     {
         $this->ingredients[] = $this->blankIngredient();
-        $this->saveDraft();
+        $this->autozapis();
     }
 
     public function removeIngredient(int $index): void
@@ -312,19 +359,19 @@ new class extends Component
             $this->ingredients = [$this->blankIngredient()];
         }
 
-        $this->saveDraft();
+        $this->autozapis();
     }
 
     public function moveIngredientUp(int $index): void
     {
         $this->ingredients = $this->swapRows($this->ingredients, $index, $index - 1);
-        $this->saveDraft();
+        $this->autozapis();
     }
 
     public function moveIngredientDown(int $index): void
     {
         $this->ingredients = $this->swapRows($this->ingredients, $index, $index + 1);
-        $this->saveDraft();
+        $this->autozapis();
     }
 
     // -----------------------------------------------------------------
@@ -334,7 +381,7 @@ new class extends Component
     public function addStep(): void
     {
         $this->steps[] = $this->blankStep();
-        $this->saveDraft();
+        $this->autozapis();
     }
 
     public function removeStep(int $index): void
@@ -345,19 +392,19 @@ new class extends Component
             $this->steps = [$this->blankStep()];
         }
 
-        $this->saveDraft();
+        $this->autozapis();
     }
 
     public function moveStepUp(int $index): void
     {
         $this->replaceSteps($this->swapRows($this->steps, $index, $index - 1));
-        $this->saveDraft();
+        $this->autozapis();
     }
 
     public function moveStepDown(int $index): void
     {
         $this->replaceSteps($this->swapRows($this->steps, $index, $index + 1));
-        $this->saveDraft();
+        $this->autozapis();
     }
 
     /** Zmiana pozycji przenosi również błędy; usunięcie zabiera tylko błędy usuwanego kroku. */
@@ -397,14 +444,57 @@ new class extends Component
         }
 
         $this->resetErrorBag($property);
-        $this->saveDraft();
+        $this->autozapis();
     }
 
+    /**
+     * „Zapisz zmiany” / „Zapisz szkic” — świadomy zapis człowieka.
+     *
+     * Na opublikowanym przepisie TYLKO ta droga (i `wyjdz()`) zostawia nową
+     * wersję w historii (decyzja właściciela z 24.09.2026, issue #1316).
+     * Autozapis po ~3 s, „Dalej” i „Wstecz” zapisują treść bez wersji —
+     * inaczej każda pauza w pisaniu dawałaby wersję, a sklejanie ich
+     * w jedną nadpisywałoby historię, której nadpisywać nie wolno.
+     */
     public function saveDraft(): bool
+    {
+        return $this->zapiszSzkic(wersja: true);
+    }
+
+    /**
+     * Wyjście z kreatora na opublikowanym przepisie: zapis z wersją i powrót.
+     * Nieudany zapis zostawia człowieka w formularzu z komunikatem — nic nie
+     * znika po cichu. Bez JavaScriptu link prowadzi zwykłym `href`.
+     */
+    public function wyjdz(): void
+    {
+        if (! $this->zapiszSzkic(wersja: true)) {
+            return;
+        }
+
+        $this->redirect(route('home'));
+    }
+
+    /** Zapis w tle (pola, „Dalej”, „Wstecz”) — nigdy nie tworzy wersji przepisu. */
+    private function autozapis(): bool
+    {
+        return $this->zapiszSzkic(wersja: false);
+    }
+
+    private function zapiszSzkic(bool $wersja): bool
     {
         $this->acknowledgedRevision = $this->editRevision;
 
         if ($this->savedThisRequest) {
+            /*
+             * Livewire wysyła zmianę pola i kliknięcie „Zapisz zmiany” jednym
+             * żądaniem: `updated()` zapisał już treść autozapisem (bez wersji).
+             * Świadomy zapis nie może przez to zgubić swojej wersji.
+             */
+            if ($wersja && $this->saveState === 'saved' && ($recipe = $this->existingRecipe()) !== null && $recipe->isPublished()) {
+                app(SnapshotRecipeVersion::class)->poprawka($recipe, auth()->user());
+            }
+
             return $this->saveState === 'saved';
         }
 
@@ -437,7 +527,7 @@ new class extends Component
         }
 
         try {
-            $this->persist(publish: false);
+            $this->persist(publish: false, wersjaPoprawki: $wersja);
         } catch (BladDlaCzlowieka $e) {
             $this->saveState = 'error';
             $this->saveMessage = ($this->juzOpublikowany ? 'Nie udało się zapisać zmian: ' : 'Nie udało się zapisać szkicu: ').$e->getMessage().' Nic nie zginęło — cały tekst jest dalej w formularzu.';
@@ -481,20 +571,20 @@ new class extends Component
             $this->step = collect($this->getErrorBag()->keys())->contains(fn (string $klucz) => str_starts_with($klucz, 'steps'))
                 ? 3
                 : 1;
-            $this->saveDraft();
+            $this->autozapis();
 
             return;
         }
 
         if (! $this->validateAboutStep()) {
             $this->step = 1;
-            $this->saveDraft();
+            $this->autozapis();
 
             return;
         }
 
         if (! $this->validateRows()) {
-            $this->saveDraft();
+            $this->autozapis();
 
             return;
         }
@@ -511,16 +601,30 @@ new class extends Component
         if ($this->cleanSteps() === []) {
             $this->step = 3;
             $this->addError('steps', $this->juzOpublikowany ? 'Opisz przynajmniej jeden krok przygotowania, żeby zapisać zmiany. Tekst jest dalej w formularzu.' : 'Opisz przynajmniej jeden krok przygotowania, żeby opublikować przepis. Nic nie zginęło — resztę masz zapisaną w szkicu.');
-            $this->saveDraft();
+            $this->autozapis();
 
             return;
+        }
+
+        // Szkic z odczytu kartki (D-298): błąd przy WŁAŚCIWYM wierszu
+        // i w podsumowaniu, zanim w ogóle zapytamy bazę. Ta sama reguła stoi
+        // w `PublishRecipe` jako ostatnia linia.
+        // Szkic zapisujemy PRZED sprawdzeniem: walidacja wierszy w
+        // `saveDraft()` czyści błędy pól, więc odwrotna kolejność
+        // zjadałaby komunikat przy wierszu ze znacznikiem.
+        if ($this->zOdczytu) {
+            $this->saveDraft();
+
+            if (! $this->sprawdzOdczyt()) {
+                return;
+            }
         }
 
         try {
             $recipe = $this->persist(publish: true);
         } catch (BladDlaCzlowieka $e) {
             $this->addError('publikacja', $e->getMessage());
-            $this->saveDraft();
+            $this->autozapis();
 
             return;
         }
@@ -566,7 +670,7 @@ new class extends Component
         return true;
     }
 
-    private function persist(bool $publish): Recipe
+    private function persist(bool $publish, bool $wersjaPoprawki = false): Recipe
     {
         $recipe = app(PublishRecipe::class)->handle(
             author: auth()->user(),
@@ -574,6 +678,7 @@ new class extends Component
                 'title' => trim($this->title),
                 'summary' => $this->textOrNull($this->summary),
                 'servings' => $this->numberOrNull($this->servings),
+                'estimated_cost_pln' => KosztPrzepisu::naLiczbe($this->estimated_cost_pln),
                 'prep_minutes' => $this->intOrNull($this->prep_minutes),
                 'cook_minutes' => $this->intOrNull($this->cook_minutes),
                 'difficulty' => $this->textOrNull($this->difficulty),
@@ -585,17 +690,87 @@ new class extends Component
                 'family_since_year' => $this->intOrNull($this->family_since_year),
                 'hero_media_id' => $this->heroMediaId,
                 'source_scan_media_id' => $this->sourceScanMediaId,
+                'sprawdzilem_odczyt' => $this->sprawdzilemOdczyt,
+                'odczyt_sprawdzony' => $this->odczytSprawdzony,
             ],
             ingredients: $this->cleanIngredients(),
             steps: $this->cleanSteps(),
             publish: $publish,
             existing: $this->existingRecipe(),
+            oczekiwanaRewizja: $this->recipeId === null ? null : $this->contentRevision,
+            wersjaPoprawki: $wersjaPoprawki,
             ip: request()->ip(),
         );
 
         $this->recipeId = $recipe->getKey();
+        $this->contentRevision = $recipe->content_revision;
 
         return $recipe;
+    }
+
+    /**
+     * Znaczniki `[?…?]` przy konkretnym wierszu i pole „Tekst sprawdzony” (D-298).
+     * Indeksy wierszy są indeksami formularza, więc link w podsumowaniu
+     * prowadzi dokładnie do pola ze znacznikiem.
+     */
+    private function sprawdzOdczyt(): bool
+    {
+        $ok = true;
+
+        if (str_contains($this->title, BramkaPublikacjiOdczytu::ZNACZNIK)) {
+            $this->addError('title', 'Sprawdź słowo oznaczone [?] w nazwie przepisu i usuń znaczniki [? ?].');
+            $ok = false;
+        }
+
+        if (str_contains($this->summary, BramkaPublikacjiOdczytu::ZNACZNIK)) {
+            $this->addError('summary', 'Sprawdź słowo oznaczone [?] w opisie przepisu i usuń znaczniki [? ?].');
+            $ok = false;
+        }
+
+        foreach ($this->ingredients as $index => $row) {
+            if (str_contains((string) ($row['text'] ?? ''), BramkaPublikacjiOdczytu::ZNACZNIK)) {
+                $this->addError('ingredients.'.$index.'.text', 'Sprawdź słowo oznaczone [?] w '.($index + 1).'. składniku i usuń znaczniki [? ?].');
+                $ok = false;
+            }
+        }
+
+        foreach ($this->steps as $index => $row) {
+            if (str_contains((string) ($row['instruction'] ?? ''), BramkaPublikacjiOdczytu::ZNACZNIK)) {
+                $this->addError('steps.'.$index.'.instruction', 'Sprawdź słowo oznaczone [?] w '.($index + 1).'. kroku i usuń znaczniki [? ?].');
+                $ok = false;
+            }
+        }
+
+        if (! $this->odczytSprawdzony) {
+            $this->addError('odczyt_sprawdzony', BramkaPublikacjiOdczytu::KOMUNIKAT_SPRAWDZENIE);
+            $ok = false;
+        }
+
+        if (! $ok) {
+            $pierwszy = (string) collect($this->getErrorBag()->keys())->first();
+            $this->step = $this->stepForKey($pierwszy);
+        }
+
+        return $ok;
+    }
+
+    /** Ile znaczników `[?` stoi jeszcze w polach — dla banera. */
+    public function niepewnych(): int
+    {
+        return BramkaPublikacjiOdczytu::ileNiepewnych(
+            $this->title,
+            $this->summary,
+            ...array_map(fn (array $r): string => (string) ($r['text'] ?? ''), $this->ingredients),
+            ...array_map(fn (array $r): string => (string) ($r['instruction'] ?? ''), $this->steps),
+        );
+    }
+
+    /** Zdjęcie kartki do pokazania obok pól — tylko przy szkicu z odczytu. */
+    public function skanOdczytu(): ?\App\Models\Media
+    {
+        return $this->zOdczytu && $this->sourceScanMediaId !== null
+            ? \App\Models\Media::query()->find($this->sourceScanMediaId)
+            : null;
     }
 
     /** Przepis, który nadpisujemy — z autoryzacją przy KAŻDYM zapisie, nie tylko przy wejściu. */
@@ -667,7 +842,7 @@ new class extends Component
         $this->steps[$index]['mediaId'] = null;
         $this->steps[$index]['photo'] = null;
 
-        $this->saveDraft();
+        $this->autozapis();
     }
 
     private function storePendingHeroPhoto(): bool
@@ -758,7 +933,7 @@ new class extends Component
     /**
      * Puste wiersze są pomijane — pusty składnik nigdy nie trafia do bazy.
      *
-     * @return list<array{text: string, group_name: ?string, note: ?string, no_amount: bool}>
+     * @return list<array{text: string, group_name: ?string, note: ?string, substitutes: ?string, no_amount: bool}>
      */
     public function cleanIngredients(): array
     {
@@ -786,7 +961,7 @@ new class extends Component
      * grupy zostawały tam, gdzie stały (a nie na górze), a „Farsz" i „farsz"
      * dawały dwa nagłówki.
      *
-     * @return list<array{nazwa: ?string, skladniki: list<array{text: string, group_name: ?string, note: ?string}>}>
+     * @return list<array{nazwa: ?string, skladniki: list<array{text: string, group_name: ?string, note: ?string, substitutes: ?string}>}>
      */
     public function groupedIngredients(): array
     {
@@ -872,21 +1047,31 @@ new class extends Component
         return (new RecipeStep(['timer_seconds' => $seconds]))->timerLabel(afterNa: true);
     }
 
+    /** Zdanie o koszcie do podglądu — to samo co na stronie przepisu (D-286). */
+    public function previewCostLabel(): ?string
+    {
+        $koszt = KosztPrzepisu::naLiczbe($this->estimated_cost_pln);
+
+        return $koszt === null ? null : KosztPrzepisu::zdanie($koszt);
+    }
+
+    /** Ta sama reguła co na stronie przepisu i w filtrze „Do 30 minut" (#1090). */
     public function totalMinutes(): ?int
     {
-        $total = (int) $this->intOrNull($this->prep_minutes) + (int) $this->intOrNull($this->cook_minutes);
-
-        return $total > 0 ? $total : null;
+        return (new Recipe([
+            'prep_minutes' => $this->intOrNull($this->prep_minutes),
+            'cook_minutes' => $this->intOrNull($this->cook_minutes),
+        ]))->totalMinutes();
     }
 
     // -----------------------------------------------------------------
     // Drobne narzędzia
     // -----------------------------------------------------------------
 
-    /** @return array{_key: string, group_name: string, text: string, note: string, no_amount: bool} */
+    /** @return array{_key: string, group_name: string, text: string, note: string, substitutes: string, no_amount: bool} */
     private function blankIngredient(): array
     {
-        return ['_key' => $this->nextRowKey(), 'group_name' => '', 'text' => '', 'note' => '', 'no_amount' => false];
+        return ['_key' => $this->nextRowKey(), 'group_name' => '', 'text' => '', 'note' => '', 'substitutes' => '', 'no_amount' => false];
     }
 
     /** @return array{_key: string, instruction: string, timer_minutes: string, mediaId: ?string, photo: mixed} */
@@ -998,6 +1183,19 @@ new class extends Component
         </span>
     </div>
 
+    @if($zrodloImportu !== null && ! $juzOpublikowany)
+        {{-- Baner szkicu z importu (D-300) — na KAŻDYM kroku. --}}
+        <div class="notice" role="note">
+            <p class="mt-0 mb-0">
+                <strong>Ten tekst odczytał komputer{{ $zrodloImportu === 'url' ? ' ze strony internetowej' : ($zrodloImportu === 'pdf' ? ' z pliku PDF' : ' ze zdjęcia') }}.</strong>
+                Porównaj każdą linijkę ze źródłem i popraw, co trzeba. Nic się nie opublikuje, dopóki nie klikniesz „Opublikuj przepis”.
+                @if($zrodloImportu === 'url')
+                    Opis przygotowania napisz własnymi słowami — adres strony zostaje przy przepisie jako źródło.
+                @endif
+            </p>
+        </div>
+    @endif
+
     {{-- Plakietka autosave. aria-live="polite", żeby czytnik ekranu ogłosił
          „Szkic zapisany.” bez przerywania pisania. --}}
     <div aria-live="polite">
@@ -1061,6 +1259,10 @@ new class extends Component
                 @endforeach
             </ul>
         </div>
+    @endif
+
+    @if($zOdczytu)
+        @include('pages.import.partials.baner', ['niepewnych' => $this->niepewnych()])
     @endif
 
     @if($step === 1)
@@ -1143,13 +1345,21 @@ new class extends Component
                      help="Jedno-dwa zdania. Na co ten przepis jest dobry, kiedy go robisz." />
 
             <div class="siatka-pol">
+                {{-- Krok 0,01 musi się zgadzać z regułą `decimal:0,2` wyżej (#750),
+                     inaczej zapisana 1,25 jest dla przeglądarki `stepMismatch`. --}}
                 <x-field name="servings" label="Na ile porcji" type="number" inputmode="decimal" wire="servings"
-                         :value="$servings" :min="0.5" :max="999" :step="0.5" />
+                         :value="$servings" :min="0.5" :max="999" :step="0.01" />
                 <x-field name="prep_minutes" label="Przygotowanie (minuty)" type="number" inputmode="numeric" wire="prep_minutes"
                          :value="$prep_minutes" :min="0" :max="10080" />
                 <x-field name="cook_minutes" label="Gotowanie / pieczenie (minuty)" type="number" inputmode="numeric" wire="cook_minutes"
                          :value="$cook_minutes" :min="0" :max="10080" />
             </div>
+
+            {{-- Koszt wg autora (D-286) — pole tekstowe, bo „24,50" z przecinkiem
+                 ma przejść (uzasadnienie przy tym samym polu w `szczegoly.blade.php`). --}}
+            <x-field name="estimated_cost_pln" label="Przybliżony koszt całego przepisu (zł)" inputmode="decimal" wire="estimated_cost_pln"
+                     :value="$estimated_cost_pln"
+                     help="Ile mniej więcej kosztują składniki na cały przepis. Wpisz samą liczbę złotych, na przykład 24 albo 24,50. Na stronie przepisu pokażemy to jako szacunek autora." />
 
             <fieldset class="border-0 p-0 mt-6">
                 <legend class="font-bold mb-3">Jak trudny jest ten przepis?</legend>
@@ -1196,10 +1406,13 @@ new class extends Component
 
                 <fieldset class="border-0 p-0">
                     <legend class="font-bold mb-3">Ten przepis jest…</legend>
+                    @if($zrodloImportu === 'url')
+                        <p class="field-help">Ten przepis pochodzi ze strony {{ $source_url }} — źródła szkicu zapisanego ze strony nie da się zmienić.</p>
+                    @endif
                     <div class="choice-grid">
                         @foreach(\App\Models\Recipe::SOURCE_LABELS as $value => $label)
                             <label class="choice">
-                                <input type="radio" wire:model="source_type" value="{{ $value }}">
+                                <input type="radio" wire:model="source_type" value="{{ $value }}" @disabled($zrodloImportu === 'url')>
                                 <span class="choice-label">{{ $label }}</span>
                             </label>
                         @endforeach
@@ -1259,6 +1472,10 @@ new class extends Component
 
             @error('ingredients')<p class="field-error mb-4">{{ $message }}</p>@enderror
 
+            @if($zOdczytu)
+                @include('pages.import.partials.oryginal', ['skan' => $this->skanOdczytu()])
+            @endif
+
             @foreach($ingredients as $index => $row)
                 <div class="wizard-row" wire:key="skladnik-{{ $row['_key'] ?? $index }}">
                     <x-field :name="'ingredients.'.$index.'.text'" :label="'Składnik '.($index + 1)"
@@ -1271,14 +1488,20 @@ new class extends Component
                                  placeholder="Ciasto" />
                         <x-field :name="'ingredients.'.$index.'.note'" label="Uwaga do składnika"
                                  :wire="'ingredients.'.$index.'.note'" :value="$row['note'] ?? ''"
-                                 placeholder="albo masło roślinne" />
+                                 placeholder="najlepiej wiejskie" />
                     </div>
+
+                    {{-- Zamiennik od autora (D-284) — widz zobaczy go pod
+                         składnikiem jako „Zamiast tego: …”. Nieobowiązkowy. --}}
+                    <x-field :name="'ingredients.'.$index.'.substitutes'" label="Czym można to zastąpić (nieobowiązkowe)"
+                             :wire="'ingredients.'.$index.'.substitutes'" :value="$row['substitutes'] ?? ''"
+                             placeholder="margaryna albo olej kokosowy" />
 
                     {{--
                         „BEZ ILOŚCI” — SÓL DO SMAKU (issue #44).
 
                         Nieobowiązkowe i domyślnie wyłączone. Ma znaczenie
-                        dla przyszłego przeliczania porcji (V2, jeszcze niewdrożonego):
+                        dla przeliczania porcji na stronie przepisu (V2, D-284):
                         przepis razy trzy poprosiłby inaczej o trzy szczypty
                         soli i o trzy razy „ile weźmie”. To nie jest drobiazg
                         kosmetyczny — to moment, w którym przepis przestaje
@@ -1328,6 +1551,10 @@ new class extends Component
             </p>
 
             @error('steps')<p class="field-error mb-4">{{ $message }}</p>@enderror
+
+            @if($zOdczytu)
+                @include('pages.import.partials.oryginal', ['skan' => $this->skanOdczytu()])
+            @endif
 
             @foreach($steps as $index => $row)
                 <div class="wizard-row" wire:key="krok-{{ $row['_key'] ?? $index }}">
@@ -1427,6 +1654,25 @@ new class extends Component
 
             @error('publikacja')<p class="field-error mb-4">{{ $message }}</p>@enderror
 
+            @if($wymagaSprawdzenia)
+                @if($recipeId !== null && app(PodobienstwoDoZrodla::class)->ostrzegac(\App\Models\Recipe::findOrFail($recipeId), implode("\n", array_column($this->cleanSteps(), 'instruction'))))
+                    <div class="notice" role="note">
+                        <p class="mt-0 mb-0">
+                            <strong>Opis przygotowania jest prawie taki sam jak na stronie źródłowej.</strong>
+                            Napisz go własnymi słowami, zanim opublikujesz — cudzy tekst należy do jego autora.
+                            Wróć przyciskiem „Wstecz” do kroku „przygotowanie”.
+                        </p>
+                    </div>
+                @endif
+                <div class="field @error('sprawdzilemOdczyt') has-error @enderror">
+                    <label class="choice">
+                        <input type="checkbox" wire:model="sprawdzilemOdczyt" id="f-sprawdzilem">
+                        <span class="choice-label">Sprawdziłem odczytany tekst</span>
+                    </label>
+                    <span class="field-help">Zaznacz, gdy porównasz składniki i kroki ze źródłem.</span>
+                </div>
+            @endif
+
             <article class="stack">
                 <h3 class="naglowek-podgladu">{{ trim($title) !== '' ? trim($title) : 'Przepis bez nazwy' }}</h3>
 
@@ -1436,6 +1682,9 @@ new class extends Component
                     @endif
                     @if($this->totalMinutes() !== null)
                         <li><span class="badge">Razem około {{ $this->totalMinutes() }} min</span></li>
+                    @endif
+                    @if($this->previewCostLabel() !== null)
+                        <li><span class="badge">{{ $this->previewCostLabel() }}</span></li>
                     @endif
                     @if($difficulty !== '')
                         <li><span class="badge">{{ \App\Models\Recipe::DIFFICULTY_LABELS[$difficulty] ?? $difficulty }}</span></li>
@@ -1473,7 +1722,7 @@ new class extends Component
                     <h4 class="text-title-sm">Składniki</h4>
                     @php($previewGroups = $this->groupedIngredients())
                     @if($previewGroups === [])
-                        <p class="field-error">Nie ma jeszcze żadnego składnika. Wróć do kroku 2 i dopisz przynajmniej jeden.</p>
+                        <p class="meta">Nie dodano jeszcze składników. Możesz dopisać je później.</p>
                     @else
                         @foreach($previewGroups as $previewGroup)
                             {{-- `<h5>`, bo nagłówkiem tej sekcji podglądu jest
@@ -1489,6 +1738,7 @@ new class extends Component
                                     <li>
                                         {{ $groupRow['text'] }}
                                         @if($groupRow['note'] !== null)<span class="meta"> — {{ $groupRow['note'] }}</span>@endif
+                                        @if(($groupRow['substitutes'] ?? null) !== null)<span class="skladnik-zamiennik">Zamiast tego: {{ $groupRow['substitutes'] }}</span>@endif
                                     </li>
                                 @endforeach
                             </ul>
@@ -1527,6 +1777,22 @@ new class extends Component
                     @endif
                 </section>
             </article>
+
+            @if($zOdczytu)
+                {{-- „Odczytany tekst jest sprawdzony” (decyzja właściciela
+                     26.09.2026, D-298) — bez tego pola publikacja odmawia. --}}
+                <div class="field mt-4 @error('odczyt_sprawdzony') has-error @enderror">
+                    <label class="choice" for="f-odczyt_sprawdzony">
+                        <input id="f-odczyt_sprawdzony" type="checkbox" wire:model="odczytSprawdzony" value="1"
+                               @error('odczyt_sprawdzony') aria-invalid="true" aria-describedby="f-odczyt_sprawdzony-error" @enderror>
+                        <span>
+                            <span class="choice-label">Odczytany tekst jest sprawdzony ze zdjęciem</span>
+                            <span class="choice-help">Każda linijka zgadza się z kartką, a znaczniki [? ?] są usunięte.</span>
+                        </span>
+                    </label>
+                    @error('odczyt_sprawdzony')<span class="field-error" id="f-odczyt_sprawdzony-error">{{ $message }}</span>@enderror
+                </div>
+            @endif
         </section>
     @endif
 
@@ -1545,7 +1811,7 @@ new class extends Component
         @endif
 
         <button class="btn btn-secondary" type="button" wire:click="saveDraft">{{ $juzOpublikowany ? 'Zapisz zmiany' : 'Zapisz szkic' }}</button>
-        <a class="btn btn-quiet" href="{{ route('home') }}">Nie teraz</a>
+        <a class="btn btn-quiet" href="{{ route('home') }}" @if($juzOpublikowany) wire:click.prevent="wyjdz" @endif>Nie teraz</a>
     </div>
 
     @if($step === 1)
@@ -1556,8 +1822,10 @@ new class extends Component
         @if($juzOpublikowany)
             Zapisane zmiany widać od razu w przepisie. Do edycji wrócisz ze strony przepisu.
         @else
-            Możesz w każdej chwili zamknąć tę stronę. Szkic zostaje na Twoim koncie
-            i wrócisz do niego ze strony <a href="{{ route('add') }}">Dodaj</a>.
+            {{-- Bez nazwy (co najmniej 3 znaki) `saveDraft()` nic nie zapisuje,
+                 więc zdanie nie obiecuje szkicu „w każdej chwili” (audyt B9). --}}
+            Kiedy podasz nazwę przepisu, szkic zapisuje się na Twoim koncie. Możesz wtedy
+            zamknąć tę stronę i wrócić do niego ze strony <a href="{{ route('add') }}">Dodaj</a>.
         @endif
     </p>
 </div>

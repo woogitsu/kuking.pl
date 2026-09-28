@@ -114,11 +114,12 @@ on:
         default: create
 
 permissions:
+  # Minimum na poziomie pliku (#1941). `pull-requests: write` i
+  # `deployments: read` są nadawane WYŁĄCZNIE tym jobom, które ich naprawdę
+  # potrzebują — patrz `permissions:` przy jobie `smoke` i przy
+  # `smoke-komentarz` niżej. Job, który uruchamia skrypty z checkoutu PR-a
+  # (`smoke`), nigdy nie dostaje `pull-requests: write` w tym samym joku.
   contents: read
-  pull-requests: write
-  # Odczyt deploymentów i ich statusów przez `gh api` w czekaj-na-preview.sh —
-  # w prywatnym repo bez tego API odmawia i smoke pada po limicie (#1389).
-  deployments: read
 
 concurrency:
   group: preview-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
@@ -144,6 +145,23 @@ jobs:
       vars.KUKING_DEPLOY_ENABLED == 'true' &&
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository
+
+    # #1941: ten job odpala `source scripts/czekaj-na-preview.sh` i
+    # `source scripts/sonda-wdrozenia.sh` z CHECKOUTU PR-A, czyli wykonuje
+    # kod dostarczony przez autora PR-a. Token dostępny w tym samym joku
+    # NIE MOŻE mieć prawa zapisu — inaczej zmieniony skrypt mógłby go użyć
+    # do zapisu komentarzy/metadanych PR-a. `deployments: read` zostaje
+    # (czekaj-na-preview.sh go potrzebuje), `pull-requests: write` idzie
+    # do osobnego, zaufanego joba `smoke-komentarz` niżej, który NIE
+    # checkoutuje ani nie uruchamia kodu z PR-a.
+    permissions:
+      contents: read
+      deployments: read
+
+    outputs:
+      found: ${{ steps.wait.outputs.found }}
+      url: ${{ steps.wait.outputs.url }}
+      wynik: ${{ steps.smoke.outcome }}
 
     steps:
       # -----------------------------------------------------------------------
@@ -224,14 +242,35 @@ jobs:
           check /        200
           exit $fail
 
+  # ===========================================================================
+  #  1b. Komentarz z wynikiem testu dymnego — osobny, zaufany job (#1941)
+  # ===========================================================================
+  #  Ten job NIE checkoutuje repozytorium i NIE uruchamia żadnego skryptu
+  #  z gałęzi PR-a — tylko `gh api` i wbudowane polecenia powłoki na
+  #  wartościach przekazanych jako `needs.smoke.outputs.*`. Dlatego, i TYLKO
+  #  dlatego, może dostać `pull-requests: write`: kod dostarczony przez
+  #  autora PR-a nigdy nie działa w środowisku, w którym ten token istnieje.
+  #  `needs: smoke` + `if: always()` — komentarz ma się pojawić także wtedy,
+  #  gdy sam test dymny padnie (RESULT=failure), a `always()` jest konieczne,
+  #  bo domyślnie `needs` blokuje job po porażce zależności.
+  # ===========================================================================
+  smoke-komentarz:
+    name: Komentarz w PR z wynikiem testu dymnego
+    needs: smoke
+    if: always() && needs.smoke.outputs.found == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+
+    steps:
       - name: Komentarz w PR
-        if: always() && steps.wait.outputs.found == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
-          URL: ${{ steps.wait.outputs.url }}
-          RESULT: ${{ steps.smoke.outcome }}
+          URL: ${{ needs.smoke.outputs.url }}
+          RESULT: ${{ needs.smoke.outputs.wynik }}
         run: |
           set -euo pipefail
           if [ "$RESULT" = "success" ]; then
@@ -279,23 +318,50 @@ jobs:
     timeout-minutes: 15
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'create'
     environment: staging
-
-    env:
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+    # Job nie woła API GitHuba — rozmawia tylko z Railway. Zdejmujemy mu
+    # wszystkie uprawnienia GITHUB_TOKEN z poziomu pliku (#1859).
+    permissions: {}
 
     steps:
-      - name: Konfiguracja Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "22"
-
       - name: Instalacja Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Utwórz środowisko dla PR
+        # Wersja i suma kontrolna przypięte, instalacja bez npm/Node'a —
+        # patrz uzasadnienie w deploy.yml, krok „Instalacja Railway CLI"
+        # (audyt B10-02, dopełnienie — issue #1865).
+        env:
+          RAILWAY_CLI_VERSION: "5.62.1"
+          RAILWAY_CLI_SHA256: "2d04f08360b4c55f52b9e458e04987ec988261f16d2fb4fc4e7b2d43ad4a6cb2"
         run: |
           set -euo pipefail
-          env_name="pr-${{ github.event.inputs.pr_number }}"
+          curl -fsSL -o /tmp/railway-cli.tar.gz \
+            "https://github.com/railwayapp/cli/releases/download/v${RAILWAY_CLI_VERSION}/railway-v${RAILWAY_CLI_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          echo "${RAILWAY_CLI_SHA256}  /tmp/railway-cli.tar.gz" | sha256sum -c -
+          sudo tar -xzf /tmp/railway-cli.tar.gz -C /usr/local/bin railway
+          sudo chmod +x /usr/local/bin/railway
+          rm -f /tmp/railway-cli.tar.gz
+          railway --version
+
+      - name: Utwórz środowisko dla PR
+        # RAILWAY_TOKEN tylko tutaj (audyt B10-02), nie na poziomie joba —
+        # kroki wyżej instalują pakiet z npm i go nie potrzebują.
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          # #1859: numer PR-a przychodzi z ręcznego pola workflow_dispatch,
+          # więc to tekst od człowieka. Czytamy go WYŁĄCZNIE ze zmiennej
+          # środowiskowej — wyrażenie GitHuba (dolar i podwójna klamra)
+          # wklejone w `run:` jest podstawiane PRZED startem powłoki, więc
+          # `1"; echo X; #` stawało się kodem. Tego zapisu nie wolno użyć
+          # nawet w komentarzu tutaj: GitHub rozwija go także w komentarzach.
+          # Dopuszczamy same cyfry (najwyżej 10) i dopiero z nich składamy
+          # nazwę środowiska. Wartości nie wypisujemy w komunikacie:
+          # linia zaczynająca się od `::` to polecenie dla runnera.
+          if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]] || (( ${#PR_NUMBER} > 10 )); then
+            echo "::error title=Zły numer PR-a::Pole pr_number przyjmuje wyłącznie cyfry (np. 1234), najwyżej 10. Popraw numer i uruchom workflow ponownie."
+            exit 1
+          fi
+          env_name="pr-${PR_NUMBER}"
           echo "Tworzę środowisko: $env_name (kopia staginu)"
           railway environment new "$env_name" --copy staging
           echo "Gotowe. Adres znajdziesz w panelu Railway."
@@ -306,23 +372,50 @@ jobs:
     timeout-minutes: 15
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'delete'
     environment: staging
-
-    env:
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+    # Job nie woła API GitHuba — rozmawia tylko z Railway. Zdejmujemy mu
+    # wszystkie uprawnienia GITHUB_TOKEN z poziomu pliku (#1859).
+    permissions: {}
 
     steps:
-      - name: Konfiguracja Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "22"
-
       - name: Instalacja Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Usuń środowisko PR
+        # Wersja i suma kontrolna przypięte, instalacja bez npm/Node'a —
+        # patrz uzasadnienie w deploy.yml, krok „Instalacja Railway CLI"
+        # (audyt B10-02, dopełnienie — issue #1865).
+        env:
+          RAILWAY_CLI_VERSION: "5.62.1"
+          RAILWAY_CLI_SHA256: "2d04f08360b4c55f52b9e458e04987ec988261f16d2fb4fc4e7b2d43ad4a6cb2"
         run: |
           set -euo pipefail
-          env_name="pr-${{ github.event.inputs.pr_number }}"
+          curl -fsSL -o /tmp/railway-cli.tar.gz \
+            "https://github.com/railwayapp/cli/releases/download/v${RAILWAY_CLI_VERSION}/railway-v${RAILWAY_CLI_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          echo "${RAILWAY_CLI_SHA256}  /tmp/railway-cli.tar.gz" | sha256sum -c -
+          sudo tar -xzf /tmp/railway-cli.tar.gz -C /usr/local/bin railway
+          sudo chmod +x /usr/local/bin/railway
+          rm -f /tmp/railway-cli.tar.gz
+          railway --version
+
+      - name: Usuń środowisko PR
+        # RAILWAY_TOKEN tylko tutaj (audyt B10-02), nie na poziomie joba —
+        # kroki wyżej instalują pakiet z npm i go nie potrzebują.
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          # #1859: numer PR-a przychodzi z ręcznego pola workflow_dispatch,
+          # więc to tekst od człowieka. Czytamy go WYŁĄCZNIE ze zmiennej
+          # środowiskowej — wyrażenie GitHuba (dolar i podwójna klamra)
+          # wklejone w `run:` jest podstawiane PRZED startem powłoki, więc
+          # `1"; echo X; #` stawało się kodem. Tego zapisu nie wolno użyć
+          # nawet w komentarzu tutaj: GitHub rozwija go także w komentarzach.
+          # Dopuszczamy same cyfry (najwyżej 10) i dopiero z nich składamy
+          # nazwę środowiska. Wartości nie wypisujemy w komunikacie:
+          # linia zaczynająca się od `::` to polecenie dla runnera.
+          if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]] || (( ${#PR_NUMBER} > 10 )); then
+            echo "::error title=Zły numer PR-a::Pole pr_number przyjmuje wyłącznie cyfry (np. 1234), najwyżej 10. Popraw numer i uruchom workflow ponownie."
+            exit 1
+          fi
+          env_name="pr-${PR_NUMBER}"
           # Railway CLI zwraca kod 1 dla KAŻDEGO błędu: brak środowiska, wygasły
           # token, brak uprawnień, ratelimit, awaria sieci. Po samym kodzie
           # `delete` nie da się ich odróżnić, więc dawne `|| true` zamieniało

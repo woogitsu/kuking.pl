@@ -4,27 +4,42 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Domain\Import\BramkaPublikacjiOdczytu;
+use App\Domain\Import\ModelFragmentow;
+use App\Domain\Import\StrazImportu;
+use App\Domain\Import\Url\RozwiazywaczNazw;
+use App\Domain\Import\Url\SystemowyRozwiazywaczNazw;
+use App\Domain\Import\WyznaczaczFragmentow;
 use App\Domain\Moderation\KolejkiPanelu;
+use App\Domain\Notifications\Push\TransportPush;
+use App\Domain\Notifications\Push\TransportWebPush;
+use App\Domain\Recipes\BramkaPublikacjiSzkicu;
+use App\Domain\Recipes\StrazPochodzeniaPrzepisu;
 use App\Domain\Social\Actions\ObserwujGospodarza;
 use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Domain\Users\ObserwowanieGospodarza;
 use App\Models\Appeal;
 use App\Models\ContactMessage;
 use App\Models\Report;
+use App\Models\User;
 use App\Support\Baza\LimitBlokadMigracji;
 use App\Support\KomunikatZaDuzaWysylka;
 use App\Support\MapaStrony;
 use App\Support\OdmianaWalidacji;
+use App\Support\Sesja\GeneracjaSesji;
 use App\Support\Sesja\UchwytSesjiBezPelnegoAdresu;
 use App\Support\Storage\DyskR2;
 use App\Support\ZamrozonyCzas;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\Events\MigrationEnded;
 use Illuminate\Database\Events\MigrationStarted;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
 use Illuminate\Queue\Events\Looping;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
@@ -38,11 +53,31 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Singleton, bo `odswiez()` trzyma flagę „już zaplanowane na commit"
+        // — jedno przeliczenie liczników na transakcję (audyt B4 W3).
+        $this->app->singleton(KolejkiPanelu::class);
+
         // Rejestracja (`Users`) woła obserwowanie gospodarza przez kontrakt,
         // a implementację dostarcza `Social` (issue #971). To wiązanie jest
         // jedynym miejscem, które zna oba moduły — dzięki temu graf
         // `app/Domain` nie ma cyklu `Users ↔ Social`.
         $this->app->bind(ObserwowanieGospodarza::class, ObserwujGospodarza::class);
+
+        // Import przepisu z adresu strony (D-300): DNS przez kontrakt, żeby
+        // testy podstawiały własną mapę nazw i nie pytały prawdziwej sieci.
+        $this->app->bind(RozwiazywaczNazw::class, SystemowyRozwiazywaczNazw::class);
+        $this->app->bind(WyznaczaczFragmentow::class, ModelFragmentow::class);
+        // Reguły pochodzenia przepisu (zablokowane źródło, „Sprawdziłem")
+        // woła `PublishRecipe`; implementacja w module Import (bez cyklu).
+        $this->app->bind(StrazPochodzeniaPrzepisu::class, StrazImportu::class);
+        // Web Push (D-303). Testy podmieniają to fałszywym transportem —
+        // żaden test nie wysyła prawdziwego pushu.
+        $this->app->bind(TransportPush::class, TransportWebPush::class);
+        // Publikacja przepisu (`Recipes`) woła bramkę „Sprawdziłem odczytany
+        // tekst" przez kontrakt, a implementację dostarcza `Import` (D-298,
+        // issue #971). Wiązanie jest jedynym miejscem, które zna oba moduły
+        // — dzięki temu graf `app/Domain` nie ma cyklu `Import ↔ Recipes`.
+        $this->app->bind(BramkaPublikacjiSzkicu::class, BramkaPublikacjiOdczytu::class);
     }
 
     /**
@@ -77,6 +112,17 @@ class AppServiceProvider extends ServiceProvider
         // Wbudowany `s3` (`r2_kopie`, `s3`) za tą samą kontrolą adresu
         // magazynu co `r2` (D-255): zły `AWS_ENDPOINT` → dysk się nie buduje.
         Storage::extend('s3', fn ($app, array $konfiguracja) => DyskR2::utworzS3($app, $konfiguracja));
+
+        // #1046: każde logowanie (hasło, link, Google, Facebook, 2FA,
+        // rejestracja, recaller „zapamiętaj mnie”) zapisuje w sesji generację
+        // konta. Zdarzenie, a nie wywołanie w każdym kontrolerze: kolejna
+        // droga logowania dostaje to sama. Sprawdza `SprawdzGeneracjeSesji`.
+        Event::listen(Login::class, function (Login $zdarzenie): void {
+            $guard = Auth::guard($zdarzenie->guard);
+            if ($zdarzenie->guard === 'web' && $guard instanceof SessionGuard && $zdarzenie->user instanceof User) {
+                GeneracjaSesji::zapamietaj($guard->getSession(), $zdarzenie->user);
+            }
+        });
 
         // Audyt B3 W3: każda migracja chodzi z `lock_timeout`, żeby DDL
         // czekający na blokadę gorącej tabeli nie ustawiał za sobą w kolejce
@@ -252,8 +298,10 @@ class AppServiceProvider extends ServiceProvider
      * `Appeal`, `Report` i `ContactMessage` to tabele, w których pojawienie
      * się i zamknięcie sprawy MA być widoczne od razu: licznik, który
      * pokazuje „1" po zamknięciu ostatniej sprawy, kłamie raz i traci
-     * zaufanie na zawsze. Zmieniają się kilka razy na dobę, więc pięć
-     * `COUNT(*)` przy takim zapisie jest niewidoczne.
+     * zaufanie na zawsze. Hak liczy tylko cztery tanie `COUNT(*)`, po
+     * commicie i raz na transakcję — sygnały automatu przychodzą falami
+     * (audyt B4 W3, `KolejkiPanelu::odswiez()`). Drogie „Bez odpowiedzi"
+     * zostaje harmonogramowi.
      *
      * `Post` i `Comment` haka NIE MAJĄ świadomie — publikacja wpisu
      * i komentarz to główna akcja produktu (AGENTS.md §1) i nie dokładamy

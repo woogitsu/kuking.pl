@@ -9,6 +9,7 @@ use App\Models\ContactMessage;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 /**
  * ILE CZEKA NA CZŁOWIEKA W KAŻDEJ KOLEJCE PANELU — licznik przy pozycjach
@@ -51,8 +52,20 @@ use Illuminate\Support\Facades\Cache;
  * i zobaczy pustą kolejkę, czyli licznik raz skłamie i już nikt mu nie
  * uwierzy. Dlatego `odswiez()` woła się PRZY ZAPISIE, ze zdarzeń modeli
  * `Appeal`, `Report` i `ContactMessage` (rejestracja: `AppServiceProvider`).
- * Te trzy tabele zmieniają się kilka razy na dobę, więc pięć `COUNT(*)`
- * przy takim zapisie jest ceną, której w ogóle nie widać.
+ * Hak NIE liczy wszystkiego — patrz niżej.
+ *
+ * HAK LICZY TYLKO CZTERY TANIE LICZBY I TYLKO RAZ NA TRANSAKCJĘ (audyt B4 W3).
+ * Założenie „kilka razy na dobę" przestało być prawdą dla sygnałów
+ * automatu: fala spamu to setki oznaczeń, a „To nic takiego" zamyka je
+ * w jednej transakcji. Pełne `przelicz()` z haka robiło za każdym zapisem
+ * cztery `COUNT(*)` ORAZ trzy anti-joiny „Bez odpowiedzi" na każdego
+ * gospodarza — przy 200 oznaczeniach i trzech moderatorach ok. 2800 zapytań
+ * pod blokadą. Teraz `odswiez()`:
+ *   • liczy tylko cztery tanie liczby (zgłoszenia, sygnały, odwołania,
+ *     wiadomości) i przepisuje mapę „Bez odpowiedzi" z poprzedniego wpisu
+ *     — tę liczy wyłącznie harmonogram (`przelicz()`);
+ *   • odpala się PO COMMICIE i najwyżej raz na transakcję, choćby zapis
+ *     w niej był setny. Poza transakcją liczy od razu.
  *
  * `Post` i `Comment` ŚWIADOMIE NIE MAJĄ tego haka, choć od nich zależy
  * kolejka „Bez odpowiedzi". Publikacja wpisu i komentarz to GŁÓWNA akcja
@@ -73,6 +86,9 @@ use Illuminate\Support\Facades\Cache;
 final class KolejkiPanelu
 {
     private const KLUCZ_CACHE = 'panel:kolejki';
+
+    /** Odświeżenie czeka już na commit tej transakcji. */
+    private bool $zaplanowane = false;
 
     /**
      * Nazwy kolejek — klucz w cache i klucz w widoku. Kolejność ta sama, co
@@ -99,7 +115,28 @@ final class KolejkiPanelu
      */
     public function przelicz(): array
     {
-        $liczby = [
+        $liczby = $this->tanieLiczby();
+
+        $queue = app(UnansweredContent::class);
+        $perHost = [];
+        foreach (User::query()->whereIn('role', [User::ROLE_MODERATOR, User::ROLE_ADMIN])
+            ->widocznyJakoOsoba()->get() as $host) {
+            $perHost[$host->getKey()] = $queue->posts($host)->count()
+                + $queue->recipes($host)->count()
+                + $queue->cooked($host)->count();
+        }
+
+        // Jedna mapa w tym samym wpisie: nadal jeden odczyt cache na stronę.
+        // Przeliczanie pozostaje poza publikacją wpisów i komentarzy.
+        Cache::forever(self::KLUCZ_CACHE, [...$liczby, 'bez_odpowiedzi_per_host' => $perHost]);
+
+        return $liczby;
+    }
+
+    /** @return array<string, int> */
+    private function tanieLiczby(): array
+    {
+        return [
             // Bez konkretnego gospodarza nie istnieje wspólna liczba:
             // obserwowanie i blokady zmieniają dostęp do każdej treści.
             'bez_odpowiedzi' => 0,
@@ -133,21 +170,6 @@ final class KolejkiPanelu
                 ->where('status', ContactMessage::STATUS_NOWA)
                 ->count(),
         ];
-
-        $queue = app(UnansweredContent::class);
-        $perHost = [];
-        foreach (User::query()->whereIn('role', [User::ROLE_MODERATOR, User::ROLE_ADMIN])
-            ->widocznyJakoOsoba()->get() as $host) {
-            $perHost[$host->getKey()] = $queue->posts($host)->count()
-                + $queue->recipes($host)->count()
-                + $queue->cooked($host)->count();
-        }
-
-        // Jedna mapa w tym samym wpisie: nadal jeden odczyt cache na stronę.
-        // Przeliczanie pozostaje poza publikacją wpisów i komentarzy.
-        Cache::forever(self::KLUCZ_CACHE, [...$liczby, 'bez_odpowiedzi_per_host' => $perHost]);
-
-        return $liczby;
     }
 
     /**
@@ -182,12 +204,43 @@ final class KolejkiPanelu
     }
 
     /**
-     * Przelicz od nowa, bo coś w kolejkach się zmieniło. Osobna nazwa od
-     * `przelicz()` wyłącznie po to, żeby w miejscu wywołania było widać
-     * INTENCJĘ („kolejka się zmieniła"), a nie mechanizm.
+     * Coś w kolejkach się zmieniło — przelicz TANIE liczby po commicie,
+     * najwyżej raz na transakcję (komentarz klasy, audyt B4 W3).
+     *
+     * Obiekt jest singletonem (`AppServiceProvider::register()`), więc flaga
+     * żyje przez całe żądanie. Wycofana transakcja zdejmuje ją przez
+     * `afterRollBack` — inaczej długo żyjący worker kolejki nie odświeżyłby
+     * liczników już nigdy.
      */
     public function odswiez(): void
     {
-        $this->przelicz();
+        if ($this->zaplanowane) {
+            return;
+        }
+
+        $this->zaplanowane = true;
+
+        DB::afterRollBack(function (): void {
+            $this->zaplanowane = false;
+        });
+
+        DB::afterCommit(function (): void {
+            $this->zaplanowane = false;
+            $this->przeliczTanie();
+        });
+    }
+
+    /**
+     * Cztery tanie liczby na nowo, mapa „Bez odpowiedzi" bez zmian
+     * z poprzedniego wpisu. Nadal JEDEN wpis w cache.
+     */
+    private function przeliczTanie(): void
+    {
+        $zapisane = Cache::get(self::KLUCZ_CACHE);
+        $perHost = is_array($zapisane) && is_array($zapisane['bez_odpowiedzi_per_host'] ?? null)
+            ? $zapisane['bez_odpowiedzi_per_host']
+            : [];
+
+        Cache::forever(self::KLUCZ_CACHE, [...$this->tanieLiczby(), 'bez_odpowiedzi_per_host' => $perHost]);
     }
 }

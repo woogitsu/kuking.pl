@@ -34,7 +34,7 @@ oblane() {
 # --- Składnia ------------------------------------------------------------------
 bledy_bash=""
 sprawdzonych=0
-for skrypt in docker/entrypoint.sh docker/klucz-preview.sh docker/kopia/*.sh scripts/*.sh tests/skrypty/*.sh; do
+for skrypt in docker/entrypoint.sh docker/healthcheck.sh docker/klucz-preview.sh docker/kopia/*.sh scripts/*.sh tests/skrypty/*.sh; do
     [ -f "$skrypt" ] || continue
     sprawdzonych=$((sprawdzonych + 1))
     bash -n "$skrypt" 2>/dev/null || bledy_bash="$bledy_bash $skrypt"
@@ -48,6 +48,10 @@ echo "Składnia: $sprawdzonych skryptów bez błędów"
 # --- Testy -------------------------------------------------------------------
 # Każdy wiersz: plik testu | co oblało, gdy oblało.
 #
+#  * healthcheck-role — `docker/healthcheck.sh` (HEALTHCHECK obrazu) sprawdza
+#    zdrowie zgodnie z rolą procesu kontenera; atrapa `php`, bez bazy;
+#  * bramka-migracji — worker i scheduler czekają na migracje web, zamiast
+#    startować na starym schemacie (#2044); atrapa `php`, bez bazy;
 #  * kopia-bazy — kopia bazy to skrypt powłoki w obrazie bez PHP (D-043), więc
 #    żaden test PHPUnit jej nie dotknie; to dziś JEDYNA planowana kopia bazy.
 #    Wymaga klienta `pg_restore` 18 (w CI doinstalowuje go krok joba `lint`);
@@ -64,16 +68,11 @@ echo "Składnia: $sprawdzonych skryptów bez błędów"
 #  * kontrola-czekania-preview — czekanie na gotowe preview (#1389) chodzi
 #    tylko w GitHub Actions; tu na atrapie `gh`, bez sieci: sam adres
 #    deploymentu to jeszcze nie gotowość.
-while IFS='|' read -r test opis; do
-    [ -n "$test" ] || continue
-    [ -f "$test" ] || oblane "Brak pliku $test — lista w scripts/kontrole-powloki.sh jest nieaktualna"
-    echo "Uruchamiam: $test"
-    if ! bash "$test" </dev/null >/dev/null 2>&1; then
-        oblane "$opis — uruchom: bash $test"
-    fi
-done <<'LISTA'
+LISTA=$(cat <<'KONIEC'
 tests/skrypty/entrypoint-nadzor.sh|Testy entrypointu oblewają
+tests/skrypty/healthcheck-role.sh|Kontrola zdrowia ról kontenera oblewa
 tests/skrypty/preflight-bazy.sh|Preflight bazy w entrypoincie oblewa
+tests/skrypty/bramka-migracji.sh|Bramka migracji workera i schedulera oblewa
 tests/skrypty/php-ini-slady.sh|Ślady wyjątków w docker/php.ini niosą argumenty
 tests/skrypty/kopia-bazy.sh|Testy kopii bazy oblewają
 tests/skrypty/cache-assetow.sh|Sonda cache oblewa
@@ -81,6 +80,48 @@ tests/skrypty/kontrola-ujemna.sh|Przyrząd kontroli ujemnych oblewa
 tests/skrypty/check-postgres.sh|Sonda PostgreSQL w check.sh oblewa
 tests/skrypty/kontrola-sondy-wdrozenia.sh|Sondy testu dymnego oblewają
 tests/skrypty/kontrola-czekania-preview.sh|Czekanie na preview oblewa
-LISTA
+KONIEC
+)
+
+# Pliki z `tests/skrypty/`, których ten skrypt CELOWO nie uruchamia — każdy z
+# powodem. Bez wpisu tu albo w LISTA nowy plik oblewa strażnika niżej (i
+# `KontrolePowlokiLokalnieIWCiTest`): test powłoki, którego nikt nie woła,
+# nie pilnuje niczego.
+#  * atrapa-*.sh — nie są testami, tylko atrapami `curl` wczytywanymi przez
+#    `SondaWdrozeniaTest` i `CloudflareCacheGateTest` (PHPUnit);
+#  * proba-odtworzenia.sh — prawdziwy `pg_dump`/`pg_restore` na serwerze
+#    PostgreSQL, którego job `lint` nie ma; chodzi przez `ProbaOdtworzeniaTest`;
+#  * kontrola-cache.sh, kontrola-sondy.sh — nie testy, tylko zapis ręcznych
+#    kontroli ujemnych (mutacje kodu przez `scripts/kontrola-ujemna.sh`),
+#    puszczanych po testach w runtime floty; pierwszy odmawia poza jej ścieżką;
+#  * izolacja-bazy-testowej.sh — jednorazowy dowód do #66, wymaga serwera
+#    PostgreSQL (roli `kuking`); dziś nie chodzi ani w check.sh, ani w CI.
+POZA_LISTA=$(cat <<'KONIEC'
+tests/skrypty/atrapa-cache-gate.sh|atrapa wczytywana przez CloudflareCacheGateTest
+tests/skrypty/atrapa-sondy.sh|atrapa wczytywana przez SondaWdrozeniaTest
+tests/skrypty/proba-odtworzenia.sh|chodzi przez ProbaOdtworzeniaTest (wymaga serwera PostgreSQL)
+tests/skrypty/kontrola-cache.sh|ręczna kontrola ujemna cache (mutacje), tylko w runtime floty
+tests/skrypty/kontrola-sondy.sh|ręczna kontrola ujemna sondy wdrożenia (mutacje), tylko w runtime floty
+tests/skrypty/izolacja-bazy-testowej.sh|dowód do #66, wymaga serwera PostgreSQL; nie chodzi w check.sh ani w CI
+KONIEC
+)
+
+# --- Strażnik: żaden plik tests/skrypty/*.sh nie zostaje pominięty -------------
+niezaklasyfikowane=""
+for plik in tests/skrypty/*.sh; do
+    [ -f "$plik" ] || continue
+    printf '%s\n%s\n' "$LISTA" "$POZA_LISTA" | cut -d'|' -f1 | grep -qxF "$plik" \
+        || niezaklasyfikowane="$niezaklasyfikowane $plik"
+done
+[ -z "$niezaklasyfikowane" ] || oblane "Test powłoki poza listą w scripts/kontrole-powloki.sh:$niezaklasyfikowane — dopisz go do LISTA (albo do POZA_LISTA z powodem)"
+
+while IFS='|' read -r test opis; do
+    [ -n "$test" ] || continue
+    [ -f "$test" ] || oblane "Brak pliku $test — lista w scripts/kontrole-powloki.sh jest nieaktualna"
+    echo "Uruchamiam: $test"
+    if ! bash "$test" </dev/null >/dev/null 2>&1; then
+        oblane "$opis — uruchom: bash $test"
+    fi
+done <<< "$LISTA"
 
 echo "Składnia i testy skryptów powłoki przechodzą"

@@ -152,4 +152,68 @@ class ZdjecieWykonaniaOpisZastepczyTest extends TestCase
         $response->assertDontSee('alt="Zdjęcie wykonania: Ściśle tajna szarlotka babci"', false);
         $response->assertSee('alt="Zdjęcie wykonania"', false);
     }
+
+    /**
+     * Ekran „Komuś wyszło" pokazuje TO SAMO zdjęcie wykonania co karta, ale
+     * własnym wywołaniem `x-photo` — bez opisu zastępczego dostawał `alt=""`
+     * na miniaturze i w powiększeniu.
+     */
+    public function test_ekran_komus_wyszlo_daje_zdjeciu_wykonania_opis_zastepczy(): void
+    {
+        $autor = $this->user('autorka4');
+        $kucharz = $this->user('kucharz4');
+        $recipe = Recipe::factory()->create([
+            'author_id' => $autor->getKey(),
+            'visibility' => 'public',
+            'status' => Recipe::STATUS_PUBLISHED,
+        ]);
+
+        $media = app(StoreUploadedImage::class)
+            ->handle($kucharz, UploadedFile::fake()->image('danie.jpg', 800, 600));
+
+        $event = app(RecordCookedEvent::class)->handle(
+            cook: $kucharz,
+            recipe: $recipe,
+            mediaIds: [$media->getKey()],
+        );
+
+        $html = $this->actingAs($autor)
+            ->get(route('cooked.celebrate', $event))
+            ->assertOk()
+            ->getContent();
+
+        // Tylko obraz wykonania. Pusty `<img class="lightbox-obraz" alt="">`
+        // w układzie strony to zaślepka nakładki, nie treść.
+        $this->assertSame(1, preg_match('/<img class="post-photo"[^>]*>/', $html, $obraz), 'Zdjęcie wykonania musi być na stronie jako obraz.');
+        $this->assertStringNotContainsString('alt=""', $obraz[0]);
+        $this->assertStringNotContainsString('data-alt=""', $html);
+        $this->assertStringContainsString('alt="Zdjęcie wykonania"', $html);
+        $this->assertStringContainsString('aria-label="Powiększ zdjęcie: Zdjęcie wykonania"', $html);
+    }
+
+    public function test_ekran_komus_wyszlo_zachowuje_autorski_alt_text(): void
+    {
+        $autor = $this->user('autorka5');
+        $kucharz = $this->user('kucharz5');
+        $recipe = Recipe::factory()->create([
+            'author_id' => $autor->getKey(),
+            'visibility' => 'public',
+            'status' => Recipe::STATUS_PUBLISHED,
+        ]);
+
+        $media = app(StoreUploadedImage::class)
+            ->handle($kucharz, UploadedFile::fake()->image('danie.jpg', 800, 600), 'Pierogi na desce');
+
+        $event = app(RecordCookedEvent::class)->handle(
+            cook: $kucharz,
+            recipe: $recipe,
+            mediaIds: [$media->getKey()],
+        );
+
+        $this->actingAs($autor)
+            ->get(route('cooked.celebrate', $event))
+            ->assertOk()
+            ->assertSee('alt="Pierogi na desce"', false)
+            ->assertDontSee('alt="Zdjęcie wykonania"', false);
+    }
 }

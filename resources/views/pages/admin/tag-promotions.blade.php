@@ -77,11 +77,17 @@
                         </div>
                     </form>
 
-                    <form method="POST" action="{{ route('admin.tag-promotions.destroy', $tag) }}" class="mt-3">
-                        @csrf
-                        @method('DELETE')
-                        <button class="btn btn-quiet" type="submit">Zdejmij z promowanych</button>
-                    </form>
+                    {{-- Akcja destrukcyjna (AGENTS.md §5): potwierdzenie w `<details>`,
+                         bez JavaScriptu, a serwer bez `potwierdzam=1` niczego
+                         nie zdejmuje (audyt po fali 25.09, pkt 10). --}}
+                    <div class="mt-6">
+                        <x-confirm-button
+                            :action="route('admin.tag-promotions.destroy', $tag)"
+                            label="Zdejmij z promowanych"
+                            question="Zdjąć „{{ $tag->name }}” z promowanych? Zniknie pozycja na tej liście i notatka. Tag i jego wpisy zostają."
+                            :fields="['potwierdzam' => '1']"
+                        />
+                    </div>
                 </li>
             @endforeach
         </ol>
@@ -134,11 +140,14 @@
                             @if($wyroznienie->note)
                                 <p class="mb-2">{{ $wyroznienie->note }}</p>
                             @endif
-                            <form method="POST" action="{{ route('admin.tag-highlights.destroy', $wyroznienie) }}">
-                                @csrf
-                                @method('DELETE')
-                                <button class="btn btn-quiet" type="submit">Usuń to wyróżnienie</button>
-                            </form>
+                            <div class="mt-6">
+                                <x-confirm-button
+                                    :action="route('admin.tag-highlights.destroy', $wyroznienie)"
+                                    label="Usuń to wyróżnienie"
+                                    question="Usunąć to wyróżnienie? Zniknie plan tagu tygodnia na te dni. Tag i jego wpisy zostają."
+                                    :fields="['potwierdzam' => '1']"
+                                />
+                            </div>
                         </li>
                     @endforeach
                 </ul>

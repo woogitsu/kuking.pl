@@ -55,7 +55,7 @@ przepisy/
     powodu mówić o koncie dwóch różnych rzeczy w dwóch swoich plikach.
 --}}
 przepisy/
-    Tego katalogu w tej paczce NIE MA — nie weszedł do niej żaden
+    Tego katalogu w tej paczce NIE MA — nie wszedł do niej żaden
     przepis. Pojawi się, gdy dodasz przepis i poprosisz o paczkę
     ponownie.
 @endif
@@ -172,6 +172,8 @@ zdjecia/
 dane.json
     Ten sam zestaw danych w formacie dla programów. Przydaje się,
     jeśli zechcesz przenieść swoje przepisy do innego serwisu.
+    Przy każdym przepisie zapisuje też Twój wybór, czy pokazywać
+    szacunkowe wartości odżywcze.
     Nie musisz go otwierać — dla człowieka jest index.html.
 
 CZYTAJ-TO-NAJPIERW.txt
