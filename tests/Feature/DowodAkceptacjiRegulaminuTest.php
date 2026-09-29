@@ -221,12 +221,13 @@ final class DowodAkceptacjiRegulaminuTest extends TestCase
     {
         $this->post(route('register'), $this->dane())->assertRedirect(route('onboarding.interests'));
         $wpis = WpisZgody::query()->where('cel', WpisZgody::CEL_REGULAMIN)->firstOrFail();
+        $wersja = DB::table('dziennik_zgod')->where('id', $wpis->id)->value('wersja_regulaminu');
 
         try {
             $wpis->update(['wersja_regulaminu' => '1999-01-01']);
             $this->fail('Model pozwolił zmienić wpis akceptacji.');
         } catch (LogicException) {
-            $this->assertTrue(true);
+            $this->assertSame($wersja, DB::table('dziennik_zgod')->where('id', $wpis->id)->value('wersja_regulaminu'), 'Odmowa modelu nie może zostawić zmienionego wpisu w bazie.');
         }
 
         $this->expectException(QueryException::class);

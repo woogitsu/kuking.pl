@@ -311,7 +311,11 @@ final class FeedObserwowanychKosztPlanuTest extends TestCase
         return $zapytanie->orderByDesc('published_at')->orderByDesc('id')->pluck('posts.id')->all();
     }
 
-    /** `Post::scopeWidoczneDla()` sprzed zmiany (obserwowanie jako skorelowane `EXISTS`). */
+    /**
+     * `Post::scopeWidoczneDla()` sprzed zmiany (obserwowanie jako skorelowane `EXISTS`).
+     *
+     * @param  Builder<Post>  $query
+     */
     private function staraWidocznoscWpisu(Builder $query, string $widzId): void
     {
         $query->enabledKinds();
@@ -332,7 +336,11 @@ final class FeedObserwowanychKosztPlanuTest extends TestCase
         });
     }
 
-    /** `Recipe::scopeWidoczneDla()` sprzed zmiany. */
+    /**
+     * `Recipe::scopeWidoczneDla()` sprzed zmiany.
+     *
+     * @param  Builder<Recipe>  $query
+     */
     private function staraWidocznoscPrzepisu(Builder $query, string $widzId): void
     {
         $query->whereNotExists(function ($sub) use ($widzId): void {
