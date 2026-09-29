@@ -46,6 +46,9 @@ use Tests\TestCase;
  * ciasteczka sesji i XSRF, a `/up` nie. To NIE jest kontrakt, tylko skutek
  * uboczny (patrz raport przy tym teście) — zamrożenie go utrudniłoby jego
  * usunięcie. Test czyta wyłącznie odpowiedzi HTTP, nie kod źródłowy.
+ *
+ * Refs #2212. `detectEnvironment` w testach produkcyjnych nie przecieka: każdy test
+ * dostaje świeżą aplikację (`TestCase::setUp`), więc środowisko wraca do `testing`.
  */
 class HealthKontraktOdpowiedziTest extends TestCase
 {
