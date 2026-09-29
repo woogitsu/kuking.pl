@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Naprawione: mapa strony dla wyszukiwarek nie podaje już starej daty zmiany po edycji publicznego przepisu, wpisu albo pytania. Zmiana tytułu, opisu, czasów, zdjęcia czy składników odświeża mapę od razu, a nie po kilku godzinach; edycja szkicu i treści prywatnych nadal jej nie rusza (#1280).
+
 ## Alfa 0.76 — planer z wyszukiwarką, „Co mam w domu” i zeszyt bez konta
 
 - Moderacja: automat nie gubi już własnych sygnałów, gdy zewnętrzny model odpowiada wolno. Sygnały wykryte na miejscu trafiają do kolejki od razu, wynik modelu dopisuje się do tego samego oznaczenia, a cała ocena mieści się w czasie zadania — gdy zabraknie czasu na część zdjęć, moderator widzi przy oznaczeniu, że ocena była niepełna. Zdjęcie, które było jeszcze przygotowywane w chwili publikacji wpisu, jest oceniane, gdy tylko będzie gotowe (o ile wpis nadal jest publiczny) (#829, #830).

@@ -457,13 +457,15 @@ Klucz kasują haki modeli rejestrowane w `AppServiceProvider`
 | `Recipe`, `Post` | utworzenie; zmiana `status`, `visibility`, `published_at`, `author_id`, `deleted_at` (w tym przywrócenie); usunięcie |
 | `Recipe` | dodatkowo zmiana `slug` (inny adres) |
 | `Post` | dodatkowo zmiana `body` (wpis bez treści nie wchodzi) i `kind` |
+| `Recipe`, `Post` | dodatkowo zmiana `updated_at` treści publicznej i opublikowanej (#1280) — bo z niej liczy się `lastmod` przepisu, wpisu i profilu autora |
 | `Profile` | zmiana `username` (inny adres), usunięcie |
 | `User` | zmiana `status` (ban, zawieszenie, usuwanie konta, zatarcie) |
 
 Kasowanie idzie przez `DB::afterCommit()`: w transakcji dopiero po COMMIT,
 po ROLLBACK wcale. Kasowany jest **wyłącznie** ten klucz, nigdy cały
-magazyn cache. Zapis bez wpływu na mapę (np. tytuł przepisu) klucza nie
-rusza. Pilnuje tego `MapaStronyNadazaZaWidocznosciaTest`. Nowy typ treści
+magazyn cache. Zapis bez wpływu na mapę (edycja szkicu albo treści prywatnej) klucza nie
+rusza; edycja treści publicznej — w tym samego tytułu — go kasuje, żeby
+`lastmod` w mapie zgadzał się ze stroną. Pilnuje tego `MapaStronyNadazaZaWidocznosciaTest`. Nowy typ treści
 w mapie = nowy wiersz w `MapaStrony::KOLUMNY`.
 
 Limity Google (2026, niezmienione od lat): **max 50 000 URL-i i 50 MB (nieskompresowane) na plik sitemap**; przekroczenie limitu URL-i → Google ignoruje nadmiar; przekroczenie 50 MB → ryzyko odrzucenia całego pliku. Rozwiązanie standardowe: **sitemap index**.
