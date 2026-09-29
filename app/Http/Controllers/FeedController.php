@@ -13,6 +13,7 @@ use App\Domain\Pwa\InstallPrompt;
 use App\Domain\Pwa\InstallPromptContext;
 use App\Domain\Rocznice\RocznicaDolaczenia;
 use App\Domain\Rocznice\Urodziny;
+use App\Domain\Ukrycia\Ukrycia;
 use App\Domain\Wspomnienia\Wspomnienia;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -183,6 +184,15 @@ class FeedController extends Controller
         // walidację wyżej i się nie przełącza.
         [$zrodlo, $posts] = $this->pierwszaStronaZrodla($user, $zrodlo, $maKursor);
 
+        // Czy nagłówek Startu ma wspomnieć o własnych wpisach (issue #1318).
+        // Liczone PO `pierwszaStronaZrodla()` (#983): źródło mogło się tam
+        // zmienić, a flaga opisuje wpisy, które faktycznie pokazujemy.
+        $wlasneWFeedzie = $zrodlo === 'odkrywanie' && $user->posts()
+            ->enabledKinds()
+            ->published()
+            ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS])
+            ->exists();
+
         // `appends`, nie ręczne składanie adresu: Laravel nadal koduje sam
         // kursor, a my dokładamy wyłącznie serwerowo wybraną tożsamość źródła.
         $posts->appends(['zrodlo' => $zrodlo]);
@@ -212,6 +222,7 @@ class FeedController extends Controller
             'mojStol' => $user->moj_stol_enabled ? $this->mojStol->dlaWidza($user) : null,
             'posts' => $posts,
             'zrodloFeedu' => $zrodlo,
+            'wlasneWFeedzie' => $wlasneWFeedzie,
             'showingDiscover' => $zrodlo === 'odkrywanie',
             'ileUkrywasz' => $zrodlo === 'odkrywanie' && $posts->isEmpty() ? $this->discoverFeed->ileUkrywa($user) : 0,
         ]);
@@ -255,11 +266,14 @@ class FeedController extends Controller
             }
         }
 
-        return ['odkrywanie', $this->discoverFeed->paginate($user, null, $zKursorem ? $this->stanOdkrywania() : null)];
+        // Start osoby bez treści od obserwowanych niesie też jej własne wpisy
+        // (issue #1318) — także „tylko dla obserwujących", których samo
+        // Odkrywanie nie zna. `/discover` woła bez flagi.
+        return ['odkrywanie', $this->discoverFeed->paginate($user, null, $zKursorem ? $this->stanOdkrywania() : null, zWlasnymi: true)];
     }
 
     /** /discover — "Świeżo z Kuking", dostępne też bez konta. */
-    public function discover(Request $request): View
+    public function discover(Request $request, Ukrycia $ukrycia): View
     {
         $user = $request->user();
         $posts = $this->discoverFeed->paginate(
@@ -273,6 +287,9 @@ class FeedController extends Controller
             'board' => $this->dailyBoard->forViewer($user),
             // Liczone tylko dla pustej listy — tylko tam pusty stan o tym mówi.
             'ileUkrywasz' => $user !== null && $posts->isEmpty() ? $this->discoverFeed->ileUkrywa($user) : 0,
+            // Linia „Ukrywasz wpisy N osób. Zmień" pod nagłówkiem (#1811).
+            'ukryteOsoby' => $user !== null ? $ukrycia->ileOsob($user) : 0,
+            'ukryteWpisy' => $user !== null ? $ukrycia->ileWpisow($user) : 0,
         ]);
     }
 

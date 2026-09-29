@@ -15,6 +15,7 @@ use App\Models\Tag;
 use App\Support\PowrotDoRozmowy;
 use App\Support\ZamiarObserwowania;
 use App\Support\ZamiarUgotowania;
+use App\Support\ZamiarZapisu;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -360,7 +361,7 @@ class OnboardingController extends Controller
         return $dalej->with('status', implode(' ', $komunikaty));
     }
 
-    public function done(Request $request, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie, PowrotDoRozmowy $rozmowa): View|RedirectResponse
+    public function done(Request $request, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie, PowrotDoRozmowy $rozmowa, ZamiarZapisu $zapis): View|RedirectResponse
     {
         // Bez zapisu stanu konta: GET może przyjść z prefetchu przeglądarki,
         // więc samo otwarcie tej strony nie wyłącza przypomnienia (#985).
@@ -385,6 +386,12 @@ class OnboardingController extends Controller
         // zamiary (`PowrotDoRozmowy::zapamietaj`), więc kolejność jest tylko
         // zabezpieczeniem. Komentarz wysyła człowiek — tu tylko adres.
         if ($cel = $rozmowa->celPoOnboardingu($request)) {
+            return redirect()->to($cel);
+        }
+
+        // „Zapisz do zeszytu” (#2028): wracamy na przepis z ROZWINIĘTYM
+        // wyborem zeszytu. Nic nie zapisujemy — robi to dopiero klik człowieka.
+        if ($cel = $zapis->celPoOnboardingu($request)) {
             return redirect()->to($cel);
         }
 

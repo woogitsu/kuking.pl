@@ -76,7 +76,7 @@ final class DecyzjaPoOdwolaniu
         $zablokowanaOsoba = null;
 
         if ($karaKonta) {
-            // PublishRecipe bierze users FOR KEY SHARE przed recipes FOR UPDATE.
+            // PublishRecipe bierze users FOR NO KEY UPDATE przed recipes FOR UPDATE.
             // Kara za przepis musi wejść w tę samą kolejność. Odczyt celu
             // służy tu tylko ustaleniu autora; stan celu sprawdzamy ponownie
             // dopiero pod blokadą poniżej.

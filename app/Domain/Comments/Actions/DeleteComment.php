@@ -11,6 +11,7 @@ use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
@@ -23,12 +24,34 @@ final class DeleteComment
     /**
      * Zwraca `false`, gdy komentarz był już usunięty — wtedy nic się nie
      * zmienia i nikt nie dostaje powiadomienia (issue #911).
+     *
+     * #2190: decyzję podejmujemy na ŚWIEŻYM, zablokowanym koncie wykonawcy,
+     * nie na modelu przekazanym z kontrolera. Sankcja (zawieszenie, ban,
+     * żądanie usunięcia konta) mogła zostać zatwierdzona po middleware i po
+     * pierwszym `authorize()`; stary model przepuściłby wtedy usunięcie —
+     * także CUDZEJ wypowiedzi przez właściciela treści, z placeholderem
+     * i powiadomieniem dla autora. Kolejność zamków: konto → komentarz,
+     * jak w `EditComment` i `LockCommentContext` (publikacja odpowiedzi).
+     *
+     * Odmowa to `AuthorizationException` z Policy (`CommentPolicy::delete()`
+     * wymaga `isActive()`), rzucona przed jakimkolwiek zapisem — transakcja
+     * nie zostawia placeholdera, kosza ani powiadomienia. Zawieszone konto
+     * i tak nie ma tej trasy w `EnsureAccountIsActive` (usunięcie to zapis),
+     * więc nikomu nie odbieramy prawa, które miał wcześniej.
+     *
+     * @throws AuthorizationException gdy świeży stan konta lub komentarza nie pozwala na usunięcie
      */
     public function handle(User $actor, Comment $comment, ?string $reason = null): bool
     {
         return DB::transaction(function () use ($actor, $comment, $reason): bool {
+            $freshActor = User::query()->whereKey($actor->getKey())->lock('FOR NO KEY UPDATE')->first();
+
+            if ($freshActor === null) {
+                throw new AuthorizationException;
+            }
+
             $fresh = Comment::withTrashed()->whereKey($comment->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
-            Gate::forUser($actor)->authorize('delete', $fresh);
+            Gate::forUser($freshActor)->authorize('delete', $fresh);
 
             // Issue #911: powtórzone żądanie (druga karta, ponowione wysłanie)
             // nie jest drugą decyzją. Bez tego korzeń z odpowiedziami dostawał
@@ -55,11 +78,11 @@ final class DeleteComment
                 $fresh->delete();
             }
 
-            if ($actor->getKey() !== $fresh->author_id && $actor->getKey() === $fresh->notifiableUserId()) {
+            if ($freshActor->getKey() !== $fresh->author_id && $freshActor->getKey() === $fresh->notifiableUserId()) {
                 $this->notify->handle(
                     recipient: $fresh->author,
                     type: Notification::TYPE_MODERATION,
-                    actor: $actor,
+                    actor: $freshActor,
                     data: [
                         // Nagłówek mówi, KTO usunął (audyt B9 pkt 4). Bez
                         // niego widok brał domyślne „Wiadomość od moderacji

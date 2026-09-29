@@ -10,6 +10,7 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Spis wydań
 
 - [Najnowsze zmiany](#najnowsze-zmiany)
+- [Alfa 0.76 — planer z wyszukiwarką, „Co mam w domu” i zeszyt bez konta](#alfa-076)
 - [Alfa 0.75 — szukanie w wykonaniach i pewniejsze „Ugotowałem”](#alfa-075)
 - [Alfa 0.74 — zdjęcia w formularzu i porcje przy gotowaniu](#alfa-074)
 - [Alfa 0.73 — import przepisu i wygodniejsze gotowanie](#alfa-073)
@@ -28,6 +29,84 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Najnowsze zmiany
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
+
+## Alfa 0.76
+
+**Wyszukiwarka w Planerze, „Co mam w domu”, zapis przepisu po rejestracji, wydruk przepisu i zeszyt bez konta.**
+
+### Szukajcie w zeszytach także po składniku
+
+Pole „Szukaj w moich zeszytach” znajduje teraz zapisane przepisy nie tylko po
+tytule, ale i po składniku — wpiszcie na przykład „cukinia”, a zobaczycie
+przepisy z Waszych zeszytów, w których cukinia jest na liście składników. Gdy
+tytuł nie zawiera wpisanego słowa, pod wynikiem stoi „Pasuje przez składnik”.
+Polskie znaki nadal nie mają znaczenia, a widzicie tylko te przepisy, które
+możecie dziś otworzyć.
+
+### Co mam w domu i co z tego ugotuję
+
+W zeszycie jest nowa sekcja „Co mam w domu”. Wpisujecie, co macie w kuchni —
+jeden produkt naraz, a pod polem pojawiają się podpowiedzi ze składników
+z przepisów. Potem wystarczy dotknąć „Co ugotuję z tego, co mam?”, żeby
+zobaczyć przepisy, do których brakuje Wam najmniej. Przy każdym stoi
+dopisek, na przykład „Masz 5 z 7 składników. Brakuje: …”. Kolejność jest
+jedna i napisana na ekranie: najpierw przepisy z najmniejszą liczbą brakujących
+składników, a przy remisie te krótsze w przygotowaniu — popularność
+przepisu nie ma na nią wpływu. Listę widzicie tylko Wy, na jednej liście może
+być do 150 produktów, a przy wymazaniu konta znika razem z nim.
+
+### Zapisz przepis do zeszytu jeszcze przed założeniem konta
+
+Czytacie przepis bez konta i chcecie go zachować? Kliknijcie „Zapisz do zeszytu”
+przy przepisie, załóżcie konto albo zalogujcie się (przycisk „Masz konto?
+Zaloguj się i zapisz”). Po pierwszych krokach wrócicie na ten sam przepis,
+z rozwiniętym wyborem zeszytu. Niczego nie zapisujemy za Was — przepis trafi
+do zeszytu dopiero wtedy, gdy sami go wybierzecie. Jeśli w międzyczasie autor
+ukryje przepis albo zmieni jego widoczność, nie otworzymy wyboru zeszytu.
+
+### Przepis do wybranego dnia prosto z Planera
+
+W Planerze przy każdym dniu tygodnia znajdziecie pole „Nazwa przepisu”.
+Wpiszcie kilka liter, kliknijcie „Szukaj przepisu” i przy znalezionym daniu
+wybierzcie „Dodaj do planu”. Nie trzeba już wchodzić na stronę przepisu.
+Po dodaniu wracacie do tego samego dnia z tą samą frazą, więc od razu możecie
+dopisać kolejne danie.
+
+### Przepis wydrukowany na kartce
+
+Przy przepisie jest przycisk „Drukuj przepis”. Otwiera od razu okno drukowania,
+a jeśli przeglądarka nie wczyta skryptu, ten sam przycisk podpowiada, jakie
+klawisze nacisnąć albo co wybrać w menu telefonu. Na kartce zostają tytuł,
+autor, adres przepisu, porcje, składniki z uwagami, wszystkie kroki i „Skąd ten
+przepis”. Menu, przyciski i komentarze nie idą na papier, a długi przepis
+mieści się na 4 stronach A4, nie na 8–9. Litery na kartce mają co najmniej
+12 punktów.
+
+### Zeszyt można pokazać bez konta
+
+Jeśli ustawicie zeszyt na „Wszyscy”, otworzy się także osobom bez konta — możecie
+wysłać link rodzinie. Osoba niezalogowana zobaczy w nim tylko publiczne przepisy
+i wpisy, a zamiast przycisków zapisu dostanie „Zaloguj się” albo „Załóż konto”.
+Zeszyt ustawiony na „Tylko ja” (także domyślny, dopóki go nie zmienicie) nadal
+widzicie tylko Wy.
+
+### Jak dobieramy wpisy
+
+Nowa strona „Jak dobieramy wpisy” opisuje każdą listę w serwisie: Start,
+„Świeżo z Kuking”, tablicę na dziś, wyszukiwarkę i tygodniowy e-mail. Mówi też
+wprost, czego nie robimy: nie układamy wpisów według popularności ani reakcji
+i nie uczymy się Waszego gustu z tego, co oglądacie. Pod nagłówkiem „Świeżo
+z Kuking” jest odnośnik „Skąd te wpisy i jak to zmienić”, a gdy kogoś ukrywacie,
+widzicie „Ukrywasz wpisy N osób. Zmień”. Pozycje na tablicy wybrane przez
+gospodarza mają napis „Wybór gospodarza”.
+
+### Inne pytania na ten temat
+
+Pod pytaniem w „Poradźcie” jest sekcja „Inne pytania na ten temat” z odnośnikami
+„Pytania:” i nazwą tagu. Prowadzą do listy pytań z tym tagiem, a nie do ogólnej strony
+tagu z daniami. Na liście tag zostaje widoczny, a odnośnik „Pokaż wszystkie
+tagi” go zdejmuje. Przycisk „Czeka na odpowiedź” zawęża pytania i nie gubi
+wybranego tagu.
 
 ## Alfa 0.75
 
@@ -211,8 +290,8 @@ różne notatki. Żeby ją usunąć, wystarczy wyczyścić pole i zapisać.
 ### Szukajcie we własnych zeszytach
 
 Na ekranie „Twój zeszyt” jest pole „Szukaj w moich zeszytach”. Wystarczy
-wpisać kawałek tytułu przepisu, żeby go znaleźć wśród swoich zapisów, bez
-pamiętania, do którego zeszytu trafił — przy każdym wyniku widać zeszyty,
+wpisać kawałek tytułu przepisu albo składnika, żeby go znaleźć wśród swoich
+zapisów, bez pamiętania, do którego zeszytu trafił — przy każdym wyniku widać zeszyty,
 w których leży. Polskie znaki nie mają znaczenia.
 
 ### Dopiszcie przepis do własnego wpisu

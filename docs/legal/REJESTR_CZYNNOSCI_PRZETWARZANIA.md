@@ -1,6 +1,10 @@
 # Rejestr czynności przetwarzania — art. 30 ust. 1 RODO
 
 Stan: gałąź `robota/bramka-startowa`, od `main` = `534e0a51`, 20 września 2026.
+Uzupełnienie z 29 września 2026 (#1816, wersja polityki `2026-09-29`):
+§3.5 (obserwowane tagi), §3.16 (odpięcie zdarzeń po wymazaniu konta),
+§3.17 (zakres paczki danych), nowe §3.20–3.22 (ukrycia, reakcja „Smakowicie
+wygląda”, lista „Co mam w domu”).
 
 **Skąd wzięła się treść tego dokumentu.** Każda czynność niżej jest
 **wyprowadzona z kodu tego repozytorium**, nie z wyobraźni i nie z polityki
@@ -151,11 +155,15 @@ egzekwuje.
 ### 3.5 Relacje w serwisie
 
 - **Cel:** obserwowanie i blokowanie innych użytkowników, obserwowanie tagów.
-- **Dane:** identyfikator obserwującego i obserwowanego, przy blokadzie —
-  adres IP osoby blokującej (`app/Http/Controllers/SocialController.php`).
+- **Dane:** identyfikator obserwującego i obserwowanego, identyfikator
+  obserwowanego tagu (`tag_follows`, bez własnego `id` — klucz `(user_id,
+  tag_id)`), przy blokadzie — adres IP osoby blokującej
+  (`app/Http/Controllers/SocialController.php`).
 - **Podstawa:** art. 6 ust. 1 lit. b RODO.
 - **Odbiorcy:** Railway.
-- **Termin usunięcia:** do usunięcia relacji albo konta.
+- **Termin usunięcia:** do usunięcia relacji albo konta. W paczce danych:
+  `obserwuje`, `obserwuja_mnie`, `zablokowane_osoby`, `obserwowane_tagi`;
+  to, kto zablokował to konto, jest poza paczką (§3.17).
 
 ### 3.6 Moderacja treści, zgłoszenia i odwołania (DSA)
 
@@ -265,7 +273,24 @@ egzekwuje.
   (`config/kuking.php` → `audit_log.retention_months`), egzekwuje
   `kuking:sprzataj-audyt`. **Wyjątek trwały:** wpisy dokumentujące złożenie,
   cofnięcie albo wykonanie żądania usunięcia konta zostają na stałe — są
-  dowodem, że usunięcie się odbyło.
+  dowodem, że usunięcie się odbyło. Skrót IP (`ip_hash`) zeruje w nich ta sama
+  komenda po tych samych 12 miesiącach (audyt B5 pkt 10) — dowodem jest
+  rodzaj zdarzenia i data, nie sieć.
+
+### 3.10a Sesja logowania (tabela `sessions`)
+
+- **Cel:** utrzymanie zalogowania między żądaniami; wylogowanie pozostałych
+  urządzeń po zmianie hasła, adresu e-mail albo stanu konta.
+- **Dane:** zgrubny adres IP (IPv4 do `/24`, IPv6 do `/48` —
+  `App\Support\MaskaAdresuIp`, `UchwytSesjiBezPelnegoAdresu`), pełny nagłówek
+  `User-Agent`, `user_id`, czas ostatniej aktywności, zawartość sesji.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO; w części bezpieczeństwa — lit. f.
+- **Odbiorcy:** Railway.
+- **Termin usunięcia:** **30 dni** od ostatniej aktywności —
+  `max(kuking.sessions.retention_days, SESSION_LIFETIME)`, na produkcji
+  `SESSION_LIFETIME=43200` minut (`.railway/railway.ts`); egzekwuje
+  `kuking:sprzataj-sesje` co noc. Wylogowanie i wymazanie konta kasują wiersz
+  od razu (audyt B5 pkt 7).
 
 ### 3.11 Powiadomienia w serwisie
 
@@ -357,6 +382,13 @@ egzekwuje.
 - **Termin usunięcia:** **90 dni**
   (`config/kuking.php` → `analytics.signal_retention_days`), egzekwuje
   `kuking:sprzataj-sygnaly`. Dane zbiorcze zostają dłużej.
+- **Po wymazaniu konta (#1324):** zdarzenia zostają do końca tych 90 dni,
+  ale `EraseAccountData` ustawia w nich `user_id = NULL` w tej samej
+  transakcji co wymazanie (ponowienie wymazania domyka też sygnały sprzed
+  poprawki), a `ZapiszSygnal` zapisuje sygnał wymazanego konta bez
+  `user_id` (`FOR SHARE` na wierszu konta, sprawdzenie `data_erased_at`).
+  Liczniki zbiorcze się nie zmieniają. Test:
+  `WymazanieKontaOdpinaSygnalyProduktoweTest`.
 
 ### 3.17 Obsługa praw osób — eksport i usunięcie konta
 
@@ -377,13 +409,24 @@ egzekwuje.
   §3.1). Termin: **120 dni** od wymazania (dłużej niż najstarsza kopia),
   przycina `kuking:dziennik-wymazan`. Podstawa: art. 6 ust. 1 lit. c w zw.
   z art. 17 RODO.
-- **Znane ograniczenie, opisane osobno:** paczka **nie zawiera** ośmiu
-  kategorii danych, które serwis przechowuje (tożsamości zewnętrzne,
-  wiadomości „Napisz do nas", zgłoszenia i decyzje moderacyjne, dziennik
-  audytu, zdarzenia analityczne, wcześniejsze wersje przepisów, dziennik
-  zgód, obserwowane tagi). Pełny wykaz i warianty rozwiązania:
-  `DECYZJE_WLASCICIELA_R1_R6_DPA.md` §R1. To jest **otwarta decyzja
-  właściciela**, nie stan docelowy.
+- **Zakres paczki (art. 15 i 20, #953, #1816):** źródłem prawdy jest
+  `App\Domain\Users\Exports\InwentarzDanychKonta` — test
+  `EksportObejmujeKazdaTabeleKontaTest` oblewa, gdy tabela z kolumną
+  wskazującą na konto nie ma tam rozstrzygnięcia. **W paczce** (`dane.json`):
+  konto, profil, przepisy z wcześniejszymi wersjami, wpisy, „Ugotowałem”,
+  komentarze, zeszyty, obserwowane i zablokowane osoby, **obserwowane tagi**,
+  **„Co mam w domu”**, **ukrycia**, **reakcje** (własne i otrzymane),
+  powiadomienia, zdjęcia, dziennik zgód, połączone konta, sesje, urządzenia,
+  zdarzenia w serwisie, **wiadomości „Napisz do nas” z naszymi odpowiedziami**,
+  **zgłoszenia własne, decyzje moderacji i odwołania**, planer, importy.
+  **Tylko na żądanie** (`kategorie_poza_paczka`): dziennik bezpieczeństwa,
+  zgłoszenia cudzych treści o tej osobie, notatki moderacji i obsługi,
+  powiadomienia, które o jej działaniach dostały inne osoby, ślad nieudanych
+  wysyłek poczty, rejestr żądań RODO, czynności moderatora; kto zablokował
+  albo ukrył to konto — nie wydajemy (art. 15 ust. 4). Polityka §4 mówi to
+  samo; test: `PolitykaOpisujePaczkeUkryciaIReakcjeTest`. Wcześniejszy zapis
+  „paczka nie zawiera ośmiu kategorii” (`DECYZJE_WLASCICIELA_R1_R6_DPA.md`
+  §R1) jest nieaktualny.
 
 ### 3.18 Urodziny — życzenia od gospodarza (issue #1755)
 
@@ -434,6 +477,58 @@ egzekwuje.
     polityki i do §4;
   - czy istnieją eksporty logów poza Railway (drain, pobrane pliki).
 
+### 3.20 Ukrycia wpisów i osób (issue #1810, D-278)
+
+- **Cel:** układanie własnego ekranu: „Ukryj ten wpis”, „Ukryj tę osobę”.
+- **Dane:** identyfikator ukrywającego, ukrytego wpisu albo ukrytej osoby,
+  `hidden_until` (`hides`); domyślnie **30 dni**
+  (`config/kuking.php` → `ukrycia.dni`), `NULL` = „Zostaw ukryte”.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO — **do potwierdzenia przez
+  prawnika** (funkcja wybrana przez osobę; alternatywa: lit. f).
+- **Odbiorcy:** Railway. Nikt poza osobą ukrywającą tego nie widzi:
+  tabelę czytają tylko filtry strumieni tego widza, lista `/ustawienia/ukryte`,
+  eksport i wymazanie konta — **nigdy** moderacja ani analityka
+  (`UkryjWpisIOsobeTest::test_bez_agregacji…`). Nie ma licznika „ilu ukryło”.
+- **Termin usunięcia:** do „Przywróć” albo do wymazania konta
+  (`EraseAccountData` kasuje wiersze po stronie widza). **Luka:** wiersze po
+  terminie nic nie ukrywają, ale osobne czyszczenie ich dziś nie istnieje —
+  zostają do wymazania konta; polityka mówi to wprost. Do decyzji
+  właściciela, czy dodać sprzątanie.
+- **Eksport:** `hides.user_id` → `ukryte`; `hides.hidden_user_id` (kto ukrył
+  to konto) — na żądanie, nie wydajemy (art. 15 ust. 4).
+
+### 3.21 Reakcja „Smakowicie wygląda” (issue #1813, D-280)
+
+- **Cel:** lekka reakcja pod cudzym wpisem.
+- **Dane:** wpis, autor reakcji, chwila (`post_reactions`); `notified_at` —
+  kiedy weszła do zbiorczego powiadomienia.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO — **do potwierdzenia przez
+  prawnika**.
+- **Odbiorcy:** Railway; **pod wpisem nazwę osoby, która zareagowała, widzi
+  każdy, kto wpis widzi, także bez logowania** (bez liczby, bez osób z blokadą
+  autora albo widza, `Smakowicie::ktoDla()`). Autor dostaje jedno
+  zbiorcze powiadomienie dziennie (`kuking:powiadom-smakowicie`, retencja jak
+  §3.11). Żadna lista nie sortuje wpisów według reakcji.
+- **Termin usunięcia:** do cofnięcia reakcji, do usunięcia wpisu (twarde
+  usunięcie kasuje wiersz kaskadą) albo do wymazania konta
+  (`EraseAccountData`).
+- **Eksport:** `moje_reakcje`, `reakcje_otrzymane` (nazwa tylko przy osobach
+  widocznych dla autora), `reakcje_otrzymane_od_osob_niewidocznych` (liczba).
+
+### 3.22 Lista „Co mam w domu” (V2, D-285)
+
+- **Cel:** „Co ugotuję z tego, co mam” — podpowiedź przepisów.
+- **Dane:** nazwa produktu wpisana przez osobę i data dodania
+  (`pantry_items`); kolumny `rdzenie` i `klucz` są wyliczone z nazwy.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO — **do potwierdzenia przez
+  prawnika**.
+- **Odbiorcy:** Railway. Lista jest prywatna (`PantryItemPolicy`), porównanie
+  ze składnikami przepisów odbywa się w bazie; nic nie jest wysyłane do
+  podmiotów trzecich.
+- **Termin usunięcia:** do usunięcia produktu albo wymazania konta
+  (`EraseAccountData`).
+- **Eksport:** `co_mam_w_domu`.
+
 ---
 
 ## 4. Kategorie odbiorców (art. 30 ust. 1 lit. d)
@@ -450,7 +545,7 @@ brakuje.
 | Odbiorca | Rola | Co dostaje | Kraj |
 |---|---|---|---|
 | Railway | podmiot przetwarzający | cała aplikacja, baza i dziennik serwera | deklarowana UE — **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** region usługi odczytany z panelu |
-| Cloudflare R2 | podmiot przetwarzający | zdjęcia i ich warianty, paczki eksportu | jurysdykcja UE — właściciel potwierdził 24.09.2026, że `AWS_ENDPOINT` ma segment `.eu.`, a buckety są w jurysdykcji UE; od D-255 (PR #1463) aplikacja odmawia endpointu bez `.eu.` (`App\Support\Storage\DozwolonyHostR2`, `/health`) |
+| Cloudflare R2 | podmiot przetwarzający | zdjęcia i ich warianty, paczki eksportu, zaszyfrowane zrzuty bazy (`AWS_KOPIE_BUCKET`, retencja 30 dni — `KOPIA_RETENCJA_DNI`) | jurysdykcja UE — właściciel potwierdził 24.09.2026, że `AWS_ENDPOINT` ma segment `.eu.`, a buckety są w jurysdykcji UE; od D-255 (PR #1463) aplikacja odmawia endpointu bez `.eu.` (`App\Support\Storage\DozwolonyHostR2`, `/health`) |
 | Cloudflare Turnstile | podmiot przetwarzający | adres IP i cechy przeglądarki przy siedmiu formularzach | USA |
 | Cloudflare Web Analytics | podmiot przetwarzający | adres strony, odnośnik, rodzaj przeglądarki, czas wczytania | USA |
 | OpenAI | podmiot przetwarzający | treść wpisu i pomniejszone zdjęcie, bez danych wskazujących osobę | USA |
@@ -522,15 +617,18 @@ w `SECURITY_BASELINE.md`.
   serwis; dwuetapowa weryfikacja obowiązkowa dla kont z uprawnieniami
   moderatora (`SECURITY_BASELINE.md` §2).
 - **Kopie zapasowe bazy** — `scripts/kopia-lokalna.sh`,
-  `kuking:sprawdz-kopie`.
+  `kuking:sprawdz-kopie`. Zrzuty offsite (serwis `kopia-bazy`) są szyfrowane
+  kluczem publicznym i trzymane **30 dni** (`KOPIA_RETENCJA_DNI`,
+  `docs/infra/KOPIE_I_ODTWORZENIE.md` §7); PITR Railwaya ok. 4 tygodni według
+  dokumentacji dostawcy — niepotwierdzone na produkcji (#594).
 
 **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:**
 
-- **Maksymalny czas życia kopii zapasowej** zawierającej dane osoby, która
-  usunęła konto. To jest dziś jedyna luka w opisie retencji, o której
-  wiadomo, że jest luką — `COMPLIANCE.md` §7.1 i §2.8. Bez tej liczby
-  rejestr nie mówi, kiedy dane naprawdę znikają, tylko kiedy znikają
-  z bazy roboczej.
+- **Maksymalny czas życia kopii zapasowej u dostawcy hostingu** (Volume
+  Backups/PITR Railwaya) zawierającej dane osoby, która usunęła konto.
+  Własne zrzuty offsite mają już liczbę (30 dni, wyżej); kopie po stronie
+  Railwaya — nie, dopóki #594 nie potwierdzi ustawień produkcji
+  (`COMPLIANCE.md` §7.1 i §2.8).
 - **Umowy powierzenia** z każdym podmiotem przetwarzającym — stan do
   odhaczenia: `REJESTR_UMOW_POWIERZENIA.md`.
 - **Data ostatniego przeglądu tego rejestru** i osoba, która go zrobiła.

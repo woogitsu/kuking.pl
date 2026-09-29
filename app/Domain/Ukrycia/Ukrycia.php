@@ -94,6 +94,22 @@ final class Ukrycia
             ->exists();
     }
 
+    /**
+     * Ile OSÓB ten widz ma teraz ukrytych — dla linii „Ukrywasz wpisy N osób.
+     * Zmień" w „Świeżo z Kuking" i na stronie „Jak dobieramy wpisy" (#1811).
+     * Liczone z ukryć TEGO widza, jak wszystko w tej klasie.
+     */
+    public function ileOsob(User $widz): int
+    {
+        return Hide::query()->aktywne()->where('user_id', $widz->getKey())->whereNotNull('hidden_user_id')->count();
+    }
+
+    /** Ile pojedynczych WPISÓW ten widz ma teraz ukrytych (#1811). */
+    public function ileWpisow(User $widz): int
+    {
+        return Hide::query()->aktywne()->where('user_id', $widz->getKey())->whereNotNull('post_id')->count();
+    }
+
     /** Ile rzeczy (wpisów i osób) widz ma teraz ukrytych. */
     public function ileAktywnych(User $widz): int
     {

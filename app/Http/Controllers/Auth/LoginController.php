@@ -14,6 +14,7 @@ use App\Rules\TurnstileJestPotwierdzony;
 use App\Support\PowrotDoRozmowy;
 use App\Support\Turnstile;
 use App\Support\ZamiarObserwowania;
+use App\Support\ZamiarZapisu;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,7 +34,7 @@ class LoginController extends Controller
 {
     public function __construct(private readonly SprawdzHasloPrzyLogowaniu $sprawdzHaslo) {}
 
-    public function show(Request $request, ZamiarObserwowania $zamiar, PowrotDoRozmowy $rozmowa): View
+    public function show(Request $request, ZamiarObserwowania $zamiar, PowrotDoRozmowy $rozmowa, ZamiarZapisu $zapis): View
     {
         if ($cel = $zamiar->celDoLogowania($request)) {
             $request->session()->put('url.intended', $cel);
@@ -42,6 +43,11 @@ class LoginController extends Controller
         // Odnośnik z wątku komentarzy (#2027) jest nowszym zamiarem niż
         // zapamiętane „Obserwuj”, więc nadpisuje cel.
         if ($cel = $rozmowa->celDoLogowania($request)) {
+            $request->session()->put('url.intended', $cel);
+        }
+
+        // Odnośnik „Zaloguj się, żeby zapisać” (#2028) — najnowszy jawny zamiar.
+        if ($cel = $zapis->celDoLogowania($request)) {
             $request->session()->put('url.intended', $cel);
         }
 

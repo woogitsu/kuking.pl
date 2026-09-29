@@ -367,6 +367,25 @@ return [
         'okno_aktywnosci_dni' => (int) env('KUKING_UKRYCIA_OKNO_AKTYWNOSCI_DNI', 14),
     ],
 
+    /*
+     * Metryki doboru (issue #1814, D-283) i progi, po których wolno wrócić
+     * do rozmowy o rankingu (D-275). Progi pokazuje panel; niczego same nie
+     * włączają — przekroczenie to powód do decyzji właściciela, nie do kodu.
+     *  - `autorow_dziennie`: średnia z 28 dni różnych autorów publicznych wpisów;
+     *  - `tygodni_danych`: tyle pełnych tygodni od pierwszego publicznego wpisu;
+     *  - `odsetek_bez_pierwszej_strony`: wskaźnik zastępczy (D-283) — udział
+     *    autorów, którym wpisy z tygodnia stały na pierwszej stronie „Świeżo
+     *    z Kuking” łącznie krócej niż `minut_na_pierwszej_stronie`;
+     *  - `publiczne_z_tagiem`: od tylu procent wpisów z tagiem wolno ukrywać tagi.
+     */
+    'metryki' => [
+        'autorow_dziennie' => (int) env('KUKING_METRYKI_AUTOROW_DZIENNIE', 60),
+        'tygodni_danych' => (int) env('KUKING_METRYKI_TYGODNI_DANYCH', 8),
+        'odsetek_bez_pierwszej_strony' => (float) env('KUKING_METRYKI_ODSETEK_BEZ_PIERWSZEJ_STRONY', 30),
+        'minut_na_pierwszej_stronie' => (int) env('KUKING_METRYKI_MINUT_NA_PIERWSZEJ_STRONIE', 60),
+        'publiczne_z_tagiem' => (float) env('KUKING_METRYKI_PUBLICZNE_Z_TAGIEM', 60),
+    ],
+
     'feed' => [
         // Ile wpisów na "stronę". Bez infinite scroll — jest przycisk
         // "Pokaż więcej" (docs/UX_50_PLUS.md).
@@ -1973,6 +1992,48 @@ return [
         'planer' => '60,10',
 
         /*
+         * PLANER TYGODNIA — ODCZYT (`GET /planer`, #2037).
+         *
+         * Od wyszukiwania przepisu przy każdym dniu ta sama trasa, która
+         * rysuje tydzień, uruchamia też wyszukiwarkę trigramową
+         * (`SearchQuery::recipes`, ten sam koszt co `/szukaj`) — a jest
+         * zwykłym GET-em, więc pętla mogłaby ją odpytywać bez końca.
+         * Zapisy planera mają swój koszyk `planer` wyżej; ten jest tylko dla
+         * odczytu i osobny (jeden prefiks = jedna trasa,
+         * `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`).
+         *
+         * TEN SAM RZĄD WIELKOŚCI CO `search`: sześćdziesiąt na minutę.
+         * Limit stoi na CAŁEJ trasie, nie tylko na żądaniach z frazą:
+         * wariant „tylko z q" wymagałby limitera nazwanego, który wypada
+         * z reguły prefiksu. Zwykłe wejście na tydzień i przełączanie
+         * tygodni to pojedyncze żądania na minutę, więc człowiek nie ma
+         * szans tego dotknąć.
+         */
+        'planer_szukaj' => '60,1',
+
+        /*
+         * „CO MAM W DOMU” (D-285) — dopisanie i usunięcie produktu z własnej,
+         * prywatnej listy. Szkoda z nadużycia żadna widoczna dla innych, ale
+         * pierwsze wypełnianie listy to kilkanaście–kilkadziesiąt produktów
+         * pod rząd, więc próg jest wyższy niż `zeszyt`.
+         */
+        'spizarnia' => '120,10',
+
+        /*
+         * Podpowiedzi pod polem „Co masz w domu?” — autouzupełnianie
+         * z opóźnieniem, ten sam rodzaj zapytania i ten sam próg co
+         * `tag_suggestions`, ale osobny koszyk.
+         */
+        'podpowiedzi_skladnikow' => '120,1',
+
+        /*
+         * „Co ugotuję z tego, co mam” (D-285). Jedno wejście liczy dopasowanie
+         * całej listy do przepisów — kosztem bliżej wyszukiwarki niż zwykłej
+         * strony, dlatego ten sam próg co `search`.
+         */
+        'co_ugotuje' => '60,1',
+
+        /*
          * USTAWIENIA PRYWATNE I DROBNE PRZEŁĄCZNIKI — czytelność,
          * prywatność, „Twoje tagi", wygląd jasny/ciemny, oznaczenie
          * powiadomień jako przeczytane, ukrycie wspomnienia, krok
@@ -2726,9 +2787,90 @@ return [
          * samo jak `wersja.etykieta` niżej trzymane w repozytorium, NIE
          * w zmiennej środowiskowej: zmiana wersji dokumentu prawnego ma
          * przechodzić przez recenzję jak każda inna zmiana, a nie dać się
-         * przestawić w panelu Railwaya.
+         * przestawić w panelu Railwaya. Zgodność z nagłówkiem pilnuje
+         * `WersjaPolitykiZgadzaSieZNaglowkiemTest`. Wcześniejsze wiersze
+         * dziennika zostają ze swoją wersją — to dowód, NA CO się zgodzono.
          */
-        'wersja_polityki' => '2026-09-25',
+        'wersja_polityki' => '2026-09-29',
+
+        /*
+         * CZY ZMIANA POLITYKI JEST ISTOTNA — oznaczenie JAWNE, bez wartości
+         * domyślnej (D-327, decyzja właściciela z 26.09.2026). Kształt ten
+         * sam co `zmiana_regulaminu` niżej; znaczenie pól opisuje
+         * `App\Domain\Zgody\WersjaDokumentu`.
+         *
+         * Przy podbiciu `wersja_polityki` ZAWSZE przestaw i to:
+         *  - `istotna` => true — zmienia prawa lub obowiązki (nowy cel, nowy
+         *    odbiorca, dłuższe przechowywanie…). Nowa wersja obowiązuje
+         *    `okres_istotnej_zmiany_dni` po publikacji, do tego dnia
+         *    obowiązuje `poprzednia` (wpisz tu datę dotychczasowej wersji),
+         *    a dziennik zgód zapisuje właśnie ją;
+         *  - `istotna` => false — poprawka redakcyjna, obowiązuje od razu.
+         *
+         * Wersja 2026-09-10 weszła, zanim to rozróżnienie istniało. Wersja
+         * 2026-09-25 (#994: jak długo Railway trzyma dziennik serwera, zdjęcia
+         * w części Cloudflare R2 zastrzeżonej dla UE) opisuje stan, który już
+         * był — bez nowego celu, odbiorcy ani dłuższego przechowywania — więc
+         * drobna.
+         *
+         * Wersja 2026-09-29 (#1816, jedno podbicie razem z #1324 i #619) opisuje
+         * to, co serwis już robił: paczkę danych zgodną z kodem (co jest
+         * w środku, co tylko na prośbę), obserwowane tagi, ukrycia, reakcję
+         * „Smakowicie wygląda”, listę „Co mam w domu”, odpięcie zdarzeń
+         * analitycznych po usunięciu konta i datę sprawdzenia lokalizacji
+         * zdjęć. Nie ma tu nowego celu, odbiorcy ani dłuższego przechowywania,
+         * a zwroty z „sam” zamieniono na neutralne (decyzja właściciela
+         * z 26.09.2026) — więc drobna. Gdyby prawnik uznał inaczej,
+         * przestaw `istotna` na true: `WersjaDokumentuTest` zażąda wtedy
+         * paska `components.pasek-zmiany-polityki`, którego jeszcze nie ma.
+         */
+        'zmiana_polityki' => [
+            'istotna' => false,
+            'poprzednia' => null,
+            'obowiazuje_od' => null,
+        ],
+
+        /*
+         * WERSJA REGULAMINU — ten sam kształt co `wersja_polityki` wyżej:
+         * data stanu dokumentu z nagłówka `resources/legal/regulamin.md`
+         * („opisuje stan serwisu na <data>"), podbijana ręcznie razem z nim
+         * i z sekcją „Co się zmieniło" (#1811, D-306). Test
+         * `ZmianaRegulaminuTest` pilnuje, że data w nagłówku i ta wartość to
+         * ten sam dzień.
+         *
+         * PODBICIE POKAZUJE PASEK. Każde zalogowane konto założone przed tym
+         * dniem, które nie zamknęło paska dla tej wersji, widzi raz
+         * „Zmieniliśmy regulamin — co się zmieniło" (decyzja właściciela
+         * z 26.09.2026: komunikat w serwisie, bez maili). Podbijaj więc tylko
+         * przy zmianie, o której ludzie mają się dowiedzieć — literówka
+         * w dokumencie to nie powód, żeby zaczepiać każdego.
+         */
+        'wersja_regulaminu' => '2026-09-26',
+
+        /*
+         * CZY ZMIANA REGULAMINU JEST ISTOTNA (D-327) — jak `zmiana_polityki`.
+         * Istotna: pasek pokazuje się od `wersja_regulaminu`, a mówi, że nowa
+         * wersja obowiązuje od dnia `wersja_regulaminu` + 14 dni (albo
+         * późniejszego `obowiazuje_od`) i że do tego dnia obowiązuje
+         * `poprzednia`. Drobna: pasek bez terminu, obowiązuje od razu.
+         *
+         * 26.09.2026 dopisaliśmy opis doboru wpisów (#1811) — opisuje, jak
+         * serwis już działa, bez zmiany praw i obowiązków, więc drobna.
+         */
+        'zmiana_regulaminu' => [
+            'istotna' => false,
+            'poprzednia' => '2026-09-07',
+            'obowiazuje_od' => null,
+        ],
+
+        /*
+         * Ile dni po publikacji wchodzi w życie zmiana ISTOTNA (D-327).
+         * Regulamin §11 obiecuje „co najmniej **14 dni**” —
+         * `WersjaDokumentuTest` pilnuje, że to ta sama liczba. W repozytorium,
+         * nie w zmiennej środowiskowej: skrócenie okresu to zmiana obietnicy
+         * z dokumentu prawnego i ma przejść przez recenzję.
+         */
+        'okres_istotnej_zmiany_dni' => 14,
     ],
 
     'analytics' => [
@@ -3482,6 +3624,17 @@ return [
             'alarm_email' => env('KUKING_MODEL_ALARM_EMAIL'),
 
             /*
+             * DOBOWY SUFIT LISTÓW ALARMU AUTOMATU (audyt B8-02). Kategorię
+             * „pilną" wyzwala treść, którą pisze ktokolwiek z kontem, więc bez
+             * sufitu seria wpisów oznaczonych przez model dawała list za listem
+             * z puli dzielonej z logowaniem i rejestracją. Osobny od
+             * `alarm_czlowieka.dzienny_sufit`: fala oznaczeń automatu nie może
+             * uciszyć alarmu o zgłoszeniu od człowieka. Po wyczerpaniu sprawa
+             * i tak czeka w panelu, a dziennik mówi, dlaczego bez listu.
+             */
+            'alarm_dzienny_sufit' => (int) env('KUKING_MODEL_ALARM_SUFIT', 10),
+
+            /*
              * DOSYŁANIE ZALEGŁYCH ALARMÓW (issue #1051,
              * `kuking:doslij-pilne-alarmy`, co godzinę).
              *
@@ -3682,7 +3835,7 @@ return [
         // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
         // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
         // wersji nie da się z niczym powiązać.
-        'etykieta' => 'Alfa 0.75',
+        'etykieta' => 'Alfa 0.76',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
         //

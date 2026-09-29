@@ -37,6 +37,15 @@ class RodzajWpisuPozaMasowymPrzypisaniemTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Cała klasa mierzy ciche odrzucenie pola z produkcji, nie wyjątek
+        // trybu ścisłego (#976) — patrz `TestCase::mierzMasowePrzypisanieJakWProdukcji()`.
+        $this->mierzMasowePrzypisanieJakWProdukcji();
+    }
+
     public function test_mass_assigned_kind_does_not_create_a_question(): void
     {
         config(['kuking.questions.enabled' => true]);

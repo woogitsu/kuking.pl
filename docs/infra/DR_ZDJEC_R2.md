@@ -214,6 +214,19 @@ od `--limit=200`.
 zdjęciach.** Agenci tych kroków nie wykonują. Kasowanie wykonuje
 właściciel, świadomie, na obiektach, które sam wgrał.
 
+### 7.0 Próba na sucho — bez R2, w testach
+
+Zanim właściciel dotknie prawdziwych bucketów, ten sam scenariusz (migawka →
+utrata → odtworzenie wg bazy → weryfikacja sum) przechodzi na atrapie
+magazynu: `tests/Feature/OdtworzenieZdjecZMigawkiTest.php`, uruchamiany
+w zwykłym zestawie (`php artisan test --filter OdtworzenieZdjecZMigawki`).
+Bierze zdjęcia z PRAWDZIWEGO potoku (`StoreUploadedImage` +
+`ProcessUploadedImage`), więc klucze i sumy są te, które produkuje aplikacja.
+Pilnuje umowy między układem migawki z §3, zapisem potoku i komendą z §6.
+
+Test **nie dowodzi niczego o R2**: uprawnieniach tokenów, ryglu, lifecycle,
+przepustowości, RPO ani RTO. Zielony test nie zastępuje 7.1–7.3 ani tabeli §8.
+
 ### 7.1 Próba odtworzenia (definicja gotowości #617)
 
 1. Na koncie testowym wgrać 3 zdjęcia i poczekać na `ready`. Zapisać ich
@@ -227,6 +240,13 @@ właściciel, świadomie, na obiektach, które sam wgrał.
 5. **Lista odtworzenia pochodzi z bazy, nie z bucketu kopii:** wyłącznie
    klucze z raportu z kroku 4 (wiersz istnieje, więc zdjęcie nie jest objęte
    żądaniem usunięcia). Obiekty z `NADMIAROWE` nie wracają nigdy.
+   **Po awarii BAZY** (odtworzona z kopii sprzed żądań usunięcia) lista z bazy
+   jest wiarygodna dopiero po `kuking:wymaz-ponownie`
+   (`KOPIE_I_ODTWORZENIE.md` §3.1): stara baza zawiera konta, które
+   wymazaliśmy po jej dacie, a ich zdjęcia leżą jeszcze w migawce. Kolejność:
+   baza → wymaż ponownie → dopiero lista odtworzenia. Gdy nie da się
+   ustalić, które konta wymazano, **wstrzymaj odtwarzanie zdjęć** — odzysk
+   do prywatnego środowiska nie jest przywróceniem treści ludziom.
 6. Odtworzyć te klucze z migawki do żywych bucketów **tymczasowym** tokenem
    zapisu (po próbie unieważnić), np. `rclone copyto
    "kopia-odczyt:kuking-zdjecia-kopia/<migawka>/oryginaly/<klucz>" "zywy:<AWS_BUCKET>/<klucz>"`.

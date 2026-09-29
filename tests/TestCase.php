@@ -11,11 +11,13 @@ use App\Models\User;
 use App\Support\Sesja\GeneracjaSesji;
 use Illuminate\Auth\Passwords\PasswordBroker;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Mail\Transport\ArrayTransport;
 use Illuminate\Session\Store;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
@@ -69,6 +71,22 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
+     * MIERZY MASOWE PRZYPISANIE TAK, JAK DZIAŁA W PRODUKCJI — CICHYM ODRZUCENIEM.
+     *
+     * Poza produkcją `AppServiceProvider` włącza tryb ścisły Eloquent
+     * (#976), więc pole spoza `$fillable` rzuca `MassAssignmentException`
+     * już przy `fill()`. Testy pól sterujących (AGENTS.md §7, D-006) mierzą
+     * jednak SKUTEK w bazie po `update($request->all())` w produkcji, gdzie
+     * ta ochrona jest wyłączona — i tylko po to ją tu wyłączają. Dotyczy
+     * wyłącznie bieżącego testu: następny `setUp()` buduje aplikację od
+     * nowa, a jej `boot()` włącza tryb ścisły z powrotem.
+     */
+    protected function mierzMasowePrzypisanieJakWProdukcji(): void
+    {
+        Model::preventSilentlyDiscardingAttributes(false);
+    }
+
+    /**
      * `actingAs()` jako prawdziwe logowanie także w generacji sesji (#1046).
      *
      * Na produkcji każde logowanie zapisuje w sesji generację konta
@@ -91,15 +109,46 @@ abstract class TestCase extends BaseTestCase
             return $this;
         }
 
-        $generacja = array_key_exists('session_generation', $user->getAttributes())
-            ? (int) $user->session_generation
-            : (int) User::query()->whereKey($user->getKey())->value('session_generation');
+        $this->dopelnijAtrybutyZBazy($user);
+
+        $generacja = (int) $user->session_generation;
 
         if ($generacja > 0 || $this->app['session']->has(GeneracjaSesji::KLUCZ)) {
             $this->withSession([GeneracjaSesji::KLUCZ => $generacja]);
         }
 
         return $this;
+    }
+
+    /**
+     * Konto prosto z `create()` niesie tylko to, co fabryka ustawiła — bez
+     * kolumn z domyślną wartością w bazie (`session_generation`,
+     * `ostatnio_widziany_at`, `two_factor_confirmed_at`…). Na produkcji model
+     * zalogowanej osoby zawsze pochodzi z bazy i ma komplet, a middleware
+     * czytają te kolumny z NIEGO. Tryb ścisły Eloquent (#976) rzuca przy
+     * odczycie brakującego atrybutu, więc `actingAs()` dopełnia go z bazy —
+     * tylko brakujące kolumny, bez ruszania niezapisanych zmian w teście.
+     */
+    private function dopelnijAtrybutyZBazy(User $user): void
+    {
+        // Przez gołe PDO, nie przez builder: testy liczące zapytania mierzą
+        // to, co robi aplikacja, a nie to, co dokłada asekuracja `actingAs()`.
+        $zapytanie = DB::connection()->getPdo()->prepare(
+            'select * from '.$user->getTable().' where '.$user->getKeyName().' = ?',
+        );
+        $zapytanie->execute([$user->getKey()]);
+        $wiersz = $zapytanie->fetch(\PDO::FETCH_ASSOC);
+
+        if ($wiersz === false) {
+            return;
+        }
+
+        foreach ($wiersz as $kolumna => $wartosc) {
+            if (! array_key_exists($kolumna, $user->getAttributes())) {
+                $user->setRawAttributes([...$user->getAttributes(), $kolumna => $wartosc]);
+                $user->syncOriginalAttribute($kolumna);
+            }
+        }
     }
 
     /**

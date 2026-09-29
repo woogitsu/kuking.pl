@@ -265,8 +265,9 @@
          szerokości) nie zapalają się przy otwartej klawiaturze i obie
          przypięte belki zabierają resztę widoku nad polem. Zmierzone
          w `scripts/przegladarka/klawiatura-belki.test.mjs`. Safari tego klucza
-         nie zna i go pomija — zachowanie tam bez zmian. Zoomu NIE blokujemy. --}}
-    <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+         nie zna i go pomija — zachowanie tam bez zmian. Zoomu NIE blokujemy.
+         `viewport-fit=cover` (#987, D-260) — patrz `bezpieczny-obszar.css`. --}}
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="kuking-service-worker" content="/sw.js?v={{ rawurlencode(config('kuking.wersja.commit') ?: \App\Support\Wersja::etykieta()) }}">
     <title>{{ $pageTitle }}</title>
 
@@ -837,6 +838,10 @@
                                 @can('diagnozujKolejke', \App\Models\User::class)
                                 <li><a class="side-nav-item" href="{{ route('admin.kolejka') }}" @if(request()->routeIs('admin.kolejka')) aria-current="page" @endif><x-ikona nazwa="clock" /> <span class="marka-panel-nav-etykieta">Kolejka zadań</span></a></li>
                                 @endcan
+                                {{-- Metryki doboru (issue #1814, D-283) — ta sama bramka co w kontrolerze. --}}
+                                @can('przegladajMetryki', \App\Models\User::class)
+                                <li><a class="side-nav-item" href="{{ route('admin.metryki') }}" @if(request()->routeIs('admin.metryki')) aria-current="page" @endif><x-ikona nazwa="filter" /> <span class="marka-panel-nav-etykieta">Metryki doboru</span></a></li>
+                                @endcan
                             </ul>
 
                             {{--
@@ -1102,6 +1107,11 @@
                         @endif
                     </div>
                 @endif
+
+                {{-- Zmiana regulaminu (#1811, D-306) — zalogowani, do zamknięcia. --}}
+                @auth
+                    <x-pasek-zmiany-regulaminu />
+                @endauth
 
                 @if($wTrybiePanelu)
                     <div class="marka-panel-tresc">

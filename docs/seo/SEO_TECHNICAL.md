@@ -383,9 +383,9 @@ Każdy JSON-LD blok renderowany przez Blade powinien przechodzić dwa testy zani
 | Konto `status IN ('suspended','banned','pending_delete')` | `noindex`, treść zwraca 410/404 zgodnie z polityką retencji | Nie utrzymywać w indeksie kont usuniętych/zbanowanych |
 | Treść zgłoszona i ukryta (`status='hidden'`/`'removed'` po `moderation_actions`) | `noindex, nofollow`, HTTP 410 (removed) lub 200+noindex (hidden, w toku triage) | Zgodność z DSA (decyzja + możliwość odwołania), zero ryzyka rankingowego z treści naruszającej zasady |
 | `/szukaj`, `/powiadomienia`, `/ustawienia/*`, `/admin/*` | `noindex, nofollow` (+ `Disallow` w `robots.txt` dla `/ustawienia`, `/admin`, `/powiadomienia` — auth-only, crawler i tak ich nie zobaczy, ale to tania dodatkowa warstwa) | Brak wartości publicznej, ryzyko crawl budgetu |
-| `/home`, `/dodaj`, `/zeszyt` (widoki wymagające loginu) | poza indeksem z definicji (auth wall) | j.w. |
+| `/home`, `/dodaj`, lista `/zeszyt` i `/zeszyt/{uuid}/edytuj` (widoki wymagające loginu) | poza indeksem z definicji (auth wall) | j.w. |
 | Kolekcje prywatne | `noindex, nofollow` | `collections.visibility='private'` domyślne |
-| Kolekcje publiczne | `index, follow` | Realna, kuracyjna treść — dobry sygnał jakości |
+| Kolekcje publiczne | `index, follow` — `/zeszyt/{uuid}` otwiera się bez logowania, ma opis meta i nie dostaje `X-Robots-Tag` (issue #965) | Realna, kuracyjna treść — dobry sygnał jakości |
 
 ### 3.1 `robots.txt`
 
@@ -400,6 +400,8 @@ Allow: /
 
 Sitemap: https://kuking.pl/sitemap_index.xml
 ```
+
+Realny plik ma dodatkowo `Disallow: /zeszyt$` i `Disallow: /zeszyt/*/` — blokują listę własnych zeszytów i ich podstrony, ale nie publiczny zeszyt `/zeszyt/{uuid}` (issue #965). `Disallow: /szukaj` celowo nie ma (issue #964, patrz niżej).
 
 Realny plik generuje `app/Http/Controllers/SitemapController.php::robots()` — adresy tam i tu muszą się zgadzać; do 12 września 2026 ten dokument (i sam kontroler) miały `/search`, `/home` i `/add` po angielsku, czyli pod adresami, których serwis nie ma, więc wyszukiwarka i ekran dodawania nie były w praktyce wyłączone z indeksowania.
 
@@ -504,6 +506,10 @@ Recipe::query()
 6. Kompresja `.xml.gz` — Google akceptuje bez dodatkowej konfiguracji, warto włączyć od razu przy skali > kilku tysięcy URL-i (redukcja transferu 70–90%).
 
 ### 4.3 Co wchodzi do sitemapy
+
+**Huby i strony stałe (#1032).** Mapa ogłasza jawną, zamkniętą listę `SitemapController::publiczneWejscia()`: stronę główną, Odkrywaj, Poradźcie (`/pytania` — tylko przy `kuking.questions.enabled=true`, bo inaczej trasa oddaje 404), Tagi (`/tagi`), O Kuking, Pomoc, Zasady, „Napisz do nas", Regulamin i Prywatność. Kryterium: strona publiczna, bez logowania, bez `noindex`, jeden adres bez parametrów. Strony prawne i kontakt są indeksowane (własny opis, brak `noindex`; kontakt świadomie — kto nie może się zalogować, szuka go w wyszukiwarce), więc wchodzą. Nie wchodzą: warianty filtrów i kursora, `/napisz-do-nas/dziekujemy` oraz pojedyncze `/tag/{tag}` — ich próg jakości to osobne zadanie (#1007). `MapaStronyPubliczneWejsciaTest` porównuje dokładny zbiór i otwiera każdy adres jako gość.
+
+**`lastmod` profilu (#1280).** Profil to głównie lista treści autora, więc `lastmod` = `GREATEST(profiles.updated_at, MAX(updated_at))` z wpisów i przepisów autora, które mają `visibility = public` i `published_at` — łącznie z ukrytymi i usuniętymi, bo ukrycie i usunięcie też zmienia profil. Szkice, treści prywatne i dla obserwujących nie przesuwają daty; komentarze i „Ugotowałem" nie dotykają `updated_at` treści. Znana granica: zmiana widoczności z publicznej na prywatną nie przesuwa daty. Liczone dwoma zapytaniami grupującymi na partię 500 profili (bez N+1). Część dla usuniętych przepisów nie trafia w częściowy indeks `recipes_author_published_idx` — przy obecnej skali to jeden skan na partię; przy podziale na chunki (§4.2) policzyć plan ponownie.
 
 **Adres wpisu przez `Post::url()` (#968).** Pytanie ma jeden adres, `/pytania/{id}`; `/wpisy/{id}` pytania przekierowuje na niego 301 (po sprawdzeniu dostępu). Mapa ogłasza więc pytania wyłącznie pod `/pytania/{id}` i obejmuje także pytanie z samym tytułem (`body` puste — tytuł jest obowiązkowy). Zwykłe wpisy bez `body` nadal nie wchodzą: to zapowiedzi przepisów.
 

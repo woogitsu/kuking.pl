@@ -10,6 +10,7 @@ use App\Jobs\OdczytajPrzepis;
 use App\Jobs\ProcessUploadedImage;
 use App\Jobs\PrzeanalizujAwatar;
 use App\Jobs\PrzeanalizujTresc;
+use App\Jobs\PrzeliczPytaniaBezOdpowiedzi;
 use App\Jobs\PurgePublicMediaCache;
 use App\Jobs\WyslijPowiadomieniePush;
 use App\Models\Post;
@@ -83,6 +84,7 @@ class UmowaKolejkiTest extends TestCase
         // pilnuje `assertNotPushed`). Zostaje dla zadań sprzed wdrożenia,
         // które czekają na `low` z zapisaną wtedy nazwą kolejki.
         PrzeanalizujAwatar::class => null,
+        PrzeliczPytaniaBezOdpowiedzi::class => 'low', // licznik /pytania może poczekać za ludźmi (#372)
         WyslijPowiadomieniePush::class => 'default', // powiadomienie na urządzenie — obok listów, nie za eksportem (#35)
         // Odczyt zdjęcia kartki modelem (D-298) — `low`, bez osobnej kolejki:
         // do 90 s, za moderacją, nie przed zdjęciami i listami.
@@ -104,6 +106,7 @@ class UmowaKolejkiTest extends TestCase
             PurgePublicMediaCache::class => new PurgePublicMediaCache(['https://example.test/a.webp']),
             PrzeanalizujTresc::class => new PrzeanalizujTresc(PrzeanalizujTresc::TYP_WPIS, 'post-id'),
             PrzeanalizujAwatar::class => new PrzeanalizujAwatar('media-id'),
+            PrzeliczPytaniaBezOdpowiedzi::class => new PrzeliczPytaniaBezOdpowiedzi,
             WyslijPowiadomieniePush::class => new WyslijPowiadomieniePush('user-id'),
             OdczytajPrzepis::class => new OdczytajPrzepis('import-id'),
         ];

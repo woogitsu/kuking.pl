@@ -16329,6 +16329,29 @@ wywołania przypisane do klas:
 Dowód: `AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest` (eksport, blokada)
 i `LogowanieLinkiemTest` (sekcja #1530).
 
+**Uzupełnienie (#829, #830, #1051, 26 września 2026 — decyzja właściciela).**
+`content.flagged_by_automat` — **klasa 2**, w obu miejscach, które go piszą:
+
+- `OznaczDoPrzegladu` (nowa sprawa automatu) — już tak od #1051.
+- `DolozDoOznaczenia` (sygnały dołożone do istniejącej sprawy, `dolozone:
+  true` w metadanych) — od dopisku `7fb4e467` do PR #1548. Wcześniej gołe
+  `record()` stało WEWNĄTRZ transakcji dokładania, więc awaria dziennika
+  cofała dołożone sygnały, a wyjątek połykany w `PrzeanalizujTresc` zjadał
+  pilny alarm.
+
+Autorytatywny ślad to wiersz `reports` (`source = automat`, powód, opis
+sygnałów, `alarm_pilny_stan`), zatwierdzany razem z obowiązkiem alarmu:
+pilny sygnał dołożony do sprawy bez stanu alarmu zapisuje `ZALEGLY` w tej
+samej transakcji. Na pytanie rozstrzygające odpowiedź brzmi „tak" — ślad
+decyzji automatu zostaje w bazie bez wpisu dziennika, a o tym, co z nim
+zrobić, i tak decyduje człowiek (`moderation.decided`, klasa 1). Awaria
+dziennika idzie do `report()` z nazwą braku; sygnały i alarm zostają.
+
+Dowód: `PilnyAlarmModeracyjnyNieGinieTest` (nowa sprawa) i
+`ModeracjaBudzetIZdjeciaPoGotowosciTest::test_awaria_dziennika_nie_cofa_dolozonych_sygnalow`
+oraz `test_pilny_sygnal_dolozony_zapisuje_zalegly_alarm_przed_listem`
+(dokładanie).
+
 **Uzupełnienie (#1305, 25 września 2026).** `appeal.filed` — **klasa 2**.
 To czynność samego człowieka (autora treści albo zgłaszającego), a jej
 autorytatywny ślad to wiersz `appeals` z terminem DSA art. 20, zatwierdzany
@@ -17565,6 +17588,42 @@ liście wyjątków z odwołaniem do D-262, a nie zgłoszenie jako regresja.
 ### Wycofanie
 Podnieść cztery selektory z listy wyżej do `--text-body` (18 px) i usunąć
 ten wpis. Nic w bazie ani w migracjach się nie zmienia.
+
+## D-260 — Bezpieczny obszar: `viewport-fit=cover` i cztery tokeny `--safe-*` (24 września 2026)
+
+**Data:** 24 września 2026 · Issue #987 · Status: **do odbioru na urządzeniu**
+
+**Co.** Wspólny meta viewport (`resources/views/components/layout.blade.php`)
+wybiera `viewport-fit=cover`. Insety czyta wyłącznie
+`resources/css/bezpieczny-obszar.css` — cztery tokeny `--safe-top`,
+`--safe-right`, `--safe-bottom`, `--safe-left`. Właściciele brzegów:
+pasek górny (`.topbar` przez `padding-top`, karta `.marka-topbar` przez
+`top` i margines), `<body>` (boki treści w przepływie, w tym stopka — bez
+zmian w jej CSS), dolna belka i szybki wygląd (`fixed`, więc dół i boki
+biorą same). Eksporty i poczta mają własne viewporty i zostają w `auto`.
+
+**Dlaczego `cover`, a nie `auto`.** Kuking instaluje się jako PWA
+`standalone`: przy `auto` iOS zostawia pasy wokół strony w kolorze tła
+dokumentu, a dotychczasowe `env(safe-area-inset-bottom)` sugerowało obsługę
+pełnego ekranu, której nie było (góra i boki nieobsłużone). `cover` daje ten
+sam wynik w Safari i w PWA pod warunkiem, że każdy brzeg ma właściciela —
+dlatego kontrakt obejmuje wszystkie cztery insety, nie tylko dół.
+
+**Czego to nie zmienia.** Bez wycięcia (komputer, większość Androidów)
+tokeny są równe 0 — układ co do piksela jak przed zmianą. Klawiatura
+ekranowa i visual viewport zostają w #947.
+
+**Znana granica.** Zmiana jest sprawdzona testem kontraktu i w Chromium;
+odbioru na fizycznym iPhonie (Safari i ekran główny, pion i poziom, tekst
+100/140/200%) wymaga #987 i nie da się go zastąpić emulacją.
+
+Dowody: `tests/Feature/BezpiecznyObszarMaJedenKontraktTest.php` (tokeny
+meta viewport — nie cały napis, żeby dopisany `interactive-widget` z #947 go
+nie czerwienił — jedyne źródło insetów, właściciel każdego brzegu, w tym dół
+podpowiedzi szybkiego wyglądu) z trzema kontrolami ujemnymi w
+`scripts/kontrole-negatywne-alfa08.py`.
+---
+
 ## D-270 — Publiczne API `/api/v1`: tokeny Sanctum, domyślnie zamknięte, jeden format błędu (25 września 2026)
 
 **Data:** 25 września 2026 · **Decyzja właściciela** (uruchomić API pod aplikację mobilną) + zasady wykonania z etapu 1 · Status: **obowiązuje**
@@ -17762,12 +17821,26 @@ Strony „Jak dobieramy wpisy” na `main` jeszcze nie ma (stan na 25 września
 2026); jej powstanie jest osobną częścią wdrożenia #1781. Do tego czasu
 wymóg jej aktualizacji oznacza opis nowej reguły w tym dzienniku.
 
+> **Dopisek (26 września 2026, #1811, D-305).** Strona już jest:
+> `/jak-dobieramy-wpisy`. Nowa reguła = zdanie w `App\Domain\Feed\JakDobieramyWpisy`
+> i dowód w `JakDobieramyWpisyMowiPrawdeTest`.
+
 ### Sprostowanie D-194
 
 D-194 dostaje zdanie „Liczba »Ugotowałem« ani reakcji nie wpływa na kolejność
 ani dobór”. Fragment o lajku poprawiony: polubienia nie ma, lżejszą reakcją
 będzie „Smakowicie wygląda” (#1813). Hierarchia sygnałów zostaje — dotyczy tego,
 co człowiek widzi przy wpisie i o czym dostaje powiadomienie, nie doboru list.
+
+### Progi rewizji (dopisek 26 września 2026, #1814, D-283)
+
+Do rozmowy o regule spoza listy (w tym o jakimkolwiek rankingu) wracamy
+dopiero, gdy **naraz**: średnio **≥ 60 różnych autorów dziennie** (28 dni),
+**≥ 8 pełnych tygodni danych** i **> 30% autorów praktycznie bez pierwszej
+strony „Świeżo z Kuking”** w tygodniu (wskaźnik zastępczy bez logu wyświetleń —
+definicja w D-283). Liczby pokazuje panel `/admin/metryki`; progi w
+`kuking.metryki`. Przekroczenie jest powodem do decyzji właściciela, nie zmianą
+w kodzie.
 
 ### Wycofanie
 
@@ -18068,6 +18141,63 @@ Wymaga decyzji, co z zapisanymi reakcjami (rollback migracji odmawia).
 
 📄 `app/Domain/Reakcje/Smakowicie.php` · `app/Domain/Reakcje/PowiadomOSmakowicie.php` ·
 `tests/Feature/SmakowicieWygladaTest.php` · D-194 · D-275
+
+## D-283 — Metryki doboru bez profilowania i wskaźnik zastępczy trzeciego progu (#1814, #1781, 26 września 2026)
+
+**Data:** 26 września 2026 · Decyzja właściciela (#1781, pkt 5 z 26.09; kryteria #1814) · Status: **obowiązuje**
+
+### Decyzja
+
+Panel admina **„Metryki doboru”** (`/admin/metryki`, bramka
+`UserPolicy::przegladajMetryki` — tylko admin) pokazuje wyłącznie **agregaty
+z istniejących tabel** (`posts`, `first_post_events`, `comments`,
+`cooked_events`, `post_tags`). Bez nowych zdarzeń, bez `post_id` i nazw osób
+w wyniku, bez logu wyświetleń; **ukrycia (D-278) i reakcje „Smakowicie
+wygląda” (D-280) nie są źródłem** — strażnik
+`MetrykiDoboruTest::test_nie_czyta_ukryc_ani_reakcji` (i dotychczasowy skan
+`app/Domain/Analytics` w `UkryjWpisIOsobeTest`). Z liczb wyłączone są konta
+z `CookEligibility::excludedUserIds()` (gospodarz, zalążkowe, zamknięte).
+
+| Metryka | Definicja |
+|---|---|
+| Pierwsze wpisy z odpowiedzią w 24 h | wpisy z `first_post_events` sprzed 1–30 dni; odpowiedź = opublikowany komentarz innej osoby (nie konta zalążkowego) albo „Ugotowałem” przy wskazanym przepisie, najpóźniej 24 h po publikacji |
+| Autorzy publikujący ponownie w 28 dni | kohorta: pierwszy wpis 28–56 dni temu; powrót = kolejny opublikowany wpis w 672 h |
+| Udział 10% najaktywniejszych | publiczne wpisy z 30 dni; `ceil(10%)` autorów (co najmniej jeden) z największą liczbą **własnych** wpisów |
+| Różnych autorów dziennie | publiczne wpisy, dni czasu polskiego, 28 pełnych dni bez dzisiejszego; średnia = głębokość pierwszej rundy Odkrywania |
+| Publiczne z tagiem | publiczne wpisy z 30 dni z ≥ 1 aktywnym tagiem (warunek ukrywania tagów: 60%) |
+| Tygodnie danych | pełne tygodnie od pierwszego publicznego wpisu społeczności |
+
+### Wskaźnik zastępczy trzeciego progu
+
+Propozycja z #1814 — „> 30% autorów bez pierwszej strony w 7 dni” — wymaga
+wiedzy, co kto widział, czyli logu wyświetleń, którego nie prowadzimy. Wybrany
+zastępnik liczy się **z samych godzin publikacji**, bo pierwsza strona „Świeżo
+z Kuking” jest deterministyczna (D-276): to najnowszy wpis każdej z
+`feed.page_size` osób, które publikowały ostatnio. Wpis stoi więc na pierwszej
+stronie od publikacji do chwili, gdy po nim opublikuje `page_size` **innych**
+osób (albo autor doda nowszy wpis — wtedy stoi nowy). Dla każdego autora
+z publicznym wpisem sprzed 1–8 dni sumujemy ten czas (liczony do teraz);
+**„praktycznie bez pierwszej strony” = łącznie mniej niż 60 minut**
+(`kuking.metryki.minut_na_pierwszej_stronie`). Próg rewizji: > 30%
+(`odsetek_bez_pierwszej_strony`).
+
+Dlaczego ten, a nie inny: mierzy dokładnie to, czego próg dotyczy — tłok na
+pierwszej stronie przy rosnącej liczbie autorów — nie wymaga żadnej nowej
+danej i nie mówi nic o konkretnym widzu. Odrzucone: „wpisy bez odpowiedzi
+w 7 dni” (mierzy odzew, nie widoczność, i dubluje pierwszą metrykę) oraz
+liczniki z `product_signals` (nie mają `post_id` z założenia). Znane
+uproszczenie: pomija bramki per widz (blokady, ukrycia) i zdjęcia moderacyjne
+w trakcie — dla progu liczonego w dziesiątkach procent bez znaczenia.
+
+Progi rewizji — dopisek w D-275.
+
+### Wycofanie
+
+Bez migracji: usunąć trasę `admin.metryki`, `MetrykiController`,
+`App\Domain\Analytics\MetrykiDoboru`, widok i `kuking.metryki`.
+
+📄 `app/Domain/Analytics/MetrykiDoboru.php` · `app/Http/Controllers/Admin/MetrykiController.php` ·
+`tests/Feature/MetrykiDoboruTest.php` · D-275 · D-276 · D-278 · D-280
 ---
 
 ## D-271 — Logowanie aplikacji mobilnej: te same akcje co WWW, 2FA przez zaszyfrowane wyzwanie, lista urządzeń (25 września 2026)
@@ -18966,6 +19096,113 @@ przez `withVisibleCommentCount()` (wszystkie strumienie) i nagłówek w
 korzeni i pominięcie warunku widocznego korzenia — oba oblewają).
 Komentarze pod przepisem i pod „Ugotowałem” — rozszerzenie w **D-309**.
 
+## D-285 — „Co mam w domu” i „Co ugotuję z tego, co mam”: prywatna lista, dopasowanie bez AI, jawna reguła doboru (V2, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Wykonanie **D-282**
+(decyzja właściciela z 26 września 2026 dopuszczająca funkcje V2 z
+`docs/FEATURES.md`: *pantry* i *„co ugotuję z tego, co mam”*) · Gałąź
+`claude/v2-pantry`
+
+**Problem.** Kuking ma słownik składników i składniki przepisów zapisane
+wierszami (`recipe_ingredients.ingredient_text`, `ingredient_id` →
+`ingredients`), ale nie ma jak odpowiedzieć na najczęstsze kuchenne pytanie:
+„co zrobię z tym, co mam w lodówce?”. Wyszukiwarka odpowiada na jedno słowo,
+nie na listę produktów.
+
+**Decyzja — zakres v1 (bez AI).**
+
+1. **Prywatna lista „Co mam w domu”** (`/co-mam-w-domu`, wejście z zeszytu):
+   jedno duże pole, przycisk „Dodaj do listy”, lista z przyciskami „Usuń”.
+   Podpowiedzi pod polem pochodzą ze słownika składników, ale **tylko
+   z przepisów publicznych, opublikowanych, od aktywnych kont** — słownik
+   rośnie też ze szkiców i przepisów „tylko dla mnie”, a podpowiedź z nich
+   zdradzałaby cudzą linijkę. Kolejność podpowiedzi: najkrótsza nazwa
+   najpierw, potem alfabet (nie „najczęściej używane”). Podpowiedzi rysuje
+   skrypt jako przyciski (18 px, 48 px), nie `<datalist>`; bez skryptu pole
+   i przycisk działają tak samo (D-053). Lista jest widoczna wyłącznie dla
+   właściciela (`PantryItemPolicy`, bez wyjątku dla moderatora), trafia do
+   paczki danych (`InwentarzDanychKonta`, sekcja `co_mam_w_domu`) i znika
+   przy wymazaniu konta (`EraseAccountData`). Limit: 150 produktów —
+   egzekwowany pod blokadą wiersza właściciela listy (`CoMamWDomu::dodaj()`
+   bierze `lockForUpdate()` na wierszu `users` przed liczeniem i zapisem),
+   bo bez niej dwa równoległe żądania na koncie z 149 produktami mogły oba
+   przejść limit (#1958, test na dwóch połączeniach:
+   `tests/Dwa/PantryLimitNaDwochPolaczeniachTest.php`).
+2. **„Co ugotuję z tego, co mam”** (`/co-ugotuje`): przepisy, w których
+   pasuje co najmniej jeden składnik z listy, a przy każdym zdanie
+   „Masz 5 z 7 składników. Brakuje: …” (brakujące linijki dosłownie tak,
+   jak napisał je autor przepisu).
+
+**Reguła doboru — jednym zdaniem, pokazana też na ekranie**
+(`CoUgotuje::REGULA`): *najpierw przepisy, do których masz najwięcej — czyli
+brakuje w nich najmniej składników z Twojej listy; przy tej samej liczbie
+brakujących najpierw te, które zajmują najmniej czasu.* Przepis bez podanego
+czasu idzie na koniec remisu (ta sama zasada co „Do 30 minut”), a czas
+publikacji i `id` tylko ustalają kolejność między stronami. **Żadna reakcja
+innych ludzi** („Ugotowałem”, zapisy, obserwujący, komentarze) nie wpływa na
+kolejność — AGENTS.md §8 i §12. `FeedNieSortujePoMierzeReakcjiTest` skanuje
+teraz cały katalog `app/Domain/Pantry` (kotwica: `CoUgotuje.php`), a dwa
+sortowania po wyrażeniu i kolejność podpowiedzi mają wpisy w jego rejestrze.
+Kontrola ujemna wykonana: `orderByDesc('cooked_events_count')` w `CoUgotuje`
+oblewa strażnika. Widoczność przepisów: ta sama co przy otwarciu
+(`published()` → `widoczneDla()`, aktywne konto autora, blokady w obie strony).
+
+**Dopasowanie składników (bez AI).** Jedna funkcja w bazie,
+`public.kuking_rdzenie_skladnika(text)`: `kuking_normalize()` (małe litery,
+bez polskich znaków) → podział na słowa → odrzucenie liczb i słów
+jednoliterowych → **słownik form krótkich słów**
+(`public.kuking_formy_skladnikow()`: mąka/mąki/mąkę → `maka`, mak/maku →
+`mak`, ser/sera → `ser` …) → poza słownikiem „liczba mnoga prosta” tylko
+dla dłuższych słów (słowo > 5 liter na „-ow” traci „ow”, słowo > 4 liter
+traci końcową samogłoskę; krótsze zostają całe). Produkt z listy pasuje do
+linijki składnika, gdy **wszystkie** jego rdzenie są w rdzeniach linijki
+(`<@`). Z tej samej funkcji generują się kolumny `pantry_items.rdzenie`
+i `klucz`, więc reguła nie ma drugiej kopii w PHP. `UNIQUE (user_id, klucz)`
+nie pozwala dopisać „jajko”, gdy na liście są „Jajka”.
+
+Znane granice tej prostoty (świadome, do rewizji po pomiarze):
+- dopełniacz i inne przypadki spoza „liczby mnogiej prostej” nie łączą się:
+  „cukru” ≠ „cukier”, „jajek” ≠ „jajka”;
+- ~~rdzenie bywają wspólne dla różnych rzeczy: „mąka” i „mak” (oba `mak`)~~ —
+  **naprawione (#1969)**: przy krótkim słowie końcówka niesie znaczenie,
+  więc rdzeń krótszy niż 4 litery powstaje już tylko ze słownika form, gdzie
+  każda forma jest wpisana ręcznie; krótkie słowo spoza słownika pasuje
+  tylko w tej samej formie (brak dopasowania zamiast fałszywego „masz”).
+  Test par: `CoUgotujeTest::test_rdzenie_nie_lapia_sie_nawzajem_a_odmiany_dalej_pasuja`
+  (mąka ≠ mak, mak ≠ makaron, lód ≠ lody …; mąka = mąki/mąkę, ser = sera …);
+- produkt ogólny pasuje do odmiany: „mleko” zalicza „mleko kokosowe”,
+  „ser” — „ser pleśniowy”;
+- sól, pieprz i woda liczą się jak każdy inny składnik — kto ich nie wpisze,
+  zobaczy je w „Brakuje”.
+
+**Propozycja na później (NIE wdrożona): dopasowanie przez AI.** Gdy pomiar
+pokaże, że powyższe granice realnie przeszkadzają, dopasowanie produktu do
+linijki składnika może zaproponować model OpenAI „GPT-6 Luna”, wybierany
+konfiguracją, nie kodem — wzorcem z D-282 (`config/kuking.php` + zmienna
+w `.env`/`.env.example`, np. `config('kuking.pantry.dopasowanie_ai.model')`
+i `klucz` z `env()`; brak klucza = funkcja wyłączona i nic nie pada; klucz
+nigdy w kodzie). Ta gałąź nie dodaje tych kluczy konfiguracji, bo nic ich
+jeszcze nie czyta. Granice propozycji: model dostaje wyłącznie parę
+„nazwa produktu / linijka składnika” (bez danych konta), zwraca tylko
+tak/nie, wynik trafia do pamięci podręcznej po parze rdzeni, reguła bez AI
+zostaje ścieżką domyślną i awaryjną (timeout, budżet, awaria), a model
+**nie wpływa na kolejność** — reguła doboru zostaje zdaniem wyżej. Przed
+włączeniem: zestaw ~100 par testowych i porównanie z regułą bez AI, tak jak
+w #815; bez wyraźnej poprawy — nie włączać.
+
+**Czego ta decyzja nie zmienia.** AGENTS.md §12 nadal wymienia spiżarnię
+jako „świadomie nie budujemy teraz” — dopisanie wyjątku tam jest decyzją
+właściciela, której ta gałąź nie podejmuje za niego.
+
+### Wycofanie
+Ekrany znikają po zdjęciu tras `pantry.*` i wejścia z zeszytu — bez
+ruszania bazy. Cofnięcie schematu (`2026_09_28_233700_create_pantry_items_table`)
+usuwa tabelę i obie funkcje, ale przy niepustej tabeli **odmawia** (D-088):
+listy to dane wpisane przez ludzi. Świadome wymuszenie po kopii:
+`KUKING_ROLLBACK_KASUJE_SPIZARNIE=1`. Pilnuje
+`CofniecieMigracjiNieKasujeListCoMamWDomuTest` (odmowa, kontrola dodatnia
+na pustej tabeli, wymuszenie).
+
 ## D-282 — V2 z `docs/FEATURES.md` wolno budować od 26 września 2026 (Nie wcześnie — bez zmian)
 
 **Data:** 26 września 2026 · Decyzja właściciela · Status: **obowiązuje**
@@ -19022,6 +19259,165 @@ wymagałoby osobnej, jawnej decyzji o wycofaniu konkretnej funkcji.
 
 📄 `AGENTS.md` §2, `AGENTS.md` §10, `CLAUDE.md`, `docs/FEATURES.md`,
 `docs/ROADMAP.md`, `config/kuking.php`
+## D-305 — Strona „Jak dobieramy wpisy”: zdania z rejestru, każde z dowodem w kodzie (#1811, #1781, 26 września 2026)
+
+**Data:** 26 września 2026 · Decyzja właściciela (#1781, kryteria #1811) · Status: **obowiązuje**
+
+### Decyzja
+
+Strona `/jak-dobieramy-wpisy` (trasa `feed-rules`, publiczna) opisuje po kolei
+każdą listę wpisów: Start, „Świeżo z Kuking”, tablicę na dziś i polecane tagi,
+wyszukiwarkę, tygodniowy e-mail, ukrywanie i „czego nie robimy”. Zdania stoją
+w `App\Domain\Feed\JakDobieramyWpisy`, widok rysuje wyłącznie je, a
+`JakDobieramyWpisyMowiPrawdeTest` (wzorem `TabelaStackuMowiPrawdeTest`, D-104)
+trzyma dla każdego klucza dowody w trzech dozwolonych kształtach: `test:`
+(metoda testu istnieje), `kod:` (plik zawiera fragment), `config:` (liczba
+w zdaniu = wartość konfiguracji). Zdanie bez dowodu, dowód bez zdania, liczba
+bez konfiguracji i akapit dopisany wprost w widoku oblewają. Trzy obietnice
+mają testy zachowania w tym samym pliku: reakcje, „Ugotowałem” i komentarze
+nie zmieniają kolejności (Start i Odkrywanie); w bazie nie ma miejsca na zapis,
+kto oglądał który wpis; wybór gospodarza jest podpisany.
+
+Nigdzie nie piszemy „nie mamy systemu rekomendacji” — dobór wpisów jest systemem
+rekomendacji w rozumieniu DSA, tyle że prostym i jawnym; test skanuje widoki
+i dokumenty prawne.
+
+**Linia w „Świeżo z Kuking”.** Pod nagłówkiem stała linia „Skąd te wpisy i jak
+to zmienić” → strona; przy aktywnych ukryciach druga: „Ukrywasz wpisy N osób.
+Zmień” (albo „Ukrywasz N wpisów”, gdy ukryte są tylko wpisy) → Ustawienia →
+Ukryte. Liczby tylko z ukryć tego widza (`Ukrycia::ileOsob()`, `ileWpisow()`).
+Odnośnik „Jak działa kolejność?” na Starcie prowadzi teraz na tę stronę.
+Na stronie zalogowany ma odnośniki do obserwowanych osób, tagów i „Ukrytych”.
+
+**Wybór gospodarza podpisany.** AGENTS.md §8 dopuszcza wybór gospodarza
+„oznaczony w interfejsie jako jego wybór”, a tablica go nie oznaczała. Od teraz
+pozycja z `daily_picks` ma napis „Wybór gospodarza” (`DailyBoard` zwraca
+`wybrane`); pozycje dołożone przez automat do sufitu — nie.
+
+**Słowo „tag”**, nie „temat” (decyzja właściciela z 11.09, `JednoSlowoNaTagiTest`).
+
+Regulamin (§2, „Jak dobieramy wpisy”) odsyła do strony — zmiana ogłoszona
+według D-306.
+
+### Wycofanie
+
+Bez migracji: usunąć trasę `feed-rules`, `JakDobieramyWpisy`, widok, linie
+w `discover.blade.php`/`home.blade.php` i test; napis na tablicy zostawić
+(wymaga go AGENTS.md §8).
+
+📄 `app/Domain/Feed/JakDobieramyWpisy.php` · `resources/views/pages/static/jak-dobieramy-wpisy.blade.php` ·
+`tests/Feature/JakDobieramyWpisyMowiPrawdeTest.php` · `app/Domain/Feed/DailyBoard.php` · D-275 · D-276 · D-277 · D-278 · D-279 · D-280
+
+## D-306 — Zmiana regulaminu ogłaszana paskiem w serwisie, wersja z datą w konfiguracji (#1811, 26 września 2026)
+
+**Data:** 26 września 2026 · Decyzja właściciela (26.09.2026) · Status: **obowiązuje**
+
+### Decyzja
+
+Zmianę regulaminu ogłaszamy **komunikatem w serwisie, bez maili**:
+
+- wersja regulaminu to data w `kuking.zgody.wersja_regulaminu`, tym samym
+  kształtem co `wersja_polityki` (D-072): dzień stanu dokumentu z nagłówka
+  „opisuje stan serwisu na …”, podbijany ręcznie razem z nim;
+- dokument ma na górze sekcję „Co się zmieniło” (kotwica `#co-sie-zmienilo`)
+  z wpisem datowanym dniem wersji; `ZmianaRegulaminuTest` pilnuje zgodności
+  nagłówka, sekcji i konfiguracji;
+- zalogowane konto założone przed dniem wersji widzi na każdym ekranie pasek
+  „Zmieniliśmy regulamin. Zobacz, co się zmieniło” z przyciskiem „Zamknij”
+  (POST, bez JS); zamknięcie zapisuje wersję w
+  `users.terms_notice_dismissed_version` i przy tej wersji pasek nie wraca.
+  Konto założone w dniu wersji albo później paska nie dostaje;
+- zamknięcie paska **nie jest akceptacją** regulaminu — to ślad, że komunikat
+  dotarł. Eksport: `konto.pasek_zmiany_regulaminu_zamkniety_dla_wersji`;
+  wymazanie konta zeruje pole. Rollback migracji odmawia, gdy ktoś pasek
+  zamknął (D-088, wzorem `pwa_prompt_state`).
+
+Pierwsza wersja: 26 września 2026 — dopisany opis doboru wpisów i odnośnik do
+„Jak dobieramy wpisy” (D-305). Zmiana opisuje działanie serwisu i nie dodaje
+obowiązków, dlatego weszła od razu; §11 regulaminu (14 dni przy zmianach
+istotnych) zostaje bez zmian — **pytanie do właściciela/prawnika**, czy przy
+następnej zmianie istotnej pasek ma się pokazywać z wyprzedzeniem (data
+wejścia w życie osobno od daty publikacji).
+
+**Rozstrzygnięte 26 września 2026 w D-327:** tak — przy zmianie istotnej
+data wejścia w życie jest osobna od daty publikacji (+14 dni).
+
+### Wycofanie
+
+Kod: `ZmianaRegulaminu`, `ZmianaRegulaminuController`, trasa
+`terms.notice.dismiss`, komponent `pasek-zmiany-regulaminu`. Kolumny nie
+cofać, gdy ktoś pasek zamknął (migracja odmówi).
+
+📄 `app/Domain/Zgody/ZmianaRegulaminu.php` · `resources/views/components/pasek-zmiany-regulaminu.blade.php` ·
+`database/migrations/2026_09_26_120000_add_terms_notice_dismissed_version_to_users.php` ·
+`tests/Feature/ZmianaRegulaminuTest.php` · `resources/legal/regulamin.md` · D-072 · D-088 · D-305
+
+## D-327 — Dokument prawny: data publikacji osobno od daty wejścia w życie; zmiana istotna po 14 dniach (#1811, #1781, 26 września 2026)
+
+**Data:** 26 września 2026 · Decyzja właściciela (26.09.2026) · Status: **obowiązuje** ·
+Rozstrzyga pytanie otwarte w D-306 · Dotyczy D-072 (dziennik zgód), #1816
+
+### Decyzja
+
+Przy **istotnej** zmianie polityki prywatności albo regulaminu data wejścia
+w życie jest osobna od daty publikacji. Pasek o zmianie pokazuje się od
+publikacji, a nowa wersja obowiązuje **14 dni później**; do tego dnia
+obowiązuje poprzednia. **Drobne** poprawki (redakcyjne, bez zmiany praw
+i obowiązków) wchodzą od razu.
+
+### Jak to jest zapisane
+
+- `kuking.zgody.wersja_polityki` / `wersja_regulaminu` — bez zmian: data
+  PUBLIKACJI, ta sama co w nagłówku dokumentu („opisuje stan serwisu na …”);
+- `kuking.zgody.zmiana_polityki` / `zmiana_regulaminu` — **jawne**
+  oznaczenie: `istotna` (true/false, bez wartości domyślnej — brak klucza
+  albo inna wartość to wyjątek), `poprzednia` (data dotychczasowej wersji,
+  wymagana przy istotnej) i `obowiazuje_od` (null = publikacja + 14 dni;
+  wolno później, nigdy wcześniej; przy drobnej zabronione);
+- `kuking.zgody.okres_istotnej_zmiany_dni` = 14, w repozytorium, nie w `.env`.
+  `WersjaDokumentuTest` pilnuje, że regulamin §11 obiecuje tę samą liczbę;
+- logika w jednym miejscu: `App\Domain\Zgody\WersjaDokumentu`
+  (`obowiazujeOd()`, `wOkresiePrzejsciowym()`, `obowiazujaca()`).
+
+### Co z tego wynika
+
+- **Pasek regulaminu** (D-306) pokazuje się od dnia publikacji jak dotąd.
+  Przy zmianie istotnej mówi „Nowa wersja obowiązuje od <data>. Do tego dnia
+  obowiązuje poprzednia.”, a od dnia wejścia w życie — samo „Nowa wersja
+  obowiązuje od <data>.”. Przy drobnej nie podaje żadnego terminu.
+- **Zgoda** (`dziennik_zgod.wersja_polityki`, D-072) zapisuje wersję
+  OBOWIĄZUJĄCĄ w chwili zdarzenia (`WersjaDokumentu::polityka()->obowiazujaca()`),
+  nie ostatnio opublikowaną — we wszystkich zapisach: digest, życzenia mailem
+  i zgoda „odczyt AI” (`PrzestawZgodeNaOdczytAi`). **Akceptacji regulaminu repozytorium nie
+  zapisuje z wersją** (`terms_accepted` jest tylko walidowane przy
+  rejestracji), więc tu nie ma czego przeliczać.
+- Obecne wersje: polityka 2026-09-10 (sprzed rozróżnienia) i regulamin
+  2026-09-26 (opis doboru wpisów, D-305) są oznaczone jako **drobne** —
+  opisują działanie serwisu, nie zmieniają praw i obowiązków.
+
+### Przy następnym podbiciu (np. #1816)
+
+1. Podbij datę w nagłówku dokumentu i `wersja_*` na dzień publikacji.
+2. Ustaw `zmiana_*.istotna` jawnie. Przy `true` wpisz `poprzednia`,
+   a we wpisie „Co się zmieniło” podaj dzień wejścia w życie.
+3. **Polityka nie ma dziś własnego paska**, a §9 polityki obiecuje przy
+   zmianie istotnej powiadomienie w serwisie. `WersjaDokumentuTest`
+   oblewa, gdy `zmiana_polityki.istotna` = true bez komponentu
+   `pasek-zmiany-polityki` — pasek polityki trzeba dołożyć razem z #1816.
+4. Poprzedni tekst nie jest dziś osobno publikowany; w okresie przejściowym
+   strona dokumentu pokazuje już nowy. Jeśli prawnik uzna, że poprzednia
+   wersja musi być dostępna do przeczytania, to osobna zmiana.
+
+### Wycofanie
+
+Bez migracji. Wycofanie kodu przywraca D-306 (pasek bez terminu, zgoda
+z `config('kuking.zgody.wersja_polityki')`). Wpisy dziennika zgód zapisane
+w okresie przejściowym zostają z wersją poprzednią — to prawda o chwili
+zgody, nie błąd do poprawienia.
+
+📄 `app/Domain/Zgody/WersjaDokumentu.php` · `app/Domain/Zgody/ZmianaRegulaminu.php` ·
+`resources/views/components/pasek-zmiany-regulaminu.blade.php` · `config/kuking.php` (`zgody`) ·
+`tests/Feature/WersjaDokumentuTest.php` · D-072 · D-306
 ## D-286 — Koszt dania: najpierw kwota wpisana przez autora, jawnie jako jego szacunek (V2, 26 września 2026)
 
 **Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela

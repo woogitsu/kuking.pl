@@ -469,6 +469,14 @@ const EKRANY = [
   // kształt ryzyka co trzy dokumenty prawne wyżej.
   { nazwa: 'co nowego', adres: '/co-nowego' },
 
+  /*
+   * JAK DOBIERAMY WPISY (#1811, D-305) — strona otwarta dla każdego, jak
+   * `/pomoc`, więc bez `zalogowany: true`. Długi tekst z nagłówkami
+   * i listami, do którego odsyła regulamin; ma być czytelny przy 320 px
+   * i przy tekście 140% tak samo jak dokumenty prawne tuż nad nią.
+   */
+  { nazwa: 'jak dobieramy wpisy', adres: '/jak-dobieramy-wpisy' },
+
   /* ===========================================================================
    * SIEDEM STRON PUBLICZNYCH DOPISANYCH 11 WRZEŚNIA — SPŁATA DŁUGU Z D-099
    * ===========================================================================
@@ -1942,7 +1950,7 @@ const kolejkiPanelu = (() => {
     // zmieniłaby się lista „twoje zgłoszenia", mierzona wyżej.
     + "$zglaszajacy = App\\Models\\User::where('status','active')->whereKeyNot($automat)"
     + "->whereKeyNot($m)->orderBy('id')->value('id'); "
-    + "$wpisy = App\\Models\\Post::publiclyVisible()"
+    + "$wpisy = App\\Models\\Post::publiclyVisible()->with('author')"
     + "->orderByDesc('published_at')->orderByDesc('id')->get(); "
     + "if (! $zglaszajacy || $wpisy->count() < 2) { echo ''; exit; } "
     // Sprawa społecznościowa, OTWARTA — pełny formularz decyzji.
@@ -2049,7 +2057,7 @@ const tablicaDnia = (() => {
     + "foreach (App\\Models\\User::where('status','active')->whereKeyNot($konto)->orderBy('id')->get() as $u) { "
     + "$ile = 0; "
     + "foreach (App\\Models\\Post::where('author_id',$u->getKey())->publiclyVisible()"
-    + "->orderByDesc('published_at')->orderByDesc('id')->limit(3)->get() as $p) { "
+    + "->orderByDesc('published_at')->orderByDesc('id')->limit(3)->with('media')->get() as $p) { "
     + "$ile += $p->media->filter(fn ($m) => $m->isReady())->count(); } "
     + "if ($ile >= 3) { $osoba = $u; break; } } "
     // Danie ze zdjęciem i danie bez zdjęcia — dwa różne kształty karty.

@@ -23,6 +23,7 @@ use App\Support\Komunikat;
 use App\Support\Poczta;
 use App\Support\PowrotDoRozmowy;
 use App\Support\RejestracjaZamknieta;
+use App\Support\ZamiarZapisu;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -432,7 +433,7 @@ class FacebookLoginController extends Controller
     /**
      * Zakładamy konto — dopiero teraz i dopiero z dwoma oświadczeniami.
      */
-    public function finish(Request $request, ZalozKonto $zalozKonto, PowrotDoRozmowy $rozmowa): RedirectResponse
+    public function finish(Request $request, ZalozKonto $zalozKonto, PowrotDoRozmowy $rozmowa, ZamiarZapisu $zapis): RedirectResponse
     {
         if (! Facebook::dziala()) {
             return $this->drogaZamknieta();
@@ -485,6 +486,7 @@ class FacebookLoginController extends Controller
         // do niego po onboardingu. Zamiar jest zapamiętany w sesji ekranu
         // rejestracji i wiążemy go wyłącznie z właśnie utworzonym kontem.
         $rozmowa->przypiszKonto($request);
+        $zapis->przypiszKonto($request);
 
         // „Wysłaliśmy Ci wiadomość" pada tylko wtedy, gdy to prawda (#1373).
         if ($konto->listPotwierdzajacyNieWyszedl) {

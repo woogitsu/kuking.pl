@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Feed\JakDobieramyWpisy;
+use App\Domain\Ukrycia\Ukrycia;
 use App\Support\ZaufanyMarkdown;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 use RuntimeException;
 
@@ -46,6 +49,23 @@ class StaticPageController extends Controller
         );
     }
 
+    /**
+     * „Jak dobieramy wpisy" (#1811, D-305). Zdania stoją w
+     * `JakDobieramyWpisy`, nie w widoku — `JakDobieramyWpisyMowiPrawdeTest`
+     * wiąże każde z kodem. Zalogowany dostaje pod spodem drogę do własnych
+     * ustawień: obserwowane osoby, tagi i listę „Ukryte".
+     */
+    public function feedRules(Request $request, Ukrycia $ukrycia): View
+    {
+        $user = $request->user();
+
+        return view('pages.static.jak-dobieramy-wpisy', [
+            'sekcje' => JakDobieramyWpisy::sekcje(),
+            'ukryteOsoby' => $user !== null ? $ukrycia->ileOsob($user) : 0,
+            'ukryteWpisy' => $user !== null ? $ukrycia->ileWpisow($user) : 0,
+        ]);
+    }
+
     public function privacy(): View
     {
         return $this->markdown(
@@ -78,7 +98,18 @@ class StaticPageController extends Controller
             // Renderowanie i zabezpieczenia — patrz `App\Support\ZaufanyMarkdown`.
             // Te pliki są nasze, ale zasada „nie renderuj cudzego HTML-a”
             // (AGENTS.md §7) obowiązuje tu tak samo, bez wyjątku.
-            'html' => ZaufanyMarkdown::doHtml(file_get_contents($path)),
+            'html' => $this->kotwicaZmian(ZaufanyMarkdown::doHtml(file_get_contents($path))),
         ]);
+    }
+
+    /**
+     * Kotwica `#co-sie-zmienilo` przy sekcji „Co się zmieniło" (#1811, D-306).
+     * Pasek „Zmieniliśmy regulamin" prowadzi prosto do niej. Markdown w trybie
+     * bezpiecznym nie nadaje nagłówkom identyfikatorów, więc dokładamy jeden,
+     * nazwany — tylko dla tego nagłówka, żeby nie zmieniać reszty dokumentów.
+     */
+    private function kotwicaZmian(string $html): string
+    {
+        return str_replace('<h2>Co się zmieniło</h2>', '<h2 id="co-sie-zmienilo">Co się zmieniło</h2>', $html);
     }
 }

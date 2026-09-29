@@ -85,7 +85,13 @@ class TwoFactorChallengeController extends Controller
 
         // Limit prób (po koncie, wspólny z API), kolejność kodów i zużycie
         // kodu zapasowego: `SprawdzKodDrugiegoSkladnika` (D-270).
-        [$wynik, $minuty] = $this->sprawdzKod->handle($user, $kod, $kodZapasowy);
+        [$wynik, $minuty] = $this->sprawdzKod->handle(
+            $user,
+            $kod,
+            $kodZapasowy,
+            SprawdzKodDrugiegoSkladnika::KANAL_WWW,
+            $request->ip(),
+        );
 
         if ($wynik === SprawdzKodDrugiegoSkladnika::ZA_DUZO_PROB) {
             return back()->withErrors([
@@ -94,18 +100,8 @@ class TwoFactorChallengeController extends Controller
         }
 
         if ($wynik === SprawdzKodDrugiegoSkladnika::BLEDNY) {
-            // Jeden wpis na rzeczywiście sprawdzony kod (#2042). Odpowiedź
-            // ZA_DUZO_PROB wyżej nie dopisuje nic, więc limiter ogranicza też
-            // wolumen dziennika. Wpisanego kodu ani sekretu 2FA nie
-            // przekazujemy do dziennika — tylko rodzaj sprawdzonego kodu.
-            $rodzaj = $kod !== '' && $kodZapasowy !== '' ? 'oba' : ($kod !== '' ? 'totp' : 'zapasowy');
-            AuditLogEntry::recordBezWywracania(
-                'account.two_factor_login_failed',
-                subject: $user,
-                metadata: ['rodzaj' => $rodzaj],
-                ip: $request->ip(),
-            );
-
+            // Wpis `account.two_factor_login_failed` (#2042) zapisuje sama
+            // akcja — dla WWW i API jednakowo (#2199).
             return back()->withErrors([
                 $field => $field === 'backup_code'
                     ? 'Ten kod nie pozwala się zalogować. Wpisz inny niewykorzystany kod zapasowy.'

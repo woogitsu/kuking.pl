@@ -144,9 +144,9 @@ final class NotatkaPrzyZapisieTest extends TestCase
             $this->assertStringNotContainsString('Zmień notatkę', $html);
         }
 
-        // Zeszyt jest za logowaniem — gość nie dostaje nawet strony.
+        // Publiczny zeszyt otwiera się gościowi (issue #965) — bez notatki.
         auth()->logout();
-        $gosc = $this->get(route('collections.show', $zeszyt))->assertRedirect();
+        $gosc = $this->get(route('collections.show', $zeszyt))->assertOk();
         $this->assertStringNotContainsString('Tajny dopisek', (string) $gosc->getContent());
     }
 

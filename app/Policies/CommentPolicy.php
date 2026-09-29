@@ -197,9 +197,19 @@ class CommentPolicy
      *
      * Komentarza ukrytego albo zdjętego przez moderację nie usuwa nikt
      * (issue #937) — autorowi zostaje odwołanie.
+     *
+     * #2190: wykonawca musi mieć czynne konto — także przy usuwaniu własnego
+     * komentarza. To nie zmienia zachowania: usunięcie jest zapisem, a zawieszone
+     * konto ma już zamkniętą tę trasę w `EnsureAccountIsActive`. Sprawdzenie
+     * w Policy sprawia, że `DeleteComment` (ponawiający Policy na świeżym,
+     * zablokowanym koncie) zatrzymuje też żądanie, które zaczęło się przed sankcją.
      */
     public function delete(User $user, Comment $comment): bool
     {
+        if (! $user->isActive()) {
+            return false;
+        }
+
         // Issue #937: po decyzji moderatora komentarz jest zamrożony także dla
         // usunięcia. Przy odpowiedziach `DeleteComment` nadpisuje `body`
         // placeholderem, więc autor albo autor wpisu kasowałby treść, którą

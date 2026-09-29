@@ -534,7 +534,8 @@ obserwowanego tagu (D-279: dwa widać, reszta pod „Pokaż”), bez zmiany
 kolejności.
 
 Każda nowa reguła doboru = wpis w `docs/DECISIONS.md` + aktualizacja „Jak
-dobieramy wpisy” + strażnik (`tests/Feature/FeedNieSortujePoMierzeReakcjiTest.php`
+dobieramy wpisy” (zdanie w `App\Domain\Feed\JakDobieramyWpisy` z dowodem
+w `tests/Feature/JakDobieramyWpisyMowiPrawdeTest.php`, D-305) + strażnik (`tests/Feature/FeedNieSortujePoMierzeReakcjiTest.php`
 albo nowy). Reguła spoza tej listy wymaga decyzji właściciela, nie PR-a.
 
 Gdy feed obserwowanych jest pusty, pokazujemy „Świeżo z Kuking” i propozycje
@@ -766,6 +767,16 @@ W skrócie:
   cytowana w komunikacie). Kolejny wyjątek wymaga decyzji właściciela.
 
 Pełny słownik i lista słów zakazanych: `docs/brand/BRAND_EXTENDED.md`.
+
+**Dokumenty prawne (polityka prywatności, regulamin): data publikacji to nie
+data wejścia w życie** (D-327, decyzja właściciela z 26 września 2026).
+Zmiana **istotna** obowiązuje 14 dni po publikacji, a do tego dnia obowiązuje
+poprzednia wersja; pasek o zmianie stoi od publikacji i podaje ten dzień.
+Poprawka **drobna** (redakcyjna, bez zmiany praw i obowiązków) wchodzi od
+razu. Przy każdym podbiciu `kuking.zgody.wersja_*` ustaw jawnie
+`kuking.zgody.zmiana_*.istotna` na `true` albo `false` — wartości domyślnej
+nie ma. Zgodę zapisuj z wersją obowiązującą (`WersjaDokumentu::…->obowiazujaca()`),
+nigdy z samą datą z konfiguracji.
 
 ---
 

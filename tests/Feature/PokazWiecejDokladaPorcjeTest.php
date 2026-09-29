@@ -78,7 +78,7 @@ class PokazWiecejDokladaPorcjeTest extends TestCase
         $przepis = Recipe::factory()->create(['author_id' => $autor->getKey(), 'status' => Recipe::STATUS_PUBLISHED, 'visibility' => 'public']);
         $limit = (int) config('kuking.comments.page_size');
         for ($i = 0; $i < $limit + 2; $i++) {
-            Comment::create(['recipe_id' => $przepis->getKey(), 'author_id' => $autor->getKey(), 'body' => 'Komentarz986-'.$i, 'status' => Comment::STATUS_PUBLISHED, 'created_at' => now()->subMinutes(100 - $i)]);
+            Comment::create(['recipe_id' => $przepis->getKey(), 'author_id' => $autor->getKey(), 'body' => 'Komentarz986-'.$i, 'status' => Comment::STATUS_PUBLISHED])->forceFill(['created_at' => now()->subMinutes(100 - $i)])->save();
         }
         for ($i = 0; $i < 14; $i++) {
             CookedEvent::factory()->create(['recipe_id' => $przepis->getKey(), 'user_id' => $autor->getKey(), 'note' => 'Wykonanie986-'.$i, 'cooked_at' => now()->subMinutes($i)]);

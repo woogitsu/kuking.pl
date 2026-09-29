@@ -22,6 +22,7 @@ declare(strict_types=1);
 
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
+use App\Domain\Comments\Actions\DeleteComment;
 use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Contact\Actions\WyslijOdpowiedz;
@@ -35,8 +36,10 @@ use App\Domain\Import\Rezerwacja;
 use App\Domain\Import\ZlecImportPrzepisu;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
+use App\Domain\Moderation\Actions\RestoreContent;
 use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
 use App\Domain\Moderation\NowaDecyzja;
+use App\Domain\Pantry\CoMamWDomu;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
@@ -356,6 +359,54 @@ try {
             return $zapisz();
         })(),
 
+        // #2189: prawdziwy zapis przepisu (szkic, publikacja, edycja) przez
+        // `PublishRecipe`. Autor jest wczytany PRZED przeplotem, jak w
+        // żądaniu po middleware i Policy — to jego nieaktualny model ma
+        // wyglądać na aktywny, a akcja ma rozstrzygać na świeżym wierszu.
+        'zapisz-przepis-2189' => (function () use ($argumenty): string {
+            $autor = User::query()->whereKey($argumenty['autor'])->firstOrFail();
+            if (! $autor->isActive()) {
+                throw new RuntimeException('Przyrząd nie odczytał aktywnego autora przed przeplotem.');
+            }
+
+            // Odwrócony przeplot: zatrzymaj zapis dopiero PO prawdziwym
+            // zapytaniu blokującym autora. Nie zmienia kodu akcji.
+            $bariera = (int) ($argumenty['bariera'] ?? 0);
+            if ($bariera !== 0) {
+                $zatrzymany = false;
+                DB::listen(static function (QueryExecuted $query) use ($bariera, &$zatrzymany): void {
+                    if (! $zatrzymany && str_contains($query->sql, 'from "users"')
+                        && str_contains(strtolower($query->sql), 'for no key update')) {
+                        $zatrzymany = true;
+                        DB::select('SELECT pg_advisory_xact_lock(2189, ?)', [$bariera]);
+                    }
+                });
+            }
+
+            $tryb = $argumenty['tryb'];
+            $atrybuty = [
+                'title' => $argumenty['tytul'],
+                'visibility' => 'public',
+                'source_type' => Recipe::SOURCE_OWN,
+            ];
+            if (isset($argumenty['zdjecie'])) {
+                $atrybuty['hero_media_id'] = $argumenty['zdjecie'];
+            }
+
+            $przepis = app(PublishRecipe::class)->handle(
+                author: $autor,
+                attributes: $atrybuty,
+                ingredients: [['text' => 'lubczyk']],
+                steps: [['instruction' => 'Gotuj do miękkości.']],
+                publish: in_array($tryb, ['nowa_publikacja', 'edycja_publicznego'], true),
+                existing: isset($argumenty['przepis'])
+                    ? Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail()
+                    : null,
+            );
+
+            return (string) $przepis->getKey();
+        })(),
+
         // #2112: prawdziwe żądanie HTTP przełącznika. Route binding i Policy
         // czytają stan przed decyzją moderatora, a zapis czeka na blokadę.
         'przelacz-wartosci-2112' => (function () use ($argumenty): array {
@@ -426,6 +477,23 @@ try {
             body: $argumenty['tresc'],
         ) === null ? 'odmowa' : 'zapisano',
 
+        // Usunięcie komentarza kontra sankcja wykonawcy (#2190). Wykonawca jest
+        // wczytany jako AKTYWNY przed zatwierdzeniem sankcji (jak model z
+        // middleware); prawdziwa akcja ma sama odczytać świeży stan pod zamkiem.
+        // Komentarz z `withTrashed()`, jak w trasie `comments.destroy`.
+        'usun-komentarz' => (function () use ($argumenty): string {
+            $wykonawca = User::query()->whereKey($argumenty['kto'])->firstOrFail();
+            if (! $wykonawca->isActive()) {
+                throw new RuntimeException('Przyrząd nie odczytał aktywnego wykonawcy przed przeplotem.');
+            }
+
+            return app(DeleteComment::class)->handle(
+                $wykonawca,
+                Comment::withTrashed()->whereKey($argumenty['komentarz'])->firstOrFail(),
+                'Powód usunięcia.',
+            ) ? 'usunieto' : 'juz-usuniety';
+        })(),
+
         // Pierwszy zapis do zeszytu (#1095). Te scenariusze celowo wołają
         // akcje domenowe, a nie przepisany SQL: test ma pęknąć, jeśli wróci
         // wyścig w User::defaultCollection().
@@ -470,6 +538,13 @@ try {
             Tag::query()->whereKey($argumenty['zrodlo'])->firstOrFail(),
             Tag::query()->whereKey($argumenty['cel'])->firstOrFail(),
         )->getKey(),
+        // Limit listy „Co mam w domu” (#1958): prawdziwa akcja domenowa,
+        // żeby test pękł, jeśli blokada wiersza właściciela zniknie
+        // z `CoMamWDomu::dodaj()`.
+        'dodaj-do-pantry' => (string) app(CoMamWDomu::class)
+            ->dodaj(User::query()->whereKey($argumenty['kto'])->firstOrFail(), $argumenty['nazwa'])['produkt']
+            ->getKey(),
+
         // Zastąpienie wyboru redakcyjnego (#1027): prawdziwe akcje domenowe,
         // bariera po ich własnym DELETE.
         'tablica-dnia' => (function () use ($argumenty): array {
@@ -585,6 +660,39 @@ try {
             }
 
             $odpowiedz = app(ModerationController::class)->decide($zadanie, $zgloszenie);
+
+            $bledy = $odpowiedz->getSession()?->get('errors');
+
+            return $bledy === null ? 'ok' : implode(' ', $bledy->all());
+        })(),
+
+        // Bezpośrednie przywrócenie treści akcją domenową (#2086).
+        'przywroc-tresc' => (string) app(RestoreContent::class)->handle(
+            moderator: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            target: Post::query()->withTrashed()->whereKey($argumenty['wpis'])->firstOrFail(),
+            reasonCode: 'appeal_overturned',
+            note: 'Przywrócenie z testu wyścigu.',
+            userMessage: 'Przywracamy Twoją treść.',
+        )->getKey(),
+
+        // Przywrócenie PRAWDZIWYM kontrolerem panelu (`ModerationController::restore()`,
+        // #2086). Bez HTTP: middleware 2FA nie jest tu mierzone, rola z początku
+        // żądania jest sprawdzana bramką kontrolera tak jak w trasie.
+        'przywroc-z-panelu' => (function () use ($argumenty): string {
+            $moderator = User::query()->whereKey($argumenty['kto'])->firstOrFail();
+            Auth::setUser($moderator);
+
+            $zgloszenie = Report::query()->whereKey($argumenty['zgloszenie'])->firstOrFail();
+
+            $zadanie = Request::create('/admin/zgloszenia/x/przywroc', 'POST', [
+                'reason_code' => 'appeal_overturned',
+                'user_message' => 'Przywracamy Twoją treść.',
+            ]);
+            $zadanie->setLaravelSession(app('session.store'));
+            $zadanie->setUserResolver(static fn () => $moderator);
+            app()->instance('request', $zadanie);
+
+            $odpowiedz = app(ModerationController::class)->restore($zadanie, $zgloszenie);
 
             $bledy = $odpowiedz->getSession()?->get('errors');
 

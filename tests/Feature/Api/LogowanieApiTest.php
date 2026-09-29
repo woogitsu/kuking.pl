@@ -10,6 +10,7 @@ use App\Http\Middleware\EnsureApiAccountIsActive;
 use App\Models\AuditLogEntry;
 use App\Models\PersonalAccessToken;
 use App\Models\User;
+use App\Support\Skrot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -434,6 +435,62 @@ class LogowanieApiTest extends TestCase
             ->assertJsonPath('errors.code.0', fn (string $zdanie) => str_starts_with($zdanie, 'Za dużo prób.'));
 
         $this->assertSame(0, PersonalAccessToken::query()->count());
+    }
+
+    /**
+     * #2199: ścieżka API zapisuje w dzienniku audytu to samo co WWW (#2042),
+     * z kanałem `api`. Jeden wpis na rzeczywiście sprawdzony kod, bez kodu,
+     * sekretu i surowego adresu IP; odpowiedź odcięta limitem nie dopisuje nic.
+     */
+    public function test_bledne_kody_2fa_przez_api_zostawiaja_po_jednym_wpisie_z_kanalem_api_bez_sekretow(): void
+    {
+        config()->set('kuking.limits.two_factor', '3,60');
+        $basia = $this->user('basia', ['email' => 'basia@example.com']);
+        $sekret = $this->wlacz2fa($basia);
+        $adres = '203.0.113.44';
+        $wyzwanie = (string) $this->zaloguj('basia@example.com')->json('challenge');
+        $this->assertSame(0, AuditLogEntry::query()->where('action', 'account.two_factor_login_failed')->count());
+
+        $this->withServerVariables(['REMOTE_ADDR' => $adres]);
+        $this->postJson('/api/v1/tokeny/kod', ['challenge' => $wyzwanie, 'code' => 'niepoprawny'])
+            ->assertUnprocessable()->assertJsonValidationErrors('code');
+        $this->postJson('/api/v1/tokeny/kod', ['challenge' => $wyzwanie, 'backup_code' => 'NIE-TEN-KOD'])
+            ->assertUnprocessable()->assertJsonValidationErrors('backup_code');
+        $this->postJson('/api/v1/tokeny/kod', ['challenge' => $wyzwanie, 'code' => 'ZLY-TOTP', 'backup_code' => 'ZLY-ZAPASOWY'])
+            ->assertUnprocessable();
+        // Czwarta próba: limit wyczerpany, kodu nie sprawdzono — bez wpisu.
+        $this->postJson('/api/v1/tokeny/kod', ['challenge' => $wyzwanie, 'backup_code' => 'ZA-LIMITEM'])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.backup_code.0', fn (string $zdanie) => str_starts_with($zdanie, 'Za dużo prób.'));
+
+        $this->assertSame(0, PersonalAccessToken::query()->count());
+        $wpisy = AuditLogEntry::query()->where('action', 'account.two_factor_login_failed')->orderBy('id')->get();
+        $this->assertCount(3, $wpisy, 'Limiter musi także ograniczać wolumen dziennika.');
+        $this->assertSame(['totp', 'zapasowy', 'oba'], $wpisy->pluck('metadata.rodzaj')->all());
+        foreach ($wpisy as $wpis) {
+            $this->assertNull($wpis->actor_id);
+            $this->assertSame('User', $wpis->subject_type);
+            $this->assertSame($basia->getKey(), $wpis->subject_id);
+            $this->assertSame(Skrot::hmac($adres), $wpis->ip_hash);
+            $this->assertEqualsCanonicalizing(['rodzaj', 'kanal'], array_keys($wpis->metadata));
+            $this->assertSame('api', $wpis->metadata['kanal']);
+            $zapis = json_encode($wpis->getAttributes(), JSON_THROW_ON_ERROR);
+            foreach (['niepoprawny', 'NIE-TEN-KOD', 'ZLY-TOTP', 'ZLY-ZAPASOWY', 'ZA-LIMITEM', 'ABCD-1234', $sekret, $adres] as $tajne) {
+                $this->assertStringNotContainsString($tajne, $zapis);
+            }
+        }
+    }
+
+    public function test_poprawny_kod_2fa_przez_api_nie_zostawia_wpisu_o_nieudanej_probie(): void
+    {
+        $basia = $this->user('basia', ['email' => 'basia@example.com']);
+        $sekret = $this->wlacz2fa($basia);
+        $wyzwanie = (string) $this->zaloguj('basia@example.com')->json('challenge');
+
+        $this->postJson('/api/v1/tokeny/kod', ['challenge' => $wyzwanie, 'code' => (new Google2FA)->getCurrentOtp($sekret)])
+            ->assertCreated();
+
+        $this->assertSame(0, AuditLogEntry::query()->where('action', 'account.two_factor_login_failed')->count());
     }
 
     public function test_podrobione_albo_przeterminowane_wyzwanie_odsyla_do_pierwszego_kroku(): void

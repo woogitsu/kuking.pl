@@ -155,8 +155,12 @@
     <div class="start-feed-naglowek">
         {{-- Od #1808 (D-277) lista obserwowanych łączy osoby i tematy — nagłówek
              mówi o obu, a każda karta z tagu ma własny podpis „Z tagu: …". --}}
-        <h2>{{ $showingDiscover ? 'Najnowsze z innych kuchni' : 'Najnowsze od osób i tagów, które obserwujesz' }}</h2>
-        <a href="{{ route('help') }}#kolejnosc-wpisow">Jak działa kolejność?</a>
+        <h2>{{ $showingDiscover
+            ? (($wlasneWFeedzie ?? false) ? 'Twoje wpisy i najnowsze z innych kuchni' : 'Najnowsze z innych kuchni')
+            : 'Najnowsze od osób i tagów, które obserwujesz' }}</h2>
+        {{-- Od #1811 odnośnik prowadzi na „Jak dobieramy wpisy" — tam jest opis
+             każdej listy i droga do obserwowanych osób, tagów i „Ukrytych". --}}
+        <a href="{{ route('feed-rules') }}">Skąd te wpisy i jak to zmienić</a>
     </div>
     <nav class="tabs feed-tabs start-feed-wybor" aria-label="Co pokazujemy">
         <a class="tab" href="{{ route('home') }}" @if(! $showingDiscover) aria-current="page" @endif>Obserwowani</a>
@@ -208,9 +212,17 @@
             użytkownik widzi biały ekran i nie wraca (docs/product/COLD_START.md).
         --}}
         <div class="notice">
-            <strong>Twoja strona główna jest jeszcze pusta.</strong>
-            Poniżej pokazujemy to, co ostatnio ugotowali inni. Kiedy zaczniesz kogoś
-            obserwować, w tym miejscu będą pojawiać się jego wpisy.
+            @if($wlasneWFeedzie ?? false)
+                {{-- Własne wpisy w feedzie zastępczym (issue #1318): komunikat nie
+                     może twierdzić, że strona jest pusta, gdy stoi na niej wpis autora. --}}
+                <strong>Nikogo jeszcze nie obserwujesz.</strong>
+                Poniżej są Twoje wpisy i to, co ostatnio ugotowali inni. Kiedy zaczniesz kogoś
+                obserwować, w tym miejscu będą pojawiać się także jego wpisy.
+            @else
+                <strong>Twoja strona główna jest jeszcze pusta.</strong>
+                Poniżej pokazujemy to, co ostatnio ugotowali inni. Kiedy zaczniesz kogoś
+                obserwować, w tym miejscu będą pojawiać się jego wpisy.
+            @endif
         </div>
     @endif
 

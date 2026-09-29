@@ -99,9 +99,15 @@ final class CelPowiadomienia
             // wiersza (UUID, nie slug) i po bieżącej autoryzacji odbiorcy.
             // Brak wpisu, brak `post_id` albo brak dostępu — kolejka
             // (`Notification::pierwszyWpisNiedostepny()` mówi to człowiekowi słowami).
+            // #372: gdy wpisu nie da się otworzyć, pierwsze PYTANIE wraca do
+            // zakładki pytań (w zakładce „Wpisy” pytań nie ma), a przy wyłączonej
+            // fladze pytań — bez celu zamiast martwego linku. Stare alerty bez
+            // `kind` to dania.
             Notification::TYPE_FIRST_POST => ($wpis = $powiadomienie->pierwszyWpis()) !== null
                 ? route('posts.show', $wpis)
-                : route('admin.unanswered'),
+                : (($data['kind'] ?? Post::KIND_DISH) === Post::KIND_QUESTION
+                    ? (config('kuking.questions.enabled') ? route('admin.unanswered', ['typ' => 'pytania']) : null)
+                    : route('admin.unanswered')),
             // Najnowszy wpis z reakcją — autor zobaczy tam, KTO napisał (#1813).
             // ISSUE #1994: digest zapisuje `post_id` raz dziennie, a wpis
             // mógł zniknąć później (autor usuwa miękko, moderacja zdejmuje).

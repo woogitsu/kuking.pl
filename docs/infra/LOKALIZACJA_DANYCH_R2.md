@@ -1,9 +1,28 @@
 # Gdzie naprawdę leżą zdjęcia — lokalizacja danych w Cloudflare R2
 
 **Zgłoszenie:** issue #619 (P0, `obszar: infra`), audyt spójności 16.09.2026.
-**Ostatnia aktualizacja tego pliku:** 2026-09-17.
-**Stan:** dowód maszynowy DOŁOŻONY do bramki (§3) · odczyt panelu **NIEWYKONANY**
-— brak dostępu do konta Cloudflare (§5).
+**Ostatnia aktualizacja tego pliku:** 2026-09-29.
+**Stan:** dowód maszynowy DOŁOŻONY do bramki (§3) · strażnik hosta w aplikacji
+(§3a, D-255) · **jurysdykcja UE bucketu zdjęć POTWIERDZONA przez właściciela
+w panelu Cloudflare 25.09.2026** (§0). Pozostałe buckety — patrz §5.
+
+## 0. Zapis weryfikacji
+
+To jest jedyne miejsce, z którego `DokumentyPrawneNieKlamiaTest` bierze datę
+w zdaniu polityki prywatności „zdjęcia leżą w Unii Europejskiej … sprawdzone
+<data>”. Wpis dopisuje się, nie nadpisuje; data w polityce ma być datą
+ostatniego wpisu — nowszy wpis bez poprawki polityki (albo odwrotnie) oblewa test.
+
+Format wpisu (test czyta dokładnie ten kształt):
+`- **RRRR-MM-DD** — właściciel potwierdził w panelu Cloudflare: bucket zdjęć ma jurysdykcję `eu` (…)`.
+
+- **2026-09-25** — właściciel potwierdził w panelu Cloudflare: bucket zdjęć ma jurysdykcję `eu` (Jurisdictional Restriction: European Union), nie sam Location Hint. Odczyt wykonał właściciel (potwierdzenie w komentarzu do #619 z 25.09.2026); sesja robocza panelu nie widziała i przepisuje jego potwierdzenie. Nazwa bucketu: <do uzupełnienia przez właściciela>. Razem ze strażnikiem hosta (§3a — aplikacja poza `local`/`testing` sięga do R2 wyłącznie przez `<konto>.eu.r2.cloudflarestorage.com`, a taki endpoint nie dotyka bucketów spoza jurysdykcji UE) daje to podstawę zdania w `resources/legal/polityka-prywatnosci.md`.
+
+Czego ten wpis NIE obejmuje: bucketów, po które aplikacja nie sięga
+(kopie bazy poza `r2_kopie`, przyszła kwarantanna #602), a także bucketów
+paczek RODO i starego bucketu (§5) — te trzeba dopisać osobno, gdy zostaną
+sprawdzone. Polityka mówi o nich wprost: „Położenia magazynu paczek i magazynu
+kopii bazy osobno nie potwierdzaliśmy”.
 
 > **Twarda zasada tego dokumentu:** `resources/legal/polityka-prywatnosci.md`
 > mówi użytkownikowi, że zdjęcia leżą w Unii Europejskiej. To jest obietnica
@@ -441,9 +460,13 @@ kroki 2 i 2a są zamiarem, a nie stanem:
 ### Czego świadomie NIE rekomendujemy
 
 - **Rygla na buckecie oryginałów** — powód wyżej;
-- **wersjonowania obiektów zamiast kopii** — R2 trzyma wtedy stare wersje
-  w TYM SAMYM buckecie i pod tymi samymi poświadczeniami, więc token z prawem
-  zapisu nadal je dosięga. To nie chroni przed scenariuszem z #617;
+- **wersjonowania obiektów zamiast kopii** — R2 nie oferuje wersjonowania
+  w stylu S3 `[do potwierdzenia w dokumentacji Cloudflare: tabela zgodności
+  API S3]`, więc nie ma czego „włączyć". Gdyby było (S3, MinIO), stare wersje
+  leżałyby w TYM SAMYM buckecie, a ich usunięcie zależy od osobnego prawa
+  (`DeleteObjectVersion`) i od retencji — sam zapis nie oznacza kasowania
+  wersji, ale token z pełnym dostępem do bucketu zwykle je ma. To nie chroni
+  przed scenariuszem z #617 tak, jak osobny bucket kopii z ryglem;
 - **nazywania trwałości R2 kopią zapasową.** Jedenaście dziewiątek dotyczy
   awarii nośnika, a nie poprawnie wykonanego `DELETE` (wariant C z #617 wolno
   wybrać, ale trzeba go wtedy **nazwać** akceptacją ryzyka, z datą powrotu);

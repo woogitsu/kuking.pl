@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Mail;
 
 use App\Models\ContactMessage;
+use App\Poczta\ListZarezerwowany;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
 
 /**
@@ -83,6 +85,12 @@ class OdpowiedzNaWiadomosc extends Mailable
         private readonly ContactMessage $wiadomosc,
         private readonly string $tresc,
     ) {}
+
+    /** Miejsce w puli zajmuje `WyslijOdpowiedz` przed wysyłką (B8-02). */
+    public function headers(): Headers
+    {
+        return new Headers(text: ListZarezerwowany::naglowekTekstowy());
+    }
 
     public function envelope(): Envelope
     {

@@ -8,6 +8,7 @@ use App\Domain\Rocznice\OdnosnikWypisaniaZUrodzin;
 use App\Domain\Rocznice\Urodziny;
 use App\Logging\BezpiecznyBlad;
 use App\Models\User;
+use App\Poczta\ListZarezerwowany;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -142,6 +143,10 @@ class ZyczeniaUrodzinowe extends Mailable implements ShouldQueue
         // bo trasa wypisania przyjmuje wyłącznie GET (bez wyjątku z CSRF).
         return new Headers(text: [
             'List-Unsubscribe' => '<'.OdnosnikWypisaniaZUrodzin::dla($this->odbiorca).'>',
+            // Miejsce w puli zajmuje `kuking:wyslij-zyczenia-urodzinowe` przed
+            // zakolejkowaniem (`dlaZyczenUrodzinowych()`), więc list nie może
+            // być liczony drugi raz przez `PoliczListBezRezerwacji` (B8-02).
+            ...ListZarezerwowany::naglowekTekstowy(),
         ]);
     }
 

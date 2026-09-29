@@ -191,6 +191,7 @@ final class CollectUserExportData
             // w `InwentarzDanychKonta`, pilnuje tego test inwentarza.
             'wersje_przepisow' => $this->recipeVersions($user),
             'obserwowane_tagi' => $this->followedTags($user),
+            'co_mam_w_domu' => $this->pantry($user),
             'ukryte' => $this->hides($user),
             // „Smakowicie wygląda" (#1813, D-280): napisane przez tę osobę
             // i otrzymane pod jej wpisami. Otrzymane z nazwą konta — autor
@@ -307,6 +308,9 @@ final class CollectUserExportData
             // paczka pokazuje tu wyłącznie NAJNOWSZĄ znaną wartość.
             'ostatnio_widziany' => $this->date($user->ostatnio_widziany_at),
             'stan_zachety_instalacji' => $user->pwa_prompt_state,
+            // Wersja regulaminu, przy której zamknięto pasek „Zmieniliśmy
+            // regulamin" (#1811, D-306); `null` — żadnego jeszcze nie zamknięto.
+            'pasek_zmiany_regulaminu_zamkniety_dla_wersji' => $user->terms_notice_dismissed_version,
             // Kolumny `users` dopisane w #953 — `InwentarzDanychKonta::KOLUMNY_KONTA`.
             'rola' => $user->role,
             'status_konta_do' => $this->date($user->status_expires_at),
@@ -363,7 +367,7 @@ final class CollectUserExportData
         // Sortujemy po dacie, którą użytkownik WIDZI w paczce (publikacji,
         // a dla szkicu — utworzenia), żeby „po kolei” zgadzało się z datami.
         $recipes = $user->recipes()
-            ->with(['ingredients.ingredient', 'ingredients.unit', 'steps', ...$this->granica->relacjeKomentarzy()])
+            ->with(['ingredients.ingredient', 'ingredients.unit', 'steps', 'forkedFrom', ...$this->granica->relacjeKomentarzy()])
             // Licznik wykonań JEDNYM podzapytaniem dla wszystkich przepisów
             // (#956). `$recipe->cookedEvents()->count()` w mapperze niżej
             // robiło osobny COUNT na każdy przepis — konto z 500 przepisami
@@ -715,7 +719,13 @@ final class CollectUserExportData
                 'autor' => $comment->author?->displayName() ?? 'Konto usunięte',
                 'tresc' => $comment->body,
                 'napisano' => $this->date($comment->created_at),
-                'odpowiedzi' => $this->foreignComments($comment->replies),
+                // Odpowiedzi tylko z tego, co doładowała `GranicaCudzychDanych`
+                // (już przefiltrowane widocznością). Odpowiedź na odpowiedź nie
+                // istnieje, a sięgnięcie po nią leniwie robiłoby zapytanie
+                // bez tej granicy dla każdej odpowiedzi osobno (#976).
+                'odpowiedzi' => $comment->relationLoaded('replies')
+                    ? $this->foreignComments($comment->replies)
+                    : [],
             ];
         }
 
@@ -901,6 +911,26 @@ final class CollectUserExportData
                 'nazwa' => $tag->name,
                 'slug' => $tag->slug,
                 'obserwuje_od' => $this->date($tag->created_at),
+            ])->all();
+    }
+
+    /**
+     * Prywatna lista „Co mam w domu” (D-285) — nazwy tak, jak je wpisano,
+     * z datą dodania. Bez kolumn generowanych (`rdzenie`, `klucz`): to są
+     * techniczne klucze porównania wyliczone z nazwy, nie informacja od osoby.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function pantry(User $user): array
+    {
+        return DB::table('pantry_items')
+            ->where('user_id', $user->getKey())
+            ->orderBy('name')
+            ->orderBy('id')
+            ->get(['name', 'created_at'])
+            ->map(fn (object $produkt): array => [
+                'produkt' => $produkt->name,
+                'dodano' => $this->date($produkt->created_at),
             ])->all();
     }
 

@@ -45,9 +45,13 @@ use Throwable;
  *
  * AWARIA PRZEJŚCIOWA IDZIE DALEJ (#1662). Timeout, 429 i 5xx przepuszczamy
  * jako `ModelChwilowoNiedostepny` do zadania, które ponowi CAŁĄ ocenę
- * później. Ocena już uzyskana w tej próbie (np. tekstu przed zdjęciem)
- * przepada z nią — to jedno powtórzone żądanie więcej, a w zamian nie ma
- * pół-oceny zapisanej jako ocena całości.
+ * później. Wyjątek leci dopiero PO przejściu wszystkich ocen w budżecie
+ * i niesie sygnały z tych, które się udały (`czesciowe`): zadanie zapisuje
+ * je przed ponowieniem, a `DolozDoOznaczenia` (#829) dokłada następną próbę
+ * do tej samej sprawy, bez dublowania. Pół-ocena nie udaje oceny całości:
+ * ostatnia nieudana próba zostawia w sprawie uwagę „Ocena modelem
+ * NIEPEŁNA”. Łączny czas i liczbę żądań ogranicza budżet, nie pierwsza
+ * awaria.
  */
 final class OcenaModelem
 {
@@ -75,12 +79,19 @@ final class OcenaModelem
      * nie raz na wejściu: ocena jednego zdjęcia trwa sekundy, a w tym czasie
      * autor może przełączyć wpis na prywatny.
      *
+     * BUDŻET (#829) jest pytany tak samo często: przed każdą oceną i jeszcze
+     * raz po przygotowaniu zdjęcia. Ocena, na którą zabrakło czasu, nie
+     * wychodzi i zostaje policzona w `$budzet->pominiete()`; ocena, która
+     * wyszła, ale nie wróciła z wynikiem (timeout, 5xx), trafia do
+     * `$budzet->nieudane()`. Wołający mówi moderatorowi, że ocena była
+     * niepełna (`niepelne()`). `null` = bez wspólnego budżetu.
+     *
      * @return list<Sygnal>
      *
      * @throws ModelChwilowoNiedostepny gdy choć jedno żądanie trafiło na
      *                                  przejściową awarię (#1662)
      */
-    public function dla(Post|Comment $tresc): array
+    public function dla(Post|Comment $tresc, ?BudzetCzasu $budzet = null): array
     {
         if (! KlientOpenAI::oceniamy()) {
             // Klucz jest, adres nie prowadzi do OpenAI (#991): błąd, nie
@@ -95,17 +106,29 @@ final class OcenaModelem
         }
 
         $sygnaly = [];
+        $awaria = null;
 
         // Przy pytaniu razem z tytułem — bez opisu to on jest całą treścią (#831).
         $tekst = $tresc instanceof Post ? $tresc->tekstDoOceny() : trim((string) $tresc->body);
 
         if ($tekst !== '' && $this->granica->publiczna($tresc)) {
-            $sygnaly = $this->zWyniku($this->klient->ocenTekst($tekst), $sygnaly);
+            $klient = $this->klientWBudzecie($budzet);
+
+            if ($klient !== null) {
+                $sygnaly = $this->zWyniku($this->ocen(fn () => $klient->ocenTekst($tekst), $awaria), $sygnaly, $budzet);
+            }
         }
 
         if ($tresc instanceof Post && config('kuking.moderation.model.ocenia_zdjecia')) {
             foreach ($this->zdjeciaDoOceny($tresc) as $media) {
                 if (! $this->granica->zdjecieWpisu($tresc, $media)) {
+                    continue;
+                }
+
+                // Bez czasu na żądanie nie ma po co czytać i dekodować zdjęcia.
+                if ($budzet?->wyczerpany()) {
+                    $budzet->pomin();
+
                     continue;
                 }
 
@@ -115,11 +138,61 @@ final class OcenaModelem
                     continue;
                 }
 
-                $sygnaly = $this->zWyniku($this->klient->ocenObraz($dataUri), $sygnaly);
+                // Przygotowanie zdjęcia też kosztuje czas — liczymy od nowa.
+                $klient = $this->klientWBudzecie($budzet);
+
+                if ($klient !== null) {
+                    $sygnaly = $this->zWyniku($this->ocen(fn () => $klient->ocenObraz($dataUri), $awaria), $sygnaly, $budzet);
+                }
             }
         }
 
+        if ($awaria !== null) {
+            throw new ModelChwilowoNiedostepny($awaria->ponowZaSekund, $sygnaly);
+        }
+
         return $sygnaly;
+    }
+
+    /**
+     * Jedna ocena. Przejściowa awaria nie przerywa pozostałych (budżet i tak
+     * ogranicza ich czas) — liczy się jako nieudana, a zapamiętana awaria
+     * z najdłuższym `Retry-After` wychodzi z `dla()` na końcu.
+     *
+     * @param  callable(): ?WynikOceny  $ocena
+     */
+    private function ocen(callable $ocena, ?ModelChwilowoNiedostepny &$awaria): ?WynikOceny
+    {
+        try {
+            return $ocena();
+        } catch (ModelChwilowoNiedostepny $nowa) {
+            if ($awaria === null || ($nowa->ponowZaSekund ?? 0) > ($awaria->ponowZaSekund ?? 0)) {
+                $awaria = $nowa;
+            }
+
+            // `null` dalej: `zWyniku()` liczy ją jako nieudaną (raz).
+            return null;
+        }
+    }
+
+    /**
+     * Klient z limitem żądania mieszczącym się w budżecie — albo `null`,
+     * gdy na to żądanie czasu już nie ma (i ta ocena zostaje policzona
+     * jako pominięta).
+     */
+    private function klientWBudzecie(?BudzetCzasu $budzet): ?KlientOpenAI
+    {
+        if ($budzet === null) {
+            return $this->klient;
+        }
+
+        if ($budzet->wyczerpany()) {
+            $budzet->pomin();
+
+            return null;
+        }
+
+        return $this->klient->zLimitemCzasu($budzet->zostalo());
     }
 
     /**
@@ -144,12 +217,21 @@ final class OcenaModelem
     }
 
     /**
+     * `null` od klienta to NIEUDANA ocena, nie czysta (#829): przy wspólnym
+     * budżecie liczymy ją, żeby moderator nie wziął ciszy za „sprawdzone".
+     *
      * @param  list<Sygnal>  $sygnaly
      * @return list<Sygnal>
      */
-    private function zWyniku(?WynikOceny $wynik, array $sygnaly): array
+    private function zWyniku(?WynikOceny $wynik, array $sygnaly, ?BudzetCzasu $budzet): array
     {
-        if ($wynik === null || ! $wynik->costamZnalazl()) {
+        if ($wynik === null) {
+            $budzet?->nieudana();
+
+            return $sygnaly;
+        }
+
+        if (! $wynik->costamZnalazl()) {
             return $sygnaly;
         }
 

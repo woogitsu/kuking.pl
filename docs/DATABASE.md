@@ -120,6 +120,29 @@ pomocnicza: awaria jej zapisu nie cofa decyzji. Rollback tej migracji usuwa
 wyłącznie te cztery rodzaje telemetrii i przywraca wcześniejszy CHECK;
 nie zmienia `users.pwa_prompt_state`.
 
+#### `terms_notice_dismissed_version` — pasek „Zmieniliśmy regulamin” (#1811, D-306)
+
+Migracja `2026_09_26_120000_add_terms_notice_dismissed_version_to_users`
+dodaje nullable `date` bez wartości domyślnej (w PostgreSQL zmiana samego
+katalogu, bez przepisywania tabeli). Wartość to data wersji regulaminu
+(`kuking.zgody.wersja_regulaminu`), przy której osoba zamknęła pasek;
+`NULL` — żadnego jeszcze nie zamknęła. Pasek widzi zalogowane konto założone
+przed dniem wersji (strefa `kuking.strefa`), którego wartość jest pusta albo
+starsza od bieżącej wersji (`App\Domain\Zgody\ZmianaRegulaminu`). Kolumna
+poza `$fillable`; zapisuje ją tylko `ZmianaRegulaminu::zamknij()` (POST
+`/regulamin/zmiana/zamknij`). Zamknięcie paska NIE jest akceptacją
+regulaminu — to ślad, że komunikat dotarł. Eksport oddaje
+`konto.pasek_zmiany_regulaminu_zamkniety_dla_wersji`, wymazanie konta zeruje
+pole.
+
+**Rollback (D-088):** migracja odmawia usunięcia kolumny, gdy choć jedno konto
+ma wartość — po ponownym `migrate` pasek „jednorazowy” wróciłby do każdego,
+kto go zamknął, i zniknąłby ślad powiadomienia. Przy samych `NULL` wycofanie
+przechodzi. Kontrola i DDL w jednej transakcji z blokadą tabeli. Nie zerować
+kolumny w celu wymuszenia rollbacku; wycofać sam kod paska. Testy:
+`ZmianaRegulaminuTest::test_rollback_odmawia_gdy_ktos_zamknal_pasek`
+i kontrola dodatnia `test_rollback_przechodzi_gdy_nikt_nie_zamknal_paska`.
+
 #### `wants_weekly_digest` — zgoda, o którą trzeba było zapytać
 
 Migracja `2026_09_07_400000_default_weekly_digest_to_off`.
@@ -1397,6 +1420,12 @@ częściowe `hides_user_post_unique (user_id, post_id)` i
 przedłuża wiersz. Indeksy na `post_id` i `hidden_user_id` pod kaskadę
 oraz na `user_id` pod listę widza, eksport i wymazanie konta (indeksy
 częściowe `WHERE … IS NOT NULL` tego zapytania nie obsłużą).
+
+**Retencja (polityka prywatności, wiersz „Ukrywanie wpisów i osób”, #1816).**
+Wiersz po `hidden_until` nic nie ukrywa, ale **żadne zadanie go nie czyści** —
+zostaje do „Przywróć” (tylko przy aktywnym ukryciu — lista pokazuje wyłącznie
+aktywne) albo do wymazania konta. Polityka mówi to wprost; sprzątanie wygasłych
+wierszy wymagałoby decyzji właściciela i osobnej komendy.
 
 **Kaskada działa tylko przy twardym usunięciu.** Konta się anonimizuje
 (D-022), więc ukrycia wymazywanego konta (`user_id`) kasuje jawnie
@@ -3712,7 +3741,10 @@ Wysokiego znaczenia zmiany.
 - **`ip_hash varchar(128) NULL`** — adres IP **wyłącznie jako skrót**, nigdy
   jawnie. Do wykrywania nadużyć skrót wystarcza, a danych osobowych nie
   trzymamy dłużej, niż to konieczne. `NULL` znaczy „zdarzenie nie przyszło
-  z żądania HTTP" (komenda, harmonogram);
+  z żądania HTTP" (komenda, harmonogram) **albo** „wpis dowodowy
+  (`NIGDY_NIE_KASUJ`) starszy niż `audit_log.retention_months`" — ten sam
+  `kuking:sprzataj-audyt`, który kasuje zwykłe wpisy, zeruje w dowodowych
+  sam skrót (audyt B5 pkt 10; wpis zostaje). Bez zmiany schematu;
 - `metadata jsonb NOT NULL DEFAULT '{}'` — reszta kontekstu;
 - `created_at`.
 
@@ -3737,7 +3769,9 @@ częścią decyzji (`moderation.decided`, `moderation.automat_dismissed`,
 `record()` **wewnątrz**
 transakcji zmiany: awaria dziennika cofa decyzję, a ponowienie daje jeden
 komplet. Wpis pomocniczy, powstający PO zatwierdzeniu czynności samego
-człowieka (`account.registered`, `content.reported`), idzie przez
+człowieka (`account.registered`, `content.reported`) albo za zapisem sprawy
+automatu (`content.flagged_by_automat` — nowa sprawa i dołożone sygnały),
+idzie przez
 `AuditLogEntry::recordBezWywracania()`: awaria zapisu trafia do `report()`
 z nazwą brakującego wpisu, a człowiek dostaje odpowiedź udanej zmiany — nie
 błąd przy koncie czy sprawie, które już istnieją.
@@ -3992,7 +4026,7 @@ odklikał i czy po wycofaniu wysyłka nie szła dalej.
 | `cel` | Cel zgody: `tygodniowy_digest` \| `zyczenia_urodzinowe` (od migracji `2026_09_25_200200_add_birthday_email_consent_to_users`, #1755) \| `odczyt_ai` (od migracji `2026_09_26_100200_dziennik_zgod_cel_odczyt_ai`, D-296 — zgoda na odczyt zdjęć kartek przez OpenAI). CHECK `dziennik_zgod_cel_check` — zbiór zamknięty, każda kolejna zgoda wymaga migracji i recenzji. |
 | `czynnosc` | `udzielona` \| `wycofana`. CHECK `dziennik_zgod_czynnosc_check`. Dwie wartości, bo to są dwie rzeczy, które RODO każe umieć wykazać (art. 7 ust. 1 i ust. 3). |
 | `zrodlo` | `ustawienia` \| `link_wypisania` \| `link_powrotny` \| `usuniecie_konta` \| `ekran_importu` (zgoda „odczyt AI” dana na ekranie „Przepisz z kartki”, D-296). CHECK `dziennik_zgod_zrodlo_check`. Część dowodu: „gdzie człowiek wtedy był". |
-| `wersja_polityki` | Wersja polityki prywatności z chwili zdarzenia, z `config('kuking.zgody.wersja_polityki')`. Bez niej dowód mówi „zgodził się", ale nie mówi NA CO. |
+| `wersja_polityki` | Wersja polityki prywatności OBOWIĄZUJĄCA w chwili zdarzenia: `WersjaDokumentu::polityka()->obowiazujaca()` (D-327). Zwykle `config('kuking.zgody.wersja_polityki')`; w okresie przejściowym zmiany istotnej (14 dni od publikacji) — wersja poprzednia. Bez niej dowód mówi „zgodził się", ale nie mówi NA CO. |
 | `wystapilo_at` | `timestamptz`, `useCurrent()`. Moment ZDARZENIA, nie zapisu wiersza — dlatego tabela nie ma `created_at`/`updated_at`. |
 
 ```sql
@@ -4818,7 +4852,7 @@ potrzebuje).
 | Kolumna | Uwagi |
 |---|---|
 | `id` | `bigserial`, nie UUID — wiersz nigdy nie jest adresowany z zewnątrz (ten sam wybór co `audit_log`). |
-| `user_id` | Nullable, `nullOnDelete()`. Anonimizacja konta (`EraseAccountData`, D-018) NIE kasuje wiersza — sygnał ma wartość niezależnie od tego, kto go wywołał — ale referencja do usuniętego konta znika razem z nim. |
+| `user_id` | Nullable, `nullOnDelete()`. Anonimizacja konta (`EraseAccountData`, D-018) NIE kasuje wiersza — sygnał ma wartość niezależnie od tego, kto go wywołał — ale **jawnie ustawia `user_id = NULL`** w tej samej transakcji (issue #1324). Kaskada klucza obcego by tego nie zrobiła, bo wiersza `users` się nie kasuje (D-022). Ponowienie wymazania już wymazanego konta odpina też sygnały, które zostały sprzed poprawki. Sygnał zapisywany w chwili wymazania: `ZapiszSygnal` bierze `FOR SHARE` na wierszu konta i przy ustawionym `data_erased_at` zapisuje zdarzenie bez `user_id`. Liczniki zbiorcze się nie zmieniają; wiersz znika po zwykłej retencji 90 dni. Bez migracji — rollback to cofnięcie kodu (odpięcia nie da się odwrócić i nie powinno się dać). |
 | `signal_name` | `photo_upload_failed` \| `search_performed` \| `weekly_digest_queued` \| `weekly_digest_unsubscribed` \| `pwa_prompt_shown` \| `pwa_install_requested` \| `pwa_prompt_dismissed` \| `pwa_installed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
 | `properties` | `jsonb`. Dla `photo_upload_failed`: `reason` (patrz niżej) i gdzie to ma sens liczby (`bytes`, `max_bytes`, `megapixels`) — NIGDY nazwa pliku. Dla `search_performed`: **wyłącznie** `query_length` (int) i `has_results` (bool) — **nigdy** `query_text`. Drugi CHECK w bazie (`product_signals_no_query_text_check`, przez `jsonb_exists()`) odrzuca każdy wiersz, w którym klucz `query_text` w ogóle by się pojawił, niezależnie od tego, co akurat pisze kod aplikacji. Dla `weekly_digest_queued`: **wyłącznie liczby** — `wykonania`, `nowi_obserwujacy`, `wpisy` (ile pozycji miała każda sekcja listu), żeby dało się zobaczyć, czy listy nie robią się cienkie. Bez adresu, bez nazw, bez tytułów. Dla `weekly_digest_unsubscribed`: `properties` jest PUSTE — sam fakt i `user_id` wystarczą do progu wypisów. |
 | `occurred_at` | `timestamptz`, `useCurrent()`. **SPROSTOWANIE (D-078):** wcześniej stało tu, że dla `weekly_digest_sent` kolumna jest czytana JAKO LICZNIK dobowego limitu poczty. Nieprawda — sprawdzone w kodzie: dobowy sufit liczy `App\Domain\Security\DziennyBudzetListow`, a ten trzyma licznik w **cache**, nie w tej tabeli, i nie sięga do `product_signals` ani razu. Ta kolumna służy dziś wyłącznie retencji (`kuking:sprzataj-sygnaly`) i porządkowaniu w czasie. |
@@ -5762,6 +5796,65 @@ wierszach przechodzi. Test: `CofniecieMigracjiImportuTest` (odmowa i kontrola
 dodatnia). Przed ręcznym zdjęciem tabeli: wyłącz import
 (`KUKING_IMPORT_URL=false`, `KUKING_IMPORT_PDF=false`) i zachowaj kopię.
 
+## pantry_items — „Co mam w domu” (V2, D-285)
+
+Prywatna lista produktów jednej osoby; na niej stoi „Co ugotuję z tego,
+co mam” (`App\Domain\Pantry\CoUgotuje`). Migracja
+`2026_09_28_233700_create_pantry_items_table`.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK, `DEFAULT gen_random_uuid()` | |
+| `user_id` | `uuid NOT NULL` → `users` (`ON DELETE CASCADE`) | właściciel listy; nie jest w `$fillable` — wiersz powstaje przez `$user->pantryItems()` |
+| `name` | `varchar(120) NOT NULL` | nazwa dokładnie tak, jak ją wpisano; tylko ją pokazujemy |
+| `rdzenie` | `text[]` `GENERATED ALWAYS AS (kuking_rdzenie_skladnika(name)) STORED` | rdzenie słów do porównania ze składnikami przepisów |
+| `klucz` | `text` `GENERATED ALWAYS AS (kuking_klucz_skladnika(name)) STORED` | rdzenie posortowane i sklejone spacją |
+| `created_at` | `timestamptz NOT NULL DEFAULT now()` | |
+
+Ograniczenia:
+- `pantry_items_name_check`: `char_length(btrim(name)) BETWEEN 2 AND 120
+  AND cardinality(rdzenie) > 0` — nazwa bez słów („500”, „-”) dałaby pustą
+  tablicę rdzeni, a pusta tablica zawiera się w każdej (`<@`), czyli „masz
+  ten składnik” przy każdym przepisie;
+- `pantry_items_user_klucz_unique`: `UNIQUE (user_id, klucz)` — „Jajka”
+  i „jajko” to na jednej liście ten sam produkt. Ten indeks obsługuje też
+  zapytania po `user_id`.
+
+Funkcje (obie `IMMUTABLE STRICT PARALLEL SAFE`):
+- `public.kuking_formy_skladnikow() → jsonb` — zamknięty słownik form
+  krótkich słów (forma → rdzeń, np. `maki` → `maka`, `maku` → `mak`,
+  `sera` → `ser`). Rdzeń ma najwyżej 4 litery, każda forma zaczyna się od
+  jego pierwszych trzech liter — na tym opiera się wstępny filtr `LIKE`
+  (#1969). Stała w funkcji, nie tabela, bo kolumna generowana wymaga
+  funkcji `IMMUTABLE`;
+- `public.kuking_rdzenie_skladnika(text) → text[]` — `kuking_normalize()`,
+  podział na słowa, bez liczb i słów jednoliterowych; słowo ze słownika
+  form dostaje rdzeń ze słownika, pozostałe — „liczbę mnogą prostą” tylko
+  gdy są dłuższe (słowo > 5 liter na „-ow” traci „ow”, słowo > 4 liter
+  traci końcową samogłoskę), a krótsze zostają całe. Dawny próg „> 3
+  litery” dawał „mąka” i „mak” ten sam rdzeń `mak` (#1969). Wynik
+  posortowany i bez powtórzeń. Ta sama funkcja liczy
+  rdzenie linijek `recipe_ingredients.ingredient_text` w zapytaniu doboru —
+  reguła mieszka wyłącznie w bazie, bez kopii w PHP;
+- `public.kuking_klucz_skladnika(text) → text` — `array_to_string()` z powyższej.
+  Osobna funkcja, bo samo `array_to_string()` jest `STABLE` i nie wolno go
+  użyć w kolumnie generowanej.
+
+Zapytanie doboru zawęża kandydatów filtrem `ingredient_text_search LIKE
+'%rdzeń%'` (najdłuższy rdzeń każdego produktu; rdzeń do 4 liter — jego
+pierwsze trzy litery, bo może pochodzić ze słownika form), który może pójść po
+`recipe_ingredients_text_trgm_idx`, a dopiero na nich porównuje tablice.
+
+Prywatność: lista jest w paczce danych (sekcja `co_mam_w_domu`, bez kolumn
+generowanych) i znika w `EraseAccountData` (jawnie — konta się anonimizuje,
+nie kasuje, więc kaskada klucza obcego tam nie działa).
+
+**Rollback.** `down()` usuwa tabelę i obie funkcje. Nie dotyka przepisów,
+składników ani wyszukiwarki. Przy niepustej tabeli **odmawia** (D-088) —
+listy to dane wpisane przez ludzi; wymuszenie po zrobieniu kopii:
+`KUKING_ROLLBACK_KASUJE_SPIZARNIE=1`. Na świeżej bazie i w CI
+(`migrate:refresh`) przechodzi bez pytania.
+
 ## V1 / V2
 
 Później:
@@ -5773,7 +5866,6 @@ Później:
 - answers;
 - meal_plans (rozbudowa planera ponad `meal_plan_entries`);
 - shopping_lists;
-- pantry_items;
 - subscriptions;
 - payments.
 
@@ -6108,6 +6200,51 @@ Pozostałe klucze obce bez indeksu wiodącego (audyt B3 N1: m.in.
 `recipe_versions.editor_id`, `moderation_actions.moderator_id`,
 `tozsamosci_zewnetrzne.user_id`) dotyczą rodziców kasowanych rzadko albo nigdy
 i świadomie zostały poza tą migracją.
+
+## Indeks częściowy opublikowanych pytań (#372)
+
+Migracja `2026_09_28_233800_add_questions_published_index_to_posts`:
+
+```sql
+CREATE INDEX CONCURRENTLY IF NOT EXISTS posts_questions_published_idx
+    ON posts (published_at DESC, id DESC)
+    WHERE kind = 'question' AND deleted_at IS NULL AND status = 'published';
+```
+
+Po co: `/pytania` przy każdym wejściu liczy „Czeka na odpowiedź (N)” osobnym
+`COUNT(*)` po całym zbiorze pytań (`QuestionController::index`). Pomiar na
+danych syntetycznych (200 000 wpisów, 5% pytań — `scripts/pomiar-pytan-372.py`)
+pokazał pełny skan `posts` u gościa i przegląd ~193 000 pozycji
+`posts_author_published_idx` u zalogowanego; u zalogowanego zawyżony koszt planu
+włączał jeszcze JIT (~280 ms z ~480 ms). Z indeksem licznik zalogowanego spada
+do ~110 ms, a lista czyta pytania w kolejności kursora. Pełne liczby, plany
+i to, czego indeks nie naprawia (pełny skan `comments` w anty-złączeniu
+licznika gościa): `docs/product/WLACZENIE_PYTAN_372.md`.
+
+Od 25.09.2026 licznik nie jest już liczony na żądanie: liczbę gościa przelicza
+w tle `PytaniaBezOdpowiedzi::przelicz()` (zadanie po zapisie pytania albo
+komentarza pod pytaniem i harmonogram `kuking:policz-pytania`), a zalogowanemu
+dolicza się dokładną poprawkę na blokady i obserwowanych. Indeks nadal służy
+temu przeliczeniu, poprawce widza i liście. Bez zmian schematu — wynik leży
+w istniejącej tabeli `cache` (klucz `pytania:czeka-na-odpowiedz`).
+
+Predykat zawiera tylko warunki obecne w KAŻDYM zapytaniu listy i licznika
+(`kind`, `SoftDeletes`, `published()`); widoczność zostaje poza nim, bo gość
+i zalogowany pytają o nią inaczej. Rozmiar przy 10 000 pytań: 392 kB.
+
+Indeks powstaje `CONCURRENTLY` w migracji z `$withinTransaction = false`
+(ten sam wzorzec co indeksy kluczy obcych wyżej); niedokończony (INVALID)
+migracja zdejmuje i buduje od nowa.
+
+Pilnuje go `tests/Feature/IndeksPytanOpublikowanychTest.php`: zapytanie licznika
+zbudowane przez `QuestionList` (gość i zalogowany) potrafi użyć indeksu,
+zapytanie o dania nie (predykat jest prawdziwy), a `down()`/`up()` zdejmuje
+i przywraca indeks.
+
+**Rollback:** `down()` → `DROP INDEX CONCURRENTLY IF EXISTS
+posts_questions_published_idx`. Bezstratnie — indeks nie niesie danych ani
+decyzji człowieka, więc D-088 nie ma tu czego chronić i `down()` nie odmawia.
+Wracają plany sprzed migracji.
 
 ## Normalizacja adresu e-mail
 

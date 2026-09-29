@@ -13,13 +13,17 @@ use App\Domain\Import\WyznaczaczFragmentow;
 use App\Domain\Moderation\KolejkiPanelu;
 use App\Domain\Notifications\Push\TransportPush;
 use App\Domain\Notifications\Push\TransportWebPush;
+use App\Domain\Questions\PytaniaBezOdpowiedzi;
 use App\Domain\Recipes\BramkaPublikacjiSzkicu;
 use App\Domain\Recipes\StrazPochodzeniaPrzepisu;
 use App\Domain\Social\Actions\ObserwujGospodarza;
 use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Domain\Users\ObserwowanieGospodarza;
 use App\Models\Appeal;
+use App\Models\Comment;
 use App\Models\ContactMessage;
+use App\Models\Post;
+use App\Models\PostTag;
 use App\Models\Report;
 use App\Models\User;
 use App\Support\Baza\LimitBlokadMigracji;
@@ -34,6 +38,7 @@ use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\MigrationEnded;
 use Illuminate\Database\Events\MigrationStarted;
 use Illuminate\Http\Exceptions\PostTooLargeException;
@@ -41,6 +46,7 @@ use Illuminate\Http\Request;
 use Illuminate\Queue\Events\Looping;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -93,6 +99,8 @@ class AppServiceProvider extends ServiceProvider
         // puste, więc to wywołanie nic nie robi na produkcji. Uzasadnienie
         // pełne w `App\Support\ZamrozonyCzas`.
         ZamrozonyCzas::zastosuj();
+
+        $this->wlaczTrybScislyEloquentPozaProdukcja();
 
         // Sterownik dysku `r2` — zapis do Cloudflare R2 BEZ nagłówka
         // `x-amz-acl` (issue #120, audyt G-02).
@@ -177,6 +185,7 @@ class AppServiceProvider extends ServiceProvider
         $this->zdejmijAdresZLinkuResetu();
 
         $this->odswiezajLicznikiKolejek();
+        $this->odswiezajLicznikPytan();
 
         // Mapa strony nie może ogłaszać treści, która przestała być
         // publiczna (issue #1006) — opis w `App\Support\MapaStrony`.
@@ -322,5 +331,111 @@ class AppServiceProvider extends ServiceProvider
             $model::saved($odswiez);
             $model::deleted($odswiez);
         }
+    }
+
+    /**
+     * TRYB ŚCISŁY ELOQUENT POZA PRODUKCJĄ (issue #976).
+     *
+     * `shouldBeStrict()` włącza trzy ochrony naraz: `preventLazyLoading()`
+     * (przypadkowe N+1), `preventSilentlyDiscardingAttributes()` (atrybut
+     * spoza `$fillable` odrzucony po cichu) i `preventAccessingMissingAttributes()`
+     * (odczyt kolumny, której nie pobrał częściowy `select()`).
+     *
+     * - `local` i `testing`: każde z tych przeoczeń rzuca wyjątek i przerywa
+     *   test dokładnie w miejscu błędu.
+     * - `staging` (także podglądy PR): ochrony są włączone, ale naruszenie
+     *   trafia do logu jako OSTRZEŻENIE i nic nie przerywa. Zachowanie jest
+     *   takie jak w produkcji — relacja doładowuje się leniwie, niepobrana
+     *   kolumna czyta się jako `null`, pole spoza `$fillable` odpada — a joby
+     *   i komendy spoza zasięgu testów zostawiają ślad do naprawy zamiast
+     *   błędu 500. Decyzja właściciela z 25.09.2026.
+     * - produkcja: bez zmian, ochrony wyłączone i bez logowania.
+     *
+     * Obsługę trzeba ustawić przy KAŻDYM starcie, także na `null`: wywołania
+     * są statyczne i bez tego obsługa ze stagingu przeżyłaby w procesie
+     * do następnego startu aplikacji (np. w testach).
+     *
+     * Świadomie BEZ automatycznego eager loadingu relacji — maskowałby brak
+     * jawnego planu zapytań (`with()`, `loadMissing()`).
+     */
+    private function wlaczTrybScislyEloquentPozaProdukcja(): void
+    {
+        $staging = $this->app->environment('staging');
+
+        Model::shouldBeStrict($this->app->environment('local', 'testing') || $staging);
+
+        if (! $staging) {
+            Model::handleLazyLoadingViolationUsing(null);
+            Model::handleMissingAttributeViolationUsing(null);
+            Model::handleDiscardedAttributeViolationUsing(null);
+
+            return;
+        }
+
+        Model::handleLazyLoadingViolationUsing(static function (Model $model, string $relation): void {
+            Log::warning('Tryb ścisły Eloquent: leniwe ładowanie relacji.', [
+                'model' => $model::class,
+                'relacja' => $relation,
+            ]);
+        });
+
+        Model::handleMissingAttributeViolationUsing(static function (Model $model, string $key): mixed {
+            Log::warning('Tryb ścisły Eloquent: odczyt niepobranej kolumny.', [
+                'model' => $model::class,
+                'kolumna' => $key,
+            ]);
+
+            return null;
+        });
+
+        Model::handleDiscardedAttributeViolationUsing(static function (Model $model, array $keys): void {
+            Log::warning('Tryb ścisły Eloquent: pole spoza $fillable odrzucone.', [
+                'model' => $model::class,
+                'pola' => array_values($keys),
+            ]);
+        });
+    }
+
+    /**
+     * LICZNIK „CZEKA NA ODPOWIEDŹ (N)” NA /pytania — przeliczanie w tle po
+     * zapisie (#372, `App\Domain\Questions\PytaniaBezOdpowiedzi`).
+     *
+     * To JEST hak na `Post` i `Comment`, których liczniki panelu świadomie
+     * nie mają (wyżej) — ale wąski: reaguje tylko na pytania i komentarze
+     * pod pytaniami, a samo liczenie idzie do kolejki po commicie. Koszt
+     * w żądaniu: przy komentarzu jedno `exists()` po kluczu głównym wpisu
+     * i jeden wiersz zadania; przy daniu — nic. Właściciel zdecydował
+     * 25.09.2026, że nowa odpowiedź ma odświeżać licznik od razu, a nie po
+     * pięciu minutach harmonogramu.
+     *
+     * `PostTag`: tagi przypinamy po utworzeniu wpisu, a licznik ma też
+     * wersję per tag.
+     */
+    private function odswiezajLicznikPytan(): void
+    {
+        $pytanie = static function (Post $post): void {
+            if ($post->kind === Post::KIND_QUESTION || $post->getOriginal('kind') === Post::KIND_QUESTION) {
+                PytaniaBezOdpowiedzi::zlecPrzeliczenie();
+            }
+        };
+        Post::saved($pytanie);
+        Post::deleted($pytanie);
+
+        $komentarz = static function (Comment $comment): void {
+            if (PytaniaBezOdpowiedzi::dotyczyKomentarza($comment)) {
+                PytaniaBezOdpowiedzi::zlecPrzeliczenie();
+            }
+        };
+        Comment::saved($komentarz);
+        Comment::deleted($komentarz);
+
+        $tag = static function (PostTag $pivot): void {
+            if (config('kuking.questions.enabled')
+                && Post::withTrashed()->whereKey($pivot->post_id)->where('kind', Post::KIND_QUESTION)->exists()) {
+                PytaniaBezOdpowiedzi::zlecPrzeliczenie();
+            }
+        };
+        PostTag::saved($tag);
+        PostTag::deleted($tag);
     }
 }

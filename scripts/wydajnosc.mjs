@@ -82,6 +82,7 @@ import { chromium } from 'playwright';
 import { spawn, execFileSync } from 'node:child_process';
 import { createServer } from 'node:net';
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { PROG_WYDAJNOSC, PROG_SEO, BUDZET_LCP_MS, CEL_LCP_MS, metrykiZAudytow, ocenEkran } from './wydajnosc-progi.mjs';
 
 /*
  * Skąd wziąć Chromium — pełne uzasadnienie w nagłówku pliku. Funkcja
@@ -314,9 +315,11 @@ const EKRANY = [
  * nieskompresowane zdjęcie w tle, zablokowany render synchronicznym
  * skryptem). Warto go zacieśnić, gdy zbierze się kilka prawdziwych
  * przebiegów CI do porównania — dziś tych danych nie ma.
+ *
+ * Stałe progów (i od #1029 osobny budżet LCP liczony z `numericValue`)
+ * mieszkają w `scripts/wydajnosc-progi.mjs` — tam też seria pomiarów,
+ * z której wyszedł budżet, i test bramki bez przeglądarki.
  */
-const PROG_WYDAJNOSC = 70;
-const PROG_SEO = 98;
 
 /*
  * KONFIGURACJA LIGHTHOUSE'A — mobile, throttling symulowany.
@@ -454,13 +457,8 @@ try {
     const wydajnosc = Math.round(lhr.categories.performance.score * 100);
     const seo = Math.round(lhr.categories.seo.score * 100);
 
-    const metryki = {
-      lcp: lhr.audits['largest-contentful-paint']?.displayValue ?? null,
-      tbt: lhr.audits['total-blocking-time']?.displayValue ?? null,
-      cls: lhr.audits['cumulative-layout-shift']?.displayValue ?? null,
-      fcp: lhr.audits['first-contentful-paint']?.displayValue ?? null,
-      si: lhr.audits['speed-index']?.displayValue ?? null,
-    };
+    // Surowe `numericValue` do decyzji, `displayValue` dla człowieka (#1029).
+    const metryki = metrykiZAudytow(lhr.audits);
 
     // Audyty SEO nieprzeszłe (score < 1) — sedno tego, co „się zepsuło",
     // bez odtwarzania pomiaru u siebie. `null` score (np. audyt niedotyczący
@@ -470,9 +468,8 @@ try {
       .filter((a) => a && a.score !== null && a.score < 1)
       .map((a) => a.id);
 
-    const wydajnoscOk = wydajnosc >= PROG_WYDAJNOSC;
-    const seoOk = ! ekran.seo || seo >= PROG_SEO;
-    const ok = wydajnoscOk && seoOk;
+    const ocena = ocenEkran({ nazwa: ekran.nazwa, wydajnosc, seo, seoLiczone: ekran.seo, metryki });
+    const { ok } = ocena;
 
     if (! ok) niezaliczonych++;
 
@@ -483,14 +480,19 @@ try {
       seo,
       seoPominieteWBramce: ! ekran.seo,
       seoUsterki,
+      powody: ocena.powody,
+      lcpCel: ocena.lcpCel,
       ...metryki,
     });
 
+    const lcpMs = metryki.lcp.numericValue;
     log(
       `  ${ok ? '✓' : '✗'} ${ekran.nazwa} (${sciezka}) — `
-      + `wydajność ${wydajnosc}${wydajnoscOk ? '' : ` (poniżej progu ${PROG_WYDAJNOSC})`}, `
-      + `SEO ${seo}${ekran.seo ? (seoOk ? '' : ` (poniżej progu ${PROG_SEO})`) : ' (nieliczone — celowy noindex)'}`,
+      + `wydajność ${wydajnosc}, SEO ${seo}${ekran.seo ? '' : ' (nieliczone — celowy noindex)'}, `
+      + `LCP ${lcpMs === null ? '—' : `${Math.round(lcpMs)} ms`} `
+      + `(budżet CI ${BUDZET_LCP_MS} ms; cel ${CEL_LCP_MS} ms ${ocena.lcpCel ? 'spełniony' : 'jeszcze nie'})`,
     );
+    for (const powod of ocena.powody) console.error(`    ✗ ${powod}`);
   }
 } finally {
   // `finally`, nie koniec skryptu: patrz komentarz „PĘTLA POMIARU..." wyżej.
@@ -501,7 +503,7 @@ try {
 mkdirSync('storage', { recursive: true });
 writeFileSync('storage/wydajnosc.json', JSON.stringify({
   data: new Date().toISOString(),
-  progi: { wydajnosc: PROG_WYDAJNOSC, seo: PROG_SEO },
+  progi: { wydajnosc: PROG_WYDAJNOSC, seo: PROG_SEO, lcpMs: BUDZET_LCP_MS, celLcpMs: CEL_LCP_MS },
   konfiguracja: KONFIGURACJA,
   niezaliczonych,
   wyniki,

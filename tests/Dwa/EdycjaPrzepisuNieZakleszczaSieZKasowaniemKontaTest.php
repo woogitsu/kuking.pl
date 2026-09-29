@@ -49,7 +49,7 @@ use PHPUnit\Framework\Attributes\Group;
  *
  * ── CO ZMIENIŁA NAPRAWA ──
  *
- * `PublishRecipe` bierze teraz wiersz autora pod `FOR KEY SHARE` ZARAZ po
+ * `PublishRecipe` bierze teraz wiersz autora pod `FOR NO KEY UPDATE` ZARAZ po
  * blokadzie zdjęć, czyli zanim sięgnie po wiersz przepisu. Kolejność jest
  * więc `media` → `users` → `recipes` i mieści się w obu regułach, które to
  * repozytorium już ma zmierzone: `media` przed `users` (D-103, komentarz
@@ -179,14 +179,16 @@ final class EdycjaPrzepisuNieZakleszczaSieZKasowaniemKontaTest extends TestDwoch
         $this->assertTrue($wynikKasowania['wartosc'], 'Egzekucja nie wymazała konta — przeplot był inny niż opisany.');
 
         // KONTROLA DODATNIA NR 2: zapis autora też doszedł do bazy, a nie
-        // wywrócił się na czymkolwiek innym. Musi się ODBIĆ — przepis został
-        // w tym czasie skasowany razem z kontem — ale zdaniem po polsku,
-        // nie ekranem błędu.
+        // wywrócił się na czymkolwiek innym. Musi się ODBIĆ — konto zostało
+        // w tym czasie wymazane, a przepis skasowany razem z nim — ale
+        // zdaniem po polsku, nie ekranem błędu. Od #2189 zapis sprawdza
+        // najpierw świeży stan konta, więc odmawia z powodu konta; gdyby
+        // konto jakimś cudem było czynne, odmówi z powodu zniknięcia przepisu.
         $this->assertFalse($wynikEdycji['ok'], 'Zapis przeszedł na przepisie, który przestał istnieć.');
-        $this->assertStringContainsString(
-            'Tego przepisu już nie ma',
+        $this->assertMatchesRegularExpression(
+            '/Stan Twojego konta zmienił się|Tego przepisu już nie ma/u',
             (string) $wynikEdycji['komunikat'],
-            'Zapis padł z innego powodu niż zniknięcie przepisu: '
+            'Zapis padł z innego powodu niż wymazanie konta albo zniknięcie przepisu: '
             .$wynikEdycji['wyjatek'].' '.$wynikEdycji['komunikat'],
         );
 
