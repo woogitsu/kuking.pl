@@ -207,7 +207,8 @@
 #  Podział na równoległe joby (nie jeden wielki) jest celowy:
 #    * szybsza informacja zwrotna — lint pada w ~40 s, nie po 6 minutach testów;
 #    * czytelny raport w PR: widać, CO dokładnie się zepsuło;
-#    * `audit` może być nieblokujący, a `test` nie.
+#    * `audit` i `dwa-polaczenia` też blokują (#2215) — nieblokujący jest tylko
+#      wyjątek jawnie wpisany do `.github/wyjatki-audytu.json`.
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -437,6 +438,11 @@ jobs:
 
       - name: Kontrole ujemne budżetu pominiętych testów
         run: python3 -m unittest discover -s scripts -p test_sprawdz_pominiete_testy.py -v
+
+      # Bramka audytu zależności (#2215) decyduje o czerwieni joba `audit`;
+      # jej własne kontrole muszą biec, zanim zaczniemy jej ufać.
+      - name: Testy bramki audytu zależności
+        run: python3 -m unittest discover -s scripts -p test_audyt_zaleznosci.py -v
 
       # =====================================================================
       #  TESTY SKRYPTU KOPII BAZY (issue #193, D-043/D-049)
@@ -1965,13 +1971,16 @@ jobs:
   # ===========================================================================
   #  5. Audyt bezpieczeństwa zależności
   # ===========================================================================
-  #  Nie blokuje merge'a (continue-on-error), bo publikacja nowego CVE
-  #  w tranzytywnej zależności nie może zablokować pilnego hotfiksa.
-  #  Ale MUSI być widoczne — dlatego osobny job i podsumowanie w GITHUB_STEP_SUMMARY.
-  #  Przeglądaj to raz w tygodniu. Patrz DEPLOYMENT_RUNBOOK.md, sekcja "Rotacja".
+  #  BRAMKA BEZPIECZEŃSTWA (#2215). Wysoka i krytyczna podatność w Composerze
+  #  albo NPM czerwieni ten job; „zielony CI" znaczy więc także „brak znanych
+  #  high/critical". Pilny hotfix nie jest przez to zablokowany: właściciel
+  #  dopisuje jawny wyjątek (`.github/wyjatki-audytu.json`: identyfikator, zakres,
+  #  właściciel, zgoda, termin do 30 dni) — procedura i czas reakcji w
+  #  docs/infra/BRAMKI_CI_2215.md. Nie przywracaj `continue-on-error`:
+  #  pilnuje tego `KrytyczneKontroleCiBlokujaTest`.
   # ===========================================================================
   audit:
-    name: Audyt zależności
+    name: Audyt zależności (blokuje high i critical)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
     runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
@@ -1997,50 +2006,31 @@ jobs:
           cache: npm
 
       # composer audit działa na composer.lock, więc nie musimy instalować vendora.
+      # Kod wyjścia narzędzia jest tu CELOWO ignorowany (`|| true`): werdykt
+      # wydaje krok „Bramka" niżej, który uwzględnia wyjątki właściciela i
+      # poziom podatności. Brak poprawnego JSON-a = czerwony (fail-closed).
       - name: composer audit
         id: composer_audit
-        continue-on-error: true
-        run: composer audit --locked --no-interaction
+        run: composer audit --locked --no-interaction --format=json > "$RUNNER_TEMP/composer-audit.json" || true
 
+      # BEZ --omit=dev, i to jest poprawka, nie niedopatrzenie (W7-09):
+      # `package.json` nie ma sekcji "dependencies", cały front-end (Vite,
+      # Tailwind, laravel-vite-plugin) siedzi w devDependencies, a to on
+      # produkuje CSS i JS dla przeglądarki. Z `--omit=dev` audyt sprawdzał
+      # 41 z 106 pakietów i zawsze świecił na zielono. Poziom (high i wyżej)
+      # oceniuje skrypt bramki, nie flaga `--audit-level`.
       - name: npm audit
         id: npm_audit
-        continue-on-error: true
-        # BEZ --omit=dev, i to jest poprawka, nie niedopatrzenie (W7-09).
-        #
-        # Stał tu komentarz: „interesują nas podatności w kodzie, który trafia
-        # do przeglądarki, a nie w narzędziach buildu". W tym projekcie to jest
-        # odwrócone. `package.json` NIE MA sekcji "dependencies" w ogóle —
-        # cały front-end (Vite, Tailwind, laravel-vite-plugin) siedzi
-        # w devDependencies. To właśnie te pakiety produkują CSS i JS, który
-        # dostaje przeglądarka.
-        #
-        # Zmierzone: `npm ls --all` widzi 106 pakietów, `npm ls --all --omit=dev`
-        # tylko 41, a jedynym pakietem najwyższego poziomu, który zostawał, było
-        # `@laravel/multiplex` z optionalDependencies. Ten krok audytował więc
-        # praktycznie pustą listę i zawsze świecił na zielono — najgorszy rodzaj
-        # kontroli, bo wygląda jak działająca.
-        #
-        # --audit-level=high zostaje: ostrzeżenia "low" w narzędziach buildu to
-        # szum. `continue-on-error` też zostaje — publikacja nowego CVE
-        # w tranzytywnej zależności nie może zablokować pilnego hotfiksa
-        # (uzasadnienie w nagłówku tego joba). Zmienia się to, CO jest w ogóle
-        # sprawdzane, a nie to, czy blokuje.
-        run: npm audit --audit-level=high
+        run: npm audit --json > "$RUNNER_TEMP/npm-audit.json" || true
 
-      - name: Podsumowanie
-        if: always()
+      - name: Bramka (high i critical blokują, wyjątki jawne)
         run: |
-          {
-            echo "## Audyt zależności"
-            echo ""
-            echo "| Narzędzie | Wynik |"
-            echo "|---|---|"
-            echo "| composer audit | ${{ steps.composer_audit.outcome }} |"
-            echo "| npm audit | ${{ steps.npm_audit.outcome }} |"
-            echo ""
-            echo "Wynik \`failure\` nie blokuje merge'a, ale wymaga reakcji."
-            echo "Przegląd raz w tygodniu — DEPLOYMENT_RUNBOOK.md, sekcja Rotacja sekretów."
-          } >> "$GITHUB_STEP_SUMMARY"
+          set +e
+          python3 scripts/audyt-zaleznosci.py \
+            --composer "$RUNNER_TEMP/composer-audit.json" \
+            --npm "$RUNNER_TEMP/npm-audit.json" \
+            --wyjatki .github/wyjatki-audytu.json | tee -a "$GITHUB_STEP_SUMMARY"
+          exit "${PIPESTATUS[0]}"
 
   # ===========================================================================
   #  6. Build obrazu Docker (weryfikacja, bez publikacji)
