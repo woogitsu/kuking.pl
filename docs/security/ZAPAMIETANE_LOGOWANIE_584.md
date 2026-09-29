@@ -115,6 +115,12 @@ bieżąca sesja zostaje jako jedyna, rotacja tokena działa. Kontrola dodatnia:
 bez odwołania dwa żądania tego samego konta idą równolegle (brak blokady
 sesji). Kontrola ujemna: strażnik podmieniony na przepust — sesja wraca.
 
+Macierz obejmuje też (#1046): potwierdzenie zmiany e-maila, włączenie 2FA
+(moderator bez 2FA; sprawdzane `/admin/**` i zwykła trasa `auth`) oraz awans
+na moderatora i admina, z 2FA i bez. Konto z 2FA nie ma recallera, więc tam
+wolnym żądaniem jest POST kodu zapasowego — odtworzona sesja niosłaby dowód
+2FA i nową rolę; bez strażnika ta próba otwiera `/admin/**`.
+
 Granica: równoległe żądanie Z TEJ SAMEJ przeglądarki, która nacisnęła
 przycisk, zapisując starą generację po nowej, wyloguje tę przeglądarkę —
 błąd w bezpieczną stronę, ponowne logowanie.
