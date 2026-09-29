@@ -340,7 +340,8 @@ class UzasadnienieDecyzjiTest extends TestCase
             'app/Domain/Moderation/Actions/RestoreContent.php',
             // TRZECIE MIEJSCE, DOPISANE ŚWIADOMIE (D-052).
             //
-            // `SygnalyController::odrzucGrupe()` zamyka hurtem oznaczenia
+            // `ZamknijGrupeSygnalow` (od #970 akcja wołana wyłącznie przez
+            // `SygnalyController::odrzucGrupe()`) zamyka hurtem oznaczenia
             // postawione przez automat decyzją `no_action` — czyli „automat
             // się pomylił, treść zostaje". Spełnia oba warunki, o które
             // pyta ten test: stoi za `authorize('moderate', User::class)`
@@ -352,7 +353,7 @@ class UzasadnienieDecyzjiTest extends TestCase
             // tabela `reports`) i tamta akcja świadomie NIE tworzy wiersza
             // w `moderation_actions` — właśnie po to, żeby ta lista nie
             // musiała rosnąć o miejsce bez człowieka.
-            'app/Http/Controllers/Admin/SygnalyController.php',
+            'app/Domain/Moderation/Actions/ZamknijGrupeSygnalow.php',
             // CZWARTE (G31, D-251): „Zdejmij z urzędu”. Stoi za
             // `removeExOfficio` (czynny moderator z 2FA) i zapisuje
             // `moderator_id` zalogowanego człowieka.
