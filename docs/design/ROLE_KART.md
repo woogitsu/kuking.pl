@@ -572,8 +572,19 @@ rolę 2 na samym `<form>` (#581); przycisk usuwający zostaje za kreską
 `.danger-zone` wewnątrz panelu. Pilnuje tego
 `tests/Feature/ZdejmijZUrzeduKompozycjaPaneluTest.php`. Suma w nagłówku
 inwentarza niżej NIE jest przeliczona po tej zmianie ani po dojściu
-`pages/admin/kolejka.blade.php` — ten ekran też nie ma jeszcze wierszy
-w tabeli; do uzupełnienia przy następnym przeliczeniu ze stanu kodu.
+`pages/admin/kolejka.blade.php`; ta ostatnia ma od 28.09.2026 własne wiersze
+w tabeli (poniżej), a suma w nagłówku nadal czeka na przeliczenie ze stanu
+kodu.
+
+`pages/admin/kolejka.blade.php` („Kolejka zadań”, tylko administrator) nie
+ma żadnego formularza, więc ma wyłącznie karty treści: kartę stanu, karty
+grup nieudanych zadań i kartę „Co z tym zrobić”. Panelu formularza nie ma
+tam mieć — mocna obwódka obiecywałaby czynność, której ekran nie oferuje
+(zakaz martwego przycisku, D-053, w warstwie powierzchni). Lista z nagłówkiem
+i zdaniem wstępnym jest jedną grupą (`.panel-grupa`), a dane zadania to pary
+podpis — wartość w piśmie podstawowym (`.dane-zadania`), nie `.meta` 16 px.
+Pilnują tego `tests/Feature/KolejkaZadanKompozycjaPaneluTest.php` (HTML) i miernik
+przeglądarkowy panelu, rodzina `kolejka` w `scripts/panel-marki.mjs`.
 
 `pages/admin/kolaz-powitalny.blade.php` powstał PO napisaniu tego dokumentu
 i trafił do inwentarza dopiero teraz. Nie było czego rozstrzygać: ekran
@@ -588,6 +599,11 @@ nie decyzją o roli.
 | `pages/admin/appeals.blade.php:56` | `card odwolanie` | karta treści |
 | `pages/admin/bez-odpowiedzi.blade.php:38` | `card czeka czeka-{{ $wpis->pilnosc }}` | karta treści |
 | `pages/admin/daily-board.blade.php:26` | `panel-formularza` | panel formularza |
+| `pages/admin/kolejka.blade.php:56` | `card` | karta treści |
+| `pages/admin/kolejka.blade.php:93` | `card` | karta treści |
+| `pages/admin/kolejka.blade.php:95` | `card` | karta treści |
+| `pages/admin/kolejka.blade.php:106` | `card` | karta treści |
+| `pages/admin/kolejka.blade.php:140` | `card stack-tight` | karta treści |
 | `pages/admin/kolaz-powitalny.blade.php:60` | `sekcja-strony mb-6` | sekcja strony |
 | `pages/admin/kolaz-powitalny.blade.php:117` | `panel-formularza` | panel formularza |
 | `pages/admin/reports.blade.php:78` | `card mb-5` | karta treści |

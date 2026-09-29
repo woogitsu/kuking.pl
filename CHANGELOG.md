@@ -3,6 +3,7 @@
 ## Nieopublikowane
 
 - Rodzinny zeszyt: zeszyt (poza domyślnym) można udostępnić bliskim — po nazwie konta albo jednorazowym linkiem. Zaproszone osoby dopisują i wyjmują przepisy i wpisy, a przy każdej pozycji widać, kto ją dodał. Zeszyt nadal ma jednego właściciela; najwyżej 5 osób z dostępem; blokada albo usunięcie konta kończy wspólne zapisywanie (#1743, D-302). [nowa funkcja]
+- Panel moderacji: ekran „Kolejka zadań” (widzi go tylko administrator) ma układ zgodny z resztą panelu. Lista nieudanych zadań jest jedną grupą z własnym nagłówkiem i odstępem od karty nad nią, a nazwa zadania, wyjątek, kolejka i daty czyta się pismem podstawowym (18 px, rośnie ze skalą tekstu), nie drobnym szarym. Na telefonie podpis stoi nad wartością. Odbiór panelu w przeglądarce obejmuje teraz i ten ekran, w stanie pustym i z danymi (#581).
 
 ## Alfa 0.76 — planer z wyszukiwarką, „Co mam w domu” i zeszyt bez konta
 
