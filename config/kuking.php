@@ -3166,6 +3166,16 @@ return [
             : null,
     ],
 
+    'cooking_progress' => [
+        // Synchronizacja postępu gotowania między urządzeniami (#2016).
+        // Ile godzin od OSTATNIEJ zmiany zapamiętany postęp jest ważny.
+        // Doba wystarcza na „zaczęłam na telefonie, kończę na tablecie”,
+        // a nie robi z kuchennej chwilówki trwałej historii konta.
+        // Wygasły wiersz jest ignorowany przy odczycie i kasowany co noc
+        // przez `kuking:sprzataj-postep-gotowania`.
+        'retention_hours' => 24,
+    ],
+
     'sessions' => [
         // RETENCJA TABELI `sessions` (RZ-01, 21.09.2026).
         //

@@ -292,6 +292,16 @@ final class EraseAccountData
             $fresh->pantryItems()->delete();
 
             /*
+             * ZAPAMIĘTANY POSTĘP GOTOWANIA ZNIKA RAZEM Z KONTEM (#2016).
+             *
+             * Krótkotrwały (doba), prywatny stan trybu gotowania — po wymazaniu
+             * nie ma żadnego celu. Jawnie, a nie kaskadą: kont nie kasujemy,
+             * tylko anonimizujemy (D-022), więc `ON DELETE CASCADE` tu nie
+             * zadziała. Klucz to `user_id` tego jednego konta.
+             */
+            $fresh->cookingProgress()->delete();
+
+            /*
              * PRYWATNE UKRYCIA (`hides`, #1810) ZNIKAJĄ RAZEM Z KONTEM
              * (przegląd #1781). To są decyzje tej osoby o tym, czego nie chce
              * widzieć — dane o niej, bez wartości po wymazaniu. Jawnie, a nie

@@ -37,6 +37,7 @@ import {podlaczStronaNieaktualna} from './strona-nieaktualna.js';
 import {komunikatWyboru, moznaUsuwacZWyboru, usunPlikZWyboru} from './usun-zdjecie-z-wyboru.js';
 // Checklista przygotowania składników w trybie „Gotuję” (issue #2069).
 import './skladniki-gotowania.js';
+import './postep-gotowania.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
 
