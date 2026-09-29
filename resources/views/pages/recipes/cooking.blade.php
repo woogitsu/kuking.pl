@@ -45,6 +45,22 @@
         --}}
         <div class="cook-alarmy stack" data-alarmy-recipe="{{ $recipe->slug }}" data-alarmy-krok="{{ $krok }}" data-alarmy-adres="{{ $adresGotowania() }}" hidden></div>
 
+        {{--
+            ZMIANA POSTĘPU NA INNYM URZĄDZENIU (#2016). Pas jest ukryty i widoczny
+            wyłącznie po odkryciu skryptem (`postep-gotowania.js`), gdy okresowe
+            pytanie o rewizję pokaże, że stan zmienił się bez tej karty. Zawiera
+            zwykły odnośnik, więc nie jest martwym przyciskiem (D-053); bez
+            skryptu zostaje ukryty, a każde kliknięcie i tak pokazuje stan z konta.
+        --}}
+        @if($synchronizacja['wlaczona'])
+            <div class="cook-sync-zmiana stack" role="status" hidden
+                 data-postep-synchronizacja data-postep-rewizja="{{ $synchronizacja['rewizja'] }}"
+                 data-postep-adres="{{ route('cooking.sync.postep', $recipe->slug) }}">
+                <p class="m-0" data-postep-tekst>Postęp tego przepisu zmienił się na innym urządzeniu.</p>
+                <a class="btn btn-secondary" href="{{ $adresGotowania($krok) }}">Pokaż aktualny postęp</a>
+            </div>
+        @endif
+
         <p class="meta m-0">{{ $recipe->title }}</p>
 
         {{--
@@ -232,6 +248,7 @@
                 <input type="hidden" name="krok" value="{{ $krok }}">
                 {{-- Tożsamość kroku, nie sam numer (issue #756): po zmianie kolejności przez autora numer wskazywałby inną czynność. --}}
                 <input type="hidden" name="krok_id" value="{{ $aktualnyKrok->getKey() }}">
+                @if($synchronizacja['rewizja'] !== null)<input type="hidden" name="rewizja" value="{{ $synchronizacja['rewizja'] }}">@endif
                 <input type="hidden" name="zrobiono" value="{{ $krokZrobiony ? '0' : '1' }}">
                 <button type="submit" class="btn {{ $krokZrobiony ? 'btn-secondary' : 'btn-primary' }} btn-cook">
                     @if($krokZrobiony)
@@ -283,6 +300,34 @@
                         <a class="btn btn-primary btn-cook" href="{{ route('register', ['cook_recipe' => $recipe->getKey()]) }}">Załóż konto</a>
                     @endguest
                 @endcan
+            </section>
+        @endif
+        {{--
+            ZAPAMIĘTYWANIE POSTĘPU NA KONCIE (#2016). Domyślnie wyłączone: postęp
+            zostaje w tej przeglądarce, jak dotąd. Włącza się je świadomie, osobno
+            dla każdego przepisu; goście tej sekcji nie widzą (nie mają konta,
+            na którym dałoby się cokolwiek zapamiętać). Zwykłe formularze — działają
+            bez JavaScriptu.
+        --}}
+        @if($synchronizacja['wlaczona'])
+            <section class="cook-sync stack" aria-label="Zapamiętywanie postępu na koncie">
+                <p class="m-0">Postęp tego przepisu jest zapamiętywany na Twoim koncie i widać go na innych urządzeniach. Zapis wygasa po {{ $synchronizacja['godziny'] }} godzinach od ostatniej zmiany (teraz: do {{ \App\Support\Czas::data($synchronizacja['wygasa'], 'j F, H:i') }}).</p>
+                <form method="POST" action="{{ route('cooking.sync.wylacz', $recipe->slug) }}">
+                    @csrf
+                    @if($parametrPorcji !== null)<input type="hidden" name="porcje" value="{{ $parametrPorcji }}">@endif
+                    <input type="hidden" name="krok" value="{{ $krok }}">
+                    <button type="submit" class="btn btn-secondary">Wyłącz zapamiętywanie na koncie i usuń zapis</button>
+                </form>
+            </section>
+        @elseif($synchronizacja['mozna_wlaczyc'])
+            <section class="cook-sync stack" aria-label="Zapamiętywanie postępu na koncie">
+                <p class="m-0">Chcesz dokończyć gotowanie na innym urządzeniu? Zapamiętamy odhaczone kroki tego przepisu na Twoim koncie na {{ $synchronizacja['godziny'] }} godzin od ostatniej zmiany. Domyślnie postęp zostaje tylko w tej przeglądarce.</p>
+                <form method="POST" action="{{ route('cooking.sync.wlacz', $recipe->slug) }}">
+                    @csrf
+                    @if($parametrPorcji !== null)<input type="hidden" name="porcje" value="{{ $parametrPorcji }}">@endif
+                    <input type="hidden" name="krok" value="{{ $krok }}">
+                    <button type="submit" class="btn btn-secondary">Zapamiętuj postęp na moim koncie</button>
+                </form>
             </section>
         @endif
         @if($hasProgress)

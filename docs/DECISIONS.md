@@ -20674,3 +20674,96 @@ Bez zmian schematu i danych. Natychmiast, bez wdrożenia kodu: zmienna
 `QUEUE_WORKERS="high,default,media,low"` w panelu Railway i restart — wraca
 jeden proces. Trwale: przywrócenie jednej listy w `listy_kolejek()` razem
 z testami.
+
+## D-330 — Słownik wartości odżywczych ma rosnącą wersję danych; starszy import nie nadpisuje nowszego (#2130, 29 września 2026)
+
+**Data:** 29 września 2026 · Status: **obowiązuje** · Decyzja właściciela (decyzja właściciela 29.09.2026)
+
+**Problem.** Import słownika (D-299) porównywał hash plików i odcisk trzech tabel,
+ale nie wiedział, który zestaw danych jest NOWSZY. Instancja ze starszego
+wdrożenia (np. po wycofaniu) miała inne pliki, więc jej import odbudowywał
+słownik i cofał dane do starszych.
+
+**Decyzja.**
+
+- Numer wersji danych żyje w jednym miejscu: `database/data/odzywcze/WERSJA`
+  (wiersze „numer sha256-plików-CSV”, numery rosną, obowiązuje ostatni).
+- Znacznik ostatniego udanego importu (cache, pod kluczem z D-299; produkcja =
+  `CACHE_STORE=database` bez `DB_CACHE_CONNECTION`, więc to samo połączenie i ta sama
+  transakcja co słowniki; zapis to `upsert`, który nie przerywa transakcji PostgreSQL) niesie także
+  `wersja`. Zapis pod `pg_advisory_xact_lock(2130, 0)`, jak reszta.
+- Reguła: wersja pliku > wersja w bazie albo baza niekompletna / odcisk
+  niezgodny / hash inny → pełny import. Wersja pliku < wersja w bazie i baza
+  kompletna → NIE nadpisujemy, ostrzeżenie w logu (same numery wersji, bez
+  danych osobowych). Ta sama wersja i ten sam hash + zgodny odcisk → szybka ścieżka.
+  Porównanie powtarzamy POD blokadą, bo znacznik sprzed blokady mógł się zestarzeć.
+- `--wymus` świadomie pomija ochronę wersji (jawna decyzja osoby z konsoli).
+- Test `WersjaSlownikaOdzywczegoTest` oblewa, gdy CSV zmieniono bez dopisania
+  nowego wiersza w `WERSJA`. Zmiana samego kodu normalizacji zmienia hash
+  importu (odbudowa przy tej samej wersji), ale nie wymusza podbicia numeru —
+  podbij go, gdy zmiana ma dojść do bazy przed starszą instancją.
+
+**Konsekwencje.** Bez migracji. Znacznik w cache można skasować (`cache:clear`):
+wtedy wersja bazy jest nieznana i najbliższy import (dowolnej wersji) odbudowuje
+słownik — ochrona wraca po nim. Kod sprzed tej zmiany nie zna wersji i nadal
+nadpisuje.
+
+**Co musiałoby się stać, żeby zmienić.** Potrzeba trwałej wersji odpornej na
+`cache:clear` → osobna tabela z wierszem wersji (migracja, D-088).
+## D-331 — Pięć funkcji z listy „V2, ale nie teraz” odblokowanych (29 września 2026)
+
+**Decyzja właściciela (29 września 2026).** Z listy „V2, ale nie teraz”
+w `docs/FEATURES.md` (decyzja z 26 września) wolno budować:
+
+- kilka jawnych zakresów czasu w wyszukiwarce przepisów (#1997);
+- udostępnianie publicznego zeszytu (#2000);
+- widoczne kalorie na porcję w danych SEO przepisu / JSON-LD (#1996);
+- historię i porównanie publicznych wersji przepisu (#2024);
+- opcjonalną synchronizację postępu gotowania między urządzeniami (#2016).
+
+Pozostałe pozycje tej listy (#1902, #1903, #1904, #1906, #1999, #2067)
+zostają zakazane bez nowej decyzji. Lista „Nie wcześnie” bez zmian.
+
+**Granice, które zostają.** Każda z funkcji trzyma się zasad z `AGENTS.md`:
+autoryzacja przez Policy, UX 50+, bez nowego stacku (zero Redisa, SPA,
+osobnego search engine), zmiana schematu z rollbackiem (D-088). Udostępnianie
+dotyczy tylko zeszytu publicznego — zeszyt rodzinny (D-302) i „Tylko ja” nie
+dostają przycisku. Kalorie trafiają do JSON-LD tylko wtedy, gdy ta sama
+wartość jest widoczna na stronie przepisu (D-299).
+
+### Wycofanie
+Przywrócenie pozycji na listę „V2, ale nie teraz” w `docs/FEATURES.md`;
+wdrożone już funkcje wycofuje się osobno, każdą swoim PR-em.
+
+## D-333 — Decyzje właściciela z 29 września 2026 (sesja koordynatora, popołudnie)
+
+**Po co ten wpis.** Właściciel podjął tego dnia serię decyzji w rozmowie
+z sesją koordynatora. Część z nich podejmował już wcześniej w innej sesji,
+która ich nie zapisała, więc sesje pytały go o to samo po kilka razy.
+Ten wpis jest jedynym miejscem, gdzie te odpowiedzi są zapisane. Przed
+zadaniem właścicielowi pytania z tej listy przeczytaj go, a stan każdego
+punktu sprawdź w podanym issue. Numery wpis w dzienniku dla #2130 (#2130), D-331 (V2) i wpis w dzienniku dla #1751
+(#1751) to osobne wpisy z tej samej serii.
+
+| Temat | Decyzja właściciela | Issue |
+|---|---|---|
+| Plan Railway | Płatny plan przed końcem okresu próbnego, raczej **Pro** („żeby był backup i inne funkcje”). Limit wydatków: twardy 100 USD, alert przy 60 USD. Wykorzystanie funkcji Pro opisuje `docs/infra/RAILWAY_PRO_WYKORZYSTANIE.md` | #595, #599 |
+| Odbiorca alarmów operacyjnych | **Discord. Już działa**: webhook jest w zmiennej na Railway (`LOG_BLAD_WEBHOOK_URL`), a alarmy dochodzą (np. „Łączny czas zapytań SQL…” 29.09 o 14:28 czasu polskiego). Nie pytać ponownie | #599 |
+| Wersja słownika odżywczego | Tak, wersja rosnąca (wpis w dzienniku dla #2130) | #2130 |
+| Okno zamknięcia workera | Na alfę zostaje 130 s. Przerwany eksport jest ponawiany z kolejki; do tematu wracamy, gdy log pokaże przerwany eksport | #1860, #1030 |
+| Grupy tematyczne | Obniżyć do **P3**, dopiero po bramce WAC/D30 | #22 |
+| Forma zwracania się | Wdrażamy z formą neutralną domyślną, bez czekania na prawnika (wpis w dzienniku dla #1751). Zmiana polityki prywatności jest **istotna**: nowa wersja i pasek (D-327) | #1751, #1752, #1753, #8 |
+| AI | Nie uruchamiamy nic nowego (#813, #814, #815, #1983 czekają). Właściciel **podpisuje DPA z OpenAI**, bo import już z niego korzysta | #813, #814, #815, #1983, #28 |
+| Claim „Twoje przepisy nie zginą” | Nie, dopóki nie ma przetestowanego odtworzenia bazy i zdjęć | #30, #594, #193, #617 |
+| Upload prosto do R2 | Odłożony z warunkami: wraca, gdy pomiar #605 pokaże upload przez aplikację jako wąskie gardło; czyszczenie EXIF/GPS musi zostać | #602 |
+| Raporty DMARC (`rua`) | Cloudflare Email Routing dla `kontakt@kuking.pl` (droga A z `docs/infra/POCZTA_URUCHOMIENIE.md` §3A) | #2049 |
+| Refaktor `CookedEventController` | Scalić (gałąź `claude/970-ugotowalem-na-g`) | #970 |
+| `HealthController` | Osobne issue, najpierw test kształtu `/health` | #2212 |
+| Lista „V2, ale nie teraz” | Odblokowane #1997, #2000, #1996, #2024, #2016 (D-331); reszta zostaje | #1997, #2000, #1996, #2024, #2016 |
+| Ścieżki w `DECISIONS.md` | Akceptacja poprawki ścieżek `DziennyBudzetListow` (`8dff9f624`) | #2149 |
+| Kontrola ujemna eksportu | Kryteria #1687 przyjęte bez ręcznej kontroli ujemnej | #1687 |
+| Zbędne gałęzie | Kasować po sprawdzeniu, że są scalone. Sesja nie ma prawa kasowania (403), więc kasuje właściciel; lista w `docs/flota/sesja-koordynatora-2909-b/HANDOVER.md` | — |
+
+### Wycofanie
+Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis
+D-xxx z odwołaniem do tego.

@@ -35,9 +35,42 @@ final class KalkulatorWartosci
         private readonly SlownikSkladnikow $slownik,
     ) {}
 
+    /**
+     * Wynik przeliczenia na obiekt przepisu: strona przepisu pyta o niego
+     * dwa razy (dane strukturalne JSON-LD i widoczna sekcja, #1996), a każde
+     * przeliczenie to zapytanie do słownika składników. Pamięć jest kluczowana
+     * OBIEKTEM przepisu (ginie razem z nim, nie żyje między żądaniami) i pilnuje
+     * odcisku składników oraz liczby porcji — zmiana któregokolwiek liczy od nowa.
+     *
+     * @var \WeakMap<Recipe, array{0: string, 1: WynikWartosci}>|null
+     */
+    private static ?\WeakMap $pamiec = null;
+
     public function policz(Recipe $recipe): WynikWartosci
     {
         $recipe->loadMissing('ingredients.unit');
+
+        $odcisk = md5(json_encode([
+            $recipe->servings,
+            $recipe->ingredients->map(fn (RecipeIngredient $s): array => [
+                $s->getKey(), $s->ingredient_text, $s->quantity, $s->unit_id, $s->no_amount,
+            ])->all(),
+        ], JSON_THROW_ON_ERROR));
+
+        self::$pamiec ??= new \WeakMap;
+        $zapamietany = self::$pamiec[$recipe] ?? null;
+        if ($zapamietany !== null && $zapamietany[0] === $odcisk) {
+            return $zapamietany[1];
+        }
+
+        $wynik = $this->oblicz($recipe);
+        self::$pamiec[$recipe] = [$odcisk, $wynik];
+
+        return $wynik;
+    }
+
+    private function oblicz(Recipe $recipe): WynikWartosci
+    {
 
         /** @var iterable<RecipeIngredient> $skladniki */
         $skladniki = $recipe->ingredients;

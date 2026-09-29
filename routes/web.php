@@ -39,6 +39,7 @@ use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\HistoriaPrzepisuController;
 use App\Http\Controllers\ImportPrzepisuController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MojeWpisyController;
@@ -247,6 +248,19 @@ Route::post('/motyw', [ThemeController::class, 'update'])
 
 Route::get('/przepisy/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
 
+// Historia zapisanych wersji przepisu (issue #2024) — tylko odczyt, także dla
+// gościa; dostęp rozstrzyga `RecipePolicy::view` i opublikowanie przepisu
+// (`App\Domain\Recipes\Historia\HistoriaWersji`).
+// Numer wersji: do 9 cyfr — dłuższy ciąg cyfr nie mieści się w `int` i dawałby 500.
+Route::get('/przepisy/{recipe}/historia', [HistoriaPrzepisuController::class, 'index'])
+    ->name('recipes.history');
+Route::get('/przepisy/{recipe}/historia/{numer}', [HistoriaPrzepisuController::class, 'show'])
+    ->where('numer', '[1-9][0-9]{0,8}')
+    ->name('recipes.history.version');
+Route::get('/przepisy/{recipe}/historia/{numer}/zmiany', [HistoriaPrzepisuController::class, 'zmiany'])
+    ->where('numer', '[1-9][0-9]{0,8}')
+    ->name('recipes.history.changes');
+
 // Zeszyt „Wszyscy" jest dla wszystkich — także bez konta (issue #965).
 // Poza grupą `auth` stoi WYŁĄCZNIE odczyt; dostęp rozstrzyga
 // `CollectionPolicy::view(?User)`: gość widzi tylko publiczny zeszyt
@@ -269,6 +283,19 @@ Route::post('/przepisy/{recipe}/gotuj/od-poczatku', [CookingModeController::clas
 Route::post('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'zaznacz'])
     ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
     ->name('cooking.zaznacz');
+// Opcjonalna synchronizacja postępu między urządzeniami (#2016) — tylko dla
+// zalogowanych; goście zostają przy postępie w sesji.
+Route::middleware('auth')->group(function () use ($limits): void {
+    Route::post('/przepisy/{recipe}/gotuj/synchronizacja', [CookingModeController::class, 'wlaczSynchronizacje'])
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('cooking.sync.wlacz');
+    Route::post('/przepisy/{recipe}/gotuj/synchronizacja/wylacz', [CookingModeController::class, 'wylaczSynchronizacje'])
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('cooking.sync.wylacz');
+    Route::get('/przepisy/{recipe}/gotuj/postep', [CookingModeController::class, 'postepZapamietany'])
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('cooking.sync.postep');
+});
 
 Route::get('/wpisy/{post}', [PostController::class, 'show'])->name('posts.show');
 Route::get('/pytania/zadaj', [PostController::class, 'create'])->middleware('auth')->name('questions.create');

@@ -1,0 +1,5 @@
+# Wersja danych słownika wartości odżywczych (#2130). Jedno źródło numeru.
+# Wiersz: "numer sha256-plików-CSV". Numery rosną; obowiązuje ostatni wiersz.
+# Zmieniasz skladniki.csv albo miary.csv → dopisz NOWY wiersz z kolejnym numerem
+# i nowym hashem (test WersjaSlownikaOdzywczegoTest podpowie hash). Starych wierszy nie edytuj.
+1 94716de889dba453b15372819b958f02356b7f26a6be8ceb6fd9f9d97e26b64d

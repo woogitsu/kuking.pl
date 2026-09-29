@@ -53,7 +53,7 @@
 # zmieni po cichu obrazu produkcyjnego. Nowy digest przynosi PR Dependabota
 # (ekosystem `docker` w .github/dependabot.yml); pilnuje tego
 # tests/Unit/ObrazyBazowePrzypieteDoDigestowTest.php.
-FROM node:22-bookworm-slim@sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9 AS assets
+FROM node:22-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS assets
 
 WORKDIR /app
 
@@ -134,7 +134,7 @@ RUN npm run build
 # Osobny etap zamiast `COPY --from=composer:2`: Dependabot (ekosystem `docker`)
 # aktualizuje obrazy w liniach `FROM`, a obrazu podanego wprost w `COPY --from`
 # nie widzi. Digest wpisany tam starzałby się po cichu. Tu jest pod nadzorem.
-FROM composer:2@sha256:a5f59b9fd2faf31218632be4809dc6491761085e8064c31dc3b84378c48c248b AS composer-bin
+FROM composer:2@sha256:9715c7f69044da2a212a5fbde29ee7da24e364d426560ae6367b060236f847d7 AS composer-bin
 
 
 # -----------------------------------------------------------------------------
@@ -142,7 +142,7 @@ FROM composer:2@sha256:a5f59b9fd2faf31218632be4809dc6491761085e8064c31dc3b84378c
 # -----------------------------------------------------------------------------
 # Ten sam obraz bazowy co runtime, żeby platform-check Composera i skompilowane
 # rozszerzenia zgadzały się 1:1 z tym, na czym aplikacja faktycznie pobiegnie.
-FROM dunglas/frankenphp:1-php8.4-trixie@sha256:856e8b16de5ee5e081d4b82d86705d6d6bb052ae377f99173dd4ecb75e955901 AS vendor
+FROM dunglas/frankenphp:1-php8.4-trixie@sha256:035fcb2fab91aacf77d70ee555d51b9bb084d057b16cf8a644bf1f93e28d4e3e AS vendor
 
 # install-php-extensions jest częścią obrazu FrankenPHP
 # (docker-php-extension-installer).
@@ -181,7 +181,7 @@ RUN COMPOSER_CACHE_DIR=/tmp/composer-cache \
 # -----------------------------------------------------------------------------
 # ETAP 3 — obraz runtime
 # -----------------------------------------------------------------------------
-FROM dunglas/frankenphp:1-php8.4-trixie@sha256:856e8b16de5ee5e081d4b82d86705d6d6bb052ae377f99173dd4ecb75e955901 AS runtime
+FROM dunglas/frankenphp:1-php8.4-trixie@sha256:035fcb2fab91aacf77d70ee555d51b9bb084d057b16cf8a644bf1f93e28d4e3e AS runtime
 
 LABEL org.opencontainers.image.title="kuking.pl"
 LABEL org.opencontainers.image.source="https://github.com/woogitsu/kuking.pl"

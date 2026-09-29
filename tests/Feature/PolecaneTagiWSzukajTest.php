@@ -56,7 +56,11 @@ class PolecaneTagiWSzukajTest extends TestCase
                 $this->assertSame('Zdanie gospodarza <script>alert(1)</script>', $xpath->query($scope.'//li/p')->item(0)->textContent);
                 $this->assertSame(1, $xpath->query($scope.'//li/p')->length);
                 $this->assertSame(0, $xpath->query($scope.'//script')->length);
-                $this->assertSame(1, $xpath->query('//main//form[@method="GET"]//input[@name="sekcja" and @value="'.$section.'"]')->length);
+                // Stary adres `sekcja=szybkie` to od #1997 „Przepisy" z `czas=30`
+                // — formularz niesie oba, żeby nowa fraza nie gubiła progu.
+                $wFormularzu = $section === 'szybkie' ? 'przepisy' : $section;
+                $this->assertSame(1, $xpath->query('//main//form[@method="GET"]//input[@name="sekcja" and @value="'.$wFormularzu.'"]')->length);
+                $this->assertSame($section === 'szybkie' ? 1 : 0, $xpath->query('//main//form[@method="GET"]//input[@name="czas" and @value="30"]')->length);
                 $this->assertSame(1, $xpath->query('//main//form[@method="GET"]//input[@name="q"]')->length);
             }
             $this->get(route('tags.show', $first))->assertOk();
