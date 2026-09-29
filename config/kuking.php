@@ -3937,6 +3937,8 @@ return [
         // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
         // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
         // wersji nie da się z niczym powiązać.
+        // Wydania od 0.1 do 0.9 zapisano z zerem wiodącym (0.01–0.09), żeby nie
+        // wyglądały na nowsze od 0.77 (D-333); to historia — dziś numer ma dwie cyfry.
         'etykieta' => 'Alfa 0.77',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.

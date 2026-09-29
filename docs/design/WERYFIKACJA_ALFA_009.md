@@ -1,4 +1,4 @@
-# Odbiór pełnego portu Alfa 0.9
+# Odbiór pełnego portu Alfa 0.09
 
 13 września 2026.
 
@@ -10,7 +10,7 @@
 - [CI PR](https://github.com/woogitsu/kuking.pl/actions/runs/34734757204).
 - [CI main](https://github.com/woogitsu/kuking.pl/actions/runs/34735135272).
 
-To jest odbiór układu aplikacji, nie wcześniejszej zmiany palety Alfa 0.8.
+To jest odbiór układu aplikacji, nie wcześniejszej zmiany palety Alfa 0.08.
 Zakres opisuje [PORT_PROJEKTU.md](PORT_PROJEKTU.md), standard marki
 [KONSTYTUCJA_MARKI.md](../brand/KONSTYTUCJA_MARKI.md), decyzję D-206
 [dziennik](../DECISIONS.md).

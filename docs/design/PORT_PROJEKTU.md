@@ -1,10 +1,10 @@
 # Pełny port projektu Kuking do aplikacji
 
-13 września 2026. **Status: scalono, zweryfikowano i wdrożono Alfa 0.9.**
+13 września 2026. **Status: scalono, zweryfikowano i wdrożono Alfa 0.09.**
 
 Ten dokument określa zakres i kryteria odbioru. Wyniki i ograniczenia
-zapisano w [raporcie Alfa 0.9](WERYFIKACJA_ALFA_09.md). Wiersze tabeli
-opisują zakres, nie indywidualne testy. Wyniki Alfa 0.8 dotyczą wcześniejszej
+zapisano w [raporcie Alfa 0.09](WERYFIKACJA_ALFA_009.md). Wiersze tabeli
+opisują zakres, nie indywidualne testy. Wyniki Alfa 0.08 dotyczą wcześniejszej
 integracji palety i nie są dowodem odbioru tego portu.
 
 ## Cel i źródło
@@ -96,7 +96,7 @@ CI gałęzi i main zakończyły się sukcesem. Railway potwierdził produkcję
 13 września 2026 o 03:29 UTC; test dymny sprawdził również nową ramę
 w serwowanym HTML oraz zbudowanym CSS.
 
-[Raport odbioru](WERYFIKACJA_ALFA_09.md) podaje przebiegi, zakres oglądanych
+[Raport odbioru](WERYFIKACJA_ALFA_009.md) podaje przebiegi, zakres oglądanych
 zrzutów i ograniczenia, w tym sześć ostrzeżeń częściowego zasłonięcia
 fokusu długiej nazwy przy powiększeniu. Nie przeprowadzono badania 50+
 ani logowania na prywatne konto produkcyjne w celu odbioru wizualnego.
@@ -104,7 +104,7 @@ ani logowania na prywatne konto produkcyjne w celu odbioru wizualnego.
 ## Dokumentacja i wycofanie
 
 [NOWY_STYL.md](NOWY_STYL.md) opisuje wcześniejszy etap palety;
-[WERYFIKACJA_ALFA_08.md](WERYFIKACJA_ALFA_08.md) przechowuje jego wyniki.
+[WERYFIKACJA_ALFA_008.md](WERYFIKACJA_ALFA_008.md) przechowuje jego wyniki.
 Ten dokument rozszerza zakres do całej warstwy interfejsu. Nazwy i ton
 pozostają zgodne z [COPY_STYLE.md](../brand/COPY_STYLE.md) oraz
 [GLOS_MARKI.md](../brand/GLOS_MARKI.md). Numer decyzji nadaje się po scaleniu,

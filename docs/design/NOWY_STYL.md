@@ -52,7 +52,7 @@ Composera, PostgreSQL ani binarki przeglądarki. Próba `apt-get update`
 zakończyła się błędami zmiany uprawnień; połączenie z repozytorium Ubuntu
 zakończyło się błędem proxy. Następnie pełne testy aplikacji, kontrole
 negatywne i pomiar nowej wysokości kafla zaliczono w CI. Wyniki są
-w `docs/design/WERYFIKACJA_ALFA_08.md`. Historyczne wymiary z PR #479
+w `docs/design/WERYFIKACJA_ALFA_008.md`. Historyczne wymiary z PR #479
 nie są wynikami tego pakietu.
 
 ## Wycofanie

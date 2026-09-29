@@ -3046,7 +3046,7 @@ zamknięta bramka bez tabliczki, co jest gorsze niż jedno i drugie osobno.
 Przy przebudowie stopki na kilka poziomów (issue #205) właściciel poprosił
 wprost o dwie rzeczy, które łamią `AGENTS.md` §5:
 
-1. metryczkę wersji („Alfa 0.1 · data wydania · commit") **drukiem 5–8 px**,
+1. metryczkę wersji („Alfa 0.01 · data wydania · commit") **drukiem 5–8 px**,
    podczas gdy §5 mówi „tekst ≥ 18 px" (najmniejszy token w ogóle,
    `--text-meta`, to 15 px — 8 px jest poniżej NAJMNIEJSZEGO tokenu
    w systemie, nie tylko poniżej minimum produktowego);
@@ -14878,7 +14878,7 @@ Pomiar obu motywów, kafla oraz granice wyniku zapisano po scaleniu kodu.
 Nie przenosimy statycznego prototypu w miejsce Laravel.
 
 📄 `docs/brand/KONSTYTUCJA_MARKI.md` · `docs/design/NOWY_STYL.md` ·
-`docs/design/WERYFIKACJA_ALFA_08.md` · `resources/css/tokens.css`
+`docs/design/WERYFIKACJA_ALFA_008.md` · `resources/css/tokens.css`
 
 ---
 
@@ -14920,7 +14920,7 @@ przywrócenia z kopii poza repo i zgodności md5. Pełna suita idzie na przywró
 Raport i kod wyjścia nie są synonimami; wykrytą lukę starego pomiaru zapisano w #484.
 
 📄 `scripts/kontrast-marki.mjs` · `scripts/kontrole-negatywne-alfa08.py` ·
-`docs/design/WERYFIKACJA_ALFA_08.md`
+`docs/design/WERYFIKACJA_ALFA_008.md`
 
 
 ---
@@ -14931,7 +14931,7 @@ Raport i kod wyjścia nie są synonimami; wykrytą lukę starego pomiaru zapisan
 
 ### Decyzja
 
-Alfa 0.9 przenosi zaakceptowany projekt do istniejących ekranów Laravel:
+Alfa 0.09 przenosi zaakceptowany projekt do istniejących ekranów Laravel:
 pływającą ramę, menu desktop w nagłówku, pięć pozycji mobilnych, ciemny
 kafel publikacji i własnego profilu, mocną typografię oraz wspólne karty
 i formularze. Zwykły użytkownik nie ma widocznego lewego paska; panel
@@ -14954,10 +14954,10 @@ dymny nie zastępuje odbioru ekranu zalogowanego.
 
 Sześć ostrzeżeń częściowego zasłonięcia fokusu długiej nazwy przy
 powiększeniu pozostaje jawnie w #485; test nie podnosi progów ani nie
-usuwa nazw. Wyniki i zakres oglądanych zrzutów zapisuje raport Alfa 0.9.
+usuwa nazw. Wyniki i zakres oglądanych zrzutów zapisuje raport Alfa 0.09.
 
 📄 `docs/brand/KONSTYTUCJA_MARKI.md` · `docs/design/PORT_PROJEKTU.md` ·
-`docs/design/WERYFIKACJA_ALFA_09.md`
+`docs/design/WERYFIKACJA_ALFA_009.md`
 
 
 ## D-207 · Kompozycja wizualizacji jest kryterium portu, nie sama paleta
@@ -20931,6 +20931,7 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | #2024: ponowna publikacja bez zmian | Ponowna publikacja przepisu bez zmian treści **nie tworzy** nowej wersji w historii | #2024 |
 | #2000: wspólny zeszyt publiczny | Wspólny (rodzinny, D-302) zeszyt ustawiony jako „wszyscy” **może** mieć „Podziel się”; prywatny i domyślne „Zapisane” dalej nie | #2000 |
 | #2016: minutniki | Minutniki **nie są** synchronizowane między urządzeniami — synchronizacja obejmuje tylko odhaczone kroki | #2016 |
+| Numeracja starych wydań | Alfa 0.1–0.9 zapisujemy jako 0.01–0.09, żeby nie wyglądały na nowsze od 0.77; licznik po kropce bez zmian (0.10 w górę, w tym 0.77, bez zmian) | — |
 
 ### Wycofanie
 Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis

@@ -9,6 +9,7 @@
 - Pod przepisem, który ma co najmniej dwie zapisane wersje, jest przycisk „Historia zmian” (#2024). Prowadzi do listy wersji z datami (po 20, z przyciskiem „Pokaż starsze wersje”), do podglądu jednej wersji — tekstu i danych przepisu, bez zdjęć — oraz do porównania z wersją poprzednią: składniki i kroki są opisane słowami „Dodano”, „Usunięto” i „Zmieniono” (kolor tylko je podkreśla), a przy zmianach widać „Było” i „Jest”. Widzi to każdy, kto widzi sam przepis (gość, obserwujący albo tylko autor — według widoczności przepisu, blokad i stanu konta autora); przepis ukryty lub zdjęty przez moderację, szkic i przepis prywatny dla obcych nie mają historii, a ekrany nie pokazują, kto zapisał wersję. Pole, którego starsza wersja jeszcze nie zapisywała, jest opisane jako „Brak danych”, a nie uzupełniane dzisiejszą treścią. Bez zmiany schematu bazy. [nowa funkcja]
 - Tryb gotowania: zalogowana osoba może świadomie włączyć zapamiętywanie postępu przepisu na koncie (#2016). Przycisk „Zapamiętuj postęp na moim koncie” pod krokami zapamiętuje odhaczone kroki tego jednego przepisu, więc po otwarciu go na innym telefonie czy tablecie widać je od razu; wcześniej stały tylko w przeglądarce, w której je zaznaczono. Domyślnie nic się nie zmienia — postęp zostaje w tej przeglądarce, tak samo jak dla osób bez konta. Zapis wygasa po 24 godzinach od ostatniej zmiany, „Zacznij od początku” go czyści, a „Wyłącz zapamiętywanie na koncie i usuń zapis” kasuje go z konta (odhaczenia zostają do końca sesji na tym urządzeniu). Zmiany dokonane na drugim urządzeniu strona zgłasza komunikatem, a przy włączonym skrypcie sama sprawdza co pół minuty i podpowiada odnośnik „Pokaż aktualny postęp”; bez skryptu wszystko działa zwykłymi formularzami. Zapamiętywany jest tylko postęp kroków — składniki „przygotowane”, porcje i minutniki zostają w przeglądarce. Cudzego postępu nie da się zobaczyć ani zmienić, a konto, które straciło dostęp do przepisu, nie odtworzy jego postępu. Postęp jest w paczce danych („postep_gotowania”), znika przy wymazaniu konta, a nocne sprzątanie (`kuking:sprzataj-postep-gotowania`, 03:00) kasuje wygasłe wpisy. Pod spodem: nowa tabela `cooking_progress`, której cofnięcie migracji odmawia, gdy są w niej niewygasłe wiersze (D-088). [nowa funkcja]
 - Panel moderacji: ekran „Zdejmij z urzędu” czyta się pismem podstawowym także w zdaniach o skutku decyzji — że komentarz wróci, jeśli autor wygra odwołanie, i że treść zniknie z serwisu od razu. Były drobnym szarym pismem 16 px, choć to od nich zależy, czy moderator kliknie przycisk. Odbiór panelu w przeglądarce obejmuje teraz i ten ekran (#581).
+- Wewnętrzne: numery najstarszych wydań w tym dzienniku zmian i w dokumentacji mają zero wiodące (Alfa 0.01–0.09 zamiast 0.1–0.9), żeby nie wyglądały na nowsze od 0.77; raporty odbioru Alfa 0.08 i 0.09 zmieniły nazwy plików w `docs/design/`. Numeracja bieżących wydań bez zmian (D-333).
 - Wewnętrzne: `kuking:raport` liczy teraz, czy przepis wpisany w planerze kończy się „Ugotowałem” w dniu planu albo do 3 dni po nim (#27). Pomiar korzysta z istniejących tabel, bez nowych zdarzeń i danych osobowych, pomija konta testowe i gospodarza, a poniżej 20 pozycji pokazuje same liczby bez procentu. To liczby, na których właściciel oprze decyzję o liście zakupów; definicja jest w `docs/research/ANALITYKA.md` §1.6.
 - Import przepisu z adresu strony czyta teraz także starsze blogi, które nie mają danych JSON-LD, tylko oznaczenia „mikrodane” schema.org w samej stronie (#28). Kuking bierze tytuł, opis, składniki, kroki, porcje i czasy przygotowania oraz gotowania wprost ze strony — lokalnie, bez wysyłania czegokolwiek do modelu i bez kosztu — a gdy strona ma oba zapisy, pierwszeństwo ma JSON-LD. Nazwiska autora, ocen ani danych odżywczych ze strony nie przenosimy, zdjęć nie pobieramy, a wynik jak zawsze trafia do prywatnego szkicu do sprawdzenia. Dopiero strona bez żadnych takich danych idzie dalej starą drogą (odczyt przez komputer firmy OpenAI, tylko za zgodą z formularza). Wewnętrznie: w zapisie szkicu droga odczytu z mikrodanych nadal nazywa się `json_ld` (dane strukturalne), więc bez zmiany schematu.
 - W „Twoich danych” można teraz wczytać własną paczkę z danymi, pobraną wcześniej z Kuking (#1985). Wybierasz plik ZIP, a Kuking najpierw pokazuje, co w nim jest: przepisy, własne wpisy i zeszyty do wczytania, te, które już masz na koncie albo które powtarzają się w paczce, oraz pozycje, których wczytać się nie da — z powodem po polsku i z informacją, czego nie wczytamy (zdjęć, pytań z Poradźcie, konta, zgód, komentarzy innych osób). Niczego nie zapisujemy, dopóki nie zaznaczysz pozycji i nie klikniesz „Wczytaj zaznaczone”. Wszystko, co wczytamy, jest prywatne: przepisy trafiają do szkiców, wpisy widzisz tylko Ty, zeszyty są „Tylko ja” — o publikacji zdecydujesz później. Pytań z Poradźcie nie wczytujemy, bo pytanie jest zawsze publiczne, a wczytane treści mają być prywatne — podgląd mówi o tym wprost. Jedno kliknięcie wczytuje najwyżej 50 pozycji, a to samo wczytanie drugi raz niczego nie podwaja. Wybrany plik czeka na decyzję najwyżej 2 godziny w prywatnym magazynie i znika po wczytaniu, przy wymazaniu konta i — gdy go porzucisz — w nocnym sprzątaniu (`kuking:sprzataj-paczki-importu`, 03:30), a w dzienniku zostają tylko liczby. Pod spodem: nowa tabela `wczytane_z_paczki` (odcisk treści, bez samej treści), której cofnięcie migracji odmawia, gdy są w niej wiersze (D-088). [nowa funkcja]
@@ -788,7 +789,7 @@ Karty dań można nadal otwierać po kliknięciu zdjęcia lub opisu. Przy porusz
 - Wiadomości e-mail otrzymały nową paletę, prosty krój pisma i spójne przyciski.
 - Instrukcje logowania i pomocy są krótsze i precyzyjniejsze.
 
-## Alfa 0.9 — pełny układ nowej marki
+## Alfa 0.09 — pełny układ nowej marki
 
 Pływająca nawigacja, ciemny blok publikacji, nowe karty i typografia. Spójny wygląd profilu, zeszytów, wyszukiwarki, przepisów i formularzy. Funkcje korzystają z dotychczasowych danych i ustawień konta.
 
@@ -806,7 +807,7 @@ ich nie ma.
 
 ---
 
-## Alfa 0.8 — 12 września 2026
+## Alfa 0.08 — 12 września 2026
 
 ### Wygląd i strona główna
 
@@ -828,7 +829,7 @@ ich nie ma.
 
 ---
 
-## Alfa 0.7 — 12 września 2026
+## Alfa 0.07 — 12 września 2026
 
 ### Zdjęcia
 
@@ -901,7 +902,7 @@ ich nie ma.
 
 ---
 
-## Alfa 0.6 — 11 września 2026
+## Alfa 0.06 — 11 września 2026
 
 ### Dla wszystkich
 
@@ -963,7 +964,7 @@ ich nie ma.
 
 ---
 
-## Alfa 0.5 — 11 września 2026
+## Alfa 0.05 — 11 września 2026
 
 ### Dla wszystkich
 
@@ -982,7 +983,7 @@ ich nie ma.
 
 ---
 
-## Alfa 0.4 — 11 września 2026
+## Alfa 0.04 — 11 września 2026
 
 ### Dla wszystkich
 
@@ -1000,7 +1001,7 @@ ich nie ma.
 
 ---
 
-## Alfa 0.3 — 11 września 2026
+## Alfa 0.03 — 11 września 2026
 
 ### Dodawanie przepisu przestało odstraszać
 
@@ -1047,7 +1048,7 @@ Przy powiększonej czcionce wszędzie wraca jedna kolumna. Nic się nie chowa.
   czytał.
 ---
 
-## Alfa 0.2 — 11 września 2026
+## Alfa 0.02 — 11 września 2026
 
 ### Dla wszystkich
 
@@ -1098,7 +1099,7 @@ Przy powiększonej czcionce wszędzie wraca jedna kolumna. Nic się nie chowa.
 
 ---
 
-## Alfa 0.1 — pierwsze wydanie
+## Alfa 0.01 — pierwsze wydanie
 
 Wersja, od której zaczęliśmy. Historia sprzed 11 września 2026 jest
 w historii repozytorium — ten plik zakładamy dziś i nie odtwarzamy go wstecz,
