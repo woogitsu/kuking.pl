@@ -56,7 +56,7 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 ## C 158a2d2d1: podział kontroli na 3 części (CI w toku). Propagacja C→D→E zlecona.
 - D 8243b6887, E 6bb26829e (z poprawką C)
 - claude/1011-oczekiwana-przyczyna-v2 82976ad0e — scalona z E (podział + werdykt JUnit); 6 wpisów bez wzorca (WYMAGAJ_WZORCA=False) → do F po recenzji
-- #2207 czerwone: AUDYT.md (z #2208 na main) ma D-1009 → strażnik #2154. Naprawa: merge main do D + przepięcie; propagacja do E.
+- #2207 czerwone: AUDYT.md (z #2208 na main) ma czterocyfrowy identyfikator decyzji → strażnik #2154. Naprawa: merge main do D + przepięcie; propagacja do E.
 - claude/970-krok4 0564df28c — Refs #970 krok 4 (EdycjaWpisuRequest, KomentarzRequest; zawiera krok 3 + E)
 - D 3bdb828ab (merge main + AUDYT D-329), E 68f8cd279
 - claude/1387-pola-w-formularzu befebccd9 — Refs #1387 krok 6 (pola w PrzepisForm, WERSJA_STANU 4, kontrakt z ZapisPrzepisuRequest) [zawiera 4,5 + E]
