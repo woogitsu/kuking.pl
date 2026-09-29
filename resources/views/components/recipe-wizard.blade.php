@@ -16,6 +16,7 @@ use App\Models\Recipe;
 use App\Domain\Recipes\KosztPrzepisu;
 use App\Support\KreatorPrzepisu\DanePublikacji;
 use App\Support\KreatorPrzepisu\KrokOPrzepisie;
+use App\Support\KreatorPrzepisu\NawigacjaKreatora;
 use App\Support\KreatorPrzepisu\PodgladPrzepisu;
 use App\Support\KreatorPrzepisu\WierszePrzepisu;
 use App\Support\KreatorPrzepisu\ZdjeciaKreatora;
@@ -53,9 +54,9 @@ new class extends Component
     use WithFileUploads;
 
     /** Liczba kroków pokazywana człowiekowi („Krok 2 z 3”). Podgląd to krok 4. */
-    public const STEPS = 3;
+    public const STEPS = NawigacjaKreatora::KROKI;
 
-    public const STEP_PREVIEW = 4;
+    public const STEP_PREVIEW = NawigacjaKreatora::KROK_PODGLADU;
 
     public const STEP_NAMES = [
         1 => 'o przepisie',
@@ -306,7 +307,7 @@ new class extends Component
             return;
         }
 
-        $this->step = min($this->step + 1, self::STEP_PREVIEW);
+        $this->step = NawigacjaKreatora::nastepny($this->step);
     }
 
     public function back(): void
@@ -317,7 +318,7 @@ new class extends Component
         // tego, co człowiek właśnie wpisał.
         $this->autozapis();
 
-        $this->step = max($this->step - 1, 1);
+        $this->step = NawigacjaKreatora::poprzedni($this->step);
     }
 
     /**
@@ -332,14 +333,7 @@ new class extends Component
      */
     public function stepForKey(string $key): int
     {
-        return match (true) {
-            str_starts_with($key, 'ingredients.') => 2,
-            // Obejmuje zarówno `steps` (błąd „opisz przynajmniej jeden
-            // krok”) jak i `steps.N.instruction` / `steps.N.photo`.
-            str_starts_with($key, 'steps') => 3,
-            $key === 'publikacja', $key === 'odczyt_sprawdzony' => self::STEP_PREVIEW,
-            default => 1,
-        };
+        return NawigacjaKreatora::krokDlaKlucza($key);
     }
 
     /**
@@ -353,7 +347,7 @@ new class extends Component
     {
         $this->step = $this->stepForKey($key);
 
-        $this->dispatch('kreator-fokus-pole', pole: 'f-'.str_replace(['[', ']', '.'], '-', $key));
+        $this->dispatch('kreator-fokus-pole', pole: NawigacjaKreatora::idPola($key));
     }
 
     // -----------------------------------------------------------------
@@ -583,9 +577,7 @@ new class extends Component
              * podczas gdy prawdziwy błąd — i jedyne pole z komunikatem —
              * czekał na kroku 3.
              */
-            $this->step = collect($this->getErrorBag()->keys())->contains(fn (string $klucz) => str_starts_with($klucz, 'steps'))
-                ? 3
-                : 1;
+            $this->step = NawigacjaKreatora::krokPoBleduZdjecia($this->getErrorBag()->keys());
             $this->autozapis();
 
             return;
@@ -762,8 +754,7 @@ new class extends Component
         }
 
         if (! $ok) {
-            $pierwszy = (string) collect($this->getErrorBag()->keys())->first();
-            $this->step = $this->stepForKey($pierwszy);
+            $this->step = NawigacjaKreatora::krokPierwszegoBledu($this->getErrorBag()->keys());
         }
 
         return $ok;
@@ -1128,7 +1119,7 @@ new class extends Component
                     właściwym polu po przerenderowaniu.
                 --}}
                 @foreach($errors->keys() as $key)
-                    @php $celId = 'f-'.str_replace(['[', ']', '.'], '-', $key); @endphp
+                    @php $celId = \App\Support\KreatorPrzepisu\NawigacjaKreatora::idPola($key); @endphp
                     <li>
                         @if($this->stepForKey($key) === $step)
                             <a href="#{{ $celId }}">{{ $errors->first($key) }}</a>
