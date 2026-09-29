@@ -253,6 +253,8 @@ try {
     const snapshot = await counter.ariaSnapshot();
     assert(snapshot.trim(), 'Aktualny czas nieobecny w drzewie dostępności');
     assert.match(snapshot, /0:07|7\s+sekund/, 'AX nie zawiera aktualnej wartości: ' + snapshot);
+    // #492 (D-333): dostępna nazwa odliczania to „Pozostały czas”.
+    assert.match(snapshot, /timer "Pozostały czas"/, 'Odliczanie bez nazwy „Pozostały czas” w drzewie dostępności: ' + snapshot);
     assert.equal(await counter.getAttribute('aria-live'), 'off', 'Odliczanie nie powinno ogłaszać każdej sekundy');
     await page.waitForTimeout(1100);
     assert.match(await counter.ariaSnapshot(), /0:06|6\s+sekund/);
