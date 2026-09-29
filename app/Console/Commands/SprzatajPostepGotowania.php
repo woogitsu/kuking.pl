@@ -36,7 +36,7 @@ class SprzatajPostepGotowania extends Command
             // Każdy żywy wiersz to ktoś, kto gotuje teraz i po skasowaniu
             // zobaczy przepis bez odhaczeń — pytamy i mówimy, ilu osób to dotyczy.
             if ($zywe > 0 && ! $this->confirm(
-                "Zapamiętany postęp ma teraz {$zywe} osób(a), które gotują. Po skasowaniu zobaczą swoje przepisy bez odhaczeń. Kasować?",
+                "Liczba osób, które teraz gotują z zapamiętanym postępem: {$zywe}. Po skasowaniu zobaczą swoje przepisy bez odhaczeń. Kasować?",
                 default: false,
             )) {
                 $this->warn('Nic nie skasowano.');
