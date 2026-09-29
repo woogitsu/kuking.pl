@@ -307,6 +307,46 @@
   }
 }
 
+/* Tabela dni w Metrykach doboru (#492). Dwie kolumny: dzień jest nagłówkiem
+   wiersza, liczba stoi po prawej. W przeciwieństwie do `.tabela-kont` (lista
+   kont, wiele kolumn, przewijana we własnym kontenerze) ta tabela mieści się
+   zawsze, więc tekst wolno łamać zamiast przewijać: przy 320 px i piśmie
+   140% data „29 września 2026” schodzi do drugiego wiersza, a strona nie
+   jedzie w bok. Pismo podstawowe, nie „drobny druk tabelki”. */
+[data-marka-panel] .tabela-dni {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+[data-marka-panel] .tabela-dni :is(th, td) {
+  padding: var(--spacing-3) var(--spacing-4);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border);
+  overflow-wrap: anywhere;
+}
+
+[data-marka-panel] .tabela-dni thead th {
+  background: var(--color-surface-sunken);
+  border-bottom: 2px solid var(--color-border-strong);
+  font-weight: 700;
+}
+
+[data-marka-panel] .tabela-dni tbody th {
+  font-weight: 400;
+}
+
+[data-marka-panel] .tabela-dni :is(th, td):last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-marka-panel] .tabela-dni tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
 [data-marka-panel] .marka-panel-bramka {
   max-width: 54rem;
   padding: clamp(var(--spacing-4), 3vw, var(--spacing-8));

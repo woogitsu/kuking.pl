@@ -129,10 +129,19 @@ if ($phase === 'pusty') {
         // widzi ekran. Pusta tabela nieudanych zadań jest stanem odbieranym
         // wprost, nie brakiem danych do pominięcia.
         'kolejka' => ['/admin/kolejka', 'p.card:has-text("Tabela jest pusta")'],
+        // Metryki doboru (#492): konto `konto` jest administratorem. Bez wpisów
+        // ekran mówi „za mało danych”, ale układ (karty progów i tabela dni)
+        // musi stać tak samo jak z danymi.
+        'metryki' => ['/admin/metryki', 'section[data-metryka="progi"]'],
     ];
     foreach ($emptyRoutes as $family => [$path, $selector]) {
         $scenarios[] = $scenario($family.'-pusty', $family, $path, [$one('main '.$selector, 1, 1)]);
     }
+    // Metryki doboru: tabela dni ma zawsze 28 wierszy, a uwagi pod kartami
+    // i komórki tabeli są w piśmie podstawowym (`.panel-liczby`, `.tabela-dni`).
+    $metryki = array_search('metryki-pusty', array_column($scenarios, 'id'), true);
+    $scenarios[$metryki]['oczekiwaneSelektory'][] = $one('main table.tabela-dni tbody tr', 28, 28);
+    $scenarios[$metryki]['minimalnyTekst'] = ['main .panel-liczby', 'main .tabela-dni th', 'main .tabela-dni td'];
     foreach (['wpisy', 'przepisy', 'ugotowane'] as $type) {
         $scenarios[] = $scenario('bez-odpowiedzi-'.$type.'-pusty', 'bez-odpowiedzi', '/admin/bez-odpowiedzi?typ='.$type,
             [$one('main .empty-state-title', 1, 1), $one('main article.card', 0, 0)]);
@@ -257,16 +266,24 @@ if ($phase === 'pusty') {
         'uzytkownicy' => ['/admin/uzytkownicy?szukaj='.$namespace, '.tabela-kont tbody tr'],
         'uzytkownik' => ['/admin/uzytkownicy/'.$data['author'], 'main article'],
         'kolejka' => ['/admin/kolejka', 'main li.card'],
+        'metryki' => ['/admin/metryki', 'main section[data-metryka="progi"]'],
     ];
     foreach ($fullRoutes as $family => [$path, $selector]) {
         $scenarios[] = $scenario($family.'-pelny', $family, $path, [$one($selector, $family === 'kolaz-powitalny' ? 4 : 1)]);
     }
     // Kolejka zadań: dwie grupy zadań, więc ekran musi mieć i pary
     // podpis — wartość, i liczby pod kartą stanu — oba w piśmie podstawowym.
-    $kolejka = array_key_last($scenarios);
+    // Szukamy po id, nie po pozycji: kolejność tras w `$fullRoutes` nie jest kontraktem.
+    $kolejka = array_search('kolejka-pelny', array_column($scenarios, 'id'), true);
     $scenarios[$kolejka]['oczekiwaneSelektory'][] = $one('main .panel-grupa > h2 + p', 1, 1);
     $scenarios[$kolejka]['oczekiwaneSelektory'][] = $one('main li.card dl.dane-zadania', 2, 2);
     $scenarios[$kolejka]['minimalnyTekst'] = ['main .dane-zadania dt', 'main .dane-zadania dd', 'main .panel-liczby'];
+    // Metryki doboru: fixture ma autora z publicznymi wpisami sprzed 1–2 dni,
+    // więc ekran liczy prawdziwe wartości; pięć kart, tabela dni z 28 wierszami.
+    $metryki = array_search('metryki-pelny', array_column($scenarios, 'id'), true);
+    $scenarios[$metryki]['oczekiwaneSelektory'][] = $one('main section.card[data-metryka]', 5, 5);
+    $scenarios[$metryki]['oczekiwaneSelektory'][] = $one('main table.tabela-dni tbody tr', 28, 28);
+    $scenarios[$metryki]['minimalnyTekst'] = ['main .panel-liczby', 'main .tabela-dni th', 'main .tabela-dni td'];
     foreach (['wpisy', 'przepisy', 'ugotowane'] as $type) {
         $scenarios[] = $scenario('bez-odpowiedzi-'.$type.'-pelny', 'bez-odpowiedzi', '/admin/bez-odpowiedzi?typ='.$type,
             [$one('main article.card'), $one('main .empty-state-title', 0, 0)]);
