@@ -186,12 +186,22 @@ dopisywania na końcu.
 Z powłoki produkcyjnej (`railway ssh`, tak jak przy sprawdzaniu poczty):
 
 ```bash
-php artisan tinker --execute="report(new \RuntimeException('Test kanału błędów — zignoruj.'));"
+php artisan kuking:sprawdz-alarm --przez-wyjatek
 ```
 
-Na kanale Discorda powinna pojawić się wiadomość w kilka sekund. Jeśli jej
-nie ma: sprawdź, czy zmienna naprawdę doszła do kontenera
+Komenda zgłasza wyjątek tą samą drogą, którą idzie prawdziwy błąd 500
+(`report()` → obsługa wyjątków w `bootstrap/app.php` → kanał), i mówi,
+czy kanał przyjął wiadomość. Na kanale Discorda powinna pojawić się
+wiadomość „RuntimeException” w kilka sekund. Druga próba w ciągu okna
+serii (`KUKING_SERIA_ALARMOW_OKNO_MINUT`, domyślnie 15 minut) nie wyjdzie —
+seria identycznych błędów daje jedną wiadomość na okno, a komenda mówi to
+wprost.
+
+Jeśli wiadomości nie ma: sprawdź, czy zmienna naprawdę doszła do kontenera
 (`railway variables`) i czy serwis był zrestartowany PO jej ustawieniu.
+
+Dawniej stało tu wywołanie `report(…)` w tinkerze; tinkera nie ma
+w obrazie produkcyjnym od D-333.
 
 ---
 

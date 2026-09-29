@@ -8,6 +8,7 @@ use App\Logging\WebhookBleduHandler;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -48,7 +49,8 @@ use Throwable;
 class SprawdzAlarm extends Command
 {
     protected $signature = 'kuking:sprawdz-alarm
-                            {--bez-wysylki : Tylko powiedz, czy kanał jest skonfigurowany — nic nie wysyłaj}';
+                            {--bez-wysylki : Tylko powiedz, czy kanał jest skonfigurowany — nic nie wysyłaj}
+                            {--przez-wyjatek : Wyślij próbę drogą prawdziwego błędu 500: report() → obsługa wyjątków → kanał}';
 
     protected $description = 'Wysyła jedną próbną wiadomość na kanał alarmowy i mówi, czy kanał w ogóle istnieje (issue #599).';
 
@@ -82,6 +84,10 @@ class SprawdzAlarm extends Command
         }
 
         $znacznik = Carbon::now()->toIso8601String();
+
+        if ($this->option('przez-wyjatek')) {
+            return $this->przezWyjatek($znacznik);
+        }
 
         // Pytamy o WYNIK NASZEJ wysyłki, nie o cudzą sprzed chwili w tym
         // samym procesie (pamięć handlera jest statyczna).
@@ -131,6 +137,56 @@ class SprawdzAlarm extends Command
         $this->line('Slacka wskazuje webhook i kto go obserwuje. Tego stąd sprawdzić się nie da.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Ta sama próba, ale drogą, którą idzie prawdziwy błąd 500 (issue #2223).
+     *
+     * Zwykła próba pisze prosto na kanał `blad_webhook` i sprawdza sam kanał.
+     * Prawdziwy błąd idzie dłużej: `report()` → wywołanie zwrotne
+     * w `bootstrap/app.php` → `SeriaAlarmow` → kanał. Do 29.09.2026 tę drogę
+     * sprawdzał tylko `php artisan tinker --execute="report(…)"`
+     * (`MONITORING_BLEDOW.md` §1), a tinkera w obrazie produkcyjnym już nie
+     * ma (D-333).
+     *
+     * Treść wyjątku NIE wychodzi na kanał: `WebhookBleduHandler` bierze z niego
+     * tylko klasę, plik i linię. Odcisk to więc zawsze ta linia tego pliku —
+     * seria (`SeriaAlarmow`) przepuszcza JEDNĄ taką próbę na okno
+     * `kuking.monitoring.seria_okno_minut` i nie wycisza żadnego innego błędu.
+     */
+    private function przezWyjatek(string $znacznik): int
+    {
+        WebhookBleduHandler::zapomnijOstatniaWysylke();
+
+        report(new RuntimeException($this->tresc($znacznik)));
+
+        $wynik = WebhookBleduHandler::ostatniaWysylkaSieUdala();
+
+        if ($wynik === true) {
+            $this->newLine();
+            $this->line("Kanał PRZYJĄŁ próbę wysłaną drogą błędu 500 (odpowiedź 2xx), znacznik: <options=bold>{$znacznik}</>");
+            $this->line('Na kanale zobaczysz „RuntimeException” z plikiem SprawdzAlarm.php — to ta próba, nie awaria.');
+
+            return self::SUCCESS;
+        }
+
+        if ($wynik === null) {
+            $okno = (int) config('kuking.monitoring.seria_okno_minut');
+            $this->error('Próba drogą błędu 500 NIE DOSZŁA do kanału.');
+            $this->newLine();
+            $this->line("Najczęściej to znaczy, że taka sama próba poszła w ciągu ostatnich {$okno} minut:");
+            $this->line('seria identycznych błędów daje jedną wiadomość na okno. Spróbuj ponownie po tym czasie.');
+            $this->line('Jeśli to pierwsza próba, przyczyna stoi w dzienniku serwera przy wpisie o tym wyjątku.');
+
+            return self::FAILURE;
+        }
+
+        $this->error('Próba drogą błędu 500 NIE ZOSTAŁA PRZYJĘTA przez kanał alarmowy.');
+        $this->newLine();
+        $this->line('Prawdziwy błąd 500 też NIE DOJDZIE. Kod HTTP albo nazwa klasy wyjątku stoi');
+        $this->line('w dzienniku serwera pod wpisem „Nie udało się zadzwonić na webhook błędów”.');
+
+        return self::FAILURE;
     }
 
     /**

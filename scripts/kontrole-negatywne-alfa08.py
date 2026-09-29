@@ -1844,6 +1844,13 @@ checks = [
     # w dokumentach ma go wyłapać (dokument historyczny nie ma wyjątku).
     ("Audyt ADR: stary KRS operatora", "docs/legal/AUDYT_ADR_WARSTWA_MERYTORYCZNA.md", "test_zadne_dane_rejestrowe_w_dokumentach_nie_odbiegaja_od_konfiguracji",
      lambda s: replace_once(s, "(KRS 0000901262, NIP", "(KRS 0000854321, NIP")),
+    # #2223 (D-333): tinker wraca do `require` — obraz --no-dev znów niesie PsySH.
+    ("Tinker wraca do require", "composer.json", "test_tinker_jest_tylko_w_require_dev",
+     lambda s: replace_once(s, '"laravel/sanctum": "^4.0",\n', '"laravel/sanctum": "^4.0",\n        "laravel/tinker": "^3.0",\n')),
+    # Ten sam issue: runbook wraca do tinkera zamiast komendy kuking:*.
+    ("Runbook znów każe użyć tinkera", "docs/infra/MONITORING_BLEDOW.md", "test_runbooki_produkcyjne_nie_kaza_uzywac_tinkera",
+     lambda s: replace_once(s, "php artisan kuking:sprawdz-alarm --przez-wyjatek\n",
+                            "php artisan tinker --execute=\"report(new RuntimeException('x'));\"\n")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej
