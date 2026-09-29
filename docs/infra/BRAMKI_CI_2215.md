@@ -77,12 +77,19 @@ liczą się jako przechodzące):
 7. `Build obrazu (weryfikacja)`
 8. `Dostępność (axe-core) i wydajność (Lighthouse)`
 9. `Port marki (kompozycje, zoom i kontrole ujemne)`
-10. `Port marki — rodziny ekranów, zoom i kreator (część 1/2)`
-11. `Port marki — rodziny ekranów, zoom i kreator (część 2/2)`
-12. `Panel marki — puste i pełne widoki`
+10. `Panel marki — puste i pełne widoki`
+
+**Nie oznaczaj jako wymaganych dwóch części `port_funkcje`**
+(`Port marki — rodziny ekranów, zoom i kreator (część 1/2)` i `(część 2/2)`).
+To job z macierzą i warunkiem `if` na poziomie joba: gdy bramka `zakres`
+go pomija (PR bez zmian widoku), GitHub nie rozwija macierzy i zgłasza jeden
+pominięty check z nierozwiniętą nazwą, więc wymagane „część 1/2” i „część 2/2”
+nigdy by nie powstały i PR czekałby w nieskończoność. Tak samo zrobiono przy
+macierzy `test`: wymagany jest job zbiorczy `Testy (PostgreSQL 18)`. Jeśli
+`port_funkcje` ma być wymagany, najpierw trzeba dodać analogiczny job zbiorczy.
 
 Pozycje 1–5 są minimum dla #2215 (1–3 i 6–8 to lista z `scripts/stan-ci.sh`).
-Nazwy 4, 5, 10 i 11 zmieniły się w tym PR-ze i w #611 (etap 9): po scaleniu
+Nazwy 4 i 5 (oraz nazwy części `port_funkcje`) zmieniły się w tym PR-ze i w #611 (etap 9): po scaleniu
 sprawdź je w zakładce Checks pierwszego przebiegu, zanim oznaczysz jako wymagane
 (zła nazwa = check, który nigdy nie powstaje, i PR czeka w nieskończoność).
 Nie oznaczaj `Zakres zmiany` ani `Przyrząd testu obciążeniowego (#605)`.
