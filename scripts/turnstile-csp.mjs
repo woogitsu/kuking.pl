@@ -73,7 +73,8 @@ export async function sprawdzTurnstileCsp({ browser, adres }) {
       assert(await p.locator('.cf-turnstile').count() > 0, `${sciezka}: brak widżetu Turnstile (klucz testowy nie włączył go na tym formularzu)`);
       for (const dyrektywa of ['script-src', 'connect-src', 'frame-src']) {
         const wartosc = new RegExp(`${dyrektywa}[^;]*`).exec(csp)?.[0] ?? '';
-        assert(wartosc.includes(HOST), `${sciezka}: nagłówek CSP nie ma hosta Turnstile w ${dyrektywa}: ${wartosc}`);
+        // Całe źródło jako osobny token dyrektywy, nie podciąg (CodeQL: incomplete URL substring sanitization).
+        assert(wartosc.split(/\s+/).includes(HOST), `${sciezka}: nagłówek CSP nie ma hosta Turnstile w ${dyrektywa}: ${wartosc}`);
       }
       await p.waitForFunction(() => window.__ts && window.__ts.fetch !== 'brak' && window.__ts.ramka !== 'brak', null, { timeout: 15_000 }).catch(() => {});
       const stan = await p.evaluate(() => window.__ts ?? null);
