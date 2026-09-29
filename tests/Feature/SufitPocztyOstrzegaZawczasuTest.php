@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Security\DziennyBudzetListow;
+use App\Poczta\DziennyBudzetListow;
 use Illuminate\Http\Client\Request;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Cache;

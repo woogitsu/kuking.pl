@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Security\DziennyBudzetListow;
 use App\Models\User;
 use App\Notifications\LinkDoLogowania;
 use App\Notifications\PotwierdzenieAdresu;
+use App\Poczta\DziennyBudzetListow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;

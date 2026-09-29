@@ -32,6 +32,7 @@ use App\Support\Baza\LimitBlokadMigracji;
 use App\Support\KomunikatZaDuzaWysylka;
 use App\Support\MapaStrony;
 use App\Support\OdmianaWalidacji;
+use App\Support\OdswiezanieLicznikowKolejek;
 use App\Support\Sesja\GeneracjaSesji;
 use App\Support\Sesja\UchwytSesjiBezPelnegoAdresu;
 use App\Support\Storage\DyskR2;
@@ -64,6 +65,10 @@ class AppServiceProvider extends ServiceProvider
         // Singleton, bo `odswiez()` trzyma flagę „już zaplanowane na commit"
         // — jedno przeliczenie liczników na transakcję (audyt B4 W3).
         $this->app->singleton(KolejkiPanelu::class);
+
+        // Retencja spraw (`Compliance`) odświeża liczniki przez kontrakt, bez
+        // importu `Moderation` (#2149, etap 3) — ten sam singleton co wyżej.
+        $this->app->bind(OdswiezanieLicznikowKolejek::class, fn ($app) => $app->make(KolejkiPanelu::class));
 
         // Rejestracja (`Users`) woła obserwowanie gospodarza przez kontrakt,
         // a implementację dostarcza `Social` (issue #971). To wiązanie jest

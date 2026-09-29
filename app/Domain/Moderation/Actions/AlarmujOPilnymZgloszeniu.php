@@ -6,9 +6,9 @@ namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\HumanUrgentAlarmAttempt;
 use App\Domain\Moderation\PriorytetSprawy;
-use App\Domain\Security\DziennyBudzetListow;
 use App\Models\Report;
 use App\Notifications\PilneZgloszenieOdCzlowieka;
+use App\Poczta\DziennyBudzetListow;
 use App\Poczta\PowodOdmowy;
 use Illuminate\Queue\DatabaseQueue;
 use Illuminate\Support\Carbon;

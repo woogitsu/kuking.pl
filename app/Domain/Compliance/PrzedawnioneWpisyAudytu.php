@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Compliance;
 
 use App\Models\AuditLogEntry;
+use App\Support\UsuwanieWPartiach;
 
 /**
  * Retencja `audit_log` (issue #19, docs/decyzje/ADR_RETENCJE.md §5.1).
