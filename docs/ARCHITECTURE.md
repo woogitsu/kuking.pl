@@ -188,6 +188,12 @@ różnica nadal zachodzi, więc opis nie przeżyje zmiany zachowania):
    stan przepisu rozstrzyga strona przepisu jednym `RecipePolicy::view()`
    na całą galerię (bez N+1).
 
+Etap 8 (#1687, domknięcie): `tests/Feature/PowiadomieniaJedenKontraktWidocznosciTest`
+dopisuje dwa dowody, których brakowało. Pełna strona (`OdczytPowiadomien::NA_STRONE`
+= 30) z komentarzami, odpowiedziami i obserwowaniami ma przez HTTP tę samą liczbę
+zapytań co strona z trzema wierszami. Eksport danych konta niesie dokładnie te
+powiadomienia, które człowiek widzi na liście (blokada, konto zbanowane, wpis ukryty).
+
 Nr 2–4 to lista ostrzejsza od Policy. Nr 1 działa odwrotnie: zakres SAM (bez
 granicy statusu) pokazuje więcej — dlatego każde nowe zapytanie o cudze
 treści musi tę granicę dołożyć.
