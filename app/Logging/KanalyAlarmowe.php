@@ -131,6 +131,16 @@ final class KanalyAlarmowe
         return self::$wyniki;
     }
 
+    /**
+     * Czysta kartka przed próbą, która dzwoni NIE WPROST (np. `report()`
+     * przez `SeriaAlarmow`): pominięta przez okno seria nie woła `zadzwon()`,
+     * więc bez tego `wyniki()` oddałoby wynik cudzej, wcześniejszej próby.
+     */
+    public static function zapomnijWyniki(): void
+    {
+        self::$wyniki = [];
+    }
+
     /** Nazwa dla człowieka. Adresów nie wypisujemy nigdzie — są sekretami. */
     public static function nazwa(string $kanal): string
     {
