@@ -9,6 +9,7 @@ use App\Domain\Import\KlientLuna;
 use App\Domain\Import\OdzyskanieImportow;
 use App\Domain\Import\Rezerwacja;
 use App\Domain\Import\Url\RozwiazywaczNazw;
+use App\Domain\Zgody\InformacjaTekstuZrodlaAi;
 use App\Jobs\ImportujPrzepisZAdresu;
 use App\Models\ImportPrzepisu;
 use App\Models\Recipe;
@@ -79,7 +80,7 @@ final class ImportZAdresuWKolejceTest extends TestCase
         Queue::fake();
         Http::fake();
 
-        $odpowiedz = $this->actingAs($autor)->post(route('recipes.import.url.store'), $this->dane() + ['zgoda_ai' => '1']);
+        $odpowiedz = $this->actingAs($autor)->post(route('recipes.import.url.store'), $this->dane() + ['zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA]);
 
         $zlecenie = ImportPrzepisu::query()->where('user_id', $autor->getKey())->firstOrFail();
 
@@ -254,7 +255,7 @@ final class ImportZAdresuWKolejceTest extends TestCase
         $this->modelTestowy();
         $autor = $this->user();
         Queue::fake();
-        $this->actingAs($autor)->post(route('recipes.import.url.store'), $this->dane() + ['zgoda_ai' => '1'])->assertRedirect();
+        $this->actingAs($autor)->post(route('recipes.import.url.store'), $this->dane() + ['zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA])->assertRedirect();
         $zlecenie = ImportPrzepisu::query()->firstOrFail();
         $probaId = (string) DB::table('proby_importu')->where('import_id', $zlecenie->getKey())->value('id');
 

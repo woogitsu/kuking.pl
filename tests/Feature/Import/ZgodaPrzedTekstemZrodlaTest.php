@@ -145,7 +145,8 @@ final class ZgodaPrzedTekstemZrodlaTest extends TestCase
 
         $this->actingAs($this->user())
             ->post(route('recipes.import.url.store'), ['adres' => 'https://przepisy.example.pl/blog', 'zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA])
-            ->assertSessionHas('status', fn (string $status): bool => ! str_contains($status, 'nieaktualn') && ! str_contains($status, 'zmieniła się'));
+            ->assertRedirect()
+            ->assertSessionMissing('status');
     }
 
     public function test_skan_pdf_z_nieaktualnej_wersji_informacji_nie_wychodzi_do_modelu(): void

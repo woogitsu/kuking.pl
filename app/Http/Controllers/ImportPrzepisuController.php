@@ -39,6 +39,11 @@ use Illuminate\View\View;
  */
 final class ImportPrzepisuController extends Controller
 {
+    /** Kto zaznaczył zgodę przy nieaktualnej informacji, dowiaduje się, dlaczego zaznaczenie nie zadziałało (#2031). */
+    private const KOMUNIKAT_NIEAKTUALNEJ_ZGODY = 'Zaznaczona zgoda na odczyt przez komputer nie zadziałała, bo informacja przy niej '
+        .'zmieniła się od otwarcia formularza — nic nie wysłaliśmy. Jeśli strona nie ma danych przepisu, otwórz '
+        .'„Przepis ze strony internetowej” jeszcze raz, przeczytaj informację i zaznacz zgodę.';
+
     public function __construct(
         private readonly LimitImportu $limit,
         private readonly ZapiszSzkicZImportu $zapiszSzkic,
@@ -70,7 +75,7 @@ final class ImportPrzepisuController extends Controller
         ]);
 
         $adres = trim($dane['adres']);
-        [$zgodaAi] = $this->zgodaNaWyslanieZrodla($request);
+        [$zgodaAi, $zgodaNieaktualna] = $this->zgodaNaWyslanieZrodla($request);
 
         try {
             $straznik->sprawdzBezSieci($adres);
@@ -79,6 +84,12 @@ final class ImportPrzepisuController extends Controller
         } catch (BladDlaCzlowieka $e) {
             // `ImportOdrzucony` też: zły adres, limit osoby, powtórzona próba.
             return back()->withInput()->withErrors(['adres' => $e->getMessage()]);
+        }
+
+        // Zgoda zaznaczona przy nieaktualnej informacji (#2031) nic nie odblokowała: mówimy to od razu, na
+        // ekranie postępu, bo zadanie ruszy bez zgody i o tym, co z tego wyszło, powie sam ekran.
+        if ($zgodaNieaktualna) {
+            return redirect()->route('import.show', $zlecenie)->with(Komunikat::informacja(self::KOMUNIKAT_NIEAKTUALNEJ_ZGODY));
         }
 
         return redirect()->route('import.show', $zlecenie);
