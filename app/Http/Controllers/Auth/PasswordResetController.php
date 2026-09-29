@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
-use App\Domain\Security\DziennyBudzetListow;
 use App\Domain\Security\LimitProbHasla;
 use App\Domain\Users\Actions\CancelEmailChange;
 use App\Domain\Users\Actions\UstawNoweHaslo;
 use App\Domain\Users\LinkResetuNieaktualny;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Poczta\DziennyBudzetListow;
 use App\Rules\TurnstileJestPotwierdzony;
 use App\Support\Komunikat;
 use App\Support\Poczta;

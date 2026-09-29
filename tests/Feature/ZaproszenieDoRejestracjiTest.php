@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Compliance\PrzedawnioneZaproszenia;
-use App\Domain\Security\DziennyBudzetListow;
 use App\Domain\Security\WyslijZaproszenieDoRejestracji;
 use App\Models\AuditLogEntry;
 use App\Models\RegistrationInvite;
 use App\Models\User;
 use App\Notifications\LinkDoLogowania;
 use App\Notifications\ZaproszenieDoZalozeniaKonta;
+use App\Poczta\DziennyBudzetListow;
 use App\Support\AdresEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;

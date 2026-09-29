@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Compliance;
 
-use App\Domain\Moderation\KolejkiPanelu;
 use App\Logging\BezpiecznyBlad;
 use App\Models\Appeal;
 use App\Models\ModerationAction;
 use App\Models\Report;
+use App\Support\OdswiezanieLicznikowKolejek;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -68,7 +68,8 @@ use Throwable;
  * mówi, ile jej zostało.
  *
  * ODŚWIEŻENIE LICZNIKÓW KOLEJEK RAZ, NIE PER WIERSZ. `AppServiceProvider`
- * przelicza `KolejkiPanelu` po każdym `deleted` na `Appeal` i `Report`.
+ * przelicza liczniki kolejek (`KolejkiPanelu`, przez kontrakt
+ * `OdswiezanieLicznikowKolejek`, #2149) po każdym `deleted` na `Appeal` i `Report`.
  * Kasowanie zbiorcze tych zdarzeń nie wywołuje, więc ta klasa odświeża
  * liczniki sama — jeden raz na koniec przebiegu, jeśli cokolwiek zniknęło.
  * Skutek jest ten sam (liczniki po sprzątaniu są świeże), a koszt nie rośnie
@@ -122,7 +123,7 @@ final class PrzedawnioneSprawyModeracyjne
         [$usunieteZgloszenia, $bledyZgloszen] = $this->posprzatajZgloszenia($prog, $naSucho);
 
         if ($usunieteOdwolania + $usunieteDecyzje + $usunieteZgloszenia > 0) {
-            app(KolejkiPanelu::class)->odswiez();
+            app(OdswiezanieLicznikowKolejek::class)->odswiez();
         }
 
         // Ile kandydatów zostało na następny przebieg — bo nie zmieścili się

@@ -37,69 +37,31 @@ final class GrafModulowDomenyBezCykliTest extends TestCase
      * Cykle zastane przed #971, każdy do rozcięcia osobnym zadaniem.
      * Moduły w cyklu posortowane alfabetycznie.
      *
-     * Moderation ↔ Security: `AlarmujOPilnymZgloszeniu` używa
-     * `DziennyBudzetListow`, a `KomunikatZamknietegoKonta` —
-     * `UzasadnienieDecyzji`.
+     * OD #2149 (etap 3) LISTA JEST PUSTA: graf modułów `app/Domain` nie ma
+     * żadnego cyklu. Historia składowej `Compliance`/`Moderation`/`Security`/
+     * `Users` (wejście przez dostawcę #1035, potem Analytics i Media zastane
+     * na `main` 25.09) i tego, jak ją rozcięto:
      *
-     * Ten cykl urósł o Compliance i Users przez wejście przez dostawcę
-     * (#1035, PR #1635 na `main`): `Security\WejsciePrzezDostawce\
-     * WejdzPrzezDostawce` używa `Users\Actions\ZalozKonto` i `ZamekKonta`,
-     * a dalej Users → Compliance (`EraseAccountData`, `CancelAccountDeletion`)
-     * → Moderation (`PrzedawnioneSprawyModeracyjne`) → Security. Zastany
-     * na `main`, do rozcięcia osobnym zadaniem — tak jak Users → Social
-     * kontraktem `ObserwowanieGospodarza`.
+     *  - Analytics → Compliance (etap 1): `UsuwanieWPartiach` to ogólny
+     *    mechanizm bazy, więc mieszka w `App\Support`.
+     *  - Media → Moderation (etap 2): nazwy typów celu zgłoszenia to stałe
+     *    `Report::TARGET_*` (model, nie moduł).
+     *  - Compliance → Moderation (etap 3): retencja spraw odświeża liczniki
+     *    kolejek przez kontrakt `App\Support\OdswiezanieLicznikowKolejek`,
+     *    który implementuje `KolejkiPanelu` (wiązanie w `AppServiceProvider`).
+     *  - Moderation → Security (etap 3): `DziennyBudzetListow` to wspólny
+     *    licznik dobowego sufitu poczty, używany też przez `Contact`, `Digest`
+     *    i `Notifications`, więc mieszka w `App\Poczta` obok
+     *    `ListZarezerwowany`, a nie w `Security`.
      *
-     * I dalej o Analytics i Media, też zastane na `main` (stan z 25.09):
-     * Users → Media (`EraseAccountData` kasuje pliki), Media → Moderation
-     * (`DostepDoZdjecia` pyta `ModeratedContent`, 24.09), Media → Analytics
-     * (`StoreUploadedImage`, zdarzenie `photo_upload_failed`). Analytics →
-     * Compliance (`PrzedawnioneSygnaly` używa `UsuwanieWPartiach`, #1657)
-     * rozcięte w #2149: `UsuwanieWPartiach` jest ogólnym mechanizmem bazy
-     * danych, więc mieszka w `App\Support`, a nie w Compliance. Analytics
-     * wypadło z składowej (nic więcej z niej nie woła). Pozostałe krawędzie
-     * do rozcięcia kolejnymi etapami #2149.
-     *
-     * Media → Moderation rozcięte w #2149 (etap 2): `DostepDoZdjecia` pytał
-     * `ModeratedContent::TYPY` tylko o nazwy typów `media` i `post`, a te są
-     * teraz stałymi `Report::TARGET_MEDIA` i `Report::TARGET_POST` (model, nie
-     * moduł). Media wypadło ze składowej; zostały Compliance, Moderation,
-     * Security, Users — patrz `KRAWEDZIE_W_SKLADOWEJ`.
+     * Zostały krawędzie jednokierunkowe (m.in. `Security → Moderation`,
+     * `Security → Users`, `Moderation → Users`, `Users → Compliance`,
+     * `Users → Media`) — żadna nie wraca. Jeśli cykl wróci, dopisz go tutaj
+     * tylko wtedy, gdy rozcięcie jest osobnym, opisanym zadaniem.
      *
      * @var list<list<string>>
      */
-    private const ZNANE_CYKLE = [
-        ['Compliance', 'Moderation', 'Security', 'Users'],
-    ];
-
-    /**
-     * Wszystkie krawędzie wewnątrz znanej składowej: `Skąd → Dokąd`,
-     * plik i użyta klasa (#2149). Test cykli widzi tylko skład modułów;
-     * ta lista sprawia, że nowa krawędź WEWNĄTRZ składowej (albo kolejny
-     * plik na istniejącej) też oblewa test, z nazwą pliku i klasy.
-     * Rozcięcie krawędzi = usunięcie jej wierszy stąd.
-     *
-     * @var list<string>
-     */
-    private const KRAWEDZIE_W_SKLADOWEJ = [
-        'Compliance → Moderation | app/Domain/Compliance/PrzedawnioneSprawyModeracyjne.php | App\\Domain\\Moderation\\KolejkiPanelu',
-        'Moderation → Security | app/Domain/Moderation/Actions/AlarmujModeratora.php | App\\Domain\\Security\\DziennyBudzetListow',
-        'Moderation → Security | app/Domain/Moderation/Actions/AlarmujOPilnymZgloszeniu.php | App\\Domain\\Security\\DziennyBudzetListow',
-        'Moderation → Users | app/Domain/Moderation/Actions/ResolveAppeal.php | App\\Domain\\Users\\ZamekUprzywilejowanegoAktora',
-        'Moderation → Users | app/Domain/Moderation/Actions/RestoreContent.php | App\\Domain\\Users\\ZamekUprzywilejowanegoAktora',
-        'Moderation → Users | app/Domain/Moderation/Actions/RozstrzygnijZgloszenie.php | App\\Domain\\Users\\OdmowaOstatniegoAdministratora',
-        'Moderation → Users | app/Domain/Moderation/Actions/RozstrzygnijZgloszenie.php | App\\Domain\\Users\\ZamekUprzywilejowanegoAktora',
-        'Moderation → Users | app/Domain/Moderation/Actions/ZdejmijWygasleZawieszenie.php | App\\Domain\\Users\\ZamekKonta',
-        'Moderation → Users | app/Domain/Moderation/Actions/ZdejmijZUrzedu.php | App\\Domain\\Users\\ZamekUprzywilejowanegoAktora',
-        'Security → Moderation | app/Domain/Security/KomunikatZamknietegoKonta.php | App\\Domain\\Moderation\\UzasadnienieDecyzji',
-        'Security → Users | app/Domain/Security/FacebookConnectionConfirmation.php | App\\Domain\\Users\\ZamekKonta',
-        'Security → Users | app/Domain/Security/WejsciePrzezDostawce/WejdzPrzezDostawce.php | App\\Domain\\Users\\Actions\\ZalozKonto',
-        'Security → Users | app/Domain/Security/WejsciePrzezDostawce/WejdzPrzezDostawce.php | App\\Domain\\Users\\Actions\\ZalozoneKonto',
-        'Security → Users | app/Domain/Security/WejsciePrzezDostawce/WejdzPrzezDostawce.php | App\\Domain\\Users\\ZamekKonta',
-        'Users → Compliance | app/Domain/Users/Actions/CancelAccountDeletion.php | App\\Domain\\Compliance\\RejestrPotwierdzenRodo',
-        'Users → Compliance | app/Domain/Users/Actions/EraseAccountData.php | App\\Domain\\Compliance\\DziennikWymazan',
-        'Users → Compliance | app/Domain/Users/Actions/EraseAccountData.php | App\\Domain\\Compliance\\RejestrPotwierdzenRodo',
-        'Users → Compliance | app/Domain/Users/Actions/RequestAccountDeletion.php | App\\Domain\\Compliance\\RejestrPotwierdzenRodo',
-    ];
+    private const ZNANE_CYKLE = [];
 
     public function test_graf_modulow_domeny_nie_ma_nowych_cykli(): void
     {
@@ -159,19 +121,39 @@ final class GrafModulowDomenyBezCykliTest extends TestCase
             'Moderation',
             $graf['Media'] ?? [],
             'app/Domain/Media importuje App\\Domain\\Moderation ('.implode(', ', $graf['Media']['Moderation'] ?? []).'). '
-            .'To zawraca Media do składowej Compliance/Moderation/Security/Users (#2149). Nazwy typów celu '
+            .'To zawraca Media do dawnej składowej Compliance/Moderation/Security/Users (#2149). Nazwy typów celu '
             .'zgłoszenia to App\\Models\\Report::TARGET_*.',
         );
     }
 
-    public function test_krawedzie_wewnatrz_skladowej_sa_dokladnie_te_znane(): void
+    public function test_compliance_nie_zalezy_od_moderation(): void
     {
-        $this->assertSame(
-            self::KRAWEDZIE_W_SKLADOWEJ,
-            self::krawedzieWSkladowej(),
-            'Zmieniły się krawędzie wewnątrz znanej składowej cyklu (#2149). Format: Skąd → Dokąd | plik | klasa. '
-            .'Nowy wiersz to nowa zależność w pierścieniu — odwróć ją zamiast dopisywać; usunięty wiersz to '
-            .'rozcięta krawędź, więc usuń go z KRAWEDZIE_W_SKLADOWEJ.',
+        $graf = self::grafZKodu();
+
+        // Kontrola, że skaner widzi krawędź w drugą stronę (Users → Compliance,
+        // `EraseAccountData`); bez niej pusty graf dawałby fałszywą zieleń.
+        $this->assertArrayHasKey('Compliance', $graf['Users'] ?? [], 'Skaner nie widzi krawędzi Users → Compliance — test stracił przedmiot.');
+
+        $this->assertArrayNotHasKey(
+            'Moderation',
+            $graf['Compliance'] ?? [],
+            'app/Domain/Compliance importuje App\\Domain\\Moderation ('.implode(', ', $graf['Compliance']['Moderation'] ?? []).'). '
+            .'To zamyka pierścień Compliance → Moderation → Users → Compliance (#2149). Liczniki kolejek panelu '
+            .'odświeża się przez kontrakt App\\Support\\OdswiezanieLicznikowKolejek.',
+        );
+    }
+
+    public function test_moderation_nie_zalezy_od_security(): void
+    {
+        $graf = self::grafZKodu();
+
+        $this->assertArrayHasKey('Moderation', $graf['Security'] ?? [], 'Skaner nie widzi krawędzi Security → Moderation — test stracił przedmiot.');
+
+        $this->assertArrayNotHasKey(
+            'Security',
+            $graf['Moderation'] ?? [],
+            'app/Domain/Moderation importuje App\\Domain\\Security ('.implode(', ', $graf['Moderation']['Security'] ?? []).'). '
+            .'To zamyka cykl Moderation ↔ Security (#2149). Dobowy sufit listów to App\\Poczta\\DziennyBudzetListow.',
         );
     }
 
@@ -224,68 +206,6 @@ final class GrafModulowDomenyBezCykliTest extends TestCase
         }
 
         return $graf;
-    }
-
-    /**
-     * Raport krawędzi między modułami znanej składowej: `Skąd → Dokąd | plik | klasa`.
-     *
-     * @return list<string> posortowane
-     */
-    private static function krawedzieWSkladowej(): array
-    {
-        $skladowa = array_merge(...self::ZNANE_CYKLE);
-        $domena = dirname(__DIR__, 2).'/app/Domain/';
-        $wiersze = [];
-
-        $pliki = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($domena, FilesystemIterator::SKIP_DOTS));
-
-        foreach ($pliki as $plik) {
-            if ($plik->getExtension() !== 'php') {
-                continue;
-            }
-
-            $wzgledna = substr($plik->getPathname(), strlen($domena));
-            $modul = explode('/', $wzgledna)[0];
-
-            if ($modul === $wzgledna || ! in_array($modul, $skladowa, true)) {
-                continue;
-            }
-
-            foreach (self::klasyDomenyUzyteW((string) file_get_contents($plik->getPathname())) as $klasa) {
-                preg_match('/^App\\\\Domain\\\\(\w+)\\\\/', $klasa, $m);
-
-                if ($m[1] !== $modul && in_array($m[1], $skladowa, true)) {
-                    $wiersze[$modul.' → '.$m[1].' | app/Domain/'.$wzgledna.' | '.$klasa] = true;
-                }
-            }
-        }
-
-        $wynik = array_keys($wiersze);
-        sort($wynik);
-
-        return $wynik;
-    }
-
-    /**
-     * @return list<string> pełne nazwy `App\Domain\<Moduł>\…` użyte w kodzie
-     */
-    private static function klasyDomenyUzyteW(string $kod): array
-    {
-        $klasy = [];
-
-        foreach (token_get_all($kod) as $token) {
-            if (! is_array($token) || ! in_array($token[0], [T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED], true)) {
-                continue;
-            }
-
-            $nazwa = ltrim($token[1], '\\');
-
-            if (preg_match('/^App\\\\Domain\\\\\w+\\\\/', $nazwa) === 1) {
-                $klasy[$nazwa] = true;
-            }
-        }
-
-        return array_keys($klasy);
     }
 
     /**

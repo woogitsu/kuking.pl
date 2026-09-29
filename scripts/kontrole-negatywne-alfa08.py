@@ -427,7 +427,7 @@ def odwolanie_bez_transakcji(uzyte):
 # Timeout własnej blokady po udanej rezerwacji u rodzica (#1393). Test jest
 # behawioralny; mutacja przywraca `return false` z `catch`, który pomijał
 # zwrot miejsca do wspólnej puli poczty.
-BUDZET_POCZTY = "app/Domain/Security/DziennyBudzetListow.php"
+BUDZET_POCZTY = "app/Poczta/DziennyBudzetListow.php"
 BUDZET_POCZTY_TEST = "test_timeout_wlasnej_blokady_oddaje_miejsce_we_wspolnej_puli"
 # Klucz preview środowiska PR (#975). Zachowanie skryptu mierzą testy
 # behawioralne; ten wpis pilnuje jedynego testu czytającego entrypoint —
@@ -478,10 +478,16 @@ GRAF_MODULOW_TEST = "GrafModulowDomenyBezCykliTest"
 # Mutacja wraca do importu z Compliance — krawędź Analytics → Compliance.
 PRZEDAWNIONE_SYGNALY = "app/Domain/Analytics/PrzedawnioneSygnaly.php"
 # #2149 etap 2: `DostepDoZdjecia` bierze nazwy typów celu z `Report::TARGET_*`,
-# nie z Moderation. Mutacje: powrót importu (Media → Moderation) i nowa
-# krawędź wewnątrz składowej (Users → Moderation) — ta druga ma zapalić raport.
+# nie z Moderation. Mutacje: powrót importu (Media → Moderation) i nowy
+# cykl (Users → Moderation przy istniejącym Moderation → Users) — ma zapalić graf.
 DOSTEP_DO_ZDJECIA = "app/Domain/Media/DostepDoZdjecia.php"
 ERASE_ACCOUNT_DATA = "app/Domain/Users/Actions/EraseAccountData.php"
+# #2149 etap 3: retencja spraw (Compliance) odświeża liczniki przez kontrakt
+# `App\Support\OdswiezanieLicznikowKolejek`, a `DziennyBudzetListow` mieszka
+# w `App\Poczta`. Mutacje przywracają importy Compliance → Moderation
+# i Moderation → Security — graf ma zapalić.
+PRZEDAWNIONE_SPRAWY = "app/Domain/Compliance/PrzedawnioneSprawyModeracyjne.php"
+ALARMUJ_MODERATORA = "app/Domain/Moderation/Actions/AlarmujModeratora.php"
 # Kontrolery Google i Facebooka są adapterami nad `WejdzPrzezDostawce` (#1035).
 # Mutacja wkleja do kontrolera Google własne `Auth::login` przed odpowiedzią —
 # kopię wspólnej reguły wejścia — i ma zapalić strażnika architektury.
@@ -1379,7 +1385,11 @@ checks = [
      lambda s: replace_once(s, "use App\\Support\\UsuwanieWPartiach;\n", "use App\\Domain\\Compliance\\UsuwanieWPartiach;\n")),
     ("Media znowu importuje Moderation", DOSTEP_DO_ZDJECIA, GRAF_MODULOW_TEST,
      lambda s: replace_once(s, "use App\\Models\\CookedEvent;\n", "use App\\Domain\\Moderation\\ModeratedContent;\nuse App\\Models\\CookedEvent;\n")),
-    ("Nowa krawędź wewnątrz składowej: Users importuje Moderation", ERASE_ACCOUNT_DATA, GRAF_MODULOW_TEST,
+    ("Compliance znowu importuje Moderation", PRZEDAWNIONE_SPRAWY, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "use App\\Logging\\BezpiecznyBlad;\n", "use App\\Domain\\Moderation\\KolejkiPanelu;\nuse App\\Logging\\BezpiecznyBlad;\n")),
+    ("Moderation znowu importuje Security", ALARMUJ_MODERATORA, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "use App\\Domain\\Moderation\\Sygnaly\\Sygnal;\n", "use App\\Domain\\Moderation\\Sygnaly\\Sygnal;\nuse App\\Domain\\Security\\DziennyBudzetListow as BudzetZSecurity;\n")),
+    ("Nowy cykl: Users importuje Moderation (Moderation → Users już jest)", ERASE_ACCOUNT_DATA, GRAF_MODULOW_TEST,
      lambda s: replace_once(s, "namespace App\\Domain\\Users\\Actions;\n", "namespace App\\Domain\\Users\\Actions;\n\nuse App\\Domain\\Moderation\\ModeratedContent;\n")),
     ("DemoSeeder wypisuje hasło z KUKING_DEMO_HASLO", DEMO_SEEDER, DEMO_SEEDER_HASLO_TEST,
      lambda s: replace_once(s, WARUNEK_HASLA_Z_OTOCZENIA, "        if (false) {")),

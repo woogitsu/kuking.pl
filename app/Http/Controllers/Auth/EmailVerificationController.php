@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
-use App\Domain\Security\DziennyBudzetListow;
 use App\Domain\Security\WynikPonowieniaPotwierdzenia;
 use App\Domain\Security\WyslijPotwierdzenieAdresu;
 use App\Http\Controllers\Controller;
 use App\Models\MailFailure;
 use App\Notifications\PotwierdzenieAdresu;
+use App\Poczta\DziennyBudzetListow;
 use App\Support\Poczta;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\RedirectResponse;

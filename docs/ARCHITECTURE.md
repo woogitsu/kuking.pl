@@ -169,17 +169,20 @@ Recipes      → Media, Notifications
 Feed         → Collections
 Wspomnienia  → Collections
 Collections  → Notifications
-Moderation   → Notifications, Security
-Security     → Moderation, Users     ← znany cykl, do rozcięcia
+Moderation   → Notifications, Users
+Security     → Moderation, Users
 Contact      → Security
 Media, Pwa   → Analytics       (Media nie zależy już od Moderation, #2149)
 Kolejka, Polaczenia → Monitoring
 ```
 
 Pilnuje tego `tests/Unit/GrafModulowDomenyBezCykliTest.php` (tokenizer PHP,
-bez nowych bibliotek). Lista zastanych cykli w teście jest dokładna w obie
-strony: nowy cykl oblewa test, a rozcięty znany też — żeby wpis nie został
-furtką. Jedyny zastany cykl zaczął się jako `Moderation ↔ Security`
+bez nowych bibliotek). Lista zastanych cykli w teście (`ZNANE_CYKLE`) jest
+dokładna w obie strony: nowy cykl oblewa test, a rozcięty znany też — żeby
+wpis nie został furtką. **Od #2149 (etap 3) lista jest pusta: graf modułów
+`app/Domain` nie ma żadnego cyklu.**
+
+Jedyny zastany cykl zaczął się jako `Moderation ↔ Security`
 (`AlarmujOPilnymZgloszeniu` → `DziennyBudzetListow`,
 `KomunikatZamknietegoKonta` → `UzasadnienieDecyzji`). Wejście przez
 dostawcę (#1035) dołożyło krawędź `Security → Users`
@@ -188,30 +191,46 @@ objął `Compliance → Moderation → Security → Users → Compliance`. Do 25
 urósł jeszcze o Media i Analytics: `Users → Media` (`EraseAccountData`),
 `Media → Moderation` (`DostepDoZdjecia`), `Media → Analytics`
 (`StoreUploadedImage`) i `Analytics → Compliance` (`PrzedawnioneSygnaly` →
-`UsuwanieWPartiach`, #1657). Krawędź `Analytics → Compliance` rozcięta
-w #2149 (pierwszy etap): `UsuwanieWPartiach` to ogólny mechanizm bazy,
-więc przeniesiono go do `App\Support` — Analytics wypadło ze składowej.
-`Media → Moderation` rozcięte w #2149 (etap 2): `DostepDoZdjecia` brał
-z `ModeratedContent::TYPY` wyłącznie nazwy typów `media` i `post` w
-`reports.target_type`. Nazwy są teraz stałymi `Report::TARGET_MEDIA` i
-`Report::TARGET_POST` (fakt o tabeli, mieszka przy modelu), a
-`ModeratedContent::TYPY` odwołuje się do tych samych stałych — bez zmiany
-zachowania i bez „worka Core". Media wypadło ze składowej.
+`UsuwanieWPartiach`, #1657). Rozcięcie, krawędź po krawędzi:
 
-Została jedna silnie spójna składowa: Compliance, Moderation, Security,
-Users. Jej krawędzie i pliki wylicza test
-`test_krawedzie_wewnatrz_skladowej_sa_dokladnie_te_znane`
-(`KRAWEDZIE_W_SKLADOWEJ`, format `Skąd → Dokąd | plik | klasa`); nowa krawędź
-w środku składowej oblewa test z nazwą pliku i klasy. Krawędzie:
-`Compliance → Moderation` (`PrzedawnioneSprawyModeracyjne` → `KolejkiPanelu`),
-`Moderation → Security` (`DziennyBudzetListow`), `Moderation → Users`
-(`ZamekUprzywilejowanegoAktora`, `ZamekKonta`, `OdmowaOstatniegoAdministratora`),
-`Security → Moderation` (`UzasadnienieDecyzji`), `Security → Users`
-(`ZalozKonto`, `ZamekKonta`), `Users → Compliance` (`RejestrPotwierdzenRodo`,
-`DziennikWymazan`). `Users → Media` i `Compliance → Media` (`KasujZdjecie`)
-są już zwykłymi krawędziami jednokierunkowymi (Media nie woła nikogo ze
-składowej). Do rozcięcia kolejnymi etapami #2149. `Media → Analytics` jest zwykłą
-krawędzią jednokierunkową (Analytics nie woła już żadnego modułu).
+- **Analytics → Compliance** (#2149, etap 1): `UsuwanieWPartiach` to ogólny
+  mechanizm bazy, więc przeniesiono go do `App\Support` — Analytics wypadło
+  ze składowej.
+- **Media → Moderation** (etap 2): `DostepDoZdjecia` brał z
+  `ModeratedContent::TYPY` wyłącznie nazwy typów `media` i `post` w
+  `reports.target_type`. Nazwy są teraz stałymi `Report::TARGET_MEDIA` i
+  `Report::TARGET_POST` (fakt o tabeli, mieszka przy modelu), a
+  `ModeratedContent::TYPY` odwołuje się do tych samych stałych — bez zmiany
+  zachowania i bez „worka Core". Media wypadło ze składowej.
+- **Compliance → Moderation** (etap 3): retencja spraw
+  (`PrzedawnioneSprawyModeracyjne`) odświeża liczniki kolejek panelu raz na
+  koniec przebiegu, bo kasowanie zbiorcze nie woła zdarzeń modeli. Wołała
+  `KolejkiPanelu` wprost. Teraz woła kontrakt
+  `App\Support\OdswiezanieLicznikowKolejek`, który implementuje
+  `KolejkiPanelu`, a `AppServiceProvider` wiąże go z **tym samym singletonem**
+  (flaga „już zaplanowane na commit" jest wspólna ze zdarzeniami modeli).
+  Compliance wypadło ze składowej — było w niej wyłącznie przez tę krawędź.
+- **Moderation → Security** (etap 3): `AlarmujModeratora` i
+  `AlarmujOPilnymZgloszeniu` używały `Security\DziennyBudzetListow`. To
+  wspólny licznik dobowego sufitu poczty, używany też przez `Contact`,
+  `Digest`, `Notifications` i kontrolery logowania, a jego sąsiadem jest
+  `App\Poczta\ListZarezerwowany`. Klasa przeniesiona do `App\Poczta` bez
+  zmiany zachowania (te same klucze cache, ta sama logika; zmienił się tylko
+  namespace). Cykl `Moderation ↔ Security` przestał istnieć, a razem z nim
+  składowa.
+
+Zostają wyłącznie krawędzie jednokierunkowe, np. `Security → Moderation`
+(`KomunikatZamknietegoKonta` → `UzasadnienieDecyzji`), `Security → Users`
+(`ZalozKonto`, `ZamekKonta`), `Moderation → Users` (`ZamekUprzywilejowanegoAktora`,
+`ZamekKonta`, `OdmowaOstatniegoAdministratora`), `Users → Compliance`
+(`RejestrPotwierdzenRodo`, `DziennikWymazan`), `Users → Media` i
+`Compliance → Media` (`KasujZdjecie`), `Media → Analytics`. Żadna z nich nie
+wraca. Test ma osobnych strażników dla każdej rozciętej krawędzi
+(`test_analytics_nie_zalezy_od_compliance`, `test_media_nie_zalezy_od_moderation`,
+`test_compliance_nie_zalezy_od_moderation`, `test_moderation_nie_zalezy_od_security`)
+z kontrolą, że skaner widzi krawędź w drugą stronę. Raport krawędzi wewnątrz
+składowej (`KRAWEDZIE_W_SKLADOWEJ`, etap 2) usunięto, bo nie ma już składowej
+do raportowania; gdyby cykl wrócił, oblewa `ZNANE_CYKLE`.
 
 ## Zmiana roli podczas uprzywilejowanej operacji
 

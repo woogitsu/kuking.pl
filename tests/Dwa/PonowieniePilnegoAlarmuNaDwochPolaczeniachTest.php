@@ -6,8 +6,8 @@ namespace Tests\Dwa;
 
 use App\Domain\Moderation\Actions\AlarmujOPilnymZgloszeniu;
 use App\Domain\Moderation\HumanUrgentAlarmAttempt;
-use App\Domain\Security\DziennyBudzetListow;
 use App\Models\Report;
+use App\Poczta\DziennyBudzetListow;
 use App\Poczta\OdmowaEmailLabs;
 use App\Poczta\PowodOdmowy;
 use Illuminate\Support\Facades\Cache;
