@@ -41,6 +41,16 @@ udajemy, że gotuje się w zero minut. Wybrany czas jest zaznaczony, a wrócić 
 wszystkich przepisów możecie jednym kliknięciem w „Bez limitu czasu”. Wybór
 zostaje w adresie strony, więc działa po odświeżeniu i można go komuś wysłać.
 Dawny przycisk „Do 30 minut” działa dalej, także w starych linkach.
+### Wyślijcie komuś swój zeszyt
+
+Na stronie zeszytu, który ma widoczność „wszyscy”, jest teraz przycisk
+„Podziel się”. Rozwija listę: WhatsApp, e-mail i Facebook, a pod spodem
+widoczny adres, który można zaznaczyć i skopiować (na telefonie jest też
+przycisk „Skopiuj adres” i systemowe okno wysyłania). Osoba, która dostanie
+adres, otworzy zeszyt bez zakładania konta i zobaczy tylko te przepisy, które
+sama ma prawo zobaczyć. Zeszytu „Tylko ja”, zeszytu „Zapisane” ani wspólnego
+zeszytu z bliskimi nie da się w ten sposób wysłać — na stronie takiego zeszytu
+przeczytacie, co zmienić, jeśli chcecie go udostępnić.
 
 ### Wczytajcie z powrotem własną paczkę z danymi
 
