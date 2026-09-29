@@ -14,10 +14,13 @@ use App\Livewire\Forms\PrzepisForm;
 use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
 use App\Domain\Recipes\KosztPrzepisu;
+use App\Support\KreatorPrzepisu\AutozapisKreatora;
 use App\Support\KreatorPrzepisu\DanePublikacji;
 use App\Support\KreatorPrzepisu\KrokOPrzepisie;
 use App\Support\KreatorPrzepisu\NawigacjaKreatora;
 use App\Support\KreatorPrzepisu\PodgladPrzepisu;
+use App\Support\KreatorPrzepisu\RewizjaTresci;
+use App\Support\KreatorPrzepisu\StanZapisu;
 use App\Support\KreatorPrzepisu\WierszePrzepisu;
 use App\Support\KreatorPrzepisu\ZdjeciaKreatora;
 use Illuminate\Support\Facades\Gate;
@@ -188,9 +191,22 @@ new class extends Component
      *
      * Kliknięcie „Dalej” po zmianie pola przychodzi jako jedno żądanie:
      * najpierw hook updated(), potem next(). Bez tej flagi ten sam szkic
-     * zapisywałby się dwa razy pod rząd.
+     * zapisywałby się dwa razy pod rząd. Flagę trzyma `AutozapisKreatora`
+     * (issue #1387, krok 9); pole jest prywatne, więc nie trafia do migawki.
      */
-    private bool $savedThisRequest = false;
+    private ?AutozapisKreatora $autozapisKreatora = null;
+
+    private function rejestrAutozapisu(): AutozapisKreatora
+    {
+        return $this->autozapisKreatora ??= new AutozapisKreatora;
+    }
+
+    /** Przepisuje stan z `StanZapisu` do publicznych pól, które czyta szablon. */
+    private function ustawStanZapisu(StanZapisu $stan): void
+    {
+        $this->saveState = $stan->stan;
+        $this->saveMessage = $stan->komunikat;
+    }
 
     // -----------------------------------------------------------------
     // Wejście do kreatora
@@ -448,7 +464,7 @@ new class extends Component
      */
     public function updated(string $property): void
     {
-        if (in_array($property, ['step', 'saveState', 'saveMessage', 'rowCounter'], true)) {
+        if (AutozapisKreatora::pominZmiane($property)) {
             return;
         }
 
@@ -492,19 +508,20 @@ new class extends Component
 
     private function zapiszSzkic(bool $wersja): bool
     {
-        $this->acknowledgedRevision = $this->editRevision;
+        $this->acknowledgedRevision = RewizjaTresci::potwierdzona($this->editRevision);
 
-        if ($this->savedThisRequest) {
+        if ($this->rejestrAutozapisu()->zapisanoWTymZadaniu()) {
             /*
              * Livewire wysyła zmianę pola i kliknięcie „Zapisz zmiany” jednym
              * żądaniem: `updated()` zapisał już treść autozapisem (bez wersji).
              * Świadomy zapis nie może przez to zgubić swojej wersji.
              */
-            if ($wersja && $this->saveState === 'saved' && ($recipe = $this->existingRecipe()) !== null && $recipe->isPublished()) {
+            if (AutozapisKreatora::mogeDopisacWersje($wersja, $this->saveState)
+                && ($recipe = $this->existingRecipe()) !== null && $recipe->isPublished()) {
                 app(SnapshotRecipeVersion::class)->poprawka($recipe, auth()->user());
             }
 
-            return $this->saveState === 'saved';
+            return AutozapisKreatora::wynikPowtorzonegoZapisu($this->saveState);
         }
 
         if (! $this->validateExistingStepIds()) {
@@ -513,11 +530,10 @@ new class extends Component
 
         $this->storePendingPhotos();
 
-        if (mb_strlen(trim($this->form->title)) < 3) {
+        if (! AutozapisKreatora::maNazwe($this->form->title)) {
             // Bez nazwy nie da się utworzyć przepisu (PublishRecipe tego pilnuje),
             // więc mówimy wprost, czego brakuje — zamiast cicho nie zapisywać.
-            $this->saveState = 'waiting';
-            $this->saveMessage = $this->juzOpublikowany ? 'Podaj nazwę przepisu, żeby zapisać zmiany.' : 'Szkic zapisze się, kiedy podasz nazwę przepisu.';
+            $this->ustawStanZapisu(StanZapisu::brakNazwy($this->juzOpublikowany));
 
             return false;
         }
@@ -529,8 +545,7 @@ new class extends Component
         $aboutValid = $this->validateAboutStep();
         $rowsValid = $this->validateRows(changeStep: false);
         if (! $aboutValid || ! $rowsValid) {
-            $this->saveState = 'error';
-            $this->saveMessage = 'Nie zapisaliśmy tych zmian. Popraw zaznaczone pola. Cały tekst jest nadal w formularzu.';
+            $this->ustawStanZapisu(StanZapisu::bladPol());
 
             return false;
         }
@@ -538,15 +553,13 @@ new class extends Component
         try {
             $this->persist(publish: false, wersjaPoprawki: $wersja);
         } catch (BladDlaCzlowieka $e) {
-            $this->saveState = 'error';
-            $this->saveMessage = ($this->juzOpublikowany ? 'Nie udało się zapisać zmian: ' : 'Nie udało się zapisać szkicu: ').$e->getMessage().' Nic nie zginęło — cały tekst jest dalej w formularzu.';
+            $this->ustawStanZapisu(StanZapisu::bladZapisu($this->juzOpublikowany, $e->getMessage()));
 
             return false;
         }
 
-        $this->savedThisRequest = true;
-        $this->saveState = 'saved';
-        $this->saveMessage = $this->juzOpublikowany ? 'Zmiany zapisane.' : 'Szkic zapisany.';
+        $this->rejestrAutozapisu()->oznaczZapisano();
+        $this->ustawStanZapisu(StanZapisu::zapisany($this->juzOpublikowany));
 
         return true;
     }
@@ -560,7 +573,13 @@ new class extends Component
         $this->resetErrorBag();
 
         if (! $this->validateExistingStepIds()) {
-            $this->step = 3;
+            /*
+             * Błąd „przepis zniknął” (`publikacja`) stoi na podglądzie, a
+             * powtórzony zapisany krok (`steps.N.instruction`) — na kroku 3.
+             * Stałe „krok 3” cofało człowieka z podglądu w miejsce, którego
+             * ten błąd nie dotyczy (issue #1387, uwaga z kroku 8).
+             */
+            $this->step = NawigacjaKreatora::krokPierwszegoBledu($this->getErrorBag()->keys());
 
             return;
         }
@@ -657,8 +676,7 @@ new class extends Component
             $recipe = $this->existingRecipe();
         } catch (BladDlaCzlowieka $e) {
             $this->addError('publikacja', $e->getMessage());
-            $this->saveState = 'error';
-            $this->saveMessage = $e->getMessage();
+            $this->ustawStanZapisu(StanZapisu::bladIdentyfikatora($e->getMessage()));
 
             return false;
         }
@@ -668,8 +686,7 @@ new class extends Component
             $this->addError($field, $message);
         }
         if ($errors !== []) {
-            $this->saveState = 'error';
-            $this->saveMessage = 'Nie zapisaliśmy tych zmian. Popraw zaznaczone pola. Cały tekst jest nadal w formularzu.';
+            $this->ustawStanZapisu(StanZapisu::bladPol());
 
             return false;
         }
@@ -704,7 +721,7 @@ new class extends Component
             steps: $this->cleanSteps(),
             publish: $publish,
             existing: $this->existingRecipe(),
-            oczekiwanaRewizja: $this->recipeId === null ? null : $this->contentRevision,
+            oczekiwanaRewizja: RewizjaTresci::oczekiwana($this->recipeId, $this->contentRevision),
             wersjaPoprawki: $wersjaPoprawki,
             ip: request()->ip(),
         );

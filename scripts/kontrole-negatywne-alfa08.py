@@ -407,6 +407,11 @@ KREATOR_ZAPIS_TEST = "KreatorWystawiaStanZapisuDlaStronyNieaktualnejTest"
 # maskowane przez drugą — kontrola jednoplikowa nie może jej zapalić; test
 # czerwienieje dopiero po zdjęciu obu (sprawdzone ręcznie przy #1387).
 KREATOR_AUTORYZACJA_TEST = "KreatorPilnujeAutoryzacjiIIdentyfikatoraPrzepisuTest"
+# #1387, krok 9: autozapis i rewizje w osobnych klasach (`app/Support/KreatorPrzepisu`).
+KREATOR_REWIZJA = "app/Support/KreatorPrzepisu/RewizjaTresci.php"
+KREATOR_STRONA_NIEAKTUALNA_TEST = "NieaktualnyFormularzPrzepisuTest"
+KREATOR_WALIDACJA_PRZED_ZAPISEM_TEST = "AutozapisKreatoraWalidujePrzedZapisemTest"
+KREATOR_BLAD_PRZEPISU_TEST = "PublikacjaZBledemPrzepisuZostajeNaWlasciwymKrokuTest"
 KREATOR_ZAPIS = "$recipeId === null ? 'brak' : ($juzOpublikowany ? 'opublikowany' : 'szkic')"
 # Wyjęcie ze wszystkich zeszytów jest atomowe (#1384). Mutacja zdejmuje
 # `DB::transaction` z `remove()` — pierwsze odpięcie zostaje po awarii drugiego.
@@ -1299,6 +1304,21 @@ checks = [
      lambda s: replace_once(s, KREATOR_ZAPIS, "$juzOpublikowany ? 'opublikowany' : 'szkic'")),
     ("Kreator pozwala klientowi podmienić recipeId", KREATOR_WIDOK, KREATOR_AUTORYZACJA_TEST,
      lambda s: replace_once(s, "    #[Locked]\n    public ?string $recipeId = null;", "    public ?string $recipeId = null;")),
+    # #1387, krok 9: strona nieaktualna. Rewizja treści z bazy jedzie do
+    # `PublishRecipe`; mutacja gubi ją i druga karta nadpisuje pierwszą.
+    ("Kreator nie wysyła oczekiwanej rewizji treści", KREATOR_REWIZJA, KREATOR_STRONA_NIEAKTUALNA_TEST,
+     lambda s: replace_once(s, "return $recipeId === null ? null : $rewizjaTresci;", "return null;")),
+    # #1387, krok 9: walidacja SUROWYCH pól przed zapisem szkicu.
+    ("Autozapis kreatora zapisuje bez walidacji pól", KREATOR_WIDOK, KREATOR_WALIDACJA_PRZED_ZAPISEM_TEST,
+     lambda s: replace_once(s, "if (! $aboutValid || ! $rowsValid) {", "if (false) {")),
+    # #1387, krok 9: błąd „przepis zniknął” stoi na podglądzie; mutacja
+    # przywraca stałe „krok 3” z `publish()`.
+    ("Publikacja cofa z podglądu przy błędzie przepisu", KREATOR_WIDOK, KREATOR_BLAD_PRZEPISU_TEST,
+     lambda s: replace_once(
+         s,
+         "$this->step = NawigacjaKreatora::krokPierwszegoBledu($this->getErrorBag()->keys());\n\n            return;\n        }\n\n        if (! $this->storePendingPhotos()) {",
+         "$this->step = 3;\n\n            return;\n        }\n\n        if (! $this->storePendingPhotos()) {",
+     )),
     ("Polityka obiecuje UE przy strażniku bez eu", STRAZNIK_R2, POLITYKA_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     # #619: zapis weryfikacji w dokumencie infrastruktury z inną datą niż
