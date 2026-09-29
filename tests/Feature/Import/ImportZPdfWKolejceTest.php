@@ -425,7 +425,7 @@ final class ImportZPdfWKolejceTest extends TestCase
         $wynik = app(OdzyskanieImportow::class)->odzyskaj();
 
         $this->assertSame(1, $wynik['pliki']);
-        $this->assertNull($zlecenie->fresh()?->plik_tymczasowy);
+        $this->assertNull($zlecenie->fresh()->plik_tymczasowy);
         $this->assertSame([], $this->pliki());
     }
 

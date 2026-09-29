@@ -49,7 +49,7 @@ final class ZapisZeszytuRequest extends FormRequest
             'name' => [
                 'required', 'string', 'min:2', 'max:120',
                 new CollectionNameNotTaken(
-                    (string) ($zeszyt?->owner_id ?? $this->user()->getKey()),
+                    (string) ($zeszyt->owner_id ?? $this->user()->getKey()),
                     $zeszyt?->getKey(),
                 ),
             ],
