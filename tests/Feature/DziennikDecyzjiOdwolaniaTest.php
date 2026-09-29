@@ -62,7 +62,7 @@ final class DziennikDecyzjiOdwolaniaTest extends TestCase
     /**
      * Zapowiedzi podane przez sam test (patrz zapowiedzi()).
      *
-     * @var array<string, array<string, string>>
+     * @var array<string, array<int|string, string>>
      */
     private array $zapowiedziWTescie = [];
 
@@ -71,7 +71,7 @@ final class DziennikDecyzjiOdwolaniaTest extends TestCase
      * w dowolnym pliku. Sprawdzone także w drugą stronę: nadanie takiego numeru
      * wpisowi obala test, bo przestałby oznaczać to, co znaczy.
      *
-     * @var array<string, string>
+     * @var array<int|string, string>
      */
     private const LUKI_NA_STALE = [
         '084' => 'Puste świadomie i na stałe — mówi to nagłówek docs/DECISIONS.md („Osobno i wcześniej puste są 084, 086 i 094").',
@@ -92,7 +92,7 @@ final class DziennikDecyzjiOdwolaniaTest extends TestCase
      * Ważne wyłącznie w plikach dziennika. Nikt nie cytuje ich tam jako
      * uzasadnienia — opisują historię numeracji.
      *
-     * @var array<string, string>
+     * @var array<int|string, string>
      */
     private const LUKI_HISTORYCZNE_W_DZIENNIKU = [
         '066' => 'Wpisy 085 i 092 opowiadają o martwym odnośniku do numeru 066 (wpis powstał na zamkniętej gałęzi #254 i nigdy nie trafił do dziennika).',
@@ -112,7 +112,7 @@ final class DziennikDecyzjiOdwolaniaTest extends TestCase
      * NIE oblewa z tego powodu, żeby scalenie cudzego PR-a nie robiło
      * czerwonego `main` z powodu tego pliku.
      *
-     * @var array<string, array<string, string>>
+     * @var array<string, array<int|string, string>>
      */
     private const ZAPOWIEDZI_W_DOKUMENTACH = [
         // Pusto: D-305 ma już nagłówek (#1811). Dopisuj tu wyjątek dopiero, gdy
@@ -513,7 +513,7 @@ final class DziennikDecyzjiOdwolaniaTest extends TestCase
      * Lista w repozytorium bywa pusta (gdy żaden dokument nie zapowiada decyzji
      * z otwartego PR-a), a mechanizm wyjątku ma być sprawdzany także wtedy.
      *
-     * @return array<string, array<string, string>>
+     * @return array<string, array<int|string, string>>
      */
     private function zapowiedzi(): array
     {
