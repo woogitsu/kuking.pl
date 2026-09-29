@@ -158,7 +158,7 @@ OCZEKUJ = {
     'Odwołanie zgłaszającego bez wspólnej transakcji z zawiadomieniami': r'Pismo zostało złożone mimo niepełnego zawiadomienia zespołu \(#',
     'Reguła zdjęć Cloudflare bez warunku ciasteczka': r'Reguła 0 bez warunku and http\.cookie eq',
     'Timeout blokady funkcji nie oddaje miejsca wspólnej puli': r'Timeout blokady funkcji zostawił zajęte miejsce we wspólnej puli —',
-    'Domena importuje Illuminate\\Http\\Request': r'Plik w app/Domain importuje Illuminate.Http\. Wejście HTTP idzie do adaptera',
+    'Domena importuje Illuminate\\Http\\Request': r'Plik w app/Domain importuje Illuminate.Http\. Wejście HTTP idzie do adaptera|Domena nie zna Request \(#970\)\.',
     'Zapis przepisu do cudzego zeszytu': r'Akcja zapisała przepis do cudzego zeszytu\.',
     'Zapis wpisu do cudzego zeszytu': r'Akcja zapisała wpis do cudzego zeszytu\.',
     'Podział testów gubi plik': r"Plik tests/\S+ nie trafił do żadnej części — nie uruchamia się NIGDZIE\.",
