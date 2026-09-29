@@ -214,7 +214,8 @@ fi
 #                (`.dockerignore`), czego job Vite nie odtworzy.
 #                Sam build Vite ze zmienionych źródeł mierzy job
 #                `assets` na każdym PR-ze.
-#   obciazenie → `przyrzad_605`: wyłącznie pliki `scripts/*605*`.
+#   obciazenie → `przyrzad_605`: pliki `scripts/*605*` i dowody
+#                `scripts/fixtures/obciazenie605/`, które przyrząd czyta.
 #   wyscigi    → `dwa-polaczenia`: kod i dane aplikacji (testy tej
 #                grupy chodzą przez HTTP i zatwierdzają dane, więc
 #                także widoki i tłumaczenia), `tests/Dwa/`, wspólne
@@ -237,5 +238,5 @@ ciezki() {
 }
 
 ciezki obraz '^(Dockerfile$|docker/|\.dockerignore$|composer\.(json|lock)$|package(-lock)?\.json$|\.npmrc$|\.railway/|railway\.(json|toml)$|vite\.config\.[cm]?[jt]s$|(tailwind|postcss)\.config\.|artisan$|bootstrap/|config/|app/Providers/|resources/js/[^/]+\.test\.mjs$|scripts/([^/]+|fixtures/[^/]+)\.test\.mjs$|scripts/kontrast-marki\.mjs$|scripts/ci/|\.github/workflows/ci\.yml$)'
-ciezki obciazenie '^(scripts/[^/]*605[^/]*$|scripts/ci/|\.github/workflows/ci\.yml$)'
+ciezki obciazenie '^(scripts/[^/]*605[^/]*$|scripts/fixtures/obciazenie605/|scripts/ci/|\.github/workflows/ci\.yml$)'
 ciezki wyscigi '^(app/|bootstrap/|config/|database/|routes/|lang/|resources/views/|artisan$|composer\.(json|lock)$|phpunit\.xml$|\.env\.example$|tests/(Dwa/|Support/|TestCase\.php$|bootstrap\.php$)|scripts/(testy-dwa-polaczenia\.sh|kontrola-negatywna-2165\.py)$|scripts/ci/|\.github/(workflows/ci\.yml$|actions/php/))'

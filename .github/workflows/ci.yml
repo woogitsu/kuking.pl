@@ -535,7 +535,7 @@ jobs:
   przyrzad_605:
     name: Przyrząd testu obciążeniowego (#605)
     needs: zakres
-    # Na PR-ze tylko przy zmianie `scripts/*605*` albo `ci.yml` (wyjście `obciazenie`).
+    # Na PR-ze tylko przy zmianie `scripts/*605*`, `scripts/fixtures/obciazenie605/` albo `ci.yml` (wyjście `obciazenie`).
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.obciazenie == 'true'
     runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10

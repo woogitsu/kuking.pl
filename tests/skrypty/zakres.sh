@@ -79,6 +79,7 @@ pull_request|tests/Dwa/Scenariusz.php|tfffft
 pull_request|scripts/dostepnosc.mjs|ttffff
 pull_request|scripts/przegladarka/kolaz-lcp.test.mjs|ttffff
 pull_request|scripts/generator-obciazenia-605.mjs|tffftf
+pull_request|scripts/fixtures/obciazenie605/dane.json|ttfftf
 pull_request|scripts/testy-dwa-polaczenia.sh|tfffft
 pull_request|Dockerfile|tfftff
 pull_request|composer.lock|ttftft
@@ -189,6 +190,7 @@ mutuj widok "grep -qE '^(app/|routes/|config/|" "grep -qE '^(routes/|config/|" |
 mutuj dokumenty '[ "${POZA}" != "${ZMIENIONE}" ]' '[ "${POZA}" = "${ZMIENIONE}" ]' || exit 1
 mutuj obraz "ciezki obraz '^(Dockerfile\$|" "ciezki obraz '^(" || exit 1
 mutuj obciazenie "ciezki obciazenie '^(scripts/" "ciezki obciazenie '^(|scripts/" || exit 1
+mutuj obciazenie 'scripts/fixtures/obciazenie605/|' '' || exit 1
 mutuj wyscigi 'tests/(Dwa/|Support/|' 'tests/(Support/|' || exit 1
 
 echo "Kontrola ujemna: wszystkie sześć wyjść pilnowanych"
