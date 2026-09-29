@@ -10,6 +10,7 @@ use App\Models\Collection;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\RecipeStep;
+use App\Models\RecipeVersion;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -134,6 +135,19 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
         $question = Post::factory()->question()->create();
         [$autor, $tag, $recipe, $post] = $this->zbudujTresc();
 
+        // Historia zmian przepisu (#2024): trzy ekrany potrzebują zapisanych
+        // wersji — lista, jedna wersja i porównanie z poprzednią. Wszystkie
+        // trzy są `noindex`, więc pętla sprawdzi tylko, że oddają 200.
+        $numer = (int) RecipeVersion::query()->where('recipe_id', $recipe->getKey())->max('version_number');
+        foreach ([$numer + 1, $numer + 2] as $kolejny) {
+            RecipeVersion::create([
+                'recipe_id' => $recipe->getKey(),
+                'editor_id' => $autor->getKey(),
+                'version_number' => $kolejny,
+                'snapshot' => ['title' => $recipe->title, 'ingredients' => [], 'steps' => []],
+            ]);
+        }
+
         $adresyDlaTras = [
             'questions.index' => route('questions.index'),
             'questions.show' => route('questions.show', $question),
@@ -181,6 +195,9 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             'social.followers' => route('social.followers', $autor->profile->username),
             'recipes.show' => route('recipes.show', $recipe->slug),
             'cooking.show' => route('cooking.show', $recipe->slug),
+            'recipes.history' => route('recipes.history', $recipe->slug),
+            'recipes.history.version' => route('recipes.history.version', [$recipe->slug, $numer + 2]),
+            'recipes.history.changes' => route('recipes.history.changes', [$recipe->slug, $numer + 2]),
             'posts.show' => route('posts.show', $post),
             // Zeszyt „Wszyscy" jest publiczny od issue #965 — publiczny
             // zeszyt idzie do indeksu, więc musi mieć opis.
