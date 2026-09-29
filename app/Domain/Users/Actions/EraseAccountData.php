@@ -143,11 +143,9 @@ final class EraseAccountData
             return $this->dokonczKasowanieZdjec($zostaly) > 0;
         }
 
-        /** @var list<Media> $doSkasowania */
-        $doSkasowania = [];
-        $wpisDopisany = false;
+        $stan = new StanTransakcjiWymazania;
 
-        $anonimizuj = function () use ($user, $wymagajWygaslegoWniosku, $oczekiwanaGeneracja, &$doSkasowania, &$wpisDopisany): bool {
+        $anonimizuj = function () use ($user, $wymagajWygaslegoWniosku, $oczekiwanaGeneracja, $stan): bool {
             // Świeży odczyt pod blokadą, nie ufamy stanowi z argumentu —
             // między zapytaniem, które wybrało konta do egzekucji, a tym
             // wywołaniem ktoś mógł cofnąć usunięcie albo inny proces mógł
@@ -185,7 +183,7 @@ final class EraseAccountData
             // WSZYSTKIE zdjęcia tej osoby, nie tylko profilowe (D-018).
             // Zbieramy TERAZ, bo za chwilę odepniemy referencję z profilu
             // i awatara nie dałoby się już znaleźć tą drogą.
-            $doSkasowania = $fresh->media()->get()->all();
+            $stan->doSkasowania = $fresh->media()->get()->all();
 
             // ZAKRES WYBRANY PRZEZ CZŁOWIEKA 30 DNI TEMU (D-022).
             //
@@ -616,7 +614,7 @@ final class EraseAccountData
             //
             // `ISTNIEJE` (ponowne wymazanie po odtworzeniu kopii) zostaje bez
             // zmian i nie jest naszym wpisem do wycofania.
-            $wpisDopisany = $wpis === DziennikWymazan::DOPISANO;
+            $stan->wpisDopisany = $wpis === DziennikWymazan::DOPISANO;
 
             // WPIS `account.data_erased` W TEJ SAMEJ TRANSAKCJI (D-249,
             // klasa 1; #1894) — NIE `recordBezWywracania()` po `COMMIT`.
@@ -645,8 +643,8 @@ final class EraseAccountData
         // cofnięta transakcja jest czysta (pliki kasujemy dopiero po commicie),
         // więc próbujemy ją jeszcze `PROBY - 1` razy, czekając POZA transakcją.
         for ($podejscie = 1; ; $podejscie++) {
-            $doSkasowania = [];
-            $wpisDopisany = false;
+            $stan->doSkasowania = [];
+            $stan->wpisDopisany = false;
 
             try {
                 $wymazano = DB::transaction($anonimizuj);
@@ -657,7 +655,7 @@ final class EraseAccountData
                 // jest wymazane, a wpis twierdziłby inaczej — `wymaz-ponownie`
                 // wymazałoby je przed końcem karencji. `ISTNIEJE` (wpis, który
                 // przeżył odtworzenie kopii) NIE jest naszym wpisem i zostaje.
-                if ($wpisDopisany) {
+                if ($stan->wpisDopisany) {
                     $this->dziennik->usun((string) $user->getKey());
                 }
 
@@ -681,8 +679,8 @@ final class EraseAccountData
         // Kolejność ma i drugi skutek: w tym momencie referencja z profilu
         // jest już usunięta, więc sprawdzenie „czy ktoś tego jeszcze używa"
         // nie zobaczy samego siebie.
-        if ($wymazano && $doSkasowania !== []) {
-            $this->dokonczKasowanieZdjec($doSkasowania);
+        if ($wymazano && $stan->doSkasowania !== []) {
+            $this->dokonczKasowanieZdjec($stan->doSkasowania);
         }
 
         if ($wymazano) {

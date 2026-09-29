@@ -570,7 +570,7 @@ final class PodgladPaczkiEksportu
                 continue;
             }
 
-            $odcisk = $this->odcisk(['wpis', $rodzaj, null, $tresc === null ? null : $this->klucz($tresc)]);
+            $odcisk = $this->odcisk(['wpis', $rodzaj, null, $this->klucz($tresc)]);
             $klucz = $this->kluczWpisu($rodzaj, null, $tresc);
 
             $stan = isset($wPaczce[$klucz])

@@ -15,6 +15,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  *
  * `user_message` to treść, którą realnie zobaczył użytkownik. Trzymamy ją,
  * bo przy odwołaniu musimy wiedzieć, co mu powiedzieliśmy (DSA art. 17).
+ *
+ * `target_id` bywa puste przy decyzji o zgłoszeniu z nierozpoznanym adresem
+ * (migracja `add_legal_notice_fields_to_reports` zdejmuje `NOT NULL` surowym
+ * SQL-em, którego Larastan nie odczyta).
+ *
+ * @property string|null $target_id
  */
 class ModerationAction extends Model
 {
