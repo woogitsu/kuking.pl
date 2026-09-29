@@ -19802,6 +19802,11 @@ na prawnika, dla wszystkich zalogowanych (P-7), w tych granicach:
    wcześniejsza zgoda na odczyt zdjęcia kartki nie obejmuje tekstu strony
    ani stron skanowanego PDF. Rezerwacja w istniejącym budżecie AI następuje
    przed wysłaniem, a po wyczerpaniu budżetu model nie dostaje danych.
+   **Uzupełnienie #2031 (29.09.2026):** zgoda z formularza jest wersjonowana —
+   informacja stoi w jednym komponencie `x-zgoda-zrodlo-ai`, formularz niesie
+   `InformacjaTekstuZrodlaAi::WERSJA`, a zaznaczone pole z inną albo brakującą
+   wersją nie wysyła niczego do modelu. Opis źródeł: rejestr czynności §3.20
+   i `docs/legal/projekty/POLITYKA_ODCZYT_AI.md`.
 
 **W kodzie.** `app/Domain/Import/` (`Url/StraznikAdresow`, `Url/PobieraczStron`,
 `Url/RobotsTxt`, `Url/ParserJsonLdPrzepisu`, `TrybFragmentow`,

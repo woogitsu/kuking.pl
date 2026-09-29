@@ -451,6 +451,77 @@ egzekwuje.
     polityki i do §4;
   - czy istnieją eksporty logów poza Railway (drain, pobrane pliki).
 
+### 3.20 Odczyt przepisu przez model na żądanie (OpenAI) — zdjęcie kartki, tekst strony, skan PDF — przekazanie poza EOG (issue #2031)
+
+**Stan: kod gotowy, funkcja NIEWŁĄCZONA.** Żadne żądanie nie wychodzi, dopóki
+`OPENAI_IMPORT_KEY` (`kuking.import.model.klucz`) jest pusty
+(`KlientLuna::skonfigurowany()`), a ma pozostać pusty do podpisania umowy
+powierzenia (poniżej i `REJESTR_UMOW_POWIERZENIA.md` §2.5). Wiersz stoi w
+rejestrze **przed** włączeniem, bo polityka obiecuje opisać nowy cel, zanim
+trafi tam pierwszy rekord.
+
+- **Cel:** przepisanie przepisu do **prywatnego szkicu** na wyraźne żądanie
+  osoby, która dodaje źródło. Trzy różne źródła, trzy osobne zgody — zgoda na
+  jedno **nie obejmuje** pozostałych (D-296, D-300 pkt 9):
+
+| Źródło | Co dokładnie wychodzi (kod) | Zgoda i jej dowód | Kiedy w ogóle wychodzi |
+|---|---|---|---|
+| **Zdjęcie kartki lub zeszytu** | stała instrukcja, schemat odpowiedzi i zdjęcie jako JPEG ≤ 2000 px z wariantu przekodowanego, bez EXIF/XMP/GPS; `store: false` (`KlientLuna`, `ObrazDoOdczytu`, `OdczytKartki`) | **trwała** zgoda `odczyt_ai` w `dziennik_zgod` (D-296) z wersją informacji (`InformacjaOdczytuAi::WERSJA`); sprawdzana przed każdą wysyłką; wycofanie w ustawieniach prywatności | zawsze, gdy osoba wybrała „Przepisz z kartki” |
+| **Tekst strony z adresu** | stała instrukcja, schemat odpowiedzi i **ponumerowane wiersze czystego tekstu strony** — najwyżej 12 000 znaków i 400 wierszy, bez HTML-a, bez adresu strony, bez zdjęć, bez nawigacji, formularzy i sekcji komentarzy czytelników (`TekstStrony`, `ZadanieFragmentow`); model odsyła tylko numery wierszy i etykiety, tekst szkicu składa PHP z oryginału; `store: false` | zgoda **jednorazowa**, zaznaczana w formularzu adresu, z wersją informacji (`InformacjaTekstuZrodlaAi::WERSJA`, ukryte pole formularza); nieaktualna albo brakująca wersja = zgody nie ma; dowód: `proby_importu.zgoda_ai_at` (data) | tylko gdy strona **nie ma** danych JSON-LD `Recipe` (inaczej odczyt lokalny, nic nie wychodzi) |
+| **Skan PDF (bez warstwy tekstu)** | stała instrukcja, schemat odpowiedzi i **obrazy stron** pliku (JPEG ≤ 1600 px, `pdftoppm`, bez metadanych pliku; strony w granicach `kuking.import.pdf.max_stron`, najwyżej 5) (`OdczytajSkanPdf`); `store: false` | jak wyżej — zgoda jednorazowa w formularzu PDF, ta sama wersjonowana informacja | tylko dla PDF **bez** warstwy tekstu (PDF z tekstem odczytujemy lokalnie) |
+
+- **Czego nie wysyłamy w żadnym z trzech źródeł:** e-maila, nazwy konta, adresu
+  IP, identyfikatorów konta, przepisu i zlecenia, pola `user`/`safety_identifier`
+  (`KlientLuna`). Adres strony nie wychodzi przy tekście strony.
+- **Kategorie danych:** treść cudzej strony albo kartki/PDF; **przypadkowo**
+  dane osób trzecich (imiona, telefony, adresy) i możliwe dane o zdrowiu
+  (art. 9). Na stronie internetowej ograniczamy to wycięciem komentarzy
+  i formularzy; na kartce i w skanie PDF — prośbą o zasłonięcie albo usunięcie
+  takich stron przed dodaniem (informacja przy zgodzie). Cudzy tekst strony
+  jest wysyłany do wskazania granic wierszy, nie do przepisania — a wynik jest
+  wyłącznie prywatnym szkicem (D-300).
+- **Podstawa:** art. 6 ust. 1 lit. a RODO — zgoda. Dowód: dla kartki wpis
+  `odczyt_ai` w `dziennik_zgod` (data, wersja polityki, źródło zapisu);
+  dla tekstu strony i skanu PDF — data zgody przy próbie importu
+  (`proby_importu.zgoda_ai_at`), a **wersję informacji, którą osoba widziała,
+  odtwarza się z daty** według historii `InformacjaTekstuZrodlaAi::WERSJA`
+  (wersja jest datą zmiany treści, a formularz z inną wersją zgody nie
+  zapisuje). Zgoda na jedno źródło **nie odblokowuje** pozostałych —
+  pilnuje tego `PlatnyOdczytImportu` i test
+  `ZgodaPrzedTekstemZrodlaTest`.
+- **Odbiorca:** OpenAI, L.L.C. (USA) — podmiot przetwarzający; **DPA: DO
+  PODPISANIA PRZED WŁĄCZENIEM** (`REJESTR_UMOW_POWIERZENIA.md` §2.5).
+- **Przekazanie poza EOG:** EU-US Data Privacy Framework + SCC (jak §3.7).
+  **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** data sprawdzenia wpisu OpenAI na
+  liście DPF, dokument SCC i jego data, ewentualne Zero Data Retention.
+- **Terminy usunięcia:**
+  - po naszej stronie: zdjęcie kartki i szkic — jak treść autora (do usunięcia
+    przepisu albo konta); zlecenie odczytu kartki (`importy_przepisow`) — 90 dni,
+    surowa odpowiedź modelu — 30 dni; księga rezerwacji budżetu
+    (`ai_rezerwacje`, tylko kwoty i identyfikator próby, bez treści) — 90 dni;
+    księga prób importu (`proby_importu`, w tym data zgody) — nie krócej niż
+    31 dni, domyślnie 90 dni (`kuking:sprzataj-importy`, `PrzedawnioneImporty`);
+    **obrazy stron PDF i plik nie są zapisywane** — powstają w katalogu
+    tymczasowym i są kasowane po odczycie; **odpowiedź modelu dla tekstu
+    strony i PDF nie jest zapisywana** (model oddaje granice wierszy albo
+    odczytany przepis, który trafia do szkicu); dziennik serwera przy błędzie
+    modelu zapisuje tylko nazwę zadania i kod odpowiedzi, **bez treści**
+    (`KlientLuna`, §3.19);
+  - po stronie OpenAI: `store: false` znaczy, że odpowiedź nie jest zapisywana
+    do późniejszego pobrania — to **nie jest** obietnica zerowej retencji.
+    **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** okres przechowywania danych
+    wysłanych do API (m.in. na potrzeby wykrywania nadużyć), odczytany z
+    aktualnych warunków; po uzupełnieniu — zdanie w polityce prywatności i
+    **podbicie `InformacjaTekstuZrodlaAi::WERSJA`** (i `InformacjaOdczytuAi::WERSJA`),
+    bo zmienia się fakt, o którym mówi informacja przy zgodzie.
+- **Środki:** osobny klucz API (osobny projekt OpenAI z limitem wydatków),
+  host i ścieżka w kodzie (D-250), wspólny budżet dzienny i miesięczny w bazie
+  (D-297), limit 5/30 prób na osobę wspólny dla wszystkich źródeł importu
+  (D-300 pkt 6), rezerwacja budżetu przed wysłaniem, brak auto-publikacji
+  (D-298, D-300 pkt 1 i 8).
+- **Wyłączenie bez zmiany kodu:** pusty `OPENAI_IMPORT_KEY` (model),
+  `KUKING_IMPORT_URL=false`, `KUKING_IMPORT_PDF=false` (D-300).
+
 ---
 
 ## 4. Kategorie odbiorców (art. 30 ust. 1 lit. d)
@@ -470,7 +541,7 @@ brakuje.
 | Cloudflare R2 | podmiot przetwarzający | zdjęcia i ich warianty, paczki eksportu, zaszyfrowane zrzuty bazy (`AWS_KOPIE_BUCKET`, retencja 30 dni — `KOPIA_RETENCJA_DNI`) | jurysdykcja UE — właściciel potwierdził 24.09.2026, że `AWS_ENDPOINT` ma segment `.eu.`, a buckety są w jurysdykcji UE; od D-255 (PR #1463) aplikacja odmawia endpointu bez `.eu.` (`App\Support\Storage\DozwolonyHostR2`, `/health`) |
 | Cloudflare Turnstile | podmiot przetwarzający | adres IP i cechy przeglądarki przy siedmiu formularzach | USA |
 | Cloudflare Web Analytics | podmiot przetwarzający | adres strony, odnośnik, rodzaj przeglądarki, czas wczytania | USA |
-| OpenAI | podmiot przetwarzający | treść wpisu i pomniejszone zdjęcie, bez danych wskazujących osobę | USA |
+| OpenAI | podmiot przetwarzający | treść wpisu i pomniejszone zdjęcie, bez danych wskazujących osobę; **oraz — tylko na żądanie i za osobną zgodą, po włączeniu funkcji (§3.20)** — zdjęcie kartki, tekst strony bez danych przepisu albo obrazy stron skanu PDF | USA |
 | EmailLabs (Vercom S.A.) | podmiot przetwarzający | adres e-mail odbiorcy i treść listu | Polska |
 | Google | podmiot przetwarzający przy logowaniu | potwierdzenie tożsamości, e-mail, imię | Irlandia / USA |
 | Meta | **osobny administrator** | zakres po stronie Meta przy logowaniu Facebookiem | Irlandia (dalej w grupie Meta) |
@@ -491,6 +562,7 @@ w ramach konkretnego postępowania (art. 4 pkt 9 RODO) — w tym organy
 | Przekazanie | Co wychodzi | Deklarowana podstawa | Czego brakuje |
 |---|---|---|---|
 | OpenAI, L.L.C. (USA) | treść wpisu/komentarza i pomniejszone zdjęcie, bez EXIF-u i bez danych wskazujących osobę (`app/Moderacja/KlientOpenAI.php`) | EU-US Data Privacy Framework + standardowe klauzule umowne | **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** data sprawdzenia wpisu na liście DPF, dokument SCC i jego data |
+| OpenAI, L.L.C. (USA) — odczyt przepisu na żądanie (§3.20), **funkcja niewłączona** | zdjęcie kartki (JPEG ≤ 2000 px, bez EXIF/GPS), wiersze tekstu strony (≤ 12 000 znaków, bez adresu i komentarzy), obrazy stron PDF bez warstwy tekstu (JPEG ≤ 1600 px); bez e-maila, nazwy konta, IP i identyfikatorów (`app/Domain/Import/KlientLuna.php`) | EU-US Data Privacy Framework + SCC, umowa powierzenia **niepodpisana** (`REJESTR_UMOW_POWIERZENIA.md` §2.5) | **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** DPA, data sprawdzenia DPF, SCC, okres przechowywania po stronie OpenAI |
 | Cloudflare, Inc. (USA) — Turnstile i Web Analytics | adres IP i cechy przeglądarki; adresy stron | EU-US Data Privacy Framework + SCC | jw. |
 | Google LLC (USA) — tylko przy logowaniu kontem Google | potwierdzenie tożsamości, e-mail, imię | EU-US Data Privacy Framework + SCC | jw. |
 

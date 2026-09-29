@@ -13,6 +13,7 @@ use App\Domain\Import\Url\TekstStrony;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportPhotoPlan;
+use App\Domain\Zgody\InformacjaTekstuZrodlaAi;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
@@ -146,7 +147,7 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         ]);
 
         $this->actingAs($autor)->post(route('recipes.import.url.store'), [
-            'adres' => 'https://przepisy.example.pl/blog', 'zgoda_ai' => '1',
+            'adres' => 'https://przepisy.example.pl/blog', 'zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA,
         ])->assertRedirect();
 
         $recipe = Recipe::query()->where('author_id', $autor->getKey())->firstOrFail();
@@ -167,7 +168,7 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         $this->udawajStrone();
 
         $this->actingAs($autor)->post(route('recipes.import.url.store'), [
-            'adres' => 'https://przepisy.example.pl/blog', 'zgoda_ai' => '1',
+            'adres' => 'https://przepisy.example.pl/blog', 'zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA,
         ])->assertSessionHasErrors(['adres' => ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BUDZET_AI]]);
 
         Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com'));
@@ -186,7 +187,7 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
                 ['do' => 1, 'etykieta' => 'tytul'], ['do' => 2, 'etykieta' => 'krok'],
             ]])),
         ]);
-        $dane = ['adres' => 'https://przepisy.example.pl/blog', 'zgoda_ai' => '1', 'klucz_wyslania' => (string) Str::uuid()];
+        $dane = ['adres' => 'https://przepisy.example.pl/blog', 'zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA, 'klucz_wyslania' => (string) Str::uuid()];
 
         $this->actingAs($autor)->post(route('recipes.import.url.store'), $dane)->assertRedirect();
         $this->actingAs($autor)->post(route('recipes.import.url.store'), $dane)->assertRedirect();
@@ -562,7 +563,7 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         ]))]);
         $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
 
-        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf, 'zgoda_ai' => '1'])->assertRedirect();
+        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf, 'zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA])->assertRedirect();
 
         $recipe = Recipe::query()->where('author_id', $autor->getKey())->firstOrFail();
         $this->assertSame('private', $recipe->visibility);
@@ -582,7 +583,7 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         Http::fake();
         $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
 
-        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf, 'zgoda_ai' => '1'])
+        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf, 'zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA])
             ->assertSessionHasErrors(['plik' => ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BUDZET_AI]]);
 
         $this->assertSame(0, Recipe::query()->count());
@@ -602,7 +603,7 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         for ($i = 0; $i < 2; $i++) {
             $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
             $this->actingAs($autor)->post(route('recipes.import.pdf.store'), [
-                'plik' => $pdf, 'zgoda_ai' => '1', 'klucz_wyslania' => $klucz,
+                'plik' => $pdf, 'zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA, 'klucz_wyslania' => $klucz,
             ])->assertRedirect();
         }
 

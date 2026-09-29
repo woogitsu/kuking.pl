@@ -122,6 +122,15 @@ panelu w ogóle szukasz umowy.
 - **Co do niego trafia:** treść wpisu albo komentarza i pomniejszone,
   przekodowane zdjęcie (bez EXIF-u i GPS-u), bez danych wskazujących osobę
   (`app/Moderacja/KlientOpenAI.php`).
+- **Drugi cel tego samego odbiorcy — odczyt przepisu na żądanie (issue #2031,
+  D-296, D-300 pkt 9):** zdjęcie kartki, tekst strony internetowej bez danych
+  przepisu i obrazy stron skanu PDF, każde po osobnej zgodzie osoby
+  (`REJESTR_CZYNNOSCI_PRZETWARZANIA.md` §3.20). **DPA jest WARUNKIEM włączenia:**
+  bez podpisanej umowy `OPENAI_IMPORT_KEY` (`kuking.import.model.klucz`)
+  pozostaje pusty i żadne z tych trzech żądań nie wychodzi. Do odnotowania
+  razem z pozostałymi: okres przechowywania danych wysłanych do API w tym
+  celu (po jego uzupełnieniu podbić wersje informacji przy zgodzie —
+  `InformacjaOdczytuAi::WERSJA` i `InformacjaTekstuZrodlaAi::WERSJA`).
 - **Czego szukać:** w ustawieniach organizacji na platform.openai.com —
   dokumentu o nazwie „Data Processing Addendum" (OpenAI udostępnia go do
   zawarcia z poziomu panelu) oraz ustawienia dotyczącego **wykorzystywania
