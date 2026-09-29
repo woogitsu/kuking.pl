@@ -2928,6 +2928,13 @@ return [
          * 2026-09-30: serwis nie ma prawdziwych użytkowników, więc nikt nie
          * zna poprzedniej wersji. Klasyfikacja do potwierdzenia przez
          * właściciela (wiersz #2220 w D-333).
+         *
+         * RÓŻNICA WOBEC POLITYKI (świadoma): pasek „Zmieniliśmy regulamin”
+         * pokazuje się także przy zmianie drobnej — tak każe D-306 i tak
+         * opisuje to D-327 („przy drobnej nie podaje żadnego terminu”).
+         * Pasek polityki jest tylko dla istotnej, bo polityka §9 obiecuje
+         * powiadomienie tylko wtedy (`ZmianaPolityki`). Ukrycie paska
+         * regulaminu przy drobnej zmieniłoby D-306 — to decyzja właściciela.
          */
         'zmiana_regulaminu' => [
             'istotna' => false,
