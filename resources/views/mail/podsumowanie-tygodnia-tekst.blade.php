@@ -63,4 +63,4 @@ prostu odpowiedzieć - czytam wszystkie odpowiedzi.
 Nie chcesz tych wiadomości? Wyłącz je jednym kliknięciem. Bez pytań:
 {{ $wypisz }}
 
-Kuking.pl - pokaż, co dziś ugotowałeś.
+Kuking.pl - pokaż, co dziś {{ \App\Support\Forma::dla($tresc->odbiorca, 'ugotowałaś', 'ugotowałeś', 'gotujesz') }}.

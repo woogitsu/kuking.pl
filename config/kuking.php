@@ -2849,7 +2849,7 @@ return [
          * `WersjaPolitykiZgadzaSieZNaglowkiemTest`. Wcześniejsze wiersze
          * dziennika zostają ze swoją wersją — to dowód, NA CO się zgodzono.
          */
-        'wersja_polityki' => '2026-09-29',
+        'wersja_polityki' => '2026-09-30',
 
         /*
          * CZY ZMIANA POLITYKI JEST ISTOTNA — oznaczenie JAWNE, bez wartości
@@ -2871,20 +2871,29 @@ return [
          * był — bez nowego celu, odbiorcy ani dłuższego przechowywania — więc
          * drobna.
          *
-         * Wersja 2026-09-29 (#1816, jedno podbicie razem z #1324 i #619) opisuje
-         * to, co serwis już robił: paczkę danych zgodną z kodem (co jest
-         * w środku, co tylko na prośbę), obserwowane tagi, ukrycia, reakcję
-         * „Smakowicie wygląda”, listę „Co mam w domu”, odpięcie zdarzeń
-         * analitycznych po usunięciu konta i datę sprawdzenia lokalizacji
-         * zdjęć. Nie ma tu nowego celu, odbiorcy ani dłuższego przechowywania,
-         * a zwroty z „sam” zamieniono na neutralne (decyzja właściciela
-         * z 26.09.2026) — więc drobna. Gdyby prawnik uznał inaczej,
-         * przestaw `istotna` na true: `WersjaDokumentuTest` zażąda wtedy
-         * paska `components.pasek-zmiany-polityki`, którego jeszcze nie ma.
+         * Wersja 2026-09-29 (#1816, #1324, #619) opisuje to, co serwis już
+         * robił: paczkę danych zgodną z kodem, obserwowane tagi, ukrycia,
+         * reakcję „Smakowicie wygląda”, listę „Co mam w domu”, odpięcie
+         * zdarzeń analitycznych po usunięciu konta i datę sprawdzenia
+         * lokalizacji zdjęć; zwroty z „sam” zamieniono na neutralne. Była
+         * DROBNA i jako drobna wyszła w Alfa 0.76 (obowiązuje od 29.09.2026,
+         * tak mówi CHANGELOG) — nie wolno jej teraz „cofnąć” do 2026-09-25.
+         *
+         * Wersja 2026-09-30 (#1751: forma zwracania się, D-332) jest ISTOTNA —
+         * decyzja właściciela z 29.09.2026 (D-333: „nowa wersja i pasek”).
+         * Dochodzi nowa dana widoczna dla innych („Jak mamy do Ciebie
+         * pisać?”), więc nowa wersja obowiązuje 14 dni po publikacji
+         * (14.10.2026), a do tego dnia obowiązuje `poprzednia` (2026-09-29,
+         * ta już opublikowana). Data wersji to dzień PUBLIKACJI na produkcji:
+         * jeśli wdrożenie wypadnie później niż 30.09.2026, podbij ją (i nagłówek,
+         * i „Co się zmieniło”) na faktyczny dzień, inaczej 14 dni liczyłoby się
+         * od dnia, w którym tekstu jeszcze nie było. Pasek o zmianie:
+         * `components.pasek-zmiany-polityki` (`ZmianaPolityki`). Do dnia wejścia
+         * w życie wybór formy jest ukryty (`Forma::wyborDostepny()`).
          */
         'zmiana_polityki' => [
-            'istotna' => false,
-            'poprzednia' => null,
+            'istotna' => true,
+            'poprzednia' => '2026-09-29',
             'obowiazuje_od' => null,
         ],
 

@@ -33,6 +33,19 @@ class WersjaDokumentuTest extends TestCase
 
     private const POPRZEDNIA = '2026-09-26';
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Te testy dotyczą paska REGULAMINU. Politykę ustawiamy na starą,
+        // drobną wersję, żeby jej pasek (`ZmianaPolitykiTest`) nie mieszał się
+        // w asercje: konta z tych testów powstają po jej dniu.
+        config([
+            'kuking.zgody.wersja_polityki' => '2026-08-01',
+            'kuking.zgody.zmiana_polityki' => ['istotna' => false, 'poprzednia' => null, 'obowiazuje_od' => null],
+        ]);
+    }
+
     private function istotnaZmianaRegulaminu(): void
     {
         config([
