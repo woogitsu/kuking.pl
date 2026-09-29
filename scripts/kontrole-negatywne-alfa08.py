@@ -1738,6 +1738,10 @@ checks = [
     # strażnika `tests/skrypty/*.sh` zostałby pominięty w check.sh i w CI.
     ("Test powłoki wypada z listy wspólnego skryptu", "scripts/kontrole-powloki.sh", "KontrolePowlokiLokalnieIWCiTest",
      lambda s: replace_once(s, "tests/skrypty/bramka-migracji.sh|Bramka migracji workera i schedulera oblewa\n", "")),
+    # #1985: sufit danych paczki importu trzyma się limitu pamięci PHP (256M,
+    # json_decode ~8×). Powrót do 32 MB kończył się fatalem 500 bez komunikatu.
+    ("Sufit paczki importu wraca do 32 MB", "app/Domain/Users/Import/PodgladPaczkiEksportu.php", "test_sufit_danych_pozostaje_bezpieczny_dla_limitu_pamieci_php",
+     lambda s: replace_once(s, "MAX_DANE_BAJTOW = 12 * 1024 * 1024;", "MAX_DANE_BAJTOW = 32 * 1024 * 1024;")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
