@@ -15,8 +15,8 @@ namespace App\Domain\Media;
  * jednym dniu i jej prefiks jest DOKŁADNIE katalogiem Livewire (z ukośnikiem).
  *
  * Co uznajemy za GROŹNĄ regułę: włączone wygasanie, którego prefiks obejmuje
- * także `incoming/` (pusty prefiks = cały bucket, ale też `in` albo
- * `incoming/`). Oczyszczone oryginały są potrzebne do wariantów i do eksportu
+ * także `incoming/` albo jego część (pusty prefiks = cały bucket, ale też
+ * `in`, `incoming/` albo `incoming/2026/`). Oczyszczone oryginały są potrzebne do wariantów i do eksportu
  * RODO, a kasowanie ich jest nieodwracalne.
  *
  * Czego ta klasa NIE widzi: Bucket Lock (R2 nie oddaje go przez API S3)
@@ -49,7 +49,11 @@ final class OcenaRetencjiLivewireR2
             $regulaPrefiks = self::prefiks($regula);
             $dni = isset($regula['Expiration']['Days']) ? (int) $regula['Expiration']['Days'] : null;
 
-            if (str_starts_with(self::PREFIKS_ORYGINALOW, $regulaPrefiks)) {
+            // Dwa prefiksy zachodzą na siebie, gdy jeden jest początkiem
+            // drugiego: `in` i pusty obejmują cały `incoming/`, a węższe
+            // `incoming/2026/` — jego część. Każde z nich kasuje oryginały.
+            if (str_starts_with(self::PREFIKS_ORYGINALOW, $regulaPrefiks)
+                || str_starts_with($regulaPrefiks, self::PREFIKS_ORYGINALOW)) {
                 $alarm[] = $regulaPrefiks === ''
                     ? 'Włączona reguła wygasania ma PUSTY prefiks — obejmuje cały bucket, także `incoming/`.'
                     : "Włączona reguła wygasania z prefiksem `{$regulaPrefiks}` obejmuje także `incoming/`.";
@@ -78,12 +82,13 @@ final class OcenaRetencjiLivewireR2
     }
 
     /**
-     * Reguły starszego kształtu mają `Prefix` na wierzchu, nowsze — w `Filter`.
+     * Reguły starszego kształtu mają `Prefix` na wierzchu, nowsze — w `Filter`,
+     * a reguła z kilkoma warunkami (prefiks i np. rozmiar) — w `Filter.And`.
      *
      * @param  array<string, mixed>  $regula
      */
     private static function prefiks(array $regula): string
     {
-        return (string) ($regula['Filter']['Prefix'] ?? $regula['Prefix'] ?? '');
+        return (string) ($regula['Filter']['Prefix'] ?? $regula['Filter']['And']['Prefix'] ?? $regula['Prefix'] ?? '');
     }
 }

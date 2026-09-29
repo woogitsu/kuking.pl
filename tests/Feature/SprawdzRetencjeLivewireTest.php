@@ -112,6 +112,39 @@ class SprawdzRetencjeLivewireTest extends TestCase
         $this->assertTrue($ocena['dobra']);
     }
 
+    /**
+     * Reguła na CZĘŚĆ `incoming/` też kasuje oryginały. Kontrola dodatnia:
+     * ta sama dobra reguła bez niej przechodzi.
+     */
+    public function test_ocena_regula_na_czesc_incoming_to_alarm(): void
+    {
+        $prefiks = 'livewire-tmp/';
+        $dobra = $this->regula($prefiks, 1);
+
+        $this->assertTrue(OcenaRetencjiLivewireR2::ocen([$dobra], $prefiks)['dobra']);
+
+        $ocena = OcenaRetencjiLivewireR2::ocen([$dobra, $this->regula('incoming/2026/', 30)], $prefiks);
+
+        $this->assertFalse($ocena['dobra']);
+        $this->assertStringContainsString('`incoming/2026/` obejmuje także `incoming/`', implode(' ', $ocena['alarm']));
+    }
+
+    /** Reguła z kilkoma warunkami trzyma prefiks w `Filter.And`. */
+    public function test_ocena_prefiks_w_filter_and(): void
+    {
+        $prefiks = 'livewire-tmp/';
+        $regula = [
+            'Status' => 'Enabled',
+            'Filter' => ['And' => ['Prefix' => $prefiks, 'ObjectSizeGreaterThan' => 0]],
+            'Expiration' => ['Days' => 1],
+        ];
+
+        $ocena = OcenaRetencjiLivewireR2::ocen([$regula], $prefiks);
+
+        $this->assertTrue($ocena['dobra']);
+        $this->assertSame([], $ocena['alarm'], 'Prefiks z `Filter.And` wzięty za pusty — fałszywy alarm „cały bucket”.');
+    }
+
     public function test_ocena_odrzuca_wylaczona_za_dluga_i_po_dacie(): void
     {
         $prefiks = 'livewire-tmp/';

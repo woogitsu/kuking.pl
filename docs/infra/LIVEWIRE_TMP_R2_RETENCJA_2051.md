@@ -171,7 +171,8 @@ railway ssh -- php artisan kuking:sprawdz-retencje-livewire
 
 Kod wyjścia `0` — jest włączona reguła wygasania dokładnie dla prefiksu
 Livewire (z ukośnikiem), po najwyżej 1 dniu, i żadna włączona reguła
-wygasania nie obejmuje `incoming/` (pusty prefiks też ją obejmuje).
+wygasania nie obejmuje `incoming/` ani jego części (pusty prefiks obejmuje
+cały bucket, a `incoming/2026/` — część oryginałów).
 Kod `1` — reguły brak, ma zły prefiks albo czas, obejmuje `incoming/`
 (linia „ALARM”), albo nie udało się jej odczytać (np. klucz aplikacji nie ma
 uprawnienia odczytu konfiguracji bucketu — wtedy zostaje zrzut z panelu).
