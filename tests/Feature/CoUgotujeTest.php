@@ -214,6 +214,48 @@ class CoUgotujeTest extends TestCase
         $this->assertSame(['Kluski'], app(CoUgotuje::class)->dla($ja)['przepisy']->pluck('title')->all());
     }
 
+    /**
+     * #1969, dalszy ciąg: „mąka”/„mak” to tylko najgłośniejsza para. Każdy
+     * krótki rdzeń jest ryzykiem — słowo, które zaczyna się tak samo, ale
+     * znaczy co innego (ser/serek, kura/kurczak, wino/winogrona, mak/makrela,
+     * masło/maślanka…), nie może zaliczać produktu z listy. Sprawdzamy to
+     * także przez cały ekran, nie tylko przez funkcję SQL: fałszywe „masz”
+     * to przepis, do którego nie ma podstawowego składnika.
+     */
+    public function test_inne_krotkie_rdzenie_tez_nie_daja_falszywych_przepisow(): void
+    {
+        $ja = $this->user();
+        $this->lista($ja, ['ser', 'sól', 'kura', 'wino', 'ryba', 'mak', 'masło', 'jajka', 'oliwa', 'kasza']);
+
+        // Przepisy z DOKŁADNIE jednym, podobnie brzmiącym, ale innym składnikiem.
+        foreach ([
+            'Sernik z serkiem' => 'serek homogenizowany',
+            'Ogórki w solance' => 'solanka do ogórków',
+            'Kurczak z piekarnika' => 'kurczak cały',
+            'Sos z winogron' => 'winogrona',
+            'Rybka po grecku' => 'rybka mała',
+            'Sałatka z makrelą' => 'makrela wędzona',
+            'Maślanka na zimno' => 'maślanka',
+            'Jajecznica' => 'jajecznica z proszku',
+            'Sałatka z oliwkami' => 'oliwki zielone',
+            'Kaszanka z patelni' => 'kaszanka',
+        ] as $tytul => $skladnik) {
+            $this->przepis($tytul, [$skladnik]);
+        }
+
+        $this->assertSame([], app(CoUgotuje::class)->dla($ja)['przepisy']->pluck('title')->all());
+
+        // Ta sama lista, ale prawdziwe odmiany — każdy z tych przepisów wchodzi.
+        $ma = ['Zapiekanka' => 'sera żółtego', 'Kiszonka' => 'soli morskiej', 'Rosół' => 'kury', 'Grzaniec' => 'wina czerwonego',
+            'Ryba z pieca' => 'ryby', 'Bułeczki' => 'maku', 'Ciasteczka' => 'masła', 'Omlet' => 'jajko', 'Sałatka' => 'oliwy z oliwek',
+            'Obiad' => 'kaszy jaglanej'];
+        foreach ($ma as $tytul => $skladnik) {
+            $this->przepis($tytul, [$skladnik]);
+        }
+
+        $this->assertEqualsCanonicalizing(array_keys($ma), app(CoUgotuje::class)->dla($ja)['przepisy']->pluck('title')->all());
+    }
+
     public function test_cudza_lista_nie_wplywa_na_moj_wynik(): void
     {
         $ja = $this->user();
