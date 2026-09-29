@@ -177,7 +177,22 @@ class HistoriaWersjiPrzepisuTest extends TestCase
         $this->get(route('recipes.history.changes', [$przepis->slug, 5]))->assertNotFound();
         $this->get(route('recipes.history', 'nie-ma-takiego-przepisu'))->assertNotFound();
         $this->get('/przepisy/'.$przepis->slug.'/historia/abc')->assertNotFound();
-        $this->assertNotNull($inny);
+        // Ta sama wersja 5 pod własnym przepisem istnieje — 404 wyżej to brak cudzej wersji.
+        $this->get(route('recipes.history.version', [$inny->slug, 5]))->assertOk();
+    }
+
+    /**
+     * Numer w adresie to dowolny ciąg cyfr: zero i liczba większa niż
+     * największy `int` mają dać 404, nie 500 (TypeError przy rzutowaniu na `int`).
+     */
+    public function test_numer_wersji_zero_ogromny_lub_ujemny_to_404_a_nie_500(): void
+    {
+        $przepis = $this->przepisZWersjami(2);
+
+        foreach (['0', '99999999999999999999', '9223372036854775808', '-1', '1.5'] as $numer) {
+            $this->get('/przepisy/'.$przepis->slug.'/historia/'.$numer)->assertNotFound();
+            $this->get('/przepisy/'.$przepis->slug.'/historia/'.$numer.'/zmiany')->assertNotFound();
+        }
     }
 
     public function test_widok_wersji_pokazuje_zapisana_tresc_a_brak_klucza_to_brak_danych(): void

@@ -251,13 +251,14 @@ Route::get('/przepisy/{recipe}', [RecipeController::class, 'show'])->name('recip
 // Historia zapisanych wersji przepisu (issue #2024) — tylko odczyt, także dla
 // gościa; dostęp rozstrzyga `RecipePolicy::view` i opublikowanie przepisu
 // (`App\Domain\Recipes\Historia\HistoriaWersji`).
+// Numer wersji: do 9 cyfr — dłuższy ciąg cyfr nie mieści się w `int` i dawałby 500.
 Route::get('/przepisy/{recipe}/historia', [HistoriaPrzepisuController::class, 'index'])
     ->name('recipes.history');
 Route::get('/przepisy/{recipe}/historia/{numer}', [HistoriaPrzepisuController::class, 'show'])
-    ->whereNumber('numer')
+    ->where('numer', '[1-9][0-9]{0,8}')
     ->name('recipes.history.version');
 Route::get('/przepisy/{recipe}/historia/{numer}/zmiany', [HistoriaPrzepisuController::class, 'zmiany'])
-    ->whereNumber('numer')
+    ->where('numer', '[1-9][0-9]{0,8}')
     ->name('recipes.history.changes');
 
 // Zeszyt „Wszyscy" jest dla wszystkich — także bez konta (issue #965).
