@@ -20954,6 +20954,7 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | #492: nazwa minutnika | Minutnik w trybie gotowania ma dostępną nazwę „Pozostały czas” | #492 |
 | #492: skrypty przeglądarkowe marki | Cztery skrypty przeglądarkowe marki wpinamy do joba „Port marki” w CI | #492 |
 | „Poradźcie” na produkcji | Właściciel sam włącza `KUKING_QUESTIONS_ENABLED=true` po wdrożeniu paczki H i sprawdza `/pytania` | #372 |
+| #2220: regulamin — wymagania techniczne i reklamacje (**potwierdzone przez właściciela 29.09**) | Nowe §13 „Wymagania techniczne” i §14 „Reklamacje” to zmiana **drobna**, wzorem polityki 2026-09-30: serwis nie ma prawdziwych użytkowników, więc nowa wersja regulaminu 2026-09-30 obowiązuje od publikacji, bez 14 dni (`zmiana_regulaminu.istotna = false`, poprzednia 2026-09-26). Termin odpowiedzi na reklamację: **14 dni** (art. 7a ustawy o prawach konsumenta; `kuking.reklamacje.termin_odpowiedzi_dni`); kanał: `biuro@samsufi.pl` albo list na adres spółki — nie formularz „Napisz do nas”. Właściciel potwierdził to 29.09 (drobna, 14 dni, e-mail i list, pasek bez terminu wg D-306); weryfikacja treści przez prawnika zostaje w #8. Pasek „Zmieniliśmy regulamin” **pokazuje się** kontom sprzed 30.09 (D-306: przy każdej zmianie regulaminu, także drobnej) — inaczej niż pasek polityki, który jest tylko dla zmiany istotnej; ukrycie go przy drobnej wymagałoby zmiany D-306 | #2220, #8 |
 
 ### Wycofanie
 Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis
