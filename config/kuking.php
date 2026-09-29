@@ -3773,7 +3773,8 @@ return [
     | etap). Wzorzec jak `moderation.model` wyżej: klucz i nazwa w `.env`,
     | host i ścieżka w KODZIE (`App\Domain\Import\KlientLuna`, D-250).
     |
-    | BRAK KLUCZA = FUNKCJA WYŁĄCZONA. Przycisku „Przepisz z kartki” wtedy nie
+    | DOMYŚLNIE WYŁĄCZONE (D-333, #2214): trzy przełączniki źródeł mają `false`,
+    | włącza je świadomie właściciel zmienną środowiskową. BRAK KLUCZA = FUNKCJA WYŁĄCZONA. Przycisku „Przepisz z kartki” wtedy nie
     | ma w ogóle (bez martwych przycisków, D-053). Tak jest lokalnie, w CI
     | i w testach. Co jeszcze brakuje do działania, mówi
     | `php artisan kuking:sprawdz-import`.
@@ -3782,7 +3783,7 @@ return [
         'url' => [
             // Wyłącznik źródła. false = przycisku „Wklej adres strony" nie ma
             // w ogóle (bez martwych przycisków, D-053).
-            'wlaczony' => (bool) env('KUKING_IMPORT_URL', true),
+            'wlaczony' => (bool) env('KUKING_IMPORT_URL', false),
             // Najwięcej bajtów strony czytanych strumieniowo; większa = odmowa.
             'max_bajtow' => (int) env('KUKING_IMPORT_URL_MAX_BAJTOW', 2_000_000),
             // Limit czasu JEDNEGO żądania (strona, przekierowanie, robots.txt).
@@ -3791,7 +3792,7 @@ return [
             'limit_czasu_calosci' => (int) env('KUKING_IMPORT_URL_LIMIT_CALOSCI', 25),
         ],
         'pdf' => [
-            'wlaczony' => (bool) env('KUKING_IMPORT_PDF', true),
+            'wlaczony' => (bool) env('KUKING_IMPORT_PDF', false),
             'max_mb' => (int) env('KUKING_IMPORT_PDF_MAX_MB', 10),
             'max_stron' => (int) env('KUKING_IMPORT_PDF_MAX_STRON', 5),
             // Limit czasu pdfinfo/pdftotext — spreparowany plik nie zajmie
@@ -3826,7 +3827,7 @@ return [
 
         // Przełącznik OCR; adres i PDF mają własne ustawienia powyżej.
         'zrodla' => [
-            'zdjecie' => (bool) env('KUKING_IMPORT_ZDJECIE', true),
+            'zdjecie' => (bool) env('KUKING_IMPORT_ZDJECIE', false),
         ],
 
         'model' => [

@@ -41,6 +41,9 @@ final class ZgodaPrzedTekstemZrodlaTest extends TestCase
     {
         parent::setUp();
 
+        // Domyślnie import jest wyłączony (D-333, #2214) — te testy sprawdzają włączony.
+        config(['kuking.import.url.wlaczony' => true, 'kuking.import.pdf.wlaczony' => true, 'kuking.import.zrodla.zdjecie' => true]);
+
         Storage::fake((string) config('kuking.import.pdf.dysk'));
         $this->app->instance(RozwiazywaczNazw::class, (new MapaNazw)->ustaw('przepisy.example.pl', '93.184.216.34'));
         config([
