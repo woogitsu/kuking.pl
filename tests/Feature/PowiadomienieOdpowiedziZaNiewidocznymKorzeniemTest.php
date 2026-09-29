@@ -7,6 +7,8 @@ namespace Tests\Feature;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\UnblockUser;
+use App\Domain\Users\Exports\CollectUserExportData;
+use App\Domain\Users\Exports\ExportPhotoPlan;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Notification;
@@ -107,6 +109,35 @@ class PowiadomienieOdpowiedziZaNiewidocznymKorzeniemTest extends TestCase
         app(UnblockUser::class)->handle($c, $a);
 
         $this->assertContains($odpowiedz->getKey(), $this->widoczneIdKomentarzy($c));
+    }
+
+    /**
+     * Kryterium #1378: „eksport danych stosuje tę samą regułę `visibleTo()`,
+     * bez rozjazdu z listą". Paczka RODO nie może oddać wycinka odpowiedzi,
+     * której lista powiadomień nie pokazuje — a po odblokowaniu wraca.
+     */
+    #[DataProvider('tresci')]
+    public function test_eksport_danych_nie_niesie_powiadomienia_o_odpowiedzi_pod_niewidocznym_korzeniem(string $rodzaj): void
+    {
+        [$c, $a] = $this->dwaWatki($rodzaj);
+        $paczka = fn (): string => (string) json_encode(
+            app(CollectUserExportData::class)->handle($c->fresh(), new ExportPhotoPlan($c->fresh()), now())['powiadomienia'],
+            JSON_UNESCAPED_UNICODE,
+        );
+
+        $przed = $paczka();
+        $this->assertStringContainsString('ODPOWIEDZ-POD-KORZENIEM-A', $przed, 'Kontrola dodatnia: przed blokadą paczka niesie odpowiedź.');
+        $this->assertStringContainsString('ODPOWIEDZ-KONTROLNA', $przed);
+
+        app(BlockUser::class)->handle($c, $a);
+
+        $po = $paczka();
+        $this->assertStringNotContainsString('ODPOWIEDZ-POD-KORZENIEM-A', $po);
+        $this->assertStringContainsString('ODPOWIEDZ-KONTROLNA', $po, 'Wątek bez blokady zostaje w paczce.');
+
+        app(UnblockUser::class)->handle($c, $a);
+
+        $this->assertStringContainsString('ODPOWIEDZ-POD-KORZENIEM-A', $paczka());
     }
 
     #[DataProvider('tresci')]
