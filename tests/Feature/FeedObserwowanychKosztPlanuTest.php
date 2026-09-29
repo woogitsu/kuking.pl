@@ -45,6 +45,27 @@ final class FeedObserwowanychKosztPlanuTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** Połączenie z bazą, gdy test zasiał duży zbiór (do posprzątania po wycofaniu transakcji). */
+    private ?\PDO $poZasiewie = null;
+
+    /**
+     * Wycofanie transakcji nie oddaje bazie stron ani statystyk: zostają martwe
+     * krotki (tysiące wierszy w `posts`, `recipes`, `follows`) i `reltuples` z
+     * dużego zbioru. Następne testy w tym samym procesie planowałyby zapytania
+     * przy zawyżonych statystykach — `SzynaOstatnioZapisanychKosztTest` dawał
+     * wtedy koszt 621 tys. zamiast 211 tys. `VACUUM` nie działa w transakcji,
+     * więc idzie tu, PO jej wycofaniu.
+     */
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        if ($this->poZasiewie !== null) {
+            $this->poZasiewie->exec('VACUUM (ANALYZE) users, profiles, follows, blocks, hides, recipes, posts, media, post_media, tags, post_tags, tag_follows');
+            $this->poZasiewie = null;
+        }
+    }
+
     public function test_feed_zwraca_ta_sama_liste_co_zapytanie_sprzed_zmiany(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-09-29 10:00:00', 'UTC'));
@@ -339,6 +360,7 @@ final class FeedObserwowanychKosztPlanuTest extends TestCase
      */
     private function zasiej605(): User
     {
+        $this->poZasiewie = DB::connection()->getPdo();
         $teraz = now()->toIso8601String();
         $ja = $this->user('ja_feed_605');
         User::factory()->count(360)->create();
