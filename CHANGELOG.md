@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Strony ładują się szybciej przy pierwszym wejściu: font Inter ma teraz 53 kB zamiast 133 kB (−60%). Zostały polskie litery ze znakami diakrytycznymi, „cudzysłowy”, półpauza i znaki europejskich nazwisk; znak spoza zestawu wyświetla się czcionką systemową, a nie znika. Test pilnuje pokrycia glifów, a podzbiór generuje skrypt `scripts/fonty-podzbior.py` (#1000).
 - Rodzinny zeszyt: zeszyt (poza domyślnym) można udostępnić bliskim — po nazwie konta albo jednorazowym linkiem. Zaproszone osoby dopisują i wyjmują przepisy i wpisy, a przy każdej pozycji widać, kto ją dodał. Zeszyt nadal ma jednego właściciela; najwyżej 5 osób z dostępem; blokada albo usunięcie konta kończy wspólne zapisywanie (#1743, D-302). [nowa funkcja]
 
 ## Alfa 0.76 — planer z wyszukiwarką, „Co mam w domu” i zeszyt bez konta

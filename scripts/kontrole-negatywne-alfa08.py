@@ -958,9 +958,11 @@ def akcje_poza_filtrem_widoku(source):
 
 
 # Polskie litery w `unicode-range` Inter (#1000). Strażnik parsuje zakresy
-# z `fonts.css`; mutacja wycina „Ą ą" (U+0104–0105) z podzbioru latin-ext.
+# z `fonts.css`; mutacja wycina „Ą ą" (U+0104–0105) z podzbioru „europa"; druga wycina je
+# z listy glifów faktycznie obecnych w wygenerowanym pliku (podzbior.json).
 FONTY_CSS = "resources/css/fonts.css"
 FONTY_TEST = "PodzbiorFontuMaPolskieZnakiTest"
+FONTY_RAPORT = "resources/fonts/podzbior.json"
 # Kontrakt bezpiecznego obszaru (#987, D-260): meta viewport z `cover`
 # i boki dolnej belki oraz dół podpowiedzi wyglądu przez tokeny `--safe-*`.
 BEZPIECZNY_OBSZAR_TEST = "BezpiecznyObszarMaJedenKontraktTest"
@@ -1332,7 +1334,9 @@ checks = [
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
      lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
     ("Podzbiór fontu bez „ą\"", FONTY_CSS, FONTY_TEST,
-     lambda s: replace_once(s, "unicode-range: U+0100-02BA,", "unicode-range: U+0100-0103, U+0106-02BA,")),
+     lambda s: replace_once(s, "unicode-range: U+0100-017F;", "unicode-range: U+0100-0103, U+0106-017F;")),
+    ("Wygenerowany font bez glifu „ą\"", FONTY_RAPORT, FONTY_TEST,
+     lambda s: replace_once(s, '"glify": "U+0100-0130,', '"glify": "U+0106-0130,')),
     ("Viewport bez viewport-fit=cover", LAYOUT, BEZPIECZNY_OBSZAR_TEST,
      lambda s: replace_once(s, ", viewport-fit=cover", "")),
     ("Dolna belka bez lewego insetu", MARKA_RAMA_CSS, BEZPIECZNY_OBSZAR_TEST,
