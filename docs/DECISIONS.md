@@ -20716,6 +20716,22 @@ z testami.
 > wersji to dzień publikacji na produkcji — jeśli wdrożenie wypadnie
 > później, trzeba ją podbić, żeby 14 dni liczyło się od prawdziwej
 > publikacji.
+>
+> **Zmiana polityki jest jednak DROBNA — decyzja właściciela z 29 września
+> 2026 (wieczór), zastępuje akapit wyżej.** Serwis nie ma jeszcze prawdziwych
+> użytkowników ani kont, więc nikt nie zna poprzedniej wersji i nie ma kogo
+> uprzedzać. Wersja 2026-09-30 (poprzednia 2026-09-29 zostaje nietknięta)
+> obowiązuje od dnia publikacji: bez okresu przejściowego 14 dni, bez paska
+> dla kont, a ustawienie „Jak mamy do Ciebie pisać?” jest widoczne od razu po
+> wdrożeniu (`Forma::wyborDostepny()` przy zmianie drobnej zwraca `true`).
+> Konfiguracja: `kuking.zgody.zmiana_polityki.istotna` = `false`.
+> `ZmianaPolityki::pokazac()` pokazuje pasek polityki tylko przy zmianie
+> istotnej (polityka §9 obiecuje powiadomienie właśnie przy niej). Mechanizm
+> paska (`ZmianaPolityki`, `ZmianaPolitykiController`, trasa
+> `privacy.notice.dismiss`, kolumna `users.policy_notice_dismissed_version`,
+> migracja `2026_09_29_180000`) zostaje w kodzie na przyszłe zmiany istotne;
+> `ZmianaPolitykiTest` i `FormaZwracaniaSieTest` sprawdzają oba przypadki.
+> Akapit o zmianie istotnej wyżej zostaje jako historia decyzji.
 
 Research: `docs/research/PROFIL_FORMA_I_URODZINY.md` (gałąź
 `claude/research-profil-forma-urodziny`), pytania P1, P2, P3 i P7.
@@ -20820,7 +20836,7 @@ zapisanych wyborach (D-088).
 
 ## D-330 — Słownik wartości odżywczych ma rosnącą wersję danych; starszy import nie nadpisuje nowszego (#2130, 29 września 2026)
 
-**Data:** 29 września 2026 · Status: **obowiązuje** · Decyzja właściciela (decyzja właściciela 29.09.2026)
+**Data:** 29 września 2026 · Status: **obowiązuje** · Decyzja właściciela z 29.09.2026
 
 **Problem.** Import słownika (D-299) porównywał hash plików i odcisk trzech tabel,
 ale nie wiedział, który zestaw danych jest NOWSZY. Instancja ze starszego
@@ -20853,6 +20869,7 @@ nadpisuje.
 
 **Co musiałoby się stać, żeby zmienić.** Potrzeba trwałej wersji odpornej na
 `cache:clear` → osobna tabela z wierszem wersji (migracja, D-088).
+
 ## D-331 — Pięć funkcji z listy „V2, ale nie teraz” odblokowanych (29 września 2026)
 
 **Decyzja właściciela (29 września 2026).** Z listy „V2, ale nie teraz”
@@ -20885,17 +20902,17 @@ z sesją koordynatora. Część z nich podejmował już wcześniej w innej sesji
 która ich nie zapisała, więc sesje pytały go o to samo po kilka razy.
 Ten wpis jest jedynym miejscem, gdzie te odpowiedzi są zapisane. Przed
 zadaniem właścicielowi pytania z tej listy przeczytaj go, a stan każdego
-punktu sprawdź w podanym issue. Numery wpis w dzienniku dla #2130 (#2130), D-331 (V2) i wpis w dzienniku dla #1751
+punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 (#1751) to osobne wpisy z tej samej serii.
 
 | Temat | Decyzja właściciela | Issue |
 |---|---|---|
 | Plan Railway | Płatny plan przed końcem okresu próbnego, raczej **Pro** („żeby był backup i inne funkcje”). Limit wydatków: twardy 100 USD, alert przy 60 USD. Wykorzystanie funkcji Pro opisuje `docs/infra/RAILWAY_PRO_WYKORZYSTANIE.md` | #595, #599 |
 | Odbiorca alarmów operacyjnych | **Discord. Już działa**: webhook jest w zmiennej na Railway (`LOG_BLAD_WEBHOOK_URL`), a alarmy dochodzą (np. „Łączny czas zapytań SQL…” 29.09 o 14:28 czasu polskiego). Nie pytać ponownie | #599 |
-| Wersja słownika odżywczego | Tak, wersja rosnąca (wpis w dzienniku dla #2130) | #2130 |
+| Wersja słownika odżywczego | Tak, wersja rosnąca (D-330) | #2130 |
 | Okno zamknięcia workera | Na alfę zostaje 130 s. Przerwany eksport jest ponawiany z kolejki; do tematu wracamy, gdy log pokaże przerwany eksport | #1860, #1030 |
 | Grupy tematyczne | Obniżyć do **P3**, dopiero po bramce WAC/D30 | #22 |
-| Forma zwracania się | Wdrażamy z formą neutralną domyślną, bez czekania na prawnika (wpis w dzienniku dla #1751). Zmiana polityki prywatności jest **istotna**: nowa wersja i pasek (D-327) | #1751, #1752, #1753, #8 |
+| Forma zwracania się | Wdrażamy z formą neutralną domyślną, bez czekania na prawnika (D-332). Zmiana polityki prywatności jest **istotna**: nowa wersja i pasek (D-327) | #1751, #1752, #1753, #8 |
 | AI | Nie uruchamiamy nic nowego (#813, #814, #815, #1983 czekają). Właściciel **podpisuje DPA z OpenAI**, bo import już z niego korzysta | #813, #814, #815, #1983, #28 |
 | Claim „Twoje przepisy nie zginą” | Nie, dopóki nie ma przetestowanego odtworzenia bazy i zdjęć | #30, #594, #193, #617 |
 | Upload prosto do R2 | Odłożony z warunkami: wraca, gdy pomiar #605 pokaże upload przez aplikację jako wąskie gardło; czyszczenie EXIF/GPS musi zostać | #602 |
@@ -20910,6 +20927,10 @@ punktu sprawdź w podanym issue. Numery wpis w dzienniku dla #2130 (#2130), D-33
 | Strażnik martwych reguł CSS (D-223) w CI | Tak, najpierw nieblokująco | #960 |
 | Bezpiecznik baz testowych | Tak: testy odmawiają startu na bazie spoza rodziny testowej | #966 |
 | Zbędne gałęzie | Kasować po sprawdzeniu, że są scalone. Sesja nie ma prawa kasowania (403), więc kasuje właściciel; lista w `docs/flota/sesja-koordynatora-2909-b/HANDOVER.md` | — |
+| #1751: zmiana polityki drobna od razu (decyzja z wieczora) | Zmiana polityki z formą zwracania się jest **drobna**, bo serwis nie ma prawdziwych użytkowników: obowiązuje od publikacji, bez 14 dni i bez paska, wybór formy widoczny od razu. Zastępuje wiersz „Forma zwracania się” wyżej w części o istotności (D-332) | #1751 |
+| #2024: ponowna publikacja bez zmian | Ponowna publikacja przepisu bez zmian treści **nie tworzy** nowej wersji w historii | #2024 |
+| #2000: wspólny zeszyt publiczny | Wspólny (rodzinny, D-302) zeszyt ustawiony jako „wszyscy” **może** mieć „Podziel się”; prywatny i domyślne „Zapisane” dalej nie | #2000 |
+| #2016: minutniki | Minutniki **nie są** synchronizowane między urządzeniami — synchronizacja obejmuje tylko odhaczone kroki | #2016 |
 
 ### Wycofanie
 Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis

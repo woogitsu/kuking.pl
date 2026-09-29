@@ -50,6 +50,13 @@ final class ZmianaRegulaminu
         $wersja = self::wersja();
         $poczatekWersji = CarbonImmutable::parse($wersja, Czas::strefa())->startOfDay();
 
+        // Pasek liczy się od dnia PUBLIKACJI. Wersja z datą jutrzejszą (kod
+        // wdrożony przed dniem publikacji) nie jest jeszcze „zmieniona”, więc
+        // nikt nie dostaje paska przed tym dniem.
+        if (CarbonImmutable::now(Czas::strefa())->lessThan($poczatekWersji)) {
+            return false;
+        }
+
         if ($user->created_at->greaterThanOrEqualTo($poczatekWersji)) {
             return false;
         }
