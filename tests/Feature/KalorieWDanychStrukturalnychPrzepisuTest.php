@@ -9,6 +9,7 @@ use App\Models\Recipe;
 use App\Models\RecipeIngredient;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -100,6 +101,20 @@ final class KalorieWDanychStrukturalnychPrzepisuTest extends TestCase
         $recipe = $this->przepis([], 2);
 
         $this->assertArrayNotHasKey('nutrition', $this->recipeJsonLd($this->strona($recipe)));
+    }
+
+    #[Test]
+    public function test_kalkulator_liczy_raz_na_zadanie_mimo_json_ld_i_sekcji(): void
+    {
+        $recipe = $this->przepis(['200 g mąki pszennej', '2 jajka', '1 szklanka mleka', 'szczypta soli'], 2);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->strona($recipe);
+        $slownik = collect(DB::getQueryLog())->filter(fn (array $z) => str_contains($z['query'], 'aliasy_skladnikow'))->count();
+        DB::disableQueryLog();
+
+        $this->assertSame(1, $slownik, 'JSON-LD i sekcja „wartości odżywcze” mają dzielić jedno przeliczenie.');
     }
 
     /** @param  list<string>  $skladniki */
