@@ -88,6 +88,97 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
     }
 
     /**
+     * STRAŻNIK MARTWYCH REGUŁ CSS MA KTO URUCHOMIĆ — I JEST NIEBLOKUJĄCY (D-223, #960).
+     *
+     * `scripts/kaskada-martwe-reguly.mjs` powstał 20.09.2026 i przez dobę nie
+     * wołał go NIKT — ani `ci.yml`, ani `scripts/check.sh`. Strażnik, którego
+     * nic nie uruchamia, jest dokumentacją zamiaru, a nie bramką. Decyzja
+     * właściciela z 29.09.2026: wpiąć, NAJPIERW NIEBLOKUJĄCO, na tydzień.
+     *
+     * Ten test pilnuje rzeczy, z których każda z osobna daje zieleń bez pomiaru:
+     *
+     * 1. WYWOŁANIE ISTNIEJE, dokładnie raz, we własnym jobie `kaskada`, który ma
+     *    `continue-on-error: true` i jawny komentarz z terminem i numerem
+     *    zgłoszenia — nieblokujący bez terminu zostałby taki na zawsze.
+     * 2. JOB STOI NA BRAMCE ZAKRESU (`kod` i `widok`); filtr `scripts/ci/zakres.sh`
+     *    zna skrypty strażnika sprawdza drugi test tego pliku.
+     * 3. STRAŻNIK STOI PO Chromium i PO `migrate:fresh --seed`. Przed nimi padłby
+     *    na przyrządzie, nie na CSS-ie, i pierwsza czerwień nauczyłaby czytelnika,
+     *    że ta bramka „zawsze się sypie".
+     * 4. IDZIE PRZEZ `scripts/kaskada-kontrola-polecenie.sh`, nie przez gołe
+     *    `node …mjs` z własnymi flagami: zawężenie `--tylko` ma JEDNO miejsce,
+     *    wspólne z kontrolą ujemną. Inaczej bramka i jej dowód mierzyłyby dwa
+     *    różne zakresy.
+     * 5. NIE MA GO w `npm run build` ani w `Dockerfile`: obraz nie ma ani
+     *    przeglądarki, ani bazy.
+     * 6. W `scripts/check.sh` krok jest NIEBLOKUJĄCY (ostrzeżenie, nie `zle`),
+     *    na bazie z rodziny testowej — tej samej co krok axe.
+     *
+     * Termin zdjęcia flagi: 06.10.2026. Gdy job stanie się blokujący, ten test
+     * trzeba zmienić RAZEM z nim — celowo: zdjęcie flagi bez świadomej zmiany
+     * testu ma zapalić czerwień, a nie przejść po cichu.
+     */
+    public function test_straznik_martwych_regul_css_ma_kto_uruchomic_i_jest_nieblokujacy(): void
+    {
+        $wywolanie = 'run: bash scripts/kaskada-kontrola-polecenie.sh';
+
+        $this->assertSame(1, substr_count($this->workflow(), $wywolanie),
+            'Strażnik martwych reguł CSS nie jest wołany dokładnie raz w `ci.yml`.');
+
+        $job = $this->job('kaskada');
+        $this->assertStringContainsString($wywolanie, $job,
+            'Strażnik kaskady stoi poza jobem `kaskada`.');
+        $this->assertStringContainsString("if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'", $job);
+        // Flaga NA POZIOMIE JOBA (cztery spacje), nie na kroku zapisu artefaktu —
+        // ten ma własne `continue-on-error` i samo `assertStringContainsString`
+        // przechodziło po zdjęciu flagi z joba (zmierzone kontrolą ujemną).
+        $this->assertSame(1, preg_match('/^    continue-on-error: true\s*$/m', $job),
+            'Job `kaskada` jest blokujący — decyzja właściciela z 29.09.2026 to najpierw tydzień bez blokowania.');
+        $this->assertStringContainsString('(nie blokuje do 06.10.2026)', $job);
+        $this->assertStringContainsString('job.services.postgres.ports[5432]', $job);
+        $this->assertStringContainsString('uses: actions/checkout@', $job);
+
+        // Komentarz z terminem — czytany z surowego workflow, bo `job()` wycina komentarze.
+        $this->assertStringContainsString('nieblokujący do 06.10.2026, potem blokujący — #960', $this->workflow(),
+            'Brak jawnego komentarza z terminem zdjęcia flagi `continue-on-error`.');
+
+        // Osobny job, żeby flaga nie zjadła axe i Lighthouse'a — te są blokujące.
+        $this->assertStringNotContainsString($wywolanie, $this->job('dostepnosc'));
+        $this->assertStringNotContainsString('continue-on-error: true', $this->job('dostepnosc'));
+
+        $przegladarka = strpos($job, 'npx playwright install chromium');
+        $baza = strpos($job, 'migrate:fresh --seed');
+        $straznik = strpos($job, $wywolanie);
+        $this->assertIsInt($przegladarka);
+        $this->assertIsInt($baza);
+        $this->assertLessThan($straznik, $przegladarka,
+            'Strażnik kaskady stoi PRZED instalacją Chromium — padłby na przyrządzie, nie na CSS-ie.');
+        $this->assertLessThan($straznik, $baza,
+            'Strażnik kaskady stoi PRZED zasianiem bazy — `/przepisy/rosol-babci-zofii` nie istniałoby.');
+
+        // Kontrola ujemna dla tego testu: samo `node scripts/kaskada-martwe-reguly.mjs`
+        // w `ci.yml` obeszłoby wspólne zawężenie i rozjechało bramkę z dowodem.
+        $this->assertStringNotContainsString('node scripts/kaskada-martwe-reguly.mjs', $this->workflow(),
+            'Bramka woła strażnika z pominięciem `kaskada-kontrola-polecenie.sh` — zawężenie `--tylko` ma jedno miejsce.');
+
+        foreach (['package.json', 'Dockerfile'] as $plik) {
+            $this->assertStringNotContainsString('kaskada-martwe-reguly', (string) file_get_contents(base_path($plik)),
+                $plik.': strażnik potrzebuje przeglądarki i bazy, których tam nie ma.');
+        }
+
+        // `scripts/check.sh`: krok nieblokujący, baza z rodziny testowej.
+        $check = (string) preg_replace('/^\s*#.*$/m', '', (string) file_get_contents(base_path('scripts/check.sh')));
+        $this->assertSame(1, substr_count($check, 'bash scripts/kaskada-kontrola-polecenie.sh >'),
+            '`scripts/check.sh` nie woła strażnika kaskady dokładnie raz.');
+        $this->assertStringContainsString('DB_DATABASE=kuking_test_a11y bash scripts/kaskada-kontrola-polecenie.sh', $check,
+            'Krok kaskady w `check.sh` ma czytać bazę z rodziny testowej, tę samą co krok axe.');
+        $this->assertSame(1, preg_match('/^krok "Martwe reguły CSS.*?(?=^krok "|\z)/ms', $check, $krok),
+            'Nie znaleziono kroku kaskady w `check.sh`.');
+        $this->assertStringNotContainsString('zle', $krok[0],
+            'Krok kaskady w `check.sh` woła `zle` — to podbija licznik błędów i kończy skrypt kodem 1, a do 06.10.2026 ma tylko ostrzegać.');
+    }
+
+    /**
      * Regresja #892 (plakietka autozapisu kreatora) ma test tylko w przeglądarce.
      *
      * Do 24 września 2026 `scripts/kreator-zachowanie.mjs` istniał, ale nic go
@@ -156,7 +247,7 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
         $this->assertStringContainsString('DB_DATABASE: kuking_port_referrer', $referrerJob);
         $this->assertStringNotContainsString('continue-on-error:', $referrerJob);
 
-        foreach (['scripts/port-grupy.mjs', 'scripts/port-grupy.test.mjs', 'scripts/nawigacja-etykiety.mjs', 'scripts/nawigacja-zoom.mjs', 'scripts/nawigacja-negatywy.mjs', 'scripts/szybki-wyglad.mjs', 'scripts/pasek-przewijany.mjs', 'scripts/zwarte-kolumny.mjs', 'scripts/katalog-tagow.mjs', 'scripts/zainteresowania-powiadomienia-marki.mjs', 'scripts/fixtures/kompozycje-513.php', 'resources/css/marka-onboarding.css', 'scripts/lib/stan-ustalony.mjs'] as $path) {
+        foreach (['scripts/port-grupy.mjs', 'scripts/port-grupy.test.mjs', 'scripts/nawigacja-etykiety.mjs', 'scripts/nawigacja-zoom.mjs', 'scripts/nawigacja-negatywy.mjs', 'scripts/szybki-wyglad.mjs', 'scripts/pasek-przewijany.mjs', 'scripts/zwarte-kolumny.mjs', 'scripts/katalog-tagow.mjs', 'scripts/zainteresowania-powiadomienia-marki.mjs', 'scripts/fixtures/kompozycje-513.php', 'resources/css/marka-onboarding.css', 'scripts/lib/stan-ustalony.mjs', 'scripts/kaskada-martwe-reguly.mjs', 'scripts/kaskada-kontrola-polecenie.sh', 'scripts/kaskada-kontrola-ujemna.sh'] as $path) {
             $this->assertSame(1, preg_match($pattern, $path), 'zakres: pominięto '.$path);
         }
 

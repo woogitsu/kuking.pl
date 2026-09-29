@@ -1945,6 +1945,155 @@ jobs:
           retention-days: 14
 
   # ===========================================================================
+  #  4b. Strażnik martwych reguł CSS (D-223, #960)
+  # ===========================================================================
+  #  nieblokujący do 06.10.2026, potem blokujący — #960
+  #
+  #  DECYZJA WŁAŚCICIELA (29.09.2026, D-333): strażnik wchodzi do CI. Najpierw
+  #  NIEBLOKUJĄCO (`continue-on-error: true`), przez tydzień, żeby zebrać
+  #  pomiar stabilności na runnerach i zobaczyć, czy czerwień znaczy CSS,
+  #  a nie przyrząd. Migający test blokujący uczy ludzi ignorować czerwone
+  #  (ta sama zasada co przy `dwa-polaczenia`, D-105).
+  #
+  #  WARUNEK ZDJĘCIA FLAGI (i termin: 06.10.2026): przez ten tydzień żadnej
+  #  czerwieni z powodu przyrządu (kod 2, serwer, przeglądarka). Potem: usunąć
+  #  `continue-on-error`, zdjąć „(nie blokuje)" z nazwy, zamienić ostrzeżenie
+  #  w `scripts/check.sh` na `zle` i dopisać job do wymaganych kontroli.
+  #  Wszystko to w JEDNYM PR-ze — połowiczne zdjęcie to blokada bez pomiaru
+  #  albo pomiar bez blokady.
+  #
+  #  DLACZEGO OSOBNY JOB, A NIE KROK W `dostepnosc`. Strażnik NIE czyta arkusza
+  #  jako tekstu — podnosi `php artisan serve`, otwiera strony w Chromium
+  #  i pyta `getComputedStyle`, czy deklaracja cokolwiek zmienia. Potrzebuje
+  #  CZTERECH rzeczy naraz: zbudowanego arkusza, przeglądarki, PHP i ZASIANEJ
+  #  bazy (mierzy m.in. `/przepisy/rosol-babci-zofii`). `dostepnosc` je ma, ale
+  #  `continue-on-error` na jobie zjadłby tam także axe i Lighthouse, a te są
+  #  blokujące i strażnik `PortMarkiMaWlasnaBramkeCiTest` zabrania im tej flagi.
+  #  Osobny job ma flagę tylko dla siebie.
+  #
+  #  DLACZEGO NIE W `npm run build` ANI W `Dockerfile`. `build` biegnie także
+  #  w obrazie BEZ przeglądarki i bez bazy, a w tym workflow `npm run build`
+  #  stoi w jobie `assets` PRZED instalacją Chromium — strażnik padłby na
+  #  braku narzędzi, czyli na przyrządzie, a nie na CSS-ie.
+  #
+  #  ZAWĘŻENIE `--tylko` NIE JEST TU WYCISZENIEM. Repozytorium ma zmierzony
+  #  zaległy zbiór deklaracji przykrytych (D-223), o którym właściciel jeszcze
+  #  nie rozstrzygnął w całości — na całym arkuszu bramka byłaby czerwona od
+  #  pierwszego dnia. Zawężenie stoi w JEDNYM miejscu, w
+  #  `scripts/kaskada-kontrola-polecenie.sh`, razem z zakazem cofania go dla
+  #  uciszenia czerwieni; ten sam plik wywołuje kontrola ujemna. Sam skrypt
+  #  kończy się kodem 2, gdy zawężenie nie objęło ani jednej reguły
+  #  z nosicielem — literówka w nim nie może dać cichej zieleni.
+  #
+  #  SONDA GOTOWOŚCI SERWERA jest w samym strażniku (`podniesSerwer`) i ma ten
+  #  sam wzorzec co pozostałe pomiary przeglądarkowe: `--no-reload`, limit na
+  #  każde żądanie `/health`, trzy podejścia z nowym portem, zapamiętana
+  #  ostatnia odpowiedź. Goły `artisan serve` z 30 s na `/health` bywał
+  #  niestabilny (22.09.2026).
+  #
+  #  Zakres: filtr warstwy widoku w `scripts/ci/zakres.sh` obejmuje skrypty
+  #  strażnika (`kaskada-martwe-reguly.mjs`, `kaskada-kontrola-*.sh`), a CSS-y
+  #  leżą w `resources/`. Pilnuje tego `BramkaZakresuNiePomijaJobowCzytajacychTest`.
+  # ===========================================================================
+  kaskada:
+    name: Martwe reguły CSS (nie blokuje do 06.10.2026)
+    needs: zakres
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
+    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 20
+    continue-on-error: true
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kuking_kaskada
+          POSTGRES_USER: kuking
+          POSTGRES_PASSWORD: secret
+        # Port hosta dynamiczny z tego samego powodu co w jobie `test` —
+        # runnery dzielą jeden demon Dockera (komentarz przy tamtym jobie).
+        ports:
+          - 5432
+        options: >-
+          --health-cmd="pg_isready -U kuking -d kuking_kaskada"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      APP_ENV: local
+      APP_DEBUG: "false"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      # DB_HOST i DB_PORT NIE stoją tutaj celowo — patrz krok dynamicznego
+      # połączenia niżej i komentarz w jobie `test`.
+      DB_DATABASE: kuking_kaskada
+      DB_USERNAME: kuking
+      DB_PASSWORD: secret
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      FILESYSTEM_DISK: public
+      SENTRY_LARAVEL_DSN: ""
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Konfiguracja dynamicznego połączenia z PostgreSQL
+        run: |
+          echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
+          echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
+
+      - name: Środowisko PHP
+        uses: ./.github/actions/php
+        with:
+          wersja: ${{ env.PHP_VERSION }}
+
+      - name: Konfiguracja Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Instalacja zależności
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          npm ci --no-audit --no-fund
+
+      # Samo Chromium, bez `--with-deps` i z `flock` — pełne uzasadnienie przy
+      # tym samym kroku w jobie `dostepnosc` (maszyna dzielona przez runnery,
+      # PPA bez pliku Release).
+      - name: Przeglądarka
+        run: flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
+
+      # `npm run build` NIE stoi tutaj: `kaskada-kontrola-polecenie.sh` sam
+      # buduje arkusz (`npx vite build`) tuż przed pomiarem, więc drugi build
+      # tylko wydłużałby job. Manifest Vite jest po nim gotowy.
+      - name: Przygotowanie
+        run: |
+          cp .env.example .env
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
+          php artisan storage:link
+          php artisan migrate:fresh --seed --force --no-interaction
+
+      - name: Martwe reguły CSS przykryte przez późniejszą warstwę (D-223)
+        run: bash scripts/kaskada-kontrola-polecenie.sh
+
+      # Wynik zapisujemy ZAWSZE po czerwieni, żeby dało się zobaczyć, co
+      # konkretnie jest martwe, bez odtwarzania u siebie. Zapis to materiał
+      # diagnostyczny, nie bramka — wyczerpany limit artefaktów nie ma
+      # czerwienić przebiegu.
+      - name: Zapis wyniku (kaskada)
+        if: failure()
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: kaskada-${{ github.sha }}
+          path: storage/kaskada-martwe-reguly.json
+          retention-days: 14
+
+  # ===========================================================================
   #  5. Audyt bezpieczeństwa zależności
   # ===========================================================================
   #  Nie blokuje merge'a (continue-on-error), bo publikacja nowego CVE
