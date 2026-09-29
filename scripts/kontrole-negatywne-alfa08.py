@@ -1617,11 +1617,11 @@ checks = [
     # #2038: wpis dziennika dopisany PRZED nieudanym commitem wymazania musi
     # zostać wycofany — inaczej `wymaz-ponownie` wymaże konto przed końcem karencji.
     ("Wymazanie nie wycofuje wpisu dziennika po nieudanym commicie", WYMAZANIE_KONTA, DZIENNIK_WYCOFANIE_TEST,
-     lambda s: replace_once(s, "                if ($wpisDopisany) {", "                if (false) {")),
+     lambda s: replace_once(s, "                if ($stan->wpisDopisany) {", "                if (false) {")),
     # #2038: wpis, który PRZEŻYŁ odtworzenie kopii (`ISTNIEJE`), nie jest nasz —
     # nieudany commit ponownego wymazania nie wolno go skasować.
     ("Wymazanie kasuje cudzy wpis dziennika (ISTNIEJE)", WYMAZANIE_KONTA, DZIENNIK_ISTNIEJE_TEST,
-     lambda s: replace_once(s, "$wpisDopisany = $wpis === DziennikWymazan::DOPISANO;", "$wpisDopisany = true;")),
+     lambda s: replace_once(s, "$stan->wpisDopisany = $wpis === DziennikWymazan::DOPISANO;", "$stan->wpisDopisany = true;")),
     # #2038: ponawianie zapisu dziennika czeka POZA transakcją z blokadą konta.
     # Bez `proby: 1` `Sleep` wraca do środka transakcji.
     ("Zapis dziennika czeka wewnątrz transakcji z blokadą konta", WYMAZANIE_KONTA, DZIENNIK_SLEEP_TEST,
