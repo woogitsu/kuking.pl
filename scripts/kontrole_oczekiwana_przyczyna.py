@@ -67,7 +67,7 @@ OCZEKUJ = {
     'Połknięty wyjątek bez miejsca przyczyny': r"@@ @@ Array &0 \[ - 0 => 'app/Support/PhpIniRozmiar\.php:\d+', \+ 0 => null, \]",
     'Komunikat wyjątku w kontekście budowanym przez metodę pomocniczą': r'Surowe getMessage\(\) w logu \(użyj BezpiecznyBlad::kontekst\(\)\)',
     'Komunikat transportu przez BezpiecznyKomunikat w logu listu o paczce': r'does not contain "\$2y\$"|does not contain "X-Amz-Signature"|Surowe getMessage\(\) w logu \(użyj BezpiecznyBlad::kontekst\(\)\)',
-    'Komunikat bazy przez BezpiecznyKomunikat w logu śladu listu': r'does not contain "\$2y\$"|does not contain "X-Amz-Signature"|Surowe getMessage\(\) w logu \(użyj BezpiecznyBlad::kontekst\(\)\)',
+    'Komunikat bazy przez BezpiecznyKomunikat w logu śladu listu': r'does not contain "insert into"|does not contain "\$2y\$"|does not contain "X-Amz-Signature"|Surowe getMessage\(\) w logu \(użyj BezpiecznyBlad::kontekst\(\)\)',
     'Skaner logów ślepy na report()': r'Skaner nie złapał wszystkich form: Naruszenia\.php:6 Naruszenia\.php:7',
     'Kolor z niezdefiniowanej zmiennej': r'Te zmienne kolorów są użyte, ale nigdzie nie zdefiniowane',
     'Linki sąsiednich wpisów bez skali tekstu': r'contains "font-size: var\(--text-body\)"',
