@@ -82,6 +82,27 @@ class ZmianaPolitykiTest extends TestCase
         Mail::assertNothingSent();
     }
 
+    /**
+     * Regresja paczki H: wersja polityki z datą publikacji w przyszłości
+     * (kod wdrożony dzień wcześniej) dawała pasek „Zmieniliśmy” KAŻDEMU
+     * zalogowanemu, także kontu założonemu przed chwilą — pasek liczy się
+     * od dnia publikacji, nie wcześniej.
+     */
+    public function test_przed_dniem_publikacji_wersji_nikt_nie_widzi_paska(): void
+    {
+        $osoba = $this->kontoSprzedWersji();
+        $publikacja = CarbonImmutable::parse((string) config('kuking.zgody.wersja_polityki'), Czas::strefa())->startOfDay();
+
+        $this->travelTo($publikacja->subMinute());
+        $this->actingAs($osoba)->get(route('home'))->assertOk()->assertDontSee('data-pasek-zmiany-polityki', false);
+        $swieze = $this->user('konto_z_wczoraj');
+        $this->actingAs($swieze)->get(route('home'))->assertOk()->assertDontSee('data-pasek-zmiany-polityki', false);
+
+        $this->travelTo($publikacja);
+        $this->actingAs($osoba)->get(route('home'))->assertOk()->assertSee('data-pasek-zmiany-polityki', false);
+        $this->actingAs($swieze)->get(route('home'))->assertOk()->assertSee('data-pasek-zmiany-polityki', false);
+    }
+
     public function test_po_dacie_wejscia_pasek_nie_mowi_juz_o_poprzedniej(): void
     {
         $osoba = $this->kontoSprzedWersji();
