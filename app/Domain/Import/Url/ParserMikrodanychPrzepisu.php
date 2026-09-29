@@ -59,6 +59,11 @@ final class ParserMikrodanychPrzepisu
             return null;
         }
 
+        // Treść jest już UTF-8 (PobieraczStron ją przekodował). Deklaracja
+        // `<meta ... charset>` z cudzej strony bywa błędna, a libxml by jej
+        // posłuchał mimo `<?xml encoding>` i zamieniłby polskie znaki w krzaki.
+        $html = (string) preg_replace('/<meta\b[^>]*\bcharset\b[^>]*>/i', '', $html);
+
         $dokument = new DOMDocument;
         $poprzedni = libxml_use_internal_errors(true);
 

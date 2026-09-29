@@ -196,6 +196,20 @@ final class ImportMikrodaneTest extends TestCase
         $this->assertNull($parser->odczytaj('<div itemscope itemtype="https://schema.org/Recipe"><span itemprop="name"><<<'));
     }
 
+    public function test_bledna_deklaracja_meta_charset_nie_psuje_polskich_znakow(): void
+    {
+        $ciało = '<div itemscope itemtype="https://schema.org/Recipe"><h1 itemprop="name">Żurek śląski</h1>'
+            .'<span itemprop="recipeIngredient">2 łyżki zakwasu</span></div>';
+
+        foreach (['<meta charset="iso-8859-2">', '<meta http-equiv="Content-Type" content="text/html; charset=windows-1250">', ''] as $meta) {
+            $przepis = $this->parser()->odczytaj('<html><head>'.$meta.'</head><body>'.$ciało.'</body></html>');
+
+            $this->assertNotNull($przepis);
+            $this->assertSame('Żurek śląski', $przepis->tytul);
+            $this->assertSame(['2 łyżki zakwasu'], $przepis->skladniki);
+        }
+    }
+
     public function test_zle_utf8_daje_null_a_nie_wyjatek(): void
     {
         $html = $this->strona('<div itemscope itemtype="https://schema.org/Recipe"><span itemprop="name">Sernik</span><span itemprop="recipeIngredient">twar'."\xC3\x28".'g</span></div>');
