@@ -5,8 +5,6 @@ Audyt tylko do odczytu: bez zmian w kodzie aplikacji, bez połączeń z produkcj
 Punkt odniesienia: `docs/audyt/2026-09-25-A5-bezpieczenstwo.md` (A5-xx)
 i `docs/AUDYT_BEZPIECZENSTWA_2026-09-15.md` (A-xx … E-xx).
 
-**Praca w toku — plik uzupełniany przyrostowo.**
-
 Duplikaty sprawdzone na liście wszystkich 2233 issues i PR-ów pobranej przez
 `GET /repos/woogitsu/kuking.pl/issues?state=all` (wyszukiwarka `search/issues`
 jest z tej sesji zablokowana: „sessions are bound to their configured
@@ -14,7 +12,21 @@ repositories”), a także w `docs/audyt*` i `docs/audits/*`.
 
 ## Podsumowanie
 
-(uzupełniane)
+Pięć znalezisk, w tym żadnego P0 ani P1: **P2 — 4, P3 — 1**. Nie ma IDOR-u,
+obejścia Policy, masowego przypisania pola sterującego, SSRF ani sekretu
+w repozytorium. Strażnicy `KazdaTrasaZIdentyfikatoremPodPolicyTest`
+i `WrazliweKolumnyPozaMasowymPrzypisaniemTest` przechodzą (16 testów,
+1527 asercji). Znaleziska dotyczą nowych albo pobocznych dróg:
+
+- kreatora Livewire, który omija limit formularza;
+- API, które ma zakresy tokenów, ale ich nie sprawdza (#2232);
+- publicznej historii wersji przepisu;
+- formularza odwołania gościa;
+- jednego listu DSA, w którym wrócił wzorzec z #1636.
+
+Z A5 (25.09) naprawione są m.in. A5-01, 02, 03, 05, 07, 08, 09, 10, 11,
+16, 17 i 18. A5-15 nigdy nie trafiło do issue i wraca tu jako S-01.
+A-02 (część o Turnstile) i B-04 z 15.09 też nie mają issue; wracają jako S-04.
 
 ## Znaleziska
 
@@ -33,4 +45,88 @@ uruchomieniu, treść kroków niżej), **R** — `php artisan route:list`,
 
 ## Sprawdzone i w porządku
 
-(uzupełniane)
+- **Autoryzacja tras.** Strażnik tras z identyfikatorem obejmuje wszystkie
+  nowe trasy V2, każdą dla pięciu ról:
+  - historia wersji;
+  - tryb gotowania i jego synchronizacja;
+  - planer, „Co mam w domu”;
+  - zeszyt wspólny z zaproszeniami i linkiem;
+  - import `/import/{import}`;
+  - wczytanie paczki;
+  - wszystkie trasy `api/v1/*`.
+
+  Policy uwzględniają blokadę, zbanowanego autora i moderatora
+  (`RecipePolicy`, `CollectionPolicy`, `UserPolicy::viewProfile`). Wyniki
+  wyszukiwarki w planerze i „Co ugotuję” idą przez `can('view')`
+  i `widoczneDla()`.
+- **Masowe przypisanie.** `User::createToken()` zapisuje skrót tokenu
+  przez `forceFill`. „Moja wersja” (`ZrobWlasnaWersje`) kopiuje kolumny
+  pochodzenia przez `forceFill` i nie przenosi zdjęć (`media_id => null`).
+- **SSRF w imporcie z adresu** (`app/Domain/Import/Url/StraznikAdresow.php`,
+  `KlientPrzypiety.php`, `PobieraczStron.php`):
+  - biała lista schematów i portów, bez `user:hasło@`;
+  - pełna lista zakresów prywatnych i zarezerwowanych, IPv4 z zapisów
+    `inet_aton` i IPv6;
+  - strefy `.internal` i `.local`, więc także `railway.internal`;
+  - każdy adres z DNS musi być publiczny, a połączenie jest przypięte
+    przez `CURLOPT_RESOLVE` z `CURLOPT_PREREQFUNCTION`, bez proxy;
+  - każde przekierowanie i `robots.txt` przez strażnika od nowa;
+  - limit bajtów liczony w trakcie pobierania i `Accept-Encoding: identity`.
+- **SSRF w Web Push.** `KanalPush::hostDozwolony()` przyjmuje tylko
+  `https`, port 443 i hosty z białej listy usług push.
+- **PDF i paczka ZIP.**
+  - Poppler z limitem czasu i limitem stron (`TekstZPdf`, `OdczytajSkanPdf`).
+  - ZIP z paczki: limit plików, odrzucanie `..`, ścieżek bezwzględnych
+    i ukośnika wstecznego, limit rozmiaru `dane.json` przed odczytem
+    i głębokości JSON. Plik leży pod tokenem UUID w katalogu właściciela.
+- **XSS.** `{!! !!}` występuje tylko przy:
+  - kształtach ikon ze stałej tablicy;
+  - JSON-LD przez `JsonLd::encode` z flagami `JSON_HEX_*`;
+  - dokumentach prawnych i „Co nowego” z plików w repo;
+  - kodzie QR 2FA.
+
+  Linki w treści użytkownika (`LinkiWTekscie`) budowane są z `e()` i białej
+  listy schematów. Pozostałe listy z tekstem od zgłaszającego używają
+  `AdresZgloszenia::doListu` (wyjątek: S-05).
+- **Nagłówki i CSP.**
+  - Nonce, `object-src 'none'`, `base-uri` i `form-action 'self'`;
+    `no-referrer` na trasach z sekretem w adresie.
+  - Caddy nie nadpisuje już `Referrer-Policy` (`?Referrer-Policy`)
+    i ma `request_body max_size`.
+  - Wyjątki CSRF są tylko trzy: `_csp`, wypisanie RFC 8058 z podpisem,
+    `odebranie-dostepu` z HMAC i `hash_equals`.
+- **Limity.** Każda trasa POST/PUT/PATCH/DELETE ma `ThrottleRequests`,
+  z wyjątkiem `logout`, `DELETE api/v1/tokeny/biezacy` (ma limiter grupy
+  `api`) i `livewire-*/update` (S-01).
+- **Sesje i logowanie.**
+  - `invalidateSessions()` rotuje `remember_token`, podbija generację
+    sesji, kasuje link logowania i tokeny API.
+  - Logowanie linkiem i Google przechodzi przez 2FA.
+  - Google: `state`, `nonce` i PKCE, `email_verified` wymagane, adres
+    znormalizowany; połączenie tylko z kontem o potwierdzonym adresie.
+  - Zmiana e-maila wymaga obecnego hasła.
+  - Reset hasła ma jednakową odpowiedź i budżet poczty. Czasowe
+    rozróżnienie istnienia konta przy logowaniu (brak hasha-atrapy,
+    A-04) zostaje bez znaczenia, bo rejestracja mówi to wprost.
+- **Logi.**
+  - `FiltrDanychOsobowych` na kanałach `stderr` i `stack` (A5-02
+    naprawione).
+  - Logi importu, tokenu krawędzi i Turnstile bez adresów, IP i treści.
+- **Sekrety.**
+  - `git grep` wzorców kluczy (OpenAI, AWS, GitHub, Google, prywatne PEM,
+    webhooki Discorda, Turnstile) trafia tylko w dokumentację i testy.
+  - `.env.example` ma puste `APP_KEY`.
+  - `VAPID_PRIVATE_KEY` trafia tylko do workera (`.railway/railway.ts:884-886`).
+- **Udostępnianie i zeszyty.** `Udostepnianie::wolnoWyslac` pyta Policy
+  dla gościa. Zaproszenie do zeszytu idzie po nazwie konta, bez listu
+  na dowolny adres.
+
+## Metoda i ograniczenia
+
+- Przejrzany kod i trasy na BAZIE, w tym zmiany od 28.09, czyli nowe
+  funkcje V2 i paczkę H.
+- Tymczasowy test `tests/Feature/AudytTymczasowyBezpieczenstwoTest.php`
+  potwierdził S-01…S-05 (6 przypadków, wszystkie zgodne z opisem).
+  Po uruchomieniu został usunięty.
+- Nie uruchamiano Caddy, R2 ani przeglądarki. Znaleziska nie zależą od
+  środowiska.
