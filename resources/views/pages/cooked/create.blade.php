@@ -1,5 +1,6 @@
-<x-layout title="Ugotowałem" :noindex="true">
-    <h1>Ugotowałem: {{ $recipe->title }}</h1>
+@php $napis = \App\Support\Forma::dla(auth()->user(), 'Ugotowałam', 'Ugotowałem', 'Ugotowałem'); @endphp
+<x-layout title="{{ $napis }}" :noindex="true">
+    <h1>{{ $napis }}: {{ $recipe->title }}</h1>
     <p class="mb-5">
         @if($recipe->author_id !== auth()->id() && $recipe->author->mozeCzytac())
             {{ $recipe->author->displayName() }} dowie się, że ktoś ugotował z tego przepisu.

@@ -40,7 +40,10 @@ dopóki ktoś nie wybierze inaczej — możecie też pominąć to pytanie i nic 
 zmieni. Nie zgadujemy niczego z imienia ani z konta Google czy Facebooka.
 Wybraną formę zobaczą też inni, bo tak będziemy o Was pisać, na przykład
 „Ania ugotowała Twój przepis”. Przy formie żeńskiej przycisk na końcu gotowania
-nazywa się „Ugotowałam”. Na razie zmienia to tylko kilka miejsc w serwisie,
+nazywa się „Ugotowałam”. Ta sama forma pojawia się teraz także na przycisku „Ugotowałem” pod
+przepisem i na kartach wpisów, w powitaniu w powiadomieniach i w powiadomieniu
+o tym, że ktoś ugotował z Waszego przepisu. Bez wyboru wszędzie zostaje tekst
+bez rodzaju. Na razie zmienia to tylko część miejsc w serwisie,
 kolejne dołączymy po kolei. Wybór zmienicie w każdej chwili, a kiedy usuniecie
 konto, zniknie razem z nim.
 
