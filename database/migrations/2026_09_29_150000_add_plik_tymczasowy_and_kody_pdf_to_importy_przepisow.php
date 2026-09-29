@@ -39,6 +39,12 @@ use Illuminate\Support\Facades\Schema;
  */
 return new class extends Migration
 {
+    // AGENTS.md §6: indeks współbieżnie (CONCURRENTLY nie wchodzi w transakcję),
+    // a CHECK przez `NOT VALID` i osobne `VALIDATE CONSTRAINT`.
+    public $withinTransaction = false;
+
+    private const INDEKS = 'importy_przepisow_plik_idx';
+
     private const STARE = [
         'limit_osoby', 'budzet_dzienny', 'budzet_miesieczny', 'brak_zgody', 'wylaczony', 'model_niedostepny',
         'nieczytelne', 'odpowiedz_bledna', 'zdjecie_niedostepne', 'szkic_zmieniony', 'blad_wewnetrzny',
@@ -53,18 +59,34 @@ return new class extends Migration
 
     public function up(): void
     {
-        Schema::table('importy_przepisow', function (Blueprint $table): void {
-            // Ścieżka pliku na dysku importu; `text`, bo zależy od katalogu z konfiguracji.
-            $table->text('plik_tymczasowy')->nullable();
-        });
+        if (! Schema::hasColumn('importy_przepisow', 'plik_tymczasowy')) {
+            Schema::table('importy_przepisow', function (Blueprint $table): void {
+                // Ścieżka pliku na dysku importu; `text`, bo zależy od katalogu z konfiguracji.
+                $table->text('plik_tymczasowy')->nullable();
+            });
+        }
 
         if (Schema::getConnection()->getDriverName() !== 'pgsql') {
             return;
         }
 
-        DB::statement("ALTER TABLE importy_przepisow ADD CONSTRAINT importy_przepisow_plik_check CHECK (plik_tymczasowy IS NULL OR zrodlo = 'pdf')");
+        DB::statement('ALTER TABLE importy_przepisow DROP CONSTRAINT IF EXISTS importy_przepisow_plik_check');
+        DB::statement("ALTER TABLE importy_przepisow ADD CONSTRAINT importy_przepisow_plik_check CHECK (plik_tymczasowy IS NULL OR zrodlo = 'pdf') NOT VALID");
+        DB::statement('ALTER TABLE importy_przepisow VALIDATE CONSTRAINT importy_przepisow_plik_check');
+
         // Sprzątanie pyta tylko o wiersze z plikiem — reszta tabeli go nie ma.
-        DB::statement('CREATE INDEX importy_przepisow_plik_idx ON importy_przepisow (updated_at) WHERE plik_tymczasowy IS NOT NULL');
+        // Przerwane CREATE INDEX CONCURRENTLY zostawia indeks INVALID, który
+        // `IF NOT EXISTS` uznałby za gotowy — usuwamy go przed budową.
+        $wspolbieznie = DB::transactionLevel() === 0 ? 'CONCURRENTLY ' : '';
+
+        if ($this->jestNiedokonczony()) {
+            DB::statement('DROP INDEX '.$wspolbieznie.'IF EXISTS '.self::INDEKS);
+        }
+
+        DB::statement(
+            'CREATE INDEX '.$wspolbieznie.'IF NOT EXISTS '.self::INDEKS
+            .' ON importy_przepisow (updated_at) WHERE plik_tymczasowy IS NOT NULL',
+        );
 
         $this->ustawListe([...self::STARE, ...self::PDF]);
     }
@@ -76,7 +98,9 @@ return new class extends Migration
         }
 
         if (Schema::getConnection()->getDriverName() === 'pgsql') {
-            DB::statement('DROP INDEX IF EXISTS importy_przepisow_plik_idx');
+            $wspolbieznie = DB::transactionLevel() === 0 ? 'CONCURRENTLY ' : '';
+
+            DB::statement('DROP INDEX '.$wspolbieznie.'IF EXISTS '.self::INDEKS);
             DB::statement('ALTER TABLE importy_przepisow DROP CONSTRAINT IF EXISTS importy_przepisow_plik_check');
 
             DB::table('importy_przepisow')->whereIn('kod_bledu', self::PDF)->update(['kod_bledu' => 'blad_wewnetrzny']);
@@ -99,7 +123,18 @@ return new class extends Migration
         DB::statement('ALTER TABLE importy_przepisow DROP CONSTRAINT IF EXISTS importy_przepisow_kod_bledu_check');
         DB::statement(
             'ALTER TABLE importy_przepisow ADD CONSTRAINT importy_przepisow_kod_bledu_check '
-            .'CHECK (kod_bledu IS NULL OR kod_bledu IN ('.$lista.'))',
+            .'CHECK (kod_bledu IS NULL OR kod_bledu IN ('.$lista.')) NOT VALID',
         );
+        DB::statement('ALTER TABLE importy_przepisow VALIDATE CONSTRAINT importy_przepisow_kod_bledu_check');
+    }
+
+    /** Indeks po przerwanym CREATE INDEX CONCURRENTLY jest w katalogu, ale nieprawidłowy. */
+    private function jestNiedokonczony(): bool
+    {
+        return DB::selectOne(
+            'SELECT 1 AS jest FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid '
+            .'WHERE c.relname = ? AND NOT i.indisvalid',
+            [self::INDEKS],
+        ) !== null;
     }
 };
