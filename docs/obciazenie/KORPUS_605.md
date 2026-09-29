@@ -4,7 +4,12 @@ Generator i rampa są istniejącymi narzędziami `scripts/*obciazenia-605*`.
 Opcja `--korpus <bezwzględna ścieżka do korpus.json>` rozszerza scenariusz
 `upload`: kolejne wgrania przechodzą po wszystkich pozycjach, niezależnie
 od wyboru pozostałych scenariuszy. Nie zastępuje mieszanki testem samych zdjęć.
-Rampa i pojedyncza seria przekazują tę opcję przez `KORPUS_ZDJEC`.
+Rampa i pojedyncza seria przekazują tę opcję przez `KORPUS_ZDJEC`. Od 29.09.2026
+rampa (`rampa-obciazenia-605.sh`) **odmawia startu bez `KORPUS_ZDJEC`** (albo
+jawnego `ZDJECIA_SYNTETYCZNE=tak`), a korpus dla pełnego pomiaru z #605 powinien
+zawierać fotografie o **wszystkich trzech rozmiarach: ok. 12, 24 i 48 Mpx**
+(pomiar z 20.09.2026 miał 12,2–48,8 Mpx z pięciu zdjęć, ale nie były to zdjęcia
+potraw). Zasady odczytu wyniku i kryterium nasycenia: `METODA.md` §8.
 
 ```json
 [

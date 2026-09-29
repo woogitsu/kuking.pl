@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 /**
  * Kolumny tabeli pośredniej `collection_items` — są tylko wtedy, gdy przepis
@@ -384,6 +385,25 @@ class Recipe extends Model
     public function isPublished(): bool
     {
         return $this->status === self::STATUS_PUBLISHED && $this->published_at !== null;
+    }
+
+    /**
+     * Data ostatniej zmiany TREŚCI przepisu albo `null`, gdy jej nie znamy (#1280).
+     *
+     * Jedno źródło dla `dateModified` w JSON-LD i `lastmod` w mapie strony,
+     * żeby obie daty nie rozjechały się. `NULL` (przepis sprzed kolumny) i data
+     * sprzed publikacji to „nie wiemy" — wtedy lepiej nie podawać nic niż
+     * zgadywać (`updated_at` przesuwa też moderacja i zapis bez zmian).
+     */
+    public function dataZmianyTresci(): ?Carbon
+    {
+        if ($this->published_at === null || $this->tresc_zmieniona_at === null) {
+            return null;
+        }
+
+        return $this->tresc_zmieniona_at->greaterThanOrEqualTo($this->published_at)
+            ? $this->tresc_zmieniona_at
+            : null;
     }
 
     /**

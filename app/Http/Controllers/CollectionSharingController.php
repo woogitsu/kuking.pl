@@ -11,6 +11,7 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Collection;
 use App\Models\CollectionInvitation;
 use App\Models\User;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -71,7 +72,7 @@ class CollectionSharingController extends Controller
         $kto = $zaproszenie->invitee?->displayName() ?? 'Ta osoba';
 
         return redirect()->route('collections.sharing', $collection)
-            ->with('status', "Zaproszenie wysłane. {$kto} zobaczy je w powiadomieniach i na stronie „Moje”.");
+            ->with(Komunikat::sukces("Zaproszenie wysłane. {$kto} zobaczy je w powiadomieniach i na stronie „Moje”."));
     }
 
     public function createLink(Request $request, Collection $collection, ZaprosDoZeszytu $akcja): RedirectResponse
@@ -88,7 +89,7 @@ class CollectionSharingController extends Controller
         // jego skrót. Sesja trzyma go do następnego wyświetlenia strony.
         return redirect()->route('collections.sharing', $collection)
             ->with('link_zaproszenia', route('collections.link.show', $token))
-            ->with('status', 'Link-zaproszenie jest gotowy. Skopiuj go i wyślij jednej osobie.');
+            ->with(Komunikat::sukces('Link-zaproszenie jest gotowy. Skopiuj go i wyślij jednej osobie.'));
     }
 
     public function revoke(Request $request, Collection $collection, CollectionInvitation $invitation, DostepDoZeszytu $akcja): RedirectResponse
@@ -104,9 +105,9 @@ class CollectionSharingController extends Controller
         }
 
         return redirect()->route('collections.sharing', $collection)
-            ->with('status', $invitation->jestLinkiem()
+            ->with(Komunikat::sukces($invitation->jestLinkiem()
                 ? 'Link odwołany. Nikt już z niego nie dołączy.'
-                : 'Zaproszenie odwołane.');
+                : 'Zaproszenie odwołane.'));
     }
 
     public function removeMember(Request $request, Collection $collection, string $member, DostepDoZeszytu $akcja): RedirectResponse
@@ -127,7 +128,7 @@ class CollectionSharingController extends Controller
         }
 
         return redirect()->route('collections.sharing', $collection)
-            ->with('status', "Dostęp odebrany. {$czlonek->displayName()} nie widzi już tego zeszytu. To, co dodała ta osoba, zostaje w zeszycie.");
+            ->with(Komunikat::sukces("Dostęp odebrany. {$czlonek->displayName()} nie widzi już tego zeszytu. To, co dodała ta osoba, zostaje w zeszycie."));
     }
 
     public function leave(Request $request, Collection $collection, DostepDoZeszytu $akcja): RedirectResponse
@@ -137,7 +138,7 @@ class CollectionSharingController extends Controller
         $akcja->odejdz($request->user(), $collection);
 
         return redirect()->route('collections.index')
-            ->with('status', "Nie masz już dostępu do zeszytu „{$collection->name}”. Wszystko, co w nim zapisano, zostaje u właściciela.");
+            ->with(Komunikat::sukces("Nie masz już dostępu do zeszytu „{$collection->name}”. Wszystko, co w nim zapisano, zostaje u właściciela."));
     }
 
     /** Zaproszenie po nazwie konta — widzi je tylko adresat. */
@@ -211,7 +212,7 @@ class CollectionSharingController extends Controller
         }
 
         return redirect()->route('collections.show', $zeszyt)
-            ->with('status', "Masz dostęp do zeszytu „{$zeszyt->name}”. Możesz w nim zapisywać przepisy i wpisy.");
+            ->with(Komunikat::sukces("Masz dostęp do zeszytu „{$zeszyt->name}”. Możesz w nim zapisywać przepisy i wpisy."));
     }
 
     private function odrzuc(User $user, CollectionInvitation $zaproszenie, OdpowiedzNaZaproszenie $akcja): RedirectResponse
@@ -222,7 +223,7 @@ class CollectionSharingController extends Controller
             return redirect()->route('collections.index')->withErrors(['zaproszenie' => $e->getMessage()]);
         }
 
-        return redirect()->route('collections.index')->with('status', 'Zaproszenie odrzucone. Nikt nie dostanie o tym powiadomienia.');
+        return redirect()->route('collections.index')->with(Komunikat::sukces('Zaproszenie odrzucone. Nikt nie dostanie o tym powiadomienia.'));
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Post;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -32,9 +33,7 @@ class WspomnienieController extends Controller
 
         $post->forceFill(['hide_as_memory' => true])->save();
 
-        return back()->with(
-            'status',
-            'Nie pokażemy Ci już tego wspomnienia. Wpis zostaje w Twoim archiwum — nic nie zniknęło.',
-        );
+        return back()->with(Komunikat::sukces('Nie pokażemy Ci już tego wspomnienia. Wpis zostaje w Twoim archiwum — nic nie zniknęło.',
+        ));
     }
 }

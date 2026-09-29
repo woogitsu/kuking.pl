@@ -8,6 +8,7 @@ use App\Domain\Users\Actions\CancelEmailChange;
 use App\Domain\Users\Actions\UstawNoweHaslo;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -83,12 +84,11 @@ class SecuritySettingsController extends Controller
         // koncie. `true` kasuje stary wiersz z tabeli sesji.
         $request->session()->regenerate(true);
 
-        return back()->with('status',
-            'Hasło zmienione. Wylogowaliśmy wszystkie inne urządzenia zalogowane na to konto — ten komputer/telefon zostaje zalogowany.'
+        return back()->with(Komunikat::sukces('Hasło zmienione. Wylogowaliśmy wszystkie inne urządzenia zalogowane na to konto — ten komputer/telefon zostaje zalogowany.'
             .($anulowanaZmianaAdresu
                 ? ' Anulowaliśmy też zamówioną zmianę adresu e-mail — odnośnik z tamtego listu już nie działa.'
                 : ''),
-        );
+        ));
     }
 
     public function logoutOtherSessions(Request $request): RedirectResponse
@@ -112,8 +112,7 @@ class SecuritySettingsController extends Controller
 
         AuditLogEntry::record('account.sessions_logged_out_others', $user, $user, ip: $request->ip());
 
-        return back()->with('status',
-            'Gotowe. Wylogowaliśmy wszystkie inne urządzenia zalogowane na to konto. Ten komputer/telefon zostaje zalogowany.',
-        );
+        return back()->with(Komunikat::sukces('Gotowe. Wylogowaliśmy wszystkie inne urządzenia zalogowane na to konto. Ten komputer/telefon zostaje zalogowany.',
+        ));
     }
 }

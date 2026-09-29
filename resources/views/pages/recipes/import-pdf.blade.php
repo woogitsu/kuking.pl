@@ -34,9 +34,7 @@
             <span class="field-help" id="f-plik-help">Po wybraniu pliku kliknij „Zapisz jako szkic”.</span>
             @error('plik')<span class="field-error" id="f-plik-error">{{ $message }}</span>@enderror
         </div>
-        <label class="field"><input type="checkbox" name="zgoda_ai" value="1" @checked(old('zgoda_ai'))>
-            Zgadzam się na odczyt skanowanych stron przez OpenAI. Ta zgoda dotyczy tylko tego wysłania.
-        </label>
+        <x-zgoda-zrodlo-ai zrodlo="pdf" />
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Zapisz jako szkic</button>

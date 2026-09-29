@@ -13,7 +13,9 @@ use App\Domain\Import\Url\TekstStrony;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportPhotoPlan;
+use App\Domain\Zgody\InformacjaTekstuZrodlaAi;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Models\ImportPrzepisu;
 use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
 use App\Models\User;
@@ -22,6 +24,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Tests\Support\MalyPdf;
@@ -146,7 +149,7 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         ]);
 
         $this->actingAs($autor)->post(route('recipes.import.url.store'), [
-            'adres' => 'https://przepisy.example.pl/blog', 'zgoda_ai' => '1',
+            'adres' => 'https://przepisy.example.pl/blog', 'zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA,
         ])->assertRedirect();
 
         $recipe = Recipe::query()->where('author_id', $autor->getKey())->firstOrFail();
@@ -167,8 +170,14 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         $this->udawajStrone();
 
         $this->actingAs($autor)->post(route('recipes.import.url.store'), [
-            'adres' => 'https://przepisy.example.pl/blog', 'zgoda_ai' => '1',
-        ])->assertSessionHasErrors(['adres' => ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BUDZET_AI]]);
+            'adres' => 'https://przepisy.example.pl/blog', 'zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA,
+        ])->assertRedirect();
+
+        $zlecenie = ImportPrzepisu::query()->where('user_id', $autor->getKey())->firstOrFail();
+        $this->assertSame(ImportPrzepisu::STATUS_NIEUDANY, $zlecenie->status);
+        $this->assertSame(ImportPrzepisu::KOD_BUDZET_DZIENNY, $zlecenie->kod_bledu);
+        $this->actingAs($autor)->get(route('import.show', $zlecenie))
+            ->assertOk()->assertSee(ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BUDZET_AI]);
 
         Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com'));
         $this->assertSame(0, Recipe::query()->where('author_id', $autor->getKey())->count());
@@ -186,7 +195,7 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
                 ['do' => 1, 'etykieta' => 'tytul'], ['do' => 2, 'etykieta' => 'krok'],
             ]])),
         ]);
-        $dane = ['adres' => 'https://przepisy.example.pl/blog', 'zgoda_ai' => '1', 'klucz_wyslania' => (string) Str::uuid()];
+        $dane = ['adres' => 'https://przepisy.example.pl/blog', 'zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA, 'klucz_wyslania' => (string) Str::uuid()];
 
         $this->actingAs($autor)->post(route('recipes.import.url.store'), $dane)->assertRedirect();
         $this->actingAs($autor)->post(route('recipes.import.url.store'), $dane)->assertRedirect();
@@ -209,8 +218,16 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
             ->post(route('recipes.import.url.store'), ['adres' => 'https://przepisy.example.pl/sernik?utm_source=facebook']);
 
         $recipe = Recipe::query()->where('author_id', $autor->getKey())->firstOrFail();
+        $zlecenie = ImportPrzepisu::query()->where('user_id', $autor->getKey())->firstOrFail();
 
-        $odpowiedz->assertRedirect(route('recipes.create', ['szkic' => $recipe->getKey()]));
+        // POST tylko zleca — człowiek ląduje na ekranie postępu, a szkic czeka pod przyciskiem.
+        $odpowiedz->assertRedirect(route('import.show', $zlecenie));
+        $this->assertSame(ImportPrzepisu::STATUS_GOTOWY, $zlecenie->status);
+        $this->assertSame($recipe->getKey(), $zlecenie->recipe_id);
+        $this->assertNull($zlecenie->source_url, 'Adres nie zostaje w zleceniu po zakończeniu.');
+        $this->actingAs($autor)->get(route('import.show', $zlecenie))
+            ->assertOk()
+            ->assertSee(route('recipes.create', ['szkic' => $recipe->getKey()]), false);
         $this->assertSame(Recipe::STATUS_DRAFT, $recipe->status);
         $this->assertNull($recipe->published_at);
         $this->assertSame('private', $recipe->visibility);
@@ -239,7 +256,12 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
 
         $this->actingAs($autor)
             ->post(route('recipes.import.url.store'), ['adres' => 'https://przepisy.example.pl/sernik'])
-            ->assertSessionHas('status', ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::ROBOTS_ZABRANIA]);
+            ->assertRedirect();
+
+        $zlecenie = ImportPrzepisu::query()->where('user_id', $autor->getKey())->firstOrFail();
+        $this->assertSame(ImportPrzepisu::STATUS_GOTOWY, $zlecenie->status);
+        $this->actingAs($autor)->get(route('import.show', $zlecenie))
+            ->assertOk()->assertSee('Adres zapisaliśmy w szkicu jako źródło');
 
         $recipe = Recipe::query()->where('author_id', $autor->getKey())->firstOrFail();
         $this->assertSame('https://przepisy.example.pl/sernik', $recipe->source_url);
@@ -255,25 +277,53 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
 
         $this->actingAs($autor)
             ->post(route('recipes.import.url.store'), ['adres' => 'https://przepisy.example.pl/blog'])
-            ->assertSessionHas('status', ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BRAK_PRZEPISU]);
+            ->assertRedirect();
+
+        $zlecenie = ImportPrzepisu::query()->where('user_id', $autor->getKey())->firstOrFail();
+        $this->assertSame(ImportPrzepisu::STATUS_GOTOWY, $zlecenie->status);
+        $this->assertSame('bez_tresci', $zlecenie->drogaOdczytu());
 
         Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com'));
     }
 
-    public function test_adres_prywatny_jest_odrzucony_bez_szkicu_a_wpisany_adres_zostaje(): void
+    public function test_adres_prywatny_podany_wprost_jest_odrzucony_od_razu_bez_zlecenia_a_wpisany_adres_zostaje(): void
     {
         $autor = $this->user();
         Http::fake();
+        Queue::fake();
 
-        foreach (['http://127.0.0.1/', 'http://10.0.0.8/admin', 'http://169.254.169.254/latest/meta-data/', 'http://[::1]/', 'https://wewnetrzny.example.pl/'] as $adres) {
+        foreach (['http://127.0.0.1/', 'http://10.0.0.8/admin', 'http://169.254.169.254/latest/meta-data/', 'http://[::1]/'] as $adres) {
             $this->actingAs($autor)
                 ->from(route('recipes.import.url'))
                 ->post(route('recipes.import.url.store'), ['adres' => $adres])
                 ->assertRedirect(route('recipes.import.url'))
                 ->assertSessionHasErrors(['adres' => ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::ADRES_NIEPUBLICZNY]])
                 ->assertSessionHasInput('adres', $adres);
-
         }
+
+        $this->assertSame(0, Recipe::query()->count());
+        $this->assertSame(0, ImportPrzepisu::query()->count(), 'Odrzucony od razu adres nie zajmuje miejsca w limicie.');
+        $this->assertSame(0, DB::table('proby_importu')->count());
+        Queue::assertNothingPushed();
+        Http::assertNothingSent();
+    }
+
+    public function test_nazwa_rozwiazujaca_sie_na_adres_prywatny_jest_odrzucona_w_zadaniu_bez_szkicu(): void
+    {
+        $autor = $this->user();
+        Http::fake();
+
+        $this->actingAs($autor)
+            ->post(route('recipes.import.url.store'), ['adres' => 'https://wewnetrzny.example.pl/'])
+            ->assertRedirect();
+
+        $zlecenie = ImportPrzepisu::query()->where('user_id', $autor->getKey())->firstOrFail();
+        $this->assertSame(ImportPrzepisu::STATUS_NIEUDANY, $zlecenie->status);
+        $this->assertSame('adres_niepubliczny', $zlecenie->kod_bledu);
+        $this->assertNull($zlecenie->source_url);
+        $this->actingAs($autor)->get(route('import.show', $zlecenie))
+            ->assertOk()->assertSee(ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::ADRES_NIEPUBLICZNY])
+            ->assertSee(route('recipes.import.url'), false);
 
         $this->assertSame(0, Recipe::query()->count());
         Http::assertNothingSent();
@@ -289,8 +339,11 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
 
         $this->actingAs($autor)
             ->post(route('recipes.import.url.store'), ['adres' => 'https://przepisy.example.pl/sernik'])
-            ->assertSessionHasErrors(['adres' => ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::ADRES_NIEPUBLICZNY]]);
+            ->assertRedirect();
 
+        $zlecenie = ImportPrzepisu::query()->where('user_id', $autor->getKey())->firstOrFail();
+        $this->assertSame(ImportPrzepisu::STATUS_NIEUDANY, $zlecenie->status);
+        $this->assertSame('adres_niepubliczny', $zlecenie->kod_bledu);
         $this->assertSame(0, Recipe::query()->count());
         Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), '10.0.0.1'));
     }
@@ -562,7 +615,7 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         ]))]);
         $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
 
-        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf, 'zgoda_ai' => '1'])->assertRedirect();
+        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf, 'zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA])->assertRedirect();
 
         $recipe = Recipe::query()->where('author_id', $autor->getKey())->firstOrFail();
         $this->assertSame('private', $recipe->visibility);
@@ -582,7 +635,7 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         Http::fake();
         $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
 
-        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf, 'zgoda_ai' => '1'])
+        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf, 'zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA])
             ->assertSessionHasErrors(['plik' => ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BUDZET_AI]]);
 
         $this->assertSame(0, Recipe::query()->count());
@@ -602,7 +655,7 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         for ($i = 0; $i < 2; $i++) {
             $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
             $this->actingAs($autor)->post(route('recipes.import.pdf.store'), [
-                'plik' => $pdf, 'zgoda_ai' => '1', 'klucz_wyslania' => $klucz,
+                'plik' => $pdf, 'zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA, 'klucz_wyslania' => $klucz,
             ])->assertRedirect();
         }
 

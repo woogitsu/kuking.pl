@@ -14,6 +14,7 @@ use App\Models\Post;
 use App\Models\Profile;
 use App\Models\User;
 use App\Support\Czas;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -53,7 +54,7 @@ class UkryciaController extends Controller
         // znika z rotacji Odkrywania, starsze wpisy autora przesuwają się
         // o rundę wcześniej i jeden z nich wypadłby przed stary kursor.
         return redirect()->to($this->bezKursora((string) url()->previous()))
-            ->with('status', 'Ukryliśmy ten wpis tylko dla Ciebie '.$this->doKiedy($ukrycie).'. Inni widzą go jak dotąd.')
+            ->with(Komunikat::sukces('Ukryliśmy ten wpis tylko dla Ciebie '.$this->doKiedy($ukrycie).'. Inni widzą go jak dotąd.'))
             ->with('status_powrot', [
                 'akcja' => route('posts.unhide', $post),
                 'etykieta' => 'Cofnij',
@@ -69,7 +70,7 @@ class UkryciaController extends Controller
         $this->authorize('view', $post);
         $this->zmien->cofnijWpis($request->user(), $post);
 
-        return back()->with('status', 'Ten wpis znów widzisz.');
+        return back()->with(Komunikat::sukces('Ten wpis znów widzisz.'));
     }
 
     /**
@@ -110,7 +111,7 @@ class UkryciaController extends Controller
         }
 
         return redirect()->to($this->bezKursora($this->bezpiecznyPowrot((string) $request->input('wroc'))))
-            ->with('status', 'Ukryliśmy tę osobę tylko dla Ciebie '.$this->doKiedy($ukrycie).'. Nie powiadamiamy jej o tym.')
+            ->with(Komunikat::sukces('Ukryliśmy tę osobę tylko dla Ciebie '.$this->doKiedy($ukrycie).'. Nie powiadamiamy jej o tym.'))
             ->with('status_powrot', [
                 'akcja' => route('social.unhide', $osoba->profile->username),
                 'etykieta' => 'Cofnij',
@@ -128,7 +129,7 @@ class UkryciaController extends Controller
 
         $this->zmien->cofnijOsobe($request->user(), $osoba);
 
-        return back()->with('status', 'Wpisy tej osoby znów widzisz.');
+        return back()->with(Komunikat::sukces('Wpisy tej osoby znów widzisz.'));
     }
 
     /** Ustawienia → „Ukryte": osobno wpisy i osoby, data końca, dwie akcje. */
@@ -162,7 +163,7 @@ class UkryciaController extends Controller
         $this->authorize('update', $hide);
         $this->zmien->zostawNaStale($hide);
 
-        return back()->with('status', 'Zostaje ukryte tylko dla Ciebie, dopóki tego nie zmienisz.');
+        return back()->with(Komunikat::sukces('Zostaje ukryte tylko dla Ciebie, dopóki tego nie zmienisz.'));
     }
 
     public function przywroc(Request $request, Hide $hide): RedirectResponse
@@ -170,7 +171,7 @@ class UkryciaController extends Controller
         $this->authorize('delete', $hide);
         $this->zmien->przywroc($hide);
 
-        return back()->with('status', 'Przywrócone. Znów to zobaczysz.');
+        return back()->with(Komunikat::sukces('Przywrócone. Znów to zobaczysz.'));
     }
 
     /**

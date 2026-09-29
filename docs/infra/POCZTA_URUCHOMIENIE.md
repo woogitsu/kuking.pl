@@ -137,6 +137,8 @@ Zrób je raz. Zmiana dostawcy nie unieważnia żadnej z nich.
 2. **Ta skrzynka musi realnie odbierać.** Jeśli `kontakt@kuking.pl` nie istnieje,
    załóż ją, zanim wyślesz pierwszy list — inaczej pierwsza odpowiedź od
    użytkownika odbije się z błędem.
+   To samo dotyczy raportów DMARC z `rua=` — patrz §3A: dziś domena nie ma
+   rekordu MX, więc adresu z `rua` nikt nie odbiera.
 3. **Osobna subdomena wysyłkowa** (`poczta.kuking.pl` albo `send.kuking.pl`).
    Nigdy nie wysyłaj transakcyjnych prosto z gołego `kuking.pl`: awaria
    reputacji zabija wtedy także pocztę firmową. Dostawcy z §2 zakładają ją sami
@@ -682,6 +684,97 @@ reputację u każdego dostawcy, przy komplecie zielonych rekordów.
 
 ---
 
+## 3A. Raporty DMARC (`rua`) — dokąd naprawdę trafiają (issue #2049)
+
+Rekord `rua=` w DMARC to **obietnica**, że pod tym adresem ktoś odbiera pocztę.
+Odbiorcy (Gmail, Microsoft, WP, o2…) wysyłają tam raz na dobę zbiorczy raport
+XML — kto i z jakiego adresu IP wysłał list w imieniu `kuking.pl` i czy SPF
+oraz DKIM przeszły. Sam rekord TXT tego nie zapewnia: **jeśli adres z `rua`
+nie ma działającej trasy odbiorczej, raporty giną po cichu** — nikt nie dostaje
+błędu, a Ty tracisz jedyny wgląd w to, kto podszywa się pod domenę i który
+system wysyła w Twoim imieniu (a od tego zależy zaostrzanie polityki z §3).
+
+**Oczekiwany rekord DMARC:** `v=DMARC1; p=none; rua=mailto:kontakt@kuking.pl`
+
+To jest **jedyne źródło** tej wartości. Każdy wiersz `_dmarc` w tabelach
+`docs/infra/POCZTA_URUCHOMIENIE.md` i `docs/infra/DEPLOYMENT_RUNBOOK.md` ma się z nią
+zgadzać co do znaku; pilnuje tego test `DmarcRuaZgodneZRunbookiemPocztyTest`.
+Zmieniasz odbiorcę raportów — zmień tę linię i wiersze w tabelach w jednym PR-ze.
+
+### Stan zmierzony (zgłoszenie #2049, 27.09.2026 — nie powtórzony z tego środowiska)
+
+| Sprawdzenie | Wynik | Co to znaczy |
+|---|---|---|
+| `dig _dmarc.kuking.pl TXT +short` | `v=DMARC1; p=none; rua=mailto:kontakt@kuking.pl` | rekord jest, zgodny z oczekiwanym |
+| `dig kuking.pl MX +short` | **pusto** (NOERROR/NODATA) | brak rekordu MX = nikt nie ogłosił serwera poczty dla domeny |
+| `dig kuking.pl A +short` / `AAAA` | adresy Cloudflare (apex „Proxied") | bez MX nadawca próbuje adresu domeny (RFC 5321 §5), a proxy Cloudflare nie przyjmuje SMTP na porcie 25 |
+
+Wniosek: **droga doręczenia raportów DMARC nie jest potwierdzona.** To nie jest
+awaria wysyłki listów z Kuking i nie znaczy, że `p=none` nie działa — to brak
+odbiorcy raportów. Ten sam brak dotyczy zwykłych listów do `kontakt@kuking.pl`
+(§1 pkt 2, `docs/OTWARCIE.md` wiersz 3).
+
+### Co robisz Ty (właściciel) — repozytorium nie zmienia DNS
+
+Wystarczy **jedna** z dwóch dróg. Kolejność: najpierw droga, potem dowód (niżej).
+
+**Droga A — poczta przychodząca dla `kontakt@kuking.pl` (rekomendowana).**
+Ta skrzynka i tak musi odbierać (§1 pkt 2), więc jedna praca załatwia listy od
+ludzi i raporty DMARC. Rekord `rua` zostaje bez zmian.
+
+1. Cloudflare → domena `kuking.pl` → **Email** → **Email Routing** → włącz.
+   `[do weryfikacji w panelu — nazwy pozycji menu i limity planu Free bywają
+   zmieniane]`
+2. Dodaj adres `kontakt@kuking.pl` i **adres docelowy — prawdziwą skrzynkę,
+   którą ktoś czyta codziennie**. Potwierdź adres docelowy linkiem z listu.
+3. Zgódź się na rekordy, które Cloudflare dopisze sam (MX `route*.mx.cloudflare.net`
+   i wpis SPF). **Uwaga na SPF:** domena może mieć **dokładnie jeden** rekord SPF
+   (§3). Jeśli już jest ten z §2A (`include:_spf.emaillabs.net.pl`), **scal** oba
+   `include:` w jeden rekord i usuń drugi.
+4. Rekordy MX mają być „DNS only" (§1 pkt 5). Nie zmieniaj przy tym rekordów
+   A/AAAA apexa — strona zostaje za proxy Cloudflare, MX tego nie dotyka.
+
+**Droga B — inny odbiorca raportów** (osobny alias albo usługa czytająca raporty
+DMARC). Sensowna, gdy nie chcesz, żeby codzienne załączniki XML lądowały w tej
+samej skrzynce co listy od ludzi. Wtedy:
+
+1. Zmień adres w linii „Oczekiwany rekord DMARC” wyżej i we **wszystkich** wierszach
+   `_dmarc` (test z góry poda, którego brakuje).
+2. Zmień rekord TXT `_dmarc` w Cloudflare na tę samą wartość.
+3. Jeśli adres jest **poza domeną** `kuking.pl`, odbiorca musi mieć u siebie
+   rekord autoryzujący (`kuking.pl._report._dmarc.<domena odbiorcy>`); usługi
+   raportowe zwykle podają go same — sprawdź w ich instrukcji.
+   `[do weryfikacji u wybranego dostawcy]` Sprawdź też, na jakich warunkach
+   przetwarza on dane (raporty zawierają adresy IP serwerów wysyłających).
+
+### Dowód, że raporty dochodzą — nie „rekord jest w DNS”
+
+Zielone jest dopiero wtedy, gdy zrobisz wszystkie trzy i wpiszesz **datę oraz
+metodę** do `docs/OTWARCIE.md` (wiersz 3):
+
+1. **MX jest ogłoszony i nie jest proxowany.**
+   ```bash
+   dig kuking.pl MX +short        # ma zwrócić co najmniej jeden host
+   dig _dmarc.kuking.pl TXT +short # ma być dokładnie „Oczekiwany rekord DMARC”
+   ```
+   W Cloudflare przy rekordach MX ma być szara chmurka.
+2. **List z zewnątrz dociera.** Z prywatnego konta (Gmail, WP) napisz na
+   `kontakt@kuking.pl` i sprawdź, że **osoba wskazana jako adres docelowy** go
+   dostała — nie „skrzynka istnieje”, tylko „ktoś to przeczytał”. Sprawdź też
+   folder spam.
+3. **Przychodzi pierwszy raport zbiorczy.** Raporty idą dopiero po tym, jak
+   z domeny wyszedł list do danego odbiorcy (wyślij kilka listów z produkcji
+   przez `kuking:sprawdz-poczte` na Gmail i Outlook — §5). W ciągu 1–3 dni
+   powinien przyjść list od odbiorcy z załącznikiem `.xml.gz` albo `.zip`
+   (temat w rodzaju „Report domain: kuking.pl Submitter: google.com”).
+   Jeśli po trzech dniach nic nie ma, mimo że listy poszły: powtórz krok 2,
+   sprawdź folder spam i to, czy rekord `_dmarc` ma dokładnie oczekiwaną wartość.
+
+Raportów **nie wolno** wyrzucać jako spamu ani filtrować do kosza: po 2–4
+tygodniach są podstawą decyzji o `p=quarantine` (§3).
+
+---
+
 ## 4. Co zmienić w repozytorium (ściągawka)
 
 | Plik | Zmiana | Warianty |
@@ -1014,6 +1107,8 @@ z wyprzedzeniem:
   klucza autoryzacyjnego nie da się podejrzeć po przeładowaniu strony;
 - **założenie skrzynki `kontakt@kuking.pl`**, jeśli jeszcze nie istnieje —
   i sprawdzenie, że ktoś ją czyta;
+- **poczta przychodząca (rekord MX) dla `kuking.pl` i dowód, że raport DMARC
+  faktycznie doszedł** — §3A; bez tego `rua=` jest obietnicą bez adresata;
 - **wpisanie rekordów DNS w Cloudflare** — z panelu dostawcy, nie z tego pliku;
 - **wniosek o production access w AWS**, jeśli padnie na SES;
 - **podpisanie umowy powierzenia (DPA)** z dostawcą — przy EmailLabs i Brevo

@@ -19,6 +19,7 @@ use App\Models\Comment;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Unit;
+use App\Support\Komunikat;
 use App\Support\OdpowiedziWatku;
 use App\Support\PaginationLinks;
 use Illuminate\Http\RedirectResponse;
@@ -275,11 +276,11 @@ class RecipeController extends Controller
         if (! $recipe->wasRecentlyCreated) {
             return redirect()
                 ->route($recipe->isPublished() ? 'recipes.show' : 'recipes.edit', $recipe)
-                ->with('status', 'Ten przepis już zapisaliśmy — to jest on. Drugie kliknięcie nie założyło drugiego przepisu.');
+                ->with(Komunikat::informacja('Ten przepis już zapisaliśmy — to jest on. Drugie kliknięcie nie założyło drugiego przepisu.'));
         }
 
         if (! $recipe->isPublished()) {
-            return redirect()->route('recipes.edit', $recipe)->with('status', 'Szkic zapisany. Możesz wrócić do niego, kiedy chcesz.');
+            return redirect()->route('recipes.edit', $recipe)->with(Komunikat::sukces('Szkic zapisany. Możesz wrócić do niego, kiedy chcesz.'));
         }
 
         /*
@@ -302,7 +303,7 @@ class RecipeController extends Controller
             $potwierdzenie .= ' Możesz jeszcze dopisać szczegóły — wybierz „Dopisz szczegóły”.';
         }
 
-        return redirect()->route('recipes.show', $recipe)->with('status', $potwierdzenie);
+        return redirect()->route('recipes.show', $recipe)->with(Komunikat::sukces($potwierdzenie));
     }
 
     public function edit(Request $request, Recipe $recipe): View
@@ -358,7 +359,7 @@ class RecipeController extends Controller
         }
 
         return redirect()->route($recipe->isPublished() ? 'recipes.show' : 'recipes.edit', $recipe)
-            ->with('status', $recipe->isPublished() ? 'Przepis zapisany.' : 'Szkic zapisany.');
+            ->with(Komunikat::sukces($recipe->isPublished() ? 'Przepis zapisany.' : 'Szkic zapisany.'));
     }
 
     public function show(Request $request, string $recipe): View|RedirectResponse
@@ -608,7 +609,7 @@ class RecipeController extends Controller
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);
         }
 
-        return back()->with('status', 'Komentarz dodany.');
+        return back()->with(Komunikat::sukces('Komentarz dodany.'));
     }
 
     /**
@@ -624,9 +625,9 @@ class RecipeController extends Controller
 
         return redirect()
             ->route('recipes.create', ['szkic' => $wersja->getKey()])
-            ->with('status', $wersja->wasRecentlyCreated
-                ? 'Masz swoją wersję tego przepisu. Widzisz ją tylko Ty. Zmień to, co robisz po swojemu, i opublikuj, kiedy zechcesz.'
-                : 'Masz już rozpoczętą swoją wersję tego przepisu — to jest ona. Nic nie zginęło.');
+            ->with($wersja->wasRecentlyCreated
+                ? Komunikat::sukces('Masz swoją wersję tego przepisu. Widzisz ją tylko Ty. Zmień to, co robisz po swojemu, i opublikuj, kiedy zechcesz.')
+                : Komunikat::informacja('Masz już rozpoczętą swoją wersję tego przepisu — to jest ona. Nic nie zginęło.'));
     }
 
     public function destroy(Request $request, string $recipe): RedirectResponse
@@ -636,6 +637,6 @@ class RecipeController extends Controller
 
         $model->delete();
 
-        return redirect()->route('home')->with('status', 'Przepis usunięty.');
+        return redirect()->route('home')->with(Komunikat::sukces('Przepis usunięty.'));
     }
 }

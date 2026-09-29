@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Rules\ReservedUsername;
 use App\Rules\TurnstileJestPotwierdzony;
 use App\Rules\UsernameNotTaken;
+use App\Support\Komunikat;
 use App\Support\NazwaUzytkownika;
 use App\Support\PowrotDoRozmowy;
 use App\Support\RejestracjaZamknieta;
@@ -261,8 +262,8 @@ class RegisterController extends Controller
         $zapis->przypiszKonto($request);
 
         return redirect()->route('onboarding.interests')
-            ->with('status', $konto->listPotwierdzajacyNieWyszedl
+            ->with(Komunikat::sukces($konto->listPotwierdzajacyNieWyszedl
                 ? ZalozoneKonto::KOMUNIKAT_BEZ_LISTU
-                : 'Konto gotowe. Miło Cię widzieć w Kuking.');
+                : 'Konto gotowe. Miło Cię widzieć w Kuking.'));
     }
 }

@@ -125,7 +125,7 @@ class AvatarSettingsController extends Controller
 
         return redirect()
             ->route('settings.avatar')
-            ->with('status', 'Zdjęcie zapisane. Za chwilę pojawi się przy Twoich wpisach.');
+            ->with(Komunikat::sukces('Zdjęcie zapisane. Za chwilę pojawi się przy Twoich wpisach.'));
     }
 
     public function destroy(Request $request): RedirectResponse
@@ -181,6 +181,6 @@ class AvatarSettingsController extends Controller
 
         return redirect()
             ->route('settings.avatar')
-            ->with('status', 'Zdjęcie usunięte. Zamiast niego pokazujemy pierwszą literę Twojego imienia.');
+            ->with(Komunikat::sukces('Zdjęcie usunięte. Zamiast niego pokazujemy pierwszą literę Twojego imienia.'));
     }
 }

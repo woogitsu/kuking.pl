@@ -451,7 +451,7 @@ abstract class TestDwochPolaczen extends TestCase
     }
 
     /** Ilu uczestników w bazie wyścigów czeka w tej chwili na blokadę. */
-    private function ilu(): int
+    protected function ilu(): int
     {
         $zapytanie = $this->obserwator->query(
             "SELECT count(*) FROM pg_stat_activity
@@ -472,8 +472,9 @@ abstract class TestDwochPolaczen extends TestCase
      * także wtedy, gdy ktoś zmieni kod: mierzyłby wtedy sam siebie.
      *
      * @param  array<string, string>  $argumenty
+     * @param  array<string, string>  $srodowisko  nadpisuje domyślne środowisko procesu (np. CACHE_STORE)
      */
-    protected function wTle(string $scenariusz, array $argumenty): ProcesRownolegly
+    protected function wTle(string $scenariusz, array $argumenty, array $srodowisko = []): ProcesRownolegly
     {
         $proces = ProcesRownolegly::start(
             __DIR__.'/bin/scenariusz.php',
@@ -489,6 +490,7 @@ abstract class TestDwochPolaczen extends TestCase
                 'SESSION_DRIVER' => 'array',
                 'KUKING_LOCK_TIMEOUT' => self::LOCK_TIMEOUT,
                 'KUKING_STATEMENT_TIMEOUT' => self::STATEMENT_TIMEOUT,
+                ...$srodowisko,
             ],
         );
 

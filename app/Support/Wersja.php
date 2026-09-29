@@ -52,8 +52,9 @@ use Illuminate\Support\Facades\DB;
  * rozróżnić — dwa różne wdrożenia tego samego dnia wyglądały identycznie,
  * dopóki ktoś nie porównał skrótów commitów z pamięci. `etykietaZNumerem()`
  * dokłada więc numer kolejny w dzienniku `wdrozenia`, liczony PRZEZ
- * `kuking:zarejestruj-wdrozenie` w kroku wdrożenia (`.railway/railway.ts`),
- * nie przez tę klasę — `Wersja` tylko CZYTA już zapisaną wartość, z cache'em.
+ * `kuking:zarejestruj-wdrozenie`, wołane przez `docker/entrypoint.sh` PO
+ * gotowości nowego kontenera (`/health` 2xx — nie w `preDeployCommand`,
+ * audyt 28 września 2026), nie przez tę klasę — `Wersja` tylko CZYTA już zapisaną wartość, z cache'em.
  */
 final class Wersja
 {

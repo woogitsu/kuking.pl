@@ -12,10 +12,15 @@ use RuntimeException;
  * Rejestruje BIEŻĄCE wdrożenie w dzienniku `wdrozenia` — numer wersji
  * z końcówką (issue #1932, D-318).
  *
- * WOŁANA Z KOMENDY `kuking:zarejestruj-wdrozenie`, w tym samym kroku
- * wdrożenia co `php artisan migrate --force` (`.railway/railway.ts`,
- * `preDeployCommand`) — PO migracjach, bo tabela `wdrozenia` musi już
- * istnieć.
+ * WOŁANA Z KOMENDY `kuking:zarejestruj-wdrozenie --po-gotowosci`, którą
+ * `docker/entrypoint.sh` uruchamia w tle w kontenerze web/all DOPIERO, gdy
+ * jego lokalny `/health` odpowie 2xx. NIE z `preDeployCommand`
+ * (`.railway/railway.ts`): ten kończy się przed seedem-importem-healthcheckiem
+ * nowego kontenera, więc nieudany rollout zużywał numer i przypisywał funkcje
+ * do wdrożenia, którego nikt nie zobaczył (audyt z 28 września 2026, #1932;
+ * `naglowek_slug` jest globalnie unikalny, więc późniejszy udany rollout by
+ * tego nie naprawił). Tabela `wdrozenia` istnieje wtedy na pewno — kontener
+ * startuje po migracjach.
  *
  * IDEMPOTENCJA (`UNIQUE (commit)`)
  * Ten sam commit zarejestrowany drugi raz (redeploy bez zmiany kodu,
