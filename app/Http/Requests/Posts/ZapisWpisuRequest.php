@@ -31,6 +31,8 @@ use Illuminate\Support\Facades\Validator as ValidatorFactory;
  */
 final class ZapisWpisuRequest extends FormRequest
 {
+    use WalidujeTrescWpisu;
+
     public function pytanie(): bool
     {
         return $this->routeIs('questions.store');
@@ -82,20 +84,11 @@ final class ZapisWpisuRequest extends FormRequest
     {
         $pytanie = $this->pytanie();
 
-        return ValidatorFactory::make($this->all(), [
-            'body' => ['nullable', 'string', 'max:4000'],
-            'visibility' => $pytanie ? ['exclude'] : ['required', 'in:public,followers,private'],
-            'title' => $pytanie ? ['required', 'string', 'min:10', 'max:180'] : ['exclude'],
-        ], [
-            'body.max' => 'Ten wpis jest za długi. Zmieść się w 4000 znakach.',
-            'title.required' => 'Napisz pytanie w tytule.',
-            'title.min' => 'Rozwiń pytanie do co najmniej 10 znaków.',
-            'title.max' => 'Skróć tytuł pytania do 180 znaków.',
-            'visibility.required' => 'Zaznacz, kto ma widzieć ten wpis.',
-            // `in` mówi, CO WYBRAĆ, nie że „wybrana wartość jest
-            // nieprawidłowa" (issue #86) — trzy opcje z ekranu, wprost.
-            'visibility.in' => 'Zaznacz, kto ma widzieć ten wpis: wszyscy, obserwujący czy tylko Ty.',
-        ]);
+        return ValidatorFactory::make(
+            $this->all(),
+            self::regulyTresci($pytanie, ! $pytanie),
+            self::komunikatyTresci(),
+        );
     }
 
     /**

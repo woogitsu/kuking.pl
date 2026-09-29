@@ -61,8 +61,12 @@ Nowy wpis i pytanie: `ZapisWpisuRequest` (faza 1: zdjęcia w `rules()`, przed
 kontrolerem; faza 2: `walidatorTresci()` wołany po wgraniu zdjęć i obsłudze
 przycisków tagów, żeby błąd treści wrócił z `old()` niosącym UUID-y zdjęć
 i tagi) — `PostController::store()` zostaje przy orkiestracji odpowiedzi.
-Kolejne kandydaty (od największego): `PostController::update()`/`comment()`
-(walidacja inline), `CollectionController` (1157 linii), `ProfileController`,
+Edycja wpisu i pytania: `EdycjaWpisuRequest` (`rules()` puste — treść waliduje
+`trescWpisu()` dopiero po Policy, decyzji moderacji i przyciskach tagów;
+marker `_tag_form_post_id` idzie też do żądania z kontenera, bo z niego
+powstaje `old()`; reguły wspólne ze store'em w traicie `WalidujeTrescWpisu`).
+Komentarz: `KomentarzRequest` (Policy w `authorize()` przed walidacją pól).
+Kolejne kandydaty (od największego): `CollectionController` (1157 linii), `ProfileController`,
 `OnboardingController`, `NotificationController`, `ReportController`,
 kontrolery logowania Google/Facebook (#1035).
 

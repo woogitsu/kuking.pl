@@ -18,6 +18,8 @@ use App\Domain\Reakcje\Smakowicie;
 use App\Domain\Tags\TagSuggester;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Exceptions\BladZdjecFormularza;
+use App\Http\Requests\Posts\EdycjaWpisuRequest;
+use App\Http\Requests\Posts\KomentarzRequest;
 use App\Http\Requests\Posts\ZapisWpisuRequest;
 use App\Models\AuditLogEntry;
 use App\Models\Post;
@@ -750,17 +752,10 @@ class PostController extends Controller
         ]);
     }
 
-    public function comment(Request $request, Post $post): RedirectResponse
+    public function comment(KomentarzRequest $request, Post $post): RedirectResponse
     {
-        $this->authorize('comment', $post);
-
-        $data = $request->validate([
-            'body' => ['required', 'string', 'max:4000'],
-            'parent_id' => ['nullable', 'uuid'],
-        ], [
-            'body.required' => 'Napisz coś, zanim wyślesz komentarz.',
-            'body.max' => 'Ten komentarz jest za długi. Zmieść się w 4000 znakach.',
-        ]);
+        // Policy i walidacja: `KomentarzRequest` (w tej kolejności).
+        $data = $request->validated();
 
         // `?? null`, bo `validate()` NIE zwraca klucza, którego w żądaniu nie
         // było — a `parent_id` jest `nullable`. Komentarz wysłany bez tego
@@ -837,7 +832,7 @@ class PostController extends Controller
         ]);
     }
 
-    public function update(Request $request, Post $post): RedirectResponse|Response
+    public function update(EdycjaWpisuRequest $request, Post $post): RedirectResponse|Response
     {
         // Issue #936: jak w `edit()`. Formularza edycji już nie ma, więc
         // wpisany tekst wraca na ekranie do skopiowania, a nie do pól.
@@ -852,7 +847,7 @@ class PostController extends Controller
         // Zakres old input pochodzi z autoryzowanej trasy, nie z podrobionego
         // pola. Brak tag_names[] oznacza usunięcie całej ręcznej listy tylko
         // w tym konkretnym formularzu; cudzy formularz nie zeruje tagów.
-        $request->merge(['_tag_form_post_id' => (string) $post->getKey()]);
+        $request->oznaczFormularzWpisu($post);
 
         $tagNames = $this->tagiZFormularza($request);
 
@@ -867,20 +862,7 @@ class PostController extends Controller
             return $bladTagow === null ? $powrot : $powrot->withErrors(['tagi' => $bladTagow]);
         }
 
-        $data = $request->validate([
-            'body' => ['nullable', 'string', 'max:4000'],
-            'visibility' => ['required', 'in:public,followers,private'],
-            'title' => $question ? ['required', 'string', 'min:10', 'max:180'] : ['exclude'],
-        ], [
-            'body.max' => 'Ten wpis jest za długi. Zmieść się w 4000 znakach.',
-            'title.required' => 'Napisz pytanie w tytule.',
-            'title.min' => 'Rozwiń pytanie do co najmniej 10 znaków.',
-            'title.max' => 'Skróć tytuł pytania do 180 znaków.',
-            'visibility.required' => 'Zaznacz, kto ma widzieć ten wpis.',
-            // `in` mówi, CO WYBRAĆ, nie że „wybrana wartość jest
-            // nieprawidłowa" (issue #86) — trzy opcje z ekranu, wprost.
-            'visibility.in' => 'Zaznacz, kto ma widzieć ten wpis: wszyscy, obserwujący czy tylko Ty.',
-        ]);
+        $data = $request->trescWpisu($post);
 
         try {
             $this->editPost->handle(
