@@ -3203,7 +3203,7 @@ return [
     // `product_signals`, `audit_log`, zwykłe `notifications`, `sessions`
     // i potwierdzenia RODO kasujemy partiami po `partia` wierszy, każda we
     // własnej krótkiej transakcji, i najwyżej `budzet` wierszy z jednej
-    // tabeli na przebieg (`App\Domain\Compliance\UsuwanieWPartiach`).
+    // tabeli na przebieg (`App\Support\UsuwanieWPartiach`).
     // Przerwany przebieg zachowuje zatwierdzony postęp; zaległość ponad
     // budżet schodzi w kolejne noce, z ostrzeżeniem w dzienniku
     // (`stage=retention_budget_exhausted`).

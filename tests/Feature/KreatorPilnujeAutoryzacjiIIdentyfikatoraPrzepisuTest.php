@@ -13,9 +13,10 @@ use Tests\TestCase;
 
 /**
  * Issue #1387: kryterium „ponowna autoryzacja i `#[Locked]` z identyfikatora
- * przepisu nadal czerwieni test”. Test jest behawioralny; jego kontrole
- * ujemne (zdjęcie `Gate::authorize` z `existingRecipe()` i `#[Locked]`
- * z `$recipeId`) stoją w `scripts/kontrole-negatywne-alfa08.py`.
+ * przepisu nadal czerwieni test”. Test jest behawioralny; jego kontrola
+ * ujemna w `scripts/kontrole-negatywne-alfa08.py` jest jedna: zdjęcie
+ * `#[Locked]` z `$recipeId`. Zdjęcia `Gate::authorize` z `existingRecipe()`
+ * skrypt nie sprawdza.
  */
 class KreatorPilnujeAutoryzacjiIIdentyfikatoraPrzepisuTest extends TestCase
 {

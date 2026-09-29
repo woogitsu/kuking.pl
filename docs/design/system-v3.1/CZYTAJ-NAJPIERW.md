@@ -58,8 +58,8 @@ wartości. Nie zgadza się **układ**".
 ## Czego z tej paczki NIE bierzemy do aplikacji
 
 1. **`tokens/fonts.css`** — ładuje Inter z serwera Google. Aplikacja hostuje
-   Inter u siebie, w dwóch podzbiorach (`latin` 48 kB + `latin-ext` 85 kB,
-   `resources/fonts/`), i tak zostaje. Bez `latin-ext` polskie znaki
+   Inter u siebie, w dwóch podzbiorach (`inter-podstawa` 38,7 kB + `inter-europa` 14,7 kB,
+   `resources/fonts/`), i tak zostaje. Bez `inter-europa` polskie znaki
    `ł ą ę ć ń ś ź ż` lecą z fontu zastępczego — słowo „żurek" ma wtedy trzy
    różne kroje. Zapytanie do obcego serwera przeczyłoby też sekcji
    „Prywatność”. Sama paczka wymienia to jako brak numer jeden.
