@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Domain\Collections\Wspoldzielenie\ZerwijWspoldzielenie;
 use App\Domain\Import\BramkaPublikacjiOdczytu;
 use App\Domain\Import\ModelFragmentow;
 use App\Domain\Import\StrazImportu;
@@ -18,6 +19,7 @@ use App\Domain\Recipes\BramkaPublikacjiSzkicu;
 use App\Domain\Recipes\StrazPochodzeniaPrzepisu;
 use App\Domain\Social\Actions\ObserwujGospodarza;
 use App\Domain\Users\Exports\ExportTempDirectory;
+use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Domain\Users\ObserwowanieGospodarza;
 use App\Models\Appeal;
 use App\Models\Comment;
@@ -68,6 +70,11 @@ class AppServiceProvider extends ServiceProvider
         // jedynym miejscem, które zna oba moduły — dzięki temu graf
         // `app/Domain` nie ma cyklu `Users ↔ Social`.
         $this->app->bind(ObserwowanieGospodarza::class, ObserwujGospodarza::class);
+
+        // Koniec wspólnych zeszytów przy blokadzie i wymazaniu konta (#1743,
+        // D-302): kontrakt w `Users`, implementacja w `Collections` — bez
+        // cyklu `Social ↔ Collections` i `Users → Collections → Social`.
+        $this->app->bind(KoniecWspolnychZeszytow::class, ZerwijWspoldzielenie::class);
 
         // Import przepisu z adresu strony (D-300): DNS przez kontrakt, żeby
         // testy podstawiały własną mapę nazw i nie pytały prawdziwej sieci.

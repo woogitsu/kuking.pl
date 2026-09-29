@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Social\Actions;
 
 use App\Domain\Social\ZamekPary;
+use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Block;
@@ -95,6 +96,12 @@ final class BlockUser
 
             $blokujacy->following()->detach($blokowany->getKey());
             $blokowany->following()->detach($blokujacy->getKey());
+
+            // Wspólny zeszyt też się kończy, w obie strony (#1743, D-302).
+            // Pod tym samym zamkiem pary co przyjęcie zaproszenia, więc
+            // członkostwo nie przeżyje obok blokady. Przez kontrakt `Users`,
+            // nie przez moduł `Collections` — graf modułów bez cykli (#971).
+            app(KoniecWspolnychZeszytow::class)->miedzy($blokujacy, $blokowany);
         });
 
         AuditLogEntry::recordBezWywracania(

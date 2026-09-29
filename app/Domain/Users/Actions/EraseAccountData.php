@@ -9,6 +9,7 @@ use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Users\Import\MagazynPaczek;
+use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem;
@@ -198,6 +199,12 @@ final class EraseAccountData
             $zakresWykonany = $fresh->chceUsunacTresci()
                 ? User::DELETE_SCOPE_EVERYTHING
                 : User::DELETE_SCOPE_MINIMUM;
+
+            // Wspólne zeszyty (#1743, D-302) — PRZED `usunTresci()`, bo ta
+            // kasuje zeszyty tej osoby, a my musimy jeszcze zobaczyć, które
+            // z nich były wspólne. Niezależnie od zakresu: członkostwa
+            // i zaproszenia to relacje z innymi osobami, jak obserwowanie.
+            app(KoniecWspolnychZeszytow::class)->przyWymazaniu($fresh);
 
             if ($fresh->chceUsunacTresci()) {
                 $this->usunTresci($fresh);
