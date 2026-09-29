@@ -2911,7 +2911,7 @@ return [
          * przy zmianie, o której ludzie mają się dowiedzieć — literówka
          * w dokumencie to nie powód, żeby zaczepiać każdego.
          */
-        'wersja_regulaminu' => '2026-09-26',
+        'wersja_regulaminu' => '2026-09-30',
 
         /*
          * CZY ZMIANA REGULAMINU JEST ISTOTNA (D-327) — jak `zmiana_polityki`.
@@ -2922,10 +2922,16 @@ return [
          *
          * 26.09.2026 dopisaliśmy opis doboru wpisów (#1811) — opisuje, jak
          * serwis już działa, bez zmiany praw i obowiązków, więc drobna.
+         *
+         * 30.09.2026 (#2220) doszły §13 „Wymagania techniczne” i §14
+         * „Reklamacje”. Drobna, obowiązuje od publikacji — wzorem polityki
+         * 2026-09-30: serwis nie ma prawdziwych użytkowników, więc nikt nie
+         * zna poprzedniej wersji. Klasyfikacja do potwierdzenia przez
+         * właściciela (wiersz #2220 w D-333).
          */
         'zmiana_regulaminu' => [
             'istotna' => false,
-            'poprzednia' => '2026-09-07',
+            'poprzednia' => '2026-09-26',
             'obowiazuje_od' => null,
         ],
 
@@ -3340,6 +3346,24 @@ return [
          * inaczej „napisz do nas" jest obietnicą bez pokrycia.
          */
         'email' => 'biuro@samsufi.pl',
+    ],
+
+    /*
+     * REKLAMACJE — regulamin §14 (#2220, art. 8 ustawy o świadczeniu usług
+     * drogą elektroniczną). Kanałem jest adres spółki (`podmiot.email`) albo
+     * list na adres siedziby — nie formularz „Napisz do nas”, który jest
+     * rozmową bez terminów.
+     *
+     * `termin_odpowiedzi_dni`: tyle dni regulamin obiecuje na odpowiedź.
+     * 14 to termin z art. 7a ustawy o prawach konsumenta — do potwierdzenia
+     * przez właściciela (D-333). Kod tego terminu nie mierzy: pilnuje go
+     * człowiek odpowiadający na `biuro@samsufi.pl`. W repozytorium, nie
+     * w `.env`, z tego samego powodu co `zgody.okres_istotnej_zmiany_dni`:
+     * zmiana to zmiana obietnicy z dokumentu prawnego. Zgodność z tekstem
+     * pilnuje `RegulaminWymaganiaIReklamacjeTest`.
+     */
+    'reklamacje' => [
+        'termin_odpowiedzi_dni' => 14,
     ],
 
     /*

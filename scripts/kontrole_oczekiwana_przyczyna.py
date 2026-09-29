@@ -195,6 +195,8 @@ OCZEKUJ = {
     'Metryki doboru czytają reakcje „Smakowicie wygląda”': r'ukrycia i reakcje nie są źródłem analityki \(D-278, D-280\)',
     'Strona doboru opisuje rotację, której kod nie robi': r'odkrywanie\.rotacja: w app/Domain/Feed/DiscoverFeed\.php nie ma już',
     'Wersja regulaminu podbita bez nagłówka dokumentu': r'Nagłówek regulaminu nie mówi „\d+ \S+',
+    'Termin odpowiedzi na reklamację inny niż w regulaminie': r'contains "w ciągu \*\*\d+ dni\*\* od otrzymania reklamacji"',
+    'Limit zdjęć we wpisie inny niż w regulaminie': r'Regulamin podaje inną liczbę zdjęć we wpisie niż kuking\.media\.max_per_post',
     'Zmiana istotna bez okresu przejściowego': '@@ @@ -\'\\d{4}-\\d\\d-\\d\\d\' \\+\'\\d{4}-\\d\\d-\\d\\d\'|contains \\"Nowa wersja obowiązuje od \\d+ \\S+ \\d{4}\\. Do tego dnia|@@ @@ Array &0 \\[ - 0 => \'\\d{4}-\\d\\d-\\d\\d\', \\+ 0 => \'\\d{4}-\\d\\d-\\d\\d\'',
     'Zmiana istotna wchodzi w dniu publikacji zamiast po 14 dniach': r'Failed asserting that false is true\.|contains "Nowa wersja obowiązuje od \d+ \S+ \d{4}\.|\d{4}-\d\d-\d\d.*\d{4}-\d\d-\d\d|exception of type "RuntimeException" is thrown',
     'Zgoda zapisuje wersję opublikowaną zamiast obowiązującej': r"@@ @@ Array &0 \[ - 0 => '\d{4}-\d\d-\d\d', \+ 0 => '\d{4}-\d\d-\d\d', 1 => '\d{4}-\d\d-\d\d'",

@@ -588,6 +588,8 @@ DOBOR_STRONA_TEST = "JakDobieramyWpisyMowiPrawdeTest"
 # nie ma; test daty ma oblać.
 REGULAMIN_WERSJA = "config/kuking.php"
 REGULAMIN_WERSJA_TEST = "ZmianaRegulaminuTest"
+# Regulamin §13 „Wymagania techniczne” i §14 „Reklamacje” (#2220).
+REGULAMIN_WYMAGANIA_TEST = "RegulaminWymaganiaIReklamacjeTest"
 
 # Pasek o zmianie polityki (D-327, D-332): rollback bez odmowy i sekcja
 # „Co się zmieniło” niezgodne z konfiguracją (drobna/istotna); pasek przy drobnej;
@@ -1579,7 +1581,13 @@ checks = [
     ("Wspólny publiczny zeszyt bez „Podziel się”", UDOSTEPNIANIE, PODZIEL_SIE_ZESZYT_WSPOLNY_TEST,
      lambda s: replace_once(s, "return ! $tresc->is_default;", "return ! $tresc->is_default && ! $tresc->members()->exists();")),
     ("Wersja regulaminu podbita bez nagłówka dokumentu", REGULAMIN_WERSJA, REGULAMIN_WERSJA_TEST,
-     lambda s: replace_once(s, "'wersja_regulaminu' => '2026-09-26'", "'wersja_regulaminu' => '2026-09-27'")),
+     lambda s: replace_once(s, "'wersja_regulaminu' => '2026-09-30'", "'wersja_regulaminu' => '2026-10-01'")),
+    # #2220: regulamin §13/§14 podaje liczby z konfiguracji — mutacja zmienia
+    # konfigurację, dokument zostaje, strażnik ma oblać.
+    ("Termin odpowiedzi na reklamację inny niż w regulaminie", REGULAMIN_WERSJA, REGULAMIN_WYMAGANIA_TEST,
+     lambda s: replace_once(s, "'termin_odpowiedzi_dni' => 14,", "'termin_odpowiedzi_dni' => 7,")),
+    ("Limit zdjęć we wpisie inny niż w regulaminie", REGULAMIN_WERSJA, REGULAMIN_WYMAGANIA_TEST,
+     lambda s: replace_once(s, "'max_per_post' => 6,", "'max_per_post' => 5,")),
     ("Zmiana istotna bez okresu przejściowego", WERSJA_DOKUMENTU, WERSJA_DOKUMENTU_TEST,
      lambda s: replace_once(s, "        return ($chwila ?? now())->lessThan($this->obowiazujeOd());\n", "        return false;\n")),
     ("Zmiana istotna wchodzi w dniu publikacji zamiast po 14 dniach", WERSJA_DOKUMENTU, WERSJA_DOKUMENTU_TEST,
