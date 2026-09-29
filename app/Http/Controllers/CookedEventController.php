@@ -265,6 +265,12 @@ class CookedEventController extends Controller
      */
     public function thank(PodziekowanieRequest $request, CookedEvent $cookedEvent): RedirectResponse
     {
+        // Policy i walidacja: `PodziekowanieRequest` (403 przed błędami pól).
+        // Jawne `authorize()` zostaje tu celowo: jest idempotentne, a bramkę
+        // na trasie z wiązaniem modelu widać w kontrolerze
+        // (`AutoryzacjaTrasZWiazaniemModeluTest`) — jak w `PostController::comment()`.
+        $this->authorize('celebrate', $cookedEvent);
+
         $data = $request->validated();
 
         try {
@@ -283,6 +289,12 @@ class CookedEventController extends Controller
 
     public function comment(KomentarzWykonaniaRequest $request, CookedEvent $cookedEvent): RedirectResponse
     {
+        // Policy i walidacja: `KomentarzWykonaniaRequest` (403 przed błędami
+        // pól). Jawne `authorize()` zostaje tu celowo — patrz `thank()`.
+        // `comment`, nie `view`: zbanowany kucharz chowa wykonanie, ale nie
+        // zamyka komentowania (decyzja właściciela do D-261).
+        $this->authorize('comment', $cookedEvent);
+
         $data = $request->validated();
 
         try {
