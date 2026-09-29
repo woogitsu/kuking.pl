@@ -19,9 +19,10 @@
 //   node --test scripts/railway/iac.test.mjs      # wymaga Node >= 22.6 i npm ci
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 
 const KORZEN = resolve(import.meta.dirname, "..", "..");
 
@@ -571,4 +572,207 @@ test("zmienne-spoza-iac z wiersza poleceń wypisuje same nazwy, nigdy wartości"
   assert.equal(wynik.status, 1);
   assert.equal(wynik.stdout, "KUKING_TYLKO_W_PANELU_A\n");
   assert.ok(!String(wynik.stdout).includes(sekret) && !String(wynik.stderr).includes(sekret), "wartość zmiennej wyszła na ekran");
+});
+
+// ---------------------------------------------------------------------------
+// Bilans zmiennych przed pierwszym apply #595 (scripts/railway/bilans-zmiennych-595.mjs,
+// runbook PRZELACZENIE_NA_3_SERWISY_595.md, krok 0.5). Od #1459 role mają
+// różne zestawy, więc plan USUWA z `kuking.pl` zmienne workera i schedulera —
+// to jest oczekiwane, ale tylko wtedy, gdy ich wartość czeka w Shared Variables.
+// ---------------------------------------------------------------------------
+const { bilansZmiennych, nazwyZTekstu, MARTWE } = await import(resolve(KORZEN, "scripts/railway/bilans-zmiennych-595.mjs"));
+
+const APLIKACJA_PROD = PROD.resources.filter((r) => r.type === "service" && r.groupId === "Aplikacja");
+const zmienneUslugi = (g, nazwa) => usluga(g, nazwa)?.variables ?? {};
+
+/** Zmienne workera i schedulera, których serwis WWW po rozbiciu nie ma — z grafu. */
+function zmiennePozaWww(g) {
+  const www = zmienneUslugi(g, KONTEKST.nazwaWww);
+  const wynik = new Map();
+  for (const nazwaUslugi of ["worker", "scheduler"]) {
+    for (const [k, v] of Object.entries(zmienneUslugi(g, nazwaUslugi))) {
+      if (k in www || k === "APP_ROLE") continue;
+      if (wynik.has(k)) assert.deepEqual(wynik.get(k), v, `${k}: worker i scheduler mają różne wartości`);
+      wynik.set(k, v);
+    }
+  }
+  return wynik;
+}
+
+/** Linie `NAZWA=wartość` do wklejenia w panelu przy wycofaniu A — z grafu. */
+function liniePowrotuDoAll(g) {
+  return [...zmiennePozaWww(g)]
+    .map(([k, v]) => {
+      if (v.type === "sharedReference") return `${k}=\${{shared.${v.name}}}`;
+      if (v.type === "literal") return `${k}=${v.value}`;
+      throw new Error(`${k}: nieobsłużony typ wartości ${v.type}`);
+    })
+    .sort();
+}
+
+/**
+ * Stan produkcji z 29.09.2026, same NAZWY (koordynator, bez wartości):
+ * serwis `kuking.pl` nie ma VAPID_*, KUKING_EDGE_*, OPENAI_IMPORT_KEY,
+ * AWS_ZDJECIA_KOPIA_*, KUKING_HTML_EDGE_CACHE_SECONDS ani KUKING_TAG_TYGODNIA;
+ * ma RAILWAY_PUBLIC_DOMAIN. Resztę listy test układa z grafu (dzisiejsza rola
+ * `all` = suma ról), bo pełnej listy nazw z panelu repozytorium nie zna.
+ */
+const BRAK_NA_PRODUKCJI_2909 = /^(VAPID_|KUKING_EDGE_|OPENAI_IMPORT_KEY$|AWS_ZDJECIA_KOPIA_|KUKING_HTML_EDGE_CACHE_SECONDS$|KUKING_TAG_TYGODNIA$)/;
+function panelZ2909() {
+  const nazwy = new Set(["RAILWAY_PUBLIC_DOMAIN", "TRUSTED_PROXIES"]);
+  for (const s of APLIKACJA_PROD) for (const k of Object.keys(s.variables ?? {})) if (!BRAK_NA_PRODUKCJI_2909.test(k)) nazwy.add(k);
+  return [...nazwy];
+}
+/** Shared Variables założone zgodnie z runbookiem: wszystko, czego plik szuka dla zmiennych z panelu, plus kopia-bazy. */
+function sharedWgRunbooka(panel) {
+  const nazwy = new Set();
+  for (const s of PROD.resources.filter((r) => r.type === "service")) {
+    for (const [k, v] of Object.entries(s.variables ?? {})) {
+      if (v?.type === "sharedReference" && (panel.includes(k) || s.groupId !== "Aplikacja")) nazwy.add(v.name);
+    }
+  }
+  return [...nazwy];
+}
+
+test("bilans #595: przy stanie z 29.09 i Shared założonych wg runbooka bilans się zamyka", () => {
+  const panel = panelZ2909();
+  const b = bilansZmiennych(panel, sharedWgRunbooka(panel), PROD);
+  assert.deepEqual(b.nieznane, []);
+  assert.deepEqual(b.doPrzeniesienia, []);
+  assert.equal(b.zamyka, true);
+  assert.deepEqual(b.martwe, ["TRUSTED_PROXIES"]);
+  // Klucz moderacji, puls i odczyt kopii bazy wychodzą z `kuking.pl` do swoich ról.
+  const przenoszone = Object.fromEntries(b.przenoszone.map((p) => [p.nazwa, p.role]));
+  assert.deepEqual(przenoszone.OPENAI_MODERATION_KEY, ["worker"]);
+  assert.deepEqual(przenoszone.KUKING_PULS_HARMONOGRAMU_URL, ["scheduler"]);
+  assert.deepEqual(przenoszone.AWS_KOPIE_ACCESS_KEY_ID, ["scheduler"]);
+  // Funkcji, których produkcja nie ma, apply nie włączy: puste referencje.
+  const puste = b.pusteReferencje.map((p) => p.shared);
+  for (const n of ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "KUKING_EDGE_TOKEN", "KUKING_EDGE_TRYB", "OPENAI_IMPORT_KEY", "R2_ZDJECIA_KOPIA_BUCKET", "KUKING_HTML_EDGE_CACHE_SECONDS", "KUKING_TAG_TYGODNIA"]) {
+    assert.ok(puste.includes(n), `${n} powinna być pustą referencją`);
+  }
+  assert.ok(!puste.includes("R2_ACCESS_KEY_ID"), "klucz R2 nie może zostać pusty");
+});
+
+test("bilans #595: zbiór przenoszonych = zmienne workera i schedulera, których nie ma web", () => {
+  const panel = panelZ2909();
+  const b = bilansZmiennych(panel, sharedWgRunbooka(panel), PROD);
+  const oczekiwane = [...zmiennePozaWww(PROD).keys()].filter((k) => panel.includes(k)).sort();
+  assert.ok(oczekiwane.length >= 5, "graf nie ma zmiennych poza web — test niczego by nie sprawdzał");
+  assert.deepEqual(b.przenoszone.map((p) => p.nazwa), oczekiwane);
+});
+
+test("kontrola ujemna bilansu: zmienna spoza pliku zatrzymuje apply", () => {
+  const panel = [...panelZ2909(), "KUKING_TYLKO_W_PANELU_A"];
+  const b = bilansZmiennych(panel, sharedWgRunbooka(panel), PROD);
+  assert.deepEqual(b.nieznane, ["KUKING_TYLKO_W_PANELU_A"]);
+  assert.equal(b.zamyka, false);
+});
+
+test("kontrola ujemna bilansu: klucz moderacji bez Shared Variable zatrzymuje apply", () => {
+  const panel = panelZ2909();
+  const shared = sharedWgRunbooka(panel).filter((n) => n !== "OPENAI_MODERATION_KEY");
+  const b = bilansZmiennych(panel, shared, PROD);
+  assert.deepEqual(b.doPrzeniesienia.map((d) => [d.shared, d.uslugi]), [["OPENAI_MODERATION_KEY", ["worker"]]]);
+  assert.equal(b.zamyka, false);
+});
+
+test("kontrola ujemna bilansu: klucz R2 pod inną nazwą w Shared (AWS_* ← R2_*) też jest wykrywany", () => {
+  const panel = panelZ2909();
+  const shared = sharedWgRunbooka(panel).filter((n) => n !== "R2_ACCESS_KEY_ID");
+  const b = bilansZmiennych(panel, shared, PROD);
+  const wpis = b.doPrzeniesienia.find((d) => d.shared === "R2_ACCESS_KEY_ID");
+  assert.ok(wpis, "brak R2_ACCESS_KEY_ID w liście do przeniesienia");
+  assert.deepEqual(wpis.zPanelu, ["AWS_ACCESS_KEY_ID"]);
+  assert.deepEqual(wpis.uslugi, ["kuking.pl", "scheduler", "worker"]);
+});
+
+test("kontrola ujemna bilansu: zmienna dopisana do workera bez web jest przenoszona, nie „nieznana”", () => {
+  const zepsuty = structuredClone(PROD);
+  usluga(zepsuty, "worker").variables.KUKING_TYLKO_W_PANELU_A = { type: "literal", value: "1" };
+  const b = bilansZmiennych(["KUKING_TYLKO_W_PANELU_A"], [], zepsuty);
+  assert.deepEqual(b.przenoszone, [{ nazwa: "KUKING_TYLKO_W_PANELU_A", role: ["worker"] }]);
+  assert.deepEqual(b.nieznane, []);
+});
+
+test("bilans: zmienne wstrzykiwane przez Railway i martwe nie zatrzymują apply", () => {
+  const b = bilansZmiennych(["RAILWAY_PUBLIC_DOMAIN", "RAILWAY_ENVIRONMENT", ...Object.keys(MARTWE)], [], PROD);
+  assert.deepEqual(b.nieznane, []);
+  assert.deepEqual(b.martwe, Object.keys(MARTWE));
+});
+
+test("bilans: nazwy z pliku Shared — linie, JSON; wpis z wartością odrzucony bez jej powtórzenia", () => {
+  assert.deepEqual(nazwyZTekstu("APP_KEY\n# komentarz\n\nR2_BUCKET\n"), ["APP_KEY", "R2_BUCKET"]);
+  assert.deepEqual(nazwyZTekstu('{"APP_KEY":"x"}'), ["APP_KEY"]);
+  assert.deepEqual(nazwyZTekstu('["APP_KEY"]'), ["APP_KEY"]);
+  assert.throws(() => nazwyZTekstu("APP_KEY=base64:tajne"), /nie wygląda na nazwę/);
+  assert.throws(() => nazwyZTekstu("APP_KEY=base64:tajne"), (e) => !String(e.message).includes("tajne"));
+});
+
+function uruchomBilans(stdin, shared) {
+  const katalog = mkdtempSync(join(tmpdir(), "bilans-595-"));
+  const plik = join(katalog, "shared.txt");
+  writeFileSync(plik, shared);
+  try {
+    return spawnSync(
+      process.execPath,
+      ["--experimental-strip-types", "--no-warnings", resolve(KORZEN, "scripts/railway/bilans-zmiennych-595.mjs"), "production", "--wspoldzielone", plik],
+      { cwd: KORZEN, encoding: "utf8", input: stdin, env: { PATH: process.env.PATH, KUKING_WAIT_FOR_CI: "false" } },
+    );
+  } finally {
+    rmSync(katalog, { recursive: true, force: true });
+  }
+}
+
+test("bilans z wiersza poleceń: same nazwy, kody 0 / 1 / 2, wartości nigdy na ekranie", () => {
+  const sekret = "wartosc-ktora-nie-moze-wyjsc-595";
+  const panel = panelZ2909();
+  const zPanelu = Object.fromEntries(panel.map((n) => [n, sekret]));
+  const shared = sharedWgRunbooka(panel).join("\n");
+
+  const zamyka = uruchomBilans(JSON.stringify(zPanelu), shared);
+  assert.equal(zamyka.status, 0, zamyka.stderr);
+  assert.match(zamyka.stdout, /Bilans się zamyka/);
+  assert.match(zamyka.stdout, /OPENAI_MODERATION_KEY {2}→ worker/);
+
+  const stop = uruchomBilans(JSON.stringify({ ...zPanelu, KUKING_TYLKO_W_PANELU_A: sekret }), shared);
+  assert.equal(stop.status, 1);
+  assert.match(stop.stdout, /KUKING_TYLKO_W_PANELU_A/);
+
+  const zleShared = uruchomBilans(JSON.stringify(zPanelu), `APP_KEY=${sekret}\n`);
+  assert.equal(zleShared.status, 2);
+
+  for (const w of [zamyka, stop, zleShared]) {
+    assert.ok(!w.stdout.includes(sekret) && !w.stderr.includes(sekret), "wartość zmiennej wyszła na ekran");
+  }
+});
+
+// Wycofanie A w runbooku przestawia `kuking.pl` z powrotem na `all` w panelu.
+// `kuking.pl` w roli `web` nie ma wtedy zmiennych workera i schedulera —
+// bez ich dopisania kontener `all` chodziłby bez klucza moderacji, pulsu
+// i odczytu kopii. Runbook podaje je w bloku między znacznikami; tu
+// pilnujemy, że blok jest dokładnie tym, co wynika z grafu.
+const RUNBOOK_595 = readFileSync(resolve(KORZEN, "docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md"), "utf8");
+function blokPowrotu(tekst) {
+  const m = tekst.match(/<!-- wycofanie-zmienne:start -->\n```text\n([\s\S]*?)```\n<!-- wycofanie-zmienne:end -->/);
+  assert.ok(m, "runbook nie ma bloku wycofanie-zmienne");
+  return m[1].trim().split("\n").sort();
+}
+
+test("runbook #595: wycofanie A dopisuje do kuking.pl dokładnie zmienne workera i schedulera", () => {
+  const oczekiwane = liniePowrotuDoAll(PROD);
+  assert.ok(oczekiwane.length >= 5, "graf nie ma zmiennych poza web — test niczego by nie sprawdzał");
+  assert.deepEqual(blokPowrotu(RUNBOOK_595), oczekiwane);
+});
+
+test("kontrola ujemna runbooka #595: nowa zmienna tylko w workerze rozjeżdża blok wycofania", () => {
+  const zepsuty = structuredClone(PROD);
+  usluga(zepsuty, "worker").variables.KUKING_TYLKO_W_PANELU_A = { type: "sharedReference", name: "KUKING_TYLKO_W_PANELU_A" };
+  assert.notDeepEqual(blokPowrotu(RUNBOOK_595), liniePowrotuDoAll(zepsuty));
+});
+
+test("kontrola ujemna runbooka #595: brak linii w bloku wycofania jest wykrywany", () => {
+  const zepsuty = RUNBOOK_595.replace(/^OPENAI_MODERATION_KEY=.*\n/m, "");
+  assert.notEqual(zepsuty, RUNBOOK_595, "mutacja nic nie zmieniła");
+  assert.notDeepEqual(blokPowrotu(zepsuty), liniePowrotuDoAll(PROD));
 });
