@@ -188,11 +188,7 @@ final class ZuzyjLinkDoLogowania
             // Transakcja wycofana: token jest z powrotem, konto nietknięte.
             // Operator dostaje nazwę brakującego wpisu (bez tokenu i adresu),
             // kontroler — sygnał, że człowiekowi wolno kliknąć jeszcze raz.
-            throw new WejscieLinkiemWycofane(
-                'Nie zapisał się wpis dziennika audytu „account.login_link_used" dla User '
-                .$konto->getKey().' — wejście linkiem wycofane, link nadal ważny.',
-                previous: $awaria,
-            );
+            throw new WejscieLinkiemWycofane((string) $konto->getKey(), $awaria);
         }
     }
 }

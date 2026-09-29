@@ -297,7 +297,7 @@ class LoginLinkController extends Controller
             // człowiek — prawdę i jedną rzecz do zrobienia.
             // Do monitoringu idzie zwykły `RuntimeException`, jak przed wyjęciem
             // akcji — to jego klasę i treść znają testy oraz alarmy.
-            report(new RuntimeException($awaria->getMessage(), previous: $awaria->getPrevious()));
+            report(new RuntimeException(WejscieLinkiemWycofane::opis($awaria->kontoId), previous: $awaria->getPrevious()));
 
             return redirect()->route('login.link.confirm', ['token' => $token])->with(Komunikat::blad('Nie udało się Cię zalogować — to usterka po naszej stronie. Nic się nie zmieniło '
                 .'i link nadal działa: kliknij „Zaloguj mnie” jeszcze raz.',
