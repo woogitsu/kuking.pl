@@ -76,6 +76,7 @@ zależności od `Illuminate\Http` — pilnuje tego `ZeszytyNieRosnaOdHttpTest`
 z listą dwóch zastanych plików (`ZeszytyDoWyboru`, `CollectionSaveContext`).
 Zostaje w kontrolerze: przypadki użycia listy, wyjęcia niedostępnych i
 zapisu przepisu (kolejne kroki).
+Profil publiczny: `ProfilRequest` (zakładka, rok i fraza z adresu, `rules()` puste — jak `ListaKontRequest`).
 Kolejne kandydaty (od największego): `CollectionController` (dalsze kroki), `ProfileController`,
 `OnboardingController`, `NotificationController`, `ReportController`,
 kontrolery logowania Google/Facebook (#1035).
