@@ -66,7 +66,7 @@ Edycja wpisu i pytania: `EdycjaWpisuRequest` (`rules()` puste — treść walidu
 marker `_tag_form_post_id` idzie też do żądania z kontenera, bo z niego
 powstaje `old()`; reguły wspólne ze store'em w traicie `WalidujeTrescWpisu`).
 Komentarz: `KomentarzRequest` (Policy w `authorize()` przed walidacją pól).
-Przypadki użycia z własną transakcją i blokadą: `ZamknijGrupeSygnalow` (`SygnalyController::odrzucGrupe()`, wynik w `WynikZamknieciaGrupy`) i `ZuzyjLinkDoLogowania` (`LoginLinkController::store()`, awaria dziennika jako `WejscieLinkiemWycofane`) — kolejność blokad bez zmian; pozostałe `DB::transaction` w kontrolerach to jednolinijkowe savepointy wokół pojedynczego zapisu.
+Przypadki użycia z własną transakcją i blokadą: `ZamknijGrupeSygnalow` (`SygnalyController::odrzucGrupe()`, wynik w `WynikZamknieciaGrupy`) i `ZuzyjLinkDoLogowania` (`LoginLinkController::store()`, awaria dziennika jako `WejscieLinkiemWycofane`) — kolejność blokad bez zmian; pozostałe `DB::transaction` w kontrolerach to jednolinijkowe savepointy wokół pojedynczego zapisu. Ustawienia 2FA: `WlaczenieDwuetapowejRequest`/`NoweKodyZapasoweRequest`/`WylaczenieDwuetapowejRequest` (worki błędów `regenerate` i `disable`) + `WlaczDwuetapowa` i `WygenerujNoweKodyZapasowe` (dwa domknięcia `ZamekKonta`, kolejność sprawdzeń bez zmian); `RegistrationInviteController` nie ma blokad — tylko `PrzyjecieZaproszeniaRequest` (odczyt tokenu bez reguł, żeby błąd nie był wyrocznią).
 Kolejne kandydaty (od największego): `CollectionController` (1157 linii), `ProfileController`,
 `OnboardingController`, `NotificationController`, `ReportController`,
 kontrolery logowania Google/Facebook (#1035).
