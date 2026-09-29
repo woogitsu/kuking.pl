@@ -35,15 +35,6 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
-    'Wybór formy widoczny w okresie przejściowym polityki': r'does not contain "Jak mamy do Ciebie pisać\?"|does not contain "name="form_of_address""',
-    # #1011, paczka H (2): forma zwracania się i pasek polityki.
-    'Cofnięcie formy zwracania się bez odmowy': r'Rollback przeszedł mimo zapisanego wyboru formy — wybór przepadłby po cichu',
-    'Anonimizacja zostawia formę zwracania się': r"Failed asserting that 'feminine' is null\.",
-    'Helper formy ignoruje formę żeńską': r"-'ugotowałaś' \+'gotujesz'|contains \"[^\"]*(?:ugotowałaś|ugotowała|ugotowałam|Ugotowałam)|(?<!does not )matches PCRE pattern \"~data-minutniki-koniec>",
-    'Wariant neutralny helpera z rodzajem': r'Wywołania helpera formy łamią D-332|contains "[^"]*gotujesz',
-    'Goły rodzaj obok wywołania helpera': r'Tekst przypisuje czytelnikowi płeć',
-    'Rollback paska polityki bez odmowy': r'Rollback przeszedł, choć ktoś zamknął pasek\.',
-    'Polityka bez terminu wejścia w życie': r'contains "nowa wersja obowiązuje od \d+ \w+ \d{4}"',
     # #1011, paczka H: wpisy dopisane po wzorcach dla wcześniejszych kontroli.
     "Goły ->with('status') wraca do kontrolera": r'Goły zapis klucza `status` wygląda jak zielony sukces',
     'Odmowa nazwana sukcesem': r'Komunikat::sukces\(\) z tekstem „Nie udało się…" — to błąd, nie sukces\.',
