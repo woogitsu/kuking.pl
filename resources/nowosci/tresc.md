@@ -67,6 +67,21 @@ wybierzcie „Dodaj do planu”. Nie trzeba już wchodzić na stronę przepisu.
 Po dodaniu wracacie do tego samego dnia z tą samą frazą, więc od razu możecie
 dopisać kolejne danie.
 
+### Wspólny zeszyt dla rodziny
+
+Zeszyt z przepisami możecie teraz udostępnić bliskim — na przykład mężowi,
+córce albo siostrze, z którą razem planujecie niedzielny obiad. Na ekranie
+zeszytu wybierzcie „Zaproś do wspólnego zapisywania” i wpiszcie nazwę konta tej osoby albo
+wyślijcie jej jednorazowy link. Zaproszona osoba może dopisywać i wyjmować
+przepisy oraz wpisy, a przy każdej pozycji widać, kto ją dodał.
+
+Zeszyt ma nadal jednego właściciela: tylko Wy zmieniacie jego nazwę,
+widoczność i usuwacie go. Dostęp może mieć najwyżej pięć osób, a zeszytu
+„Zapisane” nie da się udostępnić. Można w każdej chwili odebrać komuś dostęp,
+a zaproszona osoba może sama odejść — to, co dopisała, zostaje w zeszycie.
+Gdy jedna z osób zablokuje drugą albo usunie konto, wspólne zapisywanie
+między nimi się kończy.
+
 ## Alfa 0.75
 
 **Znajdziecie swoje wcześniejsze wykonania, a „Ugotowałem” jest jeszcze pewniejsze.**

@@ -145,7 +145,7 @@ class EksportWygladObietnicePaczkiTest extends EksportWygladStylPaczki
 
         $this->assertIsArray($zapisany, 'Zapisany cudzy przepis miał wejść do paczki.');
         $this->assertSame('Żurek na zakwasie', $zapisany['tytul']);
-        $this->assertSame(['tytul', 'autor', 'moja_notatka', 'zapisano'], array_keys($zapisany),
+        $this->assertSame(['tytul', 'autor', 'moja_notatka', 'zapisano', 'dodane_przez'], array_keys($zapisany),
             'Zakres zapisanego cudzego przepisu się zmienił — sprawdź, czy zdanie w index.html nadal jest prawdziwe.');
 
         $indeks = $this->zPaczki($export, 'index.html');
