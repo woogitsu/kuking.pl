@@ -279,6 +279,10 @@ if "${_test_polecenie[@]}" >"$_test_log" 2>&1; then
     ok "Testy przechodzą"
 else
     printf 'Pełny wynik testów zapisano w: %s\n' "$_test_log"
+    # Porażki wprost (#611 etap 4): ogon poniżej często pokazuje tylko
+    # podsumowanie. Tylko diagnostyka — kod wyjścia i kroki bez zmian.
+    printf '%s\n' 'Porażki z logu testów:'
+    bash scripts/porazki-z-logu.sh "$_test_log" 60 || true
     printf '%s\n' 'Ostatnie 160 wierszy wyniku:'
     tail -n 160 "$_test_log"
     zle "Testy nie przechodzą — uruchom: $_test_podpowiedz"
