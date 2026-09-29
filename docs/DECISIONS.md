@@ -15252,8 +15252,9 @@ deklaracje w kaflu liczb (`.przepis-liczba` { padding, border-radius },
 zostały **usunięte** z `resources/css/app.css`, a zawężenie strażnika w CI
 poszerzone z `.przepis-liczba svg` na całe `.przepis-liczba`. Strażnik na
 całym kaflu wskazał przy tym piątą deklarację tej samej rodziny
-(`.przepis-liczba span` { font-size } w `marka-ekrany.css`, przykrytą w pomiarze
-przez regułę spoza warstw) — usunięta razem z czterema. Zasada „reguł nie
+(`.przepis-liczba span` { font-size } w `marka-ekrany.css`; na ekranie `span`
+dziedziczy ten sam rozmiar, w druku przykrywa ją nieuwarstwiona reguła
+z `@media print` w `wydruk-przepisu.css`) — usunięta razem z czterema. Zasada „reguł nie
 usuwamy” dotyczy reszty; ta osobna decyzja jest podjęta. Usunięcie jest
 niewidoczne — odcisk kafla przed i po jest identyczny (komplet własności
 wyliczonych i geometria): `docs/design/evidence/martwe-liczby/`.

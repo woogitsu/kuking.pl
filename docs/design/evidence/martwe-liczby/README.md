@@ -9,8 +9,11 @@ strażnika kaskady z `.przepis-liczba svg` na całe `.przepis-liczba`.
 Po usunięciu tych czterech strażnik na całym `.przepis-liczba` zgłosił jeszcze
 jedną deklarację tej samej rodziny: `.przepis-liczba span` { font-size } w
 `resources/css/marka-ekrany.css` (warstwa `marka`), przykrytą w pomiarze przez
-`body:has(.przepis-uklad) .przepis-uklad *`; `span` i tak dziedziczy ten sam
-rozmiar. Usunięto ją razem z czterema, a odcisk poniżej mierzy sumę pięciu
+`body:has(.przepis-uklad) .przepis-uklad *`. To przypisanie strażnika jest
+tylko wskazówką: ta reguła stoi w `@media print` (`wydruk-przepisu.css`), więc
+przykrywa deklarację wyłącznie w druku. Na ekranie deklaracja nie zmienia nic,
+bo `span` dziedziczy ten sam rozmiar — i to rozstrzyga pomiar
+`getComputedStyle` oraz odcisk niżej, nie wskazanie. Usunięto ją razem z czterema, a odcisk poniżej mierzy sumę pięciu
 deklaracji: PRZED = stan bazy, PO = stan z usuniętym kompletem.
 
 ## Wynik
