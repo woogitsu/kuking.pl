@@ -19,6 +19,7 @@ use App\Notifications\PilnyAlarmModeracyjny;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
+use Illuminate\Queue\Jobs\FakeJob;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
@@ -279,7 +280,9 @@ class ModeracjaBudzetIZdjeciaPoGotowosciTest extends TestCase
         $proba = function (int $numer) use ($wpis): PrzeanalizujTresc {
             $zadanie = (new PrzeanalizujTresc(PrzeanalizujTresc::TYP_WPIS, (string) $wpis->getKey()))
                 ->withFakeQueueInteractions();
-            $zadanie->job->attempts = $numer;
+            /** @var FakeJob $job */
+            $job = $zadanie->job;
+            $job->attempts = $numer;
             $this->app->call([$zadanie, 'handle']);
 
             return $zadanie;
@@ -304,7 +307,9 @@ class ModeracjaBudzetIZdjeciaPoGotowosciTest extends TestCase
         $drugi = $this->wpis($autor, 'Barszcz czerwony na Wigilię.');
         $drugi->media()->attach($this->gotoweZdjecie($autor), ['position' => 1]);
         $ostatnia = (new PrzeanalizujTresc(PrzeanalizujTresc::TYP_WPIS, (string) $drugi->getKey()))->withFakeQueueInteractions();
-        $ostatnia->job->attempts = PrzeanalizujTresc::PROBY;
+        /** @var FakeJob $job */
+        $job = $ostatnia->job;
+        $job->attempts = PrzeanalizujTresc::PROBY;
         $this->app->call([$ostatnia, 'handle']);
 
         $ostatnia->assertNotReleased();

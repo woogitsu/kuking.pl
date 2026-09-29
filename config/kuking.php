@@ -424,6 +424,21 @@ return [
         // Ta sama wartość co tam (12), żeby dwie sekcje tego samego ekranu
         // nie skakały o różne kroki.
         'saved_posts_page_size' => (int) env('KUKING_COLLECTION_SAVED_POSTS_PAGE_SIZE', 12),
+
+        // WSPÓLNY ZESZYT (#1743, D-302).
+        //
+        // Ile osób poza właścicielem może mieć dostęp do jednego zeszytu —
+        // razem z oczekującymi zaproszeniami, żeby limitu nie dało się
+        // obejść serią linków. Pięć to gospodarstwo domowe z zapasem
+        // (małżonek, dwoje dorosłych dzieci, rodzeństwo), a nie grupa
+        // społecznościowa, której #1743 świadomie nie buduje.
+        'max_members' => 5,
+        // Zaproszenie po nazwie konta czeka dwa tygodnie: ktoś, kto zagląda
+        // raz w tygodniu, ma na nie dwie szanse.
+        'invitation_days' => 14,
+        // Link-zaproszenie krócej — krąży poza serwisem (SMS, komunikator)
+        // i każdy, kto go ma, może z niego skorzystać raz.
+        'link_days' => 7,
     ],
 
     'tags' => [
@@ -1982,6 +1997,23 @@ return [
         'zeszyt' => '60,10',
 
         /*
+         * ZAPROSZENIA DO WSPÓLNEGO ZESZYTU (#1743) — wysłanie zaproszenia
+         * po nazwie konta, utworzenie linku, odpowiedź, odebranie dostępu.
+         *
+         * Szkoda z nadużycia: zaproszenie po nazwie POWIADAMIA drugiego
+         * człowieka, więc to nie jest prywatna czynność jak zapis. Osobne
+         * wiadro od `zeszyt`, żeby wieczór zapisywania nie zjadał zaproszeń,
+         * a zaproszenia nie mogły lecieć tempem zapisów.
+         *
+         * SKĄD 20 NA 10 MINUT. Rodzina to kilka osób; nawet z pomyłkami
+         * w nazwie i ponownym linkiem dla babci to kilkanaście kliknięć.
+         * Limit miejsc w zeszycie (`collections.max_members`) i tak trzyma
+         * liczbę zaproszeń w jednym zeszycie — ten próg zatrzymuje pętlę
+         * zaproś→odwołaj, która przy każdym obrocie budzi komuś telefon.
+         */
+        'zaproszenia' => '20,10',
+
+        /*
          * PLANER TYGODNIA (#27, D-310) — dopisanie pozycji, usunięcie jej
          * i „Skopiuj poprzedni tydzień”. Szkoda z nadużycia taka jak przy
          * zeszycie: nikt inny planu nie widzi, nikogo nie powiadamia.
@@ -2787,9 +2819,11 @@ return [
          * samo jak `wersja.etykieta` niżej trzymane w repozytorium, NIE
          * w zmiennej środowiskowej: zmiana wersji dokumentu prawnego ma
          * przechodzić przez recenzję jak każda inna zmiana, a nie dać się
-         * przestawić w panelu Railwaya.
+         * przestawić w panelu Railwaya. Zgodność z nagłówkiem pilnuje
+         * `WersjaPolitykiZgadzaSieZNaglowkiemTest`. Wcześniejsze wiersze
+         * dziennika zostają ze swoją wersją — to dowód, NA CO się zgodzono.
          */
-        'wersja_polityki' => '2026-09-25',
+        'wersja_polityki' => '2026-09-29',
 
         /*
          * CZY ZMIANA POLITYKI JEST ISTOTNA — oznaczenie JAWNE, bez wartości
@@ -2810,6 +2844,17 @@ return [
          * w części Cloudflare R2 zastrzeżonej dla UE) opisuje stan, który już
          * był — bez nowego celu, odbiorcy ani dłuższego przechowywania — więc
          * drobna.
+         *
+         * Wersja 2026-09-29 (#1816, jedno podbicie razem z #1324 i #619) opisuje
+         * to, co serwis już robił: paczkę danych zgodną z kodem (co jest
+         * w środku, co tylko na prośbę), obserwowane tagi, ukrycia, reakcję
+         * „Smakowicie wygląda”, listę „Co mam w domu”, odpięcie zdarzeń
+         * analitycznych po usunięciu konta i datę sprawdzenia lokalizacji
+         * zdjęć. Nie ma tu nowego celu, odbiorcy ani dłuższego przechowywania,
+         * a zwroty z „sam” zamieniono na neutralne (decyzja właściciela
+         * z 26.09.2026) — więc drobna. Gdyby prawnik uznał inaczej,
+         * przestaw `istotna` na true: `WersjaDokumentuTest` zażąda wtedy
+         * paska `components.pasek-zmiany-polityki`, którego jeszcze nie ma.
          */
         'zmiana_polityki' => [
             'istotna' => false,
@@ -3822,7 +3867,7 @@ return [
         // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
         // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
         // wersji nie da się z niczym powiązać.
-        'etykieta' => 'Alfa 0.75',
+        'etykieta' => 'Alfa 0.76',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
         //

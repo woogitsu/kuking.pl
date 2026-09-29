@@ -40,7 +40,9 @@ final class UpdateCollectionItemNote
 
     public function handle(User $user, Collection $collection, string $typ, string $id, ?string $note): ?string
     {
-        Gate::forUser($user)->authorize('update', $collection);
+        // Notatkę przy pozycji wspólnego zeszytu pisze każdy, kto może do niego
+        // dopisywać (#1743, D-302) — właściciel i współpracownicy.
+        Gate::forUser($user)->authorize('addItem', $collection);
 
         $kolumna = match ($typ) {
             self::PRZEPIS => 'recipe_id',

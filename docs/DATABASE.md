@@ -1421,6 +1421,12 @@ przedłuża wiersz. Indeksy na `post_id` i `hidden_user_id` pod kaskadę
 oraz na `user_id` pod listę widza, eksport i wymazanie konta (indeksy
 częściowe `WHERE … IS NOT NULL` tego zapytania nie obsłużą).
 
+**Retencja (polityka prywatności, wiersz „Ukrywanie wpisów i osób”, #1816).**
+Wiersz po `hidden_until` nic nie ukrywa, ale **żadne zadanie go nie czyści** —
+zostaje do „Przywróć” (tylko przy aktywnym ukryciu — lista pokazuje wyłącznie
+aktywne) albo do wymazania konta. Polityka mówi to wprost; sprzątanie wygasłych
+wierszy wymagałoby decyzji właściciela i osobnej komendy.
+
 **Kaskada działa tylko przy twardym usunięciu.** Konta się anonimizuje
 (D-022), więc ukrycia wymazywanego konta (`user_id`) kasuje jawnie
 `EraseAccountData` — przy każdym `delete_scope`. Wpisy mają soft delete:
@@ -2932,6 +2938,95 @@ Szukamy po `is_default`, nigdy po nazwie publicznego zeszytu właściciela.
 Pomiar dwóch procesów i ograniczenia: `tests/Dwa/PierwszyZapisDoZeszytuTest.php`
 oraz `docs/research/2026-09-20-zeszyt-zapisy-778-779.md`. Schemat nie zmienia
 się; wycofanie poprawki jest wyłącznie wycofaniem kodu, bez kasowania zapisów.
+
+### collection_members + collection_invitations — wspólny zeszyt (#1743, D-302)
+
+Rodzinny zeszyt: właściciel zaprasza bliską osobę, która może w jego zeszycie
+zapisywać i wyjmować pozycje. Migracje
+`2026_09_29_100000_create_collection_sharing_tables` (dwie nowe tabele)
+i `2026_09_29_100100_add_added_by_to_collection_items` (kolumna na istniejącej
+tabeli). Numery `2026_09_29_1000xx` — przenumerowane z `2026_09_26_1200xx`,
+bo ten sam znacznik `2026_09_26_120000` miały jeszcze dwie inne migracje
+(kolumna `terms_notice_dismissed_version`, tabela `pantry_items`), a ta ma
+stać po najnowszej migracji na main. Reguły dostępu:
+`CollectionPolicy::addItem()`, `removeItem()`, `share()`, `leave()`; decyzja i granice — **D-302** w `docs/DECISIONS.md`.
+
+**Dokładnie jeden właściciel** — jak dotąd `collections.owner_id NOT NULL`
+z kluczem obcym. Współpracownik nie jest drugim właścicielem.
+
+`collection_members`:
+
+- `collection_id uuid NOT NULL` → `collections` `ON DELETE CASCADE` —
+  usunięty zeszyt nie zostawia członkostw;
+- `user_id uuid NOT NULL` → `users` `ON DELETE CASCADE`;
+- `created_at timestamptz NOT NULL DEFAULT now()` — od kiedy osoba ma dostęp;
+- **`PRIMARY KEY (collection_id, user_id)`** — unikalne członkostwo w bazie;
+  indeks `(user_id)` dla listy „Udostępnione Tobie";
+- **wyzwalacz `collection_members_guard`** (`BEFORE INSERT OR UPDATE`) —
+  odmawia (`check_violation`) wpisania właściciela jako członka i dopisania
+  kogokolwiek do domyślnego zeszytu (`is_default`). CHECK tego nie wyrazi, bo
+  warunek dotyczy wiersza `collections`.
+
+`collection_invitations`:
+
+- `id uuid` (`gen_random_uuid()`), `collection_id` → `collections` CASCADE,
+  `inviter_id` → `users` CASCADE, `invitee_id uuid NULL` → `users` CASCADE;
+- **`token_hash char(64) NULL UNIQUE`** — SHA-256 tokenu z linku-zaproszenia.
+  Sam token nie trafia do bazy; pokazujemy go raz, po utworzeniu. To jest
+  poświadczenie (AGENTS.md §7): poza `$fillable`, ukryte w `$hidden`, nie
+  wychodzi w eksporcie;
+- `via_link boolean NOT NULL DEFAULT false` — czy to był link; po przyjęciu
+  token znika, a `invitee_id` jest już ustawiony, więc bez tej kolumny nie
+  dałoby się tego odróżnić;
+- **`status varchar(20) NOT NULL DEFAULT 'pending'`** (CHECK
+  `collection_invitations_status_check`: `pending` \| `accepted` \|
+  `declined` \| `revoked`) — pole sterujące, poza `$fillable`;
+- `expires_at timestamptz NOT NULL` — 14 dni po nazwie konta, 7 dni linkiem
+  (`config/kuking.php`, `collections.*_days`). „Wygasłe" nie jest stanem
+  w bazie, tylko `expires_at <= now()`;
+- `responded_at timestamptz NULL`, `created_at`, `updated_at`.
+
+CHECK-i i indeksy:
+
+- `collection_invitations_target_check` — oczekujące ma adresata:
+  `num_nonnulls(invitee_id, token_hash) >= 1`;
+- `collection_invitations_token_only_pending` — **link jest jednorazowy**:
+  po odpowiedzi (`accepted`, `declined`, `revoked`) token musi zniknąć;
+- `collection_invitations_link_check` — token tylko przy `via_link`;
+- `collection_invitations_accepted_has_invitee` — przyjęte zawsze wie, kto
+  przyjął;
+- `collection_invitations_responded_check` — `responded_at` jest wtedy
+  i tylko wtedy, gdy zaproszenie nie czeka;
+- `collection_invitations_one_pending_idx` — unikalny częściowy
+  `(collection_id, invitee_id) WHERE status = 'pending' AND invitee_id IS NOT NULL`:
+  jedno oczekujące zaproszenie tej samej osoby, także przy wyścigu;
+- `collection_invitations_invitee_idx`, indeksy `collection_id`, `inviter_id`.
+
+`collection_items.added_by_id uuid NULL` → `users` `ON DELETE SET NULL`
+(`collection_items_added_by_fk`, dodany `NOT VALID` + `VALIDATE`), indeks
+częściowy `collection_items_added_by_idx` (`CONCURRENTLY`). **Kto dodał
+pozycję** — widać to we wspólnym zeszycie. Wiersze sprzed migracji dostały
+`owner_id` zeszytu (do dziś tylko on mógł dopisywać). `NULL` znaczy: dodała to
+osoba, której konto zostało usunięte (`ZerwijWspoldzielenie::przyWymazaniu()`).
+
+**Blokada** w którąkolwiek stronę kasuje członkostwa między tymi osobami
+i odwołuje oczekujące zaproszenia (`BlockUser` → `ZerwijWspoldzielenie::miedzy()`,
+pod zamkiem pary kont). **Usunięcie konta** — patrz D-302.
+
+**Rollback.**
+
+- `2026_09_29_100100_add_added_by_to_collection_items` — `down()` **odmawia**,
+  gdy choć jedna pozycja ma `added_by_id` różne od właściciela zeszytu (albo
+  `NULL`): ponowna migracja przypisałaby ją po cichu właścicielowi (D-088).
+  Na bazie, gdzie wszystko dodał właściciel, zdejmuje indeks, klucz i kolumnę
+  bez pytania.
+- `2026_09_29_100000_create_collection_sharing_tables` — `down()` **odmawia**,
+  gdy istnieje choć jedno członkostwo albo oczekujące zaproszenie, i podaje
+  liczby oraz polecenia kopii. Wymuszenie po zrobieniu kopii:
+  `KUKING_ROLLBACK_KASUJE_WSPOLDZIELENIE=1`. Zeszyty i ich zawartość zostają
+  u właścicieli — znika tylko to, kto miał dostęp. Pilnuje
+  `tests/Feature/CofniecieMigracjiWspolnegoZeszytuTest.php` (odmowa i kontrola
+  dodatnia dla obu migracji).
 
 ### first_post_events
 
@@ -4846,7 +4941,7 @@ potrzebuje).
 | Kolumna | Uwagi |
 |---|---|
 | `id` | `bigserial`, nie UUID — wiersz nigdy nie jest adresowany z zewnątrz (ten sam wybór co `audit_log`). |
-| `user_id` | Nullable, `nullOnDelete()`. Anonimizacja konta (`EraseAccountData`, D-018) NIE kasuje wiersza — sygnał ma wartość niezależnie od tego, kto go wywołał — ale referencja do usuniętego konta znika razem z nim. |
+| `user_id` | Nullable, `nullOnDelete()`. Anonimizacja konta (`EraseAccountData`, D-018) NIE kasuje wiersza — sygnał ma wartość niezależnie od tego, kto go wywołał — ale **jawnie ustawia `user_id = NULL`** w tej samej transakcji (issue #1324). Kaskada klucza obcego by tego nie zrobiła, bo wiersza `users` się nie kasuje (D-022). Ponowienie wymazania już wymazanego konta odpina też sygnały, które zostały sprzed poprawki. Sygnał zapisywany w chwili wymazania: `ZapiszSygnal` bierze `FOR SHARE` na wierszu konta i przy ustawionym `data_erased_at` zapisuje zdarzenie bez `user_id`. Liczniki zbiorcze się nie zmieniają; wiersz znika po zwykłej retencji 90 dni. Bez migracji — rollback to cofnięcie kodu (odpięcia nie da się odwrócić i nie powinno się dać). |
 | `signal_name` | `photo_upload_failed` \| `search_performed` \| `weekly_digest_queued` \| `weekly_digest_unsubscribed` \| `pwa_prompt_shown` \| `pwa_install_requested` \| `pwa_prompt_dismissed` \| `pwa_installed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
 | `properties` | `jsonb`. Dla `photo_upload_failed`: `reason` (patrz niżej) i gdzie to ma sens liczby (`bytes`, `max_bytes`, `megapixels`) — NIGDY nazwa pliku. Dla `search_performed`: **wyłącznie** `query_length` (int) i `has_results` (bool) — **nigdy** `query_text`. Drugi CHECK w bazie (`product_signals_no_query_text_check`, przez `jsonb_exists()`) odrzuca każdy wiersz, w którym klucz `query_text` w ogóle by się pojawił, niezależnie od tego, co akurat pisze kod aplikacji. Dla `weekly_digest_queued`: **wyłącznie liczby** — `wykonania`, `nowi_obserwujacy`, `wpisy` (ile pozycji miała każda sekcja listu), żeby dało się zobaczyć, czy listy nie robią się cienkie. Bez adresu, bez nazw, bez tytułów. Dla `weekly_digest_unsubscribed`: `properties` jest PUSTE — sam fakt i `user_id` wystarczą do progu wypisów. |
 | `occurred_at` | `timestamptz`, `useCurrent()`. **SPROSTOWANIE (D-078):** wcześniej stało tu, że dla `weekly_digest_sent` kolumna jest czytana JAKO LICZNIK dobowego limitu poczty. Nieprawda — sprawdzone w kodzie: dobowy sufit liczy `App\Domain\Security\DziennyBudzetListow`, a ten trzyma licznik w **cache**, nie w tej tabeli, i nie sięga do `product_signals` ani razu. Ta kolumna służy dziś wyłącznie retencji (`kuking:sprzataj-sygnaly`) i porządkowaniu w czasie. |

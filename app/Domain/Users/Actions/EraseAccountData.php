@@ -8,6 +8,7 @@ use App\Domain\Compliance\DziennikWymazan;
 use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
 use App\Domain\Users\Exports\ExportFileNames;
+use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem;
@@ -18,6 +19,7 @@ use App\Models\Hide;
 use App\Models\MailFailure;
 use App\Models\Media;
 use App\Models\PostReaction;
+use App\Models\ProductSignal;
 use App\Models\PrzepisZImportu;
 use App\Models\User;
 use App\Models\WpisZgody;
@@ -125,6 +127,10 @@ final class EraseAccountData
         // bezterminowo, mimo że człowiek dostał potwierdzenie usunięcia
         // danych.
         if ($fresh !== null && $fresh->data_erased_at !== null) {
+            // Konto wymazane przed poprawką #1324 nie przejdzie już przez
+            // główną transakcję — ponowienie domyka i to powiązanie.
+            $this->odlaczSygnalyProduktowe($fresh);
+
             $zostaly = $fresh->media()->get()->all();
 
             if ($zostaly === []) {
@@ -192,6 +198,12 @@ final class EraseAccountData
             $zakresWykonany = $fresh->chceUsunacTresci()
                 ? User::DELETE_SCOPE_EVERYTHING
                 : User::DELETE_SCOPE_MINIMUM;
+
+            // Wspólne zeszyty (#1743, D-302) — PRZED `usunTresci()`, bo ta
+            // kasuje zeszyty tej osoby, a my musimy jeszcze zobaczyć, które
+            // z nich były wspólne. Niezależnie od zakresu: członkostwa
+            // i zaproszenia to relacje z innymi osobami, jak obserwowanie.
+            app(KoniecWspolnychZeszytow::class)->przyWymazaniu($fresh);
 
             if ($fresh->chceUsunacTresci()) {
                 $this->usunTresci($fresh);
@@ -379,6 +391,7 @@ final class EraseAccountData
             DB::table('importy_przepisow')->where('user_id', $fresh->getKey())->delete();
 
             $this->odlaczWiadomosciDoOperatora($fresh);
+            $this->odlaczSygnalyProduktowe($fresh);
             $this->odlaczSladyNieudanychListow($fresh);
             $this->usunPochodzenieImportow($fresh);
 
@@ -862,6 +875,26 @@ final class EraseAccountData
     private function odlaczWiadomosciDoOperatora(User $user): void
     {
         ContactMessage::query()
+            ->where('user_id', $user->getKey())
+            ->update(['user_id' => null]);
+    }
+
+    /**
+     * SYGNAŁY PRODUKTOWE ZOSTAJĄ, ALE BEZ KONTA (issue #1324).
+     *
+     * `product_signals.user_id` ma `nullOnDelete()`, a konta się nie kasuje
+     * (D-022) — więc bez tej linii zdarzenia z ostatnich 90 dni dalej
+     * wskazywały identyfikator wymazanego konta. Żaden raport nie potrzebuje
+     * osoby po zamknięciu konta: liczy się fakt zdarzenia, więc wiersz
+     * zostaje do zwykłej retencji (`PrzedawnioneSygnaly`) z `user_id = NULL`.
+     *
+     * Wyścig z sygnałem zapisywanym w tej samej chwili domyka
+     * `ZapiszSygnal` — `FOR SHARE` na wierszu konta i sprawdzenie
+     * `data_erased_at`.
+     */
+    private function odlaczSygnalyProduktowe(User $user): void
+    {
+        ProductSignal::query()
             ->where('user_id', $user->getKey())
             ->update(['user_id' => null]);
     }

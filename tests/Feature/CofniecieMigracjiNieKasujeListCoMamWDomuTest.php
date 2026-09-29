@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use Illuminate\Database\Migrations\Migration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -65,7 +64,7 @@ class CofniecieMigracjiNieKasujeListCoMamWDomuTest extends TestCase
         $this->assertFalse(Schema::hasTable('pantry_items'));
     }
 
-    private function migracja(): Migration
+    private function migracja(): object
     {
         return require base_path(self::SCIEZKA);
     }

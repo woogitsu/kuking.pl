@@ -10,6 +10,7 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Spis wydań
 
 - [Najnowsze zmiany](#najnowsze-zmiany)
+- [Alfa 0.76 — planer z wyszukiwarką, „Co mam w domu” i zeszyt bez konta](#alfa-076)
 - [Alfa 0.75 — szukanie w wykonaniach i pewniejsze „Ugotowałem”](#alfa-075)
 - [Alfa 0.74 — zdjęcia w formularzu i porcje przy gotowaniu](#alfa-074)
 - [Alfa 0.73 — import przepisu i wygodniejsze gotowanie](#alfa-073)
@@ -27,7 +28,26 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
-To, co już działa, ale nie ma jeszcze numeru wydania.
+Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
+
+### Wspólny zeszyt dla rodziny
+
+Zeszyt z przepisami możecie teraz udostępnić bliskim — na przykład mężowi,
+córce albo siostrze, z którą razem planujecie niedzielny obiad. Na ekranie
+zeszytu wybierzcie „Zaproś do wspólnego zapisywania” i wpiszcie nazwę konta tej osoby albo
+wyślijcie jej jednorazowy link. Zaproszona osoba może dopisywać i wyjmować
+przepisy oraz wpisy, a przy każdej pozycji widać, kto ją dodał.
+
+Zeszyt ma nadal jednego właściciela: tylko Wy zmieniacie jego nazwę,
+widoczność i usuwacie go. Dostęp może mieć najwyżej pięć osób, a zeszytu
+„Zapisane” nie da się udostępnić. Można w każdej chwili odebrać komuś dostęp,
+a zaproszona osoba może sama odejść — to, co dopisała, zostaje w zeszycie.
+Gdy jedna z osób zablokuje drugą albo usunie konto, wspólne zapisywanie
+między nimi się kończy.
+
+## Alfa 0.76
+
+**Wyszukiwarka w Planerze, „Co mam w domu”, zapis przepisu po rejestracji, wydruk przepisu i zeszyt bez konta.**
 
 ### Szukajcie w zeszytach także po składniku
 
@@ -66,6 +86,42 @@ Wpiszcie kilka liter, kliknijcie „Szukaj przepisu” i przy znalezionym daniu
 wybierzcie „Dodaj do planu”. Nie trzeba już wchodzić na stronę przepisu.
 Po dodaniu wracacie do tego samego dnia z tą samą frazą, więc od razu możecie
 dopisać kolejne danie.
+
+### Przepis wydrukowany na kartce
+
+Przy przepisie jest przycisk „Drukuj przepis”. Otwiera od razu okno drukowania,
+a jeśli przeglądarka nie wczyta skryptu, ten sam przycisk podpowiada, jakie
+klawisze nacisnąć albo co wybrać w menu telefonu. Na kartce zostają tytuł,
+autor, adres przepisu, porcje, składniki z uwagami, wszystkie kroki i „Skąd ten
+przepis”. Menu, przyciski i komentarze nie idą na papier, a długi przepis
+mieści się na 4 stronach A4, nie na 8–9. Litery na kartce mają co najmniej
+12 punktów.
+
+### Zeszyt można pokazać bez konta
+
+Jeśli ustawicie zeszyt na „Wszyscy”, otworzy się także osobom bez konta — możecie
+wysłać link rodzinie. Osoba niezalogowana zobaczy w nim tylko publiczne przepisy
+i wpisy, a zamiast przycisków zapisu dostanie „Zaloguj się” albo „Załóż konto”.
+Zeszyt ustawiony na „Tylko ja” (także domyślny, dopóki go nie zmienicie) nadal
+widzicie tylko Wy.
+
+### Jak dobieramy wpisy
+
+Nowa strona „Jak dobieramy wpisy” opisuje każdą listę w serwisie: Start,
+„Świeżo z Kuking”, tablicę na dziś, wyszukiwarkę i tygodniowy e-mail. Mówi też
+wprost, czego nie robimy: nie układamy wpisów według popularności ani reakcji
+i nie uczymy się Waszego gustu z tego, co oglądacie. Pod nagłówkiem „Świeżo
+z Kuking” jest odnośnik „Skąd te wpisy i jak to zmienić”, a gdy kogoś ukrywacie,
+widzicie „Ukrywasz wpisy N osób. Zmień”. Pozycje na tablicy wybrane przez
+gospodarza mają napis „Wybór gospodarza”.
+
+### Inne pytania na ten temat
+
+Pod pytaniem w „Poradźcie” jest sekcja „Inne pytania na ten temat” z odnośnikami
+„Pytania:” i nazwą tagu. Prowadzą do listy pytań z tym tagiem, a nie do ogólnej strony
+tagu z daniami. Na liście tag zostaje widoczny, a odnośnik „Pokaż wszystkie
+tagi” go zdejmuje. Przycisk „Czeka na odpowiedź” zawęża pytania i nie gubi
+wybranego tagu.
 
 ## Alfa 0.75
 

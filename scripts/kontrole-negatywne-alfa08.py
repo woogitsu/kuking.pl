@@ -22,14 +22,21 @@ W CI nic się nie zmienia — tam gate przepuszcza jak dotąd.
 import hashlib
 import os
 import subprocess
+import sys
 from pathlib import Path
 import tempfile
 
 from kontrola_wyjscia_testu import run_test
+from podzial_kontroli import parsuj_czesc, poza_petla_w_tej_czesci, wybierz_indeksy
 
 
 ROOT = Path(__file__).resolve().parent.parent
 os.chdir(ROOT)
+
+# CZĘŚCI CI. `--czesc N/M` uruchamia co M-ty wpis `checks` (indeks % M == N-1)
+# oraz, w części 3, elementy spoza pętli; bez argumentu (lokalnie) idzie całość.
+# Patrz scripts/podzial_kontroli.py i job `test` w .github/workflows/ci.yml.
+CZESC = parsuj_czesc(sys.argv[1:])
 
 
 def odmow(powod):
@@ -280,6 +287,8 @@ STREFA_STRAZNIK_TEST = "test_zaden_widok_nie_formatuje_daty_z_pominieciem_pomocn
 # i test ma wtedy oblać — dowód, że szuka tego słowa w tym pliku, a nie w pustce.
 POLITYKA = "resources/legal/polityka-prywatnosci.md"
 POLITYKA_KOPIA_TEST = "PolitykaNieObiecujePelnejKopiiTest"
+# #1816: polityka ma mówić o obserwowanych tagach, ukryciach, reakcjach i „Co mam w domu”.
+POLITYKA_PACZKA_TEST = "PolitykaOpisujePaczkeUkryciaIReakcjeTest"
 # Kompensacja nieudanego wgrania (issue #962). Pliki idą do storage przed
 # `Media::create()`; gdy wiersz nie powstanie, `StoreUploadedImage` ma je
 # skasować, bo bez wiersza nie znajdzie ich żadne sprzątanie. Mutacja wyłącza
@@ -355,6 +364,8 @@ WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 # Ta sama mutacja strażnika co wyżej musi zapalić też test polityki — dowód,
 # że obietnica stoi na kodzie, a nie na zmiennej środowiskowej.
 POLITYKA_R2_TEST = "test_polityka_nie_obiecuje_jurysdykcji_r2_bez_pokrycia_w_endpoincie"
+R2_ZAPIS_WERYFIKACJI = "docs/infra/LOKALIZACJA_DANYCH_R2.md"
+R2_ZAPIS_WERYFIKACJI_TEST = "test_data_sprawdzenia_r2_w_polityce_to_ostatni_zapis_weryfikacji"
 
 # Dokumenty prywatności o awatarach zgodne z kodem (#1461, D-240). Mutacja 1
 # dopisuje w kontrolerze prawdziwe zlecenie zadania — dokumenty mówią wtedy
@@ -446,7 +457,7 @@ DEMO_SEEDER = "database/seeders/DemoSeeder.php"
 DEMO_SEEDER_HASLO_TEST = "DemoSeederNieWypisujeHaslaTest"
 # #1295: mutacja przywraca dawne wypisanie hasła bez rozróżnienia źródła.
 WARUNEK_HASLA_Z_OTOCZENIA = "        if ($this->hasloZOtoczenia() !== '') {"
-AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
+AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('addItem', $collection);\n"
 # Jeden kontrakt danych karty wpisu (#1037). Test jest behawioralny: renderuje
 # siedem list i liczy zapytania. Mutacje zdejmują ze wspólnej listy zdjęcie
 # przepisu i tematy — każda ma zapalić test na wszystkich zależnych
@@ -688,6 +699,15 @@ DZIENNIK_WDROZEN_TEST = "test_cofniecie_odmawia_gdy_dziennik_ma_wiersze"
 RUNBOOK = "docs/infra/DEPLOYMENT_RUNBOOK.md"
 KOMENDY_IAC_TEST = "KomendyIacWDokumentachPodajaBramkeCiTest"
 RUNBOOK_APPLY_Z_BRAMKA = "\nKUKING_WAIT_FOR_CI=true railway config apply\n"
+# Higiena dziennika decyzji (#2154): roboczy numer i martwe odwołanie D-NNN.
+# Strażnik czyta treść repozytorium, więc kontrola dopisuje wadę do PRAWDZIWEGO
+# pliku (AGENTS.md, dziennik) i ma zapalić. Numery składamy z kawałków: dosłowny
+# zapis w scripts/ byłby dla testów numeracji cytatem z dziennika.
+DZIENNIK_ODWOLANIA_TEST = "DziennikDecyzjiOdwolaniaTest"
+DZIENNIK_ODWOLANIA_PLIK_TESTU = "tests/Feature/DziennikDecyzjiOdwolaniaTest.php"
+DZIENNIK_MARTWE_ODWOLANIE = "\nZob. D-" + "999 (martwe odwołanie).\n"
+DZIENNIK_ROBOCZY_NUMER = "\nZob. D-" + "1000-ROBOCZA.\n"
+DZIENNIK_ROBOCZY_NAGLOWEK = "\n## D-" + "1000-ROBOCZA — Szkic\n\nTreść.\n"
 
 # Pochodzenie żądania i zaufanie do proxy (#1306). Test bramki jest
 # behawioralny; mutacja wyłącza odrzucenie w trybie egzekwowania — żądanie
@@ -1009,7 +1029,7 @@ def podzial_gubi_plik(source):
 
 def macierz_krotsza_niz_podzial(source):
     """KONTROLA DODATNIA: macierz uruchamia trzy części, skrypt dzieli na cztery."""
-    return replace_once(source, "czesc: [1, 2, 3, 4, kontrole]", "czesc: [1, 2, 3, kontrole]")
+    return replace_once(source, "czesc: [1, 2, 3, 4]\n", "czesc: [1, 2, 3]\n")
 
 
 def widok_zawezany_poza_pr(source):
@@ -1080,7 +1100,7 @@ checks = [
     ("Kolejka zgłoszeń wraca do links()", "resources/views/pages/admin/reports.blade.php", "PaginacjaPaneluModeracjiTest",
      lambda s: replace_once(s, '<x-paginacja-panelu :paginator="$reports" />', "{{ $reports->links() }}")),
     ("Własność zeszytu", CONTROLLER, COLLECTION_TEST,
-     lambda s: replace_once(s, "Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey())", "Rule::exists('collections', 'id')")),
+     lambda s: replace_once(s, "Rule::exists('collections', 'id')->where(fn ($q) => $q->whereIn('id', Collection::query()->dostepneDoZapisuDla($request->user())->select('collections.id')))", "Rule::exists('collections', 'id')")),
     ("Komunikat po powrocie", LAYOUT, COLLECTION_TEST, remove_notice),
     ("Podpis co najmniej 18 px", CSS, COMPOSER_TEST, smaller_help),
     # Obwódka list w panelu „Aa · Wygląd” (audyt B1, zn. 3): powrót do
@@ -1212,7 +1232,11 @@ checks = [
     ("Kopia bazy ze spreadem zestawu aplikacji", RAILWAY_IAC, KOPIA_BEZ_SPREADU_TEST,
      lambda s: replace_once(s, KOPIA_DB_URL, "      ...schedulerEnv,\n" + KOPIA_DB_URL)),
     ("Polityka znowu obiecuje pełną kopię", POLITYKA, POLITYKA_KOPIA_TEST,
-     lambda s: replace_once(s, "poprosić o **kopię swoich treści**", "poprosić o pełną kopię")),
+     lambda s: replace_once(s, "pobrać stamtąd **paczkę z Twoimi danymi**", "pobrać stamtąd pełną kopię swoich danych")),
+    ("Polityka przestaje wymieniać obserwowane tagi", POLITYKA, POLITYKA_PACZKA_TEST,
+     lambda s: replace_once(s, "jakie tagi obserwujesz", "kogo obserwujesz")),
+    ("Polityka gubi prywatność listy „Co mam w domu”", POLITYKA, POLITYKA_PACZKA_TEST,
+     lambda s: replace_once(s, "widzisz ją tylko Ty", "widzą ją Twoi obserwujący")),
     ("Godzina w widoku z pominięciem Czas", WIDOK_POTWIERDZENIA, STREFA_STRAZNIK_TEST,
      lambda s: replace_once(s, "{{ \\App\\Support\\Czas::lokalnie($nieudanaWysylka->failed_at)->format('H:i') }}", "{{ $nieudanaWysylka->failed_at->format('H:i') }}")),
     ("Nieudane wgranie bez kompensacji plików", KOMPENSACJA_UPLOADU, KOMPENSACJA_UPLOADU_TEST,
@@ -1257,6 +1281,10 @@ checks = [
      lambda s: replace_once(s, KREATOR_ZAPIS, "$juzOpublikowany ? 'opublikowany' : 'szkic'")),
     ("Polityka obiecuje UE przy strażniku bez eu", STRAZNIK_R2, POLITYKA_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
+    # #619: zapis weryfikacji w dokumencie infrastruktury z inną datą niż
+    # „sprawdzone <data>” w wierszu R2 polityki ma zapalić test.
+    ("Zapis weryfikacji R2 z inną datą niż polityka", R2_ZAPIS_WERYFIKACJI, R2_ZAPIS_WERYFIKACJI_TEST,
+     lambda s: replace_once(s, "- **2026-09-25** — właściciel potwierdził", "- **2026-09-26** — właściciel potwierdził")),
     ("Kontroler znów zleca analizę awatara", KONTROLER_AWATARA, DOKUMENTACJA_AWATARA_TEST,
      lambda s: replace_once(s, AWATAR_KOMENTARZ, AWATAR_KOMENTARZ
                             + "        \\App\\Jobs\\PrzeanalizujAwatar::dispatch((string) $zdjecie->getKey());\n")),
@@ -1398,6 +1426,10 @@ checks = [
      lambda s: replace_once(s, "$najwczesniej = $publikacja->addDays(self::okresIstotnejZmianyDni());", "$najwczesniej = $publikacja;")),
     ("Zgoda zapisuje wersję opublikowaną zamiast obowiązującej", WERSJA_DOKUMENTU_ZGODA, WERSJA_DOKUMENTU_TEST,
      lambda s: replace_once(s, "WersjaDokumentu::polityka()->obowiazujaca()", "WersjaDokumentu::polityka()->opublikowana")),
+    # #1324: nagłówek polityki z inną datą niż `kuking.zgody.wersja_polityki`
+    # ma zapalić strażnika zgodności (mutacja niezależna od bieżącej daty).
+    ("Nagłówek polityki z inną datą niż dziennik zgód", POLITYKA, "WersjaPolitykiZgadzaSieZNaglowkiemTest",
+     lambda s: replace_once(s, "stan serwisu na ", "stan serwisu na 1 stycznia 2000, a nie ")),
     ("IaC: plan produkcji bez filtra gałęzi docelowej", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
@@ -1541,6 +1573,20 @@ checks = [
     # własną ciszę nocną — test wycofania ma oblać.
     ("Wycofanie Web Push bez odmowy przy wybranej ciszy nocnej", MIGRACJA_PUSH, MIGRACJA_PUSH_TEST,
      lambda s: replace_once(s, "        if (Schema::hasTable('ustawienia_powiadomien_zewnetrznych')\n", "        if (false && Schema::hasTable('ustawienia_powiadomien_zewnetrznych')\n")),
+    # #2154: dziennik decyzji nie może znowu przyjąć numeru roboczego ani
+    # odwołania do decyzji bez nagłówka (martwa „reguła" o numerze 235). Trzy wady dopisane do
+    # prawdziwych plików i dwa wzorce strażnika wyłączone w jego własnym kodzie —
+    # każde ma dać czerwony test, bo tylko wtedy wiadomo, że strażnik widzi.
+    ("Martwe odwołanie D-NNN w AGENTS.md", "AGENTS.md", DZIENNIK_ODWOLANIA_TEST,
+     lambda s: s + DZIENNIK_MARTWE_ODWOLANIE),
+    ("Roboczy identyfikator w AGENTS.md", "AGENTS.md", DZIENNIK_ODWOLANIA_TEST,
+     lambda s: s + DZIENNIK_ROBOCZY_NUMER),
+    ("Roboczy nagłówek w dzienniku decyzji", "docs/DECISIONS.md", DZIENNIK_ODWOLANIA_TEST,
+     lambda s: s + DZIENNIK_ROBOCZY_NAGLOWEK),
+    ("Strażnik dziennika ślepy na dopisek ROBOCZA", DZIENNIK_ODWOLANIA_PLIK_TESTU, DZIENNIK_ODWOLANIA_TEST,
+     lambda s: replace_once(s, r"'/\bD-\d+-(?:ROBOCZ\w*|TYMCZAS\w*|TMP|DRAFT|WIP|TODO)\b/iu'", "'/(*FAIL)/'")),
+    ("Strażnik dziennika ślepy na identyfikator czterocyfrowy", DZIENNIK_ODWOLANIA_PLIK_TESTU, DZIENNIK_ODWOLANIA_TEST,
+     lambda s: replace_once(s, r"'/\bD-\d{4,}\b/'", "'/(*FAIL)/'")),
     ("Runbook: railway config apply bez KUKING_WAIT_FOR_CI", RUNBOOK, KOMENDY_IAC_TEST,
      lambda s: replace_once(s, RUNBOOK_APPLY_Z_BRAMKA, "\nrailway config apply\n")),
     # #1957: job, który uruchamia kod repozytorium, traci
@@ -1594,19 +1640,27 @@ for label, filename, _test, mutate in checks:
 # Test czerwony jeszcze przed mutacją wyglądał wtedy w logu jak „mutacja wykryta”.
 # Teraz każdy test z `checks` idzie na zielono przed pierwszą mutacją, raz,
 # w kolejności z `checks` — nowy wpis nie ma czego zapomnieć.
-kontrole_dodatnie = list(dict.fromkeys(test for _label, _filename, test, _mutate in checks))
+# Podział na części CI: wpis o indeksie i należy do części i % M + 1. PREFLIGHT
+# wyżej sprawdził WSZYSTKIE kotwice w każdej części (jest tani), a poniżej idą
+# tylko wpisy wybranej części — każdy wpis w dokładnie jednej.
+wybrane = [checks[i] for i in wybierz_indeksy(len(checks), CZESC)]
+poza_petla = poza_petla_w_tej_czesci(CZESC)
+if CZESC is not None:
+    print(f"Część {CZESC[0]}/{CZESC[1]}: {len(wybrane)} z {len(checks)} wpisów `checks`"
+          f"{' oraz elementy spoza pętli' if poza_petla else ''}.", flush=True)
+kontrole_dodatnie = list(dict.fromkeys(test for _label, _filename, test, _mutate in wybrane))
 if not kontrole_dodatnie:
-    raise RuntimeError("Lista `checks` jest pusta — nie ma czego sprawdzać.")
+    raise RuntimeError("Wybrana część `checks` jest pusta — nie ma czego sprawdzać.")
 # JEDYNY test bez własnej mutacji, który ma iść na zielono przed pętlą: klasa
 # obejmująca oba testy metod z wpisów #1059 (GRUPA_LICZBA_TEST i
 # GRUPA_KOLEJNOSC_TEST). Nie jest to druga lista kontroli dodatnich — dopisuj
 # tu tylko test, którego nie da się wskazać wpisem w `checks`.
-KONTROLE_DODATNIE_BEZ_MUTACJI = [GRUPA_SYGNALOW_TEST]
+KONTROLE_DODATNIE_BEZ_MUTACJI = [GRUPA_SYGNALOW_TEST] if poza_petla else []
 for test in dict.fromkeys(kontrole_dodatnie + KONTROLE_DODATNIE_BEZ_MUTACJI):
     run_test(test, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
-    for label, filename, test, mutate in checks:
+    for label, filename, test, mutate in wybrane:
         path = ROOT / filename
         subprocess.run(["cp", str(path), str(backup)], check=True)
         before = digest(path)
@@ -1626,15 +1680,17 @@ with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
         run_test(test, True)
 # #2167: usunięcie wymaganego CSV ma zakończyć test porażką, nie skipem.
 # Robimy to osobno, bo kontrola usuwa plik zamiast podmieniać jego treść.
-miary = ROOT / "database/data/odzywcze/miary.csv"
-oryginal_miar = miary.read_bytes()
-try:
-    miary.unlink()
-    run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", False)
-finally:
-    miary.write_bytes(oryginal_miar)
-run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", True)
+# Element spoza pętli: w części CI tylko w części 3 (`poza_petla`).
+if poza_petla:
+    miary = ROOT / "database/data/odzywcze/miary.csv"
+    oryginal_miar = miary.read_bytes()
+    try:
+        miary.unlink()
+        run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", False)
+    finally:
+        miary.write_bytes(oryginal_miar)
+    run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", True)
 # Liczebnik bierzemy z `len(checks)`, nie z tekstu. Wcześniej stało tu wpisane
 # słowo „Pięć": po dodaniu szóstego wpisu CI nadal wypisywałoby „Pięć", a to
 # jedyne miejsce, z którego człowiek czyta wynik tego kroku.
-print(f"{len(checks)} kontroli negatywnych wykryło regresje; źródła przywrócone.")
+print(f"{len(wybrane)} kontroli negatywnych wykryło regresje; źródła przywrócone.")
