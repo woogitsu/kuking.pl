@@ -38,7 +38,14 @@ const KORZEN = dirname(KATALOG);
 const NASYCENIE = join(KATALOG, 'nasycenie-605.mjs');
 const GENERATOR = join(KATALOG, 'generator-obciazenia-605.mjs');
 const RAMPA = join(KATALOG, 'rampa-obciazenia-605.sh');
-const DOWODY = join(KORZEN, 'docs/infra/evidence/obciazenie605');
+// Dowody w docs/ są źródłem prawdy, ale `.dockerignore` wycina `docs`, a etap
+// `assets` w Dockerfile uruchamia ten test (`npm run build`). Test czyta więc
+// KOPIĘ w scripts/fixtures/ (ta trafia do obrazu przez `COPY scripts`), a gdy
+// docs/ jest dostępne (CI, lokalnie), porównuje kopię bajt w bajt z oryginałem:
+// kopia nie może się rozjechać z dowodem, a test na prawdziwych danych nie
+// jest ani osłabiony, ani pomijany.
+const DOWODY = join(KATALOG, 'fixtures/obciazenie605');
+const DOWODY_DOCS = join(KORZEN, 'docs/infra/evidence/obciazenie605');
 const md5 = (sciezka) => createHash('md5').update(readFileSync(sciezka)).digest('hex');
 const MD5_NA_WEJSCIU = { [NASYCENIE]: md5(NASYCENIE), [GENERATOR]: md5(GENERATOR), [RAMPA]: md5(RAMPA) };
 
@@ -248,8 +255,21 @@ powiedz('analiza rampy: przedział nasycenia (ostatni zdrowy, pierwszy nasycony)
 
 // Ten sam werdykt na PRAWDZIWYCH danych z pomiaru z 20.09.2026 (dowody w repozytorium).
 {
-  const dowody = join(DOWODY, '2026-09-20-gpt/serie');
+  const dowody = join(DOWODY, 'serie');
   assert.ok(existsSync(dowody), 'Brak dowodów z 20.09.2026 — test nie miałby na czym sprawdzać kryterium.');
+  if (existsSync(DOWODY_DOCS)) {
+    // Jest oryginał (poza obrazem Dockera): kopia ma być z nim identyczna.
+    const orygSerie = join(DOWODY_DOCS, '2026-09-20-gpt/serie');
+    const kopie = readdirSync(dowody);
+    assert.ok(kopie.length > 0, 'Kopia dowodów w scripts/fixtures jest pusta.');
+    for (const plik of kopie) {
+      assert.ok(readFileSync(join(dowody, plik)).equals(readFileSync(join(orygSerie, plik))), `scripts/fixtures/obciazenie605/serie/${plik} różni się od dowodu w docs/ — skopiuj ponownie.`);
+    }
+    for (const plik of readdirSync(orygSerie).filter((p) => /^(seria|werdykt|probnik)-/.test(p))) {
+      assert.ok(kopie.includes(plik), `Brak kopii dowodu ${plik} w scripts/fixtures/obciazenie605/serie.`);
+    }
+    assert.ok(readFileSync(join(DOWODY, 'dane.json')).equals(readFileSync(join(DOWODY_DOCS, 'dane.json'))), 'scripts/fixtures/obciazenie605/dane.json różni się od dowodu w docs/.');
+  }
   const a = N.analizuj(N.wczytajKatalog(dowody));
   assert.equal(a.odniesienie.seria, 'r005-p2', 'odniesieniem jest pierwszy CZYSTY stopień 5 rps (r005-p1 był skażony)');
   assert.deepEqual(a.stopnie.map((s) => [s.rps, s.stan]), [[5, 'ZDROWY'], [15, 'DEGRADACJA'], [30, 'NASYCONY'], [60, 'NASYCONY'], [120, 'NASYCONY']]);

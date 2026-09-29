@@ -1,0 +1,331 @@
+{
+ "baza": "kuking_b605_obciazenie",
+ "sekundy": 346.9,
+ "liczby": {
+  "users": 2060,
+  "profiles": 2060,
+  "follows": 62420,
+  "posts": 200000,
+  "recipes": 20000,
+  "recipe_steps": 90000,
+  "recipe_ingredients": 149996,
+  "comments": 200000,
+  "cooked_events": 25000,
+  "collections": 480,
+  "collection_items": 15456,
+  "post_tags": 399697,
+  "tags": 1446,
+  "tag_follows": 978,
+  "blocks": 1510
+ },
+ "rozklad": {
+  "follows_miedzy_autorami": 48600,
+  "komentarze_na_goracych_przepisach": 40,
+  "zapisy_w_zeszytach": 15456,
+  "obserwowane_tagi": 978,
+  "blokady": 1510
+ },
+ "widzowie": [
+  {
+   "id": "01a0b3c6-8bdf-719e-a7f7-5952611943f7",
+   "email": "b605-widz-0@example.test",
+   "obserwuje": 10
+  },
+  {
+   "id": "01a0b3c6-8c76-7099-9f96-daea475ed0ce",
+   "email": "b605-widz-1@example.test",
+   "obserwuje": 10
+  },
+  {
+   "id": "01a0b3c6-8d0c-713f-8276-0c14f7e9b33e",
+   "email": "b605-widz-2@example.test",
+   "obserwuje": 10
+  },
+  {
+   "id": "01a0b3c6-8da4-71ee-a3e6-dd743cff86c9",
+   "email": "b605-widz-3@example.test",
+   "obserwuje": 10
+  },
+  {
+   "id": "01a0b3c6-8e3a-71fa-9eb9-e800b43b86d5",
+   "email": "b605-widz-4@example.test",
+   "obserwuje": 10
+  },
+  {
+   "id": "01a0b3c6-8ecf-73ec-8acc-e3e1379e7274",
+   "email": "b605-widz-5@example.test",
+   "obserwuje": 10
+  },
+  {
+   "id": "01a0b3c6-8f65-720c-bd92-8ef0b4f06c28",
+   "email": "b605-widz-6@example.test",
+   "obserwuje": 25
+  },
+  {
+   "id": "01a0b3c6-8ffc-717f-8453-344cb9d9840b",
+   "email": "b605-widz-7@example.test",
+   "obserwuje": 25
+  },
+  {
+   "id": "01a0b3c6-9092-70a7-9dba-bc41813342e8",
+   "email": "b605-widz-8@example.test",
+   "obserwuje": 25
+  },
+  {
+   "id": "01a0b3c6-9128-731e-8f47-d7f2569608a5",
+   "email": "b605-widz-9@example.test",
+   "obserwuje": 25
+  },
+  {
+   "id": "01a0b3c6-91c4-70d0-bcfd-14d4ab1d3eba",
+   "email": "b605-widz-10@example.test",
+   "obserwuje": 50
+  },
+  {
+   "id": "01a0b3c6-925b-70a6-82bd-7058a229cd60",
+   "email": "b605-widz-11@example.test",
+   "obserwuje": 50
+  },
+  {
+   "id": "01a0b3c6-92f1-734b-a794-570a1a2af29c",
+   "email": "b605-widz-12@example.test",
+   "obserwuje": 50
+  },
+  {
+   "id": "01a0b3c6-9386-7020-8e26-de08d13b6cc9",
+   "email": "b605-widz-13@example.test",
+   "obserwuje": 50
+  },
+  {
+   "id": "01a0b3c6-941f-705e-8461-7d928a506557",
+   "email": "b605-widz-14@example.test",
+   "obserwuje": 100
+  },
+  {
+   "id": "01a0b3c6-94ba-7211-9257-798b10b05956",
+   "email": "b605-widz-15@example.test",
+   "obserwuje": 100
+  },
+  {
+   "id": "01a0b3c6-9551-73f5-8736-72b64c932a01",
+   "email": "b605-widz-16@example.test",
+   "obserwuje": 100
+  },
+  {
+   "id": "01a0b3c6-95ea-7101-ab84-97f9d0adba8d",
+   "email": "b605-widz-17@example.test",
+   "obserwuje": 100
+  },
+  {
+   "id": "01a0b3c6-9684-7205-a40a-dd461c5af32c",
+   "email": "b605-widz-18@example.test",
+   "obserwuje": 100
+  },
+  {
+   "id": "01a0b3c6-971d-7320-b12d-b2f6f6437731",
+   "email": "b605-widz-19@example.test",
+   "obserwuje": 100
+  },
+  {
+   "id": "01a0b3c6-97b6-71a8-a16e-1bb56b203a3f",
+   "email": "b605-widz-20@example.test",
+   "obserwuje": 250
+  },
+  {
+   "id": "01a0b3c6-984e-72c9-9591-edbe797c99af",
+   "email": "b605-widz-21@example.test",
+   "obserwuje": 250
+  },
+  {
+   "id": "01a0b3c6-98eb-72c2-9285-d25d4480dcc0",
+   "email": "b605-widz-22@example.test",
+   "obserwuje": 250
+  },
+  {
+   "id": "01a0b3c6-9986-711d-b0da-efd66a732690",
+   "email": "b605-widz-23@example.test",
+   "obserwuje": 500
+  },
+  {
+   "id": "01a0b3c6-9a22-7315-9af0-52b44effc5af",
+   "email": "b605-widz-24@example.test",
+   "obserwuje": 500
+  },
+  {
+   "id": "01a0b3c6-9abe-718f-9ad9-1c4f4ba091bd",
+   "email": "b605-widz-25@example.test",
+   "obserwuje": 500
+  },
+  {
+   "id": "01a0b3c6-9b5a-700e-8d6f-ca8ea30bfb21",
+   "email": "b605-widz-26@example.test",
+   "obserwuje": 500
+  },
+  {
+   "id": "01a0b3c6-9bfb-714d-92c8-126b628638d5",
+   "email": "b605-widz-27@example.test",
+   "obserwuje": 800
+  },
+  {
+   "id": "01a0b3c6-9c9c-70ba-b65f-1cc788a85dfb",
+   "email": "b605-widz-28@example.test",
+   "obserwuje": 1200
+  },
+  {
+   "id": "01a0b3c6-9d44-71c1-98d6-35e6e5dcfb9e",
+   "email": "b605-widz-29@example.test",
+   "obserwuje": 1200
+  },
+  {
+   "id": "01a0b3c6-9df2-730b-8f50-4f514907a73d",
+   "email": "b605-widz-30@example.test",
+   "obserwuje": 10
+  },
+  {
+   "id": "01a0b3c6-9e88-7348-a4da-0803a954b660",
+   "email": "b605-widz-31@example.test",
+   "obserwuje": 10
+  },
+  {
+   "id": "01a0b3c6-9f1c-713d-9d0d-e69a69e51ec5",
+   "email": "b605-widz-32@example.test",
+   "obserwuje": 10
+  },
+  {
+   "id": "01a0b3c6-9fb7-73eb-bd1f-8dc371ce13a1",
+   "email": "b605-widz-33@example.test",
+   "obserwuje": 10
+  },
+  {
+   "id": "01a0b3c6-a04c-7161-92ec-3faf820b3c68",
+   "email": "b605-widz-34@example.test",
+   "obserwuje": 10
+  },
+  {
+   "id": "01a0b3c6-a0e4-70e6-904e-a246e8d9f297",
+   "email": "b605-widz-35@example.test",
+   "obserwuje": 10
+  },
+  {
+   "id": "01a0b3c6-a17e-722c-ab32-da5cd68b97c6",
+   "email": "b605-widz-36@example.test",
+   "obserwuje": 25
+  },
+  {
+   "id": "01a0b3c6-a216-71ea-885e-7fd7ef5d2fe5",
+   "email": "b605-widz-37@example.test",
+   "obserwuje": 25
+  },
+  {
+   "id": "01a0b3c6-a2af-73b4-b69e-a2993eac3476",
+   "email": "b605-widz-38@example.test",
+   "obserwuje": 25
+  },
+  {
+   "id": "01a0b3c6-a345-70de-b686-ac432ac689a2",
+   "email": "b605-widz-39@example.test",
+   "obserwuje": 25
+  },
+  {
+   "id": "01a0b3c6-a3db-701d-96d5-d9c08fbe44aa",
+   "email": "b605-widz-40@example.test",
+   "obserwuje": 50
+  },
+  {
+   "id": "01a0b3c6-a472-7087-ae4b-0741c411a353",
+   "email": "b605-widz-41@example.test",
+   "obserwuje": 50
+  },
+  {
+   "id": "01a0b3c6-a50d-72e2-bcc9-fc996d66a9d7",
+   "email": "b605-widz-42@example.test",
+   "obserwuje": 50
+  },
+  {
+   "id": "01a0b3c6-a5a9-7035-a501-6d6646e9f469",
+   "email": "b605-widz-43@example.test",
+   "obserwuje": 50
+  },
+  {
+   "id": "01a0b3c6-a63e-7249-a614-3db7caa28391",
+   "email": "b605-widz-44@example.test",
+   "obserwuje": 100
+  },
+  {
+   "id": "01a0b3c6-a6db-7209-a06b-7427a1bbdc63",
+   "email": "b605-widz-45@example.test",
+   "obserwuje": 100
+  },
+  {
+   "id": "01a0b3c6-a773-7384-a64e-558c743c1052",
+   "email": "b605-widz-46@example.test",
+   "obserwuje": 100
+  },
+  {
+   "id": "01a0b3c6-a810-716a-a924-7151314e2155",
+   "email": "b605-widz-47@example.test",
+   "obserwuje": 100
+  },
+  {
+   "id": "01a0b3c6-a8ad-7068-8aee-1b27d7edc93a",
+   "email": "b605-widz-48@example.test",
+   "obserwuje": 100
+  },
+  {
+   "id": "01a0b3c6-a947-72d2-be46-326213a6f01c",
+   "email": "b605-widz-49@example.test",
+   "obserwuje": 100
+  },
+  {
+   "id": "01a0b3c6-a9e5-7123-ba25-1eb1e87b02c3",
+   "email": "b605-widz-50@example.test",
+   "obserwuje": 250
+  },
+  {
+   "id": "01a0b3c6-aa80-70b4-8b79-915c0896d32d",
+   "email": "b605-widz-51@example.test",
+   "obserwuje": 250
+  },
+  {
+   "id": "01a0b3c6-ab1a-715a-9f61-3fbfcc83fa4e",
+   "email": "b605-widz-52@example.test",
+   "obserwuje": 250
+  },
+  {
+   "id": "01a0b3c6-abb8-7199-a851-003148c32991",
+   "email": "b605-widz-53@example.test",
+   "obserwuje": 500
+  },
+  {
+   "id": "01a0b3c6-ac58-72a3-becf-dda933e20ed5",
+   "email": "b605-widz-54@example.test",
+   "obserwuje": 500
+  },
+  {
+   "id": "01a0b3c6-acfd-7059-b7e0-d1403810c5da",
+   "email": "b605-widz-55@example.test",
+   "obserwuje": 500
+  },
+  {
+   "id": "01a0b3c6-ad9d-7288-b9e1-1f0909cb8805",
+   "email": "b605-widz-56@example.test",
+   "obserwuje": 500
+  },
+  {
+   "id": "01a0b3c6-ae3f-70c7-8bb5-6f69d0b50851",
+   "email": "b605-widz-57@example.test",
+   "obserwuje": 800
+  },
+  {
+   "id": "01a0b3c6-aede-71f8-9879-7b6fb8264b33",
+   "email": "b605-widz-58@example.test",
+   "obserwuje": 1200
+  },
+  {
+   "id": "01a0b3c6-af87-72cf-9f2a-3e5ef2c6cad0",
+   "email": "b605-widz-59@example.test",
+   "obserwuje": 1200
+  }
+ ],
+ "uwaga": "Hasło kont widzów świadomie usunięte. Generator wypisuje je na stdout przy budowaniu zbioru."
+}
