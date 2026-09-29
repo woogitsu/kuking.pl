@@ -17,12 +17,14 @@ use Tests\TestCase;
  *
  * Ten sam komponent i te same reguły co przy przepisie i wpisie: przycisk
  * istnieje wtedy i tylko wtedy, gdy zeszyt zobaczy ktoś BEZ KONTA. Zeszyt
- * prywatny („Tylko ja"), domyślne „Zapisane" i zeszyt wspólny (D-302) nie
- * dostają go nawet u właściciela.
+ * prywatny („Tylko ja") i domyślne „Zapisane" nie dostają go nawet
+ * u właściciela. Zeszyt wspólny (D-302) ustawiony jako publiczny DOSTAJE
+ * przycisk (decyzja właściciela z 29.09.2026), a prywatny wspólny — nie.
  *
  * Kontrola ujemna: zamiana `Gate::forUser(null)` w `wolnoWyslac()` na
- * bezwarunkowe `true` dla zeszytu oblewa testy prywatnego i wspólnego;
- * usunięcie `! $tresc->members()->exists()` oblewa test wspólnego.
+ * bezwarunkowe `true` dla zeszytu oblewa testy prywatnego i prywatnego
+ * wspólnego; przywrócenie warunku „bez współtwórców” oblewa test
+ * publicznego wspólnego.
  */
 class PodzielSieZeszytTest extends TestCase
 {
@@ -129,9 +131,31 @@ class PodzielSieZeszytTest extends TestCase
         $this->assertStringContainsString('zeszyt „Zapisane”', $html);
     }
 
-    public function test_zeszyt_wspolny_nie_dostaje_przycisku(): void
+    /** Decyzja właściciela z 29.09.2026 (#2000): wspólny zeszyt „wszyscy” można wysłać. */
+    public function test_zeszyt_wspolny_publiczny_dostaje_przycisk(): void
     {
         $zeszyt = $this->zeszyt('public');
+        $wspoltworca = $this->user('wspoltworca');
+        $zeszyt->members()->attach($wspoltworca->getKey());
+        $udostepnianie = app(Udostepnianie::class);
+
+        $this->assertTrue($udostepnianie->wolnoWyslac($zeszyt), 'Wspólny zeszyt „wszyscy” nie ma przycisku „Podziel się” (decyzja właściciela z 29.09.2026).');
+        $this->assertNull($udostepnianie->powodBrakuPrzycisku($zeszyt));
+
+        foreach ([$this->wlascicielka, $wspoltworca] as $osoba) {
+            $this->actingAs($osoba)->get(route('collections.show', $zeszyt))->assertOk()
+                ->assertSee('data-podziel-sie', false)
+                ->assertSee('https://wa.me/?text=', false)
+                ->assertDontSee('To jest wspólny zeszyt', false);
+        }
+
+        auth()->logout();
+        $this->get(route('collections.show', $zeszyt))->assertOk()->assertSee('data-podziel-sie', false);
+    }
+
+    public function test_zeszyt_wspolny_prywatny_nie_dostaje_przycisku(): void
+    {
+        $zeszyt = $this->zeszyt('private');
         $zeszyt->members()->attach($this->user('wspoltworca')->getKey());
 
         $this->assertFalse(app(Udostepnianie::class)->wolnoWyslac($zeszyt));
@@ -142,7 +166,7 @@ class PodzielSieZeszytTest extends TestCase
             ->getContent();
 
         $this->assertStringNotContainsString('data-podziel-sie', $html);
-        $this->assertStringContainsString('To jest wspólny zeszyt', $html);
+        $this->assertStringContainsString('Zmień widoczność na „wszyscy”', $html);
     }
 
     public function test_zeszyt_zbanowanej_wlascicielki_nie_jest_do_wyslania(): void
@@ -187,18 +211,26 @@ class PodzielSieZeszytTest extends TestCase
         $this->assertSame('Zeszyt z Kuking: Niedzielne obiady', app(Udostepnianie::class)->opis($zeszyt));
     }
 
+    /**
+     * Przycisk nie pyta bazy o członków zeszytu (recenzja #2000: wcześniej
+     * komponent pytał o współtwórców do trzech razy). Liczba zapytań
+     * o `collection_members` jest ta sama dla zwykłego i wspólnego zeszytu —
+     * tyle, ile potrzebuje sama strona zeszytu.
+     */
     public function test_przycisk_nie_dodaje_zapytan_o_wspoltworcow_na_stronie_zeszytu(): void
     {
         $zeszyt = $this->zeszyt('public');
         $adres = route('collections.show', $zeszyt);
 
-        $this->assertSame(1, $this->zapytaniaOCzlonkow(fn () => $this->get($adres)->assertOk()), 'Gość: jedno zapytanie o członków.');
+        $goscZwykly = $this->zapytaniaOCzlonkow(fn () => $this->get($adres)->assertOk()->assertSee('data-podziel-sie', false));
+        $wlascicielkaZwykly = $this->zapytaniaOCzlonkow(fn () => $this->actingAs($this->wlascicielka)->get($adres)->assertOk());
+        $this->assertLessThanOrEqual(1, $goscZwykly, 'Gość: najwyżej jedno zapytanie o członków.');
 
         $zeszyt->members()->attach($this->user('wspoltworca')->getKey());
 
-        $this->assertSame(1, $this->zapytaniaOCzlonkow(
-            fn () => $this->actingAs($this->wlascicielka)->get($adres)->assertOk()->assertSee('To jest wspólny zeszyt', false),
-        ), 'Właścicielka wspólnego zeszytu: członkowie wczytani raz, bez trzykrotnego exists().');
+        $this->assertSame($wlascicielkaZwykly, $this->zapytaniaOCzlonkow(
+            fn () => $this->actingAs($this->wlascicielka)->get($adres)->assertOk()->assertSee('data-podziel-sie', false),
+        ), 'Wspólny zeszyt nie może dokładać zapytań o członków przez przycisk „Podziel się”.');
     }
 
     private function zapytaniaOCzlonkow(callable $akcja): int

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Digest\OdnosnikWypisania;
+use App\Domain\Recipes\Actions\SnapshotRecipeVersion;
 use App\Domain\Rocznice\OdnosnikWypisaniaZUrodzin;
 use App\Models\Collection;
 use App\Models\Post;
@@ -180,6 +181,12 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             'social.following' => route('social.following', $autor->profile->username),
             'social.followers' => route('social.followers', $autor->profile->username),
             'recipes.show' => route('recipes.show', $recipe->slug),
+            // Historia zmian przepisu (#2024, D-331): trzy ekrany są `noindex`,
+            // więc pętla sprawdzi tylko 200 — wpis musi tu być, żeby test
+            // widział nowe strony publiczne.
+            'recipes.history' => route('recipes.history', $recipe->slug),
+            'recipes.history.version' => route('recipes.history.version', [$recipe->slug, 2]),
+            'recipes.history.changes' => route('recipes.history.changes', [$recipe->slug, 2]),
             'cooking.show' => route('cooking.show', $recipe->slug),
             'posts.show' => route('posts.show', $post),
             // Zeszyt „Wszyscy" jest publiczny od issue #965 — publiczny
@@ -345,6 +352,11 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             'position' => 0,
             'instruction' => 'Wymieszaj składniki.',
         ]);
+
+        // Historia zmian przepisu (#2024) ma sens od dwóch wersji — tworzymy je
+        // tą samą akcją co publikacja, żeby wszystkie trzy ekrany dały 200.
+        app(SnapshotRecipeVersion::class)->handle($recipe, $autor);
+        app(SnapshotRecipeVersion::class)->handle($recipe, $autor, 'Aktualizacja przepisu');
 
         $post = Post::factory()->create(['author_id' => $autor->getKey()]);
 

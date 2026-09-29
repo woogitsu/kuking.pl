@@ -137,7 +137,7 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 - D8: nic nowego w AI, DPA z OpenAI podpisać (właściciel); D9: claim NIE do odtworzenia; D10 (#602): odłożyć z warunkami; D12: DMARC → Cloudflare Email Routing
 - claude/health-kontrakt 249ea7628 — test kształtu /health (13 testów), uwaga: /health w grupie web zakłada sesję (Set-Cookie)
 - claude/railway-pro-wykorzystanie 2cebe3e4a — docs/infra/RAILWAY_PRO_WYKORZYSTANIE.md (Pro zalecany; backupy Railway UZUPEŁNIAJĄ offsite)
-- claude/2130-wersja-slownika dfb11d98a — Closes #2130 (wpis w dzienniku dla #2130, WERSJA, porównanie pod blokadą)
+- claude/2130-wersja-slownika dfb11d98a — Closes #2130 (D-330, WERSJA, porównanie pod blokadą)
 - Alarm Discord 14:28 PL = 12:28 UTC: GET / 1330 ms i 12:40 UTC 1116 ms, po restarcie po wdrożeniu 0.77.001; po F brak → agent profil zapytań
 - #2212 = HealthController (issue założone)
 - D15: ODBLOKOWANE wszystkie z „V2, ale nie teraz”: #1997 #2000 #1996 #2024 #2016 (koordynator robi jeden wpis FEATURES.md + D-331)
@@ -149,5 +149,5 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 - claude/2000-udostepnianie-zeszytu 4ad762287 — Closes #2000 (wspólny zeszyt D-302 bez przycisku — interpretacja) → H
 - claude/1996-kalorie-jsonld f89a04349 — Closes #1996 → H
 - G lokalnie 4d…: wzorzec „Domena importuje Request” + drugi objaw (czeka na push po Panel marki)
-- G fc0c8fdfe wypchnięte (wzorzec Request). claude/1751-forma-zwracania 3aa1e0473 — Closes #1751 #1752 (#1753 częściowo), wpis w dzienniku dla #1751; polityka zmieniona BEZ podbicia wersji → pytanie do właściciela; migracja 2026_09_25_140000 (starszy timestamp) → recenzja
+- G fc0c8fdfe wypchnięte (wzorzec Request). claude/1751-forma-zwracania 3aa1e0473 — Closes #1751 #1752 (#1753 częściowo), D-332; polityka zmieniona BEZ podbicia wersji → pytanie do właściciela; migracja 2026_09_25_140000 (starszy timestamp) → recenzja
 - claude/paczka-f-poprawki 40e65ba3a — 2 wzorce kontroli (BezpiecznyKomunikat w logu: drugi objaw „insert into”); lokalnie ZLA_PRZYCZYNA, w CI main zielone → do H (alternatywa, nie osłabia). Pełny zestaw F: tylko porażki środowiskowe.

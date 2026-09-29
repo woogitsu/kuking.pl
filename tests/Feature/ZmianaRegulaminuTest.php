@@ -134,6 +134,19 @@ class ZmianaRegulaminuTest extends TestCase
         $this->assertTrue(Schema::hasColumn('users', 'terms_notice_dismissed_version'));
     }
 
+    /** Bliźniak regresji z `ZmianaPolitykiTest`: pasek dopiero od dnia publikacji wersji. */
+    public function test_przed_dniem_publikacji_wersji_nikt_nie_widzi_paska(): void
+    {
+        $osoba = $this->kontoSprzedWersji();
+        $publikacja = CarbonImmutable::parse((string) config('kuking.zgody.wersja_regulaminu'), Czas::strefa())->startOfDay();
+
+        $this->travelTo($publikacja->subMinute());
+        $this->actingAs($osoba)->get(route('home'))->assertOk()->assertDontSee('data-pasek-zmiany-regulaminu', false);
+
+        $this->travelTo($publikacja);
+        $this->actingAs($osoba)->get(route('home'))->assertOk()->assertSee('data-pasek-zmiany-regulaminu', false);
+    }
+
     private function kontoSprzedWersji(): User
     {
         $osoba = $this->user('stara_osoba');
