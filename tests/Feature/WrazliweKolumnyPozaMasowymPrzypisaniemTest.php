@@ -642,7 +642,7 @@ class WrazliweKolumnyPozaMasowymPrzypisaniemTest extends TestCase
 
         $nowe = new User(['password' => 'podstawione-przez-napastnika', 'locale' => 'pl']);
 
-        $this->assertNull($nowe->password, 'Nowe konto przyjęło hasło masowym przypisaniem.');
+        $this->assertNull($nowe->getAttribute('password'), 'Nowe konto przyjęło hasło masowym przypisaniem.');
         $this->assertSame('pl', $nowe->locale, 'Kontrola: pola dozwolone nadal przechodzą.');
     }
 

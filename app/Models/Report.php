@@ -15,6 +15,11 @@ use Illuminate\Support\Carbon;
  * Kolumny śladu pilnego alarmu — migracja `dodaj_slad_pilnego_alarmu_do_reports`
  * podaje ich nazwy stałymi klasy, a takich Larastan nie odczyta (#1731).
  *
+ * `target_id` bywa puste przy zgłoszeniu z nierozpoznanym adresem (migracja
+ * `add_legal_notice_fields_to_reports` zdejmuje `NOT NULL` surowym SQL-em,
+ * którego Larastan nie odczyta).
+ *
+ * @property string|null $target_id
  * @property string|null $alarm_pilny_stan jedna z `Report::ALARM_*`
  * @property Carbon|null $alarm_pilny_zlecony_at
  * @property Carbon|null $alarm_czlowieka_obsluzony_at
@@ -253,7 +258,11 @@ class Report extends Model
     protected static function booted(): void
     {
         static::creating(function (self $zgloszenie): void {
-            if (! is_string($zgloszenie->numer_sprawy) || $zgloszenie->numer_sprawy === '') {
+            // `getAttribute()`: model jeszcze nie zapisany nie ma numeru, choć
+            // kolumna w bazie jest `NOT NULL` — typ z bazy tego nie zna.
+            $obecny = $zgloszenie->getAttribute('numer_sprawy');
+
+            if (! is_string($obecny) || $obecny === '') {
                 $zgloszenie->numer_sprawy = NumerSprawy::wygeneruj();
             }
         });

@@ -78,7 +78,9 @@ final class TrescPush
     public static function zdanie(Notification $powiadomienie): string
     {
         $kto = $powiadomienie->actor?->displayName() ?? 'Ktoś';
-        $data = is_array($powiadomienie->data) ? $powiadomienie->data : [];
+        /** @var mixed $surowe kolumna JSONB — kształtu nie gwarantuje rzutowanie modelu */
+        $surowe = $powiadomienie->data;
+        $data = is_array($surowe) ? $surowe : [];
 
         return match ($powiadomienie->type) {
             Notification::TYPE_COOKED => $kto.' — ugotowane z Twojego przepisu „'

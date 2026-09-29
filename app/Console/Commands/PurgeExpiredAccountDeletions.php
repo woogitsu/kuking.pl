@@ -98,7 +98,7 @@ class PurgeExpiredAccountDeletions extends Command
         $dryRun = (bool) $this->option('dry-run');
         $limit = $this->option('limit');
 
-        if ($limit !== null && preg_match('/^[1-9]\d{0,5}$/', is_scalar($limit) ? (string) $limit : '') !== 1) {
+        if ($limit !== null && preg_match('/^[1-9]\d{0,5}$/', (string) $limit) !== 1) {
             // Wcześniej `--limit=abc` cicho dawało 1 — przebieg, który po
             // literówce operatora obsługuje jedno konto na noc.
             $this->error('Opcja --limit musi być dodatnią liczbą całkowitą, na przykład --limit=200.');

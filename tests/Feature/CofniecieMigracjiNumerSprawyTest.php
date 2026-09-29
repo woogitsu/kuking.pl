@@ -68,7 +68,7 @@ class CofniecieMigracjiNumerSprawyTest extends TestCase
     public function test_cofniecie_odmawia_gdy_sa_zgloszenia_prawne(): void
     {
         $zgloszenie = $this->zgloszeniePrawne();
-        $numer = $zgloszenie->numer_sprawy;
+        $numer = $zgloszenie->getAttribute('numer_sprawy');
 
         $this->assertNotNull($numer, 'Zgłoszenie nie dostało numeru — test sprawdzałby pustkę.');
 

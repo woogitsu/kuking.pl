@@ -269,7 +269,7 @@ class WersjaDokumentuTest extends TestCase
         $this->assertStringContainsString('O istotnych zmianach poinformujemy z wyprzedzeniem powiadomieniem w serwisie', $tresc);
 
         if (WersjaDokumentu::polityka()->istotna) {
-            $this->assertTrue(view()->exists('components.pasek-zmiany-polityki'),
+            $this->assertTrue(is_file(resource_path('views/components/pasek-zmiany-polityki.blade.php')),
                 'Zmiana polityki jest oznaczona jako istotna, a serwis nie ma paska o zmianie polityki. Dodaj go razem z podbiciem (D-327).');
         } else {
             $this->assertFalse(WersjaDokumentu::polityka()->wOkresiePrzejsciowym());

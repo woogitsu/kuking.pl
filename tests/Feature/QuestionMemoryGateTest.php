@@ -33,7 +33,8 @@ class QuestionMemoryGateTest extends TestCase
         ]);
         foreach ([false, true] as $enabled) {
             config(['kuking.questions.enabled' => $enabled]);
-            $this->assertSame($dish->id, app(Wspomnienia::class)->dlaOsoby($owner)?->id);
+            $wspomnienie = app(Wspomnienia::class)->dlaOsoby($owner);
+            $this->assertSame($dish->id, $wspomnienie?->id);
             $this->get(route('home'))->assertOk()->assertSee($dish->body);
         }
         config(['kuking.questions.enabled' => false]);

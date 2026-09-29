@@ -50,8 +50,9 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
 
         $this->assertFalse($a->recipes()->whereKey($przepis->getKey())->exists());
 
-        $bPivot = $b->recipes()->whereKey($przepis->getKey())->first()->pivot;
-        $this->assertNotNull($bPivot, 'Zeszyt B stracił zapis, mimo że usuwano tylko z zeszytu A.');
+        $bZapis = $b->recipes()->whereKey($przepis->getKey())->first();
+        $this->assertNotNull($bZapis, 'Zeszyt B stracił zapis, mimo że usuwano tylko z zeszytu A.');
+        $bPivot = $bZapis->pivot;
         $this->assertSame('Na Wigilię', $bPivot->note);
     }
 

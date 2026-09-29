@@ -922,7 +922,9 @@ final class CollectUserExportData
         $wycinki = app(WycinkiKomentarzy::class)->zywe($notifications);
 
         return $notifications->map(function ($notification) use ($wycinki): array {
-            $data = is_array($notification->data) ? $notification->data : [];
+            /** @var mixed $surowe kolumna JSONB — kształtu nie gwarantuje rzutowanie modelu */
+            $surowe = $notification->data;
+            $data = is_array($surowe) ? $surowe : [];
             $szczegoly = array_intersect_key($data, array_flip(self::NOTIFICATION_DATA_KEYS));
 
             if (in_array($notification->type, Notification::TYPY_Z_WYCINKIEM_KOMENTARZA, true)) {

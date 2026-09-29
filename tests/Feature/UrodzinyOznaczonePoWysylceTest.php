@@ -130,8 +130,9 @@ class UrodzinyOznaczonePoWysylceTest extends TestCase
 
         $this->assertSame(1, DB::table('jobs')->count(), 'Komenda ma zostawić dokładnie jedno zadanie z listem.');
         $this->assertSame('2026-03-12', $basia->refresh()->birthday_email_queued_on?->toDateString());
+        $basia->refresh();
         $this->assertNull(
-            $basia->refresh()->birthday_email_sent_on,
+            $basia->birthday_email_sent_on,
             'Samo zakolejkowanie listu nie jest wysłaniem go (#1956).',
         );
 

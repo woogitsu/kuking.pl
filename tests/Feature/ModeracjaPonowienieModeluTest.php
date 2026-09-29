@@ -307,7 +307,8 @@ class ModeracjaPonowienieModeluTest extends TestCase
         foreach ([400, 401, 403, 404, 422, 501] as $status) {
             $odpowiedz = Http::response('', $status);
 
-            $this->assertNull($klient->ocenTekst('Próba'), "HTTP {$status} nie powinien być ponawiany.");
+            $ocena = $klient->ocenTekst('Próba');
+            $this->assertNull($ocena, "HTTP {$status} nie powinien być ponawiany.");
         }
 
         // Poprawna odpowiedź bez trafień to OCENA, nie jej brak.

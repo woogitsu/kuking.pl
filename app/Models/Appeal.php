@@ -25,6 +25,11 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * `appeals_appellant_identity_check` w bazie, nie tylko ten model.
  * Uzasadnienie wyboru „jedna tabela, nie dwie" jest w komentarzu migracji
  * `2026_09_07_800000_appeals_open_to_reporters.php`.
+ *
+ * `user_id` jest puste dla odwołania zgłaszającego bez konta — migracja zdejmuje
+ * `NOT NULL` surowym SQL-em, którego Larastan nie odczyta.
+ *
+ * @property string|null $user_id
  */
 class Appeal extends Model
 {
