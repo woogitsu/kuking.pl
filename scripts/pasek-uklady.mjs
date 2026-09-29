@@ -18,13 +18,11 @@
    CZEGO NIE DOWODZI. Fizycznego telefonu, Safari/iOS ani odsłuchu czytnika
    ekranu. To Chromium z emulowanym oknem. */
 import assert from 'node:assert/strict';
-import { createHmac } from 'node:crypto';
-import { spawn, execFileSync } from 'node:child_process';
-import { createServer } from 'node:net';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { przebieg } from './pasek-przewijany.mjs';
 import { wymagajStanu } from './lib/stan-ustalony.mjs';
+import { tinker, uruchomPrzegladarke, uruchomSerwer, zaloguj } from './lib/serwer-lokalny.mjs';
 
 /* Wysokość 700 px, nie 900: przy `max-height: 40rem` (640 px) belki przestają
    być przypięte (`marka-rama.css`), więc pasek nie chowałby się wcale i nie
@@ -128,78 +126,23 @@ export async function sprawdzPasekWUkladach({ browser, adres, uklady, out = 'sto
 
 /* ------------------------------ przebieg lokalny ------------------------------ */
 
-function totp(sekret) {
-  const alfabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-  let bity = '';
-  for (const c of sekret.replace(/=+$/, '').toUpperCase()) bity += alfabet.indexOf(c).toString(2).padStart(5, '0');
-  const klucz = Buffer.from(bity.match(/.{8}/g).map((b) => parseInt(b, 2)));
-  const licznik = Buffer.alloc(8); licznik.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000)));
-  const skrot = createHmac('sha1', klucz).update(licznik).digest();
-  return String((skrot.readUInt32BE(skrot[19] & 15) & 0x7fffffff) % 1000000).padStart(6, '0');
-}
-
-async function wolnyPort() {
-  const gniazdo = createServer();
-  await new Promise((ok, blad) => { gniazdo.once('error', blad); gniazdo.listen(0, '127.0.0.1', ok); });
-  const { port } = gniazdo.address();
-  await new Promise((ok) => gniazdo.close(ok));
-  return port;
-}
-
 async function przebiegLokalny() {
-  const { chromium } = await import('playwright');
-  const repo = process.cwd();
-  const baza = process.env.DB_DATABASE;
-  assert(baza && baza !== 'kuking' && baza !== 'kuking_test', 'Podaj własną bazę po DemoSeeder w DB_DATABASE (nie `kuking` ani `kuking_test`).');
-  const haslo = process.env.KUKING_DEMO_HASLO || 'haslo-testowe-123';
-  // Turnstile wyłączony w tym procesie: pomiar nie łączy się z usługami zewnętrznymi.
-  const env = { ...process.env, APP_BASE_PATH: repo, KUKING_DEMO_HASLO: haslo, TURNSTILE_SITE_KEY: '', TURNSTILE_SECRET_KEY: '', MAIL_MAILER: 'array' };
-  const port = await wolnyPort();
-  const adres = `http://127.0.0.1:${port}`;
-  env.APP_URL = adres;
-  const serwer = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`, '--no-reload'], { cwd: repo, env, detached: true, stdio: 'ignore' });
-  const zatrzymaj = () => { try { process.kill(-serwer.pid, 'SIGTERM'); } catch { /* już zamknięty */ } };
+  const { adres, env, zamknij } = await uruchomSerwer();
   let przegladarka;
   try {
-    for (let i = 0; i < 100; i++) {
-      try { if ((await fetch(adres + '/health', { signal: AbortSignal.timeout(1000) })).status) break; } catch { /* jeszcze wstaje */ }
-      await new Promise((ok) => setTimeout(ok, 200));
-    }
-    const php = `
+    const odczyt = tinker(env, `
       $u = App\\Models\\User::where('email', 'moderacja@example.test')->firstOrFail();
-      if (! $u->hasTwoFactorConfirmed()) {
-        $s = app(App\\Domain\\Security\\TwoFactorAuthenticator::class)->generateSecret();
-        $u->beginTwoFactorSetup($s); $u->confirmTwoFactor([]);
-      } else { $s = $u->two_factor_secret; }
+      $s = app(App\\Domain\\Security\\TwoFactorAuthenticator::class)->generateSecret();
+      $u->beginTwoFactorSetup($s); $u->confirmTwoFactor([]);
       echo 'SEKRET:'.$s;
       $r = App\\Models\\Recipe::where('status', 'published')->where('visibility', 'public')->orderBy('id')->first();
-      echo '|PRZEPIS:'.$r->slug;`;
-    const odczyt = execFileSync('php', ['artisan', 'tinker', '--execute', php], { cwd: repo, env }).toString();
+      echo '|PRZEPIS:'.$r->slug;`);
     const sekret = /SEKRET:([A-Z2-7]+)/.exec(odczyt)?.[1];
     const przepis = /PRZEPIS:([\w-]+)/.exec(odczyt)?.[1];
     assert(sekret && przepis, 'Nie udało się przygotować moderatora z 2FA i przepisu do pomiaru (zasiej bazę DemoSeeder).');
-    przegladarka = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH && existsSync(process.env.CHROMIUM_PATH) ? { executablePath: process.env.CHROMIUM_PATH } : {}) });
-    const zaloguj = async (login, kodTotp) => {
-      const kontekst = await przegladarka.newContext({ viewport: { width: 390, height: 844 } });
-      const p = await kontekst.newPage();
-      await p.goto(adres + '/login');
-      await p.locator('[name=login]').fill(login);
-      await p.locator('[name=password]').fill(haslo);
-      await p.locator('form.panel-formularza button[type=submit]').click();
-      await p.waitForURL((u) => u.pathname !== '/login');
-      if (kodTotp) {
-        assert(new URL(p.url()).pathname.includes('/logowanie/kod'), 'Brak wyzwania 2FA po haśle moderatora');
-        if (Date.now() % 30000 > 27000) await new Promise((ok) => setTimeout(ok, 30000 - (Date.now() % 30000) + 50));
-        await p.locator('[name=code]').fill(totp(kodTotp));
-        await p.locator('form.panel-formularza button[type=submit]').click();
-        await p.waitForURL((u) => !u.pathname.includes('logowanie'));
-      }
-      const stan = await kontekst.storageState();
-      await kontekst.close();
-      return stan;
-    };
-    const sesjaKonta = await zaloguj('ania', null);
-    const sesjaModeratora = await zaloguj('moderacja', sekret);
+    przegladarka = await uruchomPrzegladarke();
+    const sesjaKonta = await zaloguj(przegladarka, adres, 'ania');
+    const sesjaModeratora = await zaloguj(przegladarka, adres, 'moderacja', sekret);
     await sprawdzPasekWUkladach({
       browser: przegladarka, adres,
       uklady: [
@@ -211,7 +154,7 @@ async function przebiegLokalny() {
     });
   } finally {
     await przegladarka?.close();
-    zatrzymaj();
+    zamknij();
   }
 }
 
