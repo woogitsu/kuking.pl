@@ -437,6 +437,11 @@ Dodaj też **DMARC** (nie każdy dostawca o to poprosi, ale bez tego trafisz do 
 |---|---|---|
 | TXT | `_dmarc` | `v=DMARC1; p=none; rua=mailto:kontakt@kuking.pl` |
 
+> **Sam rekord `rua` nie wystarczy — adres musi odbierać pocztę.** Domena musi
+> mieć rekord **MX** (poczta przychodząca dla `kontakt@kuking.pl`), inaczej raporty
+> DMARC giną po cichu. Droga i dowód doręczenia: `POCZTA_URUCHOMIENIE.md` §3A
+> (issue #2049).
+
 > **`p=none` na start, nie `p=quarantine`.** Ostrzejsza polityka ustawiona
 > przed przeczytaniem pierwszych raportów `rua` kasuje pocztę z systemów,
 > o których się zapomniało (formularz na stronie, hosting, stary newsletter) —
@@ -2735,6 +2740,7 @@ Zapewnia to, że rollback o jeden deploy w tył **zawsze** jest bezpieczny.
 - [ ] **Rotacja kluczy R2** (patrz niżej)
 - [ ] Przegląd wersji majora PostgreSQL
 - [ ] Weryfikacja rekordów SPF/DKIM/DMARC
+- [ ] Raport zbiorczy DMARC z ostatnich dni faktycznie przyszedł (`POCZTA_URUCHOMIENIE.md` §3A)
 
 ### Rotacja kluczy R2 — bez przestoju
 
