@@ -64,9 +64,9 @@ final class ZeszytyNieRosnaOdHttpTest extends TestCase
 
     public function test_skaner_pomija_komentarze_i_widzi_import(): void
     {
-        $this->assertTrue(self::uzywaHttp("<?php\nuse Illuminate\\Http\\Request;\n"));
+        $this->assertTrue(self::uzywaHttp("<?php\nuse Illuminate\\Http\\JsonResponse;\n"));
         $this->assertTrue(self::uzywaHttp("<?php\n\$a = new \\Illuminate\\Http\\UploadedFile();\n"));
-        $this->assertFalse(self::uzywaHttp("<?php\n// Illuminate\\Http\\Request\n/** Illuminate\\Http\\Request */\nuse Illuminate\\Support\\Str;\n"));
+        $this->assertFalse(self::uzywaHttp("<?php\n// Illuminate\\Http\\JsonResponse\n/** Illuminate\\Http\\JsonResponse */\nuse Illuminate\\Support\\Str;\n"));
     }
 
     /**

@@ -122,7 +122,7 @@ final class GrafModulowDomenyBezCykliTest extends TestCase
             $graf['Media'] ?? [],
             'app/Domain/Media importuje App\\Domain\\Moderation ('.implode(', ', $graf['Media']['Moderation'] ?? []).'). '
             .'To zawraca Media do dawnej składowej Compliance/Moderation/Security/Users (#2149). Nazwy typów celu '
-            .'zgłoszenia to App\\Models\\Report::TARGET_*.',
+            .'zgłoszenia to stałe TARGET_* modelu Report w App\\Models.',
         );
     }
 
