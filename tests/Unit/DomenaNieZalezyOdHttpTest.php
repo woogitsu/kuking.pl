@@ -16,8 +16,10 @@ use RecursiveIteratorIterator;
  * (Form Request, kontroler, `app/Http/Support`), reguła i transakcja do
  * domeny, która dostaje zwykłe wartości albo modele. Collections są już
  * czyste (`ZeszytyDoWyboru`, `CollectionSaveContext` dostają osobę i wartości
- * pól). Reszta zastanych importów stoi na jawnych listach niżej i lista jest
- * dokładna w obie strony: nowy import oblewa test, a odczepienie znanego też,
+ * pól), tak samo Security, Social i Ukrycia (sesja, IP, pola formularza
+ * i pamięć żądania przez `App\Support\ZadanieDomenowe` i `PamiecZadania`,
+ * adaptery w `app/Http/Support`). Jedyny zastany wyjątek stoi na jawnej
+ * liście niżej i lista jest dokładna w obie strony: nowy import oblewa test, a odczepienie znanego też,
  * żeby wpis nie został furtką dla kolejnego importu.
  *
  * WYJĄTKI (każdy z powodem):
@@ -25,8 +27,7 @@ use RecursiveIteratorIterator;
  *    nie warstwa wejścia; dozwolony wszędzie.
  *  - `UploadedFile` — prawdziwy obiekt pliku z formularza, do czasu neutralnego
  *    DTO/portu na plik (wpis per plik).
- *  - `Request` w czterech plikach poniżej — zastane, poza zakresem tego etapu
- *    (#970 zawężone do Collections); osobne zadania.
+ *  - `Request` NIE MA wyjątków: domena nie importuje go w żadnym pliku.
  *
  * JAK CZYTA KOD: tokenizerem, nie wyrażeniem regularnym — komentarz
  * z nazwą klasy nie jest zależnością.
@@ -36,20 +37,6 @@ use RecursiveIteratorIterator;
  */
 final class DomenaNieZalezyOdHttpTest extends TestCase
 {
-    /**
-     * Zastane, tymczasowe: stan żądania albo sesji trzymany w domenie.
-     * Wyjęcie do adapterów w `app/Http` to osobne zadania — każdy wpis
-     * znika razem z importem.
-     *
-     * @var list<string> "ścieżka względem app/Domain#klasa"
-     */
-    private const ZASTANE = [
-        'Security/FacebookConnectionConfirmation.php#Illuminate\Http\Request', // sesja potwierdzeń połączenia z Facebookiem
-        'Security/WejsciePrzezDostawce/WejdzPrzezDostawce.php#Illuminate\Http\Request', // sesja i wpuszczenie konta po OAuth (#1035)
-        'Social/SkrotyObserwowania.php#Illuminate\Http\Request', // pamięć skrótów w atrybutach żądania
-        'Ukrycia/Ukrycia.php#Illuminate\Http\Request', // zbiór ukryć liczony raz na żądanie
-    ];
-
     /**
      * Stały wyjątek: prawdziwy plik z formularza (wpis per plik).
      *
@@ -71,7 +58,7 @@ final class DomenaNieZalezyOdHttpTest extends TestCase
 
         $this->assertSame(
             [],
-            array_values(array_diff($znalezione, self::ZASTANE, self::PLIK_Z_FORMULARZA)),
+            array_values(array_diff($znalezione, self::PLIK_Z_FORMULARZA)),
             'Plik w app/Domain importuje Illuminate\\Http. Wejście HTTP idzie do adaptera (Form Request, '
             .'kontroler, app/Http/Support), a domena dostaje zwykłe wartości albo osobę (#970).',
         );
@@ -80,7 +67,7 @@ final class DomenaNieZalezyOdHttpTest extends TestCase
     public function test_listy_wyjatkow_sa_dokladne(): void
     {
         $znalezione = self::importyHttp();
-        $wyjatki = array_merge(self::ZASTANE, self::PLIK_Z_FORMULARZA);
+        $wyjatki = array_merge(self::PLIK_Z_FORMULARZA);
         sort($wyjatki);
 
         $this->assertSame(
@@ -90,9 +77,16 @@ final class DomenaNieZalezyOdHttpTest extends TestCase
         );
     }
 
+    public function test_request_nie_ma_zadnych_wyjatkow(): void
+    {
+        foreach (self::importyHttp() as $wpis) {
+            $this->assertStringEndsNotWith('#Illuminate\Http\Request', $wpis, 'Domena nie zna Request (#970).');
+        }
+    }
+
     public function test_collections_nie_ma_zadnych_wyjatkow(): void
     {
-        foreach (array_merge(self::ZASTANE, self::PLIK_Z_FORMULARZA) as $wpis) {
+        foreach (array_merge(self::PLIK_Z_FORMULARZA) as $wpis) {
             $this->assertStringStartsNotWith('Collections/', $wpis, 'Collections są czyste — bez wyjątków (#970).');
         }
     }

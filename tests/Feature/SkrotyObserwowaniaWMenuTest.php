@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Social\SkrotyObserwowania;
+use App\Http\Support\PamiecZadaniaHttp;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Tag;
@@ -172,13 +173,13 @@ class SkrotyObserwowaniaWMenuTest extends TestCase
         $przypadki['zawieszona']->forceFill(['status' => User::STATUS_SUSPENDED])->save();
 
         foreach ($przypadki as $nazwa => $autor) {
-            $skroty = new SkrotyObserwowania(new Request);
+            $skroty = new SkrotyObserwowania(new PamiecZadaniaHttp(new Request));
             $oczekiwane = Gate::forUser($widz)->allows('follow', $autor) && ! $widz->isFollowing($autor);
             $this->assertSame($oczekiwane, $skroty->osobaDoObserwowania($widz, $autor->fresh()), "Rozjazd z UserPolicy::follow: {$nazwa}");
         }
 
         // Kontrola dodatnia: macierz ma oba wyniki.
-        $this->assertTrue((new SkrotyObserwowania(new Request))->osobaDoObserwowania($widz, $przypadki['zwykła']));
+        $this->assertTrue((new SkrotyObserwowania(new PamiecZadaniaHttp(new Request)))->osobaDoObserwowania($widz, $przypadki['zwykła']));
     }
 
     public function test_skroty_nie_dokladaja_zapytan_na_karte(): void

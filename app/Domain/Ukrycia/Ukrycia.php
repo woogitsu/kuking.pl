@@ -7,7 +7,7 @@ namespace App\Domain\Ukrycia;
 use App\Models\Hide;
 use App\Models\Post;
 use App\Models\User;
-use Illuminate\Http\Request;
+use App\Support\PamiecZadania;
 
 /**
  * Odczyt prywatnych ukryć jednego widza (issue #1810, D-278).
@@ -21,12 +21,12 @@ final class Ukrycia
 {
     private const KLUCZ = 'kuking.ukryte_wpisy_widza';
 
-    public function __construct(private readonly Request $request) {}
+    public function __construct(private readonly PamiecZadania $pamiec) {}
 
     /**
      * Czy TEN widz ukrył sobie ten wpis — dla karty, która na profilu,
      * w wyszukiwarce i pod linkiem zwija się do „Ten wpis ukrywasz. Pokaż".
-     * Zbiór liczony raz na żądanie (pamięć w atrybutach `Request`, jak
+     * Zbiór liczony raz na żądanie (pamięć jednego żądania, `PamiecZadania`, jak
      * `SkrotyObserwowania`), więc karta nie dokłada zapytania.
      */
     public function wpisUkryty(?User $widz, Post $post): bool
@@ -35,7 +35,7 @@ final class Ukrycia
             return false;
         }
 
-        $pamiec = $this->request->attributes->get(self::KLUCZ);
+        $pamiec = $this->pamiec->pobierz(self::KLUCZ);
 
         if (! is_array($pamiec) || ($pamiec['widz'] ?? null) !== $widz->getKey()) {
             $pamiec = [
@@ -45,7 +45,7 @@ final class Ukrycia
                     true,
                 ),
             ];
-            $this->request->attributes->set(self::KLUCZ, $pamiec);
+            $this->pamiec->zapisz(self::KLUCZ, $pamiec);
         }
 
         return isset($pamiec['wpisy'][$post->getKey()]);

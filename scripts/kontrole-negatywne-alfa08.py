@@ -546,7 +546,7 @@ ADAPTERY_DOSTAWCOW_TEST = "KontroleryDostawcowSaAdapteramiTest"
 # a nie z kotwic zasięgu w sąsiednich metodach.
 DIGEST_DOBOR = "app/Domain/Digest/ZbierzTresciDigestu.php"
 DIGEST_DOBOR_TEST = "test_zaden_feed_nie_sortuje_po_mierze_cudzych_reakcji"
-WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) {\n"
+WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc(ZadanieHttp::z($request), $user)) {\n"
 
 # Tryb ścisły Eloquent poza produkcją (#976). Mutacja usuwa samo włączenie
 # z `AppServiceProvider` — test kontraktu ma zapalić, że ochron nie ma.
