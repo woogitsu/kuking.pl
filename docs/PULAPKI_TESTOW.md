@@ -117,6 +117,43 @@ odnośników w dokumentacji w odpowiedzi na niepełny skan.
 
 ---
 
+## 2c. Dziura z §2 wraca przez ZAWĘŻENIE — i jest wtedy lepiej ukryta
+
+**Złapało: `scripts/kaskada-martwe-reguly.mjs --tylko`, 20.09.2026.**
+
+Strażnik z bramką zawężaną argumentem (`--tylko <fragment>`) ma dwa różne
+zbiory: to, co MIERZY, i to, na czym zapada WERDYKT. Samokontrole pisze się
+zwykle dla pierwszego — „zero zmierzonych konfiguracji to błąd przyrządu" —
+i one działają. Werdykt tymczasem zapada na drugim, a ten bywa pusty przy
+pomiarze, który przebiegł bez zarzutu.
+
+Skutek jest gorszy niż zwykłe zero z §2, bo **wygląda na wynik**: konsola
+wypisuje tysiące zbadanych reguł, pełną listę szerokości i motywów, po czym
+melduje zieleń na zbiorze pustym. Literówka w zawężeniu albo zmiana nazwy
+klasy wyłącza bramkę bez jednego czerwonego przebiegu i bez jednego
+podejrzanego wiersza w logu.
+
+**Co robić:** samokontrola musi stać przy ZBIORZE WERDYKTU, nie przy pomiarze.
+Zawężenie, które nie objęło ani jednego realnego przedmiotu badania, to błąd
+przyrządu (kod 2), nie wynik pozytywny. I licz przedmioty, nie dopasowania
+tekstowe: selektor obecny w arkuszu, ale bez nosiciela na mierzonych stronach,
+jest „niezmierzony", a nie „czysty".
+
+**Zawężenie ma jedno miejsce.** Bramka w CI (job `kaskada`), krok w
+`scripts/check.sh` i kontrola ujemna wołają strażnika przez
+`scripts/kaskada-kontrola-polecenie.sh`. Trzy wywołania z własnymi flagami to
+trzy różne zakresy pomiaru — kontrola ujemna dowodziłaby wtedy czegoś innego
+niż to, co pilnuje bramka. Pilnuje tego
+`PortMarkiMaWlasnaBramkeCiTest::test_straznik_martwych_regul_css_ma_kto_uruchomic_i_jest_nieblokujacy`.
+
+**Kontrola ujemna musi zaczynać od zieleni na TYM SAMYM zawężeniu** (§5:
+kontrola dodatnia przed mutacją). Domyślne zawężenie to całe `.przepis-liczba`
+— od 29.09.2026 (#960), po usunięciu czterech martwych deklaracji decyzją
+właściciela; patrz nagłówek `scripts/kaskada-kontrola-polecenie.sh`. Nowa
+przykryta deklaracja w tym kaflu oblewa bramkę, i słusznie.
+
+---
+
 ## 3. Twój sabotaż może być za słaby — i uznasz dobry test za atrapę
 
 **Złapała: dwóch agentów niezależnie, w tym samym tygodniu.**

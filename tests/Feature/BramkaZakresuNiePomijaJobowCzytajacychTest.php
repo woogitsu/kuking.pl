@@ -54,7 +54,7 @@ class BramkaZakresuNiePomijaJobowCzytajacychTest extends TestCase
      * Joby przeglądarkowe uruchamiane przez skrypty z `scripts/` — te same,
      * które `PortMarkiMaWlasnaBramkeCiTest` trzyma na filtrze warstwy widoku.
      */
-    private const JOBY_SKRYPTOW = ['port_panelu', 'port_marki', 'port_funkcje'];
+    private const JOBY_SKRYPTOW = ['port_panelu', 'port_marki', 'port_funkcje', 'kaskada'];
 
     // -----------------------------------------------------------------
     //  Właściwe kontrole

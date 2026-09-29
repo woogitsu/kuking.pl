@@ -37,7 +37,7 @@ naprawienie CI ponowi wcześniejsze wdrożenie.
 Po naprawie trzeba potwierdzić SHA rzeczywiście działającej wersji i w razie
 potrzeby jawnie wznowić wdrożenie przez kolejkę operacyjną.
 
-## Mapa wszystkich 23 jobów
+## Mapa wszystkich 24 jobów
 
 Warunek **K** to `needs.zakres.outputs.kod == 'true'`; **W** to dodatkowo
 `needs.zakres.outputs.widok == 'true'`. „CI” poniżej oznacza push i PR do
@@ -58,6 +58,7 @@ Zmiana konfiguracji CI jest traktowana jak kod i warstwa widoku.
 | ci / `port_marki` | CI, zakres, K+W; własna baza i blokada przeglądarki | Grupa bazowa ekranów, zoom, kompozycje i kontrole ujemne | Regresje układu, czytelności i nieskutecznych pomiarów mogą przejść. |
 | ci / `port_funkcje` | CI, zakres, K+W; macierz 2 części (`czesc: [1, 2]`), każda z osobną bazą i checkoutem | Część 1: `PORT_GRUPA=rozszerzenia-1` (kompozycje, zeszyty, zwarte kolumny, PWA, tagi itd.) + kroki kreatora i autozapis. Część 2: `rozszerzenia-2` (nawigacja-492, zoom 200%) + strona nieaktualna i minutnik | Brak pokrycia rodzin ekranów oraz interakcji nieobecnych w grupie bazowej. Podział (#611 etap 9) zastąpił jeden kawałek 25–30 min dwoma po ok. 13–15 min; grupa `rozszerzenia` zostaje aliasem obu części do uruchomień lokalnych. Strażnicy: `port-grupy.test.mjs` i `PortMarkiMaWlasnaBramkeCiTest` (część macierzy = `GRUPY`, każdy krok w dokładnie jednej części). |
 | ci / `dostepnosc` | CI, zakres, K+W; własna baza i blokada przeglądarki | Aktualizacja service workera, listy, kafel, fokus, axe i Lighthouse, kontrole ujemne | Brak odbioru dostępności, wydajności i aktualizacji PWA; sam build tych usterek nie znajdzie. |
+| ci / `kaskada` | CI, zakres, K+W; własny PostgreSQL, Chromium z Playwrighta; `continue-on-error: true` **do 06.10.2026, potem blokujący (#960)** | Strażnik martwych reguł CSS (D-223): `scripts/kaskada-kontrola-polecenie.sh` buduje arkusz i pyta `getComputedStyle`, czy deklaracja z warstwy wcześniejszej cokolwiek zmienia; zawężenie `--tylko .przepis-liczba` w jednym miejscu, samokontrola kończy się kodem 2, gdy zawężenie nie objęło ani jednej reguły z nosicielem | Deklaracje w całości przykryte przez późniejszą warstwę zostają w repozytorium z komentarzami opisującymi stan, którego przeglądarka nie widzi. Job jest osobny, żeby flaga nieblokowania nie objęła blokujących axe i Lighthouse'a z `dostepnosc`. Ten sam pomiar lokalnie: `./scripts/check.sh --dostepnosc` (krok nieblokujący, ostrzeżenie zamiast błędu). |
 | ci / `audit` | CI, zakres, K | Audyt Composer i npm, także zależności deweloperskich; same kroki audytu nieblokujące | Utrata sygnału o znanych podatnościach. Przygotowanie środowiska nadal może oblać job — komentarz „nigdy nie blokuje” nie jest pełnym opisem. |
 | ci / `docker-build` | CI, zakres, K | Buduje bez publikacji obraz aplikacji i backupu; sprawdza rozszerzenia, brak klucza, pg_dump 18, użytkownika i odmowę bez konfiguracji | Testy PHP mogą przejść, a właściwy obraz nie uruchomi aplikacji lub bezpiecznej kopii zapasowej. |
 | deploy / `audit_ci` | `deployment_status` ze statusem success; bez `needs` | Porównuje SHA wdrożenia z zakończonym CI (`scripts/ci-po-wdrozeniu.mjs`); alarm po fakcie, nie bramka | Cichy rozjazd: wdrożenie SHA, którego CI nie zakończyło się zielono (Railway przepuszcza anulowane CI, jeśli inny workflow miał success). |
@@ -129,7 +130,7 @@ Własny odczyt API GitHub 20.09.2026 (bez zmiany ustawień):
 | Ustawienie | Wynik |
 |---|---|
 | Zmienna repozytorium `CI_RUNS_ON` | `"ubuntu-latest"`, updated_at `2026-09-20T16:27:59Z` |
-| Wszystkie 23 joby w kodzie | `fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"')` |
+| Wszystkie 23 joby w kodzie (stan z 20.09.2026, przed jobem `kaskada`) | `fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"')` |
 | `delete_branch_on_merge` | `true` |
 | Ochrona `main` | Endpoint protection: HTTP 404, „Branch not protected” |
 | Rulesets | Endpoint repozytorium: `[]` |

@@ -20,7 +20,13 @@ use Tests\TestCase;
 class KrytyczneKontroleCiBlokujaTest extends TestCase
 {
     /** Jedyne joby, w których `continue-on-error` jest świadomym wyjątkiem: krok wysyłki artefaktu, nie kontrola. */
-    private const DOZWOLONE = ['assets' => 1, 'port_panelu' => 1];
+    /*
+     * `kaskada` (2): flaga na jobie strażnika martwych reguł CSS — nieblokujący
+     * z decyzji właściciela do 06.10.2026 (#960, D-333; termin i warunek zdjęcia
+     * przy jobie w `ci.yml`) — oraz krok zapisu artefaktu. Przy zdjęciu flagi
+     * z joba zmień tu 2 na 1 w tym samym PR-ze.
+     */
+    private const DOZWOLONE = ['assets' => 1, 'kaskada' => 2, 'port_panelu' => 1];
 
     public function test_job_audytu_nie_ma_continue_on_error_i_uruchamia_bramke(): void
     {

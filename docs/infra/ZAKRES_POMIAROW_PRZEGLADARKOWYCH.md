@@ -11,8 +11,8 @@ Koszt świadomy: zmiana czysto technicznego kontrolera także uruchomi pomiar.
 Nie utrzymujemy kruchej listy plików PHP uznanych za wizualne.
 
 Sama dokumentacja w `docs/` i `README.md` nadal pomija ciężkie joby.
-Warunek pozostaje na całych jobach `port_marki`, `port_funkcje`, `dostepnosc`,
-nie na krokach. Brak dostępnej bazy porównania uruchamia pełny zestaw.
+Warunek pozostaje na całych jobach `port_marki`, `port_funkcje`, `dostepnosc`
+i `kaskada` (strażnik martwych reguł CSS, D-223, #960), nie na krokach. Brak dostępnej bazy porównania uruchamia pełny zestaw.
 
 `PortMarkiMaWlasnaBramkeCiTest` wykonuje rzeczywisty warunek Bash z workflowu
 dla reprezentantów każdej klasy ścieżek, zmian mieszanych oraz dużego diffu.
