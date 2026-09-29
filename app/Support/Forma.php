@@ -55,7 +55,7 @@ final class Forma
      * Czy wybór formy wolno już pokazać i zapisać (D-327, D-332).
      *
      * Forma to nowa dana widoczna dla innych, opisana dopiero w polityce
-     * prywatności z 2026-09-29, która jest zmianą ISTOTNĄ: wchodzi w życie
+     * prywatności z 2026-09-30, która jest zmianą ISTOTNĄ: wchodzi w życie
      * 14 dni po publikacji, a do tego dnia obowiązuje poprzednia polityka,
      * która o tej danej nie mówi. Do dnia wejścia w życie nie pytamy —
      * pole nie istnieje w ekranach ani w zapisie, wszyscy dostają wariant

@@ -1557,7 +1557,7 @@ checks = [
     ("Rollback paska polityki bez odmowy", POLITYKA_PASEK_MIGRACJA, POLITYKA_PASEK_TEST,
      lambda s: replace_once(s, "if ($ile > 0) {", "if (false) {")),
     ("Polityka bez terminu wejścia w życie", POLITYKA_TEKST, POLITYKA_PASEK_TEST,
-     lambda s: replace_once(s, "nowa wersja obowiązuje od 13 października 2026", "nowa wersja obowiązuje od razu")),
+     lambda s: replace_once(s, "nowa wersja obowiązuje od 14 października 2026", "nowa wersja obowiązuje od razu")),
     ("Wybór formy widoczny w okresie przejściowym polityki", FORMA_HELPER, FORMA_TEST,
      lambda s: replace_once(s, "return ! WersjaDokumentu::polityka()->wOkresiePrzejsciowym();", "return true;")),
     ("Wersja regulaminu podbita bez nagłówka dokumentu", REGULAMIN_WERSJA, REGULAMIN_WERSJA_TEST,

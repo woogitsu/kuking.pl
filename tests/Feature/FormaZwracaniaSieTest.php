@@ -41,14 +41,14 @@ final class FormaZwracaniaSieTest extends TestCase
         parent::setUp();
 
         // Wybór formy jest ukryty do dnia wejścia w życie nowej polityki
-        // (13.10.2026, D-327). Te testy sprawdzają funkcję PO tej dacie;
+        // (14.10.2026, D-327). Te testy sprawdzają funkcję PO tej dacie;
         // okres przejściowy ma osobne testy niżej.
-        $this->travelTo(CarbonImmutable::parse('2026-10-14 12:00', Czas::strefa()));
+        $this->travelTo(CarbonImmutable::parse('2026-10-15 12:00', Czas::strefa()));
     }
 
     public function test_do_dnia_wejscia_polityki_wyboru_nie_widac_i_nie_da_sie_go_zapisac(): void
     {
-        $this->travelTo(CarbonImmutable::parse('2026-10-12 12:00', Czas::strefa()));
+        $this->travelTo(CarbonImmutable::parse('2026-10-13 23:59', Czas::strefa()));
         $basia = $this->user('basia', ['display_name' => 'Basia']);
 
         $this->actingAs($basia)->get(route('settings.profile'))->assertOk()
@@ -62,7 +62,7 @@ final class FormaZwracaniaSieTest extends TestCase
 
         $this->assertNull($basia->profile->fresh()->form_of_address);
 
-        $this->travelTo(CarbonImmutable::parse('2026-10-13 00:00', Czas::strefa()));
+        $this->travelTo(CarbonImmutable::parse('2026-10-14 00:00', Czas::strefa()));
         $this->actingAs($basia)->get(route('settings.profile'))->assertOk()
             ->assertSee('Jak mamy do Ciebie pisać?');
     }

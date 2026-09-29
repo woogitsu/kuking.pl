@@ -63,29 +63,40 @@ return new class extends Migration
     public function down(): void
     {
         // Strażnik PRZED jakąkolwiek zmianą schematu (wzorzec z
-        // `2026_09_24_100000_add_punishment_status_to_users`).
-        $zWyborem = DB::table('profiles')->whereNotNull('form_of_address')->count();
+        // `2026_09_24_100000_add_punishment_status_to_users`), pod blokadą
+        // tabeli — jak bliźniak `..._add_policy_notice_dismissed_version_to_users`:
+        // bez niej wybór zapisany między policzeniem a DROP COLUMN zginąłby
+        // po cichu. Migracja chodzi poza transakcją (`$withinTransaction`),
+        // więc transakcję otwieramy tu sami; `lock_timeout` 5 s (AGENTS.md §6)
+        // obowiązuje i tutaj.
+        DB::transaction(function (): void {
+            if ($this->isPostgres()) {
+                DB::statement('LOCK TABLE profiles IN ACCESS EXCLUSIVE MODE');
+            }
 
-        if ($zWyborem > 0) {
-            throw new RuntimeException(
-                'Liczba profili z wybraną formą zwracania się (profiles.form_of_address): '.$zWyborem.'. '.
-                'Stary schemat nie ma gdzie jej zapisać: po cofnięciu te osoby dostałyby teksty '.
-                "bez rodzaju, choć same wybrały formę (D-332). Migracja odmawia.\n\n".
-                "CO ZROBIĆ:\n".
-                '  - przy awaryjnym rollbacku WDROŻENIA nie cofaj tej migracji — stary kod nie czyta '.
-                "tej kolumny i działa z nią bez zmian;\n".
-                "  - jeśli naprawdę trzeba cofnąć SCHEMAT, zapisz wybory PRZED cofnięciem:\n".
-                "      SELECT user_id, form_of_address FROM profiles WHERE form_of_address IS NOT NULL;\n".
-                '    i odtwórz je po ponownym wdrożeniu, albo uzyskaj decyzję właściciela, że te wybory mają przepaść.',
-            );
-        }
+            $zWyborem = DB::table('profiles')->whereNotNull('form_of_address')->count();
 
-        if ($this->isPostgres()) {
-            DB::statement('ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_form_of_address_check');
-        }
+            if ($zWyborem > 0) {
+                throw new RuntimeException(
+                    'Liczba profili z wybraną formą zwracania się (profiles.form_of_address): '.$zWyborem.'. '.
+                    'Stary schemat nie ma gdzie jej zapisać: po cofnięciu te osoby dostałyby teksty '.
+                    "bez rodzaju, choć same wybrały formę (D-332). Migracja odmawia.\n\n".
+                    "CO ZROBIĆ:\n".
+                    '  - przy awaryjnym rollbacku WDROŻENIA nie cofaj tej migracji — stary kod nie czyta '.
+                    "tej kolumny i działa z nią bez zmian;\n".
+                    "  - jeśli naprawdę trzeba cofnąć SCHEMAT, zapisz wybory PRZED cofnięciem:\n".
+                    "      SELECT user_id, form_of_address FROM profiles WHERE form_of_address IS NOT NULL;\n".
+                    '    i odtwórz je po ponownym wdrożeniu, albo uzyskaj decyzję właściciela, że te wybory mają przepaść.',
+                );
+            }
 
-        Schema::table('profiles', function (Blueprint $table): void {
-            $table->dropColumn('form_of_address');
+            if ($this->isPostgres()) {
+                DB::statement('ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_form_of_address_check');
+            }
+
+            Schema::table('profiles', function (Blueprint $table): void {
+                $table->dropColumn('form_of_address');
+            });
         });
     }
 

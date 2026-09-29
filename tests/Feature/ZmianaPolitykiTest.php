@@ -34,8 +34,12 @@ class ZmianaPolitykiTest extends TestCase
         $wersja = WersjaDokumentu::polityka();
 
         $this->assertTrue($wersja->istotna);
-        $this->assertSame('2026-09-25', $wersja->poprzednia);
-        $this->assertSame('2026-10-13', $wersja->obowiazujeOd()->toDateString());
+        $this->assertSame('2026-09-30', $wersja->opublikowana);
+        // Poprzednia to wersja 2026-09-29, opublikowana w Alfa 0.76 jako drobna
+        // i już obowiązująca — nie 2026-09-25 (recenzja #1751, D-332).
+        $this->assertSame('2026-09-29', $wersja->poprzednia);
+        $this->assertSame('2026-10-14', $wersja->obowiazujeOd()->toDateString());
+        $this->assertSame('2026-09-29', $wersja->obowiazujaca(CarbonImmutable::parse('2026-10-13 23:59', Czas::strefa())));
     }
 
     /** Nagłówek, konfiguracja i sekcja „Co się zmieniło” mówią o tym samym dniu i terminie. */
@@ -43,9 +47,9 @@ class ZmianaPolitykiTest extends TestCase
     {
         $tresc = (string) file_get_contents(resource_path('legal/polityka-prywatnosci.md'));
 
-        $this->assertMatchesRegularExpression('/## Co się zmieniło\s+\*\*29 września 2026\.\*\*/u', $tresc);
-        $this->assertStringContainsString('nowa wersja obowiązuje od 13 października 2026', $tresc);
-        $this->assertStringContainsString('obowiązuje poprzednia wersja z 25 września 2026', $tresc);
+        $this->assertMatchesRegularExpression('/## Co się zmieniło\s+\*\*30 września 2026\.\*\*/u', $tresc);
+        $this->assertStringContainsString('nowa wersja obowiązuje od 14 października 2026', $tresc);
+        $this->assertStringContainsString('obowiązuje poprzednia wersja z 29 września 2026', $tresc);
         $this->assertStringContainsString('Jak mamy do Ciebie pisać?', $tresc);
 
         $this->get(route('privacy'))->assertOk()->assertSee('<h2 id="co-sie-zmienilo">Co się zmieniło</h2>', false);
@@ -56,11 +60,11 @@ class ZmianaPolitykiTest extends TestCase
         Mail::fake();
         $osoba = $this->kontoSprzedWersji();
 
-        $this->travelTo(CarbonImmutable::parse('2026-09-30', Czas::strefa()));
+        $this->travelTo(CarbonImmutable::parse('2026-10-01', Czas::strefa()));
         $this->actingAs($osoba)->get(route('home'))->assertOk()
             ->assertSee('data-pasek-zmiany-polityki', false)
             ->assertSee('Zmieniliśmy politykę prywatności.')
-            ->assertSee('Nowa wersja obowiązuje od 13 października 2026. Do tego dnia obowiązuje poprzednia.')
+            ->assertSee('Nowa wersja obowiązuje od 14 października 2026. Do tego dnia obowiązuje poprzednia.')
             ->assertSee(route('privacy').'#co-sie-zmienilo', false)
             ->assertSee(route('privacy.notice.dismiss'), false);
         $this->actingAs($osoba)->get(route('discover'))->assertSee('data-pasek-zmiany-polityki', false);
@@ -81,11 +85,11 @@ class ZmianaPolitykiTest extends TestCase
     public function test_po_dacie_wejscia_pasek_nie_mowi_juz_o_poprzedniej(): void
     {
         $osoba = $this->kontoSprzedWersji();
-        $this->travelTo(CarbonImmutable::parse('2026-10-13', Czas::strefa()));
+        $this->travelTo(CarbonImmutable::parse('2026-10-14', Czas::strefa()));
 
         $this->actingAs($osoba)->get(route('home'))->assertOk()
             ->assertSee('data-pasek-zmiany-polityki', false)
-            ->assertSee('Nowa wersja obowiązuje od 13 października 2026.')
+            ->assertSee('Nowa wersja obowiązuje od 14 października 2026.')
             ->assertDontSee('Do tego dnia obowiązuje poprzednia.');
     }
 

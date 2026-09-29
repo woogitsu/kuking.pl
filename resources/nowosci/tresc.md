@@ -33,11 +33,11 @@ Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
 ### Jak mamy do Was pisać?
 
-Od 13 października 2026, kiedy wchodzi w życie nowa polityka prywatności (do tego
+Od 14 października 2026, kiedy wchodzi w życie nowa polityka prywatności (do tego
 dnia pokazujemy o niej pasek z informacją), w ustawieniach profilu, a także na
 ostatnim kroku po założeniu konta, pojawi się nowe pytanie „Jak mamy do Ciebie pisać?”. Możecie wybrać formę żeńską, męską albo
-neutralną. Neutralna jest zaznaczona od początku i tak piszemy do każdego,
-dopóki sam nie wybierze inaczej — możecie też pominąć to pytanie i nic się nie
+neutralną. Neutralna jest zaznaczona od początku i tak piszemy do wszystkich,
+dopóki ktoś nie wybierze inaczej — możecie też pominąć to pytanie i nic się nie
 zmieni. Nie zgadujemy niczego z imienia ani z konta Google czy Facebooka.
 Wybraną formę zobaczą też inni, bo tak będziemy o Was pisać, na przykład
 „Ania ugotowała Twój przepis”. Przy formie żeńskiej przycisk na końcu gotowania

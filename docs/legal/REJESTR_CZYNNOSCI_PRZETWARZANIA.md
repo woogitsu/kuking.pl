@@ -5,6 +5,8 @@ Uzupełnienie z 29 września 2026 (#1816, wersja polityki `2026-09-29`):
 §3.5 (obserwowane tagi), §3.16 (odpięcie zdarzeń po wymazaniu konta),
 §3.17 (zakres paczki danych), nowe §3.20–3.22 (ukrycia, reakcja „Smakowicie
 wygląda”, lista „Co mam w domu”).
+Uzupełnienie z 30 września 2026 (#1751, D-332, wersja polityki `2026-09-30`,
+zmiana istotna, obowiązuje od 14 października 2026): §3.2 (forma zwracania się).
 
 **Skąd wzięła się treść tego dokumentu.** Każda czynność niżej jest
 **wyprowadzona z kodu tego repozytorium**, nie z wyobraźni i nie z polityki
