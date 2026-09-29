@@ -16,6 +16,23 @@ class InstrukcjeChroniaSrodowiskoTest extends TestCase
         $this->assertStringContainsString('MD5 oraz mtime', $text);
     }
 
+    /**
+     * @bez-kontroli-dodatniej Sprawdza obecność zdania w dokumentach; brak zdania oblewa test.
+     */
+    public function test_pole_sterujace_kind_wpisu_jest_w_agents_i_we_wszystkich_skrotach(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $agents = file_get_contents($root.'/AGENTS.md');
+        $section = explode('Każdy endpoint przechodzi', explode('## 7. Bezpieczeństwo', $agents, 2)[1] ?? '', 2)[0];
+        $this->assertStringContainsString('`kind` wpisu', $section, 'KIND_AGENTS_PAR7');
+        $this->assertStringContainsString('oznaczJakoPytanie()', $section, 'KIND_AGENTS_METODA');
+
+        foreach (['CLAUDE.md', 'GEMINI.md', '.github/copilot-instructions.md'] as $file) {
+            $text = file_get_contents($root.'/'.$file);
+            $this->assertMatchesRegularExpression('/`kind`[^\n]*(?:wpis|Post)/u', $text, 'KIND_SKROT '.$file);
+        }
+    }
+
     public function test_skroty_zasady_ikon_odsylaja_do_jawnych_wyjatkow(): void
     {
         foreach (['CLAUDE.md', 'GEMINI.md', '.github/copilot-instructions.md'] as $file) {

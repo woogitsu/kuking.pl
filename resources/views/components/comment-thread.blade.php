@@ -341,9 +341,13 @@
              a przy tym niejasna — stała po dwóch różnych drogach naraz
              (logowanie istniejącym kontem i zakładanie nowego), więc nie było
              wiadomo, o której mówi. Zostaje samo to, co jest do zrobienia. --}}
+        {{-- Oba odnośniki niosą rodzaj i identyfikator treści, nie adres —
+             po wejściu człowiek wraca do tej rozmowy (#2027,
+             `App\Support\PowrotDoRozmowy`). --}}
+        @php($powrot = \App\Support\PowrotDoRozmowy::zapytanieDlaStrony(request()))
         <p class="notice">
-            {{ $answers ? 'Żeby odpowiedzieć,' : 'Żeby dodać komentarz,' }} <a href="{{ route('login') }}">zaloguj się</a>
-            albo <a href="{{ route('register') }}">załóż konto</a>.
+            {{ $answers ? 'Żeby odpowiedzieć,' : 'Żeby dodać komentarz,' }} <a href="{{ route('login', $powrot) }}">zaloguj się</a>
+            albo <a href="{{ route('register', $powrot) }}">załóż konto</a>.
         </p>
     @endauth
 

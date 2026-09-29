@@ -12,7 +12,9 @@ use App\Models\MiaraDomowa;
 use App\Models\SkladnikOdzywczy;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -98,6 +100,55 @@ final class WartosciOdzywczeImportTest extends TestCase
         }
 
         $this->assertSame($przed, SkladnikOdzywczy::count());
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: callable(string): string, 2: string}>
+     */
+    public static function uszkodzoneWejscia(): array
+    {
+        $pierwszaLiniaDanych = static function (string $t, callable $f): string {
+            $linie = explode("\n", $t);
+            $linie[1] = $f($linie[1]);
+
+            return implode("\n", $linie);
+        };
+
+        return [
+            'skladniki ucięte do nagłówka' => ['skladniki.csv', static fn (string $t): string => explode("\n", $t)[0]."\n", 'co najmniej jeden wiersz'],
+            'miary ucięte do nagłówka' => ['miary.csv', static fn (string $t): string => explode("\n", $t)[0]."\n", 'co najmniej jeden wiersz'],
+            'zły nagłówek' => ['skladniki.csv', static fn (string $t): string => 'x'.$t, 'nagłówek'],
+            'wiersz ucięty w połowie' => ['skladniki.csv', static fn (string $t): string => $t."ucieta,Ucięta,ucieta\n", 'zła liczba kolumn'],
+            'pusty klucz' => ['skladniki.csv', static fn (string $t): string => $pierwszaLiniaDanych($t, static fn (string $l): string => (string) preg_replace('/^[^,]*/', '', $l)), 'klucz'],
+            'pusta wartość energii' => ['skladniki.csv', static fn (string $t): string => $pierwszaLiniaDanych($t, static fn (string $l): string => (string) preg_replace('/,[^,]*,[^,]*,[^,]*,[^,]*$/', ',,1,1,1', $l)), 'kcal'],
+            'duplikat klucza' => ['skladniki.csv', static fn (string $t): string => $t."cukier,Cukier drugi,,ciqual,1,,0,Sucre,399,0,0,99.7\n", 'drugi raz'],
+            'duplikat miary' => ['miary.csv', static fn (string $t): string => $t.explode("\n", $t)[1]."\n", 'drugi raz'],
+            'miara nieznanego składnika' => ['miary.csv', static fn (string $t): string => $t."nie_ma_takiego,lyzka,10,\n", 'nie ma składnika'],
+            'miara z pustymi gramami' => ['miary.csv', static fn (string $t): string => $t."cukier,szczypta,,\n", 'gramy'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('uszkodzoneWejscia')]
+    public function uszkodzony_plik_jest_odrzucony_bez_ruszania_slownika_i_znacznika(string $plik, callable $psuj, string $komunikat): void
+    {
+        app(ImportujWartosciOdzywcze::class)->handle();
+        $stanPrzed = [SkladnikOdzywczy::count(), AliasSkladnika::count(), MiaraDomowa::count()];
+        $znacznik = Cache::get('odzywcze:import:hash-plikow');
+        $this->assertNotNull($znacznik);
+
+        $katalog = $this->kopiaDanych();
+        file_put_contents($katalog.'/'.$plik, $psuj((string) file_get_contents($katalog.'/'.$plik)));
+
+        try {
+            app(ImportujWartosciOdzywcze::class)->handle($katalog);
+            $this->fail('Uszkodzony plik przeszedł import.');
+        } catch (BladDlaCzlowieka $e) {
+            $this->assertStringContainsString($komunikat, $e->getMessage());
+        }
+
+        $this->assertSame($stanPrzed, [SkladnikOdzywczy::count(), AliasSkladnika::count(), MiaraDomowa::count()]);
+        $this->assertSame($znacznik, Cache::get('odzywcze:import:hash-plikow'), 'Nieudany import nie może zmienić znacznika.');
     }
 
     #[Test]

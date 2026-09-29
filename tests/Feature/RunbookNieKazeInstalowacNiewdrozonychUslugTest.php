@@ -29,8 +29,8 @@ use Tests\TestCase;
  * Sentry nie ma, część runbooka do wykonania (poza `<details>`) nie może
  * instalować Sentry ani wymagać jego sekretów; dopóki kod nie wysyła niczego
  * do PostHog, runbook nie może kazać zakładać konta ani ustawiać klucza.
- * Gdy któraś usługa naprawdę wejdzie, odpowiednia asercja przestaje
- * obowiązywać sama. Kontrolę dodatnią prowadzi
+ * Gdy usługa wejdzie, test wymaga jawnego opisu jej obsługi — nie skipu.
+ * Kontrolę dodatnią prowadzi
  * `scripts/kontrole-negatywne-alfa08.py`.
  */
 class RunbookNieKazeInstalowacNiewdrozonychUslugTest extends TestCase
@@ -83,7 +83,10 @@ class RunbookNieKazeInstalowacNiewdrozonychUslugTest extends TestCase
         $this->assertStringContainsString('## KROK 4.', $doWykonania);
 
         if ($this->sentryJestWdrozone()) {
-            $this->markTestSkipped('Sentry jest w composer.json/config — runbook może je opisywać.');
+            $this->assertStringContainsString('| `SENTRY_LARAVEL_DSN` |', $doWykonania, 'Sentry weszło do kodu; runbook musi opisać jego konfigurację.');
+            $this->assertStringContainsString('Sentry', $doWykonania, 'Sentry weszło do kodu; runbook musi opisać jego kontrolę po wdrożeniu.');
+
+            return;
         }
 
         $zakazane = [
@@ -121,7 +124,10 @@ class RunbookNieKazeInstalowacNiewdrozonychUslugTest extends TestCase
         $this->assertStringContainsString('## KROK 5.', $doWykonania);
 
         if ($this->posthogJestWdrozony()) {
-            $this->markTestSkipped('PostHog pojawił się w kodzie — runbook może go opisywać.');
+            $this->assertStringContainsString('| `POSTHOG_KEY` |', $doWykonania, 'PostHog wszedł do kodu; runbook musi opisać jego konfigurację.');
+            $this->assertStringContainsString('PostHog', $doWykonania, 'PostHog wszedł do kodu; runbook musi opisać jego kontrolę po wdrożeniu.');
+
+            return;
         }
 
         $zakazane = [

@@ -407,7 +407,48 @@
             <x-show-more :paginator="$recipes" czego="przepisów" lista="lista-przepisow" />
         @endif
     @else
-        @if($cookedEvents->count() === 0)
+        @if($isOwner && ($stats['cooked'] > 0 || $frazaUgotowanych->fraza !== ''))
+            {{--
+                „SZUKAJ W MOICH WYKONANIACH” (issue #2070) — tylko na WŁASNEJ
+                zakładce, ten sam wzorzec co „Szukaj w moich zeszytach” (#779).
+                Zwykły formularz GET: działa bez JavaScriptu, a adres z frazą
+                da się odświeżyć, udostępnić sobie i wrócić do niego „Wstecz”.
+                Formularz GET zastępuje zapytanie z `action`, dlatego zakładka
+                idzie ukrytym polem. Co fraza może dopasować, a czego nie —
+                `App\Domain\Search\FrazaWUgotowanych`.
+            --}}
+            <form class="panel-formularza mb-6" method="GET" action="{{ route('profile.show', $p->username) }}" role="search" aria-label="{{ \App\Domain\Search\FrazaWUgotowanych::ETYKIETA }}">
+                <input type="hidden" name="zakladka" value="ugotowane">
+                <div class="field @if($frazaUgotowanych->blad) has-error @endif">
+                    <label for="f-szukaj-ugotowane">{{ \App\Domain\Search\FrazaWUgotowanych::ETYKIETA }}</label>
+                    <span class="field-help" id="f-szukaj-ugotowane-help">Wpisz kawałek tytułu przepisu. Polskie znaki nie mają znaczenia — „zurek” znajdzie „Żurek”.</span>
+                    <input class="field-input" id="f-szukaj-ugotowane" name="szukaj" type="search" value="{{ $frazaUgotowanych->fraza }}"
+                           maxlength="{{ \App\Domain\Search\SearchQuery::MAX_PHRASE_LENGTH }}"
+                           aria-describedby="f-szukaj-ugotowane-help{{ $frazaUgotowanych->blad ? ' f-szukaj-ugotowane-error' : '' }}"
+                           @if($frazaUgotowanych->blad) aria-invalid="true" @endif>
+                    @if($frazaUgotowanych->blad)
+                        <span class="field-error" id="f-szukaj-ugotowane-error">{{ $frazaUgotowanych->blad }}</span>
+                    @endif
+                </div>
+                <button class="btn btn-primary mt-4" type="submit">Szukaj</button>
+            </form>
+        @endif
+
+        @if($frazaUgotowanych->aktywna())
+            <section class="stack mb-6" aria-labelledby="wyniki-w-ugotowanych" data-wyniki-w-ugotowanych>
+                <h2 id="wyniki-w-ugotowanych" class="m-0">Wyniki dla „{{ $frazaUgotowanych->fraza }}”</h2>
+                @if($cookedEvents->total() === 0)
+                    {{-- Brak dopasowań to nie pusty profil — mówimy, czego nie znaleźliśmy i co zrobić. --}}
+                    <p class="m-0">Nie znaleźliśmy wśród Twoich wykonań przepisu, który ma w tytule „{{ $frazaUgotowanych->fraza }}”. Spróbuj krótszego kawałka tytułu.</p>
+                @else
+                    <p class="meta m-0">Znaleźliśmy {{ $cookedEvents->total() }} {{ \App\Support\Odmiana::rzeczownik($cookedEvents->total(), 'wykonanie', 'wykonania', 'wykonań') }}, od najnowszego.</p>
+                @endif
+                <p class="m-0"><a class="btn btn-secondary" href="{{ route('profile.show', ['username' => $p->username, 'zakladka' => 'ugotowane']) }}">Pokaż wszystkie wykonania</a></p>
+            </section>
+        @endif
+
+        {{-- Przy frazie bez dopasowań komunikat stoi wyżej, w sekcji wyników. --}}
+        @if($cookedEvents->count() === 0 && ! $frazaUgotowanych->aktywna())
             <x-empty-state :title="$isOwner ? 'Nie masz jeszcze żadnego wykonania' : 'Brak wykonań'"
                            :action="$isOwner ? 'Znajdź przepis' : null"
                            :href="$isOwner ? route('search') : null">
@@ -415,7 +456,7 @@
                     Kiedy ugotujesz z czyjegoś przepisu, kliknij „Ugotowałem”. Autor się o tym dowie, a Ty będziesz mieć to zapisane.
                 @endif
             </x-empty-state>
-        @else
+        @elseif($cookedEvents->count() > 0)
             <div class="stack" id="lista-wykonan">
                 @foreach($cookedEvents as $event)
                     <x-cooked-card :event="$event" :showRecipe="true"

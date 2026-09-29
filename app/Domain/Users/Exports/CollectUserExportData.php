@@ -379,6 +379,9 @@ final class CollectUserExportData
             'plik_do_czytania' => 'przepisy/'.ExportFileNames::recipeFile($recipe),
             'krotki_opis' => $recipe->summary,
             'porcje' => $recipe->servings,
+            // Wybór autora musi przetrwać przeniesienie danych; brak pola
+            // odróżniałby ukrycie od domyślnej widoczności (D-299, #1993).
+            'pokazuj_wartosci_odzywcze' => (bool) $recipe->pokazuj_wartosci_odzywcze,
             // Szacunek autora w złotych za CAŁY przepis (D-286); `null` = nie podano.
             'szacunkowy_koszt_zl' => $recipe->estimated_cost_pln,
             'przygotowanie_minuty' => $recipe->prep_minutes,

@@ -280,10 +280,54 @@ class TwoFactorSettingsController extends Controller
             ])->errorBag('regenerate');
         }
 
-        $kodyJawne = $this->totp->generateBackupCodes();
-        $user->replaceTwoFactorBackupCodes($this->totp->hashBackupCodes($kodyJawne));
+        // DWIE KARTY, DWA KOMPLETY (#2057).
+        //
+        // Dwa nakładające się żądania pokazywały dwa różne komplety, a działał
+        // tylko ten zapisany jako ostatni. Kto przepisał kody z pierwszej
+        // karty, miał kartkę, która nie otwiera konta — i dowiadywał się o tym
+        // dopiero po zgubieniu telefonu.
+        //
+        // Migawka to zaszyfrowany komplet z chwili, w której żądanie wczytało
+        // konto. Pod blokadą wiersza porównujemy ją ze stanem bieżącym: inny
+        // komplet znaczy, że w trakcie tego żądania ktoś (druga karta) już
+        // zapisał nowe kody. Wtedy niczego nie nadpisujemy i niczego nie
+        // pokazujemy — komplet z tamtej karty zostaje ważny. Sama blokada
+        // by nie wystarczyła: kolejkuje, ale drugie żądanie po wejściu i tak
+        // nadpisałoby komplet, który pierwsza karta właśnie pokazała.
+        $migawka = $user->getRawOriginal('two_factor_backup_codes');
 
-        return redirect()->route('settings.two_factor.codes')->with('kody_zapasowe', $kodyJawne);
+        // Skróty liczymy PRZED blokadą — bcrypt kilka razy nie ma czego
+        // szukać w transakcji, która trzyma wiersz konta.
+        $kodyJawne = $this->totp->generateBackupCodes();
+        $skroty = $this->totp->hashBackupCodes($kodyJawne);
+
+        $wynik = ZamekKonta::zablokuj($user, static function (?User $swiezy) use ($migawka, $skroty): string {
+            if ($swiezy === null || ! $swiezy->hasTwoFactorConfirmed()) {
+                return 'wylaczone';
+            }
+
+            if ($swiezy->getRawOriginal('two_factor_backup_codes') !== $migawka) {
+                return 'zmienione';
+            }
+
+            $swiezy->replaceTwoFactorBackupCodes($skroty);
+
+            return 'zapisane';
+        });
+
+        $user->refresh();
+
+        // Flash z kodami dopiero PO zatwierdzeniu transakcji: nieudany commit
+        // kończy się wyjątkiem, zanim jawne kody trafią do sesji.
+        return match ($wynik) {
+            'zapisane' => redirect()->route('settings.two_factor.codes')->with('kody_zapasowe', $kodyJawne),
+            'zmienione' => redirect()->route('settings.two_factor.edit')->with(
+                'status',
+                'Nowe kody zapasowe powstały przed chwilą w innym oknie lub karcie. Zapisz kody z tamtego ekranu. '
+                .'Jeśli ich nie masz, kliknij „Wygeneruj nowe kody” jeszcze raz — poprzednie przestaną wtedy działać.',
+            ),
+            default => redirect()->route('settings.two_factor.edit'),
+        };
     }
 
     /**

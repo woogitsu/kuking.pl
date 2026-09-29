@@ -445,6 +445,42 @@ konta, chwila i wykonany zakres (`minimum`/`everything`) — bez e-maila i bez
 nazwy. Wpisy żyją 120 dni (dłużej niż najstarsza kopia), dopisuje je
 i przycina `kuking:dziennik-wymazan` co noc o 05:30.
 
+#### Zanim odtworzysz: okno awarii dziennika (issue #2038)
+
+Wpis powstaje **po** zatwierdzeniu wymazania. Gdy zapis padnie
+(`DziennikWymazan::zapisz()` próbuje 3 razy, odstęp 1 s i 3 s), brakujący
+wpis dopisuje nocne `kuking:dziennik-wymazan` o 05:30 — szukając kont po
+`users.data_erased_at` w **bieżącej** bazie. Jeśli między tą awarią
+a najbliższym udanym uzupełnieniem odtworzysz kopię sprzed wymazania,
+znacznika już nie ma: noc nie dopisze niczego, a `kuking:wymaz-ponownie`
+nie zobaczy konta. Wymazanie z ok. 03:50 (`kuking:usun-wygasle-konta`) ma
+takie okno co najmniej do 05:30 tej samej nocy; przy dłuższej awarii
+magazynu — do pierwszej nocy, w której zapis znów się uda.
+
+Dlatego przed odtworzeniem:
+
+1. **Jeśli bieżąca baza jeszcze się czyta** (zawsze w 3(a), często
+   w 3(b)) — uruchom na niej `php artisan kuking:dziennik-wymazan`
+   i sprawdź, że w logu nie pojawiła się linia z punktu 2. Dopiero wtedy
+   dziennik zawiera wszystkie wymazania, które odtworzenie cofnie.
+2. **Przeszukaj dziennik Railwaya** od chwili kopii do teraz po frazie
+   `Dziennik wymazań: nie udało się zapisać wpisu`. Każda taka linia
+   (poziom `error`) ma pola `user_id`, `zakres` i `wymazano_at`. Dla każdej,
+   której wpisu nie ma w dzienniku, dopisz go ręcznie:
+   ```bash
+   php artisan kuking:dziennik-wymazan --dopisz=<user_id> --zakres=<zakres> --kiedy=<wymazano_at>
+   ```
+   Komenda niczego nie wymazuje, tylko wpisuje do dziennika; wymazuje
+   dopiero krok niżej.
+
+**Czego to NIE gwarantuje.** Dziennik Railwaya nie jest magazynem
+z potwierdzoną retencją (repozytorium jej nie zna) i ginie razem
+z projektem Railway. Jeśli baza jest nieczytelna, a linii logu już nie ma,
+takie konto wróci z kopii bez śladu. Pełne domknięcie okna wymaga decyzji
+właściciela — warianty w issue #2038 (wstrzymanie
+wymazania do udanego zapisu dziennika albo drugi, niezależny od bazy
+magazyn wpisów).
+
 Krok, **zanim odtworzona baza przyjmie ruch** (albo najpóźniej zaraz po
 podpięciu `DB_URL`):
 
@@ -466,7 +502,9 @@ php artisan kuking:wymaz-ponownie --od="<chwila, z której pochodzi kopia>"
   Wiersze `media` z kopii wskazują nieistniejące pliki i znikną razem
   z ponownym wymazaniem konta.
 - Test, który pilnuje tej drogi: `tests/Feature/DziennikWymazanPozaBazaTest.php`
-  (odtworzenie wierszy sprzed wymazania → `kuking:wymaz-ponownie` → `erased`).
+  (odtworzenie wierszy sprzed wymazania → `kuking:wymaz-ponownie` → `erased`);
+  okno awarii dziennika przed odtworzeniem:
+  `tests/Feature/DziennikWymazanPrzezOdtworzenieTest.php`.
 
 ### 3(c) Utracone zdjęcia
 

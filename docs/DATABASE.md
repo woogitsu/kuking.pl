@@ -1773,6 +1773,9 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
   ją pod blokadą wiersza przepisu i zwiększa przy każdym zapisie, także
   autozapisie. `updated_at` nie zastępuje licznika: może mieć ten sam czas
   dla dwóch zapisów wykonanych w jednej sekundzie (issues #2034 i #2032);
+- `tresc_zmieniona_at` (`timestamptz NULL`, bez DEFAULT) — kiedy ostatnio
+  zmieniła się TREŚĆ przepisu; źródło `dateModified` w JSON-LD (#2014) —
+  patrz niżej.
 - „Moja wersja": `forked_from_id`, `forked_at` — patrz niżej;
 - `title_search`, `summary_search` — patrz „Kolumny `*_search`".
 - `pokazuj_wartosci_odzywcze boolean NOT NULL DEFAULT true` — patrz
@@ -1786,6 +1789,35 @@ kolumnach różnych od `NULL` i sumie większej od zera. Jedna reguła w modelu:
 kreatora) i jej odpowiednik SQL `Recipe::scopeGotoweWCiagu()` (filtr
 „Do 30 minut"). Przepis z samym czasem przygotowania nie pokazuje czasu
 całkowitego i nie trafia do szybkich wyników. Bez zmiany schematu.
+
+**`tresc_zmieniona_at` — data zmiany treści, nie zapisu wiersza** (#2014,
+migracja `2026_09_28_210000_add_tresc_zmieniona_at_to_recipes`).
+
+```sql
+ALTER TABLE recipes ADD COLUMN tresc_zmieniona_at timestamptz NULL;
+```
+
+Ustawia ją wyłącznie `PublishRecipe` (kolumna poza `$fillable`): przy
+pierwszej publikacji równą `published_at`, potem `now()` tylko wtedy, gdy
+odcisk treści (`App\Domain\Recipes\TrescPrzepisu` — pola przepisu,
+składniki, kroki, zdjęcie główne, skan źródła, zdjęcia kroków) różni się od
+stanu sprzed zapisu, także przy autozapisie. Moderacja, zmiana widoczności
+i zapis bez zmian jej nie ruszają — `updated_at` przesuwają wszystkie trzy,
+a `recipe_versions` powstaje przy każdym „Zapisz” z publikacją i nie powstaje
+przy autozapisie, więc żadne z nich nie jest datą zmiany treści.
+`NULL` znaczy „nie wiemy” (przepisy sprzed migracji — bez backfillu, bo
+zgadnięta data byłaby nieprawdą w danych strukturalnych); wtedy strona pomija
+`dateModified`, tak samo jak przy dacie wcześniejszej niż `published_at`.
+`ADD COLUMN … NULL` bez DEFAULT zmienia tylko katalog, bez przepisywania
+tabeli (§6).
+
+**Rollback:** `ALTER TABLE recipes DROP COLUMN tresc_zmieniona_at`. `down()`
+nie odmawia (D-088): kolumna niesie wyliczony znacznik, nie decyzję
+człowieka. Po ponownym `up()` wraca `NULL`, czyli stan, w którym JSON-LD
+pomija opcjonalne pole — nic nie odwraca się w stronę nieprawdy; traci się
+tylko dokładność `dateModified` do następnej zmiany treści. Pilnuje
+`tests/Feature/CofniecieDatyZmianyTresciPrzepisuTest.php`.
+
 **`forked_from_id`, `forked_at` — „Moja wersja", przepis na podstawie
 cudzego** (issue #23, D-301, migracja `2026_09_26_100000_add_forked_from_to_recipes`).
 
@@ -3055,6 +3087,36 @@ niepustego śladu; świadome cofnięcie wymaga
 `KUKING_ROLLBACK_KASUJ_SLAD_ALARMOW_CZLOWIEKA=true`, gdyż powrót starego
 formularza mógłby wtedy ponownie zlecić list.
 
+### human_urgent_alarm_attempts
+
+Jedna próba alarmu od człowieka to jeden wiersz z UUID `id` przekazanym do
+`PilneZgloszenieOdCzlowieka`. `report_id` wskazuje sprawę i znika wraz z nią
+po okresie retencji zgłoszenia. Wiersz nie zawiera adresu, treści zgłoszenia
+ani komunikatu wyjątku. `state` ma zamknięty CHECK: `queued` (zadanie zapisano
+we wspólnej transakcji z budżetem), `started` (worker podjął), `accepted`
+(dostawca przyjął, **nie** potwierdzenie doręczenia), `rejected` (dostawca
+potwierdził odmowę możliwą do ponowienia), `uncertain` (np. timeout po
+wysyłce), `blocked` (odmowa trwała lub nierozpoznana), `retried` (nowa próba
+zajęła budżet i została zakolejkowana). `failure_kind` jest wyłącznie kodem
+`PowodOdmowy`, bez wiadomości dostawcy. Znaczniki czasu odpowiadają kolejnym
+stanom i pozwalają odróżnić zlecenie od pracy workera.
+
+Komenda `kuking:ponow-pilne-alarmy-od-ludzi` bierze tylko potwierdzone
+odmowy nadal otwartych pilnych spraw od ludzi młodszych niż 72 h. Blokada
+wiersza `reports` i celu oraz transakcja obejmują zmianę `retried`, nową
+próbę, rezerwację budżetu i wpis w `jobs`. Timeout i każdy niejednoznaczny
+wynik pozostają do ręcznej interwencji; komenda zgłasza je kodem błędu,
+bez ujawniania treści. Próba ma jedną wysyłkę workera; ponowne uruchomienie
+tego samego zadania nie wysyła listu, także po stanie `started`. Stany
+`queued` i `started` starsze niż dwie godziny dają sygnał operacyjny,
+ponieważ worker mógł umrzeć bez zapisu wyniku.
+
+Rollback migracji tworzącej tabelę działa tylko przy tabeli pustej. Przy
+niepustej odmawia usunięcia śladów: utrata stanu po ponownym wdrożeniu
+mogłaby wysłać duplikat alarmu. Wycofanie produkcyjne wymaga najpierw
+zatrzymania nowej komendy i workerów, wyjaśnienia wszystkich prób oraz
+osobno zatwierdzonego planu danych; nie uruchamiać `down()` na skróty.
+
 Zgłoszenia — **dwie różne drogi w jednej tabeli**, rozróżniane kolumną
 `source` (migracja `2026_09_06_200000_add_legal_notice_fields_to_reports`,
 audyt G-08 / W5-01 / W5-02).
@@ -4106,9 +4168,20 @@ kalendarzowy w strefie `Europe/Warsaw`.
 
 CHECK `ai_budzet_dzienny_kwoty_check`: wszystkie liczby ≥ 0.
 
-**Rezerwacja pod `SELECT … FOR UPDATE` na wierszu dnia** szereguje równoległe
-odczyty — drugi widzi rezerwację pierwszego (`tests/Dwa/BudzetAiNaDwochPolaczeniachTest`).
-Miesiąc = suma wierszy od 1. dnia miesiąca. W cache'u tego nie trzymamy:
+**Rezerwacja bierze dwie blokady, zawsze w tej kolejności (#2013):** najpierw
+blokadę **miesiąca** — `pg_advisory_xact_lock(20130, hashtext('YYYY-MM'))`,
+zwalnianą z końcem transakcji — potem `SELECT … FOR UPDATE` na wierszu **dnia**.
+Sam wiersz dnia szeregował tylko rezerwacje z tej samej daty, a limit miesięczny
+jest wspólny: dwa odczyty z różnych dni tego samego miesiąca (tuż przed i tuż
+po północy) blokowały różne wiersze, czytały tę samą sumę miesiąca i oba ją
+przekraczały. Blokada miesiąca szereguje je wszystkie — drugi widzi rezerwację
+pierwszego (`tests/Dwa/BudzetAiNaDwochPolaczeniachTest`). Rozliczenie
+i zwolnienie rezerwacji blokady miesiąca **nie biorą** (suma miesiąca może
+się przy nich tylko zmniejszyć albo zostać bez zmian), więc nie ma odwrotnej
+kolejności blokad ani zakleszczenia.
+Miesiąc = suma wierszy **całego miesiąca kalendarzowego** (od 1. dnia do
+ostatniego, także dni po dniu rezerwacji): rezerwacja z późniejszej daty zużywa
+ten sam limit. W cache'u tego nie trzymamy:
 to są pieniądze, a licznik w cache'u znika przy restarcie (AGENTS.md §3 — bez Redisa).
 Retencji brak: wiersz na dzień to kilkadziesiąt bajtów, a historia wydatków
 jest potrzebna do rozliczeń.

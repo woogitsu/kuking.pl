@@ -102,9 +102,9 @@ class KolejnoscPromowanychTagowTest extends TestCase
         $zupy = $this->promowany('Zupy', 1, '2026-09-01 10:00');
         $moderator = $this->moderator();
 
-        $this->actingAs($moderator)->delete(route('admin.tag-promotions.destroy', $zupy));
+        $this->actingAs($moderator)->delete(route('admin.tag-promotions.destroy', $zupy), ['potwierdzam' => '1']);
         $this->actingAs($moderator)
-            ->delete(route('admin.tag-promotions.destroy', $zupy))
+            ->delete(route('admin.tag-promotions.destroy', $zupy), ['potwierdzam' => '1'])
             ->assertSessionHas('status', 'Tag „Zupy” nie był już na liście promowanych.');
 
         $this->assertSame(1, AuditLogEntry::where('action', 'tag_promotion.removed')->count());

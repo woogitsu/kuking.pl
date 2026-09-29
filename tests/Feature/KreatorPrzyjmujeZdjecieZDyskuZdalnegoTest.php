@@ -10,6 +10,7 @@ use App\Models\Media;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\Filesystem;
 use League\Flysystem\Local\LocalFilesystemAdapter;
@@ -74,6 +75,11 @@ class KreatorPrzyjmujeZdjecieZDyskuZdalnegoTest extends TestCase
     {
         $zdjecie = UploadedFile::fake()->image('obiad.jpg', 1200, 900);
         Storage::disk('udawany-r2')->put('livewire-tmp/abc123-meta.jpg', $zdjecie->get());
+        Storage::disk('udawany-r2')->put('livewire-tmp/abc123-meta.jpg.json', json_encode([
+            'name' => 'obiad.jpg',
+            'size' => $zdjecie->getSize(),
+            'type' => 'image/jpeg',
+        ], JSON_THROW_ON_ERROR));
 
         return new TemporaryUploadedFile('abc123-meta.jpg', 'udawany-r2');
     }
@@ -100,6 +106,8 @@ class KreatorPrzyjmujeZdjecieZDyskuZdalnegoTest extends TestCase
         $this->assertSame(900, $media->height);
         $this->assertSame('image/jpeg', $media->mime_type);
         Storage::disk('testowy')->assertExists($media->object_key);
+        Storage::disk('udawany-r2')->assertMissing('livewire-tmp/abc123-meta.jpg');
+        Storage::disk('udawany-r2')->assertMissing('livewire-tmp/abc123-meta.jpg.json');
     }
 
     public function test_kopia_lokalna_nie_zostaje_w_katalogu_tymczasowym(): void
@@ -126,5 +134,58 @@ class KreatorPrzyjmujeZdjecieZDyskuZdalnegoTest extends TestCase
             owner: $this->user('kucharka'),
             file: new TemporaryUploadedFile('zly-meta.jpg', 'udawany-r2'),
         );
+    }
+
+    public function test_nieudany_zapis_nie_kasuje_zrodla_ktore_moze_byc_ponowione(): void
+    {
+        Storage::disk('udawany-r2')->put('livewire-tmp/zly-meta.jpg', 'to nie jest zdjęcie');
+        Storage::disk('udawany-r2')->put('livewire-tmp/zly-meta.jpg.json', '{"name":"zly.jpg"}');
+
+        try {
+            app(StoreUploadedImage::class)->handle(
+                owner: $this->user('kucharka'),
+                file: new TemporaryUploadedFile('zly-meta.jpg', 'udawany-r2'),
+            );
+            $this->fail('Nieprawidłowe zdjęcie powinno zostać odrzucone.');
+        } catch (BladDlaCzlowieka) {
+            Storage::disk('udawany-r2')->assertExists('livewire-tmp/zly-meta.jpg');
+            Storage::disk('udawany-r2')->assertExists('livewire-tmp/zly-meta.jpg.json');
+        }
+    }
+
+    public function test_awaria_sprzatania_tymczasowego_obiektu_nie_cofa_zapisanego_zdjecia_ani_nie_loguje_klucza(): void
+    {
+        Storage::extend('udawany-zdalny-blokuje-kasowanie', function ($app, array $config) {
+            $adapter = new class($config['katalog']) extends LocalFilesystemAdapter
+            {
+                public function delete(string $path): void
+                {
+                    if (str_starts_with($path, 'livewire-tmp/')) {
+                        throw new \RuntimeException('tajny-klucz-zdjecia');
+                    }
+
+                    parent::delete($path);
+                }
+            };
+
+            return new FilesystemAdapter(new Filesystem($adapter), $adapter, ['root' => '']);
+        });
+        config(['filesystems.disks.udawany-r2.driver' => 'udawany-zdalny-blokuje-kasowanie']);
+        Storage::forgetDisk('udawany-r2');
+        $dziennik = Log::spy();
+
+        $media = app(StoreUploadedImage::class)->handle(
+            owner: $this->user('kucharka'),
+            file: $this->plikNaDyskuZdalnym(),
+        );
+
+        Storage::disk('testowy')->assertExists($media->object_key);
+        Storage::disk('udawany-r2')->assertExists('livewire-tmp/abc123-meta.jpg');
+        Storage::disk('udawany-r2')->assertExists('livewire-tmp/abc123-meta.jpg.json');
+        $dziennik->shouldHaveReceived('warning')->twice()->withArgs(function (string $wiadomosc, array $kontekst): bool {
+            $zapis = json_encode([$wiadomosc, $kontekst], JSON_THROW_ON_ERROR);
+
+            return ! str_contains($zapis, 'abc123-meta') && ! str_contains($zapis, 'tajny-klucz-zdjecia');
+        });
     }
 }

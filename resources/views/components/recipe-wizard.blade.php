@@ -1722,7 +1722,7 @@ new class extends Component
                     <h4 class="text-title-sm">Składniki</h4>
                     @php($previewGroups = $this->groupedIngredients())
                     @if($previewGroups === [])
-                        <p class="field-error">Nie ma jeszcze żadnego składnika. Wróć do kroku 2 i dopisz przynajmniej jeden.</p>
+                        <p class="meta">Nie dodano jeszcze składników. Możesz dopisać je później.</p>
                     @else
                         @foreach($previewGroups as $previewGroup)
                             {{-- `<h5>`, bo nagłówkiem tej sekcji podglądu jest
