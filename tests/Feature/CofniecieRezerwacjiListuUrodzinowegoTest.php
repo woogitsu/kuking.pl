@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
+use Tests\Support\PolecenieArtisanaZOdmowa;
 use Tests\TestCase;
 
 /** Rollback nie może zgubić dzisiejszej bariery przed drugim listem. */
@@ -32,7 +33,7 @@ final class CofniecieRezerwacjiListuUrodzinowegoTest extends TestCase
 
         $odmowa = null;
         try {
-            Artisan::call('migrate:rollback', ['--path' => self::MIGRACJA, '--realpath' => false]);
+            PolecenieArtisanaZOdmowa::wywolaj('migrate:rollback', ['--path' => self::MIGRACJA, '--realpath' => false]);
         } catch (RuntimeException $e) {
             $odmowa = $e;
         }

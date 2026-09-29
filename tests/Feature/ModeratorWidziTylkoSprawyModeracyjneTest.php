@@ -127,6 +127,7 @@ class ModeratorWidziTylkoSprawyModeracyjneTest extends TestCase
             'hero' => ['hero_media_id' => $zdjecie->getKey()],
             'skan' => ['source_scan_media_id' => $zdjecie->getKey()],
             'krok' => [],
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         });
 
         if ($rodzaj === 'krok') {

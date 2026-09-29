@@ -46,6 +46,7 @@ class PowiadomienieOdpowiedziZaNiewidocznymKorzeniemTest extends TestCase
             'recipe' => Recipe::factory()->for($wlasciciel, 'author')->create($atrybuty),
             'cooked' => CookedEvent::factory()->for($wlasciciel, 'user')
                 ->for(Recipe::factory()->for($this->user(), 'author')->create($atrybuty))->create(),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
     }
 

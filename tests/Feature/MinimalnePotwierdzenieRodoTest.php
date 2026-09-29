@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
+use Tests\Support\PolecenieArtisanaZOdmowa;
 use Tests\TestCase;
 
 /**
@@ -375,7 +376,7 @@ class MinimalnePotwierdzenieRodoTest extends TestCase
         $this->wstaw(['wynik' => 'cofniete', 'zakonczono' => '2026-09-20']);
 
         try {
-            Artisan::call('migrate:rollback', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
+            PolecenieArtisanaZOdmowa::wywolaj('migrate:rollback', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
         } catch (RuntimeException $e) {
             $this->assertStringContainsString('Liczba zamkniętych potwierdzeń obsługi żądań RODO: 1.', $e->getMessage());
             $this->assertStringContainsString('CO ZROBIĆ', $e->getMessage());

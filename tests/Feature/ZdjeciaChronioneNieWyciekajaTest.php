@@ -384,6 +384,7 @@ class ZdjeciaChronioneNieWyciekajaTest extends WidocznoscTestCase
         match ($stanAutora) {
             'banned' => $this->autor->ban(),
             'pending_delete' => $this->autor->markForDeletion(),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
 
         foreach ([$zdjecieWpisu, $zdjeciePrzepisu] as $zdjecie) {

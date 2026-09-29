@@ -421,8 +421,11 @@ final class DostepDoZdjecia
      * z globalnymi scope'ami (`SoftDeletes`) i z modelem, który `Gate` umie
      * dopasować do Policy.
      *
-     * Brak gałęzi `default` jest celowy: nowa tabela w `KOLUMNY_WSKAZUJACE`
-     * bez wpisu tutaj ma wywalić żądanie GŁOŚNO, a nie po cichu pominąć
+     * Gałąź `default` rzuca wyjątek, i to jest celowe: nowa tabela w
+     * `KOLUMNY_WSKAZUJACE` bez wpisu tutaj ma wywalić żądanie GŁOŚNO
+     * (`LogicException` zamiast `UnhandledMatchError` — PHPStan poziomu 4
+     * wymaga jawnej gałęzi, gdy wartością jest dowolny napis, `match.unhandled`),
+     * a nie po cichu pominąć
      * rodzica — cicha odmowa dostępu do własnego zdjęcia jest usterką, którą
      * zgłasza użytkownik, a nie test. Pilnuje tego
      * `ZdjeciaChronioneNieWyciekajaTest` (macierz widoku dla każdego z pięciu
@@ -485,6 +488,7 @@ final class DostepDoZdjecia
                 ->with('author')
                 ->whereIn('id', DB::table('hero_picks')->where('media_id', $id)->pluck('post_id'))
                 ->get()),
+            default => throw new LogicException("Brak wczytywania rodzica dla tabeli `{$tabela}` w DostepDoZdjecia."),
         };
     }
 

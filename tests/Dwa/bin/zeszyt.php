@@ -114,6 +114,7 @@ try {
                 'zawies' => $actor->suspend(),
                 'zbanuj' => $actor->ban(),
                 'usun' => $actor->markForDeletion(),
+                default => throw new LogicException('Nieobsłużony wariant w match.'),
             });
 
             return (string) $actor->fresh()?->status;

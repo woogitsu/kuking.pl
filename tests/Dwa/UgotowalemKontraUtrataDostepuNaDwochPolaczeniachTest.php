@@ -149,6 +149,7 @@ final class UgotowalemKontraUtrataDostepuNaDwochPolaczeniachTest extends TestDwo
             'hide' => $this->assertSame(Recipe::STATUS_HIDDEN, $przepis->fresh()->status),
             'block' => $this->assertTrue(Block::query()->where('blocker_id', $autor->id)->where('blocked_id', $kucharz->id)->exists()),
             'ban' => $this->assertSame(User::STATUS_BANNED, $autor->fresh()->status),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
     }
 
@@ -178,6 +179,7 @@ final class UgotowalemKontraUtrataDostepuNaDwochPolaczeniachTest extends TestDwo
             'private', 'hide' => ['update "recipes"'],
             'block' => ['insert into "blocks"'],
             'ban' => ['update "users"', '"status"'],
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
     }
 

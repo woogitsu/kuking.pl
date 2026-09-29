@@ -852,6 +852,12 @@ jobs:
         if: steps.phpstan_config.outputs.exists == 'true'
         run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
 
+      # Ratchet poziomu 4 (#1731): rodziny błędów już wyczyszczone nie mogą
+      # wrócić, choć cały poziom 4 nie jest jeszcze bramką.
+      - name: PHPStan — wyczyszczone rodziny poziomu 4
+        if: steps.phpstan_config.outputs.exists == 'true'
+        run: bash scripts/phpstan-wyczyszczone.sh
+
   # ===========================================================================
   #  3. Testy — Pest/PHPUnit na prawdziwym PostgreSQL 18
   # ===========================================================================

@@ -8,11 +8,11 @@ use App\Models\Media;
 use App\Models\Report;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
+use Tests\Support\PolecenieArtisanaZOdmowa;
 use Tests\TestCase;
 
 /**
@@ -95,7 +95,7 @@ class CofniecieMigracjiCeluZdjeciaTest extends TestCase
             // Po ŚCIEŻCE, nie `--step=1`: gdyby ktoś dopisał później nowszą
             // migrację, „ostatnia" przestałaby być tą sprawdzaną i test
             // cofałby coś innego, przechodząc albo oblewając z przypadku.
-            Artisan::call('migrate:rollback', [
+            PolecenieArtisanaZOdmowa::wywolaj('migrate:rollback', [
                 '--path' => 'database/migrations/2026_09_10_300000_zdjecie_jako_cel_oznaczenia.php',
                 '--realpath' => false,
             ]);

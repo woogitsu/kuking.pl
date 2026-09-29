@@ -122,6 +122,7 @@ class KartaPrzepisuLadujeAutoraZGoryTest extends TestCase
                 $autor->collections()->create(['name' => 'Zeszyt kart', 'visibility' => 'public']),
                 fn ($zeszyt) => $zeszyt->recipes()->attach($autor->recipes()->pluck('id')->all()),
             )),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
 
         // Liczą się tylko relacje czytane przez kartę przepisu; inne

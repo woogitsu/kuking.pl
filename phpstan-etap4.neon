@@ -1,0 +1,28 @@
+# =============================================================================
+#  Kuking.pl — ratchet PHPStana poziomu 4 (issue #1731), etap 1
+# =============================================================================
+#
+#  To NIE jest druga bramka „poziom 4 musi być zielony” — globalnie zostaje
+#  poziom z `phpstan.neon` (dziś 3), bez baseline’u i bez wyciszeń.
+#
+#  Ten plik służy jednemu: pilnuje, żeby rodziny błędów poziomu 4, które już
+#  wyczyściliśmy, nie wróciły, zanim cały poziom 4 zejdzie do zera. Uruchamia go
+#  `scripts/phpstan-wyczyszczone.sh` (z `scripts/check.sh` i z CI); skrypt
+#  puszcza analizę na poziomie 4 i pada TYLKO na identyfikatorach z własnej
+#  listy `WYCZYSZCZONE`. Reszta poziomu 4 (jeszcze niewyczyszczona) jest tam
+#  tylko liczona i wypisywana — nikt jej nie ukrywa, po prostu jeszcze nie
+#  jest bramką.
+#
+#  Każdy kolejny etap = kolejny identyfikator dopisany do `WYCZYSZCZONE`
+#  razem z poprawkami W KODZIE. Gdy lista pokryje wszystko, co poziom 4
+#  zgłasza, ten plik i skrypt znikają, a `level: 4` trafia do `phpstan.neon`.
+includes:
+    - phpstan.neon
+
+parameters:
+    level: 4
+
+    # Osobny katalog cache: inny poziom unieważniałby cache głównego przebiegu
+    # i oba przebiegi ciągle by się wzajemnie kasowały. Leży w `.phpstan-cache`,
+    # który CI już cache'uje.
+    tmpDir: .phpstan-cache/etap4

@@ -53,8 +53,18 @@
 #  z modelem tabeli pośredniej `PostTag`; `bytes` w kształcie wariantu
 #  zdjęcia, który zapisuje `ProcessUploadedImage`.
 #
-#  GDZIE STOI NASTĘPNY PRÓG (zmierzone 25.09.2026, nie zgadnięte):
-#      poziom 4 → 247 błędów      poziom 5 → 283
+#  Poziom 4 — etap 1 (issue #1731, 29.09.2026): poziom 4 nie jest jeszcze
+#  globalny, ale dwie jego rodziny są wyczyszczone i pilnowane osobno
+#  (`phpstan-etap4.neon` + `scripts/phpstan-wyczyszczone.sh`, wołane z
+#  `check.sh` i z CI): `match.unhandled` (41 — `match` po napisie bez gałęzi
+#  `default`, teraz z jawnym `LogicException`) i `catch.neverThrown` (10 —
+#  `Artisan::call()` bez `@throws`, teraz `Tests\Support\PolecenieArtisanaZOdmowa`).
+#
+#  GDZIE STOI NASTĘPNY PRÓG (zmierzone 29.09.2026, nie zgadnięte):
+#      poziom 4 → 342 błędów (po etapie 1: 288), z czego największe
+#      rodziny: nullsafe.neverNull 133, method.alreadyNarrowedType 31,
+#      nullCoalesce.offset 24, function.alreadyNarrowedType 19,
+#      method.impossibleType 18
 #
 #  IGNOROWANY BŁĄD PONIŻEJ POZIOMU (nie „baseline"):
 #  `larastan.noEnvCallsOutsideOfConfig` w `tests/*` — Larastan ostrzega przed

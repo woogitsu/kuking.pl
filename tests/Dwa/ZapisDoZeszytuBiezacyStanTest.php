@@ -227,6 +227,7 @@ final class ZapisDoZeszytuBiezacyStanTest extends TestDwochPolaczen
 
                 return ['moderate', $change + ['actor' => $moderator->id, 'report' => $report->id, 'decision' => $operation]];
             })(),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
     }
 
