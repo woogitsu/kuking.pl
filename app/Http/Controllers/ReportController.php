@@ -352,7 +352,7 @@ class ReportController extends Controller
             // Widoczność i tak rozstrzyga Policy w `ReportContent::authorize()`.
             'user' => Str::isUuid($id)
                 ? User::whereKey($id)->whereHas('profile')->firstOrFail()
-                : (Profile::poNazwie($id)?->user ?? abort(404)),
+                : (Profile::poNazwie($id)->user ?? abort(404)),
             default => abort(404),
         };
     }

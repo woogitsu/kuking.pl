@@ -36,6 +36,8 @@ use Illuminate\Support\Str;
  */
 class DemoSeeder extends Seeder
 {
+    use PolecenieKonsoliSeedera;
+
     /**
      * Hasło do kont demonstracyjnych.
      *
@@ -92,7 +94,7 @@ class DemoSeeder extends Seeder
     public function run(): void
     {
         if (app()->environment('production')) {
-            $this->command?->error('DemoSeeder nie może działać na produkcji.');
+            $this->konsola()?->error('DemoSeeder nie może działać na produkcji.');
 
             return;
         }
@@ -606,7 +608,7 @@ class DemoSeeder extends Seeder
         // tu najgorszą z opcji: automat mierzyłby wtedy stan „nie masz
         // jeszcze zdjęcia", nie wiedząc o tym.
         if (! is_file($zrodlo)) {
-            $this->command?->warn('Brak pliku '.$zrodlo.' — konto '.$user->email.' zostaje bez zdjęcia profilowego.');
+            $this->konsola()?->warn('Brak pliku '.$zrodlo.' — konto '.$user->email.' zostaje bez zdjęcia profilowego.');
 
             return;
         }
@@ -614,7 +616,7 @@ class DemoSeeder extends Seeder
         $wymiary = getimagesize($zrodlo);
 
         if ($wymiary === false) {
-            $this->command?->warn('Plik '.$zrodlo.' nie jest obrazem — konto '.$user->email.' zostaje bez zdjęcia profilowego.');
+            $this->konsola()?->warn('Plik '.$zrodlo.' nie jest obrazem — konto '.$user->email.' zostaje bez zdjęcia profilowego.');
 
             return;
         }
@@ -742,33 +744,33 @@ class DemoSeeder extends Seeder
             // Seeder, który nie zostawia ŻADNEGO konta do zalogowania, jest
             // bezużyteczny do pracy nad wyglądem i do automatu dostępności.
             // Cisza w tym miejscu byłaby gorsza niż ostrzeżenie.
-            $this->command?->warn('Dane demo gotowe, ale ŻADNE konto nie przyjmuje hasła demo. Wszystkie adresy demo były już zajęte przez persony treści zalążkowej (D-025).');
+            $this->konsola()?->warn('Dane demo gotowe, ale ŻADNE konto nie przyjmuje hasła demo. Wszystkie adresy demo były już zajęte przez persony treści zalążkowej (D-025).');
 
             return;
         }
 
         if ($this->hasloZOtoczenia() !== '') {
-            $this->command?->info('Dane demo gotowe. Hasło do wszystkich kont niżej: wartość zmiennej KUKING_DEMO_HASLO (nie wypisujemy jej).');
+            $this->konsola()?->info('Dane demo gotowe. Hasło do wszystkich kont niżej: wartość zmiennej KUKING_DEMO_HASLO (nie wypisujemy jej).');
         } elseif ($this->wolnoPokazacWylosowaneHaslo()) {
-            $this->command?->info('Dane demo gotowe. Hasło do wszystkich kont niżej: '.$this->hasloDemo());
+            $this->konsola()?->info('Dane demo gotowe. Hasło do wszystkich kont niżej: '.$this->hasloDemo());
         } else {
-            $this->command?->info('Dane demo gotowe. Hasło do kont niżej wylosowano, ale go nie wypisujemy, bo zasiew działa bez interakcji (--no-interaction), a takie wyjście trafia do logu.');
-            $this->command?->line('Żeby się zalogować: ustaw KUKING_DEMO_HASLO w .env i zasiej ponownie albo uruchom zasiew bez --no-interaction.');
+            $this->konsola()?->info('Dane demo gotowe. Hasło do kont niżej wylosowano, ale go nie wypisujemy, bo zasiew działa bez interakcji (--no-interaction), a takie wyjście trafia do logu.');
+            $this->konsola()?->line('Żeby się zalogować: ustaw KUKING_DEMO_HASLO w .env i zasiej ponownie albo uruchom zasiew bez --no-interaction.');
         }
 
         foreach ($logowalne as $email) {
             $rola = $email === $emailModeratora ? ' (moderator)' : '';
-            $this->command?->line('  '.$email.$rola);
+            $this->konsola()?->line('  '.$email.$rola);
         }
 
         $zajete = array_values(array_diff($this->probowane, $logowalne));
 
         if ($zajete !== []) {
-            $this->command?->line('');
-            $this->command?->warn('Te adresy demo należą do person treści zalążkowej i NIE przyjmują hasła demo (D-025 — persony nie są logowalne):');
+            $this->konsola()?->line('');
+            $this->konsola()?->warn('Te adresy demo należą do person treści zalążkowej i NIE przyjmują hasła demo (D-025 — persony nie są logowalne):');
 
             foreach ($zajete as $email) {
-                $this->command?->line('  '.$email);
+                $this->konsola()?->line('  '.$email);
             }
         }
     }

@@ -436,7 +436,7 @@ class RejestracjaZZaproszeniaTest extends TestCase
             $this->assertSame(1, $xpath->query('//input[@name="'.$name.'" and @checked]')->length);
         }
         $page->assertDontSee('zielonapietruszkarano');
-        $message = trim($xpath->query('//a[@href="#f-email"]')->item(0)?->textContent ?? '');
+        $message = trim($xpath->query('//a[@href="#f-email"]')->item(0)->textContent ?? '');
         $this->assertStringContainsString('zaproszenie przestało działać', $message);
         $this->assertStringContainsString('adres e-mail', $message);
         $this->assertStringContainsString('hasło ponownie', $message);

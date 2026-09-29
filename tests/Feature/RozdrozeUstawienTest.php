@@ -215,7 +215,7 @@ class RozdrozeUstawienTest extends TestCase
         //    i menu konta w pasku górnym).
         $glowka = $xpath->query('//header[.//h1]')->item(0);
         $this->assertInstanceOf(DOMElement::class, $glowka, 'Nie znalazłem główki profilu.');
-        $this->assertSame('Halina Rozdrożna', trim($xpath->query('.//h1', $glowka)->item(0)?->textContent ?? ''));
+        $this->assertSame('Halina Rozdrożna', trim($xpath->query('.//h1', $glowka)->item(0)->textContent ?? ''));
 
         $naProfilu = $this->odnosnikiPoWidocznymNapisie($xpath, $glowka, 'Ustawienia');
         $this->assertCount(1, $naProfilu, 'W główce własnego profilu nie ma widocznego napisu „Ustawienia".');

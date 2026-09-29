@@ -218,7 +218,7 @@ class PowiadomieniaZgodneZPolicyTest extends TestCase
             'usuniete' => DB::table($tabela)->where('id', $idTresci)->update(['deleted_at' => now()]),
             'komentujacy_zbanowany' => $komentujacy->ban(),
             'korzen_ukryty' => DB::table('comments')->where('id', $korzen->getKey())->update(['status' => Comment::STATUS_HIDDEN]),
-            'kucharz_do_usuniecia' => $kucharz?->markForDeletion(),
+            'kucharz_do_usuniecia' => $kucharz->markForDeletion(),
             default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
 

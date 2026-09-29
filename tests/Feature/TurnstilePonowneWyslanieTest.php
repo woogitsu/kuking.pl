@@ -64,11 +64,11 @@ class TurnstilePonowneWyslanieTest extends TestCase
         $dom = new DOMDocument;
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$page->getContent());
         $xpath = new DOMXPath($dom);
-        $message = trim($xpath->query('//a[@href="#f-cf-turnstile-response"]')->item(0)?->textContent ?? '');
+        $message = trim($xpath->query('//a[@href="#f-cf-turnstile-response"]')->item(0)->textContent ?? '');
         $this->assertNotSame('', $message);
         $this->assertStringContainsString(Turnstile::adresKontaktowy(), $message);
         $this->assertSame(1, $xpath->query('//div[contains(@class,"error-summary")]//li')->length);
-        $this->assertSame($message, trim($xpath->query('//*[@id="f-cf-turnstile-response"]//span[@class="field-error"]')->item(0)?->textContent ?? ''));
+        $this->assertSame($message, trim($xpath->query('//*[@id="f-cf-turnstile-response"]//span[@class="field-error"]')->item(0)->textContent ?? ''));
         foreach ($data as $name => $value) {
             $fields = $xpath->query('//*[@name="'.$name.'"]');
             $this->assertGreaterThan(0, $fields->length, $name);

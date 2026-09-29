@@ -61,9 +61,9 @@ class LandingJakDzialaPrzedTablicaTest extends TestCase
         $kroki = $xpath->query('//ol[contains(concat(" ", normalize-space(@class), " "), " landing-kroki ")]/li');
         $this->assertSame(3, $kroki->length, 'Sekcja „Jak działa” musi mieć trzy kroki.');
         foreach (['Robisz zdjęcie', 'Piszesz kilka słów', 'Ktoś odpowiada'] as $index => $tytul) {
-            $this->assertSame($tytul, trim($xpath->query('.//h3', $kroki->item($index))->item(0)?->textContent ?? ''));
+            $this->assertSame($tytul, trim($xpath->query('.//h3', $kroki->item($index))->item(0)->textContent ?? ''));
             $numer = $xpath->query('.//p[contains(@class,"landing-krok-numer")]', $kroki->item($index))->item(0);
-            $this->assertSame(sprintf('%02d', $index + 1), trim($numer?->textContent ?? ''));
+            $this->assertSame(sprintf('%02d', $index + 1), trim($numer->textContent ?? ''));
         }
     }
 

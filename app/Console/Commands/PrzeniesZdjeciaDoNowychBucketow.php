@@ -158,7 +158,7 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
             $this->line(($tylkoRaport ? 'Do przeniesienia: ' : 'Przeniesione: ').$id);
         }
 
-        $ostatni = (string) $doPrzeniesienia->last()?->getKey();
+        $ostatni = (string) $doPrzeniesienia->last()->getKey();
 
         if (Media::query()->where('disk', $stary)->where('id', '>', $ostatni)->exists()) {
             $this->warn('Następna partia: uruchom z --po='.$ostatni

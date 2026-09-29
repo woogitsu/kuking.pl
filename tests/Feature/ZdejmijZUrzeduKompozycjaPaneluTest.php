@@ -111,7 +111,7 @@ class ZdejmijZUrzeduKompozycjaPaneluTest extends TestCase
 
         $this->assertSame(1, $xpath->query('.//*[@id="f-reason_code-error"]', $panel)->length, 'Błąd podstawy nie stoi przy polu w panelu.');
         $this->assertSame(1, $xpath->query('//*[contains(concat(" ", normalize-space(@class), " "), " error-summary ")]')->length, 'Brak podsumowania błędów nad formularzem.');
-        $this->assertStringContainsString('Uzasadnienie wpisane przed błędem 581.', $xpath->query('.//textarea[@name="user_message"]', $panel)->item(0)?->textContent ?? '');
+        $this->assertStringContainsString('Uzasadnienie wpisane przed błędem 581.', $xpath->query('.//textarea[@name="user_message"]', $panel)->item(0)->textContent ?? '');
     }
 
     public function test_zdjeta_tresc_nie_pokazuje_pustego_panelu(): void

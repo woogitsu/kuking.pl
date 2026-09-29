@@ -69,7 +69,7 @@ final class ZapiszPrzepisZFormularza
         // pod blokadą (`ZdjeciaDoPrzypiecia`: właściciel = autor, nieusunięte).
         $heroMediaId = isset($zachowane['hero'])
             ? $zachowane['hero']->getKey()
-            : ($existing?->hero_media_id ?? $zdjecieGlowneZWpisu);
+            : ($existing->hero_media_id ?? $zdjecieGlowneZWpisu);
 
         if ($zdjecieGlowne !== null) {
             $heroMediaId = $this->storeImage->handle($author, $zdjecieGlowne)->getKey();

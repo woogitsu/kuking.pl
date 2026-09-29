@@ -124,7 +124,7 @@ final class UzasadnienieDecyzji
             // oceniający przemoc i nienawiść byłoby zdaniem nieprawdziwym,
             // a art. 17 ust. 3 lit. c mówi o poinformowaniu o użyciu środków
             // automatycznych, nie o wspomnieniu, że jakieś istnieją.
-            $narzedzie = $decyzja->report?->reason === OcenaModelem::KOD
+            $narzedzie = $decyzja->report->reason === OcenaModelem::KOD
                 ? 'narzędzie, które maszynowo ocenia publikowane treści i zdjęcia'
                 : 'nasze narzędzie do wychwytywania spamu';
 

@@ -96,7 +96,7 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
             "Ekran „{$ekran}” pokazuje zapisany wpis, ale nie daje żadnej drogi wyjęcia go z zeszytu (audyt L1).",
         );
 
-        $przycisk = (new DOMXPath($formularz->ownerDocument))->query('.//button', $formularz)?->item(0);
+        $przycisk = self::wynikXPath(new DOMXPath($formularz->ownerDocument), './/button', $formularz)->item(0);
 
         $this->assertInstanceOf(DOMElement::class, $przycisk, 'Formularz wyjęcia nie ma przycisku.');
         $this->assertStringContainsString($nazwaPrzycisku, $przycisk->textContent);
@@ -131,7 +131,7 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
             ),
         );
 
-        $przycisk = (new DOMXPath($formularze[0]->ownerDocument))->query('.//button', $formularze[0])?->item(0);
+        $przycisk = self::wynikXPath(new DOMXPath($formularze[0]->ownerDocument), './/button', $formularze[0])->item(0);
         $this->assertInstanceOf(DOMElement::class, $przycisk);
         $this->assertStringContainsString($nazwaPrzycisku, $przycisk->textContent);
 
@@ -166,12 +166,12 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
 
         $xpath = new DOMXPath($formularz->ownerDocument);
 
-        $metoda = $xpath->query('.//input[@name="_method"]', $formularz)?->item(0);
+        $metoda = self::wynikXPath($xpath, './/input[@name="_method"]', $formularz)->item(0);
         $this->assertInstanceOf(DOMElement::class, $metoda, 'Formularz nie podmienia metody na DELETE.');
         $this->assertSame('DELETE', strtoupper($metoda->getAttribute('value')));
 
         $this->assertNotNull(
-            $xpath->query('.//input[@name="_token"]', $formularz)?->item(0),
+            self::wynikXPath($xpath, './/input[@name="_token"]', $formularz)->item(0),
             'Formularz nie ma tokenu CSRF.',
         );
 
@@ -317,7 +317,7 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
 
         // …a etykieta mówi „przywróć", nie „zapisz ponownie", bo to jest
         // teraz prawda: wraca ten sam wiersz, nie nowy (D-242).
-        $przycisk = (new DOMXPath($powrot->ownerDocument))->query('.//button', $powrot)?->item(0);
+        $przycisk = self::wynikXPath(new DOMXPath($powrot->ownerDocument), './/button', $powrot)->item(0);
         $this->assertInstanceOf(DOMElement::class, $przycisk);
         $this->assertStringContainsString('Przywróć do zeszytu', $przycisk->textContent);
     }
