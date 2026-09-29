@@ -167,9 +167,30 @@ samo co przed zmianą. `tests/Feature/CelPowiadomieniaRozwiazujeCeleTest`
 pilnuje, że przycisk „Zobacz" i treść karty opierają się na tym samym
 rozstrzygnięciu resolvera i że model nie odzyskał tych metod.
 
-Jeszcze niezrobione w ramach #1687: wspólna specyfikacja dla list treści
-(`Post/Recipe/CookedEvent::scopeWidoczneDla()` różnią się dziś od Policy
-m.in. statusem konta autora).
+Etap 7 (#1687): zakresy list treści (`Post/Recipe/CookedEvent::scopeWidoczneDla()`)
+porównano z Policy na macierzy typ × status konta autora × stan × widoczność ×
+widz (`tests/Feature/Visibility/ListyTresciZgodneZPolicyTest`). Wynik: żadnego
+błędu, cztery zamierzone różnice, każda utrwalona testem (test sprawdza też, że
+różnica nadal zachodzi, więc opis nie przeżyje zmiany zachowania):
+
+1. Status konta autora (`banned`, `pending_delete`) — zakres `Post`/`Recipe`
+   odpowiada na relację widz ↔ autor, a granicę statusu dokłada wywołujący
+   (`whereHas('author', … dostepnyJakoAutor())`). Zakres z wbudowanym statusem
+   odciąłby autora od własnych treści (`Post::scopeTylkoOdAktywnychAutorow()`).
+   Kontrakt: zakres + `dostepnyJakoAutor()` = Policy. `suspended` i `erased`
+   nie zamykają treści ani w zakresie, ani w Policy.
+2. Właściciel konta `banned`/`pending_delete` — Policy wpuszcza go do własnej
+   treści, filtr statusu listy też jego tnie (konto bez otwartej sesji).
+3. Zapowiedź własnego przepisu ukrytego przez moderację — bramka
+   `zWidocznymPrzepisem()` wymaga przepisu opublikowanego; lista jest
+   ostrzejsza od Policy.
+4. „Ugotowałem" — zakres liczy blokadę z kucharzem i status jego konta;
+   stan przepisu rozstrzyga strona przepisu jednym `RecipePolicy::view()`
+   na całą galerię (bez N+1).
+
+Nr 2–4 to lista ostrzejsza od Policy. Nr 1 działa odwrotnie: zakres SAM (bez
+granicy statusu) pokazuje więcej — dlatego każde nowe zapytanie o cudze
+treści musi tę granicę dołożyć.
 
 ### Kierunek zależności (issue #971)
 
