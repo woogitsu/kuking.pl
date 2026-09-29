@@ -8,6 +8,7 @@ use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
 use App\Models\AliasSkladnika;
 use App\Models\SkladnikOdzywczy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -50,12 +51,12 @@ final class WersjaSlownikaOdzywczegoTest extends TestCase
         app(ImportujWartosciOdzywcze::class)->handle($nowszy);
         $this->assertSame(1, SkladnikOdzywczy::query()->where('klucz', self::KLUCZ)->count());
 
-        Log::spy();
+        $log = Log::spy();
         $wynik = app(ImportujWartosciOdzywcze::class)->handle($starszy);
 
         $this->assertTrue($wynik['pominieto']);
         $this->assertSame(1, SkladnikOdzywczy::query()->where('klucz', self::KLUCZ)->count(), 'Starszy import cofnął nowsze dane.');
-        Log::shouldHaveReceived('warning')->withArgs(static fn (string $m, array $ctx = []): bool => ($ctx['wersja_plikow'] ?? null) === 1 && ($ctx['wersja_bazy'] ?? null) === 2 && count($ctx) === 2)->once();
+        $log->shouldHaveReceived('warning')->withArgs(static fn (string $m, array $ctx = []): bool => ($ctx['wersja_plikow'] ?? null) === 1 && ($ctx['wersja_bazy'] ?? null) === 2 && count($ctx) === 2)->once();
     }
 
     #[Test]
@@ -91,6 +92,26 @@ final class WersjaSlownikaOdzywczegoTest extends TestCase
         app(ImportujWartosciOdzywcze::class)->handle($katalog);
 
         $this->assertTrue(app(ImportujWartosciOdzywcze::class)->handle($katalog)['pominieto']);
+    }
+
+    #[Test]
+    public function znacznik_sprzed_wprowadzenia_wersji_nie_blokuje_importu(): void
+    {
+        // Pierwsze wdrożenie po tej zmianie: w cache leży znacznik zapisany
+        // przez stary kod, bez pola `wersja`. Import ma przejść (odbudowa),
+        // a nie zostać pominięty.
+        app(ImportujWartosciOdzywcze::class)->handle($this->katalog(1, false));
+        $klucz = 'odzywcze:import:hash-plikow';
+        $znacznik = Cache::get($klucz);
+        $this->assertIsArray($znacznik);
+        unset($znacznik['wersja']);
+        Cache::forever($klucz, $znacznik);
+
+        $wynik = app(ImportujWartosciOdzywcze::class)->handle($this->katalog(2, true));
+
+        $this->assertFalse($wynik['pominieto']);
+        $this->assertSame(1, SkladnikOdzywczy::query()->where('klucz', self::KLUCZ)->count());
+        $this->assertSame(2, Cache::get($klucz)['wersja'] ?? null);
     }
 
     #[Test]

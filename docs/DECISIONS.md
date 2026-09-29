@@ -20689,7 +20689,8 @@ słownik i cofał dane do starszych.
 - Numer wersji danych żyje w jednym miejscu: `database/data/odzywcze/WERSJA`
   (wiersze „numer sha256-plików-CSV”, numery rosną, obowiązuje ostatni).
 - Znacznik ostatniego udanego importu (cache, pod kluczem z D-299; produkcja =
-  `CACHE_STORE=database`, ta sama baza i ta sama transakcja) niesie także
+  `CACHE_STORE=database` bez `DB_CACHE_CONNECTION`, więc to samo połączenie i ta sama
+  transakcja co słowniki; zapis to `upsert`, który nie przerywa transakcji PostgreSQL) niesie także
   `wersja`. Zapis pod `pg_advisory_xact_lock(2130, 0)`, jak reszta.
 - Reguła: wersja pliku > wersja w bazie albo baza niekompletna / odcisk
   niezgodny / hash inny → pełny import. Wersja pliku < wersja w bazie i baza
