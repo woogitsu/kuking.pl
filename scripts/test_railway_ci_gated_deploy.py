@@ -24,9 +24,9 @@ class RailwayCiGateTest(unittest.TestCase):
             "head_branch": "main", "head_sha": self.sha,
             "repository": {"full_name": self.repo},
             "head_repository": {"full_name": self.repo},
-            "status": "completed", "conclusion": "success",
+            "status": "completed", "conclusion": "success", "run_attempt": 1,
         }
-        event = {"workflow_run": {"id": 17, "head_sha": self.sha}}
+        event = {"workflow_run": {"id": 17, "head_sha": self.sha, "run_attempt": 1}}
         api = {
             f"/repos/{self.repo}/actions/workflows/ci.yml": {"id": 11},
             f"/repos/{self.repo}/actions/runs/17": run,
@@ -97,6 +97,8 @@ class RailwayCiGateTest(unittest.TestCase):
         deployment_ids = ["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"]
 
         def railway(_token, query, variables):
+            if "deployments(" in query:
+                return {"deployments": {"edges": []}}
             if "serviceInstanceDeployV2" in query:
                 actions.append(("deploy", variables["serviceId"], variables["commitSha"]))
                 return {"serviceInstanceDeployV2": deployment_ids[0 if variables["serviceId"] == web["id"] else 1]}
@@ -112,6 +114,8 @@ class RailwayCiGateTest(unittest.TestCase):
         actions.clear()
 
         def failed(_token, query, variables):
+            if "deployments(" in query:
+                return {"deployments": {"edges": []}}
             actions.append(query)
             if "serviceInstanceDeployV2" in query:
                 return {"serviceInstanceDeployV2": deployment_ids[0]}
@@ -135,6 +139,8 @@ class RailwayCiGateTest(unittest.TestCase):
         calls = []
 
         def lost_response(_token, query, variables):
+            if "deployments(" in query:
+                return {"deployments": {"edges": []}}
             calls.append((query, variables))
             raise OSError("connection reset after Railway accepted the request")
 
@@ -166,6 +172,112 @@ class RailwayCiGateTest(unittest.TestCase):
                            lambda _path: {"commit": {"sha": self.sha}}, railway, 2,
                            lambda _seconds: None)
         self.assertEqual([], calls)
+
+
+class RerunPathTest(unittest.TestCase):
+    """Tabela: rerun CI -> wdrożenie tego SHA, bez dubli i bez starszego SHA (#611)."""
+
+    repo = "woogitsu/kuking.pl"
+    web = {"name": "kuking.pl", "id": "11111111-1111-4111-8111-111111111111"}
+
+    def world(self, head):
+        return {"head": head, "runs": {}, "deployments": [], "mutations": [], "n": 0}
+
+    def github(self, world):
+        repo = self.repo
+
+        def get(path):
+            if path == f"/repos/{repo}/actions/workflows/ci.yml":
+                return {"id": 11}
+            if path == f"/repos/{repo}/branches/main":
+                return {"commit": {"sha": world["head"]}}
+            if path.endswith("/jobs?per_page=100&filter=latest"):
+                run = world["runs"][int(path.split("/runs/")[1].split("/")[0])]
+                ok = "success" if run["conclusion"] == "success" else "failure"
+                return {"total_count": 1, "jobs": [{"name": "Testy (PostgreSQL 18)", "conclusion": ok}]}
+            return world["runs"][int(path.rsplit("/", 1)[1])]
+        return get
+
+    def railway(self, world):
+        def call(_token, query, variables):
+            if "deployments(" in query:
+                edges = [{"node": d} for d in world["deployments"]]
+                return {"deployments": {"edges": edges}}
+            if "serviceInstanceDeployV2" in query:
+                world["n"] += 1
+                identifier = f"{world['n']:08d}-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+                world["mutations"].append(variables["commitSha"])
+                world["deployments"].append({"id": identifier, "status": "SUCCESS",
+                                             "meta": {"commitHash": variables["commitSha"]}})
+                return {"serviceInstanceDeployV2": identifier}
+            return {"deployment": {"id": variables["id"], "status": "SUCCESS"}}
+        return call
+
+    def receive(self, world, sha, attempt, conclusion, latest=None):
+        """Zdarzenie workflow_run.completed dla próby `attempt`; zwraca "deploy"/"skip"/"red"."""
+        world["runs"][17] = {
+            "id": 17, "workflow_id": 11, "name": "CI", "path": ".github/workflows/ci.yml",
+            "event": "push", "head_branch": "main", "head_sha": sha,
+            "repository": {"full_name": self.repo}, "head_repository": {"full_name": self.repo},
+            "status": "completed", "conclusion": conclusion if latest is None else "success",
+            "run_attempt": latest or attempt,
+        }
+        event = {"workflow_run": {"id": 17, "head_sha": sha, "run_attempt": attempt}}
+        github = self.github(world)
+        before = len(world["mutations"])
+        try:
+            verified = gate["verify_ci"](event, self.repo, github)
+            gate["deploy"]("token", verified, "env", [self.web], self.repo, github,
+                           self.railway(world), 1, lambda _s: None)
+        except gate["Skip"]:
+            return "skip"
+        except RuntimeError:
+            return "red"
+        return "deploy" if len(world["mutations"]) > before else "skip"
+
+    def test_red_first_attempt_then_green_rerun_deploys_that_sha(self):
+        world, sha = self.world("a" * 40), "a" * 40
+        self.assertEqual("red", self.receive(world, sha, 1, "failure"))
+        self.assertEqual([], world["mutations"])
+        self.assertEqual("deploy", self.receive(world, sha, 2, "success"))
+        self.assertEqual([sha], world["mutations"])
+
+    def test_two_green_attempts_produce_one_deployment(self):
+        world, sha = self.world("a" * 40), "a" * 40
+        self.assertEqual("deploy", self.receive(world, sha, 1, "success"))
+        self.assertEqual("skip", self.receive(world, sha, 2, "success"))
+        self.assertEqual([sha], world["mutations"])
+
+    def test_event_of_superseded_attempt_is_skipped(self):
+        world, sha = self.world("a" * 40), "a" * 40
+        self.assertEqual("skip", self.receive(world, sha, 1, "success", latest=2))
+        self.assertEqual([], world["mutations"])
+
+    def test_older_sha_after_newer_is_skipped(self):
+        world, old, new = self.world("b" * 40), "a" * 40, "b" * 40
+        self.assertEqual("deploy", self.receive(world, new, 1, "success"))
+        self.assertEqual("skip", self.receive(world, old, 1, "success"))
+        self.assertEqual([new], world["mutations"])
+
+    def test_deployment_in_progress_for_same_sha_is_not_duplicated(self):
+        world, sha = self.world("a" * 40), "a" * 40
+        world["deployments"].append({"id": "x", "status": "BUILDING", "meta": {"commitHash": sha}})
+        self.assertEqual("red", self.receive(world, sha, 2, "success"))
+        self.assertEqual([], world["mutations"])
+
+    def test_failed_earlier_deployment_of_same_sha_is_retried(self):
+        world, sha = self.world("a" * 40), "a" * 40
+        world["deployments"].append({"id": "x", "status": "REMOVED", "meta": {"commitHash": sha}})
+        self.assertEqual("deploy", self.receive(world, sha, 2, "success"))
+
+    def test_unreadable_deployment_list_fails_closed(self):
+        world, sha = self.world("a" * 40), "a" * 40
+        railway = self.railway(world)
+        broken = lambda t, q, v: {} if "deployments(" in q else railway(t, q, v)
+        with self.assertRaises(RuntimeError):
+            gate["deploy"]("token", sha, "env", [self.web], self.repo, self.github(world),
+                           broken, 1, lambda _s: None)
+        self.assertEqual([], world["mutations"])
 
 
 if __name__ == "__main__":
