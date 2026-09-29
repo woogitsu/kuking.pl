@@ -6,7 +6,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { poczekajNaStan } from './lib/stan-ustalony.mjs';
 
-const rodziny = ['zgloszenia', 'sygnaly', 'odwolania', 'bez-odpowiedzi', 'wiadomosci', 'wiadomosc', 'kolaz-powitalny', 'kuking-na-dzis', 'tagi-promowane', 'uzytkownicy', 'uzytkownik', 'kolejka'];
+const rodziny = ['zgloszenia', 'sygnaly', 'odwolania', 'bez-odpowiedzi', 'wiadomosci', 'wiadomosc', 'kolaz-powitalny', 'kuking-na-dzis', 'tagi-promowane', 'uzytkownicy', 'uzytkownik', 'kolejka', 'metryki'];
 const listy = rodziny.filter(r => !['wiadomosc', 'uzytkownik'].includes(r));
 const wymagaj = (warunek, kod, dane = {}) => { if (!warunek) throw new Error(`P581_${kod} ${JSON.stringify(dane)}`); };
 
