@@ -172,7 +172,7 @@ Collections  → Notifications
 Moderation   → Notifications, Security
 Security     → Moderation, Users     ← znany cykl, do rozcięcia
 Contact      → Security
-Media, Pwa   → Analytics
+Media, Pwa   → Analytics       (Media nie zależy już od Moderation, #2149)
 Kolejka, Polaczenia → Monitoring
 ```
 
@@ -191,9 +191,27 @@ urósł jeszcze o Media i Analytics: `Users → Media` (`EraseAccountData`),
 `UsuwanieWPartiach`, #1657). Krawędź `Analytics → Compliance` rozcięta
 w #2149 (pierwszy etap): `UsuwanieWPartiach` to ogólny mechanizm bazy,
 więc przeniesiono go do `App\Support` — Analytics wypadło ze składowej.
-Została jedna silnie spójna składowa: Compliance, Media, Moderation,
-Security, Users. Do rozcięcia kolejnymi etapami #2149. `Media → Analytics` jest teraz
-zwykłą krawędzią jednokierunkową (Analytics nie woła już żadnego modułu).
+`Media → Moderation` rozcięte w #2149 (etap 2): `DostepDoZdjecia` brał
+z `ModeratedContent::TYPY` wyłącznie nazwy typów `media` i `post` w
+`reports.target_type`. Nazwy są teraz stałymi `Report::TARGET_MEDIA` i
+`Report::TARGET_POST` (fakt o tabeli, mieszka przy modelu), a
+`ModeratedContent::TYPY` odwołuje się do tych samych stałych — bez zmiany
+zachowania i bez „worka Core". Media wypadło ze składowej.
+
+Została jedna silnie spójna składowa: Compliance, Moderation, Security,
+Users. Jej krawędzie i pliki wylicza test
+`test_krawedzie_wewnatrz_skladowej_sa_dokladnie_te_znane`
+(`KRAWEDZIE_W_SKLADOWEJ`, format `Skąd → Dokąd | plik | klasa`); nowa krawędź
+w środku składowej oblewa test z nazwą pliku i klasy. Krawędzie:
+`Compliance → Moderation` (`PrzedawnioneSprawyModeracyjne` → `KolejkiPanelu`),
+`Moderation → Security` (`DziennyBudzetListow`), `Moderation → Users`
+(`ZamekUprzywilejowanegoAktora`, `ZamekKonta`, `OdmowaOstatniegoAdministratora`),
+`Security → Moderation` (`UzasadnienieDecyzji`), `Security → Users`
+(`ZalozKonto`, `ZamekKonta`), `Users → Compliance` (`RejestrPotwierdzenRodo`,
+`DziennikWymazan`). `Users → Media` i `Compliance → Media` (`KasujZdjecie`)
+są już zwykłymi krawędziami jednokierunkowymi (Media nie woła nikogo ze
+składowej). Do rozcięcia kolejnymi etapami #2149. `Media → Analytics` jest zwykłą
+krawędzią jednokierunkową (Analytics nie woła już żadnego modułu).
 
 ## Zmiana roli podczas uprzywilejowanej operacji
 

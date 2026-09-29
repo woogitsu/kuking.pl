@@ -477,6 +477,11 @@ GRAF_MODULOW_TEST = "GrafModulowDomenyBezCykliTest"
 # #2149: retencja sygnałów Analytics używa `App\Support\UsuwanieWPartiach`.
 # Mutacja wraca do importu z Compliance — krawędź Analytics → Compliance.
 PRZEDAWNIONE_SYGNALY = "app/Domain/Analytics/PrzedawnioneSygnaly.php"
+# #2149 etap 2: `DostepDoZdjecia` bierze nazwy typów celu z `Report::TARGET_*`,
+# nie z Moderation. Mutacje: powrót importu (Media → Moderation) i nowa
+# krawędź wewnątrz składowej (Users → Moderation) — ta druga ma zapalić raport.
+DOSTEP_DO_ZDJECIA = "app/Domain/Media/DostepDoZdjecia.php"
+ERASE_ACCOUNT_DATA = "app/Domain/Users/Actions/EraseAccountData.php"
 # Kontrolery Google i Facebooka są adapterami nad `WejdzPrzezDostawce` (#1035).
 # Mutacja wkleja do kontrolera Google własne `Auth::login` przed odpowiedzią —
 # kopię wspólnej reguły wejścia — i ma zapalić strażnika architektury.
@@ -1372,6 +1377,10 @@ checks = [
      lambda s: replace_once(s, "use App\\Domain\\Users\\ObserwowanieGospodarza;\n", "use App\\Domain\\Social\\Actions\\FollowUser;\nuse App\\Domain\\Users\\ObserwowanieGospodarza;\n")),
     ("Analytics znowu importuje Compliance", PRZEDAWNIONE_SYGNALY, GRAF_MODULOW_TEST,
      lambda s: replace_once(s, "use App\\Support\\UsuwanieWPartiach;\n", "use App\\Domain\\Compliance\\UsuwanieWPartiach;\n")),
+    ("Media znowu importuje Moderation", DOSTEP_DO_ZDJECIA, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "use App\\Models\\CookedEvent;\n", "use App\\Domain\\Moderation\\ModeratedContent;\nuse App\\Models\\CookedEvent;\n")),
+    ("Nowa krawędź wewnątrz składowej: Users importuje Moderation", ERASE_ACCOUNT_DATA, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "namespace App\\Domain\\Users\\Actions;\n", "namespace App\\Domain\\Users\\Actions;\n\nuse App\\Domain\\Moderation\\ModeratedContent;\n")),
     ("DemoSeeder wypisuje hasło z KUKING_DEMO_HASLO", DEMO_SEEDER, DEMO_SEEDER_HASLO_TEST,
      lambda s: replace_once(s, WARUNEK_HASLA_Z_OTOCZENIA, "        if (false) {")),
     ("Polityka z okresem sesji innym niż życie sesji na produkcji", POLITYKA, POLITYKA_SESJE_TEST,
