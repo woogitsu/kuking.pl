@@ -474,6 +474,9 @@ TURNSTILE_AKCJA_TEST = "test_akcja_innego_formularza_jest_odrzucana"
 # dokładnie tę krawędź, która zamykała cykl `Users ↔ Social`.
 ZALOZ_KONTO = "app/Domain/Users/Actions/ZalozKonto.php"
 GRAF_MODULOW_TEST = "GrafModulowDomenyBezCykliTest"
+# #2149: retencja sygnałów Analytics używa `App\Support\UsuwanieWPartiach`.
+# Mutacja wraca do importu z Compliance — krawędź Analytics → Compliance.
+PRZEDAWNIONE_SYGNALY = "app/Domain/Analytics/PrzedawnioneSygnaly.php"
 # Kontrolery Google i Facebooka są adapterami nad `WejdzPrzezDostawce` (#1035).
 # Mutacja wkleja do kontrolera Google własne `Auth::login` przed odpowiedzią —
 # kopię wspólnej reguły wejścia — i ma zapalić strażnika architektury.
@@ -1367,6 +1370,8 @@ checks = [
      lambda s: replace_once(s, "najpóźniej **30 dni** po usunięciu", "najpóźniej **60 dni** po usunięciu")),
     ("Users znowu importuje Social", ZALOZ_KONTO, GRAF_MODULOW_TEST,
      lambda s: replace_once(s, "use App\\Domain\\Users\\ObserwowanieGospodarza;\n", "use App\\Domain\\Social\\Actions\\FollowUser;\nuse App\\Domain\\Users\\ObserwowanieGospodarza;\n")),
+    ("Analytics znowu importuje Compliance", PRZEDAWNIONE_SYGNALY, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "use App\\Support\\UsuwanieWPartiach;\n", "use App\\Domain\\Compliance\\UsuwanieWPartiach;\n")),
     ("DemoSeeder wypisuje hasło z KUKING_DEMO_HASLO", DEMO_SEEDER, DEMO_SEEDER_HASLO_TEST,
      lambda s: replace_once(s, WARUNEK_HASLA_Z_OTOCZENIA, "        if (false) {")),
     ("Polityka z okresem sesji innym niż życie sesji na produkcji", POLITYKA, POLITYKA_SESJE_TEST,

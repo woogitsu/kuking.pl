@@ -188,9 +188,12 @@ objął `Compliance → Moderation → Security → Users → Compliance`. Do 25
 urósł jeszcze o Media i Analytics: `Users → Media` (`EraseAccountData`),
 `Media → Moderation` (`DostepDoZdjecia`), `Media → Analytics`
 (`StoreUploadedImage`) i `Analytics → Compliance` (`PrzedawnioneSygnaly` →
-`UsuwanieWPartiach`, #1657). Jedna silnie spójna składowa: Analytics,
-Compliance, Media, Moderation, Security, Users. Do rozcięcia osobnym
-zadaniem.
+`UsuwanieWPartiach`, #1657). Krawędź `Analytics → Compliance` rozcięta
+w #2149 (pierwszy etap): `UsuwanieWPartiach` to ogólny mechanizm bazy,
+więc przeniesiono go do `App\Support` — Analytics wypadło ze składowej.
+Została jedna silnie spójna składowa: Compliance, Media, Moderation,
+Security, Users. Do rozcięcia kolejnymi etapami #2149. `Media → Analytics` jest teraz
+zwykłą krawędzią jednokierunkową (Analytics nie woła już żadnego modułu).
 
 ## Zmiana roli podczas uprzywilejowanej operacji
 

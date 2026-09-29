@@ -52,15 +52,17 @@ final class GrafModulowDomenyBezCykliTest extends TestCase
      * I dalej o Analytics i Media, też zastane na `main` (stan z 25.09):
      * Users → Media (`EraseAccountData` kasuje pliki), Media → Moderation
      * (`DostepDoZdjecia` pyta `ModeratedContent`, 24.09), Media → Analytics
-     * (`StoreUploadedImage`, zdarzenie `photo_upload_failed`) i Analytics →
-     * Compliance (`PrzedawnioneSygnaly` używa `UsuwanieWPartiach`, #1657).
-     * Do rozcięcia osobnym zadaniem; ta gałąź żadnej z tych krawędzi nie
-     * dokłada.
+     * (`StoreUploadedImage`, zdarzenie `photo_upload_failed`). Analytics →
+     * Compliance (`PrzedawnioneSygnaly` używa `UsuwanieWPartiach`, #1657)
+     * rozcięte w #2149: `UsuwanieWPartiach` jest ogólnym mechanizmem bazy
+     * danych, więc mieszka w `App\Support`, a nie w Compliance. Analytics
+     * wypadło z składowej (nic więcej z niej nie woła). Pozostałe krawędzie
+     * do rozcięcia kolejnymi etapami #2149.
      *
      * @var list<list<string>>
      */
     private const ZNANE_CYKLE = [
-        ['Analytics', 'Compliance', 'Media', 'Moderation', 'Security', 'Users'],
+        ['Compliance', 'Media', 'Moderation', 'Security', 'Users'],
     ];
 
     public function test_graf_modulow_domeny_nie_ma_nowych_cykli(): void
@@ -91,6 +93,23 @@ final class GrafModulowDomenyBezCykliTest extends TestCase
             'app/Domain/Users importuje App\\Domain\\Social ('.implode(', ', $graf['Users']['Social'] ?? []).'). '
             .'To zamyka cykl Users ↔ Social (#971) — obserwowanie gospodarza idzie przez kontrakt '
             .'App\\Domain\\Users\\ObserwowanieGospodarza.',
+        );
+    }
+
+    public function test_analytics_nie_zalezy_od_compliance(): void
+    {
+        $graf = self::grafZKodu();
+
+        // Kontrola, że skaner widzi Media → Analytics (`StoreUploadedImage`);
+        // bez niej pusty graf dawałby fałszywą zieleń.
+        $this->assertArrayHasKey('Analytics', $graf['Media'] ?? [], 'Skaner nie widzi krawędzi Media → Analytics — test stracił przedmiot.');
+
+        $this->assertArrayNotHasKey(
+            'Compliance',
+            $graf['Analytics'] ?? [],
+            'app/Domain/Analytics importuje App\\Domain\\Compliance ('.implode(', ', $graf['Analytics']['Compliance'] ?? []).'). '
+            .'To zamyka pierścień Analytics → Compliance → Moderation → Security → Media → Analytics (#2149). '
+            .'Ogólne usuwanie partiami to App\\Support\\UsuwanieWPartiach.',
         );
     }
 
