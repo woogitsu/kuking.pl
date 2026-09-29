@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Security\DziennyBudzetListow;
 use App\Notifications\LinkDoLogowania;
+use App\Poczta\DziennyBudzetListow;
 use App\Support\Poczta;
 use App\Support\Turnstile;
 use App\Turnstile\KlientTurnstile;

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Security\DziennyBudzetListow;
 use App\Models\User;
 use App\Notifications\LinkDoLogowania;
 use App\Notifications\UstawienieHaslaZamiastLinku;
 use App\Notifications\UstawienieNowegoHasla;
+use App\Poczta\DziennyBudzetListow;
 use App\Support\AdresEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;

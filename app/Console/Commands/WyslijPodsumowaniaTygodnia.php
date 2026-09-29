@@ -9,9 +9,9 @@ use App\Domain\Digest\BramkaDomyslnejZgody;
 use App\Domain\Digest\OdbiorcyDigestu;
 use App\Domain\Digest\TrescDigestu;
 use App\Domain\Digest\ZbierzTresciDigestu;
-use App\Domain\Security\DziennyBudzetListow;
 use App\Mail\PodsumowanieTygodnia;
 use App\Models\User;
+use App\Poczta\DziennyBudzetListow;
 use App\Support\Czas;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -46,7 +46,7 @@ use Illuminate\Support\Facades\Mail;
  * przez dostawcę jest wtedy awarią, a nie normalnym trybem pracy.
  *
  * SUFIT JEST WSPÓLNĄ KLASĄ, NIE WŁASNYM LICZNIKIEM
- * `App\Domain\Security\DziennyBudzetListow` powstał przy logowaniu linkiem
+ * `App\Poczta\DziennyBudzetListow` powstał przy logowaniu linkiem
  * (issue #25), które zderzyło się z tym samym limitem tego samego wiadra.
  * Podsumowanie używa TEJ SAMEJ klasy, z własnym kluczem licznika i własnym
  * sufitem z konfiguracji. Dwa niezależne liczniki tego samego wiadra

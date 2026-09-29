@@ -1674,7 +1674,7 @@ return [
          * SUFITU DZIENNEGO ŚWIADOMIE NIE MA — sprawdzone, nie założone.
          *
          * Stan faktyczny na 10 września 2026: WSPÓLNEGO licznika całej poczty
-         * w repozytorium nie ma i `App\Domain\Security\DziennyBudzetListow`
+         * w repozytorium nie ma i `App\Poczta\DziennyBudzetListow`
          * mówi to o sobie wprost. Istnieje jeden sufit WŁASNY jednej funkcji —
          * logowania linkiem (D-056, `login_link.dzienny_budzet` = 120) — a
          * reszta puli jest pilnowana PROJEKTOWO: listy natychmiastowe tylko
@@ -2499,7 +2499,7 @@ return [
     | Rezerwa nie chroniła niczego, bo nie istniał nikt, kto by jej pilnował.
     |
     | Od teraz pilnuje jej WSPÓLNY LICZNIK CAŁEJ POCZTY
-    | (`App\Domain\Security\DziennyBudzetListow::wspolny()`) i sekcja
+    | (`App\Poczta\DziennyBudzetListow::wspolny()`) i sekcja
     | `progi_wygaszania` niżej — patrz tam po kolejność wygaszania i po
     | uzasadnienie każdej z trzech liczb.
     |
@@ -2706,7 +2706,7 @@ return [
          * nieprawdą po drugiej stronie. Rachunek dla 100, 500 i 2 000 kont
          * i moment przejścia na plan płatny: `docs/DECISIONS.md` D-057.
          *
-         * SUFIT PILNUJE `App\Domain\Security\DziennyBudzetListow` — ta sama
+         * SUFIT PILNUJE `App\Poczta\DziennyBudzetListow` — ta sama
          * klasa co przy logowaniu linkiem, z własnym kluczem licznika. Dwa
          * własne liczniki tej samej rzeczy rozjechałyby się przy pierwszej
          * zmianie którejkolwiek z tych liczb.

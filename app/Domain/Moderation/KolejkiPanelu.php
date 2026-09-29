@@ -8,6 +8,7 @@ use App\Models\Appeal;
 use App\Models\ContactMessage;
 use App\Models\Report;
 use App\Models\User;
+use App\Support\OdswiezanieLicznikowKolejek;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -83,7 +84,7 @@ use Illuminate\Support\Facades\DB;
  * licznik kłamiący, a „0" na ekranie jest samym hałasem: mówi tyle samo, co
  * jego brak, tylko zajmuje uwagę pięć razy na każdym ekranie.
  */
-final class KolejkiPanelu
+final class KolejkiPanelu implements OdswiezanieLicznikowKolejek
 {
     private const KLUCZ_CACHE = 'panel:kolejki';
 

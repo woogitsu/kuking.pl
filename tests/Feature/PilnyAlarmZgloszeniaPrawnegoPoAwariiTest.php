@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Moderation\Actions\ZglosNielegalnaTresc;
-use App\Domain\Security\DziennyBudzetListow;
 use App\Models\Report;
+use App\Poczta\DziennyBudzetListow;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;

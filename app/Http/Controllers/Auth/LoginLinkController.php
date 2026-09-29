@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
-use App\Domain\Security\DziennyBudzetListow;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Security\WyslijLinkDoLogowania;
 use App\Domain\Users\ZamekKonta;
@@ -12,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\LoginLinkToken;
 use App\Models\User;
+use App\Poczta\DziennyBudzetListow;
 use App\Rules\TurnstileJestPotwierdzony;
 use App\Support\AdresEmail;
 use App\Support\Komunikat;

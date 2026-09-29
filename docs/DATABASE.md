@@ -5004,7 +5004,7 @@ stronie storage (w odróżnieniu od `OsieroconeZdjecia`).
 
 **Retencja prostych tabel partiami (#1657)** — `product_signals`, `audit_log`,
 zwykłe `notifications`, `sessions` i `potwierdzenia_zadan_rodo` kasuje
-`App\Domain\Compliance\UsuwanieWPartiach`: partia identyfikatorów w stałym
+`App\Support\UsuwanieWPartiach`: partia identyfikatorów w stałym
 porządku po kluczu głównym, potem `DELETE` z tym samym predykatem wieku
 (i wyjątków: `NIGDY_NIE_KASUJ`, typy odwoławcze, wstrzymanie RODO, próg
 `SESSION_LIFETIME`) we własnej krótkiej transakcji. Najwyżej

@@ -37,31 +37,31 @@ final class GrafModulowDomenyBezCykliTest extends TestCase
      * Cykle zastane przed #971, każdy do rozcięcia osobnym zadaniem.
      * Moduły w cyklu posortowane alfabetycznie.
      *
-     * Moderation ↔ Security: `AlarmujOPilnymZgloszeniu` używa
-     * `DziennyBudzetListow`, a `KomunikatZamknietegoKonta` —
-     * `UzasadnienieDecyzji`.
+     * OD #2149 (etap 3) LISTA JEST PUSTA: graf modułów `app/Domain` nie ma
+     * żadnego cyklu. Historia składowej `Compliance`/`Moderation`/`Security`/
+     * `Users` (wejście przez dostawcę #1035, potem Analytics i Media zastane
+     * na `main` 25.09) i tego, jak ją rozcięto:
      *
-     * Ten cykl urósł o Compliance i Users przez wejście przez dostawcę
-     * (#1035, PR #1635 na `main`): `Security\WejsciePrzezDostawce\
-     * WejdzPrzezDostawce` używa `Users\Actions\ZalozKonto` i `ZamekKonta`,
-     * a dalej Users → Compliance (`EraseAccountData`, `CancelAccountDeletion`)
-     * → Moderation (`PrzedawnioneSprawyModeracyjne`) → Security. Zastany
-     * na `main`, do rozcięcia osobnym zadaniem — tak jak Users → Social
-     * kontraktem `ObserwowanieGospodarza`.
+     *  - Analytics → Compliance (etap 1): `UsuwanieWPartiach` to ogólny
+     *    mechanizm bazy, więc mieszka w `App\Support`.
+     *  - Media → Moderation (etap 2): nazwy typów celu zgłoszenia to stałe
+     *    `Report::TARGET_*` (model, nie moduł).
+     *  - Compliance → Moderation (etap 3): retencja spraw odświeża liczniki
+     *    kolejek przez kontrakt `App\Support\OdswiezanieLicznikowKolejek`,
+     *    który implementuje `KolejkiPanelu` (wiązanie w `AppServiceProvider`).
+     *  - Moderation → Security (etap 3): `DziennyBudzetListow` to wspólny
+     *    licznik dobowego sufitu poczty, używany też przez `Contact`, `Digest`
+     *    i `Notifications`, więc mieszka w `App\Poczta` obok
+     *    `ListZarezerwowany`, a nie w `Security`.
      *
-     * I dalej o Analytics i Media, też zastane na `main` (stan z 25.09):
-     * Users → Media (`EraseAccountData` kasuje pliki), Media → Moderation
-     * (`DostepDoZdjecia` pyta `ModeratedContent`, 24.09), Media → Analytics
-     * (`StoreUploadedImage`, zdarzenie `photo_upload_failed`) i Analytics →
-     * Compliance (`PrzedawnioneSygnaly` używa `UsuwanieWPartiach`, #1657).
-     * Do rozcięcia osobnym zadaniem; ta gałąź żadnej z tych krawędzi nie
-     * dokłada.
+     * Zostały krawędzie jednokierunkowe (m.in. `Security → Moderation`,
+     * `Security → Users`, `Moderation → Users`, `Users → Compliance`,
+     * `Users → Media`) — żadna nie wraca. Jeśli cykl wróci, dopisz go tutaj
+     * tylko wtedy, gdy rozcięcie jest osobnym, opisanym zadaniem.
      *
      * @var list<list<string>>
      */
-    private const ZNANE_CYKLE = [
-        ['Analytics', 'Compliance', 'Media', 'Moderation', 'Security', 'Users'],
-    ];
+    private const ZNANE_CYKLE = [];
 
     public function test_graf_modulow_domeny_nie_ma_nowych_cykli(): void
     {
@@ -91,6 +91,69 @@ final class GrafModulowDomenyBezCykliTest extends TestCase
             'app/Domain/Users importuje App\\Domain\\Social ('.implode(', ', $graf['Users']['Social'] ?? []).'). '
             .'To zamyka cykl Users ↔ Social (#971) — obserwowanie gospodarza idzie przez kontrakt '
             .'App\\Domain\\Users\\ObserwowanieGospodarza.',
+        );
+    }
+
+    public function test_analytics_nie_zalezy_od_compliance(): void
+    {
+        $graf = self::grafZKodu();
+
+        // Kontrola, że skaner widzi Media → Analytics (`StoreUploadedImage`);
+        // bez niej pusty graf dawałby fałszywą zieleń.
+        $this->assertArrayHasKey('Analytics', $graf['Media'] ?? [], 'Skaner nie widzi krawędzi Media → Analytics — test stracił przedmiot.');
+
+        $this->assertArrayNotHasKey(
+            'Compliance',
+            $graf['Analytics'] ?? [],
+            'app/Domain/Analytics importuje App\\Domain\\Compliance ('.implode(', ', $graf['Analytics']['Compliance'] ?? []).'). '
+            .'To zamyka pierścień Analytics → Compliance → Moderation → Security → Media → Analytics (#2149). '
+            .'Ogólne usuwanie partiami to App\\Support\\UsuwanieWPartiach.',
+        );
+    }
+
+    public function test_media_nie_zalezy_od_moderation(): void
+    {
+        $graf = self::grafZKodu();
+
+        $this->assertArrayHasKey('Media', $graf['Users'] ?? [], 'Skaner nie widzi krawędzi Users → Media — test stracił przedmiot.');
+
+        $this->assertArrayNotHasKey(
+            'Moderation',
+            $graf['Media'] ?? [],
+            'app/Domain/Media importuje App\\Domain\\Moderation ('.implode(', ', $graf['Media']['Moderation'] ?? []).'). '
+            .'To zawraca Media do dawnej składowej Compliance/Moderation/Security/Users (#2149). Nazwy typów celu '
+            .'zgłoszenia to App\\Models\\Report::TARGET_*.',
+        );
+    }
+
+    public function test_compliance_nie_zalezy_od_moderation(): void
+    {
+        $graf = self::grafZKodu();
+
+        // Kontrola, że skaner widzi krawędź w drugą stronę (Users → Compliance,
+        // `EraseAccountData`); bez niej pusty graf dawałby fałszywą zieleń.
+        $this->assertArrayHasKey('Compliance', $graf['Users'] ?? [], 'Skaner nie widzi krawędzi Users → Compliance — test stracił przedmiot.');
+
+        $this->assertArrayNotHasKey(
+            'Moderation',
+            $graf['Compliance'] ?? [],
+            'app/Domain/Compliance importuje App\\Domain\\Moderation ('.implode(', ', $graf['Compliance']['Moderation'] ?? []).'). '
+            .'To zamyka pierścień Compliance → Moderation → Users → Compliance (#2149). Liczniki kolejek panelu '
+            .'odświeża się przez kontrakt App\\Support\\OdswiezanieLicznikowKolejek.',
+        );
+    }
+
+    public function test_moderation_nie_zalezy_od_security(): void
+    {
+        $graf = self::grafZKodu();
+
+        $this->assertArrayHasKey('Moderation', $graf['Security'] ?? [], 'Skaner nie widzi krawędzi Security → Moderation — test stracił przedmiot.');
+
+        $this->assertArrayNotHasKey(
+            'Security',
+            $graf['Moderation'] ?? [],
+            'app/Domain/Moderation importuje App\\Domain\\Security ('.implode(', ', $graf['Moderation']['Security'] ?? []).'). '
+            .'To zamyka cykl Moderation ↔ Security (#2149). Dobowy sufit listów to App\\Poczta\\DziennyBudzetListow.',
         );
     }
 

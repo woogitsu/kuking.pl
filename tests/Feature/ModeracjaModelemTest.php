@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Security\DziennyBudzetListow;
 use App\Jobs\PrzeanalizujTresc;
 use App\Models\Notification as PowiadomienieWSerwisie;
 use App\Models\Post;
@@ -14,6 +13,7 @@ use App\Moderacja\KlientOpenAI;
 use App\Moderacja\OcenaModelem;
 use App\Notifications\PilnyAlarmModeracyjny;
 use App\Notifications\PodsumowanieKolejkiAutomatu;
+use App\Poczta\DziennyBudzetListow;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;

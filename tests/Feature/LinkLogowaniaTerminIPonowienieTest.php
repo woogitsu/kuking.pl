@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Security\DziennyBudzetListow;
 use App\Domain\Security\WyslijLinkDoLogowania;
 use App\Models\LoginLinkToken;
 use App\Models\User;
 use App\Notifications\LinkDoLogowania;
+use App\Poczta\DziennyBudzetListow;
 use App\Support\Turnstile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Mail\Transport\ArrayTransport;

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Media;
 
-use App\Domain\Moderation\ModeratedContent;
 use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
@@ -311,11 +310,11 @@ final class DostepDoZdjecia
         $id = (string) $zdjecie->getKey();
 
         return Report::query()
-            ->where('target_type', ModeratedContent::TYPY[Media::class])
+            ->where('target_type', Report::TARGET_MEDIA)
             ->where('target_id', $id)
             ->exists()
             || Report::query()
-                ->where('target_type', ModeratedContent::TYPY[Post::class])
+                ->where('target_type', Report::TARGET_POST)
                 ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])
                 ->whereIn('target_id', fn ($wpisy) => $wpisy
                     ->select('posts.id')

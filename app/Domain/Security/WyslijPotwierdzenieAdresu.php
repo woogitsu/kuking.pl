@@ -6,6 +6,7 @@ namespace App\Domain\Security;
 
 use App\Models\User;
 use App\Notifications\PotwierdzenieAdresu;
+use App\Poczta\DziennyBudzetListow;
 use Illuminate\Support\Facades\RateLimiter;
 
 /**
