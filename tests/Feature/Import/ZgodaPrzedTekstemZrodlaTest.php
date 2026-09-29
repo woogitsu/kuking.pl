@@ -8,6 +8,7 @@ use App\Domain\Import\ImportOdrzucony;
 use App\Domain\Import\Url\RozwiazywaczNazw;
 use App\Domain\Zgody\InformacjaTekstuZrodlaAi;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
+use App\Jobs\ImportujPrzepisZPdf;
 use App\Models\ImportPrzepisu;
 use App\Models\Recipe;
 use App\Models\User;
@@ -16,6 +17,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Tests\Support\MalyPdf;
 use Tests\Support\MapaNazw;
 use Tests\TestCase;
@@ -38,6 +41,7 @@ final class ZgodaPrzedTekstemZrodlaTest extends TestCase
     {
         parent::setUp();
 
+        Storage::fake((string) config('kuking.import.pdf.dysk'));
         $this->app->instance(RozwiazywaczNazw::class, (new MapaNazw)->ustaw('przepisy.example.pl', '93.184.216.34'));
         config([
             'kuking.import.model.klucz' => 'sk-test-import',
@@ -81,8 +85,12 @@ final class ZgodaPrzedTekstemZrodlaTest extends TestCase
         Http::fake(['api.openai.com/*' => Http::response([])]);
         $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
 
-        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf])
-            ->assertSessionHasErrors(['plik' => ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BRAK_ZGODY_AI]]);
+        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf])->assertRedirect();
+
+        $zlecenie = ImportPrzepisu::query()->where('user_id', $autor->getKey())->firstOrFail();
+        $this->assertSame(ImportPrzepisu::KOD_BRAK_ZGODY, $zlecenie->kod_bledu);
+        $this->actingAs($autor)->get(route('import.show', $zlecenie))
+            ->assertOk()->assertSee(ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BRAK_ZGODY_AI]);
 
         $this->assertSame(0, Recipe::query()->count());
         Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com'));
@@ -150,17 +158,57 @@ final class ZgodaPrzedTekstemZrodlaTest extends TestCase
             ->assertSessionMissing('status');
     }
 
-    public function test_skan_pdf_z_nieaktualnej_wersji_informacji_nie_wychodzi_do_modelu(): void
+    /**
+     * PDF idzie przez kolejkę (#28): zgoda jest odfiltrowana w kontrolerze
+     * (wersja informacji), jedzie w zadaniu jako flaga, a zadanie wysyła skan
+     * do modelu tylko za nią. Zgoda z nieaktualnej informacji nic nie odblokowuje
+     * — człowiek dostaje wyjaśnienie na ekranie postępu i nic nie wychodzi.
+     */
+    public function test_skan_pdf_z_nieaktualnej_albo_brakujacej_wersji_informacji_nie_wychodzi_do_modelu(): void
     {
-        Http::fake(['api.openai.com/*' => Http::response([])]);
-        $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
+        $przypadki = [
+            'stara' => [InformacjaTekstuZrodlaAi::POLE => '2000-01-01'],
+            'brak' => [],
+        ];
 
-        $this->actingAs($this->user())
-            ->post(route('recipes.import.pdf.store'), ['plik' => $pdf, 'zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => '2000-01-01'])
-            ->assertSessionHasErrors(['plik' => ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::ZGODA_AI_NIEAKTUALNA]]);
+        foreach ($przypadki as $nazwa => $wersja) {
+            Http::fake(['api.openai.com/*' => Http::response([])]);
+            $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
+            $autor = $this->user("pdf_wersja_{$nazwa}");
 
-        $this->assertSame(0, Recipe::query()->count());
-        Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com'));
+            $odpowiedz = $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf, 'zgoda_ai' => '1', ...$wersja]);
+
+            $zlecenie = ImportPrzepisu::query()->where('user_id', $autor->getKey())->firstOrFail();
+            $odpowiedz->assertRedirect(route('import.show', $zlecenie))
+                ->assertSessionHas('status', fn (string $status): bool => str_contains($status, 'Nie użyliśmy odczytu przez komputer')
+                    && str_contains($status, 'zaznacz zgodę jeszcze raz i spróbuj ponownie'));
+            $this->assertSame(ImportPrzepisu::KOD_BRAK_ZGODY, $zlecenie->kod_bledu, $nazwa);
+            $this->assertSame(0, Recipe::query()->where('author_id', $autor->getKey())->count(), $nazwa);
+            Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com'));
+        }
+    }
+
+    public function test_zgoda_pdf_jedzie_w_zadaniu_tylko_z_aktualna_wersja_informacji(): void
+    {
+        Queue::fake();
+        $przypadki = [
+            'aktualna' => [[InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA], true],
+            'stara' => [[InformacjaTekstuZrodlaAi::POLE => '2000-01-01'], false],
+            'brak' => [[], false],
+        ];
+
+        foreach ($przypadki as $nazwa => [$wersja, $oczekiwana]) {
+            $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
+
+            $autor = $this->user("pdf_flaga_{$nazwa}");
+
+            $this->actingAs($autor)
+                ->post(route('recipes.import.pdf.store'), ['plik' => $pdf, 'zgoda_ai' => '1', ...$wersja])->assertRedirect();
+
+            $zlecenie = ImportPrzepisu::query()->where('user_id', $autor->getKey())->firstOrFail();
+            Queue::assertPushed(ImportujPrzepisZPdf::class, fn (ImportujPrzepisZPdf $job): bool => $job->importId === (string) $zlecenie->getKey()
+                && $job->zgodaAi === $oczekiwana);
+        }
     }
 
     /** Fakty, bez których zgoda nie jest świadoma: odbiorca, miejsce, zakres, skutek, osobność od zdjęć. */

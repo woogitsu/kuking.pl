@@ -249,3 +249,26 @@ Usunięcie reguły `livewire-tmp-1-dzien` w panelu (albo
 `livewire-tmp/`; skasowanych nie da się odzyskać, ale to pliki tymczasowe,
 których kopia oczyszczona z GPS-u jest w `incoming/`, jeśli zdjęcie zostało
 zapisane.
+
+## 10. Pliki PDF importu przepisu — osobny prefiks (#28, etap 2)
+
+Wysłany plik PDF czeka na worker (`ImportujPrzepisZPdf`) na prywatnym dysku
+importu (`kuking.import.pdf.dysk`; domyślnie ten sam dysk co uploady Livewire,
+czyli na produkcji `r2`), pod prefiksem `import-pdf-tmp/`. To **inny** prefiks
+niż `livewire-tmp/`, więc reguła z §4 go **nie obejmuje** — i słusznie:
+o retencji tych plików decyduje przede wszystkim kod.
+
+- **Kod (pewne, testowane):** plik znika po sukcesie, po odmowie, w `failed()`,
+  przy usunięciu konta, a `kuking:odzyskaj-importy` (co kwadrans) kasuje pliki
+  zleceń w stanie końcowym, pliki starsze niż retencja
+  (`max(KUKING_IMPORT_PDF_RETENCJA_GODZIN, 3 h)`) i pliki bez wiersza. Sprzątanie
+  kasuje wyłącznie pod `import-pdf-tmp/` — nie dotyka `livewire-tmp/` ani `incoming/`.
+- **Reguła R2 (opcjonalna druga linia, krok właściciela):** ten sam bucket
+  oryginałów, druga reguła `import-pdf-tmp-1-dzien` z prefiksem
+  `import-pdf-tmp/` (z ukośnikiem, niepustym) i wygaśnięciem po 1 dniu — na
+  wypadek, gdyby worker i polecenie sprzątania nie chodziły. Te same
+  ostrzeżenia co w §4 (Bucket Lock, pusty prefiks). Bez tej reguły najdłuższy
+  czas życia pliku, gdy chodzi harmonogram, to retencja z kodu (domyślnie 4 h).
+- **Dowód** nie istnieje, dopóki nikt nie zmierzy tego na prawdziwym R2 — tak
+  samo jak w §6: „kod kasuje” to nie „bucket nie ma pliku”.
+

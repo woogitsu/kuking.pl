@@ -3779,6 +3779,22 @@ return [
             // Limit czasu pdfinfo/pdftotext — spreparowany plik nie zajmie
             // procesu na dłużej.
             'limit_czasu' => (int) env('KUKING_IMPORT_PDF_LIMIT_CZASU', 20),
+            /*
+             * PLIK TYMCZASOWY PDF (#28 etap 2, #2051). Wysłany PDF czeka na
+             * worker poza żądaniem WWW, więc leży na PRYWATNYM dysku
+             * WSPÓLNYM dla WWW i workera — nigdy w `getRealPath()` procesu
+             * WWW, bo po wydzieleniu workera to inny kontener. Domyślnie ten
+             * sam prywatny dysk co surowe uploady Livewire (na produkcji `r2`),
+             * w osobnym katalogu — NIE `livewire-tmp/`, NIE `incoming/`,
+             * NIE publiczny wariant. Plik znika po sukcesie, po trwałej
+             * porażce, przy usunięciu konta i najpóźniej po `retencja_godzin`
+             * (`kuking:odzyskaj-importy`, także osierocone pliki bez wiersza).
+             * `retencja_godzin` MUSI być dłuższe niż `odzyskiwanie.zlecenie_minut`,
+             * inaczej sprzątanie zabrałoby plik zleceniu, które jeszcze trwa.
+             */
+            'dysk' => env('KUKING_IMPORT_PDF_DYSK') ?: (env('LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK') ?: 'local'),
+            'katalog' => 'import-pdf-tmp',
+            'retencja_godzin' => (int) env('KUKING_IMPORT_PDF_RETENCJA_GODZIN', 4),
         ],
         /*
          * KOLEJKA `low`, NIE OSOBNA `import` (D-298). Produkcja chodzi dziś
