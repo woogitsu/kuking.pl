@@ -101,6 +101,7 @@ final class InwentarzDanychKonta
         'moderation_actions.moderator_id' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
         'reports.resolved_by' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
 
+        'wczytane_z_paczki.user_id' => [self::NIE_DOTYCZY, 'Znacznik techniczny „ta treść przyszła z Twojej paczki” (skrót i wskaźnik, bez treści). Sama treść — przepisy, wpisy i zeszyty — jest w paczce.'],
         'login_link_tokens.user_id' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
         'facebook_connection_proofs.user_id' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
         'first_post_events.author_id' => [self::NIE_DOTYCZY, 'Znacznik techniczny „pierwszy wpis konta”. Nie niesie nic ponad listę wpisów, która jest w paczce.'],

@@ -30,6 +30,20 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Wczytajcie z powrotem własną paczkę z danymi
+
+W „Twoich danych” jest nowy odnośnik „Wczytaj swoją paczkę”. Wybieracie plik
+ZIP, który wcześniej pobraliście z Kuking, a my najpierw pokazujemy, co w nim
+jest: ile przepisów, własnych wpisów i zeszytów można wczytać, co macie już na
+koncie, co powtarza się w samej paczce i czego wczytać się nie da — z powodem
+napisanym po ludzku. Niczego nie zapisujemy, dopóki nie zaznaczycie pozycji
+i nie klikniecie „Wczytaj zaznaczone”. Wszystko, co wczytamy, jest prywatne:
+przepisy czekają w szkicach, wpisy widzicie tylko Wy, zeszyty są „Tylko ja” —
+o publikacji zdecydujecie sami, później. Zdjęć z paczki na razie nie
+przenosimy, a konta, haseł, zgód i komentarzy innych osób nie odtwarzamy w ogóle.
+Jedno kliknięcie wczytuje najwyżej 50 pozycji, a to samo wczytanie drugi raz
+niczego nie podwoi.
+
 ## Alfa 0.76
 
 **Wyszukiwarka w Planerze, „Co mam w domu”, zapis przepisu po rejestracji, wydruk przepisu i zeszyt bez konta.**

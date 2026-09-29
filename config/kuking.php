@@ -2160,6 +2160,15 @@ return [
         'eksport' => '10,60',
 
         /*
+         * WCZYTANIE WŁASNEJ PACZKI (#1985) — wybór pliku i „Wczytaj zaznaczone”.
+         * Każde wysłanie pliku otwiera ZIP i czyta `dane.json` (do 32 MB), więc
+         * limit jest godzinny i skromny: kilka prób z różnymi plikami zmieści się
+         * człowiekowi, pętla — nie. Zapis jest dodatkowo dzielony na partie
+         * (`import_paczki.max_naraz`) i idempotentny, więc ponowienie nie szkodzi.
+         */
+        'import_paczki' => '10,60',
+
+        /*
          * PANEL MODERACJI — decyzje o zgłoszeniach, przywracanie treści,
          * odwołania, odpowiedzi na wpisy bez odpowiedzi, tablica dnia,
          * tagi promowane.
@@ -2753,6 +2762,23 @@ return [
         // wiele kont nie dostaje lawiny w jeden dzień; nadmiar przepada
         // (to informacja o dniu, a nie wiadomość do odłożenia na jutro).
         'przypomnienia_na_odbiorce_dziennie' => (int) env('KUKING_URODZINY_PRZYPOMNIENIA_NA_DOBE', 3),
+    ],
+
+    /*
+     * WCZYTYWANIE WŁASNEJ PACZKI EKSPORTU (#1985, etap 2).
+     *
+     * `max_naraz` — ile pozycji tworzy JEDNO „Wczytaj zaznaczone”. Przepis idzie
+     * przez `PublishRecipe` (slug, wersje, składniki), więc setki naraz to długie
+     * żądanie; reszta zostaje w podglądzie i wczytuje się kolejnym kliknięciem.
+     * `max_kb` — największy plik ZIP do wybrania: 24 MB, czyli `upload_max_filesize`
+     * z `docker/php.ini` (wyższa liczba byłaby obietnicą bez pokrycia; zdjęć z paczki
+     * i tak nie czytamy). `przechowanie_godzin` — jak długo wybrana paczka czeka
+     * na decyzję w prywatnym magazynie, zanim zostanie skasowana.
+     */
+    'import_paczki' => [
+        'max_naraz' => 50,
+        'max_kb' => 24_576,
+        'przechowanie_godzin' => 2,
     ],
 
     'zeszyt' => [

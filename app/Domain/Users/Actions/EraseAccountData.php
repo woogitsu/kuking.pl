@@ -8,6 +8,7 @@ use App\Domain\Compliance\DziennikWymazan;
 use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
 use App\Domain\Users\Exports\ExportFileNames;
+use App\Domain\Users\Import\MagazynPaczek;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem;
@@ -382,6 +383,17 @@ final class EraseAccountData
              */
             DB::table('proby_importu')->where('user_id', $fresh->getKey())->delete();
             DB::table('importy_przepisow')->where('user_id', $fresh->getKey())->delete();
+
+            /*
+             * ŚLADY WCZYTANIA WŁASNEJ PACZKI (#1985) I PACZKA CZEKAJĄCA NA
+             * ZATWIERDZENIE. Ślad to skrót i wskaźnik na treść (bez treści),
+             * ale też dana o osobie; klucz obcy ma `ON DELETE CASCADE`, a kont
+             * się nie kasuje (D-022) — więc jawnie, po `user_id` tego konta.
+             * Wybrany, niezatwierdzony ZIP leży w prywatnym magazynie i ma
+             * treść całego konta — po wymazaniu nie zostaje ani bajt.
+             */
+            DB::table('wczytane_z_paczki')->where('user_id', $fresh->getKey())->delete();
+            app(MagazynPaczek::class)->zapomnijWszystkie($fresh);
 
             $this->odlaczWiadomosciDoOperatora($fresh);
             $this->odlaczSygnalyProduktowe($fresh);

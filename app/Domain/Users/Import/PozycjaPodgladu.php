@@ -27,6 +27,9 @@ final readonly class PozycjaPodgladu
 
     /**
      * @param  list<string>  $uwagi  co się zmieni przy wczytaniu, np. „zostanie prywatny”
+     * @param  array<string, mixed>  $dane  ujednolicona, już sprawdzona treść do utworzenia
+     *                                      (etap 2); puste przy odrzuconej pozycji. Tylko pola,
+     *                                      które importer sam wybrał z paczki — nigdy identyfikatory.
      */
     public function __construct(
         public string $rodzaj,
@@ -35,6 +38,7 @@ final readonly class PozycjaPodgladu
         public ?string $powod,
         public array $uwagi,
         public string $odcisk,
+        public array $dane = [],
     ) {}
 
     public function mozeBycUtworzona(): bool

@@ -376,6 +376,7 @@ final class PodgladPaczkiEksportu
                 $this->stanPrzepisu($tytul, $odcisk, $wPaczce),
                 $this->uwagiPrzepisu($p),
                 $odcisk,
+                $this->danePrzepisu($p, $tytul),
             );
         }
 
@@ -575,7 +576,11 @@ final class PodgladPaczkiEksportu
                 $uwagi[] = 'Zdjęć nie wczytujemy — tekst wpisu tak.';
             }
 
-            $wynik[] = $this->pozycja('wpis', $tytul ?? mb_strimwidth((string) $tresc, 0, 80, '…'), $stan, $uwagi, $odcisk);
+            $wynik[] = $this->pozycja('wpis', $tytul ?? mb_strimwidth((string) $tresc, 0, 80, '…'), $stan, $uwagi, $odcisk, [
+                'rodzaj' => $rodzaj,
+                'tytul' => $tytul,
+                'tresc' => $tresc,
+            ]);
         }
 
         return $wynik;
@@ -639,7 +644,9 @@ final class PodgladPaczkiEksportu
                 $uwagi[] = 'W paczce był publiczny. Po wczytaniu będzie prywatny.';
             }
 
-            $wynik[] = $this->pozycja('zeszyt', $nazwa, $stan, $uwagi, $odcisk);
+            $opis = is_string($p['opis'] ?? null) && trim($p['opis']) !== '' ? trim($p['opis']) : null;
+
+            $wynik[] = $this->pozycja('zeszyt', $nazwa, $stan, $uwagi, $odcisk, ['nazwa' => $nazwa, 'opis' => $opis]);
         }
 
         return $wynik;
@@ -651,10 +658,45 @@ final class PodgladPaczkiEksportu
 
     /**
      * @param  list<string>  $uwagi
+     * @param  array<string, mixed>  $dane
      */
-    private function pozycja(string $rodzaj, string $tytul, string $stan, array $uwagi, string $odcisk): PozycjaPodgladu
+    private function pozycja(string $rodzaj, string $tytul, string $stan, array $uwagi, string $odcisk, array $dane = []): PozycjaPodgladu
     {
-        return new PozycjaPodgladu($rodzaj, $tytul, $stan, null, $uwagi, $odcisk);
+        return new PozycjaPodgladu($rodzaj, $tytul, $stan, null, $uwagi, $odcisk, $dane);
+    }
+
+    /**
+     * Treść przepisu do utworzenia — WYŁĄCZNIE pola, które podgląd sprawdził
+     * (te same granice co formularz). Ilości, jednostki, czasy, źródło i zdjęcia
+     * z paczki nie są czytane: nie ma czego przypisać komuś innemu ani pobrać z sieci.
+     *
+     * @param  array<mixed>  $p
+     * @return array<string, mixed>
+     */
+    private function danePrzepisu(array $p, string $tytul): array
+    {
+        $skladniki = [];
+
+        foreach ($p['skladniki'] ?? [] as $s) {
+            $skladnik = ['text' => $this->tekst($s['zapis'] ?? null, 1, LimityTekstuPrzepisu::POLA['ingredients.*.text'])];
+
+            foreach (['grupa' => 'group_name', 'uwaga' => 'note', 'zamienniki' => 'substitutes'] as $klucz => $pole) {
+                $wartosc = is_string($s[$klucz] ?? null) ? trim($s[$klucz]) : '';
+                $skladnik[$pole] = $wartosc === '' ? null : $wartosc;
+            }
+
+            $skladniki[] = $skladnik;
+        }
+
+        $kroki = [];
+
+        foreach ($p['kroki'] ?? [] as $krok) {
+            $kroki[] = ['instruction' => $this->tekst($krok['opis'] ?? null, 1, LimityTekstuPrzepisu::POLA['steps.*.instruction'])];
+        }
+
+        $opis = is_string($p['krotki_opis'] ?? null) && trim($p['krotki_opis']) !== '' ? trim($p['krotki_opis']) : null;
+
+        return ['tytul' => $tytul, 'opis' => $opis, 'skladniki' => $skladniki, 'kroki' => $kroki];
     }
 
     private function odrzucona(string $rodzaj, string $tytul, string $powod): PozycjaPodgladu

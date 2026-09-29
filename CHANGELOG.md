@@ -2,7 +2,7 @@
 
 ## Nieopublikowane
 
-- Pod spodem, pierwszy etap wczytywania własnej paczki z danymi (#1985), jeszcze bez przycisku na ekranie: paczka z Twoimi danymi ma w pliku „dane.json” numer wersji formatu, a serwis potrafi sprawdzić taką paczkę i powiedzieć, ile przepisów, wpisów i zeszytów w niej jest oraz co już masz na koncie — niczego przy tym nie zapisuje. Ekran wczytywania i sam zapis (zawsze jako prywatne, bez zdjęć) to następne etapy.
+- W „Twoich danych” można teraz wczytać własną paczkę z danymi, pobraną wcześniej z Kuking (#1985). Wybierasz plik ZIP, a Kuking najpierw pokazuje, co w nim jest: przepisy, własne wpisy i zeszyty do wczytania, te, które już masz na koncie albo które powtarzają się w paczce, oraz pozycje, których wczytać się nie da — z powodem po polsku i z informacją, czego nie wczytamy (zdjęć, konta, zgód, komentarzy innych osób). Niczego nie zapisujemy, dopóki nie zaznaczysz pozycji i nie klikniesz „Wczytaj zaznaczone”. Wszystko, co wczytamy, jest prywatne: przepisy trafiają do szkiców, wpisy widzisz tylko Ty, zeszyty są „Tylko ja” — o publikacji decydujesz sam, później. Jedno kliknięcie wczytuje najwyżej 50 pozycji, a to samo wczytanie drugi raz niczego nie podwaja. Wybrany plik czeka na decyzję najwyżej 2 godziny w prywatnym magazynie i znika po wczytaniu, przy wymazaniu konta, a w dzienniku zostają tylko liczby. Pod spodem: nowa tabela `wczytane_z_paczki` (odcisk treści, bez samej treści), której cofnięcie migracji odmawia, gdy są w niej wiersze (D-088). [nowa funkcja]
 
 ## Alfa 0.76 — planer z wyszukiwarką, „Co mam w domu” i zeszyt bez konta
 

@@ -70,6 +70,7 @@ use App\Http\Controllers\Settings\ProfileSettingsController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SettingsIndexController;
 use App\Http\Controllers\Settings\TwoFactorSettingsController;
+use App\Http\Controllers\Settings\WczytanieDanychController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SmakowicieController;
 use App\Http\Controllers\SocialController;
@@ -1210,6 +1211,24 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/ustawienia/twoje-dane/pobierz/{export}', [DataSettingsController::class, 'download'])
         ->middleware('signed')
         ->name('settings.data.download');
+
+    // Wczytanie WŁASNEJ paczki z danymi (#1985): wybór pliku, podgląd, zapis.
+    // Plik czeka między krokami w prywatnej poczekalni osoby (`MagazynPaczek`);
+    // `{paczka}` to losowy token, nie autoryzacja — plik szukamy w katalogu
+    // zalogowanej osoby. Limit `import_paczki` (10 na godzinę) dotyczy kroków,
+    // które czytają ZIP: wysłania pliku i zapisu.
+    Route::get('/ustawienia/twoje-dane/wczytaj', [WczytanieDanychController::class, 'wybor'])
+        ->name('settings.data.import');
+    Route::post('/ustawienia/twoje-dane/wczytaj', [WczytanieDanychController::class, 'sprawdz'])
+        ->middleware("throttle:{$limits['import_paczki']},import_paczki")
+        ->name('settings.data.import.check');
+    Route::get('/ustawienia/twoje-dane/wczytaj/{paczka}', [WczytanieDanychController::class, 'podglad'])
+        ->whereUuid('paczka')
+        ->name('settings.data.import.preview');
+    Route::post('/ustawienia/twoje-dane/wczytaj/{paczka}', [WczytanieDanychController::class, 'zapisz'])
+        ->whereUuid('paczka')
+        ->middleware("throttle:{$limits['import_paczki']},import_paczki")
+        ->name('settings.data.import.store');
 
     // Bezpieczeństwo konta (issue #12): zmiana hasła i „wyloguj mnie z innych
     // urządzeń”. Obie akcje POST/PUT proszą o hasło, więc dostają ten sam
