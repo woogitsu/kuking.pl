@@ -138,6 +138,8 @@ class OnboardingController extends Controller
 
         return view('pages.onboarding.done', [
             'name' => $request->user()->displayName(),
+            // Pytanie „Jak mamy do Ciebie pisać?” (D-332) — pole z profilu.
+            'profile' => $request->user()->profile,
         ]);
     }
 

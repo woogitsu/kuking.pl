@@ -1023,12 +1023,35 @@ jedno konto ma dokładnie jeden profil.
 - **`speciality varchar(120) NULL`** — „Na czym się znasz" („zupy i
   kiszonki"). Wolny tekst, ten sam zastrzeżony status co przy `region`:
   nie jest tagiem ani kategorią;
+- **`form_of_address varchar(10) NULL`** — „Jak mamy do Ciebie pisać?”
+  (D-332, issue #1752). `feminine`, `masculine` albo `NULL` = **forma
+  neutralna**, domyślna i pełnoprawna. To preferencja językowa, **nie płeć**:
+  nie zgadujemy jej z imienia ani nie bierzemy z Google/Facebooka. Jest
+  **widoczna dla innych** (teksty o tej osobie, np. „Ania ugotowała”), dlatego
+  stoi na `profiles`, a nie przy ustawieniach wygody na `users`. Zwykła
+  preferencja, nie pole sterujące — jest w `$fillable`, zapis wyłącznie przez
+  `FormOfAddressController` z walidacją `in:`. Eksport RODO:
+  `profil.forma_zwracania_sie` (`żeńska`/`męska`/`neutralna`);
 - `display_name_search`, `username_search`, `speciality_search` — patrz
   „Kolumny `*_search`".
 
-Wszystkie cztery pola opisowe (`display_name`, `bio`, `region`,
-`speciality`) idą do anonimizacji przy wykonaniu żądania z art. 17 RODO —
-patrz `data_erased_at` wyżej.
+```sql
+CHECK (form_of_address IS NULL OR form_of_address IN ('feminine','masculine'))  -- profiles_form_of_address_check
+```
+
+CHECK dodany jako `NOT VALID` i zwalidowany osobno (`$withinTransaction = false`,
+AGENTS.md §6) — na istniejącej tabeli `profiles` nie blokuje zapisów.
+
+**Rollback `form_of_address`** (migracja
+`2026_09_25_140000_add_form_of_address_to_profiles`, D-088): `down()`
+**odmawia**, gdy choć jeden profil ma wybraną formę — stary schemat nie ma
+gdzie jej zapisać, a cofnięcie po cichu zamieniłoby wybór człowieka na formę
+neutralną. Przy awaryjnym rollbacku wdrożenia nie cofa się tej migracji:
+stary kod kolumny nie czyta. Na bazie bez wyborów cofnięcie przechodzi.
+
+Wszystkie pola opisowe (`display_name`, `bio`, `region`, `speciality`)
+oraz `form_of_address` idą do anonimizacji przy wykonaniu żądania z art. 17
+RODO — patrz `data_erased_at` wyżej.
 
 **Nazwy zastrzeżone** (`admin`, `moderacja`, `pomoc`, `platnosci`…) są
 pilnowane w warstwie aplikacji: lista mieszka w `config/kuking.php`

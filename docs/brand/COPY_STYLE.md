@@ -130,6 +130,10 @@ Jeśli zdanie wymaga takiej formy — przepisz zdanie, nie odmieniaj słowa na s
 
 ### Forma żeńska: nie tworzymy jej
 
+> Ta reguła dotyczy **rzeczownika `kuKING`**, nie form czasownika. Jak
+> zwracamy się do osoby, która wybrała formę żeńską albo męską, mówi
+> podsekcja „Tej reguły pilnuje test…” niżej i D-332.
+
 W założeniach projektowych uwzględniamy między innymi kobiety 60+. To wybór
 persony, nie pomiar składu społeczności Kuking. Żadna żeńska forma od „kuKING" nie brzmi po polsku dobrze —
 każda próba wychodzi albo pretensjonalnie, albo śmiesznie w złym sensie.
@@ -147,6 +151,8 @@ zmieniamy konstrukcję zdania.
 
 W pozostałych tekstach zwracamy się **bezpośrednio, przez „Ty"** i unikamy
 rodzaju: „Napisz kilka słów", „Zapisz", „Pokaż, co dziś ugotowałeś".
+Wyjątek: osoba, która sama wybrała formę (D-332) — wtedy piszemy w jej formie,
+ale tylko przez helper `App\Support\Forma`.
 
 > Uwaga na formy czasowników. „ugotowałeś" w haśle głównym jest już utrwalone
 > i zostaje. W tekstach roboczych wolimy konstrukcje bez rodzaju: **„Co dziś
@@ -167,6 +173,25 @@ Granica jest jedna i prosta:
 
 > **Rodzaju wolno użyć, gdy wiemy, o kim mówimy. Nie wolno, gdy mówimy DO
 > czytelnika albo w jego imieniu.**
+
+**Od 25 września 2026 (D-332) granica ma trzy części:**
+
+1. **Do czytelnika, który nie wybrał formy** (i do każdego przed
+   zalogowaniem) — bez rodzaju, jak dotąd. To jest też forma domyślna.
+2. **Do osoby i o osobie, która w ustawieniach albo w onboardingu
+   odpowiedziała na „Jak mamy do Ciebie pisać?”** — w wybranej przez nią
+   formie: „Co dziś ugotowałaś?” do niej, „Ania ugotowała Twój rosół”
+   do innych. Forma jest widoczna dla innych i ekran wyboru to mówi.
+3. **Zawsze przez jeden helper** — `App\Support\Forma` — z trzema
+   wariantami: żeńskim, męskim i **obowiązkowym neutralnym**. Neutralny to
+   ten sam tekst, który stoi dziś (np. „Co dziś gotujesz?”, „ugotowane
+   z Twojego przepisu”). Goły tekst z rodzajem w widoku nadal jest usterką,
+   nawet jeśli „wiemy”, do kogo mówimy.
+
+Formy nie zgadujemy — ani z imienia, ani z nazwy konta, ani z Google czy
+Facebooka. Zakaz ukośników i wypisywania obu form obok siebie zostaje.
+Przycisk „Ugotowałem” u osoby z formą żeńską brzmi „Ugotowałam”; nazwą
+funkcji w dokumentach i na cudzym profilu zostaje „Ugotowałem”.
 
 Dlatego „Halina ugotowała Twój rosół" zostaje bez zmian, a „co gotowałam"
 w ustawieniach jest usterką. Poprawka polega na **przebudowaniu zdania** —
@@ -204,6 +229,9 @@ oblewa, choćby użyło tego samego czasownika.
 > czytelnik wypowiada w pierwszej osobie. Wyjątek obejmuje **dokładnie tę
 > frazę z wielkiej litery** — inne zdania z „sprawdziłem", „wkleiłem",
 > „dodałem" itp. dalej przebudowujemy bez rodzaju.
+
+Od D-332 test przepuszcza rodzaj **wyłącznie wewnątrz wywołania helpera
+formy** z trzema wariantami (#1753).
 
 ### Nie doklejaj przyimka do cudzych słów (11 września 2026)
 
@@ -456,7 +484,8 @@ Kolumna „miejsce" wskazuje realny plik albo ekran.
 
 **D-207, wzorzec wskazany przez właściciela 13 września 2026:** krótkie
 „Dzień dobry” jest stałym zwrotem grzecznościowym. Nie dobieramy powitania
-według zegara serwera ani nie zakładamy strefy czasowej lub płci odbiorcy.
+według zegara serwera ani nie zakładamy strefy czasowej lub płci odbiorcy
+(formę, którą ktoś sam wybrał, stosujemy przez helper — D-332).
 Pokazujemy nazwę z profilu bez automatycznego zgadywania wołacza; przy pustej
 nazwie nie podstawiamy „Użytkownika Kuking”. Pytanie „Co dziś gotujesz?”
 stoi w kaflu, a przyciski nazywają działania. Zastępuje to poprzednie
@@ -505,6 +534,10 @@ widzem przez blokadę. Nie obiecujemy, że jego wykonanie będzie pierwsze.
 Osobie uprawnionej pokazujemy „Dodaj swoje wykonanie”, a gościowi drogę
 do założenia konta i osobny link do logowania. Samo otwarcie tych stron
 nie dodaje wykonania.
+
+Przy formie żeńskiej (D-332) napis na przycisku i w formularzu wykonania
+brzmi „Ugotowałam”, a powiadomienie autora mówi o osobie w jej formie.
+Obie wersje idą przez helper formy; tabela wyżej podaje brzmienie domyślne.
 
 Instrukcja formularza może zapowiadać powiadomienie innego autora, który
 może czytać serwis. Przy własnym przepisie i autorze wymazanym mówi:
@@ -626,6 +659,8 @@ pisać, a tabela wyżej jest tego najlepszym przykładem.
 - [ ] Nie ma słów z listy zakazanych (`BRAND_EXTENDED.md`)?
 - [ ] Nie ma komplementu za publikację ani śladu rankingu?
 - [ ] Konstrukcja nie zakłada rodzaju tam, gdzie da się tego uniknąć?
+      A jeśli tekst ma brzmieć w formie wybranej przez osobę — idzie przez
+      helper `App\Support\Forma` z wariantem neutralnym (D-332)?
 - [ ] Zdanie nie jest dłuższe niż trzeba? (Skreśl trzy słowa. Zwykle da się.)
 - [ ] **Czy to zdanie jest prawdziwe przy kodzie, który dziś stoi w repozytorium?**
       Obietnica harmonogramu, liczby albo cudzego zachowania („jutro", „zajmie
@@ -650,7 +685,7 @@ Odrzucone świadomie:
 |---|---|
 | ~~`kuKINGujesz`~~ | **już nie obowiązuje** — 11 września 2026 właściciel dopuścił czasownik w haśle, nagłówku, digeście i zaproszeniu; dalej nie wolno go w nawigacji ani na jedynym przycisku akcji (`GLOS_MARKI.md` §1) |
 | `Mój kuKING` w nawigacji | nawigacja ma być przewidywalna, nie dowcipna |
-| forma żeńska | żadna nie brzmi po polsku dobrze |
+| forma żeńska rzeczownika `kuKING` | żadna nie brzmi po polsku dobrze (formy czasownika u osoby, która wybrała formę — D-332) |
 | dawka minimalna | „kuKINGi na dziś" to jedna z mocniejszych rzeczy w tym pomyśle, szkoda jej |
 
 **„Zostań kuKINGiem" zastępuje „Załóż konto"** tam, gdzie jest miejsce na

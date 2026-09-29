@@ -19,6 +19,7 @@ use App\Models\MealPlanEntry;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\PostReaction;
+use App\Models\Profile;
 use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
 use App\Models\User;
@@ -364,6 +365,14 @@ final class CollectUserExportData
             // issue #274 (#1750). Test: `EksportKluczeBezRodzajuTest`.
             'na_czym_sie_znam' => $profile->speciality,
             'zdjecie_profilowe' => $photos->pathFor($profile->avatar_media_id),
+            // „Jak mamy do Ciebie pisać?” (D-332, #1752). Słowem, nie kodem
+            // z bazy: `NULL` w kolumnie to wybór formy neutralnej, a nie
+            // „brak danych”, więc paczka mówi to wprost.
+            'forma_zwracania_sie' => match ($profile->form_of_address) {
+                Profile::FORM_FEMININE => 'żeńska',
+                Profile::FORM_MASCULINE => 'męska',
+                default => 'neutralna',
+            },
         ];
     }
 

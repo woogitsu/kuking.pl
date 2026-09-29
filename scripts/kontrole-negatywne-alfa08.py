@@ -671,6 +671,15 @@ PLAN_IAC_ENVIRONMENT = (
     "    # przejrzał diff `.railway/**`.\n"
     "    environment: production\n"
 )
+FORMA_MIGRACJA = "database/migrations/2026_09_25_140000_add_form_of_address_to_profiles.php"
+FORMA_WYMAZANIE = "app/Domain/Users/Actions/EraseAccountData.php"
+FORMA_TEST = "FormaZwracaniaSieTest"
+FORMA_HELPER = "app/Support/Forma.php"
+FORMA_KONIEC_ONBOARDINGU = "resources/views/pages/onboarding/done.blade.php"
+FORMA_ODKRYWANIE = "resources/views/components/pusty-stan-odkrywania.blade.php"
+FORMA_TEKSTY_TEST = "FormaTekstyTest"
+TEKSTY_BEZ_PLCI_TEST = "TekstyNiePrzypisujaPlciTest"
+
 GOOGLE_LINK_WIDOK = "resources/views/auth/google-link.blade.php"
 GOOGLE_LINK_TEST = "test_widoki_nie_przypisuja_czytelnikowi_plci"
 # Wspólna maszyna epizodu alarmu (#972). Cisza ma być kupowana WYŁĄCZNIE
@@ -1410,6 +1419,21 @@ checks = [
      lambda s: replace_once(s, "'na_czym_sie_znam' =>", "'w_czym_jestem_dobra' =>")),
     ("Eksport gubi wybór widoczności wartości odżywczych", EKSPORT_DANE, EKSPORT_WIDOCZNOSC_TEST,
      lambda s: replace_once(s, EKSPORT_WIDOCZNOSC_POLE, "")),
+    # #1752 (D-332): rollback formy zwracania się bez strażnika D-088
+    # i anonimizacja konta, która zostawia wybraną formę.
+    ("Cofnięcie formy zwracania się bez odmowy", FORMA_MIGRACJA, FORMA_TEST,
+     lambda s: replace_once(s, "        if ($zWyborem > 0) {\n", "        if (false) {\n")),
+    ("Anonimizacja zostawia formę zwracania się", FORMA_WYMAZANIE, FORMA_TEST,
+     lambda s: replace_once(s, "                    'form_of_address' => null,\n", "")),
+    # #1753 (D-332): helper ignoruje formę żeńską; wariant neutralny z rodzajem;
+    # goły rodzaj OBOK helpera w tej samej linii (wycinamy tylko argumenty).
+    ("Helper formy ignoruje formę żeńską", FORMA_HELPER, FORMA_TEKSTY_TEST,
+     lambda s: replace_once(s, "Profile::FORM_FEMININE => $zenska,", "Profile::FORM_FEMININE => $neutralna,")),
+    ("Wariant neutralny helpera z rodzajem", FORMA_KONIEC_ONBOARDINGU, FORMA_TEKSTY_TEST,
+     lambda s: replace_once(s, "'ugotowałaś', 'ugotowałeś', 'gotujesz') }} —", "'ugotowałaś', 'ugotowałeś', 'ugotowałeś') }} —")),
+    ("Goły rodzaj obok wywołania helpera", FORMA_ODKRYWANIE, TEKSTY_BEZ_PLCI_TEST,
+     lambda s: replace_once(s, "}}. Nie musi być ładne", "}} ugotowałaś. Nie musi być ładne")),
+
     # „jesteś zalogowany” wraca na ekran łączenia konta Google — wzorzec
     # `jestem_przymiotnik` w `WzorceRodzaju` ma to złapać.
     ("Rodzaj po „jesteś” na ekranie Google", GOOGLE_LINK_WIDOK, GOOGLE_LINK_TEST,

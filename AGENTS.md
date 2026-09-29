@@ -767,7 +767,8 @@ W skrócie:
 - zero emoji w tekstach interfejsu, najwyżej jeden wykrzyknik na ekran;
 - komunikat błędu ma powiedzieć, **co zrobić**;
 - unikamy konstrukcji zakładających rodzaj, gdzie da się inaczej
-  („Co dziś gotujesz?” zamiast form z „-łeś/-łaś”).
+  („Co dziś gotujesz?” zamiast form z „-łeś/-łaś”); formę, którą osoba
+  sama wybrała, stosujemy wyłącznie przez helper z wariantem neutralnym — D-332.
   **Jawne wyjątki są frazami, nie słowami**, i pilnuje ich lista `WYJATKI`
   w `tests/Support/WzorceRodzaju.php`: hasło główne („co dziś ugotowałeś”),
   nazwa przycisku „Ugotowałem” oraz etykieta pola wyboru **„Sprawdziłem
