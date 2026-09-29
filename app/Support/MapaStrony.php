@@ -87,8 +87,8 @@ final class MapaStrony
             $model::deleted(static fn () => self::uniewaznij());
         }
 
-        // `lastmod` przepisu, wpisu i profilu autora pochodzi z `updated_at`
-        // treści (#1280). Zmiana tytułu, opisu, czasów, zdjęcia czy
+        // `lastmod` wpisu i profilu autora pochodzi z `updated_at` treści,
+        // a przepisu z `tresc_zmieniona_at` (#1280). Zmiana tytułu, opisu, czasów, zdjęcia czy
         // składników nie dotyka kolumn z `KOLUMNY`, więc mapa stała ze starą
         // datą do sześciu godzin, choć strona była już inna. Wystarczy pilnować
         // samej daty — ale tylko dla treści, która JEST w mapie: edycja szkicu
@@ -96,7 +96,7 @@ final class MapaStrony
         // Przejścia do i z publicznej widoczności łapie `KOLUMNY` wyżej.
         foreach ([Recipe::class, Post::class] as $model) {
             $model::saved(static function (Model $zapisany): void {
-                if ($zapisany->wasChanged('updated_at')
+                if ($zapisany->wasChanged(['updated_at', 'tresc_zmieniona_at'])
                     && $zapisany->getAttribute('visibility') === 'public'
                     && $zapisany->getAttribute('published_at') !== null
                     && $zapisany->getAttribute('deleted_at') === null) {

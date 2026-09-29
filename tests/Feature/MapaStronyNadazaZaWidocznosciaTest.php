@@ -203,15 +203,19 @@ class MapaStronyNadazaZaWidocznosciaTest extends TestCase
         // #1280 (komentarz z 28.09): edycja tytułu zmienia publiczną stronę
         // i przesuwa `recipes.updated_at`, ale mapa stała w cache do sześciu
         // godzin z poprzednim `lastmod`. Nikt nie czyści cache ręcznie.
+        // `lastmod` przepisu to `tresc_zmieniona_at`, które ustawia
+        // `PublishRecipe` — tu robimy to ręcznie (pełną drogę sprawdza
+        // `MapaStronyLastmodPrzepisuTest`).
         $this->travelTo(Carbon::parse('2026-09-01 10:00:00'));
         $autor = $this->autor();
         $przepis = $this->przepis($autor);
+        $przepis->forceFill(['tresc_zmieniona_at' => now()])->save();
         $adresPrzepisu = route('recipes.show', $przepis->slug);
         $adresProfilu = route('profile.show', 'kucharz');
         $this->assertSame(now()->toAtomString(), $this->lastmod($adresPrzepisu));
 
         $this->travelTo(Carbon::parse('2026-09-01 12:00:00'));
-        $przepis->forceFill(['title' => 'Nowy tytuł widoczny dla gości'])->save();
+        $przepis->forceFill(['title' => 'Nowy tytuł widoczny dla gości', 'tresc_zmieniona_at' => now()])->save();
 
         $this->assertSame(now()->toAtomString(), $this->lastmod($adresPrzepisu), 'lastmod przepisu został ze starej mapy.');
         $this->assertSame(now()->toAtomString(), $this->lastmod($adresProfilu), 'lastmod profilu autora został ze starej mapy.');
