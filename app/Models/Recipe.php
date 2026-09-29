@@ -369,12 +369,13 @@ class Recipe extends Model
                         ->where(function ($widok) use ($widzId): void {
                             $widok->where('visibility', 'public')
                                 ->orWhere(function ($obs) use ($widzId): void {
+                                    // `IN (podzapytanie)`, nie skorelowane `EXISTS` — ta sama
+                                    // reguła, inny plan: patrz `docs/infra/FEED_OBSERWOWANYCH_JIT_599.md`.
                                     $obs->where('visibility', 'followers')
-                                        ->whereExists(function ($sub) use ($widzId): void {
-                                            $sub->selectRaw('1')
+                                        ->whereIn('recipes.author_id', function ($sub) use ($widzId): void {
+                                            $sub->select('follows.followed_id')
                                                 ->from('follows')
-                                                ->where('follows.follower_id', $widzId)
-                                                ->whereColumn('follows.followed_id', 'recipes.author_id');
+                                                ->where('follows.follower_id', $widzId);
                                         });
                                 });
                         });

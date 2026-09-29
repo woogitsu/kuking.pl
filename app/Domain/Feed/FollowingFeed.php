@@ -136,8 +136,13 @@ final class FollowingFeed
                 //    moderację nie prowadzi już wpisów na Start.
                 $zrodla->orWhere(fn (Builder $tematy) => $tematy
                     ->where('posts.visibility', Post::VISIBILITY_PUBLIC)
-                    ->whereHas('tags', fn ($q) => $q
-                        ->whereIn('tags.id', $tagIds)
+                    // `IN (podzapytanie)` zamiast `whereHas` (skorelowany `EXISTS`
+                    // w alternatywie planer nalicza za każdy wiersz — #599).
+                    ->whereIn('posts.id', fn ($q) => $q
+                        ->select('post_tags.post_id')
+                        ->from('post_tags')
+                        ->join('tags', 'tags.id', '=', 'post_tags.tag_id')
+                        ->whereIn('post_tags.tag_id', $tagIds)
                         ->where('tags.status', Tag::STATUS_ACTIVE))
                     // „Ukryj tę osobę" (#1810, D-278, decyzja właściciela
                     // 26.09) działa też tutaj: wpis z tagu PODSUWA autora,
@@ -175,7 +180,7 @@ final class FollowingFeed
             // tematów to jest druga, nienadmiarowa bramka: zapowiedź przepisu
             // ma na stałe `visibility = public`, a widoczność trzyma przepis.
             // Wpis z własną treścią idzie za własną widocznością (issue #1377).
-            ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer);
+            ->zWidocznymPrzepisemAlboWlasnaTresciBezKorelacji($viewer);
     }
 
     /**
