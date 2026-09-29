@@ -64,6 +64,14 @@ if os.environ.get("CI") != "true":
 PLANER_TYGODNIA = "app/Domain/Planer/PlanerTygodnia.php"
 PLANER_DODAJ = "app/Domain/Planer/Actions/DodajDoPlanu.php"
 WYMAZANIE_KONTA = "app/Domain/Users/Actions/EraseAccountData.php"
+WYMAZANIE_PURGE = "app/Console/Commands/PurgeExpiredAccountDeletions.php"
+ALARM_DZIENNIKA = "app/Domain/Monitoring/AlarmDziennikaWymazan.php"
+DZIENNIK_WYCOFANIE_TEST = "test_awaria_po_dopisaniu_wpisu_wycofuje_ten_wpis_z_dziennika"
+DZIENNIK_ISTNIEJE_TEST = "test_awaria_po_istnieje_zostawia_wpis_ktory_przezyl_odtworzenie_kopii"
+DZIENNIK_SLEEP_TEST = "test_ponawianie_zapisu_dziennika_czeka_poza_transakcja_wymazania"
+ALARM_DZIENNIKA_TEST = "test_alarm_dopiero_po_progu_kolejnych_nocy_i_dokladnie_raz"
+ALARM_DZIENNIKA_RESET_TEST = "test_przebieg_bez_porazki_dziennika_zeruje_licznik_i_daje_jedno_odwolanie"
+ALARM_DZIENNIKA_DZIEN_TEST = "test_drugi_przebieg_tego_samego_dnia_nie_nabija_licznika"
 PLANER_TEST = "PlanerTygodniaTest"
 PUSH_JOB = "app/Jobs/WyslijPowiadomieniePush.php"
 PUSH_DWA_POLACZENIA_TEST = "PowiadomieniaPushDwaPolaczeniaTest"
@@ -1503,6 +1511,25 @@ checks = [
     # Wymazanie konta zostawia prywatny plan tygodnia w bazie.
     ("Wymazanie konta nie kasuje planu tygodnia", WYMAZANIE_KONTA, PLANER_TEST,
      lambda s: replace_once(s, "            $fresh->mealPlanEntries()->delete();\n", "")),
+    # #2038: wpis dziennika dopisany PRZED nieudanym commitem wymazania musi
+    # zostać wycofany — inaczej `wymaz-ponownie` wymaże konto przed końcem karencji.
+    ("Wymazanie nie wycofuje wpisu dziennika po nieudanym commicie", WYMAZANIE_KONTA, DZIENNIK_WYCOFANIE_TEST,
+     lambda s: replace_once(s, "                if ($wpisDopisany) {", "                if (false) {")),
+    # #2038: wpis, który PRZEŻYŁ odtworzenie kopii (`ISTNIEJE`), nie jest nasz —
+    # nieudany commit ponownego wymazania nie wolno go skasować.
+    ("Wymazanie kasuje cudzy wpis dziennika (ISTNIEJE)", WYMAZANIE_KONTA, DZIENNIK_ISTNIEJE_TEST,
+     lambda s: replace_once(s, "$wpisDopisany = $wpis === DziennikWymazan::DOPISANO;", "$wpisDopisany = true;")),
+    # #2038: ponawianie zapisu dziennika czeka POZA transakcją z blokadą konta.
+    # Bez `proby: 1` `Sleep` wraca do środka transakcji.
+    ("Zapis dziennika czeka wewnątrz transakcji z blokadą konta", WYMAZANIE_KONTA, DZIENNIK_SLEEP_TEST,
+     lambda s: replace_once(s, "now(), proby: 1);", "now());")),
+    # #2038 etap 3: alarm po N nocach z porażką dziennika — licznik, reset, jedna noc na dzień.
+    ("Egzekutor nie liczy porażek dziennika wymazań", WYMAZANIE_PURGE, ALARM_DZIENNIKA_TEST,
+     lambda s: replace_once(s, "$nieudaneDziennik++;", "")),
+    ("Alarm dziennika wymazań bez zerowania licznika", ALARM_DZIENNIKA, ALARM_DZIENNIKA_RESET_TEST,
+     lambda s: replace_once(s, "$this->pamiec->forget(self::KLUCZ_LICZNIKA);", "")),
+    ("Alarm dziennika wymazań liczy każdy przebieg dnia jako noc", ALARM_DZIENNIKA, ALARM_DZIENNIKA_DZIEN_TEST,
+     lambda s: replace_once(s, "if (! is_array($zapis) || ($zapis['dzien'] ?? null) !== $dzis) {", "if (true) {")),
     # #1992: pierwszy worker zarezerwował slot i czeka na transport. Liczenie
     # wyłącznie potwierdzonych wysyłek musi zapalić test dwóch połączeń.
     ("Limit push nie liczy rezerwacji w transporcie", PUSH_JOB, PUSH_DWA_POLACZENIA_TEST,

@@ -500,6 +500,17 @@ Co zrobić po alarmie: sprawdź dostęp do dysku `r2_eksporty` (prefiks
 **Nie odtwarzaj kopii bazy, zanim magazyn wróci.** Test:
 `tests/Feature/AlarmDziennikaWymazanTest.php`.
 
+**Ponawianie zapisu i ryzyko resztkowe.** Zapis wpisu ma `PROBY` = 3 podejścia,
+ale odstępy (1 s i 3 s) egzekutor robi **między** transakcjami, nie w środku
+transakcji z blokadą konta; cofnięta transakcja jest czysta, bo pliki kasujemy
+dopiero po commicie. Zostaje jedno okno, którego kod nie zamknie: proces
+ubity (OOM, restart kontenera) **między zapisem wpisu a commitem** zostawia
+wpis w dzienniku przy koncie, które nadal czeka na koniec karencji. Wpis nie
+wymazuje niczego sam, ale `kuking:wymaz-ponownie` po odtworzeniu kopii wymazałoby
+takie konto przed terminem — przed `wymaz-ponownie` przejrzyj listę z
+`--na-sucho` i konta jeszcze w karencji (`pending_delete`, zgłoszone krócej niż
+30 dni temu) usuń z dziennika ręcznie albo pomiń.
+
 **Czego to NIE gwarantuje.** Dziennik leży w tym samym koncie Cloudflare co
 paczki eksportu; utrata magazynu (nie jego chwilowa awaria) usuwa wpisy.
 Drugi, niezależny magazyn (wariant B z issue #2038) nie jest wdrożony.

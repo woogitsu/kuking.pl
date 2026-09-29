@@ -78,7 +78,11 @@ final class DziennikWymazan
     /** Ile razy próbujemy zapisać wpis, zanim zostanie tylko linia logu. */
     public const PROBY = 3;
 
-    /** Odstępy między próbami, w sekundach (wołają to wyłącznie komendy konsoli). */
+    /**
+     * Odstępy między próbami, w sekundach. Wołają to komendy konsoli
+     * (`zapisz()`) i egzekutor wymazań, który czeka MIĘDZY transakcjami
+     * (`odczekajPoPorazce()`) — nigdy wewnątrz transakcji z blokadą konta.
+     */
     private const ODSTEPY_SEKUND = [1, 3];
 
     public function zapisz(string $userId, string $zakres, CarbonInterface $kiedy): bool
@@ -99,13 +103,25 @@ final class DziennikWymazan
         }
     }
 
-    /** Atomowo dopisuje brakujący wpis, bez możliwości zastąpienia istniejącego. */
-    public function dopiszJesliBrak(string $userId, string $zakres, CarbonInterface $kiedy): string
+    /**
+     * Atomowo dopisuje brakujący wpis, bez możliwości zastąpienia istniejącego.
+     *
+     * `$proby` pozwala wołającemu zrobić JEDNĄ próbę bez czekania: egzekutor
+     * wymazań woła to wewnątrz transakcji z blokadą konta, więc odstępy
+     * (`Sleep`) robi sam, między transakcjami (`odczekajPoPorazce()`).
+     */
+    public function dopiszJesliBrak(string $userId, string $zakres, CarbonInterface $kiedy, int $proby = self::PROBY): string
     {
-        return $this->zapiszWariant($userId, $zakres, $kiedy, true);
+        return $this->zapiszWariant($userId, $zakres, $kiedy, true, $proby);
     }
 
-    private function zapiszWariant(string $userId, string $zakres, CarbonInterface $kiedy, bool $tylkoJesliBrak): string
+    /** Odstęp po nieudanej próbie numer `$numerProby` (1, 2, …) — dla wołających, którzy ponawiają sami. */
+    public function odczekajPoPorazce(int $numerProby): void
+    {
+        Sleep::for(self::ODSTEPY_SEKUND[$numerProby - 1] ?? 3)->seconds();
+    }
+
+    private function zapiszWariant(string $userId, string $zakres, CarbonInterface $kiedy, bool $tylkoJesliBrak, int $proby = self::PROBY): string
     {
         $wymazanoAt = $kiedy->toIso8601ZuluString();
         $tresc = (string) json_encode([
@@ -115,7 +131,7 @@ final class DziennikWymazan
         ]);
         $ostatni = null;
 
-        for ($proba = 1; $proba <= self::PROBY; $proba++) {
+        for ($proba = 1; $proba <= $proby; $proba++) {
             try {
                 if ($tylkoJesliBrak) {
                     if (! $this->putJesliBrak(self::PREFIKS.$userId.'.json', $tresc)) {
@@ -129,8 +145,8 @@ final class DziennikWymazan
             } catch (Throwable $e) {
                 $ostatni = $e;
 
-                if ($proba < self::PROBY) {
-                    Sleep::for(self::ODSTEPY_SEKUND[$proba - 1] ?? 3)->seconds();
+                if ($proba < $proby) {
+                    $this->odczekajPoPorazce($proba);
                 }
             }
         }
@@ -141,7 +157,7 @@ final class DziennikWymazan
             'user_id' => $userId,
             'zakres' => $zakres,
             'wymazano_at' => $wymazanoAt,
-            'proby' => self::PROBY,
+            'proby' => $proby,
             'wyjatek' => $ostatni instanceof Throwable ? $ostatni::class : null,
         ]);
 

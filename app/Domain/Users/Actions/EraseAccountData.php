@@ -584,12 +584,16 @@ final class EraseAccountData
             // `pending_delete` i egzekutor ponawia je przy następnym przebiegu.
             // Wymazanie może się przez to opóźnić o czas awarii magazynu —
             // nie może zostać wykonane bez śladu.
-            $wpis = $this->dziennik->dopiszJesliBrak((string) $fresh->getKey(), $zakresWykonany, now());
+            $wpis = $this->dziennik->dopiszJesliBrak((string) $fresh->getKey(), $zakresWykonany, now(), proby: 1);
 
             if ($wpis === DziennikWymazan::BLAD) {
                 throw new DziennikWymazanNiedostepny('Dziennik wymazań poza bazą jest niedostępny — wymazanie cofnięte, egzekutor ponowi je przy następnym przebiegu.');
             }
 
+            // JEDNA próba, bez `Sleep`: jesteśmy w transakcji z blokadą wiersza
+            // konta, a odstępy 1 s i 3 s trzymałyby ją przez czas awarii
+            // magazynu. Ponawia pętla niżej, MIĘDZY transakcjami.
+            //
             // `ISTNIEJE` (ponowne wymazanie po odtworzeniu kopii) zostaje bez
             // zmian i nie jest naszym wpisem do wycofania.
             $wpisDopisany = $wpis === DziennikWymazan::DOPISANO;
@@ -617,17 +621,34 @@ final class EraseAccountData
             return true;
         };
 
-        try {
-            $wymazano = DB::transaction($anonimizuj);
-        } catch (Throwable $e) {
-            // Wpis powstał przed commitem. Gdyby sam commit padł, konto nie
-            // jest wymazane, a wpis twierdziłby inaczej — `wymaz-ponownie`
-            // wymazałoby je przed końcem karencji.
-            if ($wpisDopisany) {
-                $this->dziennik->usun((string) $user->getKey());
-            }
+        // Chwilowa czkawka magazynu dziennika nie ma kosztować całej nocy:
+        // cofnięta transakcja jest czysta (pliki kasujemy dopiero po commicie),
+        // więc próbujemy ją jeszcze `PROBY - 1` razy, czekając POZA transakcją.
+        for ($podejscie = 1; ; $podejscie++) {
+            $doSkasowania = [];
+            $wpisDopisany = false;
 
-            throw $e;
+            try {
+                $wymazano = DB::transaction($anonimizuj);
+
+                break;
+            } catch (Throwable $e) {
+                // Wpis powstał przed commitem. Gdyby sam commit padł, konto nie
+                // jest wymazane, a wpis twierdziłby inaczej — `wymaz-ponownie`
+                // wymazałoby je przed końcem karencji. `ISTNIEJE` (wpis, który
+                // przeżył odtworzenie kopii) NIE jest naszym wpisem i zostaje.
+                if ($wpisDopisany) {
+                    $this->dziennik->usun((string) $user->getKey());
+                }
+
+                if ($e instanceof DziennikWymazanNiedostepny && $podejscie < DziennikWymazan::PROBY) {
+                    $this->dziennik->odczekajPoPorazce($podejscie);
+
+                    continue;
+                }
+
+                throw $e;
+            }
         }
 
         // KASOWANIE PLIKU POZA TRANSAKCJĄ, I TO NIE JEST DROBIAZG.

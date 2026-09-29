@@ -6,10 +6,12 @@ namespace Tests\Feature;
 
 use App\Domain\Compliance\DziennikWymazan;
 use App\Domain\Users\Actions\EraseAccountData;
+use App\Models\AuditLogEntry;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
@@ -166,6 +168,69 @@ class DziennikWymazanPrzezOdtworzenieTest extends TestCase
         $this->assertSame(User::STATUS_ERASED, $konto->fresh()->status);
         $this->assertNotSame('basia@example.com', $konto->fresh()->email);
         $this->assertDatabaseMissing('posts', ['id' => $wpis->getKey()]);
+    }
+
+    /** Awaria PO dopisaniu wpisu, a przed commitem — audyt w tej samej transakcji rzuca. */
+    private function audytRzuca(): void
+    {
+        Event::listen('eloquent.creating: '.AuditLogEntry::class, function (): void {
+            throw new RuntimeException('audyt nie zapisał wpisu');
+        });
+    }
+
+    public function test_awaria_po_dopisaniu_wpisu_wycofuje_ten_wpis_z_dziennika(): void
+    {
+        $konto = User::factory()->create();
+        $konto->fresh()->markForDeletion(User::DELETE_SCOPE_MINIMUM);
+        $this->audytRzuca();
+
+        try {
+            app(EraseAccountData::class)->handle($konto->fresh());
+            $this->fail('Awaria audytu ma cofnąć wymazanie.');
+        } catch (RuntimeException $e) {
+            $this->assertSame('audyt nie zapisał wpisu', $e->getMessage());
+        }
+
+        // Konto nadal czeka na koniec karencji, więc wpis „wymazano” byłby
+        // nieprawdą: `wymaz-ponownie` wymazałoby je przed terminem.
+        $this->assertNull($konto->fresh()->data_erased_at);
+        $this->assertSame([], app(DziennikWymazan::class)->wpisyOd());
+    }
+
+    public function test_awaria_po_istnieje_zostawia_wpis_ktory_przezyl_odtworzenie_kopii(): void
+    {
+        $konto = User::factory()->create();
+        $konto->fresh()->markForDeletion(User::DELETE_SCOPE_MINIMUM);
+        // Wpis z poprzedniego wymazania, które przeżyło odtworzenie kopii.
+        $wpis = app(DziennikWymazan::class);
+        $this->assertSame(DziennikWymazan::DOPISANO, $wpis->dopiszJesliBrak((string) $konto->getKey(), User::DELETE_SCOPE_MINIMUM, now()->subDay()));
+        $this->audytRzuca();
+
+        try {
+            app(EraseAccountData::class)->handle($konto->fresh());
+            $this->fail('Awaria audytu ma cofnąć wymazanie.');
+        } catch (RuntimeException) {
+        }
+
+        $this->assertNull($konto->fresh()->data_erased_at);
+        $this->assertSame([(string) $konto->getKey()], array_column($wpis->wpisyOd(), 'user_id'));
+    }
+
+    public function test_ponawianie_zapisu_dziennika_czeka_poza_transakcja_wymazania(): void
+    {
+        $poziomy = [];
+        $bazowy = DB::transactionLevel();
+        Sleep::whenFakingSleep(function () use (&$poziomy): void {
+            $poziomy[] = DB::transactionLevel();
+        });
+        $this->dyskZAwaria(2);
+        [$konto] = $this->kontoZKopia(User::DELETE_SCOPE_MINIMUM);
+
+        $this->assertTrue(app(EraseAccountData::class)->handle($konto->fresh()));
+
+        // Dwie porażki magazynu = dwa odstępy, oba MIĘDZY transakcjami:
+        // `Sleep` w transakcji trzymałby blokadę wiersza konta przez awarię.
+        $this->assertSame([$bazowy, $bazowy], $poziomy);
     }
 
     public function test_usun_wycofuje_wpis_a_brak_wpisu_nie_jest_bledem(): void
