@@ -149,7 +149,7 @@ final class FollowingFeed
                     // którego widz nie wybrał. Tylko w tej gałęzi — osoby
                     // obserwowane wprost (gałąź 1.) zostają zawsze widoczne,
                     // także gdy ich wpis ma obserwowany tag.
-                    ->bezUkrytychOsob($viewer)
+                    ->bezUkrytychOsob($viewer, bezKorelacji: true)
                     ->when(! $zWlasnymi, fn (Builder $q) => $q->where('posts.author_id', '!=', $viewer->getKey())));
             })
             // BLOKADA I OBSERWOWANIE W CHWILI ZAPYTANIA (issue #2026), dla OBU
@@ -162,7 +162,7 @@ final class FollowingFeed
             // `follows` dla „tylko dla obserwujących": to samo zapytanie, które
             // zwraca treść, sprawdza aktualny stan. Bez dodatkowych zapytań.
             // Własne wpisy widza przechodzi zawsze (autor widzi swoje).
-            ->widoczneDla($viewer)
+            ->widoczneDla($viewer, bezKorelacji: true)
             // Wąski próg (`status = active`), nie `jestDostepnyJakoAutor()`,
             // dla OBU gałęzi. Do #1808 stał tu komentarz o luce, przez którą
             // wpis zbanowanego autora stał w feedzie każdego, kto tę osobę

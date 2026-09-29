@@ -331,7 +331,7 @@ class Recipe extends Model
      *
      * @param  Builder<Recipe>  $query
      */
-    public function scopeWidoczneDla(Builder $query, ?User $widz): void
+    public function scopeWidoczneDla(Builder $query, ?User $widz, bool $bezKorelacji = false): void
     {
         if ($widz === null) {
             $query->published()->where('visibility', 'public');
@@ -362,21 +362,28 @@ class Recipe extends Model
         // znikają" (AGENTS.md, UX 50+). Gdyby filtr publikacji obowiązywał
         // wszystkich, ta naprawa prywatności zabrałaby ludziom dostęp do
         // własnych, niedokończonych przepisów.
-        $query->where(function ($w) use ($widzId): void {
+        $query->where(function ($w) use ($widzId, $bezKorelacji): void {
             $w->where('recipes.author_id', $widzId)
-                ->orWhere(function ($cudze) use ($widzId): void {
+                ->orWhere(function ($cudze) use ($widzId, $bezKorelacji): void {
                     $cudze->published()
-                        ->where(function ($widok) use ($widzId): void {
+                        ->where(function ($widok) use ($widzId, $bezKorelacji): void {
                             $widok->where('visibility', 'public')
-                                ->orWhere(function ($obs) use ($widzId): void {
-                                    // `IN (podzapytanie)`, nie skorelowane `EXISTS` — ta sama
-                                    // reguła, inny plan: patrz `docs/infra/FEED_OBSERWOWANYCH_JIT_599.md`.
+                                ->orWhere(function ($obs) use ($widzId, $bezKorelacji): void {
                                     $obs->where('visibility', 'followers')
-                                        ->whereIn('recipes.author_id', function ($sub) use ($widzId): void {
-                                            $sub->select('follows.followed_id')
-                                                ->from('follows')
-                                                ->where('follows.follower_id', $widzId);
-                                        });
+                                        ->when(
+                                            $bezKorelacji,
+                                            fn ($q) => $q->whereIn('recipes.author_id', function ($sub) use ($widzId): void {
+                                                $sub->select('follows.followed_id')
+                                                    ->from('follows')
+                                                    ->where('follows.follower_id', $widzId);
+                                            }),
+                                            fn ($q) => $q->whereExists(function ($sub) use ($widzId): void {
+                                                $sub->selectRaw('1')
+                                                    ->from('follows')
+                                                    ->where('follows.follower_id', $widzId)
+                                                    ->whereColumn('follows.followed_id', 'recipes.author_id');
+                                            }),
+                                        );
                                 });
                         });
                 });

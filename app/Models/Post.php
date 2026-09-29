@@ -456,23 +456,33 @@ class Post extends Model
      *
      * @param  Builder<Post>  $query
      */
-    public function scopeBezUkrytychOsob(Builder $query, ?User $widz): void
+    public function scopeBezUkrytychOsob(Builder $query, ?User $widz, bool $bezKorelacji = false): void
     {
         if ($widz === null) {
             return;
         }
 
-        // `NOT IN (podzapytanie)` z jawnym `IS NOT NULL`, nie skorelowane
-        // `NOT EXISTS`: ta sama reguła, ale w alternatywie (gałąź tagów Startu)
-        // planer nalicza skorelowane podzapytanie za każdy wiersz `posts`
-        // (docs/infra/FEED_OBSERWOWANYCH_JIT_599.md). `IS NOT NULL` jest
-        // obowiązkowe: wiersze „ukryty wpis" mają `hidden_user_id = NULL`,
-        // a jedno `NULL` na liście `NOT IN` kasuje wszystkie wyniki.
-        $query->whereNotIn('posts.author_id', fn ($sub) => $sub->select('hides.hidden_user_id')
+        $aktywne = fn ($q) => $q->whereNull('hides.hidden_until')->orWhere('hides.hidden_until', '>', now());
+
+        if ($bezKorelacji) {
+            // `NOT IN (podzapytanie)` z jawnym `IS NOT NULL`: wiersze „ukryty
+            // wpis" mają `hidden_user_id = NULL`, a jedno `NULL` na liście
+            // `NOT IN` odrzuca wszystkie wyniki. Powód formy: patrz
+            // `scopeWidoczneDla()` i docs/infra/FEED_OBSERWOWANYCH_JIT_599.md.
+            $query->whereNotIn('posts.author_id', fn ($sub) => $sub->select('hides.hidden_user_id')
+                ->from('hides')
+                ->where('hides.user_id', $widz->getKey())
+                ->whereNotNull('hides.hidden_user_id')
+                ->where($aktywne));
+
+            return;
+        }
+
+        $query->whereNotExists(fn ($sub) => $sub->selectRaw('1')
             ->from('hides')
             ->where('hides.user_id', $widz->getKey())
-            ->whereNotNull('hides.hidden_user_id')
-            ->where(fn ($q) => $q->whereNull('hides.hidden_until')->orWhere('hides.hidden_until', '>', now())));
+            ->whereColumn('hides.hidden_user_id', 'posts.author_id')
+            ->where($aktywne));
     }
 
     /**
@@ -606,7 +616,7 @@ class Post extends Model
                 ->orWhereIn('posts.recipe_id', Recipe::query()
                     ->select('recipes.id')
                     ->published()
-                    ->widoczneDla($widz));
+                    ->widoczneDla($widz, bezKorelacji: true));
         });
     }
 
@@ -691,9 +701,20 @@ class Post extends Model
      * dotyczą różnych tabel i kolumn — połączenie ich wymagałoby warstwy
      * abstrakcji droższej niż problem, który rozwiązuje.
      *
+     *
+     * `$bezKorelacji = true` zapisuje sprawdzenie obserwowania jako
+     * `IN (podzapytanie)` zamiast skorelowanego `EXISTS` — ta sama reguła,
+     * inny plan. W alternatywie (`OR`) planer nalicza skorelowane
+     * podzapytanie za każdy wiersz `posts`; `IN` bez korelacji raz. Włącza to
+     * tylko feed obserwowanych, gdzie kandydatów są tysiące
+     * (docs/infra/FEED_OBSERWOWANYCH_JIT_599.md). Domyślnie zostaje `EXISTS`:
+     * dla małych partii kandydatów (zeszyt, szyna, profil) jest tańszy —
+     * `SzynaOstatnioZapisanychKosztTest` pilnuje, że nie wolno tego zmienić
+     * globalnie.
+     *
      * @param  Builder<Post>  $query
      */
-    public function scopeWidoczneDla(Builder $query, ?User $widz): void
+    public function scopeWidoczneDla(Builder $query, ?User $widz, bool $bezKorelacji = false): void
     {
         $query->enabledKinds();
 
@@ -720,21 +741,28 @@ class Post extends Model
 
         // Własne wpisy widz widzi zawsze — także prywatne. „Poprawne dane
         // nigdy nie znikają": własne archiwum ma być dostępne dla autora.
-        $query->where(function ($w) use ($widzId): void {
+        $query->where(function ($w) use ($widzId, $bezKorelacji): void {
             $w->where('posts.author_id', $widzId)
-                ->orWhere(function ($cudze) use ($widzId): void {
+                ->orWhere(function ($cudze) use ($widzId, $bezKorelacji): void {
                     $cudze->published()
-                        ->where(function ($widok) use ($widzId): void {
+                        ->where(function ($widok) use ($widzId, $bezKorelacji): void {
                             $widok->where('visibility', self::VISIBILITY_PUBLIC)
-                                ->orWhere(function ($obs) use ($widzId): void {
-                                    // `IN (podzapytanie)`, nie skorelowane `EXISTS` — ta sama
-                                    // reguła, inny plan: patrz `docs/infra/FEED_OBSERWOWANYCH_JIT_599.md`.
+                                ->orWhere(function ($obs) use ($widzId, $bezKorelacji): void {
                                     $obs->where('visibility', self::VISIBILITY_FOLLOWERS)
-                                        ->whereIn('posts.author_id', function ($sub) use ($widzId): void {
-                                            $sub->select('follows.followed_id')
-                                                ->from('follows')
-                                                ->where('follows.follower_id', $widzId);
-                                        });
+                                        ->when(
+                                            $bezKorelacji,
+                                            fn ($q) => $q->whereIn('posts.author_id', function ($sub) use ($widzId): void {
+                                                $sub->select('follows.followed_id')
+                                                    ->from('follows')
+                                                    ->where('follows.follower_id', $widzId);
+                                            }),
+                                            fn ($q) => $q->whereExists(function ($sub) use ($widzId): void {
+                                                $sub->selectRaw('1')
+                                                    ->from('follows')
+                                                    ->where('follows.follower_id', $widzId)
+                                                    ->whereColumn('follows.followed_id', 'posts.author_id');
+                                            }),
+                                        );
                                 });
                         });
                 });
