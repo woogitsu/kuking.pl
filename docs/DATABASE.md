@@ -1421,6 +1421,12 @@ przedłuża wiersz. Indeksy na `post_id` i `hidden_user_id` pod kaskadę
 oraz na `user_id` pod listę widza, eksport i wymazanie konta (indeksy
 częściowe `WHERE … IS NOT NULL` tego zapytania nie obsłużą).
 
+**Retencja (polityka prywatności, wiersz „Ukrywanie wpisów i osób”, #1816).**
+Wiersz po `hidden_until` nic nie ukrywa, ale **żadne zadanie go nie czyści** —
+zostaje do „Przywróć” (tylko przy aktywnym ukryciu — lista pokazuje wyłącznie
+aktywne) albo do wymazania konta. Polityka mówi to wprost; sprzątanie wygasłych
+wierszy wymagałoby decyzji właściciela i osobnej komendy.
+
 **Kaskada działa tylko przy twardym usunięciu.** Konta się anonimizuje
 (D-022), więc ukrycia wymazywanego konta (`user_id`) kasuje jawnie
 `EraseAccountData` — przy każdym `delete_scope`. Wpisy mają soft delete:
