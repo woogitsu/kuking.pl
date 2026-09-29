@@ -2879,20 +2879,19 @@ return [
          * DROBNA i jako drobna wyszła w Alfa 0.76 (obowiązuje od 29.09.2026,
          * tak mówi CHANGELOG) — nie wolno jej teraz „cofnąć” do 2026-09-25.
          *
-         * Wersja 2026-09-30 (#1751: forma zwracania się, D-332) jest ISTOTNA —
-         * decyzja właściciela z 29.09.2026 (D-333: „nowa wersja i pasek”).
-         * Dochodzi nowa dana widoczna dla innych („Jak mamy do Ciebie
-         * pisać?”), więc nowa wersja obowiązuje 14 dni po publikacji
-         * (14.10.2026), a do tego dnia obowiązuje `poprzednia` (2026-09-29,
-         * ta już opublikowana). Data wersji to dzień PUBLIKACJI na produkcji:
-         * jeśli wdrożenie wypadnie później niż 30.09.2026, podbij ją (i nagłówek,
-         * i „Co się zmieniło”) na faktyczny dzień, inaczej 14 dni liczyłoby się
-         * od dnia, w którym tekstu jeszcze nie było. Pasek o zmianie:
-         * `components.pasek-zmiany-polityki` (`ZmianaPolityki`). Do dnia wejścia
-         * w życie wybór formy jest ukryty (`Forma::wyborDostepny()`).
+         * Wersja 2026-09-30 (#1751: forma zwracania się, D-332) jest DROBNA —
+         * decyzja właściciela z 29.09.2026 (wieczór): serwis nie ma jeszcze
+         * prawdziwych użytkowników ani kont, więc nikt nie zna poprzedniej
+         * wersji i nie ma kogo uprzedzać. Obowiązuje od dnia publikacji, bez
+         * okresu przejściowego i bez paska (`ZmianaPolityki` pokazuje pasek
+         * tylko przy zmianie istotnej), a wybór formy jest widoczny od razu
+         * (`Forma::wyborDostepny()`). Data 2026-09-30, nie 2026-09-29, bo
+         * wersja 2026-09-29 już jest na produkcji (Alfa 0.76). Wcześniejszy
+         * plan (istotna, 14 dni, pasek) opisuje D-332 jako historię; mechanizm
+         * paska zostaje na przyszłe zmiany istotne.
          */
         'zmiana_polityki' => [
-            'istotna' => true,
+            'istotna' => false,
             'poprzednia' => '2026-09-29',
             'obowiazuje_od' => null,
         ],
