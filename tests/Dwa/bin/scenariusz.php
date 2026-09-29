@@ -42,6 +42,7 @@ use App\Domain\Moderation\NowaDecyzja;
 use App\Domain\Pantry\CoMamWDomu;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Recipes\Actions\PublishRecipe;
+use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Tags\Actions\MergeTags;
@@ -67,6 +68,7 @@ use App\Models\Recipe;
 use App\Models\Report;
 use App\Models\Tag;
 use App\Models\User;
+use Illuminate\Cache\Events\WritingKey;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Events\QueryExecuted;
@@ -76,6 +78,7 @@ use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
@@ -856,6 +859,24 @@ try {
             $argumenty['commit'],
             $argumenty['etykieta'],
         ),
+
+        // Import wartości odżywczych (#2130) na prawdziwej klasie. `bariera`
+        // zatrzymuje uczestnika tuż PRZED zapisem znacznika (zdarzenie
+        // `WritingKey` z magazynu cache): czeka na blokadę doradczą trzymaną
+        // przez test i zaraz ją oddaje. Przyrząd nie zmienia kodu importu —
+        // tylko wybiera moment, w którym uczestnik staje.
+        'importuj-odzywcze' => (static function () use ($argumenty): array {
+            if (($argumenty['bariera'] ?? '') === '1') {
+                Event::listen(WritingKey::class, static function (WritingKey $zdarzenie): void {
+                    if ($zdarzenie->key === 'odzywcze:import:hash-plikow') {
+                        DB::select('SELECT pg_advisory_lock(2130, 1)');
+                        DB::select('SELECT pg_advisory_unlock(2130, 1)');
+                    }
+                });
+            }
+
+            return app(ImportujWartosciOdzywcze::class)->handle($argumenty['katalog']);
+        })(),
 
         // Prawdziwa komenda używana przez obie ścieżki wdrożenia (#2082).
         'migruj-pod-blokada' => Artisan::call('kuking:migruj-pod-blokada'),
