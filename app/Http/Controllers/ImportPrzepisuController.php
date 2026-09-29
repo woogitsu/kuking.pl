@@ -11,8 +11,8 @@ use App\Domain\Import\KlientLuna;
 use App\Domain\Import\LimitImportowOsoby;
 use App\Domain\Import\LimitImportu;
 use App\Domain\Import\Pdf\OdczytajPrzepisZPdf;
-use App\Domain\Import\Url\OdczytajPrzepisZAdresu;
-use App\Domain\Import\Url\PobieraczStron;
+use App\Domain\Import\Url\StraznikAdresow;
+use App\Domain\Import\Url\ZlecImportZAdresu;
 use App\Domain\Import\ZlecImportPrzepisu;
 use App\Domain\Zgody\InformacjaTekstuZrodlaAi;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
@@ -39,18 +39,6 @@ use Illuminate\View\View;
  */
 final class ImportPrzepisuController extends Controller
 {
-    /** Safe URL failures can still produce a private source-only draft. */
-    private const KODY_SZKICU_BEZ_TRESCI = [ImportOdrzucony::ROBOTS_ZABRANIA, ImportOdrzucony::BRAK_PRZEPISU];
-
-    /**
-     * Strona bez danych przepisu i bez ważnej zgody kończy się szkicem samego
-     * źródła (model nie dostaje tekstu). Kto zaznaczył pole przy nieaktualnej
-     * informacji, dowiaduje się, dlaczego zaznaczenie nie zadziałało (#2031).
-     */
-    private const DOPISEK_NIEAKTUALNEJ_ZGODY = ' Zaznaczona zgoda na odczyt przez komputer nie zadziałała, bo informacja przy niej '
-        .'zmieniła się od otwarcia formularza — nic nie wysłaliśmy. Otwórz „Przepis ze strony '
-        .'internetowej” jeszcze raz, przeczytaj informację i zaznacz zgodę.';
-
     public function __construct(
         private readonly LimitImportu $limit,
         private readonly ZapiszSzkicZImportu $zapiszSzkic,
@@ -63,7 +51,13 @@ final class ImportPrzepisuController extends Controller
         return view('pages.recipes.import-adres', ['kluczWyslania' => (string) Str::uuid7()]);
     }
 
-    public function adres(Request $request, OdczytajPrzepisZAdresu $odczyt): RedirectResponse
+    /**
+     * Wysłanie adresu tylko ZLECA import (#28): szybka kontrola składni bez
+     * sieci, zapis zlecenia i zadania w kolejce, przekierowanie na ekran
+     * postępu. Strona, robots.txt, DNS i model są w zadaniu
+     * `ImportujPrzepisZAdresu` — żądanie WWW nie czeka na cudzy serwer.
+     */
+    public function adres(Request $request, StraznikAdresow $straznik, ZlecImportZAdresu $zlec): RedirectResponse
     {
         abort_unless((bool) config('kuking.import.url.wlaczony'), 404);
 
@@ -76,66 +70,18 @@ final class ImportPrzepisuController extends Controller
         ]);
 
         $adres = trim($dane['adres']);
-        [$zgodaAi, $zgodaNieaktualna] = $this->zgodaNaWyslanieZrodla($request);
-
-        $proba = null;
-        try {
-            $proba = $this->limit->zuzyj($request->user(), 'url', $this->kluczImportu($request));
-            if ($proba['istnieje']) {
-                return $this->powtorzonyImport($proba, 'adres');
-            }
-            $strona = $odczyt->handle($adres, $request->user(), $zgodaAi, $proba['id']);
-        } catch (ImportOdrzucony $e) {
-            if (! in_array($e->kod, self::KODY_SZKICU_BEZ_TRESCI, true)) {
-                if ($proba !== null) {
-                    $this->limit->zakoncz($proba['id'], false);
-                }
-
-                return back()->withInput()->withErrors(['adres' => $this->komunikatZgody($e, $zgodaNieaktualna)]);
-            }
-
-            $recipe = $this->zapiszSzkic->handle(
-                autor: $request->user(),
-                zrodlo: PrzepisZImportu::ZRODLO_URL,
-                droga: 'bez_tresci',
-                przepis: null,
-                sourceUrl: PobieraczStron::bezSledzenia($adres),
-                tytulZastepczy: 'Przepis ze strony '.(string) parse_url($adres, PHP_URL_HOST),
-            );
-
-            $this->limit->zakoncz($proba['id'], true, (string) $recipe->getKey());
-
-            $this->slad('url', 'bez_tresci', $e->kod);
-
-            return redirect()->route('recipes.create', ['szkic' => $recipe->getKey()])
-                ->with(Komunikat::blad($e->getMessage().($zgodaNieaktualna && $e->kod === ImportOdrzucony::BRAK_PRZEPISU ? self::DOPISEK_NIEAKTUALNEJ_ZGODY : '')));
-        } catch (\Throwable $e) {
-            if ($proba !== null) {
-                $this->limit->zakoncz($proba['id'], false);
-            }
-            throw $e;
-        }
+        [$zgodaAi] = $this->zgodaNaWyslanieZrodla($request);
 
         try {
-            $recipe = $this->zapiszSzkic->handle(
-                autor: $request->user(),
-                zrodlo: PrzepisZImportu::ZRODLO_URL,
-                droga: $strona->droga,
-                przepis: $strona->przepis,
-                sourceUrl: $strona->url,
-            );
-        } catch (\Throwable $e) {
-            $this->limit->zakoncz($proba['id'], false);
-            throw $e;
+            $straznik->sprawdzBezSieci($adres);
+
+            $zlecenie = $zlec->handle($request->user(), $adres, $zgodaAi, $this->kluczImportu($request));
+        } catch (BladDlaCzlowieka $e) {
+            // `ImportOdrzucony` też: zły adres, limit osoby, powtórzona próba.
+            return back()->withInput()->withErrors(['adres' => $e->getMessage()]);
         }
 
-        $this->limit->zakoncz($proba['id'], true, (string) $recipe->getKey());
-
-        $this->slad('url', $strona->droga, null);
-
-        return redirect()->route('recipes.create', ['szkic' => $recipe->getKey()])
-            ->with(Komunikat::sukces('Szkic gotowy — widzisz go tylko Ty. Ten tekst odczytał komputer: porównaj go ze stroną '
-                .'i popraw, co trzeba. Opis przygotowania napisz własnymi słowami, zanim opublikujesz.'));
+        return redirect()->route('import.show', $zlecenie);
     }
 
     public function pdfForm(): View
@@ -284,7 +230,7 @@ final class ImportPrzepisuController extends Controller
         $dane = ['import' => $import, 'szkic' => $import->recipe];
 
         if ($request->boolean('fragment')) {
-            return response()->view('pages.import.partials.postep', $dane)
+            return response()->view($import->zAdresu() ? 'pages.import.partials.postep-adres' : 'pages.import.partials.postep', $dane)
                 ->header('Cache-Control', 'no-store');
         }
 
