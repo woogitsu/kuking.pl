@@ -20905,6 +20905,10 @@ punktu sprawdź w podanym issue. Numery wpis w dzienniku dla #2130 (#2130), D-33
 | Lista „V2, ale nie teraz” | Odblokowane #1997, #2000, #1996, #2024, #2016 (D-331); reszta zostaje | #1997, #2000, #1996, #2024, #2016 |
 | Ścieżki w `DECISIONS.md` | Akceptacja poprawki ścieżek `DziennyBudzetListow` (`8dff9f624`) | #2149 |
 | Kontrola ujemna eksportu | Kryteria #1687 przyjęte bez ręcznej kontroli ujemnej | #1687 |
+| Pytania do prawnika o zmianę polityki (#1751: dostępność poprzedniej wersji w okresie przejściowym, pasek bez akceptacji, podstawa „wykonanie umowy” dla formy widocznej dla innych) | **Nie wymagają działania teraz.** Serwis nie ma jeszcze prawdziwych użytkowników ani kont, więc nikt nie widział ani starej, ani nowej wersji polityki. Nie pytać ponownie przed pierwszymi prawdziwymi użytkownikami; ogólna weryfikacja dokumentów przez prawnika zostaje w #8 | #1751, #8 |
+| Podział dziennika decyzji i skryptu kontroli ujemnych | Tak, od nowa po paczce H, w oknie bez otwartych PR-ów (stare PR-y #1744 i #1478 nie do scalenia) | #1744, #1478 |
+| Strażnik martwych reguł CSS (D-223) w CI | Tak, najpierw nieblokująco | #960 |
+| Bezpiecznik baz testowych | Tak: testy odmawiają startu na bazie spoza rodziny testowej | #966 |
 | Zbędne gałęzie | Kasować po sprawdzeniu, że są scalone. Sesja nie ma prawa kasowania (403), więc kasuje właściciel; lista w `docs/flota/sesja-koordynatora-2909-b/HANDOVER.md` | — |
 
 ### Wycofanie
