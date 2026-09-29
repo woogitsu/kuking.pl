@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Analytics;
 
-use App\Domain\Compliance\UsuwanieWPartiach;
 use App\Models\ProductSignal;
+use App\Support\UsuwanieWPartiach;
 
 /**
  * Retencja `product_signals` (issue #115): 90 dni, konfigurowalne przez

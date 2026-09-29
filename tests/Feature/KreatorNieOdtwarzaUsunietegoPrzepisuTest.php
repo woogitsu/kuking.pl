@@ -33,7 +33,7 @@ class KreatorNieOdtwarzaUsunietegoPrzepisuTest extends TestCase
         $posts = Post::count();
 
         if ($action === 'autosave') {
-            $component->set('summary', 'Tekst wpisany po usunięciu.');
+            $component->set('form.summary', 'Tekst wpisany po usunięciu.');
         } else {
             $component->call($action);
         }
@@ -45,16 +45,16 @@ class KreatorNieOdtwarzaUsunietegoPrzepisuTest extends TestCase
             ->assertSet('saveState', 'error')
             ->assertSee('Skopiuj wpisany tekst');
         if ($action === 'autosave') {
-            $component->assertSet('summary', 'Tekst wpisany po usunięciu.');
+            $component->assertSet('form.summary', 'Tekst wpisany po usunięciu.');
         }
     }
 
     public function test_nowy_szkic_i_edycja_istniejacego_nadal_zapisuja(): void
     {
         $component = Livewire::actingAs($this->user())->test('recipe-wizard')
-            ->set('title', 'Zupa na poniedziałek')->assertSet('saveState', 'saved');
+            ->set('form.title', 'Zupa na poniedziałek')->assertSet('saveState', 'saved');
         $id = $component->get('recipeId');
-        $component->set('summary', 'Ze świeżym koperkiem.')->assertSet('recipeId', $id);
+        $component->set('form.summary', 'Ze świeżym koperkiem.')->assertSet('recipeId', $id);
         $this->assertSame(1, Recipe::count());
         $this->assertSame('Ze świeżym koperkiem.', Recipe::findOrFail($id)->summary);
     }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Domain\Compliance\DziennikWymazanNiedostepny;
+use App\Domain\Monitoring\AlarmDziennikaWymazan;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Models\User;
 use Illuminate\Console\Command;
@@ -139,6 +141,11 @@ class PurgeExpiredAccountDeletions extends Command
         $ileDoPonowienia = $doPonowienia()->count();
 
         if ($ileDoWykonania === 0 && $ileDoPonowienia === 0) {
+            // Pusta kolejka to przebieg bez porażki dziennika: zeruje licznik nocy.
+            if (! $dryRun) {
+                app(AlarmDziennikaWymazan::class)->zapiszPrzebieg(0, 0);
+            }
+
             $this->info('Nie ma kont, którym minęła karencja na usunięcie.');
 
             return self::SUCCESS;
@@ -147,6 +154,8 @@ class PurgeExpiredAccountDeletions extends Command
         $usuniete = 0;
         $dokonczone = 0;
         $nieudane = 0;
+        // Konta cofnięte, bo dziennik wymazań poza bazą nie przyjął wpisu (#2038).
+        $nieudaneDziennik = 0;
 
         /** @var array<string, true> $obsluzoneTeraz */
         $obsluzoneTeraz = [];
@@ -168,7 +177,7 @@ class PurgeExpiredAccountDeletions extends Command
             // konto zostaje nietknięte albo w pełni zanonimizowane.
             if (! $this->bezpiecznie($user, function () use ($user, &$usuniete): void {
                 $this->wymazKonto($user, $usuniete);
-            })) {
+            }, $nieudaneDziennik)) {
                 $nieudane++;
             }
         }
@@ -249,6 +258,9 @@ class PurgeExpiredAccountDeletions extends Command
 
         Log::info('Wymazywanie kont po karencji: podsumowanie przebiegu', $podsumowanie);
 
+        // Alarm po N kolejnych nocach z porażką dziennika (#2038, etap 3).
+        app(AlarmDziennikaWymazan::class)->zapiszPrzebieg($nieudaneDziennik, $zostaloDoWykonania);
+
         if ($zostaloDoWykonania + $zostaloDoPonowienia > 0) {
             $this->warn('Zostaje na następny przebieg: kont do wymazania '.$zostaloDoWykonania
                 .', kont z nieskasowanymi zdjęciami '.$zostaloDoPonowienia
@@ -295,14 +307,19 @@ class PurgeExpiredAccountDeletions extends Command
      * wartości parametrów zapytania, czyli potencjalnie dane osobowe.
      *
      * @param  \Closure(): void  $praca
+     * @param  int  $nieudaneDziennik  licznik porażek z powodu dziennika wymazań
      */
-    private function bezpiecznie(User $user, \Closure $praca): bool
+    private function bezpiecznie(User $user, \Closure $praca, int &$nieudaneDziennik = 0): bool
     {
         try {
             $praca();
 
             return true;
         } catch (\Throwable $e) {
+            if ($e instanceof DziennikWymazanNiedostepny) {
+                $nieudaneDziennik++;
+            }
+
             $this->error("Nie udało się obsłużyć konta {$user->getKey()} — spróbuję przy następnym przebiegu.");
 
             Log::error('Wymazywanie kont po karencji: nieudana próba dla konta', [

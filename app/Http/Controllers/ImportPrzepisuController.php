@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Domain\Import\Actions\ZapiszSzkicZImportu;
 use App\Domain\Import\BudzetAi;
-use App\Domain\Import\ImportOdrzucony;
 use App\Domain\Import\KlientLuna;
 use App\Domain\Import\LimitImportowOsoby;
-use App\Domain\Import\LimitImportu;
-use App\Domain\Import\Pdf\OdczytajPrzepisZPdf;
+use App\Domain\Import\Pdf\ZlecImportZPdf;
 use App\Domain\Import\Url\StraznikAdresow;
 use App\Domain\Import\Url\ZlecImportZAdresu;
 use App\Domain\Import\ZlecImportPrzepisu;
@@ -18,7 +15,6 @@ use App\Domain\Zgody\InformacjaTekstuZrodlaAi;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\ImportPrzepisu;
-use App\Models\PrzepisZImportu;
 use App\Rules\ObslugiwaneZdjecie;
 use App\Support\Komunikat;
 use App\Support\LimityZdjec;
@@ -26,7 +22,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -39,15 +34,9 @@ use Illuminate\View\View;
  */
 final class ImportPrzepisuController extends Controller
 {
-    /** Kto zaznaczył zgodę przy nieaktualnej informacji, dowiaduje się, dlaczego zaznaczenie nie zadziałało (#2031). */
-    private const KOMUNIKAT_NIEAKTUALNEJ_ZGODY = 'Zaznaczona zgoda na odczyt przez komputer nie zadziałała, bo informacja przy niej '
-        .'zmieniła się od otwarcia formularza — nic nie wysłaliśmy. Jeśli strona nie ma danych przepisu, otwórz '
-        .'„Przepis ze strony internetowej” jeszcze raz, przeczytaj informację i zaznacz zgodę.';
-
-    public function __construct(
-        private readonly LimitImportu $limit,
-        private readonly ZapiszSzkicZImportu $zapiszSzkic,
-    ) {}
+    /** Kto zaznaczył zgodę przy nieaktualnej informacji, dowiaduje się, że AI nie zadziałało, i co zrobić (#2031). */
+    private const KOMUNIKAT_NIEAKTUALNEJ_ZGODY = 'Nie użyliśmy odczytu przez komputer (AI), bo informacja przy zgodzie się zmieniła. '
+        .'Jeśli przepis wyjdzie pusty, przeczytaj tę informację, zaznacz zgodę jeszcze raz i spróbuj ponownie.';
 
     public function adresForm(): View
     {
@@ -106,7 +95,14 @@ final class ImportPrzepisuController extends Controller
         ]);
     }
 
-    public function pdf(Request $request, OdczytajPrzepisZPdf $odczyt): RedirectResponse
+    /**
+     * Wysłanie pliku PDF tylko ZLECA import (#28, etap 2): szybka kontrola
+     * rozmiaru i sygnatury bez narzędzi, zapis pliku na prywatny dysk importu,
+     * zlecenia i zadania w kolejce, przekierowanie na ekran postępu.
+     * `pdfinfo`, `pdftotext`, `pdftoppm` i model są w zadaniu
+     * `ImportujPrzepisZPdf` — żądanie WWW nie czeka na Popplera ani na OpenAI.
+     */
+    public function pdf(Request $request, ZlecImportZPdf $zlec): RedirectResponse
     {
         abort_unless((bool) config('kuking.import.pdf.wlaczony'), 404);
 
@@ -128,45 +124,20 @@ final class ImportPrzepisuController extends Controller
         $plik = $request->file('plik');
         [$zgodaAi, $zgodaNieaktualna] = $this->zgodaNaWyslanieZrodla($request);
 
-        $proba = null;
         try {
-            $proba = $this->limit->zuzyj($request->user(), 'pdf', $this->kluczImportu($request));
-            if ($proba['istnieje']) {
-                return $this->powtorzonyImport($proba, 'plik');
-            }
-            $pdf = $odczyt->handle((string) $plik->getRealPath(), $request->user(), $zgodaAi, $proba['id']);
-        } catch (ImportOdrzucony $e) {
-            if ($proba !== null) {
-                $this->limit->zakoncz($proba['id'], false);
-            }
-
-            return back()->withErrors(['plik' => $this->komunikatZgody($e, $zgodaNieaktualna)]);
-        } catch (\Throwable $e) {
-            if ($proba !== null) {
-                $this->limit->zakoncz($proba['id'], false);
-            }
-            throw $e;
+            $zlecenie = $zlec->handle($request->user(), (string) $plik->getRealPath(), $zgodaAi, $this->kluczImportu($request));
+        } catch (BladDlaCzlowieka $e) {
+            // `ImportOdrzucony` też: plik nie jest PDF-em, limit osoby, powtórzona próba.
+            return back()->withErrors(['plik' => $e->getMessage()]);
         }
 
-        try {
-            $recipe = $this->zapiszSzkic->handle(
-                autor: $request->user(),
-                zrodlo: PrzepisZImportu::ZRODLO_PDF,
-                droga: $pdf->droga,
-                przepis: $pdf->przepis,
-            );
-        } catch (\Throwable $e) {
-            $this->limit->zakoncz($proba['id'], false);
-            throw $e;
+        // Zgoda zaznaczona przy nieaktualnej informacji (#2031) nic nie odblokowała: mówimy to od razu, na
+        // ekranie postępu, bo zadanie ruszy bez zgody i o tym, co z tego wyszło, powie sam ekran.
+        if ($zgodaNieaktualna) {
+            return redirect()->route('import.show', $zlecenie)->with(Komunikat::informacja(self::KOMUNIKAT_NIEAKTUALNEJ_ZGODY));
         }
 
-        $this->limit->zakoncz($proba['id'], true, (string) $recipe->getKey());
-
-        $this->slad('pdf', $pdf->droga, null);
-
-        return redirect()->route('recipes.create', ['szkic' => $recipe->getKey()])
-            ->with(Komunikat::sukces('Szkic gotowy — widzisz go tylko Ty. Ten tekst odczytał komputer: porównaj go '
-                .'z plikiem i popraw, co trzeba, zanim opublikujesz.'));
+        return redirect()->route('import.show', $zlecenie);
     }
 
     /**
@@ -241,7 +212,7 @@ final class ImportPrzepisuController extends Controller
         $dane = ['import' => $import, 'szkic' => $import->recipe];
 
         if ($request->boolean('fragment')) {
-            return response()->view($import->zAdresu() ? 'pages.import.partials.postep-adres' : 'pages.import.partials.postep', $dane)
+            return response()->view($this->widokPostepu($import), $dane)
                 ->header('Cache-Control', 'no-store');
         }
 
@@ -277,25 +248,6 @@ final class ImportPrzepisuController extends Controller
         return [$zaznaczona && $aktualna, $zaznaczona && ! $aktualna];
     }
 
-    /** Komunikat odmowy; przy zgodzie z nieaktualnej informacji mówi, co zrobić, zamiast „wybierz zgodę”. */
-    private function komunikatZgody(ImportOdrzucony $e, bool $zgodaNieaktualna): string
-    {
-        return $zgodaNieaktualna && $e->kod === ImportOdrzucony::BRAK_ZGODY_AI
-            ? (new ImportOdrzucony(ImportOdrzucony::ZGODA_AI_NIEAKTUALNA))->getMessage()
-            : $e->getMessage();
-    }
-
-    /** Ślad w dzienniku bez adresu i bez treści — tylko rodzaj, droga i kod. */
-    private function slad(string $zrodlo, string $droga, ?string $kod): void
-    {
-        Log::info('Import przepisu zakończony szkicem.', [
-            'stage' => 'import_przepisu',
-            'zrodlo' => $zrodlo,
-            'droga' => $droga,
-            'kod' => $kod,
-        ]);
-    }
-
     private function kluczImportu(Request $request): string
     {
         $klucz = $request->input('klucz_wyslania');
@@ -303,14 +255,14 @@ final class ImportPrzepisuController extends Controller
         return is_string($klucz) && Str::isUuid($klucz) ? $klucz : (string) Str::uuid7();
     }
 
-    /** @param array{id: string, status: string, recipe_id: ?string, istnieje: bool} $proba */
-    private function powtorzonyImport(array $proba, string $pole): RedirectResponse
+    /** Adres i PDF mają własny ekran postępu (bez zdjęcia kartki); kartka — dawny. */
+    private function widokPostepu(ImportPrzepisu $import): string
     {
-        if ($proba['recipe_id'] !== null) {
-            return redirect()->route('recipes.create', ['szkic' => $proba['recipe_id']]);
-        }
-
-        return back()->withErrors([$pole => 'Ta próba importu została już przyjęta. Otwórz formularz ponownie, jeśli chcesz rozpocząć nową próbę.']);
+        return match (true) {
+            $import->zAdresu() => 'pages.import.partials.postep-adres',
+            $import->zPdf() => 'pages.import.partials.postep-pdf',
+            default => 'pages.import.partials.postep',
+        };
     }
 
     /** Ta sama zasada co w `RecipeController::kluczDlaFormularza()`. */

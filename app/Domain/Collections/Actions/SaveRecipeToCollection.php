@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Collections\Actions;
 
+use App\Domain\Collections\PowrotPoWyjeciu;
+use App\Domain\Collections\WynikWyjeciaZZeszytu;
+use App\Domain\Collections\WynikZapisuDoZeszytu;
 use App\Domain\Collections\ZamekZapisuDoZeszytu;
 use App\Domain\Notifications\Actions\NotifyRecipeSaved;
 use App\Exceptions\BladDlaCzlowieka;
@@ -24,6 +27,68 @@ use Illuminate\Support\Facades\Gate;
 final class SaveRecipeToCollection
 {
     public function __construct(private readonly NotifyRecipeSaved $notify) {}
+
+    /**
+     * „Zapisuję" przy przepisie w całości: droga powrotu ALBO zwykły zapis.
+     *
+     * DROGA POWROTU MA WRACAĆ, A NIE ZAPISYWAĆ OD NOWA (issue #775).
+     * Przycisk „Zapisz ponownie" pod komunikatem wysyła TEN SAM adres co
+     * zwykły zapis i nic poza tokenem. Gdyby zadziałał jak zwykły zapis,
+     * przepis wróciłby do JEDNEGO zeszytu (domyślnego), z pustą notatką
+     * i dzisiejszą datą — czyli „powrót" po cichu gubiłby to, przed czym
+     * ma chronić. Dlatego najpierw sprawdzamy, czy to nie jest powrót po
+     * wyjęciu, które sami przed chwilą zrobiliśmy (`$wyjecie` — zapis
+     * z sesji, przekazany jako zwykła wartość).
+     *
+     * Kolejność jak w kontrolerze przed #970: powrót (`restore()`), dopiero
+     * potem — gdy nic nie wróciło — zwykły zapis (`handle()`). Wyjątek
+     * `BladDlaCzlowieka` z obu dróg wychodzi do wywołującego bez zmian.
+     *
+     * @param  bool  $notatkaPodana  formularz przysłał pole `note` — to zawsze zwykły zapis
+     * @param  \Closure(): void  $zuzyjWyjecie  wywoływane, gdy zapis powrotu został użyty:
+     *                                          jednorazowa droga powrotu nie może wrócić drugi raz
+     */
+    public function zapiszAlboPrzywroc(
+        User $user,
+        Recipe $recipe,
+        ?Collection $collection,
+        bool $notatkaPodana,
+        mixed $wyjecie,
+        \Closure $zuzyjWyjecie,
+    ): WynikZapisuDoZeszytu {
+        if ($collection === null && ! $notatkaPodana) {
+            $pozycje = PowrotPoWyjeciu::pozycje($wyjecie, PowrotPoWyjeciu::TYP_PRZEPIS, (string) $recipe->getKey());
+
+            if ($pozycje !== null) {
+                $wrocilo = $this->restore($user, $recipe, $pozycje);
+
+                // Jednorazowa droga powrotu: drugie kliknięcie nie ma już nic do roboty.
+                $zuzyjWyjecie();
+
+                // `0`: zeszyt zniknął albo rzecz wróciła tam inną drogą — nie
+                // udajemy, że coś przywróciliśmy, i zapisujemy zwykłą drogą.
+                if ($wrocilo > 0) {
+                    return new WynikZapisuDoZeszytu(null, PowrotPoWyjeciu::zdanie(PowrotPoWyjeciu::TYP_PRZEPIS, $wrocilo));
+                }
+            }
+        }
+
+        return new WynikZapisuDoZeszytu($this->handle($user, $recipe, $collection), null);
+    }
+
+    /**
+     * „Usuń z zeszytu" przy przepisie: wyjęcie + zdanie + zapis do drogi powrotu.
+     * Sesję zapisuje kontroler z `$wynik->wyjecie`.
+     */
+    public function wyjmij(User $user, Recipe $recipe, ?Collection $collection = null): WynikWyjeciaZZeszytu
+    {
+        return WynikWyjeciaZZeszytu::zZdjetych(
+            PowrotPoWyjeciu::TYP_PRZEPIS,
+            (string) $recipe->getKey(),
+            $user,
+            $this->remove($user, $recipe, $collection),
+        );
+    }
 
     public function handle(User $user, Recipe $recipe, ?Collection $collection = null, ?string $note = null): Collection
     {

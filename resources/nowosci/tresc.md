@@ -10,6 +10,7 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Spis wydań
 
 - [Najnowsze zmiany](#najnowsze-zmiany)
+- [Alfa 0.77 — wspólny zeszyt dla rodziny i import przepisu w tle](#alfa-077)
 - [Alfa 0.76 — planer z wyszukiwarką, „Co mam w domu” i zeszyt bez konta](#alfa-076)
 - [Alfa 0.75 — szukanie w wykonaniach i pewniejsze „Ugotowałem”](#alfa-075)
 - [Alfa 0.74 — zdjęcia w formularzu i porcje przy gotowaniu](#alfa-074)
@@ -29,6 +30,27 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Najnowsze zmiany
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
+
+### Wczytajcie z powrotem własną paczkę z danymi
+
+W „Twoich danych” jest nowy odnośnik „Wczytaj swoją paczkę”. Wybieracie plik
+ZIP, który wcześniej pobraliście z Kuking, a my najpierw pokazujemy, co w nim
+jest: ile przepisów, własnych wpisów i zeszytów można wczytać, co macie już na
+koncie, co powtarza się w samej paczce i czego wczytać się nie da — z powodem
+napisanym po ludzku. Niczego nie zapisujemy, dopóki nie zaznaczycie pozycji
+i nie klikniecie „Wczytaj zaznaczone”. Wszystko, co wczytamy, jest prywatne:
+przepisy czekają w szkicach, wpisy widzicie tylko Wy, zeszyty są „Tylko ja” —
+o publikacji zdecydujecie sami, później. Zdjęć z paczki na razie nie
+przenosimy, pytań z Poradźcie też nie wczytujemy (pytanie jest zawsze publiczne,
+a wczytane treści mają zostać prywatne — w podglądzie piszemy o tym wprost), a konta,
+haseł, zgód i komentarzy innych osób nie odtwarzamy w ogóle.
+Jedno kliknięcie wczytuje najwyżej 50 pozycji, a to samo wczytanie drugi raz
+niczego nie podwoi. Wybrany plik czeka na Waszą decyzję dwie godziny, a jeśli go
+porzucicie, kasujemy go sami w nocnym sprzątaniu.
+
+## Alfa 0.77
+
+**Wspólny zeszyt dla rodziny.**
 
 ### Wspólny zeszyt dla rodziny
 

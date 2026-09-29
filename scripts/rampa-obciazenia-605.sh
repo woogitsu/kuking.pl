@@ -106,18 +106,19 @@ for RPS in $STOPNIE; do
       break
     fi
 
-    W=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['werdykt'])" "$KATALOG/werdykt-$NAZWA.json" 2>/dev/null || echo BRAK)
+    W=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')).werdykt)" "$KATALOG/werdykt-$NAZWA.json" 2>/dev/null || echo BRAK)
     if [ "$W" = "CZYSTY" ]; then
       CZYSTA="$NAZWA"
-      python3 - "$KATALOG/seria-$NAZWA.json" "$KATALOG/werdykt-$NAZWA.json" <<'PY' | tee -a "$PODSUMOWANIE"
-import json, sys
-w = json.load(open(sys.argv[1])); v = json.load(open(sys.argv[2]))
-r = w['razem']; o = v['obce_obciazenie_rdzenie']
-print(f"  -> CZYSTY: {r['przepustowosc_rps']} rps ok, p50={r['p50']} p95={r['p95']} p99={r['p99']}, "
-      f"błąd={r['blad_procent']}%, w locie szczyt={w['w_locie_szczyt']}, "
-      f"generator={w['koszt_generatora']['cpu_rdzenie_srednio']} rdzenia, "
-      f"obce mediana={o['mediana']} max={o['max']} rdzeni")
-PY
+      node - "$KATALOG/seria-$NAZWA.json" "$KATALOG/werdykt-$NAZWA.json" <<'JS' | tee -a "$PODSUMOWANIE"
+const { readFileSync } = require('node:fs');
+const w = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+const v = JSON.parse(readFileSync(process.argv[3], 'utf8'));
+const r = w.razem; const o = v.obce_obciazenie_rdzenie;
+console.log(`  -> CZYSTY: ${r.przepustowosc_rps} rps ok, p50=${r.p50} p95=${r.p95} p99=${r.p99}, ` +
+  `błąd=${r.blad_procent}%, w locie szczyt=${w.w_locie_szczyt}, ` +
+  `generator=${w.koszt_generatora.cpu_rdzenie_srednio} rdzenia, ` +
+  `obce mediana=${o.mediana} max=${o.max} rdzeni`);
+JS
       # KRYTERIUM NASYCENIA — jawne, z góry, w scripts/nasycenie-605.mjs.
       OCENA="$(node scripts/nasycenie-605.mjs stopien "$KATALOG" "$NAZWA")"
       KOD_OCENY=$?

@@ -57,6 +57,31 @@ spoza listy spada do wartości domyślnej; zapytania poza kontrolerem)
 oraz „Twoje dane”: `ZamowEksportDanych` (paczka RODO — kontroler wybiera tylko
 zdanie z `WynikZamowieniaEksportu`) i `ProsbaOUsuniecieKontaRequest` +
 `RequestAccountDeletion` (zgłoszenie usunięcia konta).
+Nowy wpis i pytanie: `ZapisWpisuRequest` (faza 1: zdjęcia w `rules()`, przed
+kontrolerem; faza 2: `walidatorTresci()` wołany po wgraniu zdjęć i obsłudze
+przycisków tagów, żeby błąd treści wrócił z `old()` niosącym UUID-y zdjęć
+i tagi) — `PostController::store()` zostaje przy orkiestracji odpowiedzi.
+Edycja wpisu i pytania: `EdycjaWpisuRequest` (`rules()` puste — treść waliduje
+`trescWpisu()` dopiero po Policy, decyzji moderacji i przyciskach tagów;
+marker `_tag_form_post_id` idzie też do żądania z kontenera, bo z niego
+powstaje `old()`; reguły wspólne ze store'em w traicie `WalidujeTrescWpisu`).
+Komentarz: `KomentarzRequest` (Policy w `authorize()` przed walidacją pól).
+Zeszyty (krok 5): `ZapisZeszytuRequest` (założenie i zmiana nazwy, opisu
+i widoczności — Policy `update` w `authorize()` przed polami, ten sam 403
+co w kontrolerze) oraz `ZapisDoZeszytuRequest` i `WyjecieZZeszytuRequest`
+nad wspólną `WyborZeszytuRequest` (jedna reguła wyboru własnego lub wspólnego
+zeszytu, różne zdania błędów; `rules()` puste, wybór waliduje metoda wołana
+przez kontroler po 404 i Policy). `app/Domain/Collections` nie pogłębia
+zależności od `Illuminate\Http` — pilnuje tego `ZeszytyNieRosnaOdHttpTest`
+z listą dwóch zastanych plików (`ZeszytyDoWyboru`, `CollectionSaveContext`).
+Zostaje w kontrolerze: przypadki użycia listy, wyjęcia niedostępnych i
+zapisu przepisu (kolejne kroki).
+Profil publiczny: `ProfilRequest` (zakładka, rok i fraza z adresu, `rules()` puste — jak `ListaKontRequest`).
+Onboarding: `ZapisZainteresowanRequest`, `ZapisObserwowanychRequest` + `ObserwujWybraneOsoby` (zapis; limit 20 osób, para nazwa–identyfikator #793) oraz `EkranLudziRequest` + `PrzygotujEkranLudzi` (ekran „kogo obserwować”).
+Zgłoszenie treści: `ZgloszenieTresciRequest` (limit trasy → odsyłka konta pod nazwą → pola; cel i Policy zostają w `ReportContent`). `NotificationController` nie ma walidacji wejścia.
+Przypadki użycia z własną transakcją i blokadą: `ZamknijGrupeSygnalow` (`SygnalyController::odrzucGrupe()`, wynik w `WynikZamknieciaGrupy`) i `ZuzyjLinkDoLogowania` (`LoginLinkController::store()`, awaria dziennika jako `WejscieLinkiemWycofane`) — kolejność blokad bez zmian; pozostałe `DB::transaction` w kontrolerach to jednolinijkowe savepointy wokół pojedynczego zapisu. Ustawienia 2FA: `WlaczenieDwuetapowejRequest`/`NoweKodyZapasoweRequest`/`WylaczenieDwuetapowejRequest` (worki błędów `regenerate` i `disable`) + `WlaczDwuetapowa` i `WygenerujNoweKodyZapasowe` (dwa domknięcia `ZamekKonta`, kolejność sprawdzeń bez zmian); `RegistrationInviteController` nie ma blokad — tylko `PrzyjecieZaproszeniaRequest` (odczyt tokenu bez reguł, żeby błąd nie był wyrocznią).
+Kolejne kandydaty (od największego): `CollectionController` (dalsze kroki), `NotificationController`,
+kontrolery logowania Google/Facebook (#1035).
 
 ### Application
 Use cases, np.:
@@ -150,9 +175,53 @@ pilnuje, że blokada ukrywa wiersz we wszystkich wejściach naraz i że liczba
 zapytań strony nie rośnie z liczbą wierszy. Eksport danych i Web Push nadal
 wołają `visibleTo()` wprost (ten sam kontrakt, inny kształt wyniku).
 
-Jeszcze niezrobione w ramach #1687: wspólna specyfikacja dla list treści
-(`Post/Recipe/CookedEvent::scopeWidoczneDla()` różnią się dziś od Policy
-m.in. statusem konta autora).
+Etap 5 (#1687): wybór imienia z partii zapisów („Anna oraz 2 inne osoby…")
+przeszedł z modelu do `WidocznoscPowiadomien::pierwszyWidocznyZapisujacy()`,
+obok warunku widoczności całej partii (`widocznaPartiaZapisow()`). Model nie
+składa już SQL o blokadach i statusach kont; `blokadaZOdbiorca()` jest
+prywatna. `tests/Feature/ZapisujacyDoPokazaniaZgodniZListaTest` pilnuje, że
+wiersz jest na liście wtedy i tylko wtedy, gdy jest osoba do pokazania.
+
+Etap 6 (#1687): rozwiązywanie celów powiadomienia — `pierwszyWpis()`,
+`wersjaDoPokazania()` i `slugZapisanegoPrzepisu()` — przeszło z modelu do
+`CelPowiadomienia`, obok `adres()` i `wpisSmakowicie()`. Model zostawia
+predykaty dla widoku i kontrolera (`pierwszyWpisNiedostepny()`,
+`przepisUsuniety()`, `wersjaDostepna()`) oraz podręczny wynik zbiorczego
+sprawdzenia listy (`zapamietajSlugPrzepisu()` itd.), więc zapytań jest tyle
+samo co przed zmianą. `tests/Feature/CelPowiadomieniaRozwiazujeCeleTest`
+pilnuje, że przycisk „Zobacz" i treść karty opierają się na tym samym
+rozstrzygnięciu resolvera i że model nie odzyskał tych metod.
+
+Etap 7 (#1687): zakresy list treści (`Post/Recipe/CookedEvent::scopeWidoczneDla()`)
+porównano z Policy na macierzy typ × status konta autora × stan × widoczność ×
+widz (`tests/Feature/Visibility/ListyTresciZgodneZPolicyTest`). Wynik: żadnego
+błędu, cztery zamierzone różnice, każda utrwalona testem (test sprawdza też, że
+różnica nadal zachodzi, więc opis nie przeżyje zmiany zachowania):
+
+1. Status konta autora (`banned`, `pending_delete`) — zakres `Post`/`Recipe`
+   odpowiada na relację widz ↔ autor, a granicę statusu dokłada wywołujący
+   (`whereHas('author', … dostepnyJakoAutor())`). Zakres z wbudowanym statusem
+   odciąłby autora od własnych treści (`Post::scopeTylkoOdAktywnychAutorow()`).
+   Kontrakt: zakres + `dostepnyJakoAutor()` = Policy. `suspended` i `erased`
+   nie zamykają treści ani w zakresie, ani w Policy.
+2. Właściciel konta `banned`/`pending_delete` — Policy wpuszcza go do własnej
+   treści, filtr statusu listy też jego tnie (konto bez otwartej sesji).
+3. Zapowiedź własnego przepisu ukrytego przez moderację — bramka
+   `zWidocznymPrzepisem()` wymaga przepisu opublikowanego; lista jest
+   ostrzejsza od Policy.
+4. „Ugotowałem" — zakres liczy blokadę z kucharzem i status jego konta;
+   stan przepisu rozstrzyga strona przepisu jednym `RecipePolicy::view()`
+   na całą galerię (bez N+1).
+
+Etap 8 (#1687, domknięcie): `tests/Feature/PowiadomieniaJedenKontraktWidocznosciTest`
+dopisuje dwa dowody, których brakowało. Pełna strona (`OdczytPowiadomien::NA_STRONE`
+= 30) z komentarzami, odpowiedziami i obserwowaniami ma przez HTTP tę samą liczbę
+zapytań co strona z trzema wierszami. Eksport danych konta niesie dokładnie te
+powiadomienia, które człowiek widzi na liście (blokada, konto zbanowane, wpis ukryty).
+
+Nr 2–4 to lista ostrzejsza od Policy. Nr 1 działa odwrotnie: zakres SAM (bez
+granicy statusu) pokazuje więcej — dlatego każde nowe zapytanie o cudze
+treści musi tę granicę dołożyć.
 
 ### Kierunek zależności (issue #971)
 
@@ -180,17 +249,20 @@ Recipes      → Media, Notifications
 Feed         → Collections
 Wspomnienia  → Collections
 Collections  → Notifications
-Moderation   → Notifications, Security
-Security     → Moderation, Users     ← znany cykl, do rozcięcia
+Moderation   → Notifications, Users
+Security     → Moderation, Users
 Contact      → Security
-Media, Pwa   → Analytics
+Media, Pwa   → Analytics       (Media nie zależy już od Moderation, #2149)
 Kolejka, Polaczenia → Monitoring
 ```
 
 Pilnuje tego `tests/Unit/GrafModulowDomenyBezCykliTest.php` (tokenizer PHP,
-bez nowych bibliotek). Lista zastanych cykli w teście jest dokładna w obie
-strony: nowy cykl oblewa test, a rozcięty znany też — żeby wpis nie został
-furtką. Jedyny zastany cykl zaczął się jako `Moderation ↔ Security`
+bez nowych bibliotek). Lista zastanych cykli w teście (`ZNANE_CYKLE`) jest
+dokładna w obie strony: nowy cykl oblewa test, a rozcięty znany też — żeby
+wpis nie został furtką. **Od #2149 (etap 3) lista jest pusta: graf modułów
+`app/Domain` nie ma żadnego cyklu.**
+
+Jedyny zastany cykl zaczął się jako `Moderation ↔ Security`
 (`AlarmujOPilnymZgloszeniu` → `DziennyBudzetListow`,
 `KomunikatZamknietegoKonta` → `UzasadnienieDecyzji`). Wejście przez
 dostawcę (#1035) dołożyło krawędź `Security → Users`
@@ -199,9 +271,46 @@ objął `Compliance → Moderation → Security → Users → Compliance`. Do 25
 urósł jeszcze o Media i Analytics: `Users → Media` (`EraseAccountData`),
 `Media → Moderation` (`DostepDoZdjecia`), `Media → Analytics`
 (`StoreUploadedImage`) i `Analytics → Compliance` (`PrzedawnioneSygnaly` →
-`UsuwanieWPartiach`, #1657). Jedna silnie spójna składowa: Analytics,
-Compliance, Media, Moderation, Security, Users. Do rozcięcia osobnym
-zadaniem.
+`UsuwanieWPartiach`, #1657). Rozcięcie, krawędź po krawędzi:
+
+- **Analytics → Compliance** (#2149, etap 1): `UsuwanieWPartiach` to ogólny
+  mechanizm bazy, więc przeniesiono go do `App\Support` — Analytics wypadło
+  ze składowej.
+- **Media → Moderation** (etap 2): `DostepDoZdjecia` brał z
+  `ModeratedContent::TYPY` wyłącznie nazwy typów `media` i `post` w
+  `reports.target_type`. Nazwy są teraz stałymi `Report::TARGET_MEDIA` i
+  `Report::TARGET_POST` (fakt o tabeli, mieszka przy modelu), a
+  `ModeratedContent::TYPY` odwołuje się do tych samych stałych — bez zmiany
+  zachowania i bez „worka Core". Media wypadło ze składowej.
+- **Compliance → Moderation** (etap 3): retencja spraw
+  (`PrzedawnioneSprawyModeracyjne`) odświeża liczniki kolejek panelu raz na
+  koniec przebiegu, bo kasowanie zbiorcze nie woła zdarzeń modeli. Wołała
+  `KolejkiPanelu` wprost. Teraz woła kontrakt
+  `App\Support\OdswiezanieLicznikowKolejek`, który implementuje
+  `KolejkiPanelu`, a `AppServiceProvider` wiąże go z **tym samym singletonem**
+  (flaga „już zaplanowane na commit" jest wspólna ze zdarzeniami modeli).
+  Compliance wypadło ze składowej — było w niej wyłącznie przez tę krawędź.
+- **Moderation → Security** (etap 3): `AlarmujModeratora` i
+  `AlarmujOPilnymZgloszeniu` używały `Security\DziennyBudzetListow`. To
+  wspólny licznik dobowego sufitu poczty, używany też przez `Contact`,
+  `Digest`, `Notifications` i kontrolery logowania, a jego sąsiadem jest
+  `App\Poczta\ListZarezerwowany`. Klasa przeniesiona do `App\Poczta` bez
+  zmiany zachowania (te same klucze cache, ta sama logika; zmienił się tylko
+  namespace). Cykl `Moderation ↔ Security` przestał istnieć, a razem z nim
+  składowa.
+
+Zostają wyłącznie krawędzie jednokierunkowe, np. `Security → Moderation`
+(`KomunikatZamknietegoKonta` → `UzasadnienieDecyzji`), `Security → Users`
+(`ZalozKonto`, `ZamekKonta`), `Moderation → Users` (`ZamekUprzywilejowanegoAktora`,
+`ZamekKonta`, `OdmowaOstatniegoAdministratora`), `Users → Compliance`
+(`RejestrPotwierdzenRodo`, `DziennikWymazan`), `Users → Media` i
+`Compliance → Media` (`KasujZdjecie`), `Media → Analytics`. Żadna z nich nie
+wraca. Test ma osobnych strażników dla każdej rozciętej krawędzi
+(`test_analytics_nie_zalezy_od_compliance`, `test_media_nie_zalezy_od_moderation`,
+`test_compliance_nie_zalezy_od_moderation`, `test_moderation_nie_zalezy_od_security`)
+z kontrolą, że skaner widzi krawędź w drugą stronę. Raport krawędzi wewnątrz
+składowej (`KRAWEDZIE_W_SKLADOWEJ`, etap 2) usunięto, bo nie ma już składowej
+do raportowania; gdyby cykl wrócił, oblewa `ZNANE_CYKLE`.
 
 ## Zmiana roli podczas uprzywilejowanej operacji
 

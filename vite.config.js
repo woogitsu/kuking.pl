@@ -7,9 +7,9 @@ export default defineConfig({
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.js'],
             refresh: true,
-            // Świadomie BEZ webfontu. Stos systemowy renderuje się natychmiast,
-            // nie powoduje przeskoku tekstu (FOUT) i ma komplet polskich znaków
-            // na każdej platformie (docs/design/DESIGN_SYSTEM.md).
+            // Inter Variable JEST webfontem, ładowanym przez resources/css/fonts.css
+            // (dwa małe podzbiory WOFF2, #1000). Stos systemowy jest fallbackiem
+            // podczas `font-display: swap` i dla znaków spoza podzbioru.
         }),
         tailwindcss(),
     ],

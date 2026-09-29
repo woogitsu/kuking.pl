@@ -49,8 +49,8 @@ final class PrzepisFormTest extends TestCase
         $form = $this->formularz();
 
         $this->assertSame(
-            ['', 'public', 'own', '', '', '', ''],
-            [$form->difficulty, $form->visibility, $form->source_type, $form->source_person, $form->source_note, $form->source_url, $form->family_since_year],
+            ['', '', '', '', '', '', '', 'public', 'own', '', '', '', ''],
+            [$form->title, $form->summary, $form->servings, $form->estimated_cost_pln, $form->prep_minutes, $form->cook_minutes, $form->difficulty, $form->visibility, $form->source_type, $form->source_person, $form->source_note, $form->source_url, $form->family_since_year],
         );
     }
 
@@ -85,6 +85,11 @@ final class PrzepisFormTest extends TestCase
     public function test_poprawne_pola_przechodza_walidacje(): void
     {
         $form = $this->formularz();
+        $form->title = 'Rosół';
+        $form->servings = '4';
+        $form->prep_minutes = '20';
+        $form->cook_minutes = '90';
+        $form->estimated_cost_pln = '24,50';
         $form->difficulty = 'medium';
         $form->visibility = 'followers';
         $form->source_type = 'family';
@@ -92,7 +97,7 @@ final class PrzepisFormTest extends TestCase
         $form->source_url = 'https://example.com/przepis';
         $form->family_since_year = '1974';
 
-        $walidator = KrokOPrzepisie::walidator(['title' => 'Rosół'] + $form->pola(), null);
+        $walidator = KrokOPrzepisie::walidator($form->pola(), null);
 
         $this->assertFalse($walidator->fails(), implode(' ', $walidator->errors()->all()));
     }
@@ -100,6 +105,12 @@ final class PrzepisFormTest extends TestCase
     public function test_bledne_pola_formularza_dostaja_komunikaty_pod_kluczami_form(): void
     {
         $form = $this->formularz();
+        $form->title = 'Ro';
+        $form->servings = 'cztery';
+        $form->prep_minutes = '-5';
+        $form->cook_minutes = '20000';
+        $form->estimated_cost_pln = 'dużo';
+        $form->summary = str_repeat('a', 2001);
         $form->difficulty = 'nie-wiem';
         $form->visibility = 'wszyscy-na-swiecie';
         $form->source_type = 'z-kosmosu';
@@ -108,9 +119,11 @@ final class PrzepisFormTest extends TestCase
         $form->source_url = 'ftp://example.invalid/przepis';
         $form->family_since_year = '1200';
 
-        $bledy = KrokOPrzepisie::walidator(['title' => 'Rosół'] + $form->pola(), null)->errors()->messages();
+        $bledy = KrokOPrzepisie::walidator($form->pola(), null)->errors()->messages();
 
         $this->assertEqualsCanonicalizing(PrzepisForm::POLA, array_keys($bledy));
+        $this->assertSame('Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.', $bledy['title'][0]);
+        $this->assertSame('Liczba porcji musi być liczbą. Wpisz na przykład 4.', $bledy['servings'][0]);
         $this->assertSame('Zaznacz, kto ma widzieć ten przepis.', $bledy['visibility'][0]);
         $this->assertSame('Zaznacz, skąd jest ten przepis.', $bledy['source_type'][0]);
         $this->assertSame('Ten rok jest za wczesny. Wpisz rok od 1850.', $bledy['family_since_year'][0]);
@@ -120,10 +133,9 @@ final class PrzepisFormTest extends TestCase
         }
     }
 
-    public function test_pole_ktore_zostalo_w_komponencie_nie_dostaje_przedrostka(): void
+    public function test_nazwa_spoza_formularza_nie_dostaje_przedrostka(): void
     {
-        $this->assertSame('title', PrzepisForm::kluczBledu('title'));
-        $this->assertSame('estimated_cost_pln', PrzepisForm::kluczBledu('estimated_cost_pln'));
+        $this->assertSame('steps', PrzepisForm::kluczBledu('steps'));
         $this->assertSame('formularz.visibility', PrzepisForm::kluczBledu('visibility', 'formularz'));
     }
 }

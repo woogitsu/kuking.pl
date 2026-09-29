@@ -453,6 +453,7 @@ const W_OBRAZIE_BEZ_WPLYWU = {
   ".env.example": "wzór zmiennych; obraz nie czyta .env",
   "pint.json": "konfiguracja formatera, nieużywana w runtime",
   "phpstan.neon": "konfiguracja analizy statycznej",
+  "phpstan-etap4.neon": "konfiguracja analizy statycznej (ratchet poziomu 4, #1731)",
   "phpstan-bootstrap.php": "konfiguracja analizy statycznej",
   ".windsurfrules": "wskaźnik instrukcji dla agentów",
   ".codex": "instrukcje dla agentów (porządki: audyt A4)",

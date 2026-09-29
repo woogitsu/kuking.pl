@@ -32,9 +32,13 @@ final class TekstZPdf
     public const MIN_ZNAKOW_TEKSTU = 20;
 
     /**
+     * Najtańsze kontrole, BEZ narzędzi i bez sieci: rozmiar i sygnatura.
+     * Woła je kontroler przed zapisem zlecenia (plik udający PDF nie zajmuje
+     * miejsca w limicie ani dysku) i `odczytaj()` w workerze.
+     *
      * @throws ImportOdrzucony
      */
-    public function odczytaj(string $sciezka): string
+    public function sprawdzWstepnie(string $sciezka): void
     {
         $maksMb = $this->maksMb();
         $rozmiar = @filesize($sciezka);
@@ -52,6 +56,14 @@ final class TekstZPdf
         if (! str_contains($poczatek, '%PDF-')) {
             throw new ImportOdrzucony(ImportOdrzucony::PDF_USZKODZONY);
         }
+    }
+
+    /**
+     * @throws ImportOdrzucony
+     */
+    public function odczytaj(string $sciezka): string
+    {
+        $this->sprawdzWstepnie($sciezka);
 
         $strony = $this->liczbaStron($sciezka);
         $maksStron = $this->maksStron();

@@ -209,8 +209,8 @@ class KosztPrzepisuTest extends TestCase
 
         $komponent = Livewire::actingAs($basia)
             ->test('recipe-wizard')
-            ->set('title', 'Placki ziemniaczane')
-            ->set('estimated_cost_pln', '12,5')
+            ->set('form.title', 'Placki ziemniaczane')
+            ->set('form.estimated_cost_pln', '12,5')
             ->call('next')
             ->assertHasNoErrors()
             ->assertSet('step', 2);
@@ -222,7 +222,7 @@ class KosztPrzepisuTest extends TestCase
         // Powrót do kreatora: kwota wraca po polsku.
         Livewire::actingAs($basia)
             ->test('recipe-wizard', ['recipeId' => $przepis->getKey()])
-            ->assertSet('estimated_cost_pln', '12,50');
+            ->assertSet('form.estimated_cost_pln', '12,50');
     }
 
     #[Test]
@@ -232,12 +232,12 @@ class KosztPrzepisuTest extends TestCase
 
         Livewire::actingAs($basia)
             ->test('recipe-wizard')
-            ->set('title', 'Placki ziemniaczane')
-            ->set('estimated_cost_pln', '-3')
+            ->set('form.title', 'Placki ziemniaczane')
+            ->set('form.estimated_cost_pln', '-3')
             ->call('next')
             ->assertSet('step', 1)
-            ->assertHasErrors(['estimated_cost_pln'])
-            ->assertSet('estimated_cost_pln', '-3')
+            ->assertHasErrors(['form.estimated_cost_pln'])
+            ->assertSet('form.estimated_cost_pln', '-3')
             ->assertSee('Koszt nie może być mniejszy od zera.');
     }
 

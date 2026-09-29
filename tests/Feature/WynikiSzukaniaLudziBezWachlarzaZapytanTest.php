@@ -197,7 +197,7 @@ class WynikiSzukaniaLudziBezWachlarzaZapytanTest extends TestCase
         );
 
         // Ten ekran wypisuje najwyżej pięć wyników
-        // (`OnboardingController::WYNIKI_WYSZUKIWANIA`), więc różnica między
+        // (`PrzygotujEkranLudzi::WYNIKI_WYSZUKIWANIA`), więc różnica między
         // próbami to 2 → 5 wypisanych osób, a nie 2 → 20. Mniejsza niż na
         // `/szukaj`, ale dokładnie taka, jaką ten ekran umie pokazać —
         // dosypywanie ponad limit mierzyłoby wzrost, którego tu nie ma.

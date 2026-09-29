@@ -149,7 +149,7 @@ class PierwszyEkranMiesciPrzyciskTest extends TestCase
         $this->assertStringContainsString('await sprawdzHeroNadZgieciem({', $port,
             'Pomiar jest zaimportowany, ale nikt go nie woła.');
 
-        $this->assertStringContainsString('hero-nad-zgieciem', $this->plik('.github/workflows/ci.yml'),
+        $this->assertStringContainsString('hero-nad-zgieciem', $this->plik('scripts/ci/zakres.sh'),
             'Zmiana samego przyrządu nie uruchomi jobów przeglądarkowych — dałoby się zepsuć miernik bez czerwieni.');
     }
 
@@ -165,6 +165,7 @@ class PierwszyEkranMiesciPrzyciskTest extends TestCase
             'resources/css/marka-ekrany.css',
             'scripts/hero-nad-zgieciem.mjs',
             'scripts/port-projektu.mjs',
+            'scripts/ci/zakres.sh',
             '.github/workflows/ci.yml',
         ] as $sciezka) {
             $this->assertGreaterThan(500, strlen($this->plik($sciezka)),

@@ -44,8 +44,8 @@ class PodsumowanieWalidacjiNieZgadujePrzyczynyTest extends TestCase
     {
         $tekst = 'aa';
         Livewire::actingAs($this->user('kreator527'))->test('recipe-wizard')
-            ->set('title', $tekst)->call('next')->assertHasErrors('title')
-            ->assertSet('title', $tekst)->assertSee('Sprawdź formularz')
+            ->set('form.title', $tekst)->call('next')->assertHasErrors('form.title')
+            ->assertSet('form.title', $tekst)->assertSee('Sprawdź formularz')
             ->assertDontSee('rzeczy jeszcze brakuje');
     }
 

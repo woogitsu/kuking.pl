@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domain\Contact\Actions;
 
-use App\Domain\Security\DziennyBudzetListow;
 use App\Domain\Users\ZamekUprzywilejowanegoAktora;
 use App\Mail\OdpowiedzNaWiadomosc;
 use App\Models\AuditLogEntry;
 use App\Models\ContactMessage;
 use App\Models\ContactMessageReply;
 use App\Models\User;
+use App\Poczta\DziennyBudzetListow;
 use App\Poczta\OdmowaEmailLabs;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;

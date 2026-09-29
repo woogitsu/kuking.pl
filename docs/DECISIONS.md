@@ -3882,7 +3882,7 @@ rejestracji.
 
 📄 `app/Http/Controllers/Auth/LoginLinkController.php` ·
 `app/Domain/Security/WyslijLinkDoLogowania.php` ·
-`app/Domain/Security/DziennyBudzetListow.php` ·
+`app/Poczta/DziennyBudzetListow.php` ·
 `app/Models/LoginLinkToken.php` · `app/Models/User.php`
 (`invalidateLoginLinks()`) · `app/Notifications/LinkDoLogowania.php` ·
 `resources/views/mail/link-do-logowania.blade.php` ·
@@ -4174,7 +4174,7 @@ Pilnują tego: `TygodniowePodsumowanieTest`, `WypisanieZPodsumowaniaTest`,
 `app/Domain/Digest/ZbierzTresciDigestu.php` ·
 `app/Domain/Digest/TrescDigestu.php` ·
 `app/Domain/Digest/OdnosnikWypisania.php` ·
-`app/Domain/Security/DziennyBudzetListow.php` ·
+`app/Poczta/DziennyBudzetListow.php` ·
 `app/Mail/PodsumowanieTygodnia.php` ·
 `app/Http/Controllers/PodsumowanieTygodniaController.php` ·
 `resources/views/mail/podsumowanie-tygodnia.blade.php` (+ `-tekst`) ·
@@ -6282,7 +6282,7 @@ o wysyłce.
 wtedy — wraca do rozważenia warunkowy `UPDATE` we własnej tabeli z pełnym
 kompletem: migracja, test, `docs/DATABASE.md`, rollback.
 
-📄 `app/Domain/Security/DziennyBudzetListow.php` ·
+📄 `app/Poczta/DziennyBudzetListow.php` ·
 `app/Http/Controllers/Auth/LoginLinkController.php` ·
 `app/Console/Commands/WyslijPodsumowaniaTygodnia.php` ·
 `tests/Feature/AtomowaRezerwacjaBudzetuTest.php` ·
@@ -8671,7 +8671,7 @@ metodą — a mimo to trzy rzeczy wymagały rozstrzygnięcia:
 `app/Http/Controllers/Auth/EmailVerificationController.php` ·
 `app/Console/Commands/NieudaneListy.php` ·
 `app/Console/Commands/SprawdzPoczte.php` ·
-`app/Domain/Security/DziennyBudzetListow.php` ·
+`app/Poczta/DziennyBudzetListow.php` ·
 `resources/views/auth/verify-email.blade.php` ·
 migracja `2026_09_10_500000_create_mail_failures_table` ·
 `config/kuking.php` (`poczta`) · `docs/DATABASE.md` ·
@@ -15871,7 +15871,7 @@ ostrzeżenia o zmianie adresu) — pojedyncze sztuki na dobę, ale dopóki się 
 liczą, wspólna pula pokazuje mniej, niż serwis naprawdę wysłał. To jest znana
 i nazwana niedokładność, nie przeoczenie.
 
-📄 `app/Domain/Security/DziennyBudzetListow.php`,
+📄 `app/Poczta/DziennyBudzetListow.php`,
 `app/Domain/Security/WyslijPotwierdzenieAdresu.php`,
 `tests/Feature/WspolnyLicznikPocztyTest.php`,
 `tests/Feature/PodzialLimituPocztyTest.php`,
@@ -16956,7 +16956,7 @@ to jest granica `limits.register`, nie tej decyzji. Nie rusza też
 
 📄 `app/Domain/Security/WyslijPotwierdzenieAdresu.php`,
 `app/Domain/Security/WynikPonowieniaPotwierdzenia.php`,
-`app/Domain/Security/DziennyBudzetListow.php`,
+`app/Poczta/DziennyBudzetListow.php`,
 `app/Http/Controllers/Auth/EmailVerificationController.php`,
 `config/kuking.php`,
 `tests/Feature/SufitPonowieniaPotwierdzeniaTest.php`,
@@ -19833,11 +19833,23 @@ końcowym. Jedna próba (`tries = 1`) jest świadoma: rezerwacja budżetu ma klu
 zadanie zabite w środku kończy w `failed()`, które domyka księgę budżetu.
 Ponowienie należy do człowieka („Wklej adres jeszcze raz”) i liczy się do jego limitu.
 Migracja `2026_09_29_120000_extend_importy_przepisow_kod_bledu_o_adres` dopisuje do
-`kod_bledu` siedem powodów odmowy strony (`docs/DATABASE.md`). **Poza tym etapem:**
-import z PDF nadal chodzi w żądaniu — jego plik musi trafić na prywatny dysk
-współdzielony przez web i worker (R2) z retencją i sprzątaniem po każdym stanie
-końcowym, co jest osobnym etapem #28.
-Testy: `ImportZAdresuWKolejceTest`, `CofniecieMigracjiKodowAdresuImportuTest`,
+`kod_bledu` siedem powodów odmowy strony (`docs/DATABASE.md`). 
+**Etap 2 (#28, #2051): import z PDF w kolejce.** Ten sam wzorzec
+(`ZlecImportZPdf` → `ImportujPrzepisZPdf`, kolejka `low`, `tries = 1`, `timeout = 200 s`),
+z jedną różnicą: wejściem jest plik. Żądanie WWW robi tylko tanie kontrole (rozmiar,
+sygnatura `%PDF-`), zapisuje plik na prywatny dysk współdzielony przez web i worker
+(`kuking.import.pdf.dysk`, na produkcji ten sam co surowe uploady Livewire, czyli R2;
+katalog `import-pdf-tmp/`, odrębny od `livewire-tmp/` i `incoming/`), potem zlecenie
+(`importy_przepisow.plik_tymczasowy`) i zadanie w jednej transakcji. Worker pobiera
+plik do kopii roboczej, uruchamia Popplera (i tylko dla skanu, tylko za zgodą z tego
+formularza, model), a plik znika w każdym stanie końcowym, przy usunięciu konta
+i po retencji (`kuking:odzyskaj-importy`, także pliki bez wiersza). Zgoda „odczyt AI”
+dla skanu PDF jedzie w zadaniu jako flaga z formularza, nie z ustawień konta; PDF
+z warstwą tekstu nie wychodzi z serwisu. Migracja
+`2026_09_29_150000_add_plik_tymczasowy_and_kody_pdf_to_importy_przepisow` (kolumna
++ siedem kodów odmowy PDF; `docs/DATABASE.md`).
+Testy: `ImportZAdresuWKolejceTest`, `ImportZPdfWKolejceTest`,
+`CofniecieMigracjiKodowAdresuImportuTest`, `CofniecieMigracjiPlikuTymczasowegoImportuTest`,
 `ImportPrzepisuZAdresuIPdfTest`, `UmowaKolejkiTest`.
 
 ### Wycofanie

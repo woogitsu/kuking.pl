@@ -26,7 +26,9 @@ import sys
 from pathlib import Path
 import tempfile
 
+from kontrola_przyczyny import przebieg, sprawdz_wzorce, uruchom_test, werdykt, POTWIERDZONA
 from kontrola_wyjscia_testu import run_test
+from kontrole_oczekiwana_przyczyna import OCZEKUJ, OCZEKUJ_MIARY, kontrole_mechanizmu
 from podzial_kontroli import parsuj_czesc, poza_petla_w_tej_czesci, wybierz_indeksy
 
 
@@ -71,6 +73,14 @@ if os.environ.get("CI") != "true":
 PLANER_TYGODNIA = "app/Domain/Planer/PlanerTygodnia.php"
 PLANER_DODAJ = "app/Domain/Planer/Actions/DodajDoPlanu.php"
 WYMAZANIE_KONTA = "app/Domain/Users/Actions/EraseAccountData.php"
+WYMAZANIE_PURGE = "app/Console/Commands/PurgeExpiredAccountDeletions.php"
+ALARM_DZIENNIKA = "app/Domain/Monitoring/AlarmDziennikaWymazan.php"
+DZIENNIK_WYCOFANIE_TEST = "test_awaria_po_dopisaniu_wpisu_wycofuje_ten_wpis_z_dziennika"
+DZIENNIK_ISTNIEJE_TEST = "test_awaria_po_istnieje_zostawia_wpis_ktory_przezyl_odtworzenie_kopii"
+DZIENNIK_SLEEP_TEST = "test_ponawianie_zapisu_dziennika_czeka_poza_transakcja_wymazania"
+ALARM_DZIENNIKA_TEST = "test_alarm_dopiero_po_progu_kolejnych_nocy_i_dokladnie_raz"
+ALARM_DZIENNIKA_RESET_TEST = "test_przebieg_bez_porazki_dziennika_zeruje_licznik_i_daje_jedno_odwolanie"
+ALARM_DZIENNIKA_DZIEN_TEST = "test_drugi_przebieg_tego_samego_dnia_nie_nabija_licznika"
 PLANER_TEST = "PlanerTygodniaTest"
 PUSH_JOB = "app/Jobs/WyslijPowiadomieniePush.php"
 PUSH_DWA_POLACZENIA_TEST = "PowiadomieniaPushDwaPolaczeniaTest"
@@ -85,7 +95,8 @@ POWROT_KOMENTARZA_GOOGLE_TEST = "LogowanieKontemGoogleTest"
 POWROT_KOMENTARZA_FACEBOOK = "app/Http/Controllers/Auth/FacebookLoginController.php"
 POWROT_KOMENTARZA_FACEBOOK_TEST = "LogowanieKontemFacebookiemTest"
 
-CONTROLLER = "app/Http/Controllers/CollectionController.php"
+# Reguła wyboru własnego zeszytu mieszka od #970 (krok 5) w FormRequeście.
+WYBOR_ZESZYTU = "app/Http/Requests/Collections/WyborZeszytuRequest.php"
 UNANSWERED_CONTENT = "app/Domain/Moderation/UnansweredContent.php"
 LAYOUT = "resources/views/components/layout.blade.php"
 CSS = "resources/css/app.css"
@@ -203,12 +214,15 @@ REGULY_CF_TEST = "test_warunki_regul_nie_wpuszczaja_stanu_klienta_do_wspolnego_c
 REGULA_ZDJEC_CIASTKO = '\\"/zdjecia/\\") and http.request.uri.query eq \\"\\" and http.cookie eq \\"\\"'
 # Bramka zakresu w `ci.yml` (#1273): filtr warstwy widoku obejmuje lokalne
 # akcje `.github/actions/`, bo joby przeglądarkowe wołają je przez `uses: ./…`.
-# Strażnik pyta PRAWDZIWY skrypt bramki, ale czyta go z `ci.yml`, więc tylko
+# Strażnik pyta PRAWDZIWY skrypt bramki, ale czyta go z `scripts/ci/zakres.sh` (od #611 etap 5; wcześniej z `ci.yml`), więc tylko
 # mutacja dowodzi, że zapala się, gdy akcje wypadną z filtra.
 BRAMKA_CI = ".github/workflows/ci.yml"
+# Od #611 (etap 5) logika bramki `zakres` żyje w skrypcie, nie w `ci.yml`;
+# strażnicy czytają ten plik, więc mutacje bramki celują w niego.
+BRAMKA_SKRYPT = "scripts/ci/zakres.sh"
 BRAMKA_AKCJE_TEST = "test_zmiana_lokalnej_akcji_uruchamia_joby_ktore_jej_uzywaja"
 # Ciężkie joby wąskiego obszaru zawężane TYLKO na PR-ach (decyzja 24.09.2026).
-# Strażnicy pytają prawdziwy skrypt bramki z `ci.yml`; mutacje dowodzą, że
+# Strażnicy pytają prawdziwy skrypt bramki z `scripts/ci/zakres.sh`; mutacje dowodzą, że
 # zapalają się w obie strony: gdy job wypada przy zmianie własnego wejścia,
 # gdy zawężenie przecieka poza PR i gdy wzorzec przestaje cokolwiek zawężać.
 BRAMKA_WEJSCIA_TEST = "test_ciezki_job_rusza_przy_zmianie_kazdego_pliku_ktory_czyta"
@@ -401,6 +415,17 @@ LIVEWIRE_TOKEN_TEST = "LivewireReleaseTokenZWydaniaTest"
 # 419 obiecałby, że szkic zostaje, choć w bazie nic nie ma.
 KREATOR_WIDOK = "resources/views/components/recipe-wizard.blade.php"
 KREATOR_ZAPIS_TEST = "KreatorWystawiaStanZapisuDlaStronyNieaktualnejTest"
+# #1387: klient nie podmienia identyfikatora przepisu w kreatorze. Mutacja zdejmuje
+# `#[Locked]` z `$recipeId`. Ponowna autoryzacja stoi w DWÓCH miejscach
+# (`existingRecipe()` i `PublishRecipe`), więc zdjęcie jednej z nich jest
+# maskowane przez drugą — kontrola jednoplikowa nie może jej zapalić; test
+# czerwienieje dopiero po zdjęciu obu (sprawdzone ręcznie przy #1387).
+KREATOR_AUTORYZACJA_TEST = "KreatorPilnujeAutoryzacjiIIdentyfikatoraPrzepisuTest"
+# #1387, krok 9: autozapis i rewizje w osobnych klasach (`app/Support/KreatorPrzepisu`).
+KREATOR_REWIZJA = "app/Support/KreatorPrzepisu/RewizjaTresci.php"
+KREATOR_STRONA_NIEAKTUALNA_TEST = "NieaktualnyFormularzPrzepisuTest"
+KREATOR_WALIDACJA_PRZED_ZAPISEM_TEST = "AutozapisKreatoraWalidujePrzedZapisemTest"
+KREATOR_BLAD_PRZEPISU_TEST = "PublikacjaZBledemPrzepisuZostajeNaWlasciwymKrokuTest"
 KREATOR_ZAPIS = "$recipeId === null ? 'brak' : ($juzOpublikowany ? 'opublikowany' : 'szkic')"
 # Wyjęcie ze wszystkich zeszytów jest atomowe (#1384). Mutacja zdejmuje
 # `DB::transaction` z `remove()` — pierwsze odpięcie zostaje po awarii drugiego.
@@ -434,7 +459,7 @@ def odwolanie_bez_transakcji(uzyte):
 # Timeout własnej blokady po udanej rezerwacji u rodzica (#1393). Test jest
 # behawioralny; mutacja przywraca `return false` z `catch`, który pomijał
 # zwrot miejsca do wspólnej puli poczty.
-BUDZET_POCZTY = "app/Domain/Security/DziennyBudzetListow.php"
+BUDZET_POCZTY = "app/Poczta/DziennyBudzetListow.php"
 BUDZET_POCZTY_TEST = "test_timeout_wlasnej_blokady_oddaje_miejsce_we_wspolnej_puli"
 # Klucz preview środowiska PR (#975). Zachowanie skryptu mierzą testy
 # behawioralne; ten wpis pilnuje jedynego testu czytającego entrypoint —
@@ -481,6 +506,27 @@ TURNSTILE_AKCJA_TEST = "test_akcja_innego_formularza_jest_odrzucana"
 # dokładnie tę krawędź, która zamykała cykl `Users ↔ Social`.
 ZALOZ_KONTO = "app/Domain/Users/Actions/ZalozKonto.php"
 GRAF_MODULOW_TEST = "GrafModulowDomenyBezCykliTest"
+# #2149: retencja sygnałów Analytics używa `App\Support\UsuwanieWPartiach`.
+# Mutacja wraca do importu z Compliance — krawędź Analytics → Compliance.
+PRZEDAWNIONE_SYGNALY = "app/Domain/Analytics/PrzedawnioneSygnaly.php"
+# #2149 etap 2: `DostepDoZdjecia` bierze nazwy typów celu z `Report::TARGET_*`,
+# nie z Moderation. Mutacje: powrót importu (Media → Moderation) i nowy
+# cykl (Users → Moderation przy istniejącym Moderation → Users) — ma zapalić graf.
+DOSTEP_DO_ZDJECIA = "app/Domain/Media/DostepDoZdjecia.php"
+ERASE_ACCOUNT_DATA = "app/Domain/Users/Actions/EraseAccountData.php"
+# #2149 etap 3: retencja spraw (Compliance) odświeża liczniki przez kontrakt
+# `App\Support\OdswiezanieLicznikowKolejek`, a `DziennyBudzetListow` mieszka
+# w `App\Poczta`. Mutacje przywracają importy Compliance → Moderation
+# i Moderation → Security — graf ma zapalić.
+PRZEDAWNIONE_SPRAWY = "app/Domain/Compliance/PrzedawnioneSprawyModeracyjne.php"
+ALARMUJ_MODERATORA = "app/Domain/Moderation/Actions/AlarmujModeratora.php"
+# #970 krok 5: Collections nie pogłębia zależności od `Illuminate\Http`.
+# Mutacja dokłada import `UploadedFile` do akcji spoza listy zastanych.
+ZESZYTY_AKCJA_NOTATKI = "app/Domain/Collections/Actions/UpdateCollectionItemNote.php"
+ZESZYTY_HTTP_TEST = "ZeszytyNieRosnaOdHttpTest"
+# Form Request zeszytu: Policy `update` przed polami. Mutacja wycina ją.
+ZAPIS_ZESZYTU_REQUEST = "app/Http/Requests/Collections/ZapisZeszytuRequest.php"
+ZESZYTY_FORMULARZ_TEST = "FormularzZeszytuKolejnoscSprawdzenTest"
 # Kontrolery Google i Facebooka są adapterami nad `WejdzPrzezDostawce` (#1035).
 # Mutacja wkleja do kontrolera Google własne `Auth::login` przed odpowiedzią —
 # kopię wspólnej reguły wejścia — i ma zapalić strażnika architektury.
@@ -658,7 +704,7 @@ WYDRUK_TEST = "test_arkusz_druku_ma_prog_12_pt_i_nie_schodzi_ponizej"
 # dopisanie, którego druga nie widzi. Mutacja 1 zdejmuje porównanie liczby
 # (dopisanie w tej samej chwili z mniejszym UUID), mutacja 2 — porównanie
 # kolejności (ktoś zamknął jedno, automat dopisał nowe: liczba ta sama).
-GRUPA_SYGNALOW = "app/Http/Controllers/Admin/SygnalyController.php"
+GRUPA_SYGNALOW = "app/Domain/Moderation/Actions/ZamknijGrupeSygnalow.php"
 GRUPA_SYGNALOW_TEST = "ZbiorczeZamkniecieSygnalowTylkoZEkranuTest"
 GRUPA_LICZBA_TEST = "test_dopisanie_w_tej_samej_chwili_lapie_liczba_oznaczen"
 GRUPA_KOLEJNOSC_TEST = "test_nowe_oznaczenie_przy_tej_samej_liczbie_tez_daje_odmowe"
@@ -965,15 +1011,17 @@ def akcje_poza_filtrem_widoku(source):
     """
     return replace_once(
         source,
-        r"|\.github/(workflows/ci\.yml|actions/))'",
-        r"|\.github/workflows/ci\.yml)'",
+        r"|\.github/(workflows/ci\.yml|actions/)|scripts/ci/)'",
+        r"|\.github/workflows/ci\.yml|scripts/ci/)'",
     )
 
 
 # Polskie litery w `unicode-range` Inter (#1000). Strażnik parsuje zakresy
-# z `fonts.css`; mutacja wycina „Ą ą" (U+0104–0105) z podzbioru latin-ext.
+# z `fonts.css`; mutacja wycina „Ą ą" (U+0104–0105) z podzbioru „europa"; druga wycina je
+# z listy glifów faktycznie obecnych w wygenerowanym pliku (podzbior.json).
 FONTY_CSS = "resources/css/fonts.css"
 FONTY_TEST = "PodzbiorFontuMaPolskieZnakiTest"
+FONTY_RAPORT = "resources/fonts/podzbior.json"
 # Kontrakt bezpiecznego obszaru (#987, D-260): meta viewport z `cover`
 # i boki dolnej belki oraz dół podpowiedzi wyglądu przez tokeny `--safe-*`.
 BEZPIECZNY_OBSZAR_TEST = "BezpiecznyObszarMaJedenKontraktTest"
@@ -1105,14 +1153,14 @@ checks = [
      lambda s: replace_once(s, 'Wszelkie prawa zastrzeżone.', 'Prawa nie są zastrzeżone.')),
     ("Obraz błędnie deklaruje MIT", "Dockerfile", "DeklaracjaLicencjiJestSpojnaTest",
      lambda s: replace_once(s, 'org.opencontainers.image.licenses="proprietary"', 'org.opencontainers.image.licenses="MIT"')),
-    ("Format UUID", CONTROLLER, COLLECTION_TEST,
+    ("Format UUID", WYBOR_ZESZYTU, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
     # Paginacja panelu moderacji (audyt B1, zn. 1): powrót do `links()`, czyli
     # widoku Tailwinda niewidocznego na komputerze, ma zapalić test.
     ("Kolejka zgłoszeń wraca do links()", "resources/views/pages/admin/reports.blade.php", "PaginacjaPaneluModeracjiTest",
      lambda s: replace_once(s, '<x-paginacja-panelu :paginator="$reports" />', "{{ $reports->links() }}")),
-    ("Własność zeszytu", CONTROLLER, COLLECTION_TEST,
-     lambda s: replace_once(s, "Rule::exists('collections', 'id')->where(fn ($q) => $q->whereIn('id', Collection::query()->dostepneDoZapisuDla($request->user())->select('collections.id')))", "Rule::exists('collections', 'id')")),
+    ("Własność zeszytu", WYBOR_ZESZYTU, COLLECTION_TEST,
+     lambda s: replace_once(s, "Rule::exists('collections', 'id')->where(fn ($q) => $q->whereIn('id', Collection::query()->dostepneDoZapisuDla($osoba)->select('collections.id')))", "Rule::exists('collections', 'id')")),
     ("Komunikat po powrocie", LAYOUT, COLLECTION_TEST, remove_notice),
     ("Podpis co najmniej 18 px", CSS, COMPOSER_TEST, smaller_help),
     # Obwódka list w panelu „Aa · Wygląd” (audyt B1, zn. 3): powrót do
@@ -1181,17 +1229,17 @@ checks = [
      lambda s: replace_once(s, "        if (DB::table('contact_message_replies')->whereNotNull('reply_key')->exists()) {\n", "        if (false) {\n")),
     ("Jedna sprawa RODO w toku bez odmowy przy duplikatach", RODO_W_TOKU_MIGRACJA, RODO_W_TOKU_MIGRACJA_TEST,
      lambda s: replace_once(s, "        if ($ileKont > 0) {\n", "        if (false) {\n")),
-    ("Lokalne akcje poza filtrem widoku", BRAMKA_CI, BRAMKA_AKCJE_TEST,
+    ("Lokalne akcje poza filtrem widoku", BRAMKA_SKRYPT, BRAMKA_AKCJE_TEST,
      akcje_poza_filtrem_widoku),
-    ("Dockerfile poza wzorcem builda obrazu", BRAMKA_CI, BRAMKA_WEJSCIA_TEST,
+    ("Dockerfile poza wzorcem builda obrazu", BRAMKA_SKRYPT, BRAMKA_WEJSCIA_TEST,
      dockerfile_poza_wzorcem_obrazu),
-    ("Pliki grupy wyścigów poza wzorcem joba", BRAMKA_CI, BRAMKA_WEJSCIA_TEST,
+    ("Pliki grupy wyścigów poza wzorcem joba", BRAMKA_SKRYPT, BRAMKA_WEJSCIA_TEST,
      grupa_wyscigow_poza_wzorcem),
-    ("Ciężkie joby zawężane także poza PR-em", BRAMKA_CI, BRAMKA_POZA_PR_TEST,
+    ("Ciężkie joby zawężane także poza PR-em", BRAMKA_SKRYPT, BRAMKA_POZA_PR_TEST,
      zawezanie_takze_poza_pr),
-    ("Wzorzec przyrządu #605 łapie każdą zmianę", BRAMKA_CI, BRAMKA_OBOK_TEST,
+    ("Wzorzec przyrządu #605 łapie każdą zmianę", BRAMKA_SKRYPT, BRAMKA_OBOK_TEST,
      wzorzec_przyrzadu_lapie_wszystko),
-    ("Filtr widoku zawężany także poza PR-em", BRAMKA_CI, WIDOK_POZA_PR_TEST,
+    ("Filtr widoku zawężany także poza PR-em", BRAMKA_SKRYPT, WIDOK_POZA_PR_TEST,
      widok_zawezany_poza_pr),
     ("Podział wierszy przez \\R bez u", PODZIAL_WIERSZY, PODZIAL_WIERSZY_TEST,
      lambda s: replace_once(s, r"preg_split('/\r\n|\n|\r/', $tresc)", r"preg_split('/\R/', $tresc)")),
@@ -1291,6 +1339,23 @@ checks = [
      lambda s: replace_once(s, "'release_token' => strtolower(trim((string) env('RAILWAY_GIT_COMMIT_SHA'))) ?: 'lokalnie',", "'release_token' => 'a',")),
     ("Kreator obiecuje szkic przed zapisem", KREATOR_WIDOK, KREATOR_ZAPIS_TEST,
      lambda s: replace_once(s, KREATOR_ZAPIS, "$juzOpublikowany ? 'opublikowany' : 'szkic'")),
+    ("Kreator pozwala klientowi podmienić recipeId", KREATOR_WIDOK, KREATOR_AUTORYZACJA_TEST,
+     lambda s: replace_once(s, "    #[Locked]\n    public ?string $recipeId = null;", "    public ?string $recipeId = null;")),
+    # #1387, krok 9: strona nieaktualna. Rewizja treści z bazy jedzie do
+    # `PublishRecipe`; mutacja gubi ją i druga karta nadpisuje pierwszą.
+    ("Kreator nie wysyła oczekiwanej rewizji treści", KREATOR_REWIZJA, KREATOR_STRONA_NIEAKTUALNA_TEST,
+     lambda s: replace_once(s, "return $recipeId === null ? null : $rewizjaTresci;", "return null;")),
+    # #1387, krok 9: walidacja SUROWYCH pól przed zapisem szkicu.
+    ("Autozapis kreatora zapisuje bez walidacji pól", KREATOR_WIDOK, KREATOR_WALIDACJA_PRZED_ZAPISEM_TEST,
+     lambda s: replace_once(s, "if (! $aboutValid || ! $rowsValid) {", "if (false) {")),
+    # #1387, krok 9: błąd „przepis zniknął” stoi na podglądzie; mutacja
+    # przywraca stałe „krok 3” z `publish()`.
+    ("Publikacja cofa z podglądu przy błędzie przepisu", KREATOR_WIDOK, KREATOR_BLAD_PRZEPISU_TEST,
+     lambda s: replace_once(
+         s,
+         "$this->step = NawigacjaKreatora::krokPierwszegoBledu($this->getErrorBag()->keys());\n\n            return;\n        }\n\n        if (! $this->storePendingPhotos()) {",
+         "$this->step = 3;\n\n            return;\n        }\n\n        if (! $this->storePendingPhotos()) {",
+     )),
     ("Polityka obiecuje UE przy strażniku bez eu", STRAZNIK_R2, POLITYKA_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     # #619: zapis weryfikacji w dokumencie infrastruktury z inną datą niż
@@ -1351,7 +1416,9 @@ checks = [
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
      lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
     ("Podzbiór fontu bez „ą\"", FONTY_CSS, FONTY_TEST,
-     lambda s: replace_once(s, "unicode-range: U+0100-02BA,", "unicode-range: U+0100-0103, U+0106-02BA,")),
+     lambda s: replace_once(s, "unicode-range: U+0100-017F;", "unicode-range: U+0100-0103, U+0106-017F;")),
+    ("Wygenerowany font bez glifu „ą\"", FONTY_RAPORT, FONTY_TEST,
+     lambda s: replace_once(s, '"glify": "U+0100-0130,', '"glify": "U+0106-0130,')),
     ("Viewport bez viewport-fit=cover", LAYOUT, BEZPIECZNY_OBSZAR_TEST,
      lambda s: replace_once(s, ", viewport-fit=cover", "")),
     ("Dolna belka bez lewego insetu", MARKA_RAMA_CSS, BEZPIECZNY_OBSZAR_TEST,
@@ -1386,6 +1453,20 @@ checks = [
      lambda s: replace_once(s, "najpóźniej **30 dni** po usunięciu", "najpóźniej **60 dni** po usunięciu")),
     ("Users znowu importuje Social", ZALOZ_KONTO, GRAF_MODULOW_TEST,
      lambda s: replace_once(s, "use App\\Domain\\Users\\ObserwowanieGospodarza;\n", "use App\\Domain\\Social\\Actions\\FollowUser;\nuse App\\Domain\\Users\\ObserwowanieGospodarza;\n")),
+    ("Analytics znowu importuje Compliance", PRZEDAWNIONE_SYGNALY, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "use App\\Support\\UsuwanieWPartiach;\n", "use App\\Domain\\Compliance\\UsuwanieWPartiach;\n")),
+    ("Media znowu importuje Moderation", DOSTEP_DO_ZDJECIA, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "use App\\Models\\CookedEvent;\n", "use App\\Domain\\Moderation\\ModeratedContent;\nuse App\\Models\\CookedEvent;\n")),
+    ("Compliance znowu importuje Moderation", PRZEDAWNIONE_SPRAWY, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "use App\\Logging\\BezpiecznyBlad;\n", "use App\\Domain\\Moderation\\KolejkiPanelu;\nuse App\\Logging\\BezpiecznyBlad;\n")),
+    ("Moderation znowu importuje Security", ALARMUJ_MODERATORA, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "use App\\Domain\\Moderation\\Sygnaly\\Sygnal;\n", "use App\\Domain\\Moderation\\Sygnaly\\Sygnal;\nuse App\\Domain\\Security\\DziennyBudzetListow as BudzetZSecurity;\n")),
+    ("Nowy cykl: Users importuje Moderation (Moderation → Users już jest)", ERASE_ACCOUNT_DATA, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "namespace App\\Domain\\Users\\Actions;\n", "namespace App\\Domain\\Users\\Actions;\n\nuse App\\Domain\\Moderation\\ModeratedContent;\n")),
+    ("Akcja zeszytów importuje Illuminate\\Http", ZESZYTY_AKCJA_NOTATKI, ZESZYTY_HTTP_TEST,
+     lambda s: replace_once(s, "use Illuminate\\Support\\Facades\\DB;\n", "use Illuminate\\Http\\UploadedFile;\nuse Illuminate\\Support\\Facades\\DB;\n")),
+    ("Formularz zeszytu sprawdza pola przed Policy", ZAPIS_ZESZYTU_REQUEST, ZESZYTY_FORMULARZ_TEST,
+     lambda s: replace_once(s, "            Gate::inspect('update', $zeszyt)->authorize();\n", "")),
     ("DemoSeeder wypisuje hasło z KUKING_DEMO_HASLO", DEMO_SEEDER, DEMO_SEEDER_HASLO_TEST,
      lambda s: replace_once(s, WARUNEK_HASLA_Z_OTOCZENIA, "        if (false) {")),
     ("Polityka z okresem sesji innym niż życie sesji na produkcji", POLITYKA, POLITYKA_SESJE_TEST,
@@ -1533,6 +1614,25 @@ checks = [
     # Wymazanie konta zostawia prywatny plan tygodnia w bazie.
     ("Wymazanie konta nie kasuje planu tygodnia", WYMAZANIE_KONTA, PLANER_TEST,
      lambda s: replace_once(s, "            $fresh->mealPlanEntries()->delete();\n", "")),
+    # #2038: wpis dziennika dopisany PRZED nieudanym commitem wymazania musi
+    # zostać wycofany — inaczej `wymaz-ponownie` wymaże konto przed końcem karencji.
+    ("Wymazanie nie wycofuje wpisu dziennika po nieudanym commicie", WYMAZANIE_KONTA, DZIENNIK_WYCOFANIE_TEST,
+     lambda s: replace_once(s, "                if ($wpisDopisany) {", "                if (false) {")),
+    # #2038: wpis, który PRZEŻYŁ odtworzenie kopii (`ISTNIEJE`), nie jest nasz —
+    # nieudany commit ponownego wymazania nie wolno go skasować.
+    ("Wymazanie kasuje cudzy wpis dziennika (ISTNIEJE)", WYMAZANIE_KONTA, DZIENNIK_ISTNIEJE_TEST,
+     lambda s: replace_once(s, "$wpisDopisany = $wpis === DziennikWymazan::DOPISANO;", "$wpisDopisany = true;")),
+    # #2038: ponawianie zapisu dziennika czeka POZA transakcją z blokadą konta.
+    # Bez `proby: 1` `Sleep` wraca do środka transakcji.
+    ("Zapis dziennika czeka wewnątrz transakcji z blokadą konta", WYMAZANIE_KONTA, DZIENNIK_SLEEP_TEST,
+     lambda s: replace_once(s, "now(), proby: 1);", "now());")),
+    # #2038 etap 3: alarm po N nocach z porażką dziennika — licznik, reset, jedna noc na dzień.
+    ("Egzekutor nie liczy porażek dziennika wymazań", WYMAZANIE_PURGE, ALARM_DZIENNIKA_TEST,
+     lambda s: replace_once(s, "$nieudaneDziennik++;", "")),
+    ("Alarm dziennika wymazań bez zerowania licznika", ALARM_DZIENNIKA, ALARM_DZIENNIKA_RESET_TEST,
+     lambda s: replace_once(s, "$this->pamiec->forget(self::KLUCZ_LICZNIKA);", "")),
+    ("Alarm dziennika wymazań liczy każdy przebieg dnia jako noc", ALARM_DZIENNIKA, ALARM_DZIENNIKA_DZIEN_TEST,
+     lambda s: replace_once(s, "if (! is_array($zapis) || ($zapis['dzien'] ?? null) !== $dzis) {", "if (true) {")),
     # #1992: pierwszy worker zarezerwował slot i czeka na transport. Liczenie
     # wyłącznie potwierdzonych wysyłek musi zapalić test dwóch połączeń.
     ("Limit push nie liczy rezerwacji w transporcie", PUSH_JOB, PUSH_DWA_POLACZENIA_TEST,
@@ -1638,6 +1738,10 @@ checks = [
     # strażnika `tests/skrypty/*.sh` zostałby pominięty w check.sh i w CI.
     ("Test powłoki wypada z listy wspólnego skryptu", "scripts/kontrole-powloki.sh", "KontrolePowlokiLokalnieIWCiTest",
      lambda s: replace_once(s, "tests/skrypty/bramka-migracji.sh|Bramka migracji workera i schedulera oblewa\n", "")),
+    # #1985: sufit danych paczki importu trzyma się limitu pamięci PHP (256M,
+    # json_decode ~8×). Powrót do 32 MB kończył się fatalem 500 bez komunikatu.
+    ("Sufit paczki importu wraca do 32 MB", "app/Domain/Users/Import/PodgladPaczkiEksportu.php", "test_sufit_danych_pozostaje_bezpieczny_dla_limitu_pamieci_php",
+     lambda s: replace_once(s, "MAX_DANE_BAJTOW = 12 * 1024 * 1024;", "MAX_DANE_BAJTOW = 32 * 1024 * 1024;")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
@@ -1653,6 +1757,21 @@ for label, filename, _test, mutate in checks:
             raise RuntimeError("Mutacja nie zmieniła źródła.")
     except Exception as error:
         raise RuntimeError(f"Kontrola „{label}” ({filename}) nie pasuje do kodu: {error}") from error
+
+# Wzorce oczekiwanej przyczyny (#1011) sprawdzamy w tym samym preflighcie, PRZED
+# jakimkolwiek testem: literówka w nazwie kontroli albo zły regex wywraca krok
+# w sekundę, z nazwą kontroli, a nie po kilkunastu minutach.
+KONTROLE_MECHANIZMU = kontrole_mechanizmu(
+    STRAZNIK_HOSTA, STRAZNIK_HOSTA_TEST, bez_sprawdzenia_sciezki, replace_once,
+)
+sprawdz_wzorce(checks, OCZEKUJ)
+for label, filename, _test, mutate, _oczekuj in KONTROLE_MECHANIZMU:
+    try:
+        source = (ROOT / filename).read_text()
+        if mutate(source) == source:
+            raise RuntimeError("Mutacja nie zmieniła źródła.")
+    except Exception as error:
+        raise RuntimeError(f"Kontrola mechanizmu „{label}” ({filename}) nie pasuje do kodu: {error}") from error
 
 # KONTROLE DODATNIE PRZED MUTACJAMI wynikają z `checks`, nie z ręcznej listy.
 # Do tej pory stała tu ręczna lista ponad 90 wywołań `run_test(..., True)`,
@@ -1681,26 +1800,27 @@ if not kontrole_dodatnie:
 KONTROLE_DODATNIE_BEZ_MUTACJI = [GRUPA_SYGNALOW_TEST] if poza_petla else []
 for test in dict.fromkeys(kontrole_dodatnie + KONTROLE_DODATNIE_BEZ_MUTACJI):
     run_test(test, True)
-with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
-    backup = Path(directory) / "oryginal"
-    for label, filename, test, mutate in wybrane:
-        path = ROOT / filename
-        subprocess.run(["cp", str(path), str(backup)], check=True)
-        before = digest(path)
-        try:
-            path.write_text(mutate(path.read_text()))
-            changed = digest(path)
-            if changed == before:
-                raise RuntimeError("Mutacja nie zmieniła źródła.")
-            print(f"{label}: przed={before}, mutacja={changed}", flush=True)
-            run_test(test, False)
-        finally:
-            subprocess.run(["cp", str(backup), str(path)], check=True)
-            restored = digest(path)
-            print(f"{label}: po przywróceniu={restored}", flush=True)
-            if restored != before:
-                raise RuntimeError("Przywrócone źródło różni się od oryginału.")
-        run_test(test, True)
+# CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej
+# kontrolę zaliczał każdy niezerowy kod ze słowem `FAILED` w wyjściu, więc błąd
+# składni, awaria bazy albo niezależna asercja z tej samej klasy dawały ten sam
+# „dowód" co asercja, którą mutacja miała zapalić. Teraz wynik czytamy z raportu
+# JUnit, a wzorzec oczekiwanej porażki stoi w `OCZEKUJ` (osobny plik, klucz to
+# nazwa kontroli z `checks`). Kontrola bez wzorca przechodzi tylko jako
+# BEZ_WZORCA i raport wymienia ją z nazwy — nie jest pełnym dowodem.
+# NIE wszystkie wpisy `checks` mają dziś wzorzec (29.09.2026: 24 z 237, głównie
+# nowsze kontrole z paczek C–F) — raport wymienia je z nazwy jako BEZ_WZORCA.
+# `WYMAGAJ_WZORCA = True` zamieni wpis bez wzorca z raportowanego BEZ_WZORCA
+# w odmowę przed pierwszym testem — włącz dopiero, gdy każdy wpis dostanie
+# wzorzec w `kontrole_oczekiwana_przyczyna.py`.
+WYMAGAJ_WZORCA = False
+# Podział na części: pętlę mutacji dostaje tylko `wybrane`, a wzorce są sprawdzane
+# względem CAŁEGO `checks` (`wszystkie`). Kontrole mechanizmu (osobne od `checks`)
+# należą do elementów spoza pętli, czyli do części `poza_petla`.
+potwierdzone, bez_wzorca = przebieg(
+    [],  # kontrole dodatnie poszły wyżej, `run_test` z własnym komunikatem błędu
+    wybrane, OCZEKUJ, KONTROLE_MECHANIZMU if poza_petla else (),
+    wymagaj_wzorca=WYMAGAJ_WZORCA, wszystkie=checks,
+)
 # #2167: usunięcie wymaganego CSV ma zakończyć test porażką, nie skipem.
 # Robimy to osobno, bo kontrola usuwa plik zamiast podmieniać jego treść.
 # Element spoza pętli: w części CI tylko w części 3 (`poza_petla`).
@@ -1709,11 +1829,13 @@ if poza_petla:
     oryginal_miar = miary.read_bytes()
     try:
         miary.unlink()
-        run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", False)
+        ocena_miar = werdykt("masa_kotleta_zgadza_sie_z_miarami_domowymi", OCZEKUJ_MIARY,
+                             uruchom_test("masa_kotleta_zgadza_sie_z_miarami_domowymi"))
+        print(f"WERDYKT brak miary.csv: {ocena_miar.werdykt} — {ocena_miar.powod}", flush=True)
+        if ocena_miar.werdykt != POTWIERDZONA:
+            raise RuntimeError("Brak miary.csv nie oblał testu z oczekiwanej przyczyny: " + ocena_miar.powod)
     finally:
         miary.write_bytes(oryginal_miar)
     run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", True)
-# Liczebnik bierzemy z `len(checks)`, nie z tekstu. Wcześniej stało tu wpisane
-# słowo „Pięć": po dodaniu szóstego wpisu CI nadal wypisywałoby „Pięć", a to
-# jedyne miejsce, z którego człowiek czyta wynik tego kroku.
-print(f"{len(wybrane)} kontroli negatywnych wykryło regresje; źródła przywrócone.")
+# Podsumowanie (potwierdzone i lista BEZ WZORCA) wypisał `przebieg` — liczebniki
+# z `len(checks)`, nie z tekstu (dawniej stało tu wpisane słowo „Pięć”).

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\Sygnaly\Sygnal;
-use App\Domain\Security\DziennyBudzetListow;
 use App\Models\Report;
 use App\Notifications\PilnyAlarmModeracyjny;
+use App\Poczta\DziennyBudzetListow;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;

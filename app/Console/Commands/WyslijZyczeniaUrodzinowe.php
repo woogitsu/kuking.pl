@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Rocznice\Urodziny;
-use App\Domain\Security\DziennyBudzetListow;
 use App\Logging\BezpiecznyBlad;
 use App\Mail\ZyczeniaUrodzinowe;
 use App\Models\User;
+use App\Poczta\DziennyBudzetListow;
 use App\Support\Czas;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;

@@ -15,10 +15,12 @@ use App\Domain\Moderation\KolejkiPanelu;
 use App\Domain\Notifications\Push\TransportPush;
 use App\Domain\Notifications\Push\TransportWebPush;
 use App\Domain\Questions\PytaniaBezOdpowiedzi;
+use App\Domain\Recipes\Actions\ZapiszSzkicZPaczki;
 use App\Domain\Recipes\BramkaPublikacjiSzkicu;
 use App\Domain\Recipes\StrazPochodzeniaPrzepisu;
 use App\Domain\Social\Actions\ObserwujGospodarza;
 use App\Domain\Users\Exports\ExportTempDirectory;
+use App\Domain\Users\Import\ZapisSzkicuZPaczki;
 use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Domain\Users\ObserwowanieGospodarza;
 use App\Models\Appeal;
@@ -32,6 +34,7 @@ use App\Support\Baza\LimitBlokadMigracji;
 use App\Support\KomunikatZaDuzaWysylka;
 use App\Support\MapaStrony;
 use App\Support\OdmianaWalidacji;
+use App\Support\OdswiezanieLicznikowKolejek;
 use App\Support\Sesja\GeneracjaSesji;
 use App\Support\Sesja\UchwytSesjiBezPelnegoAdresu;
 use App\Support\Storage\DyskR2;
@@ -65,11 +68,16 @@ class AppServiceProvider extends ServiceProvider
         // — jedno przeliczenie liczników na transakcję (audyt B4 W3).
         $this->app->singleton(KolejkiPanelu::class);
 
+        // Retencja spraw (`Compliance`) odświeża liczniki przez kontrakt, bez
+        // importu `Moderation` (#2149, etap 3) — ten sam singleton co wyżej.
+        $this->app->bind(OdswiezanieLicznikowKolejek::class, fn ($app) => $app->make(KolejkiPanelu::class));
+
         // Rejestracja (`Users`) woła obserwowanie gospodarza przez kontrakt,
         // a implementację dostarcza `Social` (issue #971). To wiązanie jest
         // jedynym miejscem, które zna oba moduły — dzięki temu graf
         // `app/Domain` nie ma cyklu `Users ↔ Social`.
         $this->app->bind(ObserwowanieGospodarza::class, ObserwujGospodarza::class);
+        $this->app->bind(ZapisSzkicuZPaczki::class, ZapiszSzkicZPaczki::class);
 
         // Koniec wspólnych zeszytów przy blokadzie i wymazaniu konta (#1743,
         // D-302): kontrakt w `Users`, implementacja w `Collections` — bez

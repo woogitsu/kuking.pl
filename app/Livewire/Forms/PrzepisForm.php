@@ -15,16 +15,14 @@ use Livewire\Form;
  * błąd pod kluczem `form.visibility`, cel odnośnika z podsumowania błędów
  * `#f-form-visibility`.
  *
- * ETAP, NIE CAŁOŚĆ. W tym kroku przechodzą tu trudność, widoczność
- * i „Skąd ten przepis”. Nazwa, krótki opis, porcje, koszt i oba czasy zostają
- * na razie we właściwościach komponentu — ich przemianowanie na `form.<pole>`
- * dotyka ponad stu ścieżek w testach kreatora (`set('title', …)`, klucze
- * błędów) i lepiej zrobić je osobnym, mechanicznym krokiem, żeby ten zostawał
- * czytelny. Przejdą tu w następnym kroku.
+ * Od kroku 6 przechodzą tu WSZYSTKIE pola kroku „o przepisie”: nazwa, krótki
+ * opis, porcje, koszt, oba czasy, trudność, widoczność i „Skąd ten przepis”.
+ * Przemianowanie na `form.<pole>` było celowo osobnym, mechanicznym krokiem
+ * (ponad sto ścieżek w testach kreatora), żeby krok 3 zostawał czytelny.
  *
  * CZEGO TU NIE MA — CELOWO:
  *  - reguł i komunikatów: jedno źródło to `KrokOPrzepisie`, wspólne dla
- *    pól tu i pól, które jeszcze stoją w komponencie;
+ *    wszystkich pól kroku;
  *  - zapisu: reguły domenowe i transakcja zostają w `PublishRecipe`
  *    (Form Object nie może stać się drugim przypadkiem użycia);
  *  - identyfikatorów przepisu i zdjęć: zostają w komponencie jako `#[Locked]`.
@@ -33,8 +31,14 @@ use Livewire\Form;
  */
 final class PrzepisForm extends Form
 {
-    /** Pola, które ten obiekt już przejął od komponentu. */
+    /** Pola kroku „o przepisie” trzymane w tym obiekcie. */
     public const POLA = [
+        'title',
+        'summary',
+        'servings',
+        'estimated_cost_pln',
+        'prep_minutes',
+        'cook_minutes',
         'difficulty',
         'visibility',
         'source_type',
@@ -43,6 +47,19 @@ final class PrzepisForm extends Form
         'source_url',
         'family_since_year',
     ];
+
+    public string $title = '';
+
+    public string $summary = '';
+
+    public string $servings = '';
+
+    /** Koszt całego przepisu w złotych, tak jak go wpisano („24,50") — D-286. */
+    public string $estimated_cost_pln = '';
+
+    public string $prep_minutes = '';
+
+    public string $cook_minutes = '';
 
     public string $difficulty = '';
 
@@ -67,6 +84,12 @@ final class PrzepisForm extends Form
     public function pola(): array
     {
         return [
+            'title' => $this->title,
+            'summary' => $this->summary,
+            'servings' => $this->servings,
+            'estimated_cost_pln' => $this->estimated_cost_pln,
+            'prep_minutes' => $this->prep_minutes,
+            'cook_minutes' => $this->cook_minutes,
             'difficulty' => $this->difficulty,
             'visibility' => $this->visibility,
             'source_type' => $this->source_type,
@@ -79,8 +102,8 @@ final class PrzepisForm extends Form
 
     /**
      * Klucz błędu w worku komponentu dla pola o nazwie z `KrokOPrzepisie`:
-     * `visibility` → `form.visibility`, a pole, które jeszcze stoi
-     * w komponencie (`title`), zostaje bez zmian.
+     * `visibility` → `form.visibility`; nazwa spoza formularza (np. `steps`)
+     * zostaje bez zmian.
      */
     public static function kluczBledu(string $pole, string $wlasciwosc = 'form'): string
     {

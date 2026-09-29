@@ -88,6 +88,19 @@ class Report extends Model
     ];
 
     /**
+     * Nazwy typów celu, o które pyta kod spoza modułu Moderation.
+     *
+     * Wartość `reports.target_type` jest faktem o tabeli, więc mieszka przy
+     * modelu, a nie w `App\Domain\Moderation\ModeratedContent`. Dzięki temu
+     * `App\Domain\Media\DostepDoZdjecia` nie musi importować Moderation
+     * (#2149, etap 2). `ModeratedContent::TYPY` odwołuje się do tych samych
+     * stałych, więc nazwa jest w jednym miejscu.
+     */
+    public const TARGET_POST = 'post';
+
+    public const TARGET_MEDIA = 'media';
+
+    /**
      * Zgłoszenie społecznościowe: „to jest spam", „to jest chamskie".
      * Nasze zasady, nasza kolejka, może wymagać zalogowania.
      */

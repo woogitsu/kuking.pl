@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Jobs\GenerateUserExport;
 use App\Jobs\ImportujPrzepisZAdresu;
+use App\Jobs\ImportujPrzepisZPdf;
 use App\Jobs\NotifyUserExportReady;
 use App\Jobs\OdczytajPrzepis;
 use App\Jobs\ProcessUploadedImage;
@@ -92,6 +93,8 @@ class UmowaKolejkiTest extends TestCase
         OdczytajPrzepis::class => 'low',
         // Import przepisu z adresu strony (#28): pobranie + ewentualny model poza żądaniem WWW.
         ImportujPrzepisZAdresu::class => 'low',
+        // Import przepisu z wysłanego pliku PDF (#28, etap 2): Poppler + ewentualny model poza żądaniem WWW.
+        ImportujPrzepisZPdf::class => 'low',
     ];
 
     /**
@@ -113,6 +116,7 @@ class UmowaKolejkiTest extends TestCase
             WyslijPowiadomieniePush::class => new WyslijPowiadomieniePush('user-id'),
             OdczytajPrzepis::class => new OdczytajPrzepis('import-id'),
             ImportujPrzepisZAdresu::class => new ImportujPrzepisZAdresu('import-id'),
+            ImportujPrzepisZPdf::class => new ImportujPrzepisZPdf('import-id'),
         ];
     }
 

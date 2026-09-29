@@ -6,10 +6,10 @@ namespace App\Http\Controllers\Auth;
 
 use App\Domain\Security\ZaproszenieWSesji;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\PrzyjecieZaproszeniaRequest;
 use App\Models\RegistrationInvite;
 use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
@@ -118,7 +118,7 @@ class RegistrationInviteController extends Controller
      * Zaproszenia TU NIE ZUŻYWAMY (patrz komentarz klasy) — kasuje je dopiero
      * utworzenie konta.
      */
-    public function przyjmij(Request $request, ZaproszenieWSesji $sesja): RedirectResponse|View
+    public function przyjmij(PrzyjecieZaproszeniaRequest $request, ZaproszenieWSesji $sesja): RedirectResponse|View
     {
         if (! self::wlaczone() || ! self::rejestracjaOtwarta()) {
             return $this->ekranNiedostepny(
@@ -128,7 +128,7 @@ class RegistrationInviteController extends Controller
             );
         }
 
-        $token = (string) $request->input('token', '');
+        $token = $request->token();
         $zaproszenie = RegistrationInvite::znajdzPoTokenie($token);
 
         if ($zaproszenie === null || ! $zaproszenie->jestWazne()) {

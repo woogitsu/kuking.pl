@@ -12,6 +12,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Sleep;
 use Mockery;
 use RuntimeException;
 use Tests\TestCase;
@@ -138,26 +139,31 @@ class DziennikWymazanPozaBazaTest extends TestCase
         $this->assertSame(User::STATUS_ACTIVE, $konto->fresh()->status);
     }
 
-    public function test_awaria_dziennika_nie_zatrzymuje_wymazania_a_noc_dopisuje_brakujacy_wpis(): void
+    public function test_awaria_dziennika_cofa_wymazanie_a_po_powrocie_magazynu_egzekutor_je_ponawia(): void
     {
+        Sleep::fake();
         $dysk = Mockery::mock(Storage::disk('dziennik_test'))->makePartial();
         $dysk->shouldReceive('put')->andThrow(new RuntimeException('R2 nie odpowiada'));
+        // Dysk lokalny w testach dopisuje wpis przez `fopen('xb')` po `makeDirectory()`.
+        $dysk->shouldReceive('makeDirectory')->andThrow(new RuntimeException('R2 nie odpowiada'));
         Storage::set('dziennik_test', $dysk);
 
-        [$konto] = $this->wymazaneKonto(User::DELETE_SCOPE_MINIMUM);
-        $this->assertSame(User::STATUS_ERASED, $konto->fresh()->status);
+        $konto = User::factory()->create();
+        $konto->fresh()->markForDeletion(User::DELETE_SCOPE_MINIMUM);
+
+        try {
+            app(EraseAccountData::class)->handle($konto->fresh());
+            $this->fail('Wymazanie bez zapisu w dzienniku poza bazą nie może się udać (#2038).');
+        } catch (RuntimeException) {
+        }
+
+        $this->assertSame(User::STATUS_PENDING_DELETE, $konto->fresh()->status);
+        $this->assertNull($konto->fresh()->data_erased_at);
 
         Storage::fake('dziennik_test');
-        $przed = app(DziennikWymazan::class)->wpisyOd();
-        $this->assertSame([], $przed);
-
-        $this->artisan('kuking:dziennik-wymazan')->assertSuccessful();
-
-        $wpisy = app(DziennikWymazan::class)->wpisyOd();
-        $this->assertCount(1, $wpisy);
-        $pierwszy = $wpisy[0] ?? null;
-        $this->assertNotNull($pierwszy);
-        $this->assertSame((string) $konto->getKey(), $pierwszy['user_id']);
+        $this->assertTrue(app(EraseAccountData::class)->handle($konto->fresh()));
+        $this->assertSame(User::STATUS_ERASED, $konto->fresh()->status);
+        $this->assertSame([(string) $konto->getKey()], array_column(app(DziennikWymazan::class)->wpisyOd(), 'user_id'));
     }
 
     public function test_wpisy_starsze_niz_retencja_znikaja(): void
