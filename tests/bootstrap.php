@@ -70,6 +70,20 @@ if (getenv('DB_DATABASE') === false || getenv('DB_DATABASE') === '') {
     putenv('DB_DATABASE='.kuking_nazwa_testowej_bazy(__DIR__.'/..'));
 }
 
+/*
+ * BEZPIECZNIK (D-334): testy odmawiają startu na bazie spoza rodziny testowej.
+ *
+ * Wyliczona wyżej nazwa jest bezpieczna, ale JAWNA zmienna ma pierwszeństwo
+ * (patrz akapit o `DB_DATABASE` na górze), a `DB_URL` przebija obie. Bez tego
+ * sprawdzenia `export DB_DATABASE=kuking` albo `DB_URL` z produkcji kończy się
+ * tym, że `RefreshDatabase` zrzuca schemat prawdziwej bazy. Stoi PRZED
+ * `vendor/autoload.php`, czyli zanim Laravel otworzy jakiekolwiek połączenie.
+ * Rodziny i uzasadnienie: `tests/Support/kuking_bezpiecznik_bazy_testowej.php`.
+ */
+require_once __DIR__.'/Support/kuking_bezpiecznik_bazy_testowej.php';
+
+kuking_wymus_baze_testowa();
+
 require __DIR__.'/../vendor/autoload.php';
 
 /*

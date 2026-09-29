@@ -67,6 +67,19 @@ if os.environ.get("CI") != "true":
         odmow(f"DB_PORT={port!r} — podaj port własnego klastra, nigdy 5432.")
     if baza in ("", "kuking"):
         odmow(f"DB_DATABASE={baza!r} — podaj nazwaną bazę stanowiska.")
+    # Ta sama rodzina, którą egzekwuje `tests/bootstrap.php` (D-334). Bez tej
+    # kontroli każdy test w pętli odmawiał startu, a kontrola ujemna czyta
+    # „test nie przeszedł” jako „mutacja złapana” — fałszywa zieleń całego skryptu.
+    rodzina = subprocess.run(
+        ["php", "-r",
+         'require "tests/Support/kuking_bezpiecznik_bazy_testowej.php";'
+         ' exit(kuking_ocen_baze_testowa($argv[1]) === null ? 0 : 1);',
+         "--", baza],
+        capture_output=True, check=False,
+    )
+    if rodzina.returncode != 0:
+        odmow(f"DB_DATABASE={baza!r} nie należy do rodziny testowej "
+              "(kuking_test*, kuking_race*, kuking_flota_*) — testy odmówiłyby startu.")
 
     print(f"Kontrole negatywne lokalnie: {host}:{port}/{baza}", flush=True)
 

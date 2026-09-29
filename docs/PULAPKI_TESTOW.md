@@ -914,6 +914,37 @@ czy stan się ustalił i po ilu ms.
 Wzorzec ten sam co §14 i `scripts/lib/stan-ustalony.mjs` z PR #1472; tu
 lokalnie, bo pomocnik powstał, zanim ten plik trafił na `main`.
 
+## 18. Nazwa bazy testowej jest wyliczana, ale jedna zmienna ją przesłania
+
+**Złapane: przegląd starego PR-a #966 (nigdy nie scalonego), decyzja D-334.**
+
+`tests/bootstrap.php` wylicza bezpieczną nazwę (`kuking_test`,
+`kuking_test_<worktree>`), ale robi to tylko wtedy, gdy `DB_DATABASE` jest
+puste. Jawna zmienna z powłoki ma pierwszeństwo — i słusznie, bo tak CI
+i grupa `dwa-polaczenia` podają swoje bazy. Skutek uboczny: `export DB_DATABASE=kuking`
+w profilu powłoki, `direnv` albo `DB_URL` skopiowany z produkcji (`DB_URL`
+przebija `DB_DATABASE`) omijają całe wyliczanie, a pierwszy `RefreshDatabase`
+zrzuca schemat prawdziwej bazy. Żaden test tego nie widzi, bo test już
+chodzi na tej bazie.
+
+### Co robić
+
+**Nie obchodź odmowy — popraw źródło.** Bootstrap odmawia startu (kod 2,
+komunikat po polsku, przed `vendor/autoload.php`, więc bez łączenia z bazą),
+jeśli baza nie należy do rodziny: `kuking_test*`, `kuking_race*`,
+`kuking_flota_*`. Zwykle wystarczy `unset DB_DATABASE DB_URL`. Rodziny są
+w `tests/Support/kuking_bezpiecznik_bazy_testowej.php`.
+
+**Nowy sposób uruchamiania testów = nowa nazwa z rodziny.** Skrypt stanowiska
+albo job CI, który uruchamia `php artisan test`, musi podawać bazę z rodziny.
+Pilnuje tego `BezpiecznikBazyTestowejStartTest` (joby `ci.yml` i skrypty
+w `scripts/`, `tests/skrypty/`). Przyrządy Node (`kuking_a11y`, `kuking_581_*`,
+`kuking_port_*`, `*_pomiar`) są poza rodziną celowo: nie uruchamiają PHPUnita,
+a `RefreshDatabase` wyczyściłby przygotowane przez nie dane. Kontrole ujemne
+lokalnie (`KUKING_KONTROLE_LOKALNIE=1`) sprawdzają rodzinę na starcie, bo
+inaczej każdy test w pętli odmawiałby startu, a kontrola czytałaby to jako
+„mutacja złapana”.
+
 ## Skąd ta lista
 
 Trzy warstwy zewnętrznego audytu z 10.09.2026
