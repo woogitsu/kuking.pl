@@ -59,6 +59,17 @@
             --}}
             @if($recipe->heroMedia?->isReady() && $recipe->heroMedia->maWariantDoPokazania('large'))
             @php
+                /*
+                 * KALORIE NA PORCJĘ (#1996) — TYLKO TE, KTÓRE STRONA POKAZUJE.
+                 * Te same warunki co `x-wartosci-odzywcze`: autor nie ukrył
+                 * sekcji, są składniki, kalkulator uznał wynik za wiarygodny
+                 * (pokrycie ≥ 90%) i znamy liczbę porcji. Liczba i zaokrąglenie
+                 * z tego samego `kcalDoPokazania()`. Bez tego pola `nutrition`
+                 * nie ma wcale (Google: dane muszą zgadzać się z treścią).
+                 */
+                $kcalNaPorcje = ($recipe->pokazuj_wartosci_odzywcze ?? true) && $recipe->ingredients->isNotEmpty()
+                    ? app(\App\Domain\Recipes\Odzywcze\KalkulatorWartosci::class)->policz($recipe)->kcalNaPorcjeDoDanychStrukturalnych()
+                    : null;
                 $recipeJsonLd = array_filter([
                 '@context' => 'https://schema.org',
                 '@type' => 'Recipe',
@@ -182,6 +193,10 @@
                     : null),
                 'image' => [$recipe->heroMedia->url('large')],
                 'recipeYield' => $porcje,
+                'nutrition' => $kcalNaPorcje !== null ? [
+                    '@type' => 'NutritionInformation',
+                    'calories' => $kcalNaPorcje.' kcal',
+                ] : null,
                 'prepTime' => $recipe->prep_minutes ? 'PT'.$recipe->prep_minutes.'M' : null,
                 'cookTime' => $recipe->cook_minutes ? 'PT'.$recipe->cook_minutes.'M' : null,
                 'totalTime' => $recipe->totalTimeIso(),

@@ -51,6 +51,13 @@ adres, otworzy zeszyt bez zakładania konta i zobaczy tylko te przepisy, które
 sama ma prawo zobaczyć. Zeszytu „Tylko ja”, zeszytu „Zapisane” ani wspólnego
 zeszytu z bliskimi nie da się w ten sposób wysłać — na stronie takiego zeszytu
 przeczytacie, co zmienić, jeśli chcecie go udostępnić.
+### Kalorie na porcję także dla wyszukiwarek
+
+Jeśli przy przepisie widzicie „Szacunkowe wartości odżywcze (na porcję)”, tę
+samą liczbę kalorii podajemy teraz także w danych, które czytają wyszukiwarki.
+Robimy to tylko wtedy, gdy liczba naprawdę jest na stronie: autor nie ukrył
+sekcji, znamy skład co najmniej 90% składników i autor podał liczbę porcji.
+Gdy któregoś z tych warunków brakuje, wyszukiwarkom też nic nie podajemy.
 
 ### Wczytajcie z powrotem własną paczkę z danymi
 
