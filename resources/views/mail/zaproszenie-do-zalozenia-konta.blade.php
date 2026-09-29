@@ -93,8 +93,22 @@
                             {{ $linkUrl }}
                         </p>
 
-                        <p style="margin:0;font-size:18px;color:#555E53;">
+                        <p style="margin:0 0 20px;font-size:18px;color:#555E53;">
                             Jeśli nie możesz założyć konta, napisz do nas na {{ config('kuking.community.contact_email') }}.
+                        </p>
+
+                        {{-- Informacja z art. 14 RODO (#2219) — adres mógł wpisać ktoś inny niż właściciel skrzynki. Krótko, pełna treść w polityce. --}}
+                        <p data-informacja-art14 style="margin:0;font-size:18px;color:#555E53;">
+                            <strong>Skąd mamy Twój adres.</strong> Ktoś wpisał go w Kuking w formularzu logowania i poprosił o tę wiadomość — Ty albo inna osoba.
+                            Administratorem danych jest {{ config('kuking.podmiot.nazwa_pelna') }},
+                            {{ config('kuking.podmiot.ulica') }}, {{ config('kuking.podmiot.kod_pocztowy') }} {{ config('kuking.podmiot.miejscowosc') }}
+                            (kontakt: {{ config('kuking.podmiot.email') }}).
+                            Używamy adresu tylko po to, by wysłać Ci tę wiadomość — na podstawie naszego uzasadnionego interesu
+                            (art. 6 ust. 1 lit. f RODO) — a wygasłe zaproszenia razem z adresem kasujemy co noc.
+                            Pocztę wysyła dla nas EmailLabs (Vercom S.A.). Możesz żądać dostępu do adresu, jego usunięcia
+                            i sprzeciwu wobec przetwarzania oraz złożyć skargę do Prezesa UODO.
+                            Wszystko opisuje <a href="{{ $politykaUrl }}" style="color:#BE3025;">polityka prywatności</a>:
+                            {{ $politykaUrl }}
                         </p>
 
                     </td>
