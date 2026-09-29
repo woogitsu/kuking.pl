@@ -8,6 +8,7 @@ use App\Domain\Collections\Actions\RemoveUnavailableFromCollection;
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Collections\CollectionSaveContext;
+use App\Domain\Collections\PowrotPoWyjeciu;
 use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Domain\Collections\Wspoldzielenie\ZaproszeniaDoZeszytow;
 use App\Domain\Search\SearchQuery;
@@ -710,33 +711,28 @@ class CollectionController extends Controller
 
         $collection = $request->zeszytDoZapisu();
 
-        // DROGA POWROTU MA WRACAĆ, A NIE ZAPISYWAĆ OD NOWA (issue #775).
-        //
-        // Przycisk „Zapisz ponownie" pod komunikatem wysyła TEN SAM adres co
-        // zwykły zapis i nic poza tokenem. Gdyby zadziałał jak zwykły zapis,
-        // przepis wróciłby do JEDNEGO zeszytu (domyślnego), z pustą notatką
-        // i dzisiejszą datą — czyli „powrót" po cichu gubiłby to, przed czym
-        // ma chronić. Dlatego najpierw sprawdzamy, czy to nie jest powrót po
-        // wyjęciu, które sami przed chwilą zrobiliśmy.
-        if ($collection === null && $request->input('note') === null) {
-            try {
-                $powrot = $this->przywrocPoWyjeciu($request, 'przepis', (string) $model->getKey());
-            } catch (BladDlaCzlowieka $e) {
-                return back()->withErrors(['collection_id' => $e->getMessage()]);
-            }
-
-            if ($powrot !== null) {
-                return back()->with(Komunikat::sukces($powrot));
-            }
-        }
-
+        // Powrót po wyjęciu albo zwykły zapis — kolejność i uzasadnienie
+        // w `SaveRecipeToCollection::zapiszAlboPrzywroc()` (#775, #970).
         try {
-            $target = $this->save->handle($request->user(), $model, $collection);
+            $wynik = $this->save->zapiszAlboPrzywroc(
+                $request->user(),
+                $model,
+                $collection,
+                $request->input('note') !== null,
+                $request->session()->get('zeszyt_wyjecie'),
+                fn () => $request->session()->forget('zeszyt_wyjecie'),
+            );
         } catch (BladDlaCzlowieka $e) {
             // Stan zmienił się w trakcie żądania (#1022): treść ukryta,
             // blokada, zeszyt usunięty w drugiej karcie. Zdanie zamiast 500.
             return back()->withErrors(['collection_id' => $e->getMessage()]);
         }
+
+        if ($wynik->zdaniePowrotu !== null) {
+            return back()->with(Komunikat::sukces($wynik->zdaniePowrotu));
+        }
+
+        $target = $wynik->zeszyt;
 
         if ($request->boolean('open_collection')) {
             return redirect()->route('collections.show', $target)->with(Komunikat::sukces("Zapisane w zeszycie „{$target->name}”."));
@@ -837,7 +833,7 @@ class CollectionController extends Controller
         // Powrót po wyjęciu — uzasadnienie przy `saveRecipe()`.
         if ($collection === null && $request->input('note') === null) {
             try {
-                $powrot = $this->przywrocPoWyjeciu($request, 'wpis', (string) $post->getKey());
+                $powrot = $this->przywrocPoWyjeciu($request, PowrotPoWyjeciu::TYP_WPIS, (string) $post->getKey());
             } catch (BladDlaCzlowieka $e) {
                 return back()->withErrors(['collection_id' => $e->getMessage()]);
             }
@@ -967,21 +963,13 @@ class CollectionController extends Controller
      */
     private function przywrocPoWyjeciu(Request $request, string $typ, string $id): ?string
     {
-        $wyjecie = $request->session()->get('zeszyt_wyjecie');
+        $pozycje = PowrotPoWyjeciu::pozycje($request->session()->get('zeszyt_wyjecie'), $typ, $id);
 
-        if (! is_array($wyjecie)
-            || ($wyjecie['typ'] ?? null) !== $typ
-            || ($wyjecie['id'] ?? null) !== $id
-            || ! is_array($wyjecie['pozycje'] ?? null)
-            || $wyjecie['pozycje'] === []) {
+        if ($pozycje === null) {
             return null;
         }
 
-        $user = $request->user();
-
-        $wrocilo = $typ === 'przepis'
-            ? $this->save->restore($user, Recipe::findOrFail($id), $wyjecie['pozycje'])
-            : $this->savePost->restore($user, Post::findOrFail($id), $wyjecie['pozycje']);
+        $wrocilo = $this->savePost->restore($request->user(), Post::findOrFail($id), $pozycje);
 
         // Jednorazowa droga powrotu: drugie kliknięcie nie ma już nic do roboty.
         $request->session()->forget('zeszyt_wyjecie');
@@ -992,11 +980,7 @@ class CollectionController extends Controller
             return null;
         }
 
-        $co = $typ === 'przepis' ? 'Przepis' : 'Wpis';
-
-        return $wrocilo === 1
-            ? "{$co} wrócił do zeszytu razem z notatką."
-            : "{$co} wrócił do wszystkich {$wrocilo} zeszytów razem z notatkami.";
+        return PowrotPoWyjeciu::zdanie($typ, $wrocilo);
     }
 
     private function odciskNiedostepnych(Request $request, Collection $collection): ?string
