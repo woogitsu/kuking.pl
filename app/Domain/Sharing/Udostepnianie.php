@@ -44,6 +44,15 @@ use Illuminate\Support\Str;
 final class Udostepnianie
 {
     /**
+     * Wynik pytania „czy zeszyt ma współtwórców" na jeden obiekt zeszytu.
+     * Komponent pyta o to do trzech razy (przycisk, powód braku, treść
+     * powodu) — bez pamięci strona zeszytu dokładałaby kilka zapytań o to samo.
+     *
+     * @var \WeakMap<Collection, bool>|null
+     */
+    private ?\WeakMap $wspoltworcy = null;
+
+    /**
      * Czy tę treść wolno komuś wysłać.
      *
      * `Gate::forUser(null)` to dosłownie pytanie „czy zobaczy to ktoś,
@@ -63,7 +72,7 @@ final class Udostepnianie
         // pyta tu o `view`, więc widoczność publiczną i blokady rozstrzyga
         // `CollectionPolicy`; dokładamy tylko te dwa wyłączenia.
         if ($tresc instanceof Collection) {
-            return ! $tresc->is_default && ! $tresc->members()->exists();
+            return ! $tresc->is_default && ! $this->maWspoltworcow($tresc);
         }
 
         return true;
@@ -105,6 +114,21 @@ final class Udostepnianie
         };
     }
 
+    /**
+     * Zeszyt wspólny (D-302). Korzysta z już wczytanych członków, a gdy ich
+     * nie ma — pyta bazę raz na zeszyt (`exists()`, bez ładowania osób).
+     */
+    private function maWspoltworcow(Collection $zeszyt): bool
+    {
+        if ($zeszyt->relationLoaded('members')) {
+            return $zeszyt->members->isNotEmpty();
+        }
+
+        $this->wspoltworcy ??= new \WeakMap;
+
+        return $this->wspoltworcy[$zeszyt] ??= $zeszyt->members()->exists();
+    }
+
     /** Wyjaśnienie dla WŁAŚCICIELA zeszytu, którego nie da się wysłać. */
     private function powodBrakuPrzyciskuZeszytu(Collection $zeszyt): string
     {
@@ -118,7 +142,7 @@ final class Udostepnianie
                 .'Zmień widoczność na „wszyscy”, jeśli chcesz go udostępnić przez przycisk „Podziel się”.';
         }
 
-        if ($zeszyt->members()->exists()) {
+        if ($this->maWspoltworcow($zeszyt)) {
             return 'To jest wspólny zeszyt, więc nie ma dla niego przycisku „Podziel się”. '
                 .'Jeśli chcesz wysłać komuś zestaw przepisów, załóż osobny zeszyt o widoczności „wszyscy”.';
         }

@@ -6,8 +6,10 @@ namespace Tests\Feature;
 
 use App\Domain\Sharing\Udostepnianie;
 use App\Models\Collection;
+use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -165,5 +167,48 @@ class PodzielSieZeszytTest extends TestCase
         $this->assertSame('Zupy & sosy', $udostepnianie->tytul($zeszyt));
         $this->assertSame('Zeszyt z Kuking: Zupy & sosy', $udostepnianie->opis($zeszyt));
         $this->assertNull($udostepnianie->powodBrakuPrzycisku($zeszyt));
+    }
+
+    public function test_prywatny_przepis_w_publicznym_zeszycie_nie_trafia_do_podgladu_ani_opisu(): void
+    {
+        $zeszyt = $this->zeszyt('public');
+        $sekretny = Recipe::factory()->create([
+            'author_id' => $this->wlascicielka->getKey(),
+            'title' => 'Sekretny bigos zeszytowy',
+            'visibility' => 'private',
+        ]);
+        $zeszyt->recipes()->attach($sekretny->getKey());
+
+        $html = $this->get(route('collections.show', $zeszyt))->assertOk()->getContent();
+
+        $this->assertStringContainsString('data-podziel-sie', $html);
+        $this->assertStringNotContainsString('Sekretny bigos', $html);
+        $this->assertStringNotContainsString($sekretny->slug, $html);
+        $this->assertSame('Zeszyt z Kuking: Niedzielne obiady', app(Udostepnianie::class)->opis($zeszyt));
+    }
+
+    public function test_przycisk_nie_dodaje_zapytan_o_wspoltworcow_na_stronie_zeszytu(): void
+    {
+        $zeszyt = $this->zeszyt('public');
+        $adres = route('collections.show', $zeszyt);
+
+        $this->assertSame(1, $this->zapytaniaOCzlonkow(fn () => $this->get($adres)->assertOk()), 'Gość: jedno zapytanie o członków.');
+
+        $zeszyt->members()->attach($this->user('wspoltworca')->getKey());
+
+        $this->assertSame(1, $this->zapytaniaOCzlonkow(
+            fn () => $this->actingAs($this->wlascicielka)->get($adres)->assertOk()->assertSee('To jest wspólny zeszyt', false),
+        ), 'Właścicielka wspólnego zeszytu: członkowie wczytani raz, bez trzykrotnego exists().');
+    }
+
+    private function zapytaniaOCzlonkow(callable $akcja): int
+    {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $akcja();
+        $zapytania = collect(DB::getQueryLog())->filter(fn (array $z) => str_contains($z['query'], 'collection_members'))->count();
+        DB::disableQueryLog();
+
+        return $zapytania;
     }
 }
