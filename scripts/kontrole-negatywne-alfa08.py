@@ -1803,9 +1803,11 @@ for test in dict.fromkeys(kontrole_dodatnie + KONTROLE_DODATNIE_BEZ_MUTACJI):
 # JUnit, a wzorzec oczekiwanej porażki stoi w `OCZEKUJ` (osobny plik, klucz to
 # nazwa kontroli z `checks`). Kontrola bez wzorca przechodzi tylko jako
 # BEZ_WZORCA i raport wymienia ją z nazwy — nie jest pełnym dowodem.
-# Wszystkie wpisy `checks` mają dziś wzorzec. `WYMAGAJ_WZORCA = True` zamieni
-# wpis bez wzorca z raportowanego BEZ_WZORCA w odmowę przed pierwszym testem —
-# włącz, gdy otwarte PR-y z nowymi wpisami zdążą dopisać wzorce.
+# NIE wszystkie wpisy `checks` mają dziś wzorzec (29.09.2026: 24 z 237, głównie
+# nowsze kontrole z paczek C–F) — raport wymienia je z nazwy jako BEZ_WZORCA.
+# `WYMAGAJ_WZORCA = True` zamieni wpis bez wzorca z raportowanego BEZ_WZORCA
+# w odmowę przed pierwszym testem — włącz dopiero, gdy każdy wpis dostanie
+# wzorzec w `kontrole_oczekiwana_przyczyna.py`.
 WYMAGAJ_WZORCA = False
 # Podział na części: pętlę mutacji dostaje tylko `wybrane`, a wzorce są sprawdzane
 # względem CAŁEGO `checks` (`wszystkie`). Kontrole mechanizmu (osobne od `checks`)
