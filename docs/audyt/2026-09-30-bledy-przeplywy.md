@@ -17,5 +17,6 @@ poprawka). Uruchamiane jako
 | BP-01 | P2 | Tygodniowe podsumowanie: konta bez treści na zawsze zajmują okno kandydatów i głodzą osoby z treścią | `app/Console/Commands/WyslijPodsumowaniaTygodnia.php:201-205` (pusty list: `continue` bez znacznika), `app/Domain/Digest/OdbiorcyDigestu.php` `naDzis()` (`ORDER BY weekly_digest_sent_at ASC NULLS FIRST, created_at` + `LIMIT budżet*3`) | test BP-01 | patrz opis | patrz opis | S | sprawdzane |
 | BP-02 | P2 | „Zrób swoją wersję” gubi zamienniki składników (D-284) | `app/Domain/Recipes/Actions/ZrobWlasnaWersje.php:94-105` (brak `substitutes`) | test BP-02 | patrz opis | patrz opis | S | sprawdzane |
 | BP-03 | P3 | Pierwsza publikacja szkicu zapisuje wersję 1 jako „Aktualizacja przepisu” | `app/Domain/Recipes/Actions/PublishRecipe.php:628-632` | test BP-03 | patrz opis | patrz opis | S | sprawdzane |
+| BP-04 | P2 | Tablica w parametrze formularza/adresu daje HTTP 500 (rejestracja, nowe hasło, wejście linkiem, planer) | `app/Http/Controllers/Auth/RegisterController.php:108`, `:127`; `app/Http/Controllers/Auth/PasswordResetController.php:156`; `app/Http/Controllers/Auth/LoginLinkController.php:287`; `app/Http/Controllers/PlanerController.php:30`, `:41`, `:136` | test BP-04 | patrz opis | patrz opis | S | nie (pokrewne zamknięte #1344) |
 
 Opisy, testy i sekcja „sprawdzone i w porządku” — niżej (uzupełniane).
