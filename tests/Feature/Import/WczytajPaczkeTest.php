@@ -67,7 +67,7 @@ class WczytajPaczkeTest extends TestCase
 
         $wynik = app(WczytajPaczke::class)->handle($zenek, $podglad, $this->odciski($podglad));
 
-        $this->assertSame(['przepis' => 1, 'wpis' => 2, 'zeszyt' => 1], $wynik->utworzone);
+        $this->assertSame(['przepis' => 1, 'wpis' => 1, 'zeszyt' => 1], $wynik->utworzone);
         $this->assertSame(0, $wynik->zostalo);
 
         $przepis = Recipe::query()->where('author_id', $zenek->getKey())->sole();
@@ -83,15 +83,13 @@ class WczytajPaczkeTest extends TestCase
         $this->assertSame(Post::VISIBILITY_PRIVATE, $dish->visibility);
         $this->assertSame('Obiad u Basi.', $dish->body);
 
-        $pytanie = Post::query()->where('kind', Post::KIND_QUESTION)->sole();
-        $this->assertSame('Czym zastąpić śmietanę w zupie?', $pytanie->title);
-        $this->assertSame(Post::VISIBILITY_PRIVATE, $pytanie->visibility);
+        $this->assertSame(0, Post::query()->where('kind', Post::KIND_QUESTION)->count(), 'Pytań nie wczytujemy.');
 
         $zeszyt = Collection::query()->where('owner_id', $zenek->getKey())->where('name', 'Na święta')->sole();
         $this->assertSame('private', $zeszyt->visibility);
         $this->assertFalse($zeszyt->is_default);
 
-        $this->assertSame(4, WczytanaZPaczki::query()->where('user_id', $zenek->getKey())->count());
+        $this->assertSame(3, WczytanaZPaczki::query()->where('user_id', $zenek->getKey())->count());
     }
 
     public function test_publiczny_status_i_widocznosc_z_paczki_nie_przechodza_dalej(): void
@@ -144,11 +142,11 @@ class WczytajPaczkeTest extends TestCase
         $wynik = app(WczytajPaczke::class)->handle($zenek, $pierwszy, $this->odciski($pierwszy));
 
         $this->assertSame(0, $wynik->razem());
-        $this->assertSame(4, $wynik->juzByly);
+        $this->assertSame(3, $wynik->juzByly);
         $this->assertSame(1, Recipe::query()->count());
-        $this->assertSame(2, Post::query()->count());
+        $this->assertSame(1, Post::query()->count());
         $this->assertSame(1, Collection::query()->where('name', 'Na święta')->count());
-        $this->assertSame(4, WczytanaZPaczki::query()->count());
+        $this->assertSame(3, WczytanaZPaczki::query()->count());
     }
 
     public function test_baza_nie_przyjmie_dwa_razy_tego_samego_odcisku_tej_samej_osoby(): void
@@ -331,7 +329,7 @@ class WczytajPaczkeTest extends TestCase
 
         $wpis = AuditLogEntry::query()->where('action', 'data.import_completed')->sole();
         $this->assertSame(1, $wpis->metadata['przepisy']);
-        $this->assertSame(2, $wpis->metadata['wpisy']);
+        $this->assertSame(1, $wpis->metadata['wpisy']);
         $this->assertSame(1, $wpis->metadata['zeszyty']);
 
         $this->assertStringNotContainsString('Rosół', (string) json_encode($wpis->getAttributes()));
@@ -353,11 +351,11 @@ class WczytajPaczkeTest extends TestCase
             $this->migracja()->down();
             $this->fail('Cofnięcie przeszło, choć skasowałoby ślady wczytania.');
         } catch (RuntimeException $e) {
-            $this->assertStringContainsString('Liczba śladów, które znikną: 4.', $e->getMessage());
+            $this->assertStringContainsString('Liczba śladów, które znikną: 3.', $e->getMessage());
             $this->assertStringContainsString('KUKING_ROLLBACK_KASUJE_SLADY_IMPORTU=1', $e->getMessage());
         }
 
-        $this->assertSame(4, DB::table('wczytane_z_paczki')->count());
+        $this->assertSame(3, DB::table('wczytane_z_paczki')->count());
 
         putenv('KUKING_ROLLBACK_KASUJE_SLADY_IMPORTU=1');
         $this->migracja()->down();

@@ -186,10 +186,7 @@ final class WczytajPaczke
             'published_at' => now(),
         ]);
 
-        if ($dane['rodzaj'] === Post::KIND_QUESTION) {
-            $post->oznaczJakoPytanie((string) $dane['tytul']);
-        }
-
+        // Pytań nie tworzymy (podgląd je odrzuca): pytanie w Poradźcie jest zawsze publiczne.
         $post->save();
 
         return $post;

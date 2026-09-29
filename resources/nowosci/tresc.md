@@ -40,9 +40,12 @@ napisanym po ludzku. Niczego nie zapisujemy, dopóki nie zaznaczycie pozycji
 i nie klikniecie „Wczytaj zaznaczone”. Wszystko, co wczytamy, jest prywatne:
 przepisy czekają w szkicach, wpisy widzicie tylko Wy, zeszyty są „Tylko ja” —
 o publikacji zdecydujecie sami, później. Zdjęć z paczki na razie nie
-przenosimy, a konta, haseł, zgód i komentarzy innych osób nie odtwarzamy w ogóle.
+przenosimy, pytań z Poradźcie też nie wczytujemy (pytanie jest zawsze publiczne,
+a wczytane treści mają zostać prywatne — w podglądzie piszemy o tym wprost), a konta,
+haseł, zgód i komentarzy innych osób nie odtwarzamy w ogóle.
 Jedno kliknięcie wczytuje najwyżej 50 pozycji, a to samo wczytanie drugi raz
-niczego nie podwoi.
+niczego nie podwoi. Wybrany plik czeka na Waszą decyzję dwie godziny, a jeśli go
+porzucicie, kasujemy go sami w nocnym sprzątaniu.
 
 ## Alfa 0.76
 

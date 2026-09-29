@@ -429,13 +429,33 @@ class PodgladPaczkiEksportuTest extends TestCase
             [
                 PozycjaPodgladu::ODRZUCONA,
                 PozycjaPodgladu::ODRZUCONA,
-                PozycjaPodgladu::NOWA,
+                PozycjaPodgladu::ODRZUCONA,
                 PozycjaPodgladu::ODRZUCONA,
                 PozycjaPodgladu::ODRZUCONA,
             ],
             array_map(fn ($p) => $p->stan, $podglad->wpisy),
         );
-        $this->assertSame('Jak długo pieczesz sernik?', $podglad->wpisy[2]->tytul);
+    }
+
+    public function test_pytan_nie_wczytujemy_i_podglad_mowi_dlaczego(): void
+    {
+        $dane = $this->szkieletPaczki();
+        $dane['wpisy'] = [
+            $this->wpis(['rodzaj' => Post::KIND_QUESTION, 'tytul' => 'Jak długo pieczesz sernik?', 'tresc' => 'Opis pytania']),
+            $this->wpis(['rodzaj' => Post::KIND_QUESTION, 'tytul' => 'Za krótko', 'tresc' => null]),
+            $this->wpis(['tresc' => 'Zwykły wpis o obiedzie']),
+        ];
+
+        $podglad = $this->podglad($dane);
+
+        $this->assertSame(PozycjaPodgladu::ODRZUCONA, $podglad->wpisy[0]->stan);
+        $this->assertSame('Jak długo pieczesz sernik?', $podglad->wpisy[0]->tytul);
+        $this->assertStringStartsWith('Pytań nie wczytujemy, bo', (string) $podglad->wpisy[0]->powod);
+        $this->assertSame([], $podglad->wpisy[0]->dane, 'Z pytania nie zostaje nic do zapisania.');
+        $this->assertSame(PozycjaPodgladu::ODRZUCONA, $podglad->wpisy[1]->stan);
+        $this->assertStringStartsWith('Pytań nie wczytujemy, bo', (string) $podglad->wpisy[1]->powod);
+        $this->assertSame(PozycjaPodgladu::NOWA, $podglad->wpisy[2]->stan, 'Zwykły wpis działa dalej.');
+        $this->assertStringContainsString('Pytań z Poradźcie nie wczytujemy', implode(' ', $podglad->pominiete));
     }
 
     public function test_powtorka_w_paczce_i_konflikt_z_kontem_sa_rozroznione_a_ten_sam_tytul_z_inna_trescia_to_nie_duplikat(): void

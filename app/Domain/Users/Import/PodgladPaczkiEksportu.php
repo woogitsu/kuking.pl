@@ -118,9 +118,12 @@ final class PodgladPaczkiEksportu
      * Czego import celowo nie odtwarza. Zdania stoją w podglądzie ZAWSZE — także
      * przy paczce bez zdjęć — bo opisują regułę importu, nie tę jedną paczkę.
      */
+    public const POWOD_PYTANIE = 'Pytań nie wczytujemy, bo pytanie w Poradźcie jest zawsze publiczne, a wszystko, co wczytujemy, zostaje prywatne. Jeśli chcesz je zachować, zadaj je jeszcze raz w Poradźcie.';
+
     public const POMINIETE = [
         'Wczytujemy sam tekst przepisów, własnych wpisów i nazwy zeszytów. Zdjęć z paczki na razie nie przenosimy.',
         'Wszystko, co wczytamy, będzie prywatne. O publikacji zdecydujesz osobno, po wczytaniu.',
+        'Pytań z Poradźcie nie wczytujemy: pytanie jest zawsze publiczne, a wczytane treści mają zostać prywatne.',
         'Nie odtwarzamy konta, hasła, zgód, obserwowanych osób, powiadomień, komentarzy innych osób ani decyzji moderacji.',
         'Cudze przepisy i wpisy odłożone do zeszytu zostają w Kuking — w paczce jest z nich tylko tytuł, więc nie mamy czego wczytać.',
     ];
@@ -527,6 +530,16 @@ final class PodgladPaczkiEksportu
                 continue;
             }
 
+            if ($rodzaj === Post::KIND_QUESTION) {
+                // Pytanie w Poradźcie jest z definicji publiczne (D-221; `PublishPost` odmawia
+                // pytania niepublicznego), a wszystko, co wczytujemy, ma być prywatne (#1985).
+                // Nie ma decyzji o prywatnych pytaniach, więc ich nie tworzymy.
+                $tytulPytania = $this->tekst($p['tytul'] ?? null, 1, 180) ?? $etykieta;
+                $wynik[] = $this->odrzucona('wpis', $tytulPytania, self::POWOD_PYTANIE);
+
+                continue;
+            }
+
             if (in_array($p['status'] ?? null, [Post::STATUS_HIDDEN, Post::STATUS_REMOVED], true)) {
                 $wynik[] = $this->odrzucona('wpis', $etykieta, 'Ten wpis został ukryty albo usunięty przez moderację, więc go nie wczytujemy.');
 
@@ -542,17 +555,9 @@ final class PodgladPaczkiEksportu
             }
 
             $tresc = is_string($tresc) && trim($tresc) !== '' ? trim($tresc) : null;
-            $tytul = null;
+            $tytul = null; // pytań nie wczytujemy, więc wpis do wczytania to zawsze danie bez tytułu
 
-            if ($rodzaj === Post::KIND_QUESTION) {
-                $tytul = $this->tekst($p['tytul'] ?? null, 10, 180);
-
-                if ($tytul === null) {
-                    $wynik[] = $this->odrzucona('wpis', $etykieta, 'Tytuł pytania musi mieć od 10 do 180 znaków.');
-
-                    continue;
-                }
-            } elseif ($tresc === null) {
+            if ($tresc === null) {
                 $wynik[] = $this->odrzucona('wpis', $etykieta, 'Ten wpis to samo zdjęcie, a zdjęć nie wczytujemy — nie ma tu tekstu do zapisania.');
 
                 continue;

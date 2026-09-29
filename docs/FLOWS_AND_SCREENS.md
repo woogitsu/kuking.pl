@@ -178,7 +178,7 @@ App:
 - `/ustawienia/prywatnosc`
 - `/ustawienia/urodziny` — dzień i miesiąc urodzin, bez roku; „Usuń datę” (#1755)
 - `/ustawienia/twoje-dane`
-- `/ustawienia/twoje-dane/wczytaj`, `/ustawienia/twoje-dane/wczytaj/{paczka}` — wczytanie własnej paczki z danymi (#1985): wybór pliku ZIP → podgląd (nowe, już są na koncie, powtórzone, odrzucone, czego nie wczytujemy) → „Wczytaj zaznaczone”. Zapis wyłącznie prywatny, po 50 pozycji naraz, idempotentny; zdjęć nie wczytujemy. Wejście linkiem z „Twoich danych”
+- `/ustawienia/twoje-dane/wczytaj`, `/ustawienia/twoje-dane/wczytaj/{paczka}` — wczytanie własnej paczki z danymi (#1985): wybór pliku ZIP → podgląd (nowe, już są na koncie, powtórzone, odrzucone, czego nie wczytujemy) → „Wczytaj zaznaczone”. Zapis wyłącznie prywatny, po 50 pozycji naraz, idempotentny; zdjęć i pytań (zawsze publiczne, D-221) nie wczytujemy; porzucone pliki sprząta co noc `kuking:sprzataj-paczki-importu`. Wejście linkiem z „Twoich danych”
 - `/ustawienia/urzadzenia` — urządzenia z dostępem przez aplikację mobilną: lista (nazwa, kiedy zalogowane, kiedy ostatnio używane), odcięcie jednego albo wszystkich, z potwierdzeniem (D-270, D-271)
 
 Admin:

@@ -68,6 +68,18 @@ Harmonogram::artisan('kuking:sprzataj-osierocone-zdjecia')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 03:30 — między sprzątaniem eksportów (03:20) a osieroconych zdjęć (03:40).
+// Porzucone pliki wczytywania własnej paczki eksportu (#1985): człowiek wybrał
+// ZIP i zamknął kartę bez „Wczytaj” i „Odrzuć”. Plik (z jego przepisami i wpisami)
+// leży w prywatnym magazynie do `import_paczki.przechowanie_godzin`; bez tego
+// zadania znikałby dopiero przy czyimkolwiek wejściu w ekran wczytywania.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy zadaniu wyżej.
+Harmonogram::artisan('kuking:sprzataj-paczki-importu')
+    ->name('kuking:sprzataj-paczki-importu')
+    ->dailyAt('03:30')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // Zbiorcze powiadomienie „Smakowicie wygląda" (issue #1813, D-280) — raz
 // dziennie, po południu, gdy ludzie zaglądają do serwisu; „Ugotowałem"
 // powiadamia od razu i ma zostać najcenniejszą wiadomością dnia.

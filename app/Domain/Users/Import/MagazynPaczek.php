@@ -75,13 +75,29 @@ final class MagazynPaczek
         $this->dysk()->deleteDirectory(self::KATALOG.'/'.$user->getKey());
     }
 
-    public function sprzatnijPrzeterminowane(): void
+    /**
+     * Kasuje przeterminowane paczki wszystkich osób (i puste już katalogi osób).
+     *
+     * @return int liczba skasowanych plików
+     */
+    public function sprzatnijPrzeterminowane(): int
     {
+        $skasowane = 0;
+
         foreach ($this->dysk()->allFiles(self::KATALOG) as $plik) {
             if ($this->przeterminowany($plik)) {
                 $this->dysk()->delete($plik);
+                $skasowane++;
             }
         }
+
+        foreach ($this->dysk()->directories(self::KATALOG) as $katalog) {
+            if ($this->dysk()->allFiles($katalog) === []) {
+                $this->dysk()->deleteDirectory($katalog);
+            }
+        }
+
+        return $skasowane;
     }
 
     private function przeterminowany(string $wzgledna): bool

@@ -13,7 +13,7 @@
     <p>
         Najpierw pokażemy, co jest w paczce i co z tego wczytamy. <strong>Nic nie zapiszemy, dopóki nie klikniesz „Wczytaj zaznaczone”.</strong>
         Wszystko, co wczytamy, będzie <strong>prywatne</strong> — o publikacji zdecydujesz sam, później.
-        Zdjęć z paczki na razie nie przenosimy.
+        Zdjęć z paczki na razie nie przenosimy, a pytań z Poradźcie nie wczytujemy — pytanie jest zawsze publiczne.
     </p>
     <p class="mb-5">Plik może mieć najwyżej {{ $maksMb }} MB.</p>
 
