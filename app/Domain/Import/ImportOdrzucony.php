@@ -108,8 +108,8 @@ final class ImportOdrzucony extends BladDlaCzlowieka
         self::BRAK_ZGODY_AI => 'Ten przepis wymaga odczytu przez komputer firmy OpenAI. Wybierz zgodę pod formularzem '
             .'i wyślij go ponownie albo wpisz przepis ręcznie.',
         self::ZGODA_AI_NIEAKTUALNA => 'Ten przepis wymaga odczytu przez komputer firmy OpenAI, a informacja przy zgodzie '
-            .'zmieniła się od otwarcia tej strony. Przeczytaj ją pod formularzem, zaznacz zgodę jeszcze raz '
-            .'i wyślij formularz ponownie albo wpisz przepis ręcznie. Nic nie wysłaliśmy.',
+            .'zmieniła się od otwarcia tej strony. Nic nie wysłaliśmy. Spróbuj ponownie: przeczytaj informację '
+            .'pod formularzem i zaznacz zgodę jeszcze raz albo wpisz przepis ręcznie.',
         self::BUDZET_AI => 'Odczyt przez komputer jest teraz niedostępny, bo wyczerpał się budżet. '
             .'Spróbuj później albo wpisz przepis ręcznie.',
         self::MODEL_NIEDOSTEPNY => 'Odczyt przez komputer chwilowo nie działa. Spróbuj ponownie później '
