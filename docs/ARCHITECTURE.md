@@ -66,7 +66,17 @@ Edycja wpisu i pytania: `EdycjaWpisuRequest` (`rules()` puste — treść walidu
 marker `_tag_form_post_id` idzie też do żądania z kontenera, bo z niego
 powstaje `old()`; reguły wspólne ze store'em w traicie `WalidujeTrescWpisu`).
 Komentarz: `KomentarzRequest` (Policy w `authorize()` przed walidacją pól).
-Kolejne kandydaty (od największego): `CollectionController` (1157 linii), `ProfileController`,
+Zeszyty (krok 5): `ZapisZeszytuRequest` (założenie i zmiana nazwy, opisu
+i widoczności — Policy `update` w `authorize()` przed polami, ten sam 403
+co w kontrolerze) oraz `ZapisDoZeszytuRequest` i `WyjecieZZeszytuRequest`
+nad wspólną `WyborZeszytuRequest` (jedna reguła wyboru własnego lub wspólnego
+zeszytu, różne zdania błędów; `rules()` puste, wybór waliduje metoda wołana
+przez kontroler po 404 i Policy). `app/Domain/Collections` nie pogłębia
+zależności od `Illuminate\Http` — pilnuje tego `ZeszytyNieRosnaOdHttpTest`
+z listą dwóch zastanych plików (`ZeszytyDoWyboru`, `CollectionSaveContext`).
+Zostaje w kontrolerze: przypadki użycia listy, wyjęcia niedostępnych i
+zapisu przepisu (kolejne kroki).
+Kolejne kandydaty (od największego): `CollectionController` (dalsze kroki), `ProfileController`,
 `OnboardingController`, `NotificationController`, `ReportController`,
 kontrolery logowania Google/Facebook (#1035).
 
