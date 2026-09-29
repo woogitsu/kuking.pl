@@ -23,34 +23,41 @@ Dotyczy zalogowanej osoby: `FollowingFeed::paginate()`. Gość ma inne zapytanie
   `IS NOT NULL` dla ukrytych osób). Podzapytanie bez korelacji planer nalicza raz, a wynik jest ten
   sam. Zmiana **nie dotyka ustawień JIT bazy** (to decyzja infrastruktury).
 - **Skutek.** Koszt planu 178 tys. → ok. 3 tys. (test w skali #605: 275 816 → 3383). JIT znika.
-  Czas SQL ciepłego żądania: mediana ok. 370 ms → ok. 105 ms (pomiar niżej).
+  Czas SQL ciepłego żądania: mediana ok. 370 ms → ok. 77 ms (pomiar niżej).
 
 ## Co dokładnie się zmieniło
 
-| Miejsce | Było | Jest |
+Wspólne scope’y dostały opcjonalny argument `bool $bezKorelacji = false`. Domyślnie działają
+dokładnie jak przedtem (skorelowany `EXISTS`); tylko `FollowingFeed` przekazuje `true`.
+
+| Miejsce | Domyślnie (bez zmian) | Z `bezKorelacji: true` |
 |---|---|---|
 | `Post::scopeWidoczneDla()` | `EXISTS follows (… = posts.author_id)` | `posts.author_id IN (SELECT followed_id FROM follows WHERE follower_id = ?)` |
 | `Recipe::scopeWidoczneDla()` | `EXISTS follows (… = recipes.author_id)` | `recipes.author_id IN (SELECT …)` jak wyżej |
 | `Post::scopeBezUkrytychOsob()` | `NOT EXISTS hides (… = posts.author_id)` | `posts.author_id NOT IN (SELECT hidden_user_id FROM hides WHERE … AND hidden_user_id IS NOT NULL)` |
-| `Post::scopeZWidocznymPrzepisemAlboWlasnaTresciBezKorelacji()` (nowy) | `zWidocznymPrzepisemAlboWlasnaTrescia()`: `EXISTS post_media`, `EXISTS recipes` | `posts.id IN (post_media)`, `posts.recipe_id IN (widoczne przepisy)` |
-| `FollowingFeed::zrodla()` | `whereHas('tags')` | `posts.id IN (SELECT post_id FROM post_tags JOIN tags … )` |
+| `Post::scopeZWidocznymPrzepisemAlboWlasnaTresciBezKorelacji()` (nowy) | (stary scope `zWidocznymPrzepisemAlboWlasnaTrescia()`: `EXISTS post_media`, `EXISTS recipes`) | `posts.id IN (post_media)`, `posts.recipe_id IN (widoczne przepisy)` |
+| `FollowingFeed::zrodla()` | `whereHas('tags')` | `posts.id IN (SELECT post_id FROM post_tags JOIN tags …)` |
+
+**Dlaczego flaga, a nie zmiana globalna.** Pierwsza wersja zmieniała `widoczneDla` wprost. Test
+`SzynaOstatnioZapisanychKosztTest` od razu oblał: szyna „Ostatnio zapisane" czytała 320 zamiast
+≤ 100 wierszy, a liczniki zeszytów miały koszt 562 tys. zamiast 211 tys. Tam kandydatów jest
+niewielu i skorelowany `EXISTS` jest tańszy niż czytanie całej tabeli. Reguły zostają więc w
+jednym miejscu, a forma zależy od miejsca użycia.
 
 Stary scope `zWidocznymPrzepisemAlboWlasnaTrescia()` zostaje bez zmian dla pozostałych list
-(profil, tag, Odkrywanie, tablica): tam kandydatów jest kilkanaście albo kilkadziesiąt i skorelowany
-`EXISTS` jest tańszy niż czytanie całych tabel. Trzy zmienione scope’y współdzielone
-(`widoczneDla` wpisu i przepisu, `bezUkrytychOsob`) mają tę samą semantykę, więc zmieniają tylko
-plan. `NOT IN` bez `IS NOT NULL` byłoby błędem: wiersze „ukryty wpis" mają `hidden_user_id = NULL`,
-a jedno `NULL` na liście `NOT IN` odrzuca wszystko (test to łapie, patrz niżej).
+(profil, tag, Odkrywanie, tablica). `NOT IN` bez `IS NOT NULL` byłoby błędem: wiersze „ukryty
+wpis" mają `hidden_user_id = NULL`, a jedno `NULL` na liście `NOT IN` odrzuca wszystko (test to
+łapie, patrz niżej).
 
 ## Cena tej zmiany i granice
 
 Podzapytania o widoczne przepisy i o wpisy ze zdjęciem czytają te tabele **raz na zapytanie**
 (tablica haszująca), a nie tylko wiersze wskazane przez kandydatów. Przy 20 tys. przepisów to
-ok. 25–40 ms z ok. 45–100 ms zapytania i dziś jest to jedyny większy koszt. Rośnie liniowo z
+ok. 25–40 ms z ok. 40–60 ms zapytania i dziś jest to jedyny większy koszt. Rośnie liniowo z
 liczbą przepisów, więc przy wielokrotnie większej tabeli trzeba mierzyć od nowa
 (kolejny krok, jeśli będzie potrzebny: ograniczyć zbiór kandydatów przed sprawdzaniem treści albo
 podać planerowi kolejność po `published_at`). Nie robiłem tego teraz, bo koszt planu ma zapas
-30-krotny, a wykonanie jest 3–4 razy szybsze niż przed zmianą.
+30-krotny, a wykonanie jest kilka razy szybsze niż przed zmianą.
 
 Ten sam wzorzec (skorelowane `EXISTS` w `OR`) występuje w innych listach. Nie mierzyłem ich w tym
 etapie. Przy alarmach na innych trasach warto sprawdzić `EXPLAIN` pod kątem `SubPlan` w `Filter`.
@@ -76,11 +83,11 @@ etapie. Przy alarmach na innych trasach warto sprawdzić `EXPLAIN` pod kątem `S
 |---|---:|---:|
 | Koszt planu głównego zapytania (baza pomiarowa) | 178 167 | 3 080 |
 | Koszt planu w teście (skala #605) | 275 816 | 3 383 |
-| Czas głównego zapytania [ms], 5 przebiegów | 194 / 355 / 354 / 339 / 573 | 65 / 70 / 86 / 98 / 44 |
-| Suma czasów zapytań `paginate()` [ms] | 207 / 369 / 371 / 363 / 588 | 116 / 101 / 105 / 112 / 62 |
+| Czas głównego zapytania [ms], 5 przebiegów | 194 / 355 / 354 / 339 / 573 | 49 / 57 / 55 / 38 / 62 |
+| Suma czasów zapytań `paginate()` [ms] | 207 / 369 / 371 / 363 / 588 | 60 / 85 / 77 / 54 / 91 |
 | JIT na jedno żądanie (`EXPLAIN ANALYZE`) | 223–277 ms, z inliningiem | brak |
 
-Mediana sumy SQL: ok. 370 ms przed, ok. 105 ms po. Liczba zapytań się nie zmieniła (9).
+Mediana sumy SQL: ok. 370 ms przed, ok. 77 ms po (maszyna dzielona, rozrzut duży; rząd wielkości ok. 5x). Liczba zapytań się nie zmieniła (9).
 
 ## Test
 
@@ -94,6 +101,9 @@ Mediana sumy SQL: ok. 370 ms przed, ok. 105 ms po. Liczba zapytań się nie zmie
    zablokowanym i blokującym, zbanowanym, tematem aktywnym i ukrytym, ukrytą osobą obserwowaną
    wprost i tylko z tematu, wygasłym ukryciem). `staraLista()` w teście to dosłowna kopia zapytania
    sprzed zmiany, razem ze starymi postaciami `widoczneDla`.
+3. Test sprząta po sobie: po wycofaniu transakcji robi `VACUUM (ANALYZE)` na zasianych tabelach.
+   Bez tego martwe krotki i `reltuples` z 20 tys. przepisów zostają w bazie i zawyżają koszt
+   następnego testu w tym samym procesie (liczniki zeszytów: 621 tys. zamiast 211 tys.).
 
 Kontrole ujemne (wszystkie wykonane): przywrócenie starego kodu w trzech plikach `app/` (`Post`, `Recipe`, `FollowingFeed`) daje
 koszt 275 816 i test kosztu **oblewa**; usunięcie warunku zdjęcia, zmiana `follower_id` w
