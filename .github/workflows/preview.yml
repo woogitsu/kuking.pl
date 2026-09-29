@@ -127,22 +127,57 @@ concurrency:
 
 jobs:
   # ===========================================================================
+  #  0. Bramka: czy test dymny w ogóle chodzi (#611 etap 7)
+  # ===========================================================================
+  #  Do etapu 7 warunek `vars.KUKING_DEPLOY_ENABLED == 'true'` stał na jobie
+  #  `smoke`, a GitHub pomijał job BEZ śladu: pominięty test dymny wyglądał jak
+  #  zielony. Teraz decyzję podejmuje `scripts/ci/preview-bramka.sh` (tabela
+  #  przypadków: tests/skrypty/preview-bramka.sh) i ZAWSZE zapisuje powód —
+  #  w podsumowaniu joba i adnotacji; zła wartość zmiennej (`TRUE`, `1`) daje
+  #  ostrzeżenie, nie ciche wyłączenie. Job nie ma sekretów ani praw zapisu,
+  #  a z checkoutu bierze tylko `scripts/ci`.
+  # ===========================================================================
+  preview_bramka:
+    name: Czy uruchomić test dymny preview
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 5
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+    outputs:
+      uruchom: ${{ steps.decyzja.outputs.uruchom }}
+      powod: ${{ steps.decyzja.outputs.powod }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: scripts/ci
+      - name: Decyzja i jej uzasadnienie
+        id: decyzja
+        env:
+          ZDARZENIE: ${{ github.event_name }}
+          FLAGA: ${{ vars.KUKING_DEPLOY_ENABLED }}
+        run: bash scripts/ci/preview-bramka.sh
+
+  # ===========================================================================
   #  1. Test dymny natywnego środowiska preview
   # ===========================================================================
   smoke:
     name: Test dymny preview
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 20
-    # Bramka wdrożeniowa: dopóki nie ma środowisk Railway ani sekretów
-    # (D-011 odkłada deploy, issue #3), ten job nie ma dokąd strzelać
-    # i padał na KAŻDYM Pull Requeście. Stała czerwona lampka uczy ludzi,
-    # że czerwone CI się ignoruje — to gorsze niż brak testu dymnego.
-    #
-    # Pominięty job nie zużywa minut. Włączenie: ustaw zmienną repozytorium
-    # KUKING_DEPLOY_ENABLED na `true` (Settings → Secrets and variables →
-    # Actions → Variables) razem z zamknięciem #3.
+    # Bramka wdrożeniowa (D-011 odkłada deploy, issue #3): dopóki nie ma
+    # środowisk Railway ani sekretów, ten job nie ma dokąd strzelać i padałby
+    # na KAŻDYM Pull Requeście — stała czerwona lampka uczy ignorować CI.
+    # Decyzję i jej UZASADNIENIE (widoczne w podsumowaniu joba `preview_bramka`)
+    # daje osobny job, żeby pominięcie nie było ciche (#611 etap 7).
+    # Włączenie: zmienna repozytorium KUKING_DEPLOY_ENABLED = `true`
+    # (Settings → Secrets and variables → Actions → Variables) razem
+    # z zamknięciem #3.
+    needs: preview_bramka
     if: >-
-      vars.KUKING_DEPLOY_ENABLED == 'true' &&
+      needs.preview_bramka.outputs.uruchom == 'true' &&
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository
 
