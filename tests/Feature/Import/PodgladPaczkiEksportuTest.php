@@ -216,6 +216,21 @@ class PodgladPaczkiEksportuTest extends TestCase
         $this->assertOdrzucona(PaczkaOdrzucona::ZA_DUZE_DANE, $sciezka);
     }
 
+    public function test_dane_dokladnie_na_suficie_nie_sa_odrzucone_jako_za_duze(): void
+    {
+        $sciezka = $this->zip(['dane.json' => str_repeat(' ', PodgladPaczkiEksportu::MAX_DANE_BAJTOW)]);
+
+        // Same spacje to nie JSON — ale odrzucenie ma paść z innego powodu niż rozmiar.
+        $this->assertOdrzucona(PaczkaOdrzucona::NIE_JSON, $sciezka);
+    }
+
+    public function test_dane_jeden_bajt_ponad_sufitem_sa_odrzucone_z_komunikatem(): void
+    {
+        $sciezka = $this->zip(['dane.json' => str_repeat(' ', PodgladPaczkiEksportu::MAX_DANE_BAJTOW + 1)]);
+
+        $this->assertOdrzucona(PaczkaOdrzucona::ZA_DUZE_DANE, $sciezka);
+    }
+
     public function test_za_duzo_plikow_w_archiwum_jest_odrzucone(): void
     {
         $pliki = ['dane.json' => json_encode($this->szkieletPaczki(), JSON_THROW_ON_ERROR)];

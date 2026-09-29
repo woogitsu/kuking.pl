@@ -49,8 +49,15 @@ final class PodgladPaczkiEksportu
     /** Sufit liczby wpisów w archiwum (przepisy, zdjęcia, strony HTML). */
     public const MAX_PLIKOW = 50_000;
 
-    /** Sufit rozpakowanego `dane.json`. Konto z tysiącem przepisów to ok. 10 MB. */
-    public const MAX_DANE_BAJTOW = 32 * 1024 * 1024;
+    /**
+     * Sufit rozpakowanego `dane.json`: 12 MB.
+     *
+     * `json_decode` potrzebuje około ośmiokrotności rozmiaru tekstu, a
+     * `memory_limit` w `docker/php.ini` to 256M — przy dawnym suficie 32 MB
+     * paczka 28–32 MB kończyła się fatalem (500 bez komunikatu). 12 MB × 8 to
+     * ok. 96 MB, czyli bezpiecznie. Konto z tysiącem przepisów to ok. 10 MB.
+     */
+    public const MAX_DANE_BAJTOW = 12 * 1024 * 1024;
 
     /** Głębokość JSON: sama paczka ma ich mniej niż dziesięć. */
     public const MAX_GLEBOKOSC_JSON = 16;
@@ -240,7 +247,7 @@ final class PodgladPaczkiEksportu
     {
         return new PaczkaOdrzucona(
             PaczkaOdrzucona::ZA_DUZE_DANE,
-            'Plik z danymi w tym archiwum jest większy, niż potrafimy wczytać. Napisz do nas przez formularz kontaktowy, a pomożemy przenieść dane w częściach.',
+            'Plik z danymi w tym archiwum jest większy niż '.intdiv(self::MAX_DANE_BAJTOW, 1024 * 1024).' MB, a tyle potrafimy wczytać naraz. Napisz do nas przez formularz kontaktowy, a pomożemy przenieść dane w częściach.',
         );
     }
 

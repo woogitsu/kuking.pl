@@ -2193,7 +2193,7 @@ return [
 
         /*
          * WCZYTANIE WŁASNEJ PACZKI (#1985) — wybór pliku i „Wczytaj zaznaczone”.
-         * Każde wysłanie pliku otwiera ZIP i czyta `dane.json` (do 32 MB), więc
+         * Każde wysłanie pliku otwiera ZIP i czyta `dane.json` (do 12 MB — patrz `PodgladPaczkiEksportu::MAX_DANE_BAJTOW`), więc
          * limit jest godzinny i skromny: kilka prób z różnymi plikami zmieści się
          * człowiekowi, pętla — nie. Zapis jest dodatkowo dzielony na partie
          * (`import_paczki.max_naraz`) i idempotentny, więc ponowienie nie szkodzi.

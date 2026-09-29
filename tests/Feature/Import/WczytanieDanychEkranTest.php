@@ -112,6 +112,36 @@ class WczytanieDanychEkranTest extends TestCase
             ->assertSessionHasErrors(['plik' => 'Ten plik jest za duży. Wybierz paczkę mniejszą niż 0 MB.']);
     }
 
+    public function test_dane_tuz_ponad_sufitem_daja_komunikat_a_nie_blad_serwera(): void
+    {
+        // Sufit 12 MB jest dobrany do `memory_limit` 256M (json_decode ~8x).
+        // Tuż ponad nim człowiek ma dostać polski komunikat z instrukcją,
+        // a nie fatal 500 bez słowa.
+        $sciezka = tempnam(sys_get_temp_dir(), 'kuking-sufit-');
+        $this->assertIsString($sciezka);
+        $this->pliki[] = $sciezka;
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($sciezka, ZipArchive::OVERWRITE | ZipArchive::CREATE) === true);
+        $zip->addFromString('dane.json', str_repeat(' ', PodgladPaczkiEksportu::MAX_DANE_BAJTOW + 1));
+        $this->assertTrue($zip->close());
+
+        $this->actingAs($this->user('zenek'))
+            ->from(route('settings.data.import'))
+            ->post(route('settings.data.import.check'), ['plik' => new UploadedFile($sciezka, 'paczka.zip', 'application/zip', null, true)])
+            ->assertRedirect(route('settings.data.import'))
+            ->assertSessionHasErrors(['plik' => 'Plik z danymi w tym archiwum jest większy niż 12 MB, a tyle potrafimy wczytać naraz. Napisz do nas przez formularz kontaktowy, a pomożemy przenieść dane w częściach.']);
+
+        $this->assertSame([], Storage::disk('local')->allFiles('import-paczek'));
+    }
+
+    public function test_sufit_danych_pozostaje_bezpieczny_dla_limitu_pamieci_php(): void
+    {
+        // json_decode potrzebuje ok. 8x rozmiaru tekstu; 256M to `docker/php.ini`.
+        $this->assertSame(12 * 1024 * 1024, PodgladPaczkiEksportu::MAX_DANE_BAJTOW);
+        $this->assertLessThan(256 * 1024 * 1024 / 2, PodgladPaczkiEksportu::MAX_DANE_BAJTOW * 8);
+        $this->assertStringContainsString('memory_limit=256M', (string) file_get_contents(base_path('docker/php.ini')));
+    }
+
     public function test_pelny_obieg_podglad_bez_zapisu_potem_zapis_zaznaczonych_i_sprzatanie_pliku(): void
     {
         $zenek = $this->user('zenek');
