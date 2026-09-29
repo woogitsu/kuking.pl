@@ -71,9 +71,15 @@ i widoczności — Policy `update` w `authorize()` przed polami, ten sam 403
 co w kontrolerze) oraz `ZapisDoZeszytuRequest` i `WyjecieZZeszytuRequest`
 nad wspólną `WyborZeszytuRequest` (jedna reguła wyboru własnego lub wspólnego
 zeszytu, różne zdania błędów; `rules()` puste, wybór waliduje metoda wołana
-przez kontroler po 404 i Policy). `app/Domain/Collections` nie pogłębia
-zależności od `Illuminate\Http` — pilnuje tego `ZeszytyNieRosnaOdHttpTest`
-z listą dwóch zastanych plików (`ZeszytyDoWyboru`, `CollectionSaveContext`).
+przez kontroler po 404 i Policy). `app/Domain/Collections` nie zna
+`Illuminate\Http`: `ZeszytyDoWyboru::dla(?User)` i `CollectionSaveContext`
+(surowe `save_type`/`save_id` + osoba) dostają zwykłe wartości, a jedno
+pobranie zeszytów na żądanie trzyma adapter `App\Http\Support\ZeszytyZZadania`
+(używa go komponent `wybor-zeszytu` i karty). Cała domena jest pod
+`DomenaNieZalezyOdHttpTest`: nowy import `Illuminate\Http` w `app/Domain`
+oblewa test; jawne wyjątki (z powodem w teście) to klient wychodzący
+`Http\Client`, `UploadedFile` per plik i cztery zastane importy `Request`
+(Security×2, Social, Ukrycia) — lista dokładna w obie strony.
 Zostaje w kontrolerze: przypadki użycia listy, wyjęcia niedostępnych i
 zapisu przepisu (kolejne kroki).
 Profil publiczny: `ProfilRequest` (zakładka, rok i fraza z adresu, `rules()` puste — jak `ListaKontRequest`).

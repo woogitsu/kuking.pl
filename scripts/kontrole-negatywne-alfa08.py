@@ -524,10 +524,11 @@ ERASE_ACCOUNT_DATA = "app/Domain/Users/Actions/EraseAccountData.php"
 # i Moderation → Security — graf ma zapalić.
 PRZEDAWNIONE_SPRAWY = "app/Domain/Compliance/PrzedawnioneSprawyModeracyjne.php"
 ALARMUJ_MODERATORA = "app/Domain/Moderation/Actions/AlarmujModeratora.php"
-# #970 krok 5: Collections nie pogłębia zależności od `Illuminate\Http`.
-# Mutacja dokłada import `UploadedFile` do akcji spoza listy zastanych.
+# #970: `app/Domain` nie zależy od `Illuminate\Http` (Collections są czyste,
+# reszta ma jawne wyjątki). Mutacja dokłada `use Illuminate\Http\Request;`
+# do akcji spoza list wyjątków.
 ZESZYTY_AKCJA_NOTATKI = "app/Domain/Collections/Actions/UpdateCollectionItemNote.php"
-ZESZYTY_HTTP_TEST = "ZeszytyNieRosnaOdHttpTest"
+ZESZYTY_HTTP_TEST = "DomenaNieZalezyOdHttpTest"
 # Form Request zeszytu: Policy `update` przed polami. Mutacja wycina ją.
 ZAPIS_ZESZYTU_REQUEST = "app/Http/Requests/Collections/ZapisZeszytuRequest.php"
 ZESZYTY_FORMULARZ_TEST = "FormularzZeszytuKolejnoscSprawdzenTest"
@@ -1467,8 +1468,8 @@ checks = [
      lambda s: replace_once(s, "use App\\Domain\\Moderation\\Sygnaly\\Sygnal;\n", "use App\\Domain\\Moderation\\Sygnaly\\Sygnal;\nuse App\\Domain\\Security\\DziennyBudzetListow as BudzetZSecurity;\n")),
     ("Nowy cykl: Users importuje Moderation (Moderation → Users już jest)", ERASE_ACCOUNT_DATA, GRAF_MODULOW_TEST,
      lambda s: replace_once(s, "namespace App\\Domain\\Users\\Actions;\n", "namespace App\\Domain\\Users\\Actions;\n\nuse App\\Domain\\Moderation\\ModeratedContent;\n")),
-    ("Akcja zeszytów importuje Illuminate\\Http", ZESZYTY_AKCJA_NOTATKI, ZESZYTY_HTTP_TEST,
-     lambda s: replace_once(s, "use Illuminate\\Support\\Facades\\DB;\n", "use Illuminate\\Http\\UploadedFile;\nuse Illuminate\\Support\\Facades\\DB;\n")),
+    ("Domena importuje Illuminate\\Http\\Request", ZESZYTY_AKCJA_NOTATKI, ZESZYTY_HTTP_TEST,
+     lambda s: replace_once(s, "use Illuminate\\Support\\Facades\\DB;\n", "use Illuminate\\Http\\Request;\nuse Illuminate\\Support\\Facades\\DB;\n")),
     ("Formularz zeszytu sprawdza pola przed Policy", ZAPIS_ZESZYTU_REQUEST, ZESZYTY_FORMULARZ_TEST,
      lambda s: replace_once(s, "            Gate::inspect('update', $zeszyt)->authorize();\n", "")),
     ("DemoSeeder wypisuje hasło z KUKING_DEMO_HASLO", DEMO_SEEDER, DEMO_SEEDER_HASLO_TEST,
