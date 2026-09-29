@@ -111,7 +111,7 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 - Moja wersja — fork przepisu (**wdrożone przed bramką** — decyzja właściciela z 26.09.2026, D-301);
 - planner;
 - lista zakupów;
-- rodzinna książka;
+- rodzinna książka; *(pierwszy krok: wspólny zeszyt z zaproszeniami — #1743, D-302, 26.09.2026)*
 - Q&A;
 - Web Push;
 - wyzwania społecznościowe.

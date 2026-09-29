@@ -30,6 +30,21 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Wspólny zeszyt dla rodziny
+
+Zeszyt z przepisami możecie teraz udostępnić bliskim — na przykład mężowi,
+córce albo siostrze, z którą razem planujecie niedzielny obiad. Na ekranie
+zeszytu wybierzcie „Zaproś do wspólnego zapisywania” i wpiszcie nazwę konta tej osoby albo
+wyślijcie jej jednorazowy link. Zaproszona osoba może dopisywać i wyjmować
+przepisy oraz wpisy, a przy każdej pozycji widać, kto ją dodał.
+
+Zeszyt ma nadal jednego właściciela: tylko Wy zmieniacie jego nazwę,
+widoczność i usuwacie go. Dostęp może mieć najwyżej pięć osób, a zeszytu
+„Zapisane” nie da się udostępnić. Można w każdej chwili odebrać komuś dostęp,
+a zaproszona osoba może sama odejść — to, co dopisała, zostaje w zeszycie.
+Gdy jedna z osób zablokuje drugą albo usunie konto, wspólne zapisywanie
+między nimi się kończy.
+
 ## Alfa 0.76
 
 **Wyszukiwarka w Planerze, „Co mam w domu”, zapis przepisu po rejestracji, wydruk przepisu i zeszyt bez konta.**
