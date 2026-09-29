@@ -47,6 +47,9 @@ class BramkaZakresuNiePomijaJobowCzytajacychTest extends TestCase
 
     private const JOB_TESTOW = 'test';
 
+    /** Od #611 (etap 5) bramka to osobny plik, a krok w `ci.yml` tylko go woła. */
+    private const SKRYPT_ZAKRESU = 'scripts/ci/zakres.sh';
+
     /**
      * Joby przeglądarkowe uruchamiane przez skrypty z `scripts/` — te same,
      * które `PortMarkiMaWlasnaBramkeCiTest` trzyma na filtrze warstwy widoku.
@@ -586,8 +589,8 @@ class BramkaZakresuNiePomijaJobowCzytajacychTest extends TestCase
     {
         $this->assertSame(
             1,
-            preg_match("/grep -vE '\\^\\(([^']+)\\)'/", $this->workflow(), $m),
-            'W bramce `zakres` nie ma filtra „co jest dokumentacją" albo jest go więcej niż jeden.',
+            preg_match("/grep -vE '\\^\\(([^']+)\\)'/", $this->skryptZakresu(), $m),
+            'W skrypcie bramki `zakres` nie ma filtra „co jest dokumentacją" albo jest go więcej niż jeden.',
         );
 
         $sciezki = [];
@@ -736,13 +739,21 @@ class BramkaZakresuNiePomijaJobowCzytajacychTest extends TestCase
      */
     private function wyjsciaBramki(array $zmienione, ?string $zdarzenie = 'pull_request'): array
     {
-        $skrypt = $this->skryptBramki();
+        $this->skryptZakresu();
+
         $wyjscie = tempnam(sys_get_temp_dir(), 'bramka');
+        $lista = tempnam(sys_get_temp_dir(), 'bramka-lista');
 
         $this->assertIsString($wyjscie);
+        $this->assertIsString($lista);
 
-        $proces = new Process(['bash', '-c', $skrypt, 'bramka', ...$zmienione], base_path(), [
+        // Lista z PLIKU (tryb testowy skryptu), nie ze zmiennej: lista z dużego
+        // diffu przekracza limit jednej zmiennej środowiska.
+        file_put_contents($lista, implode("\n", $zmienione)."\n");
+
+        $proces = new Process(['bash', self::SKRYPT_ZAKRESU], base_path(), [
             'GITHUB_OUTPUT' => $wyjscie,
+            'ZAKRES_LISTA_PLIK' => $lista,
             'ZDARZENIE' => $zdarzenie ?? false,
         ]);
         $proces->run();
@@ -763,6 +774,7 @@ class BramkaZakresuNiePomijaJobowCzytajacychTest extends TestCase
         }
 
         @unlink($wyjscie);
+        @unlink($lista);
 
         $this->assertArrayHasKey('kod', $wynik, 'Bramka nie wystawiła `kod`.');
 
@@ -770,51 +782,23 @@ class BramkaZakresuNiePomijaJobowCzytajacychTest extends TestCase
     }
 
     /**
-     * Skrypt kroku `sprawdz` z podmienionym ŹRÓDŁEM listy zmian: zamiast
-     * `git diff` bierze argumenty. Reszta — cała logika decyzji — zostaje
-     * dokładnie ta, która chodzi w CI.
+     * Skrypt bramki — od #611 (etap 5) osobny plik, a nie krok `run:` w `ci.yml`.
+     * Krok w `ci.yml` tylko go woła; ta metoda sprawdza, że woła TEN plik, bo
+     * inaczej strażnik czytałby plik, którego CI w ogóle nie uruchamia.
      */
-    private function skryptBramki(): string
+    private function skryptZakresu(): string
     {
-        $linie = $this->wiersze($this->workflow());
+        $sciezka = base_path(self::SKRYPT_ZAKRESU);
+        $tresc = is_file($sciezka) ? file_get_contents($sciezka) : false;
 
-        $poczatek = null;
+        $this->assertIsString($tresc, 'Nie da się odczytać `'.self::SKRYPT_ZAKRESU.'`.');
+        $this->assertStringContainsString(
+            'run: bash '.self::SKRYPT_ZAKRESU,
+            $this->workflow(),
+            'Krok `sprawdz` w `ci.yml` nie woła skryptu bramki.',
+        );
 
-        foreach ($linie as $i => $linia) {
-            if (str_contains($linia, 'ZMIENIONE="$(git diff')) {
-                $poczatek = $i;
-                break;
-            }
-        }
-
-        $this->assertIsInt($poczatek, 'W bramce `zakres` nie ma kroku liczącego listę zmian.');
-
-        // Blok `run: |` ma wcięcie dziesięciu spacji. Ciało kroku kończy się
-        // na pierwszej niepustej linii płycej wciętej — tam zaczyna się już
-        // co innego w pliku.
-        $skrypt = [];
-
-        for ($i = (int) $poczatek + 1; $i < count($linie); $i++) {
-            $linia = $linie[$i];
-
-            if ($linia === '') {
-                $skrypt[] = '';
-
-                continue;
-            }
-
-            if (! str_starts_with($linia, '          ')) {
-                break;
-            }
-
-            $skrypt[] = substr($linia, 10);
-        }
-
-        $this->assertNotSame([], $skrypt, 'Ciało kroku bramki wyszło puste — zmienił się kształt `ci.yml`.');
-
-        return "set -euo pipefail\n"
-            ."ZMIENIONE=\"\$(printf '%s\\n' \"\$@\" | grep -v '^\$' || true)\"\n"
-            .implode("\n", $skrypt);
+        return $tresc;
     }
 
     /**

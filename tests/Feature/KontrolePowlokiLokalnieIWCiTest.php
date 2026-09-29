@@ -34,6 +34,7 @@ class KontrolePowlokiLokalnieIWCiTest extends TestCase
         'tests/skrypty/cache-assetow.sh',
         'tests/skrypty/kontrola-ujemna.sh',
         'tests/skrypty/kontrola-sondy-wdrozenia.sh',
+        'tests/skrypty/zakres.sh',
     ];
 
     private function plik(string $sciezka): string
@@ -72,7 +73,7 @@ class KontrolePowlokiLokalnieIWCiTest extends TestCase
 
         $this->assertStringContainsString('bash -n "$skrypt"', $wspolny);
 
-        foreach (['docker/entrypoint.sh', 'docker/healthcheck.sh', 'docker/kopia/*.sh', 'scripts/*.sh', 'tests/skrypty/*.sh'] as $wzorzec) {
+        foreach (['docker/entrypoint.sh', 'docker/healthcheck.sh', 'docker/kopia/*.sh', 'scripts/*.sh', 'scripts/ci/*.sh', 'tests/skrypty/*.sh'] as $wzorzec) {
             $this->assertStringContainsString($wzorzec, $wspolny, "Składnia {$wzorzec} nie jest już sprawdzana.");
         }
     }

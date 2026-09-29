@@ -308,7 +308,7 @@ Bez niej ta pułapka wraca przy pierwszym refaktorze.
 **W GitHub Actions `shell: bash` włącza `pipefail`, a domyślny `run:` go nie ma.**
 Domyślna powłoka to `bash -e {0}` — bez `-o pipefail`.
 
-Trzy kroki w `.github/workflows/ci.yml` robią `echo "$ZMIENIONE" | grep -qE …`
+Trzy kroki bramki `zakres` (od #611 etap 5: `scripts/ci/zakres.sh`, wcześniej `.github/workflows/ci.yml`) robią `echo "$ZMIENIONE" | grep -qE …`
 i decydują, **czy w ogóle uruchomić zadania przeglądarkowe**. Gdyby zadziałał
 tam SIGPIPE, PR zmieniający widoki po cichu pomijałby zadania, które miały go
 sprawdzić — czyli fałszywa zieleń najgorszego rodzaju. Dziś nie zadziała,

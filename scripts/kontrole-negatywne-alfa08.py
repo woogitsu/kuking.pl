@@ -203,12 +203,15 @@ REGULY_CF_TEST = "test_warunki_regul_nie_wpuszczaja_stanu_klienta_do_wspolnego_c
 REGULA_ZDJEC_CIASTKO = '\\"/zdjecia/\\") and http.request.uri.query eq \\"\\" and http.cookie eq \\"\\"'
 # Bramka zakresu w `ci.yml` (#1273): filtr warstwy widoku obejmuje lokalne
 # akcje `.github/actions/`, bo joby przeglądarkowe wołają je przez `uses: ./…`.
-# Strażnik pyta PRAWDZIWY skrypt bramki, ale czyta go z `ci.yml`, więc tylko
+# Strażnik pyta PRAWDZIWY skrypt bramki, ale czyta go z `scripts/ci/zakres.sh` (od #611 etap 5; wcześniej z `ci.yml`), więc tylko
 # mutacja dowodzi, że zapala się, gdy akcje wypadną z filtra.
 BRAMKA_CI = ".github/workflows/ci.yml"
+# Od #611 (etap 5) logika bramki `zakres` żyje w skrypcie, nie w `ci.yml`;
+# strażnicy czytają ten plik, więc mutacje bramki celują w niego.
+BRAMKA_SKRYPT = "scripts/ci/zakres.sh"
 BRAMKA_AKCJE_TEST = "test_zmiana_lokalnej_akcji_uruchamia_joby_ktore_jej_uzywaja"
 # Ciężkie joby wąskiego obszaru zawężane TYLKO na PR-ach (decyzja 24.09.2026).
-# Strażnicy pytają prawdziwy skrypt bramki z `ci.yml`; mutacje dowodzą, że
+# Strażnicy pytają prawdziwy skrypt bramki z `scripts/ci/zakres.sh`; mutacje dowodzą, że
 # zapalają się w obie strony: gdy job wypada przy zmianie własnego wejścia,
 # gdy zawężenie przecieka poza PR i gdy wzorzec przestaje cokolwiek zawężać.
 BRAMKA_WEJSCIA_TEST = "test_ciezki_job_rusza_przy_zmianie_kazdego_pliku_ktory_czyta"
@@ -965,8 +968,8 @@ def akcje_poza_filtrem_widoku(source):
     """
     return replace_once(
         source,
-        r"|\.github/(workflows/ci\.yml|actions/))'",
-        r"|\.github/workflows/ci\.yml)'",
+        r"|\.github/(workflows/ci\.yml|actions/)|scripts/ci/)'",
+        r"|\.github/workflows/ci\.yml|scripts/ci/)'",
     )
 
 
@@ -1181,17 +1184,17 @@ checks = [
      lambda s: replace_once(s, "        if (DB::table('contact_message_replies')->whereNotNull('reply_key')->exists()) {\n", "        if (false) {\n")),
     ("Jedna sprawa RODO w toku bez odmowy przy duplikatach", RODO_W_TOKU_MIGRACJA, RODO_W_TOKU_MIGRACJA_TEST,
      lambda s: replace_once(s, "        if ($ileKont > 0) {\n", "        if (false) {\n")),
-    ("Lokalne akcje poza filtrem widoku", BRAMKA_CI, BRAMKA_AKCJE_TEST,
+    ("Lokalne akcje poza filtrem widoku", BRAMKA_SKRYPT, BRAMKA_AKCJE_TEST,
      akcje_poza_filtrem_widoku),
-    ("Dockerfile poza wzorcem builda obrazu", BRAMKA_CI, BRAMKA_WEJSCIA_TEST,
+    ("Dockerfile poza wzorcem builda obrazu", BRAMKA_SKRYPT, BRAMKA_WEJSCIA_TEST,
      dockerfile_poza_wzorcem_obrazu),
-    ("Pliki grupy wyścigów poza wzorcem joba", BRAMKA_CI, BRAMKA_WEJSCIA_TEST,
+    ("Pliki grupy wyścigów poza wzorcem joba", BRAMKA_SKRYPT, BRAMKA_WEJSCIA_TEST,
      grupa_wyscigow_poza_wzorcem),
-    ("Ciężkie joby zawężane także poza PR-em", BRAMKA_CI, BRAMKA_POZA_PR_TEST,
+    ("Ciężkie joby zawężane także poza PR-em", BRAMKA_SKRYPT, BRAMKA_POZA_PR_TEST,
      zawezanie_takze_poza_pr),
-    ("Wzorzec przyrządu #605 łapie każdą zmianę", BRAMKA_CI, BRAMKA_OBOK_TEST,
+    ("Wzorzec przyrządu #605 łapie każdą zmianę", BRAMKA_SKRYPT, BRAMKA_OBOK_TEST,
      wzorzec_przyrzadu_lapie_wszystko),
-    ("Filtr widoku zawężany także poza PR-em", BRAMKA_CI, WIDOK_POZA_PR_TEST,
+    ("Filtr widoku zawężany także poza PR-em", BRAMKA_SKRYPT, WIDOK_POZA_PR_TEST,
      widok_zawezany_poza_pr),
     ("Podział wierszy przez \\R bez u", PODZIAL_WIERSZY, PODZIAL_WIERSZY_TEST,
      lambda s: replace_once(s, r"preg_split('/\r\n|\n|\r/', $tresc)", r"preg_split('/\R/', $tresc)")),
