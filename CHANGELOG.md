@@ -3,7 +3,6 @@
 ## Nieopublikowane
 
 - Naprawione: mapa strony dla wyszukiwarek nie podaje już starej daty zmiany po edycji publicznego przepisu, wpisu albo pytania. Zmiana tytułu, opisu, czasów, zdjęcia czy składników odświeża mapę od razu, a nie po kilku godzinach; edycja szkicu i treści prywatnych nadal jej nie rusza. Data zmiany przepisu w mapie to teraz data zmiany jego treści (ta sama, którą widzą wyszukiwarki na stronie przepisu), a nie data dowolnego zapisu, np. po moderacji; gdy tej daty nie znamy (starsze przepisy), mapa jej nie podaje (#1280).
-
 - Rodzinny zeszyt: zeszyt (poza domyślnym) można udostępnić bliskim — po nazwie konta albo jednorazowym linkiem. Zaproszone osoby dopisują i wyjmują przepisy i wpisy, a przy każdej pozycji widać, kto ją dodał. Zeszyt nadal ma jednego właściciela; najwyżej 5 osób z dostępem; blokada albo usunięcie konta kończy wspólne zapisywanie (#1743, D-302). [nowa funkcja]
 
 ## Alfa 0.76 — planer z wyszukiwarką, „Co mam w domu” i zeszyt bez konta
