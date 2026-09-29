@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Domain\Recipes\Actions;
 
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
+use App\Domain\Posts\KontoNieMozePublikowac;
 use App\Domain\Recipes\BramkaPublikacjiSzkicu;
 use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\GrupySkladnikow;
 use App\Domain\Recipes\MojaWersja;
 use App\Domain\Recipes\RecipeStatusTransitions;
 use App\Domain\Recipes\StepTimer;
+use App\Domain\Recipes\StrazPochodzeniaPrzepisu;
+use App\Domain\Recipes\TrescPrzepisu;
 use App\Domain\Recipes\WpisWskazujacyPrzepis;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
@@ -91,6 +94,7 @@ final class PublishRecipe
     public function __construct(
         private readonly GenerateRecipeSlug $slugs,
         private readonly SnapshotRecipeVersion $snapshots,
+        private readonly StrazPochodzeniaPrzepisu $pochodzenie,
         private readonly BramkaPublikacjiSzkicu $bramkaPublikacji,
         private readonly MojaWersja $mojaWersja,
     ) {}
@@ -149,6 +153,13 @@ final class PublishRecipe
         // zanim odczytamy jego relacje albo zaczniemy transakcję zapisu.
         if ($existing !== null) {
             Gate::forUser($author)->authorize('update', $existing);
+
+            // Pochodzenie przepisu (import z adresu, PDF-a, zdjęcia — D-300):
+            // zablokowane źródło i „Sprawdziłem odczytany tekst" przed
+            // publikacją. Stoi TU, a nie w kontrolerach, żeby kreator,
+            // formularz jednostronicowy i każde przyszłe wejście szły przez
+            // tę samą regułę (AGENTS.md §4).
+            $attributes = $this->pochodzenie->przedZapisem($author, $existing, $attributes, $publish);
         }
 
         $cleanIngredients = $this->cleanIngredients($ingredients);
@@ -303,26 +314,54 @@ final class PublishRecipe
              * `recipe_versions`. To nie jest więc skutek A01, tylko rzecz
              * przy nim znaleziona.
              *
-             * `FOR KEY SHARE`, a nie `ZamekKonta` i nie `FOR UPDATE`, z dwóch
-             * powodów naraz. Po pierwsze `ZamekKonta` wziąłby `users` PRZED
-             * `media`, a kolejność `media` → `users` jest w tym repozytorium
-             * ustalona i zmierzona (D-103, komentarz klasy `PrzypnijAwatar`)
-             * — byłoby zakleszczenie w drugą stronę. Po drugie to jest
-             * DOKŁADNIE ta blokada, którą i tak za chwilę weźmie sprawdzenie
-             * klucza obcego przy zapisie wersji; bierzemy ją tylko WCZEŚNIEJ.
-             * Nie jest więc silniejsza od tej, którą ta transakcja i tak
-             * trzymała na końcu, i nie ustawia w kolejce ani dwóch
-             * równoległych edycji (`FOR KEY SHARE` nie jest w konflikcie sam
-             * ze sobą), ani czyjegoś „Obserwuj".
+             * `FOR NO KEY UPDATE`, a nie `ZamekKonta` i nie `FOR UPDATE`.
+             * `ZamekKonta` wziąłby `users` PRZED `media`, a kolejność
+             * `media` → `users` jest w tym repozytorium ustalona i zmierzona
+             * (D-103, komentarz klasy `PrzypnijAwatar`) — byłoby zakleszczenie
+             * w drugą stronę. `FOR NO KEY UPDATE` (jak w `PublishPost`) jest
+             * w konflikcie z zapisem statusu konta (kara), więc kara i zapis
+             * przepisu ustawiają się w jednej kolejce, a jednocześnie nie
+             * blokuje sprawdzeń klucza obcego (`FOR KEY SHARE`) — nie
+             * zatrzymuje więc czyjegoś „Obserwuj" ani zapisu wersji. Do
+             * 28.09.2026 stało tu samo `FOR KEY SHARE`, które chroniło
+             * kolejność blokad, ale nie pozwalało zobaczyć nowej kary
+             * (issue #2189) — patrz niżej.
              */
-            DB::select('SELECT 1 FROM users WHERE id = ? FOR KEY SHARE', [(string) $author->getKey()]);
+            $author = User::query()->whereKey($author->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
 
+            /*
+             * STAN AUTORA ROZSTRZYGAMY NA ŚWIEŻYM WIERSZU, POD TĄ BLOKADĄ
+             * (issue #2189).
+             *
+             * Middleware i Policy sprawdziły konto na modelu wczytanym na
+             * początku żądania. Kara mogła zostać zatwierdzona, gdy ten zapis
+             * czekał na blokadę — bez ponownego sprawdzenia zapisałby szkic
+             * albo zmienił publiczny przepis mimo zawieszenia lub bana.
+             * Reguła jest ta sama co w `PublishPost`: wygasłą karę zdejmujemy,
+             * nieaktywnemu kontu odmawiamy, a cała transakcja (zdjęcia,
+             * składniki, wersja, audyt, wpis w strumieniu) wraca bez skutku.
+             */
+            if ($author->punishmentHasExpired()) {
+                $author->reinstate();
+            }
+            if (! $author->isActive()) {
+                throw new KontoNieMozePublikowac(
+                    'Stan Twojego konta zmienił się podczas zapisywania przepisu. Odśwież stronę, aby zobaczyć aktualną informację.',
+                );
+            }
+
+            $bylSzkicem = false;
             // Czy przepis był UDOSTĘPNIONY innym (opublikowany i nie
             // prywatny) PRZED tym zapisem — potrzebne wyłącznie „Mojej
             // wersji": powiadomienie autora oryginału idzie przy pierwszym
             // udostępnieniu wersji innym, nie przy publikacji „tylko dla
             // mnie" (issue #23, D-301, decyzja właściciela z 26.09.2026).
             $byloUdostepnione = false;
+
+            // Treść i data publikacji SPRZED zapisu — do `tresc_zmieniona_at`
+            // niżej (#2014). Nowy przepis nie ma treści, z którą się porównać.
+            $trescPrzed = null;
+            $bylaPublikacja = false;
 
             $payload = [
                 'title' => $title,
@@ -419,6 +458,11 @@ final class PublishRecipe
                 }
 
                 $recipe = $swiezy;
+                // Pod blokadą: równoległy zapis nie zmieni treści między tym
+                // odczytem a naszym `UPDATE`.
+                $trescPrzed = TrescPrzepisu::odcisk((string) $recipe->getKey());
+                $bylaPublikacja = $recipe->published_at !== null;
+                $bylSzkicem = $swiezy->status === Recipe::STATUS_DRAFT;
 
                 // Mapa sprzed blokady służy wyłącznie do wyboru zdjęć. Po
                 // czekaniu na inny zapis kroki mogły już zostać wymienione.
@@ -475,6 +519,32 @@ final class PublishRecipe
 
             $this->syncIngredients($recipe, $cleanIngredients);
             $this->syncSteps($recipe, $author, $cleanSteps, $istniejaceKroki, $doPrzypiecia);
+
+            if ($bylSzkicem && $recipe->isPublished()) {
+                $this->pochodzenie->poPublikacji($recipe);
+            }
+
+            /*
+             * DATA ZMIANY TREŚCI (`dateModified` w JSON-LD, #2014).
+             *
+             * `updated_at` się do tego nie nadaje: przesuwa go moderacja,
+             * zmiana widoczności i zapis bez zmian (`content_revision` wyżej
+             * brudzi wiersz zawsze). Wersje też nie: powstają przy każdym
+             * „Zapisz" z publikacją, a autozapis zmienia treść bez wersji.
+             *
+             * Dlatego osobna kolumna i dwie reguły:
+             * - pierwsza publikacja → dokładnie `published_at`; wcześniejsze
+             *   poprawki szkicu nie były publiczne, więc nie są „modyfikacją";
+             * - poza tym → `now()` TYLKO przy różnicy odcisku treści (także
+             *   zdjęć), czyli także przy autozapisie i poprawce.
+             * Poza `$fillable` (tak jak `content_revision`): ustawia ją
+             * wyłącznie ta akcja.
+             */
+            if ($recipe->published_at !== null && ! $bylaPublikacja) {
+                $recipe->forceFill(['tresc_zmieniona_at' => $recipe->published_at])->save();
+            } elseif ($trescPrzed !== null && $trescPrzed !== TrescPrzepisu::odcisk((string) $recipe->getKey())) {
+                $recipe->forceFill(['tresc_zmieniona_at' => now()])->save();
+            }
 
             /*
              * „MOJA WERSJA" BEZ ŻADNEJ ZMIANY NIE WYCHODZI DO LUDZI (issue #23).

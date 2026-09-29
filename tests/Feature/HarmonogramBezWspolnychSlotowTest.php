@@ -87,10 +87,12 @@ class HarmonogramBezWspolnychSlotowTest extends TestCase
                 continue;
             }
 
+            /** @var \DateTimeZone|string|null $strefaZadania `Event::$timezone` bywa `null`, choć phpdoc Laravela mówi inaczej. */
+            $strefaZadania = $event->timezone;
             $wynik[] = [
                 'nazwa' => $event->description ?? $event->expression,
                 'minuta' => (int) $m[2] * 60 + (int) $m[1],
-                'strefa' => (string) ($event->timezone ?? config('app.timezone')),
+                'strefa' => (string) ($strefaZadania ?? config('app.timezone')),
             ];
         }
 

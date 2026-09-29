@@ -60,13 +60,14 @@ krok "PostgreSQL"
 # o ten port. Portu stanowiska (np. 55439) tu nie zaszywamy: świeży klon
 # i CI (port losowy) dostałyby czerwień bez powodu.
 #
-# START KLASTRA JAK DOTĄD, ALE TYLKO DLA PORTU DOMYŚLNEGO. Na 5432 stoi
-# lokalny klaster systemowy, który ten skrypt zawsze umiał podnieść. Przy
-# innym porcie to czyjaś własna instancja — cudzego klastra nie ruszamy,
-# tylko mówimy, na jakim adresie baza nie odpowiada.
+# SKRYPT NIE URUCHAMIA KLASTRA (#732). Wcześniej dla portu 5432 wołał
+# `pg_ctlcluster <wersja> main start` — administracyjną operację na
+# współdzielonym klastrze systemowym, z wyrzuconym wyjściem i bez sprawdzenia
+# wyniku. Hook ma sprawdzić własne połączenie, nie zarządzać cudzą usługą:
+# gdy baza nie odpowiada, mówimy, o który adres pytaliśmy, i zostawiamy
+# uruchomienie właścicielowi.
 _pg_host="${DB_HOST:-127.0.0.1}"
 _pg_port="${DB_PORT:-5432}"
-_pg_katalog="${KUKING_PG_LIB:-/usr/lib/postgresql}"
 # Baza i użytkownik tylko wtedy, gdy są podane — bez nich sonda pyta jak
 # dotąd o sam host i port. Hasła tu nie ma: `pg_isready` go nie sprawdza.
 _pg_cel=(-h "$_pg_host" -p "$_pg_port")
@@ -74,28 +75,12 @@ _pg_cel=(-h "$_pg_host" -p "$_pg_port")
 [ -n "${DB_USERNAME:-}" ] && _pg_cel+=(-U "$DB_USERNAME")
 sonda_pg() { pg_isready -q "${_pg_cel[@]}" 2>/dev/null; }
 
-if ! sonda_pg; then
-    if [ "$_pg_port" = 5432 ]; then
-        printf "Baza nie odpowiada na %s:%s — próbuję uruchomić lokalny klaster…\n" "$_pg_host" "$_pg_port"
-        for wersja in 18 17 16 15; do
-            [ -d "$_pg_katalog/$wersja" ] && { pg_ctlcluster "$wersja" main start >/dev/null 2>&1; break; }
-        done
-        sleep 2
-    else
-        printf "Baza nie odpowiada na %s:%s — to nie jest port domyślny, więc nie uruchamiam klastra systemowego.\n" "$_pg_host" "$_pg_port"
-    fi
-fi
-
 if sonda_pg; then
     ok "PostgreSQL odpowiada na $_pg_host:$_pg_port"
     printf "  To nie sprawdza hasła ani tego, czy baza istnieje — sprawdzą to testy i migracje.\n"
 else
     zle "PostgreSQL nie odpowiada na $_pg_host:$_pg_port — testy Kuking nie chodzą na SQLite"
-    if [ "$_pg_port" = 5432 ]; then
-        printf "  Uruchom: pg_ctlcluster 18 main start\n"
-    else
-        printf "  Uruchom własną instancję na porcie %s albo usuń DB_PORT, żeby sprawdzić domyślny 5432.\n" "$_pg_port"
-    fi
+    printf "  Uruchom PostgreSQL na %s:%s (ten skrypt niczego nie uruchamia) albo ustaw DB_HOST/DB_PORT na właściwą instancję.\n" "$_pg_host" "$_pg_port"
 fi
 
 # --- 2. Formatowanie ------------------------------------------------------
@@ -115,55 +100,24 @@ else
 fi
 
 # --- 3b. Skrypty powłoki ---------------------------------------------------
-# Entrypoint kontenera to kod, który decyduje o tym, czy serwis w ogóle żyje —
-# a żaden test PHPUnit go nie dotknie. Awaria z 5–6 września 2026 (3,5 godziny
-# niedostępności) siedziała dokładnie tam: w tym, jak skrypt powłoki odróżnia
-# „proces się skończył" od „proces padł".
+# Lista składni i testów powłoki żyje w `scripts/kontrole-powloki.sh` — ten
+# sam plik woła job `lint` w CI (audyt A4 5.1), więc lokalnie i w CI chodzi
+# dokładnie to samo. Uzasadnienia poszczególnych testów stoją tam.
 krok "Skrypty powłoki"
-_bledy_bash=""
-for _skrypt in docker/entrypoint.sh docker/healthcheck.sh docker/klucz-preview.sh docker/kopia/*.sh scripts/*.sh tests/skrypty/*.sh; do
-    [ -f "$_skrypt" ] || continue
-    bash -n "$_skrypt" 2>/dev/null || _bledy_bash="$_bledy_bash $_skrypt"
-done
-
-if [ -n "$_bledy_bash" ]; then
-    zle "Błąd składni w:$_bledy_bash"
-elif ! bash tests/skrypty/entrypoint-nadzor.sh >/dev/null 2>&1; then
-    zle "Testy entrypointu oblewają — uruchom: bash tests/skrypty/entrypoint-nadzor.sh"
-elif ! bash tests/skrypty/healthcheck-role.sh >/dev/null 2>&1; then
-    zle "Kontrola zdrowia ról kontenera oblewa — uruchom: bash tests/skrypty/healthcheck-role.sh"
-elif ! bash tests/skrypty/preflight-bazy.sh >/dev/null 2>&1; then
-    zle "Preflight bazy w entrypoincie oblewa — uruchom: bash tests/skrypty/preflight-bazy.sh"
-elif ! bash tests/skrypty/php-ini-slady.sh >/dev/null 2>&1; then
-    # Obraz FrankenPHP nie ma php.ini-production — bez tej dyrektywy w
-    # docker/php.ini ślady wyjątków niosą prefiksy argumentów, także sekretów.
-    zle "Ślady wyjątków w docker/php.ini niosą argumenty — uruchom: bash tests/skrypty/php-ini-slady.sh"
-elif ! bash tests/skrypty/kopia-bazy.sh >/dev/null 2>&1; then
-    # Kopia bazy to też skrypt powłoki, w obrazie bez PHP (decyzja D-043),
-    # więc żaden test PHPUnit go nie dotknie. A jest to dziś JEDYNA planowana
-    # kopia bazy — Railway na Free/Hobby nie robi żadnych.
-    zle "Testy kopii bazy oblewają — uruchom: bash tests/skrypty/kopia-bazy.sh"
-elif ! bash tests/skrypty/cache-assetow.sh >/dev/null 2>&1; then
-    zle "Sonda cache oblewa — uruchom: bash tests/skrypty/cache-assetow.sh"
-elif ! bash tests/skrypty/kontrola-ujemna.sh >/dev/null 2>&1; then
-    # Przyrząd do kontroli ujemnych (`scripts/kontrola-ujemna.sh`) pilnuje,
-    # żeby mutacja, która nie trafiła, nie udawała wykonanej kontroli. Sam bez
-    # kontroli ujemnej byłby tym, co naprawia: narzędziem meldującym sukces bez
-    # roboty (PULAPKI_TESTOW §5). Ten przebieg podaje mu m.in. mutację, która
-    # NIE trafia, i sprawdza, że odmawia. Bez bazy, poniżej sekundy.
-    zle "Przyrząd kontroli ujemnych oblewa — uruchom: bash tests/skrypty/kontrola-ujemna.sh"
-elif ! bash tests/skrypty/check-postgres.sh >/dev/null 2>&1; then
-    zle "Sonda PostgreSQL w check.sh oblewa — uruchom: bash tests/skrypty/check-postgres.sh"
-elif ! bash tests/skrypty/kontrola-sondy-wdrozenia.sh >/dev/null 2>&1; then
-    # Sondy testu dymnego po wdrożeniu (#1012, #1332) chodzą tylko w GitHub
-    # Actions, na produkcji — tu sprawdzamy je na atrapach curl, bez sieci.
-    zle "Sondy testu dymnego oblewają — uruchom: bash tests/skrypty/kontrola-sondy-wdrozenia.sh"
-elif ! bash tests/skrypty/kontrola-czekania-preview.sh >/dev/null 2>&1; then
-    # Czekanie na gotowe preview (#1389) chodzi tylko w GitHub Actions — tu
-    # na atrapie `gh`, bez sieci: sam adres deploymentu to jeszcze nie gotowość.
-    zle "Czekanie na preview oblewa — uruchom: bash tests/skrypty/kontrola-czekania-preview.sh"
-else
+if _wynik_powloki=$(bash scripts/kontrole-powloki.sh 2>&1); then
     ok "Składnia i testy skryptów powłoki przechodzą"
+else
+    zle "$(printf '%s\n' "$_wynik_powloki" | tail -n 1)"
+fi
+
+# --- 3b'. Werdykt kontroli negatywnych (#1011) -----------------------------
+# Czerwień po mutacji zalicza się tylko z oczekiwanej przyczyny, nie z fatalu
+# ani cudzej asercji. Bez bazy i bez PHP, poniżej sekundy.
+krok "Werdykt kontroli negatywnych (#1011)"
+if python3 tests/skrypty/kontrole-negatywne-przyczyna.py >/dev/null 2>&1; then
+    ok "Werdykt POTWIERDZONA / ZLA_PRZYCZYNA / BRAK_PORAZKI działa"
+else
+    zle "Werdykt kontroli negatywnych oblewa — uruchom: python3 tests/skrypty/kontrole-negatywne-przyczyna.py"
 fi
 
 # --- 3c. Przyrząd do testu obciążeniowego (#605) ---------------------------
@@ -320,6 +274,10 @@ if "${_test_polecenie[@]}" >"$_test_log" 2>&1; then
     ok "Testy przechodzą"
 else
     printf 'Pełny wynik testów zapisano w: %s\n' "$_test_log"
+    # Porażki wprost (#611 etap 4): ogon poniżej często pokazuje tylko
+    # podsumowanie. Tylko diagnostyka — kod wyjścia i kroki bez zmian.
+    printf '%s\n' 'Porażki z logu testów:'
+    bash scripts/porazki-z-logu.sh "$_test_log" 60 || true
     printf '%s\n' 'Ostatnie 160 wierszy wyniku:'
     tail -n 160 "$_test_log"
     zle "Testy nie przechodzą — uruchom: $_test_podpowiedz"

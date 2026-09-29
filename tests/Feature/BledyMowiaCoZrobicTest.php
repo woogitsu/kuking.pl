@@ -228,7 +228,7 @@ final class BledyMowiaCoZrobicTest extends TestCase
             $xpath = $this->xpath($this->get($adres)->getContent());
             $odnosniki = $xpath->query("//*[contains(@class,'error-summary')]//a");
 
-            $this->assertNotNull($odnosniki);
+            $this->assertInstanceOf(\DOMNodeList::class, $odnosniki);
             $this->assertGreaterThan(
                 0,
                 $odnosniki->length,
@@ -375,7 +375,7 @@ final class BledyMowiaCoZrobicTest extends TestCase
         ])->assertSessionHasErrors('visibility');
 
         $xpath = $this->xpath($this->get('/dodaj/zdjecie')->getContent());
-        $pole = $xpath->query("//textarea[@name='body']")?->item(0);
+        $pole = self::wynikXPath($xpath, "//textarea[@name='body']")->item(0);
 
         $this->assertInstanceOf(DOMElement::class, $pole, 'Na ekranie nie ma pola „Napisz kilka słów".');
         $this->assertStringContainsString(
@@ -582,7 +582,7 @@ final class BledyMowiaCoZrobicTest extends TestCase
         // też karty istniejących zeszytów (pułapka 1).
         $zaznaczone = $xpath->query("//*[@id='f-visibility']//input[@checked]");
 
-        $this->assertNotNull($zaznaczone);
+        $this->assertInstanceOf(\DOMNodeList::class, $zaznaczone);
 
         $pierwszy = $zaznaczone->item(0);
 

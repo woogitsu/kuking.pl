@@ -8,7 +8,7 @@ const manifest = JSON.parse(readFileSync('public/build/manifest.json', 'utf8'));
 const entry = manifest['resources/css/app.css'];
 assert(entry?.file, 'Brak CSS w manifeście Vite');
 const css = readFileSync(`public/build/${entry.file}`, 'utf8');
-const fontName = readdirSync('public/build/assets').find(name => name.startsWith('inter-latin-wght-normal-') && name.endsWith('.woff2'));
+const fontName = readdirSync('public/build/assets').find(name => name.startsWith('inter-podstawa-wght-normal-') && name.endsWith('.woff2'));
 assert(fontName, 'Brak lokalnego fontu Inter w buildzie');
 const font = readFileSync(`public/build/assets/${fontName}`).toString('base64');
 const out = 'output/skala589';

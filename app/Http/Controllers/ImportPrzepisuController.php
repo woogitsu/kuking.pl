@@ -7,15 +7,21 @@ namespace App\Http\Controllers;
 use App\Domain\Import\BudzetAi;
 use App\Domain\Import\KlientLuna;
 use App\Domain\Import\LimitImportowOsoby;
+use App\Domain\Import\Pdf\ZlecImportZPdf;
+use App\Domain\Import\Url\StraznikAdresow;
+use App\Domain\Import\Url\ZlecImportZAdresu;
 use App\Domain\Import\ZlecImportPrzepisu;
+use App\Domain\Zgody\InformacjaTekstuZrodlaAi;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\ImportPrzepisu;
 use App\Rules\ObslugiwaneZdjecie;
+use App\Support\Komunikat;
 use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -26,18 +32,124 @@ use Illuminate\View\View;
  * Cienki: walidacja → akcja domenowa → widok. Reguły (zgoda, limit, budżet,
  * „zdjęcie zapisane przed wszystkim”) mieszkają w `App\Domain\Import`.
  */
-class ImportPrzepisuController extends Controller
+final class ImportPrzepisuController extends Controller
 {
+    /** Kto zaznaczył zgodę przy nieaktualnej informacji, dowiaduje się, że AI nie zadziałało, i co zrobić (#2031). */
+    private const KOMUNIKAT_NIEAKTUALNEJ_ZGODY = 'Nie użyliśmy odczytu przez komputer (AI), bo informacja przy zgodzie się zmieniła. '
+        .'Jeśli przepis wyjdzie pusty, przeczytaj tę informację, zaznacz zgodę jeszcze raz i spróbuj ponownie.';
+
+    public function adresForm(): View
+    {
+        abort_unless((bool) config('kuking.import.url.wlaczony'), 404);
+
+        return view('pages.recipes.import-adres', ['kluczWyslania' => (string) Str::uuid7()]);
+    }
+
     /**
-     * Cztery duże przyciski: kartka, adres strony, PDF, „Wpiszę sam”.
-     * Wyłączone źródło = brak przycisku (D-053). „Wpiszę sam” jest zawsze.
+     * Wysłanie adresu tylko ZLECA import (#28): szybka kontrola składni bez
+     * sieci, zapis zlecenia i zadania w kolejce, przekierowanie na ekran
+     * postępu. Strona, robots.txt, DNS i model są w zadaniu
+     * `ImportujPrzepisZAdresu` — żądanie WWW nie czeka na cudzy serwer.
+     */
+    public function adres(Request $request, StraznikAdresow $straznik, ZlecImportZAdresu $zlec): RedirectResponse
+    {
+        abort_unless((bool) config('kuking.import.url.wlaczony'), 404);
+
+        $dane = $request->validate([
+            'adres' => ['required', 'string', 'max:2000'],
+            'zgoda_ai' => ['sometimes', 'boolean'],
+        ], [
+            'adres.required' => 'Wklej adres strony z przepisem — skopiuj go z paska adresu przeglądarki.',
+            'adres.max' => 'Ten adres jest za długi. Skopiuj go jeszcze raz z paska adresu przeglądarki.',
+        ]);
+
+        $adres = trim($dane['adres']);
+        [$zgodaAi, $zgodaNieaktualna] = $this->zgodaNaWyslanieZrodla($request);
+
+        try {
+            $straznik->sprawdzBezSieci($adres);
+
+            $zlecenie = $zlec->handle($request->user(), $adres, $zgodaAi, $this->kluczImportu($request));
+        } catch (BladDlaCzlowieka $e) {
+            // `ImportOdrzucony` też: zły adres, limit osoby, powtórzona próba.
+            return back()->withInput()->withErrors(['adres' => $e->getMessage()]);
+        }
+
+        // Zgoda zaznaczona przy nieaktualnej informacji (#2031) nic nie odblokowała: mówimy to od razu, na
+        // ekranie postępu, bo zadanie ruszy bez zgody i o tym, co z tego wyszło, powie sam ekran.
+        if ($zgodaNieaktualna) {
+            return redirect()->route('import.show', $zlecenie)->with(Komunikat::informacja(self::KOMUNIKAT_NIEAKTUALNEJ_ZGODY));
+        }
+
+        return redirect()->route('import.show', $zlecenie);
+    }
+
+    public function pdfForm(): View
+    {
+        abort_unless((bool) config('kuking.import.pdf.wlaczony'), 404);
+
+        return view('pages.recipes.import-pdf', [
+            'maksMb' => (int) config('kuking.import.pdf.max_mb'),
+            'maksStron' => min(5, max(1, (int) config('kuking.import.pdf.max_stron'))),
+            'kluczWyslania' => (string) Str::uuid7(),
+        ]);
+    }
+
+    /**
+     * Wysłanie pliku PDF tylko ZLECA import (#28, etap 2): szybka kontrola
+     * rozmiaru i sygnatury bez narzędzi, zapis pliku na prywatny dysk importu,
+     * zlecenia i zadania w kolejce, przekierowanie na ekran postępu.
+     * `pdfinfo`, `pdftotext`, `pdftoppm` i model są w zadaniu
+     * `ImportujPrzepisZPdf` — żądanie WWW nie czeka na Popplera ani na OpenAI.
+     */
+    public function pdf(Request $request, ZlecImportZPdf $zlec): RedirectResponse
+    {
+        abort_unless((bool) config('kuking.import.pdf.wlaczony'), 404);
+
+        $maksMb = (int) config('kuking.import.pdf.max_mb');
+
+        // Rozszerzenia ani typu MIME od przeglądarki nie sprawdzamy jako
+        // dowodu (AGENTS.md §7) — sygnaturę `%PDF-` czyta `TekstZPdf`.
+        $request->validate([
+            'plik' => ['required', 'file', 'max:'.($maksMb * 1024)],
+            'zgoda_ai' => ['sometimes', 'boolean'],
+        ], [
+            'plik.required' => 'Wybierz plik PDF z przepisem przyciskiem „Wybierz plik”.',
+            'plik.file' => 'Nie udało się przyjąć pliku. Wybierz go jeszcze raz.',
+            'plik.uploaded' => 'Nie udało się przyjąć pliku. Wybierz go jeszcze raz — najwyżej '.$maksMb.' MB.',
+            'plik.max' => 'Ten plik PDF jest za duży. Wybierz plik mniejszy niż '.$maksMb.' MB.',
+        ]);
+
+        /** @var UploadedFile $plik */
+        $plik = $request->file('plik');
+        [$zgodaAi, $zgodaNieaktualna] = $this->zgodaNaWyslanieZrodla($request);
+
+        try {
+            $zlecenie = $zlec->handle($request->user(), (string) $plik->getRealPath(), $zgodaAi, $this->kluczImportu($request));
+        } catch (BladDlaCzlowieka $e) {
+            // `ImportOdrzucony` też: plik nie jest PDF-em, limit osoby, powtórzona próba.
+            return back()->withErrors(['plik' => $e->getMessage()]);
+        }
+
+        // Zgoda zaznaczona przy nieaktualnej informacji (#2031) nic nie odblokowała: mówimy to od razu, na
+        // ekranie postępu, bo zadanie ruszy bez zgody i o tym, co z tego wyszło, powie sam ekran.
+        if ($zgodaNieaktualna) {
+            return redirect()->route('import.show', $zlecenie)->with(Komunikat::informacja(self::KOMUNIKAT_NIEAKTUALNEJ_ZGODY));
+        }
+
+        return redirect()->route('import.show', $zlecenie);
+    }
+
+    /**
+     * Cztery duże przyciski: kartka, adres strony, PDF, „Wpisz ręcznie”.
+     * Wyłączone źródło = brak przycisku (D-053). „Wpisz ręcznie” jest zawsze.
      */
     public function wybor(): View
     {
         return view('pages.import.wybor', [
             'zdjecie' => ZlecImportPrzepisu::dostepnyOdczytZdjecia(),
-            'url' => (bool) config('kuking.import.zrodla.url') && Route::has('import.url.create'),
-            'pdf' => (bool) config('kuking.import.zrodla.pdf') && Route::has('import.pdf.create'),
+            'url' => (bool) config('kuking.import.url.wlaczony') && Route::has('recipes.import.url'),
+            'pdf' => (bool) config('kuking.import.pdf.wlaczony') && Route::has('recipes.import.pdf'),
         ]);
     }
 
@@ -45,7 +157,7 @@ class ImportPrzepisuController extends Controller
     {
         if (! ZlecImportPrzepisu::dostepnyOdczytZdjecia()) {
             return redirect()->route('recipes.create')
-                ->with('status', 'Odczytywanie przepisów ze zdjęć jest teraz wyłączone. Możesz wpisać przepis ręcznie i dodać do niego zdjęcie kartki.');
+                ->with(Komunikat::blad('Odczytywanie przepisów ze zdjęć jest teraz wyłączone. Możesz wpisać przepis ręcznie i dodać do niego zdjęcie kartki.'));
         }
 
         $osoba = $request->user();
@@ -100,7 +212,7 @@ class ImportPrzepisuController extends Controller
         $dane = ['import' => $import, 'szkic' => $import->recipe];
 
         if ($request->boolean('fragment')) {
-            return response()->view('pages.import.partials.postep', $dane)
+            return response()->view($this->widokPostepu($import), $dane)
                 ->header('Cache-Control', 'no-store');
         }
 
@@ -118,6 +230,39 @@ class ImportPrzepisuController extends Controller
         }
 
         return redirect()->route('import.show', $nowe);
+    }
+
+    /**
+     * Zgoda na wysłanie tekstu strony albo stron PDF do modelu (D-300 pkt 9,
+     * #2031) liczy się tylko wtedy, gdy formularz niesie AKTUALNĄ wersję
+     * informacji, którą człowiek widział przy zaznaczaniu pola. Formularz
+     * sprzed zmiany treści (albo bez pola wersji) nie wysyła niczego do modelu.
+     *
+     * @return array{0: bool, 1: bool} [zgoda do przekazania dalej, zaznaczona przy nieaktualnej informacji]
+     */
+    private function zgodaNaWyslanieZrodla(Request $request): array
+    {
+        $zaznaczona = $request->boolean('zgoda_ai');
+        $aktualna = InformacjaTekstuZrodlaAi::aktualna($request->input(InformacjaTekstuZrodlaAi::POLE));
+
+        return [$zaznaczona && $aktualna, $zaznaczona && ! $aktualna];
+    }
+
+    private function kluczImportu(Request $request): string
+    {
+        $klucz = $request->input('klucz_wyslania');
+
+        return is_string($klucz) && Str::isUuid($klucz) ? $klucz : (string) Str::uuid7();
+    }
+
+    /** Adres i PDF mają własny ekran postępu (bez zdjęcia kartki); kartka — dawny. */
+    private function widokPostepu(ImportPrzepisu $import): string
+    {
+        return match (true) {
+            $import->zAdresu() => 'pages.import.partials.postep-adres',
+            $import->zPdf() => 'pages.import.partials.postep-pdf',
+            default => 'pages.import.partials.postep',
+        };
     }
 
     /** Ta sama zasada co w `RecipeController::kluczDlaFormularza()`. */

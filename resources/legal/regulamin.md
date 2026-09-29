@@ -1,6 +1,12 @@
 # Regulamin Kuking.pl
 
-> **Ten dokument opisuje stan serwisu na 7 września 2026 i jest aktualizowany razem z nim.**
+> **Ten dokument opisuje stan serwisu na 26 września 2026 i jest aktualizowany razem z nim.**
+
+---
+
+## Co się zmieniło
+
+**26 września 2026.** W punkcie 2 dopisaliśmy, jak dobieramy wpisy na Starcie, w „Świeżo z Kuking” i na tablicy na dziś, oraz odnośnik do strony **Jak dobieramy wpisy** (`/jak-dobieramy-wpisy`). Zmiana opisuje, jak serwis już działa: nie dodaje Ci obowiązków i nie zmienia Twoich praw.
 
 ---
 
@@ -31,6 +37,10 @@ Kuking to serwis społecznościowy dla osób, które gotują. Pozwala:
 - zapisywać przepisy w swoich kolekcjach,
 - zgłaszać treści, które naruszają zasady.
 
+### Jak dobieramy wpisy
+
+Na Starcie widzisz wpisy osób i tagów, które obserwujesz, od najnowszych. W „Świeżo z Kuking” najpierw widzisz najnowszy wpis każdej osoby, potem drugi każdej i tak dalej. Na tablicy na dziś pozycje wybrane przez gospodarza serwisu mają napis „Wybór gospodarza”. Nie układamy wpisów według liczby obserwujących, „Ugotowałem”, reakcji ani komentarzy i nie uczymy się Twojego gustu z tego, co oglądasz. To Ty decydujesz, kogo i jakie tagi obserwujesz, a wpisy i osoby możesz ukryć tylko dla siebie. Opis każdej listy i odnośniki do tych ustawień są na stronie **Jak dobieramy wpisy** (`/jak-dobieramy-wpisy`).
+
 ## 3. Kto może korzystać z Kuking
 
 - Kuking jest dla osób, które ukończyły **16 lat**. Zakładając konto, potwierdzasz, że masz ukończone 16 lat.
@@ -60,11 +70,11 @@ Publikując zdjęcie, przepis, komentarz lub jakąkolwiek inną treść, oświad
 Żeby Kuking mógł działać (pokazywać Twoje treści innym, tworzyć miniatury zdjęć, przechowywać kopie zapasowe), udzielasz nam **niewyłącznej, bezpłatnej licencji** na:
 - przechowywanie Twojej treści na naszych serwerach,
 - przetwarzanie techniczne (np. zmniejszanie zdjęć, tworzenie miniatur, konwersję formatu),
-- publiczne pokazywanie treści zgodnie z ustawieniami widoczności, które sam wybierasz (publiczne / tylko dla obserwujących / prywatne).
+- publiczne pokazywanie treści zgodnie z ustawieniami widoczności, które wybierasz (publiczne / tylko dla obserwujących / prywatne).
 
 Ta licencja **kończy się, gdy usuniesz treść** — z zastrzeżeniem, że kopie zapasowe (backupy) mogą przechowywać usuniętą treść jeszcze przez pewien czas ze względów technicznych i bezpieczeństwa danych (szczegóły w Polityce Prywatności).
 
-**Gdy usuwasz konto, sam decydujesz, co dzieje się z Twoimi tekstami.** W formularzu usuwania konta jest haczyk „Usuń także moje przepisy, wpisy, komentarze, wykonania i zeszyty". Jest domyślnie pusty i to znaczy: Twoje teksty zostają w serwisie, ale podpisane „Użytkownik usunięty" — bez Twojego nazwiska, nazwy użytkownika, opisu i zdjęcia profilowego, których już wtedy nie ma. Jeśli haczyk zaznaczysz, teksty znikają razem z kontem i nikt ich nie przywróci.
+**Gdy usuwasz konto, decydujesz, co dzieje się z Twoimi tekstami.** W formularzu usuwania konta jest haczyk „Usuń także moje przepisy, wpisy, komentarze, wykonania i zeszyty". Jest domyślnie pusty i to znaczy: Twoje teksty zostają w serwisie, ale podpisane „Użytkownik usunięty" — bez Twojego nazwiska, nazwy użytkownika, opisu i zdjęcia profilowego, których już wtedy nie ma. Jeśli haczyk zaznaczysz, teksty znikają razem z kontem i nikt ich nie przywróci.
 
 Niezależnie od tego wyboru **wszystkie Twoje zdjęcia są usuwane** — także oryginały, razem z zapisaną w nich datą i modelem urządzenia. Zdjęcia nie zostają nigdy.
 

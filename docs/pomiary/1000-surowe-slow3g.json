@@ -1,0 +1,614 @@
+[
+ {
+  "wersja": "main",
+  "przebieg": 1,
+  "sciezka": "/",
+  "siec": "slow3g",
+  "fontyZadania": 2,
+  "fontyBajty": 133618,
+  "fontyPliki": [
+   {
+    "plik": "inter-latin-wght-normal-Dx4kXJAl.woff2",
+    "bajty": 48403
+   },
+   {
+    "plik": "inter-latin-ext-wght-normal-DO1Apj_S.woff2",
+    "bajty": 85215
+   }
+  ],
+  "wszystkoBajty": 415434,
+  "wszystkoZadania": 7,
+  "fontKoniecPobieraniaMs": 7657,
+  "fontZastosowanyMs": 7753,
+  "fcp": 5164,
+  "lcp": 5164,
+  "cls": 0.0006,
+  "przesuniecia": [
+   [
+    7288,
+    0.0005553436279296875
+   ]
+  ],
+  "ttfb": 268,
+  "load": 7671,
+  "czasScianyMs": 10317
+ },
+ {
+  "wersja": "baza",
+  "przebieg": 1,
+  "sciezka": "/",
+  "siec": "slow3g",
+  "fontyZadania": 2,
+  "fontyBajty": 53654,
+  "fontyPliki": [
+   {
+    "plik": "inter-podstawa-wght-normal-CTSd5XpL.woff2",
+    "bajty": 38835
+   },
+   {
+    "plik": "inter-europa-wght-normal-DwSgnmvs.woff2",
+    "bajty": 14819
+   }
+  ],
+  "wszystkoBajty": 335284,
+  "wszystkoZadania": 7,
+  "fontKoniecPobieraniaMs": 7246,
+  "fontZastosowanyMs": 7536,
+  "fcp": 6068,
+  "lcp": 6068,
+  "cls": 0.0005,
+  "przesuniecia": [
+   [
+    7400,
+    0.0005495418972439235
+   ]
+  ],
+  "ttfb": 308,
+  "load": 7263,
+  "czasScianyMs": 10090
+ },
+ {
+  "wersja": "main",
+  "przebieg": 1,
+  "sciezka": "/przepisy/rosol-babci-zofii",
+  "siec": "slow3g",
+  "fontyZadania": 2,
+  "fontyBajty": 133618,
+  "fontyPliki": [
+   {
+    "plik": "inter-latin-wght-normal-Dx4kXJAl.woff2",
+    "bajty": 48403
+   },
+   {
+    "plik": "inter-latin-ext-wght-normal-DO1Apj_S.woff2",
+    "bajty": 85215
+   }
+  ],
+  "wszystkoBajty": 393878,
+  "wszystkoZadania": 6,
+  "fontKoniecPobieraniaMs": 7285,
+  "fontZastosowanyMs": 7376,
+  "fcp": 4804,
+  "lcp": 4804,
+  "cls": 0.0007,
+  "przesuniecia": [
+   [
+    6858,
+    0.0007252655029296875
+   ]
+  ],
+  "ttfb": 316,
+  "load": 7299,
+  "czasScianyMs": 9928
+ },
+ {
+  "wersja": "baza",
+  "przebieg": 1,
+  "sciezka": "/przepisy/rosol-babci-zofii",
+  "siec": "slow3g",
+  "fontyZadania": 2,
+  "fontyBajty": 53654,
+  "fontyPliki": [
+   {
+    "plik": "inter-podstawa-wght-normal-CTSd5XpL.woff2",
+    "bajty": 38835
+   },
+   {
+    "plik": "inter-europa-wght-normal-DwSgnmvs.woff2",
+    "bajty": 14819
+   }
+  ],
+  "wszystkoBajty": 313728,
+  "wszystkoZadania": 6,
+  "fontKoniecPobieraniaMs": 6959,
+  "fontZastosowanyMs": 7278,
+  "fcp": 5760,
+  "lcp": 5760,
+  "cls": 0.0007,
+  "przesuniecia": [
+   [
+    7205,
+    0.0007194637722439237
+   ]
+  ],
+  "ttfb": 1388,
+  "load": 6987,
+  "czasScianyMs": 9840
+ },
+ {
+  "wersja": "main",
+  "przebieg": 1,
+  "sciezka": "/@basia",
+  "siec": "slow3g",
+  "fontyZadania": 2,
+  "fontyBajty": 133618,
+  "fontyPliki": [
+   {
+    "plik": "inter-latin-wght-normal-Dx4kXJAl.woff2",
+    "bajty": 48403
+   },
+   {
+    "plik": "inter-latin-ext-wght-normal-DO1Apj_S.woff2",
+    "bajty": 85215
+   }
+  ],
+  "wszystkoBajty": 381605,
+  "wszystkoZadania": 6,
+  "fontKoniecPobieraniaMs": 7488,
+  "fontZastosowanyMs": 7622,
+  "fcp": 5016,
+  "lcp": 5016,
+  "cls": 0.0006,
+  "przesuniecia": [
+   [
+    7008,
+    0.0005553436279296875
+   ]
+  ],
+  "ttfb": 267,
+  "load": 7508,
+  "czasScianyMs": 10159
+ },
+ {
+  "wersja": "baza",
+  "przebieg": 1,
+  "sciezka": "/@basia",
+  "siec": "slow3g",
+  "fontyZadania": 2,
+  "fontyBajty": 53654,
+  "fontyPliki": [
+   {
+    "plik": "inter-podstawa-wght-normal-CTSd5XpL.woff2",
+    "bajty": 38835
+   },
+   {
+    "plik": "inter-europa-wght-normal-DwSgnmvs.woff2",
+    "bajty": 14819
+   }
+  ],
+  "wszystkoBajty": 304329,
+  "wszystkoZadania": 6,
+  "fontKoniecPobieraniaMs": 5926,
+  "fontZastosowanyMs": 5997,
+  "fcp": 4712,
+  "lcp": 4712,
+  "cls": 0.0005,
+  "przesuniecia": [
+   [
+    5984,
+    0.0005495418972439235
+   ]
+  ],
+  "ttfb": 285,
+  "load": 5937,
+  "czasScianyMs": 8547
+ },
+ {
+  "wersja": "main",
+  "przebieg": 2,
+  "sciezka": "/",
+  "siec": "slow3g",
+  "fontyZadania": 2,
+  "fontyBajty": 133618,
+  "fontyPliki": [
+   {
+    "plik": "inter-latin-wght-normal-Dx4kXJAl.woff2",
+    "bajty": 48403
+   },
+   {
+    "plik": "inter-latin-ext-wght-normal-DO1Apj_S.woff2",
+    "bajty": 85215
+   }
+  ],
+  "wszystkoBajty": 415434,
+  "wszystkoZadania": 7,
+  "fontKoniecPobieraniaMs": 8032,
+  "fontZastosowanyMs": 8144,
+  "fcp": 5528,
+  "lcp": 5528,
+  "cls": 0.0006,
+  "przesuniecia": [
+   [
+    7754,
+    0.0005553436279296875
+   ]
+  ],
+  "ttfb": 429,
+  "load": 8055,
+  "czasScianyMs": 10666
+ },
+ {
+  "wersja": "baza",
+  "przebieg": 2,
+  "sciezka": "/",
+  "siec": "slow3g",
+  "fontyZadania": 2,
+  "fontyBajty": 53654,
+  "fontyPliki": [
+   {
+    "plik": "inter-podstawa-wght-normal-CTSd5XpL.woff2",
+    "bajty": 38835
+   },
+   {
+    "plik": "inter-europa-wght-normal-DwSgnmvs.woff2",
+    "bajty": 14819
+   }
+  ],
+  "wszystkoBajty": 335284,
+  "wszystkoZadania": 7,
+  "fontKoniecPobieraniaMs": 6349,
+  "fontZastosowanyMs": 6473,
+  "fcp": 5132,
+  "lcp": 5132,
+  "cls": 0.0005,
+  "przesuniecia": [
+   [
+    6442,
+    0.0005495418972439235
+   ]
+  ],
+  "ttfb": 276,
+  "load": 6363,
+  "czasScianyMs": 9008
+ },
+ {
+  "wersja": "main",
+  "przebieg": 2,
+  "sciezka": "/przepisy/rosol-babci-zofii",
+  "siec": "slow3g",
+  "fontyZadania": 2,
+  "fontyBajty": 133618,
+  "fontyPliki": [
+   {
+    "plik": "inter-latin-wght-normal-Dx4kXJAl.woff2",
+    "bajty": 48403
+   },
+   {
+    "plik": "inter-latin-ext-wght-normal-DO1Apj_S.woff2",
+    "bajty": 85215
+   }
+  ],
+  "wszystkoBajty": 393878,
+  "wszystkoZadania": 6,
+  "fontKoniecPobieraniaMs": 7386,
+  "fontZastosowanyMs": 7526,
+  "fcp": 4984,
+  "lcp": 4984,
+  "cls": 0.0007,
+  "przesuniecia": [
+   [
+    6934,
+    0.0007252655029296875
+   ]
+  ],
+  "ttfb": 203,
+  "load": 7400,
+  "czasScianyMs": 10128
+ },
+ {
+  "wersja": "baza",
+  "przebieg": 2,
+  "sciezka": "/przepisy/rosol-babci-zofii",
+  "siec": "slow3g",
+  "fontyZadania": 2,
+  "fontyBajty": 53654,
+  "fontyPliki": [
+   {
+    "plik": "inter-podstawa-wght-normal-CTSd5XpL.woff2",
+    "bajty": 38835
+   },
+   {
+    "plik": "inter-europa-wght-normal-DwSgnmvs.woff2",
+    "bajty": 14819
+   }
+  ],
+  "wszystkoBajty": 313728,
+  "wszystkoZadania": 6,
+  "fontKoniecPobieraniaMs": 6298,
+  "fontZastosowanyMs": 6412,
+  "fcp": 5088,
+  "lcp": 5088,
+  "cls": 0.0007,
+  "przesuniecia": [
+   [
+    6383,
+    0.0007194637722439237
+   ]
+  ],
+  "ttfb": 538,
+  "load": 6313,
+  "czasScianyMs": 8954
+ },
+ {
+  "wersja": "main",
+  "przebieg": 2,
+  "sciezka": "/@basia",
+  "siec": "slow3g",
+  "fontyZadania": 2,
+  "fontyBajty": 133618,
+  "fontyPliki": [
+   {
+    "plik": "inter-latin-wght-normal-Dx4kXJAl.woff2",
+    "bajty": 48403
+   },
+   {
+    "plik": "inter-latin-ext-wght-normal-DO1Apj_S.woff2",
+    "bajty": 85215
+   }
+  ],
+  "wszystkoBajty": 384479,
+  "wszystkoZadania": 6,
+  "fontKoniecPobieraniaMs": 7120,
+  "fontZastosowanyMs": 7204,
+  "fcp": 4640,
+  "lcp": 4640,
+  "cls": 0.0006,
+  "przesuniecia": [
+   [
+    6679,
+    0.0005553436279296875
+   ]
+  ],
+  "ttfb": 204,
+  "load": 7131,
+  "czasScianyMs": 9743
+ },
+ {
+  "wersja": "baza",
+  "przebieg": 2,
+  "sciezka": "/@basia",
+  "siec": "slow3g",
+  "fontyZadania": 2,
+  "fontyBajty": 53654,
+  "fontyPliki": [
+   {
+    "plik": "inter-podstawa-wght-normal-CTSd5XpL.woff2",
+    "bajty": 38835
+   },
+   {
+    "plik": "inter-europa-wght-normal-DwSgnmvs.woff2",
+    "bajty": 14819
+   }
+  ],
+  "wszystkoBajty": 301455,
+  "wszystkoZadania": 6,
+  "fontKoniecPobieraniaMs": 6022,
+  "fontZastosowanyMs": 6142,
+  "fcp": 4812,
+  "lcp": 4812,
+  "cls": 0.0005,
+  "przesuniecia": [
+   [
+    6100,
+    0.0005495418972439235
+   ]
+  ],
+  "ttfb": 488,
+  "load": 6042,
+  "czasScianyMs": 8678
+ },
+ {
+  "wersja": "main",
+  "przebieg": 3,
+  "sciezka": "/",
+  "siec": "slow3g",
+  "fontyZadania": 2,
+  "fontyBajty": 133618,
+  "fontyPliki": [
+   {
+    "plik": "inter-latin-wght-normal-Dx4kXJAl.woff2",
+    "bajty": 48403
+   },
+   {
+    "plik": "inter-latin-ext-wght-normal-DO1Apj_S.woff2",
+    "bajty": 85215
+   }
+  ],
+  "wszystkoBajty": 415434,
+  "wszystkoZadania": 7,
+  "fontKoniecPobieraniaMs": 7920,
+  "fontZastosowanyMs": 8064,
+  "fcp": 5420,
+  "lcp": 5420,
+  "cls": 0.0006,
+  "przesuniecia": [
+   [
+    7504,
+    0.0005553436279296875
+   ]
+  ],
+  "ttfb": 162,
+  "load": 7943,
+  "czasScianyMs": 10594
+ },
+ {
+  "wersja": "baza",
+  "przebieg": 3,
+  "sciezka": "/",
+  "siec": "slow3g",
+  "fontyZadania": 2,
+  "fontyBajty": 53654,
+  "fontyPliki": [
+   {
+    "plik": "inter-podstawa-wght-normal-CTSd5XpL.woff2",
+    "bajty": 38835
+   },
+   {
+    "plik": "inter-europa-wght-normal-DwSgnmvs.woff2",
+    "bajty": 14819
+   }
+  ],
+  "wszystkoBajty": 335284,
+  "wszystkoZadania": 7,
+  "fontKoniecPobieraniaMs": 6278,
+  "fontZastosowanyMs": 6475,
+  "fcp": 5068,
+  "lcp": 5068,
+  "cls": 0.0005,
+  "przesuniecia": [
+   [
+    6421,
+    0.0005495418972439235
+   ]
+  ],
+  "ttfb": 341,
+  "load": 6293,
+  "czasScianyMs": 9008
+ },
+ {
+  "wersja": "main",
+  "przebieg": 3,
+  "sciezka": "/przepisy/rosol-babci-zofii",
+  "siec": "slow3g",
+  "fontyZadania": 2,
+  "fontyBajty": 133618,
+  "fontyPliki": [
+   {
+    "plik": "inter-latin-wght-normal-Dx4kXJAl.woff2",
+    "bajty": 48403
+   },
+   {
+    "plik": "inter-latin-ext-wght-normal-DO1Apj_S.woff2",
+    "bajty": 85215
+   }
+  ],
+  "wszystkoBajty": 396752,
+  "wszystkoZadania": 6,
+  "fontKoniecPobieraniaMs": 7383,
+  "fontZastosowanyMs": 7456,
+  "fcp": 4912,
+  "lcp": 4912,
+  "cls": 0.0007,
+  "przesuniecia": [
+   [
+    6947,
+    0.0007252655029296875
+   ]
+  ],
+  "ttfb": 283,
+  "load": 7396,
+  "czasScianyMs": 10003
+ },
+ {
+  "wersja": "baza",
+  "przebieg": 3,
+  "sciezka": "/przepisy/rosol-babci-zofii",
+  "siec": "slow3g",
+  "fontyZadania": 2,
+  "fontyBajty": 53654,
+  "fontyPliki": [
+   {
+    "plik": "inter-podstawa-wght-normal-CTSd5XpL.woff2",
+    "bajty": 38835
+   },
+   {
+    "plik": "inter-europa-wght-normal-DwSgnmvs.woff2",
+    "bajty": 14819
+   }
+  ],
+  "wszystkoBajty": 313728,
+  "wszystkoZadania": 6,
+  "fontKoniecPobieraniaMs": 6531,
+  "fontZastosowanyMs": 6800,
+  "fcp": 5392,
+  "lcp": 5392,
+  "cls": 0.0007,
+  "przesuniecia": [
+   [
+    6761,
+    0.0007194637722439237
+   ]
+  ],
+  "ttfb": 152,
+  "load": 6550,
+  "czasScianyMs": 9339
+ },
+ {
+  "wersja": "main",
+  "przebieg": 3,
+  "sciezka": "/@basia",
+  "siec": "slow3g",
+  "fontyZadania": 2,
+  "fontyBajty": 133618,
+  "fontyPliki": [
+   {
+    "plik": "inter-latin-wght-normal-Dx4kXJAl.woff2",
+    "bajty": 48403
+   },
+   {
+    "plik": "inter-latin-ext-wght-normal-DO1Apj_S.woff2",
+    "bajty": 85215
+   }
+  ],
+  "wszystkoBajty": 381605,
+  "wszystkoZadania": 6,
+  "fontKoniecPobieraniaMs": 7044,
+  "fontZastosowanyMs": 7202,
+  "fcp": 4568,
+  "lcp": 4568,
+  "cls": 0.0006,
+  "przesuniecia": [
+   [
+    6632,
+    0.0005553436279296875
+   ]
+  ],
+  "ttfb": 146,
+  "load": 7074,
+  "czasScianyMs": 9768
+ },
+ {
+  "wersja": "baza",
+  "przebieg": 3,
+  "sciezka": "/@basia",
+  "siec": "slow3g",
+  "fontyZadania": 2,
+  "fontyBajty": 53654,
+  "fontyPliki": [
+   {
+    "plik": "inter-podstawa-wght-normal-CTSd5XpL.woff2",
+    "bajty": 38835
+   },
+   {
+    "plik": "inter-europa-wght-normal-DwSgnmvs.woff2",
+    "bajty": 14819
+   }
+  ],
+  "wszystkoBajty": 301455,
+  "wszystkoZadania": 6,
+  "fontKoniecPobieraniaMs": 5975,
+  "fontZastosowanyMs": 6140,
+  "fcp": 4768,
+  "lcp": 4768,
+  "cls": 0.0005,
+  "przesuniecia": [
+   [
+    6089,
+    0.0005495418972439235
+   ]
+  ],
+  "ttfb": 139,
+  "load": 5991,
+  "czasScianyMs": 8679
+ }
+]

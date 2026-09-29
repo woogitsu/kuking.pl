@@ -9,15 +9,21 @@ use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Collections\CollectionSaveContext;
 use App\Domain\Collections\WidocznaZawartoscZeszytu;
+use App\Domain\Collections\Wspoldzielenie\ZaproszeniaDoZeszytow;
 use App\Domain\Search\SearchQuery;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Http\Requests\Collections\WyjecieZZeszytuRequest;
+use App\Http\Requests\Collections\ZapisDoZeszytuRequest;
+use App\Http\Requests\Collections\ZapisZeszytuRequest;
 use App\Models\Collection;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
-use App\Rules\CollectionNameNotTaken;
+use App\Support\FrazaWyszukiwania;
+use App\Support\Komunikat;
 use App\Support\Odmiana;
 use App\Support\PaginationLinks;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,7 +31,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -46,44 +51,51 @@ class CollectionController extends Controller
         // Domyślny zeszyt tworzymy dopiero przy pierwszym zapisie — nie
         // pokazujemy pustego folderu osobie, która nic jeszcze nie zapisała.
         return view('pages.collections.index', [
-            'saveContext' => app(CollectionSaveContext::class)->parameters($request),
-            'saveContent' => app(CollectionSaveContext::class)->content($request),
+            'saveContext' => app(CollectionSaveContext::class)->parameters($request->input('save_type'), $request->input('save_id')),
+            'saveContent' => app(CollectionSaveContext::class)->content($request->input('save_type'), $request->input('save_id'), $request->user()),
             'collections' => $user->collections()
+                ->withCount('members')
                 ->withCount([
-                    // LICZBA WIDOCZNA — DOKŁADNIE TA SAMA, KTÓRĄ CZŁOWIEK
-                    // ZOBACZY PO WEJŚCIU (issue #774).
+                    // LICZBY WIDOCZNE (`recipes_count`, `posts_count`) dolicza
+                    // `policzWidoczne()` niżej — jednym zapytaniem na rodzaj
+                    // dla wszystkich zeszytów naraz, nie podzapytaniem na
+                    // każdy zeszyt (#2030). Reguła i powody są tam.
                     //
-                    // PRZED TĄ ZMIANĄ ta karta liczyła bez żadnego filtra
-                    // widoczności ani statusu autora, a `show()` niżej filtrował
-                    // OBOMA (`widoczneDla()` i `dostepnyJakoAutor()`, audyt
-                    // W5-08). Dwa ekrany tego samego zeszytu liczyły więc dwie
-                    // różne rzeczy — i to NIE PO RÓWNO: prywatna treść była
-                    // wliczona w obie liczby, a treść miękko usunięta (SoftDeletes
-                    // dodaje globalny zakres) wypadała tylko z tej karty, nie
-                    // z wnętrza zeszytu. Jedna reguła zamiast dwóch przypadkowo
-                    // różnych: karta pokazuje WIDOCZNE, wnętrze dokłada „N nie
-                    // jest dostępnych" — i te dwie liczby razem dają całość.
-                    'recipes as recipes_count' => fn ($q) => $q->widoczneDla($user)
-                        ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()),
-                    // Wpisy — ta sama reguła co wnętrze zeszytu, łącznie
-                    // z bramką przepisu i statusem jego autora (#1319).
-                    'posts as posts_count' => fn ($q) => $q->widoczneWZeszycieDla($user),
                     // CAŁKOWITA LICZBA ZACHOWANYCH ZAPISÓW — łącznie z tymi
                     // miękko usuniętymi (`withTrashed()`, tak jak w `show()`) —
                     // po to, żeby policzyć RÓŻNICĘ, nie żeby ją pokazać wprost.
                     'recipes as recipes_total_count' => fn ($q) => $q->withTrashed(),
                     'posts as posts_total_count' => fn ($q) => $q->withTrashed(),
                 ])
+                ->afterQuery(fn (EloquentCollection $zeszyty) => $this->policzWidoczne($zeszyty, $user))
                 ->orderByDesc('is_default')
                 ->orderBy('name')
                 ->get(),
             // Prawa szyna (issue #205) — patrz `ostatnioZapisane()` niżej.
             'ostatnioZapisane' => $this->ostatnioZapisane($user),
+            // WSPÓLNE ZESZYTY (#1743, D-302) — OSOBNĄ LISTĄ, nie wmieszane
+            // w własne: „mój" i „czyjś, do którego mnie wpuszczono" to dwie
+            // różne rzeczy (kto może usunąć, kto zmienia nazwę). Ten sam
+            // zakres co lista wyboru przy „Zapisuję", więc zeszyt właściciela
+            // zbanowanego albo zablokowanego stąd znika.
+            'udostepnione' => Collection::query()
+                ->dostepneDoZapisuDla($user)
+                ->where('collections.owner_id', '!=', $user->getKey())
+                ->with('owner.profile')
+                ->withCount([
+                    'recipes as recipes_count' => fn ($q) => $q->widoczneDla($user)
+                        ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()),
+                    'posts as posts_count' => fn ($q) => $q->widoczneWZeszycieDla($user),
+                ])
+                ->orderBy('name')
+                ->get(),
+            'zaproszenia' => app(ZaproszeniaDoZeszytow::class)->oczekujaceDla($user),
         ] + $this->szukajWZapisach($request));
     }
 
     /**
-     * „Szukaj w moich zeszytach” — po TYTULE zapisanego przepisu (issue #779).
+     * „Szukaj w moich zeszytach” — po TYTULE albo SKŁADNIKU zapisanego
+     * przepisu (issue #779, #2068).
      *
      * Najprostsza wersja, na decyzję właściciela z 25.09.2026: jedno pole
      * na ekranie „Moje”, formularz GET działający bez JavaScriptu, jeden
@@ -94,6 +106,18 @@ class CollectionController extends Controller
      * polskich znaków) i tą samą normalizacją frazy po stronie PHP co
      * `SearchQuery` — „zurek” znajdzie „Żurek babci”. `LIKE` z ucieczką
      * metaznaków, bo `%` i `_` z frazy mają być dosłownym tekstem (#753).
+     *
+     * SKŁADNIKI (#2068): ta sama fraza pasuje też do
+     * `recipe_ingredients.ingredient_text_search` (indeks trigramowy
+     * `recipe_ingredients_text_trgm_idx`, ta sama gałąź co w `SearchQuery`).
+     * Składnik to `EXISTS` w `WHERE`, nie `JOIN`, więc przepis z pięcioma
+     * pasującymi składnikami nadal jest JEDNYM wierszem, a liczba zapytań
+     * nie zależy od liczby wyników. Widoczność się nie zmienia: składnik
+     * jest dopasowywany dopiero wśród przepisów, które bramka niżej już
+     * przepuściła, więc nie zdradza treści schowanych ani cudzych.
+     * Kolumna `w_tytule` mówi karcie, czy trafienie jest w tytule — jeśli
+     * nie, karta pisze „Pasuje przez składnik”, żeby nie wyglądało to
+     * na pomyłkę (tytuł nie zawiera frazy).
      *
      * WIDOCZNOŚĆ JAK WEWNĄTRZ ZESZYTU: `widoczneDla()` (widoczność, status,
      * blokady w obie strony) i `dostepnyJakoAutor()`. Do zeszytu odkłada się
@@ -116,19 +140,28 @@ class CollectionController extends Controller
             return ['bladSzukania' => 'Skróć tekst w polu „Szukaj w moich zeszytach” do '.SearchQuery::MAX_PHRASE_LENGTH.' znaków i spróbuj ponownie.'] + $pusto;
         }
 
-        if (mb_strlen($fraza) < 2) {
-            return ['bladSzukania' => 'Wpisz co najmniej dwie litery z tytułu przepisu.'] + $pusto;
+        // Długość PO normalizacji (#1050): fraza z samych emoji znika
+        // w `Str::ascii()` i dawałaby `LIKE '%%'`, czyli wszystko.
+        if (mb_strlen(FrazaWyszukiwania::normalizuj($fraza)) < 2) {
+            return ['bladSzukania' => 'Wpisz co najmniej dwie litery z tytułu przepisu albo ze składnika.'] + $pusto;
         }
 
         $user = $request->user();
         $limit = (int) config('kuking.zeszyt.szukaj_limit', 50);
-        $wzorzec = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], mb_strtolower(Str::ascii($fraza))).'%';
+        $wzorzec = '%'.FrazaWyszukiwania::doLike(FrazaWyszukiwania::normalizuj($fraza)).'%';
 
         $wyniki = Recipe::query()
             ->widoczneDla($user)
             ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
             ->whereHas('collections', fn ($zeszyt) => $zeszyt->where('collections.owner_id', $user->getKey()))
-            ->where('recipes.title_search', 'like', $wzorzec)
+            ->select('recipes.*')
+            ->selectRaw('(recipes.title_search LIKE ?) as w_tytule', [$wzorzec])
+            ->where(fn ($q) => $q
+                ->where('recipes.title_search', 'like', $wzorzec)
+                ->orWhereExists(fn ($skladnik) => $skladnik->select(DB::raw('1'))
+                    ->from('recipe_ingredients')
+                    ->whereColumn('recipe_ingredients.recipe_id', 'recipes.id')
+                    ->where('recipe_ingredients.ingredient_text_search', 'like', $wzorzec)))
             ->with(['collections' => fn ($zeszyt) => $zeszyt->where('collections.owner_id', $user->getKey())->orderBy('collections.name')])
             ->orderBy('recipes.title')
             ->orderBy('recipes.id')
@@ -171,9 +204,18 @@ class CollectionController extends Controller
      * się CUDZE treści, a ich autor może potem zmienić widoczność, cofnąć
      * obserwowanie albo zostać zbanowany.
      *
-     * KOSZT NIE ROŚNIE Z ZAWARTOŚCIĄ ZESZYTU: dwa zapytania po `limit(5)`
-     * plus dociągnięcie zdjęć i autorów, niezależnie od tego, czy w zeszytach
-     * leży pięć rzeczy, czy pięćset (`SzynaBezWachlarzaZapytanTest`).
+     * KOSZT NIE ROŚNIE Z ZAWARTOŚCIĄ ZESZYTU: na każdy rodzaj jedno zapytanie
+     * o zapisy i jedno o widoczność kandydatów, plus dociągnięcie zdjęć
+     * i autorów, niezależnie od tego, czy w zeszytach leży pięć rzeczy, czy
+     * pięćset (`SzynaBezWachlarzaZapytanTest`).
+     *
+     * I NIE ROŚNIE Z HISTORIĄ W ŚRODKU TYCH ZAPYTAŃ (#2030). Wcześniej każde
+     * z nich liczyło `max(collection_items.created_at)` i pełną regułę
+     * widoczności dla KAŻDEJ rzeczy kiedykolwiek odłożonej, sortowało wszystko
+     * i dopiero wtedy brało pięć. Teraz `ostatnioOdlozone()` idzie po zapisach
+     * od najnowszego i sprawdza widoczność tylko małej partii kandydatów —
+     * wynik i kolejność są te same (dowód: `SzynaOstatnioZapisanychKosztTest`,
+     * pomiar: docs/infra/ZESZYTY_KOSZT_2030.md).
      *
      * @return \Illuminate\Support\Collection<int, covariant array{href: string, nazwa: string, podpis: string, media: \App\Models\Media|null, zapisano_at: mixed}>
      */
@@ -181,22 +223,11 @@ class CollectionController extends Controller
     {
         $ile = 5;
 
-        $zapisano = fn (string $kolumna, string $tabela) => DB::table('collection_items')
-            ->join('collections', 'collections.id', '=', 'collection_items.collection_id')
-            ->whereColumn('collection_items.'.$kolumna, $tabela.'.id')
-            ->where('collections.owner_id', $user->getKey())
-            ->selectRaw('max(collection_items.created_at)');
-
-        $przepisy = Recipe::query()
+        $przepisy = $this->ostatnioOdlozone($user, 'recipe_id', $ile, ['heroMedia', 'author.profile'], fn (array $id) => Recipe::query()
             ->widoczneDla($user)
             ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
-            ->whereHas('collections', fn ($q) => $q->where('collections.owner_id', $user->getKey()))
-            ->addSelect(['zapisano_at' => $zapisano('recipe_id', 'recipes')])
-            ->with(['heroMedia', 'author.profile'])
-            ->orderByDesc('zapisano_at')
-            ->orderByDesc('recipes.id')
-            ->limit($ile)
-            ->get()
+            ->whereKey($id)
+            ->get())
             ->map(fn (Recipe $przepis) => [
                 'href' => $przepis->url(),
                 'nazwa' => $przepis->title,
@@ -208,15 +239,10 @@ class CollectionController extends Controller
         // Wpisy przez pełną regułę wnętrza zeszytu (#1319): zapowiedź
         // schowanego przepisu nie może zająć miejsca w pięciu pozycjach
         // ani dać odnośnika, który Policy kończy odmową.
-        $wpisy = Post::query()
+        $wpisy = $this->ostatnioOdlozone($user, 'post_id', $ile, ['media', 'author.profile'], fn (array $id) => Post::query()
             ->widoczneWZeszycieDla($user)
-            ->whereHas('collections', fn ($q) => $q->where('collections.owner_id', $user->getKey()))
-            ->addSelect(['zapisano_at' => $zapisano('post_id', 'posts')])
-            ->with(['media', 'author.profile'])
-            ->orderByDesc('zapisano_at')
-            ->orderByDesc('posts.id')
-            ->limit($ile)
-            ->get()
+            ->whereKey($id)
+            ->get())
             ->map(fn (Post $wpis) => $wpis->kind === Post::KIND_QUESTION ? [
                 'href' => $wpis->url(),
                 // Pytanie ma własny tytuł i często nic poza nim — to on
@@ -245,6 +271,165 @@ class CollectionController extends Controller
             ->sortByDesc(fn (array $pozycja) => Carbon::parse($pozycja['zapisano_at'])->getTimestamp())
             ->take($ile)
             ->values();
+    }
+
+    /**
+     * Do `$ile` WIDOCZNYCH rzeczy jednego rodzaju, od odłożonej najpóźniej
+     * (#2030) — ta sama lista i kolejność, którą dawało
+     * `ORDER BY max(collection_items.created_at) DESC, id DESC LIMIT $ile`.
+     *
+     * DLACZEGO TO JEST TA SAMA KOLEJNOŚĆ. Zapisy konta czytamy od najnowszego
+     * po (`created_at` DESC, id DESC). Pierwsze spotkanie danej rzeczy to jej
+     * NAJPÓŹNIEJSZY zapis, czyli dokładnie `max()` po wszystkich zeszytach;
+     * dalsze spotkania tej samej rzeczy są starsze i je pomijamy. Kolejność
+     * pierwszych spotkań to więc (max DESC, id DESC) — bez agregacji całej
+     * historii.
+     *
+     * WIDOCZNOŚĆ SPRAWDZA `$widoczne` — ta sama reguła co dotąd (blokady,
+     * widoczność, status autora, bramka przepisu wpisu), tylko na partii
+     * kandydatów zamiast na wszystkim, co kiedykolwiek odłożono. Rzecz
+     * niewidoczna odpada i czytamy dalej, więc pięć schowanych zapisów na
+     * górze nie zabiera miejsca ani nie skraca listy.
+     *
+     * PARTIE ROSNĄ (20, 80, 320, 1000…), żeby konto, którego najnowsze zapisy
+     * w większości zniknęły z widoku, nie płaciło setek zapytań. Zwykle
+     * wystarcza pierwsza partia — liczba zapytań się nie zmienia
+     * (`SzynaBezWachlarzaZapytanTest`).
+     *
+     * Zakres zeszytów przez `whereIn` z podzapytaniem, nie `join`: tabela
+     * `collections` ma kolumnę `visibility` (patrz wyżej). Relacje
+     * (`$relacje`) dociągamy dopiero do wybranych `$ile` rzeczy, nie do
+     * całej partii.
+     *
+     * @template TModel of Recipe|Post
+     *
+     * @param  'recipe_id'|'post_id'  $kolumna
+     * @param  list<string>  $relacje
+     * @param  \Closure(list<string>): EloquentCollection<int, TModel>  $widoczne
+     * @return EloquentCollection<int, TModel>
+     */
+    private function ostatnioOdlozone(User $user, string $kolumna, int $ile, array $relacje, \Closure $widoczne): EloquentCollection
+    {
+        /** @var EloquentCollection<int, TModel> $znalezione */
+        $znalezione = new EloquentCollection;
+        $obejrzane = [];
+        $kursor = null;
+        $partia = 20;
+
+        do {
+            $zapisy = DB::table('collection_items')
+                ->whereIn('collection_items.collection_id', Collection::query()->where('owner_id', $user->getKey())->select('id'))
+                ->whereNotNull('collection_items.'.$kolumna)
+                ->when($kursor !== null, fn ($q) => $q->whereRaw(
+                    '(collection_items.created_at, collection_items.'.$kolumna.') < (?::timestamptz, ?::uuid)',
+                    $kursor,
+                ))
+                ->orderByDesc('collection_items.created_at')
+                ->orderByDesc('collection_items.'.$kolumna)
+                // Jeden wiersz ponad partię mówi tylko, czy jest dalszy ciąg —
+                // bez niego pełna partia kosztowałaby puste zapytanie.
+                ->limit($partia + 1)
+                ->get(['collection_items.'.$kolumna.' as id', 'collection_items.created_at']);
+            $dalej = $zapisy->count() > $partia;
+            $zapisy = $zapisy->take($partia);
+
+            /** @var array<string, string> $kandydaci id => najpóźniejszy zapis */
+            $kandydaci = [];
+
+            foreach ($zapisy as $zapis) {
+                if (! isset($obejrzane[$zapis->id])) {
+                    $obejrzane[$zapis->id] = true;
+                    $kandydaci[$zapis->id] = $zapis->created_at;
+                }
+            }
+
+            if ($kandydaci !== []) {
+                $modele = $widoczne(array_map('strval', array_keys($kandydaci)))
+                    ->keyBy(fn ($model) => (string) $model->getKey());
+
+                foreach ($kandydaci as $id => $zapisano) {
+                    if (isset($modele[$id])) {
+                        $znalezione->push($modele[$id]->setAttribute('zapisano_at', $zapisano));
+
+                        if ($znalezione->count() === $ile) {
+                            return $znalezione->load($relacje);
+                        }
+                    }
+                }
+            }
+
+            $ostatni = $zapisy->last();
+            $kursor = $ostatni === null ? null : [$ostatni->created_at, $ostatni->id];
+            $partia = min($partia * 4, 1000);
+        } while ($dalej);
+
+        return $znalezione->load($relacje);
+    }
+
+    /**
+     * Liczby na kartach zeszytów: ile WIDOCZNYCH przepisów i wpisów leży
+     * w każdym (issue #774, #1319, #2030).
+     *
+     * LICZBA WIDOCZNA — DOKŁADNIE TA SAMA, KTÓRĄ CZŁOWIEK ZOBACZY PO WEJŚCIU
+     * (issue #774). PRZED TAMTĄ ZMIANĄ karta liczyła bez żadnego filtra
+     * widoczności ani statusu autora, a `show()` filtrował OBOMA
+     * (`widoczneDla()` i `dostepnyJakoAutor()`, audyt W5-08). Dwa ekrany tego
+     * samego zeszytu liczyły więc dwie różne rzeczy — i to NIE PO RÓWNO:
+     * prywatna treść była wliczona w obie liczby, a treść miękko usunięta
+     * (SoftDeletes dodaje globalny zakres) wypadała tylko z karty, nie
+     * z wnętrza zeszytu. Jedna reguła zamiast dwóch przypadkowo różnych:
+     * karta pokazuje WIDOCZNE, wnętrze dokłada „N nie jest dostępnych" —
+     * i te dwie liczby razem dają całość. Wpisy liczy ta sama reguła co
+     * wnętrze zeszytu, łącznie z bramką przepisu i statusem jego autora (#1319).
+     *
+     * JEDNO ZAPYTANIE NA RODZAJ, NIE PODZAPYTANIE NA ZESZYT (#2030). Do tej
+     * zmiany te dwie liczby były skorelowanymi podzapytaniami `withCount()`
+     * w zapytaniu o listę. Pracy było tyle samo, ale planer mnożył koszt
+     * jednego podzapytania przez liczbę zeszytów. Przy 200 zeszytach
+     * szacunek przekraczał `jit_inline_above_cost` i PostgreSQL kompilował
+     * zapytanie przez JIT z inliningiem i optymalizacją — ok. 0,6–0,7 s
+     * na samą kompilację przy ok. 0,1 s właściwej pracy
+     * (docs/infra/ZESZYTY_KOSZT_2030.md). Zgrupowane zliczenie po
+     * `collection_items` daje te same liczby i jeden, mniejszy szacunek.
+     *
+     * `join` z `collection_items`, NIE z `collections`: tabela zeszytów ma
+     * kolumnę `visibility`, a zakresy widoczności pytają o nią bez nazwy
+     * tabeli (patrz `ostatnioZapisane()`). Zeszyty wybiera podzapytanie po
+     * właścicielu — to te same zeszyty, które wypisuje lista.
+     *
+     * @param  EloquentCollection<int, Collection>  $zeszyty
+     */
+    private function policzWidoczne(EloquentCollection $zeszyty, User $user): void
+    {
+        if ($zeszyty->isEmpty()) {
+            return;
+        }
+
+        $wlasne = Collection::query()->where('owner_id', $user->getKey())->select('id');
+
+        $przepisy = Recipe::query()
+            ->widoczneDla($user)
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->join('collection_items', 'collection_items.recipe_id', '=', 'recipes.id')
+            ->whereIn('collection_items.collection_id', $wlasne)
+            ->groupBy('collection_items.collection_id')
+            ->toBase()
+            ->selectRaw('collection_items.collection_id, count(*) as ile')
+            ->pluck('ile', 'collection_id');
+
+        $wpisy = Post::query()
+            ->widoczneWZeszycieDla($user)
+            ->join('collection_items', 'collection_items.post_id', '=', 'posts.id')
+            ->whereIn('collection_items.collection_id', $wlasne)
+            ->groupBy('collection_items.collection_id')
+            ->toBase()
+            ->selectRaw('collection_items.collection_id, count(*) as ile')
+            ->pluck('ile', 'collection_id');
+
+        foreach ($zeszyty as $zeszyt) {
+            $zeszyt->setAttribute('recipes_count', (int) ($przepisy[$zeszyt->getKey()] ?? 0));
+            $zeszyt->setAttribute('posts_count', (int) ($wpisy[$zeszyt->getKey()] ?? 0));
+        }
     }
 
     public function show(Request $request, Collection $collection): View|RedirectResponse
@@ -293,15 +478,19 @@ class CollectionController extends Controller
         PaginationLinks::preserveOtherPage($recipes, $posts);
         PaginationLinks::preserveOtherPage($posts, $recipes);
 
+        $wspoldzielenie = $this->wspoldzielenie($request->user(), $collection, [...$recipes->items(), ...$posts->items()]);
+        $collection->wyjmowanieDozwolone = $wspoldzielenie['jestWspolpracownikiem'];
+
         $niewidoczne = $request->user()?->getKey() === $collection->owner_id
             ? max(0, $collection->recipes()->withTrashed()->count() - $recipes->total())
                 + max(0, $collection->posts()->withTrashed()->count() - $posts->total())
             : 0;
 
         return view('pages.collections.show', [
-            'saveContext' => $request->user()?->getKey() === $collection->owner_id ? app(CollectionSaveContext::class)->parameters($request) : [],
-            'saveContent' => $request->user()?->getKey() === $collection->owner_id ? app(CollectionSaveContext::class)->content($request) : null,
+            'saveContext' => $request->user()?->getKey() === $collection->owner_id ? app(CollectionSaveContext::class)->parameters($request->input('save_type'), $request->input('save_id')) : [],
+            'saveContent' => $request->user()?->getKey() === $collection->owner_id ? app(CollectionSaveContext::class)->content($request->input('save_type'), $request->input('save_id'), $request->user()) : null,
             'collection' => $collection,
+            ...$wspoldzielenie,
             // Policy wyżej pilnuje dostępu do SAMEGO zeszytu i nic nie mówi
             // o tym, co jest w środku. W środku są przepisy wielu różnych
             // autorów, każdy z własną widocznością i własnymi blokadami —
@@ -381,11 +570,66 @@ class CollectionController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    /**
+     * Wspólny zeszyt na ekranie zeszytu (#1743, D-302): kto ma dostęp, kto co
+     * dodał, czy notatki są wspólne.
+     *
+     * KTO DODAŁ — TYLKO DLA OSÓB Z DOSTĘPEM. Obcy oglądający publiczny
+     * zeszyt nie dowiaduje się, że ktoś poza właścicielem w nim zapisuje, ani
+     * kto. Osoba zablokowana przez oglądającego (albo blokująca go) jest
+     * podpisana „inna osoba z dostępem" — blokada działa też tutaj.
+     *
+     * Jedno zapytanie o autorów na stronę, nie jedno na pozycję.
+     *
+     * @param  list<Recipe|Post>  $pozycje
+     * @return array<string, mixed>
+     */
+    private function wspoldzielenie(?User $user, Collection $collection, array $pozycje): array
+    {
+        $jestWlascicielem = $user !== null && $user->getKey() === $collection->owner_id;
+        $jestWspolpracownikiem = $user !== null && ! $jestWlascicielem
+            && Gate::forUser($user)->allows('removeItem', $collection);
+        $dostep = $jestWlascicielem || $jestWspolpracownikiem;
+
+        $czlonkowie = $dostep ? $collection->members()->with('profile')->get() : collect();
+
+        $idAutorow = collect($pozycje)
+            ->map(fn ($p) => $p->pivot?->added_by_id)
+            ->unique()
+            ->values();
+
+        $wspolny = $dostep && ($czlonkowie->isNotEmpty()
+            || $idAutorow->contains(fn ($id) => $id !== null && $id !== $collection->owner_id));
+
+        $podpisy = [];
+
+        if ($wspolny) {
+            $autorzy = User::query()->with('profile')->whereKey($idAutorow->filter()->all())->get()->keyBy(fn (User $u) => (string) $u->getKey());
+
+            foreach ($idAutorow as $id) {
+                $podpisy[(string) $id] = match (true) {
+                    $id === null => 'osoba, która usunęła konto',
+                    $id === $user?->getKey() => 'Ty',
+                    ! isset($autorzy[(string) $id]) || $user?->hasBlockRelationWith($autorzy[(string) $id]) => 'inna osoba z dostępem',
+                    default => $autorzy[(string) $id]->displayName(),
+                };
+            }
+        }
+
+        return [
+            'dostepDoNotatek' => $dostep,
+            'wspolny' => $wspolny,
+            'jestWspolpracownikiem' => $jestWspolpracownikiem,
+            'czlonkowie' => $czlonkowie,
+            'podpisyDodania' => $podpisy,
+        ];
+    }
+
+    public function store(ZapisZeszytuRequest $request): RedirectResponse
     {
         $user = $request->user();
 
-        $data = $this->validateCollectionData($request, $user->getKey());
+        $data = $request->validated();
 
         $this->authorize('create', [Collection::class, $data['visibility']]);
 
@@ -401,7 +645,7 @@ class CollectionController extends Controller
                 ->withErrors(['name' => 'Masz już zeszyt o tej nazwie. Wybierz inną.']);
         }
 
-        return redirect()->route('collections.show', ['collection' => $collection, ...app(CollectionSaveContext::class)->parameters($request)])->with('status', 'Zeszyt utworzony.');
+        return redirect()->route('collections.show', ['collection' => $collection, ...app(CollectionSaveContext::class)->parameters($request->input('save_type'), $request->input('save_id'))])->with(Komunikat::sukces('Zeszyt utworzony.'));
     }
 
     /**
@@ -418,7 +662,7 @@ class CollectionController extends Controller
     }
 
     /**
-     * Te same reguły co `store()` (`validateCollectionData()`), z jednym
+     * Te same reguły co `store()` (`ZapisZeszytuRequest`), z jednym
      * wyjątkiem: nazwa własnego, niezmienionego zeszytu nie jest dla niego
      * „zajęta" (`CollectionNameNotTaken::$ignoreCollectionId`).
      *
@@ -428,13 +672,16 @@ class CollectionController extends Controller
      * widoczności jest tu decyzją semantyczną (jak w D-088), więc zasługuje
      * na własne zdanie, nie ogólnikowe potwierdzenie zapisu.
      */
-    public function update(Request $request, Collection $collection): RedirectResponse
+    public function update(ZapisZeszytuRequest $request, Collection $collection): RedirectResponse
     {
+        // Policy `update` sprawdza `ZapisZeszytuRequest::authorize()` — przed
+        // walidacją; jawne `authorize()` jest idempotentne i zostaje, żeby
+        // bramkę widać było w kontrolerze (`AutoryzacjaTrasZWiazaniemModeluTest`).
         $this->authorize('update', $collection);
 
         $bylaPubliczna = $collection->isPublic();
 
-        $data = $this->validateCollectionData($request, $collection->owner_id, $collection->getKey());
+        $data = $request->validated();
 
         try {
             // `DB::transaction()` — ten sam powód co łapanie w `store()`, plus
@@ -457,87 +704,44 @@ class CollectionController extends Controller
             default => 'Zeszyt zaktualizowany.',
         };
 
-        return redirect()->route('collections.show', $collection)->with('status', $status);
+        return redirect()->route('collections.show', $collection)->with(Komunikat::sukces($status));
     }
 
-    /**
-     * Wspólne reguły `store()` i `update()`. `$ignoreCollectionId` przepuszcza
-     * niezmienioną nazwę własnego zeszytu przy zapisie formularza edycji.
-     *
-     * @return array{name: string, description: ?string, visibility: string}
-     */
-    private function validateCollectionData(Request $request, string $ownerId, ?string $ignoreCollectionId = null): array
-    {
-        return $request->validate([
-            'name' => [
-                'required', 'string', 'min:2', 'max:120',
-                new CollectionNameNotTaken($ownerId, $ignoreCollectionId),
-            ],
-            'description' => ['nullable', 'string', 'max:500'],
-            'visibility' => ['required', 'in:public,private'],
-        ], [
-            'name.required' => 'Podaj nazwę zeszytu — na przykład „Na święta”.',
-            'name.min' => 'Nazwa zeszytu musi mieć co najmniej 2 znaki. Dopisz kilka liter.',
-            // Bez tego wypadał szablon ogólny: „Pole «nazwa zeszytu» jest za
-            // długie — może mieć najwyżej 120 znaków." Mówił, co jest źle,
-            // ale nie mówił, co zrobić.
-            'name.max' => 'Ta nazwa jest za długa. Zmieść się w 120 znakach — wystarczy krótka nazwa, na przykład „Na święta”.',
-            'description.max' => 'Ten opis jest za długi. Zmieść się w 500 znakach.',
-            // `in` mówi, CO WYBRAĆ, nie że „wybrana wartość jest
-            // nieprawidłowa" (issue #86) — dwie opcje z ekranu, wprost.
-            'visibility.in' => 'Zaznacz, kto ma widzieć ten zeszyt: wszyscy czy tylko Ty.',
-            /*
-             * `required` BEZ WŁASNEGO ZDANIA wypadał jako szablon ogólny:
-             * „Pole «widoczność» jest wymagane. Uzupełnij je, żeby wysłać
-             * formularz." Na ekranie nie ma niczego o nazwie „widoczność" —
-             * jest pytanie „Kto ma widzieć ten zeszyt?" i dwa przyciski
-             * wyboru. Dla człowieka brak zaznaczenia i zaznaczenie czegoś
-             * spoza listy to ta sama sytuacja, więc zdanie jest to samo.
-             */
-            'visibility.required' => 'Zaznacz, kto ma widzieć ten zeszyt: wszyscy czy tylko Ty.',
-        ]);
-    }
-
-    public function saveRecipe(Request $request, string $recipe): RedirectResponse
+    public function saveRecipe(ZapisDoZeszytuRequest $request, string $recipe): RedirectResponse
     {
         $model = Recipe::where('slug', $recipe)->firstOrFail();
         $this->authorize('view', $model);
 
-        $collection = $this->selectedCollection($request);
+        $collection = $request->zeszytDoZapisu();
 
-        // DROGA POWROTU MA WRACAĆ, A NIE ZAPISYWAĆ OD NOWA (issue #775).
-        //
-        // Przycisk „Zapisz ponownie" pod komunikatem wysyła TEN SAM adres co
-        // zwykły zapis i nic poza tokenem. Gdyby zadziałał jak zwykły zapis,
-        // przepis wróciłby do JEDNEGO zeszytu (domyślnego), z pustą notatką
-        // i dzisiejszą datą — czyli „powrót" po cichu gubiłby to, przed czym
-        // ma chronić. Dlatego najpierw sprawdzamy, czy to nie jest powrót po
-        // wyjęciu, które sami przed chwilą zrobiliśmy.
-        if ($collection === null && $request->input('note') === null) {
-            try {
-                $powrot = $this->przywrocPoWyjeciu($request, 'przepis', (string) $model->getKey());
-            } catch (BladDlaCzlowieka $e) {
-                return back()->withErrors(['collection_id' => $e->getMessage()]);
-            }
-
-            if ($powrot !== null) {
-                return back()->with('status', $powrot);
-            }
-        }
-
+        // Powrót po wyjęciu albo zwykły zapis — kolejność i uzasadnienie
+        // w `SaveRecipeToCollection::zapiszAlboPrzywroc()` (#775, #970).
         try {
-            $target = $this->save->handle($request->user(), $model, $collection);
+            $wynik = $this->save->zapiszAlboPrzywroc(
+                $request->user(),
+                $model,
+                $collection,
+                $request->input('note') !== null,
+                $request->session()->get('zeszyt_wyjecie'),
+                fn () => $request->session()->forget('zeszyt_wyjecie'),
+            );
         } catch (BladDlaCzlowieka $e) {
             // Stan zmienił się w trakcie żądania (#1022): treść ukryta,
             // blokada, zeszyt usunięty w drugiej karcie. Zdanie zamiast 500.
             return back()->withErrors(['collection_id' => $e->getMessage()]);
         }
 
-        if ($request->boolean('open_collection')) {
-            return redirect()->route('collections.show', $target)->with('status', "Zapisane w zeszycie „{$target->name}”.");
+        if ($wynik->zdaniePowrotu !== null) {
+            return back()->with(Komunikat::sukces($wynik->zdaniePowrotu));
         }
 
-        return back()->with('status', "Zapisane w zeszycie „{$target->name}”.");
+        $target = $wynik->zeszyt;
+
+        if ($request->boolean('open_collection')) {
+            return redirect()->route('collections.show', $target)->with(Komunikat::sukces("Zapisane w zeszycie „{$target->name}”."));
+        }
+
+        return back()->with(Komunikat::sukces("Zapisane w zeszycie „{$target->name}”."));
     }
 
     /**
@@ -566,11 +770,11 @@ class CollectionController extends Controller
      * więc chroni też stronę narysowaną, zanim przepis trafił do drugiego
      * zeszytu.
      */
-    public function removeRecipe(Request $request, string $recipe): RedirectResponse|View
+    public function removeRecipe(WyjecieZZeszytuRequest $request, string $recipe): RedirectResponse|View
     {
         $model = Recipe::where('slug', $recipe)->firstOrFail();
 
-        $zeszyt = $this->wybranyZeszytDoWyjecia($request);
+        $zeszyt = $request->zeszytDoWyjecia();
 
         if ($zeszyt === null && ! $request->boolean('potwierdzam_wszystkie')) {
             $zeszytyZPrzepisem = $request->user()->collections()
@@ -596,17 +800,20 @@ class CollectionController extends Controller
             }
         }
 
-        $zdjete = $this->save->remove($request->user(), $model, $zeszyt);
+        $wynik = $this->save->wyjmij($request->user(), $model, $zeszyt);
 
-        if ($zdjete === []) {
+        if ($wynik->wyjecie === null) {
             // Nie kłamiemy, że coś wyjęliśmy. Bez drogi powrotu — nie ma dokąd.
-            return back()->with('status', 'Tego przepisu nie ma w żadnym z Twoich zeszytów.');
+            return back()->with(Komunikat::informacja('Tego przepisu nie ma w żadnym z Twoich zeszytów.'));
         }
 
-        $this->zapamietajWyjecie($request, 'przepis', (string) $model->getKey(), $zdjete);
+        // Jedno miejsce w sesji, nadpisywane przy każdym wyjęciu (NIE `flash()`:
+        // droga powrotu ma trzy żądania, nie jedno — #775). Kształt zapisu
+        // buduje domena; sesję zamyka kontroler.
+        $request->session()->put('zeszyt_wyjecie', $wynik->wyjecie);
 
         return back()
-            ->with('status', $this->komunikatPoWyjeciu('Przepis', $request->user(), $zdjete))
+            ->with(Komunikat::sukces($wynik->komunikat))
             ->with('status_powrot', [
                 'akcja' => route('collections.save', $model->slug),
                 'etykieta' => 'Przywróć do zeszytu',
@@ -623,86 +830,43 @@ class CollectionController extends Controller
      * `save`, a nie samo `view`: podgląd ukrytego wpisu dla moderatora
      * (#1018) przechodzi `view`, ale jest tylko do odczytu.
      */
-    public function savePost(Request $request, Post $post): RedirectResponse
+    public function savePost(ZapisDoZeszytuRequest $request, Post $post): RedirectResponse
     {
         $this->authorize('save', $post);
 
-        $collection = $this->selectedCollection($request);
+        $collection = $request->zeszytDoZapisu();
 
-        // Powrót po wyjęciu — uzasadnienie przy `saveRecipe()`.
-        if ($collection === null && $request->input('note') === null) {
-            try {
-                $powrot = $this->przywrocPoWyjeciu($request, 'wpis', (string) $post->getKey());
-            } catch (BladDlaCzlowieka $e) {
-                return back()->withErrors(['collection_id' => $e->getMessage()]);
-            }
-
-            if ($powrot !== null) {
-                return back()->with('status', $powrot);
-            }
-        }
-
+        // Powrót po wyjęciu albo zwykły zapis — kolejność i uzasadnienie
+        // w `SavePostToCollection::zapiszAlboPrzywroc()` (#775, #970).
         try {
-            $target = $this->savePost->handle($request->user(), $post, $collection);
+            $wynik = $this->savePost->zapiszAlboPrzywroc(
+                $request->user(),
+                $post,
+                $collection,
+                $request->input('note') !== null,
+                $request->session()->get('zeszyt_wyjecie'),
+                fn () => $request->session()->forget('zeszyt_wyjecie'),
+            );
         } catch (BladDlaCzlowieka $e) {
             // Stan zmienił się w trakcie żądania (#1022): treść ukryta,
             // blokada, zeszyt usunięty w drugiej karcie. Zdanie zamiast 500.
             return back()->withErrors(['collection_id' => $e->getMessage()]);
         }
 
-        if ($request->boolean('open_collection')) {
-            return redirect()->route('collections.show', $target)->with('status', "Zapisane w zeszycie „{$target->name}”.");
+        if ($wynik->zdaniePowrotu !== null) {
+            return back()->with(Komunikat::sukces($wynik->zdaniePowrotu));
         }
 
-        return back()->with('status', "Zapisane w zeszycie „{$target->name}”.");
+        $target = $wynik->zeszyt;
+
+        if ($request->boolean('open_collection')) {
+            return redirect()->route('collections.show', $target)->with(Komunikat::sukces("Zapisane w zeszycie „{$target->name}”."));
+        }
+
+        return back()->with(Komunikat::sukces("Zapisane w zeszycie „{$target->name}”."));
     }
 
-    /**
-     * JEDNA REGUŁA WŁASNEGO ZESZYTU DLA ZAPISU I DLA WYJĘCIA (issue #775).
-     *
-     * `selectedCollection()` i `wybranyZeszytDoWyjecia()` różnią się tylko
-     * zdaniami w błędach — reguła jest ta sama i ma być ta sama: format UUID
-     * przed zapytaniem (`bail`) i własność przypięta do `owner_id`. Dwie
-     * kopie tej listy rozjechałyby się przy pierwszej poprawce jednej z nich,
-     * a wyjęcie z cudzego zeszytu jest dokładnie tą granicą, której pilnuje
-     * AGENTS.md §7.
-     *
-     * Jest też powód mierzalny: `scripts/kontrole-negatywne-alfa08.py` mutuje
-     * tę listę i wymaga, żeby stała w kodzie DOKŁADNIE RAZ. Przy dwóch kopiach
-     * kontrola ujemna odmawia pracy, zanim cokolwiek zmutuje — czyli przestaje
-     * cokolwiek dowodzić. Jedna kopia daje jej jedno miejsce, a mutacja osłabia
-     * wtedy obie drogi naraz.
-     *
-     * @return array<string, list<mixed>>
-     */
-    private function regulyWlasnegoZeszytu(Request $request): array
-    {
-        return [
-            'collection_id' => [
-                'bail', 'nullable', 'uuid',
-                Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey()),
-            ],
-        ];
-    }
-
-    /**
-     * Nieistniejący i cudzy zeszyt dają ten sam komunikat (issue #473).
-     * „bail” zatrzymuje walidację przed zapytaniem do kolumny UUID, gdy
-     * wejście nie ma poprawnego formatu. Brak wyboru oznacza zeszyt domyślny.
-     */
-    private function selectedCollection(Request $request): ?Collection
-    {
-        $data = $request->validate($this->regulyWlasnegoZeszytu($request), [
-            'collection_id.uuid' => 'Odśwież stronę i ponownie wybierz zeszyt do zapisania.',
-            'collection_id.exists' => 'Odśwież stronę i ponownie wybierz zeszyt do zapisania.',
-        ]);
-
-        return isset($data['collection_id'])
-            ? $request->user()->collections()->findOrFail($data['collection_id'])
-            : null;
-    }
-
-    public function removePost(Request $request, Post $post): RedirectResponse
+    public function removePost(WyjecieZZeszytuRequest $request, Post $post): RedirectResponse
     {
         // Bez `authorize`: usuwamy z WŁASNEGO zeszytu i tylko z własnego
         // (`remove` chodzi po kolekcjach tej osoby). Wpis, którego już nie
@@ -722,15 +886,16 @@ class CollectionController extends Controller
         // ZAKRES: z tego zeszytu, gdy wiadomo z którego (issue #775).
         // Bez `collection_id` zostaje stare zachowanie — wszystkie zeszyty
         // tej osoby — ale komunikat niżej mówi wprost, ile ich było.
-        $zeszyt = $this->wybranyZeszytDoWyjecia($request);
+        $zeszyt = $request->zeszytDoWyjecia();
 
-        $zdjete = $this->savePost->remove($request->user(), $post, $zeszyt);
+        $wynik = $this->savePost->wyjmij($request->user(), $post, $zeszyt);
 
-        if ($zdjete === []) {
-            return back()->with('status', 'Tego wpisu nie ma w żadnym z Twoich zeszytów.');
+        if ($wynik->wyjecie === null) {
+            return back()->with(Komunikat::informacja('Tego wpisu nie ma w żadnym z Twoich zeszytów.'));
         }
 
-        $this->zapamietajWyjecie($request, 'wpis', (string) $post->getKey(), $zdjete);
+        // Sesja jak przy przepisie (`removeRecipe()`).
+        $request->session()->put('zeszyt_wyjecie', $wynik->wyjecie);
 
         // KOMUNIKAT MÓWI, CO SIĘ STAŁO, I DAJE DROGĘ POWROTU (audyt L1).
         //
@@ -742,122 +907,11 @@ class CollectionController extends Controller
         // rysuje go `components/layout.blade.php` w tym samym obszarze
         // `aria-live`, co komunikat.
         return back()
-            ->with('status', $this->komunikatPoWyjeciu('Wpis', $request->user(), $zdjete))
+            ->with(Komunikat::sukces($wynik->komunikat))
             ->with('status_powrot', [
                 'akcja' => route('collections.save-post', $post),
                 'etykieta' => 'Przywróć do zeszytu',
             ]);
-    }
-
-    /**
-     * Zeszyt wskazany przy WYJMOWANIU — albo `null`, czyli „wszystkie moje".
-     *
-     * Osobno od `selectedCollection()`, bo zdania w błędach są inne: tam
-     * mowa o zapisaniu, tu o wyjęciu. Reguła jest ta sama i celowo: cudzy
-     * i nieistniejący zeszyt dają jeden komunikat (issue #473), a zakres
-     * i tak przypina `owner_id`, więc identyfikator w adresie niczego nie
-     * otwiera (AGENTS.md §7).
-     */
-    private function wybranyZeszytDoWyjecia(Request $request): ?Collection
-    {
-        $data = $request->validate($this->regulyWlasnegoZeszytu($request), [
-            'collection_id.uuid' => 'Odśwież stronę i ponownie wskaż zeszyt, z którego wyjmujemy.',
-            'collection_id.exists' => 'Odśwież stronę i ponownie wskaż zeszyt, z którego wyjmujemy.',
-        ]);
-
-        return isset($data['collection_id'])
-            ? $request->user()->collections()->find($data['collection_id'])
-            : null;
-    }
-
-    /**
-     * Zdanie po wyjęciu — MÓWI ZAKRES, bo zakres jest tu całą sprawą.
-     *
-     * Jeden zeszyt → z nazwy, bo nazwa jest krótsza i pewniejsza niż liczba.
-     * Więcej niż jeden → wprost „ze wszystkich Twoich zeszytów" z liczbą,
-     * żeby nikt nie odkrył zakresu dopiero po fakcie, w innym zeszycie.
-     *
-     * „Nie usunęliśmy go z serwisu" zostaje w obu wariantach: to jedyne
-     * zdanie, które rozróżnia wyjęcie z zeszytu od skasowania treści.
-     *
-     * @param  list<array{collection_id: string, note: ?string, created_at: ?string}>  $zdjete
-     */
-    private function komunikatPoWyjeciu(string $co, User $user, array $zdjete): string
-    {
-        if (count($zdjete) === 1) {
-            $nazwa = $user->collections()->whereKey($zdjete[0]['collection_id'])->value('name');
-
-            return $nazwa === null
-                ? "{$co} wyjęty z zeszytu. Nie usunęliśmy go z serwisu — możesz go przywrócić."
-                : "{$co} wyjęty z zeszytu „{$nazwa}”. Nie usunęliśmy go z serwisu — możesz go przywrócić.";
-        }
-
-        $ile = count($zdjete);
-
-        return "{$co} wyjęty z zeszytu — zniknął ze wszystkich Twoich zeszytów, było ich {$ile}. "
-            .'Nie usunęliśmy go z serwisu — możesz go przywrócić razem z notatkami.';
-    }
-
-    /**
-     * Zapamiętanie wyjęcia na potrzeby drogi powrotu.
-     *
-     * NIE `flash()`, i to jest sedno. Flash żyje jedno żądanie, a droga
-     * powrotu ma trzy: DELETE (tu), GET z przyciskiem, POST po kliknięciu.
-     * Na flashu przycisk by się narysował i nie miał czego przywrócić.
-     *
-     * Jedno miejsce, nadpisywane przy każdym wyjęciu — bo i przycisk powrotu
-     * jest jeden, ostatni. Notatki idą do sesji, a nie do adresu: to treść
-     * pisana przez człowieka i nie ma czego szukać w logach serwera.
-     *
-     * @param  list<array{collection_id: string, note: ?string, created_at: ?string}>  $zdjete
-     */
-    private function zapamietajWyjecie(Request $request, string $typ, string $id, array $zdjete): void
-    {
-        $request->session()->put('zeszyt_wyjecie', [
-            'typ' => $typ,
-            'id' => $id,
-            'pozycje' => $zdjete,
-        ]);
-    }
-
-    /**
-     * Powrót po wyjęciu — albo `null`, gdy nie ma czego przywracać.
-     *
-     * Zwraca gotowe zdanie do `status`, żeby wywołujący nie musiał drugi raz
-     * liczyć wierszy.
-     */
-    private function przywrocPoWyjeciu(Request $request, string $typ, string $id): ?string
-    {
-        $wyjecie = $request->session()->get('zeszyt_wyjecie');
-
-        if (! is_array($wyjecie)
-            || ($wyjecie['typ'] ?? null) !== $typ
-            || ($wyjecie['id'] ?? null) !== $id
-            || ! is_array($wyjecie['pozycje'] ?? null)
-            || $wyjecie['pozycje'] === []) {
-            return null;
-        }
-
-        $user = $request->user();
-
-        $wrocilo = $typ === 'przepis'
-            ? $this->save->restore($user, Recipe::findOrFail($id), $wyjecie['pozycje'])
-            : $this->savePost->restore($user, Post::findOrFail($id), $wyjecie['pozycje']);
-
-        // Jednorazowa droga powrotu: drugie kliknięcie nie ma już nic do roboty.
-        $request->session()->forget('zeszyt_wyjecie');
-
-        if ($wrocilo === 0) {
-            // Zeszyt zniknął albo rzecz wróciła tam inną drogą — nie udajemy,
-            // że przywróciliśmy coś, czego nie ruszyliśmy.
-            return null;
-        }
-
-        $co = $typ === 'przepis' ? 'Przepis' : 'Wpis';
-
-        return $wrocilo === 1
-            ? "{$co} wrócił do zeszytu razem z notatką."
-            : "{$co} wrócił do wszystkich {$wrocilo} zeszytów razem z notatkami.";
     }
 
     private function odciskNiedostepnych(Request $request, Collection $collection): ?string
@@ -892,11 +946,11 @@ class CollectionController extends Controller
             return redirect()->route('collections.show', $collection)->withErrors(['zakres' => $e->getMessage()]);
         }
 
-        return redirect()->route('collections.show', $collection)->with('status', $ile === 0
-            ? 'W tym zeszycie nie ma już niedostępnych zapisów. Niczego nie wyjęliśmy.'
-            : 'Wyjęliśmy z tego zeszytu '.$ile.' '
+        return redirect()->route('collections.show', $collection)->with($ile === 0
+            ? Komunikat::informacja('W tym zeszycie nie ma już niedostępnych zapisów. Niczego nie wyjęliśmy.')
+            : Komunikat::sukces('Wyjęliśmy z tego zeszytu '.$ile.' '
                 .Odmiana::rzeczownik($ile, 'niedostępny zapis', 'niedostępne zapisy', 'niedostępnych zapisów')
-                .'. Reszta zeszytu została bez zmian.');
+                .'. Reszta zeszytu została bez zmian.'));
     }
 
     public function destroy(Request $request, Collection $collection): RedirectResponse
@@ -905,6 +959,6 @@ class CollectionController extends Controller
 
         $collection->delete();
 
-        return redirect()->route('collections.index')->with('status', 'Zeszyt usunięty.');
+        return redirect()->route('collections.index')->with(Komunikat::sukces('Zeszyt usunięty.'));
     }
 }

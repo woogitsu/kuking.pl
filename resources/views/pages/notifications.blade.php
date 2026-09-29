@@ -200,6 +200,22 @@
                             @case(\App\Models\Notification::TYPE_FOLLOW)
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} zaczyna Cię obserwować.</strong>
                                 @break
+                            @case(\App\Models\Notification::TYPE_COLLECTION_INVITED)
+                                {{-- Zaproszenie do wspólnego zeszytu (#1743). Bez
+                                     „Zobacz", gdy nie da się już odpowiedzieć —
+                                     wtedy mówimy to wprost. --}}
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} zaprasza Cię do wspólnego zeszytu</strong>
+                                „{{ $data['zeszyt'] ?? 'zeszyt' }}”.
+                                @if(($destinationUrls[(string) $notification->getKey()] ?? null) === null)
+                                    To zaproszenie jest już nieaktualne.
+                                @else
+                                    Możesz dołączyć albo odmówić.
+                                @endif
+                                @break
+                            @case(\App\Models\Notification::TYPE_COLLECTION_JOINED)
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — dołącza do Twojego zeszytu</strong>
+                                „{{ $data['zeszyt'] ?? 'zeszyt' }}”. Od teraz może w nim zapisywać i wyjmować przepisy oraz wpisy.
+                                @break
                             @case(\App\Models\Notification::TYPE_SAVED)
                                 {{--
                                     ZBIORCZE POWIADOMIENIE (issue #906, decyzja
@@ -235,7 +251,7 @@
                                      jego stronie. Bez formy rodzajowej. --}}
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — własna wersja Twojego przepisu</strong>
                                 „{{ $data['recipe_title'] ?? 'przepis' }}”.
-                                @if($notification->wersjaDoPokazania())
+                                @if($notification->wersjaDostepna())
                                     Twój przepis jest podpisany na jej stronie.
                                 @else
                                     Ta wersja nie jest już dostępna.
@@ -245,8 +261,13 @@
                                 {{-- Powiadomienie dla GOSPODARZA, nie dla autora
                                      (issue #6). Zachęca do odpowiedzi nowej osobie,
                                      bez obietnicy terminu ani tezy o retencji. --}}
-                                <strong>{{ $data['display_name'] ?? 'Ktoś' }} — pierwszy wpis w Kuking.</strong>
-                                To pierwszy wpis tej osoby. Warto odpowiedzieć szybko.
+                                @if(($data['kind'] ?? null) === \App\Models\Post::KIND_QUESTION)
+                                    <strong>{{ $data['display_name'] ?? 'Ktoś' }} — pierwsze pytanie w Kuking.</strong>
+                                    To pierwsza publikacja tej osoby. Warto odpowiedzieć szybko.
+                                @else
+                                    <strong>{{ $data['display_name'] ?? 'Ktoś' }} — pierwszy wpis w Kuking.</strong>
+                                    To pierwszy wpis tej osoby. Warto odpowiedzieć szybko.
+                                @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_APPEAL_FILED)
                                 {{-- Zawiadomienie dla ADMINISTRATORA: ktoś złożył
@@ -445,7 +466,7 @@
     @endif
     @else
         <x-empty-state title="Nie ma jeszcze żadnych powiadomień">
-            Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących oraz ważnych sprawach dotyczących Twojego konta.
+            Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących, urodzinach obserwowanych osób, zaproszeniach do wspólnego zeszytu oraz ważnych sprawach Twojego konta.
         </x-empty-state>
     @endif
 

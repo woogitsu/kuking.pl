@@ -187,7 +187,7 @@ Mapowanie na kolumny (żeby implementacja była jednoznaczna):
 | `image` | `media` powiązane przez `recipes.hero_media_id` + warianty z `MEDIA_PIPELINE.md` |
 | `author.name`, `author.url` | `profiles.display_name`, `profiles.username` autora (`recipes.author_id`) |
 | `datePublished` | `recipes.published_at` |
-| `dateModified` | `recipes.updated_at` (albo `MAX(recipe_versions.created_at)`) |
+| `dateModified` | `recipes.tresc_zmieniona_at` — tylko gdy nie jest `NULL` i nie jest wcześniejsza niż `published_at` (niżej, #2014) |
 | `description` | `recipes.summary` |
 | `prepTime`, `cookTime` | `ISO8601(recipes.prep_minutes)`, `ISO8601(recipes.cook_minutes)` — konwersja `PT{n}M` |
 | `totalTime` | `ISO8601(prep_minutes + cook_minutes)` |
@@ -195,6 +195,35 @@ Mapowanie na kolumny (żeby implementacja była jednoznaczna):
 | `recipeIngredient` | `recipe_ingredients` posortowane po `position`, sformatowane `quantity unit ingredient_text` |
 | `recipeInstructions[].text` | `recipe_steps.instruction` posortowane po `position` |
 | `recipeInstructions[].image` | `recipe_steps.media_id` jeśli ustawione |
+
+**`dateModified` — skąd data i kiedy ją podajemy (#2014).** Pole jest
+w Google tylko zalecane, a data niezgodna z treścią strony jest gorsza niż
+brak daty (`sd-policies`, sekcja 2). Dlatego nie bierzemy ani
+`recipes.updated_at`, ani `MAX(recipe_versions.created_at)`:
+
+- `updated_at` przesuwa każdy zapis wiersza: ukrycie i przywrócenie przez
+  moderację (`RozstrzygnijZgloszenie`, `RestoreContent`), zmianę widoczności
+  i zapis bez żadnej zmiany (`PublishRecipe` zawsze podbija `content_revision`);
+- wersja powstaje przy każdym „Zapisz” z publikacją, także bez zmiany,
+  a autozapis kreatora zmienia opublikowaną treść bez wersji (#1316).
+  Migawka wersji nie obejmuje też zdjęć.
+
+Źródłem jest osobna kolumna `recipes.tresc_zmieniona_at`, którą ustawia
+wyłącznie `PublishRecipe` (poza `$fillable`):
+
+- przy pierwszej publikacji — dokładnie `published_at`;
+- później — czas zapisu, ale TYLKO gdy odcisk treści
+  (`App\Domain\Recipes\TrescPrzepisu`: pola przepisu, składniki, kroki,
+  zdjęcie główne, skan źródła i zdjęcia kroków) różni się od stanu sprzed
+  zapisu; dotyczy to też autozapisu i „Zapisz zmiany”;
+- moderacja, widoczność i zapis bez zmian jej nie ruszają.
+
+Emisja: tylko w bloku `Recipe`, czyli dla przepisu publicznego
+i opublikowanego z gotowym zdjęciem; tylko gdy kolumna nie jest `NULL`
+(przepisy sprzed kolumny jej nie mają — bez backfillu, bo zgadnięta data
+byłaby nieprawdą) i nie jest wcześniejsza niż `published_at`. Format jak
+`datePublished` (data `RRRR-MM-DD`). Pilnuje
+`tests/Feature/RecipeJsonLdBezNiepewnejDatyModyfikacjiTest.php`.
 
 **`aggregateRating` — uczciwa dyskusja.** Google wymaga, żeby `aggregateRating` **odzwierciedlał prawdziwe, zebrane oceny** i wprost zabrania samodzielnie ustalanych/"self-serving" ocen (np. sztywnego „4.8” wpisanego przez właściciela strony). Ma też wymagane pola `ratingValue`, `ratingCount`/`reviewCount` i typowo skalę 1–5 (`bestRating`/`worstRating`).
 
@@ -354,9 +383,9 @@ Każdy JSON-LD blok renderowany przez Blade powinien przechodzić dwa testy zani
 | Konto `status IN ('suspended','banned','pending_delete')` | `noindex`, treść zwraca 410/404 zgodnie z polityką retencji | Nie utrzymywać w indeksie kont usuniętych/zbanowanych |
 | Treść zgłoszona i ukryta (`status='hidden'`/`'removed'` po `moderation_actions`) | `noindex, nofollow`, HTTP 410 (removed) lub 200+noindex (hidden, w toku triage) | Zgodność z DSA (decyzja + możliwość odwołania), zero ryzyka rankingowego z treści naruszającej zasady |
 | `/szukaj`, `/powiadomienia`, `/ustawienia/*`, `/admin/*` | `noindex, nofollow` (+ `Disallow` w `robots.txt` dla `/ustawienia`, `/admin`, `/powiadomienia` — auth-only, crawler i tak ich nie zobaczy, ale to tania dodatkowa warstwa) | Brak wartości publicznej, ryzyko crawl budgetu |
-| `/home`, `/dodaj`, `/zeszyt` (widoki wymagające loginu) | poza indeksem z definicji (auth wall) | j.w. |
+| `/home`, `/dodaj`, lista `/zeszyt` i `/zeszyt/{uuid}/edytuj` (widoki wymagające loginu) | poza indeksem z definicji (auth wall) | j.w. |
 | Kolekcje prywatne | `noindex, nofollow` | `collections.visibility='private'` domyślne |
-| Kolekcje publiczne | `index, follow` | Realna, kuracyjna treść — dobry sygnał jakości |
+| Kolekcje publiczne | `index, follow` — `/zeszyt/{uuid}` otwiera się bez logowania, ma opis meta i nie dostaje `X-Robots-Tag` (issue #965) | Realna, kuracyjna treść — dobry sygnał jakości |
 
 ### 3.1 `robots.txt`
 
@@ -371,6 +400,8 @@ Allow: /
 
 Sitemap: https://kuking.pl/sitemap_index.xml
 ```
+
+Realny plik ma dodatkowo `Disallow: /zeszyt$` i `Disallow: /zeszyt/*/` — blokują listę własnych zeszytów i ich podstrony, ale nie publiczny zeszyt `/zeszyt/{uuid}` (issue #965). `Disallow: /szukaj` celowo nie ma (issue #964, patrz niżej).
 
 Realny plik generuje `app/Http/Controllers/SitemapController.php::robots()` — adresy tam i tu muszą się zgadzać; do 12 września 2026 ten dokument (i sam kontroler) miały `/search`, `/home` i `/add` po angielsku, czyli pod adresami, których serwis nie ma, więc wyszukiwarka i ekran dodawania nie były w praktyce wyłączone z indeksowania.
 
@@ -426,13 +457,15 @@ Klucz kasują haki modeli rejestrowane w `AppServiceProvider`
 | `Recipe`, `Post` | utworzenie; zmiana `status`, `visibility`, `published_at`, `author_id`, `deleted_at` (w tym przywrócenie); usunięcie |
 | `Recipe` | dodatkowo zmiana `slug` (inny adres) |
 | `Post` | dodatkowo zmiana `body` (wpis bez treści nie wchodzi) i `kind` |
+| `Recipe`, `Post` | dodatkowo zmiana `updated_at` lub `tresc_zmieniona_at` treści publicznej i opublikowanej (#1280) — z pierwszej liczy się `lastmod` wpisu i profilu autora, z drugiej `lastmod` przepisu |
 | `Profile` | zmiana `username` (inny adres), usunięcie |
 | `User` | zmiana `status` (ban, zawieszenie, usuwanie konta, zatarcie) |
 
 Kasowanie idzie przez `DB::afterCommit()`: w transakcji dopiero po COMMIT,
 po ROLLBACK wcale. Kasowany jest **wyłącznie** ten klucz, nigdy cały
-magazyn cache. Zapis bez wpływu na mapę (np. tytuł przepisu) klucza nie
-rusza. Pilnuje tego `MapaStronyNadazaZaWidocznosciaTest`. Nowy typ treści
+magazyn cache. Zapis bez wpływu na mapę (edycja szkicu albo treści prywatnej) klucza nie
+rusza; edycja treści publicznej — w tym samego tytułu — go kasuje, żeby
+`lastmod` w mapie zgadzał się ze stroną. Pilnuje tego `MapaStronyNadazaZaWidocznosciaTest`. Nowy typ treści
 w mapie = nowy wiersz w `MapaStrony::KOLUMNY`.
 
 Limity Google (2026, niezmienione od lat): **max 50 000 URL-i i 50 MB (nieskompresowane) na plik sitemap**; przekroczenie limitu URL-i → Google ignoruje nadmiar; przekroczenie 50 MB → ryzyko odrzucenia całego pliku. Rozwiązanie standardowe: **sitemap index**.
@@ -470,11 +503,15 @@ Recipe::query()
 
 2. Job per chunk (nie jeden monolityczny job na cały sitemap): `GenerateSitemapChunk::dispatch($type, $chunkIndex)`. Każdy chunk = maks. 50 000 wierszy, zapisany jako osobny plik XML w object storage (nie w bazie, nie w pamięci procesu web).
 3. Odśwież **w nocy** (niski ruch), harmonogram co 24h wystarcza dla MVP — Kuking nie jest serwisem newsowym, świeżość co kilka godzin nie jest potrzebna.
-4. `lastmod` = `GREATEST(recipes.updated_at, MAX(recipe_versions.created_at))` — realna data ostatniej **merytorycznej** zmiany, nie data regeneracji sitemapy. Fałszywie świeży `lastmod` (ustawiany przy każdym uruchomieniu joba, niezależnie od realnej zmiany treści) jest traktowany przez Google jako sygnał niewiarygodny i z czasem ignorowany.
+4. `lastmod` przepisu = `recipes.tresc_zmieniona_at` (#1280; `Recipe::dataZmianyTresci()`, ta sama data co `dateModified` w JSON-LD) — realna data ostatniej **merytorycznej** zmiany. `updated_at` się nie nadaje: przesuwa go też moderacja i zapis bez zmian. Gdy daty nie znamy (przepis sprzed kolumny, `NULL`, albo data sprzed publikacji) — `<lastmod>` jest pomijany, bo brak sygnału jest uczciwszy niż zgadnięta data. (Wcześniejszy zapis: `GREATEST(recipes.updated_at, MAX(recipe_versions.created_at))` — nieaktualny.) To jest realna data ostatniej **merytorycznej** zmiany, nie data regeneracji sitemapy. Fałszywie świeży `lastmod` (ustawiany przy każdym uruchomieniu joba, niezależnie od realnej zmiany treści) jest traktowany przez Google jako sygnał niewiarygodny i z czasem ignorowany.
 5. Indeks (`sitemap_index.xml`) generuj jako lekki, szybki job osobno, uruchamiany **po** zakończeniu wszystkich chunków (job chain / batch w Laravel Queue), żeby nigdy nie wskazywał na plik, który jeszcze nie istnieje.
 6. Kompresja `.xml.gz` — Google akceptuje bez dodatkowej konfiguracji, warto włączyć od razu przy skali > kilku tysięcy URL-i (redukcja transferu 70–90%).
 
 ### 4.3 Co wchodzi do sitemapy
+
+**Huby i strony stałe (#1032).** Mapa ogłasza jawną, zamkniętą listę `SitemapController::publiczneWejscia()`: stronę główną, Odkrywaj, Poradźcie (`/pytania` — tylko przy `kuking.questions.enabled=true`, bo inaczej trasa oddaje 404), Tagi (`/tagi`), O Kuking, Pomoc, Zasady, „Napisz do nas", Regulamin i Prywatność. Kryterium: strona publiczna, bez logowania, bez `noindex`, jeden adres bez parametrów. Strony prawne i kontakt są indeksowane (własny opis, brak `noindex`; kontakt świadomie — kto nie może się zalogować, szuka go w wyszukiwarce), więc wchodzą. Nie wchodzą: warianty filtrów i kursora, `/napisz-do-nas/dziekujemy` oraz pojedyncze `/tag/{tag}` — ich próg jakości to osobne zadanie (#1007). `MapaStronyPubliczneWejsciaTest` porównuje dokładny zbiór i otwiera każdy adres jako gość.
+
+**`lastmod` profilu (#1280).** Profil to głównie lista treści autora, więc `lastmod` = `GREATEST(profiles.updated_at, MAX(updated_at))` z wpisów i przepisów autora, które mają `visibility = public` i `published_at` — łącznie z ukrytymi i usuniętymi, bo ukrycie i usunięcie też zmienia profil. Szkice, treści prywatne i dla obserwujących nie przesuwają daty; komentarze i „Ugotowałem" nie dotykają `updated_at` treści. Znana granica: zmiana widoczności z publicznej na prywatną nie przesuwa daty. Liczone dwoma zapytaniami grupującymi na partię 500 profili (bez N+1). Część dla usuniętych przepisów nie trafia w częściowy indeks `recipes_author_published_idx` — przy obecnej skali to jeden skan na partię; przy podziale na chunki (§4.2) policzyć plan ponownie.
 
 **Adres wpisu przez `Post::url()` (#968).** Pytanie ma jeden adres, `/pytania/{id}`; `/wpisy/{id}` pytania przekierowuje na niego 301 (po sprawdzeniu dostępu). Mapa ogłasza więc pytania wyłącznie pod `/pytania/{id}` i obejmuje także pytanie z samym tytułem (`body` puste — tytuł jest obowiązkowy). Zwykłe wpisy bez `body` nadal nie wchodzą: to zapowiedzi przepisów.
 

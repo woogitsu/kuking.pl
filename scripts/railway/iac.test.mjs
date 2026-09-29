@@ -113,6 +113,13 @@ function bledy(g, { srodowisko, rozbity, nazwaWww, limitZdjec }) {
     const maWspolnaBlokade = komendyPrzedWdrozeniem.some((c) => c.includes("kuking:migruj-pod-blokada"));
     const migruje = komendyPrzedWdrozeniem.some((c) => c.includes("migrate") || c.includes("kuking:migruj-pod-blokada"));
     if (jestWww && !maWspolnaBlokade) b.push(`${s.name}: brak migracji ze wspólną blokadą w preDeployCommand`);
+    // #1932 (audyt 28.09.2026): pre-deploy kończy się PRZED seedem-importem
+    // i healthcheckiem nowego kontenera. Numer wdrożenia zapisuje dopiero
+    // nowy kontener po gotowości (docker/entrypoint.sh), inaczej nieudany
+    // rollout zużywa numer i opisuje funkcje jako wydane.
+    if (komendyPrzedWdrozeniem.some((c) => c.includes("kuking:zarejestruj-wdrozenie"))) {
+      b.push(`${s.name}: rejestracja wdrożenia w preDeployCommand — zapisze numer także przy nieudanym rolloucie`);
+    }
     // Migracje raz na wdrożenie, w jednym serwisie. Trzy serwisy z tym
     // samym preDeploy to trzy równoległe `migrate` na jednej bazie.
     if (!jestWww && migruje) b.push(`${s.name}: preDeployCommand z migracją poza serwisem WWW`);
@@ -288,6 +295,7 @@ const MUTACJE = [
   ["worker w roli all", PROD, (g) => { usluga(g, "worker").deploy.startCommand = "/usr/local/bin/kuking-entrypoint all"; }],
   ["APP_ROLE rozjechany z argumentem", PROD, (g) => { usluga(g, "scheduler").variables.APP_ROLE.value = "worker"; }],
   ["dwa harmonogramy", PROD, (g) => { usluga(g, "scheduler").deploy.numReplicas = 2; }],
+  ["rejestracja wdrożenia w pre-deploy (przed healthcheckiem)", PROD, (g) => { usluga(g, "kuking.pl").deploy.preDeployCommand.push("php artisan kuking:zarejestruj-wdrozenie --no-interaction"); }],
   ["migracja w workerze", PROD, (g) => { usluga(g, "worker").deploy.preDeployCommand = ["php artisan migrate --force"]; }],
   ["domena na workerze", PROD, (g) => { usluga(g, "worker").networking = { customDomains: { "kuking.pl": { port: 8080 } } }; }],
   ["healthcheck HTTP na harmonogramie", PROD, (g) => { usluga(g, "scheduler").deploy.healthcheckPath = "/health"; }],

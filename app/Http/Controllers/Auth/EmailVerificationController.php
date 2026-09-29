@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
-use App\Domain\Security\DziennyBudzetListow;
 use App\Domain\Security\WynikPonowieniaPotwierdzenia;
 use App\Domain\Security\WyslijPotwierdzenieAdresu;
 use App\Http\Controllers\Controller;
 use App\Models\MailFailure;
 use App\Notifications\PotwierdzenieAdresu;
+use App\Poczta\DziennyBudzetListow;
+use App\Support\Komunikat;
 use App\Support\Poczta;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\RedirectResponse;
@@ -101,7 +102,7 @@ class EmailVerificationController extends Controller
 
         $request->fulfill();
 
-        return redirect()->route('home')->with('status', 'Adres e-mail potwierdzony. Dziękujemy.');
+        return redirect()->route('home')->with(Komunikat::sukces('Adres e-mail potwierdzony. Dziękujemy.'));
     }
 
     /**
@@ -131,13 +132,13 @@ class EmailVerificationController extends Controller
         // Przed rezerwacją z puli (issue #1335): list do sterownika, który
         // nic nie dostarcza, nie zjada przydziału i nie dostaje „Wysłaliśmy".
         if (! Poczta::dziala()) {
-            return back()->with('status', self::komunikatBrakuPoczty());
+            return back()->with(Komunikat::blad(self::komunikatBrakuPoczty()));
         }
 
         return match ($wyslij->ponow($request->user())) {
-            WynikPonowieniaPotwierdzenia::Wyslano => back()->with('status', 'Wysłaliśmy wiadomość jeszcze raz. Sprawdź też folder „Spam”.'),
-            WynikPonowieniaPotwierdzenia::SufitKonta => back()->with('status', $this->komunikatSufituKonta()),
-            WynikPonowieniaPotwierdzenia::BrakMiejscaWPuli => back()->with('status', $this->komunikatOdmowy()),
+            WynikPonowieniaPotwierdzenia::Wyslano => back()->with(Komunikat::sukces('Wysłaliśmy wiadomość jeszcze raz. Sprawdź też folder „Spam”.')),
+            WynikPonowieniaPotwierdzenia::SufitKonta => back()->with(Komunikat::blad($this->komunikatSufituKonta())),
+            WynikPonowieniaPotwierdzenia::BrakMiejscaWPuli => back()->with(Komunikat::blad($this->komunikatOdmowy())),
         };
     }
 

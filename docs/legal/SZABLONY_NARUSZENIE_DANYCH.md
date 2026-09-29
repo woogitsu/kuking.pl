@@ -268,7 +268,7 @@ SAMSUFI sp. z o.o., Jagiellońska 4A, 19-120 Knyszyn
 ```
 
 **Jak to wysłać.** Listy wychodzą przez EmailLabs, a wysyłka ma dobowy
-budżet (`app/Domain/Security/DziennyBudzetListow.php`). Przy powiadomieniu
+budżet (`app/Poczta/DziennyBudzetListow.php`). Przy powiadomieniu
 wszystkich użytkowników **budżet może się skończyć w połowie** — sprawdź
 limit i ustal kolejność wysyłki, zanim naciśniesz. Komunikat na stronie
 serwisu nie zastępuje powiadomienia indywidualnego, ale jest sensownym

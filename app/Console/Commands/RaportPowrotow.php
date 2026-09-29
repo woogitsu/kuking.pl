@@ -8,6 +8,7 @@ use App\Domain\Analytics\AktywniWTygodniu;
 use App\Domain\Analytics\CookRetentionCohorts;
 use App\Domain\Analytics\DrugiWpisW7Dni;
 use App\Domain\Analytics\HistoriePrzepisow;
+use App\Domain\Analytics\PlanDoUgotowania;
 use App\Domain\Analytics\PowrotPoDniach;
 use App\Domain\Analytics\ZapisDoUgotowania;
 use App\Domain\Analytics\ZasiegUgotowalem;
@@ -79,6 +80,7 @@ class RaportPowrotow extends Command
         CookRetentionCohorts $kohorty,
         ZrobiePonownie $zrobiePonownie,
         ZapisDoUgotowania $zapisDoUgotowania,
+        PlanDoUgotowania $planDoUgotowania,
         HistoriePrzepisow $historie,
     ): int {
         $this->line('Raport powrotów — Kuking.pl');
@@ -112,6 +114,9 @@ class RaportPowrotow extends Command
 
         $this->newLine();
         $this->zapisDoUgotowania($zapisDoUgotowania);
+
+        $this->newLine();
+        $this->planDoUgotowania($planDoUgotowania);
 
         $this->newLine();
         $this->historie($historie);
@@ -261,6 +266,36 @@ class RaportPowrotow extends Command
         }
 
         $this->line("  Zapisy młodsze niż {$dni} dni: {$w['w_oknie_obserwacji']} — jeszcze w oknie, nie wliczone.");
+    }
+
+    /**
+     * Pętla „Planuję → Ugotowałem" (#27, D-310): pomiar przed decyzją o liście
+     * zakupów. Te same trzy stany co wyżej: brak planów, kohorta pusta
+     * i kohorta za mała na procent. Definicja w
+     * `App\Domain\Analytics\PlanDoUgotowania`.
+     */
+    private function planDoUgotowania(PlanDoUgotowania $planDoUgotowania): void
+    {
+        $w = $planDoUgotowania->policz();
+        $po = PlanDoUgotowania::DNI_PO_PLANIE;
+        $od = Czas::data(CarbonImmutable::parse($w['dzien_od']), 'd.m.Y');
+        $do = Czas::data(CarbonImmutable::parse($w['dzien_do']), 'd.m.Y');
+
+        $this->line("Plan → „Ugotowałem” — przepis w planerze ugotowany w dniu planu albo do {$po} dni po nim, dni planu {$od}–{$do}.");
+
+        if ($w['w_kohorcie'] === 0) {
+            $this->line($w['w_oknie_obserwacji'] === 0
+                ? '  Brak zaplanowanych przepisów — jeszcze nie da się tego policzyć.'
+                : "  Za wcześnie na wniosek: w tej kohorcie nie ma pozycji, a wszystkie nowsze nie miały jeszcze pełnego okna ({$po} dni po dniu planu).");
+        } else {
+            $procent = $w['procent'] === null
+                ? 'za mało danych (mniej niż '.PlanDoUgotowania::MINIMUM_POZYCJI.' pozycji w kohorcie)'
+                : number_format($w['procent'], 1, ',', '').'%';
+
+            $this->line("  Ugotowane z planu: {$w['ugotowane']} z {$w['w_kohorcie']} pozycji · {$procent}");
+        }
+
+        $this->line("  Pozycje z dzisiejszym, świeżym albo przyszłym dniem: {$w['w_oknie_obserwacji']} — jeszcze w oknie, nie wliczone.");
     }
 
     /** @param  array{tak: int, nie: int, brak: int, wszystkie: int, odsetek_odpowiedzi: float|null, odsetek_tak: float|null}  $w */

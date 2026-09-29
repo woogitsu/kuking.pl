@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Import\StrazImportu;
 use App\Domain\Recipes\Actions\ZapiszPrzepisZFormularza;
 use App\Domain\Recipes\Actions\ZrobWlasnaWersje;
 use App\Domain\Recipes\CoMoznaDopisac;
@@ -18,6 +19,7 @@ use App\Models\Comment;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Unit;
+use App\Support\Komunikat;
 use App\Support\OdpowiedziWatku;
 use App\Support\PaginationLinks;
 use Illuminate\Http\RedirectResponse;
@@ -226,7 +228,12 @@ class RecipeController extends Controller
 
     public function store(ZapisPrzepisuRequest $request): RedirectResponse
     {
-        $data = $request->daneZapisu();
+        $zachowaneZdjecia = $request->zachowajZdjecia();
+        try {
+            $data = $request->daneZapisu();
+        } catch (ValidationException $e) {
+            return back()->withInput($request->input())->withErrors($e->errors());
+        }
 
         // Zdjęcie z własnego wpisu (#1334) — ta sama Policy co przy wejściu
         // na formularz, sprawdzona jeszcze raz przy zapisie: identyfikator
@@ -234,7 +241,7 @@ class RecipeController extends Controller
         // z formularza ma pierwszeństwo.
         $zdjecieZWpisu = null;
 
-        if ($request->zWpisu() !== null && $request->przeslanyPlik('hero_photo') === null) {
+        if ($request->zWpisu() !== null && ! isset($zachowaneZdjecia['hero'])) {
             $wpis = Post::query()->findOrFail($request->zWpisu());
             $this->authorize('dopiszPrzepis', $wpis);
             $zdjecieZWpisu = $wpis->zdjecieDoPrzepisu()?->getKey();
@@ -244,16 +251,17 @@ class RecipeController extends Controller
             $recipe = $this->zapiszPrzepis->handle(
                 author: $request->user(),
                 dane: $data,
-                zdjecieGlowne: $request->przeslanyPlik('hero_photo'),
-                skan: $request->przeslanyPlik('source_scan'),
-                zdjeciaKrokow: $request->zdjeciaKrokow($data['steps']),
+                zdjecieGlowne: null,
+                skan: null,
+                zdjeciaKrokow: [],
                 publish: $request->input('action') !== 'draft',
                 ip: $request->ip(),
                 kluczWyslania: $this->kluczZZadania($request),
                 zdjecieGlowneZWpisu: $zdjecieZWpisu,
+                zachowaneZdjecia: $zachowaneZdjecia,
             );
         } catch (BladDlaCzlowieka $e) {
-            return back()->withInput()->withErrors(['title' => $e->getMessage()]);
+            return back()->withInput($request->input())->withErrors(['title' => $e->getMessage()]);
         }
 
         /*
@@ -268,11 +276,11 @@ class RecipeController extends Controller
         if (! $recipe->wasRecentlyCreated) {
             return redirect()
                 ->route($recipe->isPublished() ? 'recipes.show' : 'recipes.edit', $recipe)
-                ->with('status', 'Ten przepis już zapisaliśmy — to jest on. Drugie kliknięcie nie założyło drugiego przepisu.');
+                ->with(Komunikat::informacja('Ten przepis już zapisaliśmy — to jest on. Drugie kliknięcie nie założyło drugiego przepisu.'));
         }
 
         if (! $recipe->isPublished()) {
-            return redirect()->route('recipes.edit', $recipe)->with('status', 'Szkic zapisany. Możesz wrócić do niego, kiedy chcesz.');
+            return redirect()->route('recipes.edit', $recipe)->with(Komunikat::sukces('Szkic zapisany. Możesz wrócić do niego, kiedy chcesz.'));
         }
 
         /*
@@ -295,7 +303,7 @@ class RecipeController extends Controller
             $potwierdzenie .= ' Możesz jeszcze dopisać szczegóły — wybierz „Dopisz szczegóły”.';
         }
 
-        return redirect()->route('recipes.show', $recipe)->with('status', $potwierdzenie);
+        return redirect()->route('recipes.show', $recipe)->with(Komunikat::sukces($potwierdzenie));
     }
 
     public function edit(Request $request, Recipe $recipe): View
@@ -318,30 +326,40 @@ class RecipeController extends Controller
         // w kontrolerze i żeby przeniesienie walidacji go nie zgubiło.
         $this->authorize('update', $recipe);
 
-        $data = $request->daneZapisu();
-        $duplicateErrors = ExistingStepDuplicates::errors($data['steps'] ?? [], $recipe->steps()->pluck('id'));
+        $zachowaneZdjecia = $request->zachowajZdjecia();
+        try {
+            $data = $request->daneZapisu();
+        } catch (ValidationException $e) {
+            return back()->withInput($request->input())->withErrors($e->errors());
+        }
+        $duplicateErrors = ExistingStepDuplicates::errors($data['steps'], $recipe->steps()->pluck('id'));
         if ($duplicateErrors !== []) {
-            throw ValidationException::withMessages($duplicateErrors);
+            return back()->withInput($request->input())->withErrors($duplicateErrors);
         }
 
         try {
             $recipe = $this->zapiszPrzepis->handle(
                 author: $request->user(),
                 dane: $data,
-                zdjecieGlowne: $request->przeslanyPlik('hero_photo'),
-                skan: $request->przeslanyPlik('source_scan'),
-                zdjeciaKrokow: $request->zdjeciaKrokow($data['steps']),
+                zdjecieGlowne: null,
+                skan: null,
+                zdjeciaKrokow: [],
                 publish: $request->input('action') !== 'draft',
                 ip: $request->ip(),
                 existing: $recipe,
                 oczekiwanaRewizja: (int) $request->validated('content_revision'),
+                zachowaneZdjecia: $zachowaneZdjecia,
             );
         } catch (BladDlaCzlowieka $e) {
-            return back()->withInput()->withErrors(['title' => $e->getMessage()]);
+            // Brak „Sprawdziłem odczytany tekst” przy szkicu z importu (D-300)
+            // — błąd przy tym polu, nie przy nazwie przepisu (AGENTS.md §5).
+            $pole = $e->getMessage() === StrazImportu::KOMUNIKAT_SPRAWDZ ? 'sprawdzilem_odczyt' : 'title';
+
+            return back()->withInput($request->input())->withErrors([$pole => $e->getMessage()]);
         }
 
         return redirect()->route($recipe->isPublished() ? 'recipes.show' : 'recipes.edit', $recipe)
-            ->with('status', $recipe->isPublished() ? 'Przepis zapisany.' : 'Szkic zapisany.');
+            ->with(Komunikat::sukces($recipe->isPublished() ? 'Przepis zapisany.' : 'Szkic zapisany.'));
     }
 
     public function show(Request $request, string $recipe): View|RedirectResponse
@@ -591,7 +609,7 @@ class RecipeController extends Controller
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);
         }
 
-        return back()->with('status', 'Komentarz dodany.');
+        return back()->with(Komunikat::sukces('Komentarz dodany.'));
     }
 
     /**
@@ -607,9 +625,9 @@ class RecipeController extends Controller
 
         return redirect()
             ->route('recipes.create', ['szkic' => $wersja->getKey()])
-            ->with('status', $wersja->wasRecentlyCreated
-                ? 'Masz swoją wersję tego przepisu. Widzisz ją tylko Ty. Zmień to, co robisz po swojemu, i opublikuj, kiedy zechcesz.'
-                : 'Masz już rozpoczętą swoją wersję tego przepisu — to jest ona. Nic nie zginęło.');
+            ->with($wersja->wasRecentlyCreated
+                ? Komunikat::sukces('Masz swoją wersję tego przepisu. Widzisz ją tylko Ty. Zmień to, co robisz po swojemu, i opublikuj, kiedy zechcesz.')
+                : Komunikat::informacja('Masz już rozpoczętą swoją wersję tego przepisu — to jest ona. Nic nie zginęło.'));
     }
 
     public function destroy(Request $request, string $recipe): RedirectResponse
@@ -619,6 +637,6 @@ class RecipeController extends Controller
 
         $model->delete();
 
-        return redirect()->route('home')->with('status', 'Przepis usunięty.');
+        return redirect()->route('home')->with(Komunikat::sukces('Przepis usunięty.'));
     }
 }

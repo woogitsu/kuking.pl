@@ -294,10 +294,12 @@ class NumerSprawyTest extends TestCase
     {
         // `numer_sprawy` nie jest w `$fillable` — tożsamość sprawy nadaje
         // serwer, nie człowiek (AGENTS.md §7, ta sama zasada co `status`).
+        // Ciche odrzucenie jak w produkcji, nie wyjątek trybu ścisłego (#976).
+        $this->mierzMasowePrzypisanieJakWProdukcji();
         $zgloszenie = new Report;
         $zgloszenie->fill(['numer_sprawy' => 'KU-2222-3333', 'reason' => 'spam']);
 
-        $this->assertNull($zgloszenie->numer_sprawy, '`numer_sprawy` da się ustawić przez `fill()`.');
+        $this->assertNull($zgloszenie->getAttribute('numer_sprawy'), '`numer_sprawy` da się ustawić przez `fill()`.');
         $this->assertSame('spam', $zgloszenie->reason, 'Kontrola: `fill()` w ogóle działa na tym modelu.');
     }
 
@@ -335,7 +337,7 @@ class NumerSprawyTest extends TestCase
         // dostaje z haka `creating`.
         $zgloszenie = $this->zgloszeniePrawne();
 
-        $this->assertNotNull($zgloszenie->numer_sprawy, 'Zgłoszenie z `create()` nie dostało numeru.');
+        $this->assertNotNull($zgloszenie->getAttribute('numer_sprawy'), 'Zgłoszenie z `create()` nie dostało numeru.');
         $this->assertSame(
             0,
             DB::table('reports')->whereNull('numer_sprawy')->count(),

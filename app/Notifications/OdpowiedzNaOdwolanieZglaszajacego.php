@@ -41,7 +41,7 @@ final class OdpowiedzNaOdwolanieZglaszajacego extends Notification implements Sh
         // to ta sama wartość, którą zgłaszający dostał w potwierdzeniu odbioru
         // i w decyzji, a nie druga, wyliczona osobno (przed D-029 numer był
         // wyliczany z UUID-a w pięciu miejscach — i w każdym mógł się rozjechać).
-        $numer = $this->odwolanie->report?->numer_sprawy ?? '—';
+        $numer = $this->odwolanie->report->numer_sprawy ?? '—';
 
         $list = (new MailMessage)
             ->subject("Sprawdziliśmy Twoje odwołanie (sprawa nr {$numer})")

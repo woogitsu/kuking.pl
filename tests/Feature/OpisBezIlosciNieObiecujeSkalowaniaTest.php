@@ -24,7 +24,7 @@ class OpisBezIlosciNieObiecujeSkalowaniaTest extends TestCase
     public function test_pomoc_w_kreatorze_opisuje_wpisanie_skladnika_a_nie_przyszly_przelicznik(): void
     {
         Livewire::actingAs($this->user('opis741'))->test('recipe-wizard')
-            ->set('title', 'Ciasto')->call('next')
+            ->set('form.title', 'Ciasto')->call('next')
             ->assertSee('Bez ilości')
             ->assertSee('Zaznacz, jeśli nie podajesz liczby i jednostki. Sposób dozowania wpisz w nazwie składnika, np. „mleko — ile weźmie”.')
             ->assertDontSee('gdy ktoś przeliczy przepis');

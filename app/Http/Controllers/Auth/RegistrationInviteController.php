@@ -6,9 +6,10 @@ namespace App\Http\Controllers\Auth;
 
 use App\Domain\Security\ZaproszenieWSesji;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\PrzyjecieZaproszeniaRequest;
 use App\Models\RegistrationInvite;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
@@ -117,7 +118,7 @@ class RegistrationInviteController extends Controller
      * Zaproszenia TU NIE ZUŻYWAMY (patrz komentarz klasy) — kasuje je dopiero
      * utworzenie konta.
      */
-    public function przyjmij(Request $request, ZaproszenieWSesji $sesja): RedirectResponse|View
+    public function przyjmij(PrzyjecieZaproszeniaRequest $request, ZaproszenieWSesji $sesja): RedirectResponse|View
     {
         if (! self::wlaczone() || ! self::rejestracjaOtwarta()) {
             return $this->ekranNiedostepny(
@@ -127,7 +128,7 @@ class RegistrationInviteController extends Controller
             );
         }
 
-        $token = (string) $request->input('token', '');
+        $token = $request->token();
         $zaproszenie = RegistrationInvite::znajdzPoTokenie($token);
 
         if ($zaproszenie === null || ! $zaproszenie->jestWazne()) {
@@ -137,10 +138,9 @@ class RegistrationInviteController extends Controller
             // dostałoby wyrocznię „ten istniał, tamten nie". Człowiekowi i tak
             // nie zmienia to niczego: w każdym z tych przypadków ma zrobić
             // dokładnie to samo.
-            return redirect()->route('register')->with('status',
-                'To zaproszenie już nie działa — mogło wygasnąć albo zostać użyte. Nic się nie stało: '
+            return redirect()->route('register')->with(Komunikat::informacja('To zaproszenie już nie działa — mogło wygasnąć albo zostać użyte. Nic się nie stało: '
                 .'załóż konto poniżej, a adres e-mail potwierdzisz jedną wiadomością.',
-            );
+            ));
         }
 
         $sesja->zapamietaj($zaproszenie);
@@ -165,10 +165,9 @@ class RegistrationInviteController extends Controller
     {
         $sesja->zapomnij();
 
-        return redirect()->route('register')->with('status',
-            'Dobrze. Wpisz adres e-mail, na który chcesz mieć konto — wyślemy na niego wiadomość '
+        return redirect()->route('register')->with(Komunikat::sukces('Dobrze. Wpisz adres e-mail, na który chcesz mieć konto — wyślemy na niego wiadomość '
             .'z potwierdzeniem.',
-        );
+        ));
     }
 
     private function ekranNieaktualnegoZaproszenia(): View

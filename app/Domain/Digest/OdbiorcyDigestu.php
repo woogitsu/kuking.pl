@@ -29,7 +29,7 @@ use Illuminate\Support\Facades\DB;
  * logowanie linkiem (issue #25), a 100 zostawiamy wolnych na potwierdzenia
  * rejestracji i przypomnienia haseł, których nie da się przełożyć na jutro.
  * Cały rachunek stoi w `config/kuking.php`, sekcja `poczta`. Sufitu pilnuje
- * `App\Domain\Security\DziennyBudzetListow` — ta sama klasa co przy
+ * `App\Poczta\DziennyBudzetListow` — ta sama klasa co przy
  * logowaniu linkiem, żeby nie było dwóch liczników jednego wiadra.
  *
  * Kolejność to `weekly_digest_sent_at ASC NULLS FIRST`: najpierw ci, którzy

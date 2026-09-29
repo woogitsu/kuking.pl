@@ -8,6 +8,7 @@ use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\CelZgloszenia;
 use App\Domain\Moderation\ZmianaDecyzjiPoOdwolaniu;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Http\Requests\Moderation\ZgloszenieTresciRequest;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\ModerationAction;
@@ -16,6 +17,7 @@ use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\Report;
 use App\Models\User;
+use App\Support\Komunikat;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\RedirectResponse;
@@ -63,7 +65,7 @@ class ReportController extends Controller
         ]);
     }
 
-    public function store(Request $request, string $type, string $id): RedirectResponse
+    public function store(ZgloszenieTresciRequest $request, string $type, string $id): RedirectResponse
     {
         // ZAPIS ZGŁOSZENIA KONTA TYLKO PO UUID (issue #1599).
         //
@@ -74,23 +76,13 @@ class ReportController extends Controller
         // wyłącznie jako WEJŚCIE do formularza (`create()`); wysłanie pod
         // nazwą odsyła na formularz, który pokazuje, kogo dotyczy, i niesie
         // już UUID. Tekst człowieka zostaje (`withInput()`).
-        if ($type === 'user' && ! Str::isUuid($id)) {
+        if ($request->zgloszenieKontaPodNazwa()) {
             return redirect()->route('reports.create', ['type' => 'user', 'id' => $id])
                 ->withInput()
                 ->withErrors(['reason' => 'Sprawdź, czy to na pewno ta osoba, i wyślij zgłoszenie jeszcze raz. Wpisany tekst nie zginął.']);
         }
 
-        $data = $request->validate([
-            'reason' => ['required', 'string'],
-            'details' => ['nullable', 'string', 'max:2000'],
-        ], [
-            'reason.required' => 'Wybierz, co jest nie tak z tą treścią.',
-            // Bez tego wypadał szablon ogólny: „Pole «szczegóły zgłoszenia»
-            // jest za długie — może mieć najwyżej 2000 znaków." Na ekranie
-            // nie ma niczego o nazwie „szczegóły zgłoszenia" — jest pytanie
-            // „Chcesz coś dopisać?" — a zdanie nie mówiło, co zrobić.
-            'details.max' => 'To jest za długie. Zmieść się w 2000 znakach — napisz samo to, co najważniejsze.',
-        ]);
+        $data = $request->validated();
 
         try {
             $zgloszenie = $this->report->handle(
@@ -129,11 +121,10 @@ class ReportController extends Controller
          * bo to on mówi „przyjęliśmy" w chwili, w której człowiek na to
          * czeka.
          */
-        return redirect()->route('reports.mine.show', $zgloszenie)->with('status',
-            'Dziękujemy. Zgłoszenie trafiło do nas i sprawdzimy je najszybciej, jak się da. '
+        return redirect()->route('reports.mine.show', $zgloszenie)->with(Komunikat::sukces('Dziękujemy. Zgłoszenie trafiło do nas i sprawdzimy je najszybciej, jak się da. '
             .'Poniżej jest jego numer i stan — napiszemy tutaj, co postanowiliśmy. '
             .'Jeśli chcesz, możesz też zablokować tę osobę: wtedy nie zobaczycie już wzajemnie swoich treści.',
-        );
+        ));
     }
 
     /**
@@ -177,11 +168,10 @@ class ReportController extends Controller
             || ($opis !== '' && $opis !== $wczesniejszy);
 
         if (! $noweSzczegoly) {
-            return redirect()->route('reports.mine.show', $zgloszenie)->with('status',
-                'To zgłoszenie już u nas jest — sprawa '.$zgloszenie->numer_sprawy
+            return redirect()->route('reports.mine.show', $zgloszenie)->with(Komunikat::informacja('To zgłoszenie już u nas jest — sprawa '.$zgloszenie->numer_sprawy
                 .' czeka w kolejce. Nie musisz zgłaszać tej treści drugi raz; '
                 .'napiszemy tutaj, co postanowiliśmy.',
-            );
+            ));
         }
 
         // BEZ RODZAJU GRAMATYCZNEGO (`COPY_STYLE.md` §2, pilnuje
@@ -353,7 +343,7 @@ class ReportController extends Controller
             // Widoczność i tak rozstrzyga Policy w `ReportContent::authorize()`.
             'user' => Str::isUuid($id)
                 ? User::whereKey($id)->whereHas('profile')->firstOrFail()
-                : (Profile::poNazwie($id)?->user ?? abort(404)),
+                : (Profile::poNazwie($id)->user ?? abort(404)),
             default => abort(404),
         };
     }

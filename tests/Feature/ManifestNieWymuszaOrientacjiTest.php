@@ -127,7 +127,7 @@ class ManifestNieWymuszaOrientacjiTest extends TestCase
         if (! array_key_exists('orientation', $manifest)) {
             // Brak klucza = brak deklaracji = orientacja zostaje przy
             // ustawieniu systemu. To jest stan docelowy.
-            $this->assertTrue(true);
+            $this->addToAssertionCount(1);
 
             return;
         }

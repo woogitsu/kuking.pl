@@ -65,6 +65,7 @@ class StandardoweWiadomosciMarkiTest extends TestCase
             'alarm-od-czlowieka' => [new PilneZgloszenieOdCzlowieka($zgloszenie), 'Dotyczy dziecka'],
             'podsumowanie' => [new PodsumowanieKolejkiAutomatu(2, 3, ['Powód testowy' => 2]), 'Powód testowy'],
             'termin' => [new TerminOdwolaniaBlisko(1, 2, '14 września 2026'), '14 września 2026'],
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
         $list = $powiadomienie->toMail(new \stdClass);
         $html = (string) $list->render();

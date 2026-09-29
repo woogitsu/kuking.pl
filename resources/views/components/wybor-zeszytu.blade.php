@@ -1,14 +1,17 @@
-@props(['action', 'wiersz', 'content' => null])
+@props(['action', 'wiersz', 'content' => null, 'otwarty' => false])
 @php
-    $zeszyty = app(\App\Domain\Collections\ZeszytyDoWyboru::class)->dla(request());
+    $zeszyty = app(\App\Http\Support\ZeszytyZZadania::class)->dla(request());
     $aktywny = \App\Support\WierszFormularza::jestAktywny($wiersz);
     $blad = $aktywny ? $errors->first('collection_id') : null;
     $wybrany = \App\Support\WierszFormularza::stareLubDomyslne('collection_id', $wiersz, '');
     $id = 'f-collection_id-'.str_replace(['[', ']', '.'], '-', $wiersz);
 @endphp
-<details class="wybor-zeszytu" @if($blad) open @endif>
+<details class="wybor-zeszytu" @if($otwarty) id="wybor-zeszytu-{{ str_replace(['[', ']', '.'], '-', $wiersz) }}" @endif @if($blad || $otwarty) open @endif>
     <summary class="btn btn-secondary">Wybierz zeszyt</summary>
     <div class="panel-formularza mt-3">
+        @if($otwarty)
+            <p class="notice">Wybierz zeszyt, w którym zapisać ten przepis. Jeszcze niczego nie zapisaliśmy — zrobimy to dopiero po Twoim wyborze.</p>
+        @endif
         <form method="POST" action="{{ $action }}">
             @csrf
             <input type="hidden" name="_wiersz" value="{{ $wiersz }}">
@@ -24,7 +27,15 @@
                                    @if($loop->first) id="{{ $id }}" @endif required
                                    @checked($wybrany === $zeszyt->getKey())
                                    @if($blad) aria-invalid="true" aria-describedby="{{ $id }}-error" @endif>
-                            <span>{{ $zeszyt->name }}<small>{{ $zeszyt->isPublic() ? 'Widoczny dla wszystkich' : 'Tylko dla Ciebie' }}</small></span>
+                            @php
+                                // Wspólny zeszyt (#1743) podpisany nazwą właściciela.
+                                $podpisZeszytu = match (true) {
+                                    $zeszyt->owner_id !== auth()->id() => 'Wspólny zeszyt osoby '.$zeszyt->owner?->displayName(),
+                                    $zeszyt->isPublic() => 'Widoczny dla wszystkich',
+                                    default => 'Tylko dla Ciebie',
+                                };
+                            @endphp
+                            <span>{{ $zeszyt->name }}<small>{{ $podpisZeszytu }}</small></span>
                         </label>
                     @endforeach
                     @if($blad)

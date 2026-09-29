@@ -111,7 +111,8 @@ class EmailSettingsController extends Controller
         // dokładnie to, czego tu trzeba, bez własnej listy pól do pilnowania.
         if (! Hash::check($data['current_password'], $user->password)) {
             throw ValidationException::withMessages([
-                'current_password' => 'To hasło jest nieprawidłowe.',
+                // Mówi, co zrobić — nie tylko, że się nie zgadza (audyt B1, zn. 5).
+                'current_password' => 'To hasło nie pasuje do konta. Wpisz swoje obecne hasło — to, którym logujesz się dziś.',
             ]);
         }
 
@@ -137,11 +138,10 @@ class EmailSettingsController extends Controller
         // uzasadnienie jest w komentarzu tamtej klasy.
         $zamow->handle($user, $nowyAdres, $request->ip());
 
-        return redirect()->route('settings.email')->with('status',
-            "Wysłaliśmy list na adres {$nowyAdres}. Kliknij w nim odnośnik — do tego czasu logujesz się "
+        return redirect()->route('settings.email')->with(Komunikat::sukces("Wysłaliśmy list na adres {$nowyAdres}. Kliknij w nim odnośnik — do tego czasu logujesz się "
             .'starym adresem i na stary adres przychodzi link do zmiany hasła. '
             .'Na stary adres wysłaliśmy też wiadomość o tej prośbie.',
-        );
+        ));
     }
 
     /**
@@ -187,13 +187,12 @@ class EmailSettingsController extends Controller
         // kasuje stary wiersz — bez tego zostałby w tabeli jako ważna sesja.
         $request->session()->regenerate(true);
 
-        return redirect()->route('settings.email')->with('status',
-            "Gotowe. Od teraz Twoje konto ma adres {$nowyAdres} — tym adresem się logujesz i na niego "
+        return redirect()->route('settings.email')->with(Komunikat::sukces("Gotowe. Od teraz Twoje konto ma adres {$nowyAdres} — tym adresem się logujesz i na niego "
             .'przyjdzie link, gdyby trzeba było ustawić nowe hasło. Adres jest już potwierdzony. '
             .'Wylogowaliśmy wszystkie inne urządzenia zalogowane na to konto — ten komputer/telefon '
             .'zostaje zalogowany. Odnośniki do logowania i do ustawienia hasła wysłane wcześniej '
             .'na stary adres już nie działają.',
-        );
+        ));
     }
 
     /**

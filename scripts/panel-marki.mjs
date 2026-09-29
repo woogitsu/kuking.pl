@@ -6,8 +6,12 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { poczekajNaStan } from './lib/stan-ustalony.mjs';
 
-const rodziny = ['zgloszenia', 'sygnaly', 'odwolania', 'bez-odpowiedzi', 'wiadomosci', 'wiadomosc', 'kolaz-powitalny', 'kuking-na-dzis', 'tagi-promowane', 'uzytkownicy', 'uzytkownik'];
-const listy = rodziny.filter(r => !['wiadomosc', 'uzytkownik'].includes(r));
+const rodziny = ['zgloszenia', 'sygnaly', 'odwolania', 'bez-odpowiedzi', 'wiadomosci', 'wiadomosc', 'kolaz-powitalny', 'kuking-na-dzis', 'tagi-promowane', 'uzytkownicy', 'uzytkownik', 'kolejka', 'metryki', 'z-urzedu'];
+const listy = rodziny.filter(r => !['wiadomosc', 'uzytkownik', 'z-urzedu'].includes(r));
+// Ekrany otwierane z samej treści, a nie z menu panelu: „Zdejmij z urzędu” prowadzi
+// przycisk przy wpisie albo komentarzu (x-zdejmij-z-urzedu), więc żadna pozycja
+// menu nie jest bieżącym ekranem. Tu wymagamy, żeby ŻADNA nie udawała bieżącej.
+const pozaMenu = ['z-urzedu'];
 const wymagaj = (warunek, kod, dane = {}) => { if (!warunek) throw new Error(`P581_${kod} ${JSON.stringify(dane)}`); };
 
 function kompletneScenariusze(scenariusze, phase) {
@@ -260,7 +264,7 @@ export async function sprawdzDodatkoweStanyMenu({ browser, adres, sesja, outputD
       wymagaj(response.status() === 200, 'MENU_BEZ_JS_HTTP');
       wymagaj(!await page.locator('[data-panel-menu-przelacznik]').isVisible(), 'MENU_BEZ_JS_PRZYCISK');
       const links = page.locator('.side-nav-moderacja-lista a');
-      wymagaj(await links.count() === 10, 'MENU_BEZ_JS_KOMPLET');
+      wymagaj(await links.count() === 11, 'MENU_BEZ_JS_KOMPLET');
       for (const link of await links.all()) wymagaj(await link.isVisible(), 'MENU_BEZ_JS_LINK');
       await page.locator('.side-nav-moderacja-lista a').filter({ hasText: 'Tagi promowane' }).click();
       wymagaj(new URL(page.url()).pathname === '/admin/tagi-promowane', 'MENU_BEZ_JS_NAWIGACJA');
@@ -326,6 +330,31 @@ export async function sprawdzPanelMarki({ browser, adres, scenariusze, phase, ou
         const count = await page.locator(e.selector).count();
         wymagaj(count >= e.min && (e.max === undefined || count <= e.max), 'DANE', { id: s.id, selector: e.selector, count, min: e.min, max: e.max });
       }
+      /* Kompozycja treści (#581, Kolejka zadań). Dane, które administrator
+         czyta (pary podpis — wartość, liczby pod kartą), mają pismo podstawowe
+         razem ze skalą konta — nie 16 px drobnego `.meta`. Grupa (nagłówek +
+         lista) jest odsunięta od karty nad sobą i nagłówek nie skleja się
+         z tym, co opisuje. Pomiar liczy się tylko na ekranach, które mają
+         te klasy; brak klasy na ekranie, który ją deklaruje w `minimalnyTekst`,
+         oblewa jako DANE, nie jako cichy brak pomiaru. */
+      const kompozycja = await page.evaluate(({ selektory, scale }) => {
+        const tekst = selektory.map(sel => [...document.querySelectorAll(sel)].map(e => ({ sel, font: parseFloat(getComputedStyle(e).fontSize) }))).flat();
+        const grupy = [...document.querySelectorAll('main .panel-grupa')].map(g => {
+          const poprzedni = g.previousElementSibling, h2 = g.querySelector(':scope > h2');
+          const wstep = h2?.nextElementSibling;
+          return { odstepNad: poprzedni ? g.getBoundingClientRect().top - poprzedni.getBoundingClientRect().bottom : null,
+            odstepPodNaglowkiem: h2 && wstep ? wstep.getBoundingClientRect().top - h2.getBoundingClientRect().bottom : null,
+            naglowek: !!h2 };
+        });
+        return { tekst, grupy, oczekiwanyFont: 18 * scale / 100 };
+      }, { selektory: s.minimalnyTekst ?? [], scale });
+      for (const sel of s.minimalnyTekst ?? []) wymagaj(kompozycja.tekst.some(t => t.sel === sel), 'DANE', { id: s.id, selector: sel, count: 0 });
+      for (const t of kompozycja.tekst) wymagaj(t.font >= kompozycja.oczekiwanyFont - .15, 'TEKST_MIN_18', { id: s.id, ...t, oczekiwany: kompozycja.oczekiwanyFont });
+      for (const g of kompozycja.grupy) {
+        wymagaj(g.naglowek, 'GRUPA_NAGLOWEK', { id: s.id });
+        wymagaj(g.odstepNad === null || g.odstepNad >= 24, 'GRUPA_ODSTEP_NAD', { id: s.id, ...g });
+        wymagaj(g.odstepPodNaglowkiem === null || (g.odstepPodNaglowkiem >= 8 && g.odstepPodNaglowkiem <= 32), 'GRUPA_NAGLOWEK_PRZY_TRESCI', { id: s.id, ...g });
+      }
       if (s.stan === 'bramka') wymagaj(await page.locator('main .marka-panel-bramka[aria-labelledby="panel-wymaga-2fa"] #panel-wymaga-2fa').count() === 1, 'KARTA_BRAMKI');
       await sprawdzZwijaniePanelu(page);
       /* Najpierw STAN, potem pomiar (24 września 2026). Motyw i skala wchodzą
@@ -371,7 +400,8 @@ export async function sprawdzPanelMarki({ browser, adres, scenariusze, phase, ou
       const lewa = geo.desktop ? geo.nav.right + geo.body.gap : geo.body.x + geo.body.borderLeft + geo.body.paddingLeft;
       const prawa = geo.body.right - geo.body.borderRight - geo.body.paddingRight;
       wymagaj(Math.abs(geo.main.x - lewa) <= 1 && Math.abs(geo.main.right - prawa) <= 1 && geo.main.width > 0, 'SZEROKOSC_TRESCI', geo);
-      if (s.stan !== 'bramka') wymagaj(geo.active && geo.active.background === geo.tokens.active && geo.active.color === geo.tokens.activeInk, 'AKTYWNA_POZYCJA', geo);
+      if (s.stan !== 'bramka' && pozaMenu.includes(s.rodzina)) wymagaj(geo.active === null, 'POZYCJA_POZA_MENU', geo);
+      else if (s.stan !== 'bramka') wymagaj(geo.active && geo.active.background === geo.tokens.active && geo.active.color === geo.tokens.activeInk, 'AKTYWNA_POZYCJA', geo);
       const tab = await sprawdzKlawiaturePanelu(page);
       wymagaj(mutacje.length === 0, 'NIEOCZEKIWANA_MUTACJA', { metody: mutacje });
       // Raster początku strony, niezależnie od końcowej pozycji Tab.

@@ -10,6 +10,13 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Spis wydań
 
 - [Najnowsze zmiany](#najnowsze-zmiany)
+- [Alfa 0.77 — wspólny zeszyt dla rodziny i import przepisu w tle](#alfa-077)
+- [Alfa 0.76 — planer z wyszukiwarką, „Co mam w domu” i zeszyt bez konta](#alfa-076)
+- [Alfa 0.75 — szukanie w wykonaniach i pewniejsze „Ugotowałem”](#alfa-075)
+- [Alfa 0.74 — zdjęcia w formularzu i porcje przy gotowaniu](#alfa-074)
+- [Alfa 0.73 — import przepisu i wygodniejsze gotowanie](#alfa-073)
+- [Alfa 0.72 — spokojniejsze zdjęcia i powiadomienia](#alfa-072)
+- [Alfa 0.71 — przepis z kartki i koszt dania](#alfa-071)
 - [Alfa 0.70 — spokojniejsze wpisy i gotowanie](#alfa-070)
 - [Alfa 0.69 — czytelniejsze powiadomienia i wygodniejsze gotowanie](#alfa-069)
 - [Alfa 0.68 — minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu](#alfa-068)
@@ -20,10 +27,197 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 - [Alfa 0.63 — zobacz, co gotują inni pod tym tagiem](#alfa-063)
 - [Alfa 0.62 — zdjęcia i osoby przy tagach](#alfa-062)
 
-<a id="najnowsze-zmiany"></a>
 ## Najnowsze zmiany
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
+
+### Wczytajcie z powrotem własną paczkę z danymi
+
+W „Twoich danych” jest nowy odnośnik „Wczytaj swoją paczkę”. Wybieracie plik
+ZIP, który wcześniej pobraliście z Kuking, a my najpierw pokazujemy, co w nim
+jest: ile przepisów, własnych wpisów i zeszytów można wczytać, co macie już na
+koncie, co powtarza się w samej paczce i czego wczytać się nie da — z powodem
+napisanym po ludzku. Niczego nie zapisujemy, dopóki nie zaznaczycie pozycji
+i nie klikniecie „Wczytaj zaznaczone”. Wszystko, co wczytamy, jest prywatne:
+przepisy czekają w szkicach, wpisy widzicie tylko Wy, zeszyty są „Tylko ja” —
+o publikacji zdecydujecie sami, później. Zdjęć z paczki na razie nie
+przenosimy, pytań z Poradźcie też nie wczytujemy (pytanie jest zawsze publiczne,
+a wczytane treści mają zostać prywatne — w podglądzie piszemy o tym wprost), a konta,
+haseł, zgód i komentarzy innych osób nie odtwarzamy w ogóle.
+Jedno kliknięcie wczytuje najwyżej 50 pozycji, a to samo wczytanie drugi raz
+niczego nie podwoi. Wybrany plik czeka na Waszą decyzję dwie godziny, a jeśli go
+porzucicie, kasujemy go sami w nocnym sprzątaniu.
+
+## Alfa 0.77
+
+**Wspólny zeszyt dla rodziny.**
+
+### Wspólny zeszyt dla rodziny
+
+Zeszyt z przepisami możecie teraz udostępnić bliskim — na przykład mężowi,
+córce albo siostrze, z którą razem planujecie niedzielny obiad. Na ekranie
+zeszytu wybierzcie „Zaproś do wspólnego zapisywania” i wpiszcie nazwę konta tej osoby albo
+wyślijcie jej jednorazowy link. Zaproszona osoba może dopisywać i wyjmować
+przepisy oraz wpisy, a przy każdej pozycji widać, kto ją dodał.
+
+Zeszyt ma nadal jednego właściciela: tylko Wy zmieniacie jego nazwę,
+widoczność i usuwacie go. Dostęp może mieć najwyżej pięć osób, a zeszytu
+„Zapisane” nie da się udostępnić. Można w każdej chwili odebrać komuś dostęp,
+a zaproszona osoba może sama odejść — to, co dopisała, zostaje w zeszycie.
+Gdy jedna z osób zablokuje drugą albo usunie konto, wspólne zapisywanie
+między nimi się kończy.
+
+## Alfa 0.76
+
+**Wyszukiwarka w Planerze, „Co mam w domu”, zapis przepisu po rejestracji, wydruk przepisu i zeszyt bez konta.**
+
+### Szukajcie w zeszytach także po składniku
+
+Pole „Szukaj w moich zeszytach” znajduje teraz zapisane przepisy nie tylko po
+tytule, ale i po składniku — wpiszcie na przykład „cukinia”, a zobaczycie
+przepisy z Waszych zeszytów, w których cukinia jest na liście składników. Gdy
+tytuł nie zawiera wpisanego słowa, pod wynikiem stoi „Pasuje przez składnik”.
+Polskie znaki nadal nie mają znaczenia, a widzicie tylko te przepisy, które
+możecie dziś otworzyć.
+
+### Co mam w domu i co z tego ugotuję
+
+W zeszycie jest nowa sekcja „Co mam w domu”. Wpisujecie, co macie w kuchni —
+jeden produkt naraz, a pod polem pojawiają się podpowiedzi ze składników
+z przepisów. Potem wystarczy dotknąć „Co ugotuję z tego, co mam?”, żeby
+zobaczyć przepisy, do których brakuje Wam najmniej. Przy każdym stoi
+dopisek, na przykład „Masz 5 z 7 składników. Brakuje: …”. Kolejność jest
+jedna i napisana na ekranie: najpierw przepisy z najmniejszą liczbą brakujących
+składników, a przy remisie te krótsze w przygotowaniu — popularność
+przepisu nie ma na nią wpływu. Listę widzicie tylko Wy, na jednej liście może
+być do 150 produktów, a przy wymazaniu konta znika razem z nim.
+
+### Zapisz przepis do zeszytu jeszcze przed założeniem konta
+
+Czytacie przepis bez konta i chcecie go zachować? Kliknijcie „Zapisz do zeszytu”
+przy przepisie, załóżcie konto albo zalogujcie się (przycisk „Masz konto?
+Zaloguj się i zapisz”). Po pierwszych krokach wrócicie na ten sam przepis,
+z rozwiniętym wyborem zeszytu. Niczego nie zapisujemy za Was — przepis trafi
+do zeszytu dopiero wtedy, gdy sami go wybierzecie. Jeśli w międzyczasie autor
+ukryje przepis albo zmieni jego widoczność, nie otworzymy wyboru zeszytu.
+
+### Przepis do wybranego dnia prosto z Planera
+
+W Planerze przy każdym dniu tygodnia znajdziecie pole „Nazwa przepisu”.
+Wpiszcie kilka liter, kliknijcie „Szukaj przepisu” i przy znalezionym daniu
+wybierzcie „Dodaj do planu”. Nie trzeba już wchodzić na stronę przepisu.
+Po dodaniu wracacie do tego samego dnia z tą samą frazą, więc od razu możecie
+dopisać kolejne danie.
+
+### Przepis wydrukowany na kartce
+
+Przy przepisie jest przycisk „Drukuj przepis”. Otwiera od razu okno drukowania,
+a jeśli przeglądarka nie wczyta skryptu, ten sam przycisk podpowiada, jakie
+klawisze nacisnąć albo co wybrać w menu telefonu. Na kartce zostają tytuł,
+autor, adres przepisu, porcje, składniki z uwagami, wszystkie kroki i „Skąd ten
+przepis”. Menu, przyciski i komentarze nie idą na papier, a długi przepis
+mieści się na 4 stronach A4, nie na 8–9. Litery na kartce mają co najmniej
+12 punktów.
+
+### Zeszyt można pokazać bez konta
+
+Jeśli ustawicie zeszyt na „Wszyscy”, otworzy się także osobom bez konta — możecie
+wysłać link rodzinie. Osoba niezalogowana zobaczy w nim tylko publiczne przepisy
+i wpisy, a zamiast przycisków zapisu dostanie „Zaloguj się” albo „Załóż konto”.
+Zeszyt ustawiony na „Tylko ja” (także domyślny, dopóki go nie zmienicie) nadal
+widzicie tylko Wy.
+
+### Jak dobieramy wpisy
+
+Nowa strona „Jak dobieramy wpisy” opisuje każdą listę w serwisie: Start,
+„Świeżo z Kuking”, tablicę na dziś, wyszukiwarkę i tygodniowy e-mail. Mówi też
+wprost, czego nie robimy: nie układamy wpisów według popularności ani reakcji
+i nie uczymy się Waszego gustu z tego, co oglądacie. Pod nagłówkiem „Świeżo
+z Kuking” jest odnośnik „Skąd te wpisy i jak to zmienić”, a gdy kogoś ukrywacie,
+widzicie „Ukrywasz wpisy N osób. Zmień”. Pozycje na tablicy wybrane przez
+gospodarza mają napis „Wybór gospodarza”.
+
+### Inne pytania na ten temat
+
+Pod pytaniem w „Poradźcie” jest sekcja „Inne pytania na ten temat” z odnośnikami
+„Pytania:” i nazwą tagu. Prowadzą do listy pytań z tym tagiem, a nie do ogólnej strony
+tagu z daniami. Na liście tag zostaje widoczny, a odnośnik „Pokaż wszystkie
+tagi” go zdejmuje. Przycisk „Czeka na odpowiedź” zawęża pytania i nie gubi
+wybranego tagu.
+
+## Alfa 0.75
+
+**Znajdziecie swoje wcześniejsze wykonania, a „Ugotowałem” jest jeszcze pewniejsze.**
+
+### Szukajcie we własnych wykonaniach
+
+Na swoim profilu, w zakładce „Ugotowane”, jest pole „Szukaj w moich
+wykonaniach”. Wpiszcie kawałek tytułu przepisu, żeby zobaczyć tylko te razy,
+kiedy go gotowaliście — na przykład żeby porównać dzisiejszy żurek z zeszłorocznym.
+Polskie znaki nie mają znaczenia: „zurek” znajdzie „Żurek”. Wpisana fraza
+zostaje po kliknięciu „Pokaż więcej”, a gdy nic nie pasuje, dostaniecie
+podpowiedź i przycisk „Pokaż wszystkie wykonania”. Pole widać tylko na
+własnym profilu i dopiero wtedy, gdy macie już jakieś wykonania.
+
+## Alfa 0.74
+
+**Zdjęcia przy przepisie i wybrana liczba porcji zostają z Wami.**
+
+### Zdjęcia zostają po poprawieniu formularza
+
+Jeśli przy dodawaniu lub edycji przepisu wybierzecie zdjęcia, a inne pole
+wymaga poprawki, formularz pokaże wybrane już zdjęcia. Możecie poprawić tekst
+i wysłać przepis ponownie bez szukania tych samych plików w telefonie.
+
+### Wybrane porcje zostają przy gotowaniu
+
+Na stronie przepisu wybierzcie liczbę porcji przy składnikach, a potem otwórzcie
+„Gotuję”. Rozwinięta lista składników pokaże ilości przeliczone na ten wybór.
+Liczba porcji zostaje przy przechodzeniu między krokami i po rozpoczęciu od
+początku. Po zakończeniu gotowania wrócicie do przepisu z tym samym wyborem.
+
+## Alfa 0.73
+
+**Przepis ze strony lub PDF i składniki odhaczane podczas gotowania.**
+
+### Przepis ze strony lub pliku PDF
+
+Na ekranie „Dodaj przepis” możecie wkleić adres strony z przepisem albo dodać
+plik PDF. PDF z tekstem odczytujemy u siebie; skanowane strony oraz tekst strony
+bez danych przepisu mogą trafić do OpenAI tylko po zgodzie dla tego wysłania.
+Odczytana treść trafia do prywatnego szkicu, który możecie
+poprawić przed publikacją. Adres źródłowej strony zostaje przy przepisie;
+zdjęć z niej nie pobieramy. Przed publikacją potwierdzacie, że tekst został
+sprawdzony. Jeśli strona nie pozwala na pobranie przepisu, zapisujemy sam
+adres i podpowiadamy, jak wpisać treść ręcznie.
+Każda droga importu dzieli limit 5 prób dziennie i 30 miesięcznie.
+
+### Składniki odhaczane w trybie „Gotuję”
+
+Przy dłuższym przepisie łatwo zgubić się w tym, co już jest odmierzone.
+W trybie „Gotuję” rozwiń „Składniki” i dotknij składnika, który masz
+przygotowany — pojawi się przy nim „Przygotowane”, a pod listą zobaczysz, ile
+jeszcze zostało. Zaznaczenie pamięta ta karta przeglądarki, także po przejściu
+do następnego kroku. Przycisk „Wyczyść zaznaczenie składników” zaczyna listę
+od nowa i nie rusza odhaczonych kroków.
+
+## Alfa 0.72
+
+**Spokojniejsze zdjęcia i powiadomienia.**
+
+Gdy przygotowanie zdjęcia chwilowo się nie uda, wpis dalej pokaże, że zdjęcie
+jest w trakcie przygotowania. Informacja o niepowodzeniu pojawi się dopiero
+po ostatniej próbie. Nie trzeba usuwać wpisu ze zdjęciem, które może się
+jeszcze pokazać.
+
+Jeśli wpis, o którym przyszło powiadomienie „Smakowicie wygląda”, został
+usunięty, powiadomienie powie o tym zamiast prowadzić do pustej strony.
+Przy kopiowaniu tygodnia Planer poda też liczbę pominiętych pozycji spoza
+dozwolonego zakresu dat i podpowie, jaki tydzień wybrać.
+
+## Alfa 0.71
+
+**Przepis z kartki i orientacyjny koszt dania.**
 
 ### Ile może kosztować danie
 
@@ -57,7 +251,6 @@ Na stronie wpisu widać, kto tak napisał, bez pokazywania liczby reakcji.
 Autor dostanie o nich jedną wiadomość dziennie, żeby nie zagłuszały
 „Ugotowałem”.
 
-<a id="alfa-070"></a>
 ## Alfa 0.70
 
 **Spokojniejsze wpisy i gotowanie.**
@@ -69,7 +262,6 @@ Przy pustej zakładce „Ugotowane” można od razu przejść do wyszukiwarki
 przepisów. Poprawiliśmy też zachowanie wartości odżywczych po decyzji
 moderatora.
 
-<a id="alfa-069"></a>
 ## Alfa 0.69
 
 **Czytelniejsze powiadomienia i wygodniejsze gotowanie.**
@@ -135,8 +327,8 @@ różne notatki. Żeby ją usunąć, wystarczy wyczyścić pole i zapisać.
 ### Szukajcie we własnych zeszytach
 
 Na ekranie „Twój zeszyt” jest pole „Szukaj w moich zeszytach”. Wystarczy
-wpisać kawałek tytułu przepisu, żeby go znaleźć wśród swoich zapisów, bez
-pamiętania, do którego zeszytu trafił — przy każdym wyniku widać zeszyty,
+wpisać kawałek tytułu przepisu albo składnika, żeby go znaleźć wśród swoich
+zapisów, bez pamiętania, do którego zeszytu trafił — przy każdym wyniku widać zeszyty,
 w których leży. Polskie znaki nie mają znaczenia.
 
 ### Dopiszcie przepis do własnego wpisu
@@ -160,7 +352,6 @@ komunikaty błędów, bezpieczniejsza obsługa zgłoszeń i odwołań w panelu
 moderacji oraz kilka poprawek szybkości i wyszukiwania. Pełna, techniczna
 lista — jak zawsze — w `CHANGELOG.md`.
 
-<a id="alfa-068"></a>
 ## Alfa 0.68
 
 **Minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu.**
@@ -184,7 +375,6 @@ powiększone zdjęcie i wyszukiwarka działają dokładniej, a stopka, okruszki,
 komentarze i kilka ekranów moderacji mają czytelniejsze i bezpieczniejsze
 zachowanie.
 
-<a id="alfa-067"></a>
 ## Alfa 0.67
 
 **Tagi ze zdjęciami z Waszych kuchni.**
@@ -200,7 +390,6 @@ Poprawki tego wydania w jednym zdaniu: dla osób rozwijających Kuking
 kontrola przed wysłaniem zmian nauczyła się liczyć testy szybciej, bez
 wpływu na to, co widzicie na ekranie.
 
-<a id="alfa-066"></a>
 ## Alfa 0.66
 
 **Porządek w rozmowach i przygotowanie „Poradźcie”.**
@@ -216,7 +405,6 @@ Poprawki tego wydania w jednym zdaniu: formularz odpowiedzi i poprawki
 komentarza nie gubi już wpisanego tekstu przy błędzie, a usunięta odpowiedź
 z dalszą rozmową nie zawyża już licznika odpowiedzi na pytanie.
 
-<a id="alfa-065"></a>
 ## Alfa 0.65
 
 **Odnośniki prowadzą tam, gdzie obiecują.**
@@ -225,7 +413,6 @@ Same poprawki, jedno zdanie: „Poszukaj przepisów” w pustym zeszycie otwiera
 teraz wyszukiwarkę przepisów, a odnośnik do tablicy wpisów nazywa się tak
 samo, jak strona, do której prowadzi.
 
-<a id="alfa-064"></a>
 ## Alfa 0.64
 
 **Wykonania i odpowiedzi liczone uczciwie.**
@@ -234,7 +421,6 @@ Same poprawki, jedno zdanie: liczba „Ugotowałem” przy przepisie liczy teraz
 także kolejne gotowania tej samej osoby, a podpisy mówią o wykonaniach
 i odpowiedziach, a nie o liczbie osób.
 
-<a id="alfa-063"></a>
 ## Alfa 0.63
 
 **Zobaczcie, co gotują inni pod tym tagiem.**
@@ -247,7 +433,6 @@ wpisu. Najpopularniejsze tematy mają dodatkowo własną kartę ze zdjęciem
 i krótkim zaproszeniem; pozostałe wciąż znajdziecie na liście
 alfabetycznej.
 
-<a id="alfa-062"></a>
 ## Alfa 0.62
 
 **Zdjęcia i osoby przy tagach.**

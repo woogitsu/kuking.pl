@@ -10,6 +10,7 @@ use App\Domain\Reakcje\Smakowicie;
 use App\Domain\Rocznice\Urodziny;
 use App\Domain\Ukrycia\Ukrycia;
 use App\Models\Collection;
+use App\Models\CollectionInvitation;
 use App\Models\Comment;
 use App\Models\ContactMessageReply;
 use App\Models\CookedEvent;
@@ -18,6 +19,7 @@ use App\Models\MealPlanEntry;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\PostReaction;
+use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -78,6 +80,8 @@ final class CollectUserExportData
         return [
             'o_tym_pliku' => [
                 'serwis' => 'Kuking.pl',
+                // Numer układu pól — czyta go podgląd importu paczki (#1985).
+                'wersja_formatu' => WersjaFormatuPaczki::AKTUALNA,
                 'wygenerowano' => $generatedAt->toIso8601String(),
                 'format' => 'JSON, kodowanie UTF-8, daty w formacie ISO 8601',
                 // „WSZYSTKIE" BYŁO O JEDNO SŁOWO ZA DUŻO (#492).
@@ -135,7 +139,7 @@ final class CollectUserExportData
                     // #953: poświadczenia i dane wydawane tylko na żądanie.
                     // Lista tych drugich, z powodami, stoi w `kategorie_poza_paczka`.
                     .'Nie ma tu hasła, kodów weryfikacji dwuetapowej ani żadnych kluczy do logowania — nie wydajemy ich nikomu. Nie ma też danych wymienionych w „kategorie_poza_paczka”: każda ma tam powód, a wydajemy je na Twoją prośbę (patrz „jak_uzyskac_pozostale”). Tak samo na prośbę wydajemy wewnętrzne notatki moderacji i obsługi Twoich wiadomości. '
-                    .'Nie ma tu też pełnej treści cudzych przepisów odłożonych do zeszytu: z każdego z nich jest tytuł, autor, Twoja notatka i data zapisania, bez składników, kroków i zdjęć — bo to są dane osób, które te przepisy napisały. '
+                    .'Nie ma tu też pełnej treści cudzych przepisów odłożonych do zeszytu: z każdego z nich jest tytuł, autor, Twoja notatka, data zapisania i podpis, kto go dodał do zeszytu, bez składników, kroków i zdjęć — bo to są dane osób, które te przepisy napisały. '
                     .'Nie ma też przepisów ani wpisów z zeszytu, których ich autorzy już Ci nie pokazują — każdy zeszyt podaje tylko, ile takich pozycji jest, bez tytułów, autorów i Twoich notatek. '
                     .'Tak samo z innymi cudzymi danymi: nie ma komentarzy, których nie widzisz w serwisie, osób z kont zablokowanych, zamykanych albo objętych blokadą na listach obserwowanych i obserwujących (podajemy tylko, ile ich jest), a przy Twoich komentarzach i „Ugotowałem” — treści ani tytułu wpisu czy przepisu, którego autor już Ci nie pokazuje. '
                     .'Nie ma tu również zdjęć, których nie udało się przygotować do pokazania w serwisie, ani zdjęć skasowanych — te nie wejdą do żadnej paczki, także późniejszej.',
@@ -173,6 +177,10 @@ final class CollectUserExportData
             'ugotowalem' => $this->cookedEvents($user, $photos),
             'moje_komentarze' => $this->ownComments($user),
             'kolekcje' => $this->collections($user),
+            // Wspólne zeszyty (#1743, D-302) — w granicach RODO art. 15 ust. 4,
+            // patrz `sharedCollections()` i `collectionInvitations()` niżej.
+            'zeszyty_udostepnione_mi' => $this->sharedCollections($user),
+            'zaproszenia_do_zeszytow' => $this->collectionInvitations($user),
             // Ta sama granica co lista na profilu (B2-05): bez kont
             // zbanowanych, zamykanych i objętych blokadą. Relacja `follows`
             // zostaje w bazie — gdy konto wróci albo blokada zniknie, osoba
@@ -190,6 +198,7 @@ final class CollectUserExportData
             // w `InwentarzDanychKonta`, pilnuje tego test inwentarza.
             'wersje_przepisow' => $this->recipeVersions($user),
             'obserwowane_tagi' => $this->followedTags($user),
+            'co_mam_w_domu' => $this->pantry($user),
             'ukryte' => $this->hides($user),
             // „Smakowicie wygląda" (#1813, D-280): napisane przez tę osobę
             // i otrzymane pod jej wpisami. Otrzymane z nazwą konta — autor
@@ -211,7 +220,9 @@ final class CollectUserExportData
             'odwolania' => $this->appeals($user),
             // Planer tygodnia (#27, D-310).
             'planer' => $this->mealPlan($user),
+            'importy_przepisow' => $this->recipeImportOrigins($user),
             'odczyty_przepisow' => $this->recipeImports($user),
+            'proby_importu' => $this->recipeImportAttempts($user),
             'powiadomienia_poza_serwisem' => $this->externalNotifications($user),
         ];
     }
@@ -253,6 +264,30 @@ final class CollectUserExportData
         ];
     }
 
+    /**
+     * Przepisy zapisane z importu (D-300): kiedy, z jakiego źródła, z jakiego
+     * adresu i czy tekst został sprawdzony. Bez `tekst_zrodla` — to cudzy tekst
+     * ze strony, który i tak jest w szkicu (sekcja „przepisy").
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function recipeImportOrigins(User $user): array
+    {
+        return PrzepisZImportu::query()
+            ->where('user_id', $user->getKey())
+            ->orderBy('created_at')
+            ->orderBy('recipe_id')
+            ->get()
+            ->map(fn (PrzepisZImportu $wiersz): array => [
+                'przepis_id' => $wiersz->recipe_id,
+                'zrodlo' => $wiersz->zrodlo,
+                'adres_strony' => $wiersz->source_url,
+                'sprawdzony' => $this->date($wiersz->sprawdzone_at),
+                'zapisany' => $this->date($wiersz->created_at),
+            ])
+            ->all();
+    }
+
     /** @return array<string, mixed> */
     private function account(User $user): array
     {
@@ -280,6 +315,9 @@ final class CollectUserExportData
             // paczka pokazuje tu wyłącznie NAJNOWSZĄ znaną wartość.
             'ostatnio_widziany' => $this->date($user->ostatnio_widziany_at),
             'stan_zachety_instalacji' => $user->pwa_prompt_state,
+            // Wersja regulaminu, przy której zamknięto pasek „Zmieniliśmy
+            // regulamin" (#1811, D-306); `null` — żadnego jeszcze nie zamknięto.
+            'pasek_zmiany_regulaminu_zamkniety_dla_wersji' => $user->terms_notice_dismissed_version,
             // Kolumny `users` dopisane w #953 — `InwentarzDanychKonta::KOLUMNY_KONTA`.
             'rola' => $user->role,
             'status_konta_do' => $this->date($user->status_expires_at),
@@ -336,7 +374,7 @@ final class CollectUserExportData
         // Sortujemy po dacie, którą użytkownik WIDZI w paczce (publikacji,
         // a dla szkicu — utworzenia), żeby „po kolei” zgadzało się z datami.
         $recipes = $user->recipes()
-            ->with(['ingredients.ingredient', 'ingredients.unit', 'steps', ...$this->granica->relacjeKomentarzy()])
+            ->with(['ingredients.ingredient', 'ingredients.unit', 'steps', 'forkedFrom', ...$this->granica->relacjeKomentarzy()])
             // Licznik wykonań JEDNYM podzapytaniem dla wszystkich przepisów
             // (#956). `$recipe->cookedEvents()->count()` w mapperze niżej
             // robiło osobny COUNT na każdy przepis — konto z 500 przepisami
@@ -352,6 +390,9 @@ final class CollectUserExportData
             'plik_do_czytania' => 'przepisy/'.ExportFileNames::recipeFile($recipe),
             'krotki_opis' => $recipe->summary,
             'porcje' => $recipe->servings,
+            // Wybór autora musi przetrwać przeniesienie danych; brak pola
+            // odróżniałby ukrycie od domyślnej widoczności (D-299, #1993).
+            'pokazuj_wartosci_odzywcze' => (bool) $recipe->pokazuj_wartosci_odzywcze,
             // Szacunek autora w złotych za CAŁY przepis (D-286); `null` = nie podano.
             'szacunkowy_koszt_zl' => $recipe->estimated_cost_pln,
             'przygotowanie_minuty' => $recipe->prep_minutes,
@@ -602,8 +643,14 @@ final class CollectUserExportData
             // tak liczy ekran zeszytu (`recipes_total_count`), więc przepis
             // usunięty przez autora też wychodzi tu jako brak, a nie znika.
             ->withCount(['recipes as recipes_total_count' => fn ($q) => $q->withTrashed()])
+            ->with('members.profile')
             ->orderBy('created_at')
             ->get();
+
+        $podpisy = $this->podpisyDodania($user, $collections->flatMap(fn (Collection $c) => [
+            ...$c->recipes->map(fn ($r) => $r->pivot->added_by_id),
+            ...$c->posts->map(fn ($p) => $p->pivot->added_by_id),
+        ])->all());
 
         return $collections->map(fn (Collection $collection): array => [
             'nazwa' => $collection->name,
@@ -611,11 +658,15 @@ final class CollectUserExportData
             'widocznosc' => $collection->visibility,
             'domyslna' => (bool) $collection->is_default,
             'utworzono' => $this->date($collection->created_at),
+            // Wspólny zeszyt (#1743): kto poza Tobą ma dostęp — nazwa
+            // wyświetlana, jak przy obserwujących. Nigdy e-mail ani id.
+            'osoby_z_dostepem' => $collection->members->map(fn (User $czlonek): string => $czlonek->displayName())->values()->all(),
             'przepisy' => $collection->recipes->map(fn (Recipe $recipe): array => [
                 'tytul' => $recipe->title,
                 'autor' => $recipe->author?->displayName(),
                 'moja_notatka' => $recipe->pivot->note ?? null,
                 'zapisano' => $this->date($recipe->pivot->created_at ?? null),
+                'dodane_przez' => $podpisy[(string) $recipe->pivot->added_by_id] ?? 'konto usunięte',
             ])->all(),
             'wpisy' => $collection->posts->map(fn (Post $post): array => [
                 // Danie nie ma tytułu — jego treść JEST jego tożsamością,
@@ -630,6 +681,7 @@ final class CollectUserExportData
                 'opublikowano' => $this->date($post->published_at),
                 'moja_notatka' => $post->pivot->note ?? null,
                 'zapisano' => $this->date($post->pivot->created_at ?? null),
+                'dodane_przez' => $podpisy[(string) $post->pivot->added_by_id] ?? 'konto usunięte',
             ])->all(),
             'przepisow_juz_niewidocznych' => max(
                 0,
@@ -640,6 +692,147 @@ final class CollectUserExportData
                 (int) ($collection->posts_total_count ?? 0) - $collection->posts->count(),
             ),
         ])->all();
+    }
+
+    /**
+     * Podpis „dodane przez" przy pozycjach zeszytu (#1743): „ja", nazwa
+     * wyświetlana innej osoby z dostępem albo „konto usunięte" (D-302).
+     * Jedno zapytanie na całą paczkę.
+     *
+     * @param  list<mixed>  $idAutorow
+     * @return array<string, string>
+     */
+    private function podpisyDodania(User $user, array $idAutorow): array
+    {
+        $id = array_values(array_unique(array_filter(array_map(fn ($x) => $x === null ? null : (string) $x, $idAutorow))));
+        $osoby = User::query()->with('profile')->whereKey($id)->get()->keyBy(fn (User $u) => (string) $u->getKey());
+
+        $podpisy = [];
+
+        foreach ($id as $jedno) {
+            $podpisy[$jedno] = match (true) {
+                $jedno === (string) $user->getKey() => 'ja',
+                isset($osoby[$jedno]) && $osoby[$jedno]->status !== User::STATUS_ERASED => $osoby[$jedno]->displayName(),
+                default => 'konto usunięte',
+            };
+        }
+
+        return $podpisy;
+    }
+
+    /**
+     * Cudze zeszyty, do których ta osoba ma dostęp (#1743, D-302).
+     *
+     * GRANICA RODO ART. 15 UST. 4 — PRAWO DO KOPII NIE MOŻE NARUSZAĆ PRAW
+     * I WOLNOŚCI INNYCH. Zeszyt jest właściciela, więc w TEJ paczce nie ma
+     * jego zawartości w całości, tylko:
+     *  - nazwa zeszytu i nazwa wyświetlana właściciela (to, co współpracownik
+     *    widzi na ekranie i wiedział, dołączając),
+     *  - data dołączenia,
+     *  - pozycje, które TA osoba dodała — jej własna czynność — i tylko
+     *    widoczne dla niej dziś (ta sama bramka co ekran zeszytu), razem
+     *    z notatką przy nich.
+     * Pozycji dodanych przez właściciela i innych współpracowników tu nie ma:
+     * to ich decyzje o ich zeszycie, a są w paczce właściciela (`kolekcje`).
+     * Opisu zeszytu też nie ma — napisał go właściciel dla siebie.
+     *
+     * Tylko zeszyty z WAŻNYM dostępem (`dostepneDoZapisuDla`): przy banie
+     * właściciela albo blokadzie zeszyt znika z paczki tak jak z ekranu.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function sharedCollections(User $user): array
+    {
+        $mojePrzepisy = fn ($q) => $q->widoczneDla($user)
+            ->wherePivot('added_by_id', $user->getKey())
+            ->where(fn ($w) => $w
+                ->where('recipes.author_id', $user->getKey())
+                ->orWhereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()))
+            ->with('author.profile');
+        $mojeWpisy = fn ($q) => $q->widoczneDla($user)
+            ->wherePivot('added_by_id', $user->getKey())
+            ->where(fn ($w) => $w
+                ->where('posts.author_id', $user->getKey())
+                ->orWhereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()))
+            ->with('author.profile');
+
+        return Collection::query()
+            ->dostepneDoZapisuDla($user)
+            ->where('collections.owner_id', '!=', $user->getKey())
+            ->with(['owner.profile', 'recipes' => $mojePrzepisy, 'posts' => $mojeWpisy])
+            ->addSelect(['dolaczono' => DB::table('collection_members')
+                ->select('created_at')
+                ->whereColumn('collection_members.collection_id', 'collections.id')
+                ->where('collection_members.user_id', $user->getKey())
+                ->limit(1)])
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Collection $zeszyt): array => [
+                'nazwa' => $zeszyt->name,
+                'wlasciciel' => $zeszyt->owner?->displayName(),
+                'dolaczono' => $this->date($zeszyt->getAttribute('dolaczono')),
+                'dodane_przeze_mnie' => [
+                    'przepisy' => $zeszyt->recipes->map(fn (Recipe $recipe): array => [
+                        'tytul' => $recipe->title,
+                        'autor' => $recipe->author?->displayName(),
+                        'notatka' => $recipe->pivot->note ?? null,
+                        'zapisano' => $this->date($recipe->pivot->created_at ?? null),
+                    ])->all(),
+                    'wpisy' => $zeszyt->posts->map(fn (Post $post): array => [
+                        'tytul' => $post->title,
+                        'tresc' => $post->body,
+                        'autor' => $post->author?->displayName() ?? 'Konto usunięte',
+                        'notatka' => $post->pivot->note ?? null,
+                        'zapisano' => $this->date($post->pivot->created_at ?? null),
+                    ])->all(),
+                ],
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Zaproszenia do wspólnych zeszytów — wysłane i otrzymane (#1743).
+     *
+     * Art. 15 ust. 4: przy WYSŁANYCH nie podajemy, kto odmówił ani kto
+     * przyjął link — odmowa jest decyzją drugiej osoby, a lista dostępu i tak
+     * jest przy zeszycie (`osoby_z_dostepem`). Przy OTRZYMANYCH — nazwa
+     * wyświetlana zapraszającego, którą adresat widział w powiadomieniu.
+     * Token linku nie wychodzi nigdy (poświadczenie).
+     *
+     * @return array{wyslane: list<array<string, mixed>>, otrzymane: list<array<string, mixed>>}
+     */
+    private function collectionInvitations(User $user): array
+    {
+        $wyslane = CollectionInvitation::query()
+            ->where('inviter_id', $user->getKey())
+            ->with('collection')
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn (CollectionInvitation $z): array => [
+                'zeszyt' => $z->collection?->name,
+                'sposob' => $z->jestLinkiem() ? 'link' : 'po nazwie konta',
+                'stan' => $z->status,
+                'utworzono' => $this->date($z->created_at),
+                'wazne_do' => $this->date($z->expires_at),
+                'odpowiedz' => $this->date($z->responded_at),
+            ])->all();
+
+        $otrzymane = CollectionInvitation::query()
+            ->where('invitee_id', $user->getKey())
+            ->with(['collection', 'inviter.profile'])
+            ->orderBy('created_at')
+            ->get()
+            ->map(fn (CollectionInvitation $z): array => [
+                'zeszyt' => $z->collection?->name,
+                'od' => $z->inviter?->displayName(),
+                'sposob' => $z->jestLinkiem() ? 'link' : 'po nazwie konta',
+                'stan' => $z->status,
+                'utworzono' => $this->date($z->created_at),
+                'odpowiedz' => $this->date($z->responded_at),
+            ])->all();
+
+        return ['wyslane' => $wyslane, 'otrzymane' => $otrzymane];
     }
 
     /**
@@ -685,7 +878,13 @@ final class CollectUserExportData
                 'autor' => $comment->author?->displayName() ?? 'Konto usunięte',
                 'tresc' => $comment->body,
                 'napisano' => $this->date($comment->created_at),
-                'odpowiedzi' => $this->foreignComments($comment->replies),
+                // Odpowiedzi tylko z tego, co doładowała `GranicaCudzychDanych`
+                // (już przefiltrowane widocznością). Odpowiedź na odpowiedź nie
+                // istnieje, a sięgnięcie po nią leniwie robiłoby zapytanie
+                // bez tej granicy dla każdej odpowiedzi osobno (#976).
+                'odpowiedzi' => $comment->relationLoaded('replies')
+                    ? $this->foreignComments($comment->replies)
+                    : [],
             ];
         }
 
@@ -723,7 +922,9 @@ final class CollectUserExportData
         $wycinki = app(WycinkiKomentarzy::class)->zywe($notifications);
 
         return $notifications->map(function ($notification) use ($wycinki): array {
-            $data = is_array($notification->data) ? $notification->data : [];
+            /** @var mixed $surowe kolumna JSONB — kształtu nie gwarantuje rzutowanie modelu */
+            $surowe = $notification->data;
+            $data = is_array($surowe) ? $surowe : [];
             $szczegoly = array_intersect_key($data, array_flip(self::NOTIFICATION_DATA_KEYS));
 
             if (in_array($notification->type, Notification::TYPY_Z_WYCINKIEM_KOMENTARZA, true)) {
@@ -875,6 +1076,26 @@ final class CollectUserExportData
     }
 
     /**
+     * Prywatna lista „Co mam w domu” (D-285) — nazwy tak, jak je wpisano,
+     * z datą dodania. Bez kolumn generowanych (`rdzenie`, `klucz`): to są
+     * techniczne klucze porównania wyliczone z nazwy, nie informacja od osoby.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function pantry(User $user): array
+    {
+        return DB::table('pantry_items')
+            ->where('user_id', $user->getKey())
+            ->orderBy('name')
+            ->orderBy('id')
+            ->get(['name', 'created_at'])
+            ->map(fn (object $produkt): array => [
+                'produkt' => $produkt->name,
+                'dodano' => $this->date($produkt->created_at),
+            ])->all();
+    }
+
+    /**
      * Prywatne ukrycia (#1810, D-278) — co, czyje i do kiedy. Także wygasłe:
      * to wciąż dane o decyzjach tej osoby. Wpis opisany początkiem treści
      * i adresem, osoba — nazwą; bez treści cudzych wpisów w całości.
@@ -1010,6 +1231,21 @@ final class CollectUserExportData
                 'szkic_przepisu' => $zlecenie->przepis,
                 'zlecono' => $this->date($zlecenie->created_at),
                 'zakonczono' => $this->date($zlecenie->zakonczono_at),
+            ])->all();
+    }
+
+    /** Próby ze wspólnego limitu OCR/URL/PDF, bez technicznego klucza ponowienia. */
+    private function recipeImportAttempts(User $user): array
+    {
+        return DB::table('proby_importu')
+            ->where('user_id', $user->getKey())
+            ->orderBy('created_at')
+            ->get(['zrodlo', 'status', 'zgoda_ai_at', 'created_at'])
+            ->map(fn (object $proba): array => [
+                'zrodlo' => $proba->zrodlo,
+                'stan' => $proba->status,
+                'zgoda_na_odczyt_ai' => $this->date($proba->zgoda_ai_at),
+                'zlecono' => $this->date($proba->created_at),
             ])->all();
     }
 

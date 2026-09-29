@@ -13,6 +13,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Comment;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -85,8 +86,8 @@ class ZUrzeduController extends Controller
             .'z uzasadnieniem i może się odwołać.';
 
         return $decyzja->subject_user_id !== null
-            ? redirect()->route('admin.users.show', ['user' => $decyzja->subject_user_id])->with('status', $status)
-            : redirect()->route('admin.reports')->with('status', 'Treść zdjęta z urzędu. Decyzja jest w rejestrze.');
+            ? redirect()->route('admin.users.show', ['user' => $decyzja->subject_user_id])->with(Komunikat::sukces($status))
+            : redirect()->route('admin.reports')->with(Komunikat::sukces('Treść zdjęta z urzędu. Decyzja jest w rejestrze.'));
     }
 
     /**
@@ -105,7 +106,7 @@ class ZUrzeduController extends Controller
         // — `instanceof $klasa` sprawdza je w czasie wykonania, ale typu nie
         // zawęża, a `adresTresci()` woła `url()`, którego `Model` nie ma (#1731).
         if (! ($cel instanceof Post || $cel instanceof Recipe || $cel instanceof Comment)
-            || ! $cel instanceof $klasa
+            || $cel::class !== $klasa
             || ! ZdejmijZUrzedu::widocznaDlaInnych($cel)) {
             abort(404);
         }

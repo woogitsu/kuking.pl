@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Notifications;
 
+use App\Models\Collection;
+use App\Models\CollectionInvitation;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Notification;
@@ -74,13 +76,13 @@ final class CelPowiadomienia
             // a po zmianie tytułu przez przekierowanie — tu od razu bierzemy
             // aktualny. Brak przepisu = brak „Zobacz"; treść karty zostaje,
             // bo ktoś naprawdę zapisał ten przepis.
-            Notification::TYPE_SAVED => is_string($slug = $powiadomienie->slugZapisanegoPrzepisu()) && $slug !== ''
+            Notification::TYPE_SAVED => is_string($slug = $this->slugZapisanegoPrzepisu($powiadomienie)) && $slug !== ''
                 ? route('recipes.show', $slug)
                 : null,
             // Do WERSJI, nie do oryginału — oryginał odbiorca zna. Tylko gdy
             // odbiorca nadal może ją zobaczyć (autor wersji mógł ją usunąć
             // albo zawęzić); inaczej brak „Zobacz" zamiast 403 lub 404 (#23).
-            Notification::TYPE_FORKED => $powiadomienie->wersjaDoPokazania()?->url(),
+            Notification::TYPE_FORKED => $this->wersjaDoPokazania($powiadomienie)?->url(),
             // ISSUE #734: po AKTUALNYM profilu sprawcy (`actor_id`), nie po
             // `data.username` zapamiętanym w chwili obserwowania. Po zmianie
             // nazwy stara prowadziła na 404 — albo, gdy ktoś ją potem zajął,
@@ -88,6 +90,20 @@ final class CelPowiadomienia
             // profilu = brak celu, nigdy zgadywanie po starej nazwie.
             Notification::TYPE_FOLLOW => is_string($nazwa = $powiadomienie->actor?->profile?->username) && $nazwa !== ''
                 ? route('profile.show', $nazwa)
+                : null,
+            // Zaproszenie do zeszytu (#1743): na ekran odpowiedzi, dopóki
+            // da się odpowiedzieć. Odwołane, wygasłe albo już rozstrzygnięte —
+            // bez „Zobacz", treść karty mówi, co się stało.
+            Notification::TYPE_COLLECTION_INVITED => is_string($data['invitation_id'] ?? null)
+                && CollectionInvitation::query()->whereKey($data['invitation_id'])
+                    ->where('status', CollectionInvitation::STATUS_PENDING)
+                    ->where('expires_at', '>', now())
+                    ->exists()
+                ? route('collections.invitations.show', $data['invitation_id'])
+                : null,
+            Notification::TYPE_COLLECTION_JOINED => is_string($data['collection_id'] ?? null)
+                && Collection::query()->whereKey($data['collection_id'])->exists()
+                ? route('collections.sharing', $data['collection_id'])
                 : null,
             // Urodziny (#1755) — na AKTUALNY profil solenizanta, jak przy
             // obserwowaniu: po `actor_id`, nie po nazwie zapamiętanej w `data`.
@@ -99,9 +115,15 @@ final class CelPowiadomienia
             // wiersza (UUID, nie slug) i po bieżącej autoryzacji odbiorcy.
             // Brak wpisu, brak `post_id` albo brak dostępu — kolejka
             // (`Notification::pierwszyWpisNiedostepny()` mówi to człowiekowi słowami).
-            Notification::TYPE_FIRST_POST => ($wpis = $powiadomienie->pierwszyWpis()) !== null
+            // #372: gdy wpisu nie da się otworzyć, pierwsze PYTANIE wraca do
+            // zakładki pytań (w zakładce „Wpisy” pytań nie ma), a przy wyłączonej
+            // fladze pytań — bez celu zamiast martwego linku. Stare alerty bez
+            // `kind` to dania.
+            Notification::TYPE_FIRST_POST => ($wpis = $this->pierwszyWpis($powiadomienie)) !== null
                 ? route('posts.show', $wpis)
-                : route('admin.unanswered'),
+                : (($data['kind'] ?? Post::KIND_DISH) === Post::KIND_QUESTION
+                    ? (config('kuking.questions.enabled') ? route('admin.unanswered', ['typ' => 'pytania']) : null)
+                    : route('admin.unanswered')),
             // Najnowszy wpis z reakcją — autor zobaczy tam, KTO napisał (#1813).
             // ISSUE #1994: digest zapisuje `post_id` raz dziennie, a wpis
             // mógł zniknąć później (autor usuwa miękko, moderacja zdejmuje).
@@ -129,6 +151,80 @@ final class CelPowiadomienia
             Notification::TYPE_COMMENT, Notification::TYPE_REPLY => $this->adresKomentarza($powiadomienie, $data),
             default => is_string($data['url'] ?? null) && $data['url'] !== '' ? $data['url'] : null,
         };
+    }
+
+    /**
+     * Wpis z `post.first`, o ile istnieje i odbiorca może go dziś zobaczyć
+     * (`PostPolicy::view()`) — issue #1371. Przeniesione z modelu 1:1
+     * (issue #1687, etap 6).
+     */
+    public function pierwszyWpis(Notification $powiadomienie): ?Post
+    {
+        $id = ($powiadomienie->data ?? [])['post_id'] ?? null;
+
+        if ($powiadomienie->type !== Notification::TYPE_FIRST_POST || ! is_string($id) || ! Str::isUuid($id) || $powiadomienie->user === null) {
+            return null;
+        }
+
+        $post = Post::query()->find($id);
+
+        return $post !== null && Gate::forUser($powiadomienie->user)->allows('view', $post) ? $post : null;
+    }
+
+    /**
+     * Wersja przepisu z `data.fork_id`, jeśli odbiorca może ją dziś zobaczyć
+     * (issue #23). `fork_id` nie jest kluczem obcym — powiadomienie zostaje
+     * jako prawdziwe zdarzenie także po usunięciu wersji, tylko bez „Zobacz".
+     * Wynik jest podręczny na powiadomieniu (`zapamietajWersjePrzepisu()`).
+     */
+    public function wersjaDoPokazania(Notification $powiadomienie): ?Recipe
+    {
+        if ($powiadomienie->type !== Notification::TYPE_FORKED) {
+            return null;
+        }
+
+        if ($powiadomienie->zapamietanaWersjaPrzepisu() !== false) {
+            return $powiadomienie->zapamietanaWersjaPrzepisu();
+        }
+
+        $id = ($powiadomienie->data ?? [])['fork_id'] ?? null;
+        $wersja = is_string($id) && Str::isUuid($id) ? Recipe::query()->find($id) : null;
+
+        if ($wersja !== null && ($powiadomienie->user === null || ! Gate::forUser($powiadomienie->user)->allows('view', $wersja))) {
+            $wersja = null;
+        }
+
+        $powiadomienie->zapamietajWersjePrzepisu($wersja);
+
+        return $wersja;
+    }
+
+    /**
+     * Aktualny slug zapisanego przepisu albo `null`, gdy przepisu nie ma
+     * (issue #1034). Lista podaje wynik zbiorczo (`zapamietajSlugPrzepisu()`),
+     * pojedyncze wywołanie pyta bazę raz.
+     */
+    public function slugZapisanegoPrzepisu(Notification $powiadomienie): ?string
+    {
+        $zapamietany = $powiadomienie->zapamietanySlugPrzepisu();
+
+        if ($zapamietany !== false) {
+            return $zapamietany;
+        }
+
+        $id = ($powiadomienie->data ?? [])['recipe_id'] ?? null;
+
+        // Nie-UUID nie trafi w żaden przepis (a PostgreSQL odrzuciłby je
+        // błędem rzutowania). `Recipe` ma `SoftDeletes`, więc usunięty
+        // przepis nie wraca tym zapytaniem.
+        $slug = is_string($id) && Str::isUuid($id)
+            ? Recipe::query()->whereKey($id)->value('slug')
+            : null;
+
+        $slug = is_string($slug) ? $slug : null;
+        $powiadomienie->zapamietajSlugPrzepisu($slug);
+
+        return $slug;
     }
 
     /**

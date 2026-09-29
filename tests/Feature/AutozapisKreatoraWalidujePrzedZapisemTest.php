@@ -20,8 +20,8 @@ class AutozapisKreatoraWalidujePrzedZapisemTest extends TestCase
     {
         $tekst = str_repeat('a', 181);
         $component = Livewire::actingAs($this->user('autozapis528'))
-            ->test('recipe-wizard')->set('title', $tekst)
-            ->assertHasErrors('title')->assertSet('title', $tekst)
+            ->test('recipe-wizard')->set('form.title', $tekst)
+            ->assertHasErrors('form.title')->assertSet('form.title', $tekst)
             ->assertSet('recipeId', null)->assertSet('saveState', 'error')
             ->assertSee('Skróć ją do 180 znaków.')
             ->assertSee('Nie zapisaliśmy tych zmian.');
@@ -31,30 +31,30 @@ class AutozapisKreatoraWalidujePrzedZapisemTest extends TestCase
         $doc = new \DOMDocument;
         @$doc->loadHTML('<?xml encoding="utf-8" ?>'.$component->html());
         $xpath = new \DOMXPath($doc);
-        $this->assertSame($tekst, self::elementDom($xpath->query('//input[@id="f-title"]')->item(0))->getAttribute('value'));
-        $this->assertSame('true', self::elementDom($xpath->query('//input[@id="f-title"]')->item(0))->getAttribute('aria-invalid'));
-        $component->set('title', '')->assertHasNoErrors('title')->assertSet('saveState', 'waiting');
+        $this->assertSame($tekst, self::elementDom($xpath->query('//input[@id="f-form-title"]')->item(0))->getAttribute('value'));
+        $this->assertSame('true', self::elementDom($xpath->query('//input[@id="f-form-title"]')->item(0))->getAttribute('aria-invalid'));
+        $component->set('form.title', '')->assertHasNoErrors('form.title')->assertSet('saveState', 'waiting');
         $this->assertDatabaseCount('recipes', 0);
-        $component->set('title', str_repeat('a', 180))->assertHasNoErrors('title')->assertSet('saveState', 'saved');
+        $component->set('form.title', str_repeat('a', 180))->assertHasNoErrors('form.title')->assertSet('saveState', 'saved');
         $this->assertSame(str_repeat('a', 180), Recipe::sole()->title);
     }
 
     public static function granice(): array
     {
         return [
-            'tytuł' => ['title', str_repeat('a', 181), 'Dobry tytuł'],
-            'opis' => ['summary', str_repeat('a', 2001), 'Dobry opis'],
-            'osoba' => ['source_person', str_repeat('a', 121), 'Od babci'],
-            'historia' => ['source_note', str_repeat('a', 2001), 'Historia'],
-            'długi adres' => ['source_url', 'https://example.com/'.str_repeat('a', 2001), 'https://example.com/'],
-            'niedokończony adres' => ['source_url', 'https://', 'https://example.com/'],
-            'porcje' => ['servings', '1000', '4'],
-            'przygotowanie' => ['prep_minutes', '10081', '10'],
-            'gotowanie' => ['cook_minutes', '-1', '20'],
-            'rok' => ['family_since_year', '2101', '2000'],
-            'trudność' => ['difficulty', 'inna', 'easy'],
-            'widoczność' => ['visibility', 'inna', 'private'],
-            'pochodzenie' => ['source_type', 'inne', 'family'],
+            'tytuł' => ['form.title', str_repeat('a', 181), 'Dobry tytuł'],
+            'opis' => ['form.summary', str_repeat('a', 2001), 'Dobry opis'],
+            'osoba' => ['form.source_person', str_repeat('a', 121), 'Od babci'],
+            'historia' => ['form.source_note', str_repeat('a', 2001), 'Historia'],
+            'długi adres' => ['form.source_url', 'https://example.com/'.str_repeat('a', 2001), 'https://example.com/'],
+            'niedokończony adres' => ['form.source_url', 'https://', 'https://example.com/'],
+            'porcje' => ['form.servings', '1000', '4'],
+            'przygotowanie' => ['form.prep_minutes', '10081', '10'],
+            'gotowanie' => ['form.cook_minutes', '-1', '20'],
+            'rok' => ['form.family_since_year', '2101', '2000'],
+            'trudność' => ['form.difficulty', 'inna', 'easy'],
+            'widoczność' => ['form.visibility', 'inna', 'private'],
+            'pochodzenie' => ['form.source_type', 'inne', 'family'],
             'składnik' => ['ingredients.0.text', str_repeat('a', 241), 'Mleko'],
             'grupa' => ['ingredients.0.group_name', str_repeat('a', 121), 'Ciasto'],
             'uwaga' => ['ingredients.0.note', str_repeat('a', 301), 'Świeże'],
@@ -67,7 +67,7 @@ class AutozapisKreatoraWalidujePrzedZapisemTest extends TestCase
     public function test_bledna_aktualizacja_zostawia_caly_tekst_i_poprzedni_dobry_szkic(string $pole, string $zle, string $dobrze): void
     {
         $component = Livewire::actingAs($this->user('granice528'))->test('recipe-wizard')
-            ->set('title', 'Poprzedni dobry szkic')->set('summary', 'Poprzedni opis')
+            ->set('form.title', 'Poprzedni dobry szkic')->set('form.summary', 'Poprzedni opis')
             ->set('ingredients.0.text', 'Mleko')->set('steps.0.instruction', 'Podgrzej.')
             ->assertSet('saveState', 'saved');
         $recipe = Recipe::sole();
@@ -89,7 +89,7 @@ class AutozapisKreatoraWalidujePrzedZapisemTest extends TestCase
     public function test_dalej_nie_chowa_blednego_wiersza_a_poprawka_odblokowuje_przejscie(): void
     {
         $component = Livewire::actingAs($this->user('dalej528'))->test('recipe-wizard')
-            ->set('title', 'Dobry szkic')->set('step', 2)
+            ->set('form.title', 'Dobry szkic')->set('step', 2)
             ->set('ingredients.0.note', str_repeat('a', 301))
             ->call('next')->assertSet('step', 2)->assertHasErrors('ingredients.0.note');
         $component->set('ingredients.0.note', 'Dobra uwaga')->call('next')->assertSet('step', 3)->assertHasNoErrors();
@@ -107,7 +107,7 @@ class AutozapisKreatoraWalidujePrzedZapisemTest extends TestCase
     public function test_po_cofnieciu_dalej_pozwala_dotrzec_do_blednego_pola(int $step, string $pole, string $tekst): void
     {
         $component = Livewire::actingAs($this->user('powrot528'))->test('recipe-wizard')
-            ->set('title', 'Dobry szkic')->set('step', $step);
+            ->set('form.title', 'Dobry szkic')->set('step', $step);
         $before = $this->snapshot();
         $component->set($pole, $tekst)->assertSet('step', $step)
             ->call('back')->assertSet('step', $step - 1)

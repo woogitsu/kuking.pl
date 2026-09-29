@@ -1,4 +1,20 @@
-<x-layout :title="$collection->name" :noindex="! $collection->isPublic()">
+{{--
+    OPIS DLA WYSZUKIWARKI I PODGLĄDU LINKU (issue #965). Publiczny zeszyt jest
+    od tej zmiany dostępny bez konta, więc trafia do indeksu i do podglądów
+    linków wysłanych rodzinie. Prywatny ma `noindex` i opisu nie potrzebuje —
+    nie oddajemy go nawet w nagłówku strony.
+--}}
+@php
+    $opisStrony = $collection->isPublic()
+        ? \Illuminate\Support\Str::limit(
+            trim((string) $collection->description) !== ''
+                ? trim((string) $collection->description)
+                : 'Zeszyt „'.$collection->name.'” — przepisy i wpisy zebrane'.($collection->owner ? ' przez '.$collection->owner->displayName() : '').' w Kuking.',
+            160,
+        )
+        : null;
+@endphp
+<x-layout :title="$collection->name" :noindex="! $collection->isPublic()" :description="$opisStrony">
     {{--
         PRAWA SZYNA (issue #205): pozostałe zeszyty tej samej osoby.
 
@@ -52,8 +68,38 @@
         <p>{{ $collection->description }}</p>
     @endif
     <p class="meta mb-5">
-        {{ $collection->isPublic() ? 'Ten zeszyt widzą wszyscy.' : 'Ten zeszyt widzisz tylko Ty.' }}
+        @if($collection->isPublic())
+            Ten zeszyt widzą wszyscy.
+        @elseif($jestWspolpracownikiem)
+            Ten zeszyt widzą tylko jego właściciel i zaproszone osoby.
+        @elseif($czlonkowie->isNotEmpty())
+            Ten zeszyt widzisz Ty i osoby zaproszone do wspólnego zapisywania.
+        @else
+            Ten zeszyt widzisz tylko Ty.
+        @endif
     </p>
+
+    {{--
+        WSPÓLNY ZESZYT (#1743, D-302). Kto ma dostęp — tylko osobom, które
+        same go mają; obcy oglądający publiczny zeszyt nie dowiaduje się,
+        że ktoś poza właścicielem w nim zapisuje.
+    --}}
+    @if($jestWspolpracownikiem)
+        <section class="notice mb-5" data-wspolny-zeszyt>
+            <p class="m-0">To jest zeszyt osoby <strong>{{ $collection->owner?->displayName() }}</strong>. Możesz w nim zapisywać i wyjmować przepisy oraz wpisy.</p>
+            <div class="mt-3">
+                <x-confirm-button
+                    :action="route('collections.leave', $collection)"
+                    label="Odejdź z tego zeszytu"
+                    question="Odejść z tego zeszytu? Stracisz do niego dostęp. To, co w nim zapisano, zostanie u właściciela." />
+            </div>
+        </section>
+    @elseif($czlonkowie->isNotEmpty())
+        <p class="mb-5" data-wspolny-zeszyt>
+            Wspólny zeszyt. Dostęp {{ $czlonkowie->count() === 1 ? 'ma' : 'mają' }} też:
+            {{ $czlonkowie->map(fn ($czlonek) => $czlonek->displayName())->join(', ') }}.
+        </p>
+    @endif
     {{-- Błąd notatki (#978) ma własny worek, żeby nie mieszać się z błędem
          wyboru zeszytu, który layout pokazuje osobno. --}}
     <x-error-summary :error-bag="\App\Domain\Collections\Actions\UpdateCollectionItemNote::WOREK_BLEDOW" />
@@ -69,7 +115,16 @@
                          ma swoją notatkę (#978). --}}
                     <div class="marka-zeszyt-pozycja">
                         <x-recipe-card :recipe="$recipe" uklad="kafel" />
-                        <x-notatka-zapisu :zeszyt="$collection" typ="przepis" :pozycja="$recipe" />
+                        @if($wspolny)
+                            <p class="meta mt-2" data-kto-dodal>Dodane przez: {{ $podpisyDodania[(string) $recipe->pivot->added_by_id] ?? 'osoba, która usunęła konto' }}</p>
+                            <form method="POST" action="{{ route('collections.unsave', $recipe->slug) }}" class="mt-2">
+                                @csrf
+                                @method('DELETE')
+                                <input type="hidden" name="collection_id" value="{{ $collection->getKey() }}">
+                                <button class="btn btn-secondary" type="submit" data-rola="wyjmij-z-tego-zeszytu">Usuń z tego zeszytu</button>
+                            </form>
+                        @endif
+                        <x-notatka-zapisu :zeszyt="$collection" typ="przepis" :pozycja="$recipe" :dostep="$dostepDoNotatek" :wspolny="$wspolny" />
                     </div>
                 @endforeach
             </div>
@@ -88,7 +143,10 @@
                          przycisk usuwający TYLKO stąd (issue #775, #776). --}}
                     <div class="marka-zeszyt-pozycja">
                         <x-post-card :post="$post" :zeszyt="$collection" />
-                        <x-notatka-zapisu :zeszyt="$collection" typ="wpis" :pozycja="$post" />
+                        @if($wspolny)
+                            <p class="meta mt-2" data-kto-dodal>Dodane przez: {{ $podpisyDodania[(string) $post->pivot->added_by_id] ?? 'osoba, która usunęła konto' }}</p>
+                        @endif
+                        <x-notatka-zapisu :zeszyt="$collection" typ="wpis" :pozycja="$post" :dostep="$dostepDoNotatek" :wspolny="$wspolny" />
                     </div>
                 @endforeach
             </div>
@@ -128,6 +186,24 @@
         @endif
     @endif
 
+    @guest
+        {{--
+            GOŚĆ NIE DOSTAJE ŻADNEJ AKCJI ZA LOGOWANIEM (issue #965).
+
+            Zeszyt „Wszyscy" otwiera się bez konta, ale zapisywanie i własne
+            zeszyty wymagają konta. Zamiast przycisku, który przerzuca
+            na logowanie bez słowa wyjaśnienia, mówimy wprost, co trzeba zrobić.
+        --}}
+        <section class="panel-formularza mt-8" data-rola="zeszyt-gosc">
+            <h2>Chcesz mieć własny zeszyt?</h2>
+            <p>Zaloguj się albo załóż konto, a zapiszesz ulubione przepisy we własnym zeszycie.</p>
+            <div class="form-actions">
+                <a class="btn btn-primary" href="{{ route('login') }}">Zaloguj się</a>
+                <a class="btn btn-secondary" href="{{ route('register') }}">Załóż konto</a>
+            </div>
+        </section>
+    @endguest
+
     @if(auth()->id() === $collection->owner_id)
         {{--
             COFNIĘCIE PUBLICZNEGO UDOSTĘPNIENIA BEZ KASOWANIA ZESZYTU (#777).
@@ -139,6 +215,10 @@
             widoczności nie wymaga już utraty niczego innego.
         --}}
         <a class="btn btn-secondary mt-6" href="{{ route('collections.edit', $collection) }}">Edytuj zeszyt</a>
+        @unless($collection->is_default)
+            {{-- Wspólne zapisywanie z bliską osobą (#1743). --}}
+            <a class="btn btn-secondary mt-6" href="{{ route('collections.sharing', $collection) }}">Zaproś do wspólnego zapisywania</a>
+        @endunless
     @endif
 
     @if(auth()->id() === $collection->owner_id && ! $collection->is_default)
@@ -146,7 +226,7 @@
             <x-confirm-button
                 :action="route('collections.destroy', $collection)"
                 label="Usuń ten zeszyt"
-                :question="'Usunąć zeszyt „'.$collection->name.'”? Same przepisy zostaną — znikną tylko z tego zeszytu.'" />
+                :question="'Usunąć zeszyt „'.$collection->name.'”? Same przepisy zostaną — znikną tylko z tego zeszytu.'.($czlonkowie->isNotEmpty() ? ' Zaproszone osoby stracą do niego dostęp.' : '')" />
         </div>
     @endif
     </div>

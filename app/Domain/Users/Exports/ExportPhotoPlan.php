@@ -215,7 +215,7 @@ final class ExportPhotoPlan
 
         foreach ($user->cookedEvents()->with(['media', 'recipe'])->get() as $event) {
             foreach ($event->media as $photo) {
-                $labels[(string) $photo->getKey()] ??= (string) ($event->recipe?->title ?? 'ugotowane');
+                $labels[(string) $photo->getKey()] ??= (string) ($event->recipe->title ?? 'ugotowane');
             }
         }
 
@@ -252,7 +252,7 @@ final class ExportPhotoPlan
     {
         $fromKey = pathinfo($photo->object_key, PATHINFO_EXTENSION);
 
-        if (is_string($fromKey) && preg_match('/^[a-zA-Z0-9]{2,5}$/', $fromKey) === 1) {
+        if (preg_match('/^[a-zA-Z0-9]{2,5}$/', $fromKey) === 1) {
             return Str::lower($fromKey);
         }
 

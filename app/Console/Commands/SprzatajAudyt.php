@@ -38,6 +38,7 @@ class SprzatajAudyt extends Command
             : "Skasowano {$wynik['skasowano']} wpisów audytu starszych niż {$miesiace} miesięcy.");
 
         $this->line("Pominięto jako niekasowalne (dowód RODO/DSA — AuditLogEntry::NIGDY_NIE_KASUJ): {$wynik['niekasowalne']}.");
+        $this->line(($naSucho ? 'Do wyczyszczenia' : 'Wyczyszczono')." skrót IP we wpisach dowodowych starszych niż {$miesiace} miesięcy: {$wynik['wyczyszczono_ip']}.");
 
         return self::SUCCESS;
     }

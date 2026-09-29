@@ -119,7 +119,7 @@ final class BledyApi
      */
     private static function zdanieZPolicy(HttpExceptionInterface $e): ?string
     {
-        $poprzedni = $e instanceof Throwable ? $e->getPrevious() : null;
+        $poprzedni = $e->getPrevious();
 
         if (! $poprzedni instanceof AuthorizationException) {
             return null;

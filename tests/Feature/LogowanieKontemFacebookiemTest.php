@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Actions\ZalozoneKonto;
+use App\Models\Recipe;
 use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Notifications\PotwierdzenieAdresu;
@@ -312,10 +313,10 @@ class LogowanieKontemFacebookiemTest extends TestCase
         // uprawnienia są jedynymi, których Meta nie każe uzasadniać
         // w przeglądzie aplikacji — każde dodatkowe to punkt na ekranie
         // zgody, na którym osoba 60+ ma prawo wyjść.
-        $this->assertSame('public_profile,email', $parametry['scope'] ?? null);
+        $this->assertSame('public_profile,email', $parametry['scope']);
 
         foreach (['user_friends', 'user_photos', 'pages', 'publish', 'user_birthday', 'user_gender'] as $czego) {
-            $this->assertStringNotContainsString($czego, (string) ($parametry['scope'] ?? ''));
+            $this->assertStringNotContainsString($czego, (string) $parametry['scope']);
         }
 
         // SEKRET NIE WYCHODZI DO PRZEGLĄDARKI CZŁOWIEKA. Nigdy.
@@ -681,6 +682,8 @@ class LogowanieKontemFacebookiemTest extends TestCase
     #[Test]
     public function test_nowe_konto_z_facebooka_ma_adres_niepotwierdzony(): void
     {
+        $przepis = Recipe::factory()->create();
+        $this->get(route('register', ['comment_on' => 'recipe:'.$przepis->getKey()]))->assertOk();
         $this->wlaczFacebooka();
         $this->wracamyZFacebooka();
 
@@ -696,6 +699,9 @@ class LogowanieKontemFacebookiemTest extends TestCase
         $this->assertNotNull($basia);
         $this->assertAuthenticatedAs($basia);
         $this->assertSame(self::FB_ID, $this->identyfikatorFacebooka($basia));
+
+        $this->post(route('onboarding.skip'))->assertRedirect(route('onboarding.done'));
+        $this->get(route('onboarding.done'))->assertRedirect($przepis->url().'#komentarze');
 
         // TO JEST TA JEDNA RÓŻNICA WZGLĘDEM GOOGLE (D-098).
         $this->assertNull($basia->email_verified_at,

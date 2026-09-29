@@ -52,4 +52,50 @@ class QuestionIndexTest extends TestCase
         $this->get('/pytania?tag='.$tag->slug)->assertNotFound();
         $this->getJson('/pytania?filtr=ranking')->assertUnprocessable();
     }
+
+    public function test_guest_reaches_tag_filter_by_link_from_question_and_keeps_it_with_unanswered(): void
+    {
+        config(['kuking.questions.enabled' => true]);
+        $tag = Tag::factory()->create(['name' => 'Zupy domowe']);
+        $hidden = Tag::factory()->hidden()->create(['name' => 'Ukryty temat']);
+        $question = Post::factory()->question()->create(['title' => 'Jak uratować przesoloną zupę?']);
+        $question->tags()->attach([$tag->id => ['position' => 0], $hidden->id => ['position' => 1]]);
+        $answered = Post::factory()->question()->create(['title' => 'Czym zagęścić zupę krem?']);
+        $answered->tags()->attach($tag);
+        Comment::factory()->create(['post_id' => $answered->id]);
+        $untagged = Post::factory()->question()->create(['title' => 'Jak długo wyrabiać ciasto?']);
+        $dish = Post::factory()->create(['body' => 'Rosół z niedzieli, tag zupy domowe']);
+        $dish->tags()->attach($tag);
+
+        $page = $this->get(route('questions.show', $question))->assertOk()
+            ->assertSee('Inne pytania na ten temat')
+            ->assertSee('Pytania: Zupy domowe')
+            ->assertDontSee('Pytania: Ukryty temat')
+            ->getContent();
+        $this->assertSame(1, preg_match('/<a class="chip" href="([^"]+)">Pytania: Zupy domowe<\/a>/', $page, $link));
+        $href = html_entity_decode($link[1]);
+        $this->assertSame(route('questions.index', ['tag' => $tag->slug]), $href);
+
+        // Zwykły link z HTML, nie ręcznie złożony adres.
+        $list = $this->get($href)->assertOk()
+            ->assertSee($question->title)->assertSee($answered->title)
+            ->assertDontSee($untagged->title)
+            ->assertSee('Tag: Zupy domowe.')
+            ->assertSee('<input type="hidden" name="tag" value="'.$tag->slug.'">', false)
+            ->assertSee('href="'.e(route('questions.index', ['filtr' => 'najnowsze'])).'"', false)
+            ->getContent();
+        $this->assertSame(1, preg_match('/id="pytania-bez-odpowiedzi"[^>]*href="([^"]+)"/', $list, $queue));
+
+        $this->get(html_entity_decode($queue[1]))->assertOk()
+            ->assertSee($question->title)->assertDontSee($answered->title)
+            ->assertDontSee($untagged->title)->assertSee('Tag: Zupy domowe.');
+    }
+
+    public function test_question_without_active_tags_has_no_tag_filter_section(): void
+    {
+        config(['kuking.questions.enabled' => true]);
+        $question = Post::factory()->question()->create();
+        $question->tags()->attach(Tag::factory()->hidden()->create());
+        $this->get(route('questions.show', $question))->assertOk()->assertDontSee('Inne pytania na ten temat');
+    }
 }

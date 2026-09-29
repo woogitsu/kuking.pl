@@ -175,7 +175,7 @@ class SprawdzZdjeciaPoPrzenosinach extends Command
     {
         $doSprawdzenia = [];
 
-        if ($zdjecie->object_key !== null && $zdjecie->object_key !== '') {
+        if ($zdjecie->object_key !== '') {
             $doSprawdzenia[] = ['co' => 'oryginał', 'klucz' => $zdjecie->object_key, 'dysk' => $zdjecie->disk];
         }
 

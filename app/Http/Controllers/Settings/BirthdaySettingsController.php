@@ -8,6 +8,7 @@ use App\Domain\Rocznice\Urodziny;
 use App\Domain\Users\Actions\UstawUrodziny;
 use App\Domain\Users\Actions\ZapiszWyboryUrodzin;
 use App\Http\Controllers\Controller;
+use App\Support\Komunikat;
 use Closure;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -58,7 +59,7 @@ class BirthdaySettingsController extends Controller
 
         $urodziny->zapisz($request->user(), (int) $dane['birthday_day'], (int) $dane['birthday_month']);
 
-        return back()->with('status', 'Zapisane.');
+        return back()->with(Komunikat::sukces('Zapisane.'));
     }
 
     /**
@@ -90,13 +91,13 @@ class BirthdaySettingsController extends Controller
             $request->boolean('birthday_visible_to_followers'),
         );
 
-        return back()->with('status', 'Zapisane.');
+        return back()->with(Komunikat::sukces('Zapisane.'));
     }
 
     public function destroy(Request $request, UstawUrodziny $urodziny): RedirectResponse
     {
         $urodziny->usun($request->user());
 
-        return redirect()->route('settings.birthday')->with('status', 'Data urodzin usunięta.');
+        return redirect()->route('settings.birthday')->with(Komunikat::sukces('Data urodzin usunięta.'));
     }
 }

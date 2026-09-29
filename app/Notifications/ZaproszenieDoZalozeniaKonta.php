@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Models\RegistrationInvite;
+use App\Poczta\ListZarezerwowany;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -93,7 +94,7 @@ final class ZaproszenieDoZalozeniaKonta extends Notification implements ShouldBe
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return ListZarezerwowany::oznacz(new MailMessage)
             /*
              * TEMAT BEZ SŁOWA „LINK" I BEZ TRYBU ROZKAZUJĄCEGO.
              *

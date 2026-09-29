@@ -16,6 +16,7 @@ use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Rules\ObslugiwaneZdjecie;
+use App\Support\Komunikat;
 use App\Support\LimityZdjec;
 use App\Support\OdpowiedziWatku;
 use Illuminate\Http\RedirectResponse;
@@ -266,18 +267,15 @@ class CookedEventController extends Controller
             return $this->odpowiedzNaPonowienie($event);
         }
 
-        return redirect()->route('cooked.show', $event)->with('status',
-            'Wykonanie zapisane.',
-        );
+        return redirect()->route('cooked.show', $event)->with(Komunikat::sukces('Wykonanie zapisane.',
+        ));
     }
 
     private function odpowiedzNaPonowienie(CookedEvent $event): RedirectResponse
     {
-        return redirect()->route('cooked.show', $event)->with(
-            'status',
-            'To wykonanie już zapisaliśmy. '
+        return redirect()->route('cooked.show', $event)->with(Komunikat::informacja('To wykonanie już zapisaliśmy. '
             .'Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
-        );
+        ));
     }
 
     /**
@@ -480,10 +478,8 @@ class CookedEventController extends Controller
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);
         }
 
-        return redirect()->route('cooked.show', $cookedEvent)->with(
-            'status',
-            $cookedEvent->user->displayName().' dostanie Twoje podziękowanie.',
-        );
+        return redirect()->route('cooked.show', $cookedEvent)->with(Komunikat::sukces($cookedEvent->user->displayName().' dostanie Twoje podziękowanie.',
+        ));
     }
 
     public function comment(Request $request, CookedEvent $cookedEvent): RedirectResponse
@@ -534,7 +530,7 @@ class CookedEventController extends Controller
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);
         }
 
-        return back()->with('status', 'Komentarz dodany.');
+        return back()->with(Komunikat::sukces('Komentarz dodany.'));
     }
 
     public function destroy(Request $request, CookedEvent $cookedEvent): RedirectResponse
@@ -556,18 +552,18 @@ class CookedEventController extends Controller
         if ($recipe === null || $request->user()->cannot('view', $recipe)) {
             // Bezpieczny powrót na profil kucharza (zakładka „Ugotowane”).
             // Jeśli konto kucharza nie ma profilu, wracamy na profil bieżącego użytkownika.
-            $username = $wlascicielWykonania->profile?->username
+            $username = $wlascicielWykonania->profile->username
                 ?? $request->user()->profile?->username;
 
             if ($username !== null) {
                 return redirect()
                     ->route('profile.show', ['username' => $username, 'zakladka' => 'ugotowane'])
-                    ->with('status', 'Wykonanie usunięte.');
+                    ->with(Komunikat::sukces('Wykonanie usunięte.'));
             }
 
-            return redirect()->route('home')->with('status', 'Wykonanie usunięte.');
+            return redirect()->route('home')->with(Komunikat::sukces('Wykonanie usunięte.'));
         }
 
-        return redirect()->route('recipes.show', $recipe->slug)->with('status', 'Wykonanie usunięte.');
+        return redirect()->route('recipes.show', $recipe->slug)->with(Komunikat::sukces('Wykonanie usunięte.'));
     }
 }

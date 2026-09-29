@@ -8,6 +8,7 @@ use App\Domain\Api\Actions\OdwolajTokenAplikacji;
 use App\Http\Controllers\Controller;
 use App\Models\PersonalAccessToken;
 use App\Models\User;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -43,19 +44,17 @@ class DevicesSettingsController extends Controller
 
         $odwolaj->handle($request->user(), $urzadzenie, $request->ip());
 
-        return redirect()->route('settings.devices')->with('status',
-            'Gotowe. „'.$urzadzenie->name.'" nie ma już dostępu do Twojego konta. '
+        return redirect()->route('settings.devices')->with(Komunikat::sukces('Gotowe. „'.$urzadzenie->name.'" nie ma już dostępu do Twojego konta. '
             .'Żeby znów z niego korzystać, trzeba będzie zalogować się w aplikacji jeszcze raz.',
-        );
+        ));
     }
 
     public function destroyAll(Request $request, OdwolajTokenAplikacji $odwolaj): RedirectResponse
     {
         $odwolaj->wszystkie($request->user(), $request->ip());
 
-        return redirect()->route('settings.devices')->with('status',
-            'Gotowe. Żadne urządzenie nie ma już dostępu przez aplikację. '
+        return redirect()->route('settings.devices')->with(Komunikat::sukces('Gotowe. Żadne urządzenie nie ma już dostępu przez aplikację. '
             .'Na tym komputerze/telefonie w przeglądarce zostajesz zalogowany.',
-        );
+        ));
     }
 }

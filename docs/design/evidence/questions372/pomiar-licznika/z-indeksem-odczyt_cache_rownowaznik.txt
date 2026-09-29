@@ -1,0 +1,7 @@
+Index Scan using tags_pkey on tags  (cost=0.28..8.29 rows=1 width=37) (actual time=0.021..0.021 rows=1 loops=1)
+  Index Cond: (id = '164e6c93-08e9-6878-db5f-26cd06a6937c'::uuid)
+  Buffers: shared hit=3
+Planning:
+  Buffers: shared hit=96
+Planning Time: 0.455 ms
+Execution Time: 0.048 ms

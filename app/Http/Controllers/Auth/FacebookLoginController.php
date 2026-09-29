@@ -15,13 +15,16 @@ use App\Facebook\DostawcaWejsciaFacebook;
 use App\Facebook\KlientFacebook;
 use App\Facebook\TozsamoscFacebook;
 use App\Http\Controllers\Controller;
+use App\Http\Support\ZadanieHttp;
 use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Notifications\ProbaWejsciaKontemFacebooka;
 use App\Support\Facebook;
 use App\Support\Komunikat;
 use App\Support\Poczta;
+use App\Support\PowrotDoRozmowy;
 use App\Support\RejestracjaZamknieta;
+use App\Support\ZamiarZapisu;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -418,20 +421,20 @@ class FacebookLoginController extends Controller
             return RejestracjaZamknieta::przekierowanie();
         }
 
-        $tozsamosc = $this->wejscie()->tozsamoscZSesji($request);
+        $tozsamosc = $this->wejscie()->tozsamoscZSesji(ZadanieHttp::z($request));
 
         if ($tozsamosc === null || $tozsamosc->email === null) {
             return $this->trzebaZaczacOdNowa();
         }
 
         // PODPOWIEDŹ, NIE NADANIE — ten sam wywód co przy Google.
-        return view('auth.facebook-finish', $this->wejscie()->ekranDomkniecia($request, $tozsamosc));
+        return view('auth.facebook-finish', $this->wejscie()->ekranDomkniecia(ZadanieHttp::z($request), $tozsamosc));
     }
 
     /**
      * Zakładamy konto — dopiero teraz i dopiero z dwoma oświadczeniami.
      */
-    public function finish(Request $request, ZalozKonto $zalozKonto): RedirectResponse
+    public function finish(Request $request, ZalozKonto $zalozKonto, PowrotDoRozmowy $rozmowa, ZamiarZapisu $zapis): RedirectResponse
     {
         if (! Facebook::dziala()) {
             return $this->drogaZamknieta();
@@ -446,13 +449,13 @@ class FacebookLoginController extends Controller
             return RejestracjaZamknieta::przekierowanie();
         }
 
-        $tozsamosc = $this->wejscie()->tozsamoscDoZalozenia($request);
+        $tozsamosc = $this->wejscie()->tozsamoscDoZalozenia(ZadanieHttp::z($request));
 
         if ($tozsamosc === null) {
             return $this->trzebaZaczacOdNowa();
         }
 
-        $dane = $this->wejscie()->daneDomkniecia($request);
+        $dane = $this->wejscie()->daneDomkniecia(ZadanieHttp::z($request));
 
         /*
          * ADRES JEST NIEPOTWIERDZONY I TO JEST NAJWAŻNIEJSZA WŁASNOŚĆ TEJ
@@ -471,7 +474,7 @@ class FacebookLoginController extends Controller
          * Konto ma więc jedną pewną drogę wejścia (Facebook) i drugą, która
          * otworzy się po kliknięciu w link z naszej wiadomości.
          */
-        $konto = $this->wejscie()->zalozKonto($request, $tozsamosc, $dane, $zalozKonto);
+        $konto = $this->wejscie()->zalozKonto(ZadanieHttp::z($request), $tozsamosc, $dane, $zalozKonto);
 
         if ($konto === null) {
             return redirect()->route('login')->with(Komunikat::blad(
@@ -480,16 +483,21 @@ class FacebookLoginController extends Controller
             ));
         }
 
+        // Rejestracja przez dostawcę zaczęta z wątku komentarzy też wraca
+        // do niego po onboardingu. Zamiar jest zapamiętany w sesji ekranu
+        // rejestracji i wiążemy go wyłącznie z właśnie utworzonym kontem.
+        $rozmowa->przypiszKonto($request);
+        $zapis->przypiszKonto($request);
+
         // „Wysłaliśmy Ci wiadomość" pada tylko wtedy, gdy to prawda (#1373).
         if ($konto->listPotwierdzajacyNieWyszedl) {
-            return redirect()->route('onboarding.interests')->with('status', ZalozoneKonto::KOMUNIKAT_BEZ_LISTU);
+            return redirect()->route('onboarding.interests')->with(Komunikat::informacja(ZalozoneKonto::KOMUNIKAT_BEZ_LISTU));
         }
 
-        return redirect()->route('onboarding.interests')->with('status',
-            'Konto gotowe. Miło Cię widzieć w Kuking. Wysłaliśmy Ci jeszcze wiadomość na '
+        return redirect()->route('onboarding.interests')->with(Komunikat::sukces('Konto gotowe. Miło Cię widzieć w Kuking. Wysłaliśmy Ci jeszcze wiadomość na '
             .$konto->user->email.' — kliknij w niej przycisk, żeby potwierdzić adres. Dzięki temu '
             .'będziesz mieć drugą drogę wejścia na konto, gdyby Facebook kiedyś przestał działać.',
-        );
+        ));
     }
 
     /**
@@ -502,7 +510,7 @@ class FacebookLoginController extends Controller
         }
 
         $user = Auth::user();
-        $tozsamosc = $this->wejscie()->tozsamoscZSesji($request);
+        $tozsamosc = $this->wejscie()->tozsamoscZSesji(ZadanieHttp::z($request));
 
         if (! $user instanceof User || $tozsamosc === null || ! $this->moznaPokazacPolaczenie($user, $tozsamosc->identyfikator)) {
             return $this->trzebaZaczacOdNowa();
@@ -520,30 +528,29 @@ class FacebookLoginController extends Controller
     public function requestLinkProof(Request $request): RedirectResponse
     {
         $user = Auth::user();
-        $identity = $this->wejscie()->tozsamoscZSesji($request);
+        $identity = $this->wejscie()->tozsamoscZSesji(ZadanieHttp::z($request));
         if (! $user instanceof User || $identity === null || ! $this->moznaPokazacPolaczenie($user, $identity->identyfikator)) {
             return $this->trzebaZaczacOdNowa();
         }
 
         if (! Poczta::dziala()) {
-            return redirect()->route('facebook.link')->with('status', Poczta::komunikatBrakuPoczty('link potwierdzający'));
+            return redirect()->route('facebook.link')->with(Komunikat::blad(Poczta::komunikatBrakuPoczty('link potwierdzający')));
         }
 
-        if (! $this->potwierdzenie->requestEmailProof($request, $user, $identity->identyfikator)) {
+        if (! $this->potwierdzenie->requestEmailProof(ZadanieHttp::z($request), $user, $identity->identyfikator)) {
             return $this->trzebaZaczacOdNowa();
         }
 
-        return redirect()->route('facebook.link')->with('status',
-            'Wysłaliśmy link potwierdzający na Twój obecny adres e-mail w Kuking. Otwórz go w tej samej przeglądarce w ciągu 10 minut.',
-        );
+        return redirect()->route('facebook.link')->with(Komunikat::sukces('Wysłaliśmy link potwierdzający na Twój obecny adres e-mail w Kuking. Otwórz go w tej samej przeglądarce w ciągu 10 minut.',
+        ));
     }
 
     public function confirmLinkProof(Request $request, string $token): Response|RedirectResponse
     {
         $user = Auth::user();
-        $identity = $this->wejscie()->tozsamoscZSesji($request);
+        $identity = $this->wejscie()->tozsamoscZSesji(ZadanieHttp::z($request));
         if (! $user instanceof User || $identity === null || ! $this->moznaPokazacPolaczenie($user, $identity->identyfikator)
-            || ! $this->potwierdzenie->emailProofIsAvailable($request, $user, $identity->identyfikator, $token)) {
+            || ! $this->potwierdzenie->emailProofIsAvailable(ZadanieHttp::z($request), $user, $identity->identyfikator, $token)) {
             return $this->trzebaZaczacOdNowa();
         }
 
@@ -566,7 +573,7 @@ class FacebookLoginController extends Controller
         }
 
         $user = Auth::user();
-        $tozsamosc = $this->wejscie()->tozsamoscZSesji($request);
+        $tozsamosc = $this->wejscie()->tozsamoscZSesji(ZadanieHttp::z($request));
 
         if (! $user instanceof User || $tozsamosc === null) {
             return $this->trzebaZaczacOdNowa();
@@ -580,19 +587,18 @@ class FacebookLoginController extends Controller
          */
         $powiazane = $this->dostawca->kontoPowiazane($tozsamosc->identyfikator);
         if ($powiazane?->getKey() === $user->getKey()) {
-            $polaczone = $this->potwierdzenie->reactivate($request, $user, $tozsamosc->identyfikator);
+            $polaczone = $this->potwierdzenie->reactivate(ZadanieHttp::z($request), $user, $tozsamosc->identyfikator);
         } else {
-            $potwierdz = fn (User $fresh): bool => $this->potwierdzenie->consume($request, $fresh, $tozsamosc->identyfikator);
-            $polaczone = $this->wejscie()->polacz($request, $user, $tozsamosc, $potwierdz);
+            $potwierdz = fn (User $fresh): bool => $this->potwierdzenie->consume(ZadanieHttp::z($request), $fresh, $tozsamosc->identyfikator);
+            $polaczone = $this->wejscie()->polacz(ZadanieHttp::z($request), $user, $tozsamosc, $potwierdz);
         }
 
         if ($polaczone === null) {
-            return redirect()->route('facebook.link')->with('status',
-                'Nie połączyliśmy konta. Sprawdź hasło lub kod i spróbuj ponownie. Jeśli link wygasł, poproś o nowy.',
-            );
+            return redirect()->route('facebook.link')->with(Komunikat::blad('Nie połączyliśmy konta. Sprawdź hasło lub kod i spróbuj ponownie. Jeśli link wygasł, poproś o nowy.',
+            ));
         }
 
-        $this->wejscie()->zapomnij($request);
+        $this->wejscie()->zapomnij(ZadanieHttp::z($request));
 
         if ($powiazane?->getKey() === $user->getKey()) {
             return redirect()->route('settings.security')->with(Komunikat::informacja(
@@ -600,10 +606,9 @@ class FacebookLoginController extends Controller
             ));
         }
 
-        return redirect()->route('settings.security')->with('status',
-            'Gotowe — możesz logować się na to konto przyciskiem „Wejdź kontem Facebooka". '
+        return redirect()->route('settings.security')->with(Komunikat::sukces('Gotowe — możesz logować się na to konto przyciskiem „Wejdź kontem Facebooka". '
             .'Twoje dotychczasowe sposoby logowania działają dalej.',
-        );
+        ));
     }
 
     private function moznaPokazacPolaczenie(User $user, string $facebookId): bool
@@ -626,7 +631,7 @@ class FacebookLoginController extends Controller
      */
     private function wpusc(Request $request, User $user): RedirectResponse
     {
-        return match ($this->wejscie()->wpusc($request, $user)) {
+        return match ($this->wejscie()->wpusc(ZadanieHttp::z($request), $user)) {
             WynikWejscia::KontoZamkniete => redirect()->route('login')->with(Komunikat::blad(KomunikatZamknietegoKonta::dla($user))),
             WynikWejscia::KontoObslugi => redirect()->route('login')->with(Komunikat::blad(
                 'Konta obsługi serwisu wchodzą hasłem i kodem z aplikacji — nie kontem Facebooka. '
@@ -706,7 +711,7 @@ class FacebookLoginController extends Controller
 
     private function zapiszTozsamosc(Request $request, TozsamoscFacebook $tozsamosc): void
     {
-        $this->wejscie()->zapamietaj($request, $this->dostawca->tozsamosc($tozsamosc));
+        $this->wejscie()->zapamietaj(ZadanieHttp::z($request), $this->dostawca->tozsamosc($tozsamosc));
     }
 
     /**

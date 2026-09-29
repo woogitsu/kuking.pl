@@ -25,20 +25,25 @@
             słowu „wszystkie”.
         --}}
         <p>
-            Przygotujemy paczkę z Twoimi wpisami, przepisami, zdjęciami i komentarzami.
+            Przygotujemy paczkę z Twoimi wpisami, przepisami, zdjęciami i komentarzami, a także z tym, co zapisujesz w serwisie dla siebie: obserwowanymi osobami i tagami, ukrytymi wpisami i osobami, reakcjami, listą „Co mam w domu” i zgodami.
             Dostaniesz plik ZIP, który otworzysz na komputerze — także wtedy, gdyby Kuking kiedyś przestał istnieć.
         </p>
         <p>
             Nie ma w niej zdjęć, których nie udało się przygotować do pokazania w serwisie,
             ani zdjęć skasowanych — te nie wejdą do żadnej paczki, także późniejszej.
             W środku znajdziesz plik, który wymienia wszystkie granice paczki
-            i mówi, jak dostać dane wydawane tylko na prośbę.
+            i mówi, jak dostać dane wydawane tylko na prośbę (na przykład dziennik bezpieczeństwa albo zgłoszenia Twoich treści, które złożyły inne osoby).
         </p>
 
         <form method="POST" action="{{ route('settings.data.export') }}">
             @csrf
             <button class="btn btn-primary" type="submit">Przygotuj paczkę z moimi danymi</button>
         </form>
+
+        <p class="mt-4">
+            Masz już taką paczkę i chcesz z niej odzyskać swoje przepisy, wpisy i zeszyty?
+            <a href="{{ route('settings.data.import') }}">Wczytaj swoją paczkę</a> — najpierw zobaczysz, co w niej jest, a wszystko, co wczytamy, będzie prywatne.
+        </p>
 
         @if($exports->isNotEmpty())
             <h3 class="mt-6">Twoje paczki</h3>

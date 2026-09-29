@@ -60,18 +60,29 @@ class DoslijPilneAlarmy extends Command
             ->limit(max(1, (int) config('kuking.moderation.model.alarm_partia', 50)))
             ->get();
 
-        $wyniki = [Report::ALARM_ZLECONY => 0, Report::ALARM_NIEUDANY => 0, AlarmujModeratora::JUZ_ZLECONY => 0];
+        $wyniki = [Report::ALARM_ZLECONY => 0, Report::ALARM_NIEUDANY => 0, AlarmujModeratora::JUZ_ZLECONY => 0, AlarmujModeratora::SUFIT => 0];
 
-        foreach ($sprawy as $sprawa) {
+        foreach ($sprawy->values() as $i => $sprawa) {
             $wynik = $alarm->doslij($sprawa);
             $wyniki[$wynik] = ($wyniki[$wynik] ?? 0) + 1;
+
+            // Wyczerpany sufit nie odnowi się w trakcie przebiegu. Reszta
+            // partii czeka tak samo — bez kolejnych prób i bez osobnego
+            // ostrzeżenia w dzienniku przy każdej z nich (do 50 na godzinę).
+            // Stan tych spraw się nie zmienia, więc następny przebieg je weźmie.
+            if ($wynik === AlarmujModeratora::SUFIT) {
+                $wyniki[AlarmujModeratora::SUFIT] += $sprawy->count() - $i - 1;
+
+                break;
+            }
         }
 
         $this->info(sprintf(
-            'Dosłane: %d. Nieudane: %d. Zajęte przez inny przebieg albo zamknięte: %d.',
+            'Dosłane: %d. Nieudane: %d. Zajęte przez inny przebieg albo zamknięte: %d. Czekają na dobowy sufit alarmów (audyt B8-02): %d.',
             $wyniki[Report::ALARM_ZLECONY],
             $wyniki[Report::ALARM_NIEUDANY],
             $wyniki[AlarmujModeratora::JUZ_ZLECONY],
+            $wyniki[AlarmujModeratora::SUFIT],
         ));
 
         return $wyniki[Report::ALARM_NIEUDANY] > 0 ? self::FAILURE : self::SUCCESS;

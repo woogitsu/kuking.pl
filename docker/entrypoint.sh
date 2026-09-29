@@ -5,9 +5,11 @@
 #  Jeden obraz, cztery role. Rolę wybiera pierwszy argument albo APP_ROLE:
 #
 #    web        — serwer HTTP (FrankenPHP/Caddy). Tylko ten ma domenę publiczną.
-#    worker     — php artisan queue:work, proces na kolejkę (zdjęcia, maile, eksporty)
+#    worker     — php artisan queue:work, proces na kolejkę (zdjęcia, maile, eksporty);
+#                 przed startem czeka na migracje web (czekaj_na_migracje, #2044)
 #                 (w roli all: jeden proces dla wszystkich kolejek — listy_kolejek())
-#    scheduler  — pętla `schedule:run` na początku każdej minuty (nie `schedule:work`)
+#    scheduler  — pętla `schedule:run` na początku każdej minuty (nie `schedule:work`);
+#                 też czeka na migracje web (#2044)
 #    all        — web + worker + scheduler w jednym kontenerze.
 #
 #                 UWAGA: to jest DZIŚ TRYB PRODUKCYJNY, wbrew temu, co ten
@@ -276,6 +278,35 @@ shutdown() {
 }
 
 # -----------------------------------------------------------------------------
+#  NUMER WDROŻENIA PO GOTOWOŚCI (issue #1932, D-318, audyt 28 września 2026)
+#
+#  „Alfa 0.69.005" i dopisek „od Alfa …" mają znaczyć: to wdrożenie DOTARŁO do
+#  ludzi. Rejestracja w `preDeployCommand` zapisywała numer PRZED seedem,
+#  importem i healthcheckiem, więc rollout, który padł, zostawiał zużyty numer
+#  i funkcje opisane jako dostępne. Dlatego rejestruje sam nowy kontener
+#  (role web i all), W TLE, dopiero gdy jego lokalny /health odpowie 2xx —
+#  `kuking:zarejestruj-wdrozenie --po-gotowosci` czeka na to sam i bez
+#  odpowiedzi w limicie niczego nie zapisuje. Komenda jest idempotentna
+#  (restart tego samego commita nie zużywa numeru).
+#
+#  Tło, bo start_web kończy się `exec frankenphp` (tini jako PID 1 sprząta po
+#  potomku), a rejestracja nie może opóźnić ani położyć serwera: porażka
+#  kończy się ostrzeżeniem w logu, nie wyjściem kontenera. Bez
+#  RAILWAY_GIT_COMMIT_SHA (lokalnie) nie robimy nic.
+#  Pilnuje tego tests/Feature/ZarejestrujWdrozenieTest.php.
+# -----------------------------------------------------------------------------
+rejestruj_wdrozenie_po_gotowosci() {
+  [[ -n "${RAILWAY_GIT_COMMIT_SHA:-}" ]] || return 0
+  (
+    php /app/artisan kuking:zarejestruj-wdrozenie --po-gotowosci --no-interaction >&2 \
+      || log "OSTRZEŻENIE: numer wdrożenia nie został zarejestrowany (patrz wyżej); zrobi to następny start tego commita."
+  ) &
+  # Na liście potomków, żeby `shutdown()` (rola all) wysłał mu SIGTERM zamiast
+  # czekać na koniec pętli gotowości.
+  CHILD_PIDS+=("$!")
+}
+
+# -----------------------------------------------------------------------------
 # 5. Uruchomienie roli
 # -----------------------------------------------------------------------------
 start_web() {
@@ -283,6 +314,7 @@ start_web() {
   # i używa tej samej wartości do healthchecku, więc muszą się zgadzać.
   export SERVER_NAME=":${PORT}"
   log "start FrankenPHP na ${SERVER_NAME}"
+  rejestruj_wdrozenie_po_gotowosci
   exec frankenphp run --config /etc/frankenphp/Caddyfile
 }
 
@@ -369,6 +401,88 @@ czekaj_na_uslugi() {
   done
 }
 
+# -----------------------------------------------------------------------------
+#  BRAMKA MIGRACJI DLA WORKERA I SCHEDULERA (issue #2044)
+#
+#  W topologii split migracje uruchamia WYŁĄCZNIE serwis web, w pre-deploy
+#  (.railway/railway.ts, `kuking:migruj-pod-blokada`). Railway nie ma bramki
+#  między usługami: `worker` i `scheduler` wdrażają się z tego samego commita
+#  RÓWNOLEGLE z web, więc nowy kod potrafił ruszyć na schemacie sprzed migracji
+#  — zadanie odwołujące się do nowej kolumny padało, wracało do kolejki
+#  i zużywało próby (`--tries`), a harmonogram zapisywał błędy w logu.
+#
+#  Rozwiązanie nie dokłada usługi ani migratora w drugiej roli (trzy migratory
+#  to wyścig o blokady): worker i scheduler PRZED STARTEM czekają, aż
+#  `migrate:status` przestanie pokazywać oczekujące migracje z TEGO obrazu.
+#  Migracje nadal wykonuje wyłącznie web.
+#
+#    * czekanie jest ograniczone (MIGRACJE_LIMIT_S, domyślnie 900 s — pre-deploy
+#      ma 600 s, patrz docs/infra/DEPLOYMENT_RUNBOOK.md) i głośne: log co ~30 s
+#      mówi, na co czekamy i co sprawdzić;
+#    * po limicie kontener kończy się kodem 1 — Railway widzi porażkę
+#      i ponawia, zamiast uruchamiać kod na niegotowym schemacie. Typowa
+#      przyczyna: migracja web się nie powiodła (sprawdź jej log);
+#    * baza niedostępna albo brak tabeli `migrations` to też „jeszcze nie":
+#      surowego komunikatu z bazy nie wypisujemy;
+#    * schemat NOWSZY niż kod (rollback workera) nie blokuje — sprawdzamy tylko
+#      migracje, które ten obraz zna, a baza ich jeszcze nie ma;
+#    * MIGRACJE_BRAMKA=0 wyłącza bramkę (awaryjnie, gdyby sama blokowała start);
+#      MIGRACJE_ODSTEP_S (domyślnie 5) to przerwa między próbami.
+#
+#  Rola `all` bramki nie potrzebuje: chodzi w tym samym kontenerze co web,
+#  który wstaje dopiero po pre-deploy. Stare procesy, działające w oknie
+#  drenowania na nowym schemacie, chroni zgodność wsteczna migracji
+#  (expand/contract, docs/DEPLOYMENT.md, „Migrations").
+#
+#  Test na atrapie `php`: tests/skrypty/bramka-migracji.sh.
+# -----------------------------------------------------------------------------
+czekaj_na_migracje() {
+  local rola="${1:?czekaj_na_migracje: podaj rolę}"
+  local limit="${MIGRACJE_LIMIT_S:-900}" odstep="${MIGRACJE_ODSTEP_S:-5}"
+  local start="${SECONDS}" ostatni_log=0 proba=0 wynik kod oczekujace
+
+  if [[ "${MIGRACJE_BRAMKA:-1}" == 0 ]]; then
+    log "OSTRZEŻENIE: ${rola}: bramka migracji WYŁĄCZONA (MIGRACJE_BRAMKA=0) — start bez sprawdzenia schematu."
+    return 0
+  fi
+
+  [[ "${limit}" =~ ^[0-9]+$ ]] || { log "OSTRZEŻENIE: MIGRACJE_LIMIT_S nie jest liczbą — używam 900 s."; limit=900; }
+  [[ "${odstep}" =~ ^[1-9][0-9]*$ ]] || { log "OSTRZEŻENIE: MIGRACJE_ODSTEP_S nie jest liczbą dodatnią — używam 5 s."; odstep=5; }
+
+  while true; do
+    proba=$(( proba + 1 ))
+    kod=0
+    # `--pending=1`: kod wyjścia 1, gdy jest cokolwiek oczekującego (opcja
+    # przyjmuje wartość; sam `--pending` nie ustawia kodu wyjścia).
+    wynik="$(php /app/artisan migrate:status --pending=1 --no-ansi --no-interaction 2>&1)" || kod=$?
+
+    if (( kod == 0 )); then
+      log "${rola}: schemat bazy jest aktualny (brak oczekujących migracji) — startuję."
+      return 0
+    fi
+
+    if (( SECONDS - start >= limit )); then
+      log "BŁĄD: ${rola}: po ${limit} s migracje nadal nie są gotowe — nie startuję na starym schemacie."
+      log "  Sprawdź log pre-deploy serwisu web (migracja mogła się nie udać) i napraw ją."
+      log "  Railway ponowi ${rola} po kodzie 1; po wyczerpaniu prób zrestartuj go ręcznie."
+      log "  Awaryjnie: MIGRACJE_BRAMKA=0 wyłącza to czekanie."
+      return 1
+    fi
+
+    if (( proba == 1 )) || (( SECONDS - ostatni_log >= 30 )); then
+      ostatni_log="${SECONDS}"
+      oczekujace="$(grep -c 'Pending' <<< "${wynik}" || true)"
+      if (( oczekujace > 0 )); then
+        log "${rola}: czekam na migracje serwisu web — oczekujących: ${oczekujace} (już $(( SECONDS - start )) s, limit ${limit} s)."
+      else
+        log "${rola}: czekam na bazę i tabelę migracji (brak połączenia albo migracje jeszcze się nie zaczęły) — limit ${limit} s."
+      fi
+    fi
+
+    sleep "${odstep}"
+  done
+}
+
 start_worker() {
   # --max-time=3600   → worker sam się kończy po godzinie; NADZORCA go wskrzesza.
   #                     Zapobiega wyciekom pamięci w długożyjącym PHP.
@@ -401,6 +515,8 @@ start_worker() {
   # bitmapę poza licznikiem PHP. Ten limit chroni więc kod PHP, a przed
   # wyczerpaniem pamięci przy dekodowaniu obrazu chroni `--memory` wyżej
   # i limit kontenera, nie ta wartość.
+  czekaj_na_migracje worker || exit 1
+
   log "start queue:work (memory_limit=${PHP_WORKER_MEMORY_LIMIT:-512M})"
 
   # Pętla także w roli OSOBNEGO serwisu, nie tylko w `all`. Bez niej kontener
@@ -557,6 +673,8 @@ start_scheduler() {
   # Źródło: https://docs.railway.com/cron-jobs (sekcja "Frequency")
   #
   # WAŻNE: dokładnie 1 replika. Dwie repliki = podwójne maile z digestem.
+  czekaj_na_migracje scheduler || exit 1
+
   log "start harmonogramu (schedule:run na początku każdej minuty)"
 
   petla_harmonogramu
@@ -664,6 +782,7 @@ case "${ROLE}" in
     frankenphp run --config /etc/frankenphp/Caddyfile &
     PID_WWW="$!"
     CHILD_PIDS+=("${PID_WWW}")
+    rejestruj_wdrozenie_po_gotowosci
 
     # Czekamy na długowieczne usługi, w tym nadzorcę kolejki. Nie na sam
     # queue:work: jego planowe wyjścia nadal obsługuje nadzoruj(). Status

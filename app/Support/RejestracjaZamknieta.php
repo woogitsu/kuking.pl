@@ -39,6 +39,6 @@ final class RejestracjaZamknieta
 
     public static function przekierowanie(): RedirectResponse
     {
-        return redirect()->route('login')->with('status', self::KOMUNIKAT);
+        return redirect()->route('login')->with(Komunikat::blad(self::KOMUNIKAT));
     }
 }

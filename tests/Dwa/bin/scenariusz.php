@@ -20,21 +20,33 @@ declare(strict_types=1);
  * o WYNIK KROKU, a nie o to, czy narzędzie się nie wywróciło.
  */
 
+use App\Domain\Collections\Actions\RemoveUnavailableFromCollection;
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
+use App\Domain\Collections\WidocznaZawartoscZeszytu;
+use App\Domain\Collections\Wspoldzielenie\DostepDoZeszytu;
+use App\Domain\Collections\Wspoldzielenie\OdpowiedzNaZaproszenie;
+use App\Domain\Comments\Actions\DeleteComment;
 use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Contact\Actions\WyslijOdpowiedz;
 use App\Domain\Feed\Actions\ZapiszKolaz;
 use App\Domain\Feed\Actions\ZapiszTabliceDnia;
 use App\Domain\Import\BudzetAi;
+use App\Domain\Import\ImportOdrzucony;
+use App\Domain\Import\LimitImportowOsoby;
+use App\Domain\Import\LimitImportu;
 use App\Domain\Import\Rezerwacja;
 use App\Domain\Import\ZlecImportPrzepisu;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
+use App\Domain\Moderation\Actions\RestoreContent;
 use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
+use App\Domain\Moderation\NowaDecyzja;
+use App\Domain\Pantry\CoMamWDomu;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Recipes\Actions\PublishRecipe;
+use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Tags\Actions\MergeTags;
@@ -51,6 +63,7 @@ use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Requests\Moderation\DecyzjaModeracyjnaRequest;
 use App\Models\Appeal;
 use App\Models\Collection;
+use App\Models\CollectionInvitation;
 use App\Models\Comment;
 use App\Models\ContactMessage;
 use App\Models\ImportPrzepisu;
@@ -60,6 +73,7 @@ use App\Models\Recipe;
 use App\Models\Report;
 use App\Models\Tag;
 use App\Models\User;
+use Illuminate\Cache\Events\WritingKey;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Events\QueryExecuted;
@@ -69,6 +83,7 @@ use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
@@ -201,6 +216,7 @@ try {
                 'zawies' => $konto->suspend(),
                 'zbanuj' => $konto->ban(),
                 'usun' => $konto->markForDeletion(),
+                default => throw new LogicException('Nieobsłużony wariant w match.'),
             });
 
             return (string) $konto->fresh()?->status;
@@ -273,6 +289,7 @@ try {
             match ($argumenty['przejscie']) {
                 'zbanuj' => $konto->ban(),
                 'usun' => $konto->markForDeletion(),
+                default => throw new LogicException('Nieobsłużony wariant w match.'),
             };
 
             return (string) $konto->status;
@@ -318,21 +335,86 @@ try {
         // razem — przepisany do testu SQL byłby zielony także po zmianie
         // kolejności w `PublishRecipe`.
         'edytuj-przepis' => (function () use ($argumenty): string {
+            $zapisz = static function () use ($argumenty): string {
+                $przepis = app(PublishRecipe::class)->handle(
+                    author: User::query()->whereKey($argumenty['autor'])->firstOrFail(),
+                    attributes: [
+                        'title' => $argumenty['tytul'],
+                        'visibility' => 'public',
+                        'source_type' => Recipe::SOURCE_OWN,
+                    ],
+                    ingredients: [['text' => $argumenty['skladnik']]],
+                    steps: [['instruction' => 'Gotuj do miękkości.']],
+                    publish: true,
+                    existing: Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail(),
+                    oczekiwanaRewizja: isset($argumenty['rewizja']) ? (int) $argumenty['rewizja'] : null,
+                );
+
+                return (string) $przepis->title;
+            };
+
+            if (isset($argumenty['bariera_2165'])) {
+                return DB::transaction(static function () use ($argumenty, $zapisz): string {
+                    // B trzyma ten sam zamek, który PublishRecipe bierze przed
+                    // przepisem. Bariera ustawia A w kolejce, zanim B zapisze.
+                    if (DB::select('SELECT 1 FROM users WHERE id = ? FOR KEY SHARE', [$argumenty['autor']]) === []) {
+                        throw new RuntimeException('Brak konta autora pod blokadą FOR KEY SHARE.');
+                    }
+                    DB::select('SELECT pg_advisory_xact_lock(2165, 1)');
+
+                    return $zapisz();
+                });
+            }
+
+            return $zapisz();
+        })(),
+
+        // #2189: prawdziwy zapis przepisu (szkic, publikacja, edycja) przez
+        // `PublishRecipe`. Autor jest wczytany PRZED przeplotem, jak w
+        // żądaniu po middleware i Policy — to jego nieaktualny model ma
+        // wyglądać na aktywny, a akcja ma rozstrzygać na świeżym wierszu.
+        'zapisz-przepis-2189' => (function () use ($argumenty): string {
+            $autor = User::query()->whereKey($argumenty['autor'])->firstOrFail();
+            if (! $autor->isActive()) {
+                throw new RuntimeException('Przyrząd nie odczytał aktywnego autora przed przeplotem.');
+            }
+
+            // Odwrócony przeplot: zatrzymaj zapis dopiero PO prawdziwym
+            // zapytaniu blokującym autora. Nie zmienia kodu akcji.
+            $bariera = (int) ($argumenty['bariera'] ?? 0);
+            if ($bariera !== 0) {
+                $zatrzymany = false;
+                DB::listen(static function (QueryExecuted $query) use ($bariera, &$zatrzymany): void {
+                    if (! $zatrzymany && str_contains($query->sql, 'from "users"')
+                        && str_contains(strtolower($query->sql), 'for no key update')) {
+                        $zatrzymany = true;
+                        DB::select('SELECT pg_advisory_xact_lock(2189, ?)', [$bariera]);
+                    }
+                });
+            }
+
+            $tryb = $argumenty['tryb'];
+            $atrybuty = [
+                'title' => $argumenty['tytul'],
+                'visibility' => 'public',
+                'source_type' => Recipe::SOURCE_OWN,
+            ];
+            if (isset($argumenty['zdjecie'])) {
+                $atrybuty['hero_media_id'] = $argumenty['zdjecie'];
+            }
+
             $przepis = app(PublishRecipe::class)->handle(
-                author: User::query()->whereKey($argumenty['autor'])->firstOrFail(),
-                attributes: [
-                    'title' => $argumenty['tytul'],
-                    'visibility' => 'public',
-                    'source_type' => Recipe::SOURCE_OWN,
-                ],
-                ingredients: [['text' => $argumenty['skladnik']]],
+                author: $autor,
+                attributes: $atrybuty,
+                ingredients: [['text' => 'lubczyk']],
                 steps: [['instruction' => 'Gotuj do miękkości.']],
-                publish: true,
-                existing: Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail(),
-                oczekiwanaRewizja: isset($argumenty['rewizja']) ? (int) $argumenty['rewizja'] : null,
+                publish: in_array($tryb, ['nowa_publikacja', 'edycja_publicznego'], true),
+                existing: isset($argumenty['przepis'])
+                    ? Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail()
+                    : null,
             );
 
-            return (string) $przepis->title;
+            return (string) $przepis->getKey();
         })(),
 
         // #2112: prawdziwe żądanie HTTP przełącznika. Route binding i Policy
@@ -405,6 +487,23 @@ try {
             body: $argumenty['tresc'],
         ) === null ? 'odmowa' : 'zapisano',
 
+        // Usunięcie komentarza kontra sankcja wykonawcy (#2190). Wykonawca jest
+        // wczytany jako AKTYWNY przed zatwierdzeniem sankcji (jak model z
+        // middleware); prawdziwa akcja ma sama odczytać świeży stan pod zamkiem.
+        // Komentarz z `withTrashed()`, jak w trasie `comments.destroy`.
+        'usun-komentarz' => (function () use ($argumenty): string {
+            $wykonawca = User::query()->whereKey($argumenty['kto'])->firstOrFail();
+            if (! $wykonawca->isActive()) {
+                throw new RuntimeException('Przyrząd nie odczytał aktywnego wykonawcy przed przeplotem.');
+            }
+
+            return app(DeleteComment::class)->handle(
+                $wykonawca,
+                Comment::withTrashed()->whereKey($argumenty['komentarz'])->firstOrFail(),
+                'Powód usunięcia.',
+            ) ? 'usunieto' : 'juz-usuniety';
+        })(),
+
         // Pierwszy zapis do zeszytu (#1095). Te scenariusze celowo wołają
         // akcje domenowe, a nie przepisany SQL: test ma pęknąć, jeśli wróci
         // wyścig w User::defaultCollection().
@@ -415,6 +514,32 @@ try {
             // zeszytów (przegląd PR #1213, D-070). Bez argumentu: domyślny.
             collection: isset($argumenty['zeszyt']) ? Collection::query()->whereKey($argumenty['zeszyt'])->firstOrFail() : null,
         )->getKey(),
+
+        // Wspólny zeszyt (#1743): dwa równoległe przyjęcia tego samego
+        // zaproszenia i zapis współpracownika kontra odebranie dostępu.
+        'przyjmij-zaproszenie' => (string) app(OdpowiedzNaZaproszenie::class)->przyjmij(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            CollectionInvitation::query()->whereKey($argumenty['zaproszenie'])->firstOrFail(),
+        )->getKey(),
+        'odbierz-dostep' => app(DostepDoZeszytu::class)->odbierz(
+            User::query()->whereKey($argumenty['wlasciciel'])->firstOrFail(),
+            Collection::query()->whereKey($argumenty['zeszyt'])->firstOrFail(),
+            User::query()->whereKey($argumenty['czlonek'])->firstOrFail(),
+        ) ? 'odebrano' : 'nie-bylo',
+
+        // Zbiorcze „Wyjmij niedostępne zapisy” (#2205): odcisk liczony tu,
+        // na świeżym koncie, tak jak robi to formularz przy otwarciu ekranu.
+        'wyjmij-niedostepne' => (function () use ($argumenty): int {
+            $kto = User::query()->whereKey($argumenty['kto'])->firstOrFail();
+            $zeszyt = Collection::query()->whereKey($argumenty['zeszyt'])->firstOrFail();
+            $zawartosc = app(WidocznaZawartoscZeszytu::class);
+
+            return app(RemoveUnavailableFromCollection::class)->handle(
+                $kto,
+                $zeszyt,
+                $zawartosc->odcisk($zeszyt, $zawartosc->niedostepne($zeszyt, $kto)),
+            );
+        })(),
 
         'zapisz-wpis' => (string) app(SavePostToCollection::class)->handle(
             user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
@@ -449,6 +574,13 @@ try {
             Tag::query()->whereKey($argumenty['zrodlo'])->firstOrFail(),
             Tag::query()->whereKey($argumenty['cel'])->firstOrFail(),
         )->getKey(),
+        // Limit listy „Co mam w domu” (#1958): prawdziwa akcja domenowa,
+        // żeby test pękł, jeśli blokada wiersza właściciela zniknie
+        // z `CoMamWDomu::dodaj()`.
+        'dodaj-do-pantry' => (string) app(CoMamWDomu::class)
+            ->dodaj(User::query()->whereKey($argumenty['kto'])->firstOrFail(), $argumenty['nazwa'])['produkt']
+            ->getKey(),
+
         // Zastąpienie wyboru redakcyjnego (#1027): prawdziwe akcje domenowe,
         // bariera po ich własnym DELETE.
         'tablica-dnia' => (function () use ($argumenty): array {
@@ -509,6 +641,9 @@ try {
             odwolanie: Appeal::query()->whereKey($argumenty['odwolanie'])->firstOrFail(),
             wynik: $argumenty['wynik'],
             uzasadnienie: $argumenty['uzasadnienie'],
+            nowaDecyzja: isset($argumenty['nowa_akcja'])
+                ? new NowaDecyzja($argumenty['nowa_akcja'], $argumenty['podstawa'], $argumenty['wiadomosc'])
+                : null,
         )->status,
 
         'zmien-role' => app(ChangeUserRole::class)->handle(
@@ -561,6 +696,39 @@ try {
             }
 
             $odpowiedz = app(ModerationController::class)->decide($zadanie, $zgloszenie);
+
+            $bledy = $odpowiedz->getSession()?->get('errors');
+
+            return $bledy === null ? 'ok' : implode(' ', $bledy->all());
+        })(),
+
+        // Bezpośrednie przywrócenie treści akcją domenową (#2086).
+        'przywroc-tresc' => (string) app(RestoreContent::class)->handle(
+            moderator: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            target: Post::query()->withTrashed()->whereKey($argumenty['wpis'])->firstOrFail(),
+            reasonCode: 'appeal_overturned',
+            note: 'Przywrócenie z testu wyścigu.',
+            userMessage: 'Przywracamy Twoją treść.',
+        )->getKey(),
+
+        // Przywrócenie PRAWDZIWYM kontrolerem panelu (`ModerationController::restore()`,
+        // #2086). Bez HTTP: middleware 2FA nie jest tu mierzone, rola z początku
+        // żądania jest sprawdzana bramką kontrolera tak jak w trasie.
+        'przywroc-z-panelu' => (function () use ($argumenty): string {
+            $moderator = User::query()->whereKey($argumenty['kto'])->firstOrFail();
+            Auth::setUser($moderator);
+
+            $zgloszenie = Report::query()->whereKey($argumenty['zgloszenie'])->firstOrFail();
+
+            $zadanie = Request::create('/admin/zgloszenia/x/przywroc', 'POST', [
+                'reason_code' => 'appeal_overturned',
+                'user_message' => 'Przywracamy Twoją treść.',
+            ]);
+            $zadanie->setLaravelSession(app('session.store'));
+            $zadanie->setUserResolver(static fn () => $moderator);
+            app()->instance('request', $zadanie);
+
+            $odpowiedz = app(ModerationController::class)->restore($zadanie, $zgloszenie);
 
             $bledy = $odpowiedz->getSession()?->get('errors');
 
@@ -694,6 +862,27 @@ try {
                 ImportPrzepisu::query()->findOrFail($argumenty['poprzednie']),
             )->getKey();
         })(),
+        'wspolny-limit-importu' => (function () use ($argumenty): string {
+            config([
+                'kuking.import.limity.na_osobe_dzien' => (int) ($argumenty['limit_dzienny'] ?? 1),
+                'kuking.import.limity.na_osobe_miesiac' => (int) ($argumenty['limit_miesieczny'] ?? 30),
+            ]);
+            $osoba = User::query()->findOrFail($argumenty['kto']);
+            $zrodlo = (string) $argumenty['zrodlo'];
+
+            if ($zrodlo === 'zdjecie') {
+                $proba = DB::transaction(static fn () => app(LimitImportowOsoby::class)
+                    ->rezerwuj($osoba, 'zdjecie', (string) Str::uuid()));
+            } else {
+                try {
+                    $proba = app(LimitImportu::class)->zuzyj($osoba, $zrodlo, (string) Str::uuid());
+                } catch (ImportOdrzucony) {
+                    $proba = null;
+                }
+            }
+
+            return $proba === null ? 'odmowa' : 'rezerwacja';
+        })(),
         // Rejestracja wdrożenia (issue #1932, D-318): numer kolejny liczony
         // pod `pg_advisory_xact_lock(hashtext($etykieta))` wewnątrz akcji —
         // test na dwóch połączeniach trzyma TĘ SAMĄ blokadę na własnym
@@ -703,6 +892,24 @@ try {
             $argumenty['commit'],
             $argumenty['etykieta'],
         ),
+
+        // Import wartości odżywczych (#2130) na prawdziwej klasie. `bariera`
+        // zatrzymuje uczestnika tuż PRZED zapisem znacznika (zdarzenie
+        // `WritingKey` z magazynu cache): czeka na blokadę doradczą trzymaną
+        // przez test i zaraz ją oddaje. Przyrząd nie zmienia kodu importu —
+        // tylko wybiera moment, w którym uczestnik staje.
+        'importuj-odzywcze' => (static function () use ($argumenty): array {
+            if (($argumenty['bariera'] ?? '') === '1') {
+                Event::listen(WritingKey::class, static function (WritingKey $zdarzenie): void {
+                    if ($zdarzenie->key === 'odzywcze:import:hash-plikow') {
+                        DB::select('SELECT pg_advisory_lock(2130, 1)');
+                        DB::select('SELECT pg_advisory_unlock(2130, 1)');
+                    }
+                });
+            }
+
+            return app(ImportujWartosciOdzywcze::class)->handle($argumenty['katalog']);
+        })(),
 
         // Prawdziwa komenda używana przez obie ścieżki wdrożenia (#2082).
         'migruj-pod-blokada' => Artisan::call('kuking:migruj-pod-blokada'),

@@ -141,8 +141,8 @@ class OdmianaLiczebnikaWTekstachTest extends TestCase
 
         $ekran = Livewire::actingAs($basia)
             ->test('recipe-wizard')
-            ->set('title', 'Testowy przepis')
-            ->set('servings', $wpisanaWartosc)
+            ->set('form.title', 'Testowy przepis')
+            ->set('form.servings', $wpisanaWartosc)
             ->set('step', 4);
 
         // Wycinamy sekcję „Przepis bez nazwy"/podglądu, nie całą stronę —

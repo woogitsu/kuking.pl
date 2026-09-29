@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Collections\Wspoldzielenie\ZaprosDoZeszytu;
 use App\Models\Appeal;
 use App\Models\Collection;
 use App\Models\Comment;
@@ -111,6 +112,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         'login.link.confirm' => 'Parametr {token} to jednorazowy token logowania linkiem (D-056).',
         'facebook.link.confirm' => 'Parametr {token} to jednorazowy dowód kontroli nad obecnym kontem Kuking, związany z sesją i Facebookiem (#2085).',
         'zaproszenie.pokaz' => 'Parametr {token} to jednorazowy token zaproszenia do rejestracji.',
+        'settings.data.import.preview' => 'Parametr {paczka} to losowy token pliku ZIP czekającego w prywatnym katalogu ZALOGOWANEJ osoby (`MagazynPaczek`), nie identyfikator obiektu w bazie: cudzy token nie wskazuje niczego (WczytanieDanychEkranTest::test_czyjs_token_nic_nie_znaczy_dla_innej_osoby), a wejście idzie przez `WczytanaZPaczkiPolicy::create` (#1985).',
+        'settings.data.import.store' => 'Jak `settings.data.import.preview`: {paczka} to token pliku z katalogu zalogowanej osoby; zapis tworzy wyłącznie treści tej osoby, po `WczytanaZPaczkiPolicy::create` (#1985).',
+        'collections.link.show' => 'Parametr {token} to jednorazowy token linku-zaproszenia do wspólnego zeszytu (#1743); w bazie leży jego SHA-256, a przyjęcie odmawia przy blokadzie między stronami.',
+        'collections.link.accept' => 'Jak collections.link.show: {token} to jednorazowe poświadczenie linku-zaproszenia, nie identyfikator obiektu.',
+        'collections.link.decline' => 'Jak collections.link.show: {token} to jednorazowe poświadczenie linku-zaproszenia, nie identyfikator obiektu.',
     ];
 
     /**
@@ -417,8 +423,6 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         }
     }
 
-    private Post $wpis;
-
     private DataExport $paczka;
 
     private PendingEmailChange $zmianaAdresu;
@@ -462,7 +466,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'moderator' => $moderator,
         ];
 
-        $wpis = $this->wpis = Post::factory()->private()->create(['author_id' => $wlasciciel->getKey()]);
+        $wpis = Post::factory()->private()->create(['author_id' => $wlasciciel->getKey()]);
         config(['kuking.questions.enabled' => true]);
         $pytanie = Post::factory()->question()->private()->create(['author_id' => $wlasciciel->getKey()]);
         $wpisPubliczny = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
@@ -681,9 +685,9 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('admin.tag-promotions.update', 'zmiana promocji tagu', 'put',
             route('admin.tag-promotions.update', $tagPromowany), ['position' => 3], [$O, $O, $O, $W, $O]);
         $dodaj('admin.tag-promotions.destroy', 'zdjęcie promocji tagu', 'delete',
-            route('admin.tag-promotions.destroy', $tagPromowanyDoKasacji), [], [$O, $O, $O, $W, $O]);
+            route('admin.tag-promotions.destroy', $tagPromowanyDoKasacji), ['potwierdzam' => '1'], [$O, $O, $O, $W, $O]);
         $dodaj('admin.tag-highlights.destroy', 'usunięcie tagu tygodnia', 'delete',
-            route('admin.tag-highlights.destroy', $wyroznienieTagu), [], [$O, $O, $O, $W, $O]);
+            route('admin.tag-highlights.destroy', $wyroznienieTagu), ['potwierdzam' => '1'], [$O, $O, $O, $W, $O]);
         $dodaj('admin.reports.decide', 'decyzja w sprawie zgłoszenia', 'post',
             route('admin.reports.decide', $zgloszenieDoDecyzji), ['action' => 'none', 'reason_code' => 'brak-naruszenia'],
             [$O, $O, $O, $W, $O]);
@@ -895,6 +899,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.show', $zeszyt), [], [$W, $O, $O, $O, $O]);
         $dodaj('collections.destroy', 'usunięcie zeszytu', 'delete',
             route('collections.destroy', $zeszytDoKasacji), [], [$W, $O, $O, $O, $O]);
+
+        // ─── „CO MAM W DOMU” (D-285) ─────────────────────────────────────
+        // Lista prywatna: produkt usuwa wyłącznie właściciel — moderator
+        // też nie (`PantryItemPolicy::delete`, bez wyjątku z urzędu).
+        $produktZListy = $wlasciciel->pantryItems()->create(['name' => 'mąka']);
+        $dodaj('pantry.destroy', 'usunięcie produktu z listy „Co mam w domu”', 'delete',
+            route('pantry.destroy', $produktZListy), [], [$W, $O, $O, $O, $O]);
         // ZMIANA STATUSU WŁAŚCICIELA MA ZAWĘŻAĆ, NIGDY NIE ROZSZERZAĆ (#1092).
         //
         // Dwa wiersze na tej samej trasie, różniące się WYŁĄCZNIE flagą
@@ -931,6 +942,58 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('collections.note', 'notatka przy zapisie', 'patch',
             route('collections.note', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
             ['note' => 'Mniej soli'], [$W, $O, $O, $O, $O]);
+
+        // ─── WSPÓLNY ZESZYT (#1743, D-302) ───────────────────────────────
+        // Zarządza nim wyłącznie właściciel (`CollectionPolicy::manageAccess`
+        // i `share`); zaproszenie po nazwie otwiera, przyjmuje i odrzuca
+        // wyłącznie adresat (`CollectionInvitationPolicy::respond`) — tu
+        // adresatem jest `obcy`, więc to on ma przy tych trzech trasach
+        // KONTROLĘ DODATNIĄ. Każda trasa zmieniająca stan dostaje własny
+        // zeszyt, żeby kolejność wierszy nie decydowała o wyniku.
+        $nowyZeszyt = fn (string $nazwa): Collection => Collection::create([
+            'owner_id' => $wlasciciel->getKey(),
+            'name' => $nazwa,
+            'visibility' => 'private',
+        ]);
+        $zaproszenia = app(ZaprosDoZeszytu::class);
+
+        $zeszytWspolny = $nowyZeszyt('Wspólny zeszyt');
+        $zeszytDoZaproszen = $nowyZeszyt('Zeszyt do zaproszeń');
+        $zeszytZLinkiem = $nowyZeszyt('Zeszyt z linkiem');
+        $zeszytDoOdwolania = $nowyZeszyt('Zeszyt do odwołania');
+        $zeszytDoOdebrania = $nowyZeszyt('Zeszyt do odebrania dostępu');
+        $zeszytDoWyjscia = $nowyZeszyt('Zeszyt do wyjścia');
+
+        $zaproszonaOsoba = $this->user('zaproszona');
+        $czlonekDoOdebrania = $this->user('czlonekdoodebrania');
+        $zaproszenieDoOdwolania = $zaproszenia->poNazwie($wlasciciel, $zeszytDoOdwolania, $przedmiot->profile->username);
+        $zeszytDoOdebrania->members()->attach($czlonekDoOdebrania->getKey(), ['created_at' => now()]);
+        $zeszytDoWyjscia->members()->attach($obcy->getKey(), ['created_at' => now()]);
+        $zaproszenieDoPokazania = $zaproszenia->poNazwie($wlasciciel, $zeszytWspolny, $obcy->profile->username);
+        $zaproszenieDoPrzyjecia = $zaproszenia->poNazwie($wlasciciel, $zeszytDoZaproszen, $obcy->profile->username);
+        $zaproszenieDoOdrzucenia = $zaproszenia->poNazwie($wlasciciel, $zeszytZLinkiem, $obcy->profile->username);
+
+        $dodaj('collections.sharing', 'ekran „Kto ma dostęp" do zeszytu', 'get',
+            route('collections.sharing', $zeszytWspolny), [], [$W, $O, $O, $O, $O]);
+        $dodaj('collections.invitations.store', 'zaproszenie po nazwie konta', 'post',
+            route('collections.invitations.store', $zeszytWspolny), ['nazwa' => $zaproszonaOsoba->profile->username], [$W, $O, $O, $O, $O]);
+        $dodaj('collections.invitations.link', 'link-zaproszenie do zeszytu', 'post',
+            route('collections.invitations.link', $zeszytWspolny), [], [$W, $O, $O, $O, $O]);
+        $dodaj('collections.invitations.destroy', 'odwołanie zaproszenia', 'delete',
+            route('collections.invitations.destroy', [$zeszytDoOdwolania, $zaproszenieDoOdwolania]), [], [$W, $O, $O, $O, $O]);
+        $dodaj('collections.members.destroy', 'odebranie dostępu współpracownikowi', 'delete',
+            route('collections.members.destroy', [$zeszytDoOdebrania, $czlonekDoOdebrania->getKey()]), [], [$W, $O, $O, $O, $O]);
+        // Właściciel ma tu ODMOWĘ, bo nie odchodzi z własnego zeszytu
+        // (`CollectionPolicy::leave`); kontrolą dodatnią jest `obcy`,
+        // wpisany do tego zeszytu jako współpracownik.
+        $dodaj('collections.leave', 'odejście ze wspólnego zeszytu', 'delete',
+            route('collections.leave', $zeszytDoWyjscia), [], [$O, $W, $O, $O, $O]);
+        $dodaj('collections.invitations.show', 'ekran zaproszenia po nazwie', 'get',
+            route('collections.invitations.show', $zaproszenieDoPokazania), [], [$O, $W, $O, $O, $O]);
+        $dodaj('collections.invitations.accept', 'przyjęcie zaproszenia', 'post',
+            route('collections.invitations.accept', $zaproszenieDoPrzyjecia), [], [$O, $W, $O, $O, $O]);
+        $dodaj('collections.invitations.decline', 'odrzucenie zaproszenia', 'post',
+            route('collections.invitations.decline', $zaproszenieDoOdrzucenia), [], [$O, $W, $O, $O, $O]);
 
         // ─── PLANER TYGODNIA ─────────────────────────────────────────────
         // Planer jest prywatny (#27, D-310): pozycję usuwa wyłącznie

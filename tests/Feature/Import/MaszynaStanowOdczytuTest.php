@@ -13,6 +13,7 @@ use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Jobs\OdczytajPrzepis;
 use App\Models\ImportPrzepisu;
+use App\Models\Recipe;
 use App\Models\User;
 use App\Models\WpisZgody;
 use App\Support\Czas;
@@ -52,8 +53,8 @@ final class MaszynaStanowOdczytuTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** Najgorszy przypadek z cennika testu: 6000 × 2 + 8000 × 8. */
-    private const REZERWACJA = 76_000;
+    /** Całe okno modelu w droższej taryfie: 1 050 000 × 2 × 2 + 8000 × 8 × 1,5. */
+    private const REZERWACJA = 4_296_000;
 
     /** Koszt z `usage` atrapy: 1000 × 2 + 500 × 8. */
     private const KOSZT_Z_USAGE = 6_000;
@@ -99,6 +100,28 @@ final class MaszynaStanowOdczytuTest extends TestCase
         $this->assertSame(['zarezerwowano' => 0, 'wydano' => self::KOSZT_Z_USAGE], $this->budzet());
         Http::assertSentCount(1);
         $this->assertSame(1, DB::table('ai_rezerwacje')->where('import_id', $zlecenie->getKey())->where('stan', 'rozliczona')->count());
+    }
+
+    /**
+     * #2189: zadanie przyjęte przed sankcją nie zapisuje odczytu do szkicu po
+     * jej zatwierdzeniu. Zlecenie kończy się jawnie, szkic zostaje pusty,
+     * a zadanie nie rzuca (kolejka nie ponawia płatnego odczytu).
+     */
+    public function test_2189_odczyt_przyjety_przed_sankcja_nie_wpisuje_sie_do_szkicu(): void
+    {
+        $this->modelOdpowiada();
+        $zlecenie = $this->zlecenieBezWysylki();
+        $this->osoba->suspend();
+
+        $this->uruchom($zlecenie);
+
+        $zlecenie->refresh();
+        $this->assertSame(ImportPrzepisu::STATUS_NIEUDANY, $zlecenie->status);
+        $this->assertSame(ImportPrzepisu::KOD_BLAD_WEWNETRZNY, $zlecenie->kod_bledu);
+        $szkic = Recipe::query()->findOrFail($zlecenie->recipe_id);
+        $this->assertSame('Przepis z kartki', $szkic->title);
+        $this->assertSame(0, $szkic->ingredients()->count());
+        $this->assertSame(0, $szkic->steps()->count());
     }
 
     // ------------------------------------------------------------------

@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Jobs\GenerateUserExport;
+use App\Jobs\ImportujPrzepisZAdresu;
+use App\Jobs\ImportujPrzepisZPdf;
 use App\Jobs\NotifyUserExportReady;
 use App\Jobs\OdczytajPrzepis;
 use App\Jobs\ProcessUploadedImage;
 use App\Jobs\PrzeanalizujAwatar;
 use App\Jobs\PrzeanalizujTresc;
+use App\Jobs\PrzeliczPytaniaBezOdpowiedzi;
 use App\Jobs\PurgePublicMediaCache;
 use App\Jobs\WyslijPowiadomieniePush;
 use App\Models\Post;
@@ -83,10 +86,15 @@ class UmowaKolejkiTest extends TestCase
         // pilnuje `assertNotPushed`). Zostaje dla zadań sprzed wdrożenia,
         // które czekają na `low` z zapisaną wtedy nazwą kolejki.
         PrzeanalizujAwatar::class => null,
+        PrzeliczPytaniaBezOdpowiedzi::class => 'low', // licznik /pytania może poczekać za ludźmi (#372)
         WyslijPowiadomieniePush::class => 'default', // powiadomienie na urządzenie — obok listów, nie za eksportem (#35)
         // Odczyt zdjęcia kartki modelem (D-298) — `low`, bez osobnej kolejki:
         // do 90 s, za moderacją, nie przed zdjęciami i listami.
         OdczytajPrzepis::class => 'low',
+        // Import przepisu z adresu strony (#28): pobranie + ewentualny model poza żądaniem WWW.
+        ImportujPrzepisZAdresu::class => 'low',
+        // Import przepisu z wysłanego pliku PDF (#28, etap 2): Poppler + ewentualny model poza żądaniem WWW.
+        ImportujPrzepisZPdf::class => 'low',
     ];
 
     /**
@@ -104,8 +112,11 @@ class UmowaKolejkiTest extends TestCase
             PurgePublicMediaCache::class => new PurgePublicMediaCache(['https://example.test/a.webp']),
             PrzeanalizujTresc::class => new PrzeanalizujTresc(PrzeanalizujTresc::TYP_WPIS, 'post-id'),
             PrzeanalizujAwatar::class => new PrzeanalizujAwatar('media-id'),
+            PrzeliczPytaniaBezOdpowiedzi::class => new PrzeliczPytaniaBezOdpowiedzi,
             WyslijPowiadomieniePush::class => new WyslijPowiadomieniePush('user-id'),
             OdczytajPrzepis::class => new OdczytajPrzepis('import-id'),
+            ImportujPrzepisZAdresu::class => new ImportujPrzepisZAdresu('import-id'),
+            ImportujPrzepisZPdf::class => new ImportujPrzepisZPdf('import-id'),
         ];
     }
 

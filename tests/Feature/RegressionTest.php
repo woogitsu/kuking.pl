@@ -320,7 +320,8 @@ class RegressionTest extends TestCase
                 .'USING gin (public.kuking_normalize(tytul) public.gin_trgm_ops)',
             );
 
-            $this->assertTrue(true, 'Indeks zbudowany bez błędu.');
+            // Indeks zbudowany bez błędu.
+            $this->addToAssertionCount(1);
         });
     }
 }

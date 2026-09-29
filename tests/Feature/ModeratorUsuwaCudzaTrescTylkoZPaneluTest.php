@@ -73,6 +73,7 @@ class ModeratorUsuwaCudzaTrescTylkoZPaneluTest extends TestCase
             'moderator z 2FA' => $this->moderator(),
             'administrator z 2FA' => $this->admin(),
             'zwykły użytkownik' => $this->user(),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
         $autor = $this->user('autor');
         $tresc = $this->tresc($typ, $autor);
@@ -152,6 +153,7 @@ class ModeratorUsuwaCudzaTrescTylkoZPaneluTest extends TestCase
             'recipe' => Recipe::factory()->create(['author_id' => $autor->getKey()]),
             'comment' => Comment::factory()->create(['author_id' => $autor->getKey()]),
             'cooked_event' => CookedEvent::factory()->create(['user_id' => $autor->getKey()]),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
     }
 
@@ -162,6 +164,7 @@ class ModeratorUsuwaCudzaTrescTylkoZPaneluTest extends TestCase
             'recipe' => route('recipes.destroy', $tresc->slug),
             'comment' => route('comments.destroy', $tresc),
             'cooked_event' => route('cooked.destroy', $tresc),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
     }
 

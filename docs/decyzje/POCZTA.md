@@ -177,7 +177,7 @@ Zmierzone: `/nie-pamietam-hasla` przyjmuje 5 próśb na 10 minut z adresu IP, cz
 dobowego) robiło to samo w około 50 minut z jednego niepotwierdzonego konta.
 
 Od D-239 wszystkie drogi liczą się w **jednym** liczniku
-(`App\Domain\Security\DziennyBudzetListow::wspolny()`), a o tym, co gaśnie
+(`App\Poczta\DziennyBudzetListow::wspolny()`), a o tym, co gaśnie
 pierwsze, decyduje `kuking.poczta.progi_wygaszania`. Próg mówi, ile listów z puli
 dana klasa ma zostawić nietkniętych:
 
@@ -208,11 +208,37 @@ rejestracji, jego ponowienie i logowanie linkiem. Masowe zakładanie kont albo
 klikanie „Wyślij wiadomość jeszcze raz" nadal może zjeść pulę do zera — wtedy
 ekran logowania linkiem mówi, że listu nie będzie, i podaje logowanie hasłem
 oraz adres kontaktowy (D-239). Nie dzieli też puli między konkretnych ludzi: jeden
-sprawca nadal wypali klasę `zwykla` na cały dzień. Nie obejmuje też jeszcze
-listów niskonakładowych z rodziny moderacyjnej (decyzje w sprawie zgłoszeń,
-potwierdzenia odwołań, dobowe podsumowanie automatu, eksport danych, ostrzeżenia
-o zmianie adresu) — każdy z nich to pojedyncze sztuki na dobę, ale dopóki się nie
-liczą, wspólna pula pokazuje mniej, niż serwis naprawdę wysłał.
+sprawca nadal wypali klasę `zwykla` na cały dzień.
+
+**Listy bez rezerwacji też są w rachunku (audyt B8-02, 25.09.2026).** Do tej
+daty licznik nie widział listów niskonakładowych z rodziny moderacyjnej
+(decyzje w sprawie zgłoszeń, potwierdzenia odwołań i zgłoszeń DSA, dobowe
+podsumowanie automatu, eksport danych, ostrzeżenia o zmianie adresu, próba
+wejścia kontem Facebooka) ani alarmu automatu o pilnym oznaczeniu. Teraz:
+
+- słuchacz `MessageSending` (`App\Poczta\PoliczListBezRezerwacji`) dolicza do
+  klasy `zwykla` każdy list, który wychodzi do transportu **bez** nagłówka
+  `X-Kuking-Budzet: zarezerwowany`. Tylko liczy (`zajmij()`), niczego nie
+  odrzuca — o tym, co gaśnie, dalej decydują drogi z rezerwacją, ale widzą już
+  prawdziwe zużycie. Nagłówek jest zdejmowany przed wysyłką do dostawcy;
+- nagłówek (`App\Poczta\ListZarezerwowany`) niosą wyłącznie listy, których
+  droga zarezerwowała miejsce przed wysyłką. Rejestr tych klas jest zamknięty
+  w obie strony w `tests/Feature/KazdyListLiczySieWPuliTest.php` (od scalenia
+  z życzeniami urodzinowymi także `ZyczeniaUrodzinowe`, które rezerwuje komenda
+  `kuking:wyslij-zyczenia-urodzinowe`);
+- alarm automatu (`AlarmujModeratora`) idzie spod
+  `DziennyBudzetListow::dlaAlarmuAutomatu()`: klasa `wejscie` i własny sufit
+  `moderation.model.alarm_dzienny_sufit` (domyślnie 10, `KUKING_MODEL_ALARM_SUFIT`),
+  osobny od sufitu alarmu o zgłoszeniu człowieka. Ten sam sufit obejmuje
+  dosyłanie zaległych alarmów (`kuking:doslij-pilne-alarmy`, #1051). Po
+  wyczerpaniu oznaczenie czeka w `/admin/sygnaly`, stan alarmu na sprawie
+  zostaje „nie dotarł" (sonda `/health` go widzi w oknie
+  `alarm_sonda_godzin`, 72 h; komenda dośle list, gdy sufit się odnowi —
+  przy pierwszej odmowie sufitu kończy przebieg, bez prób dla reszty
+  partii), a dziennik mówi, dlaczego bez listu.
+
+Ponowienie zadania po błędzie transportu liczy się przy liście bez rezerwacji
+tyle razy, ile razy list poszedł do transportu — tak samo liczy dostawca.
 
 ---
 

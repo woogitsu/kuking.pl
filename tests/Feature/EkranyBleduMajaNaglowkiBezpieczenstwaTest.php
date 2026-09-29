@@ -104,7 +104,7 @@ class EkranyBleduMajaNaglowkiBezpieczenstwaTest extends TestCase
             }
         }
 
-        $this->assertSame(429, $odpowiedz?->getStatusCode(), 'Nie udało się wywołać limitu zapytań.');
+        $this->assertSame(429, $odpowiedz->getStatusCode(), 'Nie udało się wywołać limitu zapytań.');
 
         foreach (self::WYMAGANE as $naglowek) {
             $this->assertNotNull(

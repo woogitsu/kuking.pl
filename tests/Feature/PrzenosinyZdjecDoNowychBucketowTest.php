@@ -384,7 +384,7 @@ class PrzenosinyZdjecDoNowychBucketowTest extends TestCase
 
         $migracja->up();
 
-        $this->assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 
     /**

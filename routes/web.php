@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\BezOdpowiedziController;
 use App\Http\Controllers\Admin\DailyBoardController;
 use App\Http\Controllers\Admin\HeroKolazController;
 use App\Http\Controllers\Admin\KolejkaController;
+use App\Http\Controllers\Admin\MetrykiController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\SygnalyController;
 use App\Http\Controllers\Admin\TagHighlightController;
@@ -30,6 +31,7 @@ use App\Http\Controllers\Auth\RegistrationInviteController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\CollectionItemNoteController;
+use App\Http\Controllers\CollectionSharingController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CookedEventController;
 use App\Http\Controllers\CookingModeController;
@@ -45,6 +47,7 @@ use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NowosciController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PantryController;
 use App\Http\Controllers\PlanerController;
 use App\Http\Controllers\PodsumowanieTygodniaController;
 use App\Http\Controllers\PostController;
@@ -68,6 +71,7 @@ use App\Http\Controllers\Settings\ProfileSettingsController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SettingsIndexController;
 use App\Http\Controllers\Settings\TwoFactorSettingsController;
+use App\Http\Controllers\Settings\WczytanieDanychController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SmakowicieController;
 use App\Http\Controllers\SocialController;
@@ -82,6 +86,7 @@ use App\Http\Controllers\WartosciOdzywczeController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use App\Http\Controllers\ZgodaOdczytuAiController;
+use App\Http\Controllers\ZmianaRegulaminuController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -106,7 +111,11 @@ $limits = config('kuking.limits');
 // Publiczne
 // --------------------------------------------------------------------------
 
-Route::get('/', [FeedController::class, 'landing'])->name('landing');
+// Limiter strony głównej (issue #1952): gość dostaje tu to samo zapytanie
+// co na `/odkryj` — uzasadnienie progu przy `limits.landing`.
+Route::get('/', [FeedController::class, 'landing'])
+    ->middleware("throttle:{$limits['landing']},landing")
+    ->name('landing');
 Route::get('/otworz-link', ExternalLinkController::class)->middleware("throttle:{$limits['external_link']},external_link")->name('links.external');
 // Limiter per adres IP gościa (issue #1952): zapytanie liczy row_number()
 // na wszystkich publicznych wpisach przed odcięciem strony — patrz
@@ -160,6 +169,10 @@ Route::get('/zasady', [StaticPageController::class, 'rules'])->name('rules');
 Route::get('/o-kuking', [StaticPageController::class, 'about'])->name('about');
 Route::get('/regulamin', [StaticPageController::class, 'terms'])->name('terms');
 Route::get('/prywatnosc', [StaticPageController::class, 'privacy'])->name('privacy');
+// „Jak dobieramy wpisy" (#1811, D-305) — opis każdej listy wpisów w serwisie,
+// zdanie po zdaniu powiązany z kodem (`JakDobieramyWpisyMowiPrawdeTest`).
+// Publiczna: regulamin do niej odsyła, a regulamin czyta też gość.
+Route::get('/jak-dobieramy-wpisy', [StaticPageController::class, 'feedRules'])->name('feed-rules');
 
 /*
  * „CO NOWEGO" — issue #1909. Wersja w stopce (`App\Support\Wersja`) linkuje
@@ -233,6 +246,15 @@ Route::post('/motyw', [ThemeController::class, 'update'])
     ->name('theme.update');
 
 Route::get('/przepisy/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
+
+// Zeszyt „Wszyscy" jest dla wszystkich — także bez konta (issue #965).
+// Poza grupą `auth` stoi WYŁĄCZNIE odczyt; dostęp rozstrzyga
+// `CollectionPolicy::view(?User)`: gość widzi tylko publiczny zeszyt
+// dostępnego właściciela, prywatny dostaje 403. Tworzenie, edycja,
+// usuwanie i zapisy zostają niżej, za logowaniem.
+Route::get('/zeszyt/{collection}', [CollectionController::class, 'show'])
+    ->whereUuid('collection')
+    ->name('collections.show');
 
 // Tryb gotowania (issue #24). Widoczność jak strona przepisu — patrz
 // komentarz nad CookingModeController — więc te trasy stoją tutaj, w bloku
@@ -798,6 +820,18 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/dodaj/przepis', [RecipeController::class, 'create'])->name('recipes.create');
     Route::get('/dodaj/szkice', [RecipeController::class, 'drafts'])->name('recipes.drafts');
     Route::get('/dodaj/przepis/jedna-strona', [RecipeController::class, 'createSimple'])->name('recipes.create.simple');
+    // Import przepisu z adresu strony i z pliku PDF (V2, D-300). Wynik to
+    // zawsze prywatny szkic w kreatorze; limit na osobę w `LimitImportu`,
+    // throttle trasy łapie serie wysłań. Jeden adres albo jeden plik na
+    // wysłanie — drogi importu wielu adresów naraz celowo nie ma.
+    Route::get('/dodaj/przepis/z-adresu', [ImportPrzepisuController::class, 'adresForm'])->name('recipes.import.url');
+    Route::post('/dodaj/przepis/z-adresu', [ImportPrzepisuController::class, 'adres'])
+        ->middleware("throttle:{$limits['import']},import")
+        ->name('recipes.import.url.store');
+    Route::get('/dodaj/przepis/z-pdf', [ImportPrzepisuController::class, 'pdfForm'])->name('recipes.import.pdf');
+    Route::post('/dodaj/przepis/z-pdf', [ImportPrzepisuController::class, 'pdf'])
+        ->middleware("throttle:{$limits['import']},import")
+        ->name('recipes.import.pdf.store');
     // „Dopisz przepis” z własnego wpisu ze zdjęciem (#1334): ten sam
     // formularz sześciu rzeczy, ze zdjęciem wpisu zamiast nowego pliku.
     Route::get('/wpisy/{post}/dopisz-przepis', [RecipeController::class, 'createFromPost'])->name('recipes.create.from-post');
@@ -851,7 +885,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
 
     // Planer tygodnia (#27, D-310) — prywatny, tylko właściciel. Wszystkie
     // zapisy pod własnym koszykiem `planer`.
-    Route::get('/planer', [PlanerController::class, 'show'])->name('planer.show');
+    // Odczyt ma własny koszyk `planer_szukaj`: ta sama trasa uruchamia
+    // wyszukiwarkę przepisów do dnia (#2037) — patrz `limits.planer_szukaj`.
+    Route::get('/planer', [PlanerController::class, 'show'])
+        ->middleware("throttle:{$limits['planer_szukaj']},planer_szukaj")
+        ->name('planer.show');
     Route::post('/planer', [PlanerController::class, 'store'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.store');
@@ -861,6 +899,26 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/planer/{wpis}', [PlanerController::class, 'destroy'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.destroy');
+    // „Co mam w domu” i „Co ugotuję z tego, co mam” (V2, D-285).
+    //
+    // Lista jest prywatna i należy do zalogowanej osoby — żadna trasa nie
+    // bierze identyfikatora konta z adresu. Usunięcie produktu bierze jego
+    // UUID, ale decyduje `PantryItemPolicy::delete`, nie adres. Adresy poza
+    // `/zeszyt/…`, bo `/zeszyt/{collection}` łapałby `/zeszyt/co-mam-w-domu`.
+    Route::get('/co-mam-w-domu', [PantryController::class, 'index'])->name('pantry.index');
+    Route::post('/co-mam-w-domu', [PantryController::class, 'store'])
+        ->middleware("throttle:{$limits['spizarnia']},spizarnia")
+        ->name('pantry.store');
+    Route::get('/co-mam-w-domu/podpowiedzi', [PantryController::class, 'podpowiedzi'])
+        ->middleware("throttle:{$limits['podpowiedzi_skladnikow']},podpowiedzi_skladnikow")
+        ->name('pantry.suggestions');
+    Route::delete('/co-mam-w-domu/{pantryItem}', [PantryController::class, 'destroy'])
+        ->whereUuid('pantryItem')
+        ->middleware("throttle:{$limits['spizarnia']},spizarnia")
+        ->name('pantry.destroy');
+    Route::get('/co-ugotuje', [PantryController::class, 'coUgotuje'])
+        ->middleware("throttle:{$limits['co_ugotuje']},co_ugotuje")
+        ->name('pantry.cook');
 
     // Zeszyt (kolekcje)
     //
@@ -877,7 +935,6 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // „moje-wpisy” trafiłoby do wiązania zeszytu po UUID. Nazwa pod
     // `collections.*`, żeby pozycja „Moje” w nawigacji była bieżąca.
     Route::get('/zeszyt/moje-wpisy', MojeWpisyController::class)->name('collections.own-posts');
-    Route::get('/zeszyt/{collection}', [CollectionController::class, 'show'])->name('collections.show');
     // Cofnięcie publicznego udostępnienia bez kasowania zeszytu (issue #777).
     // Własny klucz `zeszyt`, nie `usuwanie` — to nie jest akcja destrukcyjna.
     Route::get('/zeszyt/{collection}/edytuj', [CollectionController::class, 'edit'])->name('collections.edit');
@@ -898,6 +955,48 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/zeszyt/{collection}', [CollectionController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('collections.destroy');
+    // Wspólny zeszyt (#1743, D-302). Zaproszenie po nazwie powiadamia
+    // drugiego człowieka, więc wszystkie zmiany idą pod własnym kluczem
+    // `zaproszenia`, nie pod budżetem prywatnego zapisu `zeszyt`.
+    Route::get('/zeszyt/{collection}/wspolny', [CollectionSharingController::class, 'show'])->name('collections.sharing');
+    Route::post('/zeszyt/{collection}/zaproszenia', [CollectionSharingController::class, 'invite'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.invitations.store');
+    Route::post('/zeszyt/{collection}/zaproszenia/link', [CollectionSharingController::class, 'createLink'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.invitations.link');
+    Route::delete('/zeszyt/{collection}/zaproszenia/{invitation}', [CollectionSharingController::class, 'revoke'])
+        ->whereUuid('invitation')
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.invitations.destroy');
+    Route::delete('/zeszyt/{collection}/osoby/{member}', [CollectionSharingController::class, 'removeMember'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.members.destroy');
+    Route::delete('/zeszyt/{collection}/moj-dostep', [CollectionSharingController::class, 'leave'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.leave');
+    Route::get('/zaproszenie-do-zeszytu/{invitation}', [CollectionSharingController::class, 'showInvitation'])
+        ->whereUuid('invitation')
+        ->name('collections.invitations.show');
+    Route::post('/zaproszenie-do-zeszytu/{invitation}/dolaczam', [CollectionSharingController::class, 'acceptInvitation'])
+        ->whereUuid('invitation')
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.invitations.accept');
+    Route::post('/zaproszenie-do-zeszytu/{invitation}/odmawiam', [CollectionSharingController::class, 'declineInvitation'])
+        ->whereUuid('invitation')
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.invitations.decline');
+    // Link-zaproszenie: token w adresie, jednorazowy. Gość trafia najpierw
+    // na logowanie (`auth` tej grupy) i wraca tu po nim.
+    Route::get('/zaproszenie-do-zeszytu/link/{token}', [CollectionSharingController::class, 'showLink'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.link.show');
+    Route::post('/zaproszenie-do-zeszytu/link/{token}/dolaczam', [CollectionSharingController::class, 'acceptLink'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.link.accept');
+    Route::post('/zaproszenie-do-zeszytu/link/{token}/odmawiam', [CollectionSharingController::class, 'declineLink'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('collections.link.decline');
     Route::post('/przepisy/{recipe}/zapisz', [CollectionController::class, 'saveRecipe'])
         ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.save');
@@ -974,6 +1073,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/moj-stol', [MojStolController::class, 'ustaw'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('moj-stol.ustaw');
+    // Pasek „Zmieniliśmy regulamin" (#1811, D-306): zamknięcie zapisuje wersję.
+    // POST, nie GET — to zapis, a podgląd linku albo prefetch nie może go zrobić.
+    Route::post('/regulamin/zmiana/zamknij', ZmianaRegulaminuController::class)
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('terms.notice.dismiss');
     Route::get('/ustawienia/ukryte', [UkryciaController::class, 'lista'])->name('settings.hidden');
     Route::patch('/ustawienia/ukryte/{hide}', [UkryciaController::class, 'zostaw'])
         ->middleware("throttle:{$limits['ukrycia']},ukrycia")
@@ -1150,6 +1254,24 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/ustawienia/twoje-dane/pobierz/{export}', [DataSettingsController::class, 'download'])
         ->middleware('signed')
         ->name('settings.data.download');
+
+    // Wczytanie WŁASNEJ paczki z danymi (#1985): wybór pliku, podgląd, zapis.
+    // Plik czeka między krokami w prywatnej poczekalni osoby (`MagazynPaczek`);
+    // `{paczka}` to losowy token, nie autoryzacja — plik szukamy w katalogu
+    // zalogowanej osoby. Limit `import_paczki` (10 na godzinę) dotyczy kroków,
+    // które czytają ZIP: wysłania pliku i zapisu.
+    Route::get('/ustawienia/twoje-dane/wczytaj', [WczytanieDanychController::class, 'wybor'])
+        ->name('settings.data.import');
+    Route::post('/ustawienia/twoje-dane/wczytaj', [WczytanieDanychController::class, 'sprawdz'])
+        ->middleware("throttle:{$limits['import_paczki']},import_paczki")
+        ->name('settings.data.import.check');
+    Route::get('/ustawienia/twoje-dane/wczytaj/{paczka}', [WczytanieDanychController::class, 'podglad'])
+        ->whereUuid('paczka')
+        ->name('settings.data.import.preview');
+    Route::post('/ustawienia/twoje-dane/wczytaj/{paczka}', [WczytanieDanychController::class, 'zapisz'])
+        ->whereUuid('paczka')
+        ->middleware("throttle:{$limits['import_paczki']},import_paczki")
+        ->name('settings.data.import.store');
 
     // Bezpieczeństwo konta (issue #12): zmiana hasła i „wyloguj mnie z innych
     // urządzeń”. Obie akcje POST/PUT proszą o hasło, więc dostają ten sam
@@ -1463,6 +1585,12 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
      * zobaczeniu, kogo dotyczy.
      */
     Route::get('/kolejka', [KolejkaController::class, 'index'])->name('admin.kolejka');
+
+    /*
+     * Metryki doboru (issue #1814, D-283) — same agregaty z istniejących
+     * tabel, tylko dla admina (`UserPolicy::przegladajMetryki`). Tylko GET.
+     */
+    Route::get('/metryki', [MetrykiController::class, 'index'])->name('admin.metryki');
 });
 
 // --------------------------------------------------------------------------

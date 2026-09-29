@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Import;
 
 use App\Support\Czas;
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -19,15 +20,22 @@ use Illuminate\Support\Facades\Log;
  *     KlientLuna::odczytaj() -- żądanie
  *     rozlicz(rezerwacja, koszt z usage)
  *
- * Szacunek to NAJGORSZY przypadek: szacowane tokeny wejścia × cena wejścia
- * + sufit tokenów wyjścia (z rozumowaniem) × cena wyjścia. Dzięki temu suma
- * rezerwacji nigdy nie wypuści wywołania, które mogłoby przebić limit.
+ * Rezerwacja obejmuje CAŁE okno kontekstu zatwierdzonego modelu gpt-6-luna
+ * oraz sufit tokenów wyjścia (z rozumowaniem). Dla wejścia powyżej 272 tys.
+ * tokenów model ma droższą taryfę (2× wejście, 1,5× wyjście), którą
+ * uwzględniamy już w rezerwacji. Dzięki temu wielostronicowy
+ * obraz albo nietypowy tekst nie przekroczy kwoty zarezerwowanej przed HTTP.
  *
- * BLOKADA WIERSZA DNIA SZEREGUJE WSZYSTKIE REZERWACJE — dwa odczyty naraz
- * czekają na siebie i drugi widzi już rezerwację pierwszego. Miesiąc liczymy
- * sumą wierszy od pierwszego dnia miesiąca: przeszłe dni się nie zmieniają
- * (poza rozliczeniem odczytu, który przeszedł przez północ — i to zawsze
- * w DÓŁ albo bez zmiany, bo koszt nie przekracza rezerwacji).
+ * DWIE BLOKADY, ZAWSZE W TEJ KOLEJNOŚCI (#2013): najpierw blokada MIESIĄCA
+ * (`pg_advisory_xact_lock` na kluczu miesiąca), potem wiersz DNIA
+ * (`FOR UPDATE`). Sam wiersz dnia szeregował tylko rezerwacje z tej samej
+ * daty — dwa odczyty z różnych dni tego samego miesiąca (tuż przed i tuż po
+ * północy) blokowały różne wiersze, oba czytały tę samą sumę miesiąca i oba
+ * ją przekraczały. Blokada miesiąca serializuje je wszystkie, więc drugi
+ * widzi już rezerwację pierwszego. Rozliczenie i zwolnienie blokady miesiąca
+ * NIE biorą (zmniejszają sumę albo zostawiają ją bez zmian), więc cyklu nie
+ * ma. Miesiąc liczymy sumą wierszy CAŁEGO miesiąca kalendarzowego, także dni
+ * po `$dzien` — rezerwacja z późniejszej daty też zużywa ten sam limit.
  *
  * BRAK `usage` = REZERWACJA ZOSTAJE JAKO WYDANA. Błąd sieci po wysłaniu
  * żądania nie znaczy, że dostawca go nie policzył. Lepiej zawyżyć niż
@@ -68,6 +76,9 @@ final class BudzetAi
 
     private const OTWARTE = "('zarezerwowana', 'wyslana')";
 
+    /** Pierwsza część klucza blokady miesiąca (`pg_advisory_xact_lock(int, int)`). */
+    public const KLASA_BLOKADY_MIESIACA = 20130;
+
     private const KLUCZ_OSTRZEZENIA = 'kuking:import:budzet-ostrzezenie:';
 
     /**
@@ -79,6 +90,9 @@ final class BudzetAi
         $dzien = Czas::dzisiajData();
 
         $wynik = DB::transaction(function () use ($mikroUsd, $dzien, $importId, $proba): Rezerwacja|string {
+            // Blokada MIESIĄCA przed wierszem dnia — zawsze w tej kolejności (#2013).
+            DB::selectOne('SELECT pg_advisory_xact_lock(?, hashtext(?))', [self::KLASA_BLOKADY_MIESIACA, substr($dzien, 0, 7)]);
+
             DB::statement(
                 'INSERT INTO ai_budzet_dzienny (dzien, created_at, updated_at) VALUES (?, now(), now()) ON CONFLICT (dzien) DO NOTHING',
                 [$dzien],
@@ -295,19 +309,20 @@ final class BudzetAi
         ];
     }
 
-    /** Najgorszy koszt jednego wywołania zadania — `null`, gdy nie ma cennika. */
+    /** Twardy sufit kosztu jednego wywołania: pełne okno modelu i max output. */
     public static function szacunek(string $zadanie): ?int
     {
         $cennik = Cennik::zKonfiguracji();
 
-        if ($cennik === null) {
+        if (! in_array($zadanie, KlientLuna::ZADANIA, true)
+            || trim((string) config('kuking.import.model.nazwa')) !== 'gpt-6-luna'
+            || $cennik === null
+            || $cennik->wejscieZaMilion < 0.10
+            || $cennik->wyjscieZaMilion < 0.50) {
             return null;
         }
 
-        return $cennik->koszt(
-            max(0, (int) config("kuking.import.model.szacunek_tokenow_wejscia.{$zadanie}")),
-            KlientLuna::maxWyjscie(),
-        );
+        return $cennik->koszt(KlientLuna::MAKS_TOKENOW_KONTEKSTU, KlientLuna::maxWyjscie());
     }
 
     public static function limitDzienny(): int
@@ -328,9 +343,10 @@ final class BudzetAi
     private function sumaMiesiaca(string $dzien): int
     {
         $poczatek = substr($dzien, 0, 8).'01';
+        $koniec = Carbon::parse($poczatek)->endOfMonth()->toDateString();
 
         return (int) DB::table('ai_budzet_dzienny')
-            ->whereBetween('dzien', [$poczatek, $dzien])
+            ->whereBetween('dzien', [$poczatek, $koniec])
             ->sum(DB::raw('zarezerwowano_mikrousd + wydano_mikrousd'));
     }
 

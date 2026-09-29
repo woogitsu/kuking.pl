@@ -13,6 +13,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Appeal;
 use App\Models\ModerationAction;
 use App\Models\User;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -188,6 +189,6 @@ class AppealController extends Controller
             return back()->withErrors(['outcome' => $blad->getMessage()])->withInput();
         }
 
-        return back()->with('status', 'Odpowiedź zapisana i wysłana.');
+        return back()->with(Komunikat::sukces('Odpowiedź zapisana i wysłana.'));
     }
 }

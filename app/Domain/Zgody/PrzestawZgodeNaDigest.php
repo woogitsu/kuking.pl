@@ -145,7 +145,10 @@ final class PrzestawZgodeNaDigest
             // świat co reszta serwisu. `useCurrent()` w migracji zostaje
             // jako zabezpieczenie wiersza wstawionego ręcznie w `psql`.
             'wystapilo_at' => now(),
-            'wersja_polityki' => (string) config('kuking.zgody.wersja_polityki'),
+            // Wersja OBOWIĄZUJĄCA w chwili zgody, nie ostatnio opublikowana:
+            // w okresie przejściowym zmiany istotnej obowiązuje jeszcze
+            // poprzednia (D-327).
+            'wersja_polityki' => WersjaDokumentu::polityka()->obowiazujaca(),
         ]);
     }
 }

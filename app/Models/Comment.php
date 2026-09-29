@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $slug
  * @property int|string|null $preceding_count
  * @property int|string|null $preceding_replies
+ * @property int|null $replies_count ustawione tylko przez `withCount('replies')`; Larastan zakłada, że jest zawsze
  */
 class Comment extends Model
 {
@@ -240,7 +241,13 @@ class Comment extends Model
     /** Obiekt, którego dotyczy komentarz — dokładnie jeden z trzech. */
     public function subject(): Post|Recipe|CookedEvent|null
     {
-        return $this->post ?? $this->recipe ?? $this->cookedEvent;
+        // Relację czytamy tylko wtedy, gdy jej klucz jest ustawiony. Pusta
+        // relacja i tak nie robi zapytania, ale sięgnięcie po nią uruchamia
+        // ochronę przed leniwym ładowaniem (#976), choć ekran doładował
+        // z góry tę jedną, która naprawdę istnieje (np. `recipe`).
+        return ($this->post_id !== null ? $this->post : null)
+            ?? ($this->recipe_id !== null ? $this->recipe : null)
+            ?? ($this->cooked_event_id !== null ? $this->cookedEvent : null);
     }
 
     /** Kto powinien dostać powiadomienie o tym komentarzu. */

@@ -570,10 +570,36 @@ porcie panelu i do 25.09.2026 nie miał żadnej warstwy: pola stały gołe
 na tle ramy. Formularz jest tam jedyną rzeczą do wypełnienia, więc dostał
 rolę 2 na samym `<form>` (#581); przycisk usuwający zostaje za kreską
 `.danger-zone` wewnątrz panelu. Pilnuje tego
-`tests/Feature/ZdejmijZUrzeduKompozycjaPaneluTest.php`. Suma w nagłówku
+`tests/Feature/ZdejmijZUrzeduKompozycjaPaneluTest.php`. Zdania o skutku
+(komentarz wraca po wygranym odwołaniu; treść znika od razu) są w
+`.panel-liczby`, nie w `.meta` 16 px; miernik przeglądarkowy panelu ma dla
+nich rodzinę `z-urzedu` (`scripts/panel-marki.mjs`, tylko faza pełna — ekran
+wymaga treści do zdjęcia). Suma w nagłówku
 inwentarza niżej NIE jest przeliczona po tej zmianie ani po dojściu
-`pages/admin/kolejka.blade.php` — ten ekran też nie ma jeszcze wierszy
-w tabeli; do uzupełnienia przy następnym przeliczeniu ze stanu kodu.
+`pages/admin/kolejka.blade.php`; ta ostatnia ma od 28.09.2026 własne wiersze
+w tabeli (poniżej), a suma w nagłówku nadal czeka na przeliczenie ze stanu
+kodu.
+
+`pages/admin/kolejka.blade.php` („Kolejka zadań”, tylko administrator) nie
+ma żadnego formularza, więc ma wyłącznie karty treści: kartę stanu, karty
+grup nieudanych zadań i kartę „Co z tym zrobić”. Panelu formularza nie ma
+tam mieć — mocna obwódka obiecywałaby czynność, której ekran nie oferuje
+(zakaz martwego przycisku, D-053, w warstwie powierzchni). Lista z nagłówkiem
+i zdaniem wstępnym jest jedną grupą (`.panel-grupa`), a dane zadania to pary
+podpis — wartość w piśmie podstawowym (`.dane-zadania`), nie `.meta` 16 px.
+Pilnują tego `tests/Feature/KolejkaZadanKompozycjaPaneluTest.php` (HTML) i miernik
+przeglądarkowy panelu, rodzina `kolejka` w `scripts/panel-marki.mjs`.
+
+`pages/admin/metryki.blade.php` („Metryki doboru”, tylko administrator) też
+nie ma formularza, więc ma wyłącznie karty treści: progi rewizji, pierwsza
+strona, pierwsze wpisy i powroty, równość autorów i tabelę dni. Uwagi pod
+kartami są w `.panel-liczby` (pismo podstawowe), nie w `.meta` 16 px, a tabela
+dni to `.tabela-dni` — dzień jako nagłówek wiersza, podpis dla czytnika
+ekranu, tekst wolno łamać zamiast przewijać. Pilnują tego
+`tests/Feature/MetrykiKompozycjaPaneluTest.php` (HTML) i miernik
+przeglądarkowy panelu, rodzina `metryki` w `scripts/panel-marki.mjs`
+(#492, 29.09.2026). Suma w nagłówku inwentarza nadal czeka na przeliczenie
+ze stanu kodu.
 
 `pages/admin/kolaz-powitalny.blade.php` powstał PO napisaniu tego dokumentu
 i trafił do inwentarza dopiero teraz. Nie było czego rozstrzygać: ekran
@@ -588,8 +614,18 @@ nie decyzją o roli.
 | `pages/admin/appeals.blade.php:56` | `card odwolanie` | karta treści |
 | `pages/admin/bez-odpowiedzi.blade.php:38` | `card czeka czeka-{{ $wpis->pilnosc }}` | karta treści |
 | `pages/admin/daily-board.blade.php:26` | `panel-formularza` | panel formularza |
+| `pages/admin/kolejka.blade.php:56` | `card` | karta treści |
+| `pages/admin/kolejka.blade.php:93` | `card` | karta treści |
+| `pages/admin/kolejka.blade.php:95` | `card` | karta treści |
+| `pages/admin/kolejka.blade.php:106` | `card` | karta treści |
+| `pages/admin/kolejka.blade.php:140` | `card stack-tight` | karta treści |
 | `pages/admin/kolaz-powitalny.blade.php:60` | `sekcja-strony mb-6` | sekcja strony |
 | `pages/admin/kolaz-powitalny.blade.php:117` | `panel-formularza` | panel formularza |
+| `pages/admin/metryki.blade.php:41` | `card` | karta treści |
+| `pages/admin/metryki.blade.php:61` | `card` | karta treści |
+| `pages/admin/metryki.blade.php:73` | `card` | karta treści |
+| `pages/admin/metryki.blade.php:83` | `card` | karta treści |
+| `pages/admin/metryki.blade.php:93` | `card` | karta treści |
 | `pages/admin/reports.blade.php:78` | `card mb-5` | karta treści |
 | `pages/admin/sygnaly.blade.php:34` | `card mb-5` | karta treści |
 | `pages/admin/tag-promotions.blade.php:27` | `panel-formularza mb-6` | panel formularza |

@@ -340,7 +340,7 @@ final class WykrywaczSygnalow
 
         $wynik = [];
 
-        foreach ($trafienia[1] ?? [] as $host) {
+        foreach ($trafienia[1] as $host) {
             $host = mb_strtolower(rtrim($host, '.'));
             $host = str_starts_with($host, 'www.') ? mb_substr($host, 4) : $host;
 

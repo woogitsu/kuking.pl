@@ -8,9 +8,11 @@ use App\Domain\Planer\Actions\DodajDoPlanu;
 use App\Domain\Planer\Actions\SkopiujPoprzedniTydzien;
 use App\Domain\Planer\PlanerTygodnia;
 use App\Domain\Planer\ZakresDatPlanu;
+use App\Domain\Search\SearchQuery;
 use App\Models\MealPlanEntry;
 use App\Models\Recipe;
 use App\Support\Czas;
+use App\Support\Komunikat;
 use App\Support\Odmiana;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -28,9 +30,39 @@ class PlanerController extends Controller
         $poniedzialek = PlanerTygodnia::poniedzialek($request->query('tydzien'));
         $user = $request->user();
 
+        // Wyszukiwanie przepisu do jednego dnia (#2037): zwykły GET, więc
+        // działa bez skryptu, a adres da się wrócić i odświeżyć.
+        $szukanyDzien = $request->query('dzien');
+        $szukanyDzien = is_string($szukanyDzien) ? $szukanyDzien : null;
+        $dni = $planer->tydzien($user, $poniedzialek);
+        if ($szukanyDzien !== null && ! array_key_exists($szukanyDzien, $dni)) {
+            $szukanyDzien = null;
+        }
+        $fraza = trim((string) $request->query('q', ''));
+        $bladFrazy = null;
+        $wyniki = collect();
+        if ($szukanyDzien !== null && $fraza !== '') {
+            $walidator = SearchQuery::phraseValidator($fraza, 'Jakiego przepisu szukasz?');
+            if ($walidator->fails()) {
+                $bladFrazy = $walidator->errors()->first('q');
+            } elseif (! SearchQuery::jestPrzeszukiwalna($fraza)) {
+                $bladFrazy = 'Wpisz co najmniej dwie litery nazwy przepisu i szukaj jeszcze raz.';
+            } else {
+                // Widoczność liczy wyszukiwarka (blokady, prywatność), a
+                // Policy dopina to jeszcze raz — jak przy zapisie.
+                $wyniki = app(SearchQuery::class)->recipes($fraza, $user, 8)
+                    ->filter(fn (Recipe $r) => $user->can('view', $r))
+                    ->values();
+            }
+        }
+
         return view('pages.planer.show', [
+            'szukanyDzien' => $szukanyDzien,
+            'fraza' => $fraza,
+            'bladFrazy' => $bladFrazy,
+            'wyniki' => $wyniki,
             'poniedzialek' => $poniedzialek,
-            'dni' => $planer->tydzien($user, $poniedzialek),
+            'dni' => $dni,
             'dzis' => Czas::dzisiajData(),
             'tenTydzien' => PlanerTygodnia::poniedzialek(null)->equalTo($poniedzialek),
             'poprzedniMaPozycje' => $user->mealPlanEntries()
@@ -46,6 +78,8 @@ class PlanerController extends Controller
             'day' => ['required', 'date_format:Y-m-d'],
             'recipe_id' => ['nullable', 'uuid'],
             'label' => ['nullable', 'string'],
+            'z_planera' => ['nullable', 'boolean'],
+            'q' => ['nullable', 'string', 'max:'.SearchQuery::MAX_PHRASE_LENGTH],
         ], [
             'day.required' => 'Wybierz dzień, na który planujesz.',
             'day.date_format' => 'Wybierz dzień z listy i dodaj jeszcze raz.',
@@ -73,14 +107,28 @@ class PlanerController extends Controller
             $przepis !== null => "Dodane do planu na {$kiedy}.",
             default => "Dopisane na {$kiedy}.",
         };
+        // Wpis, który już był w planie, niczego nie dodał — to informacja,
+        // nie potwierdzenie (#988).
+        $rodzaj = $wpis === null ? Komunikat::informacja($komunikat) : Komunikat::sukces($komunikat);
+
+        // Z wyszukiwania w planerze (#2037) wracamy do TEGO dnia, z tą samą
+        // frazą — fokus ląduje na jego panelu, więc od razu można dodać
+        // kolejny przepis albo przejść dalej.
+        if ($przepis !== null && $request->boolean('z_planera')) {
+            return redirect(route('planer.show', array_filter([
+                'tydzien' => PlanerTygodnia::poniedzialek($dzien->toDateString())->toDateString(),
+                'dzien' => $dzien->toDateString(),
+                'q' => $dane['q'] ?? null,
+            ])).'#szukaj-'.$dzien->toDateString())->with($rodzaj);
+        }
 
         // Ze strony przepisu wracamy na nią; z planera — do tego tygodnia.
         if ($przepis !== null) {
             return redirect()->back(fallback: route('planer.show', ['tydzien' => $dzien->toDateString()]))
-                ->with('status', $komunikat);
+                ->with($rodzaj);
         }
 
-        return redirect()->route('planer.show', ['tydzien' => $dzien->toDateString()])->with('status', $komunikat);
+        return redirect()->route('planer.show', ['tydzien' => $dzien->toDateString()])->with($rodzaj);
     }
 
     public function copy(Request $request, SkopiujPoprzedniTydzien $kopiuj): RedirectResponse
@@ -115,8 +163,18 @@ class PlanerController extends Controller
                 .' — planer przyjmuje dni '.ZakresDatPlanu::opis().'. Wybierz tydzień bliżej dzisiejszego dnia.';
         }
 
+        // Skopiowane cokolwiek — sukces (z dopiskiem, co pominięto). Nic nie
+        // skopiowane, bo coś odpadło — błąd z powodem. Nic nie skopiowane,
+        // bo nie było czego — informacja.
+        $tresc = implode(' ', $zdania);
+        $rodzaj = match (true) {
+            $wynik['skopiowane'] > 0 => Komunikat::sukces($tresc),
+            $wynik['pominiete'] > 0 || $wynik['poza_zakresem'] > 0 => Komunikat::blad($tresc),
+            default => Komunikat::informacja($tresc),
+        };
+
         return redirect()->route('planer.show', ['tydzien' => $poniedzialek->toDateString()])
-            ->with('status', implode(' ', $zdania));
+            ->with($rodzaj);
     }
 
     public function destroy(Request $request, MealPlanEntry $wpis): RedirectResponse
@@ -127,6 +185,6 @@ class PlanerController extends Controller
         $wpis->delete();
 
         return redirect()->route('planer.show', ['tydzien' => $tydzien])
-            ->with('status', 'Usunięte z planu na '.PlanerTygodnia::nazwaDnia($wpis->day).'.');
+            ->with(Komunikat::sukces('Usunięte z planu na '.PlanerTygodnia::nazwaDnia($wpis->day).'.'));
     }
 }

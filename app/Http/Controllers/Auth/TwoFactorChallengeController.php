@@ -85,7 +85,13 @@ class TwoFactorChallengeController extends Controller
 
         // Limit prób (po koncie, wspólny z API), kolejność kodów i zużycie
         // kodu zapasowego: `SprawdzKodDrugiegoSkladnika` (D-270).
-        [$wynik, $minuty] = $this->sprawdzKod->handle($user, $kod, $kodZapasowy);
+        [$wynik, $minuty] = $this->sprawdzKod->handle(
+            $user,
+            $kod,
+            $kodZapasowy,
+            SprawdzKodDrugiegoSkladnika::KANAL_WWW,
+            $request->ip(),
+        );
 
         if ($wynik === SprawdzKodDrugiegoSkladnika::ZA_DUZO_PROB) {
             return back()->withErrors([
@@ -94,6 +100,8 @@ class TwoFactorChallengeController extends Controller
         }
 
         if ($wynik === SprawdzKodDrugiegoSkladnika::BLEDNY) {
+            // Wpis `account.two_factor_login_failed` (#2042) zapisuje sama
+            // akcja — dla WWW i API jednakowo (#2199).
             return back()->withErrors([
                 $field => $field === 'backup_code'
                     ? 'Ten kod nie pozwala się zalogować. Wpisz inny niewykorzystany kod zapasowy.'

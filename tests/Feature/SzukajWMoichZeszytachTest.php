@@ -134,7 +134,7 @@ class SzukajWMoichZeszytachTest extends TestCase
 
         $this->actingAs($basia)->get(route('collections.index', ['szukaj' => 'a']))
             ->assertOk()
-            ->assertSee('Wpisz co najmniej dwie litery z tytułu przepisu.')
+            ->assertSee('Wpisz co najmniej dwie litery z tytułu przepisu albo ze składnika.')
             ->assertSee('value="a"', false)
             ->assertDontSee('data-wyniki-w-zeszytach', false);
     }

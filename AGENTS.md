@@ -427,8 +427,9 @@ refaktor, dokumentacja) go nie ruszają.
 
 KOŃCÓWKA (`.005` w „Alfa 0.68.005") jest INNĄ rzeczą i NIE dotykasz jej
 ręcznie nigdy — rośnie sama, o jeden, przy KAŻDYM wdrożeniu, licząc od
-dziennika w tabeli `wdrozenia` (`kuking:zarejestruj-wdrozenie`, wpięta
-w krok `preDeployCommand` obok `migrate`). Gdy podbijasz DUŻY numer, końcówka
+dziennika w tabeli `wdrozenia` (`kuking:zarejestruj-wdrozenie`, uruchamiana
+przez `docker/entrypoint.sh` po tym, jak nowy kontener przejdzie `/health` —
+nie w `preDeployCommand`, żeby nieudany rollout nie zużywał numeru). Gdy podbijasz DUŻY numer, końcówka
 WRACA DO `.001` SAMA — to jest nowa sekwencja liczona od nowa, nie ciąg
 dalszy poprzedniej, i nie ma tu nic do ustawienia ręcznie: pierwsze
 wdrożenie pod nową etykietą po prostu dostaje numer 1. Pełny mechanizm,
@@ -449,6 +450,10 @@ Nigdy:
 - hardcoded hasło administratora,
 - `status` ani `role` użytkownika w `$fillable` — zmiana stanu konta jest
   zawsze jawną, nazwaną metodą (`suspend()`, `ban()`, `markForDeletion()`).
+- `kind` wpisu (`posts.kind`) w `$fillable` — to trzecie pole sterujące, tej
+  samej rodziny co `status` i `role` (D-006): rozstrzyga, czy wpis jest daniem,
+  czy pytaniem, więc też o strumieniach, adresie i Policy. Zmienia je wyłącznie
+  nazwana metoda `Post::oznaczJakoPytanie()`.
 - **żadnego POŚWIADCZENIA w `$fillable`, w żadnej tabeli** — `password`,
   `remember_token`, `two_factor_*`, każde `*_token`, `*_secret`, `*_token_hash`.
   Kto zapisze taką kolumnę, ten wchodzi na konto bez znajomości hasła.
@@ -530,7 +535,8 @@ obserwowanego tagu (D-279: dwa widać, reszta pod „Pokaż”), bez zmiany
 kolejności.
 
 Każda nowa reguła doboru = wpis w `docs/DECISIONS.md` + aktualizacja „Jak
-dobieramy wpisy” + strażnik (`tests/Feature/FeedNieSortujePoMierzeReakcjiTest.php`
+dobieramy wpisy” (zdanie w `App\Domain\Feed\JakDobieramyWpisy` z dowodem
+w `tests/Feature/JakDobieramyWpisyMowiPrawdeTest.php`, D-305) + strażnik (`tests/Feature/FeedNieSortujePoMierzeReakcjiTest.php`
 albo nowy). Reguła spoza tej listy wymaga decyzji właściciela, nie PR-a.
 
 Gdy feed obserwowanych jest pusty, pokazujemy „Świeżo z Kuking” i propozycje
@@ -696,6 +702,14 @@ przez zielone CI — razem z gotowymi wzorcami, jak ich uniknąć — są zebran
 w [`docs/PULAPKI_TESTOW.md`](docs/PULAPKI_TESTOW.md). Przeczytaj to raz, zanim
 napiszesz pierwszy test w tym projekcie; każda z tych pułapek wróci.
 
+**Test czytający kod źródłowy dostaje kontrolę mutacyjną w CI.** Wpis w `checks`
+w `scripts/kontrole-negatywne-alfa08.py` + **wzorzec oczekiwanej porażki** w
+`scripts/kontrole_oczekiwana_przyczyna.py` (klucz: nazwa kontroli; fragment
+komunikatu asercji, którą mutacja ma zapalić — czerwień z innego powodu nie jest
+dowodem, #1011). Kontrola bez wzorca jest raportowana jako `BEZ_WZORCA`, czyli
+dowód niepełny. Wyjątek tylko przez `@bez-kontroli-dodatniej <powód>` w docbloku
+klasy — pilnuje tego `StraznikTekstuMaKontroleDodatniaTest`.
+
 ### Issues
 
 Praca idzie **po kolei, z issues**. Etykiety priorytetu: `P0` → `P1` → `P2`,
@@ -754,8 +768,24 @@ W skrócie:
 - komunikat błędu ma powiedzieć, **co zrobić**;
 - unikamy konstrukcji zakładających rodzaj, gdzie da się inaczej
   („Co dziś gotujesz?” zamiast form z „-łeś/-łaś”).
+  **Jawne wyjątki są frazami, nie słowami**, i pilnuje ich lista `WYJATKI`
+  w `tests/Support/WzorceRodzaju.php`: hasło główne („co dziś ugotowałeś”),
+  nazwa przycisku „Ugotowałem” oraz etykieta pola wyboru **„Sprawdziłem
+  odczytany tekst”** przy szkicu z importu (decyzja właściciela z 26 września
+  2026, PR #1899, D-300 — ta sama logika co „Ugotowałem”: nazwa kontrolki
+  cytowana w komunikacie). Kolejny wyjątek wymaga decyzji właściciela.
 
 Pełny słownik i lista słów zakazanych: `docs/brand/BRAND_EXTENDED.md`.
+
+**Dokumenty prawne (polityka prywatności, regulamin): data publikacji to nie
+data wejścia w życie** (D-327, decyzja właściciela z 26 września 2026).
+Zmiana **istotna** obowiązuje 14 dni po publikacji, a do tego dnia obowiązuje
+poprzednia wersja; pasek o zmianie stoi od publikacji i podaje ten dzień.
+Poprawka **drobna** (redakcyjna, bez zmiany praw i obowiązków) wchodzi od
+razu. Przy każdym podbiciu `kuking.zgody.wersja_*` ustaw jawnie
+`kuking.zgody.zmiana_*.istotna` na `true` albo `false` — wartości domyślnej
+nie ma. Zgodę zapisuj z wersją obowiązującą (`WersjaDokumentu::…->obowiazujaca()`),
+nigdy z samą datą z konfiguracji.
 
 ---
 
@@ -763,8 +793,14 @@ Pełny słownik i lista słów zakazanych: `docs/brand/BRAND_EXTENDED.md`.
 
 Poza MVP (patrz `docs/FEATURES.md` i `docs/ROADMAP.md`):
 wiadomości prywatne, natywne aplikacje, planer posiłków, lista zakupów,
-spiżarnia, generator przepisów AI, rozbudowana gamifikacja, marketplace,
+generator przepisów AI, rozbudowana gamifikacja, marketplace,
 transmisje live, wypłaty dla twórców.
+
+**Spiżarnia („Co mam w domu”) zeszła z tej listy 26 września 2026** — sekcja
+V2 w `docs/FEATURES.md` wymienia „pantry” i „co ugotuję z tego, co mam”, a
+**D-282** pozwala je budować. Zakazana zostaje
+**spiżarnia z terminami ważności i priorytetem zużycia (#1903)** — stoi na
+liście „V2, ale nie teraz” i wymaga nowej decyzji właściciela.
 
 **OCR starych zeszytów zszedł z tej listy 26 września 2026** — V2 wolno budować
 od decyzji **D-282**, a odczyt zdjęcia kartki działa według **D-296** (zgoda

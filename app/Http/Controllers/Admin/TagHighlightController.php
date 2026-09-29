@@ -9,6 +9,7 @@ use App\Models\AuditLogEntry;
 use App\Models\Tag;
 use App\Models\TagHighlight;
 use App\Models\User;
+use App\Support\Komunikat;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -86,13 +87,21 @@ class TagHighlightController extends Controller
             ip: $request->ip(),
         );
 
-        return redirect()->route('admin.tag-promotions')->with('status', "Tag „{$tag->name}” zaplanowany jako tag tygodnia.");
+        return redirect()->route('admin.tag-promotions')->with(Komunikat::sukces("Tag „{$tag->name}” zaplanowany jako tag tygodnia."));
     }
 
     public function destroy(Request $request, TagHighlight $wyroznienie): RedirectResponse
     {
         $this->authorize('moderate', User::class);
         abort_unless(config('kuking.tag_tygodnia.wlaczony', false), 404);
+
+        // Akcja destrukcyjna (AGENTS.md §5): przycisk na ekranie niesie
+        // `potwierdzam=1` dopiero z rozwiniętego pytania. Żądanie bez niego
+        // (stara karta, ręcznie złożony formularz) niczego nie usuwa.
+        if (! $request->boolean('potwierdzam')) {
+            return redirect()->route('admin.tag-promotions')
+                ->with(Komunikat::blad('Nic nie usunięto. Żeby usunąć wyróżnienie, kliknij „Usuń to wyróżnienie” i potwierdź.'));
+        }
 
         // Usuwa sam plan wyróżnienia. Tag, jego strona i wpisy zostają.
         $wyroznienie->delete();
@@ -104,6 +113,6 @@ class TagHighlightController extends Controller
             ip: $request->ip(),
         );
 
-        return redirect()->route('admin.tag-promotions')->with('status', 'Wyróżnienie usunięte. Tag i jego wpisy zostały.');
+        return redirect()->route('admin.tag-promotions')->with(Komunikat::sukces('Wyróżnienie usunięte. Tag i jego wpisy zostały.'));
     }
 }

@@ -276,7 +276,7 @@ class R2Adapter extends AwsS3V3Adapter
         try {
             // Rozmiar znany i poniżej progu — jedno `PutObject`. Tą drogą
             // idzie każde zdjęcie i każdy wariant.
-            if ($rozmiar !== null && $rozmiar < $prog) {
+            if (($rozmiar !== null && $rozmiar < $prog) || isset($parametry['IfNoneMatch'])) {
                 $this->klient->putObject($parametry + [
                     'Bucket' => $this->bucket,
                     'Key' => $klucz,
@@ -334,6 +334,12 @@ class R2Adapter extends AwsS3V3Adapter
             if ($wartosc !== '__NIE_USTAWIONO__') {
                 $parametry[$opcja] = $wartosc;
             }
+        }
+
+        // Małe wpisy dziennika wymazań powstają tylko, jeśli klucz jest pusty.
+        // R2 sprawdza ten warunek atomowo przy zatwierdzeniu PutObject.
+        if ($ustawienia->get('IfNoneMatch') === '*') {
+            $parametry['IfNoneMatch'] = '*';
         }
 
         // Własna nazwa Flysystema na typ treści.

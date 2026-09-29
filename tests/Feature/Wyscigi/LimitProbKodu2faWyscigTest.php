@@ -73,11 +73,11 @@ class LimitProbKodu2faWyscigTest extends TestCase
 
         $this->limiter->przyPierwszymPytaniu(TwoFactorAuthenticator::kluczLimituProb($basia), function () use ($basia, $max, &$wyniki): void {
             for ($i = 0; $i < $max; $i++) {
-                $wyniki[] = $this->akcja()->handle($basia->fresh(), '000000', '')[0];
+                $wyniki[] = $this->akcja()->handle($basia->fresh(), '000000', '', SprawdzKodDrugiegoSkladnika::KANAL_WWW, null)[0];
             }
         });
 
-        $wyniki[] = $this->akcja()->handle($basia, '000000', '')[0];
+        $wyniki[] = $this->akcja()->handle($basia, '000000', '', SprawdzKodDrugiegoSkladnika::KANAL_WWW, null)[0];
 
         $this->assertTrue($this->limiter->barieraZadzialala, 'Bariera nie zadziałała — przeplot się nie ustawił.');
         $this->assertSame($max, $this->licznik->sprawdzen, 'Sprawdzono więcej kodów niż pozwala limit konta.');
@@ -96,7 +96,7 @@ class LimitProbKodu2faWyscigTest extends TestCase
 
         $this->limiter->przyPierwszymPytaniu(TwoFactorAuthenticator::kluczLimituProb($basia), function () use ($basia, $max): void {
             for ($i = 0; $i < $max; $i++) {
-                $this->akcja()->handle($basia->fresh(), '000000', '');
+                $this->akcja()->handle($basia->fresh(), '000000', '', SprawdzKodDrugiegoSkladnika::KANAL_WWW, null);
             }
         });
 
@@ -121,7 +121,7 @@ class LimitProbKodu2faWyscigTest extends TestCase
 
         $this->limiter->przyPierwszymPytaniu(TwoFactorAuthenticator::kluczLimituProb($basia), function () use ($basia, $max): void {
             for ($i = 0; $i < $max; $i++) {
-                $this->akcja()->handle($basia->fresh(), '000000', '');
+                $this->akcja()->handle($basia->fresh(), '000000', '', SprawdzKodDrugiegoSkladnika::KANAL_WWW, null);
             }
         });
 
@@ -149,7 +149,7 @@ class LimitProbKodu2faWyscigTest extends TestCase
 
         $this->limiter->przyPierwszymPytaniu(TwoFactorAuthenticator::kluczLimituProb($basia), function () use ($basia, $max): void {
             for ($i = 0; $i < $max - 1; $i++) {
-                $this->akcja()->handle($basia->fresh(), '000000', '');
+                $this->akcja()->handle($basia->fresh(), '000000', '', SprawdzKodDrugiegoSkladnika::KANAL_WWW, null);
             }
         });
 

@@ -66,6 +66,7 @@ class KorzenZUkrytaOdpowiedziaTest extends TestCase
                 ]),
                 ['post_id' => null, 'cooked_event_id' => $event->getKey()],
             ],
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
     }
 

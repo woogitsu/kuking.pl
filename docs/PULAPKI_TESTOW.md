@@ -224,6 +224,20 @@ zameldować sukces. Bez tego byłby kolejnym narzędziem z dokładnie tą wadą,
 którą naprawia. Przebieg jest w `scripts/check.sh` — nie wymaga bazy i trwa
 poniżej sekundy.
 
+**Czerwień z właściwego powodu w kontrolach Alfa 0.8 (#1011).**
+`scripts/kontrole-negatywne-alfa08.py` nie zalicza już mutacji za niezerowy
+kod i słowo `FAILED`. Wynik czyta z raportu JUnit (`scripts/kontrola_przyczyny.py`)
+i wymaga, żeby KAŻDA porażka była asercją (`<failure>`, nie wyjątkiem) właściwego
+testu z komunikatem pasującym do wzorca z `scripts/kontrole_oczekiwana_przyczyna.py`
+(klucz to nazwa kontroli z `checks`). Werdykty: `POTWIERDZONA`, `BRAK_PORAZKI`
+(test przeszedł mimo mutacji), `ZLA_PRZYCZYNA` (brak raportu, wyjątek, obcy test,
+komunikat spoza wzorca). Nowa kontrola dostaje wzorzec od razu: wpis bez wzorca
+przechodzi tylko jako `BEZ_WZORCA`, jest wymieniony z nazwy w podsumowaniu i
+NIE jest pełnym dowodem. Wzorzec ma identyfikować chronioną regułę (fragment
+własnego komunikatu asercji), nie ogólne „Failed asserting" — takie byłoby
+niewiele lepsze od `FAILED`. Sam werdykt ma test bez bazy:
+`python3 tests/skrypty/kontrole-negatywne-przyczyna.py`.
+
 **Dlaczego łańcuch, a nie wyrażenie regularne.** Łańcuch albo jest w pliku,
 albo go nie ma. Wyrażenie regularne ma trzecią możliwość — „pasuje do czegoś
 innego, niż myślałeś" — i to ona dała połowę no-opów z 19 września.
@@ -308,7 +322,7 @@ Bez niej ta pułapka wraca przy pierwszym refaktorze.
 **W GitHub Actions `shell: bash` włącza `pipefail`, a domyślny `run:` go nie ma.**
 Domyślna powłoka to `bash -e {0}` — bez `-o pipefail`.
 
-Trzy kroki w `.github/workflows/ci.yml` robią `echo "$ZMIENIONE" | grep -qE …`
+Trzy kroki bramki `zakres` (od #611 etap 5: `scripts/ci/zakres.sh`, wcześniej `.github/workflows/ci.yml`) robią `echo "$ZMIENIONE" | grep -qE …`
 i decydują, **czy w ogóle uruchomić zadania przeglądarkowe**. Gdyby zadziałał
 tam SIGPIPE, PR zmieniający widoki po cichu pomijałby zadania, które miały go
 sprawdzić — czyli fałszywa zieleń najgorszego rodzaju. Dziś nie zadziała,

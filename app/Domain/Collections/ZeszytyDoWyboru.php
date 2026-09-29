@@ -5,45 +5,49 @@ declare(strict_types=1);
 namespace App\Domain\Collections;
 
 use App\Models\Collection;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
-use Illuminate\Http\Request;
 
 final class ZeszytyDoWyboru
 {
-    /** @return EloquentCollection<int, Collection> */
-    public function dla(Request $request): EloquentCollection
+    /**
+     * Zeszyty, do których osoba może zapisać treść. Domena nie zna żądania:
+     * dostaje osobę albo null, a jedno pobranie na żądanie (wspólne dla kart)
+     * zapewnia adapter HTTP `App\Http\Support\ZeszytyZZadania` (#970).
+     *
+     * @return EloquentCollection<int, Collection>
+     */
+    public function dla(?User $user): EloquentCollection
     {
-        $user = $request->user();
         if ($user === null) {
             return new EloquentCollection;
         }
 
-        // Karty dzielą jedno pobranie, wyłącznie w bieżącym żądaniu.
-        $key = self::class.'.'.$user->getKey();
-        if (! $request->attributes->has($key)) {
-            $request->attributes->set($key, $user->collections()
-                ->when($user->isSuspended(), fn ($query) => $query->where('visibility', 'private'))
-                ->orderByDesc('is_default')
-                ->orderBy('name')
-                ->orderBy('id')
-                ->get(['id', 'name', 'visibility', 'is_default']));
-        }
-
-        /** @var EloquentCollection<int, Collection> $zeszyty */
-        $zeszyty = $request->attributes->get($key);
-
-        return $zeszyty;
+        // Własne i wspólne (#1743) — ten sam zakres co walidacja zapisu
+        // (`CollectionController::regulyWlasnegoZeszytu()`). Własne
+        // najpierw, potem cudze, żeby „Zapisane" zostało na górze.
+        return Collection::query()
+            ->dostepneDoZapisuDla($user)
+            ->when($user->isSuspended(), fn ($query) => $query->where('visibility', 'private'))
+            ->with('owner.profile')
+            ->orderByRaw('(collections.owner_id = ?) DESC', [$user->getKey()])
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->orderBy('id')
+            ->get(['id', 'owner_id', 'name', 'visibility', 'is_default']);
     }
 
     /**
      * Domyślny zeszyt, gdy jest publiczny — cel szybkiego „Zapisuję” bez
      * wyboru zeszytu (issue #1400). Przy prywatnym zwraca null, bo wtedy
-     * przycisk nie potrzebuje żadnej wskazówki. Korzysta z tego samego
-     * pobrania co `dla()`, więc karty nie dokładają zapytań.
+     * przycisk nie potrzebuje żadnej wskazówki. Wybiera z już pobranej listy
+     * (`dla()`), więc karty nie dokładają zapytań.
+     *
+     * @param  EloquentCollection<int, Collection>  $zeszyty
      */
-    public function publicznyDomyslny(Request $request): ?Collection
+    public function publicznyDomyslny(EloquentCollection $zeszyty): ?Collection
     {
-        $domyslny = $this->dla($request)->firstWhere('is_default', true);
+        $domyslny = $zeszyty->firstWhere('is_default', true);
 
         return $domyslny?->isPublic() ? $domyslny : null;
     }

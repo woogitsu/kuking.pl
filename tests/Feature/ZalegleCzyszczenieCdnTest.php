@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
+use Tests\Support\PolecenieArtisanaZOdmowa;
 use Tests\TestCase;
 
 /**
@@ -141,7 +142,7 @@ class ZalegleCzyszczenieCdnTest extends TestCase
         $odmowa = null;
 
         try {
-            Artisan::call('kuking:wyczysc-zalegle-cdn');
+            PolecenieArtisanaZOdmowa::wywolaj('kuking:wyczysc-zalegle-cdn');
         } catch (RuntimeException $e) {
             $odmowa = $e;
         }

@@ -361,7 +361,7 @@ class MinutnikIZdjecieKrokuTest extends TestCase
     {
         Livewire::actingAs($this->user('odmiana548'))
             ->test(self::COMPONENT)
-            ->set('title', 'Zupa z minutnikiem')
+            ->set('form.title', 'Zupa z minutnikiem')
             ->set('ingredients.0.text', 'pomidory')
             ->set('steps.0.instruction', 'Gotuj przez minutę.')
             ->set('steps.0.timer_minutes', '1')
@@ -376,7 +376,7 @@ class MinutnikIZdjecieKrokuTest extends TestCase
 
         Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Zupa pomidorowa')
+            ->set('form.title', 'Zupa pomidorowa')
             ->set('ingredients.0.text', 'pomidory')
             ->set('steps.0.instruction', 'Ugotuj wywar.')
             ->set('steps.0.timer_minutes', '60')
@@ -404,7 +404,7 @@ class MinutnikIZdjecieKrokuTest extends TestCase
 
         $ekran = Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Rosół')
+            ->set('form.title', 'Rosół')
             ->set('step', 3);
 
         // POZYTYWNA: obie drogi zapisu pytają o TO SAMO i tymi samymi słowami.
@@ -426,7 +426,7 @@ class MinutnikIZdjecieKrokuTest extends TestCase
 
         $komponent = Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Pierogi')
+            ->set('form.title', 'Pierogi')
             ->set('ingredients.0.text', 'mąka')
             ->set('steps.0.instruction', 'Zagnieć ciasto.')
             ->set('steps.0.timer_minutes', '10')
@@ -467,7 +467,7 @@ class MinutnikIZdjecieKrokuTest extends TestCase
 
         Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Bigos')
+            ->set('form.title', 'Bigos')
             ->set('steps.0.instruction', 'Duś kapustę.')
             ->set('steps.0.timer_minutes', '120')
             ->set('steps.0.photo', UploadedFile::fake()->image('kapusta.jpg', 800, 600));
@@ -491,7 +491,7 @@ class MinutnikIZdjecieKrokuTest extends TestCase
 
         $komponent = Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Placki')
+            ->set('form.title', 'Placki')
             ->set('ingredients.0.text', 'ziemniaki')
             ->set('steps.0.instruction', 'Zetrzyj ziemniaki.')
             ->set('steps.0.timer_minutes', '15')
@@ -620,7 +620,7 @@ class MinutnikIZdjecieKrokuTest extends TestCase
 
         Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Przepis z dziwnym minutnikiem')
+            ->set('form.title', 'Przepis z dziwnym minutnikiem')
             ->set('ingredients.0.text', 'woda')
             ->set('steps.0.instruction', 'Gotuj.')
             ->set('steps.0.timer_minutes', 'pół godziny')
@@ -630,7 +630,7 @@ class MinutnikIZdjecieKrokuTest extends TestCase
             ->assertSet('step', 3)
             // KONTROLNA: wpisane dane NIE ZNIKNĘŁY.
             ->assertSet('steps.0.instruction', 'Gotuj.')
-            ->assertSet('title', 'Przepis z dziwnym minutnikiem');
+            ->assertSet('form.title', 'Przepis z dziwnym minutnikiem');
 
         // Szkic ISTNIEJE — autosave zapisał go, gdy minutnik był jeszcze
         // pusty, i tak ma być (docs/ROADMAP.md pkt 5: przerwanie kreatora nie

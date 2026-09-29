@@ -3,7 +3,7 @@
   transition: transform 180ms ease;
 }
 [data-marka] [data-pasek-schowany]:not(:focus-within) {
-  transform: translateY(calc(-100% - 24px));
+  transform: translateY(calc(-100% - 24px - var(--safe-top)));
 }
 [data-marka] [data-pasek-przewijany]:focus-within {
   transition: none;

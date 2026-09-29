@@ -172,6 +172,40 @@ final class WierszePrzepisu
         return $clean;
     }
 
+    /**
+     * Wiersze bez jednego. `array_values`, bo pozycje w bazie mają
+     * UNIQUE (recipe_id, position) i muszą być ciągłe: 0, 1, 2, …
+     *
+     * @param  list<array<string, mixed>>  $wiersze
+     * @return list<array<string, mixed>>
+     */
+    public static function bezWiersza(array $wiersze, int $indeks): array
+    {
+        unset($wiersze[$indeks]);
+
+        return array_values($wiersze);
+    }
+
+    /**
+     * Zamienia miejscami dwa wiersze CAŁE (razem z kluczem, zdjęciem
+     * i minutnikiem); poza zakresem nic nie robi.
+     *
+     * @param  list<array<string, mixed>>  $wiersze
+     * @return list<array<string, mixed>>
+     */
+    public static function zamien(array $wiersze, int $z, int $na): array
+    {
+        if (! isset($wiersze[$z], $wiersze[$na])) {
+            return $wiersze;
+        }
+
+        $reka = $wiersze[$z];
+        $wiersze[$z] = $wiersze[$na];
+        $wiersze[$na] = $reka;
+
+        return array_values($wiersze);
+    }
+
     private static function limit(string $pole): int
     {
         return LimityTekstuPrzepisu::POLA[$pole];

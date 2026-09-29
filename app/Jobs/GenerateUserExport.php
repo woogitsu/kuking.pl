@@ -8,6 +8,7 @@ use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Users\Exports\ExportPhotoPlan;
 use App\Domain\Users\Exports\ExportTempDirectory;
+use App\Domain\Users\Exports\PrzejecieEksportu;
 use App\Exceptions\DataExportPhotoUnreadable;
 use App\Exceptions\DataExportStorageFailure;
 use App\Exceptions\DataExportTempFailure;
@@ -168,7 +169,15 @@ class GenerateUserExport implements ShouldQueue
             return;
         }
 
-        $export->update(['status' => DataExport::STATUS_PROCESSING]);
+        // WSPÓLNE PRZEJĘCIE Z NOCNYM SPRZĄTANIEM (issue #2073). Ponowienie
+        // `failed` zapisuje paczkę pod TYM SAMYM kluczem, który sprzątanie
+        // kasuje jako osierocony. `processing` ustawiamy pod blokadą wiersza:
+        // gdy sprzątanie właśnie kasuje obiekt tego eksportu, ta próba czeka
+        // i rusza dopiero po nim — więc jej plik powstaje PO `delete()`.
+        // Patrz `PrzejecieEksportu`.
+        if (! PrzejecieEksportu::dlaProby($export)) {
+            return;
+        }
 
         try {
             $generatedAt = Carbon::now();
@@ -469,6 +478,12 @@ class GenerateUserExport implements ShouldQueue
             ->orderBy('created_at')
             ->get();
 
+        // `attributionLine()` w widoku czyta autora i jego profil. Autorem
+        // każdego z tych przepisów jest właściciel paczki, już wczytany —
+        // podpinamy go zamiast dociągać osobno na każdy przepis (#976).
+        $user->loadMissing('profile');
+        $recipes->each->setRelation('author', $user);
+
         // Komentarze bierzemy z już przygotowanych danych — są tam przepuszczone
         // przez filtr cudzych danych osobowych i nie chcemy tego filtru
         // powtarzać (ani zapomnieć) w widoku.
@@ -571,7 +586,7 @@ class GenerateUserExport implements ShouldQueue
      * Ile CUDZYCH przepisów leży w zeszycie tej osoby.
      *
      * Spis treści mówi o ograniczeniu, które dotyczy wyłącznie cudzych
-     * przepisów w zeszycie (tytuł, autor, notatka i data zapisania, bez
+     * przepisów w zeszycie (tytuł, autor, notatka, data zapisania i podpis „kto dodał”, bez
      * składników i kroków). Bez tej liczby zdanie o ograniczeniu wychodziło
      * także na koncie z pustym zeszytem — a wtedy opisuje coś, czego
      * w paczce nie ma. To ta sama zasada, co przy katalogach: paczka mówi

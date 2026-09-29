@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Users\Exports\ExportFileNames;
+use App\Domain\Users\Exports\PrzejecieEksportu;
 use App\Logging\BezpiecznyBlad;
 use App\Models\DataExport;
 use Illuminate\Console\Command;
@@ -140,14 +141,11 @@ class CleanUpDataExports extends Command
             : 'Gotowe. Usunięto '.$this->paczki($removed).'.',
         );
 
-        // CZĘŚCIOWA PORAŻKA JEST PORAŻKĄ (issue #1331). Wcześniej komenda
-        // kończyła się sukcesem nawet wtedy, gdy nie usunęła ANI JEDNEJ
-        // paczki — a harmonogram (`Harmonogram::artisan()`) rozpoznaje błąd
-        // tylko po kodzie wyjścia. Reszta paczek jest już przetworzona, adresy
-        // nieudanych zostają do ponowienia. Utrzymującą się zaległość, także
-        // gdy ta komenda w ogóle nie chodzi, zgłasza osobna czujka
-        // `kuking:sprawdz-sprzatanie-eksportow`.
-        return $nieudane > 0 ? self::FAILURE : self::SUCCESS;
+        // Częściowa porażka (issue #1331) zwróciła już `FAILURE` wyżej — tu
+        // wszystkie paczki są usunięte albo podejrzane w trybie podglądu.
+        // Utrzymującą się zaległość, także gdy ta komenda w ogóle nie chodzi,
+        // zgłasza osobna czujka `kuking:sprawdz-sprzatanie-eksportow`.
+        return self::SUCCESS;
     }
 
     /** Polska odmiana: „1 wygasłą paczkę”, „2 wygasłe paczki”, „5 wygasłych paczek”. */
@@ -226,6 +224,12 @@ class CleanUpDataExports extends Command
      * Godzina karencji, żeby nie ścigać się z ponowieniem, które właśnie
      * wgrywa ten sam klucz.
      *
+     * SAMA KARENCJA NIE WYSTARCZA (issue #2073): `queue:retry` może ponowić
+     * rekord `failed` sprzed wielu godzin dokładnie w chwili tego przebiegu.
+     * Dlatego kasowanie idzie przez `PrzejecieEksportu::dlaSprzatania()` —
+     * rewalidacja i `delete()` pod blokadą wiersza, na której czeka też
+     * przejście workera w `processing`.
+     *
      * GÓRNA GRANICA 7 DNI ZOSTAŁA USUNIĘTA (issue #1842). Komentarz, który tu
      * kiedyś stał, zakładał, że starszy rekord „przeszedł już przez
      * wcześniejsze noce” — czyli że komenda działa NIEPRZERWANIE, co najmniej
@@ -247,13 +251,24 @@ class CleanUpDataExports extends Command
             ->each(function (DataExport $export) use (&$znalezione): void {
                 $znalezione++;
 
-                try {
-                    Storage::disk((string) config('kuking.exports.disk'))->delete(ExportFileNames::objectKey($export));
-                } catch (Throwable $e) {
-                    Log::warning('Nie udało się skasować pliku nieudanej paczki z danymi', [
-                        'data_export_id' => $export->getKey(),
-                        'wyjatek' => $e::class,
-                    ]);
+                // WYŚCIG Z PONOWIENIEM (issue #2073). Lista kandydatów jest
+                // przeczytana wcześniej; między nią a kasowaniem worker mógł
+                // ponowić ten eksport i zapisać paczkę pod TYM SAMYM kluczem.
+                // Kasujemy więc wyłącznie pod blokadą wiersza, po ponownym
+                // sprawdzeniu, że rekord nadal jest `failed` bez `object_key`.
+                $przejety = PrzejecieEksportu::dlaSprzatania((string) $export->getKey(), function (DataExport $aktualny): void {
+                    try {
+                        Storage::disk((string) config('kuking.exports.disk'))->delete(ExportFileNames::objectKey($aktualny));
+                    } catch (Throwable $e) {
+                        Log::warning('Nie udało się skasować pliku nieudanej paczki z danymi', [
+                            'data_export_id' => $aktualny->getKey(),
+                            'wyjatek' => $e::class,
+                        ]);
+                    }
+                });
+
+                if (! $przejety) {
+                    $this->line('Pominięto (eksport jest znowu w toku albo gotowy, plik zostaje): '.$export->getKey());
                 }
             });
 
@@ -285,10 +300,7 @@ class CleanUpDataExports extends Command
     /** Jedno źródło prawdy dla kandydatów obu ścieżek wyżej — patrz #1840. */
     private function niedokonczoneQuery(): Builder
     {
-        return DataExport::query()
-            ->where('status', DataExport::STATUS_FAILED)
-            ->whereNull('object_key')
-            ->where('updated_at', '<', now()->subHour());
+        return PrzejecieEksportu::niedokonczone();
     }
 
     private function paczki(int $n): string

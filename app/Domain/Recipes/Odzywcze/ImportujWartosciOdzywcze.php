@@ -35,7 +35,7 @@ use Illuminate\Support\Str;
  * udanego importu. Znacznik zawiera też odcisk zawartości TRZECH tabel.
  * Sam hash plików nie dowodzi kompletności bazy po częściowym restore
  * (#2130). Przy niezgodności odbudowujemy słownik; nowy znacznik zapisujemy
- * dopiero PO udanej transakcji.
+ * na końcu tej samej transakcji, pod tą samą blokadą co słowniki.
  */
 final class ImportujWartosciOdzywcze
 {
@@ -84,10 +84,16 @@ final class ImportujWartosciOdzywcze
         $skladniki = $this->czytajCsv($sciezkaSkladnikow, self::KOLUMNY_SKLADNIKOW);
         $miary = $this->czytajCsv($sciezkaMiar, self::KOLUMNY_MIAR);
 
+        // Plik ucięty do samego nagłówka jest poprawnym CSV, ale import
+        // skasowałby cały słownik (usuwa wszystko, czego nie ma w pliku).
+        if ($skladniki === [] || $miary === []) {
+            throw new BladDlaCzlowieka('skladniki.csv i miary.csv muszą mieć co najmniej jeden wiersz z danymi — plik wygląda na ucięty, a słownik został bez zmian. Przywróć oba pliki z repozytorium (git checkout -- database/data/odzywcze) i uruchom komendę ponownie.');
+        }
+
         [$pozycje, $aliasy] = $this->sprawdzSkladniki($skladniki);
         $miaryDoZapisu = $this->sprawdzMiary($miary, $pozycje);
 
-        [$wynik, $stanPo] = DB::transaction(function () use ($pozycje, $aliasy, $miaryDoZapisu): array {
+        return DB::transaction(function () use ($pozycje, $aliasy, $miaryDoZapisu, $hash): array {
             // Dwie instancje pre-deploy nie mogą jednocześnie usuwać i pisać
             // słowników, nawet gdy obie zobaczyły stary znacznik cache.
             DB::selectOne('SELECT pg_advisory_xact_lock(2130, 0)');
@@ -110,29 +116,34 @@ final class ImportujWartosciOdzywcze
                 MiaraDomowa::query()->insert($paczka);
             }
 
-            $wynik = [
+            // Znacznik zapisujemy PO ostatnim zapisie słowników, ale jeszcze
+            // POD TĄ SAMĄ blokadą i w tej samej transakcji (#2130). Zapis po
+            // COMMIT-cie, już bez blokady, pozwalał wolniejszej instancji
+            // dopisać znacznik starszego wyniku po tym, jak inna instancja
+            // zdążyła zatwierdzić i zapisać własny — tabele opisywał wtedy
+            // cudzy hash. Przy magazynie `database` (produkcja) zapis znacznika
+            // jest częścią tej transakcji: wycofanie cofa też znacznik, a
+            // kolejność zapisów znaczników jest kolejnością blokady. Przy innym
+            // magazynie znacznik i tak jest tylko optymalizacją — szybka ścieżka
+            // porównuje go z odciskiem tabel, więc rozjazd kończy się odbudową,
+            // nigdy fałszywym „już zrobione”.
+            $stanPo = $this->stanBazy();
+            if ($hash !== null) {
+                Cache::forever(self::CACHE_KLUCZ, [
+                    'hash' => $hash,
+                    'odcisk' => $stanPo['odcisk'],
+                    'licznosci' => [$stanPo['skladniki'], $stanPo['aliasy'], $stanPo['miary']],
+                ]);
+            }
+
+            return [
                 'skladniki' => count($pozycje),
                 'aliasy' => count($aliasy),
                 'miary' => count($miaryDoZapisu),
                 'usuniete' => (int) $usuniete,
                 'pominieto' => false,
             ];
-
-            return [$wynik, $this->stanBazy()];
         });
-
-        // Hash zapisujemy DOPIERO PO udanej transakcji — błąd w połowie
-        // importu (rzucony wyżej jako BladDlaCzlowieka albo wyjątek bazy)
-        // nie ma prawa uśpić kolejnego uruchomienia fałszywym „już zrobione”.
-        if ($hash !== null) {
-            Cache::forever(self::CACHE_KLUCZ, [
-                'hash' => $hash,
-                'odcisk' => $stanPo['odcisk'],
-                'licznosci' => [$stanPo['skladniki'], $stanPo['aliasy'], $stanPo['miary']],
-            ]);
-        }
-
-        return $wynik;
     }
 
     /** Hash danych i kodu normalizacji albo null, gdy czegoś nie da się przeczytać. */

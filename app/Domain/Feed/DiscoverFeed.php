@@ -37,13 +37,34 @@ final class DiscoverFeed
     private const STAN_NAJWYZEJ_SEKUND_WSTECZ = 86_400;
 
     /**
+     * `$zWlasnymi` — tylko dla Startu osoby, która nikogo nie obserwuje
+     * (issue #1318, decyzja właściciela z 24.09). Wtedy to jest feed
+     * zastępczy JEJ strony głównej, a `FollowingFeed` celowo pokazuje
+     * własne wpisy, żeby po publikacji nie było wrażenia, że nic się nie
+     * zapisało. Bez tego własny wpis „tylko dla obserwujących" nie
+     * pojawiał się na Starcie w ogóle (własny publiczny stał w rotacji
+     * zawsze).
+     *
+     * WARUNEK STOI W PODZAPYTANIU ROTACJI, PRZED NUMERACJĄ (decyzja
+     * właściciela z 26.09, D-276): własne wpisy widza podlegają tej samej
+     * regule co wpisy każdej osoby — jego najnowszy wpis stoi w pierwszej
+     * rundzie, drugi w drugiej. Doklejenie ich na zewnątrz dałoby widzowi
+     * więcej miejsc niż innym. Jedno zapytanie, więc bez duplikatów,
+     * chronologicznie, a kursor działa jak dotąd.
+     *
+     * `/discover` i strona dla gości wołają bez tej flagi: tam to jest
+     * „Świeżo z Kuking" dla wszystkich, a wpis „tylko dla obserwujących"
+     * nie ma prawa wyjść poza autora i obserwujących.
+     *
      * @param  string|null  $stan  wartość parametru `stan` z adresu DALSZEJ
      *                             strony (patrz niżej); pierwsza strona podaje `null`
      * @return CursorPaginator<int, Post>
      */
-    public function paginate(?User $viewer, ?int $perPage = null, ?string $stan = null): CursorPaginator
+    public function paginate(?User $viewer, ?int $perPage = null, ?string $stan = null, bool $zWlasnymi = false): CursorPaginator
     {
         $perPage ??= (int) config('kuking.feed.page_size');
+
+        $wlasne = $zWlasnymi && $viewer !== null;
 
         // DALSZA STRONA = kursor rotacji I ważna chwila z `stan`, zawsze razem.
         // Kursor to pozycja w rundach policzonych na tę jedną chwilę — z inną
@@ -81,7 +102,17 @@ final class DiscoverFeed
         $rundy = Post::query()
             ->select('posts.id')
             ->selectRaw('row_number() OVER (PARTITION BY posts.author_id ORDER BY posts.published_at DESC, posts.id DESC) AS runda')
-            ->publiclyVisible()
+            ->when(! $wlasne, fn ($query) => $query->publiclyVisible())
+            ->when($wlasne, fn ($query) => $query
+                ->enabledKinds()
+                ->published()
+                ->where(fn ($widocznosc) => $widocznosc
+                    ->where('posts.visibility', Post::VISIBILITY_PUBLIC)
+                    // Te same dwie widoczności, które `FollowingFeed` bierze
+                    // z własnych wpisów — prywatne zostają w archiwum autora.
+                    ->orWhere(fn ($moje) => $moje
+                        ->where('posts.author_id', $viewer->getKey())
+                        ->where('posts.visibility', Post::VISIBILITY_FOLLOWERS))))
             // Pierwsza strona nie ma granicy (widzi wszystko do teraz), dalsze
             // biorą wpisy do pełnej sekundy chwili pierwszej. Eloquent zapisuje
             // `published_at` z dokładnością do sekundy, więc zdublować się może

@@ -267,9 +267,6 @@ class ObchodEkranowNieZostawiaMartwegoPrzyciskuTest extends TestCase
             'user_id' => $ja->getKey(),
             'actor_id' => $ktosInny->getKey(),
             'type' => Notification::TYPE_COOKED,
-            'subject_type' => 'cooked_event',
-            'subject_id' => $cudzeWykonanieMojegoPrzepisu->getKey(),
-            'created_at' => now(),
         ]);
 
         $zgloszenie = Report::create([

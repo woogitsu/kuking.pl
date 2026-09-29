@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Collections\Actions;
 
+use App\Domain\Collections\PowrotPoWyjeciu;
+use App\Domain\Collections\WynikWyjeciaZZeszytu;
+use App\Domain\Collections\WynikZapisuDoZeszytu;
 use App\Domain\Collections\ZamekZapisuDoZeszytu;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Collection;
@@ -36,6 +39,57 @@ use Illuminate\Support\Facades\Gate;
  */
 final class SavePostToCollection
 {
+    /**
+     * „Zapisz" przy wpisie w całości: droga powrotu ALBO zwykły zapis.
+     *
+     * Ta sama kolejność i ta sama jednorazowość co przy przepisie —
+     * uzasadnienie w `SaveRecipeToCollection::zapiszAlboPrzywroc()` (#775, #970).
+     *
+     * @param  bool  $notatkaPodana  formularz przysłał pole `note` — to zawsze zwykły zapis
+     * @param  \Closure(): void  $zuzyjWyjecie  wywoływane, gdy zapis powrotu został użyty
+     */
+    public function zapiszAlboPrzywroc(
+        User $user,
+        Post $post,
+        ?Collection $collection,
+        bool $notatkaPodana,
+        mixed $wyjecie,
+        \Closure $zuzyjWyjecie,
+    ): WynikZapisuDoZeszytu {
+        if ($collection === null && ! $notatkaPodana) {
+            $pozycje = PowrotPoWyjeciu::pozycje($wyjecie, PowrotPoWyjeciu::TYP_WPIS, (string) $post->getKey());
+
+            if ($pozycje !== null) {
+                $wrocilo = $this->restore($user, $post, $pozycje);
+
+                // Jednorazowa droga powrotu: drugie kliknięcie nie ma już nic do roboty.
+                $zuzyjWyjecie();
+
+                // `0`: zeszyt zniknął albo rzecz wróciła tam inną drogą — nie
+                // udajemy, że coś przywróciliśmy, i zapisujemy zwykłą drogą.
+                if ($wrocilo > 0) {
+                    return new WynikZapisuDoZeszytu(null, PowrotPoWyjeciu::zdanie(PowrotPoWyjeciu::TYP_WPIS, $wrocilo));
+                }
+            }
+        }
+
+        return new WynikZapisuDoZeszytu($this->handle($user, $post, $collection), null);
+    }
+
+    /**
+     * „Usuń z zeszytu" przy wpisie: wyjęcie + zdanie + zapis do drogi powrotu.
+     * Sesję zapisuje kontroler z `$wynik->wyjecie`.
+     */
+    public function wyjmij(User $user, Post $post, ?Collection $collection = null): WynikWyjeciaZZeszytu
+    {
+        return WynikWyjeciaZZeszytu::zZdjetych(
+            PowrotPoWyjeciu::TYP_WPIS,
+            (string) $post->getKey(),
+            $user,
+            $this->remove($user, $post, $collection),
+        );
+    }
+
     public function handle(User $user, Post $post, ?Collection $collection = null, ?string $note = null): Collection
     {
         // Ta sama granica co przy przepisie (#1022) — uzasadnienie
@@ -50,7 +104,9 @@ final class SavePostToCollection
 
     private function save(User $user, Post $post, Collection $collection, ?string $note): Collection
     {
-        Gate::forUser($user)->authorize('update', $collection);
+        // `addItem`, nie `update`: dopisywać może też współpracownik
+        // wspólnego zeszytu (#1743), a zmieniać nazwę i widoczność — nie.
+        Gate::forUser($user)->authorize('addItem', $collection);
 
         if ($collection->posts()->whereKey($post->getKey())->exists()) {
             if ($note !== null) {
@@ -66,6 +122,8 @@ final class SavePostToCollection
             DB::transaction(fn () => $collection->posts()->attach($post->getKey(), [
                 'note' => $note,
                 'created_at' => now(),
+                // Kto dodał — widać przy pozycji we wspólnym zeszycie (D-302).
+                'added_by_id' => $user->getKey(),
             ]));
         } catch (UniqueConstraintViolationException) {
             // Dwa żądania równocześnie: oba przeszły sprawdzenie wyżej, drugie
@@ -86,7 +144,7 @@ final class SavePostToCollection
      * Uzasadnienie w komplecie stoi przy przepisie — tu nie powtarzamy go
      * drugi raz, żeby nie rozjechało się między bliźniakami.
      *
-     * @return list<array{collection_id: string, note: ?string, created_at: ?string}>
+     * @return list<array{collection_id: string, note: ?string, created_at: ?string, added_by_id?: ?string}>
      */
     public function remove(User $user, Post $post, ?Collection $collection = null): array
     {
@@ -98,7 +156,10 @@ final class SavePostToCollection
     private function zdejmij(User $user, Post $post, ?Collection $collection): array
     {
         $zeszyty = $collection !== null
-            ? $user->collections()->whereKey($collection->getKey())->get()
+            // Wskazany zeszyt: własny ALBO wspólny z ważnym dostępem (#1743).
+            // Bez wskazania — wyłącznie własne: „ze wszystkich moich" nigdy
+            // nie sięga do cudzego zeszytu, nawet wspólnego.
+            ? Collection::query()->dostepneDoZapisuDla($user)->whereKey($collection->getKey())->get()
             : $user->collections()->get();
 
         $zdjete = [];
@@ -113,6 +174,7 @@ final class SavePostToCollection
             $zdjete[] = [
                 'collection_id' => (string) $zeszyt->getKey(),
                 'note' => $wiersz->pivot->note,
+                'added_by_id' => $wiersz->pivot->added_by_id === null ? null : (string) $wiersz->pivot->added_by_id,
                 'created_at' => $wiersz->pivot->created_at === null
                     ? null
                     : (string) $wiersz->pivot->created_at,
@@ -127,7 +189,7 @@ final class SavePostToCollection
     /**
      * Droga powrotu — bliźniak `SaveRecipeToCollection::restore()`.
      *
-     * @param  list<array{collection_id: string, note: ?string, created_at: ?string}>  $zdjete
+     * @param  list<array{collection_id?: string, note: ?string, created_at: ?string, added_by_id?: ?string}>  $zdjete
      */
     public function restore(User $user, Post $post, array $zdjete): int
     {
@@ -142,7 +204,7 @@ final class SavePostToCollection
             $wrocilo = 0;
 
             foreach ($zdjete as $pozycja) {
-                $zeszyt = $user->collections()->whereKey($pozycja['collection_id'] ?? null)->first();
+                $zeszyt = Collection::query()->dostepneDoZapisuDla($user)->whereKey($pozycja['collection_id'] ?? null)->first();
                 if ($zeszyt === null) {
                     continue; // usunięty zeszyt: ponowione kliknięcie jest idempotentne
                 }
@@ -156,7 +218,7 @@ final class SavePostToCollection
                         $zeszyt,
                         function (User $swiezy, Post $wpis, Collection $cel) use ($pozycja, &$dodano): Collection {
                             Gate::forUser($swiezy)->authorize('save', $wpis);
-                            Gate::forUser($swiezy)->authorize('update', $cel);
+                            Gate::forUser($swiezy)->authorize('addItem', $cel);
 
                             if ($cel->posts()->whereKey($wpis->getKey())->exists()) {
                                 return $cel;
@@ -165,6 +227,7 @@ final class SavePostToCollection
                             DB::transaction(fn () => $cel->posts()->attach($wpis->getKey(), [
                                 'note' => $pozycja['note'] ?? null,
                                 'created_at' => $pozycja['created_at'] ?? now(),
+                                'added_by_id' => array_key_exists('added_by_id', $pozycja) ? $pozycja['added_by_id'] : $swiezy->getKey(),
                             ]));
                             $dodano = true;
 

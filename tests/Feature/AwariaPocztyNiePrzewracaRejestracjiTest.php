@@ -42,7 +42,7 @@ class AwariaPocztyNiePrzewracaRejestracjiTest extends TestCase
         // i to jego brak był całą usterką.
         foreach ([PotwierdzenieAdresu::class, UstawienieNowegoHasla::class] as $klasa) {
             $this->assertTrue(
-                is_subclass_of($klasa, ShouldQueue::class),
+                (new \ReflectionClass($klasa))->implementsInterface(ShouldQueue::class),
                 class_basename($klasa).' nie jest kolejkowane — awaria serwera poczty przewróci '
                 .'żądanie PO zapisaniu konta i człowiek zobaczy błąd zamiast potwierdzenia.',
             );

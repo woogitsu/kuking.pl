@@ -14,6 +14,7 @@ use App\Http\Requests\Moderation\DecyzjaModeracyjnaRequest;
 use App\Models\ModerationAction;
 use App\Models\Report;
 use App\Models\User;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -188,7 +189,7 @@ class ModerationController extends Controller
             ]);
         }
 
-        return back()->with('status', 'Decyzja zapisana.');
+        return back()->with(Komunikat::sukces('Decyzja zapisana.'));
     }
 
     /**
@@ -250,7 +251,7 @@ class ModerationController extends Controller
             return back()->withErrors(['reason_code' => $blad->getMessage()]);
         }
 
-        return back()->with('status', 'Treść przywrócona. Wróciła do stanu sprzed ukrycia, a autor dostał powiadomienie.');
+        return back()->with(Komunikat::sukces('Treść przywrócona. Wróciła do stanu sprzed ukrycia, a autor dostał powiadomienie.'));
     }
 
     /**

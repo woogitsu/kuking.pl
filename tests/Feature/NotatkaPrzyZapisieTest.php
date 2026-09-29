@@ -144,10 +144,40 @@ final class NotatkaPrzyZapisieTest extends TestCase
             $this->assertStringNotContainsString('Zmień notatkę', $html);
         }
 
-        // Zeszyt jest za logowaniem — gość nie dostaje nawet strony.
+        // Publiczny zeszyt otwiera się gościowi (issue #965) — bez notatki.
         auth()->logout();
-        $gosc = $this->get(route('collections.show', $zeszyt))->assertRedirect();
+        $gosc = $this->get(route('collections.show', $zeszyt))->assertOk();
         $this->assertStringNotContainsString('Tajny dopisek', (string) $gosc->getContent());
+    }
+
+    /**
+     * Kryterium #978: notatka nie wychodzi „w eksporcie właściciela treści".
+     * Autor przepisu i wpisu, który ktoś zapisał do zeszytu z dopiskiem,
+     * dostaje w swojej paczce własne dane — ani notatkę, ani nazwę cudzego
+     * zeszytu. (Widok zeszytu pilnuje wyżej `strona()`; tu paczka RODO.)
+     */
+    public function test_paczka_autora_tresci_nie_zawiera_cudzej_notatki(): void
+    {
+        [$wlasciciel, $autor] = [$this->user('wlasciciel'), $this->user('autor')];
+        $zeszyt = $this->zeszyt($wlasciciel, 'Obiady', 'public');
+        $przepis = Recipe::factory()->create(['author_id' => $autor->getKey(), 'visibility' => 'public']);
+        $wpis = Post::factory()->create(['author_id' => $autor->getKey()]);
+        $zeszyt->recipes()->attach($przepis->id, ['note' => 'Tajny dopisek przy przepisie']);
+        $zeszyt->posts()->attach($wpis->id, ['note' => 'Tajny dopisek przy wpisie']);
+
+        // Kontrola dodatnia: właściciel zeszytu widzi obie notatki w swojej paczce.
+        $paczkaWlasciciela = json_encode(
+            app(CollectUserExportData::class)->handle($wlasciciel, new ExportPhotoPlan($wlasciciel), now()),
+            JSON_UNESCAPED_UNICODE,
+        );
+        $this->assertStringContainsString('Tajny dopisek przy przepisie', $paczkaWlasciciela);
+        $this->assertStringContainsString('Tajny dopisek przy wpisie', $paczkaWlasciciela);
+
+        $dane = app(CollectUserExportData::class)->handle($autor, new ExportPhotoPlan($autor), now());
+        $paczkaAutora = json_encode($dane, JSON_UNESCAPED_UNICODE);
+
+        $this->assertStringNotContainsString('Tajny dopisek', $paczkaAutora);
+        $this->assertSame([], collect($dane['kolekcje'])->firstWhere('nazwa', 'Obiady') ?? [], 'Cudzy zeszyt nie należy do paczki autora treści.');
     }
 
     public function test_cudzy_zeszyt_i_nieistniejaca_pozycja_odmawiaja(): void

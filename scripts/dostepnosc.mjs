@@ -47,6 +47,7 @@
 import { chromium } from 'playwright';
 import { przygotujKaruzele, zmierzKaruzele } from './fixtures/karuzela-mieszana.mjs';
 import { EKRANY_OAUTH, WARIANTY_OAUTH, zmierzOauth } from './fixtures/oauth-dostepnosc.mjs';
+import { wymagajUnikalnychEkranow } from './ekrany-unikalne.mjs';
 import { AxeBuilder } from '@axe-core/playwright';
 import { spawn, execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -469,6 +470,14 @@ const EKRANY = [
   // kształt ryzyka co trzy dokumenty prawne wyżej.
   { nazwa: 'co nowego', adres: '/co-nowego' },
 
+  /*
+   * JAK DOBIERAMY WPISY (#1811, D-305) — strona otwarta dla każdego, jak
+   * `/pomoc`, więc bez `zalogowany: true`. Długi tekst z nagłówkami
+   * i listami, do którego odsyła regulamin; ma być czytelny przy 320 px
+   * i przy tekście 140% tak samo jak dokumenty prawne tuż nad nią.
+   */
+  { nazwa: 'jak dobieramy wpisy', adres: '/jak-dobieramy-wpisy' },
+
   /* ===========================================================================
    * SIEDEM STRON PUBLICZNYCH DOPISANYCH 11 WRZEŚNIA — SPŁATA DŁUGU Z D-099
    * ===========================================================================
@@ -580,7 +589,6 @@ const EKRANY = [
  * (kilkadziesiąt milisekund), a przebieg axe kosztuje sekundę na ekran.
  */
 const EKRANY_UKLADU = [
-  { nazwa: 'ostrzeżenie przed wyjściem', adres: '/otworz-link', znajdz: 'link-zewnetrzny' },
   ...EKRANY,
   { nazwa: 'zeszyt', adres: '/zeszyt', zalogowany: true },
   /*
@@ -606,6 +614,12 @@ const EKRANY_UKLADU = [
   // szanse na wypchnięcie strony w bok. Sam axe mierzy wariant gościa wyżej.
   { nazwa: 'napisz do nas (zalogowany)', adres: '/napisz-do-nas', zalogowany: true },
 ];
+
+/* Każdy ekran raz (#611, etap 4): raport i zrzuty są kluczowane nazwą, więc
+   duplikat (jak dawny drugi `/otworz-link`) liczyłby jeden pomiar dwa razy.
+   Przy starcie, przed jakąkolwiek przeglądarką i bazą. */
+wymagajUnikalnychEkranow(EKRANY, 'EKRANY');
+wymagajUnikalnychEkranow(EKRANY_UKLADU, 'EKRANY_UKLADU');
 
 /**
  * Znacznik wariantu „czcionka przeglądarki podwojona". Celowo NIE jest
@@ -1942,7 +1956,7 @@ const kolejkiPanelu = (() => {
     // zmieniłaby się lista „twoje zgłoszenia", mierzona wyżej.
     + "$zglaszajacy = App\\Models\\User::where('status','active')->whereKeyNot($automat)"
     + "->whereKeyNot($m)->orderBy('id')->value('id'); "
-    + "$wpisy = App\\Models\\Post::publiclyVisible()"
+    + "$wpisy = App\\Models\\Post::publiclyVisible()->with('author')"
     + "->orderByDesc('published_at')->orderByDesc('id')->get(); "
     + "if (! $zglaszajacy || $wpisy->count() < 2) { echo ''; exit; } "
     // Sprawa społecznościowa, OTWARTA — pełny formularz decyzji.
@@ -2049,7 +2063,7 @@ const tablicaDnia = (() => {
     + "foreach (App\\Models\\User::where('status','active')->whereKeyNot($konto)->orderBy('id')->get() as $u) { "
     + "$ile = 0; "
     + "foreach (App\\Models\\Post::where('author_id',$u->getKey())->publiclyVisible()"
-    + "->orderByDesc('published_at')->orderByDesc('id')->limit(3)->get() as $p) { "
+    + "->orderByDesc('published_at')->orderByDesc('id')->limit(3)->with('media')->get() as $p) { "
     + "$ile += $p->media->filter(fn ($m) => $m->isReady())->count(); } "
     + "if ($ile >= 3) { $osoba = $u; break; } } "
     // Danie ze zdjęciem i danie bez zdjęcia — dwa różne kształty karty.

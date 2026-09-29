@@ -3882,7 +3882,7 @@ rejestracji.
 
 📄 `app/Http/Controllers/Auth/LoginLinkController.php` ·
 `app/Domain/Security/WyslijLinkDoLogowania.php` ·
-`app/Domain/Security/DziennyBudzetListow.php` ·
+`app/Poczta/DziennyBudzetListow.php` ·
 `app/Models/LoginLinkToken.php` · `app/Models/User.php`
 (`invalidateLoginLinks()`) · `app/Notifications/LinkDoLogowania.php` ·
 `resources/views/mail/link-do-logowania.blade.php` ·
@@ -4174,7 +4174,7 @@ Pilnują tego: `TygodniowePodsumowanieTest`, `WypisanieZPodsumowaniaTest`,
 `app/Domain/Digest/ZbierzTresciDigestu.php` ·
 `app/Domain/Digest/TrescDigestu.php` ·
 `app/Domain/Digest/OdnosnikWypisania.php` ·
-`app/Domain/Security/DziennyBudzetListow.php` ·
+`app/Poczta/DziennyBudzetListow.php` ·
 `app/Mail/PodsumowanieTygodnia.php` ·
 `app/Http/Controllers/PodsumowanieTygodniaController.php` ·
 `resources/views/mail/podsumowanie-tygodnia.blade.php` (+ `-tekst`) ·
@@ -6282,7 +6282,7 @@ o wysyłce.
 wtedy — wraca do rozważenia warunkowy `UPDATE` we własnej tabeli z pełnym
 kompletem: migracja, test, `docs/DATABASE.md`, rollback.
 
-📄 `app/Domain/Security/DziennyBudzetListow.php` ·
+📄 `app/Poczta/DziennyBudzetListow.php` ·
 `app/Http/Controllers/Auth/LoginLinkController.php` ·
 `app/Console/Commands/WyslijPodsumowaniaTygodnia.php` ·
 `tests/Feature/AtomowaRezerwacjaBudzetuTest.php` ·
@@ -8671,7 +8671,7 @@ metodą — a mimo to trzy rzeczy wymagały rozstrzygnięcia:
 `app/Http/Controllers/Auth/EmailVerificationController.php` ·
 `app/Console/Commands/NieudaneListy.php` ·
 `app/Console/Commands/SprawdzPoczte.php` ·
-`app/Domain/Security/DziennyBudzetListow.php` ·
+`app/Poczta/DziennyBudzetListow.php` ·
 `resources/views/auth/verify-email.blade.php` ·
 migracja `2026_09_10_500000_create_mail_failures_table` ·
 `config/kuking.php` (`poczta`) · `docs/DATABASE.md` ·
@@ -15289,10 +15289,10 @@ mierzonych stronach i reguł o zasięgu masowym (ponad 300 elementów — wewnę
 reguły Tailwinda). Wszystkie trzy są RAPORTOWANE jako `niezmierzone`, nigdy
 pomijane po cichu: cisza wyglądałaby jak wynik pozytywny.
 
-## D-1009-ROBOCZA — Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026)
+## D-329 — Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026)
 
-Numer ostateczny przydziela koordynator przy scalaniu. Właściciel rozstrzygnął
-wprost: pierwszy wkład nie powtarza się po usunięciu wpisu. Zatwierdził także
+Właściciel rozstrzygnął wprost: pierwszy wkład nie powtarza się po usunięciu
+wpisu. Zatwierdził także
 odtworzenie tylko na podstawie zachowanych danych, bez zaległych alertów;
 pełna gwarancja zaczyna się od wdrożenia.
 
@@ -15785,11 +15785,11 @@ jest zamierzone: pilnują, żeby strażnik nie blokował za dużo.
 > a ten numer (i D-226, D-227 — numery zajęte na gałęziach, nie na `main`,
 > bez własnego nagłówka w tym dzienniku) zajęły w międzyczasie inne decyzje
 > na `main`. D-239 to pierwszy numer wolny na `origin/main` i na wszystkich
-> gałęziach zdalnych w dniu przeniesienia (reguła D-235: ustępuje gałąź,
-> której numeru nie ma jeszcze na `main` — reguła koordynacji numeracji
-> między gałęziami, opisana w `docs/flota/MAPA_NUMEROW_DECYZJI.md` i
-> `docs/flota/KOLEJNOSC_SCALANIA.md`; D-235 sama nigdy nie scaliła się jako
-> osobny wpis, więc pod tym numerem nie szukaj nagłówka w tym pliku).
+> gałęziach zdalnych w dniu przeniesienia (reguła koordynacji numeracji:
+> ustępuje gałąź, której numeru nie ma jeszcze na `main` — opisana w sekcji
+> „Procedura nadawania numeru" w `docs/flota/MAPA_NUMEROW_DECYZJI.md` oraz
+> w `docs/flota/KOLEJNOSC_SCALANIA.md` §2; to nie jest osobny wpis dziennika,
+> więc nie szukaj jej pod żadnym numerem D-NNN).
 > Treść to intencja tamtej gałęzi przeniesiona na
 > obecny kod, bez części o drodze zgłoszenia DSA (osobna decyzja, nie ta).
 
@@ -15871,7 +15871,7 @@ ostrzeżenia o zmianie adresu) — pojedyncze sztuki na dobę, ale dopóki się 
 liczą, wspólna pula pokazuje mniej, niż serwis naprawdę wysłał. To jest znana
 i nazwana niedokładność, nie przeoczenie.
 
-📄 `app/Domain/Security/DziennyBudzetListow.php`,
+📄 `app/Poczta/DziennyBudzetListow.php`,
 `app/Domain/Security/WyslijPotwierdzenieAdresu.php`,
 `tests/Feature/WspolnyLicznikPocztyTest.php`,
 `tests/Feature/PodzialLimituPocztyTest.php`,
@@ -16115,8 +16115,9 @@ a ekrany z #1168 zostają, bo bez nich nie ma jak wskazać zeszytu.
 **Numer.** D-230 i D-231 są na `main` zajęte przez #1168, a D-232–D-241 oraz
 D-243 (numery na gałęziach, nie na `main` w chwili tego wpisu) przez inne
 gałęzie. Ta decyzja nosiła najpierw D-241, który wcześniej
-wypchnęła `flota/scal-786` (#966), więc ustąpiła na D-242 (D-235: ustępuje
-strona, która wzięła cudzy numer). Potem obie gałęzie ustąpiły sobie
+wypchnęła `flota/scal-786` (#966), więc ustąpiła na D-242 (reguła numeracji:
+ustępuje strona, która wzięła cudzy numer — „Procedura nadawania numeru"
+w `docs/flota/MAPA_NUMEROW_DECYZJI.md`). Potem obie gałęzie ustąpiły sobie
 nawzajem naraz: o 23:54Z `flota/scal-786` oddała D-242 tej decyzji i wzięła
 D-243, a o 23:59Z ta decyzja — nie widząc tamtego pchnięcia, bo hak
 `pre-push` trwa kilkanaście minut — przeszła na D-243. D-243 pierwsza
@@ -16328,6 +16329,29 @@ wywołania przypisane do klas:
 
 Dowód: `AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest` (eksport, blokada)
 i `LogowanieLinkiemTest` (sekcja #1530).
+
+**Uzupełnienie (#829, #830, #1051, 26 września 2026 — decyzja właściciela).**
+`content.flagged_by_automat` — **klasa 2**, w obu miejscach, które go piszą:
+
+- `OznaczDoPrzegladu` (nowa sprawa automatu) — już tak od #1051.
+- `DolozDoOznaczenia` (sygnały dołożone do istniejącej sprawy, `dolozone:
+  true` w metadanych) — od dopisku `7fb4e467` do PR #1548. Wcześniej gołe
+  `record()` stało WEWNĄTRZ transakcji dokładania, więc awaria dziennika
+  cofała dołożone sygnały, a wyjątek połykany w `PrzeanalizujTresc` zjadał
+  pilny alarm.
+
+Autorytatywny ślad to wiersz `reports` (`source = automat`, powód, opis
+sygnałów, `alarm_pilny_stan`), zatwierdzany razem z obowiązkiem alarmu:
+pilny sygnał dołożony do sprawy bez stanu alarmu zapisuje `ZALEGLY` w tej
+samej transakcji. Na pytanie rozstrzygające odpowiedź brzmi „tak" — ślad
+decyzji automatu zostaje w bazie bez wpisu dziennika, a o tym, co z nim
+zrobić, i tak decyduje człowiek (`moderation.decided`, klasa 1). Awaria
+dziennika idzie do `report()` z nazwą braku; sygnały i alarm zostają.
+
+Dowód: `PilnyAlarmModeracyjnyNieGinieTest` (nowa sprawa) i
+`ModeracjaBudzetIZdjeciaPoGotowosciTest::test_awaria_dziennika_nie_cofa_dolozonych_sygnalow`
+oraz `test_pilny_sygnal_dolozony_zapisuje_zalegly_alarm_przed_listem`
+(dokładanie).
 
 **Uzupełnienie (#1305, 25 września 2026).** `appeal.filed` — **klasa 2**.
 To czynność samego człowieka (autora treści albo zgłaszającego), a jej
@@ -16932,7 +16956,7 @@ to jest granica `limits.register`, nie tej decyzji. Nie rusza też
 
 📄 `app/Domain/Security/WyslijPotwierdzenieAdresu.php`,
 `app/Domain/Security/WynikPonowieniaPotwierdzenia.php`,
-`app/Domain/Security/DziennyBudzetListow.php`,
+`app/Poczta/DziennyBudzetListow.php`,
 `app/Http/Controllers/Auth/EmailVerificationController.php`,
 `config/kuking.php`,
 `tests/Feature/SufitPonowieniaPotwierdzeniaTest.php`,
@@ -17565,6 +17589,42 @@ liście wyjątków z odwołaniem do D-262, a nie zgłoszenie jako regresja.
 ### Wycofanie
 Podnieść cztery selektory z listy wyżej do `--text-body` (18 px) i usunąć
 ten wpis. Nic w bazie ani w migracjach się nie zmienia.
+
+## D-260 — Bezpieczny obszar: `viewport-fit=cover` i cztery tokeny `--safe-*` (24 września 2026)
+
+**Data:** 24 września 2026 · Issue #987 · Status: **do odbioru na urządzeniu**
+
+**Co.** Wspólny meta viewport (`resources/views/components/layout.blade.php`)
+wybiera `viewport-fit=cover`. Insety czyta wyłącznie
+`resources/css/bezpieczny-obszar.css` — cztery tokeny `--safe-top`,
+`--safe-right`, `--safe-bottom`, `--safe-left`. Właściciele brzegów:
+pasek górny (`.topbar` przez `padding-top`, karta `.marka-topbar` przez
+`top` i margines), `<body>` (boki treści w przepływie, w tym stopka — bez
+zmian w jej CSS), dolna belka i szybki wygląd (`fixed`, więc dół i boki
+biorą same). Eksporty i poczta mają własne viewporty i zostają w `auto`.
+
+**Dlaczego `cover`, a nie `auto`.** Kuking instaluje się jako PWA
+`standalone`: przy `auto` iOS zostawia pasy wokół strony w kolorze tła
+dokumentu, a dotychczasowe `env(safe-area-inset-bottom)` sugerowało obsługę
+pełnego ekranu, której nie było (góra i boki nieobsłużone). `cover` daje ten
+sam wynik w Safari i w PWA pod warunkiem, że każdy brzeg ma właściciela —
+dlatego kontrakt obejmuje wszystkie cztery insety, nie tylko dół.
+
+**Czego to nie zmienia.** Bez wycięcia (komputer, większość Androidów)
+tokeny są równe 0 — układ co do piksela jak przed zmianą. Klawiatura
+ekranowa i visual viewport zostają w #947.
+
+**Znana granica.** Zmiana jest sprawdzona testem kontraktu i w Chromium;
+odbioru na fizycznym iPhonie (Safari i ekran główny, pion i poziom, tekst
+100/140/200%) wymaga #987 i nie da się go zastąpić emulacją.
+
+Dowody: `tests/Feature/BezpiecznyObszarMaJedenKontraktTest.php` (tokeny
+meta viewport — nie cały napis, żeby dopisany `interactive-widget` z #947 go
+nie czerwienił — jedyne źródło insetów, właściciel każdego brzegu, w tym dół
+podpowiedzi szybkiego wyglądu) z trzema kontrolami ujemnymi w
+`scripts/kontrole-negatywne-alfa08.py`.
+---
+
 ## D-270 — Publiczne API `/api/v1`: tokeny Sanctum, domyślnie zamknięte, jeden format błędu (25 września 2026)
 
 **Data:** 25 września 2026 · **Decyzja właściciela** (uruchomić API pod aplikację mobilną) + zasady wykonania z etapu 1 · Status: **obowiązuje**
@@ -17762,12 +17822,26 @@ Strony „Jak dobieramy wpisy” na `main` jeszcze nie ma (stan na 25 września
 2026); jej powstanie jest osobną częścią wdrożenia #1781. Do tego czasu
 wymóg jej aktualizacji oznacza opis nowej reguły w tym dzienniku.
 
+> **Dopisek (26 września 2026, #1811, D-305).** Strona już jest:
+> `/jak-dobieramy-wpisy`. Nowa reguła = zdanie w `App\Domain\Feed\JakDobieramyWpisy`
+> i dowód w `JakDobieramyWpisyMowiPrawdeTest`.
+
 ### Sprostowanie D-194
 
 D-194 dostaje zdanie „Liczba »Ugotowałem« ani reakcji nie wpływa na kolejność
 ani dobór”. Fragment o lajku poprawiony: polubienia nie ma, lżejszą reakcją
 będzie „Smakowicie wygląda” (#1813). Hierarchia sygnałów zostaje — dotyczy tego,
 co człowiek widzi przy wpisie i o czym dostaje powiadomienie, nie doboru list.
+
+### Progi rewizji (dopisek 26 września 2026, #1814, D-283)
+
+Do rozmowy o regule spoza listy (w tym o jakimkolwiek rankingu) wracamy
+dopiero, gdy **naraz**: średnio **≥ 60 różnych autorów dziennie** (28 dni),
+**≥ 8 pełnych tygodni danych** i **> 30% autorów praktycznie bez pierwszej
+strony „Świeżo z Kuking”** w tygodniu (wskaźnik zastępczy bez logu wyświetleń —
+definicja w D-283). Liczby pokazuje panel `/admin/metryki`; progi w
+`kuking.metryki`. Przekroczenie jest powodem do decyzji właściciela, nie zmianą
+w kodzie.
 
 ### Wycofanie
 
@@ -18068,6 +18142,63 @@ Wymaga decyzji, co z zapisanymi reakcjami (rollback migracji odmawia).
 
 📄 `app/Domain/Reakcje/Smakowicie.php` · `app/Domain/Reakcje/PowiadomOSmakowicie.php` ·
 `tests/Feature/SmakowicieWygladaTest.php` · D-194 · D-275
+
+## D-283 — Metryki doboru bez profilowania i wskaźnik zastępczy trzeciego progu (#1814, #1781, 26 września 2026)
+
+**Data:** 26 września 2026 · Decyzja właściciela (#1781, pkt 5 z 26.09; kryteria #1814) · Status: **obowiązuje**
+
+### Decyzja
+
+Panel admina **„Metryki doboru”** (`/admin/metryki`, bramka
+`UserPolicy::przegladajMetryki` — tylko admin) pokazuje wyłącznie **agregaty
+z istniejących tabel** (`posts`, `first_post_events`, `comments`,
+`cooked_events`, `post_tags`). Bez nowych zdarzeń, bez `post_id` i nazw osób
+w wyniku, bez logu wyświetleń; **ukrycia (D-278) i reakcje „Smakowicie
+wygląda” (D-280) nie są źródłem** — strażnik
+`MetrykiDoboruTest::test_nie_czyta_ukryc_ani_reakcji` (i dotychczasowy skan
+`app/Domain/Analytics` w `UkryjWpisIOsobeTest`). Z liczb wyłączone są konta
+z `CookEligibility::excludedUserIds()` (gospodarz, zalążkowe, zamknięte).
+
+| Metryka | Definicja |
+|---|---|
+| Pierwsze wpisy z odpowiedzią w 24 h | wpisy z `first_post_events` sprzed 1–30 dni; odpowiedź = opublikowany komentarz innej osoby (nie konta zalążkowego) albo „Ugotowałem” przy wskazanym przepisie, najpóźniej 24 h po publikacji |
+| Autorzy publikujący ponownie w 28 dni | kohorta: pierwszy wpis 28–56 dni temu; powrót = kolejny opublikowany wpis w 672 h |
+| Udział 10% najaktywniejszych | publiczne wpisy z 30 dni; `ceil(10%)` autorów (co najmniej jeden) z największą liczbą **własnych** wpisów |
+| Różnych autorów dziennie | publiczne wpisy, dni czasu polskiego, 28 pełnych dni bez dzisiejszego; średnia = głębokość pierwszej rundy Odkrywania |
+| Publiczne z tagiem | publiczne wpisy z 30 dni z ≥ 1 aktywnym tagiem (warunek ukrywania tagów: 60%) |
+| Tygodnie danych | pełne tygodnie od pierwszego publicznego wpisu społeczności |
+
+### Wskaźnik zastępczy trzeciego progu
+
+Propozycja z #1814 — „> 30% autorów bez pierwszej strony w 7 dni” — wymaga
+wiedzy, co kto widział, czyli logu wyświetleń, którego nie prowadzimy. Wybrany
+zastępnik liczy się **z samych godzin publikacji**, bo pierwsza strona „Świeżo
+z Kuking” jest deterministyczna (D-276): to najnowszy wpis każdej z
+`feed.page_size` osób, które publikowały ostatnio. Wpis stoi więc na pierwszej
+stronie od publikacji do chwili, gdy po nim opublikuje `page_size` **innych**
+osób (albo autor doda nowszy wpis — wtedy stoi nowy). Dla każdego autora
+z publicznym wpisem sprzed 1–8 dni sumujemy ten czas (liczony do teraz);
+**„praktycznie bez pierwszej strony” = łącznie mniej niż 60 minut**
+(`kuking.metryki.minut_na_pierwszej_stronie`). Próg rewizji: > 30%
+(`odsetek_bez_pierwszej_strony`).
+
+Dlaczego ten, a nie inny: mierzy dokładnie to, czego próg dotyczy — tłok na
+pierwszej stronie przy rosnącej liczbie autorów — nie wymaga żadnej nowej
+danej i nie mówi nic o konkretnym widzu. Odrzucone: „wpisy bez odpowiedzi
+w 7 dni” (mierzy odzew, nie widoczność, i dubluje pierwszą metrykę) oraz
+liczniki z `product_signals` (nie mają `post_id` z założenia). Znane
+uproszczenie: pomija bramki per widz (blokady, ukrycia) i zdjęcia moderacyjne
+w trakcie — dla progu liczonego w dziesiątkach procent bez znaczenia.
+
+Progi rewizji — dopisek w D-275.
+
+### Wycofanie
+
+Bez migracji: usunąć trasę `admin.metryki`, `MetrykiController`,
+`App\Domain\Analytics\MetrykiDoboru`, widok i `kuking.metryki`.
+
+📄 `app/Domain/Analytics/MetrykiDoboru.php` · `app/Http/Controllers/Admin/MetrykiController.php` ·
+`tests/Feature/MetrykiDoboruTest.php` · D-275 · D-276 · D-278 · D-280
 ---
 
 ## D-271 — Logowanie aplikacji mobilnej: te same akcje co WWW, 2FA przez zaszyfrowane wyzwanie, lista urządzeń (25 września 2026)
@@ -18417,8 +18548,12 @@ z projektu).
   na dzień w strefie `Europe/Warsaw`, kwoty w mikro-USD). Bez Redisa i bez
   cache'u — to są pieniądze, a licznik w cache'u znika przy restarcie.
 - **Rezerwacja przed wywołaniem, rozliczenie po nim** (`App\Domain\Import\BudzetAi`).
-  Rezerwacja = najgorszy przypadek: szacowane tokeny wejścia × cena wejścia +
-  sufit tokenów wyjścia (z rozumowaniem) × cena wyjścia. Zapis pod
+  Rezerwacja = najgorszy przypadek: pełne okno kontekstu zatwierdzonego
+  `gpt-6-luna` (1 050 000 tokenów, również dla wszystkich stron skanu PDF)
+  × 2 × cena wejścia + sufit tokenów wyjścia (z rozumowaniem) × 1,5 × cena
+  wyjścia (droższa taryfa modelu po 272 tys. tokenów wejścia).
+  Model inny niż `gpt-6-luna` lub cennik poniżej 0,10/0,50 USD za milion
+  tokenów wyłącza import, zamiast udawać twardy limit kosztu. Zapis pod
   `SELECT … FOR UPDATE` na wierszu dnia szereguje równoległe odczyty.
   Rozliczenie z `usage` zwalnia nadwyżkę; **brak `usage` = cała rezerwacja
   wydana** (żądanie mogło dojść i zostać policzone). Rezerwację zwalniamy bez
@@ -18962,6 +19097,113 @@ przez `withVisibleCommentCount()` (wszystkie strumienie) i nagłówek w
 korzeni i pominięcie warunku widocznego korzenia — oba oblewają).
 Komentarze pod przepisem i pod „Ugotowałem” — rozszerzenie w **D-309**.
 
+## D-285 — „Co mam w domu” i „Co ugotuję z tego, co mam”: prywatna lista, dopasowanie bez AI, jawna reguła doboru (V2, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Wykonanie **D-282**
+(decyzja właściciela z 26 września 2026 dopuszczająca funkcje V2 z
+`docs/FEATURES.md`: *pantry* i *„co ugotuję z tego, co mam”*) · Gałąź
+`claude/v2-pantry`
+
+**Problem.** Kuking ma słownik składników i składniki przepisów zapisane
+wierszami (`recipe_ingredients.ingredient_text`, `ingredient_id` →
+`ingredients`), ale nie ma jak odpowiedzieć na najczęstsze kuchenne pytanie:
+„co zrobię z tym, co mam w lodówce?”. Wyszukiwarka odpowiada na jedno słowo,
+nie na listę produktów.
+
+**Decyzja — zakres v1 (bez AI).**
+
+1. **Prywatna lista „Co mam w domu”** (`/co-mam-w-domu`, wejście z zeszytu):
+   jedno duże pole, przycisk „Dodaj do listy”, lista z przyciskami „Usuń”.
+   Podpowiedzi pod polem pochodzą ze słownika składników, ale **tylko
+   z przepisów publicznych, opublikowanych, od aktywnych kont** — słownik
+   rośnie też ze szkiców i przepisów „tylko dla mnie”, a podpowiedź z nich
+   zdradzałaby cudzą linijkę. Kolejność podpowiedzi: najkrótsza nazwa
+   najpierw, potem alfabet (nie „najczęściej używane”). Podpowiedzi rysuje
+   skrypt jako przyciski (18 px, 48 px), nie `<datalist>`; bez skryptu pole
+   i przycisk działają tak samo (D-053). Lista jest widoczna wyłącznie dla
+   właściciela (`PantryItemPolicy`, bez wyjątku dla moderatora), trafia do
+   paczki danych (`InwentarzDanychKonta`, sekcja `co_mam_w_domu`) i znika
+   przy wymazaniu konta (`EraseAccountData`). Limit: 150 produktów —
+   egzekwowany pod blokadą wiersza właściciela listy (`CoMamWDomu::dodaj()`
+   bierze `lockForUpdate()` na wierszu `users` przed liczeniem i zapisem),
+   bo bez niej dwa równoległe żądania na koncie z 149 produktami mogły oba
+   przejść limit (#1958, test na dwóch połączeniach:
+   `tests/Dwa/PantryLimitNaDwochPolaczeniachTest.php`).
+2. **„Co ugotuję z tego, co mam”** (`/co-ugotuje`): przepisy, w których
+   pasuje co najmniej jeden składnik z listy, a przy każdym zdanie
+   „Masz 5 z 7 składników. Brakuje: …” (brakujące linijki dosłownie tak,
+   jak napisał je autor przepisu).
+
+**Reguła doboru — jednym zdaniem, pokazana też na ekranie**
+(`CoUgotuje::REGULA`): *najpierw przepisy, do których masz najwięcej — czyli
+brakuje w nich najmniej składników z Twojej listy; przy tej samej liczbie
+brakujących najpierw te, które zajmują najmniej czasu.* Przepis bez podanego
+czasu idzie na koniec remisu (ta sama zasada co „Do 30 minut”), a czas
+publikacji i `id` tylko ustalają kolejność między stronami. **Żadna reakcja
+innych ludzi** („Ugotowałem”, zapisy, obserwujący, komentarze) nie wpływa na
+kolejność — AGENTS.md §8 i §12. `FeedNieSortujePoMierzeReakcjiTest` skanuje
+teraz cały katalog `app/Domain/Pantry` (kotwica: `CoUgotuje.php`), a dwa
+sortowania po wyrażeniu i kolejność podpowiedzi mają wpisy w jego rejestrze.
+Kontrola ujemna wykonana: `orderByDesc('cooked_events_count')` w `CoUgotuje`
+oblewa strażnika. Widoczność przepisów: ta sama co przy otwarciu
+(`published()` → `widoczneDla()`, aktywne konto autora, blokady w obie strony).
+
+**Dopasowanie składników (bez AI).** Jedna funkcja w bazie,
+`public.kuking_rdzenie_skladnika(text)`: `kuking_normalize()` (małe litery,
+bez polskich znaków) → podział na słowa → odrzucenie liczb i słów
+jednoliterowych → **słownik form krótkich słów**
+(`public.kuking_formy_skladnikow()`: mąka/mąki/mąkę → `maka`, mak/maku →
+`mak`, ser/sera → `ser` …) → poza słownikiem „liczba mnoga prosta” tylko
+dla dłuższych słów (słowo > 5 liter na „-ow” traci „ow”, słowo > 4 liter
+traci końcową samogłoskę; krótsze zostają całe). Produkt z listy pasuje do
+linijki składnika, gdy **wszystkie** jego rdzenie są w rdzeniach linijki
+(`<@`). Z tej samej funkcji generują się kolumny `pantry_items.rdzenie`
+i `klucz`, więc reguła nie ma drugiej kopii w PHP. `UNIQUE (user_id, klucz)`
+nie pozwala dopisać „jajko”, gdy na liście są „Jajka”.
+
+Znane granice tej prostoty (świadome, do rewizji po pomiarze):
+- dopełniacz i inne przypadki spoza „liczby mnogiej prostej” nie łączą się:
+  „cukru” ≠ „cukier”, „jajek” ≠ „jajka”;
+- ~~rdzenie bywają wspólne dla różnych rzeczy: „mąka” i „mak” (oba `mak`)~~ —
+  **naprawione (#1969)**: przy krótkim słowie końcówka niesie znaczenie,
+  więc rdzeń krótszy niż 4 litery powstaje już tylko ze słownika form, gdzie
+  każda forma jest wpisana ręcznie; krótkie słowo spoza słownika pasuje
+  tylko w tej samej formie (brak dopasowania zamiast fałszywego „masz”).
+  Test par: `CoUgotujeTest::test_rdzenie_nie_lapia_sie_nawzajem_a_odmiany_dalej_pasuja`
+  (mąka ≠ mak, mak ≠ makaron, lód ≠ lody …; mąka = mąki/mąkę, ser = sera …);
+- produkt ogólny pasuje do odmiany: „mleko” zalicza „mleko kokosowe”,
+  „ser” — „ser pleśniowy”;
+- sól, pieprz i woda liczą się jak każdy inny składnik — kto ich nie wpisze,
+  zobaczy je w „Brakuje”.
+
+**Propozycja na później (NIE wdrożona): dopasowanie przez AI.** Gdy pomiar
+pokaże, że powyższe granice realnie przeszkadzają, dopasowanie produktu do
+linijki składnika może zaproponować model OpenAI „GPT-6 Luna”, wybierany
+konfiguracją, nie kodem — wzorcem z D-282 (`config/kuking.php` + zmienna
+w `.env`/`.env.example`, np. `config('kuking.pantry.dopasowanie_ai.model')`
+i `klucz` z `env()`; brak klucza = funkcja wyłączona i nic nie pada; klucz
+nigdy w kodzie). Ta gałąź nie dodaje tych kluczy konfiguracji, bo nic ich
+jeszcze nie czyta. Granice propozycji: model dostaje wyłącznie parę
+„nazwa produktu / linijka składnika” (bez danych konta), zwraca tylko
+tak/nie, wynik trafia do pamięci podręcznej po parze rdzeni, reguła bez AI
+zostaje ścieżką domyślną i awaryjną (timeout, budżet, awaria), a model
+**nie wpływa na kolejność** — reguła doboru zostaje zdaniem wyżej. Przed
+włączeniem: zestaw ~100 par testowych i porównanie z regułą bez AI, tak jak
+w #815; bez wyraźnej poprawy — nie włączać.
+
+**Czego ta decyzja nie zmienia.** AGENTS.md §12 nadal wymienia spiżarnię
+jako „świadomie nie budujemy teraz” — dopisanie wyjątku tam jest decyzją
+właściciela, której ta gałąź nie podejmuje za niego.
+
+### Wycofanie
+Ekrany znikają po zdjęciu tras `pantry.*` i wejścia z zeszytu — bez
+ruszania bazy. Cofnięcie schematu (`2026_09_28_233700_create_pantry_items_table`)
+usuwa tabelę i obie funkcje, ale przy niepustej tabeli **odmawia** (D-088):
+listy to dane wpisane przez ludzi. Świadome wymuszenie po kopii:
+`KUKING_ROLLBACK_KASUJE_SPIZARNIE=1`. Pilnuje
+`CofniecieMigracjiNieKasujeListCoMamWDomuTest` (odmowa, kontrola dodatnia
+na pustej tabeli, wymuszenie).
+
 ## D-282 — V2 z `docs/FEATURES.md` wolno budować od 26 września 2026 (Nie wcześnie — bez zmian)
 
 **Data:** 26 września 2026 · Decyzja właściciela · Status: **obowiązuje**
@@ -19018,6 +19260,165 @@ wymagałoby osobnej, jawnej decyzji o wycofaniu konkretnej funkcji.
 
 📄 `AGENTS.md` §2, `AGENTS.md` §10, `CLAUDE.md`, `docs/FEATURES.md`,
 `docs/ROADMAP.md`, `config/kuking.php`
+## D-305 — Strona „Jak dobieramy wpisy”: zdania z rejestru, każde z dowodem w kodzie (#1811, #1781, 26 września 2026)
+
+**Data:** 26 września 2026 · Decyzja właściciela (#1781, kryteria #1811) · Status: **obowiązuje**
+
+### Decyzja
+
+Strona `/jak-dobieramy-wpisy` (trasa `feed-rules`, publiczna) opisuje po kolei
+każdą listę wpisów: Start, „Świeżo z Kuking”, tablicę na dziś i polecane tagi,
+wyszukiwarkę, tygodniowy e-mail, ukrywanie i „czego nie robimy”. Zdania stoją
+w `App\Domain\Feed\JakDobieramyWpisy`, widok rysuje wyłącznie je, a
+`JakDobieramyWpisyMowiPrawdeTest` (wzorem `TabelaStackuMowiPrawdeTest`, D-104)
+trzyma dla każdego klucza dowody w trzech dozwolonych kształtach: `test:`
+(metoda testu istnieje), `kod:` (plik zawiera fragment), `config:` (liczba
+w zdaniu = wartość konfiguracji). Zdanie bez dowodu, dowód bez zdania, liczba
+bez konfiguracji i akapit dopisany wprost w widoku oblewają. Trzy obietnice
+mają testy zachowania w tym samym pliku: reakcje, „Ugotowałem” i komentarze
+nie zmieniają kolejności (Start i Odkrywanie); w bazie nie ma miejsca na zapis,
+kto oglądał który wpis; wybór gospodarza jest podpisany.
+
+Nigdzie nie piszemy „nie mamy systemu rekomendacji” — dobór wpisów jest systemem
+rekomendacji w rozumieniu DSA, tyle że prostym i jawnym; test skanuje widoki
+i dokumenty prawne.
+
+**Linia w „Świeżo z Kuking”.** Pod nagłówkiem stała linia „Skąd te wpisy i jak
+to zmienić” → strona; przy aktywnych ukryciach druga: „Ukrywasz wpisy N osób.
+Zmień” (albo „Ukrywasz N wpisów”, gdy ukryte są tylko wpisy) → Ustawienia →
+Ukryte. Liczby tylko z ukryć tego widza (`Ukrycia::ileOsob()`, `ileWpisow()`).
+Odnośnik „Jak działa kolejność?” na Starcie prowadzi teraz na tę stronę.
+Na stronie zalogowany ma odnośniki do obserwowanych osób, tagów i „Ukrytych”.
+
+**Wybór gospodarza podpisany.** AGENTS.md §8 dopuszcza wybór gospodarza
+„oznaczony w interfejsie jako jego wybór”, a tablica go nie oznaczała. Od teraz
+pozycja z `daily_picks` ma napis „Wybór gospodarza” (`DailyBoard` zwraca
+`wybrane`); pozycje dołożone przez automat do sufitu — nie.
+
+**Słowo „tag”**, nie „temat” (decyzja właściciela z 11.09, `JednoSlowoNaTagiTest`).
+
+Regulamin (§2, „Jak dobieramy wpisy”) odsyła do strony — zmiana ogłoszona
+według D-306.
+
+### Wycofanie
+
+Bez migracji: usunąć trasę `feed-rules`, `JakDobieramyWpisy`, widok, linie
+w `discover.blade.php`/`home.blade.php` i test; napis na tablicy zostawić
+(wymaga go AGENTS.md §8).
+
+📄 `app/Domain/Feed/JakDobieramyWpisy.php` · `resources/views/pages/static/jak-dobieramy-wpisy.blade.php` ·
+`tests/Feature/JakDobieramyWpisyMowiPrawdeTest.php` · `app/Domain/Feed/DailyBoard.php` · D-275 · D-276 · D-277 · D-278 · D-279 · D-280
+
+## D-306 — Zmiana regulaminu ogłaszana paskiem w serwisie, wersja z datą w konfiguracji (#1811, 26 września 2026)
+
+**Data:** 26 września 2026 · Decyzja właściciela (26.09.2026) · Status: **obowiązuje**
+
+### Decyzja
+
+Zmianę regulaminu ogłaszamy **komunikatem w serwisie, bez maili**:
+
+- wersja regulaminu to data w `kuking.zgody.wersja_regulaminu`, tym samym
+  kształtem co `wersja_polityki` (D-072): dzień stanu dokumentu z nagłówka
+  „opisuje stan serwisu na …”, podbijany ręcznie razem z nim;
+- dokument ma na górze sekcję „Co się zmieniło” (kotwica `#co-sie-zmienilo`)
+  z wpisem datowanym dniem wersji; `ZmianaRegulaminuTest` pilnuje zgodności
+  nagłówka, sekcji i konfiguracji;
+- zalogowane konto założone przed dniem wersji widzi na każdym ekranie pasek
+  „Zmieniliśmy regulamin. Zobacz, co się zmieniło” z przyciskiem „Zamknij”
+  (POST, bez JS); zamknięcie zapisuje wersję w
+  `users.terms_notice_dismissed_version` i przy tej wersji pasek nie wraca.
+  Konto założone w dniu wersji albo później paska nie dostaje;
+- zamknięcie paska **nie jest akceptacją** regulaminu — to ślad, że komunikat
+  dotarł. Eksport: `konto.pasek_zmiany_regulaminu_zamkniety_dla_wersji`;
+  wymazanie konta zeruje pole. Rollback migracji odmawia, gdy ktoś pasek
+  zamknął (D-088, wzorem `pwa_prompt_state`).
+
+Pierwsza wersja: 26 września 2026 — dopisany opis doboru wpisów i odnośnik do
+„Jak dobieramy wpisy” (D-305). Zmiana opisuje działanie serwisu i nie dodaje
+obowiązków, dlatego weszła od razu; §11 regulaminu (14 dni przy zmianach
+istotnych) zostaje bez zmian — **pytanie do właściciela/prawnika**, czy przy
+następnej zmianie istotnej pasek ma się pokazywać z wyprzedzeniem (data
+wejścia w życie osobno od daty publikacji).
+
+**Rozstrzygnięte 26 września 2026 w D-327:** tak — przy zmianie istotnej
+data wejścia w życie jest osobna od daty publikacji (+14 dni).
+
+### Wycofanie
+
+Kod: `ZmianaRegulaminu`, `ZmianaRegulaminuController`, trasa
+`terms.notice.dismiss`, komponent `pasek-zmiany-regulaminu`. Kolumny nie
+cofać, gdy ktoś pasek zamknął (migracja odmówi).
+
+📄 `app/Domain/Zgody/ZmianaRegulaminu.php` · `resources/views/components/pasek-zmiany-regulaminu.blade.php` ·
+`database/migrations/2026_09_26_120000_add_terms_notice_dismissed_version_to_users.php` ·
+`tests/Feature/ZmianaRegulaminuTest.php` · `resources/legal/regulamin.md` · D-072 · D-088 · D-305
+
+## D-327 — Dokument prawny: data publikacji osobno od daty wejścia w życie; zmiana istotna po 14 dniach (#1811, #1781, 26 września 2026)
+
+**Data:** 26 września 2026 · Decyzja właściciela (26.09.2026) · Status: **obowiązuje** ·
+Rozstrzyga pytanie otwarte w D-306 · Dotyczy D-072 (dziennik zgód), #1816
+
+### Decyzja
+
+Przy **istotnej** zmianie polityki prywatności albo regulaminu data wejścia
+w życie jest osobna od daty publikacji. Pasek o zmianie pokazuje się od
+publikacji, a nowa wersja obowiązuje **14 dni później**; do tego dnia
+obowiązuje poprzednia. **Drobne** poprawki (redakcyjne, bez zmiany praw
+i obowiązków) wchodzą od razu.
+
+### Jak to jest zapisane
+
+- `kuking.zgody.wersja_polityki` / `wersja_regulaminu` — bez zmian: data
+  PUBLIKACJI, ta sama co w nagłówku dokumentu („opisuje stan serwisu na …”);
+- `kuking.zgody.zmiana_polityki` / `zmiana_regulaminu` — **jawne**
+  oznaczenie: `istotna` (true/false, bez wartości domyślnej — brak klucza
+  albo inna wartość to wyjątek), `poprzednia` (data dotychczasowej wersji,
+  wymagana przy istotnej) i `obowiazuje_od` (null = publikacja + 14 dni;
+  wolno później, nigdy wcześniej; przy drobnej zabronione);
+- `kuking.zgody.okres_istotnej_zmiany_dni` = 14, w repozytorium, nie w `.env`.
+  `WersjaDokumentuTest` pilnuje, że regulamin §11 obiecuje tę samą liczbę;
+- logika w jednym miejscu: `App\Domain\Zgody\WersjaDokumentu`
+  (`obowiazujeOd()`, `wOkresiePrzejsciowym()`, `obowiazujaca()`).
+
+### Co z tego wynika
+
+- **Pasek regulaminu** (D-306) pokazuje się od dnia publikacji jak dotąd.
+  Przy zmianie istotnej mówi „Nowa wersja obowiązuje od <data>. Do tego dnia
+  obowiązuje poprzednia.”, a od dnia wejścia w życie — samo „Nowa wersja
+  obowiązuje od <data>.”. Przy drobnej nie podaje żadnego terminu.
+- **Zgoda** (`dziennik_zgod.wersja_polityki`, D-072) zapisuje wersję
+  OBOWIĄZUJĄCĄ w chwili zdarzenia (`WersjaDokumentu::polityka()->obowiazujaca()`),
+  nie ostatnio opublikowaną — we wszystkich zapisach: digest, życzenia mailem
+  i zgoda „odczyt AI” (`PrzestawZgodeNaOdczytAi`). **Akceptacji regulaminu repozytorium nie
+  zapisuje z wersją** (`terms_accepted` jest tylko walidowane przy
+  rejestracji), więc tu nie ma czego przeliczać.
+- Obecne wersje: polityka 2026-09-10 (sprzed rozróżnienia) i regulamin
+  2026-09-26 (opis doboru wpisów, D-305) są oznaczone jako **drobne** —
+  opisują działanie serwisu, nie zmieniają praw i obowiązków.
+
+### Przy następnym podbiciu (np. #1816)
+
+1. Podbij datę w nagłówku dokumentu i `wersja_*` na dzień publikacji.
+2. Ustaw `zmiana_*.istotna` jawnie. Przy `true` wpisz `poprzednia`,
+   a we wpisie „Co się zmieniło” podaj dzień wejścia w życie.
+3. **Polityka nie ma dziś własnego paska**, a §9 polityki obiecuje przy
+   zmianie istotnej powiadomienie w serwisie. `WersjaDokumentuTest`
+   oblewa, gdy `zmiana_polityki.istotna` = true bez komponentu
+   `pasek-zmiany-polityki` — pasek polityki trzeba dołożyć razem z #1816.
+4. Poprzedni tekst nie jest dziś osobno publikowany; w okresie przejściowym
+   strona dokumentu pokazuje już nowy. Jeśli prawnik uzna, że poprzednia
+   wersja musi być dostępna do przeczytania, to osobna zmiana.
+
+### Wycofanie
+
+Bez migracji. Wycofanie kodu przywraca D-306 (pasek bez terminu, zgoda
+z `config('kuking.zgody.wersja_polityki')`). Wpisy dziennika zgód zapisane
+w okresie przejściowym zostają z wersją poprzednią — to prawda o chwili
+zgody, nie błąd do poprawienia.
+
+📄 `app/Domain/Zgody/WersjaDokumentu.php` · `app/Domain/Zgody/ZmianaRegulaminu.php` ·
+`resources/views/components/pasek-zmiany-regulaminu.blade.php` · `config/kuking.php` (`zgody`) ·
+`tests/Feature/WersjaDokumentuTest.php` · D-072 · D-306
 ## D-286 — Koszt dania: najpierw kwota wpisana przez autora, jawnie jako jego szacunek (V2, 26 września 2026)
 
 **Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela
@@ -19326,6 +19727,136 @@ jak dziś
 obsługuje brak cen warzyw w ogóle.
 
 
+## D-300 — Import przepisu z adresu strony i z PDF: granice prawne i techniczne (V2, 26 września 2026)
+
+**Data:** 26 września 2026 · Status: **obowiązuje** · Decyzja właściciela ·
+Dotyczy projektu `docs/research/V2_IMPORT_OCR_ODZYWCZE.md` (PR #1854) §2.4, §4,
+etapów 4–5, pytań P-3, P-7, P-10, P-12 i issue #28
+
+**Problem.** Import z adresu strony to najprostsza droga do zamiany Kuking
+w agregator cudzych treści (AGENTS.md §9, §12: „masowy import cudzych
+przepisów" jest anty-wzorcem na zawsze) i zarazem furtka SSRF — serwer
+pobiera adres, który wkleił człowiek. Projekt proponował trzymać import URL
+za wyłącznikiem do opinii prawnika (P-3).
+
+**Decyzja właściciela (26.09.2026).** Import z adresu **od razu**, bez czekania
+na prawnika, dla wszystkich zalogowanych (P-7), w tych granicach:
+
+1. **Wynik to wyłącznie prywatny szkic** (`status = draft`, `visibility =
+   private`). Import nie ma drogi do publikacji — publikuje człowiek zwykłym
+   „Opublikuj".
+2. **Źródło obowiązkowe i zapisane:** `source_type = external`, `source_url`
+   = adres po przekierowaniach bez parametrów śledzących. W kreatorze
+   i formularzu źródła szkicu z adresu nie da się zmienić (`StrazImportu`
+   nadpisuje je przy każdym zapisie).
+3. **Zdjęć z cudzych stron nie pobieramy** — ani do szkicu, ani jako podgląd;
+   parser JSON-LD nie przenosi nawet adresu zdjęcia.
+4. **`robots.txt` szanowany** (RFC 9309: grupa `KukingImport` przed `*`;
+   4xx = wolno, 5xx i brak odpowiedzi = nie wolno), uczciwy `User-Agent`
+   `KukingImport/1.0 (+<adres serwisu>/o-kuking)`, bez obchodzenia zabezpieczeń.
+5. **Pełna ochrona SSRF:** tylko `http`/`https`, porty 80/443, bez
+   `user:hasło@`; blokada adresów prywatnych, pętli, link-local (w tym
+   metadanych chmury), CGNAT, zakresów zarezerwowanych, IPv6 lokalnych,
+   IPv4 zapisanych jako IPv6, NAT64/6to4, nazw jednoczłonowych i stref
+   `.internal`/`.local`/`.localhost`; KAŻDY adres IP nazwy musi być publiczny;
+   połączenie przypięte do sprawdzonego IP (`CURLOPT_RESOLVE`, bez proxy
+   ze zmiennych środowiskowych); host sprowadzany do jednej postaci
+   (małe litery, punycode, bez końcowej kropki, IPv4 z zapisów
+   `inet_aton`, IPv6 skrócony) i adres dla cURL-a składany z niej na nowo,
+   żeby przypięcie i żądanie miały ten sam klucz, a po połączeniu
+   `CURLOPT_PREREQFUNCTION` przerywa żądanie do adresu innego niż
+   sprawdzony (#1978); każde przekierowanie (najwyżej 3) i każdy
+   `robots.txt` przez strażnika od nowa; limit 2 MB liczony w trakcie
+   pobierania, bez rozpakowywania, 10 s na żądanie, 25 s na całość,
+   tylko `text/html`.
+6. **Bez masowego importu:** jeden adres albo jeden plik na wysłanie, brak
+   pola na listę adresów, wspólny dla OCR, adresu i PDF limit na osobę **5 dziennie / 30 miesięcznie**,
+   wspólny dla wszystkich źródeł importu (jak przy OCR), plus throttle trasy.
+7. **Ostrzeżenie (nie blokada, P-10)** przy publikacji, gdy opis
+   przygotowania jest podobny do strony źródłowej w ≥ 60% (`similarity()`
+   z `pg_trgm` wobec tekstu zapamiętanego przy imporcie).
+8. **„Sprawdziłem odczytany tekst" (P-12)** — pole wymagane przed pierwszą
+   publikacją szkicu z importu (adres, PDF, zdjęcie). Pilnuje go
+   `PublishRecipe` przez kontrakt `StrazPochodzeniaPrzepisu`, więc obowiązuje
+   w kreatorze, w formularzu jednostronicowym i w każdym przyszłym wejściu.
+9. **Model „GPT-6 Luna” (`gpt-6-luna`) tylko tam, gdzie bez niego się nie
+   da:** strona BEZ danych JSON-LD `Recipe` (tryb fragmentów — model zwraca
+   same granice wierszy z etykietami, PHP składa tekst z oryginału i odrzuca
+   odpowiedź bez pełnego pokrycia) i PDF BEZ warstwy tekstu (ścieżka OCR).
+   Strona z JSON-LD i PDF z tekstem idą lokalnie, bez kosztu. Wywołania
+   modelu wyłącznie przez klienta, budżet i zgodę z fundamentu importu;
+   wysiłek rozumowania dla wyznaczania fragmentów — `low`
+   (`KUKING_IMPORT_EFFORT_TEKST`, decyzja właściciela z 26.09.2026).
+   Każde takie wywołanie wymaga zgody zaznaczonej w danym formularzu;
+   wcześniejsza zgoda na odczyt zdjęcia kartki nie obejmuje tekstu strony
+   ani stron skanowanego PDF. Rezerwacja w istniejącym budżecie AI następuje
+   przed wysłaniem, a po wyczerpaniu budżetu model nie dostaje danych.
+   **Uzupełnienie #2031 (29.09.2026):** zgoda z formularza jest wersjonowana —
+   informacja stoi w jednym komponencie `x-zgoda-zrodlo-ai`, formularz niesie
+   `InformacjaTekstuZrodlaAi::WERSJA`, a zaznaczone pole z inną albo brakującą
+   wersją nie wysyła niczego do modelu. Opis źródeł: rejestr czynności §3.23
+   i `docs/legal/projekty/POLITYKA_ODCZYT_AI.md`.
+
+**W kodzie.** `app/Domain/Import/` (`Url/StraznikAdresow`, `Url/PobieraczStron`,
+`Url/RobotsTxt`, `Url/ParserJsonLdPrzepisu`, `TrybFragmentow`,
+`Pdf/TekstZPdf` przez `poppler-utils`, `ParserTekstuPrzepisu`,
+`Actions/ZapiszSzkicZImportu`, `StrazImportu`, `PodobienstwoDoZrodla`,
+`LimitImportu`), tabela `przepisy_z_importu` (`docs/DATABASE.md`), trasy
+`/dodaj/przepis/z-adresu` i `/dodaj/przepis/z-pdf`, konfiguracja
+`kuking.import`. Testy: `ImportStraznikAdresowTest`, `ImportPobieraczStronTest`,
+`ImportParseryTest`, `ImportTekstZPdfTest`, `ImportPrzepisuZAdresuIPdfTest`,
+`CofniecieMigracjiImportuTest`, `ObrazMaNarzedziaPdfTest` — sieć wyłącznie
+przez `Http::fake`, DNS przez podstawioną mapę nazw.
+
+**Czego ta decyzja nie zmienia.** Nie otwiera masowego importu ani importu
+z serwisów wymagających logowania; nie pozwala AI „przepisać własnymi słowami"
+cudzego tekstu przed publikacją (to byłoby pranie cudzej treści). Nie zastępuje
+opinii prawnika — jeśli prawnik wskaże inaczej, import z adresu wyłącza się
+bez wdrożenia: `KUKING_IMPORT_URL=false` (przycisku wtedy nie ma, D-053).
+
+### Uzupełnienie #28 (29 września 2026): import z adresu chodzi w kolejce
+
+Punkt 5 powyżej (limity czasu) opisuje pracę zadania, nie żądania WWW. Wysłanie
+formularza z adresem **tylko zleca** import: szybka kontrola składni bez DNS-u
+(`StraznikAdresow::sprawdzBezSieci`), jedna transakcja ze zleceniem
+(`importy_przepisow`, `zrodlo = 'url'`), miejscem w wspólnym limicie
+(`proby_importu`) i zadaniem `ImportujPrzepisZAdresu` (kolejka `low`, `tries = 1`,
+`timeout = 150 s`), przekierowanie na ekran postępu `/import/{id}`. Pobranie
+strony (robots.txt, DNS, przekierowania), parser JSON-LD i ewentualne żądanie do
+modelu robi worker — żadna z gałęzi nie zajmuje procesu WWW, a zerwane połączenie
+po wysłaniu niczego nie przerywa. Wszystkie bramki z D-300 zostają w warstwie
+domenowej (`OdczytajPrzepisZAdresu`, `PlatnyOdczytImportu`), nie w kontrolerze.
+Zgoda „odczyt AI” na wysłanie tekstu strony jedzie w zadaniu jako flaga z tego
+jednego formularza; adres jest w wierszu zlecenia i znika z niego w stanie
+końcowym. Jedna próba (`tries = 1`) jest świadoma: rezerwacja budżetu ma klucz
+`(próba, 1)`, więc automatyczne ponowienie płatnego kroku zostałoby odrzucone;
+zadanie zabite w środku kończy w `failed()`, które domyka księgę budżetu.
+Ponowienie należy do człowieka („Wklej adres jeszcze raz”) i liczy się do jego limitu.
+Migracja `2026_09_29_120000_extend_importy_przepisow_kod_bledu_o_adres` dopisuje do
+`kod_bledu` siedem powodów odmowy strony (`docs/DATABASE.md`). 
+**Etap 2 (#28, #2051): import z PDF w kolejce.** Ten sam wzorzec
+(`ZlecImportZPdf` → `ImportujPrzepisZPdf`, kolejka `low`, `tries = 1`, `timeout = 200 s`),
+z jedną różnicą: wejściem jest plik. Żądanie WWW robi tylko tanie kontrole (rozmiar,
+sygnatura `%PDF-`), zapisuje plik na prywatny dysk współdzielony przez web i worker
+(`kuking.import.pdf.dysk`, na produkcji ten sam co surowe uploady Livewire, czyli R2;
+katalog `import-pdf-tmp/`, odrębny od `livewire-tmp/` i `incoming/`), potem zlecenie
+(`importy_przepisow.plik_tymczasowy`) i zadanie w jednej transakcji. Worker pobiera
+plik do kopii roboczej, uruchamia Popplera (i tylko dla skanu, tylko za zgodą z tego
+formularza, model), a plik znika w każdym stanie końcowym, przy usunięciu konta
+i po retencji (`kuking:odzyskaj-importy`, także pliki bez wiersza). Zgoda „odczyt AI”
+dla skanu PDF jedzie w zadaniu jako flaga z formularza, nie z ustawień konta; PDF
+z warstwą tekstu nie wychodzi z serwisu. Migracja
+`2026_09_29_150000_add_plik_tymczasowy_and_kody_pdf_to_importy_przepisow` (kolumna
++ siedem kodów odmowy PDF; `docs/DATABASE.md`).
+Testy: `ImportZAdresuWKolejceTest`, `ImportZPdfWKolejceTest`,
+`CofniecieMigracjiKodowAdresuImportuTest`, `CofniecieMigracjiPlikuTymczasowegoImportuTest`,
+`ImportPrzepisuZAdresuIPdfTest`, `UmowaKolejkiTest`.
+
+### Wycofanie
+`KUKING_IMPORT_URL=false` i/lub `KUKING_IMPORT_PDF=false` zdejmują przyciski
+i trasy (404). Istniejące szkice zostają prywatne i zachowują bramkę
+„Sprawdziłem". Zdjęcie tabeli `przepisy_z_importu` — tylko według rollbacku
+w `docs/DATABASE.md` (`down()` odmawia przy niesprawdzonych szkicach).
 ## D-284 — Skalowanie porcji i zamienniki składników od autora, bez AI (V2, 26 września 2026)
 
 **Data:** 26 września 2026 · Status: **obowiązuje** · Zakres dopuszczony przez
@@ -19372,8 +19903,13 @@ do składnika (placeholder kreatora wprost podpowiadał „albo masło roślinne
 **Znana granica.** Rzeczownika bez jednostki nie odmieniamy: „2 jajka” razy
 2,5 daje „5 jajka”, „1 cebula” razy 1,5 — „1½ cebula”. Poprawna odmiana
 wymaga słownika odmiany produktów. Łagodzi to informacja „Przeliczone na N
-porcji” i powrót jednym dotknięciem. Tryb gotowania pokazuje ilości autora
-(parametr `porcje` nie przechodzi do `/gotuj`) — do decyzji, czy przenosić.
+porcji” i powrót jednym dotknięciem. Przed #1984 tryb gotowania pokazywał
+ilości autora; uzupełnienie poniżej przenosi wybór do `/gotuj`.
+
+**Uzupełnienie #1984.** Wybór z adresu przechodzi do trybu gotowania i wraca
+z niego do strony przepisu. Oba widoki używają tego samego `WyborPorcji`;
+zmiana kroku i zapis odhaczenia zachowują zwalidowaną liczbę, a niepoprawna
+wartość wraca do ilości autora. Źródłowych składników to nie zmienia.
 
 **Czego świadomie NIE ma w tym kroku — propozycja na później.** Zamienniki
 podpowiadane przez AI. Model AI projektu ma być według zlecenia OpenAI
@@ -19578,6 +20114,65 @@ usuniętego korzenia liczony). Pilnuje `LicznikKomentarzyLiczyOdpowiedziTest`
 
 **Wycofanie.** Bez schematu i danych — powrót do liczenia wątków to zmiana
 dwóch linijek w kontrolerach i nowa decyzja właściciela.
+
+## D-302 — Rodzinny zeszyt: jeden właściciel, zaproszone osoby dopisują (#1743, 26 września 2026)
+
+**Decyzja właściciela (26 września 2026):** #1743 „budujemy teraz”. Właściciel
+świadomie pominął bramkę z opisu issue, czyli test problemu z gospodarstwami
+domowymi przed projektowaniem migracji. Wspólny zeszyt powstaje od razu,
+w wąskim zakresie opisanym niżej. Jeśli użycie pokaże, że ludzie nie zapisują
+wspólnie, wracamy do tej decyzji. Nie rozbudowujemy wtedy modelu członkostwa.
+
+**Zakres.**
+
+1. **Jeden właściciel.** `collections.owner_id` zostaje jedynym właścicielem.
+   Zaproszona osoba jest współtwórcą, nie drugim właścicielem: może zapisywać
+   i wyjmować pozycje oraz pisać notatki (`CollectionPolicy::addItem()`,
+   `removeItem()`, `UpdateCollectionItemNote`). Nie zmienia nazwy ani
+   widoczności zeszytu, nie usuwa go i nie zaprasza dalej. `share()` ma tylko
+   właściciel. Współtwórca może sam odejść (`leave()`).
+2. **Zaproszenie** wysyła się po nazwie konta (ważne 14 dni) albo jako
+   jednorazowy link (ważny 7 dni), `config/kuking.php` → `collections.*`.
+   W bazie jest tylko SHA-256 tokenu. Jednorazowość i „jedno oczekujące
+   zaproszenie na osobę” pilnuje baza, nie tylko kod. Najwyżej
+   `collections.max_members` = 5 osób z dostępem na zeszyt.
+3. **Domyślnego zeszytu nie da się udostępnić**, a właściciel nie może być
+   swoim współtwórcą. Pilnuje wyzwalacz `collection_members_guard`, bo CHECK
+   nie sięga do wiersza `collections`.
+4. **Kto co dodał** widać przy pozycji (`collection_items.added_by_id`).
+5. **Blokada** w którąkolwiek stronę kończy wspólny zeszyt w obie strony
+   i odwołuje oczekujące zaproszenia (`ZerwijWspoldzielenie::miedzy()`).
+   Odblokowanie niczego nie przywraca.
+6. **Usunięcie konta** (każdy zakres) kasuje członkostwa i zaproszenia tej
+   osoby. Pozycje, które dopisała w cudzych zeszytach, zostają bez podpisu
+   (`added_by_id = NULL`, „osoba, która usunęła konto”)
+   (`ZerwijWspoldzielenie::przyWymazaniu()`).
+7. **Eksport danych** obejmuje zeszyty, do których osoba ma dostęp, i pozycje,
+   które w nich dodała. Dane innych osób trafiają tam tylko w granicach
+   RODO art. 15 ust. 4.
+8. **Powiadomienia** w serwisie: zaproszenie (`collection.invited`)
+   i przyjęcie (`collection.joined`). „Zobacz” przy zaproszeniu działa,
+   dopóki da się na nie odpowiedzieć.
+
+9. **Granice modułów.** `Social` (blokada) i `Users` (wymazanie konta) nie
+   importują `Collections` — kończą wspólne zeszyty przez kontrakt
+   `App\Domain\Users\KoniecWspolnychZeszytow`, który implementuje
+   `ZerwijWspoldzielenie`, a wiąże `AppServiceProvider`. Dzięki temu graf
+   `app/Domain` nie dostaje nowych cykli (`GrafModulowDomenyBezCykliTest`).
+10. **Autoryzacja tras.** Ekran „Kto ma dostęp”, odwołanie zaproszenia
+    i odebranie dostępu: `CollectionPolicy::manageAccess()` (właściciel,
+    także zawieszony — to zawęża, nie pisze). Odejście: `leave()`.
+    Zaproszenie po nazwie: `CollectionInvitationPolicy::respond()` (tylko
+    adresat, każdy inny dostaje 404). Link-zaproszenie ma za poświadczenie
+    token w adresie.
+
+**Poza zakresem:** wspólne zeszyty poza najbliższymi (grupy, publiczne
+współtworzenie), role inne niż właściciel i współtwórca, historia zmian.
+
+**Wycofanie.** Obie migracje odmawiają `down()`, gdy wycofanie zgubiłoby
+dane (D-088). Szczegóły i zmienna wymuszenia są w `docs/DATABASE.md`,
+w sekcji `collection_members + collection_invitations`.
+
 ## D-264 — Zawieszone konto może zmienić hasło, wylogować inne urządzenia i przestawić 2FA (audyt B2-04, 25 września 2026)
 
 **Data:** 25 września 2026 · **Decyzja zespołu** wynikająca z audytu B2
@@ -19712,9 +20307,22 @@ z pamięci.
    `wdrozenia` (który commit pod jakim numerem) i `wdrozenia_funkcje`
    (pod jakim numerem pojawiła się każda funkcja z „Najnowsze zmiany") —
    opisane w `docs/DATABASE.md`.
-3. **Komenda w kroku wdrożenia**, tam gdzie dziś `migrate --force`:
-   `kuking:zarejestruj-wdrozenie`, wpięta w `.railway/railway.ts`
-   (`preDeployCommand`) zaraz PO migracjach. Jeśli bieżący
+3. **Komenda w kroku wdrożenia**: `kuking:zarejestruj-wdrozenie`.
+   **Dopisek 29 września 2026 (audyt z 28 września, #1932): NIE w
+   `preDeployCommand`, tylko po gotowości nowego kontenera.** Pierwsza wersja
+   wpięła ją w pre-deploy zaraz po migracjach, czyli przed seedem, importem
+   i healthcheckiem — nieudany rollout zużywał numer, a funkcje z „Najnowszych
+   zmian” dostawały trwały dopisek „od Alfa …” (globalnie unikalny
+   `naglowek_slug` nie pozwalał go poprawić następnym, udanym wdrożeniem).
+   Teraz `docker/entrypoint.sh` (role `web` i `all`) uruchamia w tle
+   `kuking:zarejestruj-wdrozenie --po-gotowosci`, które czeka na 2xx z
+   lokalnego `/health` (limit 300 s) i dopiero wtedy zapisuje; bez odpowiedzi
+   nie zapisuje nic. Zamiast stanu „w toku” w schemacie — bez migracji:
+   wiersz w `wdrozenia` znaczy „kontener wstał”. Nie opieramy się na
+   `deployment_status` z platformy kodu (część rolloutów nie niesie zdarzenia
+   sukcesu). Pilnują: `RejestracjaWdrozeniaPoGotowosciTest` i reguła
+   w `scripts/railway/iac.test.mjs`. Opis pierwotny poniżej: komenda
+   uruchamiana tam, gdzie dziś `migrate --force`, PO migracjach. Jeśli bieżący
    `RAILWAY_GIT_COMMIT_SHA` nie ma jeszcze wiersza, wstawia
    `numer = MAX(numer) dla tej etykiety + 1` pod
    `pg_advisory_xact_lock(hashtext(etykieta))` — dwa równoległe starty nie

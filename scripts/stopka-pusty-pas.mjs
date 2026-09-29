@@ -379,7 +379,7 @@ async function sprawdzStatycznie({ browser, cssPlik, bezAsercji, out }) {
   mkdirSync(out, { recursive: true });
   const manifest = JSON.parse(readFileSync('public/build/manifest.json', 'utf8'));
   const css = readFileSync(cssPlik ?? `public/build/${manifest['resources/css/app.css'].file}`, 'utf8');
-  const fontPlik = readdirSync('public/build/assets').find((n) => n.startsWith('inter-latin-wght-normal-') && n.endsWith('.woff2'));
+  const fontPlik = readdirSync('public/build/assets').find((n) => n.startsWith('inter-podstawa-wght-normal-') && n.endsWith('.woff2'));
   const font = readFileSync(`public/build/assets/${fontPlik}`).toString('base64');
   const js = readFileSync('resources/js/szybki-wyglad.js', 'utf8');
 

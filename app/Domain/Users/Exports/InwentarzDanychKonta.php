@@ -58,10 +58,17 @@ final class InwentarzDanychKonta
         'cooked_events.user_id' => [self::EKSPORT, 'ugotowalem'],
         'comments.author_id' => [self::EKSPORT, 'moje_komentarze'],
         'collections.owner_id' => [self::EKSPORT, 'kolekcje'],
+        // Wspólny zeszyt (#1743, D-302). Pozycje dodane we WŁASNYM zeszycie
+        // są w `kolekcje` (z podpisem „dodane_przez"), w cudzym — tutaj.
+        'collection_members.user_id' => [self::EKSPORT, 'zeszyty_udostepnione_mi'],
+        'collection_items.added_by_id' => [self::EKSPORT, 'zeszyty_udostepnione_mi'],
+        'collection_invitations.inviter_id' => [self::EKSPORT, 'zaproszenia_do_zeszytow'],
+        'collection_invitations.invitee_id' => [self::EKSPORT, 'zaproszenia_do_zeszytow'],
         'follows.follower_id' => [self::EKSPORT, 'obserwuje'],
         'follows.followed_id' => [self::EKSPORT, 'obserwuja_mnie'],
         'blocks.blocker_id' => [self::EKSPORT, 'zablokowane_osoby'],
         'tag_follows.user_id' => [self::EKSPORT, 'obserwowane_tagi'],
+        'pantry_items.user_id' => [self::EKSPORT, 'co_mam_w_domu'],
         'hides.user_id' => [self::EKSPORT, 'ukryte'],
         'post_reactions.user_id' => [self::EKSPORT, 'moje_reakcje'],
         'notifications.user_id' => [self::EKSPORT, 'powiadomienia'],
@@ -79,9 +86,11 @@ final class InwentarzDanychKonta
         'moderation_actions.subject_user_id' => [self::EKSPORT, 'decyzje_moderacji'],
         'appeals.user_id' => [self::EKSPORT, 'odwolania'],
         'meal_plan_entries.user_id' => [self::EKSPORT, 'planer'],
+        'przepisy_z_importu.user_id' => [self::EKSPORT, 'importy_przepisow'],
         'push_subscriptions.user_id' => [self::EKSPORT, 'powiadomienia_poza_serwisem'],
         'ustawienia_powiadomien_zewnetrznych.user_id' => [self::EKSPORT, 'powiadomienia_poza_serwisem'],
         'importy_przepisow.user_id' => [self::EKSPORT, 'odczyty_przepisow'],
+        'proby_importu.user_id' => [self::EKSPORT, 'proby_importu'],
 
         'blocks.blocked_id' => [self::NA_ZADANIE, 'Kto zablokował to konto. Ujawnienie tego naraziłoby osobę, która się odcięła (RODO art. 15 ust. 4); na żądanie powiemy, ile jest takich blokad.'],
         'hides.hidden_user_id' => [self::NA_ZADANIE, 'Kto ukrył sobie to konto („Ukryj tę osobę”, #1810). Ujawnienie tego naraziłoby osobę, która tylko porządkowała własny ekran (RODO art. 15 ust. 4) — tak samo jak przy blokadach; na żądanie powiemy, ile jest takich ukryć.'],
@@ -98,6 +107,7 @@ final class InwentarzDanychKonta
         'moderation_actions.moderator_id' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
         'reports.resolved_by' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
 
+        'wczytane_z_paczki.user_id' => [self::NIE_DOTYCZY, 'Znacznik techniczny „ta treść przyszła z Twojej paczki” (skrót i wskaźnik, bez treści). Sama treść — przepisy, wpisy i zeszyty — jest w paczce.'],
         'login_link_tokens.user_id' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
         'facebook_connection_proofs.user_id' => [self::NIE_DOTYCZY, self::POSWIADCZENIE],
         'first_post_events.author_id' => [self::NIE_DOTYCZY, 'Znacznik techniczny „pierwszy wpis konta”. Nie niesie nic ponad listę wpisów, która jest w paczce.'],
@@ -134,6 +144,7 @@ final class InwentarzDanychKonta
         'two_factor_confirmed_at' => [self::EKSPORT, 'konto'],
         'ostatnio_widziany_at' => [self::EKSPORT, 'konto'],
         'pwa_prompt_state' => [self::EKSPORT, 'konto'],
+        'terms_notice_dismissed_version' => [self::EKSPORT, 'konto'],
         'onboarding_zakonczony_at' => [self::EKSPORT, 'konto'],
         // Urodziny (#1755): dzień i miesiąc bez roku oraz wybory i ślad listu.
         'birthday_day' => [self::EKSPORT, 'konto'],

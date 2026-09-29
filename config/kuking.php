@@ -367,6 +367,25 @@ return [
         'okno_aktywnosci_dni' => (int) env('KUKING_UKRYCIA_OKNO_AKTYWNOSCI_DNI', 14),
     ],
 
+    /*
+     * Metryki doboru (issue #1814, D-283) i progi, po których wolno wrócić
+     * do rozmowy o rankingu (D-275). Progi pokazuje panel; niczego same nie
+     * włączają — przekroczenie to powód do decyzji właściciela, nie do kodu.
+     *  - `autorow_dziennie`: średnia z 28 dni różnych autorów publicznych wpisów;
+     *  - `tygodni_danych`: tyle pełnych tygodni od pierwszego publicznego wpisu;
+     *  - `odsetek_bez_pierwszej_strony`: wskaźnik zastępczy (D-283) — udział
+     *    autorów, którym wpisy z tygodnia stały na pierwszej stronie „Świeżo
+     *    z Kuking” łącznie krócej niż `minut_na_pierwszej_stronie`;
+     *  - `publiczne_z_tagiem`: od tylu procent wpisów z tagiem wolno ukrywać tagi.
+     */
+    'metryki' => [
+        'autorow_dziennie' => (int) env('KUKING_METRYKI_AUTOROW_DZIENNIE', 60),
+        'tygodni_danych' => (int) env('KUKING_METRYKI_TYGODNI_DANYCH', 8),
+        'odsetek_bez_pierwszej_strony' => (float) env('KUKING_METRYKI_ODSETEK_BEZ_PIERWSZEJ_STRONY', 30),
+        'minut_na_pierwszej_stronie' => (int) env('KUKING_METRYKI_MINUT_NA_PIERWSZEJ_STRONIE', 60),
+        'publiczne_z_tagiem' => (float) env('KUKING_METRYKI_PUBLICZNE_Z_TAGIEM', 60),
+    ],
+
     'feed' => [
         // Ile wpisów na "stronę". Bez infinite scroll — jest przycisk
         // "Pokaż więcej" (docs/UX_50_PLUS.md).
@@ -405,6 +424,21 @@ return [
         // Ta sama wartość co tam (12), żeby dwie sekcje tego samego ekranu
         // nie skakały o różne kroki.
         'saved_posts_page_size' => (int) env('KUKING_COLLECTION_SAVED_POSTS_PAGE_SIZE', 12),
+
+        // WSPÓLNY ZESZYT (#1743, D-302).
+        //
+        // Ile osób poza właścicielem może mieć dostęp do jednego zeszytu —
+        // razem z oczekującymi zaproszeniami, żeby limitu nie dało się
+        // obejść serią linków. Pięć to gospodarstwo domowe z zapasem
+        // (małżonek, dwoje dorosłych dzieci, rodzeństwo), a nie grupa
+        // społecznościowa, której #1743 świadomie nie buduje.
+        'max_members' => 5,
+        // Zaproszenie po nazwie konta czeka dwa tygodnie: ktoś, kto zagląda
+        // raz w tygodniu, ma na nie dwie szanse.
+        'invitation_days' => 14,
+        // Link-zaproszenie krócej — krąży poza serwisem (SMS, komunikator)
+        // i każdy, kto go ma, może z niego skorzystać raz.
+        'link_days' => 7,
     ],
 
     'tags' => [
@@ -1640,7 +1674,7 @@ return [
          * SUFITU DZIENNEGO ŚWIADOMIE NIE MA — sprawdzone, nie założone.
          *
          * Stan faktyczny na 10 września 2026: WSPÓLNEGO licznika całej poczty
-         * w repozytorium nie ma i `App\Domain\Security\DziennyBudzetListow`
+         * w repozytorium nie ma i `App\Poczta\DziennyBudzetListow`
          * mówi to o sobie wprost. Istnieje jeden sufit WŁASNY jednej funkcji —
          * logowania linkiem (D-056, `login_link.dzienny_budzet` = 120) — a
          * reszta puli jest pilnowana PROJEKTOWO: listy natychmiastowe tylko
@@ -1680,13 +1714,10 @@ return [
          * WSZYSTKICH publicznych wpisach PRZED odcięciem strony (issue #1807),
          * dokłada podzapytanie widoczności i doładowuje autora, zdjęcia,
          * przepis, zdjęcie przepisu, tagi i liczniki komentarzy/zapisów.
-         * Landing (`/`) woła to samo zapytanie dla gościa (`FeedController::landing()`),
-         * ale ma własną, mniejszą trasę (`landing`) i świadomie zostaje poza
-         * tym limitem: to jedyne wejście na cały serwis, a `PublicznyHtmlGoscia`
-         * i tak trzyma dla niej gotowy (dziś wyłączony, `KUKING_HTML_EDGE_CACHE_SECONDS=0`)
-         * wspólny cache brzegu — `/odkryj` z tego cache świadomie NIE korzysta
-         * (`PublicznyHtmlGoscia::TRASY`, komentarz przy tej stałej), więc jedyną
-         * bramką kosztu zostaje limit zapytań, nie cache HTML.
+         * Landing (`/`) woła to samo zapytanie dla gościa (`FeedController::landing()`)
+         * i ma własny koszyk `landing` niżej. `/odkryj` nie korzysta z cache
+         * brzegu (`PublicznyHtmlGoscia::TRASY`, komentarz przy tej stałej),
+         * więc jedyną bramką kosztu zostaje limit zapytań, nie cache HTML.
          *
          * TEN SAM RZĄD WIELKOŚCI CO `search` WYŻEJ, z tego samego powodu: to
          * jest zasób strony, nie formularz, a paginacja „Pokaż więcej" (AGENTS.md
@@ -1696,6 +1727,23 @@ return [
          * automatyczne odpytywanie, przed którym stoi to zgłoszenie.
          */
         'discover' => '60,1',
+
+        /*
+         * STRONA GŁÓWNA (`/`, trasa `landing`) — issue #1952, druga połowa.
+         * Gość dostaje tu to samo zapytanie co na `/odkryj` plus tablicę dnia
+         * i kolaż; pomiar (docs/infra/ODKRYJ_KOSZT_1952.md) daje ten sam koszt
+         * SQL co `/odkryj`, a trasa nie miała żadnego limitu. Cache brzegu
+         * (`KUKING_HTML_EDGE_CACHE_SECONDS`) jest domyślnie wyłączony, a gdy
+         * działa, ten licznik widzi tylko żądania, które doszły do aplikacji.
+         *
+         * DWA RAZY WIĘCEJ NIŻ `discover`, świadomie: to jedyne wejście na serwis
+         * i cel powrotów z każdej strony („Wróć na stronę główną", wylogowanie),
+         * a przy źle ustawionym `KUKING_ZAUFANE_PRZESKOKI` wiele osób dzieli
+         * jeden adres. Sto dwadzieścia na minutę to dwa żądania na sekundę bez
+         * przerwy — człowiek tam nie dochodzi, automat już tak. Zalogowany ma
+         * koszyk po koncie, nie po adresie, więc cudza seria go nie odcina.
+         */
+        'landing' => '120,1',
 
         // Autouzupełnianie z debounce; osobny budżet od pełnej wyszukiwarki.
         'tag_suggestions' => '120,1',
@@ -1949,6 +1997,23 @@ return [
         'zeszyt' => '60,10',
 
         /*
+         * ZAPROSZENIA DO WSPÓLNEGO ZESZYTU (#1743) — wysłanie zaproszenia
+         * po nazwie konta, utworzenie linku, odpowiedź, odebranie dostępu.
+         *
+         * Szkoda z nadużycia: zaproszenie po nazwie POWIADAMIA drugiego
+         * człowieka, więc to nie jest prywatna czynność jak zapis. Osobne
+         * wiadro od `zeszyt`, żeby wieczór zapisywania nie zjadał zaproszeń,
+         * a zaproszenia nie mogły lecieć tempem zapisów.
+         *
+         * SKĄD 20 NA 10 MINUT. Rodzina to kilka osób; nawet z pomyłkami
+         * w nazwie i ponownym linkiem dla babci to kilkanaście kliknięć.
+         * Limit miejsc w zeszycie (`collections.max_members`) i tak trzyma
+         * liczbę zaproszeń w jednym zeszycie — ten próg zatrzymuje pętlę
+         * zaproś→odwołaj, która przy każdym obrocie budzi komuś telefon.
+         */
+        'zaproszenia' => '20,10',
+
+        /*
          * PLANER TYGODNIA (#27, D-310) — dopisanie pozycji, usunięcie jej
          * i „Skopiuj poprzedni tydzień”. Szkoda z nadużycia taka jak przy
          * zeszycie: nikt inny planu nie widzi, nikogo nie powiadamia.
@@ -1957,6 +2022,48 @@ return [
          * zapisywania przepisów.
          */
         'planer' => '60,10',
+
+        /*
+         * PLANER TYGODNIA — ODCZYT (`GET /planer`, #2037).
+         *
+         * Od wyszukiwania przepisu przy każdym dniu ta sama trasa, która
+         * rysuje tydzień, uruchamia też wyszukiwarkę trigramową
+         * (`SearchQuery::recipes`, ten sam koszt co `/szukaj`) — a jest
+         * zwykłym GET-em, więc pętla mogłaby ją odpytywać bez końca.
+         * Zapisy planera mają swój koszyk `planer` wyżej; ten jest tylko dla
+         * odczytu i osobny (jeden prefiks = jedna trasa,
+         * `LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest`).
+         *
+         * TEN SAM RZĄD WIELKOŚCI CO `search`: sześćdziesiąt na minutę.
+         * Limit stoi na CAŁEJ trasie, nie tylko na żądaniach z frazą:
+         * wariant „tylko z q" wymagałby limitera nazwanego, który wypada
+         * z reguły prefiksu. Zwykłe wejście na tydzień i przełączanie
+         * tygodni to pojedyncze żądania na minutę, więc człowiek nie ma
+         * szans tego dotknąć.
+         */
+        'planer_szukaj' => '60,1',
+
+        /*
+         * „CO MAM W DOMU” (D-285) — dopisanie i usunięcie produktu z własnej,
+         * prywatnej listy. Szkoda z nadużycia żadna widoczna dla innych, ale
+         * pierwsze wypełnianie listy to kilkanaście–kilkadziesiąt produktów
+         * pod rząd, więc próg jest wyższy niż `zeszyt`.
+         */
+        'spizarnia' => '120,10',
+
+        /*
+         * Podpowiedzi pod polem „Co masz w domu?” — autouzupełnianie
+         * z opóźnieniem, ten sam rodzaj zapytania i ten sam próg co
+         * `tag_suggestions`, ale osobny koszyk.
+         */
+        'podpowiedzi_skladnikow' => '120,1',
+
+        /*
+         * „Co ugotuję z tego, co mam” (D-285). Jedno wejście liczy dopasowanie
+         * całej listy do przepisów — kosztem bliżej wyszukiwarki niż zwykłej
+         * strony, dlatego ten sam próg co `search`.
+         */
+        'co_ugotuje' => '60,1',
 
         /*
          * USTAWIENIA PRYWATNE I DROBNE PRZEŁĄCZNIKI — czytelność,
@@ -2083,6 +2190,15 @@ return [
          * kilkanaście minut: krótsze okno nie opisywałoby niczego sensownego.
          */
         'eksport' => '10,60',
+
+        /*
+         * WCZYTANIE WŁASNEJ PACZKI (#1985) — wybór pliku i „Wczytaj zaznaczone”.
+         * Każde wysłanie pliku otwiera ZIP i czyta `dane.json` (do 12 MB — patrz `PodgladPaczkiEksportu::MAX_DANE_BAJTOW`), więc
+         * limit jest godzinny i skromny: kilka prób z różnymi plikami zmieści się
+         * człowiekowi, pętla — nie. Zapis jest dodatkowo dzielony na partie
+         * (`import_paczki.max_naraz`) i idempotentny, więc ponowienie nie szkodzi.
+         */
+        'import_paczki' => '10,60',
 
         /*
          * PANEL MODERACJI — decyzje o zgłoszeniach, przywracanie treści,
@@ -2392,7 +2508,7 @@ return [
     | Rezerwa nie chroniła niczego, bo nie istniał nikt, kto by jej pilnował.
     |
     | Od teraz pilnuje jej WSPÓLNY LICZNIK CAŁEJ POCZTY
-    | (`App\Domain\Security\DziennyBudzetListow::wspolny()`) i sekcja
+    | (`App\Poczta\DziennyBudzetListow::wspolny()`) i sekcja
     | `progi_wygaszania` niżej — patrz tam po kolejność wygaszania i po
     | uzasadnienie każdej z trzech liczb.
     |
@@ -2599,7 +2715,7 @@ return [
          * nieprawdą po drugiej stronie. Rachunek dla 100, 500 i 2 000 kont
          * i moment przejścia na plan płatny: `docs/DECISIONS.md` D-057.
          *
-         * SUFIT PILNUJE `App\Domain\Security\DziennyBudzetListow` — ta sama
+         * SUFIT PILNUJE `App\Poczta\DziennyBudzetListow` — ta sama
          * klasa co przy logowaniu linkiem, z własnym kluczem licznika. Dwa
          * własne liczniki tej samej rzeczy rozjechałyby się przy pierwszej
          * zmianie którejkolwiek z tych liczb.
@@ -2680,6 +2796,23 @@ return [
         'przypomnienia_na_odbiorce_dziennie' => (int) env('KUKING_URODZINY_PRZYPOMNIENIA_NA_DOBE', 3),
     ],
 
+    /*
+     * WCZYTYWANIE WŁASNEJ PACZKI EKSPORTU (#1985, etap 2).
+     *
+     * `max_naraz` — ile pozycji tworzy JEDNO „Wczytaj zaznaczone”. Przepis idzie
+     * przez `PublishRecipe` (slug, wersje, składniki), więc setki naraz to długie
+     * żądanie; reszta zostaje w podglądzie i wczytuje się kolejnym kliknięciem.
+     * `max_kb` — największy plik ZIP do wybrania: 24 MB, czyli `upload_max_filesize`
+     * z `docker/php.ini` (wyższa liczba byłaby obietnicą bez pokrycia; zdjęć z paczki
+     * i tak nie czytamy). `przechowanie_godzin` — jak długo wybrana paczka czeka
+     * na decyzję w prywatnym magazynie, zanim zostanie skasowana.
+     */
+    'import_paczki' => [
+        'max_naraz' => 50,
+        'max_kb' => 24_576,
+        'przechowanie_godzin' => 2,
+    ],
+
     'zeszyt' => [
         /*
          * „Szukaj w moich zeszytach” (issue #779): ile przepisów pokazujemy
@@ -2712,9 +2845,90 @@ return [
          * samo jak `wersja.etykieta` niżej trzymane w repozytorium, NIE
          * w zmiennej środowiskowej: zmiana wersji dokumentu prawnego ma
          * przechodzić przez recenzję jak każda inna zmiana, a nie dać się
-         * przestawić w panelu Railwaya.
+         * przestawić w panelu Railwaya. Zgodność z nagłówkiem pilnuje
+         * `WersjaPolitykiZgadzaSieZNaglowkiemTest`. Wcześniejsze wiersze
+         * dziennika zostają ze swoją wersją — to dowód, NA CO się zgodzono.
          */
-        'wersja_polityki' => '2026-09-25',
+        'wersja_polityki' => '2026-09-29',
+
+        /*
+         * CZY ZMIANA POLITYKI JEST ISTOTNA — oznaczenie JAWNE, bez wartości
+         * domyślnej (D-327, decyzja właściciela z 26.09.2026). Kształt ten
+         * sam co `zmiana_regulaminu` niżej; znaczenie pól opisuje
+         * `App\Domain\Zgody\WersjaDokumentu`.
+         *
+         * Przy podbiciu `wersja_polityki` ZAWSZE przestaw i to:
+         *  - `istotna` => true — zmienia prawa lub obowiązki (nowy cel, nowy
+         *    odbiorca, dłuższe przechowywanie…). Nowa wersja obowiązuje
+         *    `okres_istotnej_zmiany_dni` po publikacji, do tego dnia
+         *    obowiązuje `poprzednia` (wpisz tu datę dotychczasowej wersji),
+         *    a dziennik zgód zapisuje właśnie ją;
+         *  - `istotna` => false — poprawka redakcyjna, obowiązuje od razu.
+         *
+         * Wersja 2026-09-10 weszła, zanim to rozróżnienie istniało. Wersja
+         * 2026-09-25 (#994: jak długo Railway trzyma dziennik serwera, zdjęcia
+         * w części Cloudflare R2 zastrzeżonej dla UE) opisuje stan, który już
+         * był — bez nowego celu, odbiorcy ani dłuższego przechowywania — więc
+         * drobna.
+         *
+         * Wersja 2026-09-29 (#1816, jedno podbicie razem z #1324 i #619) opisuje
+         * to, co serwis już robił: paczkę danych zgodną z kodem (co jest
+         * w środku, co tylko na prośbę), obserwowane tagi, ukrycia, reakcję
+         * „Smakowicie wygląda”, listę „Co mam w domu”, odpięcie zdarzeń
+         * analitycznych po usunięciu konta i datę sprawdzenia lokalizacji
+         * zdjęć. Nie ma tu nowego celu, odbiorcy ani dłuższego przechowywania,
+         * a zwroty z „sam” zamieniono na neutralne (decyzja właściciela
+         * z 26.09.2026) — więc drobna. Gdyby prawnik uznał inaczej,
+         * przestaw `istotna` na true: `WersjaDokumentuTest` zażąda wtedy
+         * paska `components.pasek-zmiany-polityki`, którego jeszcze nie ma.
+         */
+        'zmiana_polityki' => [
+            'istotna' => false,
+            'poprzednia' => null,
+            'obowiazuje_od' => null,
+        ],
+
+        /*
+         * WERSJA REGULAMINU — ten sam kształt co `wersja_polityki` wyżej:
+         * data stanu dokumentu z nagłówka `resources/legal/regulamin.md`
+         * („opisuje stan serwisu na <data>"), podbijana ręcznie razem z nim
+         * i z sekcją „Co się zmieniło" (#1811, D-306). Test
+         * `ZmianaRegulaminuTest` pilnuje, że data w nagłówku i ta wartość to
+         * ten sam dzień.
+         *
+         * PODBICIE POKAZUJE PASEK. Każde zalogowane konto założone przed tym
+         * dniem, które nie zamknęło paska dla tej wersji, widzi raz
+         * „Zmieniliśmy regulamin — co się zmieniło" (decyzja właściciela
+         * z 26.09.2026: komunikat w serwisie, bez maili). Podbijaj więc tylko
+         * przy zmianie, o której ludzie mają się dowiedzieć — literówka
+         * w dokumencie to nie powód, żeby zaczepiać każdego.
+         */
+        'wersja_regulaminu' => '2026-09-26',
+
+        /*
+         * CZY ZMIANA REGULAMINU JEST ISTOTNA (D-327) — jak `zmiana_polityki`.
+         * Istotna: pasek pokazuje się od `wersja_regulaminu`, a mówi, że nowa
+         * wersja obowiązuje od dnia `wersja_regulaminu` + 14 dni (albo
+         * późniejszego `obowiazuje_od`) i że do tego dnia obowiązuje
+         * `poprzednia`. Drobna: pasek bez terminu, obowiązuje od razu.
+         *
+         * 26.09.2026 dopisaliśmy opis doboru wpisów (#1811) — opisuje, jak
+         * serwis już działa, bez zmiany praw i obowiązków, więc drobna.
+         */
+        'zmiana_regulaminu' => [
+            'istotna' => false,
+            'poprzednia' => '2026-09-07',
+            'obowiazuje_od' => null,
+        ],
+
+        /*
+         * Ile dni po publikacji wchodzi w życie zmiana ISTOTNA (D-327).
+         * Regulamin §11 obiecuje „co najmniej **14 dni**” —
+         * `WersjaDokumentuTest` pilnuje, że to ta sama liczba. W repozytorium,
+         * nie w zmiennej środowiskowej: skrócenie okresu to zmiana obietnicy
+         * z dokumentu prawnego i ma przejść przez recenzję.
+         */
+        'okres_istotnej_zmiany_dni' => 14,
     ],
 
     'analytics' => [
@@ -2989,7 +3203,7 @@ return [
     // `product_signals`, `audit_log`, zwykłe `notifications`, `sessions`
     // i potwierdzenia RODO kasujemy partiami po `partia` wierszy, każda we
     // własnej krótkiej transakcji, i najwyżej `budzet` wierszy z jednej
-    // tabeli na przebieg (`App\Domain\Compliance\UsuwanieWPartiach`).
+    // tabeli na przebieg (`App\Support\UsuwanieWPartiach`).
     // Przerwany przebieg zachowuje zatwierdzony postęp; zaległość ponad
     // budżet schodzi w kolejne noce, z ostrzeżeniem w dzienniku
     // (`stage=retention_budget_exhausted`).
@@ -3025,6 +3239,16 @@ return [
             env('FILESYSTEM_DISK', 'local') === 'r2' ? 'r2_eksporty' : 'local',
         )),
         'retention_days' => (int) env('KUKING_DZIENNIK_WYMAZAN_DNI', 120),
+
+        // ALARM „WYMAZANIA STOJĄ” (issue #2038, wariant A). Wymazanie konta
+        // czeka na zapis wpisu do dziennika; gdy magazyn nie odpowiada,
+        // anonimizacja się cofa i egzekutor ponawia ją co noc. Jedna noc to
+        // czkawka, TRZY z rzędu to awaria — wtedy idzie wiadomość na kanał
+        // `blad_webhook` (ta sama maszyna co kolejka i połączenia, #599).
+        // Cisza 72 h: trwająca awaria przypomina o sobie co trzecią noc,
+        // a nie co noc.
+        'alarm_po_nocach' => (int) env('KUKING_DZIENNIK_WYMAZAN_ALARM_NOCE', 3),
+        'alarm_cisza_godzin' => (int) env('KUKING_DZIENNIK_WYMAZAN_ALARM_CISZA_GODZIN', 72),
     ],
 
     // TREŚCI USUNIĘTE PRZEZ AUTORA (audyt B5, znalezisko 1, 25.09.2026).
@@ -3468,6 +3692,17 @@ return [
             'alarm_email' => env('KUKING_MODEL_ALARM_EMAIL'),
 
             /*
+             * DOBOWY SUFIT LISTÓW ALARMU AUTOMATU (audyt B8-02). Kategorię
+             * „pilną" wyzwala treść, którą pisze ktokolwiek z kontem, więc bez
+             * sufitu seria wpisów oznaczonych przez model dawała list za listem
+             * z puli dzielonej z logowaniem i rejestracją. Osobny od
+             * `alarm_czlowieka.dzienny_sufit`: fala oznaczeń automatu nie może
+             * uciszyć alarmu o zgłoszeniu od człowieka. Po wyczerpaniu sprawa
+             * i tak czeka w panelu, a dziennik mówi, dlaczego bez listu.
+             */
+            'alarm_dzienny_sufit' => (int) env('KUKING_MODEL_ALARM_SUFIT', 10),
+
+            /*
              * DOSYŁANIE ZALEGŁYCH ALARMÓW (issue #1051,
              * `kuking:doslij-pilne-alarmy`, co godzinę).
              *
@@ -3526,6 +3761,41 @@ return [
     | `php artisan kuking:sprawdz-import`.
     */
     'import' => [
+        'url' => [
+            // Wyłącznik źródła. false = przycisku „Wklej adres strony" nie ma
+            // w ogóle (bez martwych przycisków, D-053).
+            'wlaczony' => (bool) env('KUKING_IMPORT_URL', true),
+            // Najwięcej bajtów strony czytanych strumieniowo; większa = odmowa.
+            'max_bajtow' => (int) env('KUKING_IMPORT_URL_MAX_BAJTOW', 2_000_000),
+            // Limit czasu JEDNEGO żądania (strona, przekierowanie, robots.txt).
+            'limit_czasu' => (int) env('KUKING_IMPORT_URL_LIMIT_CZASU', 10),
+            // Limit czasu całego pobrania razem z przekierowaniami i robots.txt.
+            'limit_czasu_calosci' => (int) env('KUKING_IMPORT_URL_LIMIT_CALOSCI', 25),
+        ],
+        'pdf' => [
+            'wlaczony' => (bool) env('KUKING_IMPORT_PDF', true),
+            'max_mb' => (int) env('KUKING_IMPORT_PDF_MAX_MB', 10),
+            'max_stron' => (int) env('KUKING_IMPORT_PDF_MAX_STRON', 5),
+            // Limit czasu pdfinfo/pdftotext — spreparowany plik nie zajmie
+            // procesu na dłużej.
+            'limit_czasu' => (int) env('KUKING_IMPORT_PDF_LIMIT_CZASU', 20),
+            /*
+             * PLIK TYMCZASOWY PDF (#28 etap 2, #2051). Wysłany PDF czeka na
+             * worker poza żądaniem WWW, więc leży na PRYWATNYM dysku
+             * WSPÓLNYM dla WWW i workera — nigdy w `getRealPath()` procesu
+             * WWW, bo po wydzieleniu workera to inny kontener. Domyślnie ten
+             * sam prywatny dysk co surowe uploady Livewire (na produkcji `r2`),
+             * w osobnym katalogu — NIE `livewire-tmp/`, NIE `incoming/`,
+             * NIE publiczny wariant. Plik znika po sukcesie, po trwałej
+             * porażce, przy usunięciu konta i najpóźniej po `retencja_godzin`
+             * (`kuking:odzyskaj-importy`, także osierocone pliki bez wiersza).
+             * `retencja_godzin` MUSI być dłuższe niż `odzyskiwanie.zlecenie_minut`,
+             * inaczej sprzątanie zabrałoby plik zleceniu, które jeszcze trwa.
+             */
+            'dysk' => env('KUKING_IMPORT_PDF_DYSK') ?: (env('LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK') ?: 'local'),
+            'katalog' => 'import-pdf-tmp',
+            'retencja_godzin' => (int) env('KUKING_IMPORT_PDF_RETENCJA_GODZIN', 4),
+        ],
         /*
          * KOLEJKA `low`, NIE OSOBNA `import` (D-298). Produkcja chodzi dziś
          * w roli `all` — jeden proces na wszystkie kolejki — więc osobna
@@ -3536,13 +3806,9 @@ return [
          */
         'kolejka' => 'low',
 
-        // Przełączniki źródeł. Wyłączone źródło = brak przycisku.
-        // `url` i `pdf` należą do osobnych etapów (D-298) — dopóki ich trasy
-        // nie istnieją, przycisku nie ma niezależnie od tej wartości.
+        // Przełącznik OCR; adres i PDF mają własne ustawienia powyżej.
         'zrodla' => [
             'zdjecie' => (bool) env('KUKING_IMPORT_ZDJECIE', true),
-            'url' => (bool) env('KUKING_IMPORT_URL', false),
-            'pdf' => (bool) env('KUKING_IMPORT_PDF', false),
         ],
 
         'model' => [
@@ -3551,7 +3817,8 @@ return [
             // moderacji nie dostaje szerszych uprawnień. Pusty = wyłączone.
             'klucz' => env('OPENAI_IMPORT_KEY'),
             'endpoint' => env('KUKING_IMPORT_ENDPOINT', 'https://api.openai.com/v1/responses'),
-            // Decyzja właściciela 26.09.2026: `gpt-6-luna`. Zmienialne w env.
+            // Decyzja właściciela 26.09.2026: `gpt-6-luna`. Inny model
+            // wyłącza płatny import do czasu ustalenia jego sufitu kosztu.
             'nazwa' => env('KUKING_IMPORT_MODEL', 'gpt-6-luna'),
             // Odczyt obrazu z rozumowaniem trwa dziesiątki sekund. Przycinane
             // w kliencie do 10–110 s (zadanie ma 120 s).
@@ -3577,13 +3844,8 @@ return [
              */
             'cena_wejscie_mln_usd' => env('KUKING_IMPORT_CENA_WEJSCIE'),
             'cena_wyjscie_mln_usd' => env('KUKING_IMPORT_CENA_WYJSCIE'),
-            // Szacunek tokenów WEJŚCIA jednego odczytu (instrukcja + obraz
-            // ≤ 2000 px) — do rezerwacji. Faktyczny koszt i tak liczy się
-            // z `usage` w odpowiedzi.
-            'szacunek_tokenow_wejscia' => [
-                'ocr' => (int) env('KUKING_IMPORT_SZACUNEK_WEJSCIE_OCR', 6000),
-                'tekst' => (int) env('KUKING_IMPORT_SZACUNEK_WEJSCIE_TEKST', 6000),
-            ],
+            // Rezerwacja kosztu używa pełnego okna kontekstu gpt-6-luna,
+            // bo szacunek 6000 tokenów nie był sufitem dla obrazów ani stron.
         ],
 
         // Decyzja właściciela 26.09.2026 (D-297): 5 USD dziennie, 100 USD
@@ -3629,6 +3891,7 @@ return [
             'rezerwacja_minut' => 30,
             'zlecenie_minut' => 120,
         ],
+        'podobienstwo_ostrzezenie' => (float) env('KUKING_IMPORT_PODOBIENSTWO', 0.6),
     ],
 
     'wersja' => [
@@ -3656,7 +3919,7 @@ return [
         // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
         // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
         // wersji nie da się z niczym powiązać.
-        'etykieta' => 'Alfa 0.70',
+        'etykieta' => 'Alfa 0.77',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
         //

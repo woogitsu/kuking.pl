@@ -111,7 +111,7 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 - Moja wersja — fork przepisu (**wdrożone przed bramką** — decyzja właściciela z 26.09.2026, D-301);
 - planner;
 - lista zakupów;
-- rodzinna książka;
+- rodzinna książka; *(pierwszy krok: wspólny zeszyt z zaproszeniami — #1743, D-302, 26.09.2026)*
 - Q&A;
 - Web Push;
 - wyzwania społecznościowe.
@@ -124,9 +124,9 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 > „Nie wcześnie” poniżej pozostaje zakazana bez zmian.
 
 - OCR starych zeszytów;
-- import URL/PDF/zdjęcie;
-- pantry;
-- „co ugotuję z tego, co mam”;
+- import URL/PDF/zdjęcie — **URL i PDF wdrożone jako prywatny szkic** (D-300); **URL i PDF chodzą w kolejce** (#28, plik PDF czeka na prywatnym dysku i znika po odczycie — #2051); zdjęcie kartki/OCR wdrożone (D-298);
+- pantry — **zbudowane** (D-285): prywatna lista „Co mam w domu”;
+- „co ugotuję z tego, co mam” — **zbudowane** (D-285): dopasowanie bez AI, jawna reguła doboru;
 - zamienniki — **od autora wdrożone (D-284)**: tekst przy składniku,
   „Zamiast tego: …” na stronie przepisu; podpowiedzi AI — jeszcze nie;
 - skalowanie porcji — **wdrożone (D-284)**: „Na ile porcji?” na stronie
@@ -159,6 +159,8 @@ z audytu zapisane na później. Nie budować bez nowej decyzji, mimo D-282:
 - marketplace;
 - payouts;
 - punkty za liczbę postów;
-- masowy import cudzych treści.
+- masowy import cudzych treści — w tym import wielu adresów naraz, całych
+  blogów, map witryn i kanałów RSS, import zdjęć z cudzych stron oraz
+  „przepisywanie własnymi słowami” przez AI przed publikacją (D-300).
 
 Wysoki koszt moderacji i spam nie są potrzebne do udowodnienia wartości Kuking.

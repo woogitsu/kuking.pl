@@ -99,7 +99,7 @@ final class RozpoznanieZdjecia
             return new WynikRozpoznania(self::POWOD_NIECZYTELNY, self::komunikatNieczytelnegoPliku());
         }
 
-        $wykryty = $info['mime'] ?? null;
+        $wykryty = $info['mime'];
 
         if (! in_array($wykryty, LimityZdjec::dozwoloneTypy(), true)) {
             return new WynikRozpoznania(

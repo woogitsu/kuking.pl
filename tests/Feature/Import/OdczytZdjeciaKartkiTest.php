@@ -8,6 +8,7 @@ use App\Domain\Import\KlientLuna;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Users\Actions\EraseAccountData;
+use App\Domain\Zgody\InformacjaOdczytuAi;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Jobs\OdczytajPrzepis;
 use App\Models\ImportPrzepisu;
@@ -85,13 +86,14 @@ final class OdczytZdjeciaKartkiTest extends TestCase
 
         $this->actingAs($this->osoba)->get(route('add'))
             ->assertOk()
-            ->assertDontSee(route('import.wybor'), false)
-            ->assertSee(route('recipes.create'), false);
+            ->assertSee(route('import.wybor'), false);
 
         $this->actingAs($this->osoba)->get(route('import.wybor'))
             ->assertOk()
             ->assertDontSee('Przepisz z kartki lub zeszytu')
-            ->assertSee('Wpiszę sam');
+            ->assertSee('Wklej adres strony')
+            ->assertSee('Dodaj plik PDF')
+            ->assertSee('Wpisz ręcznie');
 
         $this->actingAs($this->osoba)->get(route('import.zdjecie'))->assertRedirect(route('recipes.create'));
 
@@ -106,10 +108,9 @@ final class OdczytZdjeciaKartkiTest extends TestCase
         $this->actingAs($this->osoba)->get(route('add'))->assertSee(route('import.wybor'), false);
         $this->actingAs($this->osoba)->get(route('import.wybor'))
             ->assertSee('Przepisz z kartki lub zeszytu')
-            ->assertSee('Wpiszę sam')
-            // Źródła z innych etapów bez tras: przycisków nie ma (D-053).
-            ->assertDontSee('Wklej adres strony')
-            ->assertDontSee('Dodaj plik PDF');
+            ->assertSee('Wpisz ręcznie')
+            ->assertSee('Wklej adres strony')
+            ->assertSee('Dodaj plik PDF');
     }
 
     // ------------------------------------------------------------------
@@ -133,10 +134,10 @@ final class OdczytZdjeciaKartkiTest extends TestCase
 
     public function test_zgoda_z_ekranu_importu_trafia_do_dziennika_i_da_sie_ja_wycofac(): void
     {
-        $this->actingAs($this->osoba)->post(route('zgoda.odczyt-ai.udziel'), ['skad' => 'import'])
+        $this->actingAs($this->osoba)->post(route('zgoda.odczyt-ai.udziel'), ['skad' => 'import', 'informacja' => InformacjaOdczytuAi::WERSJA])
             ->assertRedirect(route('import.zdjecie'));
         // Podwójne kliknięcie nie dopisuje drugiego wiersza.
-        $this->actingAs($this->osoba)->post(route('zgoda.odczyt-ai.udziel'), ['skad' => 'import']);
+        $this->actingAs($this->osoba)->post(route('zgoda.odczyt-ai.udziel'), ['skad' => 'import', 'informacja' => InformacjaOdczytuAi::WERSJA]);
 
         $this->actingAs($this->osoba)->get(route('settings.privacy'))->assertSee('Wycofaj zgodę na odczyt');
         $this->actingAs($this->osoba)->delete(route('zgoda.odczyt-ai.wycofaj'))->assertRedirect(route('settings.privacy'));
@@ -199,6 +200,11 @@ final class OdczytZdjeciaKartkiTest extends TestCase
         $zlecenie = ImportPrzepisu::query()->sole();
         $odpowiedz->assertRedirect(route('import.show', $zlecenie));
         $this->assertSame(ImportPrzepisu::STATUS_GOTOWY, $zlecenie->status);
+        $this->assertDatabaseHas('proby_importu', [
+            'import_id' => $zlecenie->getKey(),
+            'zrodlo' => 'zdjecie',
+            'status' => 'gotowy',
+        ]);
 
         $szkic = $zlecenie->recipe()->with(['ingredients', 'steps'])->first();
         $this->assertSame(Recipe::STATUS_DRAFT, $szkic->status);
@@ -375,8 +381,8 @@ final class OdczytZdjeciaKartkiTest extends TestCase
         $zlecenie = ImportPrzepisu::query()->sole();
         $this->assertSame(ImportPrzepisu::KOD_MODEL_NIEDOSTEPNY, $zlecenie->kod_bledu);
         $this->assertNotNull($zlecenie->recipe->source_scan_media_id);
-        // Najgorszy przypadek: 6000 × 2 + 8000 × 8 = 76 000 mikro-USD.
-        $this->assertSame(76_000, $this->budzetDzis());
+        // Całe okno modelu z droższą taryfą = 4 296 000 mikro-USD.
+        $this->assertSame(4_296_000, $this->budzetDzis());
 
         $this->actingAs($this->osoba)->get(route('import.show', $zlecenie))
             ->assertSee('Nic nie zginęło — zdjęcie jest zapisane.');
@@ -384,6 +390,9 @@ final class OdczytZdjeciaKartkiTest extends TestCase
 
     public function test_ponowienie_po_awarii_liczy_sie_do_limitu_i_wypelnia_ten_sam_szkic(): void
     {
+        // Testowy cennik 2/8 USD wymaga 4,296 USD rezerwacji na każdą próbę.
+        // Podnieś tylko budżet tego testu, aby mierzyć retry przy wolnym miejscu.
+        config(['kuking.import.budzet.dzienny_usd' => 10]);
         $this->zgoda();
         Http::fake(['api.openai.com/*' => Http::sequence()->push([], 503)->push($this->odpowiedzModelu(self::ODPOWIEDZ))]);
 
@@ -580,7 +589,13 @@ final class OdczytZdjeciaKartkiTest extends TestCase
 
     public function test_import_nigdy_nie_publikuje_sprawdzone_w_kodzie(): void
     {
-        $pliki = [...glob(app_path('Domain/Import/*.php')) ?: [], app_path('Jobs/OdczytajPrzepis.php')];
+        // Także import z adresu (#28): podkatalogi `Url/`, `Pdf/`, `Actions/` i jego zadanie.
+        $pliki = [
+            ...glob(app_path('Domain/Import/*.php')) ?: [],
+            ...glob(app_path('Domain/Import/*/*.php')) ?: [],
+            app_path('Jobs/OdczytajPrzepis.php'),
+            app_path('Jobs/ImportujPrzepisZAdresu.php'),
+        ];
         $this->assertGreaterThan(5, count($pliki), 'Skan nie znalazł plików importu — test nic nie mierzy.');
 
         foreach ($pliki as $plik) {

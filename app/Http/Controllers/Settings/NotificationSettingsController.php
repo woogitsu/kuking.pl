@@ -10,6 +10,7 @@ use App\Domain\Notifications\Push\OdlaczUrzadzeniePush;
 use App\Domain\Notifications\Push\ZapiszSubskrypcjePush;
 use App\Http\Controllers\Controller;
 use App\Models\UstawieniaPowiadomienZewnetrznych;
+use App\Support\Komunikat;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -67,7 +68,7 @@ class NotificationSettingsController extends Controller
             'dzienny_limit' => (int) $dane['dzienny_limit'],
         ]);
 
-        return back()->with('status', 'Zapisane.');
+        return back()->with(Komunikat::sukces('Zapisane.'));
     }
 
     /**
@@ -142,16 +143,16 @@ class NotificationSettingsController extends Controller
     {
         $request->user()->pushSubscriptions()->delete();
 
-        return back()->with('status', 'Powiadomienia poza serwisem są wyłączone na wszystkich urządzeniach.');
+        return back()->with(Komunikat::sukces('Powiadomienia poza serwisem są wyłączone na wszystkich urządzeniach.'));
     }
 
     /** @return array{cisza_od: int, cisza_do: int, dzienny_limit: int} */
     private function ustawienia(?UstawieniaPowiadomienZewnetrznych $zapisane): array
     {
         return [
-            'cisza_od' => $zapisane?->cisza_od ?? (int) config('kuking.notifications.zewnetrzne.cisza_od_godziny', 21),
-            'cisza_do' => $zapisane?->cisza_do ?? (int) config('kuking.notifications.zewnetrzne.cisza_do_godziny', 8),
-            'dzienny_limit' => $zapisane?->dzienny_limit ?? (int) config('kuking.notifications.zewnetrzne.dzienny_limit', 1),
+            'cisza_od' => $zapisane->cisza_od ?? (int) config('kuking.notifications.zewnetrzne.cisza_od_godziny', 21),
+            'cisza_do' => $zapisane->cisza_do ?? (int) config('kuking.notifications.zewnetrzne.cisza_do_godziny', 8),
+            'dzienny_limit' => $zapisane->dzienny_limit ?? (int) config('kuking.notifications.zewnetrzne.dzienny_limit', 1),
         ];
     }
 

@@ -52,7 +52,12 @@
 #      push do `staging`  → Railway buduje i wdraża środowisko `staging`
 #      otwarcie PR        → Railway tworzy środowisko PR, zamknięcie je usuwa
 #
-#  Railway ma włączone "Wait for CI", więc czeka na zielony workflow CI.
+#  Railway ma włączone "Wait for CI", ale to NIE jest gwarancja zielonego CI
+#  (#2025): anulowany workflow blokuje wdrożenie tylko wtedy, gdy żaden inny
+#  workflow tego commita nie miał sukcesu, a „Push on main" go ma. Dlatego
+#  job `audit_ci` niżej alarmuje po fakcie, a właściwą bramkę przygotowuje
+#  `railway-ci-gated-deploy.yml` (wyłączona do decyzji właściciela, patrz
+#  docs/infra/RAILWAY_CI_GATE.md).
 #  Migracje uruchamia Railway jako pre-deploy command (zadeklarowany
 #  w .railway/railway.ts) — czyli PO buildzie, PRZED przełączeniem ruchu,
 #  z dostępem do prywatnej sieci, i z blokadą deployu gdy migracja padnie.
@@ -174,6 +179,56 @@ jobs:
           DEPLOYED_AT: ${{ github.event.deployment_status.created_at }}
           DEPLOY_ENV: ${{ github.event.deployment.environment }}
         run: node scripts/ci-po-wdrozeniu.mjs
+
+  # Sygnał dla terminalnych stanów wdrożenia BEZ sukcesu (#611, etap 6).
+  # `verify` chodzi tylko na `success`, więc wdrożenie, które kończy się
+  # `failure`, `error` albo `inactive` bez wcześniejszego `success`, nie
+  # zostawiało żadnego śladu: brak testu dymnego wyglądał jak brak wdrożenia.
+  # Decyzja siedzi w `scripts/ci/stan-wdrozenia.sh` (test tabelaryczny z
+  # kontrolą ujemną: `tests/skrypty/stan-wdrozenia.sh`); ten job tylko podaje
+  # jej dane. Czerwony job = wersja z tego SHA nie działa na serwerze.
+  # `success` -> `inactive` (zastąpienie nowszym wdrożeniem) NIE alarmuje.
+  # Historię statusów czyta z GitHuba (`deployments: read`), nie z Railway.
+  # Jeśli historii nie da się odczytać, job jest czerwony: nie zgadujemy.
+  alarm_bez_sukcesu:
+    name: Wdrożenie zakończone bez sukcesu
+    permissions:
+      contents: read
+      deployments: read # historia statusów tego wdrożenia (tylko odczyt)
+    if: >-
+      github.event_name == 'deployment_status' &&
+      (github.event.deployment_status.state == 'inactive' ||
+      github.event.deployment_status.state == 'failure' ||
+      github.event.deployment_status.state == 'error')
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Pobierz historię statusów tego wdrożenia
+        id: historia
+        if: github.event.deployment_status.state == 'inactive'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DEPLOYMENT_ID: ${{ github.event.deployment.id }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$DEPLOYMENT_ID" =~ ^[0-9]+$ ]]; then
+            echo "::error title=Nieprawidłowy numer wdrożenia::deployment.id nie jest liczbą. Historii nie pobieram."
+            exit 1
+          fi
+          plik="${RUNNER_TEMP}/historia-wdrozenia.txt"
+          gh api --paginate "repos/${REPO}/deployments/${DEPLOYMENT_ID}/statuses?per_page=100" \
+            --jq '.[] | "\(.created_at) \(.state)"' > "$plik"
+          echo "plik=${plik}" >> "$GITHUB_OUTPUT"
+      - name: Oceń stan wdrożenia
+        env:
+          STAN: ${{ github.event.deployment_status.state }}
+          STAN_CZAS: ${{ github.event.deployment_status.created_at }}
+          SRODOWISKO: ${{ github.event.deployment.environment }}
+          SHA: ${{ github.event.deployment.sha }}
+          HISTORIA_PLIK: ${{ steps.historia.outputs.plik }}
+        run: bash scripts/ci/stan-wdrozenia.sh
 
   # ===========================================================================
   #  A) WERYFIKACJA PO DEPLOYU  (automatyczna)

@@ -9,6 +9,7 @@ use App\Models\AuditLogEntry;
 use App\Models\User;
 use App\Support\Skrot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\RateLimiter;
 use PragmaRX\Google2FA\Google2FA;
 use Tests\TestCase;
 
@@ -75,12 +76,53 @@ class AudytLogowaniaHaslemI2faTest extends TestCase
         $this->post(route('login.two_factor.store'), ['code' => 'niepoprawny'])
             ->assertSessionHasErrors('code');
         $this->assertGuest();
-        $this->assertSame(0, AuditLogEntry::query()->count());
+        $this->assertSame(1, AuditLogEntry::query()->where('action', 'account.two_factor_login_failed')->count());
+        $this->assertSame(0, AuditLogEntry::query()->where('action', 'account.password_login_succeeded')->count());
 
         $this->post(route('login.two_factor.store'), ['code' => (new Google2FA)->getCurrentOtp($user->two_factor_secret)])
             ->assertRedirect(route('home'));
         $this->assertAuthenticatedAs($user);
         $this->assertSame(1, AuditLogEntry::query()->where('action', 'account.password_login_succeeded')->count());
+    }
+
+    public function test_bledne_kody_2fa_zostawiaja_ograniczony_slad_bez_sekretow(): void
+    {
+        config()->set('kuking.limits.two_factor', '3,60');
+        $user = $this->user('basia');
+        $totp = app(TwoFactorAuthenticator::class);
+        $user->beginTwoFactorSetup($totp->generateSecret());
+        $user->confirmTwoFactor($totp->hashBackupCodes(['ABCD-1234']));
+        $this->withServerVariables(['REMOTE_ADDR' => self::ADRES]);
+
+        $this->post('/login', ['login' => $user->email, 'password' => self::HASLO])
+            ->assertRedirect(route('login.two_factor'));
+        $this->post(route('login.two_factor.store'), ['code' => 'niepoprawny'])
+            ->assertSessionHasErrors('code');
+        $this->post(route('login.two_factor.store'), ['backup_code' => 'NIE-TEN-KOD'])
+            ->assertSessionHasErrors('backup_code');
+        $this->post(route('login.two_factor.store'), ['code' => 'ZLY-TOTP', 'backup_code' => 'ZLY-ZAPASOWY'])
+            ->assertSessionHasErrors('backup_code');
+        // Czwarta próba: limit wyczerpany, kodu nie sprawdzono — bez wpisu.
+        $this->post(route('login.two_factor.store'), ['backup_code' => 'ZA-LIMITEM'])
+            ->assertSessionHasErrors('backup_code');
+
+        $this->assertGuest();
+        $this->assertSame(3, RateLimiter::attempts(TwoFactorAuthenticator::kluczLimituProb($user)));
+        $wpisy = AuditLogEntry::query()->where('action', 'account.two_factor_login_failed')->orderBy('id')->get();
+        $this->assertCount(3, $wpisy, 'Limiter musi także ograniczać wolumen dziennika.');
+        $this->assertSame(['totp', 'zapasowy', 'oba'], $wpisy->pluck('metadata.rodzaj')->all());
+        foreach ($wpisy as $wpis) {
+            $this->assertNull($wpis->actor_id);
+            $this->assertSame('User', $wpis->subject_type);
+            $this->assertSame($user->getKey(), $wpis->subject_id);
+            $this->assertSame(Skrot::hmac(self::ADRES), $wpis->ip_hash);
+            $this->assertEqualsCanonicalizing(['rodzaj', 'kanal'], array_keys($wpis->metadata));
+            $this->assertSame('www', $wpis->metadata['kanal']);
+            $zapis = json_encode($wpis->getAttributes(), JSON_THROW_ON_ERROR);
+            foreach (['niepoprawny', 'NIE-TEN-KOD', 'ZLY-TOTP', 'ZLY-ZAPASOWY', 'ZA-LIMITEM', 'ABCD-1234', $user->two_factor_secret, self::ADRES] as $sekret) {
+                $this->assertStringNotContainsString($sekret, $zapis);
+            }
+        }
     }
 
     public function test_poprawne_haslo_zamknietego_konta_nie_jest_sukcesem(): void

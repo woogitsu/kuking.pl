@@ -10,6 +10,7 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\Post;
 use App\Models\User;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -57,7 +58,11 @@ class BezOdpowiedziController extends Controller
             $items = $this->queue->questions($request->user())->with('author.profile')
                 ->orderBy('published_at')->orderBy('id')->paginate(25)->withQueryString();
 
-            return view('pages.admin.bez-odpowiedzi-pytania', ['items' => $items, 'type' => $type]);
+            return view('pages.admin.bez-odpowiedzi-pytania', [
+                'items' => $items,
+                'type' => $type,
+                'medianaReakcji' => $this->queue->medianQuestionResponseHours($request->user()),
+            ]);
         }
 
         if ($type !== 'wpisy') {
@@ -148,6 +153,6 @@ class BezOdpowiedziController extends Controller
             return back()->withInput()->withErrors(['body' => $error->getMessage()]);
         }
 
-        return back()->with('status', 'Odpowiedź wysłana.');
+        return back()->with(Komunikat::sukces('Odpowiedź wysłana.'));
     }
 }

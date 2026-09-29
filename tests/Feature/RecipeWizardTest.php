@@ -28,9 +28,9 @@ class RecipeWizardTest extends TestCase
 
         Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Rosół babci Zofii')
-            ->set('summary', 'Na niedzielę, zawsze z makaronem.')
-            ->set('servings', '6')
+            ->set('form.title', 'Rosół babci Zofii')
+            ->set('form.summary', 'Na niedzielę, zawsze z makaronem.')
+            ->set('form.servings', '6')
             ->call('next')
             ->assertSet('step', 2)
             ->assertSet('saveMessage', 'Szkic zapisany.');
@@ -41,9 +41,9 @@ class RecipeWizardTest extends TestCase
         // Zamknięcie karty i powrót = nowy komponent, ten sam szkic.
         Livewire::actingAs($basia)
             ->test(self::COMPONENT, ['recipeId' => $recipe->getKey()])
-            ->assertSet('title', 'Rosół babci Zofii')
-            ->assertSet('summary', 'Na niedzielę, zawsze z makaronem.')
-            ->assertSet('servings', '6');
+            ->assertSet('form.title', 'Rosół babci Zofii')
+            ->assertSet('form.summary', 'Na niedzielę, zawsze z makaronem.')
+            ->assertSet('form.servings', '6');
     }
 
     public function test_autosave_odpala_sie_po_zmianie_pola_bez_klikania_dalej(): void
@@ -53,7 +53,7 @@ class RecipeWizardTest extends TestCase
         // wire:model.live.debounce.3000ms → hook updated() → zapis szkicu.
         Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Żurek na zakwasie')
+            ->set('form.title', 'Żurek na zakwasie')
             ->assertSet('saveMessage', 'Szkic zapisany.');
 
         $this->assertDatabaseHas('recipes', [
@@ -80,10 +80,10 @@ class RecipeWizardTest extends TestCase
 
         Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', '')
+            ->set('form.title', '')
             ->call('next')
             ->assertSet('step', 1)
-            ->assertHasErrors('title')
+            ->assertHasErrors('form.title')
             ->assertSee('Podaj nazwę przepisu', false);
     }
 
@@ -98,8 +98,8 @@ class RecipeWizardTest extends TestCase
         // zanim wolno było cokolwiek opublikować.
         $component = Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Przepis bez składników')
-            ->set('summary', 'Historia, której nie wolno zgubić.')
+            ->set('form.title', 'Przepis bez składników')
+            ->set('form.summary', 'Historia, której nie wolno zgubić.')
             ->set('steps.0.instruction', 'Wymieszać wszystko.')
             ->set('step', 4)
             ->call('publish');
@@ -114,13 +114,25 @@ class RecipeWizardTest extends TestCase
         $this->assertSame('Wymieszać wszystko.', $recipe->steps->first()->instruction);
     }
 
+    public function test_podglad_bez_skladnikow_pokazuje_neutralna_informacje_a_nie_blad(): void
+    {
+        Livewire::actingAs($this->user('pustepodglad'))
+            ->test(self::COMPONENT)
+            ->set('form.title', 'Przepis z późniejszymi składnikami')
+            ->set('steps.0.instruction', 'Wymieszać.')
+            ->set('step', 4)
+            ->assertSeeHtml('<p class="meta">Nie dodano jeszcze składników. Możesz dopisać je później.</p>')
+            ->assertDontSee('Wróć do kroku 2 i dopisz przynajmniej jeden.')
+            ->assertHasNoErrors();
+    }
+
     public function test_publikacja_bez_krokow_nie_kasuje_wpisanych_danych(): void
     {
         $basia = $this->user('basia');
 
         $component = Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Przepis bez przygotowania')
+            ->set('form.title', 'Przepis bez przygotowania')
             ->set('ingredients.0.text', 'kurczak')
             ->set('step', 4)
             ->call('publish');
@@ -145,7 +157,7 @@ class RecipeWizardTest extends TestCase
 
         Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Jajecznica')
+            ->set('form.title', 'Jajecznica')
             ->set('ingredients.0.text', '3 jajka')
             ->set('ingredients.1.text', '   ')
             ->set('ingredients.2.text', 'masło')
@@ -166,7 +178,7 @@ class RecipeWizardTest extends TestCase
 
         $component = Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Naleśniki')
+            ->set('form.title', 'Naleśniki')
             ->set('ingredients.0.text', 'mąka')
             ->set('ingredients.1.text', 'mleko')
             ->set('ingredients.2.text', 'jajka')
@@ -192,7 +204,7 @@ class RecipeWizardTest extends TestCase
 
         Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Zupa pomidorowa')
+            ->set('form.title', 'Zupa pomidorowa')
             ->set('steps.0.instruction', 'Ugotuj wywar.')
             ->set('steps.1.instruction', 'Dodaj przecier.')
             ->set('steps.2.instruction', 'Zabiel śmietaną.')
@@ -210,7 +222,7 @@ class RecipeWizardTest extends TestCase
 
         $component = Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Sernik')
+            ->set('form.title', 'Sernik')
             ->set('ingredients.0.text', 'twaróg')
             ->set('ingredients.1.text', 'cukier')
             ->set('ingredients.2.text', 'jajka')
@@ -238,7 +250,7 @@ class RecipeWizardTest extends TestCase
 
         $component = Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Bigos na dwadzieścia rzeczy')
+            ->set('form.title', 'Bigos na dwadzieścia rzeczy')
             ->set('steps.0.instruction', 'Wszystko razem, trzy dni.');
 
         $oczekiwane = [];
@@ -270,7 +282,7 @@ class RecipeWizardTest extends TestCase
 
         Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Sernik z kruszonką')
+            ->set('form.title', 'Sernik z kruszonką')
             ->set('ingredients.0.text', 'mąka')
             ->set('ingredients.0.group_name', 'Ciasto')
             ->set('ingredients.1.text', 'twaróg')
@@ -289,7 +301,7 @@ class RecipeWizardTest extends TestCase
 
         Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Rosół')
+            ->set('form.title', 'Rosół')
             ->set('ingredients.0.text', 'kura')
             ->set('steps.0.instruction', 'Gotować trzy godziny.')
             ->call('publish')
@@ -308,8 +320,8 @@ class RecipeWizardTest extends TestCase
         // Krok 1 → krok 2 → część składników → zamknięcie karty.
         Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Pierogi ruskie')
-            ->set('source_person', 'od babci Zofii')
+            ->set('form.title', 'Pierogi ruskie')
+            ->set('form.source_person', 'od babci Zofii')
             ->call('next')
             ->set('ingredients.0.text', 'mąka')
             ->set('ingredients.1.text', 'twaróg');

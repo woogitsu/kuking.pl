@@ -207,6 +207,7 @@ class OdpowiedzDotyczyTejSamejTresciCoRodzicTest extends TestCase
             'post_id' => Post::factory()->create()->id,
             'recipe_id' => Recipe::factory()->create()->id,
             'cooked_event_id' => CookedEvent::factory()->create()->id,
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
     }
 

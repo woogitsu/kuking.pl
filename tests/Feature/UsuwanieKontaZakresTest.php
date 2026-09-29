@@ -79,7 +79,7 @@ class UsuwanieKontaZakresTest extends TestCase
             'user_id' => $basia->getKey(),
             'recipe_id' => $przepisHaliny->getKey(),
             'note' => 'Wyszlo swietnie.',
-            'cooked_on' => now()->toDateString(),
+            'cooked_at' => now(),
         ]);
 
         $zeszyt = Collection::create([

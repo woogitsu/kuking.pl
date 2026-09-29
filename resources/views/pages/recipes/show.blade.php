@@ -4,6 +4,12 @@
     // Jedna odpowiedź na „ile porcji" dla znaczka i dla structured data
     // (audyt A28) — dwa osobne teksty to dwie okazje do rozjazdu.
     $porcje = $recipe->servingsLabel();
+    $parametrPorcjiGotowania = $wyborPorcji->przeliczone()
+        ? $wyborPorcji->doAdresu((float) $wyborPorcji->wybrane)
+        : null;
+    $adresGotowania = route('cooking.show', array_filter([
+        'recipe' => $recipe->slug, 'porcje' => $parametrPorcjiGotowania,
+    ], fn ($wartosc) => $wartosc !== null));
     // Dokąd iść po wymianę odrzuconego zdjęcia (#752). Pyta Policy, tak jak
     // przycisk edycji niżej — przepis ukryty przez moderację edycji nie ma.
     // Konto zawieszone edycję otworzy, ale jej nie zapisze
@@ -59,6 +65,18 @@
                 'name' => $recipe->title,
                 'description' => $recipe->summary,
                 'datePublished' => $recipe->published_at?->toDateString(),
+                /*
+                 * DATA ZMIANY TREŚCI, NIE ZAPISU WIERSZA (#2014).
+                 *
+                 * `tresc_zmieniona_at` przestawia tylko `PublishRecipe` i tylko
+                 * przy realnej zmianie treści albo zdjęć — nie moderacja, nie
+                 * widoczność, nie zapis bez zmian (`updated_at` przesuwają
+                 * wszystkie trzy). `NULL` (przepis sprzed kolumny) i data
+                 * sprzed publikacji to „nie wiemy": wtedy pola nie ma, bo
+                 * zgadnięta data byłaby niezgodna z treścią (`sd-policies`).
+                 * Format jak `datePublished`.
+                 */
+                'dateModified' => $recipe->dataZmianyTresci()?->toDateString(),
                 /*
                  * AUTOR TO KONTO, KTÓRE PRZEPIS OPUBLIKOWAŁO — I TYLKO ONO.
                  *
@@ -322,6 +340,11 @@
                     <a class="btn btn-quiet" href="{{ route('login', ['follow_user' => $recipe->author_id, 'follow_recipe' => $recipe->slug]) }}">Zaloguj się do swojego konta</a>
                 @endguest
             </div>
+            {{-- Tylko na papierze (#765, resources/css/wydruk-przepisu.css):
+                 z kartki trzeba umieć wrócić do przepisu. Adres kanoniczny,
+                 nie bieżący z parametrami stronicowania komentarzy; dostęp
+                 i tak rozstrzyga RecipePolicy przy wejściu. --}}
+            <p class="meta m-0 przepis-adres-druk">Adres przepisu: {{ route('recipes.show', $recipe->slug) }}</p>
                 {{-- Opis i dane autora należą do tekstowej połowy hero. --}}
         @if($recipe->summary)
             <p class="text-lead kolumna-czytania">{{ $recipe->summary }}</p>
@@ -443,7 +466,7 @@
                     @else
                         <form method="POST" action="{{ route('collections.save', $recipe->slug) }}">
                             @csrf
-                            @php $publicznyCel = app(\App\Domain\Collections\ZeszytyDoWyboru::class)->publicznyDomyslny(request()); @endphp
+                            @php $publicznyCel = app(\App\Http\Support\ZeszytyZZadania::class)->publicznyDomyslny(request()); @endphp
                             @if($publicznyCel)
                                 {{-- Cel szybkiego zapisu jest publiczny — mówimy to przy przycisku (issue #1400). --}}
                                 <p class="pomoc" id="cel-zapisu-{{ $recipe->getKey() }}">Zapiszemy w zeszycie „{{ $publicznyCel->name }}”. Ten zeszyt widzą inne zalogowane osoby.</p>
@@ -451,11 +474,15 @@
                             <button class="btn btn-secondary" type="submit" @if($publicznyCel) aria-describedby="cel-zapisu-{{ $recipe->getKey() }}" @endif><x-ikona nazwa="save" /> Zapisuję</button>
                         </form>
                     @endif
-                    <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" :content="$recipe" />
+                    <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" :content="$recipe" :otwarty="request()->boolean(\App\Support\ZamiarZapisu::ROZWIN)" />
                     {{-- Planer tygodnia (#27, D-310): prywatny, obok „Zapisuję”. --}}
                     <x-dodaj-do-planera :recipe="$recipe" />
                 @else
                     <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby dać znać autorowi</a>
+                    {{-- „Zapisz do zeszytu” dla gościa (#2028): link niesie UUID przepisu,
+                         po rejestracji wracamy tu z rozwiniętym wyborem zeszytu. --}}
+                    <a class="btn btn-secondary" href="{{ route('register', [\App\Support\ZamiarZapisu::PARAMETR => $recipe->getKey()]) }}"><x-ikona nazwa="save" /> Zapisz do zeszytu</a>
+                    <a class="btn btn-quiet" href="{{ route('login', [\App\Support\ZamiarZapisu::PARAMETR => $recipe->getKey()]) }}">Masz konto? Zaloguj się i zapisz</a>
                 @endauth
 
                 {{--
@@ -465,9 +492,29 @@
                     z czytelnym komunikatem, gdyby ktoś trafił tu wprost.
                 --}}
                 @if($recipe->steps->isNotEmpty())
-                    <a class="btn btn-secondary" href="{{ route('cooking.show', $recipe->slug) }}">Gotuję — pokaż kroki na cały ekran</a>
+                    <a class="btn btn-secondary" href="{{ $adresGotowania }}">Gotuję — pokaż kroki na cały ekran</a>
                 @endif
+
+                {{--
+                    „DRUKUJ PRZEPIS” (#765). Kartka leży obok blatu, a Ctrl+P
+                    nie jest czymś, co nasza grupa zna na pamięć — stąd
+                    widoczny przycisk. To ZWYKŁY ODNOŚNIK do tej samej strony
+                    z `?druk=1`: skrypt (`resources/js/drukuj-przepis.js`)
+                    zamienia kliknięcie w `window.print()`, a bez skryptu
+                    człowiek ląduje przy instrukcji niżej, nie przy martwym
+                    przycisku (D-053). Na papier przycisk nie idzie — `main .btn`
+                    chowa `wydruk-przepisu.css`.
+                --}}
+                <a class="btn btn-secondary" href="{{ route('recipes.show', ['recipe' => $recipe->slug, 'druk' => 1]) }}#jak-wydrukowac" rel="nofollow" data-drukuj-przepis>Drukuj przepis</a>
             </div>
+            @if(request()->boolean('druk'))
+                <div class="notice druk-podpowiedz" id="jak-wydrukowac" role="status">
+                    <p class="m-0"><strong>Jak wydrukować ten przepis:</strong></p>
+                    <p class="m-0">Na komputerze naciśnij razem klawisze <kbd>Ctrl</kbd> i <kbd>P</kbd> (na komputerze Apple: <kbd>Cmd</kbd> i <kbd>P</kbd>).</p>
+                    <p class="m-0">Na telefonie otwórz menu przeglądarki (trzy kropki albo „Udostępnij”) i wybierz „Drukuj”.</p>
+                    <p class="m-0">Na kartce będzie sam przepis — bez menu, przycisków i komentarzy.</p>
+                </div>
+            @endif
 
             {{-- „Podziel się" POD paskiem akcji, a nie w nim.
 

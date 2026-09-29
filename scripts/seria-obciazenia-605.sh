@@ -88,6 +88,19 @@ fi
 
 { echo; echo '## uptime po otwarciu bramki, tuż przed serią'; uptime; } >> "$OTOCZENIE"
 
+# Ustawienia JIT bazy — #605 każe je odczytać podczas testu (hipoteza z #585/#628:
+# kompilacja JIT ok. 260–320 ms w planie feedu). To ustawienia SERWERA i tej bazy;
+# połączenia aplikacji mogą je nadpisywać (PGOPTIONS w środowisku kontenera),
+# więc sprawdź też `odbior-ustawien` z połączenia aplikacji, jeśli ich używasz.
+# Odczyt tylko do odczytu, żadnego ALTER.
+{
+  echo
+  echo '## ustawienia JIT bazy (pg_settings, tylko odczyt)'
+  PGPASSWORD=kuking psql -h 127.0.0.1 -p 55439 -U kuking -d "$BAZA" -At \
+    -c "SELECT name || '=' || setting FROM pg_settings WHERE name LIKE 'jit%' ORDER BY name" 2>&1 \
+    || echo '(nie udało się odczytać ustawień JIT)'
+} >> "$OTOCZENIE"
+
 bash scripts/probnik-obciazenia-605.sh "$PROBNIK" "$KONTENER" "$BAZA" 1 &
 PID_PROBNIKA=$!
 trap 'kill "$PID_PROBNIKA" 2>/dev/null || true' EXIT

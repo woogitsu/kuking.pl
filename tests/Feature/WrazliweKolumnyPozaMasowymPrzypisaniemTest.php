@@ -628,6 +628,9 @@ class WrazliweKolumnyPozaMasowymPrzypisaniemTest extends TestCase
     {
         $basia = $this->user('basia', ['password' => Hash::make('stare-haslo-basi')]);
 
+        // Skutek w bazie po cichym odrzuceniu, jak w produkcji (#976).
+        $this->mierzMasowePrzypisanieJakWProdukcji();
+
         $basia->update(['password' => 'podstawione-przez-napastnika']);
 
         $this->assertTrue(
@@ -639,7 +642,7 @@ class WrazliweKolumnyPozaMasowymPrzypisaniemTest extends TestCase
 
         $nowe = new User(['password' => 'podstawione-przez-napastnika', 'locale' => 'pl']);
 
-        $this->assertNull($nowe->password, 'Nowe konto przyjęło hasło masowym przypisaniem.');
+        $this->assertNull($nowe->getAttribute('password'), 'Nowe konto przyjęło hasło masowym przypisaniem.');
         $this->assertSame('pl', $nowe->locale, 'Kontrola: pola dozwolone nadal przechodzą.');
     }
 

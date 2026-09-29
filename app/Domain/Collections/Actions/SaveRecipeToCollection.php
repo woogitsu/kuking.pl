@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Collections\Actions;
 
+use App\Domain\Collections\PowrotPoWyjeciu;
+use App\Domain\Collections\WynikWyjeciaZZeszytu;
+use App\Domain\Collections\WynikZapisuDoZeszytu;
 use App\Domain\Collections\ZamekZapisuDoZeszytu;
 use App\Domain\Notifications\Actions\NotifyRecipeSaved;
 use App\Exceptions\BladDlaCzlowieka;
@@ -25,6 +28,68 @@ final class SaveRecipeToCollection
 {
     public function __construct(private readonly NotifyRecipeSaved $notify) {}
 
+    /**
+     * „Zapisuję" przy przepisie w całości: droga powrotu ALBO zwykły zapis.
+     *
+     * DROGA POWROTU MA WRACAĆ, A NIE ZAPISYWAĆ OD NOWA (issue #775).
+     * Przycisk „Zapisz ponownie" pod komunikatem wysyła TEN SAM adres co
+     * zwykły zapis i nic poza tokenem. Gdyby zadziałał jak zwykły zapis,
+     * przepis wróciłby do JEDNEGO zeszytu (domyślnego), z pustą notatką
+     * i dzisiejszą datą — czyli „powrót" po cichu gubiłby to, przed czym
+     * ma chronić. Dlatego najpierw sprawdzamy, czy to nie jest powrót po
+     * wyjęciu, które sami przed chwilą zrobiliśmy (`$wyjecie` — zapis
+     * z sesji, przekazany jako zwykła wartość).
+     *
+     * Kolejność jak w kontrolerze przed #970: powrót (`restore()`), dopiero
+     * potem — gdy nic nie wróciło — zwykły zapis (`handle()`). Wyjątek
+     * `BladDlaCzlowieka` z obu dróg wychodzi do wywołującego bez zmian.
+     *
+     * @param  bool  $notatkaPodana  formularz przysłał pole `note` — to zawsze zwykły zapis
+     * @param  \Closure(): void  $zuzyjWyjecie  wywoływane, gdy zapis powrotu został użyty:
+     *                                          jednorazowa droga powrotu nie może wrócić drugi raz
+     */
+    public function zapiszAlboPrzywroc(
+        User $user,
+        Recipe $recipe,
+        ?Collection $collection,
+        bool $notatkaPodana,
+        mixed $wyjecie,
+        \Closure $zuzyjWyjecie,
+    ): WynikZapisuDoZeszytu {
+        if ($collection === null && ! $notatkaPodana) {
+            $pozycje = PowrotPoWyjeciu::pozycje($wyjecie, PowrotPoWyjeciu::TYP_PRZEPIS, (string) $recipe->getKey());
+
+            if ($pozycje !== null) {
+                $wrocilo = $this->restore($user, $recipe, $pozycje);
+
+                // Jednorazowa droga powrotu: drugie kliknięcie nie ma już nic do roboty.
+                $zuzyjWyjecie();
+
+                // `0`: zeszyt zniknął albo rzecz wróciła tam inną drogą — nie
+                // udajemy, że coś przywróciliśmy, i zapisujemy zwykłą drogą.
+                if ($wrocilo > 0) {
+                    return new WynikZapisuDoZeszytu(null, PowrotPoWyjeciu::zdanie(PowrotPoWyjeciu::TYP_PRZEPIS, $wrocilo));
+                }
+            }
+        }
+
+        return new WynikZapisuDoZeszytu($this->handle($user, $recipe, $collection), null);
+    }
+
+    /**
+     * „Usuń z zeszytu" przy przepisie: wyjęcie + zdanie + zapis do drogi powrotu.
+     * Sesję zapisuje kontroler z `$wynik->wyjecie`.
+     */
+    public function wyjmij(User $user, Recipe $recipe, ?Collection $collection = null): WynikWyjeciaZZeszytu
+    {
+        return WynikWyjeciaZZeszytu::zZdjetych(
+            PowrotPoWyjeciu::TYP_PRZEPIS,
+            (string) $recipe->getKey(),
+            $user,
+            $this->remove($user, $recipe, $collection),
+        );
+    }
+
     public function handle(User $user, Recipe $recipe, ?Collection $collection = null, ?string $note = null): Collection
     {
         // Oba skutki są zapisami tej samej bazy (#907). Istniejące powiązanie
@@ -44,7 +109,9 @@ final class SaveRecipeToCollection
 
     private function saveWithNotification(User $user, Recipe $recipe, Collection $collection, ?string $note): Collection
     {
-        Gate::forUser($user)->authorize('update', $collection);
+        // `addItem`, nie `update`: dopisywać może też współpracownik
+        // wspólnego zeszytu (#1743), a zmieniać nazwę i widoczność — nie.
+        Gate::forUser($user)->authorize('addItem', $collection);
 
         // DRUGIE KLIKNIĘCIE „ZAPISUJĘ” NIE JEST NOWYM ZAPISEM (issue #43).
         //
@@ -77,6 +144,8 @@ final class SaveRecipeToCollection
             DB::transaction(fn () => $collection->recipes()->attach($recipe->getKey(), [
                 'note' => $note,
                 'created_at' => now(),
+                // Kto dodał — widać przy pozycji we wspólnym zeszycie (D-302).
+                'added_by_id' => $user->getKey(),
             ]));
         } catch (UniqueConstraintViolationException) {
             // Dwa kliknięcia potrafią wejść RÓWNOCZEŚNIE — wtedy oba przechodzą
@@ -146,9 +215,9 @@ final class SaveRecipeToCollection
      * w adresie nie sięga cudzego zeszytu (AGENTS.md §7) — tak było i tak
      * zostaje.
      *
-     * @return list<array{collection_id: string, note: ?string, created_at: ?string}>
-     *                                                                                Zdjęte wiersze w kolejności zdejmowania. Pusta lista znaczy
-     *                                                                                „nie było czego zdejmować" i to NIE jest błąd.
+     * @return list<array{collection_id: string, note: ?string, created_at: ?string, added_by_id?: ?string}>
+     *                                                                                                       Zdjęte wiersze w kolejności zdejmowania. Pusta lista znaczy
+     *                                                                                                       „nie było czego zdejmować" i to NIE jest błąd.
      */
     public function remove(User $user, Recipe $recipe, ?Collection $collection = null): array
     {
@@ -167,7 +236,10 @@ final class SaveRecipeToCollection
         $zeszyty = $collection !== null
             // Przez `$user->collections()`, a nie prosto po `$collection` —
             // cudzy zeszyt ma tu wyjść jako brak zeszytu, a nie jako zeszyt.
-            ? $user->collections()->whereKey($collection->getKey())->get()
+            // Wskazany zeszyt: własny ALBO wspólny z ważnym dostępem (#1743).
+            // Bez wskazania — wyłącznie własne: „ze wszystkich moich" nigdy
+            // nie sięga do cudzego zeszytu, nawet wspólnego.
+            ? Collection::query()->dostepneDoZapisuDla($user)->whereKey($collection->getKey())->get()
             : $user->collections()->get();
 
         $zdjete = [];
@@ -184,6 +256,7 @@ final class SaveRecipeToCollection
             $zdjete[] = [
                 'collection_id' => (string) $zeszyt->getKey(),
                 'note' => $wiersz->pivot->note,
+                'added_by_id' => $wiersz->pivot->added_by_id === null ? null : (string) $wiersz->pivot->added_by_id,
                 'created_at' => $wiersz->pivot->created_at === null
                     ? null
                     : (string) $wiersz->pivot->created_at,
@@ -195,7 +268,7 @@ final class SaveRecipeToCollection
         // Wyjęcie z JEDNEGO zeszytu nie wycofuje zapisu, dopóki przepis
         // leży w innym zeszycie tej osoby — powiadomienie za nią poszło
         // raz (#906) i zostaje, póki jej zapis trwa gdziekolwiek.
-        $this->cofnijJesliNigdzieNieZostal($user, $recipe);
+        $this->notify->cofnijJesliNigdzieNieZostal($user, $recipe);
 
         return $zdjete;
     }
@@ -208,7 +281,7 @@ final class SaveRecipeToCollection
      * ponownie" tego nie daje: zrobiłoby nowy wiersz z pustą notatką i dzisiejszą
      * datą, czyli zgubiłoby dokładnie to, o co chodzi w #775.
      *
-     * @param  list<array{collection_id: string, note: ?string, created_at: ?string}>  $zdjete
+     * @param  list<array{collection_id?: string, note: ?string, created_at: ?string, added_by_id?: ?string}>  $zdjete
      * @return int ile wierszy faktycznie wróciło
      */
     public function restore(User $user, Recipe $recipe, array $zdjete): int
@@ -226,7 +299,8 @@ final class SaveRecipeToCollection
             $swiezyPrzepis = null;
 
             foreach ($zdjete as $pozycja) {
-                $zeszyt = $user->collections()->whereKey($pozycja['collection_id'] ?? null)->first();
+                // Zeszyt mógł w międzyczasie zniknąć albo nigdy nie był tej osoby.
+                $zeszyt = Collection::query()->dostepneDoZapisuDla($user)->whereKey($pozycja['collection_id'] ?? null)->first();
                 if ($zeszyt === null) {
                     continue; // usunięty zeszyt albo ponowione kliknięcie
                 }
@@ -239,7 +313,7 @@ final class SaveRecipeToCollection
                         $recipe,
                         $zeszyt,
                         function (User $swiezy, Recipe $przepis, Collection $cel) use ($pozycja, &$dodano, &$swiezyKucharz, &$swiezyPrzepis): Collection {
-                            Gate::forUser($swiezy)->authorize('update', $cel);
+                            Gate::forUser($swiezy)->authorize('addItem', $cel);
 
                             if ($cel->recipes()->whereKey($przepis->getKey())->exists()) {
                                 return $cel; // nie nadpisuj nowszej notatki ani daty
@@ -248,6 +322,7 @@ final class SaveRecipeToCollection
                             DB::transaction(fn () => $cel->recipes()->attach($przepis->getKey(), [
                                 'note' => $pozycja['note'] ?? null,
                                 'created_at' => $pozycja['created_at'] ?? now(),
+                                'added_by_id' => array_key_exists('added_by_id', $pozycja) ? $pozycja['added_by_id'] : $swiezy->getKey(),
                             ]));
                             $dodano = true;
                             $swiezyKucharz = $swiezy;
@@ -283,32 +358,6 @@ final class SaveRecipeToCollection
             }
 
             return $wrocilo;
-        });
-    }
-
-    /**
-     * Wycofanie PRZED przeczytaniem cofa też udział tej osoby w partii
-     * zbiorczego powiadomienia — patrz `NotifyRecipeSaved::cofnij()`.
-     * Tylko gdy przepisu nie ma już w ŻADNYM jej zeszycie: to lustro
-     * warunku z zapisu, który powiadamia wyłącznie przy pierwszym zeszycie.
-     */
-    private function cofnijJesliNigdzieNieZostal(User $user, Recipe $recipe): void
-    {
-        // Ta sama blokada partii co przy zapisie: sprawdzenie „nigdzie nie
-        // został” i wycofanie z partii muszą być jednym krokiem względem
-        // równoległego zapisu tej osoby do innego zeszytu — inaczej zapis
-        // liczy wyjmowany jeszcze zeszyt, nie powiadamia, a wycofanie
-        // potem wyrzuca tę osobę z partii, choć przepis u niej leży.
-        DB::transaction(function () use ($user, $recipe): void {
-            $this->notify->zablokujPartie($recipe);
-
-            $zostal = $user->collections()
-                ->whereHas('recipes', fn ($q) => $q->whereKey($recipe->getKey()))
-                ->exists();
-
-            if (! $zostal) {
-                $this->notify->cofnij($user, $recipe);
-            }
         });
     }
 }

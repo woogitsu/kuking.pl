@@ -11,8 +11,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Query\Builder as QueryBuilder;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 /**
@@ -59,6 +57,15 @@ class Notification extends Model
     public const TYPE_SMAKOWICIE = 'post.smakowicie';
 
     public const TYPE_SAVED = 'recipe.saved';
+
+    /**
+     * Zaproszenie do wspólnego zeszytu po nazwie konta (#1743). Do adresata;
+     * `data.invitation_id` i nazwa zeszytu z chwili zaproszenia.
+     */
+    public const TYPE_COLLECTION_INVITED = 'collection.invited';
+
+    /** Ktoś przyjął zaproszenie do zeszytu (#1743). Do właściciela. */
+    public const TYPE_COLLECTION_JOINED = 'collection.joined';
 
     /**
      * Ktoś opublikował własną wersję Twojego przepisu („Moja wersja",
@@ -301,26 +308,12 @@ class Notification extends Model
     }
 
     /**
-     * Wpis z `post.first`, o ile istnieje i odbiorca może go dziś zobaczyć
-     * (`PostPolicy::view()`) — issue #1371.
+     * `post.first`, którego wpisu nie da się otworzyć — „Zobacz" wraca do kolejki.
+     * Wpis rozwiązuje `CelPowiadomienia::pierwszyWpis()` (issue #1687, etap 6).
      */
-    public function pierwszyWpis(): ?Post
-    {
-        $id = $this->data['post_id'] ?? null;
-
-        if ($this->type !== self::TYPE_FIRST_POST || ! is_string($id) || ! Str::isUuid($id) || $this->user === null) {
-            return null;
-        }
-
-        $post = Post::query()->find($id);
-
-        return $post !== null && Gate::forUser($this->user)->allows('view', $post) ? $post : null;
-    }
-
-    /** `post.first`, którego wpisu nie da się otworzyć — „Zobacz" wraca do kolejki. */
     public function pierwszyWpisNiedostepny(): bool
     {
-        return $this->type === self::TYPE_FIRST_POST && $this->pierwszyWpis() === null;
+        return $this->type === self::TYPE_FIRST_POST && app(CelPowiadomienia::class)->pierwszyWpis($this) === null;
     }
 
     /**
@@ -353,32 +346,16 @@ class Notification extends Model
      */
     public function przepisUsuniety(): bool
     {
-        return $this->type === self::TYPE_SAVED && $this->slugZapisanegoPrzepisu() === null;
+        return $this->type === self::TYPE_SAVED && app(CelPowiadomienia::class)->slugZapisanegoPrzepisu($this) === null;
     }
 
     /**
-     * Wersja przepisu z `data.fork_id`, jeśli odbiorca może ją dziś zobaczyć
-     * (issue #23). `fork_id` nie jest kluczem obcym — powiadomienie zostaje
-     * jako prawdziwe zdarzenie także po usunięciu wersji, tylko bez „Zobacz".
+     * Czy wersja z `data.fork_id` jest jeszcze dostępna dla odbiorcy (issue #23).
+     * Wersję rozwiązuje `CelPowiadomienia::wersjaDoPokazania()` (#1687, etap 6).
      */
-    public function wersjaDoPokazania(): ?Recipe
+    public function wersjaDostepna(): bool
     {
-        if ($this->type !== self::TYPE_FORKED) {
-            return null;
-        }
-
-        if ($this->wersjaPrzepisu !== false) {
-            return $this->wersjaPrzepisu;
-        }
-
-        $id = $this->data['fork_id'] ?? null;
-        $wersja = is_string($id) && Str::isUuid($id) ? Recipe::query()->find($id) : null;
-
-        if ($wersja !== null && ($this->user === null || ! Gate::forUser($this->user)->allows('view', $wersja))) {
-            $wersja = null;
-        }
-
-        return $this->wersjaPrzepisu = $wersja;
+        return app(CelPowiadomienia::class)->wersjaDoPokazania($this) !== null;
     }
 
     /** Wynik zbiorczego sprawdzenia z listy — patrz `$slugPrzepisu`. */
@@ -388,25 +365,24 @@ class Notification extends Model
     }
 
     /**
-     * Aktualny slug zapisanego przepisu albo `null`, gdy przepisu nie ma.
-     * Publiczne, bo cel „Zobacz” liczy `CelPowiadomienia` (issue #1687).
+     * Podręczny slug przepisu: `false` = nie sprawdzano, `null` = przepisu
+     * nie ma. Liczy go `CelPowiadomienia::slugZapisanegoPrzepisu()`.
      */
-    public function slugZapisanegoPrzepisu(): ?string
+    public function zapamietanySlugPrzepisu(): string|false|null
     {
-        if ($this->slugPrzepisu !== false) {
-            return $this->slugPrzepisu;
-        }
+        return $this->slugPrzepisu;
+    }
 
-        $id = $this->data['recipe_id'] ?? null;
+    /** Podręczna wersja przepisu widoczna dla odbiorcy — patrz `$wersjaPrzepisu`. */
+    public function zapamietajWersjePrzepisu(?Recipe $wersja): void
+    {
+        $this->wersjaPrzepisu = $wersja;
+    }
 
-        // Nie-UUID nie trafi w żaden przepis (a PostgreSQL odrzuciłby je
-        // błędem rzutowania). `Recipe` ma `SoftDeletes`, więc usunięty
-        // przepis nie wraca tym zapytaniem.
-        $slug = is_string($id) && Str::isUuid($id)
-            ? Recipe::query()->whereKey($id)->value('slug')
-            : null;
-
-        return $this->slugPrzepisu = is_string($slug) ? $slug : null;
+    /** `false` = nie sprawdzano, `null` = brak wersji dla odbiorcy. */
+    public function zapamietanaWersjaPrzepisu(): Recipe|false|null
+    {
+        return $this->wersjaPrzepisu;
     }
 
     /** Wynik zbiorczego sprawdzenia z listy — patrz `$wykonanieIstnieje`. */
@@ -589,9 +565,10 @@ class Notification extends Model
      * Wcześniejsza wersja ładowała WSZYSTKICH zapisujących i dla każdego
      * pytała osobno o blokadę — partia 200 osób to było ~200 zapytań na
      * jedną pozycję listy, a widok woła nagłówek i resztę zdania osobno.
-     * Imię potrzebne jest jedno, więc blokada idzie do `NOT EXISTS`,
-     * kolejność zapisu do `array_position`, a wynik do `LIMIT 1`. Wynik
-     * jest zapamiętany na tym obiekcie.
+     * Imię potrzebne jest jedno, więc zapytanie (blokada w `NOT EXISTS`,
+     * kolejność zapisu, `LIMIT 1`) leży w `WidocznoscPowiadomien::pierwszyWidocznyZapisujacy()`
+     * — obok warunku widoczności całej partii, z tych samych reguł
+     * (issue #1687, etap 5). Wynik jest zapamiętany na tym obiekcie.
      *
      * Gdy tą osobą jest `actor_id` z załadowaną już relacją (lista ładuje
      * `actor.profile.avatar` hurtem), oddajemy TAMTEN obiekt — awatar nie
@@ -610,16 +587,7 @@ class Notification extends Model
             return null;
         }
 
-        $odbiorcaId = (string) $this->user_id;
-
-        $pierwszy = User::query()
-            ->whereIn('users.id', $savers)
-            ->whereNotIn('users.status', User::STATUSY_UKRYWAJACE_TRESC)
-            ->whereNotExists(function (QueryBuilder $blokada) use ($odbiorcaId): void {
-                WidocznoscPowiadomien::blokadaZOdbiorca($blokada, 'users.id', $odbiorcaId);
-            })
-            ->orderByRaw('array_position(?::uuid[], users.id)', ['{'.implode(',', $savers).'}'])
-            ->first();
+        $pierwszy = app(WidocznoscPowiadomien::class)->pierwszyWidocznyZapisujacy($savers, (string) $this->user_id);
 
         if ($pierwszy !== null && $this->relationLoaded('actor') && $this->actor?->is($pierwszy)) {
             $pierwszy = $this->actor;

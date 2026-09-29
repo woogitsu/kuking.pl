@@ -28,7 +28,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  *
  * Kolumny tabeli pośredniej `collection_items` — są tylko wtedy, gdy wpis
  * wczytano przez `Collection::posts()`:
- * @property-read Pivot&object{note: string|null, created_at: string|null} $pivot
+ * @property-read (Pivot&object{note: string|null, created_at: string|null, added_by_id: string|null})|null $pivot
  */
 class Post extends Model
 {

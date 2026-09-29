@@ -68,6 +68,33 @@ Harmonogram::artisan('kuking:sprzataj-osierocone-zdjecia')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// Surowe uploady Livewire, których nikt nie zapisał (issue #2178). Kreator
+// wgrywa zdjęcie do `livewire-tmp/` przed zapisem; udany zapis kasuje źródło,
+// ale plik porzucony albo po nieudanym usunięciu leży w prywatnym R2 aż do
+// KOLEJNEGO uploadu (wtedy sprząta Livewire). To jest linia obrony w kodzie;
+// reguła lifecycle R2 (#2051) zostaje drugą, w panelu.
+// 03:30 — wolny slot w nocnym paśmie sprzątania (03:20 eksporty, 03:40 zdjęcia),
+// co najmniej 10 minut od sąsiadów (`HarmonogramBezWspolnychSlotowTest`).
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('kuking:sprzataj-porzucone-uploady')
+    ->dailyAt('03:30')
+    ->name('kuking:sprzataj-porzucone-uploady')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
+// 03:10 — 10 minut przed sprzątaniem eksportów (03:20); 03:30 zajmują porzucone
+// uploady Livewire (`HarmonogramBezWspolnychSlotowTest`).
+// Porzucone pliki wczytywania własnej paczki eksportu (#1985): człowiek wybrał
+// ZIP i zamknął kartę bez „Wczytaj” i „Odrzuć”. Plik (z jego przepisami i wpisami)
+// leży w prywatnym magazynie do `import_paczki.przechowanie_godzin`; bez tego
+// zadania znikałby dopiero przy czyimkolwiek wejściu w ekran wczytywania.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy zadaniu wyżej.
+Harmonogram::artisan('kuking:sprzataj-paczki-importu')
+    ->name('kuking:sprzataj-paczki-importu')
+    ->dailyAt('03:10')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // Zbiorcze powiadomienie „Smakowicie wygląda" (issue #1813, D-280) — raz
 // dziennie, po południu, gdy ludzie zaglądają do serwisu; „Ugotowałem"
 // powiadamia od razu i ma zostać najcenniejszą wiadomością dnia.
@@ -504,6 +531,20 @@ Harmonogram::artisan('kuking:policz-kolejki')
     ->onOneServer()
     ->withoutOverlapping(4);
 
+// Licznik „Czeka na odpowiedź (N)” na /pytania (#372). Nowa odpowiedź zleca
+// przeliczenie sama (zdarzenia modeli, `AppServiceProvider`); to zadanie łapie
+// resztę — zmianę statusu konta autora, scalenie tagów, puste cache po
+// wdrożeniu. Uzasadnienie: `App\Domain\Questions\PytaniaBezOdpowiedzi`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+// Ten sam termin `*/5` co `kuking:policz-kolejki` i `kuking:puls-harmonogramu`
+// jest zamierzony (DOZWOLONE_WSPOLNE w HarmonogramBezKolizjiTerminowTest):
+// trzy lekkie liczniki o stałym rytmie wykonują się po kolei w jednym procesie.
+Harmonogram::artisan('kuking:policz-pytania')
+    ->name('kuking:policz-pytania')
+    ->everyFiveMinutes()
+    ->onOneServer()
+    ->withoutOverlapping(4);
+
 // Codzienne podsumowanie kolejki automatu (D-055). JEDEN list zamiast stu:
 // przy setkach kont list na każde oznaczenie zamieniłby skrzynkę moderatora
 // w śmietnik, a skończyłoby się tym, że przestałby je otwierać — czyli alarm
@@ -543,6 +584,13 @@ Harmonogram::artisan('kuking:podsumowanie-automatu')
 // (`App\Support\Harmonogram`, #835).
 Harmonogram::artisan('kuking:doslij-pilne-alarmy')
     ->hourlyAt(35)
+    ->onOneServer()
+    ->withoutOverlapping(50);
+
+// Terminalna odmowa listu od człowieka ma własną, ograniczoną do 72 h drogę.
+// Minuta 40 rozsuwa tę pracę od automatu (:35) i potwierdzeń (:45).
+Harmonogram::artisan('kuking:ponow-pilne-alarmy-od-ludzi')
+    ->hourlyAt(40)
     ->onOneServer()
     ->withoutOverlapping(50);
 

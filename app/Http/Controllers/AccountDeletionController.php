@@ -10,6 +10,7 @@ use App\Domain\Users\Actions\CancelAccountDeletion;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\User;
 use App\Rules\TurnstileJestPotwierdzony;
+use App\Support\Komunikat;
 use App\Support\Turnstile;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\RedirectResponse;
@@ -222,11 +223,11 @@ class AccountDeletionController extends Controller
         // o stanie, do którego konto NAPRAWDĘ wróciło.
         $przywrocony = (string) $osoba->fresh()?->status;
 
-        return redirect()->route('login')->with('status', $przywrocony === User::STATUS_ACTIVE
+        return redirect()->route('login')->with(Komunikat::sukces($przywrocony === User::STATUS_ACTIVE
             ? 'Usunięcie konta zostało cofnięte. Możesz się teraz zalogować jak wcześniej.'
             : 'Usunięcie konta zostało cofnięte. Konto wraca do stanu sprzed zgłoszenia — '
                 .'nadal obowiązuje decyzja moderacji, o której pisaliśmy. Szczegóły zobaczysz przy logowaniu.',
-        );
+        ));
     }
 
     /**

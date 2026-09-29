@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Collections\Actions\UpdateCollectionItemNote;
 use App\Models\Collection;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -17,7 +18,7 @@ class CollectionItemNoteController extends Controller
 {
     public function __invoke(Request $request, Collection $collection, string $typ, string $pozycja, UpdateCollectionItemNote $action): RedirectResponse
     {
-        $this->authorize('update', $collection);
+        $this->authorize('addItem', $collection);
 
         // Zły identyfikator to „nie ma takiej pozycji", nie błąd bazy
         // o niepoprawnym UUID.
@@ -31,8 +32,10 @@ class CollectionItemNoteController extends Controller
 
         $note = $action->handle($request->user(), $collection, $typ, $pozycja, $request->input('note'));
 
-        return redirect()->back(fallback: route('collections.show', $collection))->with('status', $note === null
+        return redirect()->back(fallback: route('collections.show', $collection))->with(Komunikat::sukces($note === null
             ? 'Notatka usunięta. Zapis został w zeszycie.'
-            : 'Notatka zapisana. Widzisz ją tylko Ty.');
+            : ($collection->members()->exists()
+                ? 'Notatka zapisana. Widzą ją osoby, które mają dostęp do tego zeszytu.'
+                : 'Notatka zapisana. Widzisz ją tylko Ty.')));
     }
 }

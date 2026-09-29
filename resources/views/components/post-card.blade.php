@@ -654,7 +654,11 @@
                 Wyjęcie też: drugie `DELETE` na wpisie, którego już nie ma
                 w zeszycie, nie robi nic i nie jest błędem.
             --}}
-            @if($zapisy->czyZapisany($post))
+            {{-- W ŚRODKU ZESZYTU, do którego oglądający może wyjmować — właściciel
+                 albo współpracownik wspólnego zeszytu (#1743) — zakres lokalny,
+                 niezależnie od tego, czy ta rzecz leży też w jego WŁASNYCH
+                 zeszytach. Reguła jednej drogi wyjęcia (D-231) zostaje. --}}
+            @if($zeszyt !== null && (auth()->id() === $zeszyt->owner_id || $zeszyt->wyjmowanieDozwolone))
                 {{--
                     JEDNA DROGA WYJĘCIA NA EKRAN, NIGDY DWIE (D-231).
 
@@ -673,7 +677,7 @@
                     — widać wyłącznie „Usuń z zeszytu" (zakres globalny), bo
                     tam nie ma „tego zeszytu", do którego można by się odnieść.
                 --}}
-                @if($zeszyt !== null && auth()->id() === $zeszyt->owner_id)
+
                     {{--
                         W ŚRODKU ZESZYTU: ZAKRES LOKALNY, BEZ ODNOŚNIKA OBOK.
 
@@ -698,7 +702,7 @@
                             Usuń z tego zeszytu
                         </button>
                     </form>
-                @else
+            @elseif($zapisy->czyZapisany($post))
                     <a class="btn btn-secondary" href="{{ route('collections.index') }}" data-rola="stan-zapisu">
                         <x-ikona nazwa="book" :rozmiar="22" />
                         Masz to w zeszycie
@@ -711,11 +715,10 @@
                             Usuń z zeszytu
                         </button>
                     </form>
-                @endif
             @else
                 <form method="POST" action="{{ route('collections.save-post', $post) }}">
                     @csrf
-                    @php $publicznyCel = app(\App\Domain\Collections\ZeszytyDoWyboru::class)->publicznyDomyslny(request()); @endphp
+                    @php $publicznyCel = app(\App\Http\Support\ZeszytyZZadania::class)->publicznyDomyslny(request()); @endphp
                     @if($publicznyCel)
                         {{-- Cel szybkiego zapisu jest publiczny — mówimy to przy przycisku (issue #1400). --}}
                         <p class="pomoc" id="cel-zapisu-wpis-{{ $post->getKey() }}">Zapiszemy w zeszycie „{{ $publicznyCel->name }}”. Ten zeszyt widzą inne zalogowane osoby.</p>

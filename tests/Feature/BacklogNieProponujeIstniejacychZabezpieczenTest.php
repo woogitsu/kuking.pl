@@ -77,7 +77,7 @@ class BacklogNieProponujeIstniejacychZabezpieczenTest extends TestCase
     {
         // 1. Sesje unieważniane przy zmianie statusu, sprawdzane przy każdym żądaniu.
         $this->assertTrue(
-            method_exists(User::class, 'invalidateSessions'),
+            (new \ReflectionClass(User::class))->hasMethod('invalidateSessions'),
             'Zniknęło `User::invalidateSessions()`. Bez tego zbanowane konto działa '
             .'do końca sesji, czyli przy `SESSION_LIFETIME=10080` przez tydzień.',
         );

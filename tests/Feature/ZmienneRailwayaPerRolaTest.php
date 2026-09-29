@@ -226,6 +226,9 @@ class ZmienneRailwayaPerRolaTest extends TestCase
         'AWS_LEGACY_BUCKET' => 'Stary, jeden bucket (dysk `r2_legacy`) — ustawiany ręcznie tylko tam, gdzie '
             .'jest jeszcze w użyciu, do końca `kuking:przenies-zdjecia` (#120).',
         'AWS_URL' => 'Wycofane (audyt W7-02, D-020); zostaje tylko jako zapasowe `AWS_LEGACY_URL`.',
+        'KUKING_IMPORT_PDF_DYSK' => 'Pusto = dysk surowych uploadów Livewire (`LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK`), a ten Railway '
+            .'przekazuje każdej roli jako `r2` — plik PDF z kolejki (#28, #2051) leży więc w prywatnym R2 wspólnym dla web i workera. '
+            .'Osobną zmienną ustawia się tylko wtedy, gdy import ma iść na inny dysk.',
         'KUKING_EXPORT_TEMP_DIR' => 'Pusto = `<tmp>/kuking-eksport.u<uid>` osobny dla użytkownika systemu '
             .'(`ExportTempDirectory`, #1455); ustawiane ręcznie tylko na workerze, gdyby tmp kontenera nie wystarczył.',
         'TURNSTILE_HOSTY_STAGINGU' => 'Pusto = token Turnstile tylko z hosta `APP_URL` (#992); ustawiane ręcznie '
@@ -509,6 +512,18 @@ class ZmienneRailwayaPerRolaTest extends TestCase
     }
 
     /**
+     * Ta sama stała, ale jako dane: wpisy z panelu rosną z czasem i gałąź
+     * „rola nie czyta zmiennej” ma działać dla przyszłych wpisów, choć dziś
+     * każdy wpis ma wszystkie role.
+     *
+     * @return array<string, array{role: list<string>, wartosc: string, powod: string}>
+     */
+    private function jawneZPanelu(): array
+    {
+        return self::JAWNE_Z_PANELU;
+    }
+
+    /**
      * Regresja 25.09.2026: zmienne ustawione tylko w panelu Railwaya znikają
      * przy pierwszym `railway config apply` (plik opisuje CAŁY zestaw
      * zmiennych usługi). `KUKING_QUESTIONS_ENABLED` wyłączyłaby po cichu
@@ -520,7 +535,7 @@ class ZmienneRailwayaPerRolaTest extends TestCase
     {
         $role = $this->zmienneRol();
 
-        foreach (self::JAWNE_Z_PANELU as $zmienna => $wpis) {
+        foreach ($this->jawneZPanelu() as $zmienna => $wpis) {
             $this->assertNotSame('', trim($wpis['powod']), "{$zmienna} nie ma powodu.");
             $this->assertContains($zmienna, $this->zmienneConfig(), "{$zmienna} nie jest czytana w `config/*.php`.");
 
@@ -542,7 +557,7 @@ class ZmienneRailwayaPerRolaTest extends TestCase
 
         $this->assertSame(
             $role['web']['FILESYSTEM_DISK'] ?? null,
-            $role['web']['KUKING_MEDIA_DISK'] ?? null,
+            $role['web']['KUKING_MEDIA_DISK'],
             'KUKING_MEDIA_DISK ma powtarzać FILESYSTEM_DISK — inaczej oryginały i pliki kreatora lądują na różnych dyskach.',
         );
 

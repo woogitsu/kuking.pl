@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Notifications\OdczytPowiadomien;
 use App\Domain\Security\WyslijPotwierdzenieAdresu;
 use App\Domain\Users\OstatniAdministrator;
 use App\Domain\Users\ZamekKonta;
@@ -31,6 +32,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 use Laravel\Sanctum\NewAccessToken;
+use Laravel\Sanctum\TransientToken;
 
 /**
  * Konto użytkownika.
@@ -45,7 +47,12 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * `Laravel\Sanctum\Guard` nie uzna konta za zdolne do tokenów
      * i `auth:sanctum` odpowie 401 każdemu.
      *
-     * @use HasApiTokens<PersonalAccessToken>
+     * Token bieżącego żądania to `PersonalAccessToken` (żądanie z `Bearer`)
+     * albo `TransientToken` (sesja przeglądarki i `Sanctum::actingAs()`), więc
+     * `currentAccessToken() instanceof PersonalAccessToken` jest prawdziwym
+     * rozróżnieniem, a nie tautologią (#1731).
+     *
+     * @use HasApiTokens<PersonalAccessToken|TransientToken>
      */
     use HasApiTokens;
 
@@ -321,6 +328,17 @@ class User extends Authenticatable implements MustVerifyEmailContract
             ->orderBy('tags.name');
     }
 
+    /**
+     * Prywatna lista „Co mam w domu” (D-285). Kolejność alfabetyczna po
+     * nazwie — to jest lista zakupowa w głowie, nie strumień.
+     *
+     * @return HasMany<PantryItem, $this>
+     */
+    public function pantryItems(): HasMany
+    {
+        return $this->hasMany(PantryItem::class)->orderBy('name')->orderBy('id');
+    }
+
     public function isFollowingTag(Tag $tag): bool
     {
         return $this->followedTags()->whereKey($tag->getKey())->exists();
@@ -443,6 +461,21 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function collections(): HasMany
     {
         return $this->hasMany(Collection::class, 'owner_id');
+    }
+
+    /**
+     * Cudze zeszyty, do których tę osobę zaproszono (#1743, D-302).
+     *
+     * Wpis w `collection_members`, nie ocena dostępu — tę robi
+     * `CollectionPolicy` (stan konta właściciela, blokada). Do listy
+     * „Udostępnione Tobie" zawsze razem z `dostepneDoZapisuDla()`.
+     *
+     * @return BelongsToMany<Collection, $this>
+     */
+    public function sharedCollections(): BelongsToMany
+    {
+        return $this->belongsToMany(Collection::class, 'collection_members')
+            ->withPivot(['created_at']);
     }
 
     /** Planer tygodnia (#27, D-310) — prywatny, tylko właściciel. */
@@ -945,10 +978,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function unreadNotificationsCount(): int
     {
-        return $this->notifications()
-            ->visibleTo($this)
-            ->whereNull('read_at')
-            ->count();
+        return app(OdczytPowiadomien::class)->liczbaNieprzeczytanych($this);
     }
 
     /**
@@ -974,14 +1004,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function unreadNotificationsBadgeCount(): int
     {
-        $nieprzeczytane = $this->notifications()
-            ->visibleTo($this)
-            ->whereNull('read_at')
-            ->select('notifications.id')
-            ->limit(self::PLAKIETKA_POWIADOMIEN_DO + 1)
-            ->toBase();
-
-        return DB::query()->fromSub($nieprzeczytane, 'nieprzeczytane')->count();
+        return app(OdczytPowiadomien::class)->liczbaDoPlakietki($this);
     }
 
     /**
@@ -1845,6 +1868,48 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'two_factor_backup_codes' => null,
             'two_factor_last_used_at' => null,
         ])->save();
+    }
+
+    /**
+     * Początek włączania 2FA z ekranu włączenia (GET) — TYLKO gdy konfiguracja
+     * naprawdę się jeszcze nie zaczęła (issue #2061).
+     *
+     * Decyzja zapada na ŚWIEŻYM wierszu pod blokadą (`ZamekKonta`), nie na
+     * modelu wczytanym na początku żądania. Stary model potrafił mieć
+     * `two_factor_secret = NULL` sprzed sekundy, w której druga karta zapisała
+     * sekret A i właściciel go potwierdził — i wtedy `beginTwoFactorSetup()`
+     * wpisywało sekret B, a `two_factor_confirmed_at` i kody zapasowe, na tym
+     * modelu wciąż NULL i niezmienione, zostawały w bazie. Konto wymagało kodu,
+     * którego nie liczył żaden telefon.
+     *
+     * Wystarczy sprawdzić sekret: potwierdzone 2FA zawsze go ma
+     * (`hasTwoFactorConfirmed()`), więc „już zaczęte" obejmuje „już
+     * potwierdzone". Świadome „ustaw od nowa" idzie przez wyłączenie
+     * (POST z hasłem), nie przez tę metodę.
+     *
+     * Na koniec model wywołującego przyjmuje stan z bazy — ten sekret, który
+     * trzeba pokazać w kodzie QR, albo potwierdzone 2FA, przy którym ekranu
+     * włączenia pokazywać nie wolno.
+     *
+     * @phpstan-impure zmienia `$this` (odświeża go ze stanu bazy)
+     *
+     * @return bool czy zapisano NOWY sekret
+     */
+    public function beginTwoFactorSetupIfNotStarted(string $secret): bool
+    {
+        $zapisano = ZamekKonta::zablokuj($this, static function (?self $swiezy) use ($secret): bool {
+            if ($swiezy === null || $swiezy->two_factor_secret !== null) {
+                return false;
+            }
+
+            $swiezy->beginTwoFactorSetup($secret);
+
+            return true;
+        });
+
+        $this->refresh();
+
+        return $zapisano;
     }
 
     /**

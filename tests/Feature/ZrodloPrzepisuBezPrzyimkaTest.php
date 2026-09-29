@@ -81,8 +81,8 @@ class ZrodloPrzepisuBezPrzyimkaTest extends TestCase
         foreach (self::WROGIE_ZRODLA as $zrodlo) {
             $komponent = Livewire::actingAs($basia)
                 ->test('recipe-wizard')
-                ->set('title', 'Rosół na niedzielę')
-                ->set('source_person', $zrodlo)
+                ->set('form.title', 'Rosół na niedzielę')
+                ->set('form.source_person', $zrodlo)
                 ->set('steps.0.instruction', 'Gotować trzy godziny.')
                 ->set('step', 4);
 

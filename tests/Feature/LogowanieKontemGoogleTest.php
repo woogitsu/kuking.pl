@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Google\KlientGoogle;
+use App\Models\Recipe;
 use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Support\Google;
@@ -614,8 +615,32 @@ class LogowanieKontemGoogleTest extends TestCase
     }
 
     #[Test]
+    public function test_rejestracja_przez_google_z_zapisu_do_zeszytu_wraca_na_przepis_z_wyborem_zeszytu_bez_zapisu(): void
+    {
+        $przepis = Recipe::factory()->create();
+        $this->get(route('register', ['save_recipe' => $przepis->getKey()]))->assertOk();
+        $this->wlaczGoogle();
+        $this->wracamyZGoogle();
+
+        $this->post(route('google.finish.store'), [
+            'display_name' => 'Basia',
+            'username' => 'basia',
+            'age_confirmed' => '1',
+            'terms_accepted' => '1',
+        ])->assertRedirect(route('onboarding.interests'));
+
+        $this->post(route('onboarding.skip'))->assertRedirect(route('onboarding.done'));
+        $this->get(route('onboarding.done'))->assertRedirect(
+            route('recipes.show', ['recipe' => $przepis->slug, 'wybierz_zeszyt' => 1]).'#wybor-zeszytu-przepis-'.$przepis->getKey(),
+        );
+        $this->assertSame(0, DB::table('collection_items')->count());
+    }
+
+    #[Test]
     public function test_domkniecie_zaklada_konto_bez_hasla_i_bez_wiadomosci(): void
     {
+        $przepis = Recipe::factory()->create();
+        $this->get(route('register', ['comment_on' => 'recipe:'.$przepis->getKey()]))->assertOk();
         $this->wlaczGoogle();
         $this->wracamyZGoogle();
 
@@ -632,6 +657,9 @@ class LogowanieKontemGoogleTest extends TestCase
         $this->assertAuthenticatedAs($basia);
         $this->assertSame('109876543210987654321', $this->identyfikatorGoogle($basia));
         $this->assertNotNull($this->kiedyPolaczono($basia));
+
+        $this->post(route('onboarding.skip'))->assertRedirect(route('onboarding.done'));
+        $this->get(route('onboarding.done'))->assertRedirect($przepis->url().'#komentarze');
 
         // ADRES JEST OD RAZU POTWIERDZONY — Google to potwierdziło, więc nie
         // pytamy o to samo drugi raz (i nie zużywamy listu z dobowej puli).

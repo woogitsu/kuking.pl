@@ -30,6 +30,10 @@ use Tests\TestCase;
  * zmianie: zdjęcie `panel-formularza` z `<form>` oblewa test 1; przeniesienie
  * przycisku poza `.danger-zone` oblewa test 1; wstawienie „Wróć do treści”
  * do formularza oblewa test 1.
+ *
+ * Zdania o skutku (test 4, #581): powrót któregokolwiek do `class="meta"`
+ * (16 px) oblewa test 4 — sprawdzone przy zmianie osobno dla zdania w
+ * `.danger-zone` i dla zdania o komentarzu.
  */
 class ZdejmijZUrzeduKompozycjaPaneluTest extends TestCase
 {
@@ -111,7 +115,31 @@ class ZdejmijZUrzeduKompozycjaPaneluTest extends TestCase
 
         $this->assertSame(1, $xpath->query('.//*[@id="f-reason_code-error"]', $panel)->length, 'Błąd podstawy nie stoi przy polu w panelu.');
         $this->assertSame(1, $xpath->query('//*[contains(concat(" ", normalize-space(@class), " "), " error-summary ")]')->length, 'Brak podsumowania błędów nad formularzem.');
-        $this->assertStringContainsString('Uzasadnienie wpisane przed błędem 581.', $xpath->query('.//textarea[@name="user_message"]', $panel)->item(0)?->textContent ?? '');
+        $this->assertStringContainsString('Uzasadnienie wpisane przed błędem 581.', $xpath->query('.//textarea[@name="user_message"]', $panel)->item(0)->textContent ?? '');
+    }
+
+    public function test_zdania_o_skutku_sa_w_pismie_podstawowym_a_nie_w_drobnym_meta(): void
+    {
+        // Komentarz ma OBA zdania o skutku: własne (wraca po wygranym odwołaniu)
+        // i to przy przycisku. Miernik przeglądarkowy mierzy ich rozmiar, ten
+        // test pilnuje, że stoją w klasie, która ten rozmiar daje.
+        $komentarz = Comment::factory()->create([
+            'author_id' => $this->user('autor581d')->getKey(),
+            'post_id' => Post::factory()->create()->getKey(),
+        ]);
+
+        $xpath = $this->xpath($this->actingAs($this->moderator())
+            ->get(route('admin.z-urzedu.create', ['typ' => 'comment', 'id' => $komentarz->getKey()]))
+            ->assertOk()
+            ->getContent());
+
+        $klasa = 'contains(concat(" ", normalize-space(@class), " "), " panel-liczby ")';
+        $this->assertSame(1, $xpath->query('//main//p['.$klasa.'][contains(., "Komentarz zniknie")]')->length,
+            'Zdanie o skutku dla komentarza nie stoi w .panel-liczby.');
+        $this->assertSame(1, $xpath->query('//main//form//*[contains(concat(" ", normalize-space(@class), " "), " danger-zone ")]/p['.$klasa.'][contains(., "Treść zniknie z serwisu")]')->length,
+            'Zdanie o skutku przy przycisku nie stoi w .panel-liczby.');
+        $this->assertSame(0, $xpath->query('//main//p[contains(concat(" ", normalize-space(@class), " "), " meta ")]')->length,
+            'W ramie treści został drobny akapit .meta 16 px.');
     }
 
     public function test_zdjeta_tresc_nie_pokazuje_pustego_panelu(): void

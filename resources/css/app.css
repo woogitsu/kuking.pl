@@ -17,6 +17,8 @@
 
 /* Deklaracje @font-face muszą stać PRZED pierwszym użyciem --font-sans. */
 @import "./fonts.css";
+/* Tokeny --safe-* (viewport-fit=cover, #987) przed pierwszym użyciem. */
+@import "./bezpieczny-obszar.css";
 @import "./marka-rama.css";
 @import "./pasek-przewijany.css";
 @import "./szybki-wyglad.css";
@@ -52,6 +54,9 @@
 /* Osobny arkusz jednego nowego elementu strony wpisu ("kolejne zdjęcie",
    Garnek.pl) — nie sekcja tutaj, żeby nie ruszać reszty tego pliku. */
 @import "./wpis-nawigacja-sasiedzi.css";
+/* Wydruk pojedynczego przepisu na A4 (#765) — reguły @media print poza
+   warstwami; uzasadnienie w nagłówku pliku. */
+@import "./wydruk-przepisu.css";
 /* Szacunkowe wartości odżywcze pod składnikami przepisu (D-299). */
 @import "./wartosci-odzywcze.css";
 
@@ -463,6 +468,8 @@
     position: sticky;
     top: 0;
     z-index: 20;
+    /* viewport-fit=cover (#987): tło pod paskiem stanu, treść pod nim. */
+    padding-top: var(--safe-top);
   }
 
   /*
@@ -1196,7 +1203,10 @@
     flex-wrap: wrap;
     background-color: var(--color-surface-raised);
     border-top: 1px solid var(--color-border);
-    padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-bottom: var(--safe-bottom);
+    /* `fixed` nie widzi wcięcia <body> — boki bierze sama (#987). */
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
   }
 
   .bottom-nav-item {
@@ -1865,6 +1875,17 @@
      i pełni tę samą rolę: jedna akcja tuż pod plakietką potwierdzenia. */
   .flash-akcja {
     margin-bottom: var(--spacing-5);
+  }
+
+  /* Pasek „Zmieniliśmy regulamin" (#1811, D-306): zdanie z odnośnikiem
+     i „Zamknij" w jednym rzędzie, a na wąskim ekranie przycisk schodzi pod
+     zdanie — bez przewijania w poziomie przy 320 px i 200%. */
+  .pasek-zmiany-regulaminu {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-3) var(--spacing-4);
   }
 
   .notice {
@@ -4170,6 +4191,16 @@
     overflow-wrap: anywhere;
   }
 
+  /* „Wybór gospodarza" (#1811, AGENTS.md §8) — pozycja z wyboru człowieka,
+     nie z automatu. Pełne 18 px: to informacja o tym, SKĄD karta się tu
+     wzięła, a nie dopisek. `display: block` także na `<span>` w kafelku dania. */
+  .kuking-board-wybor {
+    display: block;
+    margin: var(--spacing-1) 0 0;
+    font-weight: 600;
+    color: var(--color-ink-muted);
+  }
+
   /* Jedno zdanie od gospodarza — dlaczego właśnie to. */
   .kuking-board-note {
     margin: var(--spacing-1) 0 0;
@@ -4983,6 +5014,84 @@
 
 .cook-ingredients .ingredient-list {
     margin: 0 0 var(--spacing-3);
+}
+
+/* Checklista przygotowania składników (issue #2069). Układ pod pole działa
+   dopiero, gdy skrypt je odkryje (`data-przygotowanie-gotowe`) — bez niego
+   wiersz wygląda dokładnie jak dotąd: zwykły tekst, bez kursora „rączki”
+   i bez miejsca na pole, którego nie widać. */
+
+/* Etykieta wiersza nie dziedziczy wyglądu etykiety pola formularza
+   (`tokens.css`: pogrubienie, 18 px, margines) — tekst składnika ma
+   wyglądać tak samo jak przed #2069, z JS i bez niego. */
+.cook-skladnik {
+    display: block;
+    margin: 0;
+    font-weight: inherit;
+    font-size: inherit;
+    color: inherit;
+}
+
+.cook-ingredients[data-przygotowanie-gotowe] .cook-skladnik {
+    display: flex;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: var(--spacing-2) var(--spacing-3);
+    /* Cała linia składnika jest celem dotyku, co najmniej 48 px. */
+    min-height: var(--control-height-min);
+    cursor: pointer;
+}
+
+.cook-ingredients[data-przygotowanie-gotowe] .cook-skladnik-pole {
+    width: 1.75rem;
+    height: 1.75rem;
+    flex-shrink: 0;
+    /* Pole na wysokości pierwszej linii tekstu, nie na środku długiego
+       wiersza z zamiennikiem. */
+    margin: 0.1rem 0 0;
+    accent-color: var(--color-success);
+}
+
+/* Długie słowo w składniku zawija się zamiast wypychać ekran w bok przy
+   320 px — ta sama pułapka co przy `.cook-wakelock > span`. */
+.cook-ingredients[data-przygotowanie-gotowe] .cook-skladnik-tresc {
+    flex: 1 1 10rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Stan SŁOWEM obok pola — nie samym kolorem ani przekreśleniem, które
+   sugerowałoby, że składnik jest już zużyty. */
+.cook-skladnik-stan:not([hidden]) {
+    display: inline-block;
+    flex-shrink: 0;
+    padding: 0 var(--spacing-2);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-success-tint);
+    color: var(--color-success-tint-ink);
+    font-size: var(--text-body);
+    font-weight: 700;
+}
+
+.cook-przygotowanie-wstep,
+.cook-przygotowanie-licznik {
+    margin: 0 0 var(--spacing-3);
+    font-size: var(--text-body);
+    color: var(--color-ink-muted);
+}
+
+.cook-przygotowanie-akcje {
+    margin-bottom: var(--spacing-3);
+}
+
+/* `.btn` ma `display: inline-flex`, który wygrałby z samym `[hidden]` —
+   ten sam problem co `.pokaz-haslo[hidden]`. */
+.cook-przygotowanie-wyczysc[hidden] {
+    display: none;
+}
+
+.cook-przygotowanie-skrot {
+    font-weight: 400;
 }
 
 .cook-step {

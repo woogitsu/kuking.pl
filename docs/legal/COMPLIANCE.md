@@ -445,7 +445,7 @@ Każda pozycja to **realny kanał wyjścia danych poza ten serwer**.
 | Cloudflare Turnstile | adres IP i cechy przeglądarki przy **siedmiu** formularzach | `config/kuking.php` → `turnstile.miejsca`; pilnuje `RozjazdyAudytuZgodnosciTest::test_polityka_wymienia_kazdy_formularz_za_turnstile` |
 | Cloudflare Web Analytics | adres strony, odnośnik, rodzaj przeglądarki, czas wczytania | `app/Support/AnalitykaCloudflare.php`; bezciasteczkowe — `AnalitykaBezCiasteczekTest` |
 | OpenAI | treść wpisu i pomniejszone zdjęcie, bez danych wskazujących osobę | `app/Moderacja/KlientOpenAI.php` |
-| Dostawca poczty (EmailLabs) | adres e-mail odbiorcy i treść listu | `config/mail.php`, `app/Domain/Security/DziennyBudzetListow.php` |
+| Dostawca poczty (EmailLabs) | adres e-mail odbiorcy i treść listu | `config/mail.php`, `app/Poczta/DziennyBudzetListow.php` |
 | Google | przy logowaniu kontem Google: potwierdzenie tożsamości, e-mail, imię | `app/Http/Controllers/Auth/GoogleLoginController.php` |
 | Meta | przy logowaniu Facebookiem — Meta jest tu **osobnym administratorem** | `app/Http/Controllers/Auth/FacebookLoginController.php`, `app/Http/Controllers/Auth/FacebookDeauthorizeController.php` |
 

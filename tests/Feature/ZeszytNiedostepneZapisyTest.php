@@ -185,6 +185,7 @@ final class ZeszytNiedostepneZapisyTest extends TestCase
             1 => '1 zapis nie jest dla Ciebie dostępny',
             2 => '2 zapisy nie są dla Ciebie dostępne',
             5 => '5 zapisów nie jest dla Ciebie dostępnych',
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
         $this->assertStringContainsString($expected, $text);
         $this->assertStringNotContainsString('W tym zeszycie nic jeszcze nie ma', $text);

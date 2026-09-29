@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Domain\Users\Actions;
 
 use App\Domain\Compliance\DziennikWymazan;
+use App\Domain\Compliance\DziennikWymazanNiedostepny;
 use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
 use App\Domain\Users\Exports\ExportFileNames;
+use App\Domain\Users\Import\MagazynPaczek;
+use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem;
@@ -18,8 +21,11 @@ use App\Models\Hide;
 use App\Models\MailFailure;
 use App\Models\Media;
 use App\Models\PostReaction;
+use App\Models\ProductSignal;
+use App\Models\PrzepisZImportu;
 use App\Models\User;
 use App\Models\WpisZgody;
+use App\Support\Storage\PlikTymczasowyImportu;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -124,6 +130,10 @@ final class EraseAccountData
         // bezterminowo, mimo że człowiek dostał potwierdzenie usunięcia
         // danych.
         if ($fresh !== null && $fresh->data_erased_at !== null) {
+            // Konto wymazane przed poprawką #1324 nie przejdzie już przez
+            // główną transakcję — ponowienie domyka i to powiązanie.
+            $this->odlaczSygnalyProduktowe($fresh);
+
             $zostaly = $fresh->media()->get()->all();
 
             if ($zostaly === []) {
@@ -133,11 +143,9 @@ final class EraseAccountData
             return $this->dokonczKasowanieZdjec($zostaly) > 0;
         }
 
-        /** @var list<Media> $doSkasowania */
-        $doSkasowania = [];
-        $zakresDoDziennika = null;
+        $stan = new StanTransakcjiWymazania;
 
-        $wymazano = DB::transaction(function () use ($user, $wymagajWygaslegoWniosku, $oczekiwanaGeneracja, &$doSkasowania, &$zakresDoDziennika): bool {
+        $anonimizuj = function () use ($user, $wymagajWygaslegoWniosku, $oczekiwanaGeneracja, $stan): bool {
             // Świeży odczyt pod blokadą, nie ufamy stanowi z argumentu —
             // między zapytaniem, które wybrało konta do egzekucji, a tym
             // wywołaniem ktoś mógł cofnąć usunięcie albo inny proces mógł
@@ -175,7 +183,7 @@ final class EraseAccountData
             // WSZYSTKIE zdjęcia tej osoby, nie tylko profilowe (D-018).
             // Zbieramy TERAZ, bo za chwilę odepniemy referencję z profilu
             // i awatara nie dałoby się już znaleźć tą drogą.
-            $doSkasowania = $fresh->media()->get()->all();
+            $stan->doSkasowania = $fresh->media()->get()->all();
 
             // ZAKRES WYBRANY PRZEZ CZŁOWIEKA 30 DNI TEMU (D-022).
             //
@@ -191,6 +199,12 @@ final class EraseAccountData
             $zakresWykonany = $fresh->chceUsunacTresci()
                 ? User::DELETE_SCOPE_EVERYTHING
                 : User::DELETE_SCOPE_MINIMUM;
+
+            // Wspólne zeszyty (#1743, D-302) — PRZED `usunTresci()`, bo ta
+            // kasuje zeszyty tej osoby, a my musimy jeszcze zobaczyć, które
+            // z nich były wspólne. Niezależnie od zakresu: członkostwa
+            // i zaproszenia to relacje z innymi osobami, jak obserwowanie.
+            app(KoniecWspolnychZeszytow::class)->przyWymazaniu($fresh);
 
             if ($fresh->chceUsunacTresci()) {
                 $this->usunTresci($fresh);
@@ -263,6 +277,19 @@ final class EraseAccountData
              * mają wspólnych wierszy (ten sam argument co przy `tag_follows`).
              */
             $fresh->mealPlanEntries()->delete();
+
+            /*
+             * „CO MAM W DOMU” ZNIKA RAZEM Z KONTEM (D-285).
+             *
+             * Lista produktów z kuchni to dana prywatna, której nikt poza
+             * właścicielem nie widział i która po wymazaniu nie ma żadnego
+             * celu. Jawnie, a nie kaskadą: kont się nie kasuje, tylko
+             * anonimizuje (D-022), więc `ON DELETE CASCADE` na
+             * `pantry_items.user_id` nigdy by tu nie zadziałało. Klucz to
+             * `user_id` tego jednego konta — dwie równoległe egzekucje nie
+             * mają wspólnego wiersza (ten sam argument co `tag_follows`, D-093).
+             */
+            $fresh->pantryItems()->delete();
 
             /*
              * PRYWATNE UKRYCIA (`hides`, #1810) ZNIKAJĄ RAZEM Z KONTEM
@@ -361,10 +388,31 @@ final class EraseAccountData
              * jawnie, jak przy `pending_email_changes` wyżej. Szkic i zdjęcie
              * kartki idą drogą każdego przepisu i każdego zdjęcia tej osoby.
              */
+            DB::table('proby_importu')->where('user_id', $fresh->getKey())->delete();
+            // Plik PDF czekający na worker (#28 etap 2) kasujemy razem z wierszem,
+            // który go wskazuje; gdy dysk odmówi, zostaje osierocony i sprząta go
+            // `kuking:odzyskaj-importy` po retencji (#2051).
+            $pliki = app(PlikTymczasowyImportu::class);
+            foreach (DB::table('importy_przepisow')->where('user_id', $fresh->getKey())->whereNotNull('plik_tymczasowy')->pluck('plik_tymczasowy') as $plik) {
+                $pliki->skasuj((string) $plik);
+            }
             DB::table('importy_przepisow')->where('user_id', $fresh->getKey())->delete();
 
+            /*
+             * ŚLADY WCZYTANIA WŁASNEJ PACZKI (#1985) I PACZKA CZEKAJĄCA NA
+             * ZATWIERDZENIE. Ślad to skrót i wskaźnik na treść (bez treści),
+             * ale też dana o osobie; klucz obcy ma `ON DELETE CASCADE`, a kont
+             * się nie kasuje (D-022) — więc jawnie, po `user_id` tego konta.
+             * Wybrany, niezatwierdzony ZIP leży w prywatnym magazynie i ma
+             * treść całego konta — po wymazaniu nie zostaje ani bajt.
+             */
+            DB::table('wczytane_z_paczki')->where('user_id', $fresh->getKey())->delete();
+            app(MagazynPaczek::class)->zapomnijWszystkie($fresh);
+
             $this->odlaczWiadomosciDoOperatora($fresh);
+            $this->odlaczSygnalyProduktowe($fresh);
             $this->odlaczSladyNieudanychListow($fresh);
+            $this->usunPochodzenieImportow($fresh);
 
             /*
              * ZGODA NA POCZTĘ GAŚNIE Z DOWODEM, NIE PO CICHU (D-072).
@@ -467,6 +515,8 @@ final class EraseAccountData
                 // i `tests/Feature/DokumentyPrawneNieKlamiaTest.php`).
                 'ostatnio_widziany_at' => null,
                 'pwa_prompt_state' => null,
+                // Ślad zamknięcia paska „Zmieniliśmy regulamin” (#1811, D-306).
+                'terms_notice_dismissed_version' => null,
             ])->save();
 
             // STAN KOŃCOWY KONTA — I TO JEST NAPRAWA DRUGIEJ POŁOWY D-018.
@@ -539,7 +589,32 @@ final class EraseAccountData
             // z 21.09.2026, razem z jej ceną, opisana w
             // `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §3.3 punkt 7.
             $this->rejestr->domknijJakoWykonane($fresh, $zakresWykonany);
-            $zakresDoDziennika = $zakresWykonany;
+
+            // DZIENNIK POZA BAZĄ — OSTATNI KROK PRZED COMMITEM (issue #2038,
+            // decyzja właściciela z 28.09.2026, wariant A).
+            //
+            // Odtworzenie bazy z kopii cofa wszystko, co zapisaliśmy wyżej;
+            // wpis w magazynie poza bazą przeżywa je i jest wejściem
+            // `kuking:wymaz-ponownie`. Wcześniej zapis szedł PO commicie, a jego
+            // porażka była tylko logowana — kopia odtworzona w tym oknie
+            // przywracała konto bez śladu. Teraz porażka zapisu (po kilku
+            // próbach) rzuca wyjątek i cofa CAŁĄ anonimizację: konto zostaje
+            // `pending_delete` i egzekutor ponawia je przy następnym przebiegu.
+            // Wymazanie może się przez to opóźnić o czas awarii magazynu —
+            // nie może zostać wykonane bez śladu.
+            $wpis = $this->dziennik->dopiszJesliBrak((string) $fresh->getKey(), $zakresWykonany, now(), proby: 1);
+
+            if ($wpis === DziennikWymazan::BLAD) {
+                throw new DziennikWymazanNiedostepny('Dziennik wymazań poza bazą jest niedostępny — wymazanie cofnięte, egzekutor ponowi je przy następnym przebiegu.');
+            }
+
+            // JEDNA próba, bez `Sleep`: jesteśmy w transakcji z blokadą wiersza
+            // konta, a odstępy 1 s i 3 s trzymałyby ją przez czas awarii
+            // magazynu. Ponawia pętla niżej, MIĘDZY transakcjami.
+            //
+            // `ISTNIEJE` (ponowne wymazanie po odtworzeniu kopii) zostaje bez
+            // zmian i nie jest naszym wpisem do wycofania.
+            $stan->wpisDopisany = $wpis === DziennikWymazan::DOPISANO;
 
             // WPIS `account.data_erased` W TEJ SAMEJ TRANSAKCJI (D-249,
             // klasa 1; #1894) — NIE `recordBezWywracania()` po `COMMIT`.
@@ -562,16 +637,36 @@ final class EraseAccountData
             ]);
 
             return true;
-        });
+        };
 
-        // DZIENNIK POZA BAZĄ — PO COMMICIE (audyt B5, znalezisko 3).
-        // Odtworzenie bazy z kopii cofnęłoby wszystko, co zapisaliśmy wyżej;
-        // ten wpis przeżywa odtworzenie i jest wejściem `kuking:wymaz-ponownie`.
-        // Po commicie, bo wpis o wymazaniu, które się wycofało, byłby
-        // nieprawdą. Nieudany zapis nie zatrzymuje wymazania — dopisze go
-        // nocne `kuking:dziennik-wymazan`.
-        if ($wymazano && $zakresDoDziennika !== null) {
-            $this->dziennik->zapisz((string) $user->getKey(), $zakresDoDziennika, now());
+        // Chwilowa czkawka magazynu dziennika nie ma kosztować całej nocy:
+        // cofnięta transakcja jest czysta (pliki kasujemy dopiero po commicie),
+        // więc próbujemy ją jeszcze `PROBY - 1` razy, czekając POZA transakcją.
+        for ($podejscie = 1; ; $podejscie++) {
+            $stan->doSkasowania = [];
+            $stan->wpisDopisany = false;
+
+            try {
+                $wymazano = DB::transaction($anonimizuj);
+
+                break;
+            } catch (Throwable $e) {
+                // Wpis powstał przed commitem. Gdyby sam commit padł, konto nie
+                // jest wymazane, a wpis twierdziłby inaczej — `wymaz-ponownie`
+                // wymazałoby je przed końcem karencji. `ISTNIEJE` (wpis, który
+                // przeżył odtworzenie kopii) NIE jest naszym wpisem i zostaje.
+                if ($stan->wpisDopisany) {
+                    $this->dziennik->usun((string) $user->getKey());
+                }
+
+                if ($e instanceof DziennikWymazanNiedostepny && $podejscie < DziennikWymazan::PROBY) {
+                    $this->dziennik->odczekajPoPorazce($podejscie);
+
+                    continue;
+                }
+
+                throw $e;
+            }
         }
 
         // KASOWANIE PLIKU POZA TRANSAKCJĄ, I TO NIE JEST DROBIAZG.
@@ -584,8 +679,8 @@ final class EraseAccountData
         // Kolejność ma i drugi skutek: w tym momencie referencja z profilu
         // jest już usunięta, więc sprawdzenie „czy ktoś tego jeszcze używa"
         // nie zobaczy samego siebie.
-        if ($wymazano && $doSkasowania !== []) {
-            $this->dokonczKasowanieZdjec($doSkasowania);
+        if ($wymazano && $stan->doSkasowania !== []) {
+            $this->dokonczKasowanieZdjec($stan->doSkasowania);
         }
 
         if ($wymazano) {
@@ -827,9 +922,43 @@ final class EraseAccountData
      * `handled_by` (operator, który sprawę załatwił) celowo zostaje: obietnica
      * dotyczy nadawcy wiadomości, nie osoby obsługującej panel.
      */
+    /**
+     * POCHODZENIE SZKICÓW Z IMPORTU (D-300) — kasowane przy każdym zakresie.
+     *
+     * Wiersz mówi „ta osoba zapisała sobie przepis z TEGO adresu" i trzyma
+     * tekst kroków ze strony do ostrzeżenia o podobieństwie. To jest ślad
+     * zachowania osoby, nie treść dla społeczności — przy `minimum` przepis
+     * zostaje (ma własne `source_url`), ale ślad importu znika. Jawnie,
+     * bo konta się nie kasuje, więc `ON DELETE CASCADE` się nie uruchomi.
+     */
+    private function usunPochodzenieImportow(User $user): void
+    {
+        PrzepisZImportu::query()->where('user_id', $user->getKey())->delete();
+    }
+
     private function odlaczWiadomosciDoOperatora(User $user): void
     {
         ContactMessage::query()
+            ->where('user_id', $user->getKey())
+            ->update(['user_id' => null]);
+    }
+
+    /**
+     * SYGNAŁY PRODUKTOWE ZOSTAJĄ, ALE BEZ KONTA (issue #1324).
+     *
+     * `product_signals.user_id` ma `nullOnDelete()`, a konta się nie kasuje
+     * (D-022) — więc bez tej linii zdarzenia z ostatnich 90 dni dalej
+     * wskazywały identyfikator wymazanego konta. Żaden raport nie potrzebuje
+     * osoby po zamknięciu konta: liczy się fakt zdarzenia, więc wiersz
+     * zostaje do zwykłej retencji (`PrzedawnioneSygnaly`) z `user_id = NULL`.
+     *
+     * Wyścig z sygnałem zapisywanym w tej samej chwili domyka
+     * `ZapiszSygnal` — `FOR SHARE` na wierszu konta i sprawdzenie
+     * `data_erased_at`.
+     */
+    private function odlaczSygnalyProduktowe(User $user): void
+    {
+        ProductSignal::query()
             ->where('user_id', $user->getKey())
             ->update(['user_id' => null]);
     }

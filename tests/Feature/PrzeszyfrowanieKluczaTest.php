@@ -161,7 +161,7 @@ class PrzeszyfrowanieKluczaTest extends TestCase
             }
 
             foreach ((new $klasa)->getCasts() as $kolumna => $cast) {
-                if (is_string($cast) && str_starts_with($cast, 'encrypted')) {
+                if (str_starts_with($cast, 'encrypted')) {
                     $zaszyfrowane[] = $klasa.'::'.$kolumna;
                 }
             }

@@ -86,6 +86,14 @@ Jak podział z tabeli wyżej przekłada się na to, co robi kod:
 | P1 | `harassment`, `hate`, `personal_data`, `scam` | Nad zwykłą kolejką; tu też każde zgłoszenie **prawne**, bo niesie termin z art. 16 ust. 5 | `KolejkaModeracjiStawiaPilneNaGorzeTest::test_zgloszenie_prawne_o_zwyklej_kategorii_wyprzedza_te_sama_kategorie_bez_terminu` |
 | P2 i P3 | `spam`, `copyright`, `dangerous_advice`, `impersonation`, `other` | Zwykła kolejka, bez plakietki | `KolejkaModeracjiStawiaPilneNaGorzeTest::test_zwykla_sprawa_nie_dostaje_plakietki` |
 
+**Gdy pilny list alarmowy przepadnie:** harmonogram ponawia wyłącznie
+potwierdzoną odmowę dostawcy dla nadal otwartej sprawy od człowieka młodszej
+niż 72 godziny, w granicach budżetu poczty. Jeśli wynik wysyłki jest niepewny
+(np. zerwane połączenie), komenda zgłasza błąd operacyjny i nie wysyła
+drugiego listu. Sprawdź wtedy sprawę w `/admin/zgloszenia`, ślad próby w
+`human_urgent_alarm_attempts` i panel dostawcy przed ręczną decyzją; sam
+znacznik `alarm_czlowieka_obsluzony_at` oznacza zakolejkowanie, nie doręczenie.
+
 **Czego kod nie umie odczytać z kategorii — i co dalej zostaje na Tobie:**
 
 - **„groźby zagrażające życiu" to w tabeli P0, ale w formularzu zgłoszenia nie ma takiej pozycji.** Człowiek wybierze najbliższą, czyli „Obraża lub nęka kogoś" (`harassment`), więc sprawa wejdzie jako **P1, nie P0**. Zagrożenie życia rozpoznaje się dopiero po przeczytaniu treści — patrz sekcja 6;

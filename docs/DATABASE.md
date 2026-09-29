@@ -120,6 +120,29 @@ pomocnicza: awaria jej zapisu nie cofa decyzji. Rollback tej migracji usuwa
 wyłącznie te cztery rodzaje telemetrii i przywraca wcześniejszy CHECK;
 nie zmienia `users.pwa_prompt_state`.
 
+#### `terms_notice_dismissed_version` — pasek „Zmieniliśmy regulamin” (#1811, D-306)
+
+Migracja `2026_09_26_120000_add_terms_notice_dismissed_version_to_users`
+dodaje nullable `date` bez wartości domyślnej (w PostgreSQL zmiana samego
+katalogu, bez przepisywania tabeli). Wartość to data wersji regulaminu
+(`kuking.zgody.wersja_regulaminu`), przy której osoba zamknęła pasek;
+`NULL` — żadnego jeszcze nie zamknęła. Pasek widzi zalogowane konto założone
+przed dniem wersji (strefa `kuking.strefa`), którego wartość jest pusta albo
+starsza od bieżącej wersji (`App\Domain\Zgody\ZmianaRegulaminu`). Kolumna
+poza `$fillable`; zapisuje ją tylko `ZmianaRegulaminu::zamknij()` (POST
+`/regulamin/zmiana/zamknij`). Zamknięcie paska NIE jest akceptacją
+regulaminu — to ślad, że komunikat dotarł. Eksport oddaje
+`konto.pasek_zmiany_regulaminu_zamkniety_dla_wersji`, wymazanie konta zeruje
+pole.
+
+**Rollback (D-088):** migracja odmawia usunięcia kolumny, gdy choć jedno konto
+ma wartość — po ponownym `migrate` pasek „jednorazowy” wróciłby do każdego,
+kto go zamknął, i zniknąłby ślad powiadomienia. Przy samych `NULL` wycofanie
+przechodzi. Kontrola i DDL w jednej transakcji z blokadą tabeli. Nie zerować
+kolumny w celu wymuszenia rollbacku; wycofać sam kod paska. Testy:
+`ZmianaRegulaminuTest::test_rollback_odmawia_gdy_ktos_zamknal_pasek`
+i kontrola dodatnia `test_rollback_przechodzi_gdy_nikt_nie_zamknal_paska`.
+
 #### `wants_weekly_digest` — zgoda, o którą trzeba było zapytać
 
 Migracja `2026_09_07_400000_default_weekly_digest_to_off`.
@@ -1398,6 +1421,12 @@ przedłuża wiersz. Indeksy na `post_id` i `hidden_user_id` pod kaskadę
 oraz na `user_id` pod listę widza, eksport i wymazanie konta (indeksy
 częściowe `WHERE … IS NOT NULL` tego zapytania nie obsłużą).
 
+**Retencja (polityka prywatności, wiersz „Ukrywanie wpisów i osób”, #1816).**
+Wiersz po `hidden_until` nic nie ukrywa, ale **żadne zadanie go nie czyści** —
+zostaje do „Przywróć” (tylko przy aktywnym ukryciu — lista pokazuje wyłącznie
+aktywne) albo do wymazania konta. Polityka mówi to wprost; sprzątanie wygasłych
+wierszy wymagałoby decyzji właściciela i osobnej komendy.
+
 **Kaskada działa tylko przy twardym usunięciu.** Konta się anonimizuje
 (D-022), więc ukrycia wymazywanego konta (`user_id`) kasuje jawnie
 `EraseAccountData` — przy każdym `delete_scope`. Wpisy mają soft delete:
@@ -1773,6 +1802,9 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
   ją pod blokadą wiersza przepisu i zwiększa przy każdym zapisie, także
   autozapisie. `updated_at` nie zastępuje licznika: może mieć ten sam czas
   dla dwóch zapisów wykonanych w jednej sekundzie (issues #2034 i #2032);
+- `tresc_zmieniona_at` (`timestamptz NULL`, bez DEFAULT) — kiedy ostatnio
+  zmieniła się TREŚĆ przepisu; źródło `dateModified` w JSON-LD (#2014) —
+  patrz niżej.
 - „Moja wersja": `forked_from_id`, `forked_at` — patrz niżej;
 - `title_search`, `summary_search` — patrz „Kolumny `*_search`".
 - `pokazuj_wartosci_odzywcze boolean NOT NULL DEFAULT true` — patrz
@@ -1786,6 +1818,35 @@ kolumnach różnych od `NULL` i sumie większej od zera. Jedna reguła w modelu:
 kreatora) i jej odpowiednik SQL `Recipe::scopeGotoweWCiagu()` (filtr
 „Do 30 minut"). Przepis z samym czasem przygotowania nie pokazuje czasu
 całkowitego i nie trafia do szybkich wyników. Bez zmiany schematu.
+
+**`tresc_zmieniona_at` — data zmiany treści, nie zapisu wiersza** (#2014,
+migracja `2026_09_28_210000_add_tresc_zmieniona_at_to_recipes`).
+
+```sql
+ALTER TABLE recipes ADD COLUMN tresc_zmieniona_at timestamptz NULL;
+```
+
+Ustawia ją wyłącznie `PublishRecipe` (kolumna poza `$fillable`): przy
+pierwszej publikacji równą `published_at`, potem `now()` tylko wtedy, gdy
+odcisk treści (`App\Domain\Recipes\TrescPrzepisu` — pola przepisu,
+składniki, kroki, zdjęcie główne, skan źródła, zdjęcia kroków) różni się od
+stanu sprzed zapisu, także przy autozapisie. Moderacja, zmiana widoczności
+i zapis bez zmian jej nie ruszają — `updated_at` przesuwają wszystkie trzy,
+a `recipe_versions` powstaje przy każdym „Zapisz” z publikacją i nie powstaje
+przy autozapisie, więc żadne z nich nie jest datą zmiany treści.
+`NULL` znaczy „nie wiemy” (przepisy sprzed migracji — bez backfillu, bo
+zgadnięta data byłaby nieprawdą w danych strukturalnych); wtedy strona pomija
+`dateModified`, tak samo jak przy dacie wcześniejszej niż `published_at`.
+`ADD COLUMN … NULL` bez DEFAULT zmienia tylko katalog, bez przepisywania
+tabeli (§6).
+
+**Rollback:** `ALTER TABLE recipes DROP COLUMN tresc_zmieniona_at`. `down()`
+nie odmawia (D-088): kolumna niesie wyliczony znacznik, nie decyzję
+człowieka. Po ponownym `up()` wraca `NULL`, czyli stan, w którym JSON-LD
+pomija opcjonalne pole — nic nie odwraca się w stronę nieprawdy; traci się
+tylko dokładność `dateModified` do następnej zmiany treści. Pilnuje
+`tests/Feature/CofniecieDatyZmianyTresciPrzepisuTest.php`.
+
 **`forked_from_id`, `forked_at` — „Moja wersja", przepis na podstawie
 cudzego** (issue #23, D-301, migracja `2026_09_26_100000_add_forked_from_to_recipes`).
 
@@ -2878,6 +2939,95 @@ Pomiar dwóch procesów i ograniczenia: `tests/Dwa/PierwszyZapisDoZeszytuTest.ph
 oraz `docs/research/2026-09-20-zeszyt-zapisy-778-779.md`. Schemat nie zmienia
 się; wycofanie poprawki jest wyłącznie wycofaniem kodu, bez kasowania zapisów.
 
+### collection_members + collection_invitations — wspólny zeszyt (#1743, D-302)
+
+Rodzinny zeszyt: właściciel zaprasza bliską osobę, która może w jego zeszycie
+zapisywać i wyjmować pozycje. Migracje
+`2026_09_29_100000_create_collection_sharing_tables` (dwie nowe tabele)
+i `2026_09_29_100100_add_added_by_to_collection_items` (kolumna na istniejącej
+tabeli). Numery `2026_09_29_1000xx` — przenumerowane z `2026_09_26_1200xx`,
+bo ten sam znacznik `2026_09_26_120000` miały jeszcze dwie inne migracje
+(kolumna `terms_notice_dismissed_version`, tabela `pantry_items`), a ta ma
+stać po najnowszej migracji na main. Reguły dostępu:
+`CollectionPolicy::addItem()`, `removeItem()`, `share()`, `leave()`; decyzja i granice — **D-302** w `docs/DECISIONS.md`.
+
+**Dokładnie jeden właściciel** — jak dotąd `collections.owner_id NOT NULL`
+z kluczem obcym. Współpracownik nie jest drugim właścicielem.
+
+`collection_members`:
+
+- `collection_id uuid NOT NULL` → `collections` `ON DELETE CASCADE` —
+  usunięty zeszyt nie zostawia członkostw;
+- `user_id uuid NOT NULL` → `users` `ON DELETE CASCADE`;
+- `created_at timestamptz NOT NULL DEFAULT now()` — od kiedy osoba ma dostęp;
+- **`PRIMARY KEY (collection_id, user_id)`** — unikalne członkostwo w bazie;
+  indeks `(user_id)` dla listy „Udostępnione Tobie";
+- **wyzwalacz `collection_members_guard`** (`BEFORE INSERT OR UPDATE`) —
+  odmawia (`check_violation`) wpisania właściciela jako członka i dopisania
+  kogokolwiek do domyślnego zeszytu (`is_default`). CHECK tego nie wyrazi, bo
+  warunek dotyczy wiersza `collections`.
+
+`collection_invitations`:
+
+- `id uuid` (`gen_random_uuid()`), `collection_id` → `collections` CASCADE,
+  `inviter_id` → `users` CASCADE, `invitee_id uuid NULL` → `users` CASCADE;
+- **`token_hash char(64) NULL UNIQUE`** — SHA-256 tokenu z linku-zaproszenia.
+  Sam token nie trafia do bazy; pokazujemy go raz, po utworzeniu. To jest
+  poświadczenie (AGENTS.md §7): poza `$fillable`, ukryte w `$hidden`, nie
+  wychodzi w eksporcie;
+- `via_link boolean NOT NULL DEFAULT false` — czy to był link; po przyjęciu
+  token znika, a `invitee_id` jest już ustawiony, więc bez tej kolumny nie
+  dałoby się tego odróżnić;
+- **`status varchar(20) NOT NULL DEFAULT 'pending'`** (CHECK
+  `collection_invitations_status_check`: `pending` \| `accepted` \|
+  `declined` \| `revoked`) — pole sterujące, poza `$fillable`;
+- `expires_at timestamptz NOT NULL` — 14 dni po nazwie konta, 7 dni linkiem
+  (`config/kuking.php`, `collections.*_days`). „Wygasłe" nie jest stanem
+  w bazie, tylko `expires_at <= now()`;
+- `responded_at timestamptz NULL`, `created_at`, `updated_at`.
+
+CHECK-i i indeksy:
+
+- `collection_invitations_target_check` — oczekujące ma adresata:
+  `num_nonnulls(invitee_id, token_hash) >= 1`;
+- `collection_invitations_token_only_pending` — **link jest jednorazowy**:
+  po odpowiedzi (`accepted`, `declined`, `revoked`) token musi zniknąć;
+- `collection_invitations_link_check` — token tylko przy `via_link`;
+- `collection_invitations_accepted_has_invitee` — przyjęte zawsze wie, kto
+  przyjął;
+- `collection_invitations_responded_check` — `responded_at` jest wtedy
+  i tylko wtedy, gdy zaproszenie nie czeka;
+- `collection_invitations_one_pending_idx` — unikalny częściowy
+  `(collection_id, invitee_id) WHERE status = 'pending' AND invitee_id IS NOT NULL`:
+  jedno oczekujące zaproszenie tej samej osoby, także przy wyścigu;
+- `collection_invitations_invitee_idx`, indeksy `collection_id`, `inviter_id`.
+
+`collection_items.added_by_id uuid NULL` → `users` `ON DELETE SET NULL`
+(`collection_items_added_by_fk`, dodany `NOT VALID` + `VALIDATE`), indeks
+częściowy `collection_items_added_by_idx` (`CONCURRENTLY`). **Kto dodał
+pozycję** — widać to we wspólnym zeszycie. Wiersze sprzed migracji dostały
+`owner_id` zeszytu (do dziś tylko on mógł dopisywać). `NULL` znaczy: dodała to
+osoba, której konto zostało usunięte (`ZerwijWspoldzielenie::przyWymazaniu()`).
+
+**Blokada** w którąkolwiek stronę kasuje członkostwa między tymi osobami
+i odwołuje oczekujące zaproszenia (`BlockUser` → `ZerwijWspoldzielenie::miedzy()`,
+pod zamkiem pary kont). **Usunięcie konta** — patrz D-302.
+
+**Rollback.**
+
+- `2026_09_29_100100_add_added_by_to_collection_items` — `down()` **odmawia**,
+  gdy choć jedna pozycja ma `added_by_id` różne od właściciela zeszytu (albo
+  `NULL`): ponowna migracja przypisałaby ją po cichu właścicielowi (D-088).
+  Na bazie, gdzie wszystko dodał właściciel, zdejmuje indeks, klucz i kolumnę
+  bez pytania.
+- `2026_09_29_100000_create_collection_sharing_tables` — `down()` **odmawia**,
+  gdy istnieje choć jedno członkostwo albo oczekujące zaproszenie, i podaje
+  liczby oraz polecenia kopii. Wymuszenie po zrobieniu kopii:
+  `KUKING_ROLLBACK_KASUJE_WSPOLDZIELENIE=1`. Zeszyty i ich zawartość zostają
+  u właścicieli — znika tylko to, kto miał dostęp. Pilnuje
+  `tests/Feature/CofniecieMigracjiWspolnegoZeszytuTest.php` (odmowa i kontrola
+  dodatnia dla obu migracji).
+
 ### first_post_events
 
 Trwała pamięć jednorazowego pierwszego wkładu autora (#1009), niezależna od
@@ -3054,6 +3204,36 @@ połączeniu PostgreSQL w jednej transakcji. `down()` odmawia skasowania
 niepustego śladu; świadome cofnięcie wymaga
 `KUKING_ROLLBACK_KASUJ_SLAD_ALARMOW_CZLOWIEKA=true`, gdyż powrót starego
 formularza mógłby wtedy ponownie zlecić list.
+
+### human_urgent_alarm_attempts
+
+Jedna próba alarmu od człowieka to jeden wiersz z UUID `id` przekazanym do
+`PilneZgloszenieOdCzlowieka`. `report_id` wskazuje sprawę i znika wraz z nią
+po okresie retencji zgłoszenia. Wiersz nie zawiera adresu, treści zgłoszenia
+ani komunikatu wyjątku. `state` ma zamknięty CHECK: `queued` (zadanie zapisano
+we wspólnej transakcji z budżetem), `started` (worker podjął), `accepted`
+(dostawca przyjął, **nie** potwierdzenie doręczenia), `rejected` (dostawca
+potwierdził odmowę możliwą do ponowienia), `uncertain` (np. timeout po
+wysyłce), `blocked` (odmowa trwała lub nierozpoznana), `retried` (nowa próba
+zajęła budżet i została zakolejkowana). `failure_kind` jest wyłącznie kodem
+`PowodOdmowy`, bez wiadomości dostawcy. Znaczniki czasu odpowiadają kolejnym
+stanom i pozwalają odróżnić zlecenie od pracy workera.
+
+Komenda `kuking:ponow-pilne-alarmy-od-ludzi` bierze tylko potwierdzone
+odmowy nadal otwartych pilnych spraw od ludzi młodszych niż 72 h. Blokada
+wiersza `reports` i celu oraz transakcja obejmują zmianę `retried`, nową
+próbę, rezerwację budżetu i wpis w `jobs`. Timeout i każdy niejednoznaczny
+wynik pozostają do ręcznej interwencji; komenda zgłasza je kodem błędu,
+bez ujawniania treści. Próba ma jedną wysyłkę workera; ponowne uruchomienie
+tego samego zadania nie wysyła listu, także po stanie `started`. Stany
+`queued` i `started` starsze niż dwie godziny dają sygnał operacyjny,
+ponieważ worker mógł umrzeć bez zapisu wyniku.
+
+Rollback migracji tworzącej tabelę działa tylko przy tabeli pustej. Przy
+niepustej odmawia usunięcia śladów: utrata stanu po ponownym wdrożeniu
+mogłaby wysłać duplikat alarmu. Wycofanie produkcyjne wymaga najpierw
+zatrzymania nowej komendy i workerów, wyjaśnienia wszystkich prób oraz
+osobno zatwierdzonego planu danych; nie uruchamiać `down()` na skróty.
 
 Zgłoszenia — **dwie różne drogi w jednej tabeli**, rozróżniane kolumną
 `source` (migracja `2026_09_06_200000_add_legal_notice_fields_to_reports`,
@@ -3650,7 +3830,10 @@ Wysokiego znaczenia zmiany.
 - **`ip_hash varchar(128) NULL`** — adres IP **wyłącznie jako skrót**, nigdy
   jawnie. Do wykrywania nadużyć skrót wystarcza, a danych osobowych nie
   trzymamy dłużej, niż to konieczne. `NULL` znaczy „zdarzenie nie przyszło
-  z żądania HTTP" (komenda, harmonogram);
+  z żądania HTTP" (komenda, harmonogram) **albo** „wpis dowodowy
+  (`NIGDY_NIE_KASUJ`) starszy niż `audit_log.retention_months`" — ten sam
+  `kuking:sprzataj-audyt`, który kasuje zwykłe wpisy, zeruje w dowodowych
+  sam skrót (audyt B5 pkt 10; wpis zostaje). Bez zmiany schematu;
 - `metadata jsonb NOT NULL DEFAULT '{}'` — reszta kontekstu;
 - `created_at`.
 
@@ -3675,7 +3858,9 @@ częścią decyzji (`moderation.decided`, `moderation.automat_dismissed`,
 `record()` **wewnątrz**
 transakcji zmiany: awaria dziennika cofa decyzję, a ponowienie daje jeden
 komplet. Wpis pomocniczy, powstający PO zatwierdzeniu czynności samego
-człowieka (`account.registered`, `content.reported`), idzie przez
+człowieka (`account.registered`, `content.reported`) albo za zapisem sprawy
+automatu (`content.flagged_by_automat` — nowa sprawa i dołożone sygnały),
+idzie przez
 `AuditLogEntry::recordBezWywracania()`: awaria zapisu trafia do `report()`
 z nazwą brakującego wpisu, a człowiek dostaje odpowiedź udanej zmiany — nie
 błąd przy koncie czy sprawie, które już istnieją.
@@ -3930,7 +4115,7 @@ odklikał i czy po wycofaniu wysyłka nie szła dalej.
 | `cel` | Cel zgody: `tygodniowy_digest` \| `zyczenia_urodzinowe` (od migracji `2026_09_25_200200_add_birthday_email_consent_to_users`, #1755) \| `odczyt_ai` (od migracji `2026_09_26_100200_dziennik_zgod_cel_odczyt_ai`, D-296 — zgoda na odczyt zdjęć kartek przez OpenAI). CHECK `dziennik_zgod_cel_check` — zbiór zamknięty, każda kolejna zgoda wymaga migracji i recenzji. |
 | `czynnosc` | `udzielona` \| `wycofana`. CHECK `dziennik_zgod_czynnosc_check`. Dwie wartości, bo to są dwie rzeczy, które RODO każe umieć wykazać (art. 7 ust. 1 i ust. 3). |
 | `zrodlo` | `ustawienia` \| `link_wypisania` \| `link_powrotny` \| `usuniecie_konta` \| `ekran_importu` (zgoda „odczyt AI” dana na ekranie „Przepisz z kartki”, D-296). CHECK `dziennik_zgod_zrodlo_check`. Część dowodu: „gdzie człowiek wtedy był". |
-| `wersja_polityki` | Wersja polityki prywatności z chwili zdarzenia, z `config('kuking.zgody.wersja_polityki')`. Bez niej dowód mówi „zgodził się", ale nie mówi NA CO. |
+| `wersja_polityki` | Wersja polityki prywatności OBOWIĄZUJĄCA w chwili zdarzenia: `WersjaDokumentu::polityka()->obowiazujaca()` (D-327). Zwykle `config('kuking.zgody.wersja_polityki')`; w okresie przejściowym zmiany istotnej (14 dni od publikacji) — wersja poprzednia. Bez niej dowód mówi „zgodził się", ale nie mówi NA CO. |
 | `wystapilo_at` | `timestamptz`, `useCurrent()`. Moment ZDARZENIA, nie zapisu wiersza — dlatego tabela nie ma `created_at`/`updated_at`. |
 
 ```sql
@@ -4053,8 +4238,9 @@ ochrony skanu kartki (eksport, kasowanie z kontem, `DostepDoZdjecia`,
 | `recipe_id` | `uuid NULL`, FK `recipes` `ON DELETE SET NULL` — szkic, do którego trafia odczyt. |
 | `zrodlo` | `zdjecie` \| `url` \| `pdf`. CHECK `importy_przepisow_zrodlo_check`. |
 | `status` | `oczekuje` \| `w_toku` \| `gotowy` \| `nieudany` \| `wstrzymany_limitem`. CHECK. **Poza `$fillable`** (AGENTS.md §7). |
-| `kod_bledu` | Zamknięta lista (CHECK `importy_przepisow_kod_bledu_check`): `limit_osoby`, `budzet_dzienny`, `budzet_miesieczny`, `brak_zgody`, `wylaczony`, `model_niedostepny`, `nieczytelne`, `odpowiedz_bledna`, `zdjecie_niedostepne`, `szkic_zmieniony`, `blad_wewnetrzny`. CHECK `importy_przepisow_kod_przy_bledzie_check`: kod jest **dokładnie** przy `nieudany`/`wstrzymany_limitem`. |
-| `source_url` | `text NULL`, tylko przy `zrodlo = 'url'` (CHECK). Etap importu z adresu. |
+| `kod_bledu` | Zamknięta lista (CHECK `importy_przepisow_kod_bledu_check`): `limit_osoby`, `budzet_dzienny`, `budzet_miesieczny`, `brak_zgody`, `wylaczony`, `model_niedostepny`, `nieczytelne`, `odpowiedz_bledna`, `zdjecie_niedostepne`, `szkic_zmieniony`, `blad_wewnetrzny` oraz — od migracji `2026_09_29_120000_extend_importy_przepisow_kod_bledu_o_adres` (#28) — siedem powodów odmowy odczytu strony przy `zrodlo = 'url'`: `adres_nieprawidlowy`, `adres_niepubliczny`, `strona_niedostepna`, `za_duzo_przekierowan`, `za_duza_strona`, `za_dlugo`, `nie_strona` (te same napisy co `ImportOdrzucony::*`; zdanie dla człowieka wylicza z nich `KomunikatImportu`) oraz — od migracji `2026_09_29_150000…` (#28 etap 2) — siedem powodów odmowy odczytu pliku przy `zrodlo = 'pdf'`: `pdf_za_duzy`, `pdf_za_duzo_stron`, `pdf_uszkodzony`, `pdf_zaszyfrowany`, `pdf_bez_tekstu`, `pdf_brak_przepisu`, `narzedzie_pdf_niedostepne`. CHECK `importy_przepisow_kod_przy_bledzie_check`: kod jest **dokładnie** przy `nieudany`/`wstrzymany_limitem`. |
+| `source_url` | `text NULL`, tylko przy `zrodlo = 'url'` (CHECK). Adres wpisany w formularzu importu z adresu — **wejście zadania `ImportujPrzepisZAdresu`** (worker odtwarza je stąd po restarcie; w zadaniu w kolejce adresu nie ma). Zerowany w każdym stanie końcowym (sukces, odmowa, `failed()`, `kuking:odzyskaj-importy`), więc nie zostaje dłużej, niż trwa zlecenie. Adres po przekierowaniach i bez śledzenia zostaje w `przepisy_z_importu.source_url` i `recipes.source_url`. |
+| `plik_tymczasowy` | `text NULL`, tylko przy `zrodlo = 'pdf'` (CHECK `importy_przepisow_plik_check`; migracja `2026_09_29_150000_add_plik_tymczasowy_and_kody_pdf_to_importy_przepisow`, #28 etap 2). Ścieżka wysłanego PDF-a na prywatnym dysku importu (`kuking.import.pdf.dysk`, katalog `kuking.import.pdf.katalog` = `import-pdf-tmp/`) — **wejście zadania `ImportujPrzepisZPdf`** (worker czyta plik stąd, nie z `UploadedFile`). Plik jest kasowany w każdym stanie końcowym (sukces, odmowa, `failed()`, wyłączone źródło), przy usunięciu konta i po retencji; dopiero po skasowaniu ścieżka jest zerowana (dysk odmówił = ścieżka zostaje, ponawia `kuking:odzyskaj-importy`). Indeks częściowy `importy_przepisow_plik_idx (updated_at) WHERE plik_tymczasowy IS NOT NULL`. |
 | `proby` | Liczba prób wywołania modelu (ponowienia przy 429/5xx/timeout). Zwiększana w tej samej transakcji co rezerwacja budżetu — numer próby jest częścią klucza `ai_rezerwacje (import_id, proba)`. |
 | `koszt_mikrousd`, `tokeny_wejscia`, `tokeny_wyjscia` | Suma rozliczeń wszystkich prób (z `usage`, a bez niego cała rezerwacja). Dopisywana w tej samej transakcji co rozliczenie budżetu (`RozliczenieOdczytu`). Kwota ≥ 0 (CHECK `importy_przepisow_kwoty_check`). Rezerwacje **nie** stoją w tym wierszu — są w `ai_rezerwacje`. |
 | `odpowiedz_modelu` | `jsonb NULL` — odpowiedź bez rozumowania, do diagnozy błędów odczytu. Może zawierać tekst z kartki → **30 dni**, potem `NULL`. Zapisana = etap „odczytano” zamknięty: ponowienie zadania dokańcza z niej, **bez drugiego płatnego żądania** (#1980). |
@@ -4074,6 +4260,32 @@ razem ze zleceniem. Zlecenie `oczekuje`/`w_toku` bez zmiany od 120 minut (zadani
 zgubione inną drogą) `kuking:odzyskaj-importy` kończy jako `nieudany` /
 `blad_wewnetrzny` — ekran pokazuje „Spróbuj jeszcze raz”.
 
+**Import z adresu w kolejce (#28).** Zlecenie z `zrodlo = 'url'` powstaje od razu
+po wysłaniu formularza (`ZlecImportZAdresu`: blokada osoby, miejsce w
+`proby_importu`, wiersz zlecenia z `source_url`, zadanie `ImportujPrzepisZAdresu`
+— jedna transakcja), a `recipe_id` jest `NULL`, dopóki zadanie nie zapisze
+szkicu; szkic i `gotowy` idą razem w jednej transakcji. Robots.txt i „brak
+przepisu na stronie” kończą zlecenie jako `gotowy` ze szkicem z samym źródłem
+(`przepisy_z_importu.droga = 'bez_tresci'`), każda inna odmowa — `nieudany`
+z jednym z siedmiu kodów wyżej. Rezerwacja budżetu przy stronie bez danych
+`Recipe` ma w `ai_rezerwacje.import_id` identyfikator wiersza `proby_importu`
+(nie zlecenia), dlatego `failed()` zadania domyka księgę po nim.
+
+**Import z PDF w kolejce (#28, etap 2).** Zlecenie z `zrodlo = 'pdf'` powstaje tak samo
+(`ZlecImportZPdf`), z tą różnicą, że wejściem jest PLIK: kontrole tanie (rozmiar,
+sygnatura `%PDF-`) idą w żądaniu WWW, plik trafia na prywatny dysk importu PRZED
+transakcją (zapis do zdalnego bucketu nie trzyma blokady osoby), a jego ścieżka do
+`plik_tymczasowy`. `pdfinfo`/`pdftotext`/`pdftoppm` i ewentualny odczyt skanu przez
+model (tylko za zgodą z tego formularza; PDF z warstwą tekstu nie opuszcza serwisu)
+robi zadanie `ImportujPrzepisZPdf` na kopii roboczej pobranej z dysku. **Retencja pliku
+(#2051):** plik znika po sukcesie, po odmowie, w `failed()`, przy usunięciu konta
+(`EraseAccountData`), a `kuking:odzyskaj-importy` (co kwadrans) kasuje (a) pliki zleceń
+w stanie końcowym, które jeszcze go mają, (b) pliki zleceń starszych niż retencja
+(`max(kuking.import.pdf.retencja_godzin, zlecenie_minut + 60 min)`) i (c) pliki
+z katalogu importu, których nie wskazuje żaden wiersz, a które są starsze niż retencja
+(zapis przyjęty przed powstaniem wiersza). Sprzątanie NIE dotyka `livewire-tmp/`,
+`incoming/` ani publicznych wariantów — kasuje wyłącznie w katalogu importu.
+
 **Retencja** (`kuking:sprzataj-importy`, codziennie 06:00): `odpowiedz_modelu`
 → `NULL` po 30 dniach, wiersz znika po 90. **Wyjątek:** wiersz, którego szkic
 jest nadal szkicem, zostaje (bez surowej odpowiedzi), bo jest bramką publikacji
@@ -4083,6 +4295,21 @@ albo usunięciu szkicu.
 **Eksport RODO:** sekcja `odczyty_przepisow` (źródło, stan, powód
 niepowodzenia, szkic, daty) — bez surowej odpowiedzi; odczytany tekst jest
 w sekcji `przepisy`, zdjęcie w `zdjecia`.
+
+**Rollback migracji kodów adresu (#28):** `down()` nie odmawia, ale nie jest bezstratny —
+zamienia siedem kodów odmowy strony na `blad_wewnetrzny` (status `nieudany` zostaje) i przywraca
+wąską listę CHECK; ginie tylko dokładny powód nieudanej próby, nie treść ani limity
+(`tests/Feature/CofniecieMigracjiKodowAdresuImportuTest.php`). Przed cofnięciem kodu wyłącz import
+z adresu (`KUKING_IMPORT_URL=false`), a zadania czekające w kolejce dokończ albo poczekaj na
+`kuking:odzyskaj-importy`.
+
+**Rollback migracji pliku tymczasowego (#28 etap 2):** `down()` nie odmawia, ale nie jest bezstratny —
+zamienia siedem kodów PDF na `blad_wewnetrzny` (status `nieudany` zostaje), usuwa kolumnę
+`plik_tymczasowy` (z indeksem i CHECK) i przywraca listę kodów bez PDF; kody adresu zostają.
+Pliki, które kolumna wskazywała, ZOSTAJĄ na dysku bez wiersza i po cofnięciu kodu nikt ich nie
+posprząta — przed cofnięciem wyłącz import z PDF (`KUKING_IMPORT_PDF=false`), poczekaj na
+dokończenie zadań `ImportujPrzepisZPdf` (albo na `kuking:odzyskaj-importy`) i w razie potrzeby
+skasuj katalog `import-pdf-tmp/` na dysku importu (`tests/Feature/CofniecieMigracjiPlikuTymczasowegoImportuTest.php`).
 
 **Rollback:** `php artisan migrate:rollback` kasuje tabelę bez odmowy. Dane są
 pochodne (ślad zleceń bez treści i bez zdjęć); po ponownym `migrate` limity
@@ -4106,9 +4333,20 @@ kalendarzowy w strefie `Europe/Warsaw`.
 
 CHECK `ai_budzet_dzienny_kwoty_check`: wszystkie liczby ≥ 0.
 
-**Rezerwacja pod `SELECT … FOR UPDATE` na wierszu dnia** szereguje równoległe
-odczyty — drugi widzi rezerwację pierwszego (`tests/Dwa/BudzetAiNaDwochPolaczeniachTest`).
-Miesiąc = suma wierszy od 1. dnia miesiąca. W cache'u tego nie trzymamy:
+**Rezerwacja bierze dwie blokady, zawsze w tej kolejności (#2013):** najpierw
+blokadę **miesiąca** — `pg_advisory_xact_lock(20130, hashtext('YYYY-MM'))`,
+zwalnianą z końcem transakcji — potem `SELECT … FOR UPDATE` na wierszu **dnia**.
+Sam wiersz dnia szeregował tylko rezerwacje z tej samej daty, a limit miesięczny
+jest wspólny: dwa odczyty z różnych dni tego samego miesiąca (tuż przed i tuż
+po północy) blokowały różne wiersze, czytały tę samą sumę miesiąca i oba ją
+przekraczały. Blokada miesiąca szereguje je wszystkie — drugi widzi rezerwację
+pierwszego (`tests/Dwa/BudzetAiNaDwochPolaczeniachTest`). Rozliczenie
+i zwolnienie rezerwacji blokady miesiąca **nie biorą** (suma miesiąca może
+się przy nich tylko zmniejszyć albo zostać bez zmian), więc nie ma odwrotnej
+kolejności blokad ani zakleszczenia.
+Miesiąc = suma wierszy **całego miesiąca kalendarzowego** (od 1. dnia do
+ostatniego, także dni po dniu rezerwacji): rezerwacja z późniejszej daty zużywa
+ten sam limit. W cache'u tego nie trzymamy:
 to są pieniądze, a licznik w cache'u znika przy restarcie (AGENTS.md §3 — bez Redisa).
 Retencji brak: wiersz na dzień to kilkadziesiąt bajtów, a historia wydatków
 jest potrzebna do rozliczeń.
@@ -4745,10 +4983,10 @@ potrzebuje).
 | Kolumna | Uwagi |
 |---|---|
 | `id` | `bigserial`, nie UUID — wiersz nigdy nie jest adresowany z zewnątrz (ten sam wybór co `audit_log`). |
-| `user_id` | Nullable, `nullOnDelete()`. Anonimizacja konta (`EraseAccountData`, D-018) NIE kasuje wiersza — sygnał ma wartość niezależnie od tego, kto go wywołał — ale referencja do usuniętego konta znika razem z nim. |
+| `user_id` | Nullable, `nullOnDelete()`. Anonimizacja konta (`EraseAccountData`, D-018) NIE kasuje wiersza — sygnał ma wartość niezależnie od tego, kto go wywołał — ale **jawnie ustawia `user_id = NULL`** w tej samej transakcji (issue #1324). Kaskada klucza obcego by tego nie zrobiła, bo wiersza `users` się nie kasuje (D-022). Ponowienie wymazania już wymazanego konta odpina też sygnały, które zostały sprzed poprawki. Sygnał zapisywany w chwili wymazania: `ZapiszSygnal` bierze `FOR SHARE` na wierszu konta i przy ustawionym `data_erased_at` zapisuje zdarzenie bez `user_id`. Liczniki zbiorcze się nie zmieniają; wiersz znika po zwykłej retencji 90 dni. Bez migracji — rollback to cofnięcie kodu (odpięcia nie da się odwrócić i nie powinno się dać). |
 | `signal_name` | `photo_upload_failed` \| `search_performed` \| `weekly_digest_queued` \| `weekly_digest_unsubscribed` \| `pwa_prompt_shown` \| `pwa_install_requested` \| `pwa_prompt_dismissed` \| `pwa_installed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
 | `properties` | `jsonb`. Dla `photo_upload_failed`: `reason` (patrz niżej) i gdzie to ma sens liczby (`bytes`, `max_bytes`, `megapixels`) — NIGDY nazwa pliku. Dla `search_performed`: **wyłącznie** `query_length` (int) i `has_results` (bool) — **nigdy** `query_text`. Drugi CHECK w bazie (`product_signals_no_query_text_check`, przez `jsonb_exists()`) odrzuca każdy wiersz, w którym klucz `query_text` w ogóle by się pojawił, niezależnie od tego, co akurat pisze kod aplikacji. Dla `weekly_digest_queued`: **wyłącznie liczby** — `wykonania`, `nowi_obserwujacy`, `wpisy` (ile pozycji miała każda sekcja listu), żeby dało się zobaczyć, czy listy nie robią się cienkie. Bez adresu, bez nazw, bez tytułów. Dla `weekly_digest_unsubscribed`: `properties` jest PUSTE — sam fakt i `user_id` wystarczą do progu wypisów. |
-| `occurred_at` | `timestamptz`, `useCurrent()`. **SPROSTOWANIE (D-078):** wcześniej stało tu, że dla `weekly_digest_sent` kolumna jest czytana JAKO LICZNIK dobowego limitu poczty. Nieprawda — sprawdzone w kodzie: dobowy sufit liczy `App\Domain\Security\DziennyBudzetListow`, a ten trzyma licznik w **cache**, nie w tej tabeli, i nie sięga do `product_signals` ani razu. Ta kolumna służy dziś wyłącznie retencji (`kuking:sprzataj-sygnaly`) i porządkowaniu w czasie. |
+| `occurred_at` | `timestamptz`, `useCurrent()`. **SPROSTOWANIE (D-078):** wcześniej stało tu, że dla `weekly_digest_sent` kolumna jest czytana JAKO LICZNIK dobowego limitu poczty. Nieprawda — sprawdzone w kodzie: dobowy sufit liczy `App\Poczta\DziennyBudzetListow`, a ten trzyma licznik w **cache**, nie w tej tabeli, i nie sięga do `product_signals` ani razu. Ta kolumna służy dziś wyłącznie retencji (`kuking:sprzataj-sygnaly`) i porządkowaniu w czasie. |
 
 #### `reason` dla `photo_upload_failed` — pięć kodów z issue, ale NIE pięć `throw` w kodzie
 
@@ -4789,7 +5027,7 @@ stronie storage (w odróżnieniu od `OsieroconeZdjecia`).
 
 **Retencja prostych tabel partiami (#1657)** — `product_signals`, `audit_log`,
 zwykłe `notifications`, `sessions` i `potwierdzenia_zadan_rodo` kasuje
-`App\Domain\Compliance\UsuwanieWPartiach`: partia identyfikatorów w stałym
+`App\Support\UsuwanieWPartiach`: partia identyfikatorów w stałym
 porządku po kluczu głównym, potem `DELETE` z tym samym predykatem wieku
 (i wyjątków: `NIGDY_NIE_KASUJ`, typy odwoławcze, wstrzymanie RODO, próg
 `SESSION_LIFETIME`) we własnej krótkiej transakcji. Najwyżej
@@ -5634,6 +5872,164 @@ pytania. Odmowa i kontrola dodatnia:
 niepotrzebne. **Paczka RODO** wydaje je w sekcji `planer`
 (`InwentarzDanychKonta`).
 
+### proby_importu
+
+Wspólna księga limitu OCR, adresu i PDF (D-297/D-300). Migracja
+`2026_09_28_080000_create_proby_importu_table`. Rezerwacja miejsca następuje
+w transakcji pod blokadą doradczą osoby, przed pobraniem strony, odczytem
+PDF albo wysłaniem OCR do modelu. `user_id` i `klucz_wyslania` tworzą unikalny
+klucz powtórzenia; kolejny POST z tym kluczem nie pobiera źródła ponownie.
+`zrodlo` przyjmuje `zdjecie`, `url` lub `pdf`; `status` — `w_toku`, `gotowy`
+lub `nieudany`. Opcjonalne `import_id` łączy próbę z dotychczasowym zleceniem
+OCR, a `recipe_id` z prywatnym szkicem. `zgoda_ai_at` zapisuje dowód zgody
+udzielonej dla jednego importu strony bez JSON-LD albo skanowanego PDF;
+wcześniejsza zgoda na kartkę nie upoważnia do wysłania tych źródeł. Stare OCR bez wpisu w księdze nadal
+liczą się do limitu, lecz powiązane OCR liczy się tylko raz. Wiersze starsze
+niż 90 dni (lub dłuższa skonfigurowana retencja zleceń) usuwa
+`kuking:sprzataj-importy`; kasowanie konta usuwa je kaskadą. Rollback
+odmawia usunięcia księgi, gdy są w niej próby z bieżącego miesiąca.
+
+### przepisy_z_importu
+
+Pochodzenie szkicu przepisu z importu — adres strony, plik PDF albo zdjęcie
+(V2, **D-300**). Jeden wiersz na przepis, klucz główny `recipe_id`.
+Migracja: `2026_09_26_100000_create_przepisy_z_importu_table`.
+
+To **nie** jest dziennik zleceń importu (status, koszt, odpowiedź modelu —
+ten należy do fundamentu importu i ma retencję 90 dni). Ten wiersz żyje tyle,
+co przepis, bo pilnuje reguł przy publikacji (`App\Domain\Import\StrazImportu`,
+wołana przez `PublishRecipe` przez kontrakt `StrazPochodzeniaPrzepisu`).
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `recipe_id` | uuid PK, FK `recipes` `ON DELETE CASCADE` | przepis (szkic) z importu |
+| `user_id` | uuid, FK `users` `ON DELETE CASCADE` | kto importował; indeks `(user_id, created_at)` |
+| `zrodlo` | text, CHECK `url` / `pdf` / `zdjecie` | skąd |
+| `droga` | text, CHECK `json_ld` / `fragmenty` / `tekst_pdf` / `ocr` / `bez_tresci` | jak powstała treść: lokalnie z danych strukturalnych schema.org (JSON-LD, a gdy go brak — mikrodane; obie drogi zapisują `json_ld`), granice fragmentów od modelu, tekst PDF, OCR, albo szkic z samym źródłem (robots.txt zabrania / brak przepisu) |
+| `source_url` | text NULL, CHECK: przy `zrodlo = url` niepusty i `^https?://`, ≤ 2000 znaków | adres po przekierowaniach, bez parametrów śledzących; ten sam trafia do `recipes.source_url` i jest tam zablokowany |
+| `tekst_zrodla` | text NULL | kroki w brzmieniu ze strony — do ostrzeżenia „opis prawie taki sam jak na stronie" (`similarity()` z `pg_trgm`, próg `kuking.import.podobienstwo_ostrzezenie`); **czyszczony przy publikacji** |
+| `sprawdzone_at` | timestamptz NULL | człowiek zaznaczył „Sprawdziłem odczytany tekst"; bez tego szkic się nie opublikuje |
+| `created_at`, `updated_at` | timestamptz | |
+
+Model `App\Models\PrzepisZImportu` ma pusty `$fillable` — wiersz zapisuje
+tylko `ZapiszSzkicZImportu` (`forceFill`), znacznik sprawdzenia —
+`StrazImportu::poPublikacji()`.
+
+**Eksport:** sekcja `importy_przepisow` w `dane.json` (bez `tekst_zrodla` —
+to cudzy tekst, który i tak jest w szkicu). **Kasowanie:** kaskadą z przepisem
+i kontem; przy wymazaniu konta (`EraseAccountData`, każdy zakres) wiersze są
+usuwane jawnie, bo konta się nie kasuje, tylko anonimizuje.
+
+**Rollback:** `down()` **odmawia** (D-088), gdy istnieje wiersz z pustym
+`sprawdzone_at` — po cofnięciu i ponownym `migrate` taki szkic dałoby się
+opublikować bez „Sprawdziłem". Na pustej tabeli i przy samych sprawdzonych
+wierszach przechodzi. Test: `CofniecieMigracjiImportuTest` (odmowa i kontrola
+dodatnia). Przed ręcznym zdjęciem tabeli: wyłącz import
+(`KUKING_IMPORT_URL=false`, `KUKING_IMPORT_PDF=false`) i zachowaj kopię.
+
+### wczytane_z_paczki
+
+Ślad „ta treść przyszła z własnej paczki eksportu” — idempotencja wczytywania
+(issue **#1985**, etap 2). Migracja `2026_09_29_140000_create_wczytane_z_paczki_table`.
+Jeden wiersz na jedną wczytaną pozycję (przepis, wpis albo zeszyt). To skrót
+i wskaźnik — **bez treści paczki**.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | uuid PK, `DEFAULT gen_random_uuid()` | |
+| `user_id` | uuid NOT NULL, FK `users` `ON DELETE CASCADE` | kto wczytał; nie jest w `$fillable` (model ma pusty) |
+| `rodzaj` | varchar(10), CHECK `wczytane_z_paczki_rodzaj_check` | `przepis` / `wpis` / `zeszyt` |
+| `odcisk` | char(64), CHECK `wczytane_z_paczki_odcisk_check` (`^[0-9a-f]{64}$`) | SHA-256 z ujednoliconej treści pozycji, liczony przez `PodgladPaczkiEksportu` (ten sam co w podglądzie) |
+| `recipe_id` / `post_id` / `collection_id` | uuid NULL, FK `ON DELETE CASCADE` | utworzona treść; CHECK `wczytane_z_paczki_cel_check`: dokładnie jedno pole, zgodne z `rodzaj` |
+| `created_at` | timestamptz NOT NULL DEFAULT now() | |
+
+Ograniczenia i indeksy: `UNIQUE (user_id, odcisk)` (`wczytane_z_paczki_user_odcisk_unique`) —
+ta sama paczka wczytana drugi raz, także dwoma żądaniami naraz, niczego nie
+dubluje; trzy indeksy częściowe po wskaźnikach (`..._recipe_idx`, `..._post_idx`,
+`..._collection_idx`) dla kaskad.
+
+**Skasowanie treści.** Twarde — zabiera ślad kaskadą. Miękkie (`deleted_at`) śladu
+nie rusza, dlatego `WczytajPaczke` uznaje ślad za „żywy” tylko wtedy, gdy stoi za
+nim nieskasowana treść; skasowany przepis albo wpis można wczytać z tej samej
+paczki jeszcze raz (stary ślad jest wtedy zastępowany).
+
+**Prywatność.** Wczytane treści są zawsze prywatne — przepis to szkic
+(`visibility = private`, `publish: false` przez `PublishRecipe`), wpis ma
+`visibility = private`, zeszyt `visibility = private` i `is_default = false`.
+Widoczność i status są wpisane w `WczytajPaczke`, nie brane z paczki. Zdjęć
+z paczki nie wczytujemy.
+
+**Eksport:** wiersz jest `NIE_DOTYCZY` w `InwentarzDanychKonta` (znacznik techniczny;
+treść jest w sekcjach `przepisy`, `wpisy`, `kolekcje`). **Wymazanie konta:**
+`EraseAccountData` usuwa ślady jawnie po `user_id` i kasuje czekający w prywatnym
+magazynie plik ZIP (`MagazynPaczek::zapomnijWszystkie`).
+
+**Rollback:** `down()` **odmawia** (D-088), gdy w tabeli jest choć jeden wiersz —
+przepisy, wpisy i zeszyty zostałyby, ale znikłaby pamięć o tym, co wczytano, więc
+ponowne wczytanie starej paczki utworzyłoby duplikaty. Pusta tabela i
+`migrate:refresh` w CI przechodzą bez pytania. Wymuszenie po kopii tabeli:
+`KUKING_ROLLBACK_KASUJE_SLADY_IMPORTU=1`. Test: `WczytajPaczkeTest`
+(`test_cofniecie_migracji_*`).
+
+## pantry_items — „Co mam w domu” (V2, D-285)
+
+Prywatna lista produktów jednej osoby; na niej stoi „Co ugotuję z tego,
+co mam” (`App\Domain\Pantry\CoUgotuje`). Migracja
+`2026_09_28_233700_create_pantry_items_table`.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK, `DEFAULT gen_random_uuid()` | |
+| `user_id` | `uuid NOT NULL` → `users` (`ON DELETE CASCADE`) | właściciel listy; nie jest w `$fillable` — wiersz powstaje przez `$user->pantryItems()` |
+| `name` | `varchar(120) NOT NULL` | nazwa dokładnie tak, jak ją wpisano; tylko ją pokazujemy |
+| `rdzenie` | `text[]` `GENERATED ALWAYS AS (kuking_rdzenie_skladnika(name)) STORED` | rdzenie słów do porównania ze składnikami przepisów |
+| `klucz` | `text` `GENERATED ALWAYS AS (kuking_klucz_skladnika(name)) STORED` | rdzenie posortowane i sklejone spacją |
+| `created_at` | `timestamptz NOT NULL DEFAULT now()` | |
+
+Ograniczenia:
+- `pantry_items_name_check`: `char_length(btrim(name)) BETWEEN 2 AND 120
+  AND cardinality(rdzenie) > 0` — nazwa bez słów („500”, „-”) dałaby pustą
+  tablicę rdzeni, a pusta tablica zawiera się w każdej (`<@`), czyli „masz
+  ten składnik” przy każdym przepisie;
+- `pantry_items_user_klucz_unique`: `UNIQUE (user_id, klucz)` — „Jajka”
+  i „jajko” to na jednej liście ten sam produkt. Ten indeks obsługuje też
+  zapytania po `user_id`.
+
+Funkcje (obie `IMMUTABLE STRICT PARALLEL SAFE`):
+- `public.kuking_formy_skladnikow() → jsonb` — zamknięty słownik form
+  krótkich słów (forma → rdzeń, np. `maki` → `maka`, `maku` → `mak`,
+  `sera` → `ser`). Rdzeń ma najwyżej 4 litery, każda forma zaczyna się od
+  jego pierwszych trzech liter — na tym opiera się wstępny filtr `LIKE`
+  (#1969). Stała w funkcji, nie tabela, bo kolumna generowana wymaga
+  funkcji `IMMUTABLE`;
+- `public.kuking_rdzenie_skladnika(text) → text[]` — `kuking_normalize()`,
+  podział na słowa, bez liczb i słów jednoliterowych; słowo ze słownika
+  form dostaje rdzeń ze słownika, pozostałe — „liczbę mnogą prostą” tylko
+  gdy są dłuższe (słowo > 5 liter na „-ow” traci „ow”, słowo > 4 liter
+  traci końcową samogłoskę), a krótsze zostają całe. Dawny próg „> 3
+  litery” dawał „mąka” i „mak” ten sam rdzeń `mak` (#1969). Wynik
+  posortowany i bez powtórzeń. Ta sama funkcja liczy
+  rdzenie linijek `recipe_ingredients.ingredient_text` w zapytaniu doboru —
+  reguła mieszka wyłącznie w bazie, bez kopii w PHP;
+- `public.kuking_klucz_skladnika(text) → text` — `array_to_string()` z powyższej.
+  Osobna funkcja, bo samo `array_to_string()` jest `STABLE` i nie wolno go
+  użyć w kolumnie generowanej.
+
+Zapytanie doboru zawęża kandydatów filtrem `ingredient_text_search LIKE
+'%rdzeń%'` (najdłuższy rdzeń każdego produktu; rdzeń do 4 liter — jego
+pierwsze trzy litery, bo może pochodzić ze słownika form), który może pójść po
+`recipe_ingredients_text_trgm_idx`, a dopiero na nich porównuje tablice.
+
+Prywatność: lista jest w paczce danych (sekcja `co_mam_w_domu`, bez kolumn
+generowanych) i znika w `EraseAccountData` (jawnie — konta się anonimizuje,
+nie kasuje, więc kaskada klucza obcego tam nie działa).
+
+**Rollback.** `down()` usuwa tabelę i obie funkcje. Nie dotyka przepisów,
+składników ani wyszukiwarki. Przy niepustej tabeli **odmawia** (D-088) —
+listy to dane wpisane przez ludzi; wymuszenie po zrobieniu kopii:
+`KUKING_ROLLBACK_KASUJE_SPIZARNIE=1`. Na świeżej bazie i w CI
+(`migrate:refresh`) przechodzi bez pytania.
+
 ## V1 / V2
 
 Później:
@@ -5645,7 +6041,6 @@ Później:
 - answers;
 - meal_plans (rozbudowa planera ponad `meal_plan_entries`);
 - shopping_lists;
-- pantry_items;
 - subscriptions;
 - payments.
 
@@ -5980,6 +6375,51 @@ Pozostałe klucze obce bez indeksu wiodącego (audyt B3 N1: m.in.
 `recipe_versions.editor_id`, `moderation_actions.moderator_id`,
 `tozsamosci_zewnetrzne.user_id`) dotyczą rodziców kasowanych rzadko albo nigdy
 i świadomie zostały poza tą migracją.
+
+## Indeks częściowy opublikowanych pytań (#372)
+
+Migracja `2026_09_28_233800_add_questions_published_index_to_posts`:
+
+```sql
+CREATE INDEX CONCURRENTLY IF NOT EXISTS posts_questions_published_idx
+    ON posts (published_at DESC, id DESC)
+    WHERE kind = 'question' AND deleted_at IS NULL AND status = 'published';
+```
+
+Po co: `/pytania` przy każdym wejściu liczy „Czeka na odpowiedź (N)” osobnym
+`COUNT(*)` po całym zbiorze pytań (`QuestionController::index`). Pomiar na
+danych syntetycznych (200 000 wpisów, 5% pytań — `scripts/pomiar-pytan-372.py`)
+pokazał pełny skan `posts` u gościa i przegląd ~193 000 pozycji
+`posts_author_published_idx` u zalogowanego; u zalogowanego zawyżony koszt planu
+włączał jeszcze JIT (~280 ms z ~480 ms). Z indeksem licznik zalogowanego spada
+do ~110 ms, a lista czyta pytania w kolejności kursora. Pełne liczby, plany
+i to, czego indeks nie naprawia (pełny skan `comments` w anty-złączeniu
+licznika gościa): `docs/product/WLACZENIE_PYTAN_372.md`.
+
+Od 25.09.2026 licznik nie jest już liczony na żądanie: liczbę gościa przelicza
+w tle `PytaniaBezOdpowiedzi::przelicz()` (zadanie po zapisie pytania albo
+komentarza pod pytaniem i harmonogram `kuking:policz-pytania`), a zalogowanemu
+dolicza się dokładną poprawkę na blokady i obserwowanych. Indeks nadal służy
+temu przeliczeniu, poprawce widza i liście. Bez zmian schematu — wynik leży
+w istniejącej tabeli `cache` (klucz `pytania:czeka-na-odpowiedz`).
+
+Predykat zawiera tylko warunki obecne w KAŻDYM zapytaniu listy i licznika
+(`kind`, `SoftDeletes`, `published()`); widoczność zostaje poza nim, bo gość
+i zalogowany pytają o nią inaczej. Rozmiar przy 10 000 pytań: 392 kB.
+
+Indeks powstaje `CONCURRENTLY` w migracji z `$withinTransaction = false`
+(ten sam wzorzec co indeksy kluczy obcych wyżej); niedokończony (INVALID)
+migracja zdejmuje i buduje od nowa.
+
+Pilnuje go `tests/Feature/IndeksPytanOpublikowanychTest.php`: zapytanie licznika
+zbudowane przez `QuestionList` (gość i zalogowany) potrafi użyć indeksu,
+zapytanie o dania nie (predykat jest prawdziwy), a `down()`/`up()` zdejmuje
+i przywraca indeks.
+
+**Rollback:** `down()` → `DROP INDEX CONCURRENTLY IF EXISTS
+posts_questions_published_idx`. Bezstratnie — indeks nie niesie danych ani
+decyzji człowieka, więc D-088 nie ma tu czego chronić i `down()` nie odmawia.
+Wracają plany sprzed migracji.
 
 ## Normalizacja adresu e-mail
 
@@ -6340,10 +6780,16 @@ drugi czeka na zwolnienie blokady (koniec transakcji pierwszego) i dopiero
 wtedy liczy `MAX` na nowo. Test na dwóch prawdziwych połączeniach:
 `tests/Dwa/RejestracjaWdrozeniaNaDwochPolaczeniachTest.php`.
 
-**Kto zapisuje.** Komenda `kuking:zarejestruj-wdrozenie`, wpięta
-w `.railway/railway.ts` (`preDeployCommand`) zaraz po `php artisan migrate
---force` — patrz `docs/infra/DEPLOYMENT_RUNBOOK.md`. Lokalnie i w podglądach
-bez `RAILWAY_GIT_COMMIT_SHA` komenda kończy się bez błędu, nic nie zapisując.
+**Kto zapisuje.** Komenda `kuking:zarejestruj-wdrozenie --po-gotowosci`,
+uruchamiana w tle przez `docker/entrypoint.sh` (role `web` i `all`) DOPIERO,
+gdy lokalny `/health` nowego kontenera odpowie 2xx — NIE w `preDeployCommand`
+(ten kończy się przed seedem, importem i healthcheckiem, więc nieudany
+rollout zużywał numer; audyt z 28 września 2026, #1932). W tabeli są więc
+tylko wdrożenia, których kontener wstał. Kontener, który nie odpowie w limicie
+(domyślnie 300 s), nie zapisuje niczego — ani `wdrozenia`, ani
+`wdrozenia_funkcje`. Patrz `docs/infra/DEPLOYMENT_RUNBOOK.md`. Lokalnie
+i w podglądach bez `RAILWAY_GIT_COMMIT_SHA` komenda kończy się bez błędu,
+nic nie zapisując.
 
 **Kto czyta.** `App\Support\Wersja::numerWdrozenia()` — dla BIEŻĄCEGO
 commita, z cache'em (10 minut, klucz niesie commit), bo metoda woła się

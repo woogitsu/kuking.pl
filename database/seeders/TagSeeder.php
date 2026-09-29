@@ -89,6 +89,8 @@ use Illuminate\Support\Str;
  */
 class TagSeeder extends Seeder
 {
+    use PolecenieKonsoliSeedera;
+
     /**
      * Pliki danych w kolejności ważności — pierwszy wpis dla danej nazwy
      * wygrywa.
@@ -600,7 +602,7 @@ class TagSeeder extends Seeder
 
     private function zgloscRaport(): void
     {
-        $this->command?->info(sprintf(
+        $this->konsola()?->info(sprintf(
             'TagSeeder: %d nowych tagów, %d zaktualizowanych kategorii, %d nowych aliasów, '
             .'%d scaleń, %d odrzuconych tagów, %d odrzuconych aliasów.',
             $this->raport['tagi'],
@@ -612,11 +614,11 @@ class TagSeeder extends Seeder
         ));
 
         foreach ($this->raport['scalenia'] as $scalenie) {
-            $this->command?->line('  scalono: '.$scalenie);
+            $this->konsola()?->line('  scalono: '.$scalenie);
         }
 
         foreach ([...$this->raport['odrzucone_tagi'], ...$this->raport['odrzucone_aliasy']] as $powod) {
-            $this->command?->warn('  odrzucono: '.$powod);
+            $this->konsola()?->warn('  odrzucono: '.$powod);
         }
     }
 }

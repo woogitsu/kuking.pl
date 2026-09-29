@@ -220,6 +220,7 @@ final class LicznikiZeszytuDlaWidzaTest extends TestCase
             'hidden' => Recipe::query()->whereKey($przepis->id)->update(['status' => Recipe::STATUS_HIDDEN]),
             'soft-delete' => $przepis->delete(),
             'banned' => $autorPrzepisu->forceFill(['status' => User::STATUS_BANNED])->save(),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
 
         // Karta i szyna: zostaje wpis z własną treścią, znika czysta zapowiedź.
@@ -274,15 +275,17 @@ final class LicznikiZeszytuDlaWidzaTest extends TestCase
     }
 
     /**
-     * Gość nie dochodzi nawet do Policy: trasa zeszytu stoi w grupie `auth`,
-     * więc publiczny zeszyt znaczy „widoczny dla zalogowanych". Pilnujemy
-     * tego tutaj, bo zdjęcie tej bramki odsłoniłoby gościom wszystko, co
-     * ten plik sprawdza dla obcego zalogowanego.
+     * Gość otwiera publiczny zeszyt (issue #965), ale jest widzem bez konta:
+     * nie dostaje ani liczby ukrytych zapisów, ani zapowiedzi niedostępnych.
+     * Pilnujemy tego, bo ten plik sprawdza to dla obcego zalogowanego, a gość
+     * ma widzieć nie więcej.
      */
     private function zeszytGosciowi(Collection $zeszyt): void
     {
         $this->app['auth']->forgetGuards();
-        $this->get(route('collections.show', $zeszyt))->assertRedirect(route('login'));
+        $html = $this->tekst($this->get(route('collections.show', $zeszyt))->assertOk()->getContent());
+        $this->assertStringNotContainsString(self::NIEDOSTEPNE, $html);
+        $this->assertDoesNotMatchRegularExpression('/\d+ zapis\w* nie /u', $html);
     }
 
     /** @return array{0: int, 1: list<string>} liczba wpisów na karcie i odnośniki szyny */
