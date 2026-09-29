@@ -382,10 +382,15 @@ final class MaszynaStanowOdczytuTest extends TestCase
     // ------------------------------------------------------------------
 
     /**
-     * Kolejność z zgłoszenia: job wczytał zlecenie (`find()`), potem
+     * Kolejność ze zgłoszenia: job wczytał zlecenie (`find()`), potem
      * `kuking:odzyskaj-importy` domknęło je jako `nieudany`, dopiero potem job
      * zapisuje swój stan. Odzyskiwanie odpala się tuż przed pierwszym
      * zapisem zlecenia przez job (`beforeExecuting`) — dokładnie w tym oknie.
+     *
+     * Przed poprawką wskrzeszenia nie było widać w bazie tylko dlatego, że
+     * zapis `w_toku` przy ustawionym `kod_bledu` łamał CHECK
+     * `importy_przepisow_kod_przy_bledzie_check`: job kończył się wyjątkiem
+     * i ponowieniem zamiast czystym wyjściem. Test wymaga czystego wyjścia.
      */
     public function test_2213_odzyskanie_przed_zapisem_joba_nie_jest_nadpisane_ani_nie_placi_za_ocr(): void
     {

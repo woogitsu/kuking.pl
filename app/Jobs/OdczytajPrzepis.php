@@ -106,7 +106,7 @@ class OdczytajPrzepis implements ShouldQueue
         // #2213: `find()` wyżej mogło zdążyć przed odzyskiwaniem, które
         // domknęło zlecenie (`nieudany`) — bezwarunkowy zapis `w_toku` na
         // wczytanym modelu wskrzesiłby je i pozwolił na płatny odczyt. Przejście
-        // jest atomowe i warunkowe: tylko z stanu nie-końcowego.
+        // jest atomowe i warunkowe: tylko ze stanu niekońcowego.
         if (! $this->rozpocznij($zlecenie)) {
             return;
         }

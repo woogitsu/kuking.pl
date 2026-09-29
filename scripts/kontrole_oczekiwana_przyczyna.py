@@ -214,6 +214,9 @@ OCZEKUJ = {
     'Odczyt: rozliczenie bez strażnika stanu': r'Drugie rozliczenie tej samej próby musi być niczym\.',
     'Odczyt: zadanie za commitem zlecenia': r'Zlecenie `oczekuje` zostało zatwierdzone bez zadania w kolejce — nikt',
     'Odczyt: ponowienie woła model mimo zapisanej odpowiedzi': r'Failed asserting that actual size 2 matches expected size 1\.',
+    # #2213: stary bezwarunkowy zapis `w_toku` na domkniętym zleceniu łamie
+    # CHECK kodu błędu — objawem mutacji jest ten wyjątek, nie asercja.
+    'Odczyt: bezwarunkowy zapis w_toku wskrzesza zlecenie': Wyjatek(r'QueryException.*importy_przepisow_kod_przy_bledzie_check'),
     'Wartości odżywcze liczone poniżej 90% pokrycia': r'Failed asserting that true is false\.|„Chleb pszenno-żytni na zakwasie”: Failed asserting that two strings',
     'Źródła wartości odżywczych bez identyfikatora wersji CIQUAL': r'Wersja CIQUAL ma być wskazana identyfikatorem, nie tylko nazwą\.',
     'Job plan IaC bez bramki produkcji': r'Job `plan` w \.github/workflows/railway-iac\.yml wykonuje',
