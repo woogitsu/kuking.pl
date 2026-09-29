@@ -286,7 +286,12 @@ for (const s of sceny) {
     const strona = await kontekst.newPage();
     const cdp = await kontekst.newCDPSession(strona);
     await zaloguj(strona);
+    // Tylko dokument HTML: przechwytywanie zdjęć i skryptów nic tu nie daje,
+    // a `route.fetch()` w locie przy zamykaniu kontekstu rzucał
+    // „Request context disposed” i wywracał skrypt przed podsumowaniem.
     await strona.route("**/*", async (route) => {
+        if (route.request().resourceType() !== "document")
+            return route.continue();
         const odp = await route.fetch();
         const typ = odp.headers()["content-type"] ?? "";
         if (!typ.includes("text/html")) return route.fulfill({ response: odp });
@@ -314,6 +319,7 @@ for (const s of sceny) {
             ", meta=" +
             m.meta,
     );
+    await strona.unrouteAll({ behavior: "ignoreErrors" });
     await kontekst.close();
 }
 
