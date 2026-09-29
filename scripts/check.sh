@@ -60,13 +60,14 @@ krok "PostgreSQL"
 # o ten port. Portu stanowiska (np. 55439) tu nie zaszywamy: świeży klon
 # i CI (port losowy) dostałyby czerwień bez powodu.
 #
-# START KLASTRA JAK DOTĄD, ALE TYLKO DLA PORTU DOMYŚLNEGO. Na 5432 stoi
-# lokalny klaster systemowy, który ten skrypt zawsze umiał podnieść. Przy
-# innym porcie to czyjaś własna instancja — cudzego klastra nie ruszamy,
-# tylko mówimy, na jakim adresie baza nie odpowiada.
+# SKRYPT NIE URUCHAMIA KLASTRA (#732). Wcześniej dla portu 5432 wołał
+# `pg_ctlcluster <wersja> main start` — administracyjną operację na
+# współdzielonym klastrze systemowym, z wyrzuconym wyjściem i bez sprawdzenia
+# wyniku. Hook ma sprawdzić własne połączenie, nie zarządzać cudzą usługą:
+# gdy baza nie odpowiada, mówimy, o który adres pytaliśmy, i zostawiamy
+# uruchomienie właścicielowi.
 _pg_host="${DB_HOST:-127.0.0.1}"
 _pg_port="${DB_PORT:-5432}"
-_pg_katalog="${KUKING_PG_LIB:-/usr/lib/postgresql}"
 # Baza i użytkownik tylko wtedy, gdy są podane — bez nich sonda pyta jak
 # dotąd o sam host i port. Hasła tu nie ma: `pg_isready` go nie sprawdza.
 _pg_cel=(-h "$_pg_host" -p "$_pg_port")
@@ -74,28 +75,12 @@ _pg_cel=(-h "$_pg_host" -p "$_pg_port")
 [ -n "${DB_USERNAME:-}" ] && _pg_cel+=(-U "$DB_USERNAME")
 sonda_pg() { pg_isready -q "${_pg_cel[@]}" 2>/dev/null; }
 
-if ! sonda_pg; then
-    if [ "$_pg_port" = 5432 ]; then
-        printf "Baza nie odpowiada na %s:%s — próbuję uruchomić lokalny klaster…\n" "$_pg_host" "$_pg_port"
-        for wersja in 18 17 16 15; do
-            [ -d "$_pg_katalog/$wersja" ] && { pg_ctlcluster "$wersja" main start >/dev/null 2>&1; break; }
-        done
-        sleep 2
-    else
-        printf "Baza nie odpowiada na %s:%s — to nie jest port domyślny, więc nie uruchamiam klastra systemowego.\n" "$_pg_host" "$_pg_port"
-    fi
-fi
-
 if sonda_pg; then
     ok "PostgreSQL odpowiada na $_pg_host:$_pg_port"
     printf "  To nie sprawdza hasła ani tego, czy baza istnieje — sprawdzą to testy i migracje.\n"
 else
     zle "PostgreSQL nie odpowiada na $_pg_host:$_pg_port — testy Kuking nie chodzą na SQLite"
-    if [ "$_pg_port" = 5432 ]; then
-        printf "  Uruchom: pg_ctlcluster 18 main start\n"
-    else
-        printf "  Uruchom własną instancję na porcie %s albo usuń DB_PORT, żeby sprawdzić domyślny 5432.\n" "$_pg_port"
-    fi
+    printf "  Uruchom PostgreSQL na %s:%s (ten skrypt niczego nie uruchamia) albo ustaw DB_HOST/DB_PORT na właściwą instancję.\n" "$_pg_host" "$_pg_port"
 fi
 
 # --- 2. Formatowanie ------------------------------------------------------
