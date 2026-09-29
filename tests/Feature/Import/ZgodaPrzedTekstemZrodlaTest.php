@@ -132,8 +132,9 @@ final class ZgodaPrzedTekstemZrodlaTest extends TestCase
             $odpowiedz = $this->actingAs($this->user("wersja_{$nazwa}"))
                 ->post(route('recipes.import.url.store'), ['adres' => 'https://przepisy.example.pl/blog', 'zgoda_ai' => '1', ...$wersja]);
 
-            $odpowiedz->assertSessionHas('status', fn (string $status): bool => str_contains($status, 'informacja przy niej zmieniła się od otwarcia formularza')
-                && str_contains($status, 'nic nie wysłaliśmy'));
+            $odpowiedz->assertSessionHas('status', fn (string $status): bool => str_contains($status, 'Nie użyliśmy odczytu przez komputer')
+                && str_contains($status, 'informacja przy zgodzie się zmieniła')
+                && str_contains($status, 'zaznacz zgodę jeszcze raz i spróbuj ponownie'));
 
             Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com'));
         }
