@@ -100,6 +100,41 @@ class PrzetworzZdjeciaPonownieTest extends TestCase
         $this->assertSame([], $warianty->allFiles());
     }
 
+    /**
+     * Zadanie zakolejkowane PRZED wdrożeniem #2223 nie ma w danych pola
+     * `odtworzenie`. Po wyjęciu z kolejki musi być zwykłym zadaniem:
+     * przetworzyć zdjęcie `pending` i zostawić je `ready`. Promowany parametr
+     * konstruktora zostawiłby tu pole niezainicjowane i zadanie padłoby.
+     */
+    public function test_zadanie_zakolejkowane_przed_wdrozeniem_przetwarza_zdjecie_zwyczajnie(): void
+    {
+        $warianty = $this->dyski();
+        $media = $this->gotoweZdjecieBezWariantow();
+        $media->forceFill(['status' => Media::STATUS_PENDING])->save();
+
+        // Kontrola dodatnia: pole z `true` naprawdę jedzie w danych zadania.
+        // Bez tego wycięcie niżej mogłoby niczego nie wycinać.
+        $dane = serialize(ProcessUploadedImage::odtworzWarianty($media->getKey()));
+        $pole = 's:11:"odtworzenie";b:1;';
+        $this->assertStringContainsString($pole, $dane, 'Tryb odtworzenia nie trafia do danych zadania — zadanie z kolejki byłoby zwykłym zadaniem.');
+        $this->assertTrue(unserialize($dane)->odtworzenie);
+
+        $bezPola = preg_replace_callback(
+            '/^O:(\d+):"([^"]+)":(\d+):/',
+            fn (array $m): string => 'O:'.$m[1].':"'.$m[2].'":'.((int) $m[3] - 1).':',
+            str_replace($pole, '', $dane),
+        );
+
+        $zadanie = unserialize((string) $bezPola);
+        $this->assertInstanceOf(ProcessUploadedImage::class, $zadanie);
+        $this->assertFalse($zadanie->odtworzenie);
+
+        $zadanie->handle();
+
+        $this->assertSame(Media::STATUS_READY, $media->refresh()->status);
+        $this->assertNotSame([], $warianty->allFiles());
+    }
+
     public function test_bez_wykonaj_komenda_tylko_liczy(): void
     {
         Queue::fake();
