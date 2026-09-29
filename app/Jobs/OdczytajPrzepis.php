@@ -103,7 +103,13 @@ class OdczytajPrzepis implements ShouldQueue
             return;
         }
 
-        $zlecenie->forceFill(['status' => ImportPrzepisu::STATUS_W_TOKU, 'rozpoczeto_at' => $zlecenie->rozpoczeto_at ?? now()])->save();
+        // #2213: `find()` wyżej mogło zdążyć przed odzyskiwaniem, które
+        // domknęło zlecenie (`nieudany`) — bezwarunkowy zapis `w_toku` na
+        // wczytanym modelu wskrzesiłby je i pozwolił na płatny odczyt. Przejście
+        // jest atomowe i warunkowe: tylko z stanu nie-końcowego.
+        if (! $this->rozpocznij($zlecenie)) {
+            return;
+        }
 
         $szkic = $zlecenie->recipe;
 
@@ -313,6 +319,31 @@ class OdczytajPrzepis implements ShouldQueue
             // koszt są już rozliczone.
             $this->zakoncz($zlecenie, ImportPrzepisu::KOD_BLAD_WEWNETRZNY);
         }
+    }
+
+    /**
+     * Atomowe przejście do `w_toku` z warunkiem aktualnego stanu w bazie
+     * (nie na wczytanym modelu). Zlecenie już końcowe → `false`, bez OCR.
+     */
+    private function rozpocznij(ImportPrzepisu $zlecenie): bool
+    {
+        $zmieniono = ImportPrzepisu::query()
+            ->whereKey($zlecenie->getKey())
+            ->whereNotIn('status', ImportPrzepisu::STATUSY_KONCOWE)
+            ->update([
+                'status' => ImportPrzepisu::STATUS_W_TOKU,
+                'rozpoczeto_at' => $zlecenie->rozpoczeto_at ?? now(),
+                'updated_at' => now(),
+            ]);
+
+        if ($zmieniono !== 1) {
+            return false;
+        }
+
+        // Model zgodny z bazą — dalsze zapisy zwykłego zlecenia widzą stan po zmianie.
+        $zlecenie->refresh();
+
+        return true;
     }
 
     private function szkicNietkniety(?Recipe $szkic): bool

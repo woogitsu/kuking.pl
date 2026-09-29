@@ -1630,6 +1630,10 @@ checks = [
      lambda s: replace_once(s, "OdczytajPrzepis::dispatch((string) $zlecenie->getKey());", "OdczytajPrzepis::dispatch((string) $zlecenie->getKey())->afterCommit();")),
     ("Odczyt: ponowienie woła model mimo zapisanej odpowiedzi", "app/Jobs/OdczytajPrzepis.php", "MaszynaStanowOdczytuTest::test_1980_ponowienie",
      lambda s: replace_once(s, "        if (is_array($zlecenie->odpowiedz_modelu)) {", "        if (false && is_array($zlecenie->odpowiedz_modelu)) {")),
+    # #2213: job nie wskrzesza zlecenia domkniętego przez odzyskiwanie.
+    ("Odczyt: bezwarunkowy zapis w_toku wskrzesza zlecenie", "app/Jobs/OdczytajPrzepis.php", "MaszynaStanowOdczytuTest::test_2213",
+     lambda s: replace_once(s, "        if (! $this->rozpocznij($zlecenie)) {\n            return;\n        }\n",
+        "        $zlecenie->forceFill(['status' => ImportPrzepisu::STATUS_W_TOKU, 'rozpoczeto_at' => $zlecenie->rozpoczeto_at ?? now()])->save();\n")),
     # D-299: wartości odżywcze tylko przy pokryciu >= 90% masy. Obniżony próg
     # ma zapalić test przepisu z 85% pokrycia.
     ("Wartości odżywcze liczone poniżej 90% pokrycia", "app/Domain/Recipes/Odzywcze/WynikWartosci.php", "KalkulatorWartosciOdzywczychTest",

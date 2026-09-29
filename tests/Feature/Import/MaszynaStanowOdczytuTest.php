@@ -378,6 +378,45 @@ final class MaszynaStanowOdczytuTest extends TestCase
     }
 
     // ------------------------------------------------------------------
+    // #2213 — odzyskiwanie kontra spóźniony job
+    // ------------------------------------------------------------------
+
+    /**
+     * Kolejność z zgłoszenia: job wczytał zlecenie (`find()`), potem
+     * `kuking:odzyskaj-importy` domknęło je jako `nieudany`, dopiero potem job
+     * zapisuje swój stan. Odzyskiwanie odpala się tuż przed pierwszym
+     * zapisem zlecenia przez job (`beforeExecuting`) — dokładnie w tym oknie.
+     */
+    public function test_2213_odzyskanie_przed_zapisem_joba_nie_jest_nadpisane_ani_nie_placi_za_ocr(): void
+    {
+        $this->modelOdpowiada();
+        $zlecenie = $this->zlecenieBezWysylki();
+        // Zlecenie „stare” — odzyskiwanie uzna je za porzucone.
+        DB::table('importy_przepisow')->where('id', $zlecenie->getKey())
+            ->update(['updated_at' => now()->subMinutes((int) config('kuking.import.odzyskiwanie.zlecenie_minut') + 5)]);
+
+        $odzyskano = false;
+        DB::beforeExecuting(function (string $sql) use (&$odzyskano): void {
+            if (! $odzyskano && str_starts_with($sql, 'update "importy_przepisow"')) {
+                $odzyskano = true;
+                $this->artisan('kuking:odzyskaj-importy')->assertSuccessful();
+            }
+        });
+
+        $this->uruchom($zlecenie);
+
+        $this->assertTrue($odzyskano, 'Odzyskiwanie nie weszło w okno między odczytem a zapisem zlecenia przez job.');
+        $zlecenie->refresh();
+        $this->assertSame(ImportPrzepisu::STATUS_NIEUDANY, $zlecenie->status, 'Spóźniony job wskrzesił zlecenie domknięte przez odzyskiwanie.');
+        $this->assertSame(ImportPrzepisu::KOD_BLAD_WEWNETRZNY, $zlecenie->kod_bledu);
+        Http::assertNothingSent();
+        $this->assertSame(['zarezerwowano' => 0, 'wydano' => 0], $this->budzet());
+        $this->assertSame(0, DB::table('ai_rezerwacje')->where('import_id', $zlecenie->getKey())->count());
+        $szkic = Recipe::query()->findOrFail($zlecenie->recipe_id);
+        $this->assertSame(0, $szkic->ingredients()->count(), 'Wynik spóźnionego joba trafił do szkicu.');
+    }
+
+    // ------------------------------------------------------------------
 
     private function uruchom(ImportPrzepisu $zlecenie): void
     {
