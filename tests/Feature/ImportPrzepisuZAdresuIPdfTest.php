@@ -63,6 +63,9 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
     {
         parent::setUp();
 
+        // Domyślnie import jest wyłączony (D-333, #2214) — te testy sprawdzają włączony.
+        config(['kuking.import.url.wlaczony' => true, 'kuking.import.pdf.wlaczony' => true, 'kuking.import.zrodla.zdjecie' => true]);
+
         // Plik PDF czeka na worker na dysku importu (#28 etap 2) — nigdy prawdziwy dysk.
         Storage::fake((string) config('kuking.import.pdf.dysk'));
 

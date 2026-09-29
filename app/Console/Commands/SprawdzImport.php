@@ -27,6 +27,16 @@ class SprawdzImport extends Command
         $this->line('Model: '.(string) config('kuking.import.model.nazwa'));
         $this->line('Kolejka: '.(string) config('kuking.import.kolejka'));
 
+        // Przełączniki źródeł są domyślnie wyłączone (D-333, #2214) — włącza je
+        // świadomie właściciel zmienną środowiskową, dopiero po DPA i polityce.
+        foreach ([
+            'import z adresu strony' => 'kuking.import.url.wlaczony',
+            'import z pliku PDF' => 'kuking.import.pdf.wlaczony',
+            'odczyt zdjęcia kartki' => 'kuking.import.zrodla.zdjecie',
+        ] as $opis => $klucz) {
+            $this->line('Przełącznik, '.$opis.': '.((bool) config($klucz) ? 'WŁĄCZONY' : 'wyłączony').'.');
+        }
+
         $wszystkoGotowe = true;
 
         foreach (KlientLuna::ZADANIA as $zadanie) {

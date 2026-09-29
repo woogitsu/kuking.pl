@@ -50,6 +50,9 @@ final class ImportZPdfWKolejceTest extends TestCase
     {
         parent::setUp();
 
+        // Domyślnie import jest wyłączony (D-333, #2214) — te testy sprawdzają włączony.
+        config(['kuking.import.url.wlaczony' => true, 'kuking.import.pdf.wlaczony' => true, 'kuking.import.zrodla.zdjecie' => true]);
+
         $this->dysk = (string) config('kuking.import.pdf.dysk');
         Storage::fake($this->dysk);
     }
