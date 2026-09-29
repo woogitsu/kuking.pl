@@ -40,6 +40,11 @@
             <button class="btn btn-primary" type="submit">Przygotuj paczkę z moimi danymi</button>
         </form>
 
+        <p class="mt-4">
+            Masz już taką paczkę i chcesz z niej odzyskać swoje przepisy, wpisy i zeszyty?
+            <a href="{{ route('settings.data.import') }}">Wczytaj swoją paczkę</a> — najpierw zobaczysz, co w niej jest, a wszystko, co wczytamy, będzie prywatne.
+        </p>
+
         @if($exports->isNotEmpty())
             <h3 class="mt-6">Twoje paczki</h3>
             <ul>

@@ -5904,6 +5904,50 @@ wierszach przechodzi. Test: `CofniecieMigracjiImportuTest` (odmowa i kontrola
 dodatnia). Przed ręcznym zdjęciem tabeli: wyłącz import
 (`KUKING_IMPORT_URL=false`, `KUKING_IMPORT_PDF=false`) i zachowaj kopię.
 
+### wczytane_z_paczki
+
+Ślad „ta treść przyszła z własnej paczki eksportu” — idempotencja wczytywania
+(issue **#1985**, etap 2). Migracja `2026_09_29_140000_create_wczytane_z_paczki_table`.
+Jeden wiersz na jedną wczytaną pozycję (przepis, wpis albo zeszyt). To skrót
+i wskaźnik — **bez treści paczki**.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | uuid PK, `DEFAULT gen_random_uuid()` | |
+| `user_id` | uuid NOT NULL, FK `users` `ON DELETE CASCADE` | kto wczytał; nie jest w `$fillable` (model ma pusty) |
+| `rodzaj` | varchar(10), CHECK `wczytane_z_paczki_rodzaj_check` | `przepis` / `wpis` / `zeszyt` |
+| `odcisk` | char(64), CHECK `wczytane_z_paczki_odcisk_check` (`^[0-9a-f]{64}$`) | SHA-256 z ujednoliconej treści pozycji, liczony przez `PodgladPaczkiEksportu` (ten sam co w podglądzie) |
+| `recipe_id` / `post_id` / `collection_id` | uuid NULL, FK `ON DELETE CASCADE` | utworzona treść; CHECK `wczytane_z_paczki_cel_check`: dokładnie jedno pole, zgodne z `rodzaj` |
+| `created_at` | timestamptz NOT NULL DEFAULT now() | |
+
+Ograniczenia i indeksy: `UNIQUE (user_id, odcisk)` (`wczytane_z_paczki_user_odcisk_unique`) —
+ta sama paczka wczytana drugi raz, także dwoma żądaniami naraz, niczego nie
+dubluje; trzy indeksy częściowe po wskaźnikach (`..._recipe_idx`, `..._post_idx`,
+`..._collection_idx`) dla kaskad.
+
+**Skasowanie treści.** Twarde — zabiera ślad kaskadą. Miękkie (`deleted_at`) śladu
+nie rusza, dlatego `WczytajPaczke` uznaje ślad za „żywy” tylko wtedy, gdy stoi za
+nim nieskasowana treść; skasowany przepis albo wpis można wczytać z tej samej
+paczki jeszcze raz (stary ślad jest wtedy zastępowany).
+
+**Prywatność.** Wczytane treści są zawsze prywatne — przepis to szkic
+(`visibility = private`, `publish: false` przez `PublishRecipe`), wpis ma
+`visibility = private`, zeszyt `visibility = private` i `is_default = false`.
+Widoczność i status są wpisane w `WczytajPaczke`, nie brane z paczki. Zdjęć
+z paczki nie wczytujemy.
+
+**Eksport:** wiersz jest `NIE_DOTYCZY` w `InwentarzDanychKonta` (znacznik techniczny;
+treść jest w sekcjach `przepisy`, `wpisy`, `kolekcje`). **Wymazanie konta:**
+`EraseAccountData` usuwa ślady jawnie po `user_id` i kasuje czekający w prywatnym
+magazynie plik ZIP (`MagazynPaczek::zapomnijWszystkie`).
+
+**Rollback:** `down()` **odmawia** (D-088), gdy w tabeli jest choć jeden wiersz —
+przepisy, wpisy i zeszyty zostałyby, ale znikłaby pamięć o tym, co wczytano, więc
+ponowne wczytanie starej paczki utworzyłoby duplikaty. Pusta tabela i
+`migrate:refresh` w CI przechodzą bez pytania. Wymuszenie po kopii tabeli:
+`KUKING_ROLLBACK_KASUJE_SLADY_IMPORTU=1`. Test: `WczytajPaczkeTest`
+(`test_cofniecie_migracji_*`).
+
 ## pantry_items — „Co mam w domu” (V2, D-285)
 
 Prywatna lista produktów jednej osoby; na niej stoi „Co ugotuję z tego,

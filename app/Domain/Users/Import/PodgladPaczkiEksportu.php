@@ -118,9 +118,12 @@ final class PodgladPaczkiEksportu
      * Czego import celowo nie odtwarza. Zdania stoją w podglądzie ZAWSZE — także
      * przy paczce bez zdjęć — bo opisują regułę importu, nie tę jedną paczkę.
      */
+    public const POWOD_PYTANIE = 'Pytań nie wczytujemy, bo pytanie w Poradźcie jest zawsze publiczne, a wszystko, co wczytujemy, zostaje prywatne. Jeśli chcesz je zachować, zadaj je jeszcze raz w Poradźcie.';
+
     public const POMINIETE = [
         'Wczytujemy sam tekst przepisów, własnych wpisów i nazwy zeszytów. Zdjęć z paczki na razie nie przenosimy.',
         'Wszystko, co wczytamy, będzie prywatne. O publikacji zdecydujesz osobno, po wczytaniu.',
+        'Pytań z Poradźcie nie wczytujemy: pytanie jest zawsze publiczne, a wczytane treści mają zostać prywatne.',
         'Nie odtwarzamy konta, hasła, zgód, obserwowanych osób, powiadomień, komentarzy innych osób ani decyzji moderacji.',
         'Cudze przepisy i wpisy odłożone do zeszytu zostają w Kuking — w paczce jest z nich tylko tytuł, więc nie mamy czego wczytać.',
     ];
@@ -376,6 +379,7 @@ final class PodgladPaczkiEksportu
                 $this->stanPrzepisu($tytul, $odcisk, $wPaczce),
                 $this->uwagiPrzepisu($p),
                 $odcisk,
+                $this->danePrzepisu($p, $tytul),
             );
         }
 
@@ -526,6 +530,16 @@ final class PodgladPaczkiEksportu
                 continue;
             }
 
+            if ($rodzaj === Post::KIND_QUESTION) {
+                // Pytanie w Poradźcie jest z definicji publiczne (D-221; `PublishPost` odmawia
+                // pytania niepublicznego), a wszystko, co wczytujemy, ma być prywatne (#1985).
+                // Nie ma decyzji o prywatnych pytaniach, więc ich nie tworzymy.
+                $tytulPytania = $this->tekst($p['tytul'] ?? null, 1, 180) ?? $etykieta;
+                $wynik[] = $this->odrzucona('wpis', $tytulPytania, self::POWOD_PYTANIE);
+
+                continue;
+            }
+
             if (in_array($p['status'] ?? null, [Post::STATUS_HIDDEN, Post::STATUS_REMOVED], true)) {
                 $wynik[] = $this->odrzucona('wpis', $etykieta, 'Ten wpis został ukryty albo usunięty przez moderację, więc go nie wczytujemy.');
 
@@ -541,17 +555,9 @@ final class PodgladPaczkiEksportu
             }
 
             $tresc = is_string($tresc) && trim($tresc) !== '' ? trim($tresc) : null;
-            $tytul = null;
+            $tytul = null; // pytań nie wczytujemy, więc wpis do wczytania to zawsze danie bez tytułu
 
-            if ($rodzaj === Post::KIND_QUESTION) {
-                $tytul = $this->tekst($p['tytul'] ?? null, 10, 180);
-
-                if ($tytul === null) {
-                    $wynik[] = $this->odrzucona('wpis', $etykieta, 'Tytuł pytania musi mieć od 10 do 180 znaków.');
-
-                    continue;
-                }
-            } elseif ($tresc === null) {
+            if ($tresc === null) {
                 $wynik[] = $this->odrzucona('wpis', $etykieta, 'Ten wpis to samo zdjęcie, a zdjęć nie wczytujemy — nie ma tu tekstu do zapisania.');
 
                 continue;
@@ -575,7 +581,11 @@ final class PodgladPaczkiEksportu
                 $uwagi[] = 'Zdjęć nie wczytujemy — tekst wpisu tak.';
             }
 
-            $wynik[] = $this->pozycja('wpis', $tytul ?? mb_strimwidth((string) $tresc, 0, 80, '…'), $stan, $uwagi, $odcisk);
+            $wynik[] = $this->pozycja('wpis', $tytul ?? mb_strimwidth((string) $tresc, 0, 80, '…'), $stan, $uwagi, $odcisk, [
+                'rodzaj' => $rodzaj,
+                'tytul' => $tytul,
+                'tresc' => $tresc,
+            ]);
         }
 
         return $wynik;
@@ -639,7 +649,9 @@ final class PodgladPaczkiEksportu
                 $uwagi[] = 'W paczce był publiczny. Po wczytaniu będzie prywatny.';
             }
 
-            $wynik[] = $this->pozycja('zeszyt', $nazwa, $stan, $uwagi, $odcisk);
+            $opis = is_string($p['opis'] ?? null) && trim($p['opis']) !== '' ? trim($p['opis']) : null;
+
+            $wynik[] = $this->pozycja('zeszyt', $nazwa, $stan, $uwagi, $odcisk, ['nazwa' => $nazwa, 'opis' => $opis]);
         }
 
         return $wynik;
@@ -651,10 +663,45 @@ final class PodgladPaczkiEksportu
 
     /**
      * @param  list<string>  $uwagi
+     * @param  array<string, mixed>  $dane
      */
-    private function pozycja(string $rodzaj, string $tytul, string $stan, array $uwagi, string $odcisk): PozycjaPodgladu
+    private function pozycja(string $rodzaj, string $tytul, string $stan, array $uwagi, string $odcisk, array $dane = []): PozycjaPodgladu
     {
-        return new PozycjaPodgladu($rodzaj, $tytul, $stan, null, $uwagi, $odcisk);
+        return new PozycjaPodgladu($rodzaj, $tytul, $stan, null, $uwagi, $odcisk, $dane);
+    }
+
+    /**
+     * Treść przepisu do utworzenia — WYŁĄCZNIE pola, które podgląd sprawdził
+     * (te same granice co formularz). Ilości, jednostki, czasy, źródło i zdjęcia
+     * z paczki nie są czytane: nie ma czego przypisać komuś innemu ani pobrać z sieci.
+     *
+     * @param  array<mixed>  $p
+     * @return array<string, mixed>
+     */
+    private function danePrzepisu(array $p, string $tytul): array
+    {
+        $skladniki = [];
+
+        foreach ($p['skladniki'] ?? [] as $s) {
+            $skladnik = ['text' => $this->tekst($s['zapis'] ?? null, 1, LimityTekstuPrzepisu::POLA['ingredients.*.text'])];
+
+            foreach (['grupa' => 'group_name', 'uwaga' => 'note', 'zamienniki' => 'substitutes'] as $klucz => $pole) {
+                $wartosc = is_string($s[$klucz] ?? null) ? trim($s[$klucz]) : '';
+                $skladnik[$pole] = $wartosc === '' ? null : $wartosc;
+            }
+
+            $skladniki[] = $skladnik;
+        }
+
+        $kroki = [];
+
+        foreach ($p['kroki'] ?? [] as $krok) {
+            $kroki[] = ['instruction' => $this->tekst($krok['opis'] ?? null, 1, LimityTekstuPrzepisu::POLA['steps.*.instruction'])];
+        }
+
+        $opis = is_string($p['krotki_opis'] ?? null) && trim($p['krotki_opis']) !== '' ? trim($p['krotki_opis']) : null;
+
+        return ['tytul' => $tytul, 'opis' => $opis, 'skladniki' => $skladniki, 'kroki' => $kroki];
     }
 
     private function odrzucona(string $rodzaj, string $tytul, string $powod): PozycjaPodgladu
