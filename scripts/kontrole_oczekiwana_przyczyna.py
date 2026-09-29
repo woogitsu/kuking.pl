@@ -35,7 +35,7 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ = {
     # Mutacja wysyła 181-znakowy tytuł prosto do bazy — objawem jest odmowa
     # kolumny varchar(180), a nie asercja testu.
-    'Autozapis kreatora zapisuje bez walidacji pól': Wyjatek(r'value too long for type character varying\(\d+\)'),
+    'Autozapis kreatora zapisuje bez walidacji pól': Wyjatek(r'value too long for type character varying\(180\).*insert into "recipes"'),
     'Sufit paczki importu wraca do 32 MB': r'Failed asserting that 33554432 is identical to 12582912',
     'Nowe konto Google gubi powrót do rozmowy': r'Expected response status code \[201, 301, 302, 303, 307, 308\] but received 200\.',
     'Nowe konto Facebook gubi powrót do rozmowy': r'Expected response status code \[201, 301, 302, 303, 307, 308\] but received 200\.',
@@ -155,7 +155,7 @@ OCZEKUJ = {
     'Entrypoint bez klucza preview': r'Entrypoint nie woła kuking_klucz_preview\.',
     'Dalsze okno wyszukiwania bez kursora rankingu': r'Dalsze okno powtórzyło już pokazany przepis\.|Dalsze okno pominęło przepis, który nie był jeszcze pokazany\.|Dalsze okno powtórzyło osobę\.',
     'Nieudany dzwonek kupuje ciszę epizodu': r'Failed asserting that false is true\.|Failed asserting that \d+ is identical to 0\.|Zamknięty epizod nie daje ciszy nawrotowi\.|Nieudana próba WYCISZYŁA czujkę|Analog dla kolejki ma tę samą usterkę|actual size 1 matches expected size 2|Odwołanie przepadło razem z pamięcią alarmu',
-    'Podzbiór fontu bez „ą"': r'Poza podzbiorem Inter: ą \(U\+',
+    'Podzbiór fontu bez „ą"': r'Poza podzbiorem Inter: ą \(U\+|unicode-range w fonts\.css różni się od kontraktu dla inter-',
     'Viewport bez viewport-fit=cover': r'Wspólny meta viewport musi zawierać viewport-fit=cover \(D-260\)\.',
     'Dolna belka bez lewego insetu': r'contains "left: calc\(8px \+ var\(--safe-left\)\);"',
     'Podpowiedź wyglądu bez dolnego insetu': r'Podpowiedź szybkiego wyglądu musi omijać wskaźnik Home\.',
