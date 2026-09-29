@@ -6,7 +6,7 @@
 
 ## Co się zmieniło
 
-**30 września 2026.** Dopisaliśmy pytanie „Jak mamy do Ciebie pisać?” (forma żeńska, męska albo neutralna) i opisaliśmy je w tabeli w punkcie 2: to dobrowolna dana, **widoczna dla innych**, którą przetwarzamy w ramach wykonania umowy. Dopisaliśmy też listę zakupów (nowy wiersz w tabeli w punkcie 2 i wzmianka o paczce z danymi). Ta poprawka obowiązuje od dnia publikacji.
+**30 września 2026.** Dopisaliśmy pytanie „Jak mamy do Ciebie pisać?” (forma żeńska, męska albo neutralna) i opisaliśmy je w tabeli w punkcie 2: to dobrowolna dana, **widoczna dla innych**, którą przetwarzamy w ramach wykonania umowy. Ta poprawka obowiązuje od dnia publikacji. Jej częścią jest też nowa lista zakupów (wiersz w tej samej tabeli i wzmianka o paczce z danymi w punkcie 4).
 
 **29 września 2026.** Uzupełniliśmy opis paczki z Twoimi danymi, obserwowanych tagów, ukrywania wpisów i osób, reakcji „Smakowicie wygląda”, listy „Co mam w domu”, odpinania zdarzeń analitycznych po usunięciu konta i miejsca przechowywania zdjęć. Ta poprawka opisuje to, co serwis już robił, i obowiązuje od dnia publikacji.
 
