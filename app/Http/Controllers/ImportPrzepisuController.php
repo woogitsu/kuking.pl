@@ -39,10 +39,9 @@ use Illuminate\View\View;
  */
 final class ImportPrzepisuController extends Controller
 {
-    /** Kto zaznaczył zgodę przy nieaktualnej informacji, dowiaduje się, dlaczego zaznaczenie nie zadziałało (#2031). */
-    private const KOMUNIKAT_NIEAKTUALNEJ_ZGODY = 'Zaznaczona zgoda na odczyt przez komputer nie zadziałała, bo informacja przy niej '
-        .'zmieniła się od otwarcia formularza — nic nie wysłaliśmy. Jeśli strona nie ma danych przepisu, otwórz '
-        .'„Przepis ze strony internetowej” jeszcze raz, przeczytaj informację i zaznacz zgodę.';
+    /** Kto zaznaczył zgodę przy nieaktualnej informacji, dowiaduje się, że AI nie zadziałało, i co zrobić (#2031). */
+    private const KOMUNIKAT_NIEAKTUALNEJ_ZGODY = 'Nie użyliśmy odczytu przez komputer (AI), bo informacja przy zgodzie się zmieniła. '
+        .'Jeśli przepis wyjdzie pusty, przeczytaj tę informację, zaznacz zgodę jeszcze raz i spróbuj ponownie.';
 
     public function __construct(
         private readonly LimitImportu $limit,
