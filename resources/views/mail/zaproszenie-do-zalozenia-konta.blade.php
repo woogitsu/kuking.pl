@@ -107,8 +107,8 @@
                             (art. 6 ust. 1 lit. f RODO) — a wygasłe zaproszenia razem z adresem kasujemy co noc.
                             Pocztę wysyła dla nas EmailLabs (Vercom S.A.). Możesz żądać dostępu do adresu, jego usunięcia
                             i sprzeciwu wobec przetwarzania oraz złożyć skargę do Prezesa UODO.
-                            Wszystko opisuje <a href="{{ $politykaUrl }}" style="color:#BE3025;">polityka prywatności</a>:
-                            {{ $politykaUrl }}
+                            Wszystko opisuje <a href="{{ $politykaUrl ?? route('privacy') }}" style="color:#BE3025;">polityka prywatności</a>:
+                            {{ $politykaUrl ?? route('privacy') }}
                         </p>
 
                     </td>
