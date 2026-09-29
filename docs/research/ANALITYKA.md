@@ -327,6 +327,50 @@ liczbą (`App\Domain\Analytics\DrugiWpisW7Dni`):
 Wynik to dwa liczniki. Żaden identyfikator, nazwa ani treść wpisu nie
 wychodzi z zapytania.
 
+### 1.6 „Plan → Ugotowałem” — czy planer prowadzi do gotowania (issue #27)
+
+D-310 wdrożyło planer tygodnia, a listę zakupów odłożyło do chwili, gdy
+wiadomo, czy ktokolwiek z planera korzysta. `kuking:raport` liczy to teraz
+z istniejących tabel `meal_plan_entries` i `cooked_events` — bez nowych
+zdarzeń, kolumn i danych osobowych
+(`App\Domain\Analytics\PlanDoUgotowania`). Definicja stała, żeby kolejne
+raporty porównywały to samo:
+
+- **jednostka** — pozycja planu z przepisem (`recipe_id` nie jest NULL):
+  osoba + dzień + przepis. Własne wpisy tekstowe („obiad u mamy”) i pozycje
+  po twardo usuniętym przepisie nie mają czego ugotować i wypadają. Własny
+  przepis autora liczy się jak cudzy — zaplanować i ugotować własne danie to
+  prawdziwe użycie planera;
+- **kohorta** — pozycje z dniem planu od „dziś − 33” do „dziś − 4” włącznie
+  (30 dni; „dziś” to data w `kuking.strefa`, nie w UTC). Każda miała już pełne
+  okno ugotowania, więc zero w liczniku znaczy „nie ugotowali”. Pozycje
+  z dniem dzisiejszym, świeżym i przyszłym raport podaje osobno jako
+  „jeszcze w oknie” i nie wlicza ich do mianownika;
+- **licznik** — ta sama osoba ma `cooked_events` tego przepisu z `cooked_at`
+  nie wcześniejszym niż chwila dodania pozycji do planu i z datą (w strefie
+  `kuking.strefa`, przez `AT TIME ZONE` na `timestamptz`, więc strefa sesji
+  bazy nie przesuwa granicy) od dnia planu do dnia planu + 3 dni włącznie.
+  Ugotowanie sprzed dodania do planu ani dzień przed planem nie są konwersją
+  — miernik może zaniżać, nie zawyża. Kilka ugotowań to jedna konwersja;
+- **minimalna próba** — 20 pozycji w kohorcie; poniżej raport podaje licznik
+  i mianownik, ale zamiast procentu pisze „za mało danych”. Celu procentowego
+  nie ma — dopiero pierwszy pomiar da punkt odniesienia, więc żadnej liczby
+  nie traktujemy jako „zdał/nie zdał”;
+- **poza pomiarem** — konta z `CookEligibility` (gospodarz, konta testowe,
+  zalążkowe, zamknięte);
+- **znane ograniczenia** — usunięcie pozycji z planu kasuje wiersz, więc
+  znika ona z pomiaru; „Skopiuj poprzedni tydzień” tworzy pozycje bez
+  świadomego wyboru i zwykle obniża konwersję — rozróżnienia nie ma i nie
+  dodajemy dla niego zdarzenia. Ta sama osoba może zaplanować ten sam
+  przepis na dwa dni, a jedno ugotowanie w nakładających się oknach zaliczy
+  obie pozycje;
+- **do czego służy** — to bramka przed listą zakupów (D-310): dopóki
+  w kohorcie nie ma 20 pozycji albo konwersja jest znikoma, lista zakupów
+  nie ma podstaw. Decyzję podejmuje właściciel po przeczytaniu liczb.
+
+Wynik to liczby i procent; żaden identyfikator osoby, tytuł przepisu ani
+etykieta planu nie wychodzi z zapytania.
+
 ---
 
 ## 2. Zdarzenia — co naprawdę wymaga trackingu, a co już jest w bazie
