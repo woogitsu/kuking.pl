@@ -3213,6 +3213,16 @@ return [
             env('FILESYSTEM_DISK', 'local') === 'r2' ? 'r2_eksporty' : 'local',
         )),
         'retention_days' => (int) env('KUKING_DZIENNIK_WYMAZAN_DNI', 120),
+
+        // ALARM „WYMAZANIA STOJĄ” (issue #2038, wariant A). Wymazanie konta
+        // czeka na zapis wpisu do dziennika; gdy magazyn nie odpowiada,
+        // anonimizacja się cofa i egzekutor ponawia ją co noc. Jedna noc to
+        // czkawka, TRZY z rzędu to awaria — wtedy idzie wiadomość na kanał
+        // `blad_webhook` (ta sama maszyna co kolejka i połączenia, #599).
+        // Cisza 72 h: trwająca awaria przypomina o sobie co trzecią noc,
+        // a nie co noc.
+        'alarm_po_nocach' => (int) env('KUKING_DZIENNIK_WYMAZAN_ALARM_NOCE', 3),
+        'alarm_cisza_godzin' => (int) env('KUKING_DZIENNIK_WYMAZAN_ALARM_CISZA_GODZIN', 72),
     ],
 
     // TREŚCI USUNIĘTE PRZEZ AUTORA (audyt B5, znalezisko 1, 25.09.2026).

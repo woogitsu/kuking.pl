@@ -475,6 +475,31 @@ Przed odtworzeniem wystarczy więc sprawdzić dwie rzeczy:
    Komenda niczego nie wymazuje, tylko wpisuje do dziennika; wymazuje
    dopiero krok niżej.
 
+**Alarm po kilku nocach bez wymazań (issue #2038, etap 3).** Opóźnienie
+z powodu magazynu nie może trwać po cichu. `kuking:usun-wygasle-konta`
+liczy noce, w których choć jedno konto cofnęło się przez dziennik
+(`DziennikWymazanNiedostepny`). Po `KUKING_DZIENNIK_WYMAZAN_ALARM_NOCE`
+kolejnych nocach (domyślnie 3, `kuking.dziennik_wymazan.alarm_po_nocach`)
+idzie **jedna** wiadomość na kanał `blad_webhook` (ten sam co błędy 500,
+kolejka i połączenia, D-041, #599; maszyna `EpizodAlarmu`) i `Log::error`
+„dziennik wymazań nie przyjmuje wpisów, wymazania stoją”. Reguły:
+
+- noc = dzień kalendarza; drugi przebieg tego samego dnia nie nabija licznika;
+- przebieg bez porażki dziennika (także z pustą kolejką) zeruje licznik;
+  `--dry-run` niczego nie zmienia;
+- trwająca awaria przypomina o sobie co `KUKING_DZIENNIK_WYMAZAN_ALARM_CISZA_GODZIN`
+  (domyślnie 72 h), a powrót do normy daje jedno odwołanie;
+- wiadomość niesie tylko liczby (noce, konta czekające) i instrukcję —
+  bez identyfikatorów kont;
+- licznik i pamięć alarmu leżą w cache (`AlarmMemory`); ręczne wyczyszczenie
+  cache zeruje licznik i alarm przyjdzie o kilka nocy później. Bez
+  `LOG_BLAD_WEBHOOK_URL` (dziś brak na produkcji) zostaje sam `Log::error`.
+
+Co zrobić po alarmie: sprawdź dostęp do dysku `r2_eksporty` (prefiks
+`dziennik-wymazan/`), napraw go i uruchom `php artisan kuking:usun-wygasle-konta`.
+**Nie odtwarzaj kopii bazy, zanim magazyn wróci.** Test:
+`tests/Feature/AlarmDziennikaWymazanTest.php`.
+
 **Czego to NIE gwarantuje.** Dziennik leży w tym samym koncie Cloudflare co
 paczki eksportu; utrata magazynu (nie jego chwilowa awaria) usuwa wpisy.
 Drugi, niezależny magazyn (wariant B z issue #2038) nie jest wdrożony.

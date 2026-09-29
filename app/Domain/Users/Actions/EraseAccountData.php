@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Users\Actions;
 
 use App\Domain\Compliance\DziennikWymazan;
+use App\Domain\Compliance\DziennikWymazanNiedostepny;
 use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
 use App\Domain\Users\Exports\ExportFileNames;
@@ -30,7 +31,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use RuntimeException;
 use Throwable;
 
 /**
@@ -587,7 +587,7 @@ final class EraseAccountData
             $wpis = $this->dziennik->dopiszJesliBrak((string) $fresh->getKey(), $zakresWykonany, now());
 
             if ($wpis === DziennikWymazan::BLAD) {
-                throw new RuntimeException('Dziennik wymazań poza bazą jest niedostępny — wymazanie cofnięte, egzekutor ponowi je przy następnym przebiegu.');
+                throw new DziennikWymazanNiedostepny('Dziennik wymazań poza bazą jest niedostępny — wymazanie cofnięte, egzekutor ponowi je przy następnym przebiegu.');
             }
 
             // `ISTNIEJE` (ponowne wymazanie po odtworzeniu kopii) zostaje bez
