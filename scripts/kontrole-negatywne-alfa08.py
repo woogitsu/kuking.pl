@@ -424,7 +424,11 @@ KREATOR_AUTORYZACJA_TEST = "KreatorPilnujeAutoryzacjiIIdentyfikatoraPrzepisuTest
 # #1387, krok 9: autozapis i rewizje w osobnych klasach (`app/Support/KreatorPrzepisu`).
 KREATOR_REWIZJA = "app/Support/KreatorPrzepisu/RewizjaTresci.php"
 KREATOR_STRONA_NIEAKTUALNA_TEST = "NieaktualnyFormularzPrzepisuTest"
-KREATOR_WALIDACJA_PRZED_ZAPISEM_TEST = "AutozapisKreatoraWalidujePrzedZapisemTest"
+# Jeden test, nie cała klasa (#1011): bez walidacji mutacja zapala w klasie
+# kilkanaście objawów naraz (długość kolumn, CHECK-i, stan `saved`), a wzorzec
+# na wszystkie pasowałby do niemal wszystkiego. Tytuł 181 znaków w pierwszym
+# autozapisie to reguła wprost: surowe pole nie może dojść do bazy.
+KREATOR_WALIDACJA_PRZED_ZAPISEM_TEST = "test_pierwszy_autozapis_nie_wysyla_181_znakowego_tytulu_do_bazy"
 KREATOR_BLAD_PRZEPISU_TEST = "PublikacjaZBledemPrzepisuZostajeNaWlasciwymKrokuTest"
 KREATOR_ZAPIS = "$recipeId === null ? 'brak' : ($juzOpublikowany ? 'opublikowany' : 'szkic')"
 # Wyjęcie ze wszystkich zeszytów jest atomowe (#1384). Mutacja zdejmuje
