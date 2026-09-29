@@ -20,8 +20,10 @@ declare(strict_types=1);
  * o WYNIK KROKU, a nie o to, czy narzędzie się nie wywróciło.
  */
 
+use App\Domain\Collections\Actions\RemoveUnavailableFromCollection;
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
+use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Domain\Comments\Actions\DeleteComment;
 use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
@@ -504,6 +506,20 @@ try {
             // zeszytów (przegląd PR #1213, D-070). Bez argumentu: domyślny.
             collection: isset($argumenty['zeszyt']) ? Collection::query()->whereKey($argumenty['zeszyt'])->firstOrFail() : null,
         )->getKey(),
+
+        // Zbiorcze „Wyjmij niedostępne zapisy” (#2205): odcisk liczony tu,
+        // na świeżym koncie, tak jak robi to formularz przy otwarciu ekranu.
+        'wyjmij-niedostepne' => (function () use ($argumenty): int {
+            $kto = User::query()->whereKey($argumenty['kto'])->firstOrFail();
+            $zeszyt = Collection::query()->whereKey($argumenty['zeszyt'])->firstOrFail();
+            $zawartosc = app(WidocznaZawartoscZeszytu::class);
+
+            return app(RemoveUnavailableFromCollection::class)->handle(
+                $kto,
+                $zeszyt,
+                $zawartosc->odcisk($zeszyt, $zawartosc->niedostepne($zeszyt, $kto)),
+            );
+        })(),
 
         'zapisz-wpis' => (string) app(SavePostToCollection::class)->handle(
             user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),

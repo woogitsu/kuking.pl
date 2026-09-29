@@ -195,7 +195,7 @@ final class SaveRecipeToCollection
         // Wyjęcie z JEDNEGO zeszytu nie wycofuje zapisu, dopóki przepis
         // leży w innym zeszycie tej osoby — powiadomienie za nią poszło
         // raz (#906) i zostaje, póki jej zapis trwa gdziekolwiek.
-        $this->cofnijJesliNigdzieNieZostal($user, $recipe);
+        $this->notify->cofnijJesliNigdzieNieZostal($user, $recipe);
 
         return $zdjete;
     }
@@ -283,32 +283,6 @@ final class SaveRecipeToCollection
             }
 
             return $wrocilo;
-        });
-    }
-
-    /**
-     * Wycofanie PRZED przeczytaniem cofa też udział tej osoby w partii
-     * zbiorczego powiadomienia — patrz `NotifyRecipeSaved::cofnij()`.
-     * Tylko gdy przepisu nie ma już w ŻADNYM jej zeszycie: to lustro
-     * warunku z zapisu, który powiadamia wyłącznie przy pierwszym zeszycie.
-     */
-    private function cofnijJesliNigdzieNieZostal(User $user, Recipe $recipe): void
-    {
-        // Ta sama blokada partii co przy zapisie: sprawdzenie „nigdzie nie
-        // został” i wycofanie z partii muszą być jednym krokiem względem
-        // równoległego zapisu tej osoby do innego zeszytu — inaczej zapis
-        // liczy wyjmowany jeszcze zeszyt, nie powiadamia, a wycofanie
-        // potem wyrzuca tę osobę z partii, choć przepis u niej leży.
-        DB::transaction(function () use ($user, $recipe): void {
-            $this->notify->zablokujPartie($recipe);
-
-            $zostal = $user->collections()
-                ->whereHas('recipes', fn ($q) => $q->whereKey($recipe->getKey()))
-                ->exists();
-
-            if (! $zostal) {
-                $this->notify->cofnij($user, $recipe);
-            }
         });
     }
 }
