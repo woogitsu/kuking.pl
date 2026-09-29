@@ -319,12 +319,40 @@ final class WidocznoscPowiadomien
     }
 
     /**
+     * Pierwsza osoba z partii zapisów, którą odbiorca może zobaczyć z imienia
+     * (issue #1687, etap 5) — albo `null`, gdy nie może żadnej.
+     *
+     * To ta sama definicja „osoba widoczna" co w `widocznaPartiaZapisow()`
+     * (status spoza `User::STATUSY_UKRYWAJACE_TRESC`, brak blokady w obie
+     * strony, jedna `blokadaZOdbiorca()`), więc wiersz na liście i imię
+     * w jego nagłówku nie mogą się rozjechać. JEDNO zapytanie niezależnie
+     * od wielkości partii: kolejność zapisu z `array_position`, `LIMIT 1`.
+     *
+     * @param  list<string>  $zapisujacy  identyfikatory w kolejności zapisu
+     */
+    public function pierwszyWidocznyZapisujacy(array $zapisujacy, string $odbiorcaId): ?User
+    {
+        if ($zapisujacy === []) {
+            return null;
+        }
+
+        return User::query()
+            ->whereIn('users.id', $zapisujacy)
+            ->whereNotIn('users.status', User::STATUSY_UKRYWAJACE_TRESC)
+            ->whereNotExists(function (QueryBuilder $blokada) use ($odbiorcaId): void {
+                self::blokadaZOdbiorca($blokada, 'users.id', $odbiorcaId);
+            })
+            ->orderByRaw('array_position(?::uuid[], users.id)', ['{'.implode(',', $zapisujacy).'}'])
+            ->first();
+    }
+
+    /**
      * `blocks` w obie strony między kolumną z osobą a odbiorcą — jedno
      * miejsce dla warunku widoczności partii i dla wyboru imienia do
-     * pokazania (`Notification::zapisujacyDoPokazania()`), żeby lista
-     * i nagłówek nie rozjechały się co do tego, kto jest widoczny.
+     * pokazania (`pierwszyWidocznyZapisujacy()`), żeby lista i nagłówek
+     * nie rozjechały się co do tego, kto jest widoczny.
      */
-    public static function blokadaZOdbiorca(QueryBuilder $sub, string $kolumnaOsoby, string $odbiorcaId): void
+    private static function blokadaZOdbiorca(QueryBuilder $sub, string $kolumnaOsoby, string $odbiorcaId): void
     {
         $sub->selectRaw('1')
             ->from('blocks')

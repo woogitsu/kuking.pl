@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
@@ -589,9 +588,10 @@ class Notification extends Model
      * Wcześniejsza wersja ładowała WSZYSTKICH zapisujących i dla każdego
      * pytała osobno o blokadę — partia 200 osób to było ~200 zapytań na
      * jedną pozycję listy, a widok woła nagłówek i resztę zdania osobno.
-     * Imię potrzebne jest jedno, więc blokada idzie do `NOT EXISTS`,
-     * kolejność zapisu do `array_position`, a wynik do `LIMIT 1`. Wynik
-     * jest zapamiętany na tym obiekcie.
+     * Imię potrzebne jest jedno, więc zapytanie (blokada w `NOT EXISTS`,
+     * kolejność zapisu, `LIMIT 1`) leży w `WidocznoscPowiadomien::pierwszyWidocznyZapisujacy()`
+     * — obok warunku widoczności całej partii, z tych samych reguł
+     * (issue #1687, etap 5). Wynik jest zapamiętany na tym obiekcie.
      *
      * Gdy tą osobą jest `actor_id` z załadowaną już relacją (lista ładuje
      * `actor.profile.avatar` hurtem), oddajemy TAMTEN obiekt — awatar nie
@@ -610,16 +610,7 @@ class Notification extends Model
             return null;
         }
 
-        $odbiorcaId = (string) $this->user_id;
-
-        $pierwszy = User::query()
-            ->whereIn('users.id', $savers)
-            ->whereNotIn('users.status', User::STATUSY_UKRYWAJACE_TRESC)
-            ->whereNotExists(function (QueryBuilder $blokada) use ($odbiorcaId): void {
-                WidocznoscPowiadomien::blokadaZOdbiorca($blokada, 'users.id', $odbiorcaId);
-            })
-            ->orderByRaw('array_position(?::uuid[], users.id)', ['{'.implode(',', $savers).'}'])
-            ->first();
+        $pierwszy = app(WidocznoscPowiadomien::class)->pierwszyWidocznyZapisujacy($savers, (string) $this->user_id);
 
         if ($pierwszy !== null && $this->relationLoaded('actor') && $this->actor?->is($pierwszy)) {
             $pierwszy = $this->actor;

@@ -150,6 +150,13 @@ pilnuje, że blokada ukrywa wiersz we wszystkich wejściach naraz i że liczba
 zapytań strony nie rośnie z liczbą wierszy. Eksport danych i Web Push nadal
 wołają `visibleTo()` wprost (ten sam kontrakt, inny kształt wyniku).
 
+Etap 5 (#1687): wybór imienia z partii zapisów („Anna oraz 2 inne osoby…")
+przeszedł z modelu do `WidocznoscPowiadomien::pierwszyWidocznyZapisujacy()`,
+obok warunku widoczności całej partii (`widocznaPartiaZapisow()`). Model nie
+składa już SQL o blokadach i statusach kont; `blokadaZOdbiorca()` jest
+prywatna. `tests/Feature/ZapisujacyDoPokazaniaZgodniZListaTest` pilnuje, że
+wiersz jest na liście wtedy i tylko wtedy, gdy jest osoba do pokazania.
+
 Jeszcze niezrobione w ramach #1687: wspólna specyfikacja dla list treści
 (`Post/Recipe/CookedEvent::scopeWidoczneDla()` różnią się dziś od Policy
 m.in. statusem konta autora).
