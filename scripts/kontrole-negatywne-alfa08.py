@@ -589,6 +589,17 @@ DOBOR_STRONA_TEST = "JakDobieramyWpisyMowiPrawdeTest"
 REGULAMIN_WERSJA = "config/kuking.php"
 REGULAMIN_WERSJA_TEST = "ZmianaRegulaminuTest"
 
+# Pasek o zmianie polityki (D-327, D-332): rollback bez odmowy i sekcja
+# „Co się zmieniło” niezgodne z konfiguracją (drobna/istotna); pasek przy drobnej;
+# wybór formy: ukryty w okresie przejściowym zmiany istotnej, od razu przy drobnej.
+POLITYKA_PASEK_MIGRACJA = "database/migrations/2026_09_29_180000_add_policy_notice_dismissed_version_to_users.php"
+POLITYKA_PASEK_TEST = "ZmianaPolitykiTest"
+POLITYKA_PASEK_KLASA = "app/Domain/Zgody/ZmianaPolityki.php"
+UDOSTEPNIANIE = "app/Domain/Sharing/Udostepnianie.php"
+# Filtr na jeden test: mutacja zapala też test liczby zapytań (inny komunikat).
+PODZIEL_SIE_ZESZYT_WSPOLNY_TEST = "test_zeszyt_wspolny_publiczny_dostaje_przycisk"
+POLITYKA_TEKST = "resources/legal/polityka-prywatnosci.md"
+
 # Data publikacji osobno od daty wejścia w życie (D-327). Mutacje: okres
 # przejściowy znika (zmiana istotna obowiązuje od razu), 14 dni zamienia się
 # w zero, zgoda zapisuje wersję opublikowaną zamiast obowiązującej.
@@ -671,6 +682,15 @@ PLAN_IAC_ENVIRONMENT = (
     "    # przejrzał diff `.railway/**`.\n"
     "    environment: production\n"
 )
+FORMA_MIGRACJA = "database/migrations/2026_09_25_140000_add_form_of_address_to_profiles.php"
+FORMA_WYMAZANIE = "app/Domain/Users/Actions/EraseAccountData.php"
+FORMA_TEST = "FormaZwracaniaSieTest"
+FORMA_HELPER = "app/Support/Forma.php"
+FORMA_KONIEC_ONBOARDINGU = "resources/views/pages/onboarding/done.blade.php"
+FORMA_ODKRYWANIE = "resources/views/components/pusty-stan-odkrywania.blade.php"
+FORMA_TEKSTY_TEST = "FormaTekstyTest"
+TEKSTY_BEZ_PLCI_TEST = "TekstyNiePrzypisujaPlciTest"
+
 GOOGLE_LINK_WIDOK = "resources/views/auth/google-link.blade.php"
 GOOGLE_LINK_TEST = "test_widoki_nie_przypisuja_czytelnikowi_plci"
 # Wspólna maszyna epizodu alarmu (#972). Cisza ma być kupowana WYŁĄCZNIE
@@ -1410,6 +1430,21 @@ checks = [
      lambda s: replace_once(s, "'na_czym_sie_znam' =>", "'w_czym_jestem_dobra' =>")),
     ("Eksport gubi wybór widoczności wartości odżywczych", EKSPORT_DANE, EKSPORT_WIDOCZNOSC_TEST,
      lambda s: replace_once(s, EKSPORT_WIDOCZNOSC_POLE, "")),
+    # #1752 (D-332): rollback formy zwracania się bez strażnika D-088
+    # i anonimizacja konta, która zostawia wybraną formę.
+    ("Cofnięcie formy zwracania się bez odmowy", FORMA_MIGRACJA, FORMA_TEST,
+     lambda s: replace_once(s, "        if ($zWyborem > 0) {\n", "        if (false) {\n")),
+    ("Anonimizacja zostawia formę zwracania się", FORMA_WYMAZANIE, FORMA_TEST,
+     lambda s: replace_once(s, "                    'form_of_address' => null,\n", "")),
+    # #1753 (D-332): helper ignoruje formę żeńską; wariant neutralny z rodzajem;
+    # goły rodzaj OBOK helpera w tej samej linii (wycinamy tylko argumenty).
+    ("Helper formy ignoruje formę żeńską", FORMA_HELPER, FORMA_TEKSTY_TEST,
+     lambda s: replace_once(s, "Profile::FORM_FEMININE => $zenska,", "Profile::FORM_FEMININE => $neutralna,")),
+    ("Wariant neutralny helpera z rodzajem", FORMA_KONIEC_ONBOARDINGU, FORMA_TEKSTY_TEST,
+     lambda s: replace_once(s, "'ugotowałaś', 'ugotowałeś', 'gotujesz') }} —", "'ugotowałaś', 'ugotowałeś', 'ugotowałeś') }} —")),
+    ("Goły rodzaj obok wywołania helpera", FORMA_ODKRYWANIE, TEKSTY_BEZ_PLCI_TEST,
+     lambda s: replace_once(s, "}}. Nie musi być ładne", "}} ugotowałaś. Nie musi być ładne")),
+
     # „jesteś zalogowany” wraca na ekran łączenia konta Google — wzorzec
     # `jestem_przymiotnik` w `WzorceRodzaju` ma to złapać.
     ("Rodzaj po „jesteś” na ekranie Google", GOOGLE_LINK_WIDOK, GOOGLE_LINK_TEST,
@@ -1524,6 +1559,25 @@ checks = [
      lambda s: replace_once(s, "use App\\Models\\Comment;\n", "use App\\Models\\Comment;\nuse App\\Models\\PostReaction;\n")),
     ("Strona doboru opisuje rotację, której kod nie robi", DOBOR_ROTACJA, DOBOR_STRONA_TEST,
      lambda s: replace_once(s, "PARTITION BY posts.author_id ORDER BY posts.published_at DESC", "PARTITION BY posts.author_id ORDER BY posts.id DESC, posts.published_at DESC")),
+    ("Rollback paska polityki bez odmowy", POLITYKA_PASEK_MIGRACJA, POLITYKA_PASEK_TEST,
+     lambda s: replace_once(s, "if ($ile > 0) {", "if (false) {")),
+    # Decyzja właściciela z 29.09.2026 (wieczór): wersja 2026-09-30 jest drobna.
+    # Wpis „Co się zmieniło” ma mówić o wejściu w życie to samo co konfiguracja.
+    ("Polityka z terminem wejścia niezgodnym z konfiguracją", POLITYKA_TEKST, POLITYKA_PASEK_TEST,
+     lambda s: replace_once(s, "umowy. Ta poprawka obowiązuje od dnia publikacji.",
+                            "umowy. To zmiana istotna: nowa wersja obowiązuje od 14 października 2026. "
+                            "Do tego dnia obowiązuje poprzednia wersja z 29 września 2026.")),
+    ("Pasek polityki przy drobnej zmianie", POLITYKA_PASEK_KLASA, POLITYKA_PASEK_TEST,
+     lambda s: replace_once(s, "        if (! $this->dokument()->istotna) {\n            return false;\n        }\n\n", "")),
+    # Mechanizm na przyszłe zmiany istotne: test ustawia istotną w konfiguracji.
+    ("Wybór formy widoczny w okresie przejściowym polityki", FORMA_HELPER, FORMA_TEST,
+     lambda s: replace_once(s, "return ! WersjaDokumentu::polityka()->wOkresiePrzejsciowym();", "return true;")),
+    ("Wybór formy czeka na dzień wersji przy drobnej zmianie", FORMA_HELPER, "test_przy_drobnej_zmianie_polityki_wybor_jest_od_razu",
+     lambda s: replace_once(s, "return ! WersjaDokumentu::polityka()->wOkresiePrzejsciowym();",
+                            "return now()->greaterThanOrEqualTo(WersjaDokumentu::polityka()->obowiazujeOd());")),
+    # #2000, decyzja właściciela z 29.09.2026: wspólny zeszyt „wszyscy” ma przycisk.
+    ("Wspólny publiczny zeszyt bez „Podziel się”", UDOSTEPNIANIE, PODZIEL_SIE_ZESZYT_WSPOLNY_TEST,
+     lambda s: replace_once(s, "return ! $tresc->is_default;", "return ! $tresc->is_default && ! $tresc->members()->exists();")),
     ("Wersja regulaminu podbita bez nagłówka dokumentu", REGULAMIN_WERSJA, REGULAMIN_WERSJA_TEST,
      lambda s: replace_once(s, "'wersja_regulaminu' => '2026-09-26'", "'wersja_regulaminu' => '2026-09-27'")),
     ("Zmiana istotna bez okresu przejściowego", WERSJA_DOKUMENTU, WERSJA_DOKUMENTU_TEST,

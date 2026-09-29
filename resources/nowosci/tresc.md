@@ -31,6 +31,19 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Jak mamy do Was pisać?
+
+W ustawieniach profilu, a także na ostatnim kroku po założeniu konta, jest nowe
+pytanie „Jak mamy do Ciebie pisać?”. Możecie wybrać formę żeńską, męską albo
+neutralną. Neutralna jest zaznaczona od początku i tak piszemy do wszystkich,
+dopóki ktoś nie wybierze inaczej — możecie też pominąć to pytanie i nic się nie
+zmieni. Nie zgadujemy niczego z imienia ani z konta Google czy Facebooka.
+Wybraną formę zobaczą też inni, bo tak będziemy o Was pisać, na przykład
+„Ania ugotowała Twój przepis”. Przy formie żeńskiej przycisk na końcu gotowania
+nazywa się „Ugotowałam”. Na razie zmienia to tylko kilka miejsc w serwisie,
+kolejne dołączymy po kolei. Wybór zmienicie w każdej chwili, a kiedy usuniecie
+konto, zniknie razem z nim.
+
 ### Ile masz czasu? Wybierz w wyszukiwarce przepisów
 
 Pod zakresami wyszukiwania jest nowy wiersz „Ile masz czasu?”. Możecie wybrać
@@ -41,6 +54,7 @@ udajemy, że gotuje się w zero minut. Wybrany czas jest zaznaczony, a wrócić 
 wszystkich przepisów możecie jednym kliknięciem w „Bez limitu czasu”. Wybór
 zostaje w adresie strony, więc działa po odświeżeniu i można go komuś wysłać.
 Dawny przycisk „Do 30 minut” działa dalej, także w starych linkach.
+
 ### Wyślijcie komuś swój zeszyt
 
 Na stronie zeszytu, który ma widoczność „wszyscy”, jest teraz przycisk
@@ -48,9 +62,11 @@ Na stronie zeszytu, który ma widoczność „wszyscy”, jest teraz przycisk
 widoczny adres, który można zaznaczyć i skopiować (na telefonie jest też
 przycisk „Skopiuj adres” i systemowe okno wysyłania). Osoba, która dostanie
 adres, otworzy zeszyt bez zakładania konta i zobaczy tylko te przepisy, które
-sama ma prawo zobaczyć. Zeszytu „Tylko ja”, zeszytu „Zapisane” ani wspólnego
-zeszytu z bliskimi nie da się w ten sposób wysłać — na stronie takiego zeszytu
-przeczytacie, co zmienić, jeśli chcecie go udostępnić.
+sama ma prawo zobaczyć. Dotyczy to także wspólnego zeszytu z bliskimi, jeśli
+ma widoczność „wszyscy”. Zeszytu „Tylko ja” ani zeszytu „Zapisane” nie da się
+w ten sposób wysłać — na stronie takiego zeszytu przeczytacie, co zmienić,
+jeśli chcecie go udostępnić.
+
 ### Kalorie na porcję także dla wyszukiwarek
 
 Jeśli przy przepisie widzicie „Szacunkowe wartości odżywcze (na porcję)”, tę
@@ -58,6 +74,7 @@ samą liczbę kalorii podajemy teraz także w danych, które czytają wyszukiwar
 Robimy to tylko wtedy, gdy liczba naprawdę jest na stronie: autor nie ukrył
 sekcji, znamy skład co najmniej 90% składników i autor podał liczbę porcji.
 Gdy któregoś z tych warunków brakuje, wyszukiwarkom też nic nie podajemy.
+
 ### Zobaczcie, co autor zmienił w przepisie
 
 Gdy przepis był poprawiany i ma co najmniej dwie zapisane wersje, pod nim
@@ -70,6 +87,7 @@ zmieniły się proporcje lub sposób przygotowania. Historia pokazuje tekst i da
 przepisu, bez zdjęć, i widzi ją każdy, kto widzi sam przepis — nic ponadto. Jeśli
 starsza wersja nie zapisała jakiegoś pola, piszemy o tym wprost, zamiast
 zgadywać.
+
 ### Zacznijcie gotować na telefonie, dokończcie na tablecie
 
 W trybie „Gotuję” jest nowy, całkiem opcjonalny przycisk „Zapamiętuj postęp na

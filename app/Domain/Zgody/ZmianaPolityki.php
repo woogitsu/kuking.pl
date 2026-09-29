@@ -1,0 +1,81 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Domain\Zgody;
+
+use App\Models\User;
+use App\Support\Czas;
+use Carbon\CarbonImmutable;
+
+/**
+ * Pasek „Zmieniliśmy politykę prywatności — co się zmieniło” (D-327, D-332).
+ *
+ * Bliźniak `ZmianaRegulaminu`: polityka §9 obiecuje przy zmianie istotnej
+ * „powiadomienie w serwisie”, a `WersjaDokumentuTest` nie pozwala oznaczyć
+ * zmiany jako istotnej bez tego paska. Zalogowana osoba widzi go na każdym
+ * ekranie, dopóki go nie zamknie; zamknięcie zapisuje wersję
+ * (`users.policy_notice_dismissed_version`) i przy niej pasek nie wraca.
+ * Następne podbicie `kuking.zgody.wersja_polityki` pokazuje go znowu.
+ *
+ * Konto założone W DNIU wersji albo później paska nie dostaje: przy rejestracji
+ * miało przed sobą już nowy tekst.
+ *
+ * Pasek jest TYLKO dla zmiany istotnej (inaczej niż pasek regulaminu z D-306):
+ * polityka §9 obiecuje powiadomienie w serwisie właśnie przy zmianie istotnej,
+ * a drobna poprawka obowiązuje od dnia publikacji i nikogo nie zaczepia.
+ * Decyzja właściciela z 29.09.2026 (wieczór, D-332): wersja 2026-09-30 jest
+ * drobna, bo serwis nie ma jeszcze prawdziwych kont — mechanizm zostaje na
+ * przyszłe zmiany istotne.
+ *
+ * Zamknięcie paska NIE jest zgodą ani akceptacją — to ślad, że komunikat
+ * dotarł. Termin wejścia w życie liczy `WersjaDokumentu::polityka()`.
+ */
+final class ZmianaPolityki
+{
+    /** Data PUBLIKACJI bieżącej wersji — od niej liczy się pasek. */
+    public static function wersja(): string
+    {
+        return (string) config('kuking.zgody.wersja_polityki');
+    }
+
+    public function dokument(): WersjaDokumentu
+    {
+        return WersjaDokumentu::polityka();
+    }
+
+    public function pokazac(?User $user): bool
+    {
+        if ($user === null || $user->created_at === null) {
+            return false;
+        }
+
+        if (! $this->dokument()->istotna) {
+            return false;
+        }
+
+        $wersja = self::wersja();
+        $poczatekWersji = CarbonImmutable::parse($wersja, Czas::strefa())->startOfDay();
+
+        // Pasek liczy się od dnia PUBLIKACJI. Wersja z datą jutrzejszą (kod
+        // wdrożony przed dniem publikacji) nie jest jeszcze „zmieniona”, więc
+        // nikt nie dostaje paska przed tym dniem.
+        if (CarbonImmutable::now(Czas::strefa())->lessThan($poczatekWersji)) {
+            return false;
+        }
+
+        if ($user->created_at->greaterThanOrEqualTo($poczatekWersji)) {
+            return false;
+        }
+
+        $zamknieta = $user->policy_notice_dismissed_version;
+
+        return $zamknieta === null || (string) $zamknieta < $wersja;
+    }
+
+    /** Zapis wersji, przy której osoba zamknęła pasek. Tylko tędy. */
+    public function zamknij(User $user): void
+    {
+        $user->forceFill(['policy_notice_dismissed_version' => self::wersja()])->save();
+    }
+}
