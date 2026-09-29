@@ -14,6 +14,7 @@ use App\Facebook\DostawcaWejsciaFacebook;
 use App\Facebook\TozsamoscFacebook;
 use App\Google\DostawcaWejsciaGoogle;
 use App\Google\TozsamoscGoogle;
+use App\Http\Support\ZadanieHttp;
 use App\Models\User;
 use App\Support\RejestracjaZamknieta;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -70,14 +71,14 @@ class WejdzPrzezDostawceTest extends TestCase
     }
 
     /** Żądanie na tej samej sesji, którą widzi strażnik `Auth`. */
-    private function zadanie(array $pola = []): Request
+    private function zadanie(array $pola = []): ZadanieHttp
     {
         $request = Request::create('/', 'POST', $pola);
         $sesja = app('session')->driver();
         $sesja->start();
         $request->setLaravelSession($sesja);
 
-        return $request;
+        return ZadanieHttp::z($request);
     }
 
     private function tozsamosc(WejdzPrzezDostawce $wejscie, ?string $email = 'basia@example.test'): TozsamoscOdDostawcy
@@ -109,12 +110,12 @@ class WejdzPrzezDostawceTest extends TestCase
         $wejscie = $this->wejscie($klasa);
         $basia = $this->konto();
         $request = $this->zadanie();
-        $przed = $request->session()->getId();
+        $przed = $request->sesja()->getId();
 
         $this->assertSame(WynikWejscia::Wpuszczony, $wejscie->wpusc($request, $basia));
 
         $this->assertAuthenticatedAs($basia);
-        $this->assertNotSame($przed, $request->session()->getId(), 'Wejście ma zregenerować sesję.');
+        $this->assertNotSame($przed, $request->sesja()->getId(), 'Wejście ma zregenerować sesję.');
         $this->assertSame(1, $this->wpisyDziennika($wejscie->dostawca()->akcjaWejscia()));
     }
 
@@ -160,12 +161,12 @@ class WejdzPrzezDostawceTest extends TestCase
         $basia->confirmTwoFactor($totp->hashBackupCodes($totp->generateBackupCodes()));
 
         $request = $this->zadanie();
-        $przed = $request->session()->getId();
+        $przed = $request->sesja()->getId();
 
         $this->assertSame(WynikWejscia::DrugiSkladnik, $this->wejscie($klasa)->wpusc($request, $basia->refresh()));
         $this->assertGuest();
-        $this->assertSame($basia->getKey(), $request->session()->get('logowanie.2fa.user_id'));
-        $this->assertNotSame($przed, $request->session()->getId());
+        $this->assertSame($basia->getKey(), $request->sesja()->get('logowanie.2fa.user_id'));
+        $this->assertNotSame($przed, $request->sesja()->getId());
     }
 
     // ─────────────────────────── stan w sesji ───────────────────────────
@@ -197,7 +198,7 @@ class WejdzPrzezDostawceTest extends TestCase
         $this->travel($wejscie->dostawca()->waznoscDomknieciaMinut() + 1)->minutes();
 
         $this->assertNull($wejscie->tozsamoscZSesji($request));
-        $this->assertNull($request->session()->get('wejscie_'.$wejscie->dostawca()->nazwa().'.tozsamosc'));
+        $this->assertNull($request->sesja()->get('wejscie_'.$wejscie->dostawca()->nazwa().'.tozsamosc'));
     }
 
     #[Test]
@@ -345,7 +346,7 @@ class WejdzPrzezDostawceTest extends TestCase
         $wejscie = $this->wejscie($klasa);
         $request = $this->zadanie();
         $wejscie->zapamietaj($request, $this->tozsamosc($wejscie, 'nowa@example.test'));
-        $przed = $request->session()->getId();
+        $przed = $request->sesja()->getId();
 
         $konto = $wejscie->zalozKonto(
             $request,
@@ -358,7 +359,7 @@ class WejdzPrzezDostawceTest extends TestCase
         $this->assertSame($wejscie->dostawca()->potwierdzaAdres(), $konto->user->email_verified_at !== null);
         $this->assertTrue($wejscie->dostawca()->kontoPowiazane(self::IDENTYFIKATOR)?->is($konto->user));
         $this->assertAuthenticatedAs($konto->user);
-        $this->assertNotSame($przed, $request->session()->getId());
+        $this->assertNotSame($przed, $request->sesja()->getId());
         $this->assertNull($wejscie->tozsamoscZSesji($request), 'Po założeniu konta tożsamość znika z sesji.');
     }
 

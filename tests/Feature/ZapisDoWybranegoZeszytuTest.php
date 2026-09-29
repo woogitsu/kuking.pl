@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Collections\ZeszytyDoWyboru;
+use App\Http\Support\ZeszytyZZadania;
 use App\Models\Post;
 use App\Models\Recipe;
 use DOMDocument;
@@ -26,19 +27,25 @@ class ZapisDoWybranegoZeszytuTest extends TestCase
         $own = $first->collections()->create(['name' => 'Prywatny', 'visibility' => 'private']);
         $other = $second->collections()->create(['name' => 'Drugi', 'visibility' => 'private']);
         $provider = new ZeszytyDoWyboru;
+        $this->assertSame([$own->id], $provider->dla($first)->modelKeys());
+        $this->assertSame([$other->id], $provider->dla($second)->modelKeys());
+        $this->assertCount(0, $provider->dla(null));
+
+        // Adapter HTTP: jedno pobranie na żądanie, osoba z żądania.
+        $adapter = new ZeszytyZZadania($provider);
         $request = Request::create('/');
         $request->setUserResolver(fn () => $first);
-        $list = $provider->dla($request);
+        $list = $adapter->dla($request);
         $this->assertSame([$own->id], $list->modelKeys());
-        $this->assertSame($list, $provider->dla($request));
+        $this->assertSame($list, $adapter->dla($request));
         $request->setUserResolver(fn () => $second);
-        $this->assertSame([$other->id], $provider->dla($request)->modelKeys());
+        $this->assertSame([$other->id], $adapter->dla($request)->modelKeys());
         $request->setUserResolver(fn () => null);
-        $this->assertCount(0, $provider->dla($request));
+        $this->assertCount(0, $adapter->dla($request));
         $own->delete();
         $next = Request::create('/');
         $next->setUserResolver(fn () => $first);
-        $this->assertCount(0, $provider->dla($next));
+        $this->assertCount(0, $adapter->dla($next));
     }
 
     public function test_usuniety_ostatni_zeszyt_pokazuje_blad_z_istniejacym_celem(): void

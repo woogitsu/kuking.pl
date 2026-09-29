@@ -392,6 +392,15 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Identyfikatory zadania kolejki w kontekście każdego zgłaszanego błędu
+        // (`QueueCorrelation`). Tu, a nie w `CorrelationServiceProvider`:
+        // provider brał `ExceptionHandler` z kontenera i sprawdzał
+        // `instanceof Handler`, a w konsoli poza testami Collision owija
+        // handler własną klasą — hook po cichu nie powstawał (issue #1731).
+        $exceptions->context(
+            static fn (Throwable $e): array => app(QueueCorrelation::class)->forException($e),
+        );
+
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );

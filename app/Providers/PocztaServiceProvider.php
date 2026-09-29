@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
-use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Symfony\Component\Mailer\Transport\TransportInterface;
 
@@ -213,9 +212,8 @@ class PocztaServiceProvider extends ServiceProvider
             // chce dyspozytora PSR-14, a Laravel ma własny (`Illuminate`),
             // i to Laravel — nie Symfony — rozgłasza `MessageSending`
             // i `MessageSent`. Tak samo robią wbudowane sterowniki Laravela.
-            // Dziennik podajemy, bo `LogManager` jest zgodny z PSR-3 — ale
-            // sprawdzamy to, zamiast zakładać: kontener oddaje tu `mixed`.
-            logger: $dziennik instanceof LoggerInterface ? $dziennik : null,
+            // Dziennik podajemy, bo `LogManager` jest zgodny z PSR-3.
+            logger: $dziennik,
         );
     }
 }

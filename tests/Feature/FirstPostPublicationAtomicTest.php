@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
+use Tests\Support\Przelacznik;
 use Tests\TestCase;
 
 class FirstPostPublicationAtomicTest extends TestCase
@@ -198,9 +199,9 @@ class FirstPostPublicationAtomicTest extends TestCase
         $author = User::factory()->create();
         $key = (string) Str::uuid();
         $jobsBefore = DB::table('jobs')->count();
-        $active = true;
-        $fault = function () use (&$active, $stage): void {
-            if ($active) {
+        $active = new Przelacznik;
+        $fault = function () use ($active, $stage): void {
+            if ($active->wlaczony) {
                 throw new RuntimeException('awaria-'.$stage);
             }
         };
@@ -221,7 +222,7 @@ class FirstPostPublicationAtomicTest extends TestCase
         } catch (RuntimeException $error) {
             $caught = $error;
         } finally {
-            $active = false;
+            $active->wlaczony = false;
         }
         $this->assertNotNull($caught, 'Wstrzyknięta awaria musi wystąpić.');
         $this->assertSame('awaria-'.$stage, $caught->getMessage());

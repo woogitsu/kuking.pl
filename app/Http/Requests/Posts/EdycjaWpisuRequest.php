@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Validator as ValidatorFactory;
  */
 final class EdycjaWpisuRequest extends FormRequest
 {
+    use OdczytujeAkcjeTagow;
     use WalidujeTrescWpisu;
 
     public function authorize(): bool

@@ -86,6 +86,17 @@ class RejestrPotwierdzenRodoNieMaEkranuTest extends TestCase
      */
     private const WOLNO_PISAC = [];
 
+    /**
+     * Lista bywa pusta, więc czytamy ją przez typ z opisu — inaczej analiza
+     * widzi `array{}` i uznaje pętlę po niej za martwą.
+     *
+     * @return array<string, string>
+     */
+    private static function wolnoPisacLista(): array
+    {
+        return self::WOLNO_PISAC;
+    }
+
     #[Test]
     public function test_zadna_trasa_nie_prowadzi_do_kodu_znajacego_rejestr(): void
     {
@@ -225,7 +236,7 @@ class RejestrPotwierdzenRodoNieMaEkranuTest extends TestCase
     {
         $znormalizowana = str_replace('\\', '/', $sciezka);
 
-        foreach (array_keys(self::WOLNO_PISAC) as $dozwolony) {
+        foreach (array_keys(self::wolnoPisacLista()) as $dozwolony) {
             if (str_ends_with($znormalizowana, $dozwolony)) {
                 return true;
             }

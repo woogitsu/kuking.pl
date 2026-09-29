@@ -141,14 +141,11 @@ class CleanUpDataExports extends Command
             : 'Gotowe. Usunięto '.$this->paczki($removed).'.',
         );
 
-        // CZĘŚCIOWA PORAŻKA JEST PORAŻKĄ (issue #1331). Wcześniej komenda
-        // kończyła się sukcesem nawet wtedy, gdy nie usunęła ANI JEDNEJ
-        // paczki — a harmonogram (`Harmonogram::artisan()`) rozpoznaje błąd
-        // tylko po kodzie wyjścia. Reszta paczek jest już przetworzona, adresy
-        // nieudanych zostają do ponowienia. Utrzymującą się zaległość, także
-        // gdy ta komenda w ogóle nie chodzi, zgłasza osobna czujka
-        // `kuking:sprawdz-sprzatanie-eksportow`.
-        return $nieudane > 0 ? self::FAILURE : self::SUCCESS;
+        // Częściowa porażka (issue #1331) zwróciła już `FAILURE` wyżej — tu
+        // wszystkie paczki są usunięte albo podejrzane w trybie podglądu.
+        // Utrzymującą się zaległość, także gdy ta komenda w ogóle nie chodzi,
+        // zgłasza osobna czujka `kuking:sprawdz-sprzatanie-eksportow`.
+        return self::SUCCESS;
     }
 
     /** Polska odmiana: „1 wygasłą paczkę”, „2 wygasłe paczki”, „5 wygasłych paczek”. */

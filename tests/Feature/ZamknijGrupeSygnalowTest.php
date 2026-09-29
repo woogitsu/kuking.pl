@@ -17,6 +17,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
+use Tests\Support\Przelacznik;
 use Tests\TestCase;
 
 /**
@@ -187,9 +188,9 @@ class ZamknijGrupeSygnalowTest extends TestCase
         $this->oznaczenie($autor);
         $stan = $this->stan($autor);
 
-        $awaria = true;
-        DB::listen(function (QueryExecuted $zapytanie) use (&$awaria): void {
-            if ($awaria
+        $awaria = new Przelacznik;
+        DB::listen(function (QueryExecuted $zapytanie) use ($awaria): void {
+            if ($awaria->wlaczony
                 && str_contains($zapytanie->sql, 'insert into "audit_log"')
                 && in_array('moderation.automat_dismissed', $zapytanie->bindings, true)) {
                 throw new RuntimeException('Wstrzyknięta awaria dziennika.');
@@ -206,7 +207,7 @@ class ZamknijGrupeSygnalowTest extends TestCase
         $this->assertSame(2, $this->otwartych(), 'Statusy muszą wrócić do otwartych.');
         $this->assertSame(0, ModerationAction::query()->count(), 'Decyzje muszą zniknąć razem z wpisem.');
 
-        $awaria = false;
+        $awaria->wlaczony = false;
         $this->assertSame(2, $this->zamknij($moderator, (string) $autor->getKey(), $stan)->ile, 'Ponowienie daje jeden komplet.');
     }
 }

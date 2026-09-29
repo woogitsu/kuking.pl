@@ -5905,7 +5905,7 @@ wołana przez `PublishRecipe` przez kontrakt `StrazPochodzeniaPrzepisu`).
 | `recipe_id` | uuid PK, FK `recipes` `ON DELETE CASCADE` | przepis (szkic) z importu |
 | `user_id` | uuid, FK `users` `ON DELETE CASCADE` | kto importował; indeks `(user_id, created_at)` |
 | `zrodlo` | text, CHECK `url` / `pdf` / `zdjecie` | skąd |
-| `droga` | text, CHECK `json_ld` / `fragmenty` / `tekst_pdf` / `ocr` / `bez_tresci` | jak powstała treść: lokalnie z JSON-LD, granice fragmentów od modelu, tekst PDF, OCR, albo szkic z samym źródłem (robots.txt zabrania / brak przepisu) |
+| `droga` | text, CHECK `json_ld` / `fragmenty` / `tekst_pdf` / `ocr` / `bez_tresci` | jak powstała treść: lokalnie z danych strukturalnych schema.org (JSON-LD, a gdy go brak — mikrodane; obie drogi zapisują `json_ld`), granice fragmentów od modelu, tekst PDF, OCR, albo szkic z samym źródłem (robots.txt zabrania / brak przepisu) |
 | `source_url` | text NULL, CHECK: przy `zrodlo = url` niepusty i `^https?://`, ≤ 2000 znaków | adres po przekierowaniach, bez parametrów śledzących; ten sam trafia do `recipes.source_url` i jest tam zablokowany |
 | `tekst_zrodla` | text NULL | kroki w brzmieniu ze strony — do ostrzeżenia „opis prawie taki sam jak na stronie" (`similarity()` z `pg_trgm`, próg `kuking.import.podobienstwo_ostrzezenie`); **czyszczony przy publikacji** |
 | `sprawdzone_at` | timestamptz NULL | człowiek zaznaczył „Sprawdziłem odczytany tekst"; bez tego szkic się nie opublikuje |

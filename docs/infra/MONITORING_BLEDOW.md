@@ -44,7 +44,8 @@ streaming) nie obiecujemy pełnego łańcucha log–alarm–nagłówek–widok.
 ### Kolejka: żądanie, zadanie i osobna próba
 
 `CorrelationServiceProvider` rejestruje hook tworzenia payloadu oraz
-słuchaczy `JobProcessing` i `JobAttempted`. Nie trzeba dopisywać middleware
+słuchaczy `JobProcessing` i `JobAttempted`, a `bootstrap/app.php`
+(`withExceptions`) dokłada identyfikatory zadania do kontekstu błędu. Nie trzeba dopisywać middleware
 do każdego joba osobno. Koperta `kuking:correlation` przenosi wyłącznie
 poprawny UUID `request_id` z aktywnego kontekstu — nigdy całą sesję,
 kontekst logu ani atrybuty użytkownika. Zwykły UUID payloadu, już losowany

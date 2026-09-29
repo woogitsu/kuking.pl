@@ -466,7 +466,7 @@
                     @else
                         <form method="POST" action="{{ route('collections.save', $recipe->slug) }}">
                             @csrf
-                            @php $publicznyCel = app(\App\Domain\Collections\ZeszytyDoWyboru::class)->publicznyDomyslny(request()); @endphp
+                            @php $publicznyCel = app(\App\Http\Support\ZeszytyZZadania::class)->publicznyDomyslny(request()); @endphp
                             @if($publicznyCel)
                                 {{-- Cel szybkiego zapisu jest publiczny — mówimy to przy przycisku (issue #1400). --}}
                                 <p class="pomoc" id="cel-zapisu-{{ $recipe->getKey() }}">Zapiszemy w zeszycie „{{ $publicznyCel->name }}”. Ten zeszyt widzą inne zalogowane osoby.</p>

@@ -189,7 +189,7 @@ final readonly class CelZgloszenia
 
     private static function podPrzepisem(Recipe $recipe): string
     {
-        if ($recipe->title !== null && trim($recipe->title) !== '') {
+        if (trim($recipe->title) !== '') {
             return "pod przepisem «{$recipe->title}»";
         }
 
@@ -223,7 +223,7 @@ final readonly class CelZgloszenia
 
     private static function nazwaPrzepisu(Recipe $recipe): string
     {
-        if ($recipe->title !== null && trim($recipe->title) !== '') {
+        if (trim($recipe->title) !== '') {
             return "przepis «{$recipe->title}»";
         }
 

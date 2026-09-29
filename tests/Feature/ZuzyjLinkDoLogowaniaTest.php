@@ -14,6 +14,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
+use Tests\Support\Przelacznik;
 use Tests\TestCase;
 
 /**
@@ -130,9 +131,9 @@ class ZuzyjLinkDoLogowaniaTest extends TestCase
         $konto = $this->user();
         [$jawny] = $this->token($konto);
 
-        $awaria = true;
-        DB::listen(function (QueryExecuted $zapytanie) use (&$awaria): void {
-            if ($awaria
+        $awaria = new Przelacznik;
+        DB::listen(function (QueryExecuted $zapytanie) use ($awaria): void {
+            if ($awaria->wlaczony
                 && str_contains($zapytanie->sql, 'insert into "audit_log"')
                 && in_array('account.login_link_used', $zapytanie->bindings, true)) {
                 throw new RuntimeException('Wstrzyknięta awaria dziennika.');
@@ -151,7 +152,7 @@ class ZuzyjLinkDoLogowaniaTest extends TestCase
         $this->assertSame(1, LoginLinkToken::query()->count(), 'Token musi wrócić.');
         $this->assertSame(0, $this->wpisow());
 
-        $awaria = false;
+        $awaria->wlaczony = false;
         $this->assertTrue($konto->is($this->akcja()->handle($jawny, null)));
         $this->assertSame(1, $this->wpisow());
     }

@@ -124,14 +124,14 @@ final class ParserJsonLdPrzepisu
             return null;
         }
 
-        $tytul = $this->tekst($wezel['name'] ?? $wezel['headline'] ?? '');
+        $tytul = self::tekst($wezel['name'] ?? $wezel['headline'] ?? '');
 
         return new OdczytanyPrzepis(
             tytul: $tytul !== '' ? $tytul : 'Przepis ze strony',
-            opis: $this->tekst($wezel['description'] ?? '') ?: null,
-            porcje: $this->porcje($wezel['recipeYield'] ?? null),
-            przygotowanieMinut: $this->minuty($wezel['prepTime'] ?? null),
-            gotowanieMinut: $this->minuty($wezel['cookTime'] ?? null),
+            opis: self::tekst($wezel['description'] ?? '') ?: null,
+            porcje: self::porcje($wezel['recipeYield'] ?? null),
+            przygotowanieMinut: self::minuty($wezel['prepTime'] ?? null),
+            gotowanieMinut: self::minuty($wezel['cookTime'] ?? null),
             skladniki: $skladniki,
             kroki: $kroki,
         );
@@ -143,7 +143,7 @@ final class ParserJsonLdPrzepisu
     private function listaTekstow(mixed $wartosc): array
     {
         if (is_string($wartosc)) {
-            return $this->wiersze($wartosc);
+            return self::wiersze($wartosc);
         }
 
         if (! is_array($wartosc)) {
@@ -154,13 +154,13 @@ final class ParserJsonLdPrzepisu
 
         foreach ($wartosc as $element) {
             if (is_string($element) || is_int($element) || is_float($element)) {
-                $tekst = $this->tekst((string) $element);
+                $tekst = self::tekst((string) $element);
 
                 if ($tekst !== '') {
                     $wynik[] = $tekst;
                 }
             } elseif (is_array($element) && isset($element['text']) && is_string($element['text'])) {
-                $tekst = $this->tekst($element['text']);
+                $tekst = self::tekst($element['text']);
 
                 if ($tekst !== '') {
                     $wynik[] = $tekst;
@@ -184,7 +184,7 @@ final class ParserJsonLdPrzepisu
         }
 
         if (is_string($wartosc)) {
-            return $this->wiersze($wartosc);
+            return self::wiersze($wartosc);
         }
 
         if (! is_array($wartosc)) {
@@ -200,7 +200,7 @@ final class ParserJsonLdPrzepisu
 
         foreach ($wartosc as $element) {
             if (is_string($element)) {
-                array_push($wynik, ...$this->wiersze($element));
+                array_push($wynik, ...self::wiersze($element));
 
                 continue;
             }
@@ -215,7 +215,7 @@ final class ParserJsonLdPrzepisu
                 continue;
             }
 
-            $tekst = $this->tekst(is_string($element['text'] ?? null) ? $element['text'] : (is_string($element['name'] ?? null) ? $element['name'] : ''));
+            $tekst = self::tekst(is_string($element['text'] ?? null) ? $element['text'] : (is_string($element['name'] ?? null) ? $element['name'] : ''));
 
             if ($tekst !== '') {
                 $wynik[] = $tekst;
@@ -231,13 +231,13 @@ final class ParserJsonLdPrzepisu
      *
      * @return list<string>
      */
-    private function wiersze(string $tekst): array
+    public static function wiersze(string $tekst): array
     {
         $tekst = (string) preg_replace('#<\s*(br|/p|/li|/div|/h[1-6])\b[^>]*>#i', "\n", $tekst);
         $wynik = [];
 
         foreach (preg_split('/\R/u', $tekst) ?: [] as $wiersz) {
-            $wiersz = $this->tekst($wiersz);
+            $wiersz = self::tekst($wiersz);
 
             if ($wiersz !== '') {
                 $wynik[] = $wiersz;
@@ -247,7 +247,7 @@ final class ParserJsonLdPrzepisu
         return $wynik;
     }
 
-    private function tekst(mixed $wartosc): string
+    public static function tekst(mixed $wartosc): string
     {
         if (! is_string($wartosc)) {
             return '';
@@ -266,7 +266,7 @@ final class ParserJsonLdPrzepisu
      * „4", „4 porcje", „Serves 4". Przedział („4–6") i sztuki bez słowa
      * o porcjach zostają puste — nie zgadujemy.
      */
-    private function porcje(mixed $wartosc): ?float
+    public static function porcje(mixed $wartosc): ?float
     {
         if (is_array($wartosc)) {
             $wartosc = $wartosc[0] ?? null;
@@ -280,7 +280,7 @@ final class ParserJsonLdPrzepisu
             return null;
         }
 
-        $tekst = mb_strtolower($this->tekst($wartosc));
+        $tekst = mb_strtolower(self::tekst($wartosc));
 
         if (preg_match('/^(?:serves|dla|na)?\s*(\d{1,3})\s*(?:porcj\w*|osob\w*|os\.?|servings?|people|persons?)?$/u', $tekst, $m) === 1) {
             $liczba = (int) $m[1];
@@ -292,7 +292,7 @@ final class ParserJsonLdPrzepisu
     }
 
     /** Czas ISO 8601 (`PT1H30M`, `P0DT45M`) w minutach; inny zapis = brak. */
-    private function minuty(mixed $wartosc): ?int
+    public static function minuty(mixed $wartosc): ?int
     {
         if (! is_string($wartosc)) {
             return null;

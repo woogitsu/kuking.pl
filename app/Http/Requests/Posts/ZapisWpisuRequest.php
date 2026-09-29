@@ -10,6 +10,7 @@ use App\Support\LimityZdjec;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Validator as ValidatorFactory;
+use Illuminate\Support\Str;
 
 /**
  * Wejście formularza „Dodaj zdjęcie" (`posts.store`) i „Zadaj pytanie"
@@ -31,11 +32,38 @@ use Illuminate\Support\Facades\Validator as ValidatorFactory;
  */
 final class ZapisWpisuRequest extends FormRequest
 {
+    use OdczytujeAkcjeTagow;
     use WalidujeTrescWpisu;
 
     public function pytanie(): bool
     {
         return $this->routeIs('questions.store');
+    }
+
+    /**
+     * Klucz wysłania z żądania.
+     *
+     * Wartość niebędąca UUID-em schodzi do `null`, czyli do „wyślij
+     * normalnie" — a nie do błędu walidacji. To jest zawodzenie OTWARTE
+     * (ADR §4.3): wpis utracony boli w tej grupie odbiorców bardziej niż
+     * wpis zduplikowany, a formularz z popsutym ukrytym polem to nie jest
+     * coś, co człowiek umie naprawić.
+     */
+    public function kluczWyslania(): ?string
+    {
+        // Wyłącznik awaryjny — TA SAMA bramka, co przy renderowaniu formularza.
+        // Bez niej wyłącznik działa tylko w połowie: karta otwarta PRZED
+        // przełączeniem nadal niesie klucz w DOM-ie i odsyła go, więc częściowy
+        // indeks dalej obowiązuje — dokładnie w tej awarii, dla której ten
+        // wyłącznik istnieje. `config/kuking.php` obiecuje, że po wyłączeniu
+        // „kolumna dostaje NULL"; ta linijka jest tym, co tę obietnicę dowozi.
+        if (! (bool) config('kuking.formularze.klucz_wyslania_wlaczony')) {
+            return null;
+        }
+
+        $klucz = $this->input('klucz_wyslania');
+
+        return is_string($klucz) && Str::isUuid($klucz) ? $klucz : null;
     }
 
     public function authorize(): bool

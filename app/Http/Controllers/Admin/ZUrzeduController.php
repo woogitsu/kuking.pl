@@ -106,7 +106,7 @@ class ZUrzeduController extends Controller
         // — `instanceof $klasa` sprawdza je w czasie wykonania, ale typu nie
         // zawęża, a `adresTresci()` woła `url()`, którego `Model` nie ma (#1731).
         if (! ($cel instanceof Post || $cel instanceof Recipe || $cel instanceof Comment)
-            || ! $cel instanceof $klasa
+            || $cel::class !== $klasa
             || ! ZdejmijZUrzedu::widocznaDlaInnych($cel)) {
             abort(404);
         }

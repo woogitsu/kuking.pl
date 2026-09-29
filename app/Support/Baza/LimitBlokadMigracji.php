@@ -49,7 +49,7 @@ final class LimitBlokadMigracji
     {
         $polaczenie = $this->polaczenie($zdarzenie->migration);
 
-        if ($polaczenie?->getDriverName() === 'pgsql') {
+        if ($polaczenie->getDriverName() === 'pgsql') {
             $polaczenie->statement("SET lock_timeout = '".self::LIMIT."'");
         }
     }
@@ -58,16 +58,20 @@ final class LimitBlokadMigracji
     {
         $polaczenie = $this->polaczenie($zdarzenie->migration);
 
-        if ($polaczenie?->getDriverName() === 'pgsql') {
+        if ($polaczenie->getDriverName() === 'pgsql') {
             $polaczenie->statement('RESET lock_timeout');
         }
     }
 
-    private function polaczenie(object $migracja): ?Connection
+    /**
+     * `Migrator::resolveConnection()` zwraca `Connection` — na tym samym typie
+     * Laravel woła `pretend()` i `transaction()`, więc dodatkowe „a jeśli nie"
+     * niczego nie chroniło (#1731).
+     */
+    private function polaczenie(object $migracja): Connection
     {
         $nazwa = method_exists($migracja, 'getConnection') ? $migracja->getConnection() : null;
-        $polaczenie = $this->migrator->resolveConnection($nazwa);
 
-        return $polaczenie instanceof Connection ? $polaczenie : null;
+        return $this->migrator->resolveConnection($nazwa);
     }
 }

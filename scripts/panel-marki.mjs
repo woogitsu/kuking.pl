@@ -6,8 +6,12 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { poczekajNaStan } from './lib/stan-ustalony.mjs';
 
-const rodziny = ['zgloszenia', 'sygnaly', 'odwolania', 'bez-odpowiedzi', 'wiadomosci', 'wiadomosc', 'kolaz-powitalny', 'kuking-na-dzis', 'tagi-promowane', 'uzytkownicy', 'uzytkownik', 'kolejka', 'metryki'];
-const listy = rodziny.filter(r => !['wiadomosc', 'uzytkownik'].includes(r));
+const rodziny = ['zgloszenia', 'sygnaly', 'odwolania', 'bez-odpowiedzi', 'wiadomosci', 'wiadomosc', 'kolaz-powitalny', 'kuking-na-dzis', 'tagi-promowane', 'uzytkownicy', 'uzytkownik', 'kolejka', 'metryki', 'z-urzedu'];
+const listy = rodziny.filter(r => !['wiadomosc', 'uzytkownik', 'z-urzedu'].includes(r));
+// Ekrany otwierane z samej treści, a nie z menu panelu: „Zdejmij z urzędu” prowadzi
+// przycisk przy wpisie albo komentarzu (x-zdejmij-z-urzedu), więc żadna pozycja
+// menu nie jest bieżącym ekranem. Tu wymagamy, żeby ŻADNA nie udawała bieżącej.
+const pozaMenu = ['z-urzedu'];
 const wymagaj = (warunek, kod, dane = {}) => { if (!warunek) throw new Error(`P581_${kod} ${JSON.stringify(dane)}`); };
 
 function kompletneScenariusze(scenariusze, phase) {
@@ -396,7 +400,8 @@ export async function sprawdzPanelMarki({ browser, adres, scenariusze, phase, ou
       const lewa = geo.desktop ? geo.nav.right + geo.body.gap : geo.body.x + geo.body.borderLeft + geo.body.paddingLeft;
       const prawa = geo.body.right - geo.body.borderRight - geo.body.paddingRight;
       wymagaj(Math.abs(geo.main.x - lewa) <= 1 && Math.abs(geo.main.right - prawa) <= 1 && geo.main.width > 0, 'SZEROKOSC_TRESCI', geo);
-      if (s.stan !== 'bramka') wymagaj(geo.active && geo.active.background === geo.tokens.active && geo.active.color === geo.tokens.activeInk, 'AKTYWNA_POZYCJA', geo);
+      if (s.stan !== 'bramka' && pozaMenu.includes(s.rodzina)) wymagaj(geo.active === null, 'POZYCJA_POZA_MENU', geo);
+      else if (s.stan !== 'bramka') wymagaj(geo.active && geo.active.background === geo.tokens.active && geo.active.color === geo.tokens.activeInk, 'AKTYWNA_POZYCJA', geo);
       const tab = await sprawdzKlawiaturePanelu(page);
       wymagaj(mutacje.length === 0, 'NIEOCZEKIWANA_MUTACJA', { metody: mutacje });
       // Raster początku strony, niezależnie od końcowej pozycji Tab.
