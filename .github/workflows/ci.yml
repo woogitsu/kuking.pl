@@ -142,6 +142,9 @@
 #  limit joba podniesiono do 35 min po przebiegu, w którym sam pomiar
 #  układu trwał 23 min) i to WŁAŚNIE ON padł na `main` z `TimeoutError`
 #  pod obciążeniem floty — najmocniej cierpi, więc jako jedyny się przenosi.
+#  (Od #611, etapu 9, `port_funkcje` to macierz dwóch części po ok. 13-15 min:
+#  czas ścienny spada z ok. 27 do ok. 15 min, suma minut rośnie o drugi
+#  zestaw przygotowań, ok. 3 min.)
 #  Sam `port_funkcje` to ok. 27 min na przebieg — z puli ~500 minut to
 #  około OSIEMNASTU przebiegów, znacznie mniej ciasno niż przy pięciu jobach.
 #
@@ -1006,23 +1009,26 @@ jobs:
   #  schemat w trakcie działania (issue #66 z drugiej strony), więc ma własną
   #  bazę `kuking_race` — zakłada ją `tests/Dwa/bin/przygotuj-baze.php`.
   #
-  #  `continue-on-error: true` JEST TYMCZASOWE I MA WARUNEK ZDJĘCIA.
-  #  Lokalnie grupa przeszła 20 przebiegów z 20, ale na współdzielonym runnerze
-  #  i na PostgreSQL 18 (lokalnie: 16) nie ma jeszcze ani jednego pomiaru
-  #  stabilności. Migający test blokujący uczy ludzi ignorować czerwone, więc
-  #  do czasu zebrania tych danych job RAPORTUJE, ale nie blokuje scalenia.
-  #  Warunek zdjęcia flagi: dwadzieścia kolejnych przebiegów CI bez ani jednej
-  #  czerwieni tego joba. Co robić, gdy grupa zacznie migać: D-105, sekcja
-  #  „Gdy grupa zacznie migać".
+  #  JOB BLOKUJE (#611, etap 9). Do 29.09.2026 miał `continue-on-error: true`
+  #  z warunkiem zdjęcia: dwadzieścia kolejnych przebiegów CI bez czerwieni.
+  #  Warunek jest spełniony z zapasem: w oknie ostatnich 40 przebiegów `main`
+  #  i 40 przebiegów PR (API GitHub Actions, PostgreSQL 18 na runnerze
+  #  współdzielonym) job miał 38 zakończeń `success` — 11 na `main`, 27 na PR
+  #  (#2210, #2211 i ich gałęzie) — i ANI JEDNEGO kroku `failure`; pozostałe
+  #  przebiegi tego joba to `cancelled` przez `concurrency` (nowszy commit),
+  #  nie porażki. Czas 2,0–4,5 min. `continue-on-error` maskowałby zresztą
+  #  porażkę w polu `conclusion`, dlatego liczono kroki, nie sam wynik joba.
+  #  Migający test blokujący uczy ludzi ignorować czerwone: gdy grupa zacznie
+  #  migać, NIE przywracaj flagi, tylko napraw test — D-105, sekcja „Gdy grupa
+  #  zacznie migać". Pilnuje tego `WyscigiDwochPolaczenBlokujaCiTest`.
   # ===========================================================================
   dwa-polaczenia:
-    name: Wyścigi na dwóch połączeniach (nie blokuje)
+    name: Wyścigi na dwóch połączeniach
     needs: zakres
     # Na PR-ze tylko przy zmianie kodu, danych albo zaplecza tej grupy (wyjście `wyscigi`).
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.wyscigi == 'true'
     runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
-    continue-on-error: true
 
     services:
       postgres:
@@ -1066,9 +1072,7 @@ jobs:
           echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
           echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
 
-      # Drugi job na wspólnej akcji. `dwa-polaczenia` jest oznaczony
-      # `continue-on-error: true` i w nazwie ma „nie blokuje", więc jego
-      # ewentualna porażka kosztuje najmniej po `audit`.
+      # Drugi job na wspólnej akcji. `dwa-polaczenia` blokuje (etap 9 z #611).
       - name: Środowisko PHP
         uses: ./.github/actions/php
         with:
@@ -1493,12 +1497,22 @@ jobs:
 
   # #577: osobny checkout i PostgreSQL; mutacje negatywów nie współdzielą plików.
   port_funkcje:
-    name: Port marki — rodziny ekranów, zoom i kreator
+    name: Port marki — rodziny ekranów, zoom i kreator (część ${{ matrix.czesc }}/2)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
     runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_BROWSER_MAIN) || vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
-    # CI 35241344523: pełne pomiary i upload trwały ponad 25 min; zachowujemy wszystkie kontrole.
-    timeout-minutes: 35
+    # #611, etap 9: jeden kawałek trwał 25-30 min (limit 35 min po przebiegu
+    # 35241344523), więc dwie części macierzy po ok. 13-15 min każda; limit
+    # jak w `port_marki`. Wszystkie kontrole zostają — dzielą się między części.
+    timeout-minutes: 25
+    strategy:
+      # Czerwona część 1 nie może ukryć wyniku części 2 (i odwrotnie).
+      fail-fast: false
+      matrix:
+        # Części są też w `scripts/port-grupy.mjs` (`GRUPY`, alias `rozszerzenia`)
+        # i w krokach `if: matrix.czesc == N`; rozjazd wyłapuje
+        # `PortMarkiMaWlasnaBramkeCiTest`.
+        czesc: [1, 2]
 
     services:
       postgres:
@@ -1516,7 +1530,7 @@ jobs:
           --health-retries=10
 
     env:
-      PORT_GRUPA: rozszerzenia
+      PORT_GRUPA: rozszerzenia-${{ matrix.czesc }}
       APP_ENV: local
       APP_DEBUG: "false"
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
@@ -1600,6 +1614,7 @@ jobs:
         run: node scripts/port-projektu.mjs
 
       - name: Trzy kroki kreatora przy dużym tekście
+        if: matrix.czesc == 1
         env:
           DB_DATABASE: kuking_port_pomiar
         run: node scripts/kroki-kreatora.mjs
@@ -1609,6 +1624,7 @@ jobs:
       # ani przed wysłaniem, ani w trakcie żądania, ani po starszej odpowiedzi.
       # Skrypt czeka na stan DOM, nie na zegar (debounce 3000 ms).
       - name: Autozapis kreatora — plakietka nie obiecuje zapisu starszej wersji
+        if: matrix.czesc == 1
         env:
           DB_DATABASE: kuking_port_pomiar
         run: |
@@ -1620,9 +1636,11 @@ jobs:
       # prawdziwy klient Livewire z `vendor/` (tam nie ma `composer install`)
       # i mierzy przycisk na zbudowanym CSS z kroku „Przygotowanie”.
       - name: Strona nieaktualna po wdrożeniu (Livewire 419 w Chromium)
+        if: matrix.czesc == 2
         run: node --test scripts/przegladarka/strona-nieaktualna.test.mjs
 
       - name: Minutnik — opóźnione wywołania i dostępny czas
+        if: matrix.czesc == 2
         run: |
           node scripts/minutnik-regresja.mjs
           node scripts/minutnik-fokus.mjs
@@ -1631,7 +1649,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: port-funkcje-${{ github.sha }}
+          name: port-funkcje-${{ matrix.czesc }}-${{ github.sha }}
           path: |
             storage/port-projektu
             storage/kroki-kreatora

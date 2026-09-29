@@ -243,6 +243,11 @@ WDROZENIE_WORKFLOW = ".github/workflows/deploy.yml"
 # leży w repozytorium bez jednego przebiegu.
 CI_WORKFLOW = ".github/workflows/ci.yml"
 AUTOZAPIS_892_TEST = "test_autozapis_kreatora_892_chodzi_w_ci"
+# #611, etap 9: `dwa-polaczenia` blokuje (bez `continue-on-error`), a `port_funkcje`
+# to macierz dwóch części. Strażnicy czytają `ci.yml`; mutacje przywracają flagę,
+# skracają macierz i przestawiają krok na część, której nie ma.
+WYSCIGI_BLOKUJA_TEST = "WyscigiDwochPolaczenBlokujaCiTest"
+ROZSZERZENIA_CZESCI_TEST = "test_rozszerzenia_dziela_sie_na_czesci_bez_utraty_pomiaru"
 DEPLOY_WSTRZYKNIECIE_TEST = "DeployNieWklejaDanychZdarzeniaDoPowlokiTest"
 WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
 # Preview i IaC nie zgadują stanu (#1389, #1390). Strażnik czyta workflow
@@ -1408,6 +1413,12 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Podział testów gubi plik", PODZIAL_TESTOW, PODZIAL_TESTOW_TEST, podzial_gubi_plik),
     ("Macierz testów krótsza niż podział", BRAMKA_CI, PODZIAL_TESTOW_TEST, macierz_krotsza_niz_podzial),
+    ("Wyścigi dwóch połączeń znów nie blokują CI", CI_WORKFLOW, WYSCIGI_BLOKUJA_TEST,
+     lambda s: replace_once(s, "    name: Wyścigi na dwóch połączeniach\n", "    name: Wyścigi na dwóch połączeniach\n    continue-on-error: true\n")),
+    ("Macierz portu krótsza niż podział grup", CI_WORKFLOW, ROZSZERZENIA_CZESCI_TEST,
+     lambda s: replace_once(s, "        czesc: [1, 2]\n", "        czesc: [1]\n")),
+    ("Minutnik poza macierzą portu", CI_WORKFLOW, ROZSZERZENIA_CZESCI_TEST,
+     lambda s: replace_once(s, "Minutnik — opóźnione wywołania i dostępny czas\n        if: matrix.czesc == 2\n", "Minutnik — opóźnione wywołania i dostępny czas\n        if: matrix.czesc == 3\n")),
     ("Runbook znów instaluje Sentry", RUNBOOK, RUNBOOK_USLUGI_TEST,
      lambda s: replace_once(s, RUNBOOK_KROK_4, RUNBOOK_KROK_4 + "\n```bash\ncomposer require sentry/sentry-laravel\n```\n")),
     ("Runbook znów wymaga klucza PostHog", RUNBOOK, RUNBOOK_USLUGI_TEST,
