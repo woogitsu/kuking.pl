@@ -272,7 +272,7 @@ OCZEKUJ = {
     'Wybór formy widoczny w okresie przejściowym polityki': r'does not contain "Jak mamy do Ciebie pisać\?"',
     'Wybór formy czeka na dzień wersji przy drobnej zmianie': r'Wybór formy ukryty w chwili 2026-09-29 20:00',
     # #2000: wspólny zeszyt „wszyscy” ma „Podziel się”.
-    'Wspólny publiczny zeszyt bez „Podziel się”': r'Wspólny zeszyt „wszyscy” nie ma przycisku „Podziel się”|Wspólny zeszyt nie może dokładać zapytań o członków',
+    'Wspólny publiczny zeszyt bez „Podziel się”': r'Wspólny zeszyt „wszyscy” nie ma przycisku „Podziel się”',
 }
 
 

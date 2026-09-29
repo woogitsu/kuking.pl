@@ -596,7 +596,8 @@ POLITYKA_PASEK_MIGRACJA = "database/migrations/2026_09_29_180000_add_policy_noti
 POLITYKA_PASEK_TEST = "ZmianaPolitykiTest"
 POLITYKA_PASEK_KLASA = "app/Domain/Zgody/ZmianaPolityki.php"
 UDOSTEPNIANIE = "app/Domain/Sharing/Udostepnianie.php"
-PODZIEL_SIE_ZESZYT_TEST = "PodzielSieZeszytTest"
+# Filtr na jeden test: mutacja zapala też test liczby zapytań (inny komunikat).
+PODZIEL_SIE_ZESZYT_WSPOLNY_TEST = "test_zeszyt_wspolny_publiczny_dostaje_przycisk"
 POLITYKA_TEKST = "resources/legal/polityka-prywatnosci.md"
 
 # Data publikacji osobno od daty wejścia w życie (D-327). Mutacje: okres
@@ -1571,11 +1572,11 @@ checks = [
     # Mechanizm na przyszłe zmiany istotne: test ustawia istotną w konfiguracji.
     ("Wybór formy widoczny w okresie przejściowym polityki", FORMA_HELPER, FORMA_TEST,
      lambda s: replace_once(s, "return ! WersjaDokumentu::polityka()->wOkresiePrzejsciowym();", "return true;")),
-    ("Wybór formy czeka na dzień wersji przy drobnej zmianie", FORMA_HELPER, FORMA_TEST,
+    ("Wybór formy czeka na dzień wersji przy drobnej zmianie", FORMA_HELPER, "test_przy_drobnej_zmianie_polityki_wybor_jest_od_razu",
      lambda s: replace_once(s, "return ! WersjaDokumentu::polityka()->wOkresiePrzejsciowym();",
                             "return now()->greaterThanOrEqualTo(WersjaDokumentu::polityka()->obowiazujeOd());")),
     # #2000, decyzja właściciela z 29.09.2026: wspólny zeszyt „wszyscy” ma przycisk.
-    ("Wspólny publiczny zeszyt bez „Podziel się”", UDOSTEPNIANIE, PODZIEL_SIE_ZESZYT_TEST,
+    ("Wspólny publiczny zeszyt bez „Podziel się”", UDOSTEPNIANIE, PODZIEL_SIE_ZESZYT_WSPOLNY_TEST,
      lambda s: replace_once(s, "return ! $tresc->is_default;", "return ! $tresc->is_default && ! $tresc->members()->exists();")),
     ("Wersja regulaminu podbita bez nagłówka dokumentu", REGULAMIN_WERSJA, REGULAMIN_WERSJA_TEST,
      lambda s: replace_once(s, "'wersja_regulaminu' => '2026-09-26'", "'wersja_regulaminu' => '2026-09-27'")),
