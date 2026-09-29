@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Media\DostepDoZdjecia;
+use App\Domain\Moderation\DziennikWgladu;
 use App\Models\Media;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -37,7 +38,10 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class MediaController extends Controller
 {
-    public function __construct(private readonly DostepDoZdjecia $dostep) {}
+    public function __construct(
+        private readonly DostepDoZdjecia $dostep,
+        private readonly DziennikWgladu $dziennikWgladu,
+    ) {}
 
     public function show(Request $request, Media $media, string $wariant): Response
     {
@@ -70,6 +74,13 @@ class MediaController extends Controller
         $wybrany = $media->wariantDoSerwowania($wariant);
 
         abort_if($wybrany === null, 404);
+
+        // Wgląd moderatora w zdjęcie, którego nie zobaczyłby bez roli, zostawia
+        // ślad (D-333) — dopiero tu, gdy bajty naprawdę wychodzą. Zdjęcie
+        // publiczne i wejście zwykłego widza nie dotykają dziennika.
+        if ($decyzja->wgladModeratora !== null && $widz !== null) {
+            $this->dziennikWgladu->zdjecie($widz, $media, $decyzja->wgladModeratora, $request->ip());
+        }
 
         // Czy to zdjęcie zobaczyłby ktoś NIEZALOGOWANY. To pierwsze
         // pytanie, które rozstrzyga o nagłówku cache: odpowiedź wspólną dla

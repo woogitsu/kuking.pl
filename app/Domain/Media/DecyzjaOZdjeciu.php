@@ -45,5 +45,13 @@ final readonly class DecyzjaOZdjeciu
          * tego, kto pyta — nie wolno nigdzie.
          */
         public bool $dlaAnonima,
+        /**
+         * Powód, dla którego widz jest moderatorem oglądającym coś, czego nie
+         * zobaczyłby bez roli (`DziennikWgladu::POWOD_*`), albo `null`.
+         * Decyzja tylko OPISUJE — zapis do dziennika robi trasa, gdy bajty
+         * naprawdę wychodzą (`MediaController`), więc pytanie o dostęp nie ma
+         * skutków ubocznych.
+         */
+        public ?string $wgladModeratora = null,
     ) {}
 }

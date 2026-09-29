@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Media;
 
+use App\Domain\Moderation\DziennikWgladu;
 use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
@@ -216,11 +217,23 @@ final class DostepDoZdjecia
             }
         }
 
-        if (! $dlaWidza) {
-            $dlaWidza = $this->celemZgloszeniaDlaObslugi($widz, $zdjecie);
+        $wglad = null;
+
+        if (! $dlaWidza && $this->celemZgloszeniaDlaObslugi($widz, $zdjecie)) {
+            $dlaWidza = true;
+            $wglad = DziennikWgladu::POWOD_ZGLOSZENIE;
         }
 
-        return new DecyzjaOZdjeciu(dlaWidza: $dlaWidza, dlaAnonima: $dlaAnonima);
+        // Wgląd z urzędu w zdjęcie treści UKRYTEJ przez moderację (D-333):
+        // przepuściła je Policy rodzica właśnie dlatego, że widz jest
+        // moderatorem, a anonim go nie zobaczy. Sprawdzamy tylko moderatora
+        // i tylko gdy zdjęcie nie jest publiczne — zwykły widz nie płaci ani
+        // jednym zapytaniem.
+        if ($wglad === null && $dlaWidza && ! $dlaAnonima && $this->ukrytaTrescOtwartaPrzezModeratora($widz, $zdjecie)) {
+            $wglad = DziennikWgladu::POWOD_UKRYTA_TRESC;
+        }
+
+        return new DecyzjaOZdjeciu(dlaWidza: $dlaWidza, dlaAnonima: $dlaAnonima, wgladModeratora: $wglad);
     }
 
     /**
@@ -325,6 +338,30 @@ final class DostepDoZdjecia
                     ->where('posts.status', Post::STATUS_PUBLISHED)
                     ->whereIn('posts.visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS]))
                 ->exists();
+    }
+
+    /**
+     * Czy widz jest moderatorem, a zdjęcie wisi pod wpisem albo przepisem
+     * UKRYTYM przez moderację, którego nie napisał, i Policy tego rodzica go
+     * wpuszcza. Woła się to tylko dla moderatora i tylko przy zdjęciu
+     * niepublicznym (patrz `rozstrzygnij()`).
+     */
+    private function ukrytaTrescOtwartaPrzezModeratora(?User $widz, Media $zdjecie): bool
+    {
+        if ($widz === null || ! $widz->isModerator()) {
+            return false;
+        }
+
+        foreach ($this->rodzice($zdjecie) as $rodzic) {
+            if (($rodzic instanceof Post || $rodzic instanceof Recipe)
+                && $rodzic->status === Post::STATUS_HIDDEN
+                && $rodzic->author_id !== $widz->getKey()
+                && Gate::forUser($widz)->allows('view', $rodzic)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
