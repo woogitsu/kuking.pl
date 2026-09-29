@@ -47,6 +47,7 @@ final class DomenaNieZalezyOdHttpTest extends TestCase
         'Media/Actions/StoreUploadedImage.php#Illuminate\Http\UploadedFile',
         'Media/LokalnaKopiaZdjecia.php#Illuminate\Http\UploadedFile',
         'Recipes/Actions/ZapiszPrzepisZFormularza.php#Illuminate\Http\UploadedFile',
+        'Posts/Actions/ZbierzZdjeciaFormularza.php#Illuminate\Http\UploadedFile',
         'Users/Import/MagazynPaczek.php#Illuminate\Http\UploadedFile',
     ];
 
