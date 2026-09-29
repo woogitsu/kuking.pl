@@ -80,7 +80,11 @@ jednego środowiska ([Public API](https://docs.railway.com/integrations/api)).
    (b) zapytanie `deployments(input: {serviceId, environmentId})` zwraca
    `meta.commitHash` dla wdrożeń z GitHub i z `serviceInstanceDeployV2`. Gdyby
    pole miało inną nazwę, bramka zawsze uzna SHA za niewdrożony (ryzyko dubla);
-   popraw `deployment_state` przed włączeniem.
+   popraw `deployment_state` przed włączeniem. **Stan 29.09.2026:** odczyt listy
+   wdrożeń przez API Railway (tylko odczyt) potwierdził dla wdrożeń z GitHub
+   `meta.commitHash` z pełnym 40-znakowym SHA, obok `meta.branch`
+   i `meta.commitMessage`, także przy statusach `REMOVED` i `SKIPPED`. Do
+   sprawdzenia zostaje tylko wdrożenie uruchomione mutacją `serviceInstanceDeployV2`.
 5. W wybranym oknie wyłącz autodeploy GitHub dla wszystkich usług aplikacji
    production, potem ustaw `KUKING_CI_GATED_RAILWAY_DEPLOY=true` i uruchom
    kontrolowany push ze zwykłym zielonym CI. Sprawdź w logu bramki dokładny
