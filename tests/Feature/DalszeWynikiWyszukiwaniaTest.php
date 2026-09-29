@@ -114,7 +114,9 @@ class DalszeWynikiWyszukiwaniaTest extends TestCase
         $links = $this->links((string) $response->getContent(), 'Pokaż więcej przepisów');
         $this->assertCount(1, $links);
         $next = $this->get($links[0])->assertOk();
-        $this->assertSame('szybkie', $next->viewData('section'));
+        // Stary adres `sekcja=szybkie` to od #1997 „Przepisy" z progiem 30 min.
+        $this->assertSame('przepisy', $next->viewData('section'));
+        $this->assertSame(30, $next->viewData('maksMinut'));
         $this->assertCount(1, $next->viewData('recipes'));
         $this->assertEqualsCanonicalizing($visible->modelKeys(), array_merge($first, $next->viewData('recipes')->modelKeys()));
     }

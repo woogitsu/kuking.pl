@@ -135,20 +135,25 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 - koszt;
 - native apps, jeśli PWA potwierdzi retencję.
 
+**Odblokowane z listy „V2, ale nie teraz”** (D-331, decyzja właściciela
+z 29 września 2026) — wolno budować:
+
+- kilka jawnych zakresów czasu w wyszukiwarce przepisów (#1997);
+- udostępnianie publicznego zeszytu (#2000);
+- widoczne kalorie na porcję w danych SEO przepisu / JSON-LD (#1996);
+- historia i porównanie publicznych wersji przepisu (#2024);
+- opcjonalna synchronizacja postępu gotowania między urządzeniami (#2016).
+
 **V2, ale nie teraz** (decyzja właściciela z 26 września 2026). Propozycje
-z audytu zapisane na później. Nie budować bez nowej decyzji, mimo D-282:
+z audytu zapisane na później. Nie budować bez nowej decyzji, mimo D-282
+(pięć pozycji odblokowała D-331, lista wyżej):
 
 - strukturalne alergeny składników i filtr bezpiecznego wyboru (#1902);
 - spiżarnia z terminami ważności i priorytetem zużycia (#1903), jako
   rozszerzenie pantry;
 - wybrane przepisy do czytania offline w PWA (#1904);
 - głosowy tryb gotowania bez dotykania telefonu (#1906);
-- udostępnianie publicznego zeszytu (#2000);
 - prywatne podsumowanie AI uwag z wykonań przepisu (#1999);
-- kilka jawnych zakresów czasu w wyszukiwarce przepisów (#1997);
-- widoczne kalorie na porcję w danych SEO przepisu / JSON-LD (#1996);
-- historia i porównanie publicznych wersji przepisu (#2024);
-- opcjonalna synchronizacja postępu gotowania między urządzeniami (#2016);
 - typowy rzeczywisty czas przygotowania z wykonań społeczności (#2067).
 
 ## Nie wcześnie

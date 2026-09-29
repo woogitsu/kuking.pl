@@ -45,6 +45,34 @@ nazywa się „Ugotowałam”. Na razie zmienia to tylko kilka miejsc w serwisie
 kolejne dołączymy po kolei. Wybór zmienicie w każdej chwili, a kiedy usuniecie
 konto, zniknie razem z nim.
 
+### Ile masz czasu? Wybierz w wyszukiwarce przepisów
+
+Pod zakresami wyszukiwania jest nowy wiersz „Ile masz czasu?”. Możecie wybrać
+„Do 15 minut”, „Do 30 minut” albo „Do godziny” i zobaczyć tylko przepisy, które
+się w tym zmieszczą. Liczymy przygotowanie i gotowanie razem. Przepis, przy
+którym autor nie podał czasu, nie trafia do żadnego z tych progów — nie
+udajemy, że gotuje się w zero minut. Wybrany czas jest zaznaczony, a wrócić do
+wszystkich przepisów możecie jednym kliknięciem w „Bez limitu czasu”. Wybór
+zostaje w adresie strony, więc działa po odświeżeniu i można go komuś wysłać.
+Dawny przycisk „Do 30 minut” działa dalej, także w starych linkach.
+### Wyślijcie komuś swój zeszyt
+
+Na stronie zeszytu, który ma widoczność „wszyscy”, jest teraz przycisk
+„Podziel się”. Rozwija listę: WhatsApp, e-mail i Facebook, a pod spodem
+widoczny adres, który można zaznaczyć i skopiować (na telefonie jest też
+przycisk „Skopiuj adres” i systemowe okno wysyłania). Osoba, która dostanie
+adres, otworzy zeszyt bez zakładania konta i zobaczy tylko te przepisy, które
+sama ma prawo zobaczyć. Zeszytu „Tylko ja”, zeszytu „Zapisane” ani wspólnego
+zeszytu z bliskimi nie da się w ten sposób wysłać — na stronie takiego zeszytu
+przeczytacie, co zmienić, jeśli chcecie go udostępnić.
+### Kalorie na porcję także dla wyszukiwarek
+
+Jeśli przy przepisie widzicie „Szacunkowe wartości odżywcze (na porcję)”, tę
+samą liczbę kalorii podajemy teraz także w danych, które czytają wyszukiwarki.
+Robimy to tylko wtedy, gdy liczba naprawdę jest na stronie: autor nie ukrył
+sekcji, znamy skład co najmniej 90% składników i autor podał liczbę porcji.
+Gdy któregoś z tych warunków brakuje, wyszukiwarkom też nic nie podajemy.
+
 ### Wczytajcie z powrotem własną paczkę z danymi
 
 W „Twoich danych” jest nowy odnośnik „Wczytaj swoją paczkę”. Wybieracie plik

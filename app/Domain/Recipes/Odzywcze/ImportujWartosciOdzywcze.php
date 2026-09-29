@@ -36,10 +36,22 @@ use Illuminate\Support\Str;
  * Sam hash plików nie dowodzi kompletności bazy po częściowym restore
  * (#2130). Przy niezgodności odbudowujemy słownik; nowy znacznik zapisujemy
  * na końcu tej samej transakcji, pod tą samą blokadą co słowniki.
+ *
+ * WERSJA DANYCH (#2130, decyzja właściciela 29.09.2026). Plik `WERSJA`
+ * w katalogu danych niesie rosnący numer wersji słownika, a znacznik zapisuje
+ * numer ostatniego udanego importu. Starszy import (np. instancja z wycofanego
+ * wdrożenia) nie nadpisuje nowszych danych: numer z pliku mniejszy od numeru
+ * w znaczniku → pomijamy z ostrzeżeniem w logu, o ile baza jest kompletna.
+ * Niekompletna baza jest odbudowywana zawsze. Porównanie powtarzamy już POD
+ * blokadą, bo wcześniejszy odczyt znacznika mógł zdążyć się zestarzeć.
+ * Znacznik leży w cache; przy magazynie `database` (produkcja) to ta sama
+ * baza i ta sama transakcja. `--wymus` świadomie pomija ochronę wersji.
  */
 final class ImportujWartosciOdzywcze
 {
     public const KATALOG = 'database/data/odzywcze';
+
+    public const PLIK_WERSJI = 'WERSJA';
 
     private const CACHE_KLUCZ = 'odzywcze:import:hash-plikow';
 
@@ -58,9 +70,18 @@ final class ImportujWartosciOdzywcze
         $sciezkaSkladnikow = $katalog.'/skladniki.csv';
         $sciezkaMiar = $katalog.'/miary.csv';
 
-        $hash = $this->hashPlikow($sciezkaSkladnikow, $sciezkaMiar);
+        $wersja = self::odczytajWersje($katalog)['wersja'];
+        $hash = $this->hashPlikow($sciezkaSkladnikow, $sciezkaMiar, $katalog.'/'.self::PLIK_WERSJI);
 
         $znacznik = $wymus ? null : Cache::get(self::CACHE_KLUCZ);
+
+        if (! $wymus && is_array($znacznik)) {
+            $pominiecie = $this->pominiecieStarszejWersji($znacznik, $wersja);
+            if ($pominiecie !== null) {
+                return $pominiecie;
+            }
+        }
+
         if (! $wymus && $hash !== null && is_array($znacznik) && ($znacznik['hash'] ?? null) === $hash) {
             $stan = $this->stanBazy();
             if ($stan['skladniki'] > 0 && ($znacznik['odcisk'] ?? null) === $stan['odcisk']) {
@@ -93,10 +114,23 @@ final class ImportujWartosciOdzywcze
         [$pozycje, $aliasy] = $this->sprawdzSkladniki($skladniki);
         $miaryDoZapisu = $this->sprawdzMiary($miary, $pozycje);
 
-        return DB::transaction(function () use ($pozycje, $aliasy, $miaryDoZapisu, $hash): array {
+        return DB::transaction(function () use ($pozycje, $aliasy, $miaryDoZapisu, $hash, $wersja, $wymus): array {
             // Dwie instancje pre-deploy nie mogą jednocześnie usuwać i pisać
             // słowników, nawet gdy obie zobaczyły stary znacznik cache.
             DB::selectOne('SELECT pg_advisory_xact_lock(2130, 0)');
+
+            // Znacznik sprzed blokady mógł się zestarzeć: instancja z nowszą
+            // wersją danych mogła zatwierdzić import, gdy czekaliśmy w kolejce.
+            if (! $wymus) {
+                $aktualny = Cache::get(self::CACHE_KLUCZ);
+                if (is_array($aktualny)) {
+                    $pominiecie = $this->pominiecieStarszejWersji($aktualny, $wersja);
+                    if ($pominiecie !== null) {
+                        return $pominiecie;
+                    }
+                }
+            }
+
             $usuniete = SkladnikOdzywczy::query()->whereNotIn('klucz', array_keys($pozycje))->delete();
             $idPoKluczu = [];
 
@@ -131,6 +165,7 @@ final class ImportujWartosciOdzywcze
             if ($hash !== null) {
                 Cache::forever(self::CACHE_KLUCZ, [
                     'hash' => $hash,
+                    'wersja' => $wersja,
                     'odcisk' => $stanPo['odcisk'],
                     'licznosci' => [$stanPo['skladniki'], $stanPo['aliasy'], $stanPo['miary']],
                 ]);
@@ -146,11 +181,81 @@ final class ImportujWartosciOdzywcze
         });
     }
 
-    /** Hash danych i kodu normalizacji albo null, gdy czegoś nie da się przeczytać. */
-    private function hashPlikow(string $sciezkaSkladnikow, string $sciezkaMiar): ?string
+    /**
+     * Numer wersji danych z pliku `WERSJA` (jedno źródło): wiersze
+     * „numer sha256-plików-CSV”, numery rosnące, obowiązuje ostatni wiersz;
+     * puste wiersze i `#` to komentarze. Brak pliku albo nieczytelny wiersz
+     * → wersja 0 (najstarsza), więc nigdy nie wygrywa z zapisaną w bazie.
+     *
+     * @return array{wersja: int, historia: array<int, string>} historia: numer → hash CSV
+     */
+    public static function odczytajWersje(string $katalog): array
+    {
+        $tresc = is_readable($katalog.'/'.self::PLIK_WERSJI) ? file_get_contents($katalog.'/'.self::PLIK_WERSJI) : false;
+        $historia = [];
+        $wersja = 0;
+
+        foreach (explode("\n", $tresc === false ? '' : $tresc) as $linia) {
+            $linia = trim($linia);
+            if ($linia === '' || $linia[0] === '#') {
+                continue;
+            }
+            if (preg_match('/^(\d{1,9})\s+([0-9a-f]{64})$/', $linia, $m) !== 1) {
+                return ['wersja' => 0, 'historia' => []];
+            }
+            $historia[(int) $m[1]] = $m[2];
+            $wersja = (int) $m[1];
+        }
+
+        return ['wersja' => $wersja, 'historia' => $historia];
+    }
+
+    /** Hash samych plików CSV — to on jest zapisany w `WERSJA` i pilnowany testem. */
+    public static function hashDanych(string $katalog): string
+    {
+        return hash('sha256', (string) file_get_contents($katalog.'/skladniki.csv')."\0".(string) file_get_contents($katalog.'/miary.csv'));
+    }
+
+    /**
+     * Starszy import nie nadpisuje nowszych danych. Zwraca wynik „pominięto”
+     * albo null, gdy import ma iść dalej (wersja nie starsza albo baza
+     * niekompletna — wtedy odbudowa jest ważniejsza niż ochrona wersji).
+     *
+     * @param  array<mixed>  $znacznik
+     * @return array{skladniki: int, aliasy: int, miary: int, usuniete: int, pominieto: bool}|null
+     */
+    private function pominiecieStarszejWersji(array $znacznik, int $wersja): ?array
+    {
+        $zapisana = (int) ($znacznik['wersja'] ?? 0);
+        if ($wersja >= $zapisana) {
+            return null;
+        }
+
+        $stan = $this->stanBazy();
+        if ($stan['skladniki'] === 0 || ($znacznik['odcisk'] ?? null) !== $stan['odcisk']) {
+            return null;
+        }
+
+        Log::warning('Import słownika wartości odżywczych pominięty: pliki mają starszą wersję danych niż baza.', [
+            'wersja_plikow' => $wersja,
+            'wersja_bazy' => $zapisana,
+        ]);
+
+        return [
+            'skladniki' => $stan['skladniki'],
+            'aliasy' => $stan['aliasy'],
+            'miary' => $stan['miary'],
+            'usuniete' => 0,
+            'pominieto' => true,
+        ];
+    }
+
+    /** Hash danych, wersji i kodu normalizacji albo null, gdy czegoś nie da się przeczytać. */
+    private function hashPlikow(string $sciezkaSkladnikow, string $sciezkaMiar, string $sciezkaWersji): ?string
     {
         $sciezki = [$sciezkaSkladnikow, $sciezkaMiar, __FILE__, __DIR__.'/SlownikSkladnikow.php', __DIR__.'/ParserSkladnika.php'];
-        $tresci = [];
+        // Brak pliku WERSJA nie blokuje importu (wersja 0), ale zmienia hash.
+        $tresci = [is_readable($sciezkaWersji) ? (string) file_get_contents($sciezkaWersji) : ''];
         foreach ($sciezki as $sciezka) {
             if (! is_readable($sciezka)) {
                 return null;

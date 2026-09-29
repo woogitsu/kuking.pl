@@ -79,6 +79,11 @@
         @endif
     </p>
 
+    {{-- „Podziel się" (#2000): przycisk dostaje wyłącznie publiczny zeszyt,
+         który zobaczy ktoś bez konta; resztę rozstrzyga `Udostepnianie`
+         przez Policy. Prywatny, domyślny i wspólny — bez przycisku. --}}
+    <x-podziel-sie :tresc="$collection" />
+
     {{--
         WSPÓLNY ZESZYT (#1743, D-302). Kto ma dostęp — tylko osobom, które
         same go mają; obcy oglądający publiczny zeszyt nie dowiaduje się,

@@ -593,6 +593,12 @@ class CollectionController extends Controller
 
         $czlonkowie = $dostep ? $collection->members()->with('profile')->get() : collect();
 
+        // Ta sama lista służy „Podziel się" (#2000) do pytania „czy zeszyt jest
+        // wspólny" — bez tego przycisk pytałby bazę o to samo drugi raz.
+        if ($dostep) {
+            $collection->setRelation('members', $czlonkowie);
+        }
+
         $idAutorow = collect($pozycje)
             ->map(fn ($p) => $p->pivot?->added_by_id)
             ->unique()
