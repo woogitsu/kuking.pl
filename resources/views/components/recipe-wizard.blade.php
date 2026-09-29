@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Domain\Import\PodobienstwoDoZrodla;
 use App\Domain\Import\BramkaPublikacjiOdczytu;
-use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Recipes\Actions\SnapshotRecipeVersion;
 use App\Domain\Recipes\ExistingStepDuplicates;
@@ -19,6 +18,7 @@ use App\Support\KreatorPrzepisu\DanePublikacji;
 use App\Support\KreatorPrzepisu\KrokOPrzepisie;
 use App\Support\KreatorPrzepisu\PodgladPrzepisu;
 use App\Support\KreatorPrzepisu\WierszePrzepisu;
+use App\Support\KreatorPrzepisu\ZdjeciaKreatora;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -811,36 +811,42 @@ new class extends Component
      * megapikseli, zdjęcie EXIF w tle). Zwraca false, jeśli którykolwiek plik
      * odpadł.
      *
-     * Zdjęcie gotowego dania I zdjęcia kroków przechodzą tu razem, bo idą tą
-     * samą drogą i mają te same limity — dwie osobne metody to dwa miejsca,
-     * w których można zapomnieć o jednym ze sprawdzeń.
+     * Samo przyjmowanie plików robi `ZdjeciaKreatora` (issue #1387, krok 7);
+     * tu zostaje to, co należy do Livewire'a: wybrane pliki zerujemy w stanie
+     * PRZED przyjęciem (odrzucony plik nie może blokować każdego następnego
+     * autosave'u tym samym błędem), a wynik przenosimy do stanu i do worka
+     * błędów pod kluczami pól (`heroPhoto`, `steps.N.photo`, #1572).
+     * Dotychczasowe `heroMediaId` i `steps.N.mediaId` ruszamy tylko wtedy,
+     * gdy nowe zdjęcie się przyjęło — po błędzie zachowane zdjęcie zostaje.
      */
     private function storePendingPhotos(): bool
     {
-        $ok = $this->storePendingHeroPhoto();
+        $glowne = $this->heroPhoto;
+        $this->heroPhoto = null;
 
+        $kroki = [];
         foreach ($this->steps as $index => $row) {
-            if (($row['photo'] ?? null) === null) {
-                continue;
-            }
-
-            $photo = $row['photo'];
-
-            // Zerujemy od razu, żeby odrzucony plik nie blokował każdego
-            // następnego autosave'u tym samym błędem.
-            $this->steps[$index]['photo'] = null;
-
-            try {
-                $this->steps[$index]['mediaId'] = app(StoreUploadedImage::class)
-                    ->handle(auth()->user(), $photo)
-                    ->getKey();
-            } catch (BladDlaCzlowieka $e) {
-                $this->addError("steps.{$index}.photo", $e->getMessage());
-                $ok = false;
+            $kroki[$index] = $row['photo'] ?? null;
+            if ($kroki[$index] !== null) {
+                $this->steps[$index]['photo'] = null;
             }
         }
 
-        return $ok;
+        $wynik = app(ZdjeciaKreatora::class)->przyjmij(auth()->user(), $glowne, $kroki);
+
+        if ($wynik->mediaIdGlownego !== null) {
+            $this->heroMediaId = $wynik->mediaIdGlownego;
+        }
+
+        foreach ($wynik->mediaIdKrokow as $index => $mediaId) {
+            $this->steps[$index]['mediaId'] = $mediaId;
+        }
+
+        foreach ($wynik->bledy as $klucz => $komunikat) {
+            $this->addError($klucz, $komunikat);
+        }
+
+        return $wynik->udany();
     }
 
     /**
@@ -858,31 +864,6 @@ new class extends Component
         $this->steps[$index]['photo'] = null;
 
         $this->autozapis();
-    }
-
-    private function storePendingHeroPhoto(): bool
-    {
-        if ($this->heroPhoto === null) {
-            return true;
-        }
-
-        $photo = $this->heroPhoto;
-
-        // Zerujemy od razu, żeby odrzucony plik nie blokował każdego
-        // następnego autosave'u tym samym błędem.
-        $this->heroPhoto = null;
-
-        try {
-            $this->heroMediaId = app(StoreUploadedImage::class)
-                ->handle(auth()->user(), $photo)
-                ->getKey();
-        } catch (BladDlaCzlowieka $e) {
-            $this->addError('heroPhoto', $e->getMessage());
-
-            return false;
-        }
-
-        return true;
     }
 
     // -----------------------------------------------------------------
