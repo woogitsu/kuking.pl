@@ -31,6 +31,17 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Ile masz czasu? Wybierz w wyszukiwarce przepisów
+
+Pod zakresami wyszukiwania jest nowy wiersz „Ile masz czasu?”. Możecie wybrać
+„Do 15 minut”, „Do 30 minut” albo „Do godziny” i zobaczyć tylko przepisy, które
+się w tym zmieszczą. Liczymy przygotowanie i gotowanie razem. Przepis, przy
+którym autor nie podał czasu, nie trafia do żadnego z tych progów — nie
+udajemy, że gotuje się w zero minut. Wybrany czas jest zaznaczony, a wrócić do
+wszystkich przepisów możecie jednym kliknięciem w „Bez limitu czasu”. Wybór
+zostaje w adresie strony, więc działa po odświeżeniu i można go komuś wysłać.
+Dawny przycisk „Do 30 minut” działa dalej, także w starych linkach.
+
 ### Wczytajcie z powrotem własną paczkę z danymi
 
 W „Twoich danych” jest nowy odnośnik „Wczytaj swoją paczkę”. Wybieracie plik
