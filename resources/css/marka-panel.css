@@ -237,6 +237,76 @@
   margin-top: var(--spacing-6);
 }
 
+/* Grupa: nagłówek, zdanie wstępne i lista kart jako jedna całość (#581,
+   Kolejka zadań). Odstęp jest MIĘDZY grupami — nagłówek nie odrywa się od
+   tego, co opisuje, i nie skleja z kartą nad sobą. Grupa nie ma własnej
+   powierzchni: karty w środku są zwykłymi kartami treści. */
+[data-marka-panel] .marka-panel-tresc > .panel-grupa {
+  min-width: 0;
+}
+
+[data-marka-panel] .marka-panel-tresc > :is(.card, .panel-grupa) + .panel-grupa,
+[data-marka-panel] .marka-panel-tresc > .panel-grupa + :is(.card, .panel-grupa) {
+  margin-top: var(--spacing-8);
+}
+
+[data-marka-panel] .panel-grupa > h2 {
+  margin: 0 0 var(--spacing-3);
+}
+
+[data-marka-panel] .panel-grupa > p {
+  max-width: 75ch;
+  margin-top: 0;
+  margin-bottom: var(--spacing-4);
+}
+
+/* Liczby i uwagi pod treścią: pismo podstawowe, tylko wyciszone kolorem.
+   `.meta` (16 px) jest podpisem; tu stoi informacja, którą trzeba przeczytać
+   (ile zadań czeka, ile grup nie zmieściło się na liście). */
+[data-marka-panel] .panel-liczby {
+  font-size: var(--text-body);
+  color: var(--color-ink-muted);
+}
+
+/* Pary „podpis — wartość” (Kolejka zadań). Wartość ma pełne pismo i kolor
+   tekstu, podpis jest wyciszony, ale tej samej wielkości: nazwy klas
+   i kolejek to treść dla administratora. Długie nazwy klas łamią się
+   w dowolnym miejscu zamiast wypychać stronę w bok. Na wąskim ekranie podpis
+   stoi nad wartością — dwie kolumny znaczyłyby dwa słowa na linijkę. */
+[data-marka-panel] .dane-zadania {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: var(--spacing-2) var(--spacing-5);
+  margin: 0;
+  font-size: var(--text-body);
+}
+
+[data-marka-panel] .dane-zadania dt {
+  color: var(--color-ink-muted);
+}
+
+[data-marka-panel] .dane-zadania dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 48rem) {
+  [data-marka-panel] .dane-zadania {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  [data-marka-panel] .dane-zadania dt {
+    margin-top: var(--spacing-3);
+  }
+
+  [data-marka-panel] .dane-zadania dt:first-child {
+    margin-top: 0;
+  }
+}
+
 [data-marka-panel] .marka-panel-bramka {
   max-width: 54rem;
   padding: clamp(var(--spacing-4), 3vw, var(--spacing-8));

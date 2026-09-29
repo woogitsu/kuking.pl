@@ -6,7 +6,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { poczekajNaStan } from './lib/stan-ustalony.mjs';
 
-const rodziny = ['zgloszenia', 'sygnaly', 'odwolania', 'bez-odpowiedzi', 'wiadomosci', 'wiadomosc', 'kolaz-powitalny', 'kuking-na-dzis', 'tagi-promowane', 'uzytkownicy', 'uzytkownik'];
+const rodziny = ['zgloszenia', 'sygnaly', 'odwolania', 'bez-odpowiedzi', 'wiadomosci', 'wiadomosc', 'kolaz-powitalny', 'kuking-na-dzis', 'tagi-promowane', 'uzytkownicy', 'uzytkownik', 'kolejka'];
 const listy = rodziny.filter(r => !['wiadomosc', 'uzytkownik'].includes(r));
 const wymagaj = (warunek, kod, dane = {}) => { if (!warunek) throw new Error(`P581_${kod} ${JSON.stringify(dane)}`); };
 
@@ -325,6 +325,31 @@ export async function sprawdzPanelMarki({ browser, adres, scenariusze, phase, ou
       for (const e of s.oczekiwaneSelektory) {
         const count = await page.locator(e.selector).count();
         wymagaj(count >= e.min && (e.max === undefined || count <= e.max), 'DANE', { id: s.id, selector: e.selector, count, min: e.min, max: e.max });
+      }
+      /* Kompozycja treści (#581, Kolejka zadań). Dane, które administrator
+         czyta (pary podpis — wartość, liczby pod kartą), mają pismo podstawowe
+         razem ze skalą konta — nie 16 px drobnego `.meta`. Grupa (nagłówek +
+         lista) jest odsunięta od karty nad sobą i nagłówek nie skleja się
+         z tym, co opisuje. Pomiar liczy się tylko na ekranach, które mają
+         te klasy; brak klasy na ekranie, który ją deklaruje w `minimalnyTekst`,
+         oblewa jako DANE, nie jako cichy brak pomiaru. */
+      const kompozycja = await page.evaluate(({ selektory, scale }) => {
+        const tekst = selektory.map(sel => [...document.querySelectorAll(sel)].map(e => ({ sel, font: parseFloat(getComputedStyle(e).fontSize) }))).flat();
+        const grupy = [...document.querySelectorAll('main .panel-grupa')].map(g => {
+          const poprzedni = g.previousElementSibling, h2 = g.querySelector(':scope > h2');
+          const wstep = h2?.nextElementSibling;
+          return { odstepNad: poprzedni ? g.getBoundingClientRect().top - poprzedni.getBoundingClientRect().bottom : null,
+            odstepPodNaglowkiem: h2 && wstep ? wstep.getBoundingClientRect().top - h2.getBoundingClientRect().bottom : null,
+            naglowek: !!h2 };
+        });
+        return { tekst, grupy, oczekiwanyFont: 18 * scale / 100 };
+      }, { selektory: s.minimalnyTekst ?? [], scale });
+      for (const sel of s.minimalnyTekst ?? []) wymagaj(kompozycja.tekst.some(t => t.sel === sel), 'DANE', { id: s.id, selector: sel, count: 0 });
+      for (const t of kompozycja.tekst) wymagaj(t.font >= kompozycja.oczekiwanyFont - .15, 'TEKST_MIN_18', { id: s.id, ...t, oczekiwany: kompozycja.oczekiwanyFont });
+      for (const g of kompozycja.grupy) {
+        wymagaj(g.naglowek, 'GRUPA_NAGLOWEK', { id: s.id });
+        wymagaj(g.odstepNad === null || g.odstepNad >= 24, 'GRUPA_ODSTEP_NAD', { id: s.id, ...g });
+        wymagaj(g.odstepPodNaglowkiem === null || (g.odstepPodNaglowkiem >= 8 && g.odstepPodNaglowkiem <= 32), 'GRUPA_NAGLOWEK_PRZY_TRESCI', { id: s.id, ...g });
       }
       if (s.stan === 'bramka') wymagaj(await page.locator('main .marka-panel-bramka[aria-labelledby="panel-wymaga-2fa"] #panel-wymaga-2fa').count() === 1, 'KARTA_BRAMKI');
       await sprawdzZwijaniePanelu(page);
