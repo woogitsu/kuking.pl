@@ -309,6 +309,8 @@ OCZEKUJ = {
     'Wybór formy czeka na dzień wersji przy drobnej zmianie': r'Wybór formy ukryty w chwili 2026-09-29 20:00',
     # #2000: wspólny zeszyt „wszyscy” ma „Podziel się”.
     'Wspólny publiczny zeszyt bez „Podziel się”': r'Wspólny zeszyt „wszyscy” nie ma przycisku „Podziel się”',
+    # #2224: stary KRS w dokumencie ma wywrócić strażnika danych rejestrowych.
+    'Audyt ADR: stary KRS operatora': r'Numer rejestrowy w dokumencie różni się od config/kuking\.php.*0000854321',
 }
 
 
