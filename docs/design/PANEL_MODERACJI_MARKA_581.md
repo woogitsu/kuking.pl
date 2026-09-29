@@ -22,8 +22,13 @@ błędnych POST nie obejmowało żadne z wcześniejszych 9 przypadków. Miernik
 rodzinach: przekierowanie z powrotem na ekran, jedno podsumowanie z dokładnym
 tekstem błędu, błąd przy polu, zachowane wpisane wartości, link podsumowania
 prowadzący do pola i przenoszący na nie fokus, niezmienione tabele domeny
-(decyzje, powiadomienia, dziennik). Zakres odbioru: lokalny, serwerowa
-walidacja; nie jest to odbiór produkcyjny. Wciąż poza mierzonym zakresem
+(decyzje, powiadomienia, dziennik). Miernik chodzi w jobie CI „Panel marki —
+puste i pełne widoki” (`scripts/panel-marki-run.mjs` woła go tylko przy
+`GITHUB_ACTIONS=true`); to serwerowa walidacja na izolowanej fixture, nie
+odbiór produkcyjny. Przebieg lokalny z recenzji (29.09, sam `runCandidate` na
+bazie `kuking_581_validation`, klaster 55439): 11/11 PASS; kontrola ujemna —
+`min:10` → `min:3` dla `user_message` w `ZUrzeduController` — oblewa
+`DOMAIN_CHANGED` na `zurzedu-short-message`, po przywróceniu MD5 zgodne. Wciąż poza mierzonym zakresem
 (kolejka z komentarza #581 z 17 września): notatka 2001 znaków w sygnałach
 i wiadomości, pięć UUID w kolażu, siedmiu kandydatów i notatka 301 na tablicy,
 nieistniejący tag.
