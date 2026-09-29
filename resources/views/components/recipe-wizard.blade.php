@@ -15,6 +15,7 @@ use App\Livewire\Forms\PrzepisForm;
 use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
 use App\Domain\Recipes\KosztPrzepisu;
+use App\Support\KreatorPrzepisu\DanePublikacji;
 use App\Support\KreatorPrzepisu\KrokOPrzepisie;
 use App\Support\KreatorPrzepisu\PodgladPrzepisu;
 use App\Support\KreatorPrzepisu\WierszePrzepisu;
@@ -700,25 +701,25 @@ new class extends Component
     {
         $recipe = app(PublishRecipe::class)->handle(
             author: auth()->user(),
-            attributes: [
-                'title' => trim($this->title),
-                'summary' => PodgladPrzepisu::tekstLubNull($this->summary),
-                'servings' => PodgladPrzepisu::liczbaLubNull($this->servings),
-                'estimated_cost_pln' => KosztPrzepisu::naLiczbe($this->estimated_cost_pln),
-                'prep_minutes' => PodgladPrzepisu::calkowitaLubNull($this->prep_minutes),
-                'cook_minutes' => PodgladPrzepisu::calkowitaLubNull($this->cook_minutes),
-                'difficulty' => PodgladPrzepisu::tekstLubNull($this->form->difficulty),
-                'visibility' => $this->form->visibility,
-                'source_type' => $this->form->source_type,
-                'source_person' => PodgladPrzepisu::tekstLubNull($this->form->source_person),
-                'source_note' => PodgladPrzepisu::tekstLubNull($this->form->source_note),
-                'source_url' => PodgladPrzepisu::tekstLubNull($this->form->source_url),
-                'family_since_year' => PodgladPrzepisu::calkowitaLubNull($this->form->family_since_year),
-                'hero_media_id' => $this->heroMediaId,
-                'source_scan_media_id' => $this->sourceScanMediaId,
-                'sprawdzilem_odczyt' => $this->sprawdzilemOdczyt,
-                'odczyt_sprawdzony' => $this->odczytSprawdzony,
-            ],
+            attributes: DanePublikacji::atrybuty(
+                title: $this->title,
+                summary: $this->summary,
+                servings: $this->servings,
+                estimatedCostPln: $this->estimated_cost_pln,
+                prepMinutes: $this->prep_minutes,
+                cookMinutes: $this->cook_minutes,
+                difficulty: $this->form->difficulty,
+                visibility: $this->form->visibility,
+                sourceType: $this->form->source_type,
+                sourcePerson: $this->form->source_person,
+                sourceNote: $this->form->source_note,
+                sourceUrl: $this->form->source_url,
+                familySinceYear: $this->form->family_since_year,
+                heroMediaId: $this->heroMediaId,
+                sourceScanMediaId: $this->sourceScanMediaId,
+                sprawdzilemOdczyt: $this->sprawdzilemOdczyt,
+                odczytSprawdzony: $this->odczytSprawdzony,
+            ),
             ingredients: $this->cleanIngredients(),
             steps: $this->cleanSteps(),
             publish: $publish,
