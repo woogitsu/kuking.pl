@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Import\ZlecImportPrzepisu;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
@@ -207,7 +208,7 @@ class KazdeWejscieDoDodawaniaPokazujeObieMozliwosciTest extends TestCase
         );
 
         $this->assertSame(
-            $sciezka === self::CEL_WYBOR ? '/dodaj/przepis/skad' : self::CEL_PRZEPIS,
+            $sciezka === self::CEL_WYBOR && $this->odczytPrzepisuDziala() ? '/dodaj/przepis/skad' : self::CEL_PRZEPIS,
             $this->celOdnosnika($html, 'Cały przepis', null, true, $wejscie),
             "Wejście „{$wejscie}” kończy się na „{$sciezka}”, a tam nie ma drogi do ".
             '„Cały przepis”. To jest dokładnie usterka z issue #366: człowiek wchodzi '.
@@ -446,5 +447,17 @@ class KazdeWejscieDoDodawaniaPokazujeObieMozliwosciTest extends TestCase
         $this->actingAs($ja);
 
         return $adres($ja);
+    }
+
+    /**
+     * Kafel „Cały przepis” na `/dodaj` prowadzi do wyboru źródła tylko wtedy,
+     * gdy działa odczyt przepisu (D-298). Od #2214 flagi importu są domyślnie
+     * wyłączone — wtedy kafel prowadzi prosto do formularza.
+     */
+    private function odczytPrzepisuDziala(): bool
+    {
+        return ZlecImportPrzepisu::dostepnyOdczytZdjecia()
+            || (bool) config('kuking.import.url.wlaczony')
+            || (bool) config('kuking.import.pdf.wlaczony');
     }
 }
