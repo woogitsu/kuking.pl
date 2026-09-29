@@ -1801,6 +1801,10 @@ checks = [
     # json_decode ~8×). Powrót do 32 MB kończył się fatalem 500 bez komunikatu.
     ("Sufit paczki importu wraca do 32 MB", "app/Domain/Users/Import/PodgladPaczkiEksportu.php", "test_sufit_danych_pozostaje_bezpieczny_dla_limitu_pamieci_php",
      lambda s: replace_once(s, "MAX_DANE_BAJTOW = 12 * 1024 * 1024;", "MAX_DANE_BAJTOW = 32 * 1024 * 1024;")),
+    # #2224: stary numer KRS wraca do audytu ADR — strażnik danych rejestrowych
+    # w dokumentach ma go wyłapać (dokument historyczny nie ma wyjątku).
+    ("Audyt ADR: stary KRS operatora", "docs/legal/AUDYT_ADR_WARSTWA_MERYTORYCZNA.md", "test_zadne_dane_rejestrowe_w_dokumentach_nie_odbiegaja_od_konfiguracji",
+     lambda s: replace_once(s, "(KRS 0000901262, NIP", "(KRS 0000854321, NIP")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
