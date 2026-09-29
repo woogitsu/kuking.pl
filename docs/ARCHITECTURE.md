@@ -77,6 +77,7 @@ z listą dwóch zastanych plików (`ZeszytyDoWyboru`, `CollectionSaveContext`).
 Zostaje w kontrolerze: przypadki użycia listy, wyjęcia niedostępnych i
 zapisu przepisu (kolejne kroki).
 Profil publiczny: `ProfilRequest` (zakładka, rok i fraza z adresu, `rules()` puste — jak `ListaKontRequest`).
+Onboarding: `ZapisZainteresowanRequest`, `ZapisObserwowanychRequest` + `ObserwujWybraneOsoby` (zapis; limit 20 osób, para nazwa–identyfikator #793) oraz `EkranLudziRequest` + `PrzygotujEkranLudzi` (ekran „kogo obserwować”).
 Kolejne kandydaty (od największego): `CollectionController` (dalsze kroki), `ProfileController`,
 `OnboardingController`, `NotificationController`, `ReportController`,
 kontrolery logowania Google/Facebook (#1035).
