@@ -2787,9 +2787,11 @@ return [
          * samo jak `wersja.etykieta` niżej trzymane w repozytorium, NIE
          * w zmiennej środowiskowej: zmiana wersji dokumentu prawnego ma
          * przechodzić przez recenzję jak każda inna zmiana, a nie dać się
-         * przestawić w panelu Railwaya.
+         * przestawić w panelu Railwaya. Zgodność z nagłówkiem pilnuje
+         * `WersjaPolitykiZgadzaSieZNaglowkiemTest`. Wcześniejsze wiersze
+         * dziennika zostają ze swoją wersją — to dowód, NA CO się zgodzono.
          */
-        'wersja_polityki' => '2026-09-25',
+        'wersja_polityki' => '2026-09-29',
 
         /*
          * CZY ZMIANA POLITYKI JEST ISTOTNA — oznaczenie JAWNE, bez wartości
@@ -2810,6 +2812,17 @@ return [
          * w części Cloudflare R2 zastrzeżonej dla UE) opisuje stan, który już
          * był — bez nowego celu, odbiorcy ani dłuższego przechowywania — więc
          * drobna.
+         *
+         * Wersja 2026-09-29 (#1816, jedno podbicie razem z #1324 i #619) opisuje
+         * to, co serwis już robił: paczkę danych zgodną z kodem (co jest
+         * w środku, co tylko na prośbę), obserwowane tagi, ukrycia, reakcję
+         * „Smakowicie wygląda”, listę „Co mam w domu”, odpięcie zdarzeń
+         * analitycznych po usunięciu konta i datę sprawdzenia lokalizacji
+         * zdjęć. Nie ma tu nowego celu, odbiorcy ani dłuższego przechowywania,
+         * a zwroty z „sam” zamieniono na neutralne (decyzja właściciela
+         * z 26.09.2026) — więc drobna. Gdyby prawnik uznał inaczej,
+         * przestaw `istotna` na true: `WersjaDokumentuTest` zażąda wtedy
+         * paska `components.pasek-zmiany-polityki`, którego jeszcze nie ma.
          */
         'zmiana_polityki' => [
             'istotna' => false,

@@ -162,12 +162,13 @@ final class WzorceRodzaju
      * przepis ręcznie" (COPY_STYLE.md §2: przebudowa zdania, nie „sam/sama").
      *
      * DLACZEGO OSOBNA STAŁA, A NIE DOPISEK DO `WZORCE`
-     * `WZORCE` czytają też teksty prawne i przewodnik. W regulaminie
-     * i polityce prywatności stoi „sam wybierasz", „sam decydujesz" — teksty
-     * prawne mają osobny reżim i osobne zlecenie (COPY_STYLE.md §6, ten sam
-     * powód co przy `WZORCE_TYLKO_WIDOKI` w `TekstyNiePrzypisujaPlciTest`).
-     * Test decyduje, gdzie ten wzorzec przykłada; stała żyje tu, żeby nie
-     * powstała druga kopia.
+     * `WZORCE` czytają też teksty prawne i przewodnik. Do 26.09.2026
+     * w regulaminie i polityce prywatności stało „sam wybierasz", „sam
+     * decydujesz" — teksty prawne mają osobny reżim (COPY_STYLE.md §6).
+     * Właściciel kazał to poprawić jako drobną zmianę redakcyjną (#1816),
+     * więc `TekstyNiePrzypisujaPlciTest` przykłada `WZORCE_SAM` także do
+     * `resources/legal`. Test decyduje, gdzie ten wzorzec przykłada; stała
+     * żyje tu, żeby nie powstała druga kopia.
      *
      * DLACZEGO TAK WĄSKO
      * „sam" jest w polszczyźnie przede wszystkim przymiotnikiem: „ten sam

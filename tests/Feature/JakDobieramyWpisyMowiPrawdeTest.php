@@ -17,6 +17,7 @@ use App\Models\Recipe;
 use App\Models\User;
 use App\Support\Czas;
 use DOMDocument;
+use DOMElement;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -231,6 +232,7 @@ class JakDobieramyWpisyMowiPrawdeTest extends TestCase
         $naStronie = [];
 
         foreach ($akapity as $akapit) {
+            $this->assertInstanceOf(DOMElement::class, $akapit);
             $klucz = $akapit->getAttribute('data-zdanie');
             $this->assertNotSame('', $klucz, 'Akapit bez klucza w bloku opisu: „'.trim($akapit->textContent).'”. Zdania dopisuje się w JakDobieramyWpisy, nie w widoku.');
             $this->assertArrayHasKey($klucz, $zdania);
@@ -256,6 +258,7 @@ class JakDobieramyWpisyMowiPrawdeTest extends TestCase
         $xpath = $this->xpath('<div data-jak-dobieramy><p data-zdanie="start.zrodla">a</p><p>dopisane w widoku</p></div>');
         $bezKlucza = 0;
         foreach ($xpath->query('//*[@data-jak-dobieramy]//p') as $p) {
+            $this->assertInstanceOf(DOMElement::class, $p);
             $bezKlucza += $p->getAttribute('data-zdanie') === '' ? 1 : 0;
         }
 

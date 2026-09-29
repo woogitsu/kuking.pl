@@ -73,8 +73,10 @@ class BladZdjeciaPowiazanyZPolemTest extends TestCase
 
         $komunikat = $pole['xpath']->query('//*[@id="'.$opis[1].'"]');
         $this->assertSame(1, $komunikat->length, 'aria-describedby wskazuje nieistniejący element: '.$opis[1]);
-        $this->assertStringContainsString('field-error', $komunikat->item(0)->getAttribute('class'));
-        $this->assertNotSame('', trim($komunikat->item(0)->textContent));
+        $element = $komunikat->item(0);
+        $this->assertInstanceOf(DOMElement::class, $element);
+        $this->assertStringContainsString('field-error', $element->getAttribute('class'));
+        $this->assertNotSame('', trim($element->textContent));
         $this->assertSame(1, $pole['xpath']->query('//*[@id="'.$idPola.'-help"]')->length, 'Pomoc przy polu zniknęła.');
     }
 
@@ -231,6 +233,9 @@ class BladZdjeciaPowiazanyZPolemTest extends TestCase
         $wejscia = $xpath->query('//input[@type="file" and @id="'.$id.'"]');
         $this->assertSame(1, $wejscia->length, 'Brak pola plików #'.$id);
 
-        return ['input' => $wejscia->item(0), 'xpath' => $xpath];
+        $input = $wejscia->item(0);
+        $this->assertInstanceOf(DOMElement::class, $input);
+
+        return ['input' => $input, 'xpath' => $xpath];
     }
 }

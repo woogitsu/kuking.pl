@@ -42,6 +42,10 @@ class FormularzKreatoraWLivewireFormTest extends TestCase
     {
         $komponent = Livewire::actingAs($this->user('podzial_pol'))->test(self::COMPONENT)->instance();
 
+        if (! property_exists($komponent, 'form')) {
+            self::fail('Kreator nie ma już właściwości $form — ten test pilnuje formularza, którego nie ma.');
+        }
+
         $this->assertInstanceOf(PrzepisForm::class, $komponent->form);
 
         foreach (KrokOPrzepisie::POLA as $pole) {
@@ -175,6 +179,10 @@ class FormularzKreatoraWLivewireFormTest extends TestCase
     public function test_migawka_sprzed_formularza_nie_zapisuje_niczego(): void
     {
         $komponent = Livewire::actingAs($this->user('stara_karta'))->test(self::COMPONENT)->instance();
+
+        if (! method_exists($komponent, 'hydrate') || ! property_exists($komponent, 'wersjaStanu')) {
+            self::fail('Kreator nie ma już hydrate() ani $wersjaStanu — ten test pilnuje wersji stanu, której nie ma.');
+        }
 
         // Bieżąca migawka przechodzi.
         $komponent->hydrate();

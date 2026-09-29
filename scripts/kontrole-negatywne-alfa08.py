@@ -355,6 +355,8 @@ WZOR_R2 = r"""'/^[0-9a-f]{32}\.eu\.r2\.cloudflarestorage\.com$/'"""
 # Ta sama mutacja strażnika co wyżej musi zapalić też test polityki — dowód,
 # że obietnica stoi na kodzie, a nie na zmiennej środowiskowej.
 POLITYKA_R2_TEST = "test_polityka_nie_obiecuje_jurysdykcji_r2_bez_pokrycia_w_endpoincie"
+R2_ZAPIS_WERYFIKACJI = "docs/infra/LOKALIZACJA_DANYCH_R2.md"
+R2_ZAPIS_WERYFIKACJI_TEST = "test_data_sprawdzenia_r2_w_polityce_to_ostatni_zapis_weryfikacji"
 
 # Dokumenty prywatności o awatarach zgodne z kodem (#1461, D-240). Mutacja 1
 # dopisuje w kontrolerze prawdziwe zlecenie zadania — dokumenty mówią wtedy
@@ -1257,6 +1259,10 @@ checks = [
      lambda s: replace_once(s, KREATOR_ZAPIS, "$juzOpublikowany ? 'opublikowany' : 'szkic'")),
     ("Polityka obiecuje UE przy strażniku bez eu", STRAZNIK_R2, POLITYKA_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
+    # #619: zapis weryfikacji w dokumencie infrastruktury z inną datą niż
+    # „sprawdzone <data>” w wierszu R2 polityki ma zapalić test.
+    ("Zapis weryfikacji R2 z inną datą niż polityka", R2_ZAPIS_WERYFIKACJI, R2_ZAPIS_WERYFIKACJI_TEST,
+     lambda s: replace_once(s, "- **2026-09-25** — właściciel potwierdził", "- **2026-09-26** — właściciel potwierdził")),
     ("Kontroler znów zleca analizę awatara", KONTROLER_AWATARA, DOKUMENTACJA_AWATARA_TEST,
      lambda s: replace_once(s, AWATAR_KOMENTARZ, AWATAR_KOMENTARZ
                             + "        \\App\\Jobs\\PrzeanalizujAwatar::dispatch((string) $zdjecie->getKey());\n")),
@@ -1398,6 +1404,10 @@ checks = [
      lambda s: replace_once(s, "$najwczesniej = $publikacja->addDays(self::okresIstotnejZmianyDni());", "$najwczesniej = $publikacja;")),
     ("Zgoda zapisuje wersję opublikowaną zamiast obowiązującej", WERSJA_DOKUMENTU_ZGODA, WERSJA_DOKUMENTU_TEST,
      lambda s: replace_once(s, "WersjaDokumentu::polityka()->obowiazujaca()", "WersjaDokumentu::polityka()->opublikowana")),
+    # #1324: nagłówek polityki z inną datą niż `kuking.zgody.wersja_polityki`
+    # ma zapalić strażnika zgodności (mutacja niezależna od bieżącej daty).
+    ("Nagłówek polityki z inną datą niż dziennik zgód", POLITYKA, "WersjaPolitykiZgadzaSieZNaglowkiemTest",
+     lambda s: replace_once(s, "stan serwisu na ", "stan serwisu na 1 stycznia 2000, a nie ")),
     ("IaC: plan produkcji bez filtra gałęzi docelowej", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
      lambda s: replace_once(s, "    branches: [main]\n", "")),
     ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
