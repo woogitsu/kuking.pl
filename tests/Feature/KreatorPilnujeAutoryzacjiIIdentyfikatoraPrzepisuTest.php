@@ -41,7 +41,7 @@ class KreatorPilnujeAutoryzacjiIIdentyfikatoraPrzepisuTest extends TestCase
         $przepis->forceFill(['author_id' => $obcy->getKey()])->save();
 
         if ($akcja === 'autosave') {
-            $komponent->set('summary', 'Nowy opis od byłego autora.');
+            $komponent->set('form.summary', 'Nowy opis od byłego autora.');
         } else {
             $komponent->call($akcja);
         }

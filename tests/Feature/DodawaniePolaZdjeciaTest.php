@@ -118,7 +118,7 @@ class DodawaniePolaZdjeciaTest extends TestCase
         $basia = $this->user('basia');
 
         $komponent = Livewire::actingAs($basia)->test('recipe-wizard')
-            ->set('title', 'Kotlet schabowy')
+            ->set('form.title', 'Kotlet schabowy')
             ->set('ingredients.0.text', 'schab')
             ->set('steps.0.instruction', 'Rozbij mięso.')
             // Pole zdjęcia kroku żyje na kroku 3 („Przygotowanie") — na

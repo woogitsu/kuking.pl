@@ -59,7 +59,7 @@ class FormularzKreatoraWLivewireFormTest extends TestCase
     public function test_blad_pola_tekstowego_formularza_prowadzi_do_pola_z_tym_samym_id(): void
     {
         $komponent = Livewire::actingAs($this->user('blad_tekstu'))->test(self::COMPONENT)
-            ->set('title', 'Pierogi')
+            ->set('form.title', 'Pierogi')
             ->set('form.source_person', str_repeat('a', 121))
             ->assertHasErrors('form.source_person')
             // Błędny tekst zostaje w polu — dane nigdy nie znikają.
@@ -83,7 +83,7 @@ class FormularzKreatoraWLivewireFormTest extends TestCase
     public function test_blad_grupy_wyboru_ma_cel_ktory_przyjmie_fokus(): void
     {
         $komponent = Livewire::actingAs($this->user('blad_grupy'))->test(self::COMPONENT)
-            ->set('title', 'Pierogi')
+            ->set('form.title', 'Pierogi')
             ->set('form.visibility', 'wszyscy-na-swiecie')
             ->assertHasErrors('form.visibility')
             ->assertSet('saveState', 'error');
@@ -119,7 +119,7 @@ class FormularzKreatoraWLivewireFormTest extends TestCase
     public function test_skok_z_innego_kroku_prosi_o_fokus_na_polu_formularza(): void
     {
         $komponent = Livewire::actingAs($this->user('skok_formularz'))->test(self::COMPONENT)
-            ->set('title', 'Pierogi')
+            ->set('form.title', 'Pierogi')
             ->set('form.source_url', 'ftp://example.invalid/przepis')
             ->assertHasErrors('form.source_url')
             ->set('step', 3);
@@ -164,7 +164,7 @@ class FormularzKreatoraWLivewireFormTest extends TestCase
             ->assertSet('form.source_person', 'od mamy')
             ->assertSet('form.source_note', 'Na Wigilię.')
             ->assertSet('form.family_since_year', '1974')
-            ->set('title', 'Pierogi ruskie')
+            ->set('form.title', 'Pierogi ruskie')
             ->assertHasNoErrors()
             ->assertSet('saveState', 'saved');
 
@@ -197,6 +197,43 @@ class FormularzKreatoraWLivewireFormTest extends TestCase
         } catch (HttpException $e) {
             $this->assertSame(419, $e->getStatusCode());
         }
+    }
+
+    public function test_migawka_z_poprzedniej_wersji_stanu_nie_wywraca_komponentu_i_niczego_nie_zapisuje(): void
+    {
+        $autor = $this->user('stara_wersja_stanu');
+        $przepis = Recipe::factory()->draft()->for($autor, 'author')->create([
+            'title' => 'Barszcz', 'visibility' => 'private', 'servings' => 6,
+        ]);
+
+        $test = Livewire::actingAs($autor)->test(self::COMPONENT, ['recipeId' => $przepis->getKey()])
+            ->assertSet('form.title', 'Barszcz')
+            ->assertSet('form.servings', '6');
+        $komponent = $test->instance();
+
+        // Krok 6 (nazwa, opis, porcje, koszt i czasy w `$form`) podbił wersję
+        // do 4. Karta otwarta przed wdrożeniem odsyła migawkę bez tych pól
+        // w `form` (Livewire tworzy je puste) i z poprzednią wersją stanu.
+        $this->assertSame(4, $komponent::WERSJA_STANU);
+        foreach ([0, 1, 2, 3] as $stara) {
+            $komponent->wersjaStanu = $stara;
+
+            try {
+                $komponent->hydrate();
+                $this->fail("Migawka z wersją stanu {$stara} przeszła przez hydrate().");
+            } catch (HttpException $e) {
+                $this->assertSame(419, $e->getStatusCode());
+            }
+        }
+
+        // Nic nie trafiło do bazy: nazwa i porcje zostały, przepis dalej prywatny.
+        $po = Recipe::findOrFail($przepis->getKey());
+        $this->assertSame(['Barszcz', 'private'], [$po->title, $po->visibility]);
+        $this->assertEquals(6, $po->servings);
+
+        // Bieżąca wersja przechodzi.
+        $komponent->wersjaStanu = $komponent::WERSJA_STANU;
+        $komponent->hydrate();
     }
 
     private function xpath(string $html): DOMXPath

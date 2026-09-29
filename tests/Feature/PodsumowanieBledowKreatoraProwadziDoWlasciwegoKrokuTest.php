@@ -37,7 +37,7 @@ class PodsumowanieBledowKreatoraProwadziDoWlasciwegoKrokuTest extends TestCase
 
         $component = Livewire::actingAs($user)
             ->test(self::COMPONENT)
-            ->set('title', 'Zupa na regresję')
+            ->set('form.title', 'Zupa na regresję')
             ->call('next')
             ->assertSet('step', 2)
             ->call('next')
@@ -106,7 +106,7 @@ class PodsumowanieBledowKreatoraProwadziDoWlasciwegoKrokuTest extends TestCase
 
         $c = Livewire::actingAs($user)
             ->test(self::COMPONENT)
-            ->set('title', 'Przepis z odrzuconym zdjęciem kroku')
+            ->set('form.title', 'Przepis z odrzuconym zdjęciem kroku')
             ->set('steps.0.instruction', 'Podsmaż cebulę.');
 
         [$krok, $bledy] = $this->opublikujZeZdjeciem($c, 'krok', $zepsuty);
@@ -127,7 +127,7 @@ class PodsumowanieBledowKreatoraProwadziDoWlasciwegoKrokuTest extends TestCase
 
         $c = Livewire::actingAs($user)
             ->test(self::COMPONENT)
-            ->set('title', 'Przepis z odrzuconym zdjęciem głównym')
+            ->set('form.title', 'Przepis z odrzuconym zdjęciem głównym')
             ->set('steps.0.instruction', 'Podsmaż cebulę.');
 
         [$krok, $bledy] = $this->opublikujZeZdjeciem($c, 'glowne', $zepsuty);
