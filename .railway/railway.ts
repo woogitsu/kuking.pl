@@ -144,6 +144,13 @@ const NAZWA_BAZY = "Postgres";
  * nazwę żywego serwisu (`NAZWA_SERWISU_WWW`, od 24.09.2026). NIE zmieniaj tej flagi w ramach samego sprostowania
  * dokumentacji — rozbicie na trzy serwisy zostaje celem, dopóki właściciel
  * nie zdecyduje inaczej; zmienia się tylko to, co ten komentarz mówi o dziś.
+ *
+ * Stan potwierdzony 29.09.2026: nadal jeden serwis `kuking.pl`, APP_ROLE=all.
+ * Właściciel zdecydował tego dnia dokończyć rozdzielenie (D-333): repozytorium
+ * jest gotowe, przełączenie robi właściciel według
+ * docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md — najpierw bilans zmiennych
+ * (krok 0.5), bo pierwszy apply usunie z `kuking.pl` zmienne workera
+ * i schedulera, a wartości mają już wtedy czekać w Shared Variables.
  */
 const PRODUCTION_SPLIT_SERVICES = true;
 
