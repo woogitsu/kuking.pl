@@ -273,6 +273,9 @@ OCZEKUJ = {
     'Wybór formy czeka na dzień wersji przy drobnej zmianie': r'Wybór formy ukryty w chwili 2026-09-29 20:00',
     # #2000: wspólny zeszyt „wszyscy” ma „Podziel się”.
     'Wspólny publiczny zeszyt bez „Podziel się”': r'Wspólny zeszyt „wszyscy” nie ma przycisku „Podziel się”',
+    # #2223 (D-333): tinker poza obrazem produkcyjnym.
+    'Tinker wraca do require': r'laravel/tinker wrócił do `require`',
+    'Runbook znów każe użyć tinkera': r'MONITORING_BLEDOW\.md każe użyć `php artisan tinker`',
 }
 
 

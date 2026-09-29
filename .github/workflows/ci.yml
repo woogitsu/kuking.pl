@@ -2138,6 +2138,38 @@ jobs:
           fi
           echo "OK   obraz aplikacji nie udaje narzędzia kopii"
 
+          # Tinker (i pod nim PsySH, pełna powłoka PHP z sekretami w zasięgu)
+          # jest w `require-dev` od D-333 (#2223). Obraz instaluje `--no-dev`,
+          # więc NIE MOŻE ich mieć: ani katalogu w vendor/, ani klasy
+          # w autoloadzie. Runbooki mają zamiast niego komendy `kuking:*`.
+          # Każde sprawdzenie ma kontrolę dodatnią obok, bo pusty wynik
+          # `grep` przechodzi także wtedy, gdy przeszukuje zły katalog.
+          echo "--- tinker i PsySH poza obrazem produkcyjnym (D-333) ---"
+          OBRAZ_APLIKACJI=kuking:ci-${{ github.sha }}
+          docker run --rm "$OBRAZ_APLIKACJI" test -d /app/vendor/laravel/framework \
+            || { echo "BŁĄD: nie ma /app/vendor/laravel/framework — sprawdzenia niżej patrzą w zły katalog."; exit 1; }
+          if docker run --rm "$OBRAZ_APLIKACJI" sh -c 'test -e /app/vendor/laravel/tinker || test -e /app/vendor/psy'; then
+            echo "BŁĄD: w obrazie jest vendor/laravel/tinker albo vendor/psy — pakiet wrócił do \`require\`."
+            exit 1
+          fi
+          docker run --rm "$OBRAZ_APLIKACJI" grep -qF 'Illuminate\' /app/vendor/composer/autoload_classmap.php \
+            || { echo "BŁĄD: autoload_classmap.php nie ma nawet klas frameworka — sprawdzenie niżej niczego nie dowodzi."; exit 1; }
+          if docker run --rm "$OBRAZ_APLIKACJI" grep -lE 'Psy\\|Laravel\\\\?Tinker' /app/vendor/composer/autoload_classmap.php /app/vendor/composer/autoload_psr4.php /app/vendor/composer/autoload_static.php; then
+            echo "BŁĄD: autoload obrazu zna klasy PsySH albo Tinkera (pliki wyżej)."
+            exit 1
+          fi
+          lista=$(docker run --rm "$OBRAZ_APLIKACJI" php artisan list --raw)
+          if ! grep -q '^kuking:przetworz-zdjecia-ponownie' <<< "$lista"; then
+            echo "BŁĄD: \`php artisan list\` w obrazie nie pokazał komend kuking:* — obraz nie wstaje bez dev."
+            printf '%s\n' "$lista" | head -40
+            exit 1
+          fi
+          if grep -q '^tinker' <<< "$lista"; then
+            echo "BŁĄD: \`php artisan list\` w obrazie zna komendę tinker."
+            exit 1
+          fi
+          echo "OK   brak tinkera i PsySH; php artisan list działa bez zależności dev"
+
       # =====================================================================
       #  DRUGI OBRAZ: serwis kopii bazy (issue #193, decyzja D-043)
       #

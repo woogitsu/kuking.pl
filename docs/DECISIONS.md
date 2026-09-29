@@ -20931,6 +20931,7 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | #2024: ponowna publikacja bez zmian | Ponowna publikacja przepisu bez zmian treści **nie tworzy** nowej wersji w historii | #2024 |
 | #2000: wspólny zeszyt publiczny | Wspólny (rodzinny, D-302) zeszyt ustawiony jako „wszyscy” **może** mieć „Podziel się”; prywatny i domyślne „Zapisane” dalej nie | #2000 |
 | #2016: minutniki | Minutniki **nie są** synchronizowane między urządzeniami — synchronizacja obejmuje tylko odhaczone kroki | #2016 |
+| #2223: `laravel/tinker` w produkcji (decyzja z wieczora) | **Od razu do `require-dev`.** Obraz produkcyjny (`composer install --no-dev`) nie ma Tinkera ani PsySH; lokalnie i w CI (instalacja z dev) `php artisan tinker` dalej działa, więc skrypty `scripts/*.mjs` zostają bez zmian. Runbooki produkcyjne zamiast tinkera używają komend: `kuking:przetworz-zdjecia-ponownie` (warianty od nowa, `KOPIE_I_ODTWORZENIE.md` §3 c1), `kuking:liczniki-bazy` (§4A krok 1), `kuking:sprawdz-alarm --przez-wyjatek` (`MONITORING_BLEDOW.md` §1), `kuking:bramka-r2 --media=<uuid>` (`BRAMKA_R2.md` §3 pkt 3). Pilnują tego krok „Test dymny obrazu” w `ci.yml` (brak `vendor/laravel/tinker` i `Psy\` w autoloadzie, działające `php artisan list`) i `TinkerPozaObrazemProdukcyjnymTest`. Powrót do `require` wymaga nowej decyzji z opisanym przypadkiem użycia | #2223 |
 
 ### Wycofanie
 Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis

@@ -46,7 +46,8 @@ wyjątków (#973). Liczba bez `--pliki` nie mówi, czy pliki istnieją —
 komenda pisze to wprost.
 
 **Wynik wpisz w §5 z datą.** To zastępuje pytanie 8 z
-`KOPIE_I_ODTWORZENIE.md` (`tinker` na produkcji).
+`KOPIE_I_ODTWORZENIE.md` (dawniej `tinker` na produkcji, którego w obrazie
+nie ma od D-333).
 
 ## 3. Migracja — kopiuj, sprawdź, dopiero potem przestaw
 

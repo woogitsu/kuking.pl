@@ -1801,6 +1801,13 @@ checks = [
     # json_decode ~8×). Powrót do 32 MB kończył się fatalem 500 bez komunikatu.
     ("Sufit paczki importu wraca do 32 MB", "app/Domain/Users/Import/PodgladPaczkiEksportu.php", "test_sufit_danych_pozostaje_bezpieczny_dla_limitu_pamieci_php",
      lambda s: replace_once(s, "MAX_DANE_BAJTOW = 12 * 1024 * 1024;", "MAX_DANE_BAJTOW = 32 * 1024 * 1024;")),
+    # #2223 (D-333): tinker wraca do `require` — obraz --no-dev znów niesie PsySH.
+    ("Tinker wraca do require", "composer.json", "test_tinker_jest_tylko_w_require_dev",
+     lambda s: replace_once(s, '"laravel/sanctum": "^4.0",\n', '"laravel/sanctum": "^4.0",\n        "laravel/tinker": "^3.0",\n')),
+    # Ten sam issue: runbook wraca do tinkera zamiast komendy kuking:*.
+    ("Runbook znów każe użyć tinkera", "docs/infra/MONITORING_BLEDOW.md", "test_runbooki_produkcyjne_nie_kaza_uzywac_tinkera",
+     lambda s: replace_once(s, "php artisan kuking:sprawdz-alarm --przez-wyjatek\n",
+                            "php artisan tinker --execute=\"report(new RuntimeException('x'));\"\n")),
 ]
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
