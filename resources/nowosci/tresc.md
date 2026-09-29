@@ -31,6 +31,17 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Wyślijcie komuś swój zeszyt
+
+Na stronie zeszytu, który ma widoczność „wszyscy”, jest teraz przycisk
+„Podziel się”. Rozwija listę: WhatsApp, e-mail i Facebook, a pod spodem
+widoczny adres, który można zaznaczyć i skopiować (na telefonie jest też
+przycisk „Skopiuj adres” i systemowe okno wysyłania). Osoba, która dostanie
+adres, otworzy zeszyt bez zakładania konta i zobaczy tylko te przepisy, które
+sama ma prawo zobaczyć. Zeszytu „Tylko ja”, zeszytu „Zapisane” ani wspólnego
+zeszytu z bliskimi nie da się w ten sposób wysłać — na stronie takiego zeszytu
+przeczytacie, co zmienić, jeśli chcecie go udostępnić.
+
 ### Wczytajcie z powrotem własną paczkę z danymi
 
 W „Twoich danych” jest nowy odnośnik „Wczytaj swoją paczkę”. Wybieracie plik

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Sharing;
 
+use App\Models\Collection;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Support\AdresKanoniczny;
@@ -50,9 +51,22 @@ final class Udostepnianie
      * `RecipePolicy`) przyjmują `?User`, więc gość jest dla nich
      * normalnym, przewidzianym przypadkiem.
      */
-    public function wolnoWyslac(Post|Recipe $tresc): bool
+    public function wolnoWyslac(Post|Recipe|Collection $tresc): bool
     {
-        return Gate::forUser(null)->allows('view', $tresc);
+        if (! Gate::forUser(null)->allows('view', $tresc)) {
+            return false;
+        }
+
+        // ZESZYT: „widoczny dla gościa" to za mało. Domyślne „Zapisane"
+        // i zeszyt wspólny (D-302) nie są kuracją do polecania — pierwszy
+        // jest osobistą półką, drugi rodzinnym wspólnym zapisem. Gate
+        // pyta tu o `view`, więc widoczność publiczną i blokady rozstrzyga
+        // `CollectionPolicy`; dokładamy tylko te dwa wyłączenia.
+        if ($tresc instanceof Collection) {
+            return ! $tresc->is_default && ! $tresc->members()->exists();
+        }
+
+        return true;
     }
 
     /**
@@ -65,10 +79,14 @@ final class Udostepnianie
      *
      * Zwraca `null`, gdy powodu nie ma — czyli gdy wysyłać wolno.
      */
-    public function powodBrakuPrzycisku(Post|Recipe $tresc): ?string
+    public function powodBrakuPrzycisku(Post|Recipe|Collection $tresc): ?string
     {
         if ($this->wolnoWyslac($tresc)) {
             return null;
+        }
+
+        if ($tresc instanceof Collection) {
+            return $this->powodBrakuPrzyciskuZeszytu($tresc);
         }
 
         $rzecz = $tresc instanceof Recipe ? 'przepis' : 'wpis';
@@ -87,6 +105,27 @@ final class Udostepnianie
         };
     }
 
+    /** Wyjaśnienie dla WŁAŚCICIELA zeszytu, którego nie da się wysłać. */
+    private function powodBrakuPrzyciskuZeszytu(Collection $zeszyt): string
+    {
+        if ($zeszyt->is_default) {
+            return 'To jest Twój zeszyt „Zapisane”, który widzisz tylko Ty. '
+                .'Żeby wysłać komuś zestaw przepisów, załóż osobny zeszyt o widoczności „wszyscy”.';
+        }
+
+        if (! $zeszyt->isPublic()) {
+            return 'Ten zeszyt widzisz tylko Ty albo zaproszone osoby. '
+                .'Zmień widoczność na „wszyscy”, jeśli chcesz go udostępnić przez przycisk „Podziel się”.';
+        }
+
+        if ($zeszyt->members()->exists()) {
+            return 'To jest wspólny zeszyt, więc nie ma dla niego przycisku „Podziel się”. '
+                .'Jeśli chcesz wysłać komuś zestaw przepisów, załóż osobny zeszyt o widoczności „wszyscy”.';
+        }
+
+        return 'Ten zeszyt nie jest teraz dostępny dla osób bez zalogowania, więc przycisk „Podziel się” jest niedostępny.';
+    }
+
     /**
      * Adres, który dostanie odbiorca. Zawsze bezwzględny i bez parametrów.
      *
@@ -95,11 +134,13 @@ final class Udostepnianie
      * i canonical wskazują apex — jedna treść zbierałaby udostępnienia
      * pod dwoma adresami.
      */
-    public function adres(Post|Recipe $tresc): string
+    public function adres(Post|Recipe|Collection $tresc): string
     {
-        return AdresKanoniczny::zbuduj(fn (): string => $tresc instanceof Recipe
-            ? route('recipes.show', $tresc)
-            : $tresc->url());
+        return AdresKanoniczny::zbuduj(fn (): string => match (true) {
+            $tresc instanceof Recipe => route('recipes.show', $tresc),
+            $tresc instanceof Collection => route('collections.show', $tresc),
+            default => $tresc->url(),
+        });
     }
 
     /**
@@ -109,10 +150,14 @@ final class Udostepnianie
      * niesie go imię autora. Formy zakładające rodzaj („ugotowała")
      * świadomie nie ma (`AGENTS.md` §11).
      */
-    public function tytul(Post|Recipe $tresc): string
+    public function tytul(Post|Recipe|Collection $tresc): string
     {
         if ($tresc instanceof Recipe) {
             return $tresc->title;
+        }
+
+        if ($tresc instanceof Collection) {
+            return $tresc->name;
         }
 
         if ($tresc->kind === Post::KIND_QUESTION) {
@@ -129,10 +174,14 @@ final class Udostepnianie
      * wpisu skracamy: WhatsApp i tak utnie długą treść, a wiadomość ma
      * być zachętą do kliknięcia, nie kopią strony.
      */
-    public function opis(Post|Recipe $tresc): string
+    public function opis(Post|Recipe|Collection $tresc): string
     {
         if ($tresc instanceof Recipe) {
             return 'Przepis z Kuking: '.$tresc->title;
+        }
+
+        if ($tresc instanceof Collection) {
+            return 'Zeszyt z Kuking: '.$tresc->name;
         }
 
         $podpis = trim((string) $tresc->body);
@@ -168,7 +217,7 @@ final class Udostepnianie
      *
      * @return list<array{nazwa: string, adres: string, opis: string, zewnetrzny: bool}>
      */
-    public function drogi(Post|Recipe $tresc): array
+    public function drogi(Post|Recipe|Collection $tresc): array
     {
         $adres = $this->adres($tresc);
         $tytul = $this->tytul($tresc);
@@ -208,11 +257,11 @@ final class Udostepnianie
      *
      * Świadomie wąska lista: nowy typ treści ma tu trafić razem z decyzją,
      * co znaczy dla niego „publiczny", a nie odziedziczyć przycisk po cichu.
-     * Pozostałe metody tej klasy przyjmują już wyłącznie `Post|Recipe`
-     * (issue #1731) — widok pyta najpierw tutaj, dopiero potem o resztę.
+     * Pozostałe metody tej klasy przyjmują już wyłącznie `Post|Recipe|Collection`
+     * (issue #1731, #2000) — widok pyta najpierw tutaj, dopiero potem o resztę.
      */
     public function obslugiwana(Model $tresc): bool
     {
-        return $tresc instanceof Post || $tresc instanceof Recipe;
+        return $tresc instanceof Post || $tresc instanceof Recipe || $tresc instanceof Collection;
     }
 }
