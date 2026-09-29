@@ -10,6 +10,7 @@ use App\Domain\Recipes\Actions\ZapiszPrzepisZFormularza;
 use App\Domain\Recipes\Actions\ZrobWlasnaWersje;
 use App\Domain\Recipes\CoMoznaDopisac;
 use App\Domain\Recipes\ExistingStepDuplicates;
+use App\Domain\Recipes\Historia\HistoriaWersji;
 use App\Domain\Recipes\Koszt\SzacunekKosztuZCen;
 use App\Domain\Recipes\MojaWersja;
 use App\Domain\Recipes\Porcje\WyborPorcji;
@@ -494,6 +495,7 @@ class RecipeController extends Controller
             // indeksu (docs/seo/SEO_TECHNICAL.md §1.4 pkt 4).
             'wersjaDoIndeksu' => MojaWersja::czyIndeksowac($model),
             'wersje' => $wersje,
+            'historiaWersji' => HistoriaWersji::pokazacLinkPoAutoryzacji($model),
             'komentarze' => $komentarze,
             // Cała rozmowa, nie tylko ta strona — i razem z odpowiedziami,
             // jak na karcie i stronie wpisu (D-281, D-309). `total()`

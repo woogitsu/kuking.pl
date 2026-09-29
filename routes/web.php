@@ -39,6 +39,7 @@ use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\HistoriaPrzepisuController;
 use App\Http\Controllers\ImportPrzepisuController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MojeWpisyController;
@@ -246,6 +247,18 @@ Route::post('/motyw', [ThemeController::class, 'update'])
     ->name('theme.update');
 
 Route::get('/przepisy/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
+
+// Historia zapisanych wersji przepisu (issue #2024) — tylko odczyt, także dla
+// gościa; dostęp rozstrzyga `RecipePolicy::view` i opublikowanie przepisu
+// (`App\Domain\Recipes\Historia\HistoriaWersji`).
+Route::get('/przepisy/{recipe}/historia', [HistoriaPrzepisuController::class, 'index'])
+    ->name('recipes.history');
+Route::get('/przepisy/{recipe}/historia/{numer}', [HistoriaPrzepisuController::class, 'show'])
+    ->whereNumber('numer')
+    ->name('recipes.history.version');
+Route::get('/przepisy/{recipe}/historia/{numer}/zmiany', [HistoriaPrzepisuController::class, 'zmiany'])
+    ->whereNumber('numer')
+    ->name('recipes.history.changes');
 
 // Zeszyt „Wszyscy" jest dla wszystkich — także bez konta (issue #965).
 // Poza grupą `auth` stoi WYŁĄCZNIE odczyt; dostęp rozstrzyga

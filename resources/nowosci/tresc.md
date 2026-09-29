@@ -31,6 +31,19 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Zobaczcie, co autor zmienił w przepisie
+
+Gdy przepis był poprawiany i ma co najmniej dwie zapisane wersje, pod nim
+pojawia się przycisk „Historia zmian”. Znajdziecie tam listę wersji z datami,
+możecie obejrzeć każdą z nich osobno i sprawdzić, co zmieniło się względem
+poprzedniej. Zmiany są opisane słowami: „Dodano”, „Usunięto” albo „Zmieniono”,
+a przy zmienionych składnikach i krokach widać, jak było i jak jest. To pomaga,
+gdy wracacie do zapisanego albo wydrukowanego przepisu i chcecie wiedzieć, czy
+zmieniły się proporcje lub sposób przygotowania. Historia pokazuje tekst i dane
+przepisu, bez zdjęć, i widzi ją każdy, kto widzi sam przepis — nic ponadto. Jeśli
+starsza wersja nie zapisała jakiegoś pola, piszemy o tym wprost, zamiast
+zgadywać.
+
 ### Wczytajcie z powrotem własną paczkę z danymi
 
 W „Twoich danych” jest nowy odnośnik „Wczytaj swoją paczkę”. Wybieracie plik

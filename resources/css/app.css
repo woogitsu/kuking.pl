@@ -59,6 +59,7 @@
 @import "./wydruk-przepisu.css";
 /* Szacunkowe wartości odżywcze pod składnikami przepisu (D-299). */
 @import "./wartosci-odzywcze.css";
+@import "./historia-wersji.css";
 
 @layer components {
 
