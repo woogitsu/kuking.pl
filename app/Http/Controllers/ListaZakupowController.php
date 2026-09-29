@@ -14,6 +14,7 @@ use App\Support\Odmiana;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -105,7 +106,18 @@ class ListaZakupowController extends Controller
             'z_planera' => ['nullable', 'boolean'],
         ]);
 
-        $wynik = $lista->dodajSkladniki($user, $recipe, (bool) ($dane['potwierdzam'] ?? false));
+        try {
+            $wynik = $lista->dodajSkladniki($user, $recipe, (bool) ($dane['potwierdzam'] ?? false));
+        } catch (ValidationException $e) {
+            // Strona przepisu, planer i ekran „dodać jeszcze raz?” nie mają
+            // pola `text` ani podsumowania błędów przy tym przycisku — błąd
+            // z limitu ginąłby po przekierowaniu „wstecz”, a przycisk
+            // wyglądałby na martwy. Odmowa idzie na listę zakupów, gdzie
+            // jest „Wyczyść odhaczone”, jako widoczny komunikat.
+            return redirect()->route('shopping.index')->with(Komunikat::blad(
+                (string) collect($e->errors())->flatten()->first(),
+            ));
+        }
 
         if ($wynik['wynik'] === ListaZakupow::WYNIK_JUZ_JEST) {
             return redirect()->route('shopping.recipe.confirm', [

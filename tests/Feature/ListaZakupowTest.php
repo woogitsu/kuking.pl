@@ -151,9 +151,36 @@ final class ListaZakupowTest extends TestCase
         $this->assertStringContainsString('Wyczyść odhaczone', $blad);
 
         $przepis = $this->przepis($this->user('kucharka'));
-        $this->actingAs($ja)->post(route('shopping.recipe.store', $przepis->slug))->assertSessionHasErrors('text');
+        $this->actingAs($ja)->post(route('shopping.recipe.store', $przepis->slug))
+            ->assertRedirect(route('shopping.index'))
+            ->assertSessionHas('status', fn (string $s): bool => str_contains($s, 'najwyżej 3 pozycji'));
 
         $this->assertSame(3, ShoppingListItem::query()->count(), 'Przekroczenie limitu nie może dopisać nawet części pozycji.');
+    }
+
+    /**
+     * Regresja z recenzji paczki I: strona przepisu i ekran „dodać jeszcze
+     * raz?” nie mają podsumowania błędów, więc błąd walidacji z limitu
+     * wracał tam i ginął — przycisk „Dodaj składniki” wyglądał na martwy.
+     * Odmowa ma trafić na listę zakupów, gdzie jest „Wyczyść odhaczone”,
+     * jako widoczny komunikat.
+     */
+    public function test_limit_przy_dodaj_skladniki_widac_na_liscie_zakupow_a_nie_ginie_na_stronie_przepisu(): void
+    {
+        config(['kuking.zakupy.pozycji_max' => 3]);
+        $ja = $this->user('pelnalista');
+        foreach (['a', 'b', 'c'] as $i => $t) {
+            $this->pozycja($ja, $t, miejsce: $i);
+        }
+        $przepis = $this->przepis($this->user('kucharka'));
+
+        $strona = $this->actingAs($ja)->from(route('recipes.show', $przepis->slug))
+            ->followingRedirects()
+            ->post(route('shopping.recipe.store', $przepis->slug))
+            ->assertOk();
+        $strona->assertSee('Lista zakupów mieści najwyżej 3 pozycji', false);
+        $strona->assertSee('Wyczyść odhaczone', false);
+        $this->assertSame(['a', 'b', 'c'], $this->teksty($ja));
     }
 
     public function test_dodaj_skladniki_kopiuje_oryginalne_linie_bez_sumowania_z_oznaczeniem_przepisu(): void

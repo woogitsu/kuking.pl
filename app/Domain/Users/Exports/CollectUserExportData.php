@@ -9,7 +9,6 @@ use App\Domain\Planer\PlanerTygodnia;
 use App\Domain\Reakcje\Smakowicie;
 use App\Domain\Rocznice\Urodziny;
 use App\Domain\Ukrycia\Ukrycia;
-use App\Domain\Zakupy\ListaZakupow;
 use App\Models\Collection;
 use App\Models\CollectionInvitation;
 use App\Models\Comment;
@@ -1090,9 +1089,18 @@ final class CollectUserExportData
      */
     private function shoppingList(User $user): array
     {
-        return collect(app(ListaZakupow::class)->pozycje($user))->map(function (array $wiersz): array {
-            $pozycja = $wiersz['pozycja'];
-            $przepis = $wiersz['przepis'];
+        // Zapytanie wprost, a nie przez `App\Domain\Zakupy\ListaZakupow`:
+        // moduł Zakupy zależy od Recipes, a Recipes (pośrednio) od Users,
+        // więc import stąd zamykałby cykl modułów (GrafModulowDomenyBezCykliTest).
+        // Reguła widoczności jest ta sama — `PlanerTygodnia::widocznePrzepisy()`.
+        $pozycje = $user->shoppingListItems()->orderBy('position')->orderBy('id')->get();
+        $idPrzepisow = $pozycje->pluck('recipe_id')->filter()->unique()->values();
+        $widoczne = $idPrzepisow->isEmpty()
+            ? collect()
+            : app(PlanerTygodnia::class)->widocznePrzepisy($user)->whereIn('recipes.id', $idPrzepisow)->get()->keyBy('id');
+
+        return $pozycje->map(function (ShoppingListItem $pozycja) use ($widoczne): array {
+            $przepis = $pozycja->recipe_id !== null ? $widoczne->get($pozycja->recipe_id) : null;
 
             return [
                 'pozycja' => $pozycja->text,
@@ -1103,7 +1111,7 @@ final class CollectUserExportData
                 'odhaczona' => $pozycja->jestOdhaczona(),
                 'dodano' => $this->date($pozycja->created_at),
             ];
-        })->all();
+        })->values()->all();
     }
 
     /** @return list<array<string, mixed>> */
