@@ -1,0 +1,7 @@
+ZADANIE OGÓLNE DLA ISSUE (numer podany niżej). Gałąź: claude/<N>-<krótki-opis> od BAZY.
+1. Przeczytaj issue i WSZYSTKIE komentarze (curl z $GH_TOKEN albo narzędzia MCP github tylko do odczytu). Sprawdź docs/FEATURES.md (listy „V2, ale nie teraz” i „Nie wcześnie”) i AGENTS.md §3 (zakazy stacku: zero Redisa, mikroserwisów, SPA, osobnego search engine) — jeśli zadanie jest zakazane: STOP, raport z cytatem.
+2. Ustal na BAZIE, co z issue jest już zrobione (git log --grep "#N", grep w kodzie/testach/docs). Jeśli wszystko — NIE pushuj; raport z dowodem (sha, plik:linia, test), żeby koordynator mógł zamknąć.
+3. Jeśli zostaje praca w kodzie/testach/dokumentacji repo — zrób ją minimalnie i kompletnie według kryteriów akceptacji (bugfix = test regresyjny + kontrola ujemna; funkcja = testy + CHANGELOG [nowa funkcja] + akapit w resources/nowosci/tresc.md; pomiar/meta = narzędzie/skrypt/raport w docs/, jeśli issue o to prosi).
+4. Jeśli część wymaga produkcji, paneli (Railway, Cloudflare, R2, DNS, GitHub Settings), prawdziwych ludzi albo decyzji właściciela — NIE wykonuj jej; zrób to, co da się w repo, i wypisz w raporcie dokładne kroki dla właściciela.
+5. Duży temat (refaktor wielu plików) → zrób JEDEN spójny etap i opisz, co zostaje.
+6. Testy tylko dotknięte zmianą (4 rdzenie dzielone z ~25 agentami!), pint, php -l. Push gałęzi. Raport jak w prompcie robotnika (z propozycją tytułu i opisu PR, „Closes #N” albo „Refs #N”).
