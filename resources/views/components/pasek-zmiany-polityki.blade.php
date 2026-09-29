@@ -5,7 +5,9 @@
     `App\Domain\Zgody\ZmianaPolityki::pokazac()` — tu jest tylko wygląd.
     Zmiana ISTOTNA: pasek stoi od dnia publikacji, mówi od kiedy obowiązuje
     nowa wersja i że do tego dnia obowiązuje poprzednia. Zmiana DROBNA
-    obowiązuje od razu i pasek nie podaje terminu.
+    obowiązuje od razu i paska nie pokazuje wcale (`pokazac()`, decyzja
+    właściciela z 29.09.2026 wieczór); warunek `istotna` niżej zostaje jako
+    zabezpieczenie.
 
     Dwie drogi, obie z napisem (AGENTS.md §5): odnośnik do polityki, gdzie
     na górze stoi „Co się zmieniło”, i przycisk „Zamknij” (formularz POST,

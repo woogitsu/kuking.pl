@@ -266,8 +266,13 @@ OCZEKUJ = {
     'Wariant neutralny helpera z rodzajem': r'wariant neutralny z rodzajem|contains "Możesz od razu pokazać, co dziś gotujesz"',
     'Goły rodzaj obok wywołania helpera': r'Tekst przypisuje czytelnikowi płeć:.*ugotowałaś',
     'Rollback paska polityki bez odmowy': r'Rollback przeszedł, choć ktoś zamknął pasek',
-    'Polityka bez terminu wejścia w życie': r'contains "nowa wersja obowiązuje od 14 października 2026"',
+    # Decyzja właściciela z 29.09.2026 (wieczór): zmiana drobna od razu.
+    'Polityka z terminem wejścia niezgodnym z konfiguracją': r'contains "obowiązuje od dnia publikacji"',
+    'Pasek polityki przy drobnej zmianie': r'does not contain "data-pasek-zmiany-polityki"',
     'Wybór formy widoczny w okresie przejściowym polityki': r'does not contain "Jak mamy do Ciebie pisać\?"',
+    'Wybór formy czeka na dzień wersji przy drobnej zmianie': r'Wybór formy ukryty w chwili 2026-09-29 20:00',
+    # #2000: wspólny zeszyt „wszyscy” ma „Podziel się”.
+    'Wspólny publiczny zeszyt bez „Podziel się”': r'Wspólny zeszyt „wszyscy” nie ma przycisku „Podziel się”|Wspólny zeszyt nie może dokładać zapytań o członków',
 }
 
 
