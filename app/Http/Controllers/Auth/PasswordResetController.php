@@ -105,7 +105,7 @@ class PasswordResetController extends Controller
         $budzet = DziennyBudzetListow::dlaOdzyskaniaHasla();
 
         if (! $budzet->sprobujZarezerwowac()) {
-            return back()->with('status', $this->komunikatWyczerpanejPuli($budzet));
+            return back()->with(Komunikat::blad($this->komunikatWyczerpanejPuli($budzet)));
         }
 
         $status = Password::sendResetLink([
@@ -121,9 +121,8 @@ class PasswordResetController extends Controller
             $budzet->zwolnij();
         }
 
-        return back()->with('status',
-            'Jeśli na ten adres jest założone konto, wysłaliśmy na niego wiadomość z linkiem do ustawienia nowego hasła. Sprawdź też folder „Spam”.',
-        );
+        return back()->with(Komunikat::sukces('Jeśli na ten adres jest założone konto, wysłaliśmy na niego wiadomość z linkiem do ustawienia nowego hasła. Sprawdź też folder „Spam”.',
+        ));
     }
 
     /**
@@ -213,7 +212,7 @@ class PasswordResetController extends Controller
             ]);
         }
 
-        return redirect()->route('login')->with('status', 'Hasło zmienione. Możesz się zalogować.');
+        return redirect()->route('login')->with(Komunikat::sukces('Hasło zmienione. Możesz się zalogować.'));
     }
 
     /**

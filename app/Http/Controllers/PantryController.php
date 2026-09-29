@@ -9,6 +9,7 @@ use App\Domain\Pantry\CoUgotuje;
 use App\Domain\Pantry\PodpowiedziSkladnikow;
 use App\Models\PantryItem;
 use App\Models\User;
+use App\Support\Komunikat;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -52,12 +53,9 @@ class PantryController extends Controller
         $wynik = $lista->dodaj($user, (string) $dane['nazwa']);
         $nazwa = $wynik['produkt']->name;
 
-        return redirect()->route('pantry.index')->with(
-            'status',
-            $wynik['nowy']
-                ? "Dodano „{$nazwa}” do listy."
-                : "„{$nazwa}” już jest na Twojej liście.",
-        );
+        return redirect()->route('pantry.index')->with($wynik['nowy']
+            ? Komunikat::sukces("Dodano „{$nazwa}” do listy.")
+            : Komunikat::informacja("„{$nazwa}” już jest na Twojej liście."));
     }
 
     public function destroy(Request $request, PantryItem $pantryItem): RedirectResponse
@@ -67,7 +65,7 @@ class PantryController extends Controller
         $nazwa = $pantryItem->name;
         $pantryItem->delete();
 
-        return redirect()->route('pantry.index')->with('status', "Usunięto „{$nazwa}” z listy.");
+        return redirect()->route('pantry.index')->with(Komunikat::sukces("Usunięto „{$nazwa}” z listy."));
     }
 
     public function podpowiedzi(Request $request, PodpowiedziSkladnikow $podpowiedzi): JsonResponse

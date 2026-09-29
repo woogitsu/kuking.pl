@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Reakcje\Smakowicie;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Post;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -28,7 +29,7 @@ class SmakowicieController extends Controller
             return back()->withErrors(['smakowicie' => $e->getMessage()]);
         }
 
-        return back()->with('status', 'Zapisane: „Smakowicie wygląda”. Twoja nazwa jest teraz pod tym wpisem — widzą ją wszyscy. Autor dostanie powiadomienie raz dziennie, razem z innymi.');
+        return back()->with(Komunikat::sukces('Zapisane: „Smakowicie wygląda”. Twoja nazwa jest teraz pod tym wpisem — widzą ją wszyscy. Autor dostanie powiadomienie raz dziennie, razem z innymi.'));
     }
 
     public function cofnij(Request $request, Post $post): RedirectResponse
@@ -36,6 +37,6 @@ class SmakowicieController extends Controller
         $this->authorize('view', $post);
         $this->smakowicie->cofnij($request->user(), $post);
 
-        return back()->with('status', 'Cofnięte.');
+        return back()->with(Komunikat::sukces('Cofnięte.'));
     }
 }

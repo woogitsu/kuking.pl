@@ -1065,6 +1065,12 @@ def railway_cli_bez_przypietej_wersji(source):
 
 
 checks = [
+    # #988: komunikat po akcji ma jawny rodzaj. Goły `->with('status', …)`
+    # wróciłby do zielonej plakietki także dla odmowy.
+    ("Goły ->with('status') wraca do kontrolera", "app/Http/Controllers/SmakowicieController.php", "test_w_app_nie_ma_golego_zapisu_statusu_bez_rodzaju",
+     lambda s: replace_once(s, "->with(Komunikat::sukces('Cofnięte.'))", "->with('status', 'Cofnięte.')")),
+    ("Odmowa nazwana sukcesem", "app/Http/Controllers/SmakowicieController.php", "test_sukces_nie_niesie_tekstu_odmowy",
+     lambda s: replace_once(s, "Komunikat::sukces('Cofnięte.')", "Komunikat::sukces('Nie udało się cofnąć.')")),
     # #2027: rejestracja Google/Facebook wiąże zapamiętany cel z nowym
     # kontem. Bez tej linijki onboarding kończy się na stronie domyślnej.
     ("Nowe konto Google gubi powrót do rozmowy", POWROT_KOMENTARZA_GOOGLE, POWROT_KOMENTARZA_GOOGLE_TEST,

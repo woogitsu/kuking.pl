@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\User;
 use App\Rules\TurnstileJestPotwierdzony;
+use App\Support\Komunikat;
 use App\Support\PowrotDoRozmowy;
 use App\Support\Turnstile;
 use App\Support\ZamiarObserwowania;
@@ -127,6 +128,6 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('landing')->with('status', 'Wylogowano. Do zobaczenia.');
+        return redirect()->route('landing')->with(Komunikat::sukces('Wylogowano. Do zobaczenia.'));
     }
 }

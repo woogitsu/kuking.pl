@@ -30,7 +30,7 @@ class TagFollowController extends Controller
         // (`status_powrot`, nie znika sam). „Tag", nie „temat" — jedno słowo
         // na ekranie (decyzja z 11 września 2026, `JednoSlowoNaTagiTest`).
         return back()
-            ->with('status', "Obserwujesz tag „{$tag->name}”. Nowe wpisy z tego tagu zobaczysz na Starcie.")
+            ->with(Komunikat::sukces("Obserwujesz tag „{$tag->name}”. Nowe wpisy z tego tagu zobaczysz na Starcie."))
             ->with('status_powrot', [
                 'akcja' => route('tags.unfollow', $tag),
                 'etykieta' => 'Cofnij',
@@ -55,10 +55,10 @@ class TagFollowController extends Controller
                 : "Nie obserwujesz „{$cel->name}”.";
 
             return redirect()->route('tags.show', $cel)
-                ->with('status', "Tag „{$tag->name}” połączyliśmy z tagiem „{$cel->name}”. {$zdanie}");
+                ->with(Komunikat::sukces("Tag „{$tag->name}” połączyliśmy z tagiem „{$cel->name}”. {$zdanie}"));
         }
 
-        return back()->with('status', "Nie obserwujesz już tagu „{$tag->name}”.");
+        return back()->with(Komunikat::sukces("Nie obserwujesz już tagu „{$tag->name}”."));
     }
 
     /**
@@ -119,7 +119,7 @@ class TagFollowController extends Controller
         $selected = $selection->validate($request, count($scope['shown']));
         $follows->save($request->user(), $selected, $scope);
 
-        return redirect()->route('settings.tags')->with('status', 'Zapisaliśmy Twoje tagi.');
+        return redirect()->route('settings.tags')->with(Komunikat::sukces('Zapisaliśmy Twoje tagi.'));
     }
 
     /**

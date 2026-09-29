@@ -12,6 +12,7 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\TagSelection;
 use App\Models\Profile;
 use App\Models\Tag;
+use App\Support\Komunikat;
 use App\Support\PowrotDoRozmowy;
 use App\Support\ZamiarObserwowania;
 use App\Support\ZamiarUgotowania;
@@ -358,7 +359,7 @@ class OnboardingController extends Controller
             return $dalej;
         }
 
-        return $dalej->with('status', implode(' ', $komunikaty));
+        return $dalej->with(Komunikat::blad(implode(' ', $komunikaty)));
     }
 
     public function done(Request $request, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie, PowrotDoRozmowy $rozmowa, ZamiarZapisu $zapis): View|RedirectResponse
@@ -420,7 +421,7 @@ class OnboardingController extends Controller
         $this->oznaczZakonczony($request);
 
         return redirect()->route('home')
-            ->with('status', 'Dobrze, nie będziemy już przypominać o pierwszych krokach.');
+            ->with(Komunikat::sukces('Dobrze, nie będziemy już przypominać o pierwszych krokach.'));
     }
 
     /** Tylko pierwszy raz: ponowne wejście pod `/witaj/...` niczego nie cofa ani nie przesuwa. */

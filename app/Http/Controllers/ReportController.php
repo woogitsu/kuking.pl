@@ -16,6 +16,7 @@ use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\Report;
 use App\Models\User;
+use App\Support\Komunikat;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\RedirectResponse;
@@ -129,11 +130,10 @@ class ReportController extends Controller
          * bo to on mówi „przyjęliśmy" w chwili, w której człowiek na to
          * czeka.
          */
-        return redirect()->route('reports.mine.show', $zgloszenie)->with('status',
-            'Dziękujemy. Zgłoszenie trafiło do nas i sprawdzimy je najszybciej, jak się da. '
+        return redirect()->route('reports.mine.show', $zgloszenie)->with(Komunikat::sukces('Dziękujemy. Zgłoszenie trafiło do nas i sprawdzimy je najszybciej, jak się da. '
             .'Poniżej jest jego numer i stan — napiszemy tutaj, co postanowiliśmy. '
             .'Jeśli chcesz, możesz też zablokować tę osobę: wtedy nie zobaczycie już wzajemnie swoich treści.',
-        );
+        ));
     }
 
     /**
@@ -177,11 +177,10 @@ class ReportController extends Controller
             || ($opis !== '' && $opis !== $wczesniejszy);
 
         if (! $noweSzczegoly) {
-            return redirect()->route('reports.mine.show', $zgloszenie)->with('status',
-                'To zgłoszenie już u nas jest — sprawa '.$zgloszenie->numer_sprawy
+            return redirect()->route('reports.mine.show', $zgloszenie)->with(Komunikat::informacja('To zgłoszenie już u nas jest — sprawa '.$zgloszenie->numer_sprawy
                 .' czeka w kolejce. Nie musisz zgłaszać tej treści drugi raz; '
                 .'napiszemy tutaj, co postanowiliśmy.',
-            );
+            ));
         }
 
         // BEZ RODZAJU GRAMATYCZNEGO (`COPY_STYLE.md` §2, pilnuje
