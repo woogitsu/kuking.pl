@@ -1240,12 +1240,13 @@ final class CollectUserExportData
             ->where('user_id', $user->getKey())
             ->orderBy('wystapilo_at')
             ->orderBy('id')
-            ->get(['cel', 'czynnosc', 'zrodlo', 'wersja_polityki', 'wystapilo_at'])
+            ->get(['cel', 'czynnosc', 'zrodlo', 'wersja_polityki', 'wersja_regulaminu', 'wystapilo_at'])
             ->map(fn (object $wpis): array => [
                 'cel' => $wpis->cel,
                 'czynnosc' => $wpis->czynnosc,
                 'skad' => $wpis->zrodlo,
                 'wersja_polityki' => $wpis->wersja_polityki,
+                'wersja_regulaminu' => $wpis->wersja_regulaminu,
                 'kiedy' => $this->date($wpis->wystapilo_at),
             ])->all();
     }

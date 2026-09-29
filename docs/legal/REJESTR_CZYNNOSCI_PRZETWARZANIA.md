@@ -95,6 +95,11 @@ egzekwuje.
   ustawienia (język, skala tekstu, motyw), oświadczenie o wieku ≥ 16 lat
   (`app/Http/Controllers/Auth/RegisterController.php` — `age_confirmed`),
   data ostatniej wizyty.
+- **Akceptacja regulaminu (#2217):** przy rejestracji (hasło, Google, Facebook)
+  zapisujemy w `dziennik_zgod` wiersz `cel = regulamin`: wersja regulaminu
+  i polityki obowiązujące w chwili akceptacji, moment i droga rejestracji —
+  bez IP i danych przeglądarki. Dziennik jest append-only (D-072); wiersz
+  zostaje przy zanonimizowanym koncie. Retencja do ustalenia z prawnikiem (#8).
 - **Podstawa:** art. 6 ust. 1 lit. b RODO — wykonanie umowy (regulamin).
 - **Odbiorcy:** Railway (hosting i baza), EmailLabs (listy z potwierdzeniem
   i linkiem), Cloudflare Turnstile (ochrona formularzy — §3.9).

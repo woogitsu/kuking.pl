@@ -4153,10 +4153,11 @@ odklikał i czy po wycofaniu wysyłka nie szła dalej.
 |---|---|
 | `id` | `bigserial`. Nie UUID — wiersz nigdy nie jest adresowany z zewnątrz (tak samo jak `audit_log` i `product_signals`). Rosnący klucz trzyma KOLEJNOŚĆ dwóch zdarzeń z tej samej sekundy. |
 | `user_id` | `uuid`, **NOT NULL**, FK do `users` z `ON DELETE RESTRICT` (patrz niżej). |
-| `cel` | Cel zgody: `tygodniowy_digest` \| `zyczenia_urodzinowe` (od migracji `2026_09_25_200200_add_birthday_email_consent_to_users`, #1755) \| `odczyt_ai` (od migracji `2026_09_26_100200_dziennik_zgod_cel_odczyt_ai`, D-296 — zgoda na odczyt zdjęć kartek przez OpenAI). CHECK `dziennik_zgod_cel_check` — zbiór zamknięty, każda kolejna zgoda wymaga migracji i recenzji. |
+| `cel` | Cel zgody: `regulamin` (akceptacja regulaminu przy rejestracji, #2217 — od migracji `2026_09_29_234500_dziennik_zgod_akceptacja_regulaminu`) \| `tygodniowy_digest` \| `zyczenia_urodzinowe` (od migracji `2026_09_25_200200_add_birthday_email_consent_to_users`, #1755) \| `odczyt_ai` (od migracji `2026_09_26_100200_dziennik_zgod_cel_odczyt_ai`, D-296 — zgoda na odczyt zdjęć kartek przez OpenAI). CHECK `dziennik_zgod_cel_check` — zbiór zamknięty, każda kolejna zgoda wymaga migracji i recenzji. |
 | `czynnosc` | `udzielona` \| `wycofana`. CHECK `dziennik_zgod_czynnosc_check`. Dwie wartości, bo to są dwie rzeczy, które RODO każe umieć wykazać (art. 7 ust. 1 i ust. 3). |
-| `zrodlo` | `ustawienia` \| `link_wypisania` \| `link_powrotny` \| `usuniecie_konta` \| `ekran_importu` (zgoda „odczyt AI” dana na ekranie „Przepisz z kartki”, D-296). CHECK `dziennik_zgod_zrodlo_check`. Część dowodu: „gdzie człowiek wtedy był". |
+| `zrodlo` | `ustawienia` \| `link_wypisania` \| `link_powrotny` \| `usuniecie_konta` \| `ekran_importu` (zgoda „odczyt AI” dana na ekranie „Przepisz z kartki”, D-296) \| `rejestracja_haslo` \| `rejestracja_google` \| `rejestracja_facebook` (droga rejestracji przy celu `regulamin`, #2217). CHECK `dziennik_zgod_zrodlo_check`. Część dowodu: „gdzie człowiek wtedy był". |
 | `wersja_polityki` | Wersja polityki prywatności OBOWIĄZUJĄCA w chwili zdarzenia: `WersjaDokumentu::polityka()->obowiazujaca()` (D-327). Zwykle `config('kuking.zgody.wersja_polityki')`; w okresie przejściowym zmiany istotnej (14 dni od publikacji) — wersja poprzednia. Bez niej dowód mówi „zgodził się", ale nie mówi NA CO. |
+| `wersja_regulaminu` | `varchar(20) NULL` (#2217). Wersja regulaminu OBOWIĄZUJĄCA w chwili akceptacji (`WersjaDokumentu::regulamin()->obowiazujaca()`, D-327). Wypełniona **dokładnie** przy `cel = 'regulamin'` (CHECK `dziennik_zgod_wersja_regulaminu_check`: `(cel = 'regulamin') = (wersja_regulaminu IS NOT NULL)`); przy pozostałych celach `NULL`. Przy celu `regulamin` `czynnosc` może być tylko `udzielona` (CHECK `dziennik_zgod_regulamin_tylko_udzielony_check`). |
 | `wystapilo_at` | `timestamptz`, `useCurrent()`. Moment ZDARZENIA, nie zapisu wiersza — dlatego tabela nie ma `created_at`/`updated_at`. |
 
 ```sql
@@ -4167,6 +4168,7 @@ CREATE TABLE dziennik_zgod (
     czynnosc        varchar(20) NOT NULL,
     zrodlo          varchar(30) NOT NULL,
     wersja_polityki varchar(20) NOT NULL,
+    wersja_regulaminu varchar(20) NULL,
     wystapilo_at    timestamptz NOT NULL DEFAULT now()
 );
 
@@ -4224,6 +4226,36 @@ samym czasie. Wiersz to siedem krótkich pól na jedną zmianę zgody, więc tab
 rośnie wolniej niż `product_signals`. Docelowy okres należy dopisać do
 `docs/decyzje/ADR_RETENCJE.md` razem z resztą dowodów zgód, przy przeglądzie
 prawnym (issue #8).
+
+**Akceptacja regulaminu przy rejestracji (#2217).** Formularz z hasłem, wejście
+przez Google i przez Facebooka kończą się w `App\Domain\Users\Actions\ZalozKonto`,
+które w TEJ SAMEJ transakcji co konto woła
+`App\Domain\Zgody\ZapiszAkceptacjeRegulaminu`: wiersz `cel = regulamin`,
+`czynnosc = udzielona`, `zrodlo = rejestracja_*`, `wersja_regulaminu` i `wersja_polityki`
+obowiązujące w chwili akceptacji, `wystapilo_at`. Awaria zapisu wycofuje całe
+założenie konta; `ZalozKonto` wymaga argumentu `zrodloAkceptacji`, więc nowa droga
+rejestracji nie zapomni o dowodzie. Nowsza wersja regulaminu dopisuje NOWY wiersz
+przy nowej akceptacji — starego nie da się zmienić (wyzwalacz append-only).
+**To nie jest** `users.terms_notice_dismissed_version`: zamknięcie paska „Zmieniliśmy
+regulamin” niczego tu nie zapisuje (test `DowodAkceptacjiRegulaminuTest`). **Backfill:
+celowo brak** — konta sprzed migracji nie mają wiersza `regulamin`, co znaczy „brak
+dowodu”; dopisanie im akceptacji z datą założenia konta byłoby wystawieniem dokumentu,
+którego nikt nie wystawił. Eksport danych konta (`dziennik_zgod`) zawiera nową
+kolumnę. Nie zapisujemy IP ani `User-Agent` (jak przy pozostałych celach).
+Wersji interfejsu (pole z propozycji issue) nie ma: wersja regulaminu i polityki
+jednoznacznie wskazują tekst, który człowiek widział. **Retencja:** jak dla całego
+dziennika — brak komendy sprzątającej, okres do ustalenia z prawnikiem (#8,
+`docs/decyzje/ADR_RETENCJE.md`); po anonimizacji konta wiersz zostaje bez danych
+osobowych.
+
+**Rollback migracji `2026_09_29_234500_dziennik_zgod_akceptacja_regulaminu`:**
+`php artisan migrate:rollback --step=1`. `down()` **ODMAWIA** (D-088), gdy w dzienniku
+jest choć jeden wiersz `cel = regulamin`, `zrodlo = rejestracja_*` albo niepuste
+`wersja_regulaminu` — zwężenie CHECK-ów i `DROP COLUMN` zabrałoby dowód akceptacji,
+a wyzwalacz nie pozwala skasować wierszy. Odmowa podaje liczbę zapisów i eksport
+(`\copy (SELECT * FROM dziennik_zgod WHERE cel = 'regulamin') to 'akceptacje_regulaminu.csv' csv header`).
+Bez takich wierszy cofnięcie przechodzi bez pytania i wraca `up()`
+(`DowodAkceptacjiRegulaminuTest`).
 
 **Zgoda `odczyt_ai` (D-296) nie ma kolumny na `users`.** Jej stanem jest
 OSTATNI wpis osoby dla tego celu (`App\Domain\Zgody\PrzestawZgodeNaOdczytAi`),
