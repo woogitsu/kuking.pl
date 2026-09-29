@@ -20728,6 +20728,22 @@ z testami.
 > wersji to dzień publikacji na produkcji — jeśli wdrożenie wypadnie
 > później, trzeba ją podbić, żeby 14 dni liczyło się od prawdziwej
 > publikacji.
+>
+> **Zmiana polityki jest jednak DROBNA — decyzja właściciela z 29 września
+> 2026 (wieczór), zastępuje akapit wyżej.** Serwis nie ma jeszcze prawdziwych
+> użytkowników ani kont, więc nikt nie zna poprzedniej wersji i nie ma kogo
+> uprzedzać. Wersja 2026-09-30 (poprzednia 2026-09-29 zostaje nietknięta)
+> obowiązuje od dnia publikacji: bez okresu przejściowego 14 dni, bez paska
+> dla kont, a ustawienie „Jak mamy do Ciebie pisać?” jest widoczne od razu po
+> wdrożeniu (`Forma::wyborDostepny()` przy zmianie drobnej zwraca `true`).
+> Konfiguracja: `kuking.zgody.zmiana_polityki.istotna` = `false`.
+> `ZmianaPolityki::pokazac()` pokazuje pasek polityki tylko przy zmianie
+> istotnej (polityka §9 obiecuje powiadomienie właśnie przy niej). Mechanizm
+> paska (`ZmianaPolityki`, `ZmianaPolitykiController`, trasa
+> `privacy.notice.dismiss`, kolumna `users.policy_notice_dismissed_version`,
+> migracja `2026_09_29_180000`) zostaje w kodzie na przyszłe zmiany istotne;
+> `ZmianaPolitykiTest` i `FormaZwracaniaSieTest` sprawdzają oba przypadki.
+> Akapit o zmianie istotnej wyżej zostaje jako historia decyzji.
 
 Research: `docs/research/PROFIL_FORMA_I_URODZINY.md` (gałąź
 `claude/research-profil-forma-urodziny`), pytania P1, P2, P3 i P7.
@@ -20923,6 +20939,10 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | Strażnik martwych reguł CSS (D-223) w CI | Tak, najpierw nieblokująco | #960 |
 | Bezpiecznik baz testowych | Tak: testy odmawiają startu na bazie spoza rodziny testowej | #966 |
 | Zbędne gałęzie | Kasować po sprawdzeniu, że są scalone. Sesja nie ma prawa kasowania (403), więc kasuje właściciel; lista w `docs/flota/sesja-koordynatora-2909-b/HANDOVER.md` | — |
+| #1751: zmiana polityki drobna od razu (decyzja z wieczora) | Zmiana polityki z formą zwracania się jest **drobna**, bo serwis nie ma prawdziwych użytkowników: obowiązuje od publikacji, bez 14 dni i bez paska, wybór formy widoczny od razu. Zastępuje wiersz „Forma zwracania się” wyżej w części o istotności (D-332) | #1751 |
+| #2024: ponowna publikacja bez zmian | Ponowna publikacja przepisu bez zmian treści **nie tworzy** nowej wersji w historii | #2024 |
+| #2000: wspólny zeszyt publiczny | Wspólny (rodzinny, D-302) zeszyt ustawiony jako „wszyscy” **może** mieć „Podziel się”; prywatny i domyślne „Zapisane” dalej nie | #2000 |
+| #2016: minutniki | Minutniki **nie są** synchronizowane między urządzeniami — synchronizacja obejmuje tylko odhaczone kroki | #2016 |
 
 ### Wycofanie
 Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis
