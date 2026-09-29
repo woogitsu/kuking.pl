@@ -68,7 +68,7 @@ class SprzatanieSmieciImportuPaczekTest extends TestCase
             ->first(fn ($e) => ($e->description ?? null) === 'kuking:sprzataj-paczki-importu');
 
         $this->assertNotNull($zdarzenie, 'Brak zadania sprzątania paczek importu w harmonogramie.');
-        $this->assertSame('30 3 * * *', $zdarzenie->expression);
+        $this->assertSame('10 3 * * *', $zdarzenie->expression);
         $this->assertTrue($zdarzenie->onOneServer);
         $this->assertTrue($zdarzenie->withoutOverlapping);
     }

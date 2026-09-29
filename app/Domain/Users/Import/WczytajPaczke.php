@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Import;
 
-use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Collection;
@@ -45,7 +44,7 @@ use Illuminate\Support\Facades\Gate;
  */
 final class WczytajPaczke
 {
-    public function __construct(private readonly PublishRecipe $publishRecipe) {}
+    public function __construct(private readonly ZapisSzkicuZPaczki $zapisSzkicu) {}
 
     /**
      * @param  list<string>  $odciski  odciski pozycji, które człowiek zaznaczył w podglądzie
@@ -160,18 +159,7 @@ final class WczytajPaczke
     /** @param  array<string, mixed>  $dane */
     private function utworzPrzepis(User $user, array $dane): Recipe
     {
-        return $this->publishRecipe->handle(
-            author: $user,
-            attributes: [
-                'title' => $dane['tytul'],
-                'summary' => $dane['opis'],
-                'visibility' => 'private',
-                'source_type' => Recipe::SOURCE_OWN,
-            ],
-            ingredients: $dane['skladniki'],
-            steps: $dane['kroki'],
-            publish: false,
-        );
+        return $this->zapisSzkicu->zapisz($user, $dane);
     }
 
     /** @param  array<string, mixed>  $dane */

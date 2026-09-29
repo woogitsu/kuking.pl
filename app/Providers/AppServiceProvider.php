@@ -15,10 +15,12 @@ use App\Domain\Moderation\KolejkiPanelu;
 use App\Domain\Notifications\Push\TransportPush;
 use App\Domain\Notifications\Push\TransportWebPush;
 use App\Domain\Questions\PytaniaBezOdpowiedzi;
+use App\Domain\Recipes\Actions\ZapiszSzkicZPaczki;
 use App\Domain\Recipes\BramkaPublikacjiSzkicu;
 use App\Domain\Recipes\StrazPochodzeniaPrzepisu;
 use App\Domain\Social\Actions\ObserwujGospodarza;
 use App\Domain\Users\Exports\ExportTempDirectory;
+use App\Domain\Users\Import\ZapisSzkicuZPaczki;
 use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Domain\Users\ObserwowanieGospodarza;
 use App\Models\Appeal;
@@ -75,6 +77,7 @@ class AppServiceProvider extends ServiceProvider
         // jedynym miejscem, które zna oba moduły — dzięki temu graf
         // `app/Domain` nie ma cyklu `Users ↔ Social`.
         $this->app->bind(ObserwowanieGospodarza::class, ObserwujGospodarza::class);
+        $this->app->bind(ZapisSzkicuZPaczki::class, ZapiszSzkicZPaczki::class);
 
         // Koniec wspólnych zeszytów przy blokadzie i wymazaniu konta (#1743,
         // D-302): kontrakt w `Users`, implementacja w `Collections` — bez
