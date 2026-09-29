@@ -701,6 +701,14 @@ przez zielone CI — razem z gotowymi wzorcami, jak ich uniknąć — są zebran
 w [`docs/PULAPKI_TESTOW.md`](docs/PULAPKI_TESTOW.md). Przeczytaj to raz, zanim
 napiszesz pierwszy test w tym projekcie; każda z tych pułapek wróci.
 
+**Test czytający kod źródłowy dostaje kontrolę mutacyjną w CI.** Wpis w `checks`
+w `scripts/kontrole-negatywne-alfa08.py` + **wzorzec oczekiwanej porażki** w
+`scripts/kontrole_oczekiwana_przyczyna.py` (klucz: nazwa kontroli; fragment
+komunikatu asercji, którą mutacja ma zapalić — czerwień z innego powodu nie jest
+dowodem, #1011). Kontrola bez wzorca jest raportowana jako `BEZ_WZORCA`, czyli
+dowód niepełny. Wyjątek tylko przez `@bez-kontroli-dodatniej <powód>` w docbloku
+klasy — pilnuje tego `StraznikTekstuMaKontroleDodatniaTest`.
+
 ### Issues
 
 Praca idzie **po kolei, z issues**. Etykiety priorytetu: `P0` → `P1` → `P2`,

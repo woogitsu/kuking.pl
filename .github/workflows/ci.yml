@@ -1096,6 +1096,12 @@ jobs:
         if: matrix.czesc == 'kontrole'
         run: python3 -m unittest discover -s scripts -p 'test_kontrola_wyjscia_testu.py' -v
 
+      # Najpierw sam werdykt, bez bazy i w sekundę (#1011): przyrząd, który
+      # zalicza czerwień z niewłaściwego powodu, dałby fałszywy dowód niżej.
+      - name: Test werdyktu kontroli negatywnych
+        if: matrix.czesc == 'kontrole'
+        run: python3 tests/skrypty/kontrole-negatywne-przyczyna.py
+
       - name: Kontrole negatywne regresji Alfa 0.8 i portu marki
         if: matrix.czesc == 'kontrole'
         run: python3 scripts/kontrole-negatywne-alfa08.py

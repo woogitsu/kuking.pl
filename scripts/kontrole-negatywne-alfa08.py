@@ -25,7 +25,9 @@ import subprocess
 from pathlib import Path
 import tempfile
 
+from kontrola_przyczyny import przebieg, sprawdz_wzorce, uruchom_test, werdykt, POTWIERDZONA
 from kontrola_wyjscia_testu import run_test
+from kontrole_oczekiwana_przyczyna import OCZEKUJ, OCZEKUJ_MIARY, kontrole_mechanizmu
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -1624,6 +1626,21 @@ for label, filename, _test, mutate in checks:
     except Exception as error:
         raise RuntimeError(f"Kontrola „{label}” ({filename}) nie pasuje do kodu: {error}") from error
 
+# Wzorce oczekiwanej przyczyny (#1011) sprawdzamy w tym samym preflighcie, PRZED
+# jakimkolwiek testem: literówka w nazwie kontroli albo zły regex wywraca krok
+# w sekundę, z nazwą kontroli, a nie po kilkunastu minutach.
+KONTROLE_MECHANIZMU = kontrole_mechanizmu(
+    STRAZNIK_HOSTA, STRAZNIK_HOSTA_TEST, bez_sprawdzenia_sciezki, replace_once,
+)
+sprawdz_wzorce(checks, OCZEKUJ)
+for label, filename, _test, mutate, _oczekuj in KONTROLE_MECHANIZMU:
+    try:
+        source = (ROOT / filename).read_text()
+        if mutate(source) == source:
+            raise RuntimeError("Mutacja nie zmieniła źródła.")
+    except Exception as error:
+        raise RuntimeError(f"Kontrola mechanizmu „{label}” ({filename}) nie pasuje do kodu: {error}") from error
+
 # KONTROLE DODATNIE PRZED MUTACJAMI wynikają z `checks`, nie z ręcznej listy.
 # Do tej pory stała tu ręczna lista ponad 90 wywołań `run_test(..., True)`,
 # osobna od `checks`. Rozjechała się z nią: audyt po fali 25.09 znalazł testy
@@ -1643,37 +1660,34 @@ if not kontrole_dodatnie:
 KONTROLE_DODATNIE_BEZ_MUTACJI = [GRUPA_SYGNALOW_TEST]
 for test in dict.fromkeys(kontrole_dodatnie + KONTROLE_DODATNIE_BEZ_MUTACJI):
     run_test(test, True)
-with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
-    backup = Path(directory) / "oryginal"
-    for label, filename, test, mutate in checks:
-        path = ROOT / filename
-        subprocess.run(["cp", str(path), str(backup)], check=True)
-        before = digest(path)
-        try:
-            path.write_text(mutate(path.read_text()))
-            changed = digest(path)
-            if changed == before:
-                raise RuntimeError("Mutacja nie zmieniła źródła.")
-            print(f"{label}: przed={before}, mutacja={changed}", flush=True)
-            run_test(test, False)
-        finally:
-            subprocess.run(["cp", str(backup), str(path)], check=True)
-            restored = digest(path)
-            print(f"{label}: po przywróceniu={restored}", flush=True)
-            if restored != before:
-                raise RuntimeError("Przywrócone źródło różni się od oryginału.")
-        run_test(test, True)
+# CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej
+# kontrolę zaliczał każdy niezerowy kod ze słowem `FAILED` w wyjściu, więc błąd
+# składni, awaria bazy albo niezależna asercja z tej samej klasy dawały ten sam
+# „dowód" co asercja, którą mutacja miała zapalić. Teraz wynik czytamy z raportu
+# JUnit, a wzorzec oczekiwanej porażki stoi w `OCZEKUJ` (osobny plik, klucz to
+# nazwa kontroli z `checks`). Kontrola bez wzorca przechodzi tylko jako
+# BEZ_WZORCA i raport wymienia ją z nazwy — nie jest pełnym dowodem.
+# Wszystkie wpisy `checks` mają dziś wzorzec. `WYMAGAJ_WZORCA = True` zamieni
+# wpis bez wzorca z raportowanego BEZ_WZORCA w odmowę przed pierwszym testem —
+# włącz, gdy otwarte PR-y z nowymi wpisami zdążą dopisać wzorce.
+WYMAGAJ_WZORCA = False
+potwierdzone, bez_wzorca = przebieg(
+    [],  # kontrole dodatnie poszły wyżej, `run_test` z własnym komunikatem błędu
+    checks, OCZEKUJ, KONTROLE_MECHANIZMU, wymagaj_wzorca=WYMAGAJ_WZORCA,
+)
 # #2167: usunięcie wymaganego CSV ma zakończyć test porażką, nie skipem.
 # Robimy to osobno, bo kontrola usuwa plik zamiast podmieniać jego treść.
 miary = ROOT / "database/data/odzywcze/miary.csv"
 oryginal_miar = miary.read_bytes()
 try:
     miary.unlink()
-    run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", False)
+    ocena_miar = werdykt("masa_kotleta_zgadza_sie_z_miarami_domowymi", OCZEKUJ_MIARY,
+                         uruchom_test("masa_kotleta_zgadza_sie_z_miarami_domowymi"))
+    print(f"WERDYKT brak miary.csv: {ocena_miar.werdykt} — {ocena_miar.powod}", flush=True)
+    if ocena_miar.werdykt != POTWIERDZONA:
+        raise RuntimeError("Brak miary.csv nie oblał testu z oczekiwanej przyczyny: " + ocena_miar.powod)
 finally:
     miary.write_bytes(oryginal_miar)
 run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", True)
-# Liczebnik bierzemy z `len(checks)`, nie z tekstu. Wcześniej stało tu wpisane
-# słowo „Pięć": po dodaniu szóstego wpisu CI nadal wypisywałoby „Pięć", a to
-# jedyne miejsce, z którego człowiek czyta wynik tego kroku.
-print(f"{len(checks)} kontroli negatywnych wykryło regresje; źródła przywrócone.")
+# Podsumowanie (potwierdzone i lista BEZ WZORCA) wypisał `przebieg` — liczebniki
+# z `len(checks)`, nie z tekstu (dawniej stało tu wpisane słowo „Pięć”).
