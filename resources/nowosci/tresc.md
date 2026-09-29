@@ -31,6 +31,14 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Zgłaszanie treści także bez konta
+
+Przy przepisie, wpisie i komentarzu widać teraz odnośnik „Zgłoś (po zalogowaniu)”
+także wtedy, gdy nie jesteście zalogowani. Zgłoszenie spamu, nękania albo
+niebezpiecznej porady nadal wymaga konta — poprosimy o zalogowanie i od razu
+otworzymy formularz. Treść niezgodną z prawem możecie zgłosić bez konta,
+odnośnik stoi obok. Strony „Pomoc” i „Napisz do nas” opisują to samo.
+
 ### Jak mamy do Was pisać?
 
 Od 14 października 2026, kiedy wchodzi w życie nowa polityka prywatności (do tego
