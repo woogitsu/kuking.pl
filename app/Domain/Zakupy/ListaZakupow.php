@@ -14,7 +14,6 @@ use App\Policies\RecipePolicy;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -286,15 +285,24 @@ final class ListaZakupow
      * opiera znaczenia na samym przekreśleniu.
      *
      * @param  list<array{pozycja: ShoppingListItem, stan: string, przepis: ?Recipe}>  $pozycje
-     * @return array{do_kupienia: Collection<int, array<string, mixed>>, odhaczone: Collection<int, array<string, mixed>>}
+     * @return array{do_kupienia: list<array{pozycja: ShoppingListItem, stan: string, przepis: ?Recipe}>, odhaczone: list<array{pozycja: ShoppingListItem, stan: string, przepis: ?Recipe}>}
      */
     public static function podziel(array $pozycje): array
     {
-        $kolekcja = collect($pozycje);
+        $doKupienia = [];
+        $odhaczone = [];
+
+        foreach ($pozycje as $p) {
+            if ($p['pozycja']->jestOdhaczona()) {
+                $odhaczone[] = $p;
+            } else {
+                $doKupienia[] = $p;
+            }
+        }
 
         return [
-            'do_kupienia' => $kolekcja->reject(fn (array $p) => $p['pozycja']->jestOdhaczona())->values(),
-            'odhaczone' => $kolekcja->filter(fn (array $p) => $p['pozycja']->jestOdhaczona())->values(),
+            'do_kupienia' => $doKupienia,
+            'odhaczone' => $odhaczone,
         ];
     }
 }

@@ -34,8 +34,8 @@
         <p class="meta mb-5" role="status">Na liście: {{ $ile }} z {{ $maksPozycji }} możliwych pozycji.</p>
 
         <section class="mb-6" aria-labelledby="do-kupienia-naglowek">
-            <h2 id="do-kupienia-naglowek">Do kupienia ({{ $do_kupienia->count() }})</h2>
-            @if($do_kupienia->isEmpty())
+            <h2 id="do-kupienia-naglowek">Do kupienia ({{ count($do_kupienia) }})</h2>
+            @if($do_kupienia === [])
                 <p class="meta">Wszystko odhaczone. Możesz usunąć kupione pozycje przyciskiem niżej.</p>
             @else
                 <ul class="planer-pozycje">
@@ -47,8 +47,8 @@
         </section>
 
         <section class="mb-6" aria-labelledby="odhaczone-naglowek">
-            <h2 id="odhaczone-naglowek">Odhaczone ({{ $odhaczone->count() }})</h2>
-            @if($odhaczone->isEmpty())
+            <h2 id="odhaczone-naglowek">Odhaczone ({{ count($odhaczone) }})</h2>
+            @if($odhaczone === [])
                 <p class="meta">Nic jeszcze nie odhaczone. Odhaczona pozycja przechodzi tu i nie znika, dopóki jej nie usuniesz.</p>
             @else
                 <ul class="planer-pozycje">
@@ -63,7 +63,7 @@
                     <summary class="btn btn-secondary">Wyczyść odhaczone</summary>
                     <form class="mt-3" method="POST" action="{{ route('shopping.clear') }}">
                         @csrf @method('DELETE')
-                        <p class="mt-0">Usuniemy z listy {{ $odhaczone->count() }} odhaczonych {{ \App\Support\Odmiana::rzeczownik($odhaczone->count(), 'pozycję', 'pozycje', 'pozycji') }}. Pozycji do kupienia nie ruszamy.</p>
+                        <p class="mt-0">Usuniemy z listy {{ count($odhaczone) }} {{ \App\Support\Odmiana::rzeczownik(count($odhaczone), 'odhaczoną pozycję', 'odhaczone pozycje', 'odhaczonych pozycji') }}. Pozycji do kupienia nie ruszamy.</p>
                         <button class="btn btn-primary" type="submit">Tak, usuń odhaczone</button>
                     </form>
                 </details>

@@ -399,6 +399,9 @@ final class ListaZakupowTest extends TestCase
         $html = (string) $this->actingAs($ja)->get(route('shopping.index'))->getContent();
         $this->assertStringContainsString('Wyczyść odhaczone', $html);
         $this->assertStringContainsString('Tak, usuń odhaczone', $html);
+        // Przymiotnik odmienia się razem z rzeczownikiem (recenzja paczki I:
+        // było „1 odhaczonych pozycję”).
+        $this->assertStringContainsString('Usuniemy z listy 1 odhaczoną pozycję.', $html);
 
         $this->actingAs($ja)->delete(route('shopping.clear'))
             ->assertRedirect(route('shopping.index'))
