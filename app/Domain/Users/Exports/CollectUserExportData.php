@@ -79,6 +79,8 @@ final class CollectUserExportData
         return [
             'o_tym_pliku' => [
                 'serwis' => 'Kuking.pl',
+                // Numer układu pól — czyta go podgląd importu paczki (#1985).
+                'wersja_formatu' => WersjaFormatuPaczki::AKTUALNA,
                 'wygenerowano' => $generatedAt->toIso8601String(),
                 'format' => 'JSON, kodowanie UTF-8, daty w formacie ISO 8601',
                 // „WSZYSTKIE" BYŁO O JEDNO SŁOWO ZA DUŻO (#492).
