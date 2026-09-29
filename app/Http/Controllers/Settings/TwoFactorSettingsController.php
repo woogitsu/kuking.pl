@@ -9,6 +9,7 @@ use App\Domain\Users\ZamekKonta;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
 use App\Models\User;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -103,11 +104,9 @@ class TwoFactorSettingsController extends Controller
 
     private function juzWlaczone(): RedirectResponse
     {
-        return redirect()->route('settings.two_factor.edit')->with(
-            'status',
-            'Weryfikacja dwuetapowa jest już włączona. Żeby ustawić ją na nowym telefonie, '
+        return redirect()->route('settings.two_factor.edit')->with(Komunikat::informacja('Weryfikacja dwuetapowa jest już włączona. Żeby ustawić ją na nowym telefonie, '
             .'najpierw ją wyłącz — poprosimy o hasło.',
-        );
+        ));
     }
 
     /**
@@ -236,11 +235,9 @@ class TwoFactorSettingsController extends Controller
             // ochronę z konta na czas przeklikania i kazała przepisywać
             // sekret do telefonu jeszcze raz, choć z sekretem nic nie było
             // nie tak.
-            return redirect()->route('settings.two_factor.edit')->with(
-                'status',
-                'Kody zapasowe pokazujemy tylko raz. Jeśli nie masz ich już pod ręką, '
+            return redirect()->route('settings.two_factor.edit')->with(Komunikat::informacja('Kody zapasowe pokazujemy tylko raz. Jeśli nie masz ich już pod ręką, '
                 .'wygeneruj nowy komplet przyciskiem niżej — stare przestaną wtedy działać.',
-            );
+            ));
         }
 
         return response()->view('pages.settings.two_factor.codes', ['kody' => $kody])
@@ -321,11 +318,9 @@ class TwoFactorSettingsController extends Controller
         // kończy się wyjątkiem, zanim jawne kody trafią do sesji.
         return match ($wynik) {
             'zapisane' => redirect()->route('settings.two_factor.codes')->with('kody_zapasowe', $kodyJawne),
-            'zmienione' => redirect()->route('settings.two_factor.edit')->with(
-                'status',
-                'Nowe kody zapasowe powstały przed chwilą w innym oknie lub karcie. Zapisz kody z tamtego ekranu. '
+            'zmienione' => redirect()->route('settings.two_factor.edit')->with(Komunikat::blad('Nowe kody zapasowe powstały przed chwilą w innym oknie lub karcie. Zapisz kody z tamtego ekranu. '
                 .'Jeśli ich nie masz, kliknij „Wygeneruj nowe kody” jeszcze raz — poprzednie przestaną wtedy działać.',
-            ),
+            )),
             default => redirect()->route('settings.two_factor.edit'),
         };
     }
@@ -367,6 +362,6 @@ class TwoFactorSettingsController extends Controller
         $request->session()->forget(TwoFactorAuthenticator::KLUCZ_DOWODU_SESJI);
 
         return redirect()->route('settings.two_factor.edit')
-            ->with('status', 'Weryfikacja dwuetapowa jest wyłączona.');
+            ->with(Komunikat::sukces('Weryfikacja dwuetapowa jest wyłączona.'));
     }
 }

@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DailyPick;
 use App\Models\Post;
 use App\Models\User;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -140,9 +141,9 @@ class DailyBoardController extends Controller
 
         $razem = array_sum($saved);
 
-        return back()->with('status', $razem === 0
+        return back()->with(Komunikat::sukces($razem === 0
             ? 'Wyczyszczone. Tablica dobierze treści sama.'
-            : 'Zapisaliśmy wyróżnienia. Pozostałe miejsca tablica uzupełni automatycznie.');
+            : 'Zapisaliśmy wyróżnienia. Pozostałe miejsca tablica uzupełni automatycznie.'));
     }
 
     /** Usuwa dzisiejszy wybór — tablica wraca do trybu automatycznego. */
@@ -152,7 +153,7 @@ class DailyBoardController extends Controller
 
         $this->zapis->wyczysc($request->user(), $request->ip());
 
-        return back()->with('status', 'Wyczyszczone. Tablica dobierze treści sama.');
+        return back()->with(Komunikat::sukces('Wyczyszczone. Tablica dobierze treści sama.'));
     }
 
     /** @return list<string> */

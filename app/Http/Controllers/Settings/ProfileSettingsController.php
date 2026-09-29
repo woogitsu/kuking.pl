@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Rules\ReservedUsername;
 use App\Rules\UsernameNotTaken;
+use App\Support\Komunikat;
 use App\Support\NazwaUzytkownika;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
@@ -157,7 +158,7 @@ class ProfileSettingsController extends Controller
             ]);
         }
 
-        return back()->with('status', 'Zapisane.');
+        return back()->with(Komunikat::sukces('Zapisane.'));
     }
 
     /**

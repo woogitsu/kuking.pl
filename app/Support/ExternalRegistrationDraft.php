@@ -41,7 +41,7 @@ final class ExternalRegistrationDraft
         }
         if (($draft['expires'] ?? 0) <= now()->getTimestamp()) {
             self::forget($request, $provider);
-            $request->session()->flash('status', 'Zapisane imię i nazwa wygasły. Wpisz je ponownie, żeby dokończyć zakładanie konta.');
+            Komunikat::wSesji($request->session(), Komunikat::blad('Zapisane imię i nazwa wygasły. Wpisz je ponownie, żeby dokończyć zakładanie konta.'));
 
             return [];
         }

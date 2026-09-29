@@ -112,6 +112,12 @@ final class ProcesRownolegly
         );
     }
 
+    /** Czy proces już się skończył (nie czeka, nie zbiera wyniku). */
+    public function zakonczony(): bool
+    {
+        return proc_get_status($this->uchwyt)['running'] === false;
+    }
+
     private function zbierz(): void
     {
         foreach ([1, 2] as $numer) {

@@ -70,6 +70,7 @@ echo "Składnia: $sprawdzonych skryptów bez błędów"
 #    deploymentu to jeszcze nie gotowość.
 LISTA=$(cat <<'KONIEC'
 tests/skrypty/entrypoint-nadzor.sh|Testy entrypointu oblewają
+tests/skrypty/entrypoint-sigterm-caly.sh|Zatrzymanie prawdziwego entrypointu w trakcie pracy oblewa
 tests/skrypty/healthcheck-role.sh|Kontrola zdrowia ról kontenera oblewa
 tests/skrypty/preflight-bazy.sh|Preflight bazy w entrypoincie oblewa
 tests/skrypty/bramka-migracji.sh|Bramka migracji workera i schedulera oblewa

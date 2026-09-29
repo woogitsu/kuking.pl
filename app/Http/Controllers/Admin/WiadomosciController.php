@@ -10,6 +10,7 @@ use App\Domain\Contact\Actions\WyslijOdpowiedz;
 use App\Http\Controllers\Controller;
 use App\Models\ContactMessage;
 use App\Models\ContactMessageReply;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -130,7 +131,7 @@ class WiadomosciController extends Controller
         return redirect()
             ->route('admin.contact.show', $wiadomosc)
             ->withInput($request->only(['odpowiedz', 'reply_key']))
-            ->with('status', 'Zapisano: '.$wiadomosc->statusLabel().'.');
+            ->with(Komunikat::sukces('Zapisano: '.$wiadomosc->statusLabel().'.'));
     }
 
     /**
@@ -205,6 +206,6 @@ class WiadomosciController extends Controller
         return redirect()
             ->route('admin.contact.show', $wiadomosc)
             ->withInput($request->only(['handler_note', 'status', 'version']))
-            ->with('status', 'Odpowiedź wysłana na '.$adres.'.');
+            ->with(Komunikat::sukces('Odpowiedź wysłana na '.$adres.'.'));
     }
 }

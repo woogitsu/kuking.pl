@@ -278,6 +278,35 @@ shutdown() {
 }
 
 # -----------------------------------------------------------------------------
+#  NUMER WDROŻENIA PO GOTOWOŚCI (issue #1932, D-318, audyt 28 września 2026)
+#
+#  „Alfa 0.69.005" i dopisek „od Alfa …" mają znaczyć: to wdrożenie DOTARŁO do
+#  ludzi. Rejestracja w `preDeployCommand` zapisywała numer PRZED seedem,
+#  importem i healthcheckiem, więc rollout, który padł, zostawiał zużyty numer
+#  i funkcje opisane jako dostępne. Dlatego rejestruje sam nowy kontener
+#  (role web i all), W TLE, dopiero gdy jego lokalny /health odpowie 2xx —
+#  `kuking:zarejestruj-wdrozenie --po-gotowosci` czeka na to sam i bez
+#  odpowiedzi w limicie niczego nie zapisuje. Komenda jest idempotentna
+#  (restart tego samego commita nie zużywa numeru).
+#
+#  Tło, bo start_web kończy się `exec frankenphp` (tini jako PID 1 sprząta po
+#  potomku), a rejestracja nie może opóźnić ani położyć serwera: porażka
+#  kończy się ostrzeżeniem w logu, nie wyjściem kontenera. Bez
+#  RAILWAY_GIT_COMMIT_SHA (lokalnie) nie robimy nic.
+#  Pilnuje tego tests/Feature/ZarejestrujWdrozenieTest.php.
+# -----------------------------------------------------------------------------
+rejestruj_wdrozenie_po_gotowosci() {
+  [[ -n "${RAILWAY_GIT_COMMIT_SHA:-}" ]] || return 0
+  (
+    php /app/artisan kuking:zarejestruj-wdrozenie --po-gotowosci --no-interaction >&2 \
+      || log "OSTRZEŻENIE: numer wdrożenia nie został zarejestrowany (patrz wyżej); zrobi to następny start tego commita."
+  ) &
+  # Na liście potomków, żeby `shutdown()` (rola all) wysłał mu SIGTERM zamiast
+  # czekać na koniec pętli gotowości.
+  CHILD_PIDS+=("$!")
+}
+
+# -----------------------------------------------------------------------------
 # 5. Uruchomienie roli
 # -----------------------------------------------------------------------------
 start_web() {
@@ -285,6 +314,7 @@ start_web() {
   # i używa tej samej wartości do healthchecku, więc muszą się zgadzać.
   export SERVER_NAME=":${PORT}"
   log "start FrankenPHP na ${SERVER_NAME}"
+  rejestruj_wdrozenie_po_gotowosci
   exec frankenphp run --config /etc/frankenphp/Caddyfile
 }
 
@@ -752,6 +782,7 @@ case "${ROLE}" in
     frankenphp run --config /etc/frankenphp/Caddyfile &
     PID_WWW="$!"
     CHILD_PIDS+=("${PID_WWW}")
+    rejestruj_wdrozenie_po_gotowosci
 
     # Czekamy na długowieczne usługi, w tym nadzorcę kolejki. Nie na sam
     # queue:work: jego planowe wyjścia nadal obsługuje nadzoruj(). Status

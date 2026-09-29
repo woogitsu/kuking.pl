@@ -727,3 +727,4 @@ process.stdout.write(`\nZdane sprawdzenia: ${zdane}\n`);
 
 await import('./korpus-605.test.mjs');
 await import('./probnik-605.test.mjs');
+await import('./nasycenie-605.test.mjs');

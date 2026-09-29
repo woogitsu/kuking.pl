@@ -442,10 +442,9 @@ class LoginLinkController extends Controller
                 previous: $awaria,
             ));
 
-            return redirect()->route('login.link.confirm', ['token' => $token])->with('status',
-                'Nie udało się Cię zalogować — to usterka po naszej stronie. Nic się nie zmieniło '
+            return redirect()->route('login.link.confirm', ['token' => $token])->with(Komunikat::blad('Nie udało się Cię zalogować — to usterka po naszej stronie. Nic się nie zmieniło '
                 .'i link nadal działa: kliknij „Zaloguj mnie” jeszcze raz.',
-            );
+            ));
         }
 
         if ($user === null) {

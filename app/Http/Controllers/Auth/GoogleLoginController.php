@@ -391,7 +391,7 @@ class GoogleLoginController extends Controller
         $zapis->przypiszKonto($request);
 
         return redirect()->route('onboarding.interests')
-            ->with('status', 'Konto gotowe. Miło Cię widzieć w Kuking.');
+            ->with(Komunikat::sukces('Konto gotowe. Miło Cię widzieć w Kuking.'));
     }
 
     /**

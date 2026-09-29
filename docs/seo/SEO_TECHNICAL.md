@@ -457,13 +457,15 @@ Klucz kasują haki modeli rejestrowane w `AppServiceProvider`
 | `Recipe`, `Post` | utworzenie; zmiana `status`, `visibility`, `published_at`, `author_id`, `deleted_at` (w tym przywrócenie); usunięcie |
 | `Recipe` | dodatkowo zmiana `slug` (inny adres) |
 | `Post` | dodatkowo zmiana `body` (wpis bez treści nie wchodzi) i `kind` |
+| `Recipe`, `Post` | dodatkowo zmiana `updated_at` lub `tresc_zmieniona_at` treści publicznej i opublikowanej (#1280) — z pierwszej liczy się `lastmod` wpisu i profilu autora, z drugiej `lastmod` przepisu |
 | `Profile` | zmiana `username` (inny adres), usunięcie |
 | `User` | zmiana `status` (ban, zawieszenie, usuwanie konta, zatarcie) |
 
 Kasowanie idzie przez `DB::afterCommit()`: w transakcji dopiero po COMMIT,
 po ROLLBACK wcale. Kasowany jest **wyłącznie** ten klucz, nigdy cały
-magazyn cache. Zapis bez wpływu na mapę (np. tytuł przepisu) klucza nie
-rusza. Pilnuje tego `MapaStronyNadazaZaWidocznosciaTest`. Nowy typ treści
+magazyn cache. Zapis bez wpływu na mapę (edycja szkicu albo treści prywatnej) klucza nie
+rusza; edycja treści publicznej — w tym samego tytułu — go kasuje, żeby
+`lastmod` w mapie zgadzał się ze stroną. Pilnuje tego `MapaStronyNadazaZaWidocznosciaTest`. Nowy typ treści
 w mapie = nowy wiersz w `MapaStrony::KOLUMNY`.
 
 Limity Google (2026, niezmienione od lat): **max 50 000 URL-i i 50 MB (nieskompresowane) na plik sitemap**; przekroczenie limitu URL-i → Google ignoruje nadmiar; przekroczenie 50 MB → ryzyko odrzucenia całego pliku. Rozwiązanie standardowe: **sitemap index**.
@@ -501,7 +503,7 @@ Recipe::query()
 
 2. Job per chunk (nie jeden monolityczny job na cały sitemap): `GenerateSitemapChunk::dispatch($type, $chunkIndex)`. Każdy chunk = maks. 50 000 wierszy, zapisany jako osobny plik XML w object storage (nie w bazie, nie w pamięci procesu web).
 3. Odśwież **w nocy** (niski ruch), harmonogram co 24h wystarcza dla MVP — Kuking nie jest serwisem newsowym, świeżość co kilka godzin nie jest potrzebna.
-4. `lastmod` = `GREATEST(recipes.updated_at, MAX(recipe_versions.created_at))` — realna data ostatniej **merytorycznej** zmiany, nie data regeneracji sitemapy. Fałszywie świeży `lastmod` (ustawiany przy każdym uruchomieniu joba, niezależnie od realnej zmiany treści) jest traktowany przez Google jako sygnał niewiarygodny i z czasem ignorowany.
+4. `lastmod` przepisu = `recipes.tresc_zmieniona_at` (#1280; `Recipe::dataZmianyTresci()`, ta sama data co `dateModified` w JSON-LD) — realna data ostatniej **merytorycznej** zmiany. `updated_at` się nie nadaje: przesuwa go też moderacja i zapis bez zmian. Gdy daty nie znamy (przepis sprzed kolumny, `NULL`, albo data sprzed publikacji) — `<lastmod>` jest pomijany, bo brak sygnału jest uczciwszy niż zgadnięta data. (Wcześniejszy zapis: `GREATEST(recipes.updated_at, MAX(recipe_versions.created_at))` — nieaktualny.) To jest realna data ostatniej **merytorycznej** zmiany, nie data regeneracji sitemapy. Fałszywie świeży `lastmod` (ustawiany przy każdym uruchomieniu joba, niezależnie od realnej zmiany treści) jest traktowany przez Google jako sygnał niewiarygodny i z czasem ignorowany.
 5. Indeks (`sitemap_index.xml`) generuj jako lekki, szybki job osobno, uruchamiany **po** zakończeniu wszystkich chunków (job chain / batch w Laravel Queue), żeby nigdy nie wskazywał na plik, który jeszcze nie istnieje.
 6. Kompresja `.xml.gz` — Google akceptuje bez dodatkowej konfiguracji, warto włączyć od razu przy skali > kilku tysięcy URL-i (redukcja transferu 70–90%).
 

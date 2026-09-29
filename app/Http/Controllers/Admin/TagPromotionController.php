@@ -10,6 +10,7 @@ use App\Models\AuditLogEntry;
 use App\Models\Tag;
 use App\Models\TagHighlight;
 use App\Models\User;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -110,7 +111,7 @@ class TagPromotionController extends Controller
             ip: $request->ip(),
         );
 
-        return redirect()->route('admin.tag-promotions')->with('status', "Tag „{$tag->name}” dodany do promowanych.");
+        return redirect()->route('admin.tag-promotions')->with(Komunikat::sukces("Tag „{$tag->name}” dodany do promowanych."));
     }
 
     /** Notatka i kolejność — jedna promocja naraz. */
@@ -126,7 +127,7 @@ class TagPromotionController extends Controller
             // Komunikat i dziennik tylko wtedy, gdy kolejność naprawdę się
             // zmieniła (#1308).
             if (! $this->promowane->przesun($tag, $request->has('w_gore') ? -1 : 1)) {
-                return back()->with('status', 'Kolejność bez zmian — ten tag jest już na skraju listy.');
+                return back()->with(Komunikat::informacja('Kolejność bez zmian — ten tag jest już na skraju listy.'));
             }
 
             AuditLogEntry::record(
@@ -136,7 +137,7 @@ class TagPromotionController extends Controller
                 ip: $request->ip(),
             );
 
-            return back()->with('status', 'Kolejność zmieniona.');
+            return back()->with(Komunikat::sukces('Kolejność zmieniona.'));
         }
 
         $dane = $request->validate(['note' => ['nullable', 'string', 'max:200']]);
@@ -150,7 +151,7 @@ class TagPromotionController extends Controller
             ip: $request->ip(),
         );
 
-        return back()->with('status', 'Notatka zapisana.');
+        return back()->with(Komunikat::sukces('Notatka zapisana.'));
     }
 
     public function destroy(Request $request, Tag $tag): RedirectResponse
@@ -161,13 +162,13 @@ class TagPromotionController extends Controller
         // `potwierdzam=1` z rozwiniętego pytania nic nie znika.
         if (! $request->boolean('potwierdzam')) {
             return redirect()->route('admin.tag-promotions')
-                ->with('status', "Nic nie zmieniono. Żeby zdjąć „{$tag->name}” z promowanych, kliknij „Zdejmij z promowanych” i potwierdź.");
+                ->with(Komunikat::blad("Nic nie zmieniono. Żeby zdjąć „{$tag->name}” z promowanych, kliknij „Zdejmij z promowanych” i potwierdź."));
         }
 
         // Usunięcie promocji NIE kasuje tagu — tag żyje dalej jako zwykły,
         // otwarty tag, dokładnie jak wycofanie Tematu nie kasowało wpisów.
         if (! $this->promowane->usun($tag)) {
-            return redirect()->route('admin.tag-promotions')->with('status', "Tag „{$tag->name}” nie był już na liście promowanych.");
+            return redirect()->route('admin.tag-promotions')->with(Komunikat::informacja("Tag „{$tag->name}” nie był już na liście promowanych."));
         }
 
         AuditLogEntry::record(
@@ -177,7 +178,7 @@ class TagPromotionController extends Controller
             ip: $request->ip(),
         );
 
-        return redirect()->route('admin.tag-promotions')->with('status', "Tag „{$tag->name}” zdjęty z promowanych.");
+        return redirect()->route('admin.tag-promotions')->with(Komunikat::sukces("Tag „{$tag->name}” zdjęty z promowanych."));
     }
 
     private function nullIfBlank(?string $value): ?string

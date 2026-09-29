@@ -22,14 +22,21 @@ W CI nic się nie zmienia — tam gate przepuszcza jak dotąd.
 import hashlib
 import os
 import subprocess
+import sys
 from pathlib import Path
 import tempfile
 
 from kontrola_wyjscia_testu import run_test
+from podzial_kontroli import parsuj_czesc, poza_petla_w_tej_czesci, wybierz_indeksy
 
 
 ROOT = Path(__file__).resolve().parent.parent
 os.chdir(ROOT)
+
+# CZĘŚCI CI. `--czesc N/M` uruchamia co M-ty wpis `checks` (indeks % M == N-1)
+# oraz, w części 3, elementy spoza pętli; bez argumentu (lokalnie) idzie całość.
+# Patrz scripts/podzial_kontroli.py i job `test` w .github/workflows/ci.yml.
+CZESC = parsuj_czesc(sys.argv[1:])
 
 
 def odmow(powod):
@@ -715,6 +722,12 @@ BRAMKA_KRAWEDZI_WARUNEK = "            if ($egzekwowanie) {\n                if 
 # regułę `trusted_proxies`; mutacje wracają do czytania nagłówka od lewej
 # i do zaufania każdemu peerowi — obie mają zapalić rozjazd log/aplikacja.
 CADDY_ZAUFANIE_TEST = "CaddyUfaTemuSamemuWpisowiCoAplikacjaTest"
+# Zbiór publicznych domen originu w IaC jest zamknięty (#1306): dopisanie
+# kolejnej domeny (tu: domeny dostawcy) zmienia topologię, dla której policzono
+# zaufanie proxy, i test ma oblać z opisem, co zrobić razem ze zmianą.
+DOMENY_ORIGINU_IAC = ".railway/railway.ts"
+DOMENY_ORIGINU_TEST = "DomenyOriginuSaZadeklarowaneWIacTest"
+DOMENY_ORIGINU_WPIS = '  { domain: "www.kuking.pl", port: APP_PORT },\n];'
 
 
 def digest(path):
@@ -1025,7 +1038,7 @@ def podzial_gubi_plik(source):
 
 def macierz_krotsza_niz_podzial(source):
     """KONTROLA DODATNIA: macierz uruchamia trzy części, skrypt dzieli na cztery."""
-    return replace_once(source, "czesc: [1, 2, 3, 4, kontrole]", "czesc: [1, 2, 3, kontrole]")
+    return replace_once(source, "czesc: [1, 2, 3, 4]\n", "czesc: [1, 2, 3]\n")
 
 
 def widok_zawezany_poza_pr(source):
@@ -1068,6 +1081,12 @@ def railway_cli_bez_przypietej_wersji(source):
 
 
 checks = [
+    # #988: komunikat po akcji ma jawny rodzaj. Goły `->with('status', …)`
+    # wróciłby do zielonej plakietki także dla odmowy.
+    ("Goły ->with('status') wraca do kontrolera", "app/Http/Controllers/SmakowicieController.php", "test_w_app_nie_ma_golego_zapisu_statusu_bez_rodzaju",
+     lambda s: replace_once(s, "->with(Komunikat::sukces('Cofnięte.'))", "->with('status', 'Cofnięte.')")),
+    ("Odmowa nazwana sukcesem", "app/Http/Controllers/SmakowicieController.php", "test_sukces_nie_niesie_tekstu_odmowy",
+     lambda s: replace_once(s, "Komunikat::sukces('Cofnięte.')", "Komunikat::sukces('Nie udało się cofnąć.')")),
     # #2027: rejestracja Google/Facebook wiąże zapamiętany cel z nowym
     # kontem. Bez tej linijki onboarding kończy się na stronie domyślnej.
     ("Nowe konto Google gubi powrót do rozmowy", POWROT_KOMENTARZA_GOOGLE, POWROT_KOMENTARZA_GOOGLE_TEST,
@@ -1386,10 +1405,18 @@ checks = [
      lambda s: replace_once(s, "\t\ttrusted_proxies_strict\n", "")),
     ("Caddy ufa każdemu peerowi", CADDYFILE, CADDY_ZAUFANIE_TEST,
      lambda s: replace_once(s, "trusted_proxies static private_ranges", "trusted_proxies static 0.0.0.0/0 ::/0")),
+    ("Produkcja dostaje domenę dostawcy obok kuking.pl", DOMENY_ORIGINU_IAC, DOMENY_ORIGINU_TEST,
+     lambda s: replace_once(s, DOMENY_ORIGINU_WPIS, '  { domain: "www.kuking.pl", port: APP_PORT },\n  { domain: "kuking-prod.up.railway.app", port: APP_PORT },\n];')),
     # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
      lambda s: replace_once(s, "php /app/artisan event:clear  --no-interaction >/dev/null\n", "php /app/artisan event:clear  --no-interaction >/dev/null\nphp /app/artisan cache:clear --no-interaction >/dev/null 2>&1 || true\n")),
+    # Issue #1932 (audyt 28.09.2026): numer wdrożenia zapisuje nowy kontener
+    # PO gotowości, nie pre-deploy przed seedem i healthcheckiem.
+    ("Rejestracja wdrożenia wraca do preDeployCommand", ".railway/railway.ts", "RejestracjaWdrozeniaPoGotowosciTest",
+     lambda s: replace_once(s, '        "php artisan db:seed --force --no-interaction",\n', '        "php artisan kuking:zarejestruj-wdrozenie --no-interaction",\n        "php artisan db:seed --force --no-interaction",\n')),
+    ("Entrypoint rejestruje wdrożenie bez czekania na /health", "docker/entrypoint.sh", "RejestracjaWdrozeniaPoGotowosciTest",
+     lambda s: replace_once(s, "kuking:zarejestruj-wdrozenie --po-gotowosci --no-interaction", "kuking:zarejestruj-wdrozenie --no-interaction")),
     # Audyt B8-02: list z rezerwacją niesie znacznik, a rejestr klas jest
     # zamknięty w obie strony. Zgubiony znacznik = list policzony dwa razy.
     ("Alarm automatu bez znacznika rezerwacji", "app/Notifications/PilnyAlarmModeracyjny.php", "KazdyListLiczySieWPuliTest",
@@ -1457,6 +1484,9 @@ checks = [
     # ma wywrócić architektoniczny test „import nigdy nie publikuje”.
     ("Odczyt kartki publikuje przepis", "app/Jobs/OdczytajPrzepis.php", "test_import_nigdy_nie_publikuje_sprawdzone_w_kodzie",
      lambda s: replace_once(s, "publish: false,", "publish: true,")),
+    # #28: import z adresu chodzi w zadaniu — także ono podlega zakazowi publikacji.
+    ("Import z adresu publikuje przepis", "app/Jobs/ImportujPrzepisZAdresu.php", "test_import_nigdy_nie_publikuje_sprawdzone_w_kodzie",
+     lambda s: replace_once(s, "use Throwable;\n", "use Throwable;\n\n// publish: true\n")),
     ("Wspólny limit ignoruje nowe próby importu", "app/Domain/Import/LimitImportowOsoby.php", "WspolnyLimitImportuTest",
      lambda s: replace_once(s, "return $proby + $odczytyBezProby;", "return $odczytyBezProby;")),
     # D-298 „maszyna stanów płatnego wywołania” (#1973, #1974, #1977, #1980).
@@ -1636,19 +1666,27 @@ for label, filename, _test, mutate in checks:
 # Test czerwony jeszcze przed mutacją wyglądał wtedy w logu jak „mutacja wykryta”.
 # Teraz każdy test z `checks` idzie na zielono przed pierwszą mutacją, raz,
 # w kolejności z `checks` — nowy wpis nie ma czego zapomnieć.
-kontrole_dodatnie = list(dict.fromkeys(test for _label, _filename, test, _mutate in checks))
+# Podział na części CI: wpis o indeksie i należy do części i % M + 1. PREFLIGHT
+# wyżej sprawdził WSZYSTKIE kotwice w każdej części (jest tani), a poniżej idą
+# tylko wpisy wybranej części — każdy wpis w dokładnie jednej.
+wybrane = [checks[i] for i in wybierz_indeksy(len(checks), CZESC)]
+poza_petla = poza_petla_w_tej_czesci(CZESC)
+if CZESC is not None:
+    print(f"Część {CZESC[0]}/{CZESC[1]}: {len(wybrane)} z {len(checks)} wpisów `checks`"
+          f"{' oraz elementy spoza pętli' if poza_petla else ''}.", flush=True)
+kontrole_dodatnie = list(dict.fromkeys(test for _label, _filename, test, _mutate in wybrane))
 if not kontrole_dodatnie:
-    raise RuntimeError("Lista `checks` jest pusta — nie ma czego sprawdzać.")
+    raise RuntimeError("Wybrana część `checks` jest pusta — nie ma czego sprawdzać.")
 # JEDYNY test bez własnej mutacji, który ma iść na zielono przed pętlą: klasa
 # obejmująca oba testy metod z wpisów #1059 (GRUPA_LICZBA_TEST i
 # GRUPA_KOLEJNOSC_TEST). Nie jest to druga lista kontroli dodatnich — dopisuj
 # tu tylko test, którego nie da się wskazać wpisem w `checks`.
-KONTROLE_DODATNIE_BEZ_MUTACJI = [GRUPA_SYGNALOW_TEST]
+KONTROLE_DODATNIE_BEZ_MUTACJI = [GRUPA_SYGNALOW_TEST] if poza_petla else []
 for test in dict.fromkeys(kontrole_dodatnie + KONTROLE_DODATNIE_BEZ_MUTACJI):
     run_test(test, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
-    for label, filename, test, mutate in checks:
+    for label, filename, test, mutate in wybrane:
         path = ROOT / filename
         subprocess.run(["cp", str(path), str(backup)], check=True)
         before = digest(path)
@@ -1668,15 +1706,17 @@ with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
         run_test(test, True)
 # #2167: usunięcie wymaganego CSV ma zakończyć test porażką, nie skipem.
 # Robimy to osobno, bo kontrola usuwa plik zamiast podmieniać jego treść.
-miary = ROOT / "database/data/odzywcze/miary.csv"
-oryginal_miar = miary.read_bytes()
-try:
-    miary.unlink()
-    run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", False)
-finally:
-    miary.write_bytes(oryginal_miar)
-run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", True)
+# Element spoza pętli: w części CI tylko w części 3 (`poza_petla`).
+if poza_petla:
+    miary = ROOT / "database/data/odzywcze/miary.csv"
+    oryginal_miar = miary.read_bytes()
+    try:
+        miary.unlink()
+        run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", False)
+    finally:
+        miary.write_bytes(oryginal_miar)
+    run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", True)
 # Liczebnik bierzemy z `len(checks)`, nie z tekstu. Wcześniej stało tu wpisane
 # słowo „Pięć": po dodaniu szóstego wpisu CI nadal wypisywałoby „Pięć", a to
 # jedyne miejsce, z którego człowiek czyta wynik tego kroku.
-print(f"{len(checks)} kontroli negatywnych wykryło regresje; źródła przywrócone.")
+print(f"{len(wybrane)} kontroli negatywnych wykryło regresje; źródła przywrócone.")

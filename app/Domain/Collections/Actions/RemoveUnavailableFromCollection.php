@@ -6,6 +6,7 @@ namespace App\Domain\Collections\Actions;
 
 use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Domain\Collections\ZamekZapisuDoZeszytu;
+use App\Domain\Notifications\Actions\NotifyRecipeSaved;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Collection;
 use App\Models\User;
@@ -23,7 +24,8 @@ use Illuminate\Support\Facades\DB;
  *    `collection_items` tego zeszytu,
  *  - nie działa sama z siebie: zawężony albo zablokowany przepis nadal wraca
  *    do zeszytu, gdy dostęp wróci — dopóki właściciel świadomie go nie wyjmie,
- *  - nie ujawnia, co było wyjęte: liczy i kasuje po identyfikatorach.
+ *  - nie ujawnia, co było wyjęte: liczy i kasuje po identyfikatorach,
+ *  - nie zmienia przeczytanych powiadomień: historia zostaje (#2205).
  *
  * ZAKRES Z CHWILI POTWIERDZENIA, NIE Z CHWILI WYKONANIA
  * Formularz niesie odcisk zbioru, który człowiek widział. Pod zamkiem wiersza
@@ -32,7 +34,10 @@ use Illuminate\Support\Facades\DB;
  */
 final class RemoveUnavailableFromCollection
 {
-    public function __construct(private readonly WidocznaZawartoscZeszytu $zawartosc) {}
+    public function __construct(
+        private readonly WidocznaZawartoscZeszytu $zawartosc,
+        private readonly NotifyRecipeSaved $powiadomienieOZapisie,
+    ) {}
 
     /**
      * @return int ile zapisów wyjęto
@@ -56,8 +61,18 @@ final class RemoveUnavailableFromCollection
 
             $pozycje = DB::table('collection_items')->where('collection_id', $zeszyt->getKey());
 
-            return (clone $pozycje)->whereIn('recipe_id', $niedostepne['przepisy'])->delete()
+            $wyjete = (clone $pozycje)->whereIn('recipe_id', $niedostepne['przepisy'])->delete()
                 + (clone $pozycje)->whereIn('post_id', $niedostepne['wpisy'])->delete();
+
+            // WYCOFANIE UDZIAŁU W POWIADOMIENIU AUTORA (#2205). Zwykłe wyjęcie
+            // przepisu robi to samo po `detach()`; zbiorcze kasowanie omijało
+            // ten krok i nieprzeczytany agregat „ktoś zapisał Twój przepis”
+            // trzymał osobę, której ostatni zapis właśnie zniknął. Dotyczy
+            // tylko przepisów: wpisy nie mają powiadomienia o zapisie.
+            // Ta sama transakcja co kasowanie — wyjątek cofa oba skutki.
+            $this->powiadomienieOZapisie->cofnijJesliNigdzieNieZostalDlaWielu($swiezy, $niedostepne['przepisy']);
+
+            return $wyjete;
         });
     }
 }

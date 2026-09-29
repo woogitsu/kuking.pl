@@ -12,6 +12,7 @@ use App\Domain\Search\SearchQuery;
 use App\Models\MealPlanEntry;
 use App\Models\Recipe;
 use App\Support\Czas;
+use App\Support\Komunikat;
 use App\Support\Odmiana;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -106,6 +107,9 @@ class PlanerController extends Controller
             $przepis !== null => "Dodane do planu na {$kiedy}.",
             default => "Dopisane na {$kiedy}.",
         };
+        // Wpis, który już był w planie, niczego nie dodał — to informacja,
+        // nie potwierdzenie (#988).
+        $rodzaj = $wpis === null ? Komunikat::informacja($komunikat) : Komunikat::sukces($komunikat);
 
         // Z wyszukiwania w planerze (#2037) wracamy do TEGO dnia, z tą samą
         // frazą — fokus ląduje na jego panelu, więc od razu można dodać
@@ -115,16 +119,16 @@ class PlanerController extends Controller
                 'tydzien' => PlanerTygodnia::poniedzialek($dzien->toDateString())->toDateString(),
                 'dzien' => $dzien->toDateString(),
                 'q' => $dane['q'] ?? null,
-            ])).'#szukaj-'.$dzien->toDateString())->with('status', $komunikat);
+            ])).'#szukaj-'.$dzien->toDateString())->with($rodzaj);
         }
 
         // Ze strony przepisu wracamy na nią; z planera — do tego tygodnia.
         if ($przepis !== null) {
             return redirect()->back(fallback: route('planer.show', ['tydzien' => $dzien->toDateString()]))
-                ->with('status', $komunikat);
+                ->with($rodzaj);
         }
 
-        return redirect()->route('planer.show', ['tydzien' => $dzien->toDateString()])->with('status', $komunikat);
+        return redirect()->route('planer.show', ['tydzien' => $dzien->toDateString()])->with($rodzaj);
     }
 
     public function copy(Request $request, SkopiujPoprzedniTydzien $kopiuj): RedirectResponse
@@ -159,8 +163,18 @@ class PlanerController extends Controller
                 .' — planer przyjmuje dni '.ZakresDatPlanu::opis().'. Wybierz tydzień bliżej dzisiejszego dnia.';
         }
 
+        // Skopiowane cokolwiek — sukces (z dopiskiem, co pominięto). Nic nie
+        // skopiowane, bo coś odpadło — błąd z powodem. Nic nie skopiowane,
+        // bo nie było czego — informacja.
+        $tresc = implode(' ', $zdania);
+        $rodzaj = match (true) {
+            $wynik['skopiowane'] > 0 => Komunikat::sukces($tresc),
+            $wynik['pominiete'] > 0 || $wynik['poza_zakresem'] > 0 => Komunikat::blad($tresc),
+            default => Komunikat::informacja($tresc),
+        };
+
         return redirect()->route('planer.show', ['tydzien' => $poniedzialek->toDateString()])
-            ->with('status', implode(' ', $zdania));
+            ->with($rodzaj);
     }
 
     public function destroy(Request $request, MealPlanEntry $wpis): RedirectResponse
@@ -171,6 +185,6 @@ class PlanerController extends Controller
         $wpis->delete();
 
         return redirect()->route('planer.show', ['tydzien' => $tydzien])
-            ->with('status', 'Usunięte z planu na '.PlanerTygodnia::nazwaDnia($wpis->day).'.');
+            ->with(Komunikat::sukces('Usunięte z planu na '.PlanerTygodnia::nazwaDnia($wpis->day).'.'));
     }
 }
