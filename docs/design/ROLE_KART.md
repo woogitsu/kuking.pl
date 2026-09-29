@@ -570,7 +570,11 @@ porcie panelu i do 25.09.2026 nie miał żadnej warstwy: pola stały gołe
 na tle ramy. Formularz jest tam jedyną rzeczą do wypełnienia, więc dostał
 rolę 2 na samym `<form>` (#581); przycisk usuwający zostaje za kreską
 `.danger-zone` wewnątrz panelu. Pilnuje tego
-`tests/Feature/ZdejmijZUrzeduKompozycjaPaneluTest.php`. Suma w nagłówku
+`tests/Feature/ZdejmijZUrzeduKompozycjaPaneluTest.php`. Zdania o skutku
+(komentarz wraca po wygranym odwołaniu; treść znika od razu) są w
+`.panel-liczby`, nie w `.meta` 16 px; miernik przeglądarkowy panelu ma dla
+nich rodzinę `z-urzedu` (`scripts/panel-marki.mjs`, tylko faza pełna — ekran
+wymaga treści do zdjęcia). Suma w nagłówku
 inwentarza niżej NIE jest przeliczona po tej zmianie ani po dojściu
 `pages/admin/kolejka.blade.php`; ta ostatnia ma od 28.09.2026 własne wiersze
 w tabeli (poniżej), a suma w nagłówku nadal czeka na przeliczenie ze stanu
