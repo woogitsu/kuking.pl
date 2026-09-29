@@ -176,7 +176,7 @@ class PoprawkaOpublikowanegoPrzepisuMaWersjeTest extends TestCase
     public function test_szkic_nie_dostaje_wersji_przed_publikacja(): void
     {
         $kreator = Livewire::actingAs($this->user())->test('recipe-wizard')
-            ->set('title', 'Zupa na poniedziałek')
+            ->set('form.title', 'Zupa na poniedziałek')
             ->set('steps.0.instruction', 'Zagotuj wodę.')
             ->call('saveDraft')
             ->assertSet('saveState', 'saved');

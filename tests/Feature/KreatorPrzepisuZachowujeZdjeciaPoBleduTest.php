@@ -54,7 +54,7 @@ class KreatorPrzepisuZachowujeZdjeciaPoBleduTest extends TestCase
             ->set('heroPhoto', UploadedFile::fake()->image('danie.jpg', 800, 600))
             ->set('steps.0.instruction', 'Podsmaż cebulę.')
             ->call('publish')
-            ->assertHasErrors(['title']);
+            ->assertHasErrors(['form.title']);
 
         $mediaId = $component->get('heroMediaId');
         $this->assertNotNull($mediaId, 'Zdjęcie dania zniknęło po błędzie nazwy — trzeba je wybierać od nowa.');
@@ -65,7 +65,7 @@ class KreatorPrzepisuZachowujeZdjeciaPoBleduTest extends TestCase
             ->assertSee('Zmień zdjęcie');
 
         // Poprawka BEZ ponownego wyboru zdjęcia.
-        $component->set('title', 'Rosół babci Zofii')->call('publish')->assertHasNoErrors();
+        $component->set('form.title', 'Rosół babci Zofii')->call('publish')->assertHasNoErrors();
 
         $recipe = Recipe::query()->where('title', 'Rosół babci Zofii')->firstOrFail();
         $this->assertSame($mediaId, $recipe->hero_media_id);
@@ -79,12 +79,12 @@ class KreatorPrzepisuZachowujeZdjeciaPoBleduTest extends TestCase
 
         $component = Livewire::actingAs($user)
             ->test(self::COMPONENT)
-            ->set('title', 'Zupa ze zdjęciem kroku')
+            ->set('form.title', 'Zupa ze zdjęciem kroku')
             ->set('steps.0.instruction', 'Obierz warzywa.')
             ->set('steps.0.photo', UploadedFile::fake()->image('warzywa.jpg', 800, 600))
-            ->set('estimated_cost_pln', 'bardzo dużo')
+            ->set('form.estimated_cost_pln', 'bardzo dużo')
             ->call('publish')
-            ->assertHasErrors(['estimated_cost_pln']);
+            ->assertHasErrors(['form.estimated_cost_pln']);
 
         $mediaId = $component->get('steps.0.mediaId');
         $this->assertNotNull($mediaId, 'Zdjęcie kroku zniknęło po błędzie innego pola.');
@@ -92,7 +92,7 @@ class KreatorPrzepisuZachowujeZdjeciaPoBleduTest extends TestCase
         $this->assertSame(1, Media::query()->where('owner_id', $user->id)->count());
         $this->assertSame('Obierz warzywa.', $component->get('steps.0.instruction'), 'Poprawny tekst kroku nie może znikać.');
 
-        $component->set('estimated_cost_pln', '24,50')->call('publish')->assertHasNoErrors();
+        $component->set('form.estimated_cost_pln', '24,50')->call('publish')->assertHasNoErrors();
 
         $recipe = Recipe::query()->where('title', 'Zupa ze zdjęciem kroku')->firstOrFail();
         $this->assertSame($mediaId, $recipe->steps()->orderBy('position')->value('media_id'));
@@ -106,7 +106,7 @@ class KreatorPrzepisuZachowujeZdjeciaPoBleduTest extends TestCase
 
         $component = Livewire::actingAs($user)
             ->test(self::COMPONENT)
-            ->set('title', 'Przepis z jednym złym zdjęciem')
+            ->set('form.title', 'Przepis z jednym złym zdjęciem')
             ->set('heroPhoto', UploadedFile::fake()->image('danie.jpg', 800, 600));
 
         $dobre = $component->get('heroMediaId');

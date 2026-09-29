@@ -99,7 +99,7 @@ final class ZamiennikiSkladnikowTest extends TestCase
         $autorka = $this->user('autorka_kreatora');
 
         Livewire::actingAs($autorka)->test('recipe-wizard')
-            ->set('title', 'Placki ziemniaczane')
+            ->set('form.title', 'Placki ziemniaczane')
             ->set('ingredients.0.text', '1 kg ziemniaków')
             ->set('ingredients.0.substitutes', 'bataty')
             ->set('steps.0.instruction', 'Zetrzyj i usmaż.')
@@ -118,7 +118,7 @@ final class ZamiennikiSkladnikowTest extends TestCase
     public function test_kreator_mowi_przy_polu_gdy_zamiennik_za_dlugi(): void
     {
         Livewire::actingAs($this->user('autorka_kreatora_dluga'))->test('recipe-wizard')
-            ->set('title', 'Placki')
+            ->set('form.title', 'Placki')
             ->set('ingredients.0.text', 'ziemniaki')
             ->set('ingredients.0.substitutes', str_repeat('b', 301))
             ->set('steps.0.instruction', 'Usmaż.')

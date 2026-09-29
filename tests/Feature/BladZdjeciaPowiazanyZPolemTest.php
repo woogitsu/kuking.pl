@@ -161,7 +161,7 @@ class BladZdjeciaPowiazanyZPolemTest extends TestCase
     public function test_kreator_wiaze_blad_zdjecia_z_polem(int $krok, string $wlasciwosc, string $id): void
     {
         $komponent = Livewire::actingAs($this->user('basia'))->test('recipe-wizard')
-            ->set('title', 'Kotlet schabowy')
+            ->set('form.title', 'Kotlet schabowy')
             ->set('ingredients.0.text', 'schab')
             ->set('steps.0.instruction', 'Rozbij mięso.')
             ->set('step', $krok);

@@ -34,7 +34,7 @@ class KreatorWystawiaStanZapisuDlaStronyNieaktualnejTest extends TestCase
 
         // Pierwszy udany zapis tworzy szkic — dopiero od tej chwili wolno
         // obiecać, że szkic zostaje.
-        $komponent->set('title', 'Zupa z koperkiem');
+        $komponent->set('form.title', 'Zupa z koperkiem');
 
         $this->assertSame(1, Recipe::count(), 'Kontrola dodatnia: szkic naprawdę jest w bazie.');
         $this->assertStringContainsString('data-kreator-zapis="szkic"', $komponent->html());
@@ -44,7 +44,7 @@ class KreatorWystawiaStanZapisuDlaStronyNieaktualnejTest extends TestCase
     public function zbyt_krotka_nazwa_nie_zapisuje_wiec_zostaje_brak(): void
     {
         $komponent = Livewire::actingAs($this->user())->test('recipe-wizard')
-            ->set('title', 'Zu');
+            ->set('form.title', 'Zu');
 
         $this->assertSame(0, Recipe::count());
         $this->assertStringContainsString('data-kreator-zapis="brak"', $komponent->html());

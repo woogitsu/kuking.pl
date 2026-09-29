@@ -59,7 +59,7 @@ try {
             assert(await page.getByRole('link', { name: 'Dokończ: Najstarszy szkic', exact: true }).evaluate(e => e.getBoundingClientRect().height >= 48));
         }
         await page.getByRole('link', { name: 'Dokończ: Najstarszy szkic', exact: true }).click();
-        assert.equal(await page.locator('#f-title').inputValue(), 'Najstarszy szkic');
+        assert.equal(await page.locator('#f-form-title').inputValue(), 'Najstarszy szkic');
         console.log('SZKICE: od Dodaj do najstarszego z siedmiu — OK');
     } else if (mode === 'indices') {
         await page.goto(base + `/przepisy/${fixture.slug}/edycja`);
@@ -80,13 +80,13 @@ try {
         const results = [];
         for (const linkIndex of [0, 1]) {
             await page.goto(base + `/przepisy/${fixture.slug}/edycja`);
-            await page.fill('#f-title', 'Niezapisany tytuł');
+            await page.fill('#f-form-title', 'Niezapisany tytuł');
             await page.fill('[name="ingredients[0][text]"]', 'Niezapisany składnik');
             let dialog = false;
             page.once('dialog', async d => { dialog = true; await d.dismiss(); });
             await page.locator(`a[href="${base}/przepisy/${fixture.slug}/szczegoly"]`).nth(linkIndex).click();
             await page.waitForTimeout(500);
-            results.push({ linkIndex, dialog, title: await page.locator('#f-title').inputValue() });
+            results.push({ linkIndex, dialog, title: await page.locator('#f-form-title').inputValue() });
         }
         console.log('PRZEJŚCIE:', JSON.stringify(results));
     } else {
@@ -114,7 +114,7 @@ try {
             const root = document.querySelector('[wire\\:id]');
             return window.Livewire.find(root.getAttribute('wire:id')).acknowledgedRevision;
         });
-        await page.fill('#f-title', 'Pierwszy zapis');
+        await page.fill('#f-form-title', 'Pierwszy zapis');
         await waitSaved();
 
         // 1. Zmiana jest tylko w przeglądarce (debounce jeszcze trwa).
@@ -129,7 +129,7 @@ try {
             await hold;
             await route.fulfill({ response });
         });
-        await page.fill('#f-title', 'Drugi zapis');
+        await page.fill('#f-form-title', 'Drugi zapis');
         await czekajNaPlakietke('waiting');
         console.log('PRZED WYSŁANIEM:', await badge.allTextContents());
         await brakPotwierdzenia('STARE_POTWIERDZENIE');
@@ -141,7 +141,7 @@ try {
         const przedOdpowiedzia = await potwierdzonaWersja();
 
         // 3. Starsza odpowiedź przychodzi, gdy w polu jest już nowszy tekst.
-        await page.fill('#f-title', 'Trzeci zapis podczas odpowiedzi');
+        await page.fill('#f-form-title', 'Trzeci zapis podczas odpowiedzi');
         release();
         await page.waitForFunction(przed => {
             const root = document.querySelector('[wire\\:id]');
@@ -154,10 +154,10 @@ try {
         await page.unrouteAll({ behavior: 'wait' });
         await waitSaved();
         await page.reload();
-        assert.equal(await page.locator('#f-title').inputValue(), 'Trzeci zapis podczas odpowiedzi');
-        await page.fill('#f-title', 'Niewysłana zmiana przed odświeżeniem');
+        assert.equal(await page.locator('#f-form-title').inputValue(), 'Trzeci zapis podczas odpowiedzi');
+        await page.fill('#f-form-title', 'Niewysłana zmiana przed odświeżeniem');
         await page.reload();
-        assert.equal(await page.locator('#f-title').inputValue(), 'Trzeci zapis podczas odpowiedzi');
+        assert.equal(await page.locator('#f-form-title').inputValue(), 'Trzeci zapis podczas odpowiedzi');
         console.log('ODŚWIEŻENIE PRZED ZAPISEM: niewysłana zmiana nie przetrwała; plakietka nie obiecuje zapisu.');
         await page.getByRole('button', { name: /Dalej/ }).click();
         await page.getByRole('button', { name: /Dalej/ }).click();
@@ -169,7 +169,7 @@ try {
         // 5. Błąd walidacji: żadnego fałszywego sukcesu.
         await page.getByRole('button', { name: /Wstecz/ }).click();
         await page.getByRole('button', { name: /Wstecz/ }).click();
-        await page.fill('#f-servings', '0');
+        await page.fill('#f-form-servings', '0');
         await page.waitForFunction(() => [...document.querySelectorAll('.autosave-badge')].some(e => e.checkVisibility() && e.textContent.includes('Nie zapisaliśmy')));
         await brakPotwierdzenia('POTWIERDZENIE_PO_BLEDZIE');
         mkdirSync('output/playwright', { recursive: true });
