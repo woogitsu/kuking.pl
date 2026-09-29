@@ -31,6 +31,14 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Kalorie na porcję także dla wyszukiwarek
+
+Jeśli przy przepisie widzicie „Szacunkowe wartości odżywcze (na porcję)”, tę
+samą liczbę kalorii podajemy teraz także w danych, które czytają wyszukiwarki.
+Robimy to tylko wtedy, gdy liczba naprawdę jest na stronie: autor nie ukrył
+sekcji, znamy skład co najmniej 90% składników i autor podał liczbę porcji.
+Gdy któregoś z tych warunków brakuje, wyszukiwarkom też nic nie podajemy.
+
 ### Wczytajcie z powrotem własną paczkę z danymi
 
 W „Twoich danych” jest nowy odnośnik „Wczytaj swoją paczkę”. Wybieracie plik
