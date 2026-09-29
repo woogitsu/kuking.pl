@@ -1737,21 +1737,12 @@ jobs:
           echo "PostgreSQL mapped to host port ${{ job.services.postgres.ports[5432] }}"
 
 
-      - name: Własny katalog narzędzi PHP (issue #262)
-        run: |
-          set -euo pipefail
-          KATALOG="${RUNNER_TEMP}/kuking-narzedzia/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
-          mkdir -p "$KATALOG/bin" "$KATALOG/cache"
-          echo "SETUP_PHP_TOOLS_DIR=$KATALOG/bin" >> "$GITHUB_ENV"
-          echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
-
-      - name: Konfiguracja PHP
-        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+      # Własny katalog narzędzi (#262) i `setup-php` — razem, w tej kolejności,
+      # w `.github/actions/php` (#611, etap 3: jedna definicja rozszerzeń).
+      - name: Środowisko PHP
+        uses: ./.github/actions/php
         with:
-          php-version: ${{ env.PHP_VERSION }}
-          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
-          coverage: none
-          tools: composer:v2
+          wersja: ${{ env.PHP_VERSION }}
 
       - name: Konfiguracja Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -1914,21 +1905,12 @@ jobs:
       # GitHub Actions nie umie filtrować ścieżek per JOB (tylko per workflow),
       # więc decyduje wyjście joba `zakres`. Warunek stoi na całym jobie,
       # nie na krokach; PHP sterujące ekranem też uruchamia pomiar (#1039).
-      - name: Własny katalog narzędzi PHP (issue #262)
-        run: |
-          set -euo pipefail
-          KATALOG="${RUNNER_TEMP}/kuking-narzedzia/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
-          mkdir -p "$KATALOG/bin" "$KATALOG/cache"
-          echo "SETUP_PHP_TOOLS_DIR=$KATALOG/bin" >> "$GITHUB_ENV"
-          echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
-
-      - name: Konfiguracja PHP
-        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+      # Własny katalog narzędzi (#262) i `setup-php` — razem, w tej kolejności,
+      # w `.github/actions/php` (#611, etap 3: jedna definicja rozszerzeń).
+      - name: Środowisko PHP
+        uses: ./.github/actions/php
         with:
-          php-version: ${{ env.PHP_VERSION }}
-          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
-          coverage: none
-          tools: composer:v2
+          wersja: ${{ env.PHP_VERSION }}
 
       - name: Konfiguracja Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
