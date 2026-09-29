@@ -32,7 +32,33 @@ from kontrola_przyczyny import Wyjatek
 # #2167: brak wymaganego CSV ma oblać test własnym komunikatem, nie skipem.
 OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 
+OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
+
 OCZEKUJ = {
+    # #1011, paczka H: wpisy dopisane po wzorcach dla wcześniejszych kontroli.
+    "Goły ->with('status') wraca do kontrolera": r'Goły zapis klucza `status` wygląda jak zielony sukces',
+    'Odmowa nazwana sukcesem': r'Komunikat::sukces\(\) z tekstem „Nie udało się…" — to błąd, nie sukces\.',
+    'Produkcja dostaje domenę dostawcy obok kuking.pl': r'PROD_DOMAINS w \.railway/railway\.ts przestało być zbiorem|PROD_DOMAINS zawiera domenę „[^”]+” spoza kuking\.pl',
+    'Rejestracja wdrożenia wraca do preDeployCommand': r'preDeployCommand kończy się PRZED startem i healthcheckiem nowego kontenera — rejestracja tam zużywa numer',
+    'Entrypoint rejestruje wdrożenie bez czekania na /health': r'Funkcja musi wołać komendę z --po-gotowosci',
+    'Import z adresu publikuje przepis': r'\S+ publikuje przepis\.',
+    # #1011, paczka G: wpisy dopisane po wzorcach dla pierwszych 219 kontroli.
+    'Kreator pozwala klientowi podmienić recipeId': r'CannotUpdateLockedPropertyException" is thrown',
+    'Kreator nie wysyła oczekiwanej rewizji treści': r"-'error' \+'saved'",
+    'Publikacja cofa z podglądu przy błędzie przepisu': r'Failed asserting that 3 matches expected 4\.',
+    'Wygenerowany font bez glifu „ą"': r'Brak glifu w podzbiorze Inter: ą \(U\+0105\)',
+    'Analytics znowu importuje Compliance': OCZEKUJ_GRAF_CYKLI + r'|Analytics importuje App\\Domain\\Compliance',
+    'Media znowu importuje Moderation': OCZEKUJ_GRAF_CYKLI + r'|Media importuje App\\Domain\\Moderation',
+    'Compliance znowu importuje Moderation': OCZEKUJ_GRAF_CYKLI + r'|Compliance importuje App\\Domain\\Moderation',
+    'Moderation znowu importuje Security': OCZEKUJ_GRAF_CYKLI + r'|Moderation importuje App\\Domain\\Security',
+    'Nowy cykl: Users importuje Moderation (Moderation → Users już jest)': OCZEKUJ_GRAF_CYKLI,
+    'Formularz zeszytu sprawdza pola przed Policy': r'Expected response status code \[403\] but received 302\.',
+    'Wymazanie nie wycofuje wpisu dziennika po nieudanym commicie': r"\+ 'user_id' => '[0-9a-f-]+', \+ 'wymazano_at' =>",
+    'Wymazanie kasuje cudzy wpis dziennika (ISTNIEJE)': r"-Array &0 \[ - 0 => '[0-9a-f-]+', -\] \+Array &0 \[\]",
+    'Zapis dziennika czeka wewnątrz transakcji z blokadą konta': r'- 0 => 1, - 1 => 1, \+ 0 => 2, \+ 1 => 2,',
+    'Egzekutor nie liczy porażek dziennika wymazań': r'Failed asserting that 0 is identical to 1\.',
+    'Alarm dziennika wymazań bez zerowania licznika': r"'noce' => 2, 'dzien' => '[0-9-]+', \] is null\.",
+    'Alarm dziennika wymazań liczy każdy przebieg dnia jako noc': r'Failed asserting that 3 is identical to 1\.',
     # Mutacja wysyła 181-znakowy tytuł prosto do bazy — objawem jest odmowa
     # kolumny varchar(180), a nie asercja testu.
     'Autozapis kreatora zapisuje bez walidacji pól': Wyjatek(r'value too long for type character varying\(180\).*insert into "recipes"'),

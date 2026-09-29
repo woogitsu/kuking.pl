@@ -194,7 +194,10 @@ def werdykt_bez_wzorca(wynik):
     if wyjatki:
         p = wyjatki[0]
         return Werdykt(ZLA_PRZYCZYNA, f"wyjątek zamiast asercji w {p.metoda}: {p.typ}: {_skrot(p.tresc)}")
-    return Werdykt(BEZ_WZORCA, f"{len(porazki)} asercji oblało, ale kontrola nie ma wzorca oczekiwanej przyczyny — dowód niepełny")
+    # Komunikaty porażek w werdykcie: to materiał do napisania wzorca (`--tylko`).
+    komunikaty = list(dict.fromkeys(_skrot(p.tresc, 400) for p in porazki))
+    pokazane = "; ".join(f"[{k}]" for k in komunikaty[:4]) + (f"; …(+{len(komunikaty) - 4})" if len(komunikaty) > 4 else "")
+    return Werdykt(BEZ_WZORCA, f"{len(porazki)} asercji oblało, ale kontrola nie ma wzorca oczekiwanej przyczyny — dowód niepełny. Komunikaty: {pokazane}")
 
 
 def sprawdz_zielony(test, etap, runner):
@@ -212,11 +215,13 @@ def sprawdz_zielony(test, etap, runner):
     print(f"ZIELONY {etap}: {test} — {liczba} testów", flush=True)
 
 
-def sprawdz_wzorce(checks, oczekuj):
+def sprawdz_wzorce(checks, oczekuj, wymagaj=False):
     """Odmawia, ZANIM cokolwiek zmutuje: wzorzec musi być poprawny i przypisany do istniejącej kontroli.
 
     Zwraca listę nazw kontroli bez wzorca (dowód niepełny — raport nie może
-    ich nazwać potwierdzonymi).
+    ich nazwać potwierdzonymi). `wymagaj=True` (WYMAGAJ_WZORCA w skrypcie kontroli)
+    zamienia tę listę w odmowę: nowy wpis `checks` bez wzorca pada w preflighcie,
+    w sekundę, z nazwą wpisu — nie po kilkunastu minutach przebiegu.
     """
     nazwy = [nazwa for nazwa, _plik, _test, _mutacja in checks]
     for nazwa in nazwy:
@@ -231,7 +236,13 @@ def sprawdz_wzorce(checks, oczekuj):
             re.compile(wzorzec)
         except re.error as blad:
             raise RuntimeError(f"Zły wzorzec oczekiwanej przyczyny dla „{nazwa}”: {blad}") from blad
-    return [nazwa for nazwa in nazwy if nazwa not in oczekuj]
+    brakujace = [nazwa for nazwa in nazwy if nazwa not in oczekuj]
+    if brakujace and wymagaj:
+        raise RuntimeError("Kontrole bez wzorca oczekiwanej przyczyny (#1011) — dopisz wpis w "
+                           "scripts/kontrole_oczekiwana_przyczyna.py (uruchom wpis: "
+                           "`kontrole-negatywne-alfa08.py --tylko \"<etykieta>\"`, komunikat porażki jest w werdykcie): "
+                           + "; ".join(brakujace))
+    return brakujace
 
 
 def jedna_kontrola(nazwa, plik, test, mutacja, oczekuj, oczekiwany, runner, root, backup):
