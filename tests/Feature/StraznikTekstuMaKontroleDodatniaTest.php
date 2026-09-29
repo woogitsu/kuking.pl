@@ -238,7 +238,7 @@ class StraznikTekstuMaKontroleDodatniaTest extends TestCase
 
         preg_match_all('/function\s+(test_\w+)\s*\(/', $tresc, $metody);
 
-        foreach ($metody[1] ?? [] as $metoda) {
+        foreach ($metody[1] as $metoda) {
             if ($this->nazwaStoiJakoTest($metoda, $mechanizm)) {
                 return true;
             }

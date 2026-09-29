@@ -148,7 +148,8 @@ class DziennikWymazanPozaBazaTest extends TestCase
         $this->assertSame(User::STATUS_ERASED, $konto->fresh()->status);
 
         Storage::fake('dziennik_test');
-        $this->assertSame([], app(DziennikWymazan::class)->wpisyOd());
+        $przed = app(DziennikWymazan::class)->wpisyOd();
+        $this->assertSame([], $przed);
 
         $this->artisan('kuking:dziennik-wymazan')->assertSuccessful();
 

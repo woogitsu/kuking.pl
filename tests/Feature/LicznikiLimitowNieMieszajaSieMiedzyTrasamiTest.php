@@ -134,7 +134,7 @@ class LicznikiLimitowNieMieszajaSieMiedzyTrasamiTest extends TestCase
 
                 $czesci = explode(',', substr($warstwa, strlen('throttle:')));
                 $prefiks = $czesci[2] ?? '(bez prefiksu)';
-                $limit = ($czesci[0] ?? '?').','.($czesci[1] ?? '?');
+                $limit = $czesci[0].','.($czesci[1] ?? '?');
 
                 $wgKlucza[$prefiks][$limit][] = $trasa->methods()[0].' /'.$trasa->uri();
             }

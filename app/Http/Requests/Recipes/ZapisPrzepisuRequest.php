@@ -86,6 +86,7 @@ final class ZapisPrzepisuRequest extends FormRequest
         }
 
         $pliki = ['hero' => 'hero_photo', 'scan' => 'source_scan'];
+        /** @var mixed $kroki `file()` zwraca tu zagnieżdżone tablice (`steps.N.photo`), nie same pliki. */
         $kroki = $this->file('steps', []);
         if (is_array($kroki)) {
             foreach ($kroki as $index => $row) {

@@ -135,7 +135,7 @@ final class SavePostToCollection
     /**
      * Droga powrotu — bliźniak `SaveRecipeToCollection::restore()`.
      *
-     * @param  list<array{collection_id: string, note: ?string, created_at: ?string, added_by_id?: ?string}>  $zdjete
+     * @param  list<array{collection_id?: string, note: ?string, created_at: ?string, added_by_id?: ?string}>  $zdjete
      */
     public function restore(User $user, Post $post, array $zdjete): int
     {

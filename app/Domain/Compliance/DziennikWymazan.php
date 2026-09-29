@@ -119,7 +119,7 @@ final class DziennikWymazan
                 $ostatni = $e;
 
                 if ($proba < self::PROBY) {
-                    Sleep::for(self::ODSTEPY_SEKUND[$proba - 1] ?? 3)->seconds();
+                    Sleep::for(self::ODSTEPY_SEKUND[$proba - 1])->seconds();
                 }
             }
         }

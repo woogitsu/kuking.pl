@@ -367,13 +367,13 @@ abstract class EksportWygladStylPaczki extends TestCase
             );
         }
 
-        $tag = $dopasowanie[1] ?? '';
+        $tag = $dopasowanie[1];
 
         if ($tag !== '' && $tag !== '*' && strtolower($tag) !== strtolower($element->tagName)) {
             return false;
         }
 
-        if (($dopasowanie[2] ?? '') === '') {
+        if ($dopasowanie[2] === '') {
             return true;
         }
 

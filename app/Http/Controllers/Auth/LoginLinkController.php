@@ -429,6 +429,9 @@ class LoginLinkController extends Controller
                 return $swiezy;
             });
         } catch (Throwable $awaria) {
+            // Flaga jest ustawiana przez referencję w domknięciu wyżej — PHPStan
+            // tego nie śledzi i uznaje ją za wiecznie `false`.
+            /** @var bool $audytZawiodl */
             if (! $audytZawiodl) {
                 throw $awaria;
             }

@@ -60,11 +60,18 @@
 #  `default`, teraz z jawnym `LogicException`) i `catch.neverThrown` (10 —
 #  `Artisan::call()` bez `@throws`, teraz `Tests\Support\PolecenieArtisanaZOdmowa`).
 #
+#  Poziom 4 — etap 2 (issue #1731, 29.09.2026): dopisane do ratchetu
+#  `nullCoalesce.offset` (24), `nullCoalesce.expr` (3), `nullCoalesce.property`
+#  (3), `deadCode.unreachable` (2) i `booleanNot.alwaysTrue` (1). `??` na kluczu,
+#  który zawsze istnieje, zniknęło; tam, gdzie PHPStan się mylił (referencja
+#  w domknięciu, `Event::$timezone` bywa null wbrew phpdoc Laravela, dwa
+#  `exists()` przed i po `delete()`), kod dostał jawny opis zamiast wyciszenia.
+#
 #  GDZIE STOI NASTĘPNY PRÓG (zmierzone 29.09.2026, nie zgadnięte):
-#      poziom 4 → 342 błędów (po etapie 1: 288), z czego największe
-#      rodziny: nullsafe.neverNull 133, method.alreadyNarrowedType 31,
-#      nullCoalesce.offset 24, function.alreadyNarrowedType 19,
-#      method.impossibleType 18
+#      poziom 4 → 342 błędów (po etapie 1: 288, po etapie 2: 257), z czego
+#      największe rodziny: nullsafe.neverNull 137 (głównie testy: `?->` na
+#      DOM XPath i `PDOStatement|false`), method.alreadyNarrowedType 31,
+#      function.alreadyNarrowedType 19, method.impossibleType 13
 #
 #  IGNOROWANY BŁĄD PONIŻEJ POZIOMU (nie „baseline"):
 #  `larastan.noEnvCallsOutsideOfConfig` w `tests/*` — Larastan ostrzega przed
