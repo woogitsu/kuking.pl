@@ -76,9 +76,10 @@ class PaczkaNieObiecujeCudzychPrzepisowTest extends TestCase
         $pozycje = $dane['kolekcje'][0]['przepisy'];
         $this->assertCount(1, $pozycje, 'Zapisany cudzy przepis nie wszedł do paczki.');
 
-        // Tyle i tylko tyle: tytuł, autor, moja notatka, data zapisania.
+        // Tyle i tylko tyle: tytuł, autor, moja notatka, data zapisania i podpis,
+        // kto pozycję dodał do zeszytu (wspólny zeszyt, #1743).
         $this->assertSame(
-            ['tytul', 'autor', 'moja_notatka', 'zapisano'],
+            ['tytul', 'autor', 'moja_notatka', 'zapisano', 'dodane_przez'],
             array_keys($pozycje[0]),
             'Zmienił się zakres zapisanego cudzego przepisu — zdanie w „czego_nie_zawiera" przestało opisywać rzeczywistość.',
         );

@@ -457,7 +457,7 @@ DEMO_SEEDER = "database/seeders/DemoSeeder.php"
 DEMO_SEEDER_HASLO_TEST = "DemoSeederNieWypisujeHaslaTest"
 # #1295: mutacja przywraca dawne wypisanie hasła bez rozróżnienia źródła.
 WARUNEK_HASLA_Z_OTOCZENIA = "        if ($this->hasloZOtoczenia() !== '') {"
-AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('update', $collection);\n"
+AUTORYZACJA_ZESZYTU = "        Gate::forUser($user)->authorize('addItem', $collection);\n"
 # Jeden kontrakt danych karty wpisu (#1037). Test jest behawioralny: renderuje
 # siedem list i liczy zapytania. Mutacje zdejmują ze wspólnej listy zdjęcie
 # przepisu i tematy — każda ma zapalić test na wszystkich zależnych
@@ -699,6 +699,15 @@ DZIENNIK_WDROZEN_TEST = "test_cofniecie_odmawia_gdy_dziennik_ma_wiersze"
 RUNBOOK = "docs/infra/DEPLOYMENT_RUNBOOK.md"
 KOMENDY_IAC_TEST = "KomendyIacWDokumentachPodajaBramkeCiTest"
 RUNBOOK_APPLY_Z_BRAMKA = "\nKUKING_WAIT_FOR_CI=true railway config apply\n"
+# Higiena dziennika decyzji (#2154): roboczy numer i martwe odwołanie D-NNN.
+# Strażnik czyta treść repozytorium, więc kontrola dopisuje wadę do PRAWDZIWEGO
+# pliku (AGENTS.md, dziennik) i ma zapalić. Numery składamy z kawałków: dosłowny
+# zapis w scripts/ byłby dla testów numeracji cytatem z dziennika.
+DZIENNIK_ODWOLANIA_TEST = "DziennikDecyzjiOdwolaniaTest"
+DZIENNIK_ODWOLANIA_PLIK_TESTU = "tests/Feature/DziennikDecyzjiOdwolaniaTest.php"
+DZIENNIK_MARTWE_ODWOLANIE = "\nZob. D-" + "999 (martwe odwołanie).\n"
+DZIENNIK_ROBOCZY_NUMER = "\nZob. D-" + "1000-ROBOCZA.\n"
+DZIENNIK_ROBOCZY_NAGLOWEK = "\n## D-" + "1000-ROBOCZA — Szkic\n\nTreść.\n"
 
 # Pochodzenie żądania i zaufanie do proxy (#1306). Test bramki jest
 # behawioralny; mutacja wyłącza odrzucenie w trybie egzekwowania — żądanie
@@ -1091,7 +1100,7 @@ checks = [
     ("Kolejka zgłoszeń wraca do links()", "resources/views/pages/admin/reports.blade.php", "PaginacjaPaneluModeracjiTest",
      lambda s: replace_once(s, '<x-paginacja-panelu :paginator="$reports" />', "{{ $reports->links() }}")),
     ("Własność zeszytu", CONTROLLER, COLLECTION_TEST,
-     lambda s: replace_once(s, "Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey())", "Rule::exists('collections', 'id')")),
+     lambda s: replace_once(s, "Rule::exists('collections', 'id')->where(fn ($q) => $q->whereIn('id', Collection::query()->dostepneDoZapisuDla($request->user())->select('collections.id')))", "Rule::exists('collections', 'id')")),
     ("Komunikat po powrocie", LAYOUT, COLLECTION_TEST, remove_notice),
     ("Podpis co najmniej 18 px", CSS, COMPOSER_TEST, smaller_help),
     # Obwódka list w panelu „Aa · Wygląd” (audyt B1, zn. 3): powrót do
@@ -1564,6 +1573,20 @@ checks = [
     # własną ciszę nocną — test wycofania ma oblać.
     ("Wycofanie Web Push bez odmowy przy wybranej ciszy nocnej", MIGRACJA_PUSH, MIGRACJA_PUSH_TEST,
      lambda s: replace_once(s, "        if (Schema::hasTable('ustawienia_powiadomien_zewnetrznych')\n", "        if (false && Schema::hasTable('ustawienia_powiadomien_zewnetrznych')\n")),
+    # #2154: dziennik decyzji nie może znowu przyjąć numeru roboczego ani
+    # odwołania do decyzji bez nagłówka (martwa „reguła" o numerze 235). Trzy wady dopisane do
+    # prawdziwych plików i dwa wzorce strażnika wyłączone w jego własnym kodzie —
+    # każde ma dać czerwony test, bo tylko wtedy wiadomo, że strażnik widzi.
+    ("Martwe odwołanie D-NNN w AGENTS.md", "AGENTS.md", DZIENNIK_ODWOLANIA_TEST,
+     lambda s: s + DZIENNIK_MARTWE_ODWOLANIE),
+    ("Roboczy identyfikator w AGENTS.md", "AGENTS.md", DZIENNIK_ODWOLANIA_TEST,
+     lambda s: s + DZIENNIK_ROBOCZY_NUMER),
+    ("Roboczy nagłówek w dzienniku decyzji", "docs/DECISIONS.md", DZIENNIK_ODWOLANIA_TEST,
+     lambda s: s + DZIENNIK_ROBOCZY_NAGLOWEK),
+    ("Strażnik dziennika ślepy na dopisek ROBOCZA", DZIENNIK_ODWOLANIA_PLIK_TESTU, DZIENNIK_ODWOLANIA_TEST,
+     lambda s: replace_once(s, r"'/\bD-\d+-(?:ROBOCZ\w*|TYMCZAS\w*|TMP|DRAFT|WIP|TODO)\b/iu'", "'/(*FAIL)/'")),
+    ("Strażnik dziennika ślepy na identyfikator czterocyfrowy", DZIENNIK_ODWOLANIA_PLIK_TESTU, DZIENNIK_ODWOLANIA_TEST,
+     lambda s: replace_once(s, r"'/\bD-\d{4,}\b/'", "'/(*FAIL)/'")),
     ("Runbook: railway config apply bez KUKING_WAIT_FOR_CI", RUNBOOK, KOMENDY_IAC_TEST,
      lambda s: replace_once(s, RUNBOOK_APPLY_Z_BRAMKA, "\nrailway config apply\n")),
     # #1957: job, który uruchamia kod repozytorium, traci

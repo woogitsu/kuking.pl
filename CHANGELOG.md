@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Rodzinny zeszyt: zeszyt (poza domyślnym) można udostępnić bliskim — po nazwie konta albo jednorazowym linkiem. Zaproszone osoby dopisują i wyjmują przepisy i wpisy, a przy każdej pozycji widać, kto ją dodał. Zeszyt nadal ma jednego właściciela; najwyżej 5 osób z dostępem; blokada albo usunięcie konta kończy wspólne zapisywanie (#1743, D-302). [nowa funkcja]
+
 ## Alfa 0.76 — planer z wyszukiwarką, „Co mam w domu” i zeszyt bez konta
 
 - Moderacja: automat nie gubi już własnych sygnałów, gdy zewnętrzny model odpowiada wolno. Sygnały wykryte na miejscu trafiają do kolejki od razu, wynik modelu dopisuje się do tego samego oznaczenia, a cała ocena mieści się w czasie zadania — gdy zabraknie czasu na część zdjęć, moderator widzi przy oznaczeniu, że ocena była niepełna. Zdjęcie, które było jeszcze przygotowywane w chwili publikacji wpisu, jest oceniane, gdy tylko będzie gotowe (o ile wpis nadal jest publiczny) (#829, #830).
@@ -414,7 +416,7 @@
 - W trybie gotowania wybór „Nie usypiaj ekranu podczas gotowania” zostaje przy przejściu do kolejnego kroku i po oznaczeniu kroku jako zrobiony — w tej samej karcie i dla tego samego przepisu. Jeśli przeglądarka odmówi, przełącznik pokazuje, że ekran może zgasnąć. „Zakończ gotowanie” i ręczne odznaczenie kończą ten wybór (#1302).
 - Zdjęcie bieżącego kroku w trybie gotowania wczytuje się od razu, bez czekania, aż przeglądarka ułoży stronę (#1368).
 - Zdjęcia kroków mają opis dla czytnika ekranu na stronie przepisu, w trybie gotowania i w kopii przepisu w paczce z danymi: własny opis zdjęcia, a gdy go nie ma — „Zdjęcie do kroku N” zamiast pustego opisu albo samego numeru kroku (#1304).
-- Powiadomienie o komentarzu pod Waszym „Ugotowałem” nie znika już z listy ani z licznika, gdy przepis, z którego gotowaliście, zostanie ukryty przez moderację albo usunięty. Zdjęcie, notatka i komentarze pod nimi były wtedy dalej dostępne — teraz prowadzi do nich także powiadomienie. Powiadomienie zostaje także po blokadzie z autorem przepisu, tak jak samo „Ugotowałem” (D-265). Inne osoby w rozmowie go nie widzą (#1385).
+- Powiadomienie o komentarzu pod Waszym „Ugotowałem” nie znika już z listy ani z licznika, gdy przepis, z którego gotowaliście, zostanie ukryty przez moderację albo usunięty. Zdjęcie, notatka i komentarze pod nimi były wtedy dalej dostępne — teraz prowadzi do nich także powiadomienie. Powiadomienie zostaje także po blokadzie z autorem przepisu, tak jak samo „Ugotowałem” (D-259). Inne osoby w rozmowie go nie widzą (#1385).
 - Gdy dwie osoby w tej samej chwili potwierdzają zmianę na ten sam nowy adres e-mail, druga dostaje zwykły komunikat, że na ten adres jest już konto, zamiast strony błędu. Jej konto, adres i zalogowane urządzenia zostają bez zmian.
 - „Usuń ze wszystkich moich zeszytów” działa w całości albo wcale. Jeśli coś przerwie wyjmowanie w połowie, przepis albo wpis zostaje we wszystkich zeszytach razem z Waszymi notatkami — wystarczy spróbować jeszcze raz. Komunikat podaje liczbę zeszytów, z których naprawdę wyjęliśmy zapis (#1384).
 - Złożone odwołanie od decyzji moderacji zawsze trafia do administratorów. Jeśli zapis zawiadomienia albo zlecenia listu z potwierdzeniem się nie uda, odwołanie nie zostaje złożone w połowie i można je wysłać jeszcze raz — bez komunikatu „już do nas trafiło”. List z potwierdzeniem dla osoby zgłaszającej jest zapisywany razem z odwołaniem, więc chwilowa awaria poczty nie wymaga składania odwołania od nowa (#1305).

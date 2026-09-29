@@ -24,7 +24,7 @@ class PustyStanPowiadomienTest extends TestCase
             ->get(route('notifications.index'))
             ->assertOk()
             ->assertSee('Nie ma jeszcze żadnych powiadomień')
-            ->assertSee('Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących, urodzinach obserwowanych osób oraz ważnych sprawach Twojego konta.')
+            ->assertSee('Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących, urodzinach obserwowanych osób, zaproszeniach do wspólnego zeszytu oraz ważnych sprawach Twojego konta.')
             ->assertDontSee('Tu pojawi się informacja, kiedy ktoś ugotuje z Twojego przepisu albo napisze komentarz.');
     }
 
@@ -45,7 +45,7 @@ class PustyStanPowiadomienTest extends TestCase
             ->assertOk()
             ->assertSee('Basia')
             ->assertDontSee('Nie ma jeszcze żadnych powiadomień')
-            ->assertDontSee('Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących, urodzinach obserwowanych osób oraz ważnych sprawach Twojego konta.');
+            ->assertDontSee('Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących, urodzinach obserwowanych osób, zaproszeniach do wspólnego zeszytu oraz ważnych sprawach Twojego konta.');
     }
 
     /**
@@ -65,6 +65,7 @@ class PustyStanPowiadomienTest extends TestCase
         $przepisyIWpisy = 'Twoich przepisach i wpisach';
         $obserwujacy = 'nowych obserwujących';
         $urodziny = 'urodzinach obserwowanych osób';
+        $zeszyt = 'zaproszeniach do wspólnego zeszytu';
         $konto = 'ważnych sprawach Twojego konta';
 
         $wymienione = [
@@ -76,6 +77,9 @@ class PustyStanPowiadomienTest extends TestCase
             'TYPE_SMAKOWICIE' => $przepisyIWpisy,
             'TYPE_FOLLOW' => $obserwujacy,
             'TYPE_BIRTHDAY' => $urodziny,
+            // Wspólny zeszyt (#1743, D-302): zaproszenie i jego przyjęcie.
+            'TYPE_COLLECTION_INVITED' => $zeszyt,
+            'TYPE_COLLECTION_JOINED' => $zeszyt,
             'TYPE_WELCOME' => $konto,
             'TYPE_MODERATION' => $konto,
             'TYPE_REPORT_RECEIVED' => $konto,

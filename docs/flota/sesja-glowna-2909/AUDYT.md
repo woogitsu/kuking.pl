@@ -258,7 +258,7 @@ Wpisy „Smakowicie wygląda” i „Ukryj ten wpis” z #1849 i #1879 **są ju�
 | 6 | **#617** P1 | Odzyskać z `gpt-dr-zdjecia` procedurę DR zdjęć i skrypt próby na bazie INT (kroki w panelu R2 zostają u właściciela). | #120, #1895 |
 | 7 | #1944 P2 | Regresja #947: przycisk „Zapisz” znika przy klawiaturze na telefonie. | formularze z #1621 |
 | 8 | #2028 P2 | Gość zapisuje przepis do zeszytu po rejestracji (zachować intencję). | `codex/2058-zamiar-ugotowania` (ten sam mechanizm intencji), #2027 na INT |
-| 9 | #2154 (proponuję P2) | Strażnik dziennika decyzji: odrzucać roboczy D-1009 i martwe odsyłacze (D-235). | #1744 (podział decyzji) |
+| 9 | #2154 (proponuję P2) | Strażnik dziennika decyzji: odrzucać roboczy numer decyzji (przykład: dawny roboczy numer, dziś D-329) i martwe odsyłacze (D-235). | #1744 (podział decyzji) |
 | 10 | #2149 P2 | Rozcinać etapami cykl sześciu modułów domenowych. | test grafu modułów (czerwony w #1885) |
 | 11 | #1011 P2 | Kontrola ujemna czerwona tylko z oczekiwanej przyczyny, po nowym podziale skryptu kontroli. | #1478, #1511, #1826 |
 | 12 | #1387 P2 | Wydzielić `PrzepisForm` z kreatora od INT (`claude/1387-kreator-krok3` jako wzór). | kreator (#1621, #2050) |
@@ -302,7 +302,7 @@ Poza kolejką (meta, pomiar albo etapy w toku): #492, #602, #611 (styk #1674), #
 **Numery decyzji**
 - **D-070:** `claude/priorytet-w-kolejce-moderacji` i `flota/1139-*` mają inną decyzję niż D-070 na INT (skasować gałęzie).
 - **D-283:** w kopia-1849 i kopia-1879. **D-302:** w `claude/1743` i `kopia-2077`. **D-285:** w `v2-pantry` i `claude/1958`. **D-268:** w 1751/1752/1753 (jedna rodzina, tylko pilnować jednej wersji).
-- **D-305, D-306, D-327:** tylko w kopia-1879. Na INT ich nie ma, choć maksimum na INT to D-328; przed scaleniem sprawdzić, czy nikt ich nie zajął. D-228/D-243 (#966) są wolne. Na INT jest roboczy **D-1009** (#2154).
+- **D-305, D-306, D-327:** tylko w kopia-1879. Na INT ich nie ma, choć maksimum na INT to D-328; przed scaleniem sprawdzić, czy nikt ich nie zajął. D-228/D-243 (#966) są wolne. Na INT był roboczy numer (dziś **D-329**, przenumerowany; #2154).
 - `docs/DECISIONS.md:15697` i `:17506` odsyłają do plików, których nie ma (§1C).
 
 **Migracje**

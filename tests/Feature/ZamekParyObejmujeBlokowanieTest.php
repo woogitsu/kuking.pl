@@ -61,7 +61,13 @@ class ZamekParyObejmujeBlokowanieTest extends TestCase
         DB::listen(function (QueryExecuted $zapytanie) use (&$blokady, &$ostatniaBlokada, &$zapisDoBlocks, &$licznik): void {
             $licznik++;
 
-            if (str_contains($zapytanie->sql, 'for update')) {
+            // Tylko blokady wierszy `users`. Blokada tworzy też wspólny zeszyt
+            // (#1743, D-302): `ZerwijWspoldzielenie` bierze pod tym samym zamkiem
+            // wiersze `collection_invitations` (`for update`) i `collection_members`.
+            // To są kolejne blokady, ale nie te, o których kolejności mówi ten
+            // plik — bez tego filtra ich powiązania (`pending`, identyfikatory
+            // w innej kolejności) wpadały do śladu kont i test mierzył coś innego.
+            if (str_contains($zapytanie->sql, 'for update') && str_contains($zapytanie->sql, 'from "users"')) {
                 foreach ($zapytanie->bindings as $wiazanie) {
                     $blokady[] = (string) $wiazanie;
                 }
