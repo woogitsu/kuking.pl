@@ -27,7 +27,7 @@ class ZmianaPolitykiTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const MIGRACJA = 'database/migrations/2026_09_29_160000_add_policy_notice_dismissed_version_to_users.php';
+    private const MIGRACJA = 'database/migrations/2026_09_29_170000_add_policy_notice_dismissed_version_to_users.php';
 
     public function test_biezaca_zmiana_polityki_jest_istotna_i_obowiazuje_po_czternastu_dniach(): void
     {

@@ -591,7 +591,7 @@ REGULAMIN_WERSJA_TEST = "ZmianaRegulaminuTest"
 
 # Pasek o zmianie polityki (D-327, D-332): rollback bez odmowy i sekcja
 # „Co się zmieniło” bez terminu wejścia w życie; ukrycie wyboru formy do tego dnia.
-POLITYKA_PASEK_MIGRACJA = "database/migrations/2026_09_29_160000_add_policy_notice_dismissed_version_to_users.php"
+POLITYKA_PASEK_MIGRACJA = "database/migrations/2026_09_29_170000_add_policy_notice_dismissed_version_to_users.php"
 POLITYKA_PASEK_TEST = "ZmianaPolitykiTest"
 POLITYKA_TEKST = "resources/legal/polityka-prywatnosci.md"
 
