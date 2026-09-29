@@ -941,6 +941,20 @@ w `failed_jobs`, a `receipt_sent_at` **będzie już ustawione** — czyli baza
 powie „wysłaliśmy", gdy list nie poszedł. To jest jedno zapytanie w panelu
 i jedna poprawka kolejności zapisu.
 
+*Stan po #2218.* Znacznik `receipt_sent_at` znaczy „potwierdziliśmy odbiór",
+nie „zleciliśmy list". Semantyka: (1) `NULL` i adresat istnieje (konto albo
+e-mail zgłoszenia prawnego) — zaległość, dosyła ją
+`kuking:dosylaj-potwierdzenia-zgloszen`, także dla zgłoszeń bez konta;
+(2) ustawiony — list zlecony do kolejki, a dostawca jeszcze nie odmówił;
+(3) ostateczna porażka listu w workerze (`failed()` w
+`PotwierdzenieZgloszeniaNielegalnejTresci`) zdejmuje znacznik z powrotem do
+`NULL`, a wpis w `failed_jobs` zostaje jako ślad — sprawa wraca do (1).
+Nadal NIE mierzymy doręczenia ani odbić (bounce): dostawca nie zwraca ich do
+serwisu, więc rozróżnienie „przekazano do dostawcy" od „dostarczono" zostaje
+decyzją o osobnym outboxie i webhookach dostawcy. Ręczne `queue:retry`
+nieudanego wpisu obok dosyłki może dać drugi list — dosyłka jest drogą
+podstawową.
+
 **B-10. Brak jakiegokolwiek raportu przejrzystości i brak licznika
 odbiorców z art. 24 ust. 3.** Nie ma polecenia, zadania ani widoku;
 `WeeklyActiveCooks` mierzy co innego (§4). Priorytet zależy w całości od

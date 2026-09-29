@@ -10,6 +10,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Throwable;
 
 /**
  * Potwierdzenie odbioru zgłoszenia nielegalnej treści (DSA art. 16 ust. 4).
@@ -21,12 +22,38 @@ use Illuminate\Notifications\Notification;
  *
  * Kolejkowane, jak reszta listów transakcyjnych: awaria serwera poczty nie
  * może przewrócić żądania po zapisaniu zgłoszenia (audyt W3-13).
+ *
+ * ZNACZNIK `receipt_sent_at` MÓWI „POTWIERDZILIŚMY", NIE „ZLECILIŚMY" (#2218).
+ * `ZglosNielegalnaTresc::potwierdzOdbior()` ustawia go razem ze zleceniem
+ * listu, więc przy kolejce bazodanowej stoi on już przy WPISIE do kolejki.
+ * Gdy dostawca poczty padnie później, w workerze, samo zlecenie jest za nami,
+ * a list nie wyszedł — i baza kłamałaby „wysłano". Dlatego wyczerpanie prób
+ * (`failed()`) zdejmuje znacznik: sprawa wraca do zaległych, a dosyłka
+ * (`kuking:dosylaj-potwierdzenia-zgloszen`) obejmuje także zgłoszenia bez
+ * konta, jeśli podano adres. Sam wpis w `failed_jobs` zostaje jako ślad.
  */
 final class PotwierdzenieZgloszeniaNielegalnejTresci extends Notification implements ShouldQueue
 {
     use Queueable;
 
     public function __construct(private readonly Report $zgloszenie) {}
+
+    /**
+     * Ostateczna porażka listu (próby wyczerpane) — patrz nagłówek klasy.
+     * Zdejmuje znacznik tylko z tej sprawy i nigdy nie rzuca: wyjątek tutaj
+     * przykryłby prawdziwą przyczynę porażki w `failed_jobs`.
+     */
+    public function failed(Throwable $awaria): void
+    {
+        try {
+            Report::query()
+                ->whereKey($this->zgloszenie->getKey())
+                ->whereNotNull('receipt_sent_at')
+                ->update(['receipt_sent_at' => null]);
+        } catch (Throwable $blad) {
+            report($blad);
+        }
+    }
 
     /** @return list<string> */
     public function via(object $notifiable): array
