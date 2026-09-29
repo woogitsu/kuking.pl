@@ -674,7 +674,11 @@ class CollectionController extends Controller
      */
     public function update(ZapisZeszytuRequest $request, Collection $collection): RedirectResponse
     {
-        // Policy `update` sprawdza `ZapisZeszytuRequest::authorize()` — przed walidacją.
+        // Policy `update` sprawdza `ZapisZeszytuRequest::authorize()` — przed
+        // walidacją; jawne `authorize()` jest idempotentne i zostaje, żeby
+        // bramkę widać było w kontrolerze (`AutoryzacjaTrasZWiazaniemModeluTest`).
+        $this->authorize('update', $collection);
+
         $bylaPubliczna = $collection->isPublic();
 
         $data = $request->validated();

@@ -24,9 +24,13 @@ final class KomentarzRequest extends FormRequest
     {
         $post = $this->route('post');
 
-        if ($post instanceof Post) {
-            Gate::inspect('comment', $post)->authorize();
+        // Trasa `posts.comment` zawsze wiąże `Post`; inny typ to nie ten
+        // adres, więc 404, a nie ciche przepuszczenie (fail-open).
+        if (! $post instanceof Post) {
+            abort(404);
         }
+
+        Gate::inspect('comment', $post)->authorize();
 
         return true;
     }

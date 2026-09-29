@@ -188,8 +188,17 @@ final class KomentarzSprawdzaSwiezyStanTest extends TestCase
                 }
             });
         } else {
-            Gate::after(function ($user, $ability, $result) use (&$armed, $writer, $owner): void {
+            // `posts.comment` pyta Policy dwa razy z rzędu (`KomentarzRequest`
+            // i jawne `authorize()` w kontrolerze, oba przed `PublishComment`),
+            // więc barierę wyścigu stawiamy dopiero po drugim zezwoleniu.
+            $pominiete = $route === 'posts.comment' ? 1 : 0;
+            Gate::after(function ($user, $ability, $result) use (&$armed, &$pominiete, $writer, $owner): void {
                 if ($armed && $result === true && in_array($ability, ['comment', 'view', 'celebrate'], true)) {
+                    if ($ability === 'comment' && $pominiete > 0) {
+                        $pominiete--;
+
+                        return;
+                    }
                     $armed = false;
                     app(BlockUser::class)->handle($owner, $writer);
                 }

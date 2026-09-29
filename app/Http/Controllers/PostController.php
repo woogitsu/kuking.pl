@@ -754,7 +754,12 @@ class PostController extends Controller
 
     public function comment(KomentarzRequest $request, Post $post): RedirectResponse
     {
-        // Policy i walidacja: `KomentarzRequest` (w tej kolejności).
+        // Policy i walidacja: `KomentarzRequest` (w tej kolejności — 403 przed
+        // błędami pól). Jawne `authorize()` zostaje tu celowo: jest
+        // idempotentne, a bramkę na trasie z wiązaniem modelu widać w kontrolerze
+        // (`AutoryzacjaTrasZWiazaniemModeluTest`).
+        $this->authorize('comment', $post);
+
         $data = $request->validated();
 
         // `?? null`, bo `validate()` NIE zwraca klucza, którego w żądaniu nie
