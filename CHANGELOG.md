@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione: usunięcie konta po 30 dniach czeka teraz na trwały zapis w dzienniku wymazań poza bazą. Gdy magazyn dziennika chwilowo nie odpowiada, konto nie jest wymazywane bez śladu — zostaje do ponowienia przy następnym przebiegu, więc odtworzenie kopii bazy nie przywróci wymazanego konta bez możliwości ponownego wymazania (#2038).
 - Rodzinny zeszyt: zeszyt (poza domyślnym) można udostępnić bliskim — po nazwie konta albo jednorazowym linkiem. Zaproszone osoby dopisują i wyjmują przepisy i wpisy, a przy każdej pozycji widać, kto ją dodał. Zeszyt nadal ma jednego właściciela; najwyżej 5 osób z dostępem; blokada albo usunięcie konta kończy wspólne zapisywanie (#1743, D-302). [nowa funkcja]
 
 ## Alfa 0.76 — planer z wyszukiwarką, „Co mam w domu” i zeszyt bez konta

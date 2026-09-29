@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -142,9 +143,9 @@ final class EraseAccountData
 
         /** @var list<Media> $doSkasowania */
         $doSkasowania = [];
-        $zakresDoDziennika = null;
+        $wpisDopisany = false;
 
-        $wymazano = DB::transaction(function () use ($user, $wymagajWygaslegoWniosku, $oczekiwanaGeneracja, &$doSkasowania, &$zakresDoDziennika): bool {
+        $anonimizuj = function () use ($user, $wymagajWygaslegoWniosku, $oczekiwanaGeneracja, &$doSkasowania, &$wpisDopisany): bool {
             // Świeży odczyt pod blokadą, nie ufamy stanowi z argumentu —
             // między zapytaniem, które wybrało konta do egzekucji, a tym
             // wywołaniem ktoś mógł cofnąć usunięcie albo inny proces mógł
@@ -570,7 +571,28 @@ final class EraseAccountData
             // z 21.09.2026, razem z jej ceną, opisana w
             // `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §3.3 punkt 7.
             $this->rejestr->domknijJakoWykonane($fresh, $zakresWykonany);
-            $zakresDoDziennika = $zakresWykonany;
+
+            // DZIENNIK POZA BAZĄ — OSTATNI KROK PRZED COMMITEM (issue #2038,
+            // decyzja właściciela z 28.09.2026, wariant A).
+            //
+            // Odtworzenie bazy z kopii cofa wszystko, co zapisaliśmy wyżej;
+            // wpis w magazynie poza bazą przeżywa je i jest wejściem
+            // `kuking:wymaz-ponownie`. Wcześniej zapis szedł PO commicie, a jego
+            // porażka była tylko logowana — kopia odtworzona w tym oknie
+            // przywracała konto bez śladu. Teraz porażka zapisu (po kilku
+            // próbach) rzuca wyjątek i cofa CAŁĄ anonimizację: konto zostaje
+            // `pending_delete` i egzekutor ponawia je przy następnym przebiegu.
+            // Wymazanie może się przez to opóźnić o czas awarii magazynu —
+            // nie może zostać wykonane bez śladu.
+            $wpis = $this->dziennik->dopiszJesliBrak((string) $fresh->getKey(), $zakresWykonany, now());
+
+            if ($wpis === DziennikWymazan::BLAD) {
+                throw new RuntimeException('Dziennik wymazań poza bazą jest niedostępny — wymazanie cofnięte, egzekutor ponowi je przy następnym przebiegu.');
+            }
+
+            // `ISTNIEJE` (ponowne wymazanie po odtworzeniu kopii) zostaje bez
+            // zmian i nie jest naszym wpisem do wycofania.
+            $wpisDopisany = $wpis === DziennikWymazan::DOPISANO;
 
             // WPIS `account.data_erased` W TEJ SAMEJ TRANSAKCJI (D-249,
             // klasa 1; #1894) — NIE `recordBezWywracania()` po `COMMIT`.
@@ -593,16 +615,19 @@ final class EraseAccountData
             ]);
 
             return true;
-        });
+        };
 
-        // DZIENNIK POZA BAZĄ — PO COMMICIE (audyt B5, znalezisko 3).
-        // Odtworzenie bazy z kopii cofnęłoby wszystko, co zapisaliśmy wyżej;
-        // ten wpis przeżywa odtworzenie i jest wejściem `kuking:wymaz-ponownie`.
-        // Po commicie, bo wpis o wymazaniu, które się wycofało, byłby
-        // nieprawdą. Nieudany zapis nie zatrzymuje wymazania — dopisze go
-        // nocne `kuking:dziennik-wymazan`.
-        if ($wymazano && $zakresDoDziennika !== null) {
-            $this->dziennik->zapisz((string) $user->getKey(), $zakresDoDziennika, now());
+        try {
+            $wymazano = DB::transaction($anonimizuj);
+        } catch (Throwable $e) {
+            // Wpis powstał przed commitem. Gdyby sam commit padł, konto nie
+            // jest wymazane, a wpis twierdziłby inaczej — `wymaz-ponownie`
+            // wymazałoby je przed końcem karencji.
+            if ($wpisDopisany) {
+                $this->dziennik->usun((string) $user->getKey());
+            }
+
+            throw $e;
         }
 
         // KASOWANIE PLIKU POZA TRANSAKCJĄ, I TO NIE JEST DROBIAZG.

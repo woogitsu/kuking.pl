@@ -27,9 +27,12 @@ use Tests\TestCase;
  * więc noc nie ma czego dopisać, a `kuking:wymaz-ponownie` nie ma wejścia.
  * Konto wraca z prawdziwym e-mailem i treściami, bez śladu prośby.
  *
- * Każdy test przechodzi całą sekwencję: awaria zapisu → wymazanie →
- * „odtworzenie kopii sprzed wymazania” → nocne uzupełnienie → wymaż ponownie
- * — i sprawdza WYNIK: konto znów `erased`, nie sam fakt zapisu.
+ * Decyzja właściciela z 28.09.2026 (wariant A): wymazanie czeka na zapis
+ * dziennika. Gdy zapis zawodzi, anonimizacja się cofa i egzekutor ponawia
+ * ją później — okna po prostu nie ma.
+ *
+ * Testy sprawdzają WYNIK sekwencji (awaria zapisu → próba wymazania →
+ * „odtworzenie kopii” → noc → ponowienie), nie sam fakt zapisu.
  */
 class DziennikWymazanPrzezOdtworzenieTest extends TestCase
 {
@@ -63,11 +66,21 @@ class DziennikWymazanPrzezOdtworzenieTest extends TestCase
             return $prawdziwy->put(...$argumenty);
         });
 
+        // Dysk lokalny w testach dopisuje wpis przez `makeDirectory()` + `fopen('xb')`,
+        // R2 przez `put()` — psujemy obie drogi tym samym licznikiem.
+        $dysk->shouldReceive('makeDirectory')->andReturnUsing(function (...$argumenty) use ($prawdziwy, $awarie, &$licznik) {
+            if ($licznik++ < $awarie) {
+                throw new RuntimeException('R2 nie odpowiada');
+            }
+
+            return $prawdziwy->makeDirectory(...$argumenty);
+        });
+
         Storage::set('dziennik_test', $dysk);
     }
 
-    /** Konto wymazane przy (częściowo) niedostępnym dzienniku; zwraca też stan z „kopii”. */
-    private function wymazaneKonto(string $zakres): array
+    /** Konto po kopii „sprzed wymazania”; `$wymaz` wykonuje próbę wymazania. */
+    private function kontoZKopia(string $zakres): array
     {
         $konto = User::factory()->create(['email' => 'basia@example.com']);
         $wpis = Post::factory()->create(['author_id' => $konto->getKey()]);
@@ -80,9 +93,6 @@ class DziennikWymazanPrzezOdtworzenieTest extends TestCase
         ];
 
         $konto->fresh()->markForDeletion($zakres);
-        $this->assertTrue(app(EraseAccountData::class)->handle($konto->fresh()));
-        // Kontrola dodatnia: awaria dziennika nie zatrzymała wymazania.
-        $this->assertSame(User::STATUS_ERASED, $konto->fresh()->status);
 
         return [$konto, $wpis, $kopia];
     }
@@ -98,24 +108,21 @@ class DziennikWymazanPrzezOdtworzenieTest extends TestCase
         DB::table('potwierdzenia_zadan_rodo')->whereNotIn('id', $kopia['potwierdzenia'])->delete();
     }
 
-    public function test_chwilowa_awaria_dziennika_przed_odtworzeniem_nie_gubi_wymazania(): void
+    public function test_chwilowa_awaria_dziennika_jest_powtarzana_i_wymazanie_sie_udaje(): void
     {
         $this->dyskZAwaria(1);
+        [$konto, , $kopia] = $this->kontoZKopia(User::DELETE_SCOPE_EVERYTHING);
 
-        [$konto, $wpis, $kopia] = $this->wymazaneKonto(User::DELETE_SCOPE_EVERYTHING);
+        $this->assertTrue(app(EraseAccountData::class)->handle($konto->fresh()));
+        $this->assertSame(User::STATUS_ERASED, $konto->fresh()->status);
+
+        // Wpis jest w dzienniku, więc odtworzenie kopii niczego nie gubi.
         $this->odtworz($kopia);
-        $this->assertSame('basia@example.com', $konto->fresh()->email);
-
-        $this->artisan('kuking:dziennik-wymazan')->assertSuccessful();
         $this->artisan('kuking:wymaz-ponownie')->assertSuccessful();
-
-        $poWymazaniu = $konto->fresh();
-        $this->assertSame(User::STATUS_ERASED, $poWymazaniu->status);
-        $this->assertNotSame('basia@example.com', $poWymazaniu->email);
-        $this->assertDatabaseMissing('posts', ['id' => $wpis->getKey()]);
+        $this->assertSame(User::STATUS_ERASED, $konto->fresh()->status);
     }
 
-    public function test_trwala_awaria_dziennika_zostawia_w_logu_komplet_do_recznego_dopisania(): void
+    public function test_trwala_awaria_dziennika_odmawia_wymazania_a_odtworzenie_kopii_nic_nie_gubi(): void
     {
         $this->dyskZAwaria(PHP_INT_MAX);
         $zLogu = null;
@@ -124,32 +131,53 @@ class DziennikWymazanPrzezOdtworzenieTest extends TestCase
                 $zLogu = ['poziom' => $zdarzenie->level, ...$zdarzenie->context];
             }
         });
+        [$konto, $wpis, $kopia] = $this->kontoZKopia(User::DELETE_SCOPE_EVERYTHING);
 
-        [$konto, , $kopia] = $this->wymazaneKonto(User::DELETE_SCOPE_MINIMUM);
+        try {
+            app(EraseAccountData::class)->handle($konto->fresh());
+            $this->fail('Wymazanie bez śladu poza bazą nie może się udać (#2038).');
+        } catch (RuntimeException) {
+        }
 
-        // Wszystkie próby padły, więc w dzienniku pusto — to jest reszta okna.
-        Storage::fake('dziennik_test');
-        $this->assertSame([], app(DziennikWymazan::class)->wpisyOd());
-
-        $this->odtworz($kopia);
-        $this->artisan('kuking:dziennik-wymazan')->assertSuccessful();
-        $this->assertSame([], app(DziennikWymazan::class)->wpisyOd(), 'Noc nie ma skąd wziąć wpisu — kontrola, że test odtwarza okno z #2038.');
-
-        // Linia logu (stderr → dziennik Railwaya) jest jedynym śladem poza bazą.
+        // Nic nie zostało wymazane: konto czeka i egzekutor je ponowi.
+        $poPorazce = $konto->fresh();
+        $this->assertSame(User::STATUS_PENDING_DELETE, $poPorazce->status);
+        $this->assertNull($poPorazce->data_erased_at);
+        $this->assertSame('basia@example.com', $poPorazce->email);
+        $this->assertDatabaseHas('posts', ['id' => $wpis->getKey()]);
         $this->assertNotNull($zLogu);
         $this->assertSame('error', $zLogu['poziom']);
         $this->assertSame((string) $konto->getKey(), $zLogu['user_id']);
-        $this->assertSame(User::DELETE_SCOPE_MINIMUM, $zLogu['zakres']);
 
-        $this->artisan('kuking:dziennik-wymazan', [
-            '--dopisz' => $zLogu['user_id'],
-            '--zakres' => $zLogu['zakres'],
-            '--kiedy' => $zLogu['wymazano_at'],
-        ])->assertSuccessful();
+        // Kopia sprzed wymazania i noc: konto i tak nie było wymazane.
+        Storage::fake('dziennik_test');
+        $this->odtworz($kopia);
+        $this->artisan('kuking:dziennik-wymazan')->assertSuccessful();
+        $this->assertSame([], app(DziennikWymazan::class)->wpisyOd());
+
+        // Magazyn wrócił: kolejna próba wymaza konto i zostawi wpis.
+        $konto->fresh()->markForDeletion(User::DELETE_SCOPE_EVERYTHING);
+        $this->assertTrue(app(EraseAccountData::class)->handle($konto->fresh()));
+        $this->assertSame(User::STATUS_ERASED, $konto->fresh()->status);
+        $this->assertSame([(string) $konto->getKey()], array_column(app(DziennikWymazan::class)->wpisyOd(), 'user_id'));
+
+        $this->odtworz($kopia);
         $this->artisan('kuking:wymaz-ponownie')->assertSuccessful();
-
         $this->assertSame(User::STATUS_ERASED, $konto->fresh()->status);
         $this->assertNotSame('basia@example.com', $konto->fresh()->email);
+        $this->assertDatabaseMissing('posts', ['id' => $wpis->getKey()]);
+    }
+
+    public function test_usun_wycofuje_wpis_a_brak_wpisu_nie_jest_bledem(): void
+    {
+        $dziennik = app(DziennikWymazan::class);
+        $uuid = '00000000-0000-4000-8000-000000000004';
+
+        $this->assertSame(DziennikWymazan::DOPISANO, $dziennik->dopiszJesliBrak($uuid, User::DELETE_SCOPE_MINIMUM, now()));
+        $dziennik->usun($uuid);
+        $dziennik->usun($uuid);
+
+        $this->assertSame([], $dziennik->wpisyOd());
     }
 
     public function test_reczne_dopisanie_odrzuca_bledne_dane_i_nic_nie_zapisuje(): void
