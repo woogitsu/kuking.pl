@@ -135,7 +135,7 @@ class ChecklistaSkladnikowGotowaniaTest extends TestCase
         foreach ($kontrolki as $kontrolka) {
             $this->assertInstanceOf(DOMElement::class, $kontrolka);
             $ukryta = $kontrolka->hasAttribute('hidden')
-                || $xpath->query('ancestor::*[@hidden]', $kontrolka)?->length > 0;
+                || self::wynikXPath($xpath, 'ancestor::*[@hidden]', $kontrolka)->length > 0;
             $this->assertTrue($ukryta, 'Widoczna bez skryptu kontrolka checklisty byłaby martwym przyciskiem (D-053).');
         }
     }
@@ -160,9 +160,9 @@ class ChecklistaSkladnikowGotowaniaTest extends TestCase
         $przycisk = $this->jeden($xpath, './/button[@data-przygotowanie-wyczysc]', $sekcja);
         $this->assertSame('Wyczyść zaznaczenie składników', trim($przycisk->textContent));
         $this->assertSame('button', $przycisk->getAttribute('type'), 'Zwykły przycisk skryptu, nie wysyłka formularza.');
-        $this->assertSame(0, $xpath->query('ancestor::form', $przycisk)?->length, 'Nie może stać w formularzu — ani w resecie kroków, ani w żadnym innym.');
+        $this->assertSame(0, self::wynikXPath($xpath, 'ancestor::form', $przycisk)->length, 'Nie może stać w formularzu — ani w resecie kroków, ani w żadnym innym.');
 
-        $this->assertSame(0, $xpath->query('.//form', $sekcja)?->length, 'Sekcja składników niczego nie wysyła na serwer.');
+        $this->assertSame(0, self::wynikXPath($xpath, './/form', $sekcja)->length, 'Sekcja składników niczego nie wysyła na serwer.');
     }
 
     public function test_przepis_bez_skladnikow_nie_ma_checklisty(): void
@@ -174,6 +174,6 @@ class ChecklistaSkladnikowGotowaniaTest extends TestCase
         $sekcja = $this->jeden($xpath, '//details[@class="cook-ingredients"]');
 
         $this->assertStringContainsString('Autor jeszcze nie dodał składników.', $sekcja->textContent);
-        $this->assertSame(0, $xpath->query('.//*[@data-przygotowanie-akcje] | .//input', $sekcja)?->length);
+        $this->assertSame(0, self::wynikXPath($xpath, './/*[@data-przygotowanie-akcje] | .//input', $sekcja)->length);
     }
 }

@@ -552,7 +552,7 @@ class CookedEventController extends Controller
         if ($recipe === null || $request->user()->cannot('view', $recipe)) {
             // Bezpieczny powrót na profil kucharza (zakładka „Ugotowane”).
             // Jeśli konto kucharza nie ma profilu, wracamy na profil bieżącego użytkownika.
-            $username = $wlascicielWykonania->profile?->username
+            $username = $wlascicielWykonania->profile->username
                 ?? $request->user()->profile?->username;
 
             if ($username !== null) {

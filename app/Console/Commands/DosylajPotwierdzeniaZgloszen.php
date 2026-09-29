@@ -141,7 +141,7 @@ class DosylajPotwierdzeniaZgloszen extends Command
             return self::SUCCESS;
         }
 
-        $najstarsze = $zalegle->first()?->created_at;
+        $najstarsze = $zalegle->first()->created_at;
 
         if ($najstarsze !== null) {
             $this->line('Najstarsza zaległość czeka od: '.$najstarsze->toDateTimeString().'.');

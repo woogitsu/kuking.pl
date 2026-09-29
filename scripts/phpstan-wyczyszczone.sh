@@ -34,6 +34,9 @@ WYCZYSZCZONE=(
     function.alreadyNarrowedType
     method.impossibleType
     function.impossibleType
+    nullsafe.neverNull
+    expr.resultUnused
+    classConstant.unused
 )
 
 konfig="${KUKING_PHPSTAN_KONFIG:-phpstan-etap4.neon}"

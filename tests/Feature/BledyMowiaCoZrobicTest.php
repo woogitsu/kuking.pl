@@ -375,7 +375,7 @@ final class BledyMowiaCoZrobicTest extends TestCase
         ])->assertSessionHasErrors('visibility');
 
         $xpath = $this->xpath($this->get('/dodaj/zdjecie')->getContent());
-        $pole = $xpath->query("//textarea[@name='body']")?->item(0);
+        $pole = self::wynikXPath($xpath, "//textarea[@name='body']")->item(0);
 
         $this->assertInstanceOf(DOMElement::class, $pole, 'Na ekranie nie ma pola „Napisz kilka słów".');
         $this->assertStringContainsString(

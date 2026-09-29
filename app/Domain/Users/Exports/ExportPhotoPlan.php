@@ -215,7 +215,7 @@ final class ExportPhotoPlan
 
         foreach ($user->cookedEvents()->with(['media', 'recipe'])->get() as $event) {
             foreach ($event->media as $photo) {
-                $labels[(string) $photo->getKey()] ??= (string) ($event->recipe?->title ?? 'ugotowane');
+                $labels[(string) $photo->getKey()] ??= (string) ($event->recipe->title ?? 'ugotowane');
             }
         }
 

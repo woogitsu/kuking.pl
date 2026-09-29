@@ -65,9 +65,6 @@ class WdrozenieWejsciaFacebookiemTest extends TestCase
     /** Nagłówek kroku Facebooka — kotwica całego skanu runbooka. */
     private const NAGLOWEK_8E = '## KROK 8E.';
 
-    /** Nagłówek kroku Google — wzorzec, wobec którego 8E ma być symetryczny. */
-    private const NAGLOWEK_8D = '## KROK 8D.';
-
     /**
      * Dwie zmienne, bez których ta droga wejścia nie istnieje. Nazwy są
      * czytane z `config/kuking.php` w `test_nazwy_zmiennych_sa_te_same...`,

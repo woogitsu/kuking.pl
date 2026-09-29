@@ -46,10 +46,12 @@ use Illuminate\Database\Seeder;
  */
 class TagPromotionSeeder extends Seeder
 {
+    use PolecenieKonsoliSeedera;
+
     public function run(): void
     {
         if (TagPromotion::query()->exists()) {
-            $this->command?->info(
+            $this->konsola()?->info(
                 'TagPromotionSeeder: lista promowanych nie jest pusta — nie ruszam jej. '
                 .'To wybór gospodarza z panelu /admin/tagi-promowane.',
             );
@@ -91,10 +93,10 @@ class TagPromotionSeeder extends Seeder
             $utworzone++;
         }
 
-        $this->command?->info("TagPromotionSeeder: {$utworzone} tagów promowanych, ".count($brakujace).' pominiętych.');
+        $this->konsola()?->info("TagPromotionSeeder: {$utworzone} tagów promowanych, ".count($brakujace).' pominiętych.');
 
         foreach ($brakujace as $nazwa) {
-            $this->command?->warn("  pominięto: „{$nazwa}” (nie ma takiego aktywnego tagu)");
+            $this->konsola()?->warn("  pominięto: „{$nazwa}” (nie ma takiego aktywnego tagu)");
         }
     }
 

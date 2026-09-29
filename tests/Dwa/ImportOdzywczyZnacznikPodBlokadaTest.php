@@ -72,7 +72,7 @@ final class ImportOdzywczyZnacznikPodBlokadaTest extends TestDwochPolaczen
         $this->assertSame(0, $this->liczbaZnacznikow());
 
         $bariera = $this->nowePolaczenie();
-        $this->assertTrue($this->prawda($bariera->query('SELECT pg_try_advisory_lock(2130, 1)')?->fetchColumn()));
+        $this->assertTrue($this->prawda($this->odczytaj($bariera, 'SELECT pg_try_advisory_lock(2130, 1)')));
 
         try {
             // B (nowsze pliki) importuje i staje przed zapisem znacznika.
@@ -94,7 +94,7 @@ final class ImportOdzywczyZnacznikPodBlokadaTest extends TestDwochPolaczen
                 usleep(20_000);
             }
         } finally {
-            $this->assertTrue($this->prawda($bariera->query('SELECT pg_advisory_unlock(2130, 1)')?->fetchColumn()));
+            $this->assertTrue($this->prawda($this->odczytaj($bariera, 'SELECT pg_advisory_unlock(2130, 1)')));
         }
 
         $wynikB = $b->wynik();
@@ -149,7 +149,7 @@ final class ImportOdzywczyZnacznikPodBlokadaTest extends TestDwochPolaczen
 
     private function liczba(string $tabela): int
     {
-        return (int) $this->obserwator->query('SELECT count(*) FROM '.$tabela)?->fetchColumn();
+        return (int) $this->odczytaj($this->obserwator, 'SELECT count(*) FROM '.$tabela);
     }
 
     private function liczbaSkladnika(string $klucz): int
@@ -162,7 +162,7 @@ final class ImportOdzywczyZnacznikPodBlokadaTest extends TestDwochPolaczen
 
     private function liczbaZnacznikow(): int
     {
-        return (int) $this->obserwator->query("SELECT count(*) FROM cache WHERE key LIKE '%odzywcze:import:hash-plikow'")?->fetchColumn();
+        return (int) $this->odczytaj($this->obserwator, "SELECT count(*) FROM cache WHERE key LIKE '%odzywcze:import:hash-plikow'");
     }
 
     private function prawda(mixed $wynik): bool

@@ -60,7 +60,7 @@ trait WycinaObudoweEkranu
         $dokument = new DOMDocument;
         @$dokument->loadHTML('<?xml encoding="utf-8" ?>'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
 
-        $wezel = (new DOMXPath($dokument))->query($zapytanie)?->item(0);
+        $wezel = self::wynikXPath(new DOMXPath($dokument), $zapytanie)->item(0);
 
         $this->assertInstanceOf(DOMElement::class, $wezel, $komunikat);
 

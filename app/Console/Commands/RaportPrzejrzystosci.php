@@ -173,7 +173,7 @@ class RaportPrzejrzystosci extends Command
             ->get();
 
         $ile = fn (string $strona, string $wynik): int => (int) ($liczby
-            ->first(fn ($w) => $w->appellant === $strona && $w->status === $wynik)?->ile ?? 0);
+            ->first(fn ($w) => $w->appellant === $strona && $w->status === $wynik)->ile ?? 0);
 
         $wiersze = [];
 

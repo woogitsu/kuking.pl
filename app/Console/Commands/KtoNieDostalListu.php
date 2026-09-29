@@ -352,7 +352,7 @@ class KtoNieDostalListu extends Command
 
             $konta[] = (string) $odbiorca->getKey();
 
-            $nazwa = $odbiorca->profile?->display_name ?? null;
+            $nazwa = $odbiorca->profile->display_name ?? null;
             $nazwy[] = is_string($nazwa) && $nazwa !== '' ? $nazwa : '— (bez nazwy w profilu)';
 
             $adres = $odbiorca->getAttribute('email');

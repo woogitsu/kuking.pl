@@ -76,7 +76,7 @@ class TrybScislyEloquentTest extends TestCase
         $konto = User::query()->select('id')->firstOrFail();
 
         $this->expectException(MissingAttributeException::class);
-        $konto->locale;
+        $konto->getAttribute('locale');
     }
 
     public function test_odczyt_pobranej_kolumny_nie_rzuca(): void

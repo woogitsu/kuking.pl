@@ -124,6 +124,8 @@ use Illuminate\Support\Str;
  */
 class TrescZalazkowaSeeder extends Seeder
 {
+    use PolecenieKonsoliSeedera;
+
     private const PLIK = 'tresc-zalazkowa.json';
 
     /** Domena zarezerwowana wyłącznie do testów (RFC 2606) — nigdy nie dostarcza poczty. */
@@ -601,7 +603,7 @@ class TrescZalazkowaSeeder extends Seeder
 
     private function zgloscRaport(): void
     {
-        $this->command?->info(sprintf(
+        $this->konsola()?->info(sprintf(
             'TrescZalazkowaSeeder: %d nowych kont (%d już istniało), %d przepisów, %d wpisów, %d komentarzy.',
             $this->raport['konta'],
             $this->raport['konta_juz_istniejace'],
@@ -618,7 +620,7 @@ class TrescZalazkowaSeeder extends Seeder
         ];
 
         foreach ($wszystkiePominiecia as $powod) {
-            $this->command?->warn('  pominięto: '.$powod);
+            $this->konsola()?->warn('  pominięto: '.$powod);
         }
     }
 }
