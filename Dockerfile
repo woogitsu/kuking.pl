@@ -134,7 +134,7 @@ RUN npm run build
 # Osobny etap zamiast `COPY --from=composer:2`: Dependabot (ekosystem `docker`)
 # aktualizuje obrazy w liniach `FROM`, a obrazu podanego wprost w `COPY --from`
 # nie widzi. Digest wpisany tam starzałby się po cichu. Tu jest pod nadzorem.
-FROM composer:2@sha256:a5f59b9fd2faf31218632be4809dc6491761085e8064c31dc3b84378c48c248b AS composer-bin
+FROM composer:2@sha256:9715c7f69044da2a212a5fbde29ee7da24e364d426560ae6367b060236f847d7 AS composer-bin
 
 
 # -----------------------------------------------------------------------------
