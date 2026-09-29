@@ -189,13 +189,15 @@ final class KomentarzSprawdzaSwiezyStanTest extends TestCase
                 }
             });
         } else {
-            // `posts.comment` pyta Policy dwa razy z rzędu (`KomentarzRequest`
-            // i jawne `authorize()` w kontrolerze, oba przed `PublishComment`),
-            // więc barierę wyścigu stawiamy dopiero po drugim zezwoleniu.
-            $pominiete = $route === 'posts.comment' ? 1 : 0;
-            Gate::after(function ($user, $ability, $result) use ($armed, &$pominiete, $writer, $owner): void {
+            // `posts.comment`, `cooked.comment` i `cooked.thank` pytają Policy
+            // dwa razy z rzędu (FormRequest i jawne `authorize()` w kontrolerze,
+            // oba przed `PublishComment`; wykonanie od refaktoru #970), więc
+            // barierę wyścigu stawiamy dopiero po drugim zezwoleniu.
+            $pominiete = in_array($route, ['posts.comment', 'cooked.comment', 'cooked.thank'], true) ? 1 : 0;
+            $podwojna = $route === 'cooked.thank' ? 'celebrate' : 'comment';
+            Gate::after(function ($user, $ability, $result) use ($armed, &$pominiete, $podwojna, $writer, $owner): void {
                 if ($armed->wlaczony && $result === true && in_array($ability, ['comment', 'view', 'celebrate'], true)) {
-                    if ($ability === 'comment' && $pominiete > 0) {
+                    if ($ability === $podwojna && $pominiete > 0) {
                         $pominiete--;
 
                         return;
