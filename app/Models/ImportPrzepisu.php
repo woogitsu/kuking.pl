@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $user_id
  * @property ?string $recipe_id
  * @property string $zrodlo
+ * @property ?string $source_url adres strony (tylko import z adresu, do końca zlecenia)
  * @property string $status
  * @property ?string $kod_bledu
  * @property int $proby
@@ -81,6 +82,18 @@ class ImportPrzepisu extends Model
 
     public const KOD_BLAD_WEWNETRZNY = 'blad_wewnetrzny';
 
+    /**
+     * Powody odmowy odczytu strony (import z adresu, #28) — te same napisy co
+     * `ImportOdrzucony::*`, z nich wyliczane jest zdanie na ekranie postępu.
+     * Zamknięta lista w CHECK (migracja `2026_09_29_100000_extend_importy_przepisow_kod_bledu_o_adres`).
+     *
+     * @var list<string>
+     */
+    public const KODY_ADRESU = [
+        'adres_nieprawidlowy', 'adres_niepubliczny', 'strona_niedostepna', 'za_duzo_przekierowan',
+        'za_duza_strona', 'za_dlugo', 'nie_strona',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -103,6 +116,24 @@ class ImportPrzepisu extends Model
     public function recipe(): BelongsTo
     {
         return $this->belongsTo(Recipe::class);
+    }
+
+    /** Zlecenie z adresu strony — bez zdjęcia kartki i bez szkicu, dopóki odczyt się nie skończy. */
+    public function zAdresu(): bool
+    {
+        return $this->zrodlo === self::ZRODLO_URL;
+    }
+
+    /** Droga odczytu zapisana przy szkicu z adresu (`json_ld`, `fragmenty`, `bez_tresci`) — `null`, dopóki szkicu nie ma. */
+    public function drogaOdczytu(): ?string
+    {
+        if ($this->recipe_id === null) {
+            return null;
+        }
+
+        $droga = PrzepisZImportu::query()->whereKey($this->recipe_id)->value('droga');
+
+        return is_string($droga) ? $droga : null;
     }
 
     public function jestKoncowy(): bool

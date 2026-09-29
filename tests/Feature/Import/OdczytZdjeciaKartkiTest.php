@@ -589,7 +589,13 @@ final class OdczytZdjeciaKartkiTest extends TestCase
 
     public function test_import_nigdy_nie_publikuje_sprawdzone_w_kodzie(): void
     {
-        $pliki = [...glob(app_path('Domain/Import/*.php')) ?: [], app_path('Jobs/OdczytajPrzepis.php')];
+        // Także import z adresu (#28): podkatalogi `Url/`, `Pdf/`, `Actions/` i jego zadanie.
+        $pliki = [
+            ...glob(app_path('Domain/Import/*.php')) ?: [],
+            ...glob(app_path('Domain/Import/*/*.php')) ?: [],
+            app_path('Jobs/OdczytajPrzepis.php'),
+            app_path('Jobs/ImportujPrzepisZAdresu.php'),
+        ];
         $this->assertGreaterThan(5, count($pliki), 'Skan nie znalazł plików importu — test nic nie mierzy.');
 
         foreach ($pliki as $plik) {

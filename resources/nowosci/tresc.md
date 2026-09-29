@@ -29,6 +29,15 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 To, co już działa, ale nie ma jeszcze numeru wydania.
 
+### Import ze strony internetowej nie każe czekać
+
+Po wklejeniu adresu strony z przepisem od razu widzicie ekran postępu — „Pobieramy
+stronę”. Resztę Kuking robi w tle, więc możecie zamknąć kartę albo odświeżyć
+stronę: nic się nie zgubi, a gotowy szkic czeka w „Moich szkicach”. Jeśli
+strona nie da się pobrać, powiemy dlaczego i co zrobić — bez tracenia
+wpisanego adresu i z przyciskiem „Wklej adres jeszcze raz”. Ponowne kliknięcie
+tego samego formularza nie liczy się drugi raz do dziennego limitu.
+
 ### Szukajcie w zeszytach także po składniku
 
 Pole „Szukaj w moich zeszytach” znajduje teraz zapisane przepisy nie tylko po

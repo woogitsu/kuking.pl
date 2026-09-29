@@ -17,6 +17,7 @@
     <ul class="stack-tight mb-5">
         <li>Zdjęć ze strony nie pobieramy — dodasz własne, kiedy ugotujesz.</li>
         <li>Tekst odczyta komputer. Przed publikacją porównaj go ze stroną, a opis przygotowania napisz własnymi słowami.</li>
+        <li>Pobranie strony trwa chwilę. Zobaczysz, jak idzie, i możesz zamknąć kartę — szkic znajdziesz w „Moich szkicach”.</li>
         <li>Niektóre strony nie pozwalają pobierać przepisów — wtedy powiemy, co zrobić.</li>
         <li>Jeśli strona nie ma danych przepisu, jej tekst może odczytać komputer firmy OpenAI — tylko za Twoją zgodą.</li>
     </ul>

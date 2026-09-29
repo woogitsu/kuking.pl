@@ -1439,6 +1439,9 @@ checks = [
     # ma wywrócić architektoniczny test „import nigdy nie publikuje”.
     ("Odczyt kartki publikuje przepis", "app/Jobs/OdczytajPrzepis.php", "test_import_nigdy_nie_publikuje_sprawdzone_w_kodzie",
      lambda s: replace_once(s, "publish: false,", "publish: true,")),
+    # #28: import z adresu chodzi w zadaniu — także ono podlega zakazowi publikacji.
+    ("Import z adresu publikuje przepis", "app/Jobs/ImportujPrzepisZAdresu.php", "test_import_nigdy_nie_publikuje_sprawdzone_w_kodzie",
+     lambda s: replace_once(s, "use Throwable;\n", "use Throwable;\n\n// publish: true\n")),
     ("Wspólny limit ignoruje nowe próby importu", "app/Domain/Import/LimitImportowOsoby.php", "WspolnyLimitImportuTest",
      lambda s: replace_once(s, "return $proby + $odczytyBezProby;", "return $odczytyBezProby;")),
     # D-298 „maszyna stanów płatnego wywołania” (#1973, #1974, #1977, #1980).

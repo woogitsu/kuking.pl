@@ -7,6 +7,7 @@ namespace Tests\Feature\Import;
 use App\Domain\Import\ImportOdrzucony;
 use App\Domain\Import\Url\RozwiazywaczNazw;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
+use App\Models\ImportPrzepisu;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Models\WpisZgody;
@@ -59,8 +60,12 @@ final class ZgodaPrzedTekstemZrodlaTest extends TestCase
 
         $this->actingAs($autor)
             ->post(route('recipes.import.url.store'), ['adres' => 'https://przepisy.example.pl/blog'])
-            ->assertSessionHas('status');
+            ->assertRedirect();
 
+        // Bez zgody z TEGO formularza tekst strony zostaje u nas: zlecenie kończy się szkicem ze źródłem.
+        $zlecenie = ImportPrzepisu::query()->where('user_id', $autor->getKey())->firstOrFail();
+        $this->assertSame(ImportPrzepisu::STATUS_GOTOWY, $zlecenie->status);
+        $this->assertSame('bez_tresci', $zlecenie->drogaOdczytu());
         Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com'));
     }
 
