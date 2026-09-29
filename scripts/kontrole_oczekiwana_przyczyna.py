@@ -33,6 +33,9 @@ from kontrola_przyczyny import Wyjatek
 OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 
 OCZEKUJ = {
+    # Mutacja wysyła 181-znakowy tytuł prosto do bazy — objawem jest odmowa
+    # kolumny varchar(180), a nie asercja testu.
+    'Autozapis kreatora zapisuje bez walidacji pól': Wyjatek(r'value too long for type character varying\(180\)'),
     'Sufit paczki importu wraca do 32 MB': r'Failed asserting that 33554432 is identical to 12582912',
     'Nowe konto Google gubi powrót do rozmowy': r'Expected response status code \[201, 301, 302, 303, 307, 308\] but received 200\.',
     'Nowe konto Facebook gubi powrót do rozmowy': r'Expected response status code \[201, 301, 302, 303, 307, 308\] but received 200\.',
@@ -75,7 +78,7 @@ OCZEKUJ = {
     'Cofnięcie CHECK-a kontaktu bez odmowy przy sierotach': r"contains 'Nie można cofnąć migracji'",
     'Cofnięcie znaczników odpowiedzi bez odmowy': r'exception of type "RuntimeException" is thrown',
     'Jedna sprawa RODO w toku bez odmowy przy duplikatach': r'contains "Liczba kont z więcej niż jedną otwartą sprawą RODO',
-    'Lokalne akcje poza filtrem widoku': r'Bramka pomija job `port_marki` przy zmianie',
+    'Lokalne akcje poza filtrem widoku': r'Bramka pomija job `\w+` przy zmianie `\.github/actions/[^`]+`, a ten job tej akcji UŻYWA',
     'Dockerfile poza wzorcem builda obrazu': r'Bramka pomija job `docker-build` na PR-ze przy zmianie `Dockerfile`',
     'Pliki grupy wyścigów poza wzorcem joba': r'Bramka pomija job `dwa-polaczenia` na PR-ze przy zmianie',
     'Ciężkie joby zawężane także poza PR-em': r'Job `przyrzad_605` jest pomijany poza PR-em \(zdarzenie: push\)\. Na',
