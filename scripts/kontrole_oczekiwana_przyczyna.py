@@ -35,6 +35,13 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    # #1011, paczka H: wpisy dopisane po wzorcach dla wcześniejszych kontroli.
+    "Goły ->with('status') wraca do kontrolera": r'Goły zapis klucza `status` wygląda jak zielony sukces',
+    'Odmowa nazwana sukcesem': r'Komunikat::sukces\(\) z tekstem „Nie udało się…" — to błąd, nie sukces\.',
+    'Produkcja dostaje domenę dostawcy obok kuking.pl': r'PROD_DOMAINS w \.railway/railway\.ts przestało być zbiorem|PROD_DOMAINS zawiera domenę „[^”]+” spoza kuking\.pl',
+    'Rejestracja wdrożenia wraca do preDeployCommand': r'preDeployCommand kończy się PRZED startem i healthcheckiem nowego kontenera — rejestracja tam zużywa numer',
+    'Entrypoint rejestruje wdrożenie bez czekania na /health': r'Funkcja musi wołać komendę z --po-gotowosci',
+    'Import z adresu publikuje przepis': r'\S+ publikuje przepis\.',
     # #1011, paczka G: wpisy dopisane po wzorcach dla pierwszych 219 kontroli.
     'Kreator pozwala klientowi podmienić recipeId': r'CannotUpdateLockedPropertyException" is thrown',
     'Kreator nie wysyła oczekiwanej rewizji treści': r"-'error' \+'saved'",
