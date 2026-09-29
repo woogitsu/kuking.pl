@@ -949,6 +949,9 @@ e-mail zgłoszenia prawnego) — zaległość, dosyła ją
 (3) ostateczna porażka listu w workerze (`failed()` w
 `PotwierdzenieZgloszeniaNielegalnejTresci`) zdejmuje znacznik z powrotem do
 `NULL`, a wpis w `failed_jobs` zostaje jako ślad — sprawa wraca do (1).
+Sufit: po `LIMIT_PORAZEK_LISTU` (3) ostatecznych porażkach listu jednej sprawy
+(licznik w cache, 30 dni) dosyłka przestaje sama ponawiać list i pisze to
+w wyniku komendy — adres stale odrzucany przez dostawcę nie dostaje prób co godzinę.
 Nadal NIE mierzymy doręczenia ani odbić (bounce): dostawca nie zwraca ich do
 serwisu, więc rozróżnienie „przekazano do dostawcy" od „dostarczono" zostaje
 decyzją o osobnym outboxie i webhookach dostawcy. Ręczne `queue:retry`

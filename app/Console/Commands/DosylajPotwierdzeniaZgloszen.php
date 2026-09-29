@@ -8,6 +8,7 @@ use App\Domain\Moderation\Actions\NotifyReporterReceipt;
 use App\Domain\Moderation\Actions\ZglosNielegalnaTresc;
 use App\Models\Report;
 use App\Models\User;
+use App\Notifications\PotwierdzenieZgloszeniaNielegalnejTresci;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
@@ -117,7 +118,7 @@ class DosylajPotwierdzeniaZgloszen extends Command
 
     private const PAMIEC_PORAZEK_DNI = 30;
 
-    public function handle(NotifyReporterReceipt $potwierdzenie, ZglosNielegalnaTresc $zgloszenieProwne): int
+    public function handle(NotifyReporterReceipt $potwierdzenie, ZglosNielegalnaTresc $zgloszeniePrawne): int
     {
         $ile = max(1, (int) $this->option('ile'));
         $naSucho = (bool) $this->option('na-sucho');
@@ -160,14 +161,24 @@ class DosylajPotwierdzeniaZgloszen extends Command
         $doslane = 0;
         $juzPotwierdzone = 0;
         $nieudane = 0;
+        $wstrzymane = 0;
 
         foreach ($zalegle as $zgloszenie) {
+            // Adres spoza serwisu, który dostawca stale odrzuca: bez sufitu
+            // list szedłby co godzinę przez całe życie sprawy (#2218).
+            if ($zgloszenie->reporter_id === null
+                && PotwierdzenieZgloszeniaNielegalnejTresci::ponawianieWstrzymane((string) $zgloszenie->getKey())) {
+                $wstrzymane++;
+
+                continue;
+            }
+
             try {
                 // Ta sama droga co przy formularzu. Zwrot `null` znaczy, że
                 // zamek na `receipt_sent_at` dostał ktoś inny — czyli człowiek
                 // wrócił do sprawy w tej samej chwili. To nie jest błąd.
                 $zlecone = $zgloszenie->reporter_id === null
-                    ? $zgloszenieProwne->potwierdzOdbior($zgloszenie)
+                    ? $zgloszeniePrawne->potwierdzOdbior($zgloszenie)
                     : $potwierdzenie->handle($zgloszenie) !== null;
 
                 if ($zlecone) {
@@ -190,6 +201,11 @@ class DosylajPotwierdzeniaZgloszen extends Command
 
         $this->line("Dosłano potwierdzeń: {$doslane}.");
         $this->line("Pominięto spraw potwierdzonych w międzyczasie przez kogoś innego: {$juzPotwierdzone}.");
+
+        if ($wstrzymane > 0) {
+            $this->warn('Nie ponawiamy listu po '.PotwierdzenieZgloszeniaNielegalnejTresci::LIMIT_PORAZEK_LISTU
+                ." nieudanych wysyłkach (zgłoszenia prawne bez konta): {$wstrzymane}. Sprawdź adres zgłaszającego w panelu moderacji.");
+        }
 
         if ($nieudane > 0) {
             $this->warn("Nie udało się dosłać potwierdzeń: {$nieudane} — szczegóły w kanale błędów.");

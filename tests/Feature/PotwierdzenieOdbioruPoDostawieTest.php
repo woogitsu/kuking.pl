@@ -115,6 +115,35 @@ class PotwierdzenieOdbioruPoDostawieTest extends TestCase
         Notification::assertSentOnDemandTimes(PotwierdzenieZgloszeniaNielegalnejTresci::class, 1);
     }
 
+    /**
+     * Adres, który dostawca odrzuca zawsze: dosyłka co godzinę nie może
+     * ponawiać listu bez końca. Po `LIMIT_PORAZEK_LISTU` ostatecznych
+     * porażkach przestaje zlecać list, a sprawa dalej jest zaległością.
+     */
+    public function test_stale_odrzucany_adres_nie_jest_ponawiany_bez_konca(): void
+    {
+        $this->poczta_pada();
+
+        $sprawa = $this->zlozAnonimoweZgloszenie();
+        $this->workerJedenPrzebieg();
+
+        for ($i = 1; $i < PotwierdzenieZgloszeniaNielegalnejTresci::LIMIT_PORAZEK_LISTU; $i++) {
+            $this->artisan(self::KOMENDA)->expectsOutput('Dosłano potwierdzeń: 1.')->assertSuccessful();
+            $this->workerJedenPrzebieg();
+        }
+
+        $this->assertSame(PotwierdzenieZgloszeniaNielegalnejTresci::LIMIT_PORAZEK_LISTU, DB::table('failed_jobs')->count());
+        $this->assertNull($sprawa->refresh()->receipt_sent_at);
+
+        $this->artisan(self::KOMENDA)
+            ->expectsOutput('Zaległych potwierdzeń w bazie: 1.')
+            ->expectsOutput('Dosłano potwierdzeń: 0.')
+            ->assertSuccessful();
+
+        $this->assertSame(0, DB::table('jobs')->count(), 'Dosyłka zleciła list na adres, który dostawca odrzucił już '.PotwierdzenieZgloszeniaNielegalnejTresci::LIMIT_PORAZEK_LISTU.' razy.');
+        $this->assertNull($sprawa->refresh()->receipt_sent_at);
+    }
+
     public function test_udane_potwierdzenie_zostawia_znacznik(): void
     {
         $sprawa = $this->zlozAnonimoweZgloszenie();
