@@ -145,7 +145,9 @@ OCZEKUJ = {
     'Podział testów gubi plik': r"Plik tests/\S+ nie trafił do żadnej części — nie uruchamia się NIGDZIE\.",
     'Macierz testów krótsza niż podział': r"@@ @@ -Array &0 \[\] \+Array &0 \[ \+ 0 => 'Skrypt dzieli na 4 części, a macierz ",
     'Wyścigi dwóch połączeń znów nie blokują CI': r'Job `dwa-polaczenia` znów ma continue-on-error',
-    'Macierz portu krótsza niż podział grup': r'Części macierzy `port_funkcje` rozjechały się z GRUPY',
+    # Macierz [1] (z [1, 2]) pada na pierwszej asercji o liczbie części, zanim
+    # dojdzie do porównania z GRUPY — obie są objawem tej samej mutacji.
+    'Macierz portu krótsza niż podział grup': r'Macierz nie dzieli niczego\.|Części macierzy `port_funkcje` rozjechały się z GRUPY',
     'Minutnik poza macierzą portu': r'nie idzie w części 2 albo idzie w obu|Warunek wskazuje część spoza macierzy: 3',
     'Runbook znów instaluje Sentry': r'Runbook poza blokiem `<details>` zawiera instalację pakietu Sentry w',
     'Runbook znów wymaga klucza PostHog': r'Runbook zawiera klucz PostHog w tabeli zmiennych lub sekretów \(`\|',
