@@ -10,6 +10,7 @@ use App\Domain\Notifications\Push\OdlaczUrzadzeniePush;
 use App\Domain\Notifications\Push\ZapiszSubskrypcjePush;
 use App\Http\Controllers\Controller;
 use App\Models\UstawieniaPowiadomienZewnetrznych;
+use App\Support\Komunikat;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -67,7 +68,7 @@ class NotificationSettingsController extends Controller
             'dzienny_limit' => (int) $dane['dzienny_limit'],
         ]);
 
-        return back()->with('status', 'Zapisane.');
+        return back()->with(Komunikat::sukces('Zapisane.'));
     }
 
     /**
@@ -142,7 +143,7 @@ class NotificationSettingsController extends Controller
     {
         $request->user()->pushSubscriptions()->delete();
 
-        return back()->with('status', 'Powiadomienia poza serwisem są wyłączone na wszystkich urządzeniach.');
+        return back()->with(Komunikat::sukces('Powiadomienia poza serwisem są wyłączone na wszystkich urządzeniach.'));
     }
 
     /** @return array{cisza_od: int, cisza_do: int, dzienny_limit: int} */

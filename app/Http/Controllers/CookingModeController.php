@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Models\Recipe;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -82,7 +83,7 @@ class CookingModeController extends Controller
             return redirect()->route('recipes.show', array_filter([
                 'recipe' => $model->slug, 'porcje' => $parametrPorcji,
             ], fn ($wartosc) => $wartosc !== null))
-                ->with('status', 'Ten przepis nie ma jeszcze opisanych kroków, więc nie da się go gotować krok po kroku.');
+                ->with(Komunikat::blad('Ten przepis nie ma jeszcze opisanych kroków, więc nie da się go gotować krok po kroku.'));
         }
 
         $total = $steps->count();
@@ -113,7 +114,7 @@ class CookingModeController extends Controller
         return redirect()->route('cooking.show', array_filter([
             'recipe' => $model->slug, 'porcje' => $this->parametrPorcji($model, $request->input('porcje')),
         ], fn ($wartosc) => $wartosc !== null))
-            ->with('status', 'Odhaczenia usunięte. Możesz zacząć od pierwszego kroku.');
+            ->with(Komunikat::sukces('Odhaczenia usunięte. Możesz zacząć od pierwszego kroku.'));
     }
 
     public function zaznacz(Request $request, string $recipe): RedirectResponse
@@ -158,7 +159,7 @@ class CookingModeController extends Controller
                 'krok' => $this->wyczyscKrok($data['krok'] ?? 1, $total),
                 'porcje' => $this->parametrPorcji($model, $request->input('porcje')),
             ], fn ($wartosc) => $wartosc !== null))
-                ->with('status', 'Przepis zmienił się, odkąd otworzono ten krok, więc nic nie zostało oznaczone. Przeczytaj krok widoczny teraz na ekranie i oznacz go jeszcze raz, jeśli jest zrobiony.');
+                ->with(Komunikat::blad('Przepis zmienił się, odkąd otworzono ten krok, więc nic nie zostało oznaczone. Przeczytaj krok widoczny teraz na ekranie i oznacz go jeszcze raz, jeśli jest zrobiony.'));
         }
 
         $krok = $pozycja + 1;

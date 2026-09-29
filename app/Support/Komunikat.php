@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use Illuminate\Contracts\Session\Session;
+
 /**
  * Rodzaj komunikatu zwrotnego po akcji (issue #988).
  *
@@ -19,9 +21,21 @@ namespace App\Support;
  *
  *     return back()->with(Komunikat::blad('Tego tagu nie da się…'));
  *
- * Gołe `->with('status', …)` bez rodzaju zostaje sukcesem — tak wyglądało
- * dotąd i tak wygląda większość wywołań. Odmowy i błędy przechodzą na
- * `blad()`, stan niewymagający naprawy na `informacja()`.
+ * Gołego `->with('status', …)` w `app/` już nie ma — pilnuje tego
+ * `StraznikKomunikatuTest` (issue #988). Każde wywołanie wybiera rodzaj:
+ *
+ *  - `sukces()`     — czynność została wykonana (zapisane, usunięte, wysłane);
+ *  - `informacja()` — nic się nie zepsuło i nic nie trzeba naprawiać, ale
+ *                     czynność niczego nie zmieniła („już to masz", „nie było
+ *                     czego usuwać", drugie kliknięcie w to samo);
+ *  - `blad()`       — czynność NIE zaszła albo człowiek musi coś zrobić
+ *                     (odmowa, brak poczty, wygasły link, wyłączona funkcja,
+ *                     niedostępny cel).
+ *
+ * Rodzaj `sukces` rysuje się na zielono, więc wybierając go, mówisz
+ * czytelnikowi „udało się". Brak rodzaju (surowy klucz `status` w sesji,
+ * np. z testu albo starego kodu) nadal wychodzi jako sukces, żeby nic nie
+ * zniknęło — dlatego strażnik, a nie domyślna wartość, jest zabezpieczeniem.
  */
 final class Komunikat
 {
@@ -56,6 +70,20 @@ final class Komunikat
     public static function blad(string $tresc): array
     {
         return self::zRodzajem($tresc, self::BLAD);
+    }
+
+    /**
+     * Komunikat dla ŻĄDANIA, które nie zwraca przekierowania z `->with()`
+     * (np. pomocnik wołany w środku przepływu): zapisuje w sesji parę
+     * `status` + `status_rodzaj` jednym ruchem.
+     *
+     * @param  array{status: string, status_rodzaj: string}  $komunikat
+     */
+    public static function wSesji(Session $sesja, array $komunikat): void
+    {
+        foreach ($komunikat as $klucz => $wartosc) {
+            $sesja->flash($klucz, $wartosc);
+        }
     }
 
     /**

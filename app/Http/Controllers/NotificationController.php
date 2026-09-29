@@ -11,6 +11,7 @@ use App\Models\CookedEvent;
 use App\Models\ModerationAction;
 use App\Models\Notification;
 use App\Models\Recipe;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -211,10 +212,10 @@ class NotificationController extends Controller
         // zmienionych wierszy (np. druga karta zdążyła wcześniej) to nie
         // „oznaczone" — to informacja, że nie było czego oznaczać.
         if ($oznaczono === 0) {
-            return back()->with('status', 'Nie było nic do oznaczenia — wszystkie powiadomienia są już przeczytane.');
+            return back()->with(Komunikat::informacja('Nie było nic do oznaczenia — wszystkie powiadomienia są już przeczytane.'));
         }
 
-        return back()->with('status', 'Wszystkie powiadomienia oznaczone jako przeczytane.');
+        return back()->with(Komunikat::sukces('Wszystkie powiadomienia oznaczone jako przeczytane.'));
     }
 
     /**
@@ -286,7 +287,7 @@ class NotificationController extends Controller
 
             abort_unless($bezTresci, 404);
 
-            return back()->with('status', 'Tego komentarza już nie ma albo nie jest już dostępny. Wróć do listy powiadomień.');
+            return back()->with(Komunikat::blad('Tego komentarza już nie ma albo nie jest już dostępny. Wróć do listy powiadomień.'));
         }
 
         // TYLKO GDY NIEPRZECZYTANE — I ROZSTRZYGA TO BAZA, NIE PHP (D-079).
@@ -341,12 +342,12 @@ class NotificationController extends Controller
         // ISSUE #771: wykonanie mogło zniknąć między wyświetleniem listy
         // a kliknięciem. Zamiast 404 — zdanie, co się stało.
         if ($powiadomienie->wykonanieUsuniete()) {
-            return back()->with('status', 'To ugotowanie zostało usunięte.');
+            return back()->with(Komunikat::blad('To ugotowanie zostało usunięte.'));
         }
 
         // ISSUE #1034: to samo dla przepisu zapisanego do zeszytu.
         if ($powiadomienie->przepisUsuniety()) {
-            return back()->with('status', 'Ten przepis został usunięty.');
+            return back()->with(Komunikat::blad('Ten przepis został usunięty.'));
         }
 
         $cel = $powiadomienie->adresDocelowy();
@@ -354,7 +355,7 @@ class NotificationController extends Controller
         // ISSUE #1994: to samo dla wpisu z dziennego „Smakowicie wygląda" —
         // usuniętego po zapisaniu digestu albo niedostępnego dla odbiorcy.
         if ($cel === null && $powiadomienie->type === Notification::TYPE_SMAKOWICIE) {
-            return back()->with('status', self::WPIS_SMAKOWICIE_NIEDOSTEPNY);
+            return back()->with(Komunikat::blad(self::WPIS_SMAKOWICIE_NIEDOSTEPNY));
         }
 
         // ODESŁANIE TYLKO W OBRĘBIE SERWISU (issue #733) — patrz `adresWewnetrzny()`.
@@ -369,7 +370,7 @@ class NotificationController extends Controller
         // ISSUE #1371: wpis z alertu zniknął albo nie ma już do niego dostępu —
         // mówimy to wprost, zamiast udawać, że kolejka go pokazuje.
         if ($powiadomienie->pierwszyWpisNiedostepny()) {
-            $odeslanie->with('status', 'Tego wpisu nie da się już otworzyć — mógł zostać usunięty albo ukryty. Poniżej są wpisy, które nadal czekają na odpowiedź.');
+            $odeslanie->with(Komunikat::blad('Tego wpisu nie da się już otworzyć — mógł zostać usunięty albo ukryty. Poniżej są wpisy, które nadal czekają na odpowiedź.'));
         }
 
         // ISSUE #770: PIERWSZE „Zobacz" przy ugotowaniu ma pokazać ekran

@@ -490,14 +490,13 @@ class FacebookLoginController extends Controller
 
         // „Wysłaliśmy Ci wiadomość" pada tylko wtedy, gdy to prawda (#1373).
         if ($konto->listPotwierdzajacyNieWyszedl) {
-            return redirect()->route('onboarding.interests')->with('status', ZalozoneKonto::KOMUNIKAT_BEZ_LISTU);
+            return redirect()->route('onboarding.interests')->with(Komunikat::informacja(ZalozoneKonto::KOMUNIKAT_BEZ_LISTU));
         }
 
-        return redirect()->route('onboarding.interests')->with('status',
-            'Konto gotowe. Miło Cię widzieć w Kuking. Wysłaliśmy Ci jeszcze wiadomość na '
+        return redirect()->route('onboarding.interests')->with(Komunikat::sukces('Konto gotowe. Miło Cię widzieć w Kuking. Wysłaliśmy Ci jeszcze wiadomość na '
             .$konto->user->email.' — kliknij w niej przycisk, żeby potwierdzić adres. Dzięki temu '
             .'będziesz mieć drugą drogę wejścia na konto, gdyby Facebook kiedyś przestał działać.',
-        );
+        ));
     }
 
     /**
@@ -534,16 +533,15 @@ class FacebookLoginController extends Controller
         }
 
         if (! Poczta::dziala()) {
-            return redirect()->route('facebook.link')->with('status', Poczta::komunikatBrakuPoczty('link potwierdzający'));
+            return redirect()->route('facebook.link')->with(Komunikat::blad(Poczta::komunikatBrakuPoczty('link potwierdzający')));
         }
 
         if (! $this->potwierdzenie->requestEmailProof($request, $user, $identity->identyfikator)) {
             return $this->trzebaZaczacOdNowa();
         }
 
-        return redirect()->route('facebook.link')->with('status',
-            'Wysłaliśmy link potwierdzający na Twój obecny adres e-mail w Kuking. Otwórz go w tej samej przeglądarce w ciągu 10 minut.',
-        );
+        return redirect()->route('facebook.link')->with(Komunikat::sukces('Wysłaliśmy link potwierdzający na Twój obecny adres e-mail w Kuking. Otwórz go w tej samej przeglądarce w ciągu 10 minut.',
+        ));
     }
 
     public function confirmLinkProof(Request $request, string $token): Response|RedirectResponse
@@ -595,9 +593,8 @@ class FacebookLoginController extends Controller
         }
 
         if ($polaczone === null) {
-            return redirect()->route('facebook.link')->with('status',
-                'Nie połączyliśmy konta. Sprawdź hasło lub kod i spróbuj ponownie. Jeśli link wygasł, poproś o nowy.',
-            );
+            return redirect()->route('facebook.link')->with(Komunikat::blad('Nie połączyliśmy konta. Sprawdź hasło lub kod i spróbuj ponownie. Jeśli link wygasł, poproś o nowy.',
+            ));
         }
 
         $this->wejscie()->zapomnij($request);
@@ -608,10 +605,9 @@ class FacebookLoginController extends Controller
             ));
         }
 
-        return redirect()->route('settings.security')->with('status',
-            'Gotowe — możesz logować się na to konto przyciskiem „Wejdź kontem Facebooka". '
+        return redirect()->route('settings.security')->with(Komunikat::sukces('Gotowe — możesz logować się na to konto przyciskiem „Wejdź kontem Facebooka". '
             .'Twoje dotychczasowe sposoby logowania działają dalej.',
-        );
+        ));
     }
 
     private function moznaPokazacPolaczenie(User $user, string $facebookId): bool

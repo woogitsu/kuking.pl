@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Zgody\InformacjaOdczytuAi;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Models\WpisZgody;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -49,7 +50,7 @@ class ZgodaOdczytuAiController extends Controller
 
         return $zEkranuImportu
             ? redirect()->route('import.zdjecie')
-            : redirect()->route('settings.privacy')->with('status', 'Zgoda zapisana. Zdjęcia kartek, które dodasz do odczytu, przeczyta komputer firmy OpenAI.');
+            : redirect()->route('settings.privacy')->with(Komunikat::sukces('Zgoda zapisana. Zdjęcia kartek, które dodasz do odczytu, przeczyta komputer firmy OpenAI.'));
     }
 
     public function wycofaj(Request $request, PrzestawZgodeNaOdczytAi $zgoda): RedirectResponse
@@ -57,6 +58,6 @@ class ZgodaOdczytuAiController extends Controller
         $zgoda->handle($request->user(), false, WpisZgody::ZRODLO_USTAWIENIA);
 
         return redirect()->route('settings.privacy')
-            ->with('status', 'Zgoda wycofana. Zdjęcia kartek dalej możesz dodawać do przepisów — tekst wpiszesz wtedy ręcznie.');
+            ->with(Komunikat::sukces('Zgoda wycofana. Zdjęcia kartek dalej możesz dodawać do przepisów — tekst wpiszesz wtedy ręcznie.'));
     }
 }

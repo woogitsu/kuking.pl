@@ -11,6 +11,7 @@ use App\Domain\Social\Actions\UnfollowUser;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Profile;
 use App\Models\User;
+use App\Support\Komunikat;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -51,7 +52,7 @@ class SocialController extends Controller
         }
 
         if (! $followed) {
-            return back()->with('status', 'Już obserwujesz tę osobę.');
+            return back()->with(Komunikat::informacja('Już obserwujesz tę osobę.'));
         }
 
         // KOMUNIKAT, KTÓRY MÓWI PRAWDĘ (issue #1809). Bez nazwy konta —
@@ -64,9 +65,9 @@ class SocialController extends Controller
         // znika sam (ten sam mechanizm co „Przywróć do zeszytu", D-242).
         // Formularz jest POST-em, więc DELETE idzie polem `_method`.
         return back()
-            ->with('status', $this->followUser->czyPowiadomiono()
+            ->with(Komunikat::sukces($this->followUser->czyPowiadomiono()
                 ? 'Obserwujesz. Ta osoba dostanie powiadomienie. Jej nowe wpisy zobaczysz na Starcie.'
-                : 'Obserwujesz. Nowe wpisy tej osoby zobaczysz na Starcie.')
+                : 'Obserwujesz. Nowe wpisy tej osoby zobaczysz na Starcie.'))
             ->with('status_powrot', [
                 'akcja' => route('social.unfollow', $target->profile->username),
                 'etykieta' => 'Cofnij',
@@ -96,7 +97,7 @@ class SocialController extends Controller
         $this->unfollowUser->handle($request->user(), $target);
 
         // Bez nazwy konta po „już" (dopełniacz) — patrz komunikat w `follow()`.
-        return back()->with('status', 'Nie obserwujesz już tej osoby.');
+        return back()->with(Komunikat::sukces('Nie obserwujesz już tej osoby.'));
     }
 
     public function block(Request $request, string $username): RedirectResponse
@@ -110,9 +111,8 @@ class SocialController extends Controller
             return back()->withErrors(['block' => $e->getMessage()]);
         }
 
-        return redirect()->route('home')->with('status',
-            'Zablokowano '.$target->displayName().'. Nie zobaczycie już wzajemnie swoich treści.',
-        );
+        return redirect()->route('home')->with(Komunikat::sukces('Zablokowano '.$target->displayName().'. Nie zobaczycie już wzajemnie swoich treści.',
+        ));
     }
 
     public function unblock(Request $request, string $username): RedirectResponse
@@ -132,9 +132,8 @@ class SocialController extends Controller
         // człowiek klika „Zdejmij blokadę”, oczekuje powrotu do stanu sprzed
         // konfliktu i dowiaduje się o różnicy dopiero wtedy, gdy zauważy,
         // że w swoim feedzie znów nie widzi tej osoby.
-        return back()->with('status',
-            'Blokada zdjęta. Możecie znów widzieć swoje treści, ale obserwowanie się nie wznawia samo — jeśli chcesz znów obserwować tę osobę, wejdź na jej profil i kliknij „Obserwuj”.',
-        );
+        return back()->with(Komunikat::sukces('Blokada zdjęta. Możecie znów widzieć swoje treści, ale obserwowanie się nie wznawia samo — jeśli chcesz znów obserwować tę osobę, wejdź na jej profil i kliknij „Obserwuj”.',
+        ));
     }
 
     /**

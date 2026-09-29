@@ -13,6 +13,7 @@ use App\Models\ModerationAction;
 use App\Models\Post;
 use App\Models\Report;
 use App\Models\User;
+use App\Support\Komunikat;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -268,9 +269,9 @@ class SygnalyController extends Controller
             ]);
         }
 
-        return back()->with('status', $ile === 1
+        return back()->with(Komunikat::sukces($ile === 1
             ? 'Zamknięte. Treść zostaje bez zmian, a automat już do niej nie wróci.'
-            : 'Zamknięte — '.$ile.' oznaczenia tego konta. Treści zostają bez zmian, a automat już do nich nie wróci.');
+            : 'Zamknięte — '.$ile.' oznaczenia tego konta. Treści zostają bez zmian, a automat już do nich nie wróci.'));
     }
 
     /**

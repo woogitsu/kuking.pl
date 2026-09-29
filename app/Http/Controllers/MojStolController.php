@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Feed\MojStol;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -44,8 +45,8 @@ final class MojStolController extends Controller
         $wlacz = filter_var($dane['wlaczony'], FILTER_VALIDATE_BOOLEAN);
         $request->user()->update(['moj_stol_enabled' => $wlacz]);
 
-        return redirect()->route('moj-stol')->with('status', $wlacz
+        return redirect()->route('moj-stol')->with(Komunikat::sukces($wlacz
             ? 'Mój stół jest włączony. Widzisz go tutaj i na Starcie.'
-            : 'Mój stół jest wyłączony. Nie pokazujemy Ci żadnych propozycji.');
+            : 'Mój stół jest wyłączony. Nie pokazujemy Ci żadnych propozycji.'));
     }
 }

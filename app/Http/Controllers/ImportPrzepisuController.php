@@ -19,6 +19,7 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Models\ImportPrzepisu;
 use App\Models\PrzepisZImportu;
 use App\Rules\ObslugiwaneZdjecie;
+use App\Support\Komunikat;
 use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -96,7 +97,7 @@ final class ImportPrzepisuController extends Controller
             $this->slad('url', 'bez_tresci', $e->kod);
 
             return redirect()->route('recipes.create', ['szkic' => $recipe->getKey()])
-                ->with('status', $e->getMessage());
+                ->with(Komunikat::blad($e->getMessage()));
         } catch (\Throwable $e) {
             if ($proba !== null) {
                 $this->limit->zakoncz($proba['id'], false);
@@ -122,8 +123,8 @@ final class ImportPrzepisuController extends Controller
         $this->slad('url', $strona->droga, null);
 
         return redirect()->route('recipes.create', ['szkic' => $recipe->getKey()])
-            ->with('status', 'Szkic gotowy — widzisz go tylko Ty. Ten tekst odczytał komputer: porównaj go ze stroną '
-                .'i popraw, co trzeba. Opis przygotowania napisz własnymi słowami, zanim opublikujesz.');
+            ->with(Komunikat::sukces('Szkic gotowy — widzisz go tylko Ty. Ten tekst odczytał komputer: porównaj go ze stroną '
+                .'i popraw, co trzeba. Opis przygotowania napisz własnymi słowami, zanim opublikujesz.'));
     }
 
     public function pdfForm(): View
@@ -195,8 +196,8 @@ final class ImportPrzepisuController extends Controller
         $this->slad('pdf', $pdf->droga, null);
 
         return redirect()->route('recipes.create', ['szkic' => $recipe->getKey()])
-            ->with('status', 'Szkic gotowy — widzisz go tylko Ty. Ten tekst odczytał komputer: porównaj go '
-                .'z plikiem i popraw, co trzeba, zanim opublikujesz.');
+            ->with(Komunikat::sukces('Szkic gotowy — widzisz go tylko Ty. Ten tekst odczytał komputer: porównaj go '
+                .'z plikiem i popraw, co trzeba, zanim opublikujesz.'));
     }
 
     /**
@@ -216,7 +217,7 @@ final class ImportPrzepisuController extends Controller
     {
         if (! ZlecImportPrzepisu::dostepnyOdczytZdjecia()) {
             return redirect()->route('recipes.create')
-                ->with('status', 'Odczytywanie przepisów ze zdjęć jest teraz wyłączone. Możesz wpisać przepis ręcznie i dodać do niego zdjęcie kartki.');
+                ->with(Komunikat::blad('Odczytywanie przepisów ze zdjęć jest teraz wyłączone. Możesz wpisać przepis ręcznie i dodać do niego zdjęcie kartki.'));
         }
 
         $osoba = $request->user();
