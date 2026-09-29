@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domain\Monitoring;
 
-use App\Logging\WebhookBleduHandler;
+use App\Logging\KanalyAlarmowe;
 use App\Models\DataExport;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
-use Throwable;
 
 /**
  * Wygasłe paczki z danymi, które NADAL leżą w storage (issue #1331).
@@ -111,21 +110,14 @@ final class AlarmZaleglychPaczekDanych
 
     private function kanalWlaczony(): bool
     {
-        // Ten sam warunek co w `bootstrap/app.php`, `AlarmKopii` i `AlarmKolejki`.
-        return ! blank(config('logging.channels.blad_webhook.url'));
+        // Ten sam warunek co w `bootstrap/app.php`, `AlarmKopii` i `AlarmKolejki`:
+        // Discord albo poczta (#599).
+        return KanalyAlarmowe::wlaczony();
     }
 
     /** Brak wyjątku nie jest przyjęciem — pełne uzasadnienie w `AlarmKolejki::kanalPrzyjal()`. */
     private function kanalPrzyjal(string $tresc): bool
     {
-        WebhookBleduHandler::zapomnijOstatniaWysylke();
-
-        try {
-            Log::channel('blad_webhook')->error($tresc);
-        } catch (Throwable) {
-            return false;
-        }
-
-        return WebhookBleduHandler::ostatniaWysylkaSieUdala() === true;
+        return KanalyAlarmowe::zadzwon($tresc);
     }
 }

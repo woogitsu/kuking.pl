@@ -90,6 +90,10 @@ class ZmienneRailwayaPerRolaTest extends TestCase
             'powod' => 'Kanał `blad_webhook` (`config/logging.php`): błąd może paść w każdej roli; '
                 .'alarm kopii (`AlarmKopii`) wysyła scheduler.',
         ],
+        'KUKING_ALARM_EMAIL' => [
+            'role' => ['web', 'worker', 'scheduler'],
+            'powod' => 'Drugi kanał alarmowy `blad_email` (#599): jak LOG_BLAD_WEBHOOK_URL, błąd może paść w każdej roli.',
+        ],
         'EMAILLABS_APP_KEY' => [
             'role' => ['web', 'worker', 'scheduler'],
             'powod' => 'Transport poczty: web wysyła synchronicznie `WyslijOdpowiedz` i sprawdza `App\Support\Poczta` '

@@ -53,6 +53,7 @@ class KazdyListLiczySieWPuliTest extends TestCase
         'app/Notifications/UstawienieNowegoHasla.php' => 'app/Http/Controllers/Auth/PasswordResetController.php',
         'app/Notifications/PilneZgloszenieOdCzlowieka.php' => 'app/Domain/Moderation/Actions/AlarmujOPilnymZgloszeniu.php',
         'app/Notifications/PilnyAlarmModeracyjny.php' => 'app/Domain/Moderation/Actions/AlarmujModeratora.php',
+        'app/Mail/AlarmOperacyjny.php' => 'app/Logging/EmailBleduHandler.php',
         'app/Mail/OdpowiedzNaWiadomosc.php' => 'app/Domain/Contact/Actions/WyslijOdpowiedz.php',
         'app/Mail/PodsumowanieTygodnia.php' => 'app/Console/Commands/WyslijPodsumowaniaTygodnia.php',
         'app/Mail/ZyczeniaUrodzinowe.php' => 'app/Console/Commands/WyslijZyczeniaUrodzinowe.php',
