@@ -151,8 +151,7 @@ class WyjecieZZeszytuNieKasujeInnychZeszytowTest extends TestCase
 
         $this->assertNotNull($formularz, 'Ekran przepisu nie daje formularza wyjęcia.');
 
-        $pole = (new DOMXPath($formularz->ownerDocument))
-            ->query('.//input[@name="collection_id"]', $formularz)?->item(0);
+        $pole = self::wynikXPath(new DOMXPath($formularz->ownerDocument), './/input[@name="collection_id"]', $formularz)->item(0);
 
         $this->assertInstanceOf(DOMElement::class, $pole,
             'Formularz wyjęcia nie wskazuje zeszytu, choć zeszyt jest dokładnie jeden.');
@@ -180,7 +179,7 @@ class WyjecieZZeszytuNieKasujeInnychZeszytowTest extends TestCase
         $formularz = $this->formularzWyjecia($html, $przepis);
         $this->assertNotNull($formularz);
         $this->assertNull(
-            (new DOMXPath($formularz->ownerDocument))->query('.//input[@name="collection_id"]', $formularz)?->item(0),
+            self::wynikXPath(new DOMXPath($formularz->ownerDocument), './/input[@name="collection_id"]', $formularz)->item(0),
             'Formularz wskazuje jeden zeszyt, choć przepis leży w trzech.',
         );
     }
@@ -284,7 +283,7 @@ class WyjecieZZeszytuNieKasujeInnychZeszytowTest extends TestCase
         libxml_clear_errors();
         libxml_use_internal_errors($poprzednie);
 
-        $trafienie = (new DOMXPath($dokument))->query($wyrazenie)?->item(0);
+        $trafienie = self::wynikXPath(new DOMXPath($dokument), $wyrazenie)->item(0);
 
         return $trafienie instanceof DOMElement ? $trafienie : null;
     }

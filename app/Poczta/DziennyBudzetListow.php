@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Security;
+namespace App\Poczta;
 
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;

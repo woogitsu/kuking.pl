@@ -371,6 +371,25 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
+     * Wynik `DOMXPath::query()` jako lista węzłów — albo czytelna porażka.
+     *
+     * `query()` zwraca `false` przy błędnym wyrażeniu XPath. Dawniej
+     * `?->item(0)` po cichu zamieniało to w `null`, a test padał dopiero
+     * dalej, na pytaniu o brak elementu, i nie mówił, że to samo zapytanie
+     * jest niepoprawne.
+     *
+     * @return \DOMNodeList<\DOMNode>
+     */
+    protected static function wynikXPath(\DOMXPath $xpath, string $zapytanie, ?\DOMNode $kontekst = null): \DOMNodeList
+    {
+        $wynik = @$xpath->query($zapytanie, $kontekst);
+
+        self::assertInstanceOf(\DOMNodeList::class, $wynik, 'Wyrażenie XPath jest niepoprawne: '.$zapytanie);
+
+        return $wynik;
+    }
+
+    /**
      * Wszystkie węzły wyniku jako elementy HTML — patrz `elementDom()`.
      *
      * @param  iterable<\DOMNode>  $wezly

@@ -288,8 +288,8 @@ class OdstepPodPodpisemPolaTest extends TestCase
         );
 
         $this->assertNotSame(
-            $bezPodpowiedzi?->tagName,
-            $zPodpowiedzia?->tagName,
+            $bezPodpowiedzi->tagName,
+            $zPodpowiedzia->tagName,
             'Oba pola mają nad sobą to samo — ekran przestał mieć obie odmiany pola '.
             'naraz, więc ten test nie porównuje już niczego.',
         );

@@ -73,7 +73,7 @@ final class RequestEmailChange
         // odbić się o unikalność, dając 500 zamiast przewidywalnego
         // „ostatnie zamówienie wygrywa". Pod blokadą jest jednoznacznie.
         $zmiana = ZamekKonta::zablokuj($user, function (?User $swiezy) use ($user, $nowyAdres, $godzin, &$oldAddress): PendingEmailChange {
-            $oldAddress = (string) ($swiezy?->email ?? $user->email);
+            $oldAddress = (string) ($swiezy->email ?? $user->email);
             // Kasujemy i zakładamy od nowa, zamiast aktualizować w miejscu.
             // Nowe żądanie to nowy identyfikator, więc podpisany link
             // z poprzedniego listu przestaje wskazywać cokolwiek — a to jest

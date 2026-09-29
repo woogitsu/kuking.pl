@@ -472,7 +472,8 @@ class MojStolTest extends TestCase
         $ola = $this->user('ola');
         $this->przepis($ola, 'Sernik Oli', 3, $ostatni);
 
-        $this->assertNull(app(MojStol::class)->dlaWidza($widz)['od_gospodarza']);
+        $pustaPolka = app(MojStol::class)->dlaWidza($widz)['od_gospodarza'];
+        $this->assertNull($pustaPolka);
 
         // Kontrola dodatnia: gdy jeden pusty tag schodzi z listy, ostatni
         // mieści się w limicie i wraca.
@@ -484,7 +485,8 @@ class MojStolTest extends TestCase
         $this->przepis($this->user('iza'), 'Babka Izy', 4, $ostatni);
         $this->przepis($this->user('zosia'), 'Tarta Zosi', 5, $ostatni);
 
-        $temat = app(MojStol::class)->dlaWidza($widz)['od_gospodarza'];
+        $stol = app(MojStol::class);
+        $temat = $stol->dlaWidza($widz)['od_gospodarza'];
         $this->assertNotNull($temat);
         $this->assertSame('Ostatni', $temat['tag']->name);
         $this->assertSame(['Nowy sernik Oli', 'Placek Ewy', 'Babka Izy'], array_map(fn (Post $p) => $p->recipe->title, $temat['wpisy']));

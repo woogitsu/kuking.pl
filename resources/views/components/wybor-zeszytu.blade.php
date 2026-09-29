@@ -1,6 +1,6 @@
 @props(['action', 'wiersz', 'content' => null, 'otwarty' => false])
 @php
-    $zeszyty = app(\App\Domain\Collections\ZeszytyDoWyboru::class)->dla(request());
+    $zeszyty = app(\App\Http\Support\ZeszytyZZadania::class)->dla(request());
     $aktywny = \App\Support\WierszFormularza::jestAktywny($wiersz);
     $blad = $aktywny ? $errors->first('collection_id') : null;
     $wybrany = \App\Support\WierszFormularza::stareLubDomyslne('collection_id', $wiersz, '');

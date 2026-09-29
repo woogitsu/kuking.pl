@@ -109,6 +109,7 @@ class ListyWpisuZWlasnaTresciaTest extends TestCase
             'followers', 'private' => $this->przepis->update(['visibility' => $jak]),
             'soft-delete' => $this->przepis->delete(),
             'hidden' => Recipe::query()->whereKey($this->przepis->getKey())->update(['status' => Recipe::STATUS_HIDDEN]),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
     }
 

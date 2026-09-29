@@ -47,6 +47,7 @@
 import { chromium } from 'playwright';
 import { przygotujKaruzele, zmierzKaruzele } from './fixtures/karuzela-mieszana.mjs';
 import { EKRANY_OAUTH, WARIANTY_OAUTH, zmierzOauth } from './fixtures/oauth-dostepnosc.mjs';
+import { wymagajUnikalnychEkranow } from './ekrany-unikalne.mjs';
 import { AxeBuilder } from '@axe-core/playwright';
 import { spawn, execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -588,7 +589,6 @@ const EKRANY = [
  * (kilkadziesiąt milisekund), a przebieg axe kosztuje sekundę na ekran.
  */
 const EKRANY_UKLADU = [
-  { nazwa: 'ostrzeżenie przed wyjściem', adres: '/otworz-link', znajdz: 'link-zewnetrzny' },
   ...EKRANY,
   { nazwa: 'zeszyt', adres: '/zeszyt', zalogowany: true },
   /*
@@ -614,6 +614,12 @@ const EKRANY_UKLADU = [
   // szanse na wypchnięcie strony w bok. Sam axe mierzy wariant gościa wyżej.
   { nazwa: 'napisz do nas (zalogowany)', adres: '/napisz-do-nas', zalogowany: true },
 ];
+
+/* Każdy ekran raz (#611, etap 4): raport i zrzuty są kluczowane nazwą, więc
+   duplikat (jak dawny drugi `/otworz-link`) liczyłby jeden pomiar dwa razy.
+   Przy starcie, przed jakąkolwiek przeglądarką i bazą. */
+wymagajUnikalnychEkranow(EKRANY, 'EKRANY');
+wymagajUnikalnychEkranow(EKRANY_UKLADU, 'EKRANY_UKLADU');
 
 /**
  * Znacznik wariantu „czcionka przeglądarki podwojona". Celowo NIE jest

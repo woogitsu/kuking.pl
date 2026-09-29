@@ -8,6 +8,7 @@ use App\Models\Appeal;
 use App\Models\ContactMessage;
 use App\Models\Report;
 use App\Models\User;
+use App\Support\OdswiezanieLicznikowKolejek;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -83,7 +84,7 @@ use Illuminate\Support\Facades\DB;
  * licznik kłamiący, a „0" na ekranie jest samym hałasem: mówi tyle samo, co
  * jego brak, tylko zajmuje uwagę pięć razy na każdym ekranie.
  */
-final class KolejkiPanelu
+final class KolejkiPanelu implements OdswiezanieLicznikowKolejek
 {
     private const KLUCZ_CACHE = 'panel:kolejki';
 
@@ -151,7 +152,7 @@ final class KolejkiPanelu
                 ->where('status', Report::STATUS_OPEN)
                 ->count(),
 
-            // Sygnały automatu — ten sam warunek co `SygnalyController::otwarte()`.
+            // Sygnały automatu — ten sam warunek co `ZamknijGrupeSygnalow::otwarte()`.
             'sygnaly' => Report::query()
                 ->where('source', Report::SOURCE_AUTOMAT)
                 ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])

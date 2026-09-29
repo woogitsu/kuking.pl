@@ -305,8 +305,7 @@ final class KasujZdjecie
             }
         }
 
-        if ($zdjecie->object_key !== null
-            && ! $this->skasujZKazdegoDysku($zdjecie, $zdjecie->object_key, $dyski)) {
+        if (! $this->skasujZKazdegoDysku($zdjecie, $zdjecie->object_key, $dyski)) {
             $wszystkoSieUdalo = false;
         }
 
@@ -410,7 +409,9 @@ final class KasujZdjecie
         try {
             $dysk = Storage::disk($nazwaDysku);
 
-            if (! $dysk->exists($klucz)) {
+            $istnialo = $dysk->exists($klucz);
+
+            if (! $istnialo) {
                 return true;
             }
 

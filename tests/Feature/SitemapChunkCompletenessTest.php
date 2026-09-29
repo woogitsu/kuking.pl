@@ -48,6 +48,7 @@ class SitemapChunkCompletenessTest extends TestCase
                 'ascending' => $index,
                 'descending' => 1002 - $index,
                 'equal' => 1,
+                default => throw new \LogicException('Nieobsłużony wariant w match.'),
             };
             $attributes = [
                 'id' => $id,

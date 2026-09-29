@@ -21,6 +21,7 @@ class PlikKontrolnyBezCzytaniaZrodelTest extends TestCase
 {
     public function test_przyrzad_kontrolny_nie_czyta_zrodel(): void
     {
-        $this->assertTrue(true, 'Przyrząd kontrolny: sam fakt istnienia tego pliku jest treścią kontroli.');
+        // Przyrząd kontrolny: sam fakt istnienia tego pliku jest treścią kontroli.
+        $this->addToAssertionCount(1);
     }
 }

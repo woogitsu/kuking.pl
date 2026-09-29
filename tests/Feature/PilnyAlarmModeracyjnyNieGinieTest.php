@@ -7,13 +7,13 @@ namespace Tests\Feature;
 use App\Domain\Moderation\Actions\AlarmujModeratora;
 use App\Domain\Moderation\Actions\OznaczDoPrzegladu;
 use App\Domain\Moderation\Sygnaly\Sygnal;
-use App\Domain\Security\DziennyBudzetListow;
 use App\Jobs\PrzeanalizujTresc;
 use App\Models\AuditLogEntry;
 use App\Models\Post;
 use App\Models\Report;
 use App\Models\User;
 use App\Notifications\PilnyAlarmModeracyjny;
+use App\Poczta\DziennyBudzetListow;
 use Illuminate\Contracts\Notifications\Dispatcher as DyspozytorPowiadomien;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -378,8 +378,10 @@ class PilnyAlarmModeracyjnyNieGinieTest extends TestCase
         $this->artisan('kuking:doslij-pilne-alarmy')->assertSuccessful();
 
         Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
-        $this->assertSame(Report::ALARM_ZLECONY, $this->oznaczenie()?->alarm_pilny_stan);
-        $this->assertNotNull($this->oznaczenie()?->alarm_pilny_zlecony_at);
+        $oznaczenie = $this->oznaczenie();
+        $this->assertInstanceOf(Report::class, $oznaczenie, 'Brak zgłoszenia z automatu.');
+        $this->assertSame(Report::ALARM_ZLECONY, $oznaczenie->alarm_pilny_stan);
+        $this->assertNotNull($oznaczenie->alarm_pilny_zlecony_at);
         $this->assertTrue($this->zdrowieZeSzczegolami()->json('checks.alarmy_moderacji.ok'));
 
         // Następna godzina: nic do dosłania, drugiego listu nie ma.
@@ -512,8 +514,9 @@ class PilnyAlarmModeracyjnyNieGinieTest extends TestCase
         $this->assertSame(AlarmujModeratora::JUZ_ZLECONY, app(AlarmujModeratora::class)->handle($stara, $pilne));
 
         $sprawa = $this->oznaczenie();
-        $this->assertSame(Report::ALARM_ZLECONY, $sprawa?->alarm_pilny_stan);
-        $this->assertNotNull($sprawa?->alarm_pilny_zlecony_at);
+        $this->assertInstanceOf(Report::class, $sprawa, 'Brak zgłoszenia z automatu.');
+        $this->assertSame(Report::ALARM_ZLECONY, $sprawa->alarm_pilny_stan);
+        $this->assertNotNull($sprawa->alarm_pilny_zlecony_at);
         $this->assertTrue($this->zdrowieZeSzczegolami()->json('checks.alarmy_moderacji.ok'));
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Feed;
 
+use Illuminate\Support\Arr;
+
 /**
  * Treść strony „Jak dobieramy wpisy" (#1811, D-305) — jedyne miejsce, w którym
  * stoją jej zdania.
@@ -34,7 +36,7 @@ final class JakDobieramyWpisy
     {
         $dni = (int) config('kuking.ukrycia.dni');
         $widoczneZSerii = SerieWpisow::WIDOCZNE_Z_SERII;
-        $ileWSerii = $widoczneZSerii === 2 ? 'dwa' : (string) $widoczneZSerii;
+        $ileWSerii = Arr::get([1 => 'jeden', 2 => 'dwa', 3 => 'trzy'], $widoczneZSerii, (string) $widoczneZSerii);
 
         return [
             'start' => [

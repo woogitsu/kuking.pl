@@ -12,6 +12,7 @@ use App\Google\DostawcaWejsciaGoogle;
 use App\Google\KlientGoogle;
 use App\Google\TozsamoscGoogle;
 use App\Http\Controllers\Controller;
+use App\Http\Support\ZadanieHttp;
 use App\Models\User;
 use App\Support\Google;
 use App\Support\Komunikat;
@@ -332,7 +333,7 @@ class GoogleLoginController extends Controller
             return RejestracjaZamknieta::przekierowanie();
         }
 
-        $tozsamosc = $this->wejscie()->tozsamoscZSesji($request);
+        $tozsamosc = $this->wejscie()->tozsamoscZSesji(ZadanieHttp::z($request));
 
         if ($tozsamosc === null) {
             return $this->trzebaZaczacOdNowa();
@@ -341,7 +342,7 @@ class GoogleLoginController extends Controller
         // PODPOWIEDŹ, NIE NADANIE. Nazwa stoi w polu, które człowiek widzi
         // i może zmienić — decyzja właściciela z 10 września (dwa pola przy
         // rejestracji, nazwa podpowiadana z imienia).
-        return view('auth.google-finish', $this->wejscie()->ekranDomkniecia($request, $tozsamosc));
+        return view('auth.google-finish', $this->wejscie()->ekranDomkniecia(ZadanieHttp::z($request), $tozsamosc));
     }
 
     /**
@@ -362,20 +363,20 @@ class GoogleLoginController extends Controller
             return RejestracjaZamknieta::przekierowanie();
         }
 
-        $tozsamosc = $this->wejscie()->tozsamoscDoZalozenia($request);
+        $tozsamosc = $this->wejscie()->tozsamoscDoZalozenia(ZadanieHttp::z($request));
 
         if ($tozsamosc === null) {
             return $this->trzebaZaczacOdNowa();
         }
 
-        $dane = $this->wejscie()->daneDomkniecia($request);
+        $dane = $this->wejscie()->daneDomkniecia(ZadanieHttp::z($request));
 
         // GOOGLE POTWIERDZIŁO ADRES (reguła 1 wyżej), więc konto powstaje
         // z adresem potwierdzonym i listu z potwierdzeniem nie ma —
         // `listPotwierdzajacyNieWyszedl` jest zawsze `false`, nie ma o czym
         // mówić człowiekowi. Hasła też nie ma: konto ma dwie drogi wejścia,
         // Google i — bo adres jest potwierdzony — wiadomość z linkiem.
-        $konto = $this->wejscie()->zalozKonto($request, $tozsamosc, $dane, $zalozKonto);
+        $konto = $this->wejscie()->zalozKonto(ZadanieHttp::z($request), $tozsamosc, $dane, $zalozKonto);
 
         if ($konto === null) {
             return redirect()->route('login')->with(Komunikat::blad(
@@ -403,8 +404,8 @@ class GoogleLoginController extends Controller
             return $this->drogaZamknieta();
         }
 
-        $tozsamosc = $this->wejscie()->tozsamoscZSesji($request);
-        $user = $this->wejscie()->kontoZSesji($request);
+        $tozsamosc = $this->wejscie()->tozsamoscZSesji(ZadanieHttp::z($request));
+        $user = $this->wejscie()->kontoZSesji(ZadanieHttp::z($request));
 
         if ($tozsamosc === null || $user === null || ! $this->wejscie()->wolnoPolaczyc($user, $tozsamosc)) {
             return $this->trzebaZaczacOdNowa();
@@ -425,8 +426,8 @@ class GoogleLoginController extends Controller
             return $this->drogaZamknieta();
         }
 
-        $tozsamosc = $this->wejscie()->tozsamoscZSesji($request);
-        $user = $this->wejscie()->kontoZSesji($request);
+        $tozsamosc = $this->wejscie()->tozsamoscZSesji(ZadanieHttp::z($request));
+        $user = $this->wejscie()->kontoZSesji(ZadanieHttp::z($request));
 
         if ($tozsamosc === null || $user === null) {
             return $this->trzebaZaczacOdNowa();
@@ -438,13 +439,13 @@ class GoogleLoginController extends Controller
          * otwarty kilkanaście minut: konto mogło zostać zablokowane, dostać
          * rolę moderatora, zmienić adres albo stracić jego potwierdzenie.
          */
-        $polaczone = $this->wejscie()->polacz($request, $user, $tozsamosc);
+        $polaczone = $this->wejscie()->polacz(ZadanieHttp::z($request), $user, $tozsamosc);
 
         if ($polaczone === null) {
             return $this->trzebaZaczacOdNowa();
         }
 
-        $this->wejscie()->zapomnij($request);
+        $this->wejscie()->zapomnij(ZadanieHttp::z($request));
 
         return $this->wpusc($request, $polaczone);
     }
@@ -455,7 +456,7 @@ class GoogleLoginController extends Controller
      */
     private function wpusc(Request $request, User $user): RedirectResponse
     {
-        return match ($this->wejscie()->wpusc($request, $user)) {
+        return match ($this->wejscie()->wpusc(ZadanieHttp::z($request), $user)) {
             WynikWejscia::KontoZamkniete => redirect()->route('login')->with(Komunikat::blad(KomunikatZamknietegoKonta::dla($user))),
             WynikWejscia::KontoObslugi => redirect()->route('login')->with(Komunikat::blad(
                 'Konta obsługi serwisu wchodzą hasłem i kodem z aplikacji — nie kontem Google. '
@@ -503,7 +504,7 @@ class GoogleLoginController extends Controller
 
         // REGUŁA 3 — połączenie po jawnym potwierdzeniu na naszym ekranie.
         $this->zapiszTozsamosc($request, $tozsamosc);
-        $this->wejscie()->zapamietajKonto($request, $user);
+        $this->wejscie()->zapamietajKonto(ZadanieHttp::z($request), $user);
 
         return redirect()->route('google.link');
     }
@@ -525,7 +526,7 @@ class GoogleLoginController extends Controller
      */
     private function zapiszTozsamosc(Request $request, TozsamoscGoogle $tozsamosc): void
     {
-        $this->wejscie()->zapamietaj($request, $this->dostawca->tozsamosc($tozsamosc));
+        $this->wejscie()->zapamietaj(ZadanieHttp::z($request), $this->dostawca->tozsamosc($tozsamosc));
     }
 
     /**

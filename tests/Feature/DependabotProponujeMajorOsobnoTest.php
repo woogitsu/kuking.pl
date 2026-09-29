@@ -236,7 +236,7 @@ final class DependabotProponujeMajorOsobnoTest extends TestCase
         $i = 0;
         $wynik = self::blok($linie, $i, 0);
 
-        if ($i !== count($linie) || ! is_array($wynik)) {
+        if ($i !== count($linie)) {
             self::fail('Parser nie przeczytał .github/dependabot.yml do końca (linia '.($linie[$i][2] ?? '?').').');
         }
 

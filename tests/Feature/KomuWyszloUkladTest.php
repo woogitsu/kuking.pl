@@ -127,7 +127,7 @@ class KomuWyszloUkladTest extends TestCase
         $xpath = $this->xpath((string) $odpowiedz->getContent());
         $this->assertSame(
             'Nie ma tu widocznych wykonań',
-            trim($xpath->query('//section[@aria-labelledby="komu-wyszlo"]//p[contains(@class,"empty-state-title")]')->item(0)?->textContent ?? ''),
+            trim($xpath->query('//section[@aria-labelledby="komu-wyszlo"]//p[contains(@class,"empty-state-title")]')->item(0)->textContent ?? ''),
         );
         $this->assertSame(route('cooked.create', $przepis->slug), $this->actionHref($xpath));
     }
@@ -142,10 +142,10 @@ class KomuWyszloUkladTest extends TestCase
 
     private function actionText(DOMXPath $xpath): string
     {
-        return trim($xpath->query('//section[@aria-labelledby="komu-wyszlo"]//div[contains(@class,"empty-state")]//a[contains(@class,"btn")]')->item(0)?->textContent ?? '');
+        return trim($xpath->query('//section[@aria-labelledby="komu-wyszlo"]//div[contains(@class,"empty-state")]//a[contains(@class,"btn")]')->item(0)->textContent ?? '');
     }
 
-    private function actionHref(DOMXPath $xpath): ?string
+    private function actionHref(DOMXPath $xpath): string
     {
         return self::elementDom($xpath->query('//section[@aria-labelledby="komu-wyszlo"]//div[contains(@class,"empty-state")]//a[contains(@class,"btn")]')->item(0))->getAttribute('href');
     }

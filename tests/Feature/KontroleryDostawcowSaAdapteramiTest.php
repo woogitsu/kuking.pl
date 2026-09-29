@@ -99,7 +99,7 @@ class KontroleryDostawcowSaAdapteramiTest extends TestCase
     {
         $kod = $this->kodBezKomentarzy($klasa);
 
-        foreach (['->wpusc($request', '->polacz($request', '->zalozKonto($request', '->daneDomkniecia($request', '->zapamietaj($request'] as $wywolanie) {
+        foreach (['->wpusc(ZadanieHttp::z($request)', '->polacz(ZadanieHttp::z($request)', '->zalozKonto(ZadanieHttp::z($request)', '->daneDomkniecia(ZadanieHttp::z($request)', '->zapamietaj(ZadanieHttp::z($request)'] as $wywolanie) {
             $this->assertStringContainsString('$this->wejscie()'.$wywolanie, $kod,
                 class_basename($klasa).' nie woła WejdzPrzezDostawce'.$wywolanie.').');
         }

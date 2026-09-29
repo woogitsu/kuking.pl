@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Logging;
 
 use Aws\Exception\AwsException;
-use Illuminate\Database\QueryException;
 use PDOException;
 use Throwable;
 
@@ -146,8 +145,10 @@ final class BezpiecznyBlad
      */
     private static function kod(Throwable $e): int|string|null
     {
-        if ($e instanceof QueryException || $e instanceof PDOException) {
-            $sqlstate = $e instanceof PDOException && is_array($e->errorInfo) && isset($e->errorInfo[0])
+        // `QueryException` dziedziczy po `PDOException`, więc jedno sprawdzenie
+        // obejmuje oba.
+        if ($e instanceof PDOException) {
+            $sqlstate = is_array($e->errorInfo) && isset($e->errorInfo[0])
                 ? $e->errorInfo[0]
                 : $e->getCode();
 

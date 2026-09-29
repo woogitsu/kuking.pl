@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Import;
 
-use App\Domain\Compliance\UsuwanieWPartiach;
 use App\Models\ImportPrzepisu;
 use App\Models\Recipe;
+use App\Support\UsuwanieWPartiach;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 

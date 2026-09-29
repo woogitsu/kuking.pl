@@ -50,6 +50,9 @@ final class WariantyKontrakt
      */
     public static function wyciagnij(Media $media): array
     {
+        // Kolumna JSONB bywa czymkolwiek (stare wiersze, ręczna poprawka) —
+        // rzutowanie modelu na tablicę tego nie gwarantuje.
+        /** @var mixed $metadata */
         $metadata = $media->metadata;
         $variants = is_array($metadata) ? ($metadata['variants'] ?? null) : null;
 

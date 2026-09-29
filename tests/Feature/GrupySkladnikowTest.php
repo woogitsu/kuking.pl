@@ -181,7 +181,7 @@ class GrupySkladnikowTest extends TestCase
         // Przepis powstaje w kreatorze — z grupami.
         Livewire::actingAs($basia)
             ->test(self::COMPONENT)
-            ->set('title', 'Sernik z kruszonką')
+            ->set('form.title', 'Sernik z kruszonką')
             ->set('ingredients.0.text', 'mąka')
             ->set('ingredients.0.group_name', 'Ciasto')
             ->set('ingredients.1.text', 'twaróg')

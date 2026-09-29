@@ -7,19 +7,19 @@ if [[ "${DB_HOST:-}" != 127.0.0.1 || "${DB_PORT:-}" != 55439 || "${DB_DATABASE:-
 fi
 mkdir -p output/onboarding
 bash scripts/kontrola-ujemna.sh --nazwa '#851 przenoszenie wyboru w przeglądarce' \
-    --plik app/Http/Controllers/OnboardingController.php \
+    --plik app/Domain/Onboarding/PrzygotujEkranLudzi.php \
     --zamien '$selected = $selectedProfiles->pluck('\''username'\'')->all();' --na '$selected = [];' \
     --oczekuj '851: wyszukiwanie zgubiło Halinę' --json output/onboarding/851.json \
     -- node scripts/onboarding-browser.mjs
 bash scripts/kontrola-ujemna.sh --nazwa '#852 komunikat częściowego wyniku' \
-    --plik app/Http/Controllers/OnboardingController.php \
-    --zamien 'if ($skipped > 0)' --na 'if (false)' \
+    --plik app/Domain/Onboarding/WynikObserwowaniaWybranych.php \
+    --zamien 'if ($this->pominieto > 0)' --na 'if (false)' \
     --oczekuj 'Nie udało się dodać wszystkich wybranych osób' --json output/onboarding/852.json \
     -- vendor/bin/phpunit tests/Feature/OnboardingWynikZapisuTest.php
 bash scripts/kontrola-ujemna.sh --nazwa '#862 null jest pustą listą' \
-    --plik app/Http/Controllers/OnboardingController.php \
-    --zamien '$data['\''follow'\''] ?? []' --na '$request->input('\''follow'\'', [])' \
-    --oczekuj 'array_map.*null given' --json output/onboarding/862.json \
+    --plik app/Http/Requests/Onboarding/ZapisObserwowanychRequest.php \
+    --zamien '$this->validated()['\''follow'\''] ?? []' --na '$this->input('\''follow'\'', [])' \
+    --oczekuj 'foreach\(\) argument must be of type array[|]object, null given' --json output/onboarding/862.json \
     -- vendor/bin/phpunit tests/Feature/OnboardingWynikZapisuTest.php
 bash scripts/kontrola-ujemna.sh --nazwa '#849 rezerwacja propozycji' \
     --plik app/Support/NazwaUzytkownika.php \

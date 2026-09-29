@@ -291,7 +291,7 @@ class ZdjecieProfiloweWidacGdyJestWariantTest extends TestCase
         $dom = new DOMDocument;
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
 
-        $wezel = (new DOMXPath($dom))->query($zapytanie)?->item(0);
+        $wezel = self::wynikXPath(new DOMXPath($dom), $zapytanie)->item(0);
 
         $this->assertInstanceOf(DOMElement::class, $wezel, $komunikat);
 

@@ -299,14 +299,14 @@ class FollowListsTest extends TestCase
         // i asercja zaczęłaby pytać nie o ten element.
         $karty = $xpath->query('//main//div[contains(concat(" ", normalize-space(@class), " "), " card ")][.//a[@href="'.$adresProfilu.'"]]');
 
-        $this->assertNotNull($karty);
+        $this->assertInstanceOf(\DOMNodeList::class, $karty);
         $this->assertSame(1, $karty->length, "{$gdzie}: karta osoby @{$username} nie jest na liście dokładnie raz.");
 
         $karta = $karty->item(0);
         $this->assertInstanceOf(DOMElement::class, $karta);
 
         $formularze = $xpath->query('.//form', $karta);
-        $this->assertNotNull($formularze);
+        $this->assertInstanceOf(\DOMNodeList::class, $formularze);
 
         if ($oczekiwany === null || $oczekiwany === 'To Ty') {
             $this->assertSame(0, $formularze->length, "{$gdzie}: karta @{$username} nie ma prawa mieć formularza relacji.");

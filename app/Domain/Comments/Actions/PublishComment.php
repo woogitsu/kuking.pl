@@ -109,7 +109,7 @@ final class PublishComment
          */
         $comment = app(LockCommentContext::class)->handle($author, $subject, $parent, function (User $author, Post|Recipe|CookedEvent $subject, ?Comment $parent) use ($body): Comment {
             $subjectOwner = $this->ownerOf($subject);
-            $parentId = $parent?->parent_id ?? $parent?->getKey();
+            $parentId = $parent->parent_id ?? $parent?->getKey();
             /*
              * DWA KLIKNIĘCIA „WYŚLIJ" TO JEDEN KOMENTARZ — BLOKADA W BAZIE,
              * NIE `exists()` W PHP (D-079, audyt podwójnego wysłania

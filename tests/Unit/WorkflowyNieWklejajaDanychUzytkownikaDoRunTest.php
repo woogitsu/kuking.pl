@@ -43,6 +43,17 @@ final class WorkflowyNieWklejajaDanychUzytkownikaDoRunTest extends TestCase
      */
     private const ZNANE_DO_NAPRAWY = [];
 
+    /**
+     * Lista bywa pusta, więc czytamy ją przez typ z opisu — inaczej analiza
+     * widzi `array{}` i uznaje każde sprawdzenie za martwe.
+     *
+     * @return array<string, string>
+     */
+    private static function znaneDoNaprawy(): array
+    {
+        return self::ZNANE_DO_NAPRAWY;
+    }
+
     private const DANE_UZYTKOWNIKA = '/(?<![\w.])(?:github\.event\.|inputs\.|github\.head_ref\b)/';
 
     public function test_zaden_run_nie_wkleja_danych_uzytkownika(): void
@@ -57,7 +68,7 @@ final class WorkflowyNieWklejajaDanychUzytkownikaDoRunTest extends TestCase
             $blokowRun += count(self::blokiRun($tresc));
             $pliki[$wzgledna] = true;
 
-            if (isset(self::ZNANE_DO_NAPRAWY[$wzgledna])) {
+            if (isset(self::znaneDoNaprawy()[$wzgledna])) {
                 continue;
             }
 

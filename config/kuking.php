@@ -1674,7 +1674,7 @@ return [
          * SUFITU DZIENNEGO ŚWIADOMIE NIE MA — sprawdzone, nie założone.
          *
          * Stan faktyczny na 10 września 2026: WSPÓLNEGO licznika całej poczty
-         * w repozytorium nie ma i `App\Domain\Security\DziennyBudzetListow`
+         * w repozytorium nie ma i `App\Poczta\DziennyBudzetListow`
          * mówi to o sobie wprost. Istnieje jeden sufit WŁASNY jednej funkcji —
          * logowania linkiem (D-056, `login_link.dzienny_budzet` = 120) — a
          * reszta puli jest pilnowana PROJEKTOWO: listy natychmiastowe tylko
@@ -2192,6 +2192,15 @@ return [
         'eksport' => '10,60',
 
         /*
+         * WCZYTANIE WŁASNEJ PACZKI (#1985) — wybór pliku i „Wczytaj zaznaczone”.
+         * Każde wysłanie pliku otwiera ZIP i czyta `dane.json` (do 12 MB — patrz `PodgladPaczkiEksportu::MAX_DANE_BAJTOW`), więc
+         * limit jest godzinny i skromny: kilka prób z różnymi plikami zmieści się
+         * człowiekowi, pętla — nie. Zapis jest dodatkowo dzielony na partie
+         * (`import_paczki.max_naraz`) i idempotentny, więc ponowienie nie szkodzi.
+         */
+        'import_paczki' => '10,60',
+
+        /*
          * PANEL MODERACJI — decyzje o zgłoszeniach, przywracanie treści,
          * odwołania, odpowiedzi na wpisy bez odpowiedzi, tablica dnia,
          * tagi promowane.
@@ -2499,7 +2508,7 @@ return [
     | Rezerwa nie chroniła niczego, bo nie istniał nikt, kto by jej pilnował.
     |
     | Od teraz pilnuje jej WSPÓLNY LICZNIK CAŁEJ POCZTY
-    | (`App\Domain\Security\DziennyBudzetListow::wspolny()`) i sekcja
+    | (`App\Poczta\DziennyBudzetListow::wspolny()`) i sekcja
     | `progi_wygaszania` niżej — patrz tam po kolejność wygaszania i po
     | uzasadnienie każdej z trzech liczb.
     |
@@ -2706,7 +2715,7 @@ return [
          * nieprawdą po drugiej stronie. Rachunek dla 100, 500 i 2 000 kont
          * i moment przejścia na plan płatny: `docs/DECISIONS.md` D-057.
          *
-         * SUFIT PILNUJE `App\Domain\Security\DziennyBudzetListow` — ta sama
+         * SUFIT PILNUJE `App\Poczta\DziennyBudzetListow` — ta sama
          * klasa co przy logowaniu linkiem, z własnym kluczem licznika. Dwa
          * własne liczniki tej samej rzeczy rozjechałyby się przy pierwszej
          * zmianie którejkolwiek z tych liczb.
@@ -2785,6 +2794,23 @@ return [
         // wiele kont nie dostaje lawiny w jeden dzień; nadmiar przepada
         // (to informacja o dniu, a nie wiadomość do odłożenia na jutro).
         'przypomnienia_na_odbiorce_dziennie' => (int) env('KUKING_URODZINY_PRZYPOMNIENIA_NA_DOBE', 3),
+    ],
+
+    /*
+     * WCZYTYWANIE WŁASNEJ PACZKI EKSPORTU (#1985, etap 2).
+     *
+     * `max_naraz` — ile pozycji tworzy JEDNO „Wczytaj zaznaczone”. Przepis idzie
+     * przez `PublishRecipe` (slug, wersje, składniki), więc setki naraz to długie
+     * żądanie; reszta zostaje w podglądzie i wczytuje się kolejnym kliknięciem.
+     * `max_kb` — największy plik ZIP do wybrania: 24 MB, czyli `upload_max_filesize`
+     * z `docker/php.ini` (wyższa liczba byłaby obietnicą bez pokrycia; zdjęć z paczki
+     * i tak nie czytamy). `przechowanie_godzin` — jak długo wybrana paczka czeka
+     * na decyzję w prywatnym magazynie, zanim zostanie skasowana.
+     */
+    'import_paczki' => [
+        'max_naraz' => 50,
+        'max_kb' => 24_576,
+        'przechowanie_godzin' => 2,
     ],
 
     'zeszyt' => [
@@ -3177,7 +3203,7 @@ return [
     // `product_signals`, `audit_log`, zwykłe `notifications`, `sessions`
     // i potwierdzenia RODO kasujemy partiami po `partia` wierszy, każda we
     // własnej krótkiej transakcji, i najwyżej `budzet` wierszy z jednej
-    // tabeli na przebieg (`App\Domain\Compliance\UsuwanieWPartiach`).
+    // tabeli na przebieg (`App\Support\UsuwanieWPartiach`).
     // Przerwany przebieg zachowuje zatwierdzony postęp; zaległość ponad
     // budżet schodzi w kolejne noce, z ostrzeżeniem w dzienniku
     // (`stage=retention_budget_exhausted`).
@@ -3213,6 +3239,16 @@ return [
             env('FILESYSTEM_DISK', 'local') === 'r2' ? 'r2_eksporty' : 'local',
         )),
         'retention_days' => (int) env('KUKING_DZIENNIK_WYMAZAN_DNI', 120),
+
+        // ALARM „WYMAZANIA STOJĄ” (issue #2038, wariant A). Wymazanie konta
+        // czeka na zapis wpisu do dziennika; gdy magazyn nie odpowiada,
+        // anonimizacja się cofa i egzekutor ponawia ją co noc. Jedna noc to
+        // czkawka, TRZY z rzędu to awaria — wtedy idzie wiadomość na kanał
+        // `blad_webhook` (ta sama maszyna co kolejka i połączenia, #599).
+        // Cisza 72 h: trwająca awaria przypomina o sobie co trzecią noc,
+        // a nie co noc.
+        'alarm_po_nocach' => (int) env('KUKING_DZIENNIK_WYMAZAN_ALARM_NOCE', 3),
+        'alarm_cisza_godzin' => (int) env('KUKING_DZIENNIK_WYMAZAN_ALARM_CISZA_GODZIN', 72),
     ],
 
     // TREŚCI USUNIĘTE PRZEZ AUTORA (audyt B5, znalezisko 1, 25.09.2026).
@@ -3743,6 +3779,22 @@ return [
             // Limit czasu pdfinfo/pdftotext — spreparowany plik nie zajmie
             // procesu na dłużej.
             'limit_czasu' => (int) env('KUKING_IMPORT_PDF_LIMIT_CZASU', 20),
+            /*
+             * PLIK TYMCZASOWY PDF (#28 etap 2, #2051). Wysłany PDF czeka na
+             * worker poza żądaniem WWW, więc leży na PRYWATNYM dysku
+             * WSPÓLNYM dla WWW i workera — nigdy w `getRealPath()` procesu
+             * WWW, bo po wydzieleniu workera to inny kontener. Domyślnie ten
+             * sam prywatny dysk co surowe uploady Livewire (na produkcji `r2`),
+             * w osobnym katalogu — NIE `livewire-tmp/`, NIE `incoming/`,
+             * NIE publiczny wariant. Plik znika po sukcesie, po trwałej
+             * porażce, przy usunięciu konta i najpóźniej po `retencja_godzin`
+             * (`kuking:odzyskaj-importy`, także osierocone pliki bez wiersza).
+             * `retencja_godzin` MUSI być dłuższe niż `odzyskiwanie.zlecenie_minut`,
+             * inaczej sprzątanie zabrałoby plik zleceniu, które jeszcze trwa.
+             */
+            'dysk' => env('KUKING_IMPORT_PDF_DYSK') ?: (env('LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK') ?: 'local'),
+            'katalog' => 'import-pdf-tmp',
+            'retencja_godzin' => (int) env('KUKING_IMPORT_PDF_RETENCJA_GODZIN', 4),
         ],
         /*
          * KOLEJKA `low`, NIE OSOBNA `import` (D-298). Produkcja chodzi dziś

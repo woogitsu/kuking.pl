@@ -25,6 +25,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Tests\Support\MalyPdf;
@@ -62,6 +63,9 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
     {
         parent::setUp();
 
+        // Plik PDF czeka na worker na dysku importu (#28 etap 2) — nigdy prawdziwy dysk.
+        Storage::fake((string) config('kuking.import.pdf.dysk'));
+
         $this->app->instance(RozwiazywaczNazw::class, (new MapaNazw)
             ->ustaw('przepisy.example.pl', '93.184.216.34')
             ->ustaw('wewnetrzny.example.pl', '10.1.2.3'));
@@ -73,11 +77,28 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
             .'</script></head><body><img src="https://przepisy.example.pl/zdjecie-sernika.jpg"><p>Sernik</p></body></html>';
     }
 
+    private function mikrodane(string $tytul): string
+    {
+        return '<div itemscope itemtype="https://schema.org/Recipe"><h1 itemprop="name">'.$tytul.'</h1>'
+            .'<img itemprop="image" src="https://przepisy.example.pl/zdjecie-mikrodane.jpg">'
+            .'<span itemprop="recipeYield">6 porcji</span>'
+            .'<span itemprop="author" itemscope itemtype="https://schema.org/Person"><span itemprop="name">Obca Autorka</span></span>'
+            .'<ul><li itemprop="recipeIngredient">1 kg jabłek</li><li itemprop="recipeIngredient">cynamon</li></ul>'
+            .'<div itemprop="recipeInstructions"><p>Obierz jabłka.</p><p>Piecz 40 minut.</p></div></div>';
+    }
+
+    private function stronaZMikrodanymi(): string
+    {
+        return '<html><head><title>Blog</title></head><body>'.$this->mikrodane('Szarlotka z mikrodanych').'</body></html>';
+    }
+
     private function udawajStrone(string $robots = '', int $robotsStatus = 404): void
     {
         Http::fake([
             'https://przepisy.example.pl/robots.txt' => Http::response($robots, $robotsStatus),
             'https://przepisy.example.pl/sernik*' => Http::response($this->stronaZPrzepisem(), 200, ['Content-Type' => 'text/html; charset=utf-8']),
+            'https://przepisy.example.pl/mikrodane' => Http::response($this->stronaZMikrodanymi(), 200, ['Content-Type' => 'text/html; charset=utf-8']),
+            'https://przepisy.example.pl/oba' => Http::response(str_replace('<body>', '<body>'.$this->mikrodane('Z mikrodanych'), $this->stronaZPrzepisem()), 200, ['Content-Type' => 'text/html; charset=utf-8']),
             'https://przepisy.example.pl/blog' => Http::response('<html><body><p>Wpis bez przepisu</p></body></html>', 200, ['Content-Type' => 'text/html']),
         ]);
     }
@@ -247,6 +268,43 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'zdjecie-sernika'));
         Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com'));
         $this->assertSame(0, $autor->posts()->count(), 'Import nie może zapowiadać przepisu w strumieniu.');
+    }
+
+    public function test_strona_z_mikrodanymi_bez_json_ld_daje_prywatny_szkic_bez_modelu_i_bez_zdjec(): void
+    {
+        $autor = $this->user('ela');
+        $this->udawajStrone();
+
+        $this->actingAs($autor)
+            ->post(route('recipes.import.url.store'), ['adres' => 'https://przepisy.example.pl/mikrodane'])
+            ->assertRedirect();
+
+        $recipe = Recipe::query()->where('author_id', $autor->getKey())->firstOrFail();
+        $this->assertSame(Recipe::STATUS_DRAFT, $recipe->status);
+        $this->assertSame('private', $recipe->visibility);
+        $this->assertNull($recipe->published_at);
+        $this->assertNull($recipe->hero_media_id);
+        $this->assertSame('Szarlotka z mikrodanych', $recipe->title);
+        $this->assertSame(6.0, $recipe->servings);
+        $this->assertSame(['1 kg jabłek', 'cynamon'], $recipe->ingredients()->pluck('ingredient_text')->all());
+        $this->assertSame(['Obierz jabłka.', 'Piecz 40 minut.'], $recipe->steps()->orderBy('position')->pluck('instruction')->all());
+        $this->assertSame('json_ld', PrzepisZImportu::query()->findOrFail($recipe->getKey())->droga);
+
+        Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'zdjecie-mikrodane'));
+        Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com'));
+        $this->assertSame(0, $autor->posts()->count());
+    }
+
+    public function test_gdy_strona_ma_json_ld_i_mikrodane_wygrywa_json_ld(): void
+    {
+        $autor = $this->user('ola');
+        $this->udawajStrone();
+
+        $this->actingAs($autor)
+            ->post(route('recipes.import.url.store'), ['adres' => 'https://przepisy.example.pl/oba'])
+            ->assertRedirect();
+
+        $this->assertSame('Sernik babci Hani', Recipe::query()->where('author_id', $autor->getKey())->firstOrFail()->title);
     }
 
     public function test_robots_zabrania_daje_szkic_z_samym_zrodlem_i_zdaniem_co_zrobic(): void
@@ -597,8 +655,13 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         Http::fake();
         $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
 
-        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf])
-            ->assertSessionHasErrors(['plik' => ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BRAK_ZGODY_AI]]);
+        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf])->assertRedirect();
+
+        $zlecenie = ImportPrzepisu::query()->where('user_id', $autor->getKey())->firstOrFail();
+        $this->assertSame(ImportPrzepisu::STATUS_NIEUDANY, $zlecenie->status);
+        $this->assertSame(ImportPrzepisu::KOD_BRAK_ZGODY, $zlecenie->kod_bledu);
+        $this->actingAs($autor)->get(route('import.show', $zlecenie))
+            ->assertOk()->assertSee(ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BRAK_ZGODY_AI]);
 
         $this->assertSame(0, Recipe::query()->count());
         Http::assertNothingSent();
@@ -635,8 +698,12 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         Http::fake();
         $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
 
-        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf, 'zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA])
-            ->assertSessionHasErrors(['plik' => ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BUDZET_AI]]);
+        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf, 'zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA])->assertRedirect();
+
+        $zlecenie = ImportPrzepisu::query()->where('user_id', $autor->getKey())->firstOrFail();
+        $this->assertSame(ImportPrzepisu::KOD_BUDZET_DZIENNY, $zlecenie->kod_bledu);
+        $this->actingAs($autor)->get(route('import.show', $zlecenie))
+            ->assertOk()->assertSee(ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BUDZET_AI]);
 
         $this->assertSame(0, Recipe::query()->count());
         Http::assertNothingSent();

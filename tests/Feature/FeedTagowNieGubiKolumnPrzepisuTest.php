@@ -207,7 +207,7 @@ class FeedTagowNieGubiKolumnPrzepisuTest extends TestCase
         });
 
         foreach (app(FollowingFeed::class)->paginate($widz->fresh())->items() as $wpis) {
-            $wpis->recipe?->heroMedia;
+            $wpis->recipe?->getRelationValue('heroMedia');
         }
 
         return $ile;

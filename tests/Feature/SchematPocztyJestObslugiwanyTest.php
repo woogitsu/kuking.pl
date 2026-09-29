@@ -63,7 +63,7 @@ class SchematPocztyJestObslugiwanyTest extends TestCase
             );
         }
 
-        $this->assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 
     /**

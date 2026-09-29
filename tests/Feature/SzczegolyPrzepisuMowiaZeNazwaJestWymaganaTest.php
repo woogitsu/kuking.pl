@@ -47,7 +47,7 @@ final class SzczegolyPrzepisuMowiaZeNazwaJestWymaganaTest extends TestCase
         $this->assertStringNotContainsString('Szkic zostaje na Twoim koncie', $html);
         $komponent->call('saveDraft')->assertSet('saveMessage', 'Zmiany zapisane.');
         $this->assertSame(Recipe::STATUS_PUBLISHED, $przepis->fresh()->status);
-        $szkic = Livewire::actingAs($autor)->test('recipe-wizard')->set('title', 'Nowy szkic bez kroków')->call('saveDraft');
+        $szkic = Livewire::actingAs($autor)->test('recipe-wizard')->set('form.title', 'Nowy szkic bez kroków')->call('saveDraft');
         $szkic->assertSet('saveMessage', 'Szkic zapisany.');
     }
 

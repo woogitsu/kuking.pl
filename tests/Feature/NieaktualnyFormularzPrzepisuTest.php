@@ -102,12 +102,12 @@ class NieaktualnyFormularzPrzepisuTest extends TestCase
 
         $first = Livewire::actingAs($author)->test('recipe-wizard', ['recipeId' => $recipe->id]);
         $second = Livewire::actingAs($author)->test('recipe-wizard', ['recipeId' => $recipe->id]);
-        $first->set('title', 'Zupa poprawiona')->assertSet('saveState', 'saved');
-        $second->set('title', 'Stara poprawka')->assertSet('saveState', 'error');
+        $first->set('form.title', 'Zupa poprawiona')->assertSet('saveState', 'saved');
+        $second->set('form.title', 'Stara poprawka')->assertSet('saveState', 'error');
 
         $this->assertSame('Zupa poprawiona', $recipe->fresh()->title);
         $this->assertSame(1, $recipe->fresh()->content_revision);
-        $second->assertSet('title', 'Stara poprawka');
+        $second->assertSet('form.title', 'Stara poprawka');
     }
 
     public function test_zmiana_zdjecia_kroku_przed_blokada_odmawia_zapisu_zamiast_je_usunac(): void

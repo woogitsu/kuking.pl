@@ -49,6 +49,7 @@ $app->make(Kernel::class)->bootstrap();
 
 // Ten sam bezpiecznik co w `scenariusz.php`: bez poprawnej zmiennej
 // `DB_DATABASE` proces pisałby do bazy deweloperskiej.
+/** @var mixed $baza sterownik bywa bez nazwy — wtedy odmawiamy, zamiast się przewrócić */
 $baza = DB::connection()->getDatabaseName();
 if (! is_string($baza) || ! str_starts_with($baza, 'kuking_race')) {
     zameldujPantry(['komunikat' => 'Odmowa: połączenie wskazuje na bazę "'.(is_string($baza) ? $baza : '?').'", a wolno wyłącznie na kuking_race_*.']);

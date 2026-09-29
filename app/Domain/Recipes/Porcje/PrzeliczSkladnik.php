@@ -78,7 +78,7 @@ final class PrzeliczSkladnik
         }
 
         $jednostka = $trafienie['jednostka'] !== '' ? JednostkaKuchenna::zFormy($trafienie['jednostka']) : null;
-        $rodzaj = $jednostka?->rodzaj ?? JednostkaKuchenna::KUCHENNA;
+        $rodzaj = $jednostka->rodzaj ?? JednostkaKuchenna::KUCHENNA;
 
         if ($rodzaj === JednostkaKuchenna::NIEPOLICZALNA) {
             return PrzeliczonySkladnik::bezZmian($tekst);

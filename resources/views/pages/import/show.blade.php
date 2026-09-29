@@ -1,5 +1,5 @@
 <x-layout title="Odczyt przepisu" :noindex="true">
-    <h1>{{ $import->zAdresu() ? 'Przepis ze strony internetowej' : 'Przepis z kartki' }}</h1>
+    <h1>{{ $import->zAdresu() ? 'Przepis ze strony internetowej' : ($import->zPdf() ? 'Przepis z pliku PDF' : 'Przepis z kartki') }}</h1>
 
     <x-error-summary />
 
@@ -14,11 +14,11 @@
     --}}
     <div id="postep-importu" data-postep-importu aria-live="polite"
          data-adres="{{ route('import.show', ['import' => $import, 'fragment' => 1]) }}">
-        @include($import->zAdresu() ? 'pages.import.partials.postep-adres' : 'pages.import.partials.postep')
+        @include($import->zAdresu() ? 'pages.import.partials.postep-adres' : ($import->zPdf() ? 'pages.import.partials.postep-pdf' : 'pages.import.partials.postep'))
     </div>
 
     <p class="field-help mt-6">
-        @if($import->zAdresu())
+        @if($import->zAdresu() || $import->zPdf())
             Nie musisz czekać. Możesz zamknąć tę stronę — gotowy szkic znajdziesz w
             <a href="{{ route('recipes.drafts') }}">Moich szkicach</a>.
         @else

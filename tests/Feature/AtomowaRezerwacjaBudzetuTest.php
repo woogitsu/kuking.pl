@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Security\DziennyBudzetListow;
 use App\Models\CookedEvent;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Notifications\LinkDoLogowania;
+use App\Poczta\DziennyBudzetListow;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;

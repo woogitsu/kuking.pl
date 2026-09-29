@@ -22,7 +22,7 @@ class OdzyskajImporty extends Command
     {
         $wynik = $odzyskanie->odzyskaj();
 
-        $this->info("Domknięte rezerwacje (zlecenia): {$wynik['rezerwacje']}; porzucone zlecenia zakończone błędem: {$wynik['zlecenia']}.");
+        $this->info("Domknięte rezerwacje (zlecenia): {$wynik['rezerwacje']}; porzucone zlecenia zakończone błędem: {$wynik['zlecenia']}; skasowane zaległe pliki PDF: {$wynik['pliki']}.");
 
         return self::SUCCESS;
     }

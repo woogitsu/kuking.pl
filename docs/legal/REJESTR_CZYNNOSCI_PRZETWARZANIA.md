@@ -316,7 +316,7 @@ egzekwuje.
 - **Podstawa:** art. 6 ust. 1 lit. b RODO.
 - **Odbiorca:** EmailLabs (Vercom S.A., Poznań) — dane zostają w Polsce.
   Kod: `config/mail.php` (własny sterownik `emaillabs`),
-  `app/Domain/Security/DziennyBudzetListow.php`.
+  `app/Poczta/DziennyBudzetListow.php`.
 - **Ślad nieudanego listu (`mail_failures`):** rodzaj listu, powód odmowy,
   zamaskowany komunikat, `user_id` odbiorcy — bez adresu i treści. Odhaczone
   ślady kasowane po `kuking.poczta.retencja_dni` (90) dniach przy kolejnym

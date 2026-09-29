@@ -17,6 +17,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\Przelacznik;
 use Tests\TestCase;
 
 /**
@@ -91,10 +92,10 @@ class RaportyNieNiosaHistoriiZamknietychKontTest extends TestCase
     private function przebiegMetryk(): array
     {
         $parametry = 0;
-        $nasluch = true;
+        $nasluch = new Przelacznik;
 
-        DB::listen(function (QueryExecuted $zapytanie) use (&$parametry, &$nasluch): void {
-            if ($nasluch) {
+        DB::listen(function (QueryExecuted $zapytanie) use (&$parametry, $nasluch): void {
+            if ($nasluch->wlaczony) {
                 $parametry += count($zapytanie->bindings);
             }
         });
@@ -111,7 +112,7 @@ class RaportyNieNiosaHistoriiZamknietychKontTest extends TestCase
             'licznik' => app(LiczbaKukingow::class)->przelicz(),
         ];
 
-        $nasluch = false;
+        $nasluch->wlaczony = false;
 
         return ['parametry' => $parametry, 'wyniki' => $wyniki];
     }

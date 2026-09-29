@@ -6,6 +6,7 @@ namespace App\Domain\Compliance;
 
 use App\Logging\BezpiecznyBlad;
 use App\Models\Notification;
+use App\Support\UsuwanieWPartiach;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Log;
 use Throwable;

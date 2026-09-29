@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Media;
 
-use App\Domain\Moderation\ModeratedContent;
 use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
@@ -311,11 +310,11 @@ final class DostepDoZdjecia
         $id = (string) $zdjecie->getKey();
 
         return Report::query()
-            ->where('target_type', ModeratedContent::TYPY[Media::class])
+            ->where('target_type', Report::TARGET_MEDIA)
             ->where('target_id', $id)
             ->exists()
             || Report::query()
-                ->where('target_type', ModeratedContent::TYPY[Post::class])
+                ->where('target_type', Report::TARGET_POST)
                 ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])
                 ->whereIn('target_id', fn ($wpisy) => $wpisy
                     ->select('posts.id')
@@ -395,11 +394,7 @@ final class DostepDoZdjecia
                     }
                 });
 
-            $zapytanie = $zapytanie === null ? $czesc : $zapytanie->union($czesc);
-        }
-
-        if ($zapytanie === null) {
-            throw new LogicException('DostepDoZdjecia::KOLUMNY_WSKAZUJACE jest puste — zdjęcie nie miałoby żadnego rodzica.');
+            $zapytanie = $zapytanie?->union($czesc) ?? $czesc;
         }
 
         // Zwykła pętla, a NIE `pluck('tabela')` na zapytaniu: `pluck()`
@@ -421,8 +416,11 @@ final class DostepDoZdjecia
      * z globalnymi scope'ami (`SoftDeletes`) i z modelem, który `Gate` umie
      * dopasować do Policy.
      *
-     * Brak gałęzi `default` jest celowy: nowa tabela w `KOLUMNY_WSKAZUJACE`
-     * bez wpisu tutaj ma wywalić żądanie GŁOŚNO, a nie po cichu pominąć
+     * Gałąź `default` rzuca wyjątek, i to jest celowe: nowa tabela w
+     * `KOLUMNY_WSKAZUJACE` bez wpisu tutaj ma wywalić żądanie GŁOŚNO
+     * (`LogicException` zamiast `UnhandledMatchError` — PHPStan poziomu 4
+     * wymaga jawnej gałęzi, gdy wartością jest dowolny napis, `match.unhandled`),
+     * a nie po cichu pominąć
      * rodzica — cicha odmowa dostępu do własnego zdjęcia jest usterką, którą
      * zgłasza użytkownik, a nie test. Pilnuje tego
      * `ZdjeciaChronioneNieWyciekajaTest` (macierz widoku dla każdego z pięciu
@@ -485,6 +483,7 @@ final class DostepDoZdjecia
                 ->with('author')
                 ->whereIn('id', DB::table('hero_picks')->where('media_id', $id)->pluck('post_id'))
                 ->get()),
+            default => throw new LogicException("Brak wczytywania rodzica dla tabeli `{$tabela}` w DostepDoZdjecia."),
         };
     }
 

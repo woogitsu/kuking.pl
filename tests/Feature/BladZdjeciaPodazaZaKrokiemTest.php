@@ -24,7 +24,7 @@ class BladZdjeciaPodazaZaKrokiemTest extends TestCase
     {
         config(['kuking.media.max_bytes' => 1]);
         $component = Livewire::actingAs($this->user())->test('recipe-wizard')
-            ->set('title', 'Zupa z koperkiem')
+            ->set('form.title', 'Zupa z koperkiem')
             ->set('steps.0.instruction', 'Krok pierwszy.')
             ->set('steps.1.instruction', 'Krok ze złym zdjęciem.')
             ->set('steps.2.instruction', 'Krok ostatni.')

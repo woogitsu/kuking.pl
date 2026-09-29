@@ -69,9 +69,12 @@ class OdpowiedzDlaZglaszajacegoMowiPrawdeTest extends TestCase
         $mail = (new DecyzjaWSprawieZgloszenia($zgloszenie, $decyzja))
             ->toMail((object) []);
 
+        /** @var string|null $temat `SimpleMessage::$subject` jest `null`, dopóki nikt go nie ustawi. */
+        $temat = $mail->subject;
+
         return implode(' ', array_map(
             fn ($linia): string => is_string($linia) ? $linia : '',
-            [$mail->subject ?? '', ...$mail->introLines, ...$mail->outroLines],
+            [$temat ?? '', ...$mail->introLines, ...$mail->outroLines],
         ));
     }
 

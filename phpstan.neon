@@ -10,7 +10,7 @@
 #  konfiguracją byłby gorszy niż brak lokalnej w ogóle: ludzie przestają
 #  ufać lokalnemu wynikowi, gdy CI mówi co innego tym samym poleceniem.
 #
-#  POZIOM: 3 (docelowo 8 — issue #32, audyt F-11; etapy w issue #1731)
+#  POZIOM: 4 (docelowo 8 — issue #32, audyt F-11; etapy w issue #1731)
 #  ---------------------------------------------------------------------------
 #  Issue #32 zakładało start od poziomu 5. Pierwsze uruchomienie dało na nim
 #  158 błędów, więc zaczęliśmy od 0 — świadomie nisko, ale bez baseline'u.
@@ -53,8 +53,43 @@
 #  z modelem tabeli pośredniej `PostTag`; `bytes` w kształcie wariantu
 #  zdjęcia, który zapisuje `ProcessUploadedImage`.
 #
-#  GDZIE STOI NASTĘPNY PRÓG (zmierzone 25.09.2026, nie zgadnięte):
-#      poziom 4 → 247 błędów      poziom 5 → 283
+#  Poziom 4 (issue #1731, 29.09.2026) — zszedł do zera w pięciu etapach i jest
+#  teraz CAŁĄ bramką, jednym przebiegiem, bez baseline'u i bez wyciszeń. Przez
+#  etapy 1-4 pilnował go osobny „ratchet" (drugi plik konfiguracji i skrypt,
+#  który padał tylko na wyczyszczonych rodzinach); po etapie 5 nie ma czego
+#  ratować, więc oba zniknęły, a `level` stoi tu.
+#
+#    etap 1: `match.unhandled` (41 — `match` po napisie bez gałęzi `default`,
+#      teraz z jawnym `LogicException`) i `catch.neverThrown` (10 —
+#      `Artisan::call()` bez `@throws`, teraz `Tests\Support\PolecenieArtisanaZOdmowa`);
+#    etap 2: `nullCoalesce.*` (30), `deadCode.unreachable`, `booleanNot.alwaysTrue`
+#      — `??` na kluczu, który zawsze istnieje, zniknęło;
+#    etap 3: `*.alreadyNarrowedType` (50) i `*.impossibleType` (15). Prawdziwe
+#      znaleziska: `assertNotNull()` na `DOMNodeList|false` przepuszczało
+#      `false`, a `Report::$target_id` i `Appeal::$user_id` bywają puste (surowy
+#      SQL `DROP NOT NULL`, którego Larastan nie czyta);
+#    etap 4: `nullsafe.neverNull` (137), `expr.resultUnused`, `classConstant.unused`.
+#      `?->` na `DOMXPath::query()` i `PDO::query()` po cichu zamieniało `false`
+#      w `null` — teraz idzie przez `TestCase::wynikXPath()` i
+#      `TestDwochPolaczen::odczytaj()`;
+#    etap 5 (ostatnie 50): `instanceof.alwaysTrue` (12), `notIdentical.alwaysTrue`
+#      (7), `booleanAnd.leftAlwaysTrue` (5), `if.alwaysTrue` (4) i reszta.
+#      Martwe warunki usunięte (`object_key` i `Recipe::$title` są `NOT NULL`,
+#      `QueryException` już jest `PDOException`, `Migrator::resolveConnection()`
+#      zawsze oddaje `Connection`). Tam, gdzie PHPStan miał rację, że typ kłamał,
+#      poprawiony jest typ: `ModerationAction::$target_id` bywa puste,
+#      `Comment::$replies_count` jest tylko po `withCount()`, token Sanctum bywa
+#      `TransientToken`. Flagi przełączane w teście z drugiego domknięcia
+#      (`use (&$flaga)`, które analiza widzi jako wiecznie `true`) siedzą teraz
+#      w `Tests\Support\Przelacznik`. Jedno znalezisko było prawdziwym błędem
+#      logiki: kontekst błędów kolejki (`QueueCorrelation`) wieszał się na
+#      `instanceof Handler`, którego w konsoli poza testami nie spełnia handler
+#      owinięty przez Collision — teraz rejestruje go `withExceptions()`
+#      w `bootstrap/app.php`.
+#
+#  GDZIE STOI NASTĘPNY PRÓG (zmierzone 29.09.2026, nie zgadnięte):
+#      poziom 5 → 54 błędy: `argument.type` 37, `arrayValues.list` 15,
+#      `argument.unresolvableType` 2
 #
 #  IGNOROWANY BŁĄD PONIŻEJ POZIOMU (nie „baseline"):
 #  `larastan.noEnvCallsOutsideOfConfig` w `tests/*` — Larastan ostrzega przed
@@ -76,7 +111,7 @@ includes:
     - vendor/larastan/larastan/extension.neon
 
 parameters:
-    level: 3
+    level: 4
 
     # Rzutowania modeli żyją w metodzie `casts()` (Laravel 11+), a Larastan
     # bez tej opcji czyta wyłącznie właściwość `$casts` — `datetime` z

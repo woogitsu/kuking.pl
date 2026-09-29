@@ -114,7 +114,7 @@ class PanelBezOdpowiedziTest extends TestCase
             ->assertSee('Rosol bez odpowiedzi')
             ->assertDontSee('Sernik z odpowiedzia');
 
-        $this->assertNotNull($bezOdpowiedzi);
+        $this->assertTrue($bezOdpowiedzi->exists);
     }
 
     public function test_pierwszy_wpis_osoby_jest_oznaczony_i_na_gorze(): void

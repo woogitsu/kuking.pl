@@ -68,7 +68,7 @@ function zadanie2fa(string $konto, string $metoda, string $httpMetoda, array|Clo
     Auth::guard('web')->setUser($user);
     $request->setUserResolver(static fn () => $user);
 
-    return app()->call([app(TwoFactorSettingsController::class), $metoda], ['request' => $request]);
+    return app()->call([app(TwoFactorSettingsController::class), $metoda]);
 }
 
 /** @return array{typ: string, sekret?: string, cel?: string} */

@@ -190,7 +190,7 @@ class GlowkaKartyWpisuNieGubiNazwyAutoraTest extends TestCase
 
         $xpath = new DOMXPath($dokument);
 
-        $glowka = $xpath->query("//*[contains(concat(' ', normalize-space(@class), ' '), ' post-card-head ')]")?->item(0);
+        $glowka = self::wynikXPath($xpath, "//*[contains(concat(' ', normalize-space(@class), ' '), ' post-card-head ')]")->item(0);
 
         $this->assertInstanceOf(
             DOMElement::class,
@@ -219,7 +219,7 @@ class GlowkaKartyWpisuNieGubiNazwyAutoraTest extends TestCase
 
             // Opakowanie awatara i menu „…" odpadają: pierwsze ma w środku
             // `.avatar`, drugie jest `<details>`.
-            $maAwatar = $xpath->query(".//*[contains(concat(' ', normalize-space(@class), ' '), ' avatar ')]", $dziecko)?->length > 0;
+            $maAwatar = self::wynikXPath($xpath, ".//*[contains(concat(' ', normalize-space(@class), ' '), ' avatar ')]", $dziecko)->length > 0;
 
             if ($maAwatar || strtolower($dziecko->tagName) === 'details') {
                 continue;

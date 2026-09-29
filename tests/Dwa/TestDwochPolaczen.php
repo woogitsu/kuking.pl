@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use PDO;
 use PDOException;
+use PDOStatement;
 use PHPUnit\Framework\Attributes\Group;
 use ReflectionClass;
 use Tests\TestCase;
@@ -131,6 +132,7 @@ abstract class TestDwochPolaczen extends TestCase
 
         $this->odmowJesliPozaGrupa();
 
+        /** @var mixed $nazwa sterownik bywa bez nazwy — wtedy odmawiamy, zamiast się przewrócić */
         $nazwa = DB::connection()->getDatabaseName();
 
         // ZASADA 2, TWARDO. Ta grupa zatwierdza dane naprawdę i zakłada
@@ -296,6 +298,23 @@ abstract class TestDwochPolaczen extends TestCase
     }
 
     /**
+     * Pierwsza kolumna pierwszego wiersza zapytania na surowym połączeniu.
+     *
+     * `PDO::query()` zwraca `false`, gdy zapytanie się nie powiodło. Dawniej
+     * `?->fetchColumn()` po cichu zamieniało to w `null`, które potem
+     * wyglądało jak „blokada niezałożona"; teraz test pada od razu i mówi,
+     * które zapytanie zawiodło.
+     */
+    protected function odczytaj(PDO $polaczenie, string $sql): mixed
+    {
+        $wynik = $polaczenie->query($sql);
+
+        $this->assertInstanceOf(PDOStatement::class, $wynik, 'Zapytanie na surowym połączeniu się nie powiodło: '.$sql);
+
+        return $wynik->fetchColumn();
+    }
+
+    /**
      * Nowe, NAPRAWDĘ osobne połączenie do bazy wyścigów (zasada 5).
      *
      * `new PDO` z tym samym ciągiem daje osobne połączenie — inaczej niż
@@ -358,8 +377,8 @@ abstract class TestDwochPolaczen extends TestCase
         $pierwsze = $this->nowePolaczenie();
         $drugie = $this->nowePolaczenie();
 
-        $pidPierwszego = $pierwsze->query('SELECT pg_backend_pid()')?->fetchColumn();
-        $pidDrugiego = $drugie->query('SELECT pg_backend_pid()')?->fetchColumn();
+        $pidPierwszego = $this->odczytaj($pierwsze, 'SELECT pg_backend_pid()');
+        $pidDrugiego = $this->odczytaj($drugie, 'SELECT pg_backend_pid()');
 
         $this->assertNotSame(
             $pidPierwszego,
@@ -372,7 +391,7 @@ abstract class TestDwochPolaczen extends TestCase
         $zdobyte = $pierwsze->query('SELECT pg_advisory_xact_lock('.$klucz.')');
         $this->assertNotFalse($zdobyte, 'Pierwsze połączenie nie zdołało założyć blokady doradczej.');
 
-        $wynik = $drugie->query('SELECT pg_try_advisory_xact_lock('.$klucz.')')?->fetchColumn();
+        $wynik = $this->odczytaj($drugie, 'SELECT pg_try_advisory_xact_lock('.$klucz.')');
 
         $pierwsze->rollBack();
 
@@ -513,7 +532,7 @@ abstract class TestDwochPolaczen extends TestCase
         $this->assertNotSame(
             '40P01',
             $wynik['sqlstate'] ?? null,
-            "Zakleszczenie (40P01) przy: {$ktoTo}.\n".($wynik['komunikat'] ?? ''),
+            "Zakleszczenie (40P01) przy: {$ktoTo}.\n".$wynik['komunikat'],
         );
     }
 }

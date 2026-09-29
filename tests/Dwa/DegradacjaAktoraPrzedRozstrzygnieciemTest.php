@@ -99,8 +99,10 @@ final class DegradacjaAktoraPrzedRozstrzygnieciemTest extends TestDwochPolaczen
 
         $this->assertTrue(Gate::forUser($stary)->allows('moderate', User::class), 'Kontrola ujemna: stary model już nie jest moderatorem.');
         $this->assertSame(AuthorizationException::class, $wynikAkcji['wyjatek'], $wynikAkcji['komunikat']);
-        $this->assertSame(Report::STATUS_OPEN, $zgloszenie->fresh()?->status);
-        $this->assertNull($zgloszenie->fresh()?->resolved_by);
+        $swiezeZgloszenie = $zgloszenie->fresh();
+        $this->assertInstanceOf(Report::class, $swiezeZgloszenie, 'Zgłoszenie zniknęło z bazy.');
+        $this->assertSame(Report::STATUS_OPEN, $swiezeZgloszenie->status);
+        $this->assertNull($swiezeZgloszenie->resolved_by);
         $this->assertSame(0, ModerationAction::query()->where('report_id', $zgloszenie->getKey())->count());
         $this->assertSame(Post::STATUS_PUBLISHED, Post::query()->find($zgloszenie->target_id)?->status);
         $this->assertSame(0, Notification::query()->where('user_id', $autor->getKey())->count());

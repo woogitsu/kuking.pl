@@ -335,6 +335,7 @@ class UgotowalemPoUtracieDostepuTest extends TestCase
             'kucharz_zbanowany' => $konto($kucharz)->update(['status' => User::STATUS_BANNED]),
             'blokada_autora' => $blokada($autor, $kucharz),
             'blokada_kucharza' => $blokada($kucharz, $autor),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
     }
 

@@ -526,7 +526,7 @@ class NieudanyListZostawiaSladTest extends TestCase
             $czynnosc();
             $this->fail('Wysyłka miała się nie udać, a nie rzuciła niczym.');
         } catch (Throwable $e) {
-            $this->assertNotNull($e);
+            $this->addToAssertionCount(1);
         }
     }
 

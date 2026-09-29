@@ -8,6 +8,7 @@ use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\CelZgloszenia;
 use App\Domain\Moderation\ZmianaDecyzjiPoOdwolaniu;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Http\Requests\Moderation\ZgloszenieTresciRequest;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\ModerationAction;
@@ -64,7 +65,7 @@ class ReportController extends Controller
         ]);
     }
 
-    public function store(Request $request, string $type, string $id): RedirectResponse
+    public function store(ZgloszenieTresciRequest $request, string $type, string $id): RedirectResponse
     {
         // ZAPIS ZGŁOSZENIA KONTA TYLKO PO UUID (issue #1599).
         //
@@ -75,23 +76,13 @@ class ReportController extends Controller
         // wyłącznie jako WEJŚCIE do formularza (`create()`); wysłanie pod
         // nazwą odsyła na formularz, który pokazuje, kogo dotyczy, i niesie
         // już UUID. Tekst człowieka zostaje (`withInput()`).
-        if ($type === 'user' && ! Str::isUuid($id)) {
+        if ($request->zgloszenieKontaPodNazwa()) {
             return redirect()->route('reports.create', ['type' => 'user', 'id' => $id])
                 ->withInput()
                 ->withErrors(['reason' => 'Sprawdź, czy to na pewno ta osoba, i wyślij zgłoszenie jeszcze raz. Wpisany tekst nie zginął.']);
         }
 
-        $data = $request->validate([
-            'reason' => ['required', 'string'],
-            'details' => ['nullable', 'string', 'max:2000'],
-        ], [
-            'reason.required' => 'Wybierz, co jest nie tak z tą treścią.',
-            // Bez tego wypadał szablon ogólny: „Pole «szczegóły zgłoszenia»
-            // jest za długie — może mieć najwyżej 2000 znaków." Na ekranie
-            // nie ma niczego o nazwie „szczegóły zgłoszenia" — jest pytanie
-            // „Chcesz coś dopisać?" — a zdanie nie mówiło, co zrobić.
-            'details.max' => 'To jest za długie. Zmieść się w 2000 znakach — napisz samo to, co najważniejsze.',
-        ]);
+        $data = $request->validated();
 
         try {
             $zgloszenie = $this->report->handle(
@@ -352,7 +343,7 @@ class ReportController extends Controller
             // Widoczność i tak rozstrzyga Policy w `ReportContent::authorize()`.
             'user' => Str::isUuid($id)
                 ? User::whereKey($id)->whereHas('profile')->firstOrFail()
-                : (Profile::poNazwie($id)?->user ?? abort(404)),
+                : (Profile::poNazwie($id)->user ?? abort(404)),
             default => abort(404),
         };
     }

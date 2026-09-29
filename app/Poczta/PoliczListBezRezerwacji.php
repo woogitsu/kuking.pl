@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Poczta;
 
-use App\Domain\Security\DziennyBudzetListow;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\Log;
 use Throwable;

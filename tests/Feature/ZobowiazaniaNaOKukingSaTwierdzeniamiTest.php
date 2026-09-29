@@ -414,18 +414,4 @@ class ZobowiazaniaNaOKukingSaTwierdzeniamiTest extends TestCase
             ? mb_substr($html, 0, $start)
             : mb_substr($html, 0, $start).mb_substr($html, $koniec + mb_strlen('</footer>'));
     }
-
-    /** Kawałek dokumentu od kotwicy do najbliższego `$do`. */
-    private function wycinekOd(string $html, string $od, string $do): string
-    {
-        $start = mb_strpos($html, $od);
-
-        $this->assertNotFalse($start, "Nie znalazłem kotwicy „{$od}” na stronie.");
-
-        $koniec = mb_strpos($html, $do, $start);
-
-        return $koniec === false
-            ? mb_substr($html, $start)
-            : mb_substr($html, $start, $koniec - $start + mb_strlen($do));
-    }
 }

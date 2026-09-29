@@ -1,0 +1,15 @@
+{
+  "inter-podstawa-wght-normal.woff2": {
+    "unicode_range": "U+0020-007E, U+00A0-00FF, U+0131, U+2013-2014, U+2018-201E, U+2020-2022, U+2026, U+2030, U+2039-203A, U+20AC, U+2122, U+2212",
+    "glify": "U+0020-007E, U+00A0-00AC, U+00AE-00FF, U+0131, U+2013-2014, U+2018-201A, U+201C-201E, U+2022, U+2026, U+2039-203A, U+20AC, U+2122, U+2212",
+    "bajty": 38688,
+    "zrodlo_bajty": 48256
+  },
+  "inter-europa-wght-normal.woff2": {
+    "unicode_range": "U+0100-017F",
+    "glify": "U+0100-0130, U+0132-0148, U+014A-0151, U+0154-017F",
+    "bajty": 14672,
+    "zrodlo_bajty": 85068
+  },
+  "razem_bajty": 53360
+}

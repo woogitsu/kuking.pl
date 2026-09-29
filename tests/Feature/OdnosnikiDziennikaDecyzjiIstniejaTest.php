@@ -81,6 +81,17 @@ final class OdnosnikiDziennikaDecyzjiIstniejaTest extends TestCase
     private const ZNANE_MARTWE = [
     ];
 
+    /**
+     * Lista jako dane: dziś pusta, ale gałąź „znana martwa referencja” ma działać
+     * od chwili, gdy ktoś coś na nią dopisze.
+     *
+     * @return array<string, string>
+     */
+    private function znaneMartwe(): array
+    {
+        return self::ZNANE_MARTWE;
+    }
+
     /** Poniżej tego bloków `📄` w dzienniku być nie powinno — dziś jest 112. */
     private const MIN_BLOKOW = 90;
 
@@ -177,7 +188,7 @@ final class OdnosnikiDziennikaDecyzjiIstniejaTest extends TestCase
                     if (! $wynik) {
                         $klucz = $wpis.'::'.$token;
 
-                        if (array_key_exists($klucz, self::ZNANE_MARTWE)) {
+                        if (array_key_exists($klucz, $this->znaneMartwe())) {
                             continue;
                         }
 

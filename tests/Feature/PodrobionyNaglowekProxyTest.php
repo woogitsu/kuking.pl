@@ -43,8 +43,6 @@ class PodrobionyNaglowekProxyTest extends TestCase
 
     private const SCIEZKA = '/_test/adres-klienta';
 
-    private const HASLO = 'zielonapietruszkarano';
-
     /** Adres, który „dopisała infrastruktura" — czyli prawdziwy klient. */
     private const PRAWDZIWY = '203.0.113.7';
 

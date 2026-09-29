@@ -188,8 +188,8 @@ Długość wiersza: kontener treści ograniczony do `max-width: 42rem–48rem` (
 
 ### 2.2 Font
 
-**Aktualnie: lokalny Inter z systemowym stosem zastępczym.** Pliki `latin`
-i `latin-ext` oraz `font-display: swap` opisuje `resources/css/fonts.css`.
+**Aktualnie: lokalny Inter z systemowym stosem zastępczym.** Pliki `inter-podstawa`
+i `inter-europa` oraz `font-display: swap` opisuje `resources/css/fonts.css`.
 Wszystkie rodziny tekstu używają jednej rodziny bezszeryfowej. Wyjątki
 techniczne dla poczty, eksportu i samodzielnych awarii opisuje konstytucja.
 

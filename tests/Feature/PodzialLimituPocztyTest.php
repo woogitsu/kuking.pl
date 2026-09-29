@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Security\DziennyBudzetListow;
+use App\Poczta\DziennyBudzetListow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -18,7 +18,7 @@ use Tests\TestCase;
  * linkiem (issue #25) i tygodniowe podsumowanie (issue #11).
  *
  * Każda funkcja, która wysyła WIELE listów naraz, ma własny dobowy sufit
- * (`App\Domain\Security\DziennyBudzetListow`) — i każda z nich widzi TYLKO
+ * (`App\Poczta\DziennyBudzetListow`) — i każda z nich widzi TYLKO
  * SWÓJ. To jest dobre rozwiązanie na jedną funkcję i fatalne na trzy: gdyby
  * każda dostała po 120, suma wyniosłaby 360 przy limicie 300, a pierwszą
  * rzeczą, która by wtedy przestała działać, jest POTWIERDZENIE REJESTRACJI —

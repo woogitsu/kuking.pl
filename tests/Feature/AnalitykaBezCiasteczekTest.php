@@ -120,7 +120,7 @@ class AnalitykaBezCiasteczekTest extends TestCase
         // pustą albo niewyrenderowaną treść.
         $this->assertNotSame(
             '',
-            trim((string) ((new DOMXPath($dom))->query('//head/title')?->item(0)?->textContent ?? '')),
+            trim((string) (self::wynikXPath(new DOMXPath($dom), '//head/title')->item(0)->textContent ?? '')),
             'Czytana strona nie ma tytułu — to dowód, że pomiar nie działa, '
             .'a nie wynik pomiaru. Popraw sposób czytania strony, zanim uwierzysz w resztę testu.',
         );
@@ -388,7 +388,7 @@ class AnalitykaBezCiasteczekTest extends TestCase
         $dom = new DOMDocument;
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
 
-        $glowna = (new DOMXPath($dom))->query('//main')?->item(0);
+        $glowna = self::wynikXPath(new DOMXPath($dom), '//main')->item(0);
 
         $this->assertInstanceOf(
             DOMElement::class,

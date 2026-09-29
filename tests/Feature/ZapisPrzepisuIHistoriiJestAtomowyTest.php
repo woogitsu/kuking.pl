@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Tests\Support\Przelacznik;
 use Tests\TestCase;
 
 /**
@@ -244,10 +245,10 @@ class ZapisPrzepisuIHistoriiJestAtomowyTest extends TestCase
             kluczWyslania: $klucz,
         );
 
-        $awaria = true;
+        $awaria = new Przelacznik;
 
-        DB::beforeExecuting(function (string $zapytanie) use (&$awaria): void {
-            if ($awaria && str_contains($zapytanie, 'insert into "audit_log"')) {
+        DB::beforeExecuting(function (string $zapytanie) use ($awaria): void {
+            if ($awaria->wlaczony && str_contains($zapytanie, 'insert into "audit_log"')) {
                 throw new RuntimeException('awaria zapisu audytu wymuszona testem');
             }
         });
@@ -261,7 +262,7 @@ class ZapisPrzepisuIHistoriiJestAtomowyTest extends TestCase
 
         $this->assertSame(0, Recipe::query()->count());
 
-        $awaria = false;
+        $awaria->wlaczony = false;
         $przepis = $publikuj();
 
         $this->assertSame(1, Recipe::query()->count());

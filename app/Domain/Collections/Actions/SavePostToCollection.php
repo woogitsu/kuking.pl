@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Collections\Actions;
 
+use App\Domain\Collections\PowrotPoWyjeciu;
+use App\Domain\Collections\WynikWyjeciaZZeszytu;
+use App\Domain\Collections\WynikZapisuDoZeszytu;
 use App\Domain\Collections\ZamekZapisuDoZeszytu;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Collection;
@@ -36,6 +39,57 @@ use Illuminate\Support\Facades\Gate;
  */
 final class SavePostToCollection
 {
+    /**
+     * „Zapisz" przy wpisie w całości: droga powrotu ALBO zwykły zapis.
+     *
+     * Ta sama kolejność i ta sama jednorazowość co przy przepisie —
+     * uzasadnienie w `SaveRecipeToCollection::zapiszAlboPrzywroc()` (#775, #970).
+     *
+     * @param  bool  $notatkaPodana  formularz przysłał pole `note` — to zawsze zwykły zapis
+     * @param  \Closure(): void  $zuzyjWyjecie  wywoływane, gdy zapis powrotu został użyty
+     */
+    public function zapiszAlboPrzywroc(
+        User $user,
+        Post $post,
+        ?Collection $collection,
+        bool $notatkaPodana,
+        mixed $wyjecie,
+        \Closure $zuzyjWyjecie,
+    ): WynikZapisuDoZeszytu {
+        if ($collection === null && ! $notatkaPodana) {
+            $pozycje = PowrotPoWyjeciu::pozycje($wyjecie, PowrotPoWyjeciu::TYP_WPIS, (string) $post->getKey());
+
+            if ($pozycje !== null) {
+                $wrocilo = $this->restore($user, $post, $pozycje);
+
+                // Jednorazowa droga powrotu: drugie kliknięcie nie ma już nic do roboty.
+                $zuzyjWyjecie();
+
+                // `0`: zeszyt zniknął albo rzecz wróciła tam inną drogą — nie
+                // udajemy, że coś przywróciliśmy, i zapisujemy zwykłą drogą.
+                if ($wrocilo > 0) {
+                    return new WynikZapisuDoZeszytu(null, PowrotPoWyjeciu::zdanie(PowrotPoWyjeciu::TYP_WPIS, $wrocilo));
+                }
+            }
+        }
+
+        return new WynikZapisuDoZeszytu($this->handle($user, $post, $collection), null);
+    }
+
+    /**
+     * „Usuń z zeszytu" przy wpisie: wyjęcie + zdanie + zapis do drogi powrotu.
+     * Sesję zapisuje kontroler z `$wynik->wyjecie`.
+     */
+    public function wyjmij(User $user, Post $post, ?Collection $collection = null): WynikWyjeciaZZeszytu
+    {
+        return WynikWyjeciaZZeszytu::zZdjetych(
+            PowrotPoWyjeciu::TYP_WPIS,
+            (string) $post->getKey(),
+            $user,
+            $this->remove($user, $post, $collection),
+        );
+    }
+
     public function handle(User $user, Post $post, ?Collection $collection = null, ?string $note = null): Collection
     {
         // Ta sama granica co przy przepisie (#1022) — uzasadnienie
@@ -135,7 +189,7 @@ final class SavePostToCollection
     /**
      * Droga powrotu — bliźniak `SaveRecipeToCollection::restore()`.
      *
-     * @param  list<array{collection_id: string, note: ?string, created_at: ?string, added_by_id?: ?string}>  $zdjete
+     * @param  list<array{collection_id?: string, note: ?string, created_at: ?string, added_by_id?: ?string}>  $zdjete
      */
     public function restore(User $user, Post $post, array $zdjete): int
     {

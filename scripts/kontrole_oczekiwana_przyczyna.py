@@ -33,6 +33,10 @@ from kontrola_przyczyny import Wyjatek
 OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 
 OCZEKUJ = {
+    # Mutacja wysyła 181-znakowy tytuł prosto do bazy — objawem jest odmowa
+    # kolumny varchar(180), a nie asercja testu.
+    'Autozapis kreatora zapisuje bez walidacji pól': Wyjatek(r'value too long for type character varying\(180\).*insert into "recipes"'),
+    'Sufit paczki importu wraca do 32 MB': r'Failed asserting that 33554432 is identical to 12582912',
     'Nowe konto Google gubi powrót do rozmowy': r'Expected response status code \[201, 301, 302, 303, 307, 308\] but received 200\.',
     'Nowe konto Facebook gubi powrót do rozmowy': r'Expected response status code \[201, 301, 302, 303, 307, 308\] but received 200\.',
     'APT install bez migawki': r'Instalacja pakietów APT bez przypięcia do migawki \(audyt, issue #',
@@ -74,7 +78,7 @@ OCZEKUJ = {
     'Cofnięcie CHECK-a kontaktu bez odmowy przy sierotach': r"contains 'Nie można cofnąć migracji'",
     'Cofnięcie znaczników odpowiedzi bez odmowy': r'exception of type "RuntimeException" is thrown',
     'Jedna sprawa RODO w toku bez odmowy przy duplikatach': r'contains "Liczba kont z więcej niż jedną otwartą sprawą RODO',
-    'Lokalne akcje poza filtrem widoku': r'Bramka pomija job `port_marki` przy zmianie',
+    'Lokalne akcje poza filtrem widoku': r'Bramka pomija job `\w+` przy zmianie `\.github/actions/[^`]+`, a ten job tej akcji UŻYWA',
     'Dockerfile poza wzorcem builda obrazu': r'Bramka pomija job `docker-build` na PR-ze przy zmianie `Dockerfile`',
     'Pliki grupy wyścigów poza wzorcem joba': r'Bramka pomija job `dwa-polaczenia` na PR-ze przy zmianie',
     'Ciężkie joby zawężane także poza PR-em': r'Job `przyrzad_605` jest pomijany poza PR-em \(zdarzenie: push\)\. Na',
@@ -135,6 +139,7 @@ OCZEKUJ = {
     'Odwołanie zgłaszającego bez wspólnej transakcji z zawiadomieniami': r'Pismo zostało złożone mimo niepełnego zawiadomienia zespołu \(#',
     'Reguła zdjęć Cloudflare bez warunku ciasteczka': r'Reguła 0 bez warunku and http\.cookie eq',
     'Timeout blokady funkcji nie oddaje miejsca wspólnej puli': r'Timeout blokady funkcji zostawił zajęte miejsce we wspólnej puli —',
+    'Domena importuje Illuminate\\Http\\Request': r'Plik w app/Domain importuje Illuminate.Http\. Wejście HTTP idzie do adaptera',
     'Zapis przepisu do cudzego zeszytu': r'Akcja zapisała przepis do cudzego zeszytu\.',
     'Zapis wpisu do cudzego zeszytu': r'Akcja zapisała wpis do cudzego zeszytu\.',
     'Podział testów gubi plik': r"Plik tests/\S+ nie trafił do żadnej części — nie uruchamia się NIGDZIE\.",
@@ -151,7 +156,7 @@ OCZEKUJ = {
     'Entrypoint bez klucza preview': r'Entrypoint nie woła kuking_klucz_preview\.',
     'Dalsze okno wyszukiwania bez kursora rankingu': r'Dalsze okno powtórzyło już pokazany przepis\.|Dalsze okno pominęło przepis, który nie był jeszcze pokazany\.|Dalsze okno powtórzyło osobę\.',
     'Nieudany dzwonek kupuje ciszę epizodu': r'Failed asserting that false is true\.|Failed asserting that \d+ is identical to 0\.|Zamknięty epizod nie daje ciszy nawrotowi\.|Nieudana próba WYCISZYŁA czujkę|Analog dla kolejki ma tę samą usterkę|actual size 1 matches expected size 2|Odwołanie przepadło razem z pamięcią alarmu',
-    'Podzbiór fontu bez „ą"': r'Poza podzbiorem Inter: ą \(U\+',
+    'Podzbiór fontu bez „ą"': r'Poza podzbiorem Inter: ą \(U\+|unicode-range w fonts\.css różni się od kontraktu dla inter-',
     'Viewport bez viewport-fit=cover': r'Wspólny meta viewport musi zawierać viewport-fit=cover \(D-260\)\.',
     'Dolna belka bez lewego insetu': r'contains "left: calc\(8px \+ var\(--safe-left\)\);"',
     'Podpowiedź wyglądu bez dolnego insetu': r'Podpowiedź szybkiego wyglądu musi omijać wskaźnik Home\.',

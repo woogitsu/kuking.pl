@@ -124,6 +124,7 @@ class GranicaWysylkiDoOpenAiTest extends TestCase
             'wpis' => $this->wpis($wlasciciel, 'Wpis pod komentarzem.'),
             'przepis' => $przepis,
             'wykonanie' => CookedEvent::factory()->create(['recipe_id' => $przepis->getKey(), 'user_id' => $wlasciciel->getKey()]),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
 
         $komentarz = app(PublishComment::class)->handle($this->user('komentuje'), $przedmiot, self::ZNACZNIK.' zarabiaj z domu');
@@ -139,6 +140,7 @@ class GranicaWysylkiDoOpenAiTest extends TestCase
             'usuniety' => $zmieniany->delete(),
             'autor_zbanowany' => $wlasciciel->forceFill(['status' => User::STATUS_BANNED])->save(),
             'autor_w_karencji_usuniecia' => $wlasciciel->forceFill(['status' => User::STATUS_PENDING_DELETE])->save(),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
 
         $this->assertSame(Comment::STATUS_PUBLISHED, $komentarz->fresh()->status);
@@ -185,6 +187,7 @@ class GranicaWysylkiDoOpenAiTest extends TestCase
             'ukryty' => $komentarz->forceFill(['status' => Comment::STATUS_HIDDEN])->save(),
             'slad' => $komentarz->forceFill(['body_removed_at' => now()])->save(),
             'usuniety' => $komentarz->delete(),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
 
         $this->analizuj(PrzeanalizujTresc::TYP_KOMENTARZ, $komentarz);
@@ -219,6 +222,7 @@ class GranicaWysylkiDoOpenAiTest extends TestCase
             'hidden' => $wpis->forceFill(['status' => Post::STATUS_HIDDEN])->save(),
             'deleted' => $wpis->delete(),
             'banned' => $autor->forceFill(['status' => User::STATUS_BANNED])->save(),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
 
         $this->analizuj(PrzeanalizujTresc::TYP_WPIS, $wpis);

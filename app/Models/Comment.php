@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $slug
  * @property int|string|null $preceding_count
  * @property int|string|null $preceding_replies
+ * @property int|null $replies_count ustawione tylko przez `withCount('replies')`; Larastan zakłada, że jest zawsze
  */
 class Comment extends Model
 {
