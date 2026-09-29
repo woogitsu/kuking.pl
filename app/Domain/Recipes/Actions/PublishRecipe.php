@@ -618,7 +618,18 @@ final class PublishRecipe
              * (D-083: „pliki znikają dopiero PO commicie").
              */
             if ($publish) {
-                $this->snapshots->handle($recipe, $author, $existing === null ? 'Pierwsza publikacja' : 'Aktualizacja przepisu');
+                /*
+                 * PONOWNA PUBLIKACJA BEZ ZMIANY TREŚCI NIE MNOŻY WERSJI (#2024):
+                 * migawka identyczna z ostatnią dawałaby na ekranie historii
+                 * „Aktualizacja przepisu" z komunikatem „nie ma różnic". Pierwsza
+                 * publikacja zawsze zapisuje wersję 1. Publikacja nie zmienia się
+                 * poza tym — ten sam zapis, ta sama transakcja i blokada.
+                 */
+                if ($existing === null) {
+                    $this->snapshots->handle($recipe, $author, 'Pierwsza publikacja');
+                } else {
+                    $this->snapshots->poprawka($recipe, $author, 'Aktualizacja przepisu');
+                }
 
                 AuditLogEntry::record(
                     action: 'recipe.published',

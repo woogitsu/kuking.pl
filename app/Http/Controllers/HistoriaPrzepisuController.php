@@ -9,7 +9,10 @@ use App\Domain\Recipes\Historia\MigawkaWersji;
 use App\Domain\Recipes\Historia\PorownanieWersji;
 use App\Models\Recipe;
 use App\Models\RecipeVersion;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 /**
@@ -23,23 +26,29 @@ class HistoriaPrzepisuController extends Controller
 {
     public function index(Request $request, string $recipe): View
     {
-        $model = $this->przepis($request, $recipe);
+        $model = $this->przepis($request, $recipe, 'recipes.history');
 
         $wersje = HistoriaWersji::zapytanie($model)
             ->select(['id', 'recipe_id', 'version_number', 'change_note', 'created_at'])
             ->orderByDesc('version_number')
             ->simplePaginate(HistoriaWersji::NA_STRONE);
 
+        $numery = HistoriaWersji::numery($model);
+
         return view('pages.recipes.historia', [
             'recipe' => $model,
             'wersje' => $wersje,
-            'najnowsza' => HistoriaWersji::numery($model)[0] ?? null,
+            'najnowsza' => $numery[0] ?? null,
+            // Faktyczny poprzednik każdej wersji z listy (numeracja może mieć luki).
+            'poprzednicy' => $wersje->getCollection()
+                ->mapWithKeys(fn (RecipeVersion $w): array => [$w->version_number => $this->sasiad($numery, $w->version_number, -1)])
+                ->all(),
         ]);
     }
 
     public function show(Request $request, string $recipe, int $numer): View
     {
-        $model = $this->przepis($request, $recipe);
+        $model = $this->przepis($request, $recipe, 'recipes.history.version', $numer);
         $wersja = $this->wersja($model, $numer);
         $numery = HistoriaWersji::numery($model);
 
@@ -55,7 +64,7 @@ class HistoriaPrzepisuController extends Controller
 
     public function zmiany(Request $request, string $recipe, int $numer): View
     {
-        $model = $this->przepis($request, $recipe);
+        $model = $this->przepis($request, $recipe, 'recipes.history.changes', $numer);
         $wersja = $this->wersja($model, $numer);
         $numery = HistoriaWersji::numery($model);
         $poprzedniNumer = $this->sasiad($numery, $numer, -1);
@@ -73,15 +82,35 @@ class HistoriaPrzepisuController extends Controller
         ]);
     }
 
-    private function przepis(Request $request, string $slug): Recipe
+    /**
+     * @param  string  $trasa  nazwa trasy, na którą wraca 301 ze starego sluga
+     */
+    private function przepis(Request $request, string $slug, string $trasa, ?int $numer = null): Recipe
     {
         $model = Recipe::where('slug', $slug)->first();
-        abort_if($model === null, 404);
+
+        // Stary adres przepisu działa też na ekranach historii (jak w
+        // `RecipeController::show`): 301 na aktualny slug, ta sama bramka
+        // `view` i ten sam 404 zamiast 403 (nie zdradzamy, że przepis istnieje).
+        if ($model === null) {
+            $przekierowanie = DB::table('recipe_slug_redirects')->where('slug', $slug)->first();
+            abort_if($przekierowanie === null, 404);
+
+            $cel = Recipe::findOrFail($przekierowanie->recipe_id);
+            abort_unless(Gate::forUser($request->user())->allows('view', $cel), 404);
+            // Przepis nieopublikowany nie ma historii — także pod starym adresem.
+            abort_unless(HistoriaWersji::opublikowanyPoAutoryzacji($cel), 404);
+
+            throw new HttpResponseException(
+                redirect()->route($trasa, $numer === null ? [$cel->slug] : [$cel->slug, $numer], 301),
+            );
+        }
 
         // 403 jak na stronie przepisu (`RecipeController::show`) ...
         $this->authorize('view', $model);
         // ... a przepis nieopublikowany (ukryty, zdjęty) nie ma historii.
-        abort_unless(HistoriaWersji::wolnoOgladac($request->user(), $model), 404);
+        // `view` policzone wyżej — nie liczymy go drugi raz.
+        abort_unless(HistoriaWersji::opublikowanyPoAutoryzacji($model), 404);
 
         return $model;
     }
