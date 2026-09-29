@@ -520,7 +520,7 @@
                      ekranu, więc waga wizualna i waga w nawigacji się zgadzają. --}}
                 <a class="btn btn-primary" href="{{ route('cooked.create', $post->recipe->slug) }}">
                     <x-ikona nazwa="chef" :rozmiar="22" />
-                    Ugotowałem
+                    {{ \App\Support\Forma::dla(auth()->user(), 'Ugotowałam', 'Ugotowałem', 'Ugotowałem') }}
                 </a>
             @endif
         @endauth

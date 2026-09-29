@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Digest\TrescDigestu;
 use App\Domain\Recipes\Actions\RecordCookedEvent;
+use App\Models\Notification;
 use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
@@ -212,6 +213,68 @@ final class FormaTekstyTest extends TestCase
         $html = $this->actingAs($autor)->get(route('cooked.celebrate', $event))->assertOk()->getContent();
 
         $this->assertStringContainsString($naglowek, $this->tekst($html));
+        $this->bezRodzajuGdyNeutralna($forma, $html);
+    }
+
+    /**
+     * Przycisk „Ugotowałem” na stronie przepisu i tytuł formularza wykonania
+     * (D-332 pkt 4): napis zmienia się tylko u osoby z formą żeńską.
+     */
+    #[DataProvider('przyciskUgotowalem')]
+    public function test_strona_przepisu_i_formularz_wykonania_w_formie_osoby(?string $forma, string $jest, string $niema): void
+    {
+        $recipe = Recipe::factory()->create(['author_id' => $this->user('autorka')->getKey(), 'title' => 'Rosół']);
+        $basia = $this->userZForma('basia', $forma);
+
+        $przepis = $this->actingAs($basia)->get(route('recipes.show', $recipe->slug))->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression('~href="[^"]*/ugotowalem[^"]*">'.$jest.'</a>~u', $przepis);
+        $this->assertDoesNotMatchRegularExpression('~href="[^"]*/ugotowalem[^"]*">'.$niema.'</a>~u', $przepis);
+
+        $formularz = $this->actingAs($basia)->get(route('cooked.create', $recipe->slug))->assertOk()->getContent();
+
+        $this->assertStringContainsString('<h1>'.$jest.': Rosół</h1>', $formularz);
+        $this->assertStringNotContainsString('<h1>'.$niema.': Rosół</h1>', $formularz);
+    }
+
+    /** @return array<string, array{0: ?string, 1: string}> */
+    public static function powiadomienieKomusWyszlo(): array
+    {
+        return [
+            'żeńska' => [Profile::FORM_FEMININE, 'Halina ugotowała Twój przepis'],
+            'męska' => [Profile::FORM_MASCULINE, 'Halina ugotował Twój przepis'],
+            'neutralna' => [null, 'Halina — ugotowane z Twojego przepisu'],
+        ];
+    }
+
+    /** Lista powiadomień mówi o kucharzu w JEGO formie, nie w formie czytającego autora. */
+    #[DataProvider('powiadomienieKomusWyszlo')]
+    public function test_lista_powiadomien_mowi_o_kucharzu_w_jego_formie(?string $forma, string $zdanie): void
+    {
+        $autor = $this->userZForma('autorka', $forma === Profile::FORM_FEMININE ? Profile::FORM_MASCULINE : Profile::FORM_FEMININE);
+        $kucharz = $this->userZForma('kucharz', $forma, 'Halina');
+        $recipe = Recipe::factory()->create(['author_id' => $autor->getKey(), 'title' => 'Rosół']);
+        app(RecordCookedEvent::class)->handle($kucharz, $recipe);
+
+        $html = $this->actingAs($autor)->get(route('notifications.index'))->assertOk()->getContent();
+
+        $this->assertStringContainsString($zdanie, $this->tekst($html));
+        $this->bezRodzajuGdyNeutralna($forma, $html);
+    }
+
+    #[DataProvider('formy')]
+    public function test_powiadomienie_powitalne_mowi_w_formie_osoby(?string $forma, string $slowo): void
+    {
+        $basia = $this->userZForma('basia', $forma);
+        Notification::create([
+            'user_id' => $basia->getKey(),
+            'type' => Notification::TYPE_WELCOME,
+            'data' => ['display_name' => 'Basia'],
+        ]);
+
+        $html = $this->actingAs($basia)->get(route('notifications.index'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Zacznij od zdjęcia tego, co dziś '.$slowo.'.', $this->tekst($html));
         $this->bezRodzajuGdyNeutralna($forma, $html);
     }
 
