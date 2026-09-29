@@ -663,7 +663,7 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
 
         $this->wlaczTurnstile();
         // `/health` sprawdza teraz też pocztę TYLKO na produkcji
-        // (`HealthController::sprawdzPoczte()`) — bez tego domyślny
+        // (`SondaPoczty`) — bez tego domyślny
         // `MAIL_MAILER=array` testów zgłosiłby WŁASNĄ, niezwiązaną z
         // Turnstile awarię i ten test sprawdzałby coś innego, niż mówi jego
         // nazwa.
@@ -797,7 +797,7 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
      *
      * Analityka nie ma przełącznika „wyłącz" i mieć go nie ma (obietnica stoi
      * w polityce prywatności, nie w konfiguracji — patrz
-     * `HealthController::sprawdzAnalityke()`), więc uciszamy ją jedyną
+     * `SondaAnalityki`), więc uciszamy ją jedyną
      * uczciwą drogą: udawanym tokenem.
      */
     private function wejsciaZewnetrzneWylaczone(): void

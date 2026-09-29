@@ -16,8 +16,8 @@ use Throwable;
  * ────────────────────────────────────────────────────────────────────────
  *
  * `/health` mówi `degraded` i podaje POWÓD `zadania_nieudane`, ale ani
- * liczby, ani klasy zadania nie podaje nigdzie (`HealthController::
- * sprawdzKolejke()` — publiczna odpowiedź niesie sam kod). Odpowiedź na
+ * liczby, ani klasy zadania nie podaje nigdzie (`SondaKolejki`,
+ * publiczna odpowiedź niesie sam kod). Odpowiedź na
  * pytanie „KTÓRE zadanie padło" mają dziś wyłącznie `kuking:martwe-zadania`
  * i `kuking:kto-nie-dostal-listu`, czyli komendy z POWŁOKI SERWERA.
  *

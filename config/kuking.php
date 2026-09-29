@@ -3053,7 +3053,7 @@ return [
              * przetwarzanie, którego nie ma — i nie ma ani jednego miejsca,
              * w którym ktokolwiek by to zauważył.
              *
-             * Dlatego `HealthController::sprawdzAnalityke()` pyta o ROZJAZD,
+             * Dlatego `SondaAnalityki` pyta o ROZJAZD,
              * a nie o sam brak tokenu: sygnał zapala się wtedy i tylko wtedy,
              * gdy poniższy dokument nadal obiecuje analitykę, a tokenu nie ma.
              * Uciszyć go można DWOMA uczciwymi sposobami — wpisać token albo

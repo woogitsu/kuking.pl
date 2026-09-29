@@ -915,7 +915,7 @@ kiedy ktoś już wie, że coś jest nie tak.
 
 **Problem, który to zamyka.** `/health` mówi `degraded` z powodem
 `zadania_nieudane` i nie podaje ani liczby, ani klasy zadania: publiczna
-odpowiedź niesie sam kod (`HealthController::sprawdzKolejke()`). Odpowiedź
+odpowiedź niesie sam kod (`App\Support\Zdrowie\Sondy\SondaKolejki`). Odpowiedź
 na pytanie „KTÓRE zadanie padło" miały wyłącznie `kuking:martwe-zadania`
 i `kuking:kto-nie-dostal-listu`, czyli komendy z **powłoki serwera**.
 Na Railway powłoki nie ma (`proc_open` wyłączony w `docker/php.ini`),

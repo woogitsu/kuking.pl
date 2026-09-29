@@ -124,7 +124,7 @@ class ZmienneRailwayaPerRolaTest extends TestCase
         ],
         'CLOUDFLARE_ZONE_ID' => [
             'role' => ['web', 'worker'],
-            'powod' => 'Worker: `PurgePublicMediaCache`. Web: `HealthController::sprawdzCzyszczenieCdn` '
+            'powod' => 'Worker: `PurgePublicMediaCache`. Web: `SondaCzyszczeniaCdn` '
                 .'sprawdza obecność na produkcji. Scheduler tylko kolejkuje job.',
         ],
         'CLOUDFLARE_PURGE_TOKEN' => ['role' => ['web', 'worker'], 'powod' => 'Jak CLOUDFLARE_ZONE_ID.'],
