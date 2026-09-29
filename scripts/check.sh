@@ -110,6 +110,16 @@ else
     zle "$(printf '%s\n' "$_wynik_powloki" | tail -n 1)"
 fi
 
+# --- 3b'. Werdykt kontroli negatywnych (#1011) -----------------------------
+# Czerwień po mutacji zalicza się tylko z oczekiwanej przyczyny, nie z fatalu
+# ani cudzej asercji. Bez bazy i bez PHP, poniżej sekundy.
+krok "Werdykt kontroli negatywnych (#1011)"
+if python3 tests/skrypty/kontrole-negatywne-przyczyna.py >/dev/null 2>&1; then
+    ok "Werdykt POTWIERDZONA / ZLA_PRZYCZYNA / BRAK_PORAZKI działa"
+else
+    zle "Werdykt kontroli negatywnych oblewa — uruchom: python3 tests/skrypty/kontrole-negatywne-przyczyna.py"
+fi
+
 # --- 3c. Przyrząd do testu obciążeniowego (#605) ---------------------------
 # Regresje NARZĘDZIA POMIAROWEGO, nie produktu. Bez bazy, bez PHP, bez sieci
 # poza własnym serwerem scenariuszy na porcie przydzielanym dynamicznie.
