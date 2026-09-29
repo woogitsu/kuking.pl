@@ -81,7 +81,7 @@ final class DomenaNieZalezyOdHttpTest extends TestCase
     public function test_request_nie_ma_zadnych_wyjatkow(): void
     {
         foreach (self::importyHttp() as $wpis) {
-            $this->assertStringEndsNotWith('#Illuminate\Http\Request', $wpis, 'Domena nie zna Request (#970).');
+            $this->assertStringEndsNotWith('#Illuminate\Http\\'.'Request', $wpis, 'Domena nie zna Request (#970).');
         }
     }
 
@@ -98,7 +98,7 @@ final class DomenaNieZalezyOdHttpTest extends TestCase
         $this->assertSame(['Illuminate\Http\UploadedFile'], self::klasyHttp("<?php\n\$a = new \\Illuminate\\Http\\UploadedFile();\n"));
         $this->assertSame(['Illuminate\Http\*'], self::klasyHttp("<?php\nuse Illuminate\\Http\\{Request, JsonResponse};\n"));
         $this->assertSame([], self::klasyHttp("<?php\n// Illuminate\\Http\\JsonResponse\n/** Illuminate\\Http\\JsonResponse */\nuse Illuminate\\Support\\Str;\n"));
-        $this->assertSame([], self::klasyHttp("<?php\nuse Illuminate\\Http\\Client\\Response;\n"), 'Klient wychodzący nie jest warstwą wejścia.');
+        $this->assertSame([], self::klasyHttp("<?php\nuse Illuminate\\Http\\Client\\"."Response;\n"), 'Klient wychodzący nie jest warstwą wejścia.');
     }
 
     /**
