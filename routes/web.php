@@ -283,6 +283,19 @@ Route::post('/przepisy/{recipe}/gotuj/od-poczatku', [CookingModeController::clas
 Route::post('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'zaznacz'])
     ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
     ->name('cooking.zaznacz');
+// Opcjonalna synchronizacja postępu między urządzeniami (#2016) — tylko dla
+// zalogowanych; goście zostają przy postępie w sesji.
+Route::middleware('auth')->group(function () use ($limits): void {
+    Route::post('/przepisy/{recipe}/gotuj/synchronizacja', [CookingModeController::class, 'wlaczSynchronizacje'])
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('cooking.sync.wlacz');
+    Route::post('/przepisy/{recipe}/gotuj/synchronizacja/wylacz', [CookingModeController::class, 'wylaczSynchronizacje'])
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('cooking.sync.wylacz');
+    Route::get('/przepisy/{recipe}/gotuj/postep', [CookingModeController::class, 'postepZapamietany'])
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('cooking.sync.postep');
+});
 
 Route::get('/wpisy/{post}', [PostController::class, 'show'])->name('posts.show');
 Route::get('/pytania/zadaj', [PostController::class, 'create'])->middleware('auth')->name('questions.create');
