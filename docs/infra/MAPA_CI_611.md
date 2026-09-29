@@ -36,7 +36,7 @@ naprawienie CI ponowi wcześniejsze wdrożenie.
 Po naprawie trzeba potwierdzić SHA rzeczywiście działającej wersji i w razie
 potrzeby jawnie wznowić wdrożenie przez kolejkę operacyjną.
 
-## Mapa wszystkich 20 jobów
+## Mapa wszystkich 22 jobów
 
 Warunek **K** to `needs.zakres.outputs.kod == 'true'`; **W** to dodatkowo
 `needs.zakres.outputs.widok == 'true'`. „CI” poniżej oznacza push i PR do
@@ -59,6 +59,8 @@ Zmiana konfiguracji CI jest traktowana jak kod i warstwa widoku.
 | ci / `dostepnosc` | CI, zakres, K+W; własna baza i blokada przeglądarki | Aktualizacja service workera, listy, kafel, fokus, axe i Lighthouse, kontrole ujemne | Brak odbioru dostępności, wydajności i aktualizacji PWA; sam build tych usterek nie znajdzie. |
 | ci / `audit` | CI, zakres, K | Audyt Composer i npm, także zależności deweloperskich; same kroki audytu nieblokujące | Utrata sygnału o znanych podatnościach. Przygotowanie środowiska nadal może oblać job — komentarz „nigdy nie blokuje” nie jest pełnym opisem. |
 | ci / `docker-build` | CI, zakres, K | Buduje bez publikacji obraz aplikacji i backupu; sprawdza rozszerzenia, brak klucza, pg_dump 18, użytkownika i odmowę bez konfiguracji | Testy PHP mogą przejść, a właściwy obraz nie uruchomi aplikacji lub bezpiecznej kopii zapasowej. |
+| deploy / `audit_ci` | `deployment_status` ze statusem success; bez `needs` | Porównuje SHA wdrożenia z zakończonym CI (`scripts/ci-po-wdrozeniu.mjs`); alarm po fakcie, nie bramka | Cichy rozjazd: wdrożenie SHA, którego CI nie zakończyło się zielono (Railway przepuszcza anulowane CI, jeśli inny workflow miał success). |
+| deploy / `alarm_bez_sukcesu` | `deployment_status` ze statusem inactive, failure albo error; bez `needs`; uprawnienie `deployments: read` (#611 etap 6) | Woła `scripts/ci/stan-wdrozenia.sh`: failure/error zawsze czerwone; inactive czerwone tylko gdy wdrożenie ruszyło (in_progress) i nigdy nie miało success; success → inactive (zastąpienie nowszym) i inactive przed startem nie alarmują; brak historii = czerwone. Historia z API GitHuba, bez Railway | Wdrożenie, które padło albo zniknęło bez sukcesu, nie zostawiało śladu: brak testu dymnego wyglądał jak brak wdrożenia. Tylko sygnał — niczego nie wznawia ani nie cofa. |
 | deploy / `verify` | `deployment_status` ze statusem success; bez `needs` | Normalizuje nazwę środowiska, sprawdza HTTP/HTTPS, 404, brak debug i markę; odmawia sukcesu przy pominiętym właściwym pomiarze | Możliwe ciche „zielone” po wdrożeniu niedziałającej strony — historycznie 249 pominięć. |
 | deploy / `operate` | Wyłącznie ręcznie; GitHub environment z wejścia | Token danego środowiska, migracja/redeploy i health; rollback wyświetla instrukcję, nie wykonuje cofnięcia | Brak jawnej drogi operacyjnej z kontrolą środowiska. To nie automatyczny rollback po czerwonym smoke-teście. |
 | preview / `smoke` | Wewnętrzny PR opened/synchronize/reopened, `KUKING_DEPLOY_ENABLED == 'true'`; bez `needs` | Czeka na URL wdrożenia dla SHA, sprawdza health i stronę, publikuje wynik w PR | Brak sprawdzenia preview i drogi do jego wyniku. Brak URL dziś daje notice i sukces: to luka kontraktu, nie zbędny job. |
@@ -124,7 +126,7 @@ Własny odczyt API GitHub 20.09.2026 (bez zmiany ustawień):
 | Ustawienie | Wynik |
 |---|---|
 | Zmienna repozytorium `CI_RUNS_ON` | `"ubuntu-latest"`, updated_at `2026-09-20T16:27:59Z` |
-| Wszystkie 20 jobów w kodzie | `fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"')` |
+| Wszystkie 22 joby w kodzie | `fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"')` |
 | `delete_branch_on_merge` | `true` |
 | Ochrona `main` | Endpoint protection: HTTP 404, „Branch not protected” |
 | Rulesets | Endpoint repozytorium: `[]` |
