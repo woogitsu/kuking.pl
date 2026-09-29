@@ -4238,8 +4238,8 @@ ochrony skanu kartki (eksport, kasowanie z kontem, `DostepDoZdjecia`,
 | `recipe_id` | `uuid NULL`, FK `recipes` `ON DELETE SET NULL` — szkic, do którego trafia odczyt. |
 | `zrodlo` | `zdjecie` \| `url` \| `pdf`. CHECK `importy_przepisow_zrodlo_check`. |
 | `status` | `oczekuje` \| `w_toku` \| `gotowy` \| `nieudany` \| `wstrzymany_limitem`. CHECK. **Poza `$fillable`** (AGENTS.md §7). |
-| `kod_bledu` | Zamknięta lista (CHECK `importy_przepisow_kod_bledu_check`): `limit_osoby`, `budzet_dzienny`, `budzet_miesieczny`, `brak_zgody`, `wylaczony`, `model_niedostepny`, `nieczytelne`, `odpowiedz_bledna`, `zdjecie_niedostepne`, `szkic_zmieniony`, `blad_wewnetrzny`. CHECK `importy_przepisow_kod_przy_bledzie_check`: kod jest **dokładnie** przy `nieudany`/`wstrzymany_limitem`. |
-| `source_url` | `text NULL`, tylko przy `zrodlo = 'url'` (CHECK). Etap importu z adresu. |
+| `kod_bledu` | Zamknięta lista (CHECK `importy_przepisow_kod_bledu_check`): `limit_osoby`, `budzet_dzienny`, `budzet_miesieczny`, `brak_zgody`, `wylaczony`, `model_niedostepny`, `nieczytelne`, `odpowiedz_bledna`, `zdjecie_niedostepne`, `szkic_zmieniony`, `blad_wewnetrzny` oraz — od migracji `2026_09_29_120000_extend_importy_przepisow_kod_bledu_o_adres` (#28) — siedem powodów odmowy odczytu strony przy `zrodlo = 'url'`: `adres_nieprawidlowy`, `adres_niepubliczny`, `strona_niedostepna`, `za_duzo_przekierowan`, `za_duza_strona`, `za_dlugo`, `nie_strona` (te same napisy co `ImportOdrzucony::*`; zdanie dla człowieka wylicza z nich `KomunikatImportu`). CHECK `importy_przepisow_kod_przy_bledzie_check`: kod jest **dokładnie** przy `nieudany`/`wstrzymany_limitem`. |
+| `source_url` | `text NULL`, tylko przy `zrodlo = 'url'` (CHECK). Adres wpisany w formularzu importu z adresu — **wejście zadania `ImportujPrzepisZAdresu`** (worker odtwarza je stąd po restarcie; w zadaniu w kolejce adresu nie ma). Zerowany w każdym stanie końcowym (sukces, odmowa, `failed()`, `kuking:odzyskaj-importy`), więc nie zostaje dłużej, niż trwa zlecenie. Adres po przekierowaniach i bez śledzenia zostaje w `przepisy_z_importu.source_url` i `recipes.source_url`. |
 | `proby` | Liczba prób wywołania modelu (ponowienia przy 429/5xx/timeout). Zwiększana w tej samej transakcji co rezerwacja budżetu — numer próby jest częścią klucza `ai_rezerwacje (import_id, proba)`. |
 | `koszt_mikrousd`, `tokeny_wejscia`, `tokeny_wyjscia` | Suma rozliczeń wszystkich prób (z `usage`, a bez niego cała rezerwacja). Dopisywana w tej samej transakcji co rozliczenie budżetu (`RozliczenieOdczytu`). Kwota ≥ 0 (CHECK `importy_przepisow_kwoty_check`). Rezerwacje **nie** stoją w tym wierszu — są w `ai_rezerwacje`. |
 | `odpowiedz_modelu` | `jsonb NULL` — odpowiedź bez rozumowania, do diagnozy błędów odczytu. Może zawierać tekst z kartki → **30 dni**, potem `NULL`. Zapisana = etap „odczytano” zamknięty: ponowienie zadania dokańcza z niej, **bez drugiego płatnego żądania** (#1980). |
@@ -4259,6 +4259,18 @@ razem ze zleceniem. Zlecenie `oczekuje`/`w_toku` bez zmiany od 120 minut (zadani
 zgubione inną drogą) `kuking:odzyskaj-importy` kończy jako `nieudany` /
 `blad_wewnetrzny` — ekran pokazuje „Spróbuj jeszcze raz”.
 
+**Import z adresu w kolejce (#28).** Zlecenie z `zrodlo = 'url'` powstaje od razu
+po wysłaniu formularza (`ZlecImportZAdresu`: blokada osoby, miejsce w
+`proby_importu`, wiersz zlecenia z `source_url`, zadanie `ImportujPrzepisZAdresu`
+— jedna transakcja), a `recipe_id` jest `NULL`, dopóki zadanie nie zapisze
+szkicu; szkic i `gotowy` idą razem w jednej transakcji. Robots.txt i „brak
+przepisu na stronie” kończą zlecenie jako `gotowy` ze szkicem z samym źródłem
+(`przepisy_z_importu.droga = 'bez_tresci'`), każda inna odmowa — `nieudany`
+z jednym z siedmiu kodów wyżej. Rezerwacja budżetu przy stronie bez danych
+`Recipe` ma w `ai_rezerwacje.import_id` identyfikator wiersza `proby_importu`
+(nie zlecenia), dlatego `failed()` zadania domyka księgę po nim.
+Import z PDF nadal chodzi w żądaniu (osobny etap).
+
 **Retencja** (`kuking:sprzataj-importy`, codziennie 06:00): `odpowiedz_modelu`
 → `NULL` po 30 dniach, wiersz znika po 90. **Wyjątek:** wiersz, którego szkic
 jest nadal szkicem, zostaje (bez surowej odpowiedzi), bo jest bramką publikacji
@@ -4268,6 +4280,13 @@ albo usunięciu szkicu.
 **Eksport RODO:** sekcja `odczyty_przepisow` (źródło, stan, powód
 niepowodzenia, szkic, daty) — bez surowej odpowiedzi; odczytany tekst jest
 w sekcji `przepisy`, zdjęcie w `zdjecia`.
+
+**Rollback migracji kodów adresu (#28):** `down()` nie odmawia, ale nie jest bezstratny —
+zamienia siedem kodów odmowy strony na `blad_wewnetrzny` (status `nieudany` zostaje) i przywraca
+wąską listę CHECK; ginie tylko dokładny powód nieudanej próby, nie treść ani limity
+(`tests/Feature/CofniecieMigracjiKodowAdresuImportuTest.php`). Przed cofnięciem kodu wyłącz import
+z adresu (`KUKING_IMPORT_URL=false`), a zadania czekające w kolejce dokończ albo poczekaj na
+`kuking:odzyskaj-importy`.
 
 **Rollback:** `php artisan migrate:rollback` kasuje tabelę bez odmowy. Dane są
 pochodne (ślad zleceń bez treści i bez zdjęć); po ponownym `migrate` limity
@@ -6694,10 +6713,16 @@ drugi czeka na zwolnienie blokady (koniec transakcji pierwszego) i dopiero
 wtedy liczy `MAX` na nowo. Test na dwóch prawdziwych połączeniach:
 `tests/Dwa/RejestracjaWdrozeniaNaDwochPolaczeniachTest.php`.
 
-**Kto zapisuje.** Komenda `kuking:zarejestruj-wdrozenie`, wpięta
-w `.railway/railway.ts` (`preDeployCommand`) zaraz po `php artisan migrate
---force` — patrz `docs/infra/DEPLOYMENT_RUNBOOK.md`. Lokalnie i w podglądach
-bez `RAILWAY_GIT_COMMIT_SHA` komenda kończy się bez błędu, nic nie zapisując.
+**Kto zapisuje.** Komenda `kuking:zarejestruj-wdrozenie --po-gotowosci`,
+uruchamiana w tle przez `docker/entrypoint.sh` (role `web` i `all`) DOPIERO,
+gdy lokalny `/health` nowego kontenera odpowie 2xx — NIE w `preDeployCommand`
+(ten kończy się przed seedem, importem i healthcheckiem, więc nieudany
+rollout zużywał numer; audyt z 28 września 2026, #1932). W tabeli są więc
+tylko wdrożenia, których kontener wstał. Kontener, który nie odpowie w limicie
+(domyślnie 300 s), nie zapisuje niczego — ani `wdrozenia`, ani
+`wdrozenia_funkcje`. Patrz `docs/infra/DEPLOYMENT_RUNBOOK.md`. Lokalnie
+i w podglądach bez `RAILWAY_GIT_COMMIT_SHA` komenda kończy się bez błędu,
+nic nie zapisując.
 
 **Kto czyta.** `App\Support\Wersja::numerWdrozenia()` — dla BIEŻĄCEGO
 commita, z cache'em (10 minut, klucz niesie commit), bo metoda woła się

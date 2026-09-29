@@ -1121,35 +1121,30 @@ export default defineRailway((ctx) => {
       //  demo.
       //
       // -----------------------------------------------------------------------
-      //  TRZECIA KOMENDA: `kuking:zarejestruj-wdrozenie` (issue #1932, D-318).
+      //  TRZECIA KOMENDA — JUŻ NIE TUTAJ: `kuking:zarejestruj-wdrozenie`
+      //  (issue #1932, D-318; przeniesiona po audycie z 28 września 2026).
       //
-      //  Numer wersji z KOŃCÓWKĄ — „Alfa 0.68.005" zamiast samego „Alfa 0.68",
-      //  które stoi tygodniami bez zmian i nie odróżnia dwóch wdrożeń tego
-      //  samego dnia. Komenda dopisuje BIEŻĄCY commit do tabeli `wdrozenia`
-      //  (`App\Domain\Wydania\Actions\ZarejestrujWdrozenie`) i, przy tej samej
-      //  okazji, zapisuje, pod jakim numerem pojawił się PIERWSZY RAZ każdy
-      //  nagłówek funkcji z `resources/nowosci/tresc.md` — to jest źródło
-      //  dopisku „od Alfa 0.68.NNN" na stronie `/co-nowego`.
+      //  Numer wersji z KOŃCÓWKĄ — „Alfa 0.68.005" zamiast samego „Alfa 0.68" —
+      //  i dopisek „od Alfa 0.68.005" na `/co-nowego` mają znaczyć „to
+      //  WDROŻENIE, które dotarło do ludzi". Pierwsza wersja wpięła komendę
+      //  właśnie tu, między `migrate` a `db:seed`, więc zapisywała numer PRZED
+      //  seedem, importem i healthcheckiem: rollout, który padł na którymkolwiek
+      //  z nich, zostawiał zużyty numer i funkcje opisane jako dostępne, których
+      //  żaden działający kontener nie obsługiwał. Pre-deploy kończy się PRZED
+      //  startem nowego kontenera, więc samo przesunięcie komendy na koniec tej
+      //  listy zostawiłoby dziurę: nowy kontener, który nie przejdzie `/health`,
+      //  i tak miałby wpis.
       //
-      //  STOI PO `migrate`, PRZED `db:seed` — musi iść PO migracjach, bo
-      //  dopiero wtedy istnieje tabela `wdrozenia`; PRZED seederem, bo seeder
-      //  nie ma z tym nic wspólnego i kolejność między nimi jest bez
-      //  znaczenia — trzymamy migracje i rejestrację wdrożenia razem, jako
-      //  jeden logiczny krok „przygotuj bazę pod to wdrożenie".
+      //  Dlatego rejestracja mieszka w `docker/entrypoint.sh`
+      //  (`rejestruj_wdrozenie_po_gotowosci`, role `web` i `all`): w tle,
+      //  dopiero gdy lokalny `/health` nowego kontenera odpowie 2xx — tym samym
+      //  sprawdzianem co healthcheck Railwaya. Działa też w dzisiejszej
+      //  topologii (`all`, bez `railway config apply`). Komenda ma tryb
+      //  `--po-gotowosci`; bez odpowiedzi w limicie nic nie zapisuje.
       //
-      //  IDEMPOTENTNA: ten sam commit (redeploy bez zmiany kodu, ponowiony
-      //  krok po chwilowym błędzie) nie zakłada drugiego wiersza i nie zużywa
-      //  kolejnego numeru — `UNIQUE (commit)` w tabeli plus sprawdzenie
-      //  w akcji PRZED wstawieniem.
-      //
-      //  BEZPIECZNA PRZY RÓWNOLEGŁYM STARCIE: numer liczy się jako
-      //  `MAX(numer) + 1` pod `pg_advisory_xact_lock` — dwa równoległe starty
-      //  nie dostają tego samego numeru (test na dwóch połączeniach:
-      //  `tests/Dwa/RejestracjaWdrozeniaNaDwochPolaczeniachTest.php`).
-      //
-      //  LOKALNIE I W PODGLĄDACH bez `RAILWAY_GIT_COMMIT_SHA` komenda kończy
-      //  się natychmiast, z kodem 0 — nie wywala deployu ani lokalnego
-      //  środowiska, w którym ta zmienna nie istnieje.
+      //  NIE wracaj z nią do tej listy. Pilnują tego: reguła w
+      //  `scripts/railway/iac.test.mjs` (z kontrolą ujemną) oraz
+      //  `tests/Feature/ZarejestrujWdrozenieTest.php`.
       //
       // -----------------------------------------------------------------------
       //  CZWARTA KOMENDA: `kuking:importuj-wartosci-odzywcze` (#1961, D-299).
@@ -1181,7 +1176,6 @@ export default defineRailway((ctx) => {
       //  Pilnuje tego `WdrozenieImportujeWartosciOdzywczeTest`.
       preDeployCommand: [
         "php artisan kuking:migruj-pod-blokada --no-interaction",
-        "php artisan kuking:zarejestruj-wdrozenie --no-interaction",
         "php artisan db:seed --force --no-interaction",
         "php artisan kuking:importuj-wartosci-odzywcze",
       ],

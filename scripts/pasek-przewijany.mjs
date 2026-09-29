@@ -57,7 +57,7 @@ async function stanPaska(p, oczekiwany, kto, opis) {
    19 września 2026 ta sama macierz idzie w DWÓCH stanach zalogowania: pasek
    chowa się teraz także po zalogowaniu (`layout.blade.php`), a do tamtej pory
    atrybut stał pod `@guest` i mierzyliśmy wyłącznie widok gościa. */
-async function przebieg({p,bar,sticky,out,width,theme,scale,kto}) {
+export async function przebieg({p,bar,sticky,out,width,theme,scale,kto}) {
  // Bez `position: sticky` skrypt pasek zawsze pokazuje; czekamy tylko na koniec przejść.
  const poZjezdzie=sticky?'schowany':'widoczny';
  await przewin(p,{do:1000});

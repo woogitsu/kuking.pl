@@ -5,6 +5,23 @@
     bez nazw osób, bez odnośników do wpisów, bez logu wyświetleń, bez ukryć
     i reakcji. Progi pochodzą z `kuking.metryki` i są materiałem do decyzji
     właściciela o regułach doboru (D-275) — ekran niczego nie przełącza.
+
+    KOMPOZYCJA PANELU (#492, #581)
+    Ekran powstał (#1814) po porcie panelu do marki i został w układzie sprzed
+    niego. Trzy rzeczy, które trzeba było przenieść:
+     - uwagi pod kartami („Rozmowa o rankingu ma sens dopiero przy wszystkich
+       trzech naraz”, wyjaśnienie wskaźnika zastępczego) szły w `<p class="meta">`,
+       czyli drobnym szarym piśmie 16 px, choć to jest treść, którą
+       administrator czyta, żeby dobrze odczytać liczby. Teraz `.panel-liczby`
+       (18 px razy skala tekstu, tylko wyciszone kolorem);
+     - lista progów to główny wynik ekranu — dostaje odstępy zamiast
+       wypunktowania z domyślnymi wcięciami przeglądarki;
+     - tabela „Różnych autorów dziennie” była gołym `<table>` bez obwódek,
+       bez nagłówka odróżnionego od danych i bez podpisu dla czytnika ekranu.
+       Teraz `.tabela-dni` (marka-panel.css): dzień jest nagłówkiem wiersza,
+       liczba stoi po prawej, tekst może się łamać, więc przy 320 px i dużym
+       piśmie tabela nie wypycha strony w bok.
+    Ekran nie ma formularza, więc ma wyłącznie karty treści (ROLE_KART.md).
 --}}
 @php
     $procent = fn (?float $p): string => $p === null ? 'za mało danych' : number_format($p, 1, ',', ' ').'%';
@@ -23,7 +40,7 @@
 
     <section class="card" aria-labelledby="metryki-progi" data-metryka="progi">
         <h2 class="mt-0 text-title-sm" id="metryki-progi">Progi rewizji</h2>
-        <ul>
+        <ul class="stack-tight list-none p-0">
             <li data-prog="autorzy" data-osiagniety="{{ $srednia >= $progi['autorow_dziennie'] ? 'tak' : 'nie' }}">
                 Różnych autorów dziennie (średnia z 28 dni): <strong>{{ number_format($srednia, 1, ',', ' ') }}</strong>
                 — próg {{ $progi['autorow_dziennie'] }}: {{ $srednia >= $progi['autorow_dziennie'] ? 'osiągnięty' : 'jeszcze nie' }}.
@@ -38,7 +55,7 @@
                 {{ $bez['procent'] !== null && $bez['procent'] > $progi['odsetek_bez_pierwszej_strony'] ? 'przekroczony' : 'nie' }}.
             </li>
         </ul>
-        <p class="meta">Rozmowa o rankingu ma sens dopiero przy wszystkich trzech naraz.</p>
+        <p class="panel-liczby">Rozmowa o rankingu ma sens dopiero przy wszystkich trzech naraz.</p>
     </section>
 
     <section class="card" aria-labelledby="metryki-pierwsza-strona" data-metryka="pierwsza-strona">
@@ -48,7 +65,7 @@
             Ich wpisy stały na pierwszej stronie łącznie krócej niż {{ $bez['prog_minut'] }} minut u
             <strong>{{ $bez['licznik'] }}</strong> z nich ({{ $procent($bez['procent']) }}).
         </p>
-        <p class="meta">Wskaźnik zastępczy bez logu wyświetleń (D-283): pierwsza strona to najnowszy wpis
+        <p class="panel-liczby">Wskaźnik zastępczy bez logu wyświetleń (D-283): pierwsza strona to najnowszy wpis
             każdej z {{ $bez['miejsc_na_stronie'] }} osób, które publikowały ostatnio, więc czas na niej
             wynika z samych godzin publikacji.</p>
     </section>
@@ -75,11 +92,12 @@
 
     <section class="card" aria-labelledby="metryki-dni" data-metryka="dni">
         <h2 class="mt-0 text-title-sm" id="metryki-dni">Różnych autorów dziennie</h2>
-        <table>
+        <table class="tabela-dni">
+            <caption class="visually-hidden">Liczba różnych autorów publicznych wpisów w kolejnych dniach, od najnowszego.</caption>
             <thead><tr><th scope="col">Dzień</th><th scope="col">Autorów</th></tr></thead>
             <tbody>
                 @foreach(array_reverse($m['autorzy_dziennie']['dni'], true) as $dzien => $ile)
-                    <tr><td>{{ \App\Support\Czas::data(\Carbon\CarbonImmutable::parse($dzien, \App\Support\Czas::strefa()), 'j F Y') }}</td><td>{{ $ile }}</td></tr>
+                    <tr><th scope="row">{{ \App\Support\Czas::data(\Carbon\CarbonImmutable::parse($dzien, \App\Support\Czas::strefa()), 'j F Y') }}</th><td>{{ $ile }}</td></tr>
                 @endforeach
             </tbody>
         </table>

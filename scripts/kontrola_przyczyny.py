@@ -268,7 +268,7 @@ def jedna_kontrola(nazwa, plik, test, mutacja, oczekuj, oczekiwany, runner, root
     sprawdz_zielony(test, "po przywróceniu", runner)
 
 
-def przebieg(dodatnie, checks, oczekuj, mechanizmu=(), runner=uruchom_test, root=None, wymagaj_wzorca=False):
+def przebieg(dodatnie, checks, oczekuj, mechanizmu=(), runner=uruchom_test, root=None, wymagaj_wzorca=False, wszystkie=None):
     """Cały przebieg: kontrole dodatnie, kontrole mechanizmu, kontrole negatywne.
 
     `checks` to krotki `(nazwa, plik, test, mutacja)`, `mechanizmu` — krotki
@@ -279,9 +279,14 @@ def przebieg(dodatnie, checks, oczekuj, mechanizmu=(), runner=uruchom_test, root
 
     `wymagaj_wzorca=True` zamienia BEZ_WZORCA w odmowę PRZED pierwszym testem —
     przełącznik na moment, gdy wszystkie otwarte PR-y z nowymi wpisami dostaną wzorce.
+
+    `wszystkie` to pełna lista `checks`, gdy `checks` jest tylko częścią CI
+    (`--czesc N/M`): wzorce sprawdzamy względem całości (literówka w kluczu
+    ma paść w KAŻDEJ części), a raport liczy tylko wpisy tej części.
     """
     root = root or Path(__file__).resolve().parent.parent
-    bez_wzorca = sprawdz_wzorce(checks, oczekuj)
+    sprawdz_wzorce(wszystkie if wszystkie is not None else checks, oczekuj)
+    bez_wzorca = [nazwa for nazwa, _p, _t, _m in checks if nazwa not in oczekuj]
     if bez_wzorca and wymagaj_wzorca:
         raise RuntimeError("Kontrole bez wzorca oczekiwanej przyczyny (#1011) — dopisz wpis w "
                            "scripts/kontrole_oczekiwana_przyczyna.py: " + "; ".join(bez_wzorca))

@@ -9,6 +9,7 @@ use App\Domain\Feed\HeroKolaz;
 use App\Http\Controllers\Controller;
 use App\Models\HeroPick;
 use App\Models\User;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -103,7 +104,7 @@ class HeroKolazController extends Controller
         // transakcji — uzasadnienie w `ZapiszKolaz` (#1027, #1329).
         $this->zapis->zastap($request->user(), $zadane, $dopuszczone, $request->ip());
 
-        return back()->with('status', $this->komunikat(count($dopuszczone), count($zadane) - count($dopuszczone)));
+        return back()->with(Komunikat::sukces($this->komunikat(count($dopuszczone), count($zadane) - count($dopuszczone))));
     }
 
     /** Czyści wybór — kolaż wraca do doboru automatycznego. */
@@ -113,7 +114,7 @@ class HeroKolazController extends Controller
 
         $this->zapis->wyczysc($request->user(), $request->ip());
 
-        return back()->with('status', 'Wyczyszczone. Kolaż dobierze zdjęcia sam — najnowsze publiczne, najpierw po jednym od osoby, a w razie potrzeby po dwa.');
+        return back()->with(Komunikat::sukces('Wyczyszczone. Kolaż dobierze zdjęcia sam — najnowsze publiczne, najpierw po jednym od osoby, a w razie potrzeby po dwa.'));
     }
 
     private function komunikat(int $zapisanych, int $odrzuconych): string

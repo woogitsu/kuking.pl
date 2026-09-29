@@ -217,6 +217,21 @@ class Przebieg(unittest.TestCase):
         self.assertIn(self.NAZWA, log.split("BEZ WZORCA")[1])
         self.assertEqual(self.ORYGINAL, self.plik.read_text())
 
+    def test_czesc_ci_sprawdza_wzorce_wzgledem_calosci_a_raportuje_tylko_swoje_wpisy(self):
+        # `--czesc N/M`: pętla dostaje `wybrane`, a `wszystkie` to pełne `checks`.
+        # Wzorzec kontroli z INNEJ części nie jest literówką, a bez `wszystkie`
+        # przebieg uznałby go za wzorzec dla nieistniejącej kontroli.
+        kontrola = self.kontrola()
+        inna = ("Kontrola z innej części", "zrodlo.php", METODA, kontrola[3], "Przepuszczony")
+        oczekuj = {kontrola[0]: kontrola[4], inna[0]: inna[4]}
+        with contextlib.redirect_stdout(io.StringIO()):
+            wynik = n.przebieg([], [kontrola[:4]], oczekuj, runner=self.runner(ASERCJA),
+                               root=self.root, wszystkie=[kontrola[:4], inna[:4]])
+        self.assertEqual((1, []), wynik)
+        with self.assertRaisesRegex(RuntimeError, "nieistniejącej kontroli"):
+            n.przebieg([], [kontrola[:4]], oczekuj, runner=self.runner(ASERCJA), root=self.root)
+        self.assertEqual(self.ORYGINAL, self.plik.read_text())
+
     def test_tryb_wymagaj_wzorca_odmawia_zanim_cokolwiek_zmutuje(self):
         with self.assertRaisesRegex(RuntimeError, "Kontrole bez wzorca"):
             n.przebieg([], [self.kontrola()[:4]], {}, runner=lambda _t: self.fail("uruchomiono test"),

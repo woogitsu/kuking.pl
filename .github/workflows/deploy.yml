@@ -52,7 +52,12 @@
 #      push do `staging`  → Railway buduje i wdraża środowisko `staging`
 #      otwarcie PR        → Railway tworzy środowisko PR, zamknięcie je usuwa
 #
-#  Railway ma włączone "Wait for CI", więc czeka na zielony workflow CI.
+#  Railway ma włączone "Wait for CI", ale to NIE jest gwarancja zielonego CI
+#  (#2025): anulowany workflow blokuje wdrożenie tylko wtedy, gdy żaden inny
+#  workflow tego commita nie miał sukcesu, a „Push on main" go ma. Dlatego
+#  job `audit_ci` niżej alarmuje po fakcie, a właściwą bramkę przygotowuje
+#  `railway-ci-gated-deploy.yml` (wyłączona do decyzji właściciela, patrz
+#  docs/infra/RAILWAY_CI_GATE.md).
 #  Migracje uruchamia Railway jako pre-deploy command (zadeklarowany
 #  w .railway/railway.ts) — czyli PO buildzie, PRZED przełączeniem ruchu,
 #  z dostępem do prywatnej sieci, i z blokadą deployu gdy migracja padnie.

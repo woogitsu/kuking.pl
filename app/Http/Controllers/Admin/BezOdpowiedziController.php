@@ -10,6 +10,7 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\Post;
 use App\Models\User;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -152,6 +153,6 @@ class BezOdpowiedziController extends Controller
             return back()->withInput()->withErrors(['body' => $error->getMessage()]);
         }
 
-        return back()->with('status', 'Odpowiedź wysłana.');
+        return back()->with(Komunikat::sukces('Odpowiedź wysłana.'));
     }
 }

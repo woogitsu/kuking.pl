@@ -9,6 +9,7 @@ use App\Domain\Moderation\DostepDoStronySprawy;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\ModerationAction;
 use App\Models\Report;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -96,11 +97,9 @@ class ReporterAppealController extends Controller
         // niesie oryginalny `signature` z linku w mailu) —
         // dzięki temu strona po wysłaniu odwołania nadal się otwiera i
         // pokazuje jego status, zamiast 403 z braku podpisu.
-        return redirect($request->fullUrl())->with(
-            'status',
-            'Odwołanie do nas trafiło. Odpowiemy w ciągu '
+        return redirect($request->fullUrl())->with(Komunikat::sukces('Odwołanie do nas trafiło. Odpowiemy w ciągu '
             .config('kuking.moderation.appeal_response_working_days')
             .' dni roboczych — na adres e-mail, z którego przyszło Twoje zgłoszenie.',
-        );
+        ));
     }
 }

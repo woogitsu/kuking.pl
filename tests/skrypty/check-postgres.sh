@@ -6,8 +6,8 @@
 #  1. sonda pyta o host i port ze zmiennych DB_HOST / DB_PORT, a bez nich
 #     o te same wartości co dotąd (127.0.0.1:5432) — nic nie trzeba eksportować;
 #  2. w `check.sh` nie ma zaszytego portu stanowiska;
-#  3. lokalny start klastra działa jak dotąd dla portu domyślnego,
-#     a dla innego portu (cudza instancja) klaster nie jest ruszany;
+#  3. skrypt NIGDY nie uruchamia klastra (`pg_ctlcluster`) — ani dla portu
+#     domyślnego, ani dla innego: to administracja cudzą usługą (#732);
 #  4. komunikat o niedostępności nazywa sprawdzany adres;
 #  5. baza i użytkownik z DB_DATABASE / DB_USERNAME trafiają do sondy tylko
 #     wtedy, gdy są ustawione, a hasło nigdy nie trafia do wyjścia.
@@ -18,11 +18,6 @@ trap 'rm -rf "$TASK"' EXIT
 mkdir -p "$TASK/scripts" "$TASK/bin" "$TASK/pglib/18"
 awk '/# --- 2\. Formatowanie/{exit} {print}' "$ROOT/scripts/check.sh" > "$TASK/scripts/check.sh"
 grep -q 'krok "PostgreSQL"' "$TASK/scripts/check.sh"
-# `sleep 2` po starcie klastra nie ma tu nic do czekania.
-cat > "$TASK/bin/sleep" <<'EOS'
-#!/usr/bin/env bash
-exit 0
-EOS
 cat > "$TASK/bin/pg_isready" <<'EOS'
 #!/usr/bin/env bash
 printf 'SONDA %s\n' "$*" >> "$TRACE"
@@ -30,7 +25,7 @@ exit "${READY_STATUS:-0}"
 EOS
 cat > "$TASK/bin/pg_ctlcluster" <<'EOS'
 #!/usr/bin/env bash
-printf 'START %s\n' "$*" >> "$TRACE"
+printf 'UNEXPECTED_CLUSTER_START %s\n' "$*" >> "$TRACE"
 exit 0
 EOS
 chmod +x "$TASK/bin/"*
@@ -51,26 +46,29 @@ run() {
 run
 [ "$code" = 0 ] || blad "bez zmiennych krok kończy się kodem $code"
 grep -qx 'SONDA -q -h 127.0.0.1 -p 5432' "$TRACE" || blad "bez zmiennych sonda nie pyta o 127.0.0.1:5432: $(cat "$TRACE")"
-grep -q '^START' "$TRACE" && blad "klaster uruchomiony, choć baza odpowiadała"
+grep -q 'UNEXPECTED_CLUSTER_START' "$TRACE" && blad "klaster uruchomiony, choć baza odpowiadała"
 grep -q '✓ PostgreSQL odpowiada na 127.0.0.1:5432' "$TASK/output" || blad "brak komunikatu o gotowości z adresem"
 
 # 2. Port ze zmiennej trafia do sondy.
 (export DB_PORT=55439; run; grep -qx 'SONDA -q -h 127.0.0.1 -p 55439' "$TRACE") || blad "DB_PORT=55439 nie trafił do sondy"
 (export DB_PORT=6543 DB_HOST=127.0.0.1; run; grep -qx 'SONDA -q -h 127.0.0.1 -p 6543' "$TRACE") || blad "DB_PORT=6543 nie trafił do sondy"
 
-# 3. Port domyślny niedostępny: start klastra JAK DOTĄD.
+# 3. Port domyślny niedostępny: klastra NIE ruszamy, komunikat z adresem (kod wyjścia ustawia dopiero koniec check.sh, poza wyciętym krokiem).
 (
     export READY_STATUS=1
     run
-    grep -qx 'START 18 main start' "$TRACE" && grep -q '✗ PostgreSQL nie odpowiada na 127.0.0.1:5432' "$TASK/output"
-) || blad "przy niedostępnym 5432 nie było próby startu lokalnego klastra albo komunikatu z adresem"
+    ! grep -q 'UNEXPECTED_CLUSTER_START' "$TRACE" \
+        && grep -q '✗ PostgreSQL nie odpowiada na 127.0.0.1:5432' "$TASK/output" \
+        && grep -q 'niczego nie uruchamia' "$TASK/output"
+) || blad "przy niedostępnym 5432 skrypt ruszył klaster, albo nie nazwał adresu"
 
-# 4. Inny port niedostępny: cudzej instancji nie ruszamy, komunikat nazywa adres.
+# 4. Inny port niedostępny: to samo, komunikat nazywa adres.
 (
     export READY_STATUS=1 DB_PORT=55439
     run
-    ! grep -q '^START' "$TRACE" && grep -q '✗ PostgreSQL nie odpowiada na 127.0.0.1:55439' "$TASK/output"
-) || blad "przy niedostępnym 55439 skrypt ruszył klaster albo nie nazwał adresu"
+    ! grep -q 'UNEXPECTED_CLUSTER_START' "$TRACE" \
+        && grep -q '✗ PostgreSQL nie odpowiada na 127.0.0.1:55439' "$TASK/output"
+) || blad "przy niedostępnym 55439 skrypt ruszył klaster, albo nie nazwał adresu"
 
 # 5. Portu stanowiska nie ma w skrypcie.
 grep -q '55439' <(grep -v '^[[:space:]]*#' "$ROOT/scripts/check.sh") && blad "check.sh ma zaszyty port 55439"
@@ -93,5 +91,20 @@ grep -q '55439' <(grep -v '^[[:space:]]*#' "$ROOT/scripts/check.sh") && blad "ch
 sed -i 's/ -p "\$_pg_port"//' "$TASK/scripts/check.sh"
 (export DB_PORT=6543; run; grep -q -- '-p 6543' "$TRACE") && blad "przyrząd nie wykrywa sondy bez portu"
 
+# Kontrola przyrządu nr 2: przywrócony start klastra MUSI zostać wykryty
+# (świeża kopia kroku + dopisana próba startu, jak w wersji sprzed #732).
+awk '/# --- 2\. Formatowanie/{exit} {print}' "$ROOT/scripts/check.sh" > "$TASK/scripts/check.sh"
+python3 - "$TASK/scripts/check.sh" <<'EOPY'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+cel = "if sonda_pg; then\n    ok"
+assert s.count(cel) == 1, "przyrząd: nie ma miejsca na mutację"
+s = s.replace(cel, "if ! sonda_pg; then pg_ctlcluster 18 main start; fi\n" + cel)
+open(p, 'w').write(s)
+EOPY
+grep -q 'pg_ctlcluster 18 main start' "$TASK/scripts/check.sh" || blad "przyrząd: mutacja startu klastra nie weszła"
+(export READY_STATUS=1; run; grep -q 'UNEXPECTED_CLUSTER_START' "$TRACE") || blad "przyrząd nie wykrywa przywróconego startu klastra"
+
 if [ "$failures" -gt 0 ]; then exit 1; fi
-echo 'Sonda PostgreSQL: port i host ze zmiennych, domyślne 127.0.0.1:5432, start klastra tylko dla portu domyślnego — poprawnie.'
+echo 'Sonda PostgreSQL: port i host ze zmiennych, domyślne 127.0.0.1:5432, bez uruchamiania klastra — poprawnie.'

@@ -139,6 +139,22 @@ Wszystkich pięciu punktów pilnuje `tests/Feature/BledyMowiaCoZrobicTest.php`
 plików w `lang/`. Komunikat, który leży w pliku językowym, ale nigdy nie wypada
 na ekran, nie jest komunikatem produktu.
 
+### Komunikat po akcji ma rodzaj (#988)
+
+Plakietka nad treścią po przekierowaniu (`session('status')`) nie jest zawsze
+potwierdzeniem. Każdy zapis w `app/` idzie przez `App\Support\Komunikat`:
+
+- `sukces()` — czynność wykonana: zielona ramka, napis „Gotowe”;
+- `informacja()` — nic się nie popsuło, ale czynność niczego nie zmieniła
+  („już to masz”, drugie kliknięcie, nie było czego usuwać): napis „Informacja”;
+- `blad()` — czynność NIE zaszła albo człowiek musi coś zrobić (odmowa, brak
+  poczty, wygasły link, wyłączona funkcja, niedostępny cel): czerwona ramka,
+  napis „Nie udało się”, `role="alert"`.
+
+Rodzaju nie zgadujemy po słowie „nie” — „Nie obserwujesz już tagu” to sukces.
+Goły `->with('status', …)` oblewa `tests/Unit/StraznikKomunikatuTest.php`.
+Rozróżnienie niesie napis, nie tylko kolor (WCAG 1.4.1).
+
 ### Strony błędów
 
 `resources/views/errors/` — po polsku, w layoucie serwisu, każda mówi **co zrobić**

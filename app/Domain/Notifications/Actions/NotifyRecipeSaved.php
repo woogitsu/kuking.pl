@@ -226,4 +226,70 @@ final class NotifyRecipeSaved
             ])->save();
         });
     }
+
+    /**
+     * Wycofanie PRZED przeczytaniem cofa też udział tej osoby w partii
+     * zbiorczego powiadomienia — patrz `cofnij()`. Tylko gdy przepisu nie ma
+     * już w ŻADNYM jej zeszycie: to lustro warunku z zapisu, który powiadamia
+     * wyłącznie przy pierwszym zeszycie.
+     *
+     * Jedna kompensacja dla każdej drogi, którą przepis wychodzi z zeszytu:
+     * zwykłego wyjęcia (`SaveRecipeToCollection::remove()`) i zbiorczego
+     * „Wyjmij niedostępne zapisy” (`RemoveUnavailableFromCollection`, #2205).
+     *
+     * Wołać PO skasowaniu wierszy `collection_items`, w tej samej transakcji.
+     */
+    public function cofnijJesliNigdzieNieZostal(User $user, Recipe $recipe): void
+    {
+        // Ta sama blokada partii co przy zapisie: sprawdzenie „nigdzie nie
+        // został” i wycofanie z partii muszą być jednym krokiem względem
+        // równoległego zapisu tej osoby do innego zeszytu — inaczej zapis
+        // liczy wyjmowany jeszcze zeszyt, nie powiadamia, a wycofanie
+        // potem wyrzuca tę osobę z partii, choć przepis u niej leży.
+        DB::transaction(function () use ($user, $recipe): void {
+            $this->zablokujPartie($recipe);
+
+            $zostal = $user->collections()
+                ->whereHas('recipes', fn ($q) => $q->whereKey($recipe->getKey()))
+                ->exists();
+
+            if (! $zostal) {
+                $this->cofnij($user, $recipe);
+            }
+        });
+    }
+
+    /**
+     * To samo dla wielu przepisów naraz (zbiorcze czyszczenie, #2205).
+     *
+     * Modele wczytujemy JEDNYM zapytaniem, łącznie z miękko usuniętymi:
+     * przepis, który zniknął, jest jednym z powodów, dla których zapis jest
+     * „niedostępny”, a jego nieprzeczytana partia nadal wisi u autora.
+     * Blokady partii bierzemy w stałej kolejności (po identyfikatorze
+     * przepisu), więc dwa równoległe czyszczenia o wspólnych przepisach nie
+     * czekają na siebie nawzajem w kółko. Powtórzone identyfikatory są
+     * zbijane do jednego.
+     *
+     * @param  iterable<string>  $idPrzepisow
+     */
+    public function cofnijJesliNigdzieNieZostalDlaWielu(User $user, iterable $idPrzepisow): void
+    {
+        $ids = [];
+        foreach ($idPrzepisow as $id) {
+            $ids[(string) $id] = (string) $id;
+        }
+
+        if ($ids === []) {
+            return;
+        }
+
+        DB::transaction(function () use ($user, $ids): void {
+            $przepisy = Recipe::withTrashed()->whereIn('id', array_values($ids))->get()
+                ->sortBy(fn (Recipe $r): string => (string) $r->getKey(), SORT_STRING);
+
+            foreach ($przepisy as $przepis) {
+                $this->cofnijJesliNigdzieNieZostal($user, $przepis);
+            }
+        });
+    }
 }

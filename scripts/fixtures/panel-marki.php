@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 // Dwie fazy: pusty → odbiór GET → pelny → odbiór GET. Bez DemoSeeder,
 // kasowania danych i tworzenia sesji z pominięciem logowania/2FA.
@@ -77,7 +78,7 @@ for ($directory = $parent; dirname($directory) !== $directory; $directory = dirn
 // tworzy pustego stanu. Odmowa chroni dane i uczciwość odbioru, nie czyścimy ich.
 $assertEmpty = static function (): void {
     foreach (['reports', 'appeals', 'moderation_actions', 'contact_messages', 'contact_message_replies',
-        'posts', 'recipes', 'cooked_events', 'media', 'hero_picks', 'daily_picks', 'tag_promotions'] as $table) {
+        'posts', 'recipes', 'cooked_events', 'media', 'hero_picks', 'daily_picks', 'tag_promotions', 'failed_jobs'] as $table) {
         if (DB::table($table)->exists()) {
             throw new RuntimeException('Zastane dane panelu. Użyj świeżej wydzielonej bazy.');
         }
@@ -124,10 +125,23 @@ if ($phase === 'pusty') {
         'kuking-na-dzis' => ['/admin/kuking-na-dzis', 'p.meta:has-text("W ostatnich 7 dniach nikt nic nie opublikował.")'],
         'tagi-promowane' => ['/admin/tagi-promowane', '.empty-state-title'],
         'uzytkownicy' => ['/admin/uzytkownicy?szukaj='.$namespace.'-brak-konta', '.empty-state-title'],
+        // Kolejka zadań (#581): konto `konto` ma rolę administratora, więc
+        // widzi ekran. Pusta tabela nieudanych zadań jest stanem odbieranym
+        // wprost, nie brakiem danych do pominięcia.
+        'kolejka' => ['/admin/kolejka', 'p.card:has-text("Tabela jest pusta")'],
+        // Metryki doboru (#492): konto `konto` jest administratorem. Bez wpisów
+        // ekran mówi „za mało danych”, ale układ (karty progów i tabela dni)
+        // musi stać tak samo jak z danymi.
+        'metryki' => ['/admin/metryki', 'section[data-metryka="progi"]'],
     ];
     foreach ($emptyRoutes as $family => [$path, $selector]) {
         $scenarios[] = $scenario($family.'-pusty', $family, $path, [$one('main '.$selector, 1, 1)]);
     }
+    // Metryki doboru: tabela dni ma zawsze 28 wierszy, a uwagi pod kartami
+    // i komórki tabeli są w piśmie podstawowym (`.panel-liczby`, `.tabela-dni`).
+    $metryki = array_search('metryki-pusty', array_column($scenarios, 'id'), true);
+    $scenarios[$metryki]['oczekiwaneSelektory'][] = $one('main table.tabela-dni tbody tr', 28, 28);
+    $scenarios[$metryki]['minimalnyTekst'] = ['main .panel-liczby', 'main .tabela-dni th', 'main .tabela-dni td'];
     foreach (['wpisy', 'przepisy', 'ugotowane'] as $type) {
         $scenarios[] = $scenario('bez-odpowiedzi-'.$type.'-pusty', 'bez-odpowiedzi', '/admin/bez-odpowiedzi?typ='.$type,
             [$one('main .empty-state-title', 1, 1), $one('main article.card', 0, 0)]);
@@ -218,6 +232,18 @@ if ($phase === 'pusty') {
         $reply = ContactMessageReply::create(['contact_message_id' => $message->id, 'author_id' => $host->id,
             'body' => 'Dane odbioru historii odpowiedzi; ta wiadomość nie została wysłana.']);
         $reply->oznaczNieudana('Lokalna fixture: wysyłka nie była podejmowana.');
+        // Dwa nieudane zadania tej samej klasy i jedno innej: ekran grupuje je
+        // w dwie karty, więc odbiór widzi i liczbę w nagłówku grupy, i listę
+        // `dl` z pełnymi nazwami klas. Ładunek to sam `displayName` — ekran nie
+        // czyta reszty i nie może jej pokazać (`NieudaneZadania`).
+        foreach ([['App\\Notifications\\PotwierdzenieAdresu', 'Symfony\\Component\\Mailer\\Exception\\TransportException', 'default', 2],
+            ['App\\Jobs\\ProcessUploadedImage', 'RuntimeException', 'obrazy', 1]] as [$klasa, $wyjatek, $kolejka, $ile]) {
+            for ($n = 0; $n < $ile; $n++) {
+                DB::table('failed_jobs')->insert(['uuid' => (string) Str::uuid(), 'connection' => 'database', 'queue' => $kolejka,
+                    'payload' => json_encode(['displayName' => $klasa, 'job' => 'Illuminate\\Queue\\CallQueuedHandler@call'], JSON_UNESCAPED_SLASHES),
+                    'exception' => $wyjatek.': Dane odbioru panelu, komunikat lokalny.', 'failed_at' => now()->subHours(3 + $n)]);
+            }
+        }
         $tag = Tag::create(['name' => $namespace, 'normalized_name' => $namespace, 'slug' => $namespace]);
         TagPromotion::create(['tag_id' => $tag->id, 'position' => 0, 'note' => 'Dane odbioru: rodzinne dania na wspólny obiad.']);
         foreach ([[DailyPick::TYPE_POST, $posts[0]->id], [DailyPick::TYPE_USER, $author->id]] as [$type, $id]) {
@@ -239,10 +265,25 @@ if ($phase === 'pusty') {
         'tagi-promowane' => ['/admin/tagi-promowane', 'form[action$="/admin/tagi-promowane/'.$namespace.'"]'],
         'uzytkownicy' => ['/admin/uzytkownicy?szukaj='.$namespace, '.tabela-kont tbody tr'],
         'uzytkownik' => ['/admin/uzytkownicy/'.$data['author'], 'main article'],
+        'kolejka' => ['/admin/kolejka', 'main li.card'],
+        'metryki' => ['/admin/metryki', 'main section[data-metryka="progi"]'],
     ];
     foreach ($fullRoutes as $family => [$path, $selector]) {
         $scenarios[] = $scenario($family.'-pelny', $family, $path, [$one($selector, $family === 'kolaz-powitalny' ? 4 : 1)]);
     }
+    // Kolejka zadań: dwie grupy zadań, więc ekran musi mieć i pary
+    // podpis — wartość, i liczby pod kartą stanu — oba w piśmie podstawowym.
+    // Szukamy po id, nie po pozycji: kolejność tras w `$fullRoutes` nie jest kontraktem.
+    $kolejka = array_search('kolejka-pelny', array_column($scenarios, 'id'), true);
+    $scenarios[$kolejka]['oczekiwaneSelektory'][] = $one('main .panel-grupa > h2 + p', 1, 1);
+    $scenarios[$kolejka]['oczekiwaneSelektory'][] = $one('main li.card dl.dane-zadania', 2, 2);
+    $scenarios[$kolejka]['minimalnyTekst'] = ['main .dane-zadania dt', 'main .dane-zadania dd', 'main .panel-liczby'];
+    // Metryki doboru: fixture ma autora z publicznymi wpisami sprzed 1–2 dni,
+    // więc ekran liczy prawdziwe wartości; pięć kart, tabela dni z 28 wierszami.
+    $metryki = array_search('metryki-pelny', array_column($scenarios, 'id'), true);
+    $scenarios[$metryki]['oczekiwaneSelektory'][] = $one('main section.card[data-metryka]', 5, 5);
+    $scenarios[$metryki]['oczekiwaneSelektory'][] = $one('main table.tabela-dni tbody tr', 28, 28);
+    $scenarios[$metryki]['minimalnyTekst'] = ['main .panel-liczby', 'main .tabela-dni th', 'main .tabela-dni td'];
     foreach (['wpisy', 'przepisy', 'ugotowane'] as $type) {
         $scenarios[] = $scenario('bez-odpowiedzi-'.$type.'-pelny', 'bez-odpowiedzi', '/admin/bez-odpowiedzi?typ='.$type,
             [$one('main article.card'), $one('main .empty-state-title', 0, 0)]);
