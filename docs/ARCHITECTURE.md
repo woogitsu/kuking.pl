@@ -57,6 +57,14 @@ spoza listy spada do wartości domyślnej; zapytania poza kontrolerem)
 oraz „Twoje dane”: `ZamowEksportDanych` (paczka RODO — kontroler wybiera tylko
 zdanie z `WynikZamowieniaEksportu`) i `ProsbaOUsuniecieKontaRequest` +
 `RequestAccountDeletion` (zgłoszenie usunięcia konta).
+Nowy wpis i pytanie: `ZapisWpisuRequest` (faza 1: zdjęcia w `rules()`, przed
+kontrolerem; faza 2: `walidatorTresci()` wołany po wgraniu zdjęć i obsłudze
+przycisków tagów, żeby błąd treści wrócił z `old()` niosącym UUID-y zdjęć
+i tagi) — `PostController::store()` zostaje przy orkiestracji odpowiedzi.
+Kolejne kandydaty (od największego): `PostController::update()`/`comment()`
+(walidacja inline), `CollectionController` (1157 linii), `ProfileController`,
+`OnboardingController`, `NotificationController`, `ReportController`,
+kontrolery logowania Google/Facebook (#1035).
 
 ### Application
 Use cases, np.:
