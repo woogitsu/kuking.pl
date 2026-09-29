@@ -35,6 +35,7 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Wybór formy widoczny w okresie przejściowym polityki': r'does not contain "Jak mamy do Ciebie pisać\?"|does not contain "name="form_of_address""',
     # #1011, paczka H (2): forma zwracania się i pasek polityki.
     'Cofnięcie formy zwracania się bez odmowy': r'Rollback przeszedł mimo zapisanego wyboru formy — wybór przepadłby po cichu',
     'Anonimizacja zostawia formę zwracania się': r"Failed asserting that 'feminine' is null\.",
