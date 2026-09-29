@@ -225,7 +225,8 @@ class SearchTest extends TestCase
         $szybkie = $this->get(route('search', ['q' => 'kartacze', 'sekcja' => 'szybkie']))->assertOk();
         $opis = $this->opisPustegoStanu((string) $szybkie->getContent());
         $this->assertStringContainsString('zmieściłby się w pół godziny', $opis);
-        $this->assertStringContainsString('Spróbuj zakresu „Przepisy”', $opis);
+        // Od #1997 drogą dalej jest dłuższy próg czasu albo brak limitu.
+        $this->assertStringContainsString('Spróbuj dłuższego czasu albo „Bez limitu czasu”', $opis);
     }
 
     private function opisPustegoStanu(string $html): string
@@ -332,10 +333,10 @@ class SearchTest extends TestCase
         // łamie długie znaczniki na kilka linii, a test przypięty do jednej
         // konkretnej postaci HTML-a psuje się przy każdym przeformatowaniu
         // widoku, nie mówiąc nic o tym, co miał pilnować.
-        $this->assertMatchesRegularExpression(
-            '~sekcja=szybkie"\s[^>]*aria-current="page"~',
-            (string) $html,
-        );
+        // Od #1997 „Do 30 minut" to próg czasu (`czas=30`) w osobnym wierszu,
+        // a stary adres `sekcja=szybkie` włącza go razem z „Przepisy".
+        $this->assertMatchesRegularExpression('~aria-current="page"\s*>Do 30 minut</a>~', (string) $html);
+        $this->assertMatchesRegularExpression('~aria-current="page"\s*>Przepisy</a>~', (string) $html);
 
         // I odwrotnie: zakres, który NIE jest włączony, nie może się tak ogłaszać.
         $this->assertDoesNotMatchRegularExpression(

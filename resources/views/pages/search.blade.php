@@ -50,6 +50,9 @@
             @endif
         </div>
         <input type="hidden" name="sekcja" value="{{ $section }}">
+        @if($maksMinut !== null)
+            <input type="hidden" name="czas" value="{{ $maksMinut }}">
+        @endif
         <button class="btn btn-primary mt-4" type="submit">Szukaj</button>
     </form>
 
@@ -67,19 +70,61 @@
         `aria-current="page"` zamiast samego koloru: który zakres jest włączony,
         musi być słyszalne dla czytnika ekranu, a nie tylko widoczne.
     --}}
+    @php
+        // Progi czasu (#1997). Etykieta jest też nagłówkiem wyników, a w pustym
+        // stanie — mową potoczną („w pół godziny"), nie liczbą z adresu.
+        $progiCzasu = [
+            15 => ['Do 15 minut', 'kwadrans'],
+            30 => ['Do 30 minut', 'pół godziny'],
+            60 => ['Do godziny', 'godzinę'],
+        ];
+        $bazaZakresu = ['q' => $phrase] + ($phrase === '' ? [] : ['nawigacja' => 1]);
+    @endphp
     <nav class="chipsy mt-6" aria-label="Co przeszukujemy">
         @foreach([
             'wszystko' => 'Wszystko',
             'przepisy' => 'Przepisy',
             'ludzie' => 'Ludzie',
-            'szybkie' => 'Do 30 minut',
             'tanie' => 'Do '.\App\Domain\Recipes\KosztPrzepisu::TANIE_DO.' zł',
         ] as $klucz => $etykieta)
+            {{-- Wybrany czas zostaje przy przejściu między zakresami przepisów;
+                 „Wszystko" i „Ludzie" go gubią, bo ludzie nie mają czasu
+                 przygotowania (SearchController, #1997). --}}
             <a class="chip"
-               href="{{ route('search', ['q' => $phrase] + ($phrase === '' ? [] : ['nawigacja' => 1]) + ['sekcja' => $klucz]) }}"
+               href="{{ route('search', $bazaZakresu + ['sekcja' => $klucz] + (in_array($klucz, ['przepisy', 'tanie'], true) && $maksMinut !== null ? ['czas' => $maksMinut] : [])) }}"
                @if($section === $klucz) aria-current="page" @endif>{{ $etykieta }}</a>
         @endforeach
     </nav>
+
+    {{--
+        CZAS PRZYGOTOWANIA (issue #1997). Osobny wiersz, bo to warunek na
+        przepisy, a nie rodzaj treści. Te same zwykłe odnośniki co zakresy
+        wyżej: działają bez JavaScriptu, z klawiatury, a wybór siedzi
+        w adresie (`?czas=15|30|60`), więc przeżywa odświeżenie i wysłanie
+        komuś. Etykieta jest widoczna, nie tylko w `aria-label`.
+    --}}
+    @if($section !== 'ludzie')
+        @if($czasNieznany)
+            <p class="notice mt-4" role="status">
+                Adres ma czas, którego nie rozpoznajemy. Pokazujemy przepisy bez limitu czasu.
+                Jeśli chcesz, wybierz niżej, ile masz czasu.
+            </p>
+        @endif
+        <p class="mt-4 mb-0 font-semibold" id="czas-przepisu-etykieta">Ile masz czasu?</p>
+        <nav class="chipsy chipsy-czasu" aria-labelledby="czas-przepisu-etykieta">
+            <a class="chip"
+               href="{{ route('search', $bazaZakresu + ['sekcja' => $section]) }}"
+               @if($maksMinut === null) aria-current="page" @endif>Bez limitu czasu</a>
+            @foreach($progiCzasu as $minuty => [$etykieta])
+                <a class="chip"
+                   href="{{ route('search', $bazaZakresu + ['sekcja' => $section === 'wszystko' ? 'przepisy' : $section, 'czas' => $minuty]) }}"
+                   @if($maksMinut === $minuty) aria-current="page" @endif>{{ $etykieta }}</a>
+            @endforeach
+        </nav>
+        @if($maksMinut !== null)
+            <p class="meta">Liczymy przygotowanie i gotowanie razem. Przepis, przy którym autor nie podał czasu, tu nie trafia.</p>
+        @endif
+    @endif
 
     @if($phrase === '')
         <p class="meta">Wpisz coś w pole powyżej i kliknij „Szukaj”.</p>
@@ -132,15 +177,25 @@
                 gotowe brzmienie, nie tylko przykład.
             --}}
             <x-empty-state title="Nic nie znaleźliśmy">
-                @if($section === 'szybkie')
-                    Nie ma przepisu do „{{ $phrase }}”, który zmieściłby się w pół godziny.
-                    Spróbuj zakresu „Przepisy” — może być trochę dłuższy.
+                @if($section === 'przepisy' && $maksMinut !== null)
+                    Nie ma przepisu do „{{ $phrase }}”, który zmieściłby się w {{ $progiCzasu[$maksMinut][1] }}.
+                    @if($maksMinut < 60)
+                        Spróbuj dłuższego czasu albo „Bez limitu czasu”.
+                    @else
+                        Spróbuj „Bez limitu czasu”.
+                    @endif
+                    Czas podaje autor, a nie każdy go wpisuje.
                 @elseif($section === 'tanie')
                     {{-- Koszt podaje autor i nie każdy go podaje (D-286) — to
                          trzeba powiedzieć, inaczej „nic" brzmi jak „nie ma
                          tanich przepisów". --}}
-                    Nie ma przepisu do „{{ $phrase }}” z kosztem do {{ \App\Domain\Recipes\KosztPrzepisu::TANIE_DO }} zł.
-                    Koszt podaje autor, a nie każdy go wpisuje — spróbuj zakresu „Przepisy”.
+                    @if($maksMinut !== null)
+                        Nie ma przepisu do „{{ $phrase }}” z kosztem do {{ \App\Domain\Recipes\KosztPrzepisu::TANIE_DO }} zł, który zmieściłby się w {{ $progiCzasu[$maksMinut][1] }}.
+                        Koszt i czas podaje autor, a nie każdy je wpisuje — spróbuj „Bez limitu czasu” albo zakresu „Przepisy”.
+                    @else
+                        Nie ma przepisu do „{{ $phrase }}” z kosztem do {{ \App\Domain\Recipes\KosztPrzepisu::TANIE_DO }} zł.
+                        Koszt podaje autor, a nie każdy go wpisuje — spróbuj zakresu „Przepisy”.
+                    @endif
                 @elseif($section === 'ludzie')
                     Nie ma tu osoby o nazwie „{{ $phrase }}”.
                 @elseif($section === 'wszystko')
@@ -183,7 +238,7 @@
         @endif
 
         @if($szukaPrzepisow && $recipes->isNotEmpty())
-            <h2 class="mt-6">{{ $section === 'szybkie' ? 'Do 30 minut' : 'Przepisy' }}</h2>
+            <h2 class="mt-6">{{ $maksMinut !== null ? $progiCzasu[$maksMinut][0] : 'Przepisy' }}</h2>
 
             <p class="meta">
                 @if($odPrzepisu > 0 && $recipes->count() === 1)
