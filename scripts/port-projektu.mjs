@@ -473,13 +473,23 @@ try {
   await sprawdzMacierzNawigacji({ browser: przegladarka, adres, sesja });
   await sprawdzZoomNawigacji({ chromium, adres, sesja, outputDir: 'storage/port-projektu/nawigacja638' });
   });
-  await wykonajGrupe(grupa, 'rozszerzenia', async () => {
+  /* Grupa `rozszerzenia` to dwie części (#611, etap 9), po jednej na element
+     macierzy `port_funkcje`. Część 2 (`nawigacja-492` i `zoom-marki`) potrzebuje
+     tylko ADRESÓW z trzech fixture'ów, więc gdy startuje sama, zakłada je bez
+     uruchamiania ich kontroli; w jednym procesie (`PORT_GRUPA=rozszerzenia`
+     albo `wszystko`) każdy fixture powstaje raz, w dawnej kolejności. */
+  const daneFixture = new Map();
+  const fixture = (nazwa) => {
+    if (!daneFixture.has(nazwa)) daneFixture.set(nazwa, JSON.parse(execFileSync('php', [`scripts/fixtures/${nazwa}.php`], { env: env() }).toString()));
+    return daneFixture.get(nazwa);
+  };
+  await wykonajGrupe(grupa, 'rozszerzenia-1', async () => {
   if (!['127.0.0.1', 'localhost'].includes(new URL(adres).hostname)) throw new Error('Fixture kompozycji wymaga lokalnego serwera.');
-  const kompozycje = JSON.parse(execFileSync('php', ['scripts/fixtures/kompozycje-marki.php'], { env: env() }).toString());
+  const kompozycje = fixture('kompozycje-marki');
   await sprawdzKompozycje({ browser: przegladarka, adres, sesja, ...kompozycje });
-  const zeszyty = JSON.parse(execFileSync('php', ['scripts/fixtures/zeszyty-marki.php'], { env: env() }).toString());
+  const zeszyty = fixture('zeszyty-marki');
   await sprawdzZeszyty({ browser: przegladarka, adres, sesja, ...zeszyty });
-  const paczka513 = JSON.parse(execFileSync('php', ['scripts/fixtures/kompozycje-513.php'], { env: env() }).toString());
+  const paczka513 = fixture('kompozycje-513');
   await sprawdzKompozycje513({ browser: przegladarka, adres, sesja, phpEnv: env(), ...paczka513 });
   await sprawdzPodpowiedzi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzZwarteKolumny({ browser: przegladarka, adres });
@@ -494,6 +504,12 @@ try {
   await sprawdzSzybkiWyglad({ browser: przegladarka, adres });
   await sprawdzStopke({ browser: przegladarka, adres, sesja });
   await sprawdzTagi({ browser: przegladarka, adres, sesja, phpEnv: env() });
+  });
+  await wykonajGrupe(grupa, 'rozszerzenia-2', async () => {
+  if (!['127.0.0.1', 'localhost'].includes(new URL(adres).hostname)) throw new Error('Fixture kompozycji wymaga lokalnego serwera.');
+  const kompozycje = fixture('kompozycje-marki');
+  const zeszyty = fixture('zeszyty-marki');
+  const paczka513 = fixture('kompozycje-513');
   await sprawdzNawigacje492({ adres, sesja, phpEnv: env() });
   await sprawdzZoomMarki({ adres, sesja, przepis: kompozycje.przepis, ...zeszyty, ...paczka513, sciezki515: ['/szukaj'] });
 

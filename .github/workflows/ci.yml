@@ -142,6 +142,9 @@
 #  limit joba podniesiono do 35 min po przebiegu, w którym sam pomiar
 #  układu trwał 23 min) i to WŁAŚNIE ON padł na `main` z `TimeoutError`
 #  pod obciążeniem floty — najmocniej cierpi, więc jako jedyny się przenosi.
+#  (Od #611, etapu 9, `port_funkcje` to macierz dwóch części po ok. 13-15 min:
+#  czas ścienny spada z ok. 27 do ok. 15 min, suma minut rośnie o drugi
+#  zestaw przygotowań, ok. 3 min.)
 #  Sam `port_funkcje` to ok. 27 min na przebieg — z puli ~500 minut to
 #  około OSIEMNASTU przebiegów, znacznie mniej ciasno niż przy pięciu jobach.
 #
@@ -204,7 +207,8 @@
 #  Podział na równoległe joby (nie jeden wielki) jest celowy:
 #    * szybsza informacja zwrotna — lint pada w ~40 s, nie po 6 minutach testów;
 #    * czytelny raport w PR: widać, CO dokładnie się zepsuło;
-#    * `audit` może być nieblokujący, a `test` nie.
+#    * `audit` i `dwa-polaczenia` też blokują (#2215) — nieblokujący jest tylko
+#      wyjątek jawnie wpisany do `.github/wyjatki-audytu.json`.
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -434,6 +438,11 @@ jobs:
 
       - name: Kontrole ujemne budżetu pominiętych testów
         run: python3 -m unittest discover -s scripts -p test_sprawdz_pominiete_testy.py -v
+
+      # Bramka audytu zależności (#2215) decyduje o czerwieni joba `audit`;
+      # jej własne kontrole muszą biec, zanim zaczniemy jej ufać.
+      - name: Testy bramki audytu zależności
+        run: python3 -m unittest discover -s scripts -p test_audyt_zaleznosci.py -v
 
       # =====================================================================
       #  TESTY SKRYPTU KOPII BAZY (issue #193, D-043/D-049)
@@ -1006,23 +1015,26 @@ jobs:
   #  schemat w trakcie działania (issue #66 z drugiej strony), więc ma własną
   #  bazę `kuking_race` — zakłada ją `tests/Dwa/bin/przygotuj-baze.php`.
   #
-  #  `continue-on-error: true` JEST TYMCZASOWE I MA WARUNEK ZDJĘCIA.
-  #  Lokalnie grupa przeszła 20 przebiegów z 20, ale na współdzielonym runnerze
-  #  i na PostgreSQL 18 (lokalnie: 16) nie ma jeszcze ani jednego pomiaru
-  #  stabilności. Migający test blokujący uczy ludzi ignorować czerwone, więc
-  #  do czasu zebrania tych danych job RAPORTUJE, ale nie blokuje scalenia.
-  #  Warunek zdjęcia flagi: dwadzieścia kolejnych przebiegów CI bez ani jednej
-  #  czerwieni tego joba. Co robić, gdy grupa zacznie migać: D-105, sekcja
-  #  „Gdy grupa zacznie migać".
+  #  JOB BLOKUJE (#611, etap 9). Do 29.09.2026 miał `continue-on-error: true`
+  #  z warunkiem zdjęcia: dwadzieścia kolejnych przebiegów CI bez czerwieni.
+  #  Warunek jest spełniony z zapasem: w oknie ostatnich 40 przebiegów `main`
+  #  i 40 przebiegów PR (API GitHub Actions, PostgreSQL 18 na runnerze
+  #  współdzielonym) job miał 38 zakończeń `success` — 11 na `main`, 27 na PR
+  #  (#2210, #2211 i ich gałęzie) — i ANI JEDNEGO kroku `failure`; pozostałe
+  #  przebiegi tego joba to `cancelled` przez `concurrency` (nowszy commit),
+  #  nie porażki. Czas 2,0–4,5 min. `continue-on-error` maskowałby zresztą
+  #  porażkę w polu `conclusion`, dlatego liczono kroki, nie sam wynik joba.
+  #  Migający test blokujący uczy ludzi ignorować czerwone: gdy grupa zacznie
+  #  migać, NIE przywracaj flagi, tylko napraw test — D-105, sekcja „Gdy grupa
+  #  zacznie migać". Pilnuje tego `WyscigiDwochPolaczenBlokujaCiTest`.
   # ===========================================================================
   dwa-polaczenia:
-    name: Wyścigi na dwóch połączeniach (nie blokuje)
+    name: Wyścigi na dwóch połączeniach
     needs: zakres
     # Na PR-ze tylko przy zmianie kodu, danych albo zaplecza tej grupy (wyjście `wyscigi`).
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.wyscigi == 'true'
     runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
-    continue-on-error: true
 
     services:
       postgres:
@@ -1066,9 +1078,7 @@ jobs:
           echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
           echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
 
-      # Drugi job na wspólnej akcji. `dwa-polaczenia` jest oznaczony
-      # `continue-on-error: true` i w nazwie ma „nie blokuje", więc jego
-      # ewentualna porażka kosztuje najmniej po `audit`.
+      # Drugi job na wspólnej akcji. `dwa-polaczenia` blokuje (etap 9 z #611).
       - name: Środowisko PHP
         uses: ./.github/actions/php
         with:
@@ -1493,12 +1503,22 @@ jobs:
 
   # #577: osobny checkout i PostgreSQL; mutacje negatywów nie współdzielą plików.
   port_funkcje:
-    name: Port marki — rodziny ekranów, zoom i kreator
+    name: Port marki — rodziny ekranów, zoom i kreator (część ${{ matrix.czesc }}/2)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
     runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_BROWSER_MAIN) || vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
-    # CI 35241344523: pełne pomiary i upload trwały ponad 25 min; zachowujemy wszystkie kontrole.
-    timeout-minutes: 35
+    # #611, etap 9: jeden kawałek trwał 25-30 min (limit 35 min po przebiegu
+    # 35241344523), więc dwie części macierzy po ok. 13-15 min każda; limit
+    # jak w `port_marki`. Wszystkie kontrole zostają — dzielą się między części.
+    timeout-minutes: 25
+    strategy:
+      # Czerwona część 1 nie może ukryć wyniku części 2 (i odwrotnie).
+      fail-fast: false
+      matrix:
+        # Części są też w `scripts/port-grupy.mjs` (`GRUPY`, alias `rozszerzenia`)
+        # i w krokach `if: matrix.czesc == N`; rozjazd wyłapuje
+        # `PortMarkiMaWlasnaBramkeCiTest`.
+        czesc: [1, 2]
 
     services:
       postgres:
@@ -1516,7 +1536,7 @@ jobs:
           --health-retries=10
 
     env:
-      PORT_GRUPA: rozszerzenia
+      PORT_GRUPA: rozszerzenia-${{ matrix.czesc }}
       APP_ENV: local
       APP_DEBUG: "false"
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
@@ -1600,6 +1620,7 @@ jobs:
         run: node scripts/port-projektu.mjs
 
       - name: Trzy kroki kreatora przy dużym tekście
+        if: matrix.czesc == 1
         env:
           DB_DATABASE: kuking_port_pomiar
         run: node scripts/kroki-kreatora.mjs
@@ -1609,6 +1630,7 @@ jobs:
       # ani przed wysłaniem, ani w trakcie żądania, ani po starszej odpowiedzi.
       # Skrypt czeka na stan DOM, nie na zegar (debounce 3000 ms).
       - name: Autozapis kreatora — plakietka nie obiecuje zapisu starszej wersji
+        if: matrix.czesc == 1
         env:
           DB_DATABASE: kuking_port_pomiar
         run: |
@@ -1620,9 +1642,11 @@ jobs:
       # prawdziwy klient Livewire z `vendor/` (tam nie ma `composer install`)
       # i mierzy przycisk na zbudowanym CSS z kroku „Przygotowanie”.
       - name: Strona nieaktualna po wdrożeniu (Livewire 419 w Chromium)
+        if: matrix.czesc == 2
         run: node --test scripts/przegladarka/strona-nieaktualna.test.mjs
 
       - name: Minutnik — opóźnione wywołania i dostępny czas
+        if: matrix.czesc == 2
         run: |
           node scripts/minutnik-regresja.mjs
           node scripts/minutnik-fokus.mjs
@@ -1631,7 +1655,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: port-funkcje-${{ github.sha }}
+          name: port-funkcje-${{ matrix.czesc }}-${{ github.sha }}
           path: |
             storage/port-projektu
             storage/kroki-kreatora
@@ -1947,13 +1971,16 @@ jobs:
   # ===========================================================================
   #  5. Audyt bezpieczeństwa zależności
   # ===========================================================================
-  #  Nie blokuje merge'a (continue-on-error), bo publikacja nowego CVE
-  #  w tranzytywnej zależności nie może zablokować pilnego hotfiksa.
-  #  Ale MUSI być widoczne — dlatego osobny job i podsumowanie w GITHUB_STEP_SUMMARY.
-  #  Przeglądaj to raz w tygodniu. Patrz DEPLOYMENT_RUNBOOK.md, sekcja "Rotacja".
+  #  BRAMKA BEZPIECZEŃSTWA (#2215). Wysoka i krytyczna podatność w Composerze
+  #  albo NPM czerwieni ten job; „zielony CI" znaczy więc także „brak znanych
+  #  high/critical". Pilny hotfix nie jest przez to zablokowany: właściciel
+  #  dopisuje jawny wyjątek (`.github/wyjatki-audytu.json`: identyfikator, zakres,
+  #  właściciel, zgoda, termin do 30 dni) — procedura i czas reakcji w
+  #  docs/infra/BRAMKI_CI_2215.md. Nie przywracaj `continue-on-error`:
+  #  pilnuje tego `KrytyczneKontroleCiBlokujaTest`.
   # ===========================================================================
   audit:
-    name: Audyt zależności
+    name: Audyt zależności (blokuje high i critical)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
     runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
@@ -1979,50 +2006,31 @@ jobs:
           cache: npm
 
       # composer audit działa na composer.lock, więc nie musimy instalować vendora.
+      # Kod wyjścia narzędzia jest tu CELOWO ignorowany (`|| true`): werdykt
+      # wydaje krok „Bramka" niżej, który uwzględnia wyjątki właściciela i
+      # poziom podatności. Brak poprawnego JSON-a = czerwony (fail-closed).
       - name: composer audit
         id: composer_audit
-        continue-on-error: true
-        run: composer audit --locked --no-interaction
+        run: composer audit --locked --no-interaction --format=json > "$RUNNER_TEMP/composer-audit.json" || true
 
+      # BEZ --omit=dev, i to jest poprawka, nie niedopatrzenie (W7-09):
+      # `package.json` nie ma sekcji "dependencies", cały front-end (Vite,
+      # Tailwind, laravel-vite-plugin) siedzi w devDependencies, a to on
+      # produkuje CSS i JS dla przeglądarki. Z `--omit=dev` audyt sprawdzał
+      # 41 z 106 pakietów i zawsze świecił na zielono. Poziom (high i wyżej)
+      # oceniuje skrypt bramki, nie flaga `--audit-level`.
       - name: npm audit
         id: npm_audit
-        continue-on-error: true
-        # BEZ --omit=dev, i to jest poprawka, nie niedopatrzenie (W7-09).
-        #
-        # Stał tu komentarz: „interesują nas podatności w kodzie, który trafia
-        # do przeglądarki, a nie w narzędziach buildu". W tym projekcie to jest
-        # odwrócone. `package.json` NIE MA sekcji "dependencies" w ogóle —
-        # cały front-end (Vite, Tailwind, laravel-vite-plugin) siedzi
-        # w devDependencies. To właśnie te pakiety produkują CSS i JS, który
-        # dostaje przeglądarka.
-        #
-        # Zmierzone: `npm ls --all` widzi 106 pakietów, `npm ls --all --omit=dev`
-        # tylko 41, a jedynym pakietem najwyższego poziomu, który zostawał, było
-        # `@laravel/multiplex` z optionalDependencies. Ten krok audytował więc
-        # praktycznie pustą listę i zawsze świecił na zielono — najgorszy rodzaj
-        # kontroli, bo wygląda jak działająca.
-        #
-        # --audit-level=high zostaje: ostrzeżenia "low" w narzędziach buildu to
-        # szum. `continue-on-error` też zostaje — publikacja nowego CVE
-        # w tranzytywnej zależności nie może zablokować pilnego hotfiksa
-        # (uzasadnienie w nagłówku tego joba). Zmienia się to, CO jest w ogóle
-        # sprawdzane, a nie to, czy blokuje.
-        run: npm audit --audit-level=high
+        run: npm audit --json > "$RUNNER_TEMP/npm-audit.json" || true
 
-      - name: Podsumowanie
-        if: always()
+      - name: Bramka (high i critical blokują, wyjątki jawne)
         run: |
-          {
-            echo "## Audyt zależności"
-            echo ""
-            echo "| Narzędzie | Wynik |"
-            echo "|---|---|"
-            echo "| composer audit | ${{ steps.composer_audit.outcome }} |"
-            echo "| npm audit | ${{ steps.npm_audit.outcome }} |"
-            echo ""
-            echo "Wynik \`failure\` nie blokuje merge'a, ale wymaga reakcji."
-            echo "Przegląd raz w tygodniu — DEPLOYMENT_RUNBOOK.md, sekcja Rotacja sekretów."
-          } >> "$GITHUB_STEP_SUMMARY"
+          set +e
+          python3 scripts/audyt-zaleznosci.py \
+            --composer "$RUNNER_TEMP/composer-audit.json" \
+            --npm "$RUNNER_TEMP/npm-audit.json" \
+            --wyjatki .github/wyjatki-audytu.json | tee -a "$GITHUB_STEP_SUMMARY"
+          exit "${PIPESTATUS[0]}"
 
   # ===========================================================================
   #  6. Build obrazu Docker (weryfikacja, bez publikacji)
