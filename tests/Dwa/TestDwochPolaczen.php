@@ -513,7 +513,7 @@ abstract class TestDwochPolaczen extends TestCase
         $this->assertNotSame(
             '40P01',
             $wynik['sqlstate'] ?? null,
-            "Zakleszczenie (40P01) przy: {$ktoTo}.\n".($wynik['komunikat'] ?? ''),
+            "Zakleszczenie (40P01) przy: {$ktoTo}.\n".$wynik['komunikat'],
         );
     }
 }

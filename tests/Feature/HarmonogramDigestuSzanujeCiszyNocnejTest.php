@@ -79,7 +79,9 @@ class HarmonogramDigestuSzanujeCiszyNocnejTest extends TestCase
      */
     private function naruszenia(Event $event, int $sekundyPaczki): array
     {
-        $strefaZadania = $event->timezone ?? config('app.timezone');
+        /** @var \DateTimeZone|string|null $strefaEventu `Event::$timezone` bywa `null`, choć phpdoc Laravela mówi inaczej. */
+        $strefaEventu = $event->timezone;
+        $strefaZadania = $strefaEventu ?? config('app.timezone');
         $cron = new CronExpression($event->expression);
         $termin = Carbon::parse('2026-01-01 00:00:00', $strefaZadania);
         $koniecRoku = $termin->copy()->addYear();

@@ -24,6 +24,12 @@ cd "$(dirname "$0")/.."
 WYCZYSZCZONE=(
     match.unhandled
     catch.neverThrown
+    nullCoalesce.offset
+    nullCoalesce.expr
+    nullCoalesce.property
+    nullCoalesce.variable
+    deadCode.unreachable
+    booleanNot.alwaysTrue
 )
 
 konfig="${KUKING_PHPSTAN_KONFIG:-phpstan-etap4.neon}"

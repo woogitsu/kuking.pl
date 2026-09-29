@@ -542,7 +542,7 @@ class ZmienneRailwayaPerRolaTest extends TestCase
 
         $this->assertSame(
             $role['web']['FILESYSTEM_DISK'] ?? null,
-            $role['web']['KUKING_MEDIA_DISK'] ?? null,
+            $role['web']['KUKING_MEDIA_DISK'],
             'KUKING_MEDIA_DISK ma powtarzać FILESYSTEM_DISK — inaczej oryginały i pliki kreatora lądują na różnych dyskach.',
         );
 

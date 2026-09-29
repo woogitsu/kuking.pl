@@ -332,7 +332,7 @@ class RecipeController extends Controller
         } catch (ValidationException $e) {
             return back()->withInput($request->input())->withErrors($e->errors());
         }
-        $duplicateErrors = ExistingStepDuplicates::errors($data['steps'] ?? [], $recipe->steps()->pluck('id'));
+        $duplicateErrors = ExistingStepDuplicates::errors($data['steps'], $recipe->steps()->pluck('id'));
         if ($duplicateErrors !== []) {
             return back()->withInput($request->input())->withErrors($duplicateErrors);
         }

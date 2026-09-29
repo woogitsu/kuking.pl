@@ -266,7 +266,7 @@ final class SaveRecipeToCollection
      * ponownie" tego nie daje: zrobiłoby nowy wiersz z pustą notatką i dzisiejszą
      * datą, czyli zgubiłoby dokładnie to, o co chodzi w #775.
      *
-     * @param  list<array{collection_id: string, note: ?string, created_at: ?string, added_by_id?: ?string}>  $zdjete
+     * @param  list<array{collection_id?: string, note: ?string, created_at: ?string, added_by_id?: ?string}>  $zdjete
      * @return int ile wierszy faktycznie wróciło
      */
     public function restore(User $user, Recipe $recipe, array $zdjete): int

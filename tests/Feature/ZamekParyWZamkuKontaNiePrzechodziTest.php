@@ -141,9 +141,10 @@ class ZamekParyWZamkuKontaNiePrzechodziTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessageMatches('/zawołany wewnątrz ZamekKonta/u');
 
-        ZamekKonta::zablokuj($basia, fn () => ZamekKonta::zablokuj(
-            $basia,
-            fn () => null,
-        ) ?? ZamekPary::zablokuj($basia, $marek, fn () => null));
+        ZamekKonta::zablokuj($basia, function () use ($basia, $marek): mixed {
+            ZamekKonta::zablokuj($basia, fn () => null);
+
+            return ZamekPary::zablokuj($basia, $marek, fn () => null);
+        });
     }
 }

@@ -143,7 +143,7 @@ final class ZapiszNieudanyList
         $slad->powod = $powod;
         $slad->status_http = $odmowa instanceof OdmowaEmailLabs ? $odmowa->statusHttp() : null;
         $slad->rodzaj = $this->rodzaj($zdarzenie->job);
-        $slad->kolejka = mb_substr($zdarzenie->job->getQueue() ?? '', 0, 100) ?: null;
+        $slad->kolejka = mb_substr((string) $zdarzenie->job->getQueue(), 0, 100) ?: null;
         $slad->prob = max(1, $zdarzenie->job->attempts());
         $slad->user_id = $this->ktoCzekal($zdarzenie->job);
         $slad->komunikat = BezpiecznyKomunikat::z($odmowa->getMessage());
