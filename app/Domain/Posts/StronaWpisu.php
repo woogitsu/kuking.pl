@@ -8,11 +8,12 @@ use App\Domain\Collections\ZapisyWpisu;
 use App\Domain\Questions\OdpowiedzNaPytanie;
 use App\Domain\Reakcje\Smakowicie;
 use App\Models\AuditLogEntry;
+use App\Models\Comment;
 use App\Models\Post;
 use App\Models\User;
 use App\Policies\RecipePolicy;
 use App\Support\OdpowiedziWatku;
-use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -154,24 +155,17 @@ final class StronaWpisu
     }
 
     /**
-     * @return array{widok: string, dane: array<string, mixed>}
+     * Wątki komentarzy tej strony (pierwsza porcja). Kontroler dokłada do nich
+     * `OdpowiedziWatku::uzupelnij()`, bo ta potrzebuje żądania, a domena nie
+     * zna `Illuminate\Http` (#970).
+     *
+     * @return LengthAwarePaginator<int, Comment>
      */
-    public function dane(Post $post, ?User $widz, Request $request): array
+    public function komentarze(Post $post, ?User $widz): LengthAwarePaginator
     {
-        // Liczba zapisów i stan „mam to w zeszycie" (issue #275, D-081).
-        //
-        // Tutaj JEDNYM ODDZIELNYM zapytaniem, a nie kolumną w SELECT-cie jak
-        // w feedzie: ten ekran dostaje wpis z wiązania trasy, więc nie ma
-        // zapytania, do którego dałoby się kolumnę dołożyć. Jeden wpis to
-        // jeden ekran, więc to zapytanie jest STAŁE — nie jest to N+1.
-        // Reguły są te same, bo `doliczDoWpisu()` woła to samo `dolicz()`,
-        // co feed; gdyby ekran wpisu liczył po swojemu, ta sama liczba
-        // znaczyłaby dwie różne rzeczy na dwóch ekranach.
-        $this->zapisy->doliczDoWpisu($post, $widz);
-
         // Jak przy przepisie — te same dwa powody: blokady (issue #41)
         // i paginacja wątków.
-        $komentarze = $post->comments()
+        return $post->comments()
             ->widoczneDla($widz)
             ->with([
                 'author.profile.avatar',
@@ -185,7 +179,24 @@ final class StronaWpisu
                 'replies.post',
             ])
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
-        OdpowiedziWatku::uzupelnij($komentarze, $request, ['author.profile.avatar', 'post']);
+    }
+
+    /**
+     * @param  LengthAwarePaginator<int, Comment>  $komentarze  już po `OdpowiedziWatku::uzupelnij()`
+     * @return array{widok: string, dane: array<string, mixed>}
+     */
+    public function dane(Post $post, ?User $widz, LengthAwarePaginator $komentarze): array
+    {
+        // Liczba zapisów i stan „mam to w zeszycie" (issue #275, D-081).
+        //
+        // Tutaj JEDNYM ODDZIELNYM zapytaniem, a nie kolumną w SELECT-cie jak
+        // w feedzie: ten ekran dostaje wpis z wiązania trasy, więc nie ma
+        // zapytania, do którego dałoby się kolumnę dołożyć. Jeden wpis to
+        // jeden ekran, więc to zapytanie jest STAŁE — nie jest to N+1.
+        // Reguły są te same, bo `doliczDoWpisu()` woła to samo `dolicz()`,
+        // co feed; gdyby ekran wpisu liczył po swojemu, ta sama liczba
+        // znaczyłaby dwie różne rzeczy na dwóch ekranach.
+        $this->zapisy->doliczDoWpisu($post, $widz);
 
         if ($post->kind === Post::KIND_QUESTION) {
             // `answerCount` w danych strukturalnych `QAPage` (JSON-LD) liczy

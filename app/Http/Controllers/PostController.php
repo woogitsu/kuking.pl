@@ -23,6 +23,7 @@ use App\Models\Post;
 use App\Models\Tag;
 use App\Support\Komunikat;
 use App\Support\LimityTagow;
+use App\Support\OdpowiedziWatku;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -334,7 +335,10 @@ class PostController extends Controller
 
         $this->stronaWpisu->zdejmijNiedostepnyPrzepis($post, $request->user());
 
-        $strona = $this->stronaWpisu->dane($post, $request->user(), $request);
+        $komentarze = $this->stronaWpisu->komentarze($post, $request->user());
+        OdpowiedziWatku::uzupelnij($komentarze, $request, ['author.profile.avatar', 'post']);
+
+        $strona = $this->stronaWpisu->dane($post, $request->user(), $komentarze);
 
         return view($strona['widok'], $strona['dane']);
     }
