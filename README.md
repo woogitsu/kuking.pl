@@ -28,11 +28,11 @@ ma być po prostu wyjątkowo czytelny i spokojny.
 
 To jest **działająca aplikacja Laravel 13**, nie sam blueprint.
 
-Aktualny interfejs: **Alfa 0.9** — pełny port ramy, nawigacji, typografii
+Aktualny interfejs: **Alfa 0.09** — pełny port ramy, nawigacji, typografii
 i komponentów do istniejących ekranów Laravel. Standard opisuje
 [konstytucja marki](docs/brand/KONSTYTUCJA_MARKI.md), zakres
 [mapa portu](docs/design/PORT_PROJEKTU.md), a dowody i ograniczenia
-[raport odbioru Alfa 0.9](docs/design/WERYFIKACJA_ALFA_09.md).
+[raport odbioru Alfa 0.09](docs/design/WERYFIKACJA_ALFA_009.md).
 
 Co już działa i jest pokryte testami (3631 testów PostgreSQL,
 [CI z 13 września 2026](https://github.com/woogitsu/kuking.pl/actions/runs/34734757204)):

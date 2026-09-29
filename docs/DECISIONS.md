@@ -3046,7 +3046,7 @@ zamknięta bramka bez tabliczki, co jest gorsze niż jedno i drugie osobno.
 Przy przebudowie stopki na kilka poziomów (issue #205) właściciel poprosił
 wprost o dwie rzeczy, które łamią `AGENTS.md` §5:
 
-1. metryczkę wersji („Alfa 0.1 · data wydania · commit") **drukiem 5–8 px**,
+1. metryczkę wersji („Alfa 0.01 · data wydania · commit") **drukiem 5–8 px**,
    podczas gdy §5 mówi „tekst ≥ 18 px" (najmniejszy token w ogóle,
    `--text-meta`, to 15 px — 8 px jest poniżej NAJMNIEJSZEGO tokenu
    w systemie, nie tylko poniżej minimum produktowego);
@@ -14878,7 +14878,7 @@ Pomiar obu motywów, kafla oraz granice wyniku zapisano po scaleniu kodu.
 Nie przenosimy statycznego prototypu w miejsce Laravel.
 
 📄 `docs/brand/KONSTYTUCJA_MARKI.md` · `docs/design/NOWY_STYL.md` ·
-`docs/design/WERYFIKACJA_ALFA_08.md` · `resources/css/tokens.css`
+`docs/design/WERYFIKACJA_ALFA_008.md` · `resources/css/tokens.css`
 
 ---
 
@@ -14920,7 +14920,7 @@ przywrócenia z kopii poza repo i zgodności md5. Pełna suita idzie na przywró
 Raport i kod wyjścia nie są synonimami; wykrytą lukę starego pomiaru zapisano w #484.
 
 📄 `scripts/kontrast-marki.mjs` · `scripts/kontrole-negatywne-alfa08.py` ·
-`docs/design/WERYFIKACJA_ALFA_08.md`
+`docs/design/WERYFIKACJA_ALFA_008.md`
 
 
 ---
@@ -14931,7 +14931,7 @@ Raport i kod wyjścia nie są synonimami; wykrytą lukę starego pomiaru zapisan
 
 ### Decyzja
 
-Alfa 0.9 przenosi zaakceptowany projekt do istniejących ekranów Laravel:
+Alfa 0.09 przenosi zaakceptowany projekt do istniejących ekranów Laravel:
 pływającą ramę, menu desktop w nagłówku, pięć pozycji mobilnych, ciemny
 kafel publikacji i własnego profilu, mocną typografię oraz wspólne karty
 i formularze. Zwykły użytkownik nie ma widocznego lewego paska; panel
@@ -14954,10 +14954,10 @@ dymny nie zastępuje odbioru ekranu zalogowanego.
 
 Sześć ostrzeżeń częściowego zasłonięcia fokusu długiej nazwy przy
 powiększeniu pozostaje jawnie w #485; test nie podnosi progów ani nie
-usuwa nazw. Wyniki i zakres oglądanych zrzutów zapisuje raport Alfa 0.9.
+usuwa nazw. Wyniki i zakres oglądanych zrzutów zapisuje raport Alfa 0.09.
 
 📄 `docs/brand/KONSTYTUCJA_MARKI.md` · `docs/design/PORT_PROJEKTU.md` ·
-`docs/design/WERYFIKACJA_ALFA_09.md`
+`docs/design/WERYFIKACJA_ALFA_009.md`
 
 
 ## D-207 · Kompozycja wizualizacji jest kryterium portu, nie sama paleta
@@ -20955,6 +20955,7 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | #492: skrypty przeglądarkowe marki | Cztery skrypty przeglądarkowe marki wpinamy do joba „Port marki” w CI | #492 |
 | „Poradźcie” na produkcji | Właściciel sam włącza `KUKING_QUESTIONS_ENABLED=true` po wdrożeniu paczki H i sprawdza `/pytania` | #372 |
 | #2220: regulamin — wymagania techniczne i reklamacje (**potwierdzone przez właściciela 29.09**) | Nowe §13 „Wymagania techniczne” i §14 „Reklamacje” to zmiana **drobna**, wzorem polityki 2026-09-30: serwis nie ma prawdziwych użytkowników, więc nowa wersja regulaminu 2026-09-30 obowiązuje od publikacji, bez 14 dni (`zmiana_regulaminu.istotna = false`, poprzednia 2026-09-26). Termin odpowiedzi na reklamację: **14 dni** (art. 7a ustawy o prawach konsumenta; `kuking.reklamacje.termin_odpowiedzi_dni`); kanał: `biuro@samsufi.pl` albo list na adres spółki — nie formularz „Napisz do nas”. Właściciel potwierdził to 29.09 (drobna, 14 dni, e-mail i list, pasek bez terminu wg D-306); weryfikacja treści przez prawnika zostaje w #8. Pasek „Zmieniliśmy regulamin” **pokazuje się** kontom sprzed 30.09 (D-306: przy każdej zmianie regulaminu, także drobnej) — inaczej niż pasek polityki, który jest tylko dla zmiany istotnej; ukrycie go przy drobnej wymagałoby zmiany D-306 | #2220, #8 |
+| Numeracja starych wydań | Alfa 0.1–0.9 zapisujemy jako 0.01–0.09, żeby nie wyglądały na nowsze od 0.77; licznik po kropce bez zmian (0.10 w górę, w tym 0.77, bez zmian) | — |
 
 ### Wycofanie
 Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis
