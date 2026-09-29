@@ -189,7 +189,7 @@ final class Facebook
      * To zdanie idzie też na `/health` — od 12 września 2026, dokładnie tak
      * jak przy Google: produkcja z funkcją włączoną i bez kluczy oddaje
      * `status: degraded` z powodem `facebook_bez_kluczy`
-     * (`HealthController::sprawdzWejscieFacebooka()`). Publicznie widać sam
+     * (`SondaFacebooka`). Publicznie widać sam
      * kod; to zdanie trafia wyłącznie do serwerowego logu. Sprawdzenie okiem
      * (wejdź na `/login` i zobacz, czy jest przycisk „Wejdź kontem
      * Facebooka") zostaje jako druga droga, nie jako jedyna.

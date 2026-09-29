@@ -297,14 +297,14 @@ class Report extends Model
      * Sprawy PILNE, o których nikt się nie dowiedział (issue #1051).
      *
      * BEZ OKNA CZASOWEGO — I TO JEST SEDNO, ten sam argument co przy
-     * `HealthController::sprawdzNieudaneListy()`. Nie pytamy „czy coś
+     * `SondaNieudanychListow`. Nie pytamy „czy coś
      * przepadło w ostatniej godzinie", tylko „czy cokolwiek pilnego nadal
      * nie dotarło". Alarm z oknem czasowym gaśnie sam, czyli sprawa z nocy
      * jest rano znowu niewidoczna — a to jest ta sama cicha porażka, tylko
      * o kilka godzin późniejsza. Z wiersza w tym zakresie wychodzi się
      * wyłącznie zleceniem alarmu. Sonda w `/health` bierze z niego tylko
      * sprawy otwarte i ma własne, 72-godzinne okno (po przeglądzie #1268 —
-     * patrz `pilneDoDoslania()` i `HealthController::sprawdzPilneAlarmy()`);
+     * patrz `pilneDoDoslania()` i `SondaPilnychAlarmow`);
      * ten zakres zostaje bez okna, bo jest dowodem, nie dzwonkiem.
      *
      * STATUS SPRAWY TU NIE WCHODZI CELOWO. Moderator może zamknąć sprawę
@@ -334,7 +334,7 @@ class Report extends Model
      *
      * Z tego samego zbioru korzystają dwie rzeczy i to jest celowe: komenda
      * `kuking:doslij-pilne-alarmy` (co dosłać) i sonda `alarmy_moderacji`
-     * w `/health` (z oknem czasu, patrz `HealthController::sprawdzPilneAlarmy()`).
+     * w `/health` (z oknem czasu, patrz `SondaPilnychAlarmow`).
      * Sonda, która świeci przy sprawie, której komenda nie ruszy, świeciłaby
      * wiecznie — a gasić ją dałoby się tylko ręcznym SQL-em.
      *
