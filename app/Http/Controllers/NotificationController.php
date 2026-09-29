@@ -5,16 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Notifications\CelPowiadomienia;
+use App\Domain\Notifications\OdczytPowiadomien;
 use App\Domain\Notifications\QuestionNotificationContext;
 use App\Domain\Notifications\WycinkiKomentarzy;
-use App\Models\CookedEvent;
 use App\Models\ModerationAction;
 use App\Models\Notification;
-use App\Models\Recipe;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class NotificationController extends Controller
@@ -22,22 +20,17 @@ class NotificationController extends Controller
     /** Karta i komunikat po kliknięciu — to samo zdanie, jak przy #1034 (issue #1994). */
     public const WPIS_SMAKOWICIE_NIEDOSTEPNY = 'Ten wpis został usunięty albo nie jest już dostępny.';
 
-    public function index(Request $request, QuestionNotificationContext $questionContext): View
+    public function index(Request $request, QuestionNotificationContext $questionContext, OdczytPowiadomien $odczyt): View
     {
         $user = $request->user();
 
-        // `visibleTo` wycina powiadomienia od osób, z którymi łączy tę osobę
-        // blokada — także te sprzed blokady. Ten sam filtr chodzi w liczniku
-        // nieprzeczytanych (`User::unreadNotificationsCount()`); gdyby chodził
-        // tylko tutaj, w belce świeciłoby „3 nieprzeczytane" nad pustą listą.
-        $notifications = $user
-            ->notifications()
-            ->visibleTo($user)
-            ->with('actor.profile.avatar')
-            ->paginate(30);
-
-        $this->sprawdzWykonania($notifications->items());
-        $this->sprawdzPrzepisy($notifications->items());
+        // Strona idzie przez `OdczytPowiadomien` (#1687, etap 4): filtr
+        // widoczności wycina powiadomienia od osób, z którymi łączy tę osobę
+        // blokada — także te sprzed blokady — i jest ten sam co w liczniku
+        // (`User::unreadNotificationsCount()`); gdyby chodził tylko tutaj,
+        // w belce świeciłoby „3 nieprzeczytane" nad pustą listą. Ta sama
+        // klasa dociąga zbiorczo stan wykonań (#771) i przepisów (#1034).
+        $notifications = $odczyt->strona($user);
 
         return view('pages.notifications', [
             'notifications' => $notifications,
@@ -119,85 +112,12 @@ class NotificationController extends Controller
     }
 
     /**
-     * Czy wykonania z powiadomień o ugotowaniu na tej stronie jeszcze
-     * istnieją (issue #771) — JEDNYM zapytaniem, z tego samego powodu co
-     * `decyzje()` wyżej: bez tego każde takie powiadomienie pytałoby
-     * o swoje wykonanie osobno, w widoku, dwa razy.
-     *
-     * @param  list<Notification>  $powiadomienia
-     */
-    private function sprawdzWykonania(array $powiadomienia): void
-    {
-        $doSprawdzenia = [];
-
-        foreach ($powiadomienia as $powiadomienie) {
-            $id = $powiadomienie->data['cooked_event_id'] ?? null;
-
-            if ($powiadomienie->type === Notification::TYPE_COOKED && is_string($id) && Str::isUuid($id)) {
-                $doSprawdzenia[$id][] = $powiadomienie;
-            }
-        }
-
-        if ($doSprawdzenia === []) {
-            return;
-        }
-
-        $istniejace = CookedEvent::query()
-            ->whereIn('id', array_keys($doSprawdzenia))
-            ->pluck('id')
-            ->map(fn (mixed $id): string => (string) $id)
-            ->flip();
-
-        foreach ($doSprawdzenia as $id => $grupa) {
-            foreach ($grupa as $powiadomienie) {
-                $powiadomienie->zapamietajIstnienieWykonania($istniejace->has($id));
-            }
-        }
-    }
-
-    /**
-     * Aktualne slugi przepisów z powiadomień o zapisaniu do zeszytu
-     * (issue #1034) — JEDNYM zapytaniem, jak `sprawdzWykonania()`.
-     * Przepis usunięty miękko nie wraca (`SoftDeletes`), więc jego
-     * powiadomienie dostaje `null` i traci „Zobacz".
-     *
-     * @param  list<Notification>  $powiadomienia
-     */
-    private function sprawdzPrzepisy(array $powiadomienia): void
-    {
-        $doSprawdzenia = [];
-
-        foreach ($powiadomienia as $powiadomienie) {
-            $id = $powiadomienie->data['recipe_id'] ?? null;
-
-            if ($powiadomienie->type === Notification::TYPE_SAVED && is_string($id) && Str::isUuid($id)) {
-                $doSprawdzenia[$id][] = $powiadomienie;
-            }
-        }
-
-        if ($doSprawdzenia === []) {
-            return;
-        }
-
-        $slugi = Recipe::query()
-            ->whereIn('id', array_keys($doSprawdzenia))
-            ->pluck('slug', 'id')
-            ->mapWithKeys(fn (mixed $slug, mixed $id): array => [(string) $id => (string) $slug]);
-
-        foreach ($doSprawdzenia as $id => $grupa) {
-            foreach ($grupa as $powiadomienie) {
-                $powiadomienie->zapamietajSlugPrzepisu($slugi->get($id));
-            }
-        }
-    }
-
-    /**
      * Oznaczenie wszystkiego jako przeczytane jest JAWNYM kliknięciem,
      * nie efektem ubocznym wejścia na stronę. Osoba, która przypadkiem
      * weszła w powiadomienia, nie może stracić informacji o tym, że
      * ktoś ugotował z jej przepisu.
      */
-    public function markAllRead(Request $request): RedirectResponse
+    public function markAllRead(Request $request, OdczytPowiadomien $odczyt): RedirectResponse
     {
         $user = $request->user();
 
@@ -205,7 +125,7 @@ class NotificationController extends Controller
         // Bez niego przycisk gasił też powiadomienia ukryte blokadą albo
         // statusem sprawcy; po odblokowaniu wracały jako przeczytane,
         // choć człowiek nigdy ich nie zobaczył.
-        $oznaczono = $user->notifications()->visibleTo($user)->whereNull('read_at')->update(['read_at' => now()]);
+        $oznaczono = $odczyt->oznaczWszystkieJakoPrzeczytane($user);
 
         // ISSUE #1402: komunikat mówi o tym, co się NAPRAWDĘ stało. Zero
         // zmienionych wierszy (np. druga karta zdążyła wcześniej) to nie
@@ -254,7 +174,7 @@ class NotificationController extends Controller
      * z napisem „Oznacz jako przeczytane" zamiast „Zobacz" — ta metoda się
      * nie zmieniła, bo nie musiała.
      */
-    public function open(Request $request, string $notification): RedirectResponse
+    public function open(Request $request, string $notification, OdczytPowiadomien $odczyt): RedirectResponse
     {
         // WŁAŚCICIELSTWO EGZEKWUJE ZAPYTANIE, NIE SAM IDENTYFIKATOR.
         // AGENTS.md §7: UUID w adresie to nie autoryzacja. Szukamy wyłącznie
@@ -264,11 +184,7 @@ class NotificationController extends Controller
         //
         // `visibleTo()` — ta sama granica co lista (issue #1351): wiersz
         // schowany na liście nie otwiera się też wprost po identyfikatorze.
-        $powiadomienie = $request->user()
-            ->notifications()
-            ->visibleTo($request->user())
-            ->whereKey($notification)
-            ->first();
+        $powiadomienie = $odczyt->widoczne($request->user(), $notification);
 
         // ISSUE #759: komentarz mógł zniknąć (usunięty, ukryty przez
         // moderację, treść nad nim schowana) między wyświetleniem listy
@@ -277,14 +193,7 @@ class NotificationController extends Controller
         // (blokada, zbanowany sprawca, #1351) dalej kończy się na 404:
         // `visibleTo(..., false)` pomija tylko warunek dostępności treści.
         if ($powiadomienie === null) {
-            $bezTresci = $request->user()
-                ->notifications()
-                ->visibleTo($request->user(), false)
-                ->whereKey($notification)
-                ->whereIn('type', Notification::TYPY_Z_WYCINKIEM_KOMENTARZA)
-                ->exists();
-
-            abort_unless($bezTresci, 404);
+            abort_unless($odczyt->ukrytePrzezBrakTresciKomentarza($request->user(), $notification), 404);
 
             return back()->with('status', 'Tego komentarza już nie ma albo nie jest już dostępny. Wróć do listy powiadomień.');
         }
