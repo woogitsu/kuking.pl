@@ -41,6 +41,7 @@ use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\HistoriaPrzepisuController;
 use App\Http\Controllers\ImportPrzepisuController;
+use App\Http\Controllers\ListaZakupowController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MojeWpisyController;
 use App\Http\Controllers\MojStolController;
@@ -932,6 +933,32 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/planer/{wpis}', [PlanerController::class, 'destroy'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.destroy');
+
+    // Lista zakupów (#27, etap 2, D-333) — prywatna, tylko właściciel.
+    // Zapisy pod własnym koszykiem `zakupy`. Pozycja po UUID, ale decyduje
+    // `ShoppingListItemPolicy`, nie adres; „Dodaj składniki” przechodzi przez
+    // `RecipePolicy::view`. `DELETE /lista-zakupow/odhaczone` stoi PRZED
+    // trasą z identyfikatorem, a ta ma `whereUuid`, więc się nie zderzają.
+    Route::get('/lista-zakupow', [ListaZakupowController::class, 'index'])->name('shopping.index');
+    Route::post('/lista-zakupow', [ListaZakupowController::class, 'store'])
+        ->middleware("throttle:{$limits['zakupy']},zakupy")
+        ->name('shopping.store');
+    Route::delete('/lista-zakupow/odhaczone', [ListaZakupowController::class, 'clear'])
+        ->middleware("throttle:{$limits['zakupy']},zakupy")
+        ->name('shopping.clear');
+    Route::patch('/lista-zakupow/{pozycja}', [ListaZakupowController::class, 'toggle'])
+        ->whereUuid('pozycja')
+        ->middleware("throttle:{$limits['zakupy']},zakupy")
+        ->name('shopping.toggle');
+    Route::delete('/lista-zakupow/{pozycja}', [ListaZakupowController::class, 'destroy'])
+        ->whereUuid('pozycja')
+        ->middleware("throttle:{$limits['zakupy']},zakupy")
+        ->name('shopping.destroy');
+    Route::get('/przepisy/{recipe}/lista-zakupow', [ListaZakupowController::class, 'confirmRecipe'])
+        ->name('shopping.recipe.confirm');
+    Route::post('/przepisy/{recipe}/lista-zakupow', [ListaZakupowController::class, 'storeRecipe'])
+        ->middleware("throttle:{$limits['zakupy']},zakupy")
+        ->name('shopping.recipe.store');
     // „Co mam w domu” i „Co ugotuję z tego, co mam” (V2, D-285).
     //
     // Lista jest prywatna i należy do zalogowanej osoby — żadna trasa nie

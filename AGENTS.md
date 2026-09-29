@@ -797,6 +797,12 @@ wiadomości prywatne, natywne aplikacje, planer posiłków, lista zakupów,
 generator przepisów AI, rozbudowana gamifikacja, marketplace,
 transmisje live, wypłaty dla twórców.
 
+**Planer tygodnia (D-310) i prywatna lista zakupów zeszły z tej listy** — planer
+26 września 2026, lista zakupów 29 września 2026 (D-333, wiersz „#27 etap 2”).
+Lista zakupów to wyłącznie etap 2: prywatna lista konta, składniki kopiowane
+dosłownie z przepisu, bez sumowania. Lista wspólna, offline, grupowanie po
+działach sklepu i premium zostają poza zakresem i wymagają nowej decyzji.
+
 **Spiżarnia („Co mam w domu”) zeszła z tej listy 26 września 2026** — sekcja
 V2 w `docs/FEATURES.md` wymienia „pantry” i „co ugotuję z tego, co mam”, a
 **D-282** pozwala je budować. Zakazana zostaje

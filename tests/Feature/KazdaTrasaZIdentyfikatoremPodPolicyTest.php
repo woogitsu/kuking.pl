@@ -22,6 +22,7 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\RecipeVersion;
 use App\Models\Report;
+use App\Models\ShoppingListItem;
 use App\Models\Tag;
 use App\Models\TagHighlight;
 use App\Models\TagPromotion;
@@ -1028,6 +1029,32 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $pozycjaPlanu->save();
         $dodaj('planer.destroy', 'pozycja planera tygodnia', 'delete',
             route('planer.destroy', $pozycjaPlanu), [], [$W, $O, $O, $O, $O]);
+
+        // ─── LISTA ZAKUPÓW (#27, etap 2, D-333) ──────────────────────────
+        // Lista jest prywatna: pozycję odhacza i usuwa wyłącznie właściciel
+        // (`ShoppingListItemPolicy`), bez wyjątku dla moderatora. „Dodaj
+        // składniki” pyta `RecipePolicy::view` — przy PRYWATNYM przepisie
+        // wolno tylko autorowi; ekran pytania „dodać jeszcze raz?” tak samo.
+        $pozycjaZakupow = new ShoppingListItem(['text' => 'mleko']);
+        $pozycjaZakupow->user_id = $wlasciciel->getKey();
+        $pozycjaZakupow->source = ShoppingListItem::SOURCE_MANUAL;
+        $pozycjaZakupow->position = 0;
+        $pozycjaZakupow->save();
+        $pozycjaZakupowDoKasacji = new ShoppingListItem(['text' => 'chleb']);
+        $pozycjaZakupowDoKasacji->user_id = $wlasciciel->getKey();
+        $pozycjaZakupowDoKasacji->source = ShoppingListItem::SOURCE_MANUAL;
+        $pozycjaZakupowDoKasacji->position = 1;
+        $pozycjaZakupowDoKasacji->save();
+        $dodaj('shopping.toggle', 'odhaczenie pozycji listy zakupów', 'patch',
+            route('shopping.toggle', $pozycjaZakupow), ['odhaczona' => '1'], [$W, $O, $O, $O, $O]);
+        $dodaj('shopping.destroy', 'usunięcie pozycji listy zakupów', 'delete',
+            route('shopping.destroy', $pozycjaZakupowDoKasacji), [], [$W, $O, $O, $O, $O]);
+        $dodaj('shopping.recipe.store', 'dodanie składników prywatnego przepisu do listy zakupów', 'post',
+            route('shopping.recipe.store', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        // Ekran pytania bez wcześniejszego dodania odsyła do przepisu, więc
+        // właściciel ma „dozwolone” (przekierowanie), a reszta — odmowę.
+        $dodaj('shopping.recipe.confirm', 'ekran „dodać składniki jeszcze raz?” prywatnego przepisu', 'get',
+            route('shopping.recipe.confirm', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
 
         // ─── TAGI ────────────────────────────────────────────────────────
         // Tag jest wspólną nawigacją serwisu, nie czyjąś własnością

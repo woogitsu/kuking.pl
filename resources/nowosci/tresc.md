@@ -31,6 +31,22 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Lista zakupów
+
+Jest nowy ekran „Lista zakupów” — prywatna lista, którą widzicie tylko Wy. Znajdziecie
+ją w „Moje” i w planerze tygodnia. Pozycję dopisujecie ręcznie, odhaczacie ją, gdy
+jest w koszyku (i możecie to cofnąć), a przyciskiem „Wyczyść odhaczone” usuwacie
+kupione rzeczy. Na stronie przepisu jest przycisk „Dodaj składniki do listy
+zakupów”, a w planerze „Dodaj składniki” przy przepisie: składniki trafiają na
+listę dokładnie tak, jak napisał je autor, jedna linia to jedna pozycja. Niczego
+nie sumujemy i nie łączymy, więc „2 jajka” i „3 jajka” zostają dwiema pozycjami —
+liczycie to Wy. Każda pozycja mówi, skąd jest: „Z przepisu” z jego tytułem albo
+„Dopisane ręcznie”. Gdy dodacie składniki tego samego przepisu drugi raz, najpierw
+zapytamy, czy na pewno. Jeśli autor ukryje albo usunie przepis, pozycje zostają na
+Waszej liście jako zwykły tekst, tylko bez tytułu przepisu. Lista działa bez
+żadnych ozdobników: zwykłe przyciski, duże litery, żadnego przeciągania. Nie ma
+jeszcze listy wspólnej dla domowników ani pracy bez internetu — to na później.
+
 ### Jak mamy do Was pisać?
 
 W ustawieniach profilu, a także na ostatnim kroku po założeniu konta, jest nowe

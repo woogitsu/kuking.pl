@@ -495,6 +495,12 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(MealPlanEntry::class);
     }
 
+    /** Lista zakupów (#27, etap 2, D-333) — prywatna, tylko właściciel. */
+    public function shoppingListItems(): HasMany
+    {
+        return $this->hasMany(ShoppingListItem::class);
+    }
+
     /**
      * @return HasMany<Media, $this>
      */

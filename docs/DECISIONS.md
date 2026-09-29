@@ -20931,6 +20931,7 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | #2024: ponowna publikacja bez zmian | Ponowna publikacja przepisu bez zmian treści **nie tworzy** nowej wersji w historii | #2024 |
 | #2000: wspólny zeszyt publiczny | Wspólny (rodzinny, D-302) zeszyt ustawiony jako „wszyscy” **może** mieć „Podziel się”; prywatny i domyślne „Zapisane” dalej nie | #2000 |
 | #2016: minutniki | Minutniki **nie są** synchronizowane między urządzeniami — synchronizacja obejmuje tylko odhaczone kroki | #2016 |
+| #27 etap 2: lista zakupów bez czekania na pomiar (decyzja z 29.09, wieczór) | **Budować teraz** etap 2 listy zakupów, bez czekania na pomiar planera z D-310. Zakres: prywatna lista konta; ręczne dopisanie; odhaczanie i usuwanie; „Dodaj składniki” ze strony przepisu i z planera kopiuje ORYGINALNE linie składników (bez sumowania i łączenia — składnik jest wolnym tekstem), z oznaczeniem pozycji skopiowanej (z którego przepisu) i ręcznej oraz ostrzeżeniem przy ponownym dodaniu tego samego przepisu; „Wyczyść odhaczone”. **Poza zakresem:** lista wspólna, offline, grupowanie po działach sklepu, premium. Uzupełnia D-310 (który świadomie zostawił listę zakupów na później), nie zmienia go. Przepis niewidoczny dla osoby nie ujawnia treści — pozycja zostaje samym tekstem. Schemat: `shopping_list_items` (`docs/DATABASE.md`); rollback odmawia przy danych (D-088) | #27 |
 
 ### Wycofanie
 Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis
