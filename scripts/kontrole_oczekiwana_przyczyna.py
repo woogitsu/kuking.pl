@@ -148,7 +148,9 @@ OCZEKUJ = {
     'Audyt zależności znów nie blokuje CI': r'Job `audit` znów ma continue-on-error',
     'Audyt zależności bez skryptu bramki': r'python3 scripts/audyt-zaleznosci\.py',
     'Nowe continue-on-error w jobie testów': r'Nowe continue-on-error w ci\.yml',
-    'Macierz portu krótsza niż podział grup': r'Części macierzy `port_funkcje` rozjechały się z GRUPY',
+    # Macierz [1] (z [1, 2]) pada na pierwszej asercji o liczbie części, zanim
+    # dojdzie do porównania z GRUPY — obie są objawem tej samej mutacji.
+    'Macierz portu krótsza niż podział grup': r'Macierz nie dzieli niczego\.|Części macierzy `port_funkcje` rozjechały się z GRUPY',
     'Minutnik poza macierzą portu': r'nie idzie w części 2 albo idzie w obu|Warunek wskazuje część spoza macierzy: 3',
     'Runbook znów instaluje Sentry': r'Runbook poza blokiem `<details>` zawiera instalację pakietu Sentry w',
     'Runbook znów wymaga klucza PostHog': r'Runbook zawiera klucz PostHog w tabeli zmiennych lub sekretów \(`\|',
@@ -272,8 +274,13 @@ OCZEKUJ = {
     'Wariant neutralny helpera z rodzajem': r'wariant neutralny z rodzajem|contains "Możesz od razu pokazać, co dziś gotujesz"',
     'Goły rodzaj obok wywołania helpera': r'Tekst przypisuje czytelnikowi płeć:.*ugotowałaś',
     'Rollback paska polityki bez odmowy': r'Rollback przeszedł, choć ktoś zamknął pasek',
-    'Polityka bez terminu wejścia w życie': r'contains "nowa wersja obowiązuje od 14 października 2026"',
+    # Decyzja właściciela z 29.09.2026 (wieczór): zmiana drobna od razu.
+    'Polityka z terminem wejścia niezgodnym z konfiguracją': r'contains "obowiązuje od dnia publikacji"',
+    'Pasek polityki przy drobnej zmianie': r'does not contain "data-pasek-zmiany-polityki"',
     'Wybór formy widoczny w okresie przejściowym polityki': r'does not contain "Jak mamy do Ciebie pisać\?"',
+    'Wybór formy czeka na dzień wersji przy drobnej zmianie': r'Wybór formy ukryty w chwili 2026-09-29 20:00',
+    # #2000: wspólny zeszyt „wszyscy” ma „Podziel się”.
+    'Wspólny publiczny zeszyt bez „Podziel się”': r'Wspólny zeszyt „wszyscy” nie ma przycisku „Podziel się”',
 }
 
 

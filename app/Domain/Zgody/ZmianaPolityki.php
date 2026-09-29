@@ -21,6 +21,13 @@ use Carbon\CarbonImmutable;
  * Konto założone W DNIU wersji albo później paska nie dostaje: przy rejestracji
  * miało przed sobą już nowy tekst.
  *
+ * Pasek jest TYLKO dla zmiany istotnej (inaczej niż pasek regulaminu z D-306):
+ * polityka §9 obiecuje powiadomienie w serwisie właśnie przy zmianie istotnej,
+ * a drobna poprawka obowiązuje od dnia publikacji i nikogo nie zaczepia.
+ * Decyzja właściciela z 29.09.2026 (wieczór, D-332): wersja 2026-09-30 jest
+ * drobna, bo serwis nie ma jeszcze prawdziwych kont — mechanizm zostaje na
+ * przyszłe zmiany istotne.
+ *
  * Zamknięcie paska NIE jest zgodą ani akceptacją — to ślad, że komunikat
  * dotarł. Termin wejścia w życie liczy `WersjaDokumentu::polityka()`.
  */
@@ -40,6 +47,10 @@ final class ZmianaPolityki
     public function pokazac(?User $user): bool
     {
         if ($user === null || $user->created_at === null) {
+            return false;
+        }
+
+        if (! $this->dokument()->istotna) {
             return false;
         }
 
