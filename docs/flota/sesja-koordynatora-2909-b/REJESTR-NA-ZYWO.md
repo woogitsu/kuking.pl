@@ -221,3 +221,4 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 ## 23:4x RESTART KONTENERA: scratchpad wrócił do stanu porannego; rejestr odtworzony z claude/rejestr-koordynatora-2909. Audyty (6) i testy-z-porzuconych wypchnięte przed restartem: bezpieczenstwo cf6095bcc, bledy-przeplywy a2aec506a, infra d79b25400, prywatnosc-prawo 32dab3d97, ux-dostepnosc 93b7f4008, wydajnosc-baza 959bdbf03, testy-z-porzuconych 1b06556b6.
 - #2226 fix 4: 2edc9628b (wzorzec kontroli „Helper formy ignoruje formę żeńską” — drugi objaw 1753e2, lokalnie POTWIERDZONA). Port marki 2/2 N492 — ponowi się z nowym przebiegiem.
 - 23:5x Issues z audytów: #2268–#2302 (29 P1/P2 + 6 zbiorczych P3). P1: F1 #2288 (JIT /odkryj), IN-01 #2293 (proc_open PDF), IN-02 #2294, IN-03 #2295.
+- Zamknięte duplikaty moich issues wobec #2227–#2267 (zgłoszenia właściciela/Astry): 2273→2237, 2274→2238, 2275→2239+tablice, 2284→2243, 2285→2244, 2286→2245, 2269→2232
