@@ -555,7 +555,7 @@ final class PodgladPaczkiEksportu
             }
 
             $tresc = is_string($tresc) && trim($tresc) !== '' ? trim($tresc) : null;
-            $tytul = null; // pytań nie wczytujemy, więc wpis do wczytania to zawsze danie bez tytułu
+            // Pytań nie wczytujemy, więc wpis do wczytania to zawsze danie bez tytułu (`tytul` = null).
 
             if ($tresc === null) {
                 $wynik[] = $this->odrzucona('wpis', $etykieta, 'Ten wpis to samo zdjęcie, a zdjęć nie wczytujemy — nie ma tu tekstu do zapisania.');
@@ -563,8 +563,8 @@ final class PodgladPaczkiEksportu
                 continue;
             }
 
-            $odcisk = $this->odcisk(['wpis', $rodzaj, $tytul === null ? null : $this->klucz($tytul), $tresc === null ? null : $this->klucz($tresc)]);
-            $klucz = $this->kluczWpisu($rodzaj, $tytul, $tresc);
+            $odcisk = $this->odcisk(['wpis', $rodzaj, null, $tresc === null ? null : $this->klucz($tresc)]);
+            $klucz = $this->kluczWpisu($rodzaj, null, $tresc);
 
             $stan = isset($wPaczce[$klucz])
                 ? PozycjaPodgladu::POWTORZONA_W_PACZCE
@@ -581,9 +581,9 @@ final class PodgladPaczkiEksportu
                 $uwagi[] = 'Zdjęć nie wczytujemy — tekst wpisu tak.';
             }
 
-            $wynik[] = $this->pozycja('wpis', $tytul ?? mb_strimwidth((string) $tresc, 0, 80, '…'), $stan, $uwagi, $odcisk, [
+            $wynik[] = $this->pozycja('wpis', mb_strimwidth((string) $tresc, 0, 80, '…'), $stan, $uwagi, $odcisk, [
                 'rodzaj' => $rodzaj,
-                'tytul' => $tytul,
+                'tytul' => null,
                 'tresc' => $tresc,
             ]);
         }
