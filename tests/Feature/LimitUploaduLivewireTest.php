@@ -96,15 +96,18 @@ class LimitUploaduLivewireTest extends TestCase
         // Zdarzenie `livewire-upload-error` niesie tylko `{id, property}` —
         // treści błędu z endpointu tam nie ma. Gdyby ten atrybut zniknął,
         // pasek postępu znowu znikałby bez słowa (issue #111).
-        $widok = (string) file_get_contents(
-            resource_path('views/components/recipe-wizard.blade.php'),
-        );
+        // Pola zdjęć są w komponentach kroków 1 i 3 (#1387, punkt 5).
+        foreach (['krok-o-przepisie', 'krok-przygotowanie'] as $krok) {
+            $widok = (string) file_get_contents(
+                resource_path('views/components/kreator/'.$krok.'.blade.php'),
+            );
 
-        $this->assertStringContainsString(
-            'data-blad-wysylki',
-            $widok,
-            'Pole zdjęcia w kreatorze nie niesie treści komunikatu dla nieudanej wysyłki.',
-        );
+            $this->assertStringContainsString(
+                'data-blad-wysylki',
+                $widok,
+                'Pole zdjęcia w kroku „'.$krok.'” kreatora nie niesie treści komunikatu dla nieudanej wysyłki.',
+            );
+        }
 
         $skrypt = (string) file_get_contents(resource_path('js/app.js'));
 
