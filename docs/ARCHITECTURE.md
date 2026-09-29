@@ -80,8 +80,7 @@ Profil publiczny: `ProfilRequest` (zakładka, rok i fraza z adresu, `rules()` pu
 Onboarding: `ZapisZainteresowanRequest`, `ZapisObserwowanychRequest` + `ObserwujWybraneOsoby` (zapis; limit 20 osób, para nazwa–identyfikator #793) oraz `EkranLudziRequest` + `PrzygotujEkranLudzi` (ekran „kogo obserwować”).
 Zgłoszenie treści: `ZgloszenieTresciRequest` (limit trasy → odsyłka konta pod nazwą → pola; cel i Policy zostają w `ReportContent`). `NotificationController` nie ma walidacji wejścia.
 Przypadki użycia z własną transakcją i blokadą: `ZamknijGrupeSygnalow` (`SygnalyController::odrzucGrupe()`, wynik w `WynikZamknieciaGrupy`) i `ZuzyjLinkDoLogowania` (`LoginLinkController::store()`, awaria dziennika jako `WejscieLinkiemWycofane`) — kolejność blokad bez zmian; pozostałe `DB::transaction` w kontrolerach to jednolinijkowe savepointy wokół pojedynczego zapisu.
-Kolejne kandydaty (od największego): `CollectionController` (dalsze kroki), `ProfileController`,
-`OnboardingController`, `NotificationController`, `ReportController`,
+Kolejne kandydaty (od największego): `CollectionController` (dalsze kroki), `NotificationController`,
 kontrolery logowania Google/Facebook (#1035).
 
 ### Application
