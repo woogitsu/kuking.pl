@@ -701,6 +701,12 @@ BRAMKA_KRAWEDZI_WARUNEK = "            if ($egzekwowanie) {\n                if 
 # regułę `trusted_proxies`; mutacje wracają do czytania nagłówka od lewej
 # i do zaufania każdemu peerowi — obie mają zapalić rozjazd log/aplikacja.
 CADDY_ZAUFANIE_TEST = "CaddyUfaTemuSamemuWpisowiCoAplikacjaTest"
+# Zbiór publicznych domen originu w IaC jest zamknięty (#1306): dopisanie
+# kolejnej domeny (tu: domeny dostawcy) zmienia topologię, dla której policzono
+# zaufanie proxy, i test ma oblać z opisem, co zrobić razem ze zmianą.
+DOMENY_ORIGINU_IAC = ".railway/railway.ts"
+DOMENY_ORIGINU_TEST = "DomenyOriginuSaZadeklarowaneWIacTest"
+DOMENY_ORIGINU_WPIS = '  { domain: "www.kuking.pl", port: APP_PORT },\n];'
 
 
 def digest(path):
@@ -1368,6 +1374,8 @@ checks = [
      lambda s: replace_once(s, "\t\ttrusted_proxies_strict\n", "")),
     ("Caddy ufa każdemu peerowi", CADDYFILE, CADDY_ZAUFANIE_TEST,
      lambda s: replace_once(s, "trusted_proxies static private_ranges", "trusted_proxies static 0.0.0.0/0 ::/0")),
+    ("Produkcja dostaje domenę dostawcy obok kuking.pl", DOMENY_ORIGINU_IAC, DOMENY_ORIGINU_TEST,
+     lambda s: replace_once(s, DOMENY_ORIGINU_WPIS, '  { domain: "www.kuking.pl", port: APP_PORT },\n  { domain: "kuking-prod.up.railway.app", port: APP_PORT },\n];')),
     # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
