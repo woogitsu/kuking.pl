@@ -31,13 +31,14 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
-### Zgłaszanie treści także bez konta
+### Przycisk „Zgłoś” widać także bez logowania
 
 Przy przepisie, wpisie i komentarzu widać teraz odnośnik „Zgłoś (po zalogowaniu)”
 także wtedy, gdy nie jesteście zalogowani. Zgłoszenie spamu, nękania albo
 niebezpiecznej porady nadal wymaga konta — poprosimy o zalogowanie i od razu
-otworzymy formularz. Treść niezgodną z prawem możecie zgłosić bez konta,
-odnośnik stoi obok. Strony „Pomoc” i „Napisz do nas” opisują to samo.
+otworzymy formularz. Treść niezgodną z prawem możecie zgłosić bez konta:
+przy przepisie i wpisie odnośnik do tego formularza stoi obok. Strony „Pomoc”
+i „Napisz do nas” opisują to samo.
 
 ### Jak mamy do Was pisać?
 
