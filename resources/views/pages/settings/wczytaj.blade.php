@@ -7,12 +7,12 @@
 <x-layout title="Wczytaj swoją paczkę z danymi" :noindex="true">
     <h1>Wczytaj swoją paczkę z danymi</h1>
     <p>
-        Masz paczkę, którą pobrałeś z Kuking w ustawieniach, w „Twoich danych”?
+        Masz paczkę pobraną z Kuking w ustawieniach, w „Twoich danych”?
         Możesz z niej przywrócić swoje przepisy, własne wpisy i zeszyty — na przykład na nowym koncie.
     </p>
     <p>
         Najpierw pokażemy, co jest w paczce i co z tego wczytamy. <strong>Nic nie zapiszemy, dopóki nie klikniesz „Wczytaj zaznaczone”.</strong>
-        Wszystko, co wczytamy, będzie <strong>prywatne</strong> — o publikacji zdecydujesz sam, później.
+        Wszystko, co wczytamy, będzie <strong>prywatne</strong> — o publikacji zdecydujesz później.
         Zdjęć z paczki na razie nie przenosimy, a pytań z Poradźcie nie wczytujemy — pytanie jest zawsze publiczne.
     </p>
     <p class="mb-5">Plik może mieć najwyżej {{ $maksMb }} MB.</p>
