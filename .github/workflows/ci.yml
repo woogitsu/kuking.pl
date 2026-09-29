@@ -526,7 +526,7 @@ jobs:
           #                (`.dockerignore`), czego job Vite nie odtworzy.
           #                Sam build Vite ze zmienionych źródeł mierzy job
           #                `assets` na każdym PR-ze.
-          #   obciazenie → `przyrzad_605`: wyłącznie pliki `scripts/*605*`.
+          #   obciazenie → `przyrzad_605`: pliki `scripts/*605*` i dowody `scripts/fixtures/obciazenie605/`.
           #   wyscigi    → `dwa-polaczenia`: kod i dane aplikacji (testy tej
           #                grupy chodzą przez HTTP i zatwierdzają dane, więc
           #                także widoki i tłumaczenia), `tests/Dwa/`, wspólne
@@ -549,7 +549,7 @@ jobs:
           }
 
           ciezki obraz '^(Dockerfile$|docker/|\.dockerignore$|composer\.(json|lock)$|package(-lock)?\.json$|\.npmrc$|\.railway/|railway\.(json|toml)$|vite\.config\.[cm]?[jt]s$|(tailwind|postcss)\.config\.|artisan$|bootstrap/|config/|app/Providers/|resources/js/[^/]+\.test\.mjs$|scripts/([^/]+|fixtures/[^/]+)\.test\.mjs$|scripts/kontrast-marki\.mjs$|\.github/workflows/ci\.yml$)'
-          ciezki obciazenie '^(scripts/[^/]*605[^/]*$|\.github/workflows/ci\.yml$)'
+          ciezki obciazenie '^(scripts/[^/]*605[^/]*$|scripts/fixtures/obciazenie605/|\.github/workflows/ci\.yml$)'
           ciezki wyscigi '^(app/|bootstrap/|config/|database/|routes/|lang/|resources/views/|artisan$|composer\.(json|lock)$|phpunit\.xml$|\.env\.example$|tests/(Dwa/|Support/|TestCase\.php$|bootstrap\.php$)|scripts/(testy-dwa-polaczenia\.sh|kontrola-negatywna-2165\.py)$|\.github/(workflows/ci\.yml$|actions/php/))'
 
       # =====================================================================
@@ -742,7 +742,7 @@ jobs:
   przyrzad_605:
     name: Przyrząd testu obciążeniowego (#605)
     needs: zakres
-    # Na PR-ze tylko przy zmianie `scripts/*605*` albo `ci.yml` (wyjście `obciazenie`).
+    # Na PR-ze tylko przy zmianie `scripts/*605*`, `scripts/fixtures/obciazenie605/` albo `ci.yml` (wyjście `obciazenie`).
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.obciazenie == 'true'
     runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
