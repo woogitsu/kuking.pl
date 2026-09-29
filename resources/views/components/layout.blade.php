@@ -1111,6 +1111,7 @@
                 {{-- Zmiana regulaminu (#1811, D-306) — zalogowani, do zamknięcia. --}}
                 @auth
                     <x-pasek-zmiany-regulaminu />
+                    <x-pasek-zmiany-polityki />
                 @endauth
 
                 @if($wTrybiePanelu)

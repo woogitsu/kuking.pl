@@ -482,6 +482,9 @@ final class EraseAccountData
                     'avatar_media_id' => null,
                     'region' => null,
                     'speciality' => null,
+                    // Forma zwracania się (D-332) jest widoczna dla innych,
+                    // więc znika razem z polami opisowymi (art. 17 RODO).
+                    'form_of_address' => null,
                 ])->save();
             }
 
@@ -527,6 +530,8 @@ final class EraseAccountData
                 'pwa_prompt_state' => null,
                 // Ślad zamknięcia paska „Zmieniliśmy regulamin” (#1811, D-306).
                 'terms_notice_dismissed_version' => null,
+                // Ślad zamknięcia paska o zmianie polityki (D-327, D-332).
+                'policy_notice_dismissed_version' => null,
             ])->save();
 
             // STAN KOŃCOWY KONTA — I TO JEST NAPRAWA DRUGIEJ POŁOWY D-018.
