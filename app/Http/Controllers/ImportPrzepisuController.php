@@ -14,6 +14,7 @@ use App\Domain\Import\Pdf\OdczytajPrzepisZPdf;
 use App\Domain\Import\Url\OdczytajPrzepisZAdresu;
 use App\Domain\Import\Url\PobieraczStron;
 use App\Domain\Import\ZlecImportPrzepisu;
+use App\Domain\Zgody\InformacjaTekstuZrodlaAi;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\ImportPrzepisu;
@@ -40,6 +41,15 @@ final class ImportPrzepisuController extends Controller
     /** Safe URL failures can still produce a private source-only draft. */
     private const KODY_SZKICU_BEZ_TRESCI = [ImportOdrzucony::ROBOTS_ZABRANIA, ImportOdrzucony::BRAK_PRZEPISU];
 
+    /**
+     * Strona bez danych przepisu i bez ważnej zgody kończy się szkicem samego
+     * źródła (model nie dostaje tekstu). Kto zaznaczył pole przy nieaktualnej
+     * informacji, dowiaduje się, dlaczego zaznaczenie nie zadziałało (#2031).
+     */
+    private const DOPISEK_NIEAKTUALNEJ_ZGODY = ' Zaznaczona zgoda na odczyt przez komputer nie zadziałała, bo informacja przy niej '
+        .'zmieniła się od otwarcia formularza — nic nie wysłaliśmy. Otwórz „Przepis ze strony '
+        .'internetowej” jeszcze raz, przeczytaj informację i zaznacz zgodę.';
+
     public function __construct(
         private readonly LimitImportu $limit,
         private readonly ZapiszSzkicZImportu $zapiszSzkic,
@@ -65,6 +75,7 @@ final class ImportPrzepisuController extends Controller
         ]);
 
         $adres = trim($dane['adres']);
+        [$zgodaAi, $zgodaNieaktualna] = $this->zgodaNaWyslanieZrodla($request);
 
         $proba = null;
         try {
@@ -72,14 +83,14 @@ final class ImportPrzepisuController extends Controller
             if ($proba['istnieje']) {
                 return $this->powtorzonyImport($proba, 'adres');
             }
-            $strona = $odczyt->handle($adres, $request->user(), $request->boolean('zgoda_ai'), $proba['id']);
+            $strona = $odczyt->handle($adres, $request->user(), $zgodaAi, $proba['id']);
         } catch (ImportOdrzucony $e) {
             if (! in_array($e->kod, self::KODY_SZKICU_BEZ_TRESCI, true)) {
                 if ($proba !== null) {
                     $this->limit->zakoncz($proba['id'], false);
                 }
 
-                return back()->withInput()->withErrors(['adres' => $e->getMessage()]);
+                return back()->withInput()->withErrors(['adres' => $this->komunikatZgody($e, $zgodaNieaktualna)]);
             }
 
             $recipe = $this->zapiszSzkic->handle(
@@ -96,7 +107,7 @@ final class ImportPrzepisuController extends Controller
             $this->slad('url', 'bez_tresci', $e->kod);
 
             return redirect()->route('recipes.create', ['szkic' => $recipe->getKey()])
-                ->with('status', $e->getMessage());
+                ->with('status', $e->getMessage().($zgodaNieaktualna && $e->kod === ImportOdrzucony::BRAK_PRZEPISU ? self::DOPISEK_NIEAKTUALNEJ_ZGODY : ''));
         } catch (\Throwable $e) {
             if ($proba !== null) {
                 $this->limit->zakoncz($proba['id'], false);
@@ -157,6 +168,7 @@ final class ImportPrzepisuController extends Controller
 
         /** @var UploadedFile $plik */
         $plik = $request->file('plik');
+        [$zgodaAi, $zgodaNieaktualna] = $this->zgodaNaWyslanieZrodla($request);
 
         $proba = null;
         try {
@@ -164,13 +176,13 @@ final class ImportPrzepisuController extends Controller
             if ($proba['istnieje']) {
                 return $this->powtorzonyImport($proba, 'plik');
             }
-            $pdf = $odczyt->handle((string) $plik->getRealPath(), $request->user(), $request->boolean('zgoda_ai'), $proba['id']);
+            $pdf = $odczyt->handle((string) $plik->getRealPath(), $request->user(), $zgodaAi, $proba['id']);
         } catch (ImportOdrzucony $e) {
             if ($proba !== null) {
                 $this->limit->zakoncz($proba['id'], false);
             }
 
-            return back()->withErrors(['plik' => $e->getMessage()]);
+            return back()->withErrors(['plik' => $this->komunikatZgody($e, $zgodaNieaktualna)]);
         } catch (\Throwable $e) {
             if ($proba !== null) {
                 $this->limit->zakoncz($proba['id'], false);
@@ -289,6 +301,30 @@ final class ImportPrzepisuController extends Controller
         }
 
         return redirect()->route('import.show', $nowe);
+    }
+
+    /**
+     * Zgoda na wysłanie tekstu strony albo stron PDF do modelu (D-300 pkt 9,
+     * #2031) liczy się tylko wtedy, gdy formularz niesie AKTUALNĄ wersję
+     * informacji, którą człowiek widział przy zaznaczaniu pola. Formularz
+     * sprzed zmiany treści (albo bez pola wersji) nie wysyła niczego do modelu.
+     *
+     * @return array{0: bool, 1: bool} [zgoda do przekazania dalej, zaznaczona przy nieaktualnej informacji]
+     */
+    private function zgodaNaWyslanieZrodla(Request $request): array
+    {
+        $zaznaczona = $request->boolean('zgoda_ai');
+        $aktualna = InformacjaTekstuZrodlaAi::aktualna($request->input(InformacjaTekstuZrodlaAi::POLE));
+
+        return [$zaznaczona && $aktualna, $zaznaczona && ! $aktualna];
+    }
+
+    /** Komunikat odmowy; przy zgodzie z nieaktualnej informacji mówi, co zrobić, zamiast „wybierz zgodę”. */
+    private function komunikatZgody(ImportOdrzucony $e, bool $zgodaNieaktualna): string
+    {
+        return $zgodaNieaktualna && $e->kod === ImportOdrzucony::BRAK_ZGODY_AI
+            ? (new ImportOdrzucony(ImportOdrzucony::ZGODA_AI_NIEAKTUALNA))->getMessage()
+            : $e->getMessage();
     }
 
     /** Ślad w dzienniku bez adresu i bez treści — tylko rodzaj, droga i kod. */
