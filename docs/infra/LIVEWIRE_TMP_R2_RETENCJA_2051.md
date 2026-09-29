@@ -28,6 +28,13 @@ zapisuje je **zanim** zobaczy je `StoreUploadedImage`:
 - treść: **surowe bajty z telefonu**, z EXIF-em i GPS-em. `UsunGps` działa
   dopiero w `StoreUploadedImage`, na lokalnej kopii.
 
+To jedyne miejsce, w którym Livewire przyjmuje plik (#2178): tylko
+`recipe-wizard.blade.php` używa `WithFileUploads` — zdjęcie gotowego dania
+i zdjęcia kroków, oba przez `StoreUploadedImage`. Wpis, pytanie, „Ugotowałem”,
+avatar, import i zwykły formularz przepisu to zwykłe żądania `multipart`
+(`<input name="…">` bez `wire:model`): plik ląduje w katalogu tymczasowym PHP
+i nie dotyka `livewire-tmp/`.
+
 Dysk `r2` nie ma `root` (`config/filesystems.php`), więc prefiks w buckecie
 to dokładnie katalog Livewire. Test wyżej pilnuje także tego.
 
