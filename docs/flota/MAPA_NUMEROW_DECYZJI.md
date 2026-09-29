@@ -14,6 +14,42 @@ trzeba wziąć numer WYŁĄCZNIE z pozycji nagłówka, nie każdy numer wspomnia
 w tej samej linii tytułu (np. odsyłacz „... + D-224 ...” w tytule D-225).
 Bez tej dodatkowej poprawki narzędzie zgłosiłoby fałszywą kolizję D-224.
 
+## Procedura nadawania numeru (obowiązuje od #2154; reszta pliku to migawka z 21.09)
+
+Ta sekcja jest jedynym miejscem, do którego odsyła dziennik, gdy mówi o „regule
+numeracji" (D-239, D-242). Nie ma osobnej decyzji z takim numerem — nagłówka
+D-235 nie było i nie będzie.
+
+1. **Kto nadaje.** Numer nadaje autor zmiany, nie koordynator „przy scalaniu".
+   Na `main` nie ma numerów roboczych: nagłówek `## D-NNN` ma trzy cyfry i nie ma
+   dopisku `ROBOCZA`, a `DziennikDecyzjiOdwolaniaTest` obleje numer
+   czterocyfrowy i każdy z dopiskiem ROBOCZA.
+2. **Kiedy.** W chwili, gdy zmiana z nową decyzją jest gotowa do pushu — nie
+   przy pierwszym szkicu. Numer to **pierwszy wolny** względem `origin/main` i
+   WSZYSTKICH gałęzi `origin` (nie tylko `main`): sprawdź nagłówki `## D-` w
+   `git show origin/<gałąź>:docs/DECISIONS.md` oraz pliki `docs/decyzje/D-*.md`
+   (gdy dziennik jest podzielony na pliki). Ponownie przed pushem, po
+   `git fetch`.
+3. **Kolizja dwóch gałęzi na jednym numerze.** Ustępuje ta, której numeru nie ma
+   jeszcze na `main`. Gałąź, która już scaliła numer do `main`, nigdy nie jest
+   przenumerowywana. Gdy żadna nie jest na `main`, ustępuje ta, która wypchnęła
+   numer później (czas pierwszego pusha, nie czas commita). Cudzej gałęzi nie
+   przenumerowujemy — ustępujący sam bierze następny wolny numer.
+4. **Przenumerowanie w jednej zmianie.** Nagłówek, wszystkie odwołania (kod,
+   testy, `docs/`, `CHANGELOG.md`, `AGENTS.md`) i proza odsyłająca („patrz
+   D-NNN", zob. „Pułapka odsyłacza" w `KOLEJNOSC_SCALANIA.md` §2) poprawiasz
+   razem, w jednym commicie. Samo `grep -rn 'D-NNN'` po repozytorium wystarcza.
+5. **Luki.** Numeru „spalonego" (przenumerowanego, porzuconego) nie
+   odzyskujemy i nie zapełniamy wymyśloną decyzją. Dziennik może wspomnieć, że
+   numeru brak, tylko przez wpis w `LUKI_HISTORYCZNE_W_DZIENNIKU`
+   (`tests/Feature/DziennikDecyzjiOdwolaniaTest.php`) z powodem.
+6. **Kto pilnuje.** `DziennikDecyzjiOdwolaniaTest` czyta treść repozytorium, nie
+   listę numerów: każde `D-NNN` w kodzie, dzienniku, `AGENTS.md`, `CHANGELOG.md`
+   i żywej dokumentacji ma mieć nagłówek. PR, który dopisuje decyzję wraz z
+   odwołaniami, nie musi go zmieniać.
+
+---
+
 ## 1. Numery zajęte na `main` (stan wyjściowy)
 
 D-204 … D-222, D-224. **D-223 to celowa dziura** — zarezerwowana dla rodziny
