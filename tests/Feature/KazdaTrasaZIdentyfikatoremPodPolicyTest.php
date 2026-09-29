@@ -887,6 +887,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('cooking.sync.wylacz', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooking.sync.postep', 'odczyt rewizji postępu prywatnego przepisu', 'get',
             route('cooking.sync.postep', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        // Etap 2 (#2016): składniki „przygotowane” i porcje — ta sama zasada.
+        $dodaj('cooking.sync.skladniki', 'zapis przygotowanych składników prywatnego przepisu', 'post',
+            route('cooking.sync.skladniki', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        $dodaj('cooking.sync.porcje', 'zapis liczby porcji prywatnego przepisu', 'post',
+            route('cooking.sync.porcje', $przepisPrywatny), ['wybor' => '6'], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.create', 'formularz „Ugotowałem" przy prywatnym przepisie', 'get',
             route('cooked.create', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.store', 'zapis „Ugotowałem" przy prywatnym przepisie', 'post',

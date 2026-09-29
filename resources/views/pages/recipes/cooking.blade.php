@@ -91,7 +91,16 @@
             która udawałaby, że coś zapamięta (D-053: żadnego martwego
             przycisku). Sekcja nadal startuje zwinięta.
         --}}
-        <details class="cook-ingredients" data-przygotowanie="{{ $recipe->getKey() }}">
+        {{--
+            ETAP 2 SYNCHRONIZACJI (#2016): gdy osoba włączyła zapamiętywanie na
+            koncie, checklista jest ZWYKŁYM FORMULARZEM (`zapiszSkladniki`) ze
+            stanem z serwera, więc działa bez JavaScriptu; skrypt
+            `skladniki-gotowania.js` jej wtedy nie rusza (brak `data-przygotowanie`).
+            Bez synchronizacji zostaje jak dotąd — pamięć tej karty.
+        --}}
+        @php($skladnikiNaKoncie = $synchronizacja['wlaczona'])
+        @php($przygotowane = $synchronizacja['przygotowane'])
+        <details class="cook-ingredients" @unless($skladnikiNaKoncie) data-przygotowanie="{{ $recipe->getKey() }}" @endunless @if($skladnikiNaKoncie && session('skladniki_otwarte')) open @endif>
             <summary>Składniki ({{ $recipe->ingredients->count() }})<span class="cook-przygotowanie-skrot" data-przygotowanie-podsumowanie hidden></span></summary>
             @if($wyborPorcji->przeliczone())
                 <p class="meta">Przeliczone {{ \App\Domain\Recipes\Porcje\WyborPorcji::naIle($wyborPorcji->wybrane) }}. Autor podał ilości {{ \App\Domain\Recipes\Porcje\WyborPorcji::naIle($wyborPorcji->zPrzepisu) }}.</p>
@@ -99,7 +108,17 @@
             @if($recipe->ingredients->isEmpty())
                 <p class="meta">Autor jeszcze nie dodał składników.</p>
             @else
-                <p class="cook-przygotowanie-wstep" data-przygotowanie-wstep hidden>Możesz zaznaczyć składniki, które już masz odmierzone. Zaznaczenie zostaje w tej karcie przeglądarki, także po przejściu do innego kroku.</p>
+                @if($skladnikiNaKoncie)
+                    <p class="cook-przygotowanie-wstep">Zaznacz składniki, które już masz odmierzone, i kliknij „Zapisz zaznaczenie składników”. Zaznaczenie zapamiętamy na Twoim koncie, więc zobaczysz je na innych urządzeniach.</p>
+                    <form method="POST" action="{{ route('cooking.sync.skladniki', $recipe->slug) }}" class="stack">
+                        @csrf
+                        @if($parametrPorcji !== null)<input type="hidden" name="porcje" value="{{ $parametrPorcji }}">@endif
+                        <input type="hidden" name="krok" value="{{ $krok }}">
+                        <input type="hidden" name="rewizja" value="{{ $synchronizacja['rewizja'] }}">
+                        @foreach($przygotowane as $idPrzygotowanego)<input type="hidden" name="bylo[]" value="{{ $idPrzygotowanego }}">@endforeach
+                @else
+                    <p class="cook-przygotowanie-wstep" data-przygotowanie-wstep hidden>Możesz zaznaczyć składniki, które już masz odmierzone. Zaznaczenie zostaje w tej karcie przeglądarki, także po przejściu do innego kroku.</p>
+                @endif
                 {{--
                     GRUPY SKŁADNIKÓW I „DO SMAKU" (issue #764).
                     Ta lista pokazywała składniki płaską, jedną pętlą po
@@ -123,12 +142,13 @@
                     <ul class="ingredient-list">
                         @foreach($grupaSkladnikow['skladniki'] as $ingredient)
                             @php($przeliczony = $wyborPorcji->przelicz($ingredient))
-                            <li data-skladnik="{{ $ingredient->getKey() }}">
+                            @php($przygotowany = $skladnikiNaKoncie && in_array((string) $ingredient->getKey(), $przygotowane, true))
+                            <li data-skladnik="{{ $ingredient->getKey() }}" @class(['cook-skladnik-przygotowany' => $przygotowany])>
                                 {{-- Etykieta obejmuje cały wiersz — pole, treść,
                                      notatkę i zamiennik — więc cel dotyku to cała
                                      linia składnika, nie sam kwadracik. --}}
                                 <label class="cook-skladnik">
-                                <input type="checkbox" class="cook-skladnik-pole" data-przygotowanie-pole hidden>
+                                <input type="checkbox" class="cook-skladnik-pole" data-przygotowanie-pole @if($skladnikiNaKoncie) name="zaznaczone[]" value="{{ $ingredient->getKey() }}" @checked($przygotowany) @else hidden @endif>
                                 <span class="cook-skladnik-tresc">
                                 @if($przeliczony->zmieniony){{ $przeliczony->przed }}<strong class="skladnik-przeliczony">{{ $przeliczony->ilosc }}</strong>{{ $przeliczony->po }}@else{{ $ingredient->ingredient_text }}@endif
                                 {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
@@ -146,7 +166,7 @@
                                 {{-- Stan słowem, nie tylko znaczkiem pola i kolorem.
                                      `aria-hidden`: czytnik ekranu dostaje ten sam stan
                                      z pola („zaznaczone”), bez powtórzenia. --}}
-                                <span class="cook-skladnik-stan" data-przygotowanie-stan aria-hidden="true" hidden>Przygotowane</span>
+                                <span class="cook-skladnik-stan" data-przygotowanie-stan aria-hidden="true" @unless($przygotowany) hidden @endunless>Przygotowane</span>
                                 </label>
                             </li>
                         @endforeach
@@ -155,10 +175,16 @@
                 {{-- Wyczyszczenie dotyczy WYŁĄCZNIE tej checklisty: to zwykły
                      przycisk skryptu, nie formularz, więc nie dotyka odhaczeń
                      kroków w sesji (te kasuje tylko „Zacznij od początku”). --}}
+                @if($skladnikiNaKoncie)
+                        <p class="cook-przygotowanie-licznik">Zapisane na koncie: {{ count($przygotowane) }} z {{ $recipe->ingredients->count() }}. Odznacz pole i zapisz, żeby usunąć składnik z listy przygotowanych.</p>
+                        <button type="submit" class="btn btn-secondary">Zapisz zaznaczenie składników</button>
+                    </form>
+                @else
                 <div class="cook-przygotowanie-akcje" data-przygotowanie-akcje hidden>
                     <p class="cook-przygotowanie-licznik" data-przygotowanie-licznik aria-live="polite"></p>
                     <button type="button" class="btn btn-secondary cook-przygotowanie-wyczysc" data-przygotowanie-wyczysc hidden>Wyczyść zaznaczenie składników</button>
                 </div>
+                @endif
             @endif
         </details>
 
@@ -311,7 +337,17 @@
         --}}
         @if($synchronizacja['wlaczona'])
             <section class="cook-sync stack" aria-label="Zapamiętywanie postępu na koncie">
-                <p class="m-0">Postęp tego przepisu jest zapamiętywany na Twoim koncie i widać go na innych urządzeniach. Zapis wygasa po {{ $synchronizacja['godziny'] }} godzinach od ostatniej zmiany (teraz: do {{ \App\Support\Czas::data($synchronizacja['wygasa'], 'j F, H:i') }}).</p>
+                <p class="m-0">Postęp tego przepisu — odhaczone kroki, składniki „przygotowane” i wybrana liczba porcji — jest zapamiętywany na Twoim koncie i widać go na innych urządzeniach. Minutniki zostają w tej przeglądarce. Zapis wygasa po {{ $synchronizacja['godziny'] }} godzinach od ostatniej zmiany (teraz: do {{ \App\Support\Czas::data($synchronizacja['wygasa'], 'j F, H:i') }}).</p>
+                @if($wyborPorcji->dostepny())
+                    <form method="POST" action="{{ route('cooking.sync.porcje', $recipe->slug) }}" class="stack">
+                        @csrf
+                        <input type="hidden" name="krok" value="{{ $krok }}">
+                        <p class="m-0">Liczba porcji: {{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta((float) $wyborPorcji->wybrane) }}.</p>
+                        @if($wyborPorcji->mniej() !== null)<button type="submit" name="wybor" value="{{ $wyborPorcji->mniej() }}" class="btn btn-secondary">Mniej porcji</button>@endif
+                        @if($wyborPorcji->wiecej() !== null)<button type="submit" name="wybor" value="{{ $wyborPorcji->wiecej() }}" class="btn btn-secondary">Więcej porcji</button>@endif
+                        @if($wyborPorcji->przeliczone())<button type="submit" name="wybor" value="przepis" class="btn btn-secondary">Porcje z przepisu</button>@endif
+                    </form>
+                @endif
                 <form method="POST" action="{{ route('cooking.sync.wylacz', $recipe->slug) }}">
                     @csrf
                     @if($parametrPorcji !== null)<input type="hidden" name="porcje" value="{{ $parametrPorcji }}">@endif
