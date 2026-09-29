@@ -58,6 +58,18 @@ samą liczbę kalorii podajemy teraz także w danych, które czytają wyszukiwar
 Robimy to tylko wtedy, gdy liczba naprawdę jest na stronie: autor nie ukrył
 sekcji, znamy skład co najmniej 90% składników i autor podał liczbę porcji.
 Gdy któregoś z tych warunków brakuje, wyszukiwarkom też nic nie podajemy.
+### Zobaczcie, co autor zmienił w przepisie
+
+Gdy przepis był poprawiany i ma co najmniej dwie zapisane wersje, pod nim
+pojawia się przycisk „Historia zmian”. Znajdziecie tam listę wersji z datami,
+możecie obejrzeć każdą z nich osobno i sprawdzić, co zmieniło się względem
+poprzedniej. Zmiany są opisane słowami: „Dodano”, „Usunięto” albo „Zmieniono”,
+a przy zmienionych składnikach i krokach widać, jak było i jak jest. To pomaga,
+gdy wracacie do zapisanego albo wydrukowanego przepisu i chcecie wiedzieć, czy
+zmieniły się proporcje lub sposób przygotowania. Historia pokazuje tekst i dane
+przepisu, bez zdjęć, i widzi ją każdy, kto widzi sam przepis — nic ponadto. Jeśli
+starsza wersja nie zapisała jakiegoś pola, piszemy o tym wprost, zamiast
+zgadywać.
 
 ### Wczytajcie z powrotem własną paczkę z danymi
 

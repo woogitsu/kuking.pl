@@ -20,6 +20,7 @@ use App\Models\Notification;
 use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\Tag;
 use App\Models\TagHighlight;
@@ -487,6 +488,16 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $przepis = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
         $przepisPrywatny = Recipe::factory()->create(['author_id' => $wlasciciel->getKey(), 'visibility' => 'private']);
         $przepisDoKasacji = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
+        // Historia wersji (#2024) idzie tą samą bramką co przepis: dwie wersje,
+        // żeby ekran porównania miał z czym porównywać.
+        foreach ([1, 2] as $numerWersji) {
+            RecipeVersion::create([
+                'recipe_id' => $przepisPrywatny->getKey(),
+                'editor_id' => $wlasciciel->getKey(),
+                'version_number' => $numerWersji,
+                'snapshot' => ['title' => 'Wersja '.$numerWersji],
+            ]);
+        }
 
         $wykonanie = CookedEvent::factory()->create([
             'user_id' => $wlasciciel->getKey(),
@@ -822,6 +833,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // ─── PRZEPISY ────────────────────────────────────────────────────
         $dodaj('recipes.show', 'przepis prywatny', 'get',
             route('recipes.show', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.history', 'historia zmian prywatnego przepisu', 'get',
+            route('recipes.history', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.history.version', 'wersja prywatnego przepisu', 'get',
+            route('recipes.history.version', [$przepisPrywatny, 2]), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.history.changes', 'porównanie wersji prywatnego przepisu', 'get',
+            route('recipes.history.changes', [$przepisPrywatny, 2]), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.edit', 'edycja przepisu', 'get',
             route('recipes.edit', $przepis), [], [$W, $O, $O, $O, $O]);
         // Zlecenie odczytu zdjęcia kartki (V2, D-298) — prywatny szkic ze
