@@ -12,7 +12,7 @@
         Wersje są publiczne tak samo jak przepis: widzi je każdy, kto widzi przepis. Zapisana
         wersja zachowuje treść z chwili zapisu, także tę, którą autor usunął później.
         Pojedynczej wersji nie da się usunąć samemu. Autor może usunąć cały przepis
-        (razem z nim znika historia) albo <a href="{{ route('kontakt') }}">napisać do nas</a>.
+        (razem z nim historia znika z serwisu) albo <a href="{{ route('kontakt') }}">napisać do nas</a>.
     </p>
 
     <ol class="historia-lista list-none p-0" aria-label="Wersje przepisu">
