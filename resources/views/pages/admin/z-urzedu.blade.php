@@ -18,6 +18,10 @@
     zostaje odsunięty kreską `.danger-zone` razem ze zdaniem o skutku —
     teraz wewnątrz panelu, pod polami — a zwykłe „Wróć do treści” stoi
     poza panelem, niżej (AGENTS.md §5: akcja destrukcyjna odsunięta).
+    Zdania o skutku (komentarz wraca po wygranym odwołaniu; treść znika od
+    razu) to informacja, od której zależy decyzja, więc są w `.panel-liczby`
+    (pismo podstawowe, rośnie ze skalą tekstu), nie w `.meta` 16 px. Miernik
+    przeglądarkowy panelu (rodzina `z-urzedu`) sprawdza to na komentarzu.
 --}}
 <x-layout :title="'Zdejmij z urzędu: '.$opis->nazwa.' — Panel moderacji'" :noindex="true">
     <x-panel-moderacji ekran="Zdejmij z urzędu" />
@@ -42,7 +46,7 @@
             i będzie mógł się odwołać tak samo jak od decyzji ze zgłoszenia.
         </p>
         @if($typ === 'comment')
-            <p class="meta">
+            <p class="panel-liczby">
                 Komentarz zniknie tak samo jak po decyzji „Usuń” ze zgłoszenia.
                 Jeśli autor wygra odwołanie, komentarz wróci na swoje miejsce.
             </p>
@@ -78,7 +82,7 @@
                      help="Nieobowiązkowa. Widzi ją tylko moderacja." />
 
             <div class="danger-zone">
-                <p class="meta">Treść zniknie z serwisu od razu. Wróci, jeśli autor się odwoła i przyznamy mu rację.</p>
+                <p class="panel-liczby">Treść zniknie z serwisu od razu. Wróci, jeśli autor się odwoła i przyznamy mu rację.</p>
                 <button class="btn btn-danger" type="submit">Zdejmij tę treść</button>
             </div>
         </form>
