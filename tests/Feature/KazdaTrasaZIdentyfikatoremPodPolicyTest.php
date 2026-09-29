@@ -20,6 +20,7 @@ use App\Models\Notification;
 use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\Tag;
 use App\Models\TagHighlight;
@@ -487,6 +488,16 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $przepis = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
         $przepisPrywatny = Recipe::factory()->create(['author_id' => $wlasciciel->getKey(), 'visibility' => 'private']);
         $przepisDoKasacji = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
+        // Historia wersji (#2024) idzie tą samą bramką co przepis: dwie wersje,
+        // żeby ekran porównania miał z czym porównywać.
+        foreach ([1, 2] as $numerWersji) {
+            RecipeVersion::create([
+                'recipe_id' => $przepisPrywatny->getKey(),
+                'editor_id' => $wlasciciel->getKey(),
+                'version_number' => $numerWersji,
+                'snapshot' => ['title' => 'Wersja '.$numerWersji],
+            ]);
+        }
 
         $wykonanie = CookedEvent::factory()->create([
             'user_id' => $wlasciciel->getKey(),
@@ -822,6 +833,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // ─── PRZEPISY ────────────────────────────────────────────────────
         $dodaj('recipes.show', 'przepis prywatny', 'get',
             route('recipes.show', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.history', 'historia zmian prywatnego przepisu', 'get',
+            route('recipes.history', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.history.version', 'wersja prywatnego przepisu', 'get',
+            route('recipes.history.version', [$przepisPrywatny, 2]), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.history.changes', 'porównanie wersji prywatnego przepisu', 'get',
+            route('recipes.history.changes', [$przepisPrywatny, 2]), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.edit', 'edycja przepisu', 'get',
             route('recipes.edit', $przepis), [], [$W, $O, $O, $O, $O]);
         // Zlecenie odczytu zdjęcia kartki (V2, D-298) — prywatny szkic ze
@@ -862,6 +879,14 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('cooking.zaznacz', $przepisPrywatny), ['krok' => 1, 'stan' => '1'], [$W, $O, $O, $O, $O]);
         $dodaj('cooking.restart', 'reset odhaczeń prywatnego przepisu', 'post',
             route('cooking.restart', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        // Synchronizacja postępu (#2016): wiersz wybiera para „ta osoba + przepis”,
+        // więc identyfikatora wiersza w adresie nie ma; przepis prywatny zamyka wszystkie trzy.
+        $dodaj('cooking.sync.wlacz', 'włączenie zapamiętywania postępu prywatnego przepisu', 'post',
+            route('cooking.sync.wlacz', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        $dodaj('cooking.sync.wylacz', 'wyłączenie zapamiętywania postępu prywatnego przepisu', 'post',
+            route('cooking.sync.wylacz', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        $dodaj('cooking.sync.postep', 'odczyt rewizji postępu prywatnego przepisu', 'get',
+            route('cooking.sync.postep', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.create', 'formularz „Ugotowałem" przy prywatnym przepisie', 'get',
             route('cooked.create', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.store', 'zapis „Ugotowałem" przy prywatnym przepisie', 'post',

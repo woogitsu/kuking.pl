@@ -6071,6 +6071,49 @@ listy to dane wpisane przez ludzi; wymuszenie po zrobieniu kopii:
 `KUKING_ROLLBACK_KASUJE_SPIZARNIE=1`. Na świeżej bazie i w CI
 (`migrate:refresh`) przechodzi bez pytania.
 
+## cooking_progress — zapamiętany postęp gotowania (V2, #2016)
+
+Opcjonalna synchronizacja odhaczonych kroków trybu gotowania między
+urządzeniami jednego konta. Migracja `2026_09_29_170000_create_cooking_progress_table`.
+Obecność wiersza JEST zgodą osoby (włącza ją świadomie, osobno dla każdego
+przepisu; wyłączenie kasuje wiersz), więc nie ma flagi w `users`. Bez wiersza
+— i dla gości — postęp zostaje w sesji jak dotąd (`CookingModeController`).
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK, `DEFAULT gen_random_uuid()` | |
+| `user_id` | `uuid NOT NULL` → `users` (`ON DELETE CASCADE`) | właściciel; poza `$fillable` (model ma pusty `$fillable`, zmienia go tylko `PostepGotowania`) |
+| `recipe_id` | `uuid NOT NULL` → `recipes` (`ON DELETE CASCADE`) | przepis |
+| `done_step_ids` | `jsonb NOT NULL DEFAULT '[]'` | ID odhaczonych kroków (nie numery — #756); ID nieistniejących już kroków są odrzucane przy odczycie i wypadają przy zapisie |
+| `revision` | `integer NOT NULL DEFAULT 1` | rośnie o 1 przy każdej zmianie; drugie urządzenie po niej widzi, że stan zmienił się bez niego |
+| `expires_at` | `timestamptz NOT NULL` | ważność: `kuking.cooking_progress.retention_hours` (24 h) od OSTATNIEJ zmiany; wygasły wiersz jest dla serwisu nieistniejący |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+Ograniczenia i indeksy:
+- `UNIQUE (user_id, recipe_id)` — jeden postęp na osobę i przepis (obsługuje też zapytania po `user_id`);
+- `cooking_progress_done_check`: `jsonb_typeof(done_step_ids) = 'array' AND jsonb_array_length(done_step_ids) <= 200`;
+- `cooking_progress_revision_check`: `revision >= 1`;
+- indeks po `expires_at` — nocne sprzątanie.
+
+Konflikt dwóch urządzeń: zapis to idempotentne USTAWIENIE jednego kroku pod
+blokadą wiersza (`SELECT … FOR UPDATE`), więc różne kroki nie gubią się
+nawzajem, a na ten sam wygrywa ostatni zapis; formularz niesie rewizję, którą
+widział, i przy rozbieżności osoba dostaje komunikat.
+
+Prywatność: widoczne wyłącznie dla właściciela (`CookingProgressPolicy`),
+każde wejście przechodzi też przez `RecipePolicy::view`. Paczka danych ma
+sekcję `postep_gotowania` (tytuł przepisu tylko przy przepisie widocznym dla
+osoby), `EraseAccountData` kasuje wiersze jawnie (konta się anonimizuje).
+Retencja: `kuking:sprzataj-postep-gotowania`, codziennie o 03:00.
+
+**Rollback.** `down()` usuwa tabelę. Przy choć jednym NIEWYGASŁYM wierszu
+**odmawia** (D-088) — to dane wpisane przez ludzi w trakcie gotowania;
+na pustej tabeli, przy samych wygasłych wierszach i w CI (`migrate:refresh`)
+przechodzi bez pytania. Wymuszenie po kopii tabeli:
+`KUKING_ROLLBACK_KASUJE_POSTEP_GOTOWANIA=1` (albo wcześniej
+`php artisan kuking:sprzataj-postep-gotowania --wszystkie`). Test:
+`CofniecieMigracjiNieKasujePostepuGotowaniaTest`.
+
 ## V1 / V2
 
 Później:

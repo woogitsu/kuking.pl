@@ -606,6 +606,24 @@ trafi tam pierwszy rekord.
 - **Wyłączenie bez zmiany kodu:** pusty `OPENAI_IMPORT_KEY` (model),
   `KUKING_IMPORT_URL=false`, `KUKING_IMPORT_PDF=false` (D-300).
 
+### 3.24 Zapamiętany postęp gotowania między urządzeniami (V2, issue #2016)
+
+- **Cel:** dokończenie gotowania na innym urządzeniu tego samego konta.
+- **Dane:** identyfikator konta i przepisu, lista identyfikatorów odhaczonych
+  kroków, numer rewizji, daty ostatniej zmiany i wygaśnięcia
+  (`cooking_progress`). Tylko na świadome włączenie przez osobę, osobno dla
+  każdego przepisu; domyślnie (i dla gości) postęp zostaje w sesji przeglądarki.
+- **Podstawa:** art. 6 ust. 1 lit. a RODO (osoba włącza funkcję sama) —
+  **do potwierdzenia przez prawnika**.
+- **Odbiorcy:** Railway. Dane widzi wyłącznie właściciel
+  (`CookingProgressPolicy`); nic nie jest wysyłane do podmiotów trzecich.
+- **Termin usunięcia:** 24 godziny od ostatniej zmiany
+  (`kuking.cooking_progress.retention_hours`; wygasły wiersz jest ignorowany
+  przy odczycie, a `kuking:sprzataj-postep-gotowania` kasuje go co noc o 03:00),
+  wyłączenie funkcji przez osobę albo wymazanie konta (`EraseAccountData`).
+- **Eksport:** `postep_gotowania` (przepis, numery odhaczonych kroków, daty;
+  tytuł przepisu tylko gdy jest dziś widoczny dla osoby).
+
 ---
 
 ## 4. Kategorie odbiorców (art. 30 ust. 1 lit. d)

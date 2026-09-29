@@ -546,6 +546,14 @@
                  a nie kimś, komu trzeba najpierw kazać się zarejestrować. --}}
             <x-podziel-sie :tresc="$recipe" />
 
+            {{-- „Historia zmian” tylko przy co najmniej dwóch zapisanych
+                 wersjach (issue #2024) — przy jednej nie ma czego porównać.
+                 Bramka w `HistoriaWersji::pokazacLink()`, ta sama co na
+                 ekranach historii. --}}
+            @if($historiaWersji)
+                <p class="m-0"><a class="btn btn-secondary" href="{{ route('recipes.history', $recipe->slug) }}">Historia zmian</a></p>
+            @endif
+
             {{-- „Skąd ten przepis” stoi PRZED składnikami. To jest decyzja
                  produktowa, nie kolejność przypadkowa. --}}
             @if($recipe->source_note || $recipe->source_person)

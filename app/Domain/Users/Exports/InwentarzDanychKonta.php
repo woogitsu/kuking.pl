@@ -69,6 +69,7 @@ final class InwentarzDanychKonta
         'blocks.blocker_id' => [self::EKSPORT, 'zablokowane_osoby'],
         'tag_follows.user_id' => [self::EKSPORT, 'obserwowane_tagi'],
         'pantry_items.user_id' => [self::EKSPORT, 'co_mam_w_domu'],
+        'cooking_progress.user_id' => [self::EKSPORT, 'postep_gotowania'],
         'hides.user_id' => [self::EKSPORT, 'ukryte'],
         'post_reactions.user_id' => [self::EKSPORT, 'moje_reakcje'],
         'notifications.user_id' => [self::EKSPORT, 'powiadomienia'],

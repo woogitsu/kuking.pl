@@ -59,6 +59,7 @@
 @import "./wydruk-przepisu.css";
 /* Szacunkowe wartości odżywcze pod składnikami przepisu (D-299). */
 @import "./wartosci-odzywcze.css";
+@import "./historia-wersji.css";
 
 @layer components {
 
@@ -5197,6 +5198,21 @@
 .cook-zaznacz {
     display: inline-block;
     width: 100%;
+}
+
+/* Zapamiętywanie postępu na koncie (#2016). Zwykły blok z tekstem i przyciskiem
+   (cel dotyku >= 48 px daje `.btn`); pas zmiany z innego urządzenia jest ukryty
+   atrybutem `hidden`, który odkrywa tylko skrypt. */
+.cook-sync,
+.cook-sync-zmiana {
+    padding: var(--spacing-4);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--text-body);
+}
+
+.cook-sync-zmiana[hidden] {
+    display: none;
 }
 
 .cook-finish {

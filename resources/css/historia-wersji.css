@@ -1,0 +1,73 @@
+/* Historia i porównanie wersji przepisu (issue #2024).
+
+   Znaczenie niesie SŁOWO w treści („Dodano”, „Usunięto”, „Zmieniono”), a nie
+   kolor: kolor i grubość lewej krawędzi tylko je wzmacniają (WCAG 1.4.1).
+   Rozmiar tekstu zostaje domyślny (≥ 18 px) — tu go nie zmniejszamy. */
+.historia-wersja {
+  margin-bottom: var(--spacing-4);
+}
+
+.historia-wersja-naglowek {
+  margin-top: 0;
+}
+
+.historia-akcje {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+}
+
+.historia-dane-wiersz {
+  margin-bottom: var(--spacing-3);
+}
+
+.historia-dane dt {
+  font-weight: 700;
+}
+
+.historia-dane dd {
+  margin: 0;
+}
+
+.historia-zmiana {
+  border-left: 6px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-sunken);
+  color: var(--color-ink);
+  padding: var(--spacing-3) var(--spacing-4);
+  margin-bottom: var(--spacing-3);
+}
+
+.historia-zmiana p {
+  margin: 0 0 var(--spacing-2);
+}
+
+.historia-zmiana p:last-child {
+  margin-bottom: 0;
+}
+
+.historia-zmiana-slowo {
+  font-weight: 700;
+}
+
+.historia-zmiana-dodano {
+  border-left-color: var(--color-success);
+  background-color: var(--color-success-tint);
+  color: var(--color-success-tint-ink);
+}
+
+.historia-zmiana-usunieto {
+  border-left-color: var(--color-danger);
+  background-color: var(--color-danger-tint);
+  color: var(--color-danger-tint-ink);
+}
+
+.historia-zmiana-usunieto .historia-przed,
+.historia-zmiana-zmieniono .historia-przed {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.historia-brak-zmian {
+  font-weight: 700;
+}

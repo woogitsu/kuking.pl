@@ -72,6 +72,32 @@ samą liczbę kalorii podajemy teraz także w danych, które czytają wyszukiwar
 Robimy to tylko wtedy, gdy liczba naprawdę jest na stronie: autor nie ukrył
 sekcji, znamy skład co najmniej 90% składników i autor podał liczbę porcji.
 Gdy któregoś z tych warunków brakuje, wyszukiwarkom też nic nie podajemy.
+### Zobaczcie, co autor zmienił w przepisie
+
+Gdy przepis był poprawiany i ma co najmniej dwie zapisane wersje, pod nim
+pojawia się przycisk „Historia zmian”. Znajdziecie tam listę wersji z datami,
+możecie obejrzeć każdą z nich osobno i sprawdzić, co zmieniło się względem
+poprzedniej. Zmiany są opisane słowami: „Dodano”, „Usunięto” albo „Zmieniono”,
+a przy zmienionych składnikach i krokach widać, jak było i jak jest. To pomaga,
+gdy wracacie do zapisanego albo wydrukowanego przepisu i chcecie wiedzieć, czy
+zmieniły się proporcje lub sposób przygotowania. Historia pokazuje tekst i dane
+przepisu, bez zdjęć, i widzi ją każdy, kto widzi sam przepis — nic ponadto. Jeśli
+starsza wersja nie zapisała jakiegoś pola, piszemy o tym wprost, zamiast
+zgadywać.
+### Zacznijcie gotować na telefonie, dokończcie na tablecie
+
+W trybie „Gotuję” jest nowy, całkiem opcjonalny przycisk „Zapamiętuj postęp na
+moim koncie” — widzą go tylko osoby zalogowane. Po jego kliknięciu odhaczone
+kroki tego przepisu czekają na Waszym koncie, więc po otwarciu tego samego
+przepisu na innym urządzeniu widzicie, dokąd doszliście. Jeśli niczego nie
+włączycie, wszystko działa jak dotąd: postęp zostaje tylko w tej przeglądarce.
+Zapamiętany postęp znika sam po 24 godzinach od ostatniej zmiany; możecie go też
+wyczyścić („Zacznij od początku”) albo w każdej chwili wyłączyć i usunąć z konta.
+Kiedy gotujecie na dwóch urządzeniach naraz, Kuking mówi, że postęp zmienił się
+gdzie indziej, i pokazuje aktualny stan. Zapamiętujemy tylko odhaczone kroki —
+zaznaczone składniki, porcje i minutniki zostają w przeglądarce. Postęp jest
+prywatny: widzicie go tylko Wy, trafia do paczki z Waszymi danymi i znika razem
+z kontem.
 
 ### Wczytajcie z powrotem własną paczkę z danymi
 

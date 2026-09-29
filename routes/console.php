@@ -306,6 +306,18 @@ Harmonogram::artisan('kuking:sprzataj-sesje')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 03:00 — wolny slot przed nocnym pasmem sprzątania (03:10 to pierwsze zadanie,
+// odstęp 10 minut pilnuje `HarmonogramBezWspolnychSlotowTest`).
+// Wygasły, zapamiętany na koncie postęp gotowania (#2016): ważny
+// `config('kuking.cooking_progress.retention_hours')` godzin od ostatniej
+// zmiany. Odczyt ignoruje wygasłe wiersze sam; to zadanie zabiera dane.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('kuking:sprzataj-postep-gotowania')
+    ->name('kuking:sprzataj-postep-gotowania')
+    ->dailyAt('03:00')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // 05:20 — dziesięć minut po sesjach, tak jak rozsunięta jest cała reszta tej
 // listy (uzasadnienie odstępów wyżej).
 // Retencja `failed_jobs`: 30 dni (720 godzin) od `failed_at` — decyzja

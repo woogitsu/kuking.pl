@@ -339,6 +339,17 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(PantryItem::class)->orderBy('name')->orderBy('id');
     }
 
+    /**
+     * Zapamiętany na koncie postęp gotowania (#2016) — po jednym wierszu
+     * na przepis, z którego osoba świadomie włączyła synchronizację.
+     *
+     * @return HasMany<CookingProgress, $this>
+     */
+    public function cookingProgress(): HasMany
+    {
+        return $this->hasMany(CookingProgress::class);
+    }
+
     public function isFollowingTag(Tag $tag): bool
     {
         return $this->followedTags()->whereKey($tag->getKey())->exists();
