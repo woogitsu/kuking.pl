@@ -58,6 +58,12 @@ final class InwentarzDanychKonta
         'cooked_events.user_id' => [self::EKSPORT, 'ugotowalem'],
         'comments.author_id' => [self::EKSPORT, 'moje_komentarze'],
         'collections.owner_id' => [self::EKSPORT, 'kolekcje'],
+        // Wspólny zeszyt (#1743, D-302). Pozycje dodane we WŁASNYM zeszycie
+        // są w `kolekcje` (z podpisem „dodane_przez"), w cudzym — tutaj.
+        'collection_members.user_id' => [self::EKSPORT, 'zeszyty_udostepnione_mi'],
+        'collection_items.added_by_id' => [self::EKSPORT, 'zeszyty_udostepnione_mi'],
+        'collection_invitations.inviter_id' => [self::EKSPORT, 'zaproszenia_do_zeszytow'],
+        'collection_invitations.invitee_id' => [self::EKSPORT, 'zaproszenia_do_zeszytow'],
         'follows.follower_id' => [self::EKSPORT, 'obserwuje'],
         'follows.followed_id' => [self::EKSPORT, 'obserwuja_mnie'],
         'blocks.blocker_id' => [self::EKSPORT, 'zablokowane_osoby'],

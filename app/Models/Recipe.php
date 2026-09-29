@@ -22,7 +22,7 @@ use Illuminate\Support\Carbon;
  * Kolumny tabeli pośredniej `collection_items` — są tylko wtedy, gdy przepis
  * wczytano przez `Collection::recipes()`:
  *
- * @property-read Pivot&object{note: string|null, created_at: string|null} $pivot
+ * @property-read Pivot&object{note: string|null, created_at: string|null, added_by_id: string|null} $pivot
  */
 class Recipe extends Model
 {

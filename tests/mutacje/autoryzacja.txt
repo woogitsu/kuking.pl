@@ -185,3 +185,27 @@ na: if (false) {
 oczekuj: wlasnego_zgloszenia|Failed asserting
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/ModeratorNieJestSedziaWeWlasnejSprawieTest.php
 ocena:
+---
+nazwa: zaproszenie do wspolnego zeszytu otwiera tylko adresat (UUID to nie autoryzacja)
+plik: app/Policies/CollectionInvitationPolicy.php
+zamien: return $invitation->invitee_id === $user->getKey()
+na: return $invitation->invitee_id !== $user->getKey()
+oczekuj: Failed asserting|404
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/WspolnyZeszytTest.php
+ocena: zabita — 4 testy oblewają (sprawdzone ręcznie przy integracji paczki D)
+---
+nazwa: wspolpracownik bez waznego dostepu nie wyjmuje pozycji z cudzego zeszytu
+plik: app/Policies/CollectionPolicy.php
+zamien: || $this->dostepWspolpracownika($user, $collection);
+na: || true;
+oczekuj: Failed asserting|403|404
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/WspolnyZeszytTest.php
+ocena: zabita — test_widocznosc_zeszytu_sie_nie_zmienia_a_obcy_nie_widzi_kto_ma_dostep (sprawdzone ręcznie przy integracji paczki D)
+---
+nazwa: ban wlascicielki zamyka dostep wspolpracownika do wspolnego zeszytu
+plik: app/Policies/CollectionPolicy.php
+zamien: if ($owner === null || ! $owner->mozeCzytac()) {
+na: if ($owner === null) {
+oczekuj: Failed asserting|403
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/WspolnyZeszytTest.php
+ocena: zabita — test_ban_i_usuwanie_konta_wlascicielki_zamykaja_dostep_a_powrot_go_przywraca (sprawdzone ręcznie przy integracji paczki D)

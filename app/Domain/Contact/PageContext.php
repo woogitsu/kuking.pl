@@ -31,6 +31,8 @@ final class PageContext
         'podsumowanie.wracam',
         'urodziny.wypisz',
         'appeals.reporter',
+        // Link-zaproszenie do wspólnego zeszytu niesie jednorazowy token (#1743).
+        'collections.link.show',
     ];
 
     /** Kontekst diagnostyczny nie jest miejscem na dane uwierzytelniające. */
