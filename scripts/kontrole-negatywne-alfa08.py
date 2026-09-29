@@ -22,14 +22,21 @@ W CI nic się nie zmienia — tam gate przepuszcza jak dotąd.
 import hashlib
 import os
 import subprocess
+import sys
 from pathlib import Path
 import tempfile
 
 from kontrola_wyjscia_testu import run_test
+from podzial_kontroli import parsuj_czesc, poza_petla_w_tej_czesci, wybierz_indeksy
 
 
 ROOT = Path(__file__).resolve().parent.parent
 os.chdir(ROOT)
+
+# CZĘŚCI CI. `--czesc N/M` uruchamia co M-ty wpis `checks` (indeks % M == N-1)
+# oraz, w części 3, elementy spoza pętli; bez argumentu (lokalnie) idzie całość.
+# Patrz scripts/podzial_kontroli.py i job `test` w .github/workflows/ci.yml.
+CZESC = parsuj_czesc(sys.argv[1:])
 
 
 def odmow(powod):
@@ -1013,7 +1020,7 @@ def podzial_gubi_plik(source):
 
 def macierz_krotsza_niz_podzial(source):
     """KONTROLA DODATNIA: macierz uruchamia trzy części, skrypt dzieli na cztery."""
-    return replace_once(source, "czesc: [1, 2, 3, 4, kontrole]", "czesc: [1, 2, 3, kontrole]")
+    return replace_once(source, "czesc: [1, 2, 3, 4]\n", "czesc: [1, 2, 3]\n")
 
 
 def widok_zawezany_poza_pr(source):
@@ -1610,19 +1617,27 @@ for label, filename, _test, mutate in checks:
 # Test czerwony jeszcze przed mutacją wyglądał wtedy w logu jak „mutacja wykryta”.
 # Teraz każdy test z `checks` idzie na zielono przed pierwszą mutacją, raz,
 # w kolejności z `checks` — nowy wpis nie ma czego zapomnieć.
-kontrole_dodatnie = list(dict.fromkeys(test for _label, _filename, test, _mutate in checks))
+# Podział na części CI: wpis o indeksie i należy do części i % M + 1. PREFLIGHT
+# wyżej sprawdził WSZYSTKIE kotwice w każdej części (jest tani), a poniżej idą
+# tylko wpisy wybranej części — każdy wpis w dokładnie jednej.
+wybrane = [checks[i] for i in wybierz_indeksy(len(checks), CZESC)]
+poza_petla = poza_petla_w_tej_czesci(CZESC)
+if CZESC is not None:
+    print(f"Część {CZESC[0]}/{CZESC[1]}: {len(wybrane)} z {len(checks)} wpisów `checks`"
+          f"{' oraz elementy spoza pętli' if poza_petla else ''}.", flush=True)
+kontrole_dodatnie = list(dict.fromkeys(test for _label, _filename, test, _mutate in wybrane))
 if not kontrole_dodatnie:
-    raise RuntimeError("Lista `checks` jest pusta — nie ma czego sprawdzać.")
+    raise RuntimeError("Wybrana część `checks` jest pusta — nie ma czego sprawdzać.")
 # JEDYNY test bez własnej mutacji, który ma iść na zielono przed pętlą: klasa
 # obejmująca oba testy metod z wpisów #1059 (GRUPA_LICZBA_TEST i
 # GRUPA_KOLEJNOSC_TEST). Nie jest to druga lista kontroli dodatnich — dopisuj
 # tu tylko test, którego nie da się wskazać wpisem w `checks`.
-KONTROLE_DODATNIE_BEZ_MUTACJI = [GRUPA_SYGNALOW_TEST]
+KONTROLE_DODATNIE_BEZ_MUTACJI = [GRUPA_SYGNALOW_TEST] if poza_petla else []
 for test in dict.fromkeys(kontrole_dodatnie + KONTROLE_DODATNIE_BEZ_MUTACJI):
     run_test(test, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
-    for label, filename, test, mutate in checks:
+    for label, filename, test, mutate in wybrane:
         path = ROOT / filename
         subprocess.run(["cp", str(path), str(backup)], check=True)
         before = digest(path)
@@ -1642,15 +1657,17 @@ with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
         run_test(test, True)
 # #2167: usunięcie wymaganego CSV ma zakończyć test porażką, nie skipem.
 # Robimy to osobno, bo kontrola usuwa plik zamiast podmieniać jego treść.
-miary = ROOT / "database/data/odzywcze/miary.csv"
-oryginal_miar = miary.read_bytes()
-try:
-    miary.unlink()
-    run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", False)
-finally:
-    miary.write_bytes(oryginal_miar)
-run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", True)
+# Element spoza pętli: w części CI tylko w części 3 (`poza_petla`).
+if poza_petla:
+    miary = ROOT / "database/data/odzywcze/miary.csv"
+    oryginal_miar = miary.read_bytes()
+    try:
+        miary.unlink()
+        run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", False)
+    finally:
+        miary.write_bytes(oryginal_miar)
+    run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", True)
 # Liczebnik bierzemy z `len(checks)`, nie z tekstu. Wcześniej stało tu wpisane
 # słowo „Pięć": po dodaniu szóstego wpisu CI nadal wypisywałoby „Pięć", a to
 # jedyne miejsce, z którego człowiek czyta wynik tego kroku.
-print(f"{len(checks)} kontroli negatywnych wykryło regresje; źródła przywrócone.")
+print(f"{len(wybrane)} kontroli negatywnych wykryło regresje; źródła przywrócone.")

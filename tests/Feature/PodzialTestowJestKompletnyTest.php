@@ -112,8 +112,20 @@ class PodzialTestowJestKompletnyTest extends TestCase
 
         $workflow = $this->workflow();
         $this->assertNotSame([], $this->naruszeniaWorkflow(
-            str_replace('czesc: [1, 2, 3, 4, kontrole]', 'czesc: [1, 2, 3, kontrole]', $workflow),
+            str_replace("czesc: [1, 2, 3, 4]\n", "czesc: [1, 2, 3]\n", $workflow),
         ), 'Przyrząd przepuścił macierz krótszą niż podział w skrypcie.');
+
+        $this->assertNotSame([], $this->naruszeniaWorkflow(
+            str_replace("          - czesc: kontrole\n            kontrole_czesc: 3\n", '', $workflow),
+        ), 'Przyrząd przepuścił macierz bez trzeciej części kontroli negatywnych — jej wpisy `checks` nie uruchomiłyby się nigdzie.');
+
+        $this->assertNotSame([], $this->naruszeniaWorkflow(
+            str_replace('kontrole-negatywne-alfa08.py --czesc "${{ matrix.kontrole_czesc }}/3"', 'kontrole-negatywne-alfa08.py --czesc "${{ matrix.kontrole_czesc }}/2"', $workflow),
+        ), 'Przyrząd przepuścił argument `--czesc N/2` przy trzech częściach kontroli w macierzy.');
+
+        $this->assertNotSame([], $this->naruszeniaWorkflow(
+            str_replace('kontrole-negatywne-alfa08.py --czesc "${{ matrix.kontrole_czesc }}/3"', 'kontrole-negatywne-alfa08.py', $workflow),
+        ), 'Przyrząd przepuścił kontrole negatywne uruchamiane bez podziału (każda część robiłaby całość).');
 
         $this->assertNotSame([], $this->naruszeniaWorkflow(
             str_replace('    name: '.self::WYMAGANY_CHECK."\n", "    name: Testy zbiorcze\n", $workflow),
@@ -193,15 +205,31 @@ class PodzialTestowJestKompletnyTest extends TestCase
         }
 
         $wpisy = array_map('trim', explode(',', $m[1]));
-        $numery = array_values(array_filter($wpisy, fn (string $wpis): bool => ctype_digit($wpis)));
+        $numery = $wpisy;
         $liczba = count($numery);
 
         if ($numery !== array_map('strval', range(1, max(1, $liczba))) || $liczba < 2) {
             $naruszenia[] = 'Numery części w macierzy nie są kolejnymi 1..N: '.$m[1];
         }
 
-        if (! in_array('kontrole', $wpisy, true)) {
-            $naruszenia[] = 'Macierz nie ma wpisu `kontrole` — odwracalność migracji i kontrole negatywne nie ruszą.';
+        // Kontrole negatywne: `include` z `czesc: kontrole` i `kontrole_czesc: 1..K`
+        // oraz wywołanie skryptu z `--czesc N/K` o tym samym K.
+        preg_match_all('/^          - czesc: kontrole\n            kontrole_czesc: (\d+)$/m', $test, $kontrole);
+        $czesciKontroli = array_map('intval', $kontrole[1]);
+        $liczbaKontroli = count($czesciKontroli);
+
+        if ($liczbaKontroli < 3 || $czesciKontroli !== range(1, $liczbaKontroli)) {
+            $naruszenia[] = 'Macierz nie ma kolejnych części kontroli negatywnych `kontrole_czesc: 1..N` (N >= 3) — '
+                .'odwracalność migracji i kontrole negatywne nie ruszą w całości.';
+        } elseif (preg_match('/kontrole-negatywne-alfa08\.py --czesc "\$\{\{ matrix\.kontrole_czesc \}\}\/(\d+)"/', $test, $argument) !== 1) {
+            $naruszenia[] = 'Krok kontroli negatywnych nie woła skryptu z `--czesc "${{ matrix.kontrole_czesc }}/N"`.';
+        } elseif ((int) $argument[1] !== $liczbaKontroli) {
+            $naruszenia[] = "Skrypt kontroli dzieli na {$argument[1]} części, a macierz uruchamia {$liczbaKontroli} — "
+                .'reszta wpisów `checks` nie uruchomi się nigdzie.';
+        }
+
+        if (! str_contains($test, "format('kontrole negatywne, część {0}/{$liczbaKontroli}', matrix.kontrole_czesc)")) {
+            $naruszenia[] = "Nazwa joba kontroli nie mówi „kontrole negatywne, część N/{$liczbaKontroli}\".";
         }
 
         if (preg_match('/^    timeout-minutes: (\d+)$/m', $test, $limit) !== 1 || (int) $limit[1] < 40) {

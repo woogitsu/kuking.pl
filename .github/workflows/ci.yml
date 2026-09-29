@@ -866,11 +866,16 @@ jobs:
   #  przebiegu, a runnerów jest 21. Macierz uruchamia:
   #    - `czesc: 1..4` — każda część plików testów na WŁASNYM Postgresie
   #      (usługa jest per job macierzy, więc części nie dzielą bazy);
-  #    - `czesc: kontrole` — odwracalność migracji i kontrole negatywne
-  #      (`scripts/kontrole-negatywne-alfa08.py`), czyli kroki, które szły
-  #      dotąd PRZED testami w tym samym jobie. To około stu przebiegów
-  #      `artisan test --filter`; w jednej z części wydłużałyby ją o tyle,
-  #      ile oszczędza podział.
+  #    - `czesc: kontrole` × `kontrole_czesc: 1..3` — kontrole negatywne
+  #      (`scripts/kontrole-negatywne-alfa08.py --czesc N/3`) w TRZECH
+  #      równoległych częściach, a w części 3 także odwracalność migracji.
+  #      To ponad dwieście przebiegów `artisan test --filter`: na main jedna
+  #      część trwała ok. 37 min, a na paczce C (208 wpisów) została
+  #      anulowana po 40 min po 153 kontrolach. Wpis `checks` o indeksie i
+  #      idzie do części `i % 3 + 1` (`scripts/podzial_kontroli.py`); preflight
+  #      kotwic sprawdza w każdej części WSZYSTKIE wpisy, a elementy spoza
+  #      pętli (miary.csv #2167, GRUPA_SYGNALOW_TEST) i odwracalność migracji
+  #      są jawnie w części 3. Bez `--czesc` (lokalnie) skrypt robi wszystko.
   #  Podział plików robi `scripts/podzial-testow.php`: deterministycznie,
   #  z listy `<testsuites>` w `phpunit.xml`, każdy plik w dokładnie jednej
   #  części. PHPUnit 12.5 nie ma `--shard`. Kompletności pilnuje sam skrypt
@@ -879,30 +884,43 @@ jobs:
   #
   #  Liczba części stoi w DWÓCH miejscach: w `matrix.czesc` i w wywołaniu
   #  skryptu w kroku „Testy". Ich zgodności pilnuje ten sam strażnik.
+  #  Liczba części kontroli negatywnych też stoi w dwóch miejscach: w
+  #  `matrix.include` (`kontrole_czesc: 1..3`) i w argumencie `--czesc N/3`
+  #  kroku kontroli. Pilnuje ich `PodzialTestowJestKompletnyTest`, a to, że
+  #  każdy wpis `checks` jest w dokładnie jednej części — `scripts/test_podzial_kontroli.py`.
   #
   #  WYMAGANY CHECK „Testy (PostgreSQL 18)" nosi teraz job zbiorczy `testy`
   #  niżej — ochrona gałęzi i `scripts/stan-ci.sh` szukają tej nazwy.
   # ===========================================================================
   test:
-    name: Testy (PostgreSQL 18) — ${{ matrix.czesc == 'kontrole' && 'kontrole negatywne i odwracalność migracji' || format('część {0}/4', matrix.czesc) }}
+    name: Testy (PostgreSQL 18) — ${{ matrix.czesc == 'kontrole' && format('kontrole negatywne, część {0}/3', matrix.kontrole_czesc) || format('część {0}/4', matrix.czesc) }}
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' || needs.zakres.outputs.dokumenty == 'true'
     runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     # 24.09.2026: pełny zestaw trwał 14 min na szybkich runnerach i do 24 min
     # na wolniejszych (i5-6500T, WSL), a przy 25 min przebiegi #1081 i #1464
     # zostały ucięte w trakcie zielonych testów — stąd było 40. Część ma
-    # ćwierć plików, ale część `kontrole` uruchamia również odwracalność
-    # migracji i kontrole negatywne. Na main 64dbdefd ta część została ucięta
-    # po 25 min w trakcie testów (run 36268510588), mimo że cztery zwykłe
-    # części przeszły. Przywracamy 40 min dla całej macierzy; job nadal ma
-    # twardą granicę czasu, a szybkie części nie zużyją dodatkowych minut.
+    # ćwierć plików, a każda z trzech części `kontrole` ma trzecią część
+    # kontroli negatywnych (część 3 także odwracalność migracji). Na main
+    # 64dbdefd jedna wspólna część kontroli została ucięta po 25 min
+    # (run 36268510588), a po podniesieniu do 40 min paczka C znów po 40 min
+    # (153 z 208 kontroli) — stąd podział na trzy części, nie samo podniesienie
+    # limitu. Limit 40 min zostaje jako twarda granica czasu.
     timeout-minutes: 40
     strategy:
       # Bez tego pierwsza czerwona część anulowałaby pozostałe i raport
       # pokazywałby jedną przyczynę zamiast wszystkich.
       fail-fast: false
       matrix:
-        czesc: [1, 2, 3, 4, kontrole]
+        czesc: [1, 2, 3, 4]
+        # Trzy równoległe części kontroli negatywnych (`--czesc N/3` niżej).
+        include:
+          - czesc: kontrole
+            kontrole_czesc: 1
+          - czesc: kontrole
+            kontrole_czesc: 2
+          - czesc: kontrole
+            kontrole_czesc: 3
 
     services:
       postgres:
@@ -1087,18 +1105,18 @@ jobs:
       # incydentu. `migrate:fresh` by tego nie wykrył, bo po prostu kasuje
       # wszystkie tabele, nie uruchamiając down().
       - name: Kontrola odwracalności migracji
-        if: matrix.czesc == 'kontrole'
+        if: matrix.czesc == 'kontrole' && matrix.kontrole_czesc == 3
         run: php artisan migrate:refresh --force --no-interaction
 
       # Skrypt najpierw sprawdza niezmienione źródła, po każdej mutacji
       # przywraca kopię i ponawia test. Pełny zestaw idzie w częściach 1–4.
       - name: Kontrola odczytu logu testów negatywnych
-        if: matrix.czesc == 'kontrole'
+        if: matrix.czesc == 'kontrole' && matrix.kontrole_czesc == 3
         run: python3 -m unittest discover -s scripts -p 'test_kontrola_wyjscia_testu.py' -v
 
       - name: Kontrole negatywne regresji Alfa 0.8 i portu marki
         if: matrix.czesc == 'kontrole'
-        run: python3 scripts/kontrole-negatywne-alfa08.py
+        run: python3 scripts/kontrole-negatywne-alfa08.py --czesc "${{ matrix.kontrole_czesc }}/3"
 
       # Pliki tej części jako argumenty `artisan test`: PHPUnit bierze wtedy
       # listę zamiast `<testsuites>`, ale resztę `phpunit.xml` (bootstrap,
