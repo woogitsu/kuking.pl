@@ -6694,10 +6694,16 @@ drugi czeka na zwolnienie blokady (koniec transakcji pierwszego) i dopiero
 wtedy liczy `MAX` na nowo. Test na dwóch prawdziwych połączeniach:
 `tests/Dwa/RejestracjaWdrozeniaNaDwochPolaczeniachTest.php`.
 
-**Kto zapisuje.** Komenda `kuking:zarejestruj-wdrozenie`, wpięta
-w `.railway/railway.ts` (`preDeployCommand`) zaraz po `php artisan migrate
---force` — patrz `docs/infra/DEPLOYMENT_RUNBOOK.md`. Lokalnie i w podglądach
-bez `RAILWAY_GIT_COMMIT_SHA` komenda kończy się bez błędu, nic nie zapisując.
+**Kto zapisuje.** Komenda `kuking:zarejestruj-wdrozenie --po-gotowosci`,
+uruchamiana w tle przez `docker/entrypoint.sh` (role `web` i `all`) DOPIERO,
+gdy lokalny `/health` nowego kontenera odpowie 2xx — NIE w `preDeployCommand`
+(ten kończy się przed seedem, importem i healthcheckiem, więc nieudany
+rollout zużywał numer; audyt z 28 września 2026, #1932). W tabeli są więc
+tylko wdrożenia, których kontener wstał. Kontener, który nie odpowie w limicie
+(domyślnie 300 s), nie zapisuje niczego — ani `wdrozenia`, ani
+`wdrozenia_funkcje`. Patrz `docs/infra/DEPLOYMENT_RUNBOOK.md`. Lokalnie
+i w podglądach bez `RAILWAY_GIT_COMMIT_SHA` komenda kończy się bez błędu,
+nic nie zapisując.
 
 **Kto czyta.** `App\Support\Wersja::numerWdrozenia()` — dla BIEŻĄCEGO
 commita, z cache'em (10 minut, klucz niesie commit), bo metoda woła się

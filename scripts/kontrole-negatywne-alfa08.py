@@ -1393,6 +1393,12 @@ checks = [
     # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
     ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
      lambda s: replace_once(s, "php /app/artisan event:clear  --no-interaction >/dev/null\n", "php /app/artisan event:clear  --no-interaction >/dev/null\nphp /app/artisan cache:clear --no-interaction >/dev/null 2>&1 || true\n")),
+    # Issue #1932 (audyt 28.09.2026): numer wdrożenia zapisuje nowy kontener
+    # PO gotowości, nie pre-deploy przed seedem i healthcheckiem.
+    ("Rejestracja wdrożenia wraca do preDeployCommand", ".railway/railway.ts", "RejestracjaWdrozeniaPoGotowosciTest",
+     lambda s: replace_once(s, '        "php artisan db:seed --force --no-interaction",\n', '        "php artisan kuking:zarejestruj-wdrozenie --no-interaction",\n        "php artisan db:seed --force --no-interaction",\n')),
+    ("Entrypoint rejestruje wdrożenie bez czekania na /health", "docker/entrypoint.sh", "RejestracjaWdrozeniaPoGotowosciTest",
+     lambda s: replace_once(s, "kuking:zarejestruj-wdrozenie --po-gotowosci --no-interaction", "kuking:zarejestruj-wdrozenie --no-interaction")),
     # Audyt B8-02: list z rezerwacją niesie znacznik, a rejestr klas jest
     # zamknięty w obie strony. Zgubiony znacznik = list policzony dwa razy.
     ("Alarm automatu bez znacznika rezerwacji", "app/Notifications/PilnyAlarmModeracyjny.php", "KazdyListLiczySieWPuliTest",

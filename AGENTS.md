@@ -427,8 +427,9 @@ refaktor, dokumentacja) go nie ruszają.
 
 KOŃCÓWKA (`.005` w „Alfa 0.68.005") jest INNĄ rzeczą i NIE dotykasz jej
 ręcznie nigdy — rośnie sama, o jeden, przy KAŻDYM wdrożeniu, licząc od
-dziennika w tabeli `wdrozenia` (`kuking:zarejestruj-wdrozenie`, wpięta
-w krok `preDeployCommand` obok `migrate`). Gdy podbijasz DUŻY numer, końcówka
+dziennika w tabeli `wdrozenia` (`kuking:zarejestruj-wdrozenie`, uruchamiana
+przez `docker/entrypoint.sh` po tym, jak nowy kontener przejdzie `/health` —
+nie w `preDeployCommand`, żeby nieudany rollout nie zużywał numeru). Gdy podbijasz DUŻY numer, końcówka
 WRACA DO `.001` SAMA — to jest nowa sekwencja liczona od nowa, nie ciąg
 dalszy poprzedniej, i nie ma tu nic do ustawienia ręcznie: pierwsze
 wdrożenie pod nową etykietą po prostu dostaje numer 1. Pełny mechanizm,

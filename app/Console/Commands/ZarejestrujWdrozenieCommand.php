@@ -6,7 +6,10 @@ namespace App\Console\Commands;
 
 use App\Domain\Wydania\Actions\ZarejestrujWdrozenie;
 use App\Logging\BezpiecznyBlad;
+use App\Support\ZaufaneHosty;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Sleep;
 use Throwable;
 
 /**
@@ -14,11 +17,20 @@ use Throwable;
  * `wdrozenia`, żeby stopka i strona „Co nowego" mogły pokazać numer z
  * końcówką, np. „Alfa 0.68.005".
  *
- * WPIĘTA W `.railway/railway.ts`, `preDeployCommand`, ZARAZ PO
- * `php artisan kuking:migruj-pod-blokada` — tam, gdzie dziś zaczyna się cała
- * automatyka wdrożenia (patrz komentarz w tym pliku przy `preDeployCommand`
- * i `docs/infra/DEPLOYMENT_RUNBOOK.md`). Musi iść PO migracjach: potrzebuje
- * tabeli `wdrozenia`, którą ta migracja dopiero zakłada.
+ * WOŁANA Z `docker/entrypoint.sh` (role `web` i `all`, funkcja
+ * `rejestruj_wdrozenie_po_gotowosci`), W TLE, Z OPCJĄ `--po-gotowosci` —
+ * NIE z `preDeployCommand` w `.railway/railway.ts`. Pre-deploy kończy się
+ * PRZED seedem-importem-healthcheckiem nowego kontenera, więc rejestracja
+ * tam zużywała numer i opisywała funkcje jako wydane także wtedy, gdy rollout
+ * padł (audyt z 28 września 2026, issue #1932). Z `--po-gotowosci` komenda
+ * najpierw czeka, aż lokalny `/health` TEGO kontenera odpowie 2xx (ten sam
+ * sprawdzian co healthcheck Railwaya), i dopiero wtedy zapisuje. Bez
+ * odpowiedzi w limicie kończy się błędem i NIC nie zapisuje — numer
+ * dostanie dopiero kontener, który naprawdę wstał. Bez opcji (ręczne
+ * wywołanie, testy) rejestruje od razu.
+ *
+ * Tabela `wdrozenia` istnieje wtedy na pewno: kontener startuje po
+ * pre-deploy z `kuking:migruj-pod-blokada`.
  *
  * LOKALNIE I W PODGLĄDACH BEZ `RAILWAY_GIT_COMMIT_SHA` (`--commit` też nie
  * podane) komenda kończy się NATYCHMIAST, z kodem 0 i jednym zdaniem —
@@ -38,7 +50,11 @@ final class ZarejestrujWdrozenieCommand extends Command
 {
     protected $signature = 'kuking:zarejestruj-wdrozenie
         {--commit= : Pełny SHA-1 gita — domyślnie zmienna RAILWAY_GIT_COMMIT_SHA}
-        {--etykieta= : Etykieta wersji — domyślnie kuking.wersja.etykieta}';
+        {--etykieta= : Etykieta wersji — domyślnie kuking.wersja.etykieta}
+        {--po-gotowosci : Najpierw poczekaj, aż lokalny /health tego kontenera odpowie 2xx}
+        {--adres= : Adres sprawdzianu gotowości — domyślnie http://127.0.0.1:$PORT/health}
+        {--limit=300 : Ile sekund czekać na gotowość (najwyżej, z zaokrągleniem do próby)}
+        {--odstep=3 : Przerwa między próbami, w sekundach}';
 
     protected $description = 'Dopisuje bieżące wdrożenie do dziennika `wdrozenia` (numer wersji z końcówką, issue #1932).';
 
@@ -53,6 +69,12 @@ final class ZarejestrujWdrozenieCommand extends Command
             return self::SUCCESS;
         }
 
+        if ($this->option('po-gotowosci') && ! $this->czekajNaGotowosc()) {
+            $this->error('Kontener nie odpowiedział na /health w limicie — wdrożenia NIE rejestruję (numer dostanie kontener, który naprawdę wstał).');
+
+            return self::FAILURE;
+        }
+
         try {
             $numer = $akcja->handle($commit, (string) $etykieta);
         } catch (Throwable $e) {
@@ -64,5 +86,35 @@ final class ZarejestrujWdrozenieCommand extends Command
         $this->info(sprintf('Wdrożenie zarejestrowane: %s.%03d (commit %s).', $etykieta, $numer, substr($commit, 0, 7)));
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Czeka na 2xx z `/health` TEGO kontenera. Liczy PRÓBY, nie zegar
+     * (`ceil(limit / odstęp)`), żeby test nie zależał od czasu; każda próba
+     * ma własny limit 5 s. Host `healthcheck.railway.app` jest na liście
+     * zaufanych (`ZaufaneHosty`), więc TrustHosts przepuszcza sondę tak samo
+     * jak Railway — nagłówek nie zależy od domeny środowiska.
+     */
+    private function czekajNaGotowosc(): bool
+    {
+        $adres = (string) ($this->option('adres') ?: 'http://127.0.0.1:'.(getenv('PORT') ?: 8080).'/health');
+        $odstep = max(1, (int) $this->option('odstep'));
+        $proby = max(1, (int) ceil(max(1, (int) $this->option('limit')) / $odstep));
+
+        for ($i = 1; $i <= $proby; $i++) {
+            try {
+                if (Http::withHeaders(['Host' => ZaufaneHosty::HEALTHCHECK_RAILWAY])->timeout(5)->get($adres)->successful()) {
+                    return true;
+                }
+            } catch (Throwable) {
+                // Serwer jeszcze nie słucha — normalny stan tuż po starcie.
+            }
+
+            if ($i < $proby) {
+                Sleep::for($odstep)->seconds();
+            }
+        }
+
+        return false;
     }
 }

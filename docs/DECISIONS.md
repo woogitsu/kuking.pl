@@ -20269,9 +20269,22 @@ z pamięci.
    `wdrozenia` (który commit pod jakim numerem) i `wdrozenia_funkcje`
    (pod jakim numerem pojawiła się każda funkcja z „Najnowsze zmiany") —
    opisane w `docs/DATABASE.md`.
-3. **Komenda w kroku wdrożenia**, tam gdzie dziś `migrate --force`:
-   `kuking:zarejestruj-wdrozenie`, wpięta w `.railway/railway.ts`
-   (`preDeployCommand`) zaraz PO migracjach. Jeśli bieżący
+3. **Komenda w kroku wdrożenia**: `kuking:zarejestruj-wdrozenie`.
+   **Dopisek 29 września 2026 (audyt z 28 września, #1932): NIE w
+   `preDeployCommand`, tylko po gotowości nowego kontenera.** Pierwsza wersja
+   wpięła ją w pre-deploy zaraz po migracjach, czyli przed seedem, importem
+   i healthcheckiem — nieudany rollout zużywał numer, a funkcje z „Najnowszych
+   zmian” dostawały trwały dopisek „od Alfa …” (globalnie unikalny
+   `naglowek_slug` nie pozwalał go poprawić następnym, udanym wdrożeniem).
+   Teraz `docker/entrypoint.sh` (role `web` i `all`) uruchamia w tle
+   `kuking:zarejestruj-wdrozenie --po-gotowosci`, które czeka na 2xx z
+   lokalnego `/health` (limit 300 s) i dopiero wtedy zapisuje; bez odpowiedzi
+   nie zapisuje nic. Zamiast stanu „w toku” w schemacie — bez migracji:
+   wiersz w `wdrozenia` znaczy „kontener wstał”. Nie opieramy się na
+   `deployment_status` z platformy kodu (część rolloutów nie niesie zdarzenia
+   sukcesu). Pilnują: `RejestracjaWdrozeniaPoGotowosciTest` i reguła
+   w `scripts/railway/iac.test.mjs`. Opis pierwotny poniżej: komenda
+   uruchamiana tam, gdzie dziś `migrate --force`, PO migracjach. Jeśli bieżący
    `RAILWAY_GIT_COMMIT_SHA` nie ma jeszcze wiersza, wstawia
    `numer = MAX(numer) dla tej etykiety + 1` pod
    `pg_advisory_xact_lock(hashtext(etykieta))` — dwa równoległe starty nie
