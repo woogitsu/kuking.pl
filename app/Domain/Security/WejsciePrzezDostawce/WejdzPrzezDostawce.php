@@ -14,9 +14,10 @@ use App\Rules\ReservedUsername;
 use App\Rules\UsernameNotTaken;
 use App\Support\ExternalRegistrationDraft;
 use App\Support\NazwaUzytkownika;
-use Illuminate\Http\Request;
+use App\Support\ZadanieDomenowe;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use LogicException;
 
@@ -100,7 +101,7 @@ final readonly class WejdzPrzezDostawce
      * przypadkowa: najpierw konto zamknięte, potem obsługa serwisu, potem
      * drugi składnik.
      */
-    public function wpusc(Request $request, User $user): WynikWejscia
+    public function wpusc(ZadanieDomenowe $zadanie, User $user): WynikWejscia
     {
         $odmowa = $this->odmowaWejscia($user);
 
@@ -110,7 +111,7 @@ final readonly class WejdzPrzezDostawce
 
         $this->dostawca->przedWejsciem($user);
 
-        AuditLogEntry::record($this->dostawca->akcjaWejscia(), $user, $user, ip: $request->ip());
+        AuditLogEntry::record($this->dostawca->akcjaWejscia(), $user, $user, ip: $zadanie->ip());
 
         /*
          * KONTO Z 2FA NIE WCHODZI TU DO KOŃCA. Dokładnie ta sama ścieżka co
@@ -118,13 +119,13 @@ final readonly class WejdzPrzezDostawce
          * zalogowana sesja. Dostawca zastępuje hasło, nie drugi składnik.
          */
         if ($user->hasTwoFactorConfirmed()) {
-            $request->session()->regenerate();
-            $request->session()->put(TwoFactorAuthenticator::oczekujaceLogowanie($user));
+            $zadanie->sesja()->regenerate();
+            $zadanie->sesja()->put(TwoFactorAuthenticator::oczekujaceLogowanie($user));
 
             return WynikWejscia::DrugiSkladnik;
         }
 
-        $request->session()->regenerate();
+        $zadanie->sesja()->regenerate();
 
         // `remember: true` jak przy haśle i przy linku e-mail: kto wchodzi
         // jednym kliknięciem, tym bardziej nie chce robić tego co tydzień.
@@ -166,9 +167,9 @@ final readonly class WejdzPrzezDostawce
      * `$swiezy` to wiersz wczytany POD blokadą, więc pytania zadajemy jemu,
      * nie obiektowi z sesji.
      */
-    public function polacz(Request $request, User $user, TozsamoscOdDostawcy $tozsamosc, ?\Closure $potwierdzKonto = null): ?User
+    public function polacz(ZadanieDomenowe $zadanie, User $user, TozsamoscOdDostawcy $tozsamosc, ?\Closure $potwierdzKonto = null): ?User
     {
-        return ZamekKonta::zablokuj($user, function (?User $swiezy) use ($request, $tozsamosc, $potwierdzKonto): ?User {
+        return ZamekKonta::zablokuj($user, function (?User $swiezy) use ($zadanie, $tozsamosc, $potwierdzKonto): ?User {
             if ($swiezy === null || ! $this->wolnoPolaczyc($swiezy, $tozsamosc)) {
                 return null;
             }
@@ -187,7 +188,7 @@ final readonly class WejdzPrzezDostawce
                 action: $this->dostawca->akcjaPolaczenia(),
                 actor: $swiezy,
                 subject: $swiezy,
-                ip: $request->ip(),
+                ip: $zadanie->ip(),
             );
 
             return $swiezy;
@@ -202,9 +203,9 @@ final readonly class WejdzPrzezDostawce
      *
      * @return array{email: string, proponowanaNazwa: string, proponowaneImie: string}
      */
-    public function ekranDomkniecia(Request $request, TozsamoscOdDostawcy $tozsamosc): array
+    public function ekranDomkniecia(ZadanieDomenowe $zadanie, TozsamoscOdDostawcy $tozsamosc): array
     {
-        $draft = ExternalRegistrationDraft::restore($request, $this->dostawca->nazwa(), $tozsamosc->identyfikator);
+        $draft = ExternalRegistrationDraft::restore($zadanie, $this->dostawca->nazwa(), $tozsamosc->identyfikator);
 
         return [
             'email' => (string) $tozsamosc->email,
@@ -218,14 +219,14 @@ final readonly class WejdzPrzezDostawce
      * `null`, a wpisane imię i nazwa zostają w szkicu (#850), żeby po
      * powrocie tym samym kontem u dostawcy nie trzeba było ich pisać drugi raz.
      */
-    public function tozsamoscDoZalozenia(Request $request): ?TozsamoscOdDostawcy
+    public function tozsamoscDoZalozenia(ZadanieDomenowe $zadanie): ?TozsamoscOdDostawcy
     {
-        $poprzedniIdentyfikator = $request->session()
+        $poprzedniIdentyfikator = $zadanie->sesja()
             ->get($this->kluczTozsamosci().'.'.$this->dostawca->poleIdentyfikatoraWSesji());
-        $tozsamosc = $this->tozsamoscZSesji($request);
+        $tozsamosc = $this->tozsamoscZSesji($zadanie);
 
         if ($tozsamosc === null || $tozsamosc->email === null) {
-            ExternalRegistrationDraft::remember($request, $this->dostawca->nazwa(), $poprzedniIdentyfikator);
+            ExternalRegistrationDraft::remember($zadanie, $this->dostawca->nazwa(), $poprzedniIdentyfikator);
 
             return null;
         }
@@ -239,19 +240,19 @@ final readonly class WejdzPrzezDostawce
      *
      * @return array{display_name: string, username: string}
      */
-    public function daneDomkniecia(Request $request): array
+    public function daneDomkniecia(ZadanieDomenowe $zadanie): array
     {
         $minAge = (int) config('kuking.account.min_age');
 
         // NAZWĘ UKŁADAMY PRZED WALIDACJĄ, tak samo jak w rejestracji hasłem
         // — i z tego samego powodu bezpieczeństwa: normalizacja stoi PRZED
         // `ReservedUsername`, więc „ądmin" jest sprawdzane jako `admin`.
-        $request->merge([
-            'username' => NazwaUzytkownika::znormalizuj((string) $request->input('username', '')),
+        $zadanie->scal([
+            'username' => NazwaUzytkownika::znormalizuj((string) $zadanie->pole('username', '')),
         ]);
 
         /** @var array{display_name: string, username: string} $dane */
-        $dane = $request->validate([
+        $dane = Validator::validate($zadanie->wszystkie(), [
             'display_name' => ['required', 'string', 'min:2', 'max:'.config('kuking.profil.dlugosc_nazwy')],
             'username' => [
                 'required', 'string', 'min:3', 'max:40',
@@ -315,15 +316,15 @@ final readonly class WejdzPrzezDostawce
      * @param  array{display_name: string, username: string}  $dane
      */
     public function zalozKonto(
-        Request $request,
+        ZadanieDomenowe $zadanie,
         TozsamoscOdDostawcy $tozsamosc,
         array $dane,
         ZalozKonto $zalozKonto,
     ): ?ZalozoneKonto {
         if ($this->dostawca->kontoPowiazane($tozsamosc->identyfikator) !== null
             || User::where('email', $tozsamosc->email)->exists()) {
-            ExternalRegistrationDraft::forget($request, $this->dostawca->nazwa());
-            $this->zapomnij($request);
+            ExternalRegistrationDraft::forget($zadanie, $this->dostawca->nazwa());
+            $this->zapomnij($zadanie);
 
             return null;
         }
@@ -339,16 +340,16 @@ final readonly class WejdzPrzezDostawce
             'username' => $dane['username'],
             'haslo' => null,
             'emailPotwierdzony' => $tozsamosc->emailPotwierdzony,
-            'ip' => $request->ip(),
+            'ip' => $zadanie->ip(),
             'dziennik' => ['droga' => $this->dostawca->nazwa()],
             ...$this->dostawca->powiazanieNowegoKonta($tozsamosc->identyfikator),
         ]);
 
-        ExternalRegistrationDraft::forget($request, $this->dostawca->nazwa());
-        $this->zapomnij($request);
+        ExternalRegistrationDraft::forget($zadanie, $this->dostawca->nazwa());
+        $this->zapomnij($zadanie);
 
         Auth::login($konto->user, remember: true);
-        $request->session()->regenerate();
+        $zadanie->sesja()->regenerate();
 
         return $konto;
     }
@@ -371,13 +372,13 @@ final readonly class WejdzPrzezDostawce
      * idzie wyłącznie tożsamość po regule 1, przy Facebooku nigdy
      * „potwierdzona".
      */
-    public function zapamietaj(Request $request, TozsamoscOdDostawcy $tozsamosc): void
+    public function zapamietaj(ZadanieDomenowe $zadanie, TozsamoscOdDostawcy $tozsamosc): void
     {
         if ($tozsamosc->emailPotwierdzony !== $this->dostawca->potwierdzaAdres()) {
             throw new LogicException('Do sesji trafia tylko tożsamość o potwierdzeniu adresu gwarantowanym przez dostawcę.');
         }
 
-        $request->session()->put($this->kluczTozsamosci(), [
+        $zadanie->sesja()->put($this->kluczTozsamosci(), [
             $this->dostawca->poleIdentyfikatoraWSesji() => $tozsamosc->identyfikator,
             'email' => $tozsamosc->email,
             'imie' => $tozsamosc->imie,
@@ -386,9 +387,9 @@ final readonly class WejdzPrzezDostawce
     }
 
     /** Tożsamość z sesji albo `null` — brak, wygaśnięcie, niepełne dane. */
-    public function tozsamoscZSesji(Request $request): ?TozsamoscOdDostawcy
+    public function tozsamoscZSesji(ZadanieDomenowe $zadanie): ?TozsamoscOdDostawcy
     {
-        $dane = $request->session()->get($this->kluczTozsamosci());
+        $dane = $zadanie->sesja()->get($this->kluczTozsamosci());
 
         if (! is_array($dane)) {
             return null;
@@ -399,7 +400,7 @@ final readonly class WejdzPrzezDostawce
         if ($od === 0 || Carbon::createFromTimestamp($od)
             ->addMinutes($this->dostawca->waznoscDomknieciaMinut())
             ->isPast()) {
-            $this->zapomnij($request);
+            $this->zapomnij($zadanie);
 
             return null;
         }
@@ -425,21 +426,21 @@ final readonly class WejdzPrzezDostawce
     }
 
     /** Konto wskazane do połączenia na ekranie potwierdzenia (Google, reguła 3). */
-    public function zapamietajKonto(Request $request, User $user): void
+    public function zapamietajKonto(ZadanieDomenowe $zadanie, User $user): void
     {
-        $request->session()->put($this->kluczKonta(), $user->getKey());
+        $zadanie->sesja()->put($this->kluczKonta(), $user->getKey());
     }
 
-    public function kontoZSesji(Request $request): ?User
+    public function kontoZSesji(ZadanieDomenowe $zadanie): ?User
     {
-        $id = $request->session()->get($this->kluczKonta());
+        $id = $zadanie->sesja()->get($this->kluczKonta());
 
         return is_string($id) ? User::find($id) : null;
     }
 
-    public function zapomnij(Request $request): void
+    public function zapomnij(ZadanieDomenowe $zadanie): void
     {
-        $request->session()->forget([$this->kluczTozsamosci(), $this->kluczKonta()]);
+        $zadanie->sesja()->forget([$this->kluczTozsamosci(), $this->kluczKonta()]);
     }
 
     // ─────────────────────────────── reszta ───────────────────────────────

@@ -51,8 +51,8 @@ class CollectionController extends Controller
         // Domyślny zeszyt tworzymy dopiero przy pierwszym zapisie — nie
         // pokazujemy pustego folderu osobie, która nic jeszcze nie zapisała.
         return view('pages.collections.index', [
-            'saveContext' => app(CollectionSaveContext::class)->parameters($request),
-            'saveContent' => app(CollectionSaveContext::class)->content($request),
+            'saveContext' => app(CollectionSaveContext::class)->parameters($request->input('save_type'), $request->input('save_id')),
+            'saveContent' => app(CollectionSaveContext::class)->content($request->input('save_type'), $request->input('save_id'), $request->user()),
             'collections' => $user->collections()
                 ->withCount('members')
                 ->withCount([
@@ -487,8 +487,8 @@ class CollectionController extends Controller
             : 0;
 
         return view('pages.collections.show', [
-            'saveContext' => $request->user()?->getKey() === $collection->owner_id ? app(CollectionSaveContext::class)->parameters($request) : [],
-            'saveContent' => $request->user()?->getKey() === $collection->owner_id ? app(CollectionSaveContext::class)->content($request) : null,
+            'saveContext' => $request->user()?->getKey() === $collection->owner_id ? app(CollectionSaveContext::class)->parameters($request->input('save_type'), $request->input('save_id')) : [],
+            'saveContent' => $request->user()?->getKey() === $collection->owner_id ? app(CollectionSaveContext::class)->content($request->input('save_type'), $request->input('save_id'), $request->user()) : null,
             'collection' => $collection,
             ...$wspoldzielenie,
             // Policy wyżej pilnuje dostępu do SAMEGO zeszytu i nic nie mówi
@@ -645,7 +645,7 @@ class CollectionController extends Controller
                 ->withErrors(['name' => 'Masz już zeszyt o tej nazwie. Wybierz inną.']);
         }
 
-        return redirect()->route('collections.show', ['collection' => $collection, ...app(CollectionSaveContext::class)->parameters($request)])->with(Komunikat::sukces('Zeszyt utworzony.'));
+        return redirect()->route('collections.show', ['collection' => $collection, ...app(CollectionSaveContext::class)->parameters($request->input('save_type'), $request->input('save_id'))])->with(Komunikat::sukces('Zeszyt utworzony.'));
     }
 
     /**
