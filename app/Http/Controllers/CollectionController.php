@@ -8,7 +8,6 @@ use App\Domain\Collections\Actions\RemoveUnavailableFromCollection;
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Collections\CollectionSaveContext;
-use App\Domain\Collections\PowrotPoWyjeciu;
 use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Domain\Collections\Wspoldzielenie\ZaproszeniaDoZeszytow;
 use App\Domain\Search\SearchQuery;
@@ -797,17 +796,20 @@ class CollectionController extends Controller
             }
         }
 
-        $zdjete = $this->save->remove($request->user(), $model, $zeszyt);
+        $wynik = $this->save->wyjmij($request->user(), $model, $zeszyt);
 
-        if ($zdjete === []) {
+        if ($wynik->wyjecie === null) {
             // Nie kłamiemy, że coś wyjęliśmy. Bez drogi powrotu — nie ma dokąd.
             return back()->with(Komunikat::informacja('Tego przepisu nie ma w żadnym z Twoich zeszytów.'));
         }
 
-        $this->zapamietajWyjecie($request, 'przepis', (string) $model->getKey(), $zdjete);
+        // Jedno miejsce w sesji, nadpisywane przy każdym wyjęciu (NIE `flash()`:
+        // droga powrotu ma trzy żądania, nie jedno — #775). Kształt zapisu
+        // buduje domena; sesję zamyka kontroler.
+        $request->session()->put('zeszyt_wyjecie', $wynik->wyjecie);
 
         return back()
-            ->with(Komunikat::sukces($this->komunikatPoWyjeciu('Przepis', $request->user(), $zdjete)))
+            ->with(Komunikat::sukces($wynik->komunikat))
             ->with('status_powrot', [
                 'akcja' => route('collections.save', $model->slug),
                 'etykieta' => 'Przywróć do zeszytu',
@@ -830,26 +832,28 @@ class CollectionController extends Controller
 
         $collection = $request->zeszytDoZapisu();
 
-        // Powrót po wyjęciu — uzasadnienie przy `saveRecipe()`.
-        if ($collection === null && $request->input('note') === null) {
-            try {
-                $powrot = $this->przywrocPoWyjeciu($request, PowrotPoWyjeciu::TYP_WPIS, (string) $post->getKey());
-            } catch (BladDlaCzlowieka $e) {
-                return back()->withErrors(['collection_id' => $e->getMessage()]);
-            }
-
-            if ($powrot !== null) {
-                return back()->with(Komunikat::sukces($powrot));
-            }
-        }
-
+        // Powrót po wyjęciu albo zwykły zapis — kolejność i uzasadnienie
+        // w `SavePostToCollection::zapiszAlboPrzywroc()` (#775, #970).
         try {
-            $target = $this->savePost->handle($request->user(), $post, $collection);
+            $wynik = $this->savePost->zapiszAlboPrzywroc(
+                $request->user(),
+                $post,
+                $collection,
+                $request->input('note') !== null,
+                $request->session()->get('zeszyt_wyjecie'),
+                fn () => $request->session()->forget('zeszyt_wyjecie'),
+            );
         } catch (BladDlaCzlowieka $e) {
             // Stan zmienił się w trakcie żądania (#1022): treść ukryta,
             // blokada, zeszyt usunięty w drugiej karcie. Zdanie zamiast 500.
             return back()->withErrors(['collection_id' => $e->getMessage()]);
         }
+
+        if ($wynik->zdaniePowrotu !== null) {
+            return back()->with(Komunikat::sukces($wynik->zdaniePowrotu));
+        }
+
+        $target = $wynik->zeszyt;
 
         if ($request->boolean('open_collection')) {
             return redirect()->route('collections.show', $target)->with(Komunikat::sukces("Zapisane w zeszycie „{$target->name}”."));
@@ -880,13 +884,14 @@ class CollectionController extends Controller
         // tej osoby — ale komunikat niżej mówi wprost, ile ich było.
         $zeszyt = $request->zeszytDoWyjecia();
 
-        $zdjete = $this->savePost->remove($request->user(), $post, $zeszyt);
+        $wynik = $this->savePost->wyjmij($request->user(), $post, $zeszyt);
 
-        if ($zdjete === []) {
+        if ($wynik->wyjecie === null) {
             return back()->with(Komunikat::informacja('Tego wpisu nie ma w żadnym z Twoich zeszytów.'));
         }
 
-        $this->zapamietajWyjecie($request, 'wpis', (string) $post->getKey(), $zdjete);
+        // Sesja jak przy przepisie (`removeRecipe()`).
+        $request->session()->put('zeszyt_wyjecie', $wynik->wyjecie);
 
         // KOMUNIKAT MÓWI, CO SIĘ STAŁO, I DAJE DROGĘ POWROTU (audyt L1).
         //
@@ -898,89 +903,11 @@ class CollectionController extends Controller
         // rysuje go `components/layout.blade.php` w tym samym obszarze
         // `aria-live`, co komunikat.
         return back()
-            ->with(Komunikat::sukces($this->komunikatPoWyjeciu('Wpis', $request->user(), $zdjete)))
+            ->with(Komunikat::sukces($wynik->komunikat))
             ->with('status_powrot', [
                 'akcja' => route('collections.save-post', $post),
                 'etykieta' => 'Przywróć do zeszytu',
             ]);
-    }
-
-    /**
-     * Zdanie po wyjęciu — MÓWI ZAKRES, bo zakres jest tu całą sprawą.
-     *
-     * Jeden zeszyt → z nazwy, bo nazwa jest krótsza i pewniejsza niż liczba.
-     * Więcej niż jeden → wprost „ze wszystkich Twoich zeszytów" z liczbą,
-     * żeby nikt nie odkrył zakresu dopiero po fakcie, w innym zeszycie.
-     *
-     * „Nie usunęliśmy go z serwisu" zostaje w obu wariantach: to jedyne
-     * zdanie, które rozróżnia wyjęcie z zeszytu od skasowania treści.
-     *
-     * @param  list<array{collection_id: string, note: ?string, created_at: ?string, added_by_id?: ?string}>  $zdjete
-     */
-    private function komunikatPoWyjeciu(string $co, User $user, array $zdjete): string
-    {
-        if (count($zdjete) === 1) {
-            $nazwa = Collection::query()->dostepneDoZapisuDla($user)->whereKey($zdjete[0]['collection_id'])->value('name');
-
-            return $nazwa === null
-                ? "{$co} wyjęty z zeszytu. Nie usunęliśmy go z serwisu — możesz go przywrócić."
-                : "{$co} wyjęty z zeszytu „{$nazwa}”. Nie usunęliśmy go z serwisu — możesz go przywrócić.";
-        }
-
-        $ile = count($zdjete);
-
-        return "{$co} wyjęty z zeszytu — zniknął ze wszystkich Twoich zeszytów, było ich {$ile}. "
-            .'Nie usunęliśmy go z serwisu — możesz go przywrócić razem z notatkami.';
-    }
-
-    /**
-     * Zapamiętanie wyjęcia na potrzeby drogi powrotu.
-     *
-     * NIE `flash()`, i to jest sedno. Flash żyje jedno żądanie, a droga
-     * powrotu ma trzy: DELETE (tu), GET z przyciskiem, POST po kliknięciu.
-     * Na flashu przycisk by się narysował i nie miał czego przywrócić.
-     *
-     * Jedno miejsce, nadpisywane przy każdym wyjęciu — bo i przycisk powrotu
-     * jest jeden, ostatni. Notatki idą do sesji, a nie do adresu: to treść
-     * pisana przez człowieka i nie ma czego szukać w logach serwera.
-     *
-     * @param  list<array{collection_id: string, note: ?string, created_at: ?string, added_by_id?: ?string}>  $zdjete
-     */
-    private function zapamietajWyjecie(Request $request, string $typ, string $id, array $zdjete): void
-    {
-        $request->session()->put('zeszyt_wyjecie', [
-            'typ' => $typ,
-            'id' => $id,
-            'pozycje' => $zdjete,
-        ]);
-    }
-
-    /**
-     * Powrót po wyjęciu — albo `null`, gdy nie ma czego przywracać.
-     *
-     * Zwraca gotowe zdanie do `status`, żeby wywołujący nie musiał drugi raz
-     * liczyć wierszy.
-     */
-    private function przywrocPoWyjeciu(Request $request, string $typ, string $id): ?string
-    {
-        $pozycje = PowrotPoWyjeciu::pozycje($request->session()->get('zeszyt_wyjecie'), $typ, $id);
-
-        if ($pozycje === null) {
-            return null;
-        }
-
-        $wrocilo = $this->savePost->restore($request->user(), Post::findOrFail($id), $pozycje);
-
-        // Jednorazowa droga powrotu: drugie kliknięcie nie ma już nic do roboty.
-        $request->session()->forget('zeszyt_wyjecie');
-
-        if ($wrocilo === 0) {
-            // Zeszyt zniknął albo rzecz wróciła tam inną drogą — nie udajemy,
-            // że przywróciliśmy coś, czego nie ruszyliśmy.
-            return null;
-        }
-
-        return PowrotPoWyjeciu::zdanie($typ, $wrocilo);
     }
 
     private function odciskNiedostepnych(Request $request, Collection $collection): ?string

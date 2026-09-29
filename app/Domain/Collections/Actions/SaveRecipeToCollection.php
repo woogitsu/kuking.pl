@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Collections\Actions;
 
 use App\Domain\Collections\PowrotPoWyjeciu;
+use App\Domain\Collections\WynikWyjeciaZZeszytu;
 use App\Domain\Collections\WynikZapisuDoZeszytu;
 use App\Domain\Collections\ZamekZapisuDoZeszytu;
 use App\Domain\Notifications\Actions\NotifyRecipeSaved;
@@ -73,6 +74,20 @@ final class SaveRecipeToCollection
         }
 
         return new WynikZapisuDoZeszytu($this->handle($user, $recipe, $collection), null);
+    }
+
+    /**
+     * „Usuń z zeszytu" przy przepisie: wyjęcie + zdanie + zapis do drogi powrotu.
+     * Sesję zapisuje kontroler z `$wynik->wyjecie`.
+     */
+    public function wyjmij(User $user, Recipe $recipe, ?Collection $collection = null): WynikWyjeciaZZeszytu
+    {
+        return WynikWyjeciaZZeszytu::zZdjetych(
+            PowrotPoWyjeciu::TYP_PRZEPIS,
+            (string) $recipe->getKey(),
+            $user,
+            $this->remove($user, $recipe, $collection),
+        );
     }
 
     public function handle(User $user, Recipe $recipe, ?Collection $collection = null, ?string $note = null): Collection
