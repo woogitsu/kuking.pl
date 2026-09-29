@@ -145,7 +145,9 @@ OCZEKUJ = {
     'Podział testów gubi plik': r"Plik tests/\S+ nie trafił do żadnej części — nie uruchamia się NIGDZIE\.",
     'Macierz testów krótsza niż podział': r"@@ @@ -Array &0 \[\] \+Array &0 \[ \+ 0 => 'Skrypt dzieli na 4 części, a macierz ",
     'Wyścigi dwóch połączeń znów nie blokują CI': r'Job `dwa-polaczenia` znów ma continue-on-error',
-    'Audyt zależności znów nie blokuje CI': r'Job `audit` znów ma continue-on-error',
+    # Flaga na jobie `audit` zapala w tej samej klasie także spis dozwolonych
+    # `continue-on-error` — dwa objawy jednej mutacji.
+    'Audyt zależności znów nie blokuje CI': r'Job `audit` znów ma continue-on-error|Nowe continue-on-error w ci\.yml',
     'Audyt zależności bez skryptu bramki': r'python3 scripts/audyt-zaleznosci\.py',
     'Nowe continue-on-error w jobie testów': r'Nowe continue-on-error w ci\.yml',
     # Macierz [1] (z [1, 2]) pada na pierwszej asercji o liczbie części, zanim
