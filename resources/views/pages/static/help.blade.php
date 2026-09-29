@@ -66,8 +66,11 @@
 
         <h2>Ktoś zachowuje się nieprzyjemnie</h2>
         <p>
-            Przy każdym przepisie i komentarzu jest przycisk <strong>Zgłoś</strong>. Przy wpisie
+            Po zalogowaniu przy każdym przepisie i komentarzu jest przycisk <strong>Zgłoś</strong>. Przy wpisie
             otwórz menu z trzema kropkami i wybierz <strong>Zgłoś ten wpis</strong>. Przeczytamy każde zgłoszenie.
+            Bez konta zobaczysz przy treści odnośnik <strong>Zgłoś (po zalogowaniu)</strong> — poprosimy Cię o
+            zalogowanie, a potem otworzymy formularz. Jeśli treść Twoim zdaniem łamie prawo, możesz ją zgłosić
+            także bez konta: <a href="{{ route('zglos.nielegalna') }}">zgłoszenie treści niezgodnej z prawem</a>.
             Możesz też zablokować konkretną osobę na jej profilu — wtedy nie zobaczycie
             już wzajemnie swoich treści.
         </p>

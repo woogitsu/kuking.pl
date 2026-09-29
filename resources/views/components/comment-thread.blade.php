@@ -196,6 +196,9 @@
 
                             <x-zdejmij-z-urzedu :tresc="$reply" typ="comment" />
                         @endauth
+                        @guest
+                            <x-zglos-dla-goscia typ="comment" :id="$reply->getKey()" />
+                        @endguest
                     @endif
                 </div>
             @endforeach
@@ -271,6 +274,11 @@
                     @endunless
                 </div>
             @endauth
+            @guest
+                @unless($commentIsRemoved)
+                    <x-zglos-dla-goscia typ="comment" :id="$comment->getKey()" />
+                @endunless
+            @endguest
 
             @unless($commentIsRemoved)
                 @auth

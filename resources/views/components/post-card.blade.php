@@ -304,6 +304,9 @@
                 </div>
             </details>
         @endauth
+        @guest
+            <x-zglos-dla-goscia typ="post" :id="$post->getKey()" etykieta="Zgłoś ten wpis" :pelny="true" />
+        @endguest
     </div>
 
     {{--
