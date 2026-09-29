@@ -139,6 +139,17 @@ Etap 3 (#1687): termin ochrony odwoławczej powiadomienia (retencja, ADR
 odbiorcy — `PrzedawnionePowiadomienia`. Przy modelu zostaje tylko lista
 typów z własnym terminem (`Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`).
 
+Etap 4 (#1687): odczyt powiadomień ma jedno wejście —
+`Domain/Notifications/OdczytPowiadomien`: strona listy (z doładowanym
+zbiorczo stanem wykonań i przepisów), licznik nieprzeczytanych, licznik
+plakietki z sufitem, „Oznacz wszystkie" i pojedyncze otwarcie. Kontroler
+i `User::unreadNotificationsCount()` / `unreadNotificationsBadgeCount()`
+nie składają już filtra po swojemu; każde wejście przechodzi przez
+`Notification::scopeVisibleTo()`. `tests/Feature/OdczytPowiadomienTest`
+pilnuje, że blokada ukrywa wiersz we wszystkich wejściach naraz i że liczba
+zapytań strony nie rośnie z liczbą wierszy. Eksport danych i Web Push nadal
+wołają `visibleTo()` wprost (ten sam kontrakt, inny kształt wyniku).
+
 Jeszcze niezrobione w ramach #1687: wspólna specyfikacja dla list treści
 (`Post/Recipe/CookedEvent::scopeWidoczneDla()` różnią się dziś od Policy
 m.in. statusem konta autora).
