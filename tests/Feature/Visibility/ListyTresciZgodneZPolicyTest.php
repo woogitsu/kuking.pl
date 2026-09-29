@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Policies\CookedEventPolicy;
 use App\Policies\PostPolicy;
 use App\Policies\RecipePolicy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -299,7 +300,10 @@ class ListyTresciZgodneZPolicyTest extends TestCase
         $zakresZeStatusem = $model::query()
             ->whereKey($tresc->getKey())
             ->widoczneDla($widzTeraz)
-            ->whereHas('author', fn ($a) => $a->dostepnyJakoAutor())
+            ->whereHas('author', function ($a): void {
+                /** @var Builder<User> $a */
+                $a->dostepnyJakoAutor();
+            })
             ->exists();
 
         return [$policy, $zakres, $zakresZeStatusem];

@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use Tests\Support\KomponentKreatoraPrzepisu;
 use Tests\TestCase;
 
 /**
@@ -30,7 +31,9 @@ class NawigacjaKreatoraKluczeBezWierszaTest extends TestCase
     {
         $component = Livewire::actingAs(User::factory()->create())->test('recipe-wizard');
 
-        $this->assertSame(2, $component->instance()->stepForKey('ingredients'));
+        /** @var KomponentKreatoraPrzepisu $instancja */
+        $instancja = $component->instance();
+        $this->assertSame(2, $instancja->stepForKey('ingredients'));
 
         $component->call('jumpToError', 'ingredients')->assertSet('step', 2);
     }
@@ -39,7 +42,9 @@ class NawigacjaKreatoraKluczeBezWierszaTest extends TestCase
     {
         $component = Livewire::actingAs(User::factory()->create())->test('recipe-wizard');
 
-        $this->assertSame(4, $component->instance()->stepForKey('sprawdzilemOdczyt'));
+        /** @var KomponentKreatoraPrzepisu $instancja */
+        $instancja = $component->instance();
+        $this->assertSame(4, $instancja->stepForKey('sprawdzilemOdczyt'));
 
         $component->call('jumpToError', 'sprawdzilemOdczyt')->assertSet('step', 4);
     }

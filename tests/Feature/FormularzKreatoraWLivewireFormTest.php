@@ -14,6 +14,7 @@ use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Tests\Support\KomponentKreatoraPrzepisu;
 use Tests\TestCase;
 
 /**
@@ -209,12 +210,14 @@ class FormularzKreatoraWLivewireFormTest extends TestCase
         $test = Livewire::actingAs($autor)->test(self::COMPONENT, ['recipeId' => $przepis->getKey()])
             ->assertSet('form.title', 'Barszcz')
             ->assertSet('form.servings', '6');
+        /** @var KomponentKreatoraPrzepisu $komponent */
         $komponent = $test->instance();
+        $biezacaWersja = constant($komponent::class.'::WERSJA_STANU');
 
         // Krok 6 (nazwa, opis, porcje, koszt i czasy w `$form`) podbił wersję
         // do 4. Karta otwarta przed wdrożeniem odsyła migawkę bez tych pól
         // w `form` (Livewire tworzy je puste) i z poprzednią wersją stanu.
-        $this->assertSame(4, $komponent::WERSJA_STANU);
+        $this->assertSame(4, $biezacaWersja);
         foreach ([0, 1, 2, 3] as $stara) {
             $komponent->wersjaStanu = $stara;
 
@@ -232,7 +235,7 @@ class FormularzKreatoraWLivewireFormTest extends TestCase
         $this->assertEquals(6, $po->servings);
 
         // Bieżąca wersja przechodzi.
-        $komponent->wersjaStanu = $komponent::WERSJA_STANU;
+        $komponent->wersjaStanu = $biezacaWersja;
         $komponent->hydrate();
     }
 
