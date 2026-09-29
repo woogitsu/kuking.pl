@@ -141,6 +141,17 @@ Cloudflare zamiast użytkownika i generuje URL-e po `http://`:
 > wejdź na serwis przez Cloudflare bez własnego `X-Forwarded-For` i policz
 > wpisy, które dotarły do aplikacji. Za mała wartość = wspólny adres dla
 > wielu osób i zbyt ostre limity; za duża = powrót podatności W7-01.
+>
+> **Caddy ma własną, drugą regułę zaufania** (`servers { trusted_proxies … }`
+> w `docker/Caddyfile`, #1306) i od niej zależy tylko `client_ip` w logu JSON.
+> Ufa peerowi z sieci prywatnej i czyta `X-Forwarded-For` od prawej
+> (`trusted_proxies_strict`), czyli bierze ten sam wpis co Laravel przy
+> `KUKING_ZAUFANE_PRZESKOKI=1`. Zmieniasz liczbę przeskoków albo miejsce,
+> z którego brzeg łączy się z kontenerem — zmień też ten blok;
+> `CaddyUfaTemuSamemuWpisowiCoAplikacjaTest` sprawdza, że oba adresy się
+> zgadzają. Żadna z tych reguł nie zastępuje tokenu krawędzi
+> (`docs/infra/LISTA_KROKOW_ALFA.md`, C6): dopiero on potwierdza, że żądanie
+> w ogóle przyszło przez Cloudflare.
 
 **3. Dysk `r2`** (`config/filesystems.php`):
 
