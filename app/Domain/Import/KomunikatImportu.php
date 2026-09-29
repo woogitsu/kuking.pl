@@ -21,6 +21,10 @@ final class KomunikatImportu
             return self::dlaAdresu($import);
         }
 
+        if ($import->zPdf()) {
+            return self::dlaPdf($import);
+        }
+
         $naDzien = (int) config('kuking.import.limity.na_osobe_dzien');
         $naMiesiac = (int) config('kuking.import.limity.na_osobe_miesiac');
 
@@ -78,6 +82,41 @@ final class KomunikatImportu
                 default => in_array((string) $import->kod_bledu, ImportPrzepisu::KODY_ADRESU, true)
                     ? ['tytul' => 'Nie udało się pobrać przepisu ze strony', 'tresc' => $odmowa((string) $import->kod_bledu)]
                     : ['tytul' => 'Nie udało się pobrać przepisu ze strony', 'tresc' => 'Nic nie zginęło. Wklej adres jeszcze raz za kilka minut albo wpisz przepis ręcznie.'],
+            },
+        };
+    }
+
+    /**
+     * Import z wysłanego pliku PDF (#28, etap 2): jak przy adresie wynik jest
+     * szkicem BEZ zdjęcia, a szkic powstaje dopiero na końcu. Zdania odmów
+     * są te z `ImportOdrzucony::KOMUNIKATY` (`:mb`, `:strony` z konfiguracji).
+     *
+     * @return array{tytul: string, tresc: string}
+     */
+    private static function dlaPdf(ImportPrzepisu $import): array
+    {
+        $odmowa = static fn (string $kod): string => str_replace(
+            [':mb', ':strony'],
+            [(string) (int) config('kuking.import.pdf.max_mb'), (string) min(5, max(1, (int) config('kuking.import.pdf.max_stron')))],
+            ImportOdrzucony::KOMUNIKATY[$kod],
+        );
+
+        return match ($import->status) {
+            ImportPrzepisu::STATUS_OCZEKUJE, ImportPrzepisu::STATUS_W_TOKU => [
+                'tytul' => 'Odczytujemy plik',
+                'tresc' => 'Zwykle trwa to do minuty. Nie musisz czekać — możesz zamknąć tę stronę, a gotowy szkic znajdziesz w „Moich szkicach”.',
+            ],
+            ImportPrzepisu::STATUS_GOTOWY => $import->drogaOdczytu() === 'ocr'
+                ? ['tytul' => 'Szkic gotowy do sprawdzenia', 'tresc' => 'Ten tekst odczytał komputer ze skanu. Porównaj każdą linijkę ze swoim plikiem i popraw, co trzeba. Nic się nie opublikuje, dopóki nie klikniesz „Opublikuj”.']
+                : ['tytul' => 'Szkic gotowy do sprawdzenia', 'tresc' => 'Ten tekst odczytał komputer z Twojego pliku. Porównaj go z plikiem i popraw, co trzeba. Nic się nie opublikuje, dopóki nie klikniesz „Opublikuj”.'],
+            default => match ((string) $import->kod_bledu) {
+                ImportPrzepisu::KOD_BRAK_ZGODY => ['tytul' => 'Do odczytu skanu potrzebna jest zgoda', 'tresc' => $odmowa(ImportOdrzucony::BRAK_ZGODY_AI)],
+                ImportPrzepisu::KOD_BUDZET_DZIENNY, ImportPrzepisu::KOD_BUDZET_MIESIECZNY => ['tytul' => 'Odczytywanie jest teraz wstrzymane', 'tresc' => $odmowa(ImportOdrzucony::BUDZET_AI)],
+                ImportPrzepisu::KOD_MODEL_NIEDOSTEPNY => ['tytul' => 'Odczyt chwilowo nie działa', 'tresc' => $odmowa(ImportOdrzucony::MODEL_NIEDOSTEPNY)],
+                ImportPrzepisu::KOD_WYLACZONY => ['tytul' => 'Import z plików PDF jest teraz wyłączony', 'tresc' => 'Nic nie zginęło. Możesz wpisać przepis ręcznie.'],
+                default => in_array((string) $import->kod_bledu, ImportPrzepisu::KODY_PDF, true)
+                    ? ['tytul' => 'Nie udało się odczytać pliku', 'tresc' => $odmowa((string) $import->kod_bledu)]
+                    : ['tytul' => 'Nie udało się odczytać pliku', 'tresc' => 'Nic nie zginęło. Dodaj plik jeszcze raz za kilka minut albo wpisz przepis ręcznie.'],
             },
         };
     }

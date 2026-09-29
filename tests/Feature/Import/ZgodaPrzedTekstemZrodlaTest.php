@@ -15,6 +15,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\Support\MalyPdf;
 use Tests\Support\MapaNazw;
 use Tests\TestCase;
@@ -33,6 +34,7 @@ final class ZgodaPrzedTekstemZrodlaTest extends TestCase
     {
         parent::setUp();
 
+        Storage::fake((string) config('kuking.import.pdf.dysk'));
         $this->app->instance(RozwiazywaczNazw::class, (new MapaNazw)->ustaw('przepisy.example.pl', '93.184.216.34'));
         config([
             'kuking.import.model.klucz' => 'sk-test-import',
@@ -76,8 +78,12 @@ final class ZgodaPrzedTekstemZrodlaTest extends TestCase
         Http::fake(['api.openai.com/*' => Http::response([])]);
         $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
 
-        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf])
-            ->assertSessionHasErrors(['plik' => ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BRAK_ZGODY_AI]]);
+        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf])->assertRedirect();
+
+        $zlecenie = ImportPrzepisu::query()->where('user_id', $autor->getKey())->firstOrFail();
+        $this->assertSame(ImportPrzepisu::KOD_BRAK_ZGODY, $zlecenie->kod_bledu);
+        $this->actingAs($autor)->get(route('import.show', $zlecenie))
+            ->assertOk()->assertSee(ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BRAK_ZGODY_AI]);
 
         $this->assertSame(0, Recipe::query()->count());
         Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com'));

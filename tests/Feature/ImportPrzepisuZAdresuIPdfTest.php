@@ -24,6 +24,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Tests\Support\MalyPdf;
@@ -60,6 +61,9 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Plik PDF czeka na worker na dysku importu (#28 etap 2) — nigdy prawdziwy dysk.
+        Storage::fake((string) config('kuking.import.pdf.dysk'));
 
         $this->app->instance(RozwiazywaczNazw::class, (new MapaNazw)
             ->ustaw('przepisy.example.pl', '93.184.216.34')
@@ -596,8 +600,13 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         Http::fake();
         $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
 
-        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf])
-            ->assertSessionHasErrors(['plik' => ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BRAK_ZGODY_AI]]);
+        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf])->assertRedirect();
+
+        $zlecenie = ImportPrzepisu::query()->where('user_id', $autor->getKey())->firstOrFail();
+        $this->assertSame(ImportPrzepisu::STATUS_NIEUDANY, $zlecenie->status);
+        $this->assertSame(ImportPrzepisu::KOD_BRAK_ZGODY, $zlecenie->kod_bledu);
+        $this->actingAs($autor)->get(route('import.show', $zlecenie))
+            ->assertOk()->assertSee(ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BRAK_ZGODY_AI]);
 
         $this->assertSame(0, Recipe::query()->count());
         Http::assertNothingSent();
@@ -634,8 +643,12 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         Http::fake();
         $pdf = UploadedFile::fake()->createWithContent('skan.pdf', MalyPdf::bezTekstu());
 
-        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf, 'zgoda_ai' => '1'])
-            ->assertSessionHasErrors(['plik' => ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BUDZET_AI]]);
+        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), ['plik' => $pdf, 'zgoda_ai' => '1'])->assertRedirect();
+
+        $zlecenie = ImportPrzepisu::query()->where('user_id', $autor->getKey())->firstOrFail();
+        $this->assertSame(ImportPrzepisu::KOD_BUDZET_DZIENNY, $zlecenie->kod_bledu);
+        $this->actingAs($autor)->get(route('import.show', $zlecenie))
+            ->assertOk()->assertSee(ImportOdrzucony::KOMUNIKATY[ImportOdrzucony::BUDZET_AI]);
 
         $this->assertSame(0, Recipe::query()->count());
         Http::assertNothingSent();

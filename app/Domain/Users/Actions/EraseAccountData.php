@@ -22,6 +22,7 @@ use App\Models\ProductSignal;
 use App\Models\PrzepisZImportu;
 use App\Models\User;
 use App\Models\WpisZgody;
+use App\Support\Storage\PlikTymczasowyImportu;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -381,6 +382,13 @@ final class EraseAccountData
              * kartki idą drogą każdego przepisu i każdego zdjęcia tej osoby.
              */
             DB::table('proby_importu')->where('user_id', $fresh->getKey())->delete();
+            // Plik PDF czekający na worker (#28 etap 2) kasujemy razem z wierszem,
+            // który go wskazuje; gdy dysk odmówi, zostaje osierocony i sprząta go
+            // `kuking:odzyskaj-importy` po retencji (#2051).
+            $pliki = app(PlikTymczasowyImportu::class);
+            foreach (DB::table('importy_przepisow')->where('user_id', $fresh->getKey())->whereNotNull('plik_tymczasowy')->pluck('plik_tymczasowy') as $plik) {
+                $pliki->skasuj((string) $plik);
+            }
             DB::table('importy_przepisow')->where('user_id', $fresh->getKey())->delete();
 
             $this->odlaczWiadomosciDoOperatora($fresh);

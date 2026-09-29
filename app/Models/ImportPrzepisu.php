@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property ?string $recipe_id
  * @property string $zrodlo
  * @property ?string $source_url adres strony (tylko import z adresu, do końca zlecenia)
+ * @property ?string $plik_tymczasowy ścieżka wysłanego PDF-a na dysku importu (tylko import z PDF, do końca zlecenia)
  * @property string $status
  * @property ?string $kod_bledu
  * @property int $proby
@@ -94,6 +95,18 @@ class ImportPrzepisu extends Model
         'za_duza_strona', 'za_dlugo', 'nie_strona',
     ];
 
+    /**
+     * Powody odmowy odczytu pliku PDF (#28, etap 2) — te same napisy co
+     * `ImportOdrzucony::PDF_*`. Zamknięta lista w CHECK (migracja
+     * `2026_09_29_150000_add_plik_tymczasowy_and_kody_pdf_to_importy_przepisow`).
+     *
+     * @var list<string>
+     */
+    public const KODY_PDF = [
+        'pdf_za_duzy', 'pdf_za_duzo_stron', 'pdf_uszkodzony', 'pdf_zaszyfrowany',
+        'pdf_bez_tekstu', 'pdf_brak_przepisu', 'narzedzie_pdf_niedostepne',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -122,6 +135,12 @@ class ImportPrzepisu extends Model
     public function zAdresu(): bool
     {
         return $this->zrodlo === self::ZRODLO_URL;
+    }
+
+    /** Zlecenie z wysłanego pliku PDF — plik czeka na dysku importu, dopóki odczyt się nie skończy. */
+    public function zPdf(): bool
+    {
+        return $this->zrodlo === self::ZRODLO_PDF;
     }
 
     /** Droga odczytu zapisana przy szkicu z adresu (`json_ld`, `fragmenty`, `bez_tresci`) — `null`, dopóki szkicu nie ma. */

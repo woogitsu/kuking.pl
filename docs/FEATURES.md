@@ -124,7 +124,7 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 > „Nie wcześnie” poniżej pozostaje zakazana bez zmian.
 
 - OCR starych zeszytów;
-- import URL/PDF/zdjęcie — **URL i PDF wdrożone jako prywatny szkic** (D-300); **URL chodzi w kolejce** (#28), PDF nadal w żądaniu; zdjęcie kartki/OCR wdrożone (D-298);
+- import URL/PDF/zdjęcie — **URL i PDF wdrożone jako prywatny szkic** (D-300); **URL i PDF chodzą w kolejce** (#28, plik PDF czeka na prywatnym dysku i znika po odczycie — #2051); zdjęcie kartki/OCR wdrożone (D-298);
 - pantry — **zbudowane** (D-285): prywatna lista „Co mam w domu”;
 - „co ugotuję z tego, co mam” — **zbudowane** (D-285): dopasowanie bez AI, jawna reguła doboru;
 - zamienniki — **od autora wdrożone (D-284)**: tekst przy składniku,

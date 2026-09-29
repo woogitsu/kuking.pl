@@ -4,27 +4,22 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Domain\Import\Actions\ZapiszSzkicZImportu;
 use App\Domain\Import\BudzetAi;
-use App\Domain\Import\ImportOdrzucony;
 use App\Domain\Import\KlientLuna;
 use App\Domain\Import\LimitImportowOsoby;
-use App\Domain\Import\LimitImportu;
-use App\Domain\Import\Pdf\OdczytajPrzepisZPdf;
+use App\Domain\Import\Pdf\ZlecImportZPdf;
 use App\Domain\Import\Url\StraznikAdresow;
 use App\Domain\Import\Url\ZlecImportZAdresu;
 use App\Domain\Import\ZlecImportPrzepisu;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\ImportPrzepisu;
-use App\Models\PrzepisZImportu;
 use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -37,11 +32,6 @@ use Illuminate\View\View;
  */
 final class ImportPrzepisuController extends Controller
 {
-    public function __construct(
-        private readonly LimitImportu $limit,
-        private readonly ZapiszSzkicZImportu $zapiszSzkic,
-    ) {}
-
     public function adresForm(): View
     {
         abort_unless((bool) config('kuking.import.url.wlaczony'), 404);
@@ -92,7 +82,14 @@ final class ImportPrzepisuController extends Controller
         ]);
     }
 
-    public function pdf(Request $request, OdczytajPrzepisZPdf $odczyt): RedirectResponse
+    /**
+     * Wysłanie pliku PDF tylko ZLECA import (#28, etap 2): szybka kontrola
+     * rozmiaru i sygnatury bez narzędzi, zapis pliku na prywatny dysk importu,
+     * zlecenia i zadania w kolejce, przekierowanie na ekran postępu.
+     * `pdfinfo`, `pdftotext`, `pdftoppm` i model są w zadaniu
+     * `ImportujPrzepisZPdf` — żądanie WWW nie czeka na Popplera ani na OpenAI.
+     */
+    public function pdf(Request $request, ZlecImportZPdf $zlec): RedirectResponse
     {
         abort_unless((bool) config('kuking.import.pdf.wlaczony'), 404);
 
@@ -113,45 +110,14 @@ final class ImportPrzepisuController extends Controller
         /** @var UploadedFile $plik */
         $plik = $request->file('plik');
 
-        $proba = null;
         try {
-            $proba = $this->limit->zuzyj($request->user(), 'pdf', $this->kluczImportu($request));
-            if ($proba['istnieje']) {
-                return $this->powtorzonyImport($proba, 'plik');
-            }
-            $pdf = $odczyt->handle((string) $plik->getRealPath(), $request->user(), $request->boolean('zgoda_ai'), $proba['id']);
-        } catch (ImportOdrzucony $e) {
-            if ($proba !== null) {
-                $this->limit->zakoncz($proba['id'], false);
-            }
-
+            $zlecenie = $zlec->handle($request->user(), (string) $plik->getRealPath(), $request->boolean('zgoda_ai'), $this->kluczImportu($request));
+        } catch (BladDlaCzlowieka $e) {
+            // `ImportOdrzucony` też: plik nie jest PDF-em, limit osoby, powtórzona próba.
             return back()->withErrors(['plik' => $e->getMessage()]);
-        } catch (\Throwable $e) {
-            if ($proba !== null) {
-                $this->limit->zakoncz($proba['id'], false);
-            }
-            throw $e;
         }
 
-        try {
-            $recipe = $this->zapiszSzkic->handle(
-                autor: $request->user(),
-                zrodlo: PrzepisZImportu::ZRODLO_PDF,
-                droga: $pdf->droga,
-                przepis: $pdf->przepis,
-            );
-        } catch (\Throwable $e) {
-            $this->limit->zakoncz($proba['id'], false);
-            throw $e;
-        }
-
-        $this->limit->zakoncz($proba['id'], true, (string) $recipe->getKey());
-
-        $this->slad('pdf', $pdf->droga, null);
-
-        return redirect()->route('recipes.create', ['szkic' => $recipe->getKey()])
-            ->with('status', 'Szkic gotowy — widzisz go tylko Ty. Ten tekst odczytał komputer: porównaj go '
-                .'z plikiem i popraw, co trzeba, zanim opublikujesz.');
+        return redirect()->route('import.show', $zlecenie);
     }
 
     /**
@@ -226,7 +192,7 @@ final class ImportPrzepisuController extends Controller
         $dane = ['import' => $import, 'szkic' => $import->recipe];
 
         if ($request->boolean('fragment')) {
-            return response()->view($import->zAdresu() ? 'pages.import.partials.postep-adres' : 'pages.import.partials.postep', $dane)
+            return response()->view($this->widokPostepu($import), $dane)
                 ->header('Cache-Control', 'no-store');
         }
 
@@ -246,17 +212,6 @@ final class ImportPrzepisuController extends Controller
         return redirect()->route('import.show', $nowe);
     }
 
-    /** Ślad w dzienniku bez adresu i bez treści — tylko rodzaj, droga i kod. */
-    private function slad(string $zrodlo, string $droga, ?string $kod): void
-    {
-        Log::info('Import przepisu zakończony szkicem.', [
-            'stage' => 'import_przepisu',
-            'zrodlo' => $zrodlo,
-            'droga' => $droga,
-            'kod' => $kod,
-        ]);
-    }
-
     private function kluczImportu(Request $request): string
     {
         $klucz = $request->input('klucz_wyslania');
@@ -264,14 +219,14 @@ final class ImportPrzepisuController extends Controller
         return is_string($klucz) && Str::isUuid($klucz) ? $klucz : (string) Str::uuid7();
     }
 
-    /** @param array{id: string, status: string, recipe_id: ?string, istnieje: bool} $proba */
-    private function powtorzonyImport(array $proba, string $pole): RedirectResponse
+    /** Adres i PDF mają własny ekran postępu (bez zdjęcia kartki); kartka — dawny. */
+    private function widokPostepu(ImportPrzepisu $import): string
     {
-        if ($proba['recipe_id'] !== null) {
-            return redirect()->route('recipes.create', ['szkic' => $proba['recipe_id']]);
-        }
-
-        return back()->withErrors([$pole => 'Ta próba importu została już przyjęta. Otwórz formularz ponownie, jeśli chcesz rozpocząć nową próbę.']);
+        return match (true) {
+            $import->zAdresu() => 'pages.import.partials.postep-adres',
+            $import->zPdf() => 'pages.import.partials.postep-pdf',
+            default => 'pages.import.partials.postep',
+        };
     }
 
     /** Ta sama zasada co w `RecipeController::kluczDlaFormularza()`. */
