@@ -592,9 +592,14 @@ REGULAMIN_WERSJA = "config/kuking.php"
 REGULAMIN_WERSJA_TEST = "ZmianaRegulaminuTest"
 
 # Pasek o zmianie polityki (D-327, D-332): rollback bez odmowy i sekcja
-# „Co się zmieniło” bez terminu wejścia w życie; ukrycie wyboru formy do tego dnia.
+# „Co się zmieniło” niezgodne z konfiguracją (drobna/istotna); pasek przy drobnej;
+# wybór formy: ukryty w okresie przejściowym zmiany istotnej, od razu przy drobnej.
 POLITYKA_PASEK_MIGRACJA = "database/migrations/2026_09_29_180000_add_policy_notice_dismissed_version_to_users.php"
 POLITYKA_PASEK_TEST = "ZmianaPolitykiTest"
+POLITYKA_PASEK_KLASA = "app/Domain/Zgody/ZmianaPolityki.php"
+UDOSTEPNIANIE = "app/Domain/Sharing/Udostepnianie.php"
+# Filtr na jeden test: mutacja zapala też test liczby zapytań (inny komunikat).
+PODZIEL_SIE_ZESZYT_WSPOLNY_TEST = "test_zeszyt_wspolny_publiczny_dostaje_przycisk"
 POLITYKA_TEKST = "resources/legal/polityka-prywatnosci.md"
 
 # Data publikacji osobno od daty wejścia w życie (D-327). Mutacje: okres
@@ -1558,10 +1563,23 @@ checks = [
      lambda s: replace_once(s, "PARTITION BY posts.author_id ORDER BY posts.published_at DESC", "PARTITION BY posts.author_id ORDER BY posts.id DESC, posts.published_at DESC")),
     ("Rollback paska polityki bez odmowy", POLITYKA_PASEK_MIGRACJA, POLITYKA_PASEK_TEST,
      lambda s: replace_once(s, "if ($ile > 0) {", "if (false) {")),
-    ("Polityka bez terminu wejścia w życie", POLITYKA_TEKST, POLITYKA_PASEK_TEST,
-     lambda s: replace_once(s, "nowa wersja obowiązuje od 14 października 2026", "nowa wersja obowiązuje od razu")),
+    # Decyzja właściciela z 29.09.2026 (wieczór): wersja 2026-09-30 jest drobna.
+    # Wpis „Co się zmieniło” ma mówić o wejściu w życie to samo co konfiguracja.
+    ("Polityka z terminem wejścia niezgodnym z konfiguracją", POLITYKA_TEKST, POLITYKA_PASEK_TEST,
+     lambda s: replace_once(s, "umowy. Ta poprawka obowiązuje od dnia publikacji.",
+                            "umowy. To zmiana istotna: nowa wersja obowiązuje od 14 października 2026. "
+                            "Do tego dnia obowiązuje poprzednia wersja z 29 września 2026.")),
+    ("Pasek polityki przy drobnej zmianie", POLITYKA_PASEK_KLASA, POLITYKA_PASEK_TEST,
+     lambda s: replace_once(s, "        if (! $this->dokument()->istotna) {\n            return false;\n        }\n\n", "")),
+    # Mechanizm na przyszłe zmiany istotne: test ustawia istotną w konfiguracji.
     ("Wybór formy widoczny w okresie przejściowym polityki", FORMA_HELPER, FORMA_TEST,
      lambda s: replace_once(s, "return ! WersjaDokumentu::polityka()->wOkresiePrzejsciowym();", "return true;")),
+    ("Wybór formy czeka na dzień wersji przy drobnej zmianie", FORMA_HELPER, "test_przy_drobnej_zmianie_polityki_wybor_jest_od_razu",
+     lambda s: replace_once(s, "return ! WersjaDokumentu::polityka()->wOkresiePrzejsciowym();",
+                            "return now()->greaterThanOrEqualTo(WersjaDokumentu::polityka()->obowiazujeOd());")),
+    # #2000, decyzja właściciela z 29.09.2026: wspólny zeszyt „wszyscy” ma przycisk.
+    ("Wspólny publiczny zeszyt bez „Podziel się”", UDOSTEPNIANIE, PODZIEL_SIE_ZESZYT_WSPOLNY_TEST,
+     lambda s: replace_once(s, "return ! $tresc->is_default;", "return ! $tresc->is_default && ! $tresc->members()->exists();")),
     ("Wersja regulaminu podbita bez nagłówka dokumentu", REGULAMIN_WERSJA, REGULAMIN_WERSJA_TEST,
      lambda s: replace_once(s, "'wersja_regulaminu' => '2026-09-26'", "'wersja_regulaminu' => '2026-09-27'")),
     ("Zmiana istotna bez okresu przejściowego", WERSJA_DOKUMENTU, WERSJA_DOKUMENTU_TEST,

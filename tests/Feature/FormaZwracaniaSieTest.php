@@ -7,9 +7,11 @@ namespace Tests\Feature;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportPhotoPlan;
+use App\Domain\Zgody\WersjaDokumentu;
 use App\Models\Profile;
 use App\Models\User;
 use App\Support\Czas;
+use App\Support\Forma;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -36,18 +38,37 @@ final class FormaZwracaniaSieTest extends TestCase
 
     private const MIGRACJA = 'migrations/2026_09_25_140000_add_form_of_address_to_profiles.php';
 
-    protected function setUp(): void
+    /**
+     * Decyzja właściciela z 29.09.2026 (wieczór): zmiana polityki z formą jest
+     * DROBNA (brak prawdziwych kont), więc wybór jest widoczny od razu po
+     * wdrożeniu — także w dniu wdrożenia przed datą wersji — i bez czekania
+     * 14 dni. Pozostałe testy w tym pliku chodzą na bieżącej dacie.
+     */
+    public function test_przy_drobnej_zmianie_polityki_wybor_jest_od_razu(): void
     {
-        parent::setUp();
+        $this->assertFalse(WersjaDokumentu::polityka()->istotna);
+        $basia = $this->user('basia', ['display_name' => 'Basia']);
 
-        // Wybór formy jest ukryty do dnia wejścia w życie nowej polityki
-        // (14.10.2026, D-327). Te testy sprawdzają funkcję PO tej dacie;
-        // okres przejściowy ma osobne testy niżej.
-        $this->travelTo(CarbonImmutable::parse('2026-10-15 12:00', Czas::strefa()));
+        foreach (['2026-09-29 20:00', '2026-09-30 00:00', '2026-10-01 12:00'] as $chwila) {
+            $this->travelTo(CarbonImmutable::parse($chwila, Czas::strefa()));
+            $this->assertTrue(Forma::wyborDostepny(), "Wybór formy ukryty w chwili {$chwila}, choć zmiana jest drobna.");
+            $this->actingAs($basia)->get(route('settings.profile'))->assertOk()
+                ->assertSee('Jak mamy do Ciebie pisać?')
+                ->assertSee('name="form_of_address"', false);
+        }
+
+        $this->actingAs($basia)->put(route('settings.form_of_address'), ['form_of_address' => Profile::FORM_FEMININE])
+            ->assertRedirect();
+        $this->assertSame(Profile::FORM_FEMININE, $basia->profile->fresh()->form_of_address);
     }
 
-    public function test_do_dnia_wejscia_polityki_wyboru_nie_widac_i_nie_da_sie_go_zapisac(): void
+    /**
+     * Mechanizm na przyszłość: przy zmianie polityki oznaczonej jako ISTOTNA
+     * wybór jest ukryty do dnia wejścia w życie i wraca sam po tej dacie.
+     */
+    public function test_przy_istotnej_zmianie_polityki_do_dnia_wejscia_wyboru_nie_widac_i_nie_da_sie_go_zapisac(): void
     {
+        config(['kuking.zgody.zmiana_polityki' => ['istotna' => true, 'poprzednia' => '2026-09-29', 'obowiazuje_od' => null]]);
         $this->travelTo(CarbonImmutable::parse('2026-10-13 23:59', Czas::strefa()));
         $basia = $this->user('basia', ['display_name' => 'Basia']);
 
