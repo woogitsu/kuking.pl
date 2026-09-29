@@ -92,6 +92,18 @@ class PodzialKontroliTest(unittest.TestCase):
             with self.subTest(zle), self.assertRaises(SystemExit):
                 pk.parsuj_czesc(zle)
 
+    def test_tylko_wybiera_wpisy_po_etykiecie(self):
+        self.assertEqual((None, ("A", "B")), pk.parsuj_argumenty(["--tylko", "A", "--tylko", "B"]))
+        self.assertEqual(((2, 3), ("A",)), pk.parsuj_argumenty(["--czesc", "2/3", "--tylko", "A"]))
+        self.assertEqual((None, ()), pk.parsuj_argumenty([]))
+        nazwy = ["a", "b", "c"]
+        self.assertEqual([2, 0], sorted(pk.indeksy_po_etykietach(nazwy, ("c", "a")), reverse=True))
+        for zle in (["--tylko"], ["--tylko", "A", "--x"], ["--czesc", "1/2", "--czesc", "2/2"]):
+            with self.subTest(zle), self.assertRaises(SystemExit):
+                pk.parsuj_argumenty(zle)
+        with self.assertRaisesRegex(SystemExit, "brak wpisu `checks` o etykiecie 'zz'"):
+            pk.indeksy_po_etykietach(nazwy, ("a", "zz"))
+
 
 if __name__ == "__main__":
     unittest.main()

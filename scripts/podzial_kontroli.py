@@ -16,19 +16,53 @@ do części `CZESC_ELEMENTOW_POZA_PETLA`.
 CZESC_ELEMENTOW_POZA_PETLA = 3
 
 
+def parsuj_argumenty(argumenty):
+    """`[--czesc N/M] [--tylko ETYKIETA]...` -> (czesc, tylko).
+
+    `czesc` to (N, M) albo None (brak części: wszystko). `tylko` to krotka
+    etykiet wpisów `checks` (pusta: bez filtra) — narzędzie do lokalnego
+    zbierania komunikatu porażki jednego wpisu, na przykład przy pisaniu
+    wzorca oczekiwanej przyczyny (#1011). `--tylko` wyłącza elementy spoza
+    pętli i kontrole mechanizmu; preflight kotwic idzie jak zwykle.
+    """
+    uzycie = "Użycie: kontrole-negatywne-alfa08.py [--czesc N/M] [--tylko ETYKIETA]..."
+    czesc, tylko, i = None, [], 0
+    while i < len(argumenty):
+        opcja = argumenty[i]
+        if opcja not in ("--czesc", "--tylko") or i + 1 >= len(argumenty):
+            raise SystemExit(uzycie)
+        wartosc = argumenty[i + 1]
+        if opcja == "--czesc":
+            if czesc is not None:
+                raise SystemExit(uzycie)
+            czesc = _czesc(wartosc)
+        else:
+            tylko.append(wartosc)
+        i += 2
+    return czesc, tuple(tylko)
+
+
 def parsuj_czesc(argumenty):
     """`--czesc N/M` -> (N, M); brak argumentu -> None (uruchom wszystko)."""
-    if not argumenty:
-        return None
-    if len(argumenty) != 2 or argumenty[0] != "--czesc":
-        raise SystemExit("Użycie: kontrole-negatywne-alfa08.py [--czesc N/M]")
-    numer, ukosnik, liczba = argumenty[1].partition("/")
+    return parsuj_argumenty(argumenty)[0]
+
+
+def _czesc(tekst):
+    numer, ukosnik, liczba = tekst.partition("/")
     if not (ukosnik and numer.isdigit() and liczba.isdigit()):
-        raise SystemExit(f"Zła część {argumenty[1]!r}: podaj N/M, na przykład 2/3.")
+        raise SystemExit(f"Zła część {tekst!r}: podaj N/M, na przykład 2/3.")
     numer, liczba = int(numer), int(liczba)
     if liczba < 1 or not 1 <= numer <= liczba:
         raise SystemExit(f"Część {numer}/{liczba} jest poza podziałem.")
     return numer, liczba
+
+
+def indeksy_po_etykietach(nazwy, tylko):
+    """Indeksy wpisów o podanych etykietach; nieznana etykieta odmawia z jej nazwą."""
+    nieznane = [t for t in tylko if t not in nazwy]
+    if nieznane:
+        raise SystemExit("--tylko: brak wpisu `checks` o etykiecie " + "; ".join(repr(t) for t in nieznane))
+    return [i for i, nazwa in enumerate(nazwy) if nazwa in tylko]
 
 
 def wybierz_indeksy(liczba_wpisow, czesc):

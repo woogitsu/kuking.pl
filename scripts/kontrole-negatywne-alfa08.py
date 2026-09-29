@@ -29,7 +29,7 @@ import tempfile
 from kontrola_przyczyny import przebieg, sprawdz_wzorce, uruchom_test, werdykt, POTWIERDZONA
 from kontrola_wyjscia_testu import run_test
 from kontrole_oczekiwana_przyczyna import OCZEKUJ, OCZEKUJ_MIARY, kontrole_mechanizmu
-from podzial_kontroli import parsuj_czesc, poza_petla_w_tej_czesci, wybierz_indeksy
+from podzial_kontroli import indeksy_po_etykietach, parsuj_argumenty, poza_petla_w_tej_czesci, wybierz_indeksy
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -38,7 +38,9 @@ os.chdir(ROOT)
 # CZĘŚCI CI. `--czesc N/M` uruchamia co M-ty wpis `checks` (indeks % M == N-1)
 # oraz, w części 3, elementy spoza pętli; bez argumentu (lokalnie) idzie całość.
 # Patrz scripts/podzial_kontroli.py i job `test` w .github/workflows/ci.yml.
-CZESC = parsuj_czesc(sys.argv[1:])
+# `--tylko ETYKIETA` (powtarzalne) uruchamia same wpisy o tych etykietach — do
+# zbierania komunikatu porażki przy pisaniu wzorca oczekiwanej przyczyny (#1011).
+CZESC, TYLKO = parsuj_argumenty(sys.argv[1:])
 
 
 def odmow(powod):
@@ -1642,6 +1644,21 @@ checks = [
      lambda s: replace_once(s, "tests/skrypty/bramka-migracji.sh|Bramka migracji workera i schedulera oblewa\n", "")),
 ]
 
+# CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej
+# kontrolę zaliczał każdy niezerowy kod ze słowem `FAILED` w wyjściu, więc błąd
+# składni, awaria bazy albo niezależna asercja z tej samej klasy dawały ten sam
+# „dowód" co asercja, którą mutacja miała zapalić. Teraz wynik czytamy z raportu
+# JUnit, a wzorzec oczekiwanej porażki stoi w `OCZEKUJ` (osobny plik, klucz to
+# nazwa kontroli z `checks`). Kontrola bez wzorca przechodzi tylko jako
+# BEZ_WZORCA i raport wymienia ją z nazwy — nie jest pełnym dowodem.
+# Wszystkie wpisy `checks` mają wzorzec, więc `WYMAGAJ_WZORCA = True`: nowy wpis
+# bez wzorca jest odrzucany w PREFLIGHCIE (niżej), przed pierwszym testem, z
+# nazwą wpisu. Jak zebrać komunikat do wzorca: uruchom sam wpis na własnym
+# klastrze — `--tylko "<etykieta>"` (ten tryb nie wymaga wzorca) — a werdykt
+# BEZ_WZORCA poda komunikaty porażki. Strażnik: tests/skrypty/kontrole-negatywne-przyczyna.py.
+WYMAGAJ_WZORCA = True
+WYMAGAJ_TERAZ = WYMAGAJ_WZORCA and not TYLKO
+
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
 # Po PR #1721 kotwica eksportu przestała pasować, a krok padał dopiero po kilku
 # minutach, anonimowym „nie znalazła dokładnie jednego miejsca” — bez nazwy
@@ -1662,7 +1679,7 @@ for label, filename, _test, mutate in checks:
 KONTROLE_MECHANIZMU = kontrole_mechanizmu(
     STRAZNIK_HOSTA, STRAZNIK_HOSTA_TEST, bez_sprawdzenia_sciezki, replace_once,
 )
-sprawdz_wzorce(checks, OCZEKUJ)
+sprawdz_wzorce(checks, OCZEKUJ, wymagaj=WYMAGAJ_TERAZ)
 for label, filename, _test, mutate, _oczekuj in KONTROLE_MECHANIZMU:
     try:
         source = (ROOT / filename).read_text()
@@ -1683,8 +1700,15 @@ for label, filename, _test, mutate, _oczekuj in KONTROLE_MECHANIZMU:
 # Podział na części CI: wpis o indeksie i należy do części i % M + 1. PREFLIGHT
 # wyżej sprawdził WSZYSTKIE kotwice w każdej części (jest tani), a poniżej idą
 # tylko wpisy wybranej części — każdy wpis w dokładnie jednej.
-wybrane = [checks[i] for i in wybierz_indeksy(len(checks), CZESC)]
-poza_petla = poza_petla_w_tej_czesci(CZESC)
+if TYLKO:
+    if CZESC is not None:
+        raise SystemExit("--tylko i --czesc wykluczają się: podaj jedno z nich.")
+    wybrane = [checks[i] for i in indeksy_po_etykietach([nazwa for nazwa, *_ in checks], TYLKO)]
+    poza_petla = False
+    print(f"--tylko: {len(wybrane)} z {len(checks)} wpisów `checks`, bez elementów spoza pętli.", flush=True)
+else:
+    wybrane = [checks[i] for i in wybierz_indeksy(len(checks), CZESC)]
+    poza_petla = poza_petla_w_tej_czesci(CZESC)
 if CZESC is not None:
     print(f"Część {CZESC[0]}/{CZESC[1]}: {len(wybrane)} z {len(checks)} wpisów `checks`"
           f"{' oraz elementy spoza pętli' if poza_petla else ''}.", flush=True)
@@ -1698,24 +1722,13 @@ if not kontrole_dodatnie:
 KONTROLE_DODATNIE_BEZ_MUTACJI = [GRUPA_SYGNALOW_TEST] if poza_petla else []
 for test in dict.fromkeys(kontrole_dodatnie + KONTROLE_DODATNIE_BEZ_MUTACJI):
     run_test(test, True)
-# CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej
-# kontrolę zaliczał każdy niezerowy kod ze słowem `FAILED` w wyjściu, więc błąd
-# składni, awaria bazy albo niezależna asercja z tej samej klasy dawały ten sam
-# „dowód" co asercja, którą mutacja miała zapalić. Teraz wynik czytamy z raportu
-# JUnit, a wzorzec oczekiwanej porażki stoi w `OCZEKUJ` (osobny plik, klucz to
-# nazwa kontroli z `checks`). Kontrola bez wzorca przechodzi tylko jako
-# BEZ_WZORCA i raport wymienia ją z nazwy — nie jest pełnym dowodem.
-# Wszystkie wpisy `checks` mają dziś wzorzec. `WYMAGAJ_WZORCA = True` zamieni
-# wpis bez wzorca z raportowanego BEZ_WZORCA w odmowę przed pierwszym testem —
-# włącz, gdy otwarte PR-y z nowymi wpisami zdążą dopisać wzorce.
-WYMAGAJ_WZORCA = False
 # Podział na części: pętlę mutacji dostaje tylko `wybrane`, a wzorce są sprawdzane
 # względem CAŁEGO `checks` (`wszystkie`). Kontrole mechanizmu (osobne od `checks`)
 # należą do elementów spoza pętli, czyli do części `poza_petla`.
 potwierdzone, bez_wzorca = przebieg(
     [],  # kontrole dodatnie poszły wyżej, `run_test` z własnym komunikatem błędu
     wybrane, OCZEKUJ, KONTROLE_MECHANIZMU if poza_petla else (),
-    wymagaj_wzorca=WYMAGAJ_WZORCA, wszystkie=checks,
+    wymagaj_wzorca=WYMAGAJ_TERAZ, wszystkie=checks,
 )
 # #2167: usunięcie wymaganego CSV ma zakończyć test porażką, nie skipem.
 # Robimy to osobno, bo kontrola usuwa plik zamiast podmieniać jego treść.

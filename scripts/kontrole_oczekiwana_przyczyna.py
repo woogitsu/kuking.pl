@@ -246,6 +246,12 @@ OCZEKUJ = {
     'Strażnik migracji ślepy na CHECK/FK bez NOT VALID': r'Strażnik nie zauważył CHECK bez NOT VALID na istniejącej tabeli\.',
     'Job lint bez wspólnych kontroli powłoki': r'contains "run: bash scripts/kontrole-powloki\.sh"|ci\.yml \(job lint\) uruchamia test z tests/skrypty/ bezpośrednio\.',
     'Test powłoki wypada z listy wspólnego skryptu': r'tests/skrypty/bramka-migracji\.sh wypadł z listy\.|Test powłoki poza listą w scripts/kontrole-powloki\.sh — dopisz go do',
+    "Goły ->with('status') wraca do kontrolera": r'Goły zapis klucza `status` wygląda jak zielony sukces',
+    'Odmowa nazwana sukcesem': r'Komunikat::sukces\(\) z tekstem „Nie udało się…" — to błąd, nie sukces\.',
+    'Produkcja dostaje domenę dostawcy obok kuking.pl': r'PROD_DOMAINS w \.railway/railway\.ts przestało być zbiorem|PROD_DOMAINS zawiera domenę „kuking-prod\.up\.railway\.app” spoza kuking\.pl',
+    'Rejestracja wdrożenia wraca do preDeployCommand': r'preDeployCommand kończy się PRZED startem i healthcheckiem nowego kontenera',
+    'Entrypoint rejestruje wdrożenie bez czekania na /health': r'Funkcja musi wołać komendę z --po-gotowosci',
+    'Import z adresu publikuje przepis': r'ImportujPrzepisZAdresu\.php publikuje przepis\.',
 }
 
 
