@@ -136,7 +136,8 @@ new class extends Component
     /**
      * Wersja kształtu stanu komponentu, ustawiana w `mount()`.
      *
-     * Karta otwarta PRZED wdrożeniem kroku 3 odsyła migawkę bez `form`,
+     * Karta otwarta PRZED wdrożeniem kroku 3 (a potem kroku 6, który też
+     * zmienił kształt stanu) odsyła migawkę bez `form`,
      * a Livewire pomija nieznane klucze i tworzy PUSTY obiekt formularza.
      * Pierwszy autozapis takiej karty nadpisałby przepis domyślnymi
      * wartościami — prywatny przepis stałby się publiczny, a historia
