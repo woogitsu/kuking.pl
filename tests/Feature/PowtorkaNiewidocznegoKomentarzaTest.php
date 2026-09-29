@@ -147,6 +147,7 @@ class PowtorkaNiewidocznegoKomentarzaTest extends TestCase
                 'user_id' => $autor->getKey(),
                 'recipe_id' => $this->przepis($this->user('autorprzepisu'))->getKey(),
             ])),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
 
         $this->actingAs($osoba)->post($trasa, ['body' => self::TRESC])

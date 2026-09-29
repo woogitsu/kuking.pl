@@ -34,6 +34,7 @@ final class PwaInstallController extends Controller
             'request' => $prompt->requestInstallation($user),
             'dismiss' => $prompt->dismiss($user),
             'installed' => $prompt->installed($user),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
 
         if ($changed && in_array($data['action'], ['request', 'dismiss', 'installed'], true)) {

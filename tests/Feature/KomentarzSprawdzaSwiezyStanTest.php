@@ -91,6 +91,7 @@ final class KomentarzSprawdzaSwiezyStanTest extends TestCase
             'root_hidden' => Comment::query()->whereKey($root->id)->update(['status' => 'hidden']),
             'root_deleted' => $root->fresh()->delete(),
             'root_block' => app(BlockUser::class)->handle($writer, $rootAuthor),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
         $comments = Comment::withTrashed()->count();
         $notifications = Notification::query()->count();

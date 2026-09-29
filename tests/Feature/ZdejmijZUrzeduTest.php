@@ -403,6 +403,7 @@ class ZdejmijZUrzeduTest extends TestCase
                     'author_id' => $autor->getKey(), 'visibility' => Post::VISIBILITY_PRIVATE,
                 ])->getKey(),
             ])],
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
         $moderator = $this->moderator();
 
@@ -544,6 +545,7 @@ class ZdejmijZUrzeduTest extends TestCase
                 'author_id' => $autor->getKey(),
                 'post_id' => Post::factory()->create()->getKey(),
             ]),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
     }
 }

@@ -220,6 +220,7 @@ final class LicznikiZeszytuDlaWidzaTest extends TestCase
             'hidden' => Recipe::query()->whereKey($przepis->id)->update(['status' => Recipe::STATUS_HIDDEN]),
             'soft-delete' => $przepis->delete(),
             'banned' => $autorPrzepisu->forceFill(['status' => User::STATUS_BANNED])->save(),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
 
         // Karta i szyna: zostaje wpis z własną treścią, znika czysta zapowiedź.

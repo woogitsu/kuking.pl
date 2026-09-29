@@ -219,6 +219,7 @@ class PowiadomieniaZgodneZPolicyTest extends TestCase
             'komentujacy_zbanowany' => $komentujacy->ban(),
             'korzen_ukryty' => DB::table('comments')->where('id', $korzen->getKey())->update(['status' => Comment::STATUS_HIDDEN]),
             'kucharz_do_usuniecia' => $kucharz?->markForDeletion(),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
 
         $widzTeraz = User::query()->findOrFail($widz->getKey());

@@ -228,6 +228,7 @@ class KartaWpisuJednymKontraktemTest extends TestCase
             'profil' => [route('profile.show', $autor->profile->username), 'posts'],
             'tag' => [route('tags.show', $tag), 'posts'],
             'zeszyt' => [route('collections.show', $zeszyt), 'posts'],
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
     }
 

@@ -296,6 +296,7 @@ class ModeratorWidziUkrytyWpisTest extends TestCase
             'moderator bez 2FA' => $this->user(null, ['role' => User::ROLE_MODERATOR]),
             'obcy' => $this->user(),
             'gość' => null,
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
     }
 

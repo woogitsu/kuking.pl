@@ -222,6 +222,19 @@ else
     fi
 fi
 
+# --- 4b. Ratchet PHPStana: wyczyszczone rodziny poziomu 4 (#1731) ----------
+# Poziom 4 nie jest jeszcze globalną bramką, ale rodziny błędów, które już
+# wyczyściliśmy (lista w `scripts/phpstan-wyczyszczone.sh`), nie mogą wrócić.
+krok "PHPStan — wyczyszczone rodziny poziomu 4"
+if [ ! -x vendor/bin/phpstan ]; then
+    zle "Brak vendor/bin/phpstan — uruchom: composer install"
+elif _wynik_ratchet=$(bash scripts/phpstan-wyczyszczone.sh 2>&1); then
+    ok "Wyczyszczone rodziny poziomu 4 nie wróciły"
+else
+    printf '%s\n' "$_wynik_ratchet"
+    zle "Wróciły wyczyszczone błędy poziomu 4 — uruchom: bash scripts/phpstan-wyczyszczone.sh"
+fi
+
 # --- 5. Testy -------------------------------------------------------------
 # KUKING_TESTY_ROWNOLEGLE=N puszcza baterię na N procesach. Domyślnie PUSTE,
 # czyli szeregowo — i tak ma zostać. Równoległość jest świadomym wyborem

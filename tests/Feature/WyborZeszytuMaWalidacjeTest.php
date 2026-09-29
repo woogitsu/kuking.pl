@@ -49,6 +49,7 @@ class WyborZeszytuMaWalidacjeTest extends TestCase
             'array' => [$foreign->getKey()],
             'missing' => (string) Str::uuid(),
             'foreign' => $foreign->getKey(),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
 
         $this->actingAs($user)->from('/home')->post($url, ['collection_id' => $id])
@@ -98,6 +99,7 @@ class WyborZeszytuMaWalidacjeTest extends TestCase
             'own' => ['collection_id' => $collection->getKey()],
             'empty' => ['collection_id' => ''],
             'omitted' => [],
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
 
         $this->actingAs($user)->from('/home')->post($url, $data)
