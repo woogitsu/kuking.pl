@@ -12,8 +12,8 @@
     </p>
 
     <p class="historia-akcje">
-        @if($wersja->version_number > 1)
-            <a class="btn btn-secondary" href="{{ route('recipes.history.changes', [$recipe->slug, $wersja->version_number]) }}">Co się zmieniło względem wersji {{ $wersja->version_number - 1 }}</a>
+        @if($starszy !== null)
+            <a class="btn btn-secondary" href="{{ route('recipes.history.changes', [$recipe->slug, $wersja->version_number]) }}">Co się zmieniło względem wersji {{ $starszy }}</a>
         @endif
         @if($starszy !== null)
             <a class="btn btn-secondary" href="{{ route('recipes.history.version', [$recipe->slug, $starszy]) }}">Starsza wersja ({{ $starszy }})</a>

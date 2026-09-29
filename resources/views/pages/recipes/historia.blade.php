@@ -8,6 +8,12 @@
         bez zdjęć. Strona przepisu może zawierać jeszcze drobne poprawki, których autor
         nie zapisał jako nowej wersji.
     </p>
+    <p class="meta">
+        Wersje są publiczne tak samo jak przepis: widzi je każdy, kto widzi przepis. Zapisana
+        wersja zachowuje treść z chwili zapisu, także tę, którą autor usunął później.
+        Pojedynczej wersji nie da się usunąć samemu. Autor może usunąć cały przepis
+        (razem z nim znika historia) albo <a href="{{ route('kontakt') }}">napisać do nas</a>.
+    </p>
 
     <ol class="historia-lista list-none p-0" aria-label="Wersje przepisu">
         @foreach($wersje as $wersja)
@@ -23,8 +29,8 @@
                 </p>
                 <p class="historia-akcje">
                     <a class="btn btn-secondary" href="{{ route('recipes.history.version', [$recipe->slug, $wersja->version_number]) }}">Zobacz wersję {{ $wersja->version_number }}</a>
-                    @if($wersja->version_number > 1)
-                        <a class="btn btn-secondary" href="{{ route('recipes.history.changes', [$recipe->slug, $wersja->version_number]) }}">Co się zmieniło względem wersji {{ $wersja->version_number - 1 }}</a>
+                    @if(($poprzednicy[$wersja->version_number] ?? null) !== null)
+                        <a class="btn btn-secondary" href="{{ route('recipes.history.changes', [$recipe->slug, $wersja->version_number]) }}">Co się zmieniło względem wersji {{ $poprzednicy[$wersja->version_number] }}</a>
                     @endif
                 </p>
             </li>

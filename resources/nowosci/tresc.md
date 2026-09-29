@@ -69,7 +69,9 @@ gdy wracacie do zapisanego albo wydrukowanego przepisu i chcecie wiedzieć, czy
 zmieniły się proporcje lub sposób przygotowania. Historia pokazuje tekst i dane
 przepisu, bez zdjęć, i widzi ją każdy, kto widzi sam przepis — nic ponadto. Jeśli
 starsza wersja nie zapisała jakiegoś pola, piszemy o tym wprost, zamiast
-zgadywać.
+zgadywać. Pamiętajcie, że zapisana wersja zachowuje treść z chwili zapisu, także
+tę, którą autor usunął później: pojedynczej wersji nie da się usunąć samemu, ale
+autor może usunąć cały przepis albo napisać do nas.
 ### Zacznijcie gotować na telefonie, dokończcie na tablecie
 
 W trybie „Gotuję” jest nowy, całkiem opcjonalny przycisk „Zapamiętuj postęp na

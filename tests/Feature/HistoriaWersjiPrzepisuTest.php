@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Models\Recipe;
 use App\Models\RecipeVersion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Tests\TestCase;
 
 /**
@@ -383,5 +385,116 @@ class HistoriaWersjiPrzepisuTest extends TestCase
 
         $this->assertSame(1, $ile($bez));
         $this->assertSame(1, $ile($z));
+    }
+
+    private function staryAdres(Recipe $przepis, string $stary): void
+    {
+        DB::table('recipe_slug_redirects')->insert([
+            'slug' => $stary,
+            'recipe_id' => $przepis->getKey(),
+            'created_at' => now(),
+        ]);
+    }
+
+    public function test_stary_slug_przekierowuje_301_na_kazdy_ekran_historii(): void
+    {
+        $przepis = $this->przepisZWersjami(2);
+        $this->staryAdres($przepis, 'stary-adres-przepisu');
+
+        $this->get('/przepisy/stary-adres-przepisu/historia')
+            ->assertStatus(301)
+            ->assertRedirect(route('recipes.history', $przepis->slug));
+        $this->get('/przepisy/stary-adres-przepisu/historia/2')
+            ->assertStatus(301)
+            ->assertRedirect(route('recipes.history.version', [$przepis->slug, 2]));
+        $this->get('/przepisy/stary-adres-przepisu/historia/2/zmiany')
+            ->assertStatus(301)
+            ->assertRedirect(route('recipes.history.changes', [$przepis->slug, 2]));
+    }
+
+    public function test_stary_slug_przepisu_prywatnego_i_nieopublikowanego_to_404_bez_adresu_w_naglowku(): void
+    {
+        $prywatny = $this->przepisZWersjami(2, ['visibility' => 'private']);
+        $this->staryAdres($prywatny, 'stary-prywatny');
+        $ukryty = $this->przepisZWersjami(2, ['status' => Recipe::STATUS_HIDDEN]);
+        $this->staryAdres($ukryty, 'stary-ukryty');
+
+        $this->get('/przepisy/stary-prywatny/historia')->assertNotFound()->assertHeaderMissing('Location');
+        $this->get('/przepisy/stary-ukryty/historia/1')->assertNotFound()->assertHeaderMissing('Location');
+        $this->get('/przepisy/nie-ma-takiego/historia')->assertNotFound();
+    }
+
+    public function test_etykieta_porownania_pokazuje_faktycznego_poprzednika_gdy_numeracja_ma_luke(): void
+    {
+        $przepis = Recipe::factory()->create();
+        foreach ([1, 3, 7] as $numer) {
+            $this->wersja($przepis, $numer, [], 'Aktualizacja przepisu');
+        }
+
+        $this->get(route('recipes.history', $przepis->slug))
+            ->assertOk()
+            ->assertSee('względem wersji 3')
+            ->assertSee('względem wersji 1')
+            ->assertDontSee('względem wersji 6')
+            ->assertDontSee('względem wersji 2');
+        $this->get(route('recipes.history.version', [$przepis->slug, 7]))
+            ->assertOk()
+            ->assertSee('względem wersji 3')
+            ->assertDontSee('względem wersji 6');
+        // Najstarsza wersja nie ma poprzednika, więc nie ma przycisku porównania.
+        $this->get(route('recipes.history.version', [$przepis->slug, 1]))
+            ->assertOk()
+            ->assertDontSee('Co się zmieniło względem');
+    }
+
+    public function test_polityka_view_jest_liczona_raz_na_ekran_historii(): void
+    {
+        $przepis = $this->przepisZWersjami(3);
+        $razy = 0;
+        Gate::before(function (?User $u, string $ability) use (&$razy): null {
+            if ($ability === 'view') {
+                $razy++;
+            }
+
+            return null;
+        });
+
+        foreach ($this->adresy($przepis, 2) as $adres) {
+            $razy = 0;
+            $this->get($adres)->assertOk();
+            $this->assertSame(1, $razy, $adres);
+        }
+    }
+
+    public function test_ekran_historii_mowi_ze_wersje_sa_publiczne(): void
+    {
+        $przepis = $this->przepisZWersjami(2);
+
+        $this->get(route('recipes.history', $przepis->slug))
+            ->assertOk()
+            ->assertSee('Wersje są publiczne tak samo jak przepis')
+            ->assertSee('Pojedynczej wersji nie da się usunąć samemu');
+    }
+
+    public function test_ponowna_publikacja_bez_zmian_nie_dopisuje_identycznej_wersji(): void
+    {
+        $autor = User::factory()->create();
+        $dane = fn (string $tytul): array => [
+            'author' => $autor,
+            'attributes' => ['title' => $tytul, 'visibility' => 'public', 'source_type' => 'own'],
+            'ingredients' => [['text' => '1 kurczak']],
+            'steps' => [['instruction' => 'Zalej wodą.']],
+            'publish' => true,
+        ];
+
+        $przepis = app(PublishRecipe::class)->handle(...$dane('Rosół babci Zofii'));
+        $this->assertSame(1, $przepis->versions()->count());
+
+        $przepis = app(PublishRecipe::class)->handle(...$dane('Rosół babci Zofii'), existing: $przepis);
+        $this->assertSame(1, $przepis->versions()->count(), 'Identyczna treść nie ma dawać drugiej wersji.');
+
+        $przepis = app(PublishRecipe::class)->handle(...$dane('Rosół babci Zofii — z lubczykiem'), existing: $przepis);
+        $this->assertSame([2, 1], $przepis->versions()->pluck('version_number')->map(fn ($n) => (int) $n)->all());
+        $this->assertSame('Aktualizacja przepisu', $przepis->versions()->first()->change_note);
     }
 }
