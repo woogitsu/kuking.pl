@@ -50,10 +50,9 @@ class FormularzKreatoraWLivewireFormTest extends TestCase
         $this->assertInstanceOf(PrzepisForm::class, $komponent->form);
 
         foreach (KrokOPrzepisie::POLA as $pole) {
-            $wFormularzu = in_array($pole, PrzepisForm::POLA, true);
-
-            $this->assertSame($wFormularzu, property_exists($komponent->form, $pole), "Pole {$pole}: formularz.");
-            $this->assertSame(! $wFormularzu, property_exists($komponent, $pole), "Pole {$pole}: komponent — nie może stać w dwóch miejscach naraz.");
+            $this->assertContains($pole, PrzepisForm::POLA, "Pole {$pole}: lista pól formularza.");
+            $this->assertTrue(property_exists($komponent->form, $pole), "Pole {$pole}: formularz.");
+            $this->assertFalse(property_exists($komponent, $pole), "Pole {$pole}: komponent — nie może stać w dwóch miejscach naraz.");
         }
     }
 

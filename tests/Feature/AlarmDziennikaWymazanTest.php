@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Compliance\DziennikWymazanNiedostepny;
 use App\Domain\Monitoring\AlarmDziennikaWymazan;
 use App\Logging\WebhookBleduHandler;
 use App\Models\User;
@@ -185,8 +184,6 @@ class AlarmDziennikaWymazanTest extends TestCase
 
     public function test_przebieg_bez_porazki_dziennika_zeruje_licznik_takze_gdy_konto_czeka_z_innej_przyczyny(): void
     {
-        $this->assertNotInstanceOf(DziennikWymazanNiedostepny::class, new RuntimeException('inna'));
-
         $alarm = app(AlarmDziennikaWymazan::class);
         $alarm->zapiszPrzebieg(1, 1);
         $this->assertSame(1, Cache::get(AlarmDziennikaWymazan::KLUCZ_LICZNIKA)['noce']);
