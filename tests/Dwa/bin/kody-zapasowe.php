@@ -74,7 +74,7 @@ try {
     Auth::guard('web')->setUser($konto);
 
     try {
-        $odpowiedz = app()->call([app(TwoFactorSettingsController::class), 'regenerateCodes'], ['request' => $request]);
+        $odpowiedz = app()->call([app(TwoFactorSettingsController::class), 'regenerateCodes']);
         $dokad = $odpowiedz instanceof RedirectResponse ? $odpowiedz->getTargetUrl() : null;
     } catch (ValidationException $bladFormularza) {
         $dokad = null;

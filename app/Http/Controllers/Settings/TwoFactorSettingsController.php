@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Settings;
 
+use App\Domain\Security\Actions\WlaczDwuetapowa;
+use App\Domain\Security\Actions\WygenerujNoweKodyZapasowe;
 use App\Domain\Security\TwoFactorAuthenticator;
-use App\Domain\Users\ZamekKonta;
+use App\Domain\Security\WynikNowychKodowZapasowych;
+use App\Domain\Security\WynikWlaczeniaDwuetapowej;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Settings\NoweKodyZapasoweRequest;
+use App\Http\Requests\Settings\WlaczenieDwuetapowejRequest;
+use App\Http\Requests\Settings\WylaczenieDwuetapowejRequest;
 use App\Models\AuditLogEntry;
-use App\Models\User;
 use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -125,77 +130,29 @@ class TwoFactorSettingsController extends Controller
      * Hasło sprawdzamy PRZED kodem: przy złym haśle kod nie jest ani
      * sprawdzany, ani zużywany, a 2FA zostaje wyłączona.
      */
-    public function confirm(Request $request): RedirectResponse
+    public function confirm(WlaczenieDwuetapowejRequest $request, WlaczDwuetapowa $wlacz): RedirectResponse
     {
         $user = $request->user();
 
-        $data = $request->validate([
-            'code' => ['required', 'string'],
-            'password' => ['required', 'string'],
-        ], [
-            'code.required' => 'Wpisz sześciocyfrowy kod z aplikacji.',
-            'password.required' => 'Wpisz hasło do Kuking, żeby włączyć weryfikację dwuetapową.',
-        ]);
+        $data = $request->validated();
 
-        if ($user->two_factor_secret === null) {
-            return redirect()->route('settings.two_factor.enable');
+        $wynik = $wlacz->handle($user, $data['password'], $data['code'], $request->ip());
+
+        switch ($wynik->status) {
+            case WynikWlaczeniaDwuetapowej::BRAK_SEKRETU:
+            case WynikWlaczeniaDwuetapowej::PRZEGRANA_Z_DRUGA_KARTA:
+                return redirect()->route('settings.two_factor.enable');
+            case WynikWlaczeniaDwuetapowej::JUZ_WLACZONE:
+                return $this->juzWlaczone();
+            case WynikWlaczeniaDwuetapowej::ZLE_HASLO:
+                throw ValidationException::withMessages([
+                    'password' => 'Wpisz ponownie hasło do Kuking. Jeśli go nie pamiętasz, skorzystaj z instrukcji przy formularzu.',
+                ]);
+            case WynikWlaczeniaDwuetapowej::ZLY_KOD:
+                throw ValidationException::withMessages([
+                    'code' => 'Kod jest nieprawidłowy. Sprawdź, czy godzina w telefonie jest ustawiona poprawnie, i spróbuj ponownie.',
+                ]);
         }
-
-        // Stary formularz włączenia przy JUŻ włączonej 2FA: bez sprawdzania
-        // i zużywania kodu, bez nowego kompletu kodów zapasowych (#2061).
-        if ($user->hasTwoFactorConfirmed()) {
-            return $this->juzWlaczone();
-        }
-
-        if (! Hash::check($data['password'], $user->password)) {
-            throw ValidationException::withMessages([
-                'password' => 'Wpisz ponownie hasło do Kuking. Jeśli go nie pamiętasz, skorzystaj z instrukcji przy formularzu.',
-            ]);
-        }
-
-        $sekret = $user->two_factor_secret;
-
-        if (! $this->totp->verifyCode($user, $sekret, $data['code'])) {
-            throw ValidationException::withMessages([
-                'code' => 'Kod jest nieprawidłowy. Sprawdź, czy godzina w telefonie jest ustawiona poprawnie, i spróbuj ponownie.',
-            ]);
-        }
-
-        // POTWIERDZENIE ROZSTRZYGA ŚWIEŻY WIERSZ POD BLOKADĄ KONTA (#2061).
-        //
-        // `$user` wczytano na początku żądania. Druga karta mogła w tym czasie
-        // potwierdzić 2FA i pokazać kody zapasowe, które człowiek właśnie
-        // przepisuje. Dotąd ten zapis wymieniał je na nowy komplet — kartka
-        // przestawała działać, zanim ktokolwiek się o tym dowiedział. Pod
-        // blokadą sprawdzamy więc jeszcze raz: sekret ten sam, który
-        // zweryfikował kod, i 2FA wciąż niepotwierdzone. Inaczej nic nie
-        // zapisujemy. Nowy komplet przy WŁĄCZONEJ 2FA daje tylko
-        // „Wygeneruj nowe kody zapasowe" (`regenerateCodes()`).
-        //
-        // Skróty liczymy PRZED blokadą — bcrypt dziesięć razy nie ma czego
-        // szukać w transakcji, która trzyma wiersz konta.
-        $kodyJawne = $this->totp->generateBackupCodes();
-        $skroty = $this->totp->hashBackupCodes($kodyJawne);
-
-        $wlaczono = ZamekKonta::zablokuj($user, static function (?User $swiezy) use ($sekret, $skroty): bool {
-            if ($swiezy === null || $swiezy->two_factor_secret !== $sekret || $swiezy->hasTwoFactorConfirmed()) {
-                return false;
-            }
-
-            $swiezy->confirmTwoFactor($skroty);
-
-            return true;
-        });
-
-        $user->refresh();
-
-        if (! $wlaczono) {
-            return $user->hasTwoFactorConfirmed()
-                ? $this->juzWlaczone()
-                : redirect()->route('settings.two_factor.enable');
-        }
-
-        AuditLogEntry::recordBezWywracania('account.two_factor_enabled', $user, $user, ip: $request->ip());
 
         // STARE POŚWIADCZENIA JEDNOSKŁADNIKOWE GASNĄ (#930, D-245).
         //
@@ -215,7 +172,7 @@ class TwoFactorSettingsController extends Controller
         // Kody zapasowe idą do sesji TYLKO na ten jeden, następny widok
         // (`->with()` = flash na jedno żądanie) — to jest jedyny moment,
         // w którym serwis w ogóle zna ich jawną treść.
-        return redirect()->route('settings.two_factor.codes')->with('kody_zapasowe', $kodyJawne);
+        return redirect()->route('settings.two_factor.codes')->with('kody_zapasowe', $wynik->kodyJawne);
     }
 
     /**
@@ -257,72 +214,28 @@ class TwoFactorSettingsController extends Controller
      * na serwer (`kuking:2fa-wylacz`) — dlatego droga do nowych kodów musi
      * być łatwa, dopóki człowiek ma jeszcze dostęp.
      */
-    public function regenerateCodes(Request $request): RedirectResponse
+    public function regenerateCodes(NoweKodyZapasoweRequest $request, WygenerujNoweKodyZapasowe $nowe): RedirectResponse
     {
-        $user = $request->user();
+        $data = $request->validated();
 
-        $data = $request->validateWithBag('regenerate', [
-            'password' => ['required', 'string'],
-        ], [
-            'password.required' => 'Wpisz hasło do Kuking, żeby dostać nowe kody zapasowe.',
-        ]);
-
-        if (! $user->hasTwoFactorConfirmed()) {
-            return redirect()->route('settings.two_factor.edit');
-        }
-
-        if (! Hash::check($data['password'], $user->password)) {
-            throw ValidationException::withMessages([
-                'password' => 'Wpisz ponownie hasło do Kuking. Jeśli go nie pamiętasz, skorzystaj z instrukcji przy formularzu.',
-            ])->errorBag('regenerate');
-        }
-
-        // DWIE KARTY, DWA KOMPLETY (#2057).
-        //
-        // Dwa nakładające się żądania pokazywały dwa różne komplety, a działał
-        // tylko ten zapisany jako ostatni. Kto przepisał kody z pierwszej
-        // karty, miał kartkę, która nie otwiera konta — i dowiadywał się o tym
-        // dopiero po zgubieniu telefonu.
-        //
-        // Migawka to zaszyfrowany komplet z chwili, w której żądanie wczytało
-        // konto. Pod blokadą wiersza porównujemy ją ze stanem bieżącym: inny
-        // komplet znaczy, że w trakcie tego żądania ktoś (druga karta) już
-        // zapisał nowe kody. Wtedy niczego nie nadpisujemy i niczego nie
-        // pokazujemy — komplet z tamtej karty zostaje ważny. Sama blokada
-        // by nie wystarczyła: kolejkuje, ale drugie żądanie po wejściu i tak
-        // nadpisałoby komplet, który pierwsza karta właśnie pokazała.
-        $migawka = $user->getRawOriginal('two_factor_backup_codes');
-
-        // Skróty liczymy PRZED blokadą — bcrypt kilka razy nie ma czego
-        // szukać w transakcji, która trzyma wiersz konta.
-        $kodyJawne = $this->totp->generateBackupCodes();
-        $skroty = $this->totp->hashBackupCodes($kodyJawne);
-
-        $wynik = ZamekKonta::zablokuj($user, static function (?User $swiezy) use ($migawka, $skroty): string {
-            if ($swiezy === null || ! $swiezy->hasTwoFactorConfirmed()) {
-                return 'wylaczone';
-            }
-
-            if ($swiezy->getRawOriginal('two_factor_backup_codes') !== $migawka) {
-                return 'zmienione';
-            }
-
-            $swiezy->replaceTwoFactorBackupCodes($skroty);
-
-            return 'zapisane';
-        });
-
-        $user->refresh();
+        $wynik = $nowe->handle($request->user(), $data['password']);
 
         // Flash z kodami dopiero PO zatwierdzeniu transakcji: nieudany commit
         // kończy się wyjątkiem, zanim jawne kody trafią do sesji.
-        return match ($wynik) {
-            'zapisane' => redirect()->route('settings.two_factor.codes')->with('kody_zapasowe', $kodyJawne),
-            'zmienione' => redirect()->route('settings.two_factor.edit')->with(Komunikat::blad('Nowe kody zapasowe powstały przed chwilą w innym oknie lub karcie. Zapisz kody z tamtego ekranu. '
-                .'Jeśli ich nie masz, kliknij „Wygeneruj nowe kody” jeszcze raz — poprzednie przestaną wtedy działać.',
-            )),
-            default => redirect()->route('settings.two_factor.edit'),
-        };
+        switch ($wynik->status) {
+            case WynikNowychKodowZapasowych::ZLE_HASLO:
+                throw ValidationException::withMessages([
+                    'password' => 'Wpisz ponownie hasło do Kuking. Jeśli go nie pamiętasz, skorzystaj z instrukcji przy formularzu.',
+                ])->errorBag('regenerate');
+            case WynikNowychKodowZapasowych::ZAPISANE:
+                return redirect()->route('settings.two_factor.codes')->with('kody_zapasowe', $wynik->kodyJawne);
+            case WynikNowychKodowZapasowych::ZMIENIONE:
+                return redirect()->route('settings.two_factor.edit')->with(Komunikat::blad('Nowe kody zapasowe powstały przed chwilą w innym oknie lub karcie. Zapisz kody z tamtego ekranu. '
+                    .'Jeśli ich nie masz, kliknij „Wygeneruj nowe kody” jeszcze raz — poprzednie przestaną wtedy działać.',
+                ));
+            default:
+                return redirect()->route('settings.two_factor.edit');
+        }
     }
 
     /**
@@ -330,13 +243,9 @@ class TwoFactorSettingsController extends Controller
      * może być jednym kliknięciem kogoś, kto akurat siedzi przy otwartej
      * sesji w przeglądarce.
      */
-    public function disable(Request $request): RedirectResponse
+    public function disable(WylaczenieDwuetapowejRequest $request): RedirectResponse
     {
-        $data = $request->validateWithBag('disable', [
-            'password' => ['required', 'string'],
-        ], [
-            'password.required' => 'Wpisz hasło do Kuking, żeby wyłączyć weryfikację dwuetapową.',
-        ]);
+        $data = $request->validated();
 
         if (! Hash::check($data['password'], $request->user()->password)) {
             throw ValidationException::withMessages([
