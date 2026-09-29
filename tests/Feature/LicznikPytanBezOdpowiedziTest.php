@@ -167,7 +167,7 @@ class LicznikPytanBezOdpowiedziTest extends TestCase
                 $this->assertSame(
                     $lista->query($ktos, true, $slug)->count(),
                     $this->licznik($ktos, $slug),
-                    'Rozjazd dla widza '.($ktos?->id ?? 'gość').' i tagu '.($slug ?? '—'),
+                    'Rozjazd dla widza '.($ktos->id ?? 'gość').' i tagu '.($slug ?? '—'),
                 );
             }
         }

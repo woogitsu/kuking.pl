@@ -439,6 +439,9 @@ class Media extends Model
      */
     private function warianty(): array
     {
+        // Kolumna JSONB bywa czymkolwiek (stare wiersze) — rzutowanie modelu
+        // na tablicę tego nie gwarantuje.
+        /** @var mixed $metadata */
         $metadata = $this->metadata;
 
         if (! is_array($metadata) || ! is_array($metadata['variants'] ?? null)) {

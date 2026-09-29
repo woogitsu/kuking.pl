@@ -32,18 +32,18 @@ class KompozycjaStartuTest extends TestCase
             @$document->loadHTML('<?xml encoding="utf-8" ?>'.$html);
             $dom = new DOMXPath($document);
             $header = $this->classQuery('start-naglowek');
-            $this->assertSame('Dzień dobry, Widz', trim($dom->query($header.'//h1')->item(0)?->textContent ?? ''));
-            $this->assertSame(route('about'), self::elementDom($dom->query($header.'//a')->item(0))?->getAttribute('href'));
+            $this->assertSame('Dzień dobry, Widz', trim($dom->query($header.'//h1')->item(0)->textContent ?? ''));
+            $this->assertSame(route('about'), self::elementDom($dom->query($header.'//a')->item(0))->getAttribute('href'));
             $composer = $this->classQuery('composer');
-            $this->assertSame('Co dziś gotujesz? Dodaj zdjęcie', self::elementDom($dom->query($composer)->item(0))?->getAttribute('aria-label'));
-            $this->assertSame(route('posts.create'), self::elementDom($dom->query($composer)->item(0))?->getAttribute('href'));
+            $this->assertSame('Co dziś gotujesz? Dodaj zdjęcie', self::elementDom($dom->query($composer)->item(0))->getAttribute('aria-label'));
+            $this->assertSame(route('posts.create'), self::elementDom($dom->query($composer)->item(0))->getAttribute('href'));
             $board = $this->classQuery('app-rail').$this->classQuery('marka-tablica');
             $this->assertSame(1, $dom->query($board)->length, $path);
             $intro = $board.$this->classQuery('marka-tablica-wstep');
-            $this->assertSame('Co dobrego u innych?', trim($dom->query($intro.'//h2')->item(0)?->textContent ?? ''));
-            $this->assertSame(route('discover'), self::elementDom($dom->query($intro.'//a')->item(0))?->getAttribute('href'));
+            $this->assertSame('Co dobrego u innych?', trim($dom->query($intro.'//h2')->item(0)->textContent ?? ''));
+            $this->assertSame(route('discover'), self::elementDom($dom->query($intro.'//a')->item(0))->getAttribute('href'));
             $people = $board.$this->classQuery('kuking-board-people');
-            $this->assertStringContainsString('Prawdziwa nazwa testowa', $dom->query($people)->item(0)?->textContent ?? '');
+            $this->assertStringContainsString('Prawdziwa nazwa testowa', $dom->query($people)->item(0)->textContent ?? '');
             $this->assertGreaterThan(0, $dom->query($people.'//a[@href="'.route('profile.show', 'kuchnia').'"]')->length);
             $this->assertGreaterThan(0, $dom->query($board.'//a[@href="'.route('search', ['sekcja' => 'ludzie']).'"]')->length);
             $this->assertStringContainsString('Danie z danych testowych', $dom->query($board)->item(0)->textContent);
@@ -53,7 +53,7 @@ class KompozycjaStartuTest extends TestCase
                 $labels[] = trim($link->textContent);
             }
             $this->assertSame(['Start', 'Odkrywaj', 'Mój zeszyt'], $labels);
-            $this->assertSame('Start', trim($dom->query($nav.'//a[@aria-current="page"]')->item(0)?->textContent ?? ''));
+            $this->assertSame('Start', trim($dom->query($nav.'//a[@aria-current="page"]')->item(0)->textContent ?? ''));
             $this->assertStringNotContainsString('Podgląd nowego wyglądu', $html);
             $this->assertStringNotContainsString('osoby, wpisy i liczby poniżej są przykładowe', mb_strtolower($html));
             $snapshots[] = trim($dom->query($board)->item(0)->textContent);

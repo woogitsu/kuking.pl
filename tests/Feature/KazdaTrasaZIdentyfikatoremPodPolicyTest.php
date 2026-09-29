@@ -112,6 +112,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         'login.link.confirm' => 'Parametr {token} to jednorazowy token logowania linkiem (D-056).',
         'facebook.link.confirm' => 'Parametr {token} to jednorazowy dowód kontroli nad obecnym kontem Kuking, związany z sesją i Facebookiem (#2085).',
         'zaproszenie.pokaz' => 'Parametr {token} to jednorazowy token zaproszenia do rejestracji.',
+        'settings.data.import.preview' => 'Parametr {paczka} to losowy token pliku ZIP czekającego w prywatnym katalogu ZALOGOWANEJ osoby (`MagazynPaczek`), nie identyfikator obiektu w bazie: cudzy token nie wskazuje niczego (WczytanieDanychEkranTest::test_czyjs_token_nic_nie_znaczy_dla_innej_osoby), a wejście idzie przez `WczytanaZPaczkiPolicy::create` (#1985).',
+        'settings.data.import.store' => 'Jak `settings.data.import.preview`: {paczka} to token pliku z katalogu zalogowanej osoby; zapis tworzy wyłącznie treści tej osoby, po `WczytanaZPaczkiPolicy::create` (#1985).',
         'collections.link.show' => 'Parametr {token} to jednorazowy token linku-zaproszenia do wspólnego zeszytu (#1743); w bazie leży jego SHA-256, a przyjęcie odmawia przy blokadzie między stronami.',
         'collections.link.accept' => 'Jak collections.link.show: {token} to jednorazowe poświadczenie linku-zaproszenia, nie identyfikator obiektu.',
         'collections.link.decline' => 'Jak collections.link.show: {token} to jednorazowe poświadczenie linku-zaproszenia, nie identyfikator obiektu.',

@@ -42,25 +42,23 @@ use Throwable;
  * `CleanUpDataExports` kasuje wyłącznie klucze zapisane w `data_exports`,
  * więc tego prefiksu nie dotyka.
  *
- * ZAPIS NIE MOŻE ZATRZYMAĆ WYMAZANIA
- * Wymazanie jest ważniejsze niż jego dziennik. Nieudany zapis kończy się
- * błędem w logu, a nocne `uzupelnij()` dopisuje brakujące wpisy dla
- * kont wymazanych w oknie kopii — bez osobnej kolejki i bez kolumny w bazie.
+ * WYMAZANIE CZEKA NA TEN ZAPIS (issue #2038, decyzja właściciela z 28.09.2026)
+ * `EraseAccountData` dopisuje wpis jako OSTATNI krok przed zatwierdzeniem
+ * transakcji anonimizacji. Gdy zapis zawiedzie (po `PROBY` próbach), wyjątek
+ * cofa całą anonimizację: konto zostaje `pending_delete` z pustym
+ * `data_erased_at` i trafia w kolejny przebieg egzekutora. Nie ma więc chwili,
+ * w której konto jest wymazane w bazie, a poza bazą nie ma o tym śladu —
+ * odtworzenie kopii nie ma czego zgubić. Cena: wymazanie może się opóźnić
+ * o czas awarii magazynu (egzekutor ponawia co noc).
  *
- * OKNO, KTÓREGO NOC NIE ZAMYKA (issue #2038)
- * `uzupelnij()` szuka kont po `users.data_erased_at` w BIEŻĄCEJ bazie. Gdy
- * zapis padnie, a przed najbliższym udanym uzupełnieniem ktoś odtworzy
- * kopię sprzed wymazania, znacznika już nie ma i noc nie ma czego dopisać.
- * Dlatego:
- *  - `zapisz()` próbuje `PROBY` razy z odstępem — chwilowa czkawka
- *    magazynu nie otwiera okna wcale;
- *  - po ostatniej próbie linia logu (`error`) niesie KOMPLET wpisu
- *    (identyfikator, zakres, chwila). Log wychodzi na stderr, do dziennika
- *    Railwaya, czyli poza bazę — i przeżywa jej odtworzenie. Z tej linii
- *    `kuking:dziennik-wymazan --dopisz=… --zakres=… --kiedy=…` odtwarza
- *    wpis ręcznie (`docs/infra/KOPIE_I_ODTWORZENIE.md` §3.1).
- * Log nie jest magazynem z gwarancją retencji; pełne domknięcie okna czeka
- * na decyzję właściciela (opis wariantów w §3.1).
+ * Wpis powstaje PRZED commitem. Gdyby sam commit padł, `EraseAccountData`
+ * usuwa wpis, który sam dopisał (`usun()`), żeby `kuking:wymaz-ponownie` nie
+ * wymazało konta, które nadal czeka na koniec karencji.
+ *
+ * NOCNE `uzupelnij()` zostaje dla kont wymazanych przed tą zmianą
+ * (i jako siatka bezpieczeństwa). Ręczne `kuking:dziennik-wymazan --dopisz`
+ * z linii logu (`error`, komplet wpisu) też zostaje —
+ * `docs/infra/KOPIE_I_ODTWORZENIE.md` §3.1.
  */
 final class DziennikWymazan
 {
@@ -80,7 +78,11 @@ final class DziennikWymazan
     /** Ile razy próbujemy zapisać wpis, zanim zostanie tylko linia logu. */
     public const PROBY = 3;
 
-    /** Odstępy między próbami, w sekundach (wołają to wyłącznie komendy konsoli). */
+    /**
+     * Odstępy między próbami, w sekundach. Wołają to komendy konsoli
+     * (`zapisz()`) i egzekutor wymazań, który czeka MIĘDZY transakcjami
+     * (`odczekajPoPorazce()`) — nigdy wewnątrz transakcji z blokadą konta.
+     */
     private const ODSTEPY_SEKUND = [1, 3];
 
     public function zapisz(string $userId, string $zakres, CarbonInterface $kiedy): bool
@@ -88,13 +90,38 @@ final class DziennikWymazan
         return $this->zapiszWariant($userId, $zakres, $kiedy, false) === self::DOPISANO;
     }
 
-    /** Atomowo dopisuje brakujący wpis, bez możliwości zastąpienia istniejącego. */
-    public function dopiszJesliBrak(string $userId, string $zakres, CarbonInterface $kiedy): string
+    /** Usuwa wpis (wycofanie wpisu dopisanego tuż przed nieudanym commitem wymazania). */
+    public function usun(string $userId): void
     {
-        return $this->zapiszWariant($userId, $zakres, $kiedy, true);
+        try {
+            $this->dysk()->delete(self::PREFIKS.$userId.'.json');
+        } catch (Throwable $e) {
+            Log::error('Dziennik wymazań: nie udało się wycofać wpisu po nieudanym wymazaniu. Usuń go ręcznie, jeśli konto nadal czeka na koniec karencji.', [
+                'user_id' => $userId,
+                'wyjatek' => $e::class,
+            ]);
+        }
     }
 
-    private function zapiszWariant(string $userId, string $zakres, CarbonInterface $kiedy, bool $tylkoJesliBrak): string
+    /**
+     * Atomowo dopisuje brakujący wpis, bez możliwości zastąpienia istniejącego.
+     *
+     * `$proby` pozwala wołającemu zrobić JEDNĄ próbę bez czekania: egzekutor
+     * wymazań woła to wewnątrz transakcji z blokadą konta, więc odstępy
+     * (`Sleep`) robi sam, między transakcjami (`odczekajPoPorazce()`).
+     */
+    public function dopiszJesliBrak(string $userId, string $zakres, CarbonInterface $kiedy, int $proby = self::PROBY): string
+    {
+        return $this->zapiszWariant($userId, $zakres, $kiedy, true, $proby);
+    }
+
+    /** Odstęp po nieudanej próbie numer `$numerProby` (1, 2, …) — dla wołających, którzy ponawiają sami. */
+    public function odczekajPoPorazce(int $numerProby): void
+    {
+        Sleep::for(self::ODSTEPY_SEKUND[$numerProby - 1] ?? 3)->seconds();
+    }
+
+    private function zapiszWariant(string $userId, string $zakres, CarbonInterface $kiedy, bool $tylkoJesliBrak, int $proby = self::PROBY): string
     {
         $wymazanoAt = $kiedy->toIso8601ZuluString();
         $tresc = (string) json_encode([
@@ -104,7 +131,7 @@ final class DziennikWymazan
         ]);
         $ostatni = null;
 
-        for ($proba = 1; $proba <= self::PROBY; $proba++) {
+        for ($proba = 1; $proba <= $proby; $proba++) {
             try {
                 if ($tylkoJesliBrak) {
                     if (! $this->putJesliBrak(self::PREFIKS.$userId.'.json', $tresc)) {
@@ -118,19 +145,19 @@ final class DziennikWymazan
             } catch (Throwable $e) {
                 $ostatni = $e;
 
-                if ($proba < self::PROBY) {
-                    Sleep::for(self::ODSTEPY_SEKUND[$proba - 1] ?? 3)->seconds();
+                if ($proba < $proby) {
+                    $this->odczekajPoPorazce($proba);
                 }
             }
         }
 
         // Komplet wpisu w kontekście: po odtworzeniu kopii sprzed wymazania
         // ta linia jest jedynym śladem poza bazą (issue #2038).
-        Log::error('Dziennik wymazań: nie udało się zapisać wpisu. Dopisze go nocne uzupełnienie — ale jeśli przedtem odtworzysz kopię bazy, dopisz go ręcznie z tej linii (docs/infra/KOPIE_I_ODTWORZENIE.md §3.1).', [
+        Log::error('Dziennik wymazań: nie udało się zapisać wpisu. Wymazanie konta nie dojdzie do skutku, dopóki magazyn nie odpowie — egzekutor ponowi je przy następnym przebiegu. Wpis można też dopisać ręcznie z tej linii (docs/infra/KOPIE_I_ODTWORZENIE.md §3.1).', [
             'user_id' => $userId,
             'zakres' => $zakres,
             'wymazano_at' => $wymazanoAt,
-            'proby' => self::PROBY,
+            'proby' => $proby,
             'wyjatek' => $ostatni instanceof Throwable ? $ostatni::class : null,
         ]);
 

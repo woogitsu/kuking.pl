@@ -331,7 +331,7 @@ class TekstyMowiaPrawdeTest extends TestCase
     ): void {
         $html = Livewire::actingAs($this->user('basia'))
             ->test('recipe-wizard')
-            ->set('title', 'Rosół babci Zofii')
+            ->set('form.title', 'Rosół babci Zofii')
             ->set('form.visibility', $widocznosc)
             ->set('step', 4)
             ->html();

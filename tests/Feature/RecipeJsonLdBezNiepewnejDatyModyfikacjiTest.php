@@ -75,7 +75,7 @@ class RecipeJsonLdBezNiepewnejDatyModyfikacjiTest extends TestCase
         $this->assertTrue($przepis->tresc_zmieniona_at?->equalTo($przepis->published_at), 'Pierwsza publikacja ma zrównać datę zmiany treści z datą publikacji.');
         $dane = $this->recipeJsonLd($przepis);
         $this->assertSame('2026-09-07', $dane['datePublished'] ?? null);
-        $this->assertSame($dane['datePublished'] ?? null, $dane['dateModified'] ?? null);
+        $this->assertSame($dane['datePublished'], $dane['dateModified'] ?? null);
     }
 
     public function test_zmiana_tresci_podaje_date_tej_zmiany(): void

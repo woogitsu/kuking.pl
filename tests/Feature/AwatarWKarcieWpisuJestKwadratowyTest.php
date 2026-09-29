@@ -143,7 +143,7 @@ class AwatarWKarcieWpisuJestKwadratowyTest extends TestCase
 
         $xpath = new DOMXPath($dokument);
 
-        $naglowek = $xpath->query("//*[contains(concat(' ', normalize-space(@class), ' '), ' post-card-head ')]")?->item(0);
+        $naglowek = self::wynikXPath($xpath, "//*[contains(concat(' ', normalize-space(@class), ' '), ' post-card-head ')]")->item(0);
 
         $this->assertInstanceOf(
             DOMElement::class,
@@ -151,7 +151,7 @@ class AwatarWKarcieWpisuJestKwadratowyTest extends TestCase
             'Karta wpisu nie ma `.post-card-head` — zmienił się jej kształt i strażnik patrzy w złe miejsce.',
         );
 
-        $awatar = $xpath->query(".//*[contains(concat(' ', normalize-space(@class), ' '), ' avatar ')]", $naglowek)?->item(0);
+        $awatar = self::wynikXPath($xpath, ".//*[contains(concat(' ', normalize-space(@class), ' '), ' avatar ')]", $naglowek)->item(0);
 
         $this->assertInstanceOf(
             DOMElement::class,

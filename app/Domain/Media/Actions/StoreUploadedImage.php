@@ -194,7 +194,7 @@ final class StoreUploadedImage
         }
 
         [$width, $height] = $info;
-        $detectedMime = (string) ($info['mime'] ?? '');
+        $detectedMime = (string) $info['mime'];
 
         $disk = (string) config('kuking.media.disk');
         $extension = $this->extensionFor($detectedMime);

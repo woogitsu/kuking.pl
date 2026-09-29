@@ -59,8 +59,9 @@ final class PrzywrocenieWygaslejKaryNaDwochPolaczeniachTest extends TestDwochPol
         $wyjscie = $this->uruchomKomende();
 
         $swieze = $konto->fresh();
-        $this->assertSame(User::STATUS_BANNED, $swieze?->status, 'Automat zdjął ban zatwierdzony po odczycie listy.');
-        $this->assertNull($swieze?->status_expires_at);
+        $this->assertInstanceOf(User::class, $swieze, 'Konto zniknęło z bazy.');
+        $this->assertSame(User::STATUS_BANNED, $swieze->status, 'Automat zdjął ban zatwierdzony po odczycie listy.');
+        $this->assertNull($swieze->status_expires_at);
         $this->assertSame(0, $this->wpisy($konto), 'Automat zapisał „kara wygasła” przy obowiązującym banie.');
         $this->assertStringContainsString('Pominięto: '.$konto->getKey(), $wyjscie);
     }
@@ -77,8 +78,9 @@ final class PrzywrocenieWygaslejKaryNaDwochPolaczeniachTest extends TestDwochPol
         $wyjscie = $this->uruchomKomende();
 
         $swieze = $konto->fresh();
-        $this->assertSame(User::STATUS_SUSPENDED, $swieze?->status, 'Automat zdjął zawieszenie z nowym terminem.');
-        $this->assertNotNull($swieze?->status_expires_at, 'Automat wyzerował nowy termin zawieszenia.');
+        $this->assertInstanceOf(User::class, $swieze, 'Konto zniknęło z bazy.');
+        $this->assertSame(User::STATUS_SUSPENDED, $swieze->status, 'Automat zdjął zawieszenie z nowym terminem.');
+        $this->assertNotNull($swieze->status_expires_at, 'Automat wyzerował nowy termin zawieszenia.');
         $this->assertTrue($swieze->status_expires_at->isFuture());
         $this->assertSame(0, $this->wpisy($konto));
         $this->assertStringContainsString('Pominięto: '.$konto->getKey(), $wyjscie);
@@ -92,8 +94,9 @@ final class PrzywrocenieWygaslejKaryNaDwochPolaczeniachTest extends TestDwochPol
         $wyjscie = $this->uruchomKomende();
 
         $swieze = $konto->fresh();
-        $this->assertSame(User::STATUS_ACTIVE, $swieze?->status);
-        $this->assertNull($swieze?->status_expires_at);
+        $this->assertInstanceOf(User::class, $swieze, 'Konto zniknęło z bazy.');
+        $this->assertSame(User::STATUS_ACTIVE, $swieze->status);
+        $this->assertNull($swieze->status_expires_at);
         $this->assertSame(1, $this->wpisy($konto));
         $this->assertStringContainsString('Przywrócono: '.$konto->getKey(), $wyjscie);
     }

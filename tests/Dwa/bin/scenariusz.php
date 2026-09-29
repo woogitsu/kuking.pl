@@ -216,6 +216,7 @@ try {
                 'zawies' => $konto->suspend(),
                 'zbanuj' => $konto->ban(),
                 'usun' => $konto->markForDeletion(),
+                default => throw new LogicException('Nieobsłużony wariant w match.'),
             });
 
             return (string) $konto->fresh()?->status;
@@ -288,6 +289,7 @@ try {
             match ($argumenty['przejscie']) {
                 'zbanuj' => $konto->ban(),
                 'usun' => $konto->markForDeletion(),
+                default => throw new LogicException('Nieobsłużony wariant w match.'),
             };
 
             return (string) $konto->status;

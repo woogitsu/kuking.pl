@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Contact\Actions\WyslijOdpowiedz;
-use App\Domain\Security\DziennyBudzetListow;
 use App\Domain\Security\WyslijPotwierdzenieAdresu;
 use App\Models\ContactMessage;
 use App\Models\ContactMessageReply;
 use App\Models\User;
 use App\Notifications\PotwierdzenieAdresu;
+use App\Poczta\DziennyBudzetListow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;

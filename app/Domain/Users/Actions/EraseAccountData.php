@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Domain\Users\Actions;
 
 use App\Domain\Compliance\DziennikWymazan;
+use App\Domain\Compliance\DziennikWymazanNiedostepny;
 use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
 use App\Domain\Users\Exports\ExportFileNames;
+use App\Domain\Users\Import\MagazynPaczek;
 use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
@@ -23,6 +25,7 @@ use App\Models\ProductSignal;
 use App\Models\PrzepisZImportu;
 use App\Models\User;
 use App\Models\WpisZgody;
+use App\Support\Storage\PlikTymczasowyImportu;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -142,9 +145,9 @@ final class EraseAccountData
 
         /** @var list<Media> $doSkasowania */
         $doSkasowania = [];
-        $zakresDoDziennika = null;
+        $wpisDopisany = false;
 
-        $wymazano = DB::transaction(function () use ($user, $wymagajWygaslegoWniosku, $oczekiwanaGeneracja, &$doSkasowania, &$zakresDoDziennika): bool {
+        $anonimizuj = function () use ($user, $wymagajWygaslegoWniosku, $oczekiwanaGeneracja, &$doSkasowania, &$wpisDopisany): bool {
             // Świeży odczyt pod blokadą, nie ufamy stanowi z argumentu —
             // między zapytaniem, które wybrało konta do egzekucji, a tym
             // wywołaniem ktoś mógł cofnąć usunięcie albo inny proces mógł
@@ -388,7 +391,25 @@ final class EraseAccountData
              * kartki idą drogą każdego przepisu i każdego zdjęcia tej osoby.
              */
             DB::table('proby_importu')->where('user_id', $fresh->getKey())->delete();
+            // Plik PDF czekający na worker (#28 etap 2) kasujemy razem z wierszem,
+            // który go wskazuje; gdy dysk odmówi, zostaje osierocony i sprząta go
+            // `kuking:odzyskaj-importy` po retencji (#2051).
+            $pliki = app(PlikTymczasowyImportu::class);
+            foreach (DB::table('importy_przepisow')->where('user_id', $fresh->getKey())->whereNotNull('plik_tymczasowy')->pluck('plik_tymczasowy') as $plik) {
+                $pliki->skasuj((string) $plik);
+            }
             DB::table('importy_przepisow')->where('user_id', $fresh->getKey())->delete();
+
+            /*
+             * ŚLADY WCZYTANIA WŁASNEJ PACZKI (#1985) I PACZKA CZEKAJĄCA NA
+             * ZATWIERDZENIE. Ślad to skrót i wskaźnik na treść (bez treści),
+             * ale też dana o osobie; klucz obcy ma `ON DELETE CASCADE`, a kont
+             * się nie kasuje (D-022) — więc jawnie, po `user_id` tego konta.
+             * Wybrany, niezatwierdzony ZIP leży w prywatnym magazynie i ma
+             * treść całego konta — po wymazaniu nie zostaje ani bajt.
+             */
+            DB::table('wczytane_z_paczki')->where('user_id', $fresh->getKey())->delete();
+            app(MagazynPaczek::class)->zapomnijWszystkie($fresh);
 
             $this->odlaczWiadomosciDoOperatora($fresh);
             $this->odlaczSygnalyProduktowe($fresh);
@@ -570,7 +591,32 @@ final class EraseAccountData
             // z 21.09.2026, razem z jej ceną, opisana w
             // `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §3.3 punkt 7.
             $this->rejestr->domknijJakoWykonane($fresh, $zakresWykonany);
-            $zakresDoDziennika = $zakresWykonany;
+
+            // DZIENNIK POZA BAZĄ — OSTATNI KROK PRZED COMMITEM (issue #2038,
+            // decyzja właściciela z 28.09.2026, wariant A).
+            //
+            // Odtworzenie bazy z kopii cofa wszystko, co zapisaliśmy wyżej;
+            // wpis w magazynie poza bazą przeżywa je i jest wejściem
+            // `kuking:wymaz-ponownie`. Wcześniej zapis szedł PO commicie, a jego
+            // porażka była tylko logowana — kopia odtworzona w tym oknie
+            // przywracała konto bez śladu. Teraz porażka zapisu (po kilku
+            // próbach) rzuca wyjątek i cofa CAŁĄ anonimizację: konto zostaje
+            // `pending_delete` i egzekutor ponawia je przy następnym przebiegu.
+            // Wymazanie może się przez to opóźnić o czas awarii magazynu —
+            // nie może zostać wykonane bez śladu.
+            $wpis = $this->dziennik->dopiszJesliBrak((string) $fresh->getKey(), $zakresWykonany, now(), proby: 1);
+
+            if ($wpis === DziennikWymazan::BLAD) {
+                throw new DziennikWymazanNiedostepny('Dziennik wymazań poza bazą jest niedostępny — wymazanie cofnięte, egzekutor ponowi je przy następnym przebiegu.');
+            }
+
+            // JEDNA próba, bez `Sleep`: jesteśmy w transakcji z blokadą wiersza
+            // konta, a odstępy 1 s i 3 s trzymałyby ją przez czas awarii
+            // magazynu. Ponawia pętla niżej, MIĘDZY transakcjami.
+            //
+            // `ISTNIEJE` (ponowne wymazanie po odtworzeniu kopii) zostaje bez
+            // zmian i nie jest naszym wpisem do wycofania.
+            $wpisDopisany = $wpis === DziennikWymazan::DOPISANO;
 
             // WPIS `account.data_erased` W TEJ SAMEJ TRANSAKCJI (D-249,
             // klasa 1; #1894) — NIE `recordBezWywracania()` po `COMMIT`.
@@ -593,16 +639,36 @@ final class EraseAccountData
             ]);
 
             return true;
-        });
+        };
 
-        // DZIENNIK POZA BAZĄ — PO COMMICIE (audyt B5, znalezisko 3).
-        // Odtworzenie bazy z kopii cofnęłoby wszystko, co zapisaliśmy wyżej;
-        // ten wpis przeżywa odtworzenie i jest wejściem `kuking:wymaz-ponownie`.
-        // Po commicie, bo wpis o wymazaniu, które się wycofało, byłby
-        // nieprawdą. Nieudany zapis nie zatrzymuje wymazania — dopisze go
-        // nocne `kuking:dziennik-wymazan`.
-        if ($wymazano && $zakresDoDziennika !== null) {
-            $this->dziennik->zapisz((string) $user->getKey(), $zakresDoDziennika, now());
+        // Chwilowa czkawka magazynu dziennika nie ma kosztować całej nocy:
+        // cofnięta transakcja jest czysta (pliki kasujemy dopiero po commicie),
+        // więc próbujemy ją jeszcze `PROBY - 1` razy, czekając POZA transakcją.
+        for ($podejscie = 1; ; $podejscie++) {
+            $doSkasowania = [];
+            $wpisDopisany = false;
+
+            try {
+                $wymazano = DB::transaction($anonimizuj);
+
+                break;
+            } catch (Throwable $e) {
+                // Wpis powstał przed commitem. Gdyby sam commit padł, konto nie
+                // jest wymazane, a wpis twierdziłby inaczej — `wymaz-ponownie`
+                // wymazałoby je przed końcem karencji. `ISTNIEJE` (wpis, który
+                // przeżył odtworzenie kopii) NIE jest naszym wpisem i zostaje.
+                if ($wpisDopisany) {
+                    $this->dziennik->usun((string) $user->getKey());
+                }
+
+                if ($e instanceof DziennikWymazanNiedostepny && $podejscie < DziennikWymazan::PROBY) {
+                    $this->dziennik->odczekajPoPorazce($podejscie);
+
+                    continue;
+                }
+
+                throw $e;
+            }
         }
 
         // KASOWANIE PLIKU POZA TRANSAKCJĄ, I TO NIE JEST DROBIAZG.

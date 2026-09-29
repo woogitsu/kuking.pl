@@ -445,41 +445,75 @@ konta, chwila i wykonany zakres (`minimum`/`everything`) — bez e-maila i bez
 nazwy. Wpisy żyją 120 dni (dłużej niż najstarsza kopia), dopisuje je
 i przycina `kuking:dziennik-wymazan` co noc o 05:30.
 
-#### Zanim odtworzysz: okno awarii dziennika (issue #2038)
+#### Zanim odtworzysz: dziennik wymazań a awaria magazynu (issue #2038)
 
-Wpis powstaje **po** zatwierdzeniu wymazania. Gdy zapis padnie
-(`DziennikWymazan::zapisz()` próbuje 3 razy, odstęp 1 s i 3 s), brakujący
-wpis dopisuje nocne `kuking:dziennik-wymazan` o 05:30 — szukając kont po
-`users.data_erased_at` w **bieżącej** bazie. Jeśli między tą awarią
-a najbliższym udanym uzupełnieniem odtworzysz kopię sprzed wymazania,
-znacznika już nie ma: noc nie dopisze niczego, a `kuking:wymaz-ponownie`
-nie zobaczy konta. Wymazanie z ok. 03:50 (`kuking:usun-wygasle-konta`) ma
-takie okno co najmniej do 05:30 tej samej nocy; przy dłuższej awarii
-magazynu — do pierwszej nocy, w której zapis znów się uda.
+Od decyzji właściciela z 28.09.2026 (wariant A) wymazanie **czeka** na zapis
+w dzienniku: `EraseAccountData` dopisuje wpis jako ostatni krok przed
+zatwierdzeniem anonimizacji (`DziennikWymazan::zapisz()` próbuje 3 razy,
+odstęp 1 s i 3 s). Gdy magazyn nie odpowiada, anonimizacja **cofa się**:
+konto zostaje `pending_delete` z pustym `data_erased_at`, w logu jest linia
+`Dziennik wymazań: nie udało się zapisać wpisu` (poziom `error`), a
+`kuking:usun-wygasle-konta` ponawia je przy następnym przebiegu. Nie ma więc
+chwili, w której konto jest wymazane w bazie, a poza bazą brak śladu —
+odtworzenie kopii nie ma czego zgubić. Cena: wymazanie może się opóźnić
+o czas awarii magazynu; wpis jest dopisywany przed commitem, a jeśli sam
+commit padnie, wpis jest wycofywany (`DziennikWymazan::usun()`).
 
-Dlatego przed odtworzeniem:
+Przed odtworzeniem wystarczy więc sprawdzić dwie rzeczy:
 
-1. **Jeśli bieżąca baza jeszcze się czyta** (zawsze w 3(a), często
-   w 3(b)) — uruchom na niej `php artisan kuking:dziennik-wymazan`
-   i sprawdź, że w logu nie pojawiła się linia z punktu 2. Dopiero wtedy
-   dziennik zawiera wszystkie wymazania, które odtworzenie cofnie.
-2. **Przeszukaj dziennik Railwaya** od chwili kopii do teraz po frazie
-   `Dziennik wymazań: nie udało się zapisać wpisu`. Każda taka linia
-   (poziom `error`) ma pola `user_id`, `zakres` i `wymazano_at`. Dla każdej,
-   której wpisu nie ma w dzienniku, dopisz go ręcznie:
+1. **Konta wymazane przed tą zmianą** i siatka bezpieczeństwa: jeśli bieżąca
+   baza się czyta, uruchom `php artisan kuking:dziennik-wymazan` (dopisuje
+   wpisy dla kont z `data_erased_at`, których brakuje).
+2. **Konta czekające na wymazanie z powodu awarii magazynu** (`pending_delete`
+   po terminie karencji) nie mają wpisu, bo nic jeszcze nie wymazano — po
+   odtworzeniu kopii egzekutor wykona je normalnie. Gdyby mimo to zostały
+   linie logu z tą frazą i konto zostało wymazane inną drogą, wpis można
+   dopisać ręcznie:
    ```bash
    php artisan kuking:dziennik-wymazan --dopisz=<user_id> --zakres=<zakres> --kiedy=<wymazano_at>
    ```
    Komenda niczego nie wymazuje, tylko wpisuje do dziennika; wymazuje
    dopiero krok niżej.
 
-**Czego to NIE gwarantuje.** Dziennik Railwaya nie jest magazynem
-z potwierdzoną retencją (repozytorium jej nie zna) i ginie razem
-z projektem Railway. Jeśli baza jest nieczytelna, a linii logu już nie ma,
-takie konto wróci z kopii bez śladu. Pełne domknięcie okna wymaga decyzji
-właściciela — warianty w issue #2038 (wstrzymanie
-wymazania do udanego zapisu dziennika albo drugi, niezależny od bazy
-magazyn wpisów).
+**Alarm po kilku nocach bez wymazań (issue #2038, etap 3).** Opóźnienie
+z powodu magazynu nie może trwać po cichu. `kuking:usun-wygasle-konta`
+liczy noce, w których choć jedno konto cofnęło się przez dziennik
+(`DziennikWymazanNiedostepny`). Po `KUKING_DZIENNIK_WYMAZAN_ALARM_NOCE`
+kolejnych nocach (domyślnie 3, `kuking.dziennik_wymazan.alarm_po_nocach`)
+idzie **jedna** wiadomość na kanał `blad_webhook` (ten sam co błędy 500,
+kolejka i połączenia, D-041, #599; maszyna `EpizodAlarmu`) i `Log::error`
+„dziennik wymazań nie przyjmuje wpisów, wymazania stoją”. Reguły:
+
+- noc = dzień kalendarza; drugi przebieg tego samego dnia nie nabija licznika;
+- przebieg bez porażki dziennika (także z pustą kolejką) zeruje licznik;
+  `--dry-run` niczego nie zmienia;
+- trwająca awaria przypomina o sobie co `KUKING_DZIENNIK_WYMAZAN_ALARM_CISZA_GODZIN`
+  (domyślnie 72 h), a powrót do normy daje jedno odwołanie;
+- wiadomość niesie tylko liczby (noce, konta czekające) i instrukcję —
+  bez identyfikatorów kont;
+- licznik i pamięć alarmu leżą w cache (`AlarmMemory`); ręczne wyczyszczenie
+  cache zeruje licznik i alarm przyjdzie o kilka nocy później. Bez
+  `LOG_BLAD_WEBHOOK_URL` (dziś brak na produkcji) zostaje sam `Log::error`.
+
+Co zrobić po alarmie: sprawdź dostęp do dysku `r2_eksporty` (prefiks
+`dziennik-wymazan/`), napraw go i uruchom `php artisan kuking:usun-wygasle-konta`.
+**Nie odtwarzaj kopii bazy, zanim magazyn wróci.** Test:
+`tests/Feature/AlarmDziennikaWymazanTest.php`.
+
+**Ponawianie zapisu i ryzyko resztkowe.** Zapis wpisu ma `PROBY` = 3 podejścia,
+ale odstępy (1 s i 3 s) egzekutor robi **między** transakcjami, nie w środku
+transakcji z blokadą konta; cofnięta transakcja jest czysta, bo pliki kasujemy
+dopiero po commicie. Zostaje jedno okno, którego kod nie zamknie: proces
+ubity (OOM, restart kontenera) **między zapisem wpisu a commitem** zostawia
+wpis w dzienniku przy koncie, które nadal czeka na koniec karencji. Wpis nie
+wymazuje niczego sam, ale `kuking:wymaz-ponownie` po odtworzeniu kopii wymazałoby
+takie konto przed terminem — przed `wymaz-ponownie` przejrzyj listę z
+`--na-sucho` i konta jeszcze w karencji (`pending_delete`, zgłoszone krócej niż
+30 dni temu) usuń z dziennika ręcznie albo pomiń.
+
+**Czego to NIE gwarantuje.** Dziennik leży w tym samym koncie Cloudflare co
+paczki eksportu; utrata magazynu (nie jego chwilowa awaria) usuwa wpisy.
+Drugi, niezależny magazyn (wariant B z issue #2038) nie jest wdrożony.
 
 Krok, **zanim odtworzona baza przyjmie ruch** (albo najpóźniej zaraz po
 podpięciu `DB_URL`):

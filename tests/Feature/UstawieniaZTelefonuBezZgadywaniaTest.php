@@ -71,7 +71,7 @@ class UstawieniaZTelefonuBezZgadywaniaTest extends TestCase
         // pusta strona, nie cudzy profil i nie pasek górny.
         $this->assertSame(
             'Halina Kciukowa',
-            trim($xpath->query('.//h1', $glowka)->item(0)?->textContent ?? ''),
+            trim($xpath->query('.//h1', $glowka)->item(0)->textContent ?? ''),
         );
 
         // KONTROLA DODATNIA RZĘDU: akcje właściciela, które stały tu przed
@@ -216,7 +216,7 @@ class UstawieniaZTelefonuBezZgadywaniaTest extends TestCase
         // KONTROLA DODATNIA: obcy widzi TĘ SAMĄ główkę i ma w niej własną
         // akcję. Bez tego „nie widzi Ustawień" przeszłoby nad 404 albo nad
         // pustym ekranem (pułapka 4 z `docs/PULAPKI_TESTOW.md`).
-        $this->assertSame('Cudza Kuchnia', trim($xpath->query('.//h1', $glowka)->item(0)?->textContent ?? ''));
+        $this->assertSame('Cudza Kuchnia', trim($xpath->query('.//h1', $glowka)->item(0)->textContent ?? ''));
         $this->assertSame(1, $xpath->query(".//button[normalize-space(.)='Obserwuj']", $glowka)->length);
 
         $this->assertSame(
@@ -247,7 +247,7 @@ class UstawieniaZTelefonuBezZgadywaniaTest extends TestCase
 
         // KONTROLA DODATNIA: strona się wyrenderowała i jest to widok GOŚCIA —
         // w pasku górnym stoi zaproszenie do logowania, a nie awatar konta.
-        $this->assertSame('Otwarta Kuchnia', trim($xpath->query('.//h1', $glowka)->item(0)?->textContent ?? ''));
+        $this->assertSame('Otwarta Kuchnia', trim($xpath->query('.//h1', $glowka)->item(0)->textContent ?? ''));
         $this->assertStringContainsString('Zaloguj się', $html);
         // `topbar-konto` to menu przy awatarze (issue #344). Do 12 września
         // 2026 stało tu `topbar-awatar` — klasa, której w serwisie już nie ma,

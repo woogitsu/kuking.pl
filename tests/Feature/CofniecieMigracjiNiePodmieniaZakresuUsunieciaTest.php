@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
+use Tests\Support\PolecenieArtisanaZOdmowa;
 use Tests\TestCase;
 
 /**
@@ -63,7 +64,7 @@ class CofniecieMigracjiNiePodmieniaZakresuUsunieciaTest extends TestCase
         $odmowa = null;
 
         try {
-            Artisan::call('migrate:rollback', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
+            PolecenieArtisanaZOdmowa::wywolaj('migrate:rollback', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
         } catch (RuntimeException $e) {
             $odmowa = $e;
         }

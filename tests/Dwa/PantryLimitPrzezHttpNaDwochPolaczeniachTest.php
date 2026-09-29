@@ -130,7 +130,7 @@ final class PantryLimitPrzezHttpNaDwochPolaczeniachTest extends TestDwochPolacze
             $this->assertBezZakleszczenia($wynik, 'równoległe dodanie '.($numer + 1));
             $this->assertTrue(
                 $wynik['ok'],
-                'Uczestnik '.($numer + 1).' nie doszedł do odpowiedzi HTTP: '.($wynik['wyjatek'] ?? '').' '.($wynik['komunikat'] ?? ''),
+                'Uczestnik '.($numer + 1).' nie doszedł do odpowiedzi HTTP: '.($wynik['wyjatek'] ?? '').' '.$wynik['komunikat'],
             );
             $this->assertIsArray($wynik['wartosc']);
             $wyniki[] = $wynik['wartosc'];

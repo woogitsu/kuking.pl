@@ -42,7 +42,7 @@ final class OdpowiedzNaZaproszenie
      */
     public function przyjmij(User $osoba, CollectionInvitation $zaproszenie): Collection
     {
-        $wlasciciel = $zaproszenie->collection?->owner
+        $wlasciciel = $zaproszenie->collection->owner
             ?? throw new BladDlaCzlowieka(self::NIEAKTUALNE);
 
         /** @var array{0: Collection, 1: bool} $wynik */

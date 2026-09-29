@@ -177,7 +177,7 @@ Zmierzone: `/nie-pamietam-hasla` przyjmuje 5 próśb na 10 minut z adresu IP, cz
 dobowego) robiło to samo w około 50 minut z jednego niepotwierdzonego konta.
 
 Od D-239 wszystkie drogi liczą się w **jednym** liczniku
-(`App\Domain\Security\DziennyBudzetListow::wspolny()`), a o tym, co gaśnie
+(`App\Poczta\DziennyBudzetListow::wspolny()`), a o tym, co gaśnie
 pierwsze, decyduje `kuking.poczta.progi_wygaszania`. Próg mówi, ile listów z puli
 dana klasa ma zostawić nietkniętych:
 

@@ -24,7 +24,7 @@ final class WspolnaBlokadaMigracjiTest extends TestDwochPolaczen
         $this->assertStringContainsString($komenda, $workflow);
 
         $pierwszy = $this->nowePolaczenie();
-        $this->assertTrue($this->prawda($pierwszy->query('SELECT pg_try_advisory_lock(2082, 1)')?->fetchColumn()));
+        $this->assertTrue($this->prawda($this->odczytaj($pierwszy, 'SELECT pg_try_advisory_lock(2082, 1)')));
 
         try {
             $odmowa = $this->wTle('migruj-pod-blokada', [])->wynik();
@@ -32,7 +32,7 @@ final class WspolnaBlokadaMigracjiTest extends TestDwochPolaczen
             $this->assertTrue($odmowa['ok'], $odmowa['komunikat']);
             $this->assertSame(12, $odmowa['wartosc'], 'Zajęta blokada musi przerwać wdrożenie kodem niezerowym.');
         } finally {
-            $this->assertTrue($this->prawda($pierwszy->query('SELECT pg_advisory_unlock(2082, 1)')?->fetchColumn()));
+            $this->assertTrue($this->prawda($this->odczytaj($pierwszy, 'SELECT pg_advisory_unlock(2082, 1)')));
         }
 
         $poZwolnieniu = $this->wTle('migruj-pod-blokada', [])->wynik();

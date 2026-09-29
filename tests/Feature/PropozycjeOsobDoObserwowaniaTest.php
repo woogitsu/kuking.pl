@@ -90,7 +90,7 @@ class PropozycjeOsobDoObserwowaniaTest extends TestCase
         $this->assertContains('nowy', $nazwy);
         $this->assertNotContains('obserwowany', $nazwy);
         $this->assertNotContains('basia', $nazwy);
-        $this->assertNotNull($nowy);
+        $this->assertTrue($nowy->exists);
     }
 
     public function test_zapytanie_nie_liczy_agregatu_dla_kazdego_konta_osobno(): void

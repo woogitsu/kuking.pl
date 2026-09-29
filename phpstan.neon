@@ -53,8 +53,45 @@
 #  z modelem tabeli pośredniej `PostTag`; `bytes` w kształcie wariantu
 #  zdjęcia, który zapisuje `ProcessUploadedImage`.
 #
-#  GDZIE STOI NASTĘPNY PRÓG (zmierzone 25.09.2026, nie zgadnięte):
-#      poziom 4 → 247 błędów      poziom 5 → 283
+#  Poziom 4 — etap 1 (issue #1731, 29.09.2026): poziom 4 nie jest jeszcze
+#  globalny, ale dwie jego rodziny są wyczyszczone i pilnowane osobno
+#  (`phpstan-etap4.neon` + `scripts/phpstan-wyczyszczone.sh`, wołane z
+#  `check.sh` i z CI): `match.unhandled` (41 — `match` po napisie bez gałęzi
+#  `default`, teraz z jawnym `LogicException`) i `catch.neverThrown` (10 —
+#  `Artisan::call()` bez `@throws`, teraz `Tests\Support\PolecenieArtisanaZOdmowa`).
+#
+#  Poziom 4 — etap 2 (issue #1731, 29.09.2026): dopisane do ratchetu
+#  `nullCoalesce.offset` (24), `nullCoalesce.expr` (3), `nullCoalesce.property`
+#  (3), `deadCode.unreachable` (2) i `booleanNot.alwaysTrue` (1). `??` na kluczu,
+#  który zawsze istnieje, zniknęło; tam, gdzie PHPStan się mylił (referencja
+#  w domknięciu, `Event::$timezone` bywa null wbrew phpdoc Laravela, dwa
+#  `exists()` przed i po `delete()`), kod dostał jawny opis zamiast wyciszenia.
+#
+#  Poziom 4 — etap 3 (issue #1731, 29.09.2026): dopisane do ratchetu
+#  `method.alreadyNarrowedType` (31), `function.alreadyNarrowedType` (19),
+#  `method.impossibleType` (14) i `function.impossibleType` (1). Prawdziwe
+#  znaleziska: `assertNotNull()` na `DOMNodeList|false` przepuszczało `false`
+#  (teraz `assertInstanceOf(DOMNodeList::class, …)`), a `Report::$target_id`
+#  i `Appeal::$user_id` bywają puste (surowy SQL `DROP NOT NULL`, którego
+#  Larastan nie czyta) — opisane w phpdoc modelu. Kolumny JSONB i nieutrwalone
+#  modele dostały jawny typ `mixed`/`getAttribute()` tam, gdzie kod broni się
+#  przed kształtem danych, którego rzutowanie nie gwarantuje.
+#
+#  Poziom 4 — etap 4 (issue #1731, 29.09.2026): dopisane do ratchetu
+#  `nullsafe.neverNull` (137), `expr.resultUnused` (2) i `classConstant.unused`
+#  (2). `?->` na `DOMXPath::query()` i `PDO::query()` (około 110 miejsc w
+#  testach) po cichu zamieniało `false` w `null` — teraz idzie przez
+#  `TestCase::wynikXPath()` i `TestDwochPolaczen::odczytaj()`, które oblewają
+#  test zdaniem o niepoprawnym zapytaniu. `?->` w `x?->y ?? z` było zbędne
+#  (`??` już znosi null po lewej). W `app/` relacje `pivot` (Recipe, Post) dostały
+#  w phpdoc `|null` (jest tylko przy wczytaniu przez zeszyt), a `Seeder::$command`,
+#  które Laravel opisuje jako zawsze ustawione, a bywa null, idzie przez
+#  `PolecenieKonsoliSeedera::konsola()`. Zachowanie produkcyjne bez zmian.
+#
+#  GDZIE STOI NASTĘPNY PRÓG (zmierzone 29.09.2026, nie zgadnięte):
+#      poziom 4 → 50 błędów (po etapie 1: 288, po etapie 2: 257, po etapie 3:
+#      192, po etapie 4: 50), z czego największa rodzina: instanceof.alwaysTrue
+#      12, potem notIdentical.alwaysTrue 7 i booleanAnd.leftAlwaysTrue 5
 #
 #  IGNOROWANY BŁĄD PONIŻEJ POZIOMU (nie „baseline"):
 #  `larastan.noEnvCallsOutsideOfConfig` w `tests/*` — Larastan ostrzega przed

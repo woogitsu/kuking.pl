@@ -254,8 +254,9 @@ class FeedTagowNiePokazujeCudzegoPrzepisuTest extends TestCase
         [$ola, $wpisPrzepisu, $wpisPubliczny] = $this->strumien();
 
         // KONTROLA DODATNIA: dopóki stoi publiczny wpis, treść JEST.
+        $bylaTresc = ! app(FollowingFeed::class)->isEmptyFor($ola);
         $this->assertTrue(
-            ! app(FollowingFeed::class)->isEmptyFor($ola),
+            $bylaTresc,
             'Strumień tagów nie widzi nawet publicznego wpisu — asercja niżej nie mówiłaby wtedy '
             .'o bramce przepisu.',
         );
@@ -268,8 +269,12 @@ class FeedTagowNiePokazujeCudzegoPrzepisuTest extends TestCase
             'Zapowiedź przepisu zniknęła razem z publicznym wpisem — nie ma czego mierzyć.',
         );
 
+        // Osobna zmienna zamiast drugiego `app(...)->isEmptyFor()`: analiza
+        // uznałaby, że to ta sama odpowiedź co przed chwilą.
+        $feed = app(FollowingFeed::class);
+        $jestTresc = ! $feed->isEmptyFor($ola);
         $this->assertFalse(
-            ! app(FollowingFeed::class)->isEmptyFor($ola),
+            $jestTresc,
             'Zostaje sama zapowiedź cudzego przepisu „tylko dla obserwujących", a strumień tagów '
             .'mówi, że jest co pokazać. `paginate()` odda pustą listę i widz zobaczy pusty ekran '
             .'zamiast pustego stanu.',

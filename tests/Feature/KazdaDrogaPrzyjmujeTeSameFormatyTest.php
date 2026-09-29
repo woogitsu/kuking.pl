@@ -67,6 +67,7 @@ class KazdaDrogaPrzyjmujeTeSameFormatyTest extends TestCase
             'png' => imagepng($obraz, $sciezka),
             'webp' => imagewebp($obraz, $sciezka),
             'avif' => imageavif($obraz, $sciezka, 60),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
 
         imagedestroy($obraz);

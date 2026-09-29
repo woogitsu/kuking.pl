@@ -50,11 +50,11 @@ final class PorcjeKrokSetnychWKreatorzeTest extends TestCase
     {
         $wKreatorze = $this->user('porcje750');
         $kreator = Livewire::actingAs($wKreatorze)->test('recipe-wizard')
-            ->set('title', 'Zupa krem z dyni')
+            ->set('form.title', 'Zupa krem z dyni')
             ->assertSet('saveState', 'saved')
-            ->set('servings', $wpisane)
+            ->set('form.servings', $wpisane)
             // Wpisana wartość nie znika — ani po przyjęciu, ani po odrzuceniu.
-            ->assertSet('servings', $wpisane);
+            ->assertSet('form.servings', $wpisane);
 
         $wFormularzu = $this->actingAs($this->user('porcje750b'))
             ->post(route('recipes.store'), [
@@ -67,14 +67,14 @@ final class PorcjeKrokSetnychWKreatorzeTest extends TestCase
             ]);
 
         if ($zapisane === null) {
-            $kreator->assertHasErrors('servings')->assertSet('saveState', 'error');
+            $kreator->assertHasErrors('form.servings')->assertSet('saveState', 'error');
             $wFormularzu->assertSessionHasErrors('servings');
             $this->assertNull(Recipe::where('author_id', $wKreatorze->getKey())->sole()->servings, "Kreator zapisał {$wpisane}, choć formularz to odrzuca.");
 
             return;
         }
 
-        $kreator->assertHasNoErrors('servings')->assertSet('saveState', 'saved');
+        $kreator->assertHasNoErrors('form.servings')->assertSet('saveState', 'saved');
         $wFormularzu->assertSessionHasNoErrors();
         $this->assertSame($zapisane, (float) Recipe::where('author_id', $wKreatorze->getKey())->sole()->servings);
     }
@@ -82,9 +82,9 @@ final class PorcjeKrokSetnychWKreatorzeTest extends TestCase
     public function test_komunikat_przy_trzech_miejscach_mowi_co_wpisac(): void
     {
         Livewire::actingAs($this->user('porcje750'))->test('recipe-wizard')
-            ->set('title', 'Zupa krem z dyni')
-            ->set('servings', '1.255')
-            ->assertHasErrors('servings')
+            ->set('form.title', 'Zupa krem z dyni')
+            ->set('form.servings', '1.255')
+            ->assertHasErrors('form.servings')
             ->assertSee('Zamiast 1,255 wpisz 1,25 albo 1,26.');
     }
 
@@ -94,11 +94,11 @@ final class PorcjeKrokSetnychWKreatorzeTest extends TestCase
         $szkic = Recipe::factory()->draft()->for($autor, 'author')->create(['servings' => 1.25]);
 
         $kreator = Livewire::actingAs($autor)->test('recipe-wizard', ['recipeId' => $szkic->getKey()])
-            ->assertSet('servings', '1.25');
+            ->assertSet('form.servings', '1.25');
 
         $dom = new DOMDocument;
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$kreator->html(), LIBXML_NOERROR | LIBXML_NOWARNING);
-        $pole = (new DOMXPath($dom))->query('//input[@name="servings"]')->item(0);
+        $pole = (new DOMXPath($dom))->query('//input[@name="form.servings"]')->item(0);
 
         $this->assertNotNull($pole, 'Brak pola porcji w kreatorze.');
         $this->assertSame('1.25', self::elementDom($pole)->getAttribute('value'));
@@ -107,7 +107,7 @@ final class PorcjeKrokSetnychWKreatorzeTest extends TestCase
         $this->assertSame('0.5', self::elementDom($pole)->getAttribute('min'));
 
         // Zapis bez zmiany liczby porcji przechodzi i niczego nie zaokrągla.
-        $kreator->set('summary', 'Na chłodne dni.')->assertHasNoErrors()->assertSet('saveState', 'saved');
+        $kreator->set('form.summary', 'Na chłodne dni.')->assertHasNoErrors()->assertSet('saveState', 'saved');
         $this->assertSame(1.25, (float) $szkic->fresh()->servings);
     }
 }

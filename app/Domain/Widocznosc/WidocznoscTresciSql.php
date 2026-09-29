@@ -31,11 +31,11 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
  *
  * CZYM SIĘ RÓŻNI OD `Post::scopeWidoczneDla()` / `Recipe::scopeWidoczneDla()`
  * Tamte zakresy odpowiadają listom treści i nie liczą statusu konta autora
- * (tę granicę listy dokładają osobno albo wcale). Ta specyfikacja odtwarza
+ * (tę granicę wywołujący dokłada osobno). Ta specyfikacja odtwarza
  * `view()` z Policy dla zalogowanego widza, BEZ furtki moderatora (pominięcie
  * furtki jest ostrzejsze, nie luźniejsze). Ujednolicenie list z tą
- * specyfikacją to kolejny etap #1687 — każda z tych różnic zmienia dziś
- * zachowanie jakiejś listy i wymaga własnej decyzji, nie cichego przepięcia.
+ * specyfikacją (etap 7 #1687) wykazało, że różnice są zamierzone i opisane
+ * w `docs/ARCHITECTURE.md`; pilnuje ich `ListyTresciZgodneZPolicyTest`.
  */
 final class WidocznoscTresciSql
 {

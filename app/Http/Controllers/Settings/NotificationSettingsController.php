@@ -150,9 +150,9 @@ class NotificationSettingsController extends Controller
     private function ustawienia(?UstawieniaPowiadomienZewnetrznych $zapisane): array
     {
         return [
-            'cisza_od' => $zapisane?->cisza_od ?? (int) config('kuking.notifications.zewnetrzne.cisza_od_godziny', 21),
-            'cisza_do' => $zapisane?->cisza_do ?? (int) config('kuking.notifications.zewnetrzne.cisza_do_godziny', 8),
-            'dzienny_limit' => $zapisane?->dzienny_limit ?? (int) config('kuking.notifications.zewnetrzne.dzienny_limit', 1),
+            'cisza_od' => $zapisane->cisza_od ?? (int) config('kuking.notifications.zewnetrzne.cisza_od_godziny', 21),
+            'cisza_do' => $zapisane->cisza_do ?? (int) config('kuking.notifications.zewnetrzne.cisza_do_godziny', 8),
+            'dzienny_limit' => $zapisane->dzienny_limit ?? (int) config('kuking.notifications.zewnetrzne.dzienny_limit', 1),
         ];
     }
 

@@ -410,7 +410,9 @@ final class KasujZdjecie
         try {
             $dysk = Storage::disk($nazwaDysku);
 
-            if (! $dysk->exists($klucz)) {
+            $istnialo = $dysk->exists($klucz);
+
+            if (! $istnialo) {
                 return true;
             }
 

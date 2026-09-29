@@ -132,7 +132,7 @@ trzyma się §5 niżej.
 > `DELETE` na cały backlog NIE był bezpieczny na przerwanie: przerwana
 > instrukcja cofa się w całości i następny przebieg zaczyna od zera. Dziś
 > Wzorzec B idzie partiami z budżetem na przebieg
-> (`App\Domain\Compliance\UsuwanieWPartiach`, opis w `docs/DATABASE.md`
+> (`App\Support\UsuwanieWPartiach`, opis w `docs/DATABASE.md`
 > przy `product_signals`); predykat i wyjątki są te same.
 
 `app/Domain/Analytics/PrzedawnioneSygnaly.php` — cała logika to jedna linia:

@@ -63,7 +63,7 @@ class PowiadomienieOKomentarzuPodWlasnymWykonaniemTest extends TestCase
 
         // Soft delete zostawia `recipe_id` w wykonaniu — to nie jest przypadek `recipe_id IS NULL`.
         $przepis->delete();
-        $this->assertNotNull($wykonanie->refresh()->recipe_id);
+        $this->assertNotNull($wykonanie->refresh()->getAttribute('recipe_id'));
 
         $this->actingAs($kucharz)->get(route('cooked.show', $wykonanie))->assertOk();
         $this->assertSame(1, $this->widoczneKomentarze($kucharz));

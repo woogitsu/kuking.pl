@@ -159,13 +159,13 @@ class LogotypIMarkaTest extends TestCase
     {
         $css = file_get_contents(resource_path('css/fonts.css'));
 
-        // Bez podzbioru `latin-ext` przeglądarka podmienia same litery
+        // Bez podzbioru z Latin Extended-A przeglądarka podmienia same litery
         // z ogonkami na font zastępczy i słowo „żurek" ma trzy różne kroje.
-        $this->assertStringContainsString('inter-latin-ext-wght-normal.woff2', $css);
-        $this->assertStringContainsString('inter-latin-wght-normal.woff2', $css);
+        $this->assertStringContainsString('inter-europa-wght-normal.woff2', $css);
+        $this->assertStringContainsString('inter-podstawa-wght-normal.woff2', $css);
 
-        $this->assertFileExists(resource_path('fonts/inter-latin-ext-wght-normal.woff2'));
-        $this->assertFileExists(resource_path('fonts/inter-latin-wght-normal.woff2'));
+        $this->assertFileExists(resource_path('fonts/inter-europa-wght-normal.woff2'));
+        $this->assertFileExists(resource_path('fonts/inter-podstawa-wght-normal.woff2'));
 
         // Licencja SIL OFL wymaga, żeby tekst licencji szedł razem z plikami.
         $this->assertFileExists(resource_path('fonts/LICENSE-inter.txt'));

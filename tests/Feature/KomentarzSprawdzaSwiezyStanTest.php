@@ -91,6 +91,7 @@ final class KomentarzSprawdzaSwiezyStanTest extends TestCase
             'root_hidden' => Comment::query()->whereKey($root->id)->update(['status' => 'hidden']),
             'root_deleted' => $root->fresh()->delete(),
             'root_block' => app(BlockUser::class)->handle($writer, $rootAuthor),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
         $comments = Comment::withTrashed()->count();
         $notifications = Notification::query()->count();
@@ -159,7 +160,7 @@ final class KomentarzSprawdzaSwiezyStanTest extends TestCase
         $this->assertSame($root->id, $next->parent_id);
         ($subject instanceof CookedEvent ? $recipe : $subject)->update(['visibility' => 'private']);
         $own = app(PublishComment::class)->handle($owner, $subject, 'Nadal własna treść.');
-        $this->assertNotNull($own->id);
+        $this->assertTrue($own->exists);
     }
 
     public static function httpRoutes(): iterable
@@ -187,8 +188,17 @@ final class KomentarzSprawdzaSwiezyStanTest extends TestCase
                 }
             });
         } else {
-            Gate::after(function ($user, $ability, $result) use (&$armed, $writer, $owner): void {
+            // `posts.comment` pyta Policy dwa razy z rzędu (`KomentarzRequest`
+            // i jawne `authorize()` w kontrolerze, oba przed `PublishComment`),
+            // więc barierę wyścigu stawiamy dopiero po drugim zezwoleniu.
+            $pominiete = $route === 'posts.comment' ? 1 : 0;
+            Gate::after(function ($user, $ability, $result) use (&$armed, &$pominiete, $writer, $owner): void {
                 if ($armed && $result === true && in_array($ability, ['comment', 'view', 'celebrate'], true)) {
+                    if ($ability === 'comment' && $pominiete > 0) {
+                        $pominiete--;
+
+                        return;
+                    }
                     $armed = false;
                     app(BlockUser::class)->handle($owner, $writer);
                 }
@@ -229,7 +239,7 @@ final class KomentarzSprawdzaSwiezyStanTest extends TestCase
             [$subject, $cook] = $this->subject('cooked');
             $cook->forceFill(['status' => $status, 'data_erased_at' => $status === 'erased' ? now() : null])->save();
             $comment = app(PublishComment::class)->handle(User::factory()->create(), $subject, 'Widoczna historia kucharza.');
-            $this->assertNotNull($comment->id);
+            $this->assertTrue($comment->exists);
         }
 
         // Kontrola ujemna: wyjątek dotyczy tylko bana. Kucharz w karencji
@@ -251,14 +261,14 @@ final class KomentarzSprawdzaSwiezyStanTest extends TestCase
         [$subject, , $recipe] = $this->subject($type);
         $moderator = $this->moderator();
         $positive = app(PublishComment::class)->handle($moderator, $subject, 'Komentarz moderatora przy publicznej treści.');
-        $this->assertNotNull($positive->id);
+        $this->assertTrue($positive->exists);
         ($recipe ?? $subject)->update(['status' => 'hidden']);
         if ($type === 'post') {
             // PostPolicy świadomie nie ma furtki moderatora dla hidden.
             $this->expectException(BladDlaCzlowieka::class);
         }
         $comment = app(PublishComment::class)->handle($moderator, $subject, 'Komentarz moderatora.');
-        $this->assertNotNull($comment->id);
+        $this->assertTrue($comment->exists);
     }
 
     public function test_trzecia_zmiana_zaleznosci_konczy_sie_odmowa_i_pelnym_rollbackiem(): void

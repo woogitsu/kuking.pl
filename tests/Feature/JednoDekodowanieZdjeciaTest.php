@@ -122,6 +122,7 @@ class JednoDekodowanieZdjeciaTest extends TestCase
                 'png' => imagepng($image),
                 'webp' => imagewebp($image, null, 82),
                 'avif' => imageavif($image, null, 80),
+                default => throw new \LogicException('Nieobsłużony wariant w match.'),
             };
             $bytes = (string) ob_get_contents();
         } finally {

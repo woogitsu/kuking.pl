@@ -57,6 +57,7 @@ class ZapisDoZeszytuPoUtracieDostepuTest extends TestCase
                 'soft_delete' => $subject->newQuery()->whereKey($subject->getKey())->update(['deleted_at' => now()]),
                 'block' => DB::table('blocks')->insert(['blocker_id' => $author->id, 'blocked_id' => $saver->id, 'created_at' => now()]),
                 'delete_collection' => $collection->delete(),
+                default => throw new \LogicException('Nieobsłużony wariant w match.'),
             };
         });
 

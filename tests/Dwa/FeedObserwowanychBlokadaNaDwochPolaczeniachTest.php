@@ -168,7 +168,7 @@ final class FeedObserwowanychBlokadaNaDwochPolaczeniachTest extends TestDwochPol
     /** Czeka, aż proces o tej nazwie stoi w kolejce za barierą (i właśnie za nią). */
     private function czekajNaBariere(string $nazwa, PDO $bariera): void
     {
-        $wlasciciel = (string) $bariera->query('SELECT pg_backend_pid()')?->fetchColumn();
+        $wlasciciel = (string) $this->odczytaj($bariera, 'SELECT pg_backend_pid()');
         $zapytanie = $this->obserwator->prepare("SELECT pg_blocking_pids(pid)::text FROM pg_stat_activity
             WHERE application_name = ? AND wait_event_type = 'Lock'");
         $koniec = microtime(true) + self::SEKUNDY_NA_KOLEJKE;

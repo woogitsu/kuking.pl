@@ -78,6 +78,7 @@ final class KomentarzBiezacyStanTest extends TestDwochPolaczen
             'post' => Post::factory()->for($owner, 'author')->create($attributes),
             'recipe' => $recipe,
             'cooked' => CookedEvent::factory()->for($owner, 'user')->for($recipe)->create(),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
         $parentAuthor = $this->konto();
         $parent = app(PublishComment::class)->handle($parentAuthor, $subject, 'Rodzic wyścigu.');
@@ -227,6 +228,7 @@ final class KomentarzBiezacyStanTest extends TestDwochPolaczen
             'post' => Post::factory()->for($owner, 'author')->create($attributes),
             'recipe' => Recipe::factory()->for($owner, 'author')->create($attributes),
             'cooked' => CookedEvent::factory()->for($owner, 'user')->for(Recipe::factory()->for($owner, 'author')->create($attributes))->create(),
+            default => throw new \LogicException('Nieobsłużony wariant w match.'),
         };
         $positive = app(PublishComment::class)->handle($writer, $subject, 'Kontrola przed moderacją.');
         $this->assertSame(1, Notification::query()->where('data->comment_id', $positive->id)->count());

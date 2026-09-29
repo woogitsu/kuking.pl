@@ -110,6 +110,16 @@ else
     zle "$(printf '%s\n' "$_wynik_powloki" | tail -n 1)"
 fi
 
+# --- 3b'. Werdykt kontroli negatywnych (#1011) -----------------------------
+# Czerwień po mutacji zalicza się tylko z oczekiwanej przyczyny, nie z fatalu
+# ani cudzej asercji. Bez bazy i bez PHP, poniżej sekundy.
+krok "Werdykt kontroli negatywnych (#1011)"
+if python3 tests/skrypty/kontrole-negatywne-przyczyna.py >/dev/null 2>&1; then
+    ok "Werdykt POTWIERDZONA / ZLA_PRZYCZYNA / BRAK_PORAZKI działa"
+else
+    zle "Werdykt kontroli negatywnych oblewa — uruchom: python3 tests/skrypty/kontrole-negatywne-przyczyna.py"
+fi
+
 # --- 3c. Przyrząd do testu obciążeniowego (#605) ---------------------------
 # Regresje NARZĘDZIA POMIAROWEGO, nie produktu. Bez bazy, bez PHP, bez sieci
 # poza własnym serwerem scenariuszy na porcie przydzielanym dynamicznie.
@@ -222,6 +232,19 @@ else
     fi
 fi
 
+# --- 4b. Ratchet PHPStana: wyczyszczone rodziny poziomu 4 (#1731) ----------
+# Poziom 4 nie jest jeszcze globalną bramką, ale rodziny błędów, które już
+# wyczyściliśmy (lista w `scripts/phpstan-wyczyszczone.sh`), nie mogą wrócić.
+krok "PHPStan — wyczyszczone rodziny poziomu 4"
+if [ ! -x vendor/bin/phpstan ]; then
+    zle "Brak vendor/bin/phpstan — uruchom: composer install"
+elif _wynik_ratchet=$(bash scripts/phpstan-wyczyszczone.sh 2>&1); then
+    ok "Wyczyszczone rodziny poziomu 4 nie wróciły"
+else
+    printf '%s\n' "$_wynik_ratchet"
+    zle "Wróciły wyczyszczone błędy poziomu 4 — uruchom: bash scripts/phpstan-wyczyszczone.sh"
+fi
+
 # --- 5. Testy -------------------------------------------------------------
 # KUKING_TESTY_ROWNOLEGLE=N puszcza baterię na N procesach. Domyślnie PUSTE,
 # czyli szeregowo — i tak ma zostać. Równoległość jest świadomym wyborem
@@ -264,6 +287,10 @@ if "${_test_polecenie[@]}" >"$_test_log" 2>&1; then
     ok "Testy przechodzą"
 else
     printf 'Pełny wynik testów zapisano w: %s\n' "$_test_log"
+    # Porażki wprost (#611 etap 4): ogon poniżej często pokazuje tylko
+    # podsumowanie. Tylko diagnostyka — kod wyjścia i kroki bez zmian.
+    printf '%s\n' 'Porażki z logu testów:'
+    bash scripts/porazki-z-logu.sh "$_test_log" 60 || true
     printf '%s\n' 'Ostatnie 160 wierszy wyniku:'
     tail -n 160 "$_test_log"
     zle "Testy nie przechodzą — uruchom: $_test_podpowiedz"

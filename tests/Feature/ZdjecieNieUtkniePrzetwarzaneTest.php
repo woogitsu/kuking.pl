@@ -93,6 +93,6 @@ class ZdjecieNieUtkniePrzetwarzaneTest extends TestCase
         // doszła do `failed()`. To nie jest błąd — hook ma po prostu wyjść.
         (new ProcessUploadedImage((string) Str::uuid()))->failed(null);
 
-        $this->assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 }

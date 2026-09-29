@@ -251,7 +251,7 @@
                                      jego stronie. Bez formy rodzajowej. --}}
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — własna wersja Twojego przepisu</strong>
                                 „{{ $data['recipe_title'] ?? 'przepis' }}”.
-                                @if($notification->wersjaDoPokazania())
+                                @if($notification->wersjaDostepna())
                                     Twój przepis jest podpisany na jej stronie.
                                 @else
                                     Ta wersja nie jest już dostępna.

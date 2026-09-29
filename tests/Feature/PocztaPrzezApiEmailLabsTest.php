@@ -316,7 +316,7 @@ class PocztaPrzezApiEmailLabsTest extends TestCase
         });
 
         $this->assertNotNull($wyslana);
-        $this->assertSame('kuking0001@kuking.pl', $wyslana->getSymfonySentMessage()?->getMessageId());
+        $this->assertSame('kuking0001@kuking.pl', $wyslana->getSymfonySentMessage()->getMessageId());
     }
 
     /**

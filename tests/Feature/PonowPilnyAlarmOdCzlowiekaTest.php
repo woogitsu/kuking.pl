@@ -6,9 +6,9 @@ namespace Tests\Feature;
 
 use App\Domain\Moderation\Actions\AlarmujOPilnymZgloszeniu;
 use App\Domain\Moderation\HumanUrgentAlarmAttempt;
-use App\Domain\Security\DziennyBudzetListow;
 use App\Models\Report;
 use App\Notifications\PilneZgloszenieOdCzlowieka;
+use App\Poczta\DziennyBudzetListow;
 use App\Poczta\OdmowaEmailLabs;
 use App\Poczta\PowodOdmowy;
 use Illuminate\Foundation\Testing\RefreshDatabase;

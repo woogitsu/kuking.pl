@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Security\DziennyBudzetListow;
 use App\Mail\ZyczeniaUrodzinowe;
 use App\Models\Report;
 use App\Models\User;
 use App\Notifications\PilnyAlarmModeracyjny;
+use App\Poczta\DziennyBudzetListow;
 use App\Poczta\ListZarezerwowany;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Mail\Mailable;

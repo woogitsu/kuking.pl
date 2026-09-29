@@ -8,7 +8,6 @@ use DOMDocument;
 use DOMElement;
 use DOMXPath;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Exceptions\UrlGenerationException;
 use Illuminate\Support\Facades\Route;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -509,7 +508,7 @@ trait ObchodEkranow
             Route::getRoutes()->match(Request::create($sciezka, $metoda));
 
             return true;
-        } catch (NotFoundHttpException|MethodNotAllowedHttpException|UrlGenerationException) {
+        } catch (NotFoundHttpException|MethodNotAllowedHttpException) {
             return false;
         }
     }

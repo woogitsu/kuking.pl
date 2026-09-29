@@ -313,10 +313,10 @@ class LogowanieKontemFacebookiemTest extends TestCase
         // uprawnienia są jedynymi, których Meta nie każe uzasadniać
         // w przeglądzie aplikacji — każde dodatkowe to punkt na ekranie
         // zgody, na którym osoba 60+ ma prawo wyjść.
-        $this->assertSame('public_profile,email', $parametry['scope'] ?? null);
+        $this->assertSame('public_profile,email', $parametry['scope']);
 
         foreach (['user_friends', 'user_photos', 'pages', 'publish', 'user_birthday', 'user_gender'] as $czego) {
-            $this->assertStringNotContainsString($czego, (string) ($parametry['scope'] ?? ''));
+            $this->assertStringNotContainsString($czego, (string) $parametry['scope']);
         }
 
         // SEKRET NIE WYCHODZI DO PRZEGLĄDARKI CZŁOWIEKA. Nigdy.

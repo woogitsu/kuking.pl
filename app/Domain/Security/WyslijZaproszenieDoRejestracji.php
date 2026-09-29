@@ -8,6 +8,7 @@ use App\Models\AuditLogEntry;
 use App\Models\RegistrationInvite;
 use App\Models\User;
 use App\Notifications\ZaproszenieDoZalozeniaKonta;
+use App\Poczta\DziennyBudzetListow;
 use App\Support\AdresEmail;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;

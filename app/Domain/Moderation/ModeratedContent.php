@@ -10,6 +10,7 @@ use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\Report;
 use App\Models\User;
 
 /**
@@ -36,7 +37,7 @@ final class ModeratedContent
      */
     public const TYPY = [
         User::class => 'user',
-        Post::class => 'post',
+        Post::class => Report::TARGET_POST,
         Recipe::class => 'recipe',
         Comment::class => 'comment',
         CookedEvent::class => 'cooked_event',
@@ -51,7 +52,7 @@ final class ModeratedContent
         //
         // Nazwa typu to `media`, a nie `avatar`, bo ta mapa jest po KLASIE,
         // a klasa jest ta sama dla awatara i dla zdjęcia we wpisie.
-        Media::class => 'media',
+        Media::class => Report::TARGET_MEDIA,
     ];
 
     /**

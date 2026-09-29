@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Search\FrazaWUgotowanych;
+use App\Http\Requests\Profile\ProfilRequest;
 use App\Models\Block;
 use App\Models\CookedEvent;
 use App\Models\Media;
@@ -31,8 +32,11 @@ use Illuminate\View\View;
  */
 class ProfileController extends Controller
 {
-    public function show(Request $request, string $username): View
+    public function show(Request $request, ProfilRequest $wejscie, string $username): View
     {
+        // `$request` to żądanie z kontenera, które czyta układ strony
+        // (canonical); `ProfilRequest` jest jego kopią, więc atrybutów
+        // ustawianych na kopii układ nie zobaczy (`KanonicznyAdresStrony`).
         // Adres profilu bez rozróżniania wielkości liter (audyt A25).
         //
         // Logowanie szukało nazwy bez rozróżniania, a profil publiczny —
@@ -56,17 +60,14 @@ class ProfileController extends Controller
         // Dopiero po autoryzacji: canonical z zapisaną pisownią nazwy (#1311).
         KanonicznyAdresStrony::ustawSciezke($request, route('profile.show', $profile->username, false));
 
-        $tab = in_array($request->query('zakladka'), ['przepisy', 'ugotowane'], true)
-            ? $request->query('zakladka')
-            : 'wszystko';
+        $tab = $wejscie->zakladka();
 
         $viewer = $request->user();
         $isOwner = $viewer !== null && $viewer->getKey() === $owner->getKey();
 
         // Rok z adresu, ale tylko jeśli wygląda na rok. `?rok=cokolwiek`
         // ma dać całe archiwum, a nie pustą stronę ani błąd.
-        $rok = (int) $request->query('rok', 0);
-        $rok = $rok >= 1990 && $rok <= 2999 ? $rok : null;
+        $rok = $wejscie->rok();
 
         $zeszytySzyny = $this->zeszytyDoSzyny($owner, $viewer, $isOwner);
         $tagiSzyny = $isOwner ? collect() : $this->tagiDoSzyny($owner, $viewer, $isOwner);
@@ -96,7 +97,7 @@ class ProfileController extends Controller
         // Fraza działa WYŁĄCZNIE na własnej zakładce (#2070). Na cudzym
         // profilu `?szukaj=` w adresie jest ignorowane: publiczny profil
         // wygląda tak samo jak przed tą zmianą.
-        $frazaUgotowanych = FrazaWUgotowanych::zAdresu($tab === 'ugotowane' && $isOwner ? $request->query('szukaj') : null);
+        $frazaUgotowanych = FrazaWUgotowanych::zAdresu($tab === 'ugotowane' && $isOwner ? $wejscie->szukaj() : null);
 
         $cookedEvents = $tab === 'ugotowane'
             ? $this->cookedEventsDlaProfilu($owner, $viewer, $isOwner, $frazaUgotowanych, $autorzyZaBlokada)

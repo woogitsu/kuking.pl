@@ -25,9 +25,24 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
 
     public function test_zakres_zachowuje_historie_do_porownania_z_baza(): void
     {
-        $job = $this->job('zakres');
-        $this->assertStringContainsString('fetch-depth: 0', $job);
-        $this->assertStringContainsString('git diff --name-only "${BAZA}" HEAD', $job);
+        $this->assertStringContainsString('fetch-depth: 0', $this->job('zakres'));
+        $this->assertStringContainsString('git diff --name-only "${BAZA}" HEAD', $this->skrypt());
+    }
+
+    /**
+     * Skrypt bramki `zakres` bez komentarzy. Od #611 (etap 5) to osobny plik,
+     * a krok w `ci.yml` tylko go woła — strażnik czyta więc plik, ale najpierw
+     * sprawdza, że CI woła właśnie ten plik (inaczej zielony test nic nie znaczy).
+     */
+    private function skrypt(): string
+    {
+        $this->assertStringContainsString('run: bash scripts/ci/zakres.sh', $this->job('zakres'),
+            'Krok bramki w `ci.yml` nie woła scripts/ci/zakres.sh.');
+
+        $tresc = (string) file_get_contents(base_path('scripts/ci/zakres.sh'));
+        $this->assertNotSame('', $tresc, 'Brak albo pusty scripts/ci/zakres.sh.');
+
+        return (string) preg_replace('/^\s*#.*$/m', '', $tresc);
     }
 
     private function workflow(): string
@@ -95,7 +110,7 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
         }
         $this->assertMatchesRegularExpression('/DB_DATABASE: kuking_port_pomiar\s+run: \|\s+node scripts\/kreator-zachowanie\.mjs autosave/', $job);
 
-        $this->assertSame(1, preg_match("/grep -qE '([^']+)'/", $this->job('zakres'), $matches));
+        $this->assertSame(1, preg_match("/grep -qE '([^']+)'/", $this->skrypt(), $matches));
         $this->assertSame(1, preg_match('~'.str_replace('~', '\\~', $matches[1]).'~', 'scripts/kreator-zachowanie.mjs'),
             'zakres: zmiana samego przyrządu #892 nie uruchamia pomiaru.');
     }
@@ -116,14 +131,17 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
      */
     public function test_zmiana_samego_przyrzadu_nie_pomija_pomiarow(): void
     {
-        $zakres = $this->job('zakres');
+        $zakres = $this->skrypt();
 
         // NAJPIERW liczba kopii, dopiero potem treść. Przy dwóch filtrach
         // `preg_match` bierze pierwszy z brzegu i test oblewałby na treści
         // wzorca — czyli z komunikatem o brakującym skrypcie zamiast o tym,
         // co się naprawdę stało. Czerwień ma mówić prawdę o przyczynie.
-        $this->assertSame(1, preg_match_all("/grep -qE '/", $this->workflow()),
+        // Filtr stoi w skrypcie bramki, a w `ci.yml` nie ma go wcale.
+        $this->assertSame(1, preg_match_all("/grep -qE '/", (string) file_get_contents(base_path('scripts/ci/zakres.sh'))),
             'Filtr warstwy widoku jest w więcej niż jednym miejscu — znowu są kopie do utrzymania.');
+        $this->assertSame(0, preg_match_all("/grep -qE '/", $this->workflow()),
+            'Filtr warstwy widoku wrócił do `ci.yml` — druga kopia obok scripts/ci/zakres.sh.');
 
         $this->assertSame(1, preg_match("/grep -qE '([^']+)'/", $zakres, $matches),
             'W jobie `zakres` nie ma filtra warstwy widoku.');
@@ -205,23 +223,33 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
     /** Uruchamia rzeczywisty blok filtra widoku z `ci.yml` w Bashu. */
     private function filtrWidoku(string $paths, ?string $zdarzenie): string
     {
-        $this->assertSame(1, preg_match('/^\s*(if [^\n]*grep -qE .*?^\s*fi)/ms', $this->job('zakres'), $matches));
+        $this->skrypt();
         $output = tempnam(sys_get_temp_dir(), 'kuking-zakres-');
+        $lista = tempnam(sys_get_temp_dir(), 'kuking-zakres-lista-');
         $this->assertNotFalse($output);
+        $this->assertNotFalse($lista);
 
         try {
-            $process = new Process(['bash', '-c', "set -euo pipefail\nZMIENIONE=\"$(cat)\"\n".$matches[1]], base_path(), [
+            // Lista z pliku (tryb testowy skryptu): duży diff nie mieści się
+            // w jednej zmiennej środowiska.
+            file_put_contents($lista, $paths."\n");
+            $process = new Process(['bash', 'scripts/ci/zakres.sh'], base_path(), [
                 'GITHUB_OUTPUT' => $output,
+                'ZAKRES_LISTA_PLIK' => $lista,
                 // `false` usuwa zmienną odziedziczoną ze środowiska.
                 'ZDARZENIE' => $zdarzenie ?? false,
             ]);
-            $process->setInput($paths);
             $process->run();
             $this->assertSame(0, $process->getExitCode(), $process->getErrorOutput());
 
-            return (string) file_get_contents($output);
+            // Cały skrypt wystawia sześć wyjść; ten test pyta o `widok`.
+            preg_match('/^widok=.*$/m', (string) file_get_contents($output), $widok);
+            $this->assertNotSame([], $widok, 'Skrypt bramki nie wystawił `widok`.');
+
+            return $widok[0]."\n";
         } finally {
             unlink($output);
+            unlink($lista);
         }
     }
 
@@ -300,12 +328,12 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
      */
     public function test_zakres_wystawia_oba_wyjscia_na_kazdej_sciezce(): void
     {
-        $zakres = $this->job('zakres');
+        $zakres = $this->skrypt();
 
         // Wyjścia zadeklarowane na jobie — bez tego `needs…` jest puste.
         $this->assertMatchesRegularExpression(
             '/outputs:\s*\n\s+kod:.*\n\s+widok:/',
-            $zakres,
+            $this->job('zakres'),
             'Job `zakres` nie wystawia obu wyjść.',
         );
 

@@ -339,218 +339,11 @@ jobs:
         id: sprawdz
         env:
           BAZA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-          # Zawężanie ciężkich jobów obowiązuje WYŁĄCZNIE na PR-ach (niżej).
+          # Zawężanie ciężkich jobów obowiązuje WYŁĄCZNIE na PR-ach (w skrypcie).
           ZDARZENIE: ${{ github.event_name }}
-        run: |
-          set -euo pipefail
-
-          # Stan bez punktu odniesienia (pierwszy push gałęzi, wymuszony
-          # przebieg) — wtedy NIE ZGADUJEMY i puszczamy pełny zestaw.
-          if [ -z "${BAZA}" ] || [ "${BAZA}" = "0000000000000000000000000000000000000000" ]; then
-            echo "Brak punktu odniesienia — pełny zestaw."
-            echo "kod=true" >> "$GITHUB_OUTPUT"
-            echo "widok=true" >> "$GITHUB_OUTPUT"
-            echo "dokumenty=true" >> "$GITHUB_OUTPUT"
-            printf '%s\n' obraz=true obciazenie=true wyscigi=true >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if ! git cat-file -e "${BAZA}^{commit}" 2>/dev/null; then
-            echo "Baza ${BAZA} nieosiągalna — pełny zestaw."
-            echo "kod=true" >> "$GITHUB_OUTPUT"
-            echo "widok=true" >> "$GITHUB_OUTPUT"
-            echo "dokumenty=true" >> "$GITHUB_OUTPUT"
-            printf '%s\n' obraz=true obciazenie=true wyscigi=true >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          ZMIENIONE="$(git diff --name-only "${BAZA}" HEAD)"
-          echo "Zmienione pliki:"
-          echo "${ZMIENIONE}"
-
-          # Wyłącznie te dwa katalogi są uznane za „nie kod". Wszystko inne —
-          # łącznie z `.github/`, `pint.json` czy `composer.json` — uruchamia
-          # pełny zestaw. Lista jest krótka CELOWO: pomyłka w stronę
-          # nadmiarowego przebiegu kosztuje minuty, a w drugą stronę
-          # przepuszcza niesprawdzoną zmianę.
-          POZA="$(echo "${ZMIENIONE}" | grep -vE '^(docs/|README\.md$)' || true)"
-
-          # -------------------------------------------------------------
-          # WARSTWA DOKUMENTACJI — bo `kod=false` NIE ZNACZY „nie ma czego
-          # mierzyć".
-          #
-          # CO BYŁO ZEPSUTE (zmierzone 22.09.2026). Między 08:55 a 13:05 na
-          # `main` nie było ani jednego uczciwego pomiaru: ponad 60 przebiegów
-          # skończyło się jako `cancelled` (grupa współbieżności — każde
-          # kolejne pchnięcie ubijało poprzednie), a SIEDEM zameldowało
-          # `success`, NIE MIERZĄC NICZEGO: ta bramka uznała je za zmianę
-          # wyłącznie w `docs/`, ustawiła `kod=false` i pominęła 12 z 13 jobów.
-          # Tą dziurą weszły na `main` DWIE wady — PR-ami dokumentacyjnymi,
-          # którym ta sama bramka pominęła dokładnie te joby, które by je
-          # złapały.
-          #
-          # DLACZEGO `docs/` NIE JEST „NIE KODEM". To jest ZMIERZONE, nie
-          # przyjęte na wiarę — pilnuje tego
-          # `BramkaZakresuNiePomijaJobowCzytajacychTest`, który czyta z DYSKU,
-          # kto naprawdę otwiera pliki spod wykluczeń tej bramki:
-          #
-          #   `lint` — Pint skanuje CAŁE repozytorium, a w `docs/` leżą pliki
-          #            `.php` (paczki dowodowe audytów, fixture'y badawcze).
-          #            To jest jedna z dwóch wad, które tędy weszły.
-          #   `test` — kilkanaście plików z `tests/` OTWIERA pliki z `docs/`:
-          #            strażnicy martwych odnośników, zgodność
-          #            `docs/DATABASE.md` ze schematem, numeracja decyzji.
-          #            To jest druga.
-          #
-          # Dlatego oba chodzą także przy `kod=false`. Pozostałe jedenaście
-          # jobów zostaje pominiętych — one `docs/` nie czytają, a nadmiarowy
-          # przebieg przeglądarkowy kosztuje kilkanaście minut.
-          #
-          # RÓŻNICA LIST, A NIE DRUGA KOPIA WZORCA: `POZA` to już „zmienione
-          # bez dokumentacji", więc gdy listy się różnią, jakiś plik
-          # dokumentacji wypadł — czyli był. Drugi `grep` z tym samym wzorcem
-          # dałoby się zmienić w jednym miejscu i zapomnieć o drugim, a to
-          # jest dokładnie ta wada, którą ten blok naprawia, piętro wyżej.
-          #
-          # `dokumenty=false` przy PUSTEJ liście zmian nie jest przeoczeniem:
-          # gdy nie zmienił się żaden plik, nie ma czego sprawdzać.
-          if [ -n "${ZMIENIONE}" ] && [ "${POZA}" != "${ZMIENIONE}" ]; then
-            echo "dokumenty=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "dokumenty=false" >> "$GITHUB_OUTPUT"
-          fi
-
-          # -------------------------------------------------------------
-          # PACZKA WZORCOWA MARKI TO DANE, NIE DOKUMENTACJA.
-          #
-          # `docs/design/references/` leży w `docs/`, ale `scripts/fixtures/
-          # kompozycje-marki.php` i `scripts/fixtures/panel-marki.php`
-          # OTWIERAJĄ stamtąd archiwum wzorców — a te fixture'y są wejściem
-          # trzech jobów przeglądarkowych (`port_marki`, `port_funkcje`
-          # przez `scripts/port-projektu.mjs`, `port_panelu` przez
-          # `scripts/panel-marki-run.mjs`). Podmiana wzorca bez ani jednego
-          # przebiegu portu marki znaczyłaby, że port marki mierzy się wobec
-          # pliku, którego nikt nie sprawdził.
-          #
-          # Dopisujemy więc te ścieżki z powrotem do `POZA` (czyli na stronę
-          # „to jest kod"), zamiast dokładać trzem jobom osobnych warunków:
-          # warunki tych jobów są pilnowane przez `PortMarkiMaWlasnaBramkeCiTest`
-          # i mają zostać proste. Ta sama ścieżka jest też w filtrze warstwy
-          # widoku niżej.
-          # Test grafu Railway w jobie `assets` czyta docs/DEPLOYMENT.md.
-          # Ta instrukcja jest więc wejściem testu tak samo jak wzorce marki.
-          WZORCE_MARKI="$(echo "${ZMIENIONE}" | grep -E '^(docs/design/references/|docs/DEPLOYMENT\.md$)' || true)"
-
-          if [ -n "${WZORCE_MARKI}" ]; then
-            POZA="$(printf '%s\n%s\n' "${POZA}" "${WZORCE_MARKI}" | grep -v '^$' || true)"
-          fi
-
-          if [ -z "${POZA}" ]; then
-            echo "Zmiana wyłącznie w dokumentacji — ciężkie zadania pominięte."
-            echo "kod=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "kod=true" >> "$GITHUB_OUTPUT"
-          fi
-
-          # -------------------------------------------------------------
-          # WARSTWA WIDOKU — jedno miejsce dla trzech jobów przeglądarkowych.
-          #
-          # Do 19 września 2026 ten sam filtr stał TRZY RAZY, osobno w
-          # `port_marki`, `port_funkcje` i `dostepnosc`, i pilnował KROKÓW,
-          # a nie jobów. Skutek był taki, że przy zmianie kodu poza warstwą
-          # widoku job się URUCHAMIAŁ, wszystkie jego kroki pomiarowe były
-          # pomijane, a job kończył się na ZIELONO — nie do odróżnienia na
-          # liście kontrolnej od joba, który naprawdę wszystko zmierzył.
-          # Zmierzone na 25 przebiegach: „Port marki (kompozycje…)" miał
-          # 15 sukcesów, z czego 4 trwały 19–22 s wobec 462–506 s przy
-          # rzeczywistym pomiarze. Tak samo „Port marki — rodziny ekranów"
-          # (4 × 19–21 s wobec 1456–1638 s) i „Dostępność" (4 × 18–22 s
-          # wobec 745–955 s). Razem dwanaście zielonych bez ani jednego
-          # pomiaru.
-          #
-          # Teraz warunek stoi na JOBIE. Gdy warstwa widoku jest nietknięta,
-          # cały job jest `skipped` — czyli widać, że nic nie zmierzono.
-          # Zielony wynik znowu znaczy „zmierzone".
-          #
-          # Wzorzec obejmuje TAKŻE SAME SKRYPTY POMIAROWE i `ci.yml`: zmiana
-          # przyrządu musi uruchomić pomiar, inaczej dałoby się zepsuć
-          # miernik bez jednego czerwonego przebiegu. Pilnuje tego
-          # `PortMarkiMaWlasnaBramkeCiTest`.
-          #
-          # OBEJMUJE TAKŻE `.github/actions/` — i to nie jest ozdoba. Te joby
-          # wołają lokalne akcje przez `uses: ./…` (konfiguracja PHP,
-          # sprawdzenie sekretu hasła demonstracyjnego). Zmierzone przed tą
-          # poprawką: zmiana `.github/actions/haslo-demo/action.yml` dawała
-          # `kod=true`, ale `widok=false`, czyli WSZYSTKIE trzy joby
-          # przeglądarkowe były pomijane. Dałoby się więc zepsuć albo odwrócić
-          # warunek w akcji-strażniku i nie zobaczyć ani jednego czerwonego
-          # przebiegu. Pilnuje tego
-          # `BramkaZakresuNiePomijaJobowCzytajacychTest::test_zmiana_lokalnej_akcji_uruchamia_joby_ktore_jej_uzywaja`.
-          #
-          # Lista pomiarów niesie też `referrer-sekret-browser` (z `main`).
-          # Sterujące nim `ApplySecurityHeaders.php` i `AnalitykaCloudflare.php`
-          # łapie już szersze `app/`, więc nie stoją na liście osobno.
-          # PHP także steruje ekranem: komponenty, trasy, kontrolery, polityki
-          # i modele. Konserwatywnie obejmujemy całe app/, konfigurację,
-          # start aplikacji, tłumaczenia, bazę oraz zależności PHP (#1039).
-          # Here-string nie gubi trafienia przez SIGPIPE przy dużym diffie.
-          #
-          # POZA PR-EM (push na `main`/`staging`, uruchomienie ręczne) filtr
-          # nie zawęża: `widok=true` zawsze, bo `main` mierzy pełny zestaw
-          # (decyzja właściciela 24.09.2026). Brak `ZDARZENIE` też znaczy
-          # „pełny" — pomyłka w konfiguracji ma dać nadmiarowy przebieg,
-          # nie pominięty pomiar. `scripts/panel-*` są na liście, bo od
-          # 24.09 filtr pilnuje także `port_panelu`.
-          if [ "${ZDARZENIE:-}" != "pull_request" ] || grep -qE '^(app/|routes/|config/|bootstrap/|lang/|database/|composer\.(json|lock)$|resources/|public/|scripts/(referrer-sekret-browser|hero-nad-zgieciem|dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|lista-osob-szerokosc|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|menu-karty-wpisu|kroki-kreatora|kreator-zachowanie|przegladarka/strona-nieaktualna\.test|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus|lib/stan-ustalony)\.mjs|scripts/panel-[a-z-]+\.(mjs|php)$|scripts/fixtures/|docs/design/references/|docker/Caddyfile|package(-lock)?\.json|\.github/(workflows/ci\.yml|actions/))' <<< "${ZMIENIONE}"; then
-            echo "widok=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Warstwa widoku nietknięta — joby przeglądarkowe pominięte."
-            echo "widok=false" >> "$GITHUB_OUTPUT"
-          fi
-
-          # -------------------------------------------------------------
-          # CIĘŻKIE JOBY WĄSKIEGO OBSZARU — zawężane TYLKO NA PR-ACH.
-          #
-          # PO CO (decyzja właściciela 24.09.2026): 138 otwartych PR-ów, każdy
-          # przebieg to ~13 ciężkich jobów na self-hosted runnerach, joby
-          # wypadały na limitach czasu. Trzy joby mierzą wąski obszar, a
-          # chodziły przy KAŻDEJ zmianie kodu:
-          #
-          #   obraz      → `docker-build`: Dockerfile'e, `docker/`,
-          #                `.dockerignore`, manifesty zależności, konfiguracja
-          #                builda (Vite/Tailwind/PostCSS), `.railway/`, to, co
-          #                czyta `artisan package:discover` w obrazie
-          #                (`bootstrap/`, `config/`, `app/Providers/`), oraz
-          #                testy JS z polecenia `npm run build` — obraz
-          #                uruchamia je BEZ `tests/`, `docs/` i `*.md`
-          #                (`.dockerignore`), czego job Vite nie odtworzy.
-          #                Sam build Vite ze zmienionych źródeł mierzy job
-          #                `assets` na każdym PR-ze.
-          #   obciazenie → `przyrzad_605`: pliki `scripts/*605*` i dowody `scripts/fixtures/obciazenie605/`.
-          #   wyscigi    → `dwa-polaczenia`: kod i dane aplikacji (testy tej
-          #                grupy chodzą przez HTTP i zatwierdzają dane, więc
-          #                także widoki i tłumaczenia), `tests/Dwa/`, wspólne
-          #                zaplecze testów i skrypt uruchamiający.
-          #
-          # Każdy wzorzec obejmuje `ci.yml`, a `wyscigi` także akcję PHP:
-          # zmiana przyrządu uruchamia pomiar. Że job ruszy przy zmianie
-          # każdego pliku, który naprawdę czyta, pilnuje z DYSKU
-          # `BramkaZakresuNiePomijaJobowCzytajacychTest`.
-          #
-          # Poza PR-em (i bez `ZDARZENIE`) wszystkie trzy są `true` — jak
-          # dotąd; o pominięciu nadal decyduje wyłącznie `kod`.
-          ciezki() {
-            if [ "${ZDARZENIE:-}" != "pull_request" ] || grep -Eq "$2" <<< "${ZMIENIONE}"; then
-              echo "$1=true"
-            else
-              echo "Obszar joba (${1}) nietknięty — job pominięty na tym PR-ze." >&2
-              echo "$1=false"
-            fi >> "$GITHUB_OUTPUT"
-          }
-
-          ciezki obraz '^(Dockerfile$|docker/|\.dockerignore$|composer\.(json|lock)$|package(-lock)?\.json$|\.npmrc$|\.railway/|railway\.(json|toml)$|vite\.config\.[cm]?[jt]s$|(tailwind|postcss)\.config\.|artisan$|bootstrap/|config/|app/Providers/|resources/js/[^/]+\.test\.mjs$|scripts/([^/]+|fixtures/[^/]+)\.test\.mjs$|scripts/kontrast-marki\.mjs$|\.github/workflows/ci\.yml$)'
-          ciezki obciazenie '^(scripts/[^/]*605[^/]*$|scripts/fixtures/obciazenie605/|\.github/workflows/ci\.yml$)'
-          ciezki wyscigi '^(app/|bootstrap/|config/|database/|routes/|lang/|resources/views/|artisan$|composer\.(json|lock)$|phpunit\.xml$|\.env\.example$|tests/(Dwa/|Support/|TestCase\.php$|bootstrap\.php$)|scripts/(testy-dwa-polaczenia\.sh|kontrola-negatywna-2165\.py)$|\.github/(workflows/ci\.yml$|actions/php/))'
+        # Cała logika bramki (sześć wyjść) żyje w skrypcie — #611 etap 5.
+        # Test i tabela przypadków: tests/skrypty/zakres.sh.
+        run: bash scripts/ci/zakres.sh
 
       # =====================================================================
       #  CO TA ZIELEŃ ZNACZY — wypisane na wierzchu przebiegu.
@@ -852,6 +645,12 @@ jobs:
         if: steps.phpstan_config.outputs.exists == 'true'
         run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
 
+      # Ratchet poziomu 4 (#1731): rodziny błędów już wyczyszczone nie mogą
+      # wrócić, choć cały poziom 4 nie jest jeszcze bramką.
+      - name: PHPStan — wyczyszczone rodziny poziomu 4
+        if: steps.phpstan_config.outputs.exists == 'true'
+        run: bash scripts/phpstan-wyczyszczone.sh
+
   # ===========================================================================
   #  3. Testy — Pest/PHPUnit na prawdziwym PostgreSQL 18
   # ===========================================================================
@@ -1113,6 +912,12 @@ jobs:
       - name: Kontrola odczytu logu testów negatywnych
         if: matrix.czesc == 'kontrole' && matrix.kontrole_czesc == 3
         run: python3 -m unittest discover -s scripts -p 'test_kontrola_wyjscia_testu.py' -v
+
+      # Najpierw sam werdykt, bez bazy i w sekundę (#1011): przyrząd, który
+      # zalicza czerwień z niewłaściwego powodu, dałby fałszywy dowód niżej.
+      - name: Test werdyktu kontroli negatywnych
+        if: matrix.czesc == 'kontrole'
+        run: python3 tests/skrypty/kontrole-negatywne-przyczyna.py
 
       - name: Kontrole negatywne regresji Alfa 0.8 i portu marki
         if: matrix.czesc == 'kontrole'
@@ -1386,6 +1191,12 @@ jobs:
       - name: Regresja checklisty składników w trybie „Gotuję” (DOM w Chromium)
         run: node --test scripts/przegladarka/skladniki-gotowania.test.mjs
 
+      # #957: kolaż hero na stronie powitalnej — w Chromium przy 390 i 1280 px
+      # pierwszy kafel jest pobierany od razu z priorytetem High, a pozostałe
+      # nie dostają High. Znaczniki <img> wycina z `landing.blade.php`.
+      - name: Regresja priorytetu kafla kolażu hero (żądania w Chromium)
+        run: node --test scripts/przegladarka/kolaz-lcp.test.mjs
+
       # Weryfikacja, że build faktycznie coś wyprodukował. Vite potrafi
       # zakończyć się sukcesem z pustym manifestem przy błędnej konfiguracji,
       # a wtedy produkcja dostaje stronę bez CSS.
@@ -1511,15 +1322,11 @@ jobs:
       SENTRY_LARAVEL_DSN: ""
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Izolowane połączenie i narzędzia PHP
+      - name: Izolowane połączenie i zamrożony czas
         run: |
           set -euo pipefail
           echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
           echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
-          KATALOG="${RUNNER_TEMP}/kuking-narzedzia/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
-          mkdir -p "$KATALOG/bin" "$KATALOG/cache"
-          echo "SETUP_PHP_TOOLS_DIR=$KATALOG/bin" >> "$GITHUB_ENV"
-          echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
           # Issue #1836: fixture (`scripts/fixtures/panel-marki.php`) i panel
           # oglądany przez `php artisan serve` to DWA osobne procesy PHP —
           # między zapisem `DailyPick::shown_on` a zrzutem ekranu mija
@@ -1532,13 +1339,12 @@ jobs:
           # w trakcie joba przestaje mieć znaczenie — oba widzą ten sam
           # moment niezależnie od tego, ile job faktycznie trwa.
           echo "KUKING_ZAMROZONY_CZAS=$(date -u +%Y-%m-%dT%H:%M:%S+00:00)" >> "$GITHUB_ENV"
-      - name: Konfiguracja PHP
-        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+      # Własny katalog narzędzi (#262) i `setup-php` — razem, w tej kolejności,
+      # w `.github/actions/php` (#611, etap 2: jedna definicja rozszerzeń).
+      - name: Środowisko PHP
+        uses: ./.github/actions/php
         with:
-          php-version: ${{ env.PHP_VERSION }}
-          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
-          coverage: none
-          tools: composer:v2
+          wersja: ${{ env.PHP_VERSION }}
       - name: Konfiguracja Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -1760,21 +1566,12 @@ jobs:
           echo "PostgreSQL mapped to host port ${{ job.services.postgres.ports[5432] }}"
 
 
-      - name: Własny katalog narzędzi PHP (issue #262)
-        run: |
-          set -euo pipefail
-          KATALOG="${RUNNER_TEMP}/kuking-narzedzia/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
-          mkdir -p "$KATALOG/bin" "$KATALOG/cache"
-          echo "SETUP_PHP_TOOLS_DIR=$KATALOG/bin" >> "$GITHUB_ENV"
-          echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
-
-      - name: Konfiguracja PHP
-        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+      # Własny katalog narzędzi (#262) i `setup-php` — razem, w tej kolejności,
+      # w `.github/actions/php` (#611, etap 3: jedna definicja rozszerzeń).
+      - name: Środowisko PHP
+        uses: ./.github/actions/php
         with:
-          php-version: ${{ env.PHP_VERSION }}
-          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
-          coverage: none
-          tools: composer:v2
+          wersja: ${{ env.PHP_VERSION }}
 
       - name: Konfiguracja Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -1937,21 +1734,12 @@ jobs:
       # GitHub Actions nie umie filtrować ścieżek per JOB (tylko per workflow),
       # więc decyduje wyjście joba `zakres`. Warunek stoi na całym jobie,
       # nie na krokach; PHP sterujące ekranem też uruchamia pomiar (#1039).
-      - name: Własny katalog narzędzi PHP (issue #262)
-        run: |
-          set -euo pipefail
-          KATALOG="${RUNNER_TEMP}/kuking-narzedzia/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
-          mkdir -p "$KATALOG/bin" "$KATALOG/cache"
-          echo "SETUP_PHP_TOOLS_DIR=$KATALOG/bin" >> "$GITHUB_ENV"
-          echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
-
-      - name: Konfiguracja PHP
-        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+      # Własny katalog narzędzi (#262) i `setup-php` — razem, w tej kolejności,
+      # w `.github/actions/php` (#611, etap 3: jedna definicja rozszerzeń).
+      - name: Środowisko PHP
+        uses: ./.github/actions/php
         with:
-          php-version: ${{ env.PHP_VERSION }}
-          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
-          coverage: none
-          tools: composer:v2
+          wersja: ${{ env.PHP_VERSION }}
 
       - name: Konfiguracja Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

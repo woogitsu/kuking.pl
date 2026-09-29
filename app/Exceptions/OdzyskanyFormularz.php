@@ -270,7 +270,7 @@ final class OdzyskanyFormularz
     private static function nazwaPolaHtml(string $kluczZKropkami): string
     {
         $czesci = explode('.', $kluczZKropkami);
-        $nazwa = array_shift($czesci) ?? '';
+        $nazwa = array_shift($czesci);
 
         foreach ($czesci as $czesc) {
             $nazwa .= '['.$czesc.']';

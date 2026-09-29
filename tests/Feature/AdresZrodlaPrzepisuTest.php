@@ -78,7 +78,7 @@ class AdresZrodlaPrzepisuTest extends TestCase
     public function test_nowy_adres_w_kreatorze_jest_strona(string $url, bool $allowed): void
     {
         $component = Livewire::actingAs($this->user())->test('recipe-wizard')
-            ->set('title', 'Przepis z kreatora')->set('form.source_type', 'external')
+            ->set('form.title', 'Przepis z kreatora')->set('form.source_type', 'external')
             ->assertSet('saveState', 'saved')
             ->set('form.source_url', $url)->assertSet('form.source_url', $url);
         if ($allowed) {
@@ -88,7 +88,7 @@ class AdresZrodlaPrzepisuTest extends TestCase
             // Autozapis nie zapisuje odrzuconego adresu; tekst zostaje w polu.
             $component->assertHasErrors('form.source_url')->assertSet('saveState', 'error')
                 ->assertSee('Wklej adres strony zaczynający się od http:// lub https://.')
-                ->assertSet('title', 'Przepis z kreatora');
+                ->assertSet('form.title', 'Przepis z kreatora');
             $this->assertNull(Recipe::sole()->source_url);
             $component->call('saveDraft')->assertHasErrors('form.source_url');
             $this->assertNull(Recipe::sole()->source_url);
@@ -102,7 +102,7 @@ class AdresZrodlaPrzepisuTest extends TestCase
         $recipe = app(PublishRecipe::class)->handle($author, ['title' => 'Stary przepis', 'source_type' => 'external', 'source_url' => 'ftp://example.invalid/stary'], [], [['instruction' => 'Gotuj.']], true);
         $component = Livewire::actingAs($author)->test('recipe-wizard', ['recipeId' => $recipe->getKey()])
             ->assertSet('form.source_url', 'ftp://example.invalid/stary')
-            ->set('title', 'Poprawiony tytuł')->assertHasNoErrors()->assertSet('saveState', 'saved');
+            ->set('form.title', 'Poprawiony tytuł')->assertHasNoErrors()->assertSet('saveState', 'saved');
         $this->assertSame(['Poprawiony tytuł', 'ftp://example.invalid/stary'], [$recipe->fresh()->title, $recipe->fresh()->source_url]);
         $component->set('form.source_url', 'ftp://example.invalid/nowy')->assertHasErrors('form.source_url')->assertSet('saveState', 'error');
         $this->assertSame('ftp://example.invalid/stary', $recipe->fresh()->source_url);

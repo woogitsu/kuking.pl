@@ -257,7 +257,6 @@ class FirstPostPublicationAtomicTest extends TestCase
                 break;
             }
         }
-        $this->assertNotNull($job);
         $this->assertInstanceOf(PrzeanalizujTresc::class, $command);
         $this->assertSame($post->id, $command->id);
         $this->assertSame('post', $command->typ);

@@ -4,24 +4,20 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
-use App\Domain\Moderation\KolejkiPanelu;
+use App\Domain\Moderation\Actions\ZamknijGrupeSygnalow;
+use App\Domain\Moderation\WynikZamknieciaGrupy;
 use App\Http\Controllers\Controller;
-use App\Models\AuditLogEntry;
 use App\Models\Comment;
 use App\Models\Media;
-use App\Models\ModerationAction;
 use App\Models\Post;
 use App\Models\Report;
 use App\Models\User;
 use App\Support\Komunikat;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Throwable;
 
@@ -60,9 +56,6 @@ class SygnalyController extends Controller
     /** Ile pozycji rozwijamy w grupie; reszta zostaje policzona, ale nie wypisana. */
     private const POZYCJI_W_GRUPIE = 10;
 
-    /** Powód w logu przy zamknięciu grupy — patrz `PodstawaDecyzji`: kod spoza listy nie dostaje numeru punktu i tak ma być. */
-    public const POWOD_ODRZUCENIA = 'automat-falszywy-alarm';
-
     /** Odmowa przy grupie oznaczeń własnych treści moderatora (audyt A5-11). */
     public const WLASNE_OZNACZENIA = 'To oznaczenia Twoich własnych treści — zamknąć je może tylko ktoś inny z moderacji.';
 
@@ -71,6 +64,8 @@ class SygnalyController extends Controller
 
     /** Formularz bez znacznika stanu (np. karta otwarta przed tą zmianą). */
     public const NIEZNANY_STAN = 'Nie wiadomo, które oznaczenia zamknąć. Odśwież stronę i spróbuj jeszcze raz.';
+
+    public function __construct(private readonly ZamknijGrupeSygnalow $zamknijGrupe) {}
 
     public function index(Request $request): View
     {
@@ -85,7 +80,7 @@ class SygnalyController extends Controller
             'pozycje' => $pozycje,
             'podglady' => $this->podglady($pozycje),
             'pozycjiWGrupie' => self::POZYCJI_W_GRUPIE,
-            'otwartych' => $this->otwarte()->count(),
+            'otwartych' => ZamknijGrupeSygnalow::otwarte()->count(),
         ]);
     }
 
@@ -148,106 +143,19 @@ class SygnalyController extends Controller
             'stan_najnowsze.uuid' => self::NIEZNANY_STAN,
         ]);
 
-        $stanIle = (int) $dane['stan_ile'];
-        $stanNajnowsze = (string) $dane['stan_najnowsze'];
-
-        $autorId = $dane['autor'] === 'brak' ? null : $dane['autor'];
         $moderator = $request->user();
 
-        // WŁASNYCH OZNACZEŃ NIE ZAMYKASZ (audyt A5-11). Bez tego moderator
-        // zamykał jednym kliknięciem wszystkie oznaczenia automatu przy
-        // własnych treściach, zanim zobaczył je ktoś inny z zespołu — ten sam
-        // konflikt interesów, który przy zgłoszeniach od ludzi blokuje
-        // `ReportPolicy::decide` (`SPRAWA_O_CIEBIE`). `strtolower`, bo
-        // PostgreSQL porównuje UUID bez względu na wielkość liter: `ABC…`
-        // w polu trafiłoby w ten sam wiersz, a zwykłe `===` by go przepuściło.
-        //
-        // Sama wielkość liter nie wystarcza: PostgreSQL przyjmuje UUID także
-        // bez myślników i w klamrach (`{…}`), a oba zapisy trafiają w ten sam
-        // wiersz. Dlatego najpierw wymagamy postaci kanonicznej — formularz
-        // i tak wysyła tylko ją albo `brak`.
-        if ($autorId !== null && ! Str::isUuid($autorId)) {
-            return back()->withErrors([
-                'autor' => 'Nie wiadomo, którą grupę zamknąć. Odśwież stronę i spróbuj jeszcze raz.',
-            ]);
-        }
-
-        if ($autorId !== null && strtolower($autorId) === strtolower((string) $moderator->getKey())) {
-            return back()->withErrors([
-                'autor' => self::WLASNE_OZNACZENIA,
-            ]);
-        }
-
+        // Reguły (własne oznaczenia, postać UUID), blokada wierszy i transakcja
+        // siedzą w akcji (#970); tu zostaje tłumaczenie wyniku na odpowiedź.
         try {
-            [$ile, $urosla] = DB::transaction(function () use ($autorId, $moderator, $dane, $request, $stanIle, $stanNajnowsze): array {
-                $oznaczenia = $this->otwarte()
-                    ->when($autorId === null,
-                        fn ($q) => $q->whereNull('autor_tresci_id'),
-                        fn ($q) => $q->where('autor_tresci_id', $autorId),
-                    )
-                    // Blokada wiersza z tego samego powodu co w `decide()`:
-                    // dwie karty moderatora nie mogą wydać dwóch decyzji do
-                    // jednego oznaczenia (`moderation_actions` ma UNIQUE na
-                    // `report_id`).
-                    ->lockForUpdate()
-                    ->get();
-
-                // Dopisane po odczycie strony (#1059) — patrz komentarz
-                // metody. Nic jeszcze nie zapisaliśmy, więc wyjście tutaj
-                // zostawia grupę dokładnie taką, jaka była.
-                if ($this->grupaUrosla($oznaczenia, $autorId, $stanIle, $stanNajnowsze)) {
-                    return [0, true];
-                }
-
-                foreach ($oznaczenia as $oznaczenie) {
-                    ModerationAction::create([
-                        'moderator_id' => $moderator->getKey(),
-                        'report_id' => $oznaczenie->getKey(),
-                        'target_type' => $oznaczenie->target_type,
-                        'target_id' => $oznaczenie->target_id,
-                        'subject_user_id' => $oznaczenie->autor_tresci_id,
-                        'action' => ModerationAction::ACTION_NONE,
-                        'reason_code' => self::POWOD_ODRZUCENIA,
-                        'note' => $dane['note'] ?? 'Automat się pomylił — treść zostaje bez zmian.',
-                    ]);
-                }
-
-                // JEDEN masowy UPDATE zamiast zapisu po wierszu (audyt B4 W3).
-                // Zapis po wierszu odpalał hak `saved` i przeliczał liczniki
-                // panelu przy KAŻDYM oznaczeniu — pod blokadą całej grupy.
-                // Masowy UPDATE nie odpala zdarzeń modelu, więc liczniki
-                // odświeżamy jawnie, raz, po commicie.
-                if ($oznaczenia->isNotEmpty()) {
-                    Report::query()->whereKey($oznaczenia->modelKeys())->update([
-                        'status' => Report::STATUS_REJECTED,
-                        'resolution_note' => $dane['note'] ?? null,
-                        'resolved_by' => $moderator->getKey(),
-                        'resolved_at' => now(),
-                    ]);
-
-                    app(KolejkiPanelu::class)->odswiez();
-                }
-
-                $ile = $oznaczenia->count();
-
-                // Wpis zbiorczy jest CZĘŚCIĄ tej decyzji, więc stoi w jej
-                // transakcji, jak `moderation.decided` w `ModerationController`
-                // (D-249, #1343). Awaria dziennika cofa decyzje i statusy
-                // razem z nim, a ponowienie daje jeden komplet — zamiast
-                // zamkniętej grupy bez wpisu, której ponowienie już nie
-                // znajdzie. Zero zamkniętych to zero decyzji: nie ma czego
-                // zapisywać.
-                if ($ile > 0) {
-                    AuditLogEntry::record(
-                        action: 'moderation.automat_dismissed',
-                        actor: $moderator,
-                        metadata: ['autor_tresci_id' => $autorId, 'ile' => $ile],
-                        ip: $request->ip(),
-                    );
-                }
-
-                return [$ile, false];
-            });
+            $wynik = $this->zamknijGrupe->handle(
+                $moderator,
+                $dane['autor'],
+                (int) $dane['stan_ile'],
+                (string) $dane['stan_najnowsze'],
+                $dane['note'] ?? null,
+                $request->ip(),
+            );
         } catch (Throwable $awaria) {
             // Transakcja jest wycofana w całości — grupa zostaje otwarta,
             // więc moderator dostaje prawdę i drogę dalej, a operator
@@ -259,67 +167,21 @@ class SygnalyController extends Controller
             ]);
         }
 
-        if ($urosla) {
-            return back()->withErrors(['autor' => self::GRUPA_UROSLA]);
-        }
-
-        if ($ile === 0) {
-            return back()->withErrors([
+        return match ($wynik->rodzaj) {
+            WynikZamknieciaGrupy::NIEZNANA_GRUPA => back()->withErrors([
+                'autor' => 'Nie wiadomo, którą grupę zamknąć. Odśwież stronę i spróbuj jeszcze raz.',
+            ]),
+            WynikZamknieciaGrupy::WLASNE => back()->withErrors([
+                'autor' => self::WLASNE_OZNACZENIA,
+            ]),
+            WynikZamknieciaGrupy::UROSLA => back()->withErrors(['autor' => self::GRUPA_UROSLA]),
+            WynikZamknieciaGrupy::PUSTA => back()->withErrors([
                 'autor' => 'Te oznaczenia zostały już zamknięte. Odśwież stronę, żeby zobaczyć aktualną listę.',
-            ]);
-        }
-
-        return back()->with(Komunikat::sukces($ile === 1
-            ? 'Zamknięte. Treść zostaje bez zmian, a automat już do niej nie wróci.'
-            : 'Zamknięte — '.$ile.' oznaczenia tego konta. Treści zostają bez zmian, a automat już do nich nie wróci.'));
-    }
-
-    /**
-     * Czy grupa jest inna niż ta, którą moderator widział (#1059).
-     *
-     * Najnowsze z ekranu musi być oznaczeniem automatu z TEJ grupy. Nowsze od
-     * niego (po `created_at`, a przy tej samej sekundzie po identyfikatorze —
-     * UUIDv7 rośnie z czasem) oznacza, że automat coś dopisał. Liczba ponad
-     * `stan_ile` łapie dopisanie, którego kolejność nie odróżni (ta sama
-     * chwila, losowa część UUID). Mniej niż `stan_ile` jest w porządku — to
-     * oznaczenia zamknięte w międzyczasie przez kogoś innego.
-     *
-     * @param  EloquentCollection<int, Report>  $oznaczenia  otwarte oznaczenia grupy, pod blokadą
-     */
-    private function grupaUrosla(EloquentCollection $oznaczenia, ?string $autorId, int $stanIle, string $stanNajnowsze): bool
-    {
-        $znacznik = Report::query()
-            ->whereKey($stanNajnowsze)
-            ->where('source', Report::SOURCE_AUTOMAT)
-            ->when($autorId === null,
-                fn ($q) => $q->whereNull('autor_tresci_id'),
-                fn ($q) => $q->where('autor_tresci_id', $autorId),
-            )
-            ->first(['id', 'created_at']);
-
-        $granica = $znacznik?->created_at;
-
-        if ($znacznik === null || $granica === null || $oznaczenia->count() > $stanIle) {
-            return true;
-        }
-
-        $najnowszeId = (string) $znacznik->getKey();
-
-        return $oznaczenia->contains(static fn (Report $r): bool => $r->created_at === null
-            || $r->created_at->greaterThan($granica)
-            || ($r->created_at->equalTo($granica) && strcmp((string) $r->getKey(), $najnowszeId) > 0));
-    }
-
-    /**
-     * Otwarte oznaczenia automatu — jedno miejsce, w którym rozstrzyga się „co jeszcze czeka".
-     *
-     * @return Builder<Report>
-     */
-    private function otwarte(): Builder
-    {
-        return Report::query()
-            ->where('source', Report::SOURCE_AUTOMAT)
-            ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING]);
+            ]),
+            default => back()->with(Komunikat::sukces($wynik->ile === 1
+                ? 'Zamknięte. Treść zostaje bez zmian, a automat już do niej nie wróci.'
+                : 'Zamknięte — '.$wynik->ile.' oznaczenia tego konta. Treści zostają bez zmian, a automat już do nich nie wróci.')),
+        };
     }
 
     /**
@@ -334,9 +196,9 @@ class SygnalyController extends Controller
      */
     private function grupy(): LengthAwarePaginator
     {
-        return $this->otwarte()
+        return ZamknijGrupeSygnalow::otwarte()
             // `najnowsze` — znacznik stanu grupy dla formularza zamknięcia
-            // (#1059); ta sama kolejność co w `grupaUrosla()`.
+            // (#1059); ta sama kolejność co w `ZamknijGrupeSygnalow::grupaUrosla()`.
             ->selectRaw('autor_tresci_id, COUNT(*) AS ile, MAX('.$this->wagaCase().') AS waga, MAX(created_at) AS ostatnie, '
                 .'(ARRAY_AGG(id::text ORDER BY created_at DESC, id DESC))[1] AS najnowsze')
             ->with('autorTresci.profile')
@@ -386,7 +248,7 @@ class SygnalyController extends Controller
         // z bazy — ile jej jest, mówi już `COUNT(*)` z `grupy()`.
         // `PARTITION BY` traktuje NULL jak jedną wartość, więc pozycje bez
         // autora dostają jedną wspólną grupę, tak jak w `GROUP BY` wyżej.
-        $ponumerowane = $this->otwarte()
+        $ponumerowane = ZamknijGrupeSygnalow::otwarte()
             ->where(function ($query) use ($autorzy, $bezAutora): void {
                 if ($autorzy !== []) {
                     $query->whereIn('autor_tresci_id', $autorzy);

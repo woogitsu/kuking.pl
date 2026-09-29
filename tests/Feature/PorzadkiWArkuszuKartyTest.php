@@ -124,7 +124,7 @@ class PorzadkiWArkuszuKartyTest extends TestCase
             $tresc = (string) file_get_contents($plik->getPathname());
 
             if (preg_match_all('/class\s*=\s*(["\'])(.*?)\1/s', $tresc, $atrybuty) !== false) {
-                foreach ($atrybuty[2] ?? [] as $wartosc) {
+                foreach ($atrybuty[2] as $wartosc) {
                     $tokeny = preg_split('/\s+/', trim($wartosc), -1, PREG_SPLIT_NO_EMPTY) ?: [];
 
                     if (in_array($klasa, $tokeny, true)) {
@@ -225,7 +225,7 @@ class PorzadkiWArkuszuKartyTest extends TestCase
                 $dopasowania,
             );
 
-            foreach ($dopasowania[1] ?? [] as $wartosc) {
+            foreach ($dopasowania[1] as $wartosc) {
                 $trafienia[] = trim($wartosc);
             }
 

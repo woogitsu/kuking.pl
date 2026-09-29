@@ -512,7 +512,7 @@ class TrzyRozstrzygnieciaWarstwTest extends TestCase
         $dokument = new DOMDocument;
         @$dokument->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
 
-        $element = (new DOMXPath($dokument))->query($xpath)?->item(0);
+        $element = self::wynikXPath(new DOMXPath($dokument), $xpath)->item(0);
 
         return $element instanceof DOMElement ? $element : null;
     }
