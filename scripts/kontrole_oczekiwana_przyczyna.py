@@ -32,26 +32,7 @@ from kontrola_przyczyny import Wyjatek
 # #2167: brak wymaganego CSV ma oblać test własnym komunikatem, nie skipem.
 OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 
-OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
-
 OCZEKUJ = {
-    # #1011, paczka G: wpisy dopisane po wzorcach dla pierwszych 219 kontroli.
-    'Kreator pozwala klientowi podmienić recipeId': r'CannotUpdateLockedPropertyException" is thrown',
-    'Kreator nie wysyła oczekiwanej rewizji treści': r"-'error' \+'saved'",
-    'Publikacja cofa z podglądu przy błędzie przepisu': r'Failed asserting that 3 matches expected 4\.',
-    'Wygenerowany font bez glifu „ą"': r'Brak glifu w podzbiorze Inter: ą \(U\+0105\)',
-    'Analytics znowu importuje Compliance': OCZEKUJ_GRAF_CYKLI + r'|Analytics importuje App\\Domain\\Compliance',
-    'Media znowu importuje Moderation': OCZEKUJ_GRAF_CYKLI + r'|Media importuje App\\Domain\\Moderation',
-    'Compliance znowu importuje Moderation': OCZEKUJ_GRAF_CYKLI + r'|Compliance importuje App\\Domain\\Moderation',
-    'Moderation znowu importuje Security': OCZEKUJ_GRAF_CYKLI + r'|Moderation importuje App\\Domain\\Security',
-    'Nowy cykl: Users importuje Moderation (Moderation → Users już jest)': OCZEKUJ_GRAF_CYKLI,
-    'Formularz zeszytu sprawdza pola przed Policy': r'Expected response status code \[403\] but received 302\.',
-    'Wymazanie nie wycofuje wpisu dziennika po nieudanym commicie': r"\+ 'user_id' => '[0-9a-f-]+', \+ 'wymazano_at' =>",
-    'Wymazanie kasuje cudzy wpis dziennika (ISTNIEJE)': r"-Array &0 \[ - 0 => '[0-9a-f-]+', -\] \+Array &0 \[\]",
-    'Zapis dziennika czeka wewnątrz transakcji z blokadą konta': r'- 0 => 1, - 1 => 1, \+ 0 => 2, \+ 1 => 2,',
-    'Egzekutor nie liczy porażek dziennika wymazań': r'Failed asserting that 0 is identical to 1\.',
-    'Alarm dziennika wymazań bez zerowania licznika': r"'noce' => 2, 'dzien' => '[0-9-]+', \] is null\.",
-    'Alarm dziennika wymazań liczy każdy przebieg dnia jako noc': r'Failed asserting that 3 is identical to 1\.',
     # Mutacja wysyła 181-znakowy tytuł prosto do bazy — objawem jest odmowa
     # kolumny varchar(180), a nie asercja testu.
     'Autozapis kreatora zapisuje bez walidacji pól': Wyjatek(r'value too long for type character varying\(180\).*insert into "recipes"'),
@@ -89,8 +70,8 @@ OCZEKUJ = {
     'Za głęboka tablica przechodzi surowa': 'contains "\\[pominięte: zagnieżdżenie głębsze niż filtr sprawdza\\]"|@@ @@ Array &0 \\[ - 0 => \'poziom\', \\+ 0 => \'e\', \\]',
     'Połknięty wyjątek bez miejsca przyczyny': r"@@ @@ Array &0 \[ - 0 => 'app/Support/PhpIniRozmiar\.php:\d+', \+ 0 => null, \]",
     'Komunikat wyjątku w kontekście budowanym przez metodę pomocniczą': r'Surowe getMessage\(\) w logu \(użyj BezpiecznyBlad::kontekst\(\)\)',
-    'Komunikat transportu przez BezpiecznyKomunikat w logu listu o paczce': r'does not contain "\$2y\$"|does not contain "X-Amz-Signature"|does not contain "insert into"|Surowe getMessage\(\) w logu \(użyj BezpiecznyBlad::kontekst\(\)\)',
-    'Komunikat bazy przez BezpiecznyKomunikat w logu śladu listu': r'does not contain "insert into"|does not contain "\$2y\$"|does not contain "X-Amz-Signature"|Surowe getMessage\(\) w logu \(użyj BezpiecznyBlad::kontekst\(\)\)',
+    'Komunikat transportu przez BezpiecznyKomunikat w logu listu o paczce': r'does not contain "\$2y\$"|does not contain "X-Amz-Signature"|Surowe getMessage\(\) w logu \(użyj BezpiecznyBlad::kontekst\(\)\)',
+    'Komunikat bazy przez BezpiecznyKomunikat w logu śladu listu': r'does not contain "\$2y\$"|does not contain "X-Amz-Signature"|Surowe getMessage\(\) w logu \(użyj BezpiecznyBlad::kontekst\(\)\)',
     'Skaner logów ślepy na report()': r'Skaner nie złapał wszystkich form: Naruszenia\.php:6 Naruszenia\.php:7',
     'Kolor z niezdefiniowanej zmiennej': r'Te zmienne kolorów są użyte, ale nigdzie nie zdefiniowane',
     'Linki sąsiednich wpisów bez skali tekstu': r'contains "font-size: var\(--text-body\)"',
@@ -158,7 +139,7 @@ OCZEKUJ = {
     'Odwołanie zgłaszającego bez wspólnej transakcji z zawiadomieniami': r'Pismo zostało złożone mimo niepełnego zawiadomienia zespołu \(#',
     'Reguła zdjęć Cloudflare bez warunku ciasteczka': r'Reguła 0 bez warunku and http\.cookie eq',
     'Timeout blokady funkcji nie oddaje miejsca wspólnej puli': r'Timeout blokady funkcji zostawił zajęte miejsce we wspólnej puli —',
-    'Domena importuje Illuminate\\Http\\Request': r'Plik w app/Domain importuje Illuminate.Http\. Wejście HTTP idzie do adaptera|Domena nie zna Request \(#970\)\.',
+    'Domena importuje Illuminate\\Http\\Request': r'Plik w app/Domain importuje Illuminate.Http\. Wejście HTTP idzie do adaptera|Domena nie zna Request \(#970\)',
     'Zapis przepisu do cudzego zeszytu': r'Akcja zapisała przepis do cudzego zeszytu\.',
     'Zapis wpisu do cudzego zeszytu': r'Akcja zapisała wpis do cudzego zeszytu\.',
     'Podział testów gubi plik': r"Plik tests/\S+ nie trafił do żadnej części — nie uruchamia się NIGDZIE\.",
@@ -270,12 +251,6 @@ OCZEKUJ = {
     'Strażnik migracji ślepy na CHECK/FK bez NOT VALID': r'Strażnik nie zauważył CHECK bez NOT VALID na istniejącej tabeli\.',
     'Job lint bez wspólnych kontroli powłoki': r'contains "run: bash scripts/kontrole-powloki\.sh"|ci\.yml \(job lint\) uruchamia test z tests/skrypty/ bezpośrednio\.',
     'Test powłoki wypada z listy wspólnego skryptu': r'tests/skrypty/bramka-migracji\.sh wypadł z listy\.|Test powłoki poza listą w scripts/kontrole-powloki\.sh — dopisz go do',
-    "Goły ->with('status') wraca do kontrolera": r'Goły zapis klucza `status` wygląda jak zielony sukces',
-    'Odmowa nazwana sukcesem': r'Komunikat::sukces\(\) z tekstem „Nie udało się…" — to błąd, nie sukces\.',
-    'Produkcja dostaje domenę dostawcy obok kuking.pl': r'PROD_DOMAINS w \.railway/railway\.ts przestało być zbiorem|PROD_DOMAINS zawiera domenę „kuking-prod\.up\.railway\.app” spoza kuking\.pl',
-    'Rejestracja wdrożenia wraca do preDeployCommand': r'preDeployCommand kończy się PRZED startem i healthcheckiem nowego kontenera',
-    'Entrypoint rejestruje wdrożenie bez czekania na /health': r'Funkcja musi wołać komendę z --po-gotowosci',
-    'Import z adresu publikuje przepis': r'ImportujPrzepisZAdresu\.php publikuje przepis\.',
 }
 
 

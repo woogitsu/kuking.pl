@@ -2,26 +2,29 @@
 
 declare(strict_types=1);
 
-use App\Domain\Import\PodobienstwoDoZrodla;
 use App\Domain\Import\BramkaPublikacjiOdczytu;
+use App\Domain\Import\PodobienstwoDoZrodla;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Recipes\Actions\SnapshotRecipeVersion;
 use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\GrupySkladnikow;
+use App\Domain\Recipes\KosztPrzepisu;
 use App\Domain\Recipes\StepTimer;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Livewire\Forms\PrzepisForm;
+use App\Models\Media;
 use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
-use App\Domain\Recipes\KosztPrzepisu;
+use App\Support\Komunikat;
 use App\Support\KreatorPrzepisu\AutozapisKreatora;
 use App\Support\KreatorPrzepisu\DanePublikacji;
-use App\Support\KreatorPrzepisu\KrokOPrzepisie;
 use App\Support\KreatorPrzepisu\NawigacjaKreatora;
 use App\Support\KreatorPrzepisu\PodgladPrzepisu;
 use App\Support\KreatorPrzepisu\RewizjaTresci;
 use App\Support\KreatorPrzepisu\StanZapisu;
+use App\Support\KreatorPrzepisu\WalidacjaKreatora;
 use App\Support\KreatorPrzepisu\WierszePrzepisu;
+use App\Support\KreatorPrzepisu\WynikWalidacjiKreatora;
 use App\Support\KreatorPrzepisu\ZdjeciaKreatora;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Locked;
@@ -627,7 +630,7 @@ new class extends Component
          */
         if ($this->cleanSteps() === []) {
             $this->step = 3;
-            $this->addError('steps', $this->juzOpublikowany ? 'Opisz przynajmniej jeden krok przygotowania, żeby zapisać zmiany. Tekst jest dalej w formularzu.' : 'Opisz przynajmniej jeden krok przygotowania, żeby opublikować przepis. Nic nie zginęło — resztę masz zapisaną w szkicu.');
+            $this->addError('steps', WalidacjaKreatora::brakKrokuPrzygotowania($this->juzOpublikowany));
             $this->autozapis();
 
             return;
@@ -656,7 +659,7 @@ new class extends Component
             return;
         }
 
-        \App\Support\Komunikat::wSesji(session()->driver(), \App\Support\Komunikat::sukces($this->juzOpublikowany
+        Komunikat::wSesji(session()->driver(), Komunikat::sukces($this->juzOpublikowany
             ? 'Szczegóły zapisane.'
             : match ($recipe->visibility) {
                 'private' => 'Przepis zapisany. Widzisz go tylko Ty.',
@@ -790,10 +793,10 @@ new class extends Component
     }
 
     /** Zdjęcie kartki do pokazania obok pól — tylko przy szkicu z odczytu. */
-    public function skanOdczytu(): ?\App\Models\Media
+    public function skanOdczytu(): ?Media
     {
         return $this->zOdczytu && $this->sourceScanMediaId !== null
-            ? \App\Models\Media::query()->find($this->sourceScanMediaId)
+            ? Media::query()->find($this->sourceScanMediaId)
             : null;
     }
 
@@ -882,57 +885,49 @@ new class extends Component
     private function validateAboutStep(): bool
     {
         // Reguły, komunikaty i normalizacja pól tego kroku mają jedno nazwane
-        // źródło: `KrokOPrzepisie` (issue #1387). Tu zostaje orkiestracja.
+        // źródło: `KrokOPrzepisie`, a jego złożenie w błędy — `WalidacjaKreatora` (issue #1387).
         //
         // #900: dawny adres porównujemy z BAZĄ, nie ze stanem komponentu:
         // autozapis nie może zrobić z dopiero wpisanego FTP „historycznego
         // wyjątku”.
         $dawnyAdres = $this->recipeId === null ? null : Recipe::whereKey($this->recipeId)->value('source_url');
 
-        // Wszystkie pola kroku są w `$form`. `KrokOPrzepisie` dostaje je pod
-        // nazwami bez przedrostka, a klucze błędów wracają do worka jako
-        // `form.<pole>`.
-        $pola = $this->form->pola();
-        $validator = KrokOPrzepisie::walidator($pola, $dawnyAdres);
+        // Wszystkie pola kroku są w `$form`. `WalidacjaKreatora` dostaje je pod
+        // nazwami bez przedrostka, a klucze błędów wracają jako `form.<pole>`.
+        $wynik = WalidacjaKreatora::krokOPrzepisie($this->form->pola(), $dawnyAdres);
 
         // Ponowna walidacja usuwa stare błędy tylko tych pól. Nie kasuje
         // komunikatu zdjęcia ani innego etapu; poprawka pola odblokowuje zapis.
-        $this->resetErrorBag(array_map(PrzepisForm::kluczBledu(...), array_keys($validator->getData())));
-        if ($validator->fails()) {
-            foreach ($validator->errors()->messages() as $key => $messages) {
-                foreach ($messages as $message) {
-                    $this->addError(PrzepisForm::kluczBledu($key), $message);
-                }
-            }
+        $this->resetErrorBag($wynik->sprawdzone);
+        $this->dodajBledy($wynik);
 
-            return false;
-        }
-
-        return true;
+        return $wynik->poprawny();
     }
 
     private function validateRows(bool $changeStep = true): bool
     {
         // Granice, komunikaty i normalizacja wierszy mają jedno nazwane
-        // źródło: `WierszePrzepisu` (issue #1387, krok 2). Tu zostaje
-        // orkiestracja: worek błędów i wybór kroku do pokazania.
-        $this->resetErrorBag(WierszePrzepisu::KLUCZE_BLEDOW);
-        $bledySkladnikow = WierszePrzepisu::bledySkladnikow($this->ingredients);
-        $bledyKrokow = WierszePrzepisu::bledyKrokow($this->steps);
-        $badIngredient = $bledySkladnikow !== [];
-        $badStep = $bledyKrokow !== [];
+        // źródło: `WierszePrzepisu`, a ich złożenie i wybór kroku —
+        // `WalidacjaKreatora` (issue #1387). Tu zostaje worek błędów i `$step`.
+        $wynik = WalidacjaKreatora::wiersze($this->ingredients, $this->steps);
 
-        foreach ([...$bledySkladnikow, ...$bledyKrokow] as $klucz => $komunikat) {
-            $this->addError($klucz, $komunikat);
+        $this->resetErrorBag($wynik->sprawdzone);
+        $this->dodajBledy($wynik);
+
+        if ($changeStep && ($krok = WalidacjaKreatora::krokZBledemWierszy($wynik)) !== null) {
+            $this->step = $krok;
         }
 
-        if ($changeStep && $badIngredient) {
-            $this->step = 2;
-        } elseif ($changeStep && $badStep) {
-            $this->step = 3;
-        }
+        return $wynik->poprawny();
+    }
 
-        return ! $badIngredient && ! $badStep;
+    private function dodajBledy(WynikWalidacjiKreatora $wynik): void
+    {
+        foreach ($wynik->bledy as $klucz => $komunikaty) {
+            foreach ($komunikaty as $komunikat) {
+                $this->addError($klucz, $komunikat);
+            }
+        }
     }
 
     // -----------------------------------------------------------------
