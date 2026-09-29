@@ -135,7 +135,10 @@ egzekwuje.
   osoby trzecie). Polityka prywatności §2 mówi o tym wprost.
 - **Podstawa:** art. 6 ust. 1 lit. b RODO.
 - **Odbiorcy:** Railway, OpenAI — tylko treść publiczna (§3.7).
-- **Termin usunięcia:** do usunięcia treści albo konta. Treść usunięta przez
+- **Termin usunięcia:** do usunięcia treści albo konta; **wcześniejsze
+  wersje przepisu** krócej — wersja starsza niż 24 miesiące (data w Polsce)
+  jest kasowana, poza 3 najnowszymi wersjami każdego przepisu
+  (`kuking:sprzataj-wersje-przepisow`, D-333, #2024). Treść usunięta przez
   autora znika z serwisu od razu, a z bazy i z R2 (tekst, oryginały
   i warianty zdjęć) po `kuking.usuniete_tresci.retention_days` = **30 dni**
   (`kuking:sprzataj-usuniete-tresci`, audyt B5 pkt 1). Wyjątki: przepis

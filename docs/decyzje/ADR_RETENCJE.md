@@ -703,6 +703,17 @@ polityce („do usunięcia treści przez Ciebie”) i art. 17 RODO.
 - **Zdjęcia:** po skasowaniu treści `KasujZdjecie::jesliNieuzywane()`;
   gdy dysk zawiedzie, dobiera je `kuking:sprzataj-osierocone-zdjecia`.
 
+### 5.8 Wersje przepisu (`recipe_versions`) — dopisane 29.09.2026 (#2024, D-333)
+
+Wersja starsza niż 24 miesiące (po dacie w Polsce) i spoza 3 najnowszych
+wersji swojego przepisu jest kasowana przez `kuking:sprzataj-wersje-przepisow`
+(codziennie 06:40, partie po 500, budżet 20 000 wierszy na przebieg). Nie
+kasujemy wersji przepisu z `reports` albo `moderation_actions`. Wersje
+usuniętego przepisu idą razem z nim (§5.7). Pierwsza wersja nie jest
+chroniona: historia jest publiczna i to w niej najczęściej zostaje treść,
+którą autor później wycofał. Liczby (24, 3) są bezpiecznymi wartościami
+domyślnymi do potwierdzenia przez właściciela (D-333).
+
 ## 6. Decyzje właściciela — zbiorczo
 
 **Zaktualizowane w drugiej turze (§10) — poniższe są DECYZJAMI, nie

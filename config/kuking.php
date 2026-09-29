@@ -3308,6 +3308,23 @@ return [
         'retention_days' => (int) env('KUKING_USUNIETE_TRESCI_DNI', 30),
     ],
 
+    'przepisy' => [
+        // RETENCJA `recipe_versions` (#2024, D-333 — wartości DO POTWIERDZENIA
+        // przez właściciela). Wersja jest kasowana, gdy jest starsza niż
+        // `version_retention_months` (24 — wartość z decyzji właściciela
+        // z 20.09.2026, najbezpieczniejsza dla ludzi, którzy wracają do
+        // zapisanego przepisu) ORAZ nie jest wśród `version_keep_latest` (3)
+        // najnowszych wersji swojego przepisu. Pierwsza wersja NIE jest
+        // chroniona: historia jest publiczna i to w niej najczęściej leży
+        // treść, którą autor później wycofał. Uzasadnienie:
+        // `App\Domain\Compliance\PrzedawnioneWersjePrzepisow`.
+        // Egzekwuje `kuking:sprzataj-wersje-przepisow`. Minimum K to 2
+        // (komenda i klasa go wymuszają): ostatnia wersja i poprzednia,
+        // żeby „Historia zmian” miała co porównać.
+        'version_retention_months' => (int) env('KUKING_RECIPE_VERSION_RETENTION_MONTHS', 24),
+        'version_keep_latest' => (int) env('KUKING_RECIPE_VERSION_KEEP_LATEST', 3),
+    ],
+
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.
     //
     // `app.timezone` zostaje UTC i musi zostać: to jest strefa, w której

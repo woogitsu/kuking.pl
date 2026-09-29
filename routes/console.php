@@ -732,3 +732,19 @@ Harmonogram::artisan('kuking:dosylaj-potwierdzenia-zgloszen')
     ->hourlyAt(45)
     ->onOneServer()
     ->withoutOverlapping(50);
+
+// 06:40 — co najmniej 15 minut od sąsiednich zadań codziennych
+// (`HarmonogramBezWspolnychSlotowTest`).
+// Retencja `recipe_versions` (#2024, D-333): wersja starsza niż
+// `config('kuking.przepisy.version_retention_months')` miesięcy (po dacie
+// w Polsce) i spoza `version_keep_latest` najnowszych wersji przepisu znika.
+// Historia jest publiczna i zachowuje treść, którą autor później usunął —
+// bez limitu leżałaby tak w nieskończoność. Partiami, z budżetem przebiegu;
+// błąd partii daje kod ≠ 0, który `Harmonogram::artisan()` zamienia
+// w wyjątek (alarm jak przy innych sprzątaniach). Reguły:
+// `App\Domain\Compliance\PrzedawnioneWersjePrzepisow`.
+Harmonogram::artisan('kuking:sprzataj-wersje-przepisow')
+    ->name('kuking:sprzataj-wersje-przepisow')
+    ->dailyAt('06:40')
+    ->onOneServer()
+    ->withoutOverlapping(120);

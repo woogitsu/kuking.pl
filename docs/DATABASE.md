@@ -2188,6 +2188,24 @@ właściciela z 24.09.2026): model `RecipeVersion` odmawia `update()` wyjątkiem
 Szkic przed pierwszą publikacją nie ma wersji. Zmiana zachowania, nie
 schematu — bez migracji.
 
+**Retencja (#2024, D-333 — wartości do potwierdzenia przez właściciela).**
+`kuking:sprzataj-wersje-przepisow` (codziennie 06:40, `routes/console.php`)
+kasuje wersję, która jest **starsza niż 24 miesiące** (próg to początek dnia
+w Polsce sprzed 24 miesięcy, `config('kuking.strefa')`, bez przepełnienia
+końca miesiąca) **i nie należy do 3 najnowszych wersji swojego przepisu**
+(`config('kuking.przepisy.version_retention_months')`, `version_keep_latest`,
+minimum 2). Pierwsza wersja NIE jest chroniona — historia jest publiczna,
+a w najstarszych wersjach zostaje treść, którą autor później usunął.
+Nie kasujemy wersji przepisu, na który wskazuje `reports` albo
+`moderation_actions`. Wersje usuniętego przepisu idą razem z nim
+(`PrzedawnioneUsunieteTresci`, 30 dni). Kasowanie idzie partiami po 500,
+budżet przebiegu to 20 000 wierszy; błąd partii daje kod wyjścia ≠ 0, który
+harmonogram zamienia w wyjątek. **Luki w `version_number` są normalne**:
+numer nowej wersji to `max + 1`, ekrany historii liczą sąsiadów z faktycznej
+listy. Eksport danych (`wersje_przepisow`) niesie to, co zostało — kształt
+bez zmian. Bez zmiany schematu; rollback to wyłączenie zadania (skasowanych
+wersji żaden rollback nie przywróci — to cel zmiany).
+
 ### ingredients + units
 Podstawa search i późniejszego planera.
 

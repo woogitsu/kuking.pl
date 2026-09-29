@@ -100,7 +100,9 @@ przepisu, bez zdjęć, i widzi ją każdy, kto widzi sam przepis — nic ponadto
 starsza wersja nie zapisała jakiegoś pola, piszemy o tym wprost, zamiast
 zgadywać. Pamiętajcie, że zapisana wersja zachowuje treść z chwili zapisu, także
 tę, którą autor usunął później: pojedynczej wersji nie da się usunąć samemu, ale
-autor może usunąć cały przepis albo napisać do nas.
+autor może usunąć cały przepis albo napisać do nas. Starych wersji nie trzymamy
+w nieskończoność: wersja zapisana ponad 24 miesiące temu znika, ale trzy najnowsze
+wersje przepisu zostają zawsze.
 
 ### Zacznijcie gotować na telefonie, dokończcie na tablecie
 

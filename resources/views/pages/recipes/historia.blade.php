@@ -14,6 +14,11 @@
         Pojedynczej wersji nie da się usunąć samemu. Autor może usunąć cały przepis
         (razem z nim historia znika z serwisu) albo <a href="{{ route('kontakt') }}">napisać do nas</a>.
     </p>
+    @php($miesiace = (int) config('kuking.przepisy.version_retention_months'))
+    <p class="meta">
+        Starsze wersje nie leżą tu w nieskończoność: wersja zapisana ponad {{ $miesiace }} {{ \App\Support\Odmiana::rzeczownik($miesiace, 'miesiąc', 'miesiące', 'miesięcy') }} temu
+        znika z serwisu, ale {{ (int) config('kuking.przepisy.version_keep_latest') }} najnowsze wersje przepisu zostają zawsze.
+    </p>
 
     <ol class="historia-lista list-none p-0" aria-label="Wersje przepisu">
         @foreach($wersje as $wersja)
