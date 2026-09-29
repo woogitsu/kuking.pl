@@ -13,7 +13,7 @@ from urllib import request
 RAILWAY_URL = "https://backboard.railway.com/graphql/v2"
 SHA = re.compile(r"^[0-9a-f]{40}$")
 UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
-TERMINAL_FAILURE = {"FAILED", "CRASHED", "SKIPPED", "REMOVED"}
+TERMINAL_FAILURE = {"FAILED", "CRASHED", "SKIPPED", "REMOVED", "REMOVING"}
 IN_PROGRESS = {"INITIALIZING", "QUEUED", "WAITING", "BUILDING", "DEPLOYING", "NEEDS_APPROVAL"}
 
 

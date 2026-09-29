@@ -270,6 +270,20 @@ class RerunPathTest(unittest.TestCase):
         world["deployments"].append({"id": "x", "status": "REMOVED", "meta": {"commitHash": sha}})
         self.assertEqual("deploy", self.receive(world, sha, 2, "success"))
 
+    def test_statuses_of_railway_schema_are_classified(self):
+        """Wartości DeploymentStatus ze schematu Railway (railwayapp/cli, src/gql/schema.json)."""
+        sha = "a" * 40
+        expected = {"SUCCESS": "success", "INITIALIZING": "active", "QUEUED": "active",
+                    "WAITING": "active", "BUILDING": "active", "DEPLOYING": "active",
+                    "NEEDS_APPROVAL": "active", "FAILED": "none", "CRASHED": "none",
+                    "SKIPPED": "none", "REMOVED": "none", "REMOVING": "none"}
+        for status, state in expected.items():
+            call = lambda _t, _q, _v, status=status: {"deployments": {"edges": [
+                {"node": {"id": "x", "status": status, "meta": {"commitHash": sha}}}]}}
+            self.assertEqual(state, gate["deployment_state"]("t", sha, "env", self.web, call), status)
+        for status in ("REMOVING", "REMOVED"):
+            self.assertIn(status, gate["TERMINAL_FAILURE"])
+
     def test_unreadable_deployment_list_fails_closed(self):
         world, sha = self.world("a" * 40), "a" * 40
         railway = self.railway(world)
