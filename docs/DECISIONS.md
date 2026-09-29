@@ -20931,6 +20931,13 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | #2024: ponowna publikacja bez zmian | Ponowna publikacja przepisu bez zmian treści **nie tworzy** nowej wersji w historii | #2024 |
 | #2000: wspólny zeszyt publiczny | Wspólny (rodzinny, D-302) zeszyt ustawiony jako „wszyscy” **może** mieć „Podziel się”; prywatny i domyślne „Zapisane” dalej nie | #2000 |
 | #2016: minutniki | Minutniki **nie są** synchronizowane między urządzeniami — synchronizacja obejmuje tylko odhaczone kroki | #2016 |
+| #2223: laravel/tinker | Tinker **od razu** do `require-dev`; cztery użycia w runbookach produkcyjnych zastępują komendy artisan; CI sprawdza, że obraz `--no-dev` nie ma Tinkera ani PsySH | #2223 |
+| #2214: import do OpenAI na produkcji | Import z adresu, PDF i zdjęcia **znika z produkcji do czasu podpisania DPA** z OpenAI — właściciel nie ustawia zmiennych `KUKING_IMPORT_*`; po DPA ustawia je na `true` | #2214 |
+| #2215: wymagane checki | Po scaleniu paczki I właściciel oznacza w GitHub Settings **pełną listę** wymaganych checków (nazwy z pierwszego przebiegu, bez części macierzy `port_funkcje`) | #2215 |
+| #27: lista zakupów | Etap 2 listy zakupów budujemy **teraz**, bez czekania na pomiar planera z D-310: prywatna lista, ręczne pozycje, „Dodaj składniki” kopiuje linie przepisu bez sumowania; bez listy wspólnej, offline i działów sklepu | #27 |
+| #492: nazwa minutnika | Minutnik w trybie gotowania ma dostępną nazwę „Pozostały czas” | #492 |
+| #492: skrypty przeglądarkowe marki | Cztery skrypty przeglądarkowe marki wpinamy do joba „Port marki” w CI | #492 |
+| „Poradźcie” na produkcji | Właściciel sam włącza `KUKING_QUESTIONS_ENABLED=true` po wdrożeniu paczki H i sprawdza `/pytania` | #372 |
 
 ### Wycofanie
 Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis

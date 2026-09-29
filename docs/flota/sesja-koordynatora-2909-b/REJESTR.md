@@ -56,7 +56,7 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 ## C 158a2d2d1: podział kontroli na 3 części (CI w toku). Propagacja C→D→E zlecona.
 - D 8243b6887, E 6bb26829e (z poprawką C)
 - claude/1011-oczekiwana-przyczyna-v2 82976ad0e — scalona z E (podział + werdykt JUnit); 6 wpisów bez wzorca (WYMAGAJ_WZORCA=False) → do F po recenzji
-- #2207 czerwone: AUDYT.md (z #2208 na main) ma czterocyfrowy numer roboczy decyzji → strażnik #2154. Naprawa: merge main do D + przepięcie; propagacja do E.
+- #2207 czerwone: AUDYT.md (z #2208 na main) ma D-1009 → strażnik #2154. Naprawa: merge main do D + przepięcie; propagacja do E.
 - claude/970-krok4 0564df28c — Refs #970 krok 4 (EdycjaWpisuRequest, KomentarzRequest; zawiera krok 3 + E)
 - D 3bdb828ab (merge main + AUDYT D-329), E 68f8cd279
 - claude/1387-pola-w-formularzu befebccd9 — Refs #1387 krok 6 (pola w PrzepisForm, WERSJA_STANU 4, kontrakt z ZapisPrzepisuRequest) [zawiera 4,5 + E]
@@ -151,3 +151,47 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 - G lokalnie 4d…: wzorzec „Domena importuje Request” + drugi objaw (czeka na push po Panel marki)
 - G fc0c8fdfe wypchnięte (wzorzec Request). claude/1751-forma-zwracania 3aa1e0473 — Closes #1751 #1752 (#1753 częściowo), D-332; polityka zmieniona BEZ podbicia wersji → pytanie do właściciela; migracja 2026_09_25_140000 (starszy timestamp) → recenzja
 - claude/paczka-f-poprawki 40e65ba3a — 2 wzorce kontroli (BezpiecznyKomunikat w logu: drugi objaw „insert into”); lokalnie ZLA_PRZYCZYNA, w CI main zielone → do H (alternatywa, nie osłabia). Pełny zestaw F: tylko porażki środowiskowe.
+- 15:4x: D-333 + handover/rejestr/prompt w docs/flota/sesja-koordynatora-2909-b na claude/v2-odblokowanie (01da17b28). Komentarze z decyzjami: #599 #595 #22(→P3) #602 #30 #1860 #2049 #813 #814 #815 #1983 #2130 #1751. claude/2024-historia-wersji a901111ce, claude/2016-sync-gotowania 4f1d59a95 → H po recenzji
+- H1 GOTOWE: 1997 2c4785f8b (skrypt przeglądarkowy PASS), 2000 a32cc3b64 (memo members), 1996 e8fcf4c6d (memo kalkulatora)
+- H2 GOTOWE: 2130 e14f24dbb, health-kontrakt ad7ba4380 (Refs #2212), 599 fe4626b17. Konflikt DECISIONS D-330/331/332 przy scalaniu — zostawić wszystkie
+## H kandydat 86064182b = G + v2-odblokowanie(D-331,D-333,handover) + 970-ugotowalem-na-g + 2130 + health-kontrakt + 599 + 1997 + 2000 + 1996 + railway-pro + paczka-f-poprawki. PHPStan 0, strażnicy 170/170, testy zmienione 155/155. Czeka: 1751 (fad887970), 2024+2016 (recenzja H3)
+- H3 GOTOWE: 2024 400fbcc3f (numer wersji regex, 404 zamiast 500), 2016 f51ff4234 (migracja → 170000, test Dwa). Kolizja 170000 z 1751 → Opus-recenzent przenosi pasek na 180000. Ryzyko do właściciela: historia wersji zachowuje usuniętą później treść.
+- H kandydat e677eb346: + 2024 + 2016. 52+223 testów, PHPStan 0. Zamknięte 24 PR (wchłonięte). Zostaje: 5 dependabot, 1830 1823 1759 1744 1681 1511 1478 966 960
+## 16:0x #2211 (G) SCALONY d45bc265e. Zamknięte #1731 #970 #1387 #1000 (auto), #28 (ręcznie). H kandydat 14f998cd7 (+dependabot x5). UWAGA: npm ci przez symlink wyczyściło /workspace/kuking.pl/node_modules — przywrócone.
+- 16:1x zlecone (BAZA=paczka-h-kandydat, pelny-h.txt): triaż 9 starych PR, #2212 sondy, #599 FollowingFeed<JIT, #2016 etap 2, #611 etap 9, ocena 3 gałęzi codex, #2024 etap 2. Pracują też: Opus #1751, Opus paczka H, #1011
+- 3 gałęzie codex/claude (2066-urgent-alert-negative, hide-expiry-local-date, larastan-test-zamiaru-ugotowania): wszystko już w BAZIE → do skasowania przez właściciela (403 dla sesji)
+- Zamknięte PR: #1830 #1823 #1681 #1759 #1511. Do decyzji: #1744+#1478 (podział DECISIONS i kontroli, okno zamrożenia), #960 (wpięcie strażnika kaskady w CI), #966 (bezpiecznik baz testowych)
+- DECYZJE: #1744+#1478 podział DECISIONS i kontroli — TAK, od nowa po paczce H (okno bez PR); #960 kaskada CSS w CI — TAK, najpierw nieblokująco; #966 bezpiecznik baz testowych — TAK
+- claude/1751-forma-zwracania c9dad5b2e — Opus GOTOWE: polityka nowa wersja 30.09 → obowiązuje 14.10 (29.09 już na prod jako drobna), rollback pod LOCK, fix „osób(a)” z #2016, DowodZgodyNaDigestTest
+- claude/2212-sondy-zdrowia bc8d8c8d4 — sondy w app/Support/Zdrowie/Sondy, kontroler 388 linii, kontrakt 13/13 bez zmian → recenzja
+- H kandydat 91afcba7e (+1751): 357 testów, PHPStan 0. Zlecone: #960 kaskada w CI (nieblokująco), #966 bezpiecznik baz (D-334)
+- claude/2024-historia-etap2 daed58295 — Refs #2024 (301 ze starych slugów, etykieta poprzednika, bez pustych wersji — ZMIANA zachowania PublishRecipe) → paczka I po recenzji
+- Właściciel: audyt wielodyscyplinarny (model Astra) — doda issues + podsumowanie; czekamy
+- claude/611-ci-etap9 35cc3fd9b — Refs #611 (dwa-polaczenia blokuje: 38 zielonych; port_funkcje macierz 2 części; nazwy checków zmienione — jeśli wymagane w Settings, właściciel poprawia) → paczka I
+- H f2aa4fd57: fix KazdaPublicznaStronaMaMetaOpisTest (recipes.history*). claude/2016-sync-etap2 09d1ade1c — Closes #2016 (porcje+składniki; minutniki świadomie nie) → paczka I
+- DECYZJE (klik): #1751 zmiana DROBNA, ustawienie od razu (bez 14 dni i paska); #2024 bez pustych wersji (zgodnie z etapem 2); #2000 wspólny zeszyt TEŻ może mieć „Podziel się”; #2016 bez minutników OK
+- Opus H: GOTOWE z claude/paczka-h-poprawki d58f3602c (KomentarzSprawdzaSwiezyStan cooked.*, pasek nie przed datą publikacji, CHANGELOG/tresc/DECISIONS porządki, wzorce 8 kontroli #1751). Feature 9831 (1 środowisko), Unit 506, Dwa 306, PHPStan 0
+- Gotowe do I: 599-feed-obserwowanych-jit 482926149 (koszt 275k→3,4k), 960-kaskada-w-ci ade6c8721 (4 martwe deklaracje .przepis-liczba do decyzji przed 06.10), 966-bezpiecznik-baz 3ba15c1aa (D-334), 1011-v2 1caa742af (WYMAGAJ_WZORCA=True, 3 części lokalnie POTWIERDZONE), 2212-sondy bc8d8c8d4, 2024-etap2 daed58295, 2016-etap2 09d1ade1c, 611-etap9 35cc3fd9b
+- DECYZJE: #960 usunąć 4 martwe deklaracje .przepis-liczba i poszerzyć zawężenie; #966 tylko rodzina testowa; #1011 WYMAGAJ_WZORCA=True w paczce I. Zlecone (Opus): claude/paczka-h-decyzje (#1751 drobna, #2000 wspólny, D-333)
+## 18:4x PR #2225 = paczka H (claude/paczka-h-kandydat d58f3602c) otwarty, subskrypcja, check-in 19:40. claude/paczka-h-decyzje (Opus) dołożyć do tego samego PR przed merge.
+- Dysk: usunięto 42 czyste worktree agentów (65% zajęte).
+- Nowe issues #2213–#2224 (prawdopodobnie audyt Astry). Zlecone (Sonnet, BAZA=H): #2214 flagi AI, #2218 DSA receipt, #2217 dowód regulaminu, #2215 kontrole blokujące (+#2025), #2213 import wyścig, #2221 Zgłoś gość, #2222 DSA anonim, #2223 tinker, #2219 art.14. Zostają: #2220 regulamin wymagania techniczne, #2224 ADR dane operatora.
+## 19:0x H kandydat a09744207 (+paczka-h-decyzje: #1751 drobna od razu, #2000 wspólny z Podziel się, D-333 wiersze). 66 testów OK. PR #2225 zaktualizowany.
+- GOTOWE (do recenzji I): 2213 ce3d962c4, 2218 52da1b56b (Refs), 2221 df3752aa4, 2222 09f57f170, 2224 4da91234f, 2219 a496758c3, 2215 fed6b3329 (zawiera 611e9; required checks lista → właściciel), 2217 58b24f832 (migracja dziennik_zgod), 2214 ef32b5e36 (RYZYKO: prod bez jawnych flag → import znika; właściciel), 960 5172f5bae (5 deklaracji, nie 4)
+- DECYZJA: #2223 tinker → „Od razu do require-dev” (komendy zastępcze + krok CI)
+- Właściciel: 5 agentów Opus dozwolone. Opus: recenzja I-CI (2212,611e9,2215,960,1011v2,966), I-prawo (2217,2219,2218,2222,2221,2224,2214,2213), I-funkcje (2024e2,2016e2,599jit), #2223 tinker, #2220 regulamin
+- Sonnet: #836, #1306, #1860, #2051, #1753 etap2
+- DECYZJE (klik 19:1x): #2214 — import niech zniknie z produkcji do czasu DPA (nie ustawiać KUKING_IMPORT_*); #2215 — pełna lista 12 required checks (właściciel ustawia po scaleniu I, dam nazwy). → wpisać do D-333 w paczce I
+- #836 ZAMKNIĘTE (było w #1524 + 7e063a388). #1306: kod już na BAZIE (TokenKrawedzi, Caddy, IaC) — zostają kroki właściciela (KUKING_EDGE_TOKEN, reguła CF, pomiar, egzekwowanie) → do listy kroków
+- #1860 ZAMKNIĘTE (wszystko na BAZIE; pomiar #1001 LCP → właściciel)
+- 19:2x Sonnet: #2051, #1753e2, #987, #581 etap, #372, #27, #1045+#1015, #492 (8) + Opus 5
+- claude/2051-livewire-tmp-retencja 3451942eb — Refs #2051 (komenda kuking:sprawdz-retencje-livewire, tylko odczyt; sprzątanie #2178 już było; kroki właściciela: reguła R2 livewire-tmp/ 1 dzień + uruchomienie komendy) → I (bez recenzji Opus — sprawdzę sam)
+- #372 ZAMKNIĘTE (117 testów). #27: planer + pomiar zrobione; lista zakupów czeka (D-310: najpierw pomiar) → pytanie do właściciela
+- DECYZJA: #27 lista zakupów — „Budować teraz etap 2” → zlecone claude/27-lista-zakupow
+- claude/492-luki-marki ffae80edd — docs POZOSTALE_LUKI_492 (Refs #492); decyzje C: nazwa minutnika „Pozostały czas”, wpięcie 4 skryptów przeglądarkowych do „Port marki”, flaga KUKING_QUESTIONS_ENABLED
+- claude/1753-teksty-etap2 3207b5ce2 — Refs #1753 (Ugotowałam na stronie przepisu/karcie/formularzu, powiadomienia, Start)
+- claude/1045-1015-pomiary 915191ae4 — docs/pomiary runbook (Refs #1045 #1015; pomiar już był)
+## 20:5x #2225 (paczka H) SCALONY do main 74189ff26. Auto-zamknięte: #1997 #2000 #1996 #2024 #2016 #1751 #1752 #2130 + 5 PR Dependabota. Otwarte PR: #1744 #1478 (podział — po paczce I), #960 #966 (zamknąć po paczce I).
+- Recenzje Opus do I GOTOWE: CI (2212 116874141, 611e9 59d215150, 2215 c19558bca, 960 ab7f2d260, 1011v2 822677a59, 966 2c6da09b7 + łatka DOZWOLONE kaskada=2), prawo (2217 2cbb9e3d5, 2219 98e6fe264, 2218 79a4cb24b, 2222 d095063d2, 2221 2766f6e01, 2224 2196fb32e, 2214 4cccd179c, 2213 845ee89ff; konflikt polityki 2217×2219 → scratchpad/proba.py), funkcje (2024e2 6f75d7e8b, 2016e2 833ea4557, 599 66558cdd9)
+- Bez recenzji: 2223 faed55090 (Opus), 2220 38324b8bb (Opus; termin 14 dni do potwierdzenia), 27-lista f3398187f, 1753e2 3207b5ce2, 2051 3451942eb, 987 d6218676c, 581 245924efb, 492 ffae80edd, 1045-1015 915191ae4
+- Zamknięte: #836, #1860, #372. Właściciel: 10 agentów Opus dozwolone.
