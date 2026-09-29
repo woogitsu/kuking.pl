@@ -20980,7 +20980,11 @@ a kontrola ujemna czyta niepowodzenie testu jako „mutacja złapana”.
 **Czego to nie robi.** Nie sprawdza hosta (`DB_HOST`): baza o nazwie z rodziny na
 cudzym serwerze przejdzie. Nie obejmuje `php artisan migrate:refresh --env=testing`
 z `scripts/check.sh`, które czyta `.env`. To osobna ścieżka i osobne zgłoszenie,
-jeśli właściciel zechce.
+jeśli właściciel zechce. Nie widzi też `DB_URL` wpisanego do pliku `.env`
+(a nie do środowiska procesu): bezpiecznik stoi przed wczytaniem `.env`, więc
+ocenia tylko `DB_DATABASE`, a Laravel potem bierze `DB_URL` z `.env` i nim
+przebija nazwę bazy. `.env.example` ma `DB_URL` zakomentowane; nie odkomentowuj
+go w kopii roboczej, w której uruchamiasz testy.
 
 **Wycofanie.** Usunąć wywołanie `kuking_wymus_baze_testowa()` z `tests/bootstrap.php`
 (jedna linia); pozostałe pliki nie mają skutków ubocznych.
