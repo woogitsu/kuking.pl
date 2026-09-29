@@ -18,12 +18,14 @@ use App\Domain\Reakcje\Smakowicie;
 use App\Domain\Tags\TagSuggester;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Exceptions\BladZdjecFormularza;
+use App\Http\Requests\Posts\EdycjaWpisuRequest;
+use App\Http\Requests\Posts\KomentarzRequest;
+use App\Http\Requests\Posts\ZapisWpisuRequest;
 use App\Models\AuditLogEntry;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
 use App\Policies\RecipePolicy;
-use App\Rules\ObslugiwaneZdjecie;
 use App\Support\Czas;
 use App\Support\Komunikat;
 use App\Support\LimityTagow;
@@ -34,7 +36,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -129,10 +130,9 @@ class PostController extends Controller
         return is_string($klucz) && Str::isUuid($klucz) ? $klucz : null;
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(ZapisWpisuRequest $request): RedirectResponse
     {
-        $question = $request->routeIs('questions.store');
-        abort_if($question && ! config('kuking.questions.enabled'), 404);
+        $question = $request->pytanie();
         $user = $request->user();
 
         // ZDJECIA WGRYWAMY PRZED WALIDACJA RESZTY — I TO JEST CALY SENS C1.
@@ -153,23 +153,6 @@ class PostController extends Controller
         // Cena: zdjecia nieprzypiete do niczego, gdy ktos zamknie karte
         // zamiast poprawic blad — sprzata je `kuking:sprzataj-osierocone-zdjecia`
         // po dobie karencji.
-        $bladRozmiaruZdjecia = 'Jedno ze zdjęć waży za dużo. Wybierz ponownie wszystkie nowe zdjęcia — każde do '
-            .LimityZdjec::maksMegabajtowDoKomunikatu().' MB.';
-
-        $request->validate([
-            'photos' => ['nullable', 'array', 'max:'.($question ? 1 : LimityZdjec::maksZdjecNaWysylke())],
-            'photos.*' => ['file', new ObslugiwaneZdjecie(komunikatZaDuzyPlik: $bladRozmiaruZdjecia), 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
-            'media_ids' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
-            'media_ids.*' => ['uuid'],
-        ], [
-            'photos.*.image' => 'Ten plik nie wygląda na zdjęcie. Wybierz plik JPG, PNG lub WebP.',
-            'photos.*.max' => $bladRozmiaruZdjecia,
-            // Zwykły formularz nie wysyła tu nic poza UUID-ami zachowanych
-            // zdjęć; zepsuta wartość nie może skończyć się „musi być UUID"
-            // (issue #871).
-            'media_ids.*.uuid' => LimityZdjec::komunikatZepsutegoZachowanegoZdjecia(),
-            'photos.max' => $question ? 'Do pytania wybierz jedno zdjęcie.' : LimityZdjec::komunikatZaDuzoZdjec(),
-        ]);
 
         if ($question && $request->filled('usun_zdjecie')) {
             $mediaIds = array_values(array_filter(
@@ -178,7 +161,7 @@ class PostController extends Controller
             ));
 
             return redirect()->route('questions.create')
-                ->withInput($this->wejscieBezPlikowITagow($request, $mediaIds, $this->tagiZFormularza($request)));
+                ->withInput($request->wejscieBezPlikowITagow($mediaIds, $this->tagiZFormularza($request)));
         }
 
         // PONOWIENIE JUŻ OPUBLIKOWANEGO WYSŁANIA — PRZED ZDJĘCIAMI (issue #873).
@@ -201,7 +184,7 @@ class PostController extends Controller
             $mediaIds = $this->zebranZdjecia($request, $user);
         } catch (BladZdjecFormularza $e) {
             return back()
-                ->withInput($this->wejscieBezPlikow($request, $e->mediaIds))
+                ->withInput($request->wejscieBezPlikow($e->mediaIds))
                 ->withErrors(['photos' => $e->getMessage()]);
         }
 
@@ -221,38 +204,22 @@ class PostController extends Controller
             // gdzie ta osoba faktycznie pracuje, a nie na górę formularza
             // z tekstem i zdjęciami nad sekcją tagów (R1 §6.1).
             $powrot = redirect(url()->previous().($question ? '#f-tagi' : '#tagi'))
-                ->withInput($this->wejscieBezPlikowITagow($request, $mediaIds, $tagNames));
+                ->withInput($request->wejscieBezPlikowITagow($mediaIds, $tagNames));
 
             return $bladTagow === null ? $powrot : $powrot->withErrors(['tagi' => $bladTagow]);
         }
 
-        // Walidacja przez `Validator::make`, a NIE `$request->validate()`.
-        //
-        // `$request->validate()` rzuca `ValidationException`, ktora sama
-        // odsyla z powrotem i sama zapisuje stare dane — nadpisujac przy tym
-        // `media_ids`, ktore wlasnie chcemy tam wlozyc. Kontrola nad tym,
-        // co trafia do starego wejscia, musi zostac tutaj.
-        $walidator = Validator::make($request->all(), [
-            'body' => ['nullable', 'string', 'max:4000'],
-            'visibility' => $question ? ['exclude'] : ['required', 'in:public,followers,private'],
-            'title' => $question ? ['required', 'string', 'min:10', 'max:180'] : ['exclude'],
-        ], [
-            'body.max' => 'Ten wpis jest za długi. Zmieść się w 4000 znakach.',
-            'title.required' => 'Napisz pytanie w tytule.',
-            'title.min' => 'Rozwiń pytanie do co najmniej 10 znaków.',
-            'title.max' => 'Skróć tytuł pytania do 180 znaków.',
-            'visibility.required' => 'Zaznacz, kto ma widzieć ten wpis.',
-            // `in` mówi, CO WYBRAĆ, nie że „wybrana wartość jest
-            // nieprawidłowa" (issue #86) — trzy opcje z ekranu, wprost.
-            'visibility.in' => 'Zaznacz, kto ma widzieć ten wpis: wszyscy, obserwujący czy tylko Ty.',
-        ]);
+        // Walidacja treści to faza 2 `ZapisWpisuRequest` — świadomie nie
+        // rzuca wyjątku, bo kontrola nad starym wejściem (`media_ids`,
+        // `tag_names`) musi zostać tutaj.
+        $walidator = $request->walidatorTresci();
 
         if ($walidator->fails()) {
             // Zdjecia SA JUZ WGRANE, a TAGI JUZ WYBRANE — wracaja do formularza
             // jako ukryte pola, zeby poprawnie wpisane dane nigdy nie zniknely
             // (AGENTS.md §5), dokladnie tak jak zdjecia od audytu C1.
             return back()
-                ->withInput($this->wejscieBezPlikowITagow($request, $mediaIds, $tagNames))
+                ->withInput($request->wejscieBezPlikowITagow($mediaIds, $tagNames))
                 ->withErrors($walidator);
         }
 
@@ -263,7 +230,7 @@ class PostController extends Controller
                 author: $user,
                 body: $data['body'] ?? null,
                 mediaIds: $mediaIds,
-                visibility: $question ? Post::VISIBILITY_PUBLIC : $data['visibility'],
+                visibility: $request->widocznosc($data),
                 tagNames: $tagNames,
                 ip: $request->ip(),
                 // Wygląd zdjęć ustawia się DOPIERO PO publikacji, na osobnym
@@ -282,7 +249,7 @@ class PostController extends Controller
                     || ($question && str_contains($e->getMessage(), '3 tagi'))) ? 'tagi' : 'photos');
 
             return back()
-                ->withInput($this->wejscieBezPlikowITagow($request, $mediaIds, $tagNames))
+                ->withInput($request->wejscieBezPlikowITagow($mediaIds, $tagNames))
                 ->withErrors([$pole => $e->getMessage()]);
         }
 
@@ -379,43 +346,6 @@ class PostController extends Controller
         }
 
         return $odpowiedz;
-    }
-
-    /**
-     * Stare wejscie formularza: wszystko poza plikami, plus identyfikatory
-     * zdjec, ktore juz sa na dysku.
-     *
-     * Pliki lecą do kosza świadomie — `withInput()` i tak ich nie przeniesie,
-     * a `UploadedFile` w sesji to obiekt wskazujący na plik tymczasowy,
-     * którego po żądaniu już nie ma.
-     *
-     * @param  list<string>  $mediaIds
-     * @return array<string, mixed>
-     */
-    private function wejscieBezPlikow(Request $request, array $mediaIds): array
-    {
-        return $request->except('photos', 'media_ids') + ['media_ids' => $mediaIds];
-    }
-
-    /**
-     * To samo co `wejscieBezPlikow()`, plus zachowana lista tagów — dwa
-     * niezależne mechanizmy ratowania danych, bo dwa niezależne rodzaje
-     * danych o innym kształcie (identyfikatory zdjęć kontra wolny tekst).
-     *
-     * @param  list<string>  $mediaIds
-     * @param  list<string>  $tagNames
-     * @return array<string, mixed>
-     */
-    private function wejscieBezPlikowITagow(Request $request, array $mediaIds, array $tagNames): array
-    {
-        // UWAGA NA `+`: operator sumy tablic zachowuje wartość z LEWEJ
-        // strony przy zbieżnych kluczach. `wejscieBezPlikow()` zwraca
-        // `tag_names` wprost z żądania (STARĄ listę, sprzed „Dodaj"/„Usuń"),
-        // więc doklejenie `+ ['tag_names' => $tagNames]` po prawej NIC by
-        // nie zmieniło — nowa lista przegrywałaby ze starą. `except()`
-        // usuwa klucz PRZED złożeniem, więc kolizji już nie ma.
-        return $request->except('photos', 'media_ids', 'tag_names')
-            + ['media_ids' => $mediaIds, 'tag_names' => $tagNames];
     }
 
     /**
@@ -822,17 +752,10 @@ class PostController extends Controller
         ]);
     }
 
-    public function comment(Request $request, Post $post): RedirectResponse
+    public function comment(KomentarzRequest $request, Post $post): RedirectResponse
     {
-        $this->authorize('comment', $post);
-
-        $data = $request->validate([
-            'body' => ['required', 'string', 'max:4000'],
-            'parent_id' => ['nullable', 'uuid'],
-        ], [
-            'body.required' => 'Napisz coś, zanim wyślesz komentarz.',
-            'body.max' => 'Ten komentarz jest za długi. Zmieść się w 4000 znakach.',
-        ]);
+        // Policy i walidacja: `KomentarzRequest` (w tej kolejności).
+        $data = $request->validated();
 
         // `?? null`, bo `validate()` NIE zwraca klucza, którego w żądaniu nie
         // było — a `parent_id` jest `nullable`. Komentarz wysłany bez tego
@@ -909,7 +832,7 @@ class PostController extends Controller
         ]);
     }
 
-    public function update(Request $request, Post $post): RedirectResponse|Response
+    public function update(EdycjaWpisuRequest $request, Post $post): RedirectResponse|Response
     {
         // Issue #936: jak w `edit()`. Formularza edycji już nie ma, więc
         // wpisany tekst wraca na ekranie do skopiowania, a nie do pól.
@@ -924,7 +847,7 @@ class PostController extends Controller
         // Zakres old input pochodzi z autoryzowanej trasy, nie z podrobionego
         // pola. Brak tag_names[] oznacza usunięcie całej ręcznej listy tylko
         // w tym konkretnym formularzu; cudzy formularz nie zeruje tagów.
-        $request->merge(['_tag_form_post_id' => (string) $post->getKey()]);
+        $request->oznaczFormularzWpisu($post);
 
         $tagNames = $this->tagiZFormularza($request);
 
@@ -939,20 +862,7 @@ class PostController extends Controller
             return $bladTagow === null ? $powrot : $powrot->withErrors(['tagi' => $bladTagow]);
         }
 
-        $data = $request->validate([
-            'body' => ['nullable', 'string', 'max:4000'],
-            'visibility' => ['required', 'in:public,followers,private'],
-            'title' => $question ? ['required', 'string', 'min:10', 'max:180'] : ['exclude'],
-        ], [
-            'body.max' => 'Ten wpis jest za długi. Zmieść się w 4000 znakach.',
-            'title.required' => 'Napisz pytanie w tytule.',
-            'title.min' => 'Rozwiń pytanie do co najmniej 10 znaków.',
-            'title.max' => 'Skróć tytuł pytania do 180 znaków.',
-            'visibility.required' => 'Zaznacz, kto ma widzieć ten wpis.',
-            // `in` mówi, CO WYBRAĆ, nie że „wybrana wartość jest
-            // nieprawidłowa" (issue #86) — trzy opcje z ekranu, wprost.
-            'visibility.in' => 'Zaznacz, kto ma widzieć ten wpis: wszyscy, obserwujący czy tylko Ty.',
-        ]);
+        $data = $request->trescWpisu($post);
 
         try {
             $this->editPost->handle(
