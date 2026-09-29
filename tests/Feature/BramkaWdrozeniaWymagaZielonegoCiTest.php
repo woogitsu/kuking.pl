@@ -69,7 +69,7 @@ class BramkaWdrozeniaWymagaZielonegoCiTest extends TestCase
     {
         $this->assertSame(
             1,
-            preg_match('/^  '.preg_quote($nazwa, '/').':\R(.*?)(?=^  [A-Za-z0-9_-]+:\R|^\S|\z)/ms', $this->bezKomentarzy($yaml), $m),
+            preg_match('/^  '.preg_quote($nazwa, '/').':(?:\r\n|\n|\r)(.*?)(?=^  [A-Za-z0-9_-]+:(?:\r\n|\n|\r)|^\S|\z)/ms', $this->bezKomentarzy($yaml), $m),
             "W workflow nie ma joba `{$nazwa}` (albo jest ich kilka). Jeśli zmienił nazwę, popraw ten test razem z nim.",
         );
 
@@ -82,7 +82,7 @@ class BramkaWdrozeniaWymagaZielonegoCiTest extends TestCase
         $workflow = $this->bezKomentarzy($this->plik('.github/workflows/railway-ci-gated-deploy.yml'));
 
         $this->assertMatchesRegularExpression(
-            '/^on:\R  workflow_run:\R    workflows: \[CI\]\R    types: \[completed\]\R/m',
+            '/^on:(?:\r\n|\n|\r)  workflow_run:(?:\r\n|\n|\r)    workflows: \[CI\](?:\r\n|\n|\r)    types: \[completed\](?:\r\n|\n|\r)/m',
             $workflow,
             'Bramka ma się odpalać wyłącznie po zakończeniu workflow `CI` (workflow_run/completed). '
             .'Inny wyzwalacz (push, workflow_dispatch) pozwoliłby ją ominąć albo uruchomić bez wyniku CI.',
@@ -118,12 +118,12 @@ class BramkaWdrozeniaWymagaZielonegoCiTest extends TestCase
         $workflow = $this->bezKomentarzy($this->plik('.github/workflows/railway-ci-gated-deploy.yml'));
 
         $this->assertMatchesRegularExpression(
-            '/^permissions:\R  contents: read\R  actions: read\R(?!  )/m',
+            '/^permissions:(?:\r\n|\n|\r)  contents: read(?:\r\n|\n|\r)  actions: read(?:\r\n|\n|\r)(?!  )/m',
             $workflow,
             'Token bramki ma mieć tylko `contents: read` i `actions: read` (odczyt przebiegów CI). Zapis do repozytorium nie jest jej potrzebny.',
         );
         $this->assertMatchesRegularExpression(
-            '/^concurrency:\R  group: railway-ci-gated-production\R  cancel-in-progress: false$/m',
+            '/^concurrency:(?:\r\n|\n|\r)  group: railway-ci-gated-production(?:\r\n|\n|\r)  cancel-in-progress: false$/m',
             $workflow,
             'Dwa wdrożenia produkcji nie mogą biec równolegle, a przerwanie sekwencji web → worker → scheduler w połowie jest gorsze niż poczekanie.',
         );
@@ -142,7 +142,7 @@ class BramkaWdrozeniaWymagaZielonegoCiTest extends TestCase
         );
 
         $this->assertMatchesRegularExpression(
-            '/^  testy:\R    name: '.preg_quote(self::NAZWA_JOBA_ZBIORCZEGO, '/').'$/m',
+            '/^  testy:(?:\r\n|\n|\r)    name: '.preg_quote(self::NAZWA_JOBA_ZBIORCZEGO, '/').'$/m',
             $ci,
             'Job zbiorczy w ci.yml nie nazywa się już „'.self::NAZWA_JOBA_ZBIORCZEGO.'". Skrypt bramki szuka go po nazwie, '
             .'więc po zmianie nazwy bramka odmawiałaby wdrożenia każdego commita. Zmień nazwę w obu miejscach naraz '
@@ -150,7 +150,7 @@ class BramkaWdrozeniaWymagaZielonegoCiTest extends TestCase
         );
 
         $this->assertMatchesRegularExpression(
-            '/^      - name: Testy bramki Railway po CI\R        run: python3 -m unittest discover -s scripts -p test_railway_ci_gated_deploy\.py -v$/m',
+            '/^      - name: Testy bramki Railway po CI(?:\r\n|\n|\r)        run: python3 -m unittest discover -s scripts -p test_railway_ci_gated_deploy\.py -v$/m',
             $ci,
             'CI musi uruchamiać kontrole skryptu bramki, zanim skrypt dostanie prawo decydowania o produkcji.',
         );
@@ -163,12 +163,12 @@ class BramkaWdrozeniaWymagaZielonegoCiTest extends TestCase
         $job = $this->job($workflow, 'audit_ci');
 
         $this->assertMatchesRegularExpression(
-            "/^    if: >-\R      github\.event_name == 'deployment_status' &&\R      github\.event\.deployment_status\.state == 'success'$/m",
+            "/^    if: >-(?:\\r\\n|\\n|\\r)      github\.event_name == 'deployment_status' &&(?:\\r\\n|\\n|\\r)      github\.event\.deployment_status\.state == 'success'$/m",
             $job,
             'Alarm ma się odpalać po każdym udanym deployu (deployment_status/success) — to Railway, nie ten workflow, zaczyna wdrożenie.',
         );
         $this->assertMatchesRegularExpression(
-            '/^    permissions:\R      contents: read\R      actions: read/m',
+            '/^    permissions:(?:\r\n|\n|\r)      contents: read(?:\r\n|\n|\r)      actions: read/m',
             $job,
             'Bez `actions: read` alarm nie odczyta przebiegów CI i padnie na produkcji zamiast alarmować o niej.',
         );
