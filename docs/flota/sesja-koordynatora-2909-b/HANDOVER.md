@@ -32,13 +32,13 @@ Wszystkie są od `claude/paczka-g-kandydat` albo nowsze. Recenzja oznaczona w [`
 |---|---|---|
 | `claude/970-ugotowalem-na-g` | #970 (D13) | recenzja GOTOWE |
 | `claude/v2-odblokowanie` | D-331 | `FEATURES.md` i `DECISIONS.md`, testy dokumentów zielone |
-| `claude/2130-wersja-slownika` | #2130, wpis w dzienniku dla #2130 | w recenzji H2 |
+| `claude/2130-wersja-slownika` | #2130, D-330 | w recenzji H2 |
 | `claude/health-kontrakt` | #2212 | w recenzji H2 |
 | `claude/599-wolna-strona-glowna` | #599 (test zapytań `/`) | w recenzji H2 |
 | `claude/1997-zakresy-czasu` | #1997 | w recenzji H1 (z testem przeglądarkowym) |
 | `claude/2000-udostepnianie-zeszytu` | #2000 | w recenzji H1 |
 | `claude/1996-kalorie-jsonld` | #1996 | w recenzji H1 |
-| `claude/1751-forma-zwracania` | #1751, #1752, #1753 (część), wpis w dzienniku dla #1751 | w toku: nowa wersja polityki (zmiana istotna, D-327) |
+| `claude/1751-forma-zwracania` | #1751, #1752, #1753 (część), D-332 | w toku: nowa wersja polityki (zmiana istotna, D-327) |
 | `claude/railway-pro-wykorzystanie` | D1 | dokument `docs/infra/RAILWAY_PRO_WYKORZYSTANIE.md` |
 | `claude/paczka-f-poprawki` | #1011 | dwa wzorce kontroli (drugi objaw „insert into”) |
 | `claude/handover-2909-b` | — | ten handover |
@@ -70,7 +70,7 @@ W toku u agentów, gałęzie jeszcze niegotowe:
 | D17 | #1687 bez ręcznej kontroli ujemnej |
 | D19 | Kasować zbędne gałęzie po sprawdzeniu scalenia |
 
-Numery decyzji: wpis w dzienniku dla #2130 (#2130), D-331 (V2), wpis w dzienniku dla #1751 (#1751). Następny wolny to D-333.
+Numery decyzji: D-330 (#2130), D-331 (V2), D-332 (#1751). Następny wolny to D-334 (D-333 to zbiorczy wpis decyzji z 29.09).
 
 ## Po stronie właściciela (sesja tego nie zrobi)
 
