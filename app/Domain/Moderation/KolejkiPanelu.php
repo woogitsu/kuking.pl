@@ -151,7 +151,7 @@ final class KolejkiPanelu
                 ->where('status', Report::STATUS_OPEN)
                 ->count(),
 
-            // Sygnały automatu — ten sam warunek co `SygnalyController::otwarte()`.
+            // Sygnały automatu — ten sam warunek co `ZamknijGrupeSygnalow::otwarte()`.
             'sygnaly' => Report::query()
                 ->where('source', Report::SOURCE_AUTOMAT)
                 ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])
