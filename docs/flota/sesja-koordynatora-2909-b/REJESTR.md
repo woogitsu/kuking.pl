@@ -191,7 +191,14 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 - claude/492-luki-marki ffae80edd — docs POZOSTALE_LUKI_492 (Refs #492); decyzje C: nazwa minutnika „Pozostały czas”, wpięcie 4 skryptów przeglądarkowych do „Port marki”, flaga KUKING_QUESTIONS_ENABLED
 - claude/1753-teksty-etap2 3207b5ce2 — Refs #1753 (Ugotowałam na stronie przepisu/karcie/formularzu, powiadomienia, Start)
 - claude/1045-1015-pomiary 915191ae4 — docs/pomiary runbook (Refs #1045 #1015; pomiar już był)
-## 20:5x #2225 (paczka H) SCALONY do main 74189ff26. Auto-zamknięte: #1997 #2000 #1996 #2024 #2016 #1751 #1752 #2130 + 5 PR Dependabota. Otwarte PR: #1744 #1478 (podział — po paczce I), #960 #966 (zamknąć po paczce I).
-- Recenzje Opus do I GOTOWE: CI (2212 116874141, 611e9 59d215150, 2215 c19558bca, 960 ab7f2d260, 1011v2 822677a59, 966 2c6da09b7 + łatka DOZWOLONE kaskada=2), prawo (2217 2cbb9e3d5, 2219 98e6fe264, 2218 79a4cb24b, 2222 d095063d2, 2221 2766f6e01, 2224 2196fb32e, 2214 4cccd179c, 2213 845ee89ff; konflikt polityki 2217×2219 → scratchpad/proba.py), funkcje (2024e2 6f75d7e8b, 2016e2 833ea4557, 599 66558cdd9)
-- Bez recenzji: 2223 faed55090 (Opus), 2220 38324b8bb (Opus; termin 14 dni do potwierdzenia), 27-lista f3398187f, 1753e2 3207b5ce2, 2051 3451942eb, 987 d6218676c, 581 245924efb, 492 ffae80edd, 1045-1015 915191ae4
-- Zamknięte: #836, #1860, #372. Właściciel: 10 agentów Opus dozwolone.
+## 20:5x #2225 SCALONY (74189ff26). claude/paczka-i-kandydat 0a1483ee7 = main + rejestr + D-333 wiersze (2223, 2214, 2215, 27, 492×2, Poradźcie). claude/kroki-wlasciciela-2909-wieczor 3e1a542c9 (W1–W11) → do I.
+- Opus (6): integrator I etap 1 (wt-i), recenzje: 2223+2051, 2220+1753e2, 27-lista, 987+581+492+1045; #492 minutnik + skrypty CI (nowa gałąź claude/492-minutnik-i-skrypty-ci)
+- Zasada: rejestr zapisywać do repo (docs/flota/sesja-koordynatora-2909-b/REJESTR.md) przy każdym pushu paczki I
+- 21:2x Zmienne produkcji (tylko nazwy, Railway API): brak OPENAI_IMPORT_KEY i KUKING_IMPORT_* (import już nie działa na prod → #2214 bez skutku), brak KUKING_EDGE_TOKEN/TRYB, VAPID_*, AWS_ZDJECIA_KOPIA_*, KUKING_TAG_TYGODNIA, KUKING_HTML_EDGE_CACHE_SECONDS; KUKING_QUESTIONS_ENABLED jest; RAILWAY_PUBLIC_DOMAIN jest (sprawdzić #1306 — publiczna domena Railway). railway.ts deklaruje VAPID i ZDJECIA_KOPIA → config apply (#595) nie uruchomione.
+- DECYZJA: numeracja starych wydań 0.1–0.9 → 0.01–0.09 (Sonnet: claude/wersje-zero-wiodace)
+- claude/wersje-zero-wiodace 4e07b60e4 — numeracja 0.01–0.09, pliki WERYFIKACJA_ALFA_008/009, D-333 wiersz → paczka I. Zlecone (Sonnet): gałęzie do usunięcia + skrypt scratchpad/usun-galezie.sh
+## 21:3x Paczka I etap 1 = 4c788a844 (19 gałęzi CI/prawo/funkcje; PHPStan 0, preflight 257/257, migracje OK). Etap 2 zlecony integratorowi: 2223 9852a7782, 2051 caa9da64a, 2220 e5923beee, 1753e2 8ee22c5d4, wersje-zero-wiodace 4e07b60e4, kroki-wlasciciela-2909-wieczor.
+- DECYZJA: #2220 potwierdzone (drobna, 14 dni, e-mail i list, pasek bez terminu wg D-306). Przegląd 71 gałęzi C zlecony (skrypt usun-galezie-2.sh).
+- Czekają na recenzję (→ paczka J): 27-lista (Opus), 987/581/492/1045 (Opus), 492-minutnik-i-skrypty-ci (Opus)
+- claude/27-lista-zakupow 752f399d1 GOTOWE (Opus: cykl modułów, limit, odmiana, polityka) → etap 2 paczki I (zdanie łączne polityki 2217+2219+27)
+- Integrator (wt-i): etap 1 = 4c788a844 (17 gałęzi, konflikty: PortMarki 611×960, polityka 2217×2219, CHANGELOG 2024×2016), etap 2 = 2223, 2051, 2220 (wiersz D-333 potwierdzony), 1753e2, wersje-zero-wiodace, kroki-wlasciciela-2909-wieczor; 27-lista wstrzymana na integracji (brak zgody narzędzia na odczyt konfliktu polityki).
