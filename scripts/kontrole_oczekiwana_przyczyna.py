@@ -138,7 +138,7 @@ OCZEKUJ = {
     'Timeout blokady funkcji nie oddaje miejsca wspólnej puli': r'Timeout blokady funkcji zostawił zajęte miejsce we wspólnej puli —',
     'Zapis przepisu do cudzego zeszytu': r'Akcja zapisała przepis do cudzego zeszytu\.',
     'Zapis wpisu do cudzego zeszytu': r'Akcja zapisała wpis do cudzego zeszytu\.',
-    'Podział testów gubi plik': r"@@ @@ -Array &0 \[\] \+Array &0 \[ \+ 0 => 'Plik tests/Unit/WierszePrzepisuKreato",
+    'Podział testów gubi plik': r"Plik tests/\S+ nie trafił do żadnej części — nie uruchamia się NIGDZIE\.",
     'Macierz testów krótsza niż podział': r"@@ @@ -Array &0 \[\] \+Array &0 \[ \+ 0 => 'Skrypt dzieli na 4 części, a macierz ",
     'Runbook znów instaluje Sentry': r'Runbook poza blokiem `<details>` zawiera instalację pakietu Sentry w',
     'Runbook znów wymaga klucza PostHog': r'Runbook zawiera klucz PostHog w tabeli zmiennych lub sekretów \(`\|',
