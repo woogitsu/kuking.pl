@@ -70,11 +70,11 @@ Publikując zdjęcie, przepis, komentarz lub jakąkolwiek inną treść, oświad
 Żeby Kuking mógł działać (pokazywać Twoje treści innym, tworzyć miniatury zdjęć, przechowywać kopie zapasowe), udzielasz nam **niewyłącznej, bezpłatnej licencji** na:
 - przechowywanie Twojej treści na naszych serwerach,
 - przetwarzanie techniczne (np. zmniejszanie zdjęć, tworzenie miniatur, konwersję formatu),
-- publiczne pokazywanie treści zgodnie z ustawieniami widoczności, które sam wybierasz (publiczne / tylko dla obserwujących / prywatne).
+- publiczne pokazywanie treści zgodnie z ustawieniami widoczności, które wybierasz (publiczne / tylko dla obserwujących / prywatne).
 
 Ta licencja **kończy się, gdy usuniesz treść** — z zastrzeżeniem, że kopie zapasowe (backupy) mogą przechowywać usuniętą treść jeszcze przez pewien czas ze względów technicznych i bezpieczeństwa danych (szczegóły w Polityce Prywatności).
 
-**Gdy usuwasz konto, sam decydujesz, co dzieje się z Twoimi tekstami.** W formularzu usuwania konta jest haczyk „Usuń także moje przepisy, wpisy, komentarze, wykonania i zeszyty". Jest domyślnie pusty i to znaczy: Twoje teksty zostają w serwisie, ale podpisane „Użytkownik usunięty" — bez Twojego nazwiska, nazwy użytkownika, opisu i zdjęcia profilowego, których już wtedy nie ma. Jeśli haczyk zaznaczysz, teksty znikają razem z kontem i nikt ich nie przywróci.
+**Gdy usuwasz konto, decydujesz, co dzieje się z Twoimi tekstami.** W formularzu usuwania konta jest haczyk „Usuń także moje przepisy, wpisy, komentarze, wykonania i zeszyty". Jest domyślnie pusty i to znaczy: Twoje teksty zostają w serwisie, ale podpisane „Użytkownik usunięty" — bez Twojego nazwiska, nazwy użytkownika, opisu i zdjęcia profilowego, których już wtedy nie ma. Jeśli haczyk zaznaczysz, teksty znikają razem z kontem i nikt ich nie przywróci.
 
 Niezależnie od tego wyboru **wszystkie Twoje zdjęcia są usuwane** — także oryginały, razem z zapisaną w nich datą i modelem urządzenia. Zdjęcia nie zostają nigdy.
 

@@ -224,7 +224,7 @@ class CoUgotujeTest extends TestCase
 
         $wynik = app(CoUgotuje::class)->dla($ja);
 
-        $this->assertSame(1, (int) $wynik['przepisy']->first()?->skladnikow_brakuje);
+        $this->assertSame(1, (int) $wynik['przepisy']->first()?->getAttribute('skladnikow_brakuje'));
         $this->assertSame(['masło'], $wynik['brakujace'][$wynik['przepisy']->first()?->getKey()]);
     }
 
