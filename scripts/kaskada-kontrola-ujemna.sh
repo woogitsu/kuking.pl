@@ -52,4 +52,4 @@ exec bash scripts/kontrola-ujemna.sh \
 }' \
   --oczekuj 'martwe własności: color' \
   --json storage/kontrola-ujemna-kaskada.json \
-  -- bash scripts/kaskada-kontrola-polecenie.sh '.przepis-liczba svg'
+  -- bash scripts/kaskada-kontrola-polecenie.sh '.przepis-liczba'

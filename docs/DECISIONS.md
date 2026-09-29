@@ -15246,6 +15246,18 @@ komentarze, żeby przestały uzasadniać liczbę, której nie ma. Usunięcie mar
 reguły JEST zmianą zachowania na wypadek, gdyby `marka-przepis.css` zniknął,
 i jest osobną decyzją.
 
+**Rozstrzygnięcie właściciela (29 września 2026, #960).** Cztery martwe
+deklaracje w kaflu liczb (`.przepis-liczba` { padding, border-radius },
+`.przepis-liczba span` { font-size }, `.przepis-liczba strong` { font-size })
+zostały **usunięte** z `resources/css/app.css`, a zawężenie strażnika w CI
+poszerzone z `.przepis-liczba svg` na całe `.przepis-liczba`. Strażnik na
+całym kaflu wskazał przy tym piątą deklarację tej samej rodziny
+(`.przepis-liczba span` { font-size } w `marka-ekrany.css`, przykrytą w pomiarze
+przez regułę spoza warstw) — usunięta razem z czterema. Zasada „reguł nie
+usuwamy” dotyczy reszty; ta osobna decyzja jest podjęta. Usunięcie jest
+niewidoczne — odcisk kafla przed i po jest identyczny (komplet własności
+wyliczonych i geometria): `docs/design/evidence/martwe-liczby/`.
+
 ### Trzy rzeczy, które ten pomiar ujawnił przy okazji
 
 1. **Osiem arkuszy nie jest owiniętych w żadną warstwę** (`marka-przepis`,

@@ -147,12 +147,10 @@ niż to, co pilnuje bramka. Pilnuje tego
 `PortMarkiMaWlasnaBramkeCiTest::test_straznik_martwych_regul_css_ma_kto_uruchomic_i_jest_nieblokujacy`.
 
 **Kontrola ujemna musi zaczynać od zieleni na TYM SAMYM zawężeniu** (§5:
-kontrola dodatnia przed mutacją). Na BAZIE z 29.09.2026 całe `.przepis-liczba`
-jest czerwone z czterech nierozstrzygniętych deklaracji, więc domyślne
-zawężenie to `.przepis-liczba svg` — patrz nagłówek
-`scripts/kaskada-kontrola-polecenie.sh`. Poszerzenie zawężenia bez
-rozstrzygnięcia tych deklaracji oblałoby kontrolę ujemną na kroku „PASS przed
-mutacją", i słusznie.
+kontrola dodatnia przed mutacją). Domyślne zawężenie to całe `.przepis-liczba`
+— od 29.09.2026 (#960), po usunięciu czterech martwych deklaracji decyzją
+właściciela; patrz nagłówek `scripts/kaskada-kontrola-polecenie.sh`. Nowa
+przykryta deklaracja w tym kaflu oblewa bramkę, i słusznie.
 
 ---
 
