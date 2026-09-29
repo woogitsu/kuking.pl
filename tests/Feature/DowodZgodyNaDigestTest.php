@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Domain\Digest\OdnosnikWypisania;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
+use App\Domain\Zgody\WersjaDokumentu;
 use App\Models\User;
 use App\Models\WpisZgody;
 use Illuminate\Database\QueryException;
@@ -89,8 +90,10 @@ class DowodZgodyNaDigestTest extends TestCase
 
         // WERSJA POLITYKI: bez niej dowód mówi „zgodził się", ale nie mówi
         // NA CO — a to jest pierwsze pytanie przy sporze o zakres zgody.
+        // Wersja OBOWIĄZUJĄCA w chwili zgody (D-327) — w okresie przejściowym
+        // istotnej zmiany to poprzednia, nie ostatnio opublikowana.
         $this->assertSame(
-            (string) config('kuking.zgody.wersja_polityki'),
+            WersjaDokumentu::polityka()->obowiazujaca(),
             $wpis->wersja_polityki,
         );
     }
@@ -512,6 +515,9 @@ class DowodZgodyNaDigestTest extends TestCase
      */
     private function zepsujZapisDowodu(): void
     {
+        // Drobna zmiana: `obowiazujaca()` oddaje wtedy `wersja_polityki` bez
+        // parsowania daty (D-327), więc psuje się dopiero zapis w bazie.
+        config()->set('kuking.zgody.zmiana_polityki', ['istotna' => false, 'poprzednia' => null, 'obowiazuje_od' => null]);
         config()->set('kuking.zgody.wersja_polityki', str_repeat('x', 40));
     }
 
