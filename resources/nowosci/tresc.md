@@ -109,8 +109,10 @@ włączycie, wszystko działa jak dotąd: postęp zostaje tylko w tej przegląda
 Zapamiętany postęp znika sam po 24 godzinach od ostatniej zmiany; możecie go też
 wyczyścić („Zacznij od początku”) albo w każdej chwili wyłączyć i usunąć z konta.
 Kiedy gotujecie na dwóch urządzeniach naraz, Kuking mówi, że postęp zmienił się
-gdzie indziej, i pokazuje aktualny stan. Zapamiętujemy tylko odhaczone kroki —
-zaznaczone składniki, porcje i minutniki zostają w przeglądarce. Postęp jest
+gdzie indziej, i pokazuje aktualny stan. Razem z krokami zapamiętujemy też
+składniki zaznaczone jako przygotowane (zapisujecie je przyciskiem „Zapisz
+zaznaczenie składników”) i wybraną liczbę porcji — tylko dla przepisów, dla
+których włączyliście zapamiętywanie. Minutniki zostają w przeglądarce. Postęp jest
 prywatny: widzicie go tylko Wy, trafia do paczki z Waszymi danymi i znika razem
 z kontem.
 

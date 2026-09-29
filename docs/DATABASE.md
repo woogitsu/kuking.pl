@@ -6117,7 +6117,9 @@ przepisu; wyłączenie kasuje wiersz), więc nie ma flagi w `users`. Bez wiersza
 | `user_id` | `uuid NOT NULL` → `users` (`ON DELETE CASCADE`) | właściciel; poza `$fillable` (model ma pusty `$fillable`, zmienia go tylko `PostepGotowania`) |
 | `recipe_id` | `uuid NOT NULL` → `recipes` (`ON DELETE CASCADE`) | przepis |
 | `done_step_ids` | `jsonb NOT NULL DEFAULT '[]'` | ID odhaczonych kroków (nie numery — #756); ID nieistniejących już kroków są odrzucane przy odczycie i wypadają przy zapisie |
-| `revision` | `integer NOT NULL DEFAULT 1` | rośnie o 1 przy każdej zmianie; drugie urządzenie po niej widzi, że stan zmienił się bez niego |
+| `servings` | `numeric(6,2) NULL` | (etap 2, migracja `2026_09_29_193700`) wybrana liczba porcji; NULL = z przepisu; `CHECK` 1–100 (`cooking_progress_servings_check`) |
+| `prepared_ingredient_ids` | `jsonb NOT NULL DEFAULT '[]'` | (etap 2) ID składników „przygotowanych” (#2069, nie pozycje); tablica ≤ 300 (`cooking_progress_prepared_check`); nieistniejące już ID odpadają przy odczycie i zapisie |
+| `revision` | `integer NOT NULL DEFAULT 1` | wspólna dla kroków, składników i porcji; rośnie o 1 przy każdej zmianie; drugie urządzenie po niej widzi, że stan zmienił się bez niego |
 | `expires_at` | `timestamptz NOT NULL` | ważność: `kuking.cooking_progress.retention_hours` (24 h) od OSTATNIEJ zmiany; wygasły wiersz jest dla serwisu nieistniejący |
 | `created_at`, `updated_at` | `timestamptz` | |
 
@@ -6138,7 +6140,22 @@ sekcję `postep_gotowania` (tytuł przepisu tylko przy przepisie widocznym dla
 osoby), `EraseAccountData` kasuje wiersze jawnie (konta się anonimizuje).
 Retencja: `kuking:sprzataj-postep-gotowania`, codziennie o 03:00.
 
-**Rollback.** `down()` usuwa tabelę. Przy choć jednym NIEWYGASŁYM wierszu
+Etap 2 (#2016): składniki zapisuje się RÓŻNICĄ (`bylo[]` → `zaznaczone[]`), więc
+dwa urządzenia zaznaczające różne składniki nic sobie nie gubią, a powtórzenie
+żądania nie podbija rewizji; porcje to jedna wartość (wygrywa ostatni zapis,
+jawne `?porcje=` w adresie ma pierwszeństwo przy wyświetlaniu). Minutników
+świadomie NIE synchronizujemy: odliczają na zegarze monotonicznym karty
+(#751) i dzwonią lokalnie; wspólny minutnik wymagałby stałego odpytywania
+serwera albo push, a bez tego drugie urządzenie pokazałoby przycisk, który
+niczego nie uruchamia (D-053).
+
+**Rollback etapu 2.** `down()` migracji `2026_09_29_193700` usuwa obie kolumny
+i **odmawia** (D-088), gdy niewygasły wiersz ma wybrane porcje albo
+przygotowane składniki; wiersze z samymi krokami i wygasłe nie blokują.
+Wymuszenie po kopii tabeli: `KUKING_ROLLBACK_KASUJE_SKLADNIKI_I_PORCJE_GOTOWANIA=1`.
+Test: `CofniecieMigracjiPorcjiISkladnikowGotowaniaTest`.
+
+**Rollback etapu 1.** `down()` usuwa tabelę. Przy choć jednym NIEWYGASŁYM wierszu
 **odmawia** (D-088) — to dane wpisane przez ludzi w trakcie gotowania;
 na pustej tabeli, przy samych wygasłych wierszach i w CI (`migrate:refresh`)
 przechodzi bez pytania. Wymuszenie po kopii tabeli:

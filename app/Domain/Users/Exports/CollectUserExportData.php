@@ -1131,9 +1131,21 @@ final class CollectUserExportData
                     }
                 }
 
+                $widoczny = $this->granica->widzi($postep->recipe);
+                // Składniki „przygotowane” opisujemy ich tekstem, ale tylko przy
+                // przepisie widocznym dla osoby (jak tytuł); zawsze podajemy liczbę.
+                $skladniki = $postep->recipe->ingredients()
+                    ->whereIn('id', $postep->prepared_ingredient_ids)
+                    ->orderBy('position')
+                    ->pluck('ingredient_text')
+                    ->all();
+
                 return [
-                    'przepis' => $this->granica->widzi($postep->recipe) ? $postep->recipe->title : self::TRESC_NIEDOSTEPNA,
+                    'przepis' => $widoczny ? $postep->recipe->title : self::TRESC_NIEDOSTEPNA,
                     'odhaczone_kroki' => $numery,
+                    'wybrana_liczba_porcji' => $postep->servings === null ? null : (float) $postep->servings,
+                    'przygotowane_skladniki_liczba' => count($skladniki),
+                    'przygotowane_skladniki' => $widoczny ? $skladniki : [],
                     'ostatnia_zmiana' => $this->date($postep->updated_at),
                     'wygasa' => $this->date($postep->expires_at),
                 ];
