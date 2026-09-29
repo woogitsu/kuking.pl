@@ -401,6 +401,12 @@ LIVEWIRE_TOKEN_TEST = "LivewireReleaseTokenZWydaniaTest"
 # 419 obiecałby, że szkic zostaje, choć w bazie nic nie ma.
 KREATOR_WIDOK = "resources/views/components/recipe-wizard.blade.php"
 KREATOR_ZAPIS_TEST = "KreatorWystawiaStanZapisuDlaStronyNieaktualnejTest"
+# #1387: klient nie podmienia identyfikatora przepisu w kreatorze. Mutacja zdejmuje
+# `#[Locked]` z `$recipeId`. Ponowna autoryzacja stoi w DWÓCH miejscach
+# (`existingRecipe()` i `PublishRecipe`), więc zdjęcie jednej z nich jest
+# maskowane przez drugą — kontrola jednoplikowa nie może jej zapalić; test
+# czerwienieje dopiero po zdjęciu obu (sprawdzone ręcznie przy #1387).
+KREATOR_AUTORYZACJA_TEST = "KreatorPilnujeAutoryzacjiIIdentyfikatoraPrzepisuTest"
 KREATOR_ZAPIS = "$recipeId === null ? 'brak' : ($juzOpublikowany ? 'opublikowany' : 'szkic')"
 # Wyjęcie ze wszystkich zeszytów jest atomowe (#1384). Mutacja zdejmuje
 # `DB::transaction` z `remove()` — pierwsze odpięcie zostaje po awarii drugiego.
@@ -1291,6 +1297,8 @@ checks = [
      lambda s: replace_once(s, "'release_token' => strtolower(trim((string) env('RAILWAY_GIT_COMMIT_SHA'))) ?: 'lokalnie',", "'release_token' => 'a',")),
     ("Kreator obiecuje szkic przed zapisem", KREATOR_WIDOK, KREATOR_ZAPIS_TEST,
      lambda s: replace_once(s, KREATOR_ZAPIS, "$juzOpublikowany ? 'opublikowany' : 'szkic'")),
+    ("Kreator pozwala klientowi podmienić recipeId", KREATOR_WIDOK, KREATOR_AUTORYZACJA_TEST,
+     lambda s: replace_once(s, "    #[Locked]\n    public ?string $recipeId = null;", "    public ?string $recipeId = null;")),
     ("Polityka obiecuje UE przy strażniku bez eu", STRAZNIK_R2, POLITYKA_R2_TEST,
      lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
     # #619: zapis weryfikacji w dokumencie infrastruktury z inną datą niż
