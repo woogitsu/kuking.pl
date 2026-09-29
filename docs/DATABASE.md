@@ -145,7 +145,7 @@ i kontrola dodatnia `test_rollback_przechodzi_gdy_nikt_nie_zamknal_paska`.
 
 #### `policy_notice_dismissed_version` — pasek „Zmieniliśmy politykę prywatności” (D-327, D-332)
 
-Migracja `2026_09_29_170000_add_policy_notice_dismissed_version_to_users`,
+Migracja `2026_09_29_180000_add_policy_notice_dismissed_version_to_users`,
 bliźniak `terms_notice_dismissed_version`: nullable `date` bez wartości
 domyślnej (zmiana samego katalogu, AGENTS.md §6). Wartość to data wersji
 polityki (`kuking.zgody.wersja_polityki`), przy której osoba zamknęła pasek;
