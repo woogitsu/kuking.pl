@@ -60,6 +60,13 @@ use Tests\TestCase;
 final class DziennikDecyzjiOdwolaniaTest extends TestCase
 {
     /**
+     * Zapowiedzi podane przez sam test (patrz zapowiedzi()).
+     *
+     * @var array<string, array<string, string>>
+     */
+    private array $zapowiedziWTescie = [];
+
+    /**
      * Numery, których w dzienniku NIE MA I NIE BĘDZIE — wolno je przywoływać
      * w dowolnym pliku. Sprawdzone także w drugą stronę: nadanie takiego numeru
      * wpisowi obala test, bo przestałby oznaczać to, co znaczy.
@@ -108,12 +115,8 @@ final class DziennikDecyzjiOdwolaniaTest extends TestCase
      * @var array<string, array<string, string>>
      */
     private const ZAPOWIEDZI_W_DOKUMENTACH = [
-        'docs/legal/COMPLIANCE.md' => [
-            '305' => 'Wiersz „W toku: issue #1811, decyzja 305" (numer z prefiksem D) — decyzja przyjdzie z PR-em #1811/#1879, dokument sam mówi, że jest w realizacji.',
-        ],
-        'docs/research/PREFERENCJE_TRESCI.md' => [
-            '305' => 'Zdanie „jest w realizacji: issue #1811, decyzja 305, PR #1879" (numer z prefiksem D) — zapowiedź, nie powołanie na obowiązującą regułę.',
-        ],
+        // Pusto: D-305 ma już nagłówek (#1811). Dopisuj tu wyjątek dopiero, gdy
+        // dokument zapowiada decyzję z otwartego PR-a i mówi to wprost.
     ];
 
     /**
@@ -394,8 +397,10 @@ final class DziennikDecyzjiOdwolaniaTest extends TestCase
             $this->naruszeniaWTresci($this->t("Numer §226 był na gałęzi.\n"), 'docs/inny.md', $naglowki, false, false, false)['naruszenia'],
         );
 
-        // Zapowiedź: jeden plik i jeden numer, nie „cały plik".
+        // Zapowiedź: jeden plik i jeden numer, nie „cały plik". Wyjątek jest
+        // sztuczny — w repozytorium lista bywa pusta, a mechanizm ma działać.
         $plik = 'docs/legal/COMPLIANCE.md';
+        $this->zapowiedziWTescie = [$plik => ['305' => 'Sztuczna zapowiedź na potrzeby testu mechanizmu wyjątków.']];
         $this->assertSame(
             [],
             $this->naruszeniaWTresci($this->t("decyzja §305\n"), $plik, $naglowki, false, false, false)['naruszenia'],
@@ -500,7 +505,19 @@ final class DziennikDecyzjiOdwolaniaTest extends TestCase
             return true;
         }
 
-        return isset(self::ZAPOWIEDZI_W_DOKUMENTACH[$sciezka][$cyfry]);
+        return isset($this->zapowiedzi()[$sciezka][$cyfry]);
+    }
+
+    /**
+     * Zapowiedzi z listy plus te, które test podaje sam ($zapowiedziWTescie).
+     * Lista w repozytorium bywa pusta (gdy żaden dokument nie zapowiada decyzji
+     * z otwartego PR-a), a mechanizm wyjątku ma być sprawdzany także wtedy.
+     *
+     * @return array<string, array<string, string>>
+     */
+    private function zapowiedzi(): array
+    {
+        return array_merge_recursive(self::ZAPOWIEDZI_W_DOKUMENTACH, $this->zapowiedziWTescie);
     }
 
     /**
