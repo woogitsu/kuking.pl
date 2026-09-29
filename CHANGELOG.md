@@ -2,7 +2,7 @@
 
 ## Nieopublikowane
 
-- Naprawione: mapa strony dla wyszukiwarek nie podaje już starej daty zmiany po edycji publicznego przepisu, wpisu albo pytania. Zmiana tytułu, opisu, czasów, zdjęcia czy składników odświeża mapę od razu, a nie po kilku godzinach; edycja szkicu i treści prywatnych nadal jej nie rusza (#1280).
+- Naprawione: mapa strony dla wyszukiwarek nie podaje już starej daty zmiany po edycji publicznego przepisu, wpisu albo pytania. Zmiana tytułu, opisu, czasów, zdjęcia czy składników odświeża mapę od razu, a nie po kilku godzinach; edycja szkicu i treści prywatnych nadal jej nie rusza. Data zmiany przepisu w mapie to teraz data zmiany jego treści (ta sama, którą widzą wyszukiwarki na stronie przepisu), a nie data dowolnego zapisu, np. po moderacji; gdy tej daty nie znamy (starsze przepisy), mapa jej nie podaje (#1280).
 
 ## Alfa 0.76 — planer z wyszukiwarką, „Co mam w domu” i zeszyt bez konta
 
