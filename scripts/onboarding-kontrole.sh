@@ -19,7 +19,7 @@ bash scripts/kontrola-ujemna.sh --nazwa '#852 komunikat częściowego wyniku' \
 bash scripts/kontrola-ujemna.sh --nazwa '#862 null jest pustą listą' \
     --plik app/Http/Requests/Onboarding/ZapisObserwowanychRequest.php \
     --zamien '$this->validated()['\''follow'\''] ?? []' --na '$this->input('\''follow'\'', [])' \
-    --oczekuj 'array_map.*null given' --json output/onboarding/862.json \
+    --oczekuj 'foreach\(\) argument must be of type array[|]object, null given' --json output/onboarding/862.json \
     -- vendor/bin/phpunit tests/Feature/OnboardingWynikZapisuTest.php
 bash scripts/kontrola-ujemna.sh --nazwa '#849 rezerwacja propozycji' \
     --plik app/Support/NazwaUzytkownika.php \
