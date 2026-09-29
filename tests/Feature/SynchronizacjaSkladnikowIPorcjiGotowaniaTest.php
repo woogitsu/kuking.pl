@@ -269,6 +269,32 @@ class SynchronizacjaSkladnikowIPorcjiGotowaniaTest extends TestCase
         $this->assertEquals(8.0, (float) $this->postep($osoba, $recipe)->servings);
     }
 
+    public function test_odhaczenie_kroku_ze_stara_strona_nie_cofa_porcji_zmienionych_na_innym_urzadzeniu(): void
+    {
+        // Regresja: formularz kroku niesie `porcje` z chwili wyświetlenia
+        // strony. Gdy drugie urządzenie zmieniło od tamtej pory liczbę porcji,
+        // odhaczenie kroku na pierwszym nie może jej po cichu cofnąć.
+        $osoba = $this->user();
+        [$recipe] = $this->przepis(null, 'public', 4);
+        $krok = $recipe->steps()->firstOrFail();
+
+        $this->wlacz($osoba, $recipe, ['porcje' => '6']);
+        $widzianaRewizja = $this->postep($osoba, $recipe)->revision;
+
+        // Drugie urządzenie: 8 porcji.
+        $this->actingAs($osoba)->post(route('cooking.sync.porcje', $recipe->slug), ['wybor' => '8', 'krok' => 1]);
+        $this->assertEquals(8.0, (float) $this->postep($osoba, $recipe)->servings);
+
+        // Pierwsze urządzenie odhacza krok ze strony, która pokazywała 6 porcji.
+        $this->actingAs($osoba)->post(route('cooking.zaznacz', $recipe->slug), [
+            'krok_id' => $krok->getKey(), 'zrobiono' => '1', 'porcje' => '6', 'krok' => 1, 'rewizja' => $widzianaRewizja,
+        ])->assertRedirect(route('cooking.show', ['recipe' => $recipe->slug, 'krok' => 1]))
+            ->assertSessionHas('status_rodzaj', 'informacja');
+
+        $this->assertEquals(8.0, (float) $this->postep($osoba, $recipe)->servings);
+        $this->assertContains((string) $krok->getKey(), $this->postep($osoba, $recipe)->done_step_ids);
+    }
+
     // --- Prywatność i Policy --------------------------------------------------
 
     public function test_obca_osoba_nie_zmieni_ani_nie_zobaczy_cudzego_wiersza(): void

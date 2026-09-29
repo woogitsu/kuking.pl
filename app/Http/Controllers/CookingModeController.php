@@ -244,11 +244,19 @@ class CookingModeController extends Controller
                 $steps->pluck('id')->map(fn ($id): string => (string) $id)->all(),
             );
 
-            $this->zapamietajPorcjeZFormularza($request, $model, $postepKonta);
+            // Rozbieżna rewizja: formularz niesie liczbę porcji z chwili
+            // wyświetlenia strony, a inne urządzenie mogło ją od tamtej pory
+            // zmienić. Zapis tej liczby cofnąłby cudzą zmianę (zgubiona
+            // aktualizacja), a zostawienie jej w adresie przeczyłoby
+            // komunikatowi „widzisz aktualny stan” — więc ani jednego, ani
+            // drugiego: obowiązuje liczba z konta.
+            if (! $rozbieznaRewizja) {
+                $this->zapamietajPorcjeZFormularza($request, $model, $postepKonta);
+            }
 
             $przekierowanie = redirect()->route('cooking.show', array_filter([
                 'recipe' => $model->slug, 'krok' => $krok,
-                'porcje' => $this->parametrPorcji($model, $request->input('porcje')),
+                'porcje' => $rozbieznaRewizja && $po !== null ? null : $this->parametrPorcji($model, $request->input('porcje')),
             ], fn ($wartosc) => $wartosc !== null));
 
             if ($po === null) {
