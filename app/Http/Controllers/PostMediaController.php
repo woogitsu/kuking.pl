@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Posts\Actions\ArrangePostMedia;
 use App\Models\Post;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -97,18 +98,18 @@ class PostMediaController extends Controller
             return redirect()
                 ->route('posts.media.edit', $post)
                 ->with('poPublikacji', $prostoZPublikacji)
-                ->with('status', $przesuniete['komunikat']);
+                ->with(Komunikat::sukces($przesuniete['komunikat']));
         }
 
         if ($prostoZPublikacji) {
             return redirect()
                 ->to($post->url())
-                ->with('status', 'Opublikowane. '.$this->ktoZobaczy($post));
+                ->with(Komunikat::sukces('Opublikowane. '.$this->ktoZobaczy($post)));
         }
 
         return redirect()
             ->route('posts.media.edit', $post)
-            ->with('status', 'Zapisane. '.$this->ktoZobaczy($post));
+            ->with(Komunikat::sukces('Zapisane. '.$this->ktoZobaczy($post)));
     }
 
     /**

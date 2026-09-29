@@ -281,6 +281,7 @@ for cel in kolejka www harmonogram recykling; do
 $(sed -n '/^czekaj_na_uslugi() {/,/^}/p' "$ENTRYPOINT")
 $(funkcje_kolejek)
 $(sed -n '/^shutdown() {/,/^}/p' "$ENTRYPOINT")
+$(sed -n '/^rejestruj_wdrozenie_po_gotowosci() {/,/^}/p' "$ENTRYPOINT")
 $(cat <<'PROBA'
 set -Eeuo pipefail
 ROLE=all PORT=8080 CHILD_PIDS=()
@@ -329,6 +330,30 @@ esac" 2>&1)"
     sprawdz "all pozostaje czynne przy planowym recyklingu" "tak" "$(grep -q 'WWW przeżył trzy przebiegi kolejki' <<< "$wynik" && echo tak || echo nie)"
   fi
 done
+
+# ---------------------------------------------------------------------------
+# 3a. NUMER WDROŻENIA PO GOTOWOŚCI (#1932). Rola web/all rejestruje wdrożenie
+#     w tle, komendą z --po-gotowosci (czeka na /health, zanim zapisze), a bez
+#     RAILWAY_GIT_COMMIT_SHA (lokalnie) nie uruchamia niczego. Proces w tle
+#     trafia na listę potomków, żeby shutdown() mógł go zatrzymać.
+# ---------------------------------------------------------------------------
+rejestracja() {
+  timeout 5 bash -c "$(wczytaj_funkcje)
+$(sed -n '/^rejestruj_wdrozenie_po_gotowosci() {/,/^}/p' "$ENTRYPOINT")
+CHILD_PIDS=()
+php() { echo \"php \$*\"; }
+$1
+rejestruj_wdrozenie_po_gotowosci
+wait
+echo \"potomkow=\${#CHILD_PIDS[@]}\"" 2>&1
+}
+wynik="$(rejestracja 'RAILWAY_GIT_COMMIT_SHA=0123456789abcdef0123456789abcdef01234567')"
+sprawdz "wdrożenie: z commitem komenda idzie z --po-gotowosci" "tak" \
+  "$(grep -q 'php /app/artisan kuking:zarejestruj-wdrozenie --po-gotowosci' <<< "$wynik" && echo tak || echo nie)"
+sprawdz "wdrożenie: proces w tle jest na liście potomków" "tak" \
+  "$(grep -q 'potomkow=1' <<< "$wynik" && echo tak || echo nie)"
+wynik="$(rejestracja 'unset RAILWAY_GIT_COMMIT_SHA')"
+sprawdz "wdrożenie: bez commita (lokalnie) nic się nie uruchamia" "potomkow=0" "$wynik"
 
 # ---------------------------------------------------------------------------
 # 3b. PĘTLA HARMONOGRAMU NIE DRYFUJE (#1355). `schedule:run` patrzy na minutę,

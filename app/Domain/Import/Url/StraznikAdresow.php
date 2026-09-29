@@ -94,9 +94,71 @@ final class StraznikAdresow
     public function __construct(private readonly RozwiazywaczNazw $dns) {}
 
     /**
+     * Kontrola BEZ SIECI — składnia, schemat, port, `user:hasło@`, host
+     * podany jako adres IP i kształt nazwy. Żadnego zapytania DNS, więc
+     * nadaje się do żądania od człowieka, które nie może czekać na cudzy
+     * serwer nazw (#28: import z adresu chodzi w kolejce). Pełną kontrolę,
+     * z rozwiązaniem nazwy, i tak robi `sprawdz()` w zadaniu — ta jest tylko
+     * szybkim „tego nie ma sensu wysyłać”.
+     *
+     * @throws ImportOdrzucony
+     */
+    public function sprawdzBezSieci(string $url): void
+    {
+        [, , $host] = $this->rozbierz($url);
+
+        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+            if (! self::publiczny($host)) {
+                throw new ImportOdrzucony(ImportOdrzucony::ADRES_NIEPUBLICZNY);
+            }
+
+            return;
+        }
+
+        $this->sprawdzNazwe($host);
+    }
+
+    /**
      * @throws ImportOdrzucony
      */
     public function sprawdz(string $url): SprawdzonyAdres
+    {
+        [$url, $schemat, $host, $port] = $this->rozbierz($url);
+
+        // Host podany wprost jako adres IP — sprawdzamy bez DNS-u.
+        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+            if (! self::publiczny($host)) {
+                throw new ImportOdrzucony(ImportOdrzucony::ADRES_NIEPUBLICZNY);
+            }
+
+            return new SprawdzonyAdres($url, $schemat, $host, $port, $host);
+        }
+
+        $this->sprawdzNazwe($host);
+
+        $adresy = $this->dns->adresy($host);
+
+        if ($adresy === []) {
+            throw new ImportOdrzucony(ImportOdrzucony::STRONA_NIEDOSTEPNA);
+        }
+
+        foreach ($adresy as $ip) {
+            if (filter_var($ip, FILTER_VALIDATE_IP) === false || ! self::publiczny($ip)) {
+                throw new ImportOdrzucony(ImportOdrzucony::ADRES_NIEPUBLICZNY);
+            }
+        }
+
+        return new SprawdzonyAdres($url, $schemat, $host, $port, $adresy[0]);
+    }
+
+    /**
+     * Wspólna część kontroli: składnia, schemat, port, host w postaci kanonicznej.
+     *
+     * @return array{0: string, 1: string, 2: string, 3: int} adres kanoniczny, schemat, host, port
+     *
+     * @throws ImportOdrzucony
+     */
+    private function rozbierz(string $url): array
     {
         $url = trim($url);
 
@@ -129,30 +191,7 @@ final class StraznikAdresow
         $host = self::kanonicznyHost($czesci['host']);
         $url = self::kanonicznyAdres($schemat, $host, $port, $czesci['path'] ?? null, $czesci['query'] ?? null);
 
-        // Host podany wprost jako adres IP — sprawdzamy bez DNS-u.
-        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
-            if (! self::publiczny($host)) {
-                throw new ImportOdrzucony(ImportOdrzucony::ADRES_NIEPUBLICZNY);
-            }
-
-            return new SprawdzonyAdres($url, $schemat, $host, $port, $host);
-        }
-
-        $this->sprawdzNazwe($host);
-
-        $adresy = $this->dns->adresy($host);
-
-        if ($adresy === []) {
-            throw new ImportOdrzucony(ImportOdrzucony::STRONA_NIEDOSTEPNA);
-        }
-
-        foreach ($adresy as $ip) {
-            if (filter_var($ip, FILTER_VALIDATE_IP) === false || ! self::publiczny($ip)) {
-                throw new ImportOdrzucony(ImportOdrzucony::ADRES_NIEPUBLICZNY);
-            }
-        }
-
-        return new SprawdzonyAdres($url, $schemat, $host, $port, $adresy[0]);
+        return [$url, $schemat, $host, $port];
     }
 
     /**

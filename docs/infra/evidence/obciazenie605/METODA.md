@@ -186,7 +186,7 @@ Wagi (suma 100), jedyna arbitralna liczba w przyrządzie:
 | `anon_tag` | 4 | `/tag/{tag}` bez sesji |
 | `anon_profil` | 2 | `/@{username}` bez sesji |
 | `zal_feed` | 14 | `/home` — feed obserwowanych |
-| `zal_feed_str2` | 4 | `/home?page=2` |
+| `zal_feed_str2` | 4 | druga strona feedu z **kursorem** widza (`/home?zrodlo=…&cursor=…`, wzięty z odnośnika „Następna strona"); od 29.09.2026. Dawne `/home?page=2` ładowało pierwszą stronę drugi raz — `/home` pagnuje kursorem i ignoruje `page` |
 | `zal_discover` | 4 | `/odkryj` z sesją |
 | `zal_zeszyt` | 3 | `/zeszyt/{id}` |
 | `szukaj` | 8 | `/szukaj?q=…` |
@@ -546,9 +546,11 @@ php -d memory_limit=1G scripts/zdjecia-obciazenia-605.php /sciezka/poza/repo/zdj
 
 # 4. kontener z obrazu produkcyjnego tego commita (patrz §1.1)
 
-# 5. sesje i cele (ok. 13 min — limit logowania)
+# 5. sesje i cele (ok. 13 s na konto — limit logowania). `--dane dane.json` jest
+#    OBOWIĄZKOWE dla pełnego pomiaru: dobiera widzów po klasach liczby obserwowanych
+#    (także 800 i 1200); bez niego logują się kolejne konta 0..N-1 (10–500)
 node scripts/generator-obciazenia-605.mjs przygotuj --manifest <poza repo> \
-     --baza http://127.0.0.1:8605 --haslo <z dane.json> --widzowie 60
+     --baza http://127.0.0.1:8605 --haslo <z dane.json> --dane dane.json --widzowie 24
 
 # 6. rozgrzewka mediów + zebranie adresów /zdjecia/*
 node scripts/generator-obciazenia-605.mjs media --manifest <…> --ile 24
@@ -559,8 +561,127 @@ node scripts/generator-obciazenia-605.mjs zbierz-media --manifest <…>
 #     po zdjęciu obciążenia próbnik chodzi jeszcze 60 s — to jest pomiar
 #     powrotu do normy)
 bash scripts/seria-obciazenia-605.sh r050 50 180 <katalog-wynikow> <manifest>
+
+# 8. albo cała rampa do nasycenia (§8); jawny korpus zdjęć jest wymagany
+KORPUS_ZDJEC=<korpus.json> bash scripts/rampa-obciazenia-605.sh <katalog-wynikow> <manifest>
 ```
 
 Serie wykonuje się **pojedynczo, szeregowo**. Nigdy dwie naraz.
 
 Manifest zawiera ciasteczka sesji i **nie trafia do repozytorium**.
+
+---
+
+## 8. Kryterium nasycenia, powrót do normy, zdjęcia i widzowie (29.09.2026)
+
+Ta sekcja domyka cztery luki przyrządu względem kryteriów issue #605. Przyrząd
+był kompletny co do mieszanki i zbioru danych, ale **nie umiał sam powiedzieć,
+gdzie jest nasycenie, i nie pilnował, czy serwis wrócił do normy między
+stopniami** — a pomiar z 20.09.2026 pokazał, że po nasyceniu nie wraca sam.
+
+### 8.1 Kryterium nasycenia — `scripts/nasycenie-605.mjs`
+
+Jawne, ustalone **przed** kolejnym pomiarem; zmiana kryterium wymaga nowej
+`wersji` i ponownej oceny WSZYSTKICH stopni, nigdy wybranych.
+
+| stan | warunek |
+|---|---|
+| ZDROWY | żaden z poniższych |
+| DEGRADACJA | p95 ≥ 2 × odniesienia |
+| NASYCONY | błąd > 1 % **lub** przepustowość < 90 % zadanego **lub** p95 ≥ 5 × odniesienia |
+| NIEOCENIONY | werdykt bramki SKAŻONY / NIEWYKONANY — stopień nie wyznacza punktu |
+
+- **Odniesienie** to p95 najniższego stopnia CZYSTEGO bez błędów (z podłogą 100 ms,
+  żeby „5 ×" z 5 ms nie było degradacją). p95 do oceny to większe z `p95` i
+  `p95_z_bledami` (§4.5: p95 z samych poprawnych spada, gdy najwolniejsze
+  żądania wypadają jako błędy).
+- **Wynik to przedział**, nie liczba: (ostatni zdrowy, pierwszy nasycony] rps.
+  Osobno podawana jest pierwsza degradacja. Nie wolno zamienić tego na
+  „pojemność" ani na liczbę użytkowników (issue: raport ma wskazać bottleneck).
+- **Charakter degradacji**: przekroczenia czasu / 5xx / zerwania / odmowy 429
+  (429 to ograniczenie konfiguracji, nie serwera).
+- **Zasoby w oknie stopnia** to KANDYDACI, nie dowód przyczyny: CPU liczy się jako
+  przebywanie przy ≥ 90 % limitu w ≥ 25 % próbek (jeden pik nie jest wyczerpaniem),
+  pamięć ≥ 95 % limitu, blokady, połączenia DB ≥ 80 %, najstarsze zadanie ≥ 60 s.
+  Gdy nic nie jest wyczerpane, raport mówi, że to **hipoteza** o koszcie samego
+  żądania (zapytania, JIT, liczba wątków), do rozstrzygnięcia planami zapytań.
+- Stopnie **po pierwszym nasyconym bez zapisanego powrotu** dostają ostrzeżenie:
+  mierzą zaległość poprzednika, nie serwer od zera.
+- Gdy nasycenia nie osiągnięto, raport pisze **„NASYCENIA NIE OSIĄGNIĘTO"** —
+  wolno wtedy powiedzieć tylko „do X rps nie zaobserwowano nasycenia".
+
+```bash
+node scripts/nasycenie-605.mjs analiza <katalog-wynikow> [--json]
+```
+
+Sprawdzone na prawdziwych danych z 20.09.2026 (`2026-09-20-gpt/serie`):
+degradacja od 15 rps, nasycenie między 5 a 30 rps, przekroczenia czasu,
+`r005-powrot` = nie wrócił — czyli to, co raport opisał ręcznie (test
+`scripts/nasycenie-605.test.mjs`). To samo narzędzie pokazało, że przy 30 rps
+żaden zmierzony zasób (CPU, pamięć, połączenia, blokady, kolejka) nie był
+wyczerpany, co zgadza się z wnioskiem raportu o zaległości przy kosztownych
+odczytach SQL — jako hipoteza, nie jako dowód.
+
+### 8.2 Rampa staje po nasyceniu i pilnuje powrotu
+
+`scripts/rampa-obciazenia-605.sh` po każdym czystym stopniu ocenia go tym
+kryterium, po przerwie odpala **sondę powrotu** (`generator … powrot`: lekkie
+`GET /` co 5 s, „wrócił" = 3 odpowiedzi 200 z rzędu w budżecie 1000 ms; wynik
+w `powrot-<seria>.json` z czasem powrotu albo `wrocil: false`) i:
+
+- po pierwszym NASYCONYM stopniu ze zmierzonym powrotem **kończy** (`PO_NASYCENIU=stop`,
+  domyślnie; `dalej` mierzy wyższe stopnie, żeby zobaczyć kształt degradacji);
+- gdy serwis **nie wrócił** w `MAKS_POWROTU_S` (900 s) — **kończy kodem 3**, bo
+  następny stopień mierzyłby zaległość poprzedniego. Niczego nie restartuje:
+  restart kontenera jest decyzją człowieka;
+- na końcu zapisuje `nasycenie.txt` (analiza całej rampy).
+
+### 8.3 Zdjęcia: rampa odmawia startu bez korpusu
+
+Bez `KORPUS_ZDJEC` upload to jeden syntetyczny plik 12 Mpx z GD, a issue wymaga
+prawdziwych zdjęć 12/24/48 MP. Rampa **odmawia startu** (kod 2), chyba że
+świadomie podasz `ZDJECIA_SYNTETYCZNE=tak` (zapisze się w `rampa.log`). Wynik
+serii niesie teraz `upload_zrodlo`, więc widać, z czego szło wgrywanie.
+Korpus i jego przygotowanie: `docs/obciazenie/KORPUS_605.md`; fotografie
+pozyskuje się poza repozytorium.
+
+### 8.4 Widzowie: konta z 800 i 1200 obserwowanymi
+
+`przygotuj` logował kolejne konta 0..N-1. Przy N = 24 (tyle udało się
+zalogować 20.09.2026) to wyłącznie konta z 10–500 obserwowanymi — a to konto
+z 1200 robi najcięższy feed. Z `--dane dane.json` widzowie są dobierani po
+klasach liczby obserwowanych (round-robin): już 8 kont obejmuje wszystkie
+klasy, 24 zawierają 800 i 1200. Manifest niesie `obserwuje` każdego konta,
+a wynik serii `widzowie_obserwowani`. Bez `--dane` przyrząd ostrzega na stderr.
+
+### 8.5 Pełny przebieg — krok dla właściciela
+
+Tej części **nie da się zrobić w repozytorium ani z sesji roboczej**: wymaga
+hosta niebędącego wspólnym runnerem CI (albo uzgodnionego okna), prawdziwych
+fotografii i — dla ścieżki mediów — dostępu do R2/Cloudflare. Przyrząd,
+kryterium i rampa są gotowe. Kroki:
+
+1. **Host**: maszyna bez obcego obciążenia albo okno uzgodnione z właścicielami
+   pozostałych projektów (§6). Bramka obciążenia zostaje.
+2. **Topologia**: po #595 (rozdzielone usługi — wyniki podpisać jako inną
+   topologię) albo `all` wyraźnie oznaczone i nie mieszane z wynikami po
+   rozdzieleniu.
+3. **Baza i dane**: §7 kroki 1–3 (zbiór 200 tys. wpisów, `dane.json`).
+4. **Korpus fotografii 12 / 24 / 48 MP** (prawdziwe zdjęcia z aparatów i
+   telefonów, z licencją pozwalającą na użycie): `docs/obciazenie/KORPUS_605.md`;
+   każdy z trzech rozmiarów musi w nim być, bo issue wymaga wszystkich.
+5. **Sesje**: §7 krok 5 **z `--dane`** (klasy 800 i 1200 obserwowanych).
+6. **Rampa**: `KORPUS_ZDJEC=<korpus.json> bash scripts/rampa-obciazenia-605.sh <katalog> <manifest>`,
+   potem `node scripts/nasycenie-605.mjs analiza <katalog>`. Wynik do nowego
+   katalogu z datą, **nie** nadpisując `2026-09-20-gpt`.
+7. **JIT** (hipoteza z #585/#628): `otoczenie-*.txt` każdej serii zawiera teraz
+   ustawienia JIT bazy. Dla wolnych zapytań (`log_min_duration_statement`
+   ustawione na zakres jednej bazy, §5) odczytaj z `EXPLAIN (ANALYZE)` udział
+   kompilacji JIT. Jeśli zjawisko się powtórzy — kontrolowane ustawienie
+   wyłącznie połączeń testowych, bez `ALTER SYSTEM` i bez zmian w Railway.
+8. **R2 / Cloudflare (nadal NIEZMIERZONE)**: osobny pomiar origin vs cache po #597
+   wymaga panelu Cloudflare i R2, do których sesje robocze nie mają dostępu.
+   Dysk lokalny nie jest zamiennikiem. Do wykonania przez właściciela na
+   środowisku, na którym to jest bezpieczne (nie na produkcji bez zgody).
+9. **Raport**: bottleneck z `nasycenie.txt` + plany zapytań; bez przeliczenia na
+   „użytkowników online" (do tego potrzebny profil sesji z telemetrii, #599).

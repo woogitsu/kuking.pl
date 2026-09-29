@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -43,6 +44,6 @@ class AccessibilitySettingsController extends Controller
 
         $request->user()->update(['text_scale' => $data['text_scale']]);
 
-        return back()->withCookie(cookie(config('kuking.text.cookie'), (string) $data['text_scale'], 60 * 24 * 365))->with('status', 'Rozmiar tekstu zapisany. Będzie taki na każdym urządzeniu, na którym się zalogujesz.');
+        return back()->withCookie(cookie(config('kuking.text.cookie'), (string) $data['text_scale'], 60 * 24 * 365))->with(Komunikat::sukces('Rozmiar tekstu zapisany. Będzie taki na każdym urządzeniu, na którym się zalogujesz.'));
     }
 }

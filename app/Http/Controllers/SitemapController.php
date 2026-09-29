@@ -48,12 +48,15 @@ class SitemapController extends Controller
                 ->publiclyVisible()
                 ->whereNull('forked_at')
                 ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
-                ->select(['id', 'slug', 'updated_at'])
+                ->select(['id', 'slug', 'published_at', 'tresc_zmieniona_at'])
                 ->chunkById(500, function ($recipes) use (&$urls): void {
                     foreach ($recipes as $recipe) {
                         $urls[] = [
                             'loc' => route('recipes.show', $recipe->slug),
-                            'lastmod' => $recipe->updated_at?->toAtomString(),
+                            // Data zmiany TREŚCI, nie zapisu wiersza (#1280) — ta sama
+                            // co `dateModified` w JSON-LD. `updated_at` przesuwa też
+                            // moderacja i zapis bez zmian. Nieznana → bez `lastmod`.
+                            'lastmod' => $recipe->dataZmianyTresci()?->toAtomString(),
                             'priority' => '0.9',
                             'changefreq' => 'weekly',
                         ];

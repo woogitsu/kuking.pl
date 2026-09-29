@@ -9,6 +9,7 @@ use App\Models\Recipe;
 use App\Models\User;
 use App\Support\MapaStrony;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -163,13 +164,93 @@ class MapaStronyNadazaZaWidocznosciaTest extends TestCase
         $this->assertSame('zostaje', Cache::get('inny.klucz'), 'Unieważnienie mapy wyczyściło cały cache.');
     }
 
-    public function test_zapis_bez_wplywu_na_widocznosc_nie_kasuje_mapy(): void
+    public function test_zapis_bez_wplywu_na_mape_nie_kasuje_zapamietanej_mapy(): void
     {
-        $przepis = $this->przepis($this->autor());
+        // Prywatny przepis i szkic nie są w mapie, więc ich edycja nie może
+        // jej przebudowywać (#1280: „prywatne zmiany nie powodują
+        // niepotrzebnej invalidacji").
+        $autor = $this->autor();
+        $prywatny = Recipe::factory()->for($autor, 'author')->create([
+            'status' => Recipe::STATUS_PUBLISHED,
+            'visibility' => 'private',
+            'published_at' => now()->subDay(),
+        ]);
+        $szkic = Recipe::factory()->for($autor, 'author')->draft()->create();
+        $this->przepis($autor);
         $this->mapa();
 
-        $przepis->forceFill(['title' => 'Inny tytuł tego samego przepisu'])->save();
+        $prywatny->forceFill(['title' => 'Inny tytuł prywatnego przepisu'])->save();
+        $szkic->forceFill(['title' => 'Inny tytuł szkicu'])->save();
 
         $this->assertTrue(Cache::has(MapaStrony::KLUCZ));
+    }
+
+    private function lastmod(string $adres): ?string
+    {
+        $xml = simplexml_load_string($this->mapa());
+        $this->assertNotFalse($xml);
+
+        foreach ($xml->url as $url) {
+            if ((string) $url->loc === $adres) {
+                return isset($url->lastmod) ? (string) $url->lastmod : null;
+            }
+        }
+        $this->fail('Brak adresu w mapie: '.$adres);
+    }
+
+    public function test_edycja_publicznego_przepisu_przesuwa_lastmod_w_zapamietanej_mapie(): void
+    {
+        // #1280 (komentarz z 28.09): edycja tytułu zmienia publiczną stronę
+        // i przesuwa `recipes.updated_at`, ale mapa stała w cache do sześciu
+        // godzin z poprzednim `lastmod`. Nikt nie czyści cache ręcznie.
+        // `lastmod` przepisu to `tresc_zmieniona_at`, które ustawia
+        // `PublishRecipe` — tu robimy to ręcznie (pełną drogę sprawdza
+        // `MapaStronyLastmodPrzepisuTest`).
+        $this->travelTo(Carbon::parse('2026-09-01 10:00:00'));
+        $autor = $this->autor();
+        $przepis = $this->przepis($autor);
+        $przepis->forceFill(['tresc_zmieniona_at' => now()])->save();
+        $adresPrzepisu = route('recipes.show', $przepis->slug);
+        $adresProfilu = route('profile.show', 'kucharz');
+        $this->assertSame(now()->toAtomString(), $this->lastmod($adresPrzepisu));
+
+        $this->travelTo(Carbon::parse('2026-09-01 12:00:00'));
+        $przepis->forceFill(['title' => 'Nowy tytuł widoczny dla gości', 'tresc_zmieniona_at' => now()])->save();
+
+        $this->assertSame(now()->toAtomString(), $this->lastmod($adresPrzepisu), 'lastmod przepisu został ze starej mapy.');
+        $this->assertSame(now()->toAtomString(), $this->lastmod($adresProfilu), 'lastmod profilu autora został ze starej mapy.');
+    }
+
+    public function test_edycja_publicznego_wpisu_przesuwa_lastmod_w_zapamietanej_mapie(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-01 10:00:00'));
+        $wpis = $this->wpis($this->autor());
+        $adres = route('posts.show', $wpis->getKey());
+        $this->assertSame(now()->toAtomString(), $this->lastmod($adres));
+
+        $this->travelTo(Carbon::parse('2026-09-01 12:00:00'));
+        $wpis->forceFill(['body' => 'Rosół wyszedł jeszcze lepszy.'])->save();
+
+        $this->assertSame(now()->toAtomString(), $this->lastmod($adres));
+    }
+
+    public function test_zmiana_tytulu_publicznego_pytania_przesuwa_lastmod_w_zapamietanej_mapie(): void
+    {
+        // Tytuł nie jest w `MapaStrony::KOLUMNY`, a pytanie pokazuje go jako
+        // główną treść strony.
+        config(['kuking.questions.enabled' => true]);
+        $this->travelTo(Carbon::parse('2026-09-01 10:00:00'));
+        $pytanie = Post::factory()->question()->for($this->autor(), 'author')->create([
+            'status' => Post::STATUS_PUBLISHED,
+            'visibility' => 'public',
+            'published_at' => now()->subDay(),
+        ]);
+        $adres = $pytanie->url();
+        $this->assertSame(now()->toAtomString(), $this->lastmod($adres));
+
+        $this->travelTo(Carbon::parse('2026-09-01 12:00:00'));
+        $pytanie->forceFill(['title' => 'Jak długo gotować rosół z kury?'])->save();
+
+        $this->assertSame(now()->toAtomString(), $this->lastmod($adres));
     }
 }

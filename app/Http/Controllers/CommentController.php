@@ -9,6 +9,7 @@ use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\KonfliktPoprawkiKomentarza;
 use App\Jobs\PrzeanalizujTresc;
 use App\Models\Comment;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -103,7 +104,7 @@ class CommentController extends Controller
             PrzeanalizujTresc::dlaKomentarza($poprawiony)->afterCommit();
         }
 
-        return back()->with('status', 'Komentarz poprawiony.');
+        return back()->with(Komunikat::sukces('Komentarz poprawiony.'));
     }
 
     private function odmowaZTekstem(Request $request, Comment $comment): ?Response
@@ -145,7 +146,7 @@ class CommentController extends Controller
         // Przed walidacją powodu — nie każemy uzasadniać czegoś, co już się stało.
         // Komentarz bez odpowiedzi jest miękko usunięty (trasa ma withTrashed).
         if ($comment->trashed() || $comment->body_removed_at !== null) {
-            return back()->with('status', self::ALREADY_DELETED);
+            return back()->with(Komunikat::informacja(self::ALREADY_DELETED));
         }
 
         $isSelfDelete = $actor->getKey() === $comment->author_id;
@@ -161,6 +162,6 @@ class CommentController extends Controller
 
         $deleted = $this->deleteComment->handle($actor, $comment, $data['reason'] ?? null);
 
-        return back()->with('status', $deleted ? 'Komentarz usunięty.' : self::ALREADY_DELETED);
+        return back()->with($deleted ? Komunikat::sukces('Komentarz usunięty.') : Komunikat::informacja(self::ALREADY_DELETED));
     }
 }

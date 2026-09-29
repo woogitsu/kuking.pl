@@ -15,6 +15,7 @@ use App\Http\Requests\Settings\ProsbaOUsuniecieKontaRequest;
 use App\Models\AuditLogEntry;
 use App\Models\DataExport;
 use App\Models\User;
+use App\Support\Komunikat;
 use App\Support\Poczta;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -132,16 +133,16 @@ class DataSettingsController extends Controller
      */
     public function requestExport(Request $request, ZamowEksportDanych $zamow): RedirectResponse
     {
-        return back()->with('status', match ($zamow->handle($request->user(), $request->ip())) {
-            WynikZamowieniaEksportu::Przyjety => 'Przygotowujemy paczkę z Twoimi danymi. To może potrwać kilkanaście minut. '
-                .'Gotową paczkę znajdziesz tutaj, w sekcji „Twoje paczki”.'.self::obietnicaListu(),
-            WynikZamowieniaEksportu::JuzTrwa => self::JUZ_TRWA.self::obietnicaListu(),
-            WynikZamowieniaEksportu::Ponowiony => 'Przygotowanie paczki z Twoimi danymi trwało dłużej, niż powinno, więc właśnie ponowiliśmy '
-                .'zlecenie. Gotową paczkę znajdziesz tutaj, w sekcji „Twoje paczki”.'.self::obietnicaListu(),
+        return back()->with(match ($zamow->handle($request->user(), $request->ip())) {
+            WynikZamowieniaEksportu::Przyjety => Komunikat::sukces('Przygotowujemy paczkę z Twoimi danymi. To może potrwać kilkanaście minut. '
+                .'Gotową paczkę znajdziesz tutaj, w sekcji „Twoje paczki”.'.self::obietnicaListu()),
+            WynikZamowieniaEksportu::JuzTrwa => Komunikat::informacja(self::JUZ_TRWA.self::obietnicaListu()),
+            WynikZamowieniaEksportu::Ponowiony => Komunikat::sukces('Przygotowanie paczki z Twoimi danymi trwało dłużej, niż powinno, więc właśnie ponowiliśmy '
+                .'zlecenie. Gotową paczkę znajdziesz tutaj, w sekcji „Twoje paczki”.'.self::obietnicaListu()),
             // `status`, bo to jedyny komunikat, który układ strony pokazuje
             // po przekierowaniu na „Twoje dane" (#824).
-            WynikZamowieniaEksportu::Nieprzyjety => 'Nie udało się teraz przyjąć prośby o paczkę z Twoimi danymi — nic nie zostało zapisane. '
-                .'Spróbuj jeszcze raz za kilka minut przyciskiem „Przygotuj paczkę z moimi danymi”.',
+            WynikZamowieniaEksportu::Nieprzyjety => Komunikat::blad('Nie udało się teraz przyjąć prośby o paczkę z Twoimi danymi — nic nie zostało zapisane. '
+                .'Spróbuj jeszcze raz za kilka minut przyciskiem „Przygotuj paczkę z moimi danymi”.'),
         });
     }
 
@@ -214,11 +215,10 @@ class DataSettingsController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('landing')->with('status',
-            "Konto zostało oznaczone do usunięcia i wylogowaliśmy Cię. Masz {$days} dni, żeby zmienić zdanie — "
+        return redirect()->route('landing')->with(Komunikat::sukces("Konto zostało oznaczone do usunięcia i wylogowaliśmy Cię. Masz {$days} dni, żeby zmienić zdanie — "
             .'zrobisz to na stronie „Cofnij usunięcie konta” ('.route('account.delete.cancel').'), podając e-mail '
             .'albo nazwę użytkownika i hasło. Jeśli nie pamiętasz hasła, najpierw je zresetuj — to też zadziała. '
             .$coZTekstami,
-        );
+        ));
     }
 }

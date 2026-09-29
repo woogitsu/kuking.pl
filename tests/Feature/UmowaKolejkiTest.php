@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Jobs\GenerateUserExport;
+use App\Jobs\ImportujPrzepisZAdresu;
 use App\Jobs\NotifyUserExportReady;
 use App\Jobs\OdczytajPrzepis;
 use App\Jobs\ProcessUploadedImage;
@@ -89,6 +90,8 @@ class UmowaKolejkiTest extends TestCase
         // Odczyt zdjęcia kartki modelem (D-298) — `low`, bez osobnej kolejki:
         // do 90 s, za moderacją, nie przed zdjęciami i listami.
         OdczytajPrzepis::class => 'low',
+        // Import przepisu z adresu strony (#28): pobranie + ewentualny model poza żądaniem WWW.
+        ImportujPrzepisZAdresu::class => 'low',
     ];
 
     /**
@@ -109,6 +112,7 @@ class UmowaKolejkiTest extends TestCase
             PrzeliczPytaniaBezOdpowiedzi::class => new PrzeliczPytaniaBezOdpowiedzi,
             WyslijPowiadomieniePush::class => new WyslijPowiadomieniePush('user-id'),
             OdczytajPrzepis::class => new OdczytajPrzepis('import-id'),
+            ImportujPrzepisZAdresu::class => new ImportujPrzepisZAdresu('import-id'),
         ];
     }
 

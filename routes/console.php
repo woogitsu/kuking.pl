@@ -68,6 +68,20 @@ Harmonogram::artisan('kuking:sprzataj-osierocone-zdjecia')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// Surowe uploady Livewire, których nikt nie zapisał (issue #2178). Kreator
+// wgrywa zdjęcie do `livewire-tmp/` przed zapisem; udany zapis kasuje źródło,
+// ale plik porzucony albo po nieudanym usunięciu leży w prywatnym R2 aż do
+// KOLEJNEGO uploadu (wtedy sprząta Livewire). To jest linia obrony w kodzie;
+// reguła lifecycle R2 (#2051) zostaje drugą, w panelu.
+// 03:30 — wolny slot w nocnym paśmie sprzątania (03:20 eksporty, 03:40 zdjęcia),
+// co najmniej 10 minut od sąsiadów (`HarmonogramBezWspolnychSlotowTest`).
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('kuking:sprzataj-porzucone-uploady')
+    ->dailyAt('03:30')
+    ->name('kuking:sprzataj-porzucone-uploady')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // Zbiorcze powiadomienie „Smakowicie wygląda" (issue #1813, D-280) — raz
 // dziennie, po południu, gdy ludzie zaglądają do serwisu; „Ugotowałem"
 // powiadamia od razu i ma zostać najcenniejszą wiadomością dnia.

@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Domain\Users\Actions\UpdatePrivacySettings;
 use App\Http\Controllers\Controller;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -65,6 +66,6 @@ class PrivacySettingsController extends Controller
             $request->boolean('original_memories'),
         );
 
-        return back()->with('status', 'Zapisane.');
+        return back()->with(Komunikat::sukces('Zapisane.'));
     }
 }

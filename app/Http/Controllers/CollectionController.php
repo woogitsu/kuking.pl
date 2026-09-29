@@ -18,6 +18,7 @@ use App\Models\Recipe;
 use App\Models\User;
 use App\Rules\CollectionNameNotTaken;
 use App\Support\FrazaWyszukiwania;
+use App\Support\Komunikat;
 use App\Support\Odmiana;
 use App\Support\PaginationLinks;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -643,7 +644,7 @@ class CollectionController extends Controller
                 ->withErrors(['name' => 'Masz już zeszyt o tej nazwie. Wybierz inną.']);
         }
 
-        return redirect()->route('collections.show', ['collection' => $collection, ...app(CollectionSaveContext::class)->parameters($request)])->with('status', 'Zeszyt utworzony.');
+        return redirect()->route('collections.show', ['collection' => $collection, ...app(CollectionSaveContext::class)->parameters($request)])->with(Komunikat::sukces('Zeszyt utworzony.'));
     }
 
     /**
@@ -699,7 +700,7 @@ class CollectionController extends Controller
             default => 'Zeszyt zaktualizowany.',
         };
 
-        return redirect()->route('collections.show', $collection)->with('status', $status);
+        return redirect()->route('collections.show', $collection)->with(Komunikat::sukces($status));
     }
 
     /**
@@ -763,7 +764,7 @@ class CollectionController extends Controller
             }
 
             if ($powrot !== null) {
-                return back()->with('status', $powrot);
+                return back()->with(Komunikat::sukces($powrot));
             }
         }
 
@@ -776,10 +777,10 @@ class CollectionController extends Controller
         }
 
         if ($request->boolean('open_collection')) {
-            return redirect()->route('collections.show', $target)->with('status', "Zapisane w zeszycie „{$target->name}”.");
+            return redirect()->route('collections.show', $target)->with(Komunikat::sukces("Zapisane w zeszycie „{$target->name}”."));
         }
 
-        return back()->with('status', "Zapisane w zeszycie „{$target->name}”.");
+        return back()->with(Komunikat::sukces("Zapisane w zeszycie „{$target->name}”."));
     }
 
     /**
@@ -842,13 +843,13 @@ class CollectionController extends Controller
 
         if ($zdjete === []) {
             // Nie kłamiemy, że coś wyjęliśmy. Bez drogi powrotu — nie ma dokąd.
-            return back()->with('status', 'Tego przepisu nie ma w żadnym z Twoich zeszytów.');
+            return back()->with(Komunikat::informacja('Tego przepisu nie ma w żadnym z Twoich zeszytów.'));
         }
 
         $this->zapamietajWyjecie($request, 'przepis', (string) $model->getKey(), $zdjete);
 
         return back()
-            ->with('status', $this->komunikatPoWyjeciu('Przepis', $request->user(), $zdjete))
+            ->with(Komunikat::sukces($this->komunikatPoWyjeciu('Przepis', $request->user(), $zdjete)))
             ->with('status_powrot', [
                 'akcja' => route('collections.save', $model->slug),
                 'etykieta' => 'Przywróć do zeszytu',
@@ -880,7 +881,7 @@ class CollectionController extends Controller
             }
 
             if ($powrot !== null) {
-                return back()->with('status', $powrot);
+                return back()->with(Komunikat::sukces($powrot));
             }
         }
 
@@ -893,10 +894,10 @@ class CollectionController extends Controller
         }
 
         if ($request->boolean('open_collection')) {
-            return redirect()->route('collections.show', $target)->with('status', "Zapisane w zeszycie „{$target->name}”.");
+            return redirect()->route('collections.show', $target)->with(Komunikat::sukces("Zapisane w zeszycie „{$target->name}”."));
         }
 
-        return back()->with('status', "Zapisane w zeszycie „{$target->name}”.");
+        return back()->with(Komunikat::sukces("Zapisane w zeszycie „{$target->name}”."));
     }
 
     /**
@@ -973,7 +974,7 @@ class CollectionController extends Controller
         $zdjete = $this->savePost->remove($request->user(), $post, $zeszyt);
 
         if ($zdjete === []) {
-            return back()->with('status', 'Tego wpisu nie ma w żadnym z Twoich zeszytów.');
+            return back()->with(Komunikat::informacja('Tego wpisu nie ma w żadnym z Twoich zeszytów.'));
         }
 
         $this->zapamietajWyjecie($request, 'wpis', (string) $post->getKey(), $zdjete);
@@ -988,7 +989,7 @@ class CollectionController extends Controller
         // rysuje go `components/layout.blade.php` w tym samym obszarze
         // `aria-live`, co komunikat.
         return back()
-            ->with('status', $this->komunikatPoWyjeciu('Wpis', $request->user(), $zdjete))
+            ->with(Komunikat::sukces($this->komunikatPoWyjeciu('Wpis', $request->user(), $zdjete)))
             ->with('status_powrot', [
                 'akcja' => route('collections.save-post', $post),
                 'etykieta' => 'Przywróć do zeszytu',
@@ -1138,11 +1139,11 @@ class CollectionController extends Controller
             return redirect()->route('collections.show', $collection)->withErrors(['zakres' => $e->getMessage()]);
         }
 
-        return redirect()->route('collections.show', $collection)->with('status', $ile === 0
-            ? 'W tym zeszycie nie ma już niedostępnych zapisów. Niczego nie wyjęliśmy.'
-            : 'Wyjęliśmy z tego zeszytu '.$ile.' '
+        return redirect()->route('collections.show', $collection)->with($ile === 0
+            ? Komunikat::informacja('W tym zeszycie nie ma już niedostępnych zapisów. Niczego nie wyjęliśmy.')
+            : Komunikat::sukces('Wyjęliśmy z tego zeszytu '.$ile.' '
                 .Odmiana::rzeczownik($ile, 'niedostępny zapis', 'niedostępne zapisy', 'niedostępnych zapisów')
-                .'. Reszta zeszytu została bez zmian.');
+                .'. Reszta zeszytu została bez zmian.'));
     }
 
     public function destroy(Request $request, Collection $collection): RedirectResponse
@@ -1151,6 +1152,6 @@ class CollectionController extends Controller
 
         $collection->delete();
 
-        return redirect()->route('collections.index')->with('status', 'Zeszyt usunięty.');
+        return redirect()->route('collections.index')->with(Komunikat::sukces('Zeszyt usunięty.'));
     }
 }

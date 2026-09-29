@@ -262,6 +262,58 @@ function dolozCiasteczka(obecne, setCookie) {
 
 const tokenZeStrony = (html) => html.match(/name="_token"\s+value="([^"]+)"/)?.[1] ?? null;
 
+/*
+ * DRUGA STRONA FEEDU — Z PRAWDZIWYM KURSOREM, A NIE `?page=2`.
+ * `/home` pagnuje kursorem (`FeedController::home`); parametr `page` jest
+ * ignorowany, więc dawny scenariusz `zal_feed_str2` (`/home?page=2`) ładował po
+ * raz drugi PIERWSZĄ stronę i pod nazwą „strona 2" mierzył zapytanie bez
+ * kursora. Kursor jest częścią odnośnika „Następna strona" w HTML-u pierwszej
+ * strony (`resources/views/components/show-more.blade.php`) i niesie też
+ * `zrodlo=`, bez którego kontroler odsyła na pierwszą stronę. Wyciągamy go
+ * z odpowiedzi, dokładnie tak, jak robi to przeglądarka.
+ * Zwraca ścieżkę z zapytaniem albo null (feed bez kolejnej porcji).
+ */
+export function nastepnaStronaFeedu(html) {
+  for (const m of String(html ?? '').matchAll(/href="([^"]*[?&](?:amp;)?cursor=[^"]+)"/g)) {
+    try {
+      const url = new URL(m[1].replaceAll('&amp;', '&'), 'http://localhost');
+      if (url.pathname === '/home' && url.searchParams.has('cursor')) return `${url.pathname}${url.search}`;
+    } catch { /* odnośnik nie do rozebrania — szukamy dalej */ }
+  }
+  return null;
+}
+
+/*
+ * DOBÓR WIDZÓW POKRYWAJĄCY CAŁY ROZKŁAD OBSERWOWANYCH.
+ * `przygotuj` logował kolejne konta 0..N-1, a 13 s na logowanie (limit `5,1`)
+ * ogranicza N do kilkudziesięciu. W `dane-obciazenia-605.php` konta 0..23 mają
+ * 10–500 obserwowanych i NIGDY 800 albo 1200 — a to takie konto robi najcięższy
+ * feed (raport 20.09.2026: „nie zmierzono sesji z 800/1200").
+ * Rozwiązanie: z `dane.json` (`widzowie[].obserwuje`) bierzemy konta po kolei
+ * z każdej klasy liczebności (round-robin), więc już 8 kont obejmuje wszystkie
+ * klasy. Zwraca `[{ email, obserwuje }]`, deterministycznie.
+ */
+export function wybierzWidzow(widzowie, ile) {
+  if (!Array.isArray(widzowie) || widzowie.length === 0) throw new Error('Brak widzów w danych (dane.json → widzowie).');
+  const klasy = new Map();
+  for (const w of widzowie) {
+    if (typeof w?.email !== 'string' || !Number.isFinite(w?.obserwuje)) {
+      throw new Error('Każdy widz w dane.json musi mieć email i obserwuje (liczbę).');
+    }
+    const lista = klasy.get(w.obserwuje) ?? [];
+    lista.push({ email: w.email, obserwuje: w.obserwuje });
+    klasy.set(w.obserwuje, lista);
+  }
+  const kolejki = [...klasy.entries()].sort((a, b) => a[0] - b[0]).map(([, l]) => l);
+  const wynik = [];
+  for (let krok = 0; wynik.length < ile && kolejki.some((k) => krok < k.length); krok++) {
+    for (const k of kolejki) {
+      if (krok < k.length && wynik.length < ile) wynik.push(k[krok]);
+    }
+  }
+  return wynik;
+}
+
 function mediana(tablica) {
   if (!tablica.length) return null;
   const s = [...tablica].sort((a, b) => a - b);
@@ -298,11 +350,19 @@ async function przygotuj() {
    */
   const odstep = liczba('odstep_logowania', 13000);
 
+  let widzowie;
+  if (opcje.dane) {
+    widzowie = wybierzWidzow(JSON.parse(readFileSync(opcje.dane, 'utf8')).widzowie, ilu);
+  } else {
+    process.stderr.write('UWAGA: bez --dane <dane.json> logowane są kolejne konta 0..N-1 — pokrycie rozkładu obserwowanych ograniczone do początku listy (bez kont 800/1200).\n');
+    widzowie = Array.from({ length: ilu }, (_, i) => ({ email: `b605-widz-${i}@example.test`, obserwuje: null }));
+  }
+
   const sesje = [];
   const czasyLogowania = [];
-  for (let i = 0; i < ilu; i++) {
+  for (let i = 0; i < widzowie.length; i++) {
     if (i > 0) await new Promise((r) => setTimeout(r, odstep));
-    const email = `b605-widz-${i}@example.test`;
+    const { email, obserwuje } = widzowie[i];
     const formularz = await zadanie({ sciezka: '/login' });
     if (formularz.status !== 200) throw new Error(`/login dał ${formularz.status}`);
     let ciasteczka = dolozCiasteczka('', formularz.setCookie);
@@ -329,7 +389,15 @@ async function przygotuj() {
     const zeszyt = await zadanie({ sciezka: '/zeszyt', ciasteczka });
     const idZeszytu = zeszyt.tresc.match(/\/zeszyt\/([0-9a-f-]{36})/)?.[1] ?? null;
 
-    sesje.push({ email, ciasteczka, token: tokenZeStrony(dom.tresc), zeszyt: idZeszytu });
+    sesje.push({
+      email,
+      obserwuje,
+      ciasteczka,
+      token: tokenZeStrony(dom.tresc),
+      zeszyt: idZeszytu,
+      // Druga strona feedu TEGO widza (kursor jest jego); null = feed mieści się w jednej porcji.
+      home_str2: nastepnaStronaFeedu(dom.tresc),
+    });
     if (i % 20 === 0) process.stderr.write(`  zalogowano ${i}/${ilu}\n`);
   }
 
@@ -366,6 +434,8 @@ async function przygotuj() {
   console.log(JSON.stringify({
     manifest: MANIFEST,
     sesji: sesje.length,
+    sesje_z_druga_strona_feedu: sesje.filter((x) => x.home_str2).length,
+    obserwowani_widzow: sesje.map((x) => x.obserwuje),
     logowanie: manifest.logowanie,
     cele: Object.fromEntries(Object.entries(manifest.cele).map(([k, v]) => [k, v.length])),
   }, null, 2));
@@ -607,7 +677,8 @@ async function seria() {
       case 'anon_tag': cfg = { sciezka: wybierz(cele.tagi) }; break;
       case 'anon_profil': cfg = { sciezka: wybierz(cele.profile) }; break;
       case 'zal_feed': cfg = { sciezka: '/home', ciasteczka: sesja.ciasteczka }; break;
-      case 'zal_feed_str2': cfg = { sciezka: '/home?page=2', ciasteczka: sesja.ciasteczka }; break;
+      // Kursor ze strony pierwszej tego widza; brak = scenariusz pominięty (widoczny w wyniku).
+      case 'zal_feed_str2': cfg = sesja.home_str2 ? { sciezka: sesja.home_str2, ciasteczka: sesja.ciasteczka } : null; break;
       case 'zal_discover': cfg = { sciezka: '/odkryj', ciasteczka: sesja.ciasteczka }; break;
       case 'zal_zeszyt': cfg = { sciezka: sesja.zeszyt ? `/zeszyt/${sesja.zeszyt}` : '/zeszyt', ciasteczka: sesja.ciasteczka }; break;
       /*
@@ -930,6 +1001,10 @@ async function seria() {
     uploady: uploadStats,
     endpointy,
     mieszanka: Object.fromEntries(MIESZANKA),
+    // Skąd pochodzi upload i którzy widzowie chodzili — bez tego wynik nie mówi,
+    // czy zmierzono zdjęcia z korpusu i konta z 800/1200 obserwowanymi.
+    upload_zrodlo: opcje.korpus ? 'korpus jawny (--korpus)' : 'HISTORYCZNY pojedynczy plik 12 Mpx z zdjecia-obciazenia-605.php (syntetyczny, nie fotografia)',
+    widzowie_obserwowani: manifest.sesje.map((x) => x.obserwuje ?? null),
   };
 
   await writeFile(wynikPlik, JSON.stringify(wynik, null, 1));
@@ -940,8 +1015,84 @@ async function seria() {
 }
 
 // -----------------------------------------------------------------------------
+// powrot — czy system wrócił do normy po zdjęciu obciążenia
+// -----------------------------------------------------------------------------
 
-const komendy = { przygotuj, media, 'zbierz-media': zbierzMedia, seria };
+/*
+ * Issue #605: „zachowanie po zdjęciu obciążenia — czy system szybko wraca do
+ * normy". Pomiar 20.09.2026 pokazał, że NIE MUSI: po stopniu 30/s zaległość
+ * żądań trzymała serwis ponad 11 minut i pomogło dopiero zrestartowanie
+ * kontenera; kolejne stopnie rampy (60, 120) mierzyły więc zaległość
+ * poprzednika, nie serwer zaczynający od zera. Stała przerwa 30 s między
+ * stopniami tego nie wykrywa.
+ *
+ * Sonda co `co` ms wysyła lekkie GET (domyślnie `/`) i uznaje serwis za
+ * „wrócony" po `kolejnych` PO SOBIE odpowiedziach 200 w budżecie `budzetMs`.
+ * Nie wrócił = nie uzyskano takiej passy w `limitMs`. Jedno szczęśliwe żądanie
+ * niczego nie dowodzi, dlatego passa, a nie pojedynczy sukces.
+ *
+ * `budzetMs` (domyślnie 1000) to jedyna arbitralna liczba sondy: wielokrotnie
+ * więcej niż p50 lekkiej strony przy 5 rps z pomiaru 20.09 (ok. 50 ms),
+ * a mniej niż deadline żądania. Sonda jest jednowątkowa i lekka — nie dokłada
+ * ruchu, który zmieniałby to, co bada. Wynik zapisuje wszystkie próby.
+ */
+export async function sondaPowrotu({
+  cel = CEL_DOMYSLNY,
+  sciezka = '/',
+  budzetMs = 1000,
+  kolejnych = 3,
+  coMs = 5000,
+  limitMs = 900_000,
+  calkowityMs = 10_000,
+} = {}) {
+  const start = Date.now();
+  const proby = [];
+  let passa = 0;
+  let czasPowrotuMs = null;
+  for (;;) {
+    const t0 = Date.now();
+    const odp = await zadanie({ sciezka, cel, calkowityMs, bezczynnoscMs: calkowityMs, zbierajTresc: false });
+    const dobra = odp.powod === 'ok' && odp.status === 200 && odp.ms <= budzetMs;
+    proby.push({ po_ms: t0 - start, status: odp.status, powod: odp.powod, ms: Math.round(odp.ms * 10) / 10, dobra });
+    passa = dobra ? passa + 1 : 0;
+    if (passa >= kolejnych) {
+      // Czas powrotu = początek passy, nie jej koniec: passa jest dowodem, nie opóźnieniem serwisu.
+      czasPowrotuMs = proby[proby.length - kolejnych].po_ms;
+      break;
+    }
+    if (Date.now() - start + coMs > limitMs) break;
+    await new Promise((r) => setTimeout(r, coMs));
+  }
+  return {
+    sciezka,
+    budzet_ms: budzetMs,
+    kolejnych,
+    co_ms: coMs,
+    limit_s: limitMs / 1000,
+    wrocil: czasPowrotuMs !== null,
+    czas_powrotu_s: czasPowrotuMs === null ? null : Math.round(czasPowrotuMs / 100) / 10,
+    prob: proby.length,
+    proby,
+  };
+}
+
+async function powrot() {
+  const wynik = await sondaPowrotu({
+    sciezka: opcje.sciezka ?? '/',
+    budzetMs: liczba('budzet_ms', 1000, { min: 1 }),
+    kolejnych: liczba('kolejnych', 3, { min: 1, max: 1000 }),
+    coMs: liczba('co', 5000, { min: 1 }),
+    limitMs: liczba('limit', 900, { min: 1, max: 86400 }) * 1000,
+  });
+  if (opcje.wynik) await writeFile(opcje.wynik, JSON.stringify(wynik, null, 1));
+  const { proby, ...skrot } = wynik;
+  console.log(JSON.stringify(skrot, null, 1));
+  return wynik.wrocil ? 0 : 5;
+}
+
+// -----------------------------------------------------------------------------
+
+const komendy = { przygotuj, media, 'zbierz-media': zbierzMedia, seria, powrot };
 
 /*
  * Plik jest i narzędziem, i modułem: `scripts/przyrzad-605.test.mjs` importuje
@@ -960,10 +1111,10 @@ const uruchomionyWprost = (() => {
 
 if (uruchomionyWprost) {
   if (!komendy[komenda]) {
-    console.error('Komendy: przygotuj | media | zbierz-media | seria');
+    console.error('Komendy: przygotuj | media | zbierz-media | seria | powrot');
     process.exit(2);
   }
-  await komendy[komenda]();
+  const kodKomendy = await komendy[komenda]();
   /*
    * Stare `process.exit(0)` kończyło proces NIEZALEŻNIE od tego, co jeszcze
    * żyło — i tym samym ukrywało każdy wyciek gniazd czy zegarów. Teraz
@@ -972,7 +1123,8 @@ if (uruchomionyWprost) {
    * Sprzątanie przyrządu jest częścią pomiaru, nie szczegółem.
    */
   zamknijAgenta();
-  process.exitCode = 0;
+  // Komenda może zwrócić własny kod wyjścia (`powrot`: 5 = nie wrócił).
+  process.exitCode = typeof kodKomendy === 'number' ? kodKomendy : 0;
   setTimeout(() => {
     console.error('UWAGA: proces nie zakończył się sam — zostały aktywne uchwyty przyrządu.');
     process.exit(4);

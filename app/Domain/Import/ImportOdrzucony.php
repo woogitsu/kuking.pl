@@ -59,6 +59,8 @@ final class ImportOdrzucony extends BladDlaCzlowieka
 
     public const BRAK_ZGODY_AI = 'brak_zgody_ai';
 
+    public const ZGODA_AI_NIEAKTUALNA = 'zgoda_ai_nieaktualna';
+
     public const BUDZET_AI = 'budzet_ai';
 
     public const MODEL_NIEDOSTEPNY = 'model_niedostepny';
@@ -105,6 +107,9 @@ final class ImportOdrzucony extends BladDlaCzlowieka
             .'albo wpisz przepis ręcznie — nic nie zginęło.',
         self::BRAK_ZGODY_AI => 'Ten przepis wymaga odczytu przez komputer firmy OpenAI. Wybierz zgodę pod formularzem '
             .'i wyślij go ponownie albo wpisz przepis ręcznie.',
+        self::ZGODA_AI_NIEAKTUALNA => 'Ten przepis wymaga odczytu przez komputer firmy OpenAI, a informacja przy zgodzie '
+            .'zmieniła się od otwarcia tej strony. Przeczytaj ją pod formularzem, zaznacz zgodę jeszcze raz '
+            .'i wyślij formularz ponownie albo wpisz przepis ręcznie. Nic nie wysłaliśmy.',
         self::BUDZET_AI => 'Odczyt przez komputer jest teraz niedostępny, bo wyczerpał się budżet. '
             .'Spróbuj później albo wpisz przepis ręcznie.',
         self::MODEL_NIEDOSTEPNY => 'Odczyt przez komputer chwilowo nie działa. Spróbuj ponownie później '

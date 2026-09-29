@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Notifications\OdczytPowiadomien;
 use App\Domain\Security\WyslijPotwierdzenieAdresu;
 use App\Domain\Users\OstatniAdministrator;
 use App\Domain\Users\ZamekKonta;
@@ -971,10 +972,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function unreadNotificationsCount(): int
     {
-        return $this->notifications()
-            ->visibleTo($this)
-            ->whereNull('read_at')
-            ->count();
+        return app(OdczytPowiadomien::class)->liczbaNieprzeczytanych($this);
     }
 
     /**
@@ -1000,14 +998,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function unreadNotificationsBadgeCount(): int
     {
-        $nieprzeczytane = $this->notifications()
-            ->visibleTo($this)
-            ->whereNull('read_at')
-            ->select('notifications.id')
-            ->limit(self::PLAKIETKA_POWIADOMIEN_DO + 1)
-            ->toBase();
-
-        return DB::query()->fromSub($nieprzeczytane, 'nieprzeczytane')->count();
+        return app(OdczytPowiadomien::class)->liczbaDoPlakietki($this);
     }
 
     /**

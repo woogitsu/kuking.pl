@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Recipe;
 use App\Models\Tag;
 use App\Support\Komunikat;
 use DOMDocument;
@@ -143,5 +144,41 @@ class RodzajKomunikatuTest extends TestCase
         $this->assertSame(Komunikat::SUKCES, $p['rodzaj']);
         $this->assertSame('Gotowe', $p['etykieta']);
         $this->assertStringStartsWith('Nie obserwujesz już tagu', $p['tresc']);
+    }
+
+    /**
+     * Wpis, który już był w planie, niczego nie dodał — informacja, nie
+     * zielone potwierdzenie. Pierwsze dodanie zostaje sukcesem.
+     */
+    public function test_powtorne_dodanie_do_planu_to_informacja_a_pierwsze_sukces(): void
+    {
+        $ja = $this->user('planujaca_komunikat');
+        $przepis = Recipe::factory()->create([
+            'author_id' => $this->user('kucharka_komunikat')->getKey(),
+            'status' => Recipe::STATUS_PUBLISHED,
+            'visibility' => 'public',
+        ]);
+        $dane = ['day' => now()->addDay()->toDateString(), 'recipe_id' => $przepis->getKey()];
+
+        $this->actingAs($ja)->post(route('planer.store'), $dane)
+            ->assertSessionHas(Komunikat::KLUCZ_RODZAJU, Komunikat::SUKCES);
+
+        $this->actingAs($ja)->post(route('planer.store'), $dane)
+            ->assertSessionHas(Komunikat::KLUCZ_RODZAJU, Komunikat::INFORMACJA);
+    }
+
+    /** Pomocnik dla kodu bez `->with()` (Livewire, pomocniki) zapisuje parę kluczy naraz. */
+    public function test_w_sesji_zapisuje_tresc_i_rodzaj_razem(): void
+    {
+        Komunikat::wSesji(session()->driver(), Komunikat::blad('Nie wyszło. Spróbuj jeszcze raz.'));
+
+        $html = $this->withSession([
+            'status' => session('status'),
+            Komunikat::KLUCZ_RODZAJU => session(Komunikat::KLUCZ_RODZAJU),
+        ])->get(route('login'))->getContent();
+
+        $p = $this->plakietka($html);
+        $this->assertSame(Komunikat::BLAD, $p['rodzaj']);
+        $this->assertSame('Nie wyszło. Spróbuj jeszcze raz.', $p['tresc']);
     }
 }

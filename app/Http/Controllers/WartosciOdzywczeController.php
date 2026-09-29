@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Recipes\Odzywcze\UstawWidocznoscWartosci;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Recipe;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -39,8 +40,8 @@ class WartosciOdzywczeController extends Controller
 
         return redirect()
             ->to(route('recipes.show', $recipe).'#wartosci-odzywcze')
-            ->with('status', $pokazuj
+            ->with(Komunikat::sukces($pokazuj
                 ? 'Wartości odżywcze znów są widoczne przy tym przepisie.'
-                : 'Ukryliśmy wartości odżywcze. Inni ich przy tym przepisie nie zobaczą.');
+                : 'Ukryliśmy wartości odżywcze. Inni ich przy tym przepisie nie zobaczą.'));
     }
 }
