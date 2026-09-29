@@ -6,7 +6,7 @@
 
 ## Co się zmieniło
 
-**30 września 2026.** Dopisaliśmy pytanie „Jak mamy do Ciebie pisać?” (forma żeńska, męska albo neutralna) i opisaliśmy je w tabeli w punkcie 2: to dobrowolna dana, **widoczna dla innych**, którą przetwarzamy w ramach wykonania umowy. **To zmiana istotna: nowa wersja obowiązuje od 14 października 2026. Do tego dnia obowiązuje poprzednia wersja z 29 września 2026**, a pytania o formę do tego dnia nie zadajemy. Dopisaliśmy też w tej samej tabeli wiersz o zaproszeniu do założenia konta, wysyłanym na adres podany przez inną osobę (informacja z art. 14 RODO) — to opis tego, co serwis już robi, bez nowego celu ani dłuższego przechowywania.
+**30 września 2026.** Dopisaliśmy pytanie „Jak mamy do Ciebie pisać?” (forma żeńska, męska albo neutralna) i opisaliśmy je w tabeli w punkcie 2: to dobrowolna dana, **widoczna dla innych**, którą przetwarzamy w ramach wykonania umowy. W tej samej tabeli opisaliśmy też zaproszenie do założenia konta — wiadomość na adres, na którym nie ma jeszcze konta (informacja z art. 14 RODO); serwis wysyłał je już wcześniej, bez nowego celu i bez dłuższego przechowywania. Ta poprawka obowiązuje od dnia publikacji.
 
 **29 września 2026.** Uzupełniliśmy opis paczki z Twoimi danymi, obserwowanych tagów, ukrywania wpisów i osób, reakcji „Smakowicie wygląda”, listy „Co mam w domu”, odpinania zdarzeń analitycznych po usunięciu konta i miejsca przechowywania zdjęć. Ta poprawka opisuje to, co serwis już robił, i obowiązuje od dnia publikacji.
 
