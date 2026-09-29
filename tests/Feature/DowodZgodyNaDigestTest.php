@@ -246,7 +246,7 @@ class DowodZgodyNaDigestTest extends TestCase
         ))->map(fn (object $w): string => (string) $w->column_name)->sort()->values()->all();
 
         $this->assertSame(
-            ['cel', 'czynnosc', 'id', 'user_id', 'wersja_polityki', 'wystapilo_at', 'zrodlo'],
+            ['cel', 'czynnosc', 'id', 'user_id', 'wersja_polityki', 'wersja_regulaminu', 'wystapilo_at', 'zrodlo'],
             $kolumny,
             'Zestaw kolumn dziennika zgód się zmienił — sprawdź, czy nowa kolumna nie niesie PII (D-072).',
         );

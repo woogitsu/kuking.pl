@@ -19410,9 +19410,12 @@ i obowiązków) wchodzą od razu.
 - **Zgoda** (`dziennik_zgod.wersja_polityki`, D-072) zapisuje wersję
   OBOWIĄZUJĄCĄ w chwili zdarzenia (`WersjaDokumentu::polityka()->obowiazujaca()`),
   nie ostatnio opublikowaną — we wszystkich zapisach: digest, życzenia mailem
-  i zgoda „odczyt AI” (`PrzestawZgodeNaOdczytAi`). **Akceptacji regulaminu repozytorium nie
-  zapisuje z wersją** (`terms_accepted` jest tylko walidowane przy
-  rejestracji), więc tu nie ma czego przeliczać.
+  i zgoda „odczyt AI” (`PrzestawZgodeNaOdczytAi`). **Akceptację regulaminu przy rejestracji**
+  zapisuje od #2217 ten sam dziennik (cel `regulamin`, kolumna
+  `wersja_regulaminu` = `WersjaDokumentu::regulamin()->obowiazujaca()`,
+  źródło `rejestracja_haslo` / `rejestracja_google` / `rejestracja_facebook`,
+  `App\Domain\Zgody\ZapiszAkceptacjeRegulaminu` w transakcji `ZalozKonto`).
+  Konta sprzed tej zmiany nie mają wiersza — to „brak dowodu”, bez backfillu.
 - Obecne wersje: polityka 2026-09-10 (sprzed rozróżnienia) i regulamin
   2026-09-26 (opis doboru wpisów, D-305) są oznaczone jako **drobne** —
   opisują działanie serwisu, nie zmieniają praw i obowiązków.
