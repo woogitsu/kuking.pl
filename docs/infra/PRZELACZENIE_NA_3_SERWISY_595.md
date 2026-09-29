@@ -247,10 +247,9 @@ wiersza. Zdjęcia przez chwilę mogą czekać w kolejce — nie giną.
      działa po przeniesieniu;
    - jeśli `KUKING_PULS_HARMONOGRAMU_URL` był w bilansie: monitor pulsu
      dostaje znak życia z serwisu `scheduler` w ciągu 5 minut;
-   - `railway variables --service worker --json` i `--service scheduler`
-     przepuszczone przez `bilans-zmiennych-595.mjs` **nie** mają sensu (to
-     nie serwis WWW) — nazwy zmiennych nowych serwisów porównaj wzrokiem
-     z grafem: `KUKING_WAIT_FOR_CI=true node --experimental-strip-types --no-warnings scripts/railway/iac-graf.mjs production`.
+   - nazwy zmiennych nowych serwisów (bez wartości) mają być te z grafu —
+     `railway variables --service worker --json | KUKING_WAIT_FOR_CI=true node --experimental-strip-types --no-warnings scripts/railway/zmienne-spoza-iac.mjs production worker`
+     (i to samo dla `scheduler`) ma dać kod `0`.
 10. Wpisz do #595: datę, SHA, wynik planu (co zmienił, jakie usunięcia),
     punkty 1–9. Wynik pytania „czy apply usuwa zmienne spoza pliku” dopisz
     do `docs/infra/ZMIENNE_SPOZA_IAC.md`, sekcja „Wynik”.
