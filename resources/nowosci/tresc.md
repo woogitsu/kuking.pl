@@ -31,6 +31,20 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Jak mamy do Was pisać?
+
+Od 14 października 2026, kiedy wchodzi w życie nowa polityka prywatności (do tego
+dnia pokazujemy o niej pasek z informacją), w ustawieniach profilu, a także na
+ostatnim kroku po założeniu konta, pojawi się nowe pytanie „Jak mamy do Ciebie pisać?”. Możecie wybrać formę żeńską, męską albo
+neutralną. Neutralna jest zaznaczona od początku i tak piszemy do wszystkich,
+dopóki ktoś nie wybierze inaczej — możecie też pominąć to pytanie i nic się nie
+zmieni. Nie zgadujemy niczego z imienia ani z konta Google czy Facebooka.
+Wybraną formę zobaczą też inni, bo tak będziemy o Was pisać, na przykład
+„Ania ugotowała Twój przepis”. Przy formie żeńskiej przycisk na końcu gotowania
+nazywa się „Ugotowałam”. Na razie zmienia to tylko kilka miejsc w serwisie,
+kolejne dołączymy po kolei. Wybór zmienicie w każdej chwili, a kiedy usuniecie
+konto, zniknie razem z nim.
+
 ### Ile masz czasu? Wybierz w wyszukiwarce przepisów
 
 Pod zakresami wyszukiwania jest nowy wiersz „Ile masz czasu?”. Możecie wybrać
