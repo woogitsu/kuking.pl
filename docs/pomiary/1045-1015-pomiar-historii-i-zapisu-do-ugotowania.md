@@ -34,10 +34,12 @@ Definicje liczników są w [`docs/research/ANALITYKA.md`](../research/ANALITYKA.
 railway ssh -- php artisan kuking:raport
 ```
 
-Wynik jest tekstem na ekranie; sekcje „Zapis → „Ugotowałem” w 30 dni” i
-„Historie przepisów” stoją w nim jedna po drugiej. Zapisz **datę uruchomienia**
-i wklej obie sekcje do `docs/research/ANALITYKA.md` (miejsca oznaczone jako
-„Pierwszy rzeczywisty wynik: jeszcze nie odczytany”). Bez ruchu (#29) liczby
+Wynik jest tekstem na ekranie; sekcja „Zapis → „Ugotowałem” w 30 dni” stoi
+w nim przed „Historiami przepisów”, a między nimi jest sekcja „Plan →
+„Ugotowałem”” (#27, nie należy do tego pomiaru). Zapisz **datę uruchomienia**
+i wklej obie sekcje do `docs/research/ANALITYKA.md` §1.2 — #1015 w miejsce
+„Wynik pierwszej pełnej rzeczywistej kohorty: jeszcze niezmierzony”, #1045
+w miejsce „Pierwszy rzeczywisty wynik: jeszcze nie odczytany”. Bez ruchu (#29) liczby
 niczego nie rozstrzygają — patrz „Kiedy wynik znaczy coś”.
 
 Lokalnie, na danych testowych: `php artisan kuking:raport` (na pustej bazie
@@ -62,7 +64,8 @@ Przykład wiersza: `Ugotowane w 30 dni po zapisie: 12 z 60 zapisów · 20,0% (ce
      ukryty; to liczba, nie wniosek.
 - **Cel:** ≥ 15% (`docs/product/RETENTION_LOOPS.md`).
 - **Znane ograniczenie:** usunięcie przepisu z zeszytu kasuje wiersz zapisu,
-  więc taka para znika z pomiaru (bez nowej tabeli — tak chce #1015).
+  więc taka para znika z pomiaru, a zapis po usunięciu liczy się jako nowy
+  pierwszy zapis (bez nowej tabeli — tak chce #1015).
 
 **Co dalej (bramka #1015, etap 2).** Tylko przy kohorcie ≥ 20 par z realnych
 kont: porównaj z 15%, zapytaj kilku prawdziwych osób, czy zapominają o zapisie,
@@ -116,7 +119,9 @@ zmienia definicji ani wyniku pomiaru**. Sprawdzone w kodzie:
   `source_note`, `family_since_year`, `source_type`), ale pomiar do nich nie
   sięga. Dopisanie historii do starego przepisu poprawia jego wynik, o ile
   przepis mieści się w oknie 90 dni od pierwszej publikacji (`published_at`
-  nie zmienia się przy edycji — `PublishRecipe`, `$recipe->published_at ?? now()`).
+  nie zmienia się przy edycji — `PublishRecipe`, `$recipe->published_at ?? now()`;
+  zeruje je dopiero cofnięcie do szkicu, więc ponowna publikacja po szkicu
+  liczy się od nowej daty).
 - „Zrób własną wersję” (`ZrobWlasnaWersje`) **nie kopiuje** pochodzenia
   (`source_person`, `source_note`, `family_since_year`, skan) i zakłada szkic
   z `published_at = null`, więc wersja cudzego przepisu nie zawyża wyniku
