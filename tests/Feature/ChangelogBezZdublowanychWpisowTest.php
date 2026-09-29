@@ -70,31 +70,29 @@ class ChangelogBezZdublowanychWpisowTest extends TestCase
      */
     private static function zdublowaneWpisy(string $tresc): array
     {
-        /** @var array<string, list<int>> $wpisy */
-        $wpisy = [];
-        $biezacy = null;
-        $linia = null;
-
-        $zamknij = static function () use (&$wpisy, &$biezacy, &$linia): void {
-            if ($biezacy !== null) {
-                $klucz = trim((string) preg_replace('/\s+/u', ' ', $biezacy));
-                $wpisy[$klucz][] = $linia;
-            }
-            $biezacy = null;
-        };
+        // Najpierw wpisy (numer linii i sklejony tekst), potem grupowanie —
+        // bez domknięcia z referencjami, którego analiza nie umie śledzić.
+        $bloki = [];
+        $otwarty = false;
 
         foreach (explode("\n", $tresc) as $i => $wiersz) {
             if (str_starts_with($wiersz, '- ')) {
-                $zamknij();
-                $biezacy = substr($wiersz, 2);
-                $linia = $i + 1;
-            } elseif ($biezacy !== null && str_starts_with($wiersz, '  ') && trim($wiersz) !== '') {
-                $biezacy .= ' '.trim($wiersz);
+                $bloki[] = ['linia' => $i + 1, 'tekst' => substr($wiersz, 2)];
+                $otwarty = true;
+            } elseif ($otwarty && str_starts_with($wiersz, '  ') && trim($wiersz) !== '') {
+                $bloki[count($bloki) - 1]['tekst'] .= ' '.trim($wiersz);
             } else {
-                $zamknij();
+                $otwarty = false;
             }
         }
-        $zamknij();
+
+        /** @var array<string, list<int>> $wpisy */
+        $wpisy = [];
+
+        foreach ($bloki as $blok) {
+            $klucz = trim((string) preg_replace('/\s+/u', ' ', $blok['tekst']));
+            $wpisy[$klucz][] = $blok['linia'];
+        }
 
         $duplikaty = [];
 

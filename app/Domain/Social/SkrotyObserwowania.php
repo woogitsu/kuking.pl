@@ -8,7 +8,7 @@ use App\Models\Block;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
-use Illuminate\Http\Request;
+use App\Support\PamiecZadania;
 
 /**
  * „Obserwuj tę osobę" i „Obserwuj tag: …" w menu trzech kropek karty wpisu
@@ -26,7 +26,8 @@ use Illuminate\Http\Request;
  * macierzy przypadków. Menu tylko POKAZUJE skrót — o tym, czy wolno,
  * rozstrzyga dalej Policy w `SocialController::follow()`.
  *
- * Pamięć żyje w atrybutach bieżącego `Request`, nie w kontenerze: każde
+ * Pamięć żyje w pamięci bieżącego żądania (`PamiecZadania`; adapter HTTP
+ * trzyma ją w atrybutach `Request`), nie w kontenerze: każde
  * żądanie (także kolejne żądanie w jednym teście) liczy od nowa, więc po
  * kliknięciu „Obserwuj" następna strona nie pokaże nieaktualnego skrótu.
  */
@@ -37,7 +38,7 @@ final class SkrotyObserwowania
 
     private const KLUCZ = 'kuking.skroty_obserwowania';
 
-    public function __construct(private readonly Request $request) {}
+    public function __construct(private readonly PamiecZadania $pamiec) {}
 
     public function osobaDoObserwowania(User $widz, User $autor): bool
     {
@@ -81,7 +82,7 @@ final class SkrotyObserwowania
     /** @return array{osoby: array<string, true>, tagi: array<string, true>, blokady: array<string, true>} */
     private function zbiory(User $widz): array
     {
-        $pamiec = $this->request->attributes->get(self::KLUCZ);
+        $pamiec = $this->pamiec->pobierz(self::KLUCZ);
 
         if (is_array($pamiec) && ($pamiec['widz'] ?? null) === $widz->getKey()) {
             return $pamiec['zbiory'];
@@ -98,7 +99,7 @@ final class SkrotyObserwowania
             'blokady' => array_fill_keys($blokady, true),
         ];
 
-        $this->request->attributes->set(self::KLUCZ, ['widz' => $widz->getKey(), 'zbiory' => $zbiory]);
+        $this->pamiec->zapisz(self::KLUCZ, ['widz' => $widz->getKey(), 'zbiory' => $zbiory]);
 
         return $zbiory;
     }

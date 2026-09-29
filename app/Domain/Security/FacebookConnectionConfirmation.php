@@ -11,7 +11,7 @@ use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Notifications\PotwierdzeniePolaczeniaFacebooka;
 use App\Support\Skrot;
-use Illuminate\Http\Request;
+use App\Support\ZadanieDomenowe;
 use Illuminate\Support\Facades\Hash;
 
 /** A fresh, purpose-bound proof of the existing Kuking account (#2085). */
@@ -27,29 +27,29 @@ final readonly class FacebookConnectionConfirmation
             && ! in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true);
     }
 
-    public function reactivate(Request $request, User $user, string $facebookId): ?User
+    public function reactivate(ZadanieDomenowe $zadanie, User $user, string $facebookId): ?User
     {
-        return ZamekKonta::zablokuj($user, function (?User $fresh) use ($request, $facebookId): ?User {
+        return ZamekKonta::zablokuj($user, function (?User $fresh) use ($zadanie, $facebookId): ?User {
             if ($fresh === null || ! $this->mayReactivate($fresh, $facebookId)
-                || ! $this->consume($request, $fresh, $facebookId)) {
+                || ! $this->consume($zadanie, $fresh, $facebookId)) {
                 return null;
             }
 
             $fresh->cofnijOdebranieDostepu(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK);
-            AuditLogEntry::record('account.facebook_reactivated', $fresh, $fresh, ip: $request->ip());
+            AuditLogEntry::record('account.facebook_reactivated', $fresh, $fresh, ip: $zadanie->ip());
 
             return $fresh;
         });
     }
 
-    public function requestEmailProof(Request $request, User $user, string $facebookId): bool
+    public function requestEmailProof(ZadanieDomenowe $zadanie, User $user, string $facebookId): bool
     {
         if (! $user->hasVerifiedEmail()) {
             return false;
         }
 
         $token = FacebookConnectionProof::newToken();
-        $created = ZamekKonta::zablokuj($user, function (?User $fresh) use ($request, $facebookId, $token): ?User {
+        $created = ZamekKonta::zablokuj($user, function (?User $fresh) use ($zadanie, $facebookId, $token): ?User {
             if ($fresh === null || ! $fresh->hasVerifiedEmail() || $fresh->hasStaffRole()
                 || in_array($fresh->status, User::STATUSY_ZAMKNIETEGO_KONTA, true)) {
                 return null;
@@ -60,14 +60,14 @@ final readonly class FacebookConnectionConfirmation
             $proof->forceFill([
                 'user_id' => $fresh->getKey(),
                 'token_hash' => FacebookConnectionProof::hashToken($token),
-                'session_hash' => Skrot::hmac($request->session()->getId()),
+                'session_hash' => Skrot::hmac($zadanie->sesja()->getId()),
                 'facebook_id_hash' => Skrot::hmac($facebookId),
                 'account_state_hash' => $this->accountState($fresh),
                 'created_at' => now(),
                 'expires_at' => now()->addMinutes(10),
             ])->save();
 
-            AuditLogEntry::record('account.facebook_connection_proof_requested', $fresh, $fresh, ip: $request->ip());
+            AuditLogEntry::record('account.facebook_connection_proof_requested', $fresh, $fresh, ip: $zadanie->ip());
 
             return $fresh;
         });
@@ -81,7 +81,7 @@ final readonly class FacebookConnectionConfirmation
         return true;
     }
 
-    public function emailProofIsAvailable(Request $request, User $user, string $facebookId, string $token): bool
+    public function emailProofIsAvailable(ZadanieDomenowe $zadanie, User $user, string $facebookId, string $token): bool
     {
         if (! FacebookConnectionProof::validShape($token)) {
             return false;
@@ -92,21 +92,21 @@ final readonly class FacebookConnectionConfirmation
 
         return $proof !== null && $proof->expires_at?->isFuture() === true
             && (string) $proof->user_id === (string) $user->getKey()
-            && hash_equals($proof->session_hash, Skrot::hmac($request->session()->getId()))
+            && hash_equals($proof->session_hash, Skrot::hmac($zadanie->sesja()->getId()))
             && hash_equals($proof->facebook_id_hash, Skrot::hmac($facebookId));
     }
 
     /** Called only while the fresh account row is locked, in the connection transaction. */
-    public function consume(Request $request, User $fresh, string $facebookId): bool
+    public function consume(ZadanieDomenowe $zadanie, User $fresh, string $facebookId): bool
     {
-        $password = (string) $request->input('password', '');
-        $token = (string) $request->input('proof_token', '');
+        $password = (string) $zadanie->pole('password', '');
+        $token = (string) $zadanie->pole('proof_token', '');
         $confirmed = false;
         $proof = null;
 
         if ($password !== '' && Hash::check($password, $fresh->password)) {
             $confirmed = true;
-        } elseif ($this->emailProofIsAvailable($request, $fresh, $facebookId, $token)) {
+        } elseif ($this->emailProofIsAvailable($zadanie, $fresh, $facebookId, $token)) {
             $proof = FacebookConnectionProof::query()
                 ->where('token_hash', FacebookConnectionProof::hashToken($token))
                 ->lockForUpdate()->first();
@@ -121,7 +121,7 @@ final readonly class FacebookConnectionConfirmation
         }
 
         if ($fresh->hasTwoFactorConfirmed()) {
-            $code = (string) $request->input('two_factor_code', '');
+            $code = (string) $zadanie->pole('two_factor_code', '');
             if ($code === '' || (! $this->totp->verifyCode($fresh, (string) $fresh->two_factor_secret, $code)
                 && ! $this->totp->consumeBackupCode($fresh, $code))) {
                 return false;

@@ -4,38 +4,30 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Domain\Collections\ZapisyWpisu;
 use App\Domain\Comments\Actions\PublishComment;
-use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Media\ZachowaneZdjecia;
 use App\Domain\Posts\Actions\EditPost;
 use App\Domain\Posts\Actions\PublishPost;
+use App\Domain\Posts\Actions\ZbierzZdjeciaFormularza;
 use App\Domain\Posts\KonfliktEdycjiWpisu;
 use App\Domain\Posts\KontoNieMozePublikowac;
-use App\Domain\Posts\SasiedniWpisAutora;
-use App\Domain\Questions\OdpowiedzNaPytanie;
-use App\Domain\Reakcje\Smakowicie;
+use App\Domain\Posts\PodsumowaniePublikacjiWpisu;
+use App\Domain\Posts\StronaWpisu;
 use App\Domain\Tags\TagSuggester;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Exceptions\BladZdjecFormularza;
 use App\Http\Requests\Posts\EdycjaWpisuRequest;
 use App\Http\Requests\Posts\KomentarzRequest;
 use App\Http\Requests\Posts\ZapisWpisuRequest;
-use App\Models\AuditLogEntry;
 use App\Models\Post;
 use App\Models\Tag;
-use App\Models\User;
-use App\Policies\RecipePolicy;
-use App\Support\Czas;
 use App\Support\Komunikat;
 use App\Support\LimityTagow;
-use App\Support\LimityZdjec;
 use App\Support\OdpowiedziWatku;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -51,11 +43,10 @@ class PostController extends Controller
     public function __construct(
         private readonly PublishPost $publishPost,
         private readonly EditPost $editPost,
-        private readonly StoreUploadedImage $storeImage,
+        private readonly ZbierzZdjeciaFormularza $zbierzZdjecia,
         private readonly PublishComment $publishComment,
         private readonly TagSuggester $tagSuggester,
-        private readonly SasiedniWpisAutora $sasiedniWpis,
-        private readonly ZapisyWpisu $zapisy = new ZapisyWpisu,
+        private readonly StronaWpisu $stronaWpisu,
     ) {}
 
     public function create(Request $request): View
@@ -104,32 +95,6 @@ class PostController extends Controller
         return is_string($stary) && Str::isUuid($stary) ? $stary : (string) Str::uuid7();
     }
 
-    /**
-     * Klucz wysłania z żądania.
-     *
-     * Wartość niebędąca UUID-em schodzi do `null`, czyli do „wyślij
-     * normalnie" — a nie do błędu walidacji. To jest zawodzenie OTWARTE
-     * (ADR §4.3): wpis utracony boli w tej grupie odbiorców bardziej niż
-     * wpis zduplikowany, a formularz z popsutym ukrytym polem to nie jest
-     * coś, co człowiek umie naprawić.
-     */
-    private function kluczZZadania(Request $request): ?string
-    {
-        // Wyłącznik awaryjny — TA SAMA bramka, co przy renderowaniu formularza.
-        // Bez niej wyłącznik działa tylko w połowie: karta otwarta PRZED
-        // przełączeniem nadal niesie klucz w DOM-ie i odsyła go, więc częściowy
-        // indeks dalej obowiązuje — dokładnie w tej awarii, dla której ten
-        // wyłącznik istnieje. `config/kuking.php` obiecuje, że po wyłączeniu
-        // „kolumna dostaje NULL"; ta linijka jest tym, co tę obietnicę dowozi.
-        if (! (bool) config('kuking.formularze.klucz_wyslania_wlaczony')) {
-            return null;
-        }
-
-        $klucz = $request->input('klucz_wyslania');
-
-        return is_string($klucz) && Str::isUuid($klucz) ? $klucz : null;
-    }
-
     public function store(ZapisWpisuRequest $request): RedirectResponse
     {
         $question = $request->pytanie();
@@ -161,7 +126,7 @@ class PostController extends Controller
             ));
 
             return redirect()->route('questions.create')
-                ->withInput($request->wejscieBezPlikowITagow($mediaIds, $this->tagiZFormularza($request)));
+                ->withInput($request->wejscieBezPlikowITagow($mediaIds, $request->tagiZFormularza()));
         }
 
         // PONOWIENIE JUŻ OPUBLIKOWANEGO WYSŁANIA — PRZED ZDJĘCIAMI (issue #873).
@@ -172,8 +137,8 @@ class PostController extends Controller
         // „Opublikuj" — przyciski tagów to praca nad formularzem, nie
         // wysłanie. Wyścig dwóch jednoczesnych żądań rozstrzyga dalej
         // indeks UNIQUE w akcji.
-        if (! $this->toAkcjaTagow($request)) {
-            $zapisany = $this->publishPost->wpisZTegoWyslania($user, $this->kluczZZadania($request));
+        if (! $request->toAkcjaTagow()) {
+            $zapisany = $this->publishPost->wpisZTegoWyslania($user, $request->kluczWyslania());
 
             if ($zapisany !== null) {
                 return $this->odpowiedzNaPonowienie($zapisany, $question);
@@ -181,14 +146,14 @@ class PostController extends Controller
         }
 
         try {
-            $mediaIds = $this->zebranZdjecia($request, $user);
+            $mediaIds = $this->zbierzZdjecia->handle($user, $request->input('media_ids', []), $request->file('photos', []));
         } catch (BladZdjecFormularza $e) {
             return back()
                 ->withInput($request->wejscieBezPlikow($e->mediaIds))
                 ->withErrors(['photos' => $e->getMessage()]);
         }
 
-        $tagNames = $this->tagiZFormularza($request);
+        $tagNames = $request->tagiZFormularza();
 
         // TAGI: „Szukaj tagów" / „Dodaj" / „Usuń" — TRZY OSOBNE SUBMITY
         // w TYM SAMYM formularzu co „Opublikuj" (SPEC §1.6, R1 §6.2).
@@ -197,8 +162,8 @@ class PostController extends Controller
         // treści/widoczności, bo na tym etapie mogą być jeszcze puste albo
         // niedokończone (ktoś dodaje tagi, zanim napisze tekst). Bez tego
         // rozróżnienia kliknięcie „Dodaj" próbowałoby opublikować wpis.
-        if ($this->toAkcjaTagow($request)) {
-            [$tagNames, $bladTagow] = $this->zastosujAkcjeTagow($request, $tagNames);
+        if ($request->toAkcjaTagow()) {
+            [$tagNames, $bladTagow] = $request->zastosujAkcjeTagow($tagNames, $question);
 
             // Fragment `#tagi` w adresie, żeby przeglądarka wróciła w miejsce,
             // gdzie ta osoba faktycznie pracuje, a nie na górę formularza
@@ -237,7 +202,7 @@ class PostController extends Controller
                 // ekranie — patrz komentarz przy przekierowaniu niżej. Wpis
                 // powstaje więc zawsze jako „zwykle".
                 displayMode: Post::DISPLAY_NORMAL,
-                kluczWyslania: $this->kluczZZadania($request),
+                kluczWyslania: $request->kluczWyslania(),
                 questionTitle: $question ? $data['title'] : null,
             );
         } catch (BladDlaCzlowieka $e) {
@@ -268,102 +233,23 @@ class PostController extends Controller
             return redirect()->route('questions.show', $post)->with(Komunikat::sukces('Pytanie opublikowane.'));
         }
 
-        $isFirstPost = $user->posts()->published()->count() === 1;
+        // Treść komunikatu (data, pierwszy wpis, zdjęcie w kolejce) i decyzja
+        // o ekranie układu zdjęć (od dwóch zdjęć): `PodsumowaniePublikacjiWpisu`.
+        $podsumowanie = PodsumowaniePublikacjiWpisu::dla($post, $user, count($mediaIds));
 
-        // DATA I JAWNY KROK „ZOBACZ SWÓJ WPIS" — issue #1881.
-        //
-        // Obietnica z `docs/product/COLD_START.md` i `docs/product/SOUL.md`
-        // brzmi: „Gotowe. To Twój pierwszy wpis w Kuking — {data}." + link
-        // „Zobacz swój wpis". Do 26 września 2026 komunikat mówił tylko „od
-        // teraz masz swoje archiwum" — bez daty, czyli bez dowodu na to, co
-        // właśnie obiecał („archiwum od pierwszej sekundy"), i bez żadnego
-        // linku: przy jednym/zero zdjęć przekierowanie i tak ląduje na
-        // wpisie, ale przy dwóch i więcej zdjęciach ląduje na ekranie układu
-        // — tam „Zobacz swój wpis" nie było nigdzie, więc jawny krok z
-        // dokumentu produktowego po prostu nie istniał.
-        $dataPublikacji = $post->published_at !== null ? Czas::data($post->published_at) : null;
+        $odpowiedz = $podsumowanie->ekranUkladuZdjec
+            ? redirect()->route('posts.media.edit', $post)->with('poPublikacji', true)
+            : redirect()->route('posts.show', $post);
 
-        // Zdjęcie przetwarza się w kolejce (StoreUploadedImage) — w chwili
-        // tego przekierowania prawie na pewno jeszcze nie jest `ready`.
-        // Autor MUSI się o tym dowiedzieć TERAZ, na najbardziej widocznym
-        // komunikacie na stronie, a nie dopiero z placeholdera przy zdjęciu
-        // niżej (audyt A2) — inaczej pusta ramka wygląda jak porażka
-        // publikacji, nie jak „chwilę potrwa".
-        $maZdjecie = $mediaIds !== [];
+        $odpowiedz->with(Komunikat::sukces($podsumowanie->komunikat));
 
-        // KROK POŚREDNI PRZY KILKU ZDJĘCIACH — DECYZJA WŁAŚCICIELA.
-        //
-        // Wybór „zwykle / karuzela / kolaż" stał wcześniej w formularzu
-        // publikacji, ukryty, i odsłaniał go skrypt po wybraniu drugiego
-        // pliku. Działało to wyłącznie u osób, którym skrypt się dociągnął:
-        // zanim ktoś kliknie „Opublikuj", zdjęcia SĄ JESZCZE W PRZEGLĄDARCE,
-        // więc serwer nie zna ich liczby i bez JavaScriptu nie ma jak pokazać
-        // tego wyboru w odpowiednim momencie.
-        //
-        // Teraz pytamy po publikacji, na ekranie „Zdjęcia w tym wpisie" —
-        // ta droga działa u wszystkich tak samo, bez linijki skryptu.
-        //
-        // TYLKO OD DWÓCH ZDJĘĆ. Przy jednym karuzela, kolaż i „zwykle" dają
-        // dokładnie ten sam widok, a „przenieś w górę" nie ma dokąd
-        // przenosić — pytanie bez treści jest gorsze niż brak pytania,
-        // zwłaszcza na drodze do opublikowania zdjęcia.
-        if (count($mediaIds) >= 2) {
-            $odpowiedz = redirect()->route('posts.media.edit', $post)
-                ->with('poPublikacji', true)
-                ->with(Komunikat::sukces($isFirstPost
-                    ? 'Opublikowane. To Twój pierwszy wpis w Kuking — '.$dataPublikacji.'.'
-                    : 'Opublikowane.'));
-
-            if ($isFirstPost) {
-                // Ekran układu prowadzi dalej do wpisu własnym przyciskiem
-                // („Zapisz i pokaż wpis” / „Zostaw tak, jak jest”), ale to
-                // NIE jest to samo, co jawny krok z dokumentu produktowego —
-                // ten sam przycisk „Zobacz swój wpis” ma się pojawić wszędzie,
-                // gdzie ląduje pierwsza publikacja, żeby potwierdzenie było
-                // SPÓJNE niezależnie od liczby zdjęć.
-                $odpowiedz->with('status_akcja', [
-                    'url' => $post->url(),
-                    'etykieta' => 'Zobacz swój wpis',
-                ]);
-            }
-
-            return $odpowiedz;
-        }
-
-        $odpowiedz = redirect()->route('posts.show', $post)->with(Komunikat::sukces(match (true) {
-            $isFirstPost && $maZdjecie => 'Gotowe. To Twój pierwszy wpis w Kuking — '.$dataPublikacji.'. Zdjęcie za chwilę będzie widoczne, nic nie musisz robić.',
-            $isFirstPost => 'Gotowe. To Twój pierwszy wpis w Kuking — '.$dataPublikacji.'.',
-            $maZdjecie => 'Opublikowane. Zdjęcie za chwilę będzie widoczne — nic nie zginęło.',
-            default => 'Opublikowane. Dziękujemy.',
-        },
-        ));
-
-        if ($isFirstPost) {
-            $odpowiedz->with('status_akcja', [
-                'url' => $post->url(),
-                'etykieta' => 'Zobacz swój wpis',
-            ]);
+        // Ten sam przycisk „Zobacz swój wpis” ma się pojawić wszędzie, gdzie
+        // ląduje pierwsza publikacja (issue #1881), niezależnie od liczby zdjęć.
+        if (($akcja = $podsumowanie->akcja($post)) !== null) {
+            $odpowiedz->with('status_akcja', $akcja);
         }
 
         return $odpowiedz;
-    }
-
-    /**
-     * Tagi wpisane do tej pory — z ukrytych pól `tag_names[]`, w kolejności
-     * dodania. To jest WOLNY TEKST od klienta, nie identyfikatory: prawdziwa
-     * walidacja i tworzenie tagów dzieje się dopiero w
-     * `App\Domain\Tags\Actions\ResolveTagsForPost`, wołanej przez akcję
-     * domenową w chwili publikacji/zapisu — to pole tylko PRZENOSI stan
-     * formularza między requestami.
-     *
-     * @return list<string>
-     */
-    private function tagiZFormularza(Request $request): array
-    {
-        return array_values(array_filter(
-            (array) $request->input('tag_names', []),
-            static fn ($nazwa): bool => is_string($nazwa) && trim($nazwa) !== '',
-        ));
     }
 
     /**
@@ -382,73 +268,6 @@ class PostController extends Controller
     }
 
     /**
-     * Czy to żądanie to krok POŚREDNI („Szukaj tagów"/„Dodaj"/„Usuń"), a nie
-     * próba publikacji/zapisu (R1 §6.2 — SPEC nie precyzuje tego rozróżnienia
-     * wprost, ale formularz bez JS potrzebuje go, żeby kliknięcie „Dodaj"
-     * nie próbowało jednocześnie opublikować niedokończonego wpisu).
-     */
-    private function toAkcjaTagow(Request $request): bool
-    {
-        return $request->has('szukaj_tagu') || $request->filled('dodaj_tag') || $request->filled('usun_tag');
-    }
-
-    /**
-     * Wykonuje DOKŁADNIE JEDNĄ z trzech akcji tagowych na liście roboczej.
-     *
-     * „Szukaj tagów" sam w sobie NIE zmienia listy — tylko czyta
-     * `tag_query` przy następnym renderze (patrz `sugestieDlaZapytania()`).
-     * „Dodaj" i „Usuń" są tu, a nie w `ResolveTagsForPost`, bo dotyczą listy
-     * ROBOCZEJ (wolny tekst w sesji formularza), nie prawdziwych wierszy
-     * `Tag` — te powstają dopiero przy właściwej publikacji/zapisie.
-     *
-     * @param  list<string>  $tagNames
-     * @return array{0: list<string>, 1: string|null} nowa lista i komunikat błędu (albo null)
-     */
-    private function zastosujAkcjeTagow(Request $request, array $tagNames): array
-    {
-        if ($request->filled('usun_tag')) {
-            $doUsuniecia = Tag::znormalizujNazwe((string) $request->input('usun_tag'));
-
-            $tagNames = array_values(array_filter(
-                $tagNames,
-                static fn (string $nazwa): bool => Tag::znormalizujNazwe($nazwa) !== $doUsuniecia,
-            ));
-
-            return [$tagNames, null];
-        }
-
-        if ($request->filled('dodaj_tag')) {
-            $nowa = trim((string) $request->input('dodaj_tag'));
-            $znormalizowana = Tag::znormalizujNazwe($nowa);
-
-            if (! LimityTagow::dlugoscOk($znormalizowana) || ! LimityTagow::pasujeDoWzorca($znormalizowana)) {
-                return [$tagNames, LimityTagow::komunikatNiepoprawnaNazwa()];
-            }
-
-            $jestJuzDodany = collect($tagNames)
-                ->contains(fn (string $istniejacy): bool => Tag::znormalizujNazwe($istniejacy) === $znormalizowana);
-
-            if ($jestJuzDodany) {
-                return [$tagNames, LimityTagow::komunikatTagJuzDodany()];
-            }
-
-            $routePost = $request->route('post');
-            $question = $request->routeIs('questions.store')
-                || ($request->routeIs('posts.update') && $routePost instanceof Post && $routePost->kind === Post::KIND_QUESTION);
-            if (count($tagNames) >= ($question ? 3 : LimityTagow::maksTagowNaWpis())) {
-                return [$tagNames, $question ? 'Do pytania dodaj najwyżej 3 tagi.' : LimityTagow::komunikatZaDuzoTagow()];
-            }
-
-            $tagNames[] = $nowa;
-
-            return [$tagNames, null];
-        }
-
-        // Zostaje tylko „Szukaj tagów" — lista niezmieniona.
-        return [$tagNames, null];
-    }
-
-    /**
      * Podpowiedzi do pokazania pod polem „Znajdź tag" — z `tag_query`
      * wpisanego przez tę osobę (`old()`, żeby przetrwało kolejne kliknięcia
      * „Dodaj"/„Usuń" bez ponownego wpisywania frazy).
@@ -458,52 +277,6 @@ class PostController extends Controller
         $fraza = (string) old('tag_query', '');
 
         return $fraza === '' ? collect() : $this->tagSuggester->sugeruj($fraza);
-    }
-
-    /**
-     * Zdjecia do tego wpisu: nowo wgrane plus te, ktore przetrwaly nieudana
-     * walidacje w ukrytych polach formularza.
-     *
-     * BRAMKA WLASNOSCI JEST TU JEDYNA I MUSI BYC SZCZELNA.
-     * `media_ids` przychodzi od klienta, wiec bez sprawdzenia mozna by
-     * podpiac pod wlasny wpis CUDZE zdjecie — wystarczylby identyfikator
-     * z adresu obrazka. Dlatego pytamy o wlasciciela ORAZ o to, czy zdjecie
-     * nie jest juz gdzies przypiete. UUID w formularzu to nie autoryzacja,
-     * dokladnie tak samo jak UUID w adresie (AGENTS.md par. 7).
-     *
-     * @return list<string>
-     */
-    private function zebranZdjecia(Request $request, User $user): array
-    {
-        // Kolejnosc z `media_ids[]`, nie z planu bazy (issue #934).
-        $odzyskane = ZachowaneZdjecia::identyfikatory($request->input('media_ids', []), $user->getKey());
-
-        $photos = $request->file('photos', []);
-
-        // Najpierw liczymy WYŁĄCZNIE zdjęcia, które naprawdę wolno odzyskać,
-        // oraz pliki z bieżącego żądania. Sprawdzenie po `handle()` byłoby za
-        // późne: odrzucony formularz zostawiałby nowy rekord i obiekt w storage.
-        if (count($odzyskane) + count($photos) > LimityZdjec::maksZdjecNaWysylke()) {
-            throw new BladZdjecFormularza(
-                LimityZdjec::komunikatZaDuzoZdjec().' Nowych zdjęć nie dodano. Usuń część zachowanych zdjęć albo wybierz mniej nowych.',
-                $odzyskane,
-            );
-        }
-
-        $wszystkie = $odzyskane;
-
-        foreach ($photos as $photo) {
-            try {
-                $wszystkie[] = $this->storeImage->handle($user, $photo)->getKey();
-            } catch (BladDlaCzlowieka $e) {
-                // Pliku input nie da się odtworzyć przez `withInput()`. Jeśli
-                // późniejszy plik zawiedzie, zachowujemy identyfikatory tych,
-                // które zdążyły już zostać poprawnie przyjęte.
-                throw new BladZdjecFormularza($e->getMessage(), $wszystkie, $e);
-            }
-        }
-
-        return array_values(array_unique($wszystkie));
     }
 
     public function show(Request $request, Post $post): View|RedirectResponse
@@ -529,87 +302,10 @@ class PostController extends Controller
             return redirect()->to($post->url().($query ? '?'.$query : ''), 301);
         }
 
-        // Wgląd obsługi w wpis ukryty przez moderację (#1018). Polityka
-        // wpuszcza tu poza autorem wyłącznie moderatora z 2FA, więc każde
-        // takie wejście zostawia ślad „kto to otworzył" — jak karta konta
-        // w panelu (`admin.user_viewed`). Bez metadanych: `subject_id` mówi
-        // wszystko, a treść wpisu nie ma trafiać do drugiej tabeli.
-        $podgladModeracji = $post->status === Post::STATUS_HIDDEN
-            && $request->user()?->getKey() !== $post->author_id;
-
-        if ($podgladModeracji) {
-            AuditLogEntry::record(
-                action: 'moderation.hidden_post_viewed',
-                actor: $request->user(),
-                subject: $post,
-                ip: $request->ip(),
-            );
-        }
-
-        // Wariant ROZSZERZONY kontraktu karty (#1037, `Post::scopeDlaKarty()`):
-        // te same relacje co `Post::RELACJE_KARTY`, ale przepis w całości
-        // i z autorem, bo niżej stoi `RecipePolicy::view()`.
-        $post->load([
-            'author.profile.avatar',
-            'media',
-            'tags:id,slug,name,status',
-            /*
-             * KOLUMNY, KTÓRYCH WIDOK NAPRAWDĘ UŻYWA — a nie te trzy, które
-             * wyglądają na wystarczające (issue #447).
-             *
-             * Było `recipe:id,title,slug`. Zawężenie do trzech kolumn gubiło
-             * dwie, których widok potrzebuje, i żadna z nich nie zgłaszała się
-             * błędem:
-             *
-             *   `hero_media_id` — bez niej relacja `heroMedia` nie ma po czym
-             *   trafić w wiersz i zwraca `null`. Karta pyta
-             *   `$post->recipe?->heroMedia` i po cichu nie rysuje zdjęcia.
-             *   Wpis z przepisu NIE MA własnych zdjęć z założenia (#368), więc
-             *   tracił jedyne, jakie miał: strona wpisu „Bigos z cukinii”
-             *   miała na produkcji ZERO obrazków, przy zdjęciu widocznym na tej
-             *   samej karcie w strumieniu.
-             *
-             *   `visibility` — bez niej karta bierze widoczność WPISU, a ta
-             *   dla wpisu z przepisu jest zawsze `public` (bramką jest przepis,
-             *   `Post::scopeZWidocznymPrzepisem()`). Strona pisała więc
-             *   autorowi „· publicznie” także pod przepisem, który widzą
-             *   wyłącznie jego obserwujący. Przed tym ostrzega komentarz przy
-             *   `post-card.blade.php:60` — karta była zabezpieczona, ten
-             *   kontroler nie.
-             *
-             * Reguła na przyszłość: zawężenie kolumn musi obejmować KLUCZE OBCE
-             * relacji, które będą dociągane dalej. Brak klucza nie jest błędem
-             * — jest cichym `null`.
-             *
-             * 2026-09-21: ZAWĘŻENIA TU JUŻ NIE MA — I TO NIE JEST NIEDBALSTWO.
-             * Poniżej stoi teraz `RecipePolicy::view()`, decydująca, czy ten
-             * ekran w ogóle wolno mu pokazać przepis. Polityka czyta `status`,
-             * `published_at`, `author_id` i relację `author`, a lista kolumn
-             * ich nie miała. Skutek był dokładnie taki, jak każe się
-             * spodziewać akapitowi wyżej: `isPublished()` czytało `status`
-             * równy `null`, więc polityka odmawiała WSZYSTKIM i pasek
-             * „Z przepisu" zniknął także pod przepisem w pełni publicznym.
-             * Złapały to kontrole dodatnie w
-             * `Tests\Feature\Visibility\StronaWpisuBramkaPrzepisuTest`, nie
-             * człowiek na produkcji — i tylko dlatego, że są.
-             *
-             * Ręcznie utrzymywana lista kolumn POD POLITYKĄ to maszynka do
-             * cichych awarii: polityka wolno rośnie o kolejny warunek,
-             * a lista o nim nie wie. Przepis to jeden wiersz na jeden ekran,
-             * więc oszczędność była i tak niemierzalna.
-             */
-            'recipe',
-            'recipe.heroMedia',
-            // `recipe.author` — bo `RecipePolicy::view()` niżej pyta o stan
-            // konta autora przepisu (`jestDostepnyJakoAutor()`) i o blokadę
-            // między nim a widzem. Bez tego byłoby to lazy load, czyli
-            // zapytanie schowane przed każdym, kto liczy zapytania tego
-            // ekranu (`StronyTresciBezWachlarzaZapytanTest`).
-            'recipe.author',
-            // Komentarze NIE SĄ tu ładowane (patrz niżej): rosną z popularnością
-            // treści bez górnej granicy, więc idą osobnym, paginowanym
-            // zapytaniem. `->load()` wciągał je wszystkie naraz.
-        ]);
+        // Ślad wglądu moderacji (#1018), relacje karty (#1037) i odcięcie
+        // przepisu, którego widz nie może zobaczyć: `StronaWpisu`.
+        $this->stronaWpisu->zapiszWgladModeracji($post, $request->user(), $request->ip());
+        $this->stronaWpisu->zaladuj($post);
 
         /*
          * WPIS, KTÓRY JEST SAMYM WSKAZANIEM PRZEPISU, NIE MA WŁASNEJ STRONY.
@@ -637,119 +333,14 @@ class PostController extends Controller
             return redirect()->route('recipes.show', $post->recipe->slug);
         }
 
-        /*
-         * WPIS ZOSTAJE, ODWOŁANIE DO PRZEPISU ZNIKA (czwarte miejsce z
-         * przeglądu po #941).
-         *
-         * Tu trafia wpis, który ma coś WŁASNEGO: treść albo zdjęcia. Taki
-         * wpis jest publiczny z własnych powodów i ma się otwierać — to jest
-         * czyjeś „co dziś ugotowałem". Ale pasek „Z przepisu", zdjęcie główne
-         * przepisu i przycisk „Ugotowałem" wypisywały tytuł i slug przepisu,
-         * którego oglądający nie ma prawa zobaczyć; zmierzone dla gościa:
-         * HTTP 200, tytuł w treści odnośnika, slug w `/przepisy/…` i
-         * `alt="Zdjęcie do przepisu: …"`.
-         *
-         * Zdejmujemy więc RELACJĘ, a nie poszczególne pola w widoku. Karta
-         * (`post-card.blade.php`) pyta o przepis w czterech miejscach —
-         * zdjęcie zastępcze, pasek „Z przepisu", przycisk „Ugotowałem”
-         * i odznaka widoczności — i piąte dopisze się kiedyś bez tej
-         * poprawki. Jedno `setRelation()` zamyka wszystkie naraz, a odznaka
-         * widoczności wraca wtedy do widoczności WPISU, czyli do jego
-         * prawdziwej, własnej wartości.
-         *
-         * Zapowiedź przepisu tędy nie przechodzi — odcina ją wcześniej
-         * `PostPolicy::view()`, bo po zdjęciu przepisu nie zostałoby z niej
-         * nic poza nagłówkiem.
-         */
-        // `RecipePolicy` wprost, a nie `$request->user()->can()`: widzem bywa
-        // GOŚĆ, a `?->can()` na `null` daje `null` — czyli warunek, który
-        // odcinałby przepis także wtedy, gdy jest w pełni publiczny.
-        // `RecipePolicy::view()` przyjmuje `?User` i to ona jest tu tabelą
-        // prawdy, tą samą, co przy wejściu na sam przepis.
-        if ($post->recipe !== null && ! app(RecipePolicy::class)->view($request->user(), $post->recipe)) {
-            $post->setRelation('recipe', null);
-        }
+        $this->stronaWpisu->zdejmijNiedostepnyPrzepis($post, $request->user());
 
-        // Liczba zapisów i stan „mam to w zeszycie" (issue #275, D-081).
-        //
-        // Tutaj JEDNYM ODDZIELNYM zapytaniem, a nie kolumną w SELECT-cie jak
-        // w feedzie: ten ekran dostaje wpis z wiązania trasy, więc nie ma
-        // zapytania, do którego dałoby się kolumnę dołożyć. Jeden wpis to
-        // jeden ekran, więc to zapytanie jest STAŁE — nie jest to N+1.
-        // Reguły są te same, bo `doliczDoWpisu()` woła to samo `dolicz()`,
-        // co feed; gdyby ekran wpisu liczył po swojemu, ta sama liczba
-        // znaczyłaby dwie różne rzeczy na dwóch ekranach.
-        $this->zapisy->doliczDoWpisu($post, $request->user());
-
-        // Jak przy przepisie — te same dwa powody: blokady (issue #41)
-        // i paginacja wątków.
-        $komentarze = $post->comments()
-            ->widoczneDla($request->user())
-            ->with([
-                'author.profile.avatar',
-                // Odpowiedzi też porcjami (issue #939) — `OdpowiedziWatku`.
-                'replies' => fn ($query) => OdpowiedziWatku::pierwszaPorcja($query, $request->user()),
-                'replies.author.profile.avatar',
-                // Ten sam powód co `recipe`/`replies.recipe` w
-                // `RecipeController`: `Comment::subject()` pytany przy każdym
-                // komentarzu (`notifiableUserId()`, „Zdejmij z urzędu”).
-                'post',
-                'replies.post',
-            ])
-            ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
+        $komentarze = $this->stronaWpisu->komentarze($post, $request->user());
         OdpowiedziWatku::uzupelnij($komentarze, $request, ['author.profile.avatar', 'post']);
 
-        if ($post->kind === Post::KIND_QUESTION) {
-            // `answerCount` w danych strukturalnych `QAPage` (JSON-LD) liczy
-            // dokładnie to samo, co lista `/pytania` i kolejka gospodarza —
-            // wspólna definicja `OdpowiedzNaPytanie::zawez()` (#372). Bez
-            // dołączenia `posts` ten kontroler liczyłby TEŻ dopiski autora pod
-            // własnym pytaniem jako odpowiedzi, czyli dokładnie usterkę, którą
-            // ta definicja miała zamknąć wszędzie naraz.
-            //
-            // Widoczne komentarze idą jako PODZAPYTANIE: `widoczneDla()` pisze
-            // kolumny bez tabeli (`status`), więc `join('posts')` na tym samym
-            // poziomie dawał „column reference is ambiguous” (500 na każdej
-            // stronie pytania).
-            $widoczne = $post->comments()
-                ->widoczneDla($request->user())
-                ->select('comments.*')
-                ->getQuery();
-            $odpowiedzi = DB::query()
-                ->fromSub($widoczne, 'comments')
-                ->join('posts', 'posts.id', '=', 'comments.post_id');
-            OdpowiedzNaPytanie::zawez($odpowiedzi, 'comments', 'posts.author_id');
-            $answerCount = $odpowiedzi->count();
-            $post->setAttribute('comments_count', $answerCount);
+        $strona = $this->stronaWpisu->dane($post, $request->user(), $komentarze);
 
-            return view('pages.questions.show', [
-                'komentarze' => $komentarze,
-                'komentarzyRazem' => $answerCount,
-                'post' => $post,
-            ]);
-        }
-
-        return view('pages.posts.show', [
-            'komentarze' => $komentarze,
-            // Nagłówek rozmowy mówi tę samą liczbę co karta w strumieniu:
-            // komentarze razem z odpowiedziami (#1801). `total()` stronicowania
-            // liczy tylko wątki, więc tu zostaje wyłącznie do paginacji.
-            'komentarzyRazem' => (int) $post->loadCount(Post::licznikWidocznychKomentarzy($request->user()))->comments_count,
-            'post' => $post,
-            // Zachęta do kolejnego zdjęcia brzmi inaczej przy pierwszym wpisie
-            // (COLD_START.md). Liczymy TYLKO dla autora — dla kogokolwiek
-            // innego to dodatkowe zapytanie bez żadnego zastosowania.
-            'toPierwszyWpis' => $request->user()?->getKey() === $post->author_id
-                && $post->author->posts()->published()->count() === 1,
-            // „Kolejne zdjęcie" (issue: nawigacja jak w Garnku) — dwa proste
-            // zapytania, oba po indeksie `posts_author_published_idx`.
-            // Widoczność liczy `SasiedniWpisAutora`, nie ten kontroler.
-            'poprzedniWpis' => $this->sasiedniWpis->poprzedni($post, $request->user()),
-            'nastepnyWpis' => $this->sasiedniWpis->nastepny($post, $request->user()),
-            // „Smakowicie wygląda" (#1813, D-280): KTO napisał — każdemu
-            // widzowi (od 26.09), bez liczby, z filtrami blokad autora i widza.
-            'smakowicie' => app(Smakowicie::class)->ktoDla($request->user(), $post),
-        ]);
+        return view($strona['widok'], $strona['dane']);
     }
 
     public function comment(KomentarzRequest $request, Post $post): RedirectResponse
@@ -854,12 +445,12 @@ class PostController extends Controller
         // w tym konkretnym formularzu; cudzy formularz nie zeruje tagów.
         $request->oznaczFormularzWpisu($post);
 
-        $tagNames = $this->tagiZFormularza($request);
+        $tagNames = $request->tagiZFormularza();
 
         // Ten sam rozdział „akcja pośrednia" / „zapis" co w `store()` —
         // patrz komentarz tam.
-        if ($this->toAkcjaTagow($request)) {
-            [$tagNames, $bladTagow] = $this->zastosujAkcjeTagow($request, $tagNames);
+        if ($request->toAkcjaTagow()) {
+            [$tagNames, $bladTagow] = $request->zastosujAkcjeTagow($tagNames, $question);
 
             $powrot = redirect(url()->previous().($question ? '#f-tagi' : '#tagi'))
                 ->withInput($request->except('tag_names') + ['tag_names' => $tagNames]);

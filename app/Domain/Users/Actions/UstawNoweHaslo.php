@@ -111,7 +111,7 @@ final class UstawNoweHaslo
             // w kolejce. `tokenExists()` sprawdza skrót i termin tak samo jak
             // walidacja brokera. Przed jakimkolwiek zapisem — odmowa niczego
             // nie zmienia.
-            if ($tokenResetu !== null && ! Password::broker()->tokenExists($swiezy, $tokenResetu)) {
+            if ($tokenResetu !== null && ! Password::tokenExists($swiezy, $tokenResetu)) {
                 throw new LinkResetuNieaktualny;
             }
 

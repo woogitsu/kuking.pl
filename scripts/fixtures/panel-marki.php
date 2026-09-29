@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Models\Appeal;
+use App\Models\Comment;
 use App\Models\ContactMessage;
 use App\Models\ContactMessageReply;
 use App\Models\DailyPick;
@@ -244,6 +245,11 @@ if ($phase === 'pusty') {
                     'exception' => $wyjatek.': Dane odbioru panelu, komunikat lokalny.', 'failed_at' => now()->subHours(3 + $n)]);
             }
         }
+        // „Zdejmij z urzędu” (#581): komentarz bez zgłoszenia, na wpisie autora.
+        // Komentarz, nie wpis, bo tylko on ma zdanie o skutku (wraca po wygranym
+        // odwołaniu) — oba zdania o skutku muszą stać w piśmie podstawowym.
+        $comment = Comment::factory()->create(['author_id' => $cook->id, 'post_id' => $posts[3]->id,
+            'body' => 'Dane odbioru: komentarz do zdjęcia z prośbą o przepis na sos.']);
         $tag = Tag::create(['name' => $namespace, 'normalized_name' => $namespace, 'slug' => $namespace]);
         TagPromotion::create(['tag_id' => $tag->id, 'position' => 0, 'note' => 'Dane odbioru: rodzinne dania na wspólny obiad.']);
         foreach ([[DailyPick::TYPE_POST, $posts[0]->id], [DailyPick::TYPE_USER, $author->id]] as [$type, $id]) {
@@ -252,7 +258,7 @@ if ($phase === 'pusty') {
         }
 
         return ['author' => (string) $author->id, 'report' => (string) $report->id, 'appeal' => (string) $appeal->id,
-            'message' => (string) $message->id, 'recipe' => $recipe->slug, 'cooked' => (string) $event->id];
+            'message' => (string) $message->id, 'comment' => (string) $comment->id, 'recipe' => $recipe->slug, 'cooked' => (string) $event->id];
     });
     $fullRoutes = [
         'zgloszenia' => ['/admin/zgloszenia', 'form[action$="/admin/zgloszenia/'.$data['report'].'"]'],
@@ -267,6 +273,7 @@ if ($phase === 'pusty') {
         'uzytkownik' => ['/admin/uzytkownicy/'.$data['author'], 'main article'],
         'kolejka' => ['/admin/kolejka', 'main li.card'],
         'metryki' => ['/admin/metryki', 'main section[data-metryka="progi"]'],
+        'z-urzedu' => ['/admin/z-urzedu/comment/'.$data['comment'], 'main form.panel-formularza[action$="/admin/z-urzedu/comment/'.$data['comment'].'"]'],
     ];
     foreach ($fullRoutes as $family => [$path, $selector]) {
         $scenarios[] = $scenario($family.'-pelny', $family, $path, [$one($selector, $family === 'kolaz-powitalny' ? 4 : 1)]);
@@ -284,6 +291,12 @@ if ($phase === 'pusty') {
     $scenarios[$metryki]['oczekiwaneSelektory'][] = $one('main section.card[data-metryka]', 5, 5);
     $scenarios[$metryki]['oczekiwaneSelektory'][] = $one('main table.tabela-dni tbody tr', 28, 28);
     $scenarios[$metryki]['minimalnyTekst'] = ['main .panel-liczby', 'main .tabela-dni th', 'main .tabela-dni td'];
+    // Zdejmij z urzędu: jeden panel formularza, trzy pola decyzji, przycisk
+    // usuwający w `.danger-zone`; oba zdania o skutku w piśmie podstawowym.
+    $zUrzedu = array_search('z-urzedu-pelny', array_column($scenarios, 'id'), true);
+    $scenarios[$zUrzedu]['oczekiwaneSelektory'][] = $one('main form.panel-formularza .danger-zone button.btn-danger', 1, 1);
+    $scenarios[$zUrzedu]['oczekiwaneSelektory'][] = $one('main form.panel-formularza [name="reason_code"], main form.panel-formularza [name="user_message"], main form.panel-formularza [name="note"]', 3, 3);
+    $scenarios[$zUrzedu]['minimalnyTekst'] = ['main p.panel-liczby'];
     foreach (['wpisy', 'przepisy', 'ugotowane'] as $type) {
         $scenarios[] = $scenario('bez-odpowiedzi-'.$type.'-pelny', 'bez-odpowiedzi', '/admin/bez-odpowiedzi?typ='.$type,
             [$one('main article.card'), $one('main .empty-state-title', 0, 0)]);

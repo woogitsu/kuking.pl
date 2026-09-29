@@ -83,6 +83,7 @@ tests/skrypty/kontrola-sondy-wdrozenia.sh|Sondy testu dymnego oblewają
 tests/skrypty/kontrola-czekania-preview.sh|Czekanie na preview oblewa
 tests/skrypty/zakres.sh|Bramka zakres (scripts/ci/zakres.sh) oblewa
 tests/skrypty/stan-wdrozenia.sh|Decyzja o stanie wdrożenia (scripts/ci/stan-wdrozenia.sh) oblewa
+tests/skrypty/preview-bramka.sh|Bramka testu dymnego preview (scripts/ci/preview-bramka.sh) oblewa
 KONIEC
 )
 

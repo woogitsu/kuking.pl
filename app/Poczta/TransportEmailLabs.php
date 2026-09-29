@@ -15,7 +15,6 @@ use Symfony\Component\Mailer\Transport\AbstractTransport;
 use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\Mime\MessageConverter;
-use Symfony\Component\Mime\Part\DataPart;
 use Throwable;
 
 /**
@@ -373,10 +372,6 @@ final class TransportEmailLabs extends AbstractTransport
         $zalaczniki = [];
 
         foreach ($email->getAttachments() as $czesc) {
-            if (! $czesc instanceof DataPart) {
-                continue;
-            }
-
             $zalaczniki[] = [
                 'fileName' => (string) $czesc->getFilename(),
                 'fileMime' => $czesc->getMediaType().'/'.$czesc->getMediaSubtype(),

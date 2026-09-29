@@ -23,6 +23,7 @@ use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Domain\Users\Import\ZapisSzkicuZPaczki;
 use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Domain\Users\ObserwowanieGospodarza;
+use App\Http\Support\PamiecZadaniaHttp;
 use App\Models\Appeal;
 use App\Models\Comment;
 use App\Models\ContactMessage;
@@ -35,6 +36,7 @@ use App\Support\KomunikatZaDuzaWysylka;
 use App\Support\MapaStrony;
 use App\Support\OdmianaWalidacji;
 use App\Support\OdswiezanieLicznikowKolejek;
+use App\Support\PamiecZadania;
 use App\Support\Sesja\GeneracjaSesji;
 use App\Support\Sesja\UchwytSesjiBezPelnegoAdresu;
 use App\Support\Storage\DyskR2;
@@ -94,6 +96,9 @@ class AppServiceProvider extends ServiceProvider
         // Web Push (D-303). Testy podmieniają to fałszywym transportem —
         // żaden test nie wysyła prawdziwego pushu.
         $this->app->bind(TransportPush::class, TransportWebPush::class);
+        // Pamięć jednego żądania dla domeny (`Ukrycia`, `SkrotyObserwowania`):
+        // domena nie zna `Request`, adapter trzyma wartości w jego atrybutach (#970).
+        $this->app->bind(PamiecZadania::class, PamiecZadaniaHttp::class);
         // Publikacja przepisu (`Recipes`) woła bramkę „Sprawdziłem odczytany
         // tekst" przez kontrakt, a implementację dostarcza `Import` (D-298,
         // issue #971). Wiązanie jest jedynym miejscem, które zna oba moduły

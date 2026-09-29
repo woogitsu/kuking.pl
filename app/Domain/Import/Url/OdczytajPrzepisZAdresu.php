@@ -14,7 +14,9 @@ use App\Models\User;
  *
  *  1. `PobieraczStron` — SSRF, robots.txt, limity; zdjęć nie pobiera;
  *  2. `ParserJsonLdPrzepisu` — lokalnie, bez modelu i bez kosztu;
- *  3. dopiero gdy strona NIE MA danych `Recipe`: czysty tekst strony
+ *  3. `ParserMikrodanychPrzepisu` — te same dane w mikrodanych (`itemprop`),
+ *     też lokalnie; JSON-LD ma pierwszeństwo, gdy strona ma oba;
+ *  4. dopiero gdy strona NIE MA danych `Recipe`: czysty tekst strony
  *     → `WyznaczaczFragmentow` (model zwraca same granice) → `TrybFragmentow`
  *     składa tekst z oryginału.
  *
@@ -26,6 +28,7 @@ final class OdczytajPrzepisZAdresu
     public function __construct(
         private readonly PobieraczStron $pobieracz,
         private readonly ParserJsonLdPrzepisu $jsonLd,
+        private readonly ParserMikrodanychPrzepisu $mikrodane,
         private readonly WyznaczaczFragmentow $fragmenty,
         private readonly TrybFragmentow $tryb,
     ) {}
@@ -38,6 +41,14 @@ final class OdczytajPrzepisZAdresu
         $strona = $this->pobieracz->pobierz($url);
 
         $przepis = $this->jsonLd->odczytaj($strona->html);
+
+        if ($przepis !== null) {
+            return new OdczytanaStrona($przepis, $strona->url, OdczytanaStrona::JSON_LD);
+        }
+
+        // Ta sama droga `json_ld` w zapisie: to „dane strukturalne schema.org",
+        // a wartość jest w ograniczeniu CHECK tabeli — bez migracji.
+        $przepis = $this->mikrodane->odczytaj($strona->html);
 
         if ($przepis !== null) {
             return new OdczytanaStrona($przepis, $strona->url, OdczytanaStrona::JSON_LD);

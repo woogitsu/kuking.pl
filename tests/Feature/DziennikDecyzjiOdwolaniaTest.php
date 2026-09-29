@@ -304,7 +304,7 @@ final class DziennikDecyzjiOdwolaniaTest extends TestCase
             ...self::POZA_KONTROLA_FORMY,
         ];
 
-        foreach (self::ZAPOWIEDZI_W_DOKUMENTACH as $numery) {
+        foreach (self::zapowiedziZListy() as $numery) {
             $wszystkie = [...$wszystkie, ...$numery];
         }
 
@@ -316,7 +316,7 @@ final class DziennikDecyzjiOdwolaniaTest extends TestCase
             );
         }
 
-        foreach (array_keys(self::ZAPOWIEDZI_W_DOKUMENTACH) as $plik) {
+        foreach (array_keys(self::zapowiedziZListy()) as $plik) {
             $this->assertFileExists(base_path($plik), 'Wyjątek wskazuje plik, którego nie ma: '.$plik);
         }
     }
@@ -506,6 +506,17 @@ final class DziennikDecyzjiOdwolaniaTest extends TestCase
         }
 
         return isset($this->zapowiedzi()[$sciezka][$cyfry]);
+    }
+
+    /**
+     * Sama lista z repozytorium. Bywa pusta, więc czytamy ją przez typ z opisu
+     * — inaczej analiza widzi `array{}` i uznaje pętle po niej za martwe.
+     *
+     * @return array<string, array<int|string, string>>
+     */
+    private static function zapowiedziZListy(): array
+    {
+        return self::ZAPOWIEDZI_W_DOKUMENTACH;
     }
 
     /**

@@ -14,6 +14,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\Przelacznik;
 use Tests\TestCase;
 
 /**
@@ -51,16 +52,16 @@ class StronyBezWachlarzaZapytanTest extends TestCase
         Cache::flush();
 
         $ile = 0;
-        $liczy = true;
+        $liczy = new Przelacznik;
 
-        DB::listen(function () use (&$ile, &$liczy): void {
-            if ($liczy) {
+        DB::listen(function () use (&$ile, $liczy): void {
+            if ($liczy->wlaczony) {
                 $ile++;
             }
         });
 
         $akcja();
-        $liczy = false;
+        $liczy->wlaczony = false;
 
         return $ile;
     }

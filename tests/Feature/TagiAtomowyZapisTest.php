@@ -8,6 +8,7 @@ use App\Models\Tag;
 use App\Models\TagPromotion;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\Przelacznik;
 use Tests\TestCase;
 
 /** Pomiar zatwierdzonych danych, bez transakcji otaczającej fixture. */
@@ -27,9 +28,9 @@ class TagiAtomowyZapisTest extends TestCase
         $data = ['tags' => [$b->id], 'form_scope' => $match[1] ?? null];
         $this->assertSame(0, DB::transactionLevel());
 
-        $fail = true;
-        DB::listen(function ($query) use (&$fail): void {
-            if ($fail && str_starts_with($query->sql, 'delete from "tag_follows"')) {
+        $fail = new Przelacznik;
+        DB::listen(function ($query) use ($fail): void {
+            if ($fail->wlaczony && str_starts_with($query->sql, 'delete from "tag_follows"')) {
                 throw new \RuntimeException('FIXTURE_DETACH_FAILED');
             }
         });
@@ -40,7 +41,7 @@ class TagiAtomowyZapisTest extends TestCase
         } catch (\RuntimeException $e) {
             $this->assertSame('FIXTURE_DETACH_FAILED', $e->getMessage());
         } finally {
-            $fail = false;
+            $fail->wlaczony = false;
         }
         $this->assertSame(0, DB::transactionLevel());
         // Nowe połączenie czyta wyłącznie to, co rzeczywiście zatwierdzono.

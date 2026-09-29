@@ -524,10 +524,11 @@ ERASE_ACCOUNT_DATA = "app/Domain/Users/Actions/EraseAccountData.php"
 # i Moderation → Security — graf ma zapalić.
 PRZEDAWNIONE_SPRAWY = "app/Domain/Compliance/PrzedawnioneSprawyModeracyjne.php"
 ALARMUJ_MODERATORA = "app/Domain/Moderation/Actions/AlarmujModeratora.php"
-# #970 krok 5: Collections nie pogłębia zależności od `Illuminate\Http`.
-# Mutacja dokłada import `UploadedFile` do akcji spoza listy zastanych.
+# #970: `app/Domain` nie zależy od `Illuminate\Http` (Collections są czyste,
+# reszta ma jawne wyjątki). Mutacja dokłada `use Illuminate\Http\Request;`
+# do akcji spoza list wyjątków.
 ZESZYTY_AKCJA_NOTATKI = "app/Domain/Collections/Actions/UpdateCollectionItemNote.php"
-ZESZYTY_HTTP_TEST = "ZeszytyNieRosnaOdHttpTest"
+ZESZYTY_HTTP_TEST = "DomenaNieZalezyOdHttpTest"
 # Form Request zeszytu: Policy `update` przed polami. Mutacja wycina ją.
 ZAPIS_ZESZYTU_REQUEST = "app/Http/Requests/Collections/ZapisZeszytuRequest.php"
 ZESZYTY_FORMULARZ_TEST = "FormularzZeszytuKolejnoscSprawdzenTest"
@@ -545,7 +546,7 @@ ADAPTERY_DOSTAWCOW_TEST = "KontroleryDostawcowSaAdapteramiTest"
 # a nie z kotwic zasięgu w sąsiednich metodach.
 DIGEST_DOBOR = "app/Domain/Digest/ZbierzTresciDigestu.php"
 DIGEST_DOBOR_TEST = "test_zaden_feed_nie_sortuje_po_mierze_cudzych_reakcji"
-WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc($request, $user)) {\n"
+WPUSC_GOOGLE = "        return match ($this->wejscie()->wpusc(ZadanieHttp::z($request), $user)) {\n"
 
 # Tryb ścisły Eloquent poza produkcją (#976). Mutacja usuwa samo włączenie
 # z `AppServiceProvider` — test kontraktu ma zapalić, że ochron nie ma.
@@ -1467,8 +1468,8 @@ checks = [
      lambda s: replace_once(s, "use App\\Domain\\Moderation\\Sygnaly\\Sygnal;\n", "use App\\Domain\\Moderation\\Sygnaly\\Sygnal;\nuse App\\Domain\\Security\\DziennyBudzetListow as BudzetZSecurity;\n")),
     ("Nowy cykl: Users importuje Moderation (Moderation → Users już jest)", ERASE_ACCOUNT_DATA, GRAF_MODULOW_TEST,
      lambda s: replace_once(s, "namespace App\\Domain\\Users\\Actions;\n", "namespace App\\Domain\\Users\\Actions;\n\nuse App\\Domain\\Moderation\\ModeratedContent;\n")),
-    ("Akcja zeszytów importuje Illuminate\\Http", ZESZYTY_AKCJA_NOTATKI, ZESZYTY_HTTP_TEST,
-     lambda s: replace_once(s, "use Illuminate\\Support\\Facades\\DB;\n", "use Illuminate\\Http\\UploadedFile;\nuse Illuminate\\Support\\Facades\\DB;\n")),
+    ("Domena importuje Illuminate\\Http\\Request", ZESZYTY_AKCJA_NOTATKI, ZESZYTY_HTTP_TEST,
+     lambda s: replace_once(s, "use Illuminate\\Support\\Facades\\DB;\n", "use Illuminate\\Http\\Request;\nuse Illuminate\\Support\\Facades\\DB;\n")),
     ("Formularz zeszytu sprawdza pola przed Policy", ZAPIS_ZESZYTU_REQUEST, ZESZYTY_FORMULARZ_TEST,
      lambda s: replace_once(s, "            Gate::inspect('update', $zeszyt)->authorize();\n", "")),
     ("DemoSeeder wypisuje hasło z KUKING_DEMO_HASLO", DEMO_SEEDER, DEMO_SEEDER_HASLO_TEST,
@@ -1621,11 +1622,11 @@ checks = [
     # #2038: wpis dziennika dopisany PRZED nieudanym commitem wymazania musi
     # zostać wycofany — inaczej `wymaz-ponownie` wymaże konto przed końcem karencji.
     ("Wymazanie nie wycofuje wpisu dziennika po nieudanym commicie", WYMAZANIE_KONTA, DZIENNIK_WYCOFANIE_TEST,
-     lambda s: replace_once(s, "                if ($wpisDopisany) {", "                if (false) {")),
+     lambda s: replace_once(s, "                if ($stan->wpisDopisany) {", "                if (false) {")),
     # #2038: wpis, który PRZEŻYŁ odtworzenie kopii (`ISTNIEJE`), nie jest nasz —
     # nieudany commit ponownego wymazania nie wolno go skasować.
     ("Wymazanie kasuje cudzy wpis dziennika (ISTNIEJE)", WYMAZANIE_KONTA, DZIENNIK_ISTNIEJE_TEST,
-     lambda s: replace_once(s, "$wpisDopisany = $wpis === DziennikWymazan::DOPISANO;", "$wpisDopisany = true;")),
+     lambda s: replace_once(s, "$stan->wpisDopisany = $wpis === DziennikWymazan::DOPISANO;", "$stan->wpisDopisany = true;")),
     # #2038: ponawianie zapisu dziennika czeka POZA transakcją z blokadą konta.
     # Bez `proby: 1` `Sleep` wraca do środka transakcji.
     ("Zapis dziennika czeka wewnątrz transakcji z blokadą konta", WYMAZANIE_KONTA, DZIENNIK_SLEEP_TEST,

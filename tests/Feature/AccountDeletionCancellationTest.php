@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
 use RuntimeException;
+use Tests\Support\Przelacznik;
 use Tests\TestCase;
 
 /**
@@ -214,11 +215,11 @@ class AccountDeletionCancellationTest extends TestCase
             'status' => User::STATUS_PENDING_DELETE,
             'delete_requested_at' => now()->subDays(5),
         ]);
-        $awaria = true;
+        $awaria = new Przelacznik;
 
         // Awaria PO wykonaniu INSERT-u (`DB::listen` woła się po zapytaniu).
-        DB::listen(function ($zapytanie) use (&$awaria): void {
-            if ($awaria
+        DB::listen(function ($zapytanie) use ($awaria): void {
+            if ($awaria->wlaczony
                 && str_contains($zapytanie->sql, 'insert into "audit_log"')
                 && in_array('account.delete_cancelled', $zapytanie->bindings, true)) {
                 throw new RuntimeException('Wstrzyknięta awaria dziennika: account.delete_cancelled');
@@ -237,7 +238,7 @@ class AccountDeletionCancellationTest extends TestCase
         Exceptions::assertReported(fn (RuntimeException $e): bool => str_contains($e->getMessage(), 'Wstrzyknięta awaria dziennika'));
 
         // Awaria minęła — człowiek klika jeszcze raz.
-        $awaria = false;
+        $awaria->wlaczony = false;
 
         $this->post(route('account.delete.cancel.store'), [
             'login' => 'basia',
