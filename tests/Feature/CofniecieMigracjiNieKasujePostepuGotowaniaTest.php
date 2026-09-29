@@ -25,7 +25,7 @@ class CofniecieMigracjiNieKasujePostepuGotowaniaTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const SCIEZKA = 'database/migrations/2026_09_29_160000_create_cooking_progress_table.php';
+    private const SCIEZKA = 'database/migrations/2026_09_29_170000_create_cooking_progress_table.php';
 
     protected function tearDown(): void
     {

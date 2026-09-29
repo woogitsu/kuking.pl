@@ -6033,7 +6033,7 @@ listy to dane wpisane przez ludzi; wymuszenie po zrobieniu kopii:
 ## cooking_progress — zapamiętany postęp gotowania (V2, #2016)
 
 Opcjonalna synchronizacja odhaczonych kroków trybu gotowania między
-urządzeniami jednego konta. Migracja `2026_09_29_160000_create_cooking_progress_table`.
+urządzeniami jednego konta. Migracja `2026_09_29_170000_create_cooking_progress_table`.
 Obecność wiersza JEST zgodą osoby (włącza ją świadomie, osobno dla każdego
 przepisu; wyłączenie kasuje wiersz), więc nie ma flagi w `users`. Bez wiersza
 — i dla gości — postęp zostaje w sesji jak dotąd (`CookingModeController`).
