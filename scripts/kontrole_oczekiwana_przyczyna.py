@@ -70,8 +70,8 @@ OCZEKUJ = {
     'Za głęboka tablica przechodzi surowa': 'contains "\\[pominięte: zagnieżdżenie głębsze niż filtr sprawdza\\]"|@@ @@ Array &0 \\[ - 0 => \'poziom\', \\+ 0 => \'e\', \\]',
     'Połknięty wyjątek bez miejsca przyczyny': r"@@ @@ Array &0 \[ - 0 => 'app/Support/PhpIniRozmiar\.php:\d+', \+ 0 => null, \]",
     'Komunikat wyjątku w kontekście budowanym przez metodę pomocniczą': r'Surowe getMessage\(\) w logu \(użyj BezpiecznyBlad::kontekst\(\)\)',
-    'Komunikat transportu przez BezpiecznyKomunikat w logu listu o paczce': r'does not contain "\$2y\$"|does not contain "X-Amz-Signature"|Surowe getMessage\(\) w logu \(użyj BezpiecznyBlad::kontekst\(\)\)',
-    'Komunikat bazy przez BezpiecznyKomunikat w logu śladu listu': r'does not contain "\$2y\$"|does not contain "X-Amz-Signature"|Surowe getMessage\(\) w logu \(użyj BezpiecznyBlad::kontekst\(\)\)',
+    'Komunikat transportu przez BezpiecznyKomunikat w logu listu o paczce': r'does not contain "insert into"|does not contain "\$2y\$"|does not contain "X-Amz-Signature"|Surowe getMessage\(\) w logu \(użyj BezpiecznyBlad::kontekst\(\)\)',
+    'Komunikat bazy przez BezpiecznyKomunikat w logu śladu listu': r'does not contain "insert into"|does not contain "\$2y\$"|does not contain "X-Amz-Signature"|Surowe getMessage\(\) w logu \(użyj BezpiecznyBlad::kontekst\(\)\)',
     'Skaner logów ślepy na report()': r'Skaner nie złapał wszystkich form: Naruszenia\.php:6 Naruszenia\.php:7',
     'Kolor z niezdefiniowanej zmiennej': r'Te zmienne kolorów są użyte, ale nigdzie nie zdefiniowane',
     'Linki sąsiednich wpisów bez skali tekstu': r'contains "font-size: var\(--text-body\)"',
@@ -251,6 +251,28 @@ OCZEKUJ = {
     'Strażnik migracji ślepy na CHECK/FK bez NOT VALID': r'Strażnik nie zauważył CHECK bez NOT VALID na istniejącej tabeli\.',
     'Job lint bez wspólnych kontroli powłoki': r'contains "run: bash scripts/kontrole-powloki\.sh"|ci\.yml \(job lint\) uruchamia test z tests/skrypty/ bezpośrednio\.',
     'Test powłoki wypada z listy wspólnego skryptu': r'tests/skrypty/bramka-migracji\.sh wypadł z listy\.|Test powłoki poza listą w scripts/kontrole-powloki\.sh — dopisz go do',
+    # #1751 (D-332): forma zwracania się i nowa wersja polityki. Wzorce dopisane
+    # w recenzji paczki H z komunikatów porażek po mutacji (lokalnie, PG 55439).
+    'Cofnięcie formy zwracania się bez odmowy': r'Rollback przeszedł mimo zapisanego wyboru formy',
+    'Anonimizacja zostawia formę zwracania się': r"Failed asserting that 'feminine' is null\.",
+    'Helper formy ignoruje formę żeńską': (
+        r"-'ugotowałaś' \+'gotujesz'"
+        r'|contains "Możesz od razu pokazać, co dziś ugotowałaś"'
+        r'|contains "Zacznij od zdjęcia tego, co dziś ugotowałaś\."'
+        r'|matches PCRE pattern "~data-minutniki-koniec>Ugotowałam</a>~u"'
+        r'|contains "Halina ugotowała Twój przepis'
+        r'|contains "Kuking\.pl - pokaż, co dziś ugotowałaś\."'
+    ),
+    'Wariant neutralny helpera z rodzajem': r'wariant neutralny z rodzajem|contains "Możesz od razu pokazać, co dziś gotujesz"',
+    'Goły rodzaj obok wywołania helpera': r'Tekst przypisuje czytelnikowi płeć:.*ugotowałaś',
+    'Rollback paska polityki bez odmowy': r'Rollback przeszedł, choć ktoś zamknął pasek',
+    # Decyzja właściciela z 29.09.2026 (wieczór): zmiana drobna od razu.
+    'Polityka z terminem wejścia niezgodnym z konfiguracją': r'contains "obowiązuje od dnia publikacji"',
+    'Pasek polityki przy drobnej zmianie': r'does not contain "data-pasek-zmiany-polityki"',
+    'Wybór formy widoczny w okresie przejściowym polityki': r'does not contain "Jak mamy do Ciebie pisać\?"',
+    'Wybór formy czeka na dzień wersji przy drobnej zmianie': r'Wybór formy ukryty w chwili 2026-09-29 20:00',
+    # #2000: wspólny zeszyt „wszyscy” ma „Podziel się”.
+    'Wspólny publiczny zeszyt bez „Podziel się”': r'Wspólny zeszyt „wszyscy” nie ma przycisku „Podziel się”',
 }
 
 

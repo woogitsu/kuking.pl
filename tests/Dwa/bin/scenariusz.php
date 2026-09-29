@@ -46,6 +46,7 @@ use App\Domain\Moderation\NowaDecyzja;
 use App\Domain\Pantry\CoMamWDomu;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Recipes\Actions\PublishRecipe;
+use App\Domain\Recipes\Gotowanie\PostepGotowania;
 use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
@@ -66,6 +67,7 @@ use App\Models\Collection;
 use App\Models\CollectionInvitation;
 use App\Models\Comment;
 use App\Models\ContactMessage;
+use App\Models\CookingProgress;
 use App\Models\ImportPrzepisu;
 use App\Models\PendingEmailChange;
 use App\Models\Post;
@@ -502,6 +504,30 @@ try {
                 Comment::withTrashed()->whereKey($argumenty['komentarz'])->firstOrFail(),
                 'Powód usunięcia.',
             ) ? 'usunieto' : 'juz-usuniety';
+        })(),
+
+        // Synchronizacja postępu gotowania (#2016): dwa urządzenia jednego konta
+        // ustawiają kroki naraz. Wołamy akcję domenową, nie przepisany SQL —
+        // test ma pęknąć, jeśli zniknie `lockForUpdate()` w `PostepGotowania`.
+        'postep-ustaw' => (function () use ($argumenty): int {
+            $postep = CookingProgress::query()->whereKey($argumenty['postep'])->firstOrFail();
+            $po = app(PostepGotowania::class)->ustaw(
+                $postep,
+                $argumenty['krok'],
+                true,
+                (array) json_decode($argumenty['kroki'], true),
+            );
+
+            return $po === null ? -1 : $po->revision;
+        })(),
+
+        'postep-wlacz' => (function () use ($argumenty): int {
+            return app(PostepGotowania::class)->wlacz(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail(),
+                (array) json_decode($argumenty['kroki'], true),
+                [],
+            )->revision;
         })(),
 
         // Pierwszy zapis do zeszytu (#1095). Te scenariusze celowo wołają

@@ -14,11 +14,13 @@ use App\Models\CollectionInvitation;
 use App\Models\Comment;
 use App\Models\ContactMessageReply;
 use App\Models\CookedEvent;
+use App\Models\CookingProgress;
 use App\Models\Hide;
 use App\Models\MealPlanEntry;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\PostReaction;
+use App\Models\Profile;
 use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
 use App\Models\User;
@@ -199,6 +201,7 @@ final class CollectUserExportData
             'wersje_przepisow' => $this->recipeVersions($user),
             'obserwowane_tagi' => $this->followedTags($user),
             'co_mam_w_domu' => $this->pantry($user),
+            'postep_gotowania' => $this->postepGotowania($user),
             'ukryte' => $this->hides($user),
             // „Smakowicie wygląda" (#1813, D-280): napisane przez tę osobę
             // i otrzymane pod jej wpisami. Otrzymane z nazwą konta — autor
@@ -318,6 +321,7 @@ final class CollectUserExportData
             // Wersja regulaminu, przy której zamknięto pasek „Zmieniliśmy
             // regulamin" (#1811, D-306); `null` — żadnego jeszcze nie zamknięto.
             'pasek_zmiany_regulaminu_zamkniety_dla_wersji' => $user->terms_notice_dismissed_version,
+            'pasek_zmiany_polityki_zamkniety_dla_wersji' => $user->policy_notice_dismissed_version,
             // Kolumny `users` dopisane w #953 — `InwentarzDanychKonta::KOLUMNY_KONTA`.
             'rola' => $user->role,
             'status_konta_do' => $this->date($user->status_expires_at),
@@ -364,6 +368,14 @@ final class CollectUserExportData
             // issue #274 (#1750). Test: `EksportKluczeBezRodzajuTest`.
             'na_czym_sie_znam' => $profile->speciality,
             'zdjecie_profilowe' => $photos->pathFor($profile->avatar_media_id),
+            // „Jak mamy do Ciebie pisać?” (D-332, #1752). Słowem, nie kodem
+            // z bazy: `NULL` w kolumnie to wybór formy neutralnej, a nie
+            // „brak danych”, więc paczka mówi to wprost.
+            'forma_zwracania_sie' => match ($profile->form_of_address) {
+                Profile::FORM_FEMININE => 'żeńska',
+                Profile::FORM_MASCULINE => 'męska',
+                default => 'neutralna',
+            },
         ];
     }
 
@@ -1093,6 +1105,39 @@ final class CollectUserExportData
                 'produkt' => $produkt->name,
                 'dodano' => $this->date($produkt->created_at),
             ])->all();
+    }
+
+    /**
+     * Zapamiętany na koncie postęp gotowania (#2016) — tylko niewygasły
+     * (wygasły jest dla serwisu nieistniejący i czeka na nocne sprzątanie).
+     * Tytuł przepisu tylko wtedy, gdy przepis widać dziś pod jego adresem
+     * (jak w `cookedEvents`); numery odhaczonych kroków, nie ich treść.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function postepGotowania(User $user): array
+    {
+        return $user->cookingProgress()
+            ->where('expires_at', '>', now())
+            ->with('recipe')
+            ->orderBy('updated_at')
+            ->get()
+            ->map(function (CookingProgress $postep): array {
+                $kroki = $postep->recipe->steps()->orderBy('position')->pluck('id')->all();
+                $numery = [];
+                foreach ($kroki as $pozycja => $id) {
+                    if (in_array($id, $postep->done_step_ids, true)) {
+                        $numery[] = $pozycja + 1;
+                    }
+                }
+
+                return [
+                    'przepis' => $this->granica->widzi($postep->recipe) ? $postep->recipe->title : self::TRESC_NIEDOSTEPNA,
+                    'odhaczone_kroki' => $numery,
+                    'ostatnia_zmiana' => $this->date($postep->updated_at),
+                    'wygasa' => $this->date($postep->expires_at),
+                ];
+            })->all();
     }
 
     /**

@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Recipes\Gotowanie\PostepGotowania;
 use App\Domain\Recipes\Porcje\WyborPorcji;
+use App\Models\CookingProgress;
 use App\Models\Recipe;
+use App\Models\User;
 use App\Support\Komunikat;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -32,11 +36,26 @@ use Illuminate\View\View;
  * (`SESSION_LIFETIME=10080` = tydzień), co w praktyce pokrywa każde
  * „przypadkowe wyjście” z kryteriów akceptacji.
  *
- * CZEGO NIE WYBRANO: osobnej tabeli `cooking_progress` (autor, przepis,
- * krok, zrobiono). Zostawiam to jako naturalne rozszerzenie V2, jeśli
- * ktoś zgłosi realną potrzebę „zacząłem na telefonie, kończę na tablecie”
- * — dziś tego nikt nie prosił, a AGENTS.md każe nie dokładać schematu bez
- * zmierzonej potrzeby.
+ * OPCJONALNA SYNCHRONIZACJA MIĘDZY URZĄDZENIAMI (#2016, V2)
+ *
+ * Sesja zostaje DOMYŚLNĄ drogą — dla gości i dla każdej osoby, która niczego
+ * nie włączyła. Zalogowana, aktywna osoba może dla KONKRETNEGO przepisu
+ * świadomie włączyć zapamiętywanie postępu na koncie (tabela
+ * `cooking_progress`, `PostepGotowania`): odhaczone kroki żyją wtedy w bazie
+ * doby od ostatniej zmiany i widzi je każde urządzenie tego konta. Obecność
+ * wiersza jest zgodą; wyłączenie kasuje wiersz i zostawia odhaczenia w sesji
+ * tego urządzenia. Bez JavaScriptu wszystko działa formularzami (odhaczenie
+ * od razu ląduje na koncie); skrypt tylko okresowo pyta, czy inne urządzenie
+ * nie zmieniło postępu, i pokazuje odnośnik do odświeżenia — bez skryptu
+ * ten pas zostaje ukryty (D-053: żadnego martwego przycisku).
+ *
+ * Każde wejście: `RecipePolicy::view` (konto, które straciło dostęp do
+ * przepisu, nie odtworzy postępu) plus `CookingProgressPolicy` (włączyć może
+ * tylko aktywne konto; cudzego wiersza nie ma jak wskazać — wiersz wybiera
+ * para „zalogowana osoba + przepis”, nigdy identyfikator z żądania).
+ * Konflikt dwóch urządzeń: zapis to idempotentne ustawienie jednego kroku,
+ * na ten sam krok wygrywa ostatni; formularz niesie widzianą rewizję i przy
+ * rozbieżności osoba dostaje komunikat.
  *
  * DECYZJA: WIDOCZNOŚĆ PRZEZ `view`, NIE PRZEZ `cook`
  *
@@ -57,6 +76,24 @@ use Illuminate\View\View;
  */
 class CookingModeController extends Controller
 {
+    public function __construct(private readonly PostepGotowania $postep) {}
+
+    /**
+     * Aktywny (niewygasły) zapamiętany postęp tej osoby dla przepisu.
+     * Tylko dla aktywnego konta — zawieszone czyta przepis, ale niczego
+     * nie zapisuje (jak przy „Ugotowałem”).
+     */
+    private function postepKonta(?User $osoba, Recipe $recipe): ?CookingProgress
+    {
+        return $osoba?->isActive() ? $this->postep->aktywny($osoba, $recipe) : null;
+    }
+
+    /** @return list<string> */
+    private function idKrokow(Recipe $recipe): array
+    {
+        return $recipe->steps()->pluck('id')->map(fn ($id): string => (string) $id)->all();
+    }
+
     /** Klucz sesji z listą ID kroków oznaczonych jako zrobione, per przepis. */
     private function sessionKey(Recipe $recipe): string
     {
@@ -90,9 +127,20 @@ class CookingModeController extends Controller
         $krok = $this->wyczyscKrok($request->query('krok'), $total);
         $aktualny = $steps->get($krok - 1);
 
-        $zrobione = $request->session()->get($this->sessionKey($model), []);
+        $osoba = $request->user();
+        $postepKonta = $this->postepKonta($osoba, $model);
+        $zrobione = $postepKonta !== null
+            ? $this->postep->zrobione($postepKonta, $steps->pluck('id')->map(fn ($id): string => (string) $id)->all())
+            : $request->session()->get($this->sessionKey($model), []);
 
         return view('pages.recipes.cooking', [
+            'synchronizacja' => [
+                'wlaczona' => $postepKonta !== null,
+                'mozna_wlaczyc' => $postepKonta === null && $osoba !== null && $osoba->can('create', CookingProgress::class),
+                'rewizja' => $postepKonta?->revision,
+                'wygasa' => $postepKonta?->expires_at,
+                'godziny' => (int) config('kuking.cooking_progress.retention_hours', 24),
+            ],
             'recipe' => $model,
             'steps' => $steps,
             'krok' => $krok,
@@ -110,6 +158,11 @@ class CookingModeController extends Controller
         $model = Recipe::where('slug', $recipe)->firstOrFail();
         $this->authorize('view', $model);
         $request->session()->forget($this->sessionKey($model));
+
+        $postepKonta = $this->postepKonta($request->user(), $model);
+        if ($postepKonta !== null) {
+            $this->postep->wyczysc($postepKonta);
+        }
 
         return redirect()->route('cooking.show', array_filter([
             'recipe' => $model->slug, 'porcje' => $this->parametrPorcji($model, $request->input('porcje')),
@@ -141,6 +194,9 @@ class CookingModeController extends Controller
             // gdzie to jest ukryty input, nie prawdziwy checkbox (jeden
             // klik = jedna zmiana stanu, bez JavaScriptu).
             'zrobiono' => ['required', 'boolean'],
+            // Rewizja zapamiętanego postępu, którą widziała strona (#2016);
+            // brak (sesja, stara strona) nie jest błędem.
+            'rewizja' => ['nullable', 'integer', 'min:1'],
         ], [
             'krok.integer' => 'Numer kroku jest nieprawidłowy — odśwież stronę przepisu i spróbuj jeszcze raz.',
         ]);
@@ -165,6 +221,33 @@ class CookingModeController extends Controller
         $krok = $pozycja + 1;
         $aktualny = $steps->get($pozycja);
 
+        $postepKonta = $this->postepKonta($request->user(), $model);
+        if ($postepKonta !== null) {
+            $widzianaRewizja = isset($data['rewizja']) ? (int) $data['rewizja'] : null;
+            $rozbieznaRewizja = $widzianaRewizja !== null && $widzianaRewizja !== $postepKonta->revision;
+
+            $po = $this->postep->ustaw(
+                $postepKonta,
+                $aktualny->getKey(),
+                (bool) $data['zrobiono'],
+                $steps->pluck('id')->map(fn ($id): string => (string) $id)->all(),
+            );
+
+            $przekierowanie = redirect()->route('cooking.show', array_filter([
+                'recipe' => $model->slug, 'krok' => $krok,
+                'porcje' => $this->parametrPorcji($model, $request->input('porcje')),
+            ], fn ($wartosc) => $wartosc !== null));
+
+            if ($po === null) {
+                // Zapamiętywanie wygasło między wyświetleniem strony a kliknięciem.
+                return $przekierowanie->with(Komunikat::blad('Zapamiętywanie postępu na koncie wygasło, więc to kliknięcie nie zostało zapisane. Włącz zapamiętywanie jeszcze raz albo oznacz krok ponownie.'));
+            }
+
+            return $rozbieznaRewizja
+                ? $przekierowanie->with(Komunikat::informacja('Postęp tego przepisu zmienił się na innym urządzeniu. Widzisz teraz jego aktualny stan, a Twoje kliknięcie zostało zapisane.'))
+                : $przekierowanie;
+        }
+
         $klucz = $this->sessionKey($model);
         $zrobione = $request->session()->get($klucz, []);
 
@@ -179,6 +262,70 @@ class CookingModeController extends Controller
 
         return redirect()->route('cooking.show', array_filter([
             'recipe' => $model->slug, 'krok' => $krok,
+            'porcje' => $this->parametrPorcji($model, $request->input('porcje')),
+        ], fn ($wartosc) => $wartosc !== null));
+    }
+
+    /**
+     * Włączenie zapamiętywania postępu na koncie (#2016). Świadome, osobno
+     * dla każdego przepisu; bierze to, co już odhaczono w sesji tego urządzenia.
+     */
+    public function wlaczSynchronizacje(Request $request, string $recipe): RedirectResponse
+    {
+        $model = Recipe::where('slug', $recipe)->firstOrFail();
+        $this->authorize('view', $model);
+        $this->authorize('create', CookingProgress::class);
+
+        $osoba = $request->user();
+        $this->postep->wlacz(
+            $osoba,
+            $model,
+            $this->idKrokow($model),
+            (array) $request->session()->get($this->sessionKey($model), []),
+        );
+        $request->session()->forget($this->sessionKey($model));
+
+        return $this->wrocDoGotowania($request, $model)
+            ->with(Komunikat::sukces('Postęp tego przepisu jest teraz zapamiętywany na Twoim koncie — zobaczysz go na każdym urządzeniu, na którym się zalogujesz. Wygasa po '.(int) config('kuking.cooking_progress.retention_hours', 24).' godzinach od ostatniej zmiany.'));
+    }
+
+    /** Wyłączenie: kasuje zapamiętany postęp z konta, odhaczenia zostają w sesji tego urządzenia. */
+    public function wylaczSynchronizacje(Request $request, string $recipe): RedirectResponse
+    {
+        $model = Recipe::where('slug', $recipe)->firstOrFail();
+        $this->authorize('view', $model);
+
+        $osoba = $request->user();
+        $ids = $this->postep->wylacz($osoba, $model, $this->idKrokow($model));
+        $request->session()->put($this->sessionKey($model), $ids);
+
+        return $this->wrocDoGotowania($request, $model)
+            ->with(Komunikat::sukces('Zapamiętywanie na koncie wyłączone, a zapisany tam postęp usunięty. Na tym urządzeniu odhaczenia zostają do końca sesji.'));
+    }
+
+    /**
+     * Krótki odczyt dla skryptu, który pyta, czy inne urządzenie zmieniło
+     * postęp (#2016). Tylko numer rewizji — bez listy kroków i bez niczego,
+     * co pokazałoby czyjś postęp komuś innemu: wiersz wybiera para „ta osoba +
+     * ten przepis”, więc obca osoba dostaje po prostu `aktywna: false`.
+     */
+    public function postepZapamietany(Request $request, string $recipe): JsonResponse
+    {
+        $model = Recipe::where('slug', $recipe)->firstOrFail();
+        $this->authorize('view', $model);
+
+        $postepKonta = $this->postepKonta($request->user(), $model);
+
+        return response()
+            ->json(['aktywna' => $postepKonta !== null, 'rewizja' => $postepKonta?->revision])
+            ->header('Cache-Control', 'no-store, private');
+    }
+
+    private function wrocDoGotowania(Request $request, Recipe $model): RedirectResponse
+    {
+        return redirect()->route('cooking.show', array_filter([
+            'recipe' => $model->slug,
+            'krok' => $this->wyczyscKrok($request->input('krok'), max(1, $model->steps()->count())),
             'porcje' => $this->parametrPorcji($model, $request->input('porcje')),
         ], fn ($wartosc) => $wartosc !== null));
     }

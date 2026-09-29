@@ -75,6 +75,20 @@ final class WynikWartosci
         return (int) (round($this->kcal / 10) * 10);
     }
 
+    /**
+     * Kcal na JEDNĄ porcję do danych strukturalnych albo null.
+     *
+     * Wartość identyczna z tą, którą widać na stronie (`kcalDoPokazania()`,
+     * zaokrąglenie do 10 kcal), i tylko wtedy, gdy strona w ogóle pokazuje
+     * liczby na porcję: wynik wiarygodny (`policzone()`, pokrycie ≥ 90%)
+     * i znana liczba porcji. Wartość na cały przepis nie jest wartością
+     * porcji, więc jej tu nie oddajemy nigdy.
+     */
+    public function kcalNaPorcjeDoDanychStrukturalnych(): ?int
+    {
+        return $this->policzone() && $this->naPorcje() ? $this->kcalDoPokazania() : null;
+    }
+
     /** Gramy do pokazania: zaokrąglone do 1 g. */
     public static function gramyDoPokazania(float $gramy): int
     {

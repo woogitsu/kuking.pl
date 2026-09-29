@@ -251,6 +251,9 @@ final class WartosciOdzywczeImportTest extends TestCase
         mkdir($katalog);
         copy(base_path('database/data/odzywcze/skladniki.csv'), $katalog.'/skladniki.csv');
         copy(base_path('database/data/odzywcze/miary.csv'), $katalog.'/miary.csv');
+        // Ta sama wersja danych co w repozytorium: testy sprawdzają walidację i
+        // odbudowę, a nie ochronę przed starszą wersją (#2130, D-330).
+        copy(base_path('database/data/odzywcze/WERSJA'), $katalog.'/WERSJA');
 
         return $katalog;
     }

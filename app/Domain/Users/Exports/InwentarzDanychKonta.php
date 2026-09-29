@@ -69,6 +69,7 @@ final class InwentarzDanychKonta
         'blocks.blocker_id' => [self::EKSPORT, 'zablokowane_osoby'],
         'tag_follows.user_id' => [self::EKSPORT, 'obserwowane_tagi'],
         'pantry_items.user_id' => [self::EKSPORT, 'co_mam_w_domu'],
+        'cooking_progress.user_id' => [self::EKSPORT, 'postep_gotowania'],
         'hides.user_id' => [self::EKSPORT, 'ukryte'],
         'post_reactions.user_id' => [self::EKSPORT, 'moje_reakcje'],
         'notifications.user_id' => [self::EKSPORT, 'powiadomienia'],
@@ -145,6 +146,7 @@ final class InwentarzDanychKonta
         'ostatnio_widziany_at' => [self::EKSPORT, 'konto'],
         'pwa_prompt_state' => [self::EKSPORT, 'konto'],
         'terms_notice_dismissed_version' => [self::EKSPORT, 'konto'],
+        'policy_notice_dismissed_version' => [self::EKSPORT, 'konto'],
         'onboarding_zakonczony_at' => [self::EKSPORT, 'konto'],
         // Urodziny (#1755): dzień i miesiąc bez roku oraz wybory i ślad listu.
         'birthday_day' => [self::EKSPORT, 'konto'],

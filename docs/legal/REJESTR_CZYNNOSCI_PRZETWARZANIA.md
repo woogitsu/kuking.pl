@@ -5,6 +5,8 @@ Uzupełnienie z 29 września 2026 (#1816, wersja polityki `2026-09-29`):
 §3.5 (obserwowane tagi), §3.16 (odpięcie zdarzeń po wymazaniu konta),
 §3.17 (zakres paczki danych), nowe §3.20–3.22 (ukrycia, reakcja „Smakowicie
 wygląda”, lista „Co mam w domu”).
+Uzupełnienie z 30 września 2026 (#1751, D-332, wersja polityki `2026-09-30`,
+zmiana drobna, obowiązuje od dnia publikacji): §3.2 (forma zwracania się).
 
 **Skąd wzięła się treść tego dokumentu.** Każda czynność niżej jest
 **wyprowadzona z kodu tego repozytorium**, nie z wyobraźni i nie z polityki
@@ -108,7 +110,11 @@ egzekwuje.
 ### 3.2 Profil publiczny
 
 - **Cel:** pokazanie użytkownika innym ludziom w serwisie.
-- **Dane:** nazwa użytkownika, nazwa wyświetlana, opis, zdjęcie profilowe.
+- **Dane:** nazwa użytkownika, nazwa wyświetlana, opis, zdjęcie profilowe,
+  a jeśli ją wybierze — forma zwracania się (żeńska albo męska; brak wyboru
+  = forma neutralna). Forma to preferencja językowa, **nie płeć**; jest
+  widoczna dla innych w tekstach o tej osobie, nie jest zgadywana ani brana
+  z Google/Facebooka i nie służy statystykom ani segmentacji (D-332).
 - **Podstawa:** art. 6 ust. 1 lit. b RODO.
 - **Odbiorcy:** Railway, Cloudflare R2 (zdjęcie profilowe). Od D-240
   zdjęcie profilowe **nie** idzie do OpenAI — brak potwierdzonej zgody.
@@ -599,6 +605,24 @@ trafi tam pierwszy rekord.
   (D-298, D-300 pkt 1 i 8).
 - **Wyłączenie bez zmiany kodu:** pusty `OPENAI_IMPORT_KEY` (model),
   `KUKING_IMPORT_URL=false`, `KUKING_IMPORT_PDF=false` (D-300).
+
+### 3.24 Zapamiętany postęp gotowania między urządzeniami (V2, issue #2016)
+
+- **Cel:** dokończenie gotowania na innym urządzeniu tego samego konta.
+- **Dane:** identyfikator konta i przepisu, lista identyfikatorów odhaczonych
+  kroków, numer rewizji, daty ostatniej zmiany i wygaśnięcia
+  (`cooking_progress`). Tylko na świadome włączenie przez osobę, osobno dla
+  każdego przepisu; domyślnie (i dla gości) postęp zostaje w sesji przeglądarki.
+- **Podstawa:** art. 6 ust. 1 lit. a RODO (osoba włącza funkcję sama) —
+  **do potwierdzenia przez prawnika**.
+- **Odbiorcy:** Railway. Dane widzi wyłącznie właściciel
+  (`CookingProgressPolicy`); nic nie jest wysyłane do podmiotów trzecich.
+- **Termin usunięcia:** 24 godziny od ostatniej zmiany
+  (`kuking.cooking_progress.retention_hours`; wygasły wiersz jest ignorowany
+  przy odczycie, a `kuking:sprzataj-postep-gotowania` kasuje go co noc o 03:00),
+  wyłączenie funkcji przez osobę albo wymazanie konta (`EraseAccountData`).
+- **Eksport:** `postep_gotowania` (przepis, numery odhaczonych kroków, daty;
+  tytuł przepisu tylko gdy jest dziś widoczny dla osoby).
 
 ---
 

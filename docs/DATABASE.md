@@ -143,6 +143,24 @@ kolumny w celu wymuszenia rollbacku; wycofać sam kod paska. Testy:
 `ZmianaRegulaminuTest::test_rollback_odmawia_gdy_ktos_zamknal_pasek`
 i kontrola dodatnia `test_rollback_przechodzi_gdy_nikt_nie_zamknal_paska`.
 
+#### `policy_notice_dismissed_version` — pasek „Zmieniliśmy politykę prywatności” (D-327, D-332)
+
+Migracja `2026_09_29_180000_add_policy_notice_dismissed_version_to_users`,
+bliźniak `terms_notice_dismissed_version`: nullable `date` bez wartości
+domyślnej (zmiana samego katalogu, AGENTS.md §6). Wartość to data wersji
+polityki (`kuking.zgody.wersja_polityki`), przy której osoba zamknęła pasek;
+`NULL` — żadnego jeszcze nie zamknęła. Pasek widzi zalogowane konto założone
+przed dniem wersji, którego wartość jest pusta albo starsza
+(`App\Domain\Zgody\ZmianaPolityki`). Kolumna poza `$fillable`; zapisuje ją
+tylko `ZmianaPolityki::zamknij()` (POST `/prywatnosc/zmiana/zamknij`).
+Zamknięcie paska NIE jest zgodą — to ślad, że komunikat dotarł. Eksport oddaje
+`konto.pasek_zmiany_polityki_zamkniety_dla_wersji`, wymazanie konta zeruje pole.
+
+**Rollback (D-088):** `down()` odmawia usunięcia kolumny, gdy choć jedno konto
+ma wartość (jak przy `terms_notice_dismissed_version`). Testy:
+`ZmianaPolitykiTest::test_rollback_odmawia_gdy_ktos_zamknal_pasek` i kontrola
+dodatnia `test_rollback_przechodzi_gdy_nikt_nie_zamknal_paska`.
+
 #### `wants_weekly_digest` — zgoda, o którą trzeba było zapytać
 
 Migracja `2026_09_07_400000_default_weekly_digest_to_off`.
@@ -1023,12 +1041,35 @@ jedno konto ma dokładnie jeden profil.
 - **`speciality varchar(120) NULL`** — „Na czym się znasz" („zupy i
   kiszonki"). Wolny tekst, ten sam zastrzeżony status co przy `region`:
   nie jest tagiem ani kategorią;
+- **`form_of_address varchar(10) NULL`** — „Jak mamy do Ciebie pisać?”
+  (D-332, issue #1752). `feminine`, `masculine` albo `NULL` = **forma
+  neutralna**, domyślna i pełnoprawna. To preferencja językowa, **nie płeć**:
+  nie zgadujemy jej z imienia ani nie bierzemy z Google/Facebooka. Jest
+  **widoczna dla innych** (teksty o tej osobie, np. „Ania ugotowała”), dlatego
+  stoi na `profiles`, a nie przy ustawieniach wygody na `users`. Zwykła
+  preferencja, nie pole sterujące — jest w `$fillable`, zapis wyłącznie przez
+  `FormOfAddressController` z walidacją `in:`. Eksport RODO:
+  `profil.forma_zwracania_sie` (`żeńska`/`męska`/`neutralna`);
 - `display_name_search`, `username_search`, `speciality_search` — patrz
   „Kolumny `*_search`".
 
-Wszystkie cztery pola opisowe (`display_name`, `bio`, `region`,
-`speciality`) idą do anonimizacji przy wykonaniu żądania z art. 17 RODO —
-patrz `data_erased_at` wyżej.
+```sql
+CHECK (form_of_address IS NULL OR form_of_address IN ('feminine','masculine'))  -- profiles_form_of_address_check
+```
+
+CHECK dodany jako `NOT VALID` i zwalidowany osobno (`$withinTransaction = false`,
+AGENTS.md §6) — na istniejącej tabeli `profiles` nie blokuje zapisów.
+
+**Rollback `form_of_address`** (migracja
+`2026_09_25_140000_add_form_of_address_to_profiles`, D-088): `down()`
+**odmawia**, gdy choć jeden profil ma wybraną formę — stary schemat nie ma
+gdzie jej zapisać, a cofnięcie po cichu zamieniłoby wybór człowieka na formę
+neutralną. Przy awaryjnym rollbacku wdrożenia nie cofa się tej migracji:
+stary kod kolumny nie czyta. Na bazie bez wyborów cofnięcie przechodzi.
+
+Wszystkie pola opisowe (`display_name`, `bio`, `region`, `speciality`)
+oraz `form_of_address` idą do anonimizacji przy wykonaniu żądania z art. 17
+RODO — patrz `data_erased_at` wyżej.
 
 **Nazwy zastrzeżone** (`admin`, `moderacja`, `pomoc`, `platnosci`…) są
 pilnowane w warstwie aplikacji: lista mieszka w `config/kuking.php`
@@ -6029,6 +6070,49 @@ składników ani wyszukiwarki. Przy niepustej tabeli **odmawia** (D-088) —
 listy to dane wpisane przez ludzi; wymuszenie po zrobieniu kopii:
 `KUKING_ROLLBACK_KASUJE_SPIZARNIE=1`. Na świeżej bazie i w CI
 (`migrate:refresh`) przechodzi bez pytania.
+
+## cooking_progress — zapamiętany postęp gotowania (V2, #2016)
+
+Opcjonalna synchronizacja odhaczonych kroków trybu gotowania między
+urządzeniami jednego konta. Migracja `2026_09_29_170000_create_cooking_progress_table`.
+Obecność wiersza JEST zgodą osoby (włącza ją świadomie, osobno dla każdego
+przepisu; wyłączenie kasuje wiersz), więc nie ma flagi w `users`. Bez wiersza
+— i dla gości — postęp zostaje w sesji jak dotąd (`CookingModeController`).
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK, `DEFAULT gen_random_uuid()` | |
+| `user_id` | `uuid NOT NULL` → `users` (`ON DELETE CASCADE`) | właściciel; poza `$fillable` (model ma pusty `$fillable`, zmienia go tylko `PostepGotowania`) |
+| `recipe_id` | `uuid NOT NULL` → `recipes` (`ON DELETE CASCADE`) | przepis |
+| `done_step_ids` | `jsonb NOT NULL DEFAULT '[]'` | ID odhaczonych kroków (nie numery — #756); ID nieistniejących już kroków są odrzucane przy odczycie i wypadają przy zapisie |
+| `revision` | `integer NOT NULL DEFAULT 1` | rośnie o 1 przy każdej zmianie; drugie urządzenie po niej widzi, że stan zmienił się bez niego |
+| `expires_at` | `timestamptz NOT NULL` | ważność: `kuking.cooking_progress.retention_hours` (24 h) od OSTATNIEJ zmiany; wygasły wiersz jest dla serwisu nieistniejący |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+Ograniczenia i indeksy:
+- `UNIQUE (user_id, recipe_id)` — jeden postęp na osobę i przepis (obsługuje też zapytania po `user_id`);
+- `cooking_progress_done_check`: `jsonb_typeof(done_step_ids) = 'array' AND jsonb_array_length(done_step_ids) <= 200`;
+- `cooking_progress_revision_check`: `revision >= 1`;
+- indeks po `expires_at` — nocne sprzątanie.
+
+Konflikt dwóch urządzeń: zapis to idempotentne USTAWIENIE jednego kroku pod
+blokadą wiersza (`SELECT … FOR UPDATE`), więc różne kroki nie gubią się
+nawzajem, a na ten sam wygrywa ostatni zapis; formularz niesie rewizję, którą
+widział, i przy rozbieżności osoba dostaje komunikat.
+
+Prywatność: widoczne wyłącznie dla właściciela (`CookingProgressPolicy`),
+każde wejście przechodzi też przez `RecipePolicy::view`. Paczka danych ma
+sekcję `postep_gotowania` (tytuł przepisu tylko przy przepisie widocznym dla
+osoby), `EraseAccountData` kasuje wiersze jawnie (konta się anonimizuje).
+Retencja: `kuking:sprzataj-postep-gotowania`, codziennie o 03:00.
+
+**Rollback.** `down()` usuwa tabelę. Przy choć jednym NIEWYGASŁYM wierszu
+**odmawia** (D-088) — to dane wpisane przez ludzi w trakcie gotowania;
+na pustej tabeli, przy samych wygasłych wierszach i w CI (`migrate:refresh`)
+przechodzi bez pytania. Wymuszenie po kopii tabeli:
+`KUKING_ROLLBACK_KASUJE_POSTEP_GOTOWANIA=1` (albo wcześniej
+`php artisan kuking:sprzataj-postep-gotowania --wszystkie`). Test:
+`CofniecieMigracjiNieKasujePostepuGotowaniaTest`.
 
 ## V1 / V2
 

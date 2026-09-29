@@ -42,7 +42,11 @@
             $tytul = $udostepnianie->tytul($tresc);
             $opis = $udostepnianie->opis($tresc);
             $drogi = $udostepnianie->drogi($tresc);
-            $rzecz = $tresc instanceof \App\Models\Recipe ? 'przepis' : 'wpis';
+            $rzecz = match (true) {
+                $tresc instanceof \App\Models\Recipe => 'przepis',
+                $tresc instanceof \App\Models\Collection => 'zeszyt',
+                default => 'wpis',
+            };
             $pytanie = $tresc instanceof \App\Models\Post && $tresc->kind === \App\Models\Post::KIND_QUESTION;
             // Identyfikator z klucza treści, nie stały — na jednej stronie
             // może kiedyś stanąć więcej niż jeden taki blok, a zduplikowany

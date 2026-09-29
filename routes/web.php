@@ -39,6 +39,7 @@ use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\HistoriaPrzepisuController;
 use App\Http\Controllers\ImportPrzepisuController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MojeWpisyController;
@@ -65,6 +66,7 @@ use App\Http\Controllers\Settings\BirthdaySettingsController;
 use App\Http\Controllers\Settings\DataSettingsController;
 use App\Http\Controllers\Settings\DevicesSettingsController;
 use App\Http\Controllers\Settings\EmailSettingsController;
+use App\Http\Controllers\Settings\FormOfAddressController;
 use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
 use App\Http\Controllers\Settings\ProfileSettingsController;
@@ -86,6 +88,7 @@ use App\Http\Controllers\WartosciOdzywczeController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use App\Http\Controllers\ZgodaOdczytuAiController;
+use App\Http\Controllers\ZmianaPolitykiController;
 use App\Http\Controllers\ZmianaRegulaminuController;
 use Illuminate\Support\Facades\Route;
 
@@ -247,6 +250,19 @@ Route::post('/motyw', [ThemeController::class, 'update'])
 
 Route::get('/przepisy/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
 
+// Historia zapisanych wersji przepisu (issue #2024) — tylko odczyt, także dla
+// gościa; dostęp rozstrzyga `RecipePolicy::view` i opublikowanie przepisu
+// (`App\Domain\Recipes\Historia\HistoriaWersji`).
+// Numer wersji: do 9 cyfr — dłuższy ciąg cyfr nie mieści się w `int` i dawałby 500.
+Route::get('/przepisy/{recipe}/historia', [HistoriaPrzepisuController::class, 'index'])
+    ->name('recipes.history');
+Route::get('/przepisy/{recipe}/historia/{numer}', [HistoriaPrzepisuController::class, 'show'])
+    ->where('numer', '[1-9][0-9]{0,8}')
+    ->name('recipes.history.version');
+Route::get('/przepisy/{recipe}/historia/{numer}/zmiany', [HistoriaPrzepisuController::class, 'zmiany'])
+    ->where('numer', '[1-9][0-9]{0,8}')
+    ->name('recipes.history.changes');
+
 // Zeszyt „Wszyscy" jest dla wszystkich — także bez konta (issue #965).
 // Poza grupą `auth` stoi WYŁĄCZNIE odczyt; dostęp rozstrzyga
 // `CollectionPolicy::view(?User)`: gość widzi tylko publiczny zeszyt
@@ -269,6 +285,19 @@ Route::post('/przepisy/{recipe}/gotuj/od-poczatku', [CookingModeController::clas
 Route::post('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'zaznacz'])
     ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
     ->name('cooking.zaznacz');
+// Opcjonalna synchronizacja postępu między urządzeniami (#2016) — tylko dla
+// zalogowanych; goście zostają przy postępie w sesji.
+Route::middleware('auth')->group(function () use ($limits): void {
+    Route::post('/przepisy/{recipe}/gotuj/synchronizacja', [CookingModeController::class, 'wlaczSynchronizacje'])
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('cooking.sync.wlacz');
+    Route::post('/przepisy/{recipe}/gotuj/synchronizacja/wylacz', [CookingModeController::class, 'wylaczSynchronizacje'])
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('cooking.sync.wylacz');
+    Route::get('/przepisy/{recipe}/gotuj/postep', [CookingModeController::class, 'postepZapamietany'])
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('cooking.sync.postep');
+});
 
 Route::get('/wpisy/{post}', [PostController::class, 'show'])->name('posts.show');
 Route::get('/pytania/zadaj', [PostController::class, 'create'])->middleware('auth')->name('questions.create');
@@ -711,6 +740,10 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/witaj/nie-przypominaj', [OnboardingController::class, 'dismiss'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('onboarding.dismiss');
+    // Pomijalne pytanie o formę zwracania się na ekranie „Gotowe” (D-332).
+    Route::post('/witaj/forma', [FormOfAddressController::class, 'updateFromOnboarding'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('onboarding.form_of_address');
 
     // Dodawanie treści
     Route::view('/dodaj', 'pages.add')->name('add');
@@ -1078,6 +1111,10 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/regulamin/zmiana/zamknij', ZmianaRegulaminuController::class)
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('terms.notice.dismiss');
+    // Pasek „Zmieniliśmy politykę prywatności” (D-327, D-332) — jak wyżej.
+    Route::post('/prywatnosc/zmiana/zamknij', ZmianaPolitykiController::class)
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('privacy.notice.dismiss');
     Route::get('/ustawienia/ukryte', [UkryciaController::class, 'lista'])->name('settings.hidden');
     Route::patch('/ustawienia/ukryte/{hide}', [UkryciaController::class, 'zostaw'])
         ->middleware("throttle:{$limits['ukrycia']},ukrycia")
@@ -1139,6 +1176,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/ustawienia/profil', [ProfileSettingsController::class, 'edit'])->name('settings.profile');
     Route::put('/ustawienia/profil', [ProfileSettingsController::class, 'update'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia");
+
+    // „Jak mamy do Ciebie pisać?” (D-332, #1752) — osobny formularz na tym
+    // samym ekranie, żeby wybór formy nie odbijał się od walidacji nazwy
+    // użytkownika. Bez identyfikatora w adresie; Policy w kontrolerze.
+    Route::put('/ustawienia/profil/forma', [FormOfAddressController::class, 'update'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.form_of_address');
 
     /*
      * ZDJĘCIE PROFILOWE — OSOBNY, KRÓTKI EKRAN.
