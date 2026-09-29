@@ -108,7 +108,6 @@ final class ZaproszenieDoZalozeniaKonta extends Notification implements ShouldBe
                 'waznoscTekst' => $this->waznosc(),
                 // Art. 14 RODO (#2219): adres nie pochodzi od odbiorcy.
                 'politykaUrl' => route('privacy'),
-                'waznoscGodzin' => max(1, (int) config('kuking.login_link.zaproszenia.waznosc_godzin')),
             ]);
     }
 
