@@ -73,7 +73,8 @@ class KolejkaZadanKompozycjaPaneluTest extends TestCase
         $this->assertSame(1, $dl->length, 'Dane zadania nie są w `.dane-zadania`.');
         $this->assertSame(5, $xpath->query('.//dt', $dl->item(0))->length);
         $this->assertSame(5, $xpath->query('.//dd', $dl->item(0))->length);
-        $this->assertStringNotContainsString('meta', (string) $dl->item(0)?->getAttribute('class'),
+        $this->assertInstanceOf(DOMElement::class, $dl->item(0));
+        $this->assertStringNotContainsString('meta', $dl->item(0)->getAttribute('class'),
             'Dane, które administrator czyta, wróciły do drobnego `.meta` (16 px).');
 
         // Liczby pod kartą stanu — też nie `.meta`.
