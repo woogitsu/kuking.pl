@@ -20,7 +20,7 @@ w `resources/css`, `resources/fonts` i `vite.config.js` niczego poza fontami.
 
 Artefakt `wydajnosc-<sha>` powstaje w `ci.yml` tylko przy porażce kroku
 Lighthouse (`if: failure()`), a Lighthouse na `main` i PR #2210 przechodzi.
-API (`/actions/artifacts`, 20 stron po 100) nie zwróciło żadnego artefaktu
+API GitHuba (`repos/{repo}/actions/artifacts`, 20 stron po 100) nie zwróciło żadnego artefaktu
 `wydajnosc-*`, więc porównanie z CI nie było możliwe. Wartości z komentarzy
 w issue (LCP 2,7–3,1 s na `main` 65327e69) pochodzą ze starszego przebiegu
 i nie są tu porównywane.
@@ -33,7 +33,7 @@ z `/opt/pw-browsers`, CDP). Surowe wyniki: `1000-surowe-slow4g.json`,
 
 - Dwie kopie aplikacji (osobne worktree, osobne bazy PostgreSQL z `DemoSeeder`),
   każda na `php artisan serve --no-reload` (127.0.0.1, porty 18101/18102).
-- Ekrany: `/`, `/przepisy/rosol-babci-zofii` (przepis), `/@basia` (profil) —
+- Ekrany: `/`, przepis „Rosół babci Zofii” z `DemoSeeder` (trasa `recipes.show`), `/@basia` (profil) —
   wszystkie z polskimi znakami, więc uruchamiają oba pliki fontu.
 - Każdy pomiar w NOWYM kontekście przeglądarki (pusty cache HTTP i fontów),
   viewport 360×640, DPR 2, mobile.
