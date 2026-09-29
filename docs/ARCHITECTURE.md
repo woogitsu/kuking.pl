@@ -157,6 +157,16 @@ składa już SQL o blokadach i statusach kont; `blokadaZOdbiorca()` jest
 prywatna. `tests/Feature/ZapisujacyDoPokazaniaZgodniZListaTest` pilnuje, że
 wiersz jest na liście wtedy i tylko wtedy, gdy jest osoba do pokazania.
 
+Etap 6 (#1687): rozwiązywanie celów powiadomienia — `pierwszyWpis()`,
+`wersjaDoPokazania()` i `slugZapisanegoPrzepisu()` — przeszło z modelu do
+`CelPowiadomienia`, obok `adres()` i `wpisSmakowicie()`. Model zostawia
+predykaty dla widoku i kontrolera (`pierwszyWpisNiedostepny()`,
+`przepisUsuniety()`, `wersjaDostepna()`) oraz podręczny wynik zbiorczego
+sprawdzenia listy (`zapamietajSlugPrzepisu()` itd.), więc zapytań jest tyle
+samo co przed zmianą. `tests/Feature/CelPowiadomieniaRozwiazujeCeleTest`
+pilnuje, że przycisk „Zobacz" i treść karty opierają się na tym samym
+rozstrzygnięciu resolvera i że model nie odzyskał tych metod.
+
 Jeszcze niezrobione w ramach #1687: wspólna specyfikacja dla list treści
 (`Post/Recipe/CookedEvent::scopeWidoczneDla()` różnią się dziś od Policy
 m.in. statusem konta autora).
