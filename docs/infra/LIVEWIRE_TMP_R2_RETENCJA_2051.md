@@ -37,14 +37,17 @@ to dokładnie katalog Livewire. Test wyżej pilnuje także tego.
 |---|---|---|
 | `cleanup => true` w `config/livewire.php` | `WithFileUploads::_finishUpload()` woła `cleanupOldUploads()`. Nasz dysk ma sterownik `r2`, nie `s3`, więc `isUsingS3()` zwraca `false` i Livewire **nie** pomija sprzątania: listuje cały `livewire-tmp/` i kasuje pliki starsze niż 24 h. | **Nie.** Działa tylko przy **następnym** uploadzie przez Livewire. Bez ruchu w kreatorze nic się nie kasuje. Koszt: listowanie całego prefiksu przy każdym uploadzie. Gdyby dysk dostał sterownik `s3`, Livewire przestałby sprzątać w ogóle i zdał się na regułę bucketu (dokumentacja Livewire 4, *Configuring automatic file cleanup*). |
 | `StoreUploadedImage` + `LokalnaKopiaZdjecia` | Czyta plik z R2 do lokalnej kopii. Po udanym zapisie oryginału w `incoming/` usuwa źródło `livewire-tmp/` i sąsiedni `.json`; lokalną kopię sprząta zawsze (#2178). Gdy usunięcie z R2 zawiedzie, zapis zdjęcia pozostaje udany, a w dzienniku jest ślad bez klucza obiektu i nazwy pliku. | **Nie.** Nie widzi uploadu porzuconego przed zapisem ani nie gwarantuje usunięcia przy awarii magazynu. |
+| `kuking:sprzataj-porzucone-uploady` (`PorzuconePlikiLivewire`, codziennie 03:30 UTC, #2178) | Listuje `livewire-tmp/` i kasuje obiekty (także `.json`) starsze niż 24 h, niezależnie od ruchu w kreatorze. Rusza tylko ten katalog; pusty katalog w konfiguracji = brak działania. Porażka usunięcia kończy przebieg kodem ≠ 0 (widać w harmonogramie), w dzienniku bez klucza i nazwy pliku. Ręcznie: `--na-sucho`, `--godziny=N` (min. 1). | **Częściowo.** Linia obrony w kodzie: porzucony plik nie leży dłużej niż ok. 25 h, gdy scheduler i dostęp do R2 działają. Nie jest dowodem — nikt nie zmierzył go na prawdziwym R2 — a przy awarii schedulera nie ma niczego poza regułą bucketu. |
 | `OsieroconeZdjecia` (`kuking:sprzataj-osierocone-zdjecia`) | Kasuje zdjęcia mające wiersz `media`, do których nic nie prowadzi. | **Nie.** Obiekt z `livewire-tmp/` nie ma wiersza `media` — ktoś wybrał plik i zamknął kartę albo zapis się nie udał. |
 | Usuwanie konta (`EraseAccountData`) | Kasuje zdjęcia z wierszy `media`. | **Nie** obejmuje `livewire-tmp/`. |
 | Reguła lifecycle R2 na `livewire-tmp/` | Wygasza obiekty po N dniach od zapisu, niezależnie od ruchu. | **Tak — jedyna.** Stan: w repozytorium **nie ma żadnego dowodu**, że istnieje (brak zrzutu, eksportu, wpisu w `evidence/`, komentarza w #602 ani w #2051). |
 
 Wniosek: po wdrożeniu #2178 udany zapis usuwa surowy plik i `.json` od razu,
-ale plik porzucony przed zapisem lub pozostawiony przez awarię usuwania może
-leżeć w prywatnym R2 bezterminowo przy braku kolejnych uploadów w kreatorze.
-Dlatego reguła lifecycle z §4 nadal wymaga osobnego odbioru.
+a plik porzucony przed zapisem (zły format, zamknięta karta) albo pozostawiony
+przez awarię usuwania zbiera codzienne `kuking:sprzataj-porzucone-uploady`
+(starsze niż 24 h). Reguła lifecycle z §4 zostaje drugą, niezależną linią
+obrony — na wypadek awarii schedulera lub zmiany katalogu — i nadal wymaga
+osobnego odbioru przez właściciela.
 
 ### Co obiecują dokumenty
 
