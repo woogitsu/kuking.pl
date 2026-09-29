@@ -44,15 +44,6 @@ use Illuminate\Support\Str;
 final class Udostepnianie
 {
     /**
-     * Wynik pytania „czy zeszyt ma współtwórców" na jeden obiekt zeszytu.
-     * Komponent pyta o to do trzech razy (przycisk, powód braku, treść
-     * powodu) — bez pamięci strona zeszytu dokładałaby kilka zapytań o to samo.
-     *
-     * @var \WeakMap<Collection, bool>|null
-     */
-    private ?\WeakMap $wspoltworcy = null;
-
-    /**
      * Czy tę treść wolno komuś wysłać.
      *
      * `Gate::forUser(null)` to dosłownie pytanie „czy zobaczy to ktoś,
@@ -66,13 +57,13 @@ final class Udostepnianie
             return false;
         }
 
-        // ZESZYT: „widoczny dla gościa" to za mało. Domyślne „Zapisane"
-        // i zeszyt wspólny (D-302) nie są kuracją do polecania — pierwszy
-        // jest osobistą półką, drugi rodzinnym wspólnym zapisem. Gate
-        // pyta tu o `view`, więc widoczność publiczną i blokady rozstrzyga
-        // `CollectionPolicy`; dokładamy tylko te dwa wyłączenia.
+        // ZESZYT: „widoczny dla gościa" to za mało dla domyślnego „Zapisane”
+        // — to osobista półka, nie zestaw do polecania. Zeszyt wspólny
+        // (D-302) ustawiony jako publiczny MOŻE mieć przycisk (decyzja
+        // właściciela z 29.09.2026, #2000): widoczność „wszyscy” wybrał
+        // właściciel. Widoczność publiczną i blokady rozstrzyga `CollectionPolicy`.
         if ($tresc instanceof Collection) {
-            return ! $tresc->is_default && ! $this->maWspoltworcow($tresc);
+            return ! $tresc->is_default;
         }
 
         return true;
@@ -114,21 +105,6 @@ final class Udostepnianie
         };
     }
 
-    /**
-     * Zeszyt wspólny (D-302). Korzysta z już wczytanych członków, a gdy ich
-     * nie ma — pyta bazę raz na zeszyt (`exists()`, bez ładowania osób).
-     */
-    private function maWspoltworcow(Collection $zeszyt): bool
-    {
-        if ($zeszyt->relationLoaded('members')) {
-            return $zeszyt->members->isNotEmpty();
-        }
-
-        $this->wspoltworcy ??= new \WeakMap;
-
-        return $this->wspoltworcy[$zeszyt] ??= $zeszyt->members()->exists();
-    }
-
     /** Wyjaśnienie dla WŁAŚCICIELA zeszytu, którego nie da się wysłać. */
     private function powodBrakuPrzyciskuZeszytu(Collection $zeszyt): string
     {
@@ -140,11 +116,6 @@ final class Udostepnianie
         if (! $zeszyt->isPublic()) {
             return 'Ten zeszyt widzisz tylko Ty albo zaproszone osoby. '
                 .'Zmień widoczność na „wszyscy”, jeśli chcesz go udostępnić przez przycisk „Podziel się”.';
-        }
-
-        if ($this->maWspoltworcow($zeszyt)) {
-            return 'To jest wspólny zeszyt, więc nie ma dla niego przycisku „Podziel się”. '
-                .'Jeśli chcesz wysłać komuś zestaw przepisów, załóż osobny zeszyt o widoczności „wszyscy”.';
         }
 
         return 'Ten zeszyt nie jest teraz dostępny dla osób bez zalogowania, więc przycisk „Podziel się” jest niedostępny.';
