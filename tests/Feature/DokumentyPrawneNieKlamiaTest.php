@@ -677,6 +677,122 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
         }
     }
 
+    /**
+     * ŻADEN DOKUMENT W REPOZYTORIUM NIE PODAJE INNEGO KRS, NIP ANI REGON NIŻ KONFIGURACJA (#2224).
+     *
+     * CO SIĘ STAŁO. Raport audytowy ADR z 20 września 2026 podawał inną
+     * siedzibę i inne numery rejestrowe niż `kuking.podmiot` i jednocześnie
+     * twierdził, że są one „precyzyjnie odzwierciedlone w konfiguracji".
+     * Test powyżej pilnował tylko dwóch stron prawnych, więc rozjazd
+     * w dokumentach `docs/` nie miał kto zauważyć. Reviewer albo prawnik mógł
+     * wziąć stary KRS jako dowód zgodności.
+     *
+     * Jedynym źródłem prawdy jest `config/kuking.php`. Test bierze każdą
+     * liczbę stojącą w linii z etykietą KRS, NIP albo REGON (w `docs/`,
+     * `resources/legal/` i głównych plikach `.md`) i wymaga, by była jedną
+     * z wartości z konfiguracji. Nie ma wyjątku dla dokumentów historycznych:
+     * historia ma mówić „stan na dzień X" i odsyłać do konfiguracji, a nie
+     * powtarzać nieaktualnych numerów.
+     */
+    public function test_zadne_dane_rejestrowe_w_dokumentach_nie_odbiegaja_od_konfiguracji(): void
+    {
+        $dozwolone = [
+            (string) config('kuking.podmiot.krs'),
+            (string) config('kuking.podmiot.nip'),
+            (string) config('kuking.podmiot.regon'),
+        ];
+
+        foreach ($dozwolone as $wartosc) {
+            $this->assertNotSame('', $wartosc);
+        }
+
+        $rozjazdy = [];
+        $sprawdzone = 0;
+
+        foreach (self::plikiZDanymiRejestrowymi() as $sciezka) {
+            $wiersze = preg_split('/\n/', (string) file_get_contents($sciezka)) ?: [];
+
+            foreach ($wiersze as $numer => $wiersz) {
+                if (! preg_match('/\b(KRS|NIP|REGON)\b/u', $wiersz)) {
+                    continue;
+                }
+
+                preg_match_all('/(?<![\d-])(?:\d{14}|\d{10}|\d{9})(?![\d-])/', $wiersz, $trafienia);
+
+                foreach ($trafienia[0] as $liczba) {
+                    $sprawdzone++;
+
+                    if (! in_array($liczba, $dozwolone, true)) {
+                        $rozjazdy[] = str_replace(dirname(__DIR__, 2).'/', '', $sciezka).':'.($numer + 1).' → '.$liczba;
+                    }
+                }
+            }
+        }
+
+        $this->assertGreaterThan(
+            0,
+            $sprawdzone,
+            'Skan nie znalazł żadnego numeru KRS/NIP/REGON — wzorzec przestał działać, a test przechodziłby na pusto.',
+        );
+        $this->assertSame(
+            [],
+            $rozjazdy,
+            'Numer rejestrowy w dokumencie różni się od config/kuking.php (kuking.podmiot). '
+            .'Popraw dokument albo opatrz go notą „stan na dzień X, aktualne dane: config/kuking.php”: '
+            .implode('; ', $rozjazdy),
+        );
+    }
+
+    /**
+     * Dokument audytowy ADR o operatorze musi jawnie mówić, czy jest historyczny (#2224).
+     * Bez tej noty przyszły audyt nie wie, czy czyta snapshot, czy aktualne źródło prawdy.
+     */
+    public function test_audyt_adr_jawnie_deklaruje_status_i_odsyla_do_konfiguracji(): void
+    {
+        $tresc = (string) file_get_contents(dirname(__DIR__, 2).'/docs/legal/AUDYT_ADR_WARSTWA_MERYTORYCZNA.md');
+        $poczatek = substr($tresc, 0, 2500);
+
+        $this->assertStringContainsString('dokument **historyczny**', $poczatek);
+        $this->assertStringContainsString('stan na 20 września 2026', $poczatek);
+        $this->assertStringContainsString('config/kuking.php', $poczatek);
+        $this->assertStringContainsString(
+            (string) config('kuking.podmiot.miejscowosc'),
+            $tresc,
+            'Sekcja o operatorze w audycie ADR nie zawiera aktualnej siedziby z konfiguracji.',
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function plikiZDanymiRejestrowymi(): array
+    {
+        $korzen = dirname(__DIR__, 2);
+        $pliki = [];
+
+        foreach (['docs', 'resources/legal'] as $katalog) {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($korzen.'/'.$katalog, \FilesystemIterator::SKIP_DOTS),
+            );
+
+            foreach ($iterator as $plik) {
+                if ($plik->isFile() && $plik->getExtension() === 'md') {
+                    $pliki[] = $plik->getPathname();
+                }
+            }
+        }
+
+        foreach (['README.md', 'AGENTS.md', 'CHANGELOG.md'] as $nazwa) {
+            if (is_file($korzen.'/'.$nazwa)) {
+                $pliki[] = $korzen.'/'.$nazwa;
+            }
+        }
+
+        sort($pliki);
+
+        return $pliki;
+    }
+
     // ---------------------------------------------------------------
     // Notatki autora do samego siebie, podane czytelnikowi (D-140)
     // ---------------------------------------------------------------
