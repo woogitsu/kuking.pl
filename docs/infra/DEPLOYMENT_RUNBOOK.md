@@ -2210,7 +2210,7 @@ Running pre-deploy command...         ← migracje, seed, import wartości odży
 
 `preDeployCommand` wykonuje komendy po kolei, a niezerowy kod
 którejkolwiek zatrzymuje deploy: `kuking:migruj-pod-blokada`,
-`kuking:zarejestruj-wdrozenie`, `db:seed`, a od #1961 też
+`db:seed`, a od #1961 też
 `kuking:importuj-wartosci-odzywcze` (D-299) — wypełnia słowniki CIQUAL/USDA,
 bez których sekcja wartości odżywczych na stronie przepisu milczy. Druga
 i kolejne linie w logu tej trzeciej komendy powinny mówić „Pliki danych są
@@ -2414,7 +2414,7 @@ testowych** poświadczeń. Kluczy produkcji nie kopiujemy nigdy.
 | Region | EU West (Amsterdam) | EU West | EU West |
 | Restart policy | On Failure / 10 | On Failure / 10 | **Always** |
 | Healthcheck Path | `/health` | — | — |
-| Pre-deploy Command | najpierw `php artisan kuking:migruj-pod-blokada --no-interaction` (wspólna blokada z ręcznym workflow, #2082), następnie `php artisan kuking:zarejestruj-wdrozenie --no-interaction`, `php artisan db:seed --force --no-interaction` i `php artisan kuking:importuj-wartosci-odzywcze` | — | — |
+| Pre-deploy Command | najpierw `php artisan kuking:migruj-pod-blokada --no-interaction` (wspólna blokada z ręcznym workflow, #2082), następnie `php artisan db:seed --force --no-interaction` i `php artisan kuking:importuj-wartosci-odzywcze` | — | — |
 | **Pre-deploy Timeout** | **600 s** ← ustaw ręcznie | — | — |
 | Serverless | **OFF** | **OFF** | **OFF** |
 | **Wait for CI** | **ON** | **ON** | **ON** |
@@ -2427,29 +2427,38 @@ W środowisku `staging`: **Serverless ON** dla `web`.
 
 #### Numer wersji z końcówką: `kuking:zarejestruj-wdrozenie` (issue #1932, D-318)
 
-Trzecia komenda pre-deploy dopisuje bieżący commit do tabeli `wdrozenia`,
-żeby stopka i strona `/co-nowego` mogły pokazać „Alfa 0.68.005" zamiast
-samego „Alfa 0.68" (patrz `App\Support\Wersja::etykietaZNumerem()`,
-`docs/DATABASE.md` i D-318 w `docs/DECISIONS.md`).
+Komenda dopisuje bieżący commit do tabeli `wdrozenia`, żeby stopka i strona
+`/co-nowego` mogły pokazać „Alfa 0.68.005" zamiast samego „Alfa 0.68" (patrz
+`App\Support\Wersja::etykietaZNumerem()`, `docs/DATABASE.md` i D-318
+w `docs/DECISIONS.md`).
 
-- **Stoi PO `migrate`** — potrzebuje tabeli `wdrozenia`, którą ta migracja
-  dopiero zakłada. **Stoi PRZED `db:seed`** — kolejność między nią a
-  seederem nie ma znaczenia, ale trzymamy migracje i rejestrację wdrożenia
-  razem, jako jeden logiczny krok „przygotuj bazę pod to wdrożenie".
-- **Idempotentna**: redeploy bez zmiany kodu (ten sam
-  `RAILWAY_GIT_COMMIT_SHA`) nie zakłada drugiego wiersza i nie zużywa
-  kolejnego numeru.
-- **Nieszkodliwa lokalnie i w podglądach**: bez `RAILWAY_GIT_COMMIT_SHA`
-  komenda kończy się natychmiast, kodem 0, jednym zdaniem — nie próbuje
-  zgadywać commita z `git rev-parse` (płytki klon builda Railwaya może dać
-  zły wynik bez żadnego widocznego błędu — dokładnie dlatego numer w ogóle
-  NIE jest liczony z historii gita).
-- **Jeśli ta komenda kiedyś zniknie z `preDeployCommand`** (np. przy ręcznym
-  ustawianiu panelu po incydencie z `railway.json`, patrz wyżej): stopka
-  i strona „Co nowego" po prostu wracają do stanu sprzed #1932 — samej
-  etykiety, bez końcówki i bez dopisków „od …". Nic się nie wywala; to jest
-  degradacja o jedną informację, ten sam wybór co przy braku znacznika daty
-  wydania.
+- **NIE stoi w `preDeployCommand`** (od audytu z 28 września 2026). Pre-deploy
+  kończy się przed startem nowego kontenera, więc numer zapisany tam
+  zostawał także po nieudanym seedzie, imporcie albo healthchecku. Zamiast
+  tego `docker/entrypoint.sh` (role `web` i `all`) uruchamia w tle
+  `php artisan kuking:zarejestruj-wdrozenie --po-gotowosci`: komenda czeka,
+  aż lokalny `/health` kontenera odpowie 2xx (ten sam sprawdzian co
+  healthcheck Railwaya), i dopiero wtedy zapisuje. Działa więc także bez
+  `railway config apply` (dzisiejsza topologia `all`). Reguła w
+  `scripts/railway/iac.test.mjs` odrzuca powrót komendy do pre-deploy.
+- **Tabela istnieje**: kontener startuje po `kuking:migruj-pod-blokada`.
+- **Kontener, który nie wstał, nie dostaje numeru**: bez 2xx w limicie
+  (domyślnie 300 s, `--limit`) komenda kończy się błędem i niczego nie zapisuje;
+  w logu kontenera zostaje ostrzeżenie „numer wdrożenia nie został
+  zarejestrowany". Funkcja z „Najnowszych zmian" dostaje numer dopiero od
+  pierwszego udanego kontenera.
+- **Idempotentna**: restart albo redeploy tego samego `RAILWAY_GIT_COMMIT_SHA`
+  nie zakłada drugiego wiersza i nie zużywa kolejnego numeru; dwa równoległe
+  udane starty dostają różne numery (blokada doradcza).
+- **Stary kontener** pokazuje swój numer przez cały czas przygotowywania
+  następnego wdrożenia — nowy wiersz pojawia się dopiero po gotowości nowego.
+- **Nieszkodliwa lokalnie i w podglądach bez commita**: bez
+  `RAILWAY_GIT_COMMIT_SHA` entrypoint nic nie uruchamia, a sama komenda kończy
+  się kodem 0 — nie zgaduje commita z historii repozytorium (płytki klon builda
+  Railwaya może dać zły wynik bez żadnego widocznego błędu).
+- **Jeśli komenda przestanie działać**: stopka i „Co nowego” wracają do stanu
+  sprzed #1932 — samej etykiety, bez końcówki i bez dopisków „od …”. Nic się
+  nie wywala; degradacja o jedną informację.
 
 ### Alert budżetowy
 
