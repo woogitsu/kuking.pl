@@ -55,6 +55,7 @@ udajemy, że gotuje się w zero minut. Wybrany czas jest zaznaczony, a wrócić 
 wszystkich przepisów możecie jednym kliknięciem w „Bez limitu czasu”. Wybór
 zostaje w adresie strony, więc działa po odświeżeniu i można go komuś wysłać.
 Dawny przycisk „Do 30 minut” działa dalej, także w starych linkach.
+
 ### Wyślijcie komuś swój zeszyt
 
 Na stronie zeszytu, który ma widoczność „wszyscy”, jest teraz przycisk
@@ -65,6 +66,7 @@ adres, otworzy zeszyt bez zakładania konta i zobaczy tylko te przepisy, które
 sama ma prawo zobaczyć. Zeszytu „Tylko ja”, zeszytu „Zapisane” ani wspólnego
 zeszytu z bliskimi nie da się w ten sposób wysłać — na stronie takiego zeszytu
 przeczytacie, co zmienić, jeśli chcecie go udostępnić.
+
 ### Kalorie na porcję także dla wyszukiwarek
 
 Jeśli przy przepisie widzicie „Szacunkowe wartości odżywcze (na porcję)”, tę
@@ -72,6 +74,7 @@ samą liczbę kalorii podajemy teraz także w danych, które czytają wyszukiwar
 Robimy to tylko wtedy, gdy liczba naprawdę jest na stronie: autor nie ukrył
 sekcji, znamy skład co najmniej 90% składników i autor podał liczbę porcji.
 Gdy któregoś z tych warunków brakuje, wyszukiwarkom też nic nie podajemy.
+
 ### Zobaczcie, co autor zmienił w przepisie
 
 Gdy przepis był poprawiany i ma co najmniej dwie zapisane wersje, pod nim
@@ -84,6 +87,7 @@ zmieniły się proporcje lub sposób przygotowania. Historia pokazuje tekst i da
 przepisu, bez zdjęć, i widzi ją każdy, kto widzi sam przepis — nic ponadto. Jeśli
 starsza wersja nie zapisała jakiegoś pola, piszemy o tym wprost, zamiast
 zgadywać.
+
 ### Zacznijcie gotować na telefonie, dokończcie na tablecie
 
 W trybie „Gotuję” jest nowy, całkiem opcjonalny przycisk „Zapamiętuj postęp na
