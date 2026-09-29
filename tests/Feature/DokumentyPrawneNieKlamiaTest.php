@@ -334,6 +334,82 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
     }
 
     /**
+     * DATA W POLITYCE MA ZAPIS W DOKUMENCIE INFRASTRUKTURY (#619). Strażnik
+     * hosta (test wyżej) mówi, że KOD nie zapisze zdjęć poza jurysdykcją UE;
+     * nie mówi, że ktoś sprawdził, w jakiej jurysdykcji bucket faktycznie
+     * jest. To sprawdzenie robi człowiek w panelu Cloudflare, a jego wynik
+     * z datą stoi w `docs/infra/LOKALIZACJA_DANYCH_R2.md` §0. Zdanie
+     * „sprawdzone <data>” w wierszu R2 polityki nie może mieć innej daty niż
+     * ostatni zapis — inaczej dokument prawny podaje datę, za którą nic nie
+     * stoi (albo przemilcza nowsze sprawdzenie).
+     */
+    public function test_data_sprawdzenia_r2_w_polityce_to_ostatni_zapis_weryfikacji(): void
+    {
+        $zapis = self::ostatniaWeryfikacjaJurysdykcjiUE(
+            (string) file_get_contents(base_path('docs/infra/LOKALIZACJA_DANYCH_R2.md')),
+        );
+
+        $this->assertNotNull(
+            $zapis,
+            'Polityka mówi, że zdjęcia leżą w UE, ale docs/infra/LOKALIZACJA_DANYCH_R2.md §0 nie ma zapisu '
+            .'weryfikacji w formacie „- **RRRR-MM-DD** — właściciel potwierdził w panelu Cloudflare: bucket zdjęć ma jurysdykcję `eu`”.',
+        );
+
+        $wiersze = array_values(array_filter(
+            explode("\n", $this->tresc('polityka-prywatnosci.md')),
+            static fn (string $linia): bool => str_starts_with(trim($linia), '| Cloudflare R2 '),
+        ));
+        $this->assertCount(1, $wiersze, 'Kontrola: w polityce ma być dokładnie JEDEN wiersz o Cloudflare R2.');
+
+        $this->assertStringContainsString(
+            'sprawdzone '.self::dataPoPolsku($zapis),
+            $wiersze[0],
+            "Ostatni zapis weryfikacji jurysdykcji R2 jest z {$zapis}, a wiersz Cloudflare R2 w polityce podaje inną datę sprawdzenia "
+            .'(albo żadnej). Popraw datę w polityce albo dopisz zapis do docs/infra/LOKALIZACJA_DANYCH_R2.md §0.',
+        );
+    }
+
+    public function test_odczyt_zapisu_weryfikacji_bierze_ostatnia_date_i_tylko_jurysdykcje_eu(): void
+    {
+        // Kontrola metody — bez niej test wyżej mógłby przechodzić na zapisie,
+        // z którego nic nie wyczytano, albo na samym Location Hint.
+        $zapis = "## 0. Zapis weryfikacji\n\n"
+            ."- **2026-09-20** — właściciel potwierdził w panelu Cloudflare: bucket zdjęć ma jurysdykcję `eu` (x).\n"
+            ."- **2026-10-01** — właściciel potwierdził w panelu Cloudflare: bucket zdjęć ma jurysdykcję `eu` (y).\n";
+
+        $this->assertSame('2026-10-01', self::ostatniaWeryfikacjaJurysdykcjiUE($zapis));
+        $this->assertNull(self::ostatniaWeryfikacjaJurysdykcjiUE(
+            '- **2026-09-20** — właściciel potwierdził w panelu Cloudflare: bucket zdjęć ma Location Hint `weur`.',
+        ));
+        $this->assertSame('25 września 2026', self::dataPoPolsku('2026-09-25'));
+    }
+
+    private static function ostatniaWeryfikacjaJurysdykcjiUE(string $dokument): ?string
+    {
+        preg_match_all(
+            '/^- \*\*(\d{4}-\d{2}-\d{2})\*\* — właściciel potwierdził w panelu Cloudflare: bucket zdjęć ma jurysdykcję `eu`/mu',
+            $dokument,
+            $m,
+        );
+
+        if ($m[1] === []) {
+            return null;
+        }
+
+        sort($m[1]);
+
+        return end($m[1]);
+    }
+
+    private static function dataPoPolsku(string $iso): string
+    {
+        $miesiace = [1 => 'stycznia', 'lutego', 'marca', 'kwietnia', 'maja', 'czerwca', 'lipca', 'sierpnia', 'września', 'października', 'listopada', 'grudnia'];
+        [$rok, $miesiac, $dzien] = array_map('intval', explode('-', $iso));
+
+        return "{$dzien} {$miesiace[$miesiac]} {$rok}";
+    }
+
+    /**
      * Żadnych zdań o umowach powierzenia, których nie ma. Właściciel
      * odpowiedział na wprost zapytany: „nie, żadne nie są" podpisane.
      */

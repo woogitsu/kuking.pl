@@ -15,6 +15,7 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Mail\Mailables\Headers;
+use Illuminate\Mail\Transport\ArrayTransport;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification as Powiadomienie;
 use Illuminate\Support\Facades\Mail;
@@ -166,9 +167,12 @@ class KazdyListLiczySieWPuliTest extends TestCase
     /** @return list<Email> */
     private function wyslane(): array
     {
+        /** @var ArrayTransport $transport */
+        $transport = app('mailer')->getSymfonyTransport();
+
         return array_map(
             static fn ($wyslany) => $wyslany->getOriginalMessage(),
-            iterator_to_array(app('mailer')->getSymfonyTransport()->messages()),
+            iterator_to_array($transport->messages()),
         );
     }
 }

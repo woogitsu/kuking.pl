@@ -73,14 +73,12 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
      * („sam decydujesz", „włączasz sam") — a to słowo naprawdę wystąpiło
      * jako żywy błąd w PIĘCIU ekranach (patrz test niżej), mimo że
      * `test_widoki_nie_przypisuja_czytelnikowi_plci` obok był zielony.
-     * Ten sam zaimek stoi też legalnie w `resources/legal/regulamin.md`
+     * Ten sam zaimek stał do 26.09.2026 także w `resources/legal/regulamin.md`
      * i `polityka-prywatnosci.md` („sam wybierasz", „sam decydujesz, co
-     * dzieje się z Twoimi tekstami") — a teksty prawne mają swój reżim
-     * i osobne zlecenie (`docs/brand/COPY_STYLE.md` §6). Gdyby te
-     * wzorce trafiły do wspólnej `WZORCE`, `test_teksty_prawne_…` zacząłby
-     * obalać rzeczy, których ten PR świadomie nie rusza — dokładnie ten
-     * rodzaj przypadkowego rozszerzenia zakresu, przed którym ostrzega
-     * `docs/PULAPKI_TESTOW.md`.
+     * dzieje się z Twoimi tekstami"). Teksty prawne mają osobny reżim
+     * (`docs/brand/COPY_STYLE.md` §6), więc zwroty poprawiono osobną,
+     * redakcyjną zmianą (#1816) i dopiero wtedy `test_teksty_prawne_…`
+     * dostał `WZORCE_SAM` — ta stała nadal dotyczy tylko widoków.
      *
      * @var array<string, string>
      */
@@ -196,7 +194,7 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
         $winowajcy = [];
 
         foreach ($pliki as $plik) {
-            foreach ($this->trafienia((string) file_get_contents($plik)) as $trafienie) {
+            foreach ($this->trafieniaProduktu((string) file_get_contents($plik)) as $trafienie) {
                 $winowajcy[] = $this->skrot($plik).':'.$trafienie;
             }
         }
@@ -589,8 +587,9 @@ class TekstyNiePrzypisujaPlciTest extends TestCase
     /**
      * Produkt (widoki, tłumaczenia, napisy w PHP, notatki tagów): wzorce
      * wspólne ORAZ `WzorceRodzaju::WZORCE_SAM` („sam"/„sama" w roli
-     * podmiotu, PR #1899). Teksty prawne idą samym `trafienia()` — patrz
-     * komentarz przy `WZORCE_SAM`, dlaczego.
+     * podmiotu, PR #1899). Od decyzji właściciela z 26.09.2026 (#1816) te
+     * same wzorce obejmują też teksty prawne — „sam wybierasz” i „sam
+     * decydujesz” zastąpiły neutralne zwroty w regulaminie i polityce.
      *
      * @return list<string> „numer linii → cytat"
      */

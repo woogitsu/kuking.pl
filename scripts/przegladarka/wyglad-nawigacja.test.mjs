@@ -98,7 +98,7 @@ for (const mode of ['success', '500', 'offline', 'timeout', 'json']) {
 // przycisk, kliknięcie i dotknięcie w środek kafla.
 const css = readFileSync(new URL('../../resources/css/szybki-wyglad.css', import.meta.url), 'utf8');
 const stronaZKaflem = tresc => `<html data-text-scale="100" data-theme="light"><head><meta charset="utf-8">
-<style>:root{--spacing-2:8px;--spacing-3:12px;--spacing-4:16px;--text-body:18px;--leading-body:1.5}body{margin:0;font:18px/1.5 sans-serif}</style>
+<style>:root{--spacing-2:8px;--spacing-3:12px;--spacing-4:16px;--text-body:18px;--leading-body:1.5;--safe-top:0px;--safe-right:0px;--safe-bottom:0px;--safe-left:0px}body{margin:0;font:18px/1.5 sans-serif}</style>
 <style>${css}</style></head><body>
 <div style="height:1500px"></div>
 ${tresc}
