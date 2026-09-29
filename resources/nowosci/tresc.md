@@ -33,8 +33,9 @@ Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
 ### Jak mamy do Was pisać?
 
-W ustawieniach profilu, a także na ostatnim kroku po założeniu konta, jest nowe
-pytanie „Jak mamy do Ciebie pisać?”. Możecie wybrać formę żeńską, męską albo
+Od 13 października 2026, kiedy wchodzi w życie nowa polityka prywatności (do tego
+dnia pokazujemy o niej pasek z informacją), w ustawieniach profilu, a także na
+ostatnim kroku po założeniu konta, pojawi się nowe pytanie „Jak mamy do Ciebie pisać?”. Możecie wybrać formę żeńską, męską albo
 neutralną. Neutralna jest zaznaczona od początku i tak piszemy do każdego,
 dopóki sam nie wybierze inaczej — możecie też pominąć to pytanie i nic się nie
 zmieni. Nie zgadujemy niczego z imienia ani z konta Google czy Facebooka.

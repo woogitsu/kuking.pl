@@ -4,6 +4,12 @@
 
 ---
 
+## Co się zmieniło
+
+**29 września 2026.** Dopisaliśmy pytanie „Jak mamy do Ciebie pisać?” (forma żeńska, męska albo neutralna) i opisaliśmy je w tabeli w punkcie 2: to dobrowolna dana, **widoczna dla innych**, którą przetwarzamy w ramach wykonania umowy. Uzupełniliśmy też opis paczki z Twoimi danymi, obserwowanych tagów, ukrywania wpisów i osób, reakcji „Smakowicie wygląda”, listy „Co mam w domu”, odpinania zdarzeń analitycznych po usunięciu konta i miejsca przechowywania zdjęć. **To zmiana istotna: nowa wersja obowiązuje od 13 października 2026. Do tego dnia obowiązuje poprzednia wersja z 25 września 2026**, a pytania o formę do tego dnia nie zadajemy.
+
+---
+
 ## W skrócie
 
 Zbieramy tylko te dane, które są potrzebne, żeby Kuking działał: Twój e-mail i hasło, dane profilu, które uzupełniasz, i treści, które publikujesz. Nie sprzedajemy Twoich danych nikomu. Serwer, na którym działa Kuking, stoi w Unii Europejskiej. Zdjęcia przechowujemy w Cloudflare R2, w części tej usługi zastrzeżonej dla Unii Europejskiej — piszemy o tym dokładniej w sekcji 3. W każdej chwili możesz pobrać kopię swoich danych albo usunąć konto — opisujemy dokładnie, jak to zrobić i co się wtedy dzieje z Twoimi treściami. Jeśli masz pytania, napisz do nas na **kontakt@kuking.pl**.

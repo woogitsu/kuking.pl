@@ -9,6 +9,8 @@ use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportPhotoPlan;
 use App\Models\Profile;
 use App\Models\User;
+use App\Support\Czas;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -33,6 +35,37 @@ final class FormaZwracaniaSieTest extends TestCase
     use RefreshDatabase;
 
     private const MIGRACJA = 'migrations/2026_09_25_140000_add_form_of_address_to_profiles.php';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Wybór formy jest ukryty do dnia wejścia w życie nowej polityki
+        // (13.10.2026, D-327). Te testy sprawdzają funkcję PO tej dacie;
+        // okres przejściowy ma osobne testy niżej.
+        $this->travelTo(CarbonImmutable::parse('2026-10-14 12:00', Czas::strefa()));
+    }
+
+    public function test_do_dnia_wejscia_polityki_wyboru_nie_widac_i_nie_da_sie_go_zapisac(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-12 12:00', Czas::strefa()));
+        $basia = $this->user('basia', ['display_name' => 'Basia']);
+
+        $this->actingAs($basia)->get(route('settings.profile'))->assertOk()
+            ->assertDontSee('Jak mamy do Ciebie pisać?')
+            ->assertDontSee('name="form_of_address"', false);
+
+        $this->actingAs($basia)->put(route('settings.form_of_address'), ['form_of_address' => Profile::FORM_FEMININE])
+            ->assertNotFound();
+        $this->actingAs($basia)->post(route('onboarding.form_of_address'), ['form_of_address' => Profile::FORM_FEMININE])
+            ->assertNotFound();
+
+        $this->assertNull($basia->profile->fresh()->form_of_address);
+
+        $this->travelTo(CarbonImmutable::parse('2026-10-13 00:00', Czas::strefa()));
+        $this->actingAs($basia)->get(route('settings.profile'))->assertOk()
+            ->assertSee('Jak mamy do Ciebie pisać?');
+    }
 
     // -----------------------------------------------------------------
     // Domyślnie: forma neutralna, czyli dzisiejsze teksty bez rodzaju

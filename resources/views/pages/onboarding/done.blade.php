@@ -39,7 +39,7 @@
     {{-- Pomijalne pytanie o formę zwracania się (D-332, #1752). Stoi POD dwoma
          wyjściami, nie przed nimi: kto nie chce odpowiadać, po prostu idzie
          dalej, a forma neutralna zostaje. Bez przypominania później. --}}
-    @if($profile)
+    @if($profile && \App\Support\Forma::wyborDostepny())
         <section class="ramka-pomocnicza mt-8">
             <h2 class="mt-0">Jedno pytanie, jeśli chcesz</h2>
             <x-wybor-formy :profile="$profile" :akcja="route('onboarding.form_of_address')" />

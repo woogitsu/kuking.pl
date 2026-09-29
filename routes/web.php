@@ -87,6 +87,7 @@ use App\Http\Controllers\WartosciOdzywczeController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use App\Http\Controllers\ZgodaOdczytuAiController;
+use App\Http\Controllers\ZmianaPolitykiController;
 use App\Http\Controllers\ZmianaRegulaminuController;
 use Illuminate\Support\Facades\Route;
 
@@ -1083,6 +1084,10 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/regulamin/zmiana/zamknij', ZmianaRegulaminuController::class)
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('terms.notice.dismiss');
+    // Pasek „Zmieniliśmy politykę prywatności” (D-327, D-332) — jak wyżej.
+    Route::post('/prywatnosc/zmiana/zamknij', ZmianaPolitykiController::class)
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('privacy.notice.dismiss');
     Route::get('/ustawienia/ukryte', [UkryciaController::class, 'lista'])->name('settings.hidden');
     Route::patch('/ustawienia/ukryte/{hide}', [UkryciaController::class, 'zostaw'])
         ->middleware("throttle:{$limits['ukrycia']},ukrycia")

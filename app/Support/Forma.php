@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Domain\Zgody\WersjaDokumentu;
 use App\Models\Profile;
 use App\Models\User;
 
@@ -48,5 +49,21 @@ final class Forma
             Profile::FORM_MASCULINE => $meska,
             default => $neutralna,
         };
+    }
+
+    /**
+     * Czy wybór formy wolno już pokazać i zapisać (D-327, D-332).
+     *
+     * Forma to nowa dana widoczna dla innych, opisana dopiero w polityce
+     * prywatności z 2026-09-29, która jest zmianą ISTOTNĄ: wchodzi w życie
+     * 14 dni po publikacji, a do tego dnia obowiązuje poprzednia polityka,
+     * która o tej danej nie mówi. Do dnia wejścia w życie nie pytamy —
+     * pole nie istnieje w ekranach ani w zapisie, wszyscy dostają wariant
+     * neutralny. Po tej dacie (albo gdy zmiana jest drobna) pytanie
+     * pojawia się samo, bez wdrożenia.
+     */
+    public static function wyborDostepny(): bool
+    {
+        return ! WersjaDokumentu::polityka()->wOkresiePrzejsciowym();
     }
 }

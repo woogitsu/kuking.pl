@@ -2871,20 +2871,21 @@ return [
          * był — bez nowego celu, odbiorcy ani dłuższego przechowywania — więc
          * drobna.
          *
-         * Wersja 2026-09-29 (#1816, jedno podbicie razem z #1324 i #619) opisuje
-         * to, co serwis już robił: paczkę danych zgodną z kodem (co jest
-         * w środku, co tylko na prośbę), obserwowane tagi, ukrycia, reakcję
-         * „Smakowicie wygląda”, listę „Co mam w domu”, odpięcie zdarzeń
+         * Wersja 2026-09-29 (#1816, #1324, #619 oraz #1751: forma zwracania się,
+         * D-332) jest ISTOTNA — decyzja właściciela z 29.09.2026. Dochodzi
+         * nowa dana widoczna dla innych („Jak mamy do Ciebie pisać?”), więc
+         * nowa wersja obowiązuje 14 dni po publikacji (13.10.2026), a do tego
+         * dnia obowiązuje `poprzednia` (2026-09-25). Opisuje też to, co serwis
+         * już robił: paczkę danych zgodną z kodem, obserwowane tagi, ukrycia,
+         * reakcję „Smakowicie wygląda”, listę „Co mam w domu”, odpięcie zdarzeń
          * analitycznych po usunięciu konta i datę sprawdzenia lokalizacji
-         * zdjęć. Nie ma tu nowego celu, odbiorcy ani dłuższego przechowywania,
-         * a zwroty z „sam” zamieniono na neutralne (decyzja właściciela
-         * z 26.09.2026) — więc drobna. Gdyby prawnik uznał inaczej,
-         * przestaw `istotna` na true: `WersjaDokumentuTest` zażąda wtedy
-         * paska `components.pasek-zmiany-polityki`, którego jeszcze nie ma.
+         * zdjęć; zwroty z „sam” zamieniono na neutralne. Pasek o zmianie:
+         * `components.pasek-zmiany-polityki` (`ZmianaPolityki`). Do dnia wejścia
+         * w życie wybór formy jest ukryty (`Forma::wyborDostepny()`).
          */
         'zmiana_polityki' => [
-            'istotna' => false,
-            'poprzednia' => null,
+            'istotna' => true,
+            'poprzednia' => '2026-09-25',
             'obowiazuje_od' => null,
         ],
 

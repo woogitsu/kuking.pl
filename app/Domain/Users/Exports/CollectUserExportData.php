@@ -319,6 +319,7 @@ final class CollectUserExportData
             // Wersja regulaminu, przy której zamknięto pasek „Zmieniliśmy
             // regulamin" (#1811, D-306); `null` — żadnego jeszcze nie zamknięto.
             'pasek_zmiany_regulaminu_zamkniety_dla_wersji' => $user->terms_notice_dismissed_version,
+            'pasek_zmiany_polityki_zamkniety_dla_wersji' => $user->policy_notice_dismissed_version,
             // Kolumny `users` dopisane w #953 — `InwentarzDanychKonta::KOLUMNY_KONTA`.
             'rola' => $user->role,
             'status_konta_do' => $this->date($user->status_expires_at),

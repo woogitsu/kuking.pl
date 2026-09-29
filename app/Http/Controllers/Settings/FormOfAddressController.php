@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Models\Profile;
+use App\Support\Forma;
 use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -55,6 +56,9 @@ class FormOfAddressController extends Controller
 
     private function zapisz(Request $request): void
     {
+        // Do dnia wejścia w życie nowej polityki (D-327) pola nie ma.
+        abort_unless(Forma::wyborDostepny(), 404);
+
         $profile = $request->user()->profile;
 
         $this->authorize('update', $profile);

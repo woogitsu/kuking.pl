@@ -26,6 +26,7 @@
     $zaznaczone = old('form_of_address', $profile->formOfAddressChoice());
     $imie = $profile->display_name;
 @endphp
+@if(\App\Support\Forma::wyborDostepny())
 <form method="POST" action="{{ $akcja }}" class="wybor-formy" id="forma-zwracania">
     @csrf
     @if(strtoupper($metoda) !== 'POST')
@@ -80,3 +81,4 @@
         <button class="btn btn-secondary" type="submit">{{ $przycisk }}</button>
     </div>
 </form>
+@endif

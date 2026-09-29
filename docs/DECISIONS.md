@@ -20697,6 +20697,15 @@ z testami.
 > etap wdrożenia obejmuje kilka kluczowych tekstów wskazanych w issue, nie cały
 > serwis.
 
+> **Zmiana polityki jest ISTOTNA — decyzja właściciela z 29 września 2026
+> (D-327).** Nowa wersja polityki (publikacja 2026-09-29, poprzednia
+> 2026-09-25) obowiązuje od 13 października 2026, a zalogowani do tego dnia
+> widzą pasek „Zmieniliśmy politykę prywatności” (`ZmianaPolityki`). Do dnia
+> wejścia w życie **wybór formy jest ukryty** (`Forma::wyborDostepny()`, liczone
+> z `WersjaDokumentu::polityka()`): stara polityka o tej danej nie mówi, więc
+> jej nie zbieramy; wszyscy dostają wariant neutralny, a pytanie pojawia się
+> samo po tej dacie, bez kolejnego wdrożenia.
+
 Research: `docs/research/PROFIL_FORMA_I_URODZINY.md` (gałąź
 `claude/research-profil-forma-urodziny`), pytania P1, P2, P3 i P7.
 

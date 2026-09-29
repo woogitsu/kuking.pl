@@ -143,6 +143,24 @@ kolumny w celu wymuszenia rollbacku; wycofać sam kod paska. Testy:
 `ZmianaRegulaminuTest::test_rollback_odmawia_gdy_ktos_zamknal_pasek`
 i kontrola dodatnia `test_rollback_przechodzi_gdy_nikt_nie_zamknal_paska`.
 
+#### `policy_notice_dismissed_version` — pasek „Zmieniliśmy politykę prywatności” (D-327, D-332)
+
+Migracja `2026_09_29_160000_add_policy_notice_dismissed_version_to_users`,
+bliźniak `terms_notice_dismissed_version`: nullable `date` bez wartości
+domyślnej (zmiana samego katalogu, AGENTS.md §6). Wartość to data wersji
+polityki (`kuking.zgody.wersja_polityki`), przy której osoba zamknęła pasek;
+`NULL` — żadnego jeszcze nie zamknęła. Pasek widzi zalogowane konto założone
+przed dniem wersji, którego wartość jest pusta albo starsza
+(`App\Domain\Zgody\ZmianaPolityki`). Kolumna poza `$fillable`; zapisuje ją
+tylko `ZmianaPolityki::zamknij()` (POST `/prywatnosc/zmiana/zamknij`).
+Zamknięcie paska NIE jest zgodą — to ślad, że komunikat dotarł. Eksport oddaje
+`konto.pasek_zmiany_polityki_zamkniety_dla_wersji`, wymazanie konta zeruje pole.
+
+**Rollback (D-088):** `down()` odmawia usunięcia kolumny, gdy choć jedno konto
+ma wartość (jak przy `terms_notice_dismissed_version`). Testy:
+`ZmianaPolitykiTest::test_rollback_odmawia_gdy_ktos_zamknal_pasek` i kontrola
+dodatnia `test_rollback_przechodzi_gdy_nikt_nie_zamknal_paska`.
+
 #### `wants_weekly_digest` — zgoda, o którą trzeba było zapytać
 
 Migracja `2026_09_07_400000_default_weekly_digest_to_off`.
