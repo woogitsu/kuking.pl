@@ -133,7 +133,10 @@ class PowiadomieniaJedenKontraktWidocznosciTest extends TestCase
     {
         $adresat = $this->user('adresateksport');
         $wpis = $this->wpis($adresat);
-        $ukrytyWpis = $this->wpis($this->user()); // cudzy: właściciel własnej treści widzi ją mimo ukrycia
+        // Wpis INNEGO autora niż adresat, później ukryty. Gdyby należał do adresata,
+        // ten widziałby go mimo ukrycia (właściciel własnej treści), więc
+        // powiadomienie o komentarzu pod nim nie zniknęłoby z listy i eksportu.
+        $ukrytyWpis = $this->wpis($this->user());
 
         $zwykly = $this->user(null, ['display_name' => 'Zwykla Osoba']);
         $zablokowany = $this->user(null, ['display_name' => 'Zablokowana Osoba']);
