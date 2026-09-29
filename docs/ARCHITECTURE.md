@@ -66,6 +66,7 @@ Edycja wpisu i pytania: `EdycjaWpisuRequest` (`rules()` puste — treść walidu
 marker `_tag_form_post_id` idzie też do żądania z kontenera, bo z niego
 powstaje `old()`; reguły wspólne ze store'em w traicie `WalidujeTrescWpisu`).
 Komentarz: `KomentarzRequest` (Policy w `authorize()` przed walidacją pól).
+Profil publiczny: `ProfilRequest` (zakładka, rok i fraza z adresu, `rules()` puste — jak `ListaKontRequest`).
 Kolejne kandydaty (od największego): `CollectionController` (1157 linii), `ProfileController`,
 `OnboardingController`, `NotificationController`, `ReportController`,
 kontrolery logowania Google/Facebook (#1035).
