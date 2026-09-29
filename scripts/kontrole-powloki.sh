@@ -34,7 +34,7 @@ oblane() {
 # --- Składnia ------------------------------------------------------------------
 bledy_bash=""
 sprawdzonych=0
-for skrypt in docker/entrypoint.sh docker/healthcheck.sh docker/klucz-preview.sh docker/kopia/*.sh scripts/*.sh tests/skrypty/*.sh; do
+for skrypt in docker/entrypoint.sh docker/healthcheck.sh docker/klucz-preview.sh docker/kopia/*.sh scripts/*.sh scripts/ci/*.sh tests/skrypty/*.sh; do
     [ -f "$skrypt" ] || continue
     sprawdzonych=$((sprawdzonych + 1))
     bash -n "$skrypt" 2>/dev/null || bledy_bash="$bledy_bash $skrypt"
@@ -80,6 +80,7 @@ tests/skrypty/kontrola-ujemna.sh|Przyrząd kontroli ujemnych oblewa
 tests/skrypty/check-postgres.sh|Sonda PostgreSQL w check.sh oblewa
 tests/skrypty/kontrola-sondy-wdrozenia.sh|Sondy testu dymnego oblewają
 tests/skrypty/kontrola-czekania-preview.sh|Czekanie na preview oblewa
+tests/skrypty/zakres.sh|Bramka zakres (scripts/ci/zakres.sh) oblewa
 KONIEC
 )
 
