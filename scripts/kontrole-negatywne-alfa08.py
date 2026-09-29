@@ -280,6 +280,8 @@ STREFA_STRAZNIK_TEST = "test_zaden_widok_nie_formatuje_daty_z_pominieciem_pomocn
 # i test ma wtedy oblać — dowód, że szuka tego słowa w tym pliku, a nie w pustce.
 POLITYKA = "resources/legal/polityka-prywatnosci.md"
 POLITYKA_KOPIA_TEST = "PolitykaNieObiecujePelnejKopiiTest"
+# #1816: polityka ma mówić o obserwowanych tagach, ukryciach, reakcjach i „Co mam w domu”.
+POLITYKA_PACZKA_TEST = "PolitykaOpisujePaczkeUkryciaIReakcjeTest"
 # Kompensacja nieudanego wgrania (issue #962). Pliki idą do storage przed
 # `Media::create()`; gdy wiersz nie powstanie, `StoreUploadedImage` ma je
 # skasować, bo bez wiersza nie znajdzie ich żadne sprzątanie. Mutacja wyłącza
@@ -1214,7 +1216,11 @@ checks = [
     ("Kopia bazy ze spreadem zestawu aplikacji", RAILWAY_IAC, KOPIA_BEZ_SPREADU_TEST,
      lambda s: replace_once(s, KOPIA_DB_URL, "      ...schedulerEnv,\n" + KOPIA_DB_URL)),
     ("Polityka znowu obiecuje pełną kopię", POLITYKA, POLITYKA_KOPIA_TEST,
-     lambda s: replace_once(s, "poprosić o **kopię swoich treści**", "poprosić o pełną kopię")),
+     lambda s: replace_once(s, "pobrać stamtąd **paczkę z Twoimi danymi**", "pobrać stamtąd pełną kopię swoich danych")),
+    ("Polityka przestaje wymieniać obserwowane tagi", POLITYKA, POLITYKA_PACZKA_TEST,
+     lambda s: replace_once(s, "jakie tagi obserwujesz", "kogo obserwujesz")),
+    ("Polityka gubi prywatność listy „Co mam w domu”", POLITYKA, POLITYKA_PACZKA_TEST,
+     lambda s: replace_once(s, "widzisz ją tylko Ty", "widzą ją Twoi obserwujący")),
     ("Godzina w widoku z pominięciem Czas", WIDOK_POTWIERDZENIA, STREFA_STRAZNIK_TEST,
      lambda s: replace_once(s, "{{ \\App\\Support\\Czas::lokalnie($nieudanaWysylka->failed_at)->format('H:i') }}", "{{ $nieudanaWysylka->failed_at->format('H:i') }}")),
     ("Nieudane wgranie bez kompensacji plików", KOMPENSACJA_UPLOADU, KOMPENSACJA_UPLOADU_TEST,
