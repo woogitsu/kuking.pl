@@ -17624,6 +17624,17 @@ ekranowa i visual viewport zostają w #947.
 odbioru na fizycznym iPhonie (Safari i ekran główny, pion i poziom, tekst
 100/140/200%) wymaga #987 i nie da się go zastąpić emulacją.
 
+Pomiar w Chromium: `scripts/bezpieczny-obszar-pomiar.mjs` ustawia cztery
+insety przez CDP (`Emulation.setSafeAreaInsetsOverride`) — bez wycięcia,
+iPhone pion (59/0/34/0) i poziom (0/59/21/59) — i sprawdza, że górna belka,
+dolna nawigacja i przycisk szybkiego wyglądu leżą w bezpiecznym obszarze,
+cele mają ≥ 48 px, strona nie przewija się w poziomie, a zmiana insetów
+przelicza odstępy bez przeładowania (39 asercji; kontrola ujemna: usunięcie
+`--safe-bottom` z dolnej belki albo `--safe-top` z karty górnej je czerwieni).
+Granica emulacji: Chromium podaje niezerowe `env()` także przy
+`viewport-fit=auto`, więc różnicy `auto`/`cover` z WebKit nie odtwarza —
+to nadal zostaje do odbioru na telefonie.
+
 Dowody: `tests/Feature/BezpiecznyObszarMaJedenKontraktTest.php` (tokeny
 meta viewport — nie cały napis, żeby dopisany `interactive-widget` z #947 go
 nie czerwienił — jedyne źródło insetów, właściciel każdego brzegu, w tym dół
