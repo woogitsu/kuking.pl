@@ -8,8 +8,8 @@ use App\Domain\Import\OdczytanyPrzepis;
 
 /**
  * Przepis odczytany ze strony razem z adresem, który trafi do źródła,
- * i informacją, którą drogą powstał (`json_ld` bez kosztu albo
- * `fragmenty` przez model).
+ * i informacją, którą drogą powstał (`json_ld` — dane strukturalne schema.org,
+ * JSON-LD albo mikrodane, bez kosztu — albo `fragmenty` przez model).
  */
 final class OdczytanaStrona
 {
