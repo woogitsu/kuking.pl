@@ -704,7 +704,7 @@ WYDRUK_TEST = "test_arkusz_druku_ma_prog_12_pt_i_nie_schodzi_ponizej"
 # dopisanie, którego druga nie widzi. Mutacja 1 zdejmuje porównanie liczby
 # (dopisanie w tej samej chwili z mniejszym UUID), mutacja 2 — porównanie
 # kolejności (ktoś zamknął jedno, automat dopisał nowe: liczba ta sama).
-GRUPA_SYGNALOW = "app/Http/Controllers/Admin/SygnalyController.php"
+GRUPA_SYGNALOW = "app/Domain/Moderation/Actions/ZamknijGrupeSygnalow.php"
 GRUPA_SYGNALOW_TEST = "ZbiorczeZamkniecieSygnalowTylkoZEkranuTest"
 GRUPA_LICZBA_TEST = "test_dopisanie_w_tej_samej_chwili_lapie_liczba_oznaczen"
 GRUPA_KOLEJNOSC_TEST = "test_nowe_oznaczenie_przy_tej_samej_liczbie_tez_daje_odmowe"

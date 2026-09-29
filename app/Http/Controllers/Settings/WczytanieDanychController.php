@@ -13,6 +13,7 @@ use App\Domain\Users\Import\WczytajPaczke;
 use App\Http\Controllers\Controller;
 use App\Models\WczytanaZPaczki;
 use App\Support\Czas;
+use App\Support\Komunikat;
 use Carbon\CarbonImmutable;
 use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Http\RedirectResponse;
@@ -157,12 +158,21 @@ class WczytanieDanychController extends Controller
             $zdania[] = 'Wczytujemy po '.config('kuking.import_paczki.max_naraz').' pozycji naraz. Zostało jeszcze '.$efekt->zostalo.' — kliknij „Wczytaj zaznaczone” jeszcze raz.';
 
             return redirect()->route('settings.data.import.preview', ['paczka' => $paczka])
-                ->with('status', implode(' ', $zdania));
+                ->with(Komunikat::informacja(implode(' ', $zdania)));
         }
 
         $magazyn->zapomnij($request->user(), $paczka);
 
-        return redirect()->route('settings.data')->with('status', implode(' ', $zdania));
+        // Sukces tylko wtedy, gdy coś wczytano i nic nie odpadło; „nic nie wczytano" bez usterki to informacja,
+        // a usterka przy zerze wczytanych — błąd (człowiek ma coś zrobić).
+        $tresc = implode(' ', $zdania);
+        $komunikat = match (true) {
+            $efekt->razem() > 0 && $efekt->niewczytane === [] => Komunikat::sukces($tresc),
+            $efekt->razem() === 0 && $efekt->niewczytane !== [] => Komunikat::blad($tresc),
+            default => Komunikat::informacja($tresc),
+        };
+
+        return redirect()->route('settings.data')->with($komunikat);
     }
 
     private function czytaj(Request $request, string $paczka, MagazynPaczek $magazyn, PodgladPaczkiEksportu $czytnik): PodgladPaczki|RedirectResponse

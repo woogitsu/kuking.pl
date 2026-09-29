@@ -20,6 +20,8 @@ use Tests\TestCase;
  *   - ścieżkę z PRAWDZIWĄ bazą porównania (diff między commitami) sprawdzamy
  *     tu, na tymczasowym repozytorium, bo test powłoki nie wywołuje gita;
  *   - krok w `ci.yml` ma wołać ten plik i dawać mu wejście (BAZA, ZDARZENIE).
+ *
+ * @bez-kontroli-dodatniej Uruchamia skrypt bramki i asertuje na jego wyjściu i kodzie wyjścia; kontrolę ujemną (mutacja każdego z sześciu wyjść musi zapalić tabelę) robi sam przyrząd `tests/skrypty/zakres.sh`, a nie treść źródła aplikacji.
  */
 #[Group('ci')]
 class BramkaZakresuSkryptTest extends TestCase
