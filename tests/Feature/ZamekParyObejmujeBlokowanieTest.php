@@ -191,37 +191,40 @@ class ZamekParyObejmujeBlokowanieTest extends TestCase
         // otwiera własny punkt zapisu, więc samo zejście o jeden poziom niżej
         // niż przy INSERT-cie blokady niczego jeszcze nie zatwierdza.
         $poziomBazowy = DB::transactionLevel();
-        $poziomBlokady = null;
-        // Zapisywane z DWÓCH domknięć — analiza widzi w każdym tylko stan
-        // początkowy, więc typ podajemy jawnie.
-        /** @var bool $blokadaZatwierdzona */
-        $blokadaZatwierdzona = false;
-        /** @var bool|null $zatwierdzonaPrzedWpisem */
-        $zatwierdzonaPrzedWpisem = null;
+        // Zapisywane z DWÓCH domknięć, więc stan siedzi w obiekcie: przez
+        // referencję analiza widziałaby w każdym tylko wartość początkową.
+        $stan = new class
+        {
+            public ?int $poziomBlokady = null;
 
-        Event::listen(TransactionCommitted::class, function () use ($poziomBazowy, &$poziomBlokady, &$blokadaZatwierdzona): void {
-            if ($poziomBlokady !== null && DB::transactionLevel() <= $poziomBazowy) {
-                $blokadaZatwierdzona = true;
+            public bool $blokadaZatwierdzona = false;
+
+            public ?bool $zatwierdzonaPrzedWpisem = null;
+        };
+
+        Event::listen(TransactionCommitted::class, function () use ($poziomBazowy, $stan): void {
+            if ($stan->poziomBlokady !== null && DB::transactionLevel() <= $poziomBazowy) {
+                $stan->blokadaZatwierdzona = true;
             }
         });
 
-        DB::listen(function (QueryExecuted $zapytanie) use (&$poziomBlokady, &$blokadaZatwierdzona, &$zatwierdzonaPrzedWpisem): void {
+        DB::listen(function (QueryExecuted $zapytanie) use ($stan): void {
             if (str_starts_with($zapytanie->sql, 'insert into "blocks"')) {
-                $poziomBlokady = DB::transactionLevel();
+                $stan->poziomBlokady = DB::transactionLevel();
             }
 
             if (str_starts_with($zapytanie->sql, 'insert into "audit_log"')) {
-                $zatwierdzonaPrzedWpisem = $blokadaZatwierdzona;
+                $stan->zatwierdzonaPrzedWpisem = $stan->blokadaZatwierdzona;
             }
         });
 
         app(BlockUser::class)->handle($basia, $marek);
 
-        $this->assertNotNull($poziomBlokady, 'Nie zapisano blokady — test mierzy nie to, co trzeba.');
-        $this->assertNotNull($zatwierdzonaPrzedWpisem, 'Nie zapisano wpisu audytowego — test mierzy nie to, co trzeba.');
+        $this->assertNotNull($stan->poziomBlokady, 'Nie zapisano blokady — test mierzy nie to, co trzeba.');
+        $this->assertNotNull($stan->zatwierdzonaPrzedWpisem, 'Nie zapisano wpisu audytowego — test mierzy nie to, co trzeba.');
 
         $this->assertTrue(
-            $zatwierdzonaPrzedWpisem,
+            $stan->zatwierdzonaPrzedWpisem,
             'Wpis audytowy powstaje wewnątrz transakcji blokady — wycofanie blokady skasowałoby też ślad.',
         );
     }

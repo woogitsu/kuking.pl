@@ -395,11 +395,7 @@ final class DostepDoZdjecia
                     }
                 });
 
-            $zapytanie = $zapytanie === null ? $czesc : $zapytanie->union($czesc);
-        }
-
-        if ($zapytanie === null) {
-            throw new LogicException('DostepDoZdjecia::KOLUMNY_WSKAZUJACE jest puste — zdjęcie nie miałoby żadnego rodzica.');
+            $zapytanie = $zapytanie?->union($czesc) ?? $czesc;
         }
 
         // Zwykła pętla, a NIE `pluck('tabela')` na zapytaniu: `pluck()`

@@ -48,15 +48,13 @@ class PodzielSieTest extends TestCase
 
     private User $obserwujacy;
 
-    private User $obcy;
-
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->autor = $this->user('autorka');
         $this->obserwujacy = $this->user('obserwujaca');
-        $this->obcy = $this->user('obca');
+        $this->user('obca');
 
         app(FollowUser::class)->handle($this->obserwujacy, $this->autor);
     }

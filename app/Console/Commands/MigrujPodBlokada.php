@@ -6,7 +6,6 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use PDO;
 
 /** Wspólna blokada dla ręcznych migracji i Railway pre-deploy (#2082). */
 final class MigrujPodBlokada extends Command
@@ -32,12 +31,6 @@ final class MigrujPodBlokada extends Command
         // Zachowujemy referencję do tej sesji przez cały przebieg migratora.
         // Blokada transakcyjna nie wystarcza: część migracji działa poza transakcją.
         $pdo = $polaczenie->getPdo();
-
-        if (! $pdo instanceof PDO) {
-            $this->error('Nie udało się uzyskać sesji PostgreSQL do blokady migracji.');
-
-            return self::FAILURE;
-        }
 
         $zdobyta = filter_var($pdo->query('SELECT '.self::BLOKADA)->fetchColumn(), FILTER_VALIDATE_BOOLEAN);
 

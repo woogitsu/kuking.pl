@@ -272,7 +272,7 @@ final class OcenaModelem
         $wynik = [];
 
         foreach ($post->media()->limit($ile)->get() as $media) {
-            if ($media instanceof Media && $media->status === Media::STATUS_READY) {
+            if ($media->status === Media::STATUS_READY) {
                 $wynik[] = $media;
             }
         }

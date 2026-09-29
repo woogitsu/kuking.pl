@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
+use Tests\Support\Przelacznik;
 use Tests\TestCase;
 
 final class KomentarzSprawdzaSwiezyStanTest extends TestCase
@@ -121,10 +122,10 @@ final class KomentarzSprawdzaSwiezyStanTest extends TestCase
         [$subject] = $this->subject($type);
         $parent = app(PublishComment::class)->handle(User::factory()->create(), $subject, 'Pierwszy.');
         $writer = User::factory()->create();
-        $armed = true;
+        $armed = new Przelacznik;
         $calls = 0;
-        Notification::creating(function () use (&$armed, &$calls): void {
-            if ($armed && ++$calls === 2) {
+        Notification::creating(function () use ($armed, &$calls): void {
+            if ($armed->wlaczony && ++$calls === 2) {
                 throw new RuntimeException('Kontrolowana awaria drugiego powiadomienia.');
             }
         });
@@ -135,7 +136,7 @@ final class KomentarzSprawdzaSwiezyStanTest extends TestCase
         } catch (RuntimeException $e) {
             $this->assertSame('Kontrolowana awaria drugiego powiadomienia.', $e->getMessage());
         } finally {
-            $armed = false;
+            $armed->wlaczony = false;
         }
         $this->assertSame($before, [Comment::query()->count(), Notification::query()->count()]);
         $first = app(PublishComment::class)->handle($writer, $subject, 'Odpowiedź.', $parent);
@@ -179,18 +180,18 @@ final class KomentarzSprawdzaSwiezyStanTest extends TestCase
         $writer = $route === 'cooked.thank' ? $recipe->author : ($route === 'admin.unanswered.reply' ? $this->moderator() : $this->user());
         $this->actingAs($writer)->from('/home')->post(route($route, $subject), ['body' => 'Dodatnia kontrola HTTP.'])->assertRedirect()->assertSessionHasNoErrors();
         $this->assertSame(1, Comment::query()->where('body', 'Dodatnia kontrola HTTP.')->where('author_id', $writer->id)->count());
-        $armed = true;
+        $armed = new Przelacznik;
         if ($route === 'admin.unanswered.reply') {
-            DB::listen(function ($query) use (&$armed, $writer): void {
-                if ($armed && str_contains($query->sql, 'select exists') && str_contains($query->sql, '"posts"')) {
-                    $armed = false;
+            DB::listen(function ($query) use ($armed, $writer): void {
+                if ($armed->wlaczony && str_contains($query->sql, 'select exists') && str_contains($query->sql, '"posts"')) {
+                    $armed->wlaczony = false;
                     $writer->fresh()->suspend(now()->addDay());
                 }
             });
         } else {
-            Gate::after(function ($user, $ability, $result) use (&$armed, $writer, $owner): void {
-                if ($armed && $result === true && in_array($ability, ['comment', 'view', 'celebrate'], true)) {
-                    $armed = false;
+            Gate::after(function ($user, $ability, $result) use ($armed, $writer, $owner): void {
+                if ($armed->wlaczony && $result === true && in_array($ability, ['comment', 'view', 'celebrate'], true)) {
+                    $armed->wlaczony = false;
                     app(BlockUser::class)->handle($owner, $writer);
                 }
             });
@@ -199,10 +200,10 @@ final class KomentarzSprawdzaSwiezyStanTest extends TestCase
         try {
             $this->actingAs($writer)->from('/home')->post(route($route, $subject), ['body' => 'Zachowaj wpisany tekst.'])
                 ->assertRedirect('/home')->assertSessionHasErrors('body')->assertSessionHasInput('body', 'Zachowaj wpisany tekst.');
-            $this->assertFalse($armed, 'Nie osiągnięto bariery po wstępnej kontroli.');
+            $this->assertFalse($armed->wlaczony, 'Nie osiągnięto bariery po wstępnej kontroli.');
             $this->assertSame($before, [Comment::query()->count(), Notification::query()->count()]);
         } finally {
-            $armed = false;
+            $armed->wlaczony = false;
         }
     }
 
@@ -269,9 +270,9 @@ final class KomentarzSprawdzaSwiezyStanTest extends TestCase
         $writer = User::factory()->create();
         $nextOwner = User::factory()->create();
         $attempts = 0;
-        $armed = true;
-        DB::listen(function ($query) use (&$armed, &$attempts, $subject, $writer, $nextOwner): void {
-            if ($armed && str_contains($query->sql, '"users"') && str_contains($query->sql, 'FOR NO KEY UPDATE') && $query->bindings === [$writer->id]) {
+        $armed = new Przelacznik;
+        DB::listen(function ($query) use ($armed, &$attempts, $subject, $writer, $nextOwner): void {
+            if ($armed->wlaczony && str_contains($query->sql, '"users"') && str_contains($query->sql, 'FOR NO KEY UPDATE') && $query->bindings === [$writer->id]) {
                 $attempts++;
                 Post::query()->whereKey($subject->id)->update(['author_id' => $nextOwner->id]);
             }
@@ -285,7 +286,7 @@ final class KomentarzSprawdzaSwiezyStanTest extends TestCase
             $this->assertSame(0, Comment::query()->count());
             $this->assertSame(0, Notification::query()->count());
         } finally {
-            $armed = false;
+            $armed->wlaczony = false;
         }
         $positive = app(PublishComment::class)->handle($writer, $subject, 'Po wyłączeniu zmiany.');
         $this->assertSame(1, Notification::query()->where('data->comment_id', $positive->id)->count());

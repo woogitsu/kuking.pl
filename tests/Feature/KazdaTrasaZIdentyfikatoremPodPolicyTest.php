@@ -421,8 +421,6 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         }
     }
 
-    private Post $wpis;
-
     private DataExport $paczka;
 
     private PendingEmailChange $zmianaAdresu;
@@ -466,7 +464,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'moderator' => $moderator,
         ];
 
-        $wpis = $this->wpis = Post::factory()->private()->create(['author_id' => $wlasciciel->getKey()]);
+        $wpis = Post::factory()->private()->create(['author_id' => $wlasciciel->getKey()]);
         config(['kuking.questions.enabled' => true]);
         $pytanie = Post::factory()->question()->private()->create(['author_id' => $wlasciciel->getKey()]);
         $wpisPubliczny = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);

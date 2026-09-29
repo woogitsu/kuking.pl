@@ -32,6 +32,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 use Laravel\Sanctum\NewAccessToken;
+use Laravel\Sanctum\TransientToken;
 
 /**
  * Konto użytkownika.
@@ -46,7 +47,12 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * `Laravel\Sanctum\Guard` nie uzna konta za zdolne do tokenów
      * i `auth:sanctum` odpowie 401 każdemu.
      *
-     * @use HasApiTokens<PersonalAccessToken>
+     * Token bieżącego żądania to `PersonalAccessToken` (żądanie z `Bearer`)
+     * albo `TransientToken` (sesja przeglądarki i `Sanctum::actingAs()`), więc
+     * `currentAccessToken() instanceof PersonalAccessToken` jest prawdziwym
+     * rozróżnieniem, a nie tautologią (#1731).
+     *
+     * @use HasApiTokens<PersonalAccessToken|TransientToken>
      */
     use HasApiTokens;
 
@@ -1884,6 +1890,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * Na koniec model wywołującego przyjmuje stan z bazy — ten sekret, który
      * trzeba pokazać w kodzie QR, albo potwierdzone 2FA, przy którym ekranu
      * włączenia pokazywać nie wolno.
+     *
+     * @phpstan-impure zmienia `$this` (odświeża go ze stanu bazy)
      *
      * @return bool czy zapisano NOWY sekret
      */

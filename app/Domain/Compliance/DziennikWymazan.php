@@ -131,7 +131,7 @@ final class DziennikWymazan
             'zakres' => $zakres,
             'wymazano_at' => $wymazanoAt,
             'proby' => self::PROBY,
-            'wyjatek' => $ostatni instanceof Throwable ? $ostatni::class : null,
+            'wyjatek' => $ostatni::class,
         ]);
 
         return self::BLAD;

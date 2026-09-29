@@ -115,7 +115,7 @@ final class Udostepnianie
             return $tresc->title;
         }
 
-        if ($tresc instanceof Post && $tresc->kind === Post::KIND_QUESTION) {
+        if ($tresc->kind === Post::KIND_QUESTION) {
             return (string) $tresc->title;
         }
 

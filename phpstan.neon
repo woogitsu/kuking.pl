@@ -10,7 +10,7 @@
 #  konfiguracją byłby gorszy niż brak lokalnej w ogóle: ludzie przestają
 #  ufać lokalnemu wynikowi, gdy CI mówi co innego tym samym poleceniem.
 #
-#  POZIOM: 3 (docelowo 8 — issue #32, audyt F-11; etapy w issue #1731)
+#  POZIOM: 4 (docelowo 8 — issue #32, audyt F-11; etapy w issue #1731)
 #  ---------------------------------------------------------------------------
 #  Issue #32 zakładało start od poziomu 5. Pierwsze uruchomienie dało na nim
 #  158 błędów, więc zaczęliśmy od 0 — świadomie nisko, ale bez baseline'u.
@@ -53,45 +53,43 @@
 #  z modelem tabeli pośredniej `PostTag`; `bytes` w kształcie wariantu
 #  zdjęcia, który zapisuje `ProcessUploadedImage`.
 #
-#  Poziom 4 — etap 1 (issue #1731, 29.09.2026): poziom 4 nie jest jeszcze
-#  globalny, ale dwie jego rodziny są wyczyszczone i pilnowane osobno
-#  (`phpstan-etap4.neon` + `scripts/phpstan-wyczyszczone.sh`, wołane z
-#  `check.sh` i z CI): `match.unhandled` (41 — `match` po napisie bez gałęzi
-#  `default`, teraz z jawnym `LogicException`) i `catch.neverThrown` (10 —
-#  `Artisan::call()` bez `@throws`, teraz `Tests\Support\PolecenieArtisanaZOdmowa`).
+#  Poziom 4 (issue #1731, 29.09.2026) — zszedł do zera w pięciu etapach i jest
+#  teraz CAŁĄ bramką, jednym przebiegiem, bez baseline'u i bez wyciszeń. Przez
+#  etapy 1-4 pilnował go osobny „ratchet" (drugi plik konfiguracji i skrypt,
+#  który padał tylko na wyczyszczonych rodzinach); po etapie 5 nie ma czego
+#  ratować, więc oba zniknęły, a `level` stoi tu.
 #
-#  Poziom 4 — etap 2 (issue #1731, 29.09.2026): dopisane do ratchetu
-#  `nullCoalesce.offset` (24), `nullCoalesce.expr` (3), `nullCoalesce.property`
-#  (3), `deadCode.unreachable` (2) i `booleanNot.alwaysTrue` (1). `??` na kluczu,
-#  który zawsze istnieje, zniknęło; tam, gdzie PHPStan się mylił (referencja
-#  w domknięciu, `Event::$timezone` bywa null wbrew phpdoc Laravela, dwa
-#  `exists()` przed i po `delete()`), kod dostał jawny opis zamiast wyciszenia.
-#
-#  Poziom 4 — etap 3 (issue #1731, 29.09.2026): dopisane do ratchetu
-#  `method.alreadyNarrowedType` (31), `function.alreadyNarrowedType` (19),
-#  `method.impossibleType` (14) i `function.impossibleType` (1). Prawdziwe
-#  znaleziska: `assertNotNull()` na `DOMNodeList|false` przepuszczało `false`
-#  (teraz `assertInstanceOf(DOMNodeList::class, …)`), a `Report::$target_id`
-#  i `Appeal::$user_id` bywają puste (surowy SQL `DROP NOT NULL`, którego
-#  Larastan nie czyta) — opisane w phpdoc modelu. Kolumny JSONB i nieutrwalone
-#  modele dostały jawny typ `mixed`/`getAttribute()` tam, gdzie kod broni się
-#  przed kształtem danych, którego rzutowanie nie gwarantuje.
-#
-#  Poziom 4 — etap 4 (issue #1731, 29.09.2026): dopisane do ratchetu
-#  `nullsafe.neverNull` (137), `expr.resultUnused` (2) i `classConstant.unused`
-#  (2). `?->` na `DOMXPath::query()` i `PDO::query()` (około 110 miejsc w
-#  testach) po cichu zamieniało `false` w `null` — teraz idzie przez
-#  `TestCase::wynikXPath()` i `TestDwochPolaczen::odczytaj()`, które oblewają
-#  test zdaniem o niepoprawnym zapytaniu. `?->` w `x?->y ?? z` było zbędne
-#  (`??` już znosi null po lewej). W `app/` relacje `pivot` (Recipe, Post) dostały
-#  w phpdoc `|null` (jest tylko przy wczytaniu przez zeszyt), a `Seeder::$command`,
-#  które Laravel opisuje jako zawsze ustawione, a bywa null, idzie przez
-#  `PolecenieKonsoliSeedera::konsola()`. Zachowanie produkcyjne bez zmian.
+#    etap 1: `match.unhandled` (41 — `match` po napisie bez gałęzi `default`,
+#      teraz z jawnym `LogicException`) i `catch.neverThrown` (10 —
+#      `Artisan::call()` bez `@throws`, teraz `Tests\Support\PolecenieArtisanaZOdmowa`);
+#    etap 2: `nullCoalesce.*` (30), `deadCode.unreachable`, `booleanNot.alwaysTrue`
+#      — `??` na kluczu, który zawsze istnieje, zniknęło;
+#    etap 3: `*.alreadyNarrowedType` (50) i `*.impossibleType` (15). Prawdziwe
+#      znaleziska: `assertNotNull()` na `DOMNodeList|false` przepuszczało
+#      `false`, a `Report::$target_id` i `Appeal::$user_id` bywają puste (surowy
+#      SQL `DROP NOT NULL`, którego Larastan nie czyta);
+#    etap 4: `nullsafe.neverNull` (137), `expr.resultUnused`, `classConstant.unused`.
+#      `?->` na `DOMXPath::query()` i `PDO::query()` po cichu zamieniało `false`
+#      w `null` — teraz idzie przez `TestCase::wynikXPath()` i
+#      `TestDwochPolaczen::odczytaj()`;
+#    etap 5 (ostatnie 50): `instanceof.alwaysTrue` (12), `notIdentical.alwaysTrue`
+#      (7), `booleanAnd.leftAlwaysTrue` (5), `if.alwaysTrue` (4) i reszta.
+#      Martwe warunki usunięte (`object_key` i `Recipe::$title` są `NOT NULL`,
+#      `QueryException` już jest `PDOException`, `Migrator::resolveConnection()`
+#      zawsze oddaje `Connection`). Tam, gdzie PHPStan miał rację, że typ kłamał,
+#      poprawiony jest typ: `ModerationAction::$target_id` bywa puste,
+#      `Comment::$replies_count` jest tylko po `withCount()`, token Sanctum bywa
+#      `TransientToken`. Flagi przełączane w teście z drugiego domknięcia
+#      (`use (&$flaga)`, które analiza widzi jako wiecznie `true`) siedzą teraz
+#      w `Tests\Support\Przelacznik`. Jedno znalezisko było prawdziwym błędem
+#      logiki: kontekst błędów kolejki (`QueueCorrelation`) wieszał się na
+#      `instanceof Handler`, którego w konsoli poza testami nie spełnia handler
+#      owinięty przez Collision — teraz rejestruje go `withExceptions()`
+#      w `bootstrap/app.php`.
 #
 #  GDZIE STOI NASTĘPNY PRÓG (zmierzone 29.09.2026, nie zgadnięte):
-#      poziom 4 → 50 błędów (po etapie 1: 288, po etapie 2: 257, po etapie 3:
-#      192, po etapie 4: 50), z czego największa rodzina: instanceof.alwaysTrue
-#      12, potem notIdentical.alwaysTrue 7 i booleanAnd.leftAlwaysTrue 5
+#      poziom 5 → 54 błędy: `argument.type` 37, `arrayValues.list` 15,
+#      `argument.unresolvableType` 2
 #
 #  IGNOROWANY BŁĄD PONIŻEJ POZIOMU (nie „baseline"):
 #  `larastan.noEnvCallsOutsideOfConfig` w `tests/*` — Larastan ostrzega przed
@@ -113,7 +111,7 @@ includes:
     - vendor/larastan/larastan/extension.neon
 
 parameters:
-    level: 3
+    level: 4
 
     # Rzutowania modeli żyją w metodzie `casts()` (Laravel 11+), a Larastan
     # bez tej opcji czyta wyłącznie właściwość `$casts` — `datetime` z

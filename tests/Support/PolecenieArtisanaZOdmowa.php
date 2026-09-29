@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Support;
 
 use Illuminate\Support\Facades\Artisan;
-use RuntimeException;
+use Throwable;
 
 /**
  * Wywołanie polecenia Artisana, które w teście MA prawo odmówić.
@@ -23,7 +23,7 @@ final class PolecenieArtisanaZOdmowa
     /**
      * @param  array<string, mixed>  $opcje
      *
-     * @throws RuntimeException gdy polecenie albo migracja odmawia wykonania
+     * @throws Throwable gdy polecenie albo migracja odmawia wykonania (zwykle `RuntimeException`)
      */
     public static function wywolaj(string $polecenie, array $opcje = []): int
     {

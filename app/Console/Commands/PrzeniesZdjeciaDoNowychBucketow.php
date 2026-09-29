@@ -256,12 +256,10 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
         $dyskPubliczny = Storage::disk((string) config('kuking.media.public_disk'));
 
         try {
-            if ($zdjecie->object_key !== null) {
-                $wynik = $this->skopiuj($dyskStary, $dyskOryginalow, $zdjecie->object_key, $tylkoRaport);
+            $wynik = $this->skopiuj($dyskStary, $dyskOryginalow, $zdjecie->object_key, $tylkoRaport);
 
-                if ($wynik !== self::WYNIK_OK) {
-                    return [$wynik, 'oryginał: '.$zdjecie->object_key];
-                }
+            if ($wynik !== self::WYNIK_OK) {
+                return [$wynik, 'oryginał: '.$zdjecie->object_key];
             }
 
             try {
@@ -368,6 +366,17 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
 
         // SPRAWDZENIE, NIE ZAŁOŻENIE. Bez niego wiersz zostałby przestawiony
         // na bucket, w którym pliku nie ma — a zdjęcie zniknęłoby z serwisu.
-        return $cel->exists($klucz) ? self::WYNIK_OK : self::WYNIK_BLAD;
+        return $this->istnieje($cel, $klucz) ? self::WYNIK_OK : self::WYNIK_BLAD;
+    }
+
+    /**
+     * Pytanie o plik zadane PO zapisie — stan dysku zmienił się od pierwszego
+     * `exists()` w `skopiuj()`, więc analiza nie może uznać odpowiedzi za tę samą.
+     *
+     * @phpstan-impure
+     */
+    private function istnieje(Filesystem $dysk, string $klucz): bool
+    {
+        return $dysk->exists($klucz);
     }
 }

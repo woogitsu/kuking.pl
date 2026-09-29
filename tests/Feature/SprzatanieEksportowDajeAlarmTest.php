@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
+use Tests\Support\Przelacznik;
 use Tests\TestCase;
 
 /**
@@ -52,13 +53,13 @@ class SprzatanieEksportowDajeAlarmTest extends TestCase
         $prawdziwy = Storage::disk('local');
         $prawdziwy->put(self::KLUCZ, 'kopia całego konta');
 
-        $zepsuty = true;
+        $zepsuty = new Przelacznik;
         $dysk = Mockery::mock(Filesystem::class);
-        // Zwykłe domknięcie z referencją: `fn` złapałoby `$zepsuty` przez wartość
+        // Flaga w obiekcie (`Przelacznik`), nie w zmiennej: `fn` złapałoby `$zepsuty` przez wartość
         // i storage nigdy by się „nie naprawił".
         $dysk->shouldReceive('delete')->andReturnUsing(
-            function (string $klucz) use (&$zepsuty, $prawdziwy): bool {
-                return $zepsuty ? false : $prawdziwy->delete($klucz);
+            function (string $klucz) use ($zepsuty, $prawdziwy): bool {
+                return $zepsuty->wlaczony ? false : $prawdziwy->delete($klucz);
             },
         );
         $dysk->shouldReceive('exists')->andReturnUsing(fn (string $klucz): bool => $prawdziwy->exists($klucz));
@@ -101,7 +102,7 @@ class SprzatanieEksportowDajeAlarmTest extends TestCase
         });
 
         // Storage naprawiony: sprzątanie się udaje, czujka odwołuje raz i milknie.
-        $zepsuty = false;
+        $zepsuty->wlaczony = false;
         $this->travel(1)->day();
         $this->artisan('kuking:sprzataj-eksporty')->assertSuccessful();
         $this->assertNull($export->refresh()->object_key);

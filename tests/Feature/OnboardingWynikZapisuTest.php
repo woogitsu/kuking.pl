@@ -8,6 +8,7 @@ use App\Domain\Social\Actions\FollowUser;
 use App\Models\Notification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\Przelacznik;
 use Tests\TestCase;
 
 class OnboardingWynikZapisuTest extends TestCase
@@ -74,16 +75,16 @@ class OnboardingWynikZapisuTest extends TestCase
     {
         $viewer = $this->user('widz');
         $this->user('halina');
-        $armed = true;
-        Notification::creating(function () use (&$armed): void {
-            if ($armed) {
+        $armed = new Przelacznik;
+        Notification::creating(function () use ($armed): void {
+            if ($armed->wlaczony) {
                 throw new \RuntimeException('Próba awarii zapisu powiadomienia.');
             }
         });
         try {
             $this->actingAs($viewer)->post(route('onboarding.people'), ['follow' => ['halina']])->assertStatus(500);
         } finally {
-            $armed = false;
+            $armed->wlaczony = false;
         }
         $this->assertDatabaseCount('follows', 0);
         $this->assertDatabaseCount('notifications', 0);
