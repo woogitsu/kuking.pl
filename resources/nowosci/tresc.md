@@ -10,6 +10,7 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Spis wydań
 
 - [Najnowsze zmiany](#najnowsze-zmiany)
+- [Alfa 0.77 — wspólny zeszyt dla rodziny i import przepisu w tle](#alfa-077)
 - [Alfa 0.76 — planer z wyszukiwarką, „Co mam w domu” i zeszyt bez konta](#alfa-076)
 - [Alfa 0.75 — szukanie w wykonaniach i pewniejsze „Ugotowałem”](#alfa-075)
 - [Alfa 0.74 — zdjęcia w formularzu i porcje przy gotowaniu](#alfa-074)
@@ -46,6 +47,10 @@ haseł, zgód i komentarzy innych osób nie odtwarzamy w ogóle.
 Jedno kliknięcie wczytuje najwyżej 50 pozycji, a to samo wczytanie drugi raz
 niczego nie podwoi. Wybrany plik czeka na Waszą decyzję dwie godziny, a jeśli go
 porzucicie, kasujemy go sami w nocnym sprzątaniu.
+
+## Alfa 0.77
+
+**Wspólny zeszyt dla rodziny.**
 
 ### Wspólny zeszyt dla rodziny
 
