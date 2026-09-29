@@ -85,7 +85,8 @@ POWROT_KOMENTARZA_GOOGLE_TEST = "LogowanieKontemGoogleTest"
 POWROT_KOMENTARZA_FACEBOOK = "app/Http/Controllers/Auth/FacebookLoginController.php"
 POWROT_KOMENTARZA_FACEBOOK_TEST = "LogowanieKontemFacebookiemTest"
 
-CONTROLLER = "app/Http/Controllers/CollectionController.php"
+# Reguła wyboru własnego zeszytu mieszka od #970 (krok 5) w FormRequeście.
+WYBOR_ZESZYTU = "app/Http/Requests/Collections/WyborZeszytuRequest.php"
 UNANSWERED_CONTENT = "app/Domain/Moderation/UnansweredContent.php"
 LAYOUT = "resources/views/components/layout.blade.php"
 CSS = "resources/css/app.css"
@@ -481,6 +482,13 @@ TURNSTILE_AKCJA_TEST = "test_akcja_innego_formularza_jest_odrzucana"
 # dokładnie tę krawędź, która zamykała cykl `Users ↔ Social`.
 ZALOZ_KONTO = "app/Domain/Users/Actions/ZalozKonto.php"
 GRAF_MODULOW_TEST = "GrafModulowDomenyBezCykliTest"
+# #970 krok 5: Collections nie pogłębia zależności od `Illuminate\Http`.
+# Mutacja dokłada import `UploadedFile` do akcji spoza listy zastanych.
+ZESZYTY_AKCJA_NOTATKI = "app/Domain/Collections/Actions/UpdateCollectionItemNote.php"
+ZESZYTY_HTTP_TEST = "ZeszytyNieRosnaOdHttpTest"
+# Form Request zeszytu: Policy `update` przed polami. Mutacja wycina ją.
+ZAPIS_ZESZYTU_REQUEST = "app/Http/Requests/Collections/ZapisZeszytuRequest.php"
+ZESZYTY_FORMULARZ_TEST = "FormularzZeszytuKolejnoscSprawdzenTest"
 # Kontrolery Google i Facebooka są adapterami nad `WejdzPrzezDostawce` (#1035).
 # Mutacja wkleja do kontrolera Google własne `Auth::login` przed odpowiedzią —
 # kopię wspólnej reguły wejścia — i ma zapalić strażnika architektury.
@@ -1105,14 +1113,14 @@ checks = [
      lambda s: replace_once(s, 'Wszelkie prawa zastrzeżone.', 'Prawa nie są zastrzeżone.')),
     ("Obraz błędnie deklaruje MIT", "Dockerfile", "DeklaracjaLicencjiJestSpojnaTest",
      lambda s: replace_once(s, 'org.opencontainers.image.licenses="proprietary"', 'org.opencontainers.image.licenses="MIT"')),
-    ("Format UUID", CONTROLLER, COLLECTION_TEST,
+    ("Format UUID", WYBOR_ZESZYTU, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
     # Paginacja panelu moderacji (audyt B1, zn. 1): powrót do `links()`, czyli
     # widoku Tailwinda niewidocznego na komputerze, ma zapalić test.
     ("Kolejka zgłoszeń wraca do links()", "resources/views/pages/admin/reports.blade.php", "PaginacjaPaneluModeracjiTest",
      lambda s: replace_once(s, '<x-paginacja-panelu :paginator="$reports" />', "{{ $reports->links() }}")),
-    ("Własność zeszytu", CONTROLLER, COLLECTION_TEST,
-     lambda s: replace_once(s, "Rule::exists('collections', 'id')->where(fn ($q) => $q->whereIn('id', Collection::query()->dostepneDoZapisuDla($request->user())->select('collections.id')))", "Rule::exists('collections', 'id')")),
+    ("Własność zeszytu", WYBOR_ZESZYTU, COLLECTION_TEST,
+     lambda s: replace_once(s, "Rule::exists('collections', 'id')->where(fn ($q) => $q->whereIn('id', Collection::query()->dostepneDoZapisuDla($osoba)->select('collections.id')))", "Rule::exists('collections', 'id')")),
     ("Komunikat po powrocie", LAYOUT, COLLECTION_TEST, remove_notice),
     ("Podpis co najmniej 18 px", CSS, COMPOSER_TEST, smaller_help),
     # Obwódka list w panelu „Aa · Wygląd” (audyt B1, zn. 3): powrót do
@@ -1386,6 +1394,10 @@ checks = [
      lambda s: replace_once(s, "najpóźniej **30 dni** po usunięciu", "najpóźniej **60 dni** po usunięciu")),
     ("Users znowu importuje Social", ZALOZ_KONTO, GRAF_MODULOW_TEST,
      lambda s: replace_once(s, "use App\\Domain\\Users\\ObserwowanieGospodarza;\n", "use App\\Domain\\Social\\Actions\\FollowUser;\nuse App\\Domain\\Users\\ObserwowanieGospodarza;\n")),
+    ("Akcja zeszytów importuje Illuminate\\Http", ZESZYTY_AKCJA_NOTATKI, ZESZYTY_HTTP_TEST,
+     lambda s: replace_once(s, "use Illuminate\\Support\\Facades\\DB;\n", "use Illuminate\\Http\\UploadedFile;\nuse Illuminate\\Support\\Facades\\DB;\n")),
+    ("Formularz zeszytu sprawdza pola przed Policy", ZAPIS_ZESZYTU_REQUEST, ZESZYTY_FORMULARZ_TEST,
+     lambda s: replace_once(s, "            Gate::inspect('update', $zeszyt)->authorize();\n", "")),
     ("DemoSeeder wypisuje hasło z KUKING_DEMO_HASLO", DEMO_SEEDER, DEMO_SEEDER_HASLO_TEST,
      lambda s: replace_once(s, WARUNEK_HASLA_Z_OTOCZENIA, "        if (false) {")),
     ("Polityka z okresem sesji innym niż życie sesji na produkcji", POLITYKA, POLITYKA_SESJE_TEST,

@@ -12,11 +12,13 @@ use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Domain\Collections\Wspoldzielenie\ZaproszeniaDoZeszytow;
 use App\Domain\Search\SearchQuery;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Http\Requests\Collections\WyjecieZZeszytuRequest;
+use App\Http\Requests\Collections\ZapisDoZeszytuRequest;
+use App\Http\Requests\Collections\ZapisZeszytuRequest;
 use App\Models\Collection;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
-use App\Rules\CollectionNameNotTaken;
 use App\Support\FrazaWyszukiwania;
 use App\Support\Komunikat;
 use App\Support\Odmiana;
@@ -29,7 +31,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
@@ -624,11 +625,11 @@ class CollectionController extends Controller
         ];
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(ZapisZeszytuRequest $request): RedirectResponse
     {
         $user = $request->user();
 
-        $data = $this->validateCollectionData($request, $user->getKey());
+        $data = $request->validated();
 
         $this->authorize('create', [Collection::class, $data['visibility']]);
 
@@ -661,7 +662,7 @@ class CollectionController extends Controller
     }
 
     /**
-     * Te same reguły co `store()` (`validateCollectionData()`), z jednym
+     * Te same reguły co `store()` (`ZapisZeszytuRequest`), z jednym
      * wyjątkiem: nazwa własnego, niezmienionego zeszytu nie jest dla niego
      * „zajęta" (`CollectionNameNotTaken::$ignoreCollectionId`).
      *
@@ -671,13 +672,12 @@ class CollectionController extends Controller
      * widoczności jest tu decyzją semantyczną (jak w D-088), więc zasługuje
      * na własne zdanie, nie ogólnikowe potwierdzenie zapisu.
      */
-    public function update(Request $request, Collection $collection): RedirectResponse
+    public function update(ZapisZeszytuRequest $request, Collection $collection): RedirectResponse
     {
-        $this->authorize('update', $collection);
-
+        // Policy `update` sprawdza `ZapisZeszytuRequest::authorize()` — przed walidacją.
         $bylaPubliczna = $collection->isPublic();
 
-        $data = $this->validateCollectionData($request, $collection->owner_id, $collection->getKey());
+        $data = $request->validated();
 
         try {
             // `DB::transaction()` — ten sam powód co łapanie w `store()`, plus
@@ -703,50 +703,12 @@ class CollectionController extends Controller
         return redirect()->route('collections.show', $collection)->with(Komunikat::sukces($status));
     }
 
-    /**
-     * Wspólne reguły `store()` i `update()`. `$ignoreCollectionId` przepuszcza
-     * niezmienioną nazwę własnego zeszytu przy zapisie formularza edycji.
-     *
-     * @return array{name: string, description: ?string, visibility: string}
-     */
-    private function validateCollectionData(Request $request, string $ownerId, ?string $ignoreCollectionId = null): array
-    {
-        return $request->validate([
-            'name' => [
-                'required', 'string', 'min:2', 'max:120',
-                new CollectionNameNotTaken($ownerId, $ignoreCollectionId),
-            ],
-            'description' => ['nullable', 'string', 'max:500'],
-            'visibility' => ['required', 'in:public,private'],
-        ], [
-            'name.required' => 'Podaj nazwę zeszytu — na przykład „Na święta”.',
-            'name.min' => 'Nazwa zeszytu musi mieć co najmniej 2 znaki. Dopisz kilka liter.',
-            // Bez tego wypadał szablon ogólny: „Pole «nazwa zeszytu» jest za
-            // długie — może mieć najwyżej 120 znaków." Mówił, co jest źle,
-            // ale nie mówił, co zrobić.
-            'name.max' => 'Ta nazwa jest za długa. Zmieść się w 120 znakach — wystarczy krótka nazwa, na przykład „Na święta”.',
-            'description.max' => 'Ten opis jest za długi. Zmieść się w 500 znakach.',
-            // `in` mówi, CO WYBRAĆ, nie że „wybrana wartość jest
-            // nieprawidłowa" (issue #86) — dwie opcje z ekranu, wprost.
-            'visibility.in' => 'Zaznacz, kto ma widzieć ten zeszyt: wszyscy czy tylko Ty.',
-            /*
-             * `required` BEZ WŁASNEGO ZDANIA wypadał jako szablon ogólny:
-             * „Pole «widoczność» jest wymagane. Uzupełnij je, żeby wysłać
-             * formularz." Na ekranie nie ma niczego o nazwie „widoczność" —
-             * jest pytanie „Kto ma widzieć ten zeszyt?" i dwa przyciski
-             * wyboru. Dla człowieka brak zaznaczenia i zaznaczenie czegoś
-             * spoza listy to ta sama sytuacja, więc zdanie jest to samo.
-             */
-            'visibility.required' => 'Zaznacz, kto ma widzieć ten zeszyt: wszyscy czy tylko Ty.',
-        ]);
-    }
-
-    public function saveRecipe(Request $request, string $recipe): RedirectResponse
+    public function saveRecipe(ZapisDoZeszytuRequest $request, string $recipe): RedirectResponse
     {
         $model = Recipe::where('slug', $recipe)->firstOrFail();
         $this->authorize('view', $model);
 
-        $collection = $this->selectedCollection($request);
+        $collection = $request->zeszytDoZapisu();
 
         // DROGA POWROTU MA WRACAĆ, A NIE ZAPISYWAĆ OD NOWA (issue #775).
         //
@@ -809,11 +771,11 @@ class CollectionController extends Controller
      * więc chroni też stronę narysowaną, zanim przepis trafił do drugiego
      * zeszytu.
      */
-    public function removeRecipe(Request $request, string $recipe): RedirectResponse|View
+    public function removeRecipe(WyjecieZZeszytuRequest $request, string $recipe): RedirectResponse|View
     {
         $model = Recipe::where('slug', $recipe)->firstOrFail();
 
-        $zeszyt = $this->wybranyZeszytDoWyjecia($request);
+        $zeszyt = $request->zeszytDoWyjecia();
 
         if ($zeszyt === null && ! $request->boolean('potwierdzam_wszystkie')) {
             $zeszytyZPrzepisem = $request->user()->collections()
@@ -866,11 +828,11 @@ class CollectionController extends Controller
      * `save`, a nie samo `view`: podgląd ukrytego wpisu dla moderatora
      * (#1018) przechodzi `view`, ale jest tylko do odczytu.
      */
-    public function savePost(Request $request, Post $post): RedirectResponse
+    public function savePost(ZapisDoZeszytuRequest $request, Post $post): RedirectResponse
     {
         $this->authorize('save', $post);
 
-        $collection = $this->selectedCollection($request);
+        $collection = $request->zeszytDoZapisu();
 
         // Powrót po wyjęciu — uzasadnienie przy `saveRecipe()`.
         if ($collection === null && $request->input('note') === null) {
@@ -900,56 +862,7 @@ class CollectionController extends Controller
         return back()->with(Komunikat::sukces("Zapisane w zeszycie „{$target->name}”."));
     }
 
-    /**
-     * JEDNA REGUŁA WŁASNEGO ZESZYTU DLA ZAPISU I DLA WYJĘCIA (issue #775).
-     *
-     * `selectedCollection()` i `wybranyZeszytDoWyjecia()` różnią się tylko
-     * zdaniami w błędach — reguła jest ta sama i ma być ta sama: format UUID
-     * przed zapytaniem (`bail`) i własność przypięta do `owner_id`. Dwie
-     * kopie tej listy rozjechałyby się przy pierwszej poprawce jednej z nich,
-     * a wyjęcie z cudzego zeszytu jest dokładnie tą granicą, której pilnuje
-     * AGENTS.md §7.
-     *
-     * Jest też powód mierzalny: `scripts/kontrole-negatywne-alfa08.py` mutuje
-     * tę listę i wymaga, żeby stała w kodzie DOKŁADNIE RAZ. Przy dwóch kopiach
-     * kontrola ujemna odmawia pracy, zanim cokolwiek zmutuje — czyli przestaje
-     * cokolwiek dowodzić. Jedna kopia daje jej jedno miejsce, a mutacja osłabia
-     * wtedy obie drogi naraz.
-     *
-     * @return array<string, list<mixed>>
-     */
-    private function regulyWlasnegoZeszytu(Request $request): array
-    {
-        return [
-            'collection_id' => [
-                'bail', 'nullable', 'uuid',
-                // Własne zeszyty ORAZ wspólne, do których ta osoba ma ważny
-                // dostęp (#1743, D-302) — jeden zakres dla listy wyboru,
-                // walidacji i akcji. Cudzy zeszyt bez dostępu dalej daje ten
-                // sam komunikat co nieistniejący (#473).
-                Rule::exists('collections', 'id')->where(fn ($q) => $q->whereIn('id', Collection::query()->dostepneDoZapisuDla($request->user())->select('collections.id'))),
-            ],
-        ];
-    }
-
-    /**
-     * Nieistniejący i cudzy zeszyt dają ten sam komunikat (issue #473).
-     * „bail” zatrzymuje walidację przed zapytaniem do kolumny UUID, gdy
-     * wejście nie ma poprawnego formatu. Brak wyboru oznacza zeszyt domyślny.
-     */
-    private function selectedCollection(Request $request): ?Collection
-    {
-        $data = $request->validate($this->regulyWlasnegoZeszytu($request), [
-            'collection_id.uuid' => 'Odśwież stronę i ponownie wybierz zeszyt do zapisania.',
-            'collection_id.exists' => 'Odśwież stronę i ponownie wybierz zeszyt do zapisania.',
-        ]);
-
-        return isset($data['collection_id'])
-            ? Collection::query()->dostepneDoZapisuDla($request->user())->findOrFail($data['collection_id'])
-            : null;
-    }
-
-    public function removePost(Request $request, Post $post): RedirectResponse
+    public function removePost(WyjecieZZeszytuRequest $request, Post $post): RedirectResponse
     {
         // Bez `authorize`: usuwamy z WŁASNEGO zeszytu i tylko z własnego
         // (`remove` chodzi po kolekcjach tej osoby). Wpis, którego już nie
@@ -969,7 +882,7 @@ class CollectionController extends Controller
         // ZAKRES: z tego zeszytu, gdy wiadomo z którego (issue #775).
         // Bez `collection_id` zostaje stare zachowanie — wszystkie zeszyty
         // tej osoby — ale komunikat niżej mówi wprost, ile ich było.
-        $zeszyt = $this->wybranyZeszytDoWyjecia($request);
+        $zeszyt = $request->zeszytDoWyjecia();
 
         $zdjete = $this->savePost->remove($request->user(), $post, $zeszyt);
 
@@ -994,27 +907,6 @@ class CollectionController extends Controller
                 'akcja' => route('collections.save-post', $post),
                 'etykieta' => 'Przywróć do zeszytu',
             ]);
-    }
-
-    /**
-     * Zeszyt wskazany przy WYJMOWANIU — albo `null`, czyli „wszystkie moje".
-     *
-     * Osobno od `selectedCollection()`, bo zdania w błędach są inne: tam
-     * mowa o zapisaniu, tu o wyjęciu. Reguła jest ta sama i celowo: cudzy
-     * i nieistniejący zeszyt dają jeden komunikat (issue #473), a zakres
-     * i tak przypina `owner_id`, więc identyfikator w adresie niczego nie
-     * otwiera (AGENTS.md §7).
-     */
-    private function wybranyZeszytDoWyjecia(Request $request): ?Collection
-    {
-        $data = $request->validate($this->regulyWlasnegoZeszytu($request), [
-            'collection_id.uuid' => 'Odśwież stronę i ponownie wskaż zeszyt, z którego wyjmujemy.',
-            'collection_id.exists' => 'Odśwież stronę i ponownie wskaż zeszyt, z którego wyjmujemy.',
-        ]);
-
-        return isset($data['collection_id'])
-            ? Collection::query()->dostepneDoZapisuDla($request->user())->find($data['collection_id'])
-            : null;
     }
 
     /**
