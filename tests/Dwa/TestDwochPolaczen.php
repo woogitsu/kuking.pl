@@ -131,6 +131,7 @@ abstract class TestDwochPolaczen extends TestCase
 
         $this->odmowJesliPozaGrupa();
 
+        /** @var mixed $nazwa sterownik bywa bez nazwy — wtedy odmawiamy, zamiast się przewrócić */
         $nazwa = DB::connection()->getDatabaseName();
 
         // ZASADA 2, TWARDO. Ta grupa zatwierdza dane naprawdę i zakłada

@@ -315,7 +315,7 @@ final class PushDuzaGrupaTest extends TestCase
 
         $najnowsze = $this->wiersz($odbiorca, Notification::TYPE_COOKED, ['recipe_title' => 'Najnowsza zupa'], null, $this->user('aktor_'.Str::lower(Str::random(8)), ['display_name' => $aktor]));
         $this->assertSame($ile + 1, $odbiorca->notifications()->count(), 'Kontrola dodatnia: pula naprawdę jest duża.');
-        $this->assertNotNull($najnowsze);
+        $this->assertTrue($najnowsze->exists);
 
         return [$odbiorca, $sub];
     }

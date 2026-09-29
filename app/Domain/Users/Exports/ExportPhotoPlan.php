@@ -252,7 +252,7 @@ final class ExportPhotoPlan
     {
         $fromKey = pathinfo($photo->object_key, PATHINFO_EXTENSION);
 
-        if (is_string($fromKey) && preg_match('/^[a-zA-Z0-9]{2,5}$/', $fromKey) === 1) {
+        if (preg_match('/^[a-zA-Z0-9]{2,5}$/', $fromKey) === 1) {
             return Str::lower($fromKey);
         }
 

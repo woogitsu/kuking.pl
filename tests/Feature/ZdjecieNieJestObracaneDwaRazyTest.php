@@ -170,6 +170,7 @@ class ZdjecieNieJestObracaneDwaRazyTest extends TestCase
         // rzutowany na tablicę — dla analizy statycznej tablica o nieznanej
         // zawartości. Ten sam powód, dla którego `Media::warianty()` robi
         // `is_array()` zamiast wejść wprost w klucz.
+        /** @var mixed $metadata */
         $metadata = $media->metadata;
         $this->assertIsArray($metadata, 'Zdjęcie nie ma metadanych.');
 

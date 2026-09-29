@@ -325,7 +325,7 @@ final class WyslijPowiadomieniePush implements ShouldBeUniqueUntilProcessing, Sh
                 ? $query->where('push_grupa_id', $this->grupaId)
                 : $query->whereRaw('false');
         } else {
-            $id = array_values(array_filter($this->notificationIds, static fn (mixed $id): bool => is_string($id) && Str::isUuid($id)));
+            $id = array_values(array_filter($this->notificationIds, static fn (mixed $id): bool => Str::isUuid($id)));
             $query->whereKey($id);
         }
 

@@ -512,6 +512,18 @@ class ZmienneRailwayaPerRolaTest extends TestCase
     }
 
     /**
+     * Ta sama stała, ale jako dane: wpisy z panelu rosną z czasem i gałąź
+     * „rola nie czyta zmiennej” ma działać dla przyszłych wpisów, choć dziś
+     * każdy wpis ma wszystkie role.
+     *
+     * @return array<string, array{role: list<string>, wartosc: string, powod: string}>
+     */
+    private function jawneZPanelu(): array
+    {
+        return self::JAWNE_Z_PANELU;
+    }
+
+    /**
      * Regresja 25.09.2026: zmienne ustawione tylko w panelu Railwaya znikają
      * przy pierwszym `railway config apply` (plik opisuje CAŁY zestaw
      * zmiennych usługi). `KUKING_QUESTIONS_ENABLED` wyłączyłaby po cichu
@@ -523,7 +535,7 @@ class ZmienneRailwayaPerRolaTest extends TestCase
     {
         $role = $this->zmienneRol();
 
-        foreach (self::JAWNE_Z_PANELU as $zmienna => $wpis) {
+        foreach ($this->jawneZPanelu() as $zmienna => $wpis) {
             $this->assertNotSame('', trim($wpis['powod']), "{$zmienna} nie ma powodu.");
             $this->assertContains($zmienna, $this->zmienneConfig(), "{$zmienna} nie jest czytana w `config/*.php`.");
 

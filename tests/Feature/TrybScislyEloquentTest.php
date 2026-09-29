@@ -141,7 +141,7 @@ class TrybScislyEloquentTest extends TestCase
 
         // Niepobrana kolumna: `null`, jak w produkcji.
         $konto = User::query()->select('id')->whereKey($autor->getKey())->firstOrFail();
-        $this->assertNull($konto->locale, 'Staging przerwał odczyt niepobranej kolumny zamiast go zalogować.');
+        $this->assertNull($konto->getAttribute('locale'), 'Staging przerwał odczyt niepobranej kolumny zamiast go zalogować.');
 
         // Pole sterujące odpada po cichu, jak w produkcji — ale zostawia ślad.
         $wpis = new Post(['kind' => Post::KIND_QUESTION, 'body' => 'Podrzucony rodzaj.']);

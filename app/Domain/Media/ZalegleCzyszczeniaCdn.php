@@ -32,7 +32,7 @@ final class ZalegleCzyszczeniaCdn
         // nigdy, więc odłożenie go zablokowałoby resztę partii.
         $pelne = array_filter(
             array_unique($adresy),
-            static fn (mixed $adres): bool => is_string($adres) && preg_match('#^https?://#', $adres) === 1,
+            static fn (string $adres): bool => preg_match('#^https?://#', $adres) === 1,
         );
 
         $wiersze = array_map(

@@ -67,11 +67,20 @@
 #  w domknięciu, `Event::$timezone` bywa null wbrew phpdoc Laravela, dwa
 #  `exists()` przed i po `delete()`), kod dostał jawny opis zamiast wyciszenia.
 #
+#  Poziom 4 — etap 3 (issue #1731, 29.09.2026): dopisane do ratchetu
+#  `method.alreadyNarrowedType` (31), `function.alreadyNarrowedType` (19),
+#  `method.impossibleType` (14) i `function.impossibleType` (1). Prawdziwe
+#  znaleziska: `assertNotNull()` na `DOMNodeList|false` przepuszczało `false`
+#  (teraz `assertInstanceOf(DOMNodeList::class, …)`), a `Report::$target_id`
+#  i `Appeal::$user_id` bywają puste (surowy SQL `DROP NOT NULL`, którego
+#  Larastan nie czyta) — opisane w phpdoc modelu. Kolumny JSONB i nieutrwalone
+#  modele dostały jawny typ `mixed`/`getAttribute()` tam, gdzie kod broni się
+#  przed kształtem danych, którego rzutowanie nie gwarantuje.
+#
 #  GDZIE STOI NASTĘPNY PRÓG (zmierzone 29.09.2026, nie zgadnięte):
-#      poziom 4 → 342 błędów (po etapie 1: 288, po etapie 2: 257), z czego
-#      największe rodziny: nullsafe.neverNull 137 (głównie testy: `?->` na
-#      DOM XPath i `PDOStatement|false`), method.alreadyNarrowedType 31,
-#      function.alreadyNarrowedType 19, method.impossibleType 13
+#      poziom 4 → 192 błędy (po etapie 1: 288, po etapie 2: 257, po etapie 3:
+#      192), z czego największa rodzina: nullsafe.neverNull 137 (głównie
+#      testy: `?->` na DOM XPath i `PDOStatement|false`)
 #
 #  IGNOROWANY BŁĄD PONIŻEJ POZIOMU (nie „baseline"):
 #  `larastan.noEnvCallsOutsideOfConfig` w `tests/*` — Larastan ostrzega przed

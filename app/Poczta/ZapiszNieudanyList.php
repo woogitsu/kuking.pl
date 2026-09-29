@@ -299,6 +299,9 @@ final class ZapiszNieudanyList
                 return null;
             }
 
+            // Obiekt odtworzony z `failed_jobs` może mieć starszy kształt niż
+            // ten, który zapisuje dzisiejszy konstruktor.
+            /** @var mixed $adresaci */
             $adresaci = $obiekt->notifiables;
 
             if (! is_iterable($adresaci)) {

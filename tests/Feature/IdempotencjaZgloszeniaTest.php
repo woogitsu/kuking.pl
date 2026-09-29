@@ -209,7 +209,6 @@ class IdempotencjaZgloszeniaTest extends TestCase
 
         // Człowiek widzi TEN SAM numer sprawy co przy pierwszym kliknięciu —
         // inaczej zapisałby numer, którego nie ma w kolejce moderacji.
-        $this->assertNotNull($numerPierwszy);
         $this->assertSame($numerPierwszy, $numerDrugi, 'Drugie kliknięcie pokazało inny numer sprawy niż pierwsze.');
     }
 
@@ -286,7 +285,6 @@ class IdempotencjaZgloszeniaTest extends TestCase
         $this->assertNotSame($pierwszaSprawa->getKey(), $obcaSprawa->getKey(), 'Cudzy klucz oddał wiersz innej osoby.');
         $this->assertNotNull($pierwszaSprawa->klucz_wyslania);
         $this->assertNull($obcaSprawa->klucz_wyslania, 'Klucz podstawiony z cudzego formularza został zapisany przy obcej sprawie.');
-        $this->assertNotNull($numerPierwszy);
     }
 
     public function test_baza_odbija_drugie_zgloszenie_z_tym_samym_kluczem(): void

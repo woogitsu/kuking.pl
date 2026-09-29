@@ -30,6 +30,10 @@ WYCZYSZCZONE=(
     nullCoalesce.variable
     deadCode.unreachable
     booleanNot.alwaysTrue
+    method.alreadyNarrowedType
+    function.alreadyNarrowedType
+    method.impossibleType
+    function.impossibleType
 )
 
 konfig="${KUKING_PHPSTAN_KONFIG:-phpstan-etap4.neon}"

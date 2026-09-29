@@ -192,7 +192,11 @@ class ZamekParyObejmujeBlokowanieTest extends TestCase
         // niż przy INSERT-cie blokady niczego jeszcze nie zatwierdza.
         $poziomBazowy = DB::transactionLevel();
         $poziomBlokady = null;
+        // Zapisywane z DWÓCH domknięć — analiza widzi w każdym tylko stan
+        // początkowy, więc typ podajemy jawnie.
+        /** @var bool $blokadaZatwierdzona */
         $blokadaZatwierdzona = false;
+        /** @var bool|null $zatwierdzonaPrzedWpisem */
         $zatwierdzonaPrzedWpisem = null;
 
         Event::listen(TransactionCommitted::class, function () use ($poziomBazowy, &$poziomBlokady, &$blokadaZatwierdzona): void {
