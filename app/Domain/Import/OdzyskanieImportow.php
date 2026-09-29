@@ -63,6 +63,9 @@ final class OdzyskanieImportow
                 $zlecenie->forceFill([
                     'status' => ImportPrzepisu::STATUS_NIEUDANY,
                     'kod_bledu' => ImportPrzepisu::KOD_BLAD_WEWNETRZNY,
+                    // Adres strony (import z adresu, #28) nie zostaje w wierszu
+                    // dłużej, niż trwa zlecenie.
+                    'source_url' => null,
                     'zakonczono_at' => now(),
                 ])->save();
                 DB::table('proby_importu')->where('import_id', $id)->update([

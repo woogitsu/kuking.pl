@@ -76,10 +76,7 @@
                  * zgadnięta data byłaby niezgodna z treścią (`sd-policies`).
                  * Format jak `datePublished`.
                  */
-                'dateModified' => $recipe->published_at !== null
-                    && $recipe->tresc_zmieniona_at?->greaterThanOrEqualTo($recipe->published_at)
-                        ? $recipe->tresc_zmieniona_at->toDateString()
-                        : null,
+                'dateModified' => $recipe->dataZmianyTresci()?->toDateString(),
                 /*
                  * AUTOR TO KONTO, KTÓRE PRZEPIS OPUBLIKOWAŁO — I TYLKO ONO.
                  *

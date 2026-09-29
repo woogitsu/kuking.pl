@@ -19791,6 +19791,11 @@ na prawnika, dla wszystkich zalogowanych (P-7), w tych granicach:
    wcześniejsza zgoda na odczyt zdjęcia kartki nie obejmuje tekstu strony
    ani stron skanowanego PDF. Rezerwacja w istniejącym budżecie AI następuje
    przed wysłaniem, a po wyczerpaniu budżetu model nie dostaje danych.
+   **Uzupełnienie #2031 (29.09.2026):** zgoda z formularza jest wersjonowana —
+   informacja stoi w jednym komponencie `x-zgoda-zrodlo-ai`, formularz niesie
+   `InformacjaTekstuZrodlaAi::WERSJA`, a zaznaczone pole z inną albo brakującą
+   wersją nie wysyła niczego do modelu. Opis źródeł: rejestr czynności §3.23
+   i `docs/legal/projekty/POLITYKA_ODCZYT_AI.md`.
 
 **W kodzie.** `app/Domain/Import/` (`Url/StraznikAdresow`, `Url/PobieraczStron`,
 `Url/RobotsTxt`, `Url/ParserJsonLdPrzepisu`, `TrybFragmentow`,
@@ -19808,6 +19813,32 @@ z serwisów wymagających logowania; nie pozwala AI „przepisać własnymi sło
 cudzego tekstu przed publikacją (to byłoby pranie cudzej treści). Nie zastępuje
 opinii prawnika — jeśli prawnik wskaże inaczej, import z adresu wyłącza się
 bez wdrożenia: `KUKING_IMPORT_URL=false` (przycisku wtedy nie ma, D-053).
+
+### Uzupełnienie #28 (29 września 2026): import z adresu chodzi w kolejce
+
+Punkt 5 powyżej (limity czasu) opisuje pracę zadania, nie żądania WWW. Wysłanie
+formularza z adresem **tylko zleca** import: szybka kontrola składni bez DNS-u
+(`StraznikAdresow::sprawdzBezSieci`), jedna transakcja ze zleceniem
+(`importy_przepisow`, `zrodlo = 'url'`), miejscem w wspólnym limicie
+(`proby_importu`) i zadaniem `ImportujPrzepisZAdresu` (kolejka `low`, `tries = 1`,
+`timeout = 150 s`), przekierowanie na ekran postępu `/import/{id}`. Pobranie
+strony (robots.txt, DNS, przekierowania), parser JSON-LD i ewentualne żądanie do
+modelu robi worker — żadna z gałęzi nie zajmuje procesu WWW, a zerwane połączenie
+po wysłaniu niczego nie przerywa. Wszystkie bramki z D-300 zostają w warstwie
+domenowej (`OdczytajPrzepisZAdresu`, `PlatnyOdczytImportu`), nie w kontrolerze.
+Zgoda „odczyt AI” na wysłanie tekstu strony jedzie w zadaniu jako flaga z tego
+jednego formularza; adres jest w wierszu zlecenia i znika z niego w stanie
+końcowym. Jedna próba (`tries = 1`) jest świadoma: rezerwacja budżetu ma klucz
+`(próba, 1)`, więc automatyczne ponowienie płatnego kroku zostałoby odrzucone;
+zadanie zabite w środku kończy w `failed()`, które domyka księgę budżetu.
+Ponowienie należy do człowieka („Wklej adres jeszcze raz”) i liczy się do jego limitu.
+Migracja `2026_09_29_120000_extend_importy_przepisow_kod_bledu_o_adres` dopisuje do
+`kod_bledu` siedem powodów odmowy strony (`docs/DATABASE.md`). **Poza tym etapem:**
+import z PDF nadal chodzi w żądaniu — jego plik musi trafić na prywatny dysk
+współdzielony przez web i worker (R2) z retencją i sprzątaniem po każdym stanie
+końcowym, co jest osobnym etapem #28.
+Testy: `ImportZAdresuWKolejceTest`, `CofniecieMigracjiKodowAdresuImportuTest`,
+`ImportPrzepisuZAdresuIPdfTest`, `UmowaKolejkiTest`.
 
 ### Wycofanie
 `KUKING_IMPORT_URL=false` i/lub `KUKING_IMPORT_PDF=false` zdejmują przyciski
@@ -20264,9 +20295,22 @@ z pamięci.
    `wdrozenia` (który commit pod jakim numerem) i `wdrozenia_funkcje`
    (pod jakim numerem pojawiła się każda funkcja z „Najnowsze zmiany") —
    opisane w `docs/DATABASE.md`.
-3. **Komenda w kroku wdrożenia**, tam gdzie dziś `migrate --force`:
-   `kuking:zarejestruj-wdrozenie`, wpięta w `.railway/railway.ts`
-   (`preDeployCommand`) zaraz PO migracjach. Jeśli bieżący
+3. **Komenda w kroku wdrożenia**: `kuking:zarejestruj-wdrozenie`.
+   **Dopisek 29 września 2026 (audyt z 28 września, #1932): NIE w
+   `preDeployCommand`, tylko po gotowości nowego kontenera.** Pierwsza wersja
+   wpięła ją w pre-deploy zaraz po migracjach, czyli przed seedem, importem
+   i healthcheckiem — nieudany rollout zużywał numer, a funkcje z „Najnowszych
+   zmian” dostawały trwały dopisek „od Alfa …” (globalnie unikalny
+   `naglowek_slug` nie pozwalał go poprawić następnym, udanym wdrożeniem).
+   Teraz `docker/entrypoint.sh` (role `web` i `all`) uruchamia w tle
+   `kuking:zarejestruj-wdrozenie --po-gotowosci`, które czeka na 2xx z
+   lokalnego `/health` (limit 300 s) i dopiero wtedy zapisuje; bez odpowiedzi
+   nie zapisuje nic. Zamiast stanu „w toku” w schemacie — bez migracji:
+   wiersz w `wdrozenia` znaczy „kontener wstał”. Nie opieramy się na
+   `deployment_status` z platformy kodu (część rolloutów nie niesie zdarzenia
+   sukcesu). Pilnują: `RejestracjaWdrozeniaPoGotowosciTest` i reguła
+   w `scripts/railway/iac.test.mjs`. Opis pierwotny poniżej: komenda
+   uruchamiana tam, gdzie dziś `migrate --force`, PO migracjach. Jeśli bieżący
    `RAILWAY_GIT_COMMIT_SHA` nie ma jeszcze wiersza, wstawia
    `numer = MAX(numer) dla tej etykiety + 1` pod
    `pg_advisory_xact_lock(hashtext(etykieta))` — dwa równoległe starty nie

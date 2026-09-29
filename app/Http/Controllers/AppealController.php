@@ -9,6 +9,7 @@ use App\Domain\Security\LimitProbHasla;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\ModerationAction;
 use App\Models\User;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -93,12 +94,10 @@ class AppealController extends Controller
             return back()->withErrors(['body' => $blad->getMessage()])->withInput();
         }
 
-        return redirect()->route('appeals.show', $action)->with(
-            'status',
-            'Odwołanie do nas trafiło. Odpowiemy w ciągu '
+        return redirect()->route('appeals.show', $action)->with(Komunikat::sukces('Odwołanie do nas trafiło. Odpowiemy w ciągu '
             .config('kuking.moderation.appeal_response_working_days')
             .' dni roboczych — odpowiedź zobaczysz w powiadomieniach.',
-        );
+        ));
     }
 
     /**
@@ -176,12 +175,10 @@ class AppealController extends Controller
             throw ValidationException::withMessages(['body' => $blad->getMessage()]);
         }
 
-        return redirect()->route('appeals.guest')->with(
-            'status',
-            'Odwołanie do nas trafiło. Odpowiemy w ciągu '
+        return redirect()->route('appeals.guest')->with(Komunikat::sukces('Odwołanie do nas trafiło. Odpowiemy w ciągu '
             .config('kuking.moderation.appeal_response_working_days')
             .' dni roboczych. Odpowiedź zobaczysz na tym ekranie logowania, gdy spróbujesz wejść na konto.',
-        );
+        ));
     }
 
     /**

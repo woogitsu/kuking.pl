@@ -25,6 +25,7 @@ use App\Models\User;
 use App\Policies\RecipePolicy;
 use App\Rules\ObslugiwaneZdjecie;
 use App\Support\Czas;
+use App\Support\Komunikat;
 use App\Support\LimityTagow;
 use App\Support\LimityZdjec;
 use App\Support\OdpowiedziWatku;
@@ -297,7 +298,7 @@ class PostController extends Controller
             return $this->odpowiedzNaPonowienie($post, $question);
         }
         if ($question) {
-            return redirect()->route('questions.show', $post)->with('status', 'Pytanie opublikowane.');
+            return redirect()->route('questions.show', $post)->with(Komunikat::sukces('Pytanie opublikowane.'));
         }
 
         $isFirstPost = $user->posts()->published()->count() === 1;
@@ -342,9 +343,9 @@ class PostController extends Controller
         if (count($mediaIds) >= 2) {
             $odpowiedz = redirect()->route('posts.media.edit', $post)
                 ->with('poPublikacji', true)
-                ->with('status', $isFirstPost
+                ->with(Komunikat::sukces($isFirstPost
                     ? 'Opublikowane. To Twój pierwszy wpis w Kuking — '.$dataPublikacji.'.'
-                    : 'Opublikowane.');
+                    : 'Opublikowane.'));
 
             if ($isFirstPost) {
                 // Ekran układu prowadzi dalej do wpisu własnym przyciskiem
@@ -362,15 +363,13 @@ class PostController extends Controller
             return $odpowiedz;
         }
 
-        $odpowiedz = redirect()->route('posts.show', $post)->with(
-            'status',
-            match (true) {
-                $isFirstPost && $maZdjecie => 'Gotowe. To Twój pierwszy wpis w Kuking — '.$dataPublikacji.'. Zdjęcie za chwilę będzie widoczne, nic nie musisz robić.',
-                $isFirstPost => 'Gotowe. To Twój pierwszy wpis w Kuking — '.$dataPublikacji.'.',
-                $maZdjecie => 'Opublikowane. Zdjęcie za chwilę będzie widoczne — nic nie zginęło.',
-                default => 'Opublikowane. Dziękujemy.',
-            },
-        );
+        $odpowiedz = redirect()->route('posts.show', $post)->with(Komunikat::sukces(match (true) {
+            $isFirstPost && $maZdjecie => 'Gotowe. To Twój pierwszy wpis w Kuking — '.$dataPublikacji.'. Zdjęcie za chwilę będzie widoczne, nic nie musisz robić.',
+            $isFirstPost => 'Gotowe. To Twój pierwszy wpis w Kuking — '.$dataPublikacji.'.',
+            $maZdjecie => 'Opublikowane. Zdjęcie za chwilę będzie widoczne — nic nie zginęło.',
+            default => 'Opublikowane. Dziękujemy.',
+        },
+        ));
 
         if ($isFirstPost) {
             $odpowiedz->with('status_akcja', [
@@ -444,15 +443,12 @@ class PostController extends Controller
     private function odpowiedzNaPonowienie(Post $post, bool $question): RedirectResponse
     {
         if ($question) {
-            return redirect()->route('questions.show', $post)->with('status',
-                'To pytanie jest już opublikowane. Drugie kliknięcie nie dodało go ponownie.');
+            return redirect()->route('questions.show', $post)->with(Komunikat::informacja('To pytanie jest już opublikowane. Drugie kliknięcie nie dodało go ponownie.'));
         }
 
-        return redirect()->route('posts.show', $post)->with(
-            'status',
-            'Ten wpis jest już opublikowany. Kliknięcie drugi raz nic nie zepsuło — wpis jest jeden. '
+        return redirect()->route('posts.show', $post)->with(Komunikat::informacja('Ten wpis jest już opublikowany. Kliknięcie drugi raz nic nie zepsuło — wpis jest jeden. '
             .'Chcesz dodać osobny wpis? Otwórz „Dodaj zdjęcie” jeszcze raz — wtedy powstanie nowy.',
-        );
+        ));
     }
 
     /**
@@ -872,7 +868,7 @@ class PostController extends Controller
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);
         }
 
-        return back()->with('status', 'Komentarz dodany.');
+        return back()->with(Komunikat::sukces('Komentarz dodany.'));
     }
 
     /**
@@ -887,7 +883,7 @@ class PostController extends Controller
         // Issue #936: autor widzi własny ukryty wpis, ale nie może go
         // poprawić (PostPolicy::update). Zamiast gołego 403 mówimy, co zrobić.
         if ($this->autorWpisuPodDecyzja($request, $post)) {
-            return redirect($post->url())->with('status', EditPost::KOMUNIKAT_POD_DECYZJA);
+            return redirect($post->url())->with(Komunikat::sukces(EditPost::KOMUNIKAT_POD_DECYZJA));
         }
 
         $this->authorize('update', $post);
@@ -988,7 +984,7 @@ class PostController extends Controller
             return back()->withInput()->withErrors([$pole => $e->getMessage()]);
         }
 
-        return redirect($post->url())->with('status', $question ? 'Pytanie zapisane.' : 'Wpis zapisany.');
+        return redirect($post->url())->with(Komunikat::sukces($question ? 'Pytanie zapisane.' : 'Wpis zapisany.'));
     }
 
     private function poprawkaPodDecyzja(Request $request, Post $post): Response
@@ -1011,6 +1007,6 @@ class PostController extends Controller
 
         $post->delete();
 
-        return redirect()->route('home')->with('status', 'Wpis usunięty.');
+        return redirect()->route('home')->with(Komunikat::sukces('Wpis usunięty.'));
     }
 }

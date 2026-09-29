@@ -114,3 +114,31 @@ Nie zmieniono issue ani produkcji, nie publikowano komentarzy. Dokument
 jest gotowym materiałem do aktualizacji kanonicznego #614 przez właściciela
 lub kolejkę integracyjną. Pozostawienie issue otwartego do odbioru tych
 decyzji nie oznacza, że należy powtarzać wykonane poprawki.
+
+## Uzupełnienie z 29.09.2026 — stany zgłoszeń i dokumenty dopisane po 20.09
+
+Własny odczyt GitHub API z 29.09.2026 (lista otwartych zgłoszeń repozytorium).
+**Nic nie zmieniło stanu tabeli z 20.09:** otwarte pozostają #119, #120, #193,
+#594, #595, #597, #598, #599, #600, #601, #602, #603, #604, #605, #610, #611,
+#612, #613, #615, #617, #619 oraz sam #614; zamknięte pozostają #596, #606,
+#585, #609, #607, #608. Zamknięcie zgłoszenia nadal nie jest dowodem odbioru
+produkcji, a otwarte — dowodem braku pracy w repozytorium. Wartość
+`PRODUCTION_SPLIT_SERVICES = true` w `.railway/railway.ts` nadal opisuje
+konfigurację przygotowaną, nie zastosowaną.
+
+Od 20.09 w repozytorium przybyły dokumenty, które należy czytać razem z tabelą
+wyżej (każdy opisuje przygotowanie i kroki właściciela, nie odbiór):
+
+| Zgłoszenie | Dokument | Co daje |
+|---|---|---|
+| #602 | [DIRECT_UPLOAD_R2_ANALIZA_602.md](DIRECT_UPLOAD_R2_ANALIZA_602.md), [LIVEWIRE_TMP_R2_RETENCJA_2051.md](LIVEWIRE_TMP_R2_RETENCJA_2051.md) | Rekomendacja „reguła lifecycle na `livewire-tmp/` teraz, direct upload dopiero po pomiarze”; runbook reguły z pustą tabelą odbioru |
+| #595 | [PRZELACZENIE_NA_3_SERWISY_595.md](PRZELACZENIE_NA_3_SERWISY_595.md) | Kolejność kroków właściciela; nic nie zastosowano |
+| #599 / #598 | [MONITORING_599_KROKI.md](MONITORING_599_KROKI.md) | Kroki paneli zewnętrznych, których aplikacja nie wykona sama |
+| #597 / #610 | [CLOUDFLARE_CACHE_597_610.md](CLOUDFLARE_CACHE_597_610.md) | Trzy wyłączone reguły cache do przeglądu i włączenia przez operatora |
+| #603 / #604 | [REDIS_HA_DECYZJE_603_604.md](REDIS_HA_DECYZJE_603_604.md) | Wniosek: kolejka i cache zostają w PostgreSQL do czasu pomiaru |
+| #611 | [CI_611_ANALIZA_2026_09_25.md](CI_611_ANALIZA_2026_09_25.md) | Analiza, bez zmiany workflowów |
+| #617 | [DR_ZDJEC_R2.md](DR_ZDJEC_R2.md) | Stan „kopii zdjęć nie ma”; runbook dla właściciela |
+
+Nowa praca w kodzie nie zmienia kolejności z etapów 1–5. Przy najbliższej
+aktualizacji kanonicznego #614 warto: odhaczyć #596/#606/#585/#609/#607/#608
+z podaniem źródła zamknięcia, a resztę zostawić z odnośnikami do tabeli wyżej.

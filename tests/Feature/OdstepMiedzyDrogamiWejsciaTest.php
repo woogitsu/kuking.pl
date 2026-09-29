@@ -232,6 +232,17 @@ class OdstepMiedzyDrogamiWejsciaTest extends TestCase
                     continue;
                 }
 
+                // Odstęp między grupami panelu (#581). Ramka `[data-marka-panel]` jest
+                // tylko w trybie panelu (moderacja/administracja, zalogowani) i nigdy
+                // nie zawiera karty wejść Google/Facebook z logowania i rejestracji —
+                // ta stoi w `.marka-wejscie`. Wyjątek jest więc dokładnie te dwa selektory.
+                if (in_array($czystySelektor, [
+                    '[data-marka-panel] .marka-panel-tresc > :is(.card, .panel-grupa) + .panel-grupa,'
+                        .' [data-marka-panel] .marka-panel-tresc > .panel-grupa + :is(.card, .panel-grupa)',
+                ], true)) {
+                    continue;
+                }
+
                 $winne[] = trim(preg_replace('/\s+/', ' ', $selektor) ?? '')
                     .' { '.trim(preg_replace('/\s+/', ' ', $tresc) ?? '').' } — '.basename($plik);
             }

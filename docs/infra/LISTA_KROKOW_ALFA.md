@@ -521,10 +521,36 @@ i `_POPRZEDNI` do WWW. Kolejność z `docs/decyzje/PRZEGLAD_SPEC_9_DECYZJI.md`
 4. Tryb `egzekwowanie`: Shared Variable `KUKING_EDGE_TRYB=egzekwowanie`,
    redeploy WWW (przekazywanie przez `railway.ts` — PR z A4).
 
+5. Pomiar topologii (przed lub w trakcie doby obserwacji), bez danych
+   osobowych — wyniki zapisz w #1306:
+   - **Ile wpisów `X-Forwarded-For` dopisuje infrastruktura.** Wejdź na
+     `https://kuking.pl` przez Cloudflare z własnym, kontrolowanym adresem
+     (bez własnego nagłówka `X-Forwarded-For`) i policz wpisy, które
+     dotarły do aplikacji. Ma wyjść tyle, ile `KUKING_ZAUFANE_PRZESKOKI`
+     (dziś `1`). Inna liczba = popraw zmienną **przed** egzekwowaniem.
+   - **Z jakiego adresu brzeg Railway łączy się z kontenerem** (peer).
+     `docker/Caddyfile` ufa tylko sieci prywatnej (`private_ranges`,
+     `trusted_proxies_strict`); jeśli peer jest publiczny, w logu Caddy
+     `client_ip` będzie adresem brzegu, a nie klienta — ślad gorszy,
+     ale nigdy podrobiony. Zmierz, zanim ktoś poszerzy ten zakres.
+   - **Log Caddy a aplikacja.** Kontrolowane żądanie przez Cloudflare
+     z podrobionym prefiksem `X-Forwarded-For` (np. `198.51.100.66`):
+     `client_ip` w logu JSON Caddy i adres w aplikacji (wpis audytu /
+     limit) mają wskazać ten sam adres — Twój, dopisany przez Cloudflare.
+     Repo pilnuje tego symulacją (`CaddyUfaTemuSamemuWpisowiCoAplikacjaTest`);
+     żywy pomiar potwierdza założenia o peerze, których symulacja nie zna.
+
 - **Sprawdzenie:** Railway nie ma domeny `*.up.railway.app` (odczyt 25.09:
   `serviceDomains` puste) — zapisz to w #1306 jako potwierdzenie, a nie
   założenie. Czy brzeg Railway przyjmie żądanie z `Host: kuking.pl`
   z pominięciem Cloudflare, z odczytu nie wynika — po to jest token.
+- **Zbiór domen w repo jest zamknięty.** `DomenyOriginuSaZadeklarowaneWIacTest`
+  oblewa się, gdy `.railway/railway.ts` dostanie inną domenę niż
+  `kuking.pl` i `www.kuking.pl` (albo jakąkolwiek domenę dostawcy).
+  Test widzi tylko IaC: domenę wygenerowaną ręcznie w panelu Railway
+  (*Settings → Networking → Public Networking*) pokaże dopiero
+  `railway config plan` albo odczyt panelu — dlatego wpis „brak domeny
+  dostawcy” w #1306 musi pochodzić z odczytu, nie z tego testu.
 - **Czas:** 30 min + doba. **Zależy od:** B3, C1. **Odblokowuje:** #1306.
 - **Cofnięcie:** do kroku 3 — usuń regułę i zmienną (obserwacja niczego nie
   blokuje). Po egzekwowaniu: najpierw tryb `obserwacja`, potem reszta.

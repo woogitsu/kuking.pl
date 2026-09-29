@@ -27,6 +27,25 @@
     zalega w tabeli od zawsze. `/health` patrzy wyłącznie na to drugie
     i dlatego świeci nieprzerwanie od 9 września 2026 — pierwsza ramka jest
     po to, żeby dało się odróżnić awarię dzisiejszą od zeszłotygodniowej.
+
+    ────────────────────────────────────────────────────────────────────────
+     KOMPOZYCJA PANELU (#581)
+    ────────────────────────────────────────────────────────────────────────
+
+    Ekran powstał po porcie panelu do marki (#587) i został w układzie sprzed
+    niego: nagłówek „Co leży w tabeli” stał przyklejony do karty nad sobą
+    i do karty pod sobą, a dane zadania (klasa, wyjątek, kolejka, daty) szły
+    w `<dl class="meta">`, czyli drobnym, szarym pismem 16 px — choć to jest
+    treść, którą administrator czyta, nie podpis. Teraz:
+
+     - lista z nagłówkiem i zdaniem wstępnym to JEDNA grupa (`.panel-grupa`
+       w `marka-panel.css`), więc nagłówek nie odrywa się od tego, co opisuje,
+       a odstęp jest między grupami;
+     - pary „podpis — wartość” mają pismo podstawowe (18 px razy skala tekstu),
+       podpis wyciszony, wartość w normalnym kolorze (`.dane-zadania`);
+     - karta stanu, karty grup zadań i „Co z tym zrobić” to karty treści
+       (`docs/design/ROLE_KART.md`) — ekran nie ma formularza, więc nie ma
+       tu panelu formularza.
 --}}
 <x-layout title="Kolejka zadań — Panel moderacji" :noindex="true">
     <x-panel-moderacji ekran="Kolejka zadań" />
@@ -56,7 +75,7 @@
                 @endif
             </p>
 
-            <p class="meta">
+            <p class="panel-liczby">
                 Czeka: {{ $stan['oczekujace'] }} ·
                 zawieszonych: {{ $stan['zawieszone'] }} ·
                 nieudanych w tabeli razem: {{ $stan['nieudane_razem'] }}
@@ -64,7 +83,10 @@
         @endif
     </section>
 
-    {{-- STAN: co trzyma `/health` w `degraded`. --}}
+    {{-- STAN: co trzyma `/health` w `degraded`. Nagłówek, zdanie wstępne i lista
+         są jedną grupą: odstęp jest między grupami, nie między nagłówkiem
+         a tym, co on opisuje. --}}
+    <section class="panel-grupa" aria-labelledby="kolejka-co-lezy">
     <h2 id="kolejka-co-lezy">Co leży w tabeli nieudanych zadań</h2>
 
     @if($nieudane['odczytane'] === false)
@@ -88,7 +110,7 @@
 
                     <p>Przewrócił to: <strong>{{ $grupa['nazwa_wyjatku'] }}</strong></p>
 
-                    <dl class="meta">
+                    <dl class="dane-zadania">
                         <dt>Pełna nazwa zadania</dt>
                         <dd><code>{{ $grupa['klasa'] }}</code></dd>
 
@@ -109,18 +131,19 @@
         </ul>
 
         @if($nieudane['poza_lista'] > 0)
-            <p class="meta">Grup poza listą: {{ $nieudane['poza_lista'] }}. Ekran pokazuje
+            <p class="panel-liczby">Grup poza listą: {{ $nieudane['poza_lista'] }}. Ekran pokazuje
                 {{ \App\Domain\Kolejka\NieudaneZadania::GRUP_NA_EKRAN }} najświeższych.</p>
         @endif
     @endif
+    </section>
 
-    <section class="card" aria-labelledby="kolejka-co-dalej">
+    <section class="card stack-tight" aria-labelledby="kolejka-co-dalej">
         <h2 class="mt-0 text-title-sm" id="kolejka-co-dalej">Co z tym zrobić</h2>
 
         <p>Ten ekran wyłącznie czyta. Żeby dowiedzieć się, <strong>kogo</strong> te zadania
             dotyczyły, i żeby cokolwiek z tabeli wyrzucić, potrzebna jest powłoka serwera:</p>
 
-        <ul>
+        <ul class="stack-tight list-none p-0">
             <li><code>php artisan kuking:martwe-zadania</code> — co to jest i ilu ludzi dotyczy
                 (niczego nie kasuje bez <code>--skasuj</code>).</li>
             <li><code>php artisan kuking:kto-nie-dostal-listu</code> — do kogo list nie doszedł.</li>

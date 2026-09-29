@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Auth;
 use App\Domain\Security\ZaproszenieWSesji;
 use App\Http\Controllers\Controller;
 use App\Models\RegistrationInvite;
+use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -137,10 +138,9 @@ class RegistrationInviteController extends Controller
             // dostałoby wyrocznię „ten istniał, tamten nie". Człowiekowi i tak
             // nie zmienia to niczego: w każdym z tych przypadków ma zrobić
             // dokładnie to samo.
-            return redirect()->route('register')->with('status',
-                'To zaproszenie już nie działa — mogło wygasnąć albo zostać użyte. Nic się nie stało: '
+            return redirect()->route('register')->with(Komunikat::informacja('To zaproszenie już nie działa — mogło wygasnąć albo zostać użyte. Nic się nie stało: '
                 .'załóż konto poniżej, a adres e-mail potwierdzisz jedną wiadomością.',
-            );
+            ));
         }
 
         $sesja->zapamietaj($zaproszenie);
@@ -165,10 +165,9 @@ class RegistrationInviteController extends Controller
     {
         $sesja->zapomnij();
 
-        return redirect()->route('register')->with('status',
-            'Dobrze. Wpisz adres e-mail, na który chcesz mieć konto — wyślemy na niego wiadomość '
+        return redirect()->route('register')->with(Komunikat::sukces('Dobrze. Wpisz adres e-mail, na który chcesz mieć konto — wyślemy na niego wiadomość '
             .'z potwierdzeniem.',
-        );
+        ));
     }
 
     private function ekranNieaktualnegoZaproszenia(): View

@@ -655,13 +655,13 @@ new class extends Component
             return;
         }
 
-        session()->flash('status', $this->juzOpublikowany
+        \App\Support\Komunikat::wSesji(session()->driver(), \App\Support\Komunikat::sukces($this->juzOpublikowany
             ? 'Szczegóły zapisane.'
             : match ($recipe->visibility) {
                 'private' => 'Przepis zapisany. Widzisz go tylko Ty.',
                 'followers' => 'Przepis opublikowany dla osób, które Cię obserwują.',
                 default => 'Przepis opublikowany. Teraz ktoś może z niego ugotować.',
-            });
+            }));
 
         $this->redirect(route('recipes.show', $recipe->slug));
     }
