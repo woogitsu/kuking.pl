@@ -51,8 +51,11 @@ class TagCollageTest extends TestCase
         }
         // Po identycznych datach zdjęć kolejność ustawiona we wpisie wygrywa.
         $expected = [$this->uuid(10), $first->media->first()->id];
-        $this->assertSame($expected, $this->photos($tag)->modelKeys());
-        $this->assertSame($expected, $this->photos($tag)->modelKeys());
+        $pierwszy = $this->photos($tag)->modelKeys();
+        $drugi = $this->photos($tag)->modelKeys();
+        $this->assertSame($expected, $pierwszy);
+        // Ten sam stan bazy daje ten sam wybór — bez losowania i zależności od kolejności zapytań.
+        $this->assertSame($pierwszy, $drugi);
         $second->media()->whereKey($this->uuid(20))->firstOrFail()->forceFill(['created_at' => '2026-09-02 12:00:00+00'])->save();
         $this->assertSame([$this->uuid(20), $expected[1]], $this->photos($tag)->modelKeys());
     }

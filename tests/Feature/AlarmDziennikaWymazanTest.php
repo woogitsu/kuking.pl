@@ -169,11 +169,13 @@ class AlarmDziennikaWymazanTest extends TestCase
         $this->magazynPada(true);
         $konto = $this->kontoPoKarencji();
         $this->noc();
-        $this->assertSame(1, Cache::get(AlarmDziennikaWymazan::KLUCZ_LICZNIKA)['noce']);
+        $noce = Cache::get(AlarmDziennikaWymazan::KLUCZ_LICZNIKA)['noce'];
+        $this->assertSame(1, $noce);
 
         // --dry-run niczego nie zmienia.
         $this->artisan('kuking:usun-wygasle-konta', ['--dry-run' => true])->assertSuccessful();
-        $this->assertSame(1, Cache::get(AlarmDziennikaWymazan::KLUCZ_LICZNIKA)['noce']);
+        $noce = Cache::get(AlarmDziennikaWymazan::KLUCZ_LICZNIKA)['noce'];
+        $this->assertSame(1, $noce);
 
         // Człowiek cofnął usunięcie: kolejka pusta, nic nie czeka, licznik zerowy.
         $konto->forceFill(['status' => User::STATUS_ACTIVE, 'delete_requested_at' => null])->save();

@@ -45,13 +45,16 @@ class AdresZrodlaPrzepisuTest extends TestCase
         $this->actingAs($author);
         $data = ['title' => 'Poprawiony tytuł', 'visibility' => 'public', 'source_type' => 'external', 'source_url' => $recipe->source_url, 'steps' => [['instruction' => 'Gotuj.']]];
         $this->put(route('recipes.update', $recipe), [...$data, 'content_revision' => $recipe->fresh()->content_revision])->assertSessionHasNoErrors();
-        $this->assertSame('ftp://example.invalid/stary', $recipe->fresh()->source_url);
+        $zapisany = $recipe->fresh()->source_url;
+        $this->assertSame('ftp://example.invalid/stary', $zapisany);
         $data['source_url'] = 'ftp://example.invalid/nowy';
         $this->put(route('recipes.update', $recipe), [...$data, 'content_revision' => $recipe->fresh()->content_revision])->assertSessionHasErrors('source_url');
-        $this->assertSame('ftp://example.invalid/stary', $recipe->fresh()->source_url);
+        $zapisany = $recipe->fresh()->source_url;
+        $this->assertSame('ftp://example.invalid/stary', $zapisany);
         $data['source_url'] = 'http://example.invalid/nowy';
         $this->put(route('recipes.update', $recipe), [...$data, 'content_revision' => $recipe->fresh()->content_revision])->assertSessionHasNoErrors();
-        $this->assertSame($data['source_url'], $recipe->fresh()->source_url);
+        $zapisany = $recipe->fresh()->source_url;
+        $this->assertSame($data['source_url'], $zapisany);
         $data['source_url'] = '';
         $this->put(route('recipes.update', $recipe), [...$data, 'content_revision' => $recipe->fresh()->content_revision])->assertSessionHasNoErrors();
         $this->assertNull($recipe->fresh()->source_url);
@@ -103,13 +106,17 @@ class AdresZrodlaPrzepisuTest extends TestCase
         $component = Livewire::actingAs($author)->test('recipe-wizard', ['recipeId' => $recipe->getKey()])
             ->assertSet('form.source_url', 'ftp://example.invalid/stary')
             ->set('form.title', 'Poprawiony tytuł')->assertHasNoErrors()->assertSet('saveState', 'saved');
-        $this->assertSame(['Poprawiony tytuł', 'ftp://example.invalid/stary'], [$recipe->fresh()->title, $recipe->fresh()->source_url]);
+        $zapisany = $recipe->fresh();
+        $this->assertSame(['Poprawiony tytuł', 'ftp://example.invalid/stary'], [$zapisany->title, $zapisany->source_url]);
         $component->set('form.source_url', 'ftp://example.invalid/nowy')->assertHasErrors('form.source_url')->assertSet('saveState', 'error');
-        $this->assertSame('ftp://example.invalid/stary', $recipe->fresh()->source_url);
+        $zapisany = $recipe->fresh()->source_url;
+        $this->assertSame('ftp://example.invalid/stary', $zapisany);
         $component->set('form.source_url', 'https://example.invalid/nowy')->assertHasNoErrors('form.source_url')->assertSet('saveState', 'saved');
-        $this->assertSame('https://example.invalid/nowy', $recipe->fresh()->source_url);
+        $zapisany = $recipe->fresh()->source_url;
+        $this->assertSame('https://example.invalid/nowy', $zapisany);
         // Raz porzucony dawny adres nie wraca jako wyjątek.
         $component->set('form.source_url', 'ftp://example.invalid/stary')->assertHasErrors('form.source_url');
-        $this->assertSame('https://example.invalid/nowy', $recipe->fresh()->source_url);
+        $zapisany = $recipe->fresh()->source_url;
+        $this->assertSame('https://example.invalid/nowy', $zapisany);
     }
 }

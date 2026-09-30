@@ -81,10 +81,13 @@ final class ZlySekretTurnstileDzwoniTest extends TestCase
         $zly = ['success' => false, 'error-codes' => ['invalid-input-secret']];
         $this->cloudflare([$zly, $zly, $zly, self::UDANA]);
 
-        $this->assertSame(WynikTurnstile::Nierozstrzygniety, $this->sprawdz());
-        $this->assertSame(WynikTurnstile::Nierozstrzygniety, $this->sprawdz());
+        $pierwszy = $this->sprawdz();
+        $drugi = $this->sprawdz();
         Carbon::setTestNow('2026-09-25 11:00:00');
-        $this->assertSame(WynikTurnstile::Nierozstrzygniety, $this->sprawdz());
+        $trzeci = $this->sprawdz();
+        $this->assertSame(WynikTurnstile::Nierozstrzygniety, $pierwszy);
+        $this->assertSame(WynikTurnstile::Nierozstrzygniety, $drugi);
+        $this->assertSame(WynikTurnstile::Nierozstrzygniety, $trzeci);
 
         $alarmy = $this->alarmy();
         $this->assertCount(1, $alarmy);
