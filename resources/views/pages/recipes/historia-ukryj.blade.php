@@ -45,7 +45,7 @@
 
         @if($strona === \App\Models\RecipeVersion::UKRYLA_MODERACJA)
             @php($bladPodstawy = $errors->first('reason_code'))
-            <form class="stack" method="POST" action="{{ route('recipes.history.hide.store', [$recipe->slug, $wersja->version_number]) }}">
+            <form class="stack" method="POST" action="{{ route('recipes.history.hide.store', [$recipe->slug, $wersja->version_number]) }}" novalidate>
                 @csrf
                 <div class="field @if($bladPodstawy) has-error @endif">
                     <label for="f-reason_code">
