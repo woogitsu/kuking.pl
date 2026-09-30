@@ -315,7 +315,9 @@ class PowiadomienieSledziTrescKomentarzaTest extends TestCase
             'Pomiar bez wierszy mierzyłby pustą stronę — to jest kontrola dodatnia samego pomiaru.',
         );
 
-        $this->assertSame(8, $malo, "Pomiar dla 2 wierszy: {$malo}; dla 12: {$duzo}.");
+        // 7, a nie 8 jak po #833: od #2289 lista nie liczy wszystkich
+        // powiadomień (`simplePaginate()` zamiast `paginate()` z `COUNT(*)`).
+        $this->assertSame(7, $malo, "Pomiar dla 2 wierszy: {$malo}; dla 12: {$duzo}.");
         $this->assertSame(
             0,
             $duzo - $malo,

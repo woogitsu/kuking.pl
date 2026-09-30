@@ -90,7 +90,7 @@ class JakDobieramyWpisyMowiPrawdeTest extends TestCase
         'odkrywanie.ukryci' => [
             'test: Tests\Feature\UkryjWpisIOsobeTest::test_ukryta_osoba_znika_z_podsuwanych_miejsc_ale_nie_z_tych_gdzie_widz_przyszedl_sam',
             'test: Tests\Feature\OdkrywanieRotacjaAutorowTest::test_blokada_i_zawieszenie_zdejmuja_autora_ale_nie_innych',
-            'kod: app/Domain/Feed/DiscoverFeed.php :: ->bezUkrytychOsob($viewer)',
+            'kod: app/Domain/Feed/DiscoverFeed.php :: ->bezUkrytychOsob($viewer, bezKorelacji: true)',
         ],
         'tablica.wybor' => [
             'test: Tests\Feature\JakDobieramyWpisyMowiPrawdeTest::test_wybor_gospodarza_ma_napis_a_uzupelnienie_automatu_nie',
