@@ -37,9 +37,26 @@ use Illuminate\Support\Facades\DB;
  * wdrożenia jeszcze nie było — issue #3) migracja nie robi nic i przechodzi
  * bez pytania.
  *
- * ROLLBACK: przestawienie z powrotem na `r2`. Bezstratne dla plików — kolumna
- * to nazwa logiczna, nie ścieżka. Uwaga: cofać PRZED `kuking:przenies-zdjecia`,
- * nie po; potem `r2` byłoby już prawdą dla części wierszy.
+ * ROLLBACK: przestawienie z powrotem na `r2` — ale tylko wtedy, gdy da się je
+ * odwrócić (D-088, issue #2329).
+ *
+ * Po `up()` nazwa `r2` znaczy już wyłącznie NOWY, prywatny bucket: `up()`
+ * przestawiło wszystkie stare wiersze, więc każdy wiersz z `disk = 'r2'` jest
+ * albo przeniesiony przez `kuking:przenies-zdjecia` (produkcyjny
+ * `KUKING_MEDIA_DISK` to `r2`), albo dodany po rozdzieleniu bucketów. Gdyby
+ * `down()` przestawiło wtedy stare wiersze na `r2`, obie grupy dostałyby tę
+ * samą nazwę i nikt już by ich nie odróżnił: stare zdjęcia wskazywałyby
+ * bucket, w którym ich plików nie ma, a następne `up()` (każdy `migrate` po
+ * cofnięciu) przestawiłoby na `r2_legacy` także przeniesione i nowe — na
+ * bucket, w którym nowych plików nigdy nie było. Zdjęcia by zniknęły.
+ *
+ * Dlatego `down()` ODMAWIA, gdy jest choć jeden wiersz z `disk = 'r2'`,
+ * i niczego wtedy nie zmienia. Odmowa jest wąska: na środowisku bez zdjęć na
+ * R2 oraz na produkcji przed pierwszym nowym zdjęciem i przed przenosinami
+ * rollback przechodzi jak dawniej (wtedy jest bezstratny — kolumna to nazwa
+ * logiczna, nie ścieżka, a `up()` odtwarza ją w całości). Dawne zdanie
+ * „cofać PRZED przenosinami" w komentarzu nie było zabezpieczeniem;
+ * zabezpieczeniem jest `throw` (AGENTS.md §6). `up()` jest bez zmian.
  */
 return new class extends Migration
 {
@@ -74,6 +91,23 @@ return new class extends Migration
 
     public function down(): void
     {
+        $nowe = DB::table('media')->where('disk', 'r2')->count();
+
+        if ($nowe > 0) {
+            // Rzeczownik przed liczbą, liczba na końcu zdania — jak w `up()`.
+            throw new RuntimeException(
+                'Cofnięcie migracji przerwane, niczego nie zmieniono. '
+                .'Liczba zdjęć, które już wskazują NOWY bucket (`disk = r2`): '.$nowe.'. '
+                ."To zdjęcia przeniesione przez `kuking:przenies-zdjecia` albo dodane po rozdzieleniu bucketów.\n\n"
+                .'Po cofnięciu nie dałoby się ich odróżnić od starych, a kolejne `migrate` przestawiłoby je '
+                ."na stary bucket, w którym ich plików nie ma — zdjęcia zniknęłyby z serwisu.\n\n"
+                ."Co zrobić: cofnij wdrożenie BEZ cofania tej migracji.\n"
+                .'Jeśli cofnięcie danych jest naprawdę konieczne: zrób kopię tabeli `media`, uruchom '
+                .'`php artisan kuking:zaleznosc-od-starego-bucketu --pliki` i przestaw wiersze ręcznie, '
+                .'każdy według tego, w którym buckecie naprawdę leży jego plik.',
+            );
+        }
+
         DB::table('media')->where('disk', 'r2_legacy')->update([
             'disk' => 'r2',
             'variants_disk' => null,
