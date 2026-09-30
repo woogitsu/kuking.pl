@@ -661,6 +661,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('social.followers', $wlasciciel->profile->username), [], [$W, $W, $O, $W, $W]);
         $dodaj('social.following', 'lista obserwowanych', 'get',
             route('social.following', $wlasciciel->profile->username), [], [$W, $W, $O, $W, $W]);
+        // Kanał Atom profilu (#2227) jest ZAWSZE widokiem gościa: stoi poza
+        // grupą `web`, bez sesji, a Policy pyta o widza `null`. Stąd
+        // „wolno” także osobie zablokowanej — dostaje dokładnie to, co
+        // zobaczyłaby po wylogowaniu, i nic więcej (czytnik kanałów nie ma
+        // konta, więc blokady nie da się w nim egzekwować).
+        $dodaj('kanaly.profil', 'kanał Atom profilu', 'get',
+            route('kanaly.profil', $wlasciciel->profile->username), [], [$W, $W, $W, $W, $W]);
         // Właściciel dostaje tu odmowę, bo nikt nie obserwuje samego siebie
         // (`UserPolicy::follow`), a nie dlatego, że trasa jest zamknięta.
         $dodaj('social.follow', 'obserwowanie właściciela', 'post',
@@ -859,6 +866,19 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('recipes.history.version', [$przepisPrywatny, 2]), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.history.changes', 'porównanie wersji prywatnego przepisu', 'get',
             route('recipes.history.changes', [$przepisPrywatny, 2]), [], [$W, $O, $O, $O, $O]);
+        // Ukrywanie wersji (#2270) — `RecipeVersionPolicy` zaczyna od tej
+        // samej bramki co historia, więc prywatny przepis zamyka drzwi
+        // wszystkim poza autorem, także moderatorowi. Wersja 1 nie jest
+        // najnowsza, więc autor dostaje ekran potwierdzenia i zapis; przy
+        // przywróceniu wersji nieukrytej — komunikat i powrót (302).
+        $dodaj('recipes.history.hide', 'potwierdzenie ukrycia wersji prywatnego przepisu', 'get',
+            route('recipes.history.hide', [$przepisPrywatny, 1]), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.history.hide.store', 'ukrycie wersji prywatnego przepisu', 'post',
+            route('recipes.history.hide.store', [$przepisPrywatny, 1]), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.history.restore', 'potwierdzenie przywrócenia wersji prywatnego przepisu', 'get',
+            route('recipes.history.restore', [$przepisPrywatny, 1]), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.history.restore.store', 'przywrócenie wersji prywatnego przepisu', 'post',
+            route('recipes.history.restore.store', [$przepisPrywatny, 1]), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.edit', 'edycja przepisu', 'get',
             route('recipes.edit', $przepis), [], [$W, $O, $O, $O, $O]);
         // Zlecenie odczytu zdjęcia kartki (V2, D-298) — prywatny szkic ze
@@ -984,6 +1004,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.show', $zeszytZbanowanegoPrywatny), [], [$O, $O, $O, $O, $O]);
         $dodaj('collections.show', 'publiczny zeszyt osoby zbanowanej', 'get',
             route('collections.show', $zeszytZbanowanegoPubliczny), [], [$O, $O, $O, $W, $O]);
+        // Kanał Atom zeszytu (#2227) — zawsze oczami gościa, więc prywatny
+        // zeszyt jest zamknięty także dla WŁAŚCICIELA, a zbanowanego —
+        // także dla moderatora (ten ma stronę zeszytu, nie kanał).
+        $dodaj('kanaly.zeszyt', 'kanał Atom prywatnego zeszytu', 'get',
+            route('kanaly.zeszyt', $zeszyt), [], [$O, $O, $O, $O, $O]);
+        $dodaj('kanaly.zeszyt', 'kanał Atom publicznego zeszytu osoby zbanowanej', 'get',
+            route('kanaly.zeszyt', $zeszytZbanowanegoPubliczny), [], [$O, $O, $O, $O, $O]);
         // Edycja zeszytu (#777) — nazwa, opis i widoczność. O własnym
         // zeszycie decyduje wyłącznie jego właściciel, także moderator nie
         // przestawia cudzej widoczności (`CollectionPolicy::update()`).
@@ -1096,6 +1123,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // zalogowanej.
         $dodaj('tags.show', 'strona tagu', 'get',
             route('tags.show', $tag), [], [$W, $W, $W, $W, $W]);
+        $dodaj('kanaly.tag', 'kanał Atom tagu (#2227)', 'get',
+            route('kanaly.tag', $tag->slug), [], [$W, $W, $W, $W, $W]);
         $dodaj('tags.follow', 'obserwowanie tagu', 'post',
             route('tags.follow', $tag), [], [$W, $W, $W, $W, $O]);
         $dodaj('tags.unfollow', 'przestaję obserwować tag', 'delete',

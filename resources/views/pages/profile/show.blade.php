@@ -7,15 +7,19 @@
     :szynaWTresci="true"
     :title="$p->display_name.' (@'.$p->username.')'"
     :description="$p->bio ?: $p->display_name.' gotuje w Kuking.'"
-    :noindex="$stats['posts'] === 0 && $stats['recipes'] === 0"
+    :noindex="! $profilDoIndeksu"
     {{-- Avatar, a nie zdjęcie potrawy: link do profilu ma pokazać CZŁOWIEKA.
          Bez avatara wchodzi karta zapasowa — lepsza niż cudza fotografia,
          która sugerowałaby, że to profil o tym daniu. --}}
     :image="$p->avatar"
+    {{-- Kanał Atom (#2227) — ten sam warunek co `UserPolicy::viewProfile()`
+         dla gościa: moderator na profilu zbanowanego nie dostaje odnośnika
+         do kanału, który gościowi odpowiedziałby 404. --}}
+    :kanalAtom="$owner->jestDostepnyJakoAutor() ? ['href' => route('kanaly.profil', $p->username), 'title' => 'Nowe wpisy od '.$p->display_name.' (Atom)'] : null"
     ogType="profile">
 
     <x-slot:head>
-        @if($stats['posts'] > 0 || $stats['recipes'] > 0)
+        @if($profilDoIndeksu)
             @php
                 $profileJsonLd = [
                 '@context' => 'https://schema.org',
@@ -26,7 +30,10 @@
                     'alternateName' => '@'.$p->username,
                     'description' => $p->bio,
                     'url' => route('profile.show', $p->username),
-                ],
+                ]
+                // Tylko gotowy awatar, który otworzy się gościowi (#2231);
+                // bez niego klucza `image` nie ma wcale.
+                + ($obrazOsoby !== null ? ['image' => $obrazOsoby] : []),
             ];
             @endphp
             <x-json-ld :data="$profileJsonLd" />

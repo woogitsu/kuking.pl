@@ -57,7 +57,10 @@
     $twojeWpisy = $n === 1 ? 'Jeden Twój wpis' : ($mnogaOd2Do4 ? "{$n} Twoje wpisy" : "{$n} Twoich wpisów");
     $niewidoczne = $n === 1 ? 'nie jest widoczny' : ($mnogaOd2Do4 ? 'nie są widoczne' : 'nie jest widocznych');
 @endphp
-<x-layout :title="$tag->name" :description="\Illuminate\Support\Str::limit($opisTagu, 155)" :noindex-follow="! $indeksowalny">
+{{-- Kanał Atom (#2227): tag ukryty nie ma strony, scalony przekierowuje,
+     więc każda wyrenderowana strona tagu ma działający kanał. --}}
+<x-layout :title="$tag->name" :description="\Illuminate\Support\Str::limit($opisTagu, 155)" :noindex-follow="! $indeksowalny"
+    :kanalAtom="['href' => route('kanaly.tag', $tag->slug), 'title' => 'Nowe wpisy z tagiem „'.$tag->name.'” (Atom)']">
     <p class="meta mb-2">
         <a href="{{ route('discover') }}">Świeżo z <x-kuking-word /></a> ·
         <a href="{{ route('tags.index') }}">wszystkie tagi</a>

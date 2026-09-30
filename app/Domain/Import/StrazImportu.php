@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Import;
 
+use App\Domain\Import\Url\PublicznyAdresZrodla;
 use App\Domain\Recipes\StrazPochodzeniaPrzepisu;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\PrzepisZImportu;
@@ -35,7 +36,10 @@ final class StrazImportu implements StrazPochodzeniaPrzepisu
 
         if ($pochodzenie->zrodlo === PrzepisZImportu::ZRODLO_URL) {
             $attributes['source_type'] = Recipe::SOURCE_EXTERNAL;
-            $attributes['source_url'] = $pochodzenie->source_url;
+            // Oczyszczany przy KAŻDYM zapisie, nie tylko przy imporcie: szkic
+            // zapisany przed #2229 miał w pochodzeniu pełny adres, a ta linia
+            // przepisuje go do przepisu i do migawki wersji.
+            $attributes['source_url'] = $pochodzenie->source_url === null ? null : PublicznyAdresZrodla::z($pochodzenie->source_url);
         }
 
         if ($publish

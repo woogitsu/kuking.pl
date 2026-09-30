@@ -7,6 +7,7 @@ namespace App\Domain\Moderation;
 use App\Domain\Media\WgladZUrzedu;
 use App\Models\AuditLogEntry;
 use App\Models\Media;
+use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
@@ -23,7 +24,11 @@ use Illuminate\Support\Facades\Gate;
  * Wyłącznie gdy moderator otwiera coś, czego nie zobaczyłby bez roli:
  *  - zdjęcie, które jest celem zgłoszenia (`powod = zgloszenie`),
  *  - zdjęcie treści ukrytej przez moderację (`powod = ukryta_tresc`),
- *  - stronę przepisu ukrytego przez moderację.
+ *  - stronę przepisu niewidocznego bez roli (ukryty, zdjęty, konto autora
+ *    zbanowane),
+ *  - stronę wpisu niewidocznego bez roli (ukryty przez moderację, konto
+ *    autora zbanowane albo oznaczone do usunięcia) — decyzja właściciela
+ *    z 30.09.2026; do tego dnia ślad zostawiał wyłącznie wpis `hidden`.
  * Wyświetlenia publiczne, wejścia autora i wejścia moderatora w treść jawną
  * nie zostawiają nic — inaczej dziennik utonąłby w szumie (feed to setki
  * żądań o zdjęcia na stronę), a podstawa „wgląd z urzędu" nie obejmowałaby
@@ -47,6 +52,14 @@ final class DziennikWgladu
     public const ZDJECIE = 'moderation.media_viewed';
 
     public const PRZEPIS_UKRYTY = 'moderation.hidden_recipe_viewed';
+
+    /**
+     * Nazwa zostaje z #1018 (wtedy tylko wpis `hidden`), choć od 30.09.2026
+     * obejmuje też wpis konta zbanowanego: to ta sama czynność — wgląd
+     * w wpis niewidoczny bez roli — a zmiana nazwy rozcięłaby historię
+     * dziennika na dwie. Powód rozróżnia `metadata.powod`.
+     */
+    public const WPIS_UKRYTY = 'moderation.hidden_post_viewed';
 
     // Powody i przycięcie spraw mieszkają w module Media (`WgladZUrzedu`),
     // bo rozstrzyga je `DostepDoZdjecia`; tu ta sama wartość pod dawną nazwą.
@@ -126,6 +139,40 @@ final class DziennikWgladu
                     ? self::POWOD_UKRYTA_TRESC
                     : self::POWOD_ROLA,
                 'status' => $przepis->status,
+            ],
+            ip: $ip,
+        );
+    }
+
+    /**
+     * Wpis niewidoczny bez roli obsługi, otwarty przez moderatora, który nie
+     * jest autorem — ten sam wzorzec co `przepis()`. Wołane PO
+     * `authorize('view')` ze strony wpisu (`StronaWpisu`) i z API.
+     *
+     * Pytanie jest KONTRFAKTYCZNE, nie lista statusów: `PostPolicy::view()`
+     * wpuszcza moderatora do wpisu ukrytego (#1018) i do wpisu konta
+     * zbanowanego (`$isOwnerOrModerator`), a jutro może dojść trzecia
+     * droga. Lista statusów gubiła drugą z nich — dokładnie tę, o której
+     * mówi decyzja z 30.09.2026.
+     */
+    public function wpis(Post $wpis, ?User $widz, ?string $ip): void
+    {
+        if ($widz === null
+            || ! $widz->isModerator()
+            || $widz->getKey() === $wpis->author_id
+            || Gate::forUser(self::jakZwykleKonto($widz))->allows('view', $wpis)) {
+            return;
+        }
+
+        AuditLogEntry::record(
+            action: self::WPIS_UKRYTY,
+            actor: $widz,
+            subject: $wpis,
+            metadata: [
+                'powod' => $wpis->jestPodDecyzjaModeracji()
+                    ? self::POWOD_UKRYTA_TRESC
+                    : self::POWOD_ROLA,
+                'status' => $wpis->status,
             ],
             ip: $ip,
         );

@@ -35,7 +35,7 @@
         </form>
     @endif
 
-    <p class="meta mb-5">Przy każdym dniu wyszukasz przepis i dodasz go do planu. Możesz też dopisać coś własnego, np. „obiad u mamy”. Przepis dodasz również z jego strony — przyciskiem „Dodaj do planera”. Przy przepisie w planie „Dodaj składniki” kopiuje jego składniki na listę zakupów.</p>
+    <p class="meta meta-samodzielne mb-5">Przy każdym dniu wyszukasz przepis i dodasz go do planu. Możesz też dopisać coś własnego, np. „obiad u mamy”. Przepis dodasz również z jego strony — przyciskiem „Dodaj do planera”. Przy przepisie w planie „Dodaj składniki” kopiuje jego składniki na listę zakupów.</p>
 
     <div class="planer-dni">
         @foreach($dni as $dataDnia => $dzien)
@@ -51,7 +51,7 @@
                 </h2>
 
                 @if($dzien['pozycje'] === [])
-                    <p class="meta">Nic jeszcze nie zaplanowane.</p>
+                    <p class="meta meta-samodzielne">Nic jeszcze nie zaplanowane.</p>
                 @else
                     <ul class="planer-pozycje">
                         @foreach($dzien['pozycje'] as $pozycja)
@@ -127,7 +127,7 @@
                         </form>
                         @if($aktywny && $fraza !== '' && ! $bladFrazy)
                             @if($wyniki->isEmpty())
-                                <p class="meta">Nic nie znaleźliśmy dla „{{ $fraza }}”. Spróbuj krótszego słowa, np. samej nazwy dania.</p>
+                                <p class="meta meta-samodzielne">Nic nie znaleźliśmy dla „{{ $fraza }}”. Spróbuj krótszego słowa, np. samej nazwy dania.</p>
                             @else
                                 <ul class="planer-pozycje mt-3" aria-label="Znalezione przepisy">
                                     @foreach($wyniki as $znaleziony)

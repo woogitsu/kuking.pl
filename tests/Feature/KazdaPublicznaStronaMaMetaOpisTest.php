@@ -83,6 +83,11 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
         'wydanie' => 'SHA wydania dla testu dymnego — JSON, nie strona HTML',
         'sitemap' => 'plik XML — Google nie czyta z niego meta description',
         'robots' => 'plik tekstowy robots.txt, nie strona HTML',
+        // Kanały Atom (#2227) — XML z nagłówkiem `X-Robots-Tag: noindex`;
+        // opis strony niosą profil, tag i zeszyt, na które kanał wskazuje.
+        'kanaly.profil' => 'kanał Atom profilu (XML), nie strona HTML — #2227',
+        'kanaly.tag' => 'kanał Atom tagu (XML), nie strona HTML — #2227',
+        'kanaly.zeszyt' => 'kanał Atom zeszytu (XML), nie strona HTML — #2227',
         'storage.local' => 'serwuje surowy plik z dysku (dev), nie renderuje layoutu',
         'media.show' => 'serwuje binarny wariant zdjęcia, nie stronę HTML',
         'google.start' => 'samo przekierowanie do Google — nie renderuje żadnego HTML-a (D-069)',

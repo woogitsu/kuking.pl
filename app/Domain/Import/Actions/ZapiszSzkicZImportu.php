@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Import\Actions;
 
 use App\Domain\Import\OdczytanyPrzepis;
+use App\Domain\Import\Url\PublicznyAdresZrodla;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
@@ -17,8 +18,9 @@ use Illuminate\Support\Facades\DB;
  *  - `publish: false` i `visibility = private` wpisane tutaj, nie brane
  *    z żądania — import nie ma jak podnieść statusu ani widoczności;
  *  - szkic z adresu: `source_type = external`, `source_url` = adres po
- *    przekierowaniach, bez parametrów śledzących (zablokowane potem przez
- *    `StrazImportu`);
+ *    przekierowaniach, oczyszczony przez `PublicznyAdresZrodla` — tylko
+ *    parametry z listy zgód, bez tokenów i danych osobowych (#2229;
+ *    zablokowane potem przez `StrazImportu`);
  *  - bez zdjęcia — zdjęć z cudzych stron nie pobieramy;
  *  - wiersz `przepisy_z_importu` w tej samej transakcji co przepis, żeby
  *    szkic z importu nigdy nie istniał bez bramki „Sprawdziłem".
@@ -44,6 +46,8 @@ final class ZapiszSzkicZImportu
     ): Recipe {
         return DB::transaction(function () use ($autor, $zrodlo, $droga, $przepis, $sourceUrl, $tytulZastepczy): Recipe {
             $zAdresu = $zrodlo === PrzepisZImportu::ZRODLO_URL;
+            // Ten adres będzie publiczny — bez tokenów i danych osobowych (#2229).
+            $sourceUrl = $zAdresu && $sourceUrl !== null ? PublicznyAdresZrodla::z($sourceUrl) : null;
 
             $recipe = $this->publishRecipe->handle(
                 author: $autor,

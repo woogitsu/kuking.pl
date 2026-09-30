@@ -20,7 +20,7 @@
     <section class="mt-8" id="ukryte-wpisy">
         <h2>Ukryte wpisy</h2>
         @if($wpisy->isEmpty())
-            <p class="meta">Nie ukrywasz żadnego wpisu.</p>
+            <p class="meta meta-samodzielne">Nie ukrywasz żadnego wpisu.</p>
         @else
             <div class="stack-tight">
                 @foreach($wpisy as $ukrycie)
@@ -71,7 +71,7 @@
         <p>Ich wpisów nie widzisz w „Świeżo z <x-kuking-word />”, na tablicy na dziś ani wśród propozycji osób.
             Profil, wyszukiwarka i wpisy pod linkiem działają jak dotąd.</p>
         @if($osoby->isEmpty())
-            <p class="meta">Nie ukrywasz nikogo.</p>
+            <p class="meta meta-samodzielne">Nie ukrywasz nikogo.</p>
         @else
             <div class="stack-tight">
                 @foreach($osoby as $ukrycie)

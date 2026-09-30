@@ -127,7 +127,7 @@
     @endif
 
     @if($phrase === '')
-        <p class="meta">Wpisz coś w pole powyżej i kliknij „Szukaj”.</p>
+        <p class="meta meta-samodzielne">Wpisz coś w pole powyżej i kliknij „Szukaj”.</p>
         <section class="marka-szukaj-tagi" aria-labelledby="polecane-tagi-title">
             <h2 id="polecane-tagi-title">Polecane tagi</h2>
             @if($promowaneTagi->isNotEmpty())

@@ -1755,6 +1755,16 @@ return [
         'discover' => '60,1',
 
         /*
+         * KANAŁY ATOM (`/@{nazwa}/kanal`, `/tag/{slug}/kanal`,
+         * `/zeszyt/{uuid}/kanal`) — #2227. Publiczne, bez konta i bez sesji,
+         * więc jedyną bramką kosztu obok `ETag`/304 jest ten limit. Czytnik
+         * pyta o jeden kanał raz na kilkanaście minut; sześćdziesiąt na
+         * minutę po adresie IP mieści też usługę czytnika, która z jednego
+         * adresu pobiera wiele kanałów naraz, a nie starcza na zalewanie.
+         */
+        'kanal' => '60,1',
+
+        /*
          * STRONA GŁÓWNA (`/`, trasa `landing`) — issue #1952, druga połowa.
          * Gość dostaje tu to samo zapytanie co na `/odkryj` plus tablicę dnia
          * i kolaż; pomiar (docs/infra/ODKRYJ_KOSZT_1952.md) daje ten sam koszt
@@ -2729,6 +2739,19 @@ return [
          * Zero wyłącza listy alarmowe bez ruszania adresu.
          */
         'alarm_operacyjny_na_dobe' => (int) env('KUKING_ALARM_EMAIL_NA_DOBE', 20),
+
+        /*
+         * DOBOWY SUFIT LISTÓW „PRZYSZŁA NOWA WIADOMOŚĆ" (`KUKING_ALARM_EMAIL`,
+         * decyzja właściciela 30.09.2026, `DzwonekOperatora`).
+         *
+         * OSOBNY od sufitu alarmów wyżej: formularz „Napisz do nas" wypełnia
+         * każdy, więc wiadomości od ludzi nie mogą zjeść listów o awariach.
+         * Pięć, bo list jest tu tylko wygodą: wiadomość jest już w panelu,
+         * a Discord dostaje każdą. Po piątej skrzynka milknie do północy
+         * (przy czwartej przychodzi ostrzeżenie o zużyciu 80% sufitu).
+         * Zero wyłącza te listy; alarmy o awariach idą dalej.
+         */
+        'kontakt_operatora_na_dobe' => (int) env('KUKING_ALARM_EMAIL_KONTAKT_NA_DOBE', 5),
     ],
 
     'digest' => [

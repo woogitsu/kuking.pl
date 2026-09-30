@@ -92,15 +92,17 @@ class SitemapController extends Controller
             // zbanowane i kasowane tą samą regułą, więc mapa nie może go
             // ogłaszać. Audyt tego wprost nie wymienił, ale to ten sam brak.
             //
-            // Tu jednak `widocznyJakoOsoba()`, a NIE `dostepnyJakoAutor()`
-            // (D-022). Profil konta `erased` da się otworzyć — jest adresem,
-            // pod który prowadzi podpis „Użytkownik usunięty" — ale nie ma po
-            // co zapraszać do niego wyszukiwarek. Nie ma tam ani nazwy, ani
-            // opisu, ani zdjęcia: to strona bez treści własnej, a takich mapa
-            // strony nie ogłasza (patrz nagłówek tego pliku: „Puste profile
-            // to cienka treść"). Treści tej osoby zostają w mapie osobno,
-            // wyżej — bo tam granicą jest autorstwo, nie osoba.
-            // „Co najmniej jedna publiczna treść" znaczy WPIS **ALBO** PRZEPIS.
+            // Granica to `dostepnyJakoAutor()` — ta sama co `viewProfile()`
+            // i `noindex` profilu (`ProfileController::show()`). Konto
+            // `erased` z zachowanymi treściami (D-022: domyślnie tekst
+            // zostaje) JEST w mapie — decyzja właściciela z 30.09 (D-333).
+            // Do 30.09 stało tu `widocznyJakoOsoba()`, które wycinało takie
+            // konto mimo publicznych treści. Konto `erased` bez publicznej
+            // treści (np. usunięte razem z treściami) i tak odpada niżej,
+            // na warunku „co najmniej jedna publiczna treść".
+            //
+            // „Co najmniej jedna publiczna treść" znaczy WPIS, PRZEPIS **ALBO**
+            // WYKONANIE (to ostatnie od #2235/#2236).
             // Stało tu samo `user.posts` i przez to o obecności profilu
             // w mapie decydowała nie treść autora, tylko zapowiedź.
             //
@@ -117,10 +119,9 @@ class SitemapController extends Controller
             // `docs/seo/SEO_TECHNICAL.md` §3, wiersz „Profil z ≥1 publiczną
             // treścią → index, follow".
             //
-            // Granica zostaje `widocznyJakoOsoba()` (D-022), nie
-            // `dostepnyJakoAutor()` — patrz komentarz wyżej.
+            // Granica `dostepnyJakoAutor()` (D-333, 30.09) — patrz komentarz wyżej.
             Profile::query()
-                ->whereHas('user', fn ($autor) => $autor->widocznyJakoOsoba())
+                ->whereHas('user', fn ($autor) => $autor->dostepnyJakoAutor())
                 ->where(function ($maPubliczonaTresc): void {
                     // Wpis liczy się tak, jak liczy go sam profil dla gościa
                     // (`ProfileController::tylkoWidoczne()`): wpis z własną
@@ -135,7 +136,15 @@ class SitemapController extends Controller
                         ->whereHas('user.posts', fn ($query) => $query
                             ->publiclyVisible()
                             ->zWidocznymPrzepisemAlboWlasnaTrescia(null))
-                        ->orWhereHas('user.recipes', fn ($query) => $query->publiclyVisible());
+                        ->orWhereHas('user.recipes', fn ($query) => $query->publiclyVisible())
+                        // Wykonanie z zakładki „Ugotowane" też jest publiczną
+                        // treścią profilu (#2235, #2236) — liczone tym samym
+                        // zakresem co ta zakładka dla gościa
+                        // (`ProfileController::tylkoZWidocznychPrzepisow()`).
+                        ->orWhereHas('user.cookedEvents', fn ($query) => $query
+                            ->whereHas('recipe', fn ($przepis) => $przepis
+                                ->widoczneDla(null)
+                                ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())));
                 })
                 ->select(['user_id', 'username', 'updated_at'])
                 ->chunkById(500, function ($profiles) use (&$urls): void {

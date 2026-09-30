@@ -82,6 +82,14 @@ zdjęcie i kilka słów przez „Ugotowałem”. Wtedy Wasze wykonanie pojawi si
 stronie obok innych z tego tygodnia, od najnowszego. Tydzień trwa od
 poniedziałku do niedzieli. Niżej są poprzednie tygodnie razem ze zdjęciami
 z tamtych dni. Odnośnik do tej strony jest na „Świeżo z Kuking”.
+### Nowe wpisy w czytniku kanałów
+
+Jeśli korzystacie z czytnika kanałów (na przykład Feedly albo Inoreader), możecie
+w nim śledzić czyjś profil, tag albo publiczny zeszyt bez zaglądania na stronę.
+Wystarczy wkleić do czytnika adres profilu, tagu lub zeszytu — czytnik sam znajdzie
+kanał. Pokażemy w nim najwyżej 30 najnowszych wpisów i przepisów, dokładnie tych,
+które widzi każdy bez logowania: bez wpisów tylko dla obserwujących, bez prywatnych
+i bez notatek z zeszytu. Prywatny zeszyt nie ma kanału.
 
 ### Przycisk „Zgłoś” widać także bez logowania
 
@@ -167,10 +175,27 @@ zmieniły się proporcje lub sposób przygotowania. Historia pokazuje tekst i da
 przepisu, bez zdjęć, i widzi ją każdy, kto widzi sam przepis — nic ponadto. Jeśli
 starsza wersja nie zapisała jakiegoś pola, piszemy o tym wprost, zamiast
 zgadywać. Pamiętajcie, że zapisana wersja zachowuje treść z chwili zapisu, także
-tę, którą autor usunął później: pojedynczej wersji nie da się usunąć samemu, ale
-autor może usunąć cały przepis albo napisać do nas. Starych wersji nie trzymamy
+tę, którą autor usunął później — dlatego autor może ukryć pojedynczą wersję
+(o tym niżej). Starych wersji nie trzymamy
 w nieskończoność: wersja zapisana ponad 24 miesiące temu znika, ale trzy najnowsze
 wersje przepisu zostają zawsze.
+
+### Ukryjcie jedną wersję przepisu
+
+Zdarza się, że w starszej wersji przepisu zostało coś, czego nie chcecie już
+pokazywać — na przykład numer telefonu babci albo nazwisko sąsiadki. W „Historii
+zmian” przy każdej starszej wersji Waszego przepisu jest teraz przycisk „Ukryj
+wersję”. Najpierw pokażemy, co się stanie, a dopiero przycisk „Tak, ukryj”
+ją chowa. Ukrytej wersji nie zobaczy nikt poza Wami i moderacją, a porównanie
+zmian ją pominie i napisze, że coś pominęło. Wy dalej ją widzicie, z napisem
+„Ukryta”, i w każdej chwili możecie ją przywrócić. Najnowszej wersji nie da się
+ukryć, bo to jest to, co widać na stronie przepisu: żeby usunąć z niej tekst,
+poprawcie przepis i zapiszcie zmiany — wtedy poprzednią wersję można już ukryć.
+
+Wersję może też ukryć moderacja, gdy coś w niej narusza zasady. Wtedy dostaniecie
+powiadomienie: której wersji to dotyczy, na jakiej podstawie i dlaczego. Jeśli
+uważacie, że to pomyłka, możecie się odwołać — a gdy przyznamy Wam rację, wersja
+od razu wróci do historii zmian.
 
 ### Zacznijcie gotować na telefonie, dokończcie na tablecie
 
