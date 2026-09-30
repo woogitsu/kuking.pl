@@ -2935,6 +2935,13 @@ return [
          * przestawić w panelu Railwaya. Zgodność z nagłówkiem pilnuje
          * `WersjaPolitykiZgadzaSieZNaglowkiemTest`. Wcześniejsze wiersze
          * dziennika zostają ze swoją wersją — to dowód, NA CO się zgodzono.
+         *
+         * ARCHIWUM (#2220). Każda data od 2026-09-25 ma plik
+         * `resources/legal/archiwum/polityka-prywatnosci-<data>.md` — przy
+         * podbiciu dodaj nowy plik (kopia `polityka-prywatnosci.md`), starych
+         * nie ruszaj; poprawka bez podbicia idzie też do pliku bieżącej daty.
+         * Starsze daty wydajemy na prośbę (decyzja z 30.09.2026, D-333).
+         * Pilnuje `ArchiwumPolitykiTest`, opis w `App\Domain\Zgody\ArchiwumDokumentu`.
          */
         'wersja_polityki' => '2026-09-30',
 
@@ -2997,6 +3004,12 @@ return [
          * z 26.09.2026: komunikat w serwisie, bez maili). Podbijaj więc tylko
          * przy zmianie, o której ludzie mają się dowiedzieć — literówka
          * w dokumencie to nie powód, żeby zaczepiać każdego.
+         *
+         * ARCHIWUM (#2220). Każda data ma plik
+         * `resources/legal/archiwum/regulamin-<data>.md` — przy podbiciu dodaj
+         * nowy plik (kopia `regulamin.md`), starych nie ruszaj; poprawka bez
+         * podbicia idzie też do pliku bieżącej daty. Pilnuje
+         * `ArchiwumRegulaminuTest`, opis w `App\Domain\Zgody\ArchiwumDokumentu`.
          */
         'wersja_regulaminu' => '2026-09-30',
 

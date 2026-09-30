@@ -31,6 +31,22 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Wszystkie wersje regulaminu
+
+Na górze regulaminu są dwa nowe przyciski. „Pobierz regulamin” zapisuje go
+na Waszym komputerze albo telefonie jako zwykły plik tekstowy. „Wszystkie
+wersje regulaminu” prowadzi do listy każdej wersji, jaką opublikowaliśmy,
+z datą — każdą można przeczytać i pobrać. Przy zakładaniu konta zapisujemy
+datę wersji, którą akceptujecie, więc zawsze da się sprawdzić, jak regulamin
+wtedy brzmiał.
+
+### Wszystkie wersje polityki prywatności
+
+Polityka prywatności ma teraz takie same dwa przyciski jak regulamin:
+„Pobierz politykę” i „Wszystkie wersje polityki”. Na liście są wersje
+od 25 września 2026 — każdą można przeczytać i pobrać. Jeśli potrzebujecie
+wcześniejszego brzmienia, napiszcie do nas, a wyślemy je.
+
 ### „Nie licz mnie w statystykach”
 
 W ustawieniach, w części „Prywatność”, jest nowy przycisk „Nie licz mnie
