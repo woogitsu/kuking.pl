@@ -186,12 +186,14 @@ class UkryjWpisIOsobeTest extends TestCase
             ->assertRedirect('/');
 
         $feed = app(FollowingFeed::class);
-        $this->assertSame(['Zupa obcej', 'Zupa znajomej'], collect($feed->paginate($widz)->items())->pluck('body')->all());
+        $tresci = collect($feed->paginate($widz)->items())->pluck('body')->all();
+        $this->assertSame(['Zupa obcej', 'Zupa znajomej'], $tresci);
 
         // Znajomą też ukrywamy (obejście przez bazę — akcja odmawia przy
         // obserwowanej): obserwowana wprost dalej widoczna, mimo tagu.
         Hide::query()->forceCreate(['user_id' => $widz->getKey(), 'hidden_user_id' => $znajoma->getKey(), 'hidden_until' => now()->addDays(30)]);
-        $this->assertSame(['Zupa obcej', 'Zupa znajomej'], collect($feed->paginate($widz)->items())->pluck('body')->all());
+        $tresci = collect($feed->paginate($widz)->items())->pluck('body')->all();
+        $this->assertSame(['Zupa obcej', 'Zupa znajomej'], $tresci);
 
         // `isEmptyFor()` liczy te same źródła: sam wpis ukrytej z tagu to pustka.
         $samaUkryta = $this->user('sama');

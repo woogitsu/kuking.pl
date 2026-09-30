@@ -79,10 +79,12 @@ class PodpowiedziTagowEndpointTest extends TestCase
                 'tags' => [['id' => $tag->id, 'name' => 'Sernik', 'slug' => 'sernik', 'public_posts_count' => 1]],
                 'exact_match' => true, 'can_create' => false,
             ]);
-        $this->assertSame($before, [Tag::count(), Post::count()]);
+        $po = [Tag::count(), Post::count()];
+        $this->assertSame($before, $po);
         $this->getJson(route('tags.suggestions', ['q' => 'unikalnynowytag']))
             ->assertOk()->assertJsonPath('can_create', true);
-        $this->assertSame($before, [Tag::count(), Post::count()]);
+        $po = [Tag::count(), Post::count()];
+        $this->assertSame($before, $po);
     }
 
     public function test_ukryta_dokladna_nazwa_nie_wycieka_i_nie_proponuje_duplikatu(): void

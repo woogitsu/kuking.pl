@@ -52,18 +52,22 @@ class AwarieOdpowiedziKontaktuTest extends TestCase
         $reply = app(WyslijOdpowiedz::class)->handle($message, $operator, 'Odpowiedź.', replyKey: $key);
         $this->assertSame('wyslana', $reply->refresh()->status);
         $this->assertNull($reply->audit_recorded_at);
-        $this->assertSame(0, AuditLogEntry::where('action', 'admin.contact_reply_sent')->count());
+        $wpisy = AuditLogEntry::where('action', 'admin.contact_reply_sent')->count();
+        $this->assertSame(0, $wpisy);
 
         $this->actingAs($operator)->get(route('admin.contact.show', $message))->assertOk();
         $this->assertNotNull($reply->refresh()->audit_recorded_at);
-        $this->assertSame(1, AuditLogEntry::where('action', 'admin.contact_reply_sent')->count());
+        $wpisy = AuditLogEntry::where('action', 'admin.contact_reply_sent')->count();
+        $this->assertSame(1, $wpisy);
         app(WyslijOdpowiedz::class)->handle($message, $operator, 'Odpowiedź.', replyKey: $key);
-        $this->assertSame(1, AuditLogEntry::where('action', 'admin.contact_reply_sent')->count());
+        $wpisy = AuditLogEntry::where('action', 'admin.contact_reply_sent')->count();
+        $this->assertSame(1, $wpisy);
         Mail::assertSent(OdpowiedzNaWiadomosc::class, 1);
 
         AuditLogEntry::where('action', 'admin.contact_reply_sent')->delete();
         $this->get(route('admin.contact.show', $message))->assertOk();
-        $this->assertSame(0, AuditLogEntry::where('action', 'admin.contact_reply_sent')->count(), 'Retencja nie może wskrzesić audytu.');
+        $wpisy = AuditLogEntry::where('action', 'admin.contact_reply_sent')->count();
+        $this->assertSame(0, $wpisy, 'Retencja nie może wskrzesić audytu.');
     }
 
     public static function beforeMailFailures(): array
