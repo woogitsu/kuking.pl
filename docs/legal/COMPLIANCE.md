@@ -129,6 +129,17 @@ oraz sprawy, której **rozstrzygnięcie** (ust. 5) już do zgłaszającego dosz�
 informacja o decyzji niesie ten sam numer sprawy, a „sprawdzimy i napiszemy"
 byłoby po niej nieprawdą.
 
+**Sufit prób listu i ręczne potwierdzenie (#2218).** Zgłoszenie prawne bez konta,
+któremu list z potwierdzeniem trzykrotnie nie doszedł, przestaje być ponawiane
+automatycznie i czeka na człowieka: alarm operatora, liczba w `/health`
+(`informacje.potwierdzenia_dsa`, poza `status`) i numery spraw w dzienniku
+serwera. Operator potwierdza przyjęcie inną drogą i oznacza to komendą
+`kuking:potwierdz-zgloszenie-inna-droga` (wpis `moderation.receipt_confirmed_manually`
+w `audit_log`: kto, kiedy, jaką drogą). Runbook: `docs/infra/MONITORING_BLEDOW.md` §9.
+[do weryfikacji prawnej: czy 12-miesięczna retencja wpisu audytu wystarcza jako
+dowód terminowości potwierdzenia — sam znacznik `receipt_sent_at` zostaje przy
+sprawie na cały okres jej przechowywania.]
+
 ### 1.4 Nadzór w Polsce
 
 Prezes UKE (Urząd Komunikacji Elektronicznej) został wyznaczony na **Koordynatora ds. Usług Cyfrowych** dla Polski. Ustawa wdrażająca DSA do polskiego porządku prawnego (nowelizacja ustawy o świadczeniu usług drogą elektroniczną) była w toku legislacyjnym jeszcze w 2025 r. — Sejm procedował ją pod koniec 2025 r. [do weryfikacji: aktualny status wejścia w życie na wrzesień 2026 — sprawdzić na stronie Sejmu/UKE przed startem, bo od tego zależą krajowe sankcje i tryb skarg]. Niezależnie od statusu ustawy krajowej, DSA jako rozporządzenie UE **obowiązuje bezpośrednio** od 17 lutego 2024 r.

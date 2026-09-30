@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Http\Controllers\HealthController;
+use App\Models\Report;
+use App\Notifications\PotwierdzenieZgloszeniaNielegalnejTresci;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -34,6 +37,8 @@ use Tests\TestCase;
  *    `environment`, `time`; z tokenem dodatkowo `checks` z DOKŁADNIE
  *    szesnastoma nazwanymi sondami; sonda to `ok` (bool) i — tylko gdy `ok`
  *    jest false — `error` (kod z `HealthController::POWODY`);
+ *  - z tokenem także sekcja `informacje` (#2218): odczyty tylko do wglądu,
+ *    poza `checks`, więc NIGDY nie zmieniają `status` ani kodu HTTP;
  *  - typy pól, format `time` (ISO 8601), `status` ∈ {ok, degraded};
  *  - nagłówki: `Content-Type: application/json`, `Cache-Control` z `no-store`
  *    i `private` (nigdy `public`), `Retry-After` przy 429;
@@ -60,7 +65,7 @@ class HealthKontraktOdpowiedziTest extends TestCase
     private const KLUCZE_PUBLICZNE = ['status', 'app', 'environment', 'time'];
 
     /** Klucze odpowiedzi z tokenem szczegółów, w kolejności kodu. */
-    private const KLUCZE_Z_TOKENEM = ['status', 'app', 'environment', 'time', 'checks'];
+    private const KLUCZE_Z_TOKENEM = ['status', 'app', 'environment', 'time', 'checks', 'informacje'];
 
     /** Nazwy sond w `checks`, w kolejności kodu (kolejność też jest częścią kształtu JSON-a). */
     private const SONDY = [
@@ -310,6 +315,84 @@ class HealthKontraktOdpowiedziTest extends TestCase
     }
 
     // ------------------------------------------------------------------
+    //  Sekcja informacyjna (#2218)
+    // ------------------------------------------------------------------
+
+    public function test_sprawa_na_suficie_potwierdzenia_jest_widoczna_ale_nie_psuje_statusu(): void
+    {
+        $sprawa = $this->sprawaPrawnaZAdresem('anna@kancelaria.example');
+        $this->zdejmijZnacznik($sprawa);
+        Cache::put(
+            PotwierdzenieZgloszeniaNielegalnejTresci::kluczPorazek((string) $sprawa->getKey()),
+            PotwierdzenieZgloszeniaNielegalnejTresci::LIMIT_PORAZEK_LISTU,
+            now()->addDay(),
+        );
+
+        $odpowiedz = $this->zTokenem();
+
+        $odpowiedz->assertStatus(200);
+        $this->assertKsztaltZTokenem($odpowiedz, 'ok');
+        $this->assertSame(['na_suficie' => 1], $odpowiedz->json('informacje.potwierdzenia_dsa'));
+        $this->assertSame('ok', $odpowiedz->json('status'), 'Sonda informacyjna nie może zapalać degraded.');
+
+        // Bez danych osobowych: ani numeru sprawy, ani adresu.
+        $tresc = (string) $odpowiedz->getContent();
+        $this->assertStringNotContainsString('kancelaria', $tresc);
+        $this->assertStringNotContainsString((string) $sprawa->numer_sprawy, $tresc);
+    }
+
+    public function test_sprawa_ponizej_sufitu_nie_jest_liczona(): void
+    {
+        $sprawa = $this->sprawaPrawnaZAdresem('anna@kancelaria.example');
+        $this->zdejmijZnacznik($sprawa);
+        Cache::put(
+            PotwierdzenieZgloszeniaNielegalnejTresci::kluczPorazek((string) $sprawa->getKey()),
+            PotwierdzenieZgloszeniaNielegalnejTresci::LIMIT_PORAZEK_LISTU - 1,
+            now()->addDay(),
+        );
+
+        $this->assertSame(['na_suficie' => 0], $this->zTokenem()->json('informacje.potwierdzenia_dsa'));
+    }
+
+    public function test_potwierdzona_sprawa_z_licznikiem_porazek_nie_jest_liczona(): void
+    {
+        $sprawa = $this->sprawaPrawnaZAdresem('anna@kancelaria.example');
+        Cache::put(
+            PotwierdzenieZgloszeniaNielegalnejTresci::kluczPorazek((string) $sprawa->getKey()),
+            PotwierdzenieZgloszeniaNielegalnejTresci::LIMIT_PORAZEK_LISTU,
+            now()->addDay(),
+        );
+        $this->assertNotNull($sprawa->fresh()->receipt_sent_at);
+
+        $this->assertSame(['na_suficie' => 0], $this->zTokenem()->json('informacje.potwierdzenia_dsa'));
+    }
+
+    public function test_publiczna_odpowiedz_bez_tokenu_nie_niesie_sekcji_informacyjnej(): void
+    {
+        $this->assertArrayNotHasKey('informacje', $this->get('/health')->json());
+    }
+
+    /** Tak wygląda sprawa po ostatecznej porażce listu (`failed()` zdejmuje znacznik). */
+    private function zdejmijZnacznik(Report $sprawa): void
+    {
+        Report::query()->whereKey($sprawa->getKey())->update(['receipt_sent_at' => null]);
+    }
+
+    private function sprawaPrawnaZAdresem(string $adres): Report
+    {
+        $this->post(route('zglos.nielegalna.store'), [
+            'notifier_name' => 'Anna Kowalska',
+            'notifier_email' => $adres,
+            'target_url' => 'https://kuking.pl/przepis/rosol-babci-zofii',
+            'reason' => 'copyright',
+            'illegality_explanation' => 'To jest mój tekst, przepisany bez zgody z mojej książki.',
+            'good_faith' => '1',
+        ])->assertSessionHasNoErrors();
+
+        return Report::query()->where('source', Report::SOURCE_LEGAL_NOTICE)->firstOrFail();
+    }
+
+    // ------------------------------------------------------------------
     //  Pomocnicze
     // ------------------------------------------------------------------
 
@@ -345,6 +428,13 @@ class HealthKontraktOdpowiedziTest extends TestCase
         $this->assertIsString($json['environment']);
         $this->assertNotFalse(\DateTimeImmutable::createFromFormat(\DATE_ATOM, $json['time']));
         $this->assertIsArray($json['checks']);
+        // Sekcja informacyjna (#2218): same liczby, poza `checks`, więc poza `status`.
+        $this->assertSame(['potwierdzenia_dsa'], array_keys($json['informacje']));
+        $this->assertContains(
+            array_keys($json['informacje']['potwierdzenia_dsa']),
+            [['na_suficie'], ['dostepne']],
+            'Odczyt informacyjny niesie albo liczbę, albo dostepne=false — nic więcej.',
+        );
         $this->assertSame(self::SONDY, array_keys($json['checks']), 'Nazwy albo kolejność sond w checks się zmieniły.');
 
         $wszystkieOk = true;

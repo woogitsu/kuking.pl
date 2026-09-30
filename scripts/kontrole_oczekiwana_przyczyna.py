@@ -78,6 +78,8 @@ OCZEKUJ = {
     'Obwódka listy wyglądu poniżej 3:1': r'jasny: obwódka --color-border na tle panelu \(--color-surface-raised\)',
     'Piąty selektor powołuje się na D-262': r'Na D-262 powołuje się inny zbiór reguł CSS niż cztery selektory z',
     'Akcja GitHuba na ruchomym tagu': r'Zewnętrzna akcja bez pełnego SHA — tag jest ruchomy, więc ten sam',
+    'Test skryptu Pythona bez kroku w CI': r'Test skryptu Pythona bez kroku w workflowie — nikt go nie uruchamia w CI',
+    'Test przyrządu obciążenia bez kroku w CI': r'Bez kroku: docs/obciazenie/test_connection\.py',
     'Licznik w widocznym menu konta': r'Wejście do panelu nie pokazuje sumy wszystkich kolejek\.',
     'Strażnik tekstu bez własnego wpisu': r'Nowy test czyta źródła i asertuje na ich treści, więc może kiedyś',
     'Odstępstwo bez znacznika': r'Nowy test czyta źródła i asertuje na ich treści, więc może kiedyś',
@@ -237,6 +239,13 @@ OCZEKUJ = {
     'Wersja regulaminu podbita bez nagłówka dokumentu': r'Nagłówek regulaminu nie mówi „\d+ \S+',
     'Termin odpowiedzi na reklamację inny niż w regulaminie': r'contains "w ciągu \*\*\d+ dni\*\* od otrzymania reklamacji"',
     'Limit zdjęć we wpisie inny niż w regulaminie': r'Regulamin podaje inną liczbę zdjęć we wpisie niż kuking\.media\.max_per_post',
+    'Regulamin poprawiony bez kopii w archiwum': r'resources/legal/archiwum/regulamin-\d{4}-\d\d-\d\d\.md różni się od resources/legal/regulamin\.md',
+    'Nowa data regulaminu bez pliku w archiwum': r'Brak resources/legal/archiwum/regulamin-\d{4}-\d\d-\d\d\.md\. Zmieniła się data regulaminu',
+    'Plik archiwum regulaminu z inną datą w nagłówku': r'Plik regulamin-\d{4}-\d\d-\d\d\.md ma w nagłówku inną datę niż w nazwie',
+    'Polityka poprawiona bez kopii w archiwum': r'resources/legal/archiwum/polityka-prywatnosci-\d{4}-\d\d-\d\d\.md różni się od resources/legal/polityka-prywatnosci\.md',
+    'Nowa data polityki bez pliku w archiwum': r'Brak resources/legal/archiwum/polityka-prywatnosci-\d{4}-\d\d-\d\d\.md\. Zmieniła się data polityki',
+    'Plik archiwum polityki z inną datą w nagłówku': r'Plik polityka-prywatnosci-\d{4}-\d\d-\d\d\.md ma w nagłówku inną datę niż w nazwie',
+    'Starsza wersja polityki bez strony o wydaniu na prośbę': r'contains "Polityka prywatności — wersja z \d+ \S+ \d{4}"',
     'Zmiana istotna bez okresu przejściowego': '@@ @@ -\'\\d{4}-\\d\\d-\\d\\d\' \\+\'\\d{4}-\\d\\d-\\d\\d\'|contains \\"Nowa wersja obowiązuje od \\d+ \\S+ \\d{4}\\. Do tego dnia|@@ @@ Array &0 \\[ - 0 => \'\\d{4}-\\d\\d-\\d\\d\', \\+ 0 => \'\\d{4}-\\d\\d-\\d\\d\'',
     'Zmiana istotna wchodzi w dniu publikacji zamiast po 14 dniach': r'Failed asserting that false is true\.|contains "Nowa wersja obowiązuje od \d+ \S+ \d{4}\.|\d{4}-\d\d-\d\d.*\d{4}-\d\d-\d\d|exception of type "RuntimeException" is thrown',
     'Zgoda zapisuje wersję opublikowaną zamiast obowiązującej': r"@@ @@ Array &0 \[ - 0 => '\d{4}-\d\d-\d\d', \+ 0 => '\d{4}-\d\d-\d\d', 1 => '\d{4}-\d\d-\d\d'",
@@ -387,6 +396,13 @@ OCZEKUJ = {
     'Regulamin §2 bez „Poradźcie”': r'Serwis ma /pytania, a regulamin §2 nie wymienia tej usługi',
     # #2299: zawężenie `--filter` w kontrolach ma własne regresje w każdej części.
     'Kontrole bez regresji zawężenia filtra (#2299)': r'Części kontroli nie uruchamiają `scripts/test_zawezenie_testow\.py` \(#2299\)',
+    'Macierz panelu krótsza niż podział (#2299)': r'Macierz `port_panelu` w ci\.yml ma inne części niż `CZESCI_PANELU`',
+    'Panel marki bez numeru części (#2299)': r'Job `port_panelu` nie podaje `PANEL_CZESC` z macierzy',
+    'Job zbiorczy panelu pomijany po czerwonej części (#2299)': r'Job zbiorczy panelu bez `!cancelled\(\)` jest `skipped` po czerwonej części',
+    'Testy JS nie biegną nigdzie, bo assets też buduje sam Vite (#2299)': r'Job `assets` nie robi pełnego `npm run build`',
+    'Cache przeglądarki odtwarza inną wersję (#2299)': r'przeglądarka innej wersji nie może być odtwarzana \(#2299\)',
+    'Pomiar portu zależny od rodzaju runnera (#2299)': r'warunek runnera stoi na kroku innym niż cache przeglądarki',
+    'Cache przeglądarki na własnym runnerze (#2299)': r'cache przeglądarki na własnym runnerze podmieniałby wspólny katalog',
 }
 
 

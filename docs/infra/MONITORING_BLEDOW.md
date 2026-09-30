@@ -1115,3 +1115,52 @@ kanału nie zjadł dobowego limitu poczty.
 
 Testy: `tests/Feature/DosylaniePilnychAlarmowTest.php`,
 `tests/Feature/PilnyAlarmModeracyjnyNieGinieTest.php`.
+
+## 9. Potwierdzenie DSA na suficie prób — stan i ręczne zamknięcie (issue #2218)
+
+**Co to jest.** Zgłoszenie treści niezgodnej z prawem bez konta, z adresem
+e-mail spoza serwisu, dostaje potwierdzenie przyjęcia (DSA art. 16 ust. 4)
+listem. Gdy dostawca poczty odrzuca ten list po wszystkich próbach, znacznik
+`reports.receipt_sent_at` wraca do `null`, a godzinna dosyłka
+(`kuking:dosylaj-potwierdzenia-zgloszen`) ponawia list — ale po
+`LIMIT_PORAZEK_LISTU` (3) ostatecznych porażkach przestaje. Sprawa czeka wtedy
+na człowieka: sprawdź adres, potwierdź przyjęcie inną drogą.
+
+**Gdzie to widać (trzy miejsca, żadne nie jest awarią serwisu):**
+
+| Miejsce | Co pokazuje |
+|---|---|
+| Alarm na kanale alarmowym (`AlarmSufituPotwierdzen`) | Jeden alarm na epizod, powtórka po 24 h, zmiana liczby spraw dzwoni od razu, jedno odwołanie, gdy żadna sprawa nie stoi na suficie. Sama liczba i instrukcja, bez numerów spraw. |
+| Dziennik serwera, wpis `na suficie prób` (`stage: dosylka_potwierdzen_sufit`) | Numery spraw (bez adresów) — stąd bierzesz numer do komendy niżej. |
+| `/health` z tokenem, sekcja `informacje.potwierdzenia_dsa.na_suficie` | Bieżąca liczba spraw na suficie. **Sekcja informacyjna: leży poza `checks`, więc nie zmienia `status` ani kodu HTTP** i jest niewidoczna bez tokenu (jak `checks`). Jeśli odczyt padnie, sekcja niesie `dostepne: false`, a w dzienniku jest ostrzeżenie — nic nie dzwoni. |
+
+**Jak zamknąć sprawę.** Najpierw potwierdź przyjęcie zgłaszającemu poza
+serwisem (telefon, poczta papierowa, inny adres e-mail, osobiście), potem:
+
+```
+php artisan kuking:potwierdz-zgloszenie-inna-droga KU-ABCD-2345 \
+    --operator=<login moderatora lub administratora> \
+    --droga=telefon|poczta_papierowa|inny_email|osobiscie
+```
+
+Komenda pyta o potwierdzenie (`--tak` pomija pytanie), ustawia
+`receipt_sent_at`, zeruje licznik porażek listu tej sprawy i zapisuje w
+`audit_log` zdarzenie `moderation.receipt_confirmed_manually`: kto
+(`actor_id` = `--operator`, tylko konto moderatora/administratora), kiedy
+(`created_at`), jaką drogą i czy sprawa stała na suficie. Znacznik i wpis
+audytu powstają w jednej transakcji. Zgłaszający nie dostaje z tego powodu
+żadnego listu. Wpisu audytu nie chroni `NIGDY_NIE_KASUJ` — autorytatywny ślad
+(sam znacznik) żyje w `reports`; wpis audytu wygasa wg `audit_log.retention_months`.
+
+Komenda odmówi z komunikatem po polsku, gdy: sprawy nie ma, sprawa ma już
+potwierdzenie, zgłaszającemu doszła już decyzja, sprawa nie ma adresata,
+`--operator` nie jest czynnym moderatorem/administratorem albo `--droga` jest
+spoza listy. Droga to zamknięta lista celowo — wolny tekst wciągałby do
+dziennika dane osobowe zgłaszającego.
+
+**Po zamknięciu** najbliższy przebieg dosyłki (co godzinę) przelicza sufit;
+gdy nie zostanie żadna sprawa, wychodzi odwołanie alarmu.
+
+Testy: `tests/Feature/PotwierdzenieInnaDrogaTest.php`,
+`tests/Feature/HealthKontraktOdpowiedziTest.php` (sekcja informacyjna),
+`tests/Feature/PotwierdzenieOdbioruPoDostawieTest.php` (sufit i alarm).
