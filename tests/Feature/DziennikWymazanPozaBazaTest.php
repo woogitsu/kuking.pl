@@ -131,12 +131,14 @@ class DziennikWymazanPozaBazaTest extends TestCase
 
         // Kopia z JUTRA zawiera to wymazanie, więc nie ma czego powtarzać.
         $this->artisan('kuking:wymaz-ponownie', ['--od' => now()->addDay()->toDateTimeString()])->assertSuccessful();
-        $this->assertSame(User::STATUS_ACTIVE, $konto->fresh()->status);
+        $status = $konto->fresh()->status;
+        $this->assertSame(User::STATUS_ACTIVE, $status);
 
         $this->artisan('kuking:wymaz-ponownie', ['--na-sucho' => true])
             ->expectsOutputToContain('Do wymazania: 1')
             ->assertSuccessful();
-        $this->assertSame(User::STATUS_ACTIVE, $konto->fresh()->status);
+        $status = $konto->fresh()->status;
+        $this->assertSame(User::STATUS_ACTIVE, $status);
     }
 
     public function test_awaria_dziennika_cofa_wymazanie_a_po_powrocie_magazynu_egzekutor_je_ponawia(): void

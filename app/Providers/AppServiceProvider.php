@@ -21,10 +21,13 @@ use App\Domain\Recipes\BramkaPublikacjiSzkicu;
 use App\Domain\Recipes\Historia\DecyzjaOWersjiPrzepisu;
 use App\Domain\Recipes\StrazPochodzeniaPrzepisu;
 use App\Domain\Social\Actions\ObserwujGospodarza;
+use App\Domain\Social\BlokadyZmienione;
+use App\Domain\Social\ListyWidza;
 use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Domain\Users\Import\ZapisSzkicuZPaczki;
 use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Domain\Users\ObserwowanieGospodarza;
+use App\Http\Support\BlokadyWZadaniu;
 use App\Http\Support\PamiecZadaniaHttp;
 use App\Models\Appeal;
 use App\Models\Comment;
@@ -56,6 +59,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
 use Illuminate\Queue\Events\Looping;
+use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
@@ -162,6 +166,12 @@ class AppServiceProvider extends ServiceProvider
                 GeneracjaSesji::zapamietaj($guard->getSession(), $zdarzenie->user);
             }
         });
+
+        // Audyt wydajności P3 W8 + W7: jedna pamięć blokad w żądaniu (`ListyWidza`,
+        // z niej czyta też `BlokadyWZadaniu` dla polityk) przestaje obowiązywać
+        // w chwili, gdy to samo żądanie zmienia blokady.
+        Event::listen(BlokadyZmienione::class, fn () => ListyWidza::uniewaznij());
+        Event::listen(RouteMatched::class, fn (RouteMatched $zdarzenie) => BlokadyWZadaniu::rozpocznij($zdarzenie->request));
 
         // Audyt B3 W3: każda migracja chodzi z `lock_timeout`, żeby DDL
         // czekający na blokadę gorącej tabeli nie ustawiał za sobą w kolejce

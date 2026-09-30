@@ -128,9 +128,12 @@ class RejestracjaWdrozeniaPoGotowosciTest extends TestCase
         Sleep::fake();
         Http::fake(['sonda.test/*' => Http::response('ok', 200)]);
 
-        $this->assertSame(0, $this->komenda(7));
-        $this->assertSame(0, $this->komenda(7));
-        $this->assertSame(0, $this->komenda(8));
+        $pierwszy = $this->komenda(7);
+        $powtorzony = $this->komenda(7);
+        $kolejny = $this->komenda(8);
+        $this->assertSame(0, $pierwszy);
+        $this->assertSame(0, $powtorzony);
+        $this->assertSame(0, $kolejny);
 
         $this->assertSame(1, DB::table('wdrozenia')->where('commit', $this->commit(7))->value('numer'));
         $this->assertSame(2, DB::table('wdrozenia')->where('commit', $this->commit(8))->value('numer'));

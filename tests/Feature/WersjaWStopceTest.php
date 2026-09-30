@@ -255,13 +255,15 @@ class WersjaWStopceTest extends TestCase
             'created_at' => now(),
         ]);
 
-        $this->assertSame(7, Wersja::numerWdrozenia());
+        $numer = Wersja::numerWdrozenia();
+        $this->assertSame(7, $numer);
 
         // Wiersz znika, ale odczyt z cache'u zostaje — bez tego stopka
         // wysyłałaby jedno zapytanie do bazy na KAŻDE żądanie strony.
         DB::table('wdrozenia')->where('commit', $commit)->delete();
 
-        $this->assertSame(7, Wersja::numerWdrozenia());
+        $numer = Wersja::numerWdrozenia();
+        $this->assertSame(7, $numer);
     }
 
     public function test_footer_pokazuje_numer_wdrozenia_na_stronie(): void
