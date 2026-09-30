@@ -160,3 +160,45 @@ def polecenie_testu(nazwa, *dodatkowe, indeks=None):
     indeks = indeks if indeks is not None else _indeks()
     pliki = indeks.pliki_dla(nazwa) if indeks is not None else None
     return ["php", "artisan", "test", *(pliki or []), "--filter=" + nazwa, "--no-ansi", *dodatkowe]
+
+
+def wykonane_testy(polecenie, uruchom=subprocess.run):
+    """(kod, posortowane (klasa, nazwa) z raportu JUnit) jednego przebiegu; raport None → pusta lista."""
+    with tempfile.TemporaryDirectory(prefix="kuking-zgodnosc-") as katalog:
+        raport = Path(katalog) / "junit.xml"
+        wynik = uruchom(
+            [*polecenie, "--log-junit", str(raport)],
+            text=True, encoding="utf-8", errors="replace",
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300,
+        )
+        if not raport.is_file():
+            return wynik.returncode, []
+        korzen = ET.fromstring(raport.read_text(encoding="utf-8", errors="replace"))
+    return wynik.returncode, sorted((p.get("class", ""), p.get("name", "")) for p in korzen.iter("testcase"))
+
+
+def sprawdz_zgodnosc(filtry, indeks=None, uruchom=subprocess.run):
+    """Próba na żywym PHPUnicie: zawężony przebieg wykonuje DOKŁADNIE te testy co pełny.
+
+    Tania straż przed rozjazdem spisu z uruchomieniem (np. inny format
+    `--list-tests` po aktualizacji PHPUnita). Idzie na nietkniętych źródłach,
+    przed pierwszą mutacją; różnica albo pusty zbiór zatrzymuje kontrole.
+    """
+    indeks = indeks if indeks is not None else _indeks()
+    if indeks is None:
+        return
+    for filtr in filtry:
+        if indeks.pliki_dla(filtr) is None:
+            continue
+        pelny = ["php", "artisan", "test", "--filter=" + filtr, "--no-ansi"]
+        kod_pelny, pelne = wykonane_testy(pelny, uruchom)
+        kod_zawezony, zawezone = wykonane_testy(polecenie_testu(filtr, indeks=indeks), uruchom)
+        if not pelne or pelne != zawezone or kod_pelny != kod_zawezony:
+            brak = sorted(set(pelne) - set(zawezone))
+            nadmiar = sorted(set(zawezone) - set(pelne))
+            raise RuntimeError(
+                f"Zawężenie `--filter={filtr}` (#2299) rozjechało się z pełnym zestawem: "
+                f"pełny {len(pelne)} testów (kod {kod_pelny}), zawężony {len(zawezone)} (kod {kod_zawezony}); "
+                f"brak {brak[:5]}, nadmiar {nadmiar[:5]}. Tymczasowo: KUKING_KONTROLE_BEZ_ZAWEZENIA=1."
+            )
+        print(f"ZGODNOŚĆ zawężenia: {filtr} — {len(pelne)} testów, te same w obu przebiegach.", flush=True)

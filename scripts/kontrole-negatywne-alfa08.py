@@ -30,6 +30,7 @@ from kontrola_przyczyny import przebieg, sprawdz_wzorce, uruchom_test, werdykt, 
 from kontrola_wyjscia_testu import run_test
 from kontrole_oczekiwana_przyczyna import OCZEKUJ, OCZEKUJ_MIARY, kontrole_mechanizmu
 from podzial_kontroli import indeksy_po_etykietach, parsuj_argumenty, poza_petla_w_tej_czesci, wybierz_indeksy
+from zawezenie_testow import sprawdz_zgodnosc
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -1495,6 +1496,9 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Podział testów gubi plik", PODZIAL_TESTOW, PODZIAL_TESTOW_TEST, podzial_gubi_plik),
     ("Macierz testów krótsza niż podział", BRAMKA_CI, PODZIAL_TESTOW_TEST, macierz_krotsza_niz_podzial),
+    # #2299: części kontroli przestają uruchamiać regresje zawężenia `--filter`.
+    ("Kontrole bez regresji zawężenia filtra (#2299)", CI_WORKFLOW, PODZIAL_TESTOW_TEST,
+     lambda s: replace_once(s, "-p 'test_zawezenie_testow.py'", "-p 'test_kontrola_wyjscia_testu.py'")),
     ("Wyścigi dwóch połączeń znów nie blokują CI", CI_WORKFLOW, WYSCIGI_BLOKUJA_TEST,
      lambda s: replace_once(s, "    name: Wyścigi na dwóch połączeniach\n", "    name: Wyścigi na dwóch połączeniach\n    continue-on-error: true\n")),
     # #2215: audyt zależności blokuje; flaga wracająca na job albo skrypt bramki
@@ -2102,6 +2106,11 @@ if CZESC is not None:
 kontrole_dodatnie = list(dict.fromkeys(test for _label, _filename, test, _mutate in wybrane))
 if not kontrole_dodatnie:
     raise RuntimeError("Wybrana część `checks` jest pusta — nie ma czego sprawdzać.")
+# #2299: każdy `artisan test --filter` dostaje w argumencie pliki, w których filtr
+# coś wybiera (scripts/zawezenie_testow.py) — bez tego PHPUnit budował cały zestaw
+# przy każdym z ok. 270 wywołań na część. Zanim cokolwiek zmutujemy: próba na
+# dwóch pierwszych testach części, że zawężony przebieg wykonuje te same testy.
+sprawdz_zgodnosc(kontrole_dodatnie[:2])
 # JEDYNY test bez własnej mutacji, który ma iść na zielono przed pętlą: klasa
 # obejmująca oba testy metod z wpisów #1059 (GRUPA_LICZBA_TEST i
 # GRUPA_KOLEJNOSC_TEST). Nie jest to druga lista kontroli dodatnich — dopisuj
