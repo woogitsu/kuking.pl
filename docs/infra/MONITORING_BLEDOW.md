@@ -216,6 +216,7 @@ nieprzeczytane powiadomienie). Włącza ją jedna zmienna:
 |---|---|---|
 | `KUKING_ALARM_EMAIL` | jeden adres skrzynki, na którą patrzysz | web, worker, scheduler |
 | `KUKING_ALARM_EMAIL_NA_DOBE` | opcjonalnie; domyślnie 20 | jw. |
+| `KUKING_ALARM_EMAIL_KONTAKT_NA_DOBE` | opcjonalnie; domyślnie 5 (listy o wiadomościach z „Napisz do nas”) | web |
 
 **To nie jest `KUKING_MODEL_ALARM_EMAIL`.** Tamta zmienna to skrzynka
 moderacji: pilne treści zgłoszone przez ludzi i dzienne podsumowania
@@ -250,10 +251,23 @@ Jak to działa:
   miejsca w puli się nie udaje i **list nie wychodzi**, a Discord wychodzi
   bez deduplikacji. To świadomy wybór: bez licznika każdy błąd burzy byłby
   osobnym listem wysyłanym w żądaniu człowieka.
-- **Wiadomość „Przyszła nowa wiadomość”** z formularza „Napisz do nas”
-  (`DzwonekOperatora`) zostaje **tylko na Discordzie**. To nie jest alarm
-  o awarii, a formularz wypełnia ktokolwiek, więc zużywałby sufit listów
-  alarmowych.
+- **Wiadomość „Nowa wiadomość z formularza «Napisz do nas»”**
+  (`DzwonekOperatora`, decyzja właściciela 30.09.2026) idzie **na Discorda
+  i pocztą**, ale spod **osobnego, niższego sufitu**
+  `KUKING_ALARM_EMAIL_KONTAKT_NA_DOBE` (domyślnie 5 listów na dobę, klasa
+  `zwykla`, funkcja `kontakt-operatora` w `DziennyBudzetListow`). Formularz
+  wypełnia ktokolwiek, więc te listy **nie zjadają** sufitu alarmów
+  o awariach: fala wiadomości od ludzi nie ucisza listu o leżącej bazie.
+  Temat listu zaczyna się od `Kontakt:` (alarmy: `Alarm:`), więc skrzynkę
+  da się filtrować. Treść jest ta sama co na Discordzie: rodzaj z zamkniętej
+  listy, identyfikator i adres panelu — bez treści wiadomości, adresu
+  e-mail, imienia i strony, z której pisano. Po wyczerpaniu sufitu skrzynka
+  milknie do północy (przy 80% przychodzi ostrzeżenie „Poczta: sufit
+  «kontakt-operatora» zużyty…”), a Discord i panel dostają dalej każdą
+  wiadomość. Okna serii tu nie ma: każda wiadomość to inny człowiek, a zalew
+  samego formularza zatrzymuje jego limit żądań (`limits.kontakt`).
+  `KUKING_ALARM_EMAIL_KONTAKT_NA_DOBE=0` wyłącza te listy bez ruszania
+  alarmów.
 
 ### Włączenie i sprawdzenie po wdrożeniu
 

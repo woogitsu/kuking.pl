@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Contact;
 
+use App\Logging\EmailBleduHandler;
+use App\Logging\KanalyAlarmowe;
 use App\Models\ContactMessage;
-use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -33,6 +34,17 @@ use Throwable;
  * niżej zamiast być wklejonym wprost. Gdyby ktoś kiedyś dopisał do tabeli
  * czwarty rodzaj z wolnego tekstu, ten warunek go zatrzyma.
  *
+ * DRUGI KANAŁ: POCZTA (decyzja właściciela 30.09.2026)
+ * Dzwonek idzie przez `KanalyAlarmowe`, więc przy ustawionym
+ * `KUKING_ALARM_EMAIL` ta sama treść wychodzi też listem — i obowiązuje ją
+ * ta sama lista dozwolonych pól (list nie dokłada ani jednego pola). Formularz
+ * wypełnia jednak KAŻDY, więc list idzie spod WŁASNEGO, niższego sufitu
+ * dobowego (`poczta.kontakt_operatora_na_dobe`, klucz kontekstu
+ * `EmailBleduHandler::KONTEKST_PULA`), a nie spod sufitu alarmów o awariach.
+ * Dwadzieścia wiadomości od ludzi nie może uciszyć listu o leżącej bazie.
+ * Po wyczerpaniu sufitu skrzynka milknie do północy; Discord i panel
+ * dostają dalej każdą wiadomość.
+ *
  * DLACZEGO SAM IDENTYFIKATOR WYSTARCZA
  * Bo wiadomość JEST JUŻ ZAPISANA W KUKING, zanim ten dzwonek zadzwoni.
  * Webhook nie jest kopią zapasową i nie ma nią być — jest sygnałem „zajrzyj
@@ -56,17 +68,23 @@ final class DzwonekOperatora
 {
     public function zadzwon(ContactMessage $wiadomosc): void
     {
-        // Kanał wyłączony (brak `LOG_BLAD_WEBHOOK_URL`) — tak jest dziś na
-        // produkcji. Ten sam warunek stoi w `bootstrap/app.php` przed
-        // raportowaniem wyjątków; `WebhookBleduHandler` sprawdza go jeszcze
-        // raz u siebie, ale sprawdzenie tutaj oszczędza budowanie loggera
-        // i czyni umowę „brak zmiennej = zero efektu" widoczną w tym pliku.
-        if (blank(config('logging.channels.blad_webhook.url'))) {
+        // Oba kanały wyłączone (brak `LOG_BLAD_WEBHOOK_URL` i
+        // `KUKING_ALARM_EMAIL`). Ten sam warunek stoi w `bootstrap/app.php`
+        // przed raportowaniem wyjątków; handlery sprawdzają swój adres
+        // jeszcze raz u siebie, ale sprawdzenie tutaj oszczędza budowanie
+        // treści i czyni umowę „brak zmiennych = zero efektu" widoczną tu.
+        if (! KanalyAlarmowe::wlaczony()) {
             return;
         }
 
         try {
-            Log::channel('blad_webhook')->error($this->tresc($wiadomosc));
+            // Bez okna serii (`SeriaAlarmow`): każda wiadomość to osobny
+            // człowiek, nie powtórzenie jednej awarii. Zalew skrzynki
+            // zatrzymuje sufit dobowy puli `kontakt`, a zalew formularza —
+            // jego własny limit żądań.
+            KanalyAlarmowe::zadzwon($this->tresc($wiadomosc), [
+                EmailBleduHandler::KONTEKST_PULA => EmailBleduHandler::PULA_KONTAKT,
+            ]);
         } catch (Throwable) {
             // Dzwonek nie ma prawa przewrócić zapisu, który już się udał.
             // Handler łyka własne błędy sam, ale między nim a tym miejscem
