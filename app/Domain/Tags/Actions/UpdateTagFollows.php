@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Tags\Actions;
 
+use App\Domain\Social\ListyWidza;
 use App\Domain\Tags\LimitObserwowanychTagow;
 use App\Domain\Tags\TagMutationLock;
 use App\Exceptions\BladDlaCzlowieka;
@@ -26,6 +27,7 @@ final class UpdateTagFollows
                 $ids = Tag::promowane()->whereIn('tags.id', $ids)->pluck('tags.id')->all();
             }
             $this->insert($freshUser, $ids);
+            ListyWidza::uniewaznij();
         });
     }
 
@@ -35,6 +37,7 @@ final class UpdateTagFollows
             TagMutationLock::forPost();
             User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
             $user->followedTags()->detach($id);
+            ListyWidza::uniewaznij();
         });
     }
 
@@ -67,6 +70,7 @@ final class UpdateTagFollows
                     ->where('tag_id', $id)->where('created_at', $scope['followed'][$id])->delete();
             }
             $this->insert($freshUser, $add, naLiscieTwoichTagow: true);
+            ListyWidza::uniewaznij();
         });
     }
 
