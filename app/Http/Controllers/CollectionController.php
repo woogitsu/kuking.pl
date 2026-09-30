@@ -38,6 +38,16 @@ use Illuminate\View\View;
  */
 class CollectionController extends Controller
 {
+    /**
+     * Ile zeszytów na porcję listy — osobno własnych i udostępnionych (#2321).
+     *
+     * Liczba zeszytów nie ma limitu, a lista `/zeszyt` materializowała
+     * wszystkie naraz, z licznikami. Koszt strony rósł liniowo z biblioteką
+     * i udostępnieniami. Porcja zamyka go z góry; dalsze zeszyty są pod
+     * „Pokaż więcej zeszytów" (AGENTS.md §5: bez infinite scroll).
+     */
+    public const ZESZYTOW_NA_STRONE = 30;
+
     public function __construct(
         private readonly SaveRecipeToCollection $save,
         private readonly SavePostToCollection $savePost,
@@ -70,7 +80,9 @@ class CollectionController extends Controller
                 ->afterQuery(fn (EloquentCollection $zeszyty) => $this->policzWidoczne($zeszyty, $user))
                 ->orderByDesc('is_default')
                 ->orderBy('name')
-                ->get(),
+                ->orderBy('id')
+                ->simplePaginate(self::ZESZYTOW_NA_STRONE, pageName: 'zeszyty')
+                ->withQueryString(),
             // Prawa szyna (issue #205) — patrz `ostatnioZapisane()` niżej.
             'ostatnioZapisane' => $this->ostatnioZapisane($user),
             // WSPÓLNE ZESZYTY (#1743, D-302) — OSOBNĄ LISTĄ, nie wmieszane
@@ -88,7 +100,9 @@ class CollectionController extends Controller
                     'posts as posts_count' => fn ($q) => $q->widoczneWZeszycieDla($user),
                 ])
                 ->orderBy('name')
-                ->get(),
+                ->orderBy('collections.id')
+                ->simplePaginate(self::ZESZYTOW_NA_STRONE, pageName: 'udostepnione')
+                ->withQueryString(),
             'zaproszenia' => app(ZaproszeniaDoZeszytow::class)->oczekujaceDla($user),
         ] + $this->szukajWZapisach($request));
     }
@@ -394,8 +408,8 @@ class CollectionController extends Controller
      *
      * `join` z `collection_items`, NIE z `collections`: tabela zeszytów ma
      * kolumnę `visibility`, a zakresy widoczności pytają o nią bez nazwy
-     * tabeli (patrz `ostatnioZapisane()`). Zeszyty wybiera podzapytanie po
-     * właścicielu — to te same zeszyty, które wypisuje lista.
+     * tabeli (patrz `ostatnioZapisane()`). Zliczamy wyłącznie zeszyty
+     * bieżącej porcji listy (#2321) — nie całą bibliotekę właściciela.
      *
      * @param  EloquentCollection<int, Collection>  $zeszyty
      */
@@ -405,7 +419,7 @@ class CollectionController extends Controller
             return;
         }
 
-        $wlasne = Collection::query()->where('owner_id', $user->getKey())->select('id');
+        $wlasne = $zeszyty->modelKeys();
 
         $przepisy = Recipe::query()
             ->widoczneDla($user)

@@ -253,6 +253,28 @@ final class ImportPobieraczStronTest extends TestCase
         );
     }
 
+    /** #2324: Location z samym query albo fragmentem zachowuje ścieżkę bazy (RFC 3986 §5.2.2). */
+    public function test_przekierowanie_z_samym_query_albo_fragmentem_zachowuje_sciezke(): void
+    {
+        $this->assertSame('https://example.test/przepis?page=2', PobieraczStron::rozwiaz('https://example.test/przepis', '?page=2'));
+        $this->assertSame('https://example.test/a/przepis?page=2', PobieraczStron::rozwiaz('https://example.test/a/przepis?page=1', '?page=2'));
+        $this->assertSame('https://example.test/przepis#skladniki', PobieraczStron::rozwiaz('https://example.test/przepis', '#skladniki'));
+        $this->assertSame('https://example.test/przepis?druk=1#skladniki', PobieraczStron::rozwiaz('https://example.test/przepis?druk=1', '#skladniki'));
+        // Kontrola dodatnia: zwykła ścieżka względna nadal idzie od katalogu.
+        $this->assertSame('https://example.test/a/nowy', PobieraczStron::rozwiaz('https://example.test/a/przepis?x=1', 'nowy'));
+
+        Http::fake([
+            'https://przepisy.example.pl/robots.txt' => Http::response('', 404),
+            'https://przepisy.example.pl/stary/sernik' => Http::response('', 302, ['Location' => '?strona=2']),
+            'https://przepisy.example.pl/stary/sernik?strona=2' => Http::response(self::HTML, 200, ['Content-Type' => 'text/html']),
+        ]);
+
+        $this->assertSame(
+            'https://przepisy.example.pl/stary/sernik?strona=2',
+            $this->pobieracz()->pobierz('https://przepisy.example.pl/stary/sernik')->url,
+        );
+    }
+
     public function test_wzgledne_przekierowanie_jest_rozwiazywane_wzgledem_biezacego_adresu(): void
     {
         Http::fake([

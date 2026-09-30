@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\Support\WycinaObudoweEkranu;
@@ -362,6 +363,59 @@ class LogowanieKontemGoogleTest extends TestCase
 
         $this->assertGuest();
         $this->assertDatabaseCount('users', 0);
+    }
+
+    /**
+     * #2322: pole tokenu w złym typie (tablica, obiekt) to odrzucona
+     * odpowiedź dostawcy, nie 500 z „Array to string conversion”.
+     *
+     * @return array<string, array{0: array<string, mixed>}>
+     */
+    public static function znieksztalconeTokeny(): array
+    {
+        return [
+            'aud jako obiekt' => [['aud' => ['klucz' => 'wartosc']]],
+            'iss jako lista' => [['iss' => ['https://accounts.google.com']]],
+            'nonce jako lista' => [['nonce' => []]],
+            'sub jako lista' => [['sub' => ['109876543210987654321']]],
+            'email jako obiekt' => [['email' => ['adres' => 'basia@example.test']]],
+            'exp jako lista' => [['exp' => [time() + 3600]]],
+        ];
+    }
+
+    /** @param  array<string, mixed>  $nadpisania */
+    #[Test]
+    #[DataProvider('znieksztalconeTokeny')]
+    public function test_znieksztalcony_token_jest_odrzucony_bez_bledu_serwera(array $nadpisania): void
+    {
+        $this->wlaczGoogle();
+
+        $this->wracamyZGoogle($nadpisania)->assertRedirect(route('login'));
+
+        $this->assertGuest();
+        $this->assertDatabaseCount('users', 0);
+    }
+
+    /** #2322: imię w złym typie to brak imienia — wejście idzie dalej, bez 500. */
+    #[Test]
+    public function test_imie_w_zlym_typie_to_brak_imienia_a_nie_blad_serwera(): void
+    {
+        $this->wlaczGoogle();
+
+        $this->wracamyZGoogle(['given_name' => ['Basia'], 'name' => null])
+            ->assertRedirect(route('google.finish'));
+    }
+
+    #[Test]
+    public function test_odmowa_google_z_bledem_w_zlym_typie_nie_konczy_sie_bledem_serwera(): void
+    {
+        $this->wlaczGoogle();
+        $sesja = $this->klikamyWejdz();
+        Http::fake(['oauth2.googleapis.com/*' => Http::response(['error' => ['kod' => 'invalid_client']], 400)]);
+
+        $this->get(route('google.callback', ['code' => 'kod', 'state' => $sesja['state']]))
+            ->assertRedirect(route('login'));
+        $this->assertGuest();
     }
 
     #[Test]

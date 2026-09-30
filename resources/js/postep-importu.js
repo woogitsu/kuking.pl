@@ -25,17 +25,36 @@ export function podlaczPostepImportu(dokument = document, okno = window) {
     }
 
     const adres = blok.getAttribute('data-adres');
+
+    // KOLEJNOŚĆ ODPOWIEDZI (#2328). Przy wolnym łączu odpowiedź sprzed 5 s
+    // potrafi wrócić PO nowszej. Bez tej straży opóźniona odpowiedź „w toku”
+    // nadpisywała już pokazane „gotowe” i ekran cofał się do starszego stanu.
+    // Każde żądanie dostaje numer; stosujemy tylko odpowiedź nowszą od
+    // ostatnio pokazanej, a po stanie końcowym — już żadnej.
+    let numer = 0;
+    let pokazany = 0;
+    let koniec = false;
+
     const zegar = okno.setInterval(() => {
+        if (koniec) {
+            return;
+        }
+
+        numer += 1;
+        const ten = numer;
+
         okno.fetch(adres, {headers: {'X-Requested-With': 'XMLHttpRequest'}, credentials: 'same-origin'})
             .then((odpowiedz) => (odpowiedz.ok ? odpowiedz.text() : null))
             .then((html) => {
-                if (html === null) {
+                if (html === null || koniec || ten < pokazany) {
                     return;
                 }
 
+                pokazany = ten;
                 blok.innerHTML = html;
 
                 if (czyKoncowy(blok)) {
+                    koniec = true;
                     okno.clearInterval(zegar);
                 }
             })

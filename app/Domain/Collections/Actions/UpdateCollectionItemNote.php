@@ -64,10 +64,24 @@ final class UpdateCollectionItemNote
             ])->errorBag(self::WOREK_BLEDOW);
         }
 
-        $zmienione = DB::table('collection_items')
-            ->where('collection_id', $collection->getKey())
-            ->where($kolumna, $id)
-            ->update(['note' => $note]);
+        // Odebranie dostępu (`DostepDoZeszytu`) bierze zamek wiersza zeszytu
+        // i kasuje członkostwo w tej samej transakcji (#2311). Sprawdzenie
+        // wyżej jest odczytem sprzed tego zamka, więc pod zamkiem pytamy
+        // Policy jeszcze raz — o świeże konto i świeży zeszyt. Kolejność
+        // konto → zeszyt jak w `ZamekZapisuDoZeszytu`.
+        $zmienione = DB::transaction(static function () use ($user, $collection, $kolumna, $id, $note): int {
+            $aktor = User::query()->whereKey($user->getKey())->lock('FOR NO KEY UPDATE')->first()
+                ?? throw new ModelNotFoundException;
+            $zeszyt = Collection::query()->whereKey($collection->getKey())->lock('FOR NO KEY UPDATE')->first()
+                ?? throw new ModelNotFoundException;
+
+            Gate::forUser($aktor)->authorize('addItem', $zeszyt);
+
+            return DB::table('collection_items')
+                ->where('collection_id', $zeszyt->getKey())
+                ->where($kolumna, $id)
+                ->update(['note' => $note]);
+        });
 
         // Nie ma takiej pozycji w TYM zeszycie — nie tworzymy jej przy okazji.
         if ($zmienione === 0) {

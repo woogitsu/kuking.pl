@@ -23,6 +23,7 @@ declare(strict_types=1);
 use App\Domain\Collections\Actions\RemoveUnavailableFromCollection;
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
+use App\Domain\Collections\Actions\UpdateCollectionItemNote;
 use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Domain\Collections\Wspoldzielenie\DostepDoZeszytu;
 use App\Domain\Collections\Wspoldzielenie\OdpowiedzNaZaproszenie;
@@ -143,6 +144,42 @@ function barieraPoSprawdzeniuNazwy(): void
         if (! $juz && str_contains($query->sql, 'lower(username) = ?') && str_contains($query->sql, 'exists(')) {
             $juz = true;
             DB::select('SELECT pg_advisory_xact_lock(887, 1)');
+        }
+    });
+}
+
+/**
+ * Bariera #2311: uczestnik staje PO `ktore`-tym rzeczywistym sprawdzeniu
+ * członkostwa w zeszycie (`Collection::maCzlonka()`, zapytanie Policy),
+ * a PRZED dalszą częścią akcji. Pierwsze sprawdzenie to odczyt bez zamka,
+ * drugie — ponowna Policy pod zamkiem zeszytu.
+ */
+function barieraPoSprawdzeniuCzlonkostwa(int $ktore): void
+{
+    $licznik = 0;
+
+    DB::listen(static function (QueryExecuted $query) use ($ktore, &$licznik): void {
+        if (str_contains($query->sql, '"collection_members"') && str_contains($query->sql, 'exists(')) {
+            $licznik++;
+            if ($licznik === $ktore) {
+                DB::select('SELECT pg_advisory_xact_lock(2311, 1)');
+            }
+        }
+    });
+}
+
+/**
+ * Bariera #2318: uczestnik staje PO pierwszym rzeczywistym sprawdzeniu, czy
+ * odbiorca dostał już dziś przypomnienie o urodzinach, a PRZED zapisem.
+ */
+function barieraPoSprawdzeniuUrodzin(): void
+{
+    $juz = false;
+
+    DB::listen(static function (QueryExecuted $query) use (&$juz): void {
+        if (! $juz && str_contains($query->sql, 'from "notifications"') && str_contains($query->sql, 'exists(')) {
+            $juz = true;
+            DB::select('SELECT pg_advisory_xact_lock(2318, 1)');
         }
     });
 }
@@ -565,6 +602,32 @@ try {
             Collection::query()->whereKey($argumenty['zeszyt'])->firstOrFail(),
             User::query()->whereKey($argumenty['czlonek'])->firstOrFail(),
         ) ? 'odebrano' : 'nie-bylo',
+
+        // Dwa równoległe uruchomienia przypomnień o urodzinach (#2318).
+        // Cisza nocna wyłączona (od = do), żeby wynik nie zależał od godziny.
+        'przypomnij-o-urodzinach' => (function (): int {
+            config([
+                'kuking.notifications.zewnetrzne.cisza_od_godziny' => 0,
+                'kuking.notifications.zewnetrzne.cisza_do_godziny' => 0,
+                'kuking.urodziny.przypomnienia_na_odbiorce_dziennie' => 3,
+            ]);
+            barieraPoSprawdzeniuUrodzin();
+
+            return Artisan::call('kuking:przypomnij-o-urodzinach');
+        })(),
+
+        // Notatka współpracownika kontra odebranie dostępu (#2311).
+        'notatka-w-zeszycie' => (function () use ($argumenty): string {
+            barieraPoSprawdzeniuCzlonkostwa((int) $argumenty['stop_po']);
+
+            return (string) app(UpdateCollectionItemNote::class)->handle(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                Collection::query()->whereKey($argumenty['zeszyt'])->firstOrFail(),
+                UpdateCollectionItemNote::PRZEPIS,
+                $argumenty['przepis'],
+                $argumenty['notatka'],
+            );
+        })(),
 
         // Zbiorcze „Wyjmij niedostępne zapisy” (#2205): odcisk liczony tu,
         // na świeżym koncie, tak jak robi to formularz przy otwarciu ekranu.

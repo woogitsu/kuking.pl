@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Support\Czas;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -85,24 +86,39 @@ final class MojStol
      */
     public function dlaWidza(User $widz): array
     {
-        $tagi = $widz->followedTags()->where('tags.status', Tag::STATUS_ACTIVE)->get();
-        $tagIds = $tagi->modelKeys();
+        // Obserwowane tagi jako PODZAPYTANIE, nie lista modeli (#2326).
+        // Liczba obserwowanych tagów nie ma granicy (fixture obciążeniowy ma
+        // konto z 978), a półka potrzebuje z nich tylko warunku w SQL — więc
+        // nic tu nie hydratuje ani nie przenosi listy identyfikatorów do PHP.
+        $obserwowane = DB::table('tag_follows')
+            ->join('tags', 'tags.id', '=', 'tag_follows.tag_id')
+            ->where('tag_follows.user_id', $widz->getKey())
+            ->where('tags.status', Tag::STATUS_ACTIVE)
+            ->select('tags.id');
+        $obserwujeTagi = (clone $obserwowane)->exists();
 
         $zTagow = [];
 
-        if ($tagIds !== []) {
+        if ($obserwujeTagi) {
             $wpisy = $this->najnowszyOdKazdejOsoby(
-                fn (Builder $q) => $q->whereHas('tags', fn ($t) => $t->whereIn('tags.id', $tagIds)),
+                fn (Builder $q) => $q->whereHas('tags', fn ($t) => $t->whereIn('tags.id', clone $obserwowane)),
                 $widz,
                 self::NA_POLCE_Z_TAGOW,
                 [],
+            );
+
+            // Które z tagów TYCH kilku wpisów widz obserwuje — zapytanie
+            // ograniczone tagami półki, nie całą listą obserwowanych.
+            $tagiWpisow = collect($wpisy)->flatMap(fn (Post $post) => $post->tags->modelKeys())->unique()->values()->all();
+            $obserwowaneNaPolce = $tagiWpisow === [] ? [] : array_flip(
+                (clone $obserwowane)->whereIn('tags.id', $tagiWpisow)->pluck('tags.id')->map(fn ($id) => (string) $id)->all(),
             );
 
             foreach ($wpisy as $post) {
                 // Powód przy pozycji: pierwszy obserwowany tag wpisu w kolejności
                 // tagów wpisu — ten sam sposób co podpis „Z tagu: …" na Starcie.
                 $tag = $post->tags->first(fn (Tag $t) => $t->status === Tag::STATUS_ACTIVE
-                    && in_array($t->getKey(), $tagIds, true));
+                    && isset($obserwowaneNaPolce[(string) $t->getKey()]));
 
                 if ($tag !== null) {
                     $zTagow[] = ['post' => $post, 'tag' => $tag];
@@ -111,7 +127,7 @@ final class MojStol
         }
 
         $zajeci = array_map(fn (array $p) => $p['post']->author_id, $zTagow);
-        $odGospodarza = $this->tematOdGospodarza($widz, $tagIds, $zajeci);
+        $odGospodarza = $this->tematOdGospodarza($widz, $obserwujeTagi ? $obserwowane : null, $zajeci);
 
         foreach ($odGospodarza['wpisy'] ?? [] as $post) {
             $zajeci[] = $post->author_id;
@@ -121,7 +137,7 @@ final class MojStol
             'z_tagow' => $zTagow,
             'od_gospodarza' => $odGospodarza,
             'na_dzis' => $this->naDzis($widz, $zajeci),
-            'obserwuje_tagi' => $tagIds !== [],
+            'obserwuje_tagi' => $obserwujeTagi,
         ];
     }
 
@@ -190,15 +206,15 @@ final class MojStol
      * Wybór tematu (pierwszy w kolejności gospodarza, który ma co pokazać)
      * zapada w PHP na tej ograniczonej puli.
      *
-     * @param  list<string>  $obserwowane
+     * @param  QueryBuilder|null  $obserwowane  podzapytanie o identyfikatory obserwowanych tagów (#2326)
      * @param  list<string>  $zajeciAutorzy  autorzy już stojący na półce
      * @return array{tag: Tag, wpisy: list<Post>}|null
      */
-    private function tematOdGospodarza(User $widz, array $obserwowane, array $zajeciAutorzy): ?array
+    private function tematOdGospodarza(User $widz, ?QueryBuilder $obserwowane, array $zajeciAutorzy): ?array
     {
         $promowane = Tag::query()
             ->promowane()
-            ->when($obserwowane !== [], fn ($q) => $q->whereNotIn('tags.id', $obserwowane))
+            ->when($obserwowane !== null, fn ($q) => $q->whereNotIn('tags.id', clone $obserwowane))
             ->limit(self::TEMATOW_DO_ROZPATRZENIA)
             ->get();
 

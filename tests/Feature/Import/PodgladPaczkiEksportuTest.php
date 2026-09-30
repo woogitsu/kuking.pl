@@ -476,7 +476,11 @@ class PodgladPaczkiEksportuTest extends TestCase
     public function test_powtorka_w_paczce_i_konflikt_z_kontem_sa_rozroznione_a_ten_sam_tytul_z_inna_trescia_to_nie_duplikat(): void
     {
         $zenek = $this->user('zenek');
-        Recipe::factory()->for($zenek, 'author')->create(['title' => 'Sernik babci']);
+        // Ta sama treść co `przepis('Sernik babci')` niżej — konflikt to cały
+        // odcisk, nie sam tytuł (#2314).
+        $sernik = Recipe::factory()->for($zenek, 'author')->create(['title' => 'Sernik babci']);
+        $sernik->ingredients()->create(['ingredient_text' => '2 jajka', 'position' => 0]);
+        $sernik->steps()->create(['position' => 0, 'instruction' => 'Wymieszaj.']);
         Collection::query()->create(['owner_id' => $zenek->getKey(), 'name' => 'Na święta', 'visibility' => 'private']);
 
         $dane = $this->szkieletPaczki();
@@ -502,6 +506,30 @@ class PodgladPaczkiEksportuTest extends TestCase
         $this->assertSame(
             [PozycjaPodgladu::JUZ_JEST, PozycjaPodgladu::NOWA, PozycjaPodgladu::POWTORZONA_W_PACZCE, PozycjaPodgladu::JUZ_JEST],
             array_map(fn ($p) => $p->stan, $podglad->zeszyty),
+        );
+    }
+
+    /** #2314: ten sam tytuł, inna treść — to inny przepis, nie „już jest”. */
+    public function test_przepis_o_tym_samym_tytule_z_inna_trescia_na_koncie_jest_nowy(): void
+    {
+        $zenek = $this->user('zenek');
+        $sernik = Recipe::factory()->for($zenek, 'author')->create(['title' => 'Sernik']);
+        $sernik->ingredients()->create(['ingredient_text' => '1 kg twarogu', 'position' => 0]);
+        $sernik->steps()->create(['position' => 0, 'instruction' => 'Piecz godzinę.']);
+
+        $dane = $this->szkieletPaczki();
+        $dane['przepisy'] = [
+            $this->przepis('Sernik'),
+            // Kontrola dodatnia: ta sama treść (wielkość liter i odstępy bez znaczenia) to konflikt.
+            $this->przepis('sernik', [
+                'skladniki' => [['zapis' => '1 kg  Twarogu']],
+                'kroki' => [['numer' => 1, 'opis' => 'Piecz godzinę.']],
+            ]),
+        ];
+
+        $this->assertSame(
+            [PozycjaPodgladu::NOWA, PozycjaPodgladu::JUZ_JEST],
+            array_map(fn ($p) => $p->stan, $this->podglad($dane, $zenek)->przepisy),
         );
     }
 

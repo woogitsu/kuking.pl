@@ -104,9 +104,9 @@
             </section>
         @endif
 
-        <div class="marka-zeszyty">
+        <div class="marka-zeszyty" id="lista-zeszytow">
             @foreach($collections as $collection)
-                <article class="card blok-ciemny marka-zeszyt-karta">
+                <article class="card blok-ciemny marka-zeszyt-karta" data-klucz="{{ $collection->getKey() }}">
                     <h2 class="mt-0">
                         <a class="text-ink" href="{{ route('collections.show', $collection) }}">{{ $collection->name }}</a>
                     </h2>
@@ -144,6 +144,7 @@
                 </article>
             @endforeach
         </div>
+        <x-show-more :paginator="$collections" czego="zeszytów" lista="lista-zeszytow" />
     @endif
 
     {{-- CUDZE ZESZYTY, DO KTÓRYCH MASZ DOSTĘP (#1743) — osobno od własnych,
@@ -151,9 +152,9 @@
          i „udostępnione mi". --}}
     @if($udostepnione->isNotEmpty())
         <h2 class="mt-8">Udostępnione Tobie</h2>
-        <div class="marka-zeszyty" data-udostepnione-zeszyty>
+        <div class="marka-zeszyty" id="lista-udostepnionych-zeszytow" data-udostepnione-zeszyty>
             @foreach($udostepnione as $collection)
-                <article class="card blok-ciemny marka-zeszyt-karta">
+                <article class="card blok-ciemny marka-zeszyt-karta" data-klucz="{{ $collection->getKey() }}">
                     <h3 class="mt-0">
                         <a class="text-ink" href="{{ route('collections.show', $collection) }}">{{ $collection->name }}</a>
                     </h3>
@@ -167,6 +168,7 @@
                 </article>
             @endforeach
         </div>
+        <x-show-more :paginator="$udostepnione" czego="udostępnionych zeszytów" lista="lista-udostepnionych-zeszytow" />
     @endif
 
     {{-- Jedna lista ostatnich zapisów w głównej treści (D-211), przed

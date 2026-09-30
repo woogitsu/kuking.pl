@@ -690,6 +690,8 @@ polityce („do usunięcia treści przez Ciebie”) i art. 17 RODO.
   dróg. Okno służy odkręceniu pomyłki i spójności kopii.
 - **Egzekucja:** `kuking:sprzataj-usuniete-tresci`, codziennie 05:50,
   budżet 500 treści każdego rodzaju na przebieg, transakcja na treść.
+  Budżet liczy tylko treści rozpatrzone do usunięcia: chronione wyjątkiem
+  moderacyjnym są przewijane kursorem i nie blokują kolejki za sobą (#2250).
 - **Wyjątek moderacyjny:** treść, na którą wskazuje jakikolwiek wiersz
   `reports`/`moderation_actions` (także przez jej komentarz, zdjęcie albo
   wykonanie), czeka na retencję sprawy (§5.3–5.5). Nie ma osobnej listy
