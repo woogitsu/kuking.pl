@@ -132,7 +132,7 @@ final class OdbiorcyDigestu
                 // znacznik, data założenia i identyfikator.
                 $q->whereRaw(
                     // `COALESCE` odtwarza miejsce `NULL`-a w sortowaniu:
-                    // znacznik `NULLS FIRST` (wyżej osobną kolumną), data
+                    // znacznik `NULLS FIRST` (pierwszy człon krotki), data
                     // założenia rosnąco, czyli w Postgresie `NULLS LAST`.
                     "(weekly_digest_sent_at IS NOT NULL, COALESCE(weekly_digest_sent_at, '-infinity'), COALESCE(created_at, 'infinity'), id) "
                     ."> (CAST(? AS boolean), COALESCE(CAST(? AS timestamptz), '-infinity'), COALESCE(CAST(? AS timestamptz), 'infinity'), CAST(? AS uuid))",
@@ -145,8 +145,7 @@ final class OdbiorcyDigestu
                 );
             })
             ->with('profile')
-            ->orderByRaw('weekly_digest_sent_at IS NOT NULL')
-            ->orderByRaw('weekly_digest_sent_at ASC')
+            ->orderByRaw('weekly_digest_sent_at ASC NULLS FIRST')
             // Drugi klucz, żeby kolejność była POWTARZALNA. Bez niego dwie
             // osoby z tym samym znacznikiem (a po pierwszym przebiegu mają go
             // setki: `NULL`) wracają w kolejności, którą Postgres wybiera
