@@ -63,6 +63,7 @@ use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ReporterAppealController;
 use App\Http\Controllers\SearchController;
+use App\Http\Middleware\NieZapamietujeWyboruAlergenow;
 use App\Http\Controllers\Settings\AccessibilitySettingsController;
 use App\Http\Controllers\Settings\AvatarSettingsController;
 use App\Http\Controllers\Settings\BirthdaySettingsController;
@@ -153,7 +154,8 @@ Route::get('/pytania', [QuestionController::class, 'index'])
     ->middleware("throttle:{$limits['search']},search")
     ->name('questions.index');
 Route::get('/szukaj', [SearchController::class, 'index'])
-    ->middleware("throttle:{$limits['search']},search")
+    // Wybór alergenów (`bez[]`) nie zostaje w sesji jako `_previous.url` (#1902, D-299).
+    ->middleware(["throttle:{$limits['search']},search", NieZapamietujeWyboruAlergenow::class])
     ->name('search');
 
 Route::get('/health', HealthController::class)->name('health');
