@@ -9,6 +9,8 @@ use App\Domain\Tags\TagCollage;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Tag;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -106,6 +108,109 @@ class StronyTagowBezPrzeliczaniaTest extends TestCase
         $odpowiedz->assertSee('cursor=', false);
         $liczace = array_filter($zapytania, fn (string $q): bool => str_contains($q, 'count(*) as aggregate from "posts"'));
         $this->assertSame([], array_values($liczace), 'Strona tagu liczy pełny COUNT wpisów.');
+    }
+
+    public function test_zalogowany_nie_liczy_kolazu_od_nowa_na_spisie_tagow(): void
+    {
+        $tag = Tag::factory()->create();
+        $this->zdjecie($tag);
+        $widz = User::factory()->create()->fresh();
+
+        $this->actingAs($widz)->get(route('tags.index'))->assertOk();
+
+        DB::enableQueryLog();
+        $this->actingAs($widz)->get(route('tags.index'))->assertOk();
+        $zapytania = implode("\n", array_column(DB::getQueryLog(), 'query'));
+        DB::disableQueryLog();
+
+        $this->assertStringNotContainsString('ROW_NUMBER()', $zapytania, 'Kolaż zalogowanego dobierany przy każdej odsłonie.');
+    }
+
+    public function test_zalogowany_nie_liczy_kolazu_od_nowa_na_stronie_tagu(): void
+    {
+        $tag = Tag::factory()->create();
+        $this->zdjecie($tag);
+        $widz = User::factory()->create()->fresh();
+
+        $this->actingAs($widz)->get(route('tags.show', $tag))->assertOk();
+
+        DB::enableQueryLog();
+        $this->actingAs($widz)->get(route('tags.show', $tag))->assertOk();
+        $zapytania = implode("\n", array_column(DB::getQueryLog(), 'query'));
+        DB::disableQueryLog();
+
+        $this->assertStringNotContainsString('ROW_NUMBER()', $zapytania);
+    }
+
+    public function test_kolaz_zalogowanego_odcina_zablokowanych_w_obie_strony_i_zachowuje_kolejnosc(): void
+    {
+        $tag = Tag::factory()->create();
+        $widz = User::factory()->create();
+        $najnowszy = $this->zdjecie($tag, now()->subMinutes(1));
+        $zablokowanyPrzezWidza = $this->zdjecie($tag, now()->subMinutes(2));
+        $blokujacyWidza = $this->zdjecie($tag, now()->subMinutes(3));
+        $zbanowany = $this->zdjecie($tag, now()->subMinutes(4));
+        $prywatny = $this->zdjecie($tag, now()->subMinutes(5));
+        $najstarszy = $this->zdjecie($tag, now()->subMinutes(6));
+
+        DB::table('blocks')->insert([
+            ['blocker_id' => $widz->id, 'blocked_id' => $zablokowanyPrzezWidza->author_id, 'created_at' => now()],
+            ['blocker_id' => $blokujacyWidza->author_id, 'blocked_id' => $widz->id, 'created_at' => now()],
+        ]);
+        $zbanowany->author->forceFill(['status' => User::STATUS_BANNED])->save();
+        $prywatny->forceFill(['visibility' => Post::VISIBILITY_PRIVATE])->save();
+
+        // Gość wypełnia cache (w nim są jeszcze wszyscy widoczni dla gościa).
+        $gosc = (new TagCollage)->forTagsWCache([$tag->id])[$tag->id];
+        $this->assertContains($zablokowanyPrzezWidza->id, $gosc->map(fn (Media $m) => $m->posts->first()->id)->all());
+
+        $kafle = (new TagCollage)->forTagsWCache([$tag->id], $widz)[$tag->id];
+
+        $this->assertSame(
+            [$najnowszy->id, $najstarszy->id],
+            $kafle->map(fn (Media $m) => $m->posts->first()->id)->all(),
+        );
+    }
+
+    public function test_zalogowany_dostaje_dopelnienie_gdy_odciecia_zjadly_zapas(): void
+    {
+        $tag = Tag::factory()->create();
+        $widz = User::factory()->create();
+        $zablokowani = [];
+        // 15 najnowszych wpisów to blokowani autorzy: cały cache gościa
+        // (LIMIT + MARGINES) jest dla widza do wycięcia.
+        foreach (range(1, 15) as $i) {
+            $wpis = $this->zdjecie($tag, now()->subMinutes($i));
+            $zablokowani[] = $wpis->author_id;
+            DB::table('blocks')->insert(['blocker_id' => $widz->id, 'blocked_id' => $wpis->author_id, 'created_at' => now()]);
+        }
+        $oczekiwane = [];
+        foreach (range(16, 22) as $i) {
+            $oczekiwane[] = $this->zdjecie($tag, now()->subMinutes($i))->id;
+        }
+
+        $kafle = (new TagCollage)->forTagsWCache([$tag->id], $widz)[$tag->id];
+
+        $this->assertSame(
+            array_slice($oczekiwane, 0, 5),
+            $kafle->map(fn (Media $m) => $m->posts->first()->id)->all(),
+            'Po odcięciu cache brakuje kafli — dopełnienie powinno sięgnąć głębiej.',
+        );
+    }
+
+    public function test_zalogowany_bez_odciec_ma_te_same_kafle_co_gosc(): void
+    {
+        $tag = Tag::factory()->create();
+        foreach (range(1, 8) as $i) {
+            $this->zdjecie($tag, now()->subMinutes($i));
+        }
+        $widz = User::factory()->create();
+
+        $ids = fn (Collection $k) => $k->map(fn (Media $m) => $m->posts->first()->id)->all();
+        $gosc = $ids((new TagCollage)->forTagsWCache([$tag->id])[$tag->id]);
+        $this->assertCount(5, $gosc);
+
+        $this->assertSame($gosc, $ids((new TagCollage)->forTagsWCache([$tag->id], $widz)[$tag->id]));
     }
 
     private function zdjecie(Tag $tag, $kiedy = null): Post

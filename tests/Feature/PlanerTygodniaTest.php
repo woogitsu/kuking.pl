@@ -331,7 +331,8 @@ final class PlanerTygodniaTest extends TestCase
             ->assertSessionHas('status',
                 'Skopiowane z poprzedniego tygodnia: 2 pozycje. Poza zakresem dat: 2 pozycje'.self::POZA_ZAKRESEM);
 
-        $this->assertSame($przed + 2, MealPlanEntry::query()->count());
+        $poKopii = MealPlanEntry::query()->count();
+        $this->assertSame($przed + 2, $poKopii);
         $this->assertSame(0, MealPlanEntry::query()->where('day', '>', '2027-10-01')->count());
         $this->assertDatabaseHas('meal_plan_entries', ['day' => '2027-09-27', 'label' => 'Poniedziałek']);
         $this->assertDatabaseHas('meal_plan_entries', ['day' => '2027-10-01', 'label' => 'Piątek']);
@@ -339,7 +340,8 @@ final class PlanerTygodniaTest extends TestCase
         // Ponowne kliknięcie: nic nowego, nic poza oknem.
         $this->actingAs($ja)->post(route('planer.copy'), ['tydzien' => '2027-09-27'])
             ->assertSessionHas('status', 'Już w planie: 2 pozycje. Poza zakresem dat: 2 pozycje'.self::POZA_ZAKRESEM);
-        $this->assertSame($przed + 2, MealPlanEntry::query()->count());
+        $poPowtorce = MealPlanEntry::query()->count();
+        $this->assertSame($przed + 2, $poPowtorce);
     }
 
     /** #2036: cały tydzień za daleko wstecz — zero nowych rekordów i jasny komunikat. */

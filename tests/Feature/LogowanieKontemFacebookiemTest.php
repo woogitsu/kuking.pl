@@ -388,7 +388,8 @@ class LogowanieKontemFacebookiemTest extends TestCase
     {
         $this->wlaczFacebooka();
 
-        $this->assertSame(Facebook::WERSJA_GRAFU_DOMYSLNA, Facebook::wersjaGrafu());
+        $wersja = Facebook::wersjaGrafu();
+        $this->assertSame(Facebook::WERSJA_GRAFU_DOMYSLNA, $wersja);
 
         config(['kuking.facebook.wersja_grafu' => 'v99.0']);
 
@@ -400,7 +401,8 @@ class LogowanieKontemFacebookiemTest extends TestCase
         // Pusta wartość nie znaczy „bez wersji": adres bez numeru idzie u Meta
         // na wersję NAJSTARSZĄ Z ŻYWYCH, czyli tę, która wygaśnie najszybciej.
         config(['kuking.facebook.wersja_grafu' => '']);
-        $this->assertSame(Facebook::WERSJA_GRAFU_DOMYSLNA, Facebook::wersjaGrafu());
+        $wersja = Facebook::wersjaGrafu();
+        $this->assertSame(Facebook::WERSJA_GRAFU_DOMYSLNA, $wersja);
     }
 
     #[Test]

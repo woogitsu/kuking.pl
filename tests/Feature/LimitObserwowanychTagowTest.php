@@ -94,13 +94,15 @@ class LimitObserwowanychTagowTest extends TestCase
         $this->actingAs($user)->post(route('tags.follow', $a))->assertRedirect();
         $this->actingAs($user)->post(route('tags.follow', $b))->assertRedirect();
         // Kontrola dodatnia: do granicy wszystko wchodzi.
-        $this->assertSame(2, $this->obserwowanych($user));
+        $przedLimitem = $this->obserwowanych($user);
+        $this->assertSame(2, $przedLimitem);
 
         $this->actingAs($user)->from(route('tags.show', $c))->post(route('tags.follow', $c))
             ->assertRedirect(route('tags.show', $c))
             ->assertSessionHas('status', LimityTagow::komunikatLimituObserwowanych())
             ->assertSessionHas('status_akcja.url', route('settings.tags'));
-        $this->assertSame(2, $this->obserwowanych($user));
+        $poOdmowie = $this->obserwowanych($user);
+        $this->assertSame(2, $poOdmowie);
         $this->assertStringContainsString('najwyżej 2 tagi', LimityTagow::komunikatLimituObserwowanych());
 
         // Ponowne „Obserwuj” tagu już obserwowanego nie dokłada relacji,
@@ -209,11 +211,13 @@ class LimitObserwowanychTagowTest extends TestCase
             'form_scope' => $scope,
             'tags' => array_slice($stare, 1),
         ])->assertSessionHasNoErrors();
-        $this->assertSame(4, $this->obserwowanych($user));
+        $poZdjeciu = $this->obserwowanych($user);
+        $this->assertSame(4, $poZdjeciu);
 
         $this->actingAs($user)->post(route('tags.follow', $nowy))
             ->assertSessionHas('status', LimityTagow::komunikatLimituObserwowanych());
-        $this->assertSame(4, $this->obserwowanych($user));
+        $poOdmowie = $this->obserwowanych($user);
+        $this->assertSame(4, $poOdmowie);
     }
 
     /**

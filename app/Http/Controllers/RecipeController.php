@@ -491,6 +491,17 @@ class RecipeController extends Controller
             }
         }
 
+        // Oba liczniki opinii jednym zapytaniem (audyt wydajności, P3 W8):
+        // ten sam zakres `widoczneDla()`, dwa warunki w `FILTER`. Wynik jest
+        // taki sam jak z dwóch osobnych `count()`.
+        $opinie = $model->cookedEvents()
+            ->widoczneDla($request->user())
+            ->reorder() // relacja ma domyślną kolejność, a agregat jej nie zniesie
+            ->toBase()
+            ->selectRaw('count(*) filter (where cooked_events.would_make_again is true) as zrobia_ponownie')
+            ->selectRaw('count(*) filter (where cooked_events.would_make_again is not null) as ocenilo')
+            ->first();
+
         return view('pages.recipes.show', [
             'recipe' => $model,
             // Na ile porcji pokazać ilości (D-284). Wybór żyje w adresie
@@ -544,14 +555,8 @@ class RecipeController extends Controller
             // wyżej. Bez niej znaczek pisał „3 z 4 osób zrobi to ponownie"
             // przy trzech widocznych wykonaniach (zmierzone), czyli zdradzał
             // istnienie czwartego i JESZCZE jego odpowiedź.
-            'zrobiaPonownie' => $model->cookedEvents()
-                ->widoczneDla($request->user())
-                ->where('would_make_again', true)
-                ->count(),
-            'oceniloWykonanie' => $model->cookedEvents()
-                ->widoczneDla($request->user())
-                ->whereNotNull('would_make_again')
-                ->count(),
+            'zrobiaPonownie' => (int) $opinie->zrobia_ponownie,
+            'oceniloWykonanie' => (int) $opinie->ocenilo,
             // ZESZYTY, W KTÓRYCH TEN PRZEPIS LEŻY — nie samo „tak/nie" (issue #775).
             //
             // Sam `isSaved` nie wystarczał ekranowi do niczego poza podmianą

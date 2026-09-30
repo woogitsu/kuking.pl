@@ -111,6 +111,49 @@ final class PlakietkaAutoraPrzepisuTest extends TestCase
         $this->assertNotNull($this->karta($html, $odBasi));
     }
 
+    public function test_komentarz_autora_pod_cudzym_przepisem_nie_ma_plakietki(): void
+    {
+        [$marta, $basia, $sernik] = $this->scena(Profile::FORM_FEMININE);
+        $szarlotka = Recipe::factory()->create(['author_id' => $basia->getKey(), 'title' => 'Szarlotka Basi']);
+        $wSwoim = $this->komentarz($marta, ['recipe_id' => $sernik->getKey()], 'U siebie.');
+        $uBasi = $this->komentarz($marta, ['recipe_id' => $szarlotka->getKey()], 'U Basi.');
+
+        $swoj = $this->get(route('recipes.show', $sernik->slug))->assertOk()->getContent();
+        $this->assertSame('Autorka przepisu', $this->plakietka($swoj, $wSwoim), 'Kontrola dodatnia.');
+
+        $cudzy = $this->get(route('recipes.show', $szarlotka->slug))->assertOk()->getContent();
+        $this->assertNotNull($this->karta($cudzy, $uBasi));
+        $this->assertNull($this->plakietka($cudzy, $uBasi));
+    }
+
+    #[DataProvider('statusyZamknietegoKonta')]
+    public function test_konto_zablokowane_albo_w_usuwaniu_nie_ujawnia_plakietki(string $status): void
+    {
+        [$marta, $basia, $sernik] = $this->scena(Profile::FORM_FEMININE);
+        $odAutorki = $this->komentarz($marta, ['recipe_id' => $sernik->getKey()], 'Przed zamknięciem.');
+        $this->komentarz($basia, ['recipe_id' => $sernik->getKey()], 'Kontrolny.');
+
+        $przed = $this->get(route('recipes.show', $sernik->slug))->assertOk()->getContent();
+        $this->assertSame('Autorka przepisu', $this->plakietka($przed, $odAutorki), 'Kontrola dodatnia przed zamknięciem.');
+
+        User::query()->whereKey($marta->getKey())->update(['status' => $status]);
+
+        // Przepis konta zamkniętego jest w całości niedostępny (403), więc
+        // plakietka nie ma gdzie się pojawić i nie ujawnia relacji z przepisem.
+        $odpowiedz = $this->get(route('recipes.show', $sernik->slug))->assertForbidden();
+        $this->assertStringNotContainsString('badge-autor-przepisu', (string) $odpowiedz->getContent());
+        $this->assertStringNotContainsString('Autorka przepisu', (string) $odpowiedz->getContent());
+    }
+
+    /** @return array<string, array{0: string}> */
+    public static function statusyZamknietegoKonta(): array
+    {
+        return [
+            'zablokowane' => [User::STATUS_BANNED],
+            'w trakcie usuwania' => [User::STATUS_PENDING_DELETE],
+        ];
+    }
+
     public function test_plakietka_nie_doklada_zapytan_na_komentarz(): void
     {
         [$marta, $basia, $sernik] = $this->scena(Profile::FORM_FEMININE);
