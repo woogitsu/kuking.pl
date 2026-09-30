@@ -290,7 +290,7 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
 
         if ($niezgodne !== []) {
             $this->warn('Niezgodne kopie — w nowym buckecie pod tym kluczem leży INNY obiekt niż w starym '
-                .'(ucięty albo obcy). Wiersz został przy `r2_legacy`, a obiektu nie nadpisałem. '
+                .'(ucięty albo obcy). Wiersz został przy `r2_legacy`, a obiektu nie nadpisano. '
                 .'Co zrobić: sprawdź obiekt w nowym buckecie, usuń go stamtąd i uruchom komendę ponownie:');
 
             foreach ($niezgodne as $wpis) {
