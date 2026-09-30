@@ -319,10 +319,12 @@ class CiDajeKazdemuJobowiWlasneNarzedziaTest extends TestCase
         // Dziewięć od usunięcia jednorazowego `audyt-a7-final-check.yml`
         // (#1742) — jego job `check` stawiał PHP. Dziesięć od joba `kaskada`
         // (strażnik martwych reguł CSS, #960) — stawia PHP przez wspólną akcję.
+        // Dziewięć od #2299: `static-analysis` i `audit` stawiają PHP w jednym
+        // jobie `kontrole_krotkie` (ich lustra PHP nie stawiają).
         $this->assertSame(
-            10,
+            9,
             $razem,
-            "Przeskanowałem {$razem} jobów stawiających PHP, a ma ich być dziesięć. "
+            "Przeskanowałem {$razem} jobów stawiających PHP, a ma ich być dziewięć. "
             .'Albo doszedł job bez izolacji narzędzi, albo skaner przestał widzieć któryś '
             .'z istniejących — a test, który nie znajduje NICZEGO, przechodzi i nie pilnuje niczego.',
         );

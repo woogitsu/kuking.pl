@@ -1506,7 +1506,7 @@ checks = [
     ("Job zbiorczy panelu pomijany po czerwonej części (#2299)", CI_WORKFLOW, "PanelMarkiDzieliSieBezUtratyPomiaruTest",
      lambda s: replace_once(s, "    needs: [zakres, port_panelu]\n    if: ${{ !cancelled() }}\n", "    needs: [zakres, port_panelu]\n")),
     ("Testy JS nie biegną nigdzie, bo assets też buduje sam Vite (#2299)", CI_WORKFLOW, "TestyJsBiegnaWJobieAssetowTest",
-     lambda s: replace_once(s, "      - name: Build\n        run: npm run build\n", "      - name: Build\n        run: npm run build:assets\n")),
+     lambda s: replace_once(s, "      - name: Build\n        if: ${{ !cancelled() }}\n        run: npm run build\n", "      - name: Build\n        if: ${{ !cancelled() }}\n        run: npm run build:assets\n")),
     ("Cache przeglądarki odtwarza inną wersję (#2299)", CI_WORKFLOW, "CacheMiedzyJobamiNieDajeStarychWynikowTest",
      lambda s: pierwsze_z_wielu(s, "          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}\n",
                                 "          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}\n"
@@ -1515,7 +1515,19 @@ checks = [
      lambda s: pierwsze_z_wielu(s, "      - name: Port projektu — układ i kontrola ujemna\n",
                                 "      - name: Port projektu — układ i kontrola ujemna\n        if: runner.environment == 'github-hosted'\n", 2)),
     ("Cache przeglądarki na własnym runnerze (#2299)", CI_WORKFLOW, "CacheMiedzyJobamiNieDajeStarychWynikowTest",
-     lambda s: pierwsze_z_wielu(s, "        if: runner.environment == 'github-hosted'\n", "", 6)),
+     lambda s: pierwsze_z_wielu(s, "        if: runner.environment == 'github-hosted'\n", "", 5)),
+    # #2299: audyt, Larastan i assety w jednym jobie `kontrole_krotkie`, dawne
+    # nazwy checków na lustrach.
+    ("Krok audytu z continue-on-error w krótkich kontrolach (#2299)", CI_WORKFLOW, AUDYT_BLOKUJE_TEST,
+     lambda s: replace_once(s, "      - name: composer audit\n        if: ${{ !cancelled() }}\n",
+                            "      - name: composer audit\n        if: ${{ !cancelled() }}\n        continue-on-error: true\n")),
+    ("Krok krótkich kontroli bez !cancelled (#2299)", CI_WORKFLOW, "KrotkieKontroleWJednymJobieTest",
+     lambda s: replace_once(s, "      - name: npm audit\n        if: ${{ !cancelled() }}\n", "      - name: npm audit\n")),
+    ("Lustro zielone mimo czerwonych krótkich kontroli (#2299)", CI_WORKFLOW, "KrotkieKontroleWJednymJobieTest",
+     lambda s: pierwsze_z_wielu(s, 'if [ "${WYNIK}" = "success" ]; then', 'if [ "${WYNIK}" != "cancelled" ]; then', 3)),
+    ("Lustro pomijane po czerwieni krótkich kontroli (#2299)", CI_WORKFLOW, "KrotkieKontroleWJednymJobieTest",
+     lambda s: pierwsze_z_wielu(s, "    needs: [zakres, kontrole_krotkie]\n    if: ${{ !cancelled() }}\n",
+                                "    needs: [zakres, kontrole_krotkie]\n", 3)),
     ("Wyścigi dwóch połączeń znów nie blokują CI", CI_WORKFLOW, WYSCIGI_BLOKUJA_TEST,
      lambda s: replace_once(s, "    name: Wyścigi na dwóch połączeniach\n", "    name: Wyścigi na dwóch połączeniach\n    continue-on-error: true\n")),
     # #2215: audyt zależności blokuje; flaga wracająca na job albo skrypt bramki

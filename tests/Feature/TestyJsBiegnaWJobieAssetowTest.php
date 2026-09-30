@@ -35,10 +35,11 @@ class TestyJsBiegnaWJobieAssetowTest extends TestCase
 
     public function test_job_assets_robi_pelny_build_przy_kazdej_zmianie_kodu(): void
     {
-        $job = $this->job('assets');
+        // Od scalenia krótkich jobów (#2299) pełny build robi `kontrole_krotkie`.
+        $job = $this->job('kontrole_krotkie');
 
-        $this->assertMatchesRegularExpression('/^        run: npm run build\s*$/m', $job, 'Job `assets` nie robi pełnego `npm run build` — testy JS nie biegną nigdzie w CI (#2299).');
-        $this->assertMatchesRegularExpression("/^    if: needs\\.zakres\\.outputs\\.kod == 'true'\\s*$/m", $job, 'Job `assets` ma węższy warunek niż joby z samym Vite (#2299).');
+        $this->assertMatchesRegularExpression('/^        run: npm run build\s*$/m', $job, 'Job `kontrole_krotkie` nie robi pełnego `npm run build` — testy JS nie biegną nigdzie w CI (#2299).');
+        $this->assertMatchesRegularExpression("/^    if: needs\\.zakres\\.outputs\\.kod == 'true'\\s*$/m", $job, 'Job `kontrole_krotkie` ma węższy warunek niż joby z samym Vite (#2299).');
         $this->assertMatchesRegularExpression('/^    needs: zakres\s*$/m', $job);
         $this->assertDoesNotMatchRegularExpression('/^    continue-on-error/m', $job);
         $this->assertStringNotContainsString('build:assets', $job);

@@ -26,16 +26,20 @@ class KrytyczneKontroleCiBlokujaTest extends TestCase
      * przy jobie w `ci.yml`) — oraz krok zapisu artefaktu. Przy zdjęciu flagi
      * z joba zmień tu 2 na 1 w tym samym PR-ze.
      */
-    private const DOZWOLONE = ['assets' => 1, 'kaskada' => 2, 'port_panelu' => 1];
+    private const DOZWOLONE = ['kontrole_krotkie' => 1, 'kaskada' => 2, 'port_panelu' => 1];
 
     public function test_job_audytu_nie_ma_continue_on_error_i_uruchamia_bramke(): void
     {
-        $job = $this->job('audit');
+        // #2299: kroki audytu są w jobie `kontrole_krotkie`; `audit` to lustro
+        // dawnej nazwy (pilnuje go `KrotkieKontroleWJednymJobieTest`).
+        $job = $this->job('kontrole_krotkie');
 
-        $this->assertStringNotContainsString(
-            'continue-on-error',
-            $job,
-            'Job `audit` znów ma continue-on-error: wysoka albo krytyczna podatność wyglądałaby jak zielone CI. '
+        // Jedyna flaga w tym jobie stoi na wysyłce artefaktu assetów (DOZWOLONE
+        // niżej) — żadna na jobie ani na krokach audytu.
+        preg_match_all('/^      - name: ([^\n]+)\n(?:(?:        [^\n]*)?\n)*?        continue-on-error/m', $job, $zFlaga);
+        $this->assertTrue(
+            preg_match('/^    continue-on-error/m', $job) === 0 && $zFlaga[1] === ['Zapis artefaktu'],
+            'Job `kontrole_krotkie` (audyt) znów ma continue-on-error: wysoka albo krytyczna podatność wyglądałaby jak zielone CI. '
             .'Pilny hotfix odblokowuje jawny, datowany wyjątek w .github/wyjatki-audytu.json, nie flaga.',
         );
 

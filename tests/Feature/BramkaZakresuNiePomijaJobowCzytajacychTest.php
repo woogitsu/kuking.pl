@@ -112,12 +112,13 @@ class BramkaZakresuNiePomijaJobowCzytajacychTest extends TestCase
     {
         $this->assertContains(
             'scripts/railway/iac.test.mjs',
-            $this->wejsciaJoba('assets'),
-            'Test grafu Railway nie jest już uruchamiany w jobie `assets`.',
+            // #2299: kroki dawnego joba `assets` są w `kontrole_krotkie`.
+            $this->wejsciaJoba('kontrole_krotkie'),
+            'Test grafu Railway nie jest już uruchamiany w jobie `kontrole_krotkie` (dawniej `assets`).',
         );
         $this->assertTrue(
-            $this->jobRusza('assets', ['docs/DEPLOYMENT.md']),
-            'Job `assets` pomija dokumentację wdrożenia, którą czyta test grafu Railway.',
+            $this->jobRusza('kontrole_krotkie', ['docs/DEPLOYMENT.md']),
+            'Job `kontrole_krotkie` pomija dokumentację wdrożenia, którą czyta test grafu Railway.',
         );
     }
 

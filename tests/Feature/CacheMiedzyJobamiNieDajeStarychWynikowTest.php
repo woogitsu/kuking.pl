@@ -76,7 +76,7 @@ class CacheMiedzyJobamiNieDajeStarychWynikowTest extends TestCase
             $this->assertTrue(str_contains($krok, 'key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}'), "Job `{$job}`: klucz przeglądarki nie jest wersją Playwrighta.");
             $this->assertFalse(str_contains($krok, 'restore-keys'), "Job `{$job}`: przeglądarka innej wersji nie może być odtwarzana (#2299).");
             $this->assertMatchesRegularExpression(
-                "/^        if: runner\\.environment == 'github-hosted'\\s*$/m",
+                "/^        if: (runner\\.environment == 'github-hosted'|\\$\\{\\{ !cancelled\\(\\) && \\(runner\\.environment == 'github-hosted'\\) \\}\\})\\s*$/m",
                 $krok,
                 "Job `{$job}`: cache przeglądarki na własnym runnerze podmieniałby wspólny katalog innym jobom (#2299).",
             );

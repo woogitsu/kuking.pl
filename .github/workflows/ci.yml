@@ -553,35 +553,38 @@ jobs:
         run: node scripts/przyrzad-605.test.mjs
 
   # ===========================================================================
-  #  2. Analiza statyczna — Larastan / PHPStan
+  #  2. Krótkie kontrole w jednym jobie — audyt, Larastan, assety (#2299)
   # ===========================================================================
-  static-analysis:
-    name: Larastan (analiza statyczna)
+  #  Decyzja właściciela z 30.09.2026: trzy krótkie joby (0,3 + 1,9 + 2,7 min,
+  #  każdy z własnym przygotowaniem runnera) idą jednym jobem, żeby zwolnić
+  #  sloty równoległych jobów organizacji. Każda kontrola zostaje i BLOKUJE:
+  #  kroki mają `!cancelled()`, więc czerwony audyt nie ukrywa wyniku
+  #  Larastana ani assetów (i odwrotnie), a job jest czerwony, gdy padł
+  #  którykolwiek krok. Kolejność: audyt (bez instalacji), Larastan (Composer),
+  #  assety (npm i Chromium).
+  #
+  #  PRZEJŚCIE BEZ ZMIANY OCHRONY GAŁĘZI. Dawne nazwy — „Audyt zależności
+  #  (blokuje high i critical)", „Larastan (analiza statyczna)", „Build
+  #  assetów (Vite)" — mogą być wymaganymi checkami. Noszą je dalej joby
+  #  `audit`, `static-analysis` i `assets` niżej: LUSTRA tego joba (kilka
+  #  sekund, bez przygotowania), zielone tylko po sukcesie całego joba albo
+  #  po świadomym pominięciu przez `zakres`. Kolejność kroków właściciela
+  #  (zmiana listy wymaganych checków, potem usunięcie luster) jest
+  #  w `docs/infra/BRAMKI_CI_2215.md`. Pilnuje tego
+  #  `KrotkieKontroleWJednymJobieTest`.
+  #
+  #  `Przyrząd testu obciążeniowego (#605)` zostaje osobnym jobem: na PR-ze
+  #  i tak rusza tylko przy zmianie `scripts/*605*` (bramka `obciazenie` na
+  #  poziomie joba, której model pilnuje `BramkaZakresuNiePomijaJobowCzytajacychTest`),
+  #  więc slotu PR-ów nie zajmuje.
+  # ===========================================================================
+  kontrole_krotkie:
+    name: Krótkie kontrole (audyt zależności, Larastan, build assetów)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
     runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 15
-    # UWAGA: w repozytorium nie ma jeszcze `phpstan.neon` (issue #32), więc
-    # `phpstan analyse` kończyłby się „At least one path must be specified".
-    #
-    # Krok PHPStana jest dlatego warunkowy: bez konfiguracji job kończy się
-    # ZIELONY z adnotacją w podsumowaniu, zamiast zapalać czerwoną lampkę,
-    # której nie da się naprawić kodem. Od stałej czerwonej lampki ludzie
-    # uczą się, że czerwone CI się ignoruje — i wtedy przestaje działać
-    # także to CI, które coś naprawdę sprawdza.
-    #
-    # Świadomie NIE używamy `continue-on-error`: ono i tak raportuje check
-    # jako `failure`, tylko nie psuje przebiegu. Chcemy odwrotnie —
-    # uczciwie „pominięte", nie „padło, ale nieważne".
-    #
-    # To rozwiązanie samo się naprawia: w chwili, gdy #32 doda plik
-    # konfiguracyjny, analiza zaczyna działać i BLOKOWAĆ. Nie ma tu nic,
-    # o czym trzeba pamiętać, żeby usunąć. Ta sama logika jest
-    # w scripts/check.sh.
-    #
-    # Warunek MUSI używać `test -f ... || test -f ...`, nie `ls a b c` —
-    # patrz komentarz przy samym kroku niżej.
-
+    # Suma dawnych limitów (10 + 15 + 10) z zapasem na jedno przygotowanie mniej.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -594,19 +597,82 @@ jobs:
         with:
           wersja: ${{ env.PHP_VERSION }}
 
+      - name: Konfiguracja Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # ---- Audyt zależności (blokuje high i critical) ------------------
+
+      # composer audit działa na composer.lock, więc nie musimy instalować vendora.
+      # Kod wyjścia narzędzia jest tu CELOWO ignorowany (`|| true`): werdykt
+      # wydaje krok „Bramka" niżej, który uwzględnia wyjątki właściciela i
+      # poziom podatności. Brak poprawnego JSON-a = czerwony (fail-closed).
+      - name: composer audit
+        if: ${{ !cancelled() }}
+        id: composer_audit
+        run: composer audit --locked --no-interaction --format=json > "$RUNNER_TEMP/composer-audit.json" || true
+
+      # BEZ --omit=dev, i to jest poprawka, nie niedopatrzenie (W7-09):
+      # `package.json` nie ma sekcji "dependencies", cały front-end (Vite,
+      # Tailwind, laravel-vite-plugin) siedzi w devDependencies, a to on
+      # produkuje CSS i JS dla przeglądarki. Z `--omit=dev` audyt sprawdzał
+      # 41 z 106 pakietów i zawsze świecił na zielono. Poziom (high i wyżej)
+      # oceniuje skrypt bramki, nie flaga `--audit-level`.
+      - name: npm audit
+        if: ${{ !cancelled() }}
+        id: npm_audit
+        run: npm audit --json > "$RUNNER_TEMP/npm-audit.json" || true
+
+      - name: Bramka (high i critical blokują, wyjątki jawne)
+        if: ${{ !cancelled() }}
+        run: |
+          set +e
+          python3 scripts/audyt-zaleznosci.py \
+            --composer "$RUNNER_TEMP/composer-audit.json" \
+            --npm "$RUNNER_TEMP/npm-audit.json" \
+            --wyjatki .github/wyjatki-audytu.json | tee -a "$GITHUB_STEP_SUMMARY"
+          exit "${PIPESTATUS[0]}"
+
+      # ---- Larastan (analiza statyczna) --------------------------------
+      # UWAGA: w repozytorium nie ma jeszcze `phpstan.neon` (issue #32), więc
+      # `phpstan analyse` kończyłby się „At least one path must be specified".
+      #
+      # Krok PHPStana jest dlatego warunkowy: bez konfiguracji job kończy się
+      # ZIELONY z adnotacją w podsumowaniu, zamiast zapalać czerwoną lampkę,
+      # której nie da się naprawić kodem. Od stałej czerwonej lampki ludzie
+      # uczą się, że czerwone CI się ignoruje — i wtedy przestaje działać
+      # także to CI, które coś naprawdę sprawdza.
+      #
+      # Świadomie NIE używamy `continue-on-error`: ono i tak raportuje check
+      # jako `failure`, tylko nie psuje przebiegu. Chcemy odwrotnie —
+      # uczciwie „pominięte", nie „padło, ale nieważne".
+      #
+      # To rozwiązanie samo się naprawia: w chwili, gdy #32 doda plik
+      # konfiguracyjny, analiza zaczyna działać i BLOKOWAĆ. Nie ma tu nic,
+      # o czym trzeba pamiętać, żeby usunąć. Ta sama logika jest
+      # w scripts/check.sh.
+      #
+      # Warunek MUSI używać `test -f ... || test -f ...`, nie `ls a b c` —
+      # patrz komentarz przy samym kroku niżej.
+
       - name: Cache Composera
+        if: ${{ !cancelled() }}
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: vendor
           key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
           restore-keys: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-
 
-      - name: Instalacja zależności
+      - name: Instalacja zależności (Composer)
+        if: ${{ !cancelled() }}
         run: composer install --no-interaction --prefer-dist --no-progress
 
       # PHPStan cache'uje wyniki — bez tego każdy przebieg analizuje wszystko
       # od zera (kilka minut zamiast kilkudziesięciu sekund).
       - name: Cache PHPStana
+        if: ${{ !cancelled() }}
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .phpstan-cache
@@ -615,6 +681,7 @@ jobs:
 
       # Larastan potrzebuje .env, żeby zbootować aplikację.
       - name: Przygotowanie .env
+        if: ${{ !cancelled() }}
         run: |
           cp .env.example .env
           php artisan key:generate
@@ -622,6 +689,7 @@ jobs:
       # Bez tego kroku job nie wiedziałby, czy „brak wyniku" to brak
       # konfiguracji, czy realny błąd analizy.
       - name: Czy jest konfiguracja PHPStana?
+        if: ${{ !cancelled() }}
         id: phpstan_config
         run: |
           # UWAGA: `ls a b c` kończy się NIEZEROWO, jeśli brakuje
@@ -643,8 +711,191 @@ jobs:
           fi
 
       - name: PHPStan
-        if: steps.phpstan_config.outputs.exists == 'true'
+        if: ${{ !cancelled() && (steps.phpstan_config.outputs.exists == 'true') }}
         run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+
+      # ---- Build assetów (Vite) ----------------------------------------
+
+      # `npm ci` (nie `npm install`) — instaluje dokładnie to, co w lockfile,
+      # i pada, jeśli package.json rozjechał się z package-lock.json.
+      # #2299: cache `vendor/` i przeglądarki — zasady i granice przy tych
+      # samych krokach w jobie `port_panelu`.
+      - name: Instalacja zależności (npm)
+        if: ${{ !cancelled() }}
+        run: npm ci --no-audit --no-fund
+      - name: Wersja Playwrighta
+        if: ${{ !cancelled() }}
+        id: playwright
+        run: |
+          set -euo pipefail
+          wersja="$(node -p "require('./package-lock.json').packages['node_modules/playwright-core'].version")"
+          [[ "$wersja" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "::error::Nie odczytano wersji playwright-core z package-lock.json: ${wersja}"; exit 1; }
+          echo "wersja=${wersja}" >> "$GITHUB_OUTPUT"
+      - name: Cache przeglądarki Playwrighta
+        if: ${{ !cancelled() && (runner.environment == 'github-hosted') }}
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}
+
+      - name: Build
+        if: ${{ !cancelled() }}
+        run: npm run build
+
+      # Topologia Railway (#595). Stoi TU (katalog `scripts/railway/`, jak `scripts/przegladarka/`), a nie na liście `node --test`
+      # w skrypcie `build`, bo `npm run build` jedzie także w Dockerfile,
+      # a `.dockerignore` wycina `.railway/`. Potrzebuje `npm ci` (paczka
+      # `railway`), sieci do Railwaya — nie.
+      - name: Topologia Railway (graf IaC, bez połączenia)
+        if: ${{ !cancelled() }}
+        run: node --test scripts/railway/iac.test.mjs
+
+      - name: Proporcje małej skali — rzeczywisty CSS w Chromium
+        if: ${{ !cancelled() }}
+        run: |
+          flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
+          node scripts/skala-proporcje.mjs
+
+      # Pusty pas pod stopką i jej wysokość (zgłoszenia właściciela 22.09
+      # i 24.09) na kaskadzie z buildu, razem z kontrolą ujemną. Wersja na
+      # żywym serwisie z kontem chodzi w `port-projektu.mjs`.
+      - name: Stopka bez pustego pasa — rzeczywisty CSS w Chromium
+        if: ${{ !cancelled() }}
+        run: node scripts/stopka-pusty-pas.mjs --statycznie
+
+      # Test DOM: potwierdzenie wyboru tagu w opisie (#754). Stoi TU, a nie na
+      # liście `node --test` w skrypcie `build`, bo potrzebuje Chromium —
+      # a `npm run build` jedzie także w `Dockerfile` (obraz produkcyjny bez
+      # przeglądarki) i w tym zadaniu JESZCZE PRZED krokiem wyżej, który
+      # Chromium instaluje. Pełne uzasadnienie w nagłówku samego pliku.
+      - name: Regresja potwierdzenia wyboru tagu (DOM w Chromium)
+        if: ${{ !cancelled() }}
+        run: node --test scripts/przegladarka/tagi-potwierdzenie.test.mjs
+
+      # Test DOM szybkiego panelu wyglądu (#801/#804). Stoi TU, a nie na liście
+      # `node --test` w skrypcie `build`, bo potrzebuje Chromium — a
+      # `npm run build` jedzie także w `Dockerfile` (obraz produkcyjny bez
+      # przeglądarki) i w tym zadaniu JESZCZE PRZED krokiem wyżej, który
+      # Chromium instaluje. Pełne uzasadnienie w nagłówku samego pliku.
+      - name: Regresja szybkiego panelu wyglądu (DOM w Chromium)
+        if: ${{ !cancelled() }}
+        run: node --test scripts/przegladarka/wyglad-nawigacja.test.mjs
+
+      # #947: pole z fokusem przy klawiaturze (emulowanej przez
+      # `interactive-widget=resizes-content`) nie chowa się pod belkami —
+      # zbudowany CSS, 390×844 / 844×390 / 768×500, z kontrolą ujemną w teście.
+      # Czyta `public/build`, więc stoi po „Build”. Uzasadnienie w nagłówku pliku.
+      - name: Regresja belek przy klawiaturze ekranowej (Chromium)
+        if: ${{ !cancelled() }}
+        run: node --test scripts/przegladarka/klawiatura-belki.test.mjs
+
+      # #899: klik w oba odnośniki do kreatora przy zmienionym formularzu
+      # pokazuje ramkę i nie przechodzi; przy niezmienionym — przechodzi.
+      # Zbudowany pakiet app.js, więc wycięty import też tu pada.
+      - name: Regresja pytania o niezapisane zmiany (DOM w Chromium)
+        if: ${{ !cancelled() }}
+        run: node --test scripts/przegladarka/niezapisane-zmiany.test.mjs
+
+      # Test DOM „Pokaż więcej” (#986): kolejne porcje doklejane do listy,
+      # fokus, `aria-live`, odświeżenie, powrót i błąd pobrania. Stoi TU,
+      # a nie na liście `node --test` w `build`, z tego samego powodu co dwa
+      # kroki wyżej — potrzebuje Chromium.
+      - name: Regresja „Pokaż więcej” (DOM w Chromium)
+        if: ${{ !cancelled() }}
+        run: node --test scripts/przegladarka/pokaz-wiecej.test.mjs
+
+      # Checklista składników w trybie „Gotuję” (#2069): niezależne wiersze,
+      # stan po zmianie kroku i w drugiej karcie, reset niezależny od kroków,
+      # klawiatura, 320 px i cele dotyku, widok bez JS. Też potrzebuje Chromium.
+      - name: Regresja checklisty składników w trybie „Gotuję” (DOM w Chromium)
+        if: ${{ !cancelled() }}
+        run: node --test scripts/przegladarka/skladniki-gotowania.test.mjs
+
+      # #957: kolaż hero na stronie powitalnej — w Chromium przy 390 i 1280 px
+      # pierwszy kafel jest pobierany od razu z priorytetem High, a pozostałe
+      # nie dostają High. Znaczniki <img> wycina z `landing.blade.php`.
+      - name: Regresja priorytetu kafla kolażu hero (żądania w Chromium)
+        if: ${{ !cancelled() }}
+        run: node --test scripts/przegladarka/kolaz-lcp.test.mjs
+
+      # Weryfikacja, że build faktycznie coś wyprodukował. Vite potrafi
+      # zakończyć się sukcesem z pustym manifestem przy błędnej konfiguracji,
+      # a wtedy produkcja dostaje stronę bez CSS.
+      - name: Weryfikacja manifestu Vite
+        if: ${{ !cancelled() }}
+        run: |
+          test -f public/build/manifest.json \
+            || { echo "BŁĄD: brak public/build/manifest.json"; exit 1; }
+          echo "Manifest OK, wpisów: $(grep -o '"file"' public/build/manifest.json | wc -l)"
+
+      # DLACZEGO TO STOI TUTAJ, A NIE W `php artisan test`
+      # Ta usterka jest niewidoczna w źródle i widoczna WYŁĄCZNIE po zbudowaniu.
+      # Tailwind 4 robi utility z każdego tokenu `--text-*`, więc token
+      # `--text-title-lg` generuje klasę `.text-title-lg` o sztywnym stopniu.
+      # Nasza reguła z `clamp` nosi tę samą nazwę; jeśli wyląduje w warstwie
+      # `base` (tam stała do 8 września 2026), wygrywa wersja wygenerowana,
+      # a hasło strony ma 36 px także przy oknie 320 px. Nic nie pęka —
+      # tekst się zawija — więc ani PHPUnit, ani Larastan, ani axe tego nie
+      # zgłoszą. Widać to tylko w arkuszu wyjściowym, czyli tu.
+      #
+      # Testy PHPUnit chodzą z `withoutVite()` i celowo NIE mają zbudowanych
+      # assetów (patrz `tests/TestCase.php`), więc tam takiego sprawdzenia
+      # nie da się postawić uczciwie.
+      - name: Największe tytuły przetrwały build z clamp
+        if: ${{ !cancelled() }}
+        run: |
+          ARKUSZ=$(ls public/build/assets/app-*.css | head -1)
+          for KLASA in text-title-lg text-title-xl; do
+            grep -qE "\.${KLASA}\{font-size:clamp" "$ARKUSZ" \
+              || { echo "BŁĄD: .${KLASA} nie ma w zbudowanym arkuszu wersji z clamp."; exit 1; }
+            grep -qE "\.${KLASA}\{font-size:var\(--${KLASA}\)\}" "$ARKUSZ" \
+              && { echo "BŁĄD: .${KLASA} ma w zbudowanym arkuszu także wersję ze sztywnym stopniem — ta z clamp nie zadziała."; exit 1; }
+            echo "OK: .${KLASA} skaluje się z szerokością okna."
+          done
+
+      # Artefakt przydaje się do debugowania "u mnie działa" oraz do
+      # ręcznego porównania rozmiarów bundle'a między PR-ami.
+      - name: Zapis artefaktu
+        if: ${{ !cancelled() }}
+        # Artefakty są materiałem diagnostycznym, nie bramką. Wyczerpany limit
+        # miejsca na artefakty (23.09, run 35849156800) nie może czerwienić CI
+        # i wstrzymywać wdrożenia: tu i w `port_panelu` zapis ma
+        # continue-on-error, a joby przeglądarkowe (strażnik zabrania im
+        # continue-on-error) wysyłają dowody tylko po czerwieni — `failure()`.
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vite-build-${{ github.sha }}
+          path: public/build
+          retention-days: 5
+
+  # Lustro dawnego checku „Larastan (analiza statyczna)" (PHPStan na poziomie z `phpstan.neon`).
+  # Wynik bierze z joba `kontrole_krotkie` (#2299). Do usunięcia po zmianie listy wymaganych
+  # checków (docs/infra/BRAMKI_CI_2215.md, „Krótkie kontrole w jednym jobie").
+  static-analysis:
+    name: Larastan (analiza statyczna)
+    needs: [zakres, kontrole_krotkie]
+    if: ${{ !cancelled() }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 5
+    steps:
+      - name: Wynik joba „Krótkie kontrole"
+        env:
+          WYNIK_ZAKRESU: ${{ needs.zakres.result }}
+          KOD: ${{ needs.zakres.outputs.kod }}
+          WYNIK: ${{ needs.kontrole_krotkie.result }}
+        run: |
+          set -euo pipefail
+          echo "zakres=${WYNIK_ZAKRESU} (kod=${KOD}), krótkie kontrole=${WYNIK}"
+          if [ "${WYNIK}" = "success" ]; then
+            exit 0
+          fi
+          if [ "${WYNIK}" = "skipped" ] && [ "${WYNIK_ZAKRESU}" = "success" ] && [ "${KOD}" != "true" ]; then
+            echo "### Larastan (analiza statyczna): pominięte przez bramkę zakresu (zmiana bez kodu)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "::error::Krótkie kontrole nie są zielone: wynik=${WYNIK}, zakres=${WYNIK_ZAKRESU}. Szczegóły w jobie „Krótkie kontrole (audyt zależności, Larastan, build assetów)”."
+          exit 1
 
   # ===========================================================================
   #  3. Testy — Pest/PHPUnit na prawdziwym PostgreSQL 18
@@ -1106,158 +1357,33 @@ jobs:
   #  Łapie błędy, które inaczej wyszłyby dopiero w buildzie obrazu na Railway
   #  (a wtedy płacisz za nieudany build i czekasz kilka minut).
   # ===========================================================================
+  # Lustro dawnego checku „Build assetów (Vite)" (pełne `npm run build` z testami JS i regresje DOM w Chromium).
+  # Wynik bierze z joba `kontrole_krotkie` (#2299). Do usunięcia po zmianie listy wymaganych
+  # checków (docs/infra/BRAMKI_CI_2215.md, „Krótkie kontrole w jednym jobie").
   assets:
     name: Build assetów (Vite)
-    needs: zakres
-    if: needs.zakres.outputs.kod == 'true'
+    needs: [zakres, kontrole_krotkie]
+    if: ${{ !cancelled() }}
     runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 10
-
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Konfiguracja Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      # `npm ci` (nie `npm install`) — instaluje dokładnie to, co w lockfile,
-      # i pada, jeśli package.json rozjechał się z package-lock.json.
-      # #2299: cache `vendor/` i przeglądarki — zasady i granice przy tych
-      # samych krokach w jobie `port_panelu`.
-      - name: Instalacja zależności
-        run: npm ci --no-audit --no-fund
-      - name: Wersja Playwrighta
-        id: playwright
+      - name: Wynik joba „Krótkie kontrole"
+        env:
+          WYNIK_ZAKRESU: ${{ needs.zakres.result }}
+          KOD: ${{ needs.zakres.outputs.kod }}
+          WYNIK: ${{ needs.kontrole_krotkie.result }}
         run: |
           set -euo pipefail
-          wersja="$(node -p "require('./package-lock.json').packages['node_modules/playwright-core'].version")"
-          [[ "$wersja" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "::error::Nie odczytano wersji playwright-core z package-lock.json: ${wersja}"; exit 1; }
-          echo "wersja=${wersja}" >> "$GITHUB_OUTPUT"
-      - name: Cache przeglądarki Playwrighta
-        if: runner.environment == 'github-hosted'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}
-
-      - name: Build
-        run: npm run build
-
-      # Topologia Railway (#595). Stoi TU (katalog `scripts/railway/`, jak `scripts/przegladarka/`), a nie na liście `node --test`
-      # w skrypcie `build`, bo `npm run build` jedzie także w Dockerfile,
-      # a `.dockerignore` wycina `.railway/`. Potrzebuje `npm ci` (paczka
-      # `railway`), sieci do Railwaya — nie.
-      - name: Topologia Railway (graf IaC, bez połączenia)
-        run: node --test scripts/railway/iac.test.mjs
-
-      - name: Proporcje małej skali — rzeczywisty CSS w Chromium
-        run: |
-          flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
-          node scripts/skala-proporcje.mjs
-
-      # Pusty pas pod stopką i jej wysokość (zgłoszenia właściciela 22.09
-      # i 24.09) na kaskadzie z buildu, razem z kontrolą ujemną. Wersja na
-      # żywym serwisie z kontem chodzi w `port-projektu.mjs`.
-      - name: Stopka bez pustego pasa — rzeczywisty CSS w Chromium
-        run: node scripts/stopka-pusty-pas.mjs --statycznie
-
-      # Test DOM: potwierdzenie wyboru tagu w opisie (#754). Stoi TU, a nie na
-      # liście `node --test` w skrypcie `build`, bo potrzebuje Chromium —
-      # a `npm run build` jedzie także w `Dockerfile` (obraz produkcyjny bez
-      # przeglądarki) i w tym zadaniu JESZCZE PRZED krokiem wyżej, który
-      # Chromium instaluje. Pełne uzasadnienie w nagłówku samego pliku.
-      - name: Regresja potwierdzenia wyboru tagu (DOM w Chromium)
-        run: node --test scripts/przegladarka/tagi-potwierdzenie.test.mjs
-
-      # Test DOM szybkiego panelu wyglądu (#801/#804). Stoi TU, a nie na liście
-      # `node --test` w skrypcie `build`, bo potrzebuje Chromium — a
-      # `npm run build` jedzie także w `Dockerfile` (obraz produkcyjny bez
-      # przeglądarki) i w tym zadaniu JESZCZE PRZED krokiem wyżej, który
-      # Chromium instaluje. Pełne uzasadnienie w nagłówku samego pliku.
-      - name: Regresja szybkiego panelu wyglądu (DOM w Chromium)
-        run: node --test scripts/przegladarka/wyglad-nawigacja.test.mjs
-
-      # #947: pole z fokusem przy klawiaturze (emulowanej przez
-      # `interactive-widget=resizes-content`) nie chowa się pod belkami —
-      # zbudowany CSS, 390×844 / 844×390 / 768×500, z kontrolą ujemną w teście.
-      # Czyta `public/build`, więc stoi po „Build”. Uzasadnienie w nagłówku pliku.
-      - name: Regresja belek przy klawiaturze ekranowej (Chromium)
-        run: node --test scripts/przegladarka/klawiatura-belki.test.mjs
-
-      # #899: klik w oba odnośniki do kreatora przy zmienionym formularzu
-      # pokazuje ramkę i nie przechodzi; przy niezmienionym — przechodzi.
-      # Zbudowany pakiet app.js, więc wycięty import też tu pada.
-      - name: Regresja pytania o niezapisane zmiany (DOM w Chromium)
-        run: node --test scripts/przegladarka/niezapisane-zmiany.test.mjs
-
-      # Test DOM „Pokaż więcej” (#986): kolejne porcje doklejane do listy,
-      # fokus, `aria-live`, odświeżenie, powrót i błąd pobrania. Stoi TU,
-      # a nie na liście `node --test` w `build`, z tego samego powodu co dwa
-      # kroki wyżej — potrzebuje Chromium.
-      - name: Regresja „Pokaż więcej” (DOM w Chromium)
-        run: node --test scripts/przegladarka/pokaz-wiecej.test.mjs
-
-      # Checklista składników w trybie „Gotuję” (#2069): niezależne wiersze,
-      # stan po zmianie kroku i w drugiej karcie, reset niezależny od kroków,
-      # klawiatura, 320 px i cele dotyku, widok bez JS. Też potrzebuje Chromium.
-      - name: Regresja checklisty składników w trybie „Gotuję” (DOM w Chromium)
-        run: node --test scripts/przegladarka/skladniki-gotowania.test.mjs
-
-      # #957: kolaż hero na stronie powitalnej — w Chromium przy 390 i 1280 px
-      # pierwszy kafel jest pobierany od razu z priorytetem High, a pozostałe
-      # nie dostają High. Znaczniki <img> wycina z `landing.blade.php`.
-      - name: Regresja priorytetu kafla kolażu hero (żądania w Chromium)
-        run: node --test scripts/przegladarka/kolaz-lcp.test.mjs
-
-      # Weryfikacja, że build faktycznie coś wyprodukował. Vite potrafi
-      # zakończyć się sukcesem z pustym manifestem przy błędnej konfiguracji,
-      # a wtedy produkcja dostaje stronę bez CSS.
-      - name: Weryfikacja manifestu Vite
-        run: |
-          test -f public/build/manifest.json \
-            || { echo "BŁĄD: brak public/build/manifest.json"; exit 1; }
-          echo "Manifest OK, wpisów: $(grep -o '"file"' public/build/manifest.json | wc -l)"
-
-      # DLACZEGO TO STOI TUTAJ, A NIE W `php artisan test`
-      # Ta usterka jest niewidoczna w źródle i widoczna WYŁĄCZNIE po zbudowaniu.
-      # Tailwind 4 robi utility z każdego tokenu `--text-*`, więc token
-      # `--text-title-lg` generuje klasę `.text-title-lg` o sztywnym stopniu.
-      # Nasza reguła z `clamp` nosi tę samą nazwę; jeśli wyląduje w warstwie
-      # `base` (tam stała do 8 września 2026), wygrywa wersja wygenerowana,
-      # a hasło strony ma 36 px także przy oknie 320 px. Nic nie pęka —
-      # tekst się zawija — więc ani PHPUnit, ani Larastan, ani axe tego nie
-      # zgłoszą. Widać to tylko w arkuszu wyjściowym, czyli tu.
-      #
-      # Testy PHPUnit chodzą z `withoutVite()` i celowo NIE mają zbudowanych
-      # assetów (patrz `tests/TestCase.php`), więc tam takiego sprawdzenia
-      # nie da się postawić uczciwie.
-      - name: Największe tytuły przetrwały build z clamp
-        run: |
-          ARKUSZ=$(ls public/build/assets/app-*.css | head -1)
-          for KLASA in text-title-lg text-title-xl; do
-            grep -qE "\.${KLASA}\{font-size:clamp" "$ARKUSZ" \
-              || { echo "BŁĄD: .${KLASA} nie ma w zbudowanym arkuszu wersji z clamp."; exit 1; }
-            grep -qE "\.${KLASA}\{font-size:var\(--${KLASA}\)\}" "$ARKUSZ" \
-              && { echo "BŁĄD: .${KLASA} ma w zbudowanym arkuszu także wersję ze sztywnym stopniem — ta z clamp nie zadziała."; exit 1; }
-            echo "OK: .${KLASA} skaluje się z szerokością okna."
-          done
-
-      # Artefakt przydaje się do debugowania "u mnie działa" oraz do
-      # ręcznego porównania rozmiarów bundle'a między PR-ami.
-      - name: Zapis artefaktu
-        # Artefakty są materiałem diagnostycznym, nie bramką. Wyczerpany limit
-        # miejsca na artefakty (23.09, run 35849156800) nie może czerwienić CI
-        # i wstrzymywać wdrożenia: tu i w `port_panelu` zapis ma
-        # continue-on-error, a joby przeglądarkowe (strażnik zabrania im
-        # continue-on-error) wysyłają dowody tylko po czerwieni — `failure()`.
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: vite-build-${{ github.sha }}
-          path: public/build
-          retention-days: 5
+          echo "zakres=${WYNIK_ZAKRESU} (kod=${KOD}), krótkie kontrole=${WYNIK}"
+          if [ "${WYNIK}" = "success" ]; then
+            exit 0
+          fi
+          if [ "${WYNIK}" = "skipped" ] && [ "${WYNIK_ZAKRESU}" = "success" ] && [ "${KOD}" != "true" ]; then
+            echo "### Build assetów (Vite): pominięte przez bramkę zakresu (zmiana bez kodu)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "::error::Krótkie kontrole nie są zielone: wynik=${WYNIK}, zakres=${WYNIK_ZAKRESU}. Szczegóły w jobie „Krótkie kontrole (audyt zależności, Larastan, build assetów)”."
+          exit 1
 
   # ===========================================================================
   #  4b. Dostępność (axe-core) + wydajność i SEO (Lighthouse) — issue #26
@@ -2370,58 +2496,33 @@ jobs:
   #  docs/infra/BRAMKI_CI_2215.md. Nie przywracaj `continue-on-error`:
   #  pilnuje tego `KrytyczneKontroleCiBlokujaTest`.
   # ===========================================================================
+  # Lustro dawnego checku „Audyt zależności (blokuje high i critical)" (audyt Composera i npm, bramka high i critical).
+  # Wynik bierze z joba `kontrole_krotkie` (#2299). Do usunięcia po zmianie listy wymaganych
+  # checków (docs/infra/BRAMKI_CI_2215.md, „Krótkie kontrole w jednym jobie").
   audit:
     name: Audyt zależności (blokuje high i critical)
-    needs: zakres
-    if: needs.zakres.outputs.kod == 'true'
+    needs: [zakres, kontrole_krotkie]
+    if: ${{ !cancelled() }}
     runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 10
-
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      # Prywatny katalog narzędzi joba i konfiguracja PHP — oba kroki stoją
-      # razem w `.github/actions/php`, bo działają TYLKO w tej kolejności
-      # (issue #262). Pierwszy job przeniesiony na wspólną akcję: `audit`
-      # jest szybki i niczego nie blokuje, więc jego ewentualna porażka
-      # kosztuje najmniej.
-      - name: Środowisko PHP
-        uses: ./.github/actions/php
-        with:
-          wersja: ${{ env.PHP_VERSION }}
-
-      - name: Konfiguracja Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      # composer audit działa na composer.lock, więc nie musimy instalować vendora.
-      # Kod wyjścia narzędzia jest tu CELOWO ignorowany (`|| true`): werdykt
-      # wydaje krok „Bramka" niżej, który uwzględnia wyjątki właściciela i
-      # poziom podatności. Brak poprawnego JSON-a = czerwony (fail-closed).
-      - name: composer audit
-        id: composer_audit
-        run: composer audit --locked --no-interaction --format=json > "$RUNNER_TEMP/composer-audit.json" || true
-
-      # BEZ --omit=dev, i to jest poprawka, nie niedopatrzenie (W7-09):
-      # `package.json` nie ma sekcji "dependencies", cały front-end (Vite,
-      # Tailwind, laravel-vite-plugin) siedzi w devDependencies, a to on
-      # produkuje CSS i JS dla przeglądarki. Z `--omit=dev` audyt sprawdzał
-      # 41 z 106 pakietów i zawsze świecił na zielono. Poziom (high i wyżej)
-      # oceniuje skrypt bramki, nie flaga `--audit-level`.
-      - name: npm audit
-        id: npm_audit
-        run: npm audit --json > "$RUNNER_TEMP/npm-audit.json" || true
-
-      - name: Bramka (high i critical blokują, wyjątki jawne)
+      - name: Wynik joba „Krótkie kontrole"
+        env:
+          WYNIK_ZAKRESU: ${{ needs.zakres.result }}
+          KOD: ${{ needs.zakres.outputs.kod }}
+          WYNIK: ${{ needs.kontrole_krotkie.result }}
         run: |
-          set +e
-          python3 scripts/audyt-zaleznosci.py \
-            --composer "$RUNNER_TEMP/composer-audit.json" \
-            --npm "$RUNNER_TEMP/npm-audit.json" \
-            --wyjatki .github/wyjatki-audytu.json | tee -a "$GITHUB_STEP_SUMMARY"
-          exit "${PIPESTATUS[0]}"
+          set -euo pipefail
+          echo "zakres=${WYNIK_ZAKRESU} (kod=${KOD}), krótkie kontrole=${WYNIK}"
+          if [ "${WYNIK}" = "success" ]; then
+            exit 0
+          fi
+          if [ "${WYNIK}" = "skipped" ] && [ "${WYNIK_ZAKRESU}" = "success" ] && [ "${KOD}" != "true" ]; then
+            echo "### Audyt zależności (blokuje high i critical): pominięte przez bramkę zakresu (zmiana bez kodu)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "::error::Krótkie kontrole nie są zielone: wynik=${WYNIK}, zakres=${WYNIK_ZAKRESU}. Szczegóły w jobie „Krótkie kontrole (audyt zależności, Larastan, build assetów)”."
+          exit 1
 
   # ===========================================================================
   #  6. Build obrazu Docker (weryfikacja, bez publikacji)
