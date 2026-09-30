@@ -235,6 +235,19 @@ final class PobieraczStron
         }
 
         $sciezka = $czesci['path'] ?? '/';
+
+        // Referencja z samym query albo samym fragmentem zachowuje ścieżkę
+        // bazy (RFC 3986 §5.2.2), a sam fragment — także jej query (#2324).
+        // Wcześniej szła gałęzią „katalog + cel” i `?page=2` z `/przepis`
+        // dawało `/?page=2`, czyli stronę główną.
+        if (str_starts_with($cel, '?')) {
+            return $korzen.$sciezka.$cel;
+        }
+
+        if (str_starts_with($cel, '#')) {
+            return $korzen.$sciezka.(isset($czesci['query']) ? '?'.$czesci['query'] : '').$cel;
+        }
+
         $katalog = substr($sciezka, 0, (int) strrpos($sciezka, '/') + 1);
 
         return $korzen.($katalog === '' ? '/' : $katalog).$cel;
