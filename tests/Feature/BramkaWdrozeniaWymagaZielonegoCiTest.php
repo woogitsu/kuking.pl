@@ -112,6 +112,36 @@ class BramkaWdrozeniaWymagaZielonegoCiTest extends TestCase
         $this->assertStringContainsString('run: python3 scripts/railway-ci-gated-deploy.py', $job);
     }
 
+    /**
+     * #2233 — checkout dla `workflow_run` bez `ref` bierze bieżący main, który
+     * mógł się przesunąć po zakończeniu CI. Skrypt bramki z commita B
+     * wdrażałby wtedy SHA A. Checkout ma wskazać commit zielonego CI, a skrypt
+     * ma to jeszcze porównać z `git rev-parse HEAD`.
+     */
+    #[Test]
+    public function bramka_checkoutuje_dokladnie_sha_zielonego_ci(): void
+    {
+        $job = $this->job($this->plik('.github/workflows/railway-ci-gated-deploy.yml'), 'deploy');
+
+        $this->assertSame(
+            1,
+            preg_match_all('/^      - uses: actions\/checkout@/m', $job),
+            'Job `deploy` bramki ma mieć dokładnie jeden checkout — test stracił przedmiot.',
+        );
+        $this->assertMatchesRegularExpression(
+            '/^      - uses: actions\/checkout@[0-9a-f]{40}[^\n]*(?:\r\n|\n|\r)        with:(?:\r\n|\n|\r)(?:          [a-z-]+: [^\n]*(?:\r\n|\n|\r))*?          ref: \$\{\{ github\.event\.workflow_run\.head_sha \}\}$/m',
+            $job,
+            'Checkout bramki nie ma `ref: ${{ github.event.workflow_run.head_sha }}` — bez niego skrypt wdrożenia pochodzi z bieżącego main, a nie z commita, którego CI jest zielone (#2233).',
+        );
+
+        $skrypt = $this->plik('scripts/railway-ci-gated-deploy.py');
+        $this->assertMatchesRegularExpression(
+            '/^    sha = verify_ci\(event, repo, github_get\)\n    verify_checkout\(sha, local_head\(\)\)$/m',
+            $skrypt,
+            'Skrypt bramki nie porównuje `git rev-parse HEAD` z SHA z CI zaraz po weryfikacji CI (#2233).',
+        );
+    }
+
     #[Test]
     public function bramka_ma_tylko_odczyt_i_nie_przerywa_wdrozenia_w_toku(): void
     {

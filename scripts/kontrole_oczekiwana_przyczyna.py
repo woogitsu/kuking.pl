@@ -338,6 +338,17 @@ OCZEKUJ = {
     'Runbook #595 bez wyłącznika życzeń (#2296)': r'runbook .* ich nie wymienia.*KUKING_URODZINY_MAIL_WLACZONY',
     'Composer bez config.platform.php (#2301)': r'config\.platform\.php = 8\.4\.0 odtwarza błąd #2301|wymagają nowszego PHP niż config\.platform\.php 8\.4\.0',
     'Nowa migracja w starej grupie znacznika (#2302)': r'Migracja ze znacznikiem czasu, który ma już inna migracja',
+    # #2309, #2310, #2263, #2233, #2230, #2248: łańcuch dostaw CI i bramka wdrożenia.
+    'Krok CI dodaje klucz PGDG z pominięciem odcisku': r'sam dodaje repozytorium PGDG albo instaluje klienta PostgreSQL z APT',
+    'Klient PostgreSQL 18 bez sprawdzenia odcisku klucza PGDG': r'Skrypt klienta nie sprawdza odcisku pobranego klucza PGDG|Test skryptu klienta PostgreSQL 18 oblał: Klient PostgreSQL 18: \d+ oblanych przypadków',
+    'openpyxl bez --require-hashes': r'instaluje pakiety Pythona bez --require-hashes',
+    'Zależność openpyxl bez hasha w pliku wymagań': r'wymaganie „et-xmlfile==2\.0\.0” nie ma dokładnej wersji \(==\) i hasha',
+    'Usługa PostgreSQL w CI z ruchomego tagu': r'obraz `postgres:18-alpine` bez digestu — tag jest ruchomy',
+    'Digest usługi PostgreSQL inny niż w Dockerfile Dependabota': r'ma inny digest niż FROM w docker/ci-postgres/Dockerfile',
+    'Bramka Railway checkoutuje bieżący main zamiast SHA z CI': r'Checkout bramki nie ma `ref: \$\{\{ github\.event\.workflow_run\.head_sha \}\}`',
+    'Skrypt bramki Railway nie porównuje HEAD z SHA z CI': r'Skrypt bramki nie porównuje `git rev-parse HEAD` z SHA z CI',
+    'Wydanie Sentry z github.sha zamiast SHA wdrożenia': r'Wydanie Sentry ma version: \$\{\{ github\.sha \}\}, a powinno',
+    'Nieznany stan w historii wdrożenia pominięty': r'OBLANE: nieznany stan w historii = błąd wejścia \(#2248\) \(kod 0, oczekiwano 2\)',
 }
 
 

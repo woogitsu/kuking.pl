@@ -28,7 +28,15 @@ jobs:
     environment: production
     timeout-minutes: 100
     steps:
+      # DOKŁADNIE commit zielonego CI (#2233). Bez `ref` checkout dla
+      # `workflow_run` bierze bieżący main, który mógł się przesunąć po CI:
+      # skrypt i walidacje z commita B wdrażałyby wtedy SHA A. Skrypt dodatkowo
+      # porównuje `git rev-parse HEAD` z SHA z CI (verify_checkout).
+      # Strażnik: tests/Feature/BramkaWdrozeniaWymagaZielonegoCiTest.php.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
       - name: Sprawdź CI i wdrażaj dokładny SHA kolejnych usług
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

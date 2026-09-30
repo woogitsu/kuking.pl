@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 from urllib import request
@@ -15,6 +16,15 @@ SHA = re.compile(r"^[0-9a-f]{40}$")
 UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 TERMINAL_FAILURE = {"FAILED", "CRASHED", "SKIPPED", "REMOVED", "REMOVING"}
 IN_PROGRESS = {"INITIALIZING", "QUEUED", "WAITING", "BUILDING", "DEPLOYING", "NEEDS_APPROVAL"}
+# Stany, przy których nie wolno zaczynać nowego wdrożenia tego SHA (#2234).
+# REMOVING to operacja Railway w toku na tej usłudze: nowe wdrożenie obok
+# niej to dwie równoległe zmiany jednego środowiska. Czekamy, aż się skończy.
+BLOCKING = IN_PROGRESS | {"REMOVING"}
+# Stronicowanie listy wdrożeń (#2234). Railway nie obiecuje kolejności, więc
+# czytamy WSZYSTKIE strony. Brak `pageInfo`, pusty kursor albo więcej stron
+# niż limit to niepełna historia i odmowa, nie „brak wdrożenia”.
+DEPLOYMENTS_PAGE = 50
+DEPLOYMENTS_MAX_PAGES = 100
 
 
 class Skip(RuntimeError):
@@ -118,6 +128,26 @@ def verify_ci(event: dict, repo: str, github_get) -> str:
     return sha
 
 
+def verify_checkout(sha: str, head: str) -> None:
+    """Pliki tego przebiegu pochodzą z commita, którego CI jest zielone (#2233).
+
+    Checkout bierze `ref: workflow_run.head_sha`. To sprawdzenie łapie
+    przypadek, w którym ktoś ten `ref` usunie: bez niego checkout workflow_run
+    pobiera bieżący main, a skrypt z nowszego commita wdrażałby starszy SHA.
+    """
+    require(isinstance(head, str) and SHA.fullmatch(head.strip()) is not None,
+            "Nie odczytano SHA checkoutu (git rev-parse HEAD); nie wdrażam.")
+    require(head.strip() == sha,
+            f"Checkout wskazuje {head.strip()}, a zielone CI dotyczy {sha}. "
+            "Skrypt i konfiguracja muszą pochodzić z tego samego commita co wdrożenie. "
+            "Sprawdź `ref:` kroku checkout w .github/workflows/railway-ci-gated-deploy.yml.")
+
+
+def local_head() -> str:
+    return subprocess.run(["git", "rev-parse", "HEAD"], check=True,
+                          capture_output=True, text=True).stdout
+
+
 def verify_railway(token: str, project_id: str, environment_id: str,
                    services: list[dict[str, str]], call) -> None:
     info = call(token, "query { projectToken { projectId environmentId } }", {})
@@ -142,25 +172,52 @@ def deployment_state(token: str, sha: str, environment_id: str, service: dict[st
     """Stan wdrożeń danego SHA w usłudze: "success", "active" (w toku) albo "none".
 
     Odczyt jest fail-closed: brak poprawnej odpowiedzi to błąd, nie "none".
+    Czyta wszystkie strony listy (#2234): starszy SHA może nie stać na
+    pierwszej, a "none" z samej pierwszej strony uruchamiało drugie wdrożenie
+    tego samego commita. REMOVING blokuje ("active"), bo to operacja w toku.
     REMOVED/FAILED/CRASHED nie liczą się jako wdrożenie — tak Railway oznacza
     też nieudane próby, które rerun CI ma prawo powtórzyć.
     """
-    query = """query($input: DeploymentListInput!) {
-      deployments(first: 50, input: $input) { edges { node { id status meta } } }
-    }"""
-    data = call(token, query, {"input": {"serviceId": service["id"], "environmentId": environment_id}})
-    listing = data.get("deployments")
-    require(isinstance(listing, dict) and isinstance(listing.get("edges"), list),
-            f"Railway {service['name']}: nie odczytano listy wdrożeń; nie wdrażam w ciemno.")
+    query = """query($input: DeploymentListInput!, $after: String) {
+      deployments(first: %d, after: $after, input: $input) {
+        edges { node { id status meta } }
+        pageInfo { hasNextPage endCursor }
+      }
+    }""" % DEPLOYMENTS_PAGE
     states = set()
-    for edge in listing["edges"]:
-        node = (edge or {}).get("node") or {}
-        meta = node.get("meta") if isinstance(node.get("meta"), dict) else {}
-        if meta.get("commitHash") == sha:
-            states.add(node.get("status"))
+    after = None
+    seen_cursors: set[str] = set()
+    for _ in range(DEPLOYMENTS_MAX_PAGES):
+        data = call(token, query, {"input": {"serviceId": service["id"], "environmentId": environment_id},
+                                   "after": after})
+        listing = data.get("deployments")
+        require(isinstance(listing, dict) and isinstance(listing.get("edges"), list),
+                f"Railway {service['name']}: nie odczytano listy wdrożeń; nie wdrażam w ciemno.")
+        page = listing.get("pageInfo")
+        require(isinstance(page, dict) and isinstance(page.get("hasNextPage"), bool),
+                f"Railway {service['name']}: lista wdrożeń bez pageInfo; nie wiem, czy jest pełna, "
+                "więc nie wdrażam.")
+        for edge in listing["edges"]:
+            node = (edge or {}).get("node") or {}
+            meta = node.get("meta") if isinstance(node.get("meta"), dict) else {}
+            if meta.get("commitHash") == sha:
+                states.add(node.get("status"))
+        if not page["hasNextPage"]:
+            break
+        cursor = page.get("endCursor")
+        require(isinstance(cursor, str) and cursor != "" and cursor not in seen_cursors,
+                f"Railway {service['name']}: kolejna strona wdrożeń bez nowego kursora; "
+                "historia byłaby niepełna, więc nie wdrażam.")
+        seen_cursors.add(cursor)
+        after = cursor
+    else:
+        raise RuntimeError(
+            f"Railway {service['name']}: historia wdrożeń ma więcej niż "
+            f"{DEPLOYMENTS_MAX_PAGES * DEPLOYMENTS_PAGE} pozycji; nie przeczytałem całej, "
+            "więc nie wdrażam. Sprawdź SHA ręcznie w Railway albo podnieś DEPLOYMENTS_MAX_PAGES.")
     if "SUCCESS" in states:
         return "success"
-    return "active" if states & IN_PROGRESS else "none"
+    return "active" if states & BLOCKING else "none"
 
 
 def deploy(token: str, sha: str, environment_id: str, services: list[dict[str, str]],
@@ -185,8 +242,9 @@ def deploy(token: str, sha: str, environment_id: str, services: list[dict[str, s
         # przebiegi CI, rerun po częściowym wdrożeniu).
         state = deployment_state(token, sha, environment_id, service, call)
         require(state != "active",
-                f"Railway {service['name']}: SHA {sha} jest właśnie wdrażany (natywny autodeploy?). "
-                "Nie dubluję; sprawdź w Railway i ponów CI po jego zakończeniu.")
+                f"Railway {service['name']}: SHA {sha} jest właśnie wdrażany albo usuwany "
+                "(natywny autodeploy? REMOVING?). Nie dubluję; sprawdź w Railway i ponów CI "
+                "po zakończeniu tamtej operacji.")
         if state == "success":
             print(f"Railway {service['name']}: SHA {sha} już wdrożony — pomijam.", flush=True)
             continue
@@ -229,6 +287,7 @@ def main() -> None:
     api_url = os.environ.get("GITHUB_API_URL", "https://api.github.com")
     github_get = lambda path: read_json(api_url + path, token)
     sha = verify_ci(event, repo, github_get)
+    verify_checkout(sha, local_head())
     verify_railway(railway_token, project_id, environment_id, services, graphql)
     run_attempt = validate_run_attempt(os.environ.get("GITHUB_RUN_ATTEMPT", ""))
     deploy(railway_token, sha, environment_id, services, repo, github_get,

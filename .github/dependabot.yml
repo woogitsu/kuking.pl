@@ -116,6 +116,8 @@ updates:
     directories:
       - "/"
       - "/docker/kopia"
+      # Nie budowany; niesie digest usługi PostgreSQL z ci.yml (#2263).
+      - "/docker/ci-postgres"
     schedule:
       interval: "weekly"
       day: "monday"

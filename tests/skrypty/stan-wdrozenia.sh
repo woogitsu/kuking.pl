@@ -75,6 +75,9 @@ success|1:in_progress 2:success||0|success — ten job nie ocenia
 in_progress|1:in_progress||0|in_progress — nie terminalny
 queued|1:queued||0|queued — nie terminalny
 pending|1:pending||0|pending — nie terminalny
+inactive|1:queued_new 2:inactive||2|nieznany stan w historii = błąd wejścia (#2248)
+inactive|1:in_progress 2:success 3:removed 4:inactive||2|nieznany stan obok sukcesu = błąd wejścia (#2248)
+inactive|1:queued 2:inactive 3:Success|2|2|nieznany stan późniejszy niż zdarzenie = błąd wejścia (#2248)
 KONIEC
 )
 
@@ -161,6 +164,9 @@ fi
 
 byl_sukces=0' || exit 1
 mutuj "pusta historia = sukces" 'if [ "$policzone" -eq 0 ]; then' 'if [ "$policzone" -eq 99 ]; then' || exit 1
+mutuj "nieznany stan w historii pominięty (#2248)" '    *)
+      echo "::error title=Nieznany stan w historii wdrożenia::' '    *) continue
+      echo "::error title=Nieznany stan w historii wdrożenia::' || exit 1
 mutuj "przed startem alarmuje" 'to nie jest alarm."
 exit 0' 'to nie jest alarm."
 exit 1' || exit 1

@@ -65,7 +65,7 @@ class DeployAlarmujeGdyWdrozenieKonczySieBezSukcesuTest extends TestCase
         $this->assertSame(0, $proces->getExitCode(), $proces->getOutput().$proces->getErrorOutput());
         $this->assertStringContainsString('Stan wdrożenia: OK', $proces->getOutput());
         // Kontrola dodatnia przyrządu: kontrola ujemna naprawdę poszła po regułach.
-        $this->assertSame(7, substr_count($proces->getOutput(), ': mutacja zapaliła tabelę'));
+        $this->assertSame(8, substr_count($proces->getOutput(), ': mutacja zapaliła tabelę'));
     }
 
     public function test_job_chodzi_na_trzech_terminalnych_stanach_bez_sukcesu_i_tylko_na_deployment_status(): void

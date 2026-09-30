@@ -1196,6 +1196,37 @@ def railway_cli_bez_przypietej_wersji(source):
     )
 
 
+# Łańcuch dostaw CI i bramka wdrożenia (#2309, #2310, #2263, #2233, #2230, #2248).
+# Strażnicy czytają workflowy przez yaml.safe_load; mutacje przywracają stan
+# sprzed poprawki w jednym miejscu.
+LANCUCH_CI_TEST = "InstalacjeCiSaPrzypieteTest"
+KLIENT_PG18 = "scripts/ci/klient-postgresql-18.sh"
+KLIENT_PG18_KROK = "        run: bash scripts/ci/klient-postgresql-18.sh\n"
+KLIENT_PG18_DAWNY_KROK = (
+    "        run: |\n"
+    "          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \\\n"
+    "            https://www.postgresql.org/media/keys/ACCC4CF8.asc\n"
+    "          sudo apt-get update -qq\n"
+    "          sudo apt-get install -y -qq postgresql-client-18\n"
+)
+CENY_WORKFLOW = ".github/workflows/ceny-warzyw-auto.yml"
+CENY_WYMAGANIA = "scripts/ceny-warzyw-requirements.txt"
+PG_CI_DIGEST = "postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873"
+PG_CI_DOCKERFILE = "docker/ci-postgres/Dockerfile"
+BRAMKA_RAILWAY_WORKFLOW = ".github/workflows/railway-ci-gated-deploy.yml"
+BRAMKA_RAILWAY_SKRYPT = "scripts/railway-ci-gated-deploy.py"
+BRAMKA_CHECKOUT_TEST = "bramka_checkoutuje_dokladnie_sha_zielonego_ci"
+SENTRY_SHA_TEST = "WydanieSentryMaShaWdrozeniaTest"
+STAN_WDROZENIA_TEST = "DeployAlarmujeGdyWdrozenieKonczySieBezSukcesuTest"
+
+
+def pierwsze_z_wielu(source, old, new, ile):
+    """Jak replace_once, ale dla fragmentu, który stoi w pliku `ile` razy."""
+    if source.count(old) != ile:
+        raise RuntimeError(f"Kontrola oczekiwała {ile} wystąpień fragmentu, jest {source.count(old)}.")
+    return source.replace(old, new, 1)
+
+
 checks = [
     # #988: komunikat po akcji ma jawny rodzaj. Goły `->with('status', …)`
     # wróciłby do zielonej plakietki także dla odmowy.
@@ -1943,6 +1974,36 @@ checks = [
     # #2302 (IN-15): nowa migracja dołącza do historycznej grupy znacznika.
     ("Nowa migracja w starej grupie znacznika (#2302)", "tests/Feature/MigracjeMajaUnikalnyZnacznikCzasuTest.php", "test_kazda_nowa_migracja_ma_wlasny_znacznik_czasu",
      lambda s: replace_once(s, "'2026_09_26_100000' => 8,", "'2026_09_26_100000' => 7,")),
+    # #2309: krok CI znów sam dodaje klucz PGDG, z pominięciem sprawdzenia odcisku.
+    ("Krok CI dodaje klucz PGDG z pominięciem odcisku", CI_WORKFLOW, LANCUCH_CI_TEST,
+     lambda s: pierwsze_z_wielu(s, KLIENT_PG18_KROK, KLIENT_PG18_DAWNY_KROK, 2)),
+    # #2309: skrypt klienta ufa pobranemu kluczowi bez sprawdzenia odcisku.
+    ("Klient PostgreSQL 18 bez sprawdzenia odcisku klucza PGDG", KLIENT_PG18, LANCUCH_CI_TEST,
+     lambda s: replace_once(s, 'sprawdz_klucz_pgdg "$tymczasowy" || exit 1', 'true')),
+    # #2310: pip wraca do samego numeru wersji, bez hasha.
+    ("openpyxl bez --require-hashes", CENY_WORKFLOW, LANCUCH_CI_TEST,
+     lambda s: replace_once(s, "pip install --disable-pip-version-check --require-hashes --only-binary :all: -r scripts/ceny-warzyw-requirements.txt",
+                            "pip install --disable-pip-version-check openpyxl==3.1.5")),
+    ("Zależność openpyxl bez hasha w pliku wymagań", CENY_WYMAGANIA, LANCUCH_CI_TEST,
+     lambda s: replace_once(s, "et-xmlfile==2.0.0 \\\n    --hash=sha256:7a91720bc756843502c3b7504c77b8fe44217c85c537d85037f0f536151b2caa",
+                            "et-xmlfile==2.0.0")),
+    # #2263: usługa PostgreSQL z ruchomego tagu i digest rozjechany z Dependabotem.
+    ("Usługa PostgreSQL w CI z ruchomego tagu", CI_WORKFLOW, LANCUCH_CI_TEST,
+     lambda s: pierwsze_z_wielu(s, "image: " + PG_CI_DIGEST + "\n", "image: postgres:18-alpine\n", 7)),
+    ("Digest usługi PostgreSQL inny niż w Dockerfile Dependabota", PG_CI_DOCKERFILE, LANCUCH_CI_TEST,
+     lambda s: replace_once(s, "FROM " + PG_CI_DIGEST, "FROM postgres:18-alpine@sha256:" + "0" * 64)),
+    # #2233: checkout bramki bez `ref` i skrypt bez porównania HEAD.
+    ("Bramka Railway checkoutuje bieżący main zamiast SHA z CI", BRAMKA_RAILWAY_WORKFLOW, BRAMKA_CHECKOUT_TEST,
+     lambda s: replace_once(s, "          ref: ${{ github.event.workflow_run.head_sha }}\n", "")),
+    ("Skrypt bramki Railway nie porównuje HEAD z SHA z CI", BRAMKA_RAILWAY_SKRYPT, BRAMKA_CHECKOUT_TEST,
+     lambda s: replace_once(s, "    verify_checkout(sha, local_head())\n", "")),
+    # #2230: wydanie Sentry wraca do github.sha.
+    ("Wydanie Sentry z github.sha zamiast SHA wdrożenia", WDROZENIE_WORKFLOW, SENTRY_SHA_TEST,
+     lambda s: replace_once(s, "version: ${{ github.event.deployment.sha }}", "version: ${{ github.sha }}")),
+    # #2248: nieznany stan w historii wdrożenia znów pomijany po cichu.
+    ("Nieznany stan w historii wdrożenia pominięty", "scripts/ci/stan-wdrozenia.sh", STAN_WDROZENIA_TEST,
+     lambda s: replace_once(s, '    *)\n      echo "::error title=Nieznany stan w historii wdrożenia::',
+                            '    *) continue\n      echo "::error title=Nieznany stan w historii wdrożenia::')),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

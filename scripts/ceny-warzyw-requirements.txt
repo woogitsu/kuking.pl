@@ -1,0 +1,24 @@
+# Zależności Pythona joba `pobierz` w .github/workflows/ceny-warzyw-auto.yml (#2310).
+#
+# Instaluje je `pip install --require-hashes --only-binary :all: -r` tego pliku:
+# pip odrzuca każdy plik, którego SHA-256 nie ma niżej, każdą zależność bez
+# `==` i hasha (także przechodnią) oraz sdist, który uruchamiałby setup.py.
+# Sam numer wersji nie wystarczał: ten sam `openpyxl==3.1.5` z podmienionym
+# plikiem w indeksie albo lustrze przeszedłby bez słowa.
+#
+# JAK ODŚWIEŻYĆ (osobny PR, tylko ten plik):
+#   1. sprawdź wersję i zależności: https://pypi.org/pypi/openpyxl/<wersja>/json
+#      (`info.requires_dist`), to samo dla każdej zależności;
+#   2. hash wheela weź z tego samego JSON-a (`urls[].digests.sha256` dla
+#      `*-none-any.whl`) i potwierdź lokalnie na pobranym pliku:
+#        python3 -m pip download --only-binary :all: --no-deps -d /tmp/whl openpyxl==<wersja>
+#        sha256sum /tmp/whl/*.whl
+#   3. sprawdź instalację w czystym środowisku:
+#        python3 -m venv /tmp/v && /tmp/v/bin/pip install --require-hashes --only-binary :all: -r scripts/ceny-warzyw-requirements.txt
+#        python3 scripts/ceny_warzyw_zsrir_pobierz_test.py
+# Strażnik: tests/Feature/InstalacjeCiSaPrzypieteTest.php.
+openpyxl==3.1.5 \
+    --hash=sha256:5282c12b107bffeef825f4617dc029afaf41d0ea60823bbb665ef3079dc79de2
+# zależność openpyxl (requires_dist: et-xmlfile)
+et-xmlfile==2.0.0 \
+    --hash=sha256:7a91720bc756843502c3b7504c77b8fe44217c85c537d85037f0f536151b2caa
