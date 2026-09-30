@@ -366,6 +366,9 @@ OCZEKUJ = {
     'Nowa sekcja paczki bez opisu w polityce': r'Paczka ma nową sekcję „planer_nowy”',
     'Postęp gotowania z terminem niezgodnym z konfiguracją': r'Postęp gotowania żyje 24 godzin',
     'Cloudflare jako pośrednik bez wiersza w polityce': r'Kod używa usługi „Cloudflare \(sieć, CDN i ochrona',
+    # D-333: obie gałęzie strażnika mówią to samo zdanie (ekran i szablon).
+    'Logowanie bez novalidate': r'Formularze? z natywną walidacją bez `novalidate` \(D-333\).*auth/login|Formularze? z natywną walidacją bez `novalidate` \(D-333\).*/login \(gość\)',
+    'Wybór zeszytu bez novalidate': r'Formularz z natywną walidacją bez `novalidate` \(D-333\).*components/wybor-zeszytu\.blade\.php',
 }
 
 

@@ -2029,6 +2029,14 @@ checks = [
     # Z6 (#2282): Cloudflare jako pośrednik całego ruchu ma własny wiersz.
     ("Cloudflare jako pośrednik bez wiersza w polityce", POLITYKA_TEKST, "kazda_usluga_uzywana_przez_kod_jest_wymieniona_w_polityce",
      lambda s: replace_once(s, "| Cloudflare (sieć, CDN i ochrona przed atakami) |", "| Cloudflare |")),
+    # D-333 „novalidate wszędzie” (30.09.2026): formularz z natywną walidacją
+    # bez `novalidate` zatrzymuje dymek przeglądarki przed polskim podsumowaniem.
+    # Pierwsza mutacja zapala oba spojrzenia (HTML ekranu i szablon), druga —
+    # formularz w komponencie, rozwijany przez skaner szablonów.
+    ("Logowanie bez novalidate", "resources/views/auth/login.blade.php", "FormularzeZWalidacjaMajaNovalidateTest",
+     lambda s: replace_once(s, "action=\"{{ route('login') }}\" novalidate>", "action=\"{{ route('login') }}\">")),
+    ("Wybór zeszytu bez novalidate", "resources/views/components/wybor-zeszytu.blade.php", "test_kazdy_formularz_w_szablonach_z_natywna_walidacja_ma_novalidate",
+     lambda s: replace_once(s, '<form method="POST" action="{{ $action }}" novalidate>', '<form method="POST" action="{{ $action }}">')),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej
