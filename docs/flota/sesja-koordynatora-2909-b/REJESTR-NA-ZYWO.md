@@ -295,3 +295,8 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 - UWAGA PACZKA N: paczka M (#2283) zmienia treść polityki i regulaminu → po scaleniu M pliki archiwum 2026-09-30 na gałęziach 2220 przestaną być identyczne i ArchiwumRegulaminuTest/ArchiwumPolitykiTest obleją. Przy budowie N skopiować bieżące resources/legal/{regulamin,polityka-prywatnosci}.md z main do resources/legal/archiwum/*-2026-09-30.md (ta sama data wersji).
 - Paczka N (po M): 2220-archiwum-regulaminu, 2220-archiwum-polityki, 2299-czas-ci-etap2, (opcjonalnie) 2299-czas-ci-etap2-scalenie.
 - 16:00 Paczka M #2340 CI ZIELONE na e73f2afc9 (poprawki: f091d8558 Larastan testów #2292, e73f2afc9 wzorzec kontroli „Helper formy” #1753); kontrole negatywne 11–16 min/część (było 20–28 — #2299 działa). Czeka na zgodę właściciela na scalenie. HANDOVER: HANDOVER_3009_WIECZOR.md.
+
+## 16:05 UTC — przejęcie po HANDOVER_3009_WIECZOR (sesja 01WgxV2k)
+- PR #2340 paczka M SCALONA za zgodą właściciela → 8c5ce5509 w main.
+- Zamknięte z dowodem: #2331 #2243 #2244 #2245 #2246 #2228 #2302 #2326 #2308 #2327 #2300 (bez testu, decyzja) #2276 #2259 #2292 #2283 #2287.
+- Następne: paczka N (2220-archiwum-polityki, 2299-czas-ci-etap2, opcjonalnie etap2-scalenie).
