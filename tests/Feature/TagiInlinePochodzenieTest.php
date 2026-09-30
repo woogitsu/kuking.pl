@@ -37,9 +37,11 @@ class TagiInlinePochodzenieTest extends TestCase
     {
         $user = $this->user();
         $post = app(PublishPost::class)->handle($user, '#chleb #zupa', tagNames: ['obiad']);
-        $this->assertSame(['obiad' => true, 'chleb' => false, 'zupa' => false], $this->origins($post));
+        $pochodzenie = $this->origins($post);
+        $this->assertSame(['obiad' => true, 'chleb' => false, 'zupa' => false], $pochodzenie);
         app(EditPost::class)->handle($user, $post, '#chleb #zupa', 'public', ['obiad']);
-        $this->assertSame(['obiad' => true, 'chleb' => false, 'zupa' => false], $this->origins($post));
+        $pochodzenie = $this->origins($post);
+        $this->assertSame(['obiad' => true, 'chleb' => false, 'zupa' => false], $pochodzenie);
         app(EditPost::class)->handle($user, $post, '#sernik', 'public', ['obiad']);
         $this->assertSame(['obiad' => true, 'sernik' => false], $this->origins($post));
         app(EditPost::class)->handle($user, $post, 'Bez tokenów', 'private', ['obiad']);

@@ -125,7 +125,13 @@ class ProfileController extends Controller
             'isFollowing' => $viewer !== null && ! $isOwner && $viewer->isFollowing($owner),
             'hasBlocked' => $viewer !== null && ! $isOwner && $viewer->hasBlocked($owner),
             'tab' => $tab,
-            'posts' => $tab === 'wszystko' ? $this->postsFor($owner, $viewer, $isOwner, $rok) : null,
+            // Liczba wpisów jest już policzona w `$stats` — ta sama reguła
+            // widoczności, ten sam zakres. Paginator dostaje ją gotową zamiast
+            // liczyć drugi raz (P3 W4). Z filtrem roku zakres jest węższy, więc
+            // tam paginator liczy sam.
+            'posts' => $tab === 'wszystko'
+                ? $this->postsFor($owner, $viewer, $isOwner, $rok, $rok === null ? $stats['posts'] : null)
+                : null,
             // Nawigacja po latach w archiwum (issue #34). Lista lat pochodzi
             // z BAZY, nie z zakresu „od pierwszego wpisu do dziś": rok bez
             // ani jednego wpisu byłby linkiem do pustej strony.
@@ -272,7 +278,7 @@ class ProfileController extends Controller
     }
 
     /** @return Paginator<int, Post> */
-    private function postsFor($owner, $viewer, bool $isOwner, ?int $rok = null)
+    private function postsFor($owner, $viewer, bool $isOwner, ?int $rok = null, ?int $lacznie = null)
     {
         return $owner->posts()
             ->published()
@@ -293,7 +299,7 @@ class ProfileController extends Controller
             ->dlaKarty($viewer)
             ->latest('published_at')
             ->latest('id')
-            ->paginate(12)
+            ->paginate(12, total: $lacznie)
             ->withQueryString()
             ->tap(fn ($strona) => Post::ukryjNiedostepnePrzepisy($strona->items(), $viewer));
     }
@@ -384,11 +390,18 @@ class ProfileController extends Controller
             // odzyskanie) — znikają tylko z listy, lat i licznika naraz.
             // Wpis z własną treścią albo zdjęciem nie jest zapowiedzią
             // (`Post::czyJestZapowiedziaPrzepisu()`) i zostaje widoczny.
+            //
+            // BEZ SKORELOWANYCH PODZAPYTAŃ (audyt wydajności, P3 W4): dwa
+            // `EXISTS` w alternatywie `OR` planer nalicza za KAŻDY wpis autora,
+            // więc przy tysiącach wpisów szacunek przekraczał `jit_above_cost`.
+            // `IN (podzapytanie)` zwraca te same wiersze, a liczy się raz
+            // (patrz `Post::scopeZWidocznymPrzepisemAlboWlasnaTresciBezKorelacji()`).
             if ($query->getModel() instanceof Post) {
                 $query->where(fn ($w) => $w->whereNull('posts.recipe_id')
-                    ->orWhereHas('recipe')
+                    ->orWhereIn('posts.recipe_id', Recipe::query()->select('recipes.id'))
                     ->orWhereRaw("posts.body ~ '[^[:space:]]'")
-                    ->orWhereHas('media'));
+                    ->orWhereIn('posts.id', fn ($zeZdjeciem) => $zeZdjeciem
+                        ->select('post_media.post_id')->from('post_media')));
             }
 
             return;
@@ -428,7 +441,11 @@ class ProfileController extends Controller
         // Wpis z własną treścią idzie za WŁASNĄ widocznością, jak na
         // swojej stronie (issue #1377); przepis zdejmuje z karty
         // `Post::ukryjNiedostepnePrzepisy()` w `postsFor()`.
-        $query->zWidocznymPrzepisemAlboWlasnaTrescia($viewer);
+        //
+        // Wersja BEZ KORELACJI (#599, #2288): profil autora z ~2000 wpisów
+        // przekraczał przy skorelowanych `EXISTS` próg JIT (audyt wydajności,
+        // P3 W4). Ta sama reguła, ten sam wynik — inny zapis.
+        $query->zWidocznymPrzepisemAlboWlasnaTresciBezKorelacji($viewer);
 
         // BRAMKA AUTORA PRZEPISU, OSOBNA OD BRAMKI WYŻEJ (ustalenie W5-08).
         //
@@ -448,9 +465,17 @@ class ProfileController extends Controller
         // archiwum profilu NIE MA przepisu i samo `whereHas('recipe.author')`
         // skasowałoby całe zwykłe archiwum. Idiom jest już w repozytorium —
         // `App\Domain\Tags\PodpowiedziTagow` liczy tak samo.
+        //
+        // Zapisane przez `IN`, nie przez `whereHas` (P3 W4): `recipes` bez
+        // usuniętych miękko (zakres modelu) i z autorem, któremu wolno
+        // pokazywać treść — to samo, co `whereHas('recipe.author', …)`.
         $query->where(fn ($w) => $w->whereNull('posts.recipe_id')
-            ->orWhere(fn ($tresc) => $tresc->zWlasnaTrescia())
-            ->orWhereHas('recipe.author', fn ($autor) => $autor->dostepnyJakoAutor()));
+            ->orWhereRaw("posts.body ~ '\\S'")
+            ->orWhereIn('posts.id', fn ($zeZdjeciem) => $zeZdjeciem
+                ->select('post_media.post_id')->from('post_media'))
+            ->orWhereIn('posts.recipe_id', Recipe::query()
+                ->select('recipes.id')
+                ->whereIn('recipes.author_id', User::query()->select('users.id')->dostepnyJakoAutor())));
     }
 
     /**

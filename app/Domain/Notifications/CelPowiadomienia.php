@@ -44,6 +44,22 @@ final class CelPowiadomienia
     private array $wpisySmakowicie = [];
 
     /**
+     * Zaproszenia do zeszytu, które dalej da się rozstrzygnąć, dla bieżącej
+     * strony (`wczytajZeszyty()`): `invitation_id` → `true`/`false`.
+     *
+     * @var array<string, bool>
+     */
+    private array $zaproszeniaOczekujace = [];
+
+    /**
+     * Zeszyty wskazane przez „dołączył do zeszytu" na bieżącej stronie:
+     * `collection_id` → czy istnieje.
+     *
+     * @var array<string, bool>
+     */
+    private array $zeszytyIstniejace = [];
+
+    /**
      * Dokąd prowadzi przycisk „Zobacz" — albo `null`, gdy nie ma dokąd.
      *
      * DLACZEGO JEDNO MIEJSCE, A NIE WIDOK (bo tam stało do 8 września).
@@ -95,14 +111,11 @@ final class CelPowiadomienia
             // da się odpowiedzieć. Odwołane, wygasłe albo już rozstrzygnięte —
             // bez „Zobacz", treść karty mówi, co się stało.
             Notification::TYPE_COLLECTION_INVITED => is_string($data['invitation_id'] ?? null)
-                && CollectionInvitation::query()->whereKey($data['invitation_id'])
-                    ->where('status', CollectionInvitation::STATUS_PENDING)
-                    ->where('expires_at', '>', now())
-                    ->exists()
+                && $this->zaproszenieOczekuje($data['invitation_id'])
                 ? route('collections.invitations.show', $data['invitation_id'])
                 : null,
             Notification::TYPE_COLLECTION_JOINED => is_string($data['collection_id'] ?? null)
-                && Collection::query()->whereKey($data['collection_id'])->exists()
+                && $this->zeszytIstnieje($data['collection_id'])
                 ? route('collections.sharing', $data['collection_id'])
                 : null,
             // Urodziny (#1755) — na AKTUALNY profil solenizanta, jak przy
@@ -328,7 +341,11 @@ final class CelPowiadomienia
         }
 
         $wpisy = Post::query()
-            ->with(['author', 'recipe'])
+            // `recipe.author` i `media`: zapowiedź przepisu (wpis bez treści
+            // i zdjęć) pyta Policy o przepis, a ta o jego autora; `media` czyta
+            // `czyJestZapowiedziaPrzepisu()`. Bez tego każdy taki wpis dokładał
+            // własne zapytania (albo wyjątek przy zakazanym lazy loadingu).
+            ->with(['author', 'recipe.author', 'media'])
             ->whereIn('id', array_keys($identyfikatory))
             ->get()
             ->keyBy(fn (Post $wpis): string => (string) $wpis->getKey());
@@ -337,6 +354,78 @@ final class CelPowiadomienia
             $wpis = $wpisy->get($id);
             $this->wpisySmakowicie[$id] = $wpis !== null && Gate::forUser($viewer)->allows('view', $wpis) ? $wpis : null;
         }
+    }
+
+    /**
+     * Zaproszenia i zeszyty z jednej strony listy — po JEDNYM zapytaniu na
+     * rodzaj, nie po jednym na wiersz (audyt wydajności W2). Wynik żyje
+     * tylko do następnego wywołania `adresy()`; kliknięcie pojedynczego
+     * powiadomienia liczy od nowa, dla stanu z chwili kliknięcia.
+     *
+     * Nie-UUID nie trafia do zapytania (PostgreSQL odrzuciłby rzutowanie) —
+     * tak jak wcześniej `whereKey()` nie zwracał dla niego wiersza, wynik to
+     * „brak".
+     *
+     * @param  list<Notification>  $notifications
+     */
+    private function wczytajZeszyty(array $notifications): void
+    {
+        $zaproszenia = [];
+        $zeszyty = [];
+
+        foreach ($notifications as $notification) {
+            $data = $notification->data ?? [];
+
+            if ($notification->type === Notification::TYPE_COLLECTION_INVITED
+                && is_string($data['invitation_id'] ?? null) && Str::isUuid($data['invitation_id'])) {
+                $zaproszenia[$data['invitation_id']] = false;
+            }
+
+            if ($notification->type === Notification::TYPE_COLLECTION_JOINED
+                && is_string($data['collection_id'] ?? null) && Str::isUuid($data['collection_id'])) {
+                $zeszyty[$data['collection_id']] = false;
+            }
+        }
+
+        if ($zaproszenia !== []) {
+            foreach (CollectionInvitation::query()
+                ->whereKey(array_keys($zaproszenia))
+                ->where('status', CollectionInvitation::STATUS_PENDING)
+                ->where('expires_at', '>', now())
+                ->pluck('id') as $id) {
+                $zaproszenia[(string) $id] = true;
+            }
+        }
+
+        if ($zeszyty !== []) {
+            foreach (Collection::query()->whereKey(array_keys($zeszyty))->pluck('id') as $id) {
+                $zeszyty[(string) $id] = true;
+            }
+        }
+
+        $this->zaproszeniaOczekujace = $zaproszenia;
+        $this->zeszytyIstniejace = $zeszyty;
+    }
+
+    private function zaproszenieOczekuje(string $id): bool
+    {
+        if (array_key_exists($id, $this->zaproszeniaOczekujace)) {
+            return $this->zaproszeniaOczekujace[$id];
+        }
+
+        return Str::isUuid($id) && CollectionInvitation::query()->whereKey($id)
+            ->where('status', CollectionInvitation::STATUS_PENDING)
+            ->where('expires_at', '>', now())
+            ->exists();
+    }
+
+    private function zeszytIstnieje(string $id): bool
+    {
+        if (array_key_exists($id, $this->zeszytyIstniejace)) {
+            return $this->zeszytyIstniejace[$id];
+        }
+
+        return Str::isUuid($id) && Collection::query()->whereKey($id)->exists();
     }
 
     private static function adresZapasowy(array $data): ?string
@@ -358,6 +447,7 @@ final class CelPowiadomienia
         $byComment = [];
         $notifications = is_array($notifications) ? $notifications : iterator_to_array($notifications, false);
         $this->wczytajWpisySmakowicie($notifications, $viewer);
+        $this->wczytajZeszyty($notifications);
 
         foreach ($notifications as $notification) {
             $id = (string) $notification->getKey();

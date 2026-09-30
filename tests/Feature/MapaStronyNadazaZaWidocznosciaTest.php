@@ -212,13 +212,19 @@ class MapaStronyNadazaZaWidocznosciaTest extends TestCase
         $przepis->forceFill(['tresc_zmieniona_at' => now()])->save();
         $adresPrzepisu = route('recipes.show', $przepis->slug);
         $adresProfilu = route('profile.show', 'kucharz');
-        $this->assertSame(now()->toAtomString(), $this->lastmod($adresPrzepisu));
+        $oczekiwane = now()->toAtomString();
+        $lastmod = $this->lastmod($adresPrzepisu);
+        $this->assertSame($oczekiwane, $lastmod);
 
         $this->travelTo(Carbon::parse('2026-09-01 12:00:00'));
         $przepis->forceFill(['title' => 'Nowy tytuł widoczny dla gości', 'tresc_zmieniona_at' => now()])->save();
 
-        $this->assertSame(now()->toAtomString(), $this->lastmod($adresPrzepisu), 'lastmod przepisu został ze starej mapy.');
-        $this->assertSame(now()->toAtomString(), $this->lastmod($adresProfilu), 'lastmod profilu autora został ze starej mapy.');
+        $oczekiwane = now()->toAtomString();
+        $lastmod = $this->lastmod($adresPrzepisu);
+        $this->assertSame($oczekiwane, $lastmod, 'lastmod przepisu został ze starej mapy.');
+        $oczekiwane = now()->toAtomString();
+        $lastmod = $this->lastmod($adresProfilu);
+        $this->assertSame($oczekiwane, $lastmod, 'lastmod profilu autora został ze starej mapy.');
     }
 
     public function test_edycja_publicznego_wpisu_przesuwa_lastmod_w_zapamietanej_mapie(): void
@@ -226,12 +232,16 @@ class MapaStronyNadazaZaWidocznosciaTest extends TestCase
         $this->travelTo(Carbon::parse('2026-09-01 10:00:00'));
         $wpis = $this->wpis($this->autor());
         $adres = route('posts.show', $wpis->getKey());
-        $this->assertSame(now()->toAtomString(), $this->lastmod($adres));
+        $oczekiwane = now()->toAtomString();
+        $lastmod = $this->lastmod($adres);
+        $this->assertSame($oczekiwane, $lastmod);
 
         $this->travelTo(Carbon::parse('2026-09-01 12:00:00'));
         $wpis->forceFill(['body' => 'Rosół wyszedł jeszcze lepszy.'])->save();
 
-        $this->assertSame(now()->toAtomString(), $this->lastmod($adres));
+        $oczekiwane = now()->toAtomString();
+        $lastmod = $this->lastmod($adres);
+        $this->assertSame($oczekiwane, $lastmod);
     }
 
     public function test_zmiana_tytulu_publicznego_pytania_przesuwa_lastmod_w_zapamietanej_mapie(): void
@@ -246,11 +256,15 @@ class MapaStronyNadazaZaWidocznosciaTest extends TestCase
             'published_at' => now()->subDay(),
         ]);
         $adres = $pytanie->url();
-        $this->assertSame(now()->toAtomString(), $this->lastmod($adres));
+        $oczekiwane = now()->toAtomString();
+        $lastmod = $this->lastmod($adres);
+        $this->assertSame($oczekiwane, $lastmod);
 
         $this->travelTo(Carbon::parse('2026-09-01 12:00:00'));
         $pytanie->forceFill(['title' => 'Jak długo gotować rosół z kury?'])->save();
 
-        $this->assertSame(now()->toAtomString(), $this->lastmod($adres));
+        $oczekiwane = now()->toAtomString();
+        $lastmod = $this->lastmod($adres);
+        $this->assertSame($oczekiwane, $lastmod);
     }
 }
