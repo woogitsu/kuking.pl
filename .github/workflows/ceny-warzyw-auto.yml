@@ -132,7 +132,10 @@ jobs:
       # hasha, a `--only-binary :all:` nie pozwala uruchomić setup.py z sdista.
       # Jak odświeżyć: nagłówek tamtego pliku.
       - name: Zainstaluj openpyxl
-        run: pip install --disable-pip-version-check --require-hashes --only-binary :all: -r scripts/ceny-warzyw-requirements.txt
+        # Blok `|`, nie zwykły skalar: `:all: ` w zwykłym skalarze YAML to
+        # separator klucza i cały plik przestałby się parsować.
+        run: |
+          pip install --disable-pip-version-check --require-hashes --only-binary :all: -r scripts/ceny-warzyw-requirements.txt
 
       # Skrypt teraz działa automatycznie, bez człowieka między pobraniem
       # a zapisem — ten test parsera chodzi PRZED prawdziwym pobraniem,
