@@ -61,7 +61,7 @@ class RejestracjaPolskiePodsumowanieBledowTest extends TestCase
         foreach (['f-display_name', 'f-username', 'f-email', 'f-password'] as $id) {
             $pole = $xpath->query('.//input[@id="'.$id.'"]', $formularz);
             $this->assertSame(1, $pole->length, "Nie ma pola {$id} w formularzu rejestracji.");
-            $this->assertTrue($pole->item(0)->hasAttribute('required'), "Pole {$id} straciło required — czytnik ekranu nie powie, że jest wymagane.");
+            $this->assertTrue($this->element($pole->item(0))->hasAttribute('required'), "Pole {$id} straciło required — czytnik ekranu nie powie, że jest wymagane.");
         }
     }
 
@@ -78,13 +78,13 @@ class RejestracjaPolskiePodsumowanieBledowTest extends TestCase
         $xpath = $this->xpath($html);
         $podsumowanie = $xpath->query('//div[contains(concat(" ", normalize-space(@class), " "), " error-summary ")]');
         $this->assertSame(1, $podsumowanie->length, 'Pusty formularz rejestracji nie pokazał podsumowania błędów.');
-        $this->assertSame('-1', $podsumowanie->item(0)->getAttribute('tabindex'), 'Podsumowanie musi przyjąć fokus (resources/js/app.js).');
+        $this->assertSame('-1', $this->element($podsumowanie->item(0))->getAttribute('tabindex'), 'Podsumowanie musi przyjąć fokus (resources/js/app.js).');
 
         $cele = [];
         foreach ($xpath->query('.//a', $podsumowanie->item(0)) as $odnosnik) {
             $tekst = trim($odnosnik->textContent);
             $this->assertDoesNotMatchRegularExpression('~validation\.|The .* field|required~i', $tekst, 'Komunikat w podsumowaniu nie jest po polsku.');
-            $cele[] = ltrim($odnosnik->getAttribute('href'), '#');
+            $cele[] = ltrim($this->element($odnosnik)->getAttribute('href'), '#');
         }
 
         foreach (['f-display_name', 'f-username', 'f-email', 'f-password', 'f-age_confirmed', 'f-terms_accepted'] as $id) {
@@ -95,7 +95,15 @@ class RejestracjaPolskiePodsumowanieBledowTest extends TestCase
         foreach ($cele as $id) {
             $pole = $xpath->query('.//*[@id="'.$id.'"]', $formularz);
             $this->assertSame(1, $pole->length, "Odnośnik z podsumowania prowadzi do #{$id}, którego nie ma w formularzu.");
-            $this->assertSame('true', $pole->item(0)->getAttribute('aria-invalid'), "Pole #{$id} nie jest oznaczone jako błędne.");
+            $this->assertSame('true', $this->element($pole->item(0))->getAttribute('aria-invalid'), "Pole #{$id} nie jest oznaczone jako błędne.");
         }
+    }
+
+    /** Węzeł z XPath jako element — z asercją zamiast cichego założenia. */
+    private function element(?\DOMNode $wezel): DOMElement
+    {
+        $this->assertInstanceOf(DOMElement::class, $wezel, 'Oczekiwany element HTML, a zapytanie zwróciło coś innego.');
+
+        return $wezel;
     }
 }

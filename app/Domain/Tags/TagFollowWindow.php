@@ -72,8 +72,8 @@ final class TagFollowWindow
     public function zloz(User $user, string $szukaj, mixed $ile, ?string $token, ?array $wyslane, bool $przeglada = false): array
     {
         [$pelne, $obcieto] = $this->wszechswiat($user);
-        $daty = $pelne->filter(fn (Tag $tag): bool => $tag->obserwowany_od !== null)
-            ->mapWithKeys(fn (Tag $tag): array => [$tag->getKey() => (string) $tag->obserwowany_od])
+        $daty = $pelne->filter(fn (Tag $tag): bool => $tag->getAttribute('obserwowany_od') !== null)
+            ->mapWithKeys(fn (Tag $tag): array => [$tag->getKey() => (string) $tag->getAttribute('obserwowany_od')])
             ->all();
 
         $scope = $this->forms->decode($user, $token);

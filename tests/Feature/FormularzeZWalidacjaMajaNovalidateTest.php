@@ -32,7 +32,7 @@ use Tests\TestCase;
  *     rekurencyjnie; `x-field` liczy się po atrybutach wywołania.
  *
  * WYJĄTKI: brak. Formularz, który naprawdę potrzebuje dymka przeglądarki,
- * dopisuje się do `WYJATKI` z uzasadnieniem — i z decyzją właściciela,
+ * dopisuje się do `wyjatki()` z uzasadnieniem — i z decyzją właściciela,
  * bo zmienia regułę z D-333.
  *
  * Kontrola ujemna: `scripts/kontrole-negatywne-alfa08.py` zdejmuje
@@ -48,9 +48,15 @@ class FormularzeZWalidacjaMajaNovalidateTest extends TestCase
      * Świadome wyjątki: `ścieżka widoku => uzasadnienie`. Pusta lista znaczy,
      * że każdy formularz z natywną walidacją ma `novalidate`.
      *
-     * @var array<string, string>
+     * Metoda, nie stała: pusta stała ma dla analizy typ `array{}`, a warunek
+     * z nią byłby „zawsze fałszywy” — lista jest jednak po to, żeby rosła.
+     *
+     * @return array<string, string>
      */
-    private const WYJATKI = [];
+    private static function wyjatki(): array
+    {
+        return [];
+    }
 
     /** Atrybuty, przy których przeglądarka sama zatrzymuje wysłanie. */
     private const ATRYBUT = '/(?<![\w-]):?(?:required|pattern|minlength|min|max|step)(?=[\s=>\/])|(?<![\w-])@required\b|\btype="(?:email|url|number|date|time|datetime-local|month|week)"/';
@@ -163,7 +169,7 @@ class FormularzeZWalidacjaMajaNovalidateTest extends TestCase
                     continue;
                 }
                 $zWalidacja++;
-                if (! $maNovalidate && ! array_key_exists($sciezka, self::WYJATKI)) {
+                if (! $maNovalidate && ! array_key_exists($sciezka, self::wyjatki())) {
                     $usterki[] = "{$sciezka}:{$linia} — ".implode(', ', array_slice($powody, 0, 3));
                 }
             }

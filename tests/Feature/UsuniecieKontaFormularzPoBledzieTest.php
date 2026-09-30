@@ -49,7 +49,8 @@ class UsuniecieKontaFormularzPoBledzieTest extends TestCase
 
         $cele = [];
         foreach ($xpath->query('//div[contains(concat(" ", normalize-space(@class), " "), " error-summary ")]//a') as $a) {
-            $cele[] = ltrim((string) $a->getAttribute('href'), '#');
+            $this->assertInstanceOf(DOMElement::class, $a);
+            $cele[] = ltrim($a->getAttribute('href'), '#');
         }
 
         return $cele;
