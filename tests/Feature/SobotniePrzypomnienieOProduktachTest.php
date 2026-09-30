@@ -274,6 +274,20 @@ class SobotniePrzypomnienieOProduktachTest extends TestCase
         $this->assertStringContainsString('bez listu zostało dziś: 1', $wynik);
     }
 
+    public function test_przy_suficie_mniejszym_niz_liczba_zgod_kazdy_dostaje_list_w_kolejnych_sobotach(): void
+    {
+        config(['kuking.pantry.przypomnienie.dzienny_sufit' => 2]);
+        $osoby = [$this->osoba('basia'), $this->osoba('marek'), $this->osoba('zofia')];
+
+        $this->wyslij();
+        $this->travelTo(Carbon::parse('2026-10-17 09:00:00', 'UTC'));
+        $this->wyslij();
+
+        foreach ($osoby as $osoba) {
+            Mail::assertQueued(PrzypomnienieOProduktach::class, fn (PrzypomnienieOProduktach $m) => $m->hasTo($osoba->email));
+        }
+    }
+
     public function test_wylacznik_awaryjny_nic_nie_wysyla(): void
     {
         config(['kuking.pantry.przypomnienie.wlaczone' => false]);

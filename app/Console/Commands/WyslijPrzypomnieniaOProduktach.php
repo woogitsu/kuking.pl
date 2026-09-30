@@ -84,6 +84,13 @@ class WyslijPrzypomnieniaOProduktach extends Command
         $juzObsluzeni = 0;
         $bledyKolejkowania = 0;
 
+        // ŚWIADOMY KOMPROMIS KOLEJNOŚCI: budżet → dedup → kolejka. Rezerwacje
+        // robimy PRZED `Mail::queue()`, żeby równoległe przebiegi i ponowienie
+        // nigdy nie dały drugiego listu. Cena: proces ubity dokładnie między
+        // rezerwacją a wstawieniem do `jobs` zostawia znacznik bez listu, więc
+        // ta osoba nie dostanie go w tę sobotę (za tydzień list znów wyjdzie).
+        // Wolimy brak jednego listu niż dwa listy do tej samej osoby. Zwykłe
+        // wyjątki kolejkowania łapiemy niżej i rezerwacje wracają.
         foreach ($kandydaci as $osoba) {
             if ($naSucho) {
                 $wyslano++;
@@ -168,6 +175,16 @@ class WyslijPrzypomnieniaOProduktach extends Command
                     ->where('p.expires_on', '<=', $granica)
                     ->where('p.frozen', false);
             })
+            // SPRAWIEDLIWA KOLEJNOŚĆ: przy sufcie mniejszym niż liczba zgód
+            // `orderBy('id')` głodziłby co tydzień tych samych ostatnich. Najpierw
+            // ci, którym list NIE wyszedł najdłużej (brak znacznika = NULL =
+            // pierwsi), wg znacznika w `przypomnienia_dobowe` (klucz: skrót
+            // adresu, tak jak liczy go `PrzypomnienieDobowe`; retencja 30 dni
+            // starcza na cykl tygodniowy). Remis rozstrzyga `id` — deterministycznie.
+            ->orderByRaw(
+                "(select max(d.doba) from przypomnienia_dobowe d where d.rodzaj = ? and d.odbiorca = encode(sha256(convert_to(lower(btrim(users.email)), 'UTF8')), 'hex')) asc nulls first",
+                [self::RODZAJ],
+            )
             ->orderBy('id');
     }
 }
