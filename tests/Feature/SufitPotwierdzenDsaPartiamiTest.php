@@ -119,7 +119,7 @@ class SufitPotwierdzenDsaPartiamiTest extends TestCase
 
     public function test_sufit_przegladanych_spraw_obcina_i_zostawia_wpis_w_logu(): void
     {
-        Log::spy();
+        $log = Log::spy();
 
         for ($i = 1; $i <= 4; $i++) {
             $this->wstrzymaj($this->sprawaPrawna($i), 3);
@@ -128,10 +128,10 @@ class SufitPotwierdzenDsaPartiamiTest extends TestCase
         // Poniżej i dokładnie na suficie: pełny wynik, bez wpisu w logu.
         $this->assertCount(4, ZaleglePotwierdzeniaZgloszen::numeryNaSuficie(10));
         $this->assertCount(4, ZaleglePotwierdzeniaZgloszen::numeryNaSuficie(4));
-        Log::shouldNotHaveReceived('warning');
+        $log->shouldNotHaveReceived('warning');
 
         // Powyżej: przegląd obcięty, o czym musi zostać ślad.
         $this->assertCount(2, ZaleglePotwierdzeniaZgloszen::numeryNaSuficie(2));
-        Log::shouldHaveReceived('warning')->once();
+        $log->shouldHaveReceived('warning')->once();
     }
 }
