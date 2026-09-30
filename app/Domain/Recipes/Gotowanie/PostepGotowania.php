@@ -29,7 +29,9 @@ use Illuminate\Support\Str;
  *   gubią, a na ten sam krok wygrywa ostatni zapis. Zapis odbywa się pod
  *   blokadą wiersza, więc równoległe żądania nie nadpisują sobie listy.
  * - `revision` rośnie o 1 przy KAŻDEJ zmianie i jest tym, co widzi drugie
- *   urządzenie, żeby zauważyć, że stan zmienił się bez niego.
+ *   urządzenie, żeby zauważyć, że stan zmienił się bez niego. Zapis, który
+ *   niczego nie zmienia (ten sam krok oznaczony drugi raz), rewizji nie
+ *   podnosi.
  * - ID kroków, których przepis już nie ma (autor je usunął), nie wracają
  *   w odczycie (`zrobione()`) i wypadają przy następnym zapisie.
  * - Każda zmiana przedłuża ważność o `retention_hours` od TEJ zmiany.
@@ -98,7 +100,15 @@ class PostepGotowania
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($wiersz->expires_at->lessThanOrEqualTo($teraz)) {
+            // CZAS PO BLOKADZIE, NIE SPRZED NIEJ (#2247). `lockForUpdate()`
+            // potrafi czekać na równoległy zapis tego wiersza; jeśli w tym
+            // czasie minęło `expires_at`, porównanie z `$teraz` sprzed
+            // oczekiwania uznałoby wiersz za żywy i oddało go bez
+            // odnowienia — a następny odczyt (`aktywny()`) już by go nie
+            // zobaczył: włączenie „udane”, postęp znika. `now()` PHP, nie
+            // `now()` Postgresa: to drugie to czas POCZĄTKU transakcji,
+            // czyli znów sprzed oczekiwania.
+            if ($wiersz->expires_at->lessThanOrEqualTo(now())) {
                 // Stary, wygasły wiersz czekał na sprzątanie — zaczynamy
                 // od czystej karty z bieżącej sesji, nie od dawnych odhaczeń.
                 $this->zapisz($wiersz, [
@@ -135,7 +145,17 @@ class PostepGotowania
                 $ids = array_filter($ids, fn (string $id): bool => $id !== $krokId);
             }
 
-            $this->zapisz($wiersz, ['done_step_ids' => $this->przytnij(array_values($ids), $idKrokowPrzepisu)]);
+            $nowe = $this->przytnij(array_values($ids), $idKrokowPrzepisu);
+
+            // Krok był już w żądanym stanie (podwójne kliknięcie „Zrobione”,
+            // audyt BP-05): nic się nie zmienia, więc rewizja też nie rośnie
+            // — tak jak w `ustawSkladniki()`. Inaczej drugie urządzenie
+            // widziałoby „zmianę”, której nie było.
+            if ($nowe === $this->zrobione($wiersz, $idKrokowPrzepisu)) {
+                return $wiersz;
+            }
+
+            $this->zapisz($wiersz, ['done_step_ids' => $nowe]);
 
             return $wiersz;
         });

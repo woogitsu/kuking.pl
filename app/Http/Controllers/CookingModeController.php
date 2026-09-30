@@ -234,14 +234,26 @@ class CookingModeController extends Controller
 
         $postepKonta = $this->postepKonta($request->user(), $model);
         if ($postepKonta !== null) {
+            $idKrokow = $steps->pluck('id')->map(fn ($id): string => (string) $id)->all();
             $widzianaRewizja = isset($data['rewizja']) ? (int) $data['rewizja'] : null;
-            $rozbieznaRewizja = $widzianaRewizja !== null && $widzianaRewizja !== $postepKonta->revision;
+
+            // PODWÓJNE KLIKNIĘCIE TO NIE INNE URZĄDZENIE (audyt BP-05). Drugie
+            // wysłanie tego samego formularza niesie rewizję sprzed pierwszego,
+            // które podbiło ją o jeden. Jeśli od wyświetlenia strony przybyła
+            // DOKŁADNIE jedna zmiana, a krok jest już w stanie, o który prosi
+            // formularz, to tą zmianą było pierwsze kliknięcie z tej samej
+            // strony — nie ma o czym ostrzegać ani czego chronić, a porcje
+            // z formularza są tymi samymi, które poszły z pierwszym.
+            $juzWZadanymStanie = in_array((string) $aktualny->getKey(), $this->postep->zrobione($postepKonta, $idKrokow), true)
+                === (bool) $data['zrobiono'];
+            $powtorzenie = $widzianaRewizja !== null && $widzianaRewizja + 1 === $postepKonta->revision && $juzWZadanymStanie;
+            $rozbieznaRewizja = $widzianaRewizja !== null && $widzianaRewizja !== $postepKonta->revision && ! $powtorzenie;
 
             $po = $this->postep->ustaw(
                 $postepKonta,
                 $aktualny->getKey(),
                 (bool) $data['zrobiono'],
-                $steps->pluck('id')->map(fn ($id): string => (string) $id)->all(),
+                $idKrokow,
             );
 
             // Rozbieżna rewizja: formularz niesie liczbę porcji z chwili

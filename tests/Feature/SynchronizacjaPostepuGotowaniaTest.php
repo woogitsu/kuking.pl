@@ -14,6 +14,7 @@ use App\Models\RecipeStep;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
@@ -444,5 +445,79 @@ class SynchronizacjaPostepuGotowaniaTest extends TestCase
 
         $this->assertNull($this->postep($osoba, $recipe));
         $this->assertNotNull($this->postep($inna, $recipe));
+    }
+
+    /**
+     * Audyt BP-05: podwójne kliknięcie „Zrobione” na JEDNYM urządzeniu.
+     * Drugie wysłanie niesie rewizję sprzed pierwszego — dawniej kończyło
+     * się komunikatem o „innym urządzeniu”, a porcje znikały z adresu.
+     */
+    public function test_podwojne_klikniecie_zrobione_nie_mowi_o_innym_urzadzeniu_i_zostawia_porcje(): void
+    {
+        $osoba = $this->user();
+        [$recipe, $kroki] = $this->przepis();
+        $this->wlacz($osoba, $recipe);
+        // Porcje wybrane wcześniej i już zapamiętane na koncie — strona je pokazuje.
+        app(PostepGotowania::class)->ustawPorcje($this->postep($osoba, $recipe), 10.0);
+        $rewizjaNaEkranie = $this->postep($osoba, $recipe)->revision;
+
+        $dane = ['rewizja' => $rewizjaNaEkranie, 'porcje' => '10'];
+
+        $this->odhacz($osoba, $recipe, $kroki[0], true, $dane)->assertSessionMissing('status');
+        $drugie = $this->odhacz($osoba, $recipe, $kroki[0], true, $dane);
+
+        $drugie->assertSessionMissing('status');
+        $this->assertStringContainsString('porcje=10', (string) $drugie->headers->get('Location'), 'Porcje zniknęły z adresu po podwójnym kliknięciu.');
+        $wiersz = $this->postep($osoba, $recipe);
+        $this->assertSame($rewizjaNaEkranie + 1, $wiersz->revision, 'Powtórzony zapis bez zmiany podbił rewizję.');
+        $this->assertSame([$kroki[0]->getKey()], $wiersz->done_step_ids);
+    }
+
+    /**
+     * Kontrola dodatnia BP-05: też „jedna zmiana od wyświetlenia”, ale to
+     * kliknięcie coś ZMIENIA (inny krok) — więc tamta zmiana przyszła
+     * z drugiego urządzenia i komunikat zostaje.
+     */
+    public function test_zmiana_innego_kroku_od_wyswietlenia_dalej_daje_komunikat(): void
+    {
+        $osoba = $this->user();
+        [$recipe, $kroki] = $this->przepis();
+        $this->wlacz($osoba, $recipe);
+
+        $this->odhacz($osoba, $recipe, $kroki[0], true, ['rewizja' => 1]);
+        $this->odhacz($osoba, $recipe, $kroki[1], true, ['rewizja' => 1])
+            ->assertSessionHas('status', fn (string $tresc): bool => str_contains($tresc, 'innym urządzeniu'));
+    }
+
+    /**
+     * #2247: `wlacz()` czeka na blokadę wiersza; jeśli w tym czasie minęło
+     * `expires_at`, wiersz trzeba odnowić. Oczekiwanie symuluje przesunięcie
+     * zegara zaraz po zapytaniu `FOR UPDATE` — dokładnie tam, gdzie
+     * prawdziwe żądanie stałoby w kolejce do blokady.
+     */
+    public function test_wlaczenie_odnawia_wiersz_ktory_wygasl_w_czasie_czekania_na_blokade(): void
+    {
+        config(['kuking.cooking_progress.retention_hours' => 2]);
+        $osoba = $this->user();
+        [$recipe, $kroki] = $this->przepis();
+        $this->wlacz($osoba, $recipe);
+        $this->odhacz($osoba, $recipe, $kroki[0]);
+
+        // Wiersz żyje jeszcze minutę, gdy zaczyna się drugie „włącz”.
+        Carbon::setTestNow($this->postep($osoba, $recipe)->expires_at->copy()->subMinute());
+
+        $czekanie = true;
+        DB::listen(function ($zapytanie) use (&$czekanie): void {
+            if ($czekanie && str_contains($zapytanie->sql, 'cooking_progress') && str_contains($zapytanie->sql, 'for update')) {
+                $czekanie = false;
+                Carbon::setTestNow(now()->addMinutes(2));
+            }
+        });
+
+        $wynik = app(PostepGotowania::class)->wlacz($osoba, $recipe, [], []);
+
+        $this->assertTrue($wynik->expires_at->greaterThan(now()), 'Włączenie oddało wiersz, który wygasł w czasie czekania na blokadę.');
+        $this->assertNotNull(app(PostepGotowania::class)->aktywny($osoba, $recipe), 'Po „udanym” włączeniu postęp zniknął przy następnym odczycie.');
+        $this->assertSame([], $wynik->done_step_ids, 'Wygasły wiersz zaczyna od czystej karty, nie od dawnych odhaczeń.');
     }
 }
