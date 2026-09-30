@@ -322,3 +322,4 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 - 18:55 perf-zeszyty-do-wyboru → 2cece2f6c (koszt 386 vs 145k, bez indeksu). Start: 1902 scala main + regulamin z archiwum.
 - 18:57 perf-kolaz-tagow → 475fc611c (cache gościa 15/tag, filtr widza, dopełnienie). Start: perf-start-powtorki (W7).
 - 19:00 perf-powiadomienia-n1 → 483dc75b9 (W2+W5). Start: research #1904 offline PWA.
+- 19:05 PR #2342 paczka O otwarty (385eb944d; 9 gałęzi + main; 437 testów, PHPStan 0). Check-in 19:55. Start integratora P od O: perf-zeszyty, perf-kolaz, perf-powiadomienia (+perf-drobne, perf-start-powtorki gdy gotowe). W kolejce: 1902 (scala main), research #1904.
