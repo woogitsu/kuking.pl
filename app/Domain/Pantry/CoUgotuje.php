@@ -27,10 +27,18 @@ use Illuminate\Support\Facades\DB;
  * DOPASOWANIE SKŁADNIKA
  * Linijka składnika w przepisie „jest w domu”, gdy któryś produkt z listy
  * ma wszystkie swoje rdzenie w rdzeniach tej linijki:
- * `pantry_items.rdzenie <@ public.kuking_rdzenie_skladnika(ingredient_text)`.
+ * `pantry_items.rdzenie <@ recipe_ingredients.rdzenie`.
  * Reguła rdzeni (małe litery, bez polskich znaków, słownik form krótkich
  * słów, prosta liczba mnoga dłuższych — #1969) jest opisana w migracji `2026_09_28_233700_create_pantry_items_table`
  * i mieszka wyłącznie w bazie. Bez AI.
+ *
+ * Rdzenie linijki przepisu są ZAPISANE w `recipe_ingredients.rdzenie`
+ * (wyzwalacz przy INSERT/UPDATE tekstu, migracja `2026_10_01_140300`) i mają
+ * indeks GIN — wcześniej funkcja `kuking_rdzenie_skladnika()` była liczona
+ * na każdą linijkę każdego kandydata przy każdym żądaniu, w warunku złączenia
+ * z listą produktów (ok. 1–2 s na 500 przepisów × 7 składników i 20 produktów).
+ * Wynik dopasowania jest ten sam; `CoUgotujeKosztTest` porównuje go z dawnym
+ * zapytaniem.
  *
  * KTÓRE PRZEPISY W OGÓLE WCHODZĄ
  * Te same, które ta osoba może otworzyć (`widoczneDla`), wyłącznie
@@ -54,7 +62,7 @@ final class CoUgotuje
      * `recipe_ingredients` w zapytaniu, które go używa.
      */
     private const MAM_SQL = 'EXISTS (SELECT 1 FROM pantry_items p WHERE p.user_id = ? '
-        .'AND p.rdzenie <@ public.kuking_rdzenie_skladnika(ri.ingredient_text))';
+        .'AND p.rdzenie <@ ri.rdzenie)';
 
     /**
      * @return array{
@@ -70,16 +78,15 @@ final class CoUgotuje
         $offset = max(0, $offset);
 
         // Po jednym, najdłuższym rdzeniu z każdego produktu: wstępny filtr
-        // `LIKE` na `ingredient_text_search`, który może pójść po indeksie
-        // trigramowym `recipe_ingredients_text_trgm_idx`. Rdzeń dłuższy niż
-        // 4 litery powstaje z obcięcia końcówki, więc jest fragmentem każdej
-        // formy słowa. Krótszy może pochodzić ze słownika form (#1969: `maka`
-        // dla „mąki”) — wtedy szukamy jego pierwszych trzech liter, od których
-        // zaczyna się każda forma w słowniku (niezmiennik z migracji, pilnowany
-        // testem). Filtr niczego prawdziwego nie gubi — tylko zawęża
-        // kandydatów przed dokładnym porównaniem tablic.
+        // `ri.rdzenie && {…}` (nakładanie tablic) idzie po indeksie GIN
+        // `recipe_ingredients_rdzenie_gin_idx`. Produkt „jest w domu" tylko
+        // wtedy, gdy WSZYSTKIE jego rdzenie są w linijce — więc w szczególności
+        // jego najdłuższy rdzeń, i linijka bez niego nie może pasować. Filtr
+        // niczego prawdziwego nie gubi, tylko zawęża kandydatów przed dokładnym
+        // porównaniem `<@`. Rdzenie to wyłącznie `a-z0-9`, więc literał
+        // tablicowy nie wymaga cytowania.
         $rdzenie = collect(DB::select(
-            'SELECT DISTINCT ON (p.id) CASE WHEN length(t) > 4 THEN t ELSE left(t, 3) END AS rdzen '
+            'SELECT DISTINCT ON (p.id) t AS rdzen '
             .'FROM pantry_items p, unnest(p.rdzenie) AS t '
             .'WHERE p.user_id = ? ORDER BY p.id, length(t) DESC, t',
             [$uid],
@@ -89,16 +96,15 @@ final class CoUgotuje
             return ['przepisy' => new Collection, 'brakujace' => [], 'jest_wiecej' => false, 'produktow' => 0];
         }
 
-        $wstepnie = implode(' OR ', array_fill(0, $rdzenie->count(), 'ri.ingredient_text_search LIKE ?'));
-        $wzorce = $rdzenie->map(fn (string $r): string => '%'.$r.'%')->all();
+        $wzorzec = '{'.$rdzenie->implode(',').'}';
 
         $wiersze = Recipe::query()
             ->published()
             ->widoczneDla($widz)
             ->whereHas('author', fn ($autor) => $autor->where('status', User::STATUS_ACTIVE))
             ->whereRaw(
-                'recipes.id IN (SELECT ri.recipe_id FROM recipe_ingredients ri WHERE ('.$wstepnie.') AND '.self::MAM_SQL.')',
-                [...$wzorce, $uid],
+                'recipes.id IN (SELECT ri.recipe_id FROM recipe_ingredients ri WHERE ri.rdzenie && ?::text[] AND '.self::MAM_SQL.')',
+                [$wzorzec, $uid],
             )
             ->select('recipes.*')
             ->selectRaw('(SELECT count(*) FROM recipe_ingredients ri WHERE ri.recipe_id = recipes.id) AS skladnikow_razem')
