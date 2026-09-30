@@ -36,6 +36,9 @@
 #    KOPIA_S3_KLUCZ     Access Key ID tokenu R2 z prawem zapisu do tego bucketu
 #    KOPIA_S3_SEKRET    Secret Access Key tego tokenu
 #    KOPIA_S3_REGION    dla R2 literalnie „auto" (wartość domyślna)
+#    KOPIA_S3_TESTOWY_HTTP_LOKALNY  WYŁĄCZNIE testy: „1" dopuszcza http://
+#                       do hosta pętli zwrotnej (s3_sprawdz_endpoint, #2261);
+#                       Railway tej zmiennej nie ustawia
 #
 #  Ten plik jest WYŁĄCZNIE biblioteką — nie robi nic po wczytaniu.
 #  Testy: tests/skrypty/kopia-bazy.sh
@@ -202,12 +205,66 @@ ${hash_kanonicznego}"
 # -----------------------------------------------------------------------------
 S3_KOD=''
 
+# -----------------------------------------------------------------------------
+#  s3_sprawdz_endpoint — endpoint kopii TYLKO po HTTPS (issue #2261).
+#
+#  Przez ten adres idą nagłówek `Authorization` (klucz R2 i podpis) oraz
+#  zaszyfrowany zrzut CAŁEJ bazy. Do #2261 `s3_zadanie` zdejmował z adresu
+#  zarówno `https://`, jak i `http://`, więc literówka albo podmieniona
+#  zmienna w panelu Railwaya wysyłała to otwartym tekstem — każdy pośrednik
+#  mógł podpis przechwycić, a odpowiedź (listę kopii do retencji) podmienić.
+#
+#  Jedyny wyjątek to serwer próbny testów: `http://` przechodzi WYŁĄCZNIE
+#  przy jawnym `KOPIA_S3_TESTOWY_HTTP_LOKALNY=1` ORAZ hoście pętli zwrotnej
+#  (127.0.0.1, localhost, [::1]). Dwa warunki naraz, bo żaden z osobna nie
+#  wystarcza: sama flaga ustawiona przez pomyłkę w panelu nie otwiera drogi
+#  do obcego hosta, a sam „localhost” bez flagi nie jest zamiarem testu.
+#  Serwis Railwaya tej flagi nie ustawia (`.railway/railway.ts`).
+#
+#  Zwraca 0, gdy adres wolno użyć; 1 w przeciwnym razie. Adresu NIE wypisuje
+#  — w logu i alarmie ląduje sam powód (ta sama zasada co przy kodzie HTTP).
+# -----------------------------------------------------------------------------
+s3_sprawdz_endpoint() {
+  local endpoint="$1"
+  local reszta host
+
+  case "${endpoint}" in
+    https://?*) reszta="${endpoint#https://}" ;;
+    http://?*)
+      [[ "${KOPIA_S3_TESTOWY_HTTP_LOKALNY:-0}" == '1' ]] || return 1
+      reszta="${endpoint#http://}"
+      host="${reszta%%/*}"
+      case "${host}" in
+        127.0.0.1 | 127.0.0.1:* | localhost | localhost:* | '[::1]' | '[::1]:'*) return 0 ;;
+        *) return 1 ;;
+      esac
+      ;;
+    *) return 1 ;;
+  esac
+
+  # Pusty host („https:///bucket”) albo poświadczenie w adresie
+  # („https://klucz@host”) to nie jest endpoint R2.
+  host="${reszta%%/*}"
+  [[ -n "${host}" && "${host}" != *@* ]]
+}
+
 s3_zadanie() {
   local metoda="$1" klucz="$2" zapytanie="${3:-}" plik_ciala="${4:-}" plik_wyniku="${5:-}"
 
   local endpoint="${KOPIA_S3_ENDPOINT:?brak KOPIA_S3_ENDPOINT}"
   local bucket="${KOPIA_S3_BUCKET:?brak KOPIA_S3_BUCKET}"
   local region="${KOPIA_S3_REGION:-auto}"
+
+  # Zanim cokolwiek zostanie podpisane i wysłane — patrz `s3_sprawdz_endpoint`.
+  if ! s3_sprawdz_endpoint "${endpoint}"; then
+    S3_KOD='endpoint-bez-https'
+    return 1
+  fi
+
+  # `--proto` to druga linia obrony po stronie samego curla: nawet gdyby
+  # kontrola wyżej kiedyś się rozjechała, curl nie połączy się niczym innym.
+  local protokoly='=https'
+  [[ "${endpoint}" == http://* ]] && protokoly='=http'
 
   local host="${endpoint#https://}"
   host="${host#http://}"
@@ -249,6 +306,7 @@ x-amz-date:${amz_data}
 
   local -a polecenie=(
     curl --silent --show-error --fail-with-body
+    --proto "${protokoly}"
     --max-time "${KOPIA_S3_TIMEOUT:-600}"
     --retry 2 --retry-delay 5
     --output "${plik_wyniku:-/dev/null}"

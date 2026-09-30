@@ -1246,6 +1246,13 @@ Variables             DB_URL = referencja do serwisu Postgres
 Pozostałe `KOPIA_*` (retencja, progi) mają wartości domyślne w skrypcie
 i w `railway.ts` — nie musisz ich wpisywać, dopóki nie chcesz innych.
 
+`KOPIA_S3_ENDPOINT` musi zaczynać się od `https://` (#2261). Inna wartość
+zatrzymuje przebieg na starcie kodem 14, zanim powstanie zrzut, a klient S3
+(`docker/kopia/s3.sh`) i tak nie wyśle żądania bez HTTPS (curl dostaje
+`--proto =https`). `http://` przyjmuje wyłącznie serwer próbny testów:
+host pętli zwrotnej (127.0.0.1, localhost, [::1]) **i** jawne
+`KOPIA_S3_TESTOWY_HTTP_LOKALNY=1`. Tej zmiennej **nie** ustawiaj w Railwayu.
+
 **5. Pierwsze uruchomienie — z ręki, zanim zaufasz harmonogramowi**
 
 Panel Railway → serwis `kopia-bazy` → **Deployments** → **Run Now**, a potem
