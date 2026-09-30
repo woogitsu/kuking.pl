@@ -156,7 +156,8 @@ final class KolejkaCzytaPdfZProdukcyjnymPhpIniTest extends TestCase
             $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
             echo 'proc_open=', function_exists('proc_open') ? 'tak' : 'nie', "\n";
             try {
-                echo 'ODCZYT:', (new App\Domain\Import\Pdf\TekstZPdf)->odczytaj($argv[2]), "\n";
+                $tekst = (new App\Domain\Import\Pdf\TekstZPdf)->odczytaj($argv[2]);
+                echo 'ODCZYT:', $tekst, "\n";
             } catch (App\Domain\Import\ImportOdrzucony $e) {
                 echo 'ODRZUCONY:', $e->kod, "\n";
             } catch (Throwable $e) {
