@@ -104,9 +104,16 @@ echo "kod wyjścia: $?"
   wejście.
 - Spodziewane dziś (po #1459): tylko zmienne workera i schedulera, które
   serwis ma (bilans z kroku 0.5 runbooka #595 wymienia je jako „przechodzi
-  do innej roli”) i ewentualnie martwe `TRUSTED_PROXIES`. Trzy zmienne
-  z audytu są od #1883 w grafie, a 29.09 nie było ich w panelu. Każda inna
-  nazwa to zmienna, o której nikt nie wie — **te są najważniejsze**.
+  do innej roli”), ewentualnie martwe `TRUSTED_PROXIES` i `DB_HOST`/`DB_PASSWORD`/…
+  zastąpione przez `DB_URL`. Trzy zmienne z audytu są od #1883 w grafie,
+  a 29.09 nie było ich w panelu. Osobno: zmienne **tylko z panelu
+  z założenia** (lista `WYJATKI` w `tests/Feature/ZmienneRailwayaPerRolaTest.php`,
+  przede wszystkim `AWS_LEGACY_*` starego bucketu zdjęć, a także
+  `KUKING_ZAUFANE_HOSTY`, `TURNSTILE_HOSTY_STAGINGU`,
+  `KUKING_EXPORT_TEMP_DIR`) — plik ich świadomie nie deklaruje, więc
+  apply je usunie. Bilans z kroku 0.5 runbooka #595 zatrzymuje się na nich
+  z instrukcją dla każdej nazwy (IN-03, #2295). Każda inna nazwa to
+  zmienna, o której nikt nie wie — **te są najważniejsze**.
 
 Nie wklejaj nigdzie surowego wyniku `railway variables --json` — ma wartości,
 w tym sekrety. Wynik skryptu (same nazwy) można wkleić do issue.

@@ -20,7 +20,10 @@ Odczyt koordynatora z panelu, bez wartości:
 Skutek dla przełączenia: Web Push, bramka brzegu, import z OpenAI (#2214 —
 czeka na DPA), sprawdzanie kopii zdjęć, cache HTML i tag tygodnia są dziś
 **wyłączone** i po apply zostaną wyłączone (pusta referencja do Shared
-Variable = wartość domyślna). Apply nie włączy żadnej z nich. Zmienne, które
+Variable = wartość domyślna). Apply nie włączy żadnej z nich. To samo
+dotyczy drugiego kanału alarmów pocztą (`KUKING_ALARM_EMAIL`, #599): gdy
+w Shared Variables go nie ma, zostaje sam Discord (`LOG_BLAD_WEBHOOK_URL`,
+która **też** przechodzi na Shared — bez niej alarmy zamilkną). Zmienne, które
 serwis ma, poznasz w kroku 0.5 — tej listy repozytorium nie zna.
 
 ## Czy `railway config apply` usuwa zmienne spoza pliku? — TAK, traktuj to jako pewne
@@ -123,9 +126,11 @@ plan będzie taki, jak w tabeli z kroku 2. To rozstrzyga dopiero krok 2.
    | Sekcja | Znaczenie | Co zrobić |
    |---|---|---|
    | **STOP — `kuking.pl` straci zmienną, której plik nie przenosi nigdzie** | Zmienna stoi tylko w panelu. Apply ją usunie. | PR: dopisz ją do roli, która ją czyta, w `railway.ts` (jak `KUKING_MEDIA_DISK`, #1883), albo — gdy nic jej nie czyta — do `MARTWE` w skrypcie z powodem. Powtórz krok 5. |
+   | **STOP — zmienna tylko z panelu (WYJATKI, #2295)** | Plik **świadomie** jej nie deklaruje (lista `WYJATKI` w `tests/Feature/ZmienneRailwayaPerRolaTest.php` albo para `AWS_LEGACY_*`), a apply usunie ją razem z wartością. Najgroźniejsze: `AWS_LEGACY_*` (i `AWS_URL`) — stary bucket to jedyna kopia części najstarszych zdjęć (`docs/infra/STARY_BUCKET_R2_LEGACY.md`). | Instrukcja stoi przy nazwie w wyniku. Dla `AWS_LEGACY_*`: najpierw `railway ssh --service kuking.pl --environment production "php artisan kuking:zaleznosc-od-starego-bucketu --pliki"`. Żaden wiersz nie wskazuje `r2_legacy` → PR przenosi nazwy do `MARTWE` z datą pomiaru. Wiersze są → PR: `AWS_LEGACY_*` w `appEnv` jako `ctx.shared.R2_LEGACY_*` (i usunięcie z `WYJATKI`), Shared `R2_LEGACY_*` z wartościami z panelu. Powtórz krok 5. |
    | **STOP — wartość z panelu przepadnie** | Wartość stoi dziś w serwisie (nazwa po prawej), plik będzie jej szukał w Shared Variable (nazwa po lewej), której nie ma. | Załóż Shared Variable o nazwie z lewej **z tą samą wartością** co zmienna z prawej (skopiuj w panelu; sekrety zaznacz „Sealed”). Powtórz krok 5. |
    | Oczekiwane usunięcie: zmienna przechodzi do innej roli | Plan usunie ją z `kuking.pl`, a dostanie ją `worker` / `scheduler`. | Nic — ta lista to jedyne usunięcia, na które zgodzisz się w kroku 3. Zapisz ją. |
    | Oczekiwane usunięcie: zmienna martwa | Nikt jej nie czyta (dziś: `TRUSTED_PROXIES`). | Nic; też na listę zgód z kroku 3. |
+   | Oczekiwane usunięcie: połączenie z bazą idzie przez `DB_URL` | `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` — plik daje każdej roli `DB_URL = ${{Postgres.DATABASE_URL}}`, a `url` ma pierwszeństwo (audyt 30.09, §3.1). | Nic; też na listę zgód z kroku 3. |
    | Informacja — referencja bez Shared Variable | Po apply pusto = wartość domyślna, jak dziś. Przy stanie z 29.09: `VAPID_*`, `KUKING_EDGE_*`, `OPENAI_IMPORT_KEY`, `R2_ZDJECIA_KOPIA_*`, `KUKING_HTML_EDGE_CACHE_SECONDS`, `KUKING_TAG_TYGODNIA` i podobne. | Nic, o ile to nazwy funkcji, których produkcja nie ma. Gdy na liście jest coś, co działa dziś (np. klucze R2, EmailLabs) — to znaczy, że stoi w serwisie pod **inną nazwą** niż w pliku: **stop**, wyjaśnij przed planem. |
 
    Kod `0` — bilans się zamyka, idź dalej. Kod `1` — sekcje STOP nie są
@@ -170,7 +175,7 @@ Plan jest bezpieczny do uruchomienia. Wynik porównaj z tabelą:
 | `web`, `postgres` (małe litery) | nie występują | Ktoś cofnął nazwy — **stop** |
 | domeny `kuking.pl`, `www.kuking.pl` | brak zmian | Usunięcie/utworzenie domeny = nowy certyfikat i przerwa — **stop** |
 | domena `*.up.railway.app` serwisu `kuking.pl` | brak zmian | Plan chce ją usunąć — **stop**. Od niej zależą środowiska PR (komentarz przy `domains` w `railway.ts`). Dopisz ją w PR-ze jako `serviceDomains` serwisu WWW (nazwa domeny z panelu nie jest sekretem) i policz plan od nowa. |
-| usunięcie **zmiennej** w `kuking.pl` | **dokładnie** nazwy z sekcji „Oczekiwane usunięcie” bilansu (krok 0.5) — przy stanie z 29.09 m.in. `OPENAI_MODERATION_KEY`, `AWS_KOPIE_*`, `KUKING_PULS_HARMONOGRAMU_URL`, `KUKING_URODZINY_MAIL_WLACZONY`, `TRUSTED_PROXIES`, jeśli serwis je ma | Każda inna — **stop.** Wracasz do kroku 0.5. |
+| usunięcie **zmiennej** w `kuking.pl` | **dokładnie** nazwy z sekcji „Oczekiwane usunięcie” bilansu (krok 0.5) — przy stanie z 29.09 m.in. `OPENAI_MODERATION_KEY`, `AWS_KOPIE_*`, `KUKING_PULS_HARMONOGRAMU_URL`, `KUKING_URODZINY_MAIL_WLACZONY`, `TRUSTED_PROXIES`, `DB_HOST`/`DB_PASSWORD`/…, jeśli serwis je ma. **Nigdy** `AWS_LEGACY_*` ani inna nazwa z sekcji „tylko z panelu” | Każda inna — **stop.** Wracasz do kroku 0.5. |
 | zmienna w `kuking.pl` zmienia się ze stałej na `${{shared.…}}` | tylko tam, gdzie krok 0.5 potwierdził Shared Variable | Nie wiesz, skąd zmiana — **stop** |
 | nowe zmienne w `kuking.pl` (np. `VAPID_PUBLIC_KEY`, `KUKING_EDGE_TRYB`) | referencje z sekcji „Informacja” bilansu — puste, zachowanie domyślne | — |
 | zmiana wartości zmiennej sekretnej (wartości są w planie zredagowane) | tylko tam, gdzie krok 0.5 potwierdził Shared Variable | Nie wiesz, skąd zmiana — **stop** |

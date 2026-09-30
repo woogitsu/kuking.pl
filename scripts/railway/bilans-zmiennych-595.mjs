@@ -52,6 +52,47 @@ export const MARTWE = {
   TRUSTED_PROXIES: "SEC-01: aplikacja nigdy jej nie czytała (komentarz w railway.ts)",
 };
 
+/**
+ * Zmienne, które plik ZASTĘPUJE inną: `railway.ts` daje każdej roli
+ * `DB_URL = ${{Postgres.DATABASE_URL}}`, a `config/database.php` bierze
+ * `url` przed `host`/`port`/… (audyt 30.09, §3.1). Usunięcie tych nazw
+ * z `kuking.pl` jest oczekiwane — ale tylko wtedy, gdy serwis WWW w grafie
+ * naprawdę ma `DB_URL` (sprawdza `bilansZmiennych`).
+ */
+export const ZASTAPIONE_PRZEZ_DB_URL = ["DB_DATABASE", "DB_HOST", "DB_PASSWORD", "DB_PORT", "DB_USERNAME"];
+
+/**
+ * Zmienne „tylko w panelu z założenia” (IN-03, #2295): `railway.ts` ich
+ * ŚWIADOMIE nie deklaruje (lista `WYJATKI` w
+ * `tests/Feature/ZmienneRailwayaPerRolaTest.php` albo para `AWS_LEGACY_*`
+ * z `config/filesystems.php`), a pierwszy apply usunie je z `kuking.pl`
+ * razem z wartością. To nadal STOP — ale z instrukcją dla tej jednej
+ * nazwy, bo „dopisz do railway.ts” jest tu często złą odpowiedzią.
+ * Pilnuje `iac.test.mjs`: każdy wyjątek „ustawiany ręcznie / z panelu”
+ * musi tu stać.
+ */
+const LEGACY =
+  "Stary bucket zdjęć (#120, docs/infra/STARY_BUCKET_R2_LEGACY.md) — jedyna kopia części najstarszych zdjęć. " +
+  "Najpierw `php artisan kuking:zaleznosc-od-starego-bucketu --pliki` (railway ssh, kuking.pl). " +
+  "Żaden wiersz nie wskazuje `r2_legacy` → PR: przenieś nazwę do MARTWE z datą pomiaru. " +
+  "Wiersze są → PR: AWS_LEGACY_* w appEnv jako ctx.shared.R2_LEGACY_* (usuń z WYJATKI), Shared R2_LEGACY_* z wartościami z panelu.";
+export const PANELOWE_Z_ZALOZENIA = {
+  AWS_LEGACY_BUCKET: LEGACY,
+  AWS_LEGACY_URL: LEGACY,
+  AWS_LEGACY_ACCESS_KEY_ID: LEGACY,
+  AWS_LEGACY_SECRET_ACCESS_KEY: LEGACY,
+  AWS_URL: "Wycofane (W7-02), ale `r2_legacy` bierze z niej adres, gdy nie ma AWS_LEGACY_URL — postępuj jak z AWS_LEGACY_*.",
+  KUKING_ZAUFANE_HOSTY:
+    "Awaryjny przełącznik hosta healthchecku (config/proxy.php). Stoi = ktoś go potrzebował. " +
+    "PR: webEnv jako ctx.shared.KUKING_ZAUFANE_HOSTY (usuń z WYJATKI) + Shared z tą wartością, albo usuń w panelu i sprawdź /health.",
+  TURNSTILE_HOSTY_STAGINGU: "Tylko staging (#992); na produkcji ma być pusto — usuń ją w panelu kuking.pl.",
+  KUKING_EXPORT_TEMP_DIR: "Ustawiana tylko na workerze (#1455). PR: workerEnv, albo usuń w panelu, jeśli tmp kontenera wystarcza.",
+  KUKING_IMPORT_PDF_DYSK: "Inny dysk importu PDF niż Livewire (#28). PR: webEnv i workerEnv, albo usuń w panelu.",
+  KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS:
+    "Okres retencji potwierdzeń RODO — decyzja właściciela. PR: schedulerEnv (literal albo ctx.shared), inaczej komenda znów odmówi kasowania.",
+  KUKING_TEST_USERNAMES: "Lista kont testowych dla metryki. PR: rola, która liczy metrykę, albo usuń w panelu.",
+};
+
 const NAZWA = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** Same klucze — wartości odrzucamy od razu. Obiekt JSON, tablica albo linie. */
@@ -97,12 +138,17 @@ export function bilansZmiennych(nazwyZPanelu, wspoldzielone, graf, serwisWww = "
 
   const przenoszone = [];
   const martwe = [];
+  const zastapione = [];
+  const tylkoWPanelu = [];
   const nieznane = [];
+  const maDbUrl = "DB_URL" in zmienneWww;
   for (const nazwa of [...panel].sort()) {
     if (nazwa in zmienneWww) continue;
     const role = uslugi.filter((s) => s !== www && nazwa in (s.variables ?? {})).map((s) => s.name);
     if (role.length > 0) przenoszone.push({ nazwa, role });
     else if (nazwa in MARTWE) martwe.push(nazwa);
+    else if (maDbUrl && ZASTAPIONE_PRZEZ_DB_URL.includes(nazwa)) zastapione.push(nazwa);
+    else if (nazwa in PANELOWE_Z_ZALOZENIA) tylkoWPanelu.push(nazwa);
     else nieznane.push(nazwa);
   }
 
@@ -132,10 +178,12 @@ export function bilansZmiennych(nazwyZPanelu, wspoldzielone, graf, serwisWww = "
   return {
     przenoszone,
     martwe,
+    zastapione,
+    tylkoWPanelu,
     nieznane,
     doPrzeniesienia,
     pusteReferencje,
-    zamyka: nieznane.length === 0 && doPrzeniesienia.length === 0,
+    zamyka: nieznane.length === 0 && tylkoWPanelu.length === 0 && doPrzeniesienia.length === 0,
   };
 }
 
@@ -153,6 +201,10 @@ export function raport(b, serwisWww = "kuking.pl") {
     b.nieznane,
   );
   sekcja(
+    `STOP — zmienna tylko z panelu (WYJATKI, #2295): apply usunie ją z ${serwisWww} razem z wartością`,
+    b.tylkoWPanelu.map((n) => `${n}  — ${PANELOWE_Z_ZALOZENIA[n]}`),
+  );
+  sekcja(
     "STOP — wartość z panelu przepadnie: załóż Shared Variable z tą samą wartością",
     b.doPrzeniesienia.map((d) => `${d.shared}  ← dziś w ${serwisWww} jako ${d.zPanelu.join(", ")}; czytają: ${d.uslugi.join(", ")}`),
   );
@@ -161,6 +213,10 @@ export function raport(b, serwisWww = "kuking.pl") {
     b.przenoszone.map((p) => `${p.nazwa}  → ${p.role.join(", ")}`),
   );
   sekcja(`Oczekiwane usunięcie z ${serwisWww}: zmienna martwa`, b.martwe.map((n) => `${n}  (${MARTWE[n]})`));
+  sekcja(
+    `Oczekiwane usunięcie z ${serwisWww}: połączenie z bazą idzie przez DB_URL`,
+    b.zastapione,
+  );
   sekcja(
     "Informacja — referencja bez Shared Variable: po apply pusto, funkcja wyłączona jak dziś",
     b.pusteReferencje.map((p) => `${p.shared}  (${p.uslugi.join(", ")})`),

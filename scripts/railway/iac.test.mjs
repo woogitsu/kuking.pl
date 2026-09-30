@@ -580,7 +580,7 @@ test("zmienne-spoza-iac z wiersza poleceń wypisuje same nazwy, nigdy wartości"
 // różne zestawy, więc plan USUWA z `kuking.pl` zmienne workera i schedulera —
 // to jest oczekiwane, ale tylko wtedy, gdy ich wartość czeka w Shared Variables.
 // ---------------------------------------------------------------------------
-const { bilansZmiennych, nazwyZTekstu, MARTWE } = await import(resolve(KORZEN, "scripts/railway/bilans-zmiennych-595.mjs"));
+const { bilansZmiennych, nazwyZTekstu, MARTWE, PANELOWE_Z_ZALOZENIA, ZASTAPIONE_PRZEZ_DB_URL } = await import(resolve(KORZEN, "scripts/railway/bilans-zmiennych-595.mjs"));
 
 const APLIKACJA_PROD = PROD.resources.filter((r) => r.type === "service" && r.groupId === "Aplikacja");
 const zmienneUslugi = (g, nazwa) => usluga(g, nazwa)?.variables ?? {};
@@ -699,6 +699,74 @@ test("bilans: zmienne wstrzykiwane przez Railway i martwe nie zatrzymują apply"
   const b = bilansZmiennych(["RAILWAY_PUBLIC_DOMAIN", "RAILWAY_ENVIRONMENT", ...Object.keys(MARTWE)], [], PROD);
   assert.deepEqual(b.nieznane, []);
   assert.deepEqual(b.martwe, Object.keys(MARTWE));
+});
+
+// IN-02 (#2294): w serwisie stoją DB_HOST/DB_PASSWORD…, a plik daje tylko
+// DB_URL. Ich usunięcie jest oczekiwane — o ile WWW naprawdę ma DB_URL.
+test("bilans: DB_* spoza DB_URL to oczekiwane usunięcie, nie STOP", () => {
+  const panel = [...panelZ2909(), ...ZASTAPIONE_PRZEZ_DB_URL];
+  const b = bilansZmiennych(panel, sharedWgRunbooka(panel), PROD);
+  assert.deepEqual(b.zastapione, [...ZASTAPIONE_PRZEZ_DB_URL].sort());
+  assert.deepEqual(b.nieznane, []);
+  assert.equal(b.zamyka, true);
+});
+
+test("kontrola ujemna bilansu: bez DB_URL w WWW usunięcie DB_HOST znowu zatrzymuje apply", () => {
+  const zepsuty = structuredClone(PROD);
+  delete usluga(zepsuty, KONTEKST.nazwaWww).variables.DB_URL;
+  const b = bilansZmiennych(["DB_HOST"], [], zepsuty);
+  assert.deepEqual(b.zastapione, []);
+  assert.deepEqual(b.nieznane, ["DB_HOST"]);
+  assert.equal(b.zamyka, false);
+});
+
+// IN-03 (#2295): zmienne „tylko w panelu z założenia” plik świadomie pomija,
+// więc apply je usunie. AWS_LEGACY_* to jedyna droga do najstarszych zdjęć.
+test("bilans: AWS_LEGACY_* w panelu zatrzymuje apply z instrukcją, nie jako „nieznana”", () => {
+  const legacy = ["AWS_LEGACY_ACCESS_KEY_ID", "AWS_LEGACY_BUCKET", "AWS_LEGACY_SECRET_ACCESS_KEY", "AWS_LEGACY_URL"];
+  const panel = [...panelZ2909(), ...legacy];
+  const b = bilansZmiennych(panel, sharedWgRunbooka(panel), PROD);
+  assert.deepEqual(b.tylkoWPanelu, legacy);
+  assert.deepEqual(b.nieznane, []);
+  assert.equal(b.zamyka, false, "stary bucket w panelu nie może przejść bilansu po cichu");
+  for (const n of legacy) assert.match(PANELOWE_Z_ZALOZENIA[n], /zaleznosc-od-starego-bucketu --pliki/);
+});
+
+/**
+ * Nazwy z `WYJATKI` w `ZmienneRailwayaPerRolaTest.php`, których powód mówi,
+ * że ktoś je ustawia ręcznie / w panelu / decyzją właściciela — czyli te,
+ * które mogą dziś stać w `kuking.pl`, a apply by je usunął.
+ */
+function panelowePrzyczynyWyjatkow(zrodloPhp) {
+  const blok = zrodloPhp.match(/private const WYJATKI = \[([\s\S]*?)\n {4}\];/);
+  assert.ok(blok, "nie znaleziono listy WYJATKI w teście PHP");
+  const wpisy = [...blok[1].matchAll(/\n {8}'([A-Z0-9_]+)' => ([\s\S]*?)(?=\n {8}'[A-Z0-9_]+' =>|\n {8}\/\/|$)/g)];
+  assert.ok(wpisy.length >= 20, "parser WYJATKI nic nie znalazł — test niczego by nie sprawdzał");
+  return wpisy.filter(([, , powod]) => /ręczn|panel|właściciel/i.test(powod)).map(([, nazwa]) => nazwa);
+}
+
+const ZRODLO_WYJATKOW = readFileSync(resolve(KORZEN, "tests/Feature/ZmienneRailwayaPerRolaTest.php"), "utf8");
+
+test("każdy wyjątek „ustawiany ręcznie / z panelu” ma w bilansie instrukcję (IN-03)", () => {
+  const panelowe = panelowePrzyczynyWyjatkow(ZRODLO_WYJATKOW);
+  for (const n of ["AWS_LEGACY_BUCKET", "KUKING_ZAUFANE_HOSTY", "TURNSTILE_HOSTY_STAGINGU", "KUKING_EXPORT_TEMP_DIR"]) {
+    assert.ok(panelowe.includes(n), `${n}: parser WYJATKI zgubił wpis`);
+  }
+  assert.deepEqual(panelowe.filter((n) => !(n in PANELOWE_Z_ZALOZENIA)), [], "dopisz instrukcję do PANELOWE_Z_ZALOZENIA w bilans-zmiennych-595.mjs");
+  // Runbook wymienia sekcję i najgroźniejszą nazwę.
+  const runbook = readFileSync(resolve(KORZEN, "docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md"), "utf8");
+  assert.match(runbook, /tylko z panelu \(WYJATKI, #2295\)/);
+  assert.match(runbook, /AWS_LEGACY_\*/);
+});
+
+test("kontrola ujemna: nowy wyjątek „ustawiany ręcznie” bez instrukcji w bilansie jest wykrywany", () => {
+  const zepsute = ZRODLO_WYJATKOW.replace(
+    "private const WYJATKI = [",
+    "private const WYJATKI = [\n        'KUKING_NOWY_PRZELACZNIK_Z_PANELU' => 'Ustawiany ręcznie w panelu.',",
+  );
+  const panelowe = panelowePrzyczynyWyjatkow(zepsute);
+  assert.ok(panelowe.includes("KUKING_NOWY_PRZELACZNIK_Z_PANELU"));
+  assert.ok(!("KUKING_NOWY_PRZELACZNIK_Z_PANELU" in PANELOWE_Z_ZALOZENIA));
 });
 
 test("bilans: nazwy z pliku Shared — linie, JSON; wpis z wartością odrzucony bez jej powtórzenia", () => {
