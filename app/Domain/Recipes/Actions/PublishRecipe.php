@@ -757,8 +757,9 @@ final class PublishRecipe
      *     i zamiennika (wielkość liter, spacje i ogonki nie unieważniają;
      *     literówka — tak, świadomie: lepiej dopytać niż przeoczyć);
      *     kolejność wierszy nie ma znaczenia.
-     *  2. Autor przysłał w TYM zapisie świeżą deklarację (inną niż zapisana)
-     *     → zapisuje ją `OznaczAlergenyPrzepisu` i ona wygrywa z regułą 1.
+     *  2. Autor przysłał w TYM zapisie świeżą deklarację (inną niż zapisana
+     *     PRZED regułą 1) → zapisuje ją `OznaczAlergenyPrzepisu` i ona wygrywa
+     *     z regułą 1.
      *
      * Bez deklaracji w zapisie (autozapis kreatora, import, flaga wyłączona)
      * działa tylko reguła 1 — nigdy nie powstaje z tego `declared`.
@@ -768,11 +769,16 @@ final class PublishRecipe
      */
     private function uzgodnijAlergeny(Recipe $recipe, array $przed, array $skladnikiPo, ?DeklaracjaAlergenow $deklaracja): void
     {
+        // „Świeża” oceniamy względem stanu SPRZED unieważnienia: deklaracja
+        // identyczna z zapisaną (formularz wysyła stan pól przy każdym zapisie)
+        // nie jest potwierdzeniem zmienionych składników.
+        $swieza = $deklaracja !== null && $deklaracja->rozniSieOd($recipe);
+
         if ($recipe->alergenyZdeklarowane() && $przed !== $this->odciskSkladnikowDlaAlergenow($skladnikiPo)) {
             $this->alergenyPrzepisu->uniewaznPoZmianieSkladnikow($recipe);
         }
 
-        if ($deklaracja !== null) {
+        if ($deklaracja !== null && $swieza) {
             $this->alergenyPrzepisu->zastosuj($recipe, $deklaracja);
         }
     }
