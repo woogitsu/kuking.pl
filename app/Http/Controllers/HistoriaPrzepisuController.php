@@ -126,7 +126,10 @@ class HistoriaPrzepisuController extends Controller
         $wersja = $this->wersjaDoDecyzji($request, $model, $numer);
         $this->authorize('hide', $wersja);
 
-        if ($wersja->czyUkryta()) {
+        $strona = UkrywanieWersji::strona($request->user(), $model);
+        $przejecie = $this->czyPrzejecie($wersja, $strona);
+
+        if ($wersja->czyUkryta() && ! $przejecie) {
             return $this->doHistorii($model, Komunikat::informacja("Wersja {$numer} jest już ukryta."));
         }
         if (HistoriaWersji::numerNajnowszej($model) === $numer) {
@@ -136,7 +139,8 @@ class HistoriaPrzepisuController extends Controller
         return view('pages.recipes.historia-ukryj', [
             'recipe' => $model,
             'wersja' => $wersja,
-            'strona' => UkrywanieWersji::strona($request->user(), $model),
+            'strona' => $strona,
+            'przejecie' => $przejecie,
         ]);
     }
 
@@ -166,6 +170,7 @@ class HistoriaPrzepisuController extends Controller
             UkrywanieWersji::UKRYTO => $zModeracji
                 ? Komunikat::sukces("Wersja {$numer} jest ukryta. Autor dostał powiadomienie z podstawą i uzasadnieniem i może się odwołać. Przywrócić ją może moderacja.")
                 : Komunikat::sukces("Wersja {$numer} jest ukryta. Widzisz ją tylko Ty i moderacja; w każdej chwili możesz ją przywrócić."),
+            UkrywanieWersji::PRZEJETO => Komunikat::sukces("Przejęto ukrycie wersji {$numer}. Autor dostał powiadomienie z podstawą i uzasadnieniem i może się odwołać. Sam jej już nie przywróci — może to zrobić moderacja."),
             UkrywanieWersji::JUZ_UKRYTA => Komunikat::informacja("Wersja {$numer} jest już ukryta."),
             UkrywanieWersji::NAJNOWSZA => Komunikat::blad(self::KOMUNIKAT_NAJNOWSZA),
             default => Komunikat::blad('Tej wersji już nie ma. Odśwież historię zmian.'),
@@ -254,13 +259,16 @@ class HistoriaPrzepisuController extends Controller
      * przepisu, widza i tego, kto wersję ukrył, więc wystarczą trzy wersje
      * próbne zamiast pytania o każdą wersję listy (stała liczba zapytań).
      *
-     * @return array{ukryj: bool, author: bool, moderator: bool}
+     * `przejmij` = moderacja widząca wersję ukrytą przez autora: ta sama
+     * reguła `hide`, tylko strona widza to moderacja (nie autor-moderator).
+     *
+     * @return array{ukryj: bool, przejmij: bool, author: bool, moderator: bool}
      */
     private function uprawnieniaUkrycia(Request $request, Recipe $recipe): array
     {
         $widz = $request->user();
         if ($widz === null) {
-            return ['ukryj' => false, RecipeVersion::UKRYL_AUTOR => false, RecipeVersion::UKRYLA_MODERACJA => false];
+            return ['ukryj' => false, 'przejmij' => false, RecipeVersion::UKRYL_AUTOR => false, RecipeVersion::UKRYLA_MODERACJA => false];
         }
 
         $proba = static fn (?string $kto): RecipeVersion => (new RecipeVersion)
@@ -268,11 +276,22 @@ class HistoriaPrzepisuController extends Controller
             ->setRelation('recipe', $recipe);
         $gate = Gate::forUser($widz);
 
+        $ukryj = $gate->allows('hide', $proba(null));
+
         return [
-            'ukryj' => $gate->allows('hide', $proba(null)),
+            'ukryj' => $ukryj,
+            'przejmij' => $ukryj && UkrywanieWersji::strona($widz, $recipe) === RecipeVersion::UKRYLA_MODERACJA,
             RecipeVersion::UKRYL_AUTOR => $gate->allows('restore', $proba(RecipeVersion::UKRYL_AUTOR)),
             RecipeVersion::UKRYLA_MODERACJA => $gate->allows('restore', $proba(RecipeVersion::UKRYLA_MODERACJA)),
         ];
+    }
+
+    /** Wersja ukryta przez autora, a decyzję podejmuje moderacja: „Przejmij ukrycie”. */
+    private function czyPrzejecie(RecipeVersion $wersja, string $strona): bool
+    {
+        return $wersja->czyUkryta()
+            && $wersja->hidden_by_role === RecipeVersion::UKRYL_AUTOR
+            && $strona === RecipeVersion::UKRYLA_MODERACJA;
     }
 
     /**
