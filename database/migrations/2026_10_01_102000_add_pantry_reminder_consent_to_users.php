@@ -43,6 +43,8 @@ return new class extends Migration
 
     private const INDEKS = 'users_wants_pantry_reminder_idx';
 
+    private const DEFINICJA = 'ON users (id) WHERE wants_pantry_reminder';
+
     private const CELE_PO = "('tygodniowy_digest', 'zyczenia_urodzinowe', 'odczyt_ai', 'regulamin', 'przypomnienie_spizarni')";
 
     private const CELE_PRZED = "('tygodniowy_digest', 'zyczenia_urodzinowe', 'odczyt_ai', 'regulamin')";
@@ -57,11 +59,13 @@ return new class extends Migration
 
         $this->podmienCelZgody(self::CELE_PO);
 
+        $wspolbieznie = $this->wspolbieznie();
+
         if ($this->indeksNiedokonczony()) {
-            DB::statement('DROP INDEX CONCURRENTLY IF EXISTS '.self::INDEKS);
+            DB::statement('DROP INDEX '.$wspolbieznie.'IF EXISTS '.self::INDEKS);
         }
 
-        DB::statement('CREATE INDEX CONCURRENTLY IF NOT EXISTS '.self::INDEKS.' ON users (id) WHERE wants_pantry_reminder');
+        DB::statement('CREATE INDEX '.$wspolbieznie.'IF NOT EXISTS '.self::INDEKS.' '.self::DEFINICJA);
     }
 
     public function down(): void
@@ -72,7 +76,7 @@ return new class extends Migration
 
         $this->odmowJesliSaDane();
 
-        DB::statement('DROP INDEX CONCURRENTLY IF EXISTS '.self::INDEKS);
+        DB::statement('DROP INDEX '.$this->wspolbieznie().'IF EXISTS '.self::INDEKS);
         $this->podmienCelZgody(self::CELE_PRZED);
         DB::statement('ALTER TABLE users DROP COLUMN IF EXISTS wants_pantry_reminder');
     }
@@ -102,12 +106,18 @@ return new class extends Migration
             .'żadnego śladu, a wierszy dziennika zgód nie wolno kasować (D-072, wyzwalacz tylko do '
             ."dopisywania).\n\n"
             ."CO ZROBIĆ:\n"
-            ."  - przy awaryjnym rollbacku WDROŻENIA nie cofaj tej migracji — kod sprzed niej nie czyta "
+            .'  - przy awaryjnym rollbacku WDROŻENIA nie cofaj tej migracji — kod sprzed niej nie czyta '
             ."tej kolumny, a szerszy CHECK niczego mu nie psuje;\n"
             ."  - jeśli naprawdę trzeba cofnąć SCHEMAT, zapisz listę zgód przed cofnięciem:\n"
             ."      SELECT id FROM users WHERE wants_pantry_reminder = true;\n"
             .'    Dziennik zgód zostaje w bazie — tej migracji nie da się wtedy cofnąć w całości.',
         );
+    }
+
+    /** `CONCURRENTLY` działa tylko poza transakcją (w produkcji migrator jej nie otwiera). */
+    private function wspolbieznie(): string
+    {
+        return DB::transactionLevel() === 0 ? 'CONCURRENTLY ' : '';
     }
 
     private function indeksNiedokonczony(): bool
