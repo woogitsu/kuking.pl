@@ -368,6 +368,7 @@ OCZEKUJ = {
     'Cloudflare jako pośrednik bez wiersza w polityce': r'Kod używa usługi „Cloudflare \(sieć, CDN i ochrona',
     # #2299: zawężenie `--filter` w kontrolach ma własne regresje w każdej części.
     'Kontrole bez regresji zawężenia filtra (#2299)': r'Części kontroli nie uruchamiają `scripts/test_zawezenie_testow\.py` \(#2299\)',
+    'Macierz panelu krótsza niż podział (#2299)': r'Macierz `port_panelu` w ci\.yml ma inne części niż `CZESCI_PANELU`',
     'Panel marki bez numeru części (#2299)': r'Job `port_panelu` nie podaje `PANEL_CZESC` z macierzy',
     'Job zbiorczy panelu pomijany po czerwonej części (#2299)': r'Job zbiorczy panelu bez `!cancelled\(\)` jest `skipped` po czerwonej części',
     'Testy JS nie biegną nigdzie, bo assets też buduje sam Vite (#2299)': r'Job `kontrole_krotkie` nie robi pełnego `npm run build`',
