@@ -64,6 +64,22 @@ final class AlergenyPrzyZapisiePrzepisuTest extends TestCase
         );
     }
 
+    /**
+     * @param  list<array<string, mixed>>  $skladniki
+     */
+    private function zapiszWiersze(array $skladniki, ?Recipe $istniejacy = null, ?DeklaracjaAlergenow $deklaracja = null): Recipe
+    {
+        return $this->publish()->handle(
+            author: $this->autor,
+            attributes: ['title' => 'Naleśniki babci', 'visibility' => 'public'],
+            ingredients: $skladniki,
+            steps: [['instruction' => 'Usmaż na patelni.']],
+            publish: true,
+            existing: $istniejacy,
+            deklaracjaAlergenow: $deklaracja,
+        );
+    }
+
     private function zdeklarowany(): Recipe
     {
         return $this->zapisz(
@@ -117,6 +133,38 @@ final class AlergenyPrzyZapisiePrzepisuTest extends TestCase
         $przepis = $this->zdeklarowany();
 
         $przepis = $this->zapisz(['200 G MĄKI   PSZENNEJ', '2 jajka ', '  szklanka mleka'], $przepis)->refresh();
+
+        $this->assertSame('declared', $przepis->allergen_status);
+    }
+
+    public function test_zmiana_uwagi_przy_skladniku_po_potwierdzeniu_przenosi_do_przegladu(): void
+    {
+        $przepis = $this->zapiszWiersze(
+            [['text' => '200 g mąki pszennej'], ['text' => 'pół szklanki oleju', 'note' => 'do smażenia']],
+            deklaracja: new DeklaracjaAlergenow(['gluten'], true),
+        );
+        $this->assertSame('declared', $przepis->refresh()->allergen_status);
+
+        $przepis = $this->zapiszWiersze(
+            [['text' => '200 g mąki pszennej'], ['text' => 'pół szklanki oleju', 'note' => 'posyp startym serem']],
+            $przepis,
+        )->refresh();
+
+        $this->assertSame('needs_review', $przepis->allergen_status);
+        $this->assertFalse($przepis->alergenyZdeklarowane());
+    }
+
+    public function test_zmiana_nazwy_grupy_skladnikow_nie_uniewaznia(): void
+    {
+        $przepis = $this->zapiszWiersze(
+            [['text' => '200 g mąki pszennej', 'group_name' => 'Ciasto'], ['text' => '2 jajka', 'group_name' => 'Ciasto']],
+            deklaracja: new DeklaracjaAlergenow(['gluten', 'eggs'], true),
+        );
+
+        $przepis = $this->zapiszWiersze(
+            [['text' => '200 g mąki pszennej', 'group_name' => 'Masa'], ['text' => '2 jajka', 'group_name' => 'Masa']],
+            $przepis,
+        )->refresh();
 
         $this->assertSame('declared', $przepis->allergen_status);
     }

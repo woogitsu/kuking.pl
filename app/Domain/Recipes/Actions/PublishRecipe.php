@@ -526,8 +526,8 @@ final class PublishRecipe
             }
 
             $skladnikiPrzed = $existing === null ? [] : $this->odciskSkladnikowDlaAlergenow(
-                $recipe->ingredients()->get(['ingredient_text', 'substitutes'])
-                    ->map(static fn (RecipeIngredient $wiersz): array => $wiersz->only(['ingredient_text', 'substitutes']))->all(),
+                $recipe->ingredients()->get(['ingredient_text', 'substitutes', 'note'])
+                    ->map(static fn (RecipeIngredient $wiersz): array => $wiersz->only(['ingredient_text', 'substitutes', 'note']))->all(),
             );
 
             $this->syncIngredients($recipe, $cleanIngredients);
@@ -784,14 +784,31 @@ final class PublishRecipe
     }
 
     /**
-     * @param  list<array<string, mixed>>  $wiersze  klucze `ingredient_text` i `substitutes`
+     * Odcisk tego, co autor sprawdzał przy potwierdzaniu alergenów: tekst
+     * składnika, zamienniki i uwaga przy składniku.
+     *
+     * UWAGA (`note`) JEST W ODCIŚKU, bo potrafi dopisać składnik („posyp
+     * startym serem”) bez ruszania tekstu składnika — czytelnik widzi ją na
+     * stronie przepisu obok składnika, więc zmiana uwagi po potwierdzeniu
+     * musi przenieść przepis do `needs_review`.
+     *
+     * NAZWY GRUPY (`group_name`, „Ciasto”, „Farsz”) NIE MA w odcisku
+     * świadomie: to etykieta porządkująca listę, nie składnik ani jego
+     * opis; zmiana nazwy grupy (literówka, „Polewa” → „Dekoracja”) nie
+     * zmienia tego, co trafia do potrawy, a fałszywe „do przeglądu” uczy
+     * autorów klikać „nadal się zgadzają” bez czytania. Przeniesienie
+     * składnika między grupami nie zmienia odcisku z tego samego powodu.
+     * Ilość i jednostka też są poza odciskiem (nie zmieniają alergenu).
+     *
+     * @param  list<array<string, mixed>>  $wiersze  klucze `ingredient_text`, `substitutes` i `note`
      * @return list<string>
      */
     private function odciskSkladnikowDlaAlergenow(array $wiersze): array
     {
         $odciski = array_map(
             static fn (array $wiersz): string => Ingredient::normalize((string) ($wiersz['ingredient_text'] ?? ''))
-                .'|'.Ingredient::normalize((string) ($wiersz['substitutes'] ?? '')),
+                .'|'.Ingredient::normalize((string) ($wiersz['substitutes'] ?? ''))
+                .'|'.Ingredient::normalize((string) ($wiersz['note'] ?? '')),
             $wiersze,
         );
         sort($odciski);
