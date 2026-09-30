@@ -98,6 +98,7 @@ use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use App\Http\Controllers\ZgodaOdczytuAiController;
 use App\Http\Controllers\ZmianaPolitykiController;
 use App\Http\Controllers\ZmianaRegulaminuController;
+use App\Http\Middleware\NieZapamietujeWyboruAlergenow;
 use App\Support\ParametryUuidTras;
 use Illuminate\Support\Facades\Route;
 
@@ -155,7 +156,8 @@ Route::get('/pytania', [QuestionController::class, 'index'])
     ->middleware("throttle:{$limits['search']},search")
     ->name('questions.index');
 Route::get('/szukaj', [SearchController::class, 'index'])
-    ->middleware("throttle:{$limits['search']},search")
+    // Wybór alergenów (`bez[]`) nie zostaje w sesji jako `_previous.url` (#1902, D-299).
+    ->middleware(["throttle:{$limits['search']},search", NieZapamietujeWyboruAlergenow::class])
     ->name('search');
 
 Route::get('/health', HealthController::class)->name('health');

@@ -125,6 +125,14 @@ final class PriorytetSprawy
         'hate' => self::P1,
         'personal_data' => self::P1,
 
+        // `allergen_label` (#1902, D-333): błędne oznaczenie alergenów może
+        // trafić do osoby z alergią, która na nie polega — każda godzina
+        // z nieprawdziwym zaznaczeniem to ryzyko zdrowotne, więc P1, nie P2
+        // jak `dangerous_advice`. To jedyny powód spoza tabeli SLA z podręcznika;
+        // wiersz P1 w `docs/legal/MODERATION_PLAYBOOK.md` i `docs/MODERATION.md`
+        // wymienia go jawnie.
+        'allergen_label' => self::P1,
+
         // `dangerous_advice` STOI W P2, ZGODNIE Z PODRĘCZNIKIEM, A NIE PO
         // MOJEMU. Pierwsza wersja tego pliku dawała mu P1 z argumentem, że
         // zła rada o weku albo o grzybach kończy się szpitalem. Tabela SLA

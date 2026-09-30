@@ -21,6 +21,12 @@ use Illuminate\Support\Facades\DB;
  * go uzupełniać dzisiejszą wartością z przepisu, bo to byłby zmyślony stan
  * historyczny. `no_amount` nie da się też wywnioskować z `quantity = null`:
  * „ilości nie podano" i „bez ilości" to w bazie dwa różne stany.
+ *
+ * `allergen_status` i `allergens` (#1902) działają tak samo: migawki sprzed
+ * tej zmiany ich nie mają i brak klucza znaczy „nieznane”, NIE „nie sprawdzono”
+ * z dzisiaj. Żeby pierwsze „Zapisz zmiany” po wdrożeniu nie zakładało wersji
+ * tylko dlatego, że w nowej migawce doszły dwa klucze, `poprawka()` porównuje
+ * z ostatnią wersją BEZ nich, gdy ta ich nie miała, a przepis jest niesprawdzony.
  */
 final class SnapshotRecipeVersion
 {
@@ -85,8 +91,15 @@ final class SnapshotRecipeVersion
             $migawka = $this->migawka($recipe);
             $ostatnia = $recipe->versions()->first();
 
+            $doPorownania = $migawka;
+            if ($ostatnia !== null
+                && ! array_key_exists('allergen_status', $ostatnia->snapshot)
+                && $migawka['allergen_status'] === Recipe::ALERGENY_NIESPRAWDZONE) {
+                unset($doPorownania['allergen_status'], $doPorownania['allergens']);
+            }
+
             // `==`, nie `===`: jsonb nie zachowuje kolejności kluczy obiektu.
-            if ($ostatnia !== null && $ostatnia->snapshot == $migawka) {
+            if ($ostatnia !== null && $ostatnia->snapshot == $doPorownania) {
                 return null;
             }
 
@@ -118,6 +131,10 @@ final class SnapshotRecipeVersion
             'source_person' => $recipe->source_person,
             'source_note' => $recipe->source_note,
             'family_since_year' => $recipe->family_since_year,
+            // Oznaczenie alergenów według autora (#1902) — zawsze razem:
+            // sama lista bez stanu mogłaby zostać odczytana jako „brak alergenów”.
+            'allergen_status' => $recipe->allergen_status ?? Recipe::ALERGENY_NIESPRAWDZONE,
+            'allergens' => $recipe->allergens,
             'ingredients' => $recipe->ingredients->map(fn ($i) => [
                 'group_name' => $i->group_name,
                 'text' => $i->ingredient_text,

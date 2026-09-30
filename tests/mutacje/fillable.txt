@@ -70,3 +70,15 @@ na: 'message' => ['required', 'string', 'min:500', 'max:5000'],
 oczekuj: Session has unexpected errors|unexpected errors
 polecenie: vendor/bin/phpunit --no-coverage --filter test_zadna_trasa_profilu_i_ustawien_nie_podnosi_roli_ani_stanu_konta tests/Feature/PodniesienieRoliZadaniemHttpTest.php
 ocena:
+---
+# Issue #1902. Oznaczenie alergenow „wedlug autora” to pole sterujace (jak
+# `posts.kind`): `declared` powstaje tylko w OznaczAlergenyPrzepisu. Test
+# iteruje po kolumnach z rzeczywistego schematu, wiec nowe kolumny weszly pod
+# ochrone przez dopisanie ich do STAN — bez wpisu w REJESTRZE.
+nazwa: stan oznaczenia alergenow nie przychodzi z zadania
+plik: app/Models/Recipe.php
+zamien:         'published_at',
+na:         'published_at',\n        'allergen_status',\n        'allergens',\n        'allergens_declared_at',
+oczekuj: Failed asserting|allergen|wrazliw
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/WrazliweKolumnyPozaMasowymPrzypisaniemTest.php tests/Feature/Alergeny/OznaczAlergenyPrzepisuTest.php
+ocena:

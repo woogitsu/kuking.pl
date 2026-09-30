@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Analytics\ZapiszSygnal;
 use App\Domain\Feed\DailyBoard;
+use App\Domain\Recipes\Alergeny\Alergen;
 use App\Domain\Recipes\KosztPrzepisu;
 use App\Domain\Search\SearchQuery;
 use App\Http\Middleware\ParametryAdresuBezTablic;
@@ -119,6 +120,25 @@ class SearchController extends Controller
         } elseif ($maksMinut !== null && $section === 'wszystko') {
             $section = 'przepisy';
         }
+        // ALERGENY (#1902, D-333): filtr „Bez wskazanych alergenów (według
+        // autorów)”, bezstanowy — wybór żyje wyłącznie w adresie (`bez[]=…`),
+        // niczego nie zapisujemy o szukającym (D-299, art. 9 RODO). Tylko przy
+        // włączonej fladze; to warunek NA PRZEPISY, jak czas: „Wszystko"
+        // z filtrem staje się „Przepisy", a na „Ludziach" filtr jest pomijany.
+        // Nieznane albo nie-tekstowe wartości są pomijane, a ekran mówi to
+        // wprost (`$bezNieznane`) — nie filtrują po cichu niczym innym.
+        $bezWejscie = [];
+        if ((bool) config('kuking.alergeny.wlaczone') && $section !== 'ludzie') {
+            $bezSurowe = $request->query('bez');
+            $bezWejscie = is_array($bezSurowe)
+                ? array_slice(array_values($bezSurowe), 0, 50)
+                : (is_string($bezSurowe) && $bezSurowe !== '' ? [$bezSurowe] : []);
+        }
+        $bezAlergenow = Alergen::znormalizuj($bezWejscie);
+        $bezNieznane = Alergen::nieznane($bezWejscie);
+        if ($bezAlergenow !== [] && $section === 'wszystko') {
+            $section = 'przepisy';
+        }
         // „Do 20 zł" to przepisy z kosztem wg autora (D-286).
         $maksKosztZl = $section === 'tanie' ? KosztPrzepisu::TANIE_DO : null;
         $szukaPrzepisow = in_array($section, ['wszystko', 'przepisy', 'tanie'], true);
@@ -157,6 +177,7 @@ class SearchController extends Controller
         $poPrzepisie = $odPrzepisu > 0 ? $this->kursor($request, 'po_przepisie') : null;
         $poOsobie = $odOsoby > 0 ? $this->kursor($request, 'po_osobie') : null;
         $parametry = array_filter(['q' => $phrase, 'sekcja' => $section, 'czas' => $maksMinut,
+            'bez' => $bezAlergenow === [] ? null : $bezAlergenow,
             'ile_przepisow' => $ilePrzepisow, 'ile_osob' => $ileOsob,
             'od_przepisu' => $odPrzepisu, 'od_osoby' => $odOsoby,
             'po_przepisie' => $poPrzepisie, 'po_osobie' => $poOsobie], fn ($v) => $v !== null);
@@ -180,7 +201,7 @@ class SearchController extends Controller
         $przepisy = $szukaPrzepisow && $searchErrors->isEmpty()
             // Widz przekazywany po to, żeby wyszukiwarka respektowała blokady
             // (issue #41). Bez niego blokada kończyła się na widoku i liście.
-            ? $this->search->recipes($phrase, $request->user(), $ilePrzepisow + 1, $maksMinut, $odPrzepisu, $maksKosztZl, $poPrzepisie)
+            ? $this->search->recipes($phrase, $request->user(), $ilePrzepisow + 1, $maksMinut, $odPrzepisu, $maksKosztZl, $poPrzepisie, $bezAlergenow)
             : collect();
 
         // Zakładka „Ludzie" liczy się DOKŁADNIE TAK SAMO, a nie „przy okazji".
@@ -263,6 +284,8 @@ class SearchController extends Controller
             'section' => $section,
             'maksMinut' => $maksMinut,
             'czasNieznany' => $czasNieznany,
+            'bezAlergenow' => $bezAlergenow,
+            'bezNieznane' => $bezNieznane,
             'zaKrotka' => $zaKrotka,
             'szukaPrzepisow' => $szukaPrzepisow,
             'szukaLudzi' => $szukaLudzi,

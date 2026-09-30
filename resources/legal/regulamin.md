@@ -6,7 +6,7 @@
 
 ## Co się zmieniło
 
-**30 września 2026.** Dopisaliśmy punkt 13 **Wymagania techniczne** (czego potrzebujesz, żeby korzystać z Kuking, i jakie zdjęcia przyjmujemy) oraz punkt 14 **Reklamacje** (gdzie i jak złożyć reklamację, w jakim terminie odpowiadamy i co możesz zrobić, jeśli odpowiedź Ci nie wystarcza). Zmiana opisuje, jak serwis już działa, i dopisuje sposób składania reklamacji: nie dodaje Ci obowiązków i nie odbiera żadnych praw. Obowiązuje od dnia publikacji. W punkcie 2 uzupełniliśmy też listę tego, na co pozwala Kuking, o funkcje, które serwis już ma — to również opis, bez nowych obowiązków.
+**30 września 2026.** Dopisaliśmy punkt 13 **Wymagania techniczne** (czego potrzebujesz, żeby korzystać z Kuking, i jakie zdjęcia przyjmujemy) oraz punkt 14 **Reklamacje** (gdzie i jak złożyć reklamację, w jakim terminie odpowiadamy i co możesz zrobić, jeśli odpowiedź Ci nie wystarcza). Zmiana opisuje, jak serwis już działa, i dopisuje sposób składania reklamacji: nie dodaje Ci obowiązków i nie odbiera żadnych praw. Obowiązuje od dnia publikacji. W punkcie 2 uzupełniliśmy też listę tego, na co pozwala Kuking, o funkcje, które serwis już ma — to również opis, bez nowych obowiązków. W punkcie 10 dopisaliśmy jedno zdanie o oznaczeniach alergenów w przepisach: pochodzą od autorów i nie zastępują etykiety ani porady lekarza. To również opis zasady, bez nowych obowiązków; poprawka drobna tej samej wersji.
 
 **26 września 2026.** W punkcie 2 dopisaliśmy, jak dobieramy wpisy na Starcie, w „Świeżo z Kuking” i na tablicy na dziś, oraz odnośnik do strony **Jak dobieramy wpisy** (`/jak-dobieramy-wpisy`). Zmiana opisuje, jak serwis już działa: nie dodaje Ci obowiązków i nie zmienia Twoich praw.
 
@@ -155,6 +155,7 @@ Jak przetwarzamy Twoje dane, opisujemy szczegółowo w osobnym dokumencie: **Pol
 
 - Kuking to platforma, na której użytkownicy publikują własne treści (User Generated Content). **Nie jesteśmy autorami** przepisów, zdjęć ani komentarzy publikowanych przez użytkowników i nie odpowiadamy za ich prawdziwość, bezpieczeństwo czy zgodność z prawem, chyba że wiedzieliśmy o naruszeniu i nie zareagowaliśmy.
 - Przepisy i porady publikowane przez użytkowników to ich prywatne opinie i doświadczenia, **nie są to porady medyczne ani dietetyczne**. Stosuj je na własną odpowiedzialność, zwłaszcza w przypadku alergii, chorób czy specjalnej diety — skonsultuj się z lekarzem lub dietetykiem.
+- Oznaczenia alergenów w przepisach pochodzą od ich autorów, Kuking ich nie sprawdza i nie zastępują one etykiety produktu ani porady lekarza; brak oznaczenia znaczy „nie sprawdzono”, a nie „nie zawiera”.
 - Staramy się utrzymywać Kuking dostępny i bezpieczny, ale nie gwarantujemy nieprzerwanego działania serwisu.
 - Odpowiadamy za szkodę wyrządzoną z naszej winy, na zasadach przewidzianych prawem. Nie ograniczamy tu odpowiedzialności w sposób, którego prawo nie pozwala ograniczyć — a jeśli jesteś konsumentem, żaden zapis tego Regulaminu nie odbiera Ci uprawnień wynikających z bezwzględnie obowiązujących przepisów prawa konsumenckiego.
 

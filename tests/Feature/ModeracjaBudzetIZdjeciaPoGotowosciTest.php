@@ -29,6 +29,9 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Intervention\Image\Drivers\Gd\Driver as SterownikGd;
+use Intervention\Image\Encoders\JpegEncoder;
+use Intervention\Image\Encoders\WebpEncoder;
 use Intervention\Image\ImageManager;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -592,7 +595,7 @@ class ModeracjaBudzetIZdjeciaPoGotowosciTest extends TestCase
     private function gotoweZdjecie(User $wlasciciel): Media
     {
         $klucz = 'media/test/'.Str::uuid()->toString().'_thumb.webp';
-        Storage::disk('public')->put($klucz, (string) ImageManager::gd()->create(320, 240)->fill('cc4400')->toWebp());
+        Storage::disk('public')->put($klucz, (string) ImageManager::usingDriver(SterownikGd::class)->createImage(320, 240)->fill('cc4400')->encode(new WebpEncoder));
 
         return Media::factory()->create([
             'owner_id' => $wlasciciel->getKey(),
@@ -611,7 +614,7 @@ class ModeracjaBudzetIZdjeciaPoGotowosciTest extends TestCase
 
         $autor = $this->user('czeka');
         $klucz = 'incoming/'.Str::uuid()->toString().'.jpg';
-        Storage::disk(self::ORYGINALY)->put($klucz, (string) ImageManager::gd()->create(1400, 900)->fill('0a1e5a')->toJpeg());
+        Storage::disk(self::ORYGINALY)->put($klucz, (string) ImageManager::usingDriver(SterownikGd::class)->createImage(1400, 900)->fill('0a1e5a')->encode(new JpegEncoder));
 
         $zdjecie = Media::create([
             'owner_id' => $autor->getKey(),

@@ -10,6 +10,8 @@ use App\Models\Media;
 use App\Models\Post;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Drivers\Gd\Driver as SterownikGd;
+use Intervention\Image\Encoders\JpegEncoder;
 use Intervention\Image\ImageManager;
 use Throwable;
 
@@ -314,7 +316,8 @@ final class OcenaModelem
                 return null;
             }
 
-            $jpeg = (string) ImageManager::gd()->read($bajty)->toJpeg(quality: 80);
+            $jpeg = (string) ImageManager::usingDriver(SterownikGd::class)->decodeBinary($bajty)
+                ->encode(new JpegEncoder(quality: 80));
         } catch (Throwable $blad) {
             // Bez bajtów, adresu i wiadomości wyjątku — to jest cudza
             // fotografia, a dziennik błędów nie jest miejscem na treści
