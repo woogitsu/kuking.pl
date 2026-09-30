@@ -114,7 +114,7 @@ final class ArchiwumRegulaminuTest extends TestCase
                 ->assertSee('href="'.url("/regulamin/wersje/{$data}/pobierz").'"', false);
         }
 
-        $odpowiedz->assertSee('Obecna')
+        $odpowiedz->assertSee('Obowiązuje')
             ->assertSee('name="robots" content="noindex, follow"', false)
             ->assertDontSee('<script', false);
     }
@@ -178,6 +178,29 @@ final class ArchiwumRegulaminuTest extends TestCase
             'To jest wcześniejsza wersja regulaminu, z 7 września 2026. Już nie obowiązuje.',
             ArchiwumDokumentu::regulamin()->opisWersji('2026-09-07'),
         );
+    }
+
+    public function test_lista_wersji_przy_okresie_przejsciowym_nie_nazywa_nowej_wersji_obowiazujaca(): void
+    {
+        config()->set('kuking.zgody.wersja_regulaminu', '2026-09-30');
+        config()->set('kuking.zgody.zmiana_regulaminu', ['istotna' => true, 'poprzednia' => '2026-09-26', 'obowiazuje_od' => null]);
+        $this->travelTo('2026-10-02 12:00:00');
+
+        $html = $this->get('/regulamin/wersje')->assertOk()->getContent();
+
+        $this->assertSame(1, preg_match('~Wersja z 30 września 2026\s*<span class="badge[^"]*">([^<]*)</span>~u', $html, $nowa));
+        $this->assertSame('Nowa — od 14 października 2026', $nowa[1]);
+        $this->assertSame(1, preg_match('~Wersja z 26 września 2026\s*<span class="badge[^"]*">([^<]*)</span>~u', $html, $stara));
+        $this->assertSame('Obowiązuje', $stara[1]);
+        $this->assertStringNotContainsString('>Obecna<', $html);
+        $this->assertSame(1, substr_count($html, '>Obowiązuje<'));
+
+        // Po wejściu w życie nowa wersja obowiązuje.
+        $this->travelTo('2026-10-14 08:00:00');
+        $html = $this->get('/regulamin/wersje')->assertOk()->getContent();
+        $this->assertSame(1, preg_match('~Wersja z 30 września 2026\s*<span class="badge[^"]*">([^<]*)</span>~u', $html, $nowa));
+        $this->assertSame('Obowiązuje', $nowa[1]);
+        $this->assertStringNotContainsString('Nowa —', $html);
     }
 
     // -----------------------------------------------------------------

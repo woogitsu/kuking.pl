@@ -198,6 +198,28 @@ final class ArchiwumDokumentu
         return "To jest wcześniejsza wersja {$this->dopelniacz}, z {$slownie}. Już nie obowiązuje.";
     }
 
+    /**
+     * Plakietka przy wersji na liście wszystkich wersji. „Obowiązuje” nosi
+     * wersja, która obowiązuje TERAZ (przy zmianie istotnej to jeszcze
+     * poprzednia); wersja opublikowana przed terminem wejścia w życie to
+     * „Nowa — od {data}”. Dawniej obie dostawały „Obecna”, co przy okresie
+     * przejściowym mówiło nieprawdę o wersji, która jeszcze nie obowiązuje.
+     */
+    public function plakietkaWersji(string $data, ?CarbonInterface $chwila = null): ?string
+    {
+        $wersja = $this->wersjaDokumentu();
+
+        if ($data === $wersja->obowiazujaca($chwila)) {
+            return 'Obowiązuje';
+        }
+
+        if ($data === $wersja->opublikowana) {
+            return 'Nowa — od '.$wersja->obowiazujeOd()->locale('pl')->isoFormat('D MMMM YYYY');
+        }
+
+        return null;
+    }
+
     /** „30 września 2026” — tak, jak data stoi w nagłówku dokumentu. */
     public static function dataSlownie(string $data): string
     {

@@ -19,6 +19,8 @@
     // z linkami, po których robot ma iść dalej (pusty tag, issue #1007).
     // Zwykłe `noindex` zostaje `noindex, nofollow` jak dotąd.
     'noindexFollow' => false,
+    // Strona sama rysuje `status_akcja` pod podsumowaniem błędów (`x-status-akcja`).
+    'akcjaPodBledami' => false,
     // Livewire dociągamy TYLKO na stronach, które go naprawdę używają
     // (dziś: kreator przepisu). Reszta serwisu działa bez tego skryptu
     // i nie ma powodu, żeby go pobierała — AGENTS.md → JavaScript jest
@@ -1036,12 +1038,13 @@
                         ekranu ogłasza najpierw co się stało, a zaraz potem,
                         co można z tym zrobić.
                     --}}
-                    @php $statusAkcja = session('status_akcja'); @endphp
-                    @if(is_array($statusAkcja) && isset($statusAkcja['url'], $statusAkcja['etykieta']))
-                        <p class="flash-akcja">
-                            <a class="btn btn-primary" href="{{ $statusAkcja['url'] }}">{{ $statusAkcja['etykieta'] }}</a>
-                        </p>
-                    @endif
+                    {{-- `akcjaPodBledami`: strona z podsumowaniem błędów (logowanie)
+                         rysuje ten przycisk sama, tuż pod podsumowaniem — tam
+                         trafia fokus po błędzie, a przycisk nad nagłówkiem
+                         leżał poza tym, co człowiek czyta. --}}
+                    @unless($akcjaPodBledami)
+                        <x-status-akcja />
+                    @endunless
                     {{--
                         DROGA POWROTU PRZY AKCJI ODWRACALNEJ (issue L1 z audytu
                         `docs/AUDYT_2026-09.md`).

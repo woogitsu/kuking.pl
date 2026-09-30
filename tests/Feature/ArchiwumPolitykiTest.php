@@ -123,7 +123,7 @@ final class ArchiwumPolitykiTest extends TestCase
                 ->assertSee('href="'.url("/prywatnosc/wersje/{$data}/pobierz").'"', false);
         }
 
-        $odpowiedz->assertSee('Obecna')
+        $odpowiedz->assertSee('>Obowiązuje<', false)
             ->assertSee('Wersje polityki prywatności sprzed 25 września 2026')
             ->assertSee('Wcześniejsze brzmienie wydajemy na prośbę')
             ->assertSee('name="robots" content="noindex, follow"', false)
