@@ -70,9 +70,14 @@
     color: var(--color-ink-muted);
   }
 
-  .tagi-pusto {
+  .tagi-pusto,
+  .tagi-granica {
     margin: 0 0 var(--spacing-4);
     font-size: var(--text-body);
+  }
+
+  .tagi-granica {
+    margin-top: var(--spacing-5);
   }
 
   .tagi-doladuj {

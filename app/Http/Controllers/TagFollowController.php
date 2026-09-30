@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Tags\Actions\UpdateTagFollows;
+use App\Domain\Tags\LimitObserwowanychTagow;
 use App\Domain\Tags\TagFollowForm;
 use App\Domain\Tags\TagFollowWindow;
 use App\Http\Requests\TagSelection;
@@ -22,6 +23,14 @@ class TagFollowController extends Controller
     {
         try {
             $follows->follow($request->user(), [$tag->getKey()]);
+        } catch (LimitObserwowanychTagow $pelno) {
+            // Tag jest w porządku, pełna jest lista (#2326) — prowadzimy tam,
+            // gdzie da się zrobić miejsce, zamiast mówić „wybierz inny tag”.
+            return back()->with(Komunikat::blad($pelno->validator->errors()->first('tags')))
+                ->with('status_akcja', [
+                    'url' => route('settings.tags'),
+                    'etykieta' => 'Przejdź do „Twoich tagów”',
+                ]);
         } catch (ValidationException) {
             return back()->with(Komunikat::blad('Tego tagu nie da się już obserwować. Wybierz inny tag.'));
         }
