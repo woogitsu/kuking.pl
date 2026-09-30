@@ -1143,7 +1143,13 @@ php artisan kuking:potwierdz-zgloszenie-inna-droga KU-ABCD-2345 \
     --droga=telefon|poczta_papierowa|inny_email|osobiscie
 ```
 
-Komenda pyta o potwierdzenie (`--tak` pomija pytanie), ustawia
+Komenda sprawdza uprawnienia operatora i to, że sprawa czeka na
+potwierdzenie, ZANIM zada pytanie; w pytaniu pokazuje stan sprawy (status,
+czy stoi na suficie prób listu, datę zgłoszenia — bez danych zgłaszającego).
+Bez terminala (skrypt, `railway ssh -- …` bez TTY) nie ma kto odpowiedzieć:
+komenda kończy się wtedy błędem „Brak terminala. Dodaj --tak, żeby potwierdzić
+bez pytania.” (kod ≠ 0), a nie „Anulowano.” z kodem 0 — w takim wywołaniu
+dopisz `--tak`. Po potwierdzeniu (`--tak` pomija pytanie) ustawia
 `receipt_sent_at`, zeruje licznik porażek listu tej sprawy i zapisuje w
 `audit_log` zdarzenie `moderation.receipt_confirmed_manually`: kto
 (`actor_id` = `--operator`, tylko konto moderatora/administratora), kiedy

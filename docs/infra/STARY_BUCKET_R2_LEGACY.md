@@ -80,9 +80,17 @@ wiersz. **Oryginałów w starym buckecie nie kasuje.**
    — nic nie kopiuje i nie zmienia; pokazuje, co by się stało.
 
 3. **Przenosiny partiami** (`--limit`, domyślnie 200). Każdy przebieg
-   wypisuje „Następna partia: `--po=<uuid>`” — podaj ją w kolejnym.
-   Przebieg bez `--po` zaczyna od początku i zbiera wiersze pominięte
-   wcześniej (brak pliku zostawia wiersz przy `r2_legacy` — #1031).
+   wypisuje „Następna partia: `--po=<uuid>`”, a na końcu podsumowania
+   pełną komendę do skopiowania: `php artisan kuking:przenies-zdjecia
+   --po=<uuid>` — podaj ją w kolejnym przebiegu. Przebieg bez `--po`
+   zaczyna od początku i zbiera wiersze pominięte wcześniej (brak pliku
+   zostawia wiersz przy `r2_legacy` — #1031); po to jest, ale nie używaj go
+   do „kolejnej partii", bo zdrowe, nowsze zdjęcia nie dojdą do głosu.
+   „POMINIĘTE” (plik nie leży ani w starym, ani w nowym buckecie) nie
+   naprawi ponowne uruchomienie: odtwórz plik w starym buckecie z kopii albo
+   uznaj zdjęcie za utracone. „NIE UDAŁO SIĘ” uruchom ponownie; jeśli to
+   samo id wraca za każdym razem, sprawdź logi aplikacji. Tryb `--dry-run`
+   podaje obok liczby w partii także sumę do przeniesienia.
    Kopia w nowym buckecie liczy się dopiero wtedy, gdy ma rozmiar
    i SHA-256 zgodne ze źródłem w starym (#2228). „NIEZGODNA KOPIA” (ucięty
    upload albo obcy obiekt pod tym samym kluczem) zostawia wiersz przy
