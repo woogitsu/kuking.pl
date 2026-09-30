@@ -17,6 +17,7 @@ import { sprawdzNegatywyDetails } from './panel-details-negative.mjs';
 import { runCandidate as sprawdzWalidacjePanelu } from './panel-validation.mjs';
 import { createSnapshotCallback } from './panel-validation-snapshot.mjs';
 import { komunikatBledu } from './panel-komunikat.mjs';
+import { wybierzCzescPanelu } from './panel-czesci.mjs';
 
 const repo = realpathSync(process.cwd());
 const ci = process.env.GITHUB_ACTIONS === 'true';
@@ -24,6 +25,16 @@ const tylkoMenu = process.argv.includes('--menu-only');
 const negatywyDetails = process.argv.includes('--negative-details');
 if (negatywyDetails && (ci || tylkoMenu)) throw new Error('P581_NEGATYW_DETAILS_ZAKRES');
 if (tylkoMenu && ci) throw new Error('P581_RUN_CI_PELNY_ZAKRES');
+// #2299: część joba `port_panelu` (macierz). Bez zmiennej — cały pomiar.
+const czesc = wybierzCzescPanelu(process.env.PANEL_CZESC);
+if (czesc.czesc !== null && (tylkoMenu || negatywyDetails)) throw new Error('P581_CZESC_ZAKRES: część panelu tylko dla pełnego odbioru.');
+const dodatek = nazwa => czesc.dodatki.includes(nazwa);
+// Czas etapów idzie do dziennika joba: po nim widać, którą część przesunąć,
+// gdy jedna zacznie odstawać (#2299). Bez danych i poświadczeń — sama nazwa etapu.
+const etap = async (nazwa, fn) => {
+  const start = performance.now();
+  try { return await fn(); } finally { console.log(`P581_CZAS etap=${nazwa} sekundy=${((performance.now() - start) / 1000).toFixed(1)}`); }
+};
 if (!['local', 'testing'].includes(process.env.APP_ENV) || process.env.DB_HOST !== '127.0.0.1'
   || !/^\d+$/.test(process.env.DB_PORT || '') || process.env.MAIL_MAILER !== 'array'
   || (ci ? process.env.DB_DATABASE !== 'kuking_port_panel' : !['kuking_581_browser', 'kuking_581_acceptance', 'kuking_581_menu', 'kuking_581_menu_extra', 'kuking_581_details'].includes(process.env.DB_DATABASE) || process.env.DB_PORT !== '55439')) {
@@ -112,20 +123,20 @@ try {
       await context.storageState({ path: sesje[alias] }); chmodSync(sesje[alias], 0o600);
     } finally { await context.close(); }
   }
-  const zmierz = f => sprawdzPanelMarki({ browser, adres, phase: f.phase, outputDir, scenariusze: f.scenariusze.map(s => {
+  const zmierz = f => sprawdzPanelMarki({ browser, adres, phase: f.phase, outputDir, szerokosci: czesc.szerokosci, scenariusze: f.scenariusze.map(s => {
     if (!sesje[s.sesja]) throw new Error('P581_ALIAS_SESJI');
     return { ...s, sesja: sesje[s.sesja] };
   }) });
   let agregat;
   if (!tylkoMenu) {
-    const pusty = await zmierz(empty);
+    const pusty = await etap('pusty', () => zmierz(empty));
     const pelnaFixture = fixture('pelny');
-    const pelny = await zmierz(pelnaFixture);
-    agregat = sprawdzKompletnoscPaneluMarki({ pusty, pelny });
-    await sprawdzDetailsPanelu({ browser, adres, sesja: sesje.konto, fixture: pelnaFixture, outputDir: resolve(outputDir, 'details') });
-    await sprawdzZoomDetails({ chromium, adres, sesja: sesje.konto, fixture: pelnaFixture, outputDir: resolve(outputDir, 'details-zoom'), executablePath: process.env.CHROMIUM_PATH });
+    const pelny = await etap('pelny', () => zmierz(pelnaFixture));
+    agregat = sprawdzKompletnoscPaneluMarki({ pusty, pelny, szerokosci: czesc.szerokosci });
+    if (dodatek('details')) await etap('details', () => sprawdzDetailsPanelu({ browser, adres, sesja: sesje.konto, fixture: pelnaFixture, outputDir: resolve(outputDir, 'details') }));
+    if (dodatek('zoom-details')) await etap('zoom-details', () => sprawdzZoomDetails({ chromium, adres, sesja: sesje.konto, fixture: pelnaFixture, outputDir: resolve(outputDir, 'details-zoom'), executablePath: process.env.CHROMIUM_PATH }));
     if (negatywyDetails) await sprawdzNegatywyDetails({ browser, adres, sesja: sesje.konto, fixture: pelnaFixture, outputDir: resolve(outputDir, 'details-negative') });
-    if (ci) {
+    if (ci && dodatek('walidacja')) await etap('walidacja', async () => {
       const stanyPath = resolve(prywatne, 'stany.json');
       try {
         execFileSync(php, ['scripts/fixtures/panel-stany.php', statePath, stanyPath], {
@@ -145,16 +156,20 @@ try {
         reportPath: resolve(outputDir, 'walidacja.json'),
         appearance: { width: 320, theme: 'dark', scale: 140 },
       });
-    }
+    });
 
   }
-  const menu = await sprawdzDodatkoweStanyMenu({ browser, adres, sesja: sesje.konto, outputDir });
-  writeFileSync(resolve(outputDir, 'menu-dodatkowe.json'), JSON.stringify(menu, null, 2));
-  await sprawdzZoomMenu({ chromium, adres, sesja: sesje.konto, outputDir });
+  let menu = [];
+  if (tylkoMenu || dodatek('menu')) {
+    menu = await etap('menu', () => sprawdzDodatkoweStanyMenu({ browser, adres, sesja: sesje.konto, outputDir }));
+    writeFileSync(resolve(outputDir, 'menu-dodatkowe.json'), JSON.stringify(menu, null, 2));
+  }
+  if (tylkoMenu || dodatek('zoom-menu')) await etap('zoom-menu', () => sprawdzZoomMenu({ chromium, adres, sesja: sesje.konto, outputDir }));
   if (process.argv.includes('--negative-menu')) await sprawdzNegatywyMenu({ browser, adres, sesja: sesje.konto, outputDir });
   if (agregat) {
     writeFileSync(resolve(outputDir, 'agregat.json'), JSON.stringify(agregat, null, 2));
-    console.log(`P581 PASS: pusty ${agregat.pusty}, pelny ${agregat.pelny}, razem ${agregat.razem}. Dodatkowo menu i jego zoom 200%; bez kontroli ujemnych w tym jobie.`);
+    const zakres = czesc.czesc === null ? 'całość' : `część ${czesc.czesc}, szerokości ${czesc.szerokosci.join('/')}`;
+    console.log(`P581 PASS (${zakres}): pusty ${agregat.pusty}, pelny ${agregat.pelny}, razem ${agregat.razem}. Dodatki: ${czesc.dodatki.join(', ')}; bez kontroli ujemnych w tym jobie.`);
   } else {
     console.log(`P581 MENU PASS: ${menu.length} dodatkowych scenariuszy. Nie jest to pełny odbiór panelu.`);
   }

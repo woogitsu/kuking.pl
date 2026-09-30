@@ -394,6 +394,13 @@ OCZEKUJ = {
     'Regulamin §2 bez „Poradźcie”': r'Serwis ma /pytania, a regulamin §2 nie wymienia tej usługi',
     # #2299: zawężenie `--filter` w kontrolach ma własne regresje w każdej części.
     'Kontrole bez regresji zawężenia filtra (#2299)': r'Części kontroli nie uruchamiają `scripts/test_zawezenie_testow\.py` \(#2299\)',
+    'Macierz panelu krótsza niż podział (#2299)': r'Macierz `port_panelu` w ci\.yml ma inne części niż `CZESCI_PANELU`',
+    'Panel marki bez numeru części (#2299)': r'Job `port_panelu` nie podaje `PANEL_CZESC` z macierzy',
+    'Job zbiorczy panelu pomijany po czerwonej części (#2299)': r'Job zbiorczy panelu bez `!cancelled\(\)` jest `skipped` po czerwonej części',
+    'Testy JS nie biegną nigdzie, bo assets też buduje sam Vite (#2299)': r'Job `assets` nie robi pełnego `npm run build`',
+    'Cache przeglądarki odtwarza inną wersję (#2299)': r'przeglądarka innej wersji nie może być odtwarzana \(#2299\)',
+    'Pomiar portu zależny od rodzaju runnera (#2299)': r'warunek runnera stoi na kroku innym niż cache przeglądarki',
+    'Cache przeglądarki na własnym runnerze (#2299)': r'cache przeglądarki na własnym runnerze podmieniałby wspólny katalog',
 }
 
 

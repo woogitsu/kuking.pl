@@ -503,7 +503,6 @@ try {
   await sprawdzPasek({ browser: przegladarka, adres, sesja });
   await sprawdzSzybkiWyglad({ browser: przegladarka, adres });
   await sprawdzStopke({ browser: przegladarka, adres, sesja });
-  await sprawdzTagi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   });
   await wykonajGrupe(grupa, 'rozszerzenia-2', async () => {
   if (!['127.0.0.1', 'localhost'].includes(new URL(adres).hostname)) throw new Error('Fixture kompozycji wymaga lokalnego serwera.');
@@ -512,6 +511,12 @@ try {
   const paczka513 = fixture('kompozycje-513');
   await sprawdzNawigacje492({ adres, sesja, phpEnv: env() });
   await sprawdzZoomMarki({ adres, sesja, przepis: kompozycje.przepis, ...zeszyty, ...paczka513, sciezki515: ['/szukaj'] });
+  /* #2299: tagi (K515/K681, ok. 5 min) przeszły z części 1 do części 2 —
+     część 1 szła ok. 19 min, część 2 ok. 6,5 min. Stoją PO zoomie marki:
+     w CI zoom `/szukaj` do tej pory nie widział danych tego pomiaru (osobny
+     job), więc kolejność zostawia jego wejście bez zmian. Tagi zapisują
+     i przywracają swój stan same (`scripts/fixtures/kompozycje-515.php`). */
+  await sprawdzTagi({ browser: przegladarka, adres, sesja, phpEnv: env() });
 
   });
   await wykonajGrupe(grupa, 'baza', async () => {

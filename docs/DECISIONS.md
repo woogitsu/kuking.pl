@@ -21013,6 +21013,7 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | Archiwum wersji polityki pod /prywatnosc/wersje (decyzja 30.09) | **Budujemy, adres `/prywatnosc/wersje` zostaje.** Datowane wcześniejsze wersje polityki prywatności do pobrania, tak jak wersje regulaminu; przegląd prawny treści zostaje w #8 | #2220, #8 |
 | Test do #2300 (decyzja 30.09) | **Bez testu.** Zmienił się tylko komentarz przy `concurrency` w `ci.yml`, zachowanie CI bez zmian; test treści komentarza niczego wykonywalnego nie pilnuje | #2300 |
 | Czas CI, dalsze kroki (decyzja 30.09) | Zlecić: pomiar i przyspieszenie Panelu marki, cache `vendor/` i Playwrighta między jobami, scalenie krótkich jobów (audyt, Larastan, przyrząd #605, build assetów). Zmianę listy wymaganych checków w ochronie gałęzi robi właściciel | #2299 |
+| #2299: czas CI, etap 2 (decyzja 30.09) | Panel marki w **dwóch częściach macierzy** z jobem zbiorczym o dawnej nazwie (ochrona gałęzi bez zmian); **cache `vendor/` i przeglądarki Playwrighta** tylko tam, gdzie nie da starego wyniku (przeglądarka po dokładnej wersji, tylko runnery GitHuba); krótkie joby (audyt, Larastan, assety) **scalić**, a listę wymaganych checków zmienia **właściciel** — kolejność w `docs/infra/BRAMKI_CI_2215.md`. Żadna kontrola nie przestaje blokować | #2299 |
 
 ### Wycofanie
 Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis

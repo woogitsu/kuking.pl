@@ -1515,6 +1515,26 @@ checks = [
     # #2299: części kontroli przestają uruchamiać regresje zawężenia `--filter`.
     ("Kontrole bez regresji zawężenia filtra (#2299)", CI_WORKFLOW, PODZIAL_TESTOW_TEST,
      lambda s: replace_once(s, "-p 'test_zawezenie_testow.py'", "-p 'test_kontrola_wyjscia_testu.py'")),
+    # #2299, etap 2: panel marki w częściach, sam Vite w jobach przeglądarkowych,
+    # cache `vendor/` i przeglądarki bez starych wyników.
+    ("Macierz panelu krótsza niż podział (#2299)", CI_WORKFLOW, "PanelMarkiDzieliSieBezUtratyPomiaruTest",
+     lambda s: replace_once(s, "        # rozjazd wyłapuje `PanelMarkiDzieliSieBezUtratyPomiaruTest`.\n        czesc: [1, 2]\n",
+                            "        # rozjazd wyłapuje `PanelMarkiDzieliSieBezUtratyPomiaruTest`.\n        czesc: [1]\n")),
+    ("Panel marki bez numeru części (#2299)", CI_WORKFLOW, "PanelMarkiDzieliSieBezUtratyPomiaruTest",
+     lambda s: replace_once(s, "      PANEL_CZESC: ${{ matrix.czesc }}\n", "")),
+    ("Job zbiorczy panelu pomijany po czerwonej części (#2299)", CI_WORKFLOW, "PanelMarkiDzieliSieBezUtratyPomiaruTest",
+     lambda s: replace_once(s, "    needs: [zakres, port_panelu]\n    if: ${{ !cancelled() }}\n", "    needs: [zakres, port_panelu]\n")),
+    ("Testy JS nie biegną nigdzie, bo assets też buduje sam Vite (#2299)", CI_WORKFLOW, "TestyJsBiegnaWJobieAssetowTest",
+     lambda s: replace_once(s, "      - name: Build\n        run: npm run build\n", "      - name: Build\n        run: npm run build:assets\n")),
+    ("Cache przeglądarki odtwarza inną wersję (#2299)", CI_WORKFLOW, "CacheMiedzyJobamiNieDajeStarychWynikowTest",
+     lambda s: pierwsze_z_wielu(s, "          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}\n",
+                                "          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}\n"
+                                "          restore-keys: playwright-${{ runner.os }}-\n", 6)),
+    ("Pomiar portu zależny od rodzaju runnera (#2299)", CI_WORKFLOW, "test_job_przegladarkowy_nie_moze_byc_zielony_bez_pomiaru",
+     lambda s: pierwsze_z_wielu(s, "      - name: Port projektu — układ i kontrola ujemna\n",
+                                "      - name: Port projektu — układ i kontrola ujemna\n        if: runner.environment == 'github-hosted'\n", 2)),
+    ("Cache przeglądarki na własnym runnerze (#2299)", CI_WORKFLOW, "CacheMiedzyJobamiNieDajeStarychWynikowTest",
+     lambda s: pierwsze_z_wielu(s, "        if: runner.environment == 'github-hosted'\n", "", 6)),
     ("Wyścigi dwóch połączeń znów nie blokują CI", CI_WORKFLOW, WYSCIGI_BLOKUJA_TEST,
      lambda s: replace_once(s, "    name: Wyścigi na dwóch połączeniach\n", "    name: Wyścigi na dwóch połączeniach\n    continue-on-error: true\n")),
     # #2215: audyt zależności blokuje; flaga wracająca na job albo skrypt bramki
@@ -1525,8 +1545,10 @@ checks = [
      lambda s: replace_once(s, "python3 scripts/audyt-zaleznosci.py", "true scripts/audyt-zaleznosci.py")),
     ("Nowe continue-on-error w jobie testów", CI_WORKFLOW, AUDYT_BLOKUJE_TEST,
      lambda s: replace_once(s, "  testy:\n    name: Testy (PostgreSQL 18)\n", "  testy:\n    name: Testy (PostgreSQL 18)\n    continue-on-error: true\n")),
+    # #2299: `czesc: [1, 2]` ma też macierz panelu marki — kotwica z komentarzem portu.
     ("Macierz portu krótsza niż podział grup", CI_WORKFLOW, ROZSZERZENIA_CZESCI_TEST,
-     lambda s: replace_once(s, "        czesc: [1, 2]\n", "        czesc: [1]\n")),
+     lambda s: replace_once(s, "        # `PortMarkiMaWlasnaBramkeCiTest`.\n        czesc: [1, 2]\n",
+                            "        # `PortMarkiMaWlasnaBramkeCiTest`.\n        czesc: [1]\n")),
     ("Minutnik poza macierzą portu", CI_WORKFLOW, ROZSZERZENIA_CZESCI_TEST,
      lambda s: replace_once(s, "Minutnik — opóźnione wywołania i dostępny czas\n        if: matrix.czesc == 2\n", "Minutnik — opóźnione wywołania i dostępny czas\n        if: matrix.czesc == 3\n")),
     ("Runbook znów instaluje Sentry", RUNBOOK, RUNBOOK_USLUGI_TEST,
