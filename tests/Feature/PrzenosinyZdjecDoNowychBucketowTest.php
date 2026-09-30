@@ -451,6 +451,130 @@ class PrzenosinyZdjecDoNowychBucketowTest extends TestCase
         $this->assertSame('r2_legacy', $media->refresh()->disk);
     }
 
+    public function test_zgodna_zastana_kopia_przelacza_wiersz(): void
+    {
+        // #2228: kopia, która JUŻ leży w nowym buckecie i ma dokładnie te
+        // same bajty co źródło, jest pełnoprawnie przeniesiona — idempotencja
+        // przebiegu przerwanego w połowie zostaje.
+        $media = $this->stareZdjecie();
+
+        Storage::disk('nowe_oryginaly')->put($media->object_key, 'oryginal z exifem');
+
+        foreach ($media->metadata['variants'] as $wariant) {
+            Storage::disk('nowe_publiczne')->put($wariant['key'], 'wariant');
+        }
+
+        $this->artisan('kuking:przenies-zdjecia')
+            ->expectsOutputToContain('Niezgodne kopie: 0')
+            ->assertSuccessful();
+
+        $media->refresh();
+        $this->assertSame('nowe_oryginaly', $media->disk);
+        $this->assertSame('nowe_publiczne', $media->variantsDisk());
+    }
+
+    public function test_ucieta_zastana_kopia_oryginalu_nie_przelacza_wiersza(): void
+    {
+        // #2228, SEDNO: do 30 września 2026 samo `exists()` w nowym buckecie
+        // wystarczało, żeby przestawić wiersz. Ucięty upload z przerwanego
+        // przebiegu stawał się aktywnym oryginałem, a wiersz wypadał z kolejki.
+        $media = $this->stareZdjecie();
+
+        Storage::disk('nowe_oryginaly')->put($media->object_key, 'oryginal z');
+
+        $this->artisan('kuking:przenies-zdjecia')
+            ->expectsOutputToContain('NIEZGODNA KOPIA (wiersz BEZ ZMIAN)')
+            ->expectsOutputToContain('oryginał: '.$media->object_key.' — inny rozmiar: stary bucket 17 B, nowy 10 B')
+            ->expectsOutputToContain('Niezgodne kopie: 1')
+            ->expectsOutputToContain('usuń go stamtąd i uruchom komendę ponownie')
+            ->assertFailed();
+
+        $media->refresh();
+        $this->assertSame('r2_legacy', $media->disk);
+        $this->assertNull($media->variants_disk);
+
+        // Obcego/uciętego obiektu komenda sama NIE nadpisuje.
+        $this->assertSame('oryginal z', Storage::disk('nowe_oryginaly')->get($media->object_key));
+    }
+
+    public function test_kolizja_klucza_z_inna_trescia_tego_samego_rozmiaru_nie_przelacza_wiersza(): void
+    {
+        // Rozmiar się zgadza, treść nie — sam rozmiar nie wystarcza (podmieniony
+        // bajt ma ten sam rozmiar), rozstrzyga SHA-256.
+        $media = $this->stareZdjecie();
+        $klucz = $media->metadata['variants']['feed']['key'];
+
+        Storage::disk('nowe_publiczne')->put($klucz, 'WARIANT');
+
+        $this->artisan('kuking:przenies-zdjecia')
+            ->expectsOutputToContain('NIEZGODNA KOPIA (wiersz BEZ ZMIAN)')
+            ->expectsOutputToContain('wariant feed: '.$klucz.' — ten sam rozmiar (7 B), ale inna suma SHA-256')
+            ->assertFailed();
+
+        $this->assertSame('r2_legacy', $media->refresh()->disk);
+        $this->assertSame('WARIANT', Storage::disk('nowe_publiczne')->get($klucz));
+    }
+
+    public function test_kopia_ucieta_przy_zapisie_nie_przelacza_wiersza(): void
+    {
+        // Zapis „się udał" i obiekt istnieje, ale odczyt zwrotny ma mniej bajtów
+        // niż źródło — ucięty upload. Obecność po zapisie to za mało.
+        $media = $this->stareZdjecie();
+
+        $ucinajacy = Mockery::mock(Filesystem::class);
+        $ucinajacy->shouldReceive('exists')->andReturn(false, true);
+        $ucinajacy->shouldReceive('writeStream')->andReturn(true);
+        $ucinajacy->shouldReceive('readStream')->andReturnUsing(function () {
+            $strumien = fopen('php://memory', 'w+b');
+            fwrite($strumien, 'orygi');
+            rewind($strumien);
+
+            return $strumien;
+        });
+
+        Storage::set('nowe_oryginaly', $ucinajacy);
+
+        $this->artisan('kuking:przenies-zdjecia')
+            ->expectsOutputToContain('NIEZGODNA KOPIA (wiersz BEZ ZMIAN)')
+            ->expectsOutputToContain('inny rozmiar: stary bucket 17 B, nowy 5 B')
+            ->assertFailed();
+
+        $this->assertSame('r2_legacy', $media->refresh()->disk);
+    }
+
+    public function test_kopia_bez_zrodla_do_porownania_nie_przelacza_wiersza(): void
+    {
+        // Obiekt jest w nowym buckecie, ale w starym nie ma z czym go porównać.
+        // Nie wiadomo, czy to ten plik — więc to nie jest „ok".
+        $media = $this->stareZdjecie();
+
+        Storage::disk('nowe_oryginaly')->put($media->object_key, 'cokolwiek');
+        Storage::disk('r2_legacy')->delete($media->object_key);
+
+        $this->artisan('kuking:przenies-zdjecia')
+            ->expectsOutputToContain('w starym nie ma źródła')
+            ->assertFailed();
+
+        $this->assertSame('r2_legacy', $media->refresh()->disk);
+    }
+
+    public function test_tryb_podgladu_melduje_niezgodna_kopie_i_niczego_nie_zapisuje(): void
+    {
+        $media = $this->stareZdjecie();
+        $klucz = $media->metadata['variants']['thumb']['key'];
+
+        Storage::disk('nowe_publiczne')->put($klucz, 'obcy obiekt');
+
+        $this->artisan('kuking:przenies-zdjecia', ['--dry-run' => true])
+            ->expectsOutputToContain('NIEZGODNA KOPIA (wiersz BEZ ZMIAN)')
+            ->expectsOutputToContain('Niezgodne kopie: 1')
+            ->assertFailed();
+
+        $this->assertSame('r2_legacy', $media->refresh()->disk);
+        $this->assertSame('obcy obiekt', Storage::disk('nowe_publiczne')->get($klucz));
+        Storage::disk('nowe_oryginaly')->assertMissing($media->object_key);
+    }
+
     public function test_dysk_zgodnosci_ma_publiczny_adres_a_dysk_oryginalow_nie(): void
     {
         // Stary bucket JEST publiczny i dopóki wariantów z niego nie
