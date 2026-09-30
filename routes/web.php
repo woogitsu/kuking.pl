@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Media\PodgladOdRazu;
 use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
+use App\Domain\Zgody\ArchiwumDokumentu;
 use App\Http\Controllers\AccountDeletionController;
 use App\Http\Controllers\Admin\AppealController as AdminAppealController;
 use App\Http\Controllers\Admin\BezOdpowiedziController;
@@ -20,7 +21,7 @@ use App\Http\Controllers\Admin\UzytkownicyController;
 use App\Http\Controllers\Admin\WiadomosciController;
 use App\Http\Controllers\Admin\ZUrzeduController;
 use App\Http\Controllers\AppealController;
-use App\Http\Controllers\ArchiwumRegulaminuController;
+use App\Http\Controllers\ArchiwumDokumentuController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\FacebookDeauthorizeController;
 use App\Http\Controllers\Auth\FacebookLoginController;
@@ -188,15 +189,34 @@ Route::get('/regulamin', [StaticPageController::class, 'terms'])->name('terms');
 // Wszystkie wersje regulaminu (#2220, kryterium 4). Adres wersji niesie tę
 // samą datę co `dziennik_zgod.wersja_regulaminu`, więc każdy wiersz dziennika
 // wskazuje brzmienie, które ktoś zaakceptował. Poza indeksem — patrz
-// `ArchiwumRegulaminuController`.
-Route::get('/regulamin/wersje', [ArchiwumRegulaminuController::class, 'index'])->name('terms.versions');
-Route::get('/regulamin/wersje/{data}', [ArchiwumRegulaminuController::class, 'show'])
+// `ArchiwumDokumentuController`.
+Route::get('/regulamin/wersje', [ArchiwumDokumentuController::class, 'index'])
+    ->defaults('dokument', ArchiwumDokumentu::REGULAMIN)
+    ->name('terms.versions');
+Route::get('/regulamin/wersje/{data}', [ArchiwumDokumentuController::class, 'show'])
     ->where('data', '\d{4}-\d{2}-\d{2}')
+    ->defaults('dokument', ArchiwumDokumentu::REGULAMIN)
     ->name('terms.version');
-Route::get('/regulamin/wersje/{data}/pobierz', [ArchiwumRegulaminuController::class, 'pobierz'])
+Route::get('/regulamin/wersje/{data}/pobierz', [ArchiwumDokumentuController::class, 'pobierz'])
     ->where('data', '\d{4}-\d{2}-\d{2}')
+    ->defaults('dokument', ArchiwumDokumentu::REGULAMIN)
     ->name('terms.version.download');
 Route::get('/prywatnosc', [StaticPageController::class, 'privacy'])->name('privacy');
+// Wszystkie wersje polityki prywatności (#2220) — ten sam kształt co przy
+// regulaminie, pod adresem samej polityki (`/prywatnosc`). Data w adresie to
+// `dziennik_zgod.wersja_polityki`; archiwum zaczyna się 25 września 2026,
+// starsze daty dostają stronę „wydajemy na prośbę” (decyzja z 30.09, D-333).
+Route::get('/prywatnosc/wersje', [ArchiwumDokumentuController::class, 'index'])
+    ->defaults('dokument', ArchiwumDokumentu::POLITYKA)
+    ->name('privacy.versions');
+Route::get('/prywatnosc/wersje/{data}', [ArchiwumDokumentuController::class, 'show'])
+    ->where('data', '\d{4}-\d{2}-\d{2}')
+    ->defaults('dokument', ArchiwumDokumentu::POLITYKA)
+    ->name('privacy.version');
+Route::get('/prywatnosc/wersje/{data}/pobierz', [ArchiwumDokumentuController::class, 'pobierz'])
+    ->where('data', '\d{4}-\d{2}-\d{2}')
+    ->defaults('dokument', ArchiwumDokumentu::POLITYKA)
+    ->name('privacy.version.download');
 // „Jak dobieramy wpisy" (#1811, D-305) — opis każdej listy wpisów w serwisie,
 // zdanie po zdaniu powiązany z kodem (`JakDobieramyWpisyMowiPrawdeTest`).
 // Publiczna: regulamin do niej odsyła, a regulamin czyta też gość.

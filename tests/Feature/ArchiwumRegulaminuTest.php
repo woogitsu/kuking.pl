@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Zgody\ArchiwumRegulaminu;
+use App\Domain\Zgody\ArchiwumDokumentu;
 use App\Domain\Zgody\WersjaDokumentu;
 use App\Models\User;
 use App\Models\WpisZgody;
@@ -36,7 +36,7 @@ final class ArchiwumRegulaminuTest extends TestCase
     public function test_biezaca_wersja_regulaminu_ma_w_archiwum_plik_identyczny_z_regulaminem(): void
     {
         $biezaca = (string) config('kuking.zgody.wersja_regulaminu');
-        $plik = ArchiwumRegulaminu::plik($biezaca);
+        $plik = ArchiwumDokumentu::regulamin()->plik($biezaca);
 
         $this->assertNotNull(
             $plik,
@@ -65,7 +65,7 @@ final class ArchiwumRegulaminuTest extends TestCase
         }
 
         $this->assertNotNull(
-            ArchiwumRegulaminu::plik($poprzednia),
+            ArchiwumDokumentu::regulamin()->plik($poprzednia),
             "kuking.zgody.zmiana_regulaminu.poprzednia = {$poprzednia}, a w resources/legal/archiwum/ nie ma "
             ."regulamin-{$poprzednia}.md. Odtwórz ten plik z historii gita.",
         );
@@ -73,7 +73,7 @@ final class ArchiwumRegulaminuTest extends TestCase
 
     public function test_kazdy_plik_archiwum_niesie_w_naglowku_date_ze_swojej_nazwy(): void
     {
-        $wersje = ArchiwumRegulaminu::wersje();
+        $wersje = ArchiwumDokumentu::regulamin()->wersje();
 
         // Kontrola: pusta pętla niczego nie dowodzi.
         $this->assertContains('2026-09-07', $wersje);
@@ -84,9 +84,9 @@ final class ArchiwumRegulaminuTest extends TestCase
             // `assertTrue`, nie `assertStringContainsString`: ten drugi wypisuje
             // cały dokument przed komunikatem i przyczyna ginie w wyjściu.
             $this->assertTrue(
-                str_contains((string) ArchiwumRegulaminu::tresc($data), 'opisuje stan serwisu na '.ArchiwumRegulaminu::dataSlownie($data)),
+                str_contains((string) ArchiwumDokumentu::regulamin()->tresc($data), 'opisuje stan serwisu na '.ArchiwumDokumentu::dataSlownie($data)),
                 "Plik regulamin-{$data}.md ma w nagłówku inną datę niż w nazwie. Nagłówek ma mówić "
-                .'„opisuje stan serwisu na '.ArchiwumRegulaminu::dataSlownie($data).'”.',
+                .'„opisuje stan serwisu na '.ArchiwumDokumentu::dataSlownie($data).'”.',
             );
         }
     }
@@ -144,7 +144,7 @@ final class ArchiwumRegulaminuTest extends TestCase
         $this->assertSame('text/plain; charset=utf-8', $odpowiedz->headers->get('Content-Type'));
         $this->assertSame('attachment; filename="regulamin-kuking-2026-09-26.txt"', $odpowiedz->headers->get('Content-Disposition'));
         $this->assertSame('noindex', $odpowiedz->headers->get('X-Robots-Tag'));
-        $this->assertSame(ArchiwumRegulaminu::tresc('2026-09-26'), $odpowiedz->getContent());
+        $this->assertSame(ArchiwumDokumentu::regulamin()->tresc('2026-09-26'), $odpowiedz->getContent());
     }
 
     public function test_nieistniejaca_albo_bledna_data_daje_404(): void
@@ -153,7 +153,7 @@ final class ArchiwumRegulaminuTest extends TestCase
         $this->get('/regulamin/wersje/2026-09-08/pobierz')->assertNotFound();
         $this->get('/regulamin/wersje/2026-13-45')->assertNotFound();
         $this->get('/regulamin/wersje/..%2Fregulamin')->assertNotFound();
-        $this->assertNull(ArchiwumRegulaminu::plik('../regulamin'));
+        $this->assertNull(ArchiwumDokumentu::regulamin()->plik('../regulamin'));
     }
 
     // -----------------------------------------------------------------
@@ -168,15 +168,15 @@ final class ArchiwumRegulaminuTest extends TestCase
 
         $this->assertSame(
             'To jest nowa wersja regulaminu, z 30 września 2026. Zacznie obowiązywać 14 października 2026.',
-            ArchiwumRegulaminu::opisWersji('2026-09-30'),
+            ArchiwumDokumentu::regulamin()->opisWersji('2026-09-30'),
         );
         $this->assertSame(
             'To jest wersja regulaminu z 26 września 2026. Obowiązuje do 13 października 2026 włącznie, a od 14 października 2026 zastąpi ją nowa wersja.',
-            ArchiwumRegulaminu::opisWersji('2026-09-26'),
+            ArchiwumDokumentu::regulamin()->opisWersji('2026-09-26'),
         );
         $this->assertSame(
             'To jest wcześniejsza wersja regulaminu, z 7 września 2026. Już nie obowiązuje.',
-            ArchiwumRegulaminu::opisWersji('2026-09-07'),
+            ArchiwumDokumentu::regulamin()->opisWersji('2026-09-07'),
         );
     }
 
@@ -203,6 +203,6 @@ final class ArchiwumRegulaminuTest extends TestCase
 
         $this->get(route('terms.version', $wersja))
             ->assertOk()
-            ->assertSee('opisuje stan serwisu na '.ArchiwumRegulaminu::dataSlownie($wersja));
+            ->assertSee('opisuje stan serwisu na '.ArchiwumDokumentu::dataSlownie($wersja));
     }
 }

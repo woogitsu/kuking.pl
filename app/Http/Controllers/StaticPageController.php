@@ -6,7 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Feed\JakDobieramyWpisy;
 use App\Domain\Ukrycia\Ukrycia;
-use App\Domain\Zgody\ArchiwumRegulaminu;
+use App\Domain\Zgody\ArchiwumDokumentu;
 use App\Support\ZaufanyMarkdown;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -48,8 +48,8 @@ class StaticPageController extends Controller
             'Regulamin',
             'Regulamin Kuking: zasady publikowania zdjęć i przepisów, prawa autorskie, moderacja treści i usuwanie konta.',
             // Pobranie i wszystkie wersje (#2220, kryterium 4) — patrz
-            // `ArchiwumRegulaminuController`.
-            ['wersjaRegulaminu' => ArchiwumRegulaminu::biezaca()],
+            // `ArchiwumDokumentuController`.
+            ['archiwum' => ArchiwumDokumentu::regulamin()],
         );
     }
 
@@ -76,6 +76,8 @@ class StaticPageController extends Controller
             'polityka-prywatnosci',
             'Polityka prywatności',
             'Polityka prywatności Kuking: jakie dane zbieramy, po co je przechowujemy i jak pobrać albo usunąć swoje dane.',
+            // Pobranie i wszystkie wersje (#2220) — jak przy regulaminie.
+            ['archiwum' => ArchiwumDokumentu::polityka()],
         );
     }
 
