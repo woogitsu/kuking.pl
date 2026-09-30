@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Moderation;
 
+use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Post;
@@ -57,6 +58,7 @@ final readonly class CelZgloszenia
             $target instanceof CookedEvent => self::nazwaUgotowania($target),
             $target instanceof User => self::nazwaProfilu($target),
             $target instanceof Post => self::nazwaWpisu($target),
+            $target instanceof Collection => self::nazwaZeszytu($target),
             default => 'treść',
         };
     }
@@ -69,6 +71,8 @@ final readonly class CelZgloszenia
             $target instanceof Recipe => self::fragmentPrzepisu($target),
             $target instanceof CookedEvent => self::fragmentUgotowania($target),
             $target instanceof User => self::fragmentProfilu($target),
+            // Opis zeszytu to tekst właściciela, który widzą wszyscy (#2279).
+            $target instanceof Collection => $target->description,
             default => null,
         };
     }
@@ -237,6 +241,11 @@ final readonly class CelZgloszenia
         }
 
         return 'wykonanie przepisu';
+    }
+
+    private static function nazwaZeszytu(Collection $zeszyt): string
+    {
+        return trim((string) $zeszyt->name) !== '' ? "zeszyt «{$zeszyt->name}»" : 'zeszyt';
     }
 
     private static function nazwaProfilu(User $user): string

@@ -105,5 +105,16 @@
 
     <p class="mt-3">
         <a class="btn btn-secondary" href="{{ route('cooked.show', $event) }}">Zobacz i skomentuj</a>
+        {{-- „Zgłoś” przy zdjęciu i notatce wykonania (#2279, regulamin §7).
+             Backend przyjmował `cooked_event` od dawna, ale żaden ekran nie
+             prowadził do formularza. Kucharz siebie nie zgłasza; gość dostaje
+             odnośnik z logowaniem (`x-zglos-dla-goscia`, #2221). --}}
+        @auth
+            @if(auth()->id() !== $event->user_id)
+                <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'cooked_event', 'id' => $event->getKey()]) }}">Zgłoś</a>
+            @endif
+        @else
+            <x-zglos-dla-goscia typ="cooked_event" :id="$event->getKey()" />
+        @endauth
     </p>
 </article>

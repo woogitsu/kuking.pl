@@ -84,6 +84,20 @@
          przez Policy. Prywatny, domyślny i wspólny — bez przycisku. --}}
     <x-podziel-sie :tresc="$collection" />
 
+    {{-- „Zgłoś” przy publicznym zeszycie (#2279, regulamin §7): nazwę i opis
+         napisał właściciel i widzą je wszyscy. Właściciel siebie nie zgłasza;
+         prywatny zeszyt obcy nie widzi wcale. Gość dostaje odnośnik
+         z logowaniem (`x-zglos-dla-goscia`, #2221). --}}
+    @if($collection->isPublic() && auth()->id() !== $collection->owner_id)
+        <p class="mb-5">
+            @auth
+                <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'collection', 'id' => $collection->getKey()]) }}">Zgłoś ten zeszyt</a>
+            @else
+                <x-zglos-dla-goscia typ="collection" :id="$collection->getKey()" etykieta="Zgłoś ten zeszyt" />
+            @endauth
+        </p>
+    @endif
+
     {{--
         WSPÓLNY ZESZYT (#1743, D-302). Kto ma dostęp — tylko osobom, które
         same go mają; obcy oglądający publiczny zeszyt nie dowiaduje się,

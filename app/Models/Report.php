@@ -84,6 +84,8 @@ class Report extends Model
         'cooked_event' => 'wykonanie przepisu',
         'user' => 'profil osoby',
         'media' => 'zdjęcie',
+        // Publiczny zeszyt: nazwa i opis właściciela (#2279).
+        'collection' => 'zeszyt',
         'unknown' => 'strona spod podanego adresu',
     ];
 
