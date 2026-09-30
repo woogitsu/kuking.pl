@@ -150,8 +150,18 @@ final class ZapiszSygnal
     {
         try {
             DB::transaction(function () use ($user, $signalName, $properties): void {
+                $konto = $this->kontoDoPowiazania($user);
+
+                // SPRZECIW WOBEC STATYSTYK (RODO art. 21, #2277): zdarzenia
+                // tej osoby nie zapisujemy wcale — ani z kontem, ani bez.
+                // Polityka prywatności obiecuje, że sprzeciw da się złożyć
+                // w ustawieniach; bez tego warunku przycisk byłby atrapą.
+                if ($konto === false) {
+                    return;
+                }
+
                 ProductSignal::create([
-                    'user_id' => $this->kontoDoPowiazania($user),
+                    'user_id' => $konto,
                     'signal_name' => $signalName,
                     'properties' => $properties,
                 ]);
@@ -197,7 +207,12 @@ final class ZapiszSygnal
      * pierwszy był sygnał, wymazanie czeka na nas i odpina też ten wiersz.
      * Samo zdarzenie zostaje — liczniki zbiorcze nie tracą ani jednej sztuki.
      */
-    private function kontoDoPowiazania(?User $user): ?string
+    /**
+     * `false` znaczy „nie zapisuj nic”: konto zgłosiło sprzeciw wobec
+     * statystyk (#2277). Czytane pod tą samą blokadą `FOR SHARE`, więc
+     * sprzeciw zatwierdzony przed tym zapisem na pewno go zatrzyma.
+     */
+    private function kontoDoPowiazania(?User $user): string|false|null
     {
         if ($user === null) {
             return null;
@@ -206,7 +221,11 @@ final class ZapiszSygnal
         $konto = DB::table('users')
             ->where('id', $user->getKey())
             ->sharedLock()
-            ->first(['id', 'data_erased_at']);
+            ->first(['id', 'data_erased_at', 'sprzeciw_statystyk_at']);
+
+        if ($konto !== null && $konto->sprzeciw_statystyk_at !== null) {
+            return false;
+        }
 
         return $konto !== null && $konto->data_erased_at === null ? (string) $konto->id : null;
     }

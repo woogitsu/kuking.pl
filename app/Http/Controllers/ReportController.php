@@ -9,6 +9,7 @@ use App\Domain\Moderation\CelZgloszenia;
 use App\Domain\Moderation\ZmianaDecyzjiPoOdwolaniu;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\Moderation\ZgloszenieTresciRequest;
+use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\ModerationAction;
@@ -291,6 +292,7 @@ class ReportController extends Controller
             $target instanceof Post => route('posts.show', $target),
             $target instanceof Recipe => route('recipes.show', $target),
             $target instanceof CookedEvent => route('cooked.show', $target),
+            $target instanceof Collection => route('collections.show', $target),
             $target instanceof Comment => $this->wracajDoRodzicaKomentarza($target),
             // `user` — cel zgłoszenia to profil.
             $target instanceof User && $target->profile !== null => route('profile.show', $target->profile->username),
@@ -337,6 +339,9 @@ class ReportController extends Controller
                 : Recipe::where('slug', $id)->firstOrFail(),
             'comment' => Comment::findOrFail($id),
             'cooked_event' => CookedEvent::findOrFail($id),
+            // Publiczny zeszyt (#2279). Po UUID, przed zapytaniem — ten sam
+            // powód co przy przepisie wyżej (rzutowanie na uuid).
+            'collection' => Str::isUuid($id) ? Collection::findOrFail($id) : abort(404),
             // Konto po UUID — stabilnym identyfikatorze, który nie przechodzi
             // na nikogo innego (issue #1599). Nazwa zostaje tylko jako wejście
             // ze starych odnośników do formularza; `store()` jej nie przyjmuje.

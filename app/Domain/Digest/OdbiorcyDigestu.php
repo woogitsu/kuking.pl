@@ -245,6 +245,16 @@ final class OdbiorcyDigestu
                     'reserved_at' => now(),
                 ]);
 
+                // JEDEN WIERSZ NA OSOBĘ, NIE HISTORIA WYSYŁEK (#2280).
+                // Bariera potrzebuje tylko bieżącego tygodnia: odstęp siedmiu
+                // dni pilnuje `weekly_digest_sent_at`. Starsze rezerwacje
+                // kasujemy w tej samej transakcji — tak brzmi polityka
+                // prywatności („zapis ostatniego tygodnia, nie historia").
+                DB::table('weekly_digest_sends')
+                    ->where('user_id', $osoba->getKey())
+                    ->where('week_start', '<', $tydzien)
+                    ->delete();
+
                 $this->oznaczWyslane([$osoba]);
 
                 return true;

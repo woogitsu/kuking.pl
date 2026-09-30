@@ -90,6 +90,32 @@
     </form>
 
     {{--
+        SPRZECIW WOBEC STATYSTYK (RODO art. 21, #2277).
+
+        Polityka prywatności opiera statystyki na uzasadnionym interesie
+        i obiecuje, że można się im sprzeciwić. Osobny formularz z jednym
+        przyciskiem, nie haczyk w formularzu wyżej: sprzeciw nie jest zgodą
+        i nie może się przestawić przy okazji zapisu tygodniowego listu.
+    --}}
+    <section class="mt-8" id="statystyki">
+        <h2>Statystyki</h2>
+        @if(auth()->user()->sprzeciwWobecStatystyk())
+            <p data-sprzeciw-statystyk>Nie liczymy Cię w statystykach od {{ \App\Support\Czas::data(auth()->user()->sprzeciw_statystyk_at, 'j F Y') }}. Nie zapisujemy daty Twojej ostatniej wizyty ani tego, co robisz w serwisie, a po zalogowaniu Twoje strony nie mają skryptu statystyki odwiedzin Cloudflare.</p>
+            <form method="POST" action="{{ route('settings.privacy.sprzeciw-statystyk.cofnij') }}">
+                @csrf @method('DELETE')
+                <button class="btn btn-secondary" type="submit">Licz mnie znowu</button>
+            </form>
+        @else
+            <p>Liczymy, jak ludzie korzystają z Kuking: na przykład kiedy ktoś ostatnio zajrzał, ile wyszukiwań kończy się bez wyniku i ile osób ogląda strony. Dzięki temu wiemy, co poprawić. Możesz się temu sprzeciwić. Wtedy nie zapisujemy Twoich wizyt ani tego, co robisz w serwisie, a po zalogowaniu Twoje strony nie mają skryptu statystyki odwiedzin Cloudflare. Nie zaproponujemy Ci też wtedy dodania Kuking do ekranu telefonu, bo ta podpowiedź korzysta z daty ostatniej wizyty.</p>
+            <form method="POST" action="{{ route('settings.privacy.sprzeciw-statystyk') }}">
+                @csrf
+                <button class="btn btn-secondary" type="submit">Nie licz mnie w statystykach</button>
+            </form>
+        @endif
+        <p class="field-help">Więcej piszemy w <a href="{{ route('privacy') }}">polityce prywatności</a>.</p>
+    </section>
+
+    {{--
         ZGODA „ODCZYT AI” (D-296) — udzielenie i wycofanie w jednym miejscu.
 
         Sekcja jest wtedy, gdy odczyt działa ALBO gdy ktoś ma zgodę: wycofanie

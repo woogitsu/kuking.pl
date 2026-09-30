@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Http\Middleware\ParametryAdresuBezTablic;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 
@@ -63,6 +64,21 @@ final class AnalitykaCloudflare
     public static function wlaczona(): bool
     {
         return self::token() !== '';
+    }
+
+    /**
+     * Czy ten widz nie sprzeciwił się statystykom (RODO art. 21, #2277).
+     *
+     * Zalogowana osoba, która kliknęła „Nie licz mnie w statystykach”, nie
+     * dostaje skryptu na żadnej stronie. Gościa nie umiemy rozpoznać bez
+     * zapisania czegoś na jego urządzeniu — polityka prywatności mówi mu
+     * wprost, że skrypt może zablokować w przeglądarce.
+     */
+    public static function widzNieSprzeciwilSie(): bool
+    {
+        $widz = auth()->user();
+
+        return ! ($widz instanceof User && $widz->sprzeciwWobecStatystyk());
     }
 
     /**

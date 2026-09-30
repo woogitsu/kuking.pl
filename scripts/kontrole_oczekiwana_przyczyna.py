@@ -349,6 +349,14 @@ OCZEKUJ = {
     'Skrypt bramki Railway nie porównuje HEAD z SHA z CI': r'Skrypt bramki nie porównuje `git rev-parse HEAD` z SHA z CI',
     'Wydanie Sentry z github.sha zamiast SHA wdrożenia': r'Wydanie Sentry ma version: \$\{\{ github\.sha \}\}, a powinno',
     'Nieznany stan w historii wdrożenia pominięty': r'OBLANE: nieznany stan w historii = błąd wejścia \(#2248\) \(kod 0, oczekiwano 2\)',
+    # Audyt prywatności 30.09 (#2278, #2281, #2282).
+    'Polityka bez nazwy ciasteczka zapamiętaj mnie': r'Polityka nie podaje nazwy ciasteczka „zapamiętaj mnie”',
+    'Polityka z terminem zapamiętaj mnie innym niż bramka': r'Ciasteczko „zapamiętaj mnie” żyje 400 dni',
+    'Klucz localStorage bez opisu w polityce': r'zapisuje w localStorage „kuking-wyglad-nowy”',
+    'Planer bez wiersza w polityce': r'Dane z sekcji paczki „planer” nie mają opisu',
+    'Nowa sekcja paczki bez opisu w polityce': r'Paczka ma nową sekcję „planer_nowy”',
+    'Postęp gotowania z terminem niezgodnym z konfiguracją': r'Postęp gotowania żyje 24 godzin',
+    'Cloudflare jako pośrednik bez wiersza w polityce': r'Kod używa usługi „Cloudflare \(sieć, CDN i ochrona',
 }
 
 

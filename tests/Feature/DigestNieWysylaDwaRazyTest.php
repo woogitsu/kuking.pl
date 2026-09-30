@@ -264,13 +264,16 @@ class DigestNieWysylaDwaRazyTest extends TestCase
 
         $this->assertKazdyDostal(2, $osoby);
 
-        // Dwa różne klucze tygodnia, a nie dwa wiersze tego samego —
-        // inaczej `UNIQUE` nie przepuściłby drugiego wcale.
-        $this->assertSame(
-            2,
-            DB::table('weekly_digest_sends')->distinct()->count('week_start'),
-            'Drugi tydzień zajął ten sam klucz co pierwszy — rezerwacja nie jest per okres.',
-        );
+        // Drugi tydzień zajął NOWY klucz — inaczej `UNIQUE` nie przepuściłby
+        // drugiego listu wcale. Poprzednia rezerwacja znika przy nowej
+        // (#2280: jeden wiersz na osobę, nie historia wysyłek), więc na
+        // osobę zostaje dokładnie jeden wiersz, z tygodniem młodszym niż
+        // pierwszy list.
+        foreach ($osoby as $osoba) {
+            $tygodnie = DB::table('weekly_digest_sends')->where('user_id', $osoba->getKey())->pluck('week_start');
+            $this->assertCount(1, $tygodnie, 'Po drugim tygodniu została historia rezerwacji zamiast jednego wiersza.');
+            $this->assertGreaterThan(now()->subDays(8)->toDateString(), (string) $tygodnie->first());
+        }
     }
 
     // -----------------------------------------------------------------

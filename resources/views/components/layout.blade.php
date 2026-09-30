@@ -365,8 +365,10 @@
     {{-- `wolnoNaTejStronie()` ZDEJMUJE beacona z adresów niosących żeton albo
          adres e-mail (`/nowe-haslo/{token}?email=…`). Odczytany beacon usuwa
          query, ale zostawia ścieżkę. Osobny nagłówek no-referrer chroni
-         przejście do kolejnego dokumentu — uzasadnienie w tamtej klasie. --}}
-    @if(\App\Support\AnalitykaCloudflare::wlaczona() && \App\Support\AnalitykaCloudflare::wolnoNaTejStronie())
+         przejście do kolejnego dokumentu — uzasadnienie w tamtej klasie.
+         `widzNieSprzeciwilSie()` zdejmuje go osobie, która w ustawieniach
+         prywatności sprzeciwiła się statystykom (#2277). --}}
+    @if(\App\Support\AnalitykaCloudflare::wlaczona() && \App\Support\AnalitykaCloudflare::wolnoNaTejStronie() && \App\Support\AnalitykaCloudflare::widzNieSprzeciwilSie())
         <script defer
                 src="{{ \App\Support\AnalitykaCloudflare::adresSkryptu() }}"
                 data-cf-beacon='{{ \App\Support\AnalitykaCloudflare::konfiguracjaBeacona() }}'></script>

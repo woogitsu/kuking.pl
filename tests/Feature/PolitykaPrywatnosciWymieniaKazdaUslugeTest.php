@@ -8,6 +8,7 @@ use App\Models\TozsamoscZewnetrzna;
 use App\Moderacja\KlientOpenAI;
 use App\Poczta\TransportEmailLabs;
 use App\Support\AnalitykaCloudflare;
+use App\Support\TokenKrawedzi;
 use App\Support\Turnstile;
 use PHPUnit\Framework\Attributes\Test;
 use ReflectionClass;
@@ -131,6 +132,21 @@ class PolitykaPrywatnosciWymieniaKazdaUslugeTest extends TestCase
             'Cloudflare Web Analytics (analityka odwiedzin, D-092)' => [
                 class_exists(AnalitykaCloudflare::class),
                 'Cloudflare Web Analytics',
+            ],
+            /*
+             * Cloudflare jako POŚREDNIK CAŁEGO RUCHU — sieć, CDN i ochrona
+             * (#2282, audyt 30.09 Z6). Kończy TLS, więc widzi każde żądanie
+             * i każdą odpowiedź, a polityka wspominała o tym tylko zdaniem
+             * pobocznym. Sygnałem w kodzie jest token krawędziowy
+             * (`KUKING_EDGE_TOKEN`, `TokenKrawedzi`) — istnieje wyłącznie
+             * dlatego, że ruch przechodzi przez Cloudflare.
+             *
+             * Szukamy nazwy WIERSZA tabeli, nie słowa „Cloudflare": to stoi
+             * w dokumencie od R2, Turnstile'a i analityki (PULAPKI §1).
+             */
+            'Cloudflare (sieć, CDN i ochrona, #2282)' => [
+                class_exists(TokenKrawedzi::class) && array_key_exists('aktualny', (array) config('proxy.token_krawedzi')),
+                '| Cloudflare (sieć, CDN i ochrona przed atakami) |',
             ],
         ];
     }
