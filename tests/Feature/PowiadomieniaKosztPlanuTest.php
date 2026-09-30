@@ -36,7 +36,7 @@ final class PowiadomieniaKosztPlanuTest extends TestCase
         parent::tearDown();
 
         if ($this->poZasiewie !== null) {
-            $this->poZasiewie->exec('VACUUM (ANALYZE) users, profiles, notifications');
+            $this->poZasiewie->exec('VACUUM (ANALYZE) users, profiles, notifications, blocks');
             $this->poZasiewie = null;
         }
     }
@@ -51,7 +51,11 @@ final class PowiadomieniaKosztPlanuTest extends TestCase
         DB::table('notifications')->where('user_id', $ja->getKey())
             ->where('created_at', DB::table('notifications')->where('user_id', $ja->getKey())->min('created_at'))
             ->update(['read_at' => null]);
-        DB::statement('ANALYZE notifications');
+        // Całe ANALYZE, jak w FeedObserwowanychKosztPlanuTest: filtr widoczności
+        // sięga też do `blocks` i `users`, a ich statystyki po wcześniejszych
+        // testach w tym samym procesie potrafią być nieaktualne (w CI szacunek
+        // wychodził 321 tys. zamiast ok. 24 tys.).
+        DB::statement('ANALYZE');
 
         $widoczne = $ja->notifications()->visibleTo($ja)->count();
         $this->assertGreaterThan(1000, $widoczne, 'Kontrola sceny: za mało widocznych powiadomień, żeby próg JIT miał znaczenie.');

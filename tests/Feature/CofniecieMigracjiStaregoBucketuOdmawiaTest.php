@@ -31,6 +31,8 @@ use Tests\TestCase;
  *  - że odmowa niczego nie zmienia,
  *  - kontrole dodatnie: stare zdjęcia bez przenosin i pusta baza — rollback
  *    przechodzi jak dawniej (odmowa ma być WĄSKA).
+ *
+ * @bez-kontroli-dodatniej plik migracji jest wczytywany i WYKONYWANY na prawdziwej bazie, a nie czytany jako tekst — test sprawdza zachowanie, a jego kontrole dodatnie są w samym teście.
  */
 class CofniecieMigracjiStaregoBucketuOdmawiaTest extends TestCase
 {

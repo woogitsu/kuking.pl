@@ -850,7 +850,7 @@ w tej samej transakcji co powiązanie. `UNIQUE (user_id)` unieważnia poprzedni
 link przy kolejnej prośbie; `UNIQUE (token_hash)` zapobiega kolizji.
 
 Retencja (issue #2319): wygasły dowód nie działa od razu (warunek `expires_at`
-w `FacebookConnectionConfirmation`), a fizyczny wiersz kasuje co noc o 06:40 UTC
+w `FacebookConnectionConfirmation`), a fizyczny wiersz kasuje co noc o 07:20 UTC
 `kuking:sprzataj-dowody-facebooka` (`PrzedawnioneDowodyFacebooka`,
 `expires_at < now()`, opcja `--na-sucho`). Wymazanie konta usuwa dowód jawnie
 w `EraseAccountData` — kaskada `ON DELETE CASCADE` nie zadziała, bo kont się nie

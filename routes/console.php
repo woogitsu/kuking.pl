@@ -376,9 +376,11 @@ Harmonogram::artisan('kuking:sprzataj-resety-hasel')
 // dziesięciu minutach sam (`FacebookConnectionConfirmation`); to zadanie
 // zabiera już tylko dane bez zastosowania — także z kopii kolejnych dni.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+// 07:20 — 06:40 zajęło sprzątanie wersji przepisów (retencja #2024);
+// wolne okno między 07:10 a 07:50 (odstępy co najmniej dziesięć minut).
 Harmonogram::artisan('kuking:sprzataj-dowody-facebooka')
     ->name('kuking:sprzataj-dowody-facebooka')
-    ->dailyAt('06:40')
+    ->dailyAt('07:20')
     ->onOneServer()
     ->withoutOverlapping(120);
 
