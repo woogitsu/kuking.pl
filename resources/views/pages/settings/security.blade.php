@@ -10,7 +10,7 @@
             albo zobaczył, jak je wpisujesz.
         </p>
 
-        <form method="POST" action="{{ route('settings.security.password') }}">
+        <form method="POST" action="{{ route('settings.security.password') }}" novalidate>
             @csrf @method('PUT')
 
             <x-field name="current_password" wiersz="zmiana" label="Obecne hasło" type="password" required
@@ -47,7 +47,7 @@
             z aplikacją Kuking (<a href="{{ route('settings.devices') }}">Urządzenia z dostępem</a>).
         </p>
 
-        <form method="POST" action="{{ route('settings.security.logout-others') }}">
+        <form method="POST" action="{{ route('settings.security.logout-others') }}" novalidate>
             @csrf
 
             {{-- Kontekst rozdziela błędy obu formularzy i ich odnośniki.

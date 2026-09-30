@@ -213,7 +213,7 @@
 
         <details @if($errors->hasAny(['password', 'confirm', 'usun_tresci'])) open @endif>
             <summary class="btn btn-secondary inline-flex">Chcę usunąć swoje konto</summary>
-            <form class="mt-4" method="POST" action="{{ route('settings.data.delete') }}">
+            <form class="mt-4" method="POST" action="{{ route('settings.data.delete') }}" novalidate>
                 @csrf
                 <x-field name="password" label="Wpisz swoje hasło" type="password" required autocomplete="current-password"
                          help="Pytamy o hasło, żeby mieć pewność, że to naprawdę Ty." />

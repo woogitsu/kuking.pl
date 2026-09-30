@@ -25,7 +25,7 @@
 
     <x-error-summary />
 
-    <form class="panel-formularza" method="POST" action="{{ route('login.two_factor.store') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('login.two_factor.store') }}" novalidate>
         @csrf
 
         <x-field name="code" label="Sześciocyfrowy kod z aplikacji" required

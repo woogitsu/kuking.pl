@@ -24,7 +24,7 @@
 
     <x-error-summary />
 
-    <form class="panel-formularza" method="POST" action="{{ route('recipes.import.url.store') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('recipes.import.url.store') }}" novalidate>
         @csrf
         <input type="hidden" name="klucz_wyslania" value="{{ $kluczWyslania }}">
         <x-field name="adres" label="Adres strony z przepisem" type="url" required :bezOznaczenia="true"

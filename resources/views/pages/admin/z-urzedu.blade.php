@@ -53,7 +53,7 @@
         @endif
 
         @php($bladPodstawy = $errors->first('reason_code'))
-        <form class="panel-formularza" method="POST" action="{{ route('admin.z-urzedu.store', ['typ' => $typ, 'id' => $cel->getKey()]) }}">
+        <form class="panel-formularza" method="POST" action="{{ route('admin.z-urzedu.store', ['typ' => $typ, 'id' => $cel->getKey()]) }}" novalidate>
             @csrf
             <div class="field @if($bladPodstawy) has-error @endif">
                 <label for="f-reason_code">
