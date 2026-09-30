@@ -121,6 +121,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         'collections.link.show' => 'Parametr {token} to jednorazowy token linku-zaproszenia do wspólnego zeszytu (#1743); w bazie leży jego SHA-256, a przyjęcie odmawia przy blokadzie między stronami.',
         'collections.link.accept' => 'Jak collections.link.show: {token} to jednorazowe poświadczenie linku-zaproszenia, nie identyfikator obiektu.',
         'collections.link.decline' => 'Jak collections.link.show: {token} to jednorazowe poświadczenie linku-zaproszenia, nie identyfikator obiektu.',
+        'terms.version' => 'Parametr {data} to data wersji regulaminu (RRRR-MM-DD) — nazwa pliku z repozytorium (`resources/legal/archiwum/`), publicznego jak `/regulamin`; nie wskazuje niczyjego zasobu ani danych (#2220).',
+        'terms.version.download' => 'Jak terms.version: {data} to data publicznej wersji regulaminu, plik z repozytorium, bez danych osobowych (#2220).',
     ];
 
     /**
