@@ -318,6 +318,22 @@ Harmonogram::artisan('kuking:sprzataj-postep-gotowania')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 02:45 — przed całym nocnym pasmem sprzątania (pierwsze zadanie o 03:00,
+// odstęp 15 minut; `HarmonogramBezWspolnychSlotowTest`). Minuta 45 dzieli
+// godzinę z zadaniami godzinowymi i `*/15`, ale nie ich wyrażenie cron
+// (`HarmonogramBezKolizjiTerminowTest`), tak jak 03:40 czy 04:00 wyżej.
+// Wygasłe wiersze tabeli `cache` (#2292, audyt wydajności F6): sterownik
+// `database` kasuje wygasły klucz dopiero przy odczycie TEGO SAMEGO klucza,
+// więc limitery per adres gości zostawiały wiersze na zawsze. Kasujemy tylko
+// `expiration <= teraz`, partiami; `cache_locks` zostaje nietknięte
+// (`App\Support\WygasleWpisyCache`).
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('kuking:sprzataj-cache')
+    ->name('kuking:sprzataj-cache')
+    ->dailyAt('02:45')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // 05:20 — dziesięć minut po sesjach, tak jak rozsunięta jest cała reszta tej
 // listy (uzasadnienie odstępów wyżej).
 // Retencja `failed_jobs`: 30 dni (720 godzin) od `failed_at` — decyzja
