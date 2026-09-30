@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Media;
 
+use App\Domain\Moderation\DziennikWgladu;
 use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
@@ -216,11 +217,31 @@ final class DostepDoZdjecia
             }
         }
 
+        $wglad = null;
+        $sprawy = [];
+
         if (! $dlaWidza) {
-            $dlaWidza = $this->celemZgloszeniaDlaObslugi($widz, $zdjecie);
+            $sprawy = $this->zgloszeniaDlaObslugi($widz, $zdjecie);
+
+            if ($sprawy !== []) {
+                $dlaWidza = true;
+                $wglad = DziennikWgladu::POWOD_ZGLOSZENIE;
+            }
         }
 
-        return new DecyzjaOZdjeciu(dlaWidza: $dlaWidza, dlaAnonima: $dlaAnonima);
+        // Wgląd z urzędu (D-333): zdjęcie przepuściła Policy rodzica tylko
+        // dlatego, że widz jest moderatorem — ukryta albo zdjęta treść,
+        // treść konta zbanowanego, wykonanie pod przepisem niewidocznym.
+        // Rozstrzyga to pytanie KONTRFAKTYCZNE „czy to samo konto bez roli
+        // obsługi zobaczyłoby to zdjęcie" (przegląd integracyjny), a nie
+        // lista statusów — lista gubiła zdjęcia kroków i nowe drogi obsługi.
+        // Zwykły widz nie płaci ani jednym zapytaniem (`isModerator()` pierwsze).
+        if ($wglad === null && $dlaWidza && ! $dlaAnonima
+            && $widz->isModerator() && ! $this->wlasciciel($widz, $zdjecie)) {
+            [$wglad, $sprawy] = $this->wgladZRoli($widz, $zdjecie);
+        }
+
+        return new DecyzjaOZdjeciu(dlaWidza: $dlaWidza, dlaAnonima: $dlaAnonima, wgladModeratora: $wglad, wgladSprawy: $sprawy);
     }
 
     /**
@@ -303,28 +324,100 @@ final class DostepDoZdjecia
      */
     private function celemZgloszeniaDlaObslugi(?User $widz, Media $zdjecie): bool
     {
+        return $this->zgloszeniaDlaObslugi($widz, $zdjecie) !== [];
+    }
+
+    /**
+     * Te same warunki co `celemZgloszeniaDlaObslugi()`, ale z odpowiedzią
+     * KTÓRE zgłoszenia otwierają to zdjęcie — identyfikatory spraw trafiają
+     * do dziennika wglądów (D-333), żeby okno 60 minut nie sklejało wglądów
+     * w RÓŻNE sprawy o to samo zdjęcie. Posortowane, najwyżej
+     * `DziennikWgladu::MAKS_SPRAW`.
+     *
+     * @return list<string>
+     */
+    private function zgloszeniaDlaObslugi(?User $widz, Media $zdjecie): array
+    {
         if ($widz === null || ! $widz->isModerator() || ! $widz->hasTwoFactorConfirmed()) {
-            return false;
+            return [];
         }
 
         $id = (string) $zdjecie->getKey();
 
-        return Report::query()
-            ->where('target_type', Report::TARGET_MEDIA)
-            ->where('target_id', $id)
-            ->exists()
-            || Report::query()
-                ->where('target_type', Report::TARGET_POST)
-                ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])
-                ->whereIn('target_id', fn ($wpisy) => $wpisy
-                    ->select('posts.id')
-                    ->from('post_media')
-                    ->join('posts', 'posts.id', '=', 'post_media.post_id')
-                    ->where('post_media.media_id', $id)
-                    ->whereNull('posts.deleted_at')
-                    ->where('posts.status', Post::STATUS_PUBLISHED)
-                    ->whereIn('posts.visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS]))
-                ->exists();
+        $sprawy = Report::query()
+            ->where(fn ($zapytanie) => $zapytanie
+                ->where(fn ($plik) => $plik
+                    ->where('target_type', Report::TARGET_MEDIA)
+                    ->where('target_id', $id))
+                ->orWhere(fn ($wpis) => $wpis
+                    ->where('target_type', Report::TARGET_POST)
+                    ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])
+                    ->whereIn('target_id', fn ($wpisy) => $wpisy
+                        ->select('posts.id')
+                        ->from('post_media')
+                        ->join('posts', 'posts.id', '=', 'post_media.post_id')
+                        ->where('post_media.media_id', $id)
+                        ->whereNull('posts.deleted_at')
+                        ->where('posts.status', Post::STATUS_PUBLISHED)
+                        ->whereIn('posts.visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS]))))
+            ->orderBy('id')
+            ->limit(DziennikWgladu::MAKS_SPRAW)
+            ->pluck('id')
+            ->map(fn ($sprawa): string => (string) $sprawa)
+            ->all();
+
+        return array_values($sprawy);
+    }
+
+    /**
+     * Powód i sprawy wglądu z urzędu — albo `[null, []]`, gdy to samo konto
+     * BEZ roli obsługi (`DziennikWgladu::jakZwykleKonto()`) też widzi zdjęcie
+     * przez któregoś rodzica (np. moderator obserwuje autora wpisu „tylko dla
+     * obserwujących"). Woła się tylko dla moderatora i tylko przy zdjęciu
+     * niepublicznym (patrz `rozstrzygnij()`).
+     *
+     * @return array{0: ?string, 1: list<string>}
+     */
+    private function wgladZRoli(User $moderator, Media $zdjecie): array
+    {
+        $zwykle = DziennikWgladu::jakZwykleKonto($moderator);
+        $tresci = [];
+        $ukryta = false;
+
+        foreach ($this->rodzice($zdjecie) as $rodzic) {
+            if (Gate::forUser($zwykle)->allows('view', $rodzic)) {
+                return [null, []];
+            }
+
+            if (! Gate::forUser($moderator)->allows('view', $rodzic)) {
+                continue;
+            }
+
+            $tresc = $rodzic instanceof RecipeStep ? $rodzic->recipe : $rodzic;
+
+            if ($tresc === null) {
+                continue;
+            }
+
+            $tresci[] = class_basename($tresc).':'.$tresc->getKey();
+
+            if (($tresc instanceof Post || $tresc instanceof Recipe)
+                && in_array($tresc->status, [Post::STATUS_HIDDEN, Post::STATUS_REMOVED], true)) {
+                $ukryta = true;
+            }
+        }
+
+        if ($tresci === []) {
+            return [null, []];
+        }
+
+        $tresci = array_values(array_unique($tresci));
+        sort($tresci);
+
+        return [
+            $ukryta ? DziennikWgladu::POWOD_UKRYTA_TRESC : DziennikWgladu::POWOD_ROLA,
+            array_slice($tresci, 0, DziennikWgladu::MAKS_SPRAW),
+        ];
     }
 
     /**
