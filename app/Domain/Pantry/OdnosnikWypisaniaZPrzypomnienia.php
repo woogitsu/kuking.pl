@@ -23,9 +23,20 @@ final class OdnosnikWypisaniaZPrzypomnienia
         return URL::signedRoute('spizarnia.wypisz', ['user' => $odbiorca->getKey()]);
     }
 
-    /** „Jednak chcę": przycisk na stronie po wypisaniu (tylko POST). */
+    /**
+     * Ile żyje link „Jednak chcę”. Pokazujemy go tylko na stronie wyświetlonej
+     * tuż po wypisaniu, a WŁĄCZA zgodę bez logowania — więc krótko (D-333).
+     * Link wypisania z listu jest bezterminowy: wypisanie ma działać zawsze.
+     */
+    public const WAZNOSC_POWROTU_MINUTY = 60;
+
+    /** „Jednak chcę": przycisk na stronie po wypisaniu (tylko POST, ważny 1 godzinę). */
     public static function powrotDla(User $odbiorca): string
     {
-        return URL::signedRoute('spizarnia.wracam', ['user' => $odbiorca->getKey()]);
+        return URL::temporarySignedRoute(
+            'spizarnia.wracam',
+            now()->addMinutes(self::WAZNOSC_POWROTU_MINUTY),
+            ['user' => $odbiorca->getKey()],
+        );
     }
 }

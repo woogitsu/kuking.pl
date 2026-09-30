@@ -393,6 +393,60 @@ class SobotniePrzypomnienieOProduktachTest extends TestCase
         $this->assertSame([WpisZgody::ZRODLO_LINK_POWROTNY, WpisZgody::ZRODLO_LINK_WYPISANIA], $zrodla);
     }
 
+    public function test_wygasly_link_powrotu_nie_wlacza_zgody_a_link_wypisania_z_listu_dziala_po_miesiacu(): void
+    {
+        $basia = $this->osoba('basia');
+        $wypisz = OdnosnikWypisaniaZPrzypomnienia::dla($basia);
+
+        $this->post($wypisz)->assertOk();
+        $powrot = OdnosnikWypisaniaZPrzypomnienia::powrotDla($basia);
+
+        $this->travelTo(now()->addMinutes(61));
+        $this->post($powrot)->assertOk()->assertSee('Ten link wygasł')->assertSee('Zaloguj się');
+        $this->assertFalse((bool) $basia->fresh()->wants_pantry_reminder, 'Wygasły link nie może włączyć zgody.');
+        $this->assertSame(1, WpisZgody::query()->where('user_id', $basia->getKey())->count());
+
+        // Link z listu jest bezterminowy: po miesiącu wypisanie nadal działa.
+        $this->travelTo(now()->addDays(30));
+        $this->get($wypisz)->assertOk()->assertSee('Tak, nie wysyłajcie mi go');
+        $this->post($wypisz)->assertOk()->assertSee('Nie wyślemy już');
+    }
+
+    public function test_link_powrotu_dziala_w_ciagu_godziny_a_podrobiony_dostaje_403(): void
+    {
+        $basia = $this->osoba('basia', zgoda: false);
+        $powrot = OdnosnikWypisaniaZPrzypomnienia::powrotDla($basia);
+
+        $this->post($powrot.'x')->assertForbidden();
+        $this->assertFalse((bool) $basia->fresh()->wants_pantry_reminder);
+
+        $this->travelTo(now()->addMinutes(59));
+        $this->post($powrot)->assertOk()->assertSee('Sobotnie przypomnienie przyjdzie');
+        $this->assertTrue((bool) $basia->fresh()->wants_pantry_reminder);
+    }
+
+    public function test_konto_wymazane_nie_zapisuje_nic_do_dziennika_zgod_przez_wracam_ani_wypisz(): void
+    {
+        $basia = $this->osoba('basia');
+        $wypisz = OdnosnikWypisaniaZPrzypomnienia::dla($basia);
+        $powrot = OdnosnikWypisaniaZPrzypomnienia::powrotDla($basia);
+        DB::table('users')->where('id', $basia->getKey())->update([
+            'status' => User::STATUS_ERASED,
+            'delete_scope' => User::DELETE_SCOPE_MINIMUM,
+            'delete_requested_at' => now(),
+            'data_erased_at' => now(),
+            'wants_pantry_reminder' => false,
+        ]);
+
+        $this->post($powrot)->assertNotFound();
+        $this->post($wypisz)->assertOk();
+
+        $this->assertSame(0, WpisZgody::query()->where('user_id', $basia->getKey())->count());
+        $this->assertFalse((bool) $basia->fresh()->wants_pantry_reminder);
+        $this->assertFalse(app(PrzestawZgodeNaPrzypomnienieSpizarni::class)->handle($basia->fresh(), true, WpisZgody::ZRODLO_LINK_POWROTNY));
+        $this->assertSame(0, WpisZgody::query()->where('user_id', $basia->getKey())->count());
+    }
+
     public function test_wypisanie_bez_podpisu_jest_zabronione(): void
     {
         $basia = $this->osoba('basia');

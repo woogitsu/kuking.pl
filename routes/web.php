@@ -297,8 +297,10 @@ Route::post('/urodziny/wracam/{user}', [UrodzinyWypiszController::class, 'wracam
 Route::match(['get', 'post'], '/spizarnia/wypisz/{user}', [SpizarniaPrzypomnienieWypiszController::class, 'wypisz'])
     ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
     ->name('spizarnia.wypisz');
+// Bez `signed`: podpis i ważność sprawdza kontroler, żeby wygasły link dostał
+// przyjazną stronę zamiast 403 (D-333).
 Route::post('/spizarnia/wracam/{user}', [SpizarniaPrzypomnienieWypiszController::class, 'wracam'])
-    ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
+    ->middleware(["throttle:{$limits['ustawienia']},ustawienia"])
     ->name('spizarnia.wracam');
 
 // Jasny/ciemny wygląd — poza grupami `auth`/`guest` celowo: to jedyny

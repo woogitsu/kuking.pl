@@ -29,6 +29,14 @@ final class PrzestawZgodeNaPrzypomnienieSpizarni
     {
         return DB::transaction(function () use ($osoba, $chce, $zrodlo): bool {
             $current = User::query()->lockForUpdate()->findOrFail($osoba->getKey());
+
+            // Konto wymazane (RODO art. 17): żadnego nowego wpisu w dzienniku
+            // zgód ani zmiany stanu — dowód zgody nie powstaje dla osoby,
+            // której dane już usunięto.
+            if ($current->data_erased_at !== null) {
+                return false;
+            }
+
             $zmiana = $this->zastosuj($current, $chce, $zrodlo);
             $osoba->setRawAttributes($current->getAttributes(), true);
 
