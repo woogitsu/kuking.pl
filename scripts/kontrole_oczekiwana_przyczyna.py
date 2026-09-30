@@ -315,6 +315,9 @@ OCZEKUJ = {
         r'|contains "Kuking\.pl - pokaż, co dziś ugotowałaś\."'
         # #1753 etap 2: przycisk „Ugotowałam” na stronie przepisu i w formularzu.
         r'|matches PCRE pattern "~href="\[\^"\]\*/ugotowalem\[\^"\]\*">Ugotowałam</a>~u"'
+        # #1753 etap 3: stopki listów do konta i o zmianie adresu — asercja
+        # z komunikatem „Stopka listu <nazwa>” i samym „pokaż, co dziś …”.
+        r'|^Stopka listu .* contains "pokaż, co dziś ugotowałaś\."'
     ),
     'Wariant neutralny helpera z rodzajem': r'wariant neutralny z rodzajem|contains "Możesz od razu pokazać, co dziś gotujesz"',
     'Goły rodzaj obok wywołania helpera': r'Tekst przypisuje czytelnikowi płeć:.*ugotowałaś',
