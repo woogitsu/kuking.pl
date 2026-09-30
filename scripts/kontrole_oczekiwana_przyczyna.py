@@ -78,6 +78,7 @@ OCZEKUJ = {
     'Obwódka listy wyglądu poniżej 3:1': r'jasny: obwódka --color-border na tle panelu \(--color-surface-raised\)',
     'Piąty selektor powołuje się na D-262': r'Na D-262 powołuje się inny zbiór reguł CSS niż cztery selektory z',
     'Akcja GitHuba na ruchomym tagu': r'Zewnętrzna akcja bez pełnego SHA — tag jest ruchomy, więc ten sam',
+    'Test skryptu Pythona bez kroku w CI': r'Test skryptu Pythona bez kroku w workflowie — nikt go nie uruchamia w CI',
     'Licznik w widocznym menu konta': r'Wejście do panelu nie pokazuje sumy wszystkich kolejek\.',
     'Strażnik tekstu bez własnego wpisu': r'Nowy test czyta źródła i asertuje na ich treści, więc może kiedyś',
     'Odstępstwo bez znacznika': r'Nowy test czyta źródła i asertuje na ich treści, więc może kiedyś',

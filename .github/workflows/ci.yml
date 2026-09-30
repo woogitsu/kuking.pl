@@ -468,6 +468,13 @@ jobs:
       - name: Testy bramki audytu zależności
         run: python3 -m unittest discover -s scripts -p test_audyt_zaleznosci.py -v
 
+      # Strażnik podziału kontroli negatywnych na części CI: bez tego kroku
+      # sam mógłby być czerwony bez śladu. Bez bazy, ok. pół sekundy. Że KAŻDY
+      # test skryptu Pythona ma taki krok, pilnuje
+      # `TestySkryptowPythonaChodzaWCiTest`.
+      - name: Test podziału kontroli negatywnych na części
+        run: python3 -m unittest discover -s scripts -p test_podzial_kontroli.py -v
+
       # =====================================================================
       #  TESTY SKRYPTU KOPII BAZY (issue #193, D-043/D-049)
       #
