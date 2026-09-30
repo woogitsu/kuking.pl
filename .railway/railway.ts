@@ -170,7 +170,22 @@ const PRODUCTION_SPLIT_SERVICES = true;
  * eksportu wymaga osobnego połączenia i osobnego procesu `queue:work`
  * (worker czyta jedno połączenie) — patrz #1030.
  *
+ * NIE POKRYWA TEŻ IMPORTÓW (audyt 30.09.2026, IN-14, #2302):
+ * `ImportujPrzepisZAdresu` ma 150 s, a `ImportujPrzepisZPdf` 200 s. Oba mają
+ * `tries = 1`, bo płatne żądanie do modelu nie może pójść dwa razy.
+ * Wdrożenie w trakcie importu zabija zadanie. Zlecenie domyka potem
+ * `failed()` po `retry_after` (960 s) albo `kuking:odzyskaj-importy`
+ * (co kwadrans). Człowiek widzi „Spróbuj jeszcze raz” po kilkunastu
+ * minutach. Świadomie tego nie wydłużamy: okno
+ * 210 s wydłużyłoby każde wdrożenie workera o 80 s dla funkcji, która
+ * na produkcji jest wyłączona do podpisania DPA z OpenAI (D-333, #2214).
+ * Wracamy do tego, gdy import zostanie włączony, a log pokaże przerwany
+ * import.
+ *
  * Pilnuje `scripts/railway/iac.test.mjs` (limit czytany z kodu zadania).
+ * Każde zadanie kolejki z `$timeout` dłuższym niż to okno musi być wymienione
+ * z powodem w `DLUZSZE_NIZ_OKNO` w tym teście. Nowe długie zadanie oblewa
+ * test, zanim ktoś dowie się o problemie z logu po wdrożeniu.
  */
 const ZAMKNIECIE_Z_KOLEJKA_S = 130;
 
