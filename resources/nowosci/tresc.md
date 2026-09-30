@@ -31,6 +31,15 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Nowe wpisy w czytniku kanałów
+
+Jeśli korzystacie z czytnika kanałów (na przykład Feedly albo Inoreader), możecie
+w nim śledzić czyjś profil, tag albo publiczny zeszyt bez zaglądania na stronę.
+Wystarczy wkleić do czytnika adres profilu, tagu lub zeszytu — czytnik sam znajdzie
+kanał. Pokażemy w nim najwyżej 30 najnowszych wpisów i przepisów, dokładnie tych,
+które widzi każdy bez logowania: bez wpisów tylko dla obserwujących, bez prywatnych
+i bez notatek z zeszytu. Prywatny zeszyt nie ma kanału.
+
 ### Przycisk „Zgłoś” widać także bez logowania
 
 Przy przepisie, wpisie i komentarzu widać teraz odnośnik „Zgłoś (po zalogowaniu)”

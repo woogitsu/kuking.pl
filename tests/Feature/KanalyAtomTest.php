@@ -384,8 +384,6 @@ class KanalyAtomTest extends TestCase
         $publiczny = $this->zeszyt($osoba, 'Ciasta mamy');
         $prywatny = $this->zeszyt($osoba, 'Moje próby', 'private');
 
-        $odnosnik = fn (string $href): string => 'rel="alternate" type="application/atom+xml"';
-
         foreach ([
             [route('profile.show', 'kanalalternate'), route('kanaly.profil', 'kanalalternate')],
             [route('tags.show', $tag), route('kanaly.tag', $tag->slug)],
@@ -393,7 +391,7 @@ class KanalyAtomTest extends TestCase
         ] as [$strona, $kanal]) {
             $html = (string) $this->get($strona)->assertOk()->getContent();
             $glowa = Str::before($html, '</head>');
-            $this->assertStringContainsString($odnosnik($kanal), $glowa, "Brak rel=alternate na {$strona}");
+            $this->assertStringContainsString('rel="alternate" type="application/atom+xml"', $glowa, "Brak rel=alternate na {$strona}");
             $this->assertStringContainsString('href="'.$kanal.'"', $glowa, "Zły adres kanału na {$strona}");
         }
 
