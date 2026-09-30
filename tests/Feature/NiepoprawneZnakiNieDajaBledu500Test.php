@@ -23,8 +23,6 @@ use Tests\TestCase;
  * (SQLSTATE 22021) albo do funkcji PHP (`Str::squish()` → null → TypeError,
  * `DateTime` → ValueError). Rozwiązanie jest jedno, globalne:
  * `OdrzucNiepoprawneZnaki`. Ten plik sprawdza każdą trasę z audytu osobno.
- *
- * @bez-kontroli-dodatniej Test nie czyta kodu źródłowego aplikacji; `base_path()` nie jest tu używany.
  */
 class NiepoprawneZnakiNieDajaBledu500Test extends TestCase
 {
@@ -36,7 +34,7 @@ class NiepoprawneZnakiNieDajaBledu500Test extends TestCase
 
     /**
      * @return array<string, array{0: string, 1: string, 2: string, 3: array<string, string>, 4: string}>
-     *                                                                                                     metoda, trasa, aktor, dane, zły tekst
+     *                                                                                                    metoda, trasa, aktor, dane, zły tekst
      */
     public static function trasyZAudytu(): array
     {
@@ -77,6 +75,9 @@ class NiepoprawneZnakiNieDajaBledu500Test extends TestCase
     #[DataProvider('trasyZAudytu')]
     public function test_zly_tekst_daje_400_a_nie_500(string $metoda, string $trasa, string $aktor, array $dane, string $zlyTekst): void
     {
+        // Flagi włączone, żeby bez middleware trasa dochodziła do kodu
+        // (kontrola ujemna), a nie kończyła się 404 na fladze.
+        config(['kuking.questions.enabled' => true, 'kuking.tag_tygodnia.wlaczony' => true]);
         $swiat = $this->swiat();
 
         $wejscie = [];
@@ -176,6 +177,7 @@ class NiepoprawneZnakiNieDajaBledu500Test extends TestCase
             'name' => 'Prywatny zeszyt',
             'visibility' => 'private',
         ]);
+        $zeszyt->recipes()->attach($przepis->id);
         $wpis = Post::factory()->create(['author_id' => $osoba->getKey()]);
         Tag::create(['slug' => 'bigos', 'name' => 'Bigos', 'normalized_name' => 'bigos']);
 
