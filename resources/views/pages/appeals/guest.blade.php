@@ -67,7 +67,7 @@
 
     <p class="mt-6">
         Nie pamiętasz hasła i nie masz dostępu do skrzynki? Napisz do nas na
-        {{ config('kuking.community.contact_email') }} — odwołanie złożone e-mailem
+        <a href="mailto:{{ config('kuking.community.contact_email') }}">{{ config('kuking.community.contact_email') }}</a> — odwołanie złożone e-mailem
         też rozpatrujemy.
     </p>
 </x-layout>

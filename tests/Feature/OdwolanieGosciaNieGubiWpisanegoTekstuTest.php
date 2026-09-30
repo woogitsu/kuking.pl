@@ -32,4 +32,12 @@ final class OdwolanieGosciaNieGubiWpisanegoTekstuTest extends TestCase
         $this->assertStringContainsString('Wyślij odwołanie', $m[1]);
         $this->assertStringNotContainsString(route('password.request'), $m[1], 'Obok „Wyślij odwołanie” nadal stoi odnośnik wyprowadzający ze strony.');
     }
+
+    public function test_adres_kontaktowy_jest_odnosnikiem_mailto(): void
+    {
+        $adres = (string) config('kuking.community.contact_email');
+        $html = $this->get(route('appeals.guest'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('<a href="mailto:'.$adres.'">'.$adres.'</a>', $html);
+    }
 }
