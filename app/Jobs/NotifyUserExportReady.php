@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Domain\Users\ZamekKonta;
 use App\Logging\BezpiecznyBlad;
 use App\Mail\DataExportReady;
 use App\Mail\DataExportReadyInGracePeriod;
@@ -45,7 +46,8 @@ use Throwable;
  * `DataExportReadyInGracePeriod` — „cofnij usunięcie do dnia X” — bo się nie
  * zaloguje, a pobranie wymaga logowania. Konto wymazane i paczka
  * niepobieralna (wygasła, unieważniona przez `EraseAccountData`) — żadnego.
- * Stan konta z ŚWIEŻEGO odczytu w tym zadaniu, nie z chwili zlecenia.
+ * Stan konta z ŚWIEŻEGO odczytu w tym zadaniu, nie z chwili zlecenia —
+ * odczytanego pod blokadą konta razem z zajęciem listu (issue #2320).
  */
 class NotifyUserExportReady implements ShouldQueue
 {
@@ -70,28 +72,59 @@ class NotifyUserExportReady implements ShouldQueue
         $export = DataExport::with('user.profile')->find($this->dataExportId);
         $user = $export?->user;
 
-        if ($export === null
-            || $user === null
-            || $export->notified_at !== null
-            || ! $export->isDownloadable()
-            || $user->isErased()
-            || $user->data_erased_at !== null
-            || $user->email === null) {
+        if ($export === null || $user === null || ! $this->mozna($export, $user)) {
             return;
         }
 
         $zajete = Carbon::now();
 
-        if (! $this->zajmij($zajete)) {
+        // ZAJĘCIE I WYBÓR LISTU POD BLOKADĄ KONTA (issue #2320).
+        //
+        // Stan konta z odczytu wyżej mógł się zestarzeć, zanim `zajmij()`
+        // zapisało `notified_at`: równoległe „Usuń konto” (`markForDeletion()`)
+        // albo `EraseAccountData` zmieniały konto, a warunkowy `UPDATE` pytał
+        // tylko o eksport. Job wysyłał wtedy zwykły `DataExportReady` z linkiem,
+        // do którego człowiek w karencji się nie zaloguje. Obie te ścieżki biorą
+        // `SELECT … FOR UPDATE` na wierszu konta, więc pod tą samą blokadą
+        // (`ZamekKonta`) czytamy konto jeszcze raz, sprawdzamy je, zajmujemy
+        // list i wybieramy szablon — z JEDNEGO, zamrożonego stanu. Zmiana konta
+        // ustawia się w kolejce przed albo po nas, nigdy pomiędzy.
+        //
+        // Sama wysyłka idzie PO zwolnieniu blokady: poczta potrafi czekać
+        // dziesiątki sekund, a blokada konta wstrzymuje logowanie, zmianę hasła
+        // i usunięcie konta. Zostaje więc okno „zajęte → wysłane”: zmiana konta
+        // zatwierdzona w nim dostaje list wybrany chwilę wcześniej. To ta sama
+        // sytuacja co list wysłany sekundę przed zmianą — decyzja zapadła na
+        // stanie, który wtedy był prawdziwy.
+        $wysylka = ZamekKonta::zablokuj($user, function (?User $swiezy) use ($zajete): ?array {
+            $export = DataExport::query()->find($this->dataExportId);
+
+            if ($swiezy === null || $export === null || ! $this->mozna($export, $swiezy)) {
+                return null;
+            }
+
+            if (! $this->zajmij($zajete)) {
+                return null;
+            }
+
+            $swiezy->loadMissing('profile');
+            $export->setRelation('user', $swiezy);
+
+            $mail = $swiezy->status === User::STATUS_PENDING_DELETE
+                ? new DataExportReadyInGracePeriod($export)
+                : new DataExportReady($export);
+
+            return [(string) $swiezy->email, $mail];
+        });
+
+        if ($wysylka === null) {
             return;
         }
 
-        $mail = $user->status === User::STATUS_PENDING_DELETE
-            ? new DataExportReadyInGracePeriod($export)
-            : new DataExportReady($export);
+        [$adres, $mail] = $wysylka;
 
         try {
-            Mail::to($user->email)->send($mail);
+            Mail::to($adres)->send($mail);
         } catch (Throwable $e) {
             DataExport::query()
                 ->whereKey($this->dataExportId)
@@ -119,6 +152,16 @@ class NotifyUserExportReady implements ShouldQueue
         Log::error('Wyczerpano próby wysłania listu o gotowej paczce z danymi', [
             'data_export_id' => $this->dataExportId,
         ]);
+    }
+
+    /** Czy ten list w ogóle ma wyjść — ten sam warunek przed blokadą i pod nią. */
+    private function mozna(DataExport $export, User $user): bool
+    {
+        return $export->notified_at === null
+            && $export->isDownloadable()
+            && ! $user->isErased()
+            && $user->data_erased_at === null
+            && $user->email !== null;
     }
 
     /**

@@ -468,6 +468,7 @@ nie było.** Do 19 września lista gotowości wymagała wobec nich umów i konfi
 | wiadomości „Napisz do nas" | 12 miesięcy od załatwienia | `kuking:sprzataj-wiadomosci` |
 | wygasłe zaproszenia do konta | termin w wierszu | `kuking:sprzataj-zaproszenia` |
 | wygasłe żądania zmiany adresu e-mail | termin w wierszu | `kuking:sprzataj-zmiany-adresu` |
+| wygasłe dowody połączenia z Facebookiem (`facebook_connection_proofs`, #2319) | termin w wierszu (10 minut); przy wymazaniu konta od razu | `kuking:sprzataj-dowody-facebooka` |
 
 Istnienie każdej z nich pilnuje
 `DokumentyPrawneNieKlamiaTest::test_komendy_wymienione_w_procedurach_istnieja`.

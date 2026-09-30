@@ -76,7 +76,8 @@ final class CollectUserExportData
     /** @return array<string, mixed> */
     public function handle(User $user, ExportPhotoPlan $photos, Carbon $generatedAt): array
     {
-        $this->granica = new GranicaCudzychDanych($user);
+        // Ta sama granica, którą plan zdjęć liczył nazwy plików (#2312, #2313).
+        $this->granica = $photos->granicaDla($user);
 
         $user->loadMissing('profile.avatar');
 
@@ -483,7 +484,12 @@ final class CollectUserExportData
             'status' => $post->status,
             'utworzono' => $this->date($post->created_at),
             'opublikowano' => $this->date($post->published_at),
-            'dotyczy_przepisu' => $post->recipe?->title,
+            // Wpis jest mój, przepis, którego dotyczy — bywa cudzy (#2316).
+            // Tytuł tylko wtedy, gdy przepis widać dziś pod jego adresem,
+            // tą samą granicą co „Ugotowałem” niżej. Wpis bez przepisu: null.
+            'dotyczy_przepisu' => $post->recipe_id === null
+                ? null
+                : ($this->granica->widzi($post->recipe) ? $post->recipe->title : self::TRESC_NIEDOSTEPNA),
             'tagi' => $post->tags->map(fn ($tag): array => [
                 'id' => $tag->getKey(),
                 'nazwa' => $tag->name,
