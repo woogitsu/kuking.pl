@@ -6081,7 +6081,13 @@ Funkcje (obie `IMMUTABLE STRICT PARALLEL SAFE`):
   gdy są dłuższe (słowo > 5 liter na „-ow” traci „ow”, słowo > 4 liter
   traci końcową samogłoskę), a krótsze zostają całe. Dawny próg „> 3
   litery” dawał „mąka” i „mak” ten sam rdzeń `mak` (#1969). Wynik
-  posortowany i bez powtórzeń. Ta sama funkcja liczy
+  posortowany i bez powtórzeń — jawnie, `array_agg(DISTINCT r ORDER BY r)`
+  na wartości `COLLATE "C"` (migracja `2026_09_30_231500`, #2315; wcześniej
+  kolejność wynikała tylko ze sposobu wykonania `DISTINCT`, a na kluczu stoi
+  `UNIQUE`). Migracja przelicza `rdzenie` i `klucz` istniejących wierszy
+  (`UPDATE … SET name = name`) i odmawia, gdy przeliczenie dałoby dwa
+  produkty jednej osoby o tym samym kluczu — nie kasuje ich za człowieka.
+  Rollback przywraca poprzednie ciało funkcji; dane zostają. Ta sama funkcja liczy
   rdzenie linijek `recipe_ingredients.ingredient_text` w zapytaniu doboru —
   reguła mieszka wyłącznie w bazie, bez kopii w PHP;
 - `public.kuking_klucz_skladnika(text) → text` — `array_to_string()` z powyższej.
