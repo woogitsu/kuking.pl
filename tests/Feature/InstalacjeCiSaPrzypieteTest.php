@@ -191,7 +191,7 @@ final class InstalacjeCiSaPrzypieteTest extends TestCase
     private function naruszeniaPlikuWymagan(string $plik, string $tresc): array
     {
         // Kontynuacje wierszy (`\` na końcu) sklejamy, komentarze wycinamy.
-        $logiczne = preg_split('/\r\n|\n|\r/', (string) preg_replace('/\\\\\R\s*/', ' ', $tresc)) ?: [];
+        $logiczne = preg_split('/\r\n|\n|\r/', (string) preg_replace('/\\\\(?:\r\n|\n|\r)\s*/', ' ', $tresc)) ?: [];
         $naruszenia = [];
         $wymagan = 0;
         foreach ($logiczne as $wiersz) {

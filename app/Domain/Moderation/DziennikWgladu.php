@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Moderation;
 
+use App\Domain\Media\WgladZUrzedu;
 use App\Models\AuditLogEntry;
 use App\Models\Media;
 use App\Models\Recipe;
@@ -47,18 +48,20 @@ final class DziennikWgladu
 
     public const PRZEPIS_UKRYTY = 'moderation.hidden_recipe_viewed';
 
-    public const POWOD_ZGLOSZENIE = 'zgloszenie';
+    // Powody i przycięcie spraw mieszkają w module Media (`WgladZUrzedu`),
+    // bo rozstrzyga je `DostepDoZdjecia`; tu ta sama wartość pod dawną nazwą.
+    public const POWOD_ZGLOSZENIE = WgladZUrzedu::POWOD_ZGLOSZENIE;
 
-    public const POWOD_UKRYTA_TRESC = 'ukryta_tresc';
+    public const POWOD_UKRYTA_TRESC = WgladZUrzedu::POWOD_UKRYTA_TRESC;
 
     /** Treść jawna z nazwy, ale niewidoczna bez roli (np. konto autora zbanowane). */
-    public const POWOD_ROLA = 'rola_moderatora';
+    public const POWOD_ROLA = WgladZUrzedu::POWOD_ROLA;
 
     /** Okno, w którym kolejne otwarcia tego samego zdjęcia są jednym wglądem. */
     public const OKNO_ZDJECIA_MINUTY = 60;
 
     /** Najwięcej identyfikatorów spraw w jednym wpisie. */
-    public const MAKS_SPRAW = 10;
+    public const MAKS_SPRAW = WgladZUrzedu::MAKS_SPRAW;
 
     /**
      * To samo konto BEZ roli obsługi — do pytania „czy zobaczyłby to bez
@@ -67,10 +70,7 @@ final class DziennikWgladu
      */
     public static function jakZwykleKonto(User $konto): User
     {
-        $kopia = clone $konto;
-        $kopia->forceFill(['role' => User::ROLE_USER]);
-
-        return $kopia;
+        return WgladZUrzedu::jakZwykleKonto($konto);
     }
 
     /**

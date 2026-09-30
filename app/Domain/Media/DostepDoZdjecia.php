@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Media;
 
-use App\Domain\Moderation\DziennikWgladu;
 use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
@@ -225,7 +224,7 @@ final class DostepDoZdjecia
 
             if ($sprawy !== []) {
                 $dlaWidza = true;
-                $wglad = DziennikWgladu::POWOD_ZGLOSZENIE;
+                $wglad = WgladZUrzedu::POWOD_ZGLOSZENIE;
             }
         }
 
@@ -332,7 +331,7 @@ final class DostepDoZdjecia
      * KTÓRE zgłoszenia otwierają to zdjęcie — identyfikatory spraw trafiają
      * do dziennika wglądów (D-333), żeby okno 60 minut nie sklejało wglądów
      * w RÓŻNE sprawy o to samo zdjęcie. Posortowane, najwyżej
-     * `DziennikWgladu::MAKS_SPRAW`.
+     * `WgladZUrzedu::MAKS_SPRAW`.
      *
      * @return list<string>
      */
@@ -361,7 +360,7 @@ final class DostepDoZdjecia
                         ->where('posts.status', Post::STATUS_PUBLISHED)
                         ->whereIn('posts.visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS]))))
             ->orderBy('id')
-            ->limit(DziennikWgladu::MAKS_SPRAW)
+            ->limit(WgladZUrzedu::MAKS_SPRAW)
             ->pluck('id')
             ->map(fn ($sprawa): string => (string) $sprawa)
             ->all();
@@ -371,7 +370,7 @@ final class DostepDoZdjecia
 
     /**
      * Powód i sprawy wglądu z urzędu — albo `[null, []]`, gdy to samo konto
-     * BEZ roli obsługi (`DziennikWgladu::jakZwykleKonto()`) też widzi zdjęcie
+     * BEZ roli obsługi (`WgladZUrzedu::jakZwykleKonto()`) też widzi zdjęcie
      * przez któregoś rodzica (np. moderator obserwuje autora wpisu „tylko dla
      * obserwujących"). Woła się tylko dla moderatora i tylko przy zdjęciu
      * niepublicznym (patrz `rozstrzygnij()`).
@@ -380,7 +379,7 @@ final class DostepDoZdjecia
      */
     private function wgladZRoli(User $moderator, Media $zdjecie): array
     {
-        $zwykle = DziennikWgladu::jakZwykleKonto($moderator);
+        $zwykle = WgladZUrzedu::jakZwykleKonto($moderator);
         $tresci = [];
         $ukryta = false;
 
@@ -415,8 +414,8 @@ final class DostepDoZdjecia
         sort($tresci);
 
         return [
-            $ukryta ? DziennikWgladu::POWOD_UKRYTA_TRESC : DziennikWgladu::POWOD_ROLA,
-            array_slice($tresci, 0, DziennikWgladu::MAKS_SPRAW),
+            $ukryta ? WgladZUrzedu::POWOD_UKRYTA_TRESC : WgladZUrzedu::POWOD_ROLA,
+            array_slice($tresci, 0, WgladZUrzedu::MAKS_SPRAW),
         ];
     }
 

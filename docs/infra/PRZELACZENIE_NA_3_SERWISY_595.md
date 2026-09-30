@@ -108,7 +108,7 @@ plan będzie taki, jak w tabeli z kroku 2. To rozstrzyga dopiero krok 2.
    `${{shared.R2_ACCESS_KEY_ID}}` — mapę nazw pokazuje krok 5.
 5. **Bilans zmiennych.** Przepisz z panelu (Project Settings → Shared
    Variables, środowisko `production`) same **nazwy** Shared Variables do
-   pliku poza repozytorium, po jednej w linii, np. `~/shared-nazwy.txt`.
+   pliku poza repozytorium, po jednej w linii, np. plik `shared-nazwy.txt` w katalogu domowym.
    Potem:
 
    ```bash
