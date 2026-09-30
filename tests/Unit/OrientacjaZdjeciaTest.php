@@ -59,6 +59,7 @@ final class OrientacjaZdjeciaTest extends TestCase
             6 => [$y, $wys - 1 - $x],
             7 => [$szer - 1 - $y, $wys - 1 - $x],
             8 => [$szer - 1 - $y, $x],
+            default => throw new \InvalidArgumentException("Nieznana orientacja EXIF: $orientacja"),
         };
     }
 
