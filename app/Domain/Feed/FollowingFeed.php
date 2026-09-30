@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Feed;
 
+use App\Domain\Social\ListyWidza;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
@@ -11,7 +12,6 @@ use App\Support\KursorListy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Feed obserwowanych — osoby RAZEM z tematami, chronologicznie, bez algorytmu.
@@ -39,13 +39,15 @@ use Illuminate\Support\Facades\DB;
  */
 final class FollowingFeed
 {
+    public function __construct(private readonly ListyWidza $listy) {}
+
     /** @return CursorPaginator<int, Post> */
     public function paginate(User $viewer, ?int $perPage = null): CursorPaginator
     {
         $perPage ??= (int) config('kuking.feed.page_size');
 
-        $followedIds = $viewer->following()->pluck('users.id')->all();
-        $tagIds = $this->obserwowaneTematy($viewer);
+        $followedIds = $this->listy->osoby($viewer);
+        $tagIds = $this->listy->tagiAktywne($viewer);
 
         // Własne wpisy też są w feedzie — inaczej po pierwszej publikacji
         // użytkownik widzi pustkę i myśli, że nic się nie zapisało.
@@ -94,8 +96,8 @@ final class FollowingFeed
         return $this->zrodla(
             Post::query(),
             $viewer,
-            $viewer->following()->pluck('users.id')->all(),
-            $this->obserwowaneTematy($viewer),
+            $this->listy->osoby($viewer),
+            $this->listy->tagiAktywne($viewer),
             zWlasnymi: false,
         )->doesntExist();
     }
@@ -211,31 +213,5 @@ final class FollowingFeed
 
             $post->setRelation('zrodloTematu', $temat);
         }
-    }
-
-    /** @return list<string> */
-    private function obserwowaneTematy(User $viewer): array
-    {
-        // Tylko tagi AKTYWNE (#853). Wiersz `tag_follows` do tagu ukrytego albo
-        // scalonego może zostać z czasów sprzed bramki w `UpdateTagFollows`
-        // — i nie może zasilać Startu: ukryty tag ma 404 na własnej stronie,
-        // a jego chip karta i tak chowa, więc widz nie miałby jak zobaczyć,
-        // skąd wpis. Scalony tag prowadzi do CELU, jeśli ten jest aktywny —
-        // ta sama semantyka co w `MergeTags::przepnijObserwacje()`.
-        // Warunek stoi tutaj, nie w relacji `followedTags()` (#1824): ekran
-        // ustawień musi nadal widzieć zastany ukryty tag, żeby człowiek mógł
-        // go sam zdjąć w „Twoich tagach”; ten sam warunek decyduje też
-        // w `isEmptyFor()`.
-        $obserwowane = DB::table('tag_follows')->select('tag_id')->where('user_id', $viewer->getKey());
-
-        return Tag::query()->aktywne()
-            ->where(fn ($q) => $q->whereIn('id', $obserwowane)->orWhereIn(
-                'id',
-                Tag::query()->select('merged_into_tag_id')
-                    ->where('status', Tag::STATUS_MERGED)
-                    ->whereIn('id', $obserwowane),
-            ))
-            ->pluck('id')
-            ->all();
     }
 }
