@@ -58,30 +58,79 @@ final class PotwierdzZgloszenieInnaDroga
         self::DROGA_OSOBISCIE,
     ];
 
+    public const KOMUNIKAT_BRAK_UPRAWNIEN = 'Tylko czynne konto moderatora albo administratora może oznaczyć sprawę jako potwierdzoną. Podaj login takiego konta w opcji --operator.';
+
+    private const KOMUNIKAT_PUSTY_NUMER = 'Podaj numer sprawy, na przykład KU-ABCD-2345.';
+
+    public static function komunikatNieznanejDrogi(string $droga): string
+    {
+        return 'Nieznana droga potwierdzenia „'.$droga.'”. Dozwolone: '.implode(', ', self::DROGI).'.';
+    }
+
+    /**
+     * Wstępne, NIEBLOKUJĄCE sprawdzenie dla komendy: czy sprawa jest i czy
+     * wciąż czeka na potwierdzenie — żeby operator nie dostał pytania, na które
+     * akcja i tak odmówi. To tylko odczyt: rozstrzyga `handle()` pod blokadą.
+     *
+     * @throws DomainException komunikat po polsku, gotowy do pokazania operatorowi
+     */
+    public function sprawaDoPotwierdzenia(string $numerSprawy): Report
+    {
+        $numer = mb_strtoupper(trim($numerSprawy));
+
+        if ($numer === '') {
+            throw new DomainException(self::KOMUNIKAT_PUSTY_NUMER);
+        }
+
+        $sprawa = Report::query()->where('numer_sprawy', $numer)->first();
+
+        if ($sprawa === null) {
+            throw new DomainException($this->komunikatBrakuSprawy($numer));
+        }
+
+        if (! ZaleglePotwierdzeniaZgloszen::zapytanie()->whereKey($sprawa->getKey())->exists()) {
+            throw new DomainException($this->dlaczegoNieZalegla($sprawa));
+        }
+
+        return $sprawa;
+    }
+
+    /** Czy sprawa bez konta zgłaszającego stoi na suficie prób listu. */
+    public function naSuficie(Report $sprawa): bool
+    {
+        return $sprawa->reporter_id === null
+            && PotwierdzenieZgloszeniaNielegalnejTresci::ponawianieWstrzymane((string) $sprawa->getKey());
+    }
+
+    private function komunikatBrakuSprawy(string $numer): string
+    {
+        return "Nie ma sprawy o numerze {$numer}. Sprawdź numer w panelu moderacji (wygląda tak: KU-ABCD-2345).";
+    }
+
     /**
      * @throws DomainException komunikat po polsku, gotowy do pokazania operatorowi
      */
     public function handle(string $numerSprawy, User $operator, string $droga): Report
     {
         if (! $operator->isModerator()) {
-            throw new DomainException('Tylko czynne konto moderatora albo administratora może oznaczyć sprawę jako potwierdzoną. Podaj login takiego konta w opcji --operator.');
+            throw new DomainException(self::KOMUNIKAT_BRAK_UPRAWNIEN);
         }
 
         if (! in_array($droga, self::DROGI, true)) {
-            throw new DomainException('Nieznana droga potwierdzenia „'.$droga.'”. Dozwolone: '.implode(', ', self::DROGI).'.');
+            throw new DomainException(self::komunikatNieznanejDrogi($droga));
         }
 
         $numer = mb_strtoupper(trim($numerSprawy));
 
         if ($numer === '') {
-            throw new DomainException('Podaj numer sprawy, na przykład KU-ABCD-2345.');
+            throw new DomainException(self::KOMUNIKAT_PUSTY_NUMER);
         }
 
         $sprawa = DB::transaction(function () use ($numer, $operator, $droga): Report {
             $istniejaca = Report::query()->where('numer_sprawy', $numer)->first();
 
             if ($istniejaca === null) {
-                throw new DomainException("Nie ma sprawy o numerze {$numer}. Sprawdź numer w panelu moderacji (wygląda tak: KU-ABCD-2345).");
+                throw new DomainException($this->komunikatBrakuSprawy($numer));
             }
 
             $zaleglaSprawa = ZaleglePotwierdzeniaZgloszen::zapytanie()
@@ -93,8 +142,7 @@ final class PotwierdzZgloszenieInnaDroga
                 throw new DomainException($this->dlaczegoNieZalegla($istniejaca));
             }
 
-            $naSuficie = $zaleglaSprawa->reporter_id === null
-                && PotwierdzenieZgloszeniaNielegalnejTresci::ponawianieWstrzymane((string) $zaleglaSprawa->getKey());
+            $naSuficie = $this->naSuficie($zaleglaSprawa);
 
             $zajete = Report::query()
                 ->whereKey($zaleglaSprawa->getKey())

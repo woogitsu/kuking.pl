@@ -207,7 +207,7 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
 
             if ($wynik === self::WYNIK_BLAD) {
                 $nieudane[] = $id.' — '.$powod;
-                $this->line('NIE UDAŁO SIĘ: '.$id.' — '.$powod.' (wiersz bez zmian, spróbuję ponownie)');
+                $this->line('NIE UDAŁO SIĘ: '.$id.' — '.$powod.' (wiersz bez zmian, uruchom komendę ponownie)');
 
                 continue;
             }
@@ -218,14 +218,16 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
 
         $ostatni = (string) $doPrzeniesienia->last()->getKey();
 
-        if (Media::query()->where('disk', $stary)->where('id', '>', $ostatni)->exists()) {
+        $jestDalej = Media::query()->where('disk', $stary)->where('id', '>', $ostatni)->exists();
+
+        if ($jestDalej) {
             $this->warn('Następna partia: uruchom z --po='.$ostatni
                 .' (bez --po wrócisz na początek, razem z pominiętymi).');
         }
 
         return $tylkoRaport
-            ? $this->podsumujRaport($doPrzeniesienia->count(), $przeniesione, $pominiete, $nieudane, $niezgodne)
-            : $this->podsumujPrzebieg($stary, $przeniesione, $pominiete, $nieudane, $niezgodne);
+            ? $this->podsumujRaport($stary, $doPrzeniesienia->count(), $przeniesione, $pominiete, $nieudane, $niezgodne)
+            : $this->podsumujPrzebieg($stary, $ostatni, $jestDalej, $przeniesione, $pominiete, $nieudane, $niezgodne);
     }
 
     /**
@@ -233,14 +235,19 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
      * @param  list<string>  $nieudane
      * @param  list<string>  $niezgodne
      */
-    private function podsumujRaport(int $ile, int $przeniesione, array $pominiete, array $nieudane, array $niezgodne): int
+    private function podsumujRaport(string $stary, int $ile, int $przeniesione, array $pominiete, array $nieudane, array $niezgodne): int
     {
         // Odmienia się rzeczownik I czasownik: 1 zdjęcie czeka,
         // 2 zdjęcia czekają, 5 zdjęć czeka.
         $zdjecia = Odmiana::rzeczownik($ile, 'zdjęcie', 'zdjęcia', 'zdjęć');
         $czeka = Odmiana::rzeczownik($ile, 'czeka', 'czekają', 'czeka');
 
+        // `$ile` to tylko ta partia (`--limit`, `--po`). Bez sumy operator
+        // czytał „200 zdjęć czeka" jak całość i nie wiedział, ile partii go czeka.
+        $wSumie = Media::query()->where('disk', $stary)->count();
+
         $this->info("Tryb podglądu: {$ile} {$zdjecia} {$czeka} na przeniesienie.");
+        $this->info("W tej partii: {$ile}, w sumie do przeniesienia: {$wSumie}.");
         $this->info('Gotowe do przeniesienia: '.$przeniesione.'. Do pominięcia (brak pliku): '
             .count($pominiete).'. Do ponowienia: '.count($nieudane).'. Niezgodne kopie: '.count($niezgodne).'.');
 
@@ -257,7 +264,7 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
      * @param  list<string>  $nieudane
      * @param  list<string>  $niezgodne
      */
-    private function podsumujPrzebieg(string $stary, int $przeniesione, array $pominiete, array $nieudane, array $niezgodne): int
+    private function podsumujPrzebieg(string $stary, string $ostatni, bool $jestDalej, int $przeniesione, array $pominiete, array $nieudane, array $niezgodne): int
     {
         $this->info('Przeniesione: '.$przeniesione.'. Pominięte (brak pliku): '
             .count($pominiete).'. Nieudane: '.count($nieudane).'. Niezgodne kopie: '.count($niezgodne).'.');
@@ -272,7 +279,16 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
             $zostaloSlowo = Odmiana::rzeczownik($zostalo, 'Zostało', 'Zostały', 'Zostało');
             $zdjec = Odmiana::rzeczownik($zostalo, 'zdjęcie', 'zdjęcia', 'zdjęć');
 
-            $this->warn("{$zostaloSlowo} {$zostalo} {$zdjec}. Uruchom komendę ponownie.");
+            // Ta sama droga co w linii „Następna partia”: z kursorem, nie od
+            // początku. Bez --po przebieg znów zacznie od pominiętych wierszy
+            // i zdrowe, nowsze zdjęcia mogą nie doczekać się kolejki.
+            if ($jestDalej) {
+                $this->warn("{$zostaloSlowo} {$zostalo} {$zdjec}. Kolejna partia: php artisan kuking:przenies-zdjecia --po={$ostatni} "
+                    .'(bez --po zaczniesz od początku, razem z pominiętymi).');
+            } else {
+                $this->warn("{$zostaloSlowo} {$zostalo} {$zdjec}, ale żadne nie leży za ostatnim sprawdzonym w tym przebiegu "
+                    .'— to pominięte, nieudane albo niezgodne. Uruchom komendę ponownie, bez --po, żeby wrócić do nich od początku.');
+            }
         } else {
             $this->info('Komplet przeniesiony. Publiczność starego bucketu można zdjąć DOPIERO teraz.');
         }
@@ -289,7 +305,9 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
     {
         if ($pominiete !== []) {
             $this->warn('Pominięte — pliku nie ma ANI w starym, ANI w nowym buckecie. '
-                .'Wiersz został przy `r2_legacy` i wróci w kolejnym przebiegu:');
+                .'Wiersz został przy `r2_legacy` i wróci w kolejnym przebiegu. '
+                .'Co zrobić: odtwórz plik w starym buckecie z kopii albo uznaj zdjęcie za utracone — '
+                .'ponowne uruchomienie go nie naprawi:');
 
             foreach ($pominiete as $wpis) {
                 $this->warn('  - '.$wpis);
@@ -297,7 +315,8 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
         }
 
         if ($nieudane !== []) {
-            $this->warn('Nieudane — plik jest, ale kopiowanie się nie powiodło:');
+            $this->warn('Nieudane — plik jest, ale kopiowanie się nie powiodło. '
+                .'Co zrobić: uruchom komendę ponownie; jeśli to samo id wraca za każdym razem, sprawdź logi aplikacji:');
 
             foreach ($nieudane as $wpis) {
                 $this->warn('  - '.$wpis);
@@ -451,20 +470,20 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
         $bufor = fopen('php://temp/maxmemory:4194304', 'w+b');
 
         if ($bufor === false) {
-            return [self::WYNIK_BLAD, ''];
+            return [self::WYNIK_BLAD, ' — nie udało się otworzyć bufora tymczasowego (sprawdź wolne miejsce na dysku serwera)'];
         }
 
         try {
             $zrodlowy = $this->sumaIRozmiar($zrodlo, $klucz, $bufor);
 
             if ($zrodlowy === null) {
-                return [self::WYNIK_BLAD, ''];
+                return [self::WYNIK_BLAD, ' — nie da się odczytać źródła w starym buckecie do końca'];
             }
 
             rewind($bufor);
 
             if ($cel->writeStream($klucz, $bufor) === false) {
-                return [self::WYNIK_BLAD, ''];
+                return [self::WYNIK_BLAD, ' — zapis do nowego bucketu się nie powiódł'];
             }
         } finally {
             if (is_resource($bufor)) {
@@ -475,7 +494,7 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
         // SPRAWDZENIE, NIE ZAŁOŻENIE. Bez niego wiersz zostałby przestawiony
         // na bucket, w którym pliku nie ma — a zdjęcie zniknęłoby z serwisu.
         if (! $this->istnieje($cel, $klucz)) {
-            return [self::WYNIK_BLAD, ''];
+            return [self::WYNIK_BLAD, ' — po zapisie pliku nie widać w nowym buckecie'];
         }
 
         // I nie sama obecność (#2228): zapis mógł się uciąć albo trafić

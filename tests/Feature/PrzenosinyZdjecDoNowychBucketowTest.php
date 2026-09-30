@@ -612,4 +612,117 @@ class PrzenosinyZdjecDoNowychBucketowTest extends TestCase
         $this->assertArrayHasKey('url', (array) config('filesystems.disks.r2_legacy'));
         $this->assertArrayNotHasKey('url', (array) config('filesystems.disks.r2'));
     }
+
+    // ------------------------------------------------------------------
+    // Jasność komunikatów operatora (audyt UX): kursor, suma, „co zrobić".
+    // ------------------------------------------------------------------
+
+    private function drugieStareZdjecie(string $nazwa): Media
+    {
+        $media = Media::factory()->create([
+            'disk' => 'r2_legacy',
+            'variants_disk' => null,
+            'object_key' => "incoming/basia/2026/09/{$nazwa}.jpg",
+            'metadata' => ['variants' => [
+                'feed' => ['key' => "media/basia/2026/09/{$nazwa}_feed.webp"],
+            ]],
+        ]);
+
+        Storage::disk('r2_legacy')->put($media->object_key, 'oryginal '.$nazwa);
+        Storage::disk('r2_legacy')->put($media->metadata['variants']['feed']['key'], 'wariant '.$nazwa);
+
+        return $media;
+    }
+
+    public function test_podsumowanie_przebiegu_z_limitem_podaje_pelna_komende_z_kursorem(): void
+    {
+        $this->drugieStareZdjecie('rosol');
+        $this->drugieStareZdjecie('barszcz');
+        $ostatni = (string) Media::query()->where('disk', 'r2_legacy')->orderBy('id')->firstOrFail()->getKey();
+
+        // Wcześniej koniec przebiegu mówił tylko „Uruchom komendę ponownie" —
+        // bez --po, czyli od początku.
+        $this->artisan('kuking:przenies-zdjecia', ['--limit' => 1])
+            ->expectsOutputToContain('Kolejna partia: php artisan kuking:przenies-zdjecia --po='.$ostatni.' (bez --po zaczniesz od początku, razem z pominiętymi).')
+            ->assertSuccessful();
+    }
+
+    public function test_podsumowanie_bez_nastepnej_partii_kaze_wrocic_bez_kursora(): void
+    {
+        $brakujace = $this->drugieStareZdjecie('zurek');
+        Storage::disk('r2_legacy')->delete($brakujace->object_key);
+
+        $this->artisan('kuking:przenies-zdjecia')
+            ->expectsOutputToContain('żadne nie leży za ostatnim sprawdzonym w tym przebiegu — to pominięte, nieudane albo niezgodne. Uruchom komendę ponownie, bez --po')
+            ->assertFailed();
+    }
+
+    public function test_tryb_podgladu_podaje_sume_do_przeniesienia_a_nie_tylko_partie(): void
+    {
+        $this->drugieStareZdjecie('rosol');
+        $this->drugieStareZdjecie('barszcz');
+        $this->drugieStareZdjecie('bigos');
+
+        $this->artisan('kuking:przenies-zdjecia', ['--dry-run' => true, '--limit' => 2])
+            ->expectsOutputToContain('W tej partii: 2, w sumie do przeniesienia: 3.')
+            ->assertSuccessful();
+    }
+
+    public function test_pominiete_i_nieudane_mowia_co_zrobic(): void
+    {
+        $brakujace = $this->drugieStareZdjecie('zurek');
+        Storage::disk('r2_legacy')->delete($brakujace->object_key);
+
+        $this->artisan('kuking:przenies-zdjecia')
+            ->expectsOutputToContain('Co zrobić: odtwórz plik w starym buckecie z kopii albo uznaj zdjęcie za utracone — ponowne uruchomienie go nie naprawi')
+            ->assertFailed();
+
+        $brakujace->delete();
+        $this->drugieStareZdjecie('kapusniak');
+
+        $zepsuty = Mockery::mock(Filesystem::class);
+        $zepsuty->shouldReceive('exists')->andReturn(false);
+        $zepsuty->shouldReceive('writeStream')->andReturn(false);
+        Storage::set('nowe_publiczne', $zepsuty);
+
+        $this->artisan('kuking:przenies-zdjecia')
+            ->expectsOutputToContain('wiersz bez zmian, uruchom komendę ponownie')
+            ->expectsOutputToContain('Co zrobić: uruchom komendę ponownie; jeśli to samo id wraca za każdym razem, sprawdź logi')
+            ->assertFailed();
+    }
+
+    public function test_kazda_galaz_bledu_ma_krotki_powod(): void
+    {
+        // Zapis do nowego bucketu zwraca false.
+        $this->drugieStareZdjecie('rosol');
+        $zepsuty = Mockery::mock(Filesystem::class);
+        $zepsuty->shouldReceive('exists')->andReturn(false);
+        $zepsuty->shouldReceive('writeStream')->andReturn(false);
+        Storage::set('nowe_oryginaly', $zepsuty);
+
+        $this->artisan('kuking:przenies-zdjecia')
+            ->expectsOutputToContain('zapis do nowego bucketu się nie powiódł')
+            ->assertFailed();
+
+        // Zapis się „udał", ale pliku po nim nie widać.
+        $niewidoczny = Mockery::mock(Filesystem::class);
+        $niewidoczny->shouldReceive('exists')->andReturn(false);
+        $niewidoczny->shouldReceive('writeStream')->andReturn(true);
+        Storage::set('nowe_oryginaly', $niewidoczny);
+
+        $this->artisan('kuking:przenies-zdjecia')
+            ->expectsOutputToContain('po zapisie pliku nie widać w nowym buckecie')
+            ->assertFailed();
+
+        // Źródła w starym buckecie nie da się odczytać.
+        Storage::fake('nowe_oryginaly');
+        $nieczytelne = Mockery::mock(Filesystem::class);
+        $nieczytelne->shouldReceive('exists')->andReturn(true);
+        $nieczytelne->shouldReceive('readStream')->andReturn(false);
+        Storage::set('r2_legacy', $nieczytelne);
+
+        $this->artisan('kuking:przenies-zdjecia')
+            ->expectsOutputToContain('nie da się odczytać źródła w starym buckecie do końca')
+            ->assertFailed();
+    }
 }
