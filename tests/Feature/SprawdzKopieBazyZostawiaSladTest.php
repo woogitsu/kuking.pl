@@ -33,7 +33,7 @@ final class SprawdzKopieBazyZostawiaSladTest extends TestCase
         config()->set('filesystems.disks.r2_kopie.bucket', null);
         config()->set('logging.channels.blad_webhook.url', 'https://przyklad.invalid/webhook');
         Http::fake();
-        Log::spy();
+        $log = Log::spy();
 
         $zadania = array_values(array_filter(
             app(Schedule::class)->events(),
@@ -43,12 +43,12 @@ final class SprawdzKopieBazyZostawiaSladTest extends TestCase
 
         $zadania[0]->run(app());
 
-        Log::shouldHaveReceived('warning')
+        $log->shouldHaveReceived('warning')
             ->withArgs(fn (string $tresc, array $kontekst = []): bool => ($kontekst['stage'] ?? null) === 'kopie_wylaczone'
                 && ($kontekst['stan'] ?? null) === StanKopiiBazy::WYLACZONA
                 && str_contains($tresc, 'NIE są sprawdzane'))
             ->once();
-        Log::shouldNotHaveReceived('error');
+        $log->shouldNotHaveReceived('error');
         Http::assertNothingSent();
     }
 
@@ -62,10 +62,10 @@ final class SprawdzKopieBazyZostawiaSladTest extends TestCase
         Storage::fake('r2_kopie');
         Storage::disk('r2_kopie')->put('baza/kuking-'.now('UTC')->format('Ymd-His').'Z.dump.cms', 'to-udaje-szyfrogram');
         Http::fake();
-        Log::spy();
+        $log = Log::spy();
 
         $this->artisan('kuking:sprawdz-kopie --bez-alarmu')->assertSuccessful();
 
-        Log::shouldNotHaveReceived('warning');
+        $log->shouldNotHaveReceived('warning');
     }
 }

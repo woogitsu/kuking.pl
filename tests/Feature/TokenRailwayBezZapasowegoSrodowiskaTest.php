@@ -186,7 +186,8 @@ class TokenRailwayBezZapasowegoSrodowiskaTest extends TestCase
             $zlaczone .= $t[0];
             if (($t[1] ?? '') !== '') {
                 $tokeny[] = ['op', $t[1]];
-            } elseif (isset($t[3]) && $t[3] !== '') {
+            } elseif (isset($t[3])) {
+                // Ostatnia grupa: bez dopasowania PHP jej nie zwraca, a z dopasowaniem jest niepusta.
                 $tokeny[] = ['id', $t[3]];
             } else {
                 $tokeny[] = ['str', str_replace("''", "'", $t[2])];

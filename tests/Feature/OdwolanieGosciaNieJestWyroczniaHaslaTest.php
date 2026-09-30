@@ -135,7 +135,10 @@ class OdwolanieGosciaNieJestWyroczniaHaslaTest extends TestCase
     /** @return list<string> */
     private function bledy(TestResponse $odpowiedz, string $pole): array
     {
-        $bledy = $odpowiedz->getSession()->get('errors');
+        // Przekierowanie po walidacji niesie ten sam magazyn sesji, który
+        // trzyma aplikacja testu (`$odpowiedz` zostaje dla czytelności wywołań) —
+        // czytamy go wprost, bez __call na odpowiedzi.
+        $bledy = app('session.store')->get('errors');
 
         // Sesja testu trzyma worek błędów już zserializowany (tablica) albo jako obiekt.
         return $bledy instanceof ViewErrorBag

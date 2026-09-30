@@ -175,6 +175,7 @@ class EksportJednaGranicaCudzychDanychTest extends TestCase
             'prywatny' => $przepis->forceFill(['visibility' => 'private'])->save(),
             'blokada' => Block::create(['blocker_id' => $zenek->getKey(), 'blocked_id' => $basia->getKey(), 'created_at' => now()]),
             'zamkniecie' => $zenek->forceFill(['status' => User::STATUS_PENDING_DELETE])->save(),
+            default => $this->fail('Nieznany rodzaj utraty dostępu: '.$utrata),
         };
         DataExport::query()->delete();
 

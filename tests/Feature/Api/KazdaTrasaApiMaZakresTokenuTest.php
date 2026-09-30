@@ -204,6 +204,7 @@ class KazdaTrasaApiMaZakresTokenuTest extends TestCase
             // Basia już obserwuje Adama — więc „obserwuj” drugiej osoby.
             'api.osoby.obserwuj' => ['POST', route($nazwaTrasy, $this->user('celina')->getKey()), []],
             'api.osoby.przestan' => ['DELETE', route($nazwaTrasy, $adam->getKey()), []],
+            default => $this->fail('Trasa bez zadania w tym teście — dopisz ją do zadanie(): '.$nazwaTrasy),
         };
     }
 

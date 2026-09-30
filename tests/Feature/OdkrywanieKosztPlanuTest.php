@@ -44,6 +44,21 @@ final class OdkrywanieKosztPlanuTest extends TestCase
     /** Połączenie z bazą, gdy test zasiał duży zbiór (do posprzątania po wycofaniu transakcji). */
     private ?\PDO $poZasiewie = null;
 
+    /**
+     * SELECT-y zbierane przez DB::listen tylko w oknie jednego paginate();
+     * null = nie zbieramy. Właściwość, nie zmienna przez referencję w domknięciu —
+     * tę drugą analiza statyczna widzi jako zawsze null.
+     *
+     * @var list<array{0: string, 1: array<mixed>}>|null
+     */
+    private ?array $zapytania = null;
+
+    /** @return list<array{0: string, 1: array<mixed>}> */
+    private function zebraneZapytania(): array
+    {
+        return $this->zapytania ?? [];
+    }
+
     /** Patrz `FeedObserwowanychKosztPlanuTest::tearDown()`: martwe krotki i `reltuples` psują plany następnych testów. */
     protected function tearDown(): void
     {
@@ -192,19 +207,19 @@ final class OdkrywanieKosztPlanuTest extends TestCase
 
         $prog = (float) DB::selectOne("SELECT current_setting('jit_above_cost')::float8 AS prog")->prog;
 
-        $zapytania = null;
-        DB::listen(function ($zapytanie) use (&$zapytania): void {
-            if ($zapytania !== null && preg_match('/^\s*select\b/i', $zapytanie->sql)) {
-                $zapytania[] = [$zapytanie->sql, $zapytanie->bindings];
+        $this->zapytania = null;
+        DB::listen(function ($zapytanie): void {
+            if ($this->zapytania !== null && preg_match('/^\s*select\b/i', $zapytanie->sql)) {
+                $this->zapytania[] = [$zapytanie->sql, $zapytanie->bindings];
             }
         });
 
         foreach ([[null, false], [$ja, false], [$ja, true]] as [$widz, $zWlasnymi]) {
             $opis = $widz === null ? 'gość' : ($zWlasnymi ? 'zalogowany, Start z własnymi' : 'zalogowany');
-            $zapytania = [];
+            $this->zapytania = [];
             $strona = app(DiscoverFeed::class)->paginate($widz, null, null, $zWlasnymi);
-            $zbierane = $zapytania;
-            $zapytania = null;
+            $zbierane = $this->zebraneZapytania();
+            $this->zapytania = null;
             $this->assertNotEmpty($strona->items(), "Kontrola ({$opis}): Odkrywanie przy skali #605 nie jest puste.");
 
             $najdrozsze = ['koszt' => 0.0, 'sql' => ''];
