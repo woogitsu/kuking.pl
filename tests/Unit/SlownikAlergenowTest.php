@@ -82,6 +82,13 @@ final class SlownikAlergenowTest extends TestCase
             'śmietanka kokosowa' => ['śmietanka kokosowa', []],
             'jogurt sojowy' => ['jogurt sojowy', ['soy']],
 
+            // --- Granica frazy: wykluczenie nie sięga za przecinek ani średnik ---
+            'mąka pszenna, ryż' => ['mąka pszenna, ryż', ['gluten']],
+            'mąka; kokos' => ['mąka; kokos', ['gluten']],
+            'mleko, kokosowe chipsy' => ['mleko, kokosowe chipsy', ['milk']],
+            'mąka ryżowa, sól nadal bez glutenu' => ['mąka ryżowa, sól', []],
+            'przecinek w ilości' => ['2,5 szklanki mleka', ['milk']],
+
             // --- „Bez” i puste ---
             'bez mleka' => ['herbata bez mleka', []],
             'masło bez laktozy to nadal masło' => ['masło bez laktozy', ['milk']],

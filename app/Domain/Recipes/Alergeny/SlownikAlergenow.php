@@ -29,7 +29,9 @@ use Illuminate\Support\Str;
  * ogonków, bez znaków niealfanumerycznych (`mąki pszennej` → `maki pszennej`).
  * Wzorce czyta się na POJEDYNCZYM tokenie (początek słowa łapie polską
  * fleksję: `smietan` → śmietana, śmietanki, śmietanką). Wykluczenie patrzy
- * na token poprzedni i dwa następne — tyle, ile potrzeba dla „mleko
+ * na token poprzedni i dwa następne W OBRĘBIE TEJ SAMEJ FRAZY (tekst jest
+ * dzielony na przecinkach i średnikach: „mąka pszenna, ryż” to dwa składniki)
+ * — tyle, ile potrzeba dla „mleko
  * kokosowe”, „masło orzechowe”, „mąka ryżowa”, „orzech muszkatołowy”.
  * Token poprzedzony słowem „bez” nie podpowiada nic („bez mleka”).
  * Dwuwyrazowe nazwy, które mają inny alergen niż ich słowa (`masło orzechowe`
@@ -152,10 +154,20 @@ final class SlownikAlergenow
                 continue;
             }
 
-            $znormalizowany = self::normalizuj($tekst);
-            $tokeny = $znormalizowany === '' ? [] : explode(' ', $znormalizowany);
+            // Wykluczenia i „bez” działają tylko W OBRĘBIE FRAZY (do przecinka
+            // albo średnika): „mąka pszenna, ryż” to dwa składniki, więc ryż
+            // nie może wyciszać podpowiedzi glutenu z mąki.
+            $kodyTekstu = [];
+            foreach ((array) preg_split('/[,;]+/u', $tekst) as $fraza) {
+                $znormalizowany = self::normalizuj((string) $fraza);
+                $tokeny = $znormalizowany === '' ? [] : explode(' ', $znormalizowany);
 
-            foreach (self::kodyDla($znormalizowany, $tokeny) as $kod) {
+                foreach (self::kodyDla($znormalizowany, $tokeny) as $kod) {
+                    $kodyTekstu[$kod] = true;
+                }
+            }
+
+            foreach (array_keys($kodyTekstu) as $kod) {
                 $fragment = mb_strimwidth($tekst, 0, 60, '…');
                 if (! in_array($fragment, $wynik[$kod] ?? [], true)) {
                     $wynik[$kod][] = $fragment;
