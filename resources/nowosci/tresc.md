@@ -31,6 +31,32 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Co zużyć w pierwszej kolejności
+
+Przy produktach na liście „Co mam w domu” możecie teraz wpisać termin
+z opakowania: dzień, a do tego, czy to „Należy zużyć do”, czy „Najlepiej
+spożyć przed”. Datę wybieracie z trzech list (dzień, miesiąc, rok) albo
+jednym przyciskiem — „Za 3 dni”, „Za tydzień”, „Za 2 tygodnie”, „Za miesiąc”.
+Możecie dopisać ilość własnymi słowami („pół kostki”) i zaznaczyć, że produkt
+leży w zamrażarce. Wszystko to jest dobrowolne, a listę widzicie tylko Wy.
+
+Lista układa się sama: na górze „Zużyj w pierwszej kolejności” — produkty,
+których termin minął albo upływa w ciągu 3 dni, od najwcześniejszego; niżej
+„Później”, „Bez terminu” i „Mrożone”. Pod spodem stoi jedno zdanie, które
+mówi, dlaczego kolejność jest taka: ustawia ją tylko data, którą sami
+wpisaliście. Termin to Wasza notatka z opakowania — nie oceniamy, czy produkt
+nadaje się do jedzenia, więc przed użyciem zawsze go sprawdźcie.
+
+Na stronie „Co ugotuję z tego, co mam?” jest przycisk „Najpierw to, co się
+psuje”: na górze przepisy, w których jest najwięcej Waszych produktów
+z krótkim terminem, a przy każdym zdanie „Zużyjesz: …”. Na Starcie, gdy są
+takie produkty, pojawia się jedno krótkie zdanie z przyciskiem „Zobacz, co
+ugotować”. Kto chce, może też zaznaczyć na stronie „Co mam w domu” pole
+„Chcę dostawać w sobotę e-mail o produktach do zużycia” — jest wyłączone,
+dopóki go nie zaznaczycie. Taki list przychodzi najwyżej raz w tygodniu, tylko
+wtedy, gdy jest co na nim wymienić, a wypisać się z niego można jednym
+kliknięciem na dole listu, bez logowania.
+
 ### Wszystkie wersje regulaminu
 
 Na górze regulaminu są dwa nowe przyciski. „Pobierz regulamin” zapisuje go
