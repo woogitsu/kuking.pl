@@ -159,8 +159,15 @@ class WrazliweKolumnyPozaMasowymPrzypisaniemTest extends TestCase
      */
     private const WARTOSC_NAPASTNIKA = '2026-01-01 00:00:00';
 
-    /** Kategoria 1 — stan konta i treści. */
-    private const STAN = ['status', 'role', 'previous_status'];
+    /**
+     * Kategoria 1 — stan konta i treści.
+     *
+     * `allergen_status`, `allergens`, `allergens_declared_at` (#1902): oznaczenie
+     * alergenów „według autora” to pole sterujące — rozstrzyga, co czytelnik
+     * zobaczy jako deklarację i co przepuści filtr. `declared` powstaje tylko
+     * w `OznaczAlergenyPrzepisu` (`forceFill`).
+     */
+    private const STAN = ['status', 'role', 'previous_status', 'allergen_status', 'allergens', 'allergens_declared_at'];
 
     /** Kategoria 3 — rozstrzygnięcia moderacji i widoczności. */
     private const ROZSTRZYGNIECIA = [

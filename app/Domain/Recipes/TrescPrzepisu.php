@@ -17,7 +17,8 @@ use Illuminate\Support\Facades\DB;
  * moderacja i zapis bez zmian nie są zmianą treści. Poza odciskiem jest też
  * `pokazuj_wartosci_odzywcze` — to ustawienie wyświetlania, nie treść przepisu.
  *
- * Obejmuje natomiast zdjęcia (główne, skan źródła, zdjęcia kroków) — czego
+ * Obejmuje alergeny (`allergen_status`, `allergens`; bez daty potwierdzenia —
+ * sam upływ czasu nie jest zmianą treści). Obejmuje natomiast zdjęcia (główne, skan źródła, zdjęcia kroków) — czego
  * migawka wersji (`SnapshotRecipeVersion`) nie robi, więc to nie jest ta
  * sama lista i nie wolno jej z tamtą „ujednolicić".
  *
@@ -31,6 +32,9 @@ final class TrescPrzepisu
         'title', 'summary', 'servings', 'prep_minutes', 'cook_minutes', 'difficulty',
         'estimated_cost_pln', 'hero_media_id', 'source_type', 'source_url',
         'source_person', 'source_note', 'family_since_year', 'source_scan_media_id',
+        // Alergeny według autora to treść (#1902): zmiana oznaczenia przesuwa
+        // `dateModified`. Stan i lista idą razem, jak w migawce wersji.
+        'allergen_status', 'allergens',
     ];
 
     private const KOLUMNY_SKLADNIKA = [

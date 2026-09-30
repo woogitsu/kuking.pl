@@ -216,8 +216,11 @@ class FormularzKreatoraWLivewireFormTest extends TestCase
         // Krok 6 (nazwa, opis, porcje, koszt i czasy w `$form`) podbił wersję
         // do 4. Karta otwarta przed wdrożeniem odsyła migawkę bez tych pól
         // w `form` (Livewire tworzy je puste) i z poprzednią wersją stanu.
-        $this->assertSame(4, $biezacaWersja);
-        foreach ([0, 1, 2, 3] as $stara) {
+        // Wersja 5 (#1902): kreator dostał stan alergenów (`alergeny`, `alergenyPotwierdzone`,
+        // `alergenyStan`); stara karta, której migawka ich nie ma, nie może odesłać „pustej
+        // deklaracji” i cofnąć oznaczenia autora.
+        $this->assertSame(5, $biezacaWersja);
+        foreach ([0, 1, 2, 3, 4] as $stara) {
             $komponent->wersjaStanu = $stara;
 
             try {

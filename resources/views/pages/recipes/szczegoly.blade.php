@@ -474,6 +474,24 @@
             @if($isEdit)
                 <x-ostrzezenie-niezapisanych id="ostrzezenie-kreatora-skladniki" :href="$kreatorUrl" :zapisz="$przyciskZapisu" />
             @endif
+
+            {{-- Alergeny według autora (#1902, D-333) — tylko przy włączonej fladze.
+                 Po nieudanej walidacji pola wracają takie, jakie człowiek wysłał
+                 (`old()`); znacznik `alergeny_formularz` odróżnia „nic nie zaznaczono”
+                 od „tego pola nie było w żądaniu”. --}}
+            @if(config('kuking.alergeny.wlaczone'))
+                @php
+                    $probaAlergenow = old('alergeny_formularz') !== null;
+                    $wybraneAlergeny = $probaAlergenow ? (array) old('alergeny', []) : ($isEdit ? $recipe->allergens : []);
+                    $potwierdzoneAlergeny = $probaAlergenow ? (bool) old('alergeny_potwierdzone') : ($isEdit && $recipe->alergenyZdeklarowane());
+                    $tekstyDoPodpowiedzi = collect($oldIngredients)
+                        ->flatMap(fn ($wiersz) => [(string) ($wiersz['text'] ?? ''), (string) ($wiersz['substitutes'] ?? '')])
+                        ->filter(fn (string $tekst): bool => trim($tekst) !== '')->values()->all();
+                @endphp
+                <x-alergeny.pola :wybrane="$wybraneAlergeny" :potwierdzone="$potwierdzoneAlergeny"
+                                 :stan="$isEdit ? (string) $recipe->allergen_status : 'unchecked'"
+                                 :podpowiedzi="\App\Domain\Recipes\Alergeny\SlownikAlergenow::podpowiedzi($tekstyDoPodpowiedzi)" />
+            @endif
         </section>
 
         {{-- ---------------------------------------------------------------

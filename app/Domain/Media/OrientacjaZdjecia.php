@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Media;
 
+use Intervention\Image\Direction;
 use Intervention\Image\Interfaces\ImageInterface;
 
 /**
@@ -34,14 +35,21 @@ final class OrientacjaZdjecia
             return;
         }
 
+        // INTERVENTION 4 ZMIENIŁ ZNACZENIE TYCH WYWOŁAŃ (issue #2336).
+        // W wersji 3 `rotate()` kręcił przeciwnie do ruchu wskazówek zegara,
+        // `flip()` odbijał w pionie, a `flop()` w poziomie. W wersji 4
+        // `rotate()` kręci ZGODNIE z ruchem wskazówek, a `flip()` bierze
+        // kierunek (domyślnie poziomy); `flop()` nie istnieje. Stąd znaki
+        // kątów są tu przeciwne niż przed migracją, a wynik ten sam — pilnuje
+        // tego `OrientacjaZdjeciaTest` na pikselach, nie na wymiarach.
         match ($orientacja) {
-            2 => $image->flop(),
+            2 => $image->flip(Direction::HORIZONTAL),
             3 => $image->rotate(180),
-            4 => $image->flip(),
-            5 => $image->rotate(-90)->flop(),
-            6 => $image->rotate(-90),
-            7 => $image->rotate(90)->flop(),
-            8 => $image->rotate(90),
+            4 => $image->flip(Direction::VERTICAL),
+            5 => $image->rotate(90)->flip(Direction::HORIZONTAL),
+            6 => $image->rotate(90),
+            7 => $image->rotate(-90)->flip(Direction::HORIZONTAL),
+            8 => $image->rotate(-90),
             default => null,
         };
     }

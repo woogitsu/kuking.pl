@@ -83,7 +83,7 @@ Jak podział z tabeli wyżej przekłada się na to, co robi kod:
 | SLA | Kategorie `Report::REASONS` | W narzędziu | Dowód |
 |---|---|---|---|
 | P0 | „Dotyczy dziecka" (`minor`), „Treść nieprzyzwoita" (`sexual`) | Pierwsze w kolejce, **alarm pocztą** do moderacji | `KolejkaModeracjiStawiaPilneNaGorzeTest` — kolejność i alarm; reguła w `app/Domain/Moderation/PriorytetSprawy.php` |
-| P1 | `harassment`, `hate`, `personal_data`, `scam` | Nad zwykłą kolejką; tu też każde zgłoszenie **prawne**, bo niesie termin z art. 16 ust. 5 | `KolejkaModeracjiStawiaPilneNaGorzeTest::test_zgloszenie_prawne_o_zwyklej_kategorii_wyprzedza_te_sama_kategorie_bez_terminu` |
+| P1 | `harassment`, `hate`, `personal_data`, `scam`, `allergen_label` („Błędne oznaczenie alergenów”, tylko przy zgłoszeniu przepisu, gdy funkcja alergenów jest włączona — #1902) | Nad zwykłą kolejką; tu też każde zgłoszenie **prawne**, bo niesie termin z art. 16 ust. 5 | `KolejkaModeracjiStawiaPilneNaGorzeTest::test_zgloszenie_prawne_o_zwyklej_kategorii_wyprzedza_te_sama_kategorie_bez_terminu` |
 | P2 i P3 | `spam`, `copyright`, `dangerous_advice`, `impersonation`, `other` | Zwykła kolejka, bez plakietki | `KolejkaModeracjiStawiaPilneNaGorzeTest::test_zwykla_sprawa_nie_dostaje_plakietki` |
 
 **Gdy pilny list alarmowy przepadnie:** harmonogram ponawia wyłącznie

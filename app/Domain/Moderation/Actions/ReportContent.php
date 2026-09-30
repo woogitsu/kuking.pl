@@ -134,7 +134,7 @@ final class ReportContent
             throw new BladDlaCzlowieka('Tej treści nie można zgłosić.');
         }
 
-        if (! array_key_exists($reason, Report::REASONS)) {
+        if (! array_key_exists($reason, Report::powodyDla($targetType))) {
             throw new BladDlaCzlowieka('Wybierz powód zgłoszenia.');
         }
 
