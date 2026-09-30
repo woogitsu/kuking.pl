@@ -39,14 +39,6 @@ final class PobieraczStron
     /** RFC 9309 §2.5: co najmniej 500 KiB pliku robots trzeba przeczytać. */
     public const MAKS_BAJTOW_ROBOTS = 512_000;
 
-    /**
-     * Parametry śledzące, które NIE są częścią adresu przepisu — zdejmujemy
-     * je z adresu zapisywanego jako źródło.
-     *
-     * @var list<string>
-     */
-    private const PARAMETRY_SLEDZACE = ['fbclid', 'gclid', 'dclid', 'msclkid', 'mc_cid', 'mc_eid', 'igshid', 'yclid', '_ga'];
-
     /** @var array<string, RobotsTxt> */
     private array $robots = [];
 
@@ -101,38 +93,8 @@ final class PobieraczStron
 
             $html = $this->przeczytaj($odpowiedz, $this->maksBajtow(), ImportOdrzucony::ZA_DUZA_STRONA);
 
-            return new PobranaStrona(self::bezSledzenia($adres->url), $this->doUtf8($html, (string) $odpowiedz->header('Content-Type')));
+            return new PobranaStrona(PublicznyAdresZrodla::z($adres->url), $this->doUtf8($html, (string) $odpowiedz->header('Content-Type')));
         }
-    }
-
-    /**
-     * Adres bez parametrów śledzących (`utm_*`, `fbclid`…) i bez fragmentu —
-     * to on trafia do `recipes.source_url`.
-     */
-    public static function bezSledzenia(string $url): string
-    {
-        $url = explode('#', $url, 2)[0];
-        $czesci = parse_url($url);
-
-        if (! is_array($czesci) || ! isset($czesci['query'])) {
-            return $url;
-        }
-
-        $zostaja = [];
-
-        foreach (explode('&', $czesci['query']) as $para) {
-            $nazwa = strtolower(urldecode(explode('=', $para, 2)[0]));
-
-            if ($nazwa === '' || str_starts_with($nazwa, 'utm_') || in_array($nazwa, self::PARAMETRY_SLEDZACE, true)) {
-                continue;
-            }
-
-            $zostaja[] = $para;
-        }
-
-        $bezZapytania = explode('?', $url, 2)[0];
-
-        return $zostaja === [] ? $bezZapytania : $bezZapytania.'?'.implode('&', $zostaja);
     }
 
     private function robotsDla(SprawdzonyAdres $adres): RobotsTxt

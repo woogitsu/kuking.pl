@@ -9,7 +9,7 @@ use App\Domain\Import\ImportOdrzucony;
 use App\Domain\Import\OdczytanyPrzepis;
 use App\Domain\Import\RozliczenieOdczytu;
 use App\Domain\Import\Url\OdczytajPrzepisZAdresu;
-use App\Domain\Import\Url\PobieraczStron;
+use App\Domain\Import\Url\PublicznyAdresZrodla;
 use App\Domain\Posts\KontoNieMozePublikowac;
 use App\Models\ImportPrzepisu;
 use App\Models\PrzepisZImportu;
@@ -96,7 +96,7 @@ class ImportujPrzepisZAdresu implements ShouldQueue
                 return;
             }
 
-            $this->zapisz($zlecenie, $zapiszSzkic, 'bez_tresci', null, PobieraczStron::bezSledzenia($adres), $e->kod);
+            $this->zapisz($zlecenie, $zapiszSzkic, 'bez_tresci', null, PublicznyAdresZrodla::z($adres), $e->kod);
 
             return;
         }
