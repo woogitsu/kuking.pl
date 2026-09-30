@@ -10,6 +10,7 @@ use App\Domain\Kanaly\ZapisAtom;
 use App\Models\Collection;
 use App\Models\Profile;
 use App\Models\Tag;
+use App\Support\AdresKanoniczny;
 use App\Support\PublicznyHtmlGoscia;
 use Closure;
 use Illuminate\Http\RedirectResponse;
@@ -148,14 +149,17 @@ final class KanalAtomController
     {
         $sekundy = max(0, (int) config('kuking.kanal_cache_sekund'));
 
+        // Treść budowana z `APP_URL`, nie z żądania: kopia jest wspólna dla
+        // wszystkich, a `route()` i `Media::url()` biorą schemat, host i port
+        // z żądania (zaufane nagłówki `X-Forwarded-*`). Bez tego jedno
+        // żądanie z obcym `X-Forwarded-Proto`/`-Port` przy zimnym cache
+        // zatruwałoby kanał dla wszystkich na cały TTL.
+        $buduj = fn (): string => AdresKanoniczny::zbuduj(fn (): string => $this->zapis->xml($zbuduj()));
+
         if ($sekundy === 0) {
-            return $this->zapis->xml($zbuduj());
+            return $buduj();
         }
 
-        return Cache::remember(
-            'kuking:kanal:v1:'.$klucz,
-            now()->addSeconds($sekundy),
-            fn (): string => $this->zapis->xml($zbuduj()),
-        );
+        return Cache::remember('kuking:kanal:v1:'.$klucz, now()->addSeconds($sekundy), $buduj);
     }
 }

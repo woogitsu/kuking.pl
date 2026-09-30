@@ -334,6 +334,33 @@ class KanalyAtomTest extends TestCase
         $this->assertSame('W/"'.hash('sha256', (string) $po->getContent()).'"', (string) $po->headers->get('ETag'));
     }
 
+    public function test_kopia_w_cache_ma_adresy_kanoniczne_mimo_obcych_naglowkow_proxy(): void
+    {
+        config(['kuking.kanal_cache_sekund' => 300, 'app.url' => 'https://kuking.example']);
+
+        $autor = $this->user('kanalkanon');
+        $this->wpis($autor, 'Wpis kanoniczny');
+        $adres = route('kanaly.profil', 'kanalkanon');
+
+        // Pierwsze żądanie przy zimnym cache niesie obce schemat i port.
+        $obce = $this->get($adres, ['X-Forwarded-Proto' => 'http', 'X-Forwarded-Port' => '8080']);
+        $zwykle = $this->get($adres);
+
+        foreach ([$obce, $zwykle] as $odpowiedz) {
+            $x = $this->atom($odpowiedz);
+            $adresy = [];
+            foreach ($x->query('//a:link/@href | //a:id[not(starts-with(., "urn:"))] | //a:uri') as $wezel) {
+                $adresy[] = $wezel->nodeValue;
+            }
+            $this->assertNotEmpty($adresy);
+            foreach ($adresy as $a) {
+                $this->assertStringStartsWith('https://kuking.example/', $a, 'Adres w kanale musi iść z APP_URL.');
+            }
+        }
+
+        $this->assertSame($obce->getContent(), $zwykle->getContent());
+    }
+
     public function test_cache_brzegu_idzie_za_polityka_html_goscia(): void
     {
         $this->user('kanalbrzeg');
