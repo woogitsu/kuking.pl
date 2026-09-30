@@ -4040,15 +4040,20 @@ dziennik tak, że prawdziwe wejścia utonęłyby w szumie. Retencja zwykła —
 ten wpis NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest jedynym
 dowodem wykonania żądania z RODO art. 17.
 
-**`moderation.hidden_post_viewed`** — wgląd obsługi we wpis ukryty przez
-moderację (#1018): strona wpisu (`PostController::show()`), gdy otwiera ją
-ktoś inny niż autor. `PostPolicy::view()` wpuszcza tam poza autorem wyłącznie
-czynnego moderatora albo administratora z potwierdzonym 2FA, więc każde takie
-wejście to wgląd z urzędu — ta sama zasada 3.2 co przy `admin.user_viewed`.
+**`moderation.hidden_post_viewed`** — wgląd obsługi we wpis niewidoczny bez
+roli (#1018; od 30.09.2026 decyzją właściciela także wpis konta zbanowanego
+albo oznaczonego do usunięcia): strona wpisu (`PostController::show()` przez
+`StronaWpisu`) i `GET /api/v1/wpisy/{post}`, gdy otwiera go moderator inny
+niż autor, a to samo konto z rolą `user` by go nie zobaczyło
+(`DziennikWgladu::wpis()`, ten sam wzorzec co `moderation.hidden_recipe_viewed`).
+Do 30.09.2026 wpis powstawał tylko przy `status = hidden`, więc wgląd w wpis
+konta zbanowanego (`PostPolicy::view()`, `$isOwnerOrModerator`) nie zostawiał
+śladu. Nazwa zdarzenia została, żeby nie rozcinać historii dziennika.
 `actor_id` to moderator, `subject_type = 'Post'`, `subject_id` — obejrzany
-wpis, `ip_hash` z żądania. **Bez metadanych i bez treści wpisu**: identyfikator
-wystarcza, a treść ukrytego wpisu nie ma trafiać do drugiej tabeli, gdzie
-przeżyłaby jej poprawkę albo usunięcie. Wejście autora na własny wpis wpisu
+wpis, `ip_hash` z żądania, `metadata = {"powod": "ukryta_tresc" | "rola_moderatora",
+"status": <status wpisu>}` (wiersze sprzed 30.09.2026 mają `metadata = NULL`).
+**Bez treści wpisu**: identyfikator wystarcza, a treść nie ma trafiać do
+drugiej tabeli, gdzie przeżyłaby jej poprawkę albo usunięcie. Wejście autora na własny wpis wpisu
 nie zostawia. Podgląd jest tylko do odczytu — zapis do zeszytu, zgłoszenie
 i komentarz odmawia `PostPolicy` (`save`, `report`, `comment`), więc innych
 wpisów z tej strony nie ma. Retencja zwykła, jak `admin.user_viewed` — wpis

@@ -2729,6 +2729,19 @@ return [
          * Zero wyłącza listy alarmowe bez ruszania adresu.
          */
         'alarm_operacyjny_na_dobe' => (int) env('KUKING_ALARM_EMAIL_NA_DOBE', 20),
+
+        /*
+         * DOBOWY SUFIT LISTÓW „PRZYSZŁA NOWA WIADOMOŚĆ" (`KUKING_ALARM_EMAIL`,
+         * decyzja właściciela 30.09.2026, `DzwonekOperatora`).
+         *
+         * OSOBNY od sufitu alarmów wyżej: formularz „Napisz do nas" wypełnia
+         * każdy, więc wiadomości od ludzi nie mogą zjeść listów o awariach.
+         * Pięć, bo list jest tu tylko wygodą: wiadomość jest już w panelu,
+         * a Discord dostaje każdą. Po piątej skrzynka milknie do północy
+         * (przy czwartej przychodzi ostrzeżenie o zużyciu 80% sufitu).
+         * Zero wyłącza te listy; alarmy o awariach idą dalej.
+         */
+        'kontakt_operatora_na_dobe' => (int) env('KUKING_ALARM_EMAIL_KONTAKT_NA_DOBE', 5),
     ],
 
     'digest' => [

@@ -20997,8 +20997,8 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | F4 (decyzja 30.09) | F4 = **kartka o koncie** (wg karty researchu `docs/research/2026-09-30-nowe-funkcje.md`); wydruk przepisu już istnieje (#765) i nie jest częścią F4 | #765 |
 | F3 „Ugotujmy razem” (decyzja 30.09) | **Nie jest grupą** w rozumieniu #22 — jeden przepis tygodnia, bez członkostwa | #22 |
 | #2270: ukrycie pojedynczej wersji przepisu (decyzja 30.09) | Autor i moderator mogą ukryć **pojedynczą wersję** przepisu w historii zmian (w pracy) | #2270 |
-| „Napisz do nas” mailem na alarm (decyzja 30.09) | Wiadomość z formularza „Napisz do nas” idzie **także mailem** na `KUKING_ALARM_EMAIL` (w pracy) | #599 |
-| Dziennik wglądów: konta zbanowane (decyzja 30.09) | Dziennik wglądów moderatora obejmuje **także wpisy kont zbanowanych** (w pracy) | — |
+| „Napisz do nas” mailem na alarm (decyzja 30.09) | Wiadomość z formularza „Napisz do nas” idzie **także mailem** na `KUKING_ALARM_EMAIL` — ta sama treść co na Discordzie (bez treści wiadomości i danych osoby piszącej), własny sufit dobowy `KUKING_ALARM_EMAIL_KONTAKT_NA_DOBE` (domyślnie 5), niezależny od sufitu listów o awariach | #599 |
+| Dziennik wglądów: konta zbanowane (decyzja 30.09) | Dziennik wglądów moderatora obejmuje **także wpisy kont zbanowanych** (strona wpisu i API, `moderation.hidden_post_viewed` z `powod = rola_moderatora`; pytanie kontrfaktyczne jak przy przepisie) | — |
 
 ### Wycofanie
 Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis
