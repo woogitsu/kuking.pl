@@ -80,7 +80,7 @@
         <section class="zeszyt-spis" aria-labelledby="zeszyt-spis-naglowek">
             <h2 id="zeszyt-spis-naglowek">Spis treści</h2>
             @if($liczbaPrzepisow === 0)
-                <p>W tym zeszycie nie ma przepisów, które mógłbyś wydrukować.</p>
+                <p>W tym zeszycie nie ma przepisów do wydrukowania.</p>
             @else
                 <ol class="zeszyt-spis-lista">
                     @foreach($przepisy as $przepis)

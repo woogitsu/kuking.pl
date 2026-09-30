@@ -310,7 +310,7 @@ class WydrukZeszytuTest extends TestCase
     {
         $this->druk($this->halina)
             ->assertOk()
-            ->assertSee('nie ma przepisów, które mógłbyś wydrukować');
+            ->assertSee('nie ma przepisów do wydrukowania');
     }
 
     public function test_przycisk_na_stronie_zeszytu_jest_tekstem_i_tylko_gdy_jest_co_drukowac(): void
