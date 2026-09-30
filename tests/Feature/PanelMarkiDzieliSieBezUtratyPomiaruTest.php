@@ -53,7 +53,7 @@ class PanelMarkiDzieliSieBezUtratyPomiaruTest extends TestCase
             $job,
             'Job `port_panelu` nie podaje `PANEL_CZESC` z macierzy — każda część mierzyłaby cały panel (#2299).',
         );
-        $this->assertStringContainsString('fail-fast: false', $job, 'Czerwona część panelu nie może anulować drugiej.');
+        $this->assertTrue(str_contains($job, 'fail-fast: false'), 'Czerwona część panelu nie może anulować drugiej.');
         $this->assertStringContainsString('(część ${{ matrix.czesc }}/2)', $job);
         $this->assertSame(count($wCi), 2, 'Nazwa części mówi „/2" — zmień ją razem z liczbą części.');
     }

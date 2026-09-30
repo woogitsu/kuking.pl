@@ -54,7 +54,7 @@ class CacheMiedzyJobamiNieDajeStarychWynikowTest extends TestCase
                 continue;
             }
             $ile++;
-            $this->assertStringContainsString("key: composer-\${{ runner.os }}-php\${{ env.PHP_VERSION }}-\${{ hashFiles('composer.lock') }}", $krok, "Job `{$job}`: klucz `vendor` nie zależy od composer.lock i PHP.");
+            $this->assertTrue(str_contains($krok, "key: composer-\${{ runner.os }}-php\${{ env.PHP_VERSION }}-\${{ hashFiles('composer.lock') }}"), "Job `{$job}`: klucz `vendor` nie zależy od composer.lock i PHP.");
             $po = substr($blok, (int) strpos($blok, $krok) + strlen($krok));
             $this->assertMatchesRegularExpression(
                 '/^\s+(run: )?composer install --no-interaction/m',
@@ -73,16 +73,16 @@ class CacheMiedzyJobamiNieDajeStarychWynikowTest extends TestCase
                 continue;
             }
             $ile++;
-            $this->assertStringContainsString('key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}', $krok, "Job `{$job}`: klucz przeglądarki nie jest wersją Playwrighta.");
-            $this->assertStringNotContainsString('restore-keys', $krok, "Job `{$job}`: przeglądarka innej wersji nie może być odtwarzana (#2299).");
+            $this->assertTrue(str_contains($krok, 'key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}'), "Job `{$job}`: klucz przeglądarki nie jest wersją Playwrighta.");
+            $this->assertFalse(str_contains($krok, 'restore-keys'), "Job `{$job}`: przeglądarka innej wersji nie może być odtwarzana (#2299).");
             $this->assertMatchesRegularExpression(
                 "/^        if: runner\\.environment == 'github-hosted'\\s*$/m",
                 $krok,
                 "Job `{$job}`: cache przeglądarki na własnym runnerze podmieniałby wspólny katalog innym jobom (#2299).",
             );
-            $this->assertStringContainsString("require('./package-lock.json').packages['node_modules/playwright-core'].version", $blok, "Job `{$job}`: brak kroku z wersją Playwrighta.");
+            $this->assertTrue(str_contains($blok, "require('./package-lock.json').packages['node_modules/playwright-core'].version"), "Job `{$job}`: brak kroku z wersją Playwrighta.");
             $po = substr($blok, (int) strpos($blok, $krok) + strlen($krok));
-            $this->assertStringContainsString('npx playwright install chromium', $po, "Job `{$job}`: po odtworzeniu przeglądarki nie biegnie `npx playwright install`.");
+            $this->assertTrue(str_contains($po, 'npx playwright install chromium'), "Job `{$job}`: po odtworzeniu przeglądarki nie biegnie `npx playwright install`.");
         }
         $this->assertGreaterThanOrEqual(6, $ile);
     }
@@ -91,10 +91,10 @@ class CacheMiedzyJobamiNieDajeStarychWynikowTest extends TestCase
     {
         foreach ($this->joby() as $job => $blok) {
             if (str_contains($blok, 'npx playwright install chromium')) {
-                $this->assertStringContainsString('path: ~/.cache/ms-playwright', $blok, "Job `{$job}` instaluje przeglądarkę bez cache (#2299).");
+                $this->assertTrue(str_contains($blok, 'path: ~/.cache/ms-playwright'), "Job `{$job}` instaluje przeglądarkę bez cache (#2299).");
             }
             if (preg_match('/^\s+(run: )?composer install --no-interaction/m', $blok)) {
-                $this->assertStringContainsString('path: vendor', $blok, "Job `{$job}` instaluje `vendor/` bez cache (#2299).");
+                $this->assertTrue(str_contains($blok, 'path: vendor'), "Job `{$job}` instaluje `vendor/` bez cache (#2299).");
             }
         }
     }

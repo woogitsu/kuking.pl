@@ -30,7 +30,7 @@ class TestyJsBiegnaWJobieAssetowTest extends TestCase
 
         $this->assertSame('vite build', $skrypty['build:assets'] ?? null, '`build:assets` ma być samym `vite build` (#2299).');
         $this->assertStringEndsWith(' && vite build', $skrypty['build'], 'Pełny `build` ma kończyć się tym samym `vite build`.');
-        $this->assertStringContainsString('node --test ', $skrypty['build'], 'Pełny `build` przestał uruchamiać testy JS — job `assets` nic by nie sprawdzał.');
+        $this->assertTrue(str_contains($skrypty['build'], 'node --test '), 'Pełny `build` przestał uruchamiać testy JS — job `assets` nic by nie sprawdzał.');
     }
 
     public function test_job_assets_robi_pelny_build_przy_kazdej_zmianie_kodu(): void
