@@ -47,7 +47,7 @@
                 <dd>{{ $nazwaUzytkownika }}</dd>
             @endif
             <dt>Adres e-mail konta</dt>
-            <dd>{{ $emailZakryty }} <span class="meta">(częściowo zasłonięty)</span></dd>
+            <dd>{{ $emailZakryty }} (częściowo zasłonięty)</dd>
         </dl>
 
         <h3>Jak wejść bez hasła</h3>

@@ -52,6 +52,17 @@
   overflow-wrap: anywhere;
 }
 
+/* Kroki z numerami — „w trzech krokach” ma być widać, nie tylko czytać. */
+.sciagawka-kroki {
+  list-style: decimal;
+  padding-left: 1.75em;
+  margin: 0;
+}
+
+.sciagawka h3 {
+  margin-top: var(--spacing-5);
+}
+
 @media print {
   @page {
     size: A4;
