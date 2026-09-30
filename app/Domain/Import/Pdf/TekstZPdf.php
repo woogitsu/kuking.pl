@@ -6,6 +6,7 @@ namespace App\Domain\Import\Pdf;
 
 use App\Domain\Import\ImportOdrzucony;
 use Illuminate\Process\Exceptions\ProcessTimedOutException;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 
 /**
@@ -64,6 +65,7 @@ final class TekstZPdf
     public function odczytaj(string $sciezka): string
     {
         $this->sprawdzWstepnie($sciezka);
+        self::wymagajUruchamianiaProcesow();
 
         $strony = $this->liczbaStron($sciezka);
         $maksStron = $this->maksStron();
@@ -137,6 +139,28 @@ final class TekstZPdf
         }
 
         return (int) $m[1];
+    }
+
+    /**
+     * Symfony Process potrzebuje `proc_open`, a `docker/php.ini` go wyłącza.
+     * Procesy kolejki dostają go z powrotem flagą w entrypoincie (#2293);
+     * gdyby odczyt PDF trafił do procesu bez niej (WWW, harmonogram, ręczne
+     * `artisan`), człowiek dostaje „odczyt PDF chwilowo nie działa", a
+     * właściciel błąd w logu z nazwaną przyczyną, zamiast `LogicException`.
+     *
+     * @throws ImportOdrzucony
+     */
+    public static function wymagajUruchamianiaProcesow(): void
+    {
+        if (function_exists('proc_open')) {
+            return;
+        }
+
+        Log::error('Odczyt PDF: proc_open jest wyłączony w tym procesie PHP — odczyt działa tylko w procesie kolejki uruchomionym przez entrypoint (#2293).', [
+            'stage' => 'import_pdf_proc_open',
+        ]);
+
+        throw new ImportOdrzucony(ImportOdrzucony::NARZEDZIE_PDF_NIEDOSTEPNE);
     }
 
     private function brakNarzedzia(?int $kod): bool
