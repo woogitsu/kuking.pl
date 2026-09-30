@@ -47,6 +47,29 @@ final class ImportZrodloBezPoufnychParametrowTest extends TestCase
         $this->assertSame('https://przepisy.example.pl/x', PublicznyAdresZrodla::z('https://przepisy.example.pl/x?id='.str_repeat('a', 65)));
     }
 
+    public function test_adresy_joomla_i_drupal_zachowuja_identyfikator_strony(): void
+    {
+        // Regresja (audyt): `option`, `view`, `nid`, `rid`, `slug`, `item`
+        // nie były na liście zgód, więc Joomla/Drupal traciły identyfikator
+        // strony (`index.php?option=com_content&view=article&id=42` →
+        // `index.php?id=42`). Wartości nadal przechodzą przez regułę WARTOSC.
+        $this->assertSame(
+            'https://przepisy.example.pl/index.php?option=com_content&view=article&id=42',
+            PublicznyAdresZrodla::z('https://przepisy.example.pl/index.php?option=com_content&view=article&id=42'),
+        );
+        $this->assertSame(
+            'https://przepisy.example.pl/index.php?option=com_content&view=article&id=42',
+            PublicznyAdresZrodla::z('https://przepisy.example.pl/index.php?option=com_content&token=SECRET&view=article&id=42'),
+        );
+        $this->assertSame('https://przepisy.example.pl/node?nid=17', PublicznyAdresZrodla::z('https://przepisy.example.pl/node?nid=17&token=SECRET'));
+        $this->assertSame('https://przepisy.example.pl/r?rid=5', PublicznyAdresZrodla::z('https://przepisy.example.pl/r?rid=5&token=SECRET'));
+        $this->assertSame('https://przepisy.example.pl/r?slug=zurek-wielkanocny', PublicznyAdresZrodla::z('https://przepisy.example.pl/r?slug=zurek-wielkanocny&token=SECRET'));
+        $this->assertSame('https://przepisy.example.pl/r?item=9', PublicznyAdresZrodla::z('https://przepisy.example.pl/r?item=9&token=SECRET'));
+
+        // Wartość nadal pod regułą: e-mail w `slug` i `token` znikają.
+        $this->assertSame('https://przepisy.example.pl/r', PublicznyAdresZrodla::z('https://przepisy.example.pl/r?slug=jan%40poczta.example&token=SECRET'));
+    }
+
     public function test_opublikowany_przepis_z_importu_nie_pokazuje_sekretu_ani_w_stronie_ani_w_historii(): void
     {
         $autor = $this->user('hania');

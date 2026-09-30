@@ -15,6 +15,7 @@ use DOMDocument;
 use DOMElement;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -256,30 +257,81 @@ class KanalyAtomTest extends TestCase
 
     // ── nagłówki cache ─────────────────────────────────────────────────
 
-    public function test_etag_i_last_modified_daja_304(): void
+    public function test_etag_daje_304_a_last_modified_nie_jest_wysylany(): void
     {
         $autor = $this->user('kanalcache');
-        $this->wpis($autor, 'Wpis do cache', ['published_at' => now()->subDay(), 'updated_at' => now()->subDay()]);
+        $wpis = $this->wpis($autor, 'Wpis do cache', ['published_at' => now()->subDay(), 'updated_at' => now()->subDay()]);
 
         $pierwsza = $this->get(route('kanaly.profil', 'kanalcache'));
         $this->atom($pierwsza);
         $etag = (string) $pierwsza->headers->get('ETag');
-        $zmiana = (string) $pierwsza->headers->get('Last-Modified');
 
         $this->assertMatchesRegularExpression('/^W\/"[0-9a-f]{64}"$/', $etag);
-        $this->assertNotSame('', $zmiana);
+        $this->assertFalse($pierwsza->headers->has('Last-Modified'), 'Last-Modified nie zmienia się, gdy pozycja znika — kanał go nie wysyła.');
         $this->assertSame('no-cache, private', $pierwsza->headers->get('Cache-Control'));
         $this->assertSame([], $pierwsza->headers->getCookies(), 'Kanał nie zakłada sesji ani nie stawia ciasteczek.');
 
         $this->get(route('kanaly.profil', 'kanalcache'), ['If-None-Match' => $etag])
             ->assertStatus(304)
             ->assertContent('');
-        $this->get(route('kanaly.profil', 'kanalcache'), ['If-Modified-Since' => $zmiana])
-            ->assertStatus(304);
+        // Regresja (audyt): samo `If-Modified-Since` z daleka w przyszłości
+        // nie może dać 304 — dawniej czytnik po zniknięciu pozycji dostawał
+        // 304 i dalej pokazywał wycofaną treść.
+        $this->get(route('kanaly.profil', 'kanalcache'), ['If-Modified-Since' => now()->addYear()->toRfc7231String()])
+            ->assertOk()
+            ->assertSee('Wpis do cache');
+
+        // Pozycja znika (ukryta moderacją) — pytanie tylko po dacie dostaje świeżą treść.
+        $wpis->forceFill(['updated_at' => now()->subDays(2)])->save();
+        $wpis->delete();
+        $this->get(route('kanaly.profil', 'kanalcache'), ['If-Modified-Since' => now()->toRfc7231String()])
+            ->assertOk()
+            ->assertDontSee('Wpis do cache');
 
         // Nowy wpis zmienia ETag — stary już nie pasuje.
         $this->wpis($autor, 'Świeży wpis');
         $this->get(route('kanaly.profil', 'kanalcache'), ['If-None-Match' => $etag])->assertOk()->assertSee('Świeży wpis');
+    }
+
+    public function test_cache_aplikacji_drugie_pobranie_nie_odpytuje_bazy_o_pozycje(): void
+    {
+        config(['kuking.kanal_cache_sekund' => 300]);
+
+        $autor = $this->user('kanalttl');
+        $this->wpis($autor, 'Wpis w oknie cache');
+        $adres = route('kanaly.profil', 'kanalttl');
+
+        $pierwsza = $this->get($adres);
+        $this->atom($pierwsza)->query('//a:entry');
+        $etag = (string) $pierwsza->headers->get('ETag');
+
+        DB::enableQueryLog();
+        $druga = $this->get($adres);
+        $zapytania = collect(DB::getQueryLog())->pluck('query')->implode("\n");
+        DB::disableQueryLog();
+
+        $this->atom($druga);
+        $this->assertStringNotContainsStringIgnoringCase('from "posts"', $zapytania, 'W oknie TTL kanał nie odpytuje bazy o pozycje.');
+        $this->assertSame($etag, (string) $druga->headers->get('ETag'));
+        $this->assertSame($pierwsza->getContent(), $druga->getContent());
+
+        // Dostęp liczy się przy każdym żądaniu, nie z cache: konto zbanowane
+        // daje 404 natychmiast, mimo świeżej kopii.
+        $autor->forceFill(['status' => User::STATUS_BANNED])->save();
+        $this->get($adres)->assertNotFound();
+        $autor->forceFill(['status' => User::STATUS_ACTIVE])->save();
+
+        // Wpis zdjęty w oknie TTL zostaje w kanale do końca okna; po nim znika,
+        // a ETag nadal zgadza się z treścią.
+        Post::query()->where('body', 'Wpis w oknie cache')->delete();
+        $this->get($adres)->assertOk()->assertSee('Wpis w oknie cache');
+
+        $this->travel(301)->seconds();
+        $po = $this->get($adres);
+        $this->atom($po);
+        $po->assertDontSee('Wpis w oknie cache');
+        $this->assertNotSame($etag, (string) $po->headers->get('ETag'));
+        $this->assertSame('W/"'.hash('sha256', (string) $po->getContent()).'"', (string) $po->headers->get('ETag'));
     }
 
     public function test_cache_brzegu_idzie_za_polityka_html_goscia(): void
