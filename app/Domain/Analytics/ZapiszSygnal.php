@@ -86,7 +86,7 @@ final class ZapiszSygnal
 
     public const PANTRY_PRIORITY_VIEWED = 'pantry_priority_viewed';
 
-    public const PANTRY_COOK_PRIORITY_OPENED = 'pantry_cook_priority_opened';
+    public const PANTRY_COOK_PRIORITY_VIEWED = 'pantry_cook_priority_viewed';
 
     /**
      * Tygodniowe podsumowanie WPUSZCZONE DO KOLEJKI (issue #11, D-057;

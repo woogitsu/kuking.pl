@@ -118,7 +118,7 @@ class MigracjaTerminowSpizarniTest extends TestCase
 
     public function test_sygnaly_produktowe_spizarni_sa_w_slowniku(): void
     {
-        foreach (['pantry_expiry_set', 'pantry_priority_viewed', 'pantry_cook_priority_opened'] as $nazwa) {
+        foreach (['pantry_expiry_set', 'pantry_priority_viewed', 'pantry_cook_priority_viewed'] as $nazwa) {
             DB::table('product_signals')->insert(['signal_name' => $nazwa, 'properties' => '{}', 'occurred_at' => now()]);
         }
 

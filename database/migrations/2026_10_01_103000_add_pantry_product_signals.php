@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Schema;
  *   - `pantry_expiry_set`            — ktoś zapisał termin przy produkcie,
  *   - `pantry_priority_viewed`       — ktoś otworzył listę, na której jest
  *                                      sekcja „Zużyj w pierwszej kolejności”,
- *   - `pantry_cook_priority_opened`  — ktoś otworzył przepisy w trybie
+ *   - `pantry_cook_priority_viewed`  — ktoś obejrzał przepisy w trybie
  *                                      „Najpierw to, co się psuje”.
  *
  * Odsetek kont z co najmniej jednym terminem liczy się wprost z `pantry_items`
@@ -52,7 +52,7 @@ return new class extends Migration
     ];
 
     private const NOWE = [
-        'pantry_expiry_set', 'pantry_priority_viewed', 'pantry_cook_priority_opened',
+        'pantry_expiry_set', 'pantry_priority_viewed', 'pantry_cook_priority_viewed',
     ];
 
     public function up(): void

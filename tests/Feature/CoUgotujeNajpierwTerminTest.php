@@ -177,7 +177,7 @@ class CoUgotujeNajpierwTerminTest extends TestCase
         $this->actingAs($ja)->get(route('pantry.cook', ['najpierw' => 'termin', 'od' => 20]))->assertOk();
         $this->actingAs($ja)->get(route('pantry.cook'))->assertOk();
 
-        $wiersze = ProductSignal::query()->where('signal_name', ZapiszSygnal::PANTRY_COOK_PRIORITY_OPENED)->get();
+        $wiersze = ProductSignal::query()->where('signal_name', ZapiszSygnal::PANTRY_COOK_PRIORITY_VIEWED)->get();
         $this->assertCount(1, $wiersze);
         $this->assertNull($wiersze[0]->user_id);
     }

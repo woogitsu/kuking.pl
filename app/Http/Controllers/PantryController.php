@@ -202,7 +202,7 @@ class PantryController extends Controller
 
         if ($najpierwTermin && $od === 0) {
             // Pomiar (#1903): ktoś otworzył przepisy w trybie „najpierw to, co się psuje”.
-            $sygnaly->handle(null, ZapiszSygnal::PANTRY_COOK_PRIORITY_OPENED);
+            $sygnaly->handle(null, ZapiszSygnal::PANTRY_COOK_PRIORITY_VIEWED);
         }
 
         return view('pages.pantry.co-ugotuje', [
