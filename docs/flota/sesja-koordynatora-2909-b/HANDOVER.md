@@ -47,7 +47,7 @@ Integrate these branches, all pushed and reviewed by agents, all based on `b1c96
 | Branch | SHA | Issue |
 |---|---|---|
 | `claude/2331-szukanie-emoji` | 8c650ea9f | #2331 search with emoji. **Conflict with L's partial #2331 fix:** take `FrazaWyszukiwania::normalizuj()` from this branch and keep one CHANGELOG entry |
-| `claude/ux-novalidate-wszedzie` | 976723be6+ | Contains `claude/ux-2243-2246` (#2243–#2246), so merge ONLY this one. It adds `novalidate` to 52 forms, the "Cofnij usunięcie konta" button on refused login, and D-333 rows. **An agent is still working on it:** it is adding an "Odwołaj się" button for banned accounts (owner said yes), so wait for its push |
+| `claude/ux-novalidate-wszedzie` | 9e34d174e | Contains `claude/ux-2243-2246` (#2243–#2246), so merge ONLY this one. It adds `novalidate` to 52 forms, the "Cofnij usunięcie konta" button on refused login, and D-333 rows. Also has the "Odwołaj się" button for banned accounts (done) |
 | `claude/2228-migrator-checksum` | c44203aee | #2228: the photo migrator checks size and SHA-256 |
 | `claude/2302-infra-p3` | 6b4bd425a | #2302 IN-13/IN-14 (Railway restart policy, 1000 retries on prod). Closes #2302 |
 | `claude/2326-limit-obserwowanych-tagow` | dd122cb4d | #2326: limit 500 followed tags (owner's decision, D-333 row). Possible conflict with 2331 in `TagFollowWindow` |
