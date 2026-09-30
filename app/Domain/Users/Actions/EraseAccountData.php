@@ -17,6 +17,7 @@ use App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem;
 use App\Models\AuditLogEntry;
 use App\Models\ContactMessage;
 use App\Models\DataExport;
+use App\Models\FacebookConnectionProof;
 use App\Models\Hide;
 use App\Models\MailFailure;
 use App\Models\Media;
@@ -376,6 +377,13 @@ final class EraseAccountData
              * tu nie zadziałało.
              */
             $fresh->tozsamosciZewnetrzne()->delete();
+
+            // Oczekujący dowód połączenia z Facebookiem (#2085) — ta sama
+            // zasada co powiązanie wyżej, a kaskada klucza obcego nie zadziała,
+            // bo kont się nie kasuje (D-022). Bez tej linii skróty z porzuconej
+            // prośby zostawały przy wymazanym koncie (issue #2319); wygasłe
+            // dowody kont żywych sprząta `kuking:sprzataj-dowody-facebooka`.
+            FacebookConnectionProof::query()->where('user_id', $fresh->getKey())->delete();
 
             /*
              * WEB PUSH ZNIKA RAZEM Z KONTEM (D-303).

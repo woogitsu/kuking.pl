@@ -828,6 +828,13 @@ rozpoznaną tożsamością dostawcy, a `account_state_hash` z hasłem, adresem,
 w tej samej transakcji co powiązanie. `UNIQUE (user_id)` unieważnia poprzedni
 link przy kolejnej prośbie; `UNIQUE (token_hash)` zapobiega kolizji.
 
+Retencja (issue #2319): wygasły dowód nie działa od razu (warunek `expires_at`
+w `FacebookConnectionConfirmation`), a fizyczny wiersz kasuje co noc o 06:40 UTC
+`kuking:sprzataj-dowody-facebooka` (`PrzedawnioneDowodyFacebooka`,
+`expires_at < now()`, opcja `--na-sucho`). Wymazanie konta usuwa dowód jawnie
+w `EraseAccountData` — kaskada `ON DELETE CASCADE` nie zadziała, bo kont się nie
+kasuje (D-022). Bez indeksu na `expires_at`: najwyżej jeden wiersz na konto.
+
 Rollback usuwa tylko oczekujące dowody. Nie usuwa istniejących powiązań i
 zamyka, zamiast otwierać, rozpoczęte próby połączenia; można poprosić o nowy
 link po ponownym wdrożeniu.

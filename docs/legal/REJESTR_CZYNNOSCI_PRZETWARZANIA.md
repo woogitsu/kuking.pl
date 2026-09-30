@@ -110,7 +110,9 @@ egzekwuje.
   `kuking:sprzataj-zmiany-adresu`, wygasłe zaproszenia —
   `kuking:sprzataj-zaproszenia`. Żetony resetu hasła (`password_reset_tokens`, klucz: adres
   e-mail) kasuje co noc `kuking:sprzataj-resety-hasel`, a przy wymazaniu konta —
-  `EraseAccountData` (audyt B5 pkt 6).
+  `EraseAccountData` (audyt B5 pkt 6). Wygasłe dowody połączenia z Facebookiem
+  (`facebook_connection_proofs`: `user_id` i skróty HMAC, ważne 10 minut) kasuje co noc
+  `kuking:sprzataj-dowody-facebooka`, a przy wymazaniu konta — `EraseAccountData` (#2319).
 
 ### 3.2 Profil publiczny
 

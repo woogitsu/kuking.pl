@@ -368,6 +368,20 @@ Harmonogram::artisan('kuking:sprzataj-resety-hasel')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 06:40 — wolny slot za czujką sprzątania eksportów (06:25), przed porannymi
+// listami (07:00); pasmo 03:00–06:00 jest zajęte co dziesięć minut
+// (`HarmonogramBezWspolnychSlotowTest`).
+// Wygasłe dowody połączenia z Facebookiem (issue #2319): `user_id` i cztery
+// skróty HMAC z porzuconej prośby o połączenie. Dowód przestaje działać po
+// dziesięciu minutach sam (`FacebookConnectionConfirmation`); to zadanie
+// zabiera już tylko dane bez zastosowania — także z kopii kolejnych dni.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('kuking:sprzataj-dowody-facebooka')
+    ->name('kuking:sprzataj-dowody-facebooka')
+    ->dailyAt('06:40')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // 05:50 — dziesięć minut po poprzednim zadaniu (uzasadnienie odstępów wyżej).
 // 05:20 zajął `queue:prune-failed`, 05:30 rezerwuje dziennik wymazań (#1719).
 // Treści usunięte przez autora (audyt B5, znalezisko 1): po
