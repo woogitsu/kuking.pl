@@ -17,7 +17,7 @@ use Tests\TestCase;
  * KONTROLA UJEMNA (ręcznie): (1) zdjęcie `alergeny_formularz` z warunku w
  * `ZapisPrzepisuRequest::deklaracjaAlergenow()` oblewa `test_formularz_bez_znacznika_nie_rusza_oznaczenia`;
  * (2) usunięcie `wymagaPotwierdzenia()` z tej metody oblewa
- * `test_zaznaczenie_bez_potwierdzenia_wraca_z_bledem_przy_polu_i_w_podsumowaniu`;
+ * `test_zaznaczenie_bez_potwierdzenia_nie_zapisuje_i_wraca_z_bledem_przy_polu_i_w_podsumowaniu`;
  * (3) zdjęcie `Rule::in(...)` oblewa `test_nieznany_kod_alergenu_jest_odrzucony`.
  */
 final class AlergenyFormularzSzczegolowTest extends TestCase

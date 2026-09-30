@@ -13,7 +13,7 @@ namespace App\Domain\Recipes\Alergeny;
  * działającym na rynku spożywczym. Wartość (`value`) to kod zapisany w bazie
  * (`recipes.allergens`) i w adresie filtra (`bez[]=gluten`); lista kodów
  * musi być identyczna z listą w CHECK-u `recipes_allergens_closed_list_check`
- * — pilnuje tego `AlergenyDwaZrodlaListyTest`.
+ * — pilnuje tego `AlergenyOgraniczeniaBazyTest::test_lista_w_enumie_jest_ta_sama_co_w_checku_bazy`.
  *
  * Nazwy w interfejsie są po polsku i bez form rodzajowych. Nigdy nie
  * składamy z nich haseł „bezpieczny”, „dla alergików” ani „bez alergenów”.

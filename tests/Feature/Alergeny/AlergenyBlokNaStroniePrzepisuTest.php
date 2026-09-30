@@ -12,6 +12,8 @@ use App\Models\Recipe;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\ViewErrorBag;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -174,13 +176,44 @@ final class AlergenyBlokNaStroniePrzepisuTest extends TestCase
             'przepis niesprawdzony' => $this->blok($this->stronaPrzepisu($przepisNiesprawdzony)),
             'wyszukiwarka z filtrem' => (string) $this->get(route('search', ['q' => 'nalesniki', 'bez' => ['milk']]))->getContent(),
             'wyszukiwarka pusty wynik' => (string) $this->get(route('search', ['q' => 'cosnieistniejacego', 'bez' => ['milk', 'gluten']]))->getContent(),
+            'wyszukiwarka, zakres przepisów z filtrem' => (string) $this->get(route('search', ['q' => 'nalesniki', 'sekcja' => 'przepisy', 'bez' => ['eggs']]))->getContent(),
             'formularz szczegółów' => (string) $this->actingAs($this->autor)->get(route('recipes.edit', $zDoPrzegladu->slug))->getContent(),
             'kreator, krok 2' => Livewire::actingAs($this->autor)->test('recipe-wizard', ['recipeId' => $zDoPrzegladu->getKey()])->set('step', 2)->html(),
         ];
 
+        // Komponent pól renderowany wprost, w każdym stanie i obu trybach (kreator
+        // / zwykły formularz), z podpowiedziami i przyciskiem ponownego potwierdzenia.
+        foreach (['unchecked', 'declared', 'needs_review'] as $stan) {
+            foreach ([false, true] as $wire) {
+                $strony["pola.blade.php, stan {$stan}, wire ".($wire ? 'tak' : 'nie')] = Blade::render(
+                    '<x-alergeny.pola :wire="$wire" :wybrane="$wybrane" :potwierdzone="$potwierdzone" :stan="$stan" :podpowiedzi="$podpowiedzi" :przycisk-przegladu="$przycisk" />',
+                    [
+                        'wire' => $wire,
+                        'wybrane' => ['milk', 'gluten'],
+                        'potwierdzone' => $stan === 'declared',
+                        'stan' => $stan,
+                        'podpowiedzi' => ['gluten' => ['mąka pszenna'], 'milk' => ['mleko']],
+                        'przycisk' => $stan === 'needs_review',
+                        'errors' => new ViewErrorBag,
+                    ],
+                );
+            }
+        }
+
         // Formularza zgłoszenia nie skanujemy w całości: ma starszy powód „Niebezpieczna porada kulinarna”,
-        // niezwiązany z tą funkcją. Nasz powód sprawdza `test_etykiety_alergenow_i_komunikaty_akcji…`.
-        $this->assertCount(6, $strony);
+        // niezwiązany z tą funkcją. Nasz powód sprawdza `test_etykiety_alergenow_i_komunikaty_akcji_nie_zawieraja_zakazanych_slow`.
+        $this->assertCount(13, $strony);
+
+        // Kontrola dodatnia skanu: strony wyszukiwarki NAPRAWDĘ mają filtr, a pola
+        // NAPRAWDĘ się wyrenderowały — inaczej skan przechodziłby na pustych stronach.
+        foreach (['wyszukiwarka z filtrem', 'wyszukiwarka pusty wynik', 'wyszukiwarka, zakres przepisów z filtrem'] as $klucz) {
+            $this->assertStringContainsString('id="filtr-alergenow"', $strony[$klucz], "[$klucz] Brak filtra alergenów — skan niczego by nie sprawdził.");
+        }
+        foreach ($strony as $nazwa => $html) {
+            if (str_starts_with($nazwa, 'pola.blade.php')) {
+                $this->assertStringContainsString('id="f-alergeny"', $html, "[$nazwa] Komponent pól nie wyrenderował się.");
+            }
+        }
 
         foreach ($strony as $nazwa => $html) {
             $tekst = mb_strtolower(html_entity_decode(strip_tags((string) preg_replace('#<(script|style)\b.*?</\1>#s', '', $html)), ENT_QUOTES));

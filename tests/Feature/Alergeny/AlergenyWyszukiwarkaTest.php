@@ -20,7 +20,7 @@ use Tests\TestCase;
  * oblewa `test_filtr_przepuszcza_tylko_zdeklarowane_bez_wybranego_alergenu` (niesprawdzone wpadają);
  * (2) zamiana `NOT (… && …)` na `(… && …)` oblewa ten sam test; (3) usunięcie `+ $alergenyWAdresie`
  * z odnośników oblewa `test_pokaz_wiecej_niesie_wybrane_alergeny`; (4) zdjęcie
- * `config('kuking.alergeny.wlaczone')` z kontrolera oblewa `test_przy_wylaczonej_fladze_filtr_nie_dziala`.
+ * `config('kuking.alergeny.wlaczone')` z kontrolera oblewa `test_przy_wylaczonej_fladze_filtr_nie_dziala_i_nie_ma_go_na_ekranie`.
  */
 final class AlergenyWyszukiwarkaTest extends TestCase
 {
