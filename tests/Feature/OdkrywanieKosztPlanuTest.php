@@ -154,8 +154,14 @@ final class OdkrywanieKosztPlanuTest extends TestCase
             $ukrycie(['hidden_user_id' => $drugiObcy->getKey()], now()->addDay()),
         ]);
 
-        foreach ([[null, false], [$ja, false], [$ja, true], [$obcy, false], [$blokowany, false]] as [$widz, $zWlasnymi]) {
-            $opis = ($widz?->username ?? 'gość').($zWlasnymi ? ' z własnymi' : '');
+        $widzowie = [
+            'gość' => [null, false],
+            'ja' => [$ja, false],
+            'ja, Start z własnymi' => [$ja, true],
+            'obcy' => [$obcy, false],
+            'zablokowany przeze mnie' => [$blokowany, false],
+        ];
+        foreach ($widzowie as $opis => [$widz, $zWlasnymi]) {
             $stara = $this->staraLista($widz, $zWlasnymi);
             $this->assertGreaterThan(10, count($stara), "Kontrola sceny ({$opis}): stara lista nie może być prawie pusta.");
             foreach ([4, 7] as $po) {
@@ -173,8 +179,8 @@ final class OdkrywanieKosztPlanuTest extends TestCase
             $this->assertNotContains($pulapka->getKey(), $moja);
         }
         $this->assertContains($ukrytyWygaslo->getKey(), $moja, 'Wygasłe ukrycie wpisu nie działa.');
-        foreach ([$blokowany, $blokujacy, $zawieszony, $zbanowany, $ukrywany, $drugiObcy] as $autor) {
-            $this->assertSame([], Post::query()->whereIn('id', $moja)->where('author_id', $autor->getKey())->pluck('id')->all(), "Wpis {$autor->username} wyszedł mimo bramki.");
+        foreach (['blokowany' => $blokowany, 'blokujący' => $blokujacy, 'zawieszony' => $zawieszony, 'zbanowany' => $zbanowany, 'ukrywany' => $ukrywany, 'ukryty do jutra' => $drugiObcy] as $kto => $autor) {
+            $this->assertSame([], Post::query()->whereIn('id', $moja)->where('author_id', $autor->getKey())->pluck('id')->all(), "Wpis autora „{$kto}” wyszedł mimo bramki.");
         }
         $this->assertNotSame([], Post::query()->whereIn('id', $moja)->where('author_id', $ukrytyDawniej->getKey())->pluck('id')->all(), 'Wygasłe ukrycie osoby nie działa.');
     }
