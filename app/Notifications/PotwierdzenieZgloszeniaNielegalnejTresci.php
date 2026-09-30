@@ -37,8 +37,9 @@ use Throwable;
  * serwisu — adres, który dostawca odrzuca zawsze, dawałby co godzinę kolejne
  * próby i wpisy w `failed_jobs` przez całe życie sprawy. Dlatego `failed()`
  * liczy porażki listu tej sprawy (cache, `PAMIEC_PORAZEK_DNI`), a dosyłka po
- * `LIMIT_PORAZEK_LISTU` porażkach przestaje sama ponawiać list i mówi to
- * w wyniku komendy. Sprawa zostaje zaległością i dalej jest liczona.
+ * `LIMIT_PORAZEK_LISTU` porażkach przestaje sama ponawiać list, mówi to
+ * w wyniku komendy i alarmuje operatora (`AlarmSufituPotwierdzen`). Sprawa
+ * zostaje zaległością i dalej jest liczona.
  */
 final class PotwierdzenieZgloszeniaNielegalnejTresci extends Notification implements ShouldQueue
 {
