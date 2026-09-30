@@ -1124,8 +1124,23 @@ jobs:
 
       # `npm ci` (nie `npm install`) — instaluje dokładnie to, co w lockfile,
       # i pada, jeśli package.json rozjechał się z package-lock.json.
+      # #2299: cache `vendor/` i przeglądarki — zasady i granice przy tych
+      # samych krokach w jobie `port_panelu`.
       - name: Instalacja zależności
         run: npm ci --no-audit --no-fund
+      - name: Wersja Playwrighta
+        id: playwright
+        run: |
+          set -euo pipefail
+          wersja="$(node -p "require('./package-lock.json').packages['node_modules/playwright-core'].version")"
+          [[ "$wersja" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "::error::Nie odczytano wersji playwright-core z package-lock.json: ${wersja}"; exit 1; }
+          echo "wersja=${wersja}" >> "$GITHUB_OUTPUT"
+      - name: Cache przeglądarki Playwrighta
+        if: runner.environment == 'github-hosted'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}
 
       - name: Build
         run: npm run build
@@ -1367,6 +1382,40 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
+      # #2299: CACHE MIĘDZY JOBAMI — tylko to, co nie może dać starego wyniku.
+      #  - `vendor/`: klucz po `composer.lock` i wersji PHP (ten sam co w
+      #    `lint`, `test`, `static-analysis`); `composer install` biegnie
+      #    ZAWSZE po odtworzeniu i doprowadza katalog do stanu z locka, także
+      #    po trafieniu w `restore-keys` (starszy lock).
+      #  - przeglądarka Playwrighta: klucz po DOKŁADNEJ wersji `playwright-core`
+      #    z `package-lock.json` (ona wyznacza rewizję Chromium), bez
+      #    `restore-keys`; `npx playwright install chromium` biegnie dalej
+      #    i dociąga brak. Tylko na runnerach GitHuba: na własnych katalog
+      #    `~/.cache/ms-playwright` jest wspólny dla jobów na jednej maszynie
+      #    (stąd `flock`), a rozpakowanie archiwum w trakcie cudzego joba
+      #    podmieniłoby mu przeglądarkę pod nogami.
+      #  - NIE `node_modules/` (`npm ci` i tak go kasuje; cache npm robi
+      #    `setup-node`) ani `public/build` (arkusz ma powstać z tego commita).
+      # Pilnuje tego `CacheMiedzyJobamiNieDajeStarychWynikowTest`.
+      - name: Cache Composera
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-
+      - name: Wersja Playwrighta
+        id: playwright
+        run: |
+          set -euo pipefail
+          wersja="$(node -p "require('./package-lock.json').packages['node_modules/playwright-core'].version")"
+          [[ "$wersja" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "::error::Nie odczytano wersji playwright-core z package-lock.json: ${wersja}"; exit 1; }
+          echo "wersja=${wersja}" >> "$GITHUB_OUTPUT"
+      - name: Cache przeglądarki Playwrighta
+        if: runner.environment == 'github-hosted'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}
       - name: Instalacja zależności
         run: |
           composer install --no-interaction --prefer-dist --no-progress
@@ -1530,6 +1579,27 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
+      # #2299: cache `vendor/` i przeglądarki — zasady i granice przy tych
+      # samych krokach w jobie `port_panelu`.
+      - name: Cache Composera
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-
+      - name: Wersja Playwrighta
+        id: playwright
+        run: |
+          set -euo pipefail
+          wersja="$(node -p "require('./package-lock.json').packages['node_modules/playwright-core'].version")"
+          [[ "$wersja" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "::error::Nie odczytano wersji playwright-core z package-lock.json: ${wersja}"; exit 1; }
+          echo "wersja=${wersja}" >> "$GITHUB_OUTPUT"
+      - name: Cache przeglądarki Playwrighta
+        if: runner.environment == 'github-hosted'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}
       - name: Instalacja zależności
         run: |
           composer install --no-interaction --prefer-dist --no-progress
@@ -1696,6 +1766,27 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
+      # #2299: cache `vendor/` i przeglądarki — zasady i granice przy tych
+      # samych krokach w jobie `port_panelu`.
+      - name: Cache Composera
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-
+      - name: Wersja Playwrighta
+        id: playwright
+        run: |
+          set -euo pipefail
+          wersja="$(node -p "require('./package-lock.json').packages['node_modules/playwright-core'].version")"
+          [[ "$wersja" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "::error::Nie odczytano wersji playwright-core z package-lock.json: ${wersja}"; exit 1; }
+          echo "wersja=${wersja}" >> "$GITHUB_OUTPUT"
+      - name: Cache przeglądarki Playwrighta
+        if: runner.environment == 'github-hosted'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}
       - name: Instalacja zależności
         run: |
           composer install --no-interaction --prefer-dist --no-progress
@@ -1871,6 +1962,27 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
+      # #2299: cache `vendor/` i przeglądarki — zasady i granice przy tych
+      # samych krokach w jobie `port_panelu`.
+      - name: Cache Composera
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-
+      - name: Wersja Playwrighta
+        id: playwright
+        run: |
+          set -euo pipefail
+          wersja="$(node -p "require('./package-lock.json').packages['node_modules/playwright-core'].version")"
+          [[ "$wersja" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "::error::Nie odczytano wersji playwright-core z package-lock.json: ${wersja}"; exit 1; }
+          echo "wersja=${wersja}" >> "$GITHUB_OUTPUT"
+      - name: Cache przeglądarki Playwrighta
+        if: runner.environment == 'github-hosted'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}
       - name: Instalacja zależności
         run: |
           composer install --no-interaction --prefer-dist --no-progress
@@ -2189,6 +2301,27 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
+      # #2299: cache `vendor/` i przeglądarki — zasady i granice przy tych
+      # samych krokach w jobie `port_panelu`.
+      - name: Cache Composera
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-
+      - name: Wersja Playwrighta
+        id: playwright
+        run: |
+          set -euo pipefail
+          wersja="$(node -p "require('./package-lock.json').packages['node_modules/playwright-core'].version")"
+          [[ "$wersja" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "::error::Nie odczytano wersji playwright-core z package-lock.json: ${wersja}"; exit 1; }
+          echo "wersja=${wersja}" >> "$GITHUB_OUTPUT"
+      - name: Cache przeglądarki Playwrighta
+        if: runner.environment == 'github-hosted'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}
       - name: Instalacja zależności
         run: |
           composer install --no-interaction --prefer-dist --no-progress
