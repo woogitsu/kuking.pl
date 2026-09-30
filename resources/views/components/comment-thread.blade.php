@@ -23,8 +23,19 @@
     pod treścią, która ma ich sto. Domyślnie `null`, więc ekrany bez
     paginacji nie muszą nic przekazywać i liczą jak dotąd.
 --}}
-@props(['comments', 'action', 'ile' => null, 'answers' => false, 'canComment' => auth()->user()?->isActive() ?? false])
+{{--
+    `autorPrzepisu` — identyfikator autora przepisu, pod którym (albo pod
+    którego wykonaniem) toczy się rozmowa (F2, D-333). Jego komentarze
+    dostają jedno słowo tekstem obok imienia: „Autorka przepisu” / „Autor
+    przepisu” według formy z D-332, neutralnie „Autor przepisu”. Porównanie
+    identyfikatorów — bez żadnego zapytania; forma czyta profil, który wątek
+    i tak wczytuje dla nazwy. Przy „Mojej wersji” to autor WERSJI, bo to jego
+    przepis. Konto wymazane plakietki nie dostaje — znika razem z imieniem.
+    Bez liczników i bez kolorów rywalizacji: to opis roli, nie odznaka.
+--}}
+@props(['comments', 'action', 'ile' => null, 'answers' => false, 'canComment' => auth()->user()?->isActive() ?? false, 'autorPrzepisu' => null])
 @php($wszystkich = $ile ?? $comments->count())
+@php($toAutorPrzepisu = fn ($osoba): bool => $autorPrzepisu !== null && $osoba !== null && (string) $osoba->getKey() === (string) $autorPrzepisu && ! $osoba->isErased())
 <section class="stack" aria-labelledby="komentarze">
     <h2 id="komentarze">{{ $answers ? 'Odpowiedzi' : 'Komentarze' }} @if($wszystkich) ({{ $wszystkich }}) @endif</h2>
     @if(session('comment_edit_recovery') && is_string(old('body')))
@@ -51,6 +62,9 @@
                 <x-avatar :user="$comment->author" :size="40" />
                 <div>
                     <a class="author-name" href="{{ route('profile.show', $comment->author->profile->username) }}">{{ $comment->author->displayName() }}</a>
+                    @if($toAutorPrzepisu($comment->author))
+                        <span class="badge badge-autor-przepisu">{{ \App\Support\Forma::dla($comment->author, 'Autorka przepisu', 'Autor przepisu', 'Autor przepisu') }}</span>
+                    @endif
                     <p class="meta m-0">
                         <time datetime="{{ $comment->created_at->toIso8601String() }}">{{ \App\Support\Czas::data($comment->created_at, 'j F Y, H:i') }}</time>
                         {{-- Plakietka cicha „konto przykładowe" (D-032) po dacie — kropkę rysuje sam komponent. --}}
@@ -99,9 +113,13 @@
             @foreach($comment->replies as $reply)
                 {{-- ISSUE #759: kotwica odpowiedzi — „Zobacz" z powiadomienia prowadzi tu wprost. --}}
                 <div class="watek-odpowiedzi" id="komentarz-{{ $reply->id }}">
-                    <div class="flex gap-2 items-center">
+                    {{-- `flex-wrap`: z plakietką autora przepisu wiersz nie mieści się przy 320 px i 200%. --}}
+                    <div class="flex flex-wrap gap-2 items-center">
                         <x-avatar :user="$reply->author" :size="32" />
                         <a class="author-name" href="{{ route('profile.show', $reply->author->profile->username) }}">{{ $reply->author->displayName() }}</a>
+                        @if($toAutorPrzepisu($reply->author))
+                            <span class="badge badge-autor-przepisu">{{ \App\Support\Forma::dla($reply->author, 'Autorka przepisu', 'Autor przepisu', 'Autor przepisu') }}</span>
+                        @endif
                         <span class="meta">
                             {{ \App\Support\Czas::data($reply->created_at, 'j F Y, H:i') }}
                             {{-- Plakietka cicha „konto przykładowe"
