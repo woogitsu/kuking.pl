@@ -31,6 +31,21 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Alergeny w przepisie — przygotowane, na razie wyłączone
+
+Przygotowaliśmy oznaczanie alergenów. Autor przepisu może w kroku ze
+składnikami zaznaczyć, które z czternastu alergenów z unijnej listy są
+w przepisie, i potwierdzić, że lista jest pełna. Słownik podpowiada, co warto
+zaznaczyć, ale niczego nie zaznacza sam — decyduje autor. Pod składnikami
+zawsze stoi jedno z dwóch zdań: „Alergeny według autora: …” albo „Alergeny:
+nie sprawdzono”. Brak zaznaczenia nigdy nie znaczy, że czegoś w przepisie
+nie ma. W wyszukiwarce będzie pole „Bez wskazanych alergenów (według
+autorów)”; pokaże tylko przepisy, w których autor potwierdził listę, a te
+niesprawdzone pominie. To zaznaczenia autorów, nie badania — przy gotowych
+produktach zawsze czytajcie etykiety. Nie zapamiętujemy, jakie alergeny
+wybieracie. Funkcja zostaje na razie wyłączona: włączymy ją dopiero po
+spotkaniach z osobami, które sprawdzą, czy wszystko jest zrozumiałe.
+
 ### „Nie licz mnie w statystykach”
 
 W ustawieniach, w części „Prywatność”, jest nowy przycisk „Nie licz mnie
