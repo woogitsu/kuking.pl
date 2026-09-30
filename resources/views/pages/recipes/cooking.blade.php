@@ -240,7 +240,12 @@
                     <button type="button" class="btn btn-secondary btn-cook cook-timer-start" hidden>
                         Uruchom minutnik w tej przeglądarce
                     </button>
-                    <p class="cook-timer-odliczanie" role="timer" aria-live="off" hidden></p>
+                    {{-- Nazwa „Pozostały czas” (#492, decyzja właściciela z 29.09.2026,
+                         D-333): `role="timer"` bez nazwy czytnik ogłaszał jako
+                         samą liczbę, bez informacji, co odlicza. `aria-label`,
+                         a nie widoczny podpis, bo zdanie nad przyciskiem już mówi,
+                         na ile ustawiono minutnik. --}}
+                    <p class="cook-timer-odliczanie" role="timer" aria-label="Pozostały czas" aria-live="off" hidden></p>
                     {{--
                         Świadome anulowanie (issue #755). Bez tego przycisku
                         jedynym sposobem na przerwanie odliczania było

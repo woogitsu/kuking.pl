@@ -1492,6 +1492,40 @@ jobs:
           PGPORT: ${{ job.services.postgres.ports[5432] }}
         run: node scripts/port-projektu.mjs
 
+      # #492 (decyzja właściciela z 29.09.2026, D-333): cztery pomiary #713,
+      # do tej pory uruchamiane ręcznie, chodzą w CI. Stoją PO
+      # `port-projektu.mjs`, bo ten zakłada `kuking_port_pomiar` i sieje
+      # `DemoSeeder` — skrypty nie robią własnego zasiewu i odmawiają baz
+      # `kuking` i `kuking_test` (`scripts/lib/serwer-lokalny.mjs`). Tutaj,
+      # a nie w `port_funkcje`: ten job jest krótszy (ok. 8 min wobec
+      # ok. 13-15 min każdej z dwóch części macierzy `port_funkcje` po #611,
+      # etapie 9), więc dołożone ok. 3-4 min (lokalnie 69-83 + 73-85 + 16-24
+      # + 5-7 s) nie wydłużają najdłuższej ścieżki CI. `tinker` w dwóch
+      # skryptach wymaga pakietów deweloperskich — ten job je instaluje
+      # (#2223). Kolejność: `pasek-uklady` nadaje moderatorowi demo 2FA,
+      # dalsze skrypty tego konta nie używają.
+      - name: Pasek górny w trybie gotowania i panelu (#713 D6)
+        env:
+          DB_DATABASE: kuking_port_pomiar
+        run: node scripts/pasek-uklady.mjs
+
+      - name: Wstęp text-lead na czterech ekranach (#713 D4)
+        env:
+          DB_DATABASE: kuking_port_pomiar
+        run: node scripts/lead-wstep.mjs
+
+      - name: Bloki o brakach w paczce z danymi, ekran i druk (#713 D5)
+        env:
+          DB_DATABASE: kuking_port_pomiar
+        run: node scripts/eksport-bloki-692.mjs
+
+      # Widżet Turnstile to atrapa (Playwright `route`), bez połączenia
+      # z Cloudflare; kontrola ujemna jest w tym samym skrypcie.
+      - name: CSP przepuszcza Turnstile w przeglądarce (#713 C4)
+        env:
+          DB_DATABASE: kuking_port_pomiar
+        run: node scripts/turnstile-csp.mjs
+
       - name: Zrzuty portu marki
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -1499,6 +1533,8 @@ jobs:
           name: port-marki-${{ github.sha }}
           path: |
             storage/port-projektu
+            storage/pasek-uklady
+            storage/eksport-692
           retention-days: 14
 
   # #577: osobny checkout i PostgreSQL; mutacje negatywów nie współdzielą plików.

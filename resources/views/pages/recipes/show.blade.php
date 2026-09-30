@@ -697,6 +697,15 @@
                             @endforeach
                         </ul>
                     @endforeach
+                    {{-- Lista zakupów (#27, etap 2, D-333): kopiuje linie składników
+                         tak, jak stoją wyżej — bez przeliczania porcji, bez sumowania.
+                         Zwykły formularz; gość nie ma listy, więc nie widzi przycisku. --}}
+                    @auth
+                        <form class="mt-4" method="POST" action="{{ route('shopping.recipe.store', $recipe->slug) }}">
+                            @csrf
+                            <button class="btn btn-secondary" type="submit">Dodaj składniki do listy zakupów</button>
+                        </form>
+                    @endauth
                 @endif
                 {{-- Szacunkowe wartości odżywcze (D-299): pod składnikami,
                      bo liczą się z nich. Komponent sam nic nie pokazuje,

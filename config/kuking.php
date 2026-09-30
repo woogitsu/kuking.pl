@@ -40,6 +40,21 @@ return [
         'wpisow_na_dzien' => 10,
     ],
 
+    /*
+     * LISTA ZAKUPÓW (#27, etap 2, D-333) — prywatna lista jednej osoby.
+     *
+     * `pozycji_max` — ile pozycji najwyżej na liście. Trzysta to kilka
+     * pełnych przepisów naraz i tygodniowe zakupy rodziny z zapasem; granica
+     * jest po to, żeby pętla nie dopisywała wierszy bez końca, a nie żeby
+     * komuś odmawiać. `znakow_max` — długość jednej pozycji; ta sama co
+     * `recipe_ingredients.ingredient_text`, żeby żadna linia składnika nie
+     * musiała być obcinana przy kopiowaniu.
+     */
+    'zakupy' => [
+        'pozycji_max' => 300,
+        'znakow_max' => 240,
+    ],
+
     'questions' => [
         'enabled' => env('KUKING_QUESTIONS_ENABLED', false),
     ],
@@ -2022,6 +2037,15 @@ return [
          * zapisywania przepisów.
          */
         'planer' => '60,10',
+
+        /*
+         * LISTA ZAKUPÓW (#27, etap 2, D-333) — dopisanie, odhaczenie,
+         * usunięcie, „Dodaj składniki” i „Wyczyść odhaczone”. Lista jest
+         * prywatna i niczego nikomu nie pokazuje; w sklepie odhacza się
+         * kilkadziesiąt pozycji pod rząd, więc próg jest wyższy niż
+         * `planer`, we własnym koszyku.
+         */
+        'zakupy' => '120,10',
 
         /*
          * PLANER TYGODNIA — ODCZYT (`GET /planer`, #2037).
