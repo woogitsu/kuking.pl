@@ -258,6 +258,7 @@ class KursorZAdresuNieDajeBledu500Test extends TestCase
 
                 return [$autorka, route('settings.privacy'), 'blocked'];
             })(),
+            default => throw new LogicException("Nieznana lista w przypadkach testu: {$lista}."),
         };
     }
 
