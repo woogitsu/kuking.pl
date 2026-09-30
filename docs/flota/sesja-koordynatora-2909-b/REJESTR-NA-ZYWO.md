@@ -326,3 +326,4 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 - 19:09 1902 scalona z main → 89e508613; regulamin §10 = drobna poprawka 30.09 (decyzja właściciela). Przegląd 1902 w toku. Propozycja #1904 offline: PROPOZYCJA_OFFLINE_1904.md.
 - 19:10 DECYZJA #1904: najpierw test z 50+, potem MVP. perf-start-powtorki → 900477dae (34→26 zapytań; feed dalej świeży — #983, bez zmiany semantyki). Start: scenariusz badania 50+ (#1902, #1904), audyt 5xx wszystkich tras.
 - 19:13 Przegląd 1902: 0×P1, 2×P2 (deadlock blokad w OznaczAlergeny, note poza odciskiem), 7×P3 → agent poprawek na claude/1902-alergeny.
+- 19:20 Protokół badania 50+ → claude/badanie-50-plus-alergeny-offline 9f5536736 (docs/product/PROTOKOL_BADANIA_ALERGENY_OFFLINE_1902_1904.md). Kroki właściciela: progi, prowadzący, staging z flagą, rekrutacja. Start: research #1903.
