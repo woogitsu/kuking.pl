@@ -648,6 +648,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('social.followers', $wlasciciel->profile->username), [], [$W, $W, $O, $W, $W]);
         $dodaj('social.following', 'lista obserwowanych', 'get',
             route('social.following', $wlasciciel->profile->username), [], [$W, $W, $O, $W, $W]);
+        // Kanał Atom profilu (#2227) jest ZAWSZE widokiem gościa: stoi poza
+        // grupą `web`, bez sesji, a Policy pyta o widza `null`. Stąd
+        // „wolno” także osobie zablokowanej — dostaje dokładnie to, co
+        // zobaczyłaby po wylogowaniu, i nic więcej (czytnik kanałów nie ma
+        // konta, więc blokady nie da się w nim egzekwować).
+        $dodaj('kanaly.profil', 'kanał Atom profilu', 'get',
+            route('kanaly.profil', $wlasciciel->profile->username), [], [$W, $W, $W, $W, $W]);
         // Właściciel dostaje tu odmowę, bo nikt nie obserwuje samego siebie
         // (`UserPolicy::follow`), a nie dlatego, że trasa jest zamknięta.
         $dodaj('social.follow', 'obserwowanie właściciela', 'post',
@@ -955,6 +962,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.show', $zeszytZbanowanegoPrywatny), [], [$O, $O, $O, $O, $O]);
         $dodaj('collections.show', 'publiczny zeszyt osoby zbanowanej', 'get',
             route('collections.show', $zeszytZbanowanegoPubliczny), [], [$O, $O, $O, $W, $O]);
+        // Kanał Atom zeszytu (#2227) — zawsze oczami gościa, więc prywatny
+        // zeszyt jest zamknięty także dla WŁAŚCICIELA, a zbanowanego —
+        // także dla moderatora (ten ma stronę zeszytu, nie kanał).
+        $dodaj('kanaly.zeszyt', 'kanał Atom prywatnego zeszytu', 'get',
+            route('kanaly.zeszyt', $zeszyt), [], [$O, $O, $O, $O, $O]);
+        $dodaj('kanaly.zeszyt', 'kanał Atom publicznego zeszytu osoby zbanowanej', 'get',
+            route('kanaly.zeszyt', $zeszytZbanowanegoPubliczny), [], [$O, $O, $O, $O, $O]);
         // Edycja zeszytu (#777) — nazwa, opis i widoczność. O własnym
         // zeszycie decyduje wyłącznie jego właściciel, także moderator nie
         // przestawia cudzej widoczności (`CollectionPolicy::update()`).
@@ -1067,6 +1081,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // zalogowanej.
         $dodaj('tags.show', 'strona tagu', 'get',
             route('tags.show', $tag), [], [$W, $W, $W, $W, $W]);
+        $dodaj('kanaly.tag', 'kanał Atom tagu (#2227)', 'get',
+            route('kanaly.tag', $tag->slug), [], [$W, $W, $W, $W, $W]);
         $dodaj('tags.follow', 'obserwowanie tagu', 'post',
             route('tags.follow', $tag), [], [$W, $W, $W, $W, $O]);
         $dodaj('tags.unfollow', 'przestaję obserwować tag', 'delete',
