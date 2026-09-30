@@ -80,3 +80,7 @@ Don't start V2 items from the "Nie wcześnie" list.
 - Register: branch `claude/rejestr-koordynatora-2909`, `docs/flota/sesja-koordynatora-2909-b/REJESTR-NA-ZYWO.md`. It has every SHA and decision. Append to it.
 - Worker prompt: `docs/flota/sesja-koordynatora-2909-b/PROMPT_ROBOTNIKA_J.md` on the same branch (BAZA = origin/main; update the SHA). Give it to every code agent plus a task section.
 - Commit trailers: use the ones your environment gives you.
+
+## Update 30.09 ~12:10 UTC
+- PR #2339: Vite build fixed with bd6473838 (stopka-pusty-pas.mjs inlines kolor-paska.js). Waiting for CI.
+- The paczka M integrator agent started: it builds `claude/paczka-m-kandydat` from `claude/paczka-l-kandydat` with the 6 branches listed above, then merges `origin/main` once L is in. If this session dies, check that branch's log and continue from its last merge.
