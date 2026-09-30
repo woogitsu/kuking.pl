@@ -361,6 +361,24 @@ class KanalyAtomTest extends TestCase
         $this->assertSame($obce->getContent(), $zwykle->getContent());
     }
 
+    public function test_zmiana_nazwy_profilu_nie_zostawia_w_kanale_starych_adresow(): void
+    {
+        config(['kuking.kanal_cache_sekund' => 300]);
+
+        $autor = $this->user('staranazwakanal');
+        $this->wpis($autor, 'Wpis pod nową nazwą');
+
+        $this->atom($this->get(route('kanaly.profil', 'staranazwakanal')));
+
+        $autor->profile->forceFill(['username' => 'nowanazwakanal'])->save();
+
+        // Pierwsze pobranie pod NOWĄ nazwą, w oknie TTL starej kopii.
+        $x = $this->atom($this->get(route('kanaly.profil', 'NowaNazwaKanal')));
+        $this->assertSame(route('kanaly.profil', 'nowanazwakanal'), $x->evaluate('string(/a:feed/a:link[@rel="self"]/@href)'));
+        $this->assertSame(route('profile.show', 'nowanazwakanal'), $x->evaluate('string(/a:feed/a:link[@rel="alternate"]/@href)'));
+        $this->assertStringContainsString('@nowanazwakanal', $x->evaluate('string(/a:feed/a:title)'));
+    }
+
     public function test_cache_brzegu_idzie_za_polityka_html_goscia(): void
     {
         $this->user('kanalbrzeg');

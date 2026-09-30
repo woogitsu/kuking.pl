@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (audyt): po zmianie nazwy profilu kanał Atom osoby od razu ma nowe adresy. Wcześniej kopia kanału (do 5 minut) mogła jeszcze wskazywać starą nazwę w adresie kanału i strony profilu.
 - Naprawione (audyt): adresy w kanałach Atom (profil, tag, zeszyt) powstają zawsze z `APP_URL`, nie z nagłówków żądania. Wcześniej jedno żądanie z obcym `X-Forwarded-Proto` albo `X-Forwarded-Port` przy pustym cache zapisywało kanał z adresami na zły schemat lub port i wszyscy dostawali go przez 5 minut.
 - Wewnętrzne (#2227, decyzja właściciela z 30.09.2026, D-333): gotowa treść kanałów Atom (profil, tag, zeszyt) leży w cache aplikacji przez 5 minut (`KUKING_KANAL_CACHE_SEKUND`, 0 wyłącza), więc czytniki nie obciążają bazy przy każdym pytaniu. Zasady dostępu bez zmian — prywatny zeszyt, konto zbanowane czy tag ukryty dają 404 od razu. Pozycja ukryta, usunięta albo zdjęta z urzędu może zostać w kanale najwyżej przez te 5 minut.
 - Naprawione (audyt, #2229): adres źródła importowanego przepisu nie gubi już identyfikatora strony w serwisach na Joomli i Drupalu — zostają parametry `option`, `view`, `nid`, `rid`, `slug` i `item` (z tą samą regułą krótkiej, prostej wartości). Wcześniej `index.php?option=com_content&view=article&id=42` zapisywało się jako `index.php?id=42` i odsyłało na inną stronę. Parametry poufne (`token=` i inne spoza listy) nadal są wycinane.

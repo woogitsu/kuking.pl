@@ -578,7 +578,7 @@ kanału zostaje w treści jako `<updated>`.
 Gotowa treść kanału (XML) leży w cache aplikacji przez
 `kuking.kanal_cache_sekund` (`KUKING_KANAL_CACHE_SEKUND`, domyślnie 300 s,
 0 = wyłączony). Kanał jest zawsze widokiem gościa, więc kopia jest wspólna,
-a klucz to typ i identyfikator (`kuking:kanal:v1:profil|tag|zeszyt:<id>`).
+a klucz to typ i identyfikator (`KluczeKanalu`: `kuking:kanal:v1:profil:<id konta>:<nazwa małymi literami>`, `…:tag:<id>`, `…:zeszyt:<id>`). Nazwa w kluczu profilu sprawia, że po jej zmianie kanał od razu ma nowe adresy (kopia pod starą nazwą jest nieosiągalna). Treść kanału jest budowana z `APP_URL` (`AdresKanoniczny::zbuduj()`), nie z nagłówków żądania, bo kopia jest wspólna dla wszystkich.
 Cache stoi ZA bramką dostępu: Policy i 404 (prywatny zeszyt, konto
 zbanowane lub kasowane, tag ukryty) liczą się przy każdym żądaniu, więc
 zasady dostępu się nie zmieniły. Cena: pozycja ukryta, usunięta albo zdjęta
