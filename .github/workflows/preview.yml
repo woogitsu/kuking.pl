@@ -1,6 +1,9 @@
 # ---------------------------------------------------------------------------
-#  UWAGA: repozytorium jest PRYWATNE, więc minuta GitHub Actions jest płatna
-#  wtedy, gdy przebieg idzie na runnery GitHuba.
+#  Repozytorium jest PUBLICZNE (decyzja właściciela z 30.09.2026, #2298), więc
+#  standardowe runnery GitHuba są darmowe (#2302, IN-10). PR z forka NIGDY nie
+#  idzie na własne runnery: `runs-on:` niżej zaczyna się od warunku na
+#  `head.repo.full_name` (#2298, IN-06, strażnik
+#  `WorkflowyNieWpuszczajaForkowNaWlasneRunneryTest`).
 #
 #  Kontrolę robimy lokalnie, za darmo:  ./scripts/check.sh
 #  Instalacja hooka pre-push:           ./scripts/install-hooks.sh
@@ -12,7 +15,7 @@
 #  GDZIE TO CHODZI: rozstrzyga ZMIENNA REPOZYTORIUM `CI_RUNS_ON` (D-121).
 #  Każdy job tego pliku ma dokładnie to samo, co joby `ci.yml`:
 #
-#      runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+#      runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
 #
 #  Bez tej zmiennej joby idą na `ubuntu-latest` — zapas w runnerach GitHuba
 #  JEST i jest wartością domyślną. Żeby trafiły na nową pulę
@@ -139,7 +142,7 @@ jobs:
   # ===========================================================================
   preview_bramka:
     name: Czy uruchomić test dymny preview
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 5
     if: >-
       github.event_name == 'pull_request' &&
@@ -165,7 +168,7 @@ jobs:
   # ===========================================================================
   smoke:
     name: Test dymny preview
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 20
     # Bramka wdrożeniowa (D-011 odkłada deploy, issue #3): dopóki nie ma
     # środowisk Railway ani sekretów, ten job nie ma dokąd strzelać i padałby
@@ -293,7 +296,7 @@ jobs:
     name: Komentarz w PR z wynikiem testu dymnego
     needs: smoke
     if: always() && needs.smoke.outputs.found == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 5
     permissions:
       pull-requests: write
@@ -349,7 +352,7 @@ jobs:
   # ===========================================================================
   manual-create:
     name: "Preview: utwórz (ręcznie)"
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'create'
     environment: staging
@@ -403,7 +406,7 @@ jobs:
 
   manual-delete:
     name: "Preview: usuń (ręcznie)"
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'delete'
     environment: staging

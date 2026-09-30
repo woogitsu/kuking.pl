@@ -1,6 +1,9 @@
 # ---------------------------------------------------------------------------
-#  UWAGA: repozytorium jest PRYWATNE, więc minuta GitHub Actions jest płatna
-#  wtedy, gdy przebieg idzie na runnery GitHuba.
+#  Repozytorium jest PUBLICZNE (decyzja właściciela z 30.09.2026, #2298), więc
+#  standardowe runnery GitHuba są darmowe (#2302, IN-10). PR z forka NIGDY nie
+#  idzie na własne runnery: `runs-on:` niżej zaczyna się od warunku na
+#  `head.repo.full_name` (#2298, IN-06, strażnik
+#  `WorkflowyNieWpuszczajaForkowNaWlasneRunneryTest`).
 #
 #  Kontrolę robimy lokalnie, za darmo:  ./scripts/check.sh
 #  Instalacja hooka pre-push:           ./scripts/install-hooks.sh
@@ -14,7 +17,7 @@
 #  GDZIE TO CHODZI: rozstrzyga ZMIENNA REPOZYTORIUM `CI_RUNS_ON` (D-121).
 #  Każdy job tego pliku ma dokładnie to samo, co joby `ci.yml`:
 #
-#      runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+#      runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
 #
 #  Bez tej zmiennej joby idą na `ubuntu-latest` — zapas w runnerach GitHuba
 #  JEST i jest wartością domyślną. Żeby trafiły na nową pulę
@@ -139,7 +142,7 @@ jobs:
   # ===========================================================================
   plan:
     name: Plan (production)
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
 
     # Bramka „Wait for CI” (`checkSuites` w .railway/railway.ts, issue #1390).
@@ -229,7 +232,7 @@ jobs:
   # ===========================================================================
   apply:
     name: Apply (production)
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 20
 
     # Bramka „Wait for CI” (`checkSuites` w .railway/railway.ts, issue #1390).
