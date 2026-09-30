@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Kanaly\UniewaznijKanaly;
 use App\Domain\Recipes\KosztPrzepisu;
 use App\Support\Odmiana;
 use Carbon\CarbonInterface;
@@ -116,6 +117,21 @@ class Recipe extends Model
         'source_scan_media_id',
         'published_at',
     ];
+
+    /**
+     * Kanały Atom (D-333): zdjęcie z urzędu, ukrycie i usunięcie przepisu
+     * wyrzucają z cache kopie kanałów, które go niosą. Reguły:
+     * `UniewaznijKanaly`. `deleting` (nie `deleted`), żeby odczytać
+     * zeszyty i wpisy przed kaskadą przy trwałym usunięciu.
+     */
+    protected static function booted(): void
+    {
+        $po = static fn (self $przepis) => UniewaznijKanaly::poZmianiePrzepisu($przepis);
+
+        static::saved($po);
+        static::deleting($po);
+        static::restored($po);
+    }
 
     protected function casts(): array
     {

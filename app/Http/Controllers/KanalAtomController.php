@@ -141,7 +141,8 @@ final class KanalAtomController
      * dostępu: Policy i 404 dla prywatnego zeszytu, konta zbanowanego albo
      * tagu ukrytego liczą się przy KAŻDYM żądaniu. Cena: pozycja ukryta,
      * usunięta albo zdjęta z urzędu może zostać w kanale najwyżej
-     * `kuking.kanal_cache_sekund` (domyślnie 300 s). Tylko TTL — bez
+     * `kuking.kanal_cache_sekund` (domyślnie 300 s) — chyba że zmiana przeszła
+     * przez model `Post`/`Recipe` (`UniewaznijKanaly` czyści kopie od razu). Bez
      * unieważniania przy zmianie treści. 0 = bez cache.
      *
      * @param  Closure(): Kanal  $zbuduj
