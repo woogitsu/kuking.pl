@@ -152,13 +152,23 @@ z 30 września 2026):
   30 wpisów, z `ETag`/`Last-Modified`. To kanał **wychodzący**: import
   cudzych kanałów RSS zostaje na liście „Nie wcześnie” (D-300).
 
+**Zdjęte z listy „V2, ale nie teraz” i zbudowane** (D-333, wiersze „#1903”,
+decyzja właściciela z 30 września 2026):
+
+- spiżarnia z terminami ważności i priorytetem zużycia (#1903), jako
+  rozszerzenie „Co mam w domu” — **zbudowana**: termin z opakowania
+  („Należy zużyć do” / „Najlepiej spożyć przed”), ilość jako wolny tekst,
+  oznaczenie „mrożone”, sekcja „Zużyj w pierwszej kolejności” z jawną regułą
+  (`PriorytetZuzycia`), tryb przepisów „Najpierw to, co się psuje”
+  (`/co-ugotuje?najpierw=termin`), jedno zdanie na Starcie i sobotnie
+  przypomnienie e-mailem za osobną, domyślnie wyłączoną zgodą. Bez AI, OCR
+  paragonu i kodu kreskowego, bez push.
+
 **V2, ale nie teraz** (decyzja właściciela z 26 września 2026). Propozycje
 z audytu zapisane na później. Nie budować bez nowej decyzji, mimo D-282
-(pięć pozycji odblokowała D-331, lista wyżej):
+(pięć pozycji odblokowała D-331, a #1903 — D-333, listy wyżej):
 
 - strukturalne alergeny składników i filtr bezpiecznego wyboru (#1902);
-- spiżarnia z terminami ważności i priorytetem zużycia (#1903), jako
-  rozszerzenie pantry;
 - wybrane przepisy do czytania offline w PWA (#1904);
 - głosowy tryb gotowania bez dotykania telefonu (#1906);
 - prywatne podsumowanie AI uwag z wykonań przepisu (#1999);
