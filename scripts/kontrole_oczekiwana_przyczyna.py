@@ -321,6 +321,14 @@ OCZEKUJ = {
     # #2223 (D-333): tinker poza obrazem produkcyjnym.
     'Tinker wraca do require': r'laravel/tinker wrócił do `require`',
     'Runbook znów każe użyć tinkera': r'MONITORING_BLEDOW\.md każe użyć `php artisan tinker`',
+    # Audyt prywatności 30.09 (#2278, #2281, #2282).
+    'Polityka bez nazwy ciasteczka zapamiętaj mnie': r'Polityka nie podaje nazwy ciasteczka „zapamiętaj mnie”',
+    'Polityka z terminem zapamiętaj mnie innym niż bramka': r'Ciasteczko „zapamiętaj mnie” żyje 400 dni',
+    'Klucz localStorage bez opisu w polityce': r'zapisuje w localStorage „kuking-wyglad-nowy”',
+    'Planer bez wiersza w polityce': r'Dane z sekcji paczki „planer” nie mają opisu',
+    'Nowa sekcja paczki bez opisu w polityce': r'Paczka ma nową sekcję „planer_nowy”',
+    'Postęp gotowania z terminem niezgodnym z konfiguracją': r'Postęp gotowania żyje 24 godzin',
+    'Cloudflare jako pośrednik bez wiersza w polityce': r'Kod używa usługi „Cloudflare \(sieć, CDN i ochrona',
 }
 
 

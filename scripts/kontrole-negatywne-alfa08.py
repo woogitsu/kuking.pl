@@ -1859,6 +1859,24 @@ checks = [
     ("Runbook znów każe użyć tinkera", "docs/infra/MONITORING_BLEDOW.md", "test_runbooki_produkcyjne_nie_kaza_uzywac_tinkera",
      lambda s: replace_once(s, "php artisan kuking:sprawdz-alarm --przez-wyjatek\n",
                             "php artisan tinker --execute=\"report(new RuntimeException('x'));\"\n")),
+    # Audyt prywatności 30.09 Z2 (#2278): polityka nazywa ciasteczko
+    # „zapamiętaj mnie”, jego termin z bramki logowania i klucze localStorage.
+    ("Polityka bez nazwy ciasteczka zapamiętaj mnie", POLITYKA_TEKST, "PolitykaNazywaPamiecPrzegladarkiTest",
+     lambda s: replace_once(s, "(`remember_web_…`, dalszy", "(`remember_…`, dalszy")),
+    ("Polityka z terminem zapamiętaj mnie innym niż bramka", POLITYKA_TEKST, "PolitykaNazywaPamiecPrzegladarkiTest",
+     lambda s: replace_once(s, "ważne **400 dni** od zalogowania: gdy sesja", "ważne **30 dni** od zalogowania: gdy sesja")),
+    ("Klucz localStorage bez opisu w polityce", "resources/js/szybki-wyglad.js", "PolitykaNazywaPamiecPrzegladarkiTest",
+     lambda s: replace_once(s, "localStorage.setItem('kuking-wyglad-poznany', '1')", "localStorage.setItem('kuking-wyglad-nowy', '1')")),
+    # Z5 (#2281): każda sekcja paczki ma opis w polityce, terminy z konfiguracji.
+    ("Planer bez wiersza w polityce", POLITYKA_TEKST, "PolitykaOpisujeKazdaSekcjePaczkiTest",
+     lambda s: replace_once(s, "| Plan na tydzień |", "| Planowanie posiłków |")),
+    ("Nowa sekcja paczki bez opisu w polityce", "app/Domain/Users/Exports/InwentarzDanychKonta.php", "PolitykaOpisujeKazdaSekcjePaczkiTest",
+     lambda s: replace_once(s, "'meal_plan_entries.user_id' => [self::EKSPORT, 'planer'],", "'meal_plan_entries.user_id' => [self::EKSPORT, 'planer_nowy'],")),
+    ("Postęp gotowania z terminem niezgodnym z konfiguracją", POLITYKA_TEKST, "test_terminy_nowych_wierszy_zgadzaja_sie_z_konfiguracja",
+     lambda s: replace_once(s, "**24 godziny** od ostatniej zmiany — potem postęp", "**48 godzin** od ostatniej zmiany — potem postęp")),
+    # Z6 (#2282): Cloudflare jako pośrednik całego ruchu ma własny wiersz.
+    ("Cloudflare jako pośrednik bez wiersza w polityce", POLITYKA_TEKST, "kazda_usluga_uzywana_przez_kod_jest_wymieniona_w_polityce",
+     lambda s: replace_once(s, "| Cloudflare (sieć, CDN i ochrona przed atakami) |", "| Cloudflare |")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

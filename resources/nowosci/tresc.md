@@ -31,6 +31,15 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### „Nie licz mnie w statystykach”
+
+W ustawieniach, w części „Prywatność”, jest nowy przycisk „Nie licz mnie
+w statystykach”. Po jego kliknięciu nie zapisujemy już, kiedy ostatnio
+zajrzeliście do Kuking ani co robicie w serwisie, a po zalogowaniu strony nie
+mają skryptu statystyki odwiedzin. Wszystko inne działa tak samo — zniknie
+tylko podpowiedź o dodaniu Kuking do ekranu telefonu, bo liczy ona powroty
+z tej samej daty. Jeśli zmienicie zdanie, przycisk „Licz mnie znowu” to cofa.
+
 ### Przycisk „Zgłoś” widać także bez logowania
 
 Przy przepisie, wpisie i komentarzu widać teraz odnośnik „Zgłoś (po zalogowaniu)”
