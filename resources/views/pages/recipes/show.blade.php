@@ -707,6 +707,11 @@
                         </form>
                     @endauth
                 @endif
+                {{-- Alergeny według autora (#1902, D-333): stały blok pod składnikami,
+                     tylko przy włączonej fladze; każdy przepis ma jeden z trzech wariantów. --}}
+                @if(config('kuking.alergeny.wlaczone'))
+                    <x-alergeny.blok :recipe="$recipe" />
+                @endif
                 {{-- Szacunkowe wartości odżywcze (D-299): pod składnikami,
                      bo liczą się z nich. Komponent sam nic nie pokazuje,
                      gdy składników nie ma albo autor sekcję ukrył. --}}

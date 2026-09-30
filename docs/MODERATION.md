@@ -41,7 +41,7 @@ nie ma kolumny w bazie i nie da się go wpisać ręcznie.
 | Priorytet | Skąd | Napis na karcie |
 |---|---|---|
 | **P0** — nie może czekać | `reason` ∈ `minor`, `sexual` — ta sama para, co `KategorieModeracji::PILNE` | „Nie może czekać" |
-| **P1** — na dziś | `reason` ∈ `scam`, `harassment`, `hate`, `personal_data`; **oraz podłoga** dla `source = legal_notice` (termin z DSA art. 16 ust. 5) | „Na dziś" |
+| **P1** — na dziś | `reason` ∈ `scam`, `harassment`, `hate`, `personal_data`, `allergen_label` (błędne oznaczenie alergenów, #1902); **oraz podłoga** dla `source = legal_notice` (termin z DSA art. 16 ust. 5) | „Na dziś" |
 | **P2** — kolejka | reszta (`spam`, `impersonation`, `copyright`, `dangerous_advice`, `other`) | bez plakietki |
 
 Wewnątrz jednego priorytetu porządek jest ten sam co zawsze: najnowsze na
