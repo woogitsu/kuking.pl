@@ -98,7 +98,7 @@ class RailwayCiGateTest(unittest.TestCase):
 
         def railway(_token, query, variables):
             if "deployments(" in query:
-                return {"deployments": {"edges": []}}
+                return {"deployments": {"edges": [], "pageInfo": {"hasNextPage": False}}}
             if "serviceInstanceDeployV2" in query:
                 actions.append(("deploy", variables["serviceId"], variables["commitSha"]))
                 return {"serviceInstanceDeployV2": deployment_ids[0 if variables["serviceId"] == web["id"] else 1]}
@@ -115,7 +115,7 @@ class RailwayCiGateTest(unittest.TestCase):
 
         def failed(_token, query, variables):
             if "deployments(" in query:
-                return {"deployments": {"edges": []}}
+                return {"deployments": {"edges": [], "pageInfo": {"hasNextPage": False}}}
             actions.append(query)
             if "serviceInstanceDeployV2" in query:
                 return {"serviceInstanceDeployV2": deployment_ids[0]}
@@ -140,7 +140,7 @@ class RailwayCiGateTest(unittest.TestCase):
 
         def lost_response(_token, query, variables):
             if "deployments(" in query:
-                return {"deployments": {"edges": []}}
+                return {"deployments": {"edges": [], "pageInfo": {"hasNextPage": False}}}
             calls.append((query, variables))
             raise OSError("connection reset after Railway accepted the request")
 
@@ -202,7 +202,7 @@ class RerunPathTest(unittest.TestCase):
         def call(_token, query, variables):
             if "deployments(" in query:
                 edges = [{"node": d} for d in world["deployments"]]
-                return {"deployments": {"edges": edges}}
+                return {"deployments": {"edges": edges, "pageInfo": {"hasNextPage": False}}}
             if "serviceInstanceDeployV2" in query:
                 world["n"] += 1
                 identifier = f"{world['n']:08d}-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
@@ -276,13 +276,89 @@ class RerunPathTest(unittest.TestCase):
         expected = {"SUCCESS": "success", "INITIALIZING": "active", "QUEUED": "active",
                     "WAITING": "active", "BUILDING": "active", "DEPLOYING": "active",
                     "NEEDS_APPROVAL": "active", "FAILED": "none", "CRASHED": "none",
-                    "SKIPPED": "none", "REMOVED": "none", "REMOVING": "none"}
+                    "SKIPPED": "none", "REMOVED": "none", "REMOVING": "active"}
         for status, state in expected.items():
             call = lambda _t, _q, _v, status=status: {"deployments": {"edges": [
-                {"node": {"id": "x", "status": status, "meta": {"commitHash": sha}}}]}}
+                {"node": {"id": "x", "status": status, "meta": {"commitHash": sha}}}],
+                "pageInfo": {"hasNextPage": False}}}
             self.assertEqual(state, gate["deployment_state"]("t", sha, "env", self.web, call), status)
         for status in ("REMOVING", "REMOVED"):
             self.assertIn(status, gate["TERMINAL_FAILURE"])
+
+    def test_removing_deployment_of_same_sha_blocks_new_deploy(self):
+        """#2234: REMOVING to operacja w toku, nie brak wdrożenia."""
+        world, sha = self.world("a" * 40), "a" * 40
+        world["deployments"].append({"id": "x", "status": "REMOVING", "meta": {"commitHash": sha}})
+        self.assertEqual("red", self.receive(world, sha, 1, "success"))
+        self.assertEqual([], world["mutations"])
+
+    def paged(self, pages):
+        """Atrapa Railway: lista wdrożeń w stronach; zapisuje kursory żądań."""
+        requests = []
+
+        def call(_token, query, variables):
+            self.assertIn("deployments(", query)
+            self.assertIn("pageInfo { hasNextPage endCursor }", query)
+            requests.append(variables.get("after"))
+            index = 0 if variables.get("after") is None else int(variables["after"].split("-")[1])
+            edges, page_info = pages[index]
+            return {"deployments": {"edges": [{"node": n} for n in edges], "pageInfo": page_info}}
+        return call, requests
+
+    def test_success_on_later_page_is_found_and_not_redeployed(self):
+        """#2234: SHA spoza pierwszej strony nie może dać "none"."""
+        sha, other = "a" * 40, "b" * 40
+        filler = [{"id": str(i), "status": "SUCCESS", "meta": {"commitHash": other}} for i in range(50)]
+        call, requests = self.paged([
+            (filler, {"hasNextPage": True, "endCursor": "k-1"}),
+            (filler, {"hasNextPage": True, "endCursor": "k-2"}),
+            ([{"id": "stary", "status": "SUCCESS", "meta": {"commitHash": sha}}], {"hasNextPage": False}),
+        ])
+        self.assertEqual("success", gate["deployment_state"]("t", sha, "env", self.web, call))
+        self.assertEqual([None, "k-1", "k-2"], requests)
+
+        world = self.world(sha)
+        mutations = []
+
+        def railway(t, q, v):
+            if "deployments(" in q:
+                return call(t, q, v)
+            mutations.append(v)
+            raise AssertionError("mutacja Railway przy już wdrożonym SHA")
+
+        gate["deploy"]("token", sha, "env", [self.web], self.repo, self.github(world), railway, 1,
+                       lambda _s: None)
+        self.assertEqual([], mutations)
+
+    def test_incomplete_deployment_history_fails_closed(self):
+        """#2234: brak pageInfo, pusty lub powtórzony kursor, zbyt wiele stron -> odmowa."""
+        sha = "a" * 40
+        broken_pages = {
+            "brak pageInfo": ([([], None)], "bez pageInfo"),
+            "hasNextPage bez kursora": ([([], {"hasNextPage": True})], "bez nowego kursora"),
+            "pusty kursor": ([([], {"hasNextPage": True, "endCursor": ""})], "bez nowego kursora"),
+            "kursor w kółko": ([([], {"hasNextPage": True, "endCursor": "k-1"}),
+                                ([], {"hasNextPage": True, "endCursor": "k-1"})], "bez nowego kursora"),
+        }
+        for label, (pages, reason) in broken_pages.items():
+            call, _requests = self.paged(pages)
+            with self.subTest(label), self.assertRaisesRegex(RuntimeError, reason):
+                gate["deployment_state"]("t", sha, "env", self.web, call)
+
+        endless = [([], {"hasNextPage": True, "endCursor": f"k-{i + 1}"})
+                   for i in range(gate["DEPLOYMENTS_MAX_PAGES"] + 1)]
+        call, requests = self.paged(endless)
+        with self.assertRaisesRegex(RuntimeError, "nie przeczytałem całej"):
+            gate["deployment_state"]("t", sha, "env", self.web, call)
+        self.assertEqual(gate["DEPLOYMENTS_MAX_PAGES"], len(requests))
+
+    def test_checkout_must_be_exact_ci_sha(self):
+        """#2233: skrypt z nowszego main nie wdraża starszego SHA."""
+        sha = "a" * 40
+        gate["verify_checkout"](sha, sha + "\n")
+        for head in ("b" * 40, "", "HEAD", sha[:12]):
+            with self.subTest(head=head), self.assertRaises(RuntimeError):
+                gate["verify_checkout"](sha, head)
 
     def test_unreadable_deployment_list_fails_closed(self):
         world, sha = self.world("a" * 40), "a" * 40

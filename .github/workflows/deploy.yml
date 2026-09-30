@@ -564,7 +564,12 @@ jobs:
           SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
         with:
           environment: ${{ steps.target.outputs.env }}
-          version: ${{ github.sha }}
+          # SHA WDROŻENIA, nie `github.sha` (#2230). Test dymny wyżej sprawdza
+          # dokładnie `github.event.deployment.sha` (sonda `/wydanie`), więc
+          # wydanie Sentry ma nosić ten sam commit. `github.sha` zależy od
+          # tego, jak GitHub wypełnia zdarzenie, a nie od tego, co Railway
+          # wdrożył. Strażnik: tests/Feature/WydanieSentryMaShaWdrozeniaTest.php.
+          version: ${{ github.event.deployment.sha }}
 
       # -----------------------------------------------------------------------
       #  POMINIĘTY TEST DYMNY MA BYĆ CZERWONY, NIE ZIELONY.
