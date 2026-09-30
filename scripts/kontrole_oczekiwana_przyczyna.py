@@ -372,6 +372,9 @@ OCZEKUJ = {
     # UX-02 (#2287).
     'Pusty dzień planera znów w 16 px': r'stoi samo, a ma 16 px zamiast tekstu podstawowego',
     'Samodzielne zdanie pomocnicze w arkuszu na 16 px': r'Samodzielne zdanie pomocnicze nie ma rozmiaru tekstu podstawowego',
+    # D-333: obie gałęzie strażnika mówią to samo zdanie (ekran i szablon).
+    'Logowanie bez novalidate': r'Formularze? z natywną walidacją bez `novalidate` \(D-333\).*auth/login|Formularze? z natywną walidacją bez `novalidate` \(D-333\).*/login \(gość\)',
+    'Wybór zeszytu bez novalidate': r'Formularz z natywną walidacją bez `novalidate` \(D-333\).*components/wybor-zeszytu\.blade\.php',
 }
 
 

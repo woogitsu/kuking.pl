@@ -36,6 +36,17 @@ final class PlanerTygodnia
 
     public const STAN_USUNIETY = 'usuniety';
 
+    /** Numer dnia ISO (1 = poniedziałek) → nazwa po „na”. */
+    private const DNI_W_BIERNIKU = [
+        1 => 'poniedziałek',
+        2 => 'wtorek',
+        3 => 'środę',
+        4 => 'czwartek',
+        5 => 'piątek',
+        6 => 'sobotę',
+        7 => 'niedzielę',
+    ];
+
     public static function wpisowNaDzien(): int
     {
         return (int) config('kuking.planer.wpisow_na_dzien');
@@ -80,6 +91,21 @@ final class PlanerTygodnia
     public static function nazwaDnia(CarbonInterface $dzien): string
     {
         return Czas::data($dzien, 'l, j F');
+    }
+
+    /**
+     * Nazwa dnia W BIERNIKU, po przyimku „na”: „na środę, 30 września” (#2246).
+     *
+     * `nazwaDnia()` zwraca mianownik i zostaje taka, bo stoi w nagłówkach
+     * dni i przy przyciskach wyboru dnia („Jutro — środa, 30 września”).
+     * Komunikaty planera wstawiały ją jednak po „na”, co dawało „na środa”.
+     * Formy są wpisane jawnie, nie brane z `translatedFormat()` — Carbon zna
+     * tylko mianownik nazw dni, a biernik różni się w trzech dniach z siedmiu.
+     * Miesiąc (dopełniacz: „30 września”) dalej idzie przez `Czas`.
+     */
+    public static function naDzien(CarbonInterface $dzien): string
+    {
+        return self::DNI_W_BIERNIKU[$dzien->dayOfWeekIso].', '.Czas::data($dzien, 'j F');
     }
 
     /** „28 września – 4 października” albo „5–11 października” w jednym miesiącu. */

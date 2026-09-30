@@ -34,7 +34,7 @@
         </section>
     @endif
 
-    <form class="panel-formularza" method="POST" action="{{ route('posts.update', $post) }}">
+    <form class="panel-formularza" method="POST" action="{{ route('posts.update', $post) }}" novalidate>
         @csrf
         @method('PUT')
         <input type="hidden" name="_tag_form_post_id" value="{{ $post->getKey() }}">

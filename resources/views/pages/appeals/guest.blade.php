@@ -21,7 +21,7 @@
         i które uważają, że to pomyłka. Sprawdzimy sprawę jeszcze raz.
     </p>
 
-    <form class="panel-formularza" method="POST" action="{{ route('appeals.guest.store') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('appeals.guest.store') }}" novalidate>
         @csrf
 
         <h2 class="mt-0 text-title-sm">Powiedz, kim jesteś</h2>

@@ -632,7 +632,11 @@ class FacebookLoginController extends Controller
     private function wpusc(Request $request, User $user): RedirectResponse
     {
         return match ($this->wejscie()->wpusc(ZadanieHttp::z($request), $user)) {
-            WynikWejscia::KontoZamkniete => redirect()->route('login')->with(Komunikat::blad(KomunikatZamknietegoKonta::dla($user))),
+            // Przycisk pod komunikatem (`status_akcja`, D-333): „Cofnij usunięcie
+            // konta” albo „Odwołaj się” przy odwoływalnej blokadzie; inaczej null.
+            WynikWejscia::KontoZamkniete => redirect()->route('login')
+                ->with(Komunikat::blad(KomunikatZamknietegoKonta::dla($user)))
+                ->with('status_akcja', KomunikatZamknietegoKonta::akcja($user)),
             WynikWejscia::KontoObslugi => redirect()->route('login')->with(Komunikat::blad(
                 'Konta obsługi serwisu wchodzą hasłem i kodem z aplikacji — nie kontem Facebooka. '
                 .'Zaloguj się poniżej.',

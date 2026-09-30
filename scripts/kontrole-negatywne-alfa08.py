@@ -2039,6 +2039,14 @@ checks = [
      lambda s: replace_once(s, '<p class="meta meta-samodzielne">Nic jeszcze nie zaplanowane.</p>', '<p class="meta">Nic jeszcze nie zaplanowane.</p>')),
     ("Samodzielne zdanie pomocnicze w arkuszu na 16 px", CSS, "test_klasa_w_arkuszu_daje_tekst_podstawowy_18_px",
      lambda s: replace_once(s, "  .meta-samodzielne {\n    font-size: var(--text-body);", "  .meta-samodzielne {\n    font-size: var(--text-help);")),
+    # D-333 „novalidate wszędzie” (30.09.2026): formularz z natywną walidacją
+    # bez `novalidate` zatrzymuje dymek przeglądarki przed polskim podsumowaniem.
+    # Pierwsza mutacja zapala oba spojrzenia (HTML ekranu i szablon), druga —
+    # formularz w komponencie, rozwijany przez skaner szablonów.
+    ("Logowanie bez novalidate", "resources/views/auth/login.blade.php", "FormularzeZWalidacjaMajaNovalidateTest",
+     lambda s: replace_once(s, "action=\"{{ route('login') }}\" novalidate>", "action=\"{{ route('login') }}\">")),
+    ("Wybór zeszytu bez novalidate", "resources/views/components/wybor-zeszytu.blade.php", "test_kazdy_formularz_w_szablonach_z_natywna_walidacja_ma_novalidate",
+     lambda s: replace_once(s, '<form method="POST" action="{{ $action }}" novalidate>', '<form method="POST" action="{{ $action }}">')),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

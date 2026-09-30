@@ -105,7 +105,7 @@
                 Dwa wyróżnienia nie mogą nachodzić na siebie.
             </p>
 
-            <form class="panel-formularza" method="POST" action="{{ route('admin.tag-highlights.store') }}">
+            <form class="panel-formularza" method="POST" action="{{ route('admin.tag-highlights.store') }}" novalidate>
                 @csrf
 
                 <x-field

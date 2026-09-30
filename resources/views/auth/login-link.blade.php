@@ -46,7 +46,7 @@
 
         <x-error-summary />
 
-        <form class="panel-formularza" method="POST" action="{{ route('login.link.send') }}">
+        <form class="panel-formularza" method="POST" action="{{ route('login.link.send') }}" novalidate>
             @csrf
             <x-field name="email" label="Twój adres e-mail" type="email" required autocomplete="email"
                      help="Ten sam, na który przychodzą wiadomości z Kuking." />

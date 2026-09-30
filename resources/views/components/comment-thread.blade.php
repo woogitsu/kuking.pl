@@ -163,7 +163,7 @@
                                                  nie dwie, i wyjątek na nastki (12-14), którego `Str::plural`
                                                  nie zna wcale. --}}
                                             <p class="meta">Możesz poprawić jeszcze przez {{ $replyRemainingMinutes }} {{ \App\Support\Odmiana::rzeczownik($replyRemainingMinutes, 'minutę', 'minuty', 'minut') }}.</p>
-                                            <form class="mt-2" method="POST" action="{{ route('comments.update', $reply) }}">
+                                            <form class="mt-2" method="POST" action="{{ route('comments.update', $reply) }}" novalidate>
                                                 @csrf
                                                 @method('PUT')
                                                 <input type="hidden" name="_wiersz" value="popraw-{{ $reply->id }}">
@@ -194,7 +194,7 @@
                                     @if($replyContentOwnerRemovingOthers)
                                         <details @if(\App\Support\WierszFormularza::jestAktywny('usun-'.$reply->id) && $errors->any()) open @endif>
                                             <summary class="btn btn-quiet inline-flex">Usuń</summary>
-                                            <form class="mt-2" method="POST" action="{{ route('comments.destroy', $reply) }}">
+                                            <form class="mt-2" method="POST" action="{{ route('comments.destroy', $reply) }}" novalidate>
                                                 @csrf
                                                 @method('DELETE')
                                                 <input type="hidden" name="_wiersz" value="usun-{{ $reply->id }}">
@@ -252,7 +252,7 @@
                     @if($canComment)
                     <details @if(\App\Support\WierszFormularza::jestAktywny('odpowiedz-'.$comment->id) && $errors->any()) open @endif>
                         <summary class="btn btn-quiet inline-flex">Odpowiedz</summary>
-                        <form class="mt-3" method="POST" action="{{ $action }}">
+                        <form class="mt-3" method="POST" action="{{ $action }}" novalidate>
                             @csrf
                             <input type="hidden" name="parent_id" value="{{ $comment->getKey() }}">
                             <input type="hidden" name="_wiersz" value="odpowiedz-{{ $comment->id }}">
@@ -270,7 +270,7 @@
                                     {{-- Ten sam błąd co przy odpowiedzi wyżej: `Str::plural` to inflektor
                                          angielski, więc pisał „3 minutęs". --}}
                                     <p class="meta">Możesz poprawić jeszcze przez {{ $commentRemainingMinutes }} {{ \App\Support\Odmiana::rzeczownik($commentRemainingMinutes, 'minutę', 'minuty', 'minut') }}.</p>
-                                    <form class="mt-2" method="POST" action="{{ route('comments.update', $comment) }}">
+                                    <form class="mt-2" method="POST" action="{{ route('comments.update', $comment) }}" novalidate>
                                         @csrf
                                         @method('PUT')
                                         <input type="hidden" name="_wiersz" value="popraw-{{ $comment->id }}">
@@ -305,7 +305,7 @@
                             @if($commentContentOwnerRemovingOthers)
                                 <details @if(\App\Support\WierszFormularza::jestAktywny('usun-'.$comment->id) && $errors->any()) open @endif>
                                     <summary class="btn btn-quiet inline-flex">Usuń</summary>
-                                    <form class="mt-2" method="POST" action="{{ route('comments.destroy', $comment) }}">
+                                    <form class="mt-2" method="POST" action="{{ route('comments.destroy', $comment) }}" novalidate>
                                         @csrf
                                         @method('DELETE')
                                         <input type="hidden" name="_wiersz" value="usun-{{ $comment->id }}">
@@ -334,7 +334,7 @@
 
     @auth
         @if($canComment)
-        <form class="panel-formularza" method="POST" action="{{ $action }}">
+        <form class="panel-formularza" method="POST" action="{{ $action }}" novalidate>
             @csrf
             <input type="hidden" name="_wiersz" value="nowy-komentarz">
             {{-- `bez-oznaczenia`: to jedyne pole w tym formularzu, więc dopisek

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Domain\Security\KomunikatZamknietegoKonta;
 use App\Models\User;
 use App\Support\OdzyskiwalneDane;
 use Closure;
@@ -220,8 +221,12 @@ class EnsureAccountIsActive
         $odModeratora = $user->isBanned() ? $user->latestModerationMessage() : null;
 
         if ($user->isBanned()) {
+            // Blokada jeszcze odwoływalna: zdanie wskazuje przycisk „Odwołaj się”
+            // (`status_akcja` niżej, D-333) — ta osoba była zalogowana, więc
+            // o stanie własnego konta nie dowiaduje się niczego nowego.
             $powod = 'To konto zostało zablokowane. '
                 .($odModeratora !== null ? $odModeratora.' ' : '')
+                .(KomunikatZamknietegoKonta::akcja($user) !== null ? KomunikatZamknietegoKonta::wskazanieOdwolania().' ' : '')
                 .'Jeśli uważasz, że to pomyłka, napisz do nas: '
                 .config('kuking.community.contact_email');
         } elseif ($user->isErased()) {
@@ -233,8 +238,10 @@ class EnsureAccountIsActive
                 .'Jeśli chcesz wrócić do Kuking, założysz nowe konto. Jeśli to pomyłka, napisz do nas: '
                 .config('kuking.community.contact_email');
         } else {
+            // Adres strony cofnięcia nie stoi w zdaniu: pod komunikatami na górze
+            // strony logowania jest przycisk (`status_akcja` niżej, D-333).
             $powod = 'To konto jest oznaczone do usunięcia, dlatego wylogowaliśmy Cię z serwisu. Jeśli chcesz je odzyskać, '
-                .'wejdź na stronę „Cofnij usunięcie konta” ('.route('account.delete.cancel').') i potwierdź '
+                .KomunikatZamknietegoKonta::wskazanieStronyCofniecia().' i potwierdź '
                 .'hasłem, że to Ty. Jeśli dane zostały już usunięte na stałe, ta strona Cię o tym poinformuje — '
                 .'wtedy napisz do nas: '.config('kuking.community.contact_email');
         }
@@ -244,6 +251,8 @@ class EnsureAccountIsActive
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login')->withErrors(['login' => $powod]);
+        return redirect()->route('login')
+            ->withErrors(['login' => $powod])
+            ->with('status_akcja', KomunikatZamknietegoKonta::akcja($user));
     }
 }

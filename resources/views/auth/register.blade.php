@@ -17,7 +17,21 @@
 
     <x-error-summary />
 
-    <form class="panel-formularza" method="POST" action="{{ route('register') }}">
+    {{--
+        `novalidate`: POLSKIE PODSUMOWANIE ZAMIAST DYMKA PRZEGLĄDARKI (#2243).
+
+        Pola mają `required` (z `x-field`), bo to ono mówi czytnikowi ekranu
+        „wymagane” i idzie w parze z dopiskiem „(wymagane)” przy etykiecie.
+        Bez `novalidate` przeglądarka zatrzymywała jednak pusty formularz
+        PRZED wysłaniem: pokazywała własny dymek (w języku przeglądarki,
+        znikający po chwili, o jednym polu naraz) i do serwera nic nie szło —
+        więc `x-error-summary` na górze i błędy przy polach, mówiące po
+        polsku, co zrobić, nigdy się nie pokazywały. To samo przy adresie
+        e-mail bez „@”. Teraz formularz zawsze idzie do serwera, który odsyła
+        komplet błędów naraz, a `resources/js/app.js` przenosi fokus na
+        podsumowanie. Pilnuje tego `RejestracjaPolskiePodsumowanieBledowTest`.
+    --}}
+    <form class="panel-formularza" method="POST" action="{{ route('register') }}" novalidate>
         @csrf
 
         <x-field name="display_name" label="Jak mamy Cię nazywać?" required

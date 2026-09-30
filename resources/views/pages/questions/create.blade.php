@@ -5,7 +5,7 @@
     {{-- Błąd pojedynczego pliku ma klucz `photos.0`, a pole plików jest jedno:
          `f-photos` (issue #874). --}}
     <x-error-summary :field-ids="['photos.*' => 'f-photos', 'media_ids' => 'f-photos', 'media_ids.*' => 'f-photos']" />
-    <form class="panel-formularza" method="POST" action="{{ route('questions.store') }}" enctype="multipart/form-data">
+    <form class="panel-formularza" method="POST" action="{{ route('questions.store') }}" enctype="multipart/form-data" novalidate>
         @csrf
         @if($kluczWyslania !== null)
             <input type="hidden" name="klucz_wyslania" value="{{ $kluczWyslania }}">
