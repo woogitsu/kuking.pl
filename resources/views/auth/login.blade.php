@@ -1,4 +1,4 @@
-<x-layout title="Zaloguj się" :noindex="true">
+<x-layout title="Zaloguj się" :noindex="true" :akcja-pod-bledami="true">
     <x-marka-wejscie opis="Twoja kuchnia, przepisy i ludzie, którzy naprawdę gotują.">
     <x-slot:naglowek><h1>Zaloguj się</h1></x-slot:naglowek>
     <x-slot:uzupelnienie>
@@ -24,6 +24,7 @@
             <a href="{{ route('appeals.guest') }}">Złóż odwołanie</a>.</p>
     </x-slot:poFormularzu>
     <x-error-summary />
+    <x-status-akcja />
 
     <form class="panel-formularza" method="POST" action="{{ route('login') }}" novalidate>
         @csrf

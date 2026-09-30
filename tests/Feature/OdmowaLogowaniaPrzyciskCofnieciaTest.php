@@ -132,6 +132,41 @@ class OdmowaLogowaniaPrzyciskCofnieciaTest extends TestCase
     }
 
     /**
+     * Audyt UX 50+: przycisk stał nad nagłówkiem, a fokus po błędzie idzie na
+     * podsumowanie błędów, więc człowiek czytał odmowę i nie widział przycisku.
+     * Przycisk ma stać BEZPOŚREDNIO pod podsumowaniem błędów, pod nagłówkiem
+     * „Zaloguj się”, i nie być powielony nad nim.
+     */
+    public function test_przycisk_cofniecia_stoi_bezposrednio_pod_podsumowaniem_bledow(): void
+    {
+        $this->kontoDoUsuniecia();
+
+        $this->przyciskStoiPodPodsumowaniem((string) $this->zalogujHaslem()->assertOk()->getContent());
+    }
+
+    public function test_przycisk_odwolania_stoi_bezposrednio_pod_podsumowaniem_bledow(): void
+    {
+        $this->kontoZablokowane();
+
+        $this->przyciskStoiPodPodsumowaniem((string) $this->zalogujHaslem()->assertOk()->getContent());
+    }
+
+    private function przyciskStoiPodPodsumowaniem(string $html): void
+    {
+        $this->assertSame(1, substr_count($html, 'class="flash-akcja"'), 'Przycisk jest powielony albo go brak.');
+        $this->assertMatchesRegularExpression(
+            '~<div class="error-summary".*?</ul>\s*</div>\s*<p class="flash-akcja">\s*<a class="btn btn-primary"~s',
+            $html,
+            'Przycisk nie stoi bezpośrednio pod podsumowaniem błędów.',
+        );
+        $this->assertLessThan(
+            (int) strpos($html, 'class="flash-akcja"'),
+            (int) strpos($html, '<h1>Zaloguj się</h1>'),
+            'Przycisk stoi nad nagłówkiem strony.',
+        );
+    }
+
+    /**
      * Kontrola ujemna na tej samej ścieżce: złe hasło do tego samego konta
      * nie pokazuje przycisku. Inaczej samo wpisanie cudzego loginu zdradzałoby,
      * że to konto czeka na usunięcie (odmowa zapada dopiero po sprawdzeniu hasła).
