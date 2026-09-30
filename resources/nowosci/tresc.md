@@ -127,9 +127,10 @@ Wybraną formę zobaczą też inni, bo tak będziemy o Was pisać, na przykład
 „Ania ugotowała Twój przepis”. Przy formie żeńskiej przycisk na końcu gotowania
 nazywa się „Ugotowałam”. Ta sama forma pojawia się teraz także na przycisku
 „Ugotowałem” pod przepisem i na kartach wpisów, w powitaniu w powiadomieniach
-i w powiadomieniu o tym, że ktoś ugotował z Waszego przepisu. Bez wyboru teksty
-zostają takie jak dotąd. Na razie zmienia to tylko część miejsc w serwisie,
-kolejne dołączymy po kolei. Wybór zmienicie w każdej chwili, a kiedy usuniecie
+i w powiadomieniu o tym, że ktoś ugotował z Waszego przepisu, a także w stopce
+listów o logowaniu, haśle i zmianie adresu e-mail. Bez wyboru teksty zostają
+bez rodzaju, a stopka tych listów brzmi „pokaż, co dziś gotujesz”. Na razie
+zmienia to tylko część miejsc w serwisie, kolejne dołączymy po kolei. Wybór zmienicie w każdej chwili, a kiedy usuniecie
 konto, zniknie razem z nim.
 
 ### Ile masz czasu? Wybierz w wyszukiwarce przepisów
