@@ -1894,6 +1894,11 @@ checks = [
     ("Runbook znów każe użyć tinkera", "docs/infra/MONITORING_BLEDOW.md", "test_runbooki_produkcyjne_nie_kaza_uzywac_tinkera",
      lambda s: replace_once(s, "php artisan kuking:sprawdz-alarm --przez-wyjatek\n",
                             "php artisan tinker --execute=\"report(new RuntimeException('x'));\"\n")),
+    # #2267: kolor paska przeglądarki idzie za motywem, manifest ma jasny.
+    ("Pasek przeglądarki znów zawsze ciemny", LAYOUT, "test_gosc_bez_wyboru_i_z_jasnym_wyborem_dostaje_jasny_pasek",
+     lambda s: replace_once(s, "content=\"{{ $theme === 'dark' ? '#151714' : '#F3F4F1' }}\"", 'content="#151714"')),
+    ("Manifest wraca do ciemnego theme_color", "public/manifest.webmanifest", "test_kolory_to_tlo_strony_z_tokenow_a_manifest_ma_jasny",
+     lambda s: replace_once(s, '"theme_color": "#F3F4F1"', '"theme_color": "#151714"')),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

@@ -328,6 +328,9 @@ OCZEKUJ = {
     # #2223 (D-333): tinker poza obrazem produkcyjnym.
     'Tinker wraca do require': r'laravel/tinker wrócił do `require`',
     'Runbook znów każe użyć tinkera': r'MONITORING_BLEDOW\.md każe użyć `php artisan tinker`',
+    # #2267: theme-color i manifest.
+    'Pasek przeglądarki znów zawsze ciemny': r'Jasna strona bez wyboru ma jasny pasek przeglądarki',
+    'Manifest wraca do ciemnego theme_color': r'Manifest ma kolor jasnego motywu',
 }
 
 

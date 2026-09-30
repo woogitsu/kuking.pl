@@ -26,10 +26,10 @@ final class KolorPaskaPrzegladarkiIdzieZaMotywemTest extends TestCase
 
     public function test_gosc_bez_wyboru_i_z_jasnym_wyborem_dostaje_jasny_pasek(): void
     {
-        $this->assertSame(self::JASNY, $this->kolorPaska($this->get('/o-kuking')->assertOk()->getContent()));
+        $this->assertSame(self::JASNY, $this->kolorPaska($this->get('/o-kuking')->assertOk()->getContent()), 'Jasna strona bez wyboru ma jasny pasek przeglądarki.');
 
         $this->withCookie((string) config('kuking.theme.cookie'), 'light');
-        $this->assertSame(self::JASNY, $this->kolorPaska($this->get('/o-kuking')->assertOk()->getContent()));
+        $this->assertSame(self::JASNY, $this->kolorPaska($this->get('/o-kuking')->assertOk()->getContent()), 'Jasna strona bez wyboru ma jasny pasek przeglądarki.');
     }
 
     public function test_ciemny_wybor_goscia_albo_konta_daje_ciemny_pasek(): void
