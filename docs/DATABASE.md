@@ -161,6 +161,27 @@ ma wartość (jak przy `terms_notice_dismissed_version`). Testy:
 `ZmianaPolitykiTest::test_rollback_odmawia_gdy_ktos_zamknal_pasek` i kontrola
 dodatnia `test_rollback_przechodzi_gdy_nikt_nie_zamknal_paska`.
 
+#### `sprzeciw_statystyk_at` — sprzeciw wobec statystyk (RODO art. 21, #2277)
+
+Migracja `2026_09_30_163000_add_sprzeciw_statystyk_at_to_users`: nullable
+`timestamptz` bez wartości domyślnej (zmiana samego katalogu, AGENTS.md §6).
+Wartość to chwila kliknięcia „Nie licz mnie w statystykach” w ustawieniach
+prywatności; `NULL` — sprzeciwu nie ma. Kolumna poza `$fillable`; ustawia ją
+i zdejmuje wyłącznie `App\Domain\Users\Actions\PrzestawSprzeciwWobecStatystyk`
+(POST/DELETE `/ustawienia/prywatnosc/statystyki`). Zgłoszenie zeruje przy tym
+`ostatnio_widziany_at` i odpina `product_signals` tej osoby (`user_id = NULL`).
+Póki kolumna jest ustawiona, `ZapiszSygnal` nie zapisuje zdarzeń tej osoby
+(sprawdzenie pod `FOR SHARE`, razem z `data_erased_at`),
+`ZanotujOstatniaWizyte` nie zapisuje daty wizyty (także w samym `UPDATE`),
+a układ strony nie wstawia skryptu Cloudflare Web Analytics. Eksport oddaje
+`konto.sprzeciw_wobec_statystyk_od`, wymazanie konta zeruje pole.
+
+**Rollback (D-088):** `down()` odmawia usunięcia kolumny, gdy choć jedno konto
+zgłosiło sprzeciw — po ponownym `migrate` serwis znów liczyłby te osoby.
+Przy samych `NULL` przechodzi. Testy:
+`SprzeciwWobecStatystykTest::test_rollback_odmawia_gdy_ktos_zglosil_sprzeciw`
+i kontrola dodatnia `test_rollback_przechodzi_gdy_nikt_nie_zglosil_sprzeciwu`.
+
 #### `wants_weekly_digest` — zgoda, o którą trzeba było zapytać
 
 Migracja `2026_09_07_400000_default_weekly_digest_to_off`.
@@ -3419,6 +3440,23 @@ oceny awatarów wymaga osobnej decyzji z celem zgody, ekranem jej udzielania
 i wycofania oraz sprawdzeniem zgody przed wysyłką
 (`docs/legal/SYGNALY_AUTOMATU.md` §9.1).
 
+#### `target_type = 'collection'` — publiczny zeszyt jako cel zgłoszenia (#2279)
+
+Migracja `2026_09_30_163500_zeszyt_jako_cel_zgloszenia` dopisuje do
+`reports_target_type_check` wartość **`collection`**. Regulamin §7 obiecuje
+„Zgłoś” przy każdej treści, a nazwa i opis publicznego zeszytu są tekstem
+właściciela widocznym dla wszystkich. `target_id` to `collections.id`.
+Decyzje (`ModerationAction::DOZWOLONE['collection']`): brak działań,
+ostrzeżenie, zawieszenie, ban właściciela — **bez `hide` i `remove`**, bo zeszyt
+nie ma statusu ani miękkiego kasowania.
+
+DDL jak w AGENTS.md §6: `DROP CONSTRAINT` i `ADD CONSTRAINT … NOT VALID` w jednym
+`ALTER TABLE` (bez chwili bez CHECK-a), potem osobno `VALIDATE CONSTRAINT`,
+migracja poza transakcją. **Rollback (D-088):** `down()` odmawia, gdy w `reports`
+leży choć jedno zgłoszenie zeszytu — to sprawy moderacyjne z decyzjami; bez
+takich wierszy przywraca poprzednią listę wartości. Test:
+`ZglosPrzyUgotowanymIZeszycieTest::test_rollback_odmawia_gdy_jest_zgloszenie_zeszytu_a_bez_niego_przechodzi`.
+
 **Dlaczego zdjęcie, a nie konto (uzasadnienie z #237).** Indeks `reports_jeden_automat_na_tresc`
 przepuszcza jedno oznaczenie automatu na (typ, identyfikator) na zawsze.
 Przy celu `user` oceniony zostałby pierwszy awatar konta i żaden następny,
@@ -3446,7 +3484,7 @@ ekranu, treść mogła już zniknąć, adres bywa z innego serwisu. **Zgłoszeni
 i tak musi zostać przyjęte** — odmowa byłaby odmówieniem mechanizmu, który
 przepis nakazuje udostępnić. Dlatego:
 
-- `reports_target_type_check` dopuszcza typ `unknown` (dziś siódmy, po dodaniu `media`);
+- `reports_target_type_check` dopuszcza typ `unknown` (jedna z ośmiu wartości po dodaniu `media` i `collection`);
 - `target_id` w `reports` **i** w `moderation_actions` jest teraz `NULL`-owalne.
 
 `NULL`, a nie UUID z samych zer: identyfikator, który wygląda jak
@@ -5454,6 +5492,17 @@ ALTER TABLE weekly_digest_sends
 ADD CONSTRAINT weekly_digest_sends_week_start_monday_check
 CHECK (extract(isodow from week_start) = 1);
 ```
+
+#### Jeden wiersz na osobę, nie historia wysyłek (#2280, 30.09.2026)
+
+Bariera potrzebuje tylko bieżącego tygodnia, a polityka prywatności mówi
+o „zapisie ostatniej wysyłki, nie historii”. Dlatego `OdbiorcyDigestu::zarezerwuj()`
+w tej samej transakcji co nowy wiersz kasuje starsze rezerwacje tej osoby
+(`week_start < nowy tydzień`), a `EraseAccountData` kasuje wszystkie
+rezerwacje konta i zeruje `users.weekly_digest_sent_at` (kont się nie kasuje,
+więc `ON DELETE CASCADE` tu nie działa, D-022). Wiersze sprzed poprawki znikają
+przy następnej wysyłce tej osoby albo przy wymazaniu konta. Schemat bez zmian,
+bez migracji. Test: `RezerwacjePodsumowaniaNieSaHistoriaTest`.
 
 #### Po co, skoro jest już `users.weekly_digest_sent_at`
 

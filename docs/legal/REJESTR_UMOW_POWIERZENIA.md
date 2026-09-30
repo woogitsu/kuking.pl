@@ -207,6 +207,22 @@ panelu w ogóle szukasz umowy.
      Bilans: `DECYZJE_WLASCICIELA_R1_R6_DPA.md`.
 - **Data potwierdzenia:** ______________  **Kto:** ______________
 
+### 2.9 Cloudflare — sieć, CDN i ochrona przed atakami (pośrednik całego ruchu)
+
+- **Rola:** podmiot przetwarzający. Dopisane 30.09.2026 (#2282): wiersze
+  2.2–2.4 wspominały o tej roli tylko uwagą „Cloudflare i tak widzi każde
+  połączenie”, bez własnej pozycji.
+- **Co do niego trafia:** **całe żądanie i cała odpowiedź** każdego wejścia —
+  adres IP, nagłówki, ciasteczka, treść formularzy (także hasła przy
+  logowaniu), strony po zalogowaniu. Cloudflare kończy TLS, więc widzi to
+  w postaci jawnej (`REJESTR_CZYNNOSCI_PRZETWARZANIA.md` §3.28).
+- **Czego szukać:** tego samego globalnego DPA konta Cloudflare co w 2.2–2.4;
+  przy okazji odczytaj, **jak długo Cloudflare trzyma dzienniki żądań** dla
+  planu konta — rejestr czynności ma na to puste pole.
+- **Co jeszcze potwierdzić:** wpis Cloudflare, Inc. na liście EU-US Data
+  Privacy Framework i SCC w DPA — jak w 2.3.
+- **Data potwierdzenia:** ______________  **Kto:** ______________
+
 ---
 
 ## 3. Czego ta lista nie obejmuje

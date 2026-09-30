@@ -116,7 +116,9 @@ egzekwuje.
 
 - **Cel:** pokazanie użytkownika innym ludziom w serwisie.
 - **Dane:** nazwa użytkownika, nazwa wyświetlana, opis, zdjęcie profilowe,
-  a jeśli ją wybierze — forma zwracania się (żeńska albo męska; brak wyboru
+  jeśli je wpisze — region („Skąd jesteś”, `profiles.region`) i „Na czym się
+  znasz” (`profiles.speciality`), oba widoczne na publicznym profilu także
+  bez logowania (#2281), a jeśli ją wybierze — forma zwracania się (żeńska albo męska; brak wyboru
   = forma neutralna). Forma to preferencja językowa, **nie płeć**; jest
   widoczna dla innych w tekstach o tej osobie, nie jest zgadywana ani brana
   z Google/Facebooka i nie służy statystykom ani segmentacji (D-332).
@@ -302,6 +304,16 @@ egzekwuje.
   `SESSION_LIFETIME=43200` minut (`.railway/railway.ts`); egzekwuje
   `kuking:sprzataj-sesje` co noc. Wylogowanie i wymazanie konta kasują wiersz
   od razu (audyt B5 pkt 7).
+- **Ciasteczko „zapamiętaj mnie” (#2278):** każde logowanie idzie przez
+  `Auth::login(..., remember: true)`, więc przeglądarka dostaje
+  `remember_web_<sha1>` (zaszyfrowane: identyfikator konta, `remember_token`,
+  skrót hasła) na **400 dni** od zalogowania — domyślny czas bramki Laravela
+  (`SessionGuard::$rememberDuration`), bez nadpisania w kodzie. Po wygaśnięciu
+  sesji przeglądarka loguje się nim sama i zaczyna nową sesję (nowy wiersz
+  `sessions`). „Wyloguj” usuwa ciasteczko i rotuje `users.remember_token`, co
+  unieważnia je na wszystkich urządzeniach. Polityka §2 i §5 podaje nazwę
+  i termin; pilnuje `PolitykaNazywaPamiecPrzegladarkiTest` (termin czytany
+  z samej bramki).
 
 ### 3.11 Powiadomienia w serwisie
 
@@ -340,13 +352,20 @@ egzekwuje.
 ### 3.13 Tygodniowe podsumowanie e-mailem
 
 - **Cel:** jeden list na tydzień z tym, co i tak widać w serwisie.
-- **Dane:** adres e-mail, data wysłania ostatniego listu.
+- **Dane:** adres e-mail, data wysłania ostatniego listu
+  (`users.weekly_digest_sent_at`), rezerwacja tygodnia wysyłki
+  (`weekly_digest_sends`: konto, poniedziałek tygodnia, chwila rezerwacji).
 - **Podstawa:** **art. 6 ust. 1 lit. a RODO — zgoda.** Na zgodzie opiera
   się też §3.18 (urodziny i list z życzeniami). Wycofanie: odnośnik na dole
   każdego listu, bez logowania i bez pytania o powód.
 - **Odbiorcy:** Railway, EmailLabs.
-- **Termin usunięcia:** data ostatniej wysyłki żyje tak długo jak konto
-  (jedna nadpisywana wartość, nie historia). Treść listu nie jest
+- **Termin usunięcia:** data ostatniej wysyłki i rezerwacja ostatniego
+  tygodnia żyją tak długo jak konto — zapis ostatniej wysyłki, nie historia:
+  `OdbiorcyDigestu::zarezerwuj()` kasuje starsze rezerwacje tej osoby w tej
+  samej transakcji co nową (bariera potrzebuje tylko bieżącego tygodnia),
+  a `EraseAccountData` kasuje rezerwacje i zeruje datę (#2280; do 30.09.2026
+  każdy tydzień dokładał wiersz, którego nic nie kasowało, także po wymazaniu).
+  Test: `RezerwacjePodsumowaniaNieSaHistoriaTest`. Treść listu nie jest
   archiwizowana.
 
 ### 3.14 Formularz „Napisz do nas"
@@ -378,6 +397,13 @@ egzekwuje.
   nie wchodzi w grę, bo nie ma ani zapisu, ani odczytu na urządzeniu
   (D-092, `COMPLIANCE.md` §5.5).
 - **Odbiorca:** Cloudflare, Inc. (USA) — przekazanie poza EOG, DPF i SCC.
+- **Sprzeciw (art. 21, #2277):** zalogowana osoba klika „Nie licz mnie
+  w statystykach” (`/ustawienia/prywatnosc`, `users.sprzeciw_statystyk_at`);
+  układ strony nie wstawia jej wtedy skryptu
+  (`AnalitykaCloudflare::widzNieSprzeciwilSie()`). Gościa nie da się rozpoznać
+  bez zapisu na urządzeniu — polityka §3 mówi mu, że skrypt z
+  `static.cloudflareinsights.com` może zablokować w przeglądarce. Test:
+  `SprzeciwWobecStatystykTest`.
 - **Termin usunięcia:** agregaty po stronie Cloudflare; serwis nie trzyma
   kopii.
 
@@ -400,6 +426,16 @@ egzekwuje.
   `user_id` (`FOR SHARE` na wierszu konta, sprawdzenie `data_erased_at`).
   Liczniki zbiorcze się nie zmieniają. Test:
   `WymazanieKontaOdpinaSygnalyProduktoweTest`.
+- **Sprzeciw (art. 21, #2277):** po kliknięciu „Nie licz mnie w statystykach”
+  `ZapiszSygnal` nie zapisuje zdarzeń tej osoby wcale (sprawdzenie pod tą samą
+  blokadą `FOR SHARE` co `data_erased_at`), `ZanotujOstatniaWizyte` nie
+  zapisuje daty wizyty, a samo zgłoszenie zeruje `ostatnio_widziany_at`
+  i odpina zapisane zdarzenia (`user_id = NULL`, jak przy wymazaniu).
+  Cofnięcie („Licz mnie znowu”) niczego nie odtwarza. Skutek uboczny:
+  zachęta do instalacji aplikacji liczy powrót z tej samej daty, więc po
+  sprzeciwie się nie pokazuje — polityka §2 to mówi. Kolumna
+  `users.sprzeciw_statystyk_at` jest w paczce (`konto`); rollback migracji
+  odmawia przy choć jednym sprzeciwie (D-088). Test: `SprzeciwWobecStatystykTest`.
 
 ### 3.17 Obsługa praw osób — eksport i usunięcie konta
 
@@ -619,8 +655,10 @@ trafi tam pierwszy rekord.
   wybrana liczba porcji, numer rewizji, daty ostatniej zmiany i wygaśnięcia
   (`cooking_progress`). Tylko na świadome włączenie przez osobę, osobno dla
   każdego przepisu; domyślnie (i dla gości) postęp zostaje w sesji przeglądarki.
-- **Podstawa:** art. 6 ust. 1 lit. a RODO (osoba włącza funkcję sama) —
-  **do potwierdzenia przez prawnika**.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO — funkcja, którą osoba włącza na
+  własne życzenie, tak jak „Co mam w domu” i planer; tak mówi też polityka §2
+  (#2281, 30.09.2026 — wcześniej stała tu lit. a, której polityka nie
+  podawała). Weryfikacja przez prawnika zostaje w #8.
 - **Odbiorcy:** Railway. Dane widzi wyłącznie właściciel
   (`CookingProgressPolicy`); nic nie jest wysyłane do podmiotów trzecich.
 - **Termin usunięcia:** 24 godziny od ostatniej zmiany
@@ -630,6 +668,76 @@ trafi tam pierwszy rekord.
 - **Eksport:** `postep_gotowania` (przepis, numery odhaczonych kroków, wybrana
   liczba porcji, przygotowane składniki, daty; tytuł przepisu i teksty składników
   tylko gdy przepis jest dziś widoczny dla osoby).
+
+### 3.25 Plan na tydzień (V2, #27, D-310)
+
+- **Cel:** prywatny plan posiłków jednej osoby.
+- **Dane:** dzień, przepis albo krótka notatka (`meal_plan_entries`: `day`,
+  `recipe_id`, `label` do 120 znaków).
+- **Podstawa:** art. 6 ust. 1 lit. b RODO.
+- **Odbiorcy:** Railway. Widzi wyłącznie właściciel.
+- **Termin usunięcia:** do usunięcia pozycji albo konta (`EraseAccountData`
+  kasuje plan bezwarunkowo). Automatycznej retencji starych pozycji nie ma —
+  polityka §2 tego nie obiecuje.
+- **Eksport:** `planer`.
+
+### 3.26 Wspólne zeszyty (V2, #1743, D-302)
+
+- **Cel:** zapraszanie innych osób do zapisywania w swoim zeszycie.
+- **Dane:** zaproszenie (`collection_invitations`: kto zaprasza, kogo — albo
+  odnośnik bez adresata — do którego zeszytu, status, termin ważności, chwila
+  odpowiedzi), członkostwo (`collection_members`), podpis „kto dodał”
+  przy pozycji (`collection_items.added_by_id`). Osoby w zeszycie widzą się
+  nawzajem; zaproszona osoba dostaje powiadomienie
+  (`Notification::TYPE_COLLECTION_INVITED`). Obcy przy publicznym zeszycie nie
+  widzi współpracowników.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO.
+- **Odbiorcy:** Railway.
+- **Termin usunięcia:** członkostwo — do wyjścia, usunięcia przez właściciela,
+  blokady między osobami (`ZerwijWspoldzielenie::miedzy()`), usunięcia zeszytu
+  albo konta (`ZerwijWspoldzielenie::przyWymazaniu()`). **Zaproszeń odrzuconych
+  i wygasłych nic nie kasuje** poza usunięciem zeszytu albo konta którejś ze
+  stron — polityka §2 mówi to wprost (#2281). Retencja zaproszeń to osobna
+  decyzja.
+- **Eksport:** `zeszyty_udostepnione_mi`, `zaproszenia_do_zeszytow`.
+
+### 3.27 Wczytanie własnej paczki z danymi (V2, #1985)
+
+- **Cel:** przeniesienie własnych przepisów, wpisów i zeszytów z paczki
+  eksportu Kuking (art. 20 w drugą stronę).
+- **Dane:** wybrany ZIP w prywatnym magazynie (`MagazynPaczek`, dysk `local`,
+  `import-paczek/<id osoby>/`) do zatwierdzenia; po zatwierdzeniu treści jak
+  w §3.3 oraz znacznik pochodzenia (`wczytane_z_paczki`: rodzaj, odcisk,
+  wskaźnik treści — bez treści).
+- **Podstawa:** art. 6 ust. 1 lit. b RODO.
+- **Odbiorcy:** Railway.
+- **Termin usunięcia:** ZIP — po wczytaniu, odrzuceniu albo po
+  `kuking.import_paczki.przechowanie_godzin` = **2 godziny**
+  (`kuking:sprzataj-paczki-importu` co noc o 03:10); przy wymazaniu konta
+  od razu. Znacznik — do usunięcia treści (klucz obcy `cascade`) albo konta
+  (`EraseAccountData`). Wczytane treści — jak §3.3.
+- **Eksport:** znacznik jest `NIE_DOTYCZY` w `InwentarzDanychKonta` (sama
+  treść jest w paczce).
+
+### 3.28 Sieć, CDN i ochrona przed atakami (Cloudflare jako pośrednik, #2282)
+
+- **Cel:** dostarczenie serwisu: zakończenie połączenia HTTPS, podawanie
+  plików, odsiewanie ataków i ruchu automatów, przekazanie żądania do
+  Railway.
+- **Dane:** **całe żądanie i cała odpowiedź** każdego wejścia — adres IP,
+  nagłówki, ciasteczka, treść formularzy (także hasło przy logowaniu), treść
+  stron po zalogowaniu. Cloudflare kończy TLS, więc widzi je w postaci jawnej.
+  Sygnałem w kodzie jest token krawędziowy (`App\Support\TokenKrawedzi`,
+  `KUKING_EDGE_TOKEN`) i liczenie `X-Forwarded-For` od prawej
+  (`NormalizeForwardedFor`).
+- **Podstawa:** art. 6 ust. 1 lit. b RODO (bez tego nie ma usługi) i lit. f
+  (bezpieczeństwo).
+- **Odbiorca:** Cloudflare, Inc. (USA) — przekazanie poza EOG, DPF i SCC
+  (§5). Ten sam globalny DPA konta co R2, Turnstile i Web Analytics
+  (`REJESTR_UMOW_POWIERZENIA.md` §2.9).
+- **Termin usunięcia:** po stronie Cloudflare — **DO UZUPEŁNIENIA PRZEZ
+  WŁAŚCICIELA** z DPA i ustawień konta (dzienniki żądań). W repozytorium nie
+  ma żadnego pobierania dzienników Cloudflare do serwisu.
 
 ---
 
@@ -641,12 +749,16 @@ wobec zmiennych środowiskowych usługi produkcyjnej
 `AWS_*`, `EMAILLABS_*`, `FACEBOOK_CLIENT_*`, `GOOGLE_CLIENT_*`,
 `OPENAI_MODERATION_KEY`, `CLOUDFLARE_ANALYTICS_TOKEN`, `TURNSTILE_*`;
 wartości zamaskowane, więc potwierdzony jest **fakt konfiguracji**, nie
-treść kluczy]. Żaden odbiorca z tej listy nie jest martwy i żadnego nie
-brakuje.
+treść kluczy]. Żaden odbiorca z tej listy nie jest martwy. **Brakowało
+jednego** — Cloudflare jako pośrednika całego ruchu (sieć, CDN, ochrona).
+Znała go tylko `REJESTR_UMOW_POWIERZENIA.md`, a polityka wspominała o nim
+zdaniem pobocznym; dopisany 30.09.2026 (#2282, §3.28). Obecności wiersza
+w polityce pilnuje `PolitykaPrywatnosciWymieniaKazdaUslugeTest`.
 
 | Odbiorca | Rola | Co dostaje | Kraj |
 |---|---|---|---|
 | Railway | podmiot przetwarzający | cała aplikacja, baza i dziennik serwera | deklarowana UE — **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** region usługi odczytany z panelu |
+| Cloudflare (sieć, CDN i ochrona przed atakami) | podmiot przetwarzający | całe żądanie i odpowiedź każdego wejścia: adres IP, nagłówki, ciasteczka, treść formularzy i stron — połączenie jest odszyfrowywane u niego (§3.28) | USA |
 | Cloudflare R2 | podmiot przetwarzający | zdjęcia i ich warianty, paczki eksportu, zaszyfrowane zrzuty bazy (`AWS_KOPIE_BUCKET`, retencja 30 dni — `KOPIA_RETENCJA_DNI`) | jurysdykcja UE — właściciel potwierdził 24.09.2026, że `AWS_ENDPOINT` ma segment `.eu.`, a buckety są w jurysdykcji UE; od D-255 (PR #1463) aplikacja odmawia endpointu bez `.eu.` (`App\Support\Storage\DozwolonyHostR2`, `/health`) |
 | Cloudflare Turnstile | podmiot przetwarzający | adres IP i cechy przeglądarki przy siedmiu formularzach | USA |
 | Cloudflare Web Analytics | podmiot przetwarzający | adres strony, odnośnik, rodzaj przeglądarki, czas wczytania | USA |
@@ -672,7 +784,7 @@ w ramach konkretnego postępowania (art. 4 pkt 9 RODO) — w tym organy
 |---|---|---|---|
 | OpenAI, L.L.C. (USA) | treść wpisu/komentarza i pomniejszone zdjęcie, bez EXIF-u i bez danych wskazujących osobę (`app/Moderacja/KlientOpenAI.php`) | EU-US Data Privacy Framework + standardowe klauzule umowne | **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** data sprawdzenia wpisu na liście DPF, dokument SCC i jego data |
 | OpenAI, L.L.C. (USA) — odczyt przepisu na żądanie (§3.23), **funkcja niewłączona** | zdjęcie kartki (JPEG ≤ 2000 px, bez EXIF/GPS), wiersze tekstu strony (≤ 12 000 znaków, bez adresu i komentarzy), obrazy stron PDF bez warstwy tekstu (JPEG ≤ 1600 px); bez e-maila, nazwy konta, IP i identyfikatorów (`app/Domain/Import/KlientLuna.php`) | EU-US Data Privacy Framework + SCC, umowa powierzenia **niepodpisana** (`REJESTR_UMOW_POWIERZENIA.md` §2.5) | **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** DPA, data sprawdzenia DPF, SCC, okres przechowywania po stronie OpenAI |
-| Cloudflare, Inc. (USA) — Turnstile i Web Analytics | adres IP i cechy przeglądarki; adresy stron | EU-US Data Privacy Framework + SCC | jw. |
+| Cloudflare, Inc. (USA) — sieć i ochrona (pośrednik całego ruchu, §3.28), Turnstile i Web Analytics | całe żądania i odpowiedzi (sieć); adres IP i cechy przeglądarki (Turnstile); adresy stron (Web Analytics) | EU-US Data Privacy Framework + SCC | jw. |
 | Google LLC (USA) — tylko przy logowaniu kontem Google | potwierdzenie tożsamości, e-mail, imię | EU-US Data Privacy Framework + SCC | jw. |
 
 **Meta świadomie nie jest w tej tabeli.** Kontrahentem jest Meta Platforms
