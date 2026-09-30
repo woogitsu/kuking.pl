@@ -790,6 +790,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/wspomnienia/{post}/ukryj', [WspomnienieController::class, 'ukryj'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('wspomnienia.ukryj');
+    // To samo dla własnego „Ugotowałem” sprzed lat (F6). Bramka:
+    // `CookedEventPolicy::hideAsMemory` — tylko kucharz.
+    Route::post('/wspomnienia/ugotowane/{cookedEvent}/ukryj', [WspomnienieController::class, 'ukryjWykonanie'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('wspomnienia.ukryj-wykonanie');
 
     // Edycja i usunięcie komentarza — niezależne od tego, pod czym on wisi
     // (wpis, przepis czy "Ugotowałem"). Reguły kto-może-co żyją w CommentPolicy.

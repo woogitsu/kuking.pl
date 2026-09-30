@@ -134,12 +134,13 @@ class FeedController extends Controller
             return redirect()->route('home');
         }
 
-        // Wspomnienie (issue #34) — jeden własny wpis z tego samego dnia
-        // sprzed roku albo więcej. `null`, gdy nie ma czego pokazać albo gdy
+        // Wspomnienie (issue #34) — jeden własny wpis ALBO własne wykonanie
+        // „Ugotowałem” (F6) z tego samego dnia sprzed roku albo więcej.
+        // `null`, gdy nie ma czego pokazać albo gdy
         // człowiek wyłączył tę mechanikę; widok NIE ma pustego stanu, bo
         // „nie masz jeszcze wspomnień" jest wyrzutem wobec kogoś, kto dopiero
         // zaczyna.
-        $wspomnienie = $this->wspomnienia->dlaOsoby($user);
+        $wspomnienie = $this->wspomnienia->doPokazania($user);
 
         // Trzy ostatnio odłożone przepisy do prawej szyny (UI kit v2, ekran 01).
         //

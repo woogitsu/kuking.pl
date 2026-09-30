@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Wspomnienia;
 
 use App\Domain\Collections\ZapisyWpisu;
+use App\Models\CookedEvent;
 use App\Models\Post;
 use App\Models\User;
 use App\Support\Czas;
@@ -34,6 +35,15 @@ use Illuminate\Support\Carbon;
  *
  * Ton jest cichy i tego pilnuje `podpis()`: „Rok temu, 6 września", nigdy
  * „Pamiętasz ten wspaniały dzień?!". Żadnych podsumowań roku z animacją.
+ *
+ * WŁASNE WYKONANIA („Ugotowałem”) — F6, research z 30 września 2026
+ * Źródłem wspomnienia jest też własne wykonanie z tego samego dnia
+ * w poprzednich latach (`wykonanieDlaOsoby()`). Reguły są te same: jeden
+ * element na stronie głównej (`doPokazania()` wybiera starszy z dwóch), ten
+ * sam wyłącznik, ukrywanie pojedyncze (`cooked_events.hide_as_memory`)
+ * i ten sam cichy podpis. Wykonanie przepisu, którego ta osoba już nie może
+ * zobaczyć (usunięty, prywatny, ukryty przez moderację, blokada z autorem),
+ * nie wraca — bramką jest `Recipe::widoczneDla`, nie osobna reguła.
  */
 final class Wspomnienia
 {
@@ -131,14 +141,72 @@ final class Wspomnienia
     }
 
     /**
+     * Jedno własne wykonanie („Ugotowałem”) z TEGO SAMEGO DNIA sprzed roku
+     * albo więcej lat. Te same reguły co `dlaOsoby()`: wyłącznik, ukrycie
+     * pojedyncze, dzień w strefie czytelnika, najstarsze pierwsze.
+     *
+     * TYLKO WŁASNE. Zapytanie jest przywiązane do `user_id` oglądającego —
+     * cudze wykonania mojego przepisu to nie moje wspomnienie.
+     */
+    public function wykonanieDlaOsoby(User $user): ?CookedEvent
+    {
+        if (! $user->memories_enabled) {
+            return null;
+        }
+
+        $dzis = Czas::lokalnie(Carbon::now());
+
+        return CookedEvent::query()
+            ->where('user_id', $user->getKey())
+            ->where('hide_as_memory', false)
+            // Przepis musi być dla tej osoby WIDOCZNY. Wspomnienie prowadzi
+            // do „Ugotuj znowu”, a przepis usunięty, zamieniony na prywatny,
+            // ukryty przez moderację albo za blokadą z autorem nie ma wracać
+            // na stronę główną tylnymi drzwiami (karta F6, „Ryzyka”).
+            ->whereHas('recipe', fn ($przepis) => $przepis->widoczneDla($user))
+            // `at time zone` z tego samego powodu co w `dlaOsoby()`:
+            // `cooked_at` to `timestamptz`, a dzień liczymy u czytelnika.
+            ->whereRaw(
+                'extract(month from cooked_at at time zone ?) = ? '
+                .'and extract(day from cooked_at at time zone ?) = ?',
+                [Czas::strefa(), $dzis->month, Czas::strefa(), $dzis->day],
+            )
+            ->where('cooked_at', '<', $dzis->copy()->startOfDay()->utc())
+            ->where('cooked_at', '>=', $dzis->copy()->subYears(self::MAKS_LAT_WSTECZ)->utc())
+            ->with(['media', 'user.profile.avatar', 'recipe'])
+            ->orderBy('cooked_at')
+            ->first();
+    }
+
+    /**
+     * Jedno wspomnienie na stronę główną: wpis ALBO wykonanie, nigdy oba.
+     *
+     * „Strona główna ma być feedem, a nie muzeum” — dlatego z dwóch źródeł
+     * wybieramy starsze (większa wartość wspomnienia), a przy tej samej
+     * chwili wpis, bo to on niesie zdjęcie i słowa.
+     */
+    public function doPokazania(User $user): Post|CookedEvent|null
+    {
+        $wpis = $this->dlaOsoby($user);
+        $wykonanie = $this->wykonanieDlaOsoby($user);
+
+        if ($wpis === null || $wykonanie === null) {
+            return $wpis ?? $wykonanie;
+        }
+
+        return $wykonanie->cooked_at->lt($wpis->published_at) ? $wykonanie : $wpis;
+    }
+
+    /**
      * Podpis nad wspomnieniem. Stwierdzenie faktu, nie zachwyt.
      *
      * „Rok temu, 6 września". Nie „Pamiętasz ten wspaniały dzień?!" — bo nie
      * wiemy, czy był wspaniały, i nie mamy prawa tego zakładać.
      */
-    public function podpis(Post $wpis): string
+    public function podpis(Post|CookedEvent $wspomnienie): string
     {
-        $kiedy = Czas::lokalnie($wpis->published_at);
+        $chwila = $wspomnienie instanceof CookedEvent ? $wspomnienie->cooked_at : $wspomnienie->published_at;
+        $kiedy = Czas::lokalnie($chwila);
 
         // Różnica LICZONA NA LATACH KALENDARZOWYCH, nie przez `diffInYears`.
         // Wspomnienie jest z tego samego dnia i miesiąca, więc odejmowanie
@@ -156,6 +224,6 @@ final class Wspomnienia
 
         // Bez roku w dacie: rok mówi już „rok temu" / „dwa lata temu",
         // a „Rok temu, 6 września 2025" to ta sama informacja dwa razy.
-        return $ile.', '.Czas::data($wpis->published_at, 'j F');
+        return $ile.', '.Czas::data($chwila, 'j F');
     }
 }
