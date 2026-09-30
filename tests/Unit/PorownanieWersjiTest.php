@@ -93,6 +93,24 @@ final class PorownanieWersjiTest extends TestCase
 
         $this->assertSame([], $wynik['pola']);
         $this->assertSame(['Adres strony, z której pochodzi przepis'], $wynik['bezDanych']);
+        // #2240: pole z wartością tylko po jednej stronie to porównanie
+        // niepełne, nie „brak zmian".
+        $this->assertFalse($wynik['brakZmian'], 'Niepełne porównanie oznaczone jako „brak zmian”.');
+        $this->assertTrue($wynik['bezWykrytychZmian']);
+    }
+
+    public function test_brak_klucza_bez_wartosci_po_drugiej_stronie_nie_psuje_braku_zmian(): void
+    {
+        // Kontrola dodatnia #2240: klucza brakuje, ale po drugiej stronie też
+        // nic nie ma — nie ma czego nie wiedzieć, więc to dalej „brak zmian".
+        $stara = ['title' => 'Rosół'];
+        $nowa = ['title' => 'Rosół', 'source_url' => null];
+
+        $wynik = PorownanieWersji::porownaj($stara, $nowa);
+
+        $this->assertSame([], $wynik['bezDanych']);
+        $this->assertTrue($wynik['brakZmian']);
+        $this->assertFalse($wynik['bezWykrytychZmian']);
     }
 
     public function test_pole_dodane_i_usuniete_ma_wlasny_rodzaj(): void
