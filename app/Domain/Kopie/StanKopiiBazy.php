@@ -55,6 +55,27 @@ final class StanKopiiBazy
     public const AKTUALNA = 'aktualna';
 
     /**
+     * Najnowsza kopia ma w nazwie datę PÓŹNIEJSZĄ niż teraz (issue #2259).
+     *
+     * To nie jest „bardzo świeża kopia", tylko nazwa, której nie da się
+     * wierzyć: zegar serwisu kopii chodzi źle albo znacznik zapisano w czasie
+     * lokalnym zamiast UTC. Taki plik sortuje się jako najnowszy, więc
+     * zasłania prawdziwy wiek kopii — gdyby serwis potem przestał chodzić,
+     * czujka widziałaby „świeżą" kopię aż do dnia z nazwy. Dlatego to jest
+     * alarm, a nie `AKTUALNA`.
+     */
+    public const Z_PRZYSZLOSCI = 'z-przyszlosci';
+
+    /**
+     * O ile znacznik w nazwie może wyprzedzać zegar aplikacji, zanim uznamy
+     * go za datę z przyszłości. Zegary dwóch kontenerów Railway rozjeżdżają
+     * się o sekundy; pięć minut z zapasem wchłania taki rozjazd przy ręcznym
+     * sprawdzeniu tuż po zrzucie, a łapie typowy błąd — czas lokalny zamiast
+     * UTC, czyli +1 h albo +2 h.
+     */
+    public const TOLERANCJA_ZEGARA_SEKUND = 300;
+
+    /**
      * @return array{stan: string, wiek_godzin: int|null, liczba: int, prog_godzin: int}
      */
     public function sprawdz(?Carbon $teraz = null): array
@@ -108,7 +129,22 @@ final class StanKopiiBazy
             return ['stan' => self::BRAK_KOPII, 'wiek_godzin' => null, 'liczba' => count($kopie), 'prog_godzin' => $prog];
         }
 
-        $wiek = (int) $czas->diffInHours($teraz, absolute: true);
+        // BEZ `absolute: true`. Wartość bezwzględna robiła z daty z przyszłości
+        // „kopię sprzed kilku godzin", czyli stan AKTUALNA — fałszywy spokój
+        // dokładnie tego rodzaju, przed którym ta klasa ma chronić (#2259).
+        if ($czas->greaterThan($teraz->copy()->addSeconds(self::TOLERANCJA_ZEGARA_SEKUND))) {
+            return [
+                'stan' => self::Z_PRZYSZLOSCI,
+                // Wiek UJEMNY: o ile pełnych godzin nazwa wyprzedza teraz
+                // (0 = mniej niż godzinę do przodu).
+                'wiek_godzin' => (int) $czas->diffInHours($teraz),
+                'liczba' => count($kopie),
+                'prog_godzin' => $prog,
+            ];
+        }
+
+        // Kopia w granicy tolerancji zegara liczy się jako świeża, z wiekiem 0 h.
+        $wiek = max(0, (int) $czas->diffInHours($teraz));
 
         return [
             'stan' => $wiek > $prog ? self::PRZESTARZALA : self::AKTUALNA,

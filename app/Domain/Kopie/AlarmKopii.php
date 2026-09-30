@@ -45,6 +45,7 @@ final class AlarmKopii
         StanKopiiBazy::BRAK_KOPII,
         StanKopiiBazy::PRZESTARZALA,
         StanKopiiBazy::NIEDOSTEPNY,
+        StanKopiiBazy::Z_PRZYSZLOSCI,
     ];
 
     /**
@@ -96,8 +97,23 @@ final class AlarmKopii
                 $prog,
             ),
             StanKopiiBazy::NIEDOSTEPNY => 'Nie udało się odpytać bucketu z kopiami bazy.',
+            StanKopiiBazy::Z_PRZYSZLOSCI => self::trescZPrzyszlosci((int) $wynik['wiek_godzin']),
             default => 'Nieznany stan kopii bazy.',
         };
+
+        // Data z przyszłości to NIE „serwis przestał chodzić" (#2259) — ma
+        // własne „co zrobić", a zdanie o niedziałającym serwisie wysłałoby
+        // właściciela w złe miejsce.
+        $coZrobic = $wynik['stan'] === StanKopiiBazy::Z_PRZYSZLOSCI
+            ? [
+                'Taka nazwa zasłania prawdziwy wiek kopii, więc czujka nie widzi, czy kopie nadal powstają.',
+                'Sprawdź zegar i strefę czasową serwisu `kopia-bazy` (znacznik w nazwie musi być w UTC),',
+                'a plikowi z błędną datą nadaj nazwę z prawdziwą datą zrzutu w UTC (podpowie ją data wgrania obiektu do bucketu).',
+            ]
+            : [
+                'To znaczy, że serwis `kopia-bazy` prawdopodobnie przestał chodzić —',
+                'sprawdź jego ostatnie uruchomienie w Railway (Deployments → Cron).',
+            ];
 
         // BEZ NAGŁÓWKA `[nazwa/środowisko]`. Dokleja go sam kanał
         // (`WebhookBleduHandler::tresc()`), więc wpisany tutaj drugi raz
@@ -106,9 +122,23 @@ final class AlarmKopii
         return implode(' ', [
             'kopia bazy:',
             $co,
-            'To znaczy, że serwis `kopia-bazy` prawdopodobnie przestał chodzić —',
-            'sprawdź jego ostatnie uruchomienie w Railway (Deployments → Cron).',
+            ...$coZrobic,
             'Procedura: docs/infra/KOPIE_I_ODTWORZENIE.md sekcja 7.',
         ]);
+    }
+
+    /**
+     * Wspólne z komendą `kuking:sprawdz-kopie`, żeby konsola i webhook
+     * mówiły o dacie z przyszłości tym samym zdaniem.
+     *
+     * @param  int  $wiekGodzin  ujemny albo zero — patrz `StanKopiiBazy::Z_PRZYSZLOSCI`
+     */
+    public static function trescZPrzyszlosci(int $wiekGodzin): string
+    {
+        $godzin = abs($wiekGodzin);
+
+        return $godzin === 0
+            ? 'Najnowsza kopia bazy ma w nazwie datę z przyszłości (mniej niż godzinę do przodu).'
+            : sprintf('Najnowsza kopia bazy ma w nazwie datę z przyszłości (%d h do przodu).', $godzin);
     }
 }
