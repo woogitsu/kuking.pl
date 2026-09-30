@@ -303,6 +303,8 @@ OCZEKUJ = {
         r'|matches PCRE pattern "~data-minutniki-koniec>Ugotowałam</a>~u"'
         r'|contains "Halina ugotowała Twój przepis'
         r'|contains "Kuking\.pl - pokaż, co dziś ugotowałaś\."'
+        # #1753 etap 2: przycisk „Ugotowałam” na stronie przepisu i w formularzu.
+        r'|matches PCRE pattern "~href="\[\^"\]\*/ugotowalem\[\^"\]\*">Ugotowałam</a>~u"'
     ),
     'Wariant neutralny helpera z rodzajem': r'wariant neutralny z rodzajem|contains "Możesz od razu pokazać, co dziś gotujesz"',
     'Goły rodzaj obok wywołania helpera': r'Tekst przypisuje czytelnikowi płeć:.*ugotowałaś',
