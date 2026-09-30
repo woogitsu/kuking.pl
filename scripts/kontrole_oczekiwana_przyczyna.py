@@ -331,6 +331,13 @@ OCZEKUJ = {
     # #2223 (D-333): tinker poza obrazem produkcyjnym.
     'Tinker wraca do require': r'laravel/tinker wrócił do `require`',
     'Runbook znów każe użyć tinkera': r'MONITORING_BLEDOW\.md każe użyć `php artisan tinker`',
+    # #599: poczta jako drugi kanał alarmowy (wzorce zebrane przy scalaniu paczki K,
+    # ręcznie na bazie stanowiska — gałąź #599 dodała wpisy bez wzorców).
+    'List alarmowy bez znacznika rezerwacji': r"Znacznik ListZarezerwowany ma klasa spoza rejestru.*'app/Mail/AlarmOperacyjny\.php'",
+    'Poczta wypada z kanałów alarmowych': r'\[App\\Mail\\AlarmOperacyjny\] mailable was not sent|The total number of mailables sent was 0 instead of [12]\.|KanalAlarmowyMailemTest\.php:161|- \'blad_email\' => false|Output does not contain "poczta \(KUKING_ALARM_EMAIL\) PRZYJĄŁ"|Expected status code [01] but received [01]\.',
+    'Awaria poczty przewraca raport i zabiera Discord': Wyjatek(r'TransportException: niedostępny'),
+    'List alarmowy bez dobowego sufitu': r'The total number of mailables sent was 3 instead of 2\.',
+    'List alarmowy niesie komunikat wyjątku': r'does not contain "ktos@example\.com"|\[App\\Mail\\AlarmOperacyjny\] mailable was not sent',
     # Audyt infra 30.09.2026 (#2293, #2296, #2298, #2301, #2302).
     'Kolejka traci proc_open (#2293)': r'równa liście z docker/php\.ini minus proc_open|Proces kolejki z produkcyjnym php\.ini nie ma proc_open',
     'queue:work bez listy funkcji kolejki (#2293)': r'queue:work nie dostaje listy funkcji bez proc_open',
