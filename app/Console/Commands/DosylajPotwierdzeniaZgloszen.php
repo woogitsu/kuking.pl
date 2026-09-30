@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Domain\Moderation\Actions\NotifyReporterReceipt;
 use App\Domain\Moderation\Actions\ZglosNielegalnaTresc;
+use App\Domain\Moderation\AlarmSufituPotwierdzen;
 use App\Models\Report;
 use App\Models\User;
 use App\Notifications\PotwierdzenieZgloszeniaNielegalnejTresci;
@@ -118,7 +119,7 @@ class DosylajPotwierdzeniaZgloszen extends Command
 
     private const PAMIEC_PORAZEK_DNI = 30;
 
-    public function handle(NotifyReporterReceipt $potwierdzenie, ZglosNielegalnaTresc $zgloszeniePrawne): int
+    public function handle(NotifyReporterReceipt $potwierdzenie, ZglosNielegalnaTresc $zgloszeniePrawne, AlarmSufituPotwierdzen $alarmSufitu): int
     {
         $ile = max(1, (int) $this->option('ile'));
         $naSucho = (bool) $this->option('na-sucho');
@@ -141,6 +142,20 @@ class DosylajPotwierdzeniaZgloszen extends Command
         $wszystkich = $this->zalegle()->count();
 
         $this->info("Zaległych potwierdzeń w bazie: {$wszystkich}.");
+
+        // SUFIT PRÓB MUSI DOJŚĆ DO CZŁOWIEKA (#2218). Liczone po WSZYSTKICH
+        // zaległościach, nie po partii `--ile`, i przed każdym wcześniejszym
+        // wyjściem — pusta kolejka też jest wynikiem (odwołanie alarmu).
+        // Kod wyjścia zostaje 0: uzasadnienie w `AlarmSufituPotwierdzen`.
+        $naSuficie = $this->naSuficie();
+
+        if ($naSuficie !== []) {
+            $this->warn('Spraw na suficie prób listu (dosyłka ich nie ponawia, alarm do operatora): '.count($naSuficie).'.');
+        }
+
+        if (! $naSucho) {
+            $alarmSufitu->zglos($naSuficie);
+        }
 
         if ($zalegle->isEmpty()) {
             return self::SUCCESS;
@@ -239,6 +254,25 @@ class DosylajPotwierdzeniaZgloszen extends Command
         }
 
         Cache::put(self::KLUCZ_PORAZEK, $porazki, now()->addDays(self::PAMIEC_PORAZEK_DNI));
+    }
+
+    /**
+     * Numery zaległych spraw (zgłoszenia prawne bez konta), przy których
+     * dosyłka przestała ponawiać list, bo osiągnęły sufit porażek (D-333).
+     *
+     * @return list<string>
+     */
+    private function naSuficie(): array
+    {
+        $numery = [];
+
+        foreach ($this->zalegle()->whereNull('reporter_id')->orderBy('created_at')->get(['id', 'numer_sprawy']) as $sprawa) {
+            if (PotwierdzenieZgloszeniaNielegalnejTresci::ponawianieWstrzymane((string) $sprawa->getKey())) {
+                $numery[] = (string) ($sprawa->numer_sprawy ?? $sprawa->getKey());
+            }
+        }
+
+        return $numery;
     }
 
     /**
