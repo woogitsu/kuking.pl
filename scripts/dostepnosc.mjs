@@ -471,6 +471,10 @@ const EKRANY = [
   // i „Pobierz” oraz najstarsza wersja z ramką „już nie obowiązuje”.
   { nazwa: 'regulamin — wszystkie wersje', adres: '/regulamin/wersje' },
   { nazwa: 'regulamin — wersja z 7 września 2026', adres: '/regulamin/wersje/2026-09-07' },
+  // Wszystkie wersje polityki prywatności (#2220): lista z ramką „starsze
+  // wydajemy na prośbę” i najstarsza wersja w archiwum.
+  { nazwa: 'polityka prywatności — wszystkie wersje', adres: '/prywatnosc/wersje' },
+  { nazwa: 'polityka prywatności — wersja z 25 września 2026', adres: '/prywatnosc/wersje/2026-09-25' },
   { nazwa: 'zasady', adres: '/zasady' },
   // „Co nowego” pod numerem wersji w stopce (issue #1909) — długa strona
   // z nagłówkami wydań i spisem treści prowadzącym do kotwic, ten sam

@@ -40,6 +40,13 @@ z datą — każdą można przeczytać i pobrać. Przy zakładaniu konta zapisuj
 datę wersji, którą akceptujecie, więc zawsze da się sprawdzić, jak regulamin
 wtedy brzmiał.
 
+### Wszystkie wersje polityki prywatności
+
+Polityka prywatności ma teraz takie same dwa przyciski jak regulamin:
+„Pobierz politykę” i „Wszystkie wersje polityki”. Na liście są wersje
+od 25 września 2026 — każdą można przeczytać i pobrać. Jeśli potrzebujecie
+wcześniejszego brzmienia, napiszcie do nas, a wyślemy je.
+
 ### „Nie licz mnie w statystykach”
 
 W ustawieniach, w części „Prywatność”, jest nowy przycisk „Nie licz mnie

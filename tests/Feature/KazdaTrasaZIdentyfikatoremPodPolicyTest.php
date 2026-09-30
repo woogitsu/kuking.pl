@@ -123,6 +123,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         'collections.link.decline' => 'Jak collections.link.show: {token} to jednorazowe poświadczenie linku-zaproszenia, nie identyfikator obiektu.',
         'terms.version' => 'Parametr {data} to data wersji regulaminu (RRRR-MM-DD) — nazwa pliku z repozytorium (`resources/legal/archiwum/`), publicznego jak `/regulamin`; nie wskazuje niczyjego zasobu ani danych (#2220).',
         'terms.version.download' => 'Jak terms.version: {data} to data publicznej wersji regulaminu, plik z repozytorium, bez danych osobowych (#2220).',
+        'privacy.version' => 'Parametr {data} to data wersji polityki prywatności (RRRR-MM-DD) — nazwa pliku z repozytorium (`resources/legal/archiwum/`), publicznego jak `/prywatnosc`; nie wskazuje niczyjego zasobu ani danych (#2220).',
+        'privacy.version.download' => 'Jak privacy.version: {data} to data publicznej wersji polityki prywatności, plik z repozytorium, bez danych osobowych (#2220).',
     ];
 
     /**
