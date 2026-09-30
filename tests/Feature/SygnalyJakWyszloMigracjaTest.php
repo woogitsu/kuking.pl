@@ -70,8 +70,11 @@ final class SygnalyJakWyszloMigracjaTest extends TestCase
     /** @return list<string> */
     private function nazwyCheckow(): array
     {
+        // Tylko CHECK (contype = 'c'): PostgreSQL 18 zapisuje w pg_constraint także
+        // NOT NULL jako `…_not_null` (contype = 'n'), a PG16 nie — bez filtra test
+        // przechodził lokalnie i oblewał w CI.
         return array_map(fn (object $w): string => $w->conname, DB::select(
-            "SELECT conname FROM pg_constraint WHERE conrelid = 'product_signals'::regclass AND conname LIKE 'product_signals_signal_name%' ORDER BY conname",
+            "SELECT conname FROM pg_constraint WHERE conrelid = 'product_signals'::regclass AND contype = 'c' AND conname LIKE 'product_signals_signal_name%' ORDER BY conname",
         ));
     }
 }
