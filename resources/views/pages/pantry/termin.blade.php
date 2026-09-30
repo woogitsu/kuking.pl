@@ -118,7 +118,7 @@
             @endif
         </div>
 
-        <x-field name="ilosc" label="Ilość" :value="$produkt->quantity_note" autocomplete="off"
+        <x-field name="ilosc" label="Ilość" :value="$poBledzie ? old('ilosc') : $produkt->quantity_note" autocomplete="off"
                  help="Nie trzeba. Wpisz słowami, na przykład „pół kostki” albo „1 litr”. Najwyżej 40 znaków." />
 
         <div class="field">

@@ -233,6 +233,67 @@ class TerminProduktuTest extends TestCase
         $this->actingAs($ja)->get(route('pantry.index'))->assertSee('Termin minął 9 dni temu.');
     }
 
+    /**
+     * #2365: po błędzie w sąsiednim polu wpisana ilość nie znika — także wtedy,
+     * gdy zapisana wcześniej ilość jest inna (widać ją dopiero przy pierwszym
+     * wyświetleniu), a wyczyszczenie pola też jest zapamiętane.
+     */
+    public function test_wpisana_ilosc_wraca_po_bledzie_a_pierwsze_wyswietlenie_pokazuje_zapisana(): void
+    {
+        $ja = $this->user();
+        $produkt = $this->produkt($ja);
+        $this->wyslij($ja, $produkt, ['ilosc' => '1 litr'])->assertSessionHasNoErrors();
+
+        // Pierwsze wyświetlenie: zapisana wartość.
+        $this->actingAs($ja)->get(route('pantry.edit', $produkt))->assertOk()
+            ->assertSee('value="1 litr"', false);
+
+        // Poprawna, NOWA ilość + błędna data: po błędzie widać to, co wpisano, a nie zapisane „1 litr”.
+        $dane = [
+            '_formularz' => 'termin', 'rodzaj' => 'use_by', 'termin_dzien' => '31', 'termin_miesiac' => '2',
+            'termin_rok' => '2027', 'ilosc' => '2 litry',
+        ];
+        $strona = $this->actingAs($ja)->followingRedirects()->from(route('pantry.edit', $produkt))
+            ->put(route('pantry.update', $produkt), $dane);
+        $strona->assertOk()->assertSee('W tym miesiącu nie ma takiego dnia.')->assertSee('value="2 litry"', false);
+        $this->assertStringNotContainsString('value="1 litr"', $strona->getContent());
+        $this->assertSame('1 litr', $produkt->fresh()->quantity_note, 'Nieudany zapis niczego nie zmienia.');
+
+        // Wyczyszczona ilość + błąd: pole zostaje puste, stara wartość nie wraca.
+        $strona = $this->actingAs($ja)->followingRedirects()->from(route('pantry.edit', $produkt))
+            ->put(route('pantry.update', $produkt), [...$dane, 'ilosc' => '']);
+        $strona->assertOk()->assertSee('W tym miesiącu nie ma takiego dnia.');
+        $this->assertStringNotContainsString('value="1 litr"', $strona->getContent());
+        $this->assertMatchesRegularExpression('/name="ilosc"[^>]*value=""|value=""[^>]*name="ilosc"|name="ilosc"(?![^>]*value=)/', $strona->getContent());
+    }
+
+    public function test_pozostale_pola_formularza_tez_wracaja_po_bledzie_a_pierwsze_wyswietlenie_pokazuje_zapisane(): void
+    {
+        $ja = $this->user();
+        $produkt = $this->produkt($ja);
+        $this->wyslij($ja, $produkt, ['rodzaj' => 'best_before', 'termin_dzien' => '5', 'termin_miesiac' => '11', 'termin_rok' => '2026', 'mrozone' => '1']);
+
+        // Pierwsze wyświetlenie: zapisany stan.
+        $html = $this->actingAs($ja)->get(route('pantry.edit', $produkt))->getContent();
+        $this->assertMatchesRegularExpression('/<option value="5"\s+selected/', $html);
+        $this->assertMatchesRegularExpression('/<option value="11"\s+selected/', $html);
+        $this->assertMatchesRegularExpression('/value="best_before"\s+checked/', $html);
+        $this->assertMatchesRegularExpression('/name="mrozone"[^>]*checked/', $html);
+
+        // Po błędzie: to, co wpisano (inny rodzaj, inna data, odznaczone „mrożone”), a nie zapisane.
+        $strona = $this->actingAs($ja)->followingRedirects()->from(route('pantry.edit', $produkt))->put(route('pantry.update', $produkt), [
+            '_formularz' => 'termin', 'rodzaj' => 'use_by', 'termin_dzien' => '31', 'termin_miesiac' => '4',
+            'termin_rok' => '2027', 'ilosc' => str_repeat('a', 41),
+        ]);
+        $html = $strona->getContent();
+        $this->assertMatchesRegularExpression('/<option value="31"\s+selected/', $html);
+        $this->assertMatchesRegularExpression('/<option value="4"\s+selected/', $html);
+        $this->assertMatchesRegularExpression('/value="use_by"\s+checked/', $html);
+        $this->assertDoesNotMatchRegularExpression('/value="best_before"\s+checked/', $html);
+        $this->assertDoesNotMatchRegularExpression('/name="mrozone"[^>]*checked/', $html);
+        $this->assertStringContainsString('Skróć opis ilości do 40 znaków', $html);
+    }
+
     public function test_ilosc_dluzsza_niz_40_znakow_dostaje_blad_po_polsku(): void
     {
         $ja = $this->user();

@@ -98,6 +98,27 @@ class CoUgotujeNajpierwTerminTest extends TestCase
         $this->assertSame([$pilny->title], $wynik['przepisy']->pluck('title')->all());
     }
 
+    /**
+     * Mrożony produkt z terminem sprzed miesiąca nie liczy się jako pilny ani w
+     * kolejności (`pilnych_pasuje`), ani w zdaniu „Zużyjesz”, nawet gdy stoi w tym
+     * samym przepisie co produkt pilny.
+     */
+    public function test_mrozony_produkt_w_tym_samym_przepisie_nie_podbija_liczby_pilnych_ani_zdania(): void
+    {
+        $ja = $this->user();
+        $this->lista($ja, ['mleko' => '2026-10-11', 'szynka' => '2026-10-11', 'kurczak' => '2026-09-10']);
+        $ja->pantryItems()->where('name', 'kurczak')->update(['frozen' => true]);
+
+        // A: jeden pilny + mrożony, brakuje 0; B: dwa pilne, brakuje 1. Poprawnie: B przed A.
+        $a = $this->przepis('Rosół na mleku', ['mleko', 'kurczak']);
+        $b = $this->przepis('Zapiekanka z szynką', ['mleko', 'szynka', 'sól morska']);
+
+        $wynik = app(CoUgotuje::class)->dla($ja, 0, 20, true);
+
+        $this->assertSame([$b->title, $a->title], $wynik['przepisy']->pluck('title')->all());
+        $this->assertSame([['nazwa' => 'mleko', 'termin' => '2026-10-11']], $wynik['do_zuzycia'][$a->getKey()]);
+    }
+
     public function test_termin_ktory_minal_tez_jest_pilny(): void
     {
         $ja = $this->user();

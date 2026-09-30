@@ -2766,8 +2766,12 @@ przechodzi. Test: `tests/Feature/CofniecieMigracjiUrodzinTest.php`.
   do `dziennik_zgod` z celem `przypomnienie_spizarni` (D-072); brak zmiany =
   brak wiersza. Poza `$fillable`. `EraseAccountData` ustawia `false`.
 - **Deduplikacja bez kolumny na `users`:** `PrzypomnienieDobowe::zarezerwuj(
-  'przypomnienie-spizarni', adres)` (tabela `przypomnienia_dobowe`: skrót adresu
-  i doba UTC, retencja 30 dni) przed `Mail::queue()`; dzień tygodnia pilnuje
+  'przypomnienie-spizarni', adres, dzień)` (tabela `przypomnienia_dobowe`: skrót
+  adresu i doba, retencja 30 dni) przed `Mail::queue()`. **Doba to dzień
+  w Polsce** (`Czas::dzisiajData()`, Europe/Warsaw), nie data UTC — polska
+  sobota obejmuje dwie daty UTC, a klucz z UTC dopuszczał dwa listy w jednej
+  sobocie (#2364); `PrzypomnienieDobowe` bez podanej doby liczy UTC jak dawniej
+  (`PilnujTerminowOdwolan`). Dzień tygodnia pilnuje
   sama komenda `kuking:wyslij-przypomnienia-spizarni` (tylko sobota w
   `Europe/Warsaw`), harmonogram `weeklyOn(6, '09:00')` UTC.
 - **Indeks częściowy `users_wants_pantry_reminder_idx`** (`ON users (id)

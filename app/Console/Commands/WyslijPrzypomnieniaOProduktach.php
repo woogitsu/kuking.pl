@@ -31,8 +31,10 @@ use Throwable;
  *      i wspólna pula w klasie, która gaśnie pierwsza. Brak miejsca = list nie
  *      wychodzi dziś, a komenda mówi, ile osób zostało — nic nie znika po cichu.
  *   4. Deduplikacja w BAZIE: `PrzypomnienieDobowe::zarezerwuj()` zajmuje
- *      „jeden list na dobę na adres” PRZED `Mail::queue()`. Ponowiony przebieg
- *      tego samego dnia nie wyśle drugiego listu.
+ *      „jeden list na dobę na adres” PRZED `Mail::queue()`. Doba to DZIEŃ
+ *      W POLSCE (`Czas::dzisiajData()`), nie data UTC: polska sobota obejmuje
+ *      dwie daty UTC, więc klucz z UTC dopuszczał dwa listy (#2364). Ponowiony
+ *      przebieg tego samego dnia nie wyśle drugiego listu.
  *
  * JEDEN LIST TYGODNIOWO: komenda wychodzi tylko w sobotę (w strefie
  * Europe/Warsaw); harmonogram w `routes/console.php` odpala ją raz w tygodniu.
@@ -73,6 +75,9 @@ class WyslijPrzypomnieniaOProduktach extends Command
             return self::SUCCESS;
         }
 
+        // Doba deduplikacji to DZIEŃ W POLSCE (nie UTC): reguła brzmi „jeden list
+        // na polską sobotę”, a ta obejmuje dwie daty UTC (#2364).
+        $doba = Czas::dzisiajData();
         $budzet = DziennyBudzetListow::dlaPrzypomnienSpizarni();
         $wyslano = 0;
         $bezMiejsca = 0;
@@ -92,7 +97,7 @@ class WyslijPrzypomnieniaOProduktach extends Command
                 continue;
             }
 
-            if (! $dedup->zarezerwuj(self::RODZAJ, (string) $osoba->email)) {
+            if (! $dedup->zarezerwuj(self::RODZAJ, (string) $osoba->email, $doba)) {
                 $budzet->zwolnij();
                 $juzObsluzeni++;
 
@@ -109,7 +114,7 @@ class WyslijPrzypomnieniaOProduktach extends Command
                 // ZAKOLEJKOWANIE PADŁO — rezerwacja dnia i miejsce w budżecie
                 // wracają: żaden list nie trafił do `jobs`, więc kolejny
                 // przebieg tego samego dnia ma prawo spróbować.
-                $dedup->zwolnij(self::RODZAJ, (string) $osoba->email);
+                $dedup->zwolnij(self::RODZAJ, (string) $osoba->email, $doba);
                 $budzet->zwolnij();
                 $bledyKolejkowania++;
 

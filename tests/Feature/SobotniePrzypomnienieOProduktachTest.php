@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Notifications\PrzypomnienieDobowe;
 use App\Domain\Pantry\OdnosnikWypisaniaZPrzypomnienia;
 use App\Domain\Pantry\PriorytetZuzycia;
 use App\Domain\Zgody\PrzestawZgodeNaPrzypomnienieSpizarni;
 use App\Mail\PrzypomnienieOProduktach;
 use App\Models\User;
 use App\Models\WpisZgody;
-use Illuminate\Contracts\Mail\Factory as MailFactory;
+use App\Support\Czas;
+use Illuminate\Contracts\Mail\Mailer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
@@ -18,6 +20,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -171,6 +174,81 @@ class SobotniePrzypomnienieOProduktachTest extends TestCase
 
         Mail::assertQueued(PrzypomnienieOProduktach::class, 1);
         $this->assertStringContainsString('już obsłużone dziś: 1', $wynik);
+    }
+
+    /**
+     * #2364: klucz deduplikacji to DZIEŃ W POLSCE, nie data UTC. Polska sobota
+     * obejmuje dwie daty UTC (piątek po 22:00/23:00 i sobotę), więc klucz z UTC
+     * pozwalał na dwa listy: jeden tuż po polskiej północy, drugi z harmonogramu.
+     *
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function granicePolskiejSoboty(): array
+    {
+        return [
+            'lato: sobota 00:30 czasu polskiego jest jeszcze w piątek UTC' => ['2026-10-09 22:30:00', '2026-10-10 09:00:00'],
+            'zima: sobota 00:30 czasu polskiego jest jeszcze w piątek UTC' => ['2027-01-08 23:30:00', '2027-01-09 10:00:00'],
+            'sobota przed zmianą czasu jesienią' => ['2026-10-23 22:30:00', '2026-10-24 09:00:00'],
+            'sobota przed zmianą czasu wiosną' => ['2026-03-27 23:30:00', '2026-03-28 09:00:00'],
+            'sobota od rana do 23:59 w jednej dacie UTC' => ['2026-10-10 06:00:00', '2026-10-10 21:59:00'],
+        ];
+    }
+
+    #[DataProvider('granicePolskiejSoboty')]
+    public function test_jedna_polska_sobota_to_jeden_list_mimo_dwoch_dat_utc(string $pierwszy, string $drugi): void
+    {
+        $this->travelTo(Carbon::parse($pierwszy, 'UTC'));
+        $basia = $this->osoba('basia', termin: null);
+        $this->produkt($basia, 'mleko', Carbon::parse($pierwszy, 'UTC')->addDays(2)->toDateString());
+
+        $this->wyslij();
+        Mail::assertQueued(PrzypomnienieOProduktach::class, 1);
+
+        $this->travelTo(Carbon::parse($drugi, 'UTC'));
+        $wynik = $this->wyslij();
+
+        Mail::assertQueued(PrzypomnienieOProduktach::class, 1);
+        $this->assertStringContainsString('już obsłużone dziś: 1', $wynik);
+        // Jeden wiersz deduplikacji, z datą polską — nie dwa z różnymi datami UTC.
+        $this->assertSame(1, DB::table('przypomnienia_dobowe')->where('rodzaj', 'przypomnienie-spizarni')->count());
+        $this->assertSame(
+            Czas::lokalnie(Carbon::parse($pierwszy, 'UTC'))->toDateString(),
+            (string) DB::table('przypomnienia_dobowe')->where('rodzaj', 'przypomnienie-spizarni')->value('doba'),
+        );
+    }
+
+    public function test_kolejna_sobota_w_polsce_to_nowa_doba_i_nowy_list(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-09 22:30:00', 'UTC'));
+        $basia = $this->osoba('basia', termin: null);
+        $this->produkt($basia, 'mleko', '2026-10-12');
+
+        $this->wyslij();
+        $this->travelTo(Carbon::parse('2026-10-16 22:30:00', 'UTC')); // sobota 17.10, 00:30
+        $this->wyslij();
+
+        Mail::assertQueued(PrzypomnienieOProduktach::class, 2);
+    }
+
+    public function test_przypomnienie_dobowe_bez_podanej_doby_liczy_utc_jak_dawniej_a_z_podana_uzywa_jej(): void
+    {
+        $dedup = app(PrzypomnienieDobowe::class);
+        $this->travelTo(Carbon::parse('2026-10-09 22:30:00', 'UTC'));
+
+        // Bez doby: data UTC (piątek) — zachowanie innych użytkowników klasy bez zmian.
+        $this->assertTrue($dedup->zarezerwuj('inny-rodzaj', 'ktos@example.com'));
+        $this->assertFalse($dedup->zarezerwuj('inny-rodzaj', 'ktos@example.com'));
+        $this->assertSame('2026-10-09', (string) DB::table('przypomnienia_dobowe')->where('rodzaj', 'inny-rodzaj')->value('doba'));
+
+        // Z dobą polską (sobota): osobny klucz, a zwolnienie dotyczy tej samej doby.
+        $this->assertTrue($dedup->zarezerwuj('inny-rodzaj', 'ktos@example.com', '2026-10-10'));
+        $this->assertFalse($dedup->zarezerwuj('inny-rodzaj', 'ktos@example.com', '2026-10-10'));
+        $dedup->zwolnij('inny-rodzaj', 'ktos@example.com', '2026-10-10');
+        $this->assertTrue($dedup->zarezerwuj('inny-rodzaj', 'ktos@example.com', '2026-10-10'));
+        $this->assertFalse($dedup->zarezerwuj('inny-rodzaj', 'ktos@example.com'), 'Zwolnienie polskiej doby nie zdjęło klucza UTC.');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $dedup->zarezerwuj('inny-rodzaj', 'ktos@example.com', 'jutro');
     }
 
     public function test_za_tydzien_list_wychodzi_znowu(): void
@@ -353,14 +431,31 @@ class SobotniePrzypomnienieOProduktachTest extends TestCase
     {
         $basia = $this->osoba('basia');
         $mail = new PrzypomnienieOProduktach($basia);
-        $mailer = app(MailFactory::class)->mailer();
 
+        // Kontrola dodatnia: zgoda jest i jest co wymienić — transport dostaje list.
+        $transport = \Mockery::mock(Mailer::class);
+        $transport->shouldReceive('send')->once()->andReturn(null);
+        $mail->send($transport);
+
+        // Zgoda wycofana między kolejką a wysyłką — transport nie jest dotykany.
         DB::table('users')->where('id', $basia->getKey())->update(['wants_pantry_reminder' => false]);
-        $this->assertNull($mail->send($mailer), 'Zgoda wycofana między kolejką a wysyłką.');
+        $zablokowany = \Mockery::mock(Mailer::class);
+        $zablokowany->shouldReceive('send')->never();
+        $this->assertNull((new PrzypomnienieOProduktach($basia))->send($zablokowany));
 
+        // Nie ma już czego wymieniać: pusty list nie wychodzi.
         DB::table('users')->where('id', $basia->getKey())->update(['wants_pantry_reminder' => true]);
         DB::table('pantry_items')->where('user_id', $basia->getKey())->delete();
-        $this->assertNull($mail->send($mailer), 'Nie ma już czego wymieniać: pusty list nie wychodzi.');
+        $pusty = \Mockery::mock(Mailer::class);
+        $pusty->shouldReceive('send')->never();
+        $this->assertNull((new PrzypomnienieOProduktach($basia))->send($pusty));
+
+        // Konto zamknięte albo adres niepotwierdzony — też nie.
+        $this->produkt($basia, 'mleko', '2026-10-11');
+        DB::table('users')->where('id', $basia->getKey())->update(['email_verified_at' => null]);
+        $niepotwierdzony = \Mockery::mock(Mailer::class);
+        $niepotwierdzony->shouldReceive('send')->never();
+        $this->assertNull((new PrzypomnienieOProduktach($basia))->send($niepotwierdzony));
     }
 
     public function test_granica_pilnych_w_liscie_to_ta_sama_regula_co_na_ekranie(): void
