@@ -37,7 +37,7 @@
     <p class="mb-5">
         Ten formularz jest dla każdego — nie musisz mieć konta w Kuking.
         Jeśli widzisz tu treść, która Twoim zdaniem łamie prawo, opisz nam ją.
-        Sprawdzimy zgłoszenie i odpiszemy Ci z decyzją.
+        Sprawdzimy zgłoszenie. Jeśli podasz adres e-mail, wyślemy potwierdzenie i decyzję.
     </p>
 
     <div class="ramka-pomocnicza mb-5">
@@ -111,6 +111,11 @@
                  help="Napisz własnymi słowami. Nie musisz znać numerów przepisów — wystarczy, żebyśmy zrozumieli, na czym polega problem i czego dotyczy." />
 
         <h2>Jak się z Tobą skontaktować</h2>
+        <p>
+            Kontakt jest dobrowolny. Jeśli podasz adres e-mail, wyślemy na niego potwierdzenie
+            i decyzję. Bez adresu też sprawdzimy zgłoszenie, ale nie wyślemy żadnej odpowiedzi
+            — numer sprawy zobaczysz wtedy tylko na ekranie po wysłaniu.
+        </p>
 
         <x-field name="notifier_name" label="Imię i nazwisko albo nazwa instytucji"
                  :value="old('notifier_name')"
@@ -118,7 +123,7 @@
 
         <x-field name="notifier_email" label="Adres e-mail" type="email"
                  :value="old('notifier_email')"
-                 help="Wyślemy tu potwierdzenie odbioru, a potem naszą decyzję. Możesz zostawić puste — wtedy nie damy znać, co ustaliliśmy." />
+                 help="Wyślemy tu potwierdzenie odbioru, a potem naszą decyzję. Możesz zostawić puste — wtedy zgłoszenie sprawdzimy, ale nie wyślemy żadnej odpowiedzi." />
 
         {{--
             Oświadczenie o dobrej wierze — art. 16 ust. 2 lit. d. Tekst jest
@@ -144,10 +149,12 @@
     <div class="ramka-pomocnicza mt-5">
         <h2 class="mt-0">Co się stanie dalej</h2>
         <ol class="lista-krokow">
-            <li>Dostaniesz e-mailem potwierdzenie z numerem sprawy — jeśli podasz adres.</li>
+            <li>Zobaczysz numer sprawy na ekranie. Jeśli podasz adres e-mail, dostaniesz też
+                potwierdzenie z tym numerem.</li>
             <li>Człowiek z naszego zespołu przeczyta zgłoszenie i sprawdzi treść.</li>
-            <li>Napiszemy Ci, co postanowiliśmy — także wtedy, gdy uznamy, że treść zostaje.
-                W takim liście będzie powód i informacja, co możesz zrobić dalej.</li>
+            <li>Jeśli podasz adres e-mail, napiszemy, co postanowiliśmy — także wtedy, gdy uznamy,
+                że treść zostaje. W takim liście będzie powód i informacja, co możesz zrobić dalej.
+                Bez adresu nie wyślemy odpowiedzi.</li>
         </ol>
     </div>
 </x-layout>

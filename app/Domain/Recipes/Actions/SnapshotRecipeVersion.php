@@ -65,15 +65,17 @@ final class SnapshotRecipeVersion
      *
      * - treść równa ostatniej wersji → nic (drugie „Zapisz zmiany" bez zmian
      *   nie mnoży wersji);
-     * - inaczej → NOWA wersja z opisem `OPIS_POPRAWKI`.
+     * - inaczej → NOWA wersja z opisem `$opis` (domyślnie `OPIS_POPRAWKI`;
+     *   ponowną publikację istniejącego przepisu woła `PublishRecipe` z opisem
+     *   „Aktualizacja przepisu" — wersja identyczna z poprzednią nie powstaje, #2024).
      *
      * ISTNIEJĄCEJ WERSJI NIGDY NIE ZMIENIAMY (decyzja właściciela z 24.09.2026).
      * Wersja jest zamrożonym obrazem tego, co ktoś kiedyś widział i z czego
      * gotował — także wersja-poprawka tej samej osoby sprzed minuty.
      */
-    public function poprawka(Recipe $recipe, User $editor): ?RecipeVersion
+    public function poprawka(Recipe $recipe, User $editor, string $opis = self::OPIS_POPRAWKI): ?RecipeVersion
     {
-        return DB::transaction(function () use ($recipe, $editor): ?RecipeVersion {
+        return DB::transaction(function () use ($recipe, $editor, $opis): ?RecipeVersion {
             // Ta sama blokada co w `handle()`: ostatnia wersja przeczytana
             // pod nią nie zmieni się, zanim ją porównamy.
             Recipe::query()->whereKey($recipe->getKey())->lockForUpdate()->first([$recipe->getKeyName()]);
@@ -92,7 +94,7 @@ final class SnapshotRecipeVersion
                 'recipe_id' => $recipe->getKey(),
                 'editor_id' => $editor->getKey(),
                 'version_number' => (int) $recipe->versions()->max('version_number') + 1,
-                'change_note' => self::OPIS_POPRAWKI,
+                'change_note' => $opis,
                 'snapshot' => $migawka,
             ]);
         });

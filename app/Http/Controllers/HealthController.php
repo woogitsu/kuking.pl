@@ -4,30 +4,32 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Domain\Media\ZalegleCzyszczeniaCdn;
 use App\Exceptions\KontrolaZdrowiaNieprzeszla;
-use App\Jobs\PurgePublicMediaCache;
 use App\Logging\BezpiecznyBlad;
 use App\Logging\KanalyAlarmowe;
-use App\Models\MailFailure;
-use App\Models\Report;
-use App\Poczta\PowodOdmowy;
-use App\Support\AnalitykaCloudflare;
-use App\Support\Facebook;
-use App\Support\Google;
-use App\Support\Odmiana;
-use App\Support\Poczta;
-use App\Support\Storage\DozwolonyHostR2;
-use App\Support\Turnstile;
-use Illuminate\Database\Migrations\Migrator;
+use App\Support\Zdrowie\Powody;
+use App\Support\Zdrowie\Sonda;
+use App\Support\Zdrowie\Sondy\SondaAnalityki;
+use App\Support\Zdrowie\Sondy\SondaBazy;
+use App\Support\Zdrowie\Sondy\SondaCiasteczkaSesji;
+use App\Support\Zdrowie\Sondy\SondaCzyszczeniaCdn;
+use App\Support\Zdrowie\Sondy\SondaFacebooka;
+use App\Support\Zdrowie\Sondy\SondaGoogle;
+use App\Support\Zdrowie\Sondy\SondaHostaMagazynu;
+use App\Support\Zdrowie\Sondy\SondaKolejki;
+use App\Support\Zdrowie\Sondy\SondaMagazynuZdjec;
+use App\Support\Zdrowie\Sondy\SondaMigracji;
+use App\Support\Zdrowie\Sondy\SondaNieudanychListow;
+use App\Support\Zdrowie\Sondy\SondaPilnychAlarmow;
+use App\Support\Zdrowie\Sondy\SondaPoczty;
+use App\Support\Zdrowie\Sondy\SondaTrybuDebug;
+use App\Support\Zdrowie\Sondy\SondaTurnstile;
+use App\Support\Zdrowie\Sondy\SondaZaleglychCzyszczenCdn;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -71,7 +73,7 @@ use Throwable;
  * Brak przycisku Google widać na `/login`; tego nie widać nigdzie i dlatego
  * ten sygnał jest tu potrzebny bardziej niż tamte. Uciszają go dwie uczciwe
  * czynności — wpisanie tokenu albo wykreślenie obietnicy z polityki —
- * i świadomie nie ma trzeciej (patrz `sprawdzAnalityke()`).
+ * i świadomie nie ma trzeciej (patrz `SondaAnalityki`).
  *
  * `poczta`, `kolejka` i `listy` są tu z tego samego, NIEKRYTYCZNEGO powodu
  * i pytają o trzy RÓŻNE rzeczy — kolejność jest od najwcześniejszej:
@@ -119,6 +121,14 @@ use Throwable;
  * zapytań po adresie (`limits.health`) i krótka pamięć udanej próbki
  * magazynu (`health.probka_magazynu_sekund`), żeby pętla `curl` nie
  * zamieniała się w zapisy do R2. Pilnuje tego `HealthSzczegolyTylkoZTokenemTest`.
+ *
+ * KONTROLER SKŁADA, SONDY MIERZĄ (issue #2212)
+ * Każda z szesnastu kontroli to osobna klasa z jednym kontraktem
+ * (`App\Support\Zdrowie\Sonda`, katalog `App\Support\Zdrowie\Sondy`), a kody
+ * powodów żyją w `App\Support\Zdrowie\Powody`. Tu zostaje to, co wspólne:
+ * limit zapytań, KOLEJNOŚĆ kluczy `checks`, kod HTTP, token, `check()`
+ * (awaria na kod, nigdy na komunikat) i webhook z odstępem. Kształt odpowiedzi
+ * zamraża `HealthKontraktOdpowiedziTest`.
  */
 class HealthController extends Controller
 {
@@ -129,219 +139,13 @@ class HealthController extends Controller
     private const KRYTYCZNE = ['database', 'migrations'];
 
     /**
-     * Zamknięty zbiór powodów, które WOLNO pokazać publicznie w polu `error`.
-     *
-     * Każdy z nich mówi operatorowi, gdzie szukać, i nie mówi nikomu innemu
-     * nic o infrastrukturze: żadnego hosta, portu, nazwy bazy, ścieżki na
-     * dysku ani kodu SQLSTATE. Reszta — z pełnym komunikatem wyjątku — idzie
-     * do logu pod tym samym kodem, więc jedno da się połączyć z drugim.
+     * Zamknięty zbiór powodów, które WOLNO pokazać publicznie w polu `error`
+     * (definicje i uzasadnienie: `App\Support\Zdrowie\Powody`).
      *
      * `HealthNieZdradzaSzczegolowTest` pilnuje, że w odpowiedzi nie pojawi
      * się nic spoza tego zbioru.
      */
-    public const POWODY = [
-        self::POWOD_BAZA,
-        self::POWOD_BRAK_MIGRACJI,
-        self::POWOD_ZDJECIA,
-        self::POWOD_ZAPIS_NIEMOZLIWY,
-        self::POWOD_ODCZYT_NIEZGODNY,
-        self::POWOD_BRAK_DROGI_PUBLICZNEJ,
-        self::POWOD_DROGA_GDZIE_INDZIEJ,
-        self::POWOD_TURNSTILE_BEZ_KLUCZY,
-        self::POWOD_GOOGLE_BEZ_KLUCZY,
-        self::POWOD_FACEBOOK_BEZ_KLUCZY,
-        self::POWOD_ANALITYKA_BEZ_TOKENU,
-        self::POWOD_POCZTA_NIE_WYSYLA,
-        self::POWOD_ZADANIA_NIEUDANE,
-        self::POWOD_CZYSZCZENIE_CDN_ZALEGLE,
-        self::POWOD_LISTY_PRZEPADAJA,
-        self::POWOD_LIMIT_POCZTY_WYCZERPANY,
-        self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY,
-        self::POWOD_CZYSZCZENIE_CDN_WYLACZONE,
-        self::POWOD_CZYSZCZENIE_CDN_ZLY_ADRES,
-        self::POWOD_PILNY_ALARM_NIE_DOTARL,
-        self::POWOD_KANAL_ALARMOWY_WYLACZONY,
-        self::POWOD_SLAD_ALARMOW_NIESPRAWDZALNY,
-        self::POWOD_MAGAZYN_ZLY_HOST,
-        self::POWOD_DEBUG_WLACZONY,
-        self::POWOD_SESJA_BEZ_SECURE,
-    ];
-
-    /**
-     * `APP_DEBUG=true` na produkcji (audyt B10-04): strona błędu pokazuje
-     * ślad stosu razem ze zmiennymi środowiska, czyli sekrety każdemu, kto
-     * wywoła 500. `ENV APP_DEBUG=false` w `Dockerfile` przegrywa ze zmienną
-     * z panelu, a poprawną wartość ustawia wyłącznie `.railway/railway.ts`.
-     */
-    private const POWOD_DEBUG_WLACZONY = 'debug_wlaczony';
-
-    /**
-     * Ciasteczko sesji bez `Secure` na produkcji (audyt B10-04) — przeglądarka
-     * wyśle je także po HTTP, gdzie da się je podsłuchać.
-     */
-    private const POWOD_SESJA_BEZ_SECURE = 'sesja_bez_secure';
-
-    /** Baza nie odpowiada albo odpowiada błędem — powód domyślny obu krytycznych sprawdzeń. */
-    private const POWOD_BAZA = 'baza_nie_odpowiada';
-
-    /** Połączenie z bazą jest, ale co najmniej jedna migracja z bieżącego obrazu aplikacji nie została wykonana (tabela pusta albo częściowy deploy). */
-    private const POWOD_BRAK_MIGRACJI = 'brak_migracji';
-
-    /** Worek na resztę awarii dysku ze zdjęciami — powód domyślny sprawdzenia `media`. */
-    private const POWOD_ZDJECIA = 'zdjecia_niedostepne';
-
-    /** Nie udało się zapisać pliku próbnego na dysku ze zdjęciami. */
-    private const POWOD_ZAPIS_NIEMOZLIWY = 'zapis_niemozliwy';
-
-    /** Zapis się udał, a odczyt zwrócił co innego albo się nie udał. */
-    private const POWOD_ODCZYT_NIEZGODNY = 'odczyt_niezgodny';
-
-    /** Brak `public/storage` — zdjęcia są na dysku, ale przeglądarka dostaje 404. */
-    private const POWOD_BRAK_DROGI_PUBLICZNEJ = 'brak_drogi_publicznej';
-
-    /** `public/storage` istnieje, ale prowadzi do innego katalogu niż dysk ze zdjęciami. */
-    private const POWOD_DROGA_GDZIE_INDZIEJ = 'droga_publiczna_gdzie_indziej';
-
-    /**
-     * Turnstile jest włączony w konfiguracji, ale nie ma kluczy — na produkcji
-     * to znaczy, że formularze publiczne stoją bez zapowiedzianej ochrony
-     * (D-050). Kod bez nazwy zmiennej i bez fragmentu klucza: ta odpowiedź
-     * jest publiczna.
-     */
-    private const POWOD_TURNSTILE_BEZ_KLUCZY = 'turnstile_bez_kluczy';
-
-    /**
-     * Wejście kontem Google jest włączone w konfiguracji, ale nie ma kluczy —
-     * na produkcji to znaczy, że obiecanej drogi wejścia NIE MA, a nikt się
-     * o tym nie dowie (D-069, issue #258). Kod bez nazwy zmiennej i bez
-     * fragmentu klucza: ta odpowiedź jest publiczna.
-     */
-    private const POWOD_GOOGLE_BEZ_KLUCZY = 'google_bez_kluczy';
-
-    /**
-     * To samo dla Facebooka (issue #259). Osobny kod, bo osobna czynność
-     * człowieka i osobny panel: Google Cloud Console to nie jest panel Meta,
-     * a jeden wspólny powód „oauth_bez_kluczy" kazałby operatorowi zgadywać,
-     * którego z dwóch dostawców szukać.
-     */
-    private const POWOD_FACEBOOK_BEZ_KLUCZY = 'facebook_bez_kluczy';
-
-    /**
-     * Polityka prywatności obiecuje analitykę odwiedzin, a tokenu nie ma —
-     * czyli dokument PRAWNY opisuje przetwarzanie, którego nie ma (D-092).
-     * Kod bez nazwy zmiennej i bez fragmentu tokenu: ta odpowiedź jest
-     * publiczna. Sam token nie jest sekretem (stoi w HTML-u każdej strony),
-     * ale nazwa zmiennej i odnośnik do runbooka to wskazówka dla kogoś, kto
-     * szuka, po czym uderzyć — zostają w logu.
-     */
-    private const POWOD_ANALITYKA_BEZ_TOKENU = 'analityka_bez_tokenu';
-
-    /**
-     * `MAIL_MAILER` na produkcji to `log`/`array`/pusty, albo Laravel nie
-     * potrafi w ogóle zbudować transportu — dokładnie to, o czym mówi
-     * `App\Support\Poczta` (issue #234 obok liczy `failed_jobs`; to
-     * sprawdzenie pyta o coś wcześniejszego: czy wysyłka ma w ogóle czym
-     * ruszyć). Ten kod nigdy nie niesie treści wyjątku dostawcy — patrz
-     * `sprawdzPoczte()`.
-     */
-    private const POWOD_POCZTA_NIE_WYSYLA = 'poczta_nie_wysyla';
-
-    /** W `failed_jobs` leżą nieudane zadania kolejki, a nikt sam z siebie się o tym nie dowiaduje (D-057 §4). */
-    private const POWOD_ZADANIA_NIEUDANE = 'zadania_nieudane';
-
-    /**
-     * W `mail_failures` leży co najmniej jeden nieodhaczony list, czyli
-     * wiadomość do człowieka, która nie wyszła i nie wyjdzie (issue #234).
-     */
-    private const POWOD_LISTY_PRZEPADAJA = 'listy_przepadaja';
-
-    /**
-     * To samo, ale z powodu wyczerpanego dobowego limitu u dostawcy — osobny
-     * kod, bo osobna czynność człowieka: nie ma czego naprawiać w kodzie,
-     * trzeba poczekać do północy albo zmienić plan. Monitoring zewnętrzny
-     * odróżnia więc „coś się psuje" od „skończyła się pula".
-     */
-    private const POWOD_LIMIT_POCZTY_WYCZERPANY = 'limit_poczty_wyczerpany';
-
-    /**
-     * Nie dało się sprawdzić śladu — najczęściej tabeli `mail_failures`
-     * jeszcze nie ma, bo kod wdrożył się przed migracją. Osobny kod, żeby
-     * brak tabeli nie meldował się jako „listy przepadają": alarm o awarii,
-     * której nie ma, jest tak samo szkodliwy jak cisza o awarii, która jest.
-     */
-    private const POWOD_SLAD_LISTOW_NIESPRAWDZALNY = 'slad_listow_niesprawdzalny';
-
-    /**
-     * W `zalegle_czyszczenia_cdn` leżą adresy skasowanych zdjęć, których
-     * cache CDN jeszcze nie wyczyszczono (#959): odłożone bez konfiguracji
-     * Cloudflare albo po wyczerpaniu prób zadania. Każdy taki adres może się
-     * nadal otwierać. Gaśnie sam, gdy `kuking:wyczysc-zalegle-cdn` je wyśle.
-     */
-    private const POWOD_CZYSZCZENIE_CDN_ZALEGLE = 'czyszczenie_cdn_zalegle';
-
-    /**
-     * `CLOUDFLARE_ZONE_ID` albo `CLOUDFLARE_PURGE_TOKEN` jest pusty, więc
-     * `App\Jobs\PurgePublicMediaCache` NIC nie czyści (na produkcji odkłada
-     * adresy do `zalegle_czyszczenia_cdn`, #959 — patrz `cdn_zalegle`).
-     *
-     * DLACZEGO TO MUSI STAĆ TUTAJ, A NIE TYLKO W LOGU ZADANIA
-     * Zadanie zapisuje wtedy `Log::warning` i kończy się SUKCESEM: nie ma
-     * wpisu w `failed_jobs`, nic nie jest czerwone, a kanał alarmowy
-     * (`blad_webhook`) ma poziom ustawiony na sztywno na `error`, więc
-     * ostrzeżenia w ogóle nie przyjmuje. Czyszczenie wyłączone wygląda więc
-     * DOKŁADNIE tak samo jak czyszczenie, które działa — a to jest ten sam
-     * rodzaj cichej porażki, co `turnstile_bez_kluczy` i `analityka_bez_tokenu`
-     * (D-050): konfiguracja nie kłamie o awarii, tylko o tym, że coś JEST.
-     *
-     * ŚWIADOMIE `degraded`, A NIE PORAŻKA ZADANIA. Wyłącznik jest legalny
-     * (`config/kuking.php`, sekcja `cdn_purge`), a kasowanie zdjęcia nie ma
-     * prawa się nie udać dlatego, że nie ma czym wyczyścić cudzego cache'u.
-     * Jedno zdanie, które nie gaśnie samo, jest tu właściwą ceną — nie
-     * wywrócone wymazywanie konta.
-     */
-    private const POWOD_CZYSZCZENIE_CDN_WYLACZONE = 'czyszczenie_cdn_wylaczone';
-
-    /**
-     * Strefa i token są, ale `CLOUDFLARE_PURGE_ENDPOINT` (albo strefa
-     * podstawiona w adres) nie daje adresu czyszczenia Cloudflare (#991,
-     * D-250). Zadanie odmawia wysłania tokenu i pada — czyszczenie nie działa
-     * NIGDY, więc to ten sam rodzaj cichej porażki co brak zmiennych, tylko
-     * z inną naprawą.
-     */
-    private const POWOD_CZYSZCZENIE_CDN_ZLY_ADRES = 'czyszczenie_cdn_zly_adres';
-
-    /**
-     * W `reports` leży sprawa PILNA (treść seksualna albo cokolwiek
-     * dotyczącego dziecka), o której nie poszedł alarm — issue #1051.
-     * Kod nie mówi ani którą, ani czego dotyczy: ta odpowiedź jest publiczna.
-     */
-    private const POWOD_PILNY_ALARM_NIE_DOTARL = 'pilny_alarm_nie_dotarl';
-
-    /**
-     * To samo, ale z powodu pustego `KUKING_MODEL_ALARM_EMAIL` — osobny kod,
-     * bo osobna czynność człowieka: nie ma czego naprawiać w kodzie i nie
-     * pomoże ponowienie, trzeba wpisać adres. Ten sam podział, co między
-     * `listy_przepadaja` a `limit_poczty_wyczerpany`.
-     */
-    private const POWOD_KANAL_ALARMOWY_WYLACZONY = 'kanal_alarmowy_wylaczony';
-
-    /**
-     * Nie dało się sprawdzić śladu alarmów — najczęściej kolumn
-     * `reports.alarm_pilny_*` jeszcze nie ma, bo kod wdrożył się przed
-     * migracją. Osobny kod z tego samego powodu co
-     * `slad_listow_niesprawdzalny`: brak kolumny nie ma prawa meldować się
-     * jako „pilna sprawa nie dotarła".
-     */
-    private const POWOD_SLAD_ALARMOW_NIESPRAWDZALNY = 'slad_alarmow_niesprawdzalny';
-
-    /**
-     * `AWS_ENDPOINT` któregoś dysku R2/S3 nie ma postaci
-     * `https://<konto>.eu.r2.cloudflarestorage.com` (D-255). Dysk odmawia
-     * wtedy budowy, więc zdjęcia, eksporty albo czujka kopii nie działają —
-     * a tu widać DLACZEGO, zanim ktoś zacznie czytać ślady wyjątków. Kod bez
-     * hosta: host niesie identyfikator konta Cloudflare, a `/health` czyta każdy.
-     */
-    private const POWOD_MAGAZYN_ZLY_HOST = 'magazyn_r2_zly_host';
+    public const POWODY = Powody::WSZYSTKIE;
 
     /**
      * Ile minut milczymy na webhooku o TEJ SAMEJ nazwanej kontroli, zanim
@@ -366,26 +170,11 @@ class HealthController extends Controller
             );
         }
 
-        $checks = [
-            'database' => $this->check('database', self::POWOD_BAZA, static function (): void {
-                DB::select('select 1');
-            }),
-            'migrations' => $this->check('migrations', self::POWOD_BAZA, fn () => $this->sprawdzMigracje()),
-            'media' => $this->check('media', self::POWOD_ZDJECIA, fn () => $this->sprawdzDyskZeZdjeciami()),
-            'turnstile' => $this->check('turnstile', self::POWOD_TURNSTILE_BEZ_KLUCZY, fn () => $this->sprawdzTurnstile()),
-            'google' => $this->check('google', self::POWOD_GOOGLE_BEZ_KLUCZY, fn () => $this->sprawdzWejscieGoogle()),
-            'facebook' => $this->check('facebook', self::POWOD_FACEBOOK_BEZ_KLUCZY, fn () => $this->sprawdzWejscieFacebooka()),
-            'analityka' => $this->check('analityka', self::POWOD_ANALITYKA_BEZ_TOKENU, fn () => $this->sprawdzAnalityke()),
-            'poczta' => $this->check('poczta', self::POWOD_POCZTA_NIE_WYSYLA, fn () => $this->sprawdzPoczte()),
-            'kolejka' => $this->check('kolejka', self::POWOD_ZADANIA_NIEUDANE, fn () => $this->sprawdzKolejke()),
-            'listy' => $this->check('listy', self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY, fn () => $this->sprawdzNieudaneListy()),
-            'cdn' => $this->check('cdn', self::POWOD_CZYSZCZENIE_CDN_WYLACZONE, fn () => $this->sprawdzCzyszczenieCdn()),
-            'alarmy_moderacji' => $this->check('alarmy_moderacji', self::POWOD_SLAD_ALARMOW_NIESPRAWDZALNY, fn () => $this->sprawdzPilneAlarmy()),
-            'cdn_zalegle' => $this->check('cdn_zalegle', self::POWOD_CZYSZCZENIE_CDN_ZALEGLE, fn () => $this->sprawdzZalegleCzyszczenieCdn()),
-            'magazyn' => $this->check('magazyn', self::POWOD_MAGAZYN_ZLY_HOST, fn () => $this->sprawdzHostMagazynu()),
-            'debug' => $this->check('debug', self::POWOD_DEBUG_WLACZONY, fn () => $this->sprawdzTrybDebug()),
-            'sesja' => $this->check('sesja', self::POWOD_SESJA_BEZ_SECURE, fn () => $this->sprawdzCiasteczkoSesji()),
-        ];
+        $checks = [];
+
+        foreach ($this->sondy() as $sonda) {
+            $checks[$sonda->nazwa()] = $this->check($sonda);
+        }
 
         $krytyczneOk = ! in_array(
             false,
@@ -445,827 +234,50 @@ class HealthController extends Controller
     }
 
     /**
-     * Czy jakiś list przepadł, a właściciel jeszcze o tym nie wie
-     * (issue #234, D-062).
+     * Sondy w KOLEJNOŚCI, w jakiej trafiają do `checks` (kolejność jest częścią
+     * kontraktu odpowiedzi — pilnuje jej `HealthKontraktOdpowiedziTest`).
      *
-     * PO CO TO TU JEST
-     * Bo do 10 września 2026 przepadnięcie listu wyglądało DOKŁADNIE jak
-     * sukces: worker wyczerpywał trzy próby w sześć minut, zadanie lądowało
-     * w `failed_jobs`, kolejka wracała do zera, a `/health` świecił na
-     * zielono. Dotyczyło to potwierdzeń rejestracji i przypomnień hasła,
-     * czyli listów, na które ktoś czeka przed ekranem. Ta sonda jest
-     * pierwszym miejscem, w którym taka awaria mówi o sobie sama.
-     *
-     * BEZ OKNA CZASOWEGO — I TO JEST SEDNO
-     * Nie pytamy „czy coś przepadło w ostatniej godzinie", tylko „czy
-     * cokolwiek czeka na przeczytanie". Alarm z oknem czasowym gaśnie sam po
-     * godzinie, czyli awaria z nocy jest o ósmej rano znowu niewidoczna —
-     * a to jest ta sama cicha porażka, tylko o godzinę późniejsza. Gaśnie
-     * dopiero wtedy, gdy człowiek odhaczy: `php artisan kuking:nieudane-listy
-     * --odhacz`.
-     *
-     * KONSEKWENCJA, PRZYJĘTA ŚWIADOMIE: `/health` może stać w `degraded`
-     * przez wiele godzin. Jest to cena za to, żeby jeden przepadły list nie
-     * przeszedł niezauważony — a odhaczenie jest jedną komendą, po
-     * przeczytaniu. `listy` nie są na liście `KRYTYCZNE`, więc trasa oddaje
-     * dalej HTTP 200 i Railway nie restartuje z tego powodu niczego.
-     *
-     * DLACZEGO `Log::error` NIE ROBI TU SZUMU: sondy `/health` logują tylko
-     * przy porażce, a monitoring odpytuje trasę co kilka minut — więc wpis
-     * powstaje przy każdym odpytaniu, dopóki alarm trwa. To znaczy: dziennik
-     * powie „od 02:14 do 08:30 listy przepadały", i taki zapis jest właśnie
-     * tym, czego przy poszukiwaniu przyczyny brakuje najczęściej.
+     * @return list<Sonda>
      */
-    private function sprawdzNieudaneListy(): void
+    private function sondy(): array
     {
-        $nieodhaczone = MailFailure::query()->nieodhaczone()->count();
-
-        if ($nieodhaczone === 0) {
-            return;
-        }
-
-        // Kategoria z NAJŚWIEŻSZEJ porażki: przy wyczerpanej puli wszystkie
-        // wpisy z danej doby mają ten sam powód, a właściciela interesuje
-        // to, co dzieje się TERAZ.
-        $najswiezszy = MailFailure::query()
-            ->nieodhaczone()
-            ->orderByDesc('failed_at')
-            ->first();
-
-        $limit = $najswiezszy?->powod === PowodOdmowy::LIMIT_DOBOWY;
-
-        throw new KontrolaZdrowiaNieprzeszla(
-            $limit ? self::POWOD_LIMIT_POCZTY_WYCZERPANY : self::POWOD_LISTY_PRZEPADAJA,
-            'Nieodhaczonych nieudanych listów: '.$nieodhaczone.'. '
-            .'Najświeższy powód: '.($najswiezszy?->powod->value ?? 'nieznany').'. '
-            .'Przeczytaj: php artisan kuking:nieudane-listy',
-        );
-    }
-
-    /**
-     * Czy jakaś PILNA sprawa moderacyjna nie dotarła do nikogo (issue #1051).
-     *
-     * PO CO TO TU JEST
-     * Bo do 22 września 2026 zgubiony alarm nie zostawiał ŻADNEGO śladu.
-     * Oznaczenie automatu powstawało we własnej, zamkniętej transakcji,
-     * a list do moderatora szedł linijkę później, poza nią; worker ubity
-     * w tej szczelinie (`timeout = 30`, `tries = 1`, restart przy wdrożeniu)
-     * zostawiał sprawę zapisaną i alarm niewysłany. Każda kolejna analiza
-     * tej samej treści zatrzymywała się na `OznaczDoPrzegladu` i milczała,
-     * więc zgubione zostawało zgubione — a dotyczy to JEDYNYCH dwóch
-     * kategorii, przy których doba zwłoki jest realną szkodą: treści
-     * seksualnych i wszystkiego, co dotyczy dziecka.
-     *
-     * Dochodzi do tego stan, który nie jest awarią kodu i którego żadne
-     * ponowienie nie naprawi: pusty `KUKING_MODEL_ALARM_EMAIL`. Dziś na
-     * produkcji kanał alarmowy jest z tego powodu wyłączony, a rejestracja
-     * stoi otworem — więc sprawa, która tu przepadnie, nie dotrze NIGDZIE.
-     * Ma własny kod powodu, bo operator naprawia to wpisaniem adresu,
-     * a nie szukaniem błędu.
-     *
-     * KIEDY SONDA GAŚNIE — REGUŁA (issue #1051, po przeglądzie)
-     * Liczy się sprawa z `Report::pilneDoDoslania()`, czyli:
-     *
-     *  1. OTWARTA. Sprawa rozstrzygnięta albo odrzucona ma za sobą decyzję
-     *     człowieka — pytanie „czy ktoś o niej wie" ma już odpowiedź. Ślad
-     *     w bazie zostaje (`pilneBezAlarmu()`), sonda nie. Dzięki temu
-     *     zamknięcie sprawy w panelu gasi sondę bez SQL-a.
-     *  2. MŁODSZA NIŻ `kuking.moderation.model.alarm_sonda_godzin` (72 h)
-     *     od powstania. Komenda `kuking:doslij-pilne-alarmy` próbuje co
-     *     godzinę; sprawa, której przez trzy doby nie udało się dosłać,
-     *     i tak leży w kolejce panelu i w porannym podsumowaniu automatu.
-     *     72, a nie 24: sprawa z piątku wieczorem ma świecić jeszcze
-     *     w poniedziałek rano. Stałego czerwonego światła, którego nie da
-     *     się zgasić inaczej niż ręką w bazie, operator uczy się nie widzieć.
-     *
-     * KOD POWODU WYNIKA Z KONFIGURACJI, NIE Z ZAPISANEGO STANU. Po wpisaniu
-     * adresu sprawy mają jeszcze przez chwilę stan `bez_adresu` — do
-     * najbliższego przebiegu komendy. Meldowanie wtedy
-     * `kanal_alarmowy_wylaczony` wysłałoby operatora do ustawień, które już
-     * poprawił. Pusty adres → `kanal_alarmowy_wylaczony`; adres jest, a sprawa
-     * nadal bez alarmu → `pilny_alarm_nie_dotarl`.
-     *
-     * `alarmy_moderacji` NIE JEST na liście `KRYTYCZNE` — to samo, co przy
-     * `listy`. Sprawa, o której nikt nie wie, nie jest powodem, żeby Railway
-     * restartował serwis; jest powodem, żeby monitoring zapalił się na
-     * czerwono i został taki, dopóki ktoś nie zajrzy.
-     */
-    private function sprawdzPilneAlarmy(): void
-    {
-        $okno = max(1, (int) config('kuking.moderation.model.alarm_sonda_godzin', 72));
-
-        $bezAlarmu = Report::query()
-            ->pilneDoDoslania()
-            ->where('created_at', '>=', now()->subHours($okno))
-            ->count();
-
-        if ($bezAlarmu === 0) {
-            return;
-        }
-
-        $adres = config('kuking.moderation.model.alarm_email');
-        $wylaczony = ! is_string($adres) || $adres === '';
-
-        throw new KontrolaZdrowiaNieprzeszla(
-            $wylaczony ? self::POWOD_KANAL_ALARMOWY_WYLACZONY : self::POWOD_PILNY_ALARM_NIE_DOTARL,
-            'Pilnych spraw moderacyjnych bez alarmu: '.$bezAlarmu.'. '
-            .($wylaczony
-                ? 'KUKING_MODEL_ALARM_EMAIL jest pusty — po wpisaniu adresu kuking:doslij-pilne-alarmy dośle je w ciągu godziny. '
-                : 'kuking:doslij-pilne-alarmy ponawia co godzinę. Jeśli dziennik mówi o dobowym suficie alarmów (KUKING_MODEL_ALARM_SUFIT), sprawy czekają na jego odnowienie — to nie awaria poczty. ')
-            .'Obejrzyj w panelu: /admin/sygnaly',
-        );
-    }
-
-    /**
-     * Turnstile: czy to, co obiecuje konfiguracja, ma czym działać (D-050).
-     *
-     * PO CO TO TU JEST, SKORO BRAK KLUCZY NICZEGO NIE PSUJE
-     * Właśnie dlatego. Bez kluczy widget się nie renderuje, walidacja nikogo
-     * nie zatrzymuje i wszystko wygląda dobrze — a `/register`,
-     * `/nie-pamietam-hasla`, `/napisz-do-nas` i `/zglos-nielegalna-tresc`
-     * stoją bez ochrony, którą konfiguracja właśnie zapowiedziała. To jest ta
-     * sama klasa awarii co `MAIL_MAILER=log`, martwy `kuking.media_disk`
-     * i limit `upload` niepodpięty do żadnej trasy: narzędzie melduje sukces,
-     * nie robiąc nic. Jedyna obrona to twardy, zewnętrznie widoczny sygnał.
-     *
-     * DLACZEGO `degraded`, A NIE 503
-     * Bo `turnstile` NIE JEST na liście `KRYTYCZNE`, i to jest decyzja, nie
-     * przeoczenie. Healthcheck oddający 503 już raz położył ten serwis
-     * (patrz komentarz na górze klasy). Serwis działający bez captchy jest
-     * o wiele lepszy niż serwis w pętli restartów — a monitoring i tak ma
-     * pilnować TREŚCI odpowiedzi. Przy okazji `check()` woła `Log::error`
-     * (log serwera, zawsze) i — jeśli `LOG_BLAD_WEBHOOK_URL` jest ustawiony —
-     * `powiadomWebhook()` (Discord/Slack, z odstępem `WEBHOOK_ODSTEP_MINUT`,
-     * żeby trwająca awaria nie zalała kanału). Sentry nie ma dziś w kodzie
-     * wcale (D-041) — to zdanie było nieprawdziwe do 10 września 2026, kiedy
-     * ten komentarz to zauważył i poprawił.
-     *
-     * DLACZEGO TYLKO NA PRODUKCJI I TYLKO GDY KTOŚ O TURNSTILE POPROSIŁ
-     * Lokalnie, w CI i w testach kluczy nie ma i mieć nie musi — stały
-     * `degraded` w tych środowiskach byłby szumem, który uczy ignorować to
-     * pole. A jeśli właściciel świadomie wyłączy WSZYSTKIE miejsca
-     * w `config/kuking.php`, to konfiguracja nie kłamie i nie ma o czym
-     * krzyczeć.
-     */
-    private function sprawdzTurnstile(): void
-    {
-        if (! app()->environment('production')) {
-            return;
-        }
-
-        if (! Turnstile::ktoresMiejsceWlaczone()) {
-            return;
-        }
-
-        if (Turnstile::skonfigurowany()) {
-            return;
-        }
-
-        throw new KontrolaZdrowiaNieprzeszla(
-            self::POWOD_TURNSTILE_BEZ_KLUCZY,
-            Turnstile::komunikatBrakuKluczy(),
-        );
-    }
-
-    /**
-     * Produkcja z `APP_DEBUG=true` (audyt B10-04) — wzorzec `sprawdzTurnstile()`.
-     *
-     * `degraded`, nie 503: kontener w pętli restartów nie wyłączy trybu
-     * debugowania, zrobi to człowiek w panelu, a `check()` zapisuje błąd
-     * w dzienniku i dzwoni na `blad_webhook`. Poza produkcją debug jest
-     * stanem normalnym (`.env.example`, CI).
-     */
-    private function sprawdzTrybDebug(): void
-    {
-        if (! app()->environment('production') || ! (bool) config('app.debug')) {
-            return;
-        }
-
-        throw new KontrolaZdrowiaNieprzeszla(
-            self::POWOD_DEBUG_WLACZONY,
-            'APP_DEBUG=true na produkcji: strona błędu pokazuje ślad stosu i zmienne środowiska. '
-                .'Ustaw APP_DEBUG=false w zmiennych serwisu (wzorzec: .railway/railway.ts).',
-        );
-    }
-
-    /**
-     * Produkcja z ciasteczkiem sesji bez `Secure` (audyt B10-04). Domyślna
-     * wartość na produkcji to `true` (`config/session.php`), więc ten sygnał
-     * zapala tylko JAWNE `SESSION_SECURE_COOKIE=false`.
-     */
-    private function sprawdzCiasteczkoSesji(): void
-    {
-        if (! app()->environment('production') || (bool) config('session.secure')) {
-            return;
-        }
-
-        throw new KontrolaZdrowiaNieprzeszla(
-            self::POWOD_SESJA_BEZ_SECURE,
-            'Ciasteczko sesji bez flagi Secure na produkcji. '
-                .'Ustaw SESSION_SECURE_COOKIE=true albo usuń tę zmienną (domyślnie true na produkcji).',
-        );
-    }
-
-    /**
-     * Wejście kontem Google: czy droga, którą konfiguracja właśnie obiecała,
-     * ma czym działać (D-069, issue #258).
-     *
-     * PO CO TO TU JEST, SKORO BRAK KLUCZY NICZEGO NIE PSUJE
-     * Dokładnie ten sam wywód co przy Turnstile wyżej i to samo zdanie
-     * z runbooka: **cicha, nieistniejąca droga wejścia jest gorsza niż
-     * wyłączona**. Bez kluczy przycisku „Wejdź kontem Google" po prostu nie
-     * ma na ekranie — a to wygląda identycznie jak poprawne wdrożenie, na
-     * którym właściciel świadomie tej drogi nie chciał. Jedyną różnicą jest
-     * to, czy konfiguracja nadal ją obiecuje. Dlatego pytamy o obietnicę,
-     * nie o obecność kluczy samą w sobie.
-     *
-     * SKĄD SIĘ WZIĄŁ TEN SYGNAŁ
-     * Był zaplanowany w D-069 i świadomie odłożony („`HealthController`
-     * przerabia równolegle inne zlecenie"), a potem stał w issue #258 i #259
-     * jako jedyna luka w kodzie obu tych funkcji. Do chwili jego dołożenia
-     * jedynym sprawdzeniem było „wejdź na /login i zobacz, czy jest
-     * przycisk" — czyli czynność, której nikt nie robi co pięć minut.
-     *
-     * DLACZEGO `degraded`, A NIE 503
-     * Bo `google` NIE JEST na liście `KRYTYCZNE`. Serwis bez jednej
-     * z trzech dróg wejścia działa (hasło i link e-mail stoją tam, gdzie
-     * stały); serwis w pętli restartów nie działa wcale.
-     *
-     * DLACZEGO TYLKO NA PRODUKCJI I TYLKO GDY FUNKCJA JEST WŁĄCZONA
-     * Lokalnie, w CI i w testach kluczy nie ma i mieć nie musi — to jest
-     * stan domyślny opisany w `.env.example`. A `KUKING_WEJSCIE_GOOGLE=false`
-     * znaczy „nie chcę tej drogi": konfiguracja wtedy nie kłamie i nie ma
-     * o czym krzyczeć. Ta sama lekcja co przy Turnstile: stały `degraded`
-     * uczy ignorować to pole.
-     */
-    private function sprawdzWejscieGoogle(): void
-    {
-        if (! app()->environment('production')) {
-            return;
-        }
-
-        if (! (bool) config('kuking.google.wlaczone', true)) {
-            return;
-        }
-
-        if (Google::skonfigurowany()) {
-            return;
-        }
-
-        throw new KontrolaZdrowiaNieprzeszla(
-            self::POWOD_GOOGLE_BEZ_KLUCZY,
-            Google::komunikatBrakuKluczy(),
-        );
-    }
-
-    /**
-     * Wejście kontem Facebooka — ten sam wywód co przy Google wyżej
-     * (issue #259), z jedną różnicą, przez którą ten sygnał jest tu bardziej
-     * potrzebny niż tam.
-     *
-     * RÓŻNICA: DROGA DO KLUCZY JEST DŁUŻSZA, WIĘC ŁATWIEJ JĄ ZOSTAWIĆ
-     * NIEDOKOŃCZONĄ. Google to pięć minut w jednym panelu. U Meta właściciel
-     * przechodzi kilkanaście czynności w trzech miejscach panelu
-     * (`docs/infra/FACEBOOK_LOGIN_URUCHOMIENIE.md` §12), a ostatnia z nich —
-     * przestawienie aplikacji w tryb **Live** — ma się wydarzyć DOPIERO po
-     * wdrożeniu kodu. Między jednym a drugim jest okno, w którym wdrożenie
-     * wygląda na zdrowe, a droga wejścia nie istnieje. To okno jest dokładnie
-     * tym, co ten sygnał ma oświetlić.
-     *
-     * Zdanie dla właściciela (z nazwami zmiennych i odnośnikiem do runbooka
-     * Meta) idzie WYŁĄCZNIE do logu — patrz `check()`. Na zewnątrz wychodzi
-     * sam kod `facebook_bez_kluczy`, bo ta odpowiedź jest publiczna.
-     */
-    private function sprawdzWejscieFacebooka(): void
-    {
-        if (! app()->environment('production')) {
-            return;
-        }
-
-        if (! (bool) config('kuking.facebook.wlaczone', true)) {
-            return;
-        }
-
-        if (Facebook::skonfigurowany()) {
-            return;
-        }
-
-        throw new KontrolaZdrowiaNieprzeszla(
-            self::POWOD_FACEBOOK_BEZ_KLUCZY,
-            Facebook::komunikatBrakuKluczy(),
-        );
-    }
-
-    /**
-     * Analityka odwiedzin: czy rzecz, którą właśnie obiecaliśmy w DOKUMENCIE
-     * PRAWNYM, ma czym działać (D-092).
-     *
-     * TEN SAM WYWÓD CO PRZY GOOGLE I FACEBOOKU, Z JEDNĄ RÓŻNICĄ, KTÓRA
-     * PRZEWAŻA. Tamte dwie obietnice stoją w konfiguracji i widać je okiem:
-     * przycisku „Wejdź kontem Google" albo nie ma na `/login`, i ktoś kiedyś
-     * to zauważy. Tę obietnicę złożyliśmy w polityce prywatności — zdaniem
-     * w czasie teraźniejszym, z datą — a jej niespełnienia NIE WIDAĆ NIGDZIE:
-     * strona wygląda normalnie, w dzienniku serwera nie ma nic, przeglądarka
-     * nie zgłasza usterki, bo skryptu po prostu nie ma w HTML-u. Właściciel,
-     * który raz założył serwis w panelu Cloudflare, ma wszelkie powody sądzić,
-     * że analityka działa. Do 12 września 2026 nie było ani jednego miejsca,
-     * z którego dałoby się dowiedzieć, że nie działa.
-     *
-     * PYTAMY O ROZJAZD, NIE O BRAK TOKENU. Pusty token sam w sobie jest
-     * poprawnym stanem: tak chodzi CI, tak chodzą testy, tak chodzi każde
-     * środowisko preview i tak może chodzić produkcja, jeśli właściciel
-     * analityki nie chce. Awarią jest dopiero para: dokument prawny obiecuje
-     * + tokenu nie ma. Dlatego warunkiem jest treść polityki prywatności
-     * (`AnalitykaCloudflare::obiecanaWDokumencie()`), a nie osobny przełącznik.
-     *
-     * I DLATEGO ŚWIADOMIE NIE MA TU WYŁĄCZNIKA W RODZAJU `KUKING_ANALITYKA=false`.
-     * Przy Google i Facebooku wyłącznik znaczy „nie chcę tej drogi wejścia"
-     * i nikogo nie okłamuje — dokument prawny o nich wtedy nie mówi. Tutaj
-     * wyłącznik znaczyłby „niech polityka prywatności dalej opisuje
-     * przetwarzanie, którego nie ma, tylko niech przestanie o tym mówić
-     * healthcheck", czyli uczyłby uciszania sygnału zamiast prostowania
-     * dokumentu. Uciszyć ten sygnał wolno DWOMA sposobami i oba są uczciwe:
-     * wpisać token albo wykreślić obietnicę z polityki (wtedy trzeba też
-     * usunąć beacon z layoutu — pilnuje tego `DokumentyPrawneNieKlamiaTest`
-     * z drugiej strony).
-     *
-     * DLACZEGO `degraded`, A NIE 503. Bo `analityka` NIE JEST na liście
-     * `KRYTYCZNE` i być nie może: serwis bez statystyki odwiedzin działa
-     * w całości, a healthcheck oddający 503 już raz położył ten serwis.
-     * Monitoring pilnuje TREŚCI odpowiedzi.
-     *
-     * DLACZEGO TYLKO NA PRODUKCJI. Lokalnie, w testach, w CI i na preview
-     * pusty token jest stanem domyślnym i opisanym w `.env.example` — stały
-     * `degraded` byłby tam szumem, który uczy ignorować to pole. To ta sama
-     * lekcja co przy Turnstile.
-     *
-     * CZEGO TEN SYGNAŁ NIE ZŁAPIE — I TO JEST GRANICA, NIE PRZEOCZENIE.
-     * Nie powie, czy token jest PRAWDZIWY (Cloudflare po cichu odrzuca
-     * zdarzenia z nieznanym tokenem) ani czy w panelu wybrano wariant
-     * zbierania danych obejmujący Unię Europejską. Obie te rzeczy dzieją się
-     * w cudzym panelu i z kontenera nie da się ich zmierzyć — dlatego mówi
-     * o nich zdanie z `AnalitykaCloudflare::komunikatBrakuTokenu()`
-     * i sprawdzenie w KROKU 8F runbooka, które patrzy na realne liczby
-     * w panelu, a nie na stan naszej konfiguracji.
-     */
-    /**
-     * Czy czyszczenie cache CDN jest w ogóle włączone (audyt G-03).
-     *
-     * CO TA SONDA MIERZY, A CZEGO NIE
-     * Mierzy JEDNO: czy `App\Jobs\PurgePublicMediaCache` ma z czym pójść do
-     * Cloudflare. Nie mierzy, czy przed zdjęciami stoi CDN, ani czy on
-     * cokolwiek trzyma — to żyje w panelu Cloudflare, nie w repozytorium
-     * (issue #120), i z tego kontenera nie da się tego sprawdzić.
-     *
-     * DLACZEGO TO WYSTARCZY, ŻEBY BYŁO WARTO
-     * Bo bez tych dwóch zmiennych czyszczenie NIE ZADZIAŁA NIGDY, niezależnie
-     * od odpowiedzi na tamte pytania — a dowiedzieć się o tym dziś nie ma
-     * skąd. `MediaController` wysyła dla treści publicznej `Cache-Control:
-     * public, max-age=...` (dziś 150 s) i na przekierowaniu, i — przez
-     * `ResponseCacheControl` — na odpowiedzi z bajtami, czyli WPROST zaprasza
-     * pośrednika do trzymania kopii. Kasowanie zdjęcia po decyzji moderacyjnej
-     * albo żądaniu z RODO liczy na to, że ktoś tę kopię potem usunie.
-     *
-     * TYLKO PRODUKCJA. Lokalnie i w testach nie ma żadnego CDN-u i pusta
-     * konfiguracja jest tam stanem poprawnym — mówi o tym wprost komentarz
-     * przy `kuking.media.cdn_purge`. Sygnał, który świeci wszędzie, jest
-     * szumem uczącym ignorować całe pole `checks` (ta sama lekcja co przy
-     * Turnstile i analityce).
-     */
-    private function sprawdzCzyszczenieCdn(): void
-    {
-        if (! app()->environment('production')) {
-            return;
-        }
-
-        $zona = (string) config('kuking.media.cdn_purge.zone_id');
-        $token = (string) config('kuking.media.cdn_purge.token');
-
-        if ($zona !== '' && $token !== '') {
-            $powod = PurgePublicMediaCache::powodZlegoAdresu();
-
-            if ($powod === null) {
-                return;
-            }
-
-            // Nazwa złej części, bez adresu — ten komunikat idzie do logu
-            // i na webhook, a zmienna bywa wklejana razem z tokenem.
-            throw new KontrolaZdrowiaNieprzeszla(
-                self::POWOD_CZYSZCZENIE_CDN_ZLY_ADRES,
-                'Czyszczenie cache CDN NIE DZIAŁA: CLOUDFLARE_PURGE_ENDPOINT razem z CLOUDFLARE_ZONE_ID '
-                ."nie dają adresu czyszczenia Cloudflare ({$powod}). Zadanie odmawia wysłania tokenu "
-                .'i każde czyszczenie ląduje w failed_jobs. Usuń CLOUDFLARE_PURGE_ENDPOINT (wartość '
-                .'domyślna jest poprawna) i sprawdź, czy CLOUDFLARE_ZONE_ID to sam identyfikator strefy.',
-            );
-        }
-
-        // Stary, JEDYNY dysk zdjęć z publicznym adresem (`r2_legacy`). Gdy jest
-        // w użyciu, wyłączone czyszczenie znaczy co innego niż zwykle: tam
-        // adres pliku nie ma podpisu i nie wygasa, więc kopia w cache nie jest
-        // ograniczona przez `max-age` żadnego przekierowania. Ten stan wymaga
-        // innej czynności człowieka (dokończyć `kuking:przenies-zdjecia` i
-        // zdjąć domenę ze starego bucketu — issue #120), więc dopisujemy go do
-        // komunikatu, choć kod powodu zostaje jeden: naprawa zaczyna się tak
-        // samo, od panelu Cloudflare.
-        $staryBucketPubliczny = filled(config('filesystems.disks.r2_legacy.bucket'))
-            && filled(config('filesystems.disks.r2_legacy.url'));
-
-        // KOMUNIKAT IDZIE DO LOGU I NA WEBHOOK, NIE DO ODPOWIEDZI. W JSON-ie
-        // publicznym zostaje sam kod — tak jak przy wszystkich pozostałych
-        // sondach, bo `/health` czyta każdy.
-        throw new KontrolaZdrowiaNieprzeszla(
-            self::POWOD_CZYSZCZENIE_CDN_WYLACZONE,
-            'Czyszczenie cache CDN po skasowaniu zdjęcia jest WYŁĄCZONE '
-            .'(brak CLOUDFLARE_ZONE_ID albo CLOUDFLARE_PURGE_TOKEN). '
-            .'Skasowane zdjęcia mogą się dalej otwierać z cache Cloudflare, '
-            .'a adresy do wyczyszczenia czekają w `zalegle_czyszczenia_cdn` (sonda `cdn_zalegle`). '
-            .($staryBucketPubliczny
-                ? 'UWAGA: skonfigurowany jest jeszcze stary, PUBLICZNY bucket '
-                  .'`r2_legacy` — tam adres pliku nie wygasa, więc okna narażenia '
-                  .'nie zamyka żaden `max-age`. Dokończ `kuking:przenies-zdjecia` '
-                  .'i zdejmij domenę ze starego bucketu (issue #120). '
-                : 'Stary publiczny bucket `r2_legacy` nie jest skonfigurowany, '
-                  .'więc dotyczy to wyłącznie odpowiedzi trasy `media.show` '
-                  .'i ich `max-age`. ')
-            .'Albo uzupełnij obie zmienne, albo świadomie zostaw wyłączone — '
-            .'ale wtedy wiedz, że „skasowane" znaczy „skasowane z bucketu".',
-        );
-    }
-
-    /**
-     * Czy są adresy, których cache CDN jeszcze nie wyczyszczono (#959).
-     *
-     * WSZĘDZIE, NIE TYLKO NA PRODUKCJI. W przeciwieństwie do pustej
-     * konfiguracji niepusta tabela nie jest poprawnym stanem nigdzie: poza
-     * produkcją trafia tam tylko zadanie, które wyczerpało próby.
-     *
-     * Do publicznej odpowiedzi idzie sam kod, bez liczby — liczba i nazwa
-     * komendy zostają w logu i na webhooku.
-     */
-    private function sprawdzZalegleCzyszczenieCdn(): void
-    {
-        $ile = ZalegleCzyszczeniaCdn::ile();
-
-        if ($ile === 0) {
-            return;
-        }
-
-        throw new KontrolaZdrowiaNieprzeszla(
-            self::POWOD_CZYSZCZENIE_CDN_ZALEGLE,
-            "W `zalegle_czyszczenia_cdn` czeka na wyczyszczenie z cache CDN {$ile} "
-            .Odmiana::rzeczownik($ile, 'adres', 'adresy', 'adresów').' skasowanych zdjęć — '
-            .'mogą się nadal otwierać. Gdy CLOUDFLARE_ZONE_ID i CLOUDFLARE_PURGE_TOKEN są ustawione, '
-            .'`kuking:wyczysc-zalegle-cdn` wysyła je co kwadrans; jeśli liczba nie maleje, Cloudflare '
-            .'odmawia — szukaj w logu „Nie udało się wyczyścić cache CDN".',
-        );
-    }
-
-    private function sprawdzAnalityke(): void
-    {
-        if (! app()->environment('production')) {
-            return;
-        }
-
-        if (! AnalitykaCloudflare::obiecanaWDokumencie()) {
-            return;
-        }
-
-        if (AnalitykaCloudflare::wlaczona()) {
-            return;
-        }
-
-        throw new KontrolaZdrowiaNieprzeszla(
-            self::POWOD_ANALITYKA_BEZ_TOKENU,
-            AnalitykaCloudflare::komunikatBrakuTokenu(),
-        );
-    }
-
-    /**
-     * Czy wysyłka poczty ma w ogóle czym ruszyć — `App\Support\Poczta` jest
-     * TU JEDYNYM źródłem prawdy (ta sama klasa decyduje na ekranie „Nie
-     * pamiętam hasła" i w `kuking:sprawdz-poczte`), żeby te trzy miejsca nie
-     * mogły się rozjechać.
-     *
-     * DLACZEGO TYLKO NA PRODUKCJI
-     * `MAIL_MAILER=array` jest domyślnym ustawieniem całej suity testów
-     * (`phpunit.xml`), a `log` jest domyślną wartością w `.env.example` do
-     * pierwszego zielonego deployu (`docs/infra/DEPLOYMENT_RUNBOOK.md`,
-     * KROK 8). Sprawdzanie tego poza produkcją dawałoby stały `degraded`
-     * wszędzie poza nią — szum, który uczy ignorować to pole, dokładnie ta
-     * sama lekcja co przy Turnstile wyżej.
-     *
-     * DLACZEGO `Poczta::przeszkoda()`, A NIE PUBLICZNY KOD Z JEJ TREŚCI
-     * `przeszkoda()` mówi wprost w swoim komentarzu: „NIE POKAZUJ TEGO
-     * UŻYTKOWNIKOWI i nie wysyłaj na webhook" — bo ostatni fragment zdania
-     * bywa komunikatem wyjątku CUDZEJ biblioteki transportu i nie jest niczym
-     * ograniczony (ta sama klasa ryzyka co `$e->getMessage()` w
-     * `WebhookBleduHandler`, audyt A6-01). Dlatego trafia wyłącznie do `$doLogu`
-     * `KontrolaZdrowiaNieprzeszla` — do serwerowego logu, którego `/health`
-     * nigdy nie pokazuje światu (patrz `check()`); na zewnątrz i na webhook
-     * idzie tylko zamknięty kod `POWOD_POCZTA_NIE_WYSYLA`.
-     */
-    private function sprawdzPoczte(): void
-    {
-        if (! app()->environment('production')) {
-            return;
-        }
-
-        $przeszkoda = Poczta::przeszkoda();
-
-        if ($przeszkoda === null) {
-            return;
-        }
-
-        throw new KontrolaZdrowiaNieprzeszla(self::POWOD_POCZTA_NIE_WYSYLA, $przeszkoda);
-    }
-
-    /**
-     * Czy w `failed_jobs` leżą nieudane zadania kolejki, o których dziś nie
-     * dowiaduje się nikt sam z siebie.
-     *
-     * D-057 §4 (`docs/DECISIONS.md`) ustaliło to WPROST przy okazji sufitu
-     * tygodniowego podsumowania: „Jedyne miejsce, które w ogóle liczy
-     * `failed_jobs`, to `kuking:sprawdz-poczte`, uruchamiane ręcznie."
-     * Zdanie było prawdziwe do tego sprawdzenia — teraz przynajmniej
-     * ZEWNĘTRZNY monitoring `/health` (i webhook błędów, przez `check()`)
-     * może to zauważyć bez logowania się na serwer.
-     *
-     * CZEGO TO NIE ROBI (ŚWIADOMIE)
-     * Nie mówi, KTÓRE zadanie padło ani dlaczego — treść `failed_jobs.exception`
-     * bywa pełnym śladem stosu z argumentami wywołań, czyli dokładnie tym,
-     * czego `WebhookBleduHandler` i `check()` unikają gdzie indziej. Diagnozę
-     * daje `php artisan queue:failed` z powłoki serwera, nie trasa publiczna.
-     *
-     * POWŁOKI SERWERA NA RAILWAY NIE MA — i dlatego to zdanie było przez
-     * dziesięć dni ślepym zaułkiem: `/health` mówił `degraded`, a jedyna
-     * odpowiedź na pytanie „które zadanie" stała za ścianą. Od issue #599
-     * jest druga droga, TEŻ nie publiczna: `/admin/kolejka`, za rolą `admin`
-     * (`UserPolicy::diagnozujKolejke`). Ona także nie pokazuje ładunku ani
-     * treści wyjątku — tylko nazwy klas i liczby.
-     * To sprawdzenie ma jedno zadanie: powiedzieć „coś tam leży, zajrzyj" —
-     * publiczna odpowiedź niesie tylko kod, nigdy liczbę ani treść.
-     *
-     * DOKĄD ODESŁAĆ CZŁOWIEKA, KTÓRY TO ZOBACZY
-     * `queue:failed` mówi, ŻE coś padło, i nic więcej — a najczęstszy odruch
-     * po jego przeczytaniu, czyli `queue:retry`, jest przy liście z żetonem
-     * ODPOWIEDZIĄ ZŁĄ: żeton resetu hasła żyje `config/auth.php` → `expire`
-     * minut od WYSTAWIENIA, więc ponowienie po dniach wysyła człowiekowi
-     * martwy link. Dlatego komunikat niżej (widoczny w dzienniku serwera,
-     * nie w publicznej odpowiedzi) prowadzi do `kuking:martwe-zadania`, która
-     * rozdziela żetony żywe od martwych i bez jawnego przełącznika niczego
-     * nie kasuje.
-     *
-     * DLACZEGO CZYTAMY TABELĘ, A NIE RUSZAMY KOLEJKI
-     * Wyłącznie `SELECT COUNT(*)` — bez `queue:retry`, bez kasowania, bez
-     * dotykania `app/Jobs` ani `app/Mail`. Naprawa cichej utraty listów to
-     * osobna praca (issue #234); to sprawdzenie tylko CZYTA to, co tamta
-     * praca też czyta.
-     */
-    /**
-     * Migracje OCZEKUJĄCE, nie tylko tabela pusta (issue #1844).
-     *
-     * Do 26 września 2026 kontrola sprawdzała wyłącznie
-     * `DB::table('migrations')->count() === 0` — czyli WYŁĄCZNIE „czy deploy
-     * w ogóle dotknął migracji kiedykolwiek". Baza z jedną wykonaną migracją
-     * sprzed miesięcy przechodziła ten warunek, nawet gdy obraz aplikacji
-     * niesie dziś dziesięć nowych plików migracji, których NIKT nie wykonał
-     * — częściowe wdrożenie, przerwane `php artisan migrate` albo replika,
-     * która nie zdążyła dogonić reszty. `/health` melduje `ok`, Railway
-     * kieruje na nią ruch, a pierwsze żądanie czytające nową kolumnę albo
-     * tabelę kończy się 500.
-     *
-     * Dziś porównujemy PLIKI migracji z WIERSZAMI w tabeli `migrations` —
-     * dokładnie to, co widzi `php artisan migrate:status`, bez uruchamiania
-     * czegokolwiek. `Migrator::getMigrationFiles()` tylko czyta katalog
-     * (żadnego zapytania), więc jedyny SQL w tej kontroli to ten sam
-     * `SELECT` co wcześniej. Ścieżki bierzemy jak robi to
-     * `migrate`/`migrate:status`: własne katalogi `$migrator->paths()`
-     * (np. z pakietów) plus domyślny `database/migrations`.
-     *
-     * Pusta tabela WCIĄŻ jest awarią (zbiór wykonanych migracji jest wtedy
-     * pusty, więc KAŻDY plik migracji wypada jako oczekujący) — ten sam
-     * powód, ta sama etykieta, zerowa zmiana zachowania dla dotychczasowego
-     * przypadku. Nowość to wykrycie migracji brakujących MIMO niepustej
-     * tabeli.
-     *
-     * Publicznie zostaje wyłącznie kod `brak_migracji` (patrz `check()`) —
-     * nazwy plików migracji (które ujawniałyby kształt schematu) nie
-     * pojawiają się nigdzie w odpowiedzi HTTP, tylko w komunikacie
-     * wyjątku, który trafia WYŁĄCZNIE do `Log::error` w `check()`.
-     */
-    private function sprawdzMigracje(): void
-    {
-        /** @var Migrator $migrator */
-        $migrator = app('migrator');
-
-        $sciezki = array_merge($migrator->paths(), [database_path('migrations')]);
-        $pliki = $migrator->getMigrationFiles($sciezki);
-
-        $wykonane = DB::table('migrations')->pluck('migration')->all();
-        $oczekujace = array_diff(array_keys($pliki), $wykonane);
-
-        if ($oczekujace !== []) {
-            throw new KontrolaZdrowiaNieprzeszla(
-                self::POWOD_BRAK_MIGRACJI,
-                'Oczekujące migracje względem aktualnego obrazu aplikacji: '.implode(', ', $oczekujace).'.',
-            );
-        }
-    }
-
-    private function sprawdzKolejke(): void
-    {
-        try {
-            $nieudane = DB::table('failed_jobs')->count();
-        } catch (Throwable $e) {
-            // Nie zgadujemy: gdy samo ZAPYTANIE się nie udaje, prawdziwą
-            // przyczyną jest niemal na pewno ta sama awaria bazy, którą i tak
-            // zgłasza sprawdzenie `database` — powód `zadania_nieudane`
-            // (poniżej) mówiłby wtedy o czymś, czego wcale nie zmierzyliśmy.
-            throw new KontrolaZdrowiaNieprzeszla(self::POWOD_BAZA, $e->getMessage(), $e);
-        }
-
-        if ($nieudane === 0) {
-            return;
-        }
-
-        throw new KontrolaZdrowiaNieprzeszla(
-            self::POWOD_ZADANIA_NIEUDANE,
-            "W tabeli `failed_jobs` jest {$nieudane} nieudanych zadań kolejki. "
-                .'KTÓRE to zadania i co je przewróciło, widać bez powłoki serwera: '
-                .'panel moderacji → „Kolejka zadań" (`/admin/kolejka`, rola `admin`). '
-                .'Co to jest i kogo dotyczy: `php artisan kuking:martwe-zadania` '
-                .'(niczego nie kasuje bez `--skasuj`). Do kogo nie doszedł list: '
-                .'`php artisan kuking:kto-nie-dostal-listu`.',
-        );
-    }
-
-    /**
-     * Czy da się zapisać i odczytać plik na dysku ze zdjęciami — i czy droga
-     * publiczna do niego prowadzi tam, gdzie powinna.
-     *
-     * Sam zapis nie wystarcza: dokładnie tak wyglądała poprzednia awaria.
-     * `ProcessUploadedImage` kończył się powodzeniem, plik leżał na dysku,
-     * a przeglądarka dostawała 404, bo `public/storage` był martwym linkiem
-     * albo katalog zniknął razem z kontenerem.
-     */
-    private function sprawdzDyskZeZdjeciami(): void
-    {
-        $nazwaDysku = (string) config('kuking.media.disk');
-
-        // UDANA próbka jest pamiętana krótko (audyt A5-05): bez tego każde
-        // wywołanie `/health` zapisywało i czytało obiekt w R2. Porażki nie
-        // pamiętamy, więc awaria nie chowa się za starym „ok". Cache może
-        // leżeć w bazie — jego awaria nie przewraca sondy, tylko ją powtarza.
-        $kluczProbki = 'health:probka-magazynu:'.$nazwaDysku;
-
-        try {
-            $probkaUdana = Cache::get($kluczProbki) === true;
-        } catch (Throwable) {
-            $probkaUdana = false;
-        }
-
-        if (! $probkaUdana) {
-            $this->zapiszIOdczytajProbke($nazwaDysku);
-
-            try {
-                Cache::put($kluczProbki, true, (int) config('kuking.health.probka_magazynu_sekund'));
-            } catch (Throwable) {
-                // Zostaje bez pamięci — następne pytanie spróbuje od nowa.
-            }
-        }
-
-        $this->sprawdzDrogePubliczna($nazwaDysku);
-    }
-
-    private function zapiszIOdczytajProbke(string $nazwaDysku): void
-    {
-        // Nazwa z kropką na początku i losowym sufiksem: nie zderzy się
-        // z niczyim plikiem i nie trafi do listingów.
-        $probka = '.health/'.Str::uuid()->toString();
-
-        try {
-            // `Storage::disk()` jest TUTAJ, a nie wyżej, bo dla dysku lokalnego
-            // to ono tworzy katalog główny — awaria woluminu bez prawa zapisu
-            // wychodzi więc już na tej linijce, a nie dopiero na `put()`.
-            $dysk = Storage::disk($nazwaDysku);
-            $dysk->put($probka, 'kuking');
-        } catch (Throwable $e) {
-            // Bez `finally` z kasowaniem: skoro zapis się nie udał, nie ma
-            // czego kasować, a `delete()` na zepsutym dysku rzuciłby drugi
-            // wyjątek i przykrył ten prawdziwy.
-            throw new KontrolaZdrowiaNieprzeszla(self::POWOD_ZAPIS_NIEMOZLIWY, $e->getMessage(), $e);
-        }
-
-        try {
-            if ($dysk->get($probka) !== 'kuking') {
-                throw new KontrolaZdrowiaNieprzeszla(
-                    self::POWOD_ODCZYT_NIEZGODNY,
-                    'Zapis się udał, ale odczyt zwrócił co innego.',
-                );
-            }
-        } catch (KontrolaZdrowiaNieprzeszla $e) {
-            // Nasz własny wyjątek ma już kod — przepuszczamy go bez zmian,
-            // inaczej gałąź niżej owinęłaby go po raz drugi.
-            throw $e;
-        } catch (Throwable $e) {
-            throw new KontrolaZdrowiaNieprzeszla(self::POWOD_ODCZYT_NIEZGODNY, $e->getMessage(), $e);
-        } finally {
-            $dysk->delete($probka);
-        }
-    }
-
-    /**
-     * Czy każdy dysk R2/S3 z konfiguracji ma adres, pod który wolno wysłać
-     * klucz (D-255). Ta sama kontrola, którą `DyskR2` robi przy budowie —
-     * tu bez budowania, więc sonda niczego nie wysyła.
-     */
-    private function sprawdzHostMagazynu(): void
-    {
-        $zle = [];
-
-        foreach ((array) config('filesystems.disks') as $nazwa => $dysk) {
-            if (! is_array($dysk) || ! in_array($dysk['driver'] ?? null, ['r2', 's3'], true)) {
-                continue;
-            }
-
-            $adres = (string) ($dysk['endpoint'] ?? '');
-
-            // Dysk bez adresu i bez klucza nie ma czego wysłać — to produkcja
-            // na dysku lokalnym, bez R2. Pusty adres Z kluczem to już awaria
-            // (AWS SDK poszedłby do Amazona) i tę łapie kontrola niżej.
-            if ($adres === '' && blank($dysk['key'] ?? null)) {
-                continue;
-            }
-
-            $powod = DozwolonyHostR2::powod($adres);
-
-            if ($powod !== null) {
-                $zle[] = "`{$nazwa}` (".DozwolonyHostR2::opisHosta($adres).", {$powod})";
-            }
-        }
-
-        if ($zle === []) {
-            return;
-        }
-
-        // Host (z identyfikatorem konta) idzie wyłącznie do logu; publicznie
-        // i na webhook — sam kod.
-        throw new KontrolaZdrowiaNieprzeszla(
-            self::POWOD_MAGAZYN_ZLY_HOST,
-            'AWS_ENDPOINT nie ma postaci https://<identyfikator konta>.eu.r2.cloudflarestorage.com '
-            .'dla dysków: '.implode(', ', $zle).'. Te dyski się nie zbudują (D-255).',
-        );
-    }
-
-    /**
-     * Dla dysku lokalnego droga publiczna to symlink `public/storage`.
-     * Przy R2 pliki idą prosto z CDN-u i ten link nie ma znaczenia —
-     * sprawdzanie go zgłaszałoby wtedy awarię, której nie ma.
-     */
-    private function sprawdzDrogePubliczna(string $nazwaDysku): void
-    {
-        if (config("filesystems.disks.{$nazwaDysku}.driver") !== 'local') {
-            return;
-        }
-
-        $link = public_path('storage');
-        $cel = (string) config("filesystems.disks.{$nazwaDysku}.root");
-
-        if (! is_dir($link)) {
-            throw new KontrolaZdrowiaNieprzeszla(
-                self::POWOD_BRAK_DROGI_PUBLICZNEJ,
-                "Brak drogi publicznej do zdjęć: {$link} nie prowadzi do katalogu. "
-                .'Uruchom `php artisan storage:link`.',
-            );
-        }
-
-        // `realpath` rozwija symlink. Porównanie celów łapie przypadek,
-        // w którym link istnieje, ale wskazuje na poprzedni katalog —
-        // np. sprzed zamontowania woluminu.
-        if (realpath($link) !== realpath($cel)) {
-            throw new KontrolaZdrowiaNieprzeszla(
-                self::POWOD_DROGA_GDZIE_INDZIEJ,
-                "Droga publiczna do zdjęć (`{$link}`) prowadzi gdzie indziej "
-                ."niż dysk `{$nazwaDysku}` (`{$cel}`).",
-            );
-        }
+        return [
+            new SondaBazy,
+            new SondaMigracji,
+            new SondaMagazynuZdjec,
+            new SondaTurnstile,
+            new SondaGoogle,
+            new SondaFacebooka,
+            new SondaAnalityki,
+            new SondaPoczty,
+            new SondaKolejki,
+            new SondaNieudanychListow,
+            new SondaCzyszczeniaCdn,
+            new SondaPilnychAlarmow,
+            new SondaZaleglychCzyszczenCdn,
+            new SondaHostaMagazynu,
+            new SondaTrybuDebug,
+            new SondaCiasteczkaSesji,
+        ];
     }
 
     /**
      * Uruchamia jedną sondę i zamienia jej awarię na KOD, nigdy na komunikat.
      *
-     * `$powodDomyslny` dotyczy wyjątków, których sonda nie rozpoznała sama —
+     * `Sonda::powodDomyslny()` dotyczy wyjątków, których sonda nie rozpoznała sama —
      * np. `QueryException` z sondy bazy. Zgadywanie powodu z treści takiego
      * komunikatu byłoby kruche dokładnie tak, jak w audycie W7-07, więc
-     * zamiast tego każde sprawdzenie z góry deklaruje, co znaczy jego
+     * zamiast tego każda sonda z góry deklaruje, co znaczy jego
      * „coś poszło nie tak".
      *
      * @return array{ok: bool, error?: string}
      */
-    private function check(string $nazwa, string $powodDomyslny, callable $probe): array
+    private function check(Sonda $sonda): array
     {
+        $nazwa = $sonda->nazwa();
+
         try {
-            $probe();
+            $sonda->sprawdz();
 
             // Powrót do zdrowia kasuje odstęp webhooka — kolejna awaria TEJ
             // SAMEJ kontroli (nawet chwilę później) ma prawo zadzwonić od
@@ -1280,7 +292,7 @@ class HealthController extends Controller
 
             return ['ok' => true];
         } catch (Throwable $e) {
-            $powod = $e instanceof KontrolaZdrowiaNieprzeszla ? $e->kod : $powodDomyslny;
+            $powod = $e instanceof KontrolaZdrowiaNieprzeszla ? $e->kod : $sonda->powodDomyslny();
 
             // Kiedyś tu szła pełna treść wyjątku („sondy nie dotykają
             // niczyich danych"). Ale komunikat buduje sterownik bazy, klient

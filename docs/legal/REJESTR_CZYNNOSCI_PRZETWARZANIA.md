@@ -95,6 +95,11 @@ egzekwuje.
   ustawienia (język, skala tekstu, motyw), oświadczenie o wieku ≥ 16 lat
   (`app/Http/Controllers/Auth/RegisterController.php` — `age_confirmed`),
   data ostatniej wizyty.
+- **Akceptacja regulaminu (#2217):** przy rejestracji (hasło, Google, Facebook)
+  zapisujemy w `dziennik_zgod` wiersz `cel = regulamin`: wersja regulaminu
+  i polityki obowiązujące w chwili akceptacji, moment i droga rejestracji —
+  bez IP i danych przeglądarki. Dziennik jest append-only (D-072); wiersz
+  zostaje przy zanonimizowanym koncie. Retencja do ustalenia z prawnikiem (#8).
 - **Podstawa:** art. 6 ust. 1 lit. b RODO — wykonanie umowy (regulamin).
 - **Odbiorcy:** Railway (hosting i baza), EmailLabs (listy z potwierdzeniem
   i linkiem), Cloudflare Turnstile (ochrona formularzy — §3.9).
@@ -610,7 +615,8 @@ trafi tam pierwszy rekord.
 
 - **Cel:** dokończenie gotowania na innym urządzeniu tego samego konta.
 - **Dane:** identyfikator konta i przepisu, lista identyfikatorów odhaczonych
-  kroków, numer rewizji, daty ostatniej zmiany i wygaśnięcia
+  kroków, lista identyfikatorów składników zaznaczonych jako przygotowane,
+  wybrana liczba porcji, numer rewizji, daty ostatniej zmiany i wygaśnięcia
   (`cooking_progress`). Tylko na świadome włączenie przez osobę, osobno dla
   każdego przepisu; domyślnie (i dla gości) postęp zostaje w sesji przeglądarki.
 - **Podstawa:** art. 6 ust. 1 lit. a RODO (osoba włącza funkcję sama) —
@@ -621,8 +627,9 @@ trafi tam pierwszy rekord.
   (`kuking.cooking_progress.retention_hours`; wygasły wiersz jest ignorowany
   przy odczycie, a `kuking:sprzataj-postep-gotowania` kasuje go co noc o 03:00),
   wyłączenie funkcji przez osobę albo wymazanie konta (`EraseAccountData`).
-- **Eksport:** `postep_gotowania` (przepis, numery odhaczonych kroków, daty;
-  tytuł przepisu tylko gdy jest dziś widoczny dla osoby).
+- **Eksport:** `postep_gotowania` (przepis, numery odhaczonych kroków, wybrana
+  liczba porcji, przygotowane składniki, daty; tytuł przepisu i teksty składników
+  tylko gdy przepis jest dziś widoczny dla osoby).
 
 ---
 

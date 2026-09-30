@@ -206,7 +206,7 @@ final class AnalitykaCloudflare
      * NIGDZIE — ani odwiedzającemu, ani właścicielowi, który przecież
      * przeczytał w panelu Cloudflare, że serwis istnieje.
      *
-     * Odpowiedzi używa `HealthController::sprawdzAnalityke()`. Zapala sygnał
+     * Odpowiedzi używa `SondaAnalityki`. Zapala sygnał
      * TYLKO przy rozjeździe: dokument obiecuje, a tokenu nie ma.
      *
      * DLACZEGO ZWYKŁY `str_contains`, A NIE PARSOWANIE DOKUMENTU

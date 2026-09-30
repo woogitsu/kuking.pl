@@ -164,10 +164,6 @@
     padding: var(--spacing-4);
   }
 
-  .przepis-liczba span {
-    font-size: var(--text-body);
-  }
-
   .przepis-siatka > .sekcja-strony {
     min-width: 0;
     padding: var(--spacing-6);

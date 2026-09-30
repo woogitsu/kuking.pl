@@ -32,7 +32,33 @@ from kontrola_przyczyny import Wyjatek
 # #2167: brak wymaganego CSV ma oblać test własnym komunikatem, nie skipem.
 OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 
+OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
+
 OCZEKUJ = {
+    # #1011, paczka H: wpisy dopisane po wzorcach dla wcześniejszych kontroli.
+    "Goły ->with('status') wraca do kontrolera": r'Goły zapis klucza `status` wygląda jak zielony sukces',
+    'Odmowa nazwana sukcesem': r'Komunikat::sukces\(\) z tekstem „Nie udało się…" — to błąd, nie sukces\.',
+    'Produkcja dostaje domenę dostawcy obok kuking.pl': r'PROD_DOMAINS w \.railway/railway\.ts przestało być zbiorem|PROD_DOMAINS zawiera domenę „[^”]+” spoza kuking\.pl',
+    'Rejestracja wdrożenia wraca do preDeployCommand': r'preDeployCommand kończy się PRZED startem i healthcheckiem nowego kontenera — rejestracja tam zużywa numer',
+    'Entrypoint rejestruje wdrożenie bez czekania na /health': r'Funkcja musi wołać komendę z --po-gotowosci',
+    'Import z adresu publikuje przepis': r'\S+ publikuje przepis\.',
+    # #1011, paczka G: wpisy dopisane po wzorcach dla pierwszych 219 kontroli.
+    'Kreator pozwala klientowi podmienić recipeId': r'CannotUpdateLockedPropertyException" is thrown',
+    'Kreator nie wysyła oczekiwanej rewizji treści': r"-'error' \+'saved'",
+    'Publikacja cofa z podglądu przy błędzie przepisu': r'Failed asserting that 3 matches expected 4\.',
+    'Wygenerowany font bez glifu „ą"': r'Brak glifu w podzbiorze Inter: ą \(U\+0105\)',
+    'Analytics znowu importuje Compliance': OCZEKUJ_GRAF_CYKLI + r'|Analytics importuje App\\Domain\\Compliance',
+    'Media znowu importuje Moderation': OCZEKUJ_GRAF_CYKLI + r'|Media importuje App\\Domain\\Moderation',
+    'Compliance znowu importuje Moderation': OCZEKUJ_GRAF_CYKLI + r'|Compliance importuje App\\Domain\\Moderation',
+    'Moderation znowu importuje Security': OCZEKUJ_GRAF_CYKLI + r'|Moderation importuje App\\Domain\\Security',
+    'Nowy cykl: Users importuje Moderation (Moderation → Users już jest)': OCZEKUJ_GRAF_CYKLI,
+    'Formularz zeszytu sprawdza pola przed Policy': r'Expected response status code \[403\] but received 302\.',
+    'Wymazanie nie wycofuje wpisu dziennika po nieudanym commicie': r"\+ 'user_id' => '[0-9a-f-]+', \+ 'wymazano_at' =>",
+    'Wymazanie kasuje cudzy wpis dziennika (ISTNIEJE)': r"-Array &0 \[ - 0 => '[0-9a-f-]+', -\] \+Array &0 \[\]",
+    'Zapis dziennika czeka wewnątrz transakcji z blokadą konta': r'- 0 => 1, - 1 => 1, \+ 0 => 2, \+ 1 => 2,',
+    'Egzekutor nie liczy porażek dziennika wymazań': r'Failed asserting that 0 is identical to 1\.',
+    'Alarm dziennika wymazań bez zerowania licznika': r"'noce' => 2, 'dzien' => '[0-9-]+', \] is null\.",
+    'Alarm dziennika wymazań liczy każdy przebieg dnia jako noc': r'Failed asserting that 3 is identical to 1\.',
     # Mutacja wysyła 181-znakowy tytuł prosto do bazy — objawem jest odmowa
     # kolumny varchar(180), a nie asercja testu.
     'Autozapis kreatora zapisuje bez walidacji pól': Wyjatek(r'value too long for type character varying\(180\).*insert into "recipes"'),
@@ -144,6 +170,16 @@ OCZEKUJ = {
     'Zapis wpisu do cudzego zeszytu': r'Akcja zapisała wpis do cudzego zeszytu\.',
     'Podział testów gubi plik': r"Plik tests/\S+ nie trafił do żadnej części — nie uruchamia się NIGDZIE\.",
     'Macierz testów krótsza niż podział': r"@@ @@ -Array &0 \[\] \+Array &0 \[ \+ 0 => 'Skrypt dzieli na 4 części, a macierz ",
+    'Wyścigi dwóch połączeń znów nie blokują CI': r'Job `dwa-polaczenia` znów ma continue-on-error',
+    # Flaga na jobie `audit` zapala w tej samej klasie także spis dozwolonych
+    # `continue-on-error` — dwa objawy jednej mutacji.
+    'Audyt zależności znów nie blokuje CI': r'Job `audit` znów ma continue-on-error|Nowe continue-on-error w ci\.yml',
+    'Audyt zależności bez skryptu bramki': r'python3 scripts/audyt-zaleznosci\.py',
+    'Nowe continue-on-error w jobie testów': r'Nowe continue-on-error w ci\.yml',
+    # Macierz [1] (z [1, 2]) pada na pierwszej asercji o liczbie części, zanim
+    # dojdzie do porównania z GRUPY — obie są objawem tej samej mutacji.
+    'Macierz portu krótsza niż podział grup': r'Macierz nie dzieli niczego\.|Części macierzy `port_funkcje` rozjechały się z GRUPY',
+    'Minutnik poza macierzą portu': r'nie idzie w części 2 albo idzie w obu|Warunek wskazuje część spoza macierzy: 3',
     'Runbook znów instaluje Sentry': r'Runbook poza blokiem `<details>` zawiera instalację pakietu Sentry w',
     'Runbook znów wymaga klucza PostHog': r'Runbook zawiera klucz PostHog w tabeli zmiennych lub sekretów \(`\|',
     'Jeden worker ze ścisłym priorytetem kolejek': r'Zadanie z kolejki `media` nie ruszyło w 3 obrotach przy stałej',
@@ -195,6 +231,8 @@ OCZEKUJ = {
     'Metryki doboru czytają reakcje „Smakowicie wygląda”': r'ukrycia i reakcje nie są źródłem analityki \(D-278, D-280\)',
     'Strona doboru opisuje rotację, której kod nie robi': r'odkrywanie\.rotacja: w app/Domain/Feed/DiscoverFeed\.php nie ma już',
     'Wersja regulaminu podbita bez nagłówka dokumentu': r'Nagłówek regulaminu nie mówi „\d+ \S+',
+    'Termin odpowiedzi na reklamację inny niż w regulaminie': r'contains "w ciągu \*\*\d+ dni\*\* od otrzymania reklamacji"',
+    'Limit zdjęć we wpisie inny niż w regulaminie': r'Regulamin podaje inną liczbę zdjęć we wpisie niż kuking\.media\.max_per_post',
     'Zmiana istotna bez okresu przejściowego': '@@ @@ -\'\\d{4}-\\d\\d-\\d\\d\' \\+\'\\d{4}-\\d\\d-\\d\\d\'|contains \\"Nowa wersja obowiązuje od \\d+ \\S+ \\d{4}\\. Do tego dnia|@@ @@ Array &0 \\[ - 0 => \'\\d{4}-\\d\\d-\\d\\d\', \\+ 0 => \'\\d{4}-\\d\\d-\\d\\d\'',
     'Zmiana istotna wchodzi w dniu publikacji zamiast po 14 dniach': r'Failed asserting that false is true\.|contains "Nowa wersja obowiązuje od \d+ \S+ \d{4}\.|\d{4}-\d\d-\d\d.*\d{4}-\d\d-\d\d|exception of type "RuntimeException" is thrown',
     'Zgoda zapisuje wersję opublikowaną zamiast obowiązującej': r"@@ @@ Array &0 \[ - 0 => '\d{4}-\d\d-\d\d', \+ 0 => '\d{4}-\d\d-\d\d', 1 => '\d{4}-\d\d-\d\d'",
@@ -214,6 +252,9 @@ OCZEKUJ = {
     'Odczyt: rozliczenie bez strażnika stanu': r'Drugie rozliczenie tej samej próby musi być niczym\.',
     'Odczyt: zadanie za commitem zlecenia': r'Zlecenie `oczekuje` zostało zatwierdzone bez zadania w kolejce — nikt',
     'Odczyt: ponowienie woła model mimo zapisanej odpowiedzi': r'Failed asserting that actual size 2 matches expected size 1\.',
+    # #2213: stary bezwarunkowy zapis `w_toku` na domkniętym zleceniu łamie
+    # CHECK kodu błędu — objawem mutacji jest ten wyjątek, nie asercja.
+    'Odczyt: bezwarunkowy zapis w_toku wskrzesza zlecenie': Wyjatek(r'QueryException.*importy_przepisow_kod_przy_bledzie_check'),
     'Wartości odżywcze liczone poniżej 90% pokrycia': r'Failed asserting that true is false\.|„Chleb pszenno-żytni na zakwasie”: Failed asserting that two strings',
     'Źródła wartości odżywczych bez identyfikatora wersji CIQUAL': r'Wersja CIQUAL ma być wskazana identyfikatorem, nie tylko nazwą\.',
     'Job plan IaC bez bramki produkcji': r'Job `plan` w \.github/workflows/railway-iac\.yml wykonuje',
@@ -262,6 +303,8 @@ OCZEKUJ = {
         r'|matches PCRE pattern "~data-minutniki-koniec>Ugotowałam</a>~u"'
         r'|contains "Halina ugotowała Twój przepis'
         r'|contains "Kuking\.pl - pokaż, co dziś ugotowałaś\."'
+        # #1753 etap 2: przycisk „Ugotowałam” na stronie przepisu i w formularzu.
+        r'|matches PCRE pattern "~href="\[\^"\]\*/ugotowalem\[\^"\]\*">Ugotowałam</a>~u"'
     ),
     'Wariant neutralny helpera z rodzajem': r'wariant neutralny z rodzajem|contains "Możesz od razu pokazać, co dziś gotujesz"',
     'Goły rodzaj obok wywołania helpera': r'Tekst przypisuje czytelnikowi płeć:.*ugotowałaś',
@@ -273,6 +316,11 @@ OCZEKUJ = {
     'Wybór formy czeka na dzień wersji przy drobnej zmianie': r'Wybór formy ukryty w chwili 2026-09-29 20:00',
     # #2000: wspólny zeszyt „wszyscy” ma „Podziel się”.
     'Wspólny publiczny zeszyt bez „Podziel się”': r'Wspólny zeszyt „wszyscy” nie ma przycisku „Podziel się”',
+    # #2224: stary KRS w dokumencie ma wywrócić strażnika danych rejestrowych.
+    'Audyt ADR: stary KRS operatora': r'Numer rejestrowy w dokumencie różni się od config/kuking\.php.*0000854321',
+    # #2223 (D-333): tinker poza obrazem produkcyjnym.
+    'Tinker wraca do require': r'laravel/tinker wrócił do `require`',
+    'Runbook znów każe użyć tinkera': r'MONITORING_BLEDOW\.md każe użyć `php artisan tinker`',
 }
 
 

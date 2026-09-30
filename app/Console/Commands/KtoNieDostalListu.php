@@ -152,7 +152,7 @@ use Throwable;
  * bo pozwoliłby wyjść z konsoli z przekonaniem, że w `failed_jobs` stoją
  * cztery wiersze, podczas gdy stoi ich czterdzieści — a to właśnie liczba
  * WSZYSTKICH wierszy trzyma `/health` na `degraded`
- * (`HealthController::sprawdzKolejke()`). `--wszystkie` pokazuje resztę.
+ * (`SondaKolejki`). `--wszystkie` pokazuje resztę.
  */
 class KtoNieDostalListu extends Command
 {
@@ -486,7 +486,7 @@ class KtoNieDostalListu extends Command
         $this->newLine();
         $this->line('Nic z tego, co wyżej, nie zostało skasowane ani zmienione — ta komenda tylko czyta.');
         $this->line('Dopóki te wiersze stoją w `failed_jobs`, `/health` będzie mówił `degraded`');
-        $this->line('(`HealthController::sprawdzKolejke()` liczy WSZYSTKIE wiersze tej tabeli).');
+        $this->line('(`SondaKolejki` liczy WSZYSTKIE wiersze tej tabeli).');
         $this->line('Kasowanie (`queue:forget <uuid>`, `queue:flush`) to decyzja właściciela i ma zapaść');
         $this->line('PO tym, jak te osoby dostaną odpowiedź — nie przy okazji czytania tej listy.');
 

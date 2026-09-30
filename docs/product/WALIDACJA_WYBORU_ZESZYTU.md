@@ -28,7 +28,7 @@ wiersz `collection_items`, a nie tylko przekierowanie.
 W środowisku przygotowania poprawki nie było PHP, Composera ani
 PostgreSQL. Następnie testy wykonano w CI: 14 przypadków / 102 asercje,
 wraz z kontrolami negatywnymi UUID, własności i komunikatu. Wyniki i md5
-są w `docs/design/WERYFIKACJA_ALFA_08.md`. Test przenosi rzeczywiste
+są w `docs/design/WERYFIKACJA_ALFA_008.md`. Test przenosi rzeczywiste
 ciasteczko sesji między POST a GET; nie wstrzykuje błędu do sesji.
 Poniżej pozostaje procedura ręcznego odtworzenia.
 

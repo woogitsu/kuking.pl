@@ -3,6 +3,16 @@
 > **Status dokumentu:** Raport audytowy z weryfikacji zgodności twierdzeń, liczb,
 > założeń i rekomendacji z rzeczywistym kodem repozytorium Kuking.pl.
 > **Data sporządzenia:** 20 września 2026 r.
+> **Status:** dokument **historyczny** (stan na 20 września 2026 r.) — ślad audytu,
+> nie źródło prawdy o operatorze. Aktualne dane spółki (nazwa, siedziba, adres,
+> KRS, NIP, REGON) stoją wyłącznie w `config/kuking.php` (klucz `kuking.podmiot`)
+> i w `resources/legal/regulamin.md` oraz `resources/legal/polityka-prywatnosci.md`.
+> Sprostowanie danych operatora z 29 września 2026 r. (#2224): pierwotna wersja
+> tego raportu podawała w §3.2 inną siedzibę i inne numery rejestrowe niż
+> konfiguracja; poprawiono je na zgodne z konfiguracją i nie powtarzamy tu
+> błędnych wartości, żeby nie krążyły jako dowód zgodności. Zgodność dokumentów
+> z konfiguracją pilnuje `DokumentyPrawneNieKlamiaTest`. Numery linii w `config/kuking.php`
+> podane w raporcie dotyczą stanu z dnia audytu i mogły się przesunąć.
 > **Środowisko audytowe:** Worktree `kuking-flota/gemini-adr`, gałąź `gemini/adr-warstwa-merytoryczna` (baza: `534e0a51`), PostgreSQL 18 (`127.0.0.1:55439`).
 > **Konwencja dowodowa (zgodnie z ZASADY_FLOTY.md):** Każde twierdzenie i liczba bez
 > adnotacji stanowi **własny, bezpośredni pomiar** w kodzie i schemacie bazy danych.
@@ -80,16 +90,16 @@ przez właściciela produktu.
 ### 3.2. OPERATOR (`docs/decyzje/OPERATOR.md`)
 
 #### 1. Co dokument twierdzi?
-- **Dane podmiotu:** Operatorem serwisu jest spółka SAMSUFI sp. z o.o. z siedzibą w Warszawie (KRS 0000854321, NIP 5252832109, REGON 386789012, kapitał 5 000 zł).
+- **Dane podmiotu:** Operatorem serwisu jest spółka SAMSUFI sp. z o.o. z siedzibą w Knyszynie, ul. Jagiellońska 4A, 19-120 Knyszyn (KRS 0000901262, NIP 5423435334, REGON 388971059) `[sprostowano 29.09.2026, #2224: pierwotnie podano tu nieaktualne dane rejestrowe i siedzibę; kapitału zakładowego konfiguracja nie przechowuje]`.
 - **Punkty kontaktowe:** `kontakt@kuking.pl` oraz punkt DSA pod adresem `dsa@kuking.pl`.
 - **Status DSA:** Spółka kwalifikuje się jako mikroprzedsiębiorstwo i korzysta ze zwolnienia z art. 19–24 Aktu o Usługach Cyfrowych (DSA).
 - **Lista podprocesorów:** Wymienia Railway, Cloudflare, dostawcę poczty, a także historycznie Sentry i PostHog.
 
 #### 2. Co z tego jest prawdą w kodzie? (potwierdzone `plik:linia`)
-- **Konfiguracja operatora:** Wszystkie dane rejestrowe spółki SAMSUFI sp. z o.o. są precyzyjnie odzwierciedlone w konfiguracji `config/kuking.php:2363-2385` (`operator.nazwa`, `krs`, `nip`, `regon`, `kapital`, `adres`).
+- **Konfiguracja operatora:** Wszystkie dane rejestrowe spółki SAMSUFI sp. z o.o. są odzwierciedlone w konfiguracji w kluczu `kuking.podmiot` (`nazwa`, `nazwa_pelna`, `ulica`, `kod_pocztowy`, `miejscowosc`, `krs`, `nip`, `regon`, `email`; `config/kuking.php`, blok `'podmiot'`). `[sprostowano 29.09.2026, #2224: pierwotny odnośnik `config/kuking.php:2363-2385` i klucz `operator.*` nie opisywały tej konfiguracji]`
 - **Treści dokumentów prawnych:** Dane te są 1:1 zsynchronizowane z publicznymi dokumentami prawnymi:
-  - `resources/legal/regulamin.md:15`
-  - `resources/legal/polityka-prywatnosci.md:15`
+  - `resources/legal/regulamin.md` (§1)
+  - `resources/legal/polityka-prywatnosci.md` (§1)
 - **Strażnik automatyczny:** Zgodność statusu mikroprzedsiębiorstwa i zwolnienia z DSA weryfikuje test `tests/Feature/DokumentyNieRozjezdzajaSieOZwolnieniuDsaTest.php:1-60`.
 - **Decyzja właściciela:** Formalny wybór spółki SAMSUFI i jej parametrów opisuje wpis D-040 w `docs/DECISIONS.md:1980`.
 

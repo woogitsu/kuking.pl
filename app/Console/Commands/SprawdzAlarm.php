@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Logging\KanalyAlarmowe;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use RuntimeException;
 
 /**
  * Czy kanał alarmowy NAPRAWDĘ dochodzi (issue #599).
@@ -46,7 +47,8 @@ use Illuminate\Support\Carbon;
 class SprawdzAlarm extends Command
 {
     protected $signature = 'kuking:sprawdz-alarm
-                            {--bez-wysylki : Tylko powiedz, czy kanał jest skonfigurowany — nic nie wysyłaj}';
+                            {--bez-wysylki : Tylko powiedz, czy kanał jest skonfigurowany — nic nie wysyłaj}
+                            {--przez-wyjatek : Wyślij próbę drogą prawdziwego błędu 500: report() → obsługa wyjątków → kanał}';
 
     protected $description = 'Wysyła jedną próbną wiadomość na każdy kanał alarmowy (Discord, poczta) i mówi, który ją przyjął (issue #599).';
 
@@ -87,29 +89,17 @@ class SprawdzAlarm extends Command
 
         $znacznik = Carbon::now()->toIso8601String();
 
+        if ($this->option('przez-wyjatek')) {
+            return $this->przezWyjatek($znacznik, $wlaczone);
+        }
+
         // BRAK WYJĄTKU NIE JEST DOWODEM DOSTARCZENIA. Handler Discorda zna kod
         // odpowiedzi (404 z odwołanego webhooka wraca jako ZWYKŁA odpowiedź),
         // handler poczty wie, czy transport przyjął list. `KanalyAlarmowe`
         // pyta każdy z nich osobno, od czystej kartki.
         KanalyAlarmowe::zadzwon($this->tresc($znacznik));
-        $wyniki = KanalyAlarmowe::wyniki();
 
-        $this->newLine();
-        $wszystkiePrzyjely = true;
-
-        foreach ($wlaczone as $kanal) {
-            if (($wyniki[$kanal] ?? null) === true) {
-                $this->info('Kanał '.KanalyAlarmowe::nazwa($kanal).' PRZYJĄŁ wiadomość próbną.');
-
-                continue;
-            }
-
-            $wszystkiePrzyjely = false;
-            $this->error('Wiadomość próbna NIE ZOSTAŁA PRZYJĘTA przez kanał '.KanalyAlarmowe::nazwa($kanal).' — prawdziwy alarm tym kanałem też NIE DOJDZIE.');
-            $this->line($kanal === KanalyAlarmowe::DISCORD
-                ? 'Powód (kod HTTP albo klasa wyjątku) stoi w dzienniku serwera pod wpisem „Nie udało się zadzwonić na webhook błędów". Najczęściej: literówka w adresie, kanał skasowany po stronie Discorda (401/404), brak wyjścia do sieci.'
-                : 'Powód (klasa wyjątku albo wyczerpany sufit listów) stoi w dzienniku serwera pod wpisem „Nie udało się wysłać listu z alarmem". Sprawdź `php artisan kuking:sprawdz-poczte` i adres w `KUKING_ALARM_EMAIL`.');
-        }
+        $wszystkiePrzyjely = $this->zameldujKanaly($wlaczone, KanalyAlarmowe::wyniki(), 'Wiadomość próbna');
 
         $this->newLine();
         $this->line("Znacznik próby: <options=bold>{$znacznik}</>");
@@ -118,6 +108,90 @@ class SprawdzAlarm extends Command
         $this->line('przyjął list — nie to, że zobaczył go człowiek. Tego stąd sprawdzić się nie da.');
 
         return $wszystkiePrzyjely ? self::SUCCESS : self::FAILURE;
+    }
+
+    /**
+     * Ta sama próba, ale drogą, którą idzie prawdziwy błąd 500 (issue #2223).
+     *
+     * Zwykła próba pisze prosto na kanały (`KanalyAlarmowe`) i sprawdza same kanały.
+     * Prawdziwy błąd idzie dłużej: `report()` → wywołanie zwrotne
+     * w `bootstrap/app.php` → `SeriaAlarmow` → kanał. Do 29.09.2026 tę drogę
+     * sprawdzał tylko `php artisan tinker --execute="report(…)"`
+     * (`MONITORING_BLEDOW.md` §1), a tinkera w obrazie produkcyjnym już nie
+     * ma (D-333).
+     *
+     * Treść wyjątku NIE wychodzi na kanał (Discord ani list): `WebhookBleduHandler::tresc()` bierze z niego
+     * tylko klasę, plik i linię. Odcisk to więc zawsze ta linia tego pliku —
+     * seria (`SeriaAlarmow`) przepuszcza JEDNĄ taką próbę na okno
+     * `kuking.monitoring.seria_okno_minut` i nie wycisza żadnego innego błędu.
+     */
+    /**
+     * @param  list<string>  $wlaczone
+     */
+    private function przezWyjatek(string $znacznik, array $wlaczone): int
+    {
+        // Czysta kartka PRZED `report()`: seria pominięta przez okno nie woła
+        // `KanalyAlarmowe::zadzwon()`, więc bez tego `wyniki()` oddałoby
+        // wynik cudzej, wcześniejszej próby w tym procesie (#599).
+        KanalyAlarmowe::zapomnijWyniki();
+
+        report(new RuntimeException($this->tresc($znacznik)));
+
+        $wyniki = KanalyAlarmowe::wyniki();
+
+        if ($wyniki === []) {
+            $okno = (int) config('kuking.monitoring.seria_okno_minut');
+            $this->newLine();
+            $this->error('Próba drogą błędu 500 NIE DOSZŁA do kanału.');
+            $this->newLine();
+            $this->line("Najczęściej to znaczy, że taka sama próba poszła w ciągu ostatnich {$okno} minut:");
+            $this->line('seria identycznych błędów daje jedną wiadomość na okno. Spróbuj ponownie po tym czasie.');
+            $this->line('Jeśli to pierwsza próba, przyczyna stoi w dzienniku serwera przy wpisie o tym wyjątku.');
+
+            return self::FAILURE;
+        }
+
+        $wszystkiePrzyjely = $this->zameldujKanaly($wlaczone, $wyniki, 'Próba drogą błędu 500');
+
+        $this->newLine();
+        $this->line("Znacznik próby drogą błędu 500: <options=bold>{$znacznik}</>");
+        $this->line('Na kanale zobaczysz „RuntimeException” z plikiem SprawdzAlarm.php — to ta próba, nie awaria.');
+
+        if (! $wszystkiePrzyjely) {
+            $this->line('Prawdziwy błąd 500 tym kanałem, który nie przyjął próby, też NIE DOJDZIE.');
+        }
+
+        return $wszystkiePrzyjely ? self::SUCCESS : self::FAILURE;
+    }
+
+    /**
+     * Wynik próby dla KAŻDEGO włączonego kanału osobno (#599). Zwraca, czy
+     * przyjęły wszystkie — komenda, która sprawdza, czy alarm dochodzi, nie
+     * melduje sukcesu, gdy jeden z dwóch kanałów milczy.
+     *
+     * @param  list<string>  $wlaczone
+     * @param  array<string, bool|null>  $wyniki
+     */
+    private function zameldujKanaly(array $wlaczone, array $wyniki, string $co): bool
+    {
+        $this->newLine();
+        $wszystkiePrzyjely = true;
+
+        foreach ($wlaczone as $kanal) {
+            if (($wyniki[$kanal] ?? null) === true) {
+                $this->info('Kanał '.KanalyAlarmowe::nazwa($kanal).' PRZYJĄŁ: '.mb_strtolower($co).'.');
+
+                continue;
+            }
+
+            $wszystkiePrzyjely = false;
+            $this->error($co.' NIE ZOSTAŁA PRZYJĘTA przez kanał '.KanalyAlarmowe::nazwa($kanal).' — prawdziwy alarm tym kanałem też NIE DOJDZIE.');
+            $this->line($kanal === KanalyAlarmowe::DISCORD
+                ? 'Powód (kod HTTP albo klasa wyjątku) stoi w dzienniku serwera pod wpisem „Nie udało się zadzwonić na webhook błędów". Najczęściej: literówka w adresie, kanał skasowany po stronie Discorda (401/404), brak wyjścia do sieci.'
+                : 'Powód (klasa wyjątku albo wyczerpany sufit listów) stoi w dzienniku serwera pod wpisem „Nie udało się wysłać listu z alarmem". Sprawdź `php artisan kuking:sprawdz-poczte` i adres w `KUKING_ALARM_EMAIL`.');
+        }
+
+        return $wszystkiePrzyjely;
     }
 
     /**

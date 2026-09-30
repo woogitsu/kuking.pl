@@ -10,6 +10,7 @@ use App\Domain\Users\Actions\ZalozoneKonto;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\WpisZgody;
 use App\Rules\ReservedUsername;
 use App\Rules\TurnstileJestPotwierdzony;
 use App\Rules\UsernameNotTaken;
@@ -219,6 +220,7 @@ class RegisterController extends Controller
                 email: $data['email'],
                 displayName: $data['display_name'],
                 username: $data['username'],
+                zrodloAkceptacji: WpisZgody::ZRODLO_REJESTRACJA_HASLO,
                 haslo: $data['password'],
                 ip: $request->ip(),
                 dziennik: ['droga' => 'haslo'],

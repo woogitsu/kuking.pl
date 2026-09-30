@@ -9,8 +9,10 @@
  * tak samo jak zapamiętany przełącznik „Nie usypiaj ekranu” (#1302).
  * Każdy krok to osobny dokument (`?krok=N`), więc stan musi przeżyć
  * przeładowanie; nie może za to udawać danych konta ani synchronizacji
- * między urządzeniami (to osobne #2016). Druga karta zaczyna od zera.
- * Serwer o tych odhaczeniach nic nie wie.
+ * między urządzeniami. Druga karta zaczyna od zera. Serwer o tych odhaczeniach
+ * nic nie wie — chyba że osoba włączyła zapamiętywanie na koncie (#2016):
+ * wtedy widok renderuje zwykły formularz i ten moduł nie jest podłączany
+ * (brak `data-przygotowanie`).
  *
  * KLUCZ TO ID SKŁADNIKA, nie pozycja ani nazwa: dwie „sole” w grupach
  * „Ciasto” i „Farsz” to dwa niezależne wiersze, a zmiana kolejności nie

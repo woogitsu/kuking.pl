@@ -37,7 +37,7 @@ use Throwable;
  * Powód jest konkretny i ma datę. W `failed_jobs` leżą cztery zadania
  * `UstawienieNowegoHasla` z 9 września 2026 — z awarii SMTP na Railway,
  * naprawionej przez D-047 (`docs/infra/ZDARZENIE_2026-09-09_NIEWYSLANE_HASLA.md`).
- * `HealthController::sprawdzKolejke()` liczy WSZYSTKIE wiersze tej tabeli,
+ * `SondaKolejki` liczy WSZYSTKIE wiersze tej tabeli,
  * więc dopóki te cztery tam stoją, `/health` melduje `degraded`
  * i zewnętrzny monitoring dzwoni o awarii, której już nie ma.
  *

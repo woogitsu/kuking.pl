@@ -1,0 +1,4 @@
+{
+  "_opis": "Jawne, krótkie wyjątki od bramki audytu zależności (#2215). Każdy wpis: id (CVE, GHSA albo PKSA), narzedzie (composer albo npm), zakres (czego dotyczy i dlaczego jest bezpiecznie), wlasciciel, zgoda (odnośnik do issue lub PR ze zgodą właściciela), wygasa (RRRR-MM-DD, najdalej 30 dni od dziś). Procedura: docs/infra/BRAMKI_CI_2215.md.",
+  "wyjatki": []
+}

@@ -29,7 +29,7 @@ import tempfile
 from kontrola_przyczyny import przebieg, sprawdz_wzorce, uruchom_test, werdykt, POTWIERDZONA
 from kontrola_wyjscia_testu import run_test
 from kontrole_oczekiwana_przyczyna import OCZEKUJ, OCZEKUJ_MIARY, kontrole_mechanizmu
-from podzial_kontroli import parsuj_czesc, poza_petla_w_tej_czesci, wybierz_indeksy
+from podzial_kontroli import indeksy_po_etykietach, parsuj_argumenty, poza_petla_w_tej_czesci, wybierz_indeksy
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -38,7 +38,9 @@ os.chdir(ROOT)
 # CZĘŚCI CI. `--czesc N/M` uruchamia co M-ty wpis `checks` (indeks % M == N-1)
 # oraz, w części 3, elementy spoza pętli; bez argumentu (lokalnie) idzie całość.
 # Patrz scripts/podzial_kontroli.py i job `test` w .github/workflows/ci.yml.
-CZESC = parsuj_czesc(sys.argv[1:])
+# `--tylko ETYKIETA` (powtarzalne) uruchamia same wpisy o tych etykietach — do
+# zbierania komunikatu porażki przy pisaniu wzorca oczekiwanej przyczyny (#1011).
+CZESC, TYLKO = parsuj_argumenty(sys.argv[1:])
 
 
 def odmow(powod):
@@ -67,6 +69,19 @@ if os.environ.get("CI") != "true":
         odmow(f"DB_PORT={port!r} — podaj port własnego klastra, nigdy 5432.")
     if baza in ("", "kuking"):
         odmow(f"DB_DATABASE={baza!r} — podaj nazwaną bazę stanowiska.")
+    # Ta sama rodzina, którą egzekwuje `tests/bootstrap.php` (D-334). Bez tej
+    # kontroli każdy test w pętli odmawiał startu, a kontrola ujemna czyta
+    # „test nie przeszedł” jako „mutacja złapana” — fałszywa zieleń całego skryptu.
+    rodzina = subprocess.run(
+        ["php", "-r",
+         'require "tests/Support/kuking_bezpiecznik_bazy_testowej.php";'
+         ' exit(kuking_ocen_baze_testowa($argv[1]) === null ? 0 : 1);',
+         "--", baza],
+        capture_output=True, check=False,
+    )
+    if rodzina.returncode != 0:
+        odmow(f"DB_DATABASE={baza!r} nie należy do rodziny testowej "
+              "(kuking_test*, kuking_race*, kuking_flota_*) — testy odmówiłyby startu.")
 
     print(f"Kontrole negatywne lokalnie: {host}:{port}/{baza}", flush=True)
 
@@ -243,6 +258,12 @@ WDROZENIE_WORKFLOW = ".github/workflows/deploy.yml"
 # leży w repozytorium bez jednego przebiegu.
 CI_WORKFLOW = ".github/workflows/ci.yml"
 AUTOZAPIS_892_TEST = "test_autozapis_kreatora_892_chodzi_w_ci"
+# #611, etap 9: `dwa-polaczenia` blokuje (bez `continue-on-error`), a `port_funkcje`
+# to macierz dwóch części. Strażnicy czytają `ci.yml`; mutacje przywracają flagę,
+# skracają macierz i przestawiają krok na część, której nie ma.
+WYSCIGI_BLOKUJA_TEST = "WyscigiDwochPolaczenBlokujaCiTest"
+AUDYT_BLOKUJE_TEST = "KrytyczneKontroleCiBlokujaTest"
+ROZSZERZENIA_CZESCI_TEST = "test_rozszerzenia_dziela_sie_na_czesci_bez_utraty_pomiaru"
 DEPLOY_WSTRZYKNIECIE_TEST = "DeployNieWklejaDanychZdarzeniaDoPowlokiTest"
 WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
 # Preview i IaC nie zgadują stanu (#1389, #1390). Strażnik czyta workflow
@@ -588,6 +609,8 @@ DOBOR_STRONA_TEST = "JakDobieramyWpisyMowiPrawdeTest"
 # nie ma; test daty ma oblać.
 REGULAMIN_WERSJA = "config/kuking.php"
 REGULAMIN_WERSJA_TEST = "ZmianaRegulaminuTest"
+# Regulamin §13 „Wymagania techniczne” i §14 „Reklamacje” (#2220).
+REGULAMIN_WYMAGANIA_TEST = "RegulaminWymaganiaIReklamacjeTest"
 
 # Pasek o zmianie polityki (D-327, D-332): rollback bez odmowy i sekcja
 # „Co się zmieniło” niezgodne z konfiguracją (drobna/istotna); pasek przy drobnej;
@@ -1413,6 +1436,20 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Podział testów gubi plik", PODZIAL_TESTOW, PODZIAL_TESTOW_TEST, podzial_gubi_plik),
     ("Macierz testów krótsza niż podział", BRAMKA_CI, PODZIAL_TESTOW_TEST, macierz_krotsza_niz_podzial),
+    ("Wyścigi dwóch połączeń znów nie blokują CI", CI_WORKFLOW, WYSCIGI_BLOKUJA_TEST,
+     lambda s: replace_once(s, "    name: Wyścigi na dwóch połączeniach\n", "    name: Wyścigi na dwóch połączeniach\n    continue-on-error: true\n")),
+    # #2215: audyt zależności blokuje; flaga wracająca na job albo skrypt bramki
+    # zastąpiony pustym poleceniem zostawiłyby „zielony CI" mimo high/critical.
+    ("Audyt zależności znów nie blokuje CI", CI_WORKFLOW, AUDYT_BLOKUJE_TEST,
+     lambda s: replace_once(s, "    name: Audyt zależności (blokuje high i critical)\n", "    name: Audyt zależności (blokuje high i critical)\n    continue-on-error: true\n")),
+    ("Audyt zależności bez skryptu bramki", CI_WORKFLOW, AUDYT_BLOKUJE_TEST,
+     lambda s: replace_once(s, "python3 scripts/audyt-zaleznosci.py", "true scripts/audyt-zaleznosci.py")),
+    ("Nowe continue-on-error w jobie testów", CI_WORKFLOW, AUDYT_BLOKUJE_TEST,
+     lambda s: replace_once(s, "  testy:\n    name: Testy (PostgreSQL 18)\n", "  testy:\n    name: Testy (PostgreSQL 18)\n    continue-on-error: true\n")),
+    ("Macierz portu krótsza niż podział grup", CI_WORKFLOW, ROZSZERZENIA_CZESCI_TEST,
+     lambda s: replace_once(s, "        czesc: [1, 2]\n", "        czesc: [1]\n")),
+    ("Minutnik poza macierzą portu", CI_WORKFLOW, ROZSZERZENIA_CZESCI_TEST,
+     lambda s: replace_once(s, "Minutnik — opóźnione wywołania i dostępny czas\n        if: matrix.czesc == 2\n", "Minutnik — opóźnione wywołania i dostępny czas\n        if: matrix.czesc == 3\n")),
     ("Runbook znów instaluje Sentry", RUNBOOK, RUNBOOK_USLUGI_TEST,
      lambda s: replace_once(s, RUNBOOK_KROK_4, RUNBOOK_KROK_4 + "\n```bash\ncomposer require sentry/sentry-laravel\n```\n")),
     ("Runbook znów wymaga klucza PostHog", RUNBOOK, RUNBOOK_USLUGI_TEST,
@@ -1590,7 +1627,13 @@ checks = [
     ("Wspólny publiczny zeszyt bez „Podziel się”", UDOSTEPNIANIE, PODZIEL_SIE_ZESZYT_WSPOLNY_TEST,
      lambda s: replace_once(s, "return ! $tresc->is_default;", "return ! $tresc->is_default && ! $tresc->members()->exists();")),
     ("Wersja regulaminu podbita bez nagłówka dokumentu", REGULAMIN_WERSJA, REGULAMIN_WERSJA_TEST,
-     lambda s: replace_once(s, "'wersja_regulaminu' => '2026-09-26'", "'wersja_regulaminu' => '2026-09-27'")),
+     lambda s: replace_once(s, "'wersja_regulaminu' => '2026-09-30'", "'wersja_regulaminu' => '2026-10-01'")),
+    # #2220: regulamin §13/§14 podaje liczby z konfiguracji — mutacja zmienia
+    # konfigurację, dokument zostaje, strażnik ma oblać.
+    ("Termin odpowiedzi na reklamację inny niż w regulaminie", REGULAMIN_WERSJA, REGULAMIN_WYMAGANIA_TEST,
+     lambda s: replace_once(s, "'termin_odpowiedzi_dni' => 14,", "'termin_odpowiedzi_dni' => 7,")),
+    ("Limit zdjęć we wpisie inny niż w regulaminie", REGULAMIN_WERSJA, REGULAMIN_WYMAGANIA_TEST,
+     lambda s: replace_once(s, "'max_per_post' => 6,", "'max_per_post' => 5,")),
     ("Zmiana istotna bez okresu przejściowego", WERSJA_DOKUMENTU, WERSJA_DOKUMENTU_TEST,
      lambda s: replace_once(s, "        return ($chwila ?? now())->lessThan($this->obowiazujeOd());\n", "        return false;\n")),
     ("Zmiana istotna wchodzi w dniu publikacji zamiast po 14 dniach", WERSJA_DOKUMENTU, WERSJA_DOKUMENTU_TEST,
@@ -1659,6 +1702,10 @@ checks = [
      lambda s: replace_once(s, "OdczytajPrzepis::dispatch((string) $zlecenie->getKey());", "OdczytajPrzepis::dispatch((string) $zlecenie->getKey())->afterCommit();")),
     ("Odczyt: ponowienie woła model mimo zapisanej odpowiedzi", "app/Jobs/OdczytajPrzepis.php", "MaszynaStanowOdczytuTest::test_1980_ponowienie",
      lambda s: replace_once(s, "        if (is_array($zlecenie->odpowiedz_modelu)) {", "        if (false && is_array($zlecenie->odpowiedz_modelu)) {")),
+    # #2213: job nie wskrzesza zlecenia domkniętego przez odzyskiwanie.
+    ("Odczyt: bezwarunkowy zapis w_toku wskrzesza zlecenie", "app/Jobs/OdczytajPrzepis.php", "MaszynaStanowOdczytuTest::test_2213",
+     lambda s: replace_once(s, "        if (! $this->rozpocznij($zlecenie)) {\n            return;\n        }\n",
+        "        $zlecenie->forceFill(['status' => ImportPrzepisu::STATUS_W_TOKU, 'rozpoczeto_at' => $zlecenie->rozpoczeto_at ?? now()])->save();\n")),
     # D-299: wartości odżywcze tylko przy pokryciu >= 90% masy. Obniżony próg
     # ma zapalić test przepisu z 85% pokrycia.
     ("Wartości odżywcze liczone poniżej 90% pokrycia", "app/Domain/Recipes/Odzywcze/WynikWartosci.php", "KalkulatorWartosciOdzywczychTest",
@@ -1812,7 +1859,33 @@ checks = [
     # json_decode ~8×). Powrót do 32 MB kończył się fatalem 500 bez komunikatu.
     ("Sufit paczki importu wraca do 32 MB", "app/Domain/Users/Import/PodgladPaczkiEksportu.php", "test_sufit_danych_pozostaje_bezpieczny_dla_limitu_pamieci_php",
      lambda s: replace_once(s, "MAX_DANE_BAJTOW = 12 * 1024 * 1024;", "MAX_DANE_BAJTOW = 32 * 1024 * 1024;")),
+    # #2224: stary numer KRS wraca do audytu ADR — strażnik danych rejestrowych
+    # w dokumentach ma go wyłapać (dokument historyczny nie ma wyjątku).
+    ("Audyt ADR: stary KRS operatora", "docs/legal/AUDYT_ADR_WARSTWA_MERYTORYCZNA.md", "test_zadne_dane_rejestrowe_w_dokumentach_nie_odbiegaja_od_konfiguracji",
+     lambda s: replace_once(s, "(KRS 0000901262, NIP", "(KRS 0000854321, NIP")),
+    # #2223 (D-333): tinker wraca do `require` — obraz --no-dev znów niesie PsySH.
+    ("Tinker wraca do require", "composer.json", "test_tinker_jest_tylko_w_require_dev",
+     lambda s: replace_once(s, '"laravel/sanctum": "^4.0",\n', '"laravel/sanctum": "^4.0",\n        "laravel/tinker": "^3.0",\n')),
+    # Ten sam issue: runbook wraca do tinkera zamiast komendy kuking:*.
+    ("Runbook znów każe użyć tinkera", "docs/infra/MONITORING_BLEDOW.md", "test_runbooki_produkcyjne_nie_kaza_uzywac_tinkera",
+     lambda s: replace_once(s, "php artisan kuking:sprawdz-alarm --przez-wyjatek\n",
+                            "php artisan tinker --execute=\"report(new RuntimeException('x'));\"\n")),
 ]
+
+# CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej
+# kontrolę zaliczał każdy niezerowy kod ze słowem `FAILED` w wyjściu, więc błąd
+# składni, awaria bazy albo niezależna asercja z tej samej klasy dawały ten sam
+# „dowód" co asercja, którą mutacja miała zapalić. Teraz wynik czytamy z raportu
+# JUnit, a wzorzec oczekiwanej porażki stoi w `OCZEKUJ` (osobny plik, klucz to
+# nazwa kontroli z `checks`). Kontrola bez wzorca przechodzi tylko jako
+# BEZ_WZORCA i raport wymienia ją z nazwy — nie jest pełnym dowodem.
+# Wszystkie wpisy `checks` mają wzorzec, więc `WYMAGAJ_WZORCA = True`: nowy wpis
+# bez wzorca jest odrzucany w PREFLIGHCIE (niżej), przed pierwszym testem, z
+# nazwą wpisu. Jak zebrać komunikat do wzorca: uruchom sam wpis na własnym
+# klastrze — `--tylko "<etykieta>"` (ten tryb nie wymaga wzorca) — a werdykt
+# BEZ_WZORCA poda komunikaty porażki. Strażnik: tests/skrypty/kontrole-negatywne-przyczyna.py.
+WYMAGAJ_WZORCA = True
+WYMAGAJ_TERAZ = WYMAGAJ_WZORCA and not TYLKO
 
 # PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
 # Po PR #1721 kotwica eksportu przestała pasować, a krok padał dopiero po kilku
@@ -1834,7 +1907,7 @@ for label, filename, _test, mutate in checks:
 KONTROLE_MECHANIZMU = kontrole_mechanizmu(
     STRAZNIK_HOSTA, STRAZNIK_HOSTA_TEST, bez_sprawdzenia_sciezki, replace_once,
 )
-sprawdz_wzorce(checks, OCZEKUJ)
+sprawdz_wzorce(checks, OCZEKUJ, wymagaj=WYMAGAJ_TERAZ)
 for label, filename, _test, mutate, _oczekuj in KONTROLE_MECHANIZMU:
     try:
         source = (ROOT / filename).read_text()
@@ -1855,8 +1928,15 @@ for label, filename, _test, mutate, _oczekuj in KONTROLE_MECHANIZMU:
 # Podział na części CI: wpis o indeksie i należy do części i % M + 1. PREFLIGHT
 # wyżej sprawdził WSZYSTKIE kotwice w każdej części (jest tani), a poniżej idą
 # tylko wpisy wybranej części — każdy wpis w dokładnie jednej.
-wybrane = [checks[i] for i in wybierz_indeksy(len(checks), CZESC)]
-poza_petla = poza_petla_w_tej_czesci(CZESC)
+if TYLKO:
+    if CZESC is not None:
+        raise SystemExit("--tylko i --czesc wykluczają się: podaj jedno z nich.")
+    wybrane = [checks[i] for i in indeksy_po_etykietach([nazwa for nazwa, *_ in checks], TYLKO)]
+    poza_petla = False
+    print(f"--tylko: {len(wybrane)} z {len(checks)} wpisów `checks`, bez elementów spoza pętli.", flush=True)
+else:
+    wybrane = [checks[i] for i in wybierz_indeksy(len(checks), CZESC)]
+    poza_petla = poza_petla_w_tej_czesci(CZESC)
 if CZESC is not None:
     print(f"Część {CZESC[0]}/{CZESC[1]}: {len(wybrane)} z {len(checks)} wpisów `checks`"
           f"{' oraz elementy spoza pętli' if poza_petla else ''}.", flush=True)
@@ -1870,26 +1950,13 @@ if not kontrole_dodatnie:
 KONTROLE_DODATNIE_BEZ_MUTACJI = [GRUPA_SYGNALOW_TEST] if poza_petla else []
 for test in dict.fromkeys(kontrole_dodatnie + KONTROLE_DODATNIE_BEZ_MUTACJI):
     run_test(test, True)
-# CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej
-# kontrolę zaliczał każdy niezerowy kod ze słowem `FAILED` w wyjściu, więc błąd
-# składni, awaria bazy albo niezależna asercja z tej samej klasy dawały ten sam
-# „dowód" co asercja, którą mutacja miała zapalić. Teraz wynik czytamy z raportu
-# JUnit, a wzorzec oczekiwanej porażki stoi w `OCZEKUJ` (osobny plik, klucz to
-# nazwa kontroli z `checks`). Kontrola bez wzorca przechodzi tylko jako
-# BEZ_WZORCA i raport wymienia ją z nazwy — nie jest pełnym dowodem.
-# NIE wszystkie wpisy `checks` mają dziś wzorzec (29.09.2026: 24 z 237, głównie
-# nowsze kontrole z paczek C–F) — raport wymienia je z nazwy jako BEZ_WZORCA.
-# `WYMAGAJ_WZORCA = True` zamieni wpis bez wzorca z raportowanego BEZ_WZORCA
-# w odmowę przed pierwszym testem — włącz dopiero, gdy każdy wpis dostanie
-# wzorzec w `kontrole_oczekiwana_przyczyna.py`.
-WYMAGAJ_WZORCA = False
 # Podział na części: pętlę mutacji dostaje tylko `wybrane`, a wzorce są sprawdzane
 # względem CAŁEGO `checks` (`wszystkie`). Kontrole mechanizmu (osobne od `checks`)
 # należą do elementów spoza pętli, czyli do części `poza_petla`.
 potwierdzone, bez_wzorca = przebieg(
     [],  # kontrole dodatnie poszły wyżej, `run_test` z własnym komunikatem błędu
     wybrane, OCZEKUJ, KONTROLE_MECHANIZMU if poza_petla else (),
-    wymagaj_wzorca=WYMAGAJ_WZORCA, wszystkie=checks,
+    wymagaj_wzorca=WYMAGAJ_TERAZ, wszystkie=checks,
 )
 # #2167: usunięcie wymaganego CSV ma zakończyć test porażką, nie skipem.
 # Robimy to osobno, bo kontrola usuwa plik zamiast podmieniać jego treść.

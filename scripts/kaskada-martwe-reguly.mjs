@@ -77,7 +77,7 @@
 
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 
 /* Osobna baza pomiarowa. Ten skrypt NIE migruje i NIE zasiewa — czyta tylko
@@ -161,13 +161,26 @@ function sprawdzBaze() {
   return baza;
 }
 
+/* SONDA GOTOWOŚCI — ten sam wzorzec co `scripts/wydajnosc.mjs`,
+   `scripts/kafel-dodawania.mjs` i `scripts/port-projektu.mjs`.
+
+   22.09.2026 goły `php artisan serve` z 30 s na `/health` bywał niestabilny,
+   więc tu, jak w pozostałych pomiarach przeglądarkowych:
+   - `--no-reload`: bez niego `artisan serve` wycina procesowi `php -S`
+     zmienne środowiska joba i aplikacja spada na `.env`, czyli na inną bazę;
+   - limit na KAŻDE żądanie (`AbortSignal.timeout`) — bez niego wiszące
+     połączenie zjadało całe okno oczekiwania;
+   - trzy podejścia, każde z nowym portem (zajęty port to nie awaria kodu);
+   - pamiętamy OSTATNIĄ odpowiedź `/health`, żeby powiedzieć, czy serwer
+     milczał, czy odmówił (`/health` daje 503 na niezmigrowanej bazie —
+     to nie jest usterka `artisan serve`). */
 async function podniesSerwer(baza) {
   const bledy = [];
   for (let podejscie = 1; podejscie <= 3; podejscie++) {
     const port = await wolnyPort();
     const adres = `http://127.0.0.1:${port}`;
     const dziennik = [];
-    const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`], {
+    const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`, '--no-reload'], {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, DB_DATABASE: baza },
     });
@@ -175,14 +188,35 @@ async function podniesSerwer(baza) {
     proces.stderr.on('data', (b) => dziennik.push(String(b)));
     let umarl = null;
     proces.on('exit', (kod) => { umarl = kod; });
+    let ostatnia = null;
     for (let i = 0; i < 60 && umarl === null; i++) {
-      try { const o = await fetch(`${adres}/health`); if (o.ok) return { adres, zamknij: () => proces.kill('SIGTERM') }; } catch { /* wstaje */ }
+      try {
+        const o = await fetch(`${adres}/health`, { signal: AbortSignal.timeout(2000) });
+        if (o.ok) return { adres, zamknij: () => proces.kill('SIGTERM') };
+        ostatnia = `HTTP ${o.status}: ${(await o.text().catch(() => '')).slice(0, 300)}`;
+      } catch { /* jeszcze nie wstał */ }
       await new Promise((r) => setTimeout(r, 500));
     }
     proces.kill('SIGKILL');
-    bledy.push(`  podejście ${podejscie}, port ${port}: ${umarl !== null ? `kod ${umarl}` : 'brak /health przez 30 s'}\n${dziennik.join('')}`);
+    const powod = umarl !== null
+      ? `proces zakończył się kodem ${umarl}`
+      : (ostatnia ? `serwer odpowiadał, ale /health nie był gotowy przez 30 s — ${ostatnia}` : 'brak jakiejkolwiek odpowiedzi z /health przez 30 s');
+    bledy.push(`  podejście ${podejscie}, port ${port}: ${powod}\n${dziennik.join('')}`);
   }
   throw new Error(`Nie udało się podnieść \`php artisan serve\`.\n${bledy.join('\n')}`);
+}
+
+/* Chromium: `CHROMIUM_PATH` przebija wszystko (obraz deweloperski ma
+   przeglądarkę pod stałą ścieżką, runner CI — własną z Playwrighta). Wskazana
+   ścieżka, której nie ma, to błąd przyrządu, nie powód do cichego innego wyboru. */
+function opcjeChromium() {
+  const wskazana = process.env.CHROMIUM_PATH;
+  if (!wskazana) return {};
+  if (!existsSync(wskazana)) {
+    console.error(`BŁĄD PRZYRZĄDU: CHROMIUM_PATH wskazuje na ${wskazana}, a tam nic nie ma.`);
+    process.exit(2);
+  }
+  return { executablePath: wskazana };
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -225,7 +259,7 @@ const ZBIERZ_PROGI = () => {
  *  szerokości i tym motywie — wraz z informacją, kto je przykrywa.
  */
 const POMIAR = () => {
-  const wynik = { martwe: [], niezmierzone: [], zbadane: [], bledyPrzywrocenia: [], regulSprawdzonych: 0, deklaracjiSprawdzonych: 0 };
+  const wynik = { martwe: [], niezmierzone: [], zbadane: [], zNosicielem: [], bledyPrzywrocenia: [], regulSprawdzonych: 0, deklaracjiSprawdzonych: 0 };
 
   /* --- 1. KOLEJNOŚĆ WARSTW TAK, JAK USTALA JĄ PRZEGLĄDARKA ---------------
      Warstwa zajmuje miejsce w kaskadzie przy PIERWSZYM wystąpieniu — obojętne,
@@ -392,6 +426,9 @@ const POMIAR = () => {
       continue;
     }
     wynik.regulSprawdzonych++;
+    /* Selektory, dla których NA TEJ STRONIE stał realny nosiciel. Służą
+       wyłącznie samokontroli zawężenia (`--tylko`) — patrz `main`. */
+    wynik.zNosicielem.push(w.selektor);
     for (const d of w.deklaracje) {
       // PRZESIEW: czy ktokolwiek późniejszy dotyka tej samej składowej
       // na którymkolwiek z naszych elementów?
@@ -450,7 +487,7 @@ async function main() {
   const baza = sprawdzBaze();
   console.log(`Baza pomiarowa: ${baza} na ${process.env.DB_HOST || '?'}:${process.env.DB_PORT || '?'}\n`);
   const serwer = await podniesSerwer(baza);
-  const przegladarka = await chromium.launch();
+  const przegladarka = await chromium.launch(opcjeChromium());
 
   /* Klucz → znalezisko. Martwa jest tylko ta deklaracja, która nie zmieniła
      NIC w KAŻDEJ mierzonej konfiguracji. Wystarczy jedna szerokość albo jeden
@@ -463,6 +500,9 @@ async function main() {
   let kolejnoscWarstw = [];
   let deklaracjiSprawdzonych = 0;
   let regulSprawdzonych = 0;
+  /* Selektory, pod którymi na którejkolwiek mierzonej stronie stał realny
+     nosiciel. Potrzebne WYŁĄCZNIE do samokontroli zawężenia `--tylko`. */
+  const selektoryZNosicielem = new Set();
 
   try {
     // Progi z arkusza — raz, na dowolnej stronie.
@@ -505,6 +545,7 @@ async function main() {
           regulSprawdzonych += p.regulSprawdzonych;
           const gdzie = `${sciezka.nazwa}/${szer}/${motyw}`;
           for (const k of p.zbadane) zbadane.set(k, (zbadane.get(k) || 0) + 1);
+          for (const sel of p.zNosicielem) selektoryZNosicielem.add(sel);
           for (const m of p.martwe) {
             const klucz = `${m.warstwa} | ${m.selektor} | ${m.wlasnosc}`;
             if (!wszedzieMartwe.has(klucz)) wszedzieMartwe.set(klucz, { ...m, gdzie: [] });
@@ -601,6 +642,32 @@ async function main() {
     console.error('Przy sześciu warstwach i ponad tysiącu reguł to znaczy, że przesiew jest zepsuty,');
     console.error('a nie że repozytorium jest czyste.');
     process.exit(2);
+  }
+
+  /* ─── SAMOKONTROLA ZAWĘŻENIA (`--tylko`) ───────────────────────────────
+     docs/PULAPKI_TESTOW.md §2c: skan, który nie znajduje ŻADNEGO przedmiotu,
+     przechodzi. Samokontrole wyżej pilnują pomiaru JAKO CAŁOŚCI i dlatego
+     nie widzą tej dziury: przy `--tylko` werdykt zapada na garstce reguł,
+     a całość mierzy się dalej poprawnie. Literówka w zawężeniu albo zmiana
+     nazwy klasy dawała pełną zieleń z pełnym pomiarem pod spodem — najbardziej
+     przekonujący możliwy wariant zera.
+
+     Zawężenie, pod które na ŻADNEJ mierzonej stronie nie podpadła ani jedna
+     reguła z nosicielem, jest więc BŁĘDEM PRZYRZĄDU, a nie wynikiem
+     pozytywnym. Liczymy reguły Z NOSICIELEM, nie same dopasowania tekstowe:
+     selektor obecny w arkuszu, ale bez elementu na mierzonych stronach, też
+     niczego nie dowodzi — to różnica między „zmierzone i czyste"
+     a „niezmierzone". */
+  if (TYLKO) {
+    const trafione = [...selektoryZNosicielem].filter((s) => s.includes(TYLKO));
+    if (trafione.length === 0) {
+      console.error(`\nBŁĄD PRZYRZĄDU: zawężenie --tylko "${TYLKO}" nie objęło ANI JEDNEJ reguły z nosicielem`);
+      console.error('na mierzonych stronach. Werdykt zapadłby na pustym zbiorze, a pusty zbiór nie ma');
+      console.error('martwych reguł zawsze — niezależnie od tego, co jest w arkuszu.');
+      console.error('Sprawdź pisownię zawężenia albo to, czy selektor ma nosiciela na stronach z `SCIEZKI`.');
+      process.exit(2);
+    }
+    console.log(`Zawężenie objęło ${trafione.length} reguł z nosicielem, m.in.: ${trafione.slice(0, 3).join(' / ')}`);
   }
 
   if (zamierzone.length) {

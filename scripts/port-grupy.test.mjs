@@ -1,18 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { wybierzGrupe, wykonajGrupe } from './port-grupy.mjs';
+import { readFileSync } from 'node:fs';
+import { ALIASY, GRUPY, wybierzGrupe, wykonajGrupe } from './port-grupy.mjs';
+
+/* Kolejność jak w `port-projektu.mjs`: baza, część 1, część 2, baza. */
+const KOLEJNOSC = ['baza', 'rozszerzenia-1', 'rozszerzenia-2', 'baza'];
+
+async function wykonane(wybor) {
+  const lista = [];
+  for (const nazwa of KOLEJNOSC) {
+    await wykonajGrupe(wybierzGrupe(wybor), nazwa, async () => lista.push(nazwa));
+  }
+  return lista;
+}
 
 for (const [wybor, expected] of [
-  [undefined, ['baza', 'rozszerzenia', 'baza']],
+  [undefined, KOLEJNOSC],
   ['baza', ['baza', 'baza']],
-  ['rozszerzenia', ['rozszerzenia']],
+  ['rozszerzenia-1', ['rozszerzenia-1']],
+  ['rozszerzenia-2', ['rozszerzenia-2']],
+  ['rozszerzenia', ['rozszerzenia-1', 'rozszerzenia-2']],
 ]) {
   test(`wykonuje tylko wybrane pomiary: ${wybor ?? 'domyślnie'}`, async () => {
-    const wykonane = [];
-    for (const nazwa of ['baza', 'rozszerzenia', 'baza']) {
-      await wykonajGrupe(wybierzGrupe(wybor), nazwa, async () => wykonane.push(nazwa));
-    }
-    assert.deepEqual(wykonane, expected);
+    assert.deepEqual(await wykonane(wybor), expected);
   });
 }
 test('nieznana grupa odrzucana przed wywołaniem pomiaru', async () => {
@@ -20,4 +30,28 @@ test('nieznana grupa odrzucana przed wywołaniem pomiaru', async () => {
   assert.throws(() => wybierzGrupe('literowka'), /Nieznana PORT_GRUPA/);
   await assert.rejects(wykonajGrupe('literowka', 'baza', async () => { wywolany = true; }), /Nieznana PORT_GRUPA/);
   assert.equal(wywolany, false);
+});
+test('literówka w nazwie grupy w skrypcie nie wyłącza pomiaru po cichu', async () => {
+  let wywolany = false;
+  await assert.rejects(wykonajGrupe('baza', 'rozszerzenia', async () => { wywolany = true; }), /Nieznana grupa pomiaru/);
+  assert.equal(wywolany, false);
+});
+
+/* Wzór „Podział testów gubi plik": podział nie może zgubić ani zdublować
+   pomiaru. (1) każda grupa z GRUPY ma w skrypcie własne `wykonajGrupe`,
+   (2) skrypt nie używa grupy spoza GRUPY, (3) alias to suma części bez
+   powtórzeń. Że każda część ma swój element macierzy w CI, pilnuje
+   `PortMarkiMaWlasnaBramkeCiTest`. */
+test('każda grupa jest w skrypcie i nie ma grup spoza listy', () => {
+  const zrodlo = readFileSync(new URL('./port-projektu.mjs', import.meta.url), 'utf8');
+  const uzyte = new Set([...zrodlo.matchAll(/wykonajGrupe\(grupa, '([^']+)'/g)].map((m) => m[1]));
+  assert.deepEqual([...uzyte].sort(), [...GRUPY].sort());
+});
+test('alias rozszerzeń to suma części bez powtórzeń i bez grup spoza listy', () => {
+  for (const [alias, czesci] of Object.entries(ALIASY)) {
+    assert.equal(new Set(czesci).size, czesci.length, `alias ${alias} powtarza część`);
+    for (const czesc of czesci) assert.ok(GRUPY.includes(czesc), `alias ${alias}: ${czesc} spoza GRUPY`);
+    assert.ok(czesci.length >= 2, `alias ${alias} nie dzieli niczego`);
+  }
+  assert.deepEqual(GRUPY.filter((g) => g.startsWith('rozszerzenia-')), ALIASY.rozszerzenia);
 });

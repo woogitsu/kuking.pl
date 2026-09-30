@@ -237,28 +237,37 @@ final class ZglosNielegalnaTresc
      *  - zlecenie pada — transakcja cofa też znacznik, a wyjątek idzie dalej.
      *    Samej sprawy to nie wycofuje: jest zatwierdzona wcześniej, a jej
      *    ponowienie wraca tutaj i ma co dokończyć.
+     *
+     * Porażka PÓŹNIEJSZA, w workerze poczty, zdejmuje znacznik w
+     * `PotwierdzenieZgloszeniaNielegalnejTresci::failed()` (#2218), a sprawę
+     * bez konta z adresem dosyła `kuking:dosylaj-potwierdzenia-zgloszen`
+     * przez tę metodę. Zwraca `true`, gdy list został zlecony teraz.
      */
-    private function potwierdzOdbior(Report $zgloszenie): void
+    public function potwierdzOdbior(Report $zgloszenie): bool
     {
         if ($zgloszenie->notifier_email === null) {
-            return;
+            return false;
         }
 
-        DB::transaction(function () use ($zgloszenie): void {
+        $zlecone = DB::transaction(function () use ($zgloszenie): bool {
             $zajete = Report::query()
                 ->whereKey($zgloszenie->getKey())
                 ->whereNull('receipt_sent_at')
                 ->update(['receipt_sent_at' => now()]);
 
             if ($zajete === 0) {
-                return;
+                return false;
             }
 
             Notification::route('mail', $zgloszenie->notifier_email)
                 ->notify(new PotwierdzenieZgloszeniaNielegalnejTresci($zgloszenie));
+
+            return true;
         });
 
         // `UPDATE` przez query builder nie odświeża modelu w ręku wołającego.
         $zgloszenie->refresh();
+
+        return $zlecone;
     }
 }

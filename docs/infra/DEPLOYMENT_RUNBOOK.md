@@ -2666,7 +2666,8 @@ Zapewnia to, że rollback o jeden deploy w tył **zawsze** jest bezpieczny.
 - [ ] Kanał `blad_webhook`: przegląd nowych błędów (nowe `odciski`)
 - [ ] Railway → Metrics: CPU/RAM per serwis — trend, nie chwila
 - [ ] Railway → Usage: zużycie vs budżet
-- [ ] Podsumowanie CI: `composer audit` / `npm audit`
+- [ ] Podsumowanie joba „Audyt zależności” (#2215: high i critical blokują CI)
+      oraz lista i terminy wyjątków audytu — `docs/infra/BRAMKI_CI_2215.md`
 - [ ] Zaległości w kolejce: `SELECT count(*) FROM jobs; SELECT count(*) FROM failed_jobs;`
 - [ ] **PR „Cotygodniowe ceny warzyw z MRiRW/ZSRIR"** (gałąź
       `claude/ceny-warzyw-auto`, workflow `ceny-warzyw-auto.yml`, D-286

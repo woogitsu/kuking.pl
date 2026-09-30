@@ -396,7 +396,7 @@ działa — dlatego **głośne miejsce to `/health`, a nie log zadania**. Sam
 się sukcesem (nie ma go w `failed_jobs`), a kanał alarmowy `blad_webhook` ma
 w `config/logging.php` poziom `error` ustawiony na sztywno i ostrzeżeń nie
 przyjmuje. Sygnałem, który dociera, jest sonda `cdn`
-(`HealthController::sprawdzCzyszczenieCdn()`): na produkcji z pustą
+(`App\Support\Zdrowie\Sondy\SondaCzyszczeniaCdn`): na produkcji z pustą
 konfiguracją `/health` oddaje `degraded` z powodem `czyszczenie_cdn_wylaczone`
 i dzwoni na webhook z odstępem. Świadomie **nie** jest to porażka zadania —
 kasowanie zdjęcia nie ma prawa się nie udać dlatego, że nie ma czym wyczyścić

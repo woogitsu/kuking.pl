@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Moderation\Actions\NotifyReporterReceipt;
+use App\Domain\Moderation\Actions\ZglosNielegalnaTresc;
 use App\Models\Report;
 use App\Models\User;
+use App\Notifications\PotwierdzenieZgloszeniaNielegalnejTresci;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
@@ -45,12 +47,15 @@ use Throwable;
  * ── CZEGO KOMENDA NIE RUSZA (i dlaczego `receipt_sent_at IS NULL` NIE
  *    WYSTARCZA JAKO WARUNEK) ──
  *
- * 1. `reporter_id IS NULL` to NIE zaległość. Tak wygląda zgłoszenie bez konta
- *    (DSA art. 16 ust. 2 lit. c) oraz oznaczenie automatu: w tabeli
- *    `notifications` nie ma dla nich adresata. Droga prawna ma WŁASNE,
- *    mailowe potwierdzenie (`ZglosNielegalnaTresc`) i własny znacznik na tej
- *    samej kolumnie. Potraktowanie wszystkich `null` jako zaległości
- *    wysyłałoby pingi w próżnię i kłamało w liczniku.
+ * 1. `reporter_id IS NULL` NIE JEST SAMO PRZEZ SIĘ zaległością. Tak wygląda
+ *    zgłoszenie bez konta (DSA art. 16 ust. 2 lit. c) oraz oznaczenie
+ *    automatu: w tabeli `notifications` nie ma dla nich adresata. Zaległością
+ *    jest tylko zgłoszenie PRAWNE Z ADRESEM E-MAIL (#2218): ma własne,
+ *    mailowe potwierdzenie (`ZglosNielegalnaTresc::potwierdzOdbior()`)
+ *    i własny znacznik na tej samej kolumnie, który po ostatecznej porażce
+ *    listu (`PotwierdzenieZgloszeniaNielegalnejTresci::failed()`) wraca do
+ *    `null`. Bez adresu nie ma dokąd wysłać, więc taka sprawa dalej nie liczy
+ *    się do zaległości.
  * 2. Sprawa, której ping skasowała retencja, też nie jest zaległością — ale
  *    tego pilnuje już sam znacznik: `receipt_sent_at` odpowiada na pytanie
  *    „czy potwierdziliśmy odbiór", a nie „czy powiadomienie jeszcze istnieje".
@@ -113,7 +118,7 @@ class DosylajPotwierdzeniaZgloszen extends Command
 
     private const PAMIEC_PORAZEK_DNI = 30;
 
-    public function handle(NotifyReporterReceipt $potwierdzenie): int
+    public function handle(NotifyReporterReceipt $potwierdzenie, ZglosNielegalnaTresc $zgloszeniePrawne): int
     {
         $ile = max(1, (int) $this->option('ile'));
         $naSucho = (bool) $this->option('na-sucho');
@@ -156,13 +161,27 @@ class DosylajPotwierdzeniaZgloszen extends Command
         $doslane = 0;
         $juzPotwierdzone = 0;
         $nieudane = 0;
+        $wstrzymane = 0;
 
         foreach ($zalegle as $zgloszenie) {
+            // Adres spoza serwisu, który dostawca stale odrzuca: bez sufitu
+            // list szedłby co godzinę przez całe życie sprawy (#2218).
+            if ($zgloszenie->reporter_id === null
+                && PotwierdzenieZgloszeniaNielegalnejTresci::ponawianieWstrzymane((string) $zgloszenie->getKey())) {
+                $wstrzymane++;
+
+                continue;
+            }
+
             try {
                 // Ta sama droga co przy formularzu. Zwrot `null` znaczy, że
                 // zamek na `receipt_sent_at` dostał ktoś inny — czyli człowiek
                 // wrócił do sprawy w tej samej chwili. To nie jest błąd.
-                if ($potwierdzenie->handle($zgloszenie) !== null) {
+                $zlecone = $zgloszenie->reporter_id === null
+                    ? $zgloszeniePrawne->potwierdzOdbior($zgloszenie)
+                    : $potwierdzenie->handle($zgloszenie) !== null;
+
+                if ($zlecone) {
                     $doslane++;
                 } else {
                     $juzPotwierdzone++;
@@ -182,6 +201,11 @@ class DosylajPotwierdzeniaZgloszen extends Command
 
         $this->line("Dosłano potwierdzeń: {$doslane}.");
         $this->line("Pominięto spraw potwierdzonych w międzyczasie przez kogoś innego: {$juzPotwierdzone}.");
+
+        if ($wstrzymane > 0) {
+            $this->warn('Nie ponawiamy listu po '.PotwierdzenieZgloszeniaNielegalnejTresci::LIMIT_PORAZEK_LISTU
+                ." nieudanych wysyłkach (zgłoszenia prawne bez konta): {$wstrzymane}. Sprawdź adres zgłaszającego w panelu moderacji.");
+        }
 
         if ($nieudane > 0) {
             $this->warn("Nie udało się dosłać potwierdzeń: {$nieudane} — szczegóły w kanale błędów.");
@@ -218,7 +242,8 @@ class DosylajPotwierdzeniaZgloszen extends Command
     }
 
     /**
-     * Zaległość = sprawa z ADRESATEM w serwisie i bez znacznika potwierdzenia.
+     * Zaległość = sprawa z ADRESATEM (konto w serwisie albo adres e-mail
+     * zgłoszenia prawnego) i bez znacznika potwierdzenia.
      *
      * Uzasadnienie każdego warunku stoi w nagłówku klasy („czego komenda nie
      * rusza", punkty 1–4); żaden nie wynika z pozostałych.
@@ -228,9 +253,14 @@ class DosylajPotwierdzeniaZgloszen extends Command
     private function zalegle(): Builder
     {
         return Report::query()
-            ->whereNotNull('reporter_id')
             ->whereNull('receipt_sent_at')
             ->whereNull('decision_sent_at')
-            ->whereHas('reporter', fn (Builder $konto) => $konto->where('status', '!=', User::STATUS_ERASED));
+            ->where(function (Builder $adresat): void {
+                $adresat->whereHas('reporter', fn (Builder $konto) => $konto->where('status', '!=', User::STATUS_ERASED))
+                    ->orWhere(fn (Builder $prawne) => $prawne
+                        ->whereNull('reporter_id')
+                        ->where('source', Report::SOURCE_LEGAL_NOTICE)
+                        ->whereNotNull('notifier_email'));
+            });
     }
 }

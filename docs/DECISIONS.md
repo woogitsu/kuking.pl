@@ -3046,7 +3046,7 @@ zamknięta bramka bez tabliczki, co jest gorsze niż jedno i drugie osobno.
 Przy przebudowie stopki na kilka poziomów (issue #205) właściciel poprosił
 wprost o dwie rzeczy, które łamią `AGENTS.md` §5:
 
-1. metryczkę wersji („Alfa 0.1 · data wydania · commit") **drukiem 5–8 px**,
+1. metryczkę wersji („Alfa 0.01 · data wydania · commit") **drukiem 5–8 px**,
    podczas gdy §5 mówi „tekst ≥ 18 px" (najmniejszy token w ogóle,
    `--text-meta`, to 15 px — 8 px jest poniżej NAJMNIEJSZEGO tokenu
    w systemie, nie tylko poniżej minimum produktowego);
@@ -14878,7 +14878,7 @@ Pomiar obu motywów, kafla oraz granice wyniku zapisano po scaleniu kodu.
 Nie przenosimy statycznego prototypu w miejsce Laravel.
 
 📄 `docs/brand/KONSTYTUCJA_MARKI.md` · `docs/design/NOWY_STYL.md` ·
-`docs/design/WERYFIKACJA_ALFA_08.md` · `resources/css/tokens.css`
+`docs/design/WERYFIKACJA_ALFA_008.md` · `resources/css/tokens.css`
 
 ---
 
@@ -14920,7 +14920,7 @@ przywrócenia z kopii poza repo i zgodności md5. Pełna suita idzie na przywró
 Raport i kod wyjścia nie są synonimami; wykrytą lukę starego pomiaru zapisano w #484.
 
 📄 `scripts/kontrast-marki.mjs` · `scripts/kontrole-negatywne-alfa08.py` ·
-`docs/design/WERYFIKACJA_ALFA_08.md`
+`docs/design/WERYFIKACJA_ALFA_008.md`
 
 
 ---
@@ -14931,7 +14931,7 @@ Raport i kod wyjścia nie są synonimami; wykrytą lukę starego pomiaru zapisan
 
 ### Decyzja
 
-Alfa 0.9 przenosi zaakceptowany projekt do istniejących ekranów Laravel:
+Alfa 0.09 przenosi zaakceptowany projekt do istniejących ekranów Laravel:
 pływającą ramę, menu desktop w nagłówku, pięć pozycji mobilnych, ciemny
 kafel publikacji i własnego profilu, mocną typografię oraz wspólne karty
 i formularze. Zwykły użytkownik nie ma widocznego lewego paska; panel
@@ -14954,10 +14954,10 @@ dymny nie zastępuje odbioru ekranu zalogowanego.
 
 Sześć ostrzeżeń częściowego zasłonięcia fokusu długiej nazwy przy
 powiększeniu pozostaje jawnie w #485; test nie podnosi progów ani nie
-usuwa nazw. Wyniki i zakres oglądanych zrzutów zapisuje raport Alfa 0.9.
+usuwa nazw. Wyniki i zakres oglądanych zrzutów zapisuje raport Alfa 0.09.
 
 📄 `docs/brand/KONSTYTUCJA_MARKI.md` · `docs/design/PORT_PROJEKTU.md` ·
-`docs/design/WERYFIKACJA_ALFA_09.md`
+`docs/design/WERYFIKACJA_ALFA_009.md`
 
 
 ## D-207 · Kompozycja wizualizacji jest kryterium portu, nie sama paleta
@@ -15245,6 +15245,19 @@ Dlatego **wartości nie ruszamy i reguł nie usuwamy** — poprawiono wyłączni
 komentarze, żeby przestały uzasadniać liczbę, której nie ma. Usunięcie martwej
 reguły JEST zmianą zachowania na wypadek, gdyby `marka-przepis.css` zniknął,
 i jest osobną decyzją.
+
+**Rozstrzygnięcie właściciela (29 września 2026, #960).** Cztery martwe
+deklaracje w kaflu liczb (`.przepis-liczba` { padding, border-radius },
+`.przepis-liczba span` { font-size }, `.przepis-liczba strong` { font-size })
+zostały **usunięte** z `resources/css/app.css`, a zawężenie strażnika w CI
+poszerzone z `.przepis-liczba svg` na całe `.przepis-liczba`. Strażnik na
+całym kaflu wskazał przy tym piątą deklarację tej samej rodziny
+(`.przepis-liczba span` { font-size } w `marka-ekrany.css`; na ekranie `span`
+dziedziczy ten sam rozmiar, w druku przykrywa ją nieuwarstwiona reguła
+z `@media print` w `wydruk-przepisu.css`) — usunięta razem z czterema. Zasada „reguł nie
+usuwamy” dotyczy reszty; ta osobna decyzja jest podjęta. Usunięcie jest
+niewidoczne — odcisk kafla przed i po jest identyczny (komplet własności
+wyliczonych i geometria): `docs/design/evidence/martwe-liczby/`.
 
 ### Trzy rzeczy, które ten pomiar ujawnił przy okazji
 
@@ -15690,7 +15703,7 @@ krokach stoi przy kluczu `potwierdzenia_rodo` w `config/kuking.php`
 i w `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §6.
 
 Numer wzięty po sprawdzeniu gałęzi, nie tylko `main`: D-223 (kaskada), D-227
-(#1164), D-228 (#966, numer na gałęzi, nie na `main`), D-229 (#1180), D-230
+(#1164), D-228 (numer #966 na gałęzi, który nie wszedł na `main`; od 29 września 2026 bezpiecznik baz z tej gałęzi ma numer D-334, więc D-228 jest wolny), D-229 (#1180), D-230
 (#1168) są zajęte, a D-232 jest
 zarezerwowany dla poprawki kolizji numeru w #1222. Niczego nie przenumerowano.
 
@@ -19397,9 +19410,12 @@ i obowiązków) wchodzą od razu.
 - **Zgoda** (`dziennik_zgod.wersja_polityki`, D-072) zapisuje wersję
   OBOWIĄZUJĄCĄ w chwili zdarzenia (`WersjaDokumentu::polityka()->obowiazujaca()`),
   nie ostatnio opublikowaną — we wszystkich zapisach: digest, życzenia mailem
-  i zgoda „odczyt AI” (`PrzestawZgodeNaOdczytAi`). **Akceptacji regulaminu repozytorium nie
-  zapisuje z wersją** (`terms_accepted` jest tylko walidowane przy
-  rejestracji), więc tu nie ma czego przeliczać.
+  i zgoda „odczyt AI” (`PrzestawZgodeNaOdczytAi`). **Akceptację regulaminu przy rejestracji**
+  zapisuje od #2217 ten sam dziennik (cel `regulamin`, kolumna
+  `wersja_regulaminu` = `WersjaDokumentu::regulamin()->obowiazujaca()`,
+  źródło `rejestracja_haslo` / `rejestracja_google` / `rejestracja_facebook`,
+  `App\Domain\Zgody\ZapiszAkceptacjeRegulaminu` w transakcji `ZalozKonto`).
+  Konta sprzed tej zmiany nie mają wiersza — to „brak dowodu”, bez backfillu.
 - Obecne wersje: polityka 2026-09-10 (sprzed rozróżnienia) i regulamin
   2026-09-26 (opis doboru wpisów, D-305) są oznaczone jako **drobne** —
   opisują działanie serwisu, nie zmieniają praw i obowiązków.
@@ -20931,7 +20947,73 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | #2024: ponowna publikacja bez zmian | Ponowna publikacja przepisu bez zmian treści **nie tworzy** nowej wersji w historii | #2024 |
 | #2000: wspólny zeszyt publiczny | Wspólny (rodzinny, D-302) zeszyt ustawiony jako „wszyscy” **może** mieć „Podziel się”; prywatny i domyślne „Zapisane” dalej nie | #2000 |
 | #2016: minutniki | Minutniki **nie są** synchronizowane między urządzeniami — synchronizacja obejmuje tylko odhaczone kroki | #2016 |
+| #2223: `laravel/tinker` w produkcji (decyzja z wieczora) | **Od razu do `require-dev`.** Obraz produkcyjny (`composer install --no-dev`) nie ma Tinkera ani PsySH; lokalnie i w CI (instalacja z dev) `php artisan tinker` dalej działa, więc skrypty `scripts/*.mjs` zostają bez zmian. Runbooki produkcyjne zamiast tinkera używają komend: `kuking:przetworz-zdjecia-ponownie` (warianty od nowa, `KOPIE_I_ODTWORZENIE.md` §3 c1), `kuking:liczniki-bazy` (§4A krok 1), `kuking:sprawdz-alarm --przez-wyjatek` (`MONITORING_BLEDOW.md` §1), `kuking:bramka-r2 --media=<uuid>` (`BRAMKA_R2.md` §3 pkt 3). Pilnują tego krok „Test dymny obrazu” w `ci.yml` (brak `vendor/laravel/tinker` i `Psy\` w autoloadzie, działające `php artisan list`) i `TinkerPozaObrazemProdukcyjnymTest`. Powrót do `require` wymaga nowej decyzji z opisanym przypadkiem użycia | #2223 |
+| #2214: import do OpenAI na produkcji | Import z adresu, PDF i zdjęcia **znika z produkcji do czasu podpisania DPA** z OpenAI — właściciel nie ustawia zmiennych `KUKING_IMPORT_*`; po DPA ustawia je na `true` | #2214 |
+| #2215: wymagane checki | Po scaleniu paczki I właściciel oznacza w GitHub Settings **pełną listę** wymaganych checków (nazwy z pierwszego przebiegu, bez części macierzy `port_funkcje`) | #2215 |
+| #27: lista zakupów | Etap 2 listy zakupów budujemy **teraz**, bez czekania na pomiar planera z D-310: prywatna lista, ręczne pozycje, „Dodaj składniki” kopiuje linie przepisu bez sumowania; bez listy wspólnej, offline i działów sklepu | #27 |
+| #492: nazwa minutnika | Minutnik w trybie gotowania ma dostępną nazwę „Pozostały czas” | #492 |
+| #492: skrypty przeglądarkowe marki | Cztery skrypty przeglądarkowe marki wpinamy do joba „Port marki” w CI | #492 |
+| „Poradźcie” na produkcji | Właściciel sam włącza `KUKING_QUESTIONS_ENABLED=true` po wdrożeniu paczki H i sprawdza `/pytania` | #372 |
+| #2220: regulamin — wymagania techniczne i reklamacje (**potwierdzone przez właściciela 29.09**) | Nowe §13 „Wymagania techniczne” i §14 „Reklamacje” to zmiana **drobna**, wzorem polityki 2026-09-30: serwis nie ma prawdziwych użytkowników, więc nowa wersja regulaminu 2026-09-30 obowiązuje od publikacji, bez 14 dni (`zmiana_regulaminu.istotna = false`, poprzednia 2026-09-26). Termin odpowiedzi na reklamację: **14 dni** (art. 7a ustawy o prawach konsumenta; `kuking.reklamacje.termin_odpowiedzi_dni`); kanał: `biuro@samsufi.pl` albo list na adres spółki — nie formularz „Napisz do nas”. Właściciel potwierdził to 29.09 (drobna, 14 dni, e-mail i list, pasek bez terminu wg D-306); weryfikacja treści przez prawnika zostaje w #8. Pasek „Zmieniliśmy regulamin” **pokazuje się** kontom sprzed 30.09 (D-306: przy każdej zmianie regulaminu, także drobnej) — inaczej niż pasek polityki, który jest tylko dla zmiany istotnej; ukrycie go przy drobnej wymagałoby zmiany D-306 | #2220, #8 |
+| Numeracja starych wydań | Alfa 0.1–0.9 zapisujemy jako 0.01–0.09, żeby nie wyglądały na nowsze od 0.77; licznik po kropce bez zmian (0.10 w górę, w tym 0.77, bez zmian) | — |
 
 ### Wycofanie
 Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis
 D-xxx z odwołaniem do tego.
+
+## D-334 — Testy odmawiają startu na bazie spoza rodziny testowej (#966, 29 września 2026)
+
+**Decyzja właściciela z 29 września 2026: tak.** PHPUnit nie rusza bazy, która
+nie należy do rodziny testowej, żeby `RefreshDatabase` nie zrzucił schematu
+bazy deweloperskiej (`kuking`), produkcyjnej ani cudzej. Numer D-334 zastępuje
+D-228 ze starej gałęzi `flota/scal-786` (PR #966, daleko za `main`, nie scalany).
+Z #966 przeniesiono ręcznie tylko bezpiecznik; reguła nazw baz testowych była
+już na `main` (`tests/Support/kuking_nazwa_testowej_bazy.php`).
+
+**Co robi.** `tests/bootstrap.php`, po wyliczeniu `DB_DATABASE` i przed
+`vendor/autoload.php`, woła `kuking_wymus_baze_testowa()`
+(`tests/Support/kuking_bezpiecznik_bazy_testowej.php`). Jeśli `DB_URL` jest
+niepusty, ocenia nazwę bazy z niego (`DB_URL` przebija `DB_DATABASE`, a nieczytelny
+adres to odmowa); inaczej ocenia `DB_DATABASE`. Odmowa kończy proces kodem 2
+i wypisuje po polsku, co zrobić (`unset DB_DATABASE DB_URL`). Hasła z adresu nie ma
+w komunikacie. Nic nie łączy się z bazą.
+
+**Rodzina (lista zgód, nie zakazów; porównanie z rozróżnianiem wielkości liter):**
+
+| wzorzec | skąd |
+|---|---|
+| `kuking_test`, `kuking_test_<worktree>`, `kuking_test_kat_…` | zwykły przebieg, job `test` i `dostepnosc` w CI |
+| `kuking_race`, `kuking_race_<sufiks>` | grupa `dwa-polaczenia` (D-105), job `dwa-polaczenia` |
+| `kuking_flota_<stanowisko>` (myślnik dozwolony) | lokalne kontrole ujemne i skrypty stanowisk floty |
+
+Poza rodziną celowo: `kuking`, `railway*`, bazy systemowe i bazy przyrządów
+`kuking_581_*`, `kuking_port_*`, `kuking_a11y`, `kuking_wydajnosc`, `*_pomiar`,
+`kuking_qa_*`. Obsługują skrypty Node i `artisan` (`migrate:fresh --seed`, fixtury),
+nigdzie nie uruchamiają PHPUnita (sprawdzone grepem po `.github`, `scripts/`,
+`tests/`). Gdyby któryś przebieg PHPUnita miał tam chodzić, rodzinę dopisuje się
+w pliku bezpiecznika razem z testem, nie obchodzi odmowy.
+
+**Co jest sprawdzone przeciw fałszywym odmowom.** `BezpiecznikBazyTestowejStartTest`
+uruchamia bootstrap jako osobny proces dla baz z rodziny i spoza niej oraz skanuje:
+kroki `ci.yml` z `artisan test`, skrypty w `scripts/` i `tests/skrypty/`.
+`BezpiecznikBazyTestowejTest` sprawdza też, że każda nazwa wyliczana przez
+`kuking_nazwa_testowej_bazy()` i `kuking_nazwa_bazy_wyscigow()` mieści się w rodzinie
+(trzy przypadki reguły). `scripts/kontrole-negatywne-alfa08.py` w trybie lokalnym
+sprawdza rodzinę na starcie: inaczej każdy test w pętli odmawiałby startu,
+a kontrola ujemna czyta niepowodzenie testu jako „mutacja złapana”.
+
+**Czego to nie robi.** Nie sprawdza hosta (`DB_HOST`): baza o nazwie z rodziny na
+cudzym serwerze przejdzie. Nie obejmuje `php artisan migrate:refresh --env=testing`
+z `scripts/check.sh`, które czyta `.env`. To osobna ścieżka i osobne zgłoszenie,
+jeśli właściciel zechce. Nie widzi też `DB_URL` wpisanego do pliku `.env`
+(a nie do środowiska procesu): bezpiecznik stoi przed wczytaniem `.env`, więc
+ocenia tylko `DB_DATABASE`, a Laravel potem bierze `DB_URL` z `.env` i nim
+przebija nazwę bazy. `.env.example` ma `DB_URL` zakomentowane; nie odkomentowuj
+go w kopii roboczej, w której uruchamiasz testy.
+
+**Wycofanie.** Usunąć wywołanie `kuking_wymus_baze_testowa()` z `tests/bootstrap.php`
+(jedna linia); pozostałe pliki nie mają skutków ubocznych.
+
+Dowody: `tests/Unit/BezpiecznikBazyTestowejTest.php`,
+`tests/Feature/BezpiecznikBazyTestowejStartTest.php`; pułapka 18
+w `docs/PULAPKI_TESTOW.md`.

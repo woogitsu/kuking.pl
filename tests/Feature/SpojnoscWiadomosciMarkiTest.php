@@ -66,6 +66,7 @@ class SpojnoscWiadomosciMarkiTest extends TestCase
             'tresc' => 'Dziękujemy za wiadomość.',
             'adresKontaktowy' => 'kontakt@kuking.test',
             'linkLogowania' => 'https://kuking.test/login',
+            'politykaUrl' => 'https://kuking.test/prywatnosc',
             'nowyAdresSkrot' => 'a***@example.test',
             'linkHaslo' => 'https://kuking.test/haslo',
         ];
