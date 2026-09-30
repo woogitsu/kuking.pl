@@ -51,6 +51,7 @@ final class OznaczAlergenyPrzepisu
         Gate::forUser($autor)->authorize('update', $przepis);
 
         return DB::transaction(function () use ($autor, $przepis, $deklaracja, $ip): Recipe {
+            $this->zablokujAutora($autor);
             $swiezy = $this->zablokowany($przepis);
 
             if ($this->zastosuj($swiezy, $deklaracja)) {
@@ -74,6 +75,7 @@ final class OznaczAlergenyPrzepisu
         Gate::forUser($autor)->authorize('update', $przepis);
 
         return DB::transaction(function () use ($autor, $przepis, $ip): Recipe {
+            $this->zablokujAutora($autor);
             $swiezy = $this->zablokowany($przepis);
 
             if ($swiezy->allergen_status !== Recipe::ALERGENY_DO_PRZEGLADU) {
@@ -142,6 +144,25 @@ final class OznaczAlergenyPrzepisu
         $przepis->forceFill(['allergen_status' => Recipe::ALERGENY_DO_PRZEGLADU])->save();
 
         return true;
+    }
+
+    /**
+     * WIERSZ AUTORA ZANIM WIERSZ PRZEPISU — ta sama kolejność co w
+     * `PublishRecipe` (`users` → `recipes`).
+     *
+     * `zapiszSlad()` wstawia wpis do `audit_log`, a jego klucz obcy `actor_id`
+     * zakłada `FOR KEY SHARE` na wierszu `users`. Gdyby przepis był już
+     * zablokowany, a konto — nie, powstałaby odwrotna kolejność (`recipes` →
+     * `users`) niż w `EraseAccountData`, które trzyma `users FOR UPDATE`
+     * i dopiero potem kasuje przepisy: zakleszczenie 40P01 (D-079 §1, D-093;
+     * to samo zmierzone dla zapisu przepisu, patrz
+     * `tests/Dwa/EdycjaPrzepisuNieZakleszczaSieZKasowaniemKontaTest.php`).
+     * `FOR NO KEY UPDATE` jak w `PublishRecipe`: ustawia się w jednej kolejce
+     * z karą i egzekucją, a nie blokuje cudzych sprawdzeń klucza obcego.
+     */
+    private function zablokujAutora(User $autor): User
+    {
+        return User::query()->whereKey($autor->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
     }
 
     private function zablokowany(Recipe $przepis): Recipe
