@@ -64,7 +64,8 @@ use Throwable;
  *
  * BUDŻET
  * Najwyżej `BUDZET_PRZEBIEGU` treści każdego rodzaju na noc, najstarsze
- * pierwsze. Każda treść w osobnej transakcji: błąd jednej zostawia ją na
+ * pierwsze. Liczą się tylko treści rozpatrzone do usunięcia — chronione
+ * moderacją nie zjadają budżetu (#2250, `stronami()`). Każda treść w osobnej transakcji: błąd jednej zostawia ją na
  * następną noc i nie blokuje reszty.
  */
 final class PrzedawnioneUsunieteTresci
@@ -86,9 +87,14 @@ final class PrzedawnioneUsunieteTresci
         $wynik = ['wpisy' => 0, 'przepisy' => 0, 'nagrobki' => 0, 'komentarze' => 0, 'zdjecia' => 0, 'dni' => $dni];
         $zdjecia = [];
 
-        foreach ($this->kandydaciKomentarzy($prog) as $komentarz) {
+        $rozpatrzone = 0;
+        foreach ($this->stronami($this->kandydaciKomentarzy($prog)) as $komentarz) {
             if ($this->zModeracja('comment', [$komentarz->getKey()])) {
                 continue;
+            }
+
+            if (++$rozpatrzone > self::BUDZET_PRZEBIEGU) {
+                break;
             }
 
             if (! $naSucho && ! $this->bezpiecznie(fn () => $komentarz->forceDelete(), 'comment', $komentarz->getKey())) {
@@ -98,11 +104,16 @@ final class PrzedawnioneUsunieteTresci
             $wynik['komentarze']++;
         }
 
-        foreach ($this->kandydaciWpisow($prog) as $wpis) {
+        $rozpatrzone = 0;
+        foreach ($this->stronami($this->kandydaciWpisow($prog)) as $wpis) {
             $media = DB::table('post_media')->where('post_id', $wpis->getKey())->pluck('media_id')->all();
 
             if ($this->wpisZModeracja($wpis, $media)) {
                 continue;
+            }
+
+            if (++$rozpatrzone > self::BUDZET_PRZEBIEGU) {
+                break;
             }
 
             if (! $naSucho && ! $this->bezpiecznie(fn () => $wpis->forceDelete(), 'post', $wpis->getKey())) {
@@ -113,11 +124,16 @@ final class PrzedawnioneUsunieteTresci
             array_push($zdjecia, ...$media);
         }
 
-        foreach ($this->kandydaciPrzepisow($prog) as $przepis) {
+        $rozpatrzone = 0;
+        foreach ($this->stronami($this->kandydaciPrzepisow($prog)) as $przepis) {
             $media = $this->zdjeciaPrzepisu($przepis);
 
             if ($this->przepisZModeracja($przepis, $media)) {
                 continue;
+            }
+
+            if (++$rozpatrzone > self::BUDZET_PRZEBIEGU) {
+                break;
             }
 
             $cudzeWykonania = $przepis->cookedEvents()->where('user_id', '!=', $przepis->author_id)->exists();
@@ -155,8 +171,8 @@ final class PrzedawnioneUsunieteTresci
         return 'usuniety-przepis-'.str_replace('-', '', $id);
     }
 
-    /** @return iterable<Comment> */
-    private function kandydaciKomentarzy(\DateTimeInterface $prog): iterable
+    /** @return Builder<Comment> */
+    private function kandydaciKomentarzy(\DateTimeInterface $prog): Builder
     {
         return Comment::onlyTrashed()
             ->where('deleted_at', '<', $prog)
@@ -164,22 +180,20 @@ final class PrzedawnioneUsunieteTresci
             // odpowiedź, której termin jeszcze nie minął.
             ->whereNotExists(fn ($q) => $q->from('comments as dzieci')->whereColumn('dzieci.parent_id', 'comments.id'))
             ->orderBy('deleted_at')
-            ->limit(self::BUDZET_PRZEBIEGU)
-            ->get();
+            ->orderBy('id');
     }
 
-    /** @return iterable<Post> */
-    private function kandydaciWpisow(\DateTimeInterface $prog): iterable
+    /** @return Builder<Post> */
+    private function kandydaciWpisow(\DateTimeInterface $prog): Builder
     {
         return Post::onlyTrashed()
             ->where('deleted_at', '<', $prog)
             ->orderBy('deleted_at')
-            ->limit(self::BUDZET_PRZEBIEGU)
-            ->get();
+            ->orderBy('id');
     }
 
-    /** @return iterable<Recipe> */
-    private function kandydaciPrzepisow(\DateTimeInterface $prog): iterable
+    /** @return Builder<Recipe> */
+    private function kandydaciPrzepisow(\DateTimeInterface $prog): Builder
     {
         return Recipe::onlyTrashed()
             ->where('deleted_at', '<', $prog)
@@ -191,8 +205,45 @@ final class PrzedawnioneUsunieteTresci
                     ->whereColumn('cooked_events.recipe_id', 'recipes.id')
                     ->whereColumn('cooked_events.user_id', '!=', 'recipes.author_id')))
             ->orderBy('deleted_at')
-            ->limit(self::BUDZET_PRZEBIEGU)
-            ->get();
+            ->orderBy('id');
+    }
+
+    /**
+     * Kandydaci stronami po `(deleted_at, id)`, aż zabraknie wierszy (#2250).
+     *
+     * Do poprawki zapytanie kończyło się `limit(500)` PRZED filtrem
+     * moderacji. 500 najstarszych treści objętych sprawą zajmowało cały
+     * budżet każdej nocy i nic za nimi nie było już pobierane. Teraz budżet
+     * liczy wyłącznie treści faktycznie rozpatrzone do usunięcia (licznik
+     * w `posprzataj()`), a chronione są tylko przewijane. Filtr ochrony
+     * zostaje w PHP — jedna definicja „z moderacją", bez kopii w SQL.
+     *
+     * Kursor, nie `offset`: usunięcie wierszy ze strony nie przesuwa
+     * następnej. `deleted_at` bierzemy surowo z bazy, z mikrosekundami —
+     * Carbon obciąłby je do sekund i strona wróciłaby do tych samych wierszy.
+     *
+     * @template T of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  Builder<T>  $zapytanie
+     * @return \Generator<int, T>
+     */
+    private function stronami(Builder $zapytanie): \Generator
+    {
+        $po = null;
+
+        do {
+            $strona = (clone $zapytanie)
+                ->when($po !== null, fn (Builder $q) => $q->whereRaw('(deleted_at, id) > (?::timestamptz, ?::uuid)', $po))
+                ->limit(self::BUDZET_PRZEBIEGU)
+                ->get();
+
+            foreach ($strona as $wiersz) {
+                yield $wiersz;
+            }
+
+            $ostatni = $strona->last();
+            $po = $ostatni === null ? null : [(string) $ostatni->getRawOriginal('deleted_at'), (string) $ostatni->getKey()];
+        } while ($strona->count() === self::BUDZET_PRZEBIEGU);
     }
 
     /** @return list<string> */
