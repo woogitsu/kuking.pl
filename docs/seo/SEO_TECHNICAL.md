@@ -572,7 +572,21 @@ zdjęta z urzędu, autor zbanowany), więc czytnik pytający samym
 `If-Modified-Since` dostawał 304 i dalej pokazywał wycofaną treść. Hash
 treści zmienia się przy każdej zmianie zestawu pozycji, a bez
 `Last-Modified` samo `If-Modified-Since` nigdy nie daje 304. Data zmiany
-kanału zostaje w treści jako `<updated>`. `Cache-Control` idzie za polityką HTML gościa: przy
+kanału zostaje w treści jako `<updated>`.
+
+**Cache aplikacji, 5 minut (decyzja właściciela z 30.09.2026, D-333).**
+Gotowa treść kanału (XML) leży w cache aplikacji przez
+`kuking.kanal_cache_sekund` (`KUKING_KANAL_CACHE_SEKUND`, domyślnie 300 s,
+0 = wyłączony). Kanał jest zawsze widokiem gościa, więc kopia jest wspólna,
+a klucz to typ i identyfikator (`kuking:kanal:v1:profil|tag|zeszyt:<id>`).
+Cache stoi ZA bramką dostępu: Policy i 404 (prywatny zeszyt, konto
+zbanowane lub kasowane, tag ukryty) liczą się przy każdym żądaniu, więc
+zasady dostępu się nie zmieniły. Cena: pozycja ukryta, usunięta albo zdjęta
+z urzędu może zostać w kanale **najwyżej przez TTL** (do 5 minut). Nie ma
+unieważniania przy zmianie treści — tylko TTL, świadomie. `ETag` powstaje z
+treści, więc w oknie jest stały, a po jego upływie zgadza się z nową treścią.
+W oknie TTL drugie pobranie nie odpytuje bazy o pozycje (mierzy to
+`KanalyAtomTest::test_cache_aplikacji_…`). `Cache-Control` idzie za polityką HTML gościa: przy
 `KUKING_HTML_EDGE_CACHE_SECONDS` > 0 — `public, max-age=0, s-maxage=N` (ta sama
 górna granica 300 s), domyślnie `private, no-cache` (bez wspólnego cache, ale
 z pytaniem warunkowym). Żądanie z ciasteczkiem albo `Authorization` dostaje od

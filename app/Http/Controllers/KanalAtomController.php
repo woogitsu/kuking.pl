@@ -11,9 +11,11 @@ use App\Models\Collection;
 use App\Models\Profile;
 use App\Models\Tag;
 use App\Support\PublicznyHtmlGoscia;
+use Closure;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -42,6 +44,10 @@ use Illuminate\Support\Facades\Gate;
  * `private, no-cache` — bez wspólnego cache, ale czytnik może pytać
  * warunkowo. `PreventSharedSessionCache` i tak zamienia to na
  * `private, no-store`, gdy żądanie niesie ciasteczko albo `Authorization`.
+ *
+ * CACHE APLIKACYJNY (D-333, decyzja z 30.09.2026): gotowa treść kanału żyje
+ * `kuking.kanal_cache_sekund` (domyślnie 300 s) — patrz `xml()`. Dostęp
+ * (Policy, 404) jest sprawdzany przy każdym żądaniu, przed cache.
  */
 final class KanalAtomController
 {
@@ -67,7 +73,7 @@ final class KanalAtomController
 
         $wlasciciel->setRelation('profile', $profil);
 
-        return $this->odpowiedz($request, $this->tresci->profil($wlasciciel));
+        return $this->odpowiedz($request, 'profil:'.$wlasciciel->getKey(), fn () => $this->tresci->profil($wlasciciel));
     }
 
     public function tag(Request $request, string $tag): Response|RedirectResponse
@@ -84,7 +90,7 @@ final class KanalAtomController
             return redirect()->route('kanaly.tag', $model->tagKanoniczny()->slug, status: 301);
         }
 
-        return $this->odpowiedz($request, $this->tresci->tag($model));
+        return $this->odpowiedz($request, 'tag:'.$model->getKey(), fn () => $this->tresci->tag($model));
     }
 
     public function zeszyt(Request $request, string $collection): Response
@@ -98,12 +104,16 @@ final class KanalAtomController
             abort(404);
         }
 
-        return $this->odpowiedz($request, $this->tresci->zeszyt($zeszyt));
+        return $this->odpowiedz($request, 'zeszyt:'.$zeszyt->getKey(), fn () => $this->tresci->zeszyt($zeszyt));
     }
 
-    private function odpowiedz(Request $request, Kanal $kanal): Response
+    /**
+     * @param  string  $klucz  typ i identyfikator kanału (`profil:<id konta>`)
+     * @param  Closure(): Kanal  $zbuduj  wołane tylko przy braku świeżej kopii
+     */
+    private function odpowiedz(Request $request, string $klucz, Closure $zbuduj): Response
     {
-        $xml = $this->zapis->xml($kanal);
+        $xml = $this->xml($klucz, $zbuduj);
         $sekundy = PublicznyHtmlGoscia::sekundy();
 
         $odpowiedz = response($xml, 200, [
@@ -120,5 +130,32 @@ final class KanalAtomController
         $odpowiedz->isNotModified($request);
 
         return $odpowiedz;
+    }
+
+    /**
+     * Krótki cache APLIKACYJNY gotowej treści kanału (decyzja właściciela
+     * z 30.09.2026, D-333). Kanał jest zawsze widokiem gościa, więc kopia
+     * jest wspólna (klucz = typ + identyfikator). Cache stoi ZA bramką
+     * dostępu: Policy i 404 dla prywatnego zeszytu, konta zbanowanego albo
+     * tagu ukrytego liczą się przy KAŻDYM żądaniu. Cena: pozycja ukryta,
+     * usunięta albo zdjęta z urzędu może zostać w kanale najwyżej
+     * `kuking.kanal_cache_sekund` (domyślnie 300 s). Tylko TTL — bez
+     * unieważniania przy zmianie treści. 0 = bez cache.
+     *
+     * @param  Closure(): Kanal  $zbuduj
+     */
+    private function xml(string $klucz, Closure $zbuduj): string
+    {
+        $sekundy = max(0, (int) config('kuking.kanal_cache_sekund'));
+
+        if ($sekundy === 0) {
+            return $this->zapis->xml($zbuduj());
+        }
+
+        return Cache::remember(
+            'kuking:kanal:v1:'.$klucz,
+            now()->addSeconds($sekundy),
+            fn (): string => $this->zapis->xml($zbuduj()),
+        );
     }
 }

@@ -15,6 +15,7 @@ use DOMDocument;
 use DOMElement;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -290,6 +291,47 @@ class KanalyAtomTest extends TestCase
         // Nowy wpis zmienia ETag — stary już nie pasuje.
         $this->wpis($autor, 'Świeży wpis');
         $this->get(route('kanaly.profil', 'kanalcache'), ['If-None-Match' => $etag])->assertOk()->assertSee('Świeży wpis');
+    }
+
+    public function test_cache_aplikacji_drugie_pobranie_nie_odpytuje_bazy_o_pozycje(): void
+    {
+        config(['kuking.kanal_cache_sekund' => 300]);
+
+        $autor = $this->user('kanalttl');
+        $this->wpis($autor, 'Wpis w oknie cache');
+        $adres = route('kanaly.profil', 'kanalttl');
+
+        $pierwsza = $this->get($adres);
+        $this->atom($pierwsza)->query('//a:entry');
+        $etag = (string) $pierwsza->headers->get('ETag');
+
+        DB::enableQueryLog();
+        $druga = $this->get($adres);
+        $zapytania = collect(DB::getQueryLog())->pluck('query')->implode("\n");
+        DB::disableQueryLog();
+
+        $this->atom($druga);
+        $this->assertStringNotContainsStringIgnoringCase('from "posts"', $zapytania, 'W oknie TTL kanał nie odpytuje bazy o pozycje.');
+        $this->assertSame($etag, (string) $druga->headers->get('ETag'));
+        $this->assertSame($pierwsza->getContent(), $druga->getContent());
+
+        // Dostęp liczy się przy każdym żądaniu, nie z cache: konto zbanowane
+        // daje 404 natychmiast, mimo świeżej kopii.
+        $autor->forceFill(['status' => User::STATUS_BANNED])->save();
+        $this->get($adres)->assertNotFound();
+        $autor->forceFill(['status' => User::STATUS_ACTIVE])->save();
+
+        // Wpis zdjęty w oknie TTL zostaje w kanale do końca okna; po nim znika,
+        // a ETag nadal zgadza się z treścią.
+        Post::query()->where('body', 'Wpis w oknie cache')->delete();
+        $this->get($adres)->assertOk()->assertSee('Wpis w oknie cache');
+
+        $this->travel(301)->seconds();
+        $po = $this->get($adres);
+        $this->atom($po);
+        $po->assertDontSee('Wpis w oknie cache');
+        $this->assertNotSame($etag, (string) $po->headers->get('ETag'));
+        $this->assertSame('W/"'.hash('sha256', (string) $po->getContent()).'"', (string) $po->headers->get('ETag'));
     }
 
     public function test_cache_brzegu_idzie_za_polityka_html_goscia(): void

@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Wewnętrzne (#2227, decyzja właściciela z 30.09.2026, D-333): gotowa treść kanałów Atom (profil, tag, zeszyt) leży w cache aplikacji przez 5 minut (`KUKING_KANAL_CACHE_SEKUND`, 0 wyłącza), więc czytniki nie obciążają bazy przy każdym pytaniu. Zasady dostępu bez zmian — prywatny zeszyt, konto zbanowane czy tag ukryty dają 404 od razu. Pozycja ukryta, usunięta albo zdjęta z urzędu może zostać w kanale najwyżej przez te 5 minut.
 - Naprawione (audyt, #2229): adres źródła importowanego przepisu nie gubi już identyfikatora strony w serwisach na Joomli i Drupalu — zostają parametry `option`, `view`, `nid`, `rid`, `slug` i `item` (z tą samą regułą krótkiej, prostej wartości). Wcześniej `index.php?option=com_content&view=article&id=42` zapisywało się jako `index.php?id=42` i odsyłało na inną stronę. Parametry poufne (`token=` i inne spoza listy) nadal są wycinane.
 - Naprawione (audyt): opis na ekranie „Historia zmian” mówił o przycisku „Ukryj tę wersję”, a przyciski nazywają się „Ukryj wersję 2”, „Ukryj wersję 3” itd. Opis nazywa teraz przycisk tak, jak go widać.
 - Naprawione (audyt): kanały Atom (profil, tag, zeszyt) nie wysyłają już nagłówka `Last-Modified`. Czytnik pytający samym `If-Modified-Since` dostawał 304 i dalej pokazywał treść, która w międzyczasie zniknęła (usunięta, ukryta albo zdjęta z urzędu), bo data najpóźniejszej pozycji się wtedy nie zmienia. Zostaje `ETag` z treści, który zmienia się przy każdej zmianie zestawu pozycji.

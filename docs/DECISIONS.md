@@ -21012,6 +21012,7 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | Archiwum wersji regulaminu (decyzja 30.09) | **Budujemy.** Datowane wcześniejsze wersje regulaminu do pobrania (kryterium 4 w #2220); przegląd prawny treści zostaje w #8 | #2220, #8 |
 | Test do #2300 (decyzja 30.09) | **Bez testu.** Zmienił się tylko komentarz przy `concurrency` w `ci.yml`, zachowanie CI bez zmian; test treści komentarza niczego wykonywalnego nie pilnuje | #2300 |
 | Czas CI, dalsze kroki (decyzja 30.09) | Zlecić: pomiar i przyspieszenie Panelu marki, cache `vendor/` i Playwrighta między jobami, scalenie krótkich jobów (audyt, Larastan, przyrząd #605, build assetów). Zmianę listy wymaganych checków w ochronie gałęzi robi właściciel | #2299 |
+| Kanały Atom: cache 5 min dla gościa (decyzja 30.09) | **Tak.** Gotowa treść kanału żyje w cache aplikacji 5 minut (`kuking.kanal_cache_sekund`, `KUKING_KANAL_CACHE_SEKUND`), bez zmiany zasad dostępu (Policy i 404 przy każdym żądaniu). Treść ukryta albo zdjęta z urzędu może być w kanale najwyżej przez ten czas; unieważnianie tylko przez TTL. `Last-Modified` zdjęty (samo `If-Modified-Since` dawało 304 po zniknięciu pozycji); zostaje `ETag` | #2227 |
 
 ### Wycofanie
 Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis

@@ -585,6 +585,15 @@ return [
         'edge_seconds' => (int) env('KUKING_HTML_EDGE_CACHE_SECONDS', 0),
     ],
 
+    /*
+     * KANAŁY ATOM: ile sekund trzyma się gotową treść kanału w cache
+     * aplikacji (decyzja właściciela z 30.09.2026, D-333). Kanał to zawsze
+     * widok gościa, więc kopia jest wspólna. Dostęp (Policy, 404) liczy się
+     * przy każdym żądaniu; cena to okno, w którym pozycja ukryta, usunięta
+     * albo zdjęta z urzędu może jeszcze być w kanale. 0 = bez cache.
+     */
+    'kanal_cache_sekund' => (int) env('KUKING_KANAL_CACHE_SEKUND', 300),
+
     'account' => [
         'registration_open' => (bool) env('KUKING_REGISTRATION_OPEN', true),
 
