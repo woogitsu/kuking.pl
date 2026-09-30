@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (audyt, #2229): adres źródła importowanego przepisu nie gubi już identyfikatora strony w serwisach na Joomli i Drupalu — zostają parametry `option`, `view`, `nid`, `rid`, `slug` i `item` (z tą samą regułą krótkiej, prostej wartości). Wcześniej `index.php?option=com_content&view=article&id=42` zapisywało się jako `index.php?id=42` i odsyłało na inną stronę. Parametry poufne (`token=` i inne spoza listy) nadal są wycinane.
 - Naprawione (audyt): opis na ekranie „Historia zmian” mówił o przycisku „Ukryj tę wersję”, a przyciski nazywają się „Ukryj wersję 2”, „Ukryj wersję 3” itd. Opis nazywa teraz przycisk tak, jak go widać.
 - Naprawione (audyt): kanały Atom (profil, tag, zeszyt) nie wysyłają już nagłówka `Last-Modified`. Czytnik pytający samym `If-Modified-Since` dostawał 304 i dalej pokazywał treść, która w międzyczasie zniknęła (usunięta, ukryta albo zdjęta z urzędu), bo data najpóźniejszej pozycji się wtedy nie zmienia. Zostaje `ETag` z treści, który zmienia się przy każdej zmianie zestawu pozycji.
 - Naprawione (audyt): komenda `kuking:przenies-zdjecia` odmawia teraz `--limit` mniejszego niż 1 i wartości niebędących liczbą całkowitą, z komunikatem po polsku i kodem błędu. Wcześniej `--limit=0` kończył się „Nie ma zdjęć do przeniesienia.” z kodem 0 (łatwo było uznać migrację za zakończoną i zdjąć stary bucket), a `--limit=-1` dawał surowy błąd SQL.
