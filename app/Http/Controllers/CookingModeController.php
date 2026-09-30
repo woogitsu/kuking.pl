@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Moderation\DziennikWgladu;
 use App\Domain\Recipes\Gotowanie\PostepGotowania;
 use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Models\CookingProgress;
@@ -111,6 +112,10 @@ class CookingModeController extends Controller
         // UUID/slug w adresie to nie autoryzacja (AGENTS.md §7) — to samo
         // pytanie co na stronie przepisu, patrz komentarz nad klasą.
         $this->authorize('view', $model);
+
+        // Tryb gotowania pokazuje cały przepis — wgląd z urzędu jak na stronie
+        // przepisu (D-333, `DziennikWgladu::przepis()`).
+        app(DziennikWgladu::class)->przepis($model, $request->user(), $request->ip());
 
         $model->load(['steps.media', 'ingredients.unit']);
         $osoba = $request->user();

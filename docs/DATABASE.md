@@ -3859,7 +3859,8 @@ Wysokiego znaczenia zmiany.
 - **`action varchar(100) NOT NULL`** — nazwa zdarzenia w kropkowanej
   konwencji `obszar.co_się_stało` (`account.data_erased`,
   `user.role_changed`, `admin.user_viewed`,
-  `moderation.hidden_post_viewed`). **Bez CHECK-a w bazie** i to jest
+  `moderation.hidden_post_viewed`, `moderation.media_viewed`,
+  `moderation.hidden_recipe_viewed`). **Bez CHECK-a w bazie** i to jest
   wybór: dziennik ma przyjąć każde zdarzenie, które ktoś uzna za warte
   zapisania, a nie odmówić zapisu, bo lista wartości nie nadążyła za kodem.
   Ta sama kolumna rozstrzyga o retencji — patrz `AuditLogEntry::NIGDY_NIE_KASUJ`
@@ -3952,6 +3953,36 @@ wpisów z tej strony nie ma. Retencja zwykła, jak `admin.user_viewed` — wpis
 NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest dowodem wykonania
 żądania z RODO art. 17. Tabela i jej schemat się nie zmieniają: `action` nie
 ma CHECK-a, więc nowa nazwa zdarzenia nie wymaga migracji ani rollbacku.
+
+**`moderation.media_viewed`** — wgląd moderatora w zdjęcie, którego nie
+zobaczyłby bez roli (D-333, dziennik wglądów; `App\Domain\Moderation\DziennikWgladu`,
+zapis w `MediaController` dopiero gdy bajty naprawdę wychodzą). `actor_id` to
+moderator, `subject_type = 'Media'`, `subject_id` — zdjęcie, `metadata.powod`:
+`zgloszenie` (zdjęcie jest celem zgłoszenia albo należy do wpisu ze zgłoszeniem
+automatu — wyjątek z `DostepDoZdjecia::celemZgloszeniaDlaObslugi()`),
+`ukryta_tresc` (rodzic — wpis, przepis albo krok przepisu — jest ukryty lub
+zdjęty) albo `rola_moderatora` (inna droga tylko dla obsługi, np. treść konta
+zbanowanego). `metadata.sprawy` — posortowane identyfikatory zgłoszeń albo
+`Typ:id` treści, które uzasadniają wgląd (najwyżej 10). „Bez roli" rozstrzyga
+pytanie kontrfaktyczne: to samo konto z rolą `user` (`jakZwykleKonto()`,
+w pamięci). **Nie zostawiają wpisu:** zdjęcia jawne, wejścia autora
+i właściciela, zdjęcia, które moderator widzi też jako zwykłe konto, odmowy
+(404). **Jeden wpis na godzinę na (moderator, zdjęcie, powód, sprawy)**
+(`OKNO_ZDJECIA_MINUTY`) — otwarcie sprawy to kilka żądań o ten sam plik, ale
+wgląd w inną sprawę o to samo zdjęcie jest osobnym wpisem. Bez treści zdjęcia.
+Retencja zwykła, poza `NIGDY_NIE_KASUJ`. Bez migracji (`action` nie ma CHECK-a).
+
+**`moderation.hidden_recipe_viewed`** — wgląd obsługi w przepis niewidoczny bez
+roli (ukryty, zdjęty albo konta zbanowanego) na stronie przepisu, w trybie
+gotowania i w API (`DziennikWgladu::przepis()` po `authorize('view')`), gdy
+otwiera go moderator niebędący autorem. `subject_type = 'Recipe'`,
+`metadata = {powod, status}`, `ip_hash` z żądania, retencja zwykła.
+
+**Eksport i rejestr.** Wpisy wglądu nie wchodzą do eksportu danych konta
+(tak samo jak reszta `audit_log`, w tym `admin.user_viewed`): są dziennikiem
+działań obsługi, nie treścią użytkownika, i nie zawierają danych poza
+identyfikatorami. Osobnej wzmianki w rejestrze czynności nie trzeba —
+to ta sama czynność (moderacja) i ten sam dziennik.
 
 ### potwierdzenia_zadan_rodo
 Minimalne potwierdzenie, że żądanie usunięcia konta (RODO art. 17) zostało
