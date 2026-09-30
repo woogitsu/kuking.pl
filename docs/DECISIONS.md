@@ -20972,6 +20972,7 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | Publiczne repozytorium | Repozytorium jest **publiczne celowo**. Do zrobienia: zablokować joby forków na self-hosted runnerach i poprawić nagłówki | #2298 |
 | Tygodniowe podsumowanie | `KUKING_DIGEST_WLACZONY` włączamy **po poprawce #2237** | #2237 |
 | Nowe funkcje do budowy (research 30.09) | Budujemy: F1 „Jak wyszło?”, F2 plakietka autorki, F3 „Ugotujmy razem”, F4 ściągawka dla pomocnika, F6 wspomnienia z własnych wykonań | — |
+| #2227: kanały Atom dla publicznych profili, tagów i zeszytów — zbudować (decyzja 30.09) | **Zbudować.** Jeden format: Atom 1.0 (bez RSS 2.0). Tylko treści widoczne dla gościa na tej samej stronie HTML (te same zakresy i Policy), chronologicznie, limit 30 wpisów, `ETag` i `Last-Modified` z odpowiedzią 304, `rel="alternate"` na stronie profilu, tagu i publicznego zeszytu. Prywatny zeszyt, konto zbanowane lub kasowane i tag ukryty dają 404. Bez nowego silnika i bez kolejek. Opis: `docs/seo/SEO_TECHNICAL.md` („Kanały Atom”) | #2227 |
 | Dokończyć ze starych gałęzi | Dziennik wglądów moderatora; retencja wersji przepisu (**24 miesiące + 3 najnowsze** — potwierdzone); rozdzielenie usług (#595); DR zdjęć (#617) | #595, #617 |
 
 ### Wycofanie
