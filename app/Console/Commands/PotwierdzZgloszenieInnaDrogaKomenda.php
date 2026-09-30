@@ -1,0 +1,91 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Console\Commands;
+
+use App\Domain\Moderation\Actions\PotwierdzZgloszenieInnaDroga;
+use App\Models\User;
+use App\Support\AdresEmail;
+use DomainException;
+use Illuminate\Console\Command;
+
+/**
+ * Operator oznacza sprawę jako potwierdzoną inną drogą (#2218, kryterium 3).
+ *
+ * KOMENDA, NIE EKRAN PANELU — ten sam wybór i powód co `kuking:nadaj-role`
+ * i `kuking:2fa-wylacz`: to rzadka, ręczna czynność po sprawdzeniu adresu
+ * zgłaszającego poza serwisem, a panel moderacji nie ma dziś żadnej listy
+ * „spraw na suficie prób" (stan widać w alarmie, w `/health` → `informacje`
+ * i w dzienniku serwera), więc ekran byłby nowym modułem tylko dla tej
+ * jednej czynności. Komenda wymaga powłoki produkcyjnej, czyli zaufania,
+ * którego i tak trzeba, by zmienić coś w bazie ręcznie.
+ *
+ * KTO: `--operator` to login czynnego konta moderatora albo administratora.
+ * Bez tego dziennik audytu miałby pusty `actor_id` (komenda z powłoki nie ma
+ * zalogowanego człowieka), a pytanie „kto to potwierdził" — bez odpowiedzi.
+ *
+ * Cała logika i zapis w dzienniku: `PotwierdzZgloszenieInnaDroga`.
+ */
+class PotwierdzZgloszenieInnaDrogaKomenda extends Command
+{
+    protected $signature = 'kuking:potwierdz-zgloszenie-inna-droga
+                            {numer : Numer sprawy, np. KU-ABCD-2345}
+                            {--operator= : Login (e-mail albo nazwa użytkownika) moderatora lub administratora, który to robi}
+                            {--droga= : Jak potwierdzono: telefon, poczta_papierowa, inny_email albo osobiscie}
+                            {--tak : Nie pytaj o potwierdzenie}';
+
+    protected $description = 'Oznacza zgłoszenie DSA jako potwierdzone inną drogą niż list z serwisu (np. po sufitie prób listu) — z wpisem w dzienniku audytu';
+
+    public function handle(PotwierdzZgloszenieInnaDroga $akcja): int
+    {
+        $login = trim((string) $this->option('operator'));
+
+        if ($login === '') {
+            $this->error('Podaj, kto to robi: --operator=<login moderatora lub administratora>.');
+
+            return self::FAILURE;
+        }
+
+        $operator = User::findByLogin($login);
+
+        if ($operator === null) {
+            $this->error('Nie znaleziono konta operatora o takim loginie.');
+
+            return self::FAILURE;
+        }
+
+        $droga = trim((string) $this->option('droga'));
+
+        if ($droga === '') {
+            $this->error('Podaj, jak potwierdzono zgłoszenie: --droga='.implode('|', PotwierdzZgloszenieInnaDroga::DROGI).'.');
+
+            return self::FAILURE;
+        }
+
+        $numer = (string) $this->argument('numer');
+
+        // Skrót adresu, nie całość — wyjście tej komendy zostaje w logu
+        // platformy (jak w `kuking:nadaj-role`).
+        if (! $this->option('tak') && ! $this->confirm(
+            "Oznaczyć sprawę {$numer} jako potwierdzoną drogą „{$droga}” (operator: ".AdresEmail::maska((string) $operator->email).')? '
+            .'Zgłaszający NIE dostanie z tego powodu żadnego listu.',
+        )) {
+            $this->info('Anulowano.');
+
+            return self::SUCCESS;
+        }
+
+        try {
+            $sprawa = $akcja->handle($numer, $operator, $droga);
+        } catch (DomainException $powod) {
+            $this->error($powod->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $this->info("Sprawa {$sprawa->numer_sprawy} oznaczona jako potwierdzona (droga: {$droga}). Wpis w dzienniku audytu: ".PotwierdzZgloszenieInnaDroga::AKCJA_AUDYTU.'.');
+
+        return self::SUCCESS;
+    }
+}
