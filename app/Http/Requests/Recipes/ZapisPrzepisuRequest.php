@@ -195,7 +195,7 @@ final class ZapisPrzepisuRequest extends FormRequest
     {
         $existing = $this->przepis();
 
-        return [
+        $reguly = [
             'content_revision' => $existing === null ? ['prohibited'] : ['required', 'integer', 'min:0'],
             'title' => ['required', 'string', 'min:3', 'max:'.LimityTekstuPrzepisu::POLA['title']],
             'summary' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['summary']],
@@ -292,15 +292,25 @@ final class ZapisPrzepisuRequest extends FormRequest
              * chodzić parser.
              */
             'odczyt_sprawdzony' => ['nullable', 'boolean'],
-            // Alergeny według autora (#1902): tylko formularz szczegółów z sekcją
-            // „Alergeny” (znacznik `alergeny_formularz`); brak znacznika = bez zmian.
-            'alergeny_formularz' => ['nullable', 'boolean'],
-            'alergeny' => ['nullable', 'array', 'max:'.count(Alergen::cases())],
-            'alergeny.*' => ['string', Rule::in(Alergen::kody())],
-            'alergeny_potwierdzone' => ['nullable', 'boolean'],
             'skladniki_tekst' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['skladniki_tekst']],
             'przygotowanie_tekst' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['przygotowanie_tekst']],
         ];
+
+        // Alergeny według autora (#1902): tylko formularz szczegółów z sekcją
+        // „Alergeny” (znacznik `alergeny_formularz`); brak znacznika = bez zmian.
+        // Reguły TYLKO przy włączonej fladze — przy wyłączonej pole jest
+        // ignorowane, więc stary formularz z `alergeny[]=foo` nie blokuje zapisu
+        // błędem o funkcji, której człowiek nie widzi.
+        if ((bool) config('kuking.alergeny.wlaczone')) {
+            $reguly += [
+                'alergeny_formularz' => ['nullable', 'boolean'],
+                'alergeny' => ['nullable', 'array', 'max:'.count(Alergen::cases())],
+                'alergeny.*' => ['string', Rule::in(Alergen::kody())],
+                'alergeny_potwierdzone' => ['nullable', 'boolean'],
+            ];
+        }
+
+        return $reguly;
     }
 
     /**

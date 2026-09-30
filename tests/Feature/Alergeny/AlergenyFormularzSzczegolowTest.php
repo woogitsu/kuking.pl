@@ -80,6 +80,24 @@ final class AlergenyFormularzSzczegolowTest extends TestCase
         $this->assertSame('unchecked', $this->przepis->refresh()->allergen_status);
     }
 
+    public function test_przy_wylaczonej_fladze_nieprawidlowe_pole_alergeny_nie_blokuje_zapisu(): void
+    {
+        config(['kuking.alergeny.wlaczone' => false]);
+
+        $this->zapisz(['alergeny_formularz' => '1', 'alergeny' => ['foo'], 'alergeny_potwierdzone' => '1', 'title' => 'Naleśniki bez alergenów'])
+            ->assertSessionHasNoErrors();
+
+        $przepis = $this->przepis->refresh();
+        $this->assertSame('Naleśniki bez alergenów', $przepis->title);
+        $this->assertSame('unchecked', $przepis->allergen_status);
+    }
+
+    public function test_przy_wlaczonej_fladze_nieznany_alergen_nadal_jest_bledem(): void
+    {
+        $this->zapisz(['alergeny_formularz' => '1', 'alergeny' => ['foo'], 'alergeny_potwierdzone' => '1'])
+            ->assertSessionHasErrors('alergeny.0');
+    }
+
     public function test_potwierdzone_alergeny_zapisuja_sie_jako_deklaracja(): void
     {
         $this->zapisz(['alergeny_formularz' => '1', 'alergeny' => ['milk', 'eggs', 'milk'], 'alergeny_potwierdzone' => '1'])
