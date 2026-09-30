@@ -1,13 +1,18 @@
 {{--
     Wersja TEKSTOWA sobotniego przypomnienia o produktach (#1903, D-333).
     Pełne adresy wypisane, bo w zwykłym tekście nie ma czego kliknąć.
+
+    Nazwa i ilość idą przez `{!! !!}`, NIE `{{ }}`: w text/plain nie ma HTML-a,
+    a `{{ }}` zamieniłoby `&` na `&amp;` i `'` na `&#039;` (mail czytany
+    dosłownie). Bezpieczne, bo wersja tekstowa nie jest nigdy renderowana jako
+    HTML; białe znaki zwijamy do spacji, żeby nazwa nie złamała układu listy.
 --}}
 Produkty do zużycia w najbliższych dniach
 
 Na Twojej liście „Co mam w domu” te produkty mają termin, który minął albo upływa w ciągu {{ $dni }} {{ $dni === 1 ? 'dnia' : 'dni' }}. Termin to Twoja notatka z opakowania — sprawdź produkt przed użyciem.
 
 @foreach($pozycje as $pozycja)
-- {{ $pozycja['nazwa'] }}@if($pozycja['ilosc']) ({{ $pozycja['ilosc'] }})@endif
+- {!! preg_replace('/\s+/u', ' ', (string) $pozycja['nazwa']) !!}@if($pozycja['ilosc']) ({!! preg_replace('/\s+/u', ' ', (string) $pozycja['ilosc']) !!})@endif
 
   {{ $pozycja['termin'] }}. {{ $pozycja['stan'] }}
 @endforeach

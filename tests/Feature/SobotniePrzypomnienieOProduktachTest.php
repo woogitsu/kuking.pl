@@ -478,6 +478,20 @@ class SobotniePrzypomnienieOProduktachTest extends TestCase
         $this->assertLessThan(strpos($html, 'mleko'), strpos($html, 'szynka'));
     }
 
+    public function test_wersja_tekstowa_listu_nie_zamienia_znakow_na_encje_html(): void
+    {
+        $basia = $this->osoba('basia', termin: null);
+        $this->produkt($basia, "ser 'Gouda' & szynka", '2026-10-10');
+        $basia->pantryItems()->where('name', "ser 'Gouda' & szynka")->update(['quantity_note' => 'pół & pół']);
+
+        $tresc = (new PrzypomnienieOProduktach($basia))->content();
+        $tekst = view($tresc->text, $tresc->with)->render();
+
+        $this->assertStringContainsString("- ser 'Gouda' & szynka (pół & pół)", $tekst);
+        $this->assertStringNotContainsString('&amp;', $tekst);
+        $this->assertStringNotContainsString('&#039;', $tekst);
+    }
+
     public function test_list_wymienia_najwyzej_dziesiec_produktow_a_reszte_liczy(): void
     {
         $basia = $this->osoba('basia', termin: null);
