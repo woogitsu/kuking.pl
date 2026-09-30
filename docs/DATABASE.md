@@ -2241,6 +2241,11 @@ ALTER TABLE recipe_versions VALIDATE CONSTRAINT recipe_versions_hidden_spojny_ch
   blokadą wiersza `recipes`, tą samą co przy nadawaniu numeru): to treść
   przepisu widoczna na jego stronie. Żeby usunąć z niej tekst, autor poprawia
   przepis — powstaje nowa wersja, a poprzednią da się ukryć.
+- Ukrycie przez **moderację** jest decyzją moderacyjną (DSA): obok
+  `hidden_by_role = 'moderator'` powstaje wiersz `moderation_actions`
+  (`target_type = 'recipe_version'`, sekcja `moderation_actions`), autor
+  dostaje powiadomienie z drogą odwołania, a uznane odwołanie zdejmuje
+  ukrycie. Ukrycie przez autora wiersza w `moderation_actions` nie tworzy.
 - Retencja (akapit wyżej) ukrycia nie patrzy: stara ukryta wersja spoza
   3 najnowszych znika tak samo jak widoczna. Eksport (`wersje_przepisow`)
   niesie ukrytą wersję całą, z `ukryto` (data) i `ukryl` (`autor` |
@@ -3755,6 +3760,18 @@ warianty tego samego pola:
 | `user_message varchar(2000) NULL` | **Człowiek, którego decyzja dotyczy** — zdanie doklejane do powiadomienia. Wszystko, co tu stoi, zostanie mu pokazane. |
 
 `moderator_id uuid` → `users`.
+
+**`target_type = 'recipe_version'` (#2270, decyzja właściciela z 30.09.2026,
+bez migracji).** Ukrycie jednej wersji przepisu przez moderację jest decyzją
+z urzędu: `action = hide`, `target_id` = `recipe_versions.id`,
+`subject_user_id` = autor przepisu, `report_id` i `appeal_id` NULL. Cofnięcie
+(ręczne z historii zmian albo po uznanym odwołaniu, `reason_code =
+appeal_overturned`) to `unhide` z tym samym celem. Kolumna `target_type` nie
+ma CHECK-a (w przeciwieństwie do `reports.target_type`), więc nowy typ nie
+wymaga zmiany schematu; wersji nie da się zgłosić, więc `reports` go nie zna.
+Wiersz przeżywa wersję (retencja wersji, usunięcie przepisu) tak jak każda
+decyzja przeżywa treść — `target_id` nie ma klucza obcego. Zapis:
+`App\Domain\Recipes\Historia\DecyzjaOWersjiPrzepisu`.
 
 Od migracji `2026_09_06_100000_add_context_to_moderation_actions` (issues #65 i #10)
 wiersz zapisuje dwie rzeczy więcej:

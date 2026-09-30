@@ -108,7 +108,7 @@ final class UkrywanieWersji
             }
 
             $idDecyzji = null;
-            if ($strona === RecipeVersion::UKRYLA_MODERACJA && $decyzja !== null) {
+            if ($strona === RecipeVersion::UKRYLA_MODERACJA) {
                 $idDecyzji = self::idDecyzji($decyzja($wersja));
             }
 

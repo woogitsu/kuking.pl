@@ -132,6 +132,11 @@ zmian ją pominie i napisze, że coś pominęło. Wy dalej ją widzicie, z napis
 ukryć, bo to jest to, co widać na stronie przepisu: żeby usunąć z niej tekst,
 poprawcie przepis i zapiszcie zmiany — wtedy poprzednią wersję można już ukryć.
 
+Wersję może też ukryć moderacja, gdy coś w niej narusza zasady. Wtedy dostaniecie
+powiadomienie: której wersji to dotyczy, na jakiej podstawie i dlaczego. Jeśli
+uważacie, że to pomyłka, możecie się odwołać — a gdy przyznamy Wam rację, wersja
+od razu wróci do historii zmian.
+
 ### Zacznijcie gotować na telefonie, dokończcie na tablecie
 
 W trybie „Gotuję” jest nowy, całkiem opcjonalny przycisk „Zapamiętuj postęp na

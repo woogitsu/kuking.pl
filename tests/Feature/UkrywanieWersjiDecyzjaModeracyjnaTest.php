@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Compliance\PrzedawnioneWersjePrzepisow;
 use App\Domain\Recipes\Historia\UkrywanieWersji;
 use App\Models\Appeal;
 use App\Models\AuditLogEntry;
@@ -13,7 +14,9 @@ use App\Models\Recipe;
 use App\Models\RecipeVersion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use LogicException;
 use Tests\TestCase;
 
@@ -336,6 +339,28 @@ final class UkrywanieWersjiDecyzjaModeracyjnaTest extends TestCase
         $this->assertWiersz($wyjscie, '3. Decyzje z urzędu', 'RAZEM', '1');
         $this->assertMatchesRegularExpression('/4\. Przywrócenia treści.*: 1\b/u', $wyjscie);
         $this->assertWiersz($wyjscie, '5. Odwołania', 'autor treści (od sankcji)', '0 1');
+    }
+
+    public function test_retencja_nie_kasuje_wersji_z_decyzja_moderacji_ale_kasuje_sasiednia(): void
+    {
+        $przepis = $this->przepis();
+        for ($n = 4; $n <= 5; $n++) {
+            RecipeVersion::create([
+                'recipe_id' => $przepis->getKey(),
+                'editor_id' => $przepis->author_id,
+                'version_number' => $n,
+                'snapshot' => ['title' => $przepis->title, 'summary' => 'Wersja '.$n, 'ingredients' => [], 'steps' => []],
+            ]);
+        }
+        $this->ukryjJakoModeracja($this->moderator(), $przepis, 1);
+        DB::table('recipe_versions')->where('recipe_id', $przepis->getKey())->where('version_number', '<=', 2)
+            ->update(['created_at' => Carbon::parse('2020-01-10 10:00:00', 'UTC')]);
+
+        $wynik = (new PrzedawnioneWersjePrzepisow)->posprzataj(24, 3);
+
+        // Wersja 2 (bez decyzji) znika, wersja 1 (w sprawie moderacyjnej) zostaje.
+        $this->assertSame(1, $wynik['skasowano']);
+        $this->assertSame([5, 4, 3, 1], RecipeVersion::where('recipe_id', $przepis->getKey())->orderByDesc('version_number')->pluck('version_number')->all());
     }
 
     /** Wiersz tabeli Symfony: `| etykieta | liczba |` (jak w `RaportPrzejrzystosciTest`). */

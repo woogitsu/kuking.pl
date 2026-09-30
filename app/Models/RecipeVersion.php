@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,6 +27,12 @@ use LogicException;
  * `App\Domain\Recipes\Historia\UkrywanieWersji`). Obie kolumny są poza
  * `$fillable`: to pola sterujące widocznością (AGENTS.md §7). Zapis, który
  * rusza cokolwiek innego, nadal kończy się wyjątkiem.
+ *
+ * `hidden_by_role` dodaje migracja surowym SQL-em, którego Larastan nie
+ * odczyta — stąd jawna deklaracja niżej.
+ *
+ * @property CarbonImmutable|null $hidden_at
+ * @property string|null $hidden_by_role
  */
 class RecipeVersion extends Model
 {
@@ -79,7 +86,11 @@ class RecipeVersion extends Model
     }
 
     /**
-     * @param  self::UKRYL_AUTOR|self::UKRYLA_MODERACJA  $kto
+     * `$kto` przychodzi z `UkrywanieWersji::strona()`; nieznana wartość to
+     * błąd programisty, a baza i tak by ją odrzuciła CHECK-iem — tu pada
+     * wcześniej, z czytelnym komunikatem.
+     *
+     * @param  string  $kto  `UKRYL_AUTOR` albo `UKRYLA_MODERACJA`
      */
     public function ukryj(string $kto): void
     {
