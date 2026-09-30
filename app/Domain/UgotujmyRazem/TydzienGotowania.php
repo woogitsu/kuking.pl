@@ -97,6 +97,11 @@ final class TydzienGotowania
         return new self($this->poniedzialek->addWeek());
     }
 
+    public function poprzedni(): self
+    {
+        return new self($this->poniedzialek->subWeek());
+    }
+
     public function jestPrzyszly(): bool
     {
         return $this->poniedzialek->greaterThan(self::biezacy()->poniedzialek);
