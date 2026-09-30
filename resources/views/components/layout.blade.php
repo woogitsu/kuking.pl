@@ -38,6 +38,10 @@
     // obrazka na ślepo.
     'image' => null,
     'ogType' => 'website',
+    // Kanał Atom tej strony (#2227): `['href' => …, 'title' => …]` albo `null`.
+    // Stawiają go wyłącznie profil, tag i PUBLICZNY zeszyt — i tylko wtedy,
+    // gdy kanał naprawdę odpowie gościowi 200 (prywatny zeszyt dostałby 404).
+    'kanalAtom' => null,
     /*
      * `szynaWTresci` — TEN EKRAN UŻYWA KOLUMNY SZYNY OD ŚRODKA (issue #365).
      *
@@ -313,6 +317,9 @@
     <meta name="twitter:card" content="{{ $ogImageGotowe ? 'summary_large_image' : 'summary' }}">
 
     <link rel="canonical" href="{{ \App\Support\KanonicznyAdresStrony::dla(request()) }}">
+    @if($kanalAtom)
+        <link rel="alternate" type="application/atom+xml" title="{{ $kanalAtom['title'] }}" href="{{ $kanalAtom['href'] }}">
+    @endif
     {{-- Kolor paska przeglądarki = tło strony w AKTYWNYM motywie (#2267).
          Do 30.09.2026 stało tu zawsze ciemne #151714, więc jasna strona
          (motyw domyślny, D-019) dostawała na telefonie czarny pasek. Kolory

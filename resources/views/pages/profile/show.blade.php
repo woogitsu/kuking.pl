@@ -12,6 +12,10 @@
          Bez avatara wchodzi karta zapasowa — lepsza niż cudza fotografia,
          która sugerowałaby, że to profil o tym daniu. --}}
     :image="$p->avatar"
+    {{-- Kanał Atom (#2227) — ten sam warunek co `UserPolicy::viewProfile()`
+         dla gościa: moderator na profilu zbanowanego nie dostaje odnośnika
+         do kanału, który gościowi odpowiedziałby 404. --}}
+    :kanalAtom="$owner->jestDostepnyJakoAutor() ? ['href' => route('kanaly.profil', $p->username), 'title' => 'Nowe wpisy od '.$p->display_name.' (Atom)'] : null"
     ogType="profile">
 
     <x-slot:head>

@@ -82,6 +82,14 @@ zdjęcie i kilka słów przez „Ugotowałem”. Wtedy Wasze wykonanie pojawi si
 stronie obok innych z tego tygodnia, od najnowszego. Tydzień trwa od
 poniedziałku do niedzieli. Niżej są poprzednie tygodnie razem ze zdjęciami
 z tamtych dni. Odnośnik do tej strony jest na „Świeżo z Kuking”.
+### Nowe wpisy w czytniku kanałów
+
+Jeśli korzystacie z czytnika kanałów (na przykład Feedly albo Inoreader), możecie
+w nim śledzić czyjś profil, tag albo publiczny zeszyt bez zaglądania na stronę.
+Wystarczy wkleić do czytnika adres profilu, tagu lub zeszytu — czytnik sam znajdzie
+kanał. Pokażemy w nim najwyżej 30 najnowszych wpisów i przepisów, dokładnie tych,
+które widzi każdy bez logowania: bez wpisów tylko dla obserwujących, bez prywatnych
+i bez notatek z zeszytu. Prywatny zeszyt nie ma kanału.
 
 ### Przycisk „Zgłoś” widać także bez logowania
 
