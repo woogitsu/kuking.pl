@@ -168,6 +168,22 @@ function barieraPoSprawdzeniuCzlonkostwa(int $ktore): void
     });
 }
 
+/**
+ * Bariera #2318: uczestnik staje PO pierwszym rzeczywistym sprawdzeniu, czy
+ * odbiorca dostał już dziś przypomnienie o urodzinach, a PRZED zapisem.
+ */
+function barieraPoSprawdzeniuUrodzin(): void
+{
+    $juz = false;
+
+    DB::listen(static function (QueryExecuted $query) use (&$juz): void {
+        if (! $juz && str_contains($query->sql, 'from "notifications"') && str_contains($query->sql, 'exists(')) {
+            $juz = true;
+            DB::select('SELECT pg_advisory_xact_lock(2318, 1)');
+        }
+    });
+}
+
 $scenariusz = $argv[1] ?? '';
 
 /** @var array<string, string> $argumenty */
@@ -586,6 +602,19 @@ try {
             Collection::query()->whereKey($argumenty['zeszyt'])->firstOrFail(),
             User::query()->whereKey($argumenty['czlonek'])->firstOrFail(),
         ) ? 'odebrano' : 'nie-bylo',
+
+        // Dwa równoległe uruchomienia przypomnień o urodzinach (#2318).
+        // Cisza nocna wyłączona (od = do), żeby wynik nie zależał od godziny.
+        'przypomnij-o-urodzinach' => (function (): int {
+            config([
+                'kuking.notifications.zewnetrzne.cisza_od_godziny' => 0,
+                'kuking.notifications.zewnetrzne.cisza_do_godziny' => 0,
+                'kuking.urodziny.przypomnienia_na_odbiorce_dziennie' => 3,
+            ]);
+            barieraPoSprawdzeniuUrodzin();
+
+            return Artisan::call('kuking:przypomnij-o-urodzinach');
+        })(),
 
         // Notatka współpracownika kontra odebranie dostępu (#2311).
         'notatka-w-zeszycie' => (function () use ($argumenty): string {
