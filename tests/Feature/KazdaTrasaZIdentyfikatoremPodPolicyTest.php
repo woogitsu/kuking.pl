@@ -476,11 +476,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             }
         }
 
-        $this->assertGreaterThanOrEqual(70, $zWzorcem,
-            "Skan znalazł tylko {$zWzorcem} parametrów-UUID ze wzorcem — przestał czytać sygnatury kontrolerów.");
         $this->assertSame([], $bezWzorca,
             'Parametr wiązany z modelem po UUID bez wzorca UUID. Dopisz nazwę do `ParametryUuidTras::NAZWY` '
             ."(albo `->whereUuid()` przy trasie):\n  • ".implode("\n  • ", $bezWzorca));
+        $this->assertGreaterThanOrEqual(70, $zWzorcem,
+            "Skan znalazł tylko {$zWzorcem} parametrów-UUID ze wzorcem — przestał czytać sygnatury kontrolerów.");
         $this->assertSame([], $zlaNazwa,
             "Nazwa z `ParametryUuidTras::NAZWY` wiąże model po czymś innym niż UUID — wzorzec odetnie prawdziwe adresy:\n  • "
             .implode("\n  • ", $zlaNazwa));
