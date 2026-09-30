@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\SygnalyController;
 use App\Http\Controllers\Admin\TagHighlightController;
 use App\Http\Controllers\Admin\TagPromotionController;
+use App\Http\Controllers\Admin\UgotujmyRazemController as AdminUgotujmyRazemController;
 use App\Http\Controllers\Admin\UzytkownicyController;
 use App\Http\Controllers\Admin\WiadomosciController;
 use App\Http\Controllers\Admin\ZUrzeduController;
@@ -41,6 +42,7 @@ use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\HistoriaPrzepisuController;
 use App\Http\Controllers\ImportPrzepisuController;
+use App\Http\Controllers\JakWyszloController;
 use App\Http\Controllers\ListaZakupowController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MojeWpisyController;
@@ -71,8 +73,10 @@ use App\Http\Controllers\Settings\FormOfAddressController;
 use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
 use App\Http\Controllers\Settings\ProfileSettingsController;
+use App\Http\Controllers\Settings\SciagawkaController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SettingsIndexController;
+use App\Http\Controllers\Settings\SprzeciwStatystykController;
 use App\Http\Controllers\Settings\TwoFactorSettingsController;
 use App\Http\Controllers\Settings\WczytanieDanychController;
 use App\Http\Controllers\SitemapController;
@@ -83,6 +87,7 @@ use App\Http\Controllers\TagController;
 use App\Http\Controllers\TagFollowController;
 use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
+use App\Http\Controllers\UgotujmyRazemController;
 use App\Http\Controllers\UkryciaController;
 use App\Http\Controllers\UrodzinyWypiszController;
 use App\Http\Controllers\WartosciOdzywczeController;
@@ -127,6 +132,13 @@ Route::get('/otworz-link', ExternalLinkController::class)->middleware("throttle:
 Route::get('/odkryj', [FeedController::class, 'discover'])
     ->middleware("throttle:{$limits['discover']},discover")
     ->name('discover');
+// „Ugotujmy razem” (F3): przepis tygodnia wybrany przez gospodarza i jego
+// wykonania z tego tygodnia. `{tydzien}` to zapis ISO (`2026-W39`), nie
+// identyfikator obiektu — wejście i tak idzie przez `WeeklyRecipePickPolicy`.
+Route::get('/ugotujmy-razem', [UgotujmyRazemController::class, 'index'])->name('ugotujmy-razem');
+Route::get('/ugotujmy-razem/{tydzien}', [UgotujmyRazemController::class, 'tydzien'])
+    ->where('tydzien', '[0-9]{4}-W[0-9]{2}')
+    ->name('ugotujmy-razem.tydzien');
 Route::get('/pytania', [QuestionController::class, 'index'])
     ->middleware("throttle:{$limits['search']},search")
     ->name('questions.index');
@@ -791,6 +803,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/wspomnienia/{post}/ukryj', [WspomnienieController::class, 'ukryj'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('wspomnienia.ukryj');
+    // To samo dla własnego „Ugotowałem” sprzed lat (F6). Bramka:
+    // `CookedEventPolicy::hideAsMemory` — tylko kucharz.
+    Route::post('/wspomnienia/ugotowane/{cookedEvent}/ukryj', [WspomnienieController::class, 'ukryjWykonanie'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('wspomnienia.ukryj-wykonanie');
 
     // Edycja i usunięcie komentarza — niezależne od tego, pod czym on wisi
     // (wpis, przepis czy "Ugotowałem"). Reguły kto-może-co żyją w CommentPolicy.
@@ -908,6 +925,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/przepisy/{recipe}/ugotowalem', [CookedEventController::class, 'store'])
         ->middleware("throttle:{$limits['post']},post")
         ->name('cooked.store');
+    // „Jak wyszło?” na Starcie po trybie gotowania (F1, D-333) — oba
+    // przyciski zapisują w sesji, że pytanie dla tego gotowania jest zamknięte.
+    Route::post('/przepisy/{recipe}/jak-wyszlo/pokaz', [JakWyszloController::class, 'pokaz'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('jak_wyszlo.pokaz');
+    Route::post('/przepisy/{recipe}/jak-wyszlo/nie-teraz', [JakWyszloController::class, 'zamknij'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('jak_wyszlo.zamknij');
     Route::post('/ugotowane/{cookedEvent}/komentarz', [CookedEventController::class, 'comment'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('cooked.comment');
@@ -1206,6 +1231,10 @@ Route::middleware('auth')->group(function () use ($limits): void {
      */
     Route::get('/ustawienia', SettingsIndexController::class)->name('settings.index');
 
+    // „Ściągawka do wydruku” (F4): jedna kartka o WŁASNYM koncie, bez hasła
+    // i bez tokenu. Bez identyfikatora w adresie i bez zapisu — jak rozdroże.
+    Route::get('/ustawienia/sciagawka', SciagawkaController::class)->name('settings.sciagawka');
+
     Route::get('/ustawienia/profil', [ProfileSettingsController::class, 'edit'])->name('settings.profile');
     Route::put('/ustawienia/profil', [ProfileSettingsController::class, 'update'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia");
@@ -1295,6 +1324,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/ustawienia/prywatnosc', [PrivacySettingsController::class, 'edit'])->name('settings.privacy');
     Route::put('/ustawienia/prywatnosc', [PrivacySettingsController::class, 'update'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia");
+    // Sprzeciw wobec statystyk (RODO art. 21, #2277): dwa jawne przyciski,
+    // nie pole formularza zgód — patrz `PrzestawSprzeciwWobecStatystyk`.
+    Route::post('/ustawienia/prywatnosc/statystyki', [SprzeciwStatystykController::class, 'store'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.privacy.sprzeciw-statystyk');
+    Route::delete('/ustawienia/prywatnosc/statystyki', [SprzeciwStatystykController::class, 'destroy'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.privacy.sprzeciw-statystyk.cofnij');
 
     // Urodziny: dzień i miesiąc, bez roku (issue #1755). Własny ekran, nie
     // pole profilu — powód w `BirthdaySettingsController`.
@@ -1619,6 +1656,16 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
         ->whereUuid('wyroznienie')
         ->middleware("throttle:{$limits['moderacja']},moderacja")
         ->name('admin.tag-highlights.destroy');
+
+    // „Ugotujmy razem” (F3) — gospodarz wybiera jeden przepis na tydzień.
+    Route::get('/ugotujmy-razem', [AdminUgotujmyRazemController::class, 'edit'])->name('admin.ugotujmy-razem');
+    Route::post('/ugotujmy-razem', [AdminUgotujmyRazemController::class, 'store'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.ugotujmy-razem.store');
+    Route::delete('/ugotujmy-razem/{wybor}', [AdminUgotujmyRazemController::class, 'destroy'])
+        ->whereUuid('wybor')
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.ugotujmy-razem.destroy');
 
     /*
      * Konta użytkowników — lista do wglądu i karta pojedynczego konta.

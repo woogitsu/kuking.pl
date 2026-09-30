@@ -161,6 +161,27 @@ ma wartość (jak przy `terms_notice_dismissed_version`). Testy:
 `ZmianaPolitykiTest::test_rollback_odmawia_gdy_ktos_zamknal_pasek` i kontrola
 dodatnia `test_rollback_przechodzi_gdy_nikt_nie_zamknal_paska`.
 
+#### `sprzeciw_statystyk_at` — sprzeciw wobec statystyk (RODO art. 21, #2277)
+
+Migracja `2026_09_30_163000_add_sprzeciw_statystyk_at_to_users`: nullable
+`timestamptz` bez wartości domyślnej (zmiana samego katalogu, AGENTS.md §6).
+Wartość to chwila kliknięcia „Nie licz mnie w statystykach” w ustawieniach
+prywatności; `NULL` — sprzeciwu nie ma. Kolumna poza `$fillable`; ustawia ją
+i zdejmuje wyłącznie `App\Domain\Users\Actions\PrzestawSprzeciwWobecStatystyk`
+(POST/DELETE `/ustawienia/prywatnosc/statystyki`). Zgłoszenie zeruje przy tym
+`ostatnio_widziany_at` i odpina `product_signals` tej osoby (`user_id = NULL`).
+Póki kolumna jest ustawiona, `ZapiszSygnal` nie zapisuje zdarzeń tej osoby
+(sprawdzenie pod `FOR SHARE`, razem z `data_erased_at`),
+`ZanotujOstatniaWizyte` nie zapisuje daty wizyty (także w samym `UPDATE`),
+a układ strony nie wstawia skryptu Cloudflare Web Analytics. Eksport oddaje
+`konto.sprzeciw_wobec_statystyk_od`, wymazanie konta zeruje pole.
+
+**Rollback (D-088):** `down()` odmawia usunięcia kolumny, gdy choć jedno konto
+zgłosiło sprzeciw — po ponownym `migrate` serwis znów liczyłby te osoby.
+Przy samych `NULL` przechodzi. Testy:
+`SprzeciwWobecStatystykTest::test_rollback_odmawia_gdy_ktos_zglosil_sprzeciw`
+i kontrola dodatnia `test_rollback_przechodzi_gdy_nikt_nie_zglosil_sprzeciwu`.
+
 #### `wants_weekly_digest` — zgoda, o którą trzeba było zapytać
 
 Migracja `2026_09_07_400000_default_weekly_digest_to_off`.
@@ -827,6 +848,13 @@ rozpoznaną tożsamością dostawcy, a `account_state_hash` z hasłem, adresem,
 2FA (także kodami zapasowymi), rolą, statusem i generacją sesji. Pod blokadą konta token jest kasowany
 w tej samej transakcji co powiązanie. `UNIQUE (user_id)` unieważnia poprzedni
 link przy kolejnej prośbie; `UNIQUE (token_hash)` zapobiega kolizji.
+
+Retencja (issue #2319): wygasły dowód nie działa od razu (warunek `expires_at`
+w `FacebookConnectionConfirmation`), a fizyczny wiersz kasuje co noc o 07:20 UTC
+`kuking:sprzataj-dowody-facebooka` (`PrzedawnioneDowodyFacebooka`,
+`expires_at < now()`, opcja `--na-sucho`). Wymazanie konta usuwa dowód jawnie
+w `EraseAccountData` — kaskada `ON DELETE CASCADE` nie zadziała, bo kont się nie
+kasuje (D-022). Bez indeksu na `expires_at`: najwyżej jeden wiersz na konto.
 
 Rollback usuwa tylko oczekujące dowody. Nie usuwa istniejących powiązań i
 zamyka, zamiast otwierać, rozpoczęte próby połączenia; można poprosić o nowy
@@ -1583,6 +1611,21 @@ oryginał", czyli do stanu sprzed rozdzielenia. **Cofać przed migracją danych,
 nie po:** po przeniesieniu wariantów ta kolumna niesie już prawdziwą wiedzę
 i jej utrata znaczy, że aplikacja szuka ich w starym buckecie.
 
+**Migracja danych `2026_09_06_180000_point_existing_media_at_legacy_disk`**
+(bez zmiany schematu) przestawia stare wiersze z `disk = 'r2'` na
+`disk = variants_disk = 'r2_legacy'`. Po niej nazwa `r2` znaczy wyłącznie nowy,
+prywatny bucket. **Rollback odmawia (D-088, issue #2329)**, gdy w `media` jest
+choć jeden wiersz z `disk = 'r2'` — przeniesiony przez `kuking:przenies-zdjecia`
+albo dodany po rozdzieleniu. Cofnięcie zlałoby wtedy stare wiersze z nowymi,
+a kolejne `up()` przestawiłoby na `r2_legacy` także te, których plików
+w starym buckecie nigdy nie było. Odmowa niczego nie zmienia i mówi, co zrobić
+(cofnąć wdrożenie bez tej migracji albo ręcznie, po kopii tabeli
+i `kuking:zaleznosc-od-starego-bucketu --pliki`). Bez takich wierszy (pusta
+baza, dev/CI na dysku `public`, produkcja przed pierwszym nowym zdjęciem)
+rollback przechodzi jak dawniej: `r2_legacy` → `r2`, `variants_disk` → `NULL`,
+a ponowne `up()` odtwarza stan w całości. Test:
+`tests/Feature/CofniecieMigracjiStaregoBucketuOdmawiaTest.php`.
+
 #### `status = 'deleted'` — kasowanie TRWA, a wiersz jest uchwytem do ponowienia
 
 Wprowadzone przez **D-083** (issue #285, MEDIA-01). **Bez migracji i bez
@@ -2188,6 +2231,24 @@ właściciela z 24.09.2026): model `RecipeVersion` odmawia `update()` wyjątkiem
 Szkic przed pierwszą publikacją nie ma wersji. Zmiana zachowania, nie
 schematu — bez migracji.
 
+**Retencja (#2024, D-333 — wartości potwierdzone przez właściciela 30.09).**
+`kuking:sprzataj-wersje-przepisow` (codziennie 06:40, `routes/console.php`)
+kasuje wersję, która jest **starsza niż 24 miesiące** (próg to początek dnia
+w Polsce sprzed 24 miesięcy, `config('kuking.strefa')`, bez przepełnienia
+końca miesiąca) **i nie należy do 3 najnowszych wersji swojego przepisu**
+(`config('kuking.przepisy.version_retention_months')`, `version_keep_latest`,
+minimum 2). Pierwsza wersja NIE jest chroniona — historia jest publiczna,
+a w najstarszych wersjach zostaje treść, którą autor później usunął.
+Nie kasujemy wersji przepisu, na który wskazuje `reports` albo
+`moderation_actions`. Wersje usuniętego przepisu idą razem z nim
+(`PrzedawnioneUsunieteTresci`, 30 dni). Kasowanie idzie partiami po 500,
+budżet przebiegu to 20 000 wierszy; błąd partii daje kod wyjścia ≠ 0, który
+harmonogram zamienia w wyjątek. **Luki w `version_number` są normalne**:
+numer nowej wersji to `max + 1`, ekrany historii liczą sąsiadów z faktycznej
+listy. Eksport danych (`wersje_przepisow`) niesie to, co zostało — kształt
+bez zmian. Bez zmiany schematu; rollback to wyłączenie zadania (skasowanych
+wersji żaden rollback nie przywróci — to cel zmiany).
+
 ### ingredients + units
 Podstawa search i późniejszego planera.
 
@@ -2520,6 +2581,30 @@ ręcznie. Na wartościach domyślnych i na świeżej bazie rollback przechodzi b
 pytania — test `tests/Feature/CofniecieMigracjiNieWlaczaWspomnienTest.php`
 sprawdza obie gałęzie odmowy osobno i obie kontrole dodatnie. Skutek udanego
 rollbacku jest wciąż ZNANY: mechanika wspomnień znika razem z kolumnami.
+
+**Wspomnienia z własnych wykonań (F6, 30.09.2026)** — migracja
+`2026_09_30_141500_add_hide_as_memory_to_cooked_events`:
+
+```sql
+ALTER TABLE cooked_events ADD COLUMN hide_as_memory boolean NOT NULL DEFAULT false;
+```
+
+- **`cooked_events.hide_as_memory`** — ukrycie JEDNEGO własnego „Ugotowałem”
+  w bloku „Rok temu…” na stronie głównej, bliźniacze do `posts.hide_as_memory`.
+  Wykonanie zostaje na profilu i pod przepisem. Zapisuje je wyłącznie
+  `WspomnienieController::ukryjWykonanie` (Policy `hideAsMemory` — tylko
+  kucharz); poza `$fillable`. Wyłącznik całości to dalej
+  `users.memories_enabled`.
+- DDL: stała wartość domyślna, więc PostgreSQL nie przepisuje tabeli.
+  Indeksu nie dodajemy — zapytanie idzie po `cooked_events_user_idx
+  (user_id, cooked_at DESC)`.
+
+**Rollback:** `DROP COLUMN hide_as_memory`, ale `down()` **odmawia** (D-088),
+gdy choć jedno wykonanie ma `hide_as_memory = true` — kolejny `migrate`
+odtworzyłby kolumnę z `DEFAULT false` i schowane wspomnienie wróciłoby na
+stronę główną. Komunikat podaje `SELECT` do zapisania listy przed cofnięciem.
+Na wartościach domyślnych przechodzi bez pytania —
+`tests/Feature/CofniecieMigracjiUkryciaWykonanTest.php`.
 
 ### Urodziny bez roku (issue #1755)
 
@@ -3419,6 +3504,23 @@ oceny awatarów wymaga osobnej decyzji z celem zgody, ekranem jej udzielania
 i wycofania oraz sprawdzeniem zgody przed wysyłką
 (`docs/legal/SYGNALY_AUTOMATU.md` §9.1).
 
+#### `target_type = 'collection'` — publiczny zeszyt jako cel zgłoszenia (#2279)
+
+Migracja `2026_09_30_163500_zeszyt_jako_cel_zgloszenia` dopisuje do
+`reports_target_type_check` wartość **`collection`**. Regulamin §7 obiecuje
+„Zgłoś” przy każdej treści, a nazwa i opis publicznego zeszytu są tekstem
+właściciela widocznym dla wszystkich. `target_id` to `collections.id`.
+Decyzje (`ModerationAction::DOZWOLONE['collection']`): brak działań,
+ostrzeżenie, zawieszenie, ban właściciela — **bez `hide` i `remove`**, bo zeszyt
+nie ma statusu ani miękkiego kasowania.
+
+DDL jak w AGENTS.md §6: `DROP CONSTRAINT` i `ADD CONSTRAINT … NOT VALID` w jednym
+`ALTER TABLE` (bez chwili bez CHECK-a), potem osobno `VALIDATE CONSTRAINT`,
+migracja poza transakcją. **Rollback (D-088):** `down()` odmawia, gdy w `reports`
+leży choć jedno zgłoszenie zeszytu — to sprawy moderacyjne z decyzjami; bez
+takich wierszy przywraca poprzednią listę wartości. Test:
+`ZglosPrzyUgotowanymIZeszycieTest::test_rollback_odmawia_gdy_jest_zgloszenie_zeszytu_a_bez_niego_przechodzi`.
+
 **Dlaczego zdjęcie, a nie konto (uzasadnienie z #237).** Indeks `reports_jeden_automat_na_tresc`
 przepuszcza jedno oznaczenie automatu na (typ, identyfikator) na zawsze.
 Przy celu `user` oceniony zostałby pierwszy awatar konta i żaden następny,
@@ -3446,7 +3548,7 @@ ekranu, treść mogła już zniknąć, adres bywa z innego serwisu. **Zgłoszeni
 i tak musi zostać przyjęte** — odmowa byłaby odmówieniem mechanizmu, który
 przepis nakazuje udostępnić. Dlatego:
 
-- `reports_target_type_check` dopuszcza typ `unknown` (dziś siódmy, po dodaniu `media`);
+- `reports_target_type_check` dopuszcza typ `unknown` (jedna z ośmiu wartości po dodaniu `media` i `collection`);
 - `target_id` w `reports` **i** w `moderation_actions` jest teraz `NULL`-owalne.
 
 `NULL`, a nie UUID z samych zer: identyfikator, który wygląda jak
@@ -3859,7 +3961,8 @@ Wysokiego znaczenia zmiany.
 - **`action varchar(100) NOT NULL`** — nazwa zdarzenia w kropkowanej
   konwencji `obszar.co_się_stało` (`account.data_erased`,
   `user.role_changed`, `admin.user_viewed`,
-  `moderation.hidden_post_viewed`). **Bez CHECK-a w bazie** i to jest
+  `moderation.hidden_post_viewed`, `moderation.media_viewed`,
+  `moderation.hidden_recipe_viewed`). **Bez CHECK-a w bazie** i to jest
   wybór: dziennik ma przyjąć każde zdarzenie, które ktoś uzna za warte
   zapisania, a nie odmówić zapisu, bo lista wartości nie nadążyła za kodem.
   Ta sama kolumna rozstrzyga o retencji — patrz `AuditLogEntry::NIGDY_NIE_KASUJ`
@@ -3952,6 +4055,36 @@ wpisów z tej strony nie ma. Retencja zwykła, jak `admin.user_viewed` — wpis
 NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest dowodem wykonania
 żądania z RODO art. 17. Tabela i jej schemat się nie zmieniają: `action` nie
 ma CHECK-a, więc nowa nazwa zdarzenia nie wymaga migracji ani rollbacku.
+
+**`moderation.media_viewed`** — wgląd moderatora w zdjęcie, którego nie
+zobaczyłby bez roli (D-333, dziennik wglądów; `App\Domain\Moderation\DziennikWgladu`,
+zapis w `MediaController` dopiero gdy bajty naprawdę wychodzą). `actor_id` to
+moderator, `subject_type = 'Media'`, `subject_id` — zdjęcie, `metadata.powod`:
+`zgloszenie` (zdjęcie jest celem zgłoszenia albo należy do wpisu ze zgłoszeniem
+automatu — wyjątek z `DostepDoZdjecia::celemZgloszeniaDlaObslugi()`),
+`ukryta_tresc` (rodzic — wpis, przepis albo krok przepisu — jest ukryty lub
+zdjęty) albo `rola_moderatora` (inna droga tylko dla obsługi, np. treść konta
+zbanowanego). `metadata.sprawy` — posortowane identyfikatory zgłoszeń albo
+`Typ:id` treści, które uzasadniają wgląd (najwyżej 10). „Bez roli" rozstrzyga
+pytanie kontrfaktyczne: to samo konto z rolą `user` (`jakZwykleKonto()`,
+w pamięci). **Nie zostawiają wpisu:** zdjęcia jawne, wejścia autora
+i właściciela, zdjęcia, które moderator widzi też jako zwykłe konto, odmowy
+(404). **Jeden wpis na godzinę na (moderator, zdjęcie, powód, sprawy)**
+(`OKNO_ZDJECIA_MINUTY`) — otwarcie sprawy to kilka żądań o ten sam plik, ale
+wgląd w inną sprawę o to samo zdjęcie jest osobnym wpisem. Bez treści zdjęcia.
+Retencja zwykła, poza `NIGDY_NIE_KASUJ`. Bez migracji (`action` nie ma CHECK-a).
+
+**`moderation.hidden_recipe_viewed`** — wgląd obsługi w przepis niewidoczny bez
+roli (ukryty, zdjęty albo konta zbanowanego) na stronie przepisu, w trybie
+gotowania i w API (`DziennikWgladu::przepis()` po `authorize('view')`), gdy
+otwiera go moderator niebędący autorem. `subject_type = 'Recipe'`,
+`metadata = {powod, status}`, `ip_hash` z żądania, retencja zwykła.
+
+**Eksport i rejestr.** Wpisy wglądu nie wchodzą do eksportu danych konta
+(tak samo jak reszta `audit_log`, w tym `admin.user_viewed`): są dziennikiem
+działań obsługi, nie treścią użytkownika, i nie zawierają danych poza
+identyfikatorami. Osobnej wzmianki w rejestrze czynności nie trzeba —
+to ta sama czynność (moderacja) i ten sam dziennik.
 
 ### potwierdzenia_zadan_rodo
 Minimalne potwierdzenie, że żądanie usunięcia konta (RODO art. 17) zostało
@@ -4988,7 +5121,7 @@ i `Wyscigi\EksportDanychRaceTest`.
 ### product_signals
 
 Sygnały produktowe (issue #115), migracja
-`2026_09_06_220000_create_product_signals_table`. Osiem zdarzeń:
+`2026_09_06_220000_create_product_signals_table`. Dwanaście zdarzeń:
 `photo_upload_failed` (próba wgrania zdjęcia, która się nie udaje —
 `App\Domain\Media\Actions\StoreUploadedImage`), `search_performed`
 (wykonane wyszukiwanie — `App\Http\Controllers\SearchController`) oraz para
@@ -4997,6 +5130,24 @@ od tygodniowego podsumowania: `weekly_digest_queued` i
 `2026_09_10_100100_add_digest_signals_to_product_signals`) oraz cztery sygnały
 instalacji PWA opisane przy `users.pwa_prompt_state` powyżej. Jedyne miejsce,
 które tu pisze: `App\Domain\Analytics\ZapiszSygnal`.
+
+**Cztery sygnały „Jak wyszło?” (F1, D-333, migracja
+`2026_09_30_140000_add_cooking_followup_product_signals`):**
+`cooking_last_step_reached` (nowe gotowanie otworzyło ostatni krok trybu
+gotowania), `cooking_last_step_cooked` (to gotowanie skończyło się
+„Ugotowałem”; jedyne pole `properties.po_pytaniu`, bool), `cooking_followup_shown`
+i `cooking_followup_dismissed` (pytanie na Starcie pokazane / „Nie teraz”).
+Pisze je wyłącznie `App\Domain\Recipes\Gotowanie\JakWyszlo` i zawsze z
+`user_id = NULL`, bez przepisu — raport (`App\Domain\Analytics\DojsciaDoKoncaGotowania`,
+`kuking:raport`) potrzebuje samych liczników. To, KTÓRY przepis ta osoba
+gotowała, zna tylko jej sesja (klucz `gotowanie.jak_wyszlo`: przepis, konto,
+chwila dojścia, stan; najwyżej 10 wpisów, starsze niż 3 dni się nie liczą) —
+bez nowej tabeli, tak jak odhaczone kroki w `CookingModeController`. CHECK
+jest przestawiany bez przerwy w ochronie: nowy pod tymczasową nazwą
+`NOT VALID`, `VALIDATE`, zdjęcie starego, zmiana nazwy (AGENTS.md §6).
+**Rollback:** `down()` kasuje tylko wiersze tych czterech sygnałów (telemetria
+z retencją 90 dni, nie decyzja człowieka — D-088 nie dotyczy) i przywraca
+poprzedni słownik tą samą drogą. Test: `SygnalyJakWyszloMigracjaTest`.
 
 **`weekly_digest_queued` nazywał się do 10 września `weekly_digest_sent`**
 (audyt MAIL-03, **D-078**, migracja
@@ -5454,6 +5605,17 @@ ALTER TABLE weekly_digest_sends
 ADD CONSTRAINT weekly_digest_sends_week_start_monday_check
 CHECK (extract(isodow from week_start) = 1);
 ```
+
+#### Jeden wiersz na osobę, nie historia wysyłek (#2280, 30.09.2026)
+
+Bariera potrzebuje tylko bieżącego tygodnia, a polityka prywatności mówi
+o „zapisie ostatniej wysyłki, nie historii”. Dlatego `OdbiorcyDigestu::zarezerwuj()`
+w tej samej transakcji co nowy wiersz kasuje starsze rezerwacje tej osoby
+(`week_start < nowy tydzień`), a `EraseAccountData` kasuje wszystkie
+rezerwacje konta i zeruje `users.weekly_digest_sent_at` (kont się nie kasuje,
+więc `ON DELETE CASCADE` tu nie działa, D-022). Wiersze sprzed poprawki znikają
+przy następnej wysyłce tej osoby albo przy wymazaniu konta. Schemat bez zmian,
+bez migracji. Test: `RezerwacjePodsumowaniaNieSaHistoriaTest`.
 
 #### Po co, skoro jest już `users.weekly_digest_sent_at`
 
@@ -6145,7 +6307,13 @@ Funkcje (obie `IMMUTABLE STRICT PARALLEL SAFE`):
   gdy są dłuższe (słowo > 5 liter na „-ow” traci „ow”, słowo > 4 liter
   traci końcową samogłoskę), a krótsze zostają całe. Dawny próg „> 3
   litery” dawał „mąka” i „mak” ten sam rdzeń `mak` (#1969). Wynik
-  posortowany i bez powtórzeń. Ta sama funkcja liczy
+  posortowany i bez powtórzeń — jawnie, `array_agg(DISTINCT r ORDER BY r)`
+  na wartości `COLLATE "C"` (migracja `2026_09_30_231500`, #2315; wcześniej
+  kolejność wynikała tylko ze sposobu wykonania `DISTINCT`, a na kluczu stoi
+  `UNIQUE`). Migracja przelicza `rdzenie` i `klucz` istniejących wierszy
+  (`UPDATE … SET name = name`) i odmawia, gdy przeliczenie dałoby dwa
+  produkty jednej osoby o tym samym kluczu — nie kasuje ich za człowieka.
+  Rollback przywraca poprzednie ciało funkcji; dane zostają. Ta sama funkcja liczy
   rdzenie linijek `recipe_ingredients.ingredient_text` w zapytaniu doboru —
   reguła mieszka wyłącznie w bazie, bez kopii w PHP;
 - `public.kuking_klucz_skladnika(text) → text` — `array_to_string()` z powyższej.
@@ -6226,6 +6394,47 @@ przechodzi bez pytania. Wymuszenie po kopii tabeli:
 `KUKING_ROLLBACK_KASUJE_POSTEP_GOTOWANIA=1` (albo wcześniej
 `php artisan kuking:sprzataj-postep-gotowania --wszystkie`). Test:
 `CofniecieMigracjiNieKasujePostepuGotowaniaTest`.
+
+## weekly_recipe_picks — „Ugotujmy razem” (F3, 30.09.2026)
+
+Przepis tygodnia wybrany przez gospodarza. Migracja
+`2026_09_30_180000_create_weekly_recipe_picks_table`. Jeden wiersz = jeden
+tydzień ISO i jeden przepis. Wykonań NIE kopiujemy: strona
+`/ugotujmy-razem` czyta zwykłe `cooked_events` tego przepisu z okna tygodnia
+(`cooked_at` w [poniedziałek 00:00, następny poniedziałek 00:00) czasu
+polskiego) przez `CookedEvent::widoczneDla()`. To nie jest grupa (#22): nie
+ma członkostwa ani listy uczestników.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK, `DEFAULT gen_random_uuid()` | adres zdjęcia wyboru w panelu (`/admin/ugotujmy-razem/{id}`) |
+| `week_starts_on` | `date NOT NULL UNIQUE` | poniedziałek tygodnia w strefie `kuking.strefa` (Europe/Warsaw); w adresie jako `2026-W40` (`TydzienGotowania`) |
+| `recipe_id` | `uuid NOT NULL` → `recipes` (`ON DELETE CASCADE`) | przepis tygodnia; przepisy kasujemy miękko, twarde usunięcie (wymazanie autora) zabiera wybór |
+| `chosen_by` | `uuid NULL` → `users` (`ON DELETE SET NULL`) | który gospodarz wybrał; w inwentarzu paczki RODO jako praca w serwisie (`na_zadanie`) |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+Ograniczenia i indeksy:
+- `UNIQUE (week_starts_on)` — jeden przepis na tydzień także przy dwóch
+  gospodarzach zapisujących naraz (drugi dostaje komunikat, nie 500);
+- `weekly_recipe_picks_poniedzialek_check`: `EXTRACT(ISODOW FROM week_starts_on) = 1`;
+- indeksy po `recipe_id` i `chosen_by` (klucze obce).
+
+Model `WeeklyRecipePick` ma pusty `$fillable`: wszystkie kolumny to decyzja
+gospodarza i wchodzą tylko przez `ZapisPrzepisuTygodnia` (`forceFill`),
+w jednej transakcji z audytem `ugotujmy_razem.chosen` (z poprzednim
+przepisem, gdy wybór zastępuje inny) i `ugotujmy_razem.removed`. Zakończonego
+tygodnia nie zmienia się ani nie zdejmuje — archiwum mówi, co naprawdę
+gotowaliśmy. Widoczność: `WeeklyRecipePickPolicy::view` — tydzień już się
+zaczął, przepis jest dziś opublikowany i publiczny, a `RecipePolicy::view`
+wpuszcza widza (blokady, konto autora). Przepis ukryty przez moderację albo
+przestawiony na niepubliczny znika ze strony dla wszystkich.
+
+**Rollback.** `down()` usuwa tabelę. Gdy są wiersze, **odmawia** (D-088) —
+to decyzje gospodarza i archiwum tygodni, których `up()` nie odtworzy; na
+pustej tabeli (CI, `migrate:refresh`) przechodzi bez pytania. Wymuszenie po
+kopii tabeli (`pg_dump -t weekly_recipe_picks`):
+`KUKING_ROLLBACK_KASUJE_UGOTUJMY_RAZEM=1`. Przepisy i wykonania zostają
+nietknięte. Test: `CofniecieMigracjiNieKasujeUgotujmyRazemTest`.
 
 ## V1 / V2
 

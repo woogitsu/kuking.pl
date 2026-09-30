@@ -34,6 +34,9 @@
 
         @if($porownanie['brakZmian'])
             <p class="historia-brak-zmian">W tekście i danych przepisu nie ma różnic między tymi wersjami.</p>
+        @elseif($porownanie['bezWykrytychZmian'])
+            {{-- #2240: to nie „brak zmian", bo części pól nie da się porównać. --}}
+            <p class="historia-brak-zmian">W tym, co da się porównać, nie widać różnic. Części danych nie da się jednak porównać (lista jest niżej) — żeby je sprawdzić, otwórz obie wersje.</p>
         @endif
 
         @if($porownanie['pola'] !== [])

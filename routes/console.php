@@ -368,6 +368,22 @@ Harmonogram::artisan('kuking:sprzataj-resety-hasel')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 06:40 — wolny slot za czujką sprzątania eksportów (06:25), przed porannymi
+// listami (07:00); pasmo 03:00–06:00 jest zajęte co dziesięć minut
+// (`HarmonogramBezWspolnychSlotowTest`).
+// Wygasłe dowody połączenia z Facebookiem (issue #2319): `user_id` i cztery
+// skróty HMAC z porzuconej prośby o połączenie. Dowód przestaje działać po
+// dziesięciu minutach sam (`FacebookConnectionConfirmation`); to zadanie
+// zabiera już tylko dane bez zastosowania — także z kopii kolejnych dni.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+// 07:20 — 06:40 zajęło sprzątanie wersji przepisów (retencja #2024);
+// wolne okno między 07:10 a 07:50 (odstępy co najmniej dziesięć minut).
+Harmonogram::artisan('kuking:sprzataj-dowody-facebooka')
+    ->name('kuking:sprzataj-dowody-facebooka')
+    ->dailyAt('07:20')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // 05:50 — dziesięć minut po poprzednim zadaniu (uzasadnienie odstępów wyżej).
 // 05:20 zajął `queue:prune-failed`, 05:30 rezerwuje dziennik wymazań (#1719).
 // Treści usunięte przez autora (audyt B5, znalezisko 1): po
@@ -428,7 +444,9 @@ Harmonogram::artisan('kuking:odzyskaj-importy')
 //
 // Dopóki bucket R2 nie istnieje, komenda mówi „czujka wyłączona" i nie dzwoni
 // nigdzie — umowa „brak zmiennej = zero efektu", ta sama co przy
-// `LOG_BLAD_WEBHOOK_URL`.
+// `LOG_BLAD_WEBHOOK_URL`. Zostawia za to JEDNO ostrzeżenie w logu na przebieg
+// (`stage=kopie_wylaczone`, #2297): bez niego w logu było samo „DONE",
+// które wyglądało na udane sprawdzenie kopii.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
 Harmonogram::artisan('kuking:sprawdz-kopie')
     ->name('kuking:sprawdz-kopie')
@@ -732,3 +750,19 @@ Harmonogram::artisan('kuking:dosylaj-potwierdzenia-zgloszen')
     ->hourlyAt(45)
     ->onOneServer()
     ->withoutOverlapping(50);
+
+// 06:40 — co najmniej 15 minut od sąsiednich zadań codziennych
+// (`HarmonogramBezWspolnychSlotowTest`).
+// Retencja `recipe_versions` (#2024, D-333): wersja starsza niż
+// `config('kuking.przepisy.version_retention_months')` miesięcy (po dacie
+// w Polsce) i spoza `version_keep_latest` najnowszych wersji przepisu znika.
+// Historia jest publiczna i zachowuje treść, którą autor później usunął —
+// bez limitu leżałaby tak w nieskończoność. Partiami, z budżetem przebiegu;
+// błąd partii daje kod ≠ 0, który `Harmonogram::artisan()` zamienia
+// w wyjątek (alarm jak przy innych sprzątaniach). Reguły:
+// `App\Domain\Compliance\PrzedawnioneWersjePrzepisow`.
+Harmonogram::artisan('kuking:sprzataj-wersje-przepisow')
+    ->name('kuking:sprzataj-wersje-przepisow')
+    ->dailyAt('06:40')
+    ->onOneServer()
+    ->withoutOverlapping(120);

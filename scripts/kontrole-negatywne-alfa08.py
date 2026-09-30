@@ -648,6 +648,16 @@ WERSJA_DOKUMENTU_TEST = "WersjaDokumentuTest"
 # brak `@X.Y.Z` po `@railway/cli`.
 RAILWAY_CLI_WORKFLOW = ".github/workflows/deploy.yml"
 RAILWAY_CLI_TEST = "RailwayCliPrzypietaWersjaTest"
+# Token Railway bez zapasowego środowiska (#2255). Strażnik OBLICZA wyrażenie
+# tokenu z `deploy.yml`; mutacja przywraca `production && PRODUCTION || STAGING`,
+# które przy braku sekretu produkcji podaje token staginu.
+TOKEN_RAILWAY_TEST = "TokenRailwayBezZapasowegoSrodowiskaTest"
+TOKEN_RAILWAY_NOWY = ("${{ (github.event.inputs.environment == 'production' && secrets.RAILWAY_TOKEN_PRODUCTION)\n"
+                      "            || (github.event.inputs.environment == 'staging' && secrets.RAILWAY_TOKEN_STAGING)\n"
+                      "            || '' }}")
+TOKEN_RAILWAY_STARY = ("${{ github.event.inputs.environment == 'production'\n"
+                       "            && secrets.RAILWAY_TOKEN_PRODUCTION\n"
+                       "            || secrets.RAILWAY_TOKEN_STAGING }}")
 # Runbook nie każe instalować niewdrożonych Sentry i PostHog (#1010). Strażnik
 # czyta dokument; mutacje przywracają do części wykonywanej (poza `<details>`)
 # polecenie instalacji pakietu i wiersz z kluczem PostHog w tabeli zmiennych.
@@ -760,6 +770,9 @@ KOLAZ_PRIORYTET = """                                 @if($loop->first)
 # dowód, że parser widzi reguły druku, a nie pusty zbiór.
 WYDRUK_CSS = "resources/css/wydruk-przepisu.css"
 WYDRUK_TEST = "test_arkusz_druku_ma_prog_12_pt_i_nie_schodzi_ponizej"
+# Ściągawka do wydruku (F4): ten sam arkusz, treść kartki co najmniej 16 pt
+# i wspólna rama z przepisem (bez kopii reguł).
+SCIAGAWKA_TEST = "test_arkusz_druku_obejmuje_sciagawke_duzym_drukiem"
 # Zamknięcie grupy sygnałów tylko w stanie z ekranu (#1059, wariant b).
 # Znacznik to liczba i najnowsze oznaczenie; każda z dwóch połówek łapie
 # dopisanie, którego druga nie widzi. Mutacja 1 zdejmuje porównanie liczby
@@ -1186,6 +1199,37 @@ def railway_cli_bez_przypietej_wersji(source):
     )
 
 
+# Łańcuch dostaw CI i bramka wdrożenia (#2309, #2310, #2263, #2233, #2230, #2248).
+# Strażnicy czytają workflowy przez yaml.safe_load; mutacje przywracają stan
+# sprzed poprawki w jednym miejscu.
+LANCUCH_CI_TEST = "InstalacjeCiSaPrzypieteTest"
+KLIENT_PG18 = "scripts/ci/klient-postgresql-18.sh"
+KLIENT_PG18_KROK = "        run: bash scripts/ci/klient-postgresql-18.sh\n"
+KLIENT_PG18_DAWNY_KROK = (
+    "        run: |\n"
+    "          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \\\n"
+    "            https://www.postgresql.org/media/keys/ACCC4CF8.asc\n"
+    "          sudo apt-get update -qq\n"
+    "          sudo apt-get install -y -qq postgresql-client-18\n"
+)
+CENY_WORKFLOW = ".github/workflows/ceny-warzyw-auto.yml"
+CENY_WYMAGANIA = "scripts/ceny-warzyw-requirements.txt"
+PG_CI_DIGEST = "postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873"
+PG_CI_DOCKERFILE = "docker/ci-postgres/Dockerfile"
+BRAMKA_RAILWAY_WORKFLOW = ".github/workflows/railway-ci-gated-deploy.yml"
+BRAMKA_RAILWAY_SKRYPT = "scripts/railway-ci-gated-deploy.py"
+BRAMKA_CHECKOUT_TEST = "bramka_checkoutuje_dokladnie_sha_zielonego_ci"
+SENTRY_SHA_TEST = "WydanieSentryMaShaWdrozeniaTest"
+STAN_WDROZENIA_TEST = "DeployAlarmujeGdyWdrozenieKonczySieBezSukcesuTest"
+
+
+def pierwsze_z_wielu(source, old, new, ile):
+    """Jak replace_once, ale dla fragmentu, który stoi w pliku `ile` razy."""
+    if source.count(old) != ile:
+        raise RuntimeError(f"Kontrola oczekiwała {ile} wystąpień fragmentu, jest {source.count(old)}.")
+    return source.replace(old, new, 1)
+
+
 checks = [
     # #988: komunikat po akcji ma jawny rodzaj. Goły `->with('status', …)`
     # wróciłby do zielonej plakietki także dla odmowy.
@@ -1521,6 +1565,10 @@ checks = [
      lambda s: replace_once(s, " i wszystko, co zapiszesz tu później", "")),
     ("Wydruk przepisu z pismem poniżej 12 pt", WYDRUK_CSS, WYDRUK_TEST,
      lambda s: replace_once(s, "font-size: calc(13pt * var(--druk-skala));", "font-size: calc(10pt * var(--druk-skala));")),
+    ("Ściągawka do wydruku z pismem poniżej 16 pt (F4)", WYDRUK_CSS, SCIAGAWKA_TEST,
+     lambda s: replace_once(s, "font-size: max(calc(16pt * var(--druk-skala)), 1em);", "font-size: max(calc(11pt * var(--druk-skala)), 1em);")),
+    ("Ściągawka bez wspólnej ramy druku (F4)", WYDRUK_CSS, SCIAGAWKA_TEST,
+     lambda s: replace_once(s, "body:has(.przepis-uklad, .sciagawka) main :is(.btn, button, form)", "body:has(.przepis-uklad) main :is(.btn, button, form)")),
     ("Offline: „Spróbuj ponownie” znów prowadzi na /home (#749)", OFFLINE_HTML, OFFLINE_PONOWIENIE_TEST,
      lambda s: replace_once(s, '<a href="">Spróbuj ponownie</a>', '<a href="/home">Spróbuj ponownie</a>')),
     ("Kontrakt karty bez zdjęcia przepisu", KONTRAKT_KARTY, KONTRAKT_KARTY_TEST,
@@ -1569,6 +1617,8 @@ checks = [
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
     ("Instalacja Railway CLI bez sprawdzenia sumy kontrolnej", RAILWAY_CLI_WORKFLOW, RAILWAY_CLI_TEST,
      railway_cli_bez_przypietej_wersji),
+    ("Operacja na produkcji bierze token staginu, gdy brak sekretu produkcji", WDROZENIE_WORKFLOW, TOKEN_RAILWAY_TEST,
+     lambda s: replace_once(s, TOKEN_RAILWAY_NOWY, TOKEN_RAILWAY_STARY)),
     ("Bramka tokenu krawędzi przepuszcza żądanie bez tokenu", BRAMKA_KRAWEDZI, BRAMKA_KRAWEDZI_TEST,
      lambda s: replace_once(s, BRAMKA_KRAWEDZI_WARUNEK, BRAMKA_KRAWEDZI_WARUNEK.replace("if ($egzekwowanie) {", "if (false) {"))),
     ("Caddy czyta X-Forwarded-For od lewej", CADDYFILE, CADDY_ZAUFANIE_TEST,
@@ -1593,6 +1643,17 @@ checks = [
      lambda s: replace_once(s, "ListZarezerwowany::oznacz(new MailMessage)", "(new MailMessage)")),
     ("Życzenia urodzinowe bez znacznika rezerwacji", "app/Mail/ZyczeniaUrodzinowe.php", "KazdyListLiczySieWPuliTest",
      lambda s: replace_once(s, "            ...ListZarezerwowany::naglowekTekstowy(),\n", "")),
+    ("List alarmowy bez znacznika rezerwacji", "app/Mail/AlarmOperacyjny.php", "KazdyListLiczySieWPuliTest",
+     lambda s: replace_once(s, "new Headers(text: ListZarezerwowany::naglowekTekstowy())", "new Headers")),
+    # #599: poczta jako drugi kanał alarmowy obok Discorda.
+    ("Poczta wypada z kanałów alarmowych", "app/Logging/KanalyAlarmowe.php", "KanalAlarmowyMailemTest",
+     lambda s: replace_once(s, "        self::POCZTA => 'logging.channels.blad_email.adres',\n", "")),
+    ("Awaria poczty przewraca raport i zabiera Discord", "app/Logging/EmailBleduHandler.php", "KanalAlarmowyMailemTest",
+     lambda s: replace_once(s, "            $this->zapiszNiedodzwonienie($e::class);\n", "            $this->zapiszNiedodzwonienie($e::class);\n\n            throw $e;\n")),
+    ("List alarmowy bez dobowego sufitu", "app/Logging/EmailBleduHandler.php", "KanalAlarmowyMailemTest",
+     lambda s: replace_once(s, "            if (! $budzet->sprobujZarezerwowac()) {", "            if (! $budzet->sprobujZarezerwowac() && false) {")),
+    ("List alarmowy niesie komunikat wyjątku", "app/Logging/EmailBleduHandler.php", "KanalAlarmowyMailemTest",
+     lambda s: replace_once(s, "            $tresc = WebhookBleduHandler::tresc($record);", "            $tresc = WebhookBleduHandler::tresc($record).(($record->context['exception'] ?? null) instanceof Throwable ? $record->context['exception']->getMessage() : '');")),
     ("Trasa API bez wiersza w dokumentacji", DOKUMENTACJA_API, DOKUMENTACJA_API_TEST,
      lambda s: replace_once(s, WIERSZ_FEEDU, "")),
     ("Powiadomienie o wykonaniu kucharza w karencji usunięcia", WIDOCZNOSC_TRESCI_SQL, POWIADOMIENIA_ZGODNE_Z_POLICY_TEST,
@@ -1894,6 +1955,80 @@ checks = [
     ("Runbook znów każe użyć tinkera", "docs/infra/MONITORING_BLEDOW.md", "test_runbooki_produkcyjne_nie_kaza_uzywac_tinkera",
      lambda s: replace_once(s, "php artisan kuking:sprawdz-alarm --przez-wyjatek\n",
                             "php artisan tinker --execute=\"report(new RuntimeException('x'));\"\n")),
+    # #2293 (IN-01): proc_open wraca na listę wyłączonych dla kolejki — odczyt
+    # PDF-a w podprocesie z produkcyjnym php.ini znów pada.
+    ("Kolejka traci proc_open (#2293)", "docker/entrypoint.sh", "KolejkaCzytaPdfZProdukcyjnymPhpIniTest",
+     lambda s: replace_once(s, 'FUNKCJE_ZABRONIONE_KOLEJKI="exec,passthru,shell_exec,system,popen"',
+                            'FUNKCJE_ZABRONIONE_KOLEJKI="exec,passthru,shell_exec,system,proc_open,popen"')),
+    # Ten sam issue: queue:work przestaje dostawać flagę -d disable_functions.
+    ("queue:work bez listy funkcji kolejki (#2293)", "docker/entrypoint.sh", "KolejkaCzytaPdfZProdukcyjnymPhpIniTest",
+     lambda s: replace_once(s, '    -d "disable_functions=${FUNKCJE_ZABRONIONE_KOLEJKI}" \\\n', '')),
+    # #2298 (IN-06): job z pull_request bez straży forka w runs-on.
+    ("Job PR-a bez straży forka (#2298)", ".github/workflows/railway-iac.yml", "WorkflowyNieWpuszczajaForkowNaWlasneRunneryTest",
+     lambda s: s.replace("fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '\"ubuntu-latest\"') || vars", "fromJSON(vars")),
+    # Ten sam issue: bramka deployu z workflow_run bez warunku repozytorium źródłowego.
+    ("Bramka deployu bez warunku repozytorium (#2298)", ".github/workflows/railway-ci-gated-deploy.yml", "WorkflowyNieWpuszczajaForkowNaWlasneRunneryTest",
+     lambda s: replace_once(s, "      github.event.workflow_run.head_repository.full_name == github.repository", "      true")),
+    # #2302 (IN-10): nagłówek workflowu znów mówi o repozytorium prywatnym.
+    ("Nagłówek deploy.yml znów o repo prywatnym (#2302)", ".github/workflows/deploy.yml", "WorkflowyNieWpuszczajaForkowNaWlasneRunneryTest",
+     lambda s: replace_once(s, "#  Repozytorium jest PUBLICZNE (decyzja", "#  Repozytorium jest prywatne (decyzja")),
+    # #2296 (IN-04): runbook #595 przestaje wymieniać wyłącznik włączany przez apply.
+    ("Runbook #595 bez wyłącznika życzeń (#2296)", "docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md", "RunbookApplyNazywaWlaczniki595Test",
+     lambda s: replace_once(s, "| dodanie `KUKING_URODZINY_MAIL_WLACZONY=true`", "| dodanie wyłącznika życzeń")),
+    # #2301 (IN-09): composer.json bez jawnej platformy PHP dla Dependabota.
+    ("Composer bez config.platform.php (#2301)", "composer.json", "ComposerRozwiazujeSieDlaDependabotaTest",
+     lambda s: replace_once(s, '"php": "8.4.1"', '"php": "8.4.0"')),
+    # #2302 (IN-15): nowa migracja dołącza do historycznej grupy znacznika.
+    ("Nowa migracja w starej grupie znacznika (#2302)", "tests/Feature/MigracjeMajaUnikalnyZnacznikCzasuTest.php", "test_kazda_nowa_migracja_ma_wlasny_znacznik_czasu",
+     lambda s: replace_once(s, "'2026_09_26_100000' => 8,", "'2026_09_26_100000' => 7,")),
+    # #2309: krok CI znów sam dodaje klucz PGDG, z pominięciem sprawdzenia odcisku.
+    ("Krok CI dodaje klucz PGDG z pominięciem odcisku", CI_WORKFLOW, LANCUCH_CI_TEST,
+     lambda s: pierwsze_z_wielu(s, KLIENT_PG18_KROK, KLIENT_PG18_DAWNY_KROK, 2)),
+    # #2309: skrypt klienta ufa pobranemu kluczowi bez sprawdzenia odcisku.
+    ("Klient PostgreSQL 18 bez sprawdzenia odcisku klucza PGDG", KLIENT_PG18, LANCUCH_CI_TEST,
+     lambda s: replace_once(s, 'sprawdz_klucz_pgdg "$tymczasowy" || exit 1', 'true')),
+    # #2310: pip wraca do samego numeru wersji, bez hasha.
+    ("openpyxl bez --require-hashes", CENY_WORKFLOW, LANCUCH_CI_TEST,
+     lambda s: replace_once(s, "pip install --disable-pip-version-check --require-hashes --only-binary :all: -r scripts/ceny-warzyw-requirements.txt",
+                            "pip install --disable-pip-version-check openpyxl==3.1.5")),
+    ("Zależność openpyxl bez hasha w pliku wymagań", CENY_WYMAGANIA, LANCUCH_CI_TEST,
+     lambda s: replace_once(s, "et-xmlfile==2.0.0 \\\n    --hash=sha256:7a91720bc756843502c3b7504c77b8fe44217c85c537d85037f0f536151b2caa",
+                            "et-xmlfile==2.0.0")),
+    # #2263: usługa PostgreSQL z ruchomego tagu i digest rozjechany z Dependabotem.
+    ("Usługa PostgreSQL w CI z ruchomego tagu", CI_WORKFLOW, LANCUCH_CI_TEST,
+     lambda s: pierwsze_z_wielu(s, "image: " + PG_CI_DIGEST + "\n", "image: postgres:18-alpine\n", 7)),
+    ("Digest usługi PostgreSQL inny niż w Dockerfile Dependabota", PG_CI_DOCKERFILE, LANCUCH_CI_TEST,
+     lambda s: replace_once(s, "FROM " + PG_CI_DIGEST, "FROM postgres:18-alpine@sha256:" + "0" * 64)),
+    # #2233: checkout bramki bez `ref` i skrypt bez porównania HEAD.
+    ("Bramka Railway checkoutuje bieżący main zamiast SHA z CI", BRAMKA_RAILWAY_WORKFLOW, BRAMKA_CHECKOUT_TEST,
+     lambda s: replace_once(s, "          ref: ${{ github.event.workflow_run.head_sha }}\n", "")),
+    ("Skrypt bramki Railway nie porównuje HEAD z SHA z CI", BRAMKA_RAILWAY_SKRYPT, BRAMKA_CHECKOUT_TEST,
+     lambda s: replace_once(s, "    verify_checkout(sha, local_head())\n", "")),
+    # #2230: wydanie Sentry wraca do github.sha.
+    ("Wydanie Sentry z github.sha zamiast SHA wdrożenia", WDROZENIE_WORKFLOW, SENTRY_SHA_TEST,
+     lambda s: replace_once(s, "version: ${{ github.event.deployment.sha }}", "version: ${{ github.sha }}")),
+    # #2248: nieznany stan w historii wdrożenia znów pomijany po cichu.
+    ("Nieznany stan w historii wdrożenia pominięty", "scripts/ci/stan-wdrozenia.sh", STAN_WDROZENIA_TEST,
+     lambda s: replace_once(s, '    *)\n      echo "::error title=Nieznany stan w historii wdrożenia::',
+                            '    *) continue\n      echo "::error title=Nieznany stan w historii wdrożenia::')),
+    # Audyt prywatności 30.09 Z2 (#2278): polityka nazywa ciasteczko
+    # „zapamiętaj mnie”, jego termin z bramki logowania i klucze localStorage.
+    ("Polityka bez nazwy ciasteczka zapamiętaj mnie", POLITYKA_TEKST, "PolitykaNazywaPamiecPrzegladarkiTest",
+     lambda s: replace_once(s, "(`remember_web_…`, dalszy", "(`remember_…`, dalszy")),
+    ("Polityka z terminem zapamiętaj mnie innym niż bramka", POLITYKA_TEKST, "PolitykaNazywaPamiecPrzegladarkiTest",
+     lambda s: replace_once(s, "ważne **400 dni** od zalogowania: gdy sesja", "ważne **30 dni** od zalogowania: gdy sesja")),
+    ("Klucz localStorage bez opisu w polityce", "resources/js/szybki-wyglad.js", "PolitykaNazywaPamiecPrzegladarkiTest",
+     lambda s: replace_once(s, "localStorage.setItem('kuking-wyglad-poznany', '1')", "localStorage.setItem('kuking-wyglad-nowy', '1')")),
+    # Z5 (#2281): każda sekcja paczki ma opis w polityce, terminy z konfiguracji.
+    ("Planer bez wiersza w polityce", POLITYKA_TEKST, "PolitykaOpisujeKazdaSekcjePaczkiTest",
+     lambda s: replace_once(s, "| Plan na tydzień |", "| Planowanie posiłków |")),
+    ("Nowa sekcja paczki bez opisu w polityce", "app/Domain/Users/Exports/InwentarzDanychKonta.php", "PolitykaOpisujeKazdaSekcjePaczkiTest",
+     lambda s: replace_once(s, "'meal_plan_entries.user_id' => [self::EKSPORT, 'planer'],", "'meal_plan_entries.user_id' => [self::EKSPORT, 'planer_nowy'],")),
+    ("Postęp gotowania z terminem niezgodnym z konfiguracją", POLITYKA_TEKST, "test_terminy_nowych_wierszy_zgadzaja_sie_z_konfiguracja",
+     lambda s: replace_once(s, "**24 godziny** od ostatniej zmiany — potem postęp", "**48 godzin** od ostatniej zmiany — potem postęp")),
+    # Z6 (#2282): Cloudflare jako pośrednik całego ruchu ma własny wiersz.
+    ("Cloudflare jako pośrednik bez wiersza w polityce", POLITYKA_TEKST, "kazda_usluga_uzywana_przez_kod_jest_wymieniona_w_polityce",
+     lambda s: replace_once(s, "| Cloudflare (sieć, CDN i ochrona przed atakami) |", "| Cloudflare |")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

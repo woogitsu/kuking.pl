@@ -8,6 +8,7 @@ use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Recipes\Actions\SnapshotRecipeVersion;
 use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\GrupySkladnikow;
+use App\Domain\Recipes\LimitZapisuKreatora;
 use App\Domain\Recipes\KosztPrzepisu;
 use App\Domain\Recipes\StepTimer;
 use App\Exceptions\BladDlaCzlowieka;
@@ -700,6 +701,20 @@ new class extends Component
 
     private function persist(bool $publish, bool $wersjaPoprawki = false): Recipe
     {
+        /*
+         * Limit `post` (#2268, audyt S-01): trasa `livewire-…/update` nie ma
+         * `throttle:`, więc kreator liczy się sam, w TYM SAMYM koszyku co
+         * `POST /dodaj/przepis`. Nowy przepis i publikacja — tak; autozapis
+         * istniejącego szkicu — nie (to pisanie, nie wytwarzanie treści).
+         * Pełny koszyk to `BladDlaCzlowieka`: wołający pokazuje go przy
+         * formularzu, a cały tekst zostaje w kreatorze.
+         */
+        $limit = app(LimitZapisuKreatora::class);
+        $liczy = $publish || $this->recipeId === null;
+        if ($liczy) {
+            $limit->sprawdz(auth()->user());
+        }
+
         $recipe = app(PublishRecipe::class)->handle(
             author: auth()->user(),
             attributes: DanePublikacji::atrybuty(
@@ -729,6 +744,10 @@ new class extends Component
             wersjaPoprawki: $wersjaPoprawki,
             ip: request()->ip(),
         );
+
+        if ($liczy) {
+            $limit->policz(auth()->user());
+        }
 
         $this->recipeId = $recipe->getKey();
         $this->contentRevision = $recipe->content_revision;

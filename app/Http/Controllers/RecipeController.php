@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Import\StrazImportu;
+use App\Domain\Moderation\DziennikWgladu;
 use App\Domain\Recipes\Actions\ZapiszPrzepisZFormularza;
 use App\Domain\Recipes\Actions\ZrobWlasnaWersje;
 use App\Domain\Recipes\CoMoznaDopisac;
@@ -400,6 +401,11 @@ class RecipeController extends Controller
         }
 
         $this->authorize('view', $model);
+
+        // Przepis niewidoczny bez roli obsługi (ukryty, zdjęty, autor
+        // zbanowany) otwiera poza autorem tylko moderator (`RecipePolicy::view()`)
+        // — wgląd z urzędu zostawia ślad (D-333). To samo w trybie gotowania i API.
+        app(DziennikWgladu::class)->przepis($model, $request->user(), $request->ip());
 
         $model->load([
             'author.profile.avatar',

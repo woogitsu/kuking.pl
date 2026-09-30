@@ -595,8 +595,9 @@ class Post extends Model
      * tabele raz na zapytanie, a nie tylko wiersze wskazane przez kandydatów.
      * Przy dziś zmierzonym rozmiarze (20 tys. przepisów, kilka tys. zdjęć)
      * to ułamek milisekundy do kilku milisekund; przy wielokrotnie większych
-     * tabelach trzeba to zmierzyć od nowa. Dlatego to osobny scope, dla jednej
-     * listy, a nie zamiennik dla profilu czy strony wpisu — tam kandydatów jest
+     * tabelach trzeba to zmierzyć od nowa. Dlatego to osobny scope dla list
+     * z tysiącami kandydatów (feed obserwowanych #599, „Świeżo z Kuking” #2288,
+     * `OdkrywanieKosztPlanuTest`), a nie zamiennik dla profilu czy strony wpisu — tam kandydatów jest
      * kilkanaście i skorelowany `EXISTS` jest tańszy.
      *
      * Równoważność pilnuje `FeedObserwowanychKosztPlanuTest` (wynik porównany

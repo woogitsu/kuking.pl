@@ -355,6 +355,16 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->followedTags()->whereKey($tag->getKey())->exists();
     }
 
+    /**
+     * Czy osoba sprzeciwiła się statystykom (#2277). Wtedy nie zapisujemy
+     * jej sygnałów produktowych ani daty ostatniej wizyty, a na jej stronach
+     * nie ma skryptu statystyki odwiedzin Cloudflare.
+     */
+    public function sprzeciwWobecStatystyk(): bool
+    {
+        return $this->sprzeciw_statystyk_at !== null;
+    }
+
     protected function casts(): array
     {
         return [
@@ -373,6 +383,10 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // Masowe przypisanie z żądania nadpisywałoby cudzy znacznik
             // aktywności dowolną wartością podaną w ciele żądania.
             'ostatnio_widziany_at' => 'datetime',
+            // Sprzeciw wobec statystyk (RODO art. 21, #2277). Poza `$fillable`:
+            // ustawia i zdejmuje go wyłącznie `PrzestawSprzeciwWobecStatystyk`
+            // (dwa przyciski w ustawieniach prywatności), nigdy masowe przypisanie.
+            'sprzeciw_statystyk_at' => 'datetime',
             // Poza `$fillable`: ustawiają to wyłącznie żądania POST
             // `OnboardingController` (koniec, „Pomiń ten krok”, „Nie przypominaj”)
             // i `DemoSeeder`, nigdy formularz ustawień (#985).

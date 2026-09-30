@@ -175,7 +175,7 @@ final class KlientGoogle
              */
             Log::error('Google odrzucił wymianę kodu — sprawdź konfigurację.', [
                 'status' => $odpowiedz->status(),
-                'blad' => (string) $odpowiedz->json('error', ''),
+                'blad' => self::tekst($odpowiedz->json('error')),
                 'co_zrobic' => 'Sprawdź GOOGLE_CLIENT_ID i GOOGLE_CLIENT_SECRET oraz to, '
                     .'czy adres powrotu jest wpisany w Google Cloud Console co do znaku '
                     .'(docs/infra/DEPLOYMENT_RUNBOOK.md, krok 8D).',
@@ -212,13 +212,13 @@ final class KlientGoogle
 
         // WYDAWCA. Bez tego token z innego, byle jakiego dostawcy OIDC
         // byłby u nas dobry, gdyby ktoś podmienił adres tokenu.
-        if (! in_array((string) ($dane['iss'] ?? ''), Google::WYDAWCY, true)) {
-            return $this->nieUdalo('Token tożsamości nie jest od Google.', ['iss' => (string) ($dane['iss'] ?? '')]);
+        if (! in_array(self::tekst($dane['iss'] ?? null), Google::WYDAWCY, true)) {
+            return $this->nieUdalo('Token tożsamości nie jest od Google.', ['iss' => self::tekst($dane['iss'] ?? null)]);
         }
 
         // ODBIORCA. Token wystawiony dla INNEJ aplikacji Google jest dla nas
         // bezwartościowy — i przyjęcie go byłoby luką, nie uprzejmością.
-        if (! hash_equals(Google::identyfikatorKlienta(), (string) ($dane['aud'] ?? ''))) {
+        if (! hash_equals(Google::identyfikatorKlienta(), self::tekst($dane['aud'] ?? null))) {
             return $this->nieUdalo('Token tożsamości jest wystawiony dla innej aplikacji.', []);
         }
 
@@ -235,7 +235,7 @@ final class KlientGoogle
          * ostrzega AGENTS.md §7 przy MIME i nazwie pliku od klienta:
          * sprawdzenie, które napastnik wyłącza, pomijając pole.
          */
-        $wygasa = (int) ($dane['exp'] ?? 0);
+        $wygasa = is_int($dane['exp'] ?? null) || is_float($dane['exp'] ?? null) ? (int) $dane['exp'] : 0;
 
         if ($wygasa <= 0) {
             return $this->nieUdalo('Token tożsamości od Google jest bez terminu ważności.', []);
@@ -255,12 +255,12 @@ final class KlientGoogle
          * wymaga tego sprawdzenia, gdy `nonce` został wysłany — a my go
          * wysyłamy zawsze.
          */
-        if (! hash_equals($nonce, (string) ($dane['nonce'] ?? ''))) {
+        if (! hash_equals($nonce, self::tekst($dane['nonce'] ?? null))) {
             return $this->nieUdalo('Token tożsamości nie odpowiada tej sesji (nonce).', []);
         }
 
-        $sub = trim((string) ($dane['sub'] ?? ''));
-        $email = User::normalizeEmail((string) ($dane['email'] ?? ''));
+        $sub = trim(self::tekst($dane['sub'] ?? null));
+        $email = User::normalizeEmail(self::tekst($dane['email'] ?? null));
 
         if ($sub === '' || $email === '') {
             return $this->nieUdalo('Token tożsamości od Google jest bez identyfikatora albo bez adresu.', []);
@@ -281,7 +281,7 @@ final class KlientGoogle
             emailPotwierdzony: $potwierdzony,
             // `given_name` przed `name`, bo na ekranie pytamy „jak mamy Cię
             // nazywać" — imię pasuje tam lepiej niż imię z nazwiskiem.
-            imie: trim((string) ($dane['given_name'] ?? $dane['name'] ?? '')),
+            imie: trim(self::tekst($dane['given_name'] ?? $dane['name'] ?? null)),
         );
     }
 
@@ -314,6 +314,17 @@ final class KlientGoogle
     private function odBase64Url(string $wartosc): string
     {
         return (string) base64_decode(strtr($wartosc, '-_', '+/'), false);
+    }
+
+    /**
+     * Pole odpowiedzi dostawcy jako tekst — albo pusty tekst, gdy przyszło
+     * w innym typie (#2322). `(string)` na tablicy to „Array to string
+     * conversion”, czyli 500 zamiast odmowy; pusty tekst przechodzi dalej
+     * zwykłą ścieżką „odpowiedź w nieznanym kształcie”.
+     */
+    private static function tekst(mixed $wartosc): string
+    {
+        return is_string($wartosc) || is_int($wartosc) ? (string) $wartosc : '';
     }
 
     /**

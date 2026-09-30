@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Api\WatkiKomentarzy;
+use App\Domain\Moderation\DziennikWgladu;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\CommentResource;
 use App\Http\Resources\Api\V1\RecipeResource;
@@ -22,6 +23,9 @@ class RecipeController extends Controller
     public function show(Request $request, string $przepis): RecipeResource
     {
         $model = $this->znajdz($przepis);
+
+        // Wgląd z urzędu w przepis niewidoczny bez roli (D-333) — jak w WWW.
+        app(DziennikWgladu::class)->przepis($model, $request->user(), $request->ip());
 
         $model->load([
             'author.profile.avatar',

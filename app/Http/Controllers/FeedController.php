@@ -11,8 +11,10 @@ use App\Domain\Feed\HeroKolaz;
 use App\Domain\Feed\MojStol;
 use App\Domain\Pwa\InstallPrompt;
 use App\Domain\Pwa\InstallPromptContext;
+use App\Domain\Recipes\Gotowanie\JakWyszlo;
 use App\Domain\Rocznice\RocznicaDolaczenia;
 use App\Domain\Rocznice\Urodziny;
+use App\Domain\UgotujmyRazem\UgotujmyRazem;
 use App\Domain\Ukrycia\Ukrycia;
 use App\Domain\Wspomnienia\Wspomnienia;
 use App\Models\Post;
@@ -134,12 +136,13 @@ class FeedController extends Controller
             return redirect()->route('home');
         }
 
-        // Wspomnienie (issue #34) — jeden własny wpis z tego samego dnia
-        // sprzed roku albo więcej. `null`, gdy nie ma czego pokazać albo gdy
+        // Wspomnienie (issue #34) — jeden własny wpis ALBO własne wykonanie
+        // „Ugotowałem” (F6) z tego samego dnia sprzed roku albo więcej.
+        // `null`, gdy nie ma czego pokazać albo gdy
         // człowiek wyłączył tę mechanikę; widok NIE ma pustego stanu, bo
         // „nie masz jeszcze wspomnień" jest wyrzutem wobec kogoś, kto dopiero
         // zaczyna.
-        $wspomnienie = $this->wspomnienia->dlaOsoby($user);
+        $wspomnienie = $this->wspomnienia->doPokazania($user);
 
         // Trzy ostatnio odłożone przepisy do prawej szyny (UI kit v2, ekran 01).
         //
@@ -216,6 +219,9 @@ class FeedController extends Controller
             // albo `null`. Bez pustego stanu i bez powiadomień, jak wyżej.
             'rocznica' => $this->rocznica->dlaOsoby($user),
             'podpisRocznicy' => $this->rocznica->podpis(),
+            // „Jak wyszło?” (F1, D-333) — jedno zdanie po trybie gotowania bez
+            // „Ugotowałem” albo `null`. Tylko na pierwszej stronie Startu.
+            'jakWyszlo' => $maKursor ? null : app(JakWyszlo::class)->doPokazania($request->session(), $user),
             'board' => $this->dailyBoard->forViewer($user),
             // „Mój stół" (#1749, D-304): liczony TYLKO u osoby, która go
             // włączyła. Wyłączony = zero zapytań o propozycje.
@@ -273,7 +279,7 @@ class FeedController extends Controller
     }
 
     /** /discover — "Świeżo z Kuking", dostępne też bez konta. */
-    public function discover(Request $request, Ukrycia $ukrycia): View
+    public function discover(Request $request, Ukrycia $ukrycia, UgotujmyRazem $ugotujmyRazem): View
     {
         $user = $request->user();
         $posts = $this->discoverFeed->paginate(
@@ -290,6 +296,10 @@ class FeedController extends Controller
             // Linia „Ukrywasz wpisy N osób. Zmień" pod nagłówkiem (#1811).
             'ukryteOsoby' => $user !== null ? $ukrycia->ileOsob($user) : 0,
             'ukryteWpisy' => $user !== null ? $ukrycia->ileWpisow($user) : 0,
+            // „Ugotujmy razem” (F3): jedna linia z odnośnikiem, tylko gdy
+            // gospodarz wybrał przepis na ten tydzień i widz może go zobaczyć
+            // — bez wyboru odnośnik prowadziłby do pustej strony.
+            'przepisTygodnia' => $ugotujmyRazem->biezacy($user),
         ]);
     }
 

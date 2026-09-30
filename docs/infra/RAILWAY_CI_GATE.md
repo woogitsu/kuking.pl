@@ -44,10 +44,18 @@ przepuścić wdrożenie, gdy inny workflow tego samego commita przeszedł.
    zdarzeniu ≠ najnowsza) jest pomijane z powodem. Przed mutacją skrypt czyta
    listę wdrożeń usługi (`deployments`, pole `meta.commitHash`): SHA ze statusem
    `SUCCESS` → usługa pominięta (dwa zielone przebiegi = jedno wdrożenie, także
-   wznowienie po częściowym wdrożeniu); SHA w toku → błąd bez mutacji; tylko
-   `REMOVED`/`FAILED` → wdrożenie. Brak odczytu listy = błąd (fail-closed).
+   wznowienie po częściowym wdrożeniu); SHA w toku albo `REMOVING` → błąd bez
+   mutacji (#2234); tylko `REMOVED`/`FAILED` → wdrożenie. Brak odczytu listy =
+   błąd (fail-closed). Lista jest czytana wszystkimi stronami (`pageInfo`,
+   po 50, najwyżej 100 stron). Brak `pageInfo`, kursor pusty albo powtórzony
+   i przekroczony limit stron to niepełna historia i błąd, nie „brak
+   wdrożenia” (#2234).
    SHA starszy niż bieżący `main` kończy się pominięciem (kod 0), nie czerwienią.
    Ręczny rerun samego workflow bramki (próba > 1) nadal jest odrzucany.
+9. **Pliki z commita zielonego CI (#2233).** Checkout bierze
+   `ref: ${{ github.event.workflow_run.head_sha }}`, a skrypt po weryfikacji CI
+   porównuje `git rev-parse HEAD` z tym SHA. Bez `ref` checkout pobierałby
+   bieżący `main`, więc skrypt z commita B wdrażałby SHA A.
 
 Railway dokumentuje [wdrożenie wskazanego SHA](https://docs.railway.com/integrations/api/manage-services)
 i [odczyt stanu deploymentu](https://docs.railway.com/integrations/api/manage-deployments).

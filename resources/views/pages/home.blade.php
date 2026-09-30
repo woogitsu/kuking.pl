@@ -46,6 +46,31 @@
         </div>
     </section>
 
+    @if($jakWyszlo ?? null)
+        {{--
+            „JAK WYSZŁO?” (F1, D-333). Tryb gotowania doszedł do ostatniego
+            kroku, a wykonanie nie zostało zapisane. Jedno zdanie, dwa zwykłe
+            formularze — bez JavaScriptu, bez licznika dni, bez „Nie zapomnij!”.
+            Znika po „Pokaż zdjęcie”, po „Nie teraz”, po zapisaniu wykonania
+            albo po trzech dniach i dla tego gotowania nie wraca
+            (`App\Domain\Recipes\Gotowanie\JakWyszlo`). Tytuł stoi w cudzysłowie,
+            bo rodzaju nazwy dania nie znamy — „jak wyszło” pasuje do każdej.
+        --}}
+        <section class="ramka-pomocnicza jak-wyszlo" aria-labelledby="jak-wyszlo-pytanie">
+            <h2 id="jak-wyszlo-pytanie" class="mt-0">„{{ $jakWyszlo->title }}” — jak wyszło?</h2>
+            <div class="form-actions">
+                <form method="POST" action="{{ route('jak_wyszlo.pokaz', $jakWyszlo->slug) }}">
+                    @csrf
+                    <button class="btn btn-primary" type="submit">Pokaż zdjęcie</button>
+                </form>
+                <form method="POST" action="{{ route('jak_wyszlo.zamknij', $jakWyszlo->slug) }}">
+                    @csrf
+                    <button class="btn btn-quiet" type="submit">Nie teraz</button>
+                </form>
+            </div>
+        </section>
+    @endif
+
     <x-pwa-install :eligible="$pwaEligible ?? false" :context="$pwaContext ?? null" />
 
     @if($zyczenia ?? null)
@@ -128,15 +153,32 @@
         <section class="wspomnienie" aria-labelledby="wspomnienie-podpis">
             <h2 id="wspomnienie-podpis" class="wspomnienie-podpis">{{ $podpisWspomnienia }}</h2>
 
-            <x-post-card :post="$wspomnienie" />
+            @if($wspomnienie instanceof \App\Models\CookedEvent)
+                {{-- WŁASNE „UGOTOWAŁEM” SPRZED LAT (F6). Przepis jest dla tej
+                     osoby widoczny — pilnuje tego `Wspomnienia::wykonanieDlaOsoby`,
+                     więc karta nie pyta Policy drugi raz. „Ugotuj znowu” to
+                     zwykły odnośnik do przepisu: bez skryptu, bez animacji,
+                     bez żadnego „świetnie Ci poszło”. --}}
+                <x-cooked-card :event="$wspomnienie" :showRecipe="true" :przepisDostepny="true" />
 
-            {{-- „Nie pokazuj mi tego więcej" stoi PRZY wspomnieniu, nie
-                 w ustawieniach: w chwili, w której coś zabolało, nikt nie
-                 szuka trzeciego menu. Zwykły formularz, działa bez JavaScriptu. --}}
-            <form method="POST" action="{{ route('wspomnienia.ukryj', $wspomnienie) }}" class="wspomnienie-akcje">
-                @csrf
-                <button class="btn btn-quiet" type="submit">Nie pokazuj mi tego więcej</button>
-            </form>
+                <div class="form-actions wspomnienie-akcje">
+                    <a class="btn btn-secondary" href="{{ route('recipes.show', $wspomnienie->recipe->slug) }}">Ugotuj znowu</a>
+                    <form method="POST" action="{{ route('wspomnienia.ukryj-wykonanie', $wspomnienie) }}">
+                        @csrf
+                        <button class="btn btn-quiet" type="submit">Nie pokazuj mi tego więcej</button>
+                    </form>
+                </div>
+            @else
+                <x-post-card :post="$wspomnienie" />
+
+                {{-- „Nie pokazuj mi tego więcej" stoi PRZY wspomnieniu, nie
+                     w ustawieniach: w chwili, w której coś zabolało, nikt nie
+                     szuka trzeciego menu. Zwykły formularz, działa bez JavaScriptu. --}}
+                <form method="POST" action="{{ route('wspomnienia.ukryj', $wspomnienie) }}" class="wspomnienie-akcje">
+                    @csrf
+                    <button class="btn btn-quiet" type="submit">Nie pokazuj mi tego więcej</button>
+                </form>
+            @endif
         </section>
     @endif
 

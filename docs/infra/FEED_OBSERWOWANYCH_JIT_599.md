@@ -45,7 +45,8 @@ niewielu i skorelowany `EXISTS` jest tańszy niż czytanie całej tabeli. Reguł
 jednym miejscu, a forma zależy od miejsca użycia.
 
 Stary scope `zWidocznymPrzepisemAlboWlasnaTrescia()` zostaje bez zmian dla pozostałych list
-(profil, tag, Odkrywanie, tablica). `NOT IN` bez `IS NOT NULL` byłoby błędem: wiersze „ukryty
+(profil, tag, tablica). Odkrywanie przeszło na postać bez korelacji w #2288
+(`docs/infra/ODKRYWANIE_POWIADOMIENIA_JIT_2288.md`). `NOT IN` bez `IS NOT NULL` byłoby błędem: wiersze „ukryty
 wpis" mają `hidden_user_id = NULL`, a jedno `NULL` na liście `NOT IN` odrzuca wszystko (test to
 łapie, patrz niżej).
 

@@ -18461,7 +18461,11 @@ odkładał albo odrzucał (mail z życzeniami, przypomnienie obserwującym).
    w klasie `podsumowanie`, która gaśnie pierwsza), o stałej porze 08:40 UTC
    z harmonogramu. Po scaleniu **włączona na produkcji**
    (`KUKING_URODZINY_MAIL_WLACZONY` w roli scheduler, `.railway/railway.ts`);
-   staging i PR-y nie wysyłają.
+   staging i PR-y nie wysyłają. **Stan 30.09.2026 (#2296, audyt IN-04):
+   to jeszcze NIE działa** — wartość stoi tylko w `railway.ts`, a
+   `railway config apply` (#595) nie był uruchomiony, więc na produkcji
+   zmiennej nie ma i obowiązuje domyślne `false`. Krok właściciela: W12
+   w `docs/flota/KROKI_WLASCICIELA_2026-09-29.md`.
    **Wypisanie:** podpisany odnośnik w liście prowadzi na stronę z pytaniem —
    **sam GET niczego nie zmienia**, zgodę wycofuje przycisk (POST), a po
    wypisaniu jest „Jednak chcę go dostawać” (wzorem #1403).
@@ -19843,6 +19847,18 @@ na prawnika, dla wszystkich zalogowanych (P-7), w tych granicach:
 `CofniecieMigracjiImportuTest`, `ObrazMaNarzedziaPdfTest` — sieć wyłącznie
 przez `Http::fake`, DNS przez podstawioną mapę nazw.
 
+**Uzupełnienie #2293 (30.09.2026, audyt infra IN-01).** Poppler chodzi przez
+Symfony Process, a `docker/php.ini` wyłącza `proc_open`, więc na obrazie
+produkcyjnym odczyt PDF padał zawsze. `php.ini` zostaje bez zmian (WWW dalej
+bez `proc_open`); procesy `queue:work` dostają w `docker/entrypoint.sh` flagę
+`-d disable_functions=` z listą równą tej z `php.ini` minus `proc_open`
+(`FUNKCJE_ZABRONIONE_KOLEJKI`). `exec`, `system`, `popen` i reszta zostają
+wyłączone także w kolejce. Proces bez `proc_open` dostaje nazwane odrzucenie
+„odczyt PDF chwilowo nie działa” i błąd w logu (`TekstZPdf::wymagajUruchamianiaProcesow`).
+Testy: `KolejkaCzytaPdfZProdukcyjnymPhpIniTest` (podproces PHP z produkcyjnym
+`php.ini`) i krok CI „Odczyt PDF w procesie kolejki obrazu (#2293)” na
+zbudowanym obrazie.
+
 **Czego ta decyzja nie zmienia.** Nie otwiera masowego importu ani importu
 z serwisów wymagających logowania; nie pozwala AI „przepisać własnymi słowami"
 cudzego tekstu przed publikacją (to byłoby pranie cudzej treści). Nie zastępuje
@@ -20942,6 +20958,7 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | Forma zwracania się | Wdrażamy z formą neutralną domyślną, bez czekania na prawnika (D-332). Zmiana polityki prywatności jest **istotna**: nowa wersja i pasek (D-327) | #1751, #1752, #1753, #8 |
 | AI | Nie uruchamiamy nic nowego (#813, #814, #815, #1983 czekają). Właściciel **podpisuje DPA z OpenAI**, bo import już z niego korzysta | #813, #814, #815, #1983, #28 |
 | Claim „Twoje przepisy nie zginą” | Nie, dopóki nie ma przetestowanego odtworzenia bazy i zdjęć | #30, #594, #193, #617 |
+| #617 DR zdjęć | Dokończyć w repo; **bucket kopii i klucze zakłada właściciel** (buckety R2 są w jurysdykcji EU, potwierdził 29.09). W repo: komenda `kuking:proba-odtworzenia-zdjec` (zapis wyłącznie na dysk testowy), test na atrapie magazynu bez MinIO, runbook `docs/infra/DR_ZDJEC_R2.md` z kryterium odbioru (§7a). Na produkcji zmiennych `AWS_ZDJECIA_KOPIA_*` nie ma, więc kopii zdjęć dalej nie ma i claim „nie zginą” zostaje niedozwolony | #617 |
 | Upload prosto do R2 | Odłożony z warunkami: wraca, gdy pomiar #605 pokaże upload przez aplikację jako wąskie gardło; czyszczenie EXIF/GPS musi zostać | #602 |
 | Raporty DMARC (`rua`) | Cloudflare Email Routing dla `kontakt@kuking.pl` (droga A z `docs/infra/POCZTA_URUCHOMIENIE.md` §3A) | #2049 |
 | Refaktor `CookedEventController` | Scalić (gałąź `claude/970-ugotowalem-na-g`) | #970 |
@@ -20965,6 +20982,8 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | #492: skrypty przeglądarkowe marki | Cztery skrypty przeglądarkowe marki wpinamy do joba „Port marki” w CI | #492 |
 | „Poradźcie” na produkcji | Właściciel sam włącza `KUKING_QUESTIONS_ENABLED=true` po wdrożeniu paczki H i sprawdza `/pytania` | #372 |
 | #2220: regulamin — wymagania techniczne i reklamacje (**potwierdzone przez właściciela 29.09**) | Nowe §13 „Wymagania techniczne” i §14 „Reklamacje” to zmiana **drobna**, wzorem polityki 2026-09-30: serwis nie ma prawdziwych użytkowników, więc nowa wersja regulaminu 2026-09-30 obowiązuje od publikacji, bez 14 dni (`zmiana_regulaminu.istotna = false`, poprzednia 2026-09-26). Termin odpowiedzi na reklamację: **14 dni** (art. 7a ustawy o prawach konsumenta; `kuking.reklamacje.termin_odpowiedzi_dni`); kanał: `biuro@samsufi.pl` albo list na adres spółki — nie formularz „Napisz do nas”. Właściciel potwierdził to 29.09 (drobna, 14 dni, e-mail i list, pasek bez terminu wg D-306); weryfikacja treści przez prawnika zostaje w #8. Pasek „Zmieniliśmy regulamin” **pokazuje się** kontom sprzed 30.09 (D-306: przy każdej zmianie regulaminu, także drobnej) — inaczej niż pasek polityki, który jest tylko dla zmiany istotnej; ukrycie go przy drobnej wymagałoby zmiany D-306 | #2220, #8 |
+| #595 rozdzielenie usług | Dokończyć w repo; przełączenie robi właściciel wg runbooka (`docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md`: bilans zmiennych, plan, apply lokalnie, wycofanie) | #595 |
+| #2024: retencja wersji przepisu (**potwierdzone 30.09**) | Wersja starsza niż **24 miesiące** (data w Polsce; wartość z decyzji z 20.09) i spoza **3 najnowszych** wersji przepisu jest kasowana codziennie 06:40 (`kuking:sprzataj-wersje-przepisow`). **Pierwsza wersja nie jest chroniona** (gałąź z 20.09 chroniła ją zawsze; historia jest jednak publiczna, więc zostawiałaby na zawsze treść, którą autor usunął). Wersje usuniętego przepisu idą z nim (30 dni), przepisy ze sprawą moderacyjną są pomijane. Pojedynczej wersji autor sam nie usuwa (jak dotąd: „napisz do nas”). Właściciel potwierdził 30.09 liczby 24 i 3 (24 miesiące + 3 najnowsze); ewentualną późniejszą zmianę robi się zmiennymi `KUKING_RECIPE_VERSION_RETENTION_MONTHS`, `KUKING_RECIPE_VERSION_KEEP_LATEST` i nową decyzją. Polityka prywatności: jedno zdanie w wierszu „Publikowanie treści” | #2024 |
 | Numeracja starych wydań | Alfa 0.1–0.9 zapisujemy jako 0.01–0.09, żeby nie wyglądały na nowsze od 0.77; licznik po kropce bez zmian (0.10 w górę, w tym 0.77, bez zmian) | — |
 | #27 etap 2: lista zakupów bez czekania na pomiar (decyzja z 29.09, wieczór) | **Budować teraz** etap 2 listy zakupów, bez czekania na pomiar planera z D-310. Zakres: prywatna lista konta; ręczne dopisanie; odhaczanie i usuwanie; „Dodaj składniki” ze strony przepisu i z planera kopiuje ORYGINALNE linie składników (bez sumowania i łączenia — składnik jest wolnym tekstem), z oznaczeniem pozycji skopiowanej (z którego przepisu) i ręcznej oraz ostrzeżeniem przy ponownym dodaniu tego samego przepisu; „Wyczyść odhaczone”. **Poza zakresem:** lista wspólna, offline, grupowanie po działach sklepu, premium. Uzupełnia D-310 (który świadomie zostawił listę zakupów na później), nie zmienia go. Przepis niewidoczny dla osoby nie ujawnia treści — pozycja zostaje samym tekstem. Schemat: `shopping_list_items` (`docs/DATABASE.md`); rollback odmawia przy danych (D-088) | #27 |
 | #2218: dosyłka potwierdzeń DSA (decyzja z 29–30.09) | Sufit **3 prób** dosyłki potwierdzenia odbioru zgłoszenia DSA na ten sam adres, **bez limitu wieku** zgłoszenia — zaakceptowane | #2218 |
@@ -20973,6 +20992,13 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | Tygodniowe podsumowanie | `KUKING_DIGEST_WLACZONY` włączamy **po poprawce #2237** | #2237 |
 | Nowe funkcje do budowy (research 30.09) | Budujemy: F1 „Jak wyszło?”, F2 plakietka autorki, F3 „Ugotujmy razem”, F4 ściągawka dla pomocnika, F6 wspomnienia z własnych wykonań | — |
 | Dokończyć ze starych gałęzi | Dziennik wglądów moderatora; retencja wersji przepisu (**24 miesiące + 3 najnowsze** — potwierdzone); rozdzielenie usług (#595); DR zdjęć (#617) | #595, #617 |
+| Dziennik wglądów moderatora: dokończyć (decyzja 29.09) | Każdy wgląd moderatora w treść albo zdjęcie niewidoczne publicznie zostawia wpis w istniejącym `audit_log` (bez nowej tabeli i migracji): `moderation.media_viewed` (zdjęcie będące celem zgłoszenia albo zdjęcie treści ukrytej; w metadanych `powod`), `moderation.hidden_recipe_viewed` (przepis niewidoczny bez roli — ukryty, zdjęty, konta zbanowanego — na stronie, w trybie gotowania i w API); wpis o ukrytym wpisie (`moderation.hidden_post_viewed`) i karcie konta (`admin.user_viewed`) już były. „Bez roli” = to samo konto z rolą `user` nie zobaczyłoby tego (pytanie kontrfaktyczne). Zdjęcie: jeden wpis na godzinę na (moderator, zdjęcie, powód, sprawy) — wgląd w inną sprawę o to samo zdjęcie to osobny wpis. Wyświetlenia publiczne, wejścia autora i wejścia moderatora w treść jawną nic nie zostawiają. Retencja zwykła (12 miesięcy), poza `NIGDY_NIE_KASUJ`. Stara gałąź `gemini/dziennik-wgladow-moderatora` (wgląd w KAŻDE zdjęcie) jest nieaktualna od #1360 — moderator nie ma już takiego dostępu. Kod: `App\Domain\Moderation\DziennikWgladu`, test `DziennikWgladowModeratoraTest`. Poza zakresem świadomie: komentarze, wykonania („Ugotowałem”), zeszyty i listy w panelu | — |
+| #2272: Turnstile i kod 2FA na `/odwolanie` (decyzja 30.09) | **Tak.** Formularz odwołania od decyzji moderacji dla osoby bez logowania ma Turnstile i kod 2FA — to **8. formularz z JS**, rozszerza D-050 | #2272 |
+| F4 (decyzja 30.09) | F4 = **kartka o koncie** (wg karty researchu `docs/research/2026-09-30-nowe-funkcje.md`); wydruk przepisu już istnieje (#765) i nie jest częścią F4 | #765 |
+| F3 „Ugotujmy razem” (decyzja 30.09) | **Nie jest grupą** w rozumieniu #22 — jeden przepis tygodnia, bez członkostwa | #22 |
+| #2270: ukrycie pojedynczej wersji przepisu (decyzja 30.09) | Autor i moderator mogą ukryć **pojedynczą wersję** przepisu w historii zmian (w pracy) | #2270 |
+| „Napisz do nas” mailem na alarm (decyzja 30.09) | Wiadomość z formularza „Napisz do nas” idzie **także mailem** na `KUKING_ALARM_EMAIL` (w pracy) | #599 |
+| Dziennik wglądów: konta zbanowane (decyzja 30.09) | Dziennik wglądów moderatora obejmuje **także wpisy kont zbanowanych** (w pracy) | — |
 
 ### Wycofanie
 Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis

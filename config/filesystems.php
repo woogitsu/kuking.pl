@@ -374,6 +374,21 @@ return [
             'throw' => true,
         ],
 
+        /*
+         * Dysk TESTOWY na próbę odtworzenia zdjęć z migawki (#617):
+         * `php artisan kuking:proba-odtworzenia-zdjec --cel=proba_odtworzenia`.
+         * Zwykły katalog lokalny, który NIE jest żadnym żywym magazynem zdjęć —
+         * komenda odmawia zapisu na `r2*`, `local` i `public`. Na Railway to
+         * katalog kontenera schedulera, znika przy wdrożeniu (dla próby to
+         * zaleta). Nic z niego nie jest serwowane.
+         */
+        'proba_odtworzenia' => [
+            'driver' => 'local',
+            'root' => storage_path('app/proba-odtworzenia'),
+            'throw' => true,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

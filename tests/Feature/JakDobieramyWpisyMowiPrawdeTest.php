@@ -90,12 +90,21 @@ class JakDobieramyWpisyMowiPrawdeTest extends TestCase
         'odkrywanie.ukryci' => [
             'test: Tests\Feature\UkryjWpisIOsobeTest::test_ukryta_osoba_znika_z_podsuwanych_miejsc_ale_nie_z_tych_gdzie_widz_przyszedl_sam',
             'test: Tests\Feature\OdkrywanieRotacjaAutorowTest::test_blokada_i_zawieszenie_zdejmuja_autora_ale_nie_innych',
-            'kod: app/Domain/Feed/DiscoverFeed.php :: ->bezUkrytychOsob($viewer)',
+            'kod: app/Domain/Feed/DiscoverFeed.php :: ->bezUkrytychOsob($viewer, bezKorelacji: true)',
         ],
         'tablica.wybor' => [
             'test: Tests\Feature\JakDobieramyWpisyMowiPrawdeTest::test_wybor_gospodarza_ma_napis_a_uzupelnienie_automatu_nie',
             'kod: resources/views/components/kuking-board/posts.blade.php :: Wybór gospodarza',
             'kod: resources/views/components/kuking-board/people.blade.php :: Wybór gospodarza',
+        ],
+        'razem.wybor' => [
+            'test: Tests\Feature\UgotujmyRazemTest::test_gosc_widzi_przepis_tygodnia_i_wykonania_z_tego_tygodnia_od_najnowszego',
+            'test: Tests\Feature\UgotujmyRazemTest::test_gospodarz_wybiera_przepis_z_adresu_i_zostaje_slad_w_dzienniku',
+            'kod: resources/views/pages/ugotujmy-razem.blade.php :: Wybór gospodarza',
+        ],
+        'razem.czas' => [
+            'test: Tests\Feature\UgotujmyRazemTest::test_kolejnosc_to_czas_a_nie_wczesniejszy_zapis_w_bazie',
+            "kod: app/Domain/UgotujmyRazem/UgotujmyRazem.php :: ->orderByDesc('cooked_at')",
         ],
         'tablica.reszta' => [
             'test: Tests\Feature\DailyBoardTest::test_wybor_redakcyjny_stoi_pierwszy_a_reszte_dobiera_automat',

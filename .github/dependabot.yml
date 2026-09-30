@@ -21,6 +21,13 @@ updates:
   # ---------------------------------------------------------------------
   # Backend — composer.json / composer.lock
   # ---------------------------------------------------------------------
+  #
+  # Do 30.09.2026 Dependabot nie otworzył tu ANI JEDNEGO PR-a (#2301, IN-09).
+  # `composer.json` wymagał `"php": "^8.4"` bez `config.platform.php`, więc
+  # wersję PHP do rozwiązywania trzeba było zgadnąć, a przy 8.4.0 zamek się
+  # nie rozwiązuje (symfony/filesystem 8.x wymaga >=8.4.1). Od #2301
+  # `composer.json` ma jawne `config.platform.php`; pilnuje tego
+  # tests/Feature/ComposerRozwiazujeSieDlaDependabotaTest.php.
   - package-ecosystem: "composer"
     directory: "/"
     schedule:
@@ -109,6 +116,8 @@ updates:
     directories:
       - "/"
       - "/docker/kopia"
+      # Nie budowany; niesie digest usługi PostgreSQL z ci.yml (#2263).
+      - "/docker/ci-postgres"
     schedule:
       interval: "weekly"
       day: "monday"

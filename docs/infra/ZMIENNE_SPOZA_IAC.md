@@ -1,15 +1,46 @@
 # Czy `railway config apply` usuwa zmienne ustawione tylko w panelu?
 
-**Status: NIESPRAWDZONE.** Runbook dla właściciela. Audyt po fali scaleń
+**Status (29.09.2026): odpowiedź z dokumentacji SDK — TAK, usuwa; na żywym
+planie jeszcze niepotwierdzone.** Runbook dla właściciela. Audyt po fali scaleń
 z 25.09.2026 (`docs/audyt/2026-09-25-PO-FALI.md`, znalezisko 12, propozycja C).
-Sesja, która to przygotowała, nie ma dostępu do Railway i niczego tu nie
-uruchamiała. Wszystkie kroki niżej **tylko czytają**. Żaden nie uruchamia
+Sesje, które to przygotowały, nie mają dostępu do Railway i niczego tu nie
+uruchamiały. Wszystkie kroki niżej **tylko czytają**. Żaden nie uruchamia
 `apply`.
+
+## Odpowiedź przed planem (29.09.2026)
+
+- README paczki `railway` 3.11.0 (`node_modules/railway/README.md`, sekcja
+  IaC): plik jest porównywany z żywym środowiskiem bez pliku stanu, a
+  *„Removing resources or variables is destructive and additionally requires
+  `--confirm-destructive` in non-interactive or agent sessions”*. Zakładamy
+  więc, że **zmienna serwisu spoza pliku zostanie usunięta** — interaktywne
+  `apply` zapyta o zgodę, job GitHuba bez zaznaczonego pola się zatrzyma.
+- Jak ich nie zgubić: wartość przenieść do Shared Variables **przed** apply,
+  a w `railway.ts` czytać ją przez `ctx.shared` w roli, która jej używa.
+  Które to zmienne — mówi bilans
+  `scripts/railway/bilans-zmiennych-595.mjs`
+  (`PRZELACZENIE_NA_3_SERWISY_595.md`, krok 0.5). `preserve()` z SDK nie
+  pomaga: nowe serwisy `worker` i `scheduler` nie mają wartości do zachowania.
+- **Stan produkcji z 29.09.2026 (same nazwy):** serwis `kuking.pl` nie ma
+  `KUKING_EDGE_*`, `KUKING_HTML_EDGE_CACHE_SECONDS` ani `KUKING_TAG_TYGODNIA`
+  — wszystkich trzech zmiennych z audytu — oraz `VAPID_*`,
+  `OPENAI_IMPORT_KEY` i `AWS_ZDJECIA_KOPIA_*`. Wśród nich nie ma więc czego
+  zgubić: po apply ich referencje będą puste, czyli wartości domyślne, jak
+  dziś. Ma `RAILWAY_PUBLIC_DOMAIN` — wstrzykiwaną przez Railway, pomijaną
+  przez oba skrypty.
+- **Od #1459 (#1013) lista z kroku 2 nie będzie pusta.** Rola `web` nie ma
+  zmiennych workera i schedulera, więc skrypt z kroku 2 zgłosi np.
+  `OPENAI_MODERATION_KEY` czy `KUKING_PULS_HARMONOGRAMU_URL`, jeśli serwis je
+  ma — ich usunięcie z `kuking.pl` jest zamierzone. Rozróżnienie „przechodzi
+  do innej roli” / „zginie” robi bilans z kroku 0.5 runbooka #595; ten
+  dokument zostaje dla pytania o semantykę planu.
 
 ## O co chodzi
 
-Trzy zmienne serwisu `kuking.pl` działają dziś wyłącznie jako wartości
-wpisane ręcznie w panelu Railway. `.railway/railway.ts` ich nie wymienia:
+Audyt z 25.09 zakładał, że trzy zmienne serwisu `kuking.pl` działają
+wyłącznie jako wartości wpisane ręcznie w panelu Railway, a
+`.railway/railway.ts` ich nie wymienia (29.09 żadnej z nich w panelu nie
+było, a plik ma je od #1883 — patrz wyżej):
 
 | Zmienna | Co robi | Co się stanie, gdy zniknie |
 |---|---|---|
@@ -71,10 +102,18 @@ echo "kod wyjścia: $?"
 - Kod `0` — w panelu nie ma nic poza plikiem. Kod `1` — lista wyżej to
   zmienne, których apply mógłby dotknąć. Kod `2` — złe wywołanie albo
   wejście.
-- Spodziewane dziś: pusta lista — trzy zmienne z audytu (`KUKING_EDGE_TRYB`,
-  `KUKING_HTML_EDGE_CACHE_SECONDS`, `KUKING_TAG_TYGODNIA`) są od #1883
-  w grafie. Każda nazwa, która się pojawi, to zmienna, o której nikt nie
-  wie — **te są najważniejsze**.
+- Spodziewane dziś (po #1459): tylko zmienne workera i schedulera, które
+  serwis ma (bilans z kroku 0.5 runbooka #595 wymienia je jako „przechodzi
+  do innej roli”), ewentualnie martwe `TRUSTED_PROXIES` i `DB_HOST`/`DB_PASSWORD`/…
+  zastąpione przez `DB_URL`. Trzy zmienne z audytu są od #1883 w grafie,
+  a 29.09 nie było ich w panelu. Osobno: zmienne **tylko z panelu
+  z założenia** (lista `WYJATKI` w `tests/Feature/ZmienneRailwayaPerRolaTest.php`,
+  przede wszystkim `AWS_LEGACY_*` starego bucketu zdjęć, a także
+  `KUKING_ZAUFANE_HOSTY`, `TURNSTILE_HOSTY_STAGINGU`,
+  `KUKING_EXPORT_TEMP_DIR`) — plik ich świadomie nie deklaruje, więc
+  apply je usunie. Bilans z kroku 0.5 runbooka #595 zatrzymuje się na nich
+  z instrukcją dla każdej nazwy (IN-03, #2295). Każda inna nazwa to
+  zmienna, o której nikt nie wie — **te są najważniejsze**.
 
 Nie wklejaj nigdzie surowego wyniku `railway variables --json` — ma wartości,
 w tym sekrety. Wynik skryptu (same nazwy) można wkleić do issue.

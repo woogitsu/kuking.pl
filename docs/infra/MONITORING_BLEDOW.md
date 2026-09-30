@@ -191,8 +191,9 @@ php artisan kuking:sprawdz-alarm --przez-wyjatek
 
 Komenda zgłasza wyjątek tą samą drogą, którą idzie prawdziwy błąd 500
 (`report()` → obsługa wyjątków w `bootstrap/app.php` → kanał), i mówi,
-czy kanał przyjął wiadomość. Na kanale Discorda powinna pojawić się
-wiadomość „RuntimeException” w kilka sekund. Druga próba w ciągu okna
+czy przyjął ją KAŻDY włączony kanał — Discord i poczta (#599) osobno.
+Na kanale Discorda (i w skrzynce `KUKING_ALARM_EMAIL`, jeśli ustawiona)
+powinna pojawić się wiadomość „RuntimeException” w kilka sekund. Druga próba w ciągu okna
 serii (`KUKING_SERIA_ALARMOW_OKNO_MINUT`, domyślnie 15 minut) nie wyjdzie —
 seria identycznych błędów daje jedną wiadomość na okno, a komenda mówi to
 wprost.
@@ -202,6 +203,77 @@ Jeśli wiadomości nie ma: sprawdź, czy zmienna naprawdę doszła do kontenera
 
 Dawniej stało tu wywołanie `report(…)` w tinkerze; tinkera nie ma
 w obrazie produkcyjnym od D-333.
+
+---
+
+## 1a. Drugi kanał: poczta obok Discorda (#599)
+
+Discord jest kanałem głównym i działa (D-333). Poczta jest **drugim** kanałem
+na wypadek, gdy Discord nie dostarczy (odwołany webhook, awaria Discorda,
+nieprzeczytane powiadomienie). Włącza ją jedna zmienna:
+
+| Zmienna | Co wpisać | Role |
+|---|---|---|
+| `KUKING_ALARM_EMAIL` | jeden adres skrzynki, na którą patrzysz | web, worker, scheduler |
+| `KUKING_ALARM_EMAIL_NA_DOBE` | opcjonalnie; domyślnie 20 | jw. |
+
+**To nie jest `KUKING_MODEL_ALARM_EMAIL`.** Tamta zmienna to skrzynka
+moderacji: pilne treści zgłoszone przez ludzi i dzienne podsumowania
+automatu. Ta dotyczy awarii infrastruktury. Obie mogą wskazywać ten sam adres,
+ale to Twoja decyzja. Kod ich nie łączy, bo połączonych nie da się potem
+rozdzielić bez zmiany kodu.
+
+Jak to działa:
+
+- **Oba kanały dostają to samo.** Treść buduje ta sama metoda
+  (`WebhookBleduHandler::tresc()`), więc w liście też nie ma komunikatu
+  wyjątku, SQL-a, adresu e-mail ani danych z żądania (§3). Temat listu to
+  pierwsza linia wiadomości z Discorda, np. `Alarm: [Kuking/production] RuntimeException`.
+- **Kanały są niezależne.** `App\Logging\KanalyAlarmowe` pisze na każdy
+  włączony kanał osobno, najpierw na Discord, potem pocztą. Odwołany webhook
+  nie zabiera listu, a awaria EmailLabs nie zabiera Discorda i nie
+  przewraca strony błędu. Dziennik serwera Laravel pisze niezależnie od obu.
+  Nieudany list zostawia na `stderr` wpis „Nie udało się wysłać listu
+  z alarmem” (tylko powód, bez adresu i treści).
+- **Okno serii jest wspólne** (`SeriaAlarmow`, `kuking.monitoring.seria_okno_minut`,
+  odstępy czujek i `/health`). Sto identycznych błędów 500 to jedna wiadomość
+  na Discordzie i **jeden list**. Wyciszenie należy się, gdy przyjął
+  którykolwiek kanał.
+- **Dobowy sufit listów** `KUKING_ALARM_EMAIL_NA_DOBE` (domyślnie 20) w puli
+  poczty 300/dobę, klasa `zwykla`. Wiele różnych awarii jednego dnia nie
+  zabierze listów rejestracji ani logowania linkiem. Po wyczerpaniu sufitu
+  alarmy dalej idą na Discord, a ostrzeżenie o zużyciu sufitu też pojawi się
+  na Discordzie.
+- **Bez kolejki.** List wychodzi od razu, synchronicznie, bo kolejka jest
+  jedną z rzeczy, o których alarm zawiadamia.
+- **Gdy leży pamięć podręczna** (cache stoi w tej samej bazie), rezerwacja
+  miejsca w puli się nie udaje i **list nie wychodzi**, a Discord wychodzi
+  bez deduplikacji. To świadomy wybór: bez licznika każdy błąd burzy byłby
+  osobnym listem wysyłanym w żądaniu człowieka.
+- **Wiadomość „Przyszła nowa wiadomość”** z formularza „Napisz do nas”
+  (`DzwonekOperatora`) zostaje **tylko na Discordzie**. To nie jest alarm
+  o awarii, a formularz wypełnia ktokolwiek, więc zużywałby sufit listów
+  alarmowych.
+
+### Włączenie i sprawdzenie po wdrożeniu
+
+1. Railway → **Environment → Variables → Shared Variables** → dodaj
+   `KUKING_ALARM_EMAIL` z adresem skrzynki (osobno dla `production`
+   i `staging`). `ctx.shared` w `.railway/railway.ts` wskazuje na istniejącą
+   zmienną, ale jej nie tworzy.
+2. Wdróż (`railway config apply`) i **zrestartuj usługi**. Konfiguracja jest
+   zapiekana przy starcie kontenera.
+3. `railway ssh -- php artisan kuking:sprawdz-alarm --bez-wysylki`: oba
+   kanały muszą mieć stan „skonfigurowany”.
+4. `railway ssh -- php artisan kuking:sprawdz-alarm`: komenda wysyła jedną
+   próbę na każdy kanał i dla każdego osobno pisze, czy ją PRZYJĄŁ. Kod
+   wyjścia 1 oznacza, że któryś kanał nie przyjął próby. Potem sprawdź
+   kanał Discorda **i skrzynkę**, także folder spamu przy pierwszym liście.
+   „Przyjął” znaczy tylko tyle, że EmailLabs przyjął list. Dostarczenie
+   do skrzynki widać dopiero w niej.
+
+Wyłączenie: wyczyść `KUKING_ALARM_EMAIL` (albo ustaw
+`KUKING_ALARM_EMAIL_NA_DOBE=0`) i zrestartuj. Discord działa dalej bez zmian.
 
 ---
 

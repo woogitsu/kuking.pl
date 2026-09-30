@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Moderation\DziennikWgladu;
+use App\Domain\Recipes\Gotowanie\JakWyszlo;
 use App\Domain\Recipes\Gotowanie\PostepGotowania;
 use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Models\CookingProgress;
@@ -112,6 +114,10 @@ class CookingModeController extends Controller
         // pytanie co na stronie przepisu, patrz komentarz nad klasą.
         $this->authorize('view', $model);
 
+        // Tryb gotowania pokazuje cały przepis — wgląd z urzędu jak na stronie
+        // przepisu (D-333, `DziennikWgladu::przepis()`).
+        app(DziennikWgladu::class)->przepis($model, $request->user(), $request->ip());
+
         $model->load(['steps.media', 'ingredients.unit']);
         $osoba = $request->user();
         $postepKonta = $this->postepKonta($osoba, $model);
@@ -136,6 +142,12 @@ class CookingModeController extends Controller
         $total = $steps->count();
         $krok = $this->wyczyscKrok($request->query('krok'), $total);
         $aktualny = $steps->get($krok - 1);
+
+        // Ostatni krok otwarty przez zalogowaną osobę — „Jak wyszło?” na
+        // Starcie, jeśli nie zapisze wykonania (F1, `JakWyszlo`).
+        if ($krok === $total && $osoba !== null) {
+            app(JakWyszlo::class)->zanotujKoniec($request->session(), $osoba, $model);
+        }
 
         $zrobione = $postepKonta !== null
             ? $this->postep->zrobione($postepKonta, $steps->pluck('id')->map(fn ($id): string => (string) $id)->all())
@@ -212,6 +224,13 @@ class CookingModeController extends Controller
             'krok.integer' => 'Numer kroku jest nieprawidłowy — odśwież stronę przepisu i spróbuj jeszcze raz.',
         ]);
 
+        // JEDNA interpretacja wartości dla obu ścieżek niżej (#2242). Widok
+        // wysyła tekst „0” albo „1”, walidacja `boolean` przepuszcza jeszcze
+        // 0/1 i true/false. Porównujemy jawnie z listą „tak”, zamiast liczyć
+        // na regułę rzutowania — i ta sama zmienna idzie do konta i do sesji,
+        // żeby obie drogi nie mogły się rozjechać.
+        $zrobiono = in_array($data['zrobiono'], [true, 1, '1'], true);
+
         // Szukamy kroku wśród kroków TEGO przepisu — identyfikator kroku
         // z innego przepisu (albo usuniętego) po prostu tu nie pasuje.
         $pozycja = $steps->search(fn ($step) => $step->getKey() === ($data['krok_id'] ?? null));
@@ -234,14 +253,26 @@ class CookingModeController extends Controller
 
         $postepKonta = $this->postepKonta($request->user(), $model);
         if ($postepKonta !== null) {
+            $idKrokow = $steps->pluck('id')->map(fn ($id): string => (string) $id)->all();
             $widzianaRewizja = isset($data['rewizja']) ? (int) $data['rewizja'] : null;
-            $rozbieznaRewizja = $widzianaRewizja !== null && $widzianaRewizja !== $postepKonta->revision;
+
+            // PODWÓJNE KLIKNIĘCIE TO NIE INNE URZĄDZENIE (audyt BP-05). Drugie
+            // wysłanie tego samego formularza niesie rewizję sprzed pierwszego,
+            // które podbiło ją o jeden. Jeśli od wyświetlenia strony przybyła
+            // DOKŁADNIE jedna zmiana, a krok jest już w stanie, o który prosi
+            // formularz, to tą zmianą było pierwsze kliknięcie z tej samej
+            // strony — nie ma o czym ostrzegać ani czego chronić, a porcje
+            // z formularza są tymi samymi, które poszły z pierwszym.
+            $juzWZadanymStanie = in_array((string) $aktualny->getKey(), $this->postep->zrobione($postepKonta, $idKrokow), true)
+                === $zrobiono;
+            $powtorzenie = $widzianaRewizja !== null && $widzianaRewizja + 1 === $postepKonta->revision && $juzWZadanymStanie;
+            $rozbieznaRewizja = $widzianaRewizja !== null && $widzianaRewizja !== $postepKonta->revision && ! $powtorzenie;
 
             $po = $this->postep->ustaw(
                 $postepKonta,
                 $aktualny->getKey(),
-                (bool) $data['zrobiono'],
-                $steps->pluck('id')->map(fn ($id): string => (string) $id)->all(),
+                $zrobiono,
+                $idKrokow,
             );
 
             // Rozbieżna rewizja: formularz niesie liczbę porcji z chwili
@@ -272,7 +303,7 @@ class CookingModeController extends Controller
         $klucz = $this->sessionKey($model);
         $zrobione = $request->session()->get($klucz, []);
 
-        if ($data['zrobiono']) {
+        if ($zrobiono) {
             $zrobione[] = $aktualny->getKey();
             $zrobione = array_values(array_unique($zrobione));
         } else {

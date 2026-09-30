@@ -920,7 +920,7 @@
         <div class="kolumna-czytania">
             <x-zdejmij-z-urzedu :tresc="$recipe" typ="recipe" />
 
-            <x-comment-thread :comments="$komentarze" :ile="$komentarzyRazem" :action="route('recipes.comment', $recipe->slug)" />
+            <x-comment-thread :comments="$komentarze" :ile="$komentarzyRazem" :action="route('recipes.comment', $recipe->slug)" :autor-przepisu="$recipe->author_id" />
         </div>
     </article>
 </x-layout>

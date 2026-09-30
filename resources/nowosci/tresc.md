@@ -31,6 +31,58 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### „Nie licz mnie w statystykach”
+
+W ustawieniach, w części „Prywatność”, jest nowy przycisk „Nie licz mnie
+w statystykach”. Po jego kliknięciu nie zapisujemy już, kiedy ostatnio
+zajrzeliście do Kuking ani co robicie w serwisie, a po zalogowaniu strony nie
+mają skryptu statystyki odwiedzin. Wszystko inne działa tak samo — zniknie
+tylko podpowiedź o dodaniu Kuking do ekranu telefonu, bo liczy ona powroty
+z tej samej daty. Jeśli zmienicie zdanie, przycisk „Licz mnie znowu” to cofa.
+
+### „Jak wyszło?” po trybie gotowania
+
+Jeśli w trybie gotowania dojdziecie do ostatniego kroku, a nie zapiszecie
+„Ugotowałem”, na stronie Start pojawi się jedno zdanie: nazwa przepisu
+i „jak wyszło?”. Przycisk „Pokaż zdjęcie” otwiera zwykły formularz
+„Ugotowałem”, a „Nie teraz” chowa pytanie. Pytanie znika też samo po kilku
+dniach albo wtedy, gdy zapiszecie wykonanie, i dla tego samego gotowania już
+nie wraca. Widzicie je tylko Wy — nie przychodzi mailem ani powiadomieniem.
+
+### Napis „Autor przepisu” w rozmowie
+
+Gdy autor przepisu odpowiada pod swoim przepisem albo pod czyimś wykonaniem
+tego przepisu, obok imienia widać napis „Autor przepisu” — albo „Autorka
+przepisu”, jeśli ta osoba wybrała formę żeńską w pytaniu „Jak mamy do Ciebie
+pisać?”. Od razu wiadomo, że odpowiedź przyszła od osoby, od której przepis
+pochodzi. Przy „Mojej wersji” napis dostaje autor tej wersji.
+
+### Ściągawka do wydruku
+
+Ktoś pomógł Wam założyć konto i zaraz wyjeżdża? W Ustawieniach i na ekranie
+„Wszystko gotowe” jest przycisk „Wydrukuj ściągawkę”. To jedna kartka dużym
+drukiem: adres strony, Wasza nazwa użytkownika, częściowo zasłonięty adres
+e-mail, jak wejść bez hasła i jak w trzech krokach dodać zdjęcie obiadu.
+Hasła ani żadnego kodu na kartce nie ma, więc może leżeć na widoku.
+
+### Wspomnienia z Waszych „Ugotowałem”
+
+Na stronie głównej, obok dawnych wpisów, wracają teraz także Wasze własne
+„Ugotowałem” z tego samego dnia sprzed roku albo kilku lat — z przyciskiem
+„Ugotuj znowu”. Widzicie je tylko Wy. Pojedyncze wspomnienie schowacie
+przyciskiem „Nie pokazuj mi tego więcej”, a wszystkie naraz wyłączycie
+w Ustawieniach → Prywatność.
+
+### Ugotujmy razem — jeden przepis na cały tydzień
+
+Na stronie „Ugotujmy razem” jest przepis tygodnia, który wybrał gospodarz.
+Gotuje, kto chce — nie trzeba się nigdzie zapisywać. Przycisk „Ugotuję w tym
+tygodniu” otwiera przepis w trybie gotowania, a po ugotowaniu wystarczy dodać
+zdjęcie i kilka słów przez „Ugotowałem”. Wtedy Wasze wykonanie pojawi się na tej
+stronie obok innych z tego tygodnia, od najnowszego. Tydzień trwa od
+poniedziałku do niedzieli. Niżej są poprzednie tygodnie razem ze zdjęciami
+z tamtych dni. Odnośnik do tej strony jest na „Świeżo z Kuking”.
+
 ### Przycisk „Zgłoś” widać także bez logowania
 
 Przy przepisie, wpisie i komentarzu widać teraz odnośnik „Zgłoś (po zalogowaniu)”
@@ -116,7 +168,9 @@ przepisu, bez zdjęć, i widzi ją każdy, kto widzi sam przepis — nic ponadto
 starsza wersja nie zapisała jakiegoś pola, piszemy o tym wprost, zamiast
 zgadywać. Pamiętajcie, że zapisana wersja zachowuje treść z chwili zapisu, także
 tę, którą autor usunął później: pojedynczej wersji nie da się usunąć samemu, ale
-autor może usunąć cały przepis albo napisać do nas.
+autor może usunąć cały przepis albo napisać do nas. Starych wersji nie trzymamy
+w nieskończoność: wersja zapisana ponad 24 miesiące temu znika, ale trzy najnowsze
+wersje przepisu zostają zawsze.
 
 ### Zacznijcie gotować na telefonie, dokończcie na tablecie
 

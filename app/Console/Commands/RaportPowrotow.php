@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Domain\Analytics\AktywniWTygodniu;
 use App\Domain\Analytics\CookRetentionCohorts;
+use App\Domain\Analytics\DojsciaDoKoncaGotowania;
 use App\Domain\Analytics\DrugiWpisW7Dni;
 use App\Domain\Analytics\HistoriePrzepisow;
 use App\Domain\Analytics\PlanDoUgotowania;
@@ -117,6 +118,9 @@ class RaportPowrotow extends Command
 
         $this->newLine();
         $this->planDoUgotowania($planDoUgotowania);
+
+        $this->newLine();
+        $this->dojsciaDoKonca();
 
         $this->newLine();
         $this->historie($historie);
@@ -296,6 +300,42 @@ class RaportPowrotow extends Command
         }
 
         $this->line("  Pozycje z dzisiejszym, świeżym albo przyszłym dniem: {$w['w_oknie_obserwacji']} — jeszcze w oknie, nie wliczone.");
+    }
+
+    /**
+     * Tryb gotowania → „Ugotowałem” (F1 „Jak wyszło?”, D-333): pomiar, który
+     * karta F1 każe mieć przed oceną funkcji. Same liczniki bez kont; poniżej
+     * progu próby — bez procentu. Definicje w
+     * `App\Domain\Analytics\DojsciaDoKoncaGotowania`. Klasa z kontenera, nie
+     * z sygnatury `handle()` — ten sam powód co przy `drugiWpis()`.
+     */
+    private function dojsciaDoKonca(): void
+    {
+        $w = app(DojsciaDoKoncaGotowania::class)->policz();
+        $dni = DojsciaDoKoncaGotowania::DNI;
+
+        $this->line("Tryb gotowania → „Ugotowałem” — ostatnie {$dni} dni, same liczniki bez kont.");
+
+        if ($w['dojscia'] === 0 && $w['ugotowane'] === 0) {
+            $this->line('  Nikt jeszcze nie doszedł do ostatniego kroku w trybie gotowania — jeszcze nie da się tego policzyć.');
+
+            return;
+        }
+
+        $procent = $w['procent_ugotowanych'] === null
+            ? 'za mało danych na procent (mniej niż '.DojsciaDoKoncaGotowania::MINIMUM.' dojść)'
+            : number_format($w['procent_ugotowanych'], 1, ',', '').'% dojść skończyło się „Ugotowałem”';
+
+        $this->line(
+            "  Doszło do ostatniego kroku: {$w['dojscia']} · zapisano „Ugotowałem”: {$w['ugotowane']}"
+            ." (w tym po pytaniu „Jak wyszło?”: {$w['po_pytaniu']}) · bez „Ugotowałem”: {$w['bez_ugotowalem']} · {$procent}",
+        );
+
+        $nieTeraz = $w['procent_nie_teraz'] === null
+            ? 'za mało danych na procent (mniej niż '.DojsciaDoKoncaGotowania::MINIMUM.' pokazań)'
+            : number_format($w['procent_nie_teraz'], 1, ',', '').'% (powyżej '.DojsciaDoKoncaGotowania::PROG_NIE_TERAZ.'% zdanie jest nachalne)';
+
+        $this->line("  Pytanie „Jak wyszło?” pokazane: {$w['pokazane']} · „Nie teraz”: {$w['nie_teraz']} · {$nieTeraz}");
     }
 
     /** @param  array{tak: int, nie: int, brak: int, wszystkie: int, odsetek_odpowiedzi: float|null, odsetek_tak: float|null}  $w */

@@ -6,6 +6,7 @@ namespace App\Domain\Moderation\Actions;
 
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
+use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Post;
@@ -60,6 +61,8 @@ final class ReportContent
         Recipe::class => 'recipe',
         Comment::class => 'comment',
         CookedEvent::class => 'cooked_event',
+        // Publiczny zeszyt (#2279). Widoczność rozstrzyga `CollectionPolicy::view`.
+        Collection::class => 'collection',
     ];
 
     /**

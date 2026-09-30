@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Collections\Wspoldzielenie\ZaprosDoZeszytu;
+use App\Domain\UgotujmyRazem\TydzienGotowania;
 use App\Models\Appeal;
 use App\Models\Collection;
 use App\Models\Comment;
@@ -27,6 +28,7 @@ use App\Models\Tag;
 use App\Models\TagHighlight;
 use App\Models\TagPromotion;
 use App\Models\User;
+use App\Models\WeeklyRecipePick;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Route;
@@ -416,7 +418,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $this->flushHeaders();
 
         if ($rola !== 'gosc') {
-            $this->actingAs($this->osoby[$rola]);
+            // Strażnik `web` JAWNIE (#2232): po pierwszym żądaniu API
+            // `auth:sanctum` przestawia domyślnego strażnika na `sanctum`,
+            // a gołe `actingAs()` wstawiało wtedy osobę wprost do strażnika
+            // API — bez tokenu. Trasy API przechodziły więc sesją testu, nie
+            // tokenem z nagłówka, a `ability:` odpowiadało 401.
+            $this->actingAs($this->osoby[$rola], 'web');
 
             // API (D-272) nie czyta sesji, tylko token w nagłówku — ta sama
             // rola wchodzi obiema drogami. Na trasach WWW nagłówek niczego
@@ -609,6 +616,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // bo przy wyłączonej odmawia każdemu i nie ma czego mierzyć.
         config(['kuking.tag_tygodnia.wlaczony' => true]);
         $wyroznienieTagu = TagHighlight::create(['tag_id' => $tag->getKey(), 'starts_on' => '2026-11-16', 'ends_on' => '2026-11-22']);
+        // „Ugotujmy razem” (F3): miniony tydzień z publicznym przepisem
+        // właściciela (strona archiwum) i bieżący (do zdjęcia w panelu).
+        $tydzienMiniony = TydzienGotowania::biezacy()->poprzedni();
+        (new WeeklyRecipePick)->forceFill(['week_starts_on' => $tydzienMiniony->dzienStartu(), 'recipe_id' => $przepis->getKey()])->save();
+        $wyborBiezacy = (new WeeklyRecipePick)->forceFill(['week_starts_on' => TydzienGotowania::biezacy()->dzienStartu(), 'recipe_id' => $przepis->getKey()]);
+        $wyborBiezacy->save();
 
         $this->zmianaAdresu = new PendingEmailChange;
         $this->zmianaAdresu->user_id = $wlasciciel->getKey();
@@ -700,6 +713,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('admin.tag-promotions.destroy', $tagPromowanyDoKasacji), ['potwierdzam' => '1'], [$O, $O, $O, $W, $O]);
         $dodaj('admin.tag-highlights.destroy', 'usunięcie tagu tygodnia', 'delete',
             route('admin.tag-highlights.destroy', $wyroznienieTagu), ['potwierdzam' => '1'], [$O, $O, $O, $W, $O]);
+        // Tydzień to zapis ISO, nie UUID — ale wskazuje przepis, więc wejście
+        // idzie przez `WeeklyRecipePickPolicy` (blokada z autorem → 404).
+        $dodaj('ugotujmy-razem.tydzien', 'tydzień „Ugotujmy razem” z przepisem właściciela', 'get',
+            route('ugotujmy-razem.tydzien', $tydzienMiniony->iso()), [], [$W, $W, $O, $W, $W]);
+        $dodaj('admin.ugotujmy-razem.destroy', 'zdjęcie przepisu tygodnia', 'delete',
+            route('admin.ugotujmy-razem.destroy', $wyborBiezacy), ['potwierdzam' => '1'], [$O, $O, $O, $W, $O]);
         $dodaj('admin.reports.decide', 'decyzja w sprawie zgłoszenia', 'post',
             route('admin.reports.decide', $zgloszenieDoDecyzji), ['action' => 'none', 'reason_code' => 'brak-naruszenia'],
             [$O, $O, $O, $W, $O]);
@@ -893,6 +912,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('cooking.sync.skladniki', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooking.sync.porcje', 'zapis liczby porcji prywatnego przepisu', 'post',
             route('cooking.sync.porcje', $przepisPrywatny), ['wybor' => '6'], [$W, $O, $O, $O, $O]);
+        // „Jak wyszło?” (F1, D-333): oba przyciski ze Startu — ta sama granica co przepis.
+        $dodaj('jak_wyszlo.pokaz', '„Pokaż zdjęcie” pod „Jak wyszło?” przy prywatnym przepisie', 'post',
+            route('jak_wyszlo.pokaz', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        $dodaj('jak_wyszlo.zamknij', '„Nie teraz” pod „Jak wyszło?” przy prywatnym przepisie', 'post',
+            route('jak_wyszlo.zamknij', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.create', 'formularz „Ugotowałem" przy prywatnym przepisie', 'get',
             route('cooked.create', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.store', 'zapis „Ugotowałem" przy prywatnym przepisie', 'post',
@@ -916,6 +940,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('cooked.celebrate', $wykonanie), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.thank', 'podziękowanie za wykonanie', 'post',
             route('cooked.thank', $wykonanie), ['body' => 'Dziękuję za ugotowanie.'], [$W, $O, $O, $O, $O]);
+        // F6: wspomnienie z wykonania chowa wyłącznie kucharz
+        // (`CookedEventPolicy::hideAsMemory`). Powtórzenie nic nie zmienia,
+        // więc to samo wykonanie wystarcza dla wszystkich ról.
+        $dodaj('wspomnienia.ukryj-wykonanie', 'ukrycie wspomnienia z wykonania', 'post',
+            route('wspomnienia.ukryj-wykonanie', $wykonanie), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.destroy', 'usunięcie wykonania', 'delete',
             route('cooked.destroy', $wykonanieDoKasacji), [], [$W, $O, $O, $O, $O]);
 

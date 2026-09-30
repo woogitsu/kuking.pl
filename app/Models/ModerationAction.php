@@ -123,6 +123,14 @@ class ModerationAction extends Model
         // Zostaje to, co działa naprawdę: ostrzeżenie (i odpowiedź pocztą
         // z panelu, D-058), zawieszenie i ban.
         'media' => [self::ACTION_NONE, self::ACTION_WARN, self::ACTION_SUSPEND, self::ACTION_BAN],
+
+        // ZESZYT (issue #2279). Zgłoszenie dotyczy nazwy i opisu, które
+        // właściciel pokazuje wszystkim. ŚWIADOMIE BEZ `hide` I BEZ `remove`:
+        // zeszyt nie ma kolumny `status` (nie ma czego ukryć), a `delete()`
+        // skasowałby na stałe cudze zapisy, od czego nie da się skutecznie
+        // odwołać (DSA art. 17). Działa to, co działa naprawdę: ostrzeżenie
+        // z prośbą o zmianę nazwy albo opisu, zawieszenie i ban.
+        'collection' => [self::ACTION_NONE, self::ACTION_WARN, self::ACTION_SUSPEND, self::ACTION_BAN],
     ];
 
     /**

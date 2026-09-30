@@ -44,6 +44,7 @@ class TurnstileWiazeTokenZHostemIFormularzemTest extends TestCase
         '/cofnij-usuniecie-konta' => 'cofniecie_usuniecia',
         '/napisz-do-nas' => 'kontakt',
         '/zglos-nielegalna-tresc' => 'zgloszenie_nielegalnej_tresci',
+        '/odwolanie' => 'odwolanie',
     ];
 
     protected function setUp(): void
@@ -58,7 +59,7 @@ class TurnstileWiazeTokenZHostemIFormularzemTest extends TestCase
         ]);
     }
 
-    public function test_kazdy_z_siedmiu_widgetow_wysyla_wlasciwa_akcje(): void
+    public function test_kazdy_z_osmiu_widgetow_wysyla_wlasciwa_akcje(): void
     {
         config(['mail.default' => 'smtp']);
 

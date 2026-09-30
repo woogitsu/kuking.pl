@@ -1,6 +1,7 @@
 # ---------------------------------------------------------------------------
-#  UWAGA: repozytorium jest PRYWATNE, więc minuta GitHub Actions jest płatna
-#  wtedy, gdy przebieg idzie na runnery GitHuba.
+#  Repozytorium jest PUBLICZNE (decyzja właściciela z 30.09.2026, #2298), więc
+#  standardowe runnery GitHuba są darmowe (#2302, IN-10). Ten workflow nie
+#  uruchamia się na `pull_request`, więc PR z forka nie ma do niego dostępu.
 #
 #  Kontrolę robimy lokalnie, za darmo:  ./scripts/check.sh
 #  Instalacja hooka pre-push:           ./scripts/install-hooks.sh
@@ -564,7 +565,12 @@ jobs:
           SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
         with:
           environment: ${{ steps.target.outputs.env }}
-          version: ${{ github.sha }}
+          # SHA WDROŻENIA, nie `github.sha` (#2230). Test dymny wyżej sprawdza
+          # dokładnie `github.event.deployment.sha` (sonda `/wydanie`), więc
+          # wydanie Sentry ma nosić ten sam commit. `github.sha` zależy od
+          # tego, jak GitHub wypełnia zdarzenie, a nie od tego, co Railway
+          # wdrożył. Strażnik: tests/Feature/WydanieSentryMaShaWdrozeniaTest.php.
+          version: ${{ github.event.deployment.sha }}
 
       # -----------------------------------------------------------------------
       #  POMINIĘTY TEST DYMNY MA BYĆ CZERWONY, NIE ZIELONY.
@@ -725,9 +731,21 @@ jobs:
           # miejscu, a kroki Migracje/Redeploy/Instrukcja cofnięcia niżej
           # tylko się do niej odwołują (*railway_token) — bez czterech kopii
           # tego samego wyrażenia do zsynchronizowania ręcznie.
-          RAILWAY_TOKEN: &railway_token ${{ github.event.inputs.environment == 'production'
-            && secrets.RAILWAY_TOKEN_PRODUCTION
-            || secrets.RAILWAY_TOKEN_STAGING }}
+          #
+          # KAŻDE ŚRODOWISKO TYLKO SWÓJ SEKRET, BEZ ZAPASOWEGO (#2255).
+          # Było `production && PRODUCTION || STAGING`: w wyrażeniach Actions
+          # `a && b || c` to NIE jest operator trójargumentowy — gdy sekret
+          # produkcji jest pusty albo niedostępny, `&&` daje fałsz i `||`
+          # podaje token STAGINGU dla TARGET_ENV=production. Kontrola `-z`
+          # niżej przechodziła, a dalsze polecenia szły na produkcję z cudzym
+          # tokenem. Teraz każda gałąź sprawdza własną nazwę środowiska,
+          # a końcowe `|| ''` zamienia „nic nie pasuje” w PUSTY token (bez
+          # niego wyszłoby dosłowne „false”, niepuste), więc brak właściwego
+          # sekretu zatrzymuje operację w kroku niżej.
+          # Strażnik: tests/Feature/TokenRailwayBezZapasowegoSrodowiskaTest.php.
+          RAILWAY_TOKEN: &railway_token ${{ (github.event.inputs.environment == 'production' && secrets.RAILWAY_TOKEN_PRODUCTION)
+            || (github.event.inputs.environment == 'staging' && secrets.RAILWAY_TOKEN_STAGING)
+            || '' }}
         run: |
           set -euo pipefail
           if [ -z "${RAILWAY_TOKEN:-}" ]; then

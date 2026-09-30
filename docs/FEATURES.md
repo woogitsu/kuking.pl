@@ -114,7 +114,7 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 - rodzinna książka; *(pierwszy krok: wspólny zeszyt z zaproszeniami — #1743, D-302, 26.09.2026)*
 - Q&A;
 - Web Push;
-- wyzwania społecznościowe.
+- wyzwania społecznościowe. *(pierwszy krok: „Ugotujmy razem” — jeden przepis tygodnia wybrany przez gospodarza i wykonania z tego tygodnia, bez nagród i bez członkostwa; decyzja właściciela z 30.09.2026, karta F3 z researchu nowych funkcji z 30.09.2026)*
 
 ## V2
 

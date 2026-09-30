@@ -91,6 +91,16 @@ Profil publiczny: `ProfilRequest` (zakładka, rok i fraza z adresu, `rules()` pu
 Onboarding: `ZapisZainteresowanRequest`, `ZapisObserwowanychRequest` + `ObserwujWybraneOsoby` (zapis; limit 20 osób, para nazwa–identyfikator #793) oraz `EkranLudziRequest` + `PrzygotujEkranLudzi` (ekran „kogo obserwować”).
 Zgłoszenie treści: `ZgloszenieTresciRequest` (limit trasy → odsyłka konta pod nazwą → pola; cel i Policy zostają w `ReportContent`). `NotificationController` nie ma walidacji wejścia.
 Przypadki użycia z własną transakcją i blokadą: `ZamknijGrupeSygnalow` (`SygnalyController::odrzucGrupe()`, wynik w `WynikZamknieciaGrupy`) i `ZuzyjLinkDoLogowania` (`LoginLinkController::store()`, awaria dziennika jako `WejscieLinkiemWycofane`) — kolejność blokad bez zmian; pozostałe `DB::transaction` w kontrolerach to jednolinijkowe savepointy wokół pojedynczego zapisu. Ustawienia 2FA: `WlaczenieDwuetapowejRequest`/`NoweKodyZapasoweRequest`/`WylaczenieDwuetapowejRequest` (worki błędów `regenerate` i `disable`) + `WlaczDwuetapowa` i `WygenerujNoweKodyZapasowe` (dwa domknięcia `ZamekKonta`, kolejność sprawdzeń bez zmian); `RegistrationInviteController` nie ma blokad — tylko `PrzyjecieZaproszeniaRequest` (odczyt tokenu bez reguł, żeby błąd nie był wyrocznią).
+Tablica tam, gdzie oczekiwany jest tekst (#2239 i rodzina, audyt BP-04): parametr
+ADRESU podany jako lista (`?tydzien[]=`) usuwa `App\Http\Middleware\ParametryAdresuBezTablic`
+w grupie `web` — kontroler widzi brak parametru, a nie tablicę. Wyjątki (formularze GET
+wysyłające listę, dziś tylko `onboarding.people`) stoją w `LISTY_DOZWOLONE`; ślad usunięcia
+czyta `bylWAdresie()` (klasyfikacja sekretnych adresów, komunikat o nierozpoznanym czasie).
+Pole TREŚCI formularza czytane przed walidacją albo bez niej idzie przez `App\Support\Wejscie`:
+`normalizujTekst()` (tablica zostaje dla reguły `string`, błąd przy polu) albo `tekst()`
+(ukryte pole: tablica to pusty napis i zwykła droga „nieaktualne”). Nie `(string) $request->input(...)`
+ani `$request->string()` — oba rzutują tablicę i dają HTTP 500. Pilnuje tego
+`TabliceWParametrachNieDajaBledu500Test` (przypadki ze zgłoszeń + obchód tras GET i publicznych formularzy).
 Kolejne kandydaty (od największego): `CollectionController` (dalsze kroki), `NotificationController`,
 kontrolery logowania Google/Facebook (#1035).
 

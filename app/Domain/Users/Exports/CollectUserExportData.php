@@ -76,7 +76,8 @@ final class CollectUserExportData
     /** @return array<string, mixed> */
     public function handle(User $user, ExportPhotoPlan $photos, Carbon $generatedAt): array
     {
-        $this->granica = new GranicaCudzychDanych($user);
+        // Ta sama granica, którą plan zdjęć liczył nazwy plików (#2312, #2313).
+        $this->granica = $photos->granicaDla($user);
 
         $user->loadMissing('profile.avatar');
 
@@ -325,6 +326,8 @@ final class CollectUserExportData
             // regulamin" (#1811, D-306); `null` — żadnego jeszcze nie zamknięto.
             'pasek_zmiany_regulaminu_zamkniety_dla_wersji' => $user->terms_notice_dismissed_version,
             'pasek_zmiany_polityki_zamkniety_dla_wersji' => $user->policy_notice_dismissed_version,
+            // Sprzeciw wobec statystyk (#2277); `null` — sprzeciwu nie ma.
+            'sprzeciw_wobec_statystyk_od' => $this->date($user->sprzeciw_statystyk_at),
             // Kolumny `users` dopisane w #953 — `InwentarzDanychKonta::KOLUMNY_KONTA`.
             'rola' => $user->role,
             'status_konta_do' => $this->date($user->status_expires_at),
@@ -483,7 +486,12 @@ final class CollectUserExportData
             'status' => $post->status,
             'utworzono' => $this->date($post->created_at),
             'opublikowano' => $this->date($post->published_at),
-            'dotyczy_przepisu' => $post->recipe?->title,
+            // Wpis jest mój, przepis, którego dotyczy — bywa cudzy (#2316).
+            // Tytuł tylko wtedy, gdy przepis widać dziś pod jego adresem,
+            // tą samą granicą co „Ugotowałem” niżej. Wpis bez przepisu: null.
+            'dotyczy_przepisu' => $post->recipe_id === null
+                ? null
+                : ($this->granica->widzi($post->recipe) ? $post->recipe->title : self::TRESC_NIEDOSTEPNA),
             'tagi' => $post->tags->map(fn ($tag): array => [
                 'id' => $tag->getKey(),
                 'nazwa' => $tag->name,

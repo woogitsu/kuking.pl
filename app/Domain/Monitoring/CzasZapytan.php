@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domain\Monitoring;
 
-use App\Logging\WebhookBleduHandler;
+use App\Logging\KanalyAlarmowe;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Connection;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
-use Throwable;
 
 /**
  * Łączny czas zapytań SQL jednego żądania HTTP — z progiem i alarmem (#599).
@@ -113,7 +112,7 @@ final class CzasZapytan
             'prog_ms' => $progMs,
         ]);
 
-        if (blank(config('logging.channels.blad_webhook.url'))) {
+        if (! KanalyAlarmowe::wlaczony()) {
             return;
         }
 
@@ -123,22 +122,15 @@ final class CzasZapytan
             'czas-bazy:'.substr(sha1($metoda.' '.$trasa), 0, 12),
             (int) config('kuking.monitoring.seria_okno_minut'),
             static function (int $pominiete) use ($metoda, $trasa, $czas, $progMs): bool {
-                WebhookBleduHandler::zapomnijOstatniaWysylke();
-                try {
-                    Log::channel('blad_webhook')->error(sprintf(
-                        'wolna baza: %s %s — %d ms zapytań SQL w jednym żądaniu (próg %d ms). '
-                        .'Co zrobić: sprawdź w dzienniku serwera wpisy „czas_bazy_ms” dla tej trasy; '
-                        .'jedna wiadomość to pojedyncze żądanie, seria to N+1 albo brak indeksu.',
-                        $metoda,
-                        $trasa,
-                        $czas,
-                        $progMs,
-                    ), ['pominiete_powtorzenia' => $pominiete]);
-                } catch (Throwable) {
-                    return false;
-                }
-
-                return WebhookBleduHandler::ostatniaWysylkaSieUdala() === true;
+                return KanalyAlarmowe::zadzwon(sprintf(
+                    'wolna baza: %s %s — %d ms zapytań SQL w jednym żądaniu (próg %d ms). '
+                    .'Co zrobić: sprawdź w dzienniku serwera wpisy „czas_bazy_ms” dla tej trasy; '
+                    .'jedna wiadomość to pojedyncze żądanie, seria to N+1 albo brak indeksu.',
+                    $metoda,
+                    $trasa,
+                    $czas,
+                    $progMs,
+                ), ['pominiete_powtorzenia' => $pominiete]);
             },
         );
     }

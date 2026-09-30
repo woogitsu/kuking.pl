@@ -39,9 +39,10 @@ class NotificationController extends Controller
             // oznaczyć — liczone na tym samym zbiorze co lista i licznik
             // (`visibleTo`), po wszystkich stronach, nie po bieżącej.
             // Nieprzeczytane na tej stronie rozstrzyga bez zapytania;
-            // dopiero strona samych przeczytanych pyta o resztę.
+            // dopiero strona samych przeczytanych pyta o resztę — przez
+            // `EXISTS`, nie pełne `COUNT(*)` (issue #2289).
             'saNieprzeczytane' => collect($notifications->items())->contains(fn (Notification $n): bool => $n->read_at === null)
-                || $user->unreadNotificationsCount() > 0,
+                || $odczyt->saNieprzeczytane($user),
             'questionTitles' => $questionContext->titles($notifications->items(), $user),
             'destinationUrls' => app(CelPowiadomienia::class)->adresy($notifications->items(), $user),
             'decyzjeModeracyjne' => $this->decyzje($notifications->items()),

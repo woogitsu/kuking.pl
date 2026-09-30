@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Posts;
 
 use App\Domain\Posts\AkcjeTagowRoboczych;
+use App\Support\Wejscie;
 
 /**
  * Odczyt pól tagów z formularza wpisu — wspólny dla zapisu i edycji
@@ -45,8 +46,9 @@ trait OdczytujeAkcjeTagow
     {
         return app(AkcjeTagowRoboczych::class)->zastosuj(
             $tagNames,
-            $this->filled('usun_tag') ? (string) $this->input('usun_tag') : null,
-            $this->filled('dodaj_tag') ? (string) $this->input('dodaj_tag') : null,
+            // Nie-tekst (`usun_tag[]=`) to brak akcji, nie HTTP 500 (BP-04).
+            $this->filled('usun_tag') ? Wejscie::tekst($this->input('usun_tag')) : null,
+            $this->filled('dodaj_tag') ? Wejscie::tekst($this->input('dodaj_tag')) : null,
             $pytanie,
         );
     }

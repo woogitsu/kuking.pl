@@ -199,6 +199,8 @@ OCZEKUJ = {
     'Podpowiedź wyglądu bez dolnego insetu': r'Podpowiedź szybkiego wyglądu musi omijać wskaźnik Home\.',
     'Edycja domyślnego zeszytu bez skutku dla przyszłych zapisów': r'contains "i wszystko, co zapiszesz tu później"',
     'Wydruk przepisu z pismem poniżej 12 pt': r'Reguła druku ustawia pismo poniżej 12 pt\.',
+    'Ściągawka do wydruku z pismem poniżej 16 pt (F4)': r'Ściągawka nie ma w druku progu 16 pt\.',
+    'Ściągawka bez wspólnej ramy druku (F4)': r'Ściągawka nie dzieli z przepisem ramy kartki w druku\.',
     'Offline: „Spróbuj ponownie” znów prowadzi na /home (#749)': r"@@ @@ -'' \+'/home'",
     'Kontrakt karty bez zdjęcia przepisu': r'Karta dociąga relacje leniwie na powierzchni „obserwowani”\.|Karta dociąga relacje leniwie na powierzchni „tagi”\.|Karta dociąga relacje leniwie na powierzchni „odkrywanie”\.|Karta dociąga relacje leniwie na powierzchni „tablica”\.|Karta dociąga relacje leniwie na powierzchni „profil”\.|Karta dociąga relacje leniwie na powierzchni „tag”\.|Karta dociąga relacje leniwie na powierzchni „zeszyt”\.|Expected response status code \[200\] but received 500\.',
     'Kontrakt karty bez tematów': r'Brak tematów na „obserwowani”\.|Karta dociąga relacje leniwie na powierzchni „tagi”\.|Brak tematów na „odkrywanie”\.|Brak tematów na „profil”\.|Brak tematów na „tag”\.|Brak tematów na „zeszyt”\.',
@@ -215,6 +217,7 @@ OCZEKUJ = {
     'Polityka z okresem sesji innym niż życie sesji na produkcji': r'contains "Do \*\*\d+ dni\*\* od ostatniej aktywności"',
     'Sprzątanie audytu zostawia skrót IP we wpisach dowodowych': r'Failed asserting that 0 is identical to 1\.',
     'Kontroler Google z własną kopią wejścia na konto': r'GoogleLoginController ma własną kopię: wejście na konto \(wpusc /',
+    'Operacja na produkcji bierze token staginu, gdy brak sekretu produkcji': r'wyrażenie tokenu Railway daje „tok-staging”, a powinno „”\.',
     'Instalacja Railway CLI bez sprawdzenia sumy kontrolnej': r'\.github/workflows/deploy\.yml: krok „Instalacja Railway CLI” ma',
     'Bramka tokenu krawędzi przepuszcza żądanie bez tokenu': r'Expected response status code \[403\] but received 200\.|Expected response status code \[403\] but received 405\.',
     'Caddy czyta X-Forwarded-For od lewej': r'Dla X-Forwarded-For „198\.51\.100\.66, 203\.0\.113\.7” Caddy zapisze w logu|Dla X-Forwarded-For „192\.0\.2\.1, 198\.51\.100\.66, 203\.0\.113\.7” Caddy|Dla X-Forwarded-For „10\.0\.0\.1, 203\.0\.113\.7” Caddy zapisze w logu',
@@ -328,6 +331,41 @@ OCZEKUJ = {
     # #2223 (D-333): tinker poza obrazem produkcyjnym.
     'Tinker wraca do require': r'laravel/tinker wrócił do `require`',
     'Runbook znów każe użyć tinkera': r'MONITORING_BLEDOW\.md każe użyć `php artisan tinker`',
+    # #599: poczta jako drugi kanał alarmowy (wzorce zebrane przy scalaniu paczki K,
+    # ręcznie na bazie stanowiska — gałąź #599 dodała wpisy bez wzorców).
+    'List alarmowy bez znacznika rezerwacji': r"Znacznik ListZarezerwowany ma klasa spoza rejestru.*'app/Mail/AlarmOperacyjny\.php'",
+    'Poczta wypada z kanałów alarmowych': r'\[App\\Mail\\AlarmOperacyjny\] mailable was not sent|The total number of mailables sent was 0 instead of [12]\.|KanalAlarmowyMailemTest\.php:161|- \'blad_email\' => false|Output does not contain "poczta \(KUKING_ALARM_EMAIL\) PRZYJĄŁ"|Expected status code [01] but received [01]\.',
+    'Awaria poczty przewraca raport i zabiera Discord': Wyjatek(r'TransportException: niedostępny'),
+    'List alarmowy bez dobowego sufitu': r'The total number of mailables sent was 3 instead of 2\.',
+    'List alarmowy niesie komunikat wyjątku': r'does not contain "ktos@example\.com"|\[App\\Mail\\AlarmOperacyjny\] mailable was not sent',
+    # Audyt infra 30.09.2026 (#2293, #2296, #2298, #2301, #2302).
+    'Kolejka traci proc_open (#2293)': r'równa liście z docker/php\.ini minus proc_open|Proces kolejki z produkcyjnym php\.ini nie ma proc_open',
+    'queue:work bez listy funkcji kolejki (#2293)': r'queue:work nie dostaje listy funkcji bez proc_open',
+    'Job PR-a bez straży forka (#2298)': r'może trafić z forka na własny runner',
+    'Bramka deployu bez warunku repozytorium (#2298)': r'bez warunku head_repository\.full_name == github\.repository',
+    'Nagłówek deploy.yml znów o repo prywatnym (#2302)': r'mówi, że repozytorium jest prywatne albo ma pulę 2 000 minut',
+    'Runbook #595 bez wyłącznika życzeń (#2296)': r'runbook .* ich nie wymienia.*KUKING_URODZINY_MAIL_WLACZONY',
+    'Composer bez config.platform.php (#2301)': r'config\.platform\.php = 8\.4\.0 odtwarza błąd #2301|wymagają nowszego PHP niż config\.platform\.php 8\.4\.0',
+    'Nowa migracja w starej grupie znacznika (#2302)': r'Migracja ze znacznikiem czasu, który ma już inna migracja',
+    # #2309, #2310, #2263, #2233, #2230, #2248: łańcuch dostaw CI i bramka wdrożenia.
+    'Krok CI dodaje klucz PGDG z pominięciem odcisku': r'sam dodaje repozytorium PGDG albo instaluje klienta PostgreSQL z APT',
+    'Klient PostgreSQL 18 bez sprawdzenia odcisku klucza PGDG': r'Skrypt klienta nie sprawdza odcisku pobranego klucza PGDG|Test skryptu klienta PostgreSQL 18 oblał: Klient PostgreSQL 18: \d+ oblanych przypadków',
+    'openpyxl bez --require-hashes': r'instaluje pakiety Pythona bez --require-hashes',
+    'Zależność openpyxl bez hasha w pliku wymagań': r'wymaganie „et-xmlfile==2\.0\.0” nie ma dokładnej wersji \(==\) i hasha',
+    'Usługa PostgreSQL w CI z ruchomego tagu': r'obraz `postgres:18-alpine` bez digestu — tag jest ruchomy',
+    'Digest usługi PostgreSQL inny niż w Dockerfile Dependabota': r'ma inny digest niż FROM w docker/ci-postgres/Dockerfile',
+    'Bramka Railway checkoutuje bieżący main zamiast SHA z CI': r'Checkout bramki nie ma `ref: \$\{\{ github\.event\.workflow_run\.head_sha \}\}`',
+    'Skrypt bramki Railway nie porównuje HEAD z SHA z CI': r'Skrypt bramki nie porównuje `git rev-parse HEAD` z SHA z CI',
+    'Wydanie Sentry z github.sha zamiast SHA wdrożenia': r'Wydanie Sentry ma version: \$\{\{ github\.sha \}\}, a powinno',
+    'Nieznany stan w historii wdrożenia pominięty': r'OBLANE: nieznany stan w historii = błąd wejścia \(#2248\) \(kod 0, oczekiwano 2\)',
+    # Audyt prywatności 30.09 (#2278, #2281, #2282).
+    'Polityka bez nazwy ciasteczka zapamiętaj mnie': r'Polityka nie podaje nazwy ciasteczka „zapamiętaj mnie”',
+    'Polityka z terminem zapamiętaj mnie innym niż bramka': r'Ciasteczko „zapamiętaj mnie” żyje 400 dni',
+    'Klucz localStorage bez opisu w polityce': r'zapisuje w localStorage „kuking-wyglad-nowy”',
+    'Planer bez wiersza w polityce': r'Dane z sekcji paczki „planer” nie mają opisu',
+    'Nowa sekcja paczki bez opisu w polityce': r'Paczka ma nową sekcję „planer_nowy”',
+    'Postęp gotowania z terminem niezgodnym z konfiguracją': r'Postęp gotowania żyje 24 godzin',
+    'Cloudflare jako pośrednik bez wiersza w polityce': r'Kod używa usługi „Cloudflare \(sieć, CDN i ochrona',
 }
 
 

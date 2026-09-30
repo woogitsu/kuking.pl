@@ -18,6 +18,7 @@ use App\Support\Komunikat;
 use App\Support\Poczta;
 use App\Support\Skrot;
 use App\Support\Turnstile;
+use App\Support\Wejscie;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -284,7 +285,9 @@ class LoginLinkController extends Controller
             ));
         }
 
-        $token = (string) $request->input('token', '');
+        // Tablica (`token[]=`) nie jest żadnym linkiem: pusty napis idzie
+        // zwykłą drogą „link nieaktualny”, zamiast HTTP 500 (#2266).
+        $token = Wejscie::tekst($request->input('token'));
 
         // ZUŻYCIE TOKENU IDZIE POD DWIEMA BLOKADAMI: NAJPIERW WIERSZ KONTA,
         // POTEM WIERSZ TOKENU (D-075, D-079). Kolejność, rewalidację i wpis

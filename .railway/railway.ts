@@ -144,6 +144,13 @@ const NAZWA_BAZY = "Postgres";
  * nazwę żywego serwisu (`NAZWA_SERWISU_WWW`, od 24.09.2026). NIE zmieniaj tej flagi w ramach samego sprostowania
  * dokumentacji — rozbicie na trzy serwisy zostaje celem, dopóki właściciel
  * nie zdecyduje inaczej; zmienia się tylko to, co ten komentarz mówi o dziś.
+ *
+ * Stan potwierdzony 29.09.2026: nadal jeden serwis `kuking.pl`, APP_ROLE=all.
+ * Właściciel zdecydował tego dnia dokończyć rozdzielenie (D-333): repozytorium
+ * jest gotowe, przełączenie robi właściciel według
+ * docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md — najpierw bilans zmiennych
+ * (krok 0.5), bo pierwszy apply usunie z `kuking.pl` zmienne workera
+ * i schedulera, a wartości mają już wtedy czekać w Shared Variables.
  */
 const PRODUCTION_SPLIT_SERVICES = true;
 
@@ -503,6 +510,13 @@ export default defineRailway((ctx) => {
     // idzie przez `ctx.shared`, tak jak klucze niżej, a nie jako
     // wartość wpisana w tym pliku.
     LOG_BLAD_WEBHOOK_URL: ctx.shared.LOG_BLAD_WEBHOOK_URL,
+
+    // Drugi kanał alarmowy: poczta (#599, `config/logging.php` kanał
+    // `blad_email`). Adres skrzynki operatora — dana osobowa, nie klucz, ale
+    // trzymana jak webhook w `ctx.shared`, żeby nie stała w repozytorium.
+    // Puste = sam Discord. Wszystkie trzy role: błąd może paść w każdej.
+    // To NIE jest `KUKING_MODEL_ALARM_EMAIL` (skrzynka moderacji).
+    KUKING_ALARM_EMAIL: ctx.shared.KUKING_ALARM_EMAIL,
 
     // --- Turnstile, Google, Facebook, analityka odwiedzin -------------------
     // Żyją w `wejscieEnv` niżej i trafiają WYŁĄCZNIE do web (#1013): czyta je
@@ -870,6 +884,17 @@ export default defineRailway((ctx) => {
     KUKING_URODZINY_MAIL_WLACZONY: isProduction ? "true" : "false",
   };
 
+  //  --- Podsumowanie tygodnia mailem: TYLKO scheduler (#2302, IN-12) -------
+  //  `kuking:wyslij-podsumowania-tygodnia` z harmonogramu czyta
+  //  `kuking.digest.wlaczony` (`config/kuking.php`, domyślnie `false`). Do
+  //  30.09.2026 tej zmiennej nie było w tym pliku, więc włączenie podsumowań
+  //  w panelu zniknęłoby przy pierwszym `apply` bez śladu. Przez `ctx.shared`,
+  //  bo to pokrętło właściciela per środowisko; PUSTE = `false`, czyli
+  //  bezpieczny kierunek (podsumowania wyłączone), tak jak dziś.
+  const podsumowaniaEnv = {
+    KUKING_DIGEST_WLACZONY: ctx.shared.KUKING_DIGEST_WLACZONY,
+  };
+
   //  --- Web Push: klucz publiczny web + worker, prywatny TYLKO worker (#35, D-303)
   //  PUSTE = funkcji nie ma: brak ekranu `/ustawienia/powiadomienia`,
   //  przycisku i wysyłki (`KanalPush`). Web potrzebuje klucza publicznego,
@@ -921,7 +946,7 @@ export default defineRailway((ctx) => {
     ...pushPublicznyEnv,
     ...pushWysylkaEnv,
   };
-  const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ...pulsHarmonogramuEnv, ...gospodarzEnv, ...urodzinyEnv };
+  const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ...pulsHarmonogramuEnv, ...gospodarzEnv, ...urodzinyEnv, ...podsumowaniaEnv };
   const wszystkieRoleEnv = { ...webEnv, ...workerEnv, ...schedulerEnv };
 
   // ---------------------------------------------------------------------------

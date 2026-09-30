@@ -68,6 +68,20 @@ final class ZapiszSygnal
     public const PWA_INSTALLED = 'pwa_installed';
 
     /**
+     * „Jak wyszło?” (F1, D-333) — cztery liczniki bez `user_id` i bez
+     * przepisu. Pisze je wyłącznie `App\Domain\Recipes\Gotowanie\JakWyszlo`,
+     * czyta `App\Domain\Analytics\DojsciaDoKoncaGotowania` (`kuking:raport`).
+     * `COOKING_LAST_STEP_COOKED` niesie jedno pole: `po_pytaniu` (bool).
+     */
+    public const COOKING_LAST_STEP_REACHED = 'cooking_last_step_reached';
+
+    public const COOKING_LAST_STEP_COOKED = 'cooking_last_step_cooked';
+
+    public const COOKING_FOLLOWUP_SHOWN = 'cooking_followup_shown';
+
+    public const COOKING_FOLLOWUP_DISMISSED = 'cooking_followup_dismissed';
+
+    /**
      * Tygodniowe podsumowanie WPUSZCZONE DO KOLEJKI (issue #11, D-057;
      * przemianowany przy D-078, audyt 10.09.2026 ustalenie MAIL-03).
      *
@@ -150,8 +164,18 @@ final class ZapiszSygnal
     {
         try {
             DB::transaction(function () use ($user, $signalName, $properties): void {
+                $konto = $this->kontoDoPowiazania($user);
+
+                // SPRZECIW WOBEC STATYSTYK (RODO art. 21, #2277): zdarzenia
+                // tej osoby nie zapisujemy wcale — ani z kontem, ani bez.
+                // Polityka prywatności obiecuje, że sprzeciw da się złożyć
+                // w ustawieniach; bez tego warunku przycisk byłby atrapą.
+                if ($konto === false) {
+                    return;
+                }
+
                 ProductSignal::create([
-                    'user_id' => $this->kontoDoPowiazania($user),
+                    'user_id' => $konto,
                     'signal_name' => $signalName,
                     'properties' => $properties,
                 ]);
@@ -197,7 +221,12 @@ final class ZapiszSygnal
      * pierwszy był sygnał, wymazanie czeka na nas i odpina też ten wiersz.
      * Samo zdarzenie zostaje — liczniki zbiorcze nie tracą ani jednej sztuki.
      */
-    private function kontoDoPowiazania(?User $user): ?string
+    /**
+     * `false` znaczy „nie zapisuj nic”: konto zgłosiło sprzeciw wobec
+     * statystyk (#2277). Czytane pod tą samą blokadą `FOR SHARE`, więc
+     * sprzeciw zatwierdzony przed tym zapisem na pewno go zatrzyma.
+     */
+    private function kontoDoPowiazania(?User $user): string|false|null
     {
         if ($user === null) {
             return null;
@@ -206,7 +235,11 @@ final class ZapiszSygnal
         $konto = DB::table('users')
             ->where('id', $user->getKey())
             ->sharedLock()
-            ->first(['id', 'data_erased_at']);
+            ->first(['id', 'data_erased_at', 'sprzeciw_statystyk_at']);
+
+        if ($konto !== null && $konto->sprzeciw_statystyk_at !== null) {
+            return false;
+        }
 
         return $konto !== null && $konto->data_erased_at === null ? (string) $konto->id : null;
     }

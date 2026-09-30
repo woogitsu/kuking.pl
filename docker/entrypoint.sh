@@ -653,8 +653,33 @@ przebieg_w_tle() {
   return "${kod}"
 }
 
+# -----------------------------------------------------------------------------
+#  `proc_open` TYLKO DLA PROCESÓW KOLEJKI, NIGDY DLA WWW (issue #2293, IN-01)
+#
+#  `docker/php.ini` wyłącza `exec,passthru,shell_exec,system,proc_open,popen`
+#  — dla serwera WWW to świadome utwardzenie i tak zostaje. Odczyt PDF-a
+#  (`TekstZPdf`, `OdczytajSkanPdf`) uruchamia jednak Popplera
+#  (`pdfinfo`, `pdftotext`, `pdftoppm`) przez Symfony Process, a ten wymaga
+#  `proc_open`. Bez tej flagi zadanie `ImportujPrzepisZPdf` padało ZAWSZE:
+#  „The Process class relies on proc_open, which is not available".
+#
+#  Dlatego procesy `queue:work` (rola `worker` i kolejka w roli `all`)
+#  dostają listę BEZ `proc_open` flagą `-d`, która wygrywa z plikiem ini.
+#  Reszta listy zostaje: `exec`, `system`, `popen` i spółka wołają powłokę,
+#  a Process dostaje tablicę argumentów i powłoki nie potrzebuje.
+#  FrankenPHP (WWW) i harmonogram czytają sam `docker/php.ini` — tam
+#  `proc_open` dalej nie istnieje.
+#
+#  Lista musi być równa liście z `docker/php.ini` minus `proc_open`. Pilnuje
+#  tego `KolejkaCzytaPdfZProdukcyjnymPhpIniTest`, który uruchamia też odczyt
+#  PDF-a w podprocesie PHP z produkcyjnym `php.ini` i tą flagą.
+# -----------------------------------------------------------------------------
+FUNKCJE_ZABRONIONE_KOLEJKI="exec,passthru,shell_exec,system,popen"
+
 jeden_przebieg_kolejki() {
-  exec php -d "memory_limit=${PHP_WORKER_MEMORY_LIMIT:-512M}" /app/artisan queue:work \
+  exec php -d "memory_limit=${PHP_WORKER_MEMORY_LIMIT:-512M}" \
+    -d "disable_functions=${FUNKCJE_ZABRONIONE_KOLEJKI}" \
+    /app/artisan queue:work \
     --queue="$1" \
     --tries="${QUEUE_TRIES:-3}" \
     --backoff="${QUEUE_BACKOFF:-10,60,300}" \

@@ -10,9 +10,11 @@ use App\Domain\Rocznice\Urodziny;
 use App\Models\Notification;
 use App\Models\User;
 use App\Support\Czas;
+use Carbon\CarbonInterface;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * „Dziś urodziny: Ania" — przypomnienie dla obserwujących (issue #1755, etap d).
@@ -32,6 +34,17 @@ use Illuminate\Support\Carbon;
  */
 class PrzypomnijOUrodzinach extends Command
 {
+    /** Przestrzeń blokad doradczych (numer issue #1755). */
+    private const PRZESTRZEN_BLOKAD = 1755;
+
+    private const UTWORZONO = 'utworzono';
+
+    private const PONAD_LIMIT = 'ponad-limit';
+
+    private const JUZ_BYLO = 'juz-bylo';
+
+    private const POMINIETO = 'pominieto';
+
     protected $signature = 'kuking:przypomnij-o-urodzinach';
 
     protected $description = 'Tworzy powiadomienia „Dziś urodziny" dla obserwujących osób, które to włączyły (issue #1755).';
@@ -57,24 +70,9 @@ class PrzypomnijOUrodzinach extends Command
                 ->orderBy('users.id')
                 ->chunk(200, function ($obserwujacy) use ($solenizant, $powiadom, $poczatekDoby, $limit, &$utworzono, &$ponadLimit): void {
                     foreach ($obserwujacy as $odbiorca) {
-                        $dzisiejsze = Notification::query()
-                            ->where('user_id', $odbiorca->getKey())
-                            ->where('type', Notification::TYPE_BIRTHDAY)
-                            ->where('created_at', '>=', $poczatekDoby);
-
-                        if ((clone $dzisiejsze)->where('actor_id', $solenizant->getKey())->exists()) {
-                            continue;
-                        }
-
-                        if ($dzisiejsze->count() >= $limit) {
-                            $ponadLimit++;
-
-                            continue;
-                        }
-
-                        if ($powiadom->handle($odbiorca, Notification::TYPE_BIRTHDAY, $solenizant) !== null) {
-                            $utworzono++;
-                        }
+                        $wynik = $this->przypomnijJednemu($powiadom, $odbiorca, $solenizant, $poczatekDoby, $limit);
+                        $utworzono += $wynik === self::UTWORZONO ? 1 : 0;
+                        $ponadLimit += $wynik === self::PONAD_LIMIT ? 1 : 0;
                     }
                 });
         }
@@ -82,6 +80,41 @@ class PrzypomnijOUrodzinach extends Command
         $this->info("Utworzono przypomnień: {$utworzono}. Pominięto przez dobowy limit: {$ponadLimit}.");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Sprawdzenie „już dziś było" i limitu doby oraz zapis — w JEDNEJ sekcji
+     * krytycznej na odbiorcę (#2318). Bez niej dwa równoległe uruchomienia
+     * (ręczne obok harmonogramu, dwie instancje po utracie blokady
+     * `onOneServer`) oba czytały „brak" i oba tworzyły powiadomienie.
+     * Blokada doradcza na ODBIORCĘ, nie na parę: limit doby liczy wszystkie
+     * przypomnienia odbiorcy, więc para nie wystarczy.
+     */
+    private function przypomnijJednemu(NotifyUser $powiadom, User $odbiorca, User $solenizant, CarbonInterface $poczatekDoby, int $limit): string
+    {
+        return DB::transaction(static function () use ($powiadom, $odbiorca, $solenizant, $poczatekDoby, $limit): string {
+            DB::selectOne(
+                'SELECT pg_advisory_xact_lock('.self::PRZESTRZEN_BLOKAD.', hashtext(?))',
+                [(string) $odbiorca->getKey()],
+            );
+
+            $dzisiejsze = Notification::query()
+                ->where('user_id', $odbiorca->getKey())
+                ->where('type', Notification::TYPE_BIRTHDAY)
+                ->where('created_at', '>=', $poczatekDoby);
+
+            if ((clone $dzisiejsze)->where('actor_id', $solenizant->getKey())->exists()) {
+                return self::JUZ_BYLO;
+            }
+
+            if ($dzisiejsze->count() >= $limit) {
+                return self::PONAD_LIMIT;
+            }
+
+            return $powiadom->handle($odbiorca, Notification::TYPE_BIRTHDAY, $solenizant) !== null
+                ? self::UTWORZONO
+                : self::POMINIETO;
+        });
     }
 
     /** @return Builder<User> */

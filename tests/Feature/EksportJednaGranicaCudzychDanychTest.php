@@ -10,12 +10,14 @@ use App\Models\Block;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\DataExport;
+use App\Models\Media;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 use ZipArchive;
 
@@ -124,6 +126,120 @@ class EksportJednaGranicaCudzychDanychTest extends TestCase
 
         $this->assertStringContainsString('Widoczny komentarz Dory', $calosc);
         $this->assertStringNotContainsString('osoby blokujacej', $calosc);
+    }
+
+    /** @return array<string, array{0: string}> */
+    public static function utratyDostepu(): array
+    {
+        return [
+            'przepis przełączony na „Tylko ja”' => ['prywatny'],
+            'autor zablokował Basię' => ['blokada'],
+            'autor zamyka konto' => ['zamkniecie'],
+        ];
+    }
+
+    /**
+     * Issue #2312, #2313, #2316: tytuł cudzego przepisu wychodził z paczki
+     * obok granicy — w NAZWIE pliku zdjęcia z „Ugotowałem”
+     * (`ExportPhotoPlan::collectLabels()`) i w polu `dotyczy_przepisu`
+     * własnego wpisu (`CollectUserExportData::posts()`, także w `wpisy.html`).
+     * Sprawdzamy CAŁE archiwum: nazwy wpisów ZIP i bajty każdego pliku,
+     * nie tylko `dane.json`.
+     *
+     * KONTROLA UJEMNA (wykonana): przywrócenie `$event->recipe->title` bez
+     * `widzi()` w `collectLabels()` oblewa na nazwie `zdjecia/…-tajny-bigos-zenka.webp`;
+     * przywrócenie `$post->recipe?->title` w `posts()` oblewa na `dotyczy_przepisu`.
+     */
+    #[DataProvider('utratyDostepu')]
+    public function test_nazwy_zdjec_i_wpis_nie_wynosza_tytulu_niedostepnego_przepisu(string $utrata): void
+    {
+        $basia = $this->user('basia');
+        $zenek = $this->user('zenek', ['display_name' => 'Zenek Autor']);
+        $przepis = Recipe::factory()->for($zenek, 'author')->create(['title' => 'Tajny bigos Zenka']);
+
+        $wykonanie = CookedEvent::factory()->create(['user_id' => $basia->getKey(), 'recipe_id' => $przepis->getKey()]);
+        $zdjecie = Media::factory()->create(['owner_id' => $basia->getKey()]);
+        Storage::disk('public')->put($zdjecie->object_key, 'zdjecie-bigosu');
+        $wykonanie->media()->attach($zdjecie->getKey(), ['position' => 0]);
+
+        Post::factory()->create(['author_id' => $basia->getKey(), 'recipe_id' => $przepis->getKey(), 'body' => 'Mój bigos wyszedł']);
+        Post::factory()->create(['author_id' => $basia->getKey(), 'body' => 'Wpis bez przepisu']);
+
+        // Kontrola dodatnia: dopóki przepis widać, nazwa pliku i wpis go nazywają.
+        [$przed, $plikiPrzed] = $this->archiwum($basia);
+        $this->assertCount(1, $this->zdjeciaZNazwa($plikiPrzed, 'tajny-bigos-zenka'), implode(', ', array_keys($plikiPrzed)));
+        $this->assertSame('Tajny bigos Zenka', $this->wpis($przed, 'Mój bigos wyszedł')['dotyczy_przepisu']);
+        $this->assertNull($this->wpis($przed, 'Wpis bez przepisu')['dotyczy_przepisu']);
+
+        match ($utrata) {
+            'prywatny' => $przepis->forceFill(['visibility' => 'private'])->save(),
+            'blokada' => Block::create(['blocker_id' => $zenek->getKey(), 'blocked_id' => $basia->getKey(), 'created_at' => now()]),
+            'zamkniecie' => $zenek->forceFill(['status' => User::STATUS_PENDING_DELETE])->save(),
+            default => $this->fail('Nieznany rodzaj utraty dostępu: '.$utrata),
+        };
+        DataExport::query()->delete();
+
+        [$po, $pliki] = $this->archiwum($basia);
+
+        $this->assertCount(1, $this->zdjeciaZNazwa($pliki, 'ugotowane'), 'Zdjęcie z wykonania ma neutralną nazwę: '.implode(', ', array_keys($pliki)));
+        $this->assertSame(CollectUserExportData::TRESC_NIEDOSTEPNA, $this->wpis($po, 'Mój bigos wyszedł')['dotyczy_przepisu']);
+        $this->assertNull($this->wpis($po, 'Wpis bez przepisu')['dotyczy_przepisu']);
+        $this->assertSame('Mój bigos wyszedł', $this->wpis($po, 'Mój bigos wyszedł')['tresc'], 'Własna treść wpisu zostaje.');
+
+        foreach ($pliki as $nazwa => $bajty) {
+            foreach (['tajny-bigos', 'Tajny bigos', 'tajny bigos'] as $slad) {
+                $this->assertStringNotContainsString($slad, $nazwa, "Nazwa pliku w ZIP-ie niesie tytuł: {$nazwa}");
+                $this->assertStringNotContainsString($slad, $bajty, "Plik {$nazwa} niesie tytuł niedostępnego przepisu.");
+            }
+        }
+    }
+
+    /**
+     * @return array{0: array<string, mixed>, 1: array<string, string>}
+     */
+    private function archiwum(User $user): array
+    {
+        $export = DataExport::create(['user_id' => $user->getKey(), 'status' => DataExport::STATUS_QUEUED]);
+        (new GenerateUserExport((string) $export->getKey()))->handle();
+        $export->refresh();
+
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open(Storage::disk((string) $export->disk)->path((string) $export->object_key)) === true);
+        $pliki = [];
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $nazwa = (string) $zip->getNameIndex($i);
+            $pliki[$nazwa] = (string) $zip->getFromIndex($i);
+        }
+        $zip->close();
+
+        return [json_decode($pliki['dane.json'], true, 512, JSON_THROW_ON_ERROR), $pliki];
+    }
+
+    /**
+     * @param  array<string, string>  $pliki
+     * @return list<string>
+     */
+    private function zdjeciaZNazwa(array $pliki, string $slug): array
+    {
+        return array_values(array_filter(
+            array_keys($pliki),
+            fn (string $nazwa): bool => preg_match('#^zdjecia/\d{4}-\d{2}-\d{2}-'.preg_quote($slug, '#').'\.webp$#', $nazwa) === 1,
+        ));
+    }
+
+    /**
+     * @param  array<string, mixed>  $dane
+     * @return array<string, mixed>
+     */
+    private function wpis(array $dane, string $tresc): array
+    {
+        foreach ($dane['wpisy'] as $wpis) {
+            if ($wpis['tresc'] === $tresc) {
+                return $wpis;
+            }
+        }
+
+        $this->fail("Brak wpisu „{$tresc}” w paczce.");
     }
 
     /** @return array<string, mixed> */

@@ -180,7 +180,7 @@ final class KlientFacebook
              */
             Log::error('Facebook odrzucił wymianę kodu — sprawdź konfigurację.', [
                 'status' => $odpowiedz->status(),
-                'blad' => (string) $odpowiedz->json('error.type', ''),
+                'blad' => self::tekst($odpowiedz->json('error.type')),
                 'co_zrobic' => 'Sprawdź FACEBOOK_CLIENT_ID i FACEBOOK_CLIENT_SECRET (App ID i App Secret '
                     .'w panelu Meta) oraz to, czy adres powrotu jest wpisany w Facebook Login → Settings '
                     .'→ Valid OAuth Redirect URIs co do znaku '
@@ -235,7 +235,7 @@ final class KlientFacebook
         if ($odpowiedz->failed()) {
             Log::error('Facebook odrzucił odczyt tożsamości.', [
                 'status' => $odpowiedz->status(),
-                'blad' => (string) $odpowiedz->json('error.type', ''),
+                'blad' => self::tekst($odpowiedz->json('error.type')),
                 'co_zrobic' => 'Jeśli to się powtarza, sprawdź, czy wersja Graph API w konfiguracji '
                     .'jeszcze żyje (FACEBOOK_GRAPH_WERSJA, dziś '.Facebook::wersjaGrafu().') — wersje '
                     .'Meta wygasają po około dwóch latach, a wywołania spadają wtedy cicho na starszą.',
@@ -244,7 +244,7 @@ final class KlientFacebook
             return null;
         }
 
-        $identyfikator = trim((string) $odpowiedz->json('id', ''));
+        $identyfikator = trim(self::tekst($odpowiedz->json('id')));
 
         if ($identyfikator === '') {
             return $this->nieUdalo('Odpowiedź Facebooka jest bez identyfikatora konta.', []);
@@ -258,7 +258,7 @@ final class KlientFacebook
          * i „nie ma adresu" to u nas ta sama sytuacja, a dwa sposoby jej
          * zapisania rozjechałyby się przy pierwszym warunku.
          */
-        $email = User::normalizeEmail((string) $odpowiedz->json('email', ''));
+        $email = User::normalizeEmail(self::tekst($odpowiedz->json('email')));
 
         return new TozsamoscFacebook(
             identyfikator: $identyfikator,
@@ -266,7 +266,7 @@ final class KlientFacebook
             // Graph API oddaje `name` (imię i nazwisko). Pytamy „jak mamy Cię
             // nazywać", więc na ekranie lepiej wygląda samo imię — pierwszy
             // wyraz. Cała reszta i tak nigdzie nie jest zapisywana.
-            imie: Str::before(trim((string) $odpowiedz->json('name', '')), ' '),
+            imie: Str::before(trim(self::tekst($odpowiedz->json('name'))), ' '),
         );
     }
 
@@ -274,6 +274,17 @@ final class KlientFacebook
     public static function losowaWartosc(): string
     {
         return Str::random(64);
+    }
+
+    /**
+     * Pole odpowiedzi dostawcy jako tekst — albo pusty tekst, gdy przyszło
+     * w innym typie (#2322). `(string)` na tablicy to „Array to string
+     * conversion”, czyli 500 zamiast odmowy; pusty tekst przechodzi dalej
+     * zwykłą ścieżką „odpowiedź w nieznanym kształcie”.
+     */
+    private static function tekst(mixed $wartosc): string
+    {
+        return is_string($wartosc) || is_int($wartosc) ? (string) $wartosc : '';
     }
 
     /**

@@ -1305,6 +1305,17 @@ return [
              * boli wszystkich, nie tylko ofiarę.
              */
             'logowanie_linkiem' => (bool) env('TURNSTILE_NA_LOGOWANIU_LINKIEM', true),
+
+            /*
+             * ÓSME MIEJSCE, DOŁOŻONE 30 WRZEŚNIA 2026 (#2272, audyt S-04):
+             * odwołanie od decyzji osoby, która nie może się zalogować
+             * (`/odwolanie`). Formularz sprawdza hasło do dowolnego konta,
+             * tak jak logowanie i cofnięcie usunięcia — bez tej bramki był
+             * trzecią, niechronioną drogą do zgadywania haseł. Dla osoby bez
+             * JavaScriptu `<noscript>` i ekran podają adres e-mail: odwołanie
+             * złożone listem też rozpatrujemy (DSA art. 20).
+             */
+            'odwolanie' => (bool) env('TURNSTILE_NA_ODWOLANIU', true),
         ],
     ],
 
@@ -2398,6 +2409,13 @@ return [
         // Bez tej ciszy kanał dostawałby 24 identyczne wiadomości na dobę
         // i nauczyłby ignorować siebie. Zmiana stanu dzwoni od razu.
         'cisza_godzin' => (int) env('KUKING_POLACZENIA_CISZA_GODZIN', 6),
+
+        // `statement_timeout` dla zapytań z ŻĄDANIA HTTP, w milisekundach
+        // (#2290). Worker, harmonogram i migracje go nie dostają. 15 s to
+        // dziesięć razy więcej niż próg alarmu „wolna baza” (1000 ms): zwykła
+        // strona nigdy go nie dotyka, a zawieszone zapytanie nie trzyma wątku
+        // repliki bez końca. 0 wyłącza limit. `App\Support\Baza\LimitCzasuZapytanHttp`.
+        'limit_zapytania_http_ms' => (int) env('KUKING_POLACZENIA_LIMIT_ZAPYTANIA_HTTP_MS', 15000),
     ],
 
     /*
@@ -2698,6 +2716,19 @@ return [
          * mówiłoby tylko „coś kiedyś nie wyszło".
          */
         'okno_prawdy_godzin' => (int) env('KUKING_POCZTA_OKNO_PRAWDY_GODZIN', 24),
+
+        /*
+         * DOBOWY SUFIT LISTÓW Z ALARMEM OPERACYJNYM (`KUKING_ALARM_EMAIL`, #599).
+         *
+         * Okno serii (`monitoring.seria_okno_minut`) i odstępy czujek już
+         * zamieniają burzę w jedną wiadomość. Ten sufit jest ostatnią zaporą:
+         * wiele RÓŻNYCH awarii jednego dnia nie może zjeść puli, z której idą
+         * potwierdzenia rejestracji. 20 listów to 6,7% puli 300. Klasa
+         * `zwykla` — alarm operatora nie sięga po ostatnie listy doby, które
+         * należą do wejścia na konto; Discord i tak dostaje każdy alarm.
+         * Zero wyłącza listy alarmowe bez ruszania adresu.
+         */
+        'alarm_operacyjny_na_dobe' => (int) env('KUKING_ALARM_EMAIL_NA_DOBE', 20),
     ],
 
     'digest' => [
@@ -3330,6 +3361,23 @@ return [
     // (`App\Domain\Compliance\PrzedawnioneUsunieteTresci`).
     'usuniete_tresci' => [
         'retention_days' => (int) env('KUKING_USUNIETE_TRESCI_DNI', 30),
+    ],
+
+    'przepisy' => [
+        // RETENCJA `recipe_versions` (#2024, D-333 — wartości POTWIERDZONE
+        // przez właściciela 30.09.2026). Wersja jest kasowana, gdy jest starsza niż
+        // `version_retention_months` (24 — wartość z decyzji właściciela
+        // z 20.09.2026, najbezpieczniejsza dla ludzi, którzy wracają do
+        // zapisanego przepisu) ORAZ nie jest wśród `version_keep_latest` (3)
+        // najnowszych wersji swojego przepisu. Pierwsza wersja NIE jest
+        // chroniona: historia jest publiczna i to w niej najczęściej leży
+        // treść, którą autor później wycofał. Uzasadnienie:
+        // `App\Domain\Compliance\PrzedawnioneWersjePrzepisow`.
+        // Egzekwuje `kuking:sprzataj-wersje-przepisow`. Minimum K to 2
+        // (komenda i klasa go wymuszają): ostatnia wersja i poprzednia,
+        // żeby „Historia zmian” miała co porównać.
+        'version_retention_months' => (int) env('KUKING_RECIPE_VERSION_RETENTION_MONTHS', 24),
+        'version_keep_latest' => (int) env('KUKING_RECIPE_VERSION_KEEP_LATEST', 3),
     ],
 
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.

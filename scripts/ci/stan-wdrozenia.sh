@@ -35,7 +35,8 @@
 #      ruszyło i nigdy nie stało się zdrowe;
 #    - inactive bez `success` i bez `in_progress`  -> 0, tylko ostrzeżenie:
 #      wdrożenie zastąpiono, zanim ruszyło (kolejka), nic nie padło;
-#    - brak/nieczytelna historia albo śmieciowy STAN -> 2, czerwono: nie
+#    - brak/nieczytelna historia, śmieciowy STAN albo stan spoza listy
+#      GitHuba w KTÓRYMKOLWIEK wierszu historii (#2248) -> 2, czerwono: nie
 #      zgadujemy, bo cichy sukces jest gorszy od fałszywego alarmu.
 #  Wyjście: 0 = bez alarmu, 1 = alarm (czerwony job), 2 = błąd wejścia.
 # =============================================================================
@@ -88,6 +89,17 @@ while read -r ts st _; do
     echo "::error title=Nieczytelna historia wdrożenia::Wiersz historii ma zły kształt (oczekiwano '<czas ISO UTC> <stan>'). Sprawdź krok pobierania historii statusów."
     exit 2
   fi
+  # Każdy stan z historii musi być z listy GitHuba (#2248), także wiersz
+  # późniejszy niż zdarzenie. Nieznany stan pominięty po cichu mógł dać
+  # „zastąpione przed startem” i kod 0 dla wdrożenia, którego stanu skrypt
+  # nie rozumie. Nowa wartość w API to błąd wejścia, nie bezpieczny przypadek.
+  case "$st" in
+    success|failure|error|inactive|in_progress|queued|pending) ;;
+    *)
+      echo "::error title=Nieznany stan w historii wdrożenia::Historia statusów ma stan spoza listy GitHuba (długość: ${#st}); wartości nie wypisuję. Środowisko ${srodowisko}, wersja ${sha}. Nie rozstrzygam, czy to porażka: sprawdź wdrożenie w panelu Railway, a nowy stan dopisz do scripts/ci/stan-wdrozenia.sh razem z regułą i testem."
+      exit 2
+      ;;
+  esac
   # ISO 8601 UTC porównuje się jak tekst.
   if [ -n "$czas" ] && [[ "$ts" > "$czas" ]]; then
     continue

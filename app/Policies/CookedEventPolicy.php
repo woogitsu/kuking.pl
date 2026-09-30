@@ -153,6 +153,16 @@ class CookedEventPolicy
     }
 
     /**
+     * „Nie pokazuj mi tego więcej” przy wspomnieniu z własnego wykonania (F6).
+     * Wyłącznie kucharz: wspomnienie jest zawsze jego, a cudza ręka nie ma
+     * prawa decydować, co wraca komuś na stronę główną.
+     */
+    public function hideAsMemory(User $user, CookedEvent $event): bool
+    {
+        return $user->getKey() === $event->user_id;
+    }
+
+    /**
      * „Ugotowałem” Z URZĘDU NIE ZDEJMUJE NIKT (G31, D-251) — i to nie jest
      * przeoczenie.
      *

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Http\Middleware\ParametryAdresuBezTablic;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 
@@ -65,6 +67,21 @@ final class AnalitykaCloudflare
     }
 
     /**
+     * Czy ten widz nie sprzeciwił się statystykom (RODO art. 21, #2277).
+     *
+     * Zalogowana osoba, która kliknęła „Nie licz mnie w statystykach”, nie
+     * dostaje skryptu na żadnej stronie. Gościa nie umiemy rozpoznać bez
+     * zapisania czegoś na jego urządzeniu — polityka prywatności mówi mu
+     * wprost, że skrypt może zablokować w przeglądarce.
+     */
+    public static function widzNieSprzeciwilSie(): bool
+    {
+        $widz = auth()->user();
+
+        return ! ($widz instanceof User && $widz->sprzeciwWobecStatystyk());
+    }
+
+    /**
      * Nazwy pól adresu, których obecność ZDEJMUJE beacona ze strony.
      *
      * @var list<string>
@@ -123,7 +140,9 @@ final class AnalitykaCloudflare
         $trasa = $zadanie->route();
 
         foreach (self::POLA_SEKRETNE as $pole) {
-            if ($zadanie->query->has($pole)) {
+            // Także pole usunięte jako tablica (`?token[]=…`, BP-04): sekret
+            // dalej stoi w pasku adresu, więc ekran nadal go chroni.
+            if ($zadanie->query->has($pole) || ParametryAdresuBezTablic::bylWAdresie($zadanie, $pole)) {
                 return false;
             }
 

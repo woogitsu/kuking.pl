@@ -1,6 +1,9 @@
 # ---------------------------------------------------------------------------
-#  UWAGA: repozytorium jest PRYWATNE, więc minuta GitHub Actions jest płatna
-#  wtedy, gdy przebieg idzie na runnery GitHuba.
+#  Repozytorium jest PUBLICZNE (decyzja właściciela z 30.09.2026, #2298), więc
+#  standardowe runnery GitHuba są darmowe (#2302, IN-10). PR z forka NIGDY nie
+#  idzie na własne runnery: `runs-on:` niżej zaczyna się od warunku na
+#  `head.repo.full_name` (#2298, IN-06, strażnik
+#  `WorkflowyNieWpuszczajaForkowNaWlasneRunneryTest`).
 #
 #  Kontrolę robimy lokalnie, za darmo:  ./scripts/check.sh
 #  Instalacja hooka pre-push:           ./scripts/install-hooks.sh
@@ -14,7 +17,7 @@
 #  GDZIE TO CHODZI: rozstrzyga ZMIENNA REPOZYTORIUM `CI_RUNS_ON` (D-121).
 #  Każdy job tego pliku ma dokładnie to samo, co joby `ci.yml`:
 #
-#      runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+#      runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
 #
 #  Bez tej zmiennej joby idą na `ubuntu-latest` — zapas w runnerach GitHuba
 #  JEST i jest wartością domyślną. Żeby trafiły na nową pulę
@@ -119,7 +122,7 @@ on:
         required: true
         type: string
       zmiany_destrukcyjne:
-        description: "Zezwól na usunięcie serwisu, bazy albo zmiennej. Przy #595 NIE zaznaczaj."
+        description: "Zezwól na KAŻDE usunięcie: serwisu, bazy albo zmiennej. Przy #595 NIE zaznaczaj — pierwsze apply lokalnie (runbook, krok 3)."
         required: false
         default: false
         type: boolean
@@ -139,7 +142,7 @@ jobs:
   # ===========================================================================
   plan:
     name: Plan (production)
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
 
     # Bramka „Wait for CI” (`checkSuites` w .railway/railway.ts, issue #1390).
@@ -229,7 +232,7 @@ jobs:
   # ===========================================================================
   apply:
     name: Apply (production)
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 20
 
     # Bramka „Wait for CI” (`checkSuites` w .railway/railway.ts, issue #1390).
@@ -298,10 +301,12 @@ jobs:
           railway-token: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
           # confirm-destructive: akcja domyślnie ma to na `true`, dlatego
           # stoi tu JAWNIE i domyślnie `false`: usunięcie serwisu, bazy
-          # albo zmiennej zatrzymuje apply, zamiast przejść. Plan #595 po
-          # zmianie nazw w railway.ts nie powinien niczego usuwać — jeśli
-          # apply zatrzyma się na zmianie destrukcyjnej, przeczytaj plan,
-          # zamiast zaznaczać pole (runbook, „Czytanie planu”).
+          # albo zmiennej zatrzymuje apply, zamiast przejść. Plan #595 USUWA
+          # z `kuking.pl` zmienne workera i schedulera (od #1459 role mają
+          # osobne zestawy) — pole zezwoliłoby jednak na każde usunięcie,
+          # także serwisu i bazy. Dlatego pierwsze apply #595 idzie lokalnie,
+          # z pytaniem o zgodę, po bilansie zmiennych
+          # (docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md, kroki 0.5 i 3).
           confirm-destructive: ${{ inputs.zmiany_destrukcyjne && 'true' || 'false' }}
 
       - name: Podsumowanie

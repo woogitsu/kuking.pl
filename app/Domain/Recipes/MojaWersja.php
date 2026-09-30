@@ -219,6 +219,11 @@ final class MojaWersja
                 self::normalizuj($s->group_name),
                 self::normalizuj($s->ingredient_text),
                 self::normalizuj($s->note),
+                // Zamiennik to tekst autora jak uwaga (D-284): wersja, która
+                // zmienia tylko „masło albo margaryna", JEST inną wersją.
+                // Bez tego po skopiowaniu zamienników (#2238) taka wersja
+                // odbijałaby się komunikatem „to ten sam przepis".
+                self::normalizuj($s->substitutes),
                 (bool) $s->no_amount,
             ])->all(),
             'kroki' => $recipe->steps()->get()->map(fn ($k): array => [

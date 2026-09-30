@@ -20,6 +20,8 @@ final class OdczytajSkanPdf
 
     public function handle(string $sciezka, User $osoba, bool $chceZgody, string $probaId): OdczytanyPrzepis
     {
+        TekstZPdf::wymagajUruchamianiaProcesow();
+
         $katalog = sys_get_temp_dir().DIRECTORY_SEPARATOR.'kuking-pdf-'.bin2hex(random_bytes(12));
         if (! @mkdir($katalog, 0700)) {
             throw new ImportOdrzucony(ImportOdrzucony::NARZEDZIE_PDF_NIEDOSTEPNE);

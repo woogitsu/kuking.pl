@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\Support\WycinaObudoweEkranu;
@@ -208,6 +209,52 @@ class LogowanieKontemFacebookiemTest extends TestCase
     }
 
     // ─────────────────────── wyłącznik i martwy przycisk ───────────────────────
+
+    /**
+     * #2322: pole odpowiedzi Graph API w złym typie to odrzucona odpowiedź
+     * dostawcy albo brak pola — nigdy 500.
+     *
+     * @return array<string, array{0: array<string, mixed>, 1: bool}>
+     */
+    public static function znieksztalconeProfile(): array
+    {
+        return [
+            // [profil, czy wejście w ogóle możliwe]
+            'id jako lista' => [['id' => []], false],
+            'id jako obiekt' => [['id' => ['x' => '1']], false],
+            'email jako lista' => [['email' => ['basia@example.test']], true],
+            'name jako obiekt' => [['name' => ['imie' => 'Basia']], true],
+        ];
+    }
+
+    /** @param  array<string, mixed>  $profil */
+    #[DataProvider('znieksztalconeProfile')]
+    public function test_znieksztalcony_profil_nie_konczy_sie_bledem_serwera(array $profil, bool $mozliwe): void
+    {
+        $this->wlaczFacebooka();
+
+        $odpowiedz = $this->wracamyZFacebooka($profil);
+
+        // Brak adresu albo imienia to znana, obsłużona sytuacja (runbook §7.2)
+        // — dalszy krok może być stroną, nie przekierowaniem. Byle nie 500.
+        $this->assertLessThan(500, $odpowiedz->getStatusCode(), 'Zniekształcona odpowiedź Facebooka dała błąd serwera.');
+        if (! $mozliwe) {
+            $odpowiedz->assertRedirect(route('login'));
+            $this->assertGuest();
+        }
+        $this->assertDatabaseCount('users', 0);
+    }
+
+    public function test_odmowa_facebooka_z_bledem_w_zlym_typie_nie_konczy_sie_bledem_serwera(): void
+    {
+        $this->wlaczFacebooka();
+        $sesja = $this->klikamyWejdz();
+        Http::fake(['graph.facebook.com/*' => Http::response(['error' => ['type' => ['OAuthException']]], 400)]);
+
+        $this->get(route('facebook.callback', ['code' => 'kod', 'state' => $sesja['state']]))
+            ->assertRedirect(route('login'));
+        $this->assertGuest();
+    }
 
     #[Test]
     public function test_bez_kluczy_przycisku_nie_ma_i_trasa_odsyla_na_logowanie(): void

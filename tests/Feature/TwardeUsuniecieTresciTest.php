@@ -231,6 +231,56 @@ class TwardeUsuniecieTresciTest extends TestCase
         $this->assertDatabaseMissing('comments', ['id' => $rodzic->getKey()]);
     }
 
+    /**
+     * #2250: pełna pierwsza strona (BUDZET_PRZEBIEGU) najstarszych wpisów
+     * chronionych sprawą moderacyjną nie zjada budżetu i nie głodzi wpisu
+     * niechronionego, który stoi w kolejce za nimi. Chronione mają ten sam
+     * `deleted_at` — kursor musi rozstrzygać remisy po `id`.
+     */
+    public function test_pelna_strona_chronionych_nie_glodzi_niechronionego_za_nimi(): void
+    {
+        $autor = User::factory()->create();
+        $moderator = User::factory()->create();
+        $chronione = Post::factory()->count(PrzedawnioneUsunieteTresci::BUDZET_PRZEBIEGU)->create(['author_id' => $autor->getKey()]);
+        $usuniete = now()->subDays(90);
+
+        DB::table('posts')->whereIn('id', $chronione->modelKeys())->update(['deleted_at' => $usuniete]);
+        DB::table('moderation_actions')->insert($chronione->map(fn (Post $wpis): array => [
+            'id' => (string) Str::uuid(),
+            'moderator_id' => $moderator->getKey(),
+            'target_type' => 'post',
+            'target_id' => $wpis->getKey(),
+            'action' => 'remove',
+            'reason_code' => 'spam',
+            'created_at' => $usuniete,
+        ])->all());
+
+        $wolny = Post::factory()->create(['author_id' => $autor->getKey()]);
+        $this->usunDniTemu($wolny, 45);
+
+        $wynik = $this->sprzataj();
+
+        $this->assertSame(1, $wynik['wpisy'], 'Niechroniony wpis za pełną stroną chronionych nie został usunięty.');
+        $this->assertDatabaseMissing('posts', ['id' => $wolny->getKey()]);
+        $this->assertSame(
+            PrzedawnioneUsunieteTresci::BUDZET_PRZEBIEGU,
+            Post::onlyTrashed()->whereIn('id', $chronione->modelKeys())->count(),
+            'Wpis chroniony sprawą moderacyjną zniknął.',
+        );
+    }
+
+    /** #2250, druga strona granicy: budżet nadal ogranicza jeden przebieg. */
+    public function test_budzet_liczy_rozpatrzone_i_nadal_ogranicza_przebieg(): void
+    {
+        $rodzicWpis = Post::factory()->create();
+        $komentarze = Comment::factory()->count(PrzedawnioneUsunieteTresci::BUDZET_PRZEBIEGU + 3)->create(['post_id' => $rodzicWpis->getKey()]);
+        DB::table('comments')->whereIn('id', $komentarze->modelKeys())->update(['deleted_at' => now()->subDays(40)]);
+
+        $this->assertSame(PrzedawnioneUsunieteTresci::BUDZET_PRZEBIEGU, $this->sprzataj()['komentarze']);
+        $this->assertSame(3, $this->sprzataj()['komentarze']);
+        $this->assertSame(0, Comment::onlyTrashed()->whereIn('id', $komentarze->modelKeys())->count());
+    }
+
     public function test_na_sucho_niczego_nie_kasuje(): void
     {
         $wpis = Post::factory()->create();

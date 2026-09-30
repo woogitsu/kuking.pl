@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Auth;
 
+use App\Support\Wejscie;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -31,9 +32,9 @@ final class PrzyjecieZaproszeniaRequest extends FormRequest
         return [];
     }
 
-    /** Jawny token z formularza; brak pola to pusty napis, nie błąd. */
+    /** Jawny token z formularza; brak pola albo tablica to pusty napis, nie błąd. */
     public function token(): string
     {
-        return (string) $this->input('token', '');
+        return Wejscie::tekst($this->input('token'));
     }
 }

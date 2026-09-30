@@ -56,6 +56,9 @@ class CookedEvent extends Model
             'cooked_at' => 'datetime',
             'would_make_again' => 'boolean',
             'actual_minutes' => 'integer',
+            // Wspomnienia z własnych wykonań (F6). Poza `$fillable`: zapisuje
+            // go wyłącznie `WspomnienieController::ukryjWykonanie`.
+            'hide_as_memory' => 'boolean',
         ];
     }
 

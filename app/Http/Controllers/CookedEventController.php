@@ -11,7 +11,9 @@ use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Domain\Recipes\Actions\UsunWykonanie;
 use App\Domain\Recipes\Actions\ZapiszWykonanieZFormularza;
 use App\Domain\Recipes\Actions\ZbierzZdjeciaWykonania;
+use App\Domain\Recipes\Gotowanie\JakWyszlo;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Exceptions\BladZdjecFormularza;
 use App\Http\Requests\Cooked\KomentarzWykonaniaRequest;
 use App\Http\Requests\Cooked\PodziekowanieRequest;
 use App\Http\Requests\Cooked\ZapisWykonaniaRequest;
@@ -129,8 +131,11 @@ class CookedEventController extends Controller
 
         try {
             $mediaIds = $this->zdjecia->handle($request->input('media_ids', []), $request->file('photos', []), $user);
-        } catch (BladDlaCzlowieka $e) {
-            return back()->withInput()->withErrors(['photos' => $e->getMessage()]);
+        } catch (BladZdjecFormularza $e) {
+            // Zachowane i już zapisane zdjęcia wracają w ukrytych polach —
+            // gołe `withInput()` odsyłało stare `media_ids` bez nowych
+            // zdjęć (#2241).
+            return back()->withInput($request->wejscieBezPlikow($e->mediaIds))->withErrors(['photos' => $e->getMessage()]);
         }
 
         // „Usuń to zdjęcie" przy zachowanym zdjęciu — świadoma decyzja, nie
@@ -173,6 +178,10 @@ class CookedEventController extends Controller
         if (! $event->wasRecentlyCreated) {
             return $this->odpowiedzNaPonowienie($event);
         }
+
+        // Gotowanie z trybu gotowania w tej sesji jest domknięte — „Jak
+        // wyszło?” już o nie nie zapyta, a raport liczy je jako ugotowane (F1).
+        app(JakWyszlo::class)->poUgotowaniu($request->session(), $user, $model);
 
         return redirect()->route('cooked.show', $event)->with(Komunikat::sukces('Wykonanie zapisane.',
         ));

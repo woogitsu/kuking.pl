@@ -17,6 +17,7 @@ use App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem;
 use App\Models\AuditLogEntry;
 use App\Models\ContactMessage;
 use App\Models\DataExport;
+use App\Models\FacebookConnectionProof;
 use App\Models\Hide;
 use App\Models\MailFailure;
 use App\Models\Media;
@@ -389,6 +390,13 @@ final class EraseAccountData
              */
             $fresh->tozsamosciZewnetrzne()->delete();
 
+            // Oczekujący dowód połączenia z Facebookiem (#2085) — ta sama
+            // zasada co powiązanie wyżej, a kaskada klucza obcego nie zadziała,
+            // bo kont się nie kasuje (D-022). Bez tej linii skróty z porzuconej
+            // prośby zostawały przy wymazanym koncie (issue #2319); wygasłe
+            // dowody kont żywych sprząta `kuking:sprzataj-dowody-facebooka`.
+            FacebookConnectionProof::query()->where('user_id', $fresh->getKey())->delete();
+
             /*
              * WEB PUSH ZNIKA RAZEM Z KONTEM (D-303).
              *
@@ -430,6 +438,16 @@ final class EraseAccountData
              */
             DB::table('wczytane_z_paczki')->where('user_id', $fresh->getKey())->delete();
             app(MagazynPaczek::class)->zapomnijWszystkie($fresh);
+
+            /*
+             * REZERWACJA TYGODNIA PODSUMOWANIA ZNIKA RAZEM Z KONTEM (#2280).
+             *
+             * Wiersz mówi „ta osoba dostała list w tygodniu X". Po wymazaniu
+             * nie ma komu wysyłać, a zostawiony przy zanonimizowanym
+             * `user_id` byłby śladem korzystania z poczty bez terminu.
+             * Jawnie, nie kaskadą — kont się nie kasuje (D-022).
+             */
+            DB::table('weekly_digest_sends')->where('user_id', $fresh->getKey())->delete();
 
             $this->odlaczWiadomosciDoOperatora($fresh);
             $this->odlaczSygnalyProduktowe($fresh);
@@ -515,6 +533,9 @@ final class EraseAccountData
                 'remember_token' => null,
                 'email_verified_at' => null,
                 'wants_weekly_digest' => false,
+                // Data ostatniego podsumowania (#2280): polityka obiecuje, że
+                // znika z kontem razem z zapisem tygodnia w `weekly_digest_sends`.
+                'weekly_digest_sent_at' => null,
                 // „Mój stół" (#1749, D-304): usunięcie konta zdejmuje też
                 // preferencję półki propozycji — issue wymaga tego wprost.
                 'moj_stol_enabled' => false,
@@ -544,6 +565,9 @@ final class EraseAccountData
                 'terms_notice_dismissed_version' => null,
                 // Ślad zamknięcia paska o zmianie polityki (D-327, D-332).
                 'policy_notice_dismissed_version' => null,
+                // Sprzeciw wobec statystyk (#2277): konto bez właściciela
+                // i tak nie trafia już do statystyk z żadnym powiązaniem.
+                'sprzeciw_statystyk_at' => null,
             ])->save();
 
             // STAN KOŃCOWY KONTA — I TO JEST NAPRAWA DRUGIEJ POŁOWY D-018.

@@ -5,14 +5,19 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Moderation\Actions\FileAppeal;
+use App\Domain\Security\KodDwuetapowyZFormularza;
 use App\Domain\Security\LimitProbHasla;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\ModerationAction;
 use App\Models\User;
+use App\Rules\TurnstileJestPotwierdzony;
 use App\Support\Komunikat;
+use App\Support\Turnstile;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -44,9 +49,11 @@ use Illuminate\View\View;
  *     „Nie pamiętam hasła" (działa też dla konta zablokowanego) albo adres
  *     e-mail, który zostaje jako droga zapasowa i jest wypisany na ekranie.
  *  2. Formularz stoi przed logowaniem, więc jest celem — stąd limit
- *     `kuking.limits.appeal` (5 prób na godzinę) i ten sam, celowo
- *     nieinformacyjny komunikat co przy logowaniu, żeby nie dało się nim
- *     sprawdzać, czy konto istnieje.
+ *     `kuking.limits.appeal` (5 prób na godzinę), trzy koszyki hasła
+ *     wspólne z `/login`, Turnstile i JEDEN komunikat dla złych danych
+ *     i konta bez decyzji do odwołania, żeby nie dało się nim sprawdzać,
+ *     czy konto istnieje ani czy hasło jest dobre (#2272). Konto z 2FA
+ *     podaje też kod — samo hasło nie wystarcza, tak jak przy logowaniu.
  *
  * ILE RAZY MOŻNA SIĘ ODWOŁAĆ: RAZ OD JEDNEJ DECYZJI. Uzasadnienie i miejsce,
  * w którym to jest egzekwowane — `FileAppeal` oraz `UNIQUE` w bazie.
@@ -56,6 +63,7 @@ class AppealController extends Controller
     public function __construct(
         private readonly FileAppeal $zloz,
         private readonly LimitProbHasla $limit,
+        private readonly KodDwuetapowyZFormularza $kodDwuetapowy,
     ) {}
 
     /**
@@ -114,16 +122,38 @@ class AppealController extends Controller
 
     public function guestStore(Request $request): RedirectResponse
     {
-        $data = $request->validate([
+        // `Validator::make` zamiast `$request->validate()`: wyjątek walidacji
+        // odkłada w sesji całe wejście poza hasłem, czyli także `code` —
+        // a kod zapasowy jest sekretem (ta sama zasada co przy cofnięciu
+        // usunięcia konta). Wracają wyłącznie `login` i `body`.
+        $walidator = Validator::make($request->all(), [
             'login' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
             'body' => ['required', 'string', 'min:10', 'max:2000'],
+            'code' => ['nullable', 'string', 'max:64'],
+            /*
+             * Turnstile (D-050) — WARUNEK WYSŁANIA, nie filtr (#2272, audyt
+             * S-04). Ten formularz sprawdza hasło do DOWOLNEGO konta, tak
+             * jak `/login` i `/cofnij-usuniecie-konta`, a do 30.09.2026 był
+             * jedynym z trzech bez tej bramki: automat sprawdzał nim hasła
+             * obok logowania. Wyłącznik: `TURNSTILE_NA_ODWOLANIU=false`.
+             */
+            Turnstile::POLE => TurnstileJestPotwierdzony::reguly('odwolanie'),
         ], [
             'login.required' => 'Podaj swój adres e-mail albo nazwę użytkownika.',
             'password.required' => 'Wpisz hasło do swojego konta.',
             'body.required' => 'Napisz w kilku zdaniach, dlaczego uważasz decyzję za błędną.',
             'body.min' => 'Napisz trochę więcej — kilka zdań wystarczy, ale jedno słowo nam nie pomoże.',
+            'body.max' => 'To za długie. Zmieść się w 2000 znaków — liczy się to, co najważniejsze.',
+            'code.string' => 'Wpisz kod z aplikacji albo kod zapasowy.',
+            'code.max' => 'Ten kod jest za długi. Wpisz sześciocyfrowy kod z aplikacji albo kod zapasowy.',
         ]);
+
+        if ($walidator->fails()) {
+            $this->odmow($request, $walidator->errors()->toArray());
+        }
+
+        $data = $walidator->validated();
 
         // TEN FORMULARZ SPRAWDZA HASŁO, więc chodzi po TYCH SAMYCH TRZECH
         // KOSZYKACH CO `/login` (`App\Domain\Security\LimitProbHasla`).
@@ -133,52 +163,90 @@ class AppealController extends Controller
         // licznik przywiązany do adresu nie widzi ataku rozproszonego po
         // wielu adresach na jedno konto. Zmierzone przed tą zmianą: 60 prób
         // hasła do jednego konta z 60 różnych adresów — ZERO odmów, podczas
-        // gdy `/login` blokuje przy piętnastej. Był to więc drugi, słabszy
-        // wjazd do tej samej wyroczni — i jedyny z tych trzech, który nie
-        // ma nawet Turnstile.
+        // gdy `/login` blokuje przy piętnastej.
         $adres = (string) $request->ip();
 
-        $this->limit->zatrzymajJesliZaDuzo($data['login'], $adres);
+        try {
+            $this->limit->zatrzymajJesliZaDuzo($data['login'], $adres);
+        } catch (ValidationException $odmowaLimitu) {
+            $this->odmow($request, $odmowaLimitu->errors());
+        }
 
         $osoba = User::findByLogin($data['login']);
 
-        // Komunikat jednakowy dla złego loginu i złego hasła — inaczej ten
-        // formularz byłby wygodnym sprawdzaczem, czy dane konto istnieje
-        // (ta sama zasada co w LoginController).
+        // JEDEN komunikat dla złego loginu, złego hasła i konta bez decyzji do
+        // odwołania (#2272, audyt S-04). Do 30.09.2026 dobre hasło dawało inne
+        // zdanie („Nie mamy decyzji…”) niż złe — formularz bez Turnstile był
+        // więc wyrocznią hasła do każdego aktywnego konta.
         if ($osoba === null || ! Hash::check($data['password'], (string) $osoba->password)) {
             $this->limit->zapiszNieudanaProbe($data['login'], $adres);
 
-            throw ValidationException::withMessages([
-                'login' => 'Nie rozpoznajemy tych danych. Sprawdź, czy nazwa i hasło są wpisane poprawnie. '
-                    .'Jeśli nie pamiętasz hasła, kliknij „Nie pamiętam hasła” — to działa także przy zablokowanym koncie.',
-            ]);
+            $this->odmow($request, ['login' => self::nieMozemyPrzyjac()]);
         }
 
         // DOBRE HASŁO CZYŚCI PARĘ I KONTO, NIGDY ADRES — ta sama reguła
         // i to samo uzasadnienie co w `LoginController` (`KluczeLimitow`).
-        // Bez tego osoba, która pomyliła hasło trzy razy, a za czwartym
-        // trafiła, nadal siedziałaby przy pełnym liczniku.
         $this->limit->wyczyscPoUdanej($data['login'], $adres);
 
+        // Czy jest od czego się odwołać — liczone TERAZ, ogłaszane po kodzie.
         $decyzja = $this->ostatniaDecyzjaDoOdwolania($osoba);
 
+        // Drugi składnik PRZED jakąkolwiek odpowiedzią o koncie (#2272):
+        // konto z 2FA nie loguje się samym hasłem, więc samym hasłem nie
+        // składa też odwołania. Kod zapasowy zużywamy tylko wtedy, gdy
+        // odwołanie naprawdę powstanie.
+        if ($osoba->hasTwoFactorConfirmed()) {
+            $blad = $this->kodDwuetapowy->sprawdz(
+                $osoba,
+                trim((string) ($data['code'] ?? '')),
+                zuzyjKodZapasowy: $decyzja !== null,
+                przycisk: 'Wyślij odwołanie',
+            );
+
+            if ($blad !== null) {
+                $this->odmow($request, ['code' => $blad]);
+            }
+        }
+
         if ($decyzja === null) {
-            throw ValidationException::withMessages([
-                'login' => 'Nie mamy decyzji, od której można się teraz odwołać. Możliwe, że odwołanie już złożono '
-                    .'albo minęło sześć miesięcy od decyzji. Napisz do nas: '.config('kuking.community.contact_email'),
-            ]);
+            $this->odmow($request, ['login' => self::nieMozemyPrzyjac()]);
         }
 
         try {
             $this->zloz->handle($osoba, $decyzja, $data['body'], $request->ip());
         } catch (BladDlaCzlowieka $blad) {
-            throw ValidationException::withMessages(['body' => $blad->getMessage()]);
+            $this->odmow($request, ['body' => $blad->getMessage()]);
         }
 
         return redirect()->route('appeals.guest')->with(Komunikat::sukces('Odwołanie do nas trafiło. Odpowiemy w ciągu '
             .config('kuking.moderation.appeal_response_working_days')
             .' dni roboczych. Odpowiedź zobaczysz na tym ekranie logowania, gdy spróbujesz wejść na konto.',
         ));
+    }
+
+    /**
+     * Wspólne zdanie dla złych danych i konta bez decyzji do odwołania.
+     * Mówi obie możliwości i co zrobić przy każdej — nie mówi, która zaszła.
+     */
+    public static function nieMozemyPrzyjac(): string
+    {
+        return 'Nie możemy przyjąć tego odwołania. Sprawdź, czy nazwa albo e-mail i hasło są wpisane poprawnie. '
+            .'Jeśli nie pamiętasz hasła, kliknij „Nie pamiętam hasła” — to działa także przy zablokowanym koncie. '
+            .'Jeśli dane są dobre, na tym koncie nie ma decyzji, od której można się teraz odwołać: odwołanie już '
+            .'złożono albo minęło sześć miesięcy od decyzji. Wtedy napisz do nas: '.config('kuking.community.contact_email');
+    }
+
+    /**
+     * Powrót na formularz z błędami. Wracają wyłącznie `login` i `body` —
+     * nigdy hasło ani kod (sekrety, patrz `Validator::make` wyżej).
+     *
+     * @param  array<string, string|array<int, string>>  $bledy
+     */
+    private function odmow(Request $request, array $bledy): never
+    {
+        throw new HttpResponseException(
+            back()->withErrors($bledy)->withInput($request->only('login', 'body')),
+        );
     }
 
     /**

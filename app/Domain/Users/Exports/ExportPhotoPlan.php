@@ -40,8 +40,25 @@ final class ExportPhotoPlan
     /** Ile zdjęć nie weszło do paczki, bo są skasowane. */
     private int $deleted = 0;
 
+    /**
+     * Granica cudzych danych tej paczki — TA SAMA instancja, której używa
+     * `CollectUserExportData` (issue #2312, #2313, #2316). Nazwa pliku
+     * zdjęcia jest częścią paczki tak samo jak `dane.json`: slug tytułu
+     * cudzego przepisu w `zdjecia/2026-09-30-tajny-bigos.webp` ujawnia ten
+     * tytuł, choćby JSON pisał „treść niedostępna”. Jedna instancja, bo
+     * wynik `widzi()` jest w niej zapamiętany: nazwa pliku i JSON nie mogą
+     * odpowiedzieć inaczej o tym samym przepisie w tej samej paczce, nawet
+     * gdy autor zmieni widoczność w trakcie budowania.
+     */
+    private GranicaCudzychDanych $granica;
+
+    private string $userId;
+
     public function __construct(User $user)
     {
+        $this->userId = (string) $user->getKey();
+        $this->granica = new GranicaCudzychDanych($user);
+
         $labels = $this->collectLabels($user);
 
         // Kolejność po dacie: paczka rozpakowana w Eksploratorze układa się
@@ -177,6 +194,18 @@ final class ExportPhotoPlan
     }
 
     /**
+     * Granica cudzych danych, którą liczono nazwy plików — do użycia przy
+     * budowie `dane.json` tej samej paczki. Dla innej osoby niż ta, dla której
+     * powstał plan, nowa granica: cudza granica nie może decydować o tej.
+     */
+    public function granicaDla(User $user): GranicaCudzychDanych
+    {
+        return (string) $user->getKey() === $this->userId
+            ? $this->granica
+            : new GranicaCudzychDanych($user);
+    }
+
+    /**
      * Podpisy zdjęć wzięte z miejsc, w których zdjęcie zostało użyte.
      *
      * @return array<string, string>
@@ -214,8 +243,14 @@ final class ExportPhotoPlan
         }
 
         foreach ($user->cookedEvents()->with(['media', 'recipe'])->get() as $event) {
+            // Wykonanie jest moje, przepis — często cudzy. Tytuł do nazwy pliku
+            // tylko wtedy, gdy `dane.json` też go pokaże (`cookedEvents()`
+            // w `CollectUserExportData`); inaczej neutralne „ugotowane”
+            // (issue #2312, #2313).
+            $tytul = $this->granica->widzi($event->recipe) ? $event->recipe?->title : null;
+
             foreach ($event->media as $photo) {
-                $labels[(string) $photo->getKey()] ??= (string) ($event->recipe->title ?? 'ugotowane');
+                $labels[(string) $photo->getKey()] ??= (string) ($tytul ?? 'ugotowane');
             }
         }
 

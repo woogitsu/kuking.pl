@@ -131,7 +131,14 @@ final class DiscoverFeed
             // (issue #368). Widoczność liczy się Z PRZEPISU, nie z kopii na
             // wpisie — patrz `Post::scopeZWidocznymPrzepisem()`. Wpis
             // z własną treścią idzie za własną widocznością (issue #1377).
-            ->zWidocznymPrzepisemAlboWlasnaTrescia($viewer);
+            //
+            // POSTAĆ BEZ KORELACJI (issue #2288, wzorzec z #599). Skorelowane
+            // `EXISTS` przepisu i zdjęcia w alternatywie `OR` planer nalicza za
+            // KAŻDY kandydujący wpis — przy kilku tysiącach szacunek przekraczał
+            // `jit_above_cost` i PostgreSQL kompilował to zapytanie przez JIT
+            // przy każdym wejściu (1,3–2,5 s z 1,4–2,8 s). Ta sama reguła,
+            // inny plan: `OdkrywanieKosztPlanuTest` porównuje listę ze starą.
+            ->zWidocznymPrzepisemAlboWlasnaTresciBezKorelacji($viewer);
 
         $strona = Post::query()
             ->select('posts.*', 'rotacja.runda')
@@ -217,7 +224,9 @@ final class DiscoverFeed
         $query->whereNotIn('posts.author_id', $this->hiddenAuthorIdsFor($viewer))
             // Prywatne ukrycia (#1810, D-278): wpis i osoba.
             ->bezUkrytychWpisow($viewer)
-            ->bezUkrytychOsob($viewer);
+            // `NOT IN` z `IS NOT NULL` zamiast skorelowanego `NOT EXISTS`
+            // (#2288, jak w `FollowingFeed`) — ten sam wynik, naliczany raz.
+            ->bezUkrytychOsob($viewer, bezKorelacji: true);
     }
 
     /**

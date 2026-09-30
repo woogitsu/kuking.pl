@@ -106,6 +106,8 @@ final class InwentarzDanychKonta
         'contact_message_replies.author_id' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
         'daily_picks.curator_id' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
         'hero_picks.curator_id' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
+        // „Ugotujmy razem” (F3): kto z gospodarzy wybrał przepis tygodnia.
+        'weekly_recipe_picks.chosen_by' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
         'moderation_actions.moderator_id' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
         'reports.resolved_by' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
 
@@ -148,6 +150,7 @@ final class InwentarzDanychKonta
         'pwa_prompt_state' => [self::EKSPORT, 'konto'],
         'terms_notice_dismissed_version' => [self::EKSPORT, 'konto'],
         'policy_notice_dismissed_version' => [self::EKSPORT, 'konto'],
+        'sprzeciw_statystyk_at' => [self::EKSPORT, 'konto'],
         'onboarding_zakonczony_at' => [self::EKSPORT, 'konto'],
         // Urodziny (#1755): dzień i miesiąc bez roku oraz wybory i ślad listu.
         'birthday_day' => [self::EKSPORT, 'konto'],

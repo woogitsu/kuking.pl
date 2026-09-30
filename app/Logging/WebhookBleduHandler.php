@@ -153,7 +153,7 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
 
         try {
             $odpowiedz = Http::timeout(3)->connectTimeout(2)->post($this->url, [
-                'text' => $this->tresc($record),
+                'text' => self::tresc($record),
             ]);
 
             // NIEUDANE ŻĄDANIE NIE RZUCA WYJĄTKU, i to jest tu ważniejsze niż
@@ -204,7 +204,14 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
         }
     }
 
-    private function tresc(LogRecord $record): string
+    /**
+     * Treść alarmu z LISTY DOZWOLONYCH PÓL — publiczna, bo tą samą metodą
+     * buduje list `EmailBleduHandler` (#599). Drugie formatowanie obok tego
+     * rozjechałoby się przy pierwszej zmianie, a rozjazd wyglądałby tak, że
+     * Discord nadal niczego nie zdradza, a list niesie komunikat
+     * `QueryException` z adresem e-mail w środku (A6-01).
+     */
+    public static function tresc(LogRecord $record): string
     {
         $naglowek = sprintf('[%s/%s]', config('app.name'), config('app.env'));
         $requestId = $record->context['request_id'] ?? null;
@@ -226,9 +233,9 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
             // wprost). Reszta kontekstu rekordu NIE JEST tu dołączana
             // świadomie — mógłby nieść cokolwiek, co ktoś kiedyś doda do
             // wywołania `Log::error()`.
-            return $this->przytnij(implode("\n", array_filter([
-                $naglowek.' '.$this->jednalinia($record->message),
-                $this->powtorzenia($record->context['pominiete_powtorzenia'] ?? null),
+            return self::przytnij(implode("\n", array_filter([
+                $naglowek.' '.self::jednalinia($record->message),
+                self::powtorzenia($record->context['pominiete_powtorzenia'] ?? null),
                 $correlation,
                 $jobCorrelation,
                 $attemptCorrelation,
@@ -237,22 +244,22 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
 
         $linie = array_filter([
             $naglowek.' '.$wyjatek::class,
-            $this->kod($wyjatek),
-            sprintf('%s:%d', $this->wzgledna($wyjatek->getFile()), $wyjatek->getLine()),
-            $this->trasa(),
+            self::kod($wyjatek),
+            sprintf('%s:%d', self::wzgledna($wyjatek->getFile()), $wyjatek->getLine()),
+            self::trasa(),
             'odcisk: '.self::odcisk($wyjatek),
-            $this->powtorzenia($record->context['pominiete_powtorzenia'] ?? null),
+            self::powtorzenia($record->context['pominiete_powtorzenia'] ?? null),
             $correlation,
             $jobCorrelation,
             $attemptCorrelation,
         ], static fn (?string $linia): bool => $linia !== null && $linia !== '');
 
-        return $this->przytnij(implode("\n", [
+        return self::przytnij(implode("\n", [
             ...$linie,
             '',
-            'Treść komunikatu zostaje w logu serwera — na webhook nie wychodzi.',
+            'Treść komunikatu zostaje w logu serwera — poza serwer nie wychodzi.',
             '```',
-            ...$this->slad($wyjatek),
+            ...self::slad($wyjatek),
             '```',
         ]));
     }
@@ -266,7 +273,7 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
      * kod z liter, cyfr i podkreślenia. Cokolwiek innego pomijamy zamiast
      * przycinać: przycięty tekst nadal mógłby nieść fragment danych.
      */
-    private function kod(Throwable $wyjatek): ?string
+    private static function kod(Throwable $wyjatek): ?string
     {
         $kod = $wyjatek->getCode();
 
@@ -296,7 +303,7 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
      * Ile identycznych wystąpień `SeriaAlarmow` pominęła od poprzedniej
      * wiadomości (#599). Tylko liczba całkowita — wszystko inne pomijamy.
      */
-    private function powtorzenia(mixed $pominiete): ?string
+    private static function powtorzenia(mixed $pominiete): ?string
     {
         return is_int($pominiete) && $pominiete > 0
             ? sprintf('powtórzeń od poprzedniej wiadomości (nie wysłanych osobno): %d', $pominiete)
@@ -309,7 +316,7 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
      * z podstawionym UUID-em albo slugiem potrafi identyfikować osobę,
      * wzorzec z `{param}` — nigdy.
      */
-    private function trasa(): string
+    private static function trasa(): string
     {
         if (! app()->bound('request')) {
             return 'CLI / kolejka (brak żądania HTTP)';
@@ -330,13 +337,13 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
      *
      * @return list<string>
      */
-    private function slad(Throwable $wyjatek): array
+    private static function slad(Throwable $wyjatek): array
     {
         $ramki = array_slice($wyjatek->getTrace(), 0, self::MAKSYMALNIE_RAMEK);
 
-        return array_values(array_map(function (array $ramka): string {
+        return array_values(array_map(static function (array $ramka): string {
             $miejsce = isset($ramka['file'], $ramka['line'])
-                ? sprintf('%s:%d', $this->wzgledna((string) $ramka['file']), $ramka['line'])
+                ? sprintf('%s:%d', self::wzgledna((string) $ramka['file']), $ramka['line'])
                 : '[php internal]';
 
             $funkcja = isset($ramka['class'])
@@ -348,7 +355,7 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
     }
 
     /** Ścieżka względem katalogu aplikacji — bez tego każda linia niesie pełną, niepotrzebną ścieżkę kontenera. */
-    private function wzgledna(string $sciezka): string
+    private static function wzgledna(string $sciezka): string
     {
         return str_starts_with($sciezka, base_path())
             ? ltrim(substr($sciezka, strlen(base_path())), '/')
@@ -356,12 +363,12 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
     }
 
     /** Komunikat wyjątku bywa wielolinijkowy (np. z SQL-a) — tu ma być jedną linią wiadomości. */
-    private function jednalinia(string $tekst): string
+    private static function jednalinia(string $tekst): string
     {
         return trim((string) preg_replace('/\s+/', ' ', $tekst));
     }
 
-    private function przytnij(string $tekst): string
+    private static function przytnij(string $tekst): string
     {
         return mb_strlen($tekst) > self::MAKSYMALNIE_ZNAKOW
             ? mb_substr($tekst, 0, self::MAKSYMALNIE_ZNAKOW - 1).'…'

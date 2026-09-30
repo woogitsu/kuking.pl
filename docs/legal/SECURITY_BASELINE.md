@@ -182,9 +182,13 @@ nie ma** i jest to znana luka dotycząca całej poczty, nie jednej funkcji.
 
 ### Cloudflare Turnstile (D-050, issue #217)
 
-Stan **faktyczny**, nie plan. Turnstile w trybie Managed stoi na sześciu
+Stan **faktyczny**, nie plan. Turnstile w trybie Managed stoi na ośmiu
 formularzach publicznych: `/register`, `/login`, `/nie-pamietam-hasla`,
-`/cofnij-usuniecie-konta`, `/napisz-do-nas`, `/zglos-nielegalna-tresc`.
+`/logowanie/link`, `/cofnij-usuniecie-konta`, `/napisz-do-nas`,
+`/zglos-nielegalna-tresc` i — od 30.09.2026 (#2272, audyt S-04) —
+`/odwolanie`, bo ten formularz sprawdza hasło tak jak logowanie. Konto
+z 2FA podaje na nim także kod (`KodDwuetapowyZFormularza`, wspólne
+z `/cofnij-usuniecie-konta`).
 
 Trzy rzeczy, które trzeba czytać razem z tabelą wyżej, żeby nie wyciągnąć
 z niej fałszywego wniosku o poziomie ochrony:

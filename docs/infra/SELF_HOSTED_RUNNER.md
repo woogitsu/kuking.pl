@@ -20,10 +20,25 @@ Ten dokument to instrukcja od zera do zielonego CI.
 Runner **wykonuje kod z repozytorium**. Przy repozytorium prywatnym
 i zaufanym zespole to jest w porządku.
 
-**Nigdy nie podpinaj tego runnera do repozytorium publicznego przyjmującego
-Pull Requesty od obcych osób.** To jest równoznaczne z oddaniem im powłoki
-na tej maszynie. Gdybyś kiedyś upublicznił Kuking (opcja rozważana w
-`CI_BEZ_ACTIONS.md`), runnera trzeba najpierw odłączyć.
+**Stan od 30.09.2026: repozytorium `woogitsu/kuking.pl` jest PUBLICZNE,
+celowo (decyzja właściciela, #2298).** Job z Pull Requesta z forka na własnym
+runnerze to oddanie obcej osobie powłoki na tej maszynie. Dlatego od #2298
+każde `runs-on:` w workflowach uruchamianych przez `pull_request` (`ci.yml`,
+`preview.yml`, `railway-iac.yml`) zaczyna się od warunku:
+
+```text
+github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"'
+```
+
+PR z cudzego repozytorium idzie na `ubuntu-latest` bez względu na wartość
+`CI_RUNS_ON`. Na własne runnery trafiają tylko pushe i PR-y z gałęzi tego
+repozytorium, czyli od osób z prawem zapisu. Pilnuje tego
+`tests/Feature/WorkflowyNieWpuszczajaForkowNaWlasneRunneryTest.php`: nowy job
+bez tego warunku oblewa test.
+
+Druga warstwa należy do właściciela i nie da się jej ustawić z repozytorium:
+Settings → Actions → General → „Fork pull request workflows from outside
+collaborators” → **Require approval for all outside collaborators**.
 
 Praktyczne wnioski:
 
@@ -144,11 +159,17 @@ W panelu GitHuba runner powinien pokazać się jako **Idle**.
 ### Krok 1 — ustaw zmienną repozytorium `CI_RUNS_ON`
 
 Runnera **wybiera zmienna repozytorium `CI_RUNS_ON`** (D-121). Każdy job
-w `deploy.yml`, `preview.yml`, `railway-iac.yml` i większość jobów w `ci.yml`
-ma dokładnie to samo:
+w `deploy.yml` (który nie uruchamia się na `pull_request`) ma:
 
 ```yaml
 runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+```
+
+Joby `preview.yml` i `railway-iac.yml` mają przed tym warunek na PR z forka
+(sekcja o bezpieczeństwie na początku, #2298):
+
+```yaml
+runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
 ```
 
 **Wyjątek od 21.09.2026 (zawężony tego samego dnia):** JEDEN job w `ci.yml`,
@@ -179,7 +200,7 @@ github.event_name == 'push'` — nie dla PR-a do `main` i nie dla ręcznego
 a dopiero bez niej po `CI_RUNS_ON`:
 
 ```yaml
-runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
 ```
 
 `port_funkcje` ma analogiczną parę: `CI_RUNS_ON_BROWSER_MAIN` przed

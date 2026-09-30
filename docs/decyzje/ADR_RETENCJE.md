@@ -690,6 +690,8 @@ polityce („do usunięcia treści przez Ciebie”) i art. 17 RODO.
   dróg. Okno służy odkręceniu pomyłki i spójności kopii.
 - **Egzekucja:** `kuking:sprzataj-usuniete-tresci`, codziennie 05:50,
   budżet 500 treści każdego rodzaju na przebieg, transakcja na treść.
+  Budżet liczy tylko treści rozpatrzone do usunięcia: chronione wyjątkiem
+  moderacyjnym są przewijane kursorem i nie blokują kolejki za sobą (#2250).
 - **Wyjątek moderacyjny:** treść, na którą wskazuje jakikolwiek wiersz
   `reports`/`moderation_actions` (także przez jej komentarz, zdjęcie albo
   wykonanie), czeka na retencję sprawy (§5.3–5.5). Nie ma osobnej listy
@@ -702,6 +704,17 @@ polityce („do usunięcia treści przez Ciebie”) i art. 17 RODO.
   dopiero, gdy ostatnie cudze wykonanie zniknie.
 - **Zdjęcia:** po skasowaniu treści `KasujZdjecie::jesliNieuzywane()`;
   gdy dysk zawiedzie, dobiera je `kuking:sprzataj-osierocone-zdjecia`.
+
+### 5.8 Wersje przepisu (`recipe_versions`) — dopisane 29.09.2026 (#2024, D-333)
+
+Wersja starsza niż 24 miesiące (po dacie w Polsce) i spoza 3 najnowszych
+wersji swojego przepisu jest kasowana przez `kuking:sprzataj-wersje-przepisow`
+(codziennie 06:40, partie po 500, budżet 20 000 wierszy na przebieg). Nie
+kasujemy wersji przepisu z `reports` albo `moderation_actions`. Wersje
+usuniętego przepisu idą razem z nim (§5.7). Pierwsza wersja nie jest
+chroniona: historia jest publiczna i to w niej najczęściej zostaje treść,
+którą autor później wycofał. Liczby (24, 3) potwierdził właściciel
+30.09.2026 (D-333).
 
 ## 6. Decyzje właściciela — zbiorczo
 

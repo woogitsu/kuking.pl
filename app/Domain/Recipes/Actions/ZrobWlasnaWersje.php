@@ -9,6 +9,7 @@ use App\Models\Recipe;
 use App\Models\RecipeIngredient;
 use App\Models\RecipeStep;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
@@ -19,7 +20,7 @@ use Illuminate\Support\Facades\Gate;
  * CO SIĘ KOPIUJE, A CO NIE
  *
  * Kopiujemy to, z czego się gotuje: tytuł, opis, porcje, czasy, trudność,
- * składniki (z grupami, uwagami i „bez ilości") i treść kroków z minutnikami.
+ * składniki (z grupami, uwagami, zamiennikami i „bez ilości") i treść kroków z minutnikami.
  * NIE kopiujemy zdjęć — ani głównego, ani przy krokach, ani skanu kartki. To są
  * zdjęcia autora oryginału (jego kuchnia, jego ręce, jego zeszyt), a wersja
  * ma pokazywać, jak TY to robisz. Nie kopiujemy też pochodzenia
@@ -48,19 +49,34 @@ final class ZrobWlasnaWersje
 
     public function handle(User $user, Recipe $oryginal, ?string $ip = null): Recipe
     {
-        // UUID w adresie to nie autoryzacja (AGENTS.md §7) — i Policy nie
-        // może być wyłącznie ochroną kontrolera (AGENTS.md §4).
-        Gate::forUser($user)->authorize('fork', $oryginal);
-
         return DB::transaction(function () use ($user, $oryginal, $ip): Recipe {
-            // Wiersz autora pod `FOR NO KEY UPDATE` serializuje dwa
-            // równoległe kliknięcia tej samej osoby — drugie widzi szkic
-            // pierwszego. `NO KEY`, bo ta blokada nie jest w konflikcie
-            // z `FOR KEY SHARE`, którą biorą cudze zapisy wskazujące to konto
-            // (komentarz, obserwowanie), więc nikogo poza tą samą akcją nie
-            // ustawia w kolejce. Kolejność `users` → `recipes`, ta sama co
-            // w kasowaniu konta (`EraseAccountData`, D-079 §1).
-            DB::select('SELECT 1 FROM users WHERE id = ? FOR NO KEY UPDATE', [(string) $user->getKey()]);
+            /*
+             * DOSTĘP SPRAWDZANY POD BLOKADĄ, NA ŚWIEŻYM STANIE (#2323).
+             *
+             * Przedtem Policy stała PRZED transakcją i pytała o modele podane
+             * z zewnątrz, a kopia czytała składniki i kroki ze starego
+             * `$oryginal`. Autor przełączał w tym czasie przepis na „tylko
+             * ja", blokował kopiującego, moderacja ukrywała przepis albo
+             * banowała autora — a pełna treść i tak lądowała w szkicu osoby,
+             * która w chwili zapisu nie miała już prawa jej widzieć.
+             *
+             * Od tej linijki `$user` i `$oryginal` to wiersze odczytane POD
+             * BLOKADĄ. Zmiana zatwierdzona przed nami jest tu już widoczna,
+             * a ta, która przyjdzie po nas, poczeka na koniec tej transakcji
+             * — razem z kopią. Wzór i uzasadnienie trybów blokad:
+             * `RecordCookedEvent::zablokujStanDostepu()` (#2017).
+             */
+            $stan = $this->zablokujStanDostepu($user, $oryginal);
+
+            if ($stan === null) {
+                throw new AuthorizationException('This action is unauthorized.');
+            }
+
+            [$user, $oryginal] = $stan;
+
+            // UUID w adresie to nie autoryzacja (AGENTS.md §7) — i Policy nie
+            // może być wyłącznie ochroną kontrolera (AGENTS.md §4).
+            Gate::forUser($user)->authorize('fork', $oryginal);
 
             $istniejacy = Recipe::query()
                 ->where('author_id', $user->getKey())
@@ -101,6 +117,11 @@ final class ZrobWlasnaWersje
                     'quantity' => $skladnik->quantity,
                     'unit_id' => $skladnik->unit_id,
                     'note' => $skladnik->note,
+                    // Zamiennik od autora („margaryna albo olej kokosowy",
+                    // D-284). Ktoś robi własną wersję właśnie po to, żeby
+                    // dopasować przepis — ta podpowiedź nie może zniknąć po
+                    // cichu (#2238, audyt BP-02).
+                    'substitutes' => $skladnik->substitutes,
                     'position' => $skladnik->position,
                     'no_amount' => $skladnik->no_amount,
                 ]);
@@ -126,5 +147,66 @@ final class ZrobWlasnaWersje
 
             return $wersja;
         });
+    }
+
+    /**
+     * Konta kopiującego i autora oraz wiersz oryginału — odczytane POD
+     * BLOKADĄ, do końca bieżącej transakcji (#2323).
+     *
+     * TRYBY BLOKAD
+     *  - konto kopiującego: `FOR NO KEY UPDATE`, jak przed #2323 — serializuje
+     *    dwa równoległe kliknięcia tej samej osoby (drugie widzi szkic
+     *    pierwszego). `NO KEY`, bo nie koliduje z `FOR KEY SHARE`, którą biorą
+     *    cudze zapisy wskazujące to konto (komentarz, obserwowanie). Koliduje
+     *    za to z `ZamekKonta`/`ZamekPary` i `UPDATE users` — czyli z banem,
+     *    zawieszeniem i blokadą, które odbierają prawo do kopii;
+     *  - konto autora: `FOR SHARE` — koliduje z tymi samymi zmianami konta
+     *    autora (ban, karencja usunięcia, blokada przez `ZamekPary`), a nie
+     *    ustawia w kolejce dwóch niezależnych kopii różnych osób;
+     *  - oryginał: `FOR SHARE` — koliduje z każdą zmianą widoczności, statusu
+     *    i treści (`UPDATE recipes`, `FOR UPDATE` w `PublishRecipe`
+     *    i moderacji), więc składniki i kroki czytane niżej są tymi z wersji,
+     *    której dostęp właśnie sprawdziliśmy.
+     *
+     * KOLEJNOŚĆ: konta rosnąco po `id` (jak `ZamekPary`), potem przepis —
+     * `users` → `recipes`, ta sama co w `RecordCookedEvent`, `PublishRecipe`
+     * (D-103) i kasowaniu konta (`EraseAccountData`, D-079 §1).
+     *
+     * @return array{0: User, 1: Recipe}|null `null`, gdy któregoś wiersza już
+     *                                        nie ma (np. przepis zdjęty przez moderację — miękko usunięty — albo
+     *                                        podmieniony autor)
+     */
+    private function zablokujStanDostepu(User $user, Recipe $oryginal): ?array
+    {
+        $idKopiujacego = (string) $user->getKey();
+        $idAutora = (string) $oryginal->author_id;
+
+        $doZablokowania = array_values(array_unique([$idKopiujacego, $idAutora]));
+        sort($doZablokowania, SORT_STRING);
+
+        $konta = [];
+
+        foreach ($doZablokowania as $id) {
+            $zapytanie = User::query()->whereKey($id);
+
+            $konta[$id] = $id === $idKopiujacego
+                ? $zapytanie->lock('for no key update')->first()
+                : $zapytanie->sharedLock()->first();
+        }
+
+        // Miękko usunięty (zdjęty przez moderację) przepis nie wraca tu przez
+        // domyślny zakres `SoftDeletes` — i ma nie wracać.
+        $swiezy = Recipe::query()->whereKey($oryginal->getKey())->sharedLock()->first();
+
+        $kopiujacy = $konta[$idKopiujacego] ?? null;
+        $autor = $konta[$idAutora] ?? null;
+
+        if ($swiezy === null || $kopiujacy === null || $autor === null || (string) $swiezy->author_id !== $idAutora) {
+            return null;
+        }
+
+        $swiezy->setRelation('author', $autor);
+
+        return [$kopiujacy, $swiezy];
     }
 }

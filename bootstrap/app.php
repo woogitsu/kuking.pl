@@ -15,10 +15,13 @@ use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureModeratorHasTwoFactor;
 use App\Http\Middleware\EnsureUserIsModerator;
 use App\Http\Middleware\NormalizeForwardedFor;
+use App\Http\Middleware\ParametryAdresuBezTablic;
 use App\Http\Middleware\PreventRequestForgeryExceptMediaCookie;
 use App\Http\Middleware\PreventSharedSessionCache;
 use App\Http\Middleware\SprawdzGeneracjeSesji;
 use App\Http\Middleware\StartSessionExceptAnonymousMedia;
+use App\Http\Middleware\UstawLimitCzasuZapytan;
+use App\Logging\KanalyAlarmowe;
 use App\Logging\QueueCorrelation;
 use App\Logging\WebhookBleduHandler;
 use App\Support\ZaufaneHosty;
@@ -144,11 +147,16 @@ return Application::configure(basePath: dirname(__DIR__))
         // i `Surrogate-Control`. Te nagłówki mają u brzegu PIERWSZEŃSTWO nad
         // `Cache-Control`, więc samo dopisanie `no-store` do `Cache-Control`
         // byłoby zakazem, który Cloudflare zignoruje.
+        // PIĄTY: `UstawLimitCzasuZapytan` (#2290) — `statement_timeout` na czas
+        // żądania HTTP. Przed grupą `web`, żeby objąć też odczyt sesji, i za
+        // `CorrelateRequest`, żeby strona błędu po przerwanym zapytaniu miała
+        // kod błędu. Konsola (worker, harmonogram, migracje) go nie widzi.
         $middleware->prepend([
             NormalizeForwardedFor::class,
             ApplySecurityHeaders::class,
             PreventSharedSessionCache::class,
             CorrelateRequest::class,
+            UstawLimitCzasuZapytan::class,
         ]);
 
         // Aplikacja NIGDY nie jest odpytywana bezpośrednio: ruch idzie przez
@@ -258,6 +266,12 @@ return Application::configure(basePath: dirname(__DIR__))
             // i nigdy nie rzuca wyjątku dalej — pełne uzasadnienie w
             // `App\Domain\Analytics\ZanotujOstatniaWizyte`.
             AktualizujOstatniaWizyte::class,
+
+            // Tablica w parametrze ADRESU (`?tydzien[]=x`) to brak parametru,
+            // a nie HTTP 500 (#2239 i rodzina, audyt BP-04). W grupie, nie
+            // globalnie, bo wyjątki są przypięte do nazwy trasy — ta jest
+            // znana dopiero po routingu. Uzasadnienie w klasie.
+            ParametryAdresuBezTablic::class,
         ]);
 
         // DWIE PODMIANY W GRUPIE `web`, NIE DOPISKI (#597).
@@ -599,8 +613,12 @@ return Application::configure(basePath: dirname(__DIR__))
         //  sterownik i wkłada w niego SQL razem z wartościami, czyli e-mail
         //  i hash hasła. Pełne uzasadnienie: komentarz klasy
         //  `App\Logging\WebhookBleduHandler`.
+        //
+        //  OD #599 KANAŁY SĄ DWA: Discord i poczta (`KUKING_ALARM_EMAIL`).
+        //  `KanalyAlarmowe` pisze na każdy włączony osobno; okno serii jest
+        //  wspólne, więc burza to jedna wiadomość na Discordzie i jeden list.
         $exceptions->report(function (Throwable $e) {
-            if (blank(config('logging.channels.blad_webhook.url'))) {
+            if (! KanalyAlarmowe::wlaczony()) {
                 return;
             }
 
@@ -619,16 +637,11 @@ return Application::configure(basePath: dirname(__DIR__))
             app(SeriaAlarmow::class)->zglos(
                 'wyjatek:'.WebhookBleduHandler::odcisk($e),
                 (int) config('kuking.monitoring.seria_okno_minut'),
-                function (int $pominiete) use ($e): bool {
-                    WebhookBleduHandler::zapomnijOstatniaWysylke();
-                    Log::channel('blad_webhook')->error($e::class, [
-                        'exception' => $e,
-                        'pominiete_powtorzenia' => $pominiete,
-                        ...app(QueueCorrelation::class)->forException($e),
-                    ]);
-
-                    return WebhookBleduHandler::ostatniaWysylkaSieUdala() === true;
-                },
+                fn (int $pominiete): bool => KanalyAlarmowe::zadzwon($e::class, [
+                    'exception' => $e,
+                    'pominiete_powtorzenia' => $pominiete,
+                    ...app(QueueCorrelation::class)->forException($e),
+                ]),
             );
         });
 

@@ -108,6 +108,9 @@ final class ZanotujOstatniaWizyte
                 DB::table('users')
                     ->where('id', $id)
                     ->whereNotIn('status', User::STATUSY_ZAMKNIETEGO_KONTA)
+                    // Sprzeciw wobec statystyk (#2277) — sprawdzany w samym
+                    // UPDATE, bo sprzeciw mógł przyjść w trakcie tego żądania.
+                    ->whereNull('sprzeciw_statystyk_at')
                     ->where(fn ($q) => $q->whereNull('ostatnio_widziany_at')
                         ->orWhere('ostatnio_widziany_at', '<=', $chwila->copy()->subMinutes($this->progMinut())))
                     ->update(['ostatnio_widziany_at' => $chwila]);
@@ -131,6 +134,10 @@ final class ZanotujOstatniaWizyte
      */
     private function naleznyZapis(User $user): bool
     {
+        if ($user->sprzeciwWobecStatystyk()) {
+            return false;
+        }
+
         $ostatnio = $user->ostatnio_widziany_at;
 
         if ($ostatnio === null) {

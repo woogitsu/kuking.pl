@@ -365,8 +365,10 @@
     {{-- `wolnoNaTejStronie()` ZDEJMUJE beacona z adresów niosących żeton albo
          adres e-mail (`/nowe-haslo/{token}?email=…`). Odczytany beacon usuwa
          query, ale zostawia ścieżkę. Osobny nagłówek no-referrer chroni
-         przejście do kolejnego dokumentu — uzasadnienie w tamtej klasie. --}}
-    @if(\App\Support\AnalitykaCloudflare::wlaczona() && \App\Support\AnalitykaCloudflare::wolnoNaTejStronie())
+         przejście do kolejnego dokumentu — uzasadnienie w tamtej klasie.
+         `widzNieSprzeciwilSie()` zdejmuje go osobie, która w ustawieniach
+         prywatności sprzeciwiła się statystykom (#2277). --}}
+    @if(\App\Support\AnalitykaCloudflare::wlaczona() && \App\Support\AnalitykaCloudflare::wolnoNaTejStronie() && \App\Support\AnalitykaCloudflare::widzNieSprzeciwilSie())
         <script defer
                 src="{{ \App\Support\AnalitykaCloudflare::adresSkryptu() }}"
                 data-cf-beacon='{{ \App\Support\AnalitykaCloudflare::konfiguracjaBeacona() }}'></script>
@@ -815,6 +817,9 @@
                                 {{-- Tagi promowane (D-021) — ten sam rodzaj wyboru redakcyjnego
                                      co tablica na dziś, stąd ta sama ikona. --}}
                                 <li><a class="side-nav-item" href="{{ route('admin.tag-promotions') }}" @if(request()->routeIs('admin.tag-promotions')) aria-current="page" @endif><x-ikona nazwa="pin" /> <span class="marka-panel-nav-etykieta">Tagi promowane</span></a></li>
+                                {{-- „Ugotujmy razem” (F3) — przepis tygodnia; ikona „chef”,
+                                     bo tu wybiera się przepis do gotowania, nie wpis. --}}
+                                <li><a class="side-nav-item" href="{{ route('admin.ugotujmy-razem') }}" @if(request()->routeIs('admin.ugotujmy-razem')) aria-current="page" @endif><x-ikona nazwa="chef" /> <span class="marka-panel-nav-etykieta">Ugotujmy razem</span></a></li>
                                 {{-- Wiadomości z „Napisz do nas" — ta sama ikona „chat"
                                      co odwołania, bo to też jest pismo od człowieka,
                                      a nie sprawa do rozstrzygnięcia. Osobna pozycja,

@@ -64,6 +64,13 @@ final class JakDobieramyWpisy
                     'tablica.tagi' => 'Polecane tagi na liście wszystkich tagów też wybiera gospodarz i tak są podpisane.',
                 ],
             ],
+            'razem' => [
+                'tytul' => 'Ugotujmy razem',
+                'zdania' => [
+                    'razem.wybor' => 'Przepis tygodnia na stronie „Ugotujmy razem” wybiera gospodarz serwisu i jest podpisany „Wybór gospodarza”.',
+                    'razem.czas' => 'Wykonania z danego tygodnia układamy tylko po czasie, od najnowszego, i nie pokazujemy, ile ich jest.',
+                ],
+            ],
             'szukaj' => [
                 'tytul' => 'Wyszukiwarka',
                 'zdania' => [

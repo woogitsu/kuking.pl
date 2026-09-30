@@ -61,8 +61,15 @@ return [
              *
              * 960 = 900 (najdłuższy timeout) + minuta zapasu na start zadania
              * i na zamknięcie archiwum. Pilnuje tego `UmowaKolejkiTest`.
+             *
+             * `DB_QUEUE_RETRY_AFTER` może tę wartość tylko PODNIEŚĆ (#2317).
+             * Literówka albo odziedziczone `90` w zmiennych Railway po cichu
+             * wróciłyby do usterki z audytu, więc wartość niższa od 960 (także
+             * `0` i tekst, który `(int)` zamienia na zero) jest podnoszona do
+             * 960. Podniesienie timeoutu joba wymaga podniesienia TEJ liczby —
+             * `UmowaKolejkiTest` oblewa, gdy o tym zapomnisz.
              */
-            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 960),
+            'retry_after' => max(960, (int) env('DB_QUEUE_RETRY_AFTER', 960)),
             'after_commit' => false,
         ],
 
