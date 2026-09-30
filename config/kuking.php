@@ -1744,6 +1744,16 @@ return [
         'discover' => '60,1',
 
         /*
+         * KANAŁY ATOM (`/@{nazwa}/kanal`, `/tag/{slug}/kanal`,
+         * `/zeszyt/{uuid}/kanal`) — #2227. Publiczne, bez konta i bez sesji,
+         * więc jedyną bramką kosztu obok `ETag`/304 jest ten limit. Czytnik
+         * pyta o jeden kanał raz na kilkanaście minut; sześćdziesiąt na
+         * minutę po adresie IP mieści też usługę czytnika, która z jednego
+         * adresu pobiera wiele kanałów naraz, a nie starcza na zalewanie.
+         */
+        'kanal' => '60,1',
+
+        /*
          * STRONA GŁÓWNA (`/`, trasa `landing`) — issue #1952, druga połowa.
          * Gość dostaje tu to samo zapytanie co na `/odkryj` plus tablicę dnia
          * i kolaż; pomiar (docs/infra/ODKRYJ_KOSZT_1952.md) daje ten sam koszt

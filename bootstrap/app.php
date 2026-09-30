@@ -6,6 +6,7 @@ use App\Domain\Analytics\ZapiszSygnal;
 use App\Domain\Monitoring\SeriaAlarmow;
 use App\Exceptions\OdzyskanyFormularz;
 use App\Http\Api\BledyApi;
+use App\Http\Controllers\KanalAtomController;
 use App\Http\Controllers\WydanieController;
 use App\Http\Middleware\AktualizujOstatniaWizyte;
 use App\Http\Middleware\ApplySecurityHeaders;
@@ -58,6 +59,24 @@ return Application::configure(basePath: dirname(__DIR__))
         // Nagłówki bezpieczeństwa i zakaz cache daje stos globalny.
         then: function (): void {
             Route::get('/wydanie', WydanieController::class)->name('wydanie');
+
+            // Kanały Atom (#2227, D-333) — też POZA grupą `web`: czytnik
+            // pyta co kilkanaście minut i nie może za każdym razem zakładać
+            // sesji ani dostawać `Set-Cookie`. Bez sesji widz jest zawsze
+            // gościem; dostęp rozstrzyga Policy w `KanalAtomController`.
+            // `whereUuid` przy zeszycie: inny ciąg nie leci do Postgresa
+            // jako UUID (500 zamiast 404), jak przy `/zeszyt/{collection}`.
+            $limitKanalu = 'throttle:'.config('kuking.limits.kanal').',kanal';
+            Route::get('/@{username}/kanal', [KanalAtomController::class, 'profil'])
+                ->middleware($limitKanalu)
+                ->name('kanaly.profil');
+            Route::get('/tag/{tag}/kanal', [KanalAtomController::class, 'tag'])
+                ->middleware($limitKanalu)
+                ->name('kanaly.tag');
+            Route::get('/zeszyt/{collection}/kanal', [KanalAtomController::class, 'zeszyt'])
+                ->whereUuid('collection')
+                ->middleware($limitKanalu)
+                ->name('kanaly.zeszyt');
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
