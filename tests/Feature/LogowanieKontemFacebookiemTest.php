@@ -7,6 +7,8 @@ namespace Tests\Feature;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Actions\ZalozoneKonto;
+use App\Models\ModerationAction;
+use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
@@ -830,6 +832,34 @@ class LogowanieKontemFacebookiemTest extends TestCase
         $this->assertStringContainsString('zablokowane', (string) session('status'));
         // Kontrola ujemna do D-333: zablokowanego nie ma czego „cofać”.
         $this->assertNull(session('status_akcja'));
+    }
+
+    /** D-333 (30.09): odwoływalna blokada — przycisk „Odwołaj się”, nie adres w zdaniu. */
+    #[Test]
+    public function test_konto_zablokowane_z_odwolywalna_decyzja_dostaje_przycisk_odwolania(): void
+    {
+        $this->wlaczFacebooka();
+
+        $basia = $this->user('basia', ['email' => 'basia@example.test']);
+        $basia->connectFacebook(self::FB_ID);
+        $wpis = Post::factory()->create(['author_id' => $basia->getKey(), 'visibility' => 'public']);
+        ModerationAction::create([
+            'moderator_id' => $this->moderator()->getKey(),
+            'target_type' => 'post',
+            'target_id' => $wpis->getKey(),
+            'subject_user_id' => $basia->getKey(),
+            'action' => ModerationAction::ACTION_BAN,
+            'reason_code' => 'spam',
+            'user_message' => 'Linki reklamowe mimo ostrzeżenia.',
+        ]);
+        $basia->ban();
+
+        $this->wracamyZFacebooka()->assertRedirect(route('login'));
+
+        $this->assertGuest();
+        $this->assertSame(['url' => route('appeals.guest'), 'etykieta' => 'Odwołaj się'], session('status_akcja'));
+        $this->assertStringContainsString('przyciskiem „Odwołaj się”', (string) session('status'));
+        $this->assertStringNotContainsString(route('appeals.guest'), (string) session('status'));
     }
 
     /** D-333: konto w karencji dostaje przycisk „Cofnij usunięcie konta”, nie adres w zdaniu. */

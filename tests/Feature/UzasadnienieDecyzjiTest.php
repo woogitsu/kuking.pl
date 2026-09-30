@@ -576,7 +576,11 @@ class UzasadnienieDecyzjiTest extends TestCase
         $this->assertStringContainsString('Nękanie innej osoby w komentarzach.', $blad);
         $this->assertStringContainsString('punkt 4 zasad Kuking', $blad);
         $this->assertStringContainsString('pozasądowego organu', $blad);
-        $this->assertStringContainsString(route('appeals.guest'), $blad);
+        // Droga odwołania: od D-333 (30.09.2026) przycisk „Odwołaj się” pod
+        // komunikatami (`status_akcja`), a nie adres w zdaniu.
+        $this->assertStringContainsString('przyciskiem „Odwołaj się”', $blad);
+        $this->assertStringNotContainsString(route('appeals.guest'), $blad);
+        $this->assertSame(['url' => route('appeals.guest'), 'etykieta' => 'Odwołaj się'], session('status_akcja'));
         // KONTROLA: nadal mówimy, CO SIĘ STAŁO.
         $this->assertStringContainsString('zablokowane', $blad);
         // NEGATYWNA: żadnych danych zgłaszającego ani nazwiska moderatora.

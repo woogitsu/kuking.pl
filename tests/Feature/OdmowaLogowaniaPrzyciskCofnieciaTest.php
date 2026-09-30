@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\ModerationAction;
+use App\Models\Post;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +40,36 @@ class OdmowaLogowaniaPrzyciskCofnieciaTest extends TestCase
         ]);
 
         return $basia->refresh();
+    }
+
+    /**
+     * Konto zablokowane decyzją moderatora. `$poTerminie` — decyzja sprzed
+     * wielu miesięcy, od której nie da się już odwołać.
+     */
+    private function kontoZablokowane(bool $poTerminie = false): User
+    {
+        $basia = $this->user('basia');
+        $wpis = Post::factory()->create(['author_id' => $basia->getKey(), 'visibility' => 'public']);
+        $decyzja = ModerationAction::create([
+            'moderator_id' => $this->moderator()->getKey(),
+            'target_type' => 'post',
+            'target_id' => $wpis->getKey(),
+            'subject_user_id' => $basia->getKey(),
+            'action' => ModerationAction::ACTION_BAN,
+            'reason_code' => 'spam',
+            'user_message' => 'Linki reklamowe mimo ostrzeżenia.',
+        ]);
+        if ($poTerminie) {
+            DB::table('moderation_actions')->where('id', $decyzja->getKey())->update(['created_at' => now()->subYear()]);
+        }
+        $basia->ban();
+
+        return $basia->refresh();
+    }
+
+    private function przyciskOdwolania(): string
+    {
+        return 'Odwołaj się → '.route('appeals.guest');
     }
 
     /** @return list<string> adresy przycisków `status_akcja` pod komunikatami */
@@ -178,5 +210,83 @@ class OdmowaLogowaniaPrzyciskCofnieciaTest extends TestCase
         $odpowiedz->assertStatus(422);
         $this->assertStringContainsString(route('account.delete.cancel'), (string) $odpowiedz->json('errors.login.0'));
         $this->assertStringNotContainsString('na górze tej strony', (string) $odpowiedz->json('errors.login.0'));
+    }
+
+    /**
+     * Decyzja właściciela z 30.09.2026: zablokowany, który może się jeszcze
+     * odwołać, dostaje przycisk „Odwołaj się” zamiast gołego „/odwolanie”
+     * w zdaniu. Pokazujemy go tylko po poprawnym haśle i tylko wtedy, gdy
+     * zdanie i tak mówi o odwołaniu — przycisk nie zdradza nic więcej.
+     */
+    public function test_odmowa_logowania_zablokowanego_ma_przycisk_odwolania_a_zdanie_nie_ma_adresu(): void
+    {
+        $this->kontoZablokowane();
+
+        $html = (string) $this->zalogujHaslem()->assertOk()->getContent();
+
+        $this->assertGuest();
+        $this->assertSame([$this->przyciskOdwolania()], $this->przyciskiPodKomunikatem($html),
+            'Pod komunikatami na stronie logowania nie ma przycisku „Odwołaj się”.');
+
+        $blad = $this->bladPrzyLoginie($html);
+        $this->assertStringContainsString('zablokowane', $blad);
+        $this->assertStringContainsString('przyciskiem „Odwołaj się” na górze tej strony', $blad);
+        $this->assertStringNotContainsString(route('appeals.guest'), $blad,
+            'Adres formularza odwołania wrócił do zdania odmowy jako zwykły tekst.');
+    }
+
+    public function test_blokada_po_terminie_odwolania_nie_ma_przycisku_ani_zdania_o_odwolaniu(): void
+    {
+        $this->kontoZablokowane(poTerminie: true);
+
+        $html = (string) $this->zalogujHaslem()->assertOk()->getContent();
+
+        $this->assertSame([], $this->przyciskiPodKomunikatem($html));
+        $blad = $this->bladPrzyLoginie($html);
+        $this->assertStringContainsString('zablokowane', $blad, 'Odmowa nie dotarła do pola (kontrola dodatnia).');
+        $this->assertStringNotContainsString('Odwołanie złożysz', $blad);
+    }
+
+    public function test_zle_haslo_do_konta_zablokowanego_nie_pokazuje_przycisku_odwolania(): void
+    {
+        $this->kontoZablokowane();
+
+        $html = (string) $this->zalogujHaslem('zupelnie-nie-to-haslo')->assertOk()->getContent();
+
+        $this->assertSame([], $this->przyciskiPodKomunikatem($html));
+        $blad = $this->bladPrzyLoginie($html);
+        $this->assertNotSame('', $blad, 'Odmowa nie dotarła do pola (kontrola dodatnia).');
+        $this->assertStringNotContainsString('zablokowane', $blad);
+    }
+
+    public function test_wylogowanie_zablokowanego_z_otwartej_sesji_ma_przycisk_odwolania(): void
+    {
+        $basia = $this->kontoZablokowane();
+        $this->actingAs($basia);
+
+        $this->get(route('settings.data'))->assertRedirect(route('login'));
+        $this->assertSame(['url' => route('appeals.guest'), 'etykieta' => 'Odwołaj się'], session('status_akcja'));
+
+        $html = (string) $this->get(route('login'))->assertOk()->getContent();
+
+        $this->assertSame([$this->przyciskOdwolania()], $this->przyciskiPodKomunikatem($html));
+        $blad = $this->bladPrzyLoginie($html);
+        $this->assertStringContainsString('przyciskiem „Odwołaj się”', $blad);
+        $this->assertStringNotContainsString(route('appeals.guest'), $blad);
+    }
+
+    public function test_api_zablokowanego_zachowuje_adres_odwolania_w_zdaniu(): void
+    {
+        config(['kuking.api.wlaczone' => true]);
+        $this->kontoZablokowane();
+
+        $odpowiedz = $this->postJson('/api/v1/tokeny', [
+            'login' => 'basia',
+            'password' => 'haslo-testowe-123',
+            'device_name' => 'Telefon Basi',
+        ]);
+
+        $odpowiedz->assertStatus(422);
+        $this->assertStringContainsString('Odwołanie złożysz na '.route('appeals.guest'), (string) $odpowiedz->json('errors.login.0'));
     }
 }

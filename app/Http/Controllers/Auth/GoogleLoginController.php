@@ -457,8 +457,8 @@ class GoogleLoginController extends Controller
     private function wpusc(Request $request, User $user): RedirectResponse
     {
         return match ($this->wejscie()->wpusc(ZadanieHttp::z($request), $user)) {
-            // Konto czekające na usunięcie: przycisk „Cofnij usunięcie konta” pod
-            // komunikatem (`status_akcja`, D-333); przy innych `akcja()` daje null.
+            // Przycisk pod komunikatem (`status_akcja`, D-333): „Cofnij usunięcie
+            // konta” albo „Odwołaj się” przy odwoływalnej blokadzie; inaczej null.
             WynikWejscia::KontoZamkniete => redirect()->route('login')
                 ->with(Komunikat::blad(KomunikatZamknietegoKonta::dla($user)))
                 ->with('status_akcja', KomunikatZamknietegoKonta::akcja($user)),

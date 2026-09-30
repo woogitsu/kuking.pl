@@ -88,9 +88,10 @@ class LoginController extends Controller
         try {
             $user = $this->sprawdzHaslo->handle($data['login'], $data['password'], $adres);
         } catch (OdmowaWejsciaNaZamknieteKonto $odmowa) {
-            // Konto czeka na usunięcie: pod komunikatami na górze strony staje
-            // przycisk „Cofnij usunięcie konta” (`status_akcja`, jak #2245),
-            // a błąd przy polu wskazuje go słowami, bez adresu (D-333).
+            // Konto czeka na usunięcie albo ma odwoływalną blokadę: pod
+            // komunikatami na górze strony staje przycisk „Cofnij usunięcie
+            // konta” albo „Odwołaj się” (`status_akcja`, jak #2245), a błąd
+            // przy polu wskazuje go słowami, bez adresu (D-333).
             if ($odmowa->akcja !== null) {
                 $request->session()->flash('status_akcja', $odmowa->akcja);
             }

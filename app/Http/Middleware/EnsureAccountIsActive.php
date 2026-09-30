@@ -221,8 +221,12 @@ class EnsureAccountIsActive
         $odModeratora = $user->isBanned() ? $user->latestModerationMessage() : null;
 
         if ($user->isBanned()) {
+            // Blokada jeszcze odwoływalna: zdanie wskazuje przycisk „Odwołaj się”
+            // (`status_akcja` niżej, D-333) — ta osoba była zalogowana, więc
+            // o stanie własnego konta nie dowiaduje się niczego nowego.
             $powod = 'To konto zostało zablokowane. '
                 .($odModeratora !== null ? $odModeratora.' ' : '')
+                .(KomunikatZamknietegoKonta::akcja($user) !== null ? KomunikatZamknietegoKonta::wskazanieOdwolania().' ' : '')
                 .'Jeśli uważasz, że to pomyłka, napisz do nas: '
                 .config('kuking.community.contact_email');
         } elseif ($user->isErased()) {

@@ -45,6 +45,9 @@ final class KomunikatZamknietegoKonta
      */
     public const ETYKIETA_COFNIECIA = 'Cofnij usunięcie konta';
 
+    /** Napis przycisku do publicznego formularza odwołania (#10, D-333). */
+    public const ETYKIETA_ODWOLANIA = 'Odwołaj się';
+
     /**
      * Przycisk pod komunikatem odmowy — dla `status_akcja` w layoucie.
      *
@@ -55,22 +58,58 @@ final class KomunikatZamknietegoKonta
      * (hasło, Google, Facebook, wylogowanie przez `EnsureAccountIsActive`)
      * dokłada ten przycisk przez `status_akcja` — ten sam mechanizm co #2245.
      *
-     * Tylko konto CZEKAJĄCE na usunięcie. Konto po wykonanej karencji
-     * (`erased`) cofnąć się nie da, więc przycisk byłby obietnicą bez
-     * pokrycia; zablokowane ma inną drogę (odwołanie).
+     * Konto CZEKAJĄCE na usunięcie dostaje „Cofnij usunięcie konta”.
+     * Konto ZABLOKOWANE — „Odwołaj się” do publicznego formularza odwołania
+     * (decyzja właściciela z 30.09.2026), ale tylko wtedy, gdy ostatnia
+     * blokada jest jeszcze odwoływalna: dokładnie wtedy, gdy zdanie odmowy
+     * i tak mówi o odwołaniu, więc przycisk nie zdradza niczego ponad
+     * komunikat. Konto po wykonanej karencji (`erased`) i blokada po
+     * terminie odwołania nie dostają nic — przycisk byłby obietnicą bez
+     * pokrycia.
      *
      * @return array{url: string, etykieta: string}|null
      */
     public static function akcja(User $user): ?array
     {
-        if ($user->status !== User::STATUS_PENDING_DELETE) {
-            return null;
+        if ($user->status === User::STATUS_PENDING_DELETE) {
+            return [
+                'url' => route('account.delete.cancel'),
+                'etykieta' => self::ETYKIETA_COFNIECIA,
+            ];
         }
 
-        return [
-            'url' => route('account.delete.cancel'),
-            'etykieta' => self::ETYKIETA_COFNIECIA,
-        ];
+        if ($user->status === User::STATUS_BANNED && self::ostatniaBlokada($user)?->isAppealable() === true) {
+            return [
+                'url' => route('appeals.guest'),
+                'etykieta' => self::ETYKIETA_ODWOLANIA,
+            ];
+        }
+
+        return null;
+    }
+
+    /** Ostatnia BLOKADA tej osoby — ta, o której mówi zdanie odmowy. */
+    private static function ostatniaBlokada(User $user): ?ModerationAction
+    {
+        return ModerationAction::query()
+            ->where('subject_user_id', $user->getKey())
+            ->where('action', ModerationAction::ACTION_BAN)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * Zdanie o drodze odwołania. W przeglądarce wskazuje przycisk z `akcja()`
+     * w obszarze komunikatów na górze strony; w API (bez przycisku) — adres.
+     */
+    public static function wskazanieOdwolania(bool $adresWTresci = false): string
+    {
+        if ($adresWTresci) {
+            return 'Odwołanie złożysz na '.route('appeals.guest').'.';
+        }
+
+        return 'Odwołanie złożysz przyciskiem „'.self::ETYKIETA_ODWOLANIA.'” na górze tej strony.';
     }
 
     /**
@@ -114,12 +153,7 @@ final class KomunikatZamknietegoKonta
          * komunikat wyżej mówi „to konto zostało zablokowane" i uzasadnienie
          * musi dotyczyć tej samej decyzji, a nie ukrycia wpisu z zeszłego roku.
          */
-        $blokada = ModerationAction::query()
-            ->where('subject_user_id', $user->getKey())
-            ->where('action', ModerationAction::ACTION_BAN)
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->first();
+        $blokada = self::ostatniaBlokada($user);
 
         $uzasadnienie = $blokada === null ? [] : UzasadnienieDecyzji::zdania($blokada);
 
@@ -129,8 +163,11 @@ final class KomunikatZamknietegoKonta
             // Odwołanie dla osoby zablokowanej ma osobny, PUBLICZNY formularz
             // (#10) — bez niego zdanie „możesz się odwołać" wyżej nie miałoby
             // dokąd prowadzić, bo do serwisu ta osoba nie wejdzie.
+            //
+            // W przeglądarce adres zastępuje przycisk „Odwołaj się” pod
+            // komunikatami (`akcja()`, D-333); API dostaje adres w zdaniu.
             .($blokada !== null && $blokada->isAppealable()
-                ? 'Odwołanie złożysz na '.route('appeals.guest').'. '
+                ? self::wskazanieOdwolania($adresWTresci).' '
                 : '')
             // Dwa warianty ostatniego zdania, bo uzasadnienie mówi już
             // „jeśli uważasz, że to pomyłka, możesz się odwołać". Powtórzenie
