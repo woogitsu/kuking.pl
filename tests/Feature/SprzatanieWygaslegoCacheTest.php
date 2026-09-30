@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +32,11 @@ final class SprzatanieWygaslegoCacheTest extends TestCase
         $sklep->put('limiter:gosc-a:timer', time() + 60, 60);
         $sklep->put('zywy-dluzej', 'tak', 3600);
         $sklep->forever('na-zawsze', 'tak');
-        $blokada = $sklep->lock('blokada-harmonogramu', 60);
+        // Blokada przez sklep (`getStore()`), nie przez kontrakt `Repository`,
+        // który `lock()` nie deklaruje — sterownik `database` jest `LockProvider`.
+        $magazyn = $sklep->getStore();
+        $this->assertInstanceOf(LockProvider::class, $magazyn);
+        $blokada = $magazyn->lock('blokada-harmonogramu', 60);
         $this->assertTrue($blokada->get());
 
         $this->travel(5)->minutes();
@@ -80,13 +85,13 @@ final class SprzatanieWygaslegoCacheTest extends TestCase
     {
         config(['kuking.retencja.partia' => 2, 'kuking.retencja.budzet' => 3]);
         $this->wstawWygasle(5);
-        Log::spy();
+        $log = Log::spy();
 
         $this->artisan('kuking:sprzataj-cache')
             ->expectsOutput('Skasowano 3 wygasłych wierszy cache.')
             ->assertSuccessful();
         $this->assertSame(2, DB::table('cache')->count());
-        Log::shouldHaveReceived('warning')
+        $log->shouldHaveReceived('warning')
             ->withArgs(fn (string $tresc, array $kontekst): bool => $kontekst['tabela'] === 'cache' && $kontekst['pozostalo'] === 2)
             ->once();
 

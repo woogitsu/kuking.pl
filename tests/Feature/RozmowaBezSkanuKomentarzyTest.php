@@ -169,15 +169,16 @@ final class RozmowaBezSkanuKomentarzyTest extends TestCase
     /** @param  callable(): int  $licz */
     private function assertBezSkanuKomentarzy(callable $licz, string $opis): void
     {
-        $zapytania = [];
-        $zbieraj = true;
-        DB::listen(function ($zapytanie) use (&$zapytania, &$zbieraj): void {
-            if ($zbieraj && preg_match('/^\s*\(?\s*select\b/i', $zapytanie->sql)) {
-                $zapytania[] = [$zapytanie->sql, $zapytanie->bindings];
+        $wszystkie = [];
+        DB::listen(function ($zapytanie) use (&$wszystkie): void {
+            if (preg_match('/^\s*\(?\s*select\b/i', $zapytanie->sql)) {
+                $wszystkie[] = [$zapytanie->sql, $zapytanie->bindings];
             }
         });
         $licz();
-        $zbieraj = false;
+        // Kopia (tablica przez wartość) zamraża to, co wykonał sam licznik —
+        // słuchacz dalej dopisuje do `$wszystkie`, np. EXPLAIN poniżej.
+        $zapytania = $wszystkie;
 
         $this->assertCount(1, $zapytania, "Licznik rozmowy ({$opis}) ma być jednym zapytaniem.");
         [$sql, $parametry] = $zapytania[0];
