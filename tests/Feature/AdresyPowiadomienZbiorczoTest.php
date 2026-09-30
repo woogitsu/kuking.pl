@@ -111,12 +111,15 @@ class AdresyPowiadomienZbiorczoTest extends TestCase
         $root = $this->comment($viewer, ['post_id' => $post->id]);
         $reply = $this->comment($viewer, ['post_id' => $post->id, 'parent_id' => $root->id]);
         $notification = $this->notification($viewer, $reply);
-        $this->assertSame($post->url().'#komentarz-'.$reply->id, app(CelPowiadomienia::class)->adresy([$notification], $viewer)[$notification->id]);
+        $adres = app(CelPowiadomienia::class)->adresy([$notification], $viewer)[$notification->id];
+        $this->assertSame($post->url().'#komentarz-'.$reply->id, $adres);
         $root->delete();
-        $this->assertSame('/adres-zapasowy', app(CelPowiadomienia::class)->adresy([$notification], $viewer)[$notification->id]);
+        $adres = app(CelPowiadomienia::class)->adresy([$notification], $viewer)[$notification->id];
+        $this->assertSame('/adres-zapasowy', $adres);
         $root->restore();
         $post->delete();
-        $this->assertSame('/adres-zapasowy', app(CelPowiadomienia::class)->adresy([$notification], $viewer)[$notification->id]);
+        $adres = app(CelPowiadomienia::class)->adresy([$notification], $viewer)[$notification->id];
+        $this->assertSame('/adres-zapasowy', $adres);
         $notification->data = [];
         $this->assertSame([$notification->id => null], app(CelPowiadomienia::class)->adresy([$notification], $viewer));
         $this->assertSame([], app(CelPowiadomienia::class)->adresy([], $viewer));

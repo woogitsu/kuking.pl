@@ -59,13 +59,15 @@ class DataRightsTest extends TestCase
             ->post(route('settings.data.delete'), ['password' => 'zle-haslo', 'confirm' => '1'])
             ->assertSessionHasErrors('password');
 
-        $this->assertSame(User::STATUS_ACTIVE, $basia->fresh()->status);
+        $status = $basia->fresh()->status;
+        $this->assertSame(User::STATUS_ACTIVE, $status);
 
         $this->actingAs($basia)
             ->post(route('settings.data.delete'), ['password' => 'haslo-testowe-123'])
             ->assertSessionHasErrors('confirm');
 
-        $this->assertSame(User::STATUS_ACTIVE, $basia->fresh()->status);
+        $status = $basia->fresh()->status;
+        $this->assertSame(User::STATUS_ACTIVE, $status);
     }
 
     public function test_konto_przechodzi_w_stan_oczekiwania_a_nie_znika_od_razu(): void
