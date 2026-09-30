@@ -80,7 +80,25 @@ final class BlokadyWZadaniu
      */
     public static function rozpocznij(Request $zadanie): void
     {
-        $zadanie->attributes->set(ListyWidza::KLUCZ_POZIOMU_TRANSAKCJI, DB::transactionLevel());
+        $zadanie->attributes->set(ListyWidza::KLUCZ_POZIOMU_TRANSAKCJI, self::poziomTransakcjiNaWejsciu());
         ListyWidza::uniewaznij();
+    }
+
+    /**
+     * Poziom transakcji na wejściu — BEZ otwierania połączenia z bazą.
+     *
+     * `DB::transactionLevel()` woła `connection()`, czyli łączy się z bazą.
+     * `RouteMatched` leci dla KAŻDEGO dopasowanego żądania, także `/up` i
+     * `/health`, a te mają działać, gdy bazy nie ma (`/up` odpowiada 200,
+     * `/health` mówi 503 zamiast 500 — `HealthKontraktOdpowiedziTest`). Połączenie,
+     * którego jeszcze nie otwarto, nie ma otwartej transakcji: poziom 0. Otwarte
+     * (test pod `RefreshDatabase`, wcześniejszy middleware) pytamy wprost.
+     */
+    private static function poziomTransakcjiNaWejsciu(): int
+    {
+        $otwarte = DB::getConnections();
+        $polaczenie = $otwarte[DB::getDefaultConnection()] ?? null;
+
+        return $polaczenie === null ? 0 : $polaczenie->transactionLevel();
     }
 }

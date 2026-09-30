@@ -44,7 +44,7 @@ final class StartListyWidzaBezPowtorekTest extends TestCase
         DB::table('blocks')->insert(['blocker_id' => $blokujacy->getKey(), 'blocked_id' => $widz->getKey(), 'created_at' => now()]);
         $tag = Tag::factory()->create();
         DB::table('tag_follows')->insert(['user_id' => $widz->getKey(), 'tag_id' => $tag->getKey(), 'created_at' => now()]);
-        $wpis = Post::factory()->for($obserwowany, 'author')->create(['body' => 'Wpis obserwowanego z Startu']);
+        Post::factory()->for($obserwowany, 'author')->create(['body' => 'Wpis obserwowanego z Startu']);
 
         // Rozgrzewka: tablica dnia trzyma kandydatów w cache, więc pomiar
         // bierzemy z ciepłym cache (inaczej liczba zapytań zależy od kolejności).
@@ -61,7 +61,6 @@ final class StartListyWidzaBezPowtorekTest extends TestCase
         // KONTROLA DODATNIA (docs/PULAPKI_TESTOW.md §4): Start pokazuje wpis
         // z feedu obserwowanych, więc pomiar obejmuje feed, a nie pusty ekran.
         $this->assertStringContainsString('Wpis obserwowanego z Startu', $html);
-        $this->assertNotNull($wpis);
 
         $ile = fn (string $wzorzec): int => count(array_filter($zapytania, fn (string $sql): bool => preg_match($wzorzec, $sql) === 1));
 
