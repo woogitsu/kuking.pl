@@ -22,6 +22,7 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Unit;
 use App\Support\Komunikat;
+use App\Support\KursorListy;
 use App\Support\OdpowiedziWatku;
 use App\Support\PaginationLinks;
 use Illuminate\Http\RedirectResponse;
@@ -180,11 +181,14 @@ class RecipeController extends Controller
     /** Prywatna lista autora; skróty na „Dodaj” nie zastępują dostępu do starszych szkiców. */
     public function drafts(Request $request): View
     {
-        $drafts = $request->user()->recipes()
-            ->where('status', Recipe::STATUS_DRAFT)
-            ->orderByDesc('updated_at')
-            ->orderByDesc('id')
-            ->cursorPaginate(20);
+        $drafts = KursorListy::strona(
+            $request->user()->recipes()
+                ->where('status', Recipe::STATUS_DRAFT)
+                ->orderByDesc('updated_at')
+                ->orderByDesc('id'),
+            20,
+            ['updated_at' => KursorListy::CZAS, 'id' => KursorListy::UUID],
+        );
         foreach ($drafts as $draft) {
             $this->authorize('view', $draft);
         }
