@@ -27,10 +27,16 @@ final class FrazaWyszukiwania
      * `Str::ascii()` nie umie zapisać (np. emoji), ZNIKAJĄ: wynik bywa
      * krótszy od wejścia, także pusty. Długość sprawdza się więc PO tej
      * metodzie, nie przed nią (#1050).
+     *
+     * BRZEGI PRZYCINAMY PO TRANSLITERACJI (#2331). Kontroler przycina frazę
+     * przed tą metodą, ale emoji na brzegu znika dopiero tutaj i zostawia
+     * spację: „Basia 🍲" dawało „basia ", a `LIKE '%basia %'` nie znajdowało
+     * konta „Basia". Środka frazy to nie dotyka — „Basia 🍲 Nowak" zostaje
+     * z dwiema spacjami, tak jak dotąd.
      */
     public static function normalizuj(string $fraza): string
     {
-        return mb_strtolower(Str::ascii($fraza));
+        return trim(mb_strtolower(Str::ascii($fraza)));
     }
 
     /**
