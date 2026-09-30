@@ -313,7 +313,13 @@
     <meta name="twitter:card" content="{{ $ogImageGotowe ? 'summary_large_image' : 'summary' }}">
 
     <link rel="canonical" href="{{ \App\Support\KanonicznyAdresStrony::dla(request()) }}">
-    <meta name="theme-color" content="#151714">
+    {{-- Kolor paska przeglądarki = tło strony w AKTYWNYM motywie (#2267).
+         Do 30.09.2026 stało tu zawsze ciemne #151714, więc jasna strona
+         (motyw domyślny, D-019) dostawała na telefonie czarny pasek. Kolory
+         to `--color-surface` z `resources/css/tokens.css` (jasny i ciemny);
+         `data-*` czyta `resources/js/kolor-paska.js` przy podglądzie motywu
+         bez przeładowania. Manifest ma jasny, bo jasny jest domyślny. --}}
+    <meta name="theme-color" content="{{ $theme === 'dark' ? '#151714' : '#F3F4F1' }}" data-jasny="#F3F4F1" data-ciemny="#151714">
 
     <link rel="icon" href="{{ asset('icons/kuking-mark.svg') }}" type="image/svg+xml">
     <link rel="apple-touch-icon" href="{{ asset('icons/kuking-icon-192.png') }}">
