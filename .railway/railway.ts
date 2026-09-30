@@ -504,6 +504,13 @@ export default defineRailway((ctx) => {
     // wartość wpisana w tym pliku.
     LOG_BLAD_WEBHOOK_URL: ctx.shared.LOG_BLAD_WEBHOOK_URL,
 
+    // Drugi kanał alarmowy: poczta (#599, `config/logging.php` kanał
+    // `blad_email`). Adres skrzynki operatora — dana osobowa, nie klucz, ale
+    // trzymana jak webhook w `ctx.shared`, żeby nie stała w repozytorium.
+    // Puste = sam Discord. Wszystkie trzy role: błąd może paść w każdej.
+    // To NIE jest `KUKING_MODEL_ALARM_EMAIL` (skrzynka moderacji).
+    KUKING_ALARM_EMAIL: ctx.shared.KUKING_ALARM_EMAIL,
+
     // --- Turnstile, Google, Facebook, analityka odwiedzin -------------------
     // Żyją w `wejscieEnv` niżej i trafiają WYŁĄCZNIE do web (#1013): czyta je
     // tylko warstwa HTTP (formularze, trasy logowania, HTML strony, `/health`).

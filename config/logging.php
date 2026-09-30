@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Logging\EmailBleduLogger;
 use App\Logging\FiltrDanychOsobowych;
 use App\Logging\WebhookBleduLogger;
 use Monolog\Handler\NullHandler;
@@ -141,6 +142,35 @@ return [
             'driver' => 'custom',
             'via' => WebhookBleduLogger::class,
             'url' => env('LOG_BLAD_WEBHOOK_URL'),
+            'level' => 'error',
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Drugi kanał alarmowy: poczta (#599)
+        |----------------------------------------------------------------------
+        |
+        | OBOK `blad_webhook` (Discord), nie zamiast niego. Oba mogą działać
+        | naraz; każdy włącza się SWOJĄ zmienną i przy pustej jest martwy.
+        | Na kanały pisze `App\Logging\KanalyAlarmowe`, każdy osobno.
+        |
+        | `KUKING_ALARM_EMAIL`, NIE `KUKING_MODEL_ALARM_EMAIL`: tamten adres
+        | jest skrzynką MODERACJI (pilne treści od ludzi, `AlarmujModeratora`),
+        | ten — awarii infrastruktury. Mogą wskazywać tę samą skrzynkę, ale to
+        | decyzja właściciela, nie kodu; sklejonych nie da się rozdzielić bez
+        | zmiany kodu.
+        |
+        | Treść listu buduje `WebhookBleduHandler::tresc()` (ta sama lista
+        | dozwolonych pól co na Discordzie). Pętla „alarm o awarii poczty
+        | pocztą", sufit dobowy i wysyłka bez kolejki: komentarz klasy
+        | `App\Logging\EmailBleduHandler`.
+        |
+        | POZIOM NA SZTYWNO `error`, tak samo jak przy webhooku.
+        */
+        'blad_email' => [
+            'driver' => 'custom',
+            'via' => EmailBleduLogger::class,
+            'adres' => env('KUKING_ALARM_EMAIL'),
             'level' => 'error',
         ],
 

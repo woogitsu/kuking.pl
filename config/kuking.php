@@ -2698,6 +2698,19 @@ return [
          * mówiłoby tylko „coś kiedyś nie wyszło".
          */
         'okno_prawdy_godzin' => (int) env('KUKING_POCZTA_OKNO_PRAWDY_GODZIN', 24),
+
+        /*
+         * DOBOWY SUFIT LISTÓW Z ALARMEM OPERACYJNYM (`KUKING_ALARM_EMAIL`, #599).
+         *
+         * Okno serii (`monitoring.seria_okno_minut`) i odstępy czujek już
+         * zamieniają burzę w jedną wiadomość. Ten sufit jest ostatnią zaporą:
+         * wiele RÓŻNYCH awarii jednego dnia nie może zjeść puli, z której idą
+         * potwierdzenia rejestracji. 20 listów to 6,7% puli 300. Klasa
+         * `zwykla` — alarm operatora nie sięga po ostatnie listy doby, które
+         * należą do wejścia na konto; Discord i tak dostaje każdy alarm.
+         * Zero wyłącza listy alarmowe bez ruszania adresu.
+         */
+        'alarm_operacyjny_na_dobe' => (int) env('KUKING_ALARM_EMAIL_NA_DOBE', 20),
     ],
 
     'digest' => [

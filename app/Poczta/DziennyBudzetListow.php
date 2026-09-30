@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Poczta;
 
+use App\Logging\KanalyAlarmowe;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -394,6 +395,22 @@ final class DziennyBudzetListow
             'alarm-automatu',
             'kuking.moderation.model.alarm_dzienny_sufit',
             self::wspolny(self::KLASA_WEJSCIE),
+        );
+    }
+
+    /**
+     * List z alarmem operacyjnym na `KUKING_ALARM_EMAIL` (`EmailBleduHandler`, #599).
+     *
+     * Własny sufit (`poczta.alarm_operacyjny_na_dobe`) i klasa `zwykla`:
+     * alarm operatora ma drugi kanał (Discord), więc nie sięga po ostatnie
+     * listy doby, które należą do rejestracji i logowania linkiem.
+     */
+    public static function dlaAlarmuOperacyjnego(): self
+    {
+        return new self(
+            'alarm-operacyjny',
+            'kuking.poczta.alarm_operacyjny_na_dobe',
+            self::wspolny(self::KLASA_ZWYKLA),
         );
     }
 
@@ -876,7 +893,7 @@ final class DziennyBudzetListow
                 .'Jeśli to się powtarza, przejdź na płatny plan u dostawcy — docs/decyzje/POCZTA.md §4.',
         ]);
 
-        if (blank(config('logging.channels.blad_webhook.url'))) {
+        if (! KanalyAlarmowe::wlaczony()) {
             return;
         }
 
@@ -885,7 +902,10 @@ final class DziennyBudzetListow
         // `message`, więc cokolwiek dołożonego w `context` i tak by nie
         // wyszło — a gdyby kiedyś wyszło, wychodziłoby do usługi, nad którą
         // nie mamy kontroli (AGENTS.md §7, audyt A6-01).
-        Log::channel('blad_webhook')->error(sprintf(
+        // Discord i poczta (#599). List o kończącej się puli sam zajmuje
+        // miejsce w puli (sufit `poczta.alarm_operacyjny_na_dobe`), a gdy
+        // pula jest pusta — nie wychodzi i zostaje Discord.
+        KanalyAlarmowe::zadzwon(sprintf(
             'Poczta: sufit „%s" zużyty w %d%% (%d z %d). Gdy się skończy, ta funkcja przestanie wysyłać listy.',
             $this->funkcja,
             (int) floor($zuzyte * 100 / $budzet),

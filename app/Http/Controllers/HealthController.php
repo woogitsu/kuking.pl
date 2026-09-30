@@ -6,7 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\KontrolaZdrowiaNieprzeszla;
 use App\Logging\BezpiecznyBlad;
-use App\Logging\WebhookBleduHandler;
+use App\Logging\KanalyAlarmowe;
 use App\Support\Zdrowie\Powody;
 use App\Support\Zdrowie\Sonda;
 use App\Support\Zdrowie\Sondy\SondaAnalityki;
@@ -286,7 +286,7 @@ class HealthController extends Controller
             // serwis, kanał wyłączony) — każde wywołanie `/health` sprawdza
             // dziesięć kontroli, a bez tego warunku każda zdrowa odpowiedź
             // dokładałaby dziesięć zbędnych zapisów do tabeli `cache`.
-            if (filled(config('logging.channels.blad_webhook.url'))) {
+            if (KanalyAlarmowe::wlaczony()) {
                 Cache::forget($this->kluczOdstepuWebhooka($nazwa));
             }
 
@@ -345,7 +345,7 @@ class HealthController extends Controller
      */
     private function powiadomWebhook(string $nazwa, string $powod): void
     {
-        if (blank(config('logging.channels.blad_webhook.url'))) {
+        if (! KanalyAlarmowe::wlaczony()) {
             return;
         }
 
@@ -353,12 +353,10 @@ class HealthController extends Controller
             return;
         }
 
-        // Czysta kartka przed pomiarem: w jednym żądaniu `/health` dzwonimy
-        // nawet kilka razy (osobny odstęp na kontrolę), a bez tego drugi
-        // dzwonek odczytałby wynik pierwszego.
-        WebhookBleduHandler::zapomnijOstatniaWysylke();
-
-        Log::channel('blad_webhook')->error("/health: kontrola „{$nazwa}” nie przeszła (powód: {$powod}).");
+        // Discord i poczta (#599), każdy osobno; wynik = czy KTÓRYKOLWIEK
+        // przyjął. `zadzwon()` zaczyna od czystej kartki: w jednym żądaniu
+        // `/health` dzwonimy nawet kilka razy (osobny odstęp na kontrolę).
+        $przyjeto = KanalyAlarmowe::zadzwon("/health: kontrola „{$nazwa}” nie przeszła (powód: {$powod}).");
 
         // ────────────────────────────────────────────────────────────────
         //  CISZA NA POŁ GODZINY NALEŻY SIĘ ZA DZWONEK, KTÓRY ZADZWONIŁ
@@ -377,7 +375,7 @@ class HealthController extends Controller
         // `/health` (monitoring pyta co kilka minut) zadzwoni jeszcze raz.
         // Sam fakt niedodzwonienia się zostaje w dzienniku serwera — zapisuje
         // go handler.
-        if (WebhookBleduHandler::ostatniaWysylkaSieUdala() === false) {
+        if (! $przyjeto) {
             Cache::forget($this->kluczOdstepuWebhooka($nazwa));
         }
     }

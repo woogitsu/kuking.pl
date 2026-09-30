@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Monitoring;
 
-use App\Logging\WebhookBleduHandler;
-use Illuminate\Support\Facades\Log;
-use Throwable;
+use App\Logging\KanalyAlarmowe;
 
 /**
  * Jeden kontrakt transportu dla czujek na webhook właściciela (#972).
@@ -20,10 +18,9 @@ final class KanalAlarmowy
 {
     public function wlaczony(): bool
     {
-        // Brak adresu = kanał wyłączony — tak jest DZIŚ na produkcji (odczyt
-        // listy zmiennych usługi, 17.09.2026: brak `LOG_BLAD_WEBHOOK_URL`).
-        // Ten sam warunek stoi w `bootstrap/app.php`.
-        return ! blank(config('logging.channels.blad_webhook.url'));
+        // Discord (`LOG_BLAD_WEBHOOK_URL`) albo poczta (`KUKING_ALARM_EMAIL`,
+        // #599). Oba puste = cisza. Ten sam warunek stoi w `bootstrap/app.php`.
+        return KanalyAlarmowe::wlaczony();
     }
 
     /**
@@ -45,27 +42,10 @@ final class KanalAlarmowy
      */
     public function przyjal(string $tresc): bool
     {
-        // CZYSTA KARTKA PRZED PRÓBĄ. Pamięć wyniku w handlerze jest
-        // STATYCZNA, czyli wspólna dla całego procesu — a w jednym przebiegu
-        // harmonogramu idą po sobie czujki kopii, połączeń i kolejki. Bez
-        // wyzerowania cudzy sukces sprzed chwili zostałby odczytany jako nasz
-        // (handler nie dotyka tej pamięci, gdy kanał ma pusty adres).
-        WebhookBleduHandler::zapomnijOstatniaWysylke();
-
-        try {
-            // `error()`, bo kanał ma poziom ustawiony na sztywno na `error`
-            // i wpis niższej wagi zostałby po cichu odrzucony przez Monologa.
-            Log::channel('blad_webhook')->error($tresc);
-        } catch (Throwable) {
-            // Nieudane powiadomienie nie ma prawa przewrócić zadania
-            // harmonogramu — w roli `all` błąd harmonogramu kładł kiedyś
-            // cały kontener (`docker/entrypoint.sh`).
-            return false;
-        }
-
-        // BRAK WYJĄTKU NIE JEST DOWODEM PRZYJĘCIA. Kod odpowiedzi zna handler
-        // i trzeba go o niego zapytać. `null` (nie próbowaliśmy — kanał
-        // zbudowany z pustym adresem) też nie jest przyjęciem.
-        return WebhookBleduHandler::ostatniaWysylkaSieUdala() === true;
+        // Czysta kartka, osobny `try` na każdy kanał i odpowiedź „czy
+        // KTÓRYKOLWIEK przyjął” (2xx od Discorda albo list przyjęty przez
+        // transport): `KanalyAlarmowe::zadzwon()`. Brak wyjątku nadal nie
+        // jest dowodem przyjęcia — handlery pytają o kod odpowiedzi.
+        return KanalyAlarmowe::zadzwon($tresc);
     }
 }
