@@ -60,10 +60,8 @@
                 <span>
                     <span class="choice-label">{{ $alergen->etykieta() }}</span>
                     @if(! in_array($alergen->value, $wybrane, true) && ($podpowiedzi[$alergen->value] ?? []) !== [])
-                        <span class="choice-help">
-                            Podpowiedź: w „{{ implode('”, „', array_slice($podpowiedzi[$alergen->value], 0, 3)) }}” widzimy
-                            {{ $alergen->nazwa() }}. To tylko podpowiedź — zaznacz to pole, jeśli to prawda.
-                        </span>
+                        @php $fragmenty = implode('”, „', array_slice($podpowiedzi[$alergen->value], 0, 3)); @endphp
+                        <span class="choice-help">Podpowiedź: w „{{ $fragmenty }}” widzimy {{ $alergen->nazwa() }}. To tylko podpowiedź — zaznacz to pole, jeśli to prawda.</span>
                     @endif
                 </span>
             </label>
