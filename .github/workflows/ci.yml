@@ -1661,7 +1661,11 @@ jobs:
       # a nie w `port_funkcje`: ten job jest krótszy (ok. 8 min wobec
       # ok. 13-15 min każdej z dwóch części macierzy `port_funkcje` po #611,
       # etapie 9), więc dołożone ok. 3-4 min (lokalnie 69-83 + 73-85 + 16-24
-      # + 5-7 s) nie wydłużają najdłuższej ścieżki CI. `tinker` w dwóch
+      # + 5-7 s) nie wydłużają najdłuższej ścieżki CI. #2299, etap 3: po
+      # przesunięciu do grupy `baza` czterech lekkich pomiarów z części 1
+      # portu (ok. 160 s) ten job trwa ok. 13 min, a część 1 ok. 13,5 min
+      # (było 10,8 i 16,2), czyli obie mieszczą się w ścieżce krytycznej
+      # wyznaczanej dziś przez kontrole negatywne i dostępność (ok. 15 min). `tinker` w dwóch
       # skryptach wymaga pakietów deweloperskich — ten job je instaluje
       # (#2223). Kolejność: `pasek-uklady` nadaje moderatorowi demo 2FA,
       # dalsze skrypty tego konta nie używają.
