@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Database\Factories\ProfileFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -209,5 +210,39 @@ class Profile extends Model
         return $zdjecie !== null
             && $zdjecie->status === Media::STATUS_REJECTED
             && $this->zdjecieDoPokazania() === null;
+    }
+
+    /**
+     * Profile, na których GOŚĆ ma co oglądać: konto dostępne jako autor
+     * (`User::scopeDostepnyJakoAutor`, ta sama granica co
+     * `UserPolicy::viewProfile()`) i co najmniej jedna publiczna treść —
+     * wpis, przepis ALBO wykonanie (#2235, #2236).
+     *
+     * Jedno źródło prawdy dla mapy strony i karty z kodem QR (#2349): karta
+     * nie może prowadzić do profilu, który gościowi pokaże puste miejsce.
+     *
+     * Wpis liczy się tak, jak liczy go profil dla gościa
+     * (`ProfileController::tylkoWidoczne()`): wpis z własną treścią — według
+     * własnej widoczności, a czysta zapowiedź przepisu — tylko z przepisem,
+     * który gość może zobaczyć (#1805). Wykonanie liczy się zakresem zakładki
+     * „Ugotowane” dla gościa (`ProfileController::tylkoZWidocznychPrzepisow()`).
+     *
+     * @param  Builder<Profile>  $query
+     */
+    public function scopeZPublicznaTrescia(Builder $query): void
+    {
+        $query
+            ->whereHas('user', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->where(function ($maPubliczonaTresc): void {
+                $maPubliczonaTresc
+                    ->whereHas('user.posts', fn ($query) => $query
+                        ->publiclyVisible()
+                        ->zWidocznymPrzepisemAlboWlasnaTrescia(null))
+                    ->orWhereHas('user.recipes', fn ($query) => $query->publiclyVisible())
+                    ->orWhereHas('user.cookedEvents', fn ($query) => $query
+                        ->whereHas('recipe', fn ($przepis) => $przepis
+                            ->widoczneDla(null)
+                            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())));
+            });
     }
 }

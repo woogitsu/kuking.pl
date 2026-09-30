@@ -45,6 +45,7 @@ use App\Http\Controllers\HealthController;
 use App\Http\Controllers\HistoriaPrzepisuController;
 use App\Http\Controllers\ImportPrzepisuController;
 use App\Http\Controllers\JakWyszloController;
+use App\Http\Controllers\KartaQrController;
 use App\Http\Controllers\ListaZakupowController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MojeWpisyController;
@@ -305,6 +306,10 @@ Route::post('/motyw', [ThemeController::class, 'update'])
 
 Route::get('/przepisy/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
 
+// Karta z kodem QR (#2349): tylko odczyt, także dla gościa; dostęp rozstrzyga
+// Policy i bramka „czy to zobaczy gość” w `KartaQrController`.
+Route::get('/przepisy/{recipe}/karta-qr', [KartaQrController::class, 'przepis'])->name('recipes.qr-card');
+
 // Historia zapisanych wersji przepisu (issue #2024) — tylko odczyt, także dla
 // gościa; dostęp rozstrzyga `RecipePolicy::view` i opublikowanie przepisu
 // (`App\Domain\Recipes\Historia\HistoriaWersji`).
@@ -413,6 +418,8 @@ Route::get('/zdjecia/{media}/{wariant}', [MediaController::class, 'show'])
 // `/@{username}`, z tego samego powodu co reszta tras pod profilem.
 Route::get('/@{username}/obserwujacy', [SocialController::class, 'followers'])->name('social.followers');
 Route::get('/@{username}/obserwowani', [SocialController::class, 'following'])->name('social.following');
+
+Route::get('/@{username}/karta-qr', [KartaQrController::class, 'profil'])->name('profile.qr-card');
 
 // Profil na końcu, bo /@nazwa nie może przechwycić innych adresów.
 Route::get('/@{username}', [ProfileController::class, 'show'])->name('profile.show');

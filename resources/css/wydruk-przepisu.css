@@ -63,6 +63,33 @@
   margin-top: var(--spacing-5);
 }
 
+/* Karta z kodem QR (#2349) na ekranie: podgląd kartki. Kod ZAWSZE na białym
+   tle (także w motywie ciemnym) — skaner potrzebuje ciemnych modułów na
+   jasnym polu; margines ciszy siedzi w samym obrazku SVG. */
+.karta-qr-marka {
+  font-weight: 700;
+  margin: 0 0 var(--spacing-2);
+}
+
+.karta-qr-kod {
+  background: #FFFFFF;
+  width: min(100%, 20rem);
+  margin: var(--spacing-4) 0;
+}
+
+.karta-qr-kod svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.karta-qr-adres {
+  font-size: var(--text-body-lg);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  margin: 0 0 var(--spacing-4);
+}
+
 @media print {
   @page {
     size: A4;
@@ -275,5 +302,35 @@
     margin-top: 14pt;
     padding-top: 8pt;
     border-top: 1pt solid #151714;
+  }
+
+  /* ───────────────────────────────────────────────────────────────────────
+     KARTA Z KODEM QR (#2349). Ramę i pismo (16 pt, tytuł 26 pt) dają
+     `.sciagawka` i wspólne reguły wyżej; tu tylko kod i adres. Kod 9 cm
+     (skaner z kilkudziesięciu centymetrów czyta bez trudu), czarny na białym
+     z ciszą dookoła; adres 20 pt, łamany gdziekolwiek — przepisuje się go
+     z papieru, gdy nie ma skanera.
+     ─────────────────────────────────────────────────────────────────────── */
+  body:has(.karta-qr) .karta-qr-kod {
+    width: 9cm;
+    margin: 12pt 0;
+    background: #FFFFFF !important;
+    break-inside: avoid;
+  }
+
+  body:has(.karta-qr) .karta-qr-kod svg {
+    width: 100%;
+    height: auto;
+  }
+
+  body:has(.karta-qr) .sciagawka.karta-qr .karta-qr-adres {
+    font-size: calc(20pt * var(--druk-skala));
+    font-weight: 700;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+  }
+
+  body:has(.karta-qr) .sciagawka.karta-qr .karta-qr-marka {
+    font-size: calc(20pt * var(--druk-skala));
   }
 }

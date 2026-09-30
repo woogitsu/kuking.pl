@@ -120,32 +120,10 @@ class SitemapController extends Controller
             // treścią → index, follow".
             //
             // Granica `dostepnyJakoAutor()` (D-333, 30.09) — patrz komentarz wyżej.
+            // Zakres „co najmniej jedna publiczna treść” mieszka w `Profile::scopeZPublicznaTrescia()`
+            // (ta sama bramka pilnuje karty z kodem QR, #2349).
             Profile::query()
-                ->whereHas('user', fn ($autor) => $autor->dostepnyJakoAutor())
-                ->where(function ($maPubliczonaTresc): void {
-                    // Wpis liczy się tak, jak liczy go sam profil dla gościa
-                    // (`ProfileController::tylkoWidoczne()`): wpis z własną
-                    // treścią — według własnej widoczności, a czysta
-                    // zapowiedź przepisu — tylko z przepisem, który gość
-                    // może zobaczyć (issue #1805). Zapowiedź jest zawsze
-                    // `public`, także przy przepisie „tylko dla
-                    // obserwujących", prywatnym albo ukrytym przez
-                    // moderację; bez tej bramki wpuszczała do mapy profil,
-                    // na którym gość nie ma czego oglądać.
-                    $maPubliczonaTresc
-                        ->whereHas('user.posts', fn ($query) => $query
-                            ->publiclyVisible()
-                            ->zWidocznymPrzepisemAlboWlasnaTrescia(null))
-                        ->orWhereHas('user.recipes', fn ($query) => $query->publiclyVisible())
-                        // Wykonanie z zakładki „Ugotowane" też jest publiczną
-                        // treścią profilu (#2235, #2236) — liczone tym samym
-                        // zakresem co ta zakładka dla gościa
-                        // (`ProfileController::tylkoZWidocznychPrzepisow()`).
-                        ->orWhereHas('user.cookedEvents', fn ($query) => $query
-                            ->whereHas('recipe', fn ($przepis) => $przepis
-                                ->widoczneDla(null)
-                                ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())));
-                })
+                ->zPublicznaTrescia()
                 ->select(['user_id', 'username', 'updated_at'])
                 ->chunkById(500, function ($profiles) use (&$urls): void {
                     $zmianyTresci = self::zmianyTresciAutorow($profiles->pluck('user_id')->all());
