@@ -377,6 +377,11 @@ OCZEKUJ = {
     'Wybór zeszytu bez novalidate': r'Formularz z natywną walidacją bez `novalidate` \(D-333\).*components/wybor-zeszytu\.blade\.php',
     # #2308: kursor z adresu tylko przez KursorListy.
     'Strona tagu stronicuje gołym cursorPaginate': r'Lista kursorowa bez KursorListy — zmyślony `\?cursor=` da tam HTTP 500 \(#2308\)\. Użyj `KursorListy::strona\(\)`',
+    # Audyt prywatności 30.09, Z8–Z11 (#2283).
+    'Retencja failed_jobs inna niż w polityce': r'żyje 7 dni — tyle, ile queue:prune-failed w harmonogramie',
+    'Polityka znów obiecuje e-mail o zmianie': r'Polityka §9 obiecuje e-mail o zmianie polityki',
+    'Polityka pomija zdjęcie z zakresu Google': r'a polityka nie mówi, że Google pyta o zdjęcie profilowe',
+    'Regulamin §2 bez „Poradźcie”': r'Serwis ma /pytania, a regulamin §2 nie wymienia tej usługi',
 }
 
 

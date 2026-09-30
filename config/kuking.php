@@ -2457,9 +2457,9 @@ return [
     | nie generuje żadnego błędu do zgłoszenia.
     |
     | BRAK KONFIGURACJI WEBHOOKA = ZERO EFEKTU, tak samo jak przy czujce kopii.
-    | Na produkcji nie ma dziś `LOG_BLAD_WEBHOOK_URL`, więc czujka liczy
-    | i zapisuje w dzienniku, ale nie dzwoni nigdzie. To jest stan do zamknięcia
-    | w #599, nie właściwość tej konfiguracji.
+    | Na produkcji `LOG_BLAD_WEBHOOK_URL` jest ustawiony od 29.09.2026
+    | (Discord, D-333, #599), więc czujka dzwoni; bez niego (lokalnie, w CI)
+    | liczy i zapisuje w dzienniku, ale nie dzwoni nigdzie.
     */
     'kolejka' => [
         // Okno „co padło niedawno". 3 h przy czujce co kwadrans: awaria nocna
