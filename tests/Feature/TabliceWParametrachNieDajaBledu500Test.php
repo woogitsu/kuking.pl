@@ -6,8 +6,12 @@ namespace Tests\Feature;
 
 use App\Domain\Posts\Actions\EditPost;
 use App\Http\Middleware\ParametryAdresuBezTablic;
+use App\Models\Appeal;
+use App\Models\Block;
 use App\Models\Collection;
+use App\Models\ModerationAction;
 use App\Models\Post;
+use App\Models\Report;
 use App\Models\User;
 use DOMDocument;
 use DOMElement;
@@ -25,7 +29,7 @@ use Tests\TestCase;
 /**
  * TABLICA W PARAMETRZE ALBO W POLU FORMULARZA NIE KOŃCZY SIĘ HTTP 500
  * (#2239, #2251, #2252, #2253, #2254, #2256, #2257, #2258, #2260, #2262,
- * #2264, #2265, #2266, audyt BP-04).
+ * #2264, #2265, #2266, #2303, #2304, #2305, #2306, #2307, audyt BP-04).
  *
  * `?tydzien[]=x` albo `email[]=x` daje w PHP tablicę. Kontrolery rzutowały
  * ją na tekst (`(string)`, `trim()`, parametr `?string`), Laravel zamieniał
@@ -92,7 +96,7 @@ class TabliceWParametrachNieDajaBledu500Test extends TestCase
     public static function przypadki(): array
     {
         $nazwy = [
-            // #2239 planer, tydzień
+            // #2239 planer, tydzień (POST: #2307)
             'get_planer_tydzien', 'post_planer_kopiuj_tydzien',
             // #2251 planer, fraza
             'get_planer_q',
@@ -120,9 +124,15 @@ class TabliceWParametrachNieDajaBledu500Test extends TestCase
             'post_ukrycie_oczekiwany_id', 'post_ukrycie_wroc', 'delete_ukrycie_oczekiwany_id',
             // #2266 logowanie linkiem, token
             'post_logowanie_link_token', 'post_logowanie_link_token_w_adresie',
-            // BP-04: rejestracja
+            // BP-04 i #2303: rejestracja
             'post_rejestracja_email', 'post_rejestracja_username',
-            // Ta sama rodzina, znalezione przy przeglądzie wywołań `(string)`
+            // #2304 rozstrzyganie odwołania, suspend_days
+            'post_odwolanie_suspend_days',
+            // #2305 obserwowanie i blokada, oczekiwany_id
+            'post_obserwuj_oczekiwany_id', 'delete_obserwuj_oczekiwany_id',
+            'post_blokuj_oczekiwany_id', 'delete_blokuj_oczekiwany_id',
+            // #2306 ustawienia profilu, username; dalej ta sama rodzina,
+            // znalezione przy przeglądzie wywołań `(string)`
             'put_ustawienia_profilu_username', 'post_zaproszenie_token', 'post_wpis_usun_tag',
         ];
 
@@ -493,6 +503,86 @@ class TabliceWParametrachNieDajaBledu500Test extends TestCase
             'usun_tag' => ['x'],
             'dodaj_tag' => ['y'],
         ], route('posts.edit', $post))->assertOk();
+    }
+
+    private function post_odwolanie_suspend_days(): void
+    {
+        $zgloszony = $this->user('marek');
+        $zgloszenie = Report::create([
+            'reporter_id' => null,
+            'source' => Report::SOURCE_LEGAL_NOTICE,
+            'target_type' => 'user',
+            'target_id' => (string) $zgloszony->getKey(),
+            'reason' => 'illegal',
+            'illegality_explanation' => 'Profil służy do oszustw.',
+            'good_faith_at' => now(),
+            'notifier_name' => 'Jan Zgłaszający',
+            'notifier_email' => 'jan@przyklad.test',
+            'status' => Report::STATUS_OPEN,
+        ]);
+        $this->actingAs($this->moderator())->from(route('admin.reports'))
+            ->post(route('admin.reports.decide', $zgloszenie), [
+                'action' => ModerationAction::ACTION_NONE,
+                'reason_code' => 'brak_naruszenia',
+            ])->assertSessionHasNoErrors();
+        $odwolanie = Appeal::create([
+            'moderation_action_id' => ModerationAction::query()->where('report_id', $zgloszenie->getKey())->sole()->getKey(),
+            'report_id' => $zgloszenie->getKey(),
+            'appellant' => Appeal::APPELLANT_REPORTER,
+            'body' => 'Ta treść dalej narusza prawo, proszę o ponowne sprawdzenie.',
+            'status' => Appeal::STATUS_OPEN,
+        ]);
+        $this->assertTrue($odwolanie->wymagaNowejDecyzji());
+        $admin = $this->admin();
+
+        $dane = [
+            'outcome' => Appeal::STATUS_OVERTURNED,
+            'decision_note' => 'Sprawdziliśmy jeszcze raz. Zgłoszenie było zasadne.',
+            'nowa_decyzja' => ModerationAction::ACTION_SUSPEND,
+            'reason_code' => 'niezgodne-z-prawem',
+            'user_message' => 'Profil służył do oszustw.',
+            'suspend_days' => ['wlasny'],
+        ];
+        $this->actingAs($admin)->from(route('admin.appeals'))
+            ->post(route('admin.appeals.resolve', $odwolanie), $dane)
+            ->assertSessionHasErrors('suspend_days');
+        $this->assertSame(Appeal::STATUS_OPEN, $odwolanie->fresh()?->status);
+
+        $this->wyslij($admin, 'POST', route('admin.appeals.resolve', $odwolanie), $dane, route('admin.appeals'))->assertOk();
+    }
+
+    private function relacjaZ(string $metoda, string $sciezka): void
+    {
+        $basia = $this->user('basia');
+        $ola = $this->user('ola');
+
+        $this->actingAs($basia)->from('/@ola')->call($metoda, '/@ola/'.$sciezka, ['oczekiwany_id' => ['x']])
+            ->assertRedirect('/@ola')->assertSessionHasErrors();
+        $this->wyslij($basia, $metoda, '/@ola/'.$sciezka, ['oczekiwany_id' => ['x']], '/@ola')->assertOk();
+
+        // Odmowa, nie zmiana relacji.
+        $this->assertFalse($basia->following()->whereKey($ola->getKey())->exists());
+        $this->assertFalse(Block::query()->where('blocker_id', $basia->getKey())->exists());
+    }
+
+    private function post_obserwuj_oczekiwany_id(): void
+    {
+        $this->relacjaZ('POST', 'obserwuj');
+    }
+
+    private function delete_obserwuj_oczekiwany_id(): void
+    {
+        $this->relacjaZ('DELETE', 'obserwuj');
+    }
+
+    private function post_blokuj_oczekiwany_id(): void
+    {
+        $this->relacjaZ('POST', 'blokuj');
+    }
+
+    private function delete_blokuj_oczekiwany_id(): void
+    {
+        $this->relacjaZ('DELETE', 'blokuj');
     }
 
     // ───────────────────────────── strażniki ─────────────────────────────

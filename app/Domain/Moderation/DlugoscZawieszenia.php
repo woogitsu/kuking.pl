@@ -118,8 +118,14 @@ final class DlugoscZawieszenia
         return $wybor !== null && $wybor !== self::BRAK && in_array($wybor, self::wartosci(), true);
     }
 
-    /** Czy ten wybór wymaga liczby dni z osobnego pola. */
-    public static function wymagaLiczby(?string $wybor): bool
+    /**
+     * Czy ten wybór wymaga liczby dni z osobnego pola.
+     *
+     * `mixed` (#2304): kontroler pyta o to PRZED walidacją, żeby złożyć
+     * reguły, a pole z formularza może być tablicą (`suspend_days[]=`).
+     * Tablica nie jest „Własnym terminem”; odrzuca ją reguła `in:` przy polu.
+     */
+    public static function wymagaLiczby(mixed $wybor): bool
     {
         return $wybor === self::WLASNY;
     }
