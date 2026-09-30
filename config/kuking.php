@@ -3309,8 +3309,8 @@ return [
     ],
 
     'przepisy' => [
-        // RETENCJA `recipe_versions` (#2024, D-333 — wartości DO POTWIERDZENIA
-        // przez właściciela). Wersja jest kasowana, gdy jest starsza niż
+        // RETENCJA `recipe_versions` (#2024, D-333 — wartości POTWIERDZONE
+        // przez właściciela 30.09.2026). Wersja jest kasowana, gdy jest starsza niż
         // `version_retention_months` (24 — wartość z decyzji właściciela
         // z 20.09.2026, najbezpieczniejsza dla ludzi, którzy wracają do
         // zapisanego przepisu) ORAZ nie jest wśród `version_keep_latest` (3)

@@ -711,8 +711,8 @@ wersji swojego przepisu jest kasowana przez `kuking:sprzataj-wersje-przepisow`
 kasujemy wersji przepisu z `reports` albo `moderation_actions`. Wersje
 usuniętego przepisu idą razem z nim (§5.7). Pierwsza wersja nie jest
 chroniona: historia jest publiczna i to w niej najczęściej zostaje treść,
-którą autor później wycofał. Liczby (24, 3) są bezpiecznymi wartościami
-domyślnymi do potwierdzenia przez właściciela (D-333).
+którą autor później wycofał. Liczby (24, 3) potwierdził właściciel
+30.09.2026 (D-333).
 
 ## 6. Decyzje właściciela — zbiorczo
 

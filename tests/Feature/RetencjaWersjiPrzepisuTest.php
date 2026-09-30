@@ -328,6 +328,42 @@ final class RetencjaWersjiPrzepisuTest extends TestCase
         $this->assertSame(4, RecipeVersion::count());
     }
 
+    /**
+     * Wzorzec usterki #2250 (tam: `PrzedawnioneUsunieteTresci`): limit partii
+     * liczony PRZED filtrem ochrony moderacyjnej pozwalał chronionym wierszom
+     * zająć cały budżet i zagłodzić resztę. Tu ochrona stoi w samym
+     * zapytaniu (`NOT EXISTS`), więc pierwsza pełna partia chronionych
+     * wersji nie blokuje niechronionych, które są za nią w kolejności kluczy.
+     */
+    public function test_chronione_wersje_nie_zajmuja_budzetu_i_nie_glodza_reszty(): void
+    {
+        Date::setTestNow('2026-09-29 12:00:00');
+        $reporter = User::factory()->create();
+
+        // Najpierw (najmniejsze klucze) dwa przepisy ze zgłoszeniem: 4 wersje,
+        // które BEZ ochrony byłyby kandydatami — więcej niż partia i budżet.
+        foreach ([1, 2] as $_) {
+            [$chroniony] = $this->przepisZPiecioma();
+            Report::create([
+                'reporter_id' => $reporter->getKey(),
+                'target_type' => 'recipe',
+                'target_id' => $chroniony->getKey(),
+                'reason' => 'spam',
+                'status' => Report::STATUS_OPEN,
+            ]);
+        }
+
+        [, $zwykly] = $this->przepisZPiecioma();
+
+        $wynik = (new PrzedawnioneWersjePrzepisow(rozmiarPartii: 2, budzetPrzebiegu: 2))->posprzataj(24, 3);
+
+        $this->assertSame(2, $wynik['skasowano']);
+        $this->assertSame(0, $wynik['zostaje']);
+        $this->assertDatabaseMissing('recipe_versions', ['id' => $zwykly[1]->getKey()]);
+        $this->assertDatabaseMissing('recipe_versions', ['id' => $zwykly[2]->getKey()]);
+        $this->assertSame(13, RecipeVersion::count());
+    }
+
     public function test_przepis_bez_wersji_nie_wywraca_komendy(): void
     {
         $przepis = Recipe::factory()->create();

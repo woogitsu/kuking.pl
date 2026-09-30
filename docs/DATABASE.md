@@ -2188,7 +2188,7 @@ właściciela z 24.09.2026): model `RecipeVersion` odmawia `update()` wyjątkiem
 Szkic przed pierwszą publikacją nie ma wersji. Zmiana zachowania, nie
 schematu — bez migracji.
 
-**Retencja (#2024, D-333 — wartości do potwierdzenia przez właściciela).**
+**Retencja (#2024, D-333 — wartości potwierdzone przez właściciela 30.09).**
 `kuking:sprzataj-wersje-przepisow` (codziennie 06:40, `routes/console.php`)
 kasuje wersję, która jest **starsza niż 24 miesiące** (próg to początek dnia
 w Polsce sprzed 24 miesięcy, `config('kuking.strefa')`, bez przepełnienia

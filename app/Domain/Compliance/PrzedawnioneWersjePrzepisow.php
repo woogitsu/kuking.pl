@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Retencja `recipe_versions` (#2024, decyzja D-333 „do potwierdzenia”).
+ * Retencja `recipe_versions` (#2024, decyzja D-333, potwierdzone przez właściciela 30.09).
  *
  * REGUŁA. Wersję przepisu kasujemy, gdy spełnia OBA warunki:
  *  1. jest starsza niż `config('kuking.przepisy.version_retention_months')`
