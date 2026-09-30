@@ -187,6 +187,7 @@ final class ResolveAppeal
             }
 
             $dopisek = null;
+            $dopisekWersji = null;
             $poOdwolaniu = null;
 
             if ($wynik === Appeal::STATUS_OVERTURNED && $zablokowane->wymagaNowejDecyzji()) {
@@ -196,7 +197,7 @@ final class ResolveAppeal
 
                 $poOdwolaniu = $this->decyzjaPoOdwolaniu->handle($moderator, $zablokowane, $decyzja, $nowaDecyzja, $ip);
             } elseif ($wynik === Appeal::STATUS_OVERTURNED) {
-                $dopisek = $this->cofnij($moderator, $decyzja, $uzasadnienie, $ip);
+                $dopisek = $this->cofnij($moderator, $decyzja, $uzasadnienie, $ip, $dopisekWersji);
             }
 
             $zablokowane->update([
@@ -211,7 +212,7 @@ final class ResolveAppeal
             if ($zablokowane->isFromReporter()) {
                 $this->powiadomZglaszajacego->handle($zablokowane);
             } else {
-                $this->powiadom->handle($zablokowane, $dopisek);
+                $this->powiadom->handle($zablokowane, $dopisek ?? $dopisekWersji);
                 // Druga strona sprawy (#1024): zgłaszający dostał „treści nie
                 // ma", a po cofnięciu treść wraca. Klasa sama sprawdza, czy
                 // skutek naprawdę się zmienił — przy `upheld` nic nie robi.
@@ -268,7 +269,7 @@ final class ResolveAppeal
      * ma zostać zamknięte i odpowiedź ma dojść — brak roboty technicznej nie
      * jest powodem, żeby człowiek nie dostał odpowiedzi.
      */
-    private function cofnij(User $moderator, ModerationAction $decyzja, string $uzasadnienie, ?string $ip): ?string
+    private function cofnij(User $moderator, ModerationAction $decyzja, string $uzasadnienie, ?string $ip, ?string &$dopisekWersji = null): ?string
     {
         if (in_array($decyzja->action, [ModerationAction::ACTION_SUSPEND, ModerationAction::ACTION_BAN], true)) {
             return $this->zdejmijKareKonta($decyzja);
@@ -286,7 +287,9 @@ final class ResolveAppeal
         // ma czego cofać” nie blokuje odpowiedzi.
         if ($decyzja->target_type === CofniecieUkryciaWersji::TYP) {
             try {
-                $this->wersjaPrzepisu->poOdwolaniu($moderator, $decyzja, $uzasadnienie, $ip);
+                // Zdanie dla autora, gdy wersja wróciła do JEGO ukrycia
+                // (decyzja 30.09.2026) — osobno od `$dopisek` kary na koncie.
+                $dopisekWersji = $this->wersjaPrzepisu->poOdwolaniu($moderator, $decyzja, $uzasadnienie, $ip);
             } catch (WlasnejTresciNiePrzywracasz $odmowa) {
                 throw $odmowa;
             } catch (BladDlaCzlowieka) {

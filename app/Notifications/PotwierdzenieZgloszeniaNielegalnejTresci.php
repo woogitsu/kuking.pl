@@ -63,6 +63,35 @@ final class PotwierdzenieZgloszeniaNielegalnejTresci extends Notification implem
     }
 
     /**
+     * To samo co `ponawianieWstrzymane()`, ale dla całej partii jednym
+     * `Cache::many()` (jedno zapytanie do sklepu `database` zamiast jednego na
+     * sprawę). Klucze dokładnie te same co w pojedynczym odczycie.
+     *
+     * @param  list<string>  $idZgloszen
+     * @return list<string> identyfikatory spraw, którym ponawianie wstrzymano
+     */
+    public static function wstrzymaneSposrod(array $idZgloszen): array
+    {
+        if ($idZgloszen === []) {
+            return [];
+        }
+
+        $klucze = [];
+        foreach ($idZgloszen as $id) {
+            $klucze[self::kluczPorazek($id)] = $id;
+        }
+
+        $wstrzymane = [];
+        foreach (Cache::many(array_keys($klucze)) as $klucz => $porazki) {
+            if ((int) $porazki >= self::LIMIT_PORAZEK_LISTU) {
+                $wstrzymane[] = $klucze[$klucz];
+            }
+        }
+
+        return $wstrzymane;
+    }
+
+    /**
      * Ostateczna porażka listu (próby wyczerpane) — patrz nagłówek klasy.
      * Zdejmuje znacznik tylko z tej sprawy i nigdy nie rzuca: wyjątek tutaj
      * przykryłby prawdziwą przyczynę porażki w `failed_jobs`.

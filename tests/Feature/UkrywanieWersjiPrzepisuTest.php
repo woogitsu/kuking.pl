@@ -150,6 +150,23 @@ final class UkrywanieWersjiPrzepisuTest extends TestCase
             ->assertSee('Przywróć wersję 1');
     }
 
+    public function test_opis_na_historii_zmian_nazywa_przycisk_tak_jak_przycisk(): void
+    {
+        // Regresja (audyt): opis mówił o przycisku „Ukryj tę wersję”, a
+        // przyciski nazywają się „Ukryj wersję N”. Czytelnik 50+ szukał
+        // napisu, którego na ekranie nie ma.
+        $przepis = $this->przepis(3);
+
+        $html = $this->actingAs($przepis->author)
+            ->get(route('recipes.history', $przepis->slug))
+            ->assertOk()
+            ->assertSee('Ukryj wersję 1')
+            ->getContent();
+
+        $this->assertStringNotContainsString('Ukryj tę wersję', $html);
+        $this->assertStringContainsString('przyciskiem „Ukryj wersję”', $html);
+    }
+
     public function test_ukrycie_i_przywrocenie_zostawiaja_wpis_w_dzienniku_bez_tresci(): void
     {
         $przepis = $this->przepis(3);

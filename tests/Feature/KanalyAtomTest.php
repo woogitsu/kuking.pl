@@ -15,6 +15,7 @@ use DOMDocument;
 use DOMElement;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -256,30 +257,211 @@ class KanalyAtomTest extends TestCase
 
     // ── nagłówki cache ─────────────────────────────────────────────────
 
-    public function test_etag_i_last_modified_daja_304(): void
+    public function test_etag_daje_304_a_last_modified_nie_jest_wysylany(): void
     {
         $autor = $this->user('kanalcache');
-        $this->wpis($autor, 'Wpis do cache', ['published_at' => now()->subDay(), 'updated_at' => now()->subDay()]);
+        $wpis = $this->wpis($autor, 'Wpis do cache', ['published_at' => now()->subDay(), 'updated_at' => now()->subDay()]);
 
         $pierwsza = $this->get(route('kanaly.profil', 'kanalcache'));
         $this->atom($pierwsza);
         $etag = (string) $pierwsza->headers->get('ETag');
-        $zmiana = (string) $pierwsza->headers->get('Last-Modified');
 
         $this->assertMatchesRegularExpression('/^W\/"[0-9a-f]{64}"$/', $etag);
-        $this->assertNotSame('', $zmiana);
+        $this->assertFalse($pierwsza->headers->has('Last-Modified'), 'Last-Modified nie zmienia się, gdy pozycja znika — kanał go nie wysyła.');
         $this->assertSame('no-cache, private', $pierwsza->headers->get('Cache-Control'));
         $this->assertSame([], $pierwsza->headers->getCookies(), 'Kanał nie zakłada sesji ani nie stawia ciasteczek.');
 
         $this->get(route('kanaly.profil', 'kanalcache'), ['If-None-Match' => $etag])
             ->assertStatus(304)
             ->assertContent('');
-        $this->get(route('kanaly.profil', 'kanalcache'), ['If-Modified-Since' => $zmiana])
-            ->assertStatus(304);
+        // Regresja (audyt): samo `If-Modified-Since` z daleka w przyszłości
+        // nie może dać 304 — dawniej czytnik po zniknięciu pozycji dostawał
+        // 304 i dalej pokazywał wycofaną treść.
+        $this->get(route('kanaly.profil', 'kanalcache'), ['If-Modified-Since' => now()->addYear()->toRfc7231String()])
+            ->assertOk()
+            ->assertSee('Wpis do cache');
+
+        // Pozycja znika (ukryta moderacją) — pytanie tylko po dacie dostaje świeżą treść.
+        $wpis->forceFill(['updated_at' => now()->subDays(2)])->save();
+        $wpis->delete();
+        $this->get(route('kanaly.profil', 'kanalcache'), ['If-Modified-Since' => now()->toRfc7231String()])
+            ->assertOk()
+            ->assertDontSee('Wpis do cache');
 
         // Nowy wpis zmienia ETag — stary już nie pasuje.
         $this->wpis($autor, 'Świeży wpis');
         $this->get(route('kanaly.profil', 'kanalcache'), ['If-None-Match' => $etag])->assertOk()->assertSee('Świeży wpis');
+    }
+
+    public function test_cache_aplikacji_drugie_pobranie_nie_odpytuje_bazy_o_pozycje(): void
+    {
+        config(['kuking.kanal_cache_sekund' => 300]);
+
+        $autor = $this->user('kanalttl');
+        $this->wpis($autor, 'Wpis w oknie cache');
+        $adres = route('kanaly.profil', 'kanalttl');
+
+        $pierwsza = $this->get($adres);
+        $this->atom($pierwsza)->query('//a:entry');
+        $etag = (string) $pierwsza->headers->get('ETag');
+
+        DB::enableQueryLog();
+        $druga = $this->get($adres);
+        $zapytania = collect(DB::getQueryLog())->pluck('query')->implode("\n");
+        DB::disableQueryLog();
+
+        $this->atom($druga);
+        $this->assertStringNotContainsStringIgnoringCase('from "posts"', $zapytania, 'W oknie TTL kanał nie odpytuje bazy o pozycje.');
+        $this->assertSame($etag, (string) $druga->headers->get('ETag'));
+        $this->assertSame($pierwsza->getContent(), $druga->getContent());
+
+        // Dostęp liczy się przy każdym żądaniu, nie z cache: konto zbanowane
+        // daje 404 natychmiast, mimo świeżej kopii.
+        $autor->forceFill(['status' => User::STATUS_BANNED])->save();
+        $this->get($adres)->assertNotFound();
+        $autor->forceFill(['status' => User::STATUS_ACTIVE])->save();
+
+        // Wpis zdjęty w oknie TTL zostaje w kanale do końca okna; po nim znika,
+        // a ETag nadal zgadza się z treścią.
+        Post::query()->where('body', 'Wpis w oknie cache')->delete();
+        $this->get($adres)->assertOk()->assertSee('Wpis w oknie cache');
+
+        $this->travel(301)->seconds();
+        $po = $this->get($adres);
+        $this->atom($po);
+        $po->assertDontSee('Wpis w oknie cache');
+        $this->assertNotSame($etag, (string) $po->headers->get('ETag'));
+        $this->assertSame('W/"'.hash('sha256', (string) $po->getContent()).'"', (string) $po->headers->get('ETag'));
+    }
+
+    public function test_kopia_w_cache_ma_adresy_kanoniczne_mimo_obcych_naglowkow_proxy(): void
+    {
+        config(['kuking.kanal_cache_sekund' => 300, 'app.url' => 'https://kuking.example']);
+
+        $autor = $this->user('kanalkanon');
+        $this->wpis($autor, 'Wpis kanoniczny');
+        $adres = route('kanaly.profil', 'kanalkanon');
+
+        // Pierwsze żądanie przy zimnym cache niesie obce schemat i port.
+        $obce = $this->get($adres, ['X-Forwarded-Proto' => 'http', 'X-Forwarded-Port' => '8080']);
+        $zwykle = $this->get($adres);
+
+        foreach ([$obce, $zwykle] as $odpowiedz) {
+            $x = $this->atom($odpowiedz);
+            $adresy = [];
+            foreach ($x->query('//a:link/@href | //a:id[not(starts-with(., "urn:"))] | //a:uri') as $wezel) {
+                $adresy[] = $wezel->nodeValue;
+            }
+            $this->assertNotEmpty($adresy);
+            foreach ($adresy as $a) {
+                $this->assertStringStartsWith('https://kuking.example/', $a, 'Adres w kanale musi iść z APP_URL.');
+            }
+        }
+
+        $this->assertSame($obce->getContent(), $zwykle->getContent());
+    }
+
+    public function test_zmiana_nazwy_profilu_nie_zostawia_w_kanale_starych_adresow(): void
+    {
+        config(['kuking.kanal_cache_sekund' => 300]);
+
+        $autor = $this->user('staranazwakanal');
+        $this->wpis($autor, 'Wpis pod nową nazwą');
+
+        $this->atom($this->get(route('kanaly.profil', 'staranazwakanal')));
+
+        $autor->profile->forceFill(['username' => 'nowanazwakanal'])->save();
+
+        // Pierwsze pobranie pod NOWĄ nazwą, w oknie TTL starej kopii.
+        $x = $this->atom($this->get(route('kanaly.profil', 'NowaNazwaKanal')));
+        $this->assertSame(route('kanaly.profil', 'nowanazwakanal'), $x->evaluate('string(/a:feed/a:link[@rel="self"]/@href)'));
+        $this->assertSame(route('profile.show', 'nowanazwakanal'), $x->evaluate('string(/a:feed/a:link[@rel="alternate"]/@href)'));
+        $this->assertStringContainsString('@nowanazwakanal', $x->evaluate('string(/a:feed/a:title)'));
+    }
+
+    /**
+     * @return array{User, Post, Tag, Collection, list<string>} autor, wpis, tag, zeszyt, adresy trzech kanałów
+     */
+    private function wpisWTrzechKanalach(string $nazwa): array
+    {
+        config(['kuking.kanal_cache_sekund' => 300]);
+
+        $autor = $this->user($nazwa);
+        $tag = Tag::factory()->create(['name' => 'Kanal '.$nazwa]);
+        $wpis = $this->wpis($autor, 'Wpis do zdjecia '.$nazwa);
+        $wpis->tags()->attach($tag->getKey());
+        $zeszyt = $this->zeszyt($autor, 'Zeszyt '.$nazwa);
+        $zeszyt->posts()->attach($wpis->getKey(), ['created_at' => now()]);
+
+        $adresy = [route('kanaly.profil', $nazwa), route('kanaly.tag', $tag->slug), route('kanaly.zeszyt', $zeszyt)];
+        foreach ($adresy as $adres) {
+            // Zimny cache: pierwsze pobranie wkłada kopię, kontrola dodatnia.
+            $this->assertSame(['Wpis do zdjecia '.$nazwa], array_map(fn ($t) => $t, $this->tytuly($this->atom($this->get($adres)))), $adres);
+        }
+
+        return [$autor, $wpis, $tag, $zeszyt, $adresy];
+    }
+
+    public function test_ukrycie_wpisu_przez_moderacje_od_razu_czysci_kanaly_mimo_ttl(): void
+    {
+        [, $wpis, , , $adresy] = $this->wpisWTrzechKanalach('kanalukryj');
+
+        $wpis->forceFill(['status' => Post::STATUS_HIDDEN])->save();
+
+        foreach ($adresy as $adres) {
+            $this->assertSame([], $this->tytuly($this->atom($this->get($adres))), "Kanał {$adres} dalej niesie ukryty wpis.");
+        }
+    }
+
+    public function test_zdjecie_z_urzedu_i_usuniecie_wpisu_od_razu_czysci_kanaly(): void
+    {
+        [, $wpis, , , $adresy] = $this->wpisWTrzechKanalach('kanalusun');
+
+        // Jak `ZdejmijZUrzedu`: `removed` i miękkie usunięcie.
+        $wpis->forceFill(['status' => Post::STATUS_REMOVED])->save();
+        $wpis->delete();
+
+        foreach ($adresy as $adres) {
+            $this->assertSame([], $this->tytuly($this->atom($this->get($adres))), "Kanał {$adres} dalej niesie zdjęty wpis.");
+        }
+    }
+
+    public function test_usuniecie_przepisu_i_ukrycie_przez_moderacje_czysci_kanal_zeszytu(): void
+    {
+        config(['kuking.kanal_cache_sekund' => 300]);
+
+        $autor = $this->user('kanalprzepis');
+        $zeszyt = $this->zeszyt($autor, 'Zeszyt z przepisami');
+        $ukrywany = $this->przepis($autor, 'Przepis do ukrycia');
+        $usuwany = $this->przepis($autor, 'Przepis do usuniecia');
+        $zeszyt->recipes()->attach($ukrywany->getKey(), ['created_at' => now()->subMinute()]);
+        $zeszyt->recipes()->attach($usuwany->getKey(), ['created_at' => now()]);
+        $adres = route('kanaly.zeszyt', $zeszyt);
+
+        $this->assertEqualsCanonicalizing(['Przepis do ukrycia', 'Przepis do usuniecia'], $this->tytuly($this->atom($this->get($adres))));
+
+        $ukrywany->forceFill(['status' => Recipe::STATUS_HIDDEN])->save();
+        $this->assertSame(['Przepis do usuniecia'], $this->tytuly($this->atom($this->get($adres))));
+
+        $usuwany->delete();
+        $this->assertSame([], $this->tytuly($this->atom($this->get($adres))));
+    }
+
+    public function test_usuniecie_przepisu_czysci_kanal_profilu_z_wpisem_o_tym_przepisie(): void
+    {
+        config(['kuking.kanal_cache_sekund' => 300]);
+
+        $autor = $this->user('kanalwpisprzepis');
+        $przepis = $this->przepis($autor, 'Przepis we wpisie');
+        $wpis = $this->wpis($autor, '', ['recipe_id' => $przepis->getKey()]);
+        $adres = route('kanaly.profil', 'kanalwpisprzepis');
+
+        $this->assertContains('Przepis we wpisie', $this->tytuly($this->atom($this->get($adres))));
+
+        $przepis->forceFill(['status' => Recipe::STATUS_HIDDEN])->save();
+
+        $this->assertNotContains('Przepis we wpisie', $this->tytuly($this->atom($this->get($adres))));
+        $this->assertNotNull($wpis->fresh());
     }
 
     public function test_cache_brzegu_idzie_za_polityka_html_goscia(): void

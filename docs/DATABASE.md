@@ -2292,6 +2292,12 @@ ALTER TABLE recipe_versions VALIDATE CONSTRAINT recipe_versions_hidden_spojny_ch
   (`target_type = 'recipe_version'`, sekcja `moderation_actions`), autor
   dostaje powiadomienie z drogą odwołania, a uznane odwołanie zdejmuje
   ukrycie. Ukrycie przez autora wiersza w `moderation_actions` nie tworzy.
+  **Przejęcie (decyzja 30.09.2026, bez migracji):** moderacja może przejąć
+  ukrycie zrobione przez autora — ta sama droga co zwykłe ukrycie, pod tą samą
+  blokadą: `hidden_by_role` zmienia się z `author` na `moderator`, powstaje
+  wiersz `moderation_actions` (`hide`), a `audit_log` (`recipe_version.hidden`)
+  niesie dodatkowo `przejeto_od = author`. Reguła CHECK dopuszcza obie
+  wartości, więc schemat się nie zmienia.
 - Retencja (akapit wyżej) ukrycia nie patrzy: stara ukryta wersja spoza
   3 najnowszych znika tak samo jak widoczna. Eksport (`wersje_przepisow`)
   niesie ukrytą wersję całą, z `ukryto` (data) i `ukryl` (`autor` |
@@ -3865,7 +3871,7 @@ wiersz zapisuje dwie rzeczy więcej:
 
 | Kolumna | Po co |
 |---|---|
-| `previous_status` | Status treści **sprzed** decyzji (`draft`, `published`…). Bez tego ukrycia nie da się cofnąć do właściwego stanu. |
+| `previous_status` | Status treści **sprzed** decyzji (`draft`, `published`…). Bez tego ukrycia nie da się cofnąć do właściwego stanu. Dla `recipe_version`: `hidden_by_author`, gdy decyzja PRZEJĘŁA ukrycie zrobione przez autora (uznane odwołanie zwraca wtedy ukrycie autorowi, nie robi wersji publicznej; decyzja 30.09.2026) — inaczej `NULL`. |
 | `subject_user_id` | Osoba, której decyzja dotyczy — autor treści albo zgłoszone konto. |
 
 #### `previous_status` — dlaczego tutaj, a nie w tabelach z treścią
@@ -4173,6 +4179,10 @@ przy przywróceniu także `ukryl` (kto ukrył). **Bez treści wersji** — dzien
 nie może być drugim miejscem, w którym ukryty tekst przeżywa. **Klasa 1
 (D-249)**: `record()` wewnątrz transakcji ukrycia, bo `recipe_versions` mówi
 tylko, po której stronie ukryto wersję, a KTÓRE konto — wyłącznie ten wpis.
+Trzeci wpis tej rodziny, **`recipe_version.returned_to_author`**, zostaje po
+uznanym odwołaniu od PRZEJĘCIA ukrycia: wersja wraca do ukrycia przez autora
+(dalej ukryta), `metadata` jak przy przywróceniu (`ukryl = moderator`,
+`moderation_action_id` decyzji `unhide`).
 
 **`moderation.hidden_recipe_version_viewed`** — wgląd moderacji w wersję
 ukrytą (strona wersji albo porównanie z nią), ta sama zasada 3.2 co

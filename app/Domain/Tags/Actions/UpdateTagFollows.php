@@ -66,7 +66,7 @@ final class UpdateTagFollows
                 DB::table('tag_follows')->where('user_id', $freshUser->getKey())
                     ->where('tag_id', $id)->where('created_at', $scope['followed'][$id])->delete();
             }
-            $this->insert($freshUser, $add);
+            $this->insert($freshUser, $add, naLiscieTwoichTagow: true);
         });
     }
 
@@ -92,8 +92,9 @@ final class UpdateTagFollows
      * najmniej tyle” — koszt nie rośnie z liczbą obserwowanych.
      *
      * @param  list<string>  $ids
+     * @param  bool  $naLiscieTwoichTagow  zapis z formularza „Twoje tagi”: komunikat bez odsyłania do tej listy
      */
-    private function assertMiesciSieWLimicie(User $user, array $ids): void
+    private function assertMiesciSieWLimicie(User $user, array $ids, bool $naLiscieTwoichTagow = false): void
     {
         $juz = DB::table('tag_follows')->where('user_id', $user->getKey())
             ->whereIn('tag_id', $ids)->count();
@@ -107,12 +108,16 @@ final class UpdateTagFollows
             ->offset($wolnych)->limit(1)->exists();
         if ($pelno) {
             throw LimitObserwowanychTagow::withMessages([
-                'tags' => LimityTagow::komunikatLimituObserwowanych(),
+                // Na samej liście „Twoje tagi” odsyłanie „do listy w ustawieniach”
+                // byłoby odesłaniem tam, gdzie człowiek już jest.
+                'tags' => $naLiscieTwoichTagow
+                    ? LimityTagow::komunikatLimituNaLiscieTwoichTagow()
+                    : LimityTagow::komunikatLimituObserwowanych(),
             ]);
         }
     }
 
-    private function insert(User $user, array $ids): void
+    private function insert(User $user, array $ids, bool $naLiscieTwoichTagow = false): void
     {
         $ids = array_values(array_unique($ids));
         if ($ids === []) {
@@ -125,7 +130,7 @@ final class UpdateTagFollows
                 'tags' => 'Jeden z wybranych tagów nie jest już dostępny. Sprawdź pozostałe zaznaczenia i zapisz ponownie.',
             ]);
         }
-        $this->assertMiesciSieWLimicie($user, $ids);
+        $this->assertMiesciSieWLimicie($user, $ids, $naLiscieTwoichTagow);
         DB::table('tag_follows')->insertOrIgnore(array_map(fn (string $id): array => [
             'user_id' => $user->getKey(), 'tag_id' => $id, 'created_at' => now(),
         ], $ids));

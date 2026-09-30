@@ -565,18 +565,41 @@ ruchu, pierwszą dźwignią jest cache brzegu (niżej), drugą — tańszy odcis
 listy przed złożeniem treści.
 Limit zapytań `kuking.limits.kanal` (60/min po adresie IP).
 
-**Cache (#610).** `ETag` (słaby, SHA-256 treści) i `Last-Modified` (najpóźniejsza
-data pojemnika i pozycji); zgodne `If-None-Match`/`If-Modified-Since` dostaje
-304 bez treści. `Cache-Control` idzie za polityką HTML gościa: przy
+**Cache (#610).** Tylko `ETag` (słaby, SHA-256 treści); zgodne `If-None-Match`
+dostaje 304 bez treści. **Bez `Last-Modified`** (decyzja z audytu): data z
+najpóźniejszej pozycji nie zmienia się, gdy pozycja znika (usunięta, ukryta,
+zdjęta z urzędu, autor zbanowany), więc czytnik pytający samym
+`If-Modified-Since` dostawał 304 i dalej pokazywał wycofaną treść. Hash
+treści zmienia się przy każdej zmianie zestawu pozycji, a bez
+`Last-Modified` samo `If-Modified-Since` nigdy nie daje 304. Data zmiany
+kanału zostaje w treści jako `<updated>`.
+
+**Cache aplikacji, 5 minut (decyzja właściciela z 30.09.2026, D-333).**
+Gotowa treść kanału (XML) leży w cache aplikacji przez
+`kuking.kanal_cache_sekund` (`KUKING_KANAL_CACHE_SEKUND`, domyślnie 300 s,
+0 = wyłączony). Kanał jest zawsze widokiem gościa, więc kopia jest wspólna,
+a klucz to typ i identyfikator (`KluczeKanalu`: `kuking:kanal:v1:profil:<id konta>:<nazwa małymi literami>`, `…:tag:<id>`, `…:zeszyt:<id>`). Nazwa w kluczu profilu sprawia, że po jej zmianie kanał od razu ma nowe adresy (kopia pod starą nazwą jest nieosiągalna). Treść kanału jest budowana z `APP_URL` (`AdresKanoniczny::zbuduj()`), nie z nagłówków żądania, bo kopia jest wspólna dla wszystkich.
+Cache stoi ZA bramką dostępu: Policy i 404 (prywatny zeszyt, konto
+zbanowane lub kasowane, tag ukryty) liczą się przy każdym żądaniu, więc
+zasady dostępu się nie zmieniły. Zdjęcie z urzędu (DSA), ukrycie przez
+moderację i usunięcie przez autora **od razu** wyrzucają kopie z cache
+(`UniewaznijKanaly`, wołane z modeli `Post` i `Recipe` przy zapisie,
+usunięciu i przywróceniu — jedno miejsce, bez wywołań w kontrolerach):
+kanał profilu autora, kanały tagów wpisu, kanały zeszytów z tą pozycją,
+a przy zmianie przepisu także profile i tagi wpisów, które go pokazują.
+**Reszta zostaje na TTL (do 5 minut):** masowe `UPDATE` z pominięciem modeli
+(np. zmiana statusu konta autora), zmiana zdjęcia (`Media`), ukrycie lub
+scalenie tagu i zmiana nazwy zeszytu. Poza tym nie ma unieważniania przy
+zmianie treści — tylko TTL, świadomie. `ETag` powstaje z
+treści, więc w oknie jest stały, a po jego upływie zgadza się z nową treścią.
+W oknie TTL drugie pobranie nie odpytuje bazy o pozycje (mierzy to
+`KanalyAtomTest::test_cache_aplikacji_…`). `Cache-Control` idzie za polityką HTML gościa: przy
 `KUKING_HTML_EDGE_CACHE_SECONDS` > 0 — `public, max-age=0, s-maxage=N` (ta sama
 górna granica 300 s), domyślnie `private, no-cache` (bez wspólnego cache, ale
 z pytaniem warunkowym). Żądanie z ciasteczkiem albo `Authorization` dostaje od
 `PreventSharedSessionCache` `private, no-store`. Reguła brzegu Cloudflare z
 `docs/infra/CLOUDFLARE_CACHE_597_610.md` kanałów nie obejmuje; `s-maxage`
-zadziała dopiero po jej rozszerzeniu decyzją właściciela. Znana granica
-`Last-Modified`: gdy wraca stara treść (np. odbanowanie autora), data się nie
-przesuwa, więc czytnik pytający samym `If-Modified-Since` zobaczy ją dopiero
-przy następnej nowej pozycji; `ETag` zmienia się od razu.
+zadziała dopiero po jej rozszerzeniu decyzją właściciela.
 
 **Odkrywanie i indeks.** Profil, strona tagu i publiczny zeszyt mają w `<head>`
 `<link rel="alternate" type="application/atom+xml">` — zeszyt tylko wtedy, gdy

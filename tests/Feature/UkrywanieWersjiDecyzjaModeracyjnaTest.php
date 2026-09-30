@@ -294,6 +294,235 @@ final class UkrywanieWersjiDecyzjaModeracyjnaTest extends TestCase
         $this->assertSame(0, ModerationAction::where('action', ModerationAction::ACTION_UNHIDE)->count());
     }
 
+    private function ukryjJakoAutor(Recipe $przepis, int $numer = 1): void
+    {
+        $this->actingAs($przepis->author)
+            ->post(route('recipes.history.hide.store', [$przepis->slug, $numer]))
+            ->assertRedirect(route('recipes.history', $przepis->slug))
+            ->assertSessionHasNoErrors();
+        auth()->logout();
+    }
+
+    public function test_moderacja_przejmuje_ukrycie_autora_jako_decyzje_dsa_z_powiadomieniem(): void
+    {
+        $przepis = $this->przepis();
+        $moderator = $this->moderator();
+        $this->ukryjJakoAutor($przepis);
+        $this->assertSame(RecipeVersion::UKRYL_AUTOR, $this->wersja($przepis)->hidden_by_role);
+        $this->assertSame(0, ModerationAction::count());
+
+        // Przycisk na liście i na ekranie wersji, prowadzi do formularza decyzji.
+        $adres = route('recipes.history.hide', [$przepis->slug, 1]);
+        $this->actingAs($moderator)->get(route('recipes.history', $przepis->slug))
+            ->assertOk()->assertSee('Przejmij ukrycie wersji 1')->assertSee($adres, false);
+        $this->actingAs($moderator)->get(route('recipes.history.version', [$przepis->slug, 1]))
+            ->assertOk()->assertSee('Przejmij ukrycie wersji 1');
+        $this->actingAs($moderator)->get($adres)
+            ->assertOk()
+            ->assertSee('Przejąć ukrycie wersji 1?')
+            ->assertSee('Podstawa decyzji')
+            ->assertSee('Uzasadnienie dla autora')
+            ->assertSee('novalidate', false);
+
+        // Bez uzasadnienia nic się nie zmienia.
+        $this->actingAs($moderator)->from($adres)
+            ->post(route('recipes.history.hide.store', [$przepis->slug, 1]), $this->podstawa(['user_message' => '']))
+            ->assertRedirect($adres)->assertSessionHasErrors('user_message');
+        $this->assertSame(RecipeVersion::UKRYL_AUTOR, $this->wersja($przepis)->hidden_by_role);
+        $this->assertSame(0, ModerationAction::count());
+
+        $this->actingAs($moderator)
+            ->post(route('recipes.history.hide.store', [$przepis->slug, 1]), $this->podstawa())
+            ->assertRedirect(route('recipes.history', $przepis->slug))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('status', fn ($s) => str_contains($s, 'Przejęto ukrycie wersji 1'));
+
+        $wersja = $this->wersja($przepis);
+        $this->assertSame(RecipeVersion::UKRYLA_MODERACJA, $wersja->hidden_by_role);
+        $this->assertNotNull($wersja->hidden_at);
+
+        $decyzja = ModerationAction::sole();
+        $this->assertSame('recipe_version', $decyzja->target_type);
+        $this->assertSame($wersja->getKey(), $decyzja->target_id);
+        $this->assertSame(ModerationAction::ACTION_HIDE, $decyzja->action);
+        $this->assertSame($moderator->getKey(), $decyzja->moderator_id);
+        $this->assertSame($przepis->author_id, $decyzja->subject_user_id);
+        $this->assertSame('cudze-dane-osobowe', $decyzja->reason_code);
+        $this->assertTrue($decyzja->isAppealable());
+
+        $powiadomienie = Notification::where('user_id', $przepis->author_id)->where('type', Notification::TYPE_MODERATION)->sole();
+        $this->assertSame(ModerationAction::ACTION_HIDE, $powiadomienie->data['decision']);
+        $this->assertTrue($powiadomienie->data['appeal']);
+        $this->assertSame($decyzja->getKey(), $powiadomienie->data['action_id']);
+        $this->assertStringContainsString(self::UZASADNIENIE, $powiadomienie->data['message']);
+
+        $wpis = AuditLogEntry::where('action', 'recipe_version.hidden')->latest('created_at')->orderByDesc('id')->first();
+        $this->assertSame($decyzja->getKey(), $wpis->metadata['moderation_action_id']);
+        $this->assertSame('author', $wpis->metadata['przejeto_od']);
+
+        // Autor nie przywraca sam — ani przyciskiem, ani ręcznym POST-em.
+        $this->actingAs($przepis->author)->get(route('recipes.history', $przepis->slug))
+            ->assertOk()->assertSee('Ukryta przez moderację')
+            ->assertDontSee(route('recipes.history.restore', [$przepis->slug, 1]), false);
+        $this->actingAs($przepis->author)->post(route('recipes.history.restore.store', [$przepis->slug, 1]))->assertForbidden();
+        $this->assertTrue($this->wersja($przepis)->czyUkrytaPrzezModeracje());
+    }
+
+    private function przejmijJakoModeracja(Recipe $przepis): void
+    {
+        $this->ukryjJakoAutor($przepis);
+        $this->actingAs($this->moderator())
+            ->post(route('recipes.history.hide.store', [$przepis->slug, 1]), $this->podstawa())
+            ->assertSessionHasNoErrors();
+        auth()->logout();
+    }
+
+    private function rozstrzygnij(Appeal $odwolanie, string $wynik): void
+    {
+        $this->actingAs($this->admin())->post(route('admin.appeals.resolve', $odwolanie), [
+            'outcome' => $wynik,
+            'decision_note' => 'Sprawdziliśmy sprawę i rozstrzygamy odwołanie.',
+        ])->assertSessionHasNoErrors();
+        auth()->logout();
+    }
+
+    /**
+     * Decyzja właściciela z 30.09.2026: uznane odwołanie od PRZEJĘCIA nie
+     * robi wersji publicznej — wraca ukrycie autora, które autor cofa sam.
+     */
+    public function test_uznane_odwolanie_od_przejecia_zwraca_ukrycie_autorowi(): void
+    {
+        $przepis = $this->przepis();
+        $this->przejmijJakoModeracja($przepis);
+
+        // Stan sprzed przejęcia siedzi przy samej decyzji, nie tylko w audycie.
+        $decyzja = ModerationAction::where('action', ModerationAction::ACTION_HIDE)->sole();
+        $this->assertSame(RecipeVersion::STAN_PRZED_PRZEJECIEM, $decyzja->previous_status);
+
+        $odwolanie = $this->odwolajSie($przepis);
+        $this->rozstrzygnij($odwolanie, Appeal::STATUS_OVERTURNED);
+
+        $wersja = $this->wersja($przepis);
+        $this->assertNotNull($wersja->hidden_at, 'Wersja dalej jest ukryta.');
+        $this->assertSame(RecipeVersion::UKRYL_AUTOR, $wersja->hidden_by_role);
+        $this->get(route('recipes.history.version', [$przepis->slug, 1]))->assertNotFound();
+
+        // Decyzja `unhide` z powodem odwołania — raport liczy ją jak dotąd.
+        $this->assertSame(1, ModerationAction::where('action', ModerationAction::ACTION_UNHIDE)->where('reason_code', 'appeal_overturned')->count());
+        $wpis = AuditLogEntry::where('action', 'recipe_version.returned_to_author')->sole();
+        $this->assertSame('moderator', $wpis->metadata['ukryl']);
+
+        // Autor mówi po polsku, że wersja wróciła do jego ukrycia i może ją przywrócić.
+        $powiadomienie = Notification::where('user_id', $przepis->author_id)
+            ->where('data->decision', 'appeal.'.Appeal::STATUS_OVERTURNED)->sole();
+        $this->assertStringContainsString('nie stała się publiczna', $powiadomienie->data['message']);
+        $this->assertStringContainsString('ukrycia przez autora', $powiadomienie->data['message']);
+        $this->assertStringContainsString('Przywróć wersję 1', $powiadomienie->data['message']);
+
+        // Autor widzi przycisk i przywraca sam; dopiero wtedy wersja jest publiczna.
+        $this->actingAs($przepis->author)->get(route('recipes.history', $przepis->slug))
+            ->assertOk()->assertSee(route('recipes.history.restore', [$przepis->slug, 1]), false);
+        $this->actingAs($przepis->author)->post(route('recipes.history.restore.store', [$przepis->slug, 1]))
+            ->assertRedirect(route('recipes.history', $przepis->slug));
+        auth()->logout();
+        $this->assertNull($this->wersja($przepis)->hidden_at);
+        $this->get(route('recipes.history.version', [$przepis->slug, 1]))->assertOk();
+    }
+
+    public function test_uznane_odwolanie_od_zwyklego_ukrycia_moderacji_robi_wersje_publiczna(): void
+    {
+        $przepis = $this->przepis();
+        $this->ukryjJakoModeracja($this->moderator(), $przepis);
+        $this->assertNull(ModerationAction::where('action', ModerationAction::ACTION_HIDE)->sole()->previous_status);
+
+        $this->rozstrzygnij($this->odwolajSie($przepis), Appeal::STATUS_OVERTURNED);
+
+        $this->assertNull($this->wersja($przepis)->hidden_at);
+        $this->assertNull($this->wersja($przepis)->hidden_by_role);
+        $this->assertSame(0, AuditLogEntry::where('action', 'recipe_version.returned_to_author')->count());
+        $powiadomienie = Notification::where('user_id', $przepis->author_id)
+            ->where('data->decision', 'appeal.'.Appeal::STATUS_OVERTURNED)->sole();
+        $this->assertStringNotContainsString('nie stała się publiczna', $powiadomienie->data['message']);
+    }
+
+    public function test_podtrzymane_odwolanie_od_przejecia_nic_nie_zmienia(): void
+    {
+        $przepis = $this->przepis();
+        $this->przejmijJakoModeracja($przepis);
+
+        $this->rozstrzygnij($this->odwolajSie($przepis), Appeal::STATUS_UPHELD);
+
+        $this->assertTrue($this->wersja($przepis)->czyUkrytaPrzezModeracje());
+        $this->assertSame(0, ModerationAction::where('action', ModerationAction::ACTION_UNHIDE)->count());
+    }
+
+    public function test_ukrycia_moderacji_nie_przejmuje_sie_drugi_raz(): void
+    {
+        $przepis = $this->przepis();
+        $moderator = $this->moderator();
+        $this->ukryjJakoModeracja($moderator, $przepis);
+
+        $this->actingAs($moderator)->get(route('recipes.history', $przepis->slug))
+            ->assertOk()->assertDontSee('Przejmij ukrycie');
+        $this->actingAs($moderator)->get(route('recipes.history.hide', [$przepis->slug, 1]))
+            ->assertRedirect(route('recipes.history', $przepis->slug));
+
+        // Ręczny POST: bez drugiej decyzji, bez drugiego powiadomienia.
+        $this->actingAs($moderator)
+            ->post(route('recipes.history.hide.store', [$przepis->slug, 1]), $this->podstawa())
+            ->assertRedirect(route('recipes.history', $przepis->slug))
+            ->assertSessionHas('status', fn ($s) => str_contains($s, 'już ukryta'));
+
+        $this->assertSame(1, ModerationAction::count());
+        $this->assertSame(1, Notification::where('type', Notification::TYPE_MODERATION)->count());
+    }
+
+    public function test_goscie_i_autor_nie_widza_przycisku_przejecia_a_autor_nie_przejmuje_wlasnego_ukrycia(): void
+    {
+        $przepis = $this->przepis();
+        $this->ukryjJakoAutor($przepis);
+
+        $this->get(route('recipes.history', $przepis->slug))->assertOk()->assertDontSee('Przejmij ukrycie');
+        $this->actingAs($przepis->author)->get(route('recipes.history', $przepis->slug))
+            ->assertOk()->assertDontSee('Przejmij ukrycie')->assertSee('Przywróć wersję 1');
+        $this->actingAs($przepis->author)->get(route('recipes.history.hide', [$przepis->slug, 1]))
+            ->assertRedirect(route('recipes.history', $przepis->slug));
+        $this->actingAs($przepis->author)->post(route('recipes.history.hide.store', [$przepis->slug, 1]))
+            ->assertRedirect(route('recipes.history', $przepis->slug));
+        auth()->logout();
+        $this->post(route('recipes.history.hide.store', [$przepis->slug, 1]), $this->podstawa())->assertRedirect();
+
+        $this->assertSame(RecipeVersion::UKRYL_AUTOR, $this->wersja($przepis)->hidden_by_role);
+        $this->assertSame(0, ModerationAction::count());
+    }
+
+    public function test_moderator_bez_2fa_nie_widzi_przycisku_przejecia_i_nie_przejmuje(): void
+    {
+        $przepis = $this->przepis();
+        $this->ukryjJakoAutor($przepis);
+        $bez2fa = $this->user(null, ['role' => User::ROLE_MODERATOR]);
+
+        $this->actingAs($bez2fa)->get(route('recipes.history', $przepis->slug))->assertDontSee('Przejmij ukrycie');
+        $this->actingAs($bez2fa)->post(route('recipes.history.hide.store', [$przepis->slug, 1]), $this->podstawa())->assertForbidden();
+        $this->assertSame(0, ModerationAction::count());
+    }
+
+    public function test_moderator_nie_cofa_przejecia_zrobionego_przez_administratora(): void
+    {
+        $przepis = $this->przepis();
+        $this->ukryjJakoAutor($przepis);
+        $this->actingAs($this->admin())
+            ->post(route('recipes.history.hide.store', [$przepis->slug, 1]), $this->podstawa())
+            ->assertSessionHasNoErrors();
+        auth()->logout();
+        $this->assertSame(RecipeVersion::UKRYLA_MODERACJA, $this->wersja($przepis)->hidden_by_role);
+
+        $this->actingAs($this->moderator())
+            ->post(route('recipes.history.restore.store', [$przepis->slug, 1]), ['reason_code' => 'pomyłka'])
+            ->assertSessionHasErrors('reason_code');
+        $this->assertTrue($this->wersja($przepis)->czyUkrytaPrzezModeracje());
+    }
+
     public function test_strona_moderacji_bez_decyzji_nie_ukrywa_ani_nie_odslania(): void
     {
         $przepis = $this->przepis();

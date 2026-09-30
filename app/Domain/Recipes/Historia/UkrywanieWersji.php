@@ -43,7 +43,11 @@ use LogicException;
  * `App\Domain\Moderation\Actions\DecyzjaOWersjiPrzepisu`. Bez niego
  * zapis po stronie moderacji kończy się `LogicException`, zanim cokolwiek
  * trafi do bazy — nie ma drogi do ukrycia przez moderację bez decyzji.
- * Ukrycie przez AUTORA zostaje jego decyzją o własnej treści, bez DSA.
+ * Ukrycie przez AUTORA zostaje jego decyzją o własnej treści, bez DSA —
+ * dopóki moderacja go nie PRZEJMIE (decyzja z 30.09.2026): ta sama droga
+ * `ukryj()` z `$decyzja`, pod tą samą blokadą, zmienia `hidden_by_role` na
+ * moderatora i zwraca `PRZEJETO`. Od tej chwili autor nie przywróci wersji
+ * sam, a uznane odwołanie ją przywraca.
  *
  * Ten moduł nie importuje `Moderation` (graf modułów bez cykli, #971) —
  * domknięcie przychodzi z góry, a tu jest tylko miejsce, w którym się wykona.
@@ -54,6 +58,9 @@ final class UkrywanieWersji
 
     public const JUZ_UKRYTA = 'juz_ukryta';
 
+    /** Wersję ukrytą przez autora przejęła moderacja (decyzja z 30.09.2026, D-333). */
+    public const PRZEJETO = 'przejeto';
+
     public const NAJNOWSZA = 'najnowsza';
 
     public const PRZYWROCONO = 'przywrocono';
@@ -61,6 +68,9 @@ final class UkrywanieWersji
     public const NIE_BYLA_UKRYTA = 'nie_byla_ukryta';
 
     public const BRAK_WERSJI = 'brak_wersji';
+
+    /** Uznane odwołanie od przejęcia: wersja wróciła do ukrycia przez autora (decyzja z 30.09.2026). */
+    public const WROCILA_DO_AUTORA = 'wrocila_do_autora';
 
     /** Przywrócenie odmówione: tę wersję ukryła druga strona (stan pod blokadą). */
     public const UKRYTA_PRZEZ_DRUGA_STRONE = 'ukryta_przez_druga_strone';
@@ -84,7 +94,7 @@ final class UkrywanieWersji
      *                                                   OBOWIĄZKOWE: zapis decyzji moderacyjnej pod blokadą, przed
      *                                                   ukryciem. Wyjątek z niego cofa całość. Po stronie autora
      *                                                   pomijane.
-     * @return self::UKRYTO|self::JUZ_UKRYTA|self::NAJNOWSZA|self::BRAK_WERSJI
+     * @return self::UKRYTO|self::PRZEJETO|self::JUZ_UKRYTA|self::NAJNOWSZA|self::BRAK_WERSJI
      */
     public function ukryj(User $kto, Recipe $recipe, int $numer, ?string $ip = null, ?Closure $decyzja = null): string
     {
@@ -100,7 +110,18 @@ final class UkrywanieWersji
             if ($wersja === null) {
                 return self::BRAK_WERSJI;
             }
-            if ($wersja->czyUkryta()) {
+
+            // PRZEJĘCIE: moderacja może zamienić ukrycie zrobione przez autora
+            // na własną decyzję (decyzja właściciela z 30.09.2026). Stan jest
+            // czytany POD blokadą, więc dwie równoczesne próby nie zrobią
+            // dwóch decyzji: druga zobaczy już `moderator` i dostanie
+            // JUZ_UKRYTA. Ukrycia moderacji nie przejmuje się drugi raz, a autor
+            // nie „przejmuje” niczego — jego własne ukrycie to `JUZ_UKRYTA`.
+            $przejecie = $wersja->czyUkryta()
+                && $wersja->hidden_by_role === RecipeVersion::UKRYL_AUTOR
+                && $strona === RecipeVersion::UKRYLA_MODERACJA;
+
+            if ($wersja->czyUkryta() && ! $przejecie) {
                 return self::JUZ_UKRYTA;
             }
             if (HistoriaWersji::numerNajnowszej($recipe) === $numer) {
@@ -120,9 +141,10 @@ final class UkrywanieWersji
                 'strona' => $strona,
                 // Tylko po stronie moderacji: wskazanie decyzji w rejestrze.
                 ...($idDecyzji === null ? [] : ['moderation_action_id' => $idDecyzji]),
+                ...($przejecie ? ['przejeto_od' => RecipeVersion::UKRYL_AUTOR] : []),
             ], $ip);
 
-            return self::UKRYTO;
+            return $przejecie ? self::PRZEJETO : self::UKRYTO;
         });
     }
 
@@ -177,6 +199,51 @@ final class UkrywanieWersji
             ], $ip);
 
             return self::PRZYWROCONO;
+        });
+    }
+
+    /**
+     * Uznane odwołanie od decyzji, która PRZEJĘŁA ukrycie autora (decyzja
+     * właściciela z 30.09.2026): wersja NIE staje się publiczna, tylko wraca
+     * do stanu sprzed przejęcia — ukryta przez autora, który może ją przywrócić
+     * sam. Zapis decyzji `unhide` (ten sam co przy zwykłym cofnięciu, więc
+     * raport przejrzystości liczy to samo) idzie przez `$decyzja` pod blokadą.
+     *
+     * @param  Closure(RecipeVersion): mixed  $decyzja
+     * @return self::WROCILA_DO_AUTORA|self::NIE_BYLA_UKRYTA|self::UKRYTA_PRZEZ_DRUGA_STRONE|self::BRAK_WERSJI
+     */
+    public function zwrocAutorowi(User $kto, Recipe $recipe, int $numer, ?string $ip, Closure $decyzja): string
+    {
+        return DB::transaction(function () use ($kto, $recipe, $numer, $ip, $decyzja): string {
+            Recipe::query()->whereKey($recipe->getKey())->lockForUpdate()->first();
+
+            $wersja = $this->wersjaPodBlokada($recipe, $numer);
+            if ($wersja === null) {
+                return self::BRAK_WERSJI;
+            }
+            if (! $wersja->czyUkryta()) {
+                return self::NIE_BYLA_UKRYTA;
+            }
+            // Stan pod blokadą: przejęcie nadal obowiązuje tylko, gdy wersję
+            // trzyma moderacja. Jeśli ktoś ją już przywrócił i autor ukrył
+            // po swojemu, nie ruszamy cudzej decyzji.
+            if ($wersja->hidden_by_role !== RecipeVersion::UKRYLA_MODERACJA) {
+                return self::UKRYTA_PRZEZ_DRUGA_STRONE;
+            }
+
+            $idDecyzji = self::idDecyzji($decyzja($wersja));
+
+            $wersja->oddajAutorowi();
+
+            AuditLogEntry::record('recipe_version.returned_to_author', $kto, $wersja, [
+                'recipe_id' => $recipe->getKey(),
+                'version_number' => $numer,
+                'strona' => self::strona($kto, $recipe),
+                'ukryl' => RecipeVersion::UKRYLA_MODERACJA,
+                ...($idDecyzji === null ? [] : ['moderation_action_id' => $idDecyzji]),
+            ], $ip);
+
+            return self::WROCILA_DO_AUTORA;
         });
     }
 

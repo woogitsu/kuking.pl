@@ -8,10 +8,10 @@
         bez zdjęć. Strona przepisu może zawierać jeszcze drobne poprawki, których autor
         nie zapisał jako nowej wersji.
     </p>
-    <p class="meta">
+    <p class="meta meta-samodzielne">
         Wersje są publiczne tak samo jak przepis: widzi je każdy, kto widzi przepis. Zapisana
         wersja zachowuje treść z chwili zapisu, także tę, którą autor usunął później.
-        Autor może ukryć pojedynczą wersję przyciskiem „Ukryj tę wersję” — wtedy widzi ją już
+        Autor może ukryć pojedynczą wersję przyciskiem „Ukryj wersję” z numerem wersji (na przykład „Ukryj wersję 2”) — wtedy widzi ją już
         tylko autor i moderacja.
     </p>
     @if($zUkrytymi)
@@ -27,7 +27,7 @@
         </p>
     @endif
     @php($miesiace = (int) config('kuking.przepisy.version_retention_months'))
-    <p class="meta">
+    <p class="meta meta-samodzielne">
         Starsze wersje nie leżą tu w nieskończoność: wersja zapisana ponad {{ $miesiace }} {{ \App\Support\Odmiana::rzeczownik($miesiace, 'miesiąc', 'miesiące', 'miesięcy') }} temu
         znika z serwisu, ale {{ (int) config('kuking.przepisy.version_keep_latest') }} najnowsze wersje przepisu zostają zawsze.
     </p>

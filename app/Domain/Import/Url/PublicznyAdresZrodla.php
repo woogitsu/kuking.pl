@@ -15,7 +15,8 @@ namespace App\Domain\Import\Url;
  * `session=`, `email=` pod dowolną nazwą — takiej listy nie da się domknąć.
  * Dlatego zostaje: schemat, host, port i ścieżka, a z zapytania wyłącznie
  * parametry z `PARAMETRY_STRONY`, które wskazują stronę przepisu
- * (WordPress `?p=123`, `?page_id=`, `?przepis=`), i tylko z krótką,
+ * (WordPress `?p=123`, `?page_id=`, `?przepis=`; Joomla `?option=`,
+ * `?view=`, `?id=`; Drupal `?nid=`; `?rid=`, `?slug=`, `?item=`), i tylko z krótką,
  * prostą wartością. Fragment (`#…`) i dane logowania (`user:haslo@`)
  * znikają zawsze.
  *
@@ -29,7 +30,7 @@ final class PublicznyAdresZrodla
      *
      * @var list<string>
      */
-    public const PARAMETRY_STRONY = ['p', 'page_id', 'post', 'id', 'przepis', 'recipe', 'recipe_id', 'article', 'artykul', 'lang'];
+    public const PARAMETRY_STRONY = ['p', 'page_id', 'post', 'id', 'przepis', 'recipe', 'recipe_id', 'article', 'artykul', 'lang', 'option', 'view', 'nid', 'rid', 'slug', 'item'];
 
     /**
      * Wartość parametru z listy zgód: litery łacińskie, cyfry, `.`, `_`, `-`,

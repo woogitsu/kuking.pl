@@ -55,7 +55,7 @@
     @endif
 
     @if($limitOsiagniety)
-        <p class="field-help">Masz już maksymalną liczbę tagów. Usuń jeden, żeby dodać inny.</p>
+        <p>Masz już maksymalną liczbę tagów. Usuń jeden, żeby dodać inny.</p>
     @else
         {{--
             `open`, gdy w środku JEST CO POKAZAĆ. Bez tego kliknięcie

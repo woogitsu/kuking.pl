@@ -184,13 +184,95 @@ class PotwierdzenieInnaDrogaTest extends TestCase
         unset($opcje['--tak']);
 
         $this->artisan(self::KOMENDA, $opcje)
-            ->expectsConfirmation('Oznaczyć sprawę '.$sprawa->numer_sprawy.' jako potwierdzoną drogą „telefon” (operator: '
-                .AdresEmail::maska((string) User::query()->where('role', User::ROLE_MODERATOR)->firstOrFail()->email).')? '
-                .'Zgłaszający NIE dostanie z tego powodu żadnego listu.', 'no')
+            ->expectsConfirmation($this->pytanie($sprawa), 'no')
             ->expectsOutputToContain('Anulowano.')
             ->assertSuccessful();
 
         $this->assertNull($sprawa->fresh()->receipt_sent_at);
+    }
+
+    public function test_pytanie_pokazuje_stan_sprawy_bez_danych_zglaszajacego(): void
+    {
+        $sprawa = $this->sprawaNaSuficie();
+        $opcje = $this->opcje($sprawa, $this->moderator());
+        unset($opcje['--tak']);
+
+        $pytanie = $this->pytanie($sprawa);
+
+        $this->assertStringContainsString('status: otwarta', $pytanie);
+        $this->assertStringContainsString('stoi na suficie prób listu: tak', $pytanie);
+        $this->assertStringContainsString('zgłoszona: '.$sprawa->created_at->format('Y-m-d H:i'), $pytanie);
+        $this->assertStringNotContainsString('kancelaria', $pytanie);
+        $this->assertStringNotContainsString('Anna', $pytanie);
+
+        $this->artisan(self::KOMENDA, $opcje)
+            ->expectsConfirmation($pytanie, 'yes')
+            ->assertSuccessful();
+
+        $this->assertNotNull($sprawa->fresh()->receipt_sent_at);
+    }
+
+    public function test_bez_terminala_i_bez_tak_komenda_konczy_sie_bledem_a_nie_anulowaniem(): void
+    {
+        $sprawa = $this->sprawaNaSuficie();
+        $opcje = $this->opcje($sprawa, $this->moderator());
+        unset($opcje['--tak']);
+        $opcje['--no-interaction'] = true;
+
+        $this->artisan(self::KOMENDA, $opcje)
+            ->expectsOutputToContain('Brak terminala. Dodaj --tak, żeby potwierdzić bez pytania.')
+            ->doesntExpectOutputToContain('Anulowano.')
+            ->assertFailed();
+
+        $this->assertNull($sprawa->fresh()->receipt_sent_at);
+
+        // Z --tak ta sama sytuacja przechodzi bez pytania.
+        $opcje['--tak'] = true;
+
+        $this->artisan(self::KOMENDA, $opcje)->assertSuccessful();
+        $this->assertNotNull($sprawa->fresh()->receipt_sent_at);
+    }
+
+    public function test_uprawnienia_operatora_sa_sprawdzane_przed_pytaniem(): void
+    {
+        $sprawa = $this->sprawaNaSuficie();
+        $opcje = $this->opcje($sprawa, $this->user('zwyklyOperator'));
+        unset($opcje['--tak']);
+
+        // Brak `expectsConfirmation`: gdyby komenda zadała pytanie, Laravel
+        // oblałby test „nieoczekiwanym pytaniem". Odmowa ma paść wcześniej.
+        $this->artisan(self::KOMENDA, $opcje)
+            ->expectsOutputToContain('Tylko czynne konto moderatora albo administratora')
+            ->assertFailed();
+
+        $this->assertNull($sprawa->fresh()->receipt_sent_at);
+    }
+
+    public function test_sama_akcja_tez_odrzuca_operatora_bez_uprawnien(): void
+    {
+        // Obrona w głębi: komenda sprawdza uprawnienia wcześniej, ale akcja
+        // nie może na tym polegać.
+        $sprawa = $this->sprawaNaSuficie();
+
+        $this->expectExceptionMessage(PotwierdzZgloszenieInnaDroga::KOMUNIKAT_BRAK_UPRAWNIEN);
+
+        try {
+            app(PotwierdzZgloszenieInnaDroga::class)->handle((string) $sprawa->numer_sprawy, $this->user('zwyklyOperator'), 'telefon');
+        } finally {
+            $this->assertNull($sprawa->fresh()->receipt_sent_at);
+        }
+    }
+
+    public function test_sprawa_ktora_nie_czeka_na_potwierdzenie_jest_odrzucona_przed_pytaniem(): void
+    {
+        $sprawa = $this->sprawaNaSuficie();
+        Report::query()->whereKey($sprawa->getKey())->update(['receipt_sent_at' => now()]);
+        $opcje = $this->opcje($sprawa, $this->moderator());
+        unset($opcje['--tak']);
+
+        $this->artisan(self::KOMENDA, $opcje)
+            ->expectsOutputToContain('ma już potwierdzenie przyjęcia')
+            ->assertFailed();
     }
 
     public function test_awaria_zapisu_audytu_cofa_tez_znacznik(): void
@@ -211,6 +293,14 @@ class PotwierdzenieInnaDrogaTest extends TestCase
     }
 
     // ------------------------------------------------------------------
+
+    private function pytanie(Report $sprawa): string
+    {
+        return 'Oznaczyć sprawę '.$sprawa->numer_sprawy.' jako potwierdzoną drogą „telefon” (operator: '
+            .AdresEmail::maska((string) User::query()->where('role', User::ROLE_MODERATOR)->firstOrFail()->email).')? '
+            .'Stan sprawy: status: otwarta; stoi na suficie prób listu: tak; zgłoszona: '.$sprawa->created_at->format('Y-m-d H:i').'. '
+            .'Zgłaszający NIE dostanie z tego powodu żadnego listu.';
+    }
 
     /** @return array<string, mixed> */
     private function opcje(Report $sprawa, User $operator): array

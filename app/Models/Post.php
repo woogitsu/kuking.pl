@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Collections\ZapisyWpisu;
+use App\Domain\Kanaly\UniewaznijKanaly;
 use App\Domain\Tags\UniewaznijCacheTagow;
 use Database\Factories\PostFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -195,9 +196,16 @@ class Post extends Model
      */
     protected static function booted(): void
     {
-        static::saved(fn (self $post) => UniewaznijCacheTagow::poZmianieWpisu($post));
-        static::deleting(fn (self $post) => UniewaznijCacheTagow::poZmianieWpisu($post));
-        static::restored(fn (self $post) => UniewaznijCacheTagow::poZmianieWpisu($post));
+        // Kanały Atom (D-333) czyszczą się tym samym wyzwalaczem: zdjęcie,
+        // ukrycie i usunięcie mają zniknąć z kanału od razu, nie po TTL.
+        $po = static function (self $post): void {
+            UniewaznijCacheTagow::poZmianieWpisu($post);
+            UniewaznijKanaly::poZmianieWpisu($post);
+        };
+
+        static::saved($po);
+        static::deleting($po);
+        static::restored($po);
     }
 
     /**

@@ -15,7 +15,41 @@
     <h1>Plan na tydzień</h1>
     <p class="mb-5">{{ PlanerTygodnia::zakresTygodnia($poniedzialek) }}. Ten plan widzisz tylko Ty.</p>
 
-    <x-error-summary />
+    @php
+        // Cele linków z podsumowania błędów. Domyślne `#f-day` / `#f-q` nie
+        // istnieje na tej stronie: pole dnia jest ukryte, a pole wyszukiwania
+        // ma id `q-{data}`. Błąd z wyników wyszukiwania (POST `z_planera`)
+        // prowadzi do pola wyszukiwania tego dnia, z którego przyszedł; błąd
+        // z „Dopisz coś własnego” — do pola `label` tego dnia (id z `_wiersz`).
+        // Dzień spoza tygodnia na ekranie (np. poza zakresem planera) albo
+        // pełny dzień bez pola — pierwszy dzień, który pole ma.
+        $dniZPolemSzukania = collect($dni)
+            ->filter(fn ($d) => count($d['pozycje']) < $wpisowNaDzien)
+            ->keys()
+            ->map(fn ($k) => (string) $k)
+            ->all();
+        $celeBledow = [];
+        if ($errors->any()) {
+            if (old('z_planera')) {
+                $dzienBledu = old('day');
+                if (! is_string($dzienBledu) || ! in_array($dzienBledu, $dniZPolemSzukania, true)) {
+                    $dzienBledu = in_array((string) $szukanyDzien, $dniZPolemSzukania, true)
+                        ? $szukanyDzien
+                        : ($dniZPolemSzukania[0] ?? null);
+                }
+                $cel = $dzienBledu !== null ? 'q-'.$dzienBledu : null;
+            } else {
+                $wierszBledu = \App\Support\WierszFormularza::aktywnyWiersz();
+                $cel = $wierszBledu !== null && in_array($wierszBledu, $dniZPolemSzukania, true)
+                    ? 'f-label-'.$wierszBledu
+                    : (isset($dniZPolemSzukania[0]) ? 'q-'.$dniZPolemSzukania[0] : null);
+            }
+            if ($cel !== null) {
+                $celeBledow = ['day' => $cel, 'q' => $cel, 'recipe_id' => $cel, 'label' => $cel];
+            }
+        }
+    @endphp
+    <x-error-summary :field-ids="$celeBledow" />
 
     <nav class="planer-nawigacja mb-5" aria-label="Wybór tygodnia">
         <a class="btn btn-secondary" href="{{ route('planer.show', ['tydzien' => $poniedzialek->subDays(7)->toDateString()]) }}">Poprzedni tydzień</a>
@@ -156,7 +190,7 @@
                         <button class="btn btn-secondary" type="submit">Dopisz</button>
                     </form>
                 @else
-                    <p class="meta mt-4">Ten dzień ma komplet: {{ $wpisowNaDzien }} pozycji. Usuń którąś, żeby dopisać nową.</p>
+                    <p class="meta meta-samodzielne mt-4">Ten dzień ma komplet: {{ $wpisowNaDzien }} pozycji. Usuń którąś, żeby dopisać nową.</p>
                 @endif
             </section>
         @endforeach

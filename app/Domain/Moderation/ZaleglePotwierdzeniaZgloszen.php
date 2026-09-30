@@ -8,6 +8,7 @@ use App\Models\Report;
 use App\Models\User;
 use App\Notifications\PotwierdzenieZgloszeniaNielegalnejTresci;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Jedna definicja „zaległego potwierdzenia przyjęcia zgłoszenia" (DSA art. 16
@@ -46,22 +47,66 @@ final class ZaleglePotwierdzeniaZgloszen
     }
 
     /**
+     * Ile spraw (zgłoszeń prawnych bez konta) przegląda jeden przebieg. Sufit
+     * chroni przed pełnym skanem przy awarii poczty, gdy zaległości rosną;
+     * poniżej niego wynik jest dokładny. Po obcięciu idzie wpis do logu.
+     */
+    public const SUFIT_PRZEGLADANYCH_SPRAW = 5000;
+
+    private const PARTIA_SPRAW = 200;
+
+    /**
      * Numery zaległych spraw (zgłoszenia prawne bez konta), przy których
      * dosyłka przestała ponawiać list, bo osiągnęły sufit porażek.
      *
+     * Sprawy idą partiami (`chunkById`), a liczniki porażek partii czyta jeden
+     * `Cache::many()` — liczba zapytań rośnie z partiami, nie ze sprawami.
+     *
      * @return list<string>
      */
-    public static function numeryNaSuficie(): array
+    public static function numeryNaSuficie(int $sufit = self::SUFIT_PRZEGLADANYCH_SPRAW): array
     {
-        $numery = [];
+        $trafione = [];
+        $przejrzane = 0;
+        $obcieto = false;
 
-        foreach (self::zapytanie()->whereNull('reporter_id')->orderBy('created_at')->get(['id', 'numer_sprawy']) as $sprawa) {
-            if (PotwierdzenieZgloszeniaNielegalnejTresci::ponawianieWstrzymane((string) $sprawa->getKey())) {
-                $numery[] = (string) ($sprawa->numer_sprawy ?? $sprawa->getKey());
-            }
+        self::zapytanie()->whereNull('reporter_id')
+            ->chunkById(self::PARTIA_SPRAW, function ($partia) use (&$trafione, &$przejrzane, &$obcieto, $sufit): bool {
+                $zapas = $sufit - $przejrzane;
+
+                if ($partia->count() > $zapas) {
+                    $partia = $partia->take($zapas);
+                    $obcieto = true;
+                }
+
+                $przejrzane += $partia->count();
+
+                $wstrzymane = array_flip(PotwierdzenieZgloszeniaNielegalnejTresci::wstrzymaneSposrod(
+                    $partia->map(fn (Report $sprawa): string => (string) $sprawa->getKey())->all(),
+                ));
+
+                foreach ($partia as $sprawa) {
+                    if (isset($wstrzymane[(string) $sprawa->getKey()])) {
+                        $trafione[] = $sprawa;
+                    }
+                }
+
+                if ($przejrzane >= $sufit) {
+                    $obcieto = $obcieto || self::zapytanie()->whereNull('reporter_id')->count() > $przejrzane;
+
+                    return false;
+                }
+
+                return true;
+            }, 'id');
+
+        if ($obcieto) {
+            Log::warning('Liczenie spraw na suficie prób potwierdzenia DSA obcięto do '.$sufit.' spraw — liczba może być zaniżona.');
         }
 
-        return $numery;
+        usort($trafione, fn (Report $a, Report $b): int => $a->created_at <=> $b->created_at);
+
+        return array_map(fn (Report $sprawa): string => (string) ($sprawa->numer_sprawy ?? $sprawa->getKey()), $trafione);
     }
 
     public static function ileNaSuficie(): int
