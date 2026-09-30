@@ -93,7 +93,7 @@ final class StartListyWidzaBezPowtorekTest extends TestCase
         $this->assertSame([], $listy->osoby($widz));
     }
 
-    public function test_blokada_i_odblokowanie_w_tym_samym_zadaniu_uniewazniają_pamiec(): void
+    public function test_blokada_i_odblokowanie_w_tym_samym_zadaniu_uniewaznia_pamiec(): void
     {
         $widz = $this->user(null);
         $inna = $this->user(null);
