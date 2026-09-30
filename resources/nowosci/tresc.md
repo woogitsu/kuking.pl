@@ -31,6 +31,23 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### „Jak wyszło?” po trybie gotowania
+
+Jeśli w trybie gotowania dojdziecie do ostatniego kroku, a nie zapiszecie
+„Ugotowałem”, na stronie Start pojawi się jedno zdanie: nazwa przepisu
+i „jak wyszło?”. Przycisk „Pokaż zdjęcie” otwiera zwykły formularz
+„Ugotowałem”, a „Nie teraz” chowa pytanie. Pytanie znika też samo po kilku
+dniach albo wtedy, gdy zapiszecie wykonanie, i dla tego samego gotowania już
+nie wraca. Widzicie je tylko Wy — nie przychodzi mailem ani powiadomieniem.
+
+### Napis „Autor przepisu” w rozmowie
+
+Gdy autor przepisu odpowiada pod swoim przepisem albo pod czyimś wykonaniem
+tego przepisu, obok imienia widać napis „Autor przepisu” — albo „Autorka
+przepisu”, jeśli ta osoba wybrała formę żeńską w pytaniu „Jak mamy do Ciebie
+pisać?”. Od razu wiadomo, że odpowiedź przyszła od osoby, od której przepis
+pochodzi. Przy „Mojej wersji” napis dostaje autor tej wersji.
+
 ### Przycisk „Zgłoś” widać także bez logowania
 
 Przy przepisie, wpisie i komentarzu widać teraz odnośnik „Zgłoś (po zalogowaniu)”

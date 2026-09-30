@@ -39,8 +39,11 @@ Format: **trigger → akcja → nagroda → inwestycja**. „Inwestycja” = to,
 > opisu niżej: przycisk nazywa się „**Podziękuj**” i wysyła zwykły komentarz
 > z gotowym tekstem podziękowania — to jest podziękowanie, nie osobny typ
 > „odpowiedzi". Plakietka „autorka przepisu” przy tym komentarzu (wiersz
-> „Nagroda” niżej) to osobna, jeszcze nie zbudowana mechanika z `SOUL.md`
-> §4.2 — nie część zakresu #17.
+> „Nagroda” niżej) to osobna mechanika z `SOUL.md` §4.2 — nie część zakresu
+> #17. **Zbudowana 30.09.2026 (F2, D-333):** komentarz autora przepisu pod jego
+> przepisem i pod wykonaniami tego przepisu ma napis „Autor przepisu”
+> („Autorka przepisu” przy formie żeńskiej, D-332) —
+> `components/comment-thread.blade.php`, test `PlakietkaAutoraPrzepisuTest`.
 
 | | |
 |---|---|

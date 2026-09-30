@@ -4988,7 +4988,7 @@ i `Wyscigi\EksportDanychRaceTest`.
 ### product_signals
 
 Sygnały produktowe (issue #115), migracja
-`2026_09_06_220000_create_product_signals_table`. Osiem zdarzeń:
+`2026_09_06_220000_create_product_signals_table`. Dwanaście zdarzeń:
 `photo_upload_failed` (próba wgrania zdjęcia, która się nie udaje —
 `App\Domain\Media\Actions\StoreUploadedImage`), `search_performed`
 (wykonane wyszukiwanie — `App\Http\Controllers\SearchController`) oraz para
@@ -4997,6 +4997,24 @@ od tygodniowego podsumowania: `weekly_digest_queued` i
 `2026_09_10_100100_add_digest_signals_to_product_signals`) oraz cztery sygnały
 instalacji PWA opisane przy `users.pwa_prompt_state` powyżej. Jedyne miejsce,
 które tu pisze: `App\Domain\Analytics\ZapiszSygnal`.
+
+**Cztery sygnały „Jak wyszło?” (F1, D-333, migracja
+`2026_09_30_140000_add_cooking_followup_product_signals`):**
+`cooking_last_step_reached` (nowe gotowanie otworzyło ostatni krok trybu
+gotowania), `cooking_last_step_cooked` (to gotowanie skończyło się
+„Ugotowałem”; jedyne pole `properties.po_pytaniu`, bool), `cooking_followup_shown`
+i `cooking_followup_dismissed` (pytanie na Starcie pokazane / „Nie teraz”).
+Pisze je wyłącznie `App\Domain\Recipes\Gotowanie\JakWyszlo` i zawsze z
+`user_id = NULL`, bez przepisu — raport (`App\Domain\Analytics\DojsciaDoKoncaGotowania`,
+`kuking:raport`) potrzebuje samych liczników. To, KTÓRY przepis ta osoba
+gotowała, zna tylko jej sesja (klucz `gotowanie.jak_wyszlo`: przepis, konto,
+chwila dojścia, stan; najwyżej 10 wpisów, starsze niż 3 dni się nie liczą) —
+bez nowej tabeli, tak jak odhaczone kroki w `CookingModeController`. CHECK
+jest przestawiany bez przerwy w ochronie: nowy pod tymczasową nazwą
+`NOT VALID`, `VALIDATE`, zdjęcie starego, zmiana nazwy (AGENTS.md §6).
+**Rollback:** `down()` kasuje tylko wiersze tych czterech sygnałów (telemetria
+z retencją 90 dni, nie decyzja człowieka — D-088 nie dotyczy) i przywraca
+poprzedni słownik tą samą drogą. Test: `SygnalyJakWyszloMigracjaTest`.
 
 **`weekly_digest_queued` nazywał się do 10 września `weekly_digest_sent`**
 (audyt MAIL-03, **D-078**, migracja
