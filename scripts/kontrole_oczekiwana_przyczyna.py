@@ -366,6 +366,8 @@ OCZEKUJ = {
     'Nowa sekcja paczki bez opisu w polityce': r'Paczka ma nową sekcję „planer_nowy”',
     'Postęp gotowania z terminem niezgodnym z konfiguracją': r'Postęp gotowania żyje 24 godzin',
     'Cloudflare jako pośrednik bez wiersza w polityce': r'Kod używa usługi „Cloudflare \(sieć, CDN i ochrona',
+    # #2308: kursor z adresu tylko przez KursorListy.
+    'Strona tagu stronicuje gołym cursorPaginate': r'Lista kursorowa bez KursorListy — zmyślony `\?cursor=` da tam HTTP 500 \(#2308\)\. Użyj `KursorListy::strona\(\)`',
 }
 
 

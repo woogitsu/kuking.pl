@@ -171,7 +171,7 @@ class KursorZAdresuNieDajeBledu500Test extends TestCase
      * Nowa lista kursorowa bez `KursorListy` wróciłaby do HTTP 500 na
      * zmyślonym kursorze, a przypadki wyżej by jej nie znały.
      */
-    public function test_w_app_cursor_paginate_woła_tylko_kursor_listy(): void
+    public function test_w_app_cursor_paginate_wola_tylko_kursor_listy(): void
     {
         $pliki = File::allFiles(app_path());
         $this->assertGreaterThan(300, count($pliki), 'Skan nie widzi katalogu app/.');
