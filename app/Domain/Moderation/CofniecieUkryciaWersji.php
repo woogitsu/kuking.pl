@@ -29,9 +29,12 @@ interface CofniecieUkryciaWersji
      * Wołane pod zamkiem aktora, który trzyma `ResolveAppeal::handle()`.
      *
      * @param  User  $swiezy  aktor odczytany pod blokadą
+     * @return ?string zdanie dla autora, gdy wersja NIE stała się publiczna, bo
+     *                 uznane odwołanie dotyczyło przejęcia jego ukrycia i wersja
+     *                 wróciła do ukrycia autora (decyzja z 30.09.2026); inaczej `null`
      *
      * @throws WlasnejTresciNiePrzywracasz gdy rozpatrujący jest autorem przepisu
      * @throws BladDlaCzlowieka gdy nie ma czego przywracać
      */
-    public function poOdwolaniu(User $swiezy, ModerationAction $decyzja, string $uzasadnienie, ?string $ip = null): void;
+    public function poOdwolaniu(User $swiezy, ModerationAction $decyzja, string $uzasadnienie, ?string $ip = null): ?string;
 }

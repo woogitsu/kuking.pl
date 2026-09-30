@@ -46,6 +46,15 @@ class RecipeVersion extends Model
     /** Wersję ukryła moderacja — autor jej nie przywraca (issue #2270). */
     public const UKRYLA_MODERACJA = 'moderator';
 
+    /**
+     * Wartość `moderation_actions.previous_status` przy decyzji, która
+     * PRZEJĘŁA ukrycie zrobione wcześniej przez autora (decyzja 30.09.2026).
+     * Stan sprzed decyzji jest faktem o decyzji (docs/DATABASE.md), więc
+     * uznane odwołanie czyta go z decyzji, której dotyczy — nie z audytu.
+     * Mieści się w `string(20)`; kolumna nie ma CHECK-a.
+     */
+    public const STAN_PRZED_PRZEJECIEM = 'hidden_by_author';
+
     /** Kolumny, które wolno zmienić w istniejącej wersji — i tylko one. */
     private const KOLUMNY_UKRYCIA = ['hidden_at', 'hidden_by_role'];
 
@@ -99,6 +108,17 @@ class RecipeVersion extends Model
         }
 
         $this->forceFill(['hidden_at' => now(), 'hidden_by_role' => $kto])->save();
+    }
+
+    /**
+     * Uznane odwołanie od PRZEJĘCIA ukrycia (decyzja właściciela z 30.09.2026):
+     * wersja dalej jest ukryta, ale znów jako ukrycie autora, które autor
+     * może cofnąć sam. `hidden_at` zostaje — wersja nie była publiczna ani
+     * chwili; zmienia się tylko strona.
+     */
+    public function oddajAutorowi(): void
+    {
+        $this->forceFill(['hidden_by_role' => self::UKRYL_AUTOR])->save();
     }
 
     public function odkryj(): void
