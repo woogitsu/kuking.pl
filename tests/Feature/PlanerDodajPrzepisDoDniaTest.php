@@ -121,7 +121,7 @@ final class PlanerDodajPrzepisDoDniaTest extends TestCase
         $this->actingAs($user)->post(route('planer.store'), [
             'day' => '2026-10-14', 'recipe_id' => $przepis->getKey(), 'z_planera' => 1, 'q' => 'sernik',
         ])->assertRedirect(route('planer.show', ['tydzien' => '2026-10-12', 'dzien' => '2026-10-14', 'q' => 'sernik']).'#szukaj-2026-10-14')
-            ->assertSessionHas('status', 'Dodane do planu na środa, 14 października.');
+            ->assertSessionHas('status', 'Dodane do planu na środę, 14 października.');
 
         $this->assertSame($wpis + 1, MealPlanEntry::query()->count());
         $this->assertDatabaseHas('meal_plan_entries', ['user_id' => $user->getKey(), 'recipe_id' => $przepis->getKey(), 'day' => '2026-10-14']);
