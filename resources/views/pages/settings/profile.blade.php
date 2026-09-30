@@ -4,7 +4,7 @@
 
     {{-- Bez `enctype="multipart/form-data"`: ten formularz nie przyjmuje już
          pliku. Zdjęcie profilowe ma własny ekran (`/ustawienia/zdjecie`). --}}
-    <form class="panel-formularza" method="POST" action="{{ route('settings.profile') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('settings.profile') }}" novalidate>
         @csrf @method('PUT')
 
         {{-- Te same tokeny co w rejestracji i dokończeniu Google/Facebook (#949,

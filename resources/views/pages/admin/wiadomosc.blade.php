@@ -197,7 +197,7 @@
         @endif
 
         @if($wiadomosc->adresDoOdpowiedzi())
-            <form id="odpowiedz-formularz" method="POST" action="{{ route('admin.contact.reply', $wiadomosc) }}">
+            <form id="odpowiedz-formularz" method="POST" action="{{ route('admin.contact.reply', $wiadomosc) }}" novalidate>
                 @csrf
                 {{-- Kopie niezapisanego stanu i notatki (issue #845) — patrz
                      komentarz na górze pliku. Wysyłka ich nie zapisuje. --}}

@@ -2870,6 +2870,15 @@
     color: var(--color-ink-muted);
   }
 
+  /* Zdanie pomocnicze, które stoi SAMO — instrukcja ekranu albo pusty stan
+     (UX-02, #2287). `.meta` ma 16 px, a `docs/design/DESIGN_SYSTEM.md` §2.1
+     dopuszcza to tylko obok tekstu głównego ≥ 18 px. Tu obok nic nie ma:
+     „Nic jeszcze nie zaplanowane.” jest całą treścią dnia, więc wraca do
+     rozmiaru tekstu podstawowego, a zostaje przygaszonym kolorem `.meta`. */
+  .meta-samodzielne {
+    font-size: var(--text-body);
+  }
+
   .author-name {
     font-weight: 700;
     color: var(--color-ink);

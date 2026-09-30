@@ -49,9 +49,11 @@ use Throwable;
  *
  * Trzecia cisza była jeszcze gorsza: wyjątek z kanału pocztowego łapał
  * blankietowy `catch (Throwable)` w zadaniu i zostawiał po sobie
- * `Log::warning`. Na produkcji `LOG_BLAD_WEBHOOK_URL` nie jest ustawiony,
- * więc ten wpis nie dociera do nikogo, a `PrzeanalizujTresc::$tries = 1`
- * oznacza, że nie ma też drugiej próby.
+ * `Log::warning`. Ten wpis nie docierał do nikogo: kanał `blad_webhook`
+ * (Discord, działa na produkcji od 29.09.2026 — D-333) woła się jawnie
+ * i od poziomu `error`, więc ostrzeżenie zostawało w samym dzienniku
+ * serwera, a `PrzeanalizujTresc::$tries = 1` oznacza, że nie było też
+ * drugiej próby.
  *
  * CO JEST TERAZ
  * Wynikiem jest NAZWANY STAN, a jego kopia siada na wierszu sprawy

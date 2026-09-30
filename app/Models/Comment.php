@@ -155,22 +155,34 @@ class Comment extends Model
      * Jedno zapytanie niezależnie od liczby wątków — nagłówek przy
      * paginacji mówi o CAŁEJ rozmowie, nie o bieżącej stronie.
      *
+     * DWIE GAŁĘZIE `UNION ALL`, NIE JEDNO `id IN (…) OR parent_id IN (…)`
+     * (#2292, audyt docs/audyt/2026-09-30-wydajnosc-baza.md, F5). Z `OR`
+     * między dwoma podzapytaniami planer nie ma indeksu, po którym mógłby
+     * iść, więc czytał CAŁĄ tabelę `comments` (`Seq Scan`, każdy komentarz
+     * w serwisie) przy każdym wejściu na przepis i „Ugotowałem”. Gałęzie
+     * idą po indeksach: korzenie po `comments_recipe_idx` /
+     * `comments_cooked_idx`, odpowiedzi po `comments_parent_id_index`.
+     * Zbiory są rozłączne (korzeń ma `parent_id IS NULL`, odpowiedź nie),
+     * więc `UNION ALL` niczego nie liczy dwa razy.
+     *
      * @param  HasMany<Comment, covariant Model>  $korzenie  relacja `comments()` podmiotu (same korzenie)
      */
     public static function policzRozmowe(HasMany $korzenie, ?User $widz): int
     {
         // Podzapytanie ma własne `from comments`, więc `comments.*` wewnątrz
         // `widoczneDla()` wskazuje KORZEŃ, nie odpowiedź.
-        $widoczneKorzenie = $korzenie->getQuery()->clone()
+        $widoczneKorzenie = fn (): Builder => $korzenie->getQuery()->clone()
             ->reorder()
             ->widoczneDla($widz)
             ->select('comments.id');
 
-        return self::query()
+        $odpowiedzi = self::query()
             ->widoczneDla($widz)
-            ->where(fn (Builder $liczone) => $liczone
-                ->whereIn('comments.id', $widoczneKorzenie)
-                ->orWhereIn('comments.parent_id', $widoczneKorzenie))
+            ->whereIn('comments.parent_id', $widoczneKorzenie())
+            ->select('comments.id');
+
+        return $widoczneKorzenie()->toBase()
+            ->unionAll($odpowiedzi->toBase())
             ->count();
     }
 

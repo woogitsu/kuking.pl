@@ -122,6 +122,7 @@ final class RequestEmailChange
             $this->linkPotwierdzajacy($zmiana),
             $zmiana->expires_at,
             $user->profile?->display_name,
+            $user->profile?->form_of_address,
         ));
 
         // Odbiorcę utrwalamy przy zleceniu. Worker może ruszyć dopiero po
@@ -130,6 +131,7 @@ final class RequestEmailChange
             AdresEmail::maska($nowyAdres),
             $zmiana->expires_at,
             $user->profile?->display_name,
+            $user->profile?->form_of_address,
         ));
 
         return $zmiana;

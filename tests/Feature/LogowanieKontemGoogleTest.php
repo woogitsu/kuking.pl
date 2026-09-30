@@ -7,6 +7,8 @@ namespace Tests\Feature;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Google\KlientGoogle;
+use App\Models\ModerationAction;
+use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
@@ -843,6 +845,36 @@ class LogowanieKontemGoogleTest extends TestCase
         $this->assertGuest();
         $this->assertStringContainsString('zablokowane', (string) session('status'),
             'Osoba zablokowana ma przeczytać uzasadnienie także na tej drodze (DSA art. 17).');
+        // Kontrola ujemna do D-333: zablokowanego nie ma czego „cofać”.
+        $this->assertNull(session('status_akcja'));
+    }
+
+    /** D-333 (30.09): odwoływalna blokada — przycisk „Odwołaj się”, nie adres w zdaniu. */
+    #[Test]
+    public function test_konto_zablokowane_z_odwolywalna_decyzja_dostaje_przycisk_odwolania(): void
+    {
+        $this->wlaczGoogle();
+
+        $basia = $this->user('zbanowany', ['email' => 'basia@example.test', 'email_verified_at' => now()]);
+        $basia->connectGoogle('109876543210987654321');
+        $wpis = Post::factory()->create(['author_id' => $basia->getKey(), 'visibility' => 'public']);
+        ModerationAction::create([
+            'moderator_id' => $this->moderator()->getKey(),
+            'target_type' => 'post',
+            'target_id' => $wpis->getKey(),
+            'subject_user_id' => $basia->getKey(),
+            'action' => ModerationAction::ACTION_BAN,
+            'reason_code' => 'spam',
+            'user_message' => 'Linki reklamowe mimo ostrzeżenia.',
+        ]);
+        $basia->ban();
+
+        $this->wracamyZGoogle()->assertRedirect(route('login'));
+
+        $this->assertGuest();
+        $this->assertSame(['url' => route('appeals.guest'), 'etykieta' => 'Odwołaj się'], session('status_akcja'));
+        $this->assertStringContainsString('przyciskiem „Odwołaj się”', (string) session('status'));
+        $this->assertStringNotContainsString(route('appeals.guest'), (string) session('status'));
     }
 
     #[Test]
@@ -872,6 +904,14 @@ class LogowanieKontemGoogleTest extends TestCase
 
         $this->wracamyZGoogle()->assertRedirect(route('login'));
         $this->assertGuest();
+
+        // D-333: droga powrotu to przycisk pod komunikatem, nie adres w zdaniu.
+        $this->assertSame(
+            ['url' => route('account.delete.cancel'), 'etykieta' => 'Cofnij usunięcie konta'],
+            session('status_akcja'),
+        );
+        $this->assertStringContainsString('oznaczone do usunięcia', (string) session('status'));
+        $this->assertStringNotContainsString(route('account.delete.cancel'), (string) session('status'));
     }
 
     #[Test]

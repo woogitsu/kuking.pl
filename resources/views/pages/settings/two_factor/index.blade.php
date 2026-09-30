@@ -47,7 +47,7 @@
                         Aplikacja w telefonie działa dalej bez zmian, nie musisz nic w niej przestawiać.
                     </p>
                     @include('pages.settings.two_factor._password-help')
-                    <form method="POST" action="{{ route('settings.two_factor.regenerate') }}">
+                    <form method="POST" action="{{ route('settings.two_factor.regenerate') }}" novalidate>
                         @csrf
                         <x-error-summary error-bag="regenerate" :field-ids="['password' => 'f-password-regenerate']" />
                         <x-field name="password" id="f-password-regenerate" error-bag="regenerate" label="Hasło do Kuking" type="password" required
@@ -62,7 +62,7 @@
                 <summary class="btn btn-secondary inline-flex">Wyłącz weryfikację dwuetapową</summary>
                 <div class="mt-4">
                     @include('pages.settings.two_factor._password-help')
-                    <form method="POST" action="{{ route('settings.two_factor.disable') }}">
+                    <form method="POST" action="{{ route('settings.two_factor.disable') }}" novalidate>
                         @csrf
                         <x-error-summary error-bag="disable" :field-ids="['password' => 'f-password-disable']" />
                         <x-field name="password" id="f-password-disable" error-bag="disable" label="Hasło do Kuking" type="password" required

@@ -11,7 +11,16 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const zrodlo = readFileSync(new URL('./szybki-wyglad.js', import.meta.url), 'utf8');
+import { ustawKolorPaska } from './kolor-paska.js';
+
+// Moduł importuje `ustawKolorPaska` (#2267), a `vm.runInNewContext` wykonuje
+// skrypt, nie moduł ES — import zdejmujemy i podajemy tę samą, prawdziwą
+// funkcję przez kontekst. Gdy import zmieni kształt, test pada tu, zamiast
+// po cichu wykonać moduł bez niego.
+const IMPORT_KOLORU_PASKA = "import {ustawKolorPaska} from './kolor-paska.js';\n";
+const zrodloModulu = readFileSync(new URL('./szybki-wyglad.js', import.meta.url), 'utf8');
+assert.ok(zrodloModulu.includes(IMPORT_KOLORU_PASKA), 'szybki-wyglad.js zmienił importy — dostosuj atrapę w teście.');
+const zrodlo = zrodloModulu.replace(IMPORT_KOLORU_PASKA, '');
 const ADRES = 'https://kuking.pl/przepisy/proba';
 
 function element(extra = {}) {
@@ -69,6 +78,7 @@ function uruchom(odpowiedz) {
     const location = { origin: 'https://kuking.pl', href: 'https://kuking.pl/' };
     let rozstrzygnij;
     const kontekst = {
+        ustawKolorPaska,
         document,
         location,
         innerHeight: 800,

@@ -5,11 +5,15 @@
     </p>
 
     <h1>Wersja {{ $wersja->version_number }}</h1>
-    <p class="meta">
+    <p class="meta meta-samodzielne">
         Zapisana {{ $wersja->created_at->locale('pl')->isoFormat('D MMMM YYYY') }}@if($wersja->change_note) — {{ $wersja->change_note }}@endif.
         @if($czyNajnowsza) To najnowsza zapisana wersja. @endif
         Ekran pokazuje tekst i dane, bez zdjęć.
     </p>
+    @if($wersja->czyUkryta())
+        @include('pages.recipes.partials.historia-ukryta', ['wersja' => $wersja, 'recipe' => $recipe])
+    @endif
+    @include('pages.recipes.partials.historia-przycisk-ukrycia', ['wersja' => $wersja, 'czyNajnowsza' => $czyNajnowsza, 'uprawnienia' => $uprawnienia])
 
     <p class="historia-akcje">
         @if($starszy !== null)
@@ -39,7 +43,7 @@
         <h2 id="hw-skladniki">Składniki</h2>
         @php($skladniki = $migawka->skladniki())
         @if($skladniki === [])
-            <p class="meta">Ta wersja nie ma składników.</p>
+            <p class="meta meta-samodzielne">Ta wersja nie ma składników.</p>
         @else
             @foreach(\App\Domain\Recipes\GrupySkladnikow::ulozyc($skladniki) as $grupa)
                 @if($grupa['nazwa'] !== null)
@@ -61,7 +65,7 @@
         <h2 id="hw-kroki">Przygotowanie</h2>
         @php($kroki = $migawka->kroki())
         @if($kroki === [])
-            <p class="meta">Ta wersja nie ma opisanego przygotowania.</p>
+            <p class="meta meta-samodzielne">Ta wersja nie ma opisanego przygotowania.</p>
         @else
             <ol class="step-list">
                 @foreach($kroki as $krok)

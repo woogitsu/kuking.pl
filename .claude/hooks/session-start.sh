@@ -28,6 +28,12 @@ if command -v pg_isready >/dev/null 2>&1; then
 
     if pg_isready -q 2>/dev/null; then
         echo "PostgreSQL: działa"
+        # Wymagane 18+ (AGENTS.md §10, D-227) — produkcja i CI mają 18.
+        # Starszy serwer nie blokuje sesji, ale mówimy o nim głośno (#2292 F7).
+        major="$(su postgres -c "psql -tAc 'SHOW server_version_num'" 2>/dev/null | tr -dc '0-9')"
+        if [ -n "$major" ] && [ "$((major / 10000))" -lt 18 ]; then
+            echo "UWAGA: lokalny PostgreSQL to $((major / 10000)), a produkcja i CI mają 18. TestyChodzaNaPostgresieTest obleje; rozstrzyga CI (AGENTS.md §10)."
+        fi
         su postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='kuking'\"" 2>/dev/null | grep -q 1 \
             || su postgres -c "psql -c \"CREATE ROLE kuking LOGIN PASSWORD 'kuking' SUPERUSER\"" >/dev/null 2>&1 || true
 
@@ -93,7 +99,8 @@ if command -v pg_isready >/dev/null 2>&1; then
         done
         echo "Bazy: kuking, $baza_testowa"
     else
-        echo "PostgreSQL: NIE DZIAŁA — testy nie przejdą. Uruchom: pg_ctlcluster 16 main start"
+        zainstalowana="$(ls /usr/lib/postgresql 2>/dev/null | sort -n | tail -1)"
+        echo "PostgreSQL: NIE DZIAŁA — testy nie przejdą. Uruchom: pg_ctlcluster ${zainstalowana:-18} main start"
     fi
 fi
 

@@ -144,6 +144,14 @@ z 29 września 2026) — wolno budować:
 - historia i porównanie publicznych wersji przepisu (#2024);
 - opcjonalna synchronizacja postępu gotowania między urządzeniami (#2016).
 
+**Dopisane do planu i zbudowane** (D-333, wiersz „#2227”, decyzja właściciela
+z 30 września 2026):
+
+- kanały Atom dla publicznego profilu, tagu i publicznego zeszytu (#2227) —
+  tylko to, co widzi gość na tej samej stronie, chronologicznie, najwyżej
+  30 wpisów, z `ETag`/`Last-Modified`. To kanał **wychodzący**: import
+  cudzych kanałów RSS zostaje na liście „Nie wcześnie” (D-300).
+
 **V2, ale nie teraz** (decyzja właściciela z 26 września 2026). Propozycje
 z audytu zapisane na później. Nie budować bez nowej decyzji, mimo D-282
 (pięć pozycji odblokowała D-331, lista wyżej):

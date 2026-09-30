@@ -29,11 +29,18 @@ use App\Models\TagHighlight;
 use App\Models\TagPromotion;
 use App\Models\User;
 use App\Models\WeeklyRecipePick;
+use App\Support\ParametryUuidTras;
+use Illuminate\Contracts\Routing\UrlRoutable;
+use Illuminate\Database\Eloquent\Concerns\HasUniqueStringIds;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Reflector;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -121,6 +128,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         'collections.link.show' => 'Parametr {token} to jednorazowy token linku-zaproszenia do wspólnego zeszytu (#1743); w bazie leży jego SHA-256, a przyjęcie odmawia przy blokadzie między stronami.',
         'collections.link.accept' => 'Jak collections.link.show: {token} to jednorazowe poświadczenie linku-zaproszenia, nie identyfikator obiektu.',
         'collections.link.decline' => 'Jak collections.link.show: {token} to jednorazowe poświadczenie linku-zaproszenia, nie identyfikator obiektu.',
+        'terms.version' => 'Parametr {data} to data wersji regulaminu (RRRR-MM-DD) — nazwa pliku z repozytorium (`resources/legal/archiwum/`), publicznego jak `/regulamin`; nie wskazuje niczyjego zasobu ani danych (#2220).',
+        'terms.version.download' => 'Jak terms.version: {data} to data publicznej wersji regulaminu, plik z repozytorium, bez danych osobowych (#2220).',
+        'privacy.version' => 'Parametr {data} to data wersji polityki prywatności (RRRR-MM-DD) — nazwa pliku z repozytorium (`resources/legal/archiwum/`), publicznego jak `/prywatnosc`; nie wskazuje niczyjego zasobu ani danych (#2220).',
+        'privacy.version.download' => 'Jak privacy.version: {data} to data publicznej wersji polityki prywatności, plik z repozytorium, bez danych osobowych (#2220).',
     ];
 
     /**
@@ -344,6 +355,139 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
                 'note' => 'Podtrzymuję decyzję po ponownym sprawdzeniu.',
             ])
             ->assertRedirect();
+    }
+
+    /**
+     * IDENTYFIKATOR, KTÓRY NIE JEST UUID-EM, DAJE 404 — NIGDY 500 (#2327).
+     *
+     * Ta sama tabela przypadków, tylko w każdym adresie po kolei JEDEN
+     * segment-UUID zamieniony na `abc`, a pozostałe zostają prawdziwe. Tak
+     * dochodzimy do drugiego parametru trasy (`/zeszyt/{collection}/osoby/abc`,
+     * `/zglos/post/abc`) — z `abc` w pierwszym trasa kończy się, zanim drugi
+     * w ogóle zostanie przeczytany. Przed #2327 `/zglos/post/abc`,
+     * `/zglos/comment/abc` i `/zglos/cooked_event/abc` kończyły się
+     * `SQLSTATE[22P02]` i HTTP 500 (audyt B2-13).
+     *
+     * Właściciel i moderator razem przechodzą przez każdą bramkę roli, więc
+     * odpowiedź mówi o identyfikatorze, a nie o tym, że ktoś nie miał prawa
+     * wejść. Każde żądanie w osobnym punkcie zapisu: błąd SQL-a zrywa
+     * transakcję testu i bez tego fałszywie „psułby” wszystkie następne.
+     */
+    public function test_identyfikator_ktory_nie_jest_uuid_daje_404_a_nie_500(): void
+    {
+        $this->zbudujSwiat();
+
+        $bledy = [];
+        $sprawdzone = 0;
+        $podpisana = [];
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
+            if ($trasa->getName() !== null) {
+                $podpisana[$trasa->getName()] = in_array('signed', $trasa->gatherMiddleware(), true);
+            }
+        }
+
+        foreach (['wlasciciel', 'moderator'] as $rola) {
+            foreach ($this->przypadki as $przypadek) {
+                $sciezka = (string) parse_url($przypadek['url'], PHP_URL_PATH);
+                $segmenty = explode('/', $sciezka);
+
+                foreach ($segmenty as $i => $segment) {
+                    if (! Str::isUuid($segment)) {
+                        continue;
+                    }
+
+                    $zepsute = $segmenty;
+                    $zepsute[$i] = 'abc';
+                    $adres = implode('/', $zepsute);
+
+                    $this->zaloguj($rola);
+                    DB::beginTransaction();
+                    $kod = $this->from(route('home'))
+                        ->{$przypadek['metoda']}($adres, $przypadek['dane'])
+                        ->getStatusCode();
+                    DB::rollBack();
+                    $sprawdzone++;
+
+                    // 403 zostaje dozwolone tylko tam, gdzie mówi o czymś innym niż
+                    // zepsuty identyfikator: podpis adresu (zmiana segmentu go
+                    // unieważnia) albo rola, która na NIETKNIĘTY adres i tak ma
+                    // odmowę — wtedy Policy prawdziwego zasobu z pierwszego
+                    // segmentu odpowiada, zanim ktokolwiek przeczyta drugi.
+                    $dozwolone = ($podpisana[$przypadek['trasa']] ?? false)
+                        || $przypadek['oczekiwania'][$rola] !== self::WOLNO
+                        ? [403, 404]
+                        : [404];
+
+                    if (! in_array($kod, $dozwolone, true)) {
+                        $bledy[] = "{$przypadek['trasa']} ({$rola}): {$przypadek['metoda']} {$adres} → HTTP {$kod}";
+                    }
+                }
+            }
+        }
+
+        // Pułapka 2: tabela bez ani jednego UUID-u w adresie też byłaby „zielona”.
+        $this->assertGreaterThanOrEqual(120, $sprawdzone,
+            "Sprawdzono tylko {$sprawdzone} zepsutych adresów — tabela przestała nieść identyfikatory.");
+        $this->assertSame([], $bledy,
+            "Identyfikator, który nie jest UUID-em, ma dać 404 (jak nieistniejący zasób):\n  • ".implode("\n  • ", $bledy));
+    }
+
+    /**
+     * KAŻDY PARAMETR TRASY WIĄZANY Z MODELEM PO UUID MA WZORZEC UUID (#2327).
+     *
+     * Wzorzec daje `Route::patterns(ParametryUuidTras::wzorce())` na górze
+     * `routes/web.php` (trasy API: `whereUuid()`). Skan idzie po sygnaturach
+     * kontrolerów: parametr typowany modelem, którego klucz trasy jest
+     * UUID-em (`HasUuids`), bez wzorca w `wheres` to trasa, na której
+     * o odpowiedzi decyduje dopiero zapytanie do bazy.
+     *
+     * I w drugą stronę: nazwa z listy, która wiąże model po czymś innym niż
+     * UUID (np. konto po nazwie), przestałaby pasować do prawdziwych adresów.
+     */
+    public function test_parametr_wiazany_z_modelem_po_uuid_ma_wzorzec_uuid(): void
+    {
+        $bezWzorca = [];
+        $zlaNazwa = [];
+        $zWzorcem = 0;
+
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
+            foreach ($trasa->signatureParameters(['subClass' => UrlRoutable::class]) as $parametr) {
+                $nazwa = $parametr->getName();
+                $klasa = Reflector::getParameterClassName($parametr);
+                if (! in_array($nazwa, $trasa->parameterNames(), true) || $klasa === null || ! is_subclass_of($klasa, Model::class)) {
+                    continue;
+                }
+
+                $model = new $klasa;
+                $pole = $trasa->bindingFieldFor($nazwa) ?? $model->getRouteKeyName();
+                $poUuid = in_array(HasUniqueStringIds::class, class_uses_recursive($model), true)
+                    && in_array($pole, $model->uniqueIds(), true);
+                $opis = $trasa->uri().' {'.$nazwa.'} → '.class_basename($klasa).'::'.$pole;
+
+                if (! $poUuid) {
+                    if (in_array($nazwa, ParametryUuidTras::NAZWY, true)) {
+                        $zlaNazwa[] = $opis;
+                    }
+
+                    continue;
+                }
+
+                if (($trasa->wheres[$nazwa] ?? null) === ParametryUuidTras::WZORZEC) {
+                    $zWzorcem++;
+                } else {
+                    $bezWzorca[] = $opis;
+                }
+            }
+        }
+
+        $this->assertSame([], $bezWzorca,
+            'Parametr wiązany z modelem po UUID bez wzorca UUID. Dopisz nazwę do `ParametryUuidTras::NAZWY` '
+            ."(albo `->whereUuid()` przy trasie):\n  • ".implode("\n  • ", $bezWzorca));
+        $this->assertGreaterThanOrEqual(70, $zWzorcem,
+            "Skan znalazł tylko {$zWzorcem} parametrów-UUID ze wzorcem — przestał czytać sygnatury kontrolerów.");
+        $this->assertSame([], $zlaNazwa,
+            "Nazwa z `ParametryUuidTras::NAZWY` wiąże model po czymś innym niż UUID — wzorzec odetnie prawdziwe adresy:\n  • "
+            .implode("\n  • ", $zlaNazwa));
     }
 
     /**
@@ -661,6 +805,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('social.followers', $wlasciciel->profile->username), [], [$W, $W, $O, $W, $W]);
         $dodaj('social.following', 'lista obserwowanych', 'get',
             route('social.following', $wlasciciel->profile->username), [], [$W, $W, $O, $W, $W]);
+        // Kanał Atom profilu (#2227) jest ZAWSZE widokiem gościa: stoi poza
+        // grupą `web`, bez sesji, a Policy pyta o widza `null`. Stąd
+        // „wolno” także osobie zablokowanej — dostaje dokładnie to, co
+        // zobaczyłaby po wylogowaniu, i nic więcej (czytnik kanałów nie ma
+        // konta, więc blokady nie da się w nim egzekwować).
+        $dodaj('kanaly.profil', 'kanał Atom profilu', 'get',
+            route('kanaly.profil', $wlasciciel->profile->username), [], [$W, $W, $W, $W, $W]);
         // Właściciel dostaje tu odmowę, bo nikt nie obserwuje samego siebie
         // (`UserPolicy::follow`), a nie dlatego, że trasa jest zamknięta.
         $dodaj('social.follow', 'obserwowanie właściciela', 'post',
@@ -859,6 +1010,19 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('recipes.history.version', [$przepisPrywatny, 2]), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.history.changes', 'porównanie wersji prywatnego przepisu', 'get',
             route('recipes.history.changes', [$przepisPrywatny, 2]), [], [$W, $O, $O, $O, $O]);
+        // Ukrywanie wersji (#2270) — `RecipeVersionPolicy` zaczyna od tej
+        // samej bramki co historia, więc prywatny przepis zamyka drzwi
+        // wszystkim poza autorem, także moderatorowi. Wersja 1 nie jest
+        // najnowsza, więc autor dostaje ekran potwierdzenia i zapis; przy
+        // przywróceniu wersji nieukrytej — komunikat i powrót (302).
+        $dodaj('recipes.history.hide', 'potwierdzenie ukrycia wersji prywatnego przepisu', 'get',
+            route('recipes.history.hide', [$przepisPrywatny, 1]), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.history.hide.store', 'ukrycie wersji prywatnego przepisu', 'post',
+            route('recipes.history.hide.store', [$przepisPrywatny, 1]), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.history.restore', 'potwierdzenie przywrócenia wersji prywatnego przepisu', 'get',
+            route('recipes.history.restore', [$przepisPrywatny, 1]), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.history.restore.store', 'przywrócenie wersji prywatnego przepisu', 'post',
+            route('recipes.history.restore.store', [$przepisPrywatny, 1]), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.edit', 'edycja przepisu', 'get',
             route('recipes.edit', $przepis), [], [$W, $O, $O, $O, $O]);
         // Zlecenie odczytu zdjęcia kartki (V2, D-298) — prywatny szkic ze
@@ -984,6 +1148,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.show', $zeszytZbanowanegoPrywatny), [], [$O, $O, $O, $O, $O]);
         $dodaj('collections.show', 'publiczny zeszyt osoby zbanowanej', 'get',
             route('collections.show', $zeszytZbanowanegoPubliczny), [], [$O, $O, $O, $W, $O]);
+        // Kanał Atom zeszytu (#2227) — zawsze oczami gościa, więc prywatny
+        // zeszyt jest zamknięty także dla WŁAŚCICIELA, a zbanowanego —
+        // także dla moderatora (ten ma stronę zeszytu, nie kanał).
+        $dodaj('kanaly.zeszyt', 'kanał Atom prywatnego zeszytu', 'get',
+            route('kanaly.zeszyt', $zeszyt), [], [$O, $O, $O, $O, $O]);
+        $dodaj('kanaly.zeszyt', 'kanał Atom publicznego zeszytu osoby zbanowanej', 'get',
+            route('kanaly.zeszyt', $zeszytZbanowanegoPubliczny), [], [$O, $O, $O, $O, $O]);
         // Edycja zeszytu (#777) — nazwa, opis i widoczność. O własnym
         // zeszycie decyduje wyłącznie jego właściciel, także moderator nie
         // przestawia cudzej widoczności (`CollectionPolicy::update()`).
@@ -1096,6 +1267,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // zalogowanej.
         $dodaj('tags.show', 'strona tagu', 'get',
             route('tags.show', $tag), [], [$W, $W, $W, $W, $W]);
+        $dodaj('kanaly.tag', 'kanał Atom tagu (#2227)', 'get',
+            route('kanaly.tag', $tag->slug), [], [$W, $W, $W, $W, $W]);
         $dodaj('tags.follow', 'obserwowanie tagu', 'post',
             route('tags.follow', $tag), [], [$W, $W, $W, $W, $O]);
         $dodaj('tags.unfollow', 'przestaję obserwować tag', 'delete',

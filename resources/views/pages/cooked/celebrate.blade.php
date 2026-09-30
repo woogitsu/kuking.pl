@@ -64,7 +64,10 @@
              powierzchnią, więc formularz podziękowania niczym się nie
              odróżniał od zdjęcia i notatki nad nim. --}}
         <div class="max-w-[32rem] mx-auto text-left">
-            <form class="panel-formularza" method="POST" action="{{ route('cooked.thank', $event) }}">
+            {{-- Podsumowanie błędów nad formularzem (D-333, „novalidate wszędzie”):
+                 pusty albo za długi tekst wraca z serwera, nie z dymka przeglądarki. --}}
+            <x-error-summary />
+            <form class="panel-formularza" method="POST" action="{{ route('cooked.thank', $event) }}" novalidate>
                 @csrf
                 <x-field name="body" label="Podziękuj" type="textarea" :rows="3"
                          :value="$domyslnePodziekowanie"

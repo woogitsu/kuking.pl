@@ -42,8 +42,15 @@ final class WzorceRodzaju
      *   1-2. Hasło główne. COPY_STYLE.md §2 mówi wprost: „«ugotowałeś»
      *        w haśle głównym jest już utrwalone i zostaje". To decyzja marki,
      *        nie przeoczenie — dotyczy claimu „Pokaż, co dziś ugotowałeś",
-     *        stopki listów, tytułu strony i przycisku „Dodaj zdjęcie tego,
-     *        co ugotowałeś".
+     *        tytułu strony i przycisku „Dodaj zdjęcie tego, co ugotowałeś".
+     *        ZAKRES PO D-332 (#1753): hasło zostaje tylko tam, gdzie
+     *        czytelnika nie znamy — landing, rejestracja, `<title>` i list
+     *        PRZED założeniem konta (dziś jeden: `mail/zaproszenie-do-zalozenia-konta`).
+     *        Stopki listów do istniejącego konta (logowanie, hasło, adres
+     *        e-mail, Facebook, paczka danych, podsumowanie tygodnia) idą
+     *        przez `Forma::dla()` z wariantem „gotujesz” i wyjątku NIE mają;
+     *        pilnuje tego `FormaTekstyTest`. Wyjątek jest frazą, więc tego
+     *        podziału nie wymusza — pilnuje go test renderu listów.
      *   3.   „Ugotowałem" z wielkiej litery — NAZWA PRZYCISKA brana
      *        w cudzysłów, ustalona w PR #235. Cytowanie nazwy przycisku nie
      *        mówi nic o płci czytelnika. Zapis małą literą wyjątku nie ma.

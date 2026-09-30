@@ -97,13 +97,10 @@ class PustaFrazaPoNormalizacjiTest extends TestCase
         // Dosłowny metaznak LIKE (#753) nadal działa jako tekst.
         $this->assertSame(['100% masła ciasteczka'], $wyszukiwarka->recipes('100%')->pluck('title')->all());
         $this->assertCount(1, $wyszukiwarka->people('Basia'));
-        // UWAGA: `people('Basia 🍲')` NIE jest tu sprawdzane. Po transliteracji
-        // zostaje „basia " (ze spacją na końcu) i wzorzec LIKE nikogo nie
-        // znajduje — w odróżnieniu od `recipes()`, które idzie przez
-        // podobieństwo. To luka w produkcie (fraza z dopiskiem-emoji nie
-        // znajduje osoby), nie oczekiwane zachowanie — celowo NIE jest tu
-        // przypięta asercją; do rozstrzygnięcia osobnym zgłoszeniem
-        // (`SearchQuery::normalize()` nie obcina frazy po transliteracji, #885).
+        // Fraza z dopiskiem-emoji znajduje osobę (#2331): odstęp po
+        // znikającym emoji wypada razem z nim, więc wzorzec to „%basia%",
+        // a nie „%basia %". Pełna regresja: `FrazaZEmojiNaBrzeguTest`.
+        $this->assertCount(1, $wyszukiwarka->people('Basia 🍲'));
     }
 
     public function test_ekran_szukaj_prosi_o_slowo_i_nie_zapisuje_wyszukiwania(): void

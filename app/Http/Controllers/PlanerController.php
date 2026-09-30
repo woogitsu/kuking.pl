@@ -100,7 +100,8 @@ class PlanerController extends Controller
         $dzien = CarbonImmutable::createFromFormat('!Y-m-d', $dane['day']);
         $wpis = $dodaj->handle($request->user(), $dzien, $przepis, $przepis === null ? ($dane['label'] ?? '') : null);
 
-        $kiedy = PlanerTygodnia::nazwaDnia($dzien);
+        // Biernik po „na” (#2246): „na środę”, nie „na środa”.
+        $kiedy = PlanerTygodnia::naDzien($dzien);
         $komunikat = match (true) {
             $wpis === null && $przepis !== null => "Ten przepis już jest w planie na {$kiedy}.",
             $wpis === null => "To już jest w planie na {$kiedy}.",
@@ -185,6 +186,6 @@ class PlanerController extends Controller
         $wpis->delete();
 
         return redirect()->route('planer.show', ['tydzien' => $tydzien])
-            ->with(Komunikat::sukces('Usunięte z planu na '.PlanerTygodnia::nazwaDnia($wpis->day).'.'));
+            ->with(Komunikat::sukces('Usunięte z planu na '.PlanerTygodnia::naDzien($wpis->day).'.'));
     }
 }

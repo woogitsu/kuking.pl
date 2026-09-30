@@ -131,7 +131,7 @@
                 zmień hasło.
             </p>
 
-            <form method="POST" action="{{ route('settings.email.request') }}">
+            <form method="POST" action="{{ route('settings.email.request') }}" novalidate>
                 @csrf
 
                 <x-field name="current_password" label="Obecne hasło" type="password" required

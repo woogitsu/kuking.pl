@@ -6,6 +6,7 @@ namespace App\Domain\Api;
 
 use App\Models\Comment;
 use App\Models\User;
+use App\Support\KursorListy;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -59,10 +60,15 @@ final class WatkiKomentarzy
      */
     public static function odpowiedzi(Comment $korzen, ?User $widz): CursorPaginator
     {
-        return $korzen->replies()
-            ->widoczneDla($widz)
-            ->orderBy('comments.id')
-            ->with('author.profile.avatar')
-            ->cursorPaginate((int) config('kuking.comments.page_size'));
+        return KursorListy::strona(
+            $korzen->replies()
+                ->widoczneDla($widz)
+                ->orderBy('comments.id')
+                ->with('author.profile.avatar'),
+            (int) config('kuking.comments.page_size'),
+            // `replies()` sortuje już po `created_at, id` — `comments.id` jest
+            // trzecią kolumną, więc kursor niesie wszystkie trzy.
+            ['created_at' => KursorListy::CZAS, 'id' => KursorListy::UUID, 'comments.id' => KursorListy::UUID],
+        );
     }
 }

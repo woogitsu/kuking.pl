@@ -7,6 +7,7 @@ namespace App\Domain\Feed;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
+use App\Support\KursorListy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Support\Collection;
@@ -56,7 +57,9 @@ final class FollowingFeed
             ->dlaKarty($viewer)
             ->orderByDesc('published_at')
             ->orderByDesc('id')
-            ->cursorPaginate($perPage);
+            // Kursor z adresu przez `KursorListy` (#2308): niepełny albo
+            // zmyślony daje pierwszą stronę, nie HTTP 500.
+            ->pipe(fn ($zapytanie) => KursorListy::strona($zapytanie, $perPage, ['published_at' => KursorListy::CZAS, 'id' => KursorListy::UUID]));
 
         // Wpis z własną treścią idzie za WŁASNĄ widocznością (issue #1377);
         // niedostępny przepis zdejmujemy tylko z jego karty.

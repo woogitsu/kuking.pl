@@ -304,7 +304,7 @@ final class RetencjaWersjiPrzepisuTest extends TestCase
         $paczka = app(CollectUserExportData::class)->handle($autor, new ExportPhotoPlan($autor), Carbon::parse('2026-09-29 12:00:00', 'UTC'));
 
         $this->assertSame([3, 4, 5], array_column($paczka['wersje_przepisow'], 'numer_wersji'));
-        $this->assertSame(['przepis', 'numer_wersji', 'notatka_o_zmianie', 'zapisano', 'tresc_wersji'], array_keys($paczka['wersje_przepisow'][0]));
+        $this->assertSame(['przepis', 'numer_wersji', 'notatka_o_zmianie', 'zapisano', 'ukryto', 'ukryl', 'tresc_wersji'], array_keys($paczka['wersje_przepisow'][0]));
     }
 
     // ---------------------------------------------------------------

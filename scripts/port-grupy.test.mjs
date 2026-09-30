@@ -55,3 +55,20 @@ test('alias rozszerzeń to suma części bez powtórzeń i bez grup spoza listy'
   }
   assert.deepEqual(GRUPY.filter((g) => g.startsWith('rozszerzenia-')), ALIASY.rozszerzenia);
 });
+
+/* #2299: pomiary przesuwa się między częściami, żeby je zrównoważyć
+   (tagi przeszły z części 1 do 2). Przesunięcie nie może zgubić pomiaru:
+   każdy zaimportowany `sprawdz*` jest wywołany dokładnie raz i wewnątrz
+   grupy — pomiar poza grupą nie należałby do żadnej części CI. */
+test('każdy zaimportowany pomiar jest wywołany dokładnie raz, wewnątrz grupy', () => {
+  const zrodlo = readFileSync(new URL('./port-projektu.mjs', import.meta.url), 'utf8');
+  const importy = [...zrodlo.matchAll(/^import \{ (sprawdz\w+) \} from/gm)].map((m) => m[1]);
+  assert.ok(importy.length >= 10, 'odczyt importów pomiarów zepsuty');
+  const grupy = [...zrodlo.matchAll(/wykonajGrupe\(grupa, '[^']+', async \(\) => \{([\s\S]*?)\n  \}\);/g)]
+    .map((m) => m[1]).join('\n');
+  for (const nazwa of importy) {
+    const wzor = new RegExp(`await ${nazwa}\\(`, 'g');
+    assert.equal((zrodlo.match(wzor) ?? []).length, 1, `${nazwa}: oczekiwane dokładnie jedno wywołanie`);
+    assert.equal((grupy.match(wzor) ?? []).length, 1, `${nazwa} poza grupą — żadna część CI go nie uruchomi`);
+  }
+});

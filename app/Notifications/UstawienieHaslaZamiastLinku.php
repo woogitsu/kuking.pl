@@ -138,6 +138,8 @@ final class UstawienieHaslaZamiastLinku extends ResetPassword implements ShouldB
                 // sam zabieg co w `UstawienieNowegoHasla`.
                 'linkUrl' => AdresKanoniczny::zbuduj(fn (): string => $this->resetUrl($notifiable)),
                 'waznoscTekst' => self::waznosc($minut),
+                // Stopka w formie adresata (D-332, #1753); bez wyboru — bez rodzaju.
+                'profilAdresata' => $notifiable->profile,
             ]);
     }
 

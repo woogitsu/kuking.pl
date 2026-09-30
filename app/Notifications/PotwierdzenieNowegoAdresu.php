@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Models\Profile;
 use App\Support\Czas;
 use Carbon\CarbonInterface;
 use Illuminate\Bus\Queueable;
@@ -43,6 +44,8 @@ final class PotwierdzenieNowegoAdresu extends Notification implements ShouldQueu
         private readonly string $linkUrl,
         private readonly CarbonInterface $waznyDo,
         private readonly ?string $displayName,
+        /** `profiles.form_of_address` z chwili zlecenia — stopka w formie adresata (D-332, #1753). */
+        private readonly ?string $formaZwracania = null,
     ) {}
 
     /** @return list<string> */
@@ -59,6 +62,11 @@ final class PotwierdzenieNowegoAdresu extends Notification implements ShouldQueu
                 'linkUrl' => $this->linkUrl,
                 'waznyDo' => Czas::data($this->waznyDo, 'j F Y, H:i'),
                 'displayName' => $this->displayName,
+                // Obiektu `User` tu nie ma (list idzie „na adres”), więc formę
+                // podajemy jako niezapisany profil — tylko do `Forma::dla()`.
+                // `?? null`, bo list zlecony przed wdrożeniem tej zmiany wraca
+                // z kolejki bez tej własności — wtedy stopka jest neutralna.
+                'profilAdresata' => new Profile(['form_of_address' => $this->formaZwracania ?? null]),
             ]);
     }
 }

@@ -216,6 +216,7 @@ nieprzeczytane powiadomienie). Włącza ją jedna zmienna:
 |---|---|---|
 | `KUKING_ALARM_EMAIL` | jeden adres skrzynki, na którą patrzysz | web, worker, scheduler |
 | `KUKING_ALARM_EMAIL_NA_DOBE` | opcjonalnie; domyślnie 20 | jw. |
+| `KUKING_ALARM_EMAIL_KONTAKT_NA_DOBE` | opcjonalnie; domyślnie 5 (listy o wiadomościach z „Napisz do nas”) | web |
 
 **To nie jest `KUKING_MODEL_ALARM_EMAIL`.** Tamta zmienna to skrzynka
 moderacji: pilne treści zgłoszone przez ludzi i dzienne podsumowania
@@ -250,10 +251,23 @@ Jak to działa:
   miejsca w puli się nie udaje i **list nie wychodzi**, a Discord wychodzi
   bez deduplikacji. To świadomy wybór: bez licznika każdy błąd burzy byłby
   osobnym listem wysyłanym w żądaniu człowieka.
-- **Wiadomość „Przyszła nowa wiadomość”** z formularza „Napisz do nas”
-  (`DzwonekOperatora`) zostaje **tylko na Discordzie**. To nie jest alarm
-  o awarii, a formularz wypełnia ktokolwiek, więc zużywałby sufit listów
-  alarmowych.
+- **Wiadomość „Nowa wiadomość z formularza «Napisz do nas»”**
+  (`DzwonekOperatora`, decyzja właściciela 30.09.2026) idzie **na Discorda
+  i pocztą**, ale spod **osobnego, niższego sufitu**
+  `KUKING_ALARM_EMAIL_KONTAKT_NA_DOBE` (domyślnie 5 listów na dobę, klasa
+  `zwykla`, funkcja `kontakt-operatora` w `DziennyBudzetListow`). Formularz
+  wypełnia ktokolwiek, więc te listy **nie zjadają** sufitu alarmów
+  o awariach: fala wiadomości od ludzi nie ucisza listu o leżącej bazie.
+  Temat listu zaczyna się od `Kontakt:` (alarmy: `Alarm:`), więc skrzynkę
+  da się filtrować. Treść jest ta sama co na Discordzie: rodzaj z zamkniętej
+  listy, identyfikator i adres panelu — bez treści wiadomości, adresu
+  e-mail, imienia i strony, z której pisano. Po wyczerpaniu sufitu skrzynka
+  milknie do północy (przy 80% przychodzi ostrzeżenie „Poczta: sufit
+  «kontakt-operatora» zużyty…”), a Discord i panel dostają dalej każdą
+  wiadomość. Okna serii tu nie ma: każda wiadomość to inny człowiek, a zalew
+  samego formularza zatrzymuje jego limit żądań (`limits.kontakt`).
+  `KUKING_ALARM_EMAIL_KONTAKT_NA_DOBE=0` wyłącza te listy bez ruszania
+  alarmów.
 
 ### Włączenie i sprawdzenie po wdrożeniu
 
@@ -1101,3 +1115,58 @@ kanału nie zjadł dobowego limitu poczty.
 
 Testy: `tests/Feature/DosylaniePilnychAlarmowTest.php`,
 `tests/Feature/PilnyAlarmModeracyjnyNieGinieTest.php`.
+
+## 9. Potwierdzenie DSA na suficie prób — stan i ręczne zamknięcie (issue #2218)
+
+**Co to jest.** Zgłoszenie treści niezgodnej z prawem bez konta, z adresem
+e-mail spoza serwisu, dostaje potwierdzenie przyjęcia (DSA art. 16 ust. 4)
+listem. Gdy dostawca poczty odrzuca ten list po wszystkich próbach, znacznik
+`reports.receipt_sent_at` wraca do `null`, a godzinna dosyłka
+(`kuking:dosylaj-potwierdzenia-zgloszen`) ponawia list — ale po
+`LIMIT_PORAZEK_LISTU` (3) ostatecznych porażkach przestaje. Sprawa czeka wtedy
+na człowieka: sprawdź adres, potwierdź przyjęcie inną drogą.
+
+**Gdzie to widać (trzy miejsca, żadne nie jest awarią serwisu):**
+
+| Miejsce | Co pokazuje |
+|---|---|
+| Alarm na kanale alarmowym (`AlarmSufituPotwierdzen`) | Jeden alarm na epizod, powtórka po 24 h, zmiana liczby spraw dzwoni od razu, jedno odwołanie, gdy żadna sprawa nie stoi na suficie. Sama liczba i instrukcja, bez numerów spraw. |
+| Dziennik serwera, wpis `na suficie prób` (`stage: dosylka_potwierdzen_sufit`) | Numery spraw (bez adresów) — stąd bierzesz numer do komendy niżej. |
+| `/health` z tokenem, sekcja `informacje.potwierdzenia_dsa.na_suficie` | Bieżąca liczba spraw na suficie. **Sekcja informacyjna: leży poza `checks`, więc nie zmienia `status` ani kodu HTTP** i jest niewidoczna bez tokenu (jak `checks`). Jeśli odczyt padnie, sekcja niesie `dostepne: false`, a w dzienniku jest ostrzeżenie — nic nie dzwoni. |
+
+**Jak zamknąć sprawę.** Najpierw potwierdź przyjęcie zgłaszającemu poza
+serwisem (telefon, poczta papierowa, inny adres e-mail, osobiście), potem:
+
+```
+php artisan kuking:potwierdz-zgloszenie-inna-droga KU-ABCD-2345 \
+    --operator=<login moderatora lub administratora> \
+    --droga=telefon|poczta_papierowa|inny_email|osobiscie
+```
+
+Komenda sprawdza uprawnienia operatora i to, że sprawa czeka na
+potwierdzenie, ZANIM zada pytanie; w pytaniu pokazuje stan sprawy (status,
+czy stoi na suficie prób listu, datę zgłoszenia — bez danych zgłaszającego).
+Bez terminala (skrypt, `railway ssh -- …` bez TTY) nie ma kto odpowiedzieć:
+komenda kończy się wtedy błędem „Brak terminala. Dodaj --tak, żeby potwierdzić
+bez pytania.” (kod ≠ 0), a nie „Anulowano.” z kodem 0 — w takim wywołaniu
+dopisz `--tak`. Po potwierdzeniu (`--tak` pomija pytanie) ustawia
+`receipt_sent_at`, zeruje licznik porażek listu tej sprawy i zapisuje w
+`audit_log` zdarzenie `moderation.receipt_confirmed_manually`: kto
+(`actor_id` = `--operator`, tylko konto moderatora/administratora), kiedy
+(`created_at`), jaką drogą i czy sprawa stała na suficie. Znacznik i wpis
+audytu powstają w jednej transakcji. Zgłaszający nie dostaje z tego powodu
+żadnego listu. Wpisu audytu nie chroni `NIGDY_NIE_KASUJ` — autorytatywny ślad
+(sam znacznik) żyje w `reports`; wpis audytu wygasa wg `audit_log.retention_months`.
+
+Komenda odmówi z komunikatem po polsku, gdy: sprawy nie ma, sprawa ma już
+potwierdzenie, zgłaszającemu doszła już decyzja, sprawa nie ma adresata,
+`--operator` nie jest czynnym moderatorem/administratorem albo `--droga` jest
+spoza listy. Droga to zamknięta lista celowo — wolny tekst wciągałby do
+dziennika dane osobowe zgłaszającego.
+
+**Po zamknięciu** najbliższy przebieg dosyłki (co godzinę) przelicza sufit;
+gdy nie zostanie żadna sprawa, wychodzi odwołanie alarmu.
+
+Testy: `tests/Feature/PotwierdzenieInnaDrogaTest.php`,
+`tests/Feature/HealthKontraktOdpowiedziTest.php` (sekcja informacyjna),
+`tests/Feature/PotwierdzenieOdbioruPoDostawieTest.php` (sufit i alarm).

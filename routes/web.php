@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Media\PodgladOdRazu;
 use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
+use App\Domain\Zgody\ArchiwumDokumentu;
 use App\Http\Controllers\AccountDeletionController;
 use App\Http\Controllers\Admin\AppealController as AdminAppealController;
 use App\Http\Controllers\Admin\BezOdpowiedziController;
@@ -20,6 +21,7 @@ use App\Http\Controllers\Admin\UzytkownicyController;
 use App\Http\Controllers\Admin\WiadomosciController;
 use App\Http\Controllers\Admin\ZUrzeduController;
 use App\Http\Controllers\AppealController;
+use App\Http\Controllers\ArchiwumDokumentuController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\FacebookDeauthorizeController;
 use App\Http\Controllers\Auth\FacebookLoginController;
@@ -96,7 +98,17 @@ use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use App\Http\Controllers\ZgodaOdczytuAiController;
 use App\Http\Controllers\ZmianaPolitykiController;
 use App\Http\Controllers\ZmianaRegulaminuController;
+use App\Support\ParametryUuidTras;
 use Illuminate\Support\Facades\Route;
+
+/*
+ * PARAMETR-UUID PRZYJMUJE TYLKO UUID (#2327) — dla każdej trasy w tym pliku.
+ * `/wpisy/abc` nie pasuje do trasy i dostaje 404, zanim cokolwiek dotknie
+ * bazy; trasy API mają to samo przez `whereUuid()`. Lista nazw i powód:
+ * `App\Support\ParametryUuidTras`. Musi stać PRZED pierwszą trasą — Laravel
+ * dopisuje wzorce do trasy w chwili jej rejestracji.
+ */
+Route::patterns(ParametryUuidTras::wzorce());
 
 /*
 |--------------------------------------------------------------------------
@@ -184,7 +196,37 @@ Route::get('/pomoc', [StaticPageController::class, 'help'])->name('help');
 Route::get('/zasady', [StaticPageController::class, 'rules'])->name('rules');
 Route::get('/o-kuking', [StaticPageController::class, 'about'])->name('about');
 Route::get('/regulamin', [StaticPageController::class, 'terms'])->name('terms');
+// Wszystkie wersje regulaminu (#2220, kryterium 4). Adres wersji niesie tę
+// samą datę co `dziennik_zgod.wersja_regulaminu`, więc każdy wiersz dziennika
+// wskazuje brzmienie, które ktoś zaakceptował. Poza indeksem — patrz
+// `ArchiwumDokumentuController`.
+Route::get('/regulamin/wersje', [ArchiwumDokumentuController::class, 'index'])
+    ->defaults('dokument', ArchiwumDokumentu::REGULAMIN)
+    ->name('terms.versions');
+Route::get('/regulamin/wersje/{data}', [ArchiwumDokumentuController::class, 'show'])
+    ->where('data', '\d{4}-\d{2}-\d{2}')
+    ->defaults('dokument', ArchiwumDokumentu::REGULAMIN)
+    ->name('terms.version');
+Route::get('/regulamin/wersje/{data}/pobierz', [ArchiwumDokumentuController::class, 'pobierz'])
+    ->where('data', '\d{4}-\d{2}-\d{2}')
+    ->defaults('dokument', ArchiwumDokumentu::REGULAMIN)
+    ->name('terms.version.download');
 Route::get('/prywatnosc', [StaticPageController::class, 'privacy'])->name('privacy');
+// Wszystkie wersje polityki prywatności (#2220) — ten sam kształt co przy
+// regulaminie, pod adresem samej polityki (`/prywatnosc`). Data w adresie to
+// `dziennik_zgod.wersja_polityki`; archiwum zaczyna się 25 września 2026,
+// starsze daty dostają stronę „wydajemy na prośbę” (decyzja z 30.09, D-333).
+Route::get('/prywatnosc/wersje', [ArchiwumDokumentuController::class, 'index'])
+    ->defaults('dokument', ArchiwumDokumentu::POLITYKA)
+    ->name('privacy.versions');
+Route::get('/prywatnosc/wersje/{data}', [ArchiwumDokumentuController::class, 'show'])
+    ->where('data', '\d{4}-\d{2}-\d{2}')
+    ->defaults('dokument', ArchiwumDokumentu::POLITYKA)
+    ->name('privacy.version');
+Route::get('/prywatnosc/wersje/{data}/pobierz', [ArchiwumDokumentuController::class, 'pobierz'])
+    ->where('data', '\d{4}-\d{2}-\d{2}')
+    ->defaults('dokument', ArchiwumDokumentu::POLITYKA)
+    ->name('privacy.version.download');
 // „Jak dobieramy wpisy" (#1811, D-305) — opis każdej listy wpisów w serwisie,
 // zdanie po zdaniu powiązany z kodem (`JakDobieramyWpisyMowiPrawdeTest`).
 // Publiczna: regulamin do niej odsyła, a regulamin czyta też gość.
@@ -919,6 +961,25 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/przepisy/{recipe}', [RecipeController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('recipes.destroy');
+    // Ukrycie i przywrócenie jednej wersji z historii zmian (issue #2270).
+    // GET to ekran potwierdzenia bez JavaScriptu, POST — sama zmiana.
+    // Kto: `RecipeVersionPolicy`; stan: `UkrywanieWersji`. Limit
+    // `usuwanie`: ukrycie zdejmuje treść z widoku jak usunięcie, a to samo
+    // tempo (potwierdzenie + klik) mieści porządki w długiej historii.
+    Route::get('/przepisy/{recipe}/historia/{numer}/ukryj', [HistoriaPrzepisuController::class, 'potwierdzUkrycie'])
+        ->where('numer', '[1-9][0-9]{0,8}')
+        ->name('recipes.history.hide');
+    Route::post('/przepisy/{recipe}/historia/{numer}/ukryj', [HistoriaPrzepisuController::class, 'ukryj'])
+        ->where('numer', '[1-9][0-9]{0,8}')
+        ->middleware("throttle:{$limits['usuwanie']},usuwanie")
+        ->name('recipes.history.hide.store');
+    Route::get('/przepisy/{recipe}/historia/{numer}/przywroc', [HistoriaPrzepisuController::class, 'potwierdzPrzywrocenie'])
+        ->where('numer', '[1-9][0-9]{0,8}')
+        ->name('recipes.history.restore');
+    Route::post('/przepisy/{recipe}/historia/{numer}/przywroc', [HistoriaPrzepisuController::class, 'przywroc'])
+        ->where('numer', '[1-9][0-9]{0,8}')
+        ->middleware("throttle:{$limits['usuwanie']},usuwanie")
+        ->name('recipes.history.restore.store');
 
     // "Ugotowałem" — najważniejsza akcja w produkcie.
     Route::get('/przepisy/{recipe}/ugotowalem', [CookedEventController::class, 'create'])->name('cooked.create');

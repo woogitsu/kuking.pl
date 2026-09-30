@@ -381,7 +381,17 @@ async function sprawdzStatycznie({ browser, cssPlik, bezAsercji, out }) {
   const css = readFileSync(cssPlik ?? `public/build/${manifest['resources/css/app.css'].file}`, 'utf8');
   const fontPlik = readdirSync('public/build/assets').find((n) => n.startsWith('inter-podstawa-wght-normal-') && n.endsWith('.woff2'));
   const font = readFileSync(`public/build/assets/${fontPlik}`).toString('base64');
-  const js = readFileSync('resources/js/szybki-wyglad.js', 'utf8');
+  /* Skrypt idzie jako `<script type="module">` wprost w HTML-u, a wszystkie
+     żądania są zablokowane — względny `import` z `kolor-paska.js` (#2267) nie
+     miałby skąd przyjść i moduł w ogóle by nie wystartował. Wklejamy więc
+     prawdziwą treść modułu w miejsce importu; każdy nowy import zatrzymuje
+     pomiar, zamiast po cichu mierzyć stronę bez skryptu. */
+  const IMPORT_KOLORU_PASKA = "import {ustawKolorPaska} from './kolor-paska.js';\n";
+  const zrodloWygladu = readFileSync('resources/js/szybki-wyglad.js', 'utf8');
+  assert(zrodloWygladu.includes(IMPORT_KOLORU_PASKA), 'szybki-wyglad.js zmienił import kolor-paska.js — dostosuj wklejanie w stopka-pusty-pas.mjs.');
+  const kolorPaska = readFileSync('resources/js/kolor-paska.js', 'utf8').replace(/^export /m, '');
+  const js = zrodloWygladu.replace(IMPORT_KOLORU_PASKA, kolorPaska);
+  assert(!/^import /m.test(js), 'szybki-wyglad.js ma import, którego stopka-pusty-pas.mjs nie wkleja — pomiar nie wystartowałby.');
 
   const pomiar = async (przypadek, { sabotaz = null, zrzut = null } = {}) => {
     const kontekst = await browser.newContext({ viewport: { width: przypadek.width, height: 740 }, reducedMotion: 'reduce' });

@@ -112,7 +112,7 @@ async function przebieg(zrodlo, playwright = atrapa()) {
 
   const bledy = [];
   let raport = null;
-  const proces = { env: { ADRES }, argv: ['node', 'audyt-ux50plus.mjs', '--szybko'], exitCode: 0 };
+  const proces = { env: { ADRES }, argv: ['node', 'audyt-ux50plus.mjs', '--szybko', '--bez-formy'], exitCode: 0 };
   const kontekst = vm.createContext({
     chromium: playwright.chromium,
     process: proces,
@@ -197,4 +197,90 @@ test('KONTROLA DODATNIA: wspólny kontekst z sesją pada na przekierowaniu, nie 
     );
   }
   assert.ok(raport.przekierowania.every((p) => p.otrzymana === '/home'), 'Błąd powstał z innego powodu niż przekierowanie.');
+});
+
+/* =============================================================================
+ *  ODBIÓR FORMY ZWRACANIA SIĘ (#1753): wyrok `ocenFormePomiar`
+ * =============================================================================
+ *  Sama przeglądarka jest sprawdzana prawdziwym przebiegiem
+ *  (`ADRES=… node scripts/audyt-ux50plus.mjs --tylko-forme`, kontrola ujemna
+ *  sabotażem CSS w raporcie #1753). Tu pilnujemy WYROKU: czystej funkcji, która
+ *  z surowych liczb robi listę naruszeń. Bez tego można by „naprawić" audyt
+ *  przez rozluźnienie progu i nikt by tego nie zauważył.
+ */
+const czystyPomiar = () => ({
+  scrollWidth: 320,
+  clientWidth: 320,
+  winowajcy: [],
+  napisow: 2,
+  tekst: [{ sciezka: 'a.btn', px: 18, pomoc: false, probka: 'Ugotowałam' }],
+  cele: [{ sciezka: 'a.btn', w: 262, h: 50.5, nazwa: 'Ugotowałam' }],
+  ucieta: [],
+  pozaOknem: [],
+});
+
+function ocenZ(zrodlo, pomiar) {
+  const kontekst = vm.createContext({ console, process: { env: {}, argv: ['node', 'audyt-ux50plus.mjs'] }, URL });
+  vm.runInContext(zrodlo.split('\n').filter((l) => !l.startsWith('import ')).join('\n')
+    .replace(/\nmain\(\)\.catch\([^\n]*\n?$/, '\n'), kontekst);
+  kontekst.pomiar = pomiar;
+  return Array.from(vm.runInContext('ocenFormePomiar(pomiar)', kontekst));
+}
+
+const ocen = (pomiar) => ocenZ(ZRODLO, pomiar);
+
+test('forma: czysty pomiar 320 px nie ma naruszeń', () => {
+  assert.deepEqual(ocen(czystyPomiar()), []);
+});
+
+test('forma: przewijanie w poziomie, tekst < 18 px, cel < 48 px, ucięcie i wyjście poza okno to naruszenia', () => {
+  const m = czystyPomiar();
+  m.scrollWidth = 453;
+  m.winowajcy = [{ sciezka: 'fieldset.field', left: 33, right: 453 }];
+  m.tekst.push({ sciezka: 'span.choice-label', px: 12, pomoc: false, probka: 'Forma żeńska' });
+  m.cele.push({ sciezka: 'label.choice', w: 254, h: 36, nazwa: 'Forma żeńska' });
+  m.ucieta.push({ sciezka: 'label.choice', scrollW: 254, clientW: 254, scrollH: 171, clientH: 30, probka: 'Forma żeńska' });
+  m.pozaOknem.push({ sciezka: 'span.choice-help', left: 87, right: 435, probka: 'Inni przeczytają' });
+
+  const bledy = ocen(m);
+  for (const fragment of ['przewijanie w poziomie', 'tekst 12 px', 'cel 254×36', 'tekst ucięty', 'tekst poza oknem']) {
+    assert.ok(bledy.some((b) => b.includes(fragment)), `Brak naruszenia „${fragment}": ${bledy.join(' | ')}`);
+  }
+});
+
+test('forma: pomoc kontekstowa ma 16 px tylko obok tekstu głównego ≥ 18 px, poniżej 16 px oblewa', () => {
+  const m = czystyPomiar();
+  m.tekst.push({ sciezka: 'span.choice-help', px: 16, pomoc: true, probka: 'Inni przeczytają' });
+  assert.deepEqual(ocen(m), []);
+
+  m.tekst.push({ sciezka: 'span.choice-help', px: 15, pomoc: true, probka: 'Inni przeczytają' });
+  assert.equal(ocen(m).length, 1);
+
+  const bezGlownego = czystyPomiar();
+  bezGlownego.tekst.push({ sciezka: 'p.field-help', px: 16, pomoc: false, probka: 'Samo zdanie' });
+  assert.equal(ocen(bezGlownego).length, 1, 'Pomoc bez tekstu głównego ≥ 18 px nie ma wyjątku.');
+});
+
+test('forma: ekran bez żadnego napisu formy to naruszenie, nie zielony pomiar', () => {
+  const m = czystyPomiar();
+  m.napisow = 0;
+  assert.ok(ocen(m).some((b) => b.includes('nie znaleziono żadnego napisu formy')));
+});
+
+test('KONTROLA DODATNIA forma: wyrok bez sprawdzenia przewijania przepuściłby przepełnienie', () => {
+  const wzor = 'if (m.scrollWidth > m.clientWidth + 1) {';
+  assert.equal(ZRODLO.split(wzor).length, 2, 'Zmieniono sprawdzenie przewijania — zaktualizuj mutację.');
+  const m = czystyPomiar();
+  m.scrollWidth = 453;
+
+  assert.ok(ocen(m).length > 0, 'Sprawny wyrok musi oblać przepełnienie.');
+  const zepsute = ZRODLO.replace(wzor, 'if (false) {');
+  assert.deepEqual(ocenZ(zepsute, m), [], 'Mutacja miała ukryć przepełnienie.');
+});
+
+test('forma: audyt ma ekrany z formą, skale 100/150 przy 320 px i wyrok w kodzie wyjścia', () => {
+  assert.match(ZRODLO, /const FORMA_SZEROKOSC = 320;/);
+  assert.match(ZRODLO, /const FORMA_SKALE = \[100, 150\];/);
+  assert.match(ZRODLO, /Page\.setFontSizes/);
+  assert.match(ZRODLO, /if \(forma\.bledy\.length > 0\) \{[\s\S]*process\.exitCode = 1;/);
 });
