@@ -557,6 +557,12 @@ sterujący nie unieważnił całego kanału.
 **Limit i koszt.** Najwyżej 30 pozycji (`TresciKanalu::LIMIT`), bez paginacji —
 czytnik pamięta starsze sam. Jedno zapytanie o listę z relacjami karty i
 sprawdzenie dostępu do każdego zdjęcia; bez kolejek i bez nowego silnika.
+Zmierzone 30.09.2026 (test lokalny, PostgreSQL): kanał profilu z 30 wpisami,
+każdy ze zdjęciem, to 96 zapytań SQL — około trzech na zdjęcie
+(`DostepDoZdjecia::moze()`). Odpowiedź 304 liczy tyle samo, bo `ETag` powstaje
+z gotowej treści; oszczędza transfer, nie bazę. Gdy kanały zaczną ważyć w
+ruchu, pierwszą dźwignią jest cache brzegu (niżej), drugą — tańszy odcisk
+listy przed złożeniem treści.
 Limit zapytań `kuking.limits.kanal` (60/min po adresie IP).
 
 **Cache (#610).** `ETag` (słaby, SHA-256 treści) i `Last-Modified` (najpóźniejsza
