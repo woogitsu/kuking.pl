@@ -39,6 +39,8 @@ use Laravel\Sanctum\TransientToken;
  *
  * Uwaga: dane publiczne (username, imię, avatar) są w App\Models\Profile.
  * Tu jest tylko to, co dotyczy logowania, ustawień i stanu konta.
+ *
+ * @property bool $wants_pantry_reminder zgoda na sobotnie przypomnienie o produktach do zużycia (#1903); kolumna dodana surowym SQL, więc Larastan nie zna jej z migracji
  */
 class User extends Authenticatable implements MustVerifyEmailContract
 {

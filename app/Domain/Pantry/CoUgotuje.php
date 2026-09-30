@@ -87,7 +87,8 @@ final class CoUgotuje
      *     przepisy: Collection<int, Recipe>,
      *     brakujace: array<string, list<string>>,
      *     jest_wiecej: bool,
-     *     produktow: int
+     *     produktow: int,
+     *     do_zuzycia: array<string, list<array{nazwa: string, termin: string}>>
      * }
      */
     public function dla(User $widz, int $offset = 0, int $limit = self::NA_STRONE, bool $najpierwTermin = false): array
