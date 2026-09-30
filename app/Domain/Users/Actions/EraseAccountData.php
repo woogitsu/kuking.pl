@@ -15,6 +15,8 @@ use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem;
 use App\Models\AuditLogEntry;
+use App\Models\Comment;
+use App\Models\CommentThank;
 use App\Models\ContactMessage;
 use App\Models\DataExport;
 use App\Models\FacebookConnectionProof;
@@ -338,6 +340,21 @@ final class EraseAccountData
              * wspólnego wiersza (D-093).
              */
             PostReaction::query()->where('user_id', $fresh->getKey())->delete();
+
+            /*
+             * „DZIĘKUJĘ” POD KOMENTARZEM (`comment_thanks`, #2355) ZNIKA RAZEM
+             * Z KONTEM, W OBU KIERUNKACH. Podziękowania NAPISANE przez to konto
+             * (`thanker_id`) i podziękowania za JEGO komentarze (komentarze
+             * wymazywanego konta bywają tylko miękko usuniete albo zostają pod
+             * podpisem "Użytkownik usunięty" - D-022 - a kaskada klucza obcego
+             * przy anonimizacji nie zadziała). Bez tego wiersz łączyłby
+             * nieistniejącą osobe z cudzą treścią. Dwie egzekucje różnych kont
+             * nie maja wspólnego wiersza (D-093).
+             */
+            CommentThank::query()
+                ->where('thanker_id', $fresh->getKey())
+                ->orWhereIn('comment_id', Comment::withTrashed()->where('author_id', $fresh->getKey())->select('id'))
+                ->delete();
 
             /*
              * DRUGI SKŁADNIK LOGOWANIA ZNIKA RAZEM Z KONTEM (G05).

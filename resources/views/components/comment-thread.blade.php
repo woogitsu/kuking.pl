@@ -35,6 +35,22 @@
 --}}
 @props(['comments', 'action', 'ile' => null, 'answers' => false, 'canComment' => auth()->user()?->isActive() ?? false, 'autorPrzepisu' => null])
 @php($wszystkich = $ile ?? $comments->count())
+{{-- „Dziękuję" (issue #2355): które komentarze na tej liście mają podziękowanie —
+     JEDNO zapytanie dla całej listy, tylko dla zalogowanych, i tylko o wiersze
+     dziękującego albo autora komentarza (nikt inny tego stanu nie widzi). --}}
+@php
+    $podziekowane = [];
+    if (auth()->check()) {
+        $zKorzeniami = $comments instanceof \Illuminate\Pagination\AbstractPaginator ? $comments->getCollection() : collect($comments);
+        $idKomentarzy = $zKorzeniami->flatMap(fn ($c) => $c->relationLoaded('replies') ? $c->replies->modelKeys() : [])
+            ->merge($zKorzeniami->modelKeys())->all();
+        $podziekowane = $idKomentarzy === [] ? [] : \App\Models\CommentThank::query()
+            ->whereIn('comment_id', $idKomentarzy)
+            ->where(fn ($q) => $q->where('thanker_id', auth()->id())
+                ->orWhereIn('comment_id', \App\Models\Comment::query()->withTrashed()->whereIn('id', $idKomentarzy)->where('author_id', auth()->id())->select('id')))
+            ->pluck('comment_id')->mapWithKeys(fn ($id) => [(string) $id => true])->all();
+    }
+@endphp
 @php($toAutorPrzepisu = fn ($osoba): bool => $autorPrzepisu !== null && $osoba !== null && (string) $osoba->getKey() === (string) $autorPrzepisu && ! $osoba->isErased())
 <section class="stack" aria-labelledby="komentarze">
     <h2 id="komentarze">{{ $answers ? 'Odpowiedzi' : 'Komentarze' }} @if($wszystkich) ({{ $wszystkich }}) @endif</h2>
@@ -153,6 +169,8 @@
                                  zostawia w środku białe znaki i `:empty` nie
                                  trafiłoby. --}}
                             <div class="akcje-komentarza">
+                                <x-komentarz-dziekuje :comment="$reply" :podziekowane="$podziekowane" />
+
                                 @can('update', $reply)
                                     @if($replyRemainingMinutes > 0)
                                         <details @if(\App\Support\WierszFormularza::jestAktywny('popraw-'.$reply->id) && $errors->any()) open @endif>
@@ -263,6 +281,8 @@
                     @endif
 
                     @unless($commentIsRemoved)
+                        <x-komentarz-dziekuje :comment="$comment" :podziekowane="$podziekowane" />
+
                         @can('update', $comment)
                             @if($commentRemainingMinutes > 0)
                                 <details @if(\App\Support\WierszFormularza::jestAktywny('popraw-'.$comment->id) && $errors->any()) open @endif>

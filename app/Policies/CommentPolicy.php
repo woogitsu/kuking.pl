@@ -227,6 +227,42 @@ class CommentPolicy
     }
 
     /**
+     * „Dziękuję" pod komentarzem — PEŁNA bramka, którą przechodzi każde wejście
+     * (issue #2355, F11). Adres z UUID komentarza nie jest autoryzacją.
+     *
+     * Dziękuje wyłącznie AUTOR TREŚCI, pod którą komentarz stoi (wpis, przepis,
+     * wykonanie — `notifiableUserId()`), i nigdy własnemu komentarzowi. Do tego
+     * wszystko, co przy odpowiedzi: komentarz ma być widoczny dla dziękującego
+     * (`view()` — blokada, konto autora, status, korzeń wątku, treść nadrzędna),
+     * a między obiema osobami nie ma blokady. Szczegóły żywe w `offerThank()`.
+     */
+    public function thank(User $user, Comment $comment): bool
+    {
+        return $this->offerThank($user, $comment)
+            && $comment->author !== null
+            && ! $user->hasBlockRelationWith($comment->author)
+            && $this->view($user, $comment);
+    }
+
+    /**
+     * Tani warunek wstępny „Dziękuję" — bez zapytań do bazy, do rysowania
+     * przycisku przy każdym komentarzu na liście. Lista komentarzy przeszła już
+     * przez `Comment::scopeWidoczneDla()` (blokady, konto autora, status), więc
+     * widok NIE powtarza ich dla każdego wiersza; bramką wejścia jest
+     * `thank()`, nie ta metoda.
+     */
+    public function offerThank(User $user, Comment $comment): bool
+    {
+        return $user->isActive()
+            && $comment->author_id !== null
+            && $user->getKey() !== $comment->author_id
+            && $user->getKey() === $comment->notifiableUserId()
+            && $comment->status === Comment::STATUS_PUBLISHED
+            && ! $comment->trashed()
+            && $comment->getAttribute('body_removed_at') === null;
+    }
+
+    /**
      * Zdjęcie komentarza Z URZĘDU, bez zgłoszenia, z panelu moderacji (G31, D-251).
      * Reguła: `UserPolicy::takeDownContentOf()` — 2FA i niższa rola autora.
      */

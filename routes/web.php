@@ -56,6 +56,7 @@ use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PantryController;
 use App\Http\Controllers\PlanerController;
 use App\Http\Controllers\PodsumowanieTygodniaController;
+use App\Http\Controllers\PodziekowanieZaKomentarzController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostMediaController;
 use App\Http\Controllers\ProfileController;
@@ -864,6 +865,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['comment']},comment")
         ->withTrashed()
         ->name('comments.destroy');
+    // „Dziękuję" pod komentarzem (issue #2355, F11): autor treści kwituje cudzy
+    // komentarz jednym kliknięciem. Zwykły POST bez JS; bramka
+    // `CommentPolicy::thank`, idempotentne (UNIQUE w bazie), bez wycofania.
+    // Własny koszyk `reakcje` jak „Smakowicie wygląda" — nie zjada budżetu komentarzy.
+    Route::post('/komentarze/{comment}/dziekuje', [PodziekowanieZaKomentarzController::class, 'store'])
+        ->middleware("throttle:{$limits['reakcje']},reakcje")
+        ->name('comments.thank');
 
     /*
      * DODAWANIE ≠ DOPISYWANIE SZCZEGÓŁÓW (issue #364).

@@ -70,6 +70,7 @@
                 \App\Models\Notification::TYPE_COOKED,
                 \App\Models\Notification::TYPE_COMMENT,
                 \App\Models\Notification::TYPE_REPLY,
+                \App\Models\Notification::TYPE_COMMENT_THANKED,
                 \App\Models\Notification::TYPE_FOLLOW,
                 \App\Models\Notification::TYPE_SAVED,
                 \App\Models\Notification::TYPE_BIRTHDAY,
@@ -182,6 +183,12 @@
                                 @if($questionTitle = ($questionTitles[$data['comment_id'] ?? ''] ?? null))
                                     <span class="block">Pytanie: „{{ $questionTitle }}”</span>
                                 @endif
+                                @if($wycinekKomentarza !== null) „{{ $wycinekKomentarza }}” @endif
+                                @break
+                            @case(\App\Models\Notification::TYPE_COMMENT_THANKED)
+                                {{-- „Dziękuję" pod komentarzem (issue #2355). Wycinek jest ŻYWY
+                                     jak przy komentarzu (#758) — bez zamrożonej kopii. --}}
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} dziękuje Ci za komentarz.</strong>
                                 @if($wycinekKomentarza !== null) „{{ $wycinekKomentarza }}” @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_SMAKOWICIE)

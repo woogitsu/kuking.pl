@@ -12,6 +12,7 @@ use App\Domain\Ukrycia\Ukrycia;
 use App\Models\Collection;
 use App\Models\CollectionInvitation;
 use App\Models\Comment;
+use App\Models\CommentThank;
 use App\Models\ContactMessageReply;
 use App\Models\CookedEvent;
 use App\Models\CookingProgress;
@@ -211,6 +212,9 @@ final class CollectUserExportData
             // i tak widzi ją przy swoim wpisie.
             'moje_reakcje' => $this->reakcjeDane($user),
             'reakcje_otrzymane' => $this->reakcjeOtrzymane($user),
+            // „Dziękuję” pod cudzymi komentarzami (#2355): tylko podziękowania
+            // napisane przez tę osobę. Otrzymane są w `powiadomienia`.
+            'moje_podziekowania' => $this->podziekowaniaDane($user),
             'reakcje_otrzymane_od_osob_niewidocznych' => $this->reakcjeOtrzymaneBezNazwy($user),
             'dziennik_zgod' => $this->consentLog($user),
             'polaczone_konta' => $this->externalIdentities($user),
@@ -1263,6 +1267,30 @@ final class CollectUserExportData
                 'reakcja' => 'Smakowicie wygląda',
                 'wpis' => route('posts.show', $r->post_id),
                 'kiedy' => $this->date($r->created_at),
+            ])->all();
+    }
+
+    /**
+     * „Dziękuję” powiedziane przez tę osobę pod cudzymi komentarzami (#2355).
+     * Bez treści i autora komentarza — tylko adres rozmowy i chwila; pozycje
+     * pod komentarzem, którego osoba dziś nie może zobaczyć (ukryty, usunięty,
+     * blokada), nie wychodzą.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function podziekowaniaDane(User $user): array
+    {
+        return CommentThank::query()
+            ->where('thanker_id', $user->getKey())
+            ->whereIn('comment_id', Comment::query()->widoczneDla($user)->select('comments.id'))
+            ->with('comment.post', 'comment.recipe', 'comment.cookedEvent')
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (CommentThank $t): array => [
+                'podziekowanie' => 'Dziękuję pod komentarzem',
+                'rozmowa' => $t->comment?->subject()?->url(),
+                'kiedy' => $this->date($t->created_at),
             ])->all();
     }
 
