@@ -31,6 +31,16 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Wydrukuj cały zeszyt jako książkę
+
+Na stronie zeszytu jest przycisk „Wydrukuj zeszyt”. Otwiera stronę, którą
+drukujecie zwykłym Ctrl+P albo zapisujecie jako PDF: okładka z nazwą zeszytu,
+spis treści i każdy przepis na osobnej kartce — ze składnikami, krokami,
+podpisem autora i notatką z zeszytu, jeśli ją macie. Są tam tylko te przepisy,
+które widzicie Wy, a przy każdym może być jedno małe zdjęcie; przyciskiem
+„Bez zdjęć” wydrukujecie samo pismo. Kto stracił dostęp do wspólnego zeszytu,
+nie wydrukuje go już ani nie otworzy.
+
 ### Wszystkie wersje regulaminu
 
 Na górze regulaminu są dwa nowe przyciski. „Pobierz regulamin” zapisuje go
