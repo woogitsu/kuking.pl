@@ -306,3 +306,5 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 - 17:04 N @ f01d7cc19: 2220-polityki, 2299-etap2, dependabot, ci-testy-python, 2218-sonda, 1753-odbior, ci-testy-shell (zgoda właściciela). Testy N w toku.
 - Audyt L/M: P2 kursor strefa → claude/kursor-strefa-czasu f5df223de; P3 w toku (audyt-lm-drobne + cache Atom 5 min — decyzja); moderacja przejmuje ukrycie autora (decyzja) w toku.
 - Decyzje właściciela: /health sekcja informacje OK; pomoc 16 px zostaje; moderacja przejmuje ukrycie; cache kanału 5 min.
+- 17:11 PR #2341 paczka N otwarty (e8f8344d7; PHPStan fix wyjątków). Lokalnie: PHPUnit 870, JS 205 + build, PHPStan 0, skrypty OK.
+- Paczka O (decyzja: N teraz, reszta w O): integrator od paczka-n-kandydat: kursor-strefa-czasu f5df223de, audyt-lm-drobne cddfebc30, moderacja-przejmuje-ukrycie 12e3a49a3, + dosylka-na-suficie-partiami (w pracy).
