@@ -81,6 +81,17 @@ class KursorZAdresuNieDajeBledu500Test extends TestCase
         foreach (array_keys($prawdziwy) as $kolumna) {
             $zle["napis w kolumnie {$kolumna}"] = array_replace($prawdziwy, [$kolumna => 'abc']);
         }
+        // Czas ze strefą spoza zakresu: Postgres odpowiada SQLSTATE 22009
+        // („time zone displacement out of range”), czyli HTTP 500. Tylko kolumny,
+        // w których prawdziwy kursor niesie czas — inaczej odpowiadałby typ.
+        foreach ($prawdziwy as $kolumna => $wartosc) {
+            if (! is_string($wartosc) || preg_match('/^\d{4}-\d{2}-\d{2}/', $wartosc) !== 1) {
+                continue;
+            }
+            foreach (['+99', '+16', '+15:59', '+00:99', '-9999'] as $strefa) {
+                $zle["strefa {$strefa} w kolumnie {$kolumna}"] = array_replace($prawdziwy, [$kolumna => "2026-09-30 12:00:00{$strefa}"]);
+            }
+        }
 
         return $zle;
     }
@@ -143,6 +154,13 @@ class KursorZAdresuNieDajeBledu500Test extends TestCase
         $this->assertTrue(KursorListy::pasuje(new Cursor(['published_at' => null, 'id' => self::UUID]), $kolumny));
         $this->assertTrue(KursorListy::pasuje(new Cursor(['n' => 3]), ['n' => KursorListy::LICZBA]));
         $this->assertTrue(KursorListy::pasuje(new Cursor(['n' => '3']), ['n' => KursorListy::LICZBA]));
+
+        foreach (['Z', '+02:00', '-0930', '+14:00', '+05:45', '+01'] as $strefa) {
+            $this->assertTrue(KursorListy::pasuje(new Cursor(['published_at' => "2026-09-30T12:00:00.5{$strefa}", 'id' => self::UUID]), $kolumny), "strefa {$strefa}");
+        }
+        foreach (['+99', '+16', '+15', '+15:59', '+00:99', '-9999', '+1560', '+02:10', '+14:45x'] as $strefa) {
+            $this->assertFalse(KursorListy::pasuje(new Cursor(['published_at' => "2026-09-30 12:00:00{$strefa}", 'id' => self::UUID]), $kolumny), "strefa {$strefa}");
+        }
 
         $this->assertFalse(KursorListy::pasuje(new Cursor([]), $kolumny));
         $this->assertFalse(KursorListy::pasuje(new Cursor(['id' => self::UUID]), $kolumny));
