@@ -69,6 +69,37 @@ class IndeksyKluczyObcychNaGoracychSciezkachTest extends TestCase
         $this->assertStringContainsString('(user_id, signal_name)', $definicja->indexdef);
     }
 
+    public function test_collection_items_ma_zwykly_indeks_po_collection_id(): void
+    {
+        // Indeksy częściowe (collection_id, recipe_id|post_id) z `WHERE … IS NOT NULL`
+        // nie obsłużą zapytania po samym collection_id — potrzebny zwykły, NIEczęściowy.
+        $definicja = DB::selectOne(
+            "SELECT indexdef FROM pg_indexes WHERE indexname = 'collection_items_collection_idx'",
+        );
+
+        $this->assertNotNull($definicja);
+        $this->assertStringContainsString('(collection_id)', $definicja->indexdef);
+        $this->assertStringNotContainsString(' WHERE ', $definicja->indexdef);
+
+        $migracja = require database_path('migrations/2026_10_01_090000_indeks_collection_items_collection_id.php');
+        $migracja->down();
+        $this->assertFalse($this->maIndeksWiodacyBezWarunku('collection_items', 'collection_id'));
+
+        $migracja->up();
+        $migracja->up(); // IF NOT EXISTS
+        $this->assertTrue($this->maIndeksWiodacyBezWarunku('collection_items', 'collection_id'));
+    }
+
+    private function maIndeksWiodacyBezWarunku(string $tabela, string $kolumna): bool
+    {
+        return DB::selectOne(
+            'SELECT 1 AS jest FROM pg_index i '
+            .'JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = i.indkey[0] '
+            .'WHERE i.indrelid = ?::regclass AND a.attname = ? AND i.indisvalid AND i.indpred IS NULL',
+            [$tabela, $kolumna],
+        ) !== null;
+    }
+
     public function test_wykrywacz_indeksu_wiodacego_odpowiada_takze_przeczaco(): void
     {
         // Druga kolumna klucza głównego NIE jest wiodąca — to dokładnie stan
