@@ -152,11 +152,23 @@ final class KursorListy
      */
     private static function czasPasuje(string $wartosc): bool
     {
-        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(\.\d{1,6})?([+-]\d{2}(:?\d{2})?|Z)?$/D', $wartosc, $m) !== 1) {
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(\.\d{1,6})?(Z|[+-](\d{2})(?::?(\d{2}))?)?$/D', $wartosc, $m) !== 1) {
             return false;
         }
 
         return checkdate((int) $m[2], (int) $m[3], (int) $m[1])
-            && (int) $m[4] < 24 && (int) $m[5] < 60 && (int) $m[6] < 60;
+            && (int) $m[4] < 24 && (int) $m[5] < 60 && (int) $m[6] < 60
+            && self::strefaPasuje(isset($m[9]) ? (int) $m[9] : null, isset($m[10]) ? (int) $m[10] : 0);
+    }
+
+    /**
+     * Strefa jawna w kursorze: Laravel zapisuje `Z`, a przesunięcia spoza
+     * zakresu Postgres odrzuca błędem `22009` (+99, +16, +00:99 …). Nie
+     * zgadujemy jego granicy — bierzemy zakres rzeczywistych stref świata:
+     * godziny do 14, minuty 00/15/30/45.
+     */
+    private static function strefaPasuje(?int $godziny, int $minuty): bool
+    {
+        return $godziny === null || ($godziny <= 14 && in_array($minuty, [0, 15, 30, 45], true));
     }
 }
