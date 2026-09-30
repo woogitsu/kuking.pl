@@ -485,6 +485,15 @@ return [
         // ścieżka z JavaScriptem, jak i formularz „Znajdź tag" bez niego.
         'suggestions_limit' => (int) env('KUKING_TAG_SUGGESTIONS_LIMIT', 8),
 
+        // Ile tagów wolno obserwować z jednego konta (#2326). Liczba jest
+        // wyborem, nie pomiarem: kilkadziesiąt to już bardzo szeroki Start,
+        // dwieście zostawia zapas nawet dla kogoś, kto zaznaczy całą listę
+        // gospodarza, a jednocześnie daje ekranowi „Twoje tagi” i Startowi
+        // przewidywalną granicę kosztu (fixture obciążeniowy miał 978).
+        // Konta, które obserwowały więcej przed wprowadzeniem limitu, niczego
+        // nie tracą — nie mogą tylko dodać nowego, dopóki nie zejdą poniżej.
+        'max_followed' => (int) env('KUKING_TAG_MAX_FOLLOWED', 200),
+
         // Ile tematów na "stronę" pokazuje spis wszystkich tematów
         // (#273, D-087). Bez infinite scroll — przycisk „Pokaż więcej",
         // jak wszędzie indziej (`<x-show-more>`). Słownik z D-026 ma
