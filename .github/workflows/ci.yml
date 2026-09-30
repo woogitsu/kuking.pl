@@ -300,8 +300,19 @@ permissions:
 # Nowy push do tej samej gałęzi/PR anuluje poprzedni przebieg — ale NIE na
 # main: Railway wdraża dopiero po zielonym CI main („Wait for CI”), a anulowany
 # przebieg nie daje wyniku i wdrożenie commita zostaje pominięte (23.09: 112
-# ze 138 przebiegów main anulowanych, produkcja 18 h bez wdrożenia). Na main
-# przebiegi kolejkują się zamiast się ścinać.
+# ze 138 przebiegów main anulowanych, produkcja 18 h bez wdrożenia).
+#
+# To NIE jest kolejka (#2300). `cancel-in-progress: false` chroni tylko
+# przebieg BIEGNĄCY. GitHub trzyma w grupie najwyżej jeden biegnący i JEDEN
+# oczekujący; nowy przebieg anuluje dotychczasowego oczekującego (26.09:
+# 44 z 64 przebiegów push na main `cancelled`). Przy serii scaleń pełne CI
+# dostaje commit biegnący i wierzchołek serii, a commity pośrednie kończą
+# jako `cancelled`, bez wyniku. Railway „Wait for CI” może taki pośredni SHA
+# wdrożyć mimo braku zielonego CI (#2025) — przed tym chroni dopiero bramka
+# `railway-ci-gated-deploy.yml` (docs/infra/RAILWAY_CI_GATE.md), nie ten klucz.
+# Prawdziwej kolejki (na main osobna grupa na każdy SHA) tu nie ma celowo:
+# każdy commit serii zająłby runnery na pełny przebieg (IN-07), a wdrożenie
+# wierzchołka czekałoby za wszystkimi pośrednimi.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
