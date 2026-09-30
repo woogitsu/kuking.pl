@@ -45,12 +45,29 @@ final class KartaZKodemQr
 
     /**
      * Profil, na którym gość ma co oglądać: konto dostępne jako autor
-     * i co najmniej jedna publiczna treść (`Profile::scopeZPublicznaTrescia()`,
-     * ta sama bramka co mapa strony).
+     * i co najmniej jedna publiczna treść. Reguła ta sama co
+     * `Profile::scopeZPublicznaTrescia()` (mapa strony), ale dla JEDNEGO
+     * profilu liczona trzema osobnymi `EXISTS` po kolei, nie jednym
+     * zapytaniem z alternatywą OR skorelowanych `EXISTS` — ta przy autorze
+     * z tysiącami wpisów kosztowała w planie ponad próg JIT
+     * (`ProfilAutoraZDuzaLiczbaWpisowKosztTest`), a pytamy o to przy każdym
+     * wejściu na profil. Zgodność z zakresem pilnuje `KartaZKodemQrTest`.
      */
     public function profilDostepny(Profile $profil): bool
     {
-        return Profile::query()->zPublicznaTrescia()->whereKey($profil->getKey())->exists();
+        $autor = $profil->user;
+
+        if ($autor === null || ! $autor->jestDostepnyJakoAutor()) {
+            return false;
+        }
+
+        return $autor->posts()->publiclyVisible()->zWidocznymPrzepisemAlboWlasnaTrescia(null)->exists()
+            || $autor->recipes()->publiclyVisible()->exists()
+            || $autor->cookedEvents()
+                ->whereHas('recipe', fn ($przepis) => $przepis
+                    ->widoczneDla(null)
+                    ->whereHas('author', fn ($a) => $a->dostepnyJakoAutor()))
+                ->exists();
     }
 
     public function adresPrzepisu(Recipe $przepis): string
