@@ -81,10 +81,12 @@ final class ArchiwumRegulaminuTest extends TestCase
         $this->assertContains('2026-09-30', $wersje);
 
         foreach ($wersje as $data) {
-            $this->assertStringContainsString(
-                'opisuje stan serwisu na '.ArchiwumRegulaminu::dataSlownie($data),
-                (string) ArchiwumRegulaminu::tresc($data),
-                "Plik regulamin-{$data}.md ma w nagłówku inną datę niż w nazwie.",
+            // `assertTrue`, nie `assertStringContainsString`: ten drugi wypisuje
+            // cały dokument przed komunikatem i przyczyna ginie w wyjściu.
+            $this->assertTrue(
+                str_contains((string) ArchiwumRegulaminu::tresc($data), 'opisuje stan serwisu na '.ArchiwumRegulaminu::dataSlownie($data)),
+                "Plik regulamin-{$data}.md ma w nagłówku inną datę niż w nazwie. Nagłówek ma mówić "
+                .'„opisuje stan serwisu na '.ArchiwumRegulaminu::dataSlownie($data).'”.',
             );
         }
     }

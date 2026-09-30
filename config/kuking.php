@@ -2988,6 +2988,12 @@ return [
          * z 26.09.2026: komunikat w serwisie, bez maili). Podbijaj więc tylko
          * przy zmianie, o której ludzie mają się dowiedzieć — literówka
          * w dokumencie to nie powód, żeby zaczepiać każdego.
+         *
+         * ARCHIWUM (#2220). Każda data ma plik
+         * `resources/legal/archiwum/regulamin-<data>.md` — przy podbiciu dodaj
+         * nowy plik (kopia `regulamin.md`), starych nie ruszaj; poprawka bez
+         * podbicia idzie też do pliku bieżącej daty. Pilnuje
+         * `ArchiwumRegulaminuTest`, opis w `App\Domain\Zgody\ArchiwumRegulaminu`.
          */
         'wersja_regulaminu' => '2026-09-30',
 

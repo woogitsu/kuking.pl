@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Feed\JakDobieramyWpisy;
-use App\Domain\Zgody\ArchiwumRegulaminu;
 use App\Domain\Ukrycia\Ukrycia;
+use App\Domain\Zgody\ArchiwumRegulaminu;
 use App\Support\ZaufanyMarkdown;
 use Illuminate\Http\Request;
 use Illuminate\View\View;

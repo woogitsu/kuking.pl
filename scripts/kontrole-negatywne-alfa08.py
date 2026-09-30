@@ -624,6 +624,14 @@ REGULAMIN_WERSJA = "config/kuking.php"
 REGULAMIN_WERSJA_TEST = "ZmianaRegulaminuTest"
 # Regulamin §13 „Wymagania techniczne” i §14 „Reklamacje” (#2220).
 REGULAMIN_WYMAGANIA_TEST = "RegulaminWymaganiaIReklamacjeTest"
+# Archiwum wersji regulaminu (#2220, kryterium 4). Mutacje: poprawka regulaminu
+# bez kopii w pliku bieżącej wersji, nowa data bez nowego pliku, plik archiwum
+# z inną datą w nagłówku niż w nazwie — strażnik archiwum ma oblać.
+REGULAMIN_TEKST = "resources/legal/regulamin.md"
+REGULAMIN_ARCHIWUM_NAJSTARSZA = "resources/legal/archiwum/regulamin-2026-09-07.md"
+# Filtr na jedną metodę: mutacja daty zapala też testy stron (inny komunikat).
+REGULAMIN_ARCHIWUM_TEST = "test_biezaca_wersja_regulaminu_ma_w_archiwum_plik_identyczny_z_regulaminem"
+REGULAMIN_ARCHIWUM_NAGLOWEK_TEST = "test_kazdy_plik_archiwum_niesie_w_naglowku_date_ze_swojej_nazwy"
 
 # Pasek o zmianie polityki (D-327, D-332): rollback bez odmowy i sekcja
 # „Co się zmieniło” niezgodne z konfiguracją (drobna/istotna); pasek przy drobnej;
@@ -1699,6 +1707,12 @@ checks = [
      lambda s: replace_once(s, "'termin_odpowiedzi_dni' => 14,", "'termin_odpowiedzi_dni' => 7,")),
     ("Limit zdjęć we wpisie inny niż w regulaminie", REGULAMIN_WERSJA, REGULAMIN_WYMAGANIA_TEST,
      lambda s: replace_once(s, "'max_per_post' => 6,", "'max_per_post' => 5,")),
+    ("Regulamin poprawiony bez kopii w archiwum", REGULAMIN_TEKST, REGULAMIN_ARCHIWUM_TEST,
+     lambda s: replace_once(s, "## W skrócie\n", "## W skrócie (poprawione)\n")),
+    ("Nowa data regulaminu bez pliku w archiwum", REGULAMIN_WERSJA, REGULAMIN_ARCHIWUM_TEST,
+     lambda s: replace_once(s, "'wersja_regulaminu' => '2026-09-30'", "'wersja_regulaminu' => '2026-10-02'")),
+    ("Plik archiwum regulaminu z inną datą w nagłówku", REGULAMIN_ARCHIWUM_NAJSTARSZA, REGULAMIN_ARCHIWUM_NAGLOWEK_TEST,
+     lambda s: replace_once(s, "stan serwisu na 7 września 2026", "stan serwisu na 8 września 2026")),
     ("Zmiana istotna bez okresu przejściowego", WERSJA_DOKUMENTU, WERSJA_DOKUMENTU_TEST,
      lambda s: replace_once(s, "        return ($chwila ?? now())->lessThan($this->obowiazujeOd());\n", "        return false;\n")),
     ("Zmiana istotna wchodzi w dniu publikacji zamiast po 14 dniach", WERSJA_DOKUMENTU, WERSJA_DOKUMENTU_TEST,
