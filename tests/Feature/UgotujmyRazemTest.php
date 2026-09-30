@@ -10,6 +10,8 @@ use App\Models\CookedEvent;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Models\WeeklyRecipePick;
+use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\WycinaObudoweEkranu;
@@ -365,13 +367,13 @@ class UgotujmyRazemTest extends TestCase
         try {
             DB::transaction(fn () => $this->wybierz($this->przepis('Drugi na ten sam tydzień'), '2026-09-28'));
             $this->fail('Baza przyjęła drugi przepis na ten sam tydzień.');
-        } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+        } catch (UniqueConstraintViolationException) {
         }
 
         try {
             DB::transaction(fn () => $this->wybierz($this->przepis('Środa zamiast poniedziałku'), '2026-09-30'));
             $this->fail('Baza przyjęła tydzień zaczynający się w środę.');
-        } catch (\Illuminate\Database\QueryException $e) {
+        } catch (QueryException $e) {
             $this->assertStringContainsString('weekly_recipe_picks_poniedzialek_check', $e->getMessage());
         }
     }
