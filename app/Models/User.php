@@ -635,7 +635,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
 
     /**
      * Czy tę osobę wolno pokazać JAKO OSOBĘ — na liście obserwujących,
-     * w wyszukiwarce ludzi, w mapie strony, w liczniku nad listą (D-022).
+     * w wyszukiwarce ludzi, w liczniku nad listą (D-022). NIE pyta o to mapa
+     * strony ani `noindex` profilu: od 30.09 (D-333) profil konta `erased`
+     * z publicznymi treściami jest indeksowany (`jestDostepnyJakoAutor()`).
      *
      * TRZECIA GRANICA, POTRZEBNA OD MOMENTU, W KTÓRYM POWSTAŁ `erased`.
      * `dostepnyJakoAutor()` obsługiwał dotąd oba pytania, bo odpowiedź była

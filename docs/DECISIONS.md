@@ -20972,6 +20972,7 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | Publiczne repozytorium | Repozytorium jest **publiczne celowo**. Do zrobienia: zablokować joby forków na self-hosted runnerach i poprawić nagłówki | #2298 |
 | Tygodniowe podsumowanie | `KUKING_DIGEST_WLACZONY` włączamy **po poprawce #2237** | #2237 |
 | Nowe funkcje do budowy (research 30.09) | Budujemy: F1 „Jak wyszło?”, F2 plakietka autorki, F3 „Ugotujmy razem”, F4 ściągawka dla pomocnika, F6 wspomnienia z własnych wykonań | — |
+| Profil konta usuniętego z zachowanymi treściami jest indeksowany (decyzja 30.09) | Profil konta `erased`, którego publiczne treści zostały (D-022), **jest** indeksowany: bez `noindex`, z `ProfilePage` i w mapie strony. Granica to `jestDostepnyJakoAutor()` (ta sama co `UserPolicy::viewProfile()`), nie `jestWidocznyJakoOsoba()`; reszta reguły z #2235/#2236 bez zmian — profil potrzebuje wpisu, przepisu albo wykonania widocznego dla widza, więc konto `erased` bez treści zostaje `noindex` i poza mapą. D-022 nie wymaga ukrycia takiego profilu (dotyczy widoczności tekstu, nie indeksu). Pilnują `ProfilZSamymiWykonaniamiJestIndeksowanyTest`, `MapaStronyProfileAutorowTest` | #2235, #2236 |
 | Dokończyć ze starych gałęzi | Dziennik wglądów moderatora; retencja wersji przepisu (**24 miesiące + 3 najnowsze** — potwierdzone); rozdzielenie usług (#595); DR zdjęć (#617) | #595, #617 |
 
 ### Wycofanie

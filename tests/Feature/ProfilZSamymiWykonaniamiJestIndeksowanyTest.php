@@ -17,8 +17,9 @@ use Tests\TestCase;
  * Reguła indeksowania profilu (#2235, #2236 — to samo zgłoszenie dwa razy)
  * i obraz osoby w JSON-LD (#2231).
  *
- * Profil jest `index` i ma `ProfilePage`, gdy osoba jest widoczna jako osoba
- * (D-022: nie `erased`, tak jak mapa strony) i ma co najmniej jedną treść
+ * Profil jest `index` i ma `ProfilePage`, gdy autor jest dostępny
+ * (`jestDostepnyJakoAutor()` — konto `erased` z zachowanymi treściami TAK,
+ * decyzja właściciela z 30.09, D-333) i ma co najmniej jedną treść
  * widoczną dla gościa: wpis, przepis ALBO wykonanie z zakładki „Ugotowane".
  * Wykonanie liczy się tym samym zakresem co ta zakładka — z przepisu
  * prywatnego albo autora zbanowanego nie odblokowuje niczego.
@@ -83,17 +84,47 @@ final class ProfilZSamymiWykonaniamiJestIndeksowanyTest extends TestCase
         $this->assertNull($this->osoba($html));
     }
 
-    public function test_konto_usuniete_z_zachowanymi_tresciami_nie_jest_zapraszane_do_indeksu(): void
+    /**
+     * Regresja (decyzja właściciela z 30.09, D-333): profil konta usuniętego
+     * (`erased`), którego treści zostały (D-022: domyślnie tekst zostaje),
+     * ma być DALEJ indeksowany — meta robots, JSON-LD i mapa strony zgodnie.
+     * Gałąź #2235/#2236 wycinała go warunkiem `jestWidocznyJakoOsoba()`.
+     */
+    public function test_konto_usuniete_z_zachowanymi_tresciami_dalej_jest_indeksowane(): void
     {
         $usuniete = $this->kucharzZWykonaniem(Recipe::factory()->create());
         Post::factory()->create(['author_id' => $usuniete->getKey(), 'visibility' => 'public', 'body' => 'Rosół jak u mamy']);
         $this->assertStringNotContainsString(self::NOINDEX, $this->profilGoscia($usuniete), 'Przed usunięciem profil ma treść.');
 
-        $usuniete->forceFill(['status' => User::STATUS_ERASED, 'data_erased_at' => now()])->save();
+        $usuniete->markDataErased();
+        $this->assertTrue($usuniete->refresh()->isErased());
 
         $html = $this->profilGoscia($usuniete);
+        $this->assertStringNotContainsString(self::NOINDEX, $html, 'Profil konta usuniętego z treściami dostał noindex.');
+        $this->assertNotNull($this->osoba($html), 'Profil konta usuniętego z treściami ma dostać ProfilePage.');
+        $this->assertStringContainsString($this->adresProfilu($usuniete).'<', $this->mapaStrony(), 'Mapa strony pominęła profil konta usuniętego z treściami.');
+    }
+
+    /**
+     * Druga strona granicy: konto `erased` BEZ publicznej treści (np. usunięte
+     * razem z treściami) zostaje `noindex` i poza mapą, tak jak każdy pusty
+     * profil. Konto zbanowane i kasowane dalej nie wchodzi nigdzie.
+     */
+    public function test_konto_usuniete_bez_tresci_zostaje_poza_indeksem(): void
+    {
+        $pusteUsuniete = $this->user('usuniete_bez_tresci');
+        $pusteUsuniete->markDataErased();
+        // Kontrola dodatnia w tym samym przebiegu (PULAPKI_TESTOW §4).
+        $zTrescia = $this->kucharzZWykonaniem(Recipe::factory()->create());
+        $zTrescia->markDataErased();
+
+        $html = $this->profilGoscia($pusteUsuniete);
         $this->assertStringContainsString(self::NOINDEX, $html);
         $this->assertNull($this->osoba($html));
+
+        $mapa = $this->mapaStrony();
+        $this->assertStringNotContainsString($this->adresProfilu($pusteUsuniete).'<', $mapa);
+        $this->assertStringContainsString($this->adresProfilu($zTrescia).'<', $mapa);
     }
 
     public function test_osoba_ma_obraz_tylko_z_gotowym_awatarem(): void

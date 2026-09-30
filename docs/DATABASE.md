@@ -632,13 +632,16 @@ a jedyną drogą do `pending_delete` w kodzie produkcyjnym jest
 | Metoda / zakres | Statusy odrzucone | Kto pyta |
 |---|---|---|
 | `mozeCzytac()` | `banned`, `pending_delete`, `erased` | logowanie, `EnsureAccountIsActive`, powiadomienia |
-| `jestDostepnyJakoAutor()` / `scopeDostepnyJakoAutor` | `banned`, `pending_delete` | Policy treści, feed, zeszyty, mapa strony dla treści |
-| `jestWidocznyJakoOsoba()` / `scopeWidocznyJakoOsoba` | `banned`, `pending_delete`, `erased` | listy obserwujących i ich liczniki, mapa strony dla profili, analityka, panel „bez odpowiedzi" |
+| `jestDostepnyJakoAutor()` / `scopeDostepnyJakoAutor` | `banned`, `pending_delete` | Policy treści, feed, zeszyty, mapa strony dla treści i profili, `noindex` profilu (od 30.09, D-333) |
+| `jestWidocznyJakoOsoba()` / `scopeWidocznyJakoOsoba` | `banned`, `pending_delete`, `erased` | listy obserwujących i ich liczniki, analityka, panel „bez odpowiedzi" |
 
 Profil konta `erased` jest **dostępny** (`UserPolicy::viewProfile`), bo to
 adres, pod który prowadzi każdy podpis „Użytkownik usunięty". Nie jest za to
 nigdzie podpowiadany: wyszukiwarka osób pyta o `status = 'active'`, listy osób
-i mapa strony — o `widocznyJakoOsoba()`.
+— o `widocznyJakoOsoba()`. Wyjątek od 30.09 (D-333): profil konta `erased`
+z zachowanymi publicznymi treściami jest w mapie strony i bez `noindex`
+(granica `dostepnyJakoAutor()`); bez publicznych treści odpada jak każdy
+pusty profil.
 
 **Migracja danych istniejących:** konta z niepustym `data_erased_at` przechodzą
 na `erased` (ich zanonimizowany tekst wraca wtedy na serwis, zgodnie z D-018),
