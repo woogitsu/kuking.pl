@@ -35,7 +35,8 @@ class RozjazdyAudytuZgodnosciTest extends TestCase
     }
 
     /**
-     * R3. Polityka wymienia SZEŚĆ formularzy za Turnstile, a kod ma SIEDEM.
+     * R3. Polityka wymienia SZEŚĆ formularzy za Turnstile, a kod ma SIEDEM
+     * (od 30.09.2026 — osiem, #2272: odwołanie bez logowania).
      *
      * Nazwy ludzkie stoją tutaj, nie w konfiguracji, i to jest świadome:
      * konfiguracja ma klucze techniczne, a polityka mówi do człowieka.
@@ -52,6 +53,7 @@ class RozjazdyAudytuZgodnosciTest extends TestCase
             'cofniecie_usuniecia' => 'cofnięciu usunięcia konta',
             'kontakt' => 'Napisz do nas',
             'zgloszenie_nielegalnej_tresci' => 'zgłoszenia nielegalnej treści',
+            'odwolanie' => 'odwołaniu od decyzji',
         ];
 
         $miejsca = (array) config('kuking.turnstile.miejsca');

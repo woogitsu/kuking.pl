@@ -10,6 +10,7 @@ use App\Models\Recipe;
 use App\Models\Report;
 use App\Notifications\DecyzjaWSprawieZgloszenia;
 use App\Notifications\PotwierdzenieZgloszeniaNielegalnejTresci;
+use App\Notifications\ZmianaDecyzjiWSprawieZgloszenia;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Notification;
@@ -146,7 +147,13 @@ class ZgloszenieAdresSpozaKukingTest extends TestCase
         ]);
     }
 
-    /** @return array<string, string> HTML i tekst obu listów */
+    /**
+     * HTML wszystkich TRZECH listów do zgłaszającego. „Zmiana decyzji” doszła
+     * 30.09.2026 (#2271, audyt S-05): wstawiała `target_url` bez ucieczki,
+     * a ten test znał tylko dwa pierwsze listy, więc regresja przeszła.
+     *
+     * @return array<string, string>
+     */
     private function listy(Report $zgloszenie): array
     {
         $odbiorca = (new AnonymousNotifiable)->route('mail', 'jan@przyklad.test');
@@ -154,6 +161,7 @@ class ZgloszenieAdresSpozaKukingTest extends TestCase
         return [
             'potwierdzenie' => (string) (new PotwierdzenieZgloszeniaNielegalnejTresci($zgloszenie))->toMail($odbiorca)->render(),
             'decyzja' => (string) (new DecyzjaWSprawieZgloszenia($zgloszenie, new ModerationAction(['action' => ModerationAction::ACTION_NONE])))->toMail($odbiorca)->render(),
+            'zmiana decyzji' => (string) (new ZmianaDecyzjiWSprawieZgloszenia($zgloszenie))->toMail($odbiorca)->render(),
         ];
     }
 
@@ -167,6 +175,18 @@ class ZgloszenieAdresSpozaKukingTest extends TestCase
             $this->assertStringNotContainsString('<h1>Kuking prosi', $html, "List „{$ktory}” zrobił z adresu nagłówek.");
             $this->assertStringContainsString('[pilne](https://obcy.example/zaloguj)', html_entity_decode(strip_tags(str_replace('\\', '', $html))), "List „{$ktory}” zgubił treść adresu.");
         }
+    }
+
+    /** Odtworzenie z audytu S-05 (#2271): link „Potwierdź konto” w liście o zmianie decyzji. */
+    public function test_list_o_zmianie_decyzji_nie_robi_z_adresu_linku_phishingowego(): void
+    {
+        $zgloszenie = $this->zgloszenieZAdresem('[Potwierdź konto](https://zly.example/login)');
+        $odbiorca = (new AnonymousNotifiable)->route('mail', 'jan@przyklad.test');
+
+        $html = (string) (new ZmianaDecyzjiWSprawieZgloszenia($zgloszenie))->toMail($odbiorca)->render();
+
+        $this->assertStringNotContainsString('href="https://zly.example', $html, 'List o zmianie decyzji zrobił z adresu klikalny odnośnik.');
+        $this->assertStringContainsString('Zgłoszona przez Ciebie strona: [Potwierdź konto](https://zly.example/login)', $html, 'List zgubił treść adresu albo zdanie przed nim.');
     }
 
     /** KONTROLA DODATNIA: zwykły adres Kuking jest w liście czytelny, bez śmieci. */

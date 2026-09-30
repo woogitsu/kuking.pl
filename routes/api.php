@@ -23,10 +23,16 @@ declare(strict_types=1);
 |  - każda trasa mutująca (POST/PUT/PATCH/DELETE) ma DODATKOWO
 |    `ability:<zakres>` z zamkniętego słownika `App\Http\Api\ZakresyTokenu`
 |    (D-320, #1928) — token wydany bez tego zakresu ma dostać 403, nie
-|    milczące dopuszczenie przez wildcard.
+|    milczące dopuszczenie przez wildcard. Trasy CZYTAJĄCE też mają swój
+|    zakres (`profil:czytaj` dla `/ja`, `tresc:czytaj` dla reszty) — token
+|    wydany tylko do zapisu nie czyta cudzych treści. Wyjątek: wydanie
+|    i odwołanie własnego tokenu (`api.tokeny.*`) — wylogowanie musi działać
+|    każdym tokenem. Do 30.09.2026 te zakresy stały tylko w tym komentarzu
+|    (#2232, audyt S-02); pilnuje ich `KazdaTrasaApiMaZakresTokenuTest`.
 */
 
 use App\Domain\Media\PodgladOdRazu;
+use App\Http\Api\ZakresyTokenu;
 use App\Http\Controllers\Api\V1\CommentController;
 use App\Http\Controllers\Api\V1\FeedController;
 use App\Http\Controllers\Api\V1\JaController;
@@ -73,7 +79,9 @@ Route::post('/tokeny/kod', [TokenController::class, 'storeKod'])
 | na liście priorytetów frameworka, więc sortowanie jej nie przestawia.
 */
 Route::middleware(['auth:sanctum', EnsureApiAccountIsActive::class])->group(function () use ($limits): void {
-    Route::get('/ja', JaController::class)->name('api.ja');
+    Route::get('/ja', JaController::class)
+        ->middleware('ability:'.ZakresyTokenu::PROFIL_CZYTAJ)
+        ->name('api.ja');
 
     Route::delete('/tokeny/biezacy', [TokenController::class, 'destroyCurrent'])
         ->name('api.tokeny.biezacy.destroy');
@@ -85,77 +93,84 @@ Route::middleware(['auth:sanctum', EnsureApiAccountIsActive::class])->group(func
      * powodu co na WWW: identyfikator, który nie jest UUID-em, ma dać 404,
      * nie błąd składni z PostgreSQL-a.
      */
-    Route::get('/feed', FeedController::class)->name('api.feed');
+    Route::middleware('ability:'.ZakresyTokenu::TRESC_CZYTAJ)->group(function () use ($limits): void {
+        Route::get('/feed', FeedController::class)->name('api.feed');
 
-    Route::get('/wpisy/{post}', [PostController::class, 'show'])
-        ->whereUuid('post')
-        ->name('api.wpisy.show');
-    Route::get('/wpisy/{post}/komentarze', [PostController::class, 'comments'])
-        ->whereUuid('post')
-        ->name('api.wpisy.komentarze');
+        Route::get('/wpisy/{post}', [PostController::class, 'show'])
+            ->whereUuid('post')
+            ->name('api.wpisy.show');
+        Route::get('/wpisy/{post}/komentarze', [PostController::class, 'comments'])
+            ->whereUuid('post')
+            ->name('api.wpisy.komentarze');
 
-    Route::get('/przepisy/{przepis}', [RecipeController::class, 'show'])
-        ->whereUuid('przepis')
-        ->name('api.przepisy.show');
-    Route::get('/przepisy/{przepis}/komentarze', [RecipeController::class, 'comments'])
-        ->whereUuid('przepis')
-        ->name('api.przepisy.komentarze');
+        Route::get('/przepisy/{przepis}', [RecipeController::class, 'show'])
+            ->whereUuid('przepis')
+            ->name('api.przepisy.show');
+        Route::get('/przepisy/{przepis}/komentarze', [RecipeController::class, 'comments'])
+            ->whereUuid('przepis')
+            ->name('api.przepisy.komentarze');
 
-    // Dalsze odpowiedzi wątku (#1970): lista komentarzy niesie przy wątku
-    // tylko kilka pierwszych i adres tej trasy.
-    Route::get('/komentarze/{comment}/odpowiedzi', [CommentController::class, 'replies'])
-        ->whereUuid('comment')
-        ->name('api.komentarze.odpowiedzi');
+        // Dalsze odpowiedzi wątku (#1970): lista komentarzy niesie przy wątku
+        // tylko kilka pierwszych i adres tej trasy.
+        Route::get('/komentarze/{comment}/odpowiedzi', [CommentController::class, 'replies'])
+            ->whereUuid('comment')
+            ->name('api.komentarze.odpowiedzi');
 
-    Route::get('/profile/{username}', [ProfilController::class, 'show'])
-        ->name('api.profile.show');
+        Route::get('/profile/{username}', [ProfilController::class, 'show'])
+            ->name('api.profile.show');
 
-    /*
-     * ZDJĘCIA — TEN SAM KONTROLER CO WWW (`media.show`), bez kopii logiki.
-     * `MediaController` pyta `DostepDoZdjecia` (Policy rodzica), wybiera
-     * wariant i odsyła podpisany adres R2 albo plik; żądanie z nagłówkiem
-     * `Authorization` nigdy nie trafia do wspólnego cache'u. Ten sam limit
-     * i prefiks `zdjecie` co na WWW.
-     */
-    Route::get('/zdjecia/{media}/{wariant}', [MediaController::class, 'show'])
-        ->whereUuid('media')
-        ->whereIn('wariant', [
-            PodgladOdRazu::NAZWA,
-            ...array_keys((array) config('kuking.media.variants')),
-        ])
-        ->middleware("throttle:{$limits['zdjecie']},zdjecie")
-        ->name('api.zdjecia.show');
+        /*
+         * ZDJĘCIA — TEN SAM KONTROLER CO WWW (`media.show`), bez kopii logiki.
+         * `MediaController` pyta `DostepDoZdjecia` (Policy rodzica), wybiera
+         * wariant i odsyła podpisany adres R2 albo plik; żądanie z nagłówkiem
+         * `Authorization` nigdy nie trafia do wspólnego cache'u. Ten sam limit
+         * i prefiks `zdjecie` co na WWW.
+         */
+        Route::get('/zdjecia/{media}/{wariant}', [MediaController::class, 'show'])
+            ->whereUuid('media')
+            ->whereIn('wariant', [
+                PodgladOdRazu::NAZWA,
+                ...array_keys((array) config('kuking.media.variants')),
+            ])
+            ->middleware("throttle:{$limits['zdjecie']},zdjecie")
+            ->name('api.zdjecia.show');
+    });
 
     /*
      * PUBLIKACJA (D-273). Te same prefiksy i progi limitów co odpowiednie
      * formularze WWW (`post`, `comment`, `obserwowanie`) — wspólne wiadra,
      * więc aplikacja nie dokłada nikomu drugiego budżetu. Zawieszone konto
      * odbija się tu od `EnsureApiAccountIsActive` (403 `konto_zawieszone`).
+     *
+     * Zakres `tresc:pisz` (#2232) — także dla obserwowania: to zapis w imieniu
+     * osoby widoczny dla innych, a słownik ma jeden zakres zapisu.
      */
-    Route::post('/wpisy', [PublikacjaController::class, 'store'])
-        ->middleware("throttle:{$limits['post']},post")
-        ->name('api.wpisy.store');
+    Route::middleware('ability:'.ZakresyTokenu::TRESC_PISZ)->group(function () use ($limits): void {
+        Route::post('/wpisy', [PublikacjaController::class, 'store'])
+            ->middleware("throttle:{$limits['post']},post")
+            ->name('api.wpisy.store');
 
-    Route::post('/przepisy/{przepis}/ugotowalem', [UgotowalemController::class, 'store'])
-        ->whereUuid('przepis')
-        ->middleware("throttle:{$limits['post']},post")
-        ->name('api.przepisy.ugotowalem');
+        Route::post('/przepisy/{przepis}/ugotowalem', [UgotowalemController::class, 'store'])
+            ->whereUuid('przepis')
+            ->middleware("throttle:{$limits['post']},post")
+            ->name('api.przepisy.ugotowalem');
 
-    Route::post('/wpisy/{post}/komentarze', [KomentarzController::class, 'storePost'])
-        ->whereUuid('post')
-        ->middleware("throttle:{$limits['comment']},comment")
-        ->name('api.wpisy.komentarze.store');
-    Route::post('/przepisy/{przepis}/komentarze', [KomentarzController::class, 'storeRecipe'])
-        ->whereUuid('przepis')
-        ->middleware("throttle:{$limits['comment']},comment")
-        ->name('api.przepisy.komentarze.store');
+        Route::post('/wpisy/{post}/komentarze', [KomentarzController::class, 'storePost'])
+            ->whereUuid('post')
+            ->middleware("throttle:{$limits['comment']},comment")
+            ->name('api.wpisy.komentarze.store');
+        Route::post('/przepisy/{przepis}/komentarze', [KomentarzController::class, 'storeRecipe'])
+            ->whereUuid('przepis')
+            ->middleware("throttle:{$limits['comment']},comment")
+            ->name('api.przepisy.komentarze.store');
 
-    Route::post('/osoby/{osoba}/obserwuj', [ObserwowanieController::class, 'store'])
-        ->whereUuid('osoba')
-        ->middleware("throttle:{$limits['obserwowanie']},obserwowanie")
-        ->name('api.osoby.obserwuj');
-    Route::delete('/osoby/{osoba}/obserwuj', [ObserwowanieController::class, 'destroy'])
-        ->whereUuid('osoba')
-        ->middleware("throttle:{$limits['obserwowanie']},obserwowanie")
-        ->name('api.osoby.przestan');
+        Route::post('/osoby/{osoba}/obserwuj', [ObserwowanieController::class, 'store'])
+            ->whereUuid('osoba')
+            ->middleware("throttle:{$limits['obserwowanie']},obserwowanie")
+            ->name('api.osoby.obserwuj');
+        Route::delete('/osoby/{osoba}/obserwuj', [ObserwowanieController::class, 'destroy'])
+            ->whereUuid('osoba')
+            ->middleware("throttle:{$limits['obserwowanie']},obserwowanie")
+            ->name('api.osoby.przestan');
+    });
 });

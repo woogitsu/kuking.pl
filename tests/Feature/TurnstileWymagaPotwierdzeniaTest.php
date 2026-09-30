@@ -85,6 +85,9 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
         // formularz publiczny, który wysyła list na cudzy adres z puli
         // 300 listów na dobę.
         '/logowanie/link' => 'Do wysłania linku do zalogowania się potrzebny jest włączony JavaScript',
+        // Ósmy, dołożony 30 września 2026 (#2272, audyt S-04): odwołanie osoby,
+        // która nie może się zalogować — sprawdza hasło tak jak logowanie.
+        '/odwolanie' => 'Do wysłania odwołania potrzebny jest włączony JavaScript',
     ];
 
     // ------------------------------------------------------------------
@@ -235,6 +238,27 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
         // To jest droga ratunkowa dla osoby, która NIE MOŻE się zalogować,
         // i konto kasuje się samo po upływie karencji. Komunikat musi więc
         // powiedzieć, co zrobić, a nie tylko odmówić.
+        $this->assertKomunikatBrakuTokenu($odpowiedz);
+        $this->assertNiePytalismyCloudflare();
+    }
+
+    public function test_odwolanie_bez_tokenu_nie_sprawdza_hasla_i_nie_sklada_odwolania(): void
+    {
+        $this->wlaczTurnstile();
+        $this->udawajOdpowiedz(['success' => false, 'error-codes' => ['missing-input-response']]);
+
+        $this->user('basia', ['password' => Hash::make('zielonapietruszkarano')]);
+
+        $odpowiedz = $this->from(route('appeals.guest'))->post(route('appeals.guest.store'), [
+            'login' => 'basia',
+            'password' => 'zielonapietruszkarano',
+            'body' => 'To była pomyłka, proszę sprawdzić jeszcze raz.',
+        ]);
+
+        // Bez tokenu formularz nie odpowiada nic o haśle (#2272): jest tylko
+        // błąd Turnstile, bez błędu przy loginie — ani „złe dane”, ani nic innego.
+        $odpowiedz->assertSessionDoesntHaveErrors('login');
+        $this->assertDatabaseCount('appeals', 0);
         $this->assertKomunikatBrakuTokenu($odpowiedz);
         $this->assertNiePytalismyCloudflare();
     }

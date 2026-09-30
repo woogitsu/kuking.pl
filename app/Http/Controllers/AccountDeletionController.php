@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Security\KodDwuetapowyZFormularza;
 use App\Domain\Security\LimitProbHasla;
-use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Users\Actions\CancelAccountDeletion;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\User;
@@ -16,7 +16,6 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -81,7 +80,7 @@ class AccountDeletionController extends Controller
     public function __construct(
         private readonly CancelAccountDeletion $cofnij,
         private readonly LimitProbHasla $limit,
-        private readonly TwoFactorAuthenticator $totp,
+        private readonly KodDwuetapowyZFormularza $kodDwuetapowy,
     ) {}
 
     public function showCancelForm(): View
@@ -232,51 +231,16 @@ class AccountDeletionController extends Controller
 
     /**
      * Kod z aplikacji albo kod zapasowy — jedno pole, bo to jeden formularz.
-     *
-     * Same cyfry idą do `verifyCode()`, reszta do `consumeBackupCode()`
-     * (kody zapasowe mają litery, `XXXXX-XXXXX`). Limit to ten sam koszyk
-     * konta co na ekranie logowania (`TwoFactorAuthenticator::kluczLimituProb`)
-     * i tak samo liczy się tylko ZŁY kod, nie puste pole.
-     *
-     * `$zuzyjKodZapasowy = false` sprawdza kod zapasowy bez skreślania go
-     * z listy — dla konta, którego nie ma czego cofać (patrz `cancel()`).
+     * Zasady (koszyk prób konta, kod zapasowy sprawdzany bez zużycia) żyją
+     * w `KodDwuetapowyZFormularza`, wspólnym z formularzem odwołania (#2272).
      */
     private function sprawdzKodDwuetapowy(Request $request, User $osoba, string $kod, bool $zuzyjKodZapasowy): void
     {
-        if ($kod === '') {
-            $this->odmow($request, [
-                'code' => 'To konto ma włączoną weryfikację dwuetapową. Otwórz aplikację uwierzytelniającą '
-                    .'w telefonie i wpisz sześciocyfrowy kod (albo jeden z kodów zapasowych), '
-                    .'a potem wpisz jeszcze raz hasło i kliknij „Cofnij usunięcie konta”.',
-            ]);
+        $blad = $this->kodDwuetapowy->sprawdz($osoba, $kod, $zuzyjKodZapasowy, 'Cofnij usunięcie konta');
+
+        if ($blad !== null) {
+            $this->odmow($request, ['code' => $blad]);
         }
-
-        // Próba liczona PRZED sprawdzeniem kodu, atomowo (#2043) — patrz
-        // `TwoFactorAuthenticator::zarezerwujProbe()`.
-        $minuty = $this->totp->zarezerwujProbe($osoba);
-
-        if ($minuty !== null) {
-            $this->odmow($request, [
-                'code' => "Za dużo prób kodu. Spróbuj ponownie za {$minuty} min.",
-            ]);
-        }
-
-        $cyfry = (string) preg_replace('/\s+/', '', $kod);
-
-        $poprawny = ctype_digit($cyfry)
-            ? $this->totp->verifyCode($osoba, (string) $osoba->two_factor_secret, $cyfry)
-            : ($zuzyjKodZapasowy
-                ? $this->totp->consumeBackupCode($osoba, $kod)
-                : $this->totp->backupCodeMatches($osoba, $kod));
-
-        if (! $poprawny) {
-            $this->odmow($request, [
-                'code' => 'Kod jest nieprawidłowy albo już wykorzystany. Sprawdź godzinę w telefonie, '
-                    .'wpisz nowy kod z aplikacji (albo niewykorzystany kod zapasowy) i jeszcze raz hasło.',
-            ]);
-        }
-
-        RateLimiter::clear(TwoFactorAuthenticator::kluczLimituProb($osoba));
     }
 
     /**

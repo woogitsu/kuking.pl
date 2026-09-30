@@ -26,6 +26,8 @@ class TurnstilePonowneWyslanieTest extends TestCase
             'cofniecie_usuniecia' => ['/cofnij-usuniecie-konta', ['login' => 'basia@example.com', 'password' => 'zielonapietruszkarano']],
             'odzyskanie_hasla' => ['/nie-pamietam-hasla', ['email' => 'basia@example.com']],
             'logowanie_linkiem' => ['/logowanie/link', ['email' => 'basia@example.com']],
+            // Ósme miejsce (#2272, audyt S-04): odwołanie sprawdza hasło jak logowanie.
+            'odwolanie' => ['/odwolanie', ['login' => 'basia@example.com', 'password' => 'zielonapietruszkarano', 'body' => 'To była pomyłka, proszę sprawdzić jeszcze raz.']],
             'kontakt' => ['/napisz-do-nas', ['kind' => 'blad', 'message' => 'Nie mogę dodać zdjęcia mojego obiadu.', 'contact_email' => 'basia@example.com']],
             'zgloszenie_nielegalnej_tresci' => ['/zglos-nielegalna-tresc', ['target_url' => 'https://kuking.pl/przepis/rosol', 'reason' => 'copyright', 'illegality_explanation' => 'To mój tekst przepisany bez mojej zgody.', 'notifier_name' => 'Anna Kowalska', 'notifier_email' => 'anna@example.com', 'good_faith' => '1']],
         ];
@@ -100,10 +102,10 @@ class TurnstilePonowneWyslanieTest extends TestCase
         Notification::assertNothingSent();
     }
 
-    public function test_pomiar_obejmuje_wszystkie_siedem_miejsc(): void
+    public function test_pomiar_obejmuje_wszystkie_osiem_miejsc(): void
     {
         $places = array_unique(array_column(iterator_to_array(self::forms()), 0));
-        $this->assertCount(7, $places);
+        $this->assertCount(8, $places);
         $this->assertEqualsCanonicalizing(array_keys(Turnstile::miejsca()), array_values($places));
     }
 }

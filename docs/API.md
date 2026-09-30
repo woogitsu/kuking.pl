@@ -120,6 +120,24 @@ DELETE /api/v1/tokeny/biezacy
 `204` — odwołany jest tylko token, którym przyszło żądanie. Działa także na
 koncie zawieszonym.
 
+### Zakresy tokenu
+
+Token niesie jawną listę zakresów z zamkniętego słownika
+`App\Http\Api\ZakresyTokenu` (D-320). Logowanie wydaje dziś wszystkie trzy.
+Od 30.09.2026 (#2232) trasy **sprawdzają** zakres (`ability:`):
+
+| Zakres | Trasy |
+|---|---|
+| `profil:czytaj` | `GET /api/v1/ja` |
+| `tresc:czytaj` | pozostałe `GET` (feed, wpisy, przepisy, komentarze, profile, zdjęcia) |
+| `tresc:pisz` | każda trasa zapisu: wpis, komentarze, „Ugotowałem”, obserwowanie |
+
+Wydanie i odwołanie własnego tokenu (`/api/v1/tokeny*`) zakresu nie wymaga.
+Token bez wymaganego zakresu dostaje `403` z `code: brak_zakresu`, zanim
+żądanie dojdzie do kontrolera. Pilnuje tego
+`tests/Feature/Api/KazdaTrasaApiMaZakresTokenuTest.php`: nowa trasa
+`api/v1/*` bez `ability:` oblewa ten test.
+
 ### Konto zawieszone i zamknięte
 
 | Stan konta | Czytanie | Zapis | Odpowiedź na zapis |
@@ -153,6 +171,7 @@ samych, które widzi formularz na WWW (`lang/pl/validation.php`):
 | 401 | `brak_logowania` | brak tokenu, token odwołany albo niepoprawny |
 | 401 | `konto_zamkniete` | konto zablokowane, do usunięcia albo usunięte |
 | 403 | `brak_dostepu` | Policy odmówiła (treść prywatna, blokada); czasem z własnym zdaniem Policy |
+| 403 | `brak_zakresu` | token nie ma zakresu, którego wymaga trasa (§2 „Zakresy tokenu”) |
 | 403 | `konto_zawieszone` | zapis z konta zawieszonego |
 | 404 | `nie_znaleziono` | nie ma takiego obiektu albo **API jest wyłączone** |
 | 405 | `zla_metoda` | zła metoda HTTP pod tym adresem |

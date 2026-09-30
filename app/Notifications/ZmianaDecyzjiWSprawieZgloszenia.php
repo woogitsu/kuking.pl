@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Domain\Moderation\AdresZgloszenia;
 use App\Domain\Moderation\OdpowiedzDlaZglaszajacego;
 use App\Models\Report;
 use Illuminate\Bus\Queueable;
@@ -51,8 +52,8 @@ final class ZmianaDecyzjiWSprawieZgloszenia extends Notification implements Shou
             ->line("Piszemy jeszcze raz w sprawie zgłoszenia nr **{$numer}**.")
             ->line("**{$skutek['naglowek']}** {$skutek['reszta']}")
             ->line('Poprzednio napisaliśmy, że treść nie jest już dostępna. Ta wiadomość zastępuje tamtą informację.')
-            ->line('Zgłoszona przez Ciebie strona:')
-            ->line((string) $this->zgloszenie->target_url)
+            // Adres od zgłaszającego to tekst, nie odnośnik (#2271, wzorzec z #1636).
+            ->line(AdresZgloszenia::liniaListu($this->zgloszenie->target_url))
             ->line('---')
             ->line('**'.OdpowiedzDlaZglaszajacego::NAGLOWEK_POUCZENIA.'**');
 
