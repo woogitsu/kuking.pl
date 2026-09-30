@@ -23,5 +23,6 @@
         </div>
     @endif
 
-    <x-comment-thread :comments="$komentarze" :ile="$komentarzyRazem" :action="route('cooked.comment', $event)" />
+    {{-- F2 (D-333): plakietka „Autor przepisu” przy komentarzach autora przepisu, z którego gotowano. --}}
+    <x-comment-thread :comments="$komentarze" :ile="$komentarzyRazem" :action="route('cooked.comment', $event)" :autor-przepisu="$event->recipe?->author_id" />
 </x-layout>

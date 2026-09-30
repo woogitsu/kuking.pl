@@ -11,6 +11,7 @@ use App\Domain\Feed\HeroKolaz;
 use App\Domain\Feed\MojStol;
 use App\Domain\Pwa\InstallPrompt;
 use App\Domain\Pwa\InstallPromptContext;
+use App\Domain\Recipes\Gotowanie\JakWyszlo;
 use App\Domain\Rocznice\RocznicaDolaczenia;
 use App\Domain\Rocznice\Urodziny;
 use App\Domain\Ukrycia\Ukrycia;
@@ -216,6 +217,9 @@ class FeedController extends Controller
             // albo `null`. Bez pustego stanu i bez powiadomień, jak wyżej.
             'rocznica' => $this->rocznica->dlaOsoby($user),
             'podpisRocznicy' => $this->rocznica->podpis(),
+            // „Jak wyszło?” (F1, D-333) — jedno zdanie po trybie gotowania bez
+            // „Ugotowałem” albo `null`. Tylko na pierwszej stronie Startu.
+            'jakWyszlo' => $maKursor ? null : app(JakWyszlo::class)->doPokazania($request->session(), $user),
             'board' => $this->dailyBoard->forViewer($user),
             // „Mój stół" (#1749, D-304): liczony TYLKO u osoby, która go
             // włączyła. Wyłączony = zero zapytań o propozycje.

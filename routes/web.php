@@ -41,6 +41,7 @@ use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\HistoriaPrzepisuController;
 use App\Http\Controllers\ImportPrzepisuController;
+use App\Http\Controllers\JakWyszloController;
 use App\Http\Controllers\ListaZakupowController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MojeWpisyController;
@@ -909,6 +910,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/przepisy/{recipe}/ugotowalem', [CookedEventController::class, 'store'])
         ->middleware("throttle:{$limits['post']},post")
         ->name('cooked.store');
+    // „Jak wyszło?” na Starcie po trybie gotowania (F1, D-333) — oba
+    // przyciski zapisują w sesji, że pytanie dla tego gotowania jest zamknięte.
+    Route::post('/przepisy/{recipe}/jak-wyszlo/pokaz', [JakWyszloController::class, 'pokaz'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('jak_wyszlo.pokaz');
+    Route::post('/przepisy/{recipe}/jak-wyszlo/nie-teraz', [JakWyszloController::class, 'zamknij'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('jak_wyszlo.zamknij');
     Route::post('/ugotowane/{cookedEvent}/komentarz', [CookedEventController::class, 'comment'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('cooked.comment');

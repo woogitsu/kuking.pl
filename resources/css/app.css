@@ -2943,6 +2943,14 @@
     color: var(--color-accent-tint-ink);
   }
 
+  /* PLAKIETKA „AUTOR PRZEPISU” W ROZMOWIE (F2, D-333). Opis roli, nie
+     odznaka za wolumen: tło i kolor zwykłej `.badge`, bez akcentu. 18 px,
+     nie 16 px — to jest jedyna treść plakietki i czyta ją osoba, która
+     właśnie ugotowała i szuka odpowiedzi autora (AGENTS.md §5). */
+  .badge-autor-przepisu {
+    font-size: var(--text-body);
+  }
+
   /* Odznaka CICHA — bez tła, bez ramki, wielkość dopisku obok większego
      tekstu (D-032 w `docs/DECISIONS.md`, odwracająca D-025). Tak wygląda „konto
      przykładowe" w strumieniu (karta wpisu, karta przepisu, komentarz,

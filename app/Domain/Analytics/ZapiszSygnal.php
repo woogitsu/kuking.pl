@@ -68,6 +68,20 @@ final class ZapiszSygnal
     public const PWA_INSTALLED = 'pwa_installed';
 
     /**
+     * „Jak wyszło?” (F1, D-333) — cztery liczniki bez `user_id` i bez
+     * przepisu. Pisze je wyłącznie `App\Domain\Recipes\Gotowanie\JakWyszlo`,
+     * czyta `App\Domain\Analytics\DojsciaDoKoncaGotowania` (`kuking:raport`).
+     * `COOKING_LAST_STEP_COOKED` niesie jedno pole: `po_pytaniu` (bool).
+     */
+    public const COOKING_LAST_STEP_REACHED = 'cooking_last_step_reached';
+
+    public const COOKING_LAST_STEP_COOKED = 'cooking_last_step_cooked';
+
+    public const COOKING_FOLLOWUP_SHOWN = 'cooking_followup_shown';
+
+    public const COOKING_FOLLOWUP_DISMISSED = 'cooking_followup_dismissed';
+
+    /**
      * Tygodniowe podsumowanie WPUSZCZONE DO KOLEJKI (issue #11, D-057;
      * przemianowany przy D-078, audyt 10.09.2026 ustalenie MAIL-03).
      *

@@ -46,6 +46,31 @@
         </div>
     </section>
 
+    @if($jakWyszlo ?? null)
+        {{--
+            „JAK WYSZŁO?” (F1, D-333). Tryb gotowania doszedł do ostatniego
+            kroku, a wykonanie nie zostało zapisane. Jedno zdanie, dwa zwykłe
+            formularze — bez JavaScriptu, bez licznika dni, bez „Nie zapomnij!”.
+            Znika po „Pokaż zdjęcie”, po „Nie teraz”, po zapisaniu wykonania
+            albo po trzech dniach i dla tego gotowania nie wraca
+            (`App\Domain\Recipes\Gotowanie\JakWyszlo`). Tytuł stoi w cudzysłowie,
+            bo rodzaju nazwy dania nie znamy — „jak wyszło” pasuje do każdej.
+        --}}
+        <section class="ramka-pomocnicza jak-wyszlo" aria-labelledby="jak-wyszlo-pytanie">
+            <h2 id="jak-wyszlo-pytanie" class="mt-0">„{{ $jakWyszlo->title }}” — jak wyszło?</h2>
+            <div class="form-actions">
+                <form method="POST" action="{{ route('jak_wyszlo.pokaz', $jakWyszlo->slug) }}">
+                    @csrf
+                    <button class="btn btn-primary" type="submit">Pokaż zdjęcie</button>
+                </form>
+                <form method="POST" action="{{ route('jak_wyszlo.zamknij', $jakWyszlo->slug) }}">
+                    @csrf
+                    <button class="btn btn-quiet" type="submit">Nie teraz</button>
+                </form>
+            </div>
+        </section>
+    @endif
+
     <x-pwa-install :eligible="$pwaEligible ?? false" :context="$pwaContext ?? null" />
 
     @if($zyczenia ?? null)
