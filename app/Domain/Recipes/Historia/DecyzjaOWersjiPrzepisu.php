@@ -100,7 +100,13 @@ final class DecyzjaOWersjiPrzepisu implements CofniecieUkryciaWersji
                     'target_id' => $wersja->getKey(),
                     'subject_user_id' => $recipe->author_id,
                     'action' => ModerationAction::ACTION_HIDE,
-                    'previous_status' => null,
+                    // Przejęcie ukrycia autora pamięta stan sprzed decyzji przy
+                    // samej decyzji (decyzja 30.09.2026): uznane odwołanie
+                    // wraca do ukrycia autora, nie do widoczności. `$wersja`
+                    // jest tu jeszcze w stanie sprzed zapisu (pod blokadą).
+                    'previous_status' => $wersja->czyUkryta() && $wersja->hidden_by_role === RecipeVersion::UKRYL_AUTOR
+                        ? RecipeVersion::STAN_PRZED_PRZEJECIEM
+                        : null,
                     'reason_code' => $reasonCode,
                     'note' => $note,
                     'user_message' => $wiadomosc,
@@ -180,11 +186,14 @@ final class DecyzjaOWersjiPrzepisu implements CofniecieUkryciaWersji
      * Bez powiadomienia — odpowiedź na odwołanie (`NotifyAppealOutcome`)
      * mówi to samo lepiej.
      *
+     * Gdy decyzja PRZEJĘŁA ukrycie autora (`previous_status`), wersja wraca
+     * do ukrycia autora i metoda zwraca zdanie dla autora (decyzja z 30.09.2026).
+     *
      * @throws WlasnejTresciNiePrzywracasz gdy rozpatrujący jest autorem przepisu
      * @throws BladDlaCzlowieka gdy nie ma czego przywracać (połyka `ResolveAppeal`)
      */
     #[\Override]
-    public function poOdwolaniu(User $swiezy, ModerationAction $decyzja, string $uzasadnienie, ?string $ip = null): void
+    public function poOdwolaniu(User $swiezy, ModerationAction $decyzja, string $uzasadnienie, ?string $ip = null): ?string
     {
         if (DB::transactionLevel() === 0) {
             throw new LogicException('DecyzjaOWersjiPrzepisu::poOdwolaniu() wymaga transakcji z ZamekUprzywilejowanegoAktora.');
@@ -203,22 +212,32 @@ final class DecyzjaOWersjiPrzepisu implements CofniecieUkryciaWersji
             throw new WlasnejTresciNiePrzywracasz;
         }
 
-        $this->ukrywanie->przywroc(
+        $zapisz = fn (RecipeVersion $zablokowana): ModerationAction => $this->zapiszPrzywrocenie(
             $swiezy,
             $recipe,
-            $wersja->version_number,
+            $zablokowana,
+            'appeal_overturned',
+            'Cofnięte po odwołaniu.',
+            $uzasadnienie,
             $ip,
-            fn (RecipeVersion $zablokowana): ModerationAction => $this->zapiszPrzywrocenie(
-                $swiezy,
-                $recipe,
-                $zablokowana,
-                'appeal_overturned',
-                'Cofnięte po odwołaniu.',
-                $uzasadnienie,
-                $ip,
-                zPowiadomieniem: false,
-            ),
+            zPowiadomieniem: false,
         );
+
+        // Decyzja, która PRZEJĘŁA ukrycie autora (decyzja 30.09.2026): stan
+        // sprzed przejęcia zapisano przy samej decyzji, więc czytamy go stąd,
+        // nie z audytu. Wersja wraca do ukrycia autora, nie do widoczności.
+        if ($decyzja->previous_status === RecipeVersion::STAN_PRZED_PRZEJECIEM) {
+            $wynik = $this->ukrywanie->zwrocAutorowi($swiezy, $recipe, $wersja->version_number, $ip, $zapisz);
+
+            return $wynik === UkrywanieWersji::WROCILA_DO_AUTORA
+                ? 'Wersja '.$wersja->version_number.' przepisu „'.$recipe->title.'” nie stała się publiczna — wróciła do stanu sprzed przejęcia, czyli do ukrycia przez autora. '
+                    .'Możesz ją przywrócić sam w historii zmian przepisu, przyciskiem „Przywróć wersję '.$wersja->version_number.'”.'
+                : null;
+        }
+
+        $this->ukrywanie->przywroc($swiezy, $recipe, $wersja->version_number, $ip, $zapisz);
+
+        return null;
     }
 
     /** Ostatnia decyzja `hide`/`unhide` o tej wersji — `null`, gdy nie ma żadnej. */
