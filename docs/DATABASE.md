@@ -6163,6 +6163,47 @@ przechodzi bez pytania. Wymuszenie po kopii tabeli:
 `php artisan kuking:sprzataj-postep-gotowania --wszystkie`). Test:
 `CofniecieMigracjiNieKasujePostepuGotowaniaTest`.
 
+## weekly_recipe_picks — „Ugotujmy razem” (F3, 30.09.2026)
+
+Przepis tygodnia wybrany przez gospodarza. Migracja
+`2026_09_30_180000_create_weekly_recipe_picks_table`. Jeden wiersz = jeden
+tydzień ISO i jeden przepis. Wykonań NIE kopiujemy: strona
+`/ugotujmy-razem` czyta zwykłe `cooked_events` tego przepisu z okna tygodnia
+(`cooked_at` w [poniedziałek 00:00, następny poniedziałek 00:00) czasu
+polskiego) przez `CookedEvent::widoczneDla()`. To nie jest grupa (#22): nie
+ma członkostwa ani listy uczestników.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK, `DEFAULT gen_random_uuid()` | adres zdjęcia wyboru w panelu (`/admin/ugotujmy-razem/{id}`) |
+| `week_starts_on` | `date NOT NULL UNIQUE` | poniedziałek tygodnia w strefie `kuking.strefa` (Europe/Warsaw); w adresie jako `2026-W40` (`TydzienGotowania`) |
+| `recipe_id` | `uuid NOT NULL` → `recipes` (`ON DELETE CASCADE`) | przepis tygodnia; przepisy kasujemy miękko, twarde usunięcie (wymazanie autora) zabiera wybór |
+| `chosen_by` | `uuid NULL` → `users` (`ON DELETE SET NULL`) | który gospodarz wybrał; w inwentarzu paczki RODO jako praca w serwisie (`na_zadanie`) |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+Ograniczenia i indeksy:
+- `UNIQUE (week_starts_on)` — jeden przepis na tydzień także przy dwóch
+  gospodarzach zapisujących naraz (drugi dostaje komunikat, nie 500);
+- `weekly_recipe_picks_poniedzialek_check`: `EXTRACT(ISODOW FROM week_starts_on) = 1`;
+- indeksy po `recipe_id` i `chosen_by` (klucze obce).
+
+Model `WeeklyRecipePick` ma pusty `$fillable`: wszystkie kolumny to decyzja
+gospodarza i wchodzą tylko przez `ZapisPrzepisuTygodnia` (`forceFill`),
+w jednej transakcji z audytem `ugotujmy_razem.chosen` (z poprzednim
+przepisem, gdy wybór zastępuje inny) i `ugotujmy_razem.removed`. Zakończonego
+tygodnia nie zmienia się ani nie zdejmuje — archiwum mówi, co naprawdę
+gotowaliśmy. Widoczność: `WeeklyRecipePickPolicy::view` — tydzień już się
+zaczął, przepis jest dziś opublikowany i publiczny, a `RecipePolicy::view`
+wpuszcza widza (blokady, konto autora). Przepis ukryty przez moderację albo
+przestawiony na niepubliczny znika ze strony dla wszystkich.
+
+**Rollback.** `down()` usuwa tabelę. Gdy są wiersze, **odmawia** (D-088) —
+to decyzje gospodarza i archiwum tygodni, których `up()` nie odtworzy; na
+pustej tabeli (CI, `migrate:refresh`) przechodzi bez pytania. Wymuszenie po
+kopii tabeli (`pg_dump -t weekly_recipe_picks`):
+`KUKING_ROLLBACK_KASUJE_UGOTUJMY_RAZEM=1`. Przepisy i wykonania zostają
+nietknięte. Test: `CofniecieMigracjiNieKasujeUgotujmyRazemTest`.
+
 ## V1 / V2
 
 Później:

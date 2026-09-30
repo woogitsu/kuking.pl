@@ -97,6 +97,15 @@ class JakDobieramyWpisyMowiPrawdeTest extends TestCase
             'kod: resources/views/components/kuking-board/posts.blade.php :: Wybór gospodarza',
             'kod: resources/views/components/kuking-board/people.blade.php :: Wybór gospodarza',
         ],
+        'razem.wybor' => [
+            'test: Tests\Feature\UgotujmyRazemTest::test_gosc_widzi_przepis_tygodnia_i_wykonania_z_tego_tygodnia_od_najnowszego',
+            'test: Tests\Feature\UgotujmyRazemTest::test_gospodarz_wybiera_przepis_z_adresu_i_zostaje_slad_w_dzienniku',
+            'kod: resources/views/pages/ugotujmy-razem.blade.php :: Wybór gospodarza',
+        ],
+        'razem.czas' => [
+            'test: Tests\Feature\UgotujmyRazemTest::test_kolejnosc_to_czas_a_nie_wczesniejszy_zapis_w_bazie',
+            "kod: app/Domain/UgotujmyRazem/UgotujmyRazem.php :: ->orderByDesc('cooked_at')",
+        ],
         'tablica.reszta' => [
             'test: Tests\Feature\DailyBoardTest::test_wybor_redakcyjny_stoi_pierwszy_a_reszte_dobiera_automat',
             'test: Tests\Feature\DailyBoardTest::test_maksymalnie_jeden_wpis_od_tej_samej_osoby',
