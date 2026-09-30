@@ -22,7 +22,7 @@ uploadu, bez sztucznego zadania, bez logowania na cudze konto.
 Jedna zmiana w `app/Jobs/ProcessUploadedImage.php` (11 linii: +8/−3), plus
 regresja i dowody. Przed pętlą wariantów stoi teraz jedno dekodowanie
 i jedna orientacja oryginału, a każdy wariant dostaje **osobną ramkę
-Intervention nad tą samą bitmapą GD** (`$manager->read($sourceImage->core()->native())`),
+Intervention nad tą samą bitmapą GD** (`$manager->decode($sourceImage->core()->native())`; w wersji 3 biblioteki — `read()`),
 a nie osobne dekodowanie bajtów i nie pomniejszanie poprzedniej miniatury.
 
 Pilnuje tego `tests/Feature/JednoDekodowanieZdjeciaTest.php`: licznik

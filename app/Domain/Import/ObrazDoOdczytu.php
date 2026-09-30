@@ -8,6 +8,8 @@ use App\Models\Media;
 use App\Moderacja\ExceptionContext;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Drivers\Gd\Driver as SterownikGd;
+use Intervention\Image\Encoders\JpegEncoder;
 use Intervention\Image\ImageManager;
 use Throwable;
 
@@ -55,9 +57,9 @@ final class ObrazDoOdczytu
                     continue;
                 }
 
-                $jpeg = (string) ImageManager::gd()->read($bajty)
+                $jpeg = (string) ImageManager::usingDriver(SterownikGd::class)->decodeBinary($bajty)
                     ->scaleDown(width: self::maxBok(), height: self::maxBok())
-                    ->toJpeg(quality: 85);
+                    ->encode(new JpegEncoder(quality: 85));
             } catch (Throwable $blad) {
                 // Bez bajtów i treści — to jest czyjaś kartka.
                 Log::warning('Nie udało się przygotować zdjęcia kartki do odczytu.', [
