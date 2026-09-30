@@ -60,7 +60,7 @@ final class CoUgotujeKosztTest extends TestCase
         $this->assertSame($oczekiwane['id'], $wynik['przepisy']->modelKeys(), 'Ta sama lista i kolejność przepisów co w dawnym zapytaniu.');
         $this->assertSame(
             $oczekiwane['brakuje'],
-            $wynik['przepisy']->map(fn ($p): int => (int) $p->skladnikow_brakuje)->all(),
+            $wynik['przepisy']->map(fn ($p): int => (int) $p->getAttribute('skladnikow_brakuje'))->all(),
         );
         $this->assertSame($oczekiwane['brakujace'], $wynik['brakujace']);
     }
