@@ -955,6 +955,12 @@ specyficzne dla kopii i odtwarzania.
   Zielone = jest świeża kopia. Czerwone = serwis `kopia-bazy` przestał
   chodzić. **„Czujka jest WYŁĄCZONA" = §7.3 wciąż nie zostało wykonane
   i kopii nie ma żadnej** — to nie jest to samo co spokój.
+  **„Data z przyszłości" (#2259)** = najnowszy plik ma w nazwie znacznik
+  późniejszy niż teraz (o więcej niż 5 min). Zwykle to czas lokalny zamiast
+  UTC albo zły zegar serwisu `kopia-bazy`. Taki plik sortuje się jako
+  najnowszy i zasłania prawdziwy wiek kopii, więc to jest alarm (kod wyjścia
+  ≠ 0, webhook), a nie „świeża kopia". Sprawdź zegar i strefę serwisu,
+  a plikowi nadaj nazwę z prawdziwą datą zrzutu w UTC.
 - ~~Backups włączone w panelu Railway~~ — **nie ma czego sprawdzać.**
   Volume Backups i PITR to funkcje planu Pro (D-043). Ta pozycja stała tu
   do 9 września 2026 i była nieprawdą, którą dawało się odhaczyć.
