@@ -256,6 +256,60 @@ class UmowaKolejkiTest extends TestCase
         );
     }
 
+    /**
+     * #2317: zmienna środowiskowa nie może zejść poniżej umowy. Plik
+     * konfiguracji jest wykonywany od nowa przy ustawionej zmiennej — tak jak
+     * robi to `config:cache` przy starcie kontenera.
+     */
+    public function test_zmienna_srodowiskowa_nie_obniza_retry_after_ponizej_najdluzszego_zadania(): void
+    {
+        $najdluzszy = 0;
+        foreach (array_keys(self::ZADANIA) as $klasa) {
+            $najdluzszy = max($najdluzszy, (int) ((new ReflectionClass($klasa))->getDefaultProperties()['timeout'] ?? 0));
+        }
+        $this->assertGreaterThan(0, $najdluzszy);
+
+        foreach (['90', '0', 'dziewięćset', '-5', '961', '1800'] as $wartosc) {
+            $retryAfter = $this->retryAfterPrzyZmiennej($wartosc);
+
+            $this->assertGreaterThan(
+                $najdluzszy,
+                $retryAfter,
+                "DB_QUEUE_RETRY_AFTER={$wartosc} dało retry_after {$retryAfter} s, nie więcej niż najdłuższy timeout ({$najdluzszy} s).",
+            );
+        }
+
+        // Kontrola dodatnia: zmienna NADAL działa w górę — inaczej test
+        // przechodziłby także wtedy, gdy konfiguracja ignoruje ją zawsze.
+        $this->assertSame(1800, $this->retryAfterPrzyZmiennej('1800'));
+        $this->assertSame(960, $this->retryAfterPrzyZmiennej('90'));
+    }
+
+    private function retryAfterPrzyZmiennej(string $wartosc): int
+    {
+        $poprzednio = [getenv('DB_QUEUE_RETRY_AFTER'), $_ENV['DB_QUEUE_RETRY_AFTER'] ?? null, $_SERVER['DB_QUEUE_RETRY_AFTER'] ?? null];
+
+        try {
+            putenv('DB_QUEUE_RETRY_AFTER='.$wartosc);
+            $_ENV['DB_QUEUE_RETRY_AFTER'] = $wartosc;
+            $_SERVER['DB_QUEUE_RETRY_AFTER'] = $wartosc;
+
+            return (int) (require config_path('queue.php'))['connections']['database']['retry_after'];
+        } finally {
+            $poprzednio[0] === false ? putenv('DB_QUEUE_RETRY_AFTER') : putenv('DB_QUEUE_RETRY_AFTER='.$poprzednio[0]);
+            if ($poprzednio[1] === null) {
+                unset($_ENV['DB_QUEUE_RETRY_AFTER']);
+            } else {
+                $_ENV['DB_QUEUE_RETRY_AFTER'] = $poprzednio[1];
+            }
+            if ($poprzednio[2] === null) {
+                unset($_SERVER['DB_QUEUE_RETRY_AFTER']);
+            } else {
+                $_SERVER['DB_QUEUE_RETRY_AFTER'] = $poprzednio[2];
+            }
+        }
+    }
+
     public function test_zadania_ida_na_kolejki_opisane_w_entrypoincie(): void
     {
         Queue::fake();
