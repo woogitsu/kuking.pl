@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\MassAssignmentException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -405,6 +406,79 @@ class TerminProduktuTest extends TestCase
         $this->assertNull($wiersz->user_id);
         $this->assertSame([], $wiersz->properties);
         $this->assertStringNotContainsString('sekretne', json_encode($wiersz->getAttributes(), JSON_UNESCAPED_UNICODE));
+    }
+
+    public function test_sygnal_ustawienia_terminu_leci_tylko_gdy_termin_naprawde_sie_zmienil(): void
+    {
+        $ja = $this->user();
+        $produkt = $this->produkt($ja);
+        $sygnaly = fn (): int => ProductSignal::query()->where('signal_name', ZapiszSygnal::PANTRY_EXPIRY_SET)->count();
+
+        $this->wyslij($ja, $produkt, ['rodzaj' => 'use_by', 'za' => '3']);
+        $this->assertSame(1, $sygnaly());
+
+        // Sama ilość / „mrożone” przy tym samym terminie — bez sygnału.
+        $this->wyslij($ja, $produkt, ['rodzaj' => 'use_by', 'termin_dzien' => '13', 'termin_miesiac' => '10', 'termin_rok' => '2026', 'ilosc' => 'pół kostki', 'mrozone' => '1']);
+        $this->assertSame(1, $sygnaly());
+
+        // Zmiana daty albo rodzaju — sygnał.
+        $this->wyslij($ja, $produkt, ['rodzaj' => 'best_before', 'termin_dzien' => '13', 'termin_miesiac' => '10', 'termin_rok' => '2026']);
+        $this->assertSame(2, $sygnaly());
+
+        // Wyczyszczenie terminu nie jest „ustawieniem”.
+        $this->wyslij($ja, $produkt, ['wyczysc' => '1']);
+        $this->assertSame(2, $sygnaly());
+    }
+
+    public function test_sygnal_ogladania_priorytetu_leci_raz_na_sesje_a_nie_przy_kazdym_get(): void
+    {
+        $ja = $this->user();
+        $produkt = $this->produkt($ja);
+        $this->wyslij($ja, $produkt, ['rodzaj' => 'use_by', 'za' => '3']);
+        $liczba = fn (): int => ProductSignal::query()->where('signal_name', ZapiszSygnal::PANTRY_PRIORITY_VIEWED)->count();
+
+        $this->actingAs($ja)->get(route('pantry.index'))->assertOk();
+        $this->get(route('pantry.index'))->assertOk();
+        $this->get(route('pantry.index'))->assertOk();
+        $this->assertSame(1, $liczba());
+    }
+
+    public function test_produkt_z_terminem_spoza_listy_lat_zachowuje_rok_na_liscie_i_przyjmuje_zmiane_ilosci(): void
+    {
+        $ja = $this->user();
+        $produkt = $this->produkt($ja);
+        DB::table('pantry_items')->where('id', $produkt->getKey())->update(['expires_on' => '2020-05-05', 'expiry_kind' => 'best_before']);
+
+        $this->actingAs($ja)->get(route('pantry.edit', $produkt))->assertOk()
+            ->assertSee('<option value="2020" selected>2020</option>', false);
+
+        $this->wyslij($ja, $produkt, [
+            'rodzaj' => 'best_before', 'termin_dzien' => '5', 'termin_miesiac' => '5', 'termin_rok' => '2020', 'ilosc' => 'pół kostki',
+        ])->assertSessionHasNoErrors();
+
+        $produkt->refresh();
+        $this->assertSame('pół kostki', $produkt->quantity_note);
+        $this->assertSame('2020-05-05', $produkt->expires_on?->toDateString());
+
+        // Inny rok spoza listy nadal jest błędem.
+        $this->wyslij($ja, $produkt, ['rodzaj' => 'best_before', 'termin_dzien' => '5', 'termin_miesiac' => '5', 'termin_rok' => '2019'])
+            ->assertSessionHasErrors('termin_rok');
+    }
+
+    public function test_szybki_przycisk_wygrywa_z_nie_znam_terminu_i_termin_nie_znika(): void
+    {
+        $ja = $this->user();
+        $produkt = $this->produkt($ja);
+        $this->wyslij($ja, $produkt, ['rodzaj' => 'use_by', 'za' => '7'])->assertSessionHasNoErrors();
+        $przed = $produkt->fresh()->expires_on?->toDateString();
+        $this->assertNotNull($przed);
+
+        $this->wyslij($ja, $produkt, ['rodzaj' => 'nieznany', 'za' => '3'])
+            ->assertSessionHasErrors('rodzaj');
+
+        $produkt->refresh();
+        $this->assertSame($przed, $produkt->expires_on?->toDateString(), 'Termin nie może zniknąć po kliknięciu „Za 3 dni”.');
+        $this->assertSame('use_by', $produkt->expiry_kind);
     }
 
     public function test_lista_jest_pogrupowana_i_pokazuje_regule_i_karty_stanu(): void

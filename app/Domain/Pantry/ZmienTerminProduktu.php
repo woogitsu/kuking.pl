@@ -52,12 +52,25 @@ final class ZmienTerminProduktu
 
     public const LAT_NAPRZOD = 5;
 
-    /** @return list<int> */
-    public static function lataDoWyboru(?string $dzis = null): array
+    /**
+     * Do listy dołączamy rok ZAPISANEGO terminu (`$zapisanyRok`), nawet gdy wypada
+     * poza zakresem: produkt z takim terminem (import, stary wpis, wiele lat
+     * wstecz) nie może kończyć się błędem „Wybierz rok z listy” przy zmianie
+     * samej ilości albo „mrożone”. Ta sama lista służy widokowi i walidacji.
+     *
+     * @return list<int>
+     */
+    public static function lataDoWyboru(?string $dzis = null, ?int $zapisanyRok = null): array
     {
         $rok = (int) substr($dzis ?? PriorytetZuzycia::dzis(), 0, 4);
+        $lata = range($rok - self::LAT_WSTECZ, $rok + self::LAT_NAPRZOD);
 
-        return range($rok - self::LAT_WSTECZ, $rok + self::LAT_NAPRZOD);
+        if ($zapisanyRok !== null && ! in_array($zapisanyRok, $lata, true)) {
+            $lata[] = $zapisanyRok;
+            sort($lata);
+        }
+
+        return $lata;
     }
 
     /**
@@ -130,7 +143,14 @@ final class ZmienTerminProduktu
         $za = is_string($dane['za'] ?? null) ? $dane['za'] : '';
         $czysc = ['expires_on' => null, 'expiry_kind' => null];
 
-        if (! empty($dane['wyczysc']) || $rodzaj === self::NIEZNANY) {
+        if (! empty($dane['wyczysc'])) {
+            return $czysc;
+        }
+
+        // „Za 3 dni” sprawdzamy PRZED „Nie znam terminu”: kliknięty przycisk to
+        // wyraźny zamiar ustawienia daty. Gdy zaznaczone zostało „Nie znam
+        // terminu”, nie kasujemy po cichu terminu — prosimy o wybór rodzaju.
+        if ($za === '' && $rodzaj === self::NIEZNANY) {
             return $czysc;
         }
 
@@ -147,7 +167,9 @@ final class ZmienTerminProduktu
             }
 
             if (! $rodzajPoprawny) {
-                $bledy['rodzaj'] = $this->bladRodzaju();
+                $bledy['rodzaj'] = $rodzaj === self::NIEZNANY
+                    ? 'Przycisk „'.self::SZYBKIE[$za].'” ustawia termin, więc zaznacz, jaki to termin: „Należy zużyć do” albo „Najlepiej spożyć przed”. Nic nie zmieniliśmy.'
+                    : $this->bladRodzaju();
 
                 return [];
             }
@@ -175,7 +197,7 @@ final class ZmienTerminProduktu
             return [];
         }
 
-        if (! in_array($rok, self::lataDoWyboru($dzis), true)) {
+        if (! in_array($rok, self::lataDoWyboru($dzis, $produkt->expires_on?->year), true)) {
             $bledy['termin_rok'] = 'Wybierz rok z listy.';
 
             return [];

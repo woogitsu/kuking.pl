@@ -33,6 +33,9 @@ use Illuminate\View\View;
  */
 class PantryController extends Controller
 {
+    /** Klucz w sesji: sygnał `pantry_priority_viewed` leci najwyżej raz na sesję. */
+    private const SESJA_PRIORYTET_WIDZIANY = 'pantry_priority_widziany';
+
     public function index(Request $request, ZapiszSygnal $sygnaly): View
     {
         /** @var User $user */
@@ -42,9 +45,11 @@ class PantryController extends Controller
         $dzis = PriorytetZuzycia::dzis();
         $grupy = PriorytetZuzycia::pogrupuj($produkty, $dzis);
 
-        if ($grupy['pilne']->isNotEmpty()) {
+        if ($grupy['pilne']->isNotEmpty() && ! $request->session()->has(self::SESJA_PRIORYTET_WIDZIANY)) {
             // Pomiar (#1903): ktoś zobaczył sekcję „Zużyj w pierwszej kolejności”.
-            // Bez konta, bez nazw produktów i dat.
+            // Bez konta, bez nazw produktów i dat. RAZ NA SESJĘ: odświeżenie
+            // strony nie nabija licznika (mierzymy osoby, nie wejścia).
+            $request->session()->put(self::SESJA_PRIORYTET_WIDZIANY, true);
             $sygnaly->handle(null, ZapiszSygnal::PANTRY_PRIORITY_VIEWED);
         }
 
@@ -95,7 +100,7 @@ class PantryController extends Controller
 
         return view('pages.pantry.termin', [
             'produkt' => $produkt,
-            'lata' => ZmienTerminProduktu::lataDoWyboru(),
+            'lata' => ZmienTerminProduktu::lataDoWyboru(null, $produkt->expires_on?->year),
             'szybkie' => ZmienTerminProduktu::SZYBKIE,
             'rodzaje' => PriorytetZuzycia::RODZAJE,
             'stan' => PriorytetZuzycia::opisStanu($produkt),
@@ -117,6 +122,8 @@ class PantryController extends Controller
         // domenowej i mówi po polsku, co poprawić.
         $dane = $request->only(['rodzaj', 'termin_dzien', 'termin_miesiac', 'termin_rok', 'za', 'wyczysc', 'ilosc', 'mrozone']);
 
+        $terminPrzed = [$produkt->expires_on?->toDateString(), $produkt->expiry_kind];
+
         try {
             $zapisano = $zmiana->handle($produkt, $dane);
         } catch (ValidationException $e) {
@@ -130,7 +137,10 @@ class PantryController extends Controller
         $produkt->refresh();
         $nazwa = $produkt->name;
 
-        if ($produkt->expires_on !== null) {
+        // Sygnał tylko gdy termin NAPRAWDĘ się zmienił (nowy albo inny): zapis
+        // samej ilości czy „mrożone” z tym samym terminem niczego nie mierzy.
+        if ($produkt->expires_on !== null
+            && [$produkt->expires_on->toDateString(), $produkt->expiry_kind] !== $terminPrzed) {
             $sygnaly->handle(null, ZapiszSygnal::PANTRY_EXPIRY_SET);
         }
 
