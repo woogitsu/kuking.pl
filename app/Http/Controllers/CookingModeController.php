@@ -53,6 +53,10 @@ use Illuminate\View\View;
  * przepisu, nie odtworzy postępu) plus `CookingProgressPolicy` (włączyć może
  * tylko aktywne konto; cudzego wiersza nie ma jak wskazać — wiersz wybiera
  * para „zalogowana osoba + przepis”, nigdy identyfikator z żądania).
+ * ETAP 2: to samo konto zapamiętuje też składniki „przygotowane” (#2069,
+ * `zapiszSkladniki`) i wybraną liczbę porcji (`zapiszPorcje`). Minutniki
+ * zostają w przeglądarce — bez stałego odpytywania nie da się ich uczciwie
+ * zsynchronizować (patrz docs/DATABASE.md).
  * Konflikt dwóch urządzeń: zapis to idempotentne ustawienie jednego kroku,
  * na ten sam krok wygrywa ostatni; formularz niesie widzianą rewizję i przy
  * rozbieżności osoba dostaje komunikat.
@@ -109,7 +113,13 @@ class CookingModeController extends Controller
         $this->authorize('view', $model);
 
         $model->load(['steps.media', 'ingredients.unit']);
-        $wyborPorcji = WyborPorcji::dla($model, $request->query('porcje'));
+        $osoba = $request->user();
+        $postepKonta = $this->postepKonta($osoba, $model);
+
+        // Porcje: jawne `?porcje=` w adresie ma pierwszeństwo; bez niego, przy
+        // włączonej synchronizacji, bierzemy te zapisane na koncie (#2016).
+        $zKonta = $postepKonta !== null && ! $request->query->has('porcje') ? $this->postep->porcje($postepKonta) : null;
+        $wyborPorcji = WyborPorcji::dla($model, $zKonta ?? $request->query('porcje'));
         $parametrPorcji = $wyborPorcji->przeliczone() ? $wyborPorcji->doAdresu((float) $wyborPorcji->wybrane) : null;
         $steps = $model->steps;
 
@@ -127,8 +137,6 @@ class CookingModeController extends Controller
         $krok = $this->wyczyscKrok($request->query('krok'), $total);
         $aktualny = $steps->get($krok - 1);
 
-        $osoba = $request->user();
-        $postepKonta = $this->postepKonta($osoba, $model);
         $zrobione = $postepKonta !== null
             ? $this->postep->zrobione($postepKonta, $steps->pluck('id')->map(fn ($id): string => (string) $id)->all())
             : $request->session()->get($this->sessionKey($model), []);
@@ -140,6 +148,9 @@ class CookingModeController extends Controller
                 'rewizja' => $postepKonta?->revision,
                 'wygasa' => $postepKonta?->expires_at,
                 'godziny' => (int) config('kuking.cooking_progress.retention_hours', 24),
+                'przygotowane' => $postepKonta !== null
+                    ? $this->postep->przygotowane($postepKonta, $model->ingredients->pluck('id')->map(fn ($id): string => (string) $id)->all())
+                    : [],
             ],
             'recipe' => $model,
             'steps' => $steps,
@@ -233,9 +244,19 @@ class CookingModeController extends Controller
                 $steps->pluck('id')->map(fn ($id): string => (string) $id)->all(),
             );
 
+            // Rozbieżna rewizja: formularz niesie liczbę porcji z chwili
+            // wyświetlenia strony, a inne urządzenie mogło ją od tamtej pory
+            // zmienić. Zapis tej liczby cofnąłby cudzą zmianę (zgubiona
+            // aktualizacja), a zostawienie jej w adresie przeczyłoby
+            // komunikatowi „widzisz aktualny stan” — więc ani jednego, ani
+            // drugiego: obowiązuje liczba z konta.
+            if (! $rozbieznaRewizja) {
+                $this->zapamietajPorcjeZFormularza($request, $model, $postepKonta);
+            }
+
             $przekierowanie = redirect()->route('cooking.show', array_filter([
                 'recipe' => $model->slug, 'krok' => $krok,
-                'porcje' => $this->parametrPorcji($model, $request->input('porcje')),
+                'porcje' => $rozbieznaRewizja && $po !== null ? null : $this->parametrPorcji($model, $request->input('porcje')),
             ], fn ($wartosc) => $wartosc !== null));
 
             if ($po === null) {
@@ -282,6 +303,7 @@ class CookingModeController extends Controller
             $model,
             $this->idKrokow($model),
             (array) $request->session()->get($this->sessionKey($model), []),
+            $this->porcjeDoZapisu($model, $request->input('porcje')),
         );
         $request->session()->forget($this->sessionKey($model));
 
@@ -304,6 +326,110 @@ class CookingModeController extends Controller
     }
 
     /**
+     * Zapis składników „przygotowanych” na koncie (#2016, etap 2). Formularz
+     * niesie pełną listę zaznaczonych (`zaznaczone[]`) i tę, którą strona
+     * pokazała (`bylo[]`) — zapisujemy RÓŻNICĘ, więc zmiana z drugiego
+     * urządzenia nie ginie. Działa bez JavaScriptu (zwykły POST).
+     */
+    public function zapiszSkladniki(Request $request, string $recipe): RedirectResponse
+    {
+        $model = Recipe::where('slug', $recipe)->firstOrFail();
+        $this->authorize('view', $model);
+
+        $osoba = $request->user();
+        $postepKonta = $this->postepKonta($osoba, $model);
+
+        if ($postepKonta === null) {
+            return $this->wrocDoGotowania($request, $model)
+                ->with(Komunikat::blad('Zapamiętywanie postępu na koncie jest wyłączone albo wygasło, więc zaznaczenie składników nie zostało zapisane. Włącz zapamiętywanie jeszcze raz.'));
+        }
+
+        $this->authorize('update', $postepKonta);
+
+        $data = $request->validate([
+            'zaznaczone' => ['nullable', 'array', 'max:300'],
+            'zaznaczone.*' => ['string', 'max:64'],
+            'bylo' => ['nullable', 'array', 'max:300'],
+            'bylo.*' => ['string', 'max:64'],
+            'rewizja' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $zaznaczone = array_values(array_unique($data['zaznaczone'] ?? []));
+        $bylo = array_values(array_unique($data['bylo'] ?? []));
+        $widzianaRewizja = isset($data['rewizja']) ? (int) $data['rewizja'] : null;
+        $rozbieznaRewizja = $widzianaRewizja !== null && $widzianaRewizja !== $postepKonta->revision;
+
+        $po = $this->postep->ustawSkladniki(
+            $postepKonta,
+            array_values(array_diff($zaznaczone, $bylo)),
+            array_values(array_diff($bylo, $zaznaczone)),
+            $model->ingredients()->pluck('id')->map(fn ($id): string => (string) $id)->all(),
+        );
+
+        if ($po === null) {
+            return $this->wrocDoGotowania($request, $model)
+                ->with(Komunikat::blad('Zapamiętywanie postępu na koncie wygasło, więc zaznaczenie składników nie zostało zapisane. Włącz zapamiętywanie jeszcze raz.'));
+        }
+
+        return $this->wrocDoGotowania($request, $model)
+            ->with('skladniki_otwarte', true)
+            ->with($rozbieznaRewizja
+                ? Komunikat::informacja('Składniki tego przepisu zmieniły się na innym urządzeniu. Widzisz teraz ich aktualny stan, a Twoje zaznaczenie zostało dołączone.')
+                : Komunikat::sukces('Zaznaczenie składników zapisane na Twoim koncie.'));
+    }
+
+    /**
+     * Zmiana liczby porcji zapamiętanej na koncie (#2016, etap 2). Przyciski
+     * „Mniej”, „Więcej” i „Porcje z przepisu” to zwykły formularz. Wartość
+     * przechodzi przez `WyborPorcji`, więc nie da się zapisać liczby spoza
+     * zakresu ani porcji dla przepisu, który ich nie podaje.
+     */
+    public function zapiszPorcje(Request $request, string $recipe): RedirectResponse
+    {
+        $model = Recipe::where('slug', $recipe)->firstOrFail();
+        $this->authorize('view', $model);
+
+        $postepKonta = $this->postepKonta($request->user(), $model);
+
+        if ($postepKonta === null) {
+            return $this->wrocDoGotowania($request, $model)
+                ->with(Komunikat::blad('Zapamiętywanie postępu na koncie jest wyłączone albo wygasło, więc liczba porcji nie została zapisana. Włącz zapamiętywanie jeszcze raz.'));
+        }
+
+        $this->authorize('update', $postepKonta);
+
+        $surowe = $request->input('wybor');
+        $porcje = null;
+
+        if ($surowe !== 'przepis') {
+            $wybor = WyborPorcji::dla($model, $surowe);
+
+            // Puste albo brakujące pole to nie „z przepisu” (to robi wyłącznie
+            // wartość „przepis”), tylko błąd — inaczej pusty POST kasowałby wybór.
+            if ($surowe === null || $surowe === '' || $wybor->odrzucone || ! $wybor->dostepny()) {
+                return $this->wrocDoGotowania($request, $model)
+                    ->with(Komunikat::blad('Nie umiem użyć tej liczby porcji. Użyj przycisków „Mniej porcji” i „Więcej porcji” albo wróć do porcji z przepisu.'));
+            }
+
+            $porcje = $wybor->przeliczone() ? (float) $wybor->wybrane : null;
+        }
+
+        $po = $this->postep->ustawPorcje($postepKonta, $porcje);
+
+        if ($po === null) {
+            return $this->wrocDoGotowania($request, $model)
+                ->with(Komunikat::blad('Zapamiętywanie postępu na koncie wygasło, więc liczba porcji nie została zapisana. Włącz zapamiętywanie jeszcze raz.'));
+        }
+
+        // Adres NIE niesie starej liczby porcji — obowiązuje ta z konta.
+        return redirect()->route('cooking.show', array_filter([
+            'recipe' => $model->slug,
+            'krok' => $this->wyczyscKrok($request->input('krok'), max(1, $model->steps()->count())),
+            'porcje' => $porcje === null ? null : WyborPorcji::dla($model, $porcje)->doAdresu($porcje),
+        ], fn ($wartosc) => $wartosc !== null));
+    }
+
+    /**
      * Krótki odczyt dla skryptu, który pyta, czy inne urządzenie zmieniło
      * postęp (#2016). Tylko numer rewizji — bez listy kroków i bez niczego,
      * co pokazałoby czyjś postęp komuś innemu: wiersz wybiera para „ta osoba +
@@ -319,6 +445,31 @@ class CookingModeController extends Controller
         return response()
             ->json(['aktywna' => $postepKonta !== null, 'rewizja' => $postepKonta?->revision])
             ->header('Cache-Control', 'no-store, private');
+    }
+
+    /** Porcje z formularza jako liczba do zapisu na koncie; null = z przepisu albo nieużyteczne. */
+    private function porcjeDoZapisu(Recipe $recipe, mixed $surowe): ?float
+    {
+        $wybor = WyborPorcji::dla($recipe, $surowe);
+
+        return $wybor->przeliczone() ? (float) $wybor->wybrane : null;
+    }
+
+    /**
+     * Krok odhaczony z jawnie wybraną liczbą porcji zapamiętuje ją na koncie,
+     * żeby drugie urządzenie otworzyło przepis na tyle samo porcji.
+     */
+    private function zapamietajPorcjeZFormularza(Request $request, Recipe $recipe, CookingProgress $postepKonta): void
+    {
+        if (! $request->filled('porcje')) {
+            return;
+        }
+
+        $porcje = $this->porcjeDoZapisu($recipe, $request->input('porcje'));
+
+        if ($porcje !== null && $porcje !== $this->postep->porcje($postepKonta)) {
+            $this->postep->ustawPorcje($postepKonta, $porcje);
+        }
     }
 
     private function wrocDoGotowania(Request $request, Recipe $model): RedirectResponse

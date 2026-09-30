@@ -12,8 +12,12 @@
         </div>
         <p>
             Człowiek z naszego zespołu przeczyta zgłoszenie i sprawdzi treść.
-            Napiszemy Ci, co postanowiliśmy — także wtedy, gdy uznamy, że treść
-            zostaje.
+            Jeśli w zgłoszeniu był adres e-mail, napiszemy tam, co postanowiliśmy
+            — także wtedy, gdy uznamy, że treść zostaje.
+        </p>
+        <p>
+            Jeśli adresu nie podano, nie wyślemy żadnej odpowiedzi. Numer sprawy
+            jest wtedy jedynym śladem Twojego zgłoszenia, więc zapisz go teraz.
         </p>
     @else
         <h1>Potwierdzenie zgłoszenia</h1>

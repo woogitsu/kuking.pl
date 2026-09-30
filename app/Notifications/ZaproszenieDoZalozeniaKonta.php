@@ -106,6 +106,8 @@ final class ZaproszenieDoZalozeniaKonta extends Notification implements ShouldBe
             ->view('mail.zaproszenie-do-zalozenia-konta', [
                 'linkUrl' => route('zaproszenie.pokaz', ['token' => $this->token]),
                 'waznoscTekst' => $this->waznosc(),
+                // Art. 14 RODO (#2219): adres nie pochodzi od odbiorcy.
+                'politykaUrl' => route('privacy'),
             ]);
     }
 

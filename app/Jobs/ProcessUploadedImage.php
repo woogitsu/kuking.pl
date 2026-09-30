@@ -68,9 +68,42 @@ class ProcessUploadedImage implements ShouldQueue
      */
     private const KOLEJKA = 'media';
 
+    /**
+     * Tryb odtworzenia wariantów GOTOWEGO zdjęcia (issue #2223).
+     *
+     * Zwykłe zadanie odpuszcza `ready` — to spóźniona kopia zlecenia
+     * z uploadu. Po utracie publicznych wariantów (runbook
+     * `KOPIE_I_ODTWORZENIE.md` §3, scenariusz c1) trzeba jednak zrobić je
+     * od nowa z całego oryginału, a zdjęcie ma przez cały czas zostać
+     * widoczne jako gotowe. Dlatego w tym trybie:
+     *   - przejmujemy WYŁĄCZNIE `ready`, bez zmiany statusu;
+     *   - porażka nigdy nie daje `rejected` — zdjęcie było dobre, zawiódł
+     *     tylko zapis wariantów, a `failed()` i tak zostawia `ready`;
+     *   - nie zlecamy ponownej oceny wpisów: treść się nie zmieniła.
+     *
+     * ZWYKŁA WŁAŚCIWOŚĆ Z WARTOŚCIĄ DOMYŚLNĄ, NIE PARAMETR KONSTRUKTORA.
+     * Zadanie w kolejce jest serializowanym obiektem, a odtworzenie z kolejki
+     * nie woła konstruktora. Zadanie zlecone przed wdrożeniem tej zmiany nie
+     * ma tego pola w danych; promowany parametr konstruktora zostawiłby je
+     * wtedy niezainicjowane i zadanie padłoby przy pierwszym odczycie.
+     */
+    public bool $odtworzenie = false;
+
     public function __construct(public string $mediaId)
     {
         $this->onQueue(self::KOLEJKA);
+    }
+
+    /**
+     * Zadanie, które robi warianty GOTOWEGO zdjęcia od nowa z oryginału.
+     * Woła je `kuking:przetworz-zdjecia-ponownie`.
+     */
+    public static function odtworzWarianty(string $mediaId): self
+    {
+        $zadanie = new self($mediaId);
+        $zadanie->odtworzenie = true;
+
+        return $zadanie;
     }
 
     public function handle(): void
@@ -287,6 +320,13 @@ class ProcessUploadedImage implements ShouldQueue
                     return true;
                 }
 
+                // Odtworzenie nie ma prawa odebrać gotowego zdjęcia: stare
+                // warianty (albo ich brak) zostają, a komenda mówi, jak
+                // powtórzyć próbę.
+                if ($this->odtworzenie) {
+                    return true;
+                }
+
                 $swieze->update([
                     'status' => Media::STATUS_REJECTED,
                     'metadata' => array_merge($swieze->metadata ?? [], [
@@ -306,7 +346,7 @@ class ProcessUploadedImage implements ShouldQueue
             throw $e;
         }
 
-        if ($opublikowane) {
+        if ($opublikowane && ! $this->odtworzenie) {
             $this->zlecOceneWpisow();
         }
     }
@@ -339,15 +379,24 @@ class ProcessUploadedImage implements ShouldQueue
      * kopia zadania) albo gdy odchodzi (`deleted`, issue #1003). Każdy inny
      * stan — `pending`, `processing` po przerwanej lub nieudanej próbie,
      * `rejected` z wcześniejszego zlecenia — wolno przetworzyć.
+     * W trybie odtworzenia (`$odtworzenie`) odwrotnie: wyłącznie `ready`.
      */
     private function przejmij(): ?Media
     {
         return DB::transaction(function (): ?Media {
             $media = Media::query()->whereKey($this->mediaId)->lockForUpdate()->first();
 
-            if ($media === null
-                || $media->status === Media::STATUS_READY
-                || $media->status === Media::STATUS_DELETED) {
+            if ($media === null || $media->status === Media::STATUS_DELETED) {
+                return null;
+            }
+
+            // Zwykłe zadanie odpuszcza `ready`; odtworzenie bierze WYŁĄCZNIE
+            // `ready`. Każdy inny stan ma już swoją drogę: `pending`
+            // i `processing` dokończy zadanie z uploadu, a `rejected` nie
+            // przeszło weryfikacji i nie ma czego odtwarzać.
+            $gotowe = $media->status === Media::STATUS_READY;
+
+            if ($gotowe !== $this->odtworzenie) {
                 return null;
             }
 
@@ -380,8 +429,10 @@ class ProcessUploadedImage implements ShouldQueue
                 $kluczeWTrakcie[] = Media::kluczPublicznegoWariantu($media->object_key, (string) $nazwaWariantu);
             }
 
+            // Przy odtworzeniu status zostaje `ready`: zdjęcie ma być widoczne
+            // przez cały czas, a klucze w trakcie i tak chronią przed sierotą.
             $media->update([
-                'status' => Media::STATUS_PROCESSING,
+                'status' => $this->odtworzenie ? Media::STATUS_READY : Media::STATUS_PROCESSING,
                 'metadata' => array_merge($media->metadata ?? [], [
                     Media::METADANE_WARIANTY_W_TRAKCIE => $kluczeWTrakcie,
                 ]),

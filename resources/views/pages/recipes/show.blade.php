@@ -430,7 +430,7 @@
                         którego nie widać, jest gorszy niż jego brak.
                     --}}
                     @can('cook', $recipe)
-                        <a class="btn btn-primary" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
+                        <a class="btn btn-primary" href="{{ route('cooked.create', $recipe->slug) }}">{{ \App\Support\Forma::dla(auth()->user(), 'Ugotowałam', 'Ugotowałem', 'Ugotowałem') }}</a>
                     @endcan
                     @if($isSaved)
                         {{--
@@ -776,6 +776,11 @@
                 @endif
             </p>
         @endauth
+        @guest
+            <p>
+                <x-zglos-dla-goscia typ="recipe" :id="$recipe->slug" :pelny="true" />
+            </p>
+        @endguest
 
         {{--
             „MOJA WERSJA" (issue #23, D-301).

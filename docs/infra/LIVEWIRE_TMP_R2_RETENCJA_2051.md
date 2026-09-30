@@ -161,6 +161,25 @@ Jedno z dwóch:
 
 Plus odczyt Bucket Lock z §4 krok 1 (brak / zakres).
 
+**Najprościej — komenda tylko do odczytu** (jedno żądanie
+`GetBucketLifecycleConfiguration`, nic nie zapisuje ani nie kasuje; na
+wyjściu nie ma nazwy bucketu, endpointu ani identyfikatorów reguł):
+
+```bash
+railway ssh -- php artisan kuking:sprawdz-retencje-livewire
+```
+
+Kod wyjścia `0` — jest włączona reguła wygasania dokładnie dla prefiksu
+Livewire (z ukośnikiem), po najwyżej 1 dniu, i żadna włączona reguła
+wygasania nie obejmuje `incoming/` ani jego części (pusty prefiks obejmuje
+cały bucket, a `incoming/2026/` — część oryginałów).
+Kod `1` — reguły brak, ma zły prefiks albo czas, obejmuje `incoming/`
+(linia „ALARM”), albo nie udało się jej odczytać (np. klucz aplikacji nie ma
+uprawnienia odczytu konfiguracji bucketu — wtedy zostaje zrzut z panelu).
+„Nie wiemy” liczy się jak porażka. Komenda **nie widzi** Bucket Lock i **nie
+dowodzi**, że pliki wygasają — to zostaje w §4 krok 1 i §5.3. Uruchom osobno
+na produkcji i na stagingu; wynik (bez zmian) wklej do #2051.
+
 ### 5.2 Wiek najstarszego obiektu — bez nazw kluczy
 
 Po co najmniej **2 dobach** od założenia reguły, na każdym buckecie:
@@ -231,7 +250,11 @@ z 5.1 pozwala napisać tylko „reguła jest założona”.
   panelu Cloudflare.
 - **Kiedy:** po odbiorze raz w miesiącu, oraz po każdej zmianie bucketu,
   `R2_BUCKET` albo `config/livewire.php`.
-- **Jak:** §5.1 (odczyt reguły) i §5.2 (liczba i najstarszy obiekt).
+- **Jak:** §5.1 (odczyt reguły — najprościej `kuking:sprawdz-retencje-livewire`)
+  i §5.2 (liczba i najstarszy obiekt). Komendy nie ma w harmonogramie
+  świadomie: wymaga uprawnienia odczytu konfiguracji bucketu, którego klucz
+  aplikacji może nie mieć, a nocne sprzątanie porzuconych plików
+  (`kuking:sprzataj-porzucone-uploady`, 03:30) już chodzi jako druga linia obrony.
 - **Alarm:** najstarszy obiekt pod `livewire-tmp/` starszy niż **3 doby**
   albo reguły nie ma na liście → otwórz issue `P1` „reguła lifecycle
   `livewire-tmp/` nie działa”, z samymi liczbami z §5.2, bez kluczy.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Users\Actions;
 
 use App\Domain\Users\ObserwowanieGospodarza;
+use App\Domain\Zgody\ZapiszAkceptacjeRegulaminu;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Notification;
@@ -66,9 +67,15 @@ use Throwable;
  */
 final class ZalozKonto
 {
-    public function __construct(private readonly ObserwowanieGospodarza $obserwowanieGospodarza) {}
+    public function __construct(
+        private readonly ObserwowanieGospodarza $obserwowanieGospodarza,
+        private readonly ZapiszAkceptacjeRegulaminu $akceptacjaRegulaminu,
+    ) {}
 
     /**
+     * @param  string  $zrodloAkceptacji  `WpisZgody::ZRODLO_REJESTRACJA_*` — droga, którą człowiek
+     *                                    zaakceptował regulamin. Wymagane: każda droga rejestracji zostawia
+     *                                    trwały dowód akceptacji w tej samej transakcji co konto (#2217).
      * @param  string|null  $haslo  hasło jawne, albo `null` przy drodze bez hasła
      * @param  string|null  $googleSub  identyfikator konta Google, gdy konto powstaje tą drogą
      * @param  string|null  $facebookId  identyfikator konta Facebooka, gdy konto powstaje tą drogą
@@ -80,6 +87,7 @@ final class ZalozKonto
         string $email,
         string $displayName,
         string $username,
+        string $zrodloAkceptacji,
         ?string $haslo = null,
         bool $emailPotwierdzony = false,
         ?string $googleSub = null,
@@ -89,7 +97,7 @@ final class ZalozKonto
         ?Closure $dowodAdresu = null,
     ): ZalozoneKonto {
         $user = DB::transaction(function () use (
-            $email, $displayName, $username, $haslo, $emailPotwierdzony, $googleSub, $facebookId, $dowodAdresu
+            $email, $displayName, $username, $haslo, $emailPotwierdzony, $googleSub, $facebookId, $dowodAdresu, $zrodloAkceptacji
         ): User {
             /*
              * DOWÓD POSIADANIA SKRZYNKI ZUŻYWA SIĘ TUTAJ, W TEJ SAMEJ
@@ -168,6 +176,14 @@ final class ZalozKonto
                 'type' => Notification::TYPE_WELCOME,
                 'data' => ['display_name' => $displayName],
             ]);
+
+            /*
+             * TRWAŁY DOWÓD AKCEPTACJI REGULAMINU (#2217) — w tej samej
+             * transakcji co konto, dla każdej drogi. Awaria zapisu wycofuje
+             * całe założenie konta: konto bez dowodu akceptacji nie powstaje.
+             * Kontrolery wcześniej zwalidowały `terms_accepted`.
+             */
+            $this->akceptacjaRegulaminu->handle($user, $zrodloAkceptacji);
 
             return $user;
         });

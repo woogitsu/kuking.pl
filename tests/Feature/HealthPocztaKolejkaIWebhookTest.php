@@ -33,7 +33,7 @@ use Tests\TestCase;
  *
  * Ten plik dowodzi trzech rzeczy: (1) `/health` wykrywa te awarie, (2) robi
  * to WYŁĄCZNIE tam, gdzie ma sens (poczta tylko na produkcji — patrz
- * `HealthController::sprawdzPoczte()`), (3) wykryta awaria dzwoni na
+ * `SondaPoczty`), (3) wykryta awaria dzwoni na
  * `blad_webhook` BEZ treści wyjątku ani zawartości `failed_jobs`, i co
  * najwyżej raz na `WEBHOOK_ODSTEP_MINUT`.
  */

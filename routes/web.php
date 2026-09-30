@@ -294,6 +294,12 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/przepisy/{recipe}/gotuj/synchronizacja/wylacz', [CookingModeController::class, 'wylaczSynchronizacje'])
         ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
         ->name('cooking.sync.wylacz');
+    Route::post('/przepisy/{recipe}/gotuj/synchronizacja/skladniki', [CookingModeController::class, 'zapiszSkladniki'])
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('cooking.sync.skladniki');
+    Route::post('/przepisy/{recipe}/gotuj/synchronizacja/porcje', [CookingModeController::class, 'zapiszPorcje'])
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('cooking.sync.porcje');
     Route::get('/przepisy/{recipe}/gotuj/postep', [CookingModeController::class, 'postepZapamietany'])
         ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
         ->name('cooking.sync.postep');

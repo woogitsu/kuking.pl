@@ -10,6 +10,7 @@
 #   ./scripts/check.sh --szybko # bez budowania assetów (szybsze przy pracy nad PHP)
 #   ./scripts/check.sh --dostepnosc # dodatkowo aktualna macierz axe i układu
 #                                   # oraz pomiar układu przy 320/360/414/768 px
+#                                   # i (nieblokująco) strażnik martwych reguł CSS
 #   ./scripts/check.sh --wydajnosc  # dodatkowo Lighthouse (wydajność + SEO)
 #                                   # na 8 stronach publicznych (issue #26)
 #   ./scripts/check.sh --wyscigi    # dodatkowo grupa `dwa-polaczenia`: testy
@@ -174,6 +175,51 @@ elif DB_DATABASE=kuking_test_a11y node scripts/dostepnosc.mjs >/dev/null 2>&1; t
     ok "Zero naruszeń critical i serious, strona nie przewija się w bok"
 else
     zle "Naruszenia dostępności albo przewijanie w bok — szczegóły: node scripts/dostepnosc.mjs (i storage/dostepnosc.json)"
+fi
+
+# --- 3c-bis. Martwe reguły CSS przykryte przez późniejszą warstwę (D-223) ---
+# Strażnik `kaskada-martwe-reguly.mjs` pyta przeglądarkę (`getComputedStyle`),
+# czy deklaracja z warstwy wcześniejszej cokolwiek zmienia, czy jest w całości
+# przykryta przez późniejszą. Przez dobę po powstaniu (20.09.2026) nie wołał go
+# NIKT — ani `ci.yml`, ani ten plik; strażnik, którego nic nie uruchamia, jest
+# dokumentacją zamiaru, a nie bramką.
+#
+# NIEBLOKUJĄCY (decyzja właściciela z 29.09.2026, #960): wynik czerwony albo
+# błąd przyrządu to OSTRZEŻENIE, nie `zle` — nie podbija licznika błędów i nie
+# kończy skryptu kodem 1. Ten sam okres przejściowy ma job `kaskada` w CI
+# (`continue-on-error: true`, termin i warunek zdjęcia przy nim w `ci.yml`).
+# Gdy tamten job stanie się blokujący, ten krok zamieniamy na `zle` RAZEM z nim.
+#
+# POD TĄ SAMĄ FLAGĄ CO AXE, z tego samego powodu: podnosi przeglądarkę, bazę
+# i przebudowuje arkusz. Stoi PO axe świadomie — `dostepnosc.mjs` zasiewa
+# bazę, a strażnik mierzy m.in. `/przepisy/rosol-babci-zofii` i na pustej bazie
+# zgłosiłby brak nosiciela zamiast wyniku.
+#
+# BAZA: DOKŁADNIE ta sama co w kroku axe wyżej — `kuking_test_a11y`, z rodziny
+# baz testowych stanowiska, zasiana przez `dostepnosc.mjs`. Strażnik tylko
+# czyta strony; nie migruje i nie zasiewa.
+#
+# Idzie przez `kaskada-kontrola-polecenie.sh`, nie przez gołe `node …mjs`:
+# zawężenie `--tylko` ma JEDNO miejsce, wspólne z bramką CI i z kontrolą
+# ujemną. Trzy wywołania z własnymi flagami to trzy różne zakresy pomiaru.
+krok "Martwe reguły CSS (kaskada, D-223) — nieblokujący"
+if [ "$SPRAWDZ_DOSTEPNOSC" -ne 1 ]; then
+    printf "  Pominięte: uruchom './scripts/check.sh --dostepnosc' przy zmianach w CSS-ie\n"
+elif [ ! -f scripts/kaskada-kontrola-polecenie.sh ]; then
+    # Nie `ok` i nie cisza: brak przyrządu to brak pomiaru, a nie wynik
+    # pozytywny (PULAPKI_TESTOW.md §2). Ostrzeżenie, bo krok jest nieblokujący.
+    printf "${ZOLTY}⚠ Brak scripts/kaskada-kontrola-polecenie.sh — strażnika kaskady NIE zmierzono${RESET}\n"
+else
+    DB_DATABASE=kuking_test_a11y bash scripts/kaskada-kontrola-polecenie.sh >/dev/null 2>&1
+    _kaskada_kod=$?
+    if [ "$_kaskada_kod" -eq 0 ]; then
+        ok "Żadna reguła z wcześniejszej warstwy nie jest całkowicie przykryta przez późniejszą"
+    elif [ "$_kaskada_kod" -eq 2 ]; then
+        printf "${ZOLTY}⚠ Błąd przyrządu strażnika kaskady (kod 2) — NIE zmierzono; to nie jest wynik pozytywny${RESET}\n"
+        printf "  Szczegóły: bash scripts/kaskada-kontrola-polecenie.sh\n"
+    else
+        printf "${ZOLTY}⚠ Martwe reguły CSS (nieblokujące do czasu zdjęcia flagi w CI) — szczegóły: bash scripts/kaskada-kontrola-polecenie.sh (i storage/kaskada-martwe-reguly.json)${RESET}\n"
+    fi
 fi
 
 # --- 3d. Wydajność i SEO (opcjonalna) --------------------------------------

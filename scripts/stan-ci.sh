@@ -6,7 +6,7 @@
 SHA=$1; MAX=${2:-14}
 # „Testy (PostgreSQL 18)” to job zbiorczy `testy`: czeka na wszystkie części macierzy `test`
 # (4 części testów i 3 części kontroli negatywnych), więc jedna nazwa wystarcza.
-JOBY='Pint (styl kodu)|Larastan (analiza statyczna)|Testy (PostgreSQL 18)|Build assetów (Vite)|Build obrazu (weryfikacja)|Audyt zależności|Dostępność (axe-core) i wydajność (Lighthouse)'
+JOBY='Pint (styl kodu)|Larastan (analiza statyczna)|Testy (PostgreSQL 18)|Build assetów (Vite)|Build obrazu (weryfikacja)|Audyt zależności (blokuje high i critical)|Dostępność (axe-core) i wydajność (Lighthouse)'
 for i in $(seq 1 "$MAX"); do
   out=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
     "https://api.github.com/repos/woogitsu/kuking.pl/commits/$SHA/check-runs" \

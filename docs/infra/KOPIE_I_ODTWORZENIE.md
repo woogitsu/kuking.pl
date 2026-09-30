@@ -117,7 +117,7 @@ nie z pamięci — co dokładnie, gdzie leży, i co się stanie, jak zniknie.
 | **`APP_KEY` produkcji** | Railway → `production` → Shared Variables (Sealed) + menedżer haseł właściciela | `.env.example` ma tę wartość celowo pustą (`APP_KEY=`). Utrata klucza **nie kasuje bazy fizycznie**, ale czyni nieczytelnym na zawsze wszystko, co nim zaszyfrowano: `users.two_factor_secret` i `users.two_factor_backup_codes` (`app/Models/User.php:248-249`, cast `encrypted`/`encrypted:array`) oraz wszystkie aktywne sesje (`SESSION_ENCRYPT=true` na produkcji, `.railway/railway.ts:205`). Mitygacja dla 2FA: `railway ssh -- php artisan kuking:2fa-wylacz <login>` czyści te kolumny bez potrzeby ich odczytania — ale to działa tylko, jeśli `APP_KEY` wciąż jest ten sam co przy zapisie, czyli **zanim** go stracisz |
 | **Klucz PRYWATNY kopii bazy** (`kuking-kopie-PRYWATNY.pem`, §7.1) | menedżer haseł właściciela + nośnik offline w innym miejscu fizycznym. **Świadomie NIGDZIE w Railwayu ani w repozytorium** | Zrzuty offsite są szyfrowane odpowiadającym mu kluczem publicznym. Utrata klucza prywatnego **nie kasuje żadnego pliku**, ale czyni WSZYSTKIE kopie bazy nieczytelnymi na zawsze — dokładnie ta sama asymetria, co przy `APP_KEY` wyżej. Cena jest świadoma: dzięki temu przejęcie konta Railway albo bucketu R2 nie daje dostępu do danych. Dlatego DWIE kopie klucza, w DWÓCH miejscach |
 | **Zdjęcia — warianty pokazywane użytkownikom** | **[NA R2]** bucket wariantów, dysk `r2_publiczne` (`AWS_PUBLIC_BUCKET`) — a dla zdjęć sprzed rozdzielenia bucketów dysk `r2_legacy` (wiersz niżej) | To jest zdjęcie, które ktoś realnie zrobił w swojej kuchni. Bez oryginału (patrz niżej) nie da się go odtworzyć w żadnej postaci. **R2 nie ma wersjonowania obiektów ani kosza** — skasowany klucz jest skasowany |
-| **Zdjęcia na koncie `r2_legacy`** (sprzed rozdzielenia bucketów, migracja `kuking:przenies-zdjecia` jeszcze niedokończona — `app/Console/Commands/PrzeniesZdjeciaDoNowychBucketow.php:33-35`) | stary, pojedynczy bucket, wciąż publiczny | Ten bucket jest dziś **jedyną kopią** tych plików — cytat z komentarza w kodzie: „dopóki nie ma pewności, że komplet się przeniósł, stary bucket jest jedyną kopią zapasową". Sprawdź, ile zostało: `Media::where('disk', 'r2_legacy')->count()` |
+| **Zdjęcia na koncie `r2_legacy`** (sprzed rozdzielenia bucketów, migracja `kuking:przenies-zdjecia` jeszcze niedokończona — `app/Console/Commands/PrzeniesZdjeciaDoNowychBucketow.php:33-35`) | stary, pojedynczy bucket, wciąż publiczny | Ten bucket jest dziś **jedyną kopią** tych plików — cytat z komentarza w kodzie: „dopóki nie ma pewności, że komplet się przeniósł, stary bucket jest jedyną kopią zapasową". Sprawdź, ile zostało: `railway ssh -- php artisan kuking:zaleznosc-od-starego-bucketu` (tylko odczyt) |
 | **Konfiguracja DNS, WAF i Cache Rules w Cloudflare** | panel Cloudflare, klikane ręcznie (`DEPLOYMENT_RUNBOOK.md` KROK 10) | Brak Infrastructure-as-Code dla Cloudflare w tym repozytorium (tylko Railway ma `.railway/railway.ts`). Kroki są opisane słownie w runbooku, więc odtworzenie jest możliwe, ale ręczne i z przestojem — patrz §1.2 |
 
 > ## ⚠️ Najpilniejsza pozycja z tej tabeli nie jest baza — jest ta ramka
@@ -263,7 +263,7 @@ pytania nie mają odpowiedzi w kodzie, bo kod nie mówi, co ktoś kliknął w pa
 | 7 | **Rozstrzygnięte (D-043) — nie pytanie, tylko fakt:** offsite `pg_dump` działa w OSOBNYM, minimalnym serwisie Railway (`docker/kopia/`, serwis `kopia-bazy`), nie w kontenerze aplikacji i nie w GitHub Actions. Pytanie, które ma dziś sens: **kiedy zostaną wykonane cztery czynności z §7.3** (bucket R2, dwa tokeny, klucz szyfrujący, serwis cron)? | `docs/DECISIONS.md` → `## D-043`; §7.3 tego dokumentu; postęp: issue #193 |
 | 8 | Ile zdjęć ma dziś `disk = 'r2_legacy'` (czyli ile kont wciąż zależy WYŁĄCZNIE od tego jednego, starego bucketu jako jedynej kopii) — i czy `AWS_LEGACY_BUCKET` jest w ogóle ustawiony? Bez tej zmiennej dysk `r2_legacy` nie ma bucketu, a te zdjęcia znikają z serwisu | `railway ssh -- php artisan kuking:zaleznosc-od-starego-bucketu --pliki` (tylko odczyt; liczy też warianty i sprawdza pliki) — procedura i bramka przed czyszczeniem: [`STARY_BUCKET_R2_LEGACY.md`](STARY_BUCKET_R2_LEGACY.md) |
 | 9 | **Przeformułowane 11 września 2026.** Pytanie brzmiało: „czy ludzie wgrywają już zdjęcia przy `FILESYSTEM_DISK=local`". Odpadło razem z ustaleniem, że zdjęcia są na R2. **Pytanie, które je zastępuje i jest P0:** czy `kuking:bramka-r2 --zapis` została kiedykolwiek uruchomiona na produkcji i z jakim wynikiem — czyli czy oryginał ze współrzędnymi GPS kuchni jest publicznie dostępny, czy nie | `railway ssh -- php artisan kuking:bramka-r2 --zapis`; wynik z datą → `docs/infra/BRAMKA_R2.md` §3 |
-| 10 | Czy zdjęcia, które powstały PRZED przejściem na R2 (na dysku `local`), zostały przeniesione — czy przepadły przy którymś redeployu? W repozytorium nie ma komendy, która przenosi z `local` do R2 (`kuking:przenies-zdjecia` chodzi tylko między bucketami) | do ustalenia z właścicielem wprost; poszlaka: `App\Models\Media::where('disk', 'local')->count()` |
+| 10 | Czy zdjęcia, które powstały PRZED przejściem na R2 (na dysku `local`), zostały przeniesione — czy przepadły przy którymś redeployu? W repozytorium nie ma komendy, która przenosi z `local` do R2 (`kuking:przenies-zdjecia` chodzi tylko między bucketami) | do ustalenia z właścicielem wprost; poszlaka (tylko odczyt, przez `railway connect postgres`): `SELECT count(*) FROM media WHERE disk = 'local';` |
 
 ---
 
@@ -567,28 +567,32 @@ obejmują wyłącznie bazę, a R2 nie ma wersjonowania obiektów ani kosza — w
 > pusta, zdania niżej opisują stan faktyczny.
 
 **(c1) Warianty (`r2_publiczne`) utracone, oryginały (`r2`) całe.**
-Da się przetworzyć na nowo — ale w repozytorium **nie ma dziś gotowej
-komendy** do masowego ponownego przetworzenia (`ProcessUploadedImage`
-jest dziś dispatch'owany wyłącznie raz, przy uploadzie —
-`app/Domain/Media/Actions/StoreUploadedImage.php:216`). Awaryjnie:
+Da się przetworzyć na nowo komendą `kuking:przetworz-zdjecia-ponownie`
+(issue #2223). Bez `--wykonaj` tylko liczy; z `--wykonaj` zleca na kolejkę
+`media` zadanie, które robi `thumb`, `feed` i `large` od nowa z oryginału.
+Zdjęcie przez cały czas zostaje `ready`, a nieudana próba nie zmienia go
+w `rejected`. Najpierw JEDNO zdjęcie, potem reszta:
 
 ```bash
-railway ssh --service kuking.pl -- php artisan tinker
-```
-```php
-App\Models\Media::where('variants_disk', 'r2_publiczne')
-    ->orWhereNull('variants_disk')
-    ->chunkById(100, fn ($batch) => $batch->each(
-        fn ($media) => App\Jobs\ProcessUploadedImage::dispatch($media->id)
-    ));
+# 1. Jedno zdjęcie — i sprawdź je w przeglądarce oraz bramką.
+railway ssh --service kuking.pl -- php artisan kuking:przetworz-zdjecia-ponownie --media=<uuid> --wykonaj
+railway ssh --service kuking.pl -- php artisan kuking:bramka-r2 --media=<uuid>
+
+# 2. Ile zdjęć obejmie całość (bez --wykonaj nic nie zleca).
+railway ssh --service kuking.pl -- php artisan kuking:przetworz-zdjecia-ponownie --dysk=r2_publiczne
+
+# 3. Całość.
+railway ssh --service kuking.pl -- php artisan kuking:przetworz-zdjecia-ponownie --dysk=r2_publiczne --wykonaj
 ```
 
-> **[DO ZWERYFIKOWANIA PRZED UŻYCIEM]** to zakłada, że `ProcessUploadedImage`
-> bezpiecznie nadpisuje istniejące warianty tego samego medium, a nie tylko
-> obsługuje świeży upload. Sprawdź to na JEDNYM rekordzie testowym, zanim
-> puścisz pętlę na wszystkich. Napisanie właściwej komendy
-> `kuking:przetworz-zdjecie-ponownie` to dobry kandydat na osobne issue —
-> poza zakresem tego dokumentu, bo to jest zmiana kodu.
+Zadania wykonuje worker, więc tempo zależy od niego (oszacowanie RTO niżej).
+Zadania, które padły po wszystkich próbach, pokaże `kuking:martwe-zadania`.
+
+> **Dawna droga przez tinkera nie działała.** Pętla, która tu
+> stała, zlecała zwykłe `ProcessUploadedImage`, a to zadanie odpuszcza
+> zdjęcia `ready` jako spóźnione kopie zlecenia z uploadu — nie zrobiłoby
+> ani jednego wariantu. Tinkera nie ma zresztą w obrazie produkcyjnym od
+> D-333.
 
 **(c2) Oryginały (`r2`) też utracone.** 🔴 Bezpowrotna utrata treści wizualnej
 dla tych zdjęć — nie ma niczego, z czego odtworzyć piksele. Jedyna obrona
@@ -665,8 +669,9 @@ w kroku 1 — a i on jest opcjonalny, bo porównanie da się zrobić z pola
 #    dostęp do bucketu kopii (dowolny klient S3 albo panel Cloudflare).
 
 # 1. Punkt odniesienia z produkcji — TYLKO ODCZYT (opcjonalny, patrz wyżej).
-railway ssh --service kuking.pl -- php artisan tinker --execute \
-  "echo App\\Models\\User::count(), ' ', App\\Models\\Post::count();"
+#    Te same cztery tabele co w kroku 5; liczy wiersze, nie modele, więc
+#    miękko usunięte wpisy liczą się tak samo jak w psql.
+railway ssh --service kuking.pl -- php artisan kuking:liczniki-bazy
 
 # 2. Weź NAJNOWSZĄ kopię i jej metadane.
 rclone lsl r2:kuking-kopie/baza/ | sort | tail -4

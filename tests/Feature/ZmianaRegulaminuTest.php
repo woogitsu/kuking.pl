@@ -62,6 +62,10 @@ class ZmianaRegulaminuTest extends TestCase
     public function test_konto_sprzed_wersji_widzi_pasek_do_zamkniecia_i_potem_juz_nie(): void
     {
         Mail::fake();
+        // Dzień publikacji wersji, nie dzisiejsza data: kod bywa scalany
+        // dzień przed publikacją (wersja z jutrzejszą datą, #2220), a wtedy
+        // paska jeszcze nikt nie widzi — patrz `ZmianaRegulaminu::pokazac()`.
+        $this->travelTo(CarbonImmutable::parse((string) config('kuking.zgody.wersja_regulaminu'), Czas::strefa())->setTime(12, 0));
         $osoba = $this->kontoSprzedWersji();
 
         $strona = $this->actingAs($osoba)->get(route('home'))->assertOk();

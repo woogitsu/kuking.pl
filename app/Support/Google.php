@@ -115,7 +115,7 @@ final class Google
      *
      * TO ZDANIE IDZIE TEŻ NA `/health` — od 12 września 2026. Produkcja
      * z funkcją włączoną i bez kluczy oddaje `status: degraded` z powodem
-     * `google_bez_kluczy` (`HealthController::sprawdzWejscieGoogle()`,
+     * `google_bez_kluczy` (`SondaGoogle`,
      * `check('google', ...)` obok tego od Turnstile). Publicznie widać sam
      * kod; to zdanie trafia wyłącznie do serwerowego logu. Wcześniej sygnał
      * był tu zapowiedziany jako odłożony i przez dwa dni był jedyną luką

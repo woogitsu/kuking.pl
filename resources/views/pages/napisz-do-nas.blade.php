@@ -75,8 +75,10 @@
     <div class="ramka-pomocnicza mb-5">
         <h2 class="mt-0">Chodzi o czyjś wpis, przepis albo komentarz?</h2>
         <p>
-            Przy każdym przepisie i komentarzu jest przycisk <strong>Zgłoś</strong>, a przy wpisie —
-            <strong>Zgłoś ten wpis</strong> w menu z trzema kropkami. Użyj go,
+            Po zalogowaniu przy każdym przepisie i komentarzu jest przycisk <strong>Zgłoś</strong>, a przy wpisie —
+            <strong>Zgłoś ten wpis</strong> w menu z trzema kropkami. Bez konta przy treści stoi
+            <strong>Zgłoś (po zalogowaniu)</strong> — poprosimy o logowanie i wrócimy do formularza.
+            Użyj go,
             jeśli ktoś kogoś obraża, wrzuca spam albo doradza coś niebezpiecznego.
         </p>
         <p class="mb-0">

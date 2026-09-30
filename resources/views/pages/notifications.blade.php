@@ -159,7 +159,8 @@
                         --}}
                         @switch($notification->type)
                             @case(\App\Models\Notification::TYPE_COOKED)
-                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — ugotowane z Twojego przepisu</strong>
+                                {{-- D-332: o kucharzu w JEGO formie (przez helper); bez wyboru — bez rodzaju. --}}
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} {{ \App\Support\Forma::dla($actor, 'ugotowała Twój przepis', 'ugotował Twój przepis', '— ugotowane z Twojego przepisu') }}</strong>
                                 „{{ $data['recipe_title'] ?? 'przepis' }}”.
                                 {{-- ISSUE #771: wykonanie usunięte po powiadomieniu. Bez
                                      obietnicy zdjęcia i bez „Zobacz" prowadzącego na 404. --}}
@@ -284,7 +285,7 @@
                                 @break
                             @case(\App\Models\Notification::TYPE_WELCOME)
                                 <strong>Witamy w Kuking, {{ $data['display_name'] ?? '' }}.</strong>
-                                Zacznij od zdjęcia tego, co dziś ugotowałeś.
+                                Zacznij od zdjęcia tego, co dziś {{ \App\Support\Forma::dla(auth()->user(), 'ugotowałaś', 'ugotowałeś', 'gotujesz') }}.
                                 @break
                             @case(\App\Models\Notification::TYPE_REPORT_RECEIVED)
                                 {{-- POTWIERDZENIE PRZYJĘCIA ZGŁOSZENIA

@@ -1131,9 +1131,21 @@ final class CollectUserExportData
                     }
                 }
 
+                $widoczny = $this->granica->widzi($postep->recipe);
+                // Składniki „przygotowane” opisujemy ich tekstem, ale tylko przy
+                // przepisie widocznym dla osoby (jak tytuł); zawsze podajemy liczbę.
+                $skladniki = $postep->recipe->ingredients()
+                    ->whereIn('id', $postep->prepared_ingredient_ids)
+                    ->orderBy('position')
+                    ->pluck('ingredient_text')
+                    ->all();
+
                 return [
-                    'przepis' => $this->granica->widzi($postep->recipe) ? $postep->recipe->title : self::TRESC_NIEDOSTEPNA,
+                    'przepis' => $widoczny ? $postep->recipe->title : self::TRESC_NIEDOSTEPNA,
                     'odhaczone_kroki' => $numery,
+                    'wybrana_liczba_porcji' => $postep->servings === null ? null : (float) $postep->servings,
+                    'przygotowane_skladniki_liczba' => count($skladniki),
+                    'przygotowane_skladniki' => $widoczny ? $skladniki : [],
                     'ostatnia_zmiana' => $this->date($postep->updated_at),
                     'wygasa' => $this->date($postep->expires_at),
                 ];
@@ -1240,12 +1252,13 @@ final class CollectUserExportData
             ->where('user_id', $user->getKey())
             ->orderBy('wystapilo_at')
             ->orderBy('id')
-            ->get(['cel', 'czynnosc', 'zrodlo', 'wersja_polityki', 'wystapilo_at'])
+            ->get(['cel', 'czynnosc', 'zrodlo', 'wersja_polityki', 'wersja_regulaminu', 'wystapilo_at'])
             ->map(fn (object $wpis): array => [
                 'cel' => $wpis->cel,
                 'czynnosc' => $wpis->czynnosc,
                 'skad' => $wpis->zrodlo,
                 'wersja_polityki' => $wpis->wersja_polityki,
+                'wersja_regulaminu' => $wpis->wersja_regulaminu,
                 'kiedy' => $this->date($wpis->wystapilo_at),
             ])->all();
     }

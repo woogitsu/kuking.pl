@@ -168,3 +168,23 @@ Dostęp: `railway ssh -- php artisan …` albo psql z `DATABASE_URL` (tylko odcz
 - Rejestr: [`sesja-glowna-2909/REJESTR.md`](sesja-glowna-2909/REJESTR.md); wpisy zamknięć z dowodami: [`sesja-glowna-2909/ZAMKNIECIA.md`](sesja-glowna-2909/ZAMKNIECIA.md).
 - Listę zakazaną („V2, ale nie teraz”) i „Nie wcześnie” utrzymuje `docs/FEATURES.md`; ten dokument jej nie zmienia.
 - Zasady ogólne: [`AGENTS.md`](../../AGENTS.md). Ten dokument nie tworzy decyzji `D-xxx`; właściciel akceptuje, sesja zapisuje.
+
+---
+
+## Dopisek z wieczora 29.09 (po paczce H, przed paczką I)
+
+Decyzje z tego wieczora są w tabeli D-333 w `docs/DECISIONS.md`. Kroki po stronie właściciela:
+
+| # | Co | Kiedy | Zgłoszenie |
+|---|---|---|---|
+| W1 | Po wdrożeniu paczki H ustaw w Railway `KUKING_QUESTIONS_ENABLED=true` i sprawdź `/pytania` („Poradźcie”) | po wdrożeniu H | #372 |
+| W2 | Import do OpenAI: **nie** ustawiaj `KUKING_IMPORT_URL/_PDF/_ZDJECIE`. Po wdrożeniu paczki I import zniknie i wróci po podpisaniu DPA z OpenAI, gdy ustawisz te trzy zmienne na `true` | po DPA | #2214 |
+| W3 | GitHub → Settings → Branches → reguła dla `main`: oznacz wymagane checki według pełnej listy z `docs/infra/BRAMKI_CI_2215.md`. Nazwy przepisz z pierwszego przebiegu CI po scaleniu paczki I. Części macierzy „Port marki — … (część N/2)” **nie** oznaczaj | po scaleniu I | #2215 |
+| W4 | Bramka wdrożeń Railway (`KUKING_CI_GATED_RAILWAY_DEPLOY`) według `docs/infra/RAILWAY_CI_GATE.md`; #2025 zamykamy dopiero po jej włączeniu | kiedy wygodnie | #2025 |
+| W5 | Proxy: sekret `KUKING_EDGE_TOKEN` w Railway, reguła nagłówka `X-Kuking-Edge-Token` w Cloudflare (także dla monitora `/health`), doba obserwacji, potem `KUKING_EDGE_TRYB=egzekwowanie` | kiedy wygodnie | #1306 |
+| W6 | R2: reguła lifecycle `livewire-tmp/` po 1 dniu (bucket oryginałów, produkcja i staging), potem `railway ssh -- php artisan kuking:sprawdz-retencje-livewire` (oczekiwany kod 0) | po wdrożeniu I | #2051 |
+| W7 | Po wdrożeniu I `php artisan tinker` na produkcji przestaje działać. Zamienniki: `kuking:liczniki-bazy`, `kuking:przetworz-zdjecia-ponownie`, `kuking:sprawdz-alarm --przez-wyjatek`, `kuking:bramka-r2 --media=` | po wdrożeniu I | #2223 |
+| W8 | Regulamin: potwierdź termin odpowiedzi na reklamację **14 dni**, kanał (e-mail `biuro@…` i list) i to, że zmiana jest drobna (wiersz D-333 „do potwierdzenia”) | przed wdrożeniem I | #2220 |
+| W9 | Odbiór na iPhonie (Safari i PWA): bezpieczny obszar, pion i poziom | kiedy wygodnie | #987 |
+| W10 | Pomiary po pojawieniu się ruchu: `railway ssh -- php artisan kuking:raport`, sekcje „Zapis → Ugotowałem” i „Historie przepisów”; instrukcja w `docs/pomiary/` | po #29 | #1015, #1045 |
+| W11 | Gałęzie do skasowania (sesja nie ma prawa kasowania): `codex/2130-kontrola-ujemna`, `codex/2059-kontrola-ujemna`, `codex/2014-date-modified-jsonld`, `codex/2066-urgent-alert-negative`, `codex/hide-expiry-local-date`, `claude/larastan-test-zamiaru-ugotowania` | kiedy wygodnie | — |

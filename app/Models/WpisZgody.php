@@ -52,6 +52,14 @@ class WpisZgody extends Model
     /** Mail z życzeniami urodzinowymi (issue #1755, etap c). */
     public const CEL_ZYCZENIA_URODZINOWE = 'zyczenia_urodzinowe';
 
+    /**
+     * Akceptacja regulaminu przy rejestracji (#2217). Zawsze `udzielona`
+     * (CHECK) i zawsze z `wersja_regulaminu`. To NIE jest zamknięcie paska
+     * „Zmieniliśmy regulamin” (`users.terms_notice_dismissed_version`, D-306):
+     * pasek jest śladem, że komunikat dotarł, a nie zgodą.
+     */
+    public const CEL_REGULAMIN = 'regulamin';
+
     public const UDZIELONA = 'udzielona';
 
     public const WYCOFANA = 'wycofana';
@@ -88,12 +96,22 @@ class WpisZgody extends Model
      */
     public const ZRODLO_EKRAN_IMPORTU = 'ekran_importu';
 
+    /** Rejestracja formularzem z hasłem (`RegisterController`). */
+    public const ZRODLO_REJESTRACJA_HASLO = 'rejestracja_haslo';
+
+    /** Rejestracja przez konto Google (domknięcie konta). */
+    public const ZRODLO_REJESTRACJA_GOOGLE = 'rejestracja_google';
+
+    /** Rejestracja przez konto Facebooka (domknięcie konta). */
+    public const ZRODLO_REJESTRACJA_FACEBOOK = 'rejestracja_facebook';
+
     protected $fillable = [
         'user_id',
         'cel',
         'czynnosc',
         'zrodlo',
         'wersja_polityki',
+        'wersja_regulaminu',
         'wystapilo_at',
     ];
 
