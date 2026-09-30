@@ -6,6 +6,7 @@ namespace App\Domain\Recipes\Alergeny;
 
 use App\Domain\Posts\KontoNieMozePublikowac;
 use App\Domain\Recipes\RecipeStatusTransitions;
+use App\Domain\Recipes\TrescPrzepisu;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Recipe;
@@ -55,7 +56,10 @@ final class OznaczAlergenyPrzepisu
             $this->zablokujAutora($autor);
             $swiezy = $this->zablokowany($przepis);
 
+            $przed = TrescPrzepisu::odcisk((string) $swiezy->getKey());
+
             if ($this->zastosuj($swiezy, $deklaracja)) {
+                $this->odnotujZmianeTresci($swiezy, $przed);
                 $this->zapiszSlad($autor, $swiezy, $ip);
             }
 
@@ -83,7 +87,10 @@ final class OznaczAlergenyPrzepisu
                 throw new BladDlaCzlowieka(self::KOMUNIKAT_NIE_MA_CO_POTWIERDZAC);
             }
 
+            $przed = TrescPrzepisu::odcisk((string) $swiezy->getKey());
+
             if ($this->zastosuj($swiezy, new DeklaracjaAlergenow($swiezy->allergens, true))) {
+                $this->odnotujZmianeTresci($swiezy, $przed);
                 $this->zapiszSlad($autor, $swiezy, $ip);
             }
 
@@ -145,6 +152,30 @@ final class OznaczAlergenyPrzepisu
         $przepis->forceFill(['allergen_status' => Recipe::ALERGENY_DO_PRZEGLADU])->save();
 
         return true;
+    }
+
+    /**
+     * Samodzielna zmiana oznaczenia jest zmianą TREŚCI przepisu (alergeny są
+     * w odcisku `TrescPrzepisu`), więc przechodzi przez ten sam mechanizm co
+     * zapis w `PublishRecipe`: `content_revision` rośnie (formularz otwarty
+     * w drugiej karcie dostaje „przepis zmienił się od otwarcia formularza”
+     * zamiast po cichu cofnąć oznaczenie), a `tresc_zmieniona_at`
+     * (`dateModified` w JSON-LD) przesuwa się TYLKO przy różnicy odcisku.
+     * Nowej wersji w historii (`recipe_versions`) świadomie nie tworzymy:
+     * powstaje ona przy „Zapisz” z publikacją, a ta akcja nie zmienia
+     * składników ani kroków.
+     *
+     * @param  array<string, mixed>  $przed  odcisk sprzed zmiany
+     */
+    private function odnotujZmianeTresci(Recipe $przepis, array $przed): void
+    {
+        $przepis->forceFill(['content_revision' => $przepis->content_revision + 1]);
+
+        if ($przed !== TrescPrzepisu::odcisk((string) $przepis->getKey())) {
+            $przepis->forceFill(['tresc_zmieniona_at' => now()]);
+        }
+
+        $przepis->save();
     }
 
     /**

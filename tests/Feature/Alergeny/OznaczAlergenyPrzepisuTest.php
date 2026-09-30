@@ -156,6 +156,44 @@ final class OznaczAlergenyPrzepisuTest extends TestCase
         $this->assertSame(1, AuditLogEntry::query()->where('action', 'recipe.allergens_marked')->count());
     }
 
+    public function test_samodzielne_oznaczenie_podbija_rewizje_i_date_zmiany_tresci(): void
+    {
+        $this->przepis->forceFill(['tresc_zmieniona_at' => null, 'content_revision' => 4])->save();
+        $this->travelTo(now()->addDay()->startOfSecond());
+
+        $this->akcja()->handle($this->autor, $this->przepis, new DeklaracjaAlergenow(['milk'], true));
+
+        $przepis = $this->przepis->refresh();
+        $this->assertSame(5, $przepis->content_revision);
+        $this->assertNotNull($przepis->tresc_zmieniona_at);
+        $this->assertSame(now()->toDateTimeString(), $przepis->tresc_zmieniona_at->toDateTimeString());
+    }
+
+    public function test_potwierdz_ponownie_podbija_rewizje_i_date_zmiany_tresci(): void
+    {
+        $this->akcja()->handle($this->autor, $this->przepis, new DeklaracjaAlergenow(['soy'], true));
+        $this->przepis->forceFill(['allergen_status' => Recipe::ALERGENY_DO_PRZEGLADU, 'tresc_zmieniona_at' => null, 'content_revision' => 7])->save();
+
+        $this->akcja()->potwierdzPonownie($this->autor, $this->przepis);
+
+        $przepis = $this->przepis->refresh();
+        $this->assertSame(8, $przepis->content_revision);
+        $this->assertNotNull($przepis->tresc_zmieniona_at);
+    }
+
+    public function test_oznaczenie_bez_roznicy_nie_rusza_rewizji_ani_daty(): void
+    {
+        $this->akcja()->handle($this->autor, $this->przepis, new DeklaracjaAlergenow(['fish'], true));
+        $this->przepis->forceFill(['tresc_zmieniona_at' => null])->save();
+        $rewizja = $this->przepis->refresh()->content_revision;
+
+        $this->akcja()->handle($this->autor, $this->przepis, new DeklaracjaAlergenow(['fish'], true));
+
+        $przepis = $this->przepis->refresh();
+        $this->assertSame($rewizja, $przepis->content_revision);
+        $this->assertNull($przepis->tresc_zmieniona_at);
+    }
+
     /**
      * @return array<string, array{string}>
      */
