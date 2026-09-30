@@ -49,14 +49,17 @@ class PlakietkaPowiadomienZSufitemTest extends TestCase
     public function test_zapytanie_plakietki_ma_limit(): void
     {
         $ala = $this->user('alalimit');
+        // Z choć jednym nieprzeczytanym (bez niego liczy tylko tani EXISTS —
+        // audyt W5) plakietka wchodzi w zapytanie o widoczne, i to ma limit.
+        $this->powiadomienia($ala, 1);
 
         DB::enableQueryLog();
         $ala->unreadNotificationsBadgeCount();
         $zapytania = array_column(DB::getQueryLog(), 'query');
         DB::disableQueryLog();
 
-        $this->assertCount(1, $zapytania);
-        $this->assertStringContainsString('limit '.(User::PLAKIETKA_POWIADOMIEN_DO + 1), $zapytania[0],
+        $this->assertCount(2, $zapytania, 'Tani EXISTS i zapytanie z limitem.');
+        $this->assertStringContainsString('limit '.(User::PLAKIETKA_POWIADOMIEN_DO + 1), $zapytania[1],
             'Plakietka liczy wszystkie nieprzeczytane — koszt rośnie z zaległościami.');
     }
 

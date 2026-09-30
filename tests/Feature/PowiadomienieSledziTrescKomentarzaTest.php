@@ -317,7 +317,9 @@ class PowiadomienieSledziTrescKomentarzaTest extends TestCase
 
         // 7, a nie 8 jak po #833: od #2289 lista nie liczy wszystkich
         // powiadomień (`simplePaginate()` zamiast `paginate()` z `COUNT(*)`).
-        $this->assertSame(7, $malo, "Pomiar dla 2 wierszy: {$malo}; dla 12: {$duzo}.");
+        // I znów 8: plakietka w belce pyta najpierw tanim `EXISTS` o jakiekolwiek
+        // nieprzeczytane (audyt W5) — stały koszt, nie rośnie z wierszami.
+        $this->assertSame(8, $malo, "Pomiar dla 2 wierszy: {$malo}; dla 12: {$duzo}.");
         $this->assertSame(
             0,
             $duzo - $malo,
