@@ -6,7 +6,6 @@ namespace Tests\Feature;
 
 use App\Domain\Search\SearchQuery;
 use App\Domain\Tags\TagFollowWindow;
-use App\Domain\Tags\TagSuggester;
 use App\Http\Requests\Admin\ListaKontRequest;
 use App\Models\Collection;
 use App\Models\CookedEvent;
@@ -27,8 +26,13 @@ use Tests\TestCase;
  * spację: „basia ", a `LIKE '%basia %'` nie pasuje do konta „Basia". Ta sama
  * reguła zasila każde pole szukania w serwisie, więc test idzie po każdej
  * ścieżce, która z niej korzysta: ludzie (`/szukaj`, onboarding), przepisy
- * (`/szukaj`, planer), zeszyty, własne wykonania, podpowiedzi tagów, filtr
- * obserwowanych tagów i lista kont w panelu moderacji.
+ * (`/szukaj`, planer), zeszyty, własne wykonania, filtr obserwowanych
+ * tagów i lista kont w panelu moderacji.
+ *
+ * PODPOWIEDZI TAGÓW (`TagSuggester`) korzystają z tej samej normalizacji,
+ * ale nie mają tu osobnego testu: „żurek 🍲" podpowiadało „Żurek" także
+ * przed poprawką, bo ratuje je gałąź podobieństwa (`%`), więc taki test
+ * przechodziłby po sabotażu i niczego by nie pilnował (PULAPKI_TESTOW).
  *
  * Każda scena ma obok kontrolę dodatnią: ta sama rzecz bez emoji JEST
  * znajdowana — inaczej zielony wynik mógłby znaczyć „nic tu nie ma".
@@ -151,17 +155,6 @@ class FrazaZEmojiNaBrzeguTest extends TestCase
             preg_match_all('/data-klucz="wykonanie-([0-9a-f-]+)"/', $html, $m);
             $this->assertSame([$wykonanie->getKey()], $m[1], "Fraza „{$fraza}”.");
         }
-    }
-
-    public function test_podpowiedzi_tagow(): void
-    {
-        $zurek = $this->tag('Żurek');
-        $this->tag('Zupa pomidorowa');
-        $podpowiedzi = fn (string $fraza): array => app(TagSuggester::class)->sugeruj($fraza)->pluck('id')->all();
-
-        $this->assertSame($zurek->getKey(), $podpowiedzi('żurek')[0] ?? null);
-        $this->assertSame($zurek->getKey(), $podpowiedzi('żurek 🍲')[0] ?? null);
-        $this->assertSame($zurek->getKey(), $podpowiedzi('🍲 żurek')[0] ?? null);
     }
 
     public function test_filtr_obserwowanych_tagow(): void
