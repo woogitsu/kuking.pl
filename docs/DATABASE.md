@@ -5008,6 +5008,24 @@ go nie ma — człowiek zamówi paczkę ponownie.
 żadnej wartości (niczyjej decyzji, zgody ani zakresu w rozumieniu D-088) — po
 cofnięciu wraca poprzednia, luźniejsza granica, dane zostają bez zmian.
 
+### cache (tabela Laravela)
+
+Sterownik cache `database` (`CACHE_STORE=database`): `key` (klucz główny,
+`cache_pkey`), `value`, `expiration` (znacznik uniksowy). Trzyma limitery
+(klucze adresów jako skróty HMAC, `App\Support\KluczeLimitow`), budżet listów
+(D-076) i drobne wartości podręczne. Blokady harmonogramu leżą osobno,
+w `cache_locks`.
+
+**Sprzątanie (#2292, audyt wydajności F6).** Laravel kasuje wygasły wiersz
+wyłącznie przy odczycie tego samego klucza, więc klucz limitera gościa z adresu,
+który już nie wróci, zostawał na zawsze. `kuking:sprzataj-cache`
+(`App\Support\WygasleWpisyCache`) codziennie o 02:45 UTC kasuje wiersze
+z `expiration <= teraz` — dokładnie te, które sterownik i tak uznaje za
+nieistniejące — partiami (`UsuwanieWPartiach`, `kuking.retencja.partia`
+i `.budzet`). Wpisy `forever()` i `cache_locks` zostają. `--na-sucho` tylko
+liczy. Test: `SprzatanieWygaslegoCacheTest`. Schematu nie zmienia, więc nie ma
+migracji ani rollbacku.
+
 ### password_reset_tokens (tabela Laravela)
 
 Kluczowana **adresem e-mail zapisanym jawnie** (`email`, `token` — bcrypt,
