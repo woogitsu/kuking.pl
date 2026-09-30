@@ -347,6 +347,63 @@ final class WidocznoscPowiadomien
     }
 
     /**
+     * To samo co `pierwszyWidocznyZapisujacy()`, ale dla CAŁEJ STRONY partii
+     * naraz — JEDNO zapytanie (audyt wydajności W2), nie jedno na wiersz.
+     *
+     * Widoczność osoby nie zależy od partii (status spoza
+     * `User::STATUSY_UKRYWAJACE_TRESC` i brak blokady w obie strony z tym
+     * odbiorcą — ta sama `blokadaZOdbiorca()`), więc wystarczy raz wybrać
+     * widocznych spośród WSZYSTKICH zapisujących strony, a „pierwszego"
+     * każdej partii wskazuje kolejność jej zapisów. Wynik jest więc
+     * identyczny z wywołaniem osobno dla każdej partii. Osoby wracają
+     * z `profile.avatar` — nagłówek karty pokazuje imię i awatar.
+     *
+     * @param  array<string, list<string>>  $partie  id powiadomienia => zapisujący w kolejności zapisu
+     * @return array<string, ?User> id powiadomienia => pierwsza widoczna osoba albo `null`
+     */
+    public function pierwsiWidoczniZapisujacy(array $partie, string $odbiorcaId): array
+    {
+        $wszyscy = [];
+
+        foreach ($partie as $zapisujacy) {
+            foreach ($zapisujacy as $id) {
+                $wszyscy[$id] = true;
+            }
+        }
+
+        $widoczni = [];
+
+        foreach (array_chunk(array_keys($wszyscy), 5000) as $porcja) {
+            foreach (User::query()
+                ->whereIn('users.id', $porcja)
+                ->whereNotIn('users.status', User::STATUSY_UKRYWAJACE_TRESC)
+                ->whereNotExists(function (QueryBuilder $blokada) use ($odbiorcaId): void {
+                    self::blokadaZOdbiorca($blokada, 'users.id', $odbiorcaId);
+                })
+                ->with('profile.avatar')
+                ->get() as $osoba) {
+                $widoczni[(string) $osoba->getKey()] = $osoba;
+            }
+        }
+
+        $wynik = [];
+
+        foreach ($partie as $idPowiadomienia => $zapisujacy) {
+            $wynik[$idPowiadomienia] = null;
+
+            foreach ($zapisujacy as $id) {
+                if (isset($widoczni[$id])) {
+                    $wynik[$idPowiadomienia] = $widoczni[$id];
+
+                    break;
+                }
+            }
+        }
+
+        return $wynik;
+    }
+
+    /**
      * `blocks` w obie strony między kolumną z osobą a odbiorcą — jedno
      * miejsce dla warunku widoczności partii i dla wyboru imienia do
      * pokazania (`pierwszyWidocznyZapisujacy()`), żeby lista i nagłówek

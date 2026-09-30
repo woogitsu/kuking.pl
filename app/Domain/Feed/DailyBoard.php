@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Feed;
 
+use App\Domain\Social\ListyWidza;
 use App\Models\DailyPick;
 use App\Models\Hide;
 use App\Models\Post;
@@ -34,6 +35,8 @@ use Illuminate\Support\Facades\DB;
  */
 final class DailyBoard
 {
+    public function __construct(private readonly ListyWidza $listy) {}
+
     /**
      * Ile osób i ile wpisów pokazujemy. Krótka lista, nie ściana kafelków.
      *
@@ -347,7 +350,7 @@ final class DailyBoard
             $excluded = [
                 ...$excluded,
                 $viewer->getKey(),
-                ...$viewer->following()->pluck('users.id')->all(),
+                ...$this->listy->osoby($viewer),
             ];
         }
 
@@ -624,9 +627,6 @@ final class DailyBoard
             return [];
         }
 
-        return array_values(array_unique([
-            ...$viewer->blocking()->pluck('users.id')->all(),
-            ...$viewer->blockedBy()->pluck('users.id')->all(),
-        ]));
+        return $this->listy->blokady($viewer);
     }
 }
