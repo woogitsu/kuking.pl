@@ -2292,6 +2292,12 @@ ALTER TABLE recipe_versions VALIDATE CONSTRAINT recipe_versions_hidden_spojny_ch
   (`target_type = 'recipe_version'`, sekcja `moderation_actions`), autor
   dostaje powiadomienie z drogą odwołania, a uznane odwołanie zdejmuje
   ukrycie. Ukrycie przez autora wiersza w `moderation_actions` nie tworzy.
+  **Przejęcie (decyzja 30.09.2026, bez migracji):** moderacja może przejąć
+  ukrycie zrobione przez autora — ta sama droga co zwykłe ukrycie, pod tą samą
+  blokadą: `hidden_by_role` zmienia się z `author` na `moderator`, powstaje
+  wiersz `moderation_actions` (`hide`), a `audit_log` (`recipe_version.hidden`)
+  niesie dodatkowo `przejeto_od = author`. Reguła CHECK dopuszcza obie
+  wartości, więc schemat się nie zmienia.
 - Retencja (akapit wyżej) ukrycia nie patrzy: stara ukryta wersja spoza
   3 najnowszych znika tak samo jak widoczna. Eksport (`wersje_przepisow`)
   niesie ukrytą wersję całą, z `ukryto` (data) i `ukryl` (`autor` |

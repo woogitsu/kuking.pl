@@ -9,11 +9,11 @@
     z zamkniętej listy, OBOWIĄZKOWE uzasadnienie dla autora i notatkę
     wewnętrzną. Autor ukrywa własną wersję jednym przyciskiem, bez tego.
 --}}
-<x-layout :title="'Ukryć wersję '.$wersja->version_number.'?'" :noindex="true">
+<x-layout :title="($przejecie ?? false ? 'Przejąć ukrycie wersji ' : 'Ukryć wersję ').$wersja->version_number.'?'" :noindex="true">
     <div class="stack kolumna-czytania">
         <p><a class="btn btn-quiet" href="{{ route('recipes.history', $recipe->slug) }}">Wróć do historii zmian</a></p>
 
-        <h1>Ukryć wersję {{ $wersja->version_number }}?</h1>
+        <h1>{{ ($przejecie ?? false) ? 'Przejąć ukrycie wersji' : 'Ukryć wersję' }} {{ $wersja->version_number }}?</h1>
         <p class="text-lead">{{ $recipe->title }}</p>
 
         <x-error-summary />
@@ -25,6 +25,12 @@
                 Porównanie zmian ją pominie i powie, że coś pominęło.
             </p>
             <p class="m-0">Sam przepis i pozostałe wersje się nie zmienią.</p>
+            @if($przejecie ?? false)
+                <p class="m-0">
+                    Tę wersję ukrył już sam autor. Po przejęciu ukrycie staje się decyzją moderacji:
+                    autor nie przywróci wersji sam, a Ty podajesz podstawę i uzasadnienie.
+                </p>
+            @endif
             @if($strona === \App\Models\RecipeVersion::UKRYLA_MODERACJA)
                 <p class="m-0">
                     Ukrywasz ją jako moderacja: autor zobaczy ją z napisem „Ukryta przez moderację”
@@ -74,7 +80,7 @@
                          help="Nieobowiązkowa. Widzi ją tylko moderacja." />
 
                 <div class="danger-zone stack">
-                    <button class="btn btn-danger" type="submit" aria-describedby="skutek-ukrycia">Tak, ukryj wersję {{ $wersja->version_number }}</button>
+                    <button class="btn btn-danger" type="submit" aria-describedby="skutek-ukrycia">{{ ($przejecie ?? false) ? 'Tak, przejmij ukrycie wersji' : 'Tak, ukryj wersję' }} {{ $wersja->version_number }}</button>
                 </div>
             </form>
         @else
