@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use RuntimeException;
+use App\Support\Wejscie;
 
 /**
  * Logowanie linkiem e-mail — „magic link" (issue #25, D-056).
@@ -284,7 +285,9 @@ class LoginLinkController extends Controller
             ));
         }
 
-        $token = (string) $request->input('token', '');
+        // Tablica (`token[]=`) nie jest żadnym linkiem: pusty napis idzie
+        // zwykłą drogą „link nieaktualny”, zamiast HTTP 500 (#2266).
+        $token = Wejscie::tekst($request->input('token'));
 
         // ZUŻYCIE TOKENU IDZIE POD DWIEMA BLOKADAMI: NAJPIERW WIERSZ KONTA,
         // POTEM WIERSZ TOKENU (D-075, D-079). Kolejność, rewalidację i wpis

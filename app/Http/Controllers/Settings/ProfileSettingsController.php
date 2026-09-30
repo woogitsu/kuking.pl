@@ -9,6 +9,7 @@ use App\Rules\ReservedUsername;
 use App\Rules\UsernameNotTaken;
 use App\Support\Komunikat;
 use App\Support\NazwaUzytkownika;
+use App\Support\Wejscie;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -56,7 +57,8 @@ class ProfileSettingsController extends Controller
          * nazw zastrzeżonych tam, gdzie nic się nie zmienia.
          */
         $request->merge([
-            'username' => NazwaUzytkownika::znormalizuj((string) $request->input('username', '')),
+            // Tablica zostaje tablicą i dostaje błąd reguły `string` (BP-04).
+            'username' => Wejscie::normalizujTekst($request->input('username'), NazwaUzytkownika::znormalizuj(...)),
         ]);
 
         // Druga — łatwiejsza do przeoczenia — droga do nazwy użytkownika.

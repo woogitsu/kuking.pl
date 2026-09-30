@@ -18,6 +18,7 @@ use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use App\Support\Wejscie;
 
 /**
  * „Ukryj ten wpis", „Ukryj tę osobę" i lista „Ukryte" w Ustawieniach
@@ -100,7 +101,9 @@ class UkryciaController extends Controller
         $this->authorize('viewProfile', $osoba);
         abort_if($osoba->getKey() === $request->user()->getKey(), 404);
 
-        if ($request->filled('oczekiwany_id') && (string) $request->input('oczekiwany_id') !== (string) $osoba->getKey()) {
+        // Nie-tekst w ukrytym polu (`oczekiwany_id[]=`, #2265) nie pasuje do
+        // nikogo: ta sama odmowa co przy zmienionej nazwie, bez HTTP 500.
+        if ($request->filled('oczekiwany_id') && Wejscie::tekst($request->input('oczekiwany_id')) !== (string) $osoba->getKey()) {
             return back()->withErrors(['ukrycie' => 'Ta nazwa użytkownika należy teraz do innej osoby. Odśwież stronę i spróbuj ponownie.']);
         }
 
@@ -110,7 +113,7 @@ class UkryciaController extends Controller
             return back()->withErrors(['ukrycie' => $e->getMessage()]);
         }
 
-        return redirect()->to($this->bezKursora($this->bezpiecznyPowrot((string) $request->input('wroc'))))
+        return redirect()->to($this->bezKursora($this->bezpiecznyPowrot(Wejscie::tekst($request->input('wroc')))))
             ->with(Komunikat::sukces('Ukryliśmy tę osobę tylko dla Ciebie '.$this->doKiedy($ukrycie).'. Nie powiadamiamy jej o tym.'))
             ->with('status_powrot', [
                 'akcja' => route('social.unhide', $osoba->profile->username),
@@ -123,7 +126,7 @@ class UkryciaController extends Controller
     {
         $osoba = $this->osoba($username);
 
-        if ($request->filled('oczekiwany_id') && (string) $request->input('oczekiwany_id') !== (string) $osoba->getKey()) {
+        if ($request->filled('oczekiwany_id') && Wejscie::tekst($request->input('oczekiwany_id')) !== (string) $osoba->getKey()) {
             return back()->withErrors(['ukrycie' => 'Ta nazwa użytkownika należy teraz do innej osoby. Odśwież stronę i spróbuj ponownie.']);
         }
 

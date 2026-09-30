@@ -15,6 +15,7 @@ use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureModeratorHasTwoFactor;
 use App\Http\Middleware\EnsureUserIsModerator;
 use App\Http\Middleware\NormalizeForwardedFor;
+use App\Http\Middleware\ParametryAdresuBezTablic;
 use App\Http\Middleware\PreventRequestForgeryExceptMediaCookie;
 use App\Http\Middleware\PreventSharedSessionCache;
 use App\Http\Middleware\SprawdzGeneracjeSesji;
@@ -258,6 +259,12 @@ return Application::configure(basePath: dirname(__DIR__))
             // i nigdy nie rzuca wyjątku dalej — pełne uzasadnienie w
             // `App\Domain\Analytics\ZanotujOstatniaWizyte`.
             AktualizujOstatniaWizyte::class,
+
+            // Tablica w parametrze ADRESU (`?tydzien[]=x`) to brak parametru,
+            // a nie HTTP 500 (#2239 i rodzina, audyt BP-04). W grupie, nie
+            // globalnie, bo wyjątki są przypięte do nazwy trasy — ta jest
+            // znana dopiero po routingu. Uzasadnienie w klasie.
+            ParametryAdresuBezTablic::class,
         ]);
 
         // DWIE PODMIANY W GRUPIE `web`, NIE DOPISKI (#597).

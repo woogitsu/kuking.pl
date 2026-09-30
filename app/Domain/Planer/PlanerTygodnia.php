@@ -45,8 +45,12 @@ final class PlanerTygodnia
      * Poniedziałek tygodnia z parametru `?tydzien=RRRR-MM-DD` (dowolny dzień
      * tego tygodnia). Zły albo pusty parametr = bieżący tydzień, bez błędu:
      * to jest nawigacja, nie formularz.
+     *
+     * `mixed`, nie `?string` (#2239): ukryte pole `tydzien` formularza
+     * „Skopiuj poprzedni tydzień” przychodzi z treści żądania, a tam może być
+     * tablicą. Tablica jest tym samym, co zły parametr — bieżący tydzień.
      */
-    public static function poniedzialek(?string $tydzien): CarbonImmutable
+    public static function poniedzialek(mixed $tydzien): CarbonImmutable
     {
         $dzis = CarbonImmutable::parse(Czas::dzisiajData());
 
