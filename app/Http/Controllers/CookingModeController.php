@@ -217,6 +217,13 @@ class CookingModeController extends Controller
             'krok.integer' => 'Numer kroku jest nieprawidłowy — odśwież stronę przepisu i spróbuj jeszcze raz.',
         ]);
 
+        // JEDNA interpretacja wartości dla obu ścieżek niżej (#2242). Widok
+        // wysyła tekst „0” albo „1”, walidacja `boolean` przepuszcza jeszcze
+        // 0/1 i true/false. Porównujemy jawnie z listą „tak”, zamiast liczyć
+        // na regułę rzutowania — i ta sama zmienna idzie do konta i do sesji,
+        // żeby obie drogi nie mogły się rozjechać.
+        $zrobiono = in_array($data['zrobiono'], [true, 1, '1'], true);
+
         // Szukamy kroku wśród kroków TEGO przepisu — identyfikator kroku
         // z innego przepisu (albo usuniętego) po prostu tu nie pasuje.
         $pozycja = $steps->search(fn ($step) => $step->getKey() === ($data['krok_id'] ?? null));
@@ -250,14 +257,14 @@ class CookingModeController extends Controller
             // strony — nie ma o czym ostrzegać ani czego chronić, a porcje
             // z formularza są tymi samymi, które poszły z pierwszym.
             $juzWZadanymStanie = in_array((string) $aktualny->getKey(), $this->postep->zrobione($postepKonta, $idKrokow), true)
-                === (bool) $data['zrobiono'];
+                === $zrobiono;
             $powtorzenie = $widzianaRewizja !== null && $widzianaRewizja + 1 === $postepKonta->revision && $juzWZadanymStanie;
             $rozbieznaRewizja = $widzianaRewizja !== null && $widzianaRewizja !== $postepKonta->revision && ! $powtorzenie;
 
             $po = $this->postep->ustaw(
                 $postepKonta,
                 $aktualny->getKey(),
-                (bool) $data['zrobiono'],
+                $zrobiono,
                 $idKrokow,
             );
 
@@ -289,7 +296,7 @@ class CookingModeController extends Controller
         $klucz = $this->sessionKey($model);
         $zrobione = $request->session()->get($klucz, []);
 
-        if ($data['zrobiono']) {
+        if ($zrobiono) {
             $zrobione[] = $aktualny->getKey();
             $zrobione = array_values(array_unique($zrobione));
         } else {

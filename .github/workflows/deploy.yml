@@ -725,9 +725,21 @@ jobs:
           # miejscu, a kroki Migracje/Redeploy/Instrukcja cofnięcia niżej
           # tylko się do niej odwołują (*railway_token) — bez czterech kopii
           # tego samego wyrażenia do zsynchronizowania ręcznie.
-          RAILWAY_TOKEN: &railway_token ${{ github.event.inputs.environment == 'production'
-            && secrets.RAILWAY_TOKEN_PRODUCTION
-            || secrets.RAILWAY_TOKEN_STAGING }}
+          #
+          # KAŻDE ŚRODOWISKO TYLKO SWÓJ SEKRET, BEZ ZAPASOWEGO (#2255).
+          # Było `production && PRODUCTION || STAGING`: w wyrażeniach Actions
+          # `a && b || c` to NIE jest operator trójargumentowy — gdy sekret
+          # produkcji jest pusty albo niedostępny, `&&` daje fałsz i `||`
+          # podaje token STAGINGU dla TARGET_ENV=production. Kontrola `-z`
+          # niżej przechodziła, a dalsze polecenia szły na produkcję z cudzym
+          # tokenem. Teraz każda gałąź sprawdza własną nazwę środowiska,
+          # a końcowe `|| ''` zamienia „nic nie pasuje” w PUSTY token (bez
+          # niego wyszłoby dosłowne „false”, niepuste), więc brak właściwego
+          # sekretu zatrzymuje operację w kroku niżej.
+          # Strażnik: tests/Feature/TokenRailwayBezZapasowegoSrodowiskaTest.php.
+          RAILWAY_TOKEN: &railway_token ${{ (github.event.inputs.environment == 'production' && secrets.RAILWAY_TOKEN_PRODUCTION)
+            || (github.event.inputs.environment == 'staging' && secrets.RAILWAY_TOKEN_STAGING)
+            || '' }}
         run: |
           set -euo pipefail
           if [ -z "${RAILWAY_TOKEN:-}" ]; then

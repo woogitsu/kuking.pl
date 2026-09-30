@@ -701,7 +701,7 @@ PYTON
     local log_retencji
     log_retencji="$(
       wczytaj
-      export KOPIA_S3_ENDPOINT="http://127.0.0.1:${PORT_RETENCJI}"
+      export KOPIA_S3_ENDPOINT="http://127.0.0.1:${PORT_RETENCJI}" KOPIA_S3_TESTOWY_HTTP_LOKALNY=1
       export KOPIA_S3_BUCKET=k KOPIA_S3_KLUCZ=x KOPIA_S3_SEKRET=y
       export KOPIA_S3_REGION=us-east-1 KOPIA_S3_TIMEOUT=10
       KATALOG_ROBOCZY="$(mktemp -d)"
@@ -869,7 +869,7 @@ konfiguracja_wynik() { # konfiguracja_wynik <zmienna> <wartość>
     # Wartości domyślne (`MINIMUM_KOPII="${KOPIA_MINIMUM_KOPII:-7}"`) czyta
     # nagłówek skryptu przy wczytaniu, więc zmienna MUSI stać przed nim.
     export DB_URL='postgresql://u:p@postgres.railway.internal:5432/railway'
-    export KOPIA_S3_ENDPOINT=x KOPIA_S3_BUCKET=y KOPIA_S3_KLUCZ=z
+    export KOPIA_S3_ENDPOINT=https://x KOPIA_S3_BUCKET=y KOPIA_S3_KLUCZ=z
     export KOPIA_S3_SEKRET=w KOPIA_KLUCZ_PUBLICZNY=c
     export "$1=$2"
     wczytaj
@@ -895,7 +895,7 @@ for parametr in MINIMUM_KOPII RETENCJA_DNI MIN_TABEL MIN_BAJTOW MAX_BAJTOW ALARM
   for wartosc in 010 08 09; do
     wynik="$(
       export DB_URL='postgresql://u:p@postgres.railway.internal:5432/railway'
-      export KOPIA_S3_ENDPOINT=x KOPIA_S3_BUCKET=y KOPIA_S3_KLUCZ=z KOPIA_S3_SEKRET=w KOPIA_KLUCZ_PUBLICZNY=c
+      export KOPIA_S3_ENDPOINT=https://x KOPIA_S3_BUCKET=y KOPIA_S3_KLUCZ=z KOPIA_S3_SEKRET=w KOPIA_KLUCZ_PUBLICZNY=c
       export "KOPIA_${parametr}=${wartosc}"
       wczytaj
       trap sprzataj EXIT
@@ -1090,7 +1090,7 @@ PYTON
 
   probuj_liste() { # probuj_liste — wypisuje „rc=<kod> kluczy=<ile>"
     wczytaj
-    export KOPIA_S3_ENDPOINT="http://127.0.0.1:${PORT_PROBNY}"
+    export KOPIA_S3_ENDPOINT="http://127.0.0.1:${PORT_PROBNY}" KOPIA_S3_TESTOWY_HTTP_LOKALNY=1
     export KOPIA_S3_BUCKET=k KOPIA_S3_KLUCZ=x KOPIA_S3_SEKRET=y
     export KOPIA_S3_REGION=us-east-1 KOPIA_S3_TIMEOUT=10
     local plik; plik="$(mktemp)"
@@ -1115,7 +1115,7 @@ PYTON
   #    w sobie wprowadzałoby w błąd, bo status naprawdę był dwusetką.
   probuj_kod() { # probuj_kod — wypisuje samo S3_KOD po nieudanym listowaniu
     wczytaj
-    export KOPIA_S3_ENDPOINT="http://127.0.0.1:${PORT_PROBNY}"
+    export KOPIA_S3_ENDPOINT="http://127.0.0.1:${PORT_PROBNY}" KOPIA_S3_TESTOWY_HTTP_LOKALNY=1
     export KOPIA_S3_BUCKET=k KOPIA_S3_KLUCZ=x KOPIA_S3_SEKRET=y
     export KOPIA_S3_REGION=us-east-1 KOPIA_S3_TIMEOUT=10
     local plik; plik="$(mktemp)"
@@ -1134,8 +1134,111 @@ PYTON
   sprawdz "pełna odpowiedź z IsTruncated=true daje kod 2, nie krótszą listę" \
     "rc=2 kluczy=0" "${wynik}"
 
+  # 5. #2261 na PRAWDZIWYM gnieździe: ten sam serwer próbny po http://, ale
+  #    BEZ jawnej flagi testu — listowanie ma paść, zanim cokolwiek wyjdzie.
+  #    Kontrola dodatnia to punkt 1 (ten sam serwer, z flagą, przechodzi).
+  probuj_bez_flagi() {
+    wczytaj
+    export KOPIA_S3_ENDPOINT="http://127.0.0.1:${PORT_PROBNY}"
+    unset KOPIA_S3_TESTOWY_HTTP_LOKALNY
+    export KOPIA_S3_BUCKET=k KOPIA_S3_KLUCZ=x KOPIA_S3_SEKRET=y
+    export KOPIA_S3_REGION=us-east-1 KOPIA_S3_TIMEOUT=10
+    local plik; plik="$(mktemp)"
+    local rc=0
+    s3_lista_kluczy_do_pliku 'baza/' "${plik}" >/dev/null 2>&1 || rc=$?
+    printf 'rc=%s kluczy=%s kod=%s' "${rc}" "$(grep -c . "${plik}")" "${S3_KOD}"
+    rm -f "${plik}"
+  }
+  wynik="$(z_serwerem pelny probuj_bez_flagi)"
+  sprawdz "http:// bez flagi testu nie listuje bucketu nawet na 127.0.0.1 (#2261)" \
+    "rc=1 kluczy=0 kod=endpoint-bez-https" "${wynik}"
+
   rm -f "${SERWER_PY}"
 fi
+
+# =============================================================================
+echo "── Endpoint kopii tylko po HTTPS (#2261) ──"
+# =============================================================================
+#
+#  Przez endpoint idą nagłówek Authorization (klucz R2 + podpis) i zaszyfrowany
+#  zrzut bazy. `s3_zadanie` zdejmował kiedyś i `https://`, i `http://`, więc
+#  zła wartość w panelu wysyłała to otwartym tekstem. `curl` jest tu funkcją
+#  powłoki, która tylko zapisuje swoje argumenty: sprawdzamy, czy żądanie
+#  w ogóle POWSTAŁO, a nie czy serwer odpowiedział.
+
+endpoint_wynik() { # endpoint_wynik <endpoint> [flaga] — „rc=… kod=… curl=tak|nie proto=…"
+  (
+    wczytaj
+    local slad; slad="$(mktemp)"
+    # shellcheck disable=SC2317 # wołana pośrednio, jako pierwszy element tablicy polecenia
+    curl() { printf '%s\n' "$@" >"${slad}"; printf '200'; }
+    export KOPIA_S3_ENDPOINT="$1" KOPIA_S3_BUCKET=b KOPIA_S3_KLUCZ=k KOPIA_S3_SEKRET=s
+    if [[ -n "${2:-}" ]]; then
+      export KOPIA_S3_TESTOWY_HTTP_LOKALNY="$2"
+    else
+      unset KOPIA_S3_TESTOWY_HTTP_LOKALNY
+    fi
+    local rc=0
+    s3_zadanie GET 'baza/x' '' '' '' || rc=$?
+    local proto
+    proto="$(grep -A1 -x -- '--proto' "${slad}" | tail -1)"
+    printf 'rc=%s kod=%s curl=%s proto=%s' "${rc}" "${S3_KOD}" \
+      "$([[ -s "${slad}" ]] && echo tak || echo nie)" "${proto:--}"
+    rm -f "${slad}"
+  )
+}
+
+# Kontrola dodatnia: prawdziwy kształt adresu R2 przechodzi, a curl dostaje
+# `--proto =https`, czyli sam też nie połączy się niczym innym.
+sprawdz "https:// endpoint R2 wysyła żądanie z --proto =https" \
+  "rc=0 kod=200 curl=tak proto==https" \
+  "$(endpoint_wynik 'https://konto.r2.cloudflarestorage.com')"
+sprawdz "http:// do R2 nie wysyła niczego (klucz nie idzie otwartym tekstem)" \
+  "rc=1 kod=endpoint-bez-https curl=nie proto=-" \
+  "$(endpoint_wynik 'http://konto.r2.cloudflarestorage.com')"
+sprawdz "flaga testu NIE otwiera http:// do obcego hosta" \
+  "rc=1 kod=endpoint-bez-https curl=nie proto=-" \
+  "$(endpoint_wynik 'http://konto.r2.cloudflarestorage.com' 1)"
+sprawdz "flaga testu nie przepuszcza hosta udającego pętlę zwrotną" \
+  "rc=1 kod=endpoint-bez-https curl=nie proto=-" \
+  "$(endpoint_wynik 'http://127.0.0.1.zly.example:9000' 1)"
+sprawdz "http://127.0.0.1 bez flagi testu nie wysyła niczego" \
+  "rc=1 kod=endpoint-bez-https curl=nie proto=-" \
+  "$(endpoint_wynik 'http://127.0.0.1:9000')"
+sprawdz "flaga inna niż 1 nie jest zgodą" \
+  "rc=1 kod=endpoint-bez-https curl=nie proto=-" \
+  "$(endpoint_wynik 'http://127.0.0.1:9000' tak)"
+sprawdz "serwer próbny: http://127.0.0.1 z flagą testu przechodzi, curl tylko po http" \
+  "rc=0 kod=200 curl=tak proto==http" \
+  "$(endpoint_wynik 'http://127.0.0.1:9000' 1)"
+sprawdz "serwer próbny: http://localhost z flagą testu przechodzi" \
+  "rc=0 kod=200 curl=tak proto==http" \
+  "$(endpoint_wynik 'http://localhost:9000' 1)"
+sprawdz "adres bez schematu nie wysyła niczego" \
+  "rc=1 kod=endpoint-bez-https curl=nie proto=-" \
+  "$(endpoint_wynik 'konto.r2.cloudflarestorage.com')"
+sprawdz "https:// z poświadczeniem w adresie nie wysyła niczego" \
+  "rc=1 kod=endpoint-bez-https curl=nie proto=-" \
+  "$(endpoint_wynik 'https://klucz:sekret@konto.r2.cloudflarestorage.com')"
+
+# Bramka na starcie przebiegu: zła wartość w panelu zatrzymuje kopię PRZED
+# zrzutem bazy (kod 14), a poprawna przechodzi (kontrola dodatnia).
+srodowisko_endpointu() { # srodowisko_endpointu <endpoint> — „kod=<wyjście sprawdz_srodowisko>"
+  (
+    export DB_URL='postgresql://u:p@postgres.railway.internal:5432/railway'
+    export KOPIA_S3_ENDPOINT="$1" KOPIA_S3_BUCKET=y KOPIA_S3_KLUCZ=z
+    export KOPIA_S3_SEKRET=w KOPIA_KLUCZ_PUBLICZNY=c
+    unset KOPIA_S3_TESTOWY_HTTP_LOKALNY
+    wczytaj
+    alarm() { :; }
+    (sprawdz_srodowisko >/dev/null 2>&1)
+    printf 'kod=%s' "$?"
+  )
+}
+sprawdz "http:// w KOPIA_S3_ENDPOINT zatrzymuje przebieg przed zrzutem" \
+  "kod=14" "$(srodowisko_endpointu 'http://konto.r2.cloudflarestorage.com')"
+sprawdz "https:// w KOPIA_S3_ENDPOINT przechodzi bramkę startu" \
+  "kod=0" "$(srodowisko_endpointu 'https://konto.r2.cloudflarestorage.com')"
 
 # =============================================================================
 echo "── Wysyłka i POTWIERDZENIE, że obiekt naprawdę tam jest ──"

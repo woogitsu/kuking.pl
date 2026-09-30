@@ -648,6 +648,16 @@ WERSJA_DOKUMENTU_TEST = "WersjaDokumentuTest"
 # brak `@X.Y.Z` po `@railway/cli`.
 RAILWAY_CLI_WORKFLOW = ".github/workflows/deploy.yml"
 RAILWAY_CLI_TEST = "RailwayCliPrzypietaWersjaTest"
+# Token Railway bez zapasowego środowiska (#2255). Strażnik OBLICZA wyrażenie
+# tokenu z `deploy.yml`; mutacja przywraca `production && PRODUCTION || STAGING`,
+# które przy braku sekretu produkcji podaje token staginu.
+TOKEN_RAILWAY_TEST = "TokenRailwayBezZapasowegoSrodowiskaTest"
+TOKEN_RAILWAY_NOWY = ("${{ (github.event.inputs.environment == 'production' && secrets.RAILWAY_TOKEN_PRODUCTION)\n"
+                      "            || (github.event.inputs.environment == 'staging' && secrets.RAILWAY_TOKEN_STAGING)\n"
+                      "            || '' }}")
+TOKEN_RAILWAY_STARY = ("${{ github.event.inputs.environment == 'production'\n"
+                       "            && secrets.RAILWAY_TOKEN_PRODUCTION\n"
+                       "            || secrets.RAILWAY_TOKEN_STAGING }}")
 # Runbook nie każe instalować niewdrożonych Sentry i PostHog (#1010). Strażnik
 # czyta dokument; mutacje przywracają do części wykonywanej (poza `<details>`)
 # polecenie instalacji pakietu i wiersz z kluczem PostHog w tabeli zmiennych.
@@ -1569,6 +1579,8 @@ checks = [
      lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
     ("Instalacja Railway CLI bez sprawdzenia sumy kontrolnej", RAILWAY_CLI_WORKFLOW, RAILWAY_CLI_TEST,
      railway_cli_bez_przypietej_wersji),
+    ("Operacja na produkcji bierze token staginu, gdy brak sekretu produkcji", WDROZENIE_WORKFLOW, TOKEN_RAILWAY_TEST,
+     lambda s: replace_once(s, TOKEN_RAILWAY_NOWY, TOKEN_RAILWAY_STARY)),
     ("Bramka tokenu krawędzi przepuszcza żądanie bez tokenu", BRAMKA_KRAWEDZI, BRAMKA_KRAWEDZI_TEST,
      lambda s: replace_once(s, BRAMKA_KRAWEDZI_WARUNEK, BRAMKA_KRAWEDZI_WARUNEK.replace("if ($egzekwowanie) {", "if (false) {"))),
     ("Caddy czyta X-Forwarded-For od lewej", CADDYFILE, CADDY_ZAUFANIE_TEST,

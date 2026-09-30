@@ -335,6 +335,15 @@ sprawdz_srodowisko() {
     padnij srodowisko 10
   fi
 
+  # Endpoint kopii wyłącznie po HTTPS (#2261) — sprawdzany TU, przed zrzutem,
+  # a nie dopiero przy wysyłce, żeby zła wartość w panelu nie kosztowała
+  # zrzutu całej bazy, który i tak nie wyjdzie. Adresu nie logujemy.
+  if ! s3_sprawdz_endpoint "${KOPIA_S3_ENDPOINT}"; then
+    log 'BŁĄD: KOPIA_S3_ENDPOINT nie jest adresem https:// — klucz R2 i zrzut bazy nie pójdą otwartym tekstem.'
+    log '  Ustaw w serwisie kopii adres https://<ACCOUNT_ID>.r2.cloudflarestorage.com.'
+    padnij srodowisko 14
+  fi
+
   # Liczby z panelu — zanim cokolwiek zrobimy, a przede wszystkim zanim
   # retencja cokolwiek skasuje. Powód i pomiar: `liczba_dodatnia_albo_padnij`.
   liczba_dodatnia_albo_padnij KOPIA_MINIMUM_KOPII "${MINIMUM_KOPII}" 1
