@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -45,19 +46,19 @@ class CommentThank extends Model
      * i wczytane odpowiedzi). Stan widzą dwie osoby: dziękujący i autor
      * komentarza; dla gościa i dla każdego innego wynik jest pusty.
      *
-     * @param  iterable<Comment>  $komentarze  komentarze główne z wczytanymi `replies`
-     * @return array<string, true>
+     * @param  Collection<int, Comment>|AbstractPaginator<int, Comment>  $komentarze  komentarze główne z wczytanymi `replies`
+     * @return array<string, bool>
      */
-    public static function dlaListy(iterable $komentarze, ?User $widz): array
+    public static function dlaListy(Collection|AbstractPaginator $komentarze, ?User $widz): array
     {
         if ($widz === null) {
             return [];
         }
 
-        $komentarze = $komentarze instanceof AbstractPaginator ? $komentarze->getCollection() : collect($komentarze);
+        $komentarze = $komentarze instanceof AbstractPaginator ? $komentarze->getCollection() : $komentarze;
         $ids = $komentarze
-            ->flatMap(fn (Comment $c) => $c->relationLoaded('replies') ? $c->replies->modelKeys() : [])
-            ->merge($komentarze->modelKeys())
+            ->flatMap(fn (Comment $c) => $c->relationLoaded('replies') ? $c->replies->map(fn (Comment $r) => $r->getKey()) : [])
+            ->merge($komentarze->map(fn (Comment $c) => $c->getKey()))
             ->map(fn ($id): string => (string) $id)
             ->unique()
             ->values()

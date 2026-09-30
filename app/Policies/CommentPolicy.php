@@ -254,7 +254,6 @@ class CommentPolicy
     public function offerThank(User $user, Comment $comment): bool
     {
         return $user->isActive()
-            && $comment->author_id !== null
             && $user->getKey() !== $comment->author_id
             && $user->getKey() === $comment->notifiableUserId()
             && $comment->status === Comment::STATUS_PUBLISHED
