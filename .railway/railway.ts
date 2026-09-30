@@ -174,6 +174,36 @@ const PRODUCTION_SPLIT_SERVICES = true;
  */
 const ZAMKNIECIE_Z_KOLEJKA_S = 130;
 
+/**
+ * LIMIT AUTOMATYCZNYCH RESTARTÓW PO AWARII (audyt 30.09.2026, IN-13, #2302).
+ *
+ * Do 30.09 web i worker miały `ON_FAILURE` z 10 próbami. Po 10 awariach
+ * Railway przestaje wskrzeszać usługę i czeka na człowieka. Dla workera to
+ * za mało nawet na krótką awarię bazy: nadzorca kolejki (`nadzoruj()`
+ * w docker/entrypoint.sh) wychodzi z kodem 1 po 5 szybkich śmierciach,
+ * czyli po mniej więcej minucie. 10 prób to więc kwadrans awarii bazy
+ * w nocy. Potem kolejka stoi do rana: zdjęcia wiszą w `PENDING`, listy nie
+ * wychodzą, a alarm z `kuking:sprawdz-kolejke` przychodzi, ale nikt niczego
+ * nie restartuje.
+ *
+ * Dokumentacja Railway (https://docs.railway.com/deployments/restart-policy,
+ * czytana 30.09.2026): na Free i Trial `ALWAYS` jest niedostępne, a
+ * `ON_FAILURE` ma najwyżej 10 prób. Na planie płatnym wolno ustawić dowolną
+ * politykę z dowolną liczbą prób. Produkcja i tak wymaga planu płatnego,
+ * bo scheduler ma `ALWAYS` od początku (D-333: płatny plan, raczej Pro).
+ *
+ * 1000 prób przy mniej więcej minucie na próbę to kilkanaście godzin
+ * samodzielnego podnoszenia się po awarii bazy albo sieci. Przy 900 s
+ * czekania na migracje (`czekaj_na_migracje`) to ponad tydzień. Liczba jest
+ * skończona, żeby zepsute wdrożenie nie kręciło się bez końca.
+ * Poza produkcją zostaje 10: staging i PR-y mogą leżeć do rana, a na
+ * planie darmowym więcej się nie da.
+ *
+ * Pilnuje `scripts/railway/iac.test.mjs` (blok „Polityka restartu”).
+ */
+const PROBY_RESTARTU_PRODUKCJA = 1000;
+const PROBY_RESTARTU_POZA_PRODUKCJA = 10;
+
 // =============================================================================
 export default defineRailway((ctx) => {
   // ---------------------------------------------------------------------------
@@ -199,6 +229,9 @@ export default defineRailway((ctx) => {
   const splitServices = isProduction
     ? PRODUCTION_SPLIT_SERVICES
     : isStaging && process.env.KUKING_IAC_STAGING_ROZBITY === "true";
+
+  // Limit restartów po awarii — uzasadnienie przy `PROBY_RESTARTU_PRODUKCJA`.
+  const probyRestartu = isProduction ? PROBY_RESTARTU_PRODUKCJA : PROBY_RESTARTU_POZA_PRODUKCJA;
 
   // Cokolwiek innego to efemeryczne środowisko PR. Konfigurujemy je tak samo
   // jak staging (jeden serwis, Serverless włączony, brak domeny custom),
@@ -1233,11 +1266,12 @@ export default defineRailway((ctx) => {
 
       // -----------------------------------------------------------------------
       //  Restart policy. ON_FAILURE = restart tylko po błędzie (domyślne).
-      //  10 prób to maksimum dostępne również na planach darmowych.
+      //  Liczba prób: patrz `PROBY_RESTARTU_PRODUKCJA` (IN-13). Na produkcji
+      //  1000, bo po 10 awariach Railway zostawia serwis wyłączony.
       //  https://docs.railway.com/deployments/restart-policy
       // -----------------------------------------------------------------------
       restartPolicyType: "ON_FAILURE",
-      restartPolicyMaxRetries: 10,
+      restartPolicyMaxRetries: probyRestartu,
 
       // -----------------------------------------------------------------------
       //  Graceful shutdown. Railway wysyła SIGTERM i czeka `drainingSeconds`,
@@ -1347,8 +1381,12 @@ export default defineRailway((ctx) => {
       region: REGION,
       numReplicas: 1,
 
-      restartPolicyType: "ON_FAILURE",
-      restartPolicyMaxRetries: 10,
+      // ALWAYS, nie ON_FAILURE (IN-13): kolejka ma chodzić zawsze, jak
+      // scheduler. Liczba prób: patrz `PROBY_RESTARTU_PRODUKCJA`.
+      // Worker istnieje tylko przy rozbiciu, czyli na produkcji albo na
+      // stagingu z `KUKING_IAC_STAGING_ROZBITY=true`.
+      restartPolicyType: "ALWAYS",
+      restartPolicyMaxRetries: probyRestartu,
 
       // Worker dostaje DŁUGIE okno na zamknięcie: `queue:work` reaguje na
       // SIGTERM dokańczając bieżący job (dzięki rozszerzeniu pcntl).
@@ -1425,7 +1463,7 @@ export default defineRailway((ctx) => {
       // UWAGA: ALWAYS wymaga planu płatnego (na Free jest niedostępne).
       // https://docs.railway.com/deployments/restart-policy
       restartPolicyType: "ALWAYS",
-      restartPolicyMaxRetries: 10,
+      restartPolicyMaxRetries: probyRestartu,
 
       drainingSeconds: 30,
       sleepApplication: false,
