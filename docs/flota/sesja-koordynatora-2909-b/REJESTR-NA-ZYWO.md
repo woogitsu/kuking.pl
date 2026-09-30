@@ -286,3 +286,4 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 - #2339 (paczka L) SCALONY merge commitem → ce4fed406. Zamknięte z dowodem: #2270 #2227 #2229 #2231 #2235 #2236 #2267, #2325 (not planned), #1011 (weryfikator).
 - Start integratora paczki M (14 gałęzi: 2331, ux-novalidate-wszedzie 9e34d174e, 2228, 2302, 2326, 2308-2327, 2300, 2276, 2259, 2292, 2283, 2218-alarm, 1753-forma, 2299 + docblock RobotsTxt #2325) od ce4fed406 → claude/paczka-m-kandydat.
 - Do decyzji właściciela: Discord w polityce (#8), wcześniejsze kasowanie failed_jobs, archiwum regulaminu (#2220), test do #2300, pytania CI z #2299, tolerancja 5 min w #2259.
+- 13:2x HANDOVER dla następnej sesji: docs/flota/sesja-koordynatora-2909-b/HANDOVER_3009_POPOLUDNIE.md (paczka M cb09bc3dd bez d333; w toku 2220-archiwum 9747793ff, 2299-etap2 45307ea22).
