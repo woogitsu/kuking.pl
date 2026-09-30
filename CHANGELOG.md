@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (audyt UX 50+): w formularzu odwołania dla osoby, która nie może się zalogować, odnośnik „Nie pamiętam hasła” stoi przy polu hasła, przed polem wyjaśnienia. Wcześniej stał obok „Wyślij odwołanie”, więc kliknięcie go po napisaniu wyjaśnienia porzucało cały wpisany tekst.
 - Naprawione (audyt UX 50+): w Planerze tygodnia odnośniki z podsumowania błędów prowadzą teraz do istniejącego pola — do pola „Nazwa przepisu” dnia, z którego przyszedł błąd, albo do pola „Dopisz coś własnego” tego dnia. Wcześniej wskazywały na pola, których na stronie nie ma, i kliknięcie nic nie robiło.
 - Naprawione (audyt UX 50+): zdania, które stoją same, bez tekstu głównego obok, mają teraz rozmiar tekstu podstawowego (18 px), a nie 16 px — opisy na ekranach „Historia zmian”, „Wersja N” i porównania wersji, informacja „Ten dzień ma komplet” w Planerze oraz komunikat o pełnym limicie tagów przy wpisie.
 - Naprawione (audyt UX 50+): na liście wszystkich wersji regulaminu i polityki prywatności plakietka „Obecna” stała przy nowej wersji także wtedy, gdy ta jeszcze nie obowiązuje (okres przejściowy po istotnej zmianie). Teraz wersja, która obowiązuje, ma plakietkę „Obowiązuje”, a opublikowana przed terminem — „Nowa — od {data}”.
