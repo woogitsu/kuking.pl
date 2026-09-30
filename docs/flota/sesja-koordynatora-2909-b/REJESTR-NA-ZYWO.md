@@ -308,3 +308,4 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 - Decyzje właściciela: /health sekcja informacje OK; pomoc 16 px zostaje; moderacja przejmuje ukrycie; cache kanału 5 min.
 - 17:11 PR #2341 paczka N otwarty (e8f8344d7; PHPStan fix wyjątków). Lokalnie: PHPUnit 870, JS 205 + build, PHPStan 0, skrypty OK.
 - Paczka O (decyzja: N teraz, reszta w O): integrator od paczka-n-kandydat: kursor-strefa-czasu f5df223de, audyt-lm-drobne cddfebc30, moderacja-przejmuje-ukrycie 12e3a49a3, + dosylka-na-suficie-partiami (w pracy).
+- 17:14 dosylka-na-suficie-partiami → 0bfb7fb91 (Cache::many, chunkById, sufit 5000 z logiem). Integrator O ma ją scalić na końcu.
