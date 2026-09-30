@@ -67,7 +67,7 @@ final class DecyzjaOWersjiPrzepisu implements CofniecieUkryciaWersji
     }
 
     /**
-     * @return UkrywanieWersji::UKRYTO|UkrywanieWersji::JUZ_UKRYTA|UkrywanieWersji::NAJNOWSZA|UkrywanieWersji::BRAK_WERSJI
+     * @return UkrywanieWersji::UKRYTO|UkrywanieWersji::PRZEJETO|UkrywanieWersji::JUZ_UKRYTA|UkrywanieWersji::NAJNOWSZA|UkrywanieWersji::BRAK_WERSJI
      */
     public function ukryj(
         User $moderator,
