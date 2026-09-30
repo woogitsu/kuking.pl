@@ -31,7 +31,7 @@ final class TablicaKodowPg implements CastsAttributes
             return array_values(array_map('strval', $value));
         }
 
-        if (! is_string($value) || preg_match('/^\{([a-z0-9_]+(,[a-z0-9_]+)*)\}$/', $value, $m) !== 1) {
+        if (preg_match('/^\{([a-z0-9_]+(,[a-z0-9_]+)*)\}$/', $value, $m) !== 1) {
             throw new InvalidArgumentException("Nieczytelna tablica kodów w kolumnie {$key}.");
         }
 
@@ -43,7 +43,7 @@ final class TablicaKodowPg implements CastsAttributes
         $kody = is_array($value) ? array_values($value) : [];
 
         foreach ($kody as $kod) {
-            if (! is_string($kod) || preg_match('/^[a-z0-9_]+$/', $kod) !== 1) {
+            if (preg_match('/^[a-z0-9_]+$/', $kod) !== 1) {
                 throw new InvalidArgumentException("Kod niedozwolony w kolumnie {$key}.");
             }
         }

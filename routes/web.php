@@ -63,7 +63,6 @@ use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ReporterAppealController;
 use App\Http\Controllers\SearchController;
-use App\Http\Middleware\NieZapamietujeWyboruAlergenow;
 use App\Http\Controllers\Settings\AccessibilitySettingsController;
 use App\Http\Controllers\Settings\AvatarSettingsController;
 use App\Http\Controllers\Settings\BirthdaySettingsController;
@@ -97,6 +96,7 @@ use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use App\Http\Controllers\ZgodaOdczytuAiController;
 use App\Http\Controllers\ZmianaPolitykiController;
 use App\Http\Controllers\ZmianaRegulaminuController;
+use App\Http\Middleware\NieZapamietujeWyboruAlergenow;
 use App\Support\ParametryUuidTras;
 use Illuminate\Support\Facades\Route;
 

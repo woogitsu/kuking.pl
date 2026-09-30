@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Domain\Recipes\Alergeny\Alergen;
 use App\Domain\Recipes\Alergeny\SlownikAlergenow;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -121,7 +122,7 @@ final class SlownikAlergenowTest extends TestCase
         $wynik = SlownikAlergenow::podpowiedzi(['mąka', 'jajka', 'mleko', 'ryba', 'krewetki', 'tofu', 'migdały', 'seler']);
 
         foreach (array_keys($wynik) as $kod) {
-            $this->assertContains($kod, \App\Domain\Recipes\Alergeny\Alergen::kody());
+            $this->assertContains($kod, Alergen::kody());
         }
     }
 }

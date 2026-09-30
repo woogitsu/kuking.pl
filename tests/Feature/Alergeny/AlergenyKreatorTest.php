@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Alergeny;
 
+use App\Domain\Recipes\Alergeny\Alergen;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -36,7 +38,7 @@ final class AlergenyKreatorTest extends TestCase
     }
 
     /** Kreator doprowadzony do kroku 2 z wypełnionym przepisem (gotowy do publikacji). */
-    private function kreator(): \Livewire\Features\SupportTesting\Testable
+    private function kreator(): Testable
     {
         return Livewire::actingAs($this->autor)->test('recipe-wizard')
             ->set('form.title', 'Naleśniki babci')
@@ -51,7 +53,7 @@ final class AlergenyKreatorTest extends TestCase
     {
         $k = $this->kreator();
 
-        foreach (\App\Domain\Recipes\Alergeny\Alergen::cases() as $alergen) {
+        foreach (Alergen::cases() as $alergen) {
             $k->assertSeeHtml('value="'.$alergen->value.'"');
             $k->assertSee($alergen->etykieta());
         }

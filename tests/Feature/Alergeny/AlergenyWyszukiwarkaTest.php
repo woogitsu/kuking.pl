@@ -10,6 +10,7 @@ use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /**
@@ -64,17 +65,9 @@ final class AlergenyWyszukiwarkaTest extends TestCase
     }
 
     /** @param  list<string>  $bez */
-    private function szukaj(array $bez, array $dodatkowe = []): \Illuminate\Testing\TestResponse
+    private function szukaj(array $bez, array $dodatkowe = []): TestResponse
     {
         return $this->get(route('search', ['q' => 'zupa jarzynowa', 'bez' => $bez] + $dodatkowe));
-    }
-
-    /** @return list<string> tytuły w kolejności wyników */
-    private function tytuly(string $html): array
-    {
-        preg_match_all('/Zupa jarzynowa [a-z ]+?(?=<|\s{2})/u', $html, $m);
-
-        return array_values(array_unique(array_map('trim', $m[0])));
     }
 
     public function test_filtr_przepuszcza_tylko_zdeklarowane_bez_wybranego_alergenu(): void

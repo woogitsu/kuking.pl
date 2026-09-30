@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature\Alergeny;
 
 use App\Domain\Moderation\PriorytetSprawy;
+use App\Domain\Recipes\Alergeny\Alergen;
+use App\Domain\Recipes\Alergeny\OznaczAlergenyPrzepisu;
+use App\Models\Media;
 use App\Models\Recipe;
 use App\Models\Report;
 use App\Models\User;
@@ -150,7 +153,7 @@ final class AlergenyBlokNaStroniePrzepisuTest extends TestCase
     {
         // JSON-LD `Recipe` emituje dopiero przepis ze zdjęciem głównym (#1005).
         $przepis = $this->przepis('declared', ['milk', 'gluten']);
-        $przepis->forceFill(['hero_media_id' => \App\Models\Media::factory()->create(['owner_id' => $this->autor->getKey()])->getKey()])->save();
+        $przepis->forceFill(['hero_media_id' => Media::factory()->create(['owner_id' => $this->autor->getKey()])->getKey()])->save();
         $html = $this->stronaPrzepisu($przepis);
 
         preg_match_all('#<script type="application/ld\+json"[^>]*>(.*?)</script>#s', $html, $m);
@@ -190,10 +193,10 @@ final class AlergenyBlokNaStroniePrzepisuTest extends TestCase
     public function test_etykiety_alergenow_i_komunikaty_akcji_nie_zawieraja_zakazanych_slow(): void
     {
         $teksty = [
-            \App\Domain\Recipes\Alergeny\OznaczAlergenyPrzepisu::KOMUNIKAT_POTWIERDZ,
+            OznaczAlergenyPrzepisu::KOMUNIKAT_POTWIERDZ,
             Report::REASONS_PRZEPIS['allergen_label'],
         ];
-        foreach (\App\Domain\Recipes\Alergeny\Alergen::cases() as $alergen) {
+        foreach (Alergen::cases() as $alergen) {
             $teksty[] = $alergen->etykieta();
             $teksty[] = $alergen->nazwa();
         }
