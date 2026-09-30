@@ -1,40 +1,84 @@
 # Przełączenie produkcji na trzy serwisy — #595
 
-**Status (24.09.2026): przygotowanie w repozytorium, nic nie wykonano.**
-Nie uruchomiono `railway config plan` ani `apply`, nie łączono się z Railwayem
-ani z Cloudflare. Nazwy żywych zasobów pochodzą z pomiaru z 9.09.2026
-(`OperacjeWdrozeniaCelujaWIstniejacySerwisTest`) — przed planem trzeba je
-potwierdzić w panelu (krok 0). Wykonuje właściciel, w tej kolejności.
+**Status (29.09.2026): repozytorium gotowe, przełączenie robi właściciel
+według tego runbooka** (D-333, wiersz #595). Nie uruchomiono `railway config
+plan` ani `apply`, nie łączono się z Railwayem ani z Cloudflare. Produkcja to
+nadal jeden serwis `kuking.pl` w roli `all` (`APP_ROLE=all`). Wykonuje
+właściciel, w tej kolejności.
 
-## Co zmieniło się w repozytorium
+## Stan produkcji, od którego zaczynamy (29.09.2026, same NAZWY zmiennych)
 
-| Zmiana | Po co |
+Odczyt koordynatora z panelu, bez wartości:
+
+- serwis `kuking.pl` **nie ma** zmiennych `VAPID_*`, `KUKING_EDGE_*`,
+  `OPENAI_IMPORT_KEY`, `AWS_ZDJECIA_KOPIA_*`;
+- **nie ma** też `KUKING_HTML_EDGE_CACHE_SECONDS` ani `KUKING_TAG_TYGODNIA`;
+- **ma** `RAILWAY_PUBLIC_DOMAIN` — tę Railway wstrzykuje sam (serwis ma
+  wygenerowaną domenę `*.up.railway.app`); nie jest ustawiana ręcznie
+  i narzędzia z kroku 0 ją pomijają.
+
+Skutek dla przełączenia: Web Push, bramka brzegu, import z OpenAI (#2214 —
+czeka na DPA), sprawdzanie kopii zdjęć, cache HTML i tag tygodnia są dziś
+**wyłączone** i po apply zostaną wyłączone (pusta referencja do Shared
+Variable = wartość domyślna). Apply nie włączy żadnej z nich. To samo
+dotyczy drugiego kanału alarmów pocztą (`KUKING_ALARM_EMAIL`, #599): gdy
+w Shared Variables go nie ma, zostaje sam Discord (`LOG_BLAD_WEBHOOK_URL`,
+która **też** przechodzi na Shared — bez niej alarmy zamilkną). Zmienne, które
+serwis ma, poznasz w kroku 0.5 — tej listy repozytorium nie zna.
+
+## Czy `railway config apply` usuwa zmienne spoza pliku? — TAK, traktuj to jako pewne
+
+- `railway.ts` jest deklaracją **pełną**: plan porównuje plik z żywym
+  środowiskiem, bez pliku stanu. README paczki `railway` 3.11.0
+  (`node_modules/railway/README.md`, sekcja IaC): *„Removing resources or
+  variables is destructive and additionally requires `--confirm-destructive`
+  in non-interactive or agent sessions”*. Zmienna, którą serwis ma, a plik
+  nie — plan pokaże jako usunięcie.
+- SDK ma `preserve()` („zachowaj wartość, którą Railway już ma”). **Nie
+  używamy go** dla zmiennych aplikacji: nowe serwisy `worker` i `scheduler`
+  nie mają żadnej wartości do zachowania, a źródłem prawdy ma zostać plik
+  plus Shared Variables. Dlatego wartości przenosimy do Shared Variables
+  **przed** apply (krok 0.5).
+- Po #1459 (#1013) plan **na pewno** coś usunie z `kuking.pl`: rola `web` nie
+  ma zmiennych workera i schedulera (klucz moderacji, puls harmonogramu,
+  odczyt kopii, listy urodzinowe…). To jest zamierzone. Stopem jest usunięcie
+  zmiennej, której bilans z kroku 0.5 nie przewidział.
+- Potwierdzenie na żywo daje dopiero plan z kroku 2 — wynik dopisz do
+  `docs/infra/ZMIENNE_SPOZA_IAC.md`, sekcja „Wynik”.
+
+## Co jest w repozytorium
+
+| Element | Po co |
 |---|---|
-| `.railway/railway.ts`: serwis WWW nazywa się `kuking.pl` (`NAZWA_SERWISU_WWW`), baza `Postgres` (`NAZWA_BAZY`) | Plan porównuje plik z żywym środowiskiem **po nazwie**. Ze starymi nazwami `web`/`postgres` pierwszy apply utworzyłby nowy serwis i **nową, pustą bazę**, przepiął `DB_URL` i zaproponował usunięcie istniejących. |
-| `.github/workflows/railway-iac.yml`: `apply` tylko ręcznie (`workflow_dispatch` na `main`, wpisane potwierdzenie), zmiany destrukcyjne domyślnie zablokowane | Wcześniej scalenie każdego PR-a z `.railway/**` stosowało plik na produkcji z `confirm-destructive: true`. Scalenie tego PR-a samo przeprowadziłoby rozbicie. |
-| `KUKING_WAIT_FOR_CI` przekazywane z **zmiennej repozytorium** do planu i apply | Bez niej plik ustawia `checkSuites: false`, czyli **wyłącza „Wait for CI”** na produkcji. |
+| `.railway/railway.ts`: serwis WWW nazywa się `kuking.pl` (`NAZWA_SERWISU_WWW`), baza `Postgres` (`NAZWA_BAZY`), `PRODUCTION_SPLIT_SERVICES = true` | Plan porównuje plik z żywym środowiskiem **po nazwie**. Ze starymi nazwami `web`/`postgres` pierwszy apply utworzyłby nowy serwis i **nową, pustą bazę**. |
+| Zestawy zmiennych per rola (`webEnv`, `workerEnv`, `schedulerEnv`, #1459, #1013, #1014) | Sekrety tylko tam, gdzie ktoś je czyta: OAuth i Turnstile tylko web, klucz moderacji i prywatny klucz Web Push tylko worker, odczyt kopii i puls tylko scheduler. Pilnuje `tests/Feature/ZmienneRailwayaPerRolaTest.php`. |
+| `.github/workflows/railway-iac.yml`: `apply` tylko ręcznie (`workflow_dispatch` na `main`, wpisane potwierdzenie), zmiany destrukcyjne domyślnie zablokowane | Scalenie PR-a nie stosuje pliku na produkcji. |
+| `KUKING_WAIT_FOR_CI` przekazywane z **zmiennej repozytorium** do planu i apply | Bez niej plik odmawia kompilacji (#1390) zamiast po cichu wyłączyć „Wait for CI”. |
 | `KUKING_IAC_STAGING_ROZBITY=true` (zmienna procesu, tylko staging) | Jedyna droga, żeby przećwiczyć rozbicie gdzie indziej niż na produkcji. |
-| `scripts/railway/iac.test.mjs` (+ `iac-graf.mjs`), w `check.sh` i w jobie `assets` w CI | Kompiluje `railway.ts` lokalnym SDK, bez sieci, i sprawdza graf: role i `APP_ROLE`, nazwy żywych zasobów, migracje tylko w WWW, jeden harmonogram, domeny tylko na WWW, te same zmienne i obraz w trzech serwisach, `drainingSeconds` workera ≥ limit zadania zdjęć, jeden region; oraz że workflow nie wróci do apply po scaleniu. 16 + 5 kontroli ujemnych w tym samym pliku. |
+| `scripts/railway/iac.test.mjs` (+ `iac-graf.mjs`), w `check.sh` i w jobie `assets` w CI | Kompiluje `railway.ts` lokalnym SDK, bez sieci, i sprawdza graf: role i `APP_ROLE`, nazwy żywych zasobów, migracje tylko w WWW, jeden harmonogram, domeny tylko na WWW, rdzeń zmiennych w każdej roli, obraz wspólny, `drainingSeconds` workera ≥ limit zadania zdjęć, jeden region, workflow bez apply po scaleniu, bilans zmiennych i blok wycofania z tego runbooka — z kontrolami ujemnymi w tym samym pliku. |
+| `scripts/railway/bilans-zmiennych-595.mjs` | Krok 0.5: z nazw zmiennych `kuking.pl` i nazw Shared Variables mówi, które zmienne plan usunie (oczekiwanie albo stop), której wartości zabraknie w Shared i które referencje zostaną puste. Same nazwy, bez wartości. |
 
-Strażnik **nie dowodzi**, że żywe środowisko wygląda jak w pomiarze z 9.09
-ani że plan będzie taki, jak opisuję niżej. To rozstrzyga dopiero krok 2.
+Strażniki **nie dowodzą**, że żywe środowisko wygląda jak opis wyżej ani że
+plan będzie taki, jak w tabeli z kroku 2. To rozstrzyga dopiero krok 2.
 
 ## Warunki wstępne — wszystkie przed krokiem 1
 
+- [ ] Plan Railway **Pro** aktywny (D-333), limit wydatków: twardy 100 USD,
+      alert przy 60 USD (Workspace → Usage). `restartPolicyType: "ALWAYS"`
+      schedulera wymaga planu płatnego. Szacunek z `railway.ts`: 40–65
+      USD/mies. zamiast 12–18 — zmieści się w limicie, ale sprawdź zużycie
+      po tygodniu.
 - [ ] Wolumen odłączony od `kuking.pl` (#596 — potwierdzone 17.09.2026).
-      Wolumen blokuje repliki i wywraca rozbicie.
 - [ ] Świeża kopia bazy z dzisiejszej nocy albo ręczny zrzut
       (docs/infra/KOPIE_I_ODTWORZENIE.md). Rozbicie nie dotyka danych,
       ale błędnie przeczytany plan może.
-- [ ] Railway CLI ≥ 5.42.1 (`railway --version`), w repo `npm ci`.
-- [ ] Zgoda na koszt: szacunek z `railway.ts` 40–65 USD/mies. zamiast 12–18.
-      Potwierdź w panelu (Workspace → Usage) i ustaw limit wydatków.
+- [ ] Railway CLI ≥ 5.42.1 (`railway --version`), w repo `npm ci`, Node ≥ 22.6.
 - [ ] Okno o małym ruchu (np. 6:00–8:00), bez trwającej fali maili
       i bez eksportu RODO w toku (`php artisan kuking:sprawdz-kolejke`
       przez `railway ssh --service kuking.pl --environment production`).
-- [ ] Ten PR scalony. Wszystkie polecenia niżej uruchamiaj z aktualnego `main`.
+- [ ] Wszystkie polecenia niżej uruchamiaj z aktualnego `main`.
 
-## Krok 0 — odczyt stanu (niczego nie zmienia)
+## Krok 0 — odczyt stanu i bilans zmiennych (niczego nie zmienia)
 
 1. Panel Railway → projekt (`ideal-exploration` według pomiaru z 9.09) →
    środowisko `production`. Zapisz:
@@ -42,39 +86,65 @@ ani że plan będzie taki, jak opisuję niżej. To rozstrzyga dopiero krok 2.
      i `Postgres`, ewentualnie ręcznie założony `kopia-bazy`;
    - region `kuking.pl` i `Postgres` (plik: `europe-west4-drams3a`);
    - w `kuking.pl` → Settings: Start Command, limity pamięci/CPU,
-     healthcheck, czy „Wait for CI” jest włączone;
-   - w `kuking.pl` → Variables: **nazwy** zmiennych (bez wartości).
+     healthcheck, czy „Wait for CI” jest włączone, jakie domeny ma serwis
+     (dwie własne i jedna `*.up.railway.app`).
 2. Gdy nazwa serwisu albo bazy jest inna niż w pliku — **stop**. Popraw
    `NAZWA_SERWISU_WWW` / `NAZWA_BAZY` w `.railway/railway.ts` i `APP_SERVICE`
    w `.github/workflows/deploy.yml` w osobnym PR-ze (strażnik pilnuje, że się
    zgadzają), dopiero potem wracaj tutaj.
 3. `KUKING_WAIT_FOR_CI` jest **obowiązkowe** (#1390): `true`, gdy „Wait for CI”
-   jest włączone, `false`, gdy nie. Brak zmiennej zatrzymuje plan i apply.
-   GitHub → Settings → Secrets and variables → Actions → **Variables** →
-   `KUKING_WAIT_FOR_CI` = `true` albo `false`. Lokalnie poprzedzaj każde
-   `railway config plan/apply` przez `KUKING_WAIT_FOR_CI=<ta sama wartość>`
-   (przykłady niżej zakładają `true`).
-4. Lista zmiennych współdzielonych, do których odwołuje się plik:
+   jest włączone, `false`, gdy nie. GitHub → Settings → Secrets and variables
+   → Actions → **Variables** → `KUKING_WAIT_FOR_CI`. Lokalnie poprzedzaj każde
+   `railway config plan/apply` tą samą wartością (przykłady niżej zakładają
+   `true`).
+4. Lista Shared Variables, do których odwołuje się plik:
 
    ```bash
-   node --experimental-strip-types --no-warnings scripts/railway/iac-graf.mjs production --wspoldzielone
+   KUKING_WAIT_FOR_CI=true node --experimental-strip-types --no-warnings scripts/railway/iac-graf.mjs production --wspoldzielone
    ```
 
-   Każda z tych nazw musi istnieć w Project Settings → **Shared Variables**
-   środowiska `production`, z tą samą wartością co dziś w serwisie.
-   `ctx.shared.X` **odwołuje się** do zmiennej, nie tworzy jej. Jeśli dziś
-   `kuking.pl` ma np. `AWS_ACCESS_KEY_ID` wpisane wprost, a `R2_ACCESS_KEY_ID`
-   we współdzielonych nie istnieje, apply podmieni wartość na pustą
-   i zdjęcia przestaną się wgrywać. Brakujące dopisz **przed** planem.
+   `ctx.shared.X` **odwołuje się** do zmiennej, nie tworzy jej. Uwaga na
+   nazwy: w serwisie stoi np. `AWS_ACCESS_KEY_ID`, a plik czyta
+   `${{shared.R2_ACCESS_KEY_ID}}` — mapę nazw pokazuje krok 5.
+5. **Bilans zmiennych.** Przepisz z panelu (Project Settings → Shared
+   Variables, środowisko `production`) same **nazwy** Shared Variables do
+   pliku poza repozytorium, po jednej w linii, np. `~/shared-nazwy.txt`.
+   Potem:
 
-## Krok 1 — próba na stagingu (zalecane)
+   ```bash
+   railway link          # projekt, środowisko production, serwis kuking.pl
+   railway variables --service kuking.pl --json \
+     | KUKING_WAIT_FOR_CI=true node --experimental-strip-types --no-warnings \
+         scripts/railway/bilans-zmiennych-595.mjs production --wspoldzielone ~/shared-nazwy.txt
+   echo "kod wyjścia: $?"
+   ```
 
-Staging jest odrębnym środowiskiem z własną bazą i własnymi sekretami.
-Jeśli go nie ma: Project → Environments → New Environment `staging`
-— **pusty, nie „duplicate production”** (duplikat kopiuje sekrety
-produkcji) — współdzielone zmienne stagingu z krokiem 0.4 i gałąź `staging`
-w repo. Jeśli świadomie pomijasz staging, zapisz to w #595 i przejdź do
-kroku 2 z tym samym czytaniem planu.
+   Skrypt czyta z wejścia tylko klucze i wypisuje tylko nazwy (pilnuje tego
+   test). Surowego wyniku `railway variables --json` nie wklejaj nigdzie — są
+   w nim wartości. Sekcje wyniku:
+
+   | Sekcja | Znaczenie | Co zrobić |
+   |---|---|---|
+   | **STOP — `kuking.pl` straci zmienną, której plik nie przenosi nigdzie** | Zmienna stoi tylko w panelu. Apply ją usunie. | PR: dopisz ją do roli, która ją czyta, w `railway.ts` (jak `KUKING_MEDIA_DISK`, #1883), albo — gdy nic jej nie czyta — do `MARTWE` w skrypcie z powodem. Powtórz krok 5. |
+   | **STOP — zmienna tylko z panelu (WYJATKI, #2295)** | Plik **świadomie** jej nie deklaruje (lista `WYJATKI` w `tests/Feature/ZmienneRailwayaPerRolaTest.php` albo para `AWS_LEGACY_*`), a apply usunie ją razem z wartością. Najgroźniejsze: `AWS_LEGACY_*` (i `AWS_URL`) — stary bucket to jedyna kopia części najstarszych zdjęć (`docs/infra/STARY_BUCKET_R2_LEGACY.md`). | Instrukcja stoi przy nazwie w wyniku. Dla `AWS_LEGACY_*`: najpierw `railway ssh --service kuking.pl --environment production "php artisan kuking:zaleznosc-od-starego-bucketu --pliki"`. Żaden wiersz nie wskazuje `r2_legacy` → PR przenosi nazwy do `MARTWE` z datą pomiaru. Wiersze są → PR: `AWS_LEGACY_*` w `appEnv` jako `ctx.shared.R2_LEGACY_*` (i usunięcie z `WYJATKI`), Shared `R2_LEGACY_*` z wartościami z panelu. Powtórz krok 5. |
+   | **STOP — wartość z panelu przepadnie** | Wartość stoi dziś w serwisie (nazwa po prawej), plik będzie jej szukał w Shared Variable (nazwa po lewej), której nie ma. | Załóż Shared Variable o nazwie z lewej **z tą samą wartością** co zmienna z prawej (skopiuj w panelu; sekrety zaznacz „Sealed”). Powtórz krok 5. |
+   | Oczekiwane usunięcie: zmienna przechodzi do innej roli | Plan usunie ją z `kuking.pl`, a dostanie ją `worker` / `scheduler`. | Nic — ta lista to jedyne usunięcia, na które zgodzisz się w kroku 3. Zapisz ją. |
+   | Oczekiwane usunięcie: zmienna martwa | Nikt jej nie czyta (dziś: `TRUSTED_PROXIES`). | Nic; też na listę zgód z kroku 3. |
+   | Oczekiwane usunięcie: połączenie z bazą idzie przez `DB_URL` | `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` — plik daje każdej roli `DB_URL = ${{Postgres.DATABASE_URL}}`, a `url` ma pierwszeństwo (audyt 30.09, §3.1). | Nic; też na listę zgód z kroku 3. |
+   | Informacja — referencja bez Shared Variable | Po apply pusto = wartość domyślna, jak dziś. Przy stanie z 29.09: `VAPID_*`, `KUKING_EDGE_*`, `OPENAI_IMPORT_KEY`, `R2_ZDJECIA_KOPIA_*`, `KUKING_HTML_EDGE_CACHE_SECONDS`, `KUKING_TAG_TYGODNIA` i podobne. | Nic, o ile to nazwy funkcji, których produkcja nie ma. Gdy na liście jest coś, co działa dziś (np. klucze R2, EmailLabs) — to znaczy, że stoi w serwisie pod **inną nazwą** niż w pliku: **stop**, wyjaśnij przed planem. |
+
+   Kod `0` — bilans się zamyka, idź dalej. Kod `1` — sekcje STOP nie są
+   puste. Kod `2` — złe wywołanie albo w pliku z nazwami stoi coś, co nie
+   wygląda na nazwę (np. wklejona wartość).
+
+## Krok 1 — próba na stagingu (zalecane, odłożone decyzją z 25.09)
+
+Staging jest odrębnym środowiskiem z własną bazą i własnymi sekretami
+(`DEPLOYMENT_RUNBOOK.md` §8 — dziś odłożony). Jeśli go nie ma i świadomie
+go pomijasz, zapisz to w #595 i przejdź do kroku 2 z tym samym czytaniem
+planu. Jeśli go zakładasz: Project → Environments → New Environment
+`staging` — **pusty, nie „duplicate production”** (duplikat kopiuje sekrety
+produkcji) — Shared Variables stagingu wg kroku 0.4 i gałąź `staging` w repo.
 
 ```bash
 railway link                                   # projekt, środowisko: staging
@@ -84,15 +154,15 @@ KUKING_WAIT_FOR_CI=true KUKING_IAC_STAGING_ROZBITY=true railway config apply   #
 
 Sprawdź na stagingu weryfikację z kroku 4 (wgranie zdjęcia, harmonogram,
 restart workera w trakcie zadania). Powrót stagingu do jednego kontenera:
-`railway config plan` / `apply` **bez** `KUKING_IAC_STAGING_ROZBITY` (z samym
-`KUKING_WAIT_FOR_CI`) — plan pokaże usunięcie
-`worker` i `scheduler` na stagingu, na co tu wolno się zgodzić.
+plan / apply **bez** `KUKING_IAC_STAGING_ROZBITY` (z samym
+`KUKING_WAIT_FOR_CI`) — plan pokaże usunięcie `worker` i `scheduler` na
+stagingu, na co tu wolno się zgodzić.
 
 ## Krok 2 — plan produkcji i jego czytanie
 
 ```bash
 railway link                                   # projekt, środowisko: production
-KUKING_WAIT_FOR_CI=true railway config plan    # obowiązkowa; wartość z kroku 0.3
+KUKING_WAIT_FOR_CI=true railway config plan > ~/plan-595.txt   # wartość z kroku 0.3; plik poza repo
 ```
 
 Plan jest bezpieczny do uruchomienia. Wynik porównaj z tabelą:
@@ -104,9 +174,11 @@ Plan jest bezpieczny do uruchomienia. Wynik porównaj z tabelą:
 | `Postgres` | brak zmian | Utworzenie, usunięcie, zmiana obrazu, regionu albo wolumenu — **stop**. Zmiana obrazu/regionu bazy to migracja danych, nie część #595. |
 | `web`, `postgres` (małe litery) | nie występują | Ktoś cofnął nazwy — **stop** |
 | domeny `kuking.pl`, `www.kuking.pl` | brak zmian | Usunięcie/utworzenie domeny = nowy certyfikat i przerwa — **stop** |
-| usunięcie **zmiennej** w `kuking.pl` | tylko `TRUSTED_PROXIES` — martwa, nie czyta jej żaden kod (SEC-01, komentarz w `railway.ts`) | Każda inna — **stop.** Zmienna ustawiona tylko w panelu zniknie. Dopisz ją do roli, która ją czyta, w `railway.ts` (PR). Od 25.09.2026 w pliku są już `KUKING_QUESTIONS_ENABLED`, `KUKING_MEDIA_DISK`, `KUKING_EDGE_TRYB`, `KUKING_HTML_EDGE_CACHE_SECONDS` i `KUKING_R2_PUBLICZNE_ADRESY`. |
-| `KUKING_EDGE_TRYB`, `KUKING_HTML_EDGE_CACHE_SECONDS`, `KUKING_R2_PUBLICZNE_ADRESY` w `kuking.pl` → referencja `${{shared.…}}` | bez zmiany zachowania: Shared Variable założona z tą samą wartością, co dziś w serwisie, albo zmiennej nie było wcale (pusto = wartość domyślna) | Stała w serwisie z wartością inną niż domyślna, a Shared Variable nie założono — **stop**, przenieś wartość do Shared Variables i zrób plan jeszcze raz. |
-| zmiana wartości zmiennej sekretnej (wartości są w planie zredagowane) | tylko tam, gdzie krok 0.4 potwierdził zmienną współdzieloną | Nie wiesz, skąd zmiana — **stop** |
+| domena `*.up.railway.app` serwisu `kuking.pl` | brak zmian | Plan chce ją usunąć — **stop**. Od niej zależą środowiska PR (komentarz przy `domains` w `railway.ts`). Dopisz ją w PR-ze jako `serviceDomains` serwisu WWW (nazwa domeny z panelu nie jest sekretem) i policz plan od nowa. |
+| usunięcie **zmiennej** w `kuking.pl` | **dokładnie** nazwy z sekcji „Oczekiwane usunięcie” bilansu (krok 0.5) — przy stanie z 29.09 m.in. `OPENAI_MODERATION_KEY`, `AWS_KOPIE_*`, `KUKING_PULS_HARMONOGRAMU_URL`, `KUKING_URODZINY_MAIL_WLACZONY`, `TRUSTED_PROXIES`, `DB_HOST`/`DB_PASSWORD`/…, jeśli serwis je ma. **Nigdy** `AWS_LEGACY_*` ani inna nazwa z sekcji „tylko z panelu” | Każda inna — **stop.** Wracasz do kroku 0.5. |
+| zmienna w `kuking.pl` zmienia się ze stałej na `${{shared.…}}` | tylko tam, gdzie krok 0.5 potwierdził Shared Variable | Nie wiesz, skąd zmiana — **stop** |
+| nowe zmienne w `kuking.pl` (np. `VAPID_PUBLIC_KEY`, `KUKING_EDGE_TRYB`) | referencje z sekcji „Informacja” bilansu — puste, zachowanie domyślne | — |
+| zmiana wartości zmiennej sekretnej (wartości są w planie zredagowane) | tylko tam, gdzie krok 0.5 potwierdził Shared Variable | Nie wiesz, skąd zmiana — **stop** |
 | `checkSuites` / „Wait for CI” | brak zmian | Wyłączenie — brak `KUKING_WAIT_FOR_CI=true`, krok 0.3 |
 | `kopia-bazy` | brak zmian, jeśli założona ręcznie pod tą nazwą; inaczej utworzenie | Utworzenie bez zmiennych `KOPIA_*`/`R2_KOPIE_*` da nocny błąd z alarmem, nie awarię strony. Zdecyduj: dokończ §7.3 KOPIE_I_ODTWORZENIE albo przyjmij świadomie. |
 | nazwa projektu `kuking` | — | Jeśli plan chce zmienić nazwę projektu, jest to kosmetyka; odnotuj. |
@@ -116,16 +188,24 @@ Jakiekolwiek „stop” = nie przechodzisz do kroku 3 w tym oknie.
 
 ## Krok 3 — apply
 
-Jedna z dwóch dróg, **nie obie**:
+**Pierwsze apply #595 rób lokalnie.** Plan zawiera usunięcia zmiennych
+z `kuking.pl` (krok 0.5), a usunięcie jest zmianą destrukcyjną:
 
-- **lokalnie:** `KUKING_WAIT_FOR_CI=true railway config apply` — bez `--yes`
-  i bez `--confirm-destructive`. Jeśli CLI poprosi o zgodę na zmianę
-  destrukcyjną, odpowiedz „nie” i wróć do kroku 2;
+- **lokalnie (zalecane):** `KUKING_WAIT_FOR_CI=true railway config apply`
+  — bez `--yes` i bez `--confirm-destructive`. CLI zapyta o zgodę na zmiany
+  destrukcyjne. Zgódź się **tylko wtedy**, gdy to, co wymienia, jest
+  dokładnie listą „Oczekiwane usunięcie” z kroku 0.5 i niczym więcej (żadnego
+  serwisu, bazy, domeny). Cokolwiek innego — „nie” i wracasz do kroku 2;
 - **z GitHuba:** Actions → *Railway IaC* → Run workflow, gałąź `main`,
-  potwierdzenie `STOSUJE PLAN PRODUKCJI`, pole „Zezwól na usunięcie…”
-  **niezaznaczone**. Wymaga `KUKING_DEPLOY_ENABLED=true` i sekretu
-  `RAILWAY_TOKEN_PRODUCTION`. Akcja liczy plan od nowa — między krokiem 2
-  a tym kliknięciem nic nie zmieniaj w panelu.
+  potwierdzenie `STOSUJE PLAN PRODUKCJI`. Pole „Zezwól na usunięcie…”
+  zezwala na **każde** usunięcie, także serwisu i bazy, bez pytania —
+  dlatego przy #595 go **nie zaznaczaj**. Bez niego apply zatrzyma się na
+  usunięciu zmiennych; ta droga nadaje się więc tylko wtedy, gdy bilans nie
+  miał ani jednego „Oczekiwanego usunięcia”. Wymaga
+  `KUKING_DEPLOY_ENABLED=true` i sekretu `RAILWAY_TOKEN_PRODUCTION`.
+
+Między krokiem 2 a apply nic nie zmieniaj w panelu — apply odrzuca plan
+policzony na innym stanie środowiska.
 
 Co się dzieje: `kuking.pl` wdraża się ponownie w roli `web` (migracje
 w pre-deploy, healthcheck `/health`), `worker` i `scheduler` budują ten sam
@@ -165,7 +245,19 @@ wiersza. Zdjęcia przez chwilę mogą czekać w kolejce — nie giną.
    — zaległości nie rosną przez 10 minut.
 8. Pamięć workera przy zdjęciu (Metrics) poniżej limitu 1024 MB; strona
    w tym czasie bez skoku czasu odpowiedzi.
-9. Wpisz do #595: datę, SHA, wynik planu (co zmienił), punkty 1–8.
+9. Funkcje opcjonalne — zielony `/health` **nie** dowodzi, że działają (#1014):
+   - `railway ssh --service worker --environment production "php artisan kuking:sprawdz-model"`
+     — moderacja modelem ma klucz w **workerze**;
+   - w **schedulerze** `php artisan kuking:sprawdz-kopie` — odczyt kopii bazy
+     działa po przeniesieniu;
+   - jeśli `KUKING_PULS_HARMONOGRAMU_URL` był w bilansie: monitor pulsu
+     dostaje znak życia z serwisu `scheduler` w ciągu 5 minut;
+   - nazwy zmiennych nowych serwisów (bez wartości) mają być te z grafu —
+     `railway variables --service worker --json | KUKING_WAIT_FOR_CI=true node --experimental-strip-types --no-warnings scripts/railway/zmienne-spoza-iac.mjs production worker`
+     (i to samo dla `scheduler`) ma dać kod `0`.
+10. Wpisz do #595: datę, SHA, wynik planu (co zmienił, jakie usunięcia),
+    punkty 1–9. Wynik pytania „czy apply usuwa zmienne spoza pliku” dopisz
+    do `docs/infra/ZMIENNE_SPOZA_IAC.md`, sekcja „Wynik”.
 
 ## Cofnięcie
 
@@ -174,21 +266,45 @@ zmienia schematu ani bazy.
 
 **A. Panel (minuty, gdy coś nie działa):**
 
-1. `kuking.pl` → Settings → Start Command
+1. `kuking.pl` → Variables → Raw Editor: **dopisz** (nie zastępuj) zmienne
+   workera i schedulera, których rola `web` nie ma. Apply je z `kuking.pl`
+   zdjął, a kontener `all` bez nich chodziłby bez klucza moderacji, pulsu,
+   odczytu kopii i listów urodzinowych. `${{shared.…}}` to referencja do
+   Shared Variable z kroku 0.5, nie wartość — wklej dokładnie tak:
+
+<!-- wycofanie-zmienne:start -->
+```text
+AWS_KOPIE_ACCESS_KEY_ID=${{shared.R2_KOPIE_ODCZYT_ACCESS_KEY_ID}}
+AWS_KOPIE_BUCKET=${{shared.R2_KOPIE_BUCKET}}
+AWS_KOPIE_SECRET_ACCESS_KEY=${{shared.R2_KOPIE_ODCZYT_SECRET_ACCESS_KEY}}
+AWS_ZDJECIA_KOPIA_ACCESS_KEY_ID=${{shared.R2_ZDJECIA_KOPIA_ODCZYT_ACCESS_KEY_ID}}
+AWS_ZDJECIA_KOPIA_BUCKET=${{shared.R2_ZDJECIA_KOPIA_BUCKET}}
+AWS_ZDJECIA_KOPIA_SECRET_ACCESS_KEY=${{shared.R2_ZDJECIA_KOPIA_ODCZYT_SECRET_ACCESS_KEY}}
+KUKING_PULS_HARMONOGRAMU_URL=${{shared.KUKING_PULS_HARMONOGRAMU_URL}}
+KUKING_URODZINY_MAIL_WLACZONY=true
+OPENAI_MODERATION_KEY=${{shared.OPENAI_MODERATION_KEY}}
+VAPID_PRIVATE_KEY=${{shared.VAPID_PRIVATE_KEY}}
+```
+<!-- wycofanie-zmienne:end -->
+
+   (Blok jest wyliczany z `railway.ts` — pilnuje go `iac.test.mjs`. Linie
+   o Shared Variables, których nie ma, dają pusto, jak przed przełączeniem.)
+2. W tym samym serwisie: Settings → Start Command
    `/usr/local/bin/kuking-entrypoint all`; Variables → `APP_ROLE=all`;
    Deploy. Poczekaj na **Active** i `tryb ALL` w logach — od teraz kolejka
    i harmonogram znów chodzą w jednym kontenerze.
-2. Dopiero potem `worker` i `scheduler` → Settings → usuń serwis (albo
+3. Dopiero potem `worker` i `scheduler` → Settings → usuń serwis (albo
    zatrzymaj wdrożenie). Kolejność ma znaczenie: odwrotna zostawia
-   produkcję na chwilę bez kolejki i harmonogramu. Zakładka nakładania się
-   jest bezpieczna z tego samego powodu co w kroku 3.
-3. Panel rozjechał się teraz z plikiem. Zanim ktoś uruchomi kolejny plan,
+   produkcję na chwilę bez kolejki i harmonogramu. Nakładanie się jest
+   bezpieczne z tego samego powodu co w kroku 3.
+4. Panel rozjechał się teraz z plikiem. Zanim ktoś uruchomi kolejny plan,
    wykonaj B.
 
 **B. Kod (trwałe):** PR z `PRODUCTION_SPLIT_SERVICES = false` w
-`.railway/railway.ts`, plan (pokaże usunięcie `worker` i `scheduler`
-— tu zgoda jest właściwa), apply przez Run workflow z zaznaczonym polem
-zmian destrukcyjnych **wyłącznie** dla tych dwóch serwisów.
+`.railway/railway.ts` (rola `all` dostaje wtedy sumę zestawów, więc blok
+z A jest już w pliku), plan (pokaże usunięcie `worker` i `scheduler` —
+tu zgoda jest właściwa), apply **lokalnie**, zgoda na zmiany destrukcyjne
+wyłącznie dla tych dwóch serwisów.
 
 Po cofnięciu: kolejne `apply` z `true` znowu rozbije produkcję — to jest
 flaga, nie jednorazowe polecenie.
@@ -201,5 +317,5 @@ flaga, nie jednorazowe polecenie.
   `worker` i `scheduler` za zmyślone.
 - Sprostowanie przy `PRODUCTION_SPLIT_SERVICES` w `railway.ts` przestaje
   być prawdą — poprawić na stan zmierzony.
-- Druga replika WWW dopiero po mieszanym teście obciążeniowym (#605);
-  `scheduler` zostaje przy jednej replice zawsze.
+- Druga replika WWW, osobny worker `media` i PgBouncer — #600, dopiero po
+  pomiarach (#605, #598); `scheduler` zostaje przy jednej replice zawsze.

@@ -119,7 +119,7 @@ on:
         required: true
         type: string
       zmiany_destrukcyjne:
-        description: "Zezwól na usunięcie serwisu, bazy albo zmiennej. Przy #595 NIE zaznaczaj."
+        description: "Zezwól na KAŻDE usunięcie: serwisu, bazy albo zmiennej. Przy #595 NIE zaznaczaj — pierwsze apply lokalnie (runbook, krok 3)."
         required: false
         default: false
         type: boolean
@@ -298,10 +298,12 @@ jobs:
           railway-token: ${{ secrets.RAILWAY_TOKEN_PRODUCTION }}
           # confirm-destructive: akcja domyślnie ma to na `true`, dlatego
           # stoi tu JAWNIE i domyślnie `false`: usunięcie serwisu, bazy
-          # albo zmiennej zatrzymuje apply, zamiast przejść. Plan #595 po
-          # zmianie nazw w railway.ts nie powinien niczego usuwać — jeśli
-          # apply zatrzyma się na zmianie destrukcyjnej, przeczytaj plan,
-          # zamiast zaznaczać pole (runbook, „Czytanie planu”).
+          # albo zmiennej zatrzymuje apply, zamiast przejść. Plan #595 USUWA
+          # z `kuking.pl` zmienne workera i schedulera (od #1459 role mają
+          # osobne zestawy) — pole zezwoliłoby jednak na każde usunięcie,
+          # także serwisu i bazy. Dlatego pierwsze apply #595 idzie lokalnie,
+          # z pytaniem o zgodę, po bilansie zmiennych
+          # (docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md, kroki 0.5 i 3).
           confirm-destructive: ${{ inputs.zmiany_destrukcyjne && 'true' || 'false' }}
 
       - name: Podsumowanie
