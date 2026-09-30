@@ -91,6 +91,19 @@ final class LimityTagow
         return "Możesz obserwować najwyżej {$ile} {$slowo}. Żeby dodać nowy, przestań obserwować te, których już nie potrzebujesz — lista „Twoje tagi” jest w ustawieniach.";
     }
 
+    /**
+     * Wariant komunikatu dla samej listy „Twoje tagi”. Człowiek już na niej
+     * stoi, więc odesłanie „lista Twoje tagi jest w ustawieniach” odsyłałoby
+     * go tam, gdzie jest. Mówi, co zrobić na tym ekranie: odznaczyć i zapisać.
+     */
+    public static function komunikatLimituNaLiscieTwoichTagow(): string
+    {
+        $ile = self::maksObserwowanych();
+        $slowo = Odmiana::rzeczownik($ile, 'tag', 'tagi', 'tagów');
+
+        return "Możesz obserwować najwyżej {$ile} {$slowo}. Odznacz tagi, których już nie potrzebujesz, i zapisz.";
+    }
+
     /** Ile podpowiedzi zwraca wyszukiwarka tagów (SPEC §1.5). */
     public static function maksPodpowiedzi(): int
     {

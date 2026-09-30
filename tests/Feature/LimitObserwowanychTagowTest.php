@@ -121,7 +121,7 @@ class LimitObserwowanychTagowTest extends TestCase
             'form_scope' => $this->poleUkryte($html, 'form_scope'),
             'tags' => $id,
         ])->assertRedirect(route('settings.tags'))
-            ->assertSessionHasErrors(['tags' => LimityTagow::komunikatLimituObserwowanych()]);
+            ->assertSessionHasErrors(['tags' => LimityTagow::komunikatLimituNaLiscieTwoichTagow()]);
         $this->assertSame(0, $this->obserwowanych($user));
 
         // Poprawne dane nie znikają: po powrocie wszystkie trzy nadal zaznaczone.
@@ -129,7 +129,8 @@ class LimitObserwowanychTagowTest extends TestCase
         $this->withCookie(config('session.cookie'), session()->getId());
         $powrot = $this->get(route('settings.tags'))->assertOk()->getContent();
         $this->assertEqualsCanonicalizing($id, $this->odsylane($powrot));
-        $this->assertStringContainsString(e(LimityTagow::komunikatLimituObserwowanych()), $powrot);
+        $this->assertStringContainsString(e(LimityTagow::komunikatLimituNaLiscieTwoichTagow()), $powrot);
+        $this->assertStringNotContainsString('jest w ustawieniach', $powrot, 'Na samej liście komunikat odsyła do tej samej listy.');
     }
 
     public function test_zamiana_tagu_przy_pelnej_liscie_przechodzi(): void
@@ -164,6 +165,29 @@ class LimitObserwowanychTagowTest extends TestCase
             ->assertSessionHasErrors(['tags' => LimityTagow::komunikatLimituObserwowanych()])
             ->assertSessionHasInput('tags', [$a->getKey(), $b->getKey()]);
         $this->assertSame(0, $this->obserwowanych($user));
+    }
+
+    /**
+     * Audyt UX 50+: komunikat w kroku powitalnym odsyła do listy „Twoje tagi”,
+     * więc obok stoi przycisk do ustawień tagów. Bez limitu przycisku nie ma.
+     */
+    public function test_krok_powitalny_przy_limicie_ma_przycisk_do_ustawien_tagow(): void
+    {
+        config(['kuking.tags.max_followed' => 1]);
+        $user = $this->user();
+        $a = $this->promowany('Zupy');
+        $b = $this->promowany('Ciasta');
+        $przycisk = 'href="'.route('settings.tags').'">Przejdź do „Twoich tagów”</a>';
+
+        $this->actingAs($user)->get(route('onboarding.interests'))->assertOk()->assertDontSee($przycisk, false);
+
+        $this->actingAs($user)->from(route('onboarding.interests'))
+            ->post('/witaj/zainteresowania', ['tags' => [$a->getKey(), $b->getKey()]])
+            ->assertSessionHasErrors('tags');
+        // Przekierowanie w przeglądarce niesie tę samą sesję (jak wyżej).
+        $this->withCookie(config('session.cookie'), session()->getId());
+        $html = $this->get(route('onboarding.interests'))->assertOk()->getContent();
+        $this->assertStringContainsString($przycisk, $html);
     }
 
     /**

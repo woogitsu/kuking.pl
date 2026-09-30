@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (audyt UX 50+): komunikat o limicie obserwowanych tagów na samej liście „Twoje tagi” nie odsyła już do „Twoich tagów” (człowiek już tam jest) — mówi, co zrobić na tym ekranie: „Odznacz tagi, których już nie potrzebujesz, i zapisz”. W kroku powitalnym przy tym samym limicie jest przycisk „Przejdź do „Twoich tagów””.
 - Naprawione (audyt UX 50+): na stronie odwołania bez logowania adres kontaktowy jest odnośnikiem „napisz e-mail” — jedno dotknięcie otwiera pocztę, bez przepisywania adresu.
 - Naprawione (audyt UX 50+): w formularzu odwołania dla osoby, która nie może się zalogować, odnośnik „Nie pamiętam hasła” stoi przy polu hasła, przed polem wyjaśnienia. Wcześniej stał obok „Wyślij odwołanie”, więc kliknięcie go po napisaniu wyjaśnienia porzucało cały wpisany tekst.
 - Naprawione (audyt UX 50+): w Planerze tygodnia odnośniki z podsumowania błędów prowadzą teraz do istniejącego pola — do pola „Nazwa przepisu” dnia, z którego przyszedł błąd, albo do pola „Dopisz coś własnego” tego dnia. Wcześniej wskazywały na pola, których na stronie nie ma, i kliknięcie nic nie robiło.
