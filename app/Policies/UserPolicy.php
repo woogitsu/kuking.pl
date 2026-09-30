@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Http\Support\BlokadyWZadaniu;
 use App\Models\User;
 
 class UserPolicy
@@ -43,7 +44,9 @@ class UserPolicy
         return $viewer->getKey() !== $target->getKey()
             && $viewer->isActive()
             && $target->isActive()
-            && ! $viewer->hasBlockRelationWith($target);
+            // Ta sama para co w `RecipePolicy::view()` (autor przepisu) — jedno
+            // zapytanie o blokadę na stronę przepisu (audyt wydajności, P3 W8).
+            && ! BlokadyWZadaniu::miedzy($viewer, $target);
     }
 
     public function moderate(User $viewer): bool

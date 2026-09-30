@@ -6,7 +6,9 @@ namespace Tests\Feature;
 
 use App\Domain\Sharing\KartaZKodemQr;
 use App\Models\Block;
+use App\Models\CookedEvent;
 use App\Models\Post;
+use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Support\AdresKanoniczny;
@@ -290,6 +292,49 @@ class KartaZKodemQrTest extends TestCase
         Post::factory()->create(['author_id' => $autor->getKey()]);
 
         $this->get(route('profile.qr-card', 'wpisowa'))->assertOk();
+    }
+
+    /**
+     * Dla jednego profilu bramka liczy się trzema osobnymi `EXISTS` (koszt
+     * planu przy autorze z tysiącami wpisów), a mapa strony zakresem
+     * `Profile::zPublicznaTrescia()`. Obie drogi muszą dawać ten sam wynik
+     * w każdym stanie — inaczej karta i mapa strony rozjadą się po cichu.
+     */
+    public function test_bramka_profilu_zgadza_sie_z_zakresem_mapy_strony(): void
+    {
+        $inny = $this->user('autor_cudzy');
+        $publiczny = $this->publicznyPrzepis(['author_id' => $inny->getKey()]);
+        $prywatny = $this->publicznyPrzepis(['author_id' => $inny->getKey(), 'visibility' => 'private']);
+
+        $this->user('z_pustym');
+        $this->publicznyPrzepis(['author_id' => $this->user('z_prywatnym')->getKey(), 'visibility' => 'private']);
+        $this->publicznyPrzepis(['author_id' => $this->user('z_przepisem')->getKey()]);
+        Post::factory()->create(['author_id' => $this->user('z_wpisem')->getKey()]);
+        $this->publicznyPrzepis(['author_id' => $this->user('zbanowany', ['status' => User::STATUS_BANNED])->getKey()]);
+        CookedEvent::factory()->create(['user_id' => $this->user('z_wykonaniem')->getKey(), 'recipe_id' => $publiczny->getKey()]);
+        CookedEvent::factory()->create(['user_id' => $this->user('z_wykonaniem_prywatnego')->getKey(), 'recipe_id' => $prywatny->getKey()]);
+
+        $oczekiwane = [
+            'z_pustym' => false,
+            'z_prywatnym' => false,
+            'z_przepisem' => true,
+            'z_wpisem' => true,
+            'zbanowany' => false,
+            'z_wykonaniem' => true,
+            'z_wykonaniem_prywatnego' => false,
+        ];
+
+        $karta = app(KartaZKodemQr::class);
+        foreach ($oczekiwane as $nazwa => $wynik) {
+            $profil = Profile::query()->where('username', $nazwa)->firstOrFail();
+
+            $this->assertSame($wynik, $karta->profilDostepny($profil), "Bramka karty dla „{$nazwa}”.");
+            $this->assertSame(
+                Profile::query()->zPublicznaTrescia()->whereKey($profil->getKey())->exists(),
+                $karta->profilDostepny($profil),
+                "Bramka karty i mapa strony rozjechały się dla „{$nazwa}”.",
+            );
+        }
     }
 
     // ── kontrakt arkusza druku ──────────────────────────────────────────

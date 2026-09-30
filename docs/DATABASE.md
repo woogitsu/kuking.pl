@@ -6880,6 +6880,14 @@ tam, gdzie pytamy przy każdym żądaniu albo pod blokadą:
 | `posts_recipe_idx` | `posts (recipe_id) WHERE recipe_id IS NOT NULL` | `WpisWskazujacyPrzepis` pod `FOR UPDATE` przepisu, `ON DELETE SET NULL` |
 | `notifications_actor_idx` | `notifications (actor_id) WHERE actor_id IS NOT NULL` | `ON DELETE SET NULL` przy usunięciu konta |
 | `product_signals_user_signal_idx` | `product_signals (user_id, signal_name) WHERE user_id IS NOT NULL` | `RecordPromptShown` pod blokadą konta |
+| `collection_items_collection_idx` | `collection_items (collection_id)` — zwykły, bez `WHERE` | flagi „zapisane przeze mnie" (`ZapisyWpisu`), kaskada `ON DELETE CASCADE` z `collections` |
+
+Ostatni wiersz pochodzi z osobnej migracji
+`2026_10_01_090000_indeks_collection_items_collection_id` (audyt wydajności P3
+W6). `collection_items` miała już dwa unikalne indeksy z `collection_id` na
+początku, ale oba są **częściowe** (`WHERE recipe_id IS NOT NULL` /
+`WHERE post_id IS NOT NULL`), więc zapytanie po samym `collection_id` nie może
+z nich skorzystać. Rollback: `DROP INDEX CONCURRENTLY IF EXISTS` — bezstratny.
 
 `post_media.media_id` i `cooked_event_media.media_id` były wcześniej w indeksie
 tylko jako **druga** kolumna klucza głównego — to nie zawęża wyszukiwania po

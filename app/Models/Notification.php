@@ -597,6 +597,33 @@ class Notification extends Model
     }
 
     /**
+     * Identyfikatory zapisujących do wyboru imienia — dla listy, która
+     * liczy pierwszą widoczną osobę całej strony JEDNYM zapytaniem
+     * (`WidocznoscPowiadomien::pierwsiWidoczniZapisujacy()`).
+     *
+     * @return list<string>
+     */
+    public function zapisujacyPartii(): array
+    {
+        return $this->zapisujacy();
+    }
+
+    /**
+     * Wynik policzony hurtem dla strony listy — `zapisujacyDoPokazania()`
+     * nie pyta już wtedy bazy. Ta sama osoba co z pojedynczego zapytania;
+     * gdy to `actor_id` z załadowaną relacją, oddajemy tamten obiekt.
+     */
+    public function ustawZapisujacyDoPokazania(?User $pierwszy): void
+    {
+        if ($pierwszy !== null && $this->relationLoaded('actor') && $this->actor?->is($pierwszy)) {
+            $pierwszy = $this->actor;
+        }
+
+        $this->zapisujacyDoPokazaniaPoliczony = true;
+        $this->zapisujacyDoPokazania = $pierwszy;
+    }
+
+    /**
      * „1 inna osoba” / „N inne osoby” / „N innych osób” — trzy formy
      * polskiego liczebnika, patrz `tresc()` wyżej.
      */
