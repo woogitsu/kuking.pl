@@ -27,7 +27,7 @@ use PHPUnit\Framework\TestCase;
  * TESTY POWŁOKI (`tests/skrypty/*.sh`) pilnuje inny strażnik: `scripts/kontrole-powloki.sh`
  * (LISTA albo POZA_LISTA z powodem) i `KontrolePowlokiLokalnieIWCiTest`.
  *
- * WYJĄTKI: tylko na liście `WYJATKI`, każdy z powodem. Wyjątek, który
+ * WYJĄTKI: tylko na liście `wyjatki()`, każdy z powodem. Wyjątek, który
  * przestał być potrzebny (plik zniknął albo trafił do CI), też jest błędem —
  * lista ma nie rosnąć w ciszy.
  *
@@ -41,9 +41,16 @@ final class TestySkryptowPythonaChodzaWCiTest extends TestCase
      * Ścieżka względem korzenia repozytorium => powód, dla którego plik nie chodzi w CI.
      * Dziś pusta: wszystkie testy skryptów mają krok w workflowie.
      *
-     * @var array<string, string>
+     * Metoda, nie stała: pusta stała ma dla analizy typ `array{}`, a warunek
+     * z nią byłby „zawsze fałszywy” — lista jest jednak po to, żeby rosła
+     * (ten sam wzorzec co w `FormularzeZWalidacjaMajaNovalidateTest`).
+     *
+     * @return array<string, string>
      */
-    private const WYJATKI = [];
+    private static function wyjatki(): array
+    {
+        return [];
+    }
 
     /**
      * Katalogi (względem korzenia repozytorium) przeszukiwane pod kątem testów Pythona.
@@ -63,7 +70,7 @@ final class TestySkryptowPythonaChodzaWCiTest extends TestCase
         $bezKroku = [];
 
         foreach ($testy as $sciezka) {
-            if (array_key_exists($sciezka, self::WYJATKI)) {
+            if (array_key_exists($sciezka, self::wyjatki())) {
                 continue;
             }
 
@@ -76,7 +83,7 @@ final class TestySkryptowPythonaChodzaWCiTest extends TestCase
             'Test skryptu Pythona bez kroku w workflowie — nikt go nie uruchamia w CI, więc może być czerwony bez śladu.',
             'Dołóż go do istniejącego kroku/joba z testami skryptów w ci.yml, np.:',
             '  run: python3 -m unittest discover -s <katalog> -p <plik>.py -v',
-            'Albo dopisz do WYJATKI w tym teście z powodem (np. zależność, której CI nie ma).',
+            'Albo dopisz do wyjatki() w tym teście z powodem (np. zależność, której CI nie ma).',
             'Bez kroku:',
             ...$bezKroku,
         ]));
@@ -87,12 +94,12 @@ final class TestySkryptowPythonaChodzaWCiTest extends TestCase
         $testy = self::plikiTestowPythona();
         $workflowy = self::tekstWorkflowowBezKomentarzy();
 
-        foreach (self::WYJATKI as $sciezka => $powod) {
+        foreach (self::wyjatki() as $sciezka => $powod) {
             $this->assertNotSame('', trim($powod), "Wyjątek {$sciezka} bez powodu.");
-            $this->assertContains($sciezka, $testy, "Wyjątek {$sciezka} wskazuje plik, którego nie ma. Usuń go z WYJATKI.");
+            $this->assertContains($sciezka, $testy, "Wyjątek {$sciezka} wskazuje plik, którego nie ma. Usuń go z wyjatki().");
             $this->assertFalse(
                 self::wystepuje($sciezka, $workflowy),
-                "Wyjątek {$sciezka} jest już uruchamiany w CI. Usuń go z WYJATKI.",
+                "Wyjątek {$sciezka} jest już uruchamiany w CI. Usuń go z wyjatki().",
             );
         }
 
