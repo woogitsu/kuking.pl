@@ -7,8 +7,8 @@ namespace App\Console\Commands;
 use App\Domain\Moderation\Actions\NotifyReporterReceipt;
 use App\Domain\Moderation\Actions\ZglosNielegalnaTresc;
 use App\Domain\Moderation\AlarmSufituPotwierdzen;
+use App\Domain\Moderation\ZaleglePotwierdzeniaZgloszen;
 use App\Models\Report;
-use App\Models\User;
 use App\Notifications\PotwierdzenieZgloszeniaNielegalnejTresci;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
@@ -147,7 +147,7 @@ class DosylajPotwierdzeniaZgloszen extends Command
         // zaległościach, nie po partii `--ile`, i przed każdym wcześniejszym
         // wyjściem — pusta kolejka też jest wynikiem (odwołanie alarmu).
         // Kod wyjścia zostaje 0: uzasadnienie w `AlarmSufituPotwierdzen`.
-        $naSuficie = $this->naSuficie();
+        $naSuficie = ZaleglePotwierdzeniaZgloszen::numeryNaSuficie();
 
         if ($naSuficie !== []) {
             $this->warn('Spraw na suficie prób listu (dosyłka ich nie ponawia, alarm do operatora): '.count($naSuficie).'.');
@@ -257,44 +257,14 @@ class DosylajPotwierdzeniaZgloszen extends Command
     }
 
     /**
-     * Numery zaległych spraw (zgłoszenia prawne bez konta), przy których
-     * dosyłka przestała ponawiać list, bo osiągnęły sufit porażek (D-333).
-     *
-     * @return list<string>
-     */
-    private function naSuficie(): array
-    {
-        $numery = [];
-
-        foreach ($this->zalegle()->whereNull('reporter_id')->orderBy('created_at')->get(['id', 'numer_sprawy']) as $sprawa) {
-            if (PotwierdzenieZgloszeniaNielegalnejTresci::ponawianieWstrzymane((string) $sprawa->getKey())) {
-                $numery[] = (string) ($sprawa->numer_sprawy ?? $sprawa->getKey());
-            }
-        }
-
-        return $numery;
-    }
-
-    /**
-     * Zaległość = sprawa z ADRESATEM (konto w serwisie albo adres e-mail
-     * zgłoszenia prawnego) i bez znacznika potwierdzenia.
-     *
-     * Uzasadnienie każdego warunku stoi w nagłówku klasy („czego komenda nie
-     * rusza", punkty 1–4); żaden nie wynika z pozostałych.
+     * Zaległość — definicja w `ZaleglePotwierdzeniaZgloszen` (wspólna z sondą
+     * `/health` i komendą operatora, żeby nie rozjechały się trzy kopie).
+     * Uzasadnienie warunków: nagłówek klasy, punkty 1–4.
      *
      * @return Builder<Report>
      */
     private function zalegle(): Builder
     {
-        return Report::query()
-            ->whereNull('receipt_sent_at')
-            ->whereNull('decision_sent_at')
-            ->where(function (Builder $adresat): void {
-                $adresat->whereHas('reporter', fn (Builder $konto) => $konto->where('status', '!=', User::STATUS_ERASED))
-                    ->orWhere(fn (Builder $prawne) => $prawne
-                        ->whereNull('reporter_id')
-                        ->where('source', Report::SOURCE_LEGAL_NOTICE)
-                        ->whereNotNull('notifier_email'));
-            });
+        return ZaleglePotwierdzeniaZgloszen::zapytanie();
     }
 }

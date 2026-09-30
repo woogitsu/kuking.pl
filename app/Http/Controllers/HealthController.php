@@ -9,6 +9,7 @@ use App\Logging\BezpiecznyBlad;
 use App\Logging\KanalyAlarmowe;
 use App\Support\Zdrowie\Powody;
 use App\Support\Zdrowie\Sonda;
+use App\Support\Zdrowie\SondaInformacyjna;
 use App\Support\Zdrowie\Sondy\SondaAnalityki;
 use App\Support\Zdrowie\Sondy\SondaBazy;
 use App\Support\Zdrowie\Sondy\SondaCiasteczkaSesji;
@@ -22,6 +23,7 @@ use App\Support\Zdrowie\Sondy\SondaMigracji;
 use App\Support\Zdrowie\Sondy\SondaNieudanychListow;
 use App\Support\Zdrowie\Sondy\SondaPilnychAlarmow;
 use App\Support\Zdrowie\Sondy\SondaPoczty;
+use App\Support\Zdrowie\Sondy\SondaSufituPotwierdzenDsa;
 use App\Support\Zdrowie\Sondy\SondaTrybuDebug;
 use App\Support\Zdrowie\Sondy\SondaTurnstile;
 use App\Support\Zdrowie\Sondy\SondaZaleglychCzyszczenCdn;
@@ -194,6 +196,7 @@ class HealthController extends Controller
         // Kod HTTP i `status` dla każdego, `checks` tylko z tokenem (A5-05).
         if ($this->maTokenSzczegolow($request)) {
             $odpowiedz['checks'] = $checks;
+            $odpowiedz['informacje'] = $this->informacje();
         }
 
         return response()->json($odpowiedz, $krytyczneOk ? 200 : 503);
@@ -259,6 +262,40 @@ class HealthController extends Controller
             new SondaTrybuDebug,
             new SondaCiasteczkaSesji,
         ];
+    }
+
+    /**
+     * Odczyty informacyjne (#2218) — liczby dla operatora, które NIE liczą się
+     * do `status` ani kodu HTTP: nie ma tu pola `ok`, a `status` powstaje
+     * wyłącznie z `checks`. Awaria odczytu nie zapala niczego — zostaje
+     * ostrzeżenie w dzienniku (bez webhooka) i `dostepne: false`.
+     *
+     * @return array<string, array<string, int|bool>>
+     */
+    private function informacje(): array
+    {
+        $informacje = [];
+
+        foreach ($this->odczytyInformacyjne() as $odczyt) {
+            try {
+                $informacje[$odczyt->nazwa()] = $odczyt->odczytaj();
+            } catch (Throwable $e) {
+                Log::warning('Odczyt informacyjny /health niedostępny.', [
+                    'odczyt' => $odczyt->nazwa(),
+                    'wyjatek' => $e::class,
+                    'blad' => BezpiecznyBlad::kontekst($e),
+                ]);
+                $informacje[$odczyt->nazwa()] = ['dostepne' => false];
+            }
+        }
+
+        return $informacje;
+    }
+
+    /** @return list<SondaInformacyjna> */
+    private function odczytyInformacyjne(): array
+    {
+        return [new SondaSufituPotwierdzenDsa];
     }
 
     /**
