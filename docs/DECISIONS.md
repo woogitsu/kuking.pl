@@ -20999,6 +20999,7 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | #2270: ukrycie pojedynczej wersji przepisu (decyzja 30.09) | Autor i moderator mogą ukryć **pojedynczą wersję** przepisu w historii zmian (w pracy) | #2270 |
 | „Napisz do nas” mailem na alarm (decyzja 30.09) | Wiadomość z formularza „Napisz do nas” idzie **także mailem** na `KUKING_ALARM_EMAIL` (w pracy) | #599 |
 | Dziennik wglądów: konta zbanowane (decyzja 30.09) | Dziennik wglądów moderatora obejmuje **także wpisy kont zbanowanych** (w pracy) | — |
+| #2299: czas CI, etap 2 (decyzja 30.09) | Panel marki w **dwóch częściach macierzy** z jobem zbiorczym o dawnej nazwie (ochrona gałęzi bez zmian); **cache `vendor/` i przeglądarki Playwrighta** tylko tam, gdzie nie da starego wyniku (przeglądarka po dokładnej wersji, tylko runnery GitHuba); krótkie joby (audyt, Larastan, assety) **scalić**, a listę wymaganych checków zmienia **właściciel** — kolejność w `docs/infra/BRAMKI_CI_2215.md`. Żadna kontrola nie przestaje blokować | #2299 |
 
 ### Wycofanie
 Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis
