@@ -492,7 +492,7 @@ return [
         // przewidywalną granicę kosztu (fixture obciążeniowy miał 978).
         // Konta, które obserwowały więcej przed wprowadzeniem limitu, niczego
         // nie tracą — nie mogą tylko dodać nowego, dopóki nie zejdą poniżej.
-        'max_followed' => (int) env('KUKING_TAG_MAX_FOLLOWED', 200),
+        'max_followed' => (int) env('KUKING_TAG_MAX_FOLLOWED', 500),
 
         // Ile tematów na "stronę" pokazuje spis wszystkich tematów
         // (#273, D-087). Bez infinite scroll — przycisk „Pokaż więcej",

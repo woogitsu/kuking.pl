@@ -20999,6 +20999,7 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | #2270: ukrycie pojedynczej wersji przepisu (decyzja 30.09) | Autor i moderator mogą ukryć **pojedynczą wersję** przepisu w historii zmian (w pracy) | #2270 |
 | „Napisz do nas” mailem na alarm (decyzja 30.09) | Wiadomość z formularza „Napisz do nas” idzie **także mailem** na `KUKING_ALARM_EMAIL` (w pracy) | #599 |
 | Dziennik wglądów: konta zbanowane (decyzja 30.09) | Dziennik wglądów moderatora obejmuje **także wpisy kont zbanowanych** (w pracy) | — |
+| Limit obserwowanych tagów (decyzja 30.09) | Jedno konto obserwuje **najwyżej 500 tagów** (`KUKING_TAG_MAX_FOLLOWED`); konta ponad limitem nic nie tracą, nie dodają tylko nowych | #2326 |
 
 ### Wycofanie
 Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis
