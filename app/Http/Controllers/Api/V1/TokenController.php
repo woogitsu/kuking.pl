@@ -65,7 +65,8 @@ class TokenController extends Controller
             'device_name.max' => 'Nazwa urządzenia może mieć najwyżej 100 znaków.',
         ]);
 
-        $user = $this->sprawdzHaslo->handle($dane['login'], $dane['password'], (string) $request->ip());
+        // `adresWTresci`: klient API nie ma przycisku z `status_akcja` (D-333).
+        $user = $this->sprawdzHaslo->handle($dane['login'], $dane['password'], (string) $request->ip(), adresWTresci: true);
 
         if ($user->hasTwoFactorConfirmed()) {
             $wyzwanie = WyzwanieDwuetapowe::wystaw($user, $dane['device_name']);

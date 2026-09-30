@@ -39,7 +39,47 @@ final class KomunikatZamknietegoKonta
      * na pytanie „za co" — inaczej DSA art. 17 zostaje spełniony tylko
      * na papierze.
      */
-    public static function dla(User $user): string
+    /**
+     * Napis przycisku prowadzącego do strony cofnięcia usunięcia konta.
+     * Ten sam, co po zgłoszeniu usunięcia w „Twoich danych” (#2245).
+     */
+    public const ETYKIETA_COFNIECIA = 'Cofnij usunięcie konta';
+
+    /**
+     * Przycisk pod komunikatem odmowy — dla `status_akcja` w layoucie.
+     *
+     * LINK COFNIĘCIA JAKO PRZYCISK, NIE ADRES W ZDANIU (D-333, 30.09.2026).
+     * Adres strony cofnięcia stał w treści odmowy jako zwykły tekst: layout
+     * i błąd przy polu wypisują ją bez odnośników, więc na telefonie trzeba
+     * go było przepisać. Teraz każda droga wejścia przez przeglądarkę
+     * (hasło, Google, Facebook, wylogowanie przez `EnsureAccountIsActive`)
+     * dokłada ten przycisk przez `status_akcja` — ten sam mechanizm co #2245.
+     *
+     * Tylko konto CZEKAJĄCE na usunięcie. Konto po wykonanej karencji
+     * (`erased`) cofnąć się nie da, więc przycisk byłby obietnicą bez
+     * pokrycia; zablokowane ma inną drogę (odwołanie).
+     *
+     * @return array{url: string, etykieta: string}|null
+     */
+    public static function akcja(User $user): ?array
+    {
+        if ($user->status !== User::STATUS_PENDING_DELETE) {
+            return null;
+        }
+
+        return [
+            'url' => route('account.delete.cancel'),
+            'etykieta' => self::ETYKIETA_COFNIECIA,
+        ];
+    }
+
+    /**
+     * @param  bool  $adresWTresci  `true` tylko dla API (JSON): klient
+     *                              aplikacji nie ma przycisku z `status_akcja`, więc adres strony
+     *                              cofnięcia zostaje w zdaniu. W przeglądarce zdanie wskazuje
+     *                              przycisk z `akcja()`.
+     */
+    public static function dla(User $user, bool $adresWTresci = false): string
     {
         // Konto po wykonanej karencji (D-022): nie ma czego odzyskiwać
         // i trzeba to powiedzieć wprost, a nie odsyłać do formularza
@@ -52,7 +92,7 @@ final class KomunikatZamknietegoKonta
 
         if ($user->status === User::STATUS_PENDING_DELETE) {
             return 'To konto jest oznaczone do usunięcia, dlatego logowanie jest zamknięte. Jeśli chcesz je odzyskać, '
-                .'wejdź na stronę „Cofnij usunięcie konta” ('.route('account.delete.cancel').') i potwierdź '
+                .self::wskazanieStronyCofniecia($adresWTresci).' i potwierdź '
                 .'hasłem, że to Ty. Jeśli dane zostały już usunięte na stałe, ta strona Cię o tym poinformuje — '
                 .'wtedy napisz do nas: '.config('kuking.community.contact_email');
         }
@@ -100,5 +140,20 @@ final class KomunikatZamknietegoKonta
                 ? 'Jeśli uważasz, że to pomyłka, napisz do nas: '
                 : 'Możesz też napisać do nas: ')
             .config('kuking.community.contact_email');
+    }
+
+    /**
+     * Fragment zdania „jak dojść do strony cofnięcia”, wspólny dla odmowy
+     * logowania i wylogowania (`EnsureAccountIsActive`). Przycisk z `akcja()`
+     * stoi w obszarze komunikatów na górze strony — tam, gdzie layout
+     * rysuje `status_akcja`, nad nagłówkiem i nad podsumowaniem błędów.
+     */
+    public static function wskazanieStronyCofniecia(bool $adresWTresci = false): string
+    {
+        if ($adresWTresci) {
+            return 'wejdź na stronę „'.self::ETYKIETA_COFNIECIA.'” ('.route('account.delete.cancel').')';
+        }
+
+        return 'użyj przycisku „'.self::ETYKIETA_COFNIECIA.'” na górze tej strony';
     }
 }

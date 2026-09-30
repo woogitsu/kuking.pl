@@ -6,6 +6,7 @@ namespace App\Domain\Security\Actions;
 
 use App\Domain\Security\KomunikatZamknietegoKonta;
 use App\Domain\Security\LimitProbHasla;
+use App\Domain\Security\OdmowaWejsciaNaZamknieteKonto;
 use App\Models\AuditLogEntry;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -32,7 +33,7 @@ final class SprawdzHasloPrzyLogowaniu
 {
     public function __construct(private readonly LimitProbHasla $limit) {}
 
-    public function handle(string $login, string $haslo, string $adres, string $pole = 'login'): User
+    public function handle(string $login, string $haslo, string $adres, string $pole = 'login', bool $adresWTresci = false): User
     {
         // TRZY KOSZYKI, NIE JEDEN (W7-01, R3 §5). Liczby w
         // `config/kuking.php` → `login_limits`, klucze w `KluczeLimitow`.
@@ -109,9 +110,15 @@ final class SprawdzHasloPrzyLogowaniu
             // Bez `Auth::logout()` — `Auth::validate()` wyżej niczego nie
             // zalogowało, więc nie ma z czego wylogowywać.
             AuditLogEntry::recordBezWywracania('account.password_login_failed', subject: $user, ip: $adres);
-            throw ValidationException::withMessages([
-                $pole => KomunikatZamknietegoKonta::dla($user),
+            // Przeglądarka dostaje przycisk „Cofnij usunięcie konta” zamiast
+            // adresu w zdaniu (D-333); API — adres w zdaniu, bo przycisku
+            // z `status_akcja` tam nie ma. Patrz `OdmowaWejsciaNaZamknieteKonto`.
+            $odmowa = OdmowaWejsciaNaZamknieteKonto::withMessages([
+                $pole => KomunikatZamknietegoKonta::dla($user, adresWTresci: $adresWTresci),
             ]);
+            $odmowa->akcja = KomunikatZamknietegoKonta::akcja($user);
+
+            throw $odmowa;
         }
 
         // CZYŚCIMY PARĘ I KONTO, NIGDY ADRES.

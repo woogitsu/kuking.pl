@@ -60,7 +60,8 @@ class EnsureApiAccountIsActive
                 $token->delete();
             }
 
-            return $this->odmowa(401, 'konto_zamkniete', KomunikatZamknietegoKonta::dla($user));
+            // `adresWTresci`: w JSON-ie nie ma przycisku z `status_akcja` (D-333).
+            return $this->odmowa(401, 'konto_zamkniete', KomunikatZamknietegoKonta::dla($user, adresWTresci: true));
         }
 
         if ($user->isSuspended()
