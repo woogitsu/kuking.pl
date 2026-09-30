@@ -101,7 +101,9 @@ class PustaFrazaPoNormalizacjiTest extends TestCase
         // zostaje „basia " (ze spacją na końcu) i wzorzec LIKE nikogo nie
         // znajduje — w odróżnieniu od `recipes()`, które idzie przez
         // podobieństwo. To luka w produkcie (fraza z dopiskiem-emoji nie
-        // znajduje osoby), nie oczekiwane zachowanie; patrz raport paczki.
+        // znajduje osoby), nie oczekiwane zachowanie — celowo NIE jest tu
+        // przypięta asercją; do rozstrzygnięcia osobnym zgłoszeniem
+        // (`SearchQuery::normalize()` nie obcina frazy po transliteracji, #885).
     }
 
     public function test_ekran_szukaj_prosi_o_slowo_i_nie_zapisuje_wyszukiwania(): void

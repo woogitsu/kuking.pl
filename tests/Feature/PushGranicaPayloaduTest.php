@@ -55,7 +55,9 @@ final class PushGranicaPayloaduTest extends TestCase
 
         $this->assertStringContainsString('🍲🍲🍲', $zdanie, 'Kontrola dodatnia: tytuł jest w zdaniu.');
         $this->assertLessThan(500, mb_strlen($zdanie), 'Tytuł 5000 znaków nie wchodzi w całości.');
-        $this->assertStringContainsString('...”', $zdanie, 'Przycięcie jest widoczne.');
+        // Dokładnie 80 znaków tytułu i widoczne przycięcie — nie „jakoś krócej".
+        $this->assertStringContainsString(str_repeat('🍲', 80).'...”', $zdanie, 'Tytuł ma być przycięty do 80 znaków.');
+        $this->assertStringNotContainsString(str_repeat('🍲', 81), $zdanie, 'Tytuł dłuższy niż 80 znaków.');
     }
 
     public function test_serializowany_retry_jest_maly_przy_maksymalnej_liczbie_urzadzen(): void
