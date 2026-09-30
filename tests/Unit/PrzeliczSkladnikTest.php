@@ -51,6 +51,12 @@ final class PrzeliczSkladnikTest extends TestCase
             'sztuki skrótem na końcu' => ['jajka 3 szt.', 2.0, 'jajka 6 szt.'],
             'około' => ['ok. 250 ml śmietany', 2.0, 'ok. 500 ml śmietany'],
             'zakres' => ['2-3 ząbki czosnku', 2.0, '4-6 ząbków czosnku'],
+            // #2249: zakres słowem, tak jak czyta go parser wartości odżywczych.
+            'zakres „do”' => ['2 do 3 jajka', 2.0, '4 do 6 jajka'],
+            'zakres „lub” z jednostką i ułamkiem' => ['1 lub 2 łyżki cukru', 1.5, '1½ lub 3 łyżki cukru'],
+            'zakres „albo” w dół' => ['2 albo 3 szklanki mąki', 0.5, '1 albo 1½ szklanki mąki'],
+            'zakres „do” po myślniku' => ['mąka – 200 do 300 g', 1.5, 'mąka – 300 do 450 g'],
+            'słowo „do” bez liczby to nie zakres' => ['1 szklanka mleka do ciasta', 2.0, '2 szklanki mleka do ciasta'],
             'kilogramy po przecinku' => ['1 kg ziemniaków', 1.25, '1,25 kg ziemniaków'],
             'litry z przecinkiem w zapisie' => ['0,5 l mleka', 1.5, '0,75 l mleka'],
             'tylko pierwsza liczba' => ['2 puszki pomidorów (po 400 g)', 1.5, '3 puszki pomidorów (po 400 g)'],

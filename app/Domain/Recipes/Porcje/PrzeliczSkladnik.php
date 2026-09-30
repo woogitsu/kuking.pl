@@ -19,7 +19,8 @@ namespace App\Domain\Recipes\Porcje;
  *  2. po myślniku albo dwukropku: „mąka pszenna – 500 g”, „jajka: 3”;
  *  3. gdziekolwiek, ale tylko liczba ZE ZNANĄ JEDNOSTKĄ: „masło 200 g”,
  *     „jajka 3 szt.” — bez jednostki „mąka typ 650” to nie jest ilość.
- * Przeliczamy tylko tę jedną liczbę. „2 puszki (po 400 g)” daje
+ * Przeliczamy tylko tę jedną liczbę — albo obie granice zakresu („2–3”,
+ * „2 do 3”, „2 lub 3”, „2 albo 3”). „2 puszki (po 400 g)” daje
  * „4 puszki (po 400 g)”, i to jest poprawne.
  *
  * CZEGO NIE RUSZAMY — wiersz zostaje dokładnie taki, jak napisał autor:
@@ -118,7 +119,12 @@ final class PrzeliczSkladnik
     private static function znajdzIlosc(string $tekst): ?array
     {
         $jednostki = JednostkaKuchenna::wzorzec();
-        $ilosc = '(?<od>'.self::LICZBA.'|'.self::SLOWO.')(?:(?<separator>\s*[-–—]\s*)(?<do>'.self::LICZBA.'))?';
+        // Zakres: myślnik albo słowo „do”, „lub”, „albo” — tak jak czyta go
+        // parser wartości odżywczych (`ParserSkladnika`). Bez słów „2 do 3
+        // jajek” razy 2 dawało „4 do 3 jajek” (#2249). Słowo tylko między
+        // spacjami i tylko przed LICZBĄ, więc „2 łyżki do smażenia” czy
+        // „1 szklanka mleka do ciasta” zakresem nie są.
+        $ilosc = '(?<od>'.self::LICZBA.'|'.self::SLOWO.')(?:(?<separator>\s*[-–—]\s*|\s+(?:do|lub|albo)\s+)(?<do>'.self::LICZBA.'))?';
         $poIlosci = '(?=\s|$|\p{L}|\(|,)';
         $jednostka = '(?:(?<spacja>\s*)(?<jednostka>'.$jednostki.')(?!\p{L}))?';
 
