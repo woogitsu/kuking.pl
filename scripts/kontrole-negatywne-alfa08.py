@@ -275,6 +275,8 @@ AUTOZAPIS_892_TEST = "test_autozapis_kreatora_892_chodzi_w_ci"
 WYSCIGI_BLOKUJA_TEST = "WyscigiDwochPolaczenBlokujaCiTest"
 AUDYT_BLOKUJE_TEST = "KrytyczneKontroleCiBlokujaTest"
 ROZSZERZENIA_CZESCI_TEST = "test_rozszerzenia_dziela_sie_na_czesci_bez_utraty_pomiaru"
+# #492 (D-333): cztery pomiary #713 w jobie `port_marki`; mutacja zdejmuje jeden krok.
+POMIARY_713_TEST = "test_cztery_pomiary_713_chodza_w_porcie_marki"
 DEPLOY_WSTRZYKNIECIE_TEST = "DeployNieWklejaDanychZdarzeniaDoPowlokiTest"
 WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
 # Preview i IaC nie zgadują stanu (#1389, #1390). Strażnik czyta workflow
@@ -1394,6 +1396,8 @@ checks = [
      lambda s: replace_once(s, "{{ route('help') }}#kto-widzi", "{{ route('posts.create') }}")),
     ("Autozapis kreatora #892 bez kroku CI", CI_WORKFLOW, AUTOZAPIS_892_TEST,
      lambda s: replace_once(s, "          node scripts/kreator-zachowanie.mjs autosave\n", "")),
+    ("Pomiar #713 paska bez kroku CI", CI_WORKFLOW, POMIARY_713_TEST,
+     lambda s: replace_once(s, "        run: node scripts/pasek-uklady.mjs\n", "        run: 'true'\n")),
     ("Stały token wydania Livewire", LIVEWIRE_KONFIG, LIVEWIRE_TOKEN_TEST,
      lambda s: replace_once(s, "'release_token' => strtolower(trim((string) env('RAILWAY_GIT_COMMIT_SHA'))) ?: 'lokalnie',", "'release_token' => 'a',")),
     ("Kreator obiecuje szkic przed zapisem", KREATOR_WIDOK, KREATOR_ZAPIS_TEST,

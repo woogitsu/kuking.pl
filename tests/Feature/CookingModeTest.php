@@ -352,6 +352,28 @@ class CookingModeTest extends TestCase
     }
 
     /**
+     * #492 (decyzja właściciela z 29.09.2026, D-333): odliczanie z
+     * `role="timer"` ma dostępną nazwę „Pozostały czas”. Bez niej czytnik
+     * ogłaszał samą liczbę („0:07”), bez informacji, co odlicza. Dokładnie
+     * jeden timer na krok z minutnikiem, a nazwa nie jest pusta ani inna —
+     * zachowanie w drzewie dostępności Chromium sprawdza dodatkowo
+     * `scripts/minutnik-regresja.mjs` (`aktualny_czas_dostepny_bez_spamu_live`).
+     */
+    public function test_minutnik_ma_dostepna_nazwe_pozostaly_czas(): void
+    {
+        $recipe = $this->przepisZKrokami($this->user('autorka31'), 1, minutnikNaPierwszym: 60);
+
+        $timery = $this->xpath($this->get(route('cooking.show', [$recipe->slug, 'krok' => 1]))->assertOk())
+            ->query('//*[@role="timer"]');
+
+        $this->assertSame(1, $timery->length, 'Krok z minutnikiem ma dokładnie jedno odliczanie z role="timer".');
+        $timer = $timery->item(0);
+        $this->assertInstanceOf(DOMElement::class, $timer);
+        $this->assertSame('Pozostały czas', $timer->getAttribute('aria-label'), 'Odliczanie musi mieć dostępną nazwę „Pozostały czas”.');
+        $this->assertSame('off', $timer->getAttribute('aria-live'), 'Nazwa nie może włączyć ogłaszania każdej sekundy.');
+    }
+
+    /**
      * Regresja issue #764: tryb gotowania pokazywał składniki jedną płaską
      * listą — bez grup autora (`App\Domain\Recipes\GrupySkladnikow`, ten
      * sam mechanizm co na stronie przepisu) i bez „do smaku” dla składników

@@ -153,6 +153,7 @@ OCZEKUJ = {
     'Wybór kolażu bez kaskady przy odpięciu zdjęcia': r"@@ @@ -'FOREIGN KEY \(post_id, media_id\) REFERENCES post_media\(post_id, media",
     'Landing: podgląd prowadzi do trasy auth': r'Odnośnik „Zobacz, kto może widzieć wpis” \(.*\) nie pokazuje gościowi treści — status 302',
     'Autozapis kreatora #892 bez kroku CI': r'Autozapis #892 nie chodzi w CI: autosave Failed asserting that 0 is',
+    'Pomiar #713 paska bez kroku CI': r'Pomiar #713 nie chodzi w CI albo chodzi dwa razy: pasek-uklady Failed asserting that 0 is',
     'Stały token wydania Livewire': r"@@ @@ -'[0-9a-f]{7,40}' \+'a'|@@ @@ -'lokalnie' \+'a'|livewire\.release_token nie czyta RAILWAY_GIT_COMMIT_SHA\.|Migawka ze starego wydania przeszła weryfikację tokenu\.",
     'Kreator obiecuje szkic przed zapisem': r'contains "data-kreator-zapis="',
     'Polityka obiecuje UE przy strażniku bez eu': r'Wiersz Cloudflare R2 obiecuje „Unia Europejska”, ale strażnik',
