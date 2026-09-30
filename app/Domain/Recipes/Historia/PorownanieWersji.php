@@ -41,7 +41,8 @@ final class PorownanieWersji
      *     bezDanych: list<string>,
      *     skladniki: list<array{rodzaj: string, przed: ?string, po: ?string}>,
      *     kroki: list<array{rodzaj: string, numer: int, przed: ?string, po: ?string}>,
-     *     brakZmian: bool
+     *     brakZmian: bool,
+     *     bezWykrytychZmian: bool
      * }
      */
     public static function porownaj(array $starsza, array $nowsza): array
@@ -58,7 +59,15 @@ final class PorownanieWersji
             'bezDanych' => $bezDanych,
             'skladniki' => $skladniki,
             'kroki' => $kroki,
-            'brakZmian' => $pola === [] && $skladniki === [] && $kroki === [],
+            // „Brak zmian" tylko wtedy, gdy porównanie objęło WSZYSTKO
+            // (#2240). Pole z wartością po jednej stronie i bez klucza po
+            // drugiej to „nie wiemy", nie „bez zmian" — ekran nie może
+            // wtedy twierdzić, że wersje są identyczne.
+            'brakZmian' => $pola === [] && $skladniki === [] && $kroki === [] && $bezDanych === [],
+            // Nic z tego, co da się porównać, się nie zmieniło, ale części
+            // pól porównać się nie da. Osobny stan, żeby widok nie mówił
+            // naraz „nie ma różnic" i „tego nie da się porównać".
+            'bezWykrytychZmian' => $pola === [] && $skladniki === [] && $kroki === [] && $bezDanych !== [],
         ];
     }
 

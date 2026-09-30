@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Gate;
  * CO SIĘ KOPIUJE, A CO NIE
  *
  * Kopiujemy to, z czego się gotuje: tytuł, opis, porcje, czasy, trudność,
- * składniki (z grupami, uwagami i „bez ilości") i treść kroków z minutnikami.
+ * składniki (z grupami, uwagami, zamiennikami i „bez ilości") i treść kroków z minutnikami.
  * NIE kopiujemy zdjęć — ani głównego, ani przy krokach, ani skanu kartki. To są
  * zdjęcia autora oryginału (jego kuchnia, jego ręce, jego zeszyt), a wersja
  * ma pokazywać, jak TY to robisz. Nie kopiujemy też pochodzenia
@@ -101,6 +101,11 @@ final class ZrobWlasnaWersje
                     'quantity' => $skladnik->quantity,
                     'unit_id' => $skladnik->unit_id,
                     'note' => $skladnik->note,
+                    // Zamiennik od autora („margaryna albo olej kokosowy",
+                    // D-284). Ktoś robi własną wersję właśnie po to, żeby
+                    // dopasować przepis — ta podpowiedź nie może zniknąć po
+                    // cichu (#2238, audyt BP-02).
+                    'substitutes' => $skladnik->substitutes,
                     'position' => $skladnik->position,
                     'no_amount' => $skladnik->no_amount,
                 ]);

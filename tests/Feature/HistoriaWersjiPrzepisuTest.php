@@ -316,7 +316,11 @@ class HistoriaWersjiPrzepisuTest extends TestCase
             ->assertOk()
             ->assertDontSee('Dodano: Adres strony')
             ->assertSee('starsza wersja nie zapisała tych pól')
-            ->assertSee('Adres strony, z której pochodzi przepis');
+            ->assertSee('Adres strony, z której pochodzi przepis')
+            // #2240: bez sprzecznych komunikatów — nie „nie ma różnic",
+            // tylko „nie widać różnic w tym, co da się porównać".
+            ->assertDontSee('W tekście i danych przepisu nie ma różnic')
+            ->assertSee('W tym, co da się porównać, nie widać różnic.');
     }
 
     public function test_lista_ma_paginacje_pokaz_starsze(): void

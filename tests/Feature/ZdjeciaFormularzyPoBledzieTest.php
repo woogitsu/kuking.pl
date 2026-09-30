@@ -467,4 +467,50 @@ class ZdjeciaFormularzyPoBledzieTest extends TestCase
 
         $this->assertSame(1, Post::query()->firstOrFail()->media()->count());
     }
+
+    /**
+     * #2241: przekroczenie limitu przez zachowane + nowe zdjęcia NIE zapisuje
+     * nowego pliku (wcześniej powstawał rekord `Media` i obiekt w storage,
+     * do których formularz nie miał już odnośnika), a zachowane zdjęcie
+     * wraca w ukrytych polach.
+     */
+    public function test_ugotowalem_limit_zdjec_nie_osieroca_nowego_uploadu_i_zachowuje_poprzednie(): void
+    {
+        config(['kuking.media.max_per_post' => 1]);
+        [$kucharz, $recipe] = $this->kucharzIPrzepis();
+        $formularz = route('cooked.create', $recipe->slug);
+
+        $html = $this->actingAs($kucharz)->get($formularz)->assertOk()->getContent();
+        $klucz = self::elementDom($this->xpath($html)->query('//input[@name="klucz_wyslania"]')->item(0))->getAttribute('value');
+
+        // 1. Jedno poprawne zdjęcie + zły czas → zdjęcie zachowane (limit pełny).
+        $html = $this->wyslij($formularz, route('cooked.store', $recipe->slug), [
+            'klucz_wyslania' => $klucz,
+            'photos' => [$this->zdjecie()],
+            'actual_minutes' => '1h 30',
+        ])->assertSee('Wpisz sam czas w minutach')->getContent();
+        $zachowane = $this->ukryteMediaIds($html);
+        $this->assertCount(1, $zachowane);
+        $pliki = count(Storage::disk('public')->allFiles());
+
+        // 2. Zachowane + jeszcze jedno nowe → błąd limitu.
+        $html = $this->wyslij($formularz, route('cooked.store', $recipe->slug), [
+            'klucz_wyslania' => $klucz,
+            'media_ids' => $zachowane,
+            'photos' => [$this->zdjecie('drugie.jpg')],
+            'actual_minutes' => '90',
+        ])->assertSee('Nowych zdjęć nie dodano.')->getContent();
+
+        $this->assertSame(1, Media::query()->count(), 'Błąd limitu zostawił nowy rekord zdjęcia bez odnośnika w formularzu.');
+        $this->assertSame($pliki, count(Storage::disk('public')->allFiles()), 'Błąd limitu zostawił nowy plik w storage.');
+        $this->assertSame($zachowane, $this->ukryteMediaIds($html), 'Zachowane zdjęcie zniknęło z formularza po błędzie limitu.');
+
+        // Kontrola dodatnia: bez nadmiaru to samo zdjęcie zapisuje się z wykonaniem.
+        $this->from($formularz)->post(route('cooked.store', $recipe->slug), [
+            'klucz_wyslania' => $klucz,
+            'media_ids' => $zachowane,
+            'actual_minutes' => '90',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame($zachowane, CookedEvent::query()->firstOrFail()->media()->pluck('media.id')->map(fn ($id) => (string) $id)->all());
+    }
 }

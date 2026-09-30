@@ -7,6 +7,7 @@ namespace App\Domain\Recipes\Actions;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Media\ZachowaneZdjecia;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Exceptions\BladZdjecFormularza;
 use App\Models\Media;
 use App\Models\User;
 use App\Support\LimityZdjec;
@@ -31,27 +32,43 @@ final class ZbierzZdjeciaWykonania
      * @param  array<array-key, UploadedFile>  $pliki  pliki z pola `photos`
      * @return list<string>
      *
-     * @throws BladDlaCzlowieka gdy suma zdjęć przekracza limit
+     * @throws BladZdjecFormularza gdy suma zdjęć przekracza limit albo plik
+     *                             zawiódł; niesie zdjęcia, które formularz
+     *                             ma zachować
      */
     public function handle(mixed $mediaIds, array $pliki, User $user): array
     {
-        $odzyskane = $this->zachowane($mediaIds, $user)
+        $odzyskane = array_values(array_unique($this->zachowane($mediaIds, $user)
             ->map(fn (Media $media): string => (string) $media->getKey())
-            ->all();
+            ->all()));
 
-        $nowe = [];
+        // LIMIT PRZED ZAPISEM, NIE PO NIM (#2241) — ta sama zasada co
+        // `ZbierzZdjeciaFormularza` przy wpisie. Sprawdzenie po
+        // `StoreUploadedImage::handle()` zostawiało nowe rekordy `Media`
+        // i obiekty w R2, do których formularz nie miał już żadnego
+        // odnośnika (`withInput()` bez `media_ids`), a zachowane zdjęcia
+        // znikały z formularza razem z nimi. Teraz nic nowego nie powstaje,
+        // a zachowane wracają w wyjątku.
+        if (count($odzyskane) + count($pliki) > LimityZdjec::maksZdjecNaWysylke()) {
+            throw new BladZdjecFormularza(
+                LimityZdjec::komunikatZaDuzoZdjec().' Nowych zdjęć nie dodano. Usuń część zachowanych zdjęć albo wybierz mniej nowych.',
+                $odzyskane,
+            );
+        }
+
+        $wszystkie = $odzyskane;
 
         foreach ($pliki as $photo) {
-            $nowe[] = $this->storeImage->handle($user, $photo)->getKey();
+            try {
+                $wszystkie[] = (string) $this->storeImage->handle($user, $photo)->getKey();
+            } catch (BladDlaCzlowieka $e) {
+                // Plik, który zawiódł, trzeba wybrać ponownie — ale te, które
+                // zdążyły się zapisać, wracają do formularza.
+                throw new BladZdjecFormularza($e->getMessage(), $wszystkie, $e);
+            }
         }
 
-        $wszystkie = array_values(array_unique([...$odzyskane, ...$nowe]));
-
-        if (count($wszystkie) > LimityZdjec::maksZdjecNaWysylke()) {
-            throw new BladDlaCzlowieka(LimityZdjec::komunikatZaDuzoZdjec());
-        }
-
-        return $wszystkie;
+        return array_values(array_unique($wszystkie));
     }
 
     /**

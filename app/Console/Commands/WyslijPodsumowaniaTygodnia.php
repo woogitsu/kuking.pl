@@ -155,23 +155,27 @@ class WyslijPodsumowaniaTygodnia extends Command
             return self::SUCCESS;
         }
 
+        // PARTIA Z TRZYKROTNYM ZAPASEM, A PO NIEJ NASTĘPNE — AŻ DO BUDŻETU
+        // ALBO KOŃCA KOLEJKI (#2237, audyt BP-01). Część kandydatów odpada,
+        // bo nie ma dla nich o czym pisać — a pusty list nie wychodzi i nie
+        // stawia znacznika, więc ta osoba jutro stoi znowu na początku
+        // kolejki. Jedna skończona paczka oznaczała, że wystarczy 3 × budżet
+        // starszych, cichych kont, żeby list na zawsze przestał dochodzić do
+        // kogokolwiek dalej — także do autora, którego przepis ktoś ugotował.
+        // Dlatego po wyczerpaniu partii bierzemy następną, zaczynając za
+        // ostatnią osobą poprzedniej (`naDzis(..., $po)`). Kolejne partie
+        // kosztują zapytania, nie listy: sufit pilnuje dalej budżetu.
+        $partia = max(1, $budzet * 3);
+
         $kandydaci = $jedna !== null
             ? collect([$jedna])
-            // TRZYKROTNY ZAPAS, ŚWIADOMIE. Część kandydatów odpadnie, bo nie
-            // ma dla nich o czym pisać — a pusty list nie wychodzi. Gdyby
-            // pobierać dokładnie tylu, ilu wynosi budżet, tydzień z małym
-            // ruchem kończyłby się wysyłką do garstki osób przy niewykorzystanym
-            // limicie, mimo że dalej w kolejce stali ludzie, dla których treść
-            // była. Zapas kosztuje jedno większe zapytanie, nie więcej listów.
-            : $odbiorcy->naDzis($budzet * 3);
+            : $odbiorcy->naDzis($partia);
 
         if ($kandydaci->isEmpty()) {
             $this->info('Nikt dziś nie czeka na podsumowanie.');
 
             return self::SUCCESS;
         }
-
-        $tresci = $zbierz->dla($kandydaci);
 
         $wyslano = 0;
         $puste = 0;
@@ -187,137 +191,151 @@ class WyslijPodsumowaniaTygodnia extends Command
         // zaczyna się w Polsce w niedzielę o 22:00.
         $tydzien = Czas::poczatekTygodniaData();
 
-        foreach ($kandydaci as $osoba) {
-            if ($wyslano >= $budzet && $jedna === null) {
-                break;
-            }
+        while (true) {
+            $tresci = $zbierz->dla($kandydaci);
 
-            $tresc = $tresci[(string) $osoba->getKey()] ?? TrescDigestu::pusta($osoba);
-
-            // NAJWAŻNIEJSZA LINIJKA W TYM PLIKU (issue #11 pkt 7).
-            // „Lepiej nic niż e-mail o niczym" — pusty list jest jedyną
-            // rzeczą, która potrafi zamienić digest z powodu powrotu
-            // w powód do wypisania się.
-            if ($tresc->jestPusty()) {
-                $puste++;
-
-                continue;
-            }
-
-            if (! $naSucho) {
-                // MIEJSCE W DOBOWYM SUFICIE REZERWUJEMY PRZED WSTAWIENIEM
-                // DO KOLEJKI — po wstawieniu jest już za późno, bo list
-                // odrzucony limitem dostawcy przepada w `failed_jobs`
-                // i nikt się o tym nie dowie (pełne uzasadnienie w opisie
-                // tej klasy oraz przy `DziennyBudzetListow::zajmij()`).
-                //
-                // Rezerwacja jest JEDNĄ atomową operacją, a nie parą
-                // „sprawdź i zajmij" (D-076). `$budzet` wyliczony wyżej
-                // jest tylko oszacowaniem rozmiaru paczki: drugi przebieg
-                // komendy uruchomiony równolegle — ręcznie po awarii, gdy
-                // harmonogram już chodzi — czytał ten sam licznik i oba
-                // przebiegi wysyłały pełną paczkę ponad sufitem.
-                //
-                // LIST PRÓBNY `--tylko` STOI PONAD SUFITEM i tak było
-                // przed tą zmianą: to jedna wiadomość wypuszczana ręcznie
-                // przez właściciela, który chce ZOBACZYĆ list, i wcześniejsze
-                // wyjścia z tej komendy świadomie go nie zatrzymują. Musi
-                // się jednak POLICZYĆ, żeby nie zniknął z rachunku wiadra.
-                if (! $budzetDnia->sprobujZarezerwowac()) {
-                    if ($jedna === null) {
-                        break;
-                    }
-
-                    $budzetDnia->zajmij();
+            foreach ($kandydaci as $osoba) {
+                if ($wyslano >= $budzet && $jedna === null) {
+                    break 2;
                 }
 
-                // ────────────────────────────────────────────────────────
-                //  KOLEJNOŚĆ TYCH DWÓCH REZERWACJI JEST MERYTORYCZNA
-                // ────────────────────────────────────────────────────────
-                //
-                // Dobowy sufit poczty (D-076) idzie PIERWSZY, bariera
-                // tygodniowa (D-077) DRUGA. Odwrotna kolejność wygląda
-                // równie sensownie i jest cicho gorsza:
-                //
-                //  * gdyby najpierw szła bariera tygodniowa, a sufit dobowy
-                //    odmówił po niej — osoba zostałaby oznaczona jako
-                //    obsłużona w tym tygodniu i NIE DOSTAŁABY NIC. Nie za
-                //    tydzień, nie przy kolejnym przebiegu: w ogóle. I stałoby
-                //    się to wszystkim ponad sufitem, po cichu, bo `false`
-                //    z bariery jest normalnym stanem, nie awarią;
-                //  * w tej kolejności odmowa sufitu przerywa pętlę PRZED
-                //    oznaczeniem kogokolwiek, więc reszta paczki dostanie
-                //    swoje podsumowanie przy następnym przebiegu.
-                //
-                // D-077 świadomie wybrało „raczej pominięcie niż duplikat",
-                // ale wybrało to dla AWARII, nie dla zwykłego wyczerpania
-                // dziennego wiadra. Pominięcie z powodu sufitu jest do
-                // uniknięcia — więc go unikamy.
+                $tresc = $tresci[(string) $osoba->getKey()] ?? TrescDigestu::pusta($osoba);
 
-                // ────────────────────────────────────────────────────────
-                //  BARIERA: NAJPIERW WIERSZ W BAZIE, POTEM LIST (D-077)
-                // ────────────────────────────────────────────────────────
-                //
-                // `zarezerwuj()` wstawia w jednej transakcji wiersz
-                // `weekly_digest_sends` (klucz: osoba + poniedziałek
-                // tygodnia) i znacznik `weekly_digest_sent_at`. Dopiero gdy
-                // to się UDAŁO, wolno wywołać `Mail::queue()`.
-                //
-                // `false` znaczy „ta osoba ma ten tydzień obsłużony" i jest
-                // normalnym stanem, nie awarią: tak wygląda przebieg
-                // uruchomiony po tym, jak poprzedni padł w połowie. Dlatego
-                // pomijamy po cichu, bez `error()` i bez listu.
-                //
-                // DROGA LISTU PRÓBNEGO (`--tylko`) OMIJA BARIERĘ ŚWIADOMIE.
-                // Ta flaga istnieje po to, żeby właściciel zobaczył list
-                // TERAZ, na własnej skrzynce, i już dziś pomija odstęp
-                // tygodniowy (patrz `jednaOsoba()`). Gdyby zajmowała klucz
-                // tygodnia, drugi list próbny w tym samym tygodniu byłby
-                // niemożliwy, a osoba użyta do próby straciłaby prawdziwe
-                // podsumowanie. Bariera pilnuje WYSYŁKI MASOWEJ — jednego
-                // adresu wskazanego ręcznie z konsoli pilnuje człowiek,
-                // który tę komendę wpisał.
-                if ($jedna !== null) {
-                    $odbiorcy->oznaczWyslane([$osoba]);
-                } elseif (! $odbiorcy->zarezerwuj($osoba, $tydzien)) {
-                    // Miejsce w dobowym suficie jest już zajęte, a list z niego
-                    // nie wyjdzie — oddajemy je. Bez tego przebieg wznowiony po
-                    // awarii zjadałby wiadro na osoby, które i tak mają ten
-                    // tydzień obsłużony, i zabierał je tym, które nie mają.
-                    $budzetDnia->zwolnij();
-                    $juzObsluzeni++;
+                // NAJWAŻNIEJSZA LINIJKA W TYM PLIKU (issue #11 pkt 7).
+                // „Lepiej nic niż e-mail o niczym" — pusty list jest jedyną
+                // rzeczą, która potrafi zamienić digest z powodu powrotu
+                // w powód do wypisania się.
+                if ($tresc->jestPusty()) {
+                    $puste++;
 
                     continue;
                 }
 
-                // ROZSUNIĘCIE W CZASIE, NIE STO DWADZIEŚCIA WYWOŁAŃ API
-                // W JEDNEJ MINUCIE — `docs/decyzje/POCZTA.md` §5 pkt 5 mówi
-                // wprost, że taki szczyt sam w sobie jest sygnałem spamowym.
-                // Przy domyślnych 20 sekundach cała paczka schodzi w jakieś
-                // czterdzieści minut.
-                //
-                // `->delay()` NA LIŚCIE, a nie `Mail::later()`, i to nie jest
-                // kwestia gustu: `Mailable::queue()` sam sięga po
-                // `$this->delay` i woła `laterOn()`, więc skutek w kolejce
-                // jest identyczny — ale opóźnienie zostaje ZAPISANE
-                // W OBIEKCIE. Dzięki temu widać je w `queue:work`, widać
-                // w `failed_jobs` i widać w teście. `Mail::later()` przekazuje
-                // je bokiem, do samej kolejki, i po drodze nie zostaje po nim
-                // ślad, którym dałoby się to sprawdzić.
-                //
-                // Adres i treść z TEJ chwili nie są ostateczne: zgodę, konto,
-                // aktualny adres i widoczność każdej pozycji sprawdza jeszcze
-                // raz `PodsumowanieTygodnia::send()` w chwili wysyłki (#1328,
-                // #1383). Tu w zadaniu zostają same identyfikatory.
-                $list = (new PodsumowanieTygodnia($tresc))->delay(now()->addSeconds($numer * $odstep));
+                if (! $naSucho) {
+                    // MIEJSCE W DOBOWYM SUFICIE REZERWUJEMY PRZED WSTAWIENIEM
+                    // DO KOLEJKI — po wstawieniu jest już za późno, bo list
+                    // odrzucony limitem dostawcy przepada w `failed_jobs`
+                    // i nikt się o tym nie dowie (pełne uzasadnienie w opisie
+                    // tej klasy oraz przy `DziennyBudzetListow::zajmij()`).
+                    //
+                    // Rezerwacja jest JEDNĄ atomową operacją, a nie parą
+                    // „sprawdź i zajmij" (D-076). `$budzet` wyliczony wyżej
+                    // jest tylko oszacowaniem rozmiaru paczki: drugi przebieg
+                    // komendy uruchomiony równolegle — ręcznie po awarii, gdy
+                    // harmonogram już chodzi — czytał ten sam licznik i oba
+                    // przebiegi wysyłały pełną paczkę ponad sufitem.
+                    //
+                    // LIST PRÓBNY `--tylko` STOI PONAD SUFITEM i tak było
+                    // przed tą zmianą: to jedna wiadomość wypuszczana ręcznie
+                    // przez właściciela, który chce ZOBACZYĆ list, i wcześniejsze
+                    // wyjścia z tej komendy świadomie go nie zatrzymują. Musi
+                    // się jednak POLICZYĆ, żeby nie zniknął z rachunku wiadra.
+                    if (! $budzetDnia->sprobujZarezerwowac()) {
+                        if ($jedna === null) {
+                            break 2;
+                        }
 
-                Mail::to($osoba->email)->queue($list);
+                        $budzetDnia->zajmij();
+                    }
 
-                $sygnal->handle($osoba, ZapiszSygnal::WEEKLY_DIGEST_QUEUED, $tresc->miary());
+                    // ────────────────────────────────────────────────────────
+                    //  KOLEJNOŚĆ TYCH DWÓCH REZERWACJI JEST MERYTORYCZNA
+                    // ────────────────────────────────────────────────────────
+                    //
+                    // Dobowy sufit poczty (D-076) idzie PIERWSZY, bariera
+                    // tygodniowa (D-077) DRUGA. Odwrotna kolejność wygląda
+                    // równie sensownie i jest cicho gorsza:
+                    //
+                    //  * gdyby najpierw szła bariera tygodniowa, a sufit dobowy
+                    //    odmówił po niej — osoba zostałaby oznaczona jako
+                    //    obsłużona w tym tygodniu i NIE DOSTAŁABY NIC. Nie za
+                    //    tydzień, nie przy kolejnym przebiegu: w ogóle. I stałoby
+                    //    się to wszystkim ponad sufitem, po cichu, bo `false`
+                    //    z bariery jest normalnym stanem, nie awarią;
+                    //  * w tej kolejności odmowa sufitu przerywa pętlę PRZED
+                    //    oznaczeniem kogokolwiek, więc reszta paczki dostanie
+                    //    swoje podsumowanie przy następnym przebiegu.
+                    //
+                    // D-077 świadomie wybrało „raczej pominięcie niż duplikat",
+                    // ale wybrało to dla AWARII, nie dla zwykłego wyczerpania
+                    // dziennego wiadra. Pominięcie z powodu sufitu jest do
+                    // uniknięcia — więc go unikamy.
+
+                    // ────────────────────────────────────────────────────────
+                    //  BARIERA: NAJPIERW WIERSZ W BAZIE, POTEM LIST (D-077)
+                    // ────────────────────────────────────────────────────────
+                    //
+                    // `zarezerwuj()` wstawia w jednej transakcji wiersz
+                    // `weekly_digest_sends` (klucz: osoba + poniedziałek
+                    // tygodnia) i znacznik `weekly_digest_sent_at`. Dopiero gdy
+                    // to się UDAŁO, wolno wywołać `Mail::queue()`.
+                    //
+                    // `false` znaczy „ta osoba ma ten tydzień obsłużony" i jest
+                    // normalnym stanem, nie awarią: tak wygląda przebieg
+                    // uruchomiony po tym, jak poprzedni padł w połowie. Dlatego
+                    // pomijamy po cichu, bez `error()` i bez listu.
+                    //
+                    // DROGA LISTU PRÓBNEGO (`--tylko`) OMIJA BARIERĘ ŚWIADOMIE.
+                    // Ta flaga istnieje po to, żeby właściciel zobaczył list
+                    // TERAZ, na własnej skrzynce, i już dziś pomija odstęp
+                    // tygodniowy (patrz `jednaOsoba()`). Gdyby zajmowała klucz
+                    // tygodnia, drugi list próbny w tym samym tygodniu byłby
+                    // niemożliwy, a osoba użyta do próby straciłaby prawdziwe
+                    // podsumowanie. Bariera pilnuje WYSYŁKI MASOWEJ — jednego
+                    // adresu wskazanego ręcznie z konsoli pilnuje człowiek,
+                    // który tę komendę wpisał.
+                    if ($jedna !== null) {
+                        $odbiorcy->oznaczWyslane([$osoba]);
+                    } elseif (! $odbiorcy->zarezerwuj($osoba, $tydzien)) {
+                        // Miejsce w dobowym suficie jest już zajęte, a list z niego
+                        // nie wyjdzie — oddajemy je. Bez tego przebieg wznowiony po
+                        // awarii zjadałby wiadro na osoby, które i tak mają ten
+                        // tydzień obsłużony, i zabierał je tym, które nie mają.
+                        $budzetDnia->zwolnij();
+                        $juzObsluzeni++;
+
+                        continue;
+                    }
+
+                    // ROZSUNIĘCIE W CZASIE, NIE STO DWADZIEŚCIA WYWOŁAŃ API
+                    // W JEDNEJ MINUCIE — `docs/decyzje/POCZTA.md` §5 pkt 5 mówi
+                    // wprost, że taki szczyt sam w sobie jest sygnałem spamowym.
+                    // Przy domyślnych 20 sekundach cała paczka schodzi w jakieś
+                    // czterdzieści minut.
+                    //
+                    // `->delay()` NA LIŚCIE, a nie `Mail::later()`, i to nie jest
+                    // kwestia gustu: `Mailable::queue()` sam sięga po
+                    // `$this->delay` i woła `laterOn()`, więc skutek w kolejce
+                    // jest identyczny — ale opóźnienie zostaje ZAPISANE
+                    // W OBIEKCIE. Dzięki temu widać je w `queue:work`, widać
+                    // w `failed_jobs` i widać w teście. `Mail::later()` przekazuje
+                    // je bokiem, do samej kolejki, i po drodze nie zostaje po nim
+                    // ślad, którym dałoby się to sprawdzić.
+                    //
+                    // Adres i treść z TEJ chwili nie są ostateczne: zgodę, konto,
+                    // aktualny adres i widoczność każdej pozycji sprawdza jeszcze
+                    // raz `PodsumowanieTygodnia::send()` w chwili wysyłki (#1328,
+                    // #1383). Tu w zadaniu zostają same identyfikatory.
+                    $list = (new PodsumowanieTygodnia($tresc))->delay(now()->addSeconds($numer * $odstep));
+
+                    Mail::to($osoba->email)->queue($list);
+
+                    $sygnal->handle($osoba, ZapiszSygnal::WEEKLY_DIGEST_QUEUED, $tresc->miary());
+                }
+
+                $wyslano++;
+                $numer++;
             }
 
-            $wyslano++;
-            $numer++;
+            if ($jedna !== null || $kandydaci->count() < $partia) {
+                break;
+            }
+
+            $kandydaci = $odbiorcy->naDzis($partia, $kandydaci->last());
+
+            if ($kandydaci->isEmpty()) {
+                break;
+            }
         }
 
         $this->podsumuj($wyslano, $puste, $juzObsluzeni, $budzet, $naSucho, $jedna !== null);
@@ -415,6 +433,14 @@ class WyslijPodsumowaniaTygodnia extends Command
 
         $czekajacy = app(OdbiorcyDigestu::class)->ileCzeka();
 
+        // OSOBY BEZ TREŚCI ZOSTAJĄ W KOLEJCE i to jest w porządku — jutro
+        // sprawdzimy je znowu, bo treść może się pojawić. Ale nie wolno ich
+        // liczyć jako „nie zmieścili się w limicie" (#2237): przy spokojnym
+        // tygodniu całe `ileCzeka()` to właśnie oni, a ostrzeżenie o planie
+        // płatnym byłoby wtedy fałszywym alarmem. Osoby sprawdzone dziś bez
+        // treści odejmujemy; zostają ci, do których przebieg nie doszedł.
+        $nieSprawdzeni = max(0, $czekajacy - $puste);
+
         if ($czekajacy > 0) {
             // NIE `error()`: to jest normalny tryb pracy przy większej
             // społeczności, a nie awaria. Ale MUSI zostawić ślad w dzienniku,
@@ -422,12 +448,16 @@ class WyslijPodsumowaniaTygodnia extends Command
             // wystarczać — przy 840 osobach tygodniowo (120 × 7) ta liczba
             // przestaje spadać do zera i wtedy trzeba przejść na plan płatny
             // (`docs/DECISIONS.md` D-057).
-            $this->warn("W kolejce czeka jeszcze {$czekajacy} — kolejni dostaną list w następnych dniach.");
+            if ($nieSprawdzeni > 0) {
+                $this->warn("W kolejce czeka jeszcze {$nieSprawdzeni} — kolejni dostaną list w następnych dniach.");
+            }
 
             Log::info('Tygodniowe podsumowanie: część odbiorców czeka na kolejny dzień.', [
                 'wyslano' => $ile,
                 'budzet_dnia' => $budzet,
                 'czeka' => $czekajacy,
+                'czeka_bez_tresci' => min($puste, $czekajacy),
+                'czeka_niesprawdzonych' => $nieSprawdzeni,
             ]);
         }
     }
