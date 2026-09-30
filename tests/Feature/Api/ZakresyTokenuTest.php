@@ -27,8 +27,9 @@ use Tests\TestCase;
  *  - słownik jest naprawdę ZAMKNIĘTY: nieznany zakres i wildcard `*`
  *    nie dają się wydać nawet podane jawnie.
  *
- * Trasy sprawdzające rejestruje ten test sam, tak jak `FundamentApiTest`
- * (etap 1 nie ma jeszcze tras produkcyjnych chronionych zakresem).
+ * Trasy sprawdzające rejestruje ten test sam, tak jak `FundamentApiTest`.
+ * Prawdziwe trasy `/api/v1` z zakresami sprawdza
+ * `KazdaTrasaApiMaZakresTokenuTest` (#2232).
  */
 class ZakresyTokenuTest extends TestCase
 {

@@ -11,6 +11,7 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\Exceptions\MissingAbilityException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
@@ -56,6 +57,13 @@ final class BledyApi
         503 => ['przerwa', 'Kuking ma teraz krótką przerwę techniczną. Spróbuj za kilka minut.'],
     ];
 
+    /**
+     * Token bez zakresu, którego trasa wymaga (`ability:`, #2232). Zdanie
+     * Sanctum („Invalid ability provided.”) jest angielskie i nie mówi, co
+     * zrobić; ponowne zalogowanie wydaje token z pełnym domyślnym zakresem.
+     */
+    public const BRAK_ZAKRESU = ['brak_zakresu', 'Ta aplikacja nie ma uprawnienia do tej operacji. Wyloguj się w aplikacji i zaloguj ponownie.'];
+
     private const BLAD_SERWERA = ['blad_serwera', 'Coś poszło nie tak po naszej stronie. Spróbuj jeszcze raz za chwilę.'];
 
     /**
@@ -93,6 +101,10 @@ final class BledyApi
 
         if ($e instanceof AuthenticationException) {
             return self::json(401, ...self::ZDANIA[401]);
+        }
+
+        if ($e instanceof MissingAbilityException || $e->getPrevious() instanceof MissingAbilityException) {
+            return self::json(403, ...self::BRAK_ZAKRESU);
         }
 
         if ($e instanceof HttpExceptionInterface) {

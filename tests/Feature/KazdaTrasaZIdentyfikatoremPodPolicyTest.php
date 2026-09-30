@@ -415,7 +415,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $this->flushHeaders();
 
         if ($rola !== 'gosc') {
-            $this->actingAs($this->osoby[$rola]);
+            // Strażnik `web` JAWNIE (#2232): po pierwszym żądaniu API
+            // `auth:sanctum` przestawia domyślnego strażnika na `sanctum`,
+            // a gołe `actingAs()` wstawiało wtedy osobę wprost do strażnika
+            // API — bez tokenu. Trasy API przechodziły więc sesją testu, nie
+            // tokenem z nagłówka, a `ability:` odpowiadało 401.
+            $this->actingAs($this->osoby[$rola], 'web');
 
             // API (D-272) nie czyta sesji, tylko token w nagłówku — ta sama
             // rola wchodzi obiema drogami. Na trasach WWW nagłówek niczego
