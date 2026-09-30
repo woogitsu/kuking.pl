@@ -2029,6 +2029,20 @@ checks = [
     # Z6 (#2282): Cloudflare jako pośrednik całego ruchu ma własny wiersz.
     ("Cloudflare jako pośrednik bez wiersza w polityce", POLITYKA_TEKST, "kazda_usluga_uzywana_przez_kod_jest_wymieniona_w_polityce",
      lambda s: replace_once(s, "| Cloudflare (sieć, CDN i ochrona przed atakami) |", "| Cloudflare |")),
+    # Z8, Z10, Z11 (#2283): polityka mówi o śladzie nieudanej wysyłki tyle dni,
+    # ile queue:prune-failed w harmonogramie; §9 bez obietnicy e-maila;
+    # zakres `profile` przy Google obejmuje zdjęcie.
+    ("Retencja failed_jobs inna niż w polityce", "routes/console.php", "PolitykaMowiPrawdeOPoczcieGoogleIZmianachTest",
+     lambda s: replace_once(s, "Harmonogram::artisan('queue:prune-failed', ['--hours' => 720])",
+                            "Harmonogram::artisan('queue:prune-failed', ['--hours' => 168])")),
+    ("Polityka znów obiecuje e-mail o zmianie", POLITYKA_TEKST, "PolitykaMowiPrawdeOPoczcieGoogleIZmianachTest",
+     lambda s: replace_once(s, "O zmianie polityki nie piszemy do Ciebie e-mailem", "O zmianie polityki napiszemy także e-mailem")),
+    ("Polityka pomija zdjęcie z zakresu Google", POLITYKA_TEKST, "PolitykaMowiPrawdeOPoczcieGoogleIZmianachTest",
+     lambda s: replace_once(s, "Google opisuje je na swoim ekranie zgody jako imię i **zdjęcie profilowe** — nie ma osobnej prośby o samo imię.",
+                            "Google podaje nam imię.")),
+    # Z9 (#2283): regulamin §2 wymienia usługi, których adresy istnieją.
+    ("Regulamin §2 bez „Poradźcie”", "resources/legal/regulamin.md", "RegulaminWymieniaUslugiSerwisuTest",
+     lambda s: replace_once(s, " („Poradźcie”),", ",")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

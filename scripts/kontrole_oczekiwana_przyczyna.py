@@ -366,6 +366,11 @@ OCZEKUJ = {
     'Nowa sekcja paczki bez opisu w polityce': r'Paczka ma nową sekcję „planer_nowy”',
     'Postęp gotowania z terminem niezgodnym z konfiguracją': r'Postęp gotowania żyje 24 godzin',
     'Cloudflare jako pośrednik bez wiersza w polityce': r'Kod używa usługi „Cloudflare \(sieć, CDN i ochrona',
+    # Audyt prywatności 30.09, Z8–Z11 (#2283).
+    'Retencja failed_jobs inna niż w polityce': r'żyje 7 dni — tyle, ile queue:prune-failed w harmonogramie',
+    'Polityka znów obiecuje e-mail o zmianie': r'Polityka §9 obiecuje e-mail o zmianie polityki',
+    'Polityka pomija zdjęcie z zakresu Google': r'a polityka nie mówi, że Google pyta o zdjęcie profilowe',
+    'Regulamin §2 bez „Poradźcie”': r'Serwis ma /pytania, a regulamin §2 nie wymienia tej usługi',
 }
 
 
