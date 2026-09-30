@@ -319,3 +319,4 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 - Audyt wydajności: W1 zeszyty-do-wyboru (P2), W2 N+1 powiadomień (P2), W3 kolaż tagów zalogowanego (P2), W4-W10 P3.
 - Pracuje (5× Sonnet, polecenie właściciela „ciągle 5”): integrator O dokładka (main + 5 gałęzi + flaga D + docblock), perf-zeszyty-do-wyboru, perf-powiadomienia-n1 (+W5), perf-kolaz-tagow, perf-drobne (W4 W6 W8 W9).
 - Naprawiony vendor/composer w głównym repo (twarde dowiązania z agentów); przepis w prompcie robotnika poprawiony.
+- 18:55 perf-zeszyty-do-wyboru → 2cece2f6c (koszt 386 vs 145k, bez indeksu). Start: 1902 scala main + regulamin z archiwum.
