@@ -17,9 +17,9 @@ Baza: main `f77bd4d7f16e93469b9a731f80c41e6b151e7faf`.
 
 `ProcessUploadedImage` dekoduje i orientuje oryginał przed pętlą.
 Każdy wariant dostaje osobną ramkę Intervention opartą na tej samej bitmapie GD.
-W używanym Intervention 3.11.8 `scaleDown` tworzy docelową bitmapę i podmienia
+W używanym Intervention 4.3.x (wcześniej 3.11.8; sprawdzone w źródle `Drivers/Gd/Modifiers/ResizeModifier.php`) `scaleDown` tworzy docelową bitmapę i podmienia
 wyłącznie ramkę wariantu. Nie klonujemy całego źródła ani nie skalujemy kolejnej
-miniatury. Cztery wywołania `read()` oznaczają jedno dekodowanie bajtów oraz trzy
+miniatury. Cztery wywołania dekodera (`decodeBinary()` raz, `decode()` obiektu GD trzy razy; w wersji 3 — `read()`) oznaczają jedno dekodowanie bajtów oraz trzy
 opakowania obiektu GD. Synchroniczny `PodgladOdRazu` pozostaje osobną ścieżką.
 
 ## Dowody

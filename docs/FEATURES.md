@@ -164,11 +164,22 @@ decyzja właściciela z 30 września 2026):
   przypomnienie e-mailem za osobną, domyślnie wyłączoną zgodą. Bez AI, OCR
   paragonu i kodu kreskowego, bez push.
 
+**Zbudowane za flagą** (D-333, wiersz „#1902”, decyzja właściciela z 30 września 2026):
+
+- alergeny przepisu według autora i filtr w wyszukiwarce przepisów (#1902) —
+  autor zaznacza na poziomie przepisu 14 alergenów z Załącznika II
+  rozporządzenia 1169/2011 i potwierdza, że lista jest pełna; bez
+  oznaczenia strona przepisu mówi „Alergeny: nie sprawdzono”; filtr
+  „Bez wskazanych alergenów (według autorów)” pomija przepisy niesprawdzone;
+  podpowiedzi ze słownika (bez AI) są zawsze niezaznaczone. **Włączenie
+  (`KUKING_ALERGENY_WLACZONE=true`) dopiero po teście z osobami 50+.** Bez
+  profilu alergii widza, bez AI, bez danych w JSON-LD, tylko wyszukiwarka
+  przepisów.
+
 **V2, ale nie teraz** (decyzja właściciela z 26 września 2026). Propozycje
 z audytu zapisane na później. Nie budować bez nowej decyzji, mimo D-282
-(pięć pozycji odblokowała D-331, a #1903 — D-333, listy wyżej):
+(pięć pozycji odblokowała D-331, a #1902 i #1903 — D-333, listy wyżej):
 
-- strukturalne alergeny składników i filtr bezpiecznego wyboru (#1902);
 - wybrane przepisy do czytania offline w PWA (#1904);
 - głosowy tryb gotowania bez dotykania telefonu (#1906);
 - prywatne podsumowanie AI uwag z wykonań przepisu (#1999);

@@ -6,6 +6,9 @@ use App\Domain\Import\BramkaPublikacjiOdczytu;
 use App\Domain\Import\PodobienstwoDoZrodla;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Recipes\Actions\SnapshotRecipeVersion;
+use App\Domain\Recipes\Alergeny\DeklaracjaAlergenow;
+use App\Domain\Recipes\Alergeny\OznaczAlergenyPrzepisu;
+use App\Domain\Recipes\Alergeny\SlownikAlergenow;
 use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\GrupySkladnikow;
 use App\Domain\Recipes\LimitZapisuKreatora;
@@ -153,10 +156,27 @@ new class extends Component
     #[Locked]
     public int $wersjaStanu = 0;
 
-    public const WERSJA_STANU = 4;
+    public const WERSJA_STANU = 5;
 
     /** @var list<array{_key: string, group_name: string, text: string, note: string, substitutes: string, no_amount: bool}> */
     public array $ingredients = [];
+
+    /**
+     * Alergeny według autora (#1902, D-333) — kody zaznaczone w kroku 2
+     * i pole „Składniki sprawdzone”. Tylko przy włączonej fladze
+     * `kuking.alergeny.wlaczone`; stan wzorowany na zapisanym przepisie
+     * (`fillFrom()`), a o zapisie decyduje `PublishRecipe` po porównaniu
+     * z tym, co już leży w bazie — niezmienione pola niczego nie potwierdzają.
+     *
+     * @var list<string>
+     */
+    public array $alergeny = [];
+
+    public bool $alergenyPotwierdzone = false;
+
+    /** Zapisany stan oznaczenia: unchecked | declared | needs_review (tylko do odczytu w widoku). */
+    #[Locked]
+    public string $alergenyStan = Recipe::ALERGENY_NIESPRAWDZONE;
 
     /**
      * Wiersze przygotowania.
@@ -275,6 +295,10 @@ new class extends Component
         $this->form->source_note = (string) $recipe->source_note;
         $this->form->source_url = (string) $recipe->source_url;
         $this->form->family_since_year = PodgladPrzepisu::liczbaNaTekst($recipe->family_since_year);
+
+        $this->alergeny = $recipe->allergens;
+        $this->alergenyPotwierdzone = $recipe->alergenyZdeklarowane();
+        $this->alergenyStan = (string) $recipe->allergen_status;
 
         $this->ingredients = $recipe->ingredients
             ->map(fn ($row): array => [
@@ -515,6 +539,16 @@ new class extends Component
     {
         $this->acknowledgedRevision = RewizjaTresci::potwierdzona($this->editRevision);
 
+        // Świadomy zapis z zaznaczonymi alergenami bez potwierdzenia: błąd przy
+        // polu i w podsumowaniu, zanim cokolwiek zapiszemy jako oznaczenie.
+        // Autozapis tego nie robi — człowiek może być w połowie zaznaczania.
+        if ($wersja && ! $this->validateAlergeny()) {
+            $this->ustawStanZapisu(StanZapisu::bladPol());
+            $this->step = 2;
+
+            return false;
+        }
+
         if ($this->rejestrAutozapisu()->zapisanoWTymZadaniu()) {
             /*
              * Livewire wysyła zmianę pola i kliknięcie „Zapisz zmiany” jednym
@@ -615,6 +649,13 @@ new class extends Component
         }
 
         if (! $this->validateRows()) {
+            $this->autozapis();
+
+            return;
+        }
+
+        if (! $this->validateAlergeny()) {
+            $this->step = 2;
             $this->autozapis();
 
             return;
@@ -743,7 +784,17 @@ new class extends Component
             oczekiwanaRewizja: RewizjaTresci::oczekiwana($this->recipeId, $this->contentRevision),
             wersjaPoprawki: $wersjaPoprawki,
             ip: request()->ip(),
+            deklaracjaAlergenow: $this->deklaracjaAlergenowDoZapisu(),
         );
+
+        // Stan oznaczenia po zapisie: składniki mogły zmienić `declared` na
+        // `needs_review`. Wtedy pole „sprawdzone” przestaje być prawdziwe —
+        // bez tej synchronizacji kolejny autozapis odesłałby je jako świeże
+        // potwierdzenie i unieważnienie by przepadło.
+        $this->alergenyStan = (string) $recipe->allergen_status;
+        if ($recipe->allergen_status === Recipe::ALERGENY_DO_PRZEGLADU) {
+            $this->alergenyPotwierdzone = false;
+        }
 
         if ($liczy) {
             $limit->policz(auth()->user());
@@ -817,6 +868,134 @@ new class extends Component
         return $this->zOdczytu && $this->sourceScanMediaId !== null
             ? Media::query()->find($this->sourceScanMediaId)
             : null;
+    }
+
+    // -----------------------------------------------------------------
+    // Alergeny według autora (#1902, D-333)
+    // -----------------------------------------------------------------
+
+    /** Czy sekcja „Alergeny” jest w ogóle włączona (flaga; domyślnie wyłączona). */
+    public function alergenyWlaczone(): bool
+    {
+        return (bool) config('kuking.alergeny.wlaczone');
+    }
+
+    /**
+     * Zaznaczone alergeny BEZ potwierdzenia, które różnią się od zapisanych —
+     * czyli coś, co człowiek zmienił i czego nie wolno zapisać jako oznaczenie.
+     * Niezmienione pola (np. lista wczytana przy stanie `needs_review`) to nie
+     * jest zmiana i nie blokuje ani zapisu, ani publikacji.
+     */
+    private function alergenyNiezatwierdzone(): bool
+    {
+        if (! $this->alergenyWlaczone()) {
+            return false;
+        }
+
+        $deklaracja = new DeklaracjaAlergenow($this->alergeny, $this->alergenyPotwierdzone);
+
+        if (! $deklaracja->wymagaPotwierdzenia()) {
+            return false;
+        }
+
+        try {
+            return $deklaracja->rozniSieOd($this->existingRecipe() ?? new Recipe);
+        } catch (BladDlaCzlowieka) {
+            // Przepis zniknął — błąd powie o tym właściwa ścieżka zapisu
+            // (`validateExistingStepIds()`), nie walidacja alergenów.
+            return false;
+        }
+    }
+
+    private function validateAlergeny(): bool
+    {
+        $this->resetErrorBag('alergeny');
+
+        if ($this->alergenyNiezatwierdzone()) {
+            $this->addError('alergeny', OznaczAlergenyPrzepisu::KOMUNIKAT_POTWIERDZ);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Deklaracja do `PublishRecipe`: `null`, gdy flaga wyłączona albo gdy
+     * człowiek jest w połowie (zaznaczenia bez potwierdzenia — autozapis
+     * zapisuje resztę przepisu, a oznaczenie zostaje, jak było).
+     */
+    private function deklaracjaAlergenowDoZapisu(): ?DeklaracjaAlergenow
+    {
+        if (! $this->alergenyWlaczone() || $this->alergenyNiezatwierdzone()) {
+            return null;
+        }
+
+        return new DeklaracjaAlergenow($this->alergeny, $this->alergenyPotwierdzone);
+    }
+
+    /**
+     * Podpowiedzi słownika dla składników z formularza (etap 2). Tylko tekst
+     * pod polami — nic nie jest zaznaczone ani zapisane. Pusta tablica nie
+     * jest nigdzie komunikowana.
+     *
+     * @return array<string, list<string>>
+     */
+    public function podpowiedziAlergenow(): array
+    {
+        if (! $this->alergenyWlaczone()) {
+            return [];
+        }
+
+        $teksty = [];
+        foreach ($this->cleanIngredients() as $row) {
+            $teksty[] = $row['text'];
+            if (($row['substitutes'] ?? null) !== null) {
+                $teksty[] = (string) $row['substitutes'];
+            }
+        }
+
+        return SlownikAlergenow::podpowiedzi($teksty);
+    }
+
+    /**
+     * „Składniki nadal się zgadzają” — ze stanu `needs_review`. Najpierw
+     * zapisujemy szkic (składniki z formularza), potem potwierdzamy listę,
+     * którą człowiek widzi zaznaczoną.
+     */
+    public function potwierdzAlergenyPonownie(): void
+    {
+        $this->resetErrorBag('alergeny');
+
+        if (! $this->alergenyWlaczone() || $this->alergenyStan !== Recipe::ALERGENY_DO_PRZEGLADU) {
+            return;
+        }
+
+        if (! $this->autozapis()) {
+            return;
+        }
+
+        try {
+            $recipe = $this->existingRecipe();
+            if ($recipe === null) {
+                return;
+            }
+
+            $recipe = app(OznaczAlergenyPrzepisu::class)->handle(
+                auth()->user(),
+                $recipe,
+                new DeklaracjaAlergenow($this->alergeny, true),
+                request()->ip(),
+            );
+        } catch (BladDlaCzlowieka $e) {
+            $this->addError('alergeny', $e->getMessage());
+
+            return;
+        }
+
+        $this->alergeny = $recipe->allergens;
+        $this->alergenyPotwierdzone = true;
+        $this->alergenyStan = (string) $recipe->allergen_status;
     }
 
     /** Przepis, który nadpisujemy — z autoryzacją przy KAŻDYM zapisie, nie tylko przy wejściu. */
@@ -1201,6 +1380,13 @@ new class extends Component
             :z-odczytu="$zOdczytu"
             :skan="$zOdczytu ? $this->skanOdczytu() : null"
         />
+        @if($this->alergenyWlaczone())
+            <section class="panel-formularza mt-4">
+                <x-alergeny.pola :wire="true" :wybrane="$alergeny" :potwierdzone="$alergenyPotwierdzone"
+                                 :stan="$alergenyStan" :podpowiedzi="$this->podpowiedziAlergenow()"
+                                 :przycisk-przegladu="$recipeId !== null" />
+            </section>
+        @endif
     @elseif($step === 3)
         {{-- ==============================================================
              Krok 3 z 3 — przygotowanie

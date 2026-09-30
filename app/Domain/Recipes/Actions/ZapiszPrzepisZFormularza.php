@@ -6,6 +6,7 @@ namespace App\Domain\Recipes\Actions;
 
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Media\ZachowaneZdjeciaPrzepisu;
+use App\Domain\Recipes\Alergeny\DeklaracjaAlergenow;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Media;
 use App\Models\Recipe;
@@ -39,7 +40,7 @@ final class ZapiszPrzepisZFormularza
     /**
      * Dane to wynik `ZapisPrzepisuRequest::daneZapisu()`.
      *
-     * @param  array{recipe: array<string, mixed>, ingredients: list<array<string, mixed>>, steps: array<array-key, array<string, mixed>>}  $dane
+     * @param  array{recipe: array<string, mixed>, ingredients: list<array<string, mixed>>, steps: array<array-key, array<string, mixed>>, alergeny?: ?DeklaracjaAlergenow}  $dane
      * @param  array<array-key, UploadedFile>  $zdjeciaKrokow  pliki pod TYMI SAMYMI kluczami, co `$dane['steps']`
      * @param  string|null  $zdjecieGlowneZWpisu  `media.id` zdjęcia z własnego wpisu (#1334), już po Policy
      * @param  array<string, string>  $zachowaneZdjecia  identyfikatory z formularza, sprawdzane ponownie przed przypięciem
@@ -113,6 +114,7 @@ final class ZapiszPrzepisZFormularza
                 publish: $publish,
                 ip: $ip,
                 kluczWyslania: $kluczWyslania,
+                deklaracjaAlergenow: $dane['alergeny'] ?? null,
             )
             : $this->publishRecipe->handle(
                 author: $author,
@@ -123,6 +125,7 @@ final class ZapiszPrzepisZFormularza
                 existing: $existing,
                 ip: $ip,
                 oczekiwanaRewizja: $oczekiwanaRewizja,
+                deklaracjaAlergenow: $dane['alergeny'] ?? null,
             );
     }
 
