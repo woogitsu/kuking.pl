@@ -35,8 +35,8 @@
             <li class="historia-wersja card">
                 <h2 class="historia-wersja-naglowek">
                     Wersja z {{ $dataSlownie($wersja) }}
-                    @if($wersja === $biezaca)
-                        <span class="badge badge-spokojny">Obecna</span>
+                    @if($plakietka = $archiwum->plakietkaWersji($wersja))
+                        <span class="badge badge-spokojny">{{ $plakietka }}</span>
                     @endif
                 </h2>
                 <p class="historia-akcje">
