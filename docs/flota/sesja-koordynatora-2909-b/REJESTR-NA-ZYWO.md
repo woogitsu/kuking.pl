@@ -323,3 +323,4 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 - 18:57 perf-kolaz-tagow → 475fc611c (cache gościa 15/tag, filtr widza, dopełnienie). Start: perf-start-powtorki (W7).
 - 19:00 perf-powiadomienia-n1 → 483dc75b9 (W2+W5). Start: research #1904 offline PWA.
 - 19:05 PR #2342 paczka O otwarty (385eb944d; 9 gałęzi + main; 437 testów, PHPStan 0). Check-in 19:55. Start integratora P od O: perf-zeszyty, perf-kolaz, perf-powiadomienia (+perf-drobne, perf-start-powtorki gdy gotowe). W kolejce: 1902 (scala main), research #1904.
+- 19:09 1902 scalona z main → 89e508613; regulamin §10 = drobna poprawka 30.09 (decyzja właściciela). Przegląd 1902 w toku. Propozycja #1904 offline: PROPOZYCJA_OFFLINE_1904.md.
