@@ -143,6 +143,12 @@ STRAZNIK_PLIK_ODSTEPSTWA = "tests/Feature/PlikKontrolnyZOdstepstwemTest.php"
 AKCJA_PHP = ".github/actions/php/action.yml"
 AKCJE_SHA_TEST = "AkcjeGithubPrzypieteDoShaTest"
 
+# Testy skryptów Pythona muszą mieć krok w CI. Mutacja zmienia nazwę pliku w
+# kroku strażnika podziału kontroli tak, by żaden wiersz workflowu (poza
+# komentarzami, które strażnik pomija) go już nie wskazywał.
+CI_WORKFLOW = ".github/workflows/ci.yml"
+TESTY_PYTHONA_W_CI_TEST = "TestySkryptowPythonaChodzaWCiTest"
+
 # Etap `assets` obrazu a lista plików podana do `node --test` (regresja #1085).
 # Ten strażnik pilnuje własnej NIEPUSTOŚCI (`assertNotEmpty`), ale nic w nim
 # nie dowodzi, że czytnik `COPY` z Dockerfile potrafi powiedzieć „nie
@@ -1278,6 +1284,8 @@ checks = [
     ("Piąty selektor powołuje się na D-262", CSS, "WyjatekD262ZamknietaListaTest",
      lambda s: replace_once(s, "\n  .badge-cichy {\n", "\n  /* wyjątek D-262 */\n  .badge-cichy {\n")),
     ("Akcja GitHuba na ruchomym tagu", AKCJA_PHP, AKCJE_SHA_TEST, akcja_php_na_ruchomym_tagu),
+    ("Test skryptu Pythona bez kroku w CI", CI_WORKFLOW, TESTY_PYTHONA_W_CI_TEST,
+     lambda s: replace_once(s, "discover -s scripts -p test_podzial_kontroli.py -v", "discover -s scripts -p test_podzial_kontroli_x.py -v")),
     ("Licznik w widocznym menu konta", LAYOUT, "test_wejscie_do_panelu_pokazuje_sume_kolejek",
      lambda s: replace_once(s, """<li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji <x-licznik-kolejki :ile="$czekaWPanelu" /></a></li>""", """<li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji</a></li>""")),
     ("Strażnik tekstu bez własnego wpisu", STRAZNIK_SAM_SKRYPT, STRAZNIK_TEKSTU_TEST,
