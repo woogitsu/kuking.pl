@@ -55,9 +55,11 @@ final class PushGranicaPayloaduTest extends TestCase
 
         $this->assertStringContainsString('🍲🍲🍲', $zdanie, 'Kontrola dodatnia: tytuł jest w zdaniu.');
         $this->assertLessThan(500, mb_strlen($zdanie), 'Tytuł 5000 znaków nie wchodzi w całości.');
-        // Dokładnie 80 znaków tytułu i widoczne przycięcie — nie „jakoś krócej".
-        $this->assertStringContainsString(str_repeat('🍲', 80).'...”', $zdanie, 'Tytuł ma być przycięty do 80 znaków.');
-        $this->assertStringNotContainsString(str_repeat('🍲', 81), $zdanie, 'Tytuł dłuższy niż 80 znaków.');
+        // Dokładnie 80 i widoczne przycięcie — nie „jakoś krócej". `Str::limit()`
+        // liczy SZEROKOŚĆ (`mb_strwidth`), a emoji ma szerokość 2, więc
+        // mierzymy tak samo jak kod, nie liczbą znaków.
+        $this->assertSame(1, preg_match('/„(.+)\.\.\.”/u', $zdanie, $tytul), 'Przycięty tytuł w cudzysłowie.');
+        $this->assertSame(80, mb_strwidth($tytul[1]), 'Tytuł ma być przycięty do szerokości 80.');
     }
 
     public function test_serializowany_retry_jest_maly_przy_maksymalnej_liczbie_urzadzen(): void
