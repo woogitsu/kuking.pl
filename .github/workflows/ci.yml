@@ -1286,12 +1286,28 @@ jobs:
   # Od 24.09.2026 job stoi na filtrze warstwy widoku, jak trzy pozostałe
   # joby przeglądarkowe: na PR-ze chodzi przy zmianie widoku, PHP sterującego
   # ekranem, `scripts/panel-*.mjs`, fixture'ów albo `ci.yml`. Poza PR-em zawsze.
+  #
+  # #2299 (30.09.2026): DWIE CZĘŚCI MACIERZY. Jeden kawałek szedł 17,5–20 min
+  # i był ścieżką krytyczną CI. Części dzielą się SZEROKOŚCIAMI (każda robi
+  # obie fazy, pustą i pełną) i dodatkami (menu, zoom, szczegóły, walidacja);
+  # podział stoi w `scripts/panel-czesci.mjs`, a jego kompletność pilnują
+  # `scripts/panel-czesci.test.mjs` (krok niżej) i
+  # `PanelMarkiDzieliSieBezUtratyPomiaruTest`. Wymagany check „Panel marki —
+  # puste i pełne widoki" wystawia teraz job zbiorczy `panel_marki` (niżej),
+  # jak `testy` dla macierzy `test` — nazwa w ochronie gałęzi się nie zmienia.
   port_panelu:
-    name: Panel marki — puste i pełne widoki
+    name: Panel marki — puste i pełne widoki (część ${{ matrix.czesc }}/2)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
     runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 25
+    strategy:
+      # Czerwona część 1 nie może ukryć wyniku części 2 (i odwrotnie).
+      fail-fast: false
+      matrix:
+        # Części są też w `scripts/panel-czesci.mjs` (`CZESCI_PANELU`);
+        # rozjazd wyłapuje `PanelMarkiDzieliSieBezUtratyPomiaruTest`.
+        czesc: [1, 2]
     services:
       postgres:
         image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
@@ -1320,6 +1336,7 @@ jobs:
       MAIL_MAILER: array
       FILESYSTEM_DISK: public
       SENTRY_LARAVEL_DSN: ""
+      PANEL_CZESC: ${{ matrix.czesc }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Izolowane połączenie i zamrożony czas
@@ -1354,6 +1371,8 @@ jobs:
         run: |
           composer install --no-interaction --prefer-dist --no-progress
           npm ci --no-audit --no-fund
+      - name: Regresja podziału panelu na części
+        run: node --test scripts/panel-czesci.test.mjs
       - name: Przeglądarka
         run: flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
       - name: Nowa baza bez danych demonstracyjnych i rzeczywiste assety
@@ -1362,7 +1381,10 @@ jobs:
           sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
           php artisan storage:link
           php artisan migrate --force --no-interaction
-          npm run build
+          # Sam Vite (#2299): kontrast marki i ~190 testów jednostkowych JS
+          # z `npm run build` (ok. 78 s) biegną w jobie `assets`, który rusza
+          # przy każdym `kod == 'true'`, czyli zawsze obok tego joba.
+          npm run build:assets
       - name: Panel — logowanie z TOTP, faza pusta i pełna
         run: node scripts/panel-marki-run.mjs
       - name: Dowody panelu bez sesji i poświadczeń
@@ -1372,7 +1394,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: panel-marki-${{ github.sha }}
+          name: panel-marki-${{ matrix.czesc }}-${{ github.sha }}
           path: |
             storage/port-panelu/*.json
             storage/port-panelu/*.png
@@ -1381,6 +1403,52 @@ jobs:
             storage/port-panelu/details-zoom/*.json
             storage/port-panelu/details-zoom/*.png
           retention-days: 5
+
+  # ===========================================================================
+  #  Zbiorczy wynik panelu marki — WYMAGANY CHECK „Panel marki — puste i pełne
+  #  widoki" (#2299)
+  # ===========================================================================
+  #  Ta sama konstrukcja co `testy`: macierz z `if` na poziomie joba, gdy
+  #  bramka `zakres` ją pomija, zgłasza JEDEN pominięty check z nierozwiniętą
+  #  nazwą, więc „część 1/2" i „część 2/2" nie mogą być wymagane
+  #  (`docs/infra/BRAMKI_CI_2215.md`). Wymagana zostaje dawna nazwa — teraz na
+  #  tym jobie.
+  #
+  #  Zielony TYLKO gdy:
+  #    - obie części `port_panelu` są `success`, albo
+  #    - `port_panelu` jest `skipped`, bo bramka `zakres` (sama zielona)
+  #      uznała, że zmiana nie dotyka kodu albo warstwy widoku — dokładnie
+  #      ten stan, w którym dawny job też był `skipped`.
+  #  Każdy inny stan (czerwona albo anulowana część, pominięcie z innego
+  #  powodu) jest czerwony. `!cancelled()`: rusza także po czerwieni części.
+  # ===========================================================================
+  panel_marki:
+    name: Panel marki — puste i pełne widoki
+    needs: [zakres, port_panelu]
+    if: ${{ !cancelled() }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 5
+    steps:
+      - name: Wynik obu części panelu
+        env:
+          WYNIK_ZAKRESU: ${{ needs.zakres.result }}
+          KOD: ${{ needs.zakres.outputs.kod }}
+          WIDOK: ${{ needs.zakres.outputs.widok }}
+          WYNIK_PANELU: ${{ needs.port_panelu.result }}
+        run: |
+          set -euo pipefail
+          echo "zakres=${WYNIK_ZAKRESU} (kod=${KOD}, widok=${WIDOK}), części panelu=${WYNIK_PANELU}"
+          if [ "${WYNIK_PANELU}" = "success" ]; then
+            echo "### Panel marki: obie części zielone" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ "${WYNIK_PANELU}" = "skipped" ] && [ "${WYNIK_ZAKRESU}" = "success" ] \
+            && { [ "${KOD}" != "true" ] || [ "${WIDOK}" != "true" ]; }; then
+            echo "### Panel marki: pominięty przez bramkę zakresu (bez zmiany kodu albo widoku)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "::error::Panel marki nie jest zielony: części=${WYNIK_PANELU}, zakres=${WYNIK_ZAKRESU}. Szczegóły w jobach „Panel marki — puste i pełne widoki (część …)”."
+          exit 1
 
   port_marki:
     name: Port marki (kompozycje, zoom i kontrole ujemne)
@@ -1478,7 +1546,10 @@ jobs:
           cp .env.example .env
           sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
           php artisan storage:link
-          npm run build
+          # Sam Vite (#2299): kontrast marki i ~190 testów jednostkowych JS
+          # z `npm run build` (ok. 78 s) biegną w jobie `assets`, który rusza
+          # przy każdym `kod == 'true'`, czyli zawsze obok tego joba.
+          npm run build:assets
 
           php artisan migrate:fresh --seed --force --no-interaction
 
@@ -1641,7 +1712,10 @@ jobs:
           cp .env.example .env
           sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
           php artisan storage:link
-          npm run build
+          # Sam Vite (#2299): kontrast marki i ~190 testów jednostkowych JS
+          # z `npm run build` (ok. 78 s) biegną w jobie `assets`, który rusza
+          # przy każdym `kod == 'true'`, czyli zawsze obok tego joba.
+          npm run build:assets
 
           php artisan migrate:fresh --seed --force --no-interaction
 
@@ -1848,7 +1922,10 @@ jobs:
           cp .env.example .env
           sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
           php artisan storage:link
-          npm run build
+          # Sam Vite (#2299): kontrast marki i ~190 testów jednostkowych JS
+          # z `npm run build` (ok. 78 s) biegną w jobie `assets`, który rusza
+          # przy każdym `kod == 'true'`, czyli zawsze obok tego joba.
+          npm run build:assets
 
           # MIGRACJA TUTAJ, NIE TYLKO W SKRYPCIE. `dostepnosc.mjs` robi
           # `migrate:fresh --seed` sam, ale `wydajnosc.mjs` na tym polegał —
