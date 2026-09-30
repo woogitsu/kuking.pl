@@ -37,6 +37,8 @@ use Tests\TestCase;
  *    `environment`, `time`; z tokenem dodatkowo `checks` z DOKŁADNIE
  *    szesnastoma nazwanymi sondami; sonda to `ok` (bool) i — tylko gdy `ok`
  *    jest false — `error` (kod z `HealthController::POWODY`);
+ *  - z tokenem także sekcja `informacje` (#2218): odczyty tylko do wglądu,
+ *    poza `checks`, więc NIGDY nie zmieniają `status` ani kodu HTTP;
  *  - typy pól, format `time` (ISO 8601), `status` ∈ {ok, degraded};
  *  - nagłówki: `Content-Type: application/json`, `Cache-Control` z `no-store`
  *    i `private` (nigdy `public`), `Retry-After` przy 429;
