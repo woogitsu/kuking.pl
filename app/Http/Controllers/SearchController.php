@@ -8,6 +8,7 @@ use App\Domain\Analytics\ZapiszSygnal;
 use App\Domain\Feed\DailyBoard;
 use App\Domain\Recipes\KosztPrzepisu;
 use App\Domain\Search\SearchQuery;
+use App\Http\Middleware\ParametryAdresuBezTablic;
 use App\Models\Tag;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -108,7 +109,10 @@ class SearchController extends Controller
         if ($maksMinut === null && $sekcjaSurowa === 'szybkie') {
             $maksMinut = 30;
         }
-        $czasNieznany = $maksMinut === null && $czasSurowy !== null && $czasSurowy !== '';
+        // `czas[]=` usuwa z adresu `ParametryAdresuBezTablic` — ekran i tak
+        // mówi, że wartości w adresie nie rozpoznał.
+        $czasNieznany = $maksMinut === null
+            && (($czasSurowy !== null && $czasSurowy !== '') || ParametryAdresuBezTablic::bylWAdresie($request, 'czas'));
         if ($section === 'ludzie') {
             $maksMinut = null;
             $czasNieznany = false;
