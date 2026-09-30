@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Moderation\PodstawaDecyzji;
+use App\Domain\Recipes\Historia\DecyzjaOWersjiPrzepisu;
 use App\Domain\Recipes\Historia\HistoriaWersji;
 use App\Domain\Recipes\Historia\MigawkaWersji;
 use App\Domain\Recipes\Historia\PorownanieWersji;
 use App\Domain\Recipes\Historia\UkrywanieWersji;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Recipe;
 use App\Models\RecipeVersion;
@@ -28,6 +31,11 @@ use Illuminate\View\View;
  * albo zdjętym). Reguły w `HistoriaWersji`. Wersja ukryta istnieje tylko dla
  * autora i moderacji (`HistoriaWersji::widziUkryte`); dla reszty jej adres
  * daje 404, jak wersja, której nie ma.
+ *
+ * Ukrycie i przywrócenie PRZEZ MODERACJĘ to decyzja moderacyjna (DSA,
+ * decyzja właściciela z 30.09.2026): formularz niesie podstawę
+ * i uzasadnienie jak „Zdejmij z urzędu”, a zapis idzie przez
+ * `DecyzjaOWersjiPrzepisu`. Autor ukrywa i przywraca swoje wersje bez tego.
  */
 class HistoriaPrzepisuController extends Controller
 {
@@ -132,15 +140,32 @@ class HistoriaPrzepisuController extends Controller
         ]);
     }
 
-    public function ukryj(Request $request, string $recipe, int $numer, UkrywanieWersji $ukrywanie): RedirectResponse
+    public function ukryj(Request $request, string $recipe, int $numer, UkrywanieWersji $ukrywanie, DecyzjaOWersjiPrzepisu $decyzja): RedirectResponse
     {
         $model = $this->przepisDoZapisu($request, $recipe);
         $this->authorize('hide', $this->wersjaDoDecyzji($request, $model, $numer));
 
-        $wynik = $ukrywanie->ukryj($request->user(), $model, $numer, $request->ip());
+        $zModeracji = UkrywanieWersji::strona($request->user(), $model) === RecipeVersion::UKRYLA_MODERACJA;
+
+        if ($zModeracji) {
+            $data = $this->podstawaUkrycia($request, $model, $numer);
+            $wynik = $decyzja->ukryj(
+                moderator: $request->user(),
+                recipe: $model,
+                numer: $numer,
+                reasonCode: $data['reason_code'],
+                userMessage: $data['user_message'],
+                note: $data['note'] ?? null,
+                ip: $request->ip(),
+            );
+        } else {
+            $wynik = $ukrywanie->ukryj($request->user(), $model, $numer, $request->ip());
+        }
 
         return $this->doHistorii($model, match ($wynik) {
-            UkrywanieWersji::UKRYTO => Komunikat::sukces("Wersja {$numer} jest ukryta. Widzisz ją tylko Ty i moderacja; w każdej chwili możesz ją przywrócić."),
+            UkrywanieWersji::UKRYTO => $zModeracji
+                ? Komunikat::sukces("Wersja {$numer} jest ukryta. Autor dostał powiadomienie z podstawą i uzasadnieniem i może się odwołać. Przywrócić ją może moderacja.")
+                : Komunikat::sukces("Wersja {$numer} jest ukryta. Widzisz ją tylko Ty i moderacja; w każdej chwili możesz ją przywrócić."),
             UkrywanieWersji::JUZ_UKRYTA => Komunikat::informacja("Wersja {$numer} jest już ukryta."),
             UkrywanieWersji::NAJNOWSZA => Komunikat::blad(self::KOMUNIKAT_NAJNOWSZA),
             default => Komunikat::blad('Tej wersji już nie ma. Odśwież historię zmian.'),
@@ -160,21 +185,67 @@ class HistoriaPrzepisuController extends Controller
         return view('pages.recipes.historia-przywroc', [
             'recipe' => $model,
             'wersja' => $wersja,
+            'strona' => UkrywanieWersji::strona($request->user(), $model),
         ]);
     }
 
-    public function przywroc(Request $request, string $recipe, int $numer, UkrywanieWersji $ukrywanie): RedirectResponse
+    public function przywroc(Request $request, string $recipe, int $numer, UkrywanieWersji $ukrywanie, DecyzjaOWersjiPrzepisu $decyzja): RedirectResponse
     {
         $model = $this->przepisDoZapisu($request, $recipe);
         $this->authorize('restore', $this->wersjaDoDecyzji($request, $model, $numer));
 
-        $wynik = $ukrywanie->przywroc($request->user(), $model, $numer, $request->ip());
+        if (UkrywanieWersji::strona($request->user(), $model) === RecipeVersion::UKRYLA_MODERACJA) {
+            $data = $request->validate([
+                'reason_code' => ['required', 'string', 'max:80'],
+                'user_message' => ['nullable', 'string', 'max:1500'],
+            ], [
+                'reason_code.required' => 'Podaj powód przywrócenia — w rejestrze decyzji musi zostać ślad, dlaczego zdjęto ukrycie.',
+                'reason_code.max' => 'Powód jest za długi. Zmieść się w 80 znakach.',
+                'user_message.max' => 'Wiadomość jest za długa. Zmieść się w 1500 znakach.',
+            ]);
+
+            try {
+                $wynik = $decyzja->przywroc($request->user(), $model, $numer, $data['reason_code'], $data['user_message'] ?? null, $request->ip());
+            } catch (BladDlaCzlowieka $blad) {
+                return back()->withInput()->withErrors(['reason_code' => $blad->getMessage()]);
+            }
+        } else {
+            $wynik = $ukrywanie->przywroc($request->user(), $model, $numer, $request->ip());
+        }
 
         return $this->doHistorii($model, match ($wynik) {
             UkrywanieWersji::PRZYWROCONO => Komunikat::sukces("Wersja {$numer} jest znowu widoczna dla każdego, kto widzi przepis."),
             UkrywanieWersji::NIE_BYLA_UKRYTA => Komunikat::informacja("Wersja {$numer} nie jest ukryta — widzi ją każdy, kto widzi przepis."),
+            UkrywanieWersji::UKRYTA_PRZEZ_DRUGA_STRONE => Komunikat::blad("Wersji {$numer} nie przywrócisz stąd: w międzyczasie ukryła ją druga strona. Odśwież historię zmian."),
             default => Komunikat::blad('Tej wersji już nie ma. Odśwież historię zmian.'),
         });
+    }
+
+    /**
+     * Podstawa decyzji moderacji — te same pola i komunikaty co „Zdejmij
+     * z urzędu” (`ZUrzeduController::store`). Uzasadnienie jest krótsze
+     * o zdanie wskazujące wersję (`DecyzjaOWersjiPrzepisu::wskazanie`), żeby
+     * całość zmieściła się w `moderation_actions.user_message` (2000).
+     *
+     * @return array{reason_code: string, user_message: string, note?: ?string}
+     */
+    private function podstawaUkrycia(Request $request, Recipe $recipe, int $numer): array
+    {
+        $limit = 2000 - mb_strlen(DecyzjaOWersjiPrzepisu::wskazanie($recipe, $numer)) - 1;
+
+        /** @var array{reason_code: string, user_message: string, note?: ?string} */
+        return $request->validate([
+            'reason_code' => ['required', 'string', 'in:'.implode(',', array_keys(PodstawaDecyzji::PODSTAWY))],
+            'user_message' => ['required', 'string', 'min:10', 'max:'.$limit],
+            'note' => ['nullable', 'string', 'max:2000'],
+        ], [
+            'reason_code.required' => 'Wybierz podstawę decyzji — autor przepisu zobaczy ją w powiadomieniu.',
+            'reason_code.in' => 'Wybierz podstawę decyzji z listy.',
+            'user_message.required' => 'Napisz autorowi, dlaczego ukrywasz tę wersję. Bez tego nie ma od czego się odwołać.',
+            'user_message.min' => 'Uzasadnienie jest za krótkie. Napisz jednym, dwoma zdaniami, co konkretnie w tej wersji narusza zasady.',
+            'user_message.max' => "Uzasadnienie jest za długie. Zmieść się w {$limit} znakach.",
+            'note.max' => 'Notatka jest za długa. Zmieść się w 2000 znakach.',
+        ]);
     }
 
     /**

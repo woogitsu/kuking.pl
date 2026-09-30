@@ -83,10 +83,24 @@ final class UkrywanieWersjiPrzepisuTest extends TestCase
         return RecipeVersion::where('recipe_id', $przepis->getKey())->where('version_number', $numer)->firstOrFail();
     }
 
+    /**
+     * Pola podstawy decyzji — dla moderacji obowiązkowe (DSA, 30.09),
+     * po stronie autora ignorowane.
+     *
+     * @return array<string, string>
+     */
+    private function podstawa(): array
+    {
+        return [
+            'reason_code' => 'cudze-dane-osobowe',
+            'user_message' => 'Ta wersja pokazuje cudzy numer telefonu.',
+        ];
+    }
+
     private function ukryjJako(User $kto, Recipe $przepis, int $numer): void
     {
         $this->actingAs($kto)
-            ->post(route('recipes.history.hide.store', [$przepis->slug, $numer]))
+            ->post(route('recipes.history.hide.store', [$przepis->slug, $numer]), $this->podstawa())
             ->assertRedirect(route('recipes.history', $przepis->slug));
         auth()->logout();
     }
@@ -231,7 +245,7 @@ final class UkrywanieWersjiPrzepisuTest extends TestCase
 
         // Moderacja przywraca swoje ukrycie.
         $this->actingAs($moderator)
-            ->post(route('recipes.history.restore.store', [$przepis->slug, 1]))
+            ->post(route('recipes.history.restore.store', [$przepis->slug, 1]), ['reason_code' => 'pomyłka moderacji'])
             ->assertRedirect(route('recipes.history', $przepis->slug));
         $this->assertNull($this->wersjaNr($przepis, 1)->hidden_at);
     }
@@ -342,7 +356,9 @@ final class UkrywanieWersjiPrzepisuTest extends TestCase
             ->assertSee(route('recipes.history.hide', [$przepis->slug, 2]), false);
 
         // Moderacja też nie ukrywa najnowszej.
-        $this->actingAs($this->moderator())->post(route('recipes.history.hide.store', [$przepis->slug, 3]));
+        $this->actingAs($this->moderator())
+            ->post(route('recipes.history.hide.store', [$przepis->slug, 3]), $this->podstawa())
+            ->assertSessionHas('status', fn (string $s): bool => str_starts_with($s, 'Najnowszej wersji nie da się ukryć'));
         $this->assertNull($this->wersjaNr($przepis, 3)->hidden_at);
     }
 
