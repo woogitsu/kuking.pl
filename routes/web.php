@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\SygnalyController;
 use App\Http\Controllers\Admin\TagHighlightController;
 use App\Http\Controllers\Admin\TagPromotionController;
+use App\Http\Controllers\Admin\UgotujmyRazemController as AdminUgotujmyRazemController;
 use App\Http\Controllers\Admin\UzytkownicyController;
 use App\Http\Controllers\Admin\WiadomosciController;
 use App\Http\Controllers\Admin\ZUrzeduController;
@@ -86,6 +87,7 @@ use App\Http\Controllers\TagController;
 use App\Http\Controllers\TagFollowController;
 use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
+use App\Http\Controllers\UgotujmyRazemController;
 use App\Http\Controllers\UkryciaController;
 use App\Http\Controllers\UrodzinyWypiszController;
 use App\Http\Controllers\WartosciOdzywczeController;
@@ -130,6 +132,13 @@ Route::get('/otworz-link', ExternalLinkController::class)->middleware("throttle:
 Route::get('/odkryj', [FeedController::class, 'discover'])
     ->middleware("throttle:{$limits['discover']},discover")
     ->name('discover');
+// „Ugotujmy razem” (F3): przepis tygodnia wybrany przez gospodarza i jego
+// wykonania z tego tygodnia. `{tydzien}` to zapis ISO (`2026-W39`), nie
+// identyfikator obiektu — wejście i tak idzie przez `WeeklyRecipePickPolicy`.
+Route::get('/ugotujmy-razem', [UgotujmyRazemController::class, 'index'])->name('ugotujmy-razem');
+Route::get('/ugotujmy-razem/{tydzien}', [UgotujmyRazemController::class, 'tydzien'])
+    ->where('tydzien', '[0-9]{4}-W[0-9]{2}')
+    ->name('ugotujmy-razem.tydzien');
 Route::get('/pytania', [QuestionController::class, 'index'])
     ->middleware("throttle:{$limits['search']},search")
     ->name('questions.index');
@@ -1647,6 +1656,16 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
         ->whereUuid('wyroznienie')
         ->middleware("throttle:{$limits['moderacja']},moderacja")
         ->name('admin.tag-highlights.destroy');
+
+    // „Ugotujmy razem” (F3) — gospodarz wybiera jeden przepis na tydzień.
+    Route::get('/ugotujmy-razem', [AdminUgotujmyRazemController::class, 'edit'])->name('admin.ugotujmy-razem');
+    Route::post('/ugotujmy-razem', [AdminUgotujmyRazemController::class, 'store'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.ugotujmy-razem.store');
+    Route::delete('/ugotujmy-razem/{wybor}', [AdminUgotujmyRazemController::class, 'destroy'])
+        ->whereUuid('wybor')
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.ugotujmy-razem.destroy');
 
     /*
      * Konta użytkowników — lista do wglądu i karta pojedynczego konta.

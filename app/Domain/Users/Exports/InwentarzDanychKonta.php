@@ -106,6 +106,8 @@ final class InwentarzDanychKonta
         'contact_message_replies.author_id' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
         'daily_picks.curator_id' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
         'hero_picks.curator_id' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
+        // „Ugotujmy razem” (F3): kto z gospodarzy wybrał przepis tygodnia.
+        'weekly_recipe_picks.chosen_by' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
         'moderation_actions.moderator_id' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
         'reports.resolved_by' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
 

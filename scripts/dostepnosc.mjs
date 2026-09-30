@@ -196,6 +196,9 @@ const EKRANY = [
   { nazwa: 'strona powitalna', adres: '/' },
   { nazwa: 'Świeżo z Kuking', adres: '/odkryj' },
   { nazwa: 'Poradźcie — lista pytań', adres: '/pytania' },
+  // „Ugotujmy razem” (F3) — bez wyboru gospodarza w danych demo ekran
+  // pokazuje pusty stan z odnośnikiem do odkrywania; też musi przejść audyt.
+  { nazwa: 'Ugotujmy razem', adres: '/ugotujmy-razem' },
   { nazwa: 'logowanie', adres: '/login' },
   { nazwa: 'rejestracja', adres: '/register' },
   { nazwa: 'przepis', adres: null, znajdz: 'przepis' },

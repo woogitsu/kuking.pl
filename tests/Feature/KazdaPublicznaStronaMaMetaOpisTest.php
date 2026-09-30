@@ -7,12 +7,14 @@ namespace Tests\Feature;
 use App\Domain\Digest\OdnosnikWypisania;
 use App\Domain\Recipes\Actions\SnapshotRecipeVersion;
 use App\Domain\Rocznice\OdnosnikWypisaniaZUrodzin;
+use App\Domain\UgotujmyRazem\TydzienGotowania;
 use App\Models\Collection;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\RecipeStep;
 use App\Models\Tag;
 use App\Models\User;
+use App\Models\WeeklyRecipePick;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Crypt;
@@ -188,6 +190,10 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             'recipes.history.version' => route('recipes.history.version', [$recipe->slug, 2]),
             'recipes.history.changes' => route('recipes.history.changes', [$recipe->slug, 2]),
             'cooking.show' => route('cooking.show', $recipe->slug),
+            // „Ugotujmy razem” (F3): strona bieżącego tygodnia (tu bez wyboru —
+            // pusty stan też musi mieć opis) i tydzień z archiwum z wyborem.
+            'ugotujmy-razem' => route('ugotujmy-razem'),
+            'ugotujmy-razem.tydzien' => route('ugotujmy-razem.tydzien', $this->tydzienZArchiwum($recipe)),
             'posts.show' => route('posts.show', $post),
             // Zeszyt „Wszyscy" jest publiczny od issue #965 — publiczny
             // zeszyt idzie do indeksu, więc musi mieć opis.
@@ -307,6 +313,19 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             .'strona ma świadomie zostać bez opisu, oznacz ją `:noindex="true"` '
             .'(albo dopisz do wyjątków w tym teście, z powodem).',
         );
+    }
+
+    /** Poprzedni tydzień „Ugotujmy razem” z tym przepisem — zapis ISO do adresu. */
+    private function tydzienZArchiwum(Recipe $recipe): string
+    {
+        $tydzien = TydzienGotowania::biezacy()->poprzedni();
+
+        (new WeeklyRecipePick)->forceFill([
+            'week_starts_on' => $tydzien->dzienStartu(),
+            'recipe_id' => $recipe->getKey(),
+        ])->save();
+
+        return $tydzien->iso();
     }
 
     /** Middleware `Authenticate` gdziekolwiek w stosie trasy. */

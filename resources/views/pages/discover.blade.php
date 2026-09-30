@@ -35,6 +35,14 @@
                 Ktoś to już robił i chętnie powie, jak.
             @endif
         </p>
+        {{-- „Ugotujmy razem” (F3) — jedna linia, bez przebudowy nawigacji.
+             Tylko gdy jest przepis tygodnia widoczny dla tego widza. --}}
+        @if($przepisTygodnia ?? null)
+            <p class="mb-2" data-ugotujmy-razem>
+                <a href="{{ route('ugotujmy-razem') }}">Ugotujmy razem: {{ $przepisTygodnia->recipe->title }}</a>
+                — przepis tygodnia, wybór gospodarza.
+            </p>
+        @endif
         {{-- Stała linia pod nagłówkiem (#1811, AGENTS.md §8): skąd te wpisy i gdzie
              je zmienić. Przy aktywnych ukryciach druga linia z liczbą i „Zmień" —
              lista „Ukryte" jest jedynym miejscem, w którym widz może je cofnąć. --}}

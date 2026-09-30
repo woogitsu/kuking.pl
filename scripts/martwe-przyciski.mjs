@@ -250,6 +250,7 @@ const ZALAZKI_MODERATOR = [
   '/admin/kolaz-powitalny',
   '/admin/kuking-na-dzis',
   '/admin/tagi-promowane',
+  '/admin/ugotujmy-razem',
   '/admin/uzytkownicy',
   '/home',
 ];

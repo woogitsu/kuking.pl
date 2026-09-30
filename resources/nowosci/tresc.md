@@ -73,6 +73,16 @@ Na stronie głównej, obok dawnych wpisów, wracają teraz także Wasze własne
 przyciskiem „Nie pokazuj mi tego więcej”, a wszystkie naraz wyłączycie
 w Ustawieniach → Prywatność.
 
+### Ugotujmy razem — jeden przepis na cały tydzień
+
+Na stronie „Ugotujmy razem” jest przepis tygodnia, który wybrał gospodarz.
+Gotuje, kto chce — nie trzeba się nigdzie zapisywać. Przycisk „Ugotuję w tym
+tygodniu” otwiera przepis w trybie gotowania, a po ugotowaniu wystarczy dodać
+zdjęcie i kilka słów przez „Ugotowałem”. Wtedy Wasze wykonanie pojawi się na tej
+stronie obok innych z tego tygodnia, od najnowszego. Tydzień trwa od
+poniedziałku do niedzieli. Niżej są poprzednie tygodnie razem ze zdjęciami
+z tamtych dni. Odnośnik do tej strony jest na „Świeżo z Kuking”.
+
 ### Przycisk „Zgłoś” widać także bez logowania
 
 Przy przepisie, wpisie i komentarzu widać teraz odnośnik „Zgłoś (po zalogowaniu)”

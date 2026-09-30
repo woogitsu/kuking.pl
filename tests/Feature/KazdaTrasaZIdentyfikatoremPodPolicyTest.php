@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Collections\Wspoldzielenie\ZaprosDoZeszytu;
+use App\Domain\UgotujmyRazem\TydzienGotowania;
 use App\Models\Appeal;
 use App\Models\Collection;
 use App\Models\Comment;
@@ -27,6 +28,7 @@ use App\Models\Tag;
 use App\Models\TagHighlight;
 use App\Models\TagPromotion;
 use App\Models\User;
+use App\Models\WeeklyRecipePick;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Route;
@@ -614,6 +616,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // bo przy wyłączonej odmawia każdemu i nie ma czego mierzyć.
         config(['kuking.tag_tygodnia.wlaczony' => true]);
         $wyroznienieTagu = TagHighlight::create(['tag_id' => $tag->getKey(), 'starts_on' => '2026-11-16', 'ends_on' => '2026-11-22']);
+        // „Ugotujmy razem” (F3): miniony tydzień z publicznym przepisem
+        // właściciela (strona archiwum) i bieżący (do zdjęcia w panelu).
+        $tydzienMiniony = TydzienGotowania::biezacy()->poprzedni();
+        (new WeeklyRecipePick)->forceFill(['week_starts_on' => $tydzienMiniony->dzienStartu(), 'recipe_id' => $przepis->getKey()])->save();
+        $wyborBiezacy = (new WeeklyRecipePick)->forceFill(['week_starts_on' => TydzienGotowania::biezacy()->dzienStartu(), 'recipe_id' => $przepis->getKey()]);
+        $wyborBiezacy->save();
 
         $this->zmianaAdresu = new PendingEmailChange;
         $this->zmianaAdresu->user_id = $wlasciciel->getKey();
@@ -705,6 +713,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('admin.tag-promotions.destroy', $tagPromowanyDoKasacji), ['potwierdzam' => '1'], [$O, $O, $O, $W, $O]);
         $dodaj('admin.tag-highlights.destroy', 'usunięcie tagu tygodnia', 'delete',
             route('admin.tag-highlights.destroy', $wyroznienieTagu), ['potwierdzam' => '1'], [$O, $O, $O, $W, $O]);
+        // Tydzień to zapis ISO, nie UUID — ale wskazuje przepis, więc wejście
+        // idzie przez `WeeklyRecipePickPolicy` (blokada z autorem → 404).
+        $dodaj('ugotujmy-razem.tydzien', 'tydzień „Ugotujmy razem” z przepisem właściciela', 'get',
+            route('ugotujmy-razem.tydzien', $tydzienMiniony->iso()), [], [$W, $W, $O, $W, $W]);
+        $dodaj('admin.ugotujmy-razem.destroy', 'zdjęcie przepisu tygodnia', 'delete',
+            route('admin.ugotujmy-razem.destroy', $wyborBiezacy), ['potwierdzam' => '1'], [$O, $O, $O, $W, $O]);
         $dodaj('admin.reports.decide', 'decyzja w sprawie zgłoszenia', 'post',
             route('admin.reports.decide', $zgloszenieDoDecyzji), ['action' => 'none', 'reason_code' => 'brak-naruszenia'],
             [$O, $O, $O, $W, $O]);
