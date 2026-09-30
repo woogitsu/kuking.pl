@@ -870,6 +870,17 @@ export default defineRailway((ctx) => {
     KUKING_URODZINY_MAIL_WLACZONY: isProduction ? "true" : "false",
   };
 
+  //  --- Podsumowanie tygodnia mailem: TYLKO scheduler (#2302, IN-12) -------
+  //  `kuking:wyslij-podsumowania-tygodnia` z harmonogramu czyta
+  //  `kuking.digest.wlaczony` (`config/kuking.php`, domyślnie `false`). Do
+  //  30.09.2026 tej zmiennej nie było w tym pliku, więc włączenie podsumowań
+  //  w panelu zniknęłoby przy pierwszym `apply` bez śladu. Przez `ctx.shared`,
+  //  bo to pokrętło właściciela per środowisko; PUSTE = `false`, czyli
+  //  bezpieczny kierunek (podsumowania wyłączone), tak jak dziś.
+  const podsumowaniaEnv = {
+    KUKING_DIGEST_WLACZONY: ctx.shared.KUKING_DIGEST_WLACZONY,
+  };
+
   //  --- Web Push: klucz publiczny web + worker, prywatny TYLKO worker (#35, D-303)
   //  PUSTE = funkcji nie ma: brak ekranu `/ustawienia/powiadomienia`,
   //  przycisku i wysyłki (`KanalPush`). Web potrzebuje klucza publicznego,
@@ -921,7 +932,7 @@ export default defineRailway((ctx) => {
     ...pushPublicznyEnv,
     ...pushWysylkaEnv,
   };
-  const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ...pulsHarmonogramuEnv, ...gospodarzEnv, ...urodzinyEnv };
+  const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ...pulsHarmonogramuEnv, ...gospodarzEnv, ...urodzinyEnv, ...podsumowaniaEnv };
   const wszystkieRoleEnv = { ...webEnv, ...workerEnv, ...schedulerEnv };
 
   // ---------------------------------------------------------------------------

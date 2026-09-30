@@ -18450,7 +18450,11 @@ odkładał albo odrzucał (mail z życzeniami, przypomnienie obserwującym).
    w klasie `podsumowanie`, która gaśnie pierwsza), o stałej porze 08:40 UTC
    z harmonogramu. Po scaleniu **włączona na produkcji**
    (`KUKING_URODZINY_MAIL_WLACZONY` w roli scheduler, `.railway/railway.ts`);
-   staging i PR-y nie wysyłają.
+   staging i PR-y nie wysyłają. **Stan 30.09.2026 (#2296, audyt IN-04):
+   to jeszcze NIE działa** — wartość stoi tylko w `railway.ts`, a
+   `railway config apply` (#595) nie był uruchomiony, więc na produkcji
+   zmiennej nie ma i obowiązuje domyślne `false`. Krok właściciela: W12
+   w `docs/flota/KROKI_WLASCICIELA_2026-09-29.md`.
    **Wypisanie:** podpisany odnośnik w liście prowadzi na stronę z pytaniem —
    **sam GET niczego nie zmienia**, zgodę wycofuje przycisk (POST), a po
    wypisaniu jest „Jednak chcę go dostawać” (wzorem #1403).
