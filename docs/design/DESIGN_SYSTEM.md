@@ -171,7 +171,7 @@ Zaimplementowane w `tokens.css` w klasie `.btn:focus-visible` oraz ogólnie dla 
 
 | Token | Rozmiar | Zastosowanie |
 |---|---|---|
-| `--text-help` | 16px | Pomoc kontekstowa, znaczniki czasu — **tylko** tam, gdzie tekst główny obok jest ≥18px |
+| `--text-help` | 16px | Pomoc kontekstowa, znaczniki czasu — **tylko** tam, gdzie tekst główny obok jest ≥18px. Zdanie pomocnicze, które stoi samo (instrukcja ekranu, pusty stan), dostaje `.meta meta-samodzielne` — 18 px w kolorze `.meta` (UX-02, #2287) |
 | `--text-body` | **18px** | Domyślny rozmiar body — nigdy mniej |
 | `--text-body-lg` | 20px | Treść wpisu, opis przepisu, ważne fragmenty |
 | `--text-lead` | 22px | Lead / zajawka, pierwsze zdanie przepisu |

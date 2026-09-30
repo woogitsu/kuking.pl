@@ -92,6 +92,12 @@ final class RobotsTxt
     }
 
     /**
+     * Reguły dopasowujemy do ścieżki RAZEM z zapytaniem (`?…`), tak jak
+     * parser Google robotstxt — to celowe, nie przeoczenie (#2325, D-300
+     * pkt 4). Obcięcie zapytania przepuściłoby jawne zakazy wydawców w rodzaju
+     * `Disallow: /?s=` czy `Disallow: /*?`. Ten kontrakt pilnuje
+     * `ImportParseryTest`.
+     *
      * @param  string  $sciezka  ścieżka z zapytaniem, np. `/przepis/sernik?porcje=4`
      */
     public function wolno(string $sciezka): bool

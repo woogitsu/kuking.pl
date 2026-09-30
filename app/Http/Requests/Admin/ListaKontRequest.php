@@ -7,10 +7,10 @@ namespace App\Http\Requests\Admin;
 use App\Domain\Moderation\ListaKont;
 use App\Models\User;
 use App\Support\Czas;
+use App\Support\FrazaWyszukiwania;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 
 /**
  * Wejście listy kont w panelu moderacji (`admin.users`, `/admin/uzytkownicy`).
@@ -155,12 +155,14 @@ final class ListaKontRequest extends FormRequest
     /**
      * Fraza znormalizowana tak samo jak kolumna po stronie bazy.
      *
-     * Ta sama normalizacja co w `App\Domain\Search\SearchQuery`: `Str::ascii`
+     * Ta sama normalizacja co w `App\Domain\Search\SearchQuery` — wspólna
+     * `App\Support\FrazaWyszukiwania::normalizuj()`, nie kopia: `Str::ascii`
      * odpowiada temu, co `unaccent` robi z polskimi znakami, więc „Żaneta"
-     * znajduje „zaneta".
+     * znajduje „zaneta". Własna kopia rozjechała się z tamtą przy #2331
+     * („Basia 🍲" zostawiało spację na końcu wzorca).
      */
     private function normalizuj(string $fraza): string
     {
-        return mb_strtolower(Str::ascii($fraza));
+        return FrazaWyszukiwania::normalizuj($fraza);
     }
 }

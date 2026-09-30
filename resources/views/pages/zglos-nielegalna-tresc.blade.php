@@ -63,7 +63,7 @@
 
     <x-error-summary />
 
-    <form class="panel-formularza" method="POST" action="{{ route('zglos.nielegalna.store') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('zglos.nielegalna.store') }}" novalidate>
         @csrf
 
         {{-- Tożsamość TEGO wysłania formularza (ADR

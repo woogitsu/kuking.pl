@@ -17,6 +17,7 @@ import './service-worker.js';
 import './pwa-install.js';
 import './landing-wpisy.js';
 import './pasek-przewijany.js';
+import './kolor-paska.js';
 import './szybki-wyglad.js';
 import './panel-tabela.js';
 import './panel-menu.js';

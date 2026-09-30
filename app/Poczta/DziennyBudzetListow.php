@@ -415,6 +415,26 @@ final class DziennyBudzetListow
     }
 
     /**
+     * List „Przyszła nowa wiadomość" z formularza „Napisz do nas" na
+     * `KUKING_ALARM_EMAIL` (`DzwonekOperatora` przez `EmailBleduHandler`,
+     * decyzja właściciela 30.09.2026).
+     *
+     * OSOBNY licznik od `dlaAlarmuOperacyjnego()`: formularz wypełnia każdy,
+     * więc wiadomości od ludzi nie mogą zjeść listów o awariach. Sufit
+     * (`poczta.kontakt_operatora_na_dobe`) jest niższy, bo list jest tu
+     * wyłącznie wygodą — wiadomość jest już zapisana w panelu, a Discord
+     * dostaje każdą. Klasa `zwykla`, z tego samego powodu co alarm.
+     */
+    public static function dlaDzwonkaKontaktu(): self
+    {
+        return new self(
+            'kontakt-operatora',
+            'kuking.poczta.kontakt_operatora_na_dobe',
+            self::wspolny(self::KLASA_ZWYKLA),
+        );
+    }
+
+    /**
      * Tygodniowe podsumowanie od gospodarza (issue #11, D-057).
      *
      * Klasa `podsumowanie`: gaśnie PIERWSZE. Podsumowanie, które nie doszło,

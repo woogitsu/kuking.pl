@@ -41,7 +41,7 @@
             robisz — i nigdy nic nie napiszemy na Twojej tablicy.
         </p>
 
-        <form method="POST" action="{{ route('facebook.link.store') }}">
+        <form method="POST" action="{{ route('facebook.link.store') }}" novalidate>
             @csrf
             @if(!empty($proofToken))
                 <input type="hidden" name="proof_token" value="{{ $proofToken }}">

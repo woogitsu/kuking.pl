@@ -45,7 +45,7 @@
 
     <x-error-summary />
 
-    <form class="panel-formularza mt-5" method="POST" action="{{ route('settings.two_factor.confirm') }}">
+    <form class="panel-formularza mt-5" method="POST" action="{{ route('settings.two_factor.confirm') }}" novalidate>
         @csrf
 
         <x-field name="code" label="Sześciocyfrowy kod z aplikacji" required

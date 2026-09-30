@@ -19,6 +19,8 @@
     // z linkami, po których robot ma iść dalej (pusty tag, issue #1007).
     // Zwykłe `noindex` zostaje `noindex, nofollow` jak dotąd.
     'noindexFollow' => false,
+    // Strona sama rysuje `status_akcja` pod podsumowaniem błędów (`x-status-akcja`).
+    'akcjaPodBledami' => false,
     // Livewire dociągamy TYLKO na stronach, które go naprawdę używają
     // (dziś: kreator przepisu). Reszta serwisu działa bez tego skryptu
     // i nie ma powodu, żeby go pobierała — AGENTS.md → JavaScript jest
@@ -38,6 +40,10 @@
     // obrazka na ślepo.
     'image' => null,
     'ogType' => 'website',
+    // Kanał Atom tej strony (#2227): `['href' => …, 'title' => …]` albo `null`.
+    // Stawiają go wyłącznie profil, tag i PUBLICZNY zeszyt — i tylko wtedy,
+    // gdy kanał naprawdę odpowie gościowi 200 (prywatny zeszyt dostałby 404).
+    'kanalAtom' => null,
     /*
      * `szynaWTresci` — TEN EKRAN UŻYWA KOLUMNY SZYNY OD ŚRODKA (issue #365).
      *
@@ -313,7 +319,16 @@
     <meta name="twitter:card" content="{{ $ogImageGotowe ? 'summary_large_image' : 'summary' }}">
 
     <link rel="canonical" href="{{ \App\Support\KanonicznyAdresStrony::dla(request()) }}">
-    <meta name="theme-color" content="#151714">
+    @if($kanalAtom)
+        <link rel="alternate" type="application/atom+xml" title="{{ $kanalAtom['title'] }}" href="{{ $kanalAtom['href'] }}">
+    @endif
+    {{-- Kolor paska przeglądarki = tło strony w AKTYWNYM motywie (#2267).
+         Do 30.09.2026 stało tu zawsze ciemne #151714, więc jasna strona
+         (motyw domyślny, D-019) dostawała na telefonie czarny pasek. Kolory
+         to `--color-surface` z `resources/css/tokens.css` (jasny i ciemny);
+         `data-*` czyta `resources/js/kolor-paska.js` przy podglądzie motywu
+         bez przeładowania. Manifest ma jasny, bo jasny jest domyślny. --}}
+    <meta name="theme-color" content="{{ $theme === 'dark' ? '#151714' : '#F3F4F1' }}" data-jasny="#F3F4F1" data-ciemny="#151714">
 
     <link rel="icon" href="{{ asset('icons/kuking-mark.svg') }}" type="image/svg+xml">
     <link rel="apple-touch-icon" href="{{ asset('icons/kuking-icon-192.png') }}">
@@ -1023,12 +1038,13 @@
                         ekranu ogłasza najpierw co się stało, a zaraz potem,
                         co można z tym zrobić.
                     --}}
-                    @php $statusAkcja = session('status_akcja'); @endphp
-                    @if(is_array($statusAkcja) && isset($statusAkcja['url'], $statusAkcja['etykieta']))
-                        <p class="flash-akcja">
-                            <a class="btn btn-primary" href="{{ $statusAkcja['url'] }}">{{ $statusAkcja['etykieta'] }}</a>
-                        </p>
-                    @endif
+                    {{-- `akcjaPodBledami`: strona z podsumowaniem błędów (logowanie)
+                         rysuje ten przycisk sama, tuż pod podsumowaniem — tam
+                         trafia fokus po błędzie, a przycisk nad nagłówkiem
+                         leżał poza tym, co człowiek czyta. --}}
+                    @unless($akcjaPodBledami)
+                        <x-status-akcja />
+                    @endunless
                     {{--
                         DROGA POWROTU PRZY AKCJI ODWRACALNEJ (issue L1 z audytu
                         `docs/AUDYT_2026-09.md`).

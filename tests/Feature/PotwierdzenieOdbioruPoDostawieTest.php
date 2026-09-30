@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Moderation\AlarmSufituPotwierdzen;
+use App\Logging\WebhookBleduHandler;
 use App\Models\Report;
 use App\Notifications\PotwierdzenieZgloszeniaNielegalnejTresci;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use RuntimeException;
 use Tests\TestCase;
@@ -142,6 +147,102 @@ class PotwierdzenieOdbioruPoDostawieTest extends TestCase
 
         $this->assertSame(0, DB::table('jobs')->count(), 'Dosyłka zleciła list na adres, który dostawca odrzucił już '.PotwierdzenieZgloszeniaNielegalnejTresci::LIMIT_PORAZEK_LISTU.' razy.');
         $this->assertNull($sprawa->refresh()->receipt_sent_at);
+    }
+
+    /**
+     * SUFIT PRÓB DOCHODZI DO OPERATORA (#2218). Wcześniej komenda robiła
+     * tylko `warn()` z kodem 0, a `Harmonogram` czyta wyjście wyłącznie przy
+     * kodzie ≠ 0 — z harmonogramu zostawało samo „DONE". Teraz: jeden alarm
+     * na kanale alarmowym (bez adresu i numeru sprawy), cisza przy kolejnym
+     * przebiegu, jedno odwołanie, gdy sprawy na suficie znikną; kod wyjścia 0
+     * (inaczej wiadomość co godzinę — `AlarmSufituPotwierdzen`).
+     */
+    public function test_sprawa_na_suficie_prob_daje_jeden_alarm_operatorowi_i_odwolanie(): void
+    {
+        $this->poczta_pada();
+
+        $sprawa = $this->zlozAnonimoweZgloszenie();
+        $this->workerJedenPrzebieg();
+
+        for ($i = 1; $i < PotwierdzenieZgloszeniaNielegalnejTresci::LIMIT_PORAZEK_LISTU; $i++) {
+            $this->artisan(self::KOMENDA)->assertSuccessful();
+            $this->workerJedenPrzebieg();
+        }
+
+        // Kanał alarmowy włączamy dopiero teraz: wcześniejsze porażki listu
+        // idą przez `report()` i same trafiłyby na webhook błędów.
+        $this->wlaczKanalAlarmowy();
+        $ostrzezenia = [];
+        Event::listen(MessageLogged::class, function (MessageLogged $wpis) use (&$ostrzezenia): void {
+            if ($wpis->level === 'warning' && ($wpis->context['stage'] ?? null) === 'dosylka_potwierdzen_sufit') {
+                $ostrzezenia[] = $wpis->context;
+            }
+        });
+
+        $this->artisan(self::KOMENDA)
+            ->expectsOutput('Spraw na suficie prób listu (dosyłka ich nie ponawia, alarm do operatora): 1.')
+            ->assertSuccessful();
+
+        Http::assertSentCount(1);
+        $tresc = (string) Http::recorded()->first()[0]['text'];
+        $this->assertStringContainsString('1 zgłoszeń prawnych bez konta', $tresc);
+        $this->assertStringContainsString('Co zrobić', $tresc);
+        $this->assertStringNotContainsString('anna@kancelaria.example', $tresc);
+        $this->assertStringNotContainsString((string) $sprawa->refresh()->numer_sprawy, $tresc);
+        // Ślad w dzienniku serwera (wzorzec IN-05) — z numerem sprawy, bez adresu.
+        $this->assertSame([[
+            'stage' => 'dosylka_potwierdzen_sufit',
+            'na_suficie' => 1,
+            'numery_spraw' => [(string) $sprawa->numer_sprawy],
+        ]], $ostrzezenia);
+
+        // Ten sam stan w oknie ciszy: bez drugiej wiadomości.
+        $this->artisan(self::KOMENDA)->assertSuccessful();
+        Http::assertSentCount(1);
+
+        // Ktoś potwierdził sprawę ręcznie — jedno odwołanie, potem cisza.
+        $sprawa->forceFill(['receipt_sent_at' => now()])->save();
+        $this->artisan(self::KOMENDA)->assertSuccessful();
+        Http::assertSentCount(2);
+        $this->assertStringContainsString('żadna sprawa nie stoi już na suficie', (string) Http::recorded()->last()[0]['text']);
+        $this->assertNull(cache()->get(AlarmSufituPotwierdzen::KLUCZ));
+
+        $this->artisan(self::KOMENDA)->assertSuccessful();
+        Http::assertSentCount(2);
+    }
+
+    /** Kontrola ujemna: sprawa poniżej sufitu (zwykła zaległość) nie budzi operatora. */
+    public function test_zalegle_potwierdzenie_ponizej_sufitu_nie_alarmuje(): void
+    {
+        $this->poczta_pada();
+
+        $this->zlozAnonimoweZgloszenie();
+        $this->workerJedenPrzebieg();
+
+        $this->wlaczKanalAlarmowy();
+
+        $this->artisan(self::KOMENDA)
+            ->expectsOutput('Dosłano potwierdzeń: 1.')
+            ->doesntExpectOutputToContain('suficie')
+            ->assertSuccessful();
+
+        Http::assertNothingSent();
+    }
+
+    private function wlaczKanalAlarmowy(): void
+    {
+        $url = 'https://przyklad.test/alarm-sufitu';
+        config()->set('logging.channels.blad_webhook.url', $url);
+        Log::forgetChannel('blad_webhook');
+        WebhookBleduHandler::zapomnijOstatniaWysylke();
+        Http::fake([$url => Http::response('', 204)]);
+    }
+
+    protected function tearDown(): void
+    {
+        WebhookBleduHandler::zapomnijOstatniaWysylke();
+        Log::forgetChannel('blad_webhook');
+        parent::tearDown();
     }
 
     public function test_udane_potwierdzenie_zostawia_znacznik(): void

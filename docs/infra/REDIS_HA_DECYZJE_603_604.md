@@ -132,6 +132,8 @@ produkcji. Nie łączę sztuczną wagą workerów i odsłon w jeden „udział p
 DatabaseStore usuwa wygasłe klucze przy odczycie. Ta próba nie udaje
 nieistniejącego okresowego `cache:prune`. Nie zmierzono dużego prune failed
 jobs/batches, autovacuum ani wielodniowego bloatu.
+Dopisek z 30.09.2026 (#2292): okresowe sprzątanie już istnieje — wygasłe wiersze
+`cache` kasuje co noc `kuking:sprzataj-cache` (02:45 UTC, partiami; `docs/DATABASE.md`).
 
 ### Tabela jobs — konkretny punkt do obserwowania
 

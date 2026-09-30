@@ -77,7 +77,7 @@
          ma czego rozdzielać nagłówkami (docs/design/ROLE_KART.md — cztery
          mocne obwódki na ekranie nie odróżniają już niczego). --}}
     <form class="panel-formularza" id="formularz-przepisu" method="POST"
-          action="{{ route('recipes.store') }}" enctype="multipart/form-data">
+          action="{{ route('recipes.store') }}" enctype="multipart/form-data" novalidate>
         @csrf
 
         {{-- TOŻSAMOŚĆ TEGO WYSŁANIA (ADR docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md).

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Domain\Posts;
 
 use App\Domain\Collections\ZapisyWpisu;
+use App\Domain\Moderation\DziennikWgladu;
 use App\Domain\Questions\OdpowiedzNaPytanie;
 use App\Domain\Reakcje\Smakowicie;
-use App\Models\AuditLogEntry;
 use App\Models\Comment;
 use App\Models\Post;
 use App\Models\User;
@@ -32,22 +32,12 @@ final class StronaWpisu
 
     public function zapiszWgladModeracji(Post $post, ?User $widz, ?string $ip): void
     {
-        // Wgląd obsługi w wpis ukryty przez moderację (#1018). Polityka
-        // wpuszcza tu poza autorem wyłącznie moderatora z 2FA, więc każde
-        // takie wejście zostawia ślad „kto to otworzył" — jak karta konta
-        // w panelu (`admin.user_viewed`). Bez metadanych: `subject_id` mówi
-        // wszystko, a treść wpisu nie ma trafiać do drugiej tabeli.
-        $podgladModeracji = $post->status === Post::STATUS_HIDDEN
-            && $widz?->getKey() !== $post->author_id;
-
-        if ($podgladModeracji) {
-            AuditLogEntry::record(
-                action: 'moderation.hidden_post_viewed',
-                actor: $widz,
-                subject: $post,
-                ip: $ip,
-            );
-        }
+        // Wgląd obsługi w wpis, którego to samo konto bez roli by nie
+        // zobaczyło (#1018; od 30.09.2026 także wpis konta zbanowanego):
+        // ślad „kto to otworzył" jak karta konta w panelu
+        // (`admin.user_viewed`). W metadanych tylko powód i status — treść
+        // wpisu nie ma trafiać do drugiej tabeli. Reguła: `DziennikWgladu::wpis()`.
+        app(DziennikWgladu::class)->wpis($post, $widz, $ip);
     }
 
     public function zaladuj(Post $post): void

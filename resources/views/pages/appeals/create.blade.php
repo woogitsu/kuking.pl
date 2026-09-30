@@ -70,7 +70,7 @@
             </p>
         </article>
     @else
-        <form class="panel-formularza mt-5" method="POST" action="{{ route('appeals.store', $decyzja) }}">
+        <form class="panel-formularza mt-5" method="POST" action="{{ route('appeals.store', $decyzja) }}" novalidate>
             @csrf
 
             <h2 class="mt-0 text-title-sm">Napisz, dlaczego to pomyłka</h2>

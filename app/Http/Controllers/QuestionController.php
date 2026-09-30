@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Questions\PytaniaBezOdpowiedzi;
 use App\Domain\Questions\QuestionList;
 use App\Models\Tag;
+use App\Support\KursorListy;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -25,9 +26,11 @@ final class QuestionController extends Controller
         $tag = ! empty($filters['tag'])
             ? Tag::query()->aktywne()->where('slug', $filters['tag'])->firstOrFail()
             : null;
-        $questions = $list->query($request->user(), $filter === 'bez-odpowiedzi', $tag?->slug)
-            ->cursorPaginate((int) config('kuking.feed.page_size'))
-            ->withQueryString();
+        $questions = KursorListy::strona(
+            $list->query($request->user(), $filter === 'bez-odpowiedzi', $tag?->slug),
+            (int) config('kuking.feed.page_size'),
+            ['published_at' => KursorListy::CZAS, 'id' => KursorListy::UUID],
+        )->withQueryString();
         // Liczony w tle + dokładna poprawka widza (blokady, obserwowani) —
         // `PytaniaBezOdpowiedzi`; pełny COUNT na żądanie kosztował 80–140 ms (#372).
         $unansweredCount = $licznik->dla($request->user(), $tag?->slug);

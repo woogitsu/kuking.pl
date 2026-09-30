@@ -42,6 +42,8 @@ class PodzialTestowJestKompletnyTest extends TestCase
 
     private const WYMAGANY_CHECK = 'Testy (PostgreSQL 18)';
 
+    private const KROK_ZAWEZENIA = "/^        if: matrix\\.czesc == 'kontrole'\n        run: python3 -m unittest discover -s scripts -p 'test_zawezenie_testow\\.py' -v$/m";
+
     public function test_suma_czesci_to_pelna_lista_phpunita_bez_dubli(): void
     {
         $liczba = $this->liczbaCzesciZWorkflow($this->workflow());
@@ -134,6 +136,10 @@ class PodzialTestowJestKompletnyTest extends TestCase
         $this->assertNotSame([], $this->naruszeniaWorkflow(
             str_replace('php artisan test "${pliki[@]}"', 'php artisan test', $workflow),
         ), 'Przyrząd przepuścił część uruchamiającą pełny zestaw zamiast swojej listy.');
+
+        $this->assertNotSame([], $this->naruszeniaWorkflow(
+            str_replace("-p 'test_zawezenie_testow.py'", "-p 'test_kontrola_wyjscia_testu.py'", $workflow),
+        ), 'Przyrząd przepuścił części kontroli bez regresji zawężenia filtra (#2299).');
 
         $zaKrotkiLimit = preg_replace('/(^  test:\n.*?^    timeout-minutes: )40$/ms', '${1}25', $workflow, 1, $zamiany);
         $this->assertSame(1, $zamiany, 'Przyrząd nie znalazł limitu czasu macierzy testów.');
@@ -234,6 +240,14 @@ class PodzialTestowJestKompletnyTest extends TestCase
 
         if (preg_match('/^    timeout-minutes: (\d+)$/m', $test, $limit) !== 1 || (int) $limit[1] < 40) {
             $naruszenia[] = 'Macierz testów ma limit poniżej 40 min — kontrola negatywna może zostać ucięta.';
+        }
+
+        // #2299: kontrole podają PHPUnitowi pliki zamiast budować cały zestaw
+        // przy każdym `--filter`. Regresje zawężenia (zbiory danych, powrót do
+        // pełnego zestawu) muszą biec w każdej części przed kontrolami.
+        if (preg_match(self::KROK_ZAWEZENIA, $test) !== 1) {
+            $naruszenia[] = 'Części kontroli nie uruchamiają `scripts/test_zawezenie_testow.py` (#2299) — '
+                .'zawężenie `--filter` mogłoby gubić testy bez żadnego sygnału.';
         }
 
         if (preg_match('/php scripts\/podzial-testow\.php "\$\{\{ matrix\.czesc \}\}" (\d+) /', $test, $wywolanie) !== 1) {

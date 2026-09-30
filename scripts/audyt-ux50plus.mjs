@@ -18,9 +18,23 @@
  *  MACIERZ
  *   szerokości 320/360/390/414/768/1440 × motyw jasny/ciemny × tekst 100/140%.
  *
+ *  ODBIÓR FORMY ZWRACANIA SIĘ (#1753, D-332) — OSOBNY PRZEBIEG Z WYROKIEM
+ *   Macierz wyżej tylko MIERZY (raport w storage/audyt-ux50plus.json). Ten
+ *   przebieg ORZEKA i ustawia kod wyjścia 1. Ustawia na koncie demo formę
+ *   żeńską (przez prawdziwy formularz „Jak mamy do Ciebie pisać?", nie przez
+ *   bazę), potem w oknie 320 px, przy tekście 100% i przy czcionce
+ *   przeglądarki 150% (CDP `Page.setFontSizes`, jak `PRZEGLADARKA_200` w
+ *   `dostepnosc.mjs`), odwiedza ekrany, na których forma jest WIDOCZNA
+ *   (`EKRANY_FORMY`), i wymaga: brak przewijania w poziomie, tekst formy
+ *   ≥ 18 px, cele formy ≥ 48 px, nic nie ucięte ani poza oknem. Ekran bez
+ *   napisu w formie żeńskiej to BŁĄD, nie zielony pomiar pustej strony.
+ *   Po przebiegu forma wraca na neutralną.
+ *
  *  URUCHOMIENIE
  *   ADRES=http://127.0.0.1:8137 node scripts/audyt-ux50plus.mjs
  *   ADRES=... node scripts/audyt-ux50plus.mjs --szybko   (mniejsza macierz)
+ *   ADRES=... node scripts/audyt-ux50plus.mjs --tylko-forme   (tylko odbiór formy)
+ *   ADRES=... node scripts/audyt-ux50plus.mjs --bez-formy     (bez odbioru formy)
  * =============================================================================
  */
 import { chromium } from 'playwright';
@@ -28,6 +42,8 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 
 const ADRES = process.env.ADRES || 'http://127.0.0.1:8137';
 const SZYBKO = process.argv.includes('--szybko');
+const TYLKO_FORME = process.argv.includes('--tylko-forme');
+const BEZ_FORMY = process.argv.includes('--bez-formy');
 const KONTO = 'ania';
 const HASLO = 'haslo-testowe-123';
 
@@ -229,6 +245,7 @@ async function adresyDynamiczne(przegladarka) {
     przepis: process.env.PRZEPIS
       || await zbierzZe('/odkryj', /^\/przepisy\/[^/]+$/)
       || await zbierzZe('/szukaj?q=zupa', /^\/przepisy\/[^/]+$/)
+      || await zbierzZe('/szukaj?q=rosol', /^\/przepisy\/[^/]+$/)
       || await zbierzZe('/@basia', /^\/przepisy\/[^/]+$/),
     wpis: await zbierzZe('/odkryj', /^\/wpisy\/[^/]+$/),
   };
@@ -260,6 +277,335 @@ async function ustawSkale(strona, skala) {
   }
 }
 
+/* =============================================================================
+ *  ODBIÓR FORMY ZWRACANIA SIĘ — 320 px × czcionka przeglądarki 150% (#1753)
+ * ============================================================================= */
+
+/** Wartości z `Profile::FORM_FEMININE` / `FORM_NEUTRAL` (pola radio wyboru formy). */
+/** Pomoc kontekstowa obok tekstu ≥ 18 px (docs/design/DESIGN_SYSTEM.md §2.1). */
+const PROG_POMOCY = 16;
+const FORMA_ZENSKA = 'feminine';
+const FORMA_NEUTRALNA = 'neutral';
+const FORMA_SZEROKOSC = 320;
+/** Warianty: sam układ 320 px oraz rozmiar pisma przeglądarki 150%. */
+const FORMA_SKALE = [100, 150];
+const BAZOWA_CZCIONKA_PX = 16;
+
+/**
+ * Ekrany, na których forma jest widoczna po zalogowaniu na konto z formą
+ * żeńską. `napis` MUSI stać na ekranie — dowód, że mierzymy stan z formą,
+ * a nie stronę, która akurat jej nie pokazuje (np. pusty stan zamiast listy).
+ * Ekran bez napisu to błąd, nie pomiar. `wybor` znaczy „stoi formularz
+ * wyboru formy (`#forma-zwracania`)".
+ */
+const EKRANY_FORMY = [
+  { nazwa: 'ustawienia — profil (wybór formy)', adres: '/ustawienia/profil', napis: 'Jak mamy do Ciebie pisać?', wybor: true },
+  { nazwa: 'onboarding — gotowe', adres: '/witaj/gotowe', napis: 'ugotowałaś', wybor: true },
+  { nazwa: 'przepis — przycisk „Ugotowałam"', dynamiczny: 'przepis', napis: 'Ugotowałam' },
+  { nazwa: 'tryb gotowania, ostatni krok — przycisk „Ugotowałam"', dynamiczny: 'gotowanieOstatni', napis: 'Ugotowałam' },
+  { nazwa: 'formularz wykonania', dynamiczny: 'ugotowalem', napis: 'Ugotowałam' },
+  /*
+   * CELOWO POZA MACIERZĄ (dane demo tego nie dają, więc pomiar byłby
+   * pustym ekranem — dokładnie fałszywa zieleń, przed którą stoi ten plik):
+   * powiadomienie „X ugotowała Twój przepis" (widzi je autor przepisu, a
+   * persony demo nie są logowalne, D-025), pusty Start i pusty stan
+   * powiadomień (konto `ania` ma wpisy), przycisk na karcie wpisu (demo nie
+   * ma wpisu powiązanego z przepisem) oraz ekran „wyszło" (widzi go autor).
+   * Ich teksty pilnuje `FormaTekstyTest`; pomiar piksela wymaga danych,
+   * które dopiero trzeba dosiać.
+   */
+];
+
+/** Napisy dotyczące formy: formy żeńskie z tekstów i etykiety wyboru. */
+const WZOR_FORMY = 'ugotowałam|ugotowałaś|ugotowała|autorka przepisu|jak mamy do ciebie|forma żeńska|forma męska|forma neutralna|inni przeczytają';
+
+/*
+ * Funkcja wykonywana W PRZEGLĄDARCE. Surowe liczby, wyrok zapada w
+ * `ocenFormePomiar` po stronie Node (tak jak przy `ZMIERZ`).
+ */
+const ZMIERZ_FORME = ({ wzor }) => {
+  const re = new RegExp(wzor, 'i');
+  const widoczny = (el) => {
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return false;
+    const s = getComputedStyle(el);
+    return s.visibility !== 'hidden' && s.display !== 'none' && Number(s.opacity) !== 0;
+  };
+  const sciezka = (el) => {
+    const czesci = [];
+    let n = el;
+    for (let i = 0; n && i < 4; i += 1) {
+      let c = n.tagName.toLowerCase();
+      if (n.id) c += `#${n.id}`;
+      else if (n.classList.length) c += `.${[...n.classList].slice(0, 3).join('.')}`;
+      czesci.unshift(c);
+      n = n.parentElement;
+    }
+    return czesci.join(' > ');
+  };
+  const wlasny = (el) => [...el.childNodes].filter((w) => w.nodeType === 3)
+    .map((w) => w.textContent).join(' ').replace(/\s+/g, ' ').trim();
+
+  const doc = document.documentElement;
+  const okno = doc.clientWidth;
+
+  // Elementy formy: liście tekstu z napisem formy oraz cały #forma-zwracania.
+  const elementy = new Set();
+  for (const el of document.querySelectorAll('body *')) {
+    if (el.closest('script, style, template, noscript')) continue;
+    const t = wlasny(el);
+    if (t && re.test(t) && widoczny(el)) elementy.add(el);
+  }
+  for (const el of document.querySelectorAll('#forma-zwracania *')) {
+    if (wlasny(el) && widoczny(el)) elementy.add(el);
+  }
+
+  const tekst = [];
+  const ucieta = [];
+  const pozaOknem = [];
+  for (const el of elementy) {
+    const s = getComputedStyle(el);
+    const r = el.getBoundingClientRect();
+    // Pomoc kontekstowa (`--text-help`, DESIGN_SYSTEM §2.1) wolno mieć 16 px
+    // WYŁĄCZNIE obok tekstu głównego ≥ 18 px: etykieta wyboru albo legenda.
+    const glowny = el.matches('.choice-help') ? el.parentElement?.querySelector('.choice-label')
+      : (el.matches('.field-help') ? el.closest('fieldset')?.querySelector('legend') : null);
+    const pomoc = !!glowny && parseFloat(getComputedStyle(glowny).fontSize) >= 18;
+    tekst.push({
+      sciezka: sciezka(el),
+      px: Math.round(parseFloat(s.fontSize) * 100) / 100,
+      pomoc,
+      probka: wlasny(el).slice(0, 50),
+    });
+    if (r.left < -1 || r.right > okno + 1) {
+      pozaOknem.push({ sciezka: sciezka(el), left: Math.round(r.left), right: Math.round(r.right), probka: wlasny(el).slice(0, 40) });
+    }
+    // Ucięcie: element albo którykolwiek przodek przycina zawartość (overflow
+    // różny od visible), a zawartość jest większa niż jego pole; albo wielokropek.
+    for (let n = el; n && n !== document.body; n = n.parentElement) {
+      const sn = getComputedStyle(n);
+      const przycina = ['hidden', 'clip'].includes(sn.overflowX) || ['hidden', 'clip'].includes(sn.overflowY);
+      const wielokropek = sn.textOverflow === 'ellipsis' && n.scrollWidth > n.clientWidth + 1;
+      const klamra = sn.webkitLineClamp && sn.webkitLineClamp !== 'none' && n.scrollHeight > n.clientHeight + 1;
+      const zaDuze = n.scrollWidth > n.clientWidth + 1 || n.scrollHeight > n.clientHeight + 1;
+      if ((przycina && zaDuze) || wielokropek || klamra) {
+        ucieta.push({
+          sciezka: sciezka(n),
+          scrollW: n.scrollWidth, clientW: n.clientWidth, scrollH: n.scrollHeight, clientH: n.clientHeight,
+          probka: wlasny(el).slice(0, 40),
+        });
+        break;
+      }
+    }
+  }
+
+  // Cele: interaktywne elementy formy. Radio i pole wyboru mierzymy po
+  // etykiecie (`label.choice`), bo to ona jest celem dotyku.
+  const cele = [];
+  const SELEKTOR = 'a[href], button, summary, select, input:not([type="hidden"]), textarea, [role="button"]';
+  const kandydaci = new Set();
+  for (const el of document.querySelectorAll(SELEKTOR)) {
+    if (!widoczny(el)) continue;
+    if (el.closest('#forma-zwracania') || re.test((el.innerText || el.value || '').trim())) kandydaci.add(el);
+  }
+  for (const el of kandydaci) {
+    const cel = ['radio', 'checkbox'].includes(el.getAttribute('type')) ? (el.closest('label') || el) : el;
+    const r = cel.getBoundingClientRect();
+    cele.push({
+      sciezka: sciezka(cel),
+      w: Math.round(r.width * 10) / 10,
+      h: Math.round(r.height * 10) / 10,
+      nazwa: (el.getAttribute('aria-label') || cel.innerText || el.value || '').replace(/\s+/g, ' ').trim().slice(0, 40),
+    });
+  }
+
+  const winowajcy = [];
+  if (doc.scrollWidth > okno + 1) {
+    for (const el of document.querySelectorAll('body *')) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      if (r.right > okno + 1 || r.left < -1) {
+        winowajcy.push({ sciezka: sciezka(el), left: Math.round(r.left), right: Math.round(r.right) });
+      }
+    }
+  }
+
+  return {
+    scrollWidth: doc.scrollWidth,
+    clientWidth: okno,
+    winowajcy: winowajcy.slice(0, 8),
+    korzenPx: parseFloat(getComputedStyle(doc).fontSize),
+    prog64rem: matchMedia('(min-width: 64rem)').matches,
+    napisow: elementy.size,
+    tekst,
+    cele,
+    ucieta: ucieta.slice(0, 8),
+    pozaOknem: pozaOknem.slice(0, 8),
+  };
+};
+
+/**
+ * WYROK — czysta funkcja z surowych liczb, bez przeglądarki (testowana
+ * w `scripts/fixtures/audyt-ux50plus-konteksty.test.mjs`). Zwraca listę
+ * naruszeń po polsku; pusta lista znaczy „ekran czysty".
+ */
+function ocenFormePomiar(m, progi = { tekst: PROG_TEKSTU, cel: PROG_CELU }) {
+  const bledy = [];
+  if (m.napisow === 0) {
+    bledy.push('na ekranie nie znaleziono żadnego napisu formy — pomiar nie dotyczyłby niczego');
+  }
+  if (m.scrollWidth > m.clientWidth + 1) {
+    const kto = m.winowajcy.slice(0, 3).map((c) => `${c.sciezka} (${c.left}…${c.right})`).join('; ');
+    bledy.push(`przewijanie w poziomie: scrollWidth ${m.scrollWidth} > okno ${m.clientWidth}${kto ? ` — ${kto}` : ''}`);
+  }
+  for (const t of m.tekst) {
+    if (t.px < (t.pomoc ? PROG_POMOCY : progi.tekst)) bledy.push(`tekst ${t.px} px < ${progi.tekst} px: ${t.sciezka} „${t.probka}"`);
+  }
+  for (const c of m.cele) {
+    if (c.h < progi.cel || c.w < progi.cel) {
+      bledy.push(`cel ${c.w}×${c.h} px < ${progi.cel} px: ${c.sciezka} „${c.nazwa}"`);
+    }
+  }
+  for (const u of m.ucieta) {
+    bledy.push(`tekst ucięty (${u.sciezka}: zawartość ${u.scrollW}×${u.scrollH} > pole ${u.clientW}×${u.clientH}) „${u.probka}"`);
+  }
+  for (const p of m.pozaOknem) {
+    bledy.push(`tekst poza oknem (${p.left}…${p.right}): ${p.sciezka} „${p.probka}"`);
+  }
+  return bledy;
+}
+
+/** Wybór formy PRZEZ FORMULARZ (ten, który widzi człowiek). Zwraca opis błędu albo null. */
+async function ustawFormeWFormularzu(strona, wartosc) {
+  await strona.goto(`${ADRES}/ustawienia/profil`, { waitUntil: 'domcontentloaded' });
+  const pole = `#forma-zwracania input[name="form_of_address"][value="${wartosc}"]`;
+  if (!(await strona.$(pole))) {
+    return 'brak formularza „Jak mamy do Ciebie pisać?" na /ustawienia/profil (okres przejściowy polityki? wtedy `Forma::wyborDostepny()` jest fałszem)';
+  }
+  await strona.check(pole, { force: true });
+  await Promise.all([
+    strona.waitForLoadState('domcontentloaded'),
+    strona.click('#forma-zwracania button[type="submit"]'),
+  ]);
+  await strona.goto(`${ADRES}/ustawienia/profil`, { waitUntil: 'domcontentloaded' });
+  const zaznaczone = await strona.evaluate((w) => !!document.querySelector(
+    `#forma-zwracania input[name="form_of_address"][value="${w}"]:checked`,
+  ), wartosc);
+  return zaznaczone ? null : `formularz przyjął wybór „${wartosc}", ale po przeładowaniu nie jest zaznaczony`;
+}
+
+/**
+ * Przycisk „Ugotowałam" stoi dopiero na OSTATNIM kroku trybu gotowania, więc
+ * idziemy odnośnikami „Następny krok", aż ich nie będzie. Bez tego audyt
+ * mierzyłby pierwszy krok, na którym formy nie ma.
+ */
+async function ostatniKrokGotowania(strona, adresGotowania) {
+  let adres = adresGotowania;
+  for (let i = 0; i < 60; i += 1) {
+    await strona.goto(ADRES + adres, { waitUntil: 'domcontentloaded' });
+    const nastepny = await strona.evaluate(() => {
+      const a = [...document.querySelectorAll('.cook-nav a')].find((x) => /Następny krok/.test(x.textContent));
+      return a ? new URL(a.href, location.origin).pathname + new URL(a.href, location.origin).search : null;
+    });
+    if (!nastepny) return adres;
+    adres = nastepny;
+  }
+  return adres;
+}
+
+/**
+ * Cały przebieg odbioru formy. Zwraca `{ pomiary, bledy }`; `bledy` to
+ * zdania po polsku (każde = powód czerwieni), `pomiary` idą do raportu.
+ */
+async function przebiegForma(przegladarka, stan, dyn) {
+  const bledy = [];
+  const pomiary = [];
+
+  const kontekstUstawien = await przegladarka.newContext({ storageState: stan, viewport: { width: 1280, height: 900 } });
+  const stronaUstawien = await kontekstUstawien.newPage();
+  const bladUstawienia = await ustawFormeWFormularzu(stronaUstawien, FORMA_ZENSKA);
+  if (bladUstawienia) {
+    await kontekstUstawien.close();
+    return { pomiary, bledy: [`nie da się ustawić formy żeńskiej: ${bladUstawienia}`] };
+  }
+
+  try {
+    const dynForma = {
+      ...dyn,
+      ugotowalem: dyn.przepis ? `${dyn.przepis}/ugotowalem` : undefined,
+      gotowanieOstatni: dyn.gotowanie ? await ostatniKrokGotowania(stronaUstawien, dyn.gotowanie) : undefined,
+    };
+
+    for (const skala of FORMA_SKALE) {
+      const kontekst = await przegladarka.newContext({
+        storageState: stan,
+        viewport: { width: FORMA_SZEROKOSC, height: 900 },
+        deviceScaleFactor: 1,
+      });
+      for (const ekran of EKRANY_FORMY) {
+        const adres = ekran.dynamiczny ? dynForma[ekran.dynamiczny] : ekran.adres;
+        const etykieta = `„${ekran.nazwa}" (${adres || '?'}) ${FORMA_SZEROKOSC} px / czcionka ${skala}%`;
+        if (!adres) {
+          bledy.push(`${etykieta}: brak adresu — seeder nie dał przepisu albo wpisu, ekran pozostałby niezmierzony`);
+          continue;
+        }
+        const strona = await kontekst.newPage();
+        try {
+          if (skala !== 100) {
+            const cdp = await kontekst.newCDPSession(strona);
+            const rozmiar = Math.round(BAZOWA_CZCIONKA_PX * (skala / 100));
+            await cdp.send('Page.setFontSizes', { fontSizes: { standard: rozmiar, fixed: rozmiar } });
+          }
+          const odp = await strona.goto(ADRES + adres, { waitUntil: 'networkidle', timeout: 30000 });
+          if (!odp || odp.status() >= 400) {
+            bledy.push(`${etykieta}: HTTP ${odp && odp.status()}`);
+            continue;
+          }
+          const otrzymana = new URL(strona.url()).pathname;
+          if (otrzymana !== new URL(ADRES + adres).pathname) {
+            bledy.push(`${etykieta}: odesłał na ${otrzymana} — pomiar dotyczyłby innej strony`);
+            continue;
+          }
+          await strona.evaluate(() => Promise.race([
+            document.fonts.ready,
+            new Promise((g) => setTimeout(g, 3000)),
+          ]));
+          const m = await strona.evaluate(ZMIERZ_FORME, { wzor: WZOR_FORMY });
+          const tekstStrony = await strona.evaluate(() => document.body.innerText);
+          const naruszenia = [];
+          if (!tekstStrony.includes(ekran.napis)) {
+            naruszenia.push(`brak napisu „${ekran.napis}" — ekran nie pokazuje formy żeńskiej`);
+          }
+          if (ekran.wybor && !(await strona.$('#forma-zwracania'))) {
+            naruszenia.push('brak formularza wyboru formy (#forma-zwracania)');
+          }
+          const oczekiwanyKorzen = BAZOWA_CZCIONKA_PX * (skala / 100);
+          if (m.korzenPx < oczekiwanyKorzen - 0.5) {
+            naruszenia.push(`czcionka korzenia ${m.korzenPx} px zamiast ${oczekiwanyKorzen} px — skala przeglądarki nie weszła, pomiar byłby fałszywą zielenią`);
+          }
+          if (skala !== 100 && m.prog64rem) {
+            naruszenia.push('próg 64rem nadal aktywny przy powiększonej czcionce — zmiana nie dotknęła bazy media queries');
+          }
+          naruszenia.push(...ocenFormePomiar(m));
+          for (const n of naruszenia) bledy.push(`${etykieta}: ${n}`);
+          pomiary.push({ ekran: ekran.nazwa, adres, szerokosc: FORMA_SZEROKOSC, skala, ...m, naruszenia });
+        } catch (e) {
+          bledy.push(`${etykieta}: ${String(e.message).slice(0, 200)}`);
+        } finally {
+          await strona.close();
+        }
+      }
+      await kontekst.close();
+    }
+  } finally {
+    // Sprzątanie: konto demo wraca na formę neutralną (domyślną).
+    const bladPrzywrocenia = await ustawFormeWFormularzu(stronaUstawien, FORMA_NEUTRALNA);
+    if (bladPrzywrocenia) bledy.push(`nie przywrócono formy neutralnej: ${bladPrzywrocenia}`);
+    await kontekstUstawien.close();
+  }
+  return { pomiary, bledy };
+}
+
 async function main() {
   const przegladarka = await chromium.launch();
   const stan = await stanZalogowanego(przegladarka);
@@ -270,7 +616,7 @@ async function main() {
   const przekierowania = [];
   let przebiegi = 0;
 
-  for (const szerokosc of SZEROKOSCI) {
+  for (const szerokosc of (TYLKO_FORME ? [] : SZEROKOSCI)) {
     for (const motyw of MOTYWY) {
       for (const skala of SKALE) {
         /*
@@ -341,6 +687,12 @@ async function main() {
     }
   }
 
+  let forma = { pomiary: [], bledy: [] };
+  if (!BEZ_FORMY) {
+    forma = await przebiegForma(przegladarka, stan, dyn);
+    console.log(`… odbiór formy: ${forma.pomiary.length} pomiarów (${FORMA_SZEROKOSC} px × czcionka ${FORMA_SKALE.join('/')}%), naruszeń: ${forma.bledy.length}`);
+  }
+
   await przegladarka.close();
   mkdirSync('storage', { recursive: true });
   writeFileSync('storage/audyt-ux50plus.json', JSON.stringify({
@@ -350,6 +702,7 @@ async function main() {
     progi: { PROG_TEKSTU, PROG_CELU },
     przekierowania,
     wyniki,
+    forma,
   }, null, 1));
   console.log(`Gotowe: ${wyniki.length} pomiarów → storage/audyt-ux50plus.json`);
 
@@ -363,6 +716,11 @@ async function main() {
         + 'tego ekranu albo trasę w routes/web.php.',
       );
     }
+    process.exitCode = 1;
+  }
+
+  if (forma.bledy.length > 0) {
+    for (const b of forma.bledy) console.error(`BŁĄD (forma zwracania się): ${b}`);
     process.exitCode = 1;
   }
 }

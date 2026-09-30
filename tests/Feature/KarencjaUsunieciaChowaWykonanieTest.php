@@ -122,10 +122,15 @@ class KarencjaUsunieciaChowaWykonanieTest extends TestCase
 
         $this->assertNotSame('', $tekst, 'Po wylogowaniu nie ma żadnego komunikatu.');
 
-        $this->assertStringContainsString(
-            route('account.delete.cancel'),
-            $tekst,
-            'Komunikat po wylogowaniu nie wskazuje strony cofnięcia usunięcia konta.',
+        // Od D-333 (30.09.2026) stronę cofnięcia wskazuje przycisk pod
+        // komunikatami (`status_akcja`), a zdanie mówi, gdzie go szukać —
+        // adresu w zdaniu już nie ma (OdmowaLogowaniaPrzyciskCofnieciaTest).
+        $this->assertStringContainsString('„Cofnij usunięcie konta”', $tekst,
+            'Komunikat po wylogowaniu nie wskazuje strony cofnięcia usunięcia konta.');
+        $this->assertSame(
+            ['url' => route('account.delete.cancel'), 'etykieta' => 'Cofnij usunięcie konta'],
+            self::sesjaPrzekierowania($odpowiedz)->get('status_akcja'),
+            'Po wylogowaniu nie ma przycisku do strony cofnięcia usunięcia konta.',
         );
     }
 

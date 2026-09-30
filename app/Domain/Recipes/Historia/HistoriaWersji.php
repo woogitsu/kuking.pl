@@ -28,6 +28,15 @@ use Illuminate\Support\Facades\Gate;
  *
  * Wersje czytamy BEZ `editor_id` — ekran nie pokazuje edytora, więc zapytanie
  * nawet go nie wybiera.
+ *
+ * WERSJE UKRYTE (issue #2270). Wersję ukrytą przez autora albo moderację
+ * (`recipe_versions.hidden_at`) widzą WYŁĄCZNIE autor przepisu i czynna
+ * moderacja (`widziUkryte()`), z oznaczeniem. Dla wszystkich innych nie
+ * istnieje: nie ma jej na liście, pod jej adresem jest 404, a porównanie
+ * bierze za poprzednika najbliższą WIDOCZNĄ wersję i mówi, że coś pominęło
+ * (`ukryteMiedzy()`). Zapytania niżej biorą flagę `$zUkrytymi` bez
+ * wartości domyślnej, żeby nowe miejsce nie dostało ukrytych wersji przez
+ * zapomnienie.
  */
 final class HistoriaWersji
 {
@@ -55,25 +64,66 @@ final class HistoriaWersji
     }
 
     /**
-     * @return Builder<RecipeVersion>
+     * Czy ten widz widzi wersje ukryte: autor przepisu albo czynna moderacja
+     * (`isModerator()` patrzy też na stan konta). Woła się PO bramce
+     * `view` — to nie jest wejście do historii, tylko jej zakres.
      */
-    public static function zapytanie(Recipe $recipe): Builder
+    public static function widziUkryte(?User $widz, Recipe $recipe): bool
     {
-        return RecipeVersion::query()
-            ->where('recipe_id', $recipe->getKey())
-            ->select(['id', 'recipe_id', 'version_number', 'change_note', 'snapshot', 'created_at']);
+        return $widz !== null
+            && ($widz->getKey() === $recipe->author_id || $widz->isModerator());
     }
 
     /**
-     * Numery wszystkich wersji, malejąco — jedno lekkie zapytanie (bez migawek)
+     * @return Builder<RecipeVersion>
+     */
+    public static function zapytanie(Recipe $recipe, bool $zUkrytymi): Builder
+    {
+        return RecipeVersion::query()
+            ->where('recipe_id', $recipe->getKey())
+            ->when(! $zUkrytymi, static fn (Builder $q) => $q->whereNull('hidden_at'))
+            ->select(['id', 'recipe_id', 'version_number', 'change_note', 'snapshot', 'created_at', 'hidden_at', 'hidden_by_role']);
+    }
+
+    /**
+     * Ile wersji ukrytych leży MIĘDZY dwoma numerami (bez nich samych).
+     * `$od = null` znaczy „od początku historii". Tylko liczba — ekran mówi,
+     * że porównanie coś pominęło, a nie co.
+     */
+    public static function ukryteMiedzy(Recipe $recipe, ?int $od, int $do): int
+    {
+        return RecipeVersion::query()
+            ->where('recipe_id', $recipe->getKey())
+            ->whereNotNull('hidden_at')
+            ->when($od !== null, static fn (Builder $q) => $q->where('version_number', '>', $od))
+            ->where('version_number', '<', $do)
+            ->count();
+    }
+
+    /**
+     * Numer najnowszej wersji przepisu, liczony ze WSZYSTKICH wersji. Tej
+     * wersji nie wolno ukryć (`UkrywanieWersji`): to treść przepisu, którą
+     * i tak widać na jego stronie — żeby usunąć z niej tekst, poprawia się
+     * przepis, a wtedy powstaje nowsza wersja.
+     */
+    public static function numerNajnowszej(Recipe $recipe): ?int
+    {
+        $numer = RecipeVersion::query()->where('recipe_id', $recipe->getKey())->max('version_number');
+
+        return $numer === null ? null : (int) $numer;
+    }
+
+    /**
+     * Numery wersji, malejąco — jedno lekkie zapytanie (bez migawek)
      * na sąsiadów „starsza/nowsza".
      *
      * @return list<int>
      */
-    public static function numery(Recipe $recipe): array
+    public static function numery(Recipe $recipe, bool $zUkrytymi): array
     {
         return RecipeVersion::query()
             ->where('recipe_id', $recipe->getKey())
+            ->when(! $zUkrytymi, static fn (Builder $q) => $q->whereNull('hidden_at'))
             ->orderByDesc('version_number')
             ->pluck('version_number')
             ->map(fn ($n): int => (int) $n)
@@ -87,9 +137,12 @@ final class HistoriaWersji
      * zostaje warunek „opublikowany", którego `view` nie stawia moderatorowi.
      * Dla widza, który nie przeszedł `view`, użyj `wolnoOgladac()`.
      */
-    public static function pokazacLinkPoAutoryzacji(Recipe $recipe): bool
+    public static function pokazacLinkPoAutoryzacji(Recipe $recipe, ?User $widz): bool
     {
         return $recipe->isPublished()
-            && RecipeVersion::query()->where('recipe_id', $recipe->getKey())->count() >= self::MINIMUM_DO_POKAZANIA;
+            && RecipeVersion::query()
+                ->where('recipe_id', $recipe->getKey())
+                ->when(! self::widziUkryte($widz, $recipe), static fn (Builder $q) => $q->whereNull('hidden_at'))
+                ->count() >= self::MINIMUM_DO_POKAZANIA;
     }
 }

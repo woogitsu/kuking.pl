@@ -14,7 +14,7 @@
         wpisane dane nigdy nie znikają, a zmiana widoczności bez zamiaru jest
         groźniejsza niż utrata tekstu, bo cichsza.
     --}}
-    <form method="POST" action="{{ route('collections.update', $collection) }}">
+    <form method="POST" action="{{ route('collections.update', $collection) }}" novalidate>
         @csrf
         @method('PATCH')
         <x-field name="name" label="Nazwa zeszytu" required :value="$collection->name" />

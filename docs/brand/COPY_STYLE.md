@@ -157,6 +157,13 @@ ale tylko przez helper `App\Support\Forma`.
 > Uwaga na formy czasowników. „ugotowałeś" w haśle głównym jest już utrwalone
 > i zostaje. W tekstach roboczych wolimy konstrukcje bez rodzaju: **„Co dziś
 > gotujesz?"** działa dla wszystkich i jest krótsze.
+>
+> **Gdzie hasło stoi w stałej formie (D-332, #1753).** Tylko tam, gdzie
+> czytelnika nie znamy: landing, rejestracja, `<title>` i list przed założeniem
+> konta (zaproszenie). Stopka listu do istniejącego konta — logowanie, hasło,
+> adres e-mail, paczka danych, podsumowanie tygodnia — idzie przez
+> `Forma::dla()`: w formie wybranej przez odbiorcę, a bez wyboru „pokaż, co
+> dziś gotujesz”.
 
 ### Tej reguły pilnuje test, nie czyjaś pamięć (issue #274)
 

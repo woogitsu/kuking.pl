@@ -10,7 +10,7 @@
 
     <x-error-summary />
 
-    <form class="panel-formularza" method="POST" action="{{ route('account.delete.cancel.store') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('account.delete.cancel.store') }}" novalidate>
         @csrf
 
         <x-field name="login" label="Adres e-mail albo nazwa użytkownika" required

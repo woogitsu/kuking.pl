@@ -26,7 +26,9 @@ use Tests\TestCase;
  * Kontrola ujemna: usunięcie wywołania `DziennikWgladu::zdjecie()` z
  * `MediaController` oblewa testy zdjęć; usunięcie `przepis()` z
  * `RecipeController::show()` oblewa testy przepisu; wyjęcie okna 60 minut
- * z `DziennikWgladu::zdjecie()` oblewa `test_ponowne_otwarcie_..._w_oknie`.
+ * z `DziennikWgladu::zdjecie()` oblewa `test_ponowne_otwarcie_..._w_oknie`;
+ * powrót `StronaWpisu::zapiszWgladModeracji()` do samego `status = hidden`
+ * (stan sprzed 30.09.2026) oblewa `test_wpis_konta_zbanowanego_...`.
  */
 class DziennikWgladowModeratoraTest extends TestCase
 {
@@ -240,10 +242,84 @@ class DziennikWgladowModeratoraTest extends TestCase
         $this->assertSame(0, $this->liczbaWpisow(DziennikWgladu::PRZEPIS_UKRYTY));
     }
 
+    /**
+     * Decyzja właściciela z 30.09.2026: `PostPolicy::view()` wpuszcza
+     * moderatora do wpisu konta zbanowanego (`$isOwnerOrModerator`), a ślad
+     * zostawiał wyłącznie wpis `hidden`. Ten sam wzorzec co przy przepisach:
+     * „czy to samo konto bez roli by to zobaczyło".
+     */
+    public function test_wpis_konta_zbanowanego_zostawia_slad_na_stronie_i_w_api(): void
+    {
+        $zdjecie = $this->zdjecie();
+        $wpis = $this->wpis($zdjecie, Post::STATUS_PUBLISHED);
+        $this->zbanujAutora();
+
+        // Zwykłe konto tego wpisu nie zobaczy — i nie zostawia śladu.
+        $this->actingAs($this->user('obcy_zbanowanego'))
+            ->get(route('posts.show', $wpis->getKey()))
+            ->assertForbidden();
+        $this->assertSame(0, $this->liczbaWpisow(DziennikWgladu::WPIS_UKRYTY));
+
+        $this->actingAs($this->moderator)->get(route('posts.show', $wpis->getKey()))->assertOk();
+
+        $slad = AuditLogEntry::query()->where('action', DziennikWgladu::WPIS_UKRYTY)->sole();
+        $this->assertSame($this->moderator->getKey(), $slad->actor_id);
+        $this->assertSame('Post', $slad->subject_type);
+        $this->assertSame($wpis->getKey(), $slad->subject_id);
+        $this->assertSame(['powod' => DziennikWgladu::POWOD_ROLA, 'status' => Post::STATUS_PUBLISHED], $slad->metadata);
+
+        $this->app['auth']->forgetGuards();
+        config(['kuking.api.wlaczone' => true]);
+        $this->withHeader('Authorization', 'Bearer '.$this->moderator->createToken('Telefon')->plainTextToken)
+            ->getJson('/api/v1/wpisy/'.$wpis->getKey())
+            ->assertOk();
+        $this->assertSame(2, $this->liczbaWpisow(DziennikWgladu::WPIS_UKRYTY));
+    }
+
+    public function test_zdjecie_wpisu_konta_zbanowanego_zostawia_slad(): void
+    {
+        $zdjecie = $this->zdjecie();
+        $wpis = $this->wpis($zdjecie, Post::STATUS_PUBLISHED);
+        $this->zbanujAutora();
+
+        $this->actingAs($this->user('obcy_zdjecia_zbanowanego'))->get($zdjecie->url('thumb'))->assertStatus(404);
+        $this->assertSame(0, $this->liczbaWpisow());
+
+        $this->actingAs($this->moderator)->get($zdjecie->url('thumb'))->assertStatus(302);
+
+        $slad = AuditLogEntry::query()->where('action', DziennikWgladu::ZDJECIE)->sole();
+        $this->assertSame(['powod' => DziennikWgladu::POWOD_ROLA, 'sprawy' => ['Post:'.$wpis->getKey()]], $slad->metadata);
+    }
+
+    public function test_wpis_ukryty_ma_powod_a_wpis_jawny_nie_zostawia_sladu(): void
+    {
+        $ukryty = $this->wpis($this->zdjecie(), Post::STATUS_HIDDEN);
+        $this->actingAs($this->moderator)->get(route('posts.show', $ukryty->getKey()))->assertOk();
+
+        $slad = AuditLogEntry::query()->where('action', DziennikWgladu::WPIS_UKRYTY)->sole();
+        $this->assertSame(['powod' => DziennikWgladu::POWOD_UKRYTA_TRESC, 'status' => Post::STATUS_HIDDEN], $slad->metadata);
+
+        // Wpis jawny aktywnego konta: moderator widzi go jak każdy — cisza.
+        // Autor na własnym wpisie po banie (czyta go przez `$isOwnerOrModerator`) — cisza.
+        $jawny = $this->wpis($this->zdjecie(), Post::STATUS_PUBLISHED);
+        $this->actingAs($this->moderator)->get(route('posts.show', $jawny->getKey()))->assertOk();
+        $this->zbanujAutora();
+        $this->actingAs($this->autor->fresh())->get(route('posts.show', $jawny->getKey()));
+
+        $this->assertSame(1, $this->liczbaWpisow(DziennikWgladu::WPIS_UKRYTY));
+    }
+
     public function test_wpisy_wgladu_podlegaja_zwyklej_retencji_dziennika(): void
     {
         $this->assertNotContains(DziennikWgladu::ZDJECIE, AuditLogEntry::NIGDY_NIE_KASUJ);
         $this->assertNotContains(DziennikWgladu::PRZEPIS_UKRYTY, AuditLogEntry::NIGDY_NIE_KASUJ);
+        $this->assertNotContains(DziennikWgladu::WPIS_UKRYTY, AuditLogEntry::NIGDY_NIE_KASUJ);
+    }
+
+    private function zbanujAutora(): void
+    {
+        // `status` konta to pole sterujące — poza `$fillable`.
+        $this->autor->forceFill(['status' => User::STATUS_BANNED])->save();
     }
 
     private function liczbaWpisow(string $akcja = DziennikWgladu::ZDJECIE): int

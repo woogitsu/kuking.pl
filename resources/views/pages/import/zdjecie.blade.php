@@ -26,7 +26,7 @@
 
     <x-error-summary />
 
-    <form class="panel-formularza" method="POST" action="{{ route('import.zlec') }}" enctype="multipart/form-data">
+    <form class="panel-formularza" method="POST" action="{{ route('import.zlec') }}" enctype="multipart/form-data" novalidate>
         @csrf
         @if(($kluczWyslania ?? null) !== null)
             <input type="hidden" name="klucz_wyslania" value="{{ $kluczWyslania }}">

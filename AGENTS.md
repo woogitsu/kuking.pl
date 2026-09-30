@@ -600,6 +600,13 @@ lokalnie migracje, które w CI padają. Produkcja ma 18, CI stawia
 którego nigdzie nie używamy. Pilnuje tego `TestyChodzaNaPostgresieTest` —
 i pilnuje też tego, żeby ten akapit i próg w strażniku mówiły tę samą liczbę.
 
+To jest wymaganie, a nie opis każdej maszyny. Kontener sesji agentów w chmurze
+ma na 127.0.0.1:5432 **PostgreSQL 16.13** (obraz ma tylko pakiet 16; `SELECT
+version()` 30.09.2026, audyt wydajności F7, #2292). Tam
+`TestyChodzaNaPostgresieTest` oblewa środowiskowo, a rozstrzyga CI na 18.
+Progu nie obniżaj. W raporcie z pomiaru planów i JIT podaj wersję z `SELECT
+version()`, bo plany różnią się między majorami.
+
 Przed utworzeniem bazy ustal jej właściciela, host, port i nazwę.
 Użyj izolowanej bazy tego zadania i jawnych parametrów połączenia.
 Nie polegaj na domyślnym porcie ani nazwie w środowisku współdzielonym.

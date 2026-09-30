@@ -485,6 +485,15 @@ return [
         // ścieżka z JavaScriptem, jak i formularz „Znajdź tag" bez niego.
         'suggestions_limit' => (int) env('KUKING_TAG_SUGGESTIONS_LIMIT', 8),
 
+        // Ile tagów wolno obserwować z jednego konta (#2326). Liczba jest
+        // wyborem, nie pomiarem: kilkadziesiąt to już bardzo szeroki Start,
+        // dwieście zostawia zapas nawet dla kogoś, kto zaznaczy całą listę
+        // gospodarza, a jednocześnie daje ekranowi „Twoje tagi” i Startowi
+        // przewidywalną granicę kosztu (fixture obciążeniowy miał 978).
+        // Konta, które obserwowały więcej przed wprowadzeniem limitu, niczego
+        // nie tracą — nie mogą tylko dodać nowego, dopóki nie zejdą poniżej.
+        'max_followed' => (int) env('KUKING_TAG_MAX_FOLLOWED', 500),
+
         // Ile tematów na "stronę" pokazuje spis wszystkich tematów
         // (#273, D-087). Bez infinite scroll — przycisk „Pokaż więcej",
         // jak wszędzie indziej (`<x-show-more>`). Słownik z D-026 ma
@@ -575,6 +584,15 @@ return [
         // Reguła brzegu i plan wycofania: docs/infra/CLOUDFLARE_CACHE_597_610.md.
         'edge_seconds' => (int) env('KUKING_HTML_EDGE_CACHE_SECONDS', 0),
     ],
+
+    /*
+     * KANAŁY ATOM: ile sekund trzyma się gotową treść kanału w cache
+     * aplikacji (decyzja właściciela z 30.09.2026, D-333). Kanał to zawsze
+     * widok gościa, więc kopia jest wspólna. Dostęp (Policy, 404) liczy się
+     * przy każdym żądaniu; cena to okno, w którym pozycja ukryta, usunięta
+     * albo zdjęta z urzędu może jeszcze być w kanale. 0 = bez cache.
+     */
+    'kanal_cache_sekund' => (int) env('KUKING_KANAL_CACHE_SEKUND', 300),
 
     'account' => [
         'registration_open' => (bool) env('KUKING_REGISTRATION_OPEN', true),
@@ -1755,6 +1773,16 @@ return [
         'discover' => '60,1',
 
         /*
+         * KANAŁY ATOM (`/@{nazwa}/kanal`, `/tag/{slug}/kanal`,
+         * `/zeszyt/{uuid}/kanal`) — #2227. Publiczne, bez konta i bez sesji,
+         * więc jedyną bramką kosztu obok `ETag`/304 jest ten limit. Czytnik
+         * pyta o jeden kanał raz na kilkanaście minut; sześćdziesiąt na
+         * minutę po adresie IP mieści też usługę czytnika, która z jednego
+         * adresu pobiera wiele kanałów naraz, a nie starcza na zalewanie.
+         */
+        'kanal' => '60,1',
+
+        /*
          * STRONA GŁÓWNA (`/`, trasa `landing`) — issue #1952, druga połowa.
          * Gość dostaje tu to samo zapytanie co na `/odkryj` plus tablicę dnia
          * i kolaż; pomiar (docs/infra/ODKRYJ_KOSZT_1952.md) daje ten sam koszt
@@ -2438,9 +2466,9 @@ return [
     | nie generuje żadnego błędu do zgłoszenia.
     |
     | BRAK KONFIGURACJI WEBHOOKA = ZERO EFEKTU, tak samo jak przy czujce kopii.
-    | Na produkcji nie ma dziś `LOG_BLAD_WEBHOOK_URL`, więc czujka liczy
-    | i zapisuje w dzienniku, ale nie dzwoni nigdzie. To jest stan do zamknięcia
-    | w #599, nie właściwość tej konfiguracji.
+    | Na produkcji `LOG_BLAD_WEBHOOK_URL` jest ustawiony od 29.09.2026
+    | (Discord, D-333, #599), więc czujka dzwoni; bez niego (lokalnie, w CI)
+    | liczy i zapisuje w dzienniku, ale nie dzwoni nigdzie.
     */
     'kolejka' => [
         // Okno „co padło niedawno". 3 h przy czujce co kwadrans: awaria nocna
@@ -2729,6 +2757,19 @@ return [
          * Zero wyłącza listy alarmowe bez ruszania adresu.
          */
         'alarm_operacyjny_na_dobe' => (int) env('KUKING_ALARM_EMAIL_NA_DOBE', 20),
+
+        /*
+         * DOBOWY SUFIT LISTÓW „PRZYSZŁA NOWA WIADOMOŚĆ" (`KUKING_ALARM_EMAIL`,
+         * decyzja właściciela 30.09.2026, `DzwonekOperatora`).
+         *
+         * OSOBNY od sufitu alarmów wyżej: formularz „Napisz do nas" wypełnia
+         * każdy, więc wiadomości od ludzi nie mogą zjeść listów o awariach.
+         * Pięć, bo list jest tu tylko wygodą: wiadomość jest już w panelu,
+         * a Discord dostaje każdą. Po piątej skrzynka milknie do północy
+         * (przy czwartej przychodzi ostrzeżenie o zużyciu 80% sufitu).
+         * Zero wyłącza te listy; alarmy o awariach idą dalej.
+         */
+        'kontakt_operatora_na_dobe' => (int) env('KUKING_ALARM_EMAIL_KONTAKT_NA_DOBE', 5),
     ],
 
     'digest' => [
@@ -2903,6 +2944,13 @@ return [
          * przestawić w panelu Railwaya. Zgodność z nagłówkiem pilnuje
          * `WersjaPolitykiZgadzaSieZNaglowkiemTest`. Wcześniejsze wiersze
          * dziennika zostają ze swoją wersją — to dowód, NA CO się zgodzono.
+         *
+         * ARCHIWUM (#2220). Każda data od 2026-09-25 ma plik
+         * `resources/legal/archiwum/polityka-prywatnosci-<data>.md` — przy
+         * podbiciu dodaj nowy plik (kopia `polityka-prywatnosci.md`), starych
+         * nie ruszaj; poprawka bez podbicia idzie też do pliku bieżącej daty.
+         * Starsze daty wydajemy na prośbę (decyzja z 30.09.2026, D-333).
+         * Pilnuje `ArchiwumPolitykiTest`, opis w `App\Domain\Zgody\ArchiwumDokumentu`.
          */
         'wersja_polityki' => '2026-09-30',
 
@@ -2965,6 +3013,12 @@ return [
          * z 26.09.2026: komunikat w serwisie, bez maili). Podbijaj więc tylko
          * przy zmianie, o której ludzie mają się dowiedzieć — literówka
          * w dokumencie to nie powód, żeby zaczepiać każdego.
+         *
+         * ARCHIWUM (#2220). Każda data ma plik
+         * `resources/legal/archiwum/regulamin-<data>.md` — przy podbiciu dodaj
+         * nowy plik (kopia `regulamin.md`), starych nie ruszaj; poprawka bez
+         * podbicia idzie też do pliku bieżącej daty. Pilnuje
+         * `ArchiwumRegulaminuTest`, opis w `App\Domain\Zgody\ArchiwumDokumentu`.
          */
         'wersja_regulaminu' => '2026-09-30',
 

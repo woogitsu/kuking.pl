@@ -12,7 +12,7 @@
         @if($otwarty)
             <p class="notice">Wybierz zeszyt, w którym zapisać ten przepis. Jeszcze niczego nie zapisaliśmy — zrobimy to dopiero po Twoim wyborze.</p>
         @endif
-        <form method="POST" action="{{ $action }}">
+        <form method="POST" action="{{ $action }}" novalidate>
             @csrf
             <input type="hidden" name="_wiersz" value="{{ $wiersz }}">
             @if($blad)

@@ -21,7 +21,7 @@
         i które uważają, że to pomyłka. Sprawdzimy sprawę jeszcze raz.
     </p>
 
-    <form class="panel-formularza" method="POST" action="{{ route('appeals.guest.store') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('appeals.guest.store') }}" novalidate>
         @csrf
 
         <h2 class="mt-0 text-title-sm">Powiedz, kim jesteś</h2>
@@ -35,6 +35,12 @@
                  help="Możesz wpisać jedno albo drugie — obojętnie które." />
 
         <x-field name="password" label="Hasło" type="password" required autocomplete="current-password" />
+
+        {{-- Przy polu hasła i PRZED polem wyjaśnienia: odnośnik wyprowadza ze strony,
+             a wpisany tekst nie wraca. Tu człowiek nie ma jeszcze nic długiego do stracenia. --}}
+        <p class="form-actions">
+            <a class="btn btn-quiet" href="{{ route('password.request') }}">Nie pamiętam hasła</a>
+        </p>
 
         {{-- Konto z 2FA nie składa odwołania samym hasłem (#2272), tak jak się nim nie loguje. --}}
         <x-field name="code" label="Kod z aplikacji albo kod zapasowy" autocomplete="one-time-code"
@@ -56,13 +62,12 @@
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Wyślij odwołanie</button>
-            <a class="btn btn-quiet" href="{{ route('password.request') }}">Nie pamiętam hasła</a>
         </div>
     </form>
 
     <p class="mt-6">
         Nie pamiętasz hasła i nie masz dostępu do skrzynki? Napisz do nas na
-        {{ config('kuking.community.contact_email') }} — odwołanie złożone e-mailem
+        <a href="mailto:{{ config('kuking.community.contact_email') }}">{{ config('kuking.community.contact_email') }}</a> — odwołanie złożone e-mailem
         też rozpatrujemy.
     </p>
 </x-layout>
