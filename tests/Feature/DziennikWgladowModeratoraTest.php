@@ -9,6 +9,7 @@ use App\Models\AuditLogEntry;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\RecipeStep;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -48,7 +49,7 @@ class DziennikWgladowModeratoraTest extends TestCase
     public function test_zdjecie_bedace_celem_zgloszenia_zostawia_slad_z_powodem(): void
     {
         $zdjecie = $this->zdjecie();
-        $this->zglos($zdjecie);
+        $sprawa = $this->zglos($zdjecie);
 
         $this->actingAs($this->moderator)->get($zdjecie->url('thumb'))->assertStatus(302);
 
@@ -56,20 +57,90 @@ class DziennikWgladowModeratoraTest extends TestCase
         $this->assertSame($this->moderator->getKey(), $wpis->actor_id);
         $this->assertSame('Media', $wpis->subject_type);
         $this->assertSame($zdjecie->getKey(), $wpis->subject_id);
-        $this->assertSame(['powod' => DziennikWgladu::POWOD_ZGLOSZENIE], $wpis->metadata);
+        $this->assertSame(['powod' => DziennikWgladu::POWOD_ZGLOSZENIE, 'sprawy' => [$sprawa->getKey()]], $wpis->metadata);
         $this->assertNotNull($wpis->created_at);
     }
 
     public function test_zdjecie_ukrytego_wpisu_zostawia_slad_z_powodem(): void
     {
         $zdjecie = $this->zdjecie();
-        $this->wpis($zdjecie, Post::STATUS_HIDDEN);
+        $wpisUkryty = $this->wpis($zdjecie, Post::STATUS_HIDDEN);
 
         $this->actingAs($this->moderator)->get($zdjecie->url('thumb'))->assertStatus(302);
 
         $wpis = AuditLogEntry::query()->where('action', DziennikWgladu::ZDJECIE)->sole();
         $this->assertSame($zdjecie->getKey(), $wpis->subject_id);
-        $this->assertSame(['powod' => DziennikWgladu::POWOD_UKRYTA_TRESC], $wpis->metadata);
+        $this->assertSame(['powod' => DziennikWgladu::POWOD_UKRYTA_TRESC, 'sprawy' => ['Post:'.$wpisUkryty->getKey()]], $wpis->metadata);
+    }
+
+    /**
+     * Przegląd integracyjny: okno 60 minut sklejało po samej parze
+     * moderator–zdjęcie, więc wgląd w DRUGĄ sprawę o to samo zdjęcie w tej
+     * samej godzinie przepadał bez śladu.
+     */
+    public function test_wglad_w_inna_sprawe_o_to_samo_zdjecie_w_oknie_to_osobny_wpis(): void
+    {
+        $zdjecie = $this->zdjecie();
+        $pierwsza = $this->zglos($zdjecie);
+
+        $this->actingAs($this->moderator)->get($zdjecie->url('thumb'))->assertStatus(302);
+        $this->assertSame(1, $this->liczbaWpisow());
+
+        // Druga sprawa o to samo zdjęcie: zgłoszenie od osoby (automat ma
+        // jedno oznaczenie na treść — `reports_jeden_automat_na_tresc`).
+        $druga = Report::create([
+            'reporter_id' => $this->user('zglaszajacy_wgladu')->getKey(),
+            'autor_tresci_id' => $zdjecie->owner_id,
+            'source' => Report::SOURCE_COMMUNITY,
+            'target_type' => 'media',
+            'target_id' => $zdjecie->getKey(),
+            'reason' => 'spam',
+            'status' => Report::STATUS_OPEN,
+        ]);
+        $this->actingAs($this->moderator)->get($zdjecie->url('thumb'))->assertStatus(302);
+
+        $this->assertSame(2, $this->liczbaWpisow());
+        $sprawy = [$pierwsza->getKey(), $druga->getKey()];
+        sort($sprawy);
+        $this->assertSame($sprawy, AuditLogEntry::query()->where('action', DziennikWgladu::ZDJECIE)->latest('id')->first()->metadata['sprawy']);
+    }
+
+    /** Przegląd integracyjny: zdjęcie KROKU przepisu ukrytego wisi pod `RecipeStep`, nie pod `Recipe`. */
+    public function test_zdjecie_kroku_przepisu_ukrytego_zostawia_slad(): void
+    {
+        $zdjecie = $this->zdjecie();
+        $przepis = $this->przepis(Recipe::STATUS_HIDDEN);
+        RecipeStep::create(['recipe_id' => $przepis->getKey(), 'position' => 0, 'instruction' => 'Krok.', 'media_id' => $zdjecie->getKey()]);
+
+        $this->actingAs($this->moderator)->get($zdjecie->url('thumb'))->assertStatus(302);
+
+        $wpis = AuditLogEntry::query()->where('action', DziennikWgladu::ZDJECIE)->sole();
+        $this->assertSame(['powod' => DziennikWgladu::POWOD_UKRYTA_TRESC, 'sprawy' => ['Recipe:'.$przepis->getKey()]], $wpis->metadata);
+    }
+
+    /** Przegląd integracyjny: `RecipePolicy` wpuszcza moderatora także do przepisu ZDJĘTEGO. */
+    public function test_przepis_zdjety_i_tryb_gotowania_zostawiaja_slad(): void
+    {
+        $zdjety = $this->przepis(Recipe::STATUS_REMOVED);
+        $this->actingAs($this->moderator)->get(route('recipes.show', $zdjety->slug))->assertOk();
+
+        $wpis = AuditLogEntry::query()->where('action', DziennikWgladu::PRZEPIS_UKRYTY)->sole();
+        $this->assertSame(['powod' => DziennikWgladu::POWOD_UKRYTA_TRESC, 'status' => Recipe::STATUS_REMOVED], $wpis->metadata);
+
+        $ukryty = $this->przepis(Recipe::STATUS_HIDDEN);
+        RecipeStep::create(['recipe_id' => $ukryty->getKey(), 'position' => 0, 'instruction' => 'Krok.']);
+        $this->actingAs($this->moderator)->get(route('cooking.show', $ukryty->slug))->assertOk();
+
+        $this->assertSame(2, $this->liczbaWpisow(DziennikWgladu::PRZEPIS_UKRYTY));
+    }
+
+    public function test_kopia_bez_roli_nie_zmienia_konta_moderatora(): void
+    {
+        $zwykle = DziennikWgladu::jakZwykleKonto($this->moderator);
+
+        $this->assertFalse($zwykle->isModerator());
+        $this->assertTrue($this->moderator->isModerator());
+        $this->assertSame(User::ROLE_MODERATOR, $this->moderator->fresh()->role);
     }
 
     public function test_ponowne_otwarcie_tego_samego_zdjecia_w_oknie_to_jeden_wpis(): void
@@ -153,7 +224,7 @@ class DziennikWgladowModeratoraTest extends TestCase
         $this->assertSame($this->moderator->getKey(), $wpis->actor_id);
         $this->assertSame('Recipe', $wpis->subject_type);
         $this->assertSame($przepis->getKey(), $wpis->subject_id);
-        $this->assertSame([], $wpis->metadata);
+        $this->assertSame(['powod' => DziennikWgladu::POWOD_UKRYTA_TRESC, 'status' => Recipe::STATUS_HIDDEN], $wpis->metadata);
     }
 
     public function test_przepis_opublikowany_i_odmowa_wobec_obcego_nie_zostawiaja_sladu(): void
@@ -225,9 +296,9 @@ class DziennikWgladowModeratoraTest extends TestCase
         return $przepis->refresh();
     }
 
-    private function zglos(Media $zdjecie): void
+    private function zglos(Media $zdjecie): Report
     {
-        Report::create([
+        return Report::create([
             'reporter_id' => null,
             'autor_tresci_id' => $zdjecie->owner_id,
             'source' => Report::SOURCE_AUTOMAT,

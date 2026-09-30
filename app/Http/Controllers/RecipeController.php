@@ -402,8 +402,9 @@ class RecipeController extends Controller
 
         $this->authorize('view', $model);
 
-        // Przepis ukryty przez moderację otwiera poza autorem tylko moderator
-        // (`RecipePolicy::view()`) — wgląd z urzędu zostawia ślad (D-333).
+        // Przepis niewidoczny bez roli obsługi (ukryty, zdjęty, autor
+        // zbanowany) otwiera poza autorem tylko moderator (`RecipePolicy::view()`)
+        // — wgląd z urzędu zostawia ślad (D-333). To samo w trybie gotowania i API.
         app(DziennikWgladu::class)->przepis($model, $request->user(), $request->ip());
 
         $model->load([

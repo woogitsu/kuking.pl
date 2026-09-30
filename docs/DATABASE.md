@@ -3959,19 +3959,24 @@ zobaczyłby bez roli (D-333, dziennik wglądów; `App\Domain\Moderation\Dziennik
 zapis w `MediaController` dopiero gdy bajty naprawdę wychodzą). `actor_id` to
 moderator, `subject_type = 'Media'`, `subject_id` — zdjęcie, `metadata.powod`:
 `zgloszenie` (zdjęcie jest celem zgłoszenia albo należy do wpisu ze zgłoszeniem
-automatu — wyjątek z `DostepDoZdjecia::celemZgloszeniaDlaObslugi()`) albo
-`ukryta_tresc` (zdjęcie wisi pod wpisem/przepisem ukrytym przez moderację, a nie
-pod niczym jawnym). **Nie zostawiają wpisu:** zdjęcia jawne, wejścia autora
-i właściciela, odmowy (404). **Jeden wpis na godzinę na parę moderator–zdjęcie**
-(`OKNO_ZDJECIA_MINUTY`) — otwarcie sprawy to kilka żądań o ten sam plik. Bez
-treści zdjęcia. Retencja zwykła, poza `NIGDY_NIE_KASUJ`. Bez migracji (`action`
-nie ma CHECK-a).
+automatu — wyjątek z `DostepDoZdjecia::celemZgloszeniaDlaObslugi()`),
+`ukryta_tresc` (rodzic — wpis, przepis albo krok przepisu — jest ukryty lub
+zdjęty) albo `rola_moderatora` (inna droga tylko dla obsługi, np. treść konta
+zbanowanego). `metadata.sprawy` — posortowane identyfikatory zgłoszeń albo
+`Typ:id` treści, które uzasadniają wgląd (najwyżej 10). „Bez roli" rozstrzyga
+pytanie kontrfaktyczne: to samo konto z rolą `user` (`jakZwykleKonto()`,
+w pamięci). **Nie zostawiają wpisu:** zdjęcia jawne, wejścia autora
+i właściciela, zdjęcia, które moderator widzi też jako zwykłe konto, odmowy
+(404). **Jeden wpis na godzinę na (moderator, zdjęcie, powód, sprawy)**
+(`OKNO_ZDJECIA_MINUTY`) — otwarcie sprawy to kilka żądań o ten sam plik, ale
+wgląd w inną sprawę o to samo zdjęcie jest osobnym wpisem. Bez treści zdjęcia.
+Retencja zwykła, poza `NIGDY_NIE_KASUJ`. Bez migracji (`action` nie ma CHECK-a).
 
-**`moderation.hidden_recipe_viewed`** — wgląd obsługi w przepis ukryty przez
-moderację (`RecipeController::show()`), gdy otwiera go ktoś inny niż autor
-(`RecipePolicy::view()` wpuszcza tam poza autorem tylko moderatora). Kształt
-jak `moderation.hidden_post_viewed`: `subject_type = 'Recipe'`, bez metadanych,
-`ip_hash` z żądania, retencja zwykła.
+**`moderation.hidden_recipe_viewed`** — wgląd obsługi w przepis niewidoczny bez
+roli (ukryty, zdjęty albo konta zbanowanego) na stronie przepisu, w trybie
+gotowania i w API (`DziennikWgladu::przepis()` po `authorize('view')`), gdy
+otwiera go moderator niebędący autorem. `subject_type = 'Recipe'`,
+`metadata = {powod, status}`, `ip_hash` z żądania, retencja zwykła.
 
 **Eksport i rejestr.** Wpisy wglądu nie wchodzą do eksportu danych konta
 (tak samo jak reszta `audit_log`, w tym `admin.user_viewed`): są dziennikiem

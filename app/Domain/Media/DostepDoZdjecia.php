@@ -218,22 +218,30 @@ final class DostepDoZdjecia
         }
 
         $wglad = null;
+        $sprawy = [];
 
-        if (! $dlaWidza && $this->celemZgloszeniaDlaObslugi($widz, $zdjecie)) {
-            $dlaWidza = true;
-            $wglad = DziennikWgladu::POWOD_ZGLOSZENIE;
+        if (! $dlaWidza) {
+            $sprawy = $this->zgloszeniaDlaObslugi($widz, $zdjecie);
+
+            if ($sprawy !== []) {
+                $dlaWidza = true;
+                $wglad = DziennikWgladu::POWOD_ZGLOSZENIE;
+            }
         }
 
-        // Wgląd z urzędu w zdjęcie treści UKRYTEJ przez moderację (D-333):
-        // przepuściła je Policy rodzica właśnie dlatego, że widz jest
-        // moderatorem, a anonim go nie zobaczy. Sprawdzamy tylko moderatora
-        // i tylko gdy zdjęcie nie jest publiczne — zwykły widz nie płaci ani
-        // jednym zapytaniem.
-        if ($wglad === null && $dlaWidza && ! $dlaAnonima && $this->ukrytaTrescOtwartaPrzezModeratora($widz, $zdjecie)) {
-            $wglad = DziennikWgladu::POWOD_UKRYTA_TRESC;
+        // Wgląd z urzędu (D-333): zdjęcie przepuściła Policy rodzica tylko
+        // dlatego, że widz jest moderatorem — ukryta albo zdjęta treść,
+        // treść konta zbanowanego, wykonanie pod przepisem niewidocznym.
+        // Rozstrzyga to pytanie KONTRFAKTYCZNE „czy to samo konto bez roli
+        // obsługi zobaczyłoby to zdjęcie" (przegląd integracyjny), a nie
+        // lista statusów — lista gubiła zdjęcia kroków i nowe drogi obsługi.
+        // Zwykły widz nie płaci ani jednym zapytaniem (`isModerator()` pierwsze).
+        if ($wglad === null && $dlaWidza && ! $dlaAnonima
+            && $widz->isModerator() && ! $this->wlasciciel($widz, $zdjecie)) {
+            [$wglad, $sprawy] = $this->wgladZRoli($widz, $zdjecie);
         }
 
-        return new DecyzjaOZdjeciu(dlaWidza: $dlaWidza, dlaAnonima: $dlaAnonima, wgladModeratora: $wglad);
+        return new DecyzjaOZdjeciu(dlaWidza: $dlaWidza, dlaAnonima: $dlaAnonima, wgladModeratora: $wglad, wgladSprawy: $sprawy);
     }
 
     /**
@@ -316,52 +324,100 @@ final class DostepDoZdjecia
      */
     private function celemZgloszeniaDlaObslugi(?User $widz, Media $zdjecie): bool
     {
+        return $this->zgloszeniaDlaObslugi($widz, $zdjecie) !== [];
+    }
+
+    /**
+     * Te same warunki co `celemZgloszeniaDlaObslugi()`, ale z odpowiedzią
+     * KTÓRE zgłoszenia otwierają to zdjęcie — identyfikatory spraw trafiają
+     * do dziennika wglądów (D-333), żeby okno 60 minut nie sklejało wglądów
+     * w RÓŻNE sprawy o to samo zdjęcie. Posortowane, najwyżej
+     * `DziennikWgladu::MAKS_SPRAW`.
+     *
+     * @return list<string>
+     */
+    private function zgloszeniaDlaObslugi(?User $widz, Media $zdjecie): array
+    {
         if ($widz === null || ! $widz->isModerator() || ! $widz->hasTwoFactorConfirmed()) {
-            return false;
+            return [];
         }
 
         $id = (string) $zdjecie->getKey();
 
-        return Report::query()
-            ->where('target_type', Report::TARGET_MEDIA)
-            ->where('target_id', $id)
-            ->exists()
-            || Report::query()
-                ->where('target_type', Report::TARGET_POST)
-                ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])
-                ->whereIn('target_id', fn ($wpisy) => $wpisy
-                    ->select('posts.id')
-                    ->from('post_media')
-                    ->join('posts', 'posts.id', '=', 'post_media.post_id')
-                    ->where('post_media.media_id', $id)
-                    ->whereNull('posts.deleted_at')
-                    ->where('posts.status', Post::STATUS_PUBLISHED)
-                    ->whereIn('posts.visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS]))
-                ->exists();
+        $sprawy = Report::query()
+            ->where(fn ($zapytanie) => $zapytanie
+                ->where(fn ($plik) => $plik
+                    ->where('target_type', Report::TARGET_MEDIA)
+                    ->where('target_id', $id))
+                ->orWhere(fn ($wpis) => $wpis
+                    ->where('target_type', Report::TARGET_POST)
+                    ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])
+                    ->whereIn('target_id', fn ($wpisy) => $wpisy
+                        ->select('posts.id')
+                        ->from('post_media')
+                        ->join('posts', 'posts.id', '=', 'post_media.post_id')
+                        ->where('post_media.media_id', $id)
+                        ->whereNull('posts.deleted_at')
+                        ->where('posts.status', Post::STATUS_PUBLISHED)
+                        ->whereIn('posts.visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS]))))
+            ->orderBy('id')
+            ->limit(DziennikWgladu::MAKS_SPRAW)
+            ->pluck('id')
+            ->map(fn ($sprawa): string => (string) $sprawa)
+            ->all();
+
+        return array_values($sprawy);
     }
 
     /**
-     * Czy widz jest moderatorem, a zdjęcie wisi pod wpisem albo przepisem
-     * UKRYTYM przez moderację, którego nie napisał, i Policy tego rodzica go
-     * wpuszcza. Woła się to tylko dla moderatora i tylko przy zdjęciu
+     * Powód i sprawy wglądu z urzędu — albo `[null, []]`, gdy to samo konto
+     * BEZ roli obsługi (`DziennikWgladu::jakZwykleKonto()`) też widzi zdjęcie
+     * przez któregoś rodzica (np. moderator obserwuje autora wpisu „tylko dla
+     * obserwujących"). Woła się tylko dla moderatora i tylko przy zdjęciu
      * niepublicznym (patrz `rozstrzygnij()`).
+     *
+     * @return array{0: ?string, 1: list<string>}
      */
-    private function ukrytaTrescOtwartaPrzezModeratora(?User $widz, Media $zdjecie): bool
+    private function wgladZRoli(User $moderator, Media $zdjecie): array
     {
-        if ($widz === null || ! $widz->isModerator()) {
-            return false;
-        }
+        $zwykle = DziennikWgladu::jakZwykleKonto($moderator);
+        $tresci = [];
+        $ukryta = false;
 
         foreach ($this->rodzice($zdjecie) as $rodzic) {
-            if (($rodzic instanceof Post || $rodzic instanceof Recipe)
-                && $rodzic->status === Post::STATUS_HIDDEN
-                && $rodzic->author_id !== $widz->getKey()
-                && Gate::forUser($widz)->allows('view', $rodzic)) {
-                return true;
+            if (Gate::forUser($zwykle)->allows('view', $rodzic)) {
+                return [null, []];
+            }
+
+            if (! Gate::forUser($moderator)->allows('view', $rodzic)) {
+                continue;
+            }
+
+            $tresc = $rodzic instanceof RecipeStep ? $rodzic->recipe : $rodzic;
+
+            if ($tresc === null) {
+                continue;
+            }
+
+            $tresci[] = class_basename($tresc).':'.$tresc->getKey();
+
+            if (($tresc instanceof Post || $tresc instanceof Recipe)
+                && in_array($tresc->status, [Post::STATUS_HIDDEN, Post::STATUS_REMOVED], true)) {
+                $ukryta = true;
             }
         }
 
-        return false;
+        if ($tresci === []) {
+            return [null, []];
+        }
+
+        $tresci = array_values(array_unique($tresci));
+        sort($tresci);
+
+        return [
+            $ukryta ? DziennikWgladu::POWOD_UKRYTA_TRESC : DziennikWgladu::POWOD_ROLA,
+            array_slice($tresci, 0, DziennikWgladu::MAKS_SPRAW),
+        ];
     }
 
     /**

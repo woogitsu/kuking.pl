@@ -53,5 +53,14 @@ final readonly class DecyzjaOZdjeciu
          * skutków ubocznych.
          */
         public ?string $wgladModeratora = null,
+        /**
+         * Sprawy, które uzasadniają wgląd: identyfikatory zgłoszeń
+         * (`powod = zgloszenie`) albo `Typ:id` treści niewidocznej publicznie.
+         * Wchodzą do klucza okna 60 minut — wgląd w INNĄ sprawę o to samo
+         * zdjęcie jest osobnym wpisem.
+         *
+         * @var list<string>
+         */
+        public array $wgladSprawy = [],
     ) {}
 }

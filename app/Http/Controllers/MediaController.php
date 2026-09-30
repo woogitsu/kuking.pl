@@ -79,7 +79,7 @@ class MediaController extends Controller
         // ślad (D-333) — dopiero tu, gdy bajty naprawdę wychodzą. Zdjęcie
         // publiczne i wejście zwykłego widza nie dotykają dziennika.
         if ($decyzja->wgladModeratora !== null && $widz !== null) {
-            $this->dziennikWgladu->zdjecie($widz, $media, $decyzja->wgladModeratora, $request->ip());
+            $this->dziennikWgladu->zdjecie($widz, $media, $decyzja->wgladModeratora, $request->ip(), $decyzja->wgladSprawy);
         }
 
         // Czy to zdjęcie zobaczyłby ktoś NIEZALOGOWANY. To pierwsze
