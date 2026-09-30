@@ -279,6 +279,18 @@ final class EraseAccountData
             $fresh->mealPlanEntries()->delete();
 
             /*
+             * LISTA ZAKUPÓW ZNIKA RAZEM Z KONTEM (#27, etap 2, D-333).
+             *
+             * Ta sama logika co plan tygodnia wyżej: prywatna lista jednej
+             * osoby, nikomu innemu niepokazana, więc bezwarunkowo,
+             * niezależnie od zakresu usunięcia. Jawnie, a nie kaskadą — kont
+             * się nie kasuje, tylko anonimizuje (D-022). Wiersze kluczem
+             * `user_id`, więc dwie równoległe egzekucje nie mają wspólnych
+             * wierszy.
+             */
+            $fresh->shoppingListItems()->delete();
+
+            /*
              * „CO MAM W DOMU” ZNIKA RAZEM Z KONTEM (D-285).
              *
              * Lista produktów z kuchni to dana prywatna, której nikt poza
