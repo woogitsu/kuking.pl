@@ -214,6 +214,7 @@ OCZEKUJ = {
     'Polityka z okresem sesji innym niż życie sesji na produkcji': r'contains "Do \*\*\d+ dni\*\* od ostatniej aktywności"',
     'Sprzątanie audytu zostawia skrót IP we wpisach dowodowych': r'Failed asserting that 0 is identical to 1\.',
     'Kontroler Google z własną kopią wejścia na konto': r'GoogleLoginController ma własną kopię: wejście na konto \(wpusc /',
+    'Operacja na produkcji bierze token staginu, gdy brak sekretu produkcji': r'wyrażenie tokenu Railway daje „tok-staging”, a powinno „”\.',
     'Instalacja Railway CLI bez sprawdzenia sumy kontrolnej': r'\.github/workflows/deploy\.yml: krok „Instalacja Railway CLI” ma',
     'Bramka tokenu krawędzi przepuszcza żądanie bez tokenu': r'Expected response status code \[403\] but received 200\.|Expected response status code \[403\] but received 405\.',
     'Caddy czyta X-Forwarded-For od lewej': r'Dla X-Forwarded-For „198\.51\.100\.66, 203\.0\.113\.7” Caddy zapisze w logu|Dla X-Forwarded-For „192\.0\.2\.1, 198\.51\.100\.66, 203\.0\.113\.7” Caddy|Dla X-Forwarded-For „10\.0\.0\.1, 203\.0\.113\.7” Caddy zapisze w logu',
