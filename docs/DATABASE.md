@@ -2521,6 +2521,30 @@ pytania — test `tests/Feature/CofniecieMigracjiNieWlaczaWspomnienTest.php`
 sprawdza obie gałęzie odmowy osobno i obie kontrole dodatnie. Skutek udanego
 rollbacku jest wciąż ZNANY: mechanika wspomnień znika razem z kolumnami.
 
+**Wspomnienia z własnych wykonań (F6, 30.09.2026)** — migracja
+`2026_09_30_141500_add_hide_as_memory_to_cooked_events`:
+
+```sql
+ALTER TABLE cooked_events ADD COLUMN hide_as_memory boolean NOT NULL DEFAULT false;
+```
+
+- **`cooked_events.hide_as_memory`** — ukrycie JEDNEGO własnego „Ugotowałem”
+  w bloku „Rok temu…” na stronie głównej, bliźniacze do `posts.hide_as_memory`.
+  Wykonanie zostaje na profilu i pod przepisem. Zapisuje je wyłącznie
+  `WspomnienieController::ukryjWykonanie` (Policy `hideAsMemory` — tylko
+  kucharz); poza `$fillable`. Wyłącznik całości to dalej
+  `users.memories_enabled`.
+- DDL: stała wartość domyślna, więc PostgreSQL nie przepisuje tabeli.
+  Indeksu nie dodajemy — zapytanie idzie po `cooked_events_user_idx
+  (user_id, cooked_at DESC)`.
+
+**Rollback:** `DROP COLUMN hide_as_memory`, ale `down()` **odmawia** (D-088),
+gdy choć jedno wykonanie ma `hide_as_memory = true` — kolejny `migrate`
+odtworzyłby kolumnę z `DEFAULT false` i schowane wspomnienie wróciłoby na
+stronę główną. Komunikat podaje `SELECT` do zapisania listy przed cofnięciem.
+Na wartościach domyślnych przechodzi bez pytania —
+`tests/Feature/CofniecieMigracjiUkryciaWykonanTest.php`.
+
 ### Urodziny bez roku (issue #1755)
 
 Kolumny na `users`, bo to prywatne ustawienie konta, a nie dana profilu
