@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\UgotujmyRazem\TydzienGotowania;
 use App\Domain\UgotujmyRazem\UgotujmyRazem;
 use App\Models\WeeklyRecipePick;
+use App\Support\PaginationLinks;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -51,12 +52,22 @@ class UgotujmyRazemController extends Controller
 
     private function widok(Request $request, TydzienGotowania $tydzien, ?WeeklyRecipePick $pick): View
     {
+        $wykonania = $pick === null ? null : $this->ugotujmyRazem->wykonania($pick, $request->user());
+        $archiwum = $this->ugotujmyRazem->archiwum($request->user());
+
+        // Dwie paginacje na jednym ekranie — każda pamięta w adresie swoją
+        // porcję, jak `komentarze` i `wykonania` pod przepisem.
+        if ($wykonania !== null) {
+            PaginationLinks::preserveOtherPage($wykonania, $archiwum);
+            PaginationLinks::preserveOtherPage($archiwum, $wykonania);
+        }
+
         return view('pages.ugotujmy-razem', [
             'tydzien' => $tydzien,
             'biezacy' => $tydzien->jestBiezacy(),
             'pick' => $pick,
-            'wykonania' => $pick === null ? null : $this->ugotujmyRazem->wykonania($pick, $request->user()),
-            'archiwum' => $this->ugotujmyRazem->archiwum($request->user()),
+            'wykonania' => $wykonania,
+            'archiwum' => $archiwum,
         ]);
     }
 }

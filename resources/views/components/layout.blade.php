@@ -815,6 +815,9 @@
                                 {{-- Tagi promowane (D-021) — ten sam rodzaj wyboru redakcyjnego
                                      co tablica na dziś, stąd ta sama ikona. --}}
                                 <li><a class="side-nav-item" href="{{ route('admin.tag-promotions') }}" @if(request()->routeIs('admin.tag-promotions')) aria-current="page" @endif><x-ikona nazwa="pin" /> <span class="marka-panel-nav-etykieta">Tagi promowane</span></a></li>
+                                {{-- „Ugotujmy razem” (F3) — przepis tygodnia; ikona „chef”,
+                                     bo tu wybiera się przepis do gotowania, nie wpis. --}}
+                                <li><a class="side-nav-item" href="{{ route('admin.ugotujmy-razem') }}" @if(request()->routeIs('admin.ugotujmy-razem')) aria-current="page" @endif><x-ikona nazwa="chef" /> <span class="marka-panel-nav-etykieta">Ugotujmy razem</span></a></li>
                                 {{-- Wiadomości z „Napisz do nas" — ta sama ikona „chat"
                                      co odwołania, bo to też jest pismo od człowieka,
                                      a nie sprawa do rozstrzygnięcia. Osobna pozycja,

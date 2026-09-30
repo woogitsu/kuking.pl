@@ -8,8 +8,7 @@ use App\Models\CookedEvent;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Models\WeeklyRecipePick;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Contracts\Pagination\Paginator;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -78,9 +77,9 @@ final class UgotujmyRazem
      * `WeeklyRecipePickPolicy::view`, tylko w zapytaniu (inaczej lista
      * pokazywałaby tydzień, którego strona daje 404).
      *
-     * @return Paginator<int, WeeklyRecipePick>
+     * @return LengthAwarePaginator<int, WeeklyRecipePick>
      */
-    public function archiwum(?User $widz): Paginator
+    public function archiwum(?User $widz): LengthAwarePaginator
     {
         return WeeklyRecipePick::query()
             ->whereDate('week_starts_on', '<', TydzienGotowania::biezacy()->dzienStartu())
@@ -93,6 +92,6 @@ final class UgotujmyRazem
             })
             ->with('recipe')
             ->orderByDesc('week_starts_on')
-            ->simplePaginate(self::TYGODNI_W_ARCHIWUM_NA_STRONE, ['*'], 'archiwum');
+            ->paginate(self::TYGODNI_W_ARCHIWUM_NA_STRONE, ['*'], 'archiwum');
     }
 }
