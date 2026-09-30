@@ -79,6 +79,7 @@ OCZEKUJ = {
     'Piąty selektor powołuje się na D-262': r'Na D-262 powołuje się inny zbiór reguł CSS niż cztery selektory z',
     'Akcja GitHuba na ruchomym tagu': r'Zewnętrzna akcja bez pełnego SHA — tag jest ruchomy, więc ten sam',
     'Test skryptu Pythona bez kroku w CI': r'Test skryptu Pythona bez kroku w workflowie — nikt go nie uruchamia w CI',
+    'Test przyrządu obciążenia bez kroku w CI': r'Bez kroku: docs/obciazenie/test_connection\.py',
     'Licznik w widocznym menu konta': r'Wejście do panelu nie pokazuje sumy wszystkich kolejek\.',
     'Strażnik tekstu bez własnego wpisu': r'Nowy test czyta źródła i asertuje na ich treści, więc może kiedyś',
     'Odstępstwo bez znacznika': r'Nowy test czyta źródła i asertuje na ich treści, więc może kiedyś',

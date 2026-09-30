@@ -475,6 +475,12 @@ jobs:
       - name: Test podziału kontroli negatywnych na części
         run: python3 -m unittest discover -s scripts -p test_podzial_kontroli.py -v
 
+      # Test narzędzi przyrządu obciążenia #605 (`docs/obciazenie/connection.php`
+      # i skryptów bazy pomiarowej): wyłącznie atrapy `psql`/`createdb`, bez
+      # bazy i sieci, ok. sekundy; PHP jest w tym jobie z kroku wyżej.
+      - name: Test połączenia przyrządu obciążenia
+        run: python3 -m unittest discover -s docs/obciazenie -p test_connection.py -v
+
       # =====================================================================
       #  TESTY SKRYPTU KOPII BAZY (issue #193, D-043/D-049)
       #

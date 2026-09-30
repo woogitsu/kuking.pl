@@ -7,7 +7,7 @@ namespace Tests\Unit;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Każdy plik `test_*.py` (i `*_test.py`) w `scripts/` jest uruchamiany w CI.
+ * Każdy plik `test_*.py` (i `*_test.py`) w `scripts/` i `docs/obciazenie/` jest uruchamiany w CI.
  *
  * CO SIĘ STAŁO
  * `scripts/test_podzial_kontroli.py` pilnuje, żeby żaden wpis kontroli
@@ -17,10 +17,15 @@ use PHPUnit\Framework\TestCase;
  * żaden inny strażnik nie zauważy, że nowy plik nie ma kroku w workflow.
  *
  * CO TEST ROBI
- * Szuka plików `test_*.py` i `*_test.py` w `scripts/` (rekurencyjnie) i wymaga,
+ * Szuka plików `test_*.py` i `*_test.py` w `scripts/` i `docs/obciazenie/`
+ * (rekurencyjnie; ta druga to test narzędzi przyrządu #605, `test_connection.py`,
+ * na atrapach `psql`, bez bazy i sieci) i wymaga,
  * by nazwa pliku stała w wierszu, który nie jest komentarzem, w którymś
  * z workflowów (katalog `.github/workflows`). Komentarz nie liczy się:
  * „uruchamiane w CI" przy kroku, który już nie istnieje, byłoby fałszywym dowodem.
+ *
+ * TESTY POWŁOKI (`tests/skrypty/*.sh`) pilnuje inny strażnik: `scripts/kontrole-powloki.sh`
+ * (LISTA albo POZA_LISTA z powodem) i `KontrolePowlokiLokalnieIWCiTest`.
  *
  * WYJĄTKI: tylko na liście `WYJATKI`, każdy z powodem. Wyjątek, który
  * przestał być potrzebny (plik zniknął albo trafił do CI), też jest błędem —
@@ -40,12 +45,19 @@ final class TestySkryptowPythonaChodzaWCiTest extends TestCase
      */
     private const WYJATKI = [];
 
+    /**
+     * Katalogi (względem korzenia repozytorium) przeszukiwane pod kątem testów Pythona.
+     *
+     * @var list<string>
+     */
+    private const KATALOGI = ['scripts', 'docs/obciazenie'];
+
     public function test_kazdy_test_skryptu_pythona_ma_krok_w_workflowie(): void
     {
         $testy = self::plikiTestowPythona();
 
         // Wyszukiwarka, która nic nie znajduje, przepuszcza wszystko.
-        $this->assertGreaterThanOrEqual(7, count($testy), 'Nie znaleziono testów Pythona w scripts/ — strażnik świeciłby nad niczym. Czy zmieniono ich nazewnictwo?');
+        $this->assertGreaterThanOrEqual(8, count($testy), 'Nie znaleziono testów Pythona w scripts/ i docs/obciazenie/ — strażnik świeciłby nad niczym. Czy zmieniono ich nazewnictwo?');
 
         $workflowy = self::tekstWorkflowowBezKomentarzy();
         $bezKroku = [];
@@ -63,7 +75,7 @@ final class TestySkryptowPythonaChodzaWCiTest extends TestCase
         $this->assertSame([], $bezKroku, implode("\n", [
             'Test skryptu Pythona bez kroku w workflowie — nikt go nie uruchamia w CI, więc może być czerwony bez śladu.',
             'Dołóż go do istniejącego kroku/joba z testami skryptów w ci.yml, np.:',
-            '  run: python3 -m unittest discover -s scripts -p <plik>.py -v',
+            '  run: python3 -m unittest discover -s <katalog> -p <plik>.py -v',
             'Albo dopisz do WYJATKI w tym teście z powodem (np. zależność, której CI nie ma).',
             'Bez kroku:',
             ...$bezKroku,
@@ -99,11 +111,14 @@ final class TestySkryptowPythonaChodzaWCiTest extends TestCase
     {
         $korzen = dirname(__DIR__, 2);
         $wynik = [];
-        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($korzen.'/scripts', \FilesystemIterator::SKIP_DOTS));
 
-        foreach ($iterator as $plik) {
-            if (preg_match('/^test_.+\.py$|^.+_test\.py$/', $plik->getFilename()) === 1) {
-                $wynik[] = substr($plik->getPathname(), strlen($korzen) + 1);
+        foreach (self::KATALOGI as $katalog) {
+            $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($korzen.'/'.$katalog, \FilesystemIterator::SKIP_DOTS));
+
+            foreach ($iterator as $plik) {
+                if (preg_match('/^test_.+\.py$|^.+_test\.py$/', $plik->getFilename()) === 1) {
+                    $wynik[] = substr($plik->getPathname(), strlen($korzen) + 1);
+                }
             }
         }
 
