@@ -705,7 +705,17 @@ jobs:
 
     services:
       postgres:
-        image: postgres:18-alpine
+        # OBRAZ PRZYPIĘTY DO DIGESTU (#2263) — tak samo we wszystkich siedmiu
+        # usługach tego pliku. Sam tag `18-alpine` jest ruchomy: dwa przebiegi
+        # tego samego commita mogły dostać dwa różne obrazy. Digest jest kopią
+        # linii FROM z docker/ci-postgres/Dockerfile. Tamten plik nie jest
+        # budowany; istnieje po to, żeby Dependabot (`docker`) widział ten
+        # obraz i proponował nowy digest. Po takim PR-ze Dependabota wpisz ten
+        # sam digest tutaj we wszystkich usługach, w tym samym PR-ze:
+        #   sed -i 's/<stary digest>/<nowy digest>/g' .github/workflows/ci.yml
+        # Ręcznie: `docker buildx imagetools inspect postgres:18-alpine` (pole Digest).
+        # Strażnik: tests/Feature/InstalacjeCiSaPrzypieteTest.php.
+        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
         env:
           POSTGRES_DB: kuking_test
           POSTGRES_USER: kuking
@@ -996,7 +1006,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:18-alpine
+        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
         env:
           POSTGRES_DB: kuking_test
           POSTGRES_USER: kuking
@@ -1256,7 +1266,7 @@ jobs:
     timeout-minutes: 25
     services:
       postgres:
-        image: postgres:18-alpine
+        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
         env:
           POSTGRES_DB: kuking_port_panel
           POSTGRES_USER: kuking
@@ -1353,7 +1363,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:18-alpine
+        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
         env:
           POSTGRES_DB: kuking_test
           POSTGRES_USER: kuking
@@ -1480,7 +1490,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:18-alpine
+        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
         env:
           POSTGRES_DB: kuking_test
           POSTGRES_USER: kuking
@@ -1628,7 +1638,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:18-alpine
+        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
         env:
           POSTGRES_DB: kuking_test
           POSTGRES_USER: kuking
@@ -1987,7 +1997,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:18-alpine
+        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
         env:
           POSTGRES_DB: kuking_kaskada
           POSTGRES_USER: kuking
