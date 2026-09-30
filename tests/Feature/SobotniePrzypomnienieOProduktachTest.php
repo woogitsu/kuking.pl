@@ -1,0 +1,377 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature;
+
+use App\Domain\Pantry\OdnosnikWypisaniaZPrzypomnienia;
+use App\Domain\Pantry\PriorytetZuzycia;
+use App\Domain\Zgody\PrzestawZgodeNaPrzypomnienieSpizarni;
+use App\Mail\PrzypomnienieOProduktach;
+use App\Models\User;
+use App\Models\WpisZgody;
+use Illuminate\Contracts\Mail\Factory as MailFactory;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
+use Tests\TestCase;
+
+/**
+ * Sobotnie przypomnienie o produktach do zużycia (#1903, D-333): osobna,
+ * domyślnie WYŁĄCZONA zgoda z dowodem w dzienniku zgód, jeden list tygodniowo,
+ * pusty nie wychodzi, własny sufit, deduplikacja, wypisanie bez logowania.
+ * Każdy test z `Mail::fake()`: żaden list nie wychodzi naprawdę.
+ *
+ * Sobota 10 października 2026, 09:00 UTC (10:00/11:00 w Polsce) — pora z harmonogramu.
+ */
+class SobotniePrzypomnienieOProduktachTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private const SOBOTA = '2026-10-10 09:00:00';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Mail::fake();
+        Cache::flush();
+        config([
+            'kuking.pantry.przypomnienie.wlaczone' => true,
+            'kuking.pantry.przypomnienie.dzienny_sufit' => 20,
+        ]);
+        $this->travelTo(Carbon::parse(self::SOBOTA, 'UTC'));
+    }
+
+    private function osoba(string $nazwa, bool $zgoda = true, ?string $termin = '2026-10-12', array $atrybuty = []): User
+    {
+        $osoba = $this->user($nazwa, $atrybuty);
+        DB::table('users')->where('id', $osoba->getKey())->update(['wants_pantry_reminder' => $zgoda]);
+
+        if ($termin !== null) {
+            $this->produkt($osoba, 'mleko', $termin);
+        }
+
+        return $osoba->fresh();
+    }
+
+    private function produkt(User $osoba, string $nazwa, ?string $termin, bool $mrozone = false): void
+    {
+        $produkt = $osoba->pantryItems()->create(['name' => $nazwa]);
+        DB::table('pantry_items')->where('id', $produkt->getKey())->update([
+            'expires_on' => $termin,
+            'expiry_kind' => $termin === null ? null : 'use_by',
+            'frozen' => $mrozone,
+        ]);
+    }
+
+    private function wyslij(string ...$opcje): string
+    {
+        Artisan::call('kuking:wyslij-przypomnienia-spizarni');
+
+        return Artisan::output();
+    }
+
+    public function test_zgoda_jest_domyslnie_wylaczona_a_bez_niej_list_nie_wychodzi(): void
+    {
+        $this->assertFalse((bool) $this->user()->fresh()->wants_pantry_reminder);
+
+        $this->osoba('bezzgody', zgoda: false);
+        $this->wyslij();
+
+        Mail::assertNothingQueued();
+    }
+
+    public function test_ustawienie_terminu_nie_daje_zgody_na_list(): void
+    {
+        $ja = $this->user();
+        $produkt = $ja->pantryItems()->create(['name' => 'mleko']);
+
+        $this->actingAs($ja)->put(route('pantry.update', $produkt), ['rodzaj' => 'use_by', 'za' => '3'])->assertRedirect();
+
+        $this->assertFalse((bool) $ja->fresh()->wants_pantry_reminder);
+        $this->assertSame(0, WpisZgody::query()->where('cel', WpisZgody::CEL_PRZYPOMNIENIE_SPIZARNI)->count());
+        $this->wyslij();
+        Mail::assertNothingQueued();
+    }
+
+    public function test_list_wychodzi_tylko_do_osoby_ze_zgoda_i_pilnym_produktem(): void
+    {
+        $basia = $this->osoba('basia');
+        $bezZgody = $this->osoba('marek', zgoda: false);
+        $bezPilnych = $this->osoba('zofia', termin: '2026-12-01');
+        $bezTerminow = $this->osoba('halina', termin: null);
+        $mrozone = $this->osoba('ewa', termin: null);
+        $this->produkt($mrozone, 'kurczak', '2026-10-09', mrozone: true);
+        $niepotwierdzona = $this->osoba('jan', atrybuty: ['email_verified_at' => null]);
+        $zbanowana = $this->osoba('ola', atrybuty: ['status' => User::STATUS_BANNED]);
+
+        $this->wyslij();
+
+        Mail::assertQueued(PrzypomnienieOProduktach::class, 1);
+        Mail::assertQueued(PrzypomnienieOProduktach::class, fn (PrzypomnienieOProduktach $m) => $m->hasTo($basia->email));
+
+        foreach ([$bezZgody, $bezPilnych, $bezTerminow, $mrozone, $niepotwierdzona, $zbanowana] as $nie) {
+            Mail::assertNotQueued(PrzypomnienieOProduktach::class, fn (PrzypomnienieOProduktach $m) => $m->hasTo($nie->email));
+        }
+    }
+
+    public function test_pusty_list_nie_wychodzi_i_komenda_mowi_to_wprost(): void
+    {
+        $this->osoba('zofia', termin: '2026-12-01');
+
+        $wynik = $this->wyslij();
+
+        Mail::assertNothingQueued();
+        $this->assertStringContainsString('Nikt nie czeka dziś na przypomnienie o produktach.', $wynik);
+    }
+
+    public function test_produkt_z_terminem_ktory_minal_tez_wymaga_listu(): void
+    {
+        $osoba = $this->osoba('basia', termin: '2026-09-01');
+
+        $this->wyslij();
+
+        Mail::assertQueued(PrzypomnienieOProduktach::class, fn (PrzypomnienieOProduktach $m) => $m->hasTo($osoba->email));
+    }
+
+    public function test_poza_sobota_nic_nie_wychodzi(): void
+    {
+        $this->osoba('basia');
+
+        foreach (['2026-10-09 09:00:00', '2026-10-11 09:00:00', '2026-10-07 09:00:00'] as $dzien) {
+            $this->travelTo(Carbon::parse($dzien, 'UTC'));
+            $wynik = $this->wyslij();
+            $this->assertStringContainsString('tylko w sobotę', $wynik);
+        }
+
+        Mail::assertNothingQueued();
+    }
+
+    public function test_sobota_liczy_sie_w_czasie_polskim_nie_utc(): void
+    {
+        $this->osoba('basia');
+
+        // Piątek 23:30 UTC = sobota 01:30 w Warszawie (UTC+2): to już sobota.
+        $this->travelTo(Carbon::parse('2026-10-09 23:30:00', 'UTC'));
+        $this->wyslij();
+        Mail::assertQueued(PrzypomnienieOProduktach::class, 1);
+    }
+
+    public function test_drugi_przebieg_tego_samego_dnia_nie_wysyla_drugiego_listu(): void
+    {
+        $this->osoba('basia');
+
+        $this->wyslij();
+        $wynik = $this->wyslij();
+
+        Mail::assertQueued(PrzypomnienieOProduktach::class, 1);
+        $this->assertStringContainsString('już obsłużone dziś: 1', $wynik);
+    }
+
+    public function test_za_tydzien_list_wychodzi_znowu(): void
+    {
+        $this->osoba('basia');
+        $this->wyslij();
+
+        $this->travelTo(Carbon::parse('2026-10-17 09:00:00', 'UTC'));
+        $this->wyslij();
+
+        Mail::assertQueued(PrzypomnienieOProduktach::class, 2);
+    }
+
+    public function test_sufit_dobowy_zatrzymuje_nadmiar_i_mowi_o_tym(): void
+    {
+        config(['kuking.pantry.przypomnienie.dzienny_sufit' => 1]);
+        $this->osoba('basia');
+        $this->osoba('marek');
+
+        $wynik = $this->wyslij();
+
+        Mail::assertQueued(PrzypomnienieOProduktach::class, 1);
+        $this->assertStringContainsString('bez listu zostało dziś: 1', $wynik);
+    }
+
+    public function test_wylacznik_awaryjny_nic_nie_wysyla(): void
+    {
+        config(['kuking.pantry.przypomnienie.wlaczone' => false]);
+        $this->osoba('basia');
+
+        $this->wyslij();
+
+        Mail::assertNothingQueued();
+    }
+
+    public function test_na_sucho_liczy_ale_niczego_nie_rezerwuje_ani_nie_wysyla(): void
+    {
+        $this->osoba('basia');
+
+        Artisan::call('kuking:wyslij-przypomnienia-spizarni', ['--na-sucho' => true]);
+
+        Mail::assertNothingQueued();
+        $this->assertStringContainsString('Do wysłania: 1.', Artisan::output());
+        $this->assertSame(0, DB::table('przypomnienia_dobowe')->count());
+    }
+
+    public function test_przypomnienie_to_tylko_list_bez_push_i_bez_powiadomienia_w_serwisie(): void
+    {
+        Notification::fake();
+        $this->osoba('basia');
+
+        $this->wyslij();
+
+        Notification::assertNothingSent();
+        $this->assertSame(0, DB::table('notifications')->count());
+    }
+
+    public function test_zgoda_z_ustawien_zapisuje_dowod_w_dzienniku_tylko_przy_zmianie(): void
+    {
+        $ja = $this->user();
+
+        $this->actingAs($ja)->post(route('pantry.reminder'), [
+            'original_pantry_reminder' => '0',
+            'wants_pantry_reminder' => '1',
+        ])->assertRedirect(route('pantry.index'))->assertSessionHas('status', 'Włączono sobotnie przypomnienie. List przyjdzie w sobotę rano, jeśli będzie co na nim wymienić.');
+
+        $this->assertTrue((bool) $ja->fresh()->wants_pantry_reminder);
+        $wpis = WpisZgody::query()->where('user_id', $ja->getKey())->where('cel', WpisZgody::CEL_PRZYPOMNIENIE_SPIZARNI)->sole();
+        $this->assertSame(WpisZgody::UDZIELONA, $wpis->czynnosc);
+        $this->assertSame(WpisZgody::ZRODLO_USTAWIENIA, $wpis->zrodlo);
+        $this->assertNotEmpty($wpis->wersja_polityki);
+
+        // Ten sam stan jeszcze raz: brak zmiany = brak nowego wiersza.
+        $this->actingAs($ja)->post(route('pantry.reminder'), ['original_pantry_reminder' => '1', 'wants_pantry_reminder' => '1']);
+        $this->assertSame(1, WpisZgody::query()->where('cel', WpisZgody::CEL_PRZYPOMNIENIE_SPIZARNI)->count());
+
+        // Wycofanie zapisuje drugi wiersz.
+        $this->actingAs($ja)->post(route('pantry.reminder'), ['original_pantry_reminder' => '1']);
+        $this->assertFalse((bool) $ja->fresh()->wants_pantry_reminder);
+        $czynnosci = WpisZgody::query()->where('cel', WpisZgody::CEL_PRZYPOMNIENIE_SPIZARNI)->pluck('czynnosc')->sort()->values()->all();
+        $this->assertSame([WpisZgody::UDZIELONA, WpisZgody::WYCOFANA], $czynnosci);
+    }
+
+    public function test_stary_formularz_nie_zapisze_nikogo_z_powrotem_na_list(): void
+    {
+        $ja = $this->osoba('basia');
+        // Formularz otwarty, gdy zgoda była włączona; w międzyczasie wypisanie odnośnikiem.
+        app(PrzestawZgodeNaPrzypomnienieSpizarni::class)->handle($ja, false, WpisZgody::ZRODLO_LINK_WYPISANIA);
+
+        $this->actingAs($ja)->post(route('pantry.reminder'), ['original_pantry_reminder' => '1', 'wants_pantry_reminder' => '1'])
+            ->assertRedirect(route('pantry.index'));
+
+        $this->assertFalse((bool) $ja->fresh()->wants_pantry_reminder);
+    }
+
+    public function test_formularz_na_liscie_ma_pole_domyslnie_nie_zaznaczone_i_opis_bez_obietnic(): void
+    {
+        $ja = $this->user();
+
+        $html = $this->actingAs($ja)->get(route('pantry.index'))->assertOk()
+            ->assertSee('Chcę dostawać w sobotę e-mail o produktach do zużycia')
+            ->assertSee('Jeden list tygodniowo, rano, i tylko wtedy, gdy na liście jest produkt')
+            ->getContent();
+
+        $this->assertDoesNotMatchRegularExpression('/name="wants_pantry_reminder"[^>]*checked/', $html);
+    }
+
+    public function test_wypisanie_get_pyta_post_wycofuje_z_dowodem_a_powrot_wlacza(): void
+    {
+        $basia = $this->osoba('basia');
+        $wypisz = OdnosnikWypisaniaZPrzypomnienia::dla($basia);
+
+        $this->get($wypisz)->assertOk()->assertSee('Tak, nie wysyłajcie mi go');
+        $this->assertTrue((bool) $basia->fresh()->wants_pantry_reminder, 'GET niczego nie zmienia.');
+
+        $this->post($wypisz)->assertOk()->assertSee('Nie wyślemy już sobotniego przypomnienia');
+        $this->assertFalse((bool) $basia->fresh()->wants_pantry_reminder);
+        $wpis = WpisZgody::query()->where('user_id', $basia->getKey())->where('cel', WpisZgody::CEL_PRZYPOMNIENIE_SPIZARNI)->sole();
+        $this->assertSame(WpisZgody::WYCOFANA, $wpis->czynnosc);
+        $this->assertSame(WpisZgody::ZRODLO_LINK_WYPISANIA, $wpis->zrodlo);
+
+        $this->wyslij();
+        Mail::assertNothingQueued();
+
+        $this->post(OdnosnikWypisaniaZPrzypomnienia::powrotDla($basia))->assertOk()->assertSee('Sobotnie przypomnienie przyjdzie');
+        $this->assertTrue((bool) $basia->fresh()->wants_pantry_reminder);
+        $zrodla = WpisZgody::query()->where('cel', WpisZgody::CEL_PRZYPOMNIENIE_SPIZARNI)->pluck('zrodlo')->sort()->values()->all();
+        $this->assertSame([WpisZgody::ZRODLO_LINK_POWROTNY, WpisZgody::ZRODLO_LINK_WYPISANIA], $zrodla);
+    }
+
+    public function test_wypisanie_bez_podpisu_jest_zabronione(): void
+    {
+        $basia = $this->osoba('basia');
+
+        $this->get(route('spizarnia.wypisz', $basia))->assertForbidden();
+        $this->post(route('spizarnia.wypisz', $basia))->assertForbidden();
+        $this->post(route('spizarnia.wracam', $basia))->assertForbidden();
+        $this->assertTrue((bool) $basia->fresh()->wants_pantry_reminder);
+    }
+
+    public function test_list_ma_tresc_bez_slow_o_swiezosci_naglowek_wypisania_i_zarezerwowany_znacznik(): void
+    {
+        $basia = $this->osoba('basia');
+        $this->produkt($basia, 'szynka', '2026-10-10');
+        $mail = new PrzypomnienieOProduktach($basia);
+
+        $html = $mail->render();
+        $naglowki = $mail->headers()->text;
+
+        $this->assertStringContainsString('mleko', $html);
+        $this->assertStringContainsString('szynka', $html);
+        $this->assertStringContainsString('Termin to Twoja notatka z opakowania', $html);
+        $this->assertStringContainsString(OdnosnikWypisaniaZPrzypomnienia::dla($basia), html_entity_decode($html));
+        $this->assertStringContainsString('najpierw=termin', $html);
+        $this->assertDoesNotMatchRegularExpression('/śwież|bezpiecz|zepsut|marnuj|uratuj/iu', strip_tags($html));
+        $this->assertStringContainsString('<'.OdnosnikWypisaniaZPrzypomnienia::dla($basia).'>', $naglowki['List-Unsubscribe']);
+        $this->assertArrayHasKey('X-Kuking-Budzet', $naglowki);
+        // Szynka z terminem dziś przed mlekiem z terminem za 2 dni.
+        $this->assertLessThan(strpos($html, 'mleko'), strpos($html, 'szynka'));
+    }
+
+    public function test_list_wymienia_najwyzej_dziesiec_produktow_a_reszte_liczy(): void
+    {
+        $basia = $this->osoba('basia', termin: null);
+        foreach (['jogurt', 'kefir', 'maslo', 'twarog', 'smietana', 'szynka', 'pasztet', 'kielbasa', 'salata', 'pomidory', 'ogorki', 'papryka', 'rzodkiewka'] as $nazwa) {
+            $this->produkt($basia, $nazwa, '2026-10-11');
+        }
+
+        $html = strip_tags((new PrzypomnienieOProduktach($basia))->render());
+
+        $this->assertStringContainsString('I jeszcze 3 produkty na liście.', $html);
+        $wymienione = array_filter(
+            ['jogurt', 'kefir', 'maslo', 'twarog', 'smietana', 'szynka', 'pasztet', 'kielbasa', 'salata', 'pomidory', 'ogorki', 'papryka', 'rzodkiewka'],
+            fn (string $nazwa): bool => str_contains($html, $nazwa),
+        );
+        $this->assertCount(10, $wymienione);
+    }
+
+    public function test_w_chwili_wysylki_wycofana_zgoda_albo_zniknieta_lista_zatrzymuja_list(): void
+    {
+        $basia = $this->osoba('basia');
+        $mail = new PrzypomnienieOProduktach($basia);
+        $mailer = app(MailFactory::class)->mailer();
+
+        DB::table('users')->where('id', $basia->getKey())->update(['wants_pantry_reminder' => false]);
+        $this->assertNull($mail->send($mailer), 'Zgoda wycofana między kolejką a wysyłką.');
+
+        DB::table('users')->where('id', $basia->getKey())->update(['wants_pantry_reminder' => true]);
+        DB::table('pantry_items')->where('user_id', $basia->getKey())->delete();
+        $this->assertNull($mail->send($mailer), 'Nie ma już czego wymieniać: pusty list nie wychodzi.');
+    }
+
+    public function test_granica_pilnych_w_liscie_to_ta_sama_regula_co_na_ekranie(): void
+    {
+        $basia = $this->osoba('basia', termin: null);
+        $this->produkt($basia, 'sernik', '2026-10-13');
+        $this->produkt($basia, 'pasztet', '2026-10-14');
+
+        $this->assertSame(['sernik'], PriorytetZuzycia::pilneDla($basia)->pluck('name')->all());
+
+        $this->wyslij();
+        Mail::assertQueued(PrzypomnienieOProduktach::class, 1);
+    }
+}
