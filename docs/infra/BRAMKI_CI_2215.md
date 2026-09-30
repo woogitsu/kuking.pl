@@ -77,7 +77,13 @@ liczą się jako przechodzące):
 7. `Build obrazu (weryfikacja)`
 8. `Dostępność (axe-core) i wydajność (Lighthouse)`
 9. `Port marki (kompozycje, zoom i kontrole ujemne)`
-10. `Panel marki — puste i pełne widoki`
+10. `Panel marki — puste i pełne widoki` (od #2299 job zbiorczy `panel_marki`,
+    czeka na dwie części `port_panelu`; nazwa się nie zmieniła, więc ochrona
+    gałęzi nie wymaga zmiany)
+
+**Nie oznaczaj jako wymaganych części panelu** (`Panel marki — puste i pełne
+widoki (część 1/2)` i `(część 2/2)`) — z tego samego powodu co części
+`port_funkcje` niżej. Wymagany jest job zbiorczy o dawnej nazwie.
 
 **Nie oznaczaj jako wymaganych dwóch części `port_funkcje`**
 (`Port marki — rodziny ekranów, zoom i kreator (część 1/2)` i `(część 2/2)`).

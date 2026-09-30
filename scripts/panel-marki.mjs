@@ -5,6 +5,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { poczekajNaStan } from './lib/stan-ustalony.mjs';
+import { SZEROKOSCI_PANELU } from './panel-czesci.mjs';
 
 const rodziny = ['zgloszenia', 'sygnaly', 'odwolania', 'bez-odpowiedzi', 'wiadomosci', 'wiadomosc', 'kolaz-powitalny', 'kuking-na-dzis', 'tagi-promowane', 'uzytkownicy', 'uzytkownik', 'kolejka', 'metryki', 'z-urzedu'];
 const listy = rodziny.filter(r => !['wiadomosc', 'uzytkownik', 'z-urzedu'].includes(r));
@@ -20,6 +21,11 @@ function kompletneScenariusze(scenariusze, phase) {
   for (const r of phase === 'pelny' ? rodziny : listy) wymagaj(scenariusze.some(s => s.rodzina === r && s.stan === stan), 'BRAK_RODZINY', { phase, rodzina: r });
   for (const typ of ['wpisy', 'przepisy', 'ugotowane']) wymagaj(scenariusze.some(s => s.rodzina === 'bez-odpowiedzi' && s.stan === stan && (new URL(s.path, 'http://localhost').searchParams.get('typ') || 'wpisy') === typ), 'BRAK_TYPU', { phase, typ });
   if (phase === 'pusty') wymagaj(scenariusze.some(s => s.stan === 'bramka'), 'BRAK_BRAMKI');
+}
+
+function sprawdzSzerokosci(szerokosci) {
+  wymagaj(Array.isArray(szerokosci) && szerokosci.length > 0 && new Set(szerokosci).size === szerokosci.length
+    && szerokosci.every(w => SZEROKOSCI_PANELU.includes(w)), 'SZEROKOSCI', { szerokosci });
 }
 
 function sprawdzKontrakt(adres, scenariusze, phase) {
@@ -39,14 +45,17 @@ function sprawdzKontrakt(adres, scenariusze, phase) {
 }
 
 // Wywołać dopiero po odbiorze pustej bazy, przygotowaniu danych i odbiorze pełnym.
-export function sprawdzKompletnoscPaneluMarki({ pusty, pelny }) {
+// `szerokosci` to szerokości części joba (#2299, `scripts/panel-czesci.mjs`);
+// bez nich — pełna lista, jak przed podziałem.
+export function sprawdzKompletnoscPaneluMarki({ pusty, pelny, szerokosci = SZEROKOSCI_PANELU }) {
+  sprawdzSzerokosci(szerokosci);
   for (const [phase, rows] of Object.entries({ pusty, pelny })) {
     wymagaj(Array.isArray(rows) && rows.length > 0 && rows.every(r => r.pass === true && r.phase === phase), 'AGREGAT_WYNIKI', { phase });
     kompletneScenariusze(rows, phase);
     for (const id of new Set(rows.map(r => r.id))) {
       const grupa = rows.filter(r => r.id === id);
-      wymagaj(grupa.length === 24, 'AGREGAT_LICZBA', { phase, id, count: grupa.length });
-      for (const width of [320, 360, 390, 414, 768, 1440]) for (const dark of [false, true]) for (const scale of [100, 140]) wymagaj(grupa.filter(r => r.width === width && r.dark === dark && r.scale === scale).length === 1, 'AGREGAT_WARIANT', { phase, id, width, dark, scale });
+      wymagaj(grupa.length === szerokosci.length * 4, 'AGREGAT_LICZBA', { phase, id, count: grupa.length });
+      for (const width of szerokosci) for (const dark of [false, true]) for (const scale of [100, 140]) wymagaj(grupa.filter(r => r.width === width && r.dark === dark && r.scale === scale).length === 1, 'AGREGAT_WARIANT', { phase, id, width, dark, scale });
     }
   }
   return { pass: true, pusty: pusty.length, pelny: pelny.length, razem: pusty.length + pelny.length };
@@ -301,14 +310,15 @@ export async function sprawdzDodatkoweStanyMenu({ browser, adres, sesja, outputD
   return wyniki;
 }
 
-export async function sprawdzPanelMarki({ browser, adres, scenariusze, phase, outputDir }) {
+export async function sprawdzPanelMarki({ browser, adres, scenariusze, phase, outputDir, szerokosci = SZEROKOSCI_PANELU }) {
   sprawdzKontrakt(adres, scenariusze, phase);
+  sprawdzSzerokosci(szerokosci);
   wymagaj(outputDir, 'KATALOG_DOWODOW');
   const katalog = resolve(outputDir);
   mkdirSync(katalog, { recursive: true });
   const wyniki = [];
   const zapis = () => writeFileSync(resolve(katalog, `wyniki-${phase}.json`), JSON.stringify({ phase, zakres: 'Kompozycja rzeczywistych GET, skala tekstu 100/140, reducedMotion:reduce. Bez POST, testu preferencji, zwykłych przejść i zoomu przeglądarki.', wyniki }, null, 2));
-  for (const width of [320, 360, 390, 414, 768, 1440]) for (const dark of [false, true]) for (const scale of [100, 140]) for (const s of scenariusze) {
+  for (const width of szerokosci) for (const dark of [false, true]) for (const scale of [100, 140]) for (const s of scenariusze) {
     const wariant = { id: s.id, rodzina: s.rodzina, stan: s.stan, path: s.path, phase, width, dark, scale };
     const nazwa = `${s.id}-${width}-${dark ? 'dark' : 'light'}-${scale}`;
     const context = await browser.newContext({ storageState: s.sesja, viewport: { width, height: 900 }, reducedMotion: 'reduce' });

@@ -143,6 +143,12 @@ STRAZNIK_PLIK_ODSTEPSTWA = "tests/Feature/PlikKontrolnyZOdstepstwemTest.php"
 AKCJA_PHP = ".github/actions/php/action.yml"
 AKCJE_SHA_TEST = "AkcjeGithubPrzypieteDoShaTest"
 
+# Testy skryptów Pythona muszą mieć krok w CI. Mutacja zmienia nazwę pliku w
+# kroku strażnika podziału kontroli tak, by żaden wiersz workflowu (poza
+# komentarzami, które strażnik pomija) go już nie wskazywał.
+CI_WORKFLOW = ".github/workflows/ci.yml"
+TESTY_PYTHONA_W_CI_TEST = "TestySkryptowPythonaChodzaWCiTest"
+
 # Etap `assets` obrazu a lista plików podana do `node --test` (regresja #1085).
 # Ten strażnik pilnuje własnej NIEPUSTOŚCI (`assertNotEmpty`), ale nic w nim
 # nie dowodzi, że czytnik `COPY` z Dockerfile potrafi powiedzieć „nie
@@ -625,6 +631,22 @@ REGULAMIN_WERSJA = "config/kuking.php"
 REGULAMIN_WERSJA_TEST = "ZmianaRegulaminuTest"
 # Regulamin §13 „Wymagania techniczne” i §14 „Reklamacje” (#2220).
 REGULAMIN_WYMAGANIA_TEST = "RegulaminWymaganiaIReklamacjeTest"
+# Archiwum wersji regulaminu (#2220, kryterium 4). Mutacje: poprawka regulaminu
+# bez kopii w pliku bieżącej wersji, nowa data bez nowego pliku, plik archiwum
+# z inną datą w nagłówku niż w nazwie — strażnik archiwum ma oblać.
+REGULAMIN_TEKST = "resources/legal/regulamin.md"
+REGULAMIN_ARCHIWUM_NAJSTARSZA = "resources/legal/archiwum/regulamin-2026-09-07.md"
+# Filtr na jedną metodę: mutacja daty zapala też testy stron (inny komunikat).
+REGULAMIN_ARCHIWUM_TEST = "test_biezaca_wersja_regulaminu_ma_w_archiwum_plik_identyczny_z_regulaminem"
+REGULAMIN_ARCHIWUM_NAGLOWEK_TEST = "test_kazdy_plik_archiwum_niesie_w_naglowku_date_ze_swojej_nazwy"
+# Archiwum wersji polityki prywatności (#2220; decyzja z 30.09.2026: tylko
+# 25, 29 i 30 września). Te same trzy mutacje co przy regulaminie oraz
+# „starsza wersja z dziennika zgód dostaje gołe 404 zamiast strony o prośbie”.
+POLITYKA_ARCHIWUM_NAJSTARSZA = "resources/legal/archiwum/polityka-prywatnosci-2026-09-25.md"
+POLITYKA_ARCHIWUM_KLASA = "app/Domain/Zgody/ArchiwumDokumentu.php"
+POLITYKA_ARCHIWUM_TEST = "test_biezaca_wersja_polityki_ma_w_archiwum_plik_identyczny_z_polityka"
+POLITYKA_ARCHIWUM_NAGLOWEK_TEST = "test_kazdy_plik_archiwum_polityki_niesie_w_naglowku_date_ze_swojej_nazwy"
+POLITYKA_ARCHIWUM_PROSBA_TEST = "test_wersja_polityki_sprzed_archiwum_z_dziennika_zgod_mowi_o_wydaniu_na_prosbe"
 
 # Pasek o zmianie polityki (D-327, D-332): rollback bez odmowy i sekcja
 # „Co się zmieniło” niezgodne z konfiguracją (drobna/istotna); pasek przy drobnej;
@@ -1278,6 +1300,10 @@ checks = [
     ("Piąty selektor powołuje się na D-262", CSS, "WyjatekD262ZamknietaListaTest",
      lambda s: replace_once(s, "\n  .badge-cichy {\n", "\n  /* wyjątek D-262 */\n  .badge-cichy {\n")),
     ("Akcja GitHuba na ruchomym tagu", AKCJA_PHP, AKCJE_SHA_TEST, akcja_php_na_ruchomym_tagu),
+    ("Test skryptu Pythona bez kroku w CI", CI_WORKFLOW, TESTY_PYTHONA_W_CI_TEST,
+     lambda s: replace_once(s, "discover -s scripts -p test_podzial_kontroli.py -v", "discover -s scripts -p test_podzial_kontroli_x.py -v")),
+    ("Test przyrządu obciążenia bez kroku w CI", CI_WORKFLOW, TESTY_PYTHONA_W_CI_TEST,
+     lambda s: replace_once(s, "discover -s docs/obciazenie -p test_connection.py -v", "discover -s docs/obciazenie -p test_connection_x.py -v")),
     ("Licznik w widocznym menu konta", LAYOUT, "test_wejscie_do_panelu_pokazuje_sume_kolejek",
      lambda s: replace_once(s, """<li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji <x-licznik-kolejki :ile="$czekaWPanelu" /></a></li>""", """<li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji</a></li>""")),
     ("Strażnik tekstu bez własnego wpisu", STRAZNIK_SAM_SKRYPT, STRAZNIK_TEKSTU_TEST,
@@ -1499,6 +1525,26 @@ checks = [
     # #2299: części kontroli przestają uruchamiać regresje zawężenia `--filter`.
     ("Kontrole bez regresji zawężenia filtra (#2299)", CI_WORKFLOW, PODZIAL_TESTOW_TEST,
      lambda s: replace_once(s, "-p 'test_zawezenie_testow.py'", "-p 'test_kontrola_wyjscia_testu.py'")),
+    # #2299, etap 2: panel marki w częściach, sam Vite w jobach przeglądarkowych,
+    # cache `vendor/` i przeglądarki bez starych wyników.
+    ("Macierz panelu krótsza niż podział (#2299)", CI_WORKFLOW, "PanelMarkiDzieliSieBezUtratyPomiaruTest",
+     lambda s: replace_once(s, "        # rozjazd wyłapuje `PanelMarkiDzieliSieBezUtratyPomiaruTest`.\n        czesc: [1, 2]\n",
+                            "        # rozjazd wyłapuje `PanelMarkiDzieliSieBezUtratyPomiaruTest`.\n        czesc: [1]\n")),
+    ("Panel marki bez numeru części (#2299)", CI_WORKFLOW, "PanelMarkiDzieliSieBezUtratyPomiaruTest",
+     lambda s: replace_once(s, "      PANEL_CZESC: ${{ matrix.czesc }}\n", "")),
+    ("Job zbiorczy panelu pomijany po czerwonej części (#2299)", CI_WORKFLOW, "PanelMarkiDzieliSieBezUtratyPomiaruTest",
+     lambda s: replace_once(s, "    needs: [zakres, port_panelu]\n    if: ${{ !cancelled() }}\n", "    needs: [zakres, port_panelu]\n")),
+    ("Testy JS nie biegną nigdzie, bo assets też buduje sam Vite (#2299)", CI_WORKFLOW, "TestyJsBiegnaWJobieAssetowTest",
+     lambda s: replace_once(s, "      - name: Build\n        run: npm run build\n", "      - name: Build\n        run: npm run build:assets\n")),
+    ("Cache przeglądarki odtwarza inną wersję (#2299)", CI_WORKFLOW, "CacheMiedzyJobamiNieDajeStarychWynikowTest",
+     lambda s: pierwsze_z_wielu(s, "          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}\n",
+                                "          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}\n"
+                                "          restore-keys: playwright-${{ runner.os }}-\n", 6)),
+    ("Pomiar portu zależny od rodzaju runnera (#2299)", CI_WORKFLOW, "test_job_przegladarkowy_nie_moze_byc_zielony_bez_pomiaru",
+     lambda s: pierwsze_z_wielu(s, "      - name: Port projektu — układ i kontrola ujemna\n",
+                                "      - name: Port projektu — układ i kontrola ujemna\n        if: runner.environment == 'github-hosted'\n", 2)),
+    ("Cache przeglądarki na własnym runnerze (#2299)", CI_WORKFLOW, "CacheMiedzyJobamiNieDajeStarychWynikowTest",
+     lambda s: pierwsze_z_wielu(s, "        if: runner.environment == 'github-hosted'\n", "", 6)),
     ("Wyścigi dwóch połączeń znów nie blokują CI", CI_WORKFLOW, WYSCIGI_BLOKUJA_TEST,
      lambda s: replace_once(s, "    name: Wyścigi na dwóch połączeniach\n", "    name: Wyścigi na dwóch połączeniach\n    continue-on-error: true\n")),
     # #2215: audyt zależności blokuje; flaga wracająca na job albo skrypt bramki
@@ -1509,8 +1555,10 @@ checks = [
      lambda s: replace_once(s, "python3 scripts/audyt-zaleznosci.py", "true scripts/audyt-zaleznosci.py")),
     ("Nowe continue-on-error w jobie testów", CI_WORKFLOW, AUDYT_BLOKUJE_TEST,
      lambda s: replace_once(s, "  testy:\n    name: Testy (PostgreSQL 18)\n", "  testy:\n    name: Testy (PostgreSQL 18)\n    continue-on-error: true\n")),
+    # #2299: `czesc: [1, 2]` ma też macierz panelu marki — kotwica z komentarzem portu.
     ("Macierz portu krótsza niż podział grup", CI_WORKFLOW, ROZSZERZENIA_CZESCI_TEST,
-     lambda s: replace_once(s, "        czesc: [1, 2]\n", "        czesc: [1]\n")),
+     lambda s: replace_once(s, "        # `PortMarkiMaWlasnaBramkeCiTest`.\n        czesc: [1, 2]\n",
+                            "        # `PortMarkiMaWlasnaBramkeCiTest`.\n        czesc: [1]\n")),
     ("Minutnik poza macierzą portu", CI_WORKFLOW, ROZSZERZENIA_CZESCI_TEST,
      lambda s: replace_once(s, "Minutnik — opóźnione wywołania i dostępny czas\n        if: matrix.czesc == 2\n", "Minutnik — opóźnione wywołania i dostępny czas\n        if: matrix.czesc == 3\n")),
     ("Runbook znów instaluje Sentry", RUNBOOK, RUNBOOK_USLUGI_TEST,
@@ -1703,6 +1751,20 @@ checks = [
      lambda s: replace_once(s, "'termin_odpowiedzi_dni' => 14,", "'termin_odpowiedzi_dni' => 7,")),
     ("Limit zdjęć we wpisie inny niż w regulaminie", REGULAMIN_WERSJA, REGULAMIN_WYMAGANIA_TEST,
      lambda s: replace_once(s, "'max_per_post' => 6,", "'max_per_post' => 5,")),
+    ("Regulamin poprawiony bez kopii w archiwum", REGULAMIN_TEKST, REGULAMIN_ARCHIWUM_TEST,
+     lambda s: replace_once(s, "## W skrócie\n", "## W skrócie (poprawione)\n")),
+    ("Nowa data regulaminu bez pliku w archiwum", REGULAMIN_WERSJA, REGULAMIN_ARCHIWUM_TEST,
+     lambda s: replace_once(s, "'wersja_regulaminu' => '2026-09-30'", "'wersja_regulaminu' => '2026-10-02'")),
+    ("Plik archiwum regulaminu z inną datą w nagłówku", REGULAMIN_ARCHIWUM_NAJSTARSZA, REGULAMIN_ARCHIWUM_NAGLOWEK_TEST,
+     lambda s: replace_once(s, "stan serwisu na 7 września 2026", "stan serwisu na 8 września 2026")),
+    ("Polityka poprawiona bez kopii w archiwum", POLITYKA_TEKST, POLITYKA_ARCHIWUM_TEST,
+     lambda s: replace_once(s, "## W skrócie\n", "## W skrócie (poprawione)\n")),
+    ("Nowa data polityki bez pliku w archiwum", REGULAMIN_WERSJA, POLITYKA_ARCHIWUM_TEST,
+     lambda s: replace_once(s, "'wersja_polityki' => '2026-09-30'", "'wersja_polityki' => '2026-10-02'")),
+    ("Plik archiwum polityki z inną datą w nagłówku", POLITYKA_ARCHIWUM_NAJSTARSZA, POLITYKA_ARCHIWUM_NAGLOWEK_TEST,
+     lambda s: replace_once(s, "stan serwisu na 25 września 2026", "stan serwisu na 26 września 2026")),
+    ("Starsza wersja polityki bez strony o wydaniu na prośbę", POLITYKA_ARCHIWUM_KLASA, POLITYKA_ARCHIWUM_PROSBA_TEST,
+     lambda s: replace_once(s, "        return $this->starszeNaProsbe\n", "        return false\n            && $this->starszeNaProsbe\n")),
     ("Zmiana istotna bez okresu przejściowego", WERSJA_DOKUMENTU, WERSJA_DOKUMENTU_TEST,
      lambda s: replace_once(s, "        return ($chwila ?? now())->lessThan($this->obowiazujeOd());\n", "        return false;\n")),
     ("Zmiana istotna wchodzi w dniu publikacji zamiast po 14 dniach", WERSJA_DOKUMENTU, WERSJA_DOKUMENTU_TEST,
