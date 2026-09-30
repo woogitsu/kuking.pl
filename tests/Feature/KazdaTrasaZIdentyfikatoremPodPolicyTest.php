@@ -926,6 +926,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('cooked.celebrate', $wykonanie), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.thank', 'podziękowanie za wykonanie', 'post',
             route('cooked.thank', $wykonanie), ['body' => 'Dziękuję za ugotowanie.'], [$W, $O, $O, $O, $O]);
+        // F6: wspomnienie z wykonania chowa wyłącznie kucharz
+        // (`CookedEventPolicy::hideAsMemory`). Powtórzenie nic nie zmienia,
+        // więc to samo wykonanie wystarcza dla wszystkich ról.
+        $dodaj('wspomnienia.ukryj-wykonanie', 'ukrycie wspomnienia z wykonania', 'post',
+            route('wspomnienia.ukryj-wykonanie', $wykonanie), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.destroy', 'usunięcie wykonania', 'delete',
             route('cooked.destroy', $wykonanieDoKasacji), [], [$W, $O, $O, $O, $O]);
 

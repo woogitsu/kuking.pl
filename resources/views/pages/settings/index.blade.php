@@ -43,4 +43,12 @@
     </p>
 
     <x-ustawienia-nawigacja />
+
+    {{-- „Ściągawka do wydruku” (F4) nie jest ekranem ustawień, tylko kartką
+         o koncie — dlatego stoi pod spisem, a nie w nim. --}}
+    <section class="ramka-pomocnicza mt-8" aria-labelledby="sciagawka-naglowek">
+        <h2 id="sciagawka-naglowek" class="mt-0">Kartka do wydruku</h2>
+        <p>Jak wejść na Kuking i jak dodać zdjęcie — jedna kartka dużym drukiem, bez hasła. Przyda się, gdy ktoś pomaga w założeniu konta.</p>
+        <p class="form-actions"><a class="btn btn-secondary" href="{{ route('settings.sciagawka') }}">Wydrukuj ściągawkę</a></p>
+    </section>
 </x-layout>

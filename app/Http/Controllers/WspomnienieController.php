@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\CookedEvent;
 use App\Models\Post;
 use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
@@ -35,5 +36,20 @@ class WspomnienieController extends Controller
 
         return back()->with(Komunikat::sukces('Nie pokażemy Ci już tego wspomnienia. Wpis zostaje w Twoim archiwum — nic nie zniknęło.',
         ));
+    }
+
+    /**
+     * To samo dla własnego wykonania „Ugotowałem” (F6). Wykonanie zostaje na
+     * profilu i pod przepisem — znika wyłącznie z bloku „Rok temu…”.
+     * Identyfikator wykonania jest publiczny (`/ugotowane/{id}`), więc bramką
+     * jest Policy, nie adres.
+     */
+    public function ukryjWykonanie(Request $request, CookedEvent $cookedEvent): RedirectResponse
+    {
+        $this->authorize('hideAsMemory', $cookedEvent);
+
+        $cookedEvent->forceFill(['hide_as_memory' => true])->save();
+
+        return back()->with(Komunikat::sukces('Nie pokażemy Ci już tego wspomnienia. Twoje „Ugotowałem” zostaje na profilu — nic nie zniknęło.'));
     }
 }

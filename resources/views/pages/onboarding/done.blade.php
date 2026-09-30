@@ -54,4 +54,12 @@
             <li><strong>Twoje dane są Twoje.</strong> W każdej chwili możesz je pobrać na swój komputer albo usunąć konto.</li>
         </ul>
     </section>
+
+    {{-- F4: ktoś właśnie pomógł założyć konto — to jest chwila na kartkę,
+         zanim pomocnik odjedzie. Bez hasła i bez tokenu. --}}
+    <section class="ramka-pomocnicza mt-8" aria-labelledby="sciagawka-naglowek">
+        <h2 id="sciagawka-naglowek" class="mt-0">Kartka na później</h2>
+        <p>Jedna kartka dużym drukiem: jak tu wrócić i jak dodać zdjęcie. Bez hasła — można ją zostawić na widoku.</p>
+        <p class="form-actions"><a class="btn btn-secondary" href="{{ route('settings.sciagawka') }}">Wydrukuj ściągawkę</a></p>
+    </section>
 </x-layout>

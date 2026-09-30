@@ -57,6 +57,22 @@ przepisu”, jeśli ta osoba wybrała formę żeńską w pytaniu „Jak mamy do 
 pisać?”. Od razu wiadomo, że odpowiedź przyszła od osoby, od której przepis
 pochodzi. Przy „Mojej wersji” napis dostaje autor tej wersji.
 
+### Ściągawka do wydruku
+
+Ktoś pomógł Wam założyć konto i zaraz wyjeżdża? W Ustawieniach i na ekranie
+„Wszystko gotowe” jest przycisk „Wydrukuj ściągawkę”. To jedna kartka dużym
+drukiem: adres strony, Wasza nazwa użytkownika, częściowo zasłonięty adres
+e-mail, jak wejść bez hasła i jak w trzech krokach dodać zdjęcie obiadu.
+Hasła ani żadnego kodu na kartce nie ma, więc może leżeć na widoku.
+
+### Wspomnienia z Waszych „Ugotowałem”
+
+Na stronie głównej, obok dawnych wpisów, wracają teraz także Wasze własne
+„Ugotowałem” z tego samego dnia sprzed roku albo kilku lat — z przyciskiem
+„Ugotuj znowu”. Widzicie je tylko Wy. Pojedyncze wspomnienie schowacie
+przyciskiem „Nie pokazuj mi tego więcej”, a wszystkie naraz wyłączycie
+w Ustawieniach → Prywatność.
+
 ### Przycisk „Zgłoś” widać także bez logowania
 
 Przy przepisie, wpisie i komentarzu widać teraz odnośnik „Zgłoś (po zalogowaniu)”

@@ -13,8 +13,11 @@
    zmianą długi przepis zajmował 8–9 stron A4 (po niej 4), a papier dostawał belki,
    17 przycisków autora i ciemne tło w motywie ciemnym.
 
-   ZAKRES: tylko strona przepisu — każda reguła jest pod
-   `body:has(.przepis-uklad)`. Inne ekrany drukują się jak dotąd.
+   ZAKRES: strona przepisu i „Ściągawka do wydruku” (F4, `/ustawienia/sciagawka`).
+   Wspólna rama kartki — biały papier, czarny tekst, bez belek, przycisków
+   i formularzy — stoi pod `body:has(.przepis-uklad, .sciagawka)`; reguły
+   samego przepisu pod `body:has(.przepis-uklad)`, ściągawki na końcu pliku
+   pod `body:has(.sciagawka)`. Inne ekrany drukują się jak dotąd.
 
    POZA WARSTWAMI, CELOWO. `app.css` układa reguły w `@layer`, a reguła
    nieuwarstwiona bije każdą warstwę (patrz komentarze przy `@layer
@@ -37,13 +40,36 @@
   display: none;
 }
 
+/* Ściągawka (F4) na ekranie: podgląd kartki. Dane konta wyraźnie, adres
+   łamie się w dowolnym miejscu — przy 320 px i 200% nie wypycha strony w bok. */
+.sciagawka-dane dt {
+  font-weight: 600;
+}
+
+.sciagawka-dane dd {
+  margin: 0 0 var(--spacing-3);
+  font-size: var(--text-body-lg);
+  overflow-wrap: anywhere;
+}
+
+/* Kroki z numerami — „w trzech krokach” ma być widać, nie tylko czytać. */
+.sciagawka-kroki {
+  list-style: decimal;
+  padding-left: 1.75em;
+  margin: 0;
+}
+
+.sciagawka h3 {
+  margin-top: var(--spacing-5);
+}
+
 @media print {
   @page {
     size: A4;
     margin: 15mm;
   }
 
-  body:has(.przepis-uklad) {
+  body:has(.przepis-uklad, .sciagawka) {
     --druk-skala: var(--user-text-scale, 1);
     color-scheme: light;
     background: #FFFFFF;
@@ -67,9 +93,9 @@
 
   /* Motyw ciemny nie może zużyć tonera na tło. Kolory ekranu idą w kosz,
      zostaje czarny tekst na białym. */
-  body:has(.przepis-uklad) *,
-  body:has(.przepis-uklad) *::before,
-  body:has(.przepis-uklad) *::after {
+  body:has(.przepis-uklad, .sciagawka) *,
+  body:has(.przepis-uklad, .sciagawka) *::before,
+  body:has(.przepis-uklad, .sciagawka) *::after {
     color: #151714 !important;
     background: transparent !important;
     box-shadow: none !important;
@@ -77,13 +103,13 @@
   }
 
   /* Rama i wszystko, co na papierze jest martwe. */
-  body:has(.przepis-uklad) :is(
+  body:has(.przepis-uklad, .sciagawka) :is(
     .skip-link, .topbar, .side-nav, .bottom-nav, .app-rail, .site-footer,
     .szybki-wyglad, .szybki-wyglad-podpowiedz, .pwa-install, .okruchy,
     .przepis-akcje, .podziel-sie, .danger-zone, .druk-podpowiedz,
     [aria-labelledby="komu-wyszlo"], [aria-labelledby="komentarze"]
   ),
-  body:has(.przepis-uklad) main :is(.btn, button, form) {
+  body:has(.przepis-uklad, .sciagawka) main :is(.btn, button, form) {
     display: none !important;
   }
 
@@ -95,7 +121,7 @@
   }
 
   /* Belki są `sticky`/`fixed`; w druku nic nie może nachodzić na treść. */
-  body:has(.przepis-uklad) :is(.app-body, .app-main, .przepis-uklad, .przepis-uklad > header) {
+  body:has(.przepis-uklad, .sciagawka) :is(.app-body, .app-main, .przepis-uklad, .przepis-uklad > header, .sciagawka) {
     position: static;
     display: block;
     width: auto;
@@ -124,11 +150,11 @@
     page-break-after: avoid;
   }
 
-  body:has(.przepis-uklad) .meta {
+  body:has(.przepis-uklad, .sciagawka) .meta {
     color: #3F453C !important;
   }
 
-  body:has(.przepis-uklad) a {
+  body:has(.przepis-uklad, .sciagawka) a {
     text-decoration: none;
   }
 
@@ -203,5 +229,51 @@
   body:has(.przepis-uklad) .step-number {
     font-size: calc(14pt * var(--druk-skala));
     align-self: start;
+  }
+
+  /* ───────────────────────────────────────────────────────────────────────
+     ŚCIĄGAWKA DO WYDRUKU (F4). Jedna kartka A4 DUŻYM drukiem dla osoby,
+     której ktoś pomógł założyć konto: 16 pt treść, 26 pt tytuł, zawsze razy
+     skala tekstu. Rama (kolory, belki, przyciski) przychodzi z reguł
+     wspólnych wyżej — tu jest tylko to, czego przepis nie ma.
+     ─────────────────────────────────────────────────────────────────────── */
+  body:has(.sciagawka) .sciagawka {
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    break-inside: avoid;
+  }
+
+  body:has(.sciagawka) .sciagawka * {
+    font-size: max(calc(16pt * var(--druk-skala)), 1em);
+    line-height: 1.4;
+  }
+
+  body:has(.sciagawka) .sciagawka h2 {
+    font-size: calc(26pt * var(--druk-skala));
+    margin: 0 0 10pt;
+  }
+
+  body:has(.sciagawka) .sciagawka h3 {
+    font-size: calc(19pt * var(--druk-skala));
+    margin: 14pt 0 4pt;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  body:has(.sciagawka) .sciagawka-dane dd {
+    font-weight: 700;
+    margin: 0 0 6pt;
+    overflow-wrap: anywhere;
+  }
+
+  body:has(.sciagawka) .sciagawka-kroki li {
+    padding: 2pt 0;
+  }
+
+  body:has(.sciagawka) .sciagawka-uwaga {
+    margin-top: 14pt;
+    padding-top: 8pt;
+    border-top: 1pt solid #151714;
   }
 }

@@ -72,6 +72,7 @@ use App\Http\Controllers\Settings\FormOfAddressController;
 use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
 use App\Http\Controllers\Settings\ProfileSettingsController;
+use App\Http\Controllers\Settings\SciagawkaController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SettingsIndexController;
 use App\Http\Controllers\Settings\SprzeciwStatystykController;
@@ -793,6 +794,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/wspomnienia/{post}/ukryj', [WspomnienieController::class, 'ukryj'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('wspomnienia.ukryj');
+    // To samo dla własnego „Ugotowałem” sprzed lat (F6). Bramka:
+    // `CookedEventPolicy::hideAsMemory` — tylko kucharz.
+    Route::post('/wspomnienia/ugotowane/{cookedEvent}/ukryj', [WspomnienieController::class, 'ukryjWykonanie'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('wspomnienia.ukryj-wykonanie');
 
     // Edycja i usunięcie komentarza — niezależne od tego, pod czym on wisi
     // (wpis, przepis czy "Ugotowałem"). Reguły kto-może-co żyją w CommentPolicy.
@@ -1215,6 +1221,10 @@ Route::middleware('auth')->group(function () use ($limits): void {
      * (pilnuje tego `LimityTrasZapisujacychTest`).
      */
     Route::get('/ustawienia', SettingsIndexController::class)->name('settings.index');
+
+    // „Ściągawka do wydruku” (F4): jedna kartka o WŁASNYM koncie, bez hasła
+    // i bez tokenu. Bez identyfikatora w adresie i bez zapisu — jak rozdroże.
+    Route::get('/ustawienia/sciagawka', SciagawkaController::class)->name('settings.sciagawka');
 
     Route::get('/ustawienia/profil', [ProfileSettingsController::class, 'edit'])->name('settings.profile');
     Route::put('/ustawienia/profil', [ProfileSettingsController::class, 'update'])
