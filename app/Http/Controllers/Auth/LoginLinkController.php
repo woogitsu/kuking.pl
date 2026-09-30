@@ -18,6 +18,7 @@ use App\Support\Komunikat;
 use App\Support\Poczta;
 use App\Support\Skrot;
 use App\Support\Turnstile;
+use App\Support\Wejscie;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,7 +26,6 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use RuntimeException;
-use App\Support\Wejscie;
 
 /**
  * Logowanie linkiem e-mail — „magic link" (issue #25, D-056).

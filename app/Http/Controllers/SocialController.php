@@ -12,11 +12,11 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Profile;
 use App\Models\User;
 use App\Support\Komunikat;
+use App\Support\Wejscie;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use App\Support\Wejscie;
 
 class SocialController extends Controller
 {

@@ -24,13 +24,13 @@ use App\Models\Tag;
 use App\Support\Komunikat;
 use App\Support\LimityTagow;
 use App\Support\OdpowiedziWatku;
+use App\Support\Wejscie;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
-use App\Support\Wejscie;
 
 /**
  * Wpisy: zdjęcie + kilka słów.

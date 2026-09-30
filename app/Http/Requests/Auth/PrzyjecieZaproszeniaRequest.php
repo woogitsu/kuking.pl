@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Auth;
 
-use Illuminate\Foundation\Http\FormRequest;
 use App\Support\Wejscie;
+use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Wejście „Zakładam konto" z ekranu zaproszenia (`POST /zaproszenie/zakladam`)

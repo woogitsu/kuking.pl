@@ -15,10 +15,10 @@ use App\Models\Profile;
 use App\Models\User;
 use App\Support\Czas;
 use App\Support\Komunikat;
+use App\Support\Wejscie;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
-use App\Support\Wejscie;
 
 /**
  * „Ukryj ten wpis", „Ukryj tę osobę" i lista „Ukryte" w Ustawieniach
