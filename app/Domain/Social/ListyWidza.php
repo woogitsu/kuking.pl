@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domain\Social;
 
 use App\Models\Block;
-use App\Models\Tag;
 use App\Models\User;
 use App\Support\PamiecZadania;
 
@@ -16,15 +15,18 @@ use App\Support\PamiecZadania;
  * PO CO
  * Start (`GET /`) pytał o te same listy z kilku miejsc: obserwowane osoby
  * cztery razy (feed — wybór źródła i strona, tablica dnia, skróty w menu
- * kart), aktywne tematy dwa razy, blokady trzy razy. Teraz każda lista jest
- * czytana raz na żądanie i odpowiada z pamięci (`PamiecZadania`, w HTTP
- * atrybuty `Request`).
+ * kart), blokady w obie strony trzy razy. Teraz tablica dnia i skróty w menu
+ * czytają listy z pamięci żądania (`PamiecZadania`, w HTTP atrybuty
+ * `Request`); blokady idą z bazy raz, obserwowane osoby dwa razy (oba
+ * odczyty feedu, patrz niżej).
  *
- * CO TU NIE JEST PAMIĘTANE
- * Bramki widoczności i blokad w SQL (`Post::widoczneDla()`, #2026) nadal
- * liczy baza W CHWILI zapytania o treść — to są podzapytania, nie listy.
- * Pamięć obejmuje wyłącznie wejścia, którymi zawężamy źródła i podpisujemy
- * karty.
+ * CZEGO TU CELOWO NIE PAMIĘTAMY
+ * `FollowingFeed` czyta obserwowane osoby i tematy ŚWIEŻO przy każdym
+ * odczycie (#983, `StartNieZostajePustyPoZmianieZrodlaTest`): wybór źródła
+ * i strona feedu to osobne odczyty, a obserwowanie cofnięte albo temat
+ * ukryty między nimi ma zmienić wynik. Feed więc pamięci nie używa, tylko ją
+ * zasila (`osobyNaNowo()`). Bramki widoczności i blokad w SQL
+ * (`Post::widoczneDla()`, #2026) też liczy baza w chwili zapytania.
  *
  * ŚWIEŻOŚĆ
  * Każda akcja zmieniająca obserwowanie, blokadę albo obserwowane tematy
@@ -73,10 +75,40 @@ final class ListyWidza
         $pamiec->zapisz(SkrotyObserwowania::KLUCZ, null);
     }
 
-    /** @return list<string> identyfikatory obserwowanych osób */
+    /** @return list<string> identyfikatory obserwowanych osób — z pamięci żądania, jeśli już czytane */
     public function osoby(User $widz): array
     {
-        return $this->lista($widz, 'osoby', fn (): array => $widz->following()->pluck('users.id')->all());
+        return $this->lista($widz, 'osoby', fn (): array => $this->wczytajOsoby($widz));
+    }
+
+    /**
+     * Obserwowane osoby ZAWSZE z bazy — i odświeżają pamięć żądania.
+     *
+     * Dla `FollowingFeed` (#983): wybór źródła, strona feedu i ponowne
+     * sprawdzenie po stronie to osobne odczyty, a przy Read Committed każdy
+     * ma widzieć to, co zatwierdzono do tej chwili. Dlatego feed nie korzysta
+     * z pamięci, tylko ją zasila — kto czyta później w tym żądaniu (tablica
+     * dnia, skróty w menu kart), dostaje stan z ostatniego odczytu feedu.
+     *
+     * @return list<string>
+     */
+    public function osobyNaNowo(User $widz): array
+    {
+        $osoby = $this->wczytajOsoby($widz);
+
+        if ($this->mogeZapamietac()) {
+            $zapamietane = $this->zapamietane($widz);
+            $zapamietane['listy']['osoby'] = $osoby;
+            $this->pamiec()->zapisz(self::KLUCZ, $zapamietane);
+        }
+
+        return $osoby;
+    }
+
+    /** @return list<string> */
+    private function wczytajOsoby(User $widz): array
+    {
+        return $widz->following()->pluck('users.id')->all();
     }
 
     /**
@@ -88,34 +120,6 @@ final class ListyWidza
     public function tagiSurowe(User $widz): array
     {
         return $this->lista($widz, 'tagi_surowe', fn (): array => $widz->followedTags()->pluck('tags.id')->all());
-    }
-
-    /**
-     * Tematy, które mają zasilać Start: tylko AKTYWNE (#853) — obserwowany
-     * temat scalony prowadzi do celu, jeśli ten jest aktywny (ta sama
-     * semantyka co w `MergeTags::przepnijObserwacje()`).
-     *
-     * @return list<string>
-     */
-    public function tagiAktywne(User $widz): array
-    {
-        return $this->lista($widz, 'tagi_aktywne', function () use ($widz): array {
-            $surowe = $this->tagiSurowe($widz);
-
-            if ($surowe === []) {
-                return [];
-            }
-
-            return Tag::query()->aktywne()
-                ->where(fn ($q) => $q->whereIn('id', $surowe)->orWhereIn(
-                    'id',
-                    Tag::query()->select('merged_into_tag_id')
-                        ->where('status', Tag::STATUS_MERGED)
-                        ->whereIn('id', $surowe),
-                ))
-                ->pluck('id')
-                ->all();
-        });
     }
 
     /**

@@ -24,8 +24,8 @@ use Tests\TestCase;
  *
  * Przed zmianą ta sama lista obserwowanych osób szła z bazy cztery razy
  * (wybór źródła feedu, strona feedu, tablica dnia, skróty w menu kart),
- * aktywne tematy dwa razy, a blokady w obie strony trzy razy. Teraz: po
- * jednym razie, przez `ListyWidza`. Druga połowa testu pilnuje ceny tej
+ * a blokady w obie strony trzy razy. Teraz tablica dnia i skróty biorą listy
+ * z `ListyWidza`: osoby dwa razy (feed czyta je świeżo, #983), blokady raz. Druga połowa testu pilnuje ceny tej
  * pamięci — nieświeżości: każda akcja zmieniająca obserwowanie, blokadę albo
  * tematy ma uniewaznić pamięć TEGO SAMEGO żądania.
  */
@@ -65,10 +65,17 @@ final class StartListyWidzaBezPowtorekTest extends TestCase
 
         $ile = fn (string $wzorzec): int => count(array_filter($zapytania, fn (string $sql): bool => preg_match($wzorzec, $sql) === 1));
 
-        $this->assertSame(1, $ile('/inner join "follows"/'), 'Obserwowane osoby czytane więcej niż raz na żądanie.');
-        $this->assertSame(1, $ile('/"tag_follows"/'), 'Obserwowane tematy czytane więcej niż raz na żądanie.');
+        // Feed czyta obserwowane osoby świeżo dwa razy (wybór źródła i strona,
+        // #983) i zasila tym pamięć; tablica dnia i skróty w menu już z niej
+        // korzystają (przedtem cztery odczyty).
+        $this->assertSame(2, $ile('/inner join "follows"/'), 'Obserwowane osoby czytane częściej niż dwa razy na żądanie.');
+        // Tematy: dwa świeże odczyty feedu (podzapytanie) + jeden odczyt
+        // skrótów w menu (złączenie) — bez zmian, feed ma je czytać świeżo.
+        $this->assertSame(3, $ile('/"tag_follows"/'), 'Obserwowane tematy czytane częściej niż trzy razy na żądanie.');
         $this->assertSame(1, $ile('/^select "blocked_id" from "blocks"/'), 'Blokady widza czytane więcej niż raz na żądanie.');
         $this->assertSame(1, $ile('/^select "blocker_id" from "blocks"/'), 'Blokady na widzu czytane więcej niż raz na żądanie.');
+        // Tablica dnia liczyła blokady sama (dwa razy po dwa zapytania).
+        $this->assertSame(0, $ile('/^select "users"."id" from "users" inner join "blocks"/'), 'Tablica dnia znów czyta blokady poza wspólną pamięcią.');
     }
 
     public function test_obserwowanie_w_tym_samym_zadaniu_uniewaznia_pamiec(): void
@@ -115,15 +122,12 @@ final class StartListyWidzaBezPowtorekTest extends TestCase
         $tag = Tag::factory()->create();
         $listy = app(ListyWidza::class);
 
-        $this->assertSame([], $listy->tagiAktywne($widz));
         $this->assertSame([], $listy->tagiSurowe($widz));
 
         app(UpdateTagFollows::class)->follow($widz, [$tag->getKey()]);
-        $this->assertSame([$tag->getKey()], $listy->tagiAktywne($widz));
         $this->assertSame([$tag->getKey()], $listy->tagiSurowe($widz));
 
         app(UpdateTagFollows::class)->unfollow($widz, $tag->getKey());
-        $this->assertSame([], $listy->tagiAktywne($widz));
         $this->assertSame([], $listy->tagiSurowe($widz));
     }
 
