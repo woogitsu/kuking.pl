@@ -61,6 +61,7 @@ final class OdczytPowiadomien
 
         $wiersze = array_values($strona->items());
 
+        $this->doladujZapisujacych($wiersze, $odbiorca);
         $this->doladujIstnienieWykonan($wiersze);
         $this->doladujSlugiPrzepisow($wiersze);
 
@@ -100,6 +101,16 @@ final class OdczytPowiadomien
      */
     public function liczbaDoPlakietki(User $odbiorca): int
     {
+        // TANI PRE-CHECK (audyt wydajności W5): plakietka stoi na KAŻDEJ stronie
+        // zalogowanej osoby, a filtr widoczności to ogromne zapytanie, którego
+        // samo PLANOWANIE kosztuje 14–24 ms. Gdy nie ma żadnego
+        // nieprzeczytanego wiersza (zwykle tak jest), widoczny podzbiór też
+        // jest pusty — wynik ten sam (0), bez planowania ciężkiego zapytania.
+        // `EXISTS` po `notifications_user_unread_idx` (user_id, read_at IS NULL).
+        if (! Notification::query()->where('user_id', $odbiorca->getKey())->whereNull('read_at')->exists()) {
+            return 0;
+        }
+
         $nieprzeczytane = $odbiorca->notifications()
             ->visibleTo($odbiorca)
             ->whereNull('read_at')
@@ -153,6 +164,47 @@ final class OdczytPowiadomien
             ->whereKey($id)
             ->whereIn('type', Notification::TYPY_Z_WYCINKIEM_KOMENTARZA)
             ->exists();
+    }
+
+    /**
+     * Pierwsza widoczna osoba z każdej partii zapisów — JEDNYM zapytaniem na
+     * stronę, nie jednym na wiersz (audyt wydajności W2). Reguły widoczności
+     * zostają w `WidocznoscPowiadomien`; tu tylko zbieramy partie strony
+     * i wręczamy wynik powiadomieniom, żeby `zapisujacyDoPokazania()`
+     * w widoku nie pytało bazy po raz drugi.
+     *
+     * @param  list<Notification>  $powiadomienia  wiersze tego odbiorcy
+     */
+    private function doladujZapisujacych(array $powiadomienia, User $odbiorca): void
+    {
+        $partie = [];
+        $wiersze = [];
+
+        foreach ($powiadomienia as $powiadomienie) {
+            if ($powiadomienie->type !== Notification::TYPE_SAVED) {
+                continue;
+            }
+
+            $zapisujacy = $powiadomienie->zapisujacyPartii();
+
+            if ($zapisujacy === []) {
+                $powiadomienie->ustawZapisujacyDoPokazania(null);
+
+                continue;
+            }
+
+            $klucz = (string) $powiadomienie->getKey();
+            $partie[$klucz] = $zapisujacy;
+            $wiersze[$klucz] = $powiadomienie;
+        }
+
+        if ($partie === []) {
+            return;
+        }
+
+        foreach (app(WidocznoscPowiadomien::class)->pierwsiWidoczniZapisujacy($partie, (string) $odbiorca->getKey()) as $klucz => $pierwszy) {
+            $wiersze[$klucz]->ustawZapisujacyDoPokazania($pierwszy);
+        }
     }
 
     /**

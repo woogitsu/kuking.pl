@@ -131,20 +131,28 @@ class Collection extends Model
      */
     public function scopeDostepneDoZapisuDla(Builder $query, User $user): void
     {
+        // Kształt `owner_id = ? OR id IN (podzapytanie od członkostw)` zamiast
+        // `OR EXISTS(...)` skorelowanego z każdym wierszem `collections`: ten
+        // drugi zmuszał planer do Seq Scan po całej tabeli (koszt ok. 137 tys.
+        // przy 6 tys. zeszytów, ponad `jit_above_cost`, więc JIT przy każdej
+        // stronie z kartami). Podzapytanie startuje od `collection_members`
+        // (PK i indeks `user_id`) i trafia w kilka wierszy (audyt wydajności W1).
+        $osoba = $user->getKey();
+
         $query->where(fn (Builder $q) => $q
-            ->where('collections.owner_id', $user->getKey())
-            ->orWhere(fn (Builder $wspolne) => $wspolne
-                ->where('collections.is_default', false)
-                ->whereExists(fn ($czlonek) => $czlonek->selectRaw('1')
-                    ->from('collection_members')
-                    ->whereColumn('collection_members.collection_id', 'collections.id')
-                    ->where('collection_members.user_id', $user->getKey()))
-                ->whereHas('owner', fn (Builder $wlasciciel) => $wlasciciel->widocznyJakoOsoba())
+            ->where('collections.owner_id', $osoba)
+            ->orWhereIn('collections.id', fn ($wspolne) => $wspolne->select('collection_members.collection_id')
+                ->from('collection_members')
+                ->join('collections as zeszyt_wspolny', 'zeszyt_wspolny.id', '=', 'collection_members.collection_id')
+                ->join('users as wlasciciel_wspolny', 'wlasciciel_wspolny.id', '=', 'zeszyt_wspolny.owner_id')
+                ->where('collection_members.user_id', $osoba)
+                ->where('zeszyt_wspolny.is_default', false)
+                ->whereNotIn('wlasciciel_wspolny.status', User::STATUSY_ZAMKNIETEGO_KONTA)
                 ->whereNotExists(fn ($blokada) => $blokada->selectRaw('1')
                     ->from('blocks')
                     ->where(fn ($para) => $para
-                        ->where(fn ($a) => $a->whereColumn('blocks.blocker_id', 'collections.owner_id')->where('blocks.blocked_id', $user->getKey()))
-                        ->orWhere(fn ($b) => $b->where('blocks.blocker_id', $user->getKey())->whereColumn('blocks.blocked_id', 'collections.owner_id'))))));
+                        ->where(fn ($a) => $a->whereColumn('blocks.blocker_id', 'zeszyt_wspolny.owner_id')->where('blocks.blocked_id', $osoba))
+                        ->orWhere(fn ($b) => $b->where('blocks.blocker_id', $osoba)->whereColumn('blocks.blocked_id', 'zeszyt_wspolny.owner_id'))))));
     }
 
     public function isPublic(): bool
