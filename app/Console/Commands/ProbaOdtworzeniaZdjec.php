@@ -12,7 +12,6 @@ use Illuminate\Console\Command;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use RuntimeException;
 use Throwable;
 
 /**
@@ -223,8 +222,8 @@ class ProbaOdtworzeniaZdjec extends Command
         $miejscaCelu = $this->miejsca($celNazwa);
 
         foreach ($zywe as $nazwa) {
-            if (array_intersect($miejscaCelu, $this->miejsca($nazwa)) !== []) {
-                return "Dysk `{$celNazwa}` wskazuje to samo miejsce co `{$nazwa}`. Próba zapisuje wyłącznie na osobny dysk testowy.";
+            if ($this->nachodza($miejscaCelu, $this->miejsca($nazwa))) {
+                return "Dysk `{$celNazwa}` wskazuje to samo miejsce co `{$nazwa}` albo katalog w nim lub nad nim. Próba zapisuje wyłącznie na osobny dysk testowy.";
             }
         }
 
@@ -251,10 +250,41 @@ class ProbaOdtworzeniaZdjec extends Command
         }
 
         if (isset($konfig['root']) && (string) $konfig['root'] !== '') {
-            $miejsca[] = 'katalog:'.rtrim((string) $konfig['root'], '/');
+            // `realpath` rozwija `..` i dowiązania, gdy katalog istnieje —
+            // inaczej `…/public/../public/x` udawałby osobne miejsce.
+            $katalog = (string) $konfig['root'];
+            $prawdziwy = realpath($katalog);
+            $miejsca[] = 'katalog:'.rtrim($prawdziwy === false ? $katalog : $prawdziwy, '/');
         }
 
         return $miejsca;
+    }
+
+    /**
+     * Czy dwa zbiory miejsc się nakładają. Bucket — ta sama nazwa. Katalog —
+     * ten sam ALBO jeden w drugim (przegląd integracyjny: dysk testowy
+     * z `root` w `storage/app/public/…` pisałby do katalogu serwowanego
+     * publicznie, a porównanie samych napisów tego nie widziało).
+     *
+     * @param  list<string>  $a
+     * @param  list<string>  $b
+     */
+    private function nachodza(array $a, array $b): bool
+    {
+        foreach ($a as $x) {
+            foreach ($b as $y) {
+                if ($x === $y) {
+                    return true;
+                }
+
+                if (str_starts_with($x, 'katalog:') && str_starts_with($y, 'katalog:')
+                    && (str_starts_with($x.'/', $y.'/') || str_starts_with($y.'/', $x.'/'))) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -308,6 +338,13 @@ class ProbaOdtworzeniaZdjec extends Command
             throw new BladProbyOdtworzenia('BAZA NIE MA SUMY oryginału — nie da się stwierdzić, czy kopia jest ta sama');
         }
 
+        // Wzorzec #2228: sama obecność klucza nie jest dowodem kopii. Wariant
+        // bez rozmiaru w bazie nie ma czym się zweryfikować — to błąd próby,
+        // nie ciche „odtworzone”.
+        if ($pozycja['sha256'] === null && $pozycja['bajty'] === null) {
+            throw new BladProbyOdtworzenia('BAZA NIE MA ROZMIARU wariantu — nie da się stwierdzić, czy kopia jest ta sama');
+        }
+
         $bufor = fopen('php://temp/maxmemory:8388608', 'w+b');
 
         if ($bufor === false) {
@@ -340,7 +377,10 @@ class ProbaOdtworzeniaZdjec extends Command
             rewind($bufor);
             $cel->writeStream($pozycja['cel'], $bufor);
 
-            if (! $cel->exists($pozycja['cel']) || $this->sumaZDysku($cel, $pozycja['cel']) !== $sha) {
+            // Odczyt zwrotny sam wykrywa brak pliku (`sumaZDysku()` rzuca, gdy
+            // nie ma czego czytać) — osobne `exists()` PHPStan uznawał za
+            // zawsze prawdziwe po sprawdzeniu wyżej (poziom 4).
+            if ($this->sumaZDysku($cel, $pozycja['cel']) !== $sha) {
                 throw new BladProbyOdtworzenia('ODCZYT ZWROTNY NIEZGODNY po zapisie na dysk testowy');
             }
 
@@ -436,8 +476,3 @@ class ProbaOdtworzeniaZdjec extends Command
         return $e instanceof BladProbyOdtworzenia ? $e->getMessage() : BezpiecznyBlad::jednaLinia($e);
     }
 }
-
-/**
- * Wyjątek z własnym zdaniem po polsku, bez kluczy obiektów i bez treści storage.
- */
-final class BladProbyOdtworzenia extends RuntimeException {}

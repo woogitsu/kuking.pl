@@ -305,11 +305,12 @@ Co komenda gwarantuje (pilnuje tego `ProbaOdtworzeniaZdjecTest`):
 - lista zdjęć pochodzi **z bazy** (wiersze `ready`), nie z bucketu kopii;
   konto wymazane po migawce nie ma wiersza i nie wraca;
 - oryginał sprawdza SHA-256 z `media.checksum_sha256`, warianty rozmiarem
-  z metadanych; niezgodne bajty **nie trafiają** na dysk testowy;
+  z metadanych; niezgodne bajty **nie trafiają** na dysk testowy; wariant
+  bez rozmiaru w bazie to błąd próby, nie ciche „odtworzone” (wzorzec #2228);
 - odmawia zapisu na dysk kopii, na żywe dyski (`r2`, `r2_publiczne`,
   `r2_legacy`, `r2_eksporty`, `r2_kopie`, `local`, `public`, dyski z wierszy
   `media` i z `kuking.media.*`) i na każdy dysk wskazujący ten sam bucket albo
-  katalog co one;
+  katalog co one — także katalog w nich, nad nimi albo przez `..`;
 - nie kasuje niczego i nie nadpisuje: inny plik pod tym samym kluczem na
   dysku testowym kończy próbę błędem;
 - czyta kopię wyłącznie tokenem odczytu (`AWS_ZDJECIA_KOPIA_*`); nie wypisuje

@@ -236,6 +236,24 @@ class ProbaOdtworzeniaZdjecTest extends TestCase
         $this->assertFalse(Storage::disk(self::CEL)->exists('oryginaly/'.$media->object_key));
     }
 
+    /** Wzorzec #2228: obecność klucza w kopii bez rozmiaru do porównania nie jest odtworzeniem. */
+    public function test_wariant_bez_rozmiaru_w_bazie_konczy_probe_bledem(): void
+    {
+        $media = $this->zdjecie($this->user('bezrozmiaru'), 800);
+        $this->migawka([$media]);
+        $metadata = $media->metadata;
+        foreach ($metadata['variants'] as $nazwa => $wariant) {
+            unset($metadata['variants'][$nazwa]['bytes']);
+        }
+        $media->forceFill(['metadata' => $metadata])->save();
+
+        [$kod, $wyjscie] = $this->uruchom(['--media' => [$media->getKey()], '--wykonaj' => true]);
+
+        $this->assertNotSame(0, $kod);
+        $this->assertStringContainsString('BAZA NIE MA ROZMIARU', $wyjscie);
+        $this->assertSame([], Storage::disk(self::CEL)->files('warianty', true));
+    }
+
     public function test_zdjecie_bez_wiersza_w_bazie_nie_wraca_choc_jest_w_migawce(): void
     {
         $media = $this->zdjecie($this->user('wymazana'), 800);
@@ -280,6 +298,11 @@ class ProbaOdtworzeniaZdjecTest extends TestCase
             'public' => ['public'],
             'alias na ten sam bucket co żywe oryginały' => ['alias_zywego'],
             'alias na ten sam katalog co żywe oryginały' => ['alias_katalogu'],
+            // Przegląd integracyjny: katalog W żywym katalogu i NAD nim to też
+            // ten sam magazyn — porównanie samych napisów tego nie widziało.
+            'podkatalog żywego katalogu' => ['podkatalog_zywego'],
+            'katalog nad żywym katalogiem' => ['nad_zywym'],
+            'żywy katalog przez ..' => ['przez_kropki'],
             'nieistniejący dysk' => ['nie_ma_takiego'],
         ];
     }
@@ -292,7 +315,12 @@ class ProbaOdtworzeniaZdjecTest extends TestCase
             'filesystems.disks.'.self::ORYGINALY.'.root' => sys_get_temp_dir().'/zywe-oryginaly-617',
             'filesystems.disks.alias_zywego' => ['driver' => 'local', 'bucket' => 'zywy-bucket', 'root' => sys_get_temp_dir().'/alias-zywego-617'],
             'filesystems.disks.alias_katalogu' => ['driver' => 'local', 'root' => sys_get_temp_dir().'/zywe-oryginaly-617'],
+            'filesystems.disks.podkatalog_zywego' => ['driver' => 'local', 'root' => sys_get_temp_dir().'/zywe-oryginaly-617/proba'],
+            'filesystems.disks.nad_zywym' => ['driver' => 'local', 'root' => sys_get_temp_dir()],
+            'filesystems.disks.przez_kropki' => ['driver' => 'local', 'root' => sys_get_temp_dir().'/inny-617/../zywe-oryginaly-617'],
         ]);
+        @mkdir(sys_get_temp_dir().'/zywe-oryginaly-617');
+        @mkdir(sys_get_temp_dir().'/inny-617');
         $media = $this->zdjecie($this->user('odmowa'), 800);
         $this->migawka([$media]);
         $przed = $this->stanDyskow();
