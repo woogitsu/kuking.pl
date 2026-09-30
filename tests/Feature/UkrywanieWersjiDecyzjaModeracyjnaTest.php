@@ -188,14 +188,16 @@ final class UkrywanieWersjiDecyzjaModeracyjnaTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame(RecipeVersion::UKRYL_AUTOR, $this->wersja($przepis)->hidden_by_role);
-        $this->assertSame(0, ModerationAction::count());
+        $decyzji = ModerationAction::count();
+        $this->assertSame(0, $decyzji);
         $this->assertSame(0, Notification::where('type', Notification::TYPE_MODERATION)->count());
 
         $this->actingAs($przepis->author)
             ->post(route('recipes.history.restore.store', [$przepis->slug, 1]))
             ->assertRedirect(route('recipes.history', $przepis->slug));
         $this->assertNull($this->wersja($przepis)->hidden_at);
-        $this->assertSame(0, ModerationAction::count());
+        $decyzji = ModerationAction::count();
+        $this->assertSame(0, $decyzji);
     }
 
     public function test_uznane_odwolanie_przywraca_wersje(): void

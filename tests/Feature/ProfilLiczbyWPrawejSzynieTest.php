@@ -197,8 +197,19 @@ class ProfilLiczbyWPrawejSzynieTest extends TestCase
             $agregaty,
         ));
 
+        // 5, a nie 7 — dwa zapytania mniej, każde z innej, zmierzonej przyczyny:
+        // 1) licznik wpisów w nagłówku idzie do paginatora gotowy
+        //    (`ProfileController::postsFor()`, audyt W4), zamiast liczyć się
+        //    drugi raz;
+        // 2) plakietka powiadomień w menu (`select count(*) from (select ...
+        //    notifications ...)`) nie liczy się już dla oglądającego, który nie
+        //    ma żadnego powiadomienia — tani pre-check (audyt W2/W5, scalone
+        //    w paczce P). Ten test sprawdza liczby o OSOBIE, nie plakietkę;
+        //    dwie optymalizacje z osobnych gałęzi dały razem 7 → 5 (każda
+        //    osobno 7 → 6). Piątka to: wpisy, przepisy, ugotowane, obserwujący,
+        //    obserwowani — każda liczba raz.
         $this->assertSame(
-            7,
+            5,
             $agregaty,
             'Liczby o osobie mają być policzone i pokazane RAZ. '
             .'Wzrost tej liczby znaczy, że drugi egzemplarz liczy sobie sam.',

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Social\Actions;
 
+use App\Domain\Social\BlokadyZmienione;
+use App\Domain\Social\ListyWidza;
 use App\Domain\Social\ZamekPary;
 use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Exceptions\BladDlaCzlowieka;
@@ -94,8 +96,11 @@ final class BlockUser
                 'blocked_id' => $blokowany->getKey(),
             ], ['created_at' => now()]);
 
+            event(new BlokadyZmienione);
+
             $blokujacy->following()->detach($blokowany->getKey());
             $blokowany->following()->detach($blokujacy->getKey());
+            ListyWidza::uniewaznij();
 
             // Wspólny zeszyt też się kończy, w obie strony (#1743, D-302).
             // Pod tym samym zamkiem pary co przyjęcie zaproszenia, więc

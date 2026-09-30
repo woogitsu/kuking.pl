@@ -173,9 +173,11 @@ class HealthController extends Controller
         }
 
         $checks = [];
+        $sondy = $this->sondy();
+        $odstepy = $this->istniejaceOdstepyWebhooka($sondy);
 
-        foreach ($this->sondy() as $sonda) {
-            $checks[$sonda->nazwa()] = $this->check($sonda);
+        foreach ($sondy as $sonda) {
+            $checks[$sonda->nazwa()] = $this->check($sonda, $odstepy);
         }
 
         $krytyczneOk = ! in_array(
@@ -307,9 +309,11 @@ class HealthController extends Controller
      * zamiast tego każda sonda z góry deklaruje, co znaczy jego
      * „coś poszło nie tak".
      *
+     * @param  array<string, true>  $odstepy  Klucze odstępu webhooka, które istniały
+     *                                        przed sondami (`istniejaceOdstepyWebhooka()`).
      * @return array{ok: bool, error?: string}
      */
-    private function check(Sonda $sonda): array
+    private function check(Sonda $sonda, array $odstepy = []): array
     {
         $nazwa = $sonda->nazwa();
 
@@ -323,7 +327,11 @@ class HealthController extends Controller
             // serwis, kanał wyłączony) — każde wywołanie `/health` sprawdza
             // dziesięć kontroli, a bez tego warunku każda zdrowa odpowiedź
             // dokładałaby dziesięć zbędnych zapisów do tabeli `cache`.
-            if (KanalyAlarmowe::wlaczony()) {
+            //
+            // Kasujemy tylko klucze, które ISTNIAŁY przed sondami (jeden odczyt
+            // `Cache::many()` w `__invoke()`, audyt wydajności P3 W9): na zdrowym
+            // serwisie to zero `DELETE`-ów zamiast jednego na każdą kontrolę.
+            if (isset($odstepy[$this->kluczOdstepuWebhooka($nazwa)])) {
                 Cache::forget($this->kluczOdstepuWebhooka($nazwa));
             }
 
@@ -415,6 +423,32 @@ class HealthController extends Controller
         if (! $przyjeto) {
             Cache::forget($this->kluczOdstepuWebhooka($nazwa));
         }
+    }
+
+    /**
+     * Które klucze odstępu webhooka istnieją — jednym odczytem (`Cache::many()`).
+     * Bez włączonego kanału alarmowego nie czytamy niczego (ta sama ścieżka
+     * bez dotykania cache'a co dotąd).
+     *
+     * @param  list<Sonda>  $sondy
+     * @return array<string, true>
+     */
+    private function istniejaceOdstepyWebhooka(array $sondy): array
+    {
+        if (! KanalyAlarmowe::wlaczony()) {
+            return [];
+        }
+
+        $klucze = array_map(fn (Sonda $sonda): string => $this->kluczOdstepuWebhooka($sonda->nazwa()), $sondy);
+        $istniejace = [];
+
+        foreach (Cache::many($klucze) as $klucz => $wartosc) {
+            if ($wartosc !== null) {
+                $istniejace[$klucz] = true;
+            }
+        }
+
+        return $istniejace;
     }
 
     private function kluczOdstepuWebhooka(string $nazwa): string

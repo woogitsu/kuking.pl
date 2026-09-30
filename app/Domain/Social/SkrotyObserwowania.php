@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Social;
 
-use App\Models\Block;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
@@ -36,9 +35,15 @@ final class SkrotyObserwowania
     /** Najwyżej tyle tagów wpisu dostaje skrót w menu (kryterium #1809). */
     public const NAJWYZEJ_TAGOW = 2;
 
-    private const KLUCZ = 'kuking.skroty_obserwowania';
+    /** Publiczny: `ListyWidza::uniewaznij()` czyści też tę pamięć. */
+    public const KLUCZ = 'kuking.skroty_obserwowania';
 
-    public function __construct(private readonly PamiecZadania $pamiec) {}
+    private readonly ListyWidza $listy;
+
+    public function __construct(private readonly PamiecZadania $pamiec)
+    {
+        $this->listy = ListyWidza::zPamiecia($pamiec);
+    }
 
     public function osobaDoObserwowania(User $widz, User $autor): bool
     {
@@ -88,15 +93,11 @@ final class SkrotyObserwowania
             return $pamiec['zbiory'];
         }
 
-        $blokady = [
-            ...Block::query()->where('blocker_id', $widz->getKey())->pluck('blocked_id')->all(),
-            ...Block::query()->where('blocked_id', $widz->getKey())->pluck('blocker_id')->all(),
-        ];
-
+        // Listy z pamięci żądania wspólnej z feedem i tablicą dnia (W7).
         $zbiory = [
-            'osoby' => array_fill_keys($widz->following()->pluck('users.id')->all(), true),
-            'tagi' => array_fill_keys($widz->followedTags()->pluck('tags.id')->all(), true),
-            'blokady' => array_fill_keys($blokady, true),
+            'osoby' => array_fill_keys($this->listy->osoby($widz), true),
+            'tagi' => array_fill_keys($this->listy->tagiSurowe($widz), true),
+            'blokady' => array_fill_keys($this->listy->blokady($widz), true),
         ];
 
         $this->pamiec->zapisz(self::KLUCZ, ['widz' => $widz->getKey(), 'zbiory' => $zbiory]);
