@@ -218,6 +218,17 @@ final class OdkrywanieKosztPlanuTest extends TestCase
                 "Zapytanie Odkrywania ({$opis}) ma szacowany koszt {$najdrozsze['koszt']} ≥ jit_above_cost ({$prog}), więc PostgreSQL kompiluje je przez JIT przy każdym żądaniu: {$najdrozsze['sql']}",
             );
 
+            // ZAPAS. Koszt rośnie z liczbą wpisów mniej więcej liniowo, a audyt
+            // z 30.09 zmierzył na 30 tys. wpisów kilka razy więcej niż ta scena
+            // (gość: 317 tys.). Stara postać gościa ma tu ok. 85 tys. — pod
+            // progiem, ale bez zapasu — więc sam próg nie złapałby jej powrotu.
+            // Piąta część progu łapie, a nowa postać (ok. 2–3 tys.) ma zapas.
+            $this->assertLessThan(
+                $prog / 5,
+                $najdrozsze['koszt'],
+                "Zapytanie Odkrywania ({$opis}) ma szacowany koszt {$najdrozsze['koszt']}: przy pięć razy większym serwisie przekroczy jit_above_cost ({$prog}). {$najdrozsze['sql']}",
+            );
+
             // Ten sam wynik co zapytanie sprzed zmiany — także przy skali, na trzech stronach kursora.
             $this->assertSame(
                 array_slice($this->staraLista($widz, $zWlasnymi), 0, 45),

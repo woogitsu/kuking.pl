@@ -8,7 +8,7 @@ use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\User;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -40,15 +40,24 @@ final class OdczytPowiadomien
      * Strona powiadomień widocznych dla odbiorcy, z awatarami nadawców i ze
      * stanem celów doładowanym JEDNYM zapytaniem na rodzaj (nie na wiersz).
      *
-     * @return LengthAwarePaginator<int, Notification>
+     * `simplePaginate()`, NIE `paginate()` (issue #2289). Lista nie pokazuje
+     * liczby stron ani wszystkich powiadomień — tylko „Następna strona"
+     * (`<x-show-more>`), a na to wystarczy jeden wiersz ponad stronę.
+     * `paginate()` dokładał pełne `COUNT(*)` przez filtr widoczności, którego
+     * szacowany koszt od ok. 600 widocznych powiadomień przekraczał
+     * `jit_above_cost` — PostgreSQL kompilował je przez JIT przy każdym
+     * wejściu (ok. 0,4–0,5 s przy 1000–2000 powiadomieniach, retencja trzy
+     * miesiące). Pilnuje `PowiadomieniaKosztPlanuTest`.
+     *
+     * @return Paginator<int, Notification>
      */
-    public function strona(User $odbiorca, int $naStrone = self::NA_STRONE): LengthAwarePaginator
+    public function strona(User $odbiorca, int $naStrone = self::NA_STRONE): Paginator
     {
         $strona = $odbiorca
             ->notifications()
             ->visibleTo($odbiorca)
             ->with('actor.profile.avatar')
-            ->paginate($naStrone);
+            ->simplePaginate($naStrone);
 
         $wiersze = array_values($strona->items());
 
@@ -65,6 +74,20 @@ final class OdczytPowiadomien
             ->visibleTo($odbiorca)
             ->whereNull('read_at')
             ->count();
+    }
+
+    /**
+     * Czy odbiorca ma choć jedno widoczne nieprzeczytane — do przycisku
+     * „Oznacz wszystkie" (issue #1402). `EXISTS` zatrzymuje się na pierwszym
+     * wierszu, więc koszt nie rośnie z zaległościami jak pełne `COUNT(*)`
+     * z `liczbaNieprzeczytanych()` (issue #2289: ten sam próg JIT co lista).
+     */
+    public function saNieprzeczytane(User $odbiorca): bool
+    {
+        return $odbiorca->notifications()
+            ->visibleTo($odbiorca)
+            ->whereNull('read_at')
+            ->exists();
     }
 
     /**
