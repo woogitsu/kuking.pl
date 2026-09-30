@@ -19,6 +19,7 @@ use App\Http\Middleware\PreventRequestForgeryExceptMediaCookie;
 use App\Http\Middleware\PreventSharedSessionCache;
 use App\Http\Middleware\SprawdzGeneracjeSesji;
 use App\Http\Middleware\StartSessionExceptAnonymousMedia;
+use App\Http\Middleware\UstawLimitCzasuZapytan;
 use App\Logging\QueueCorrelation;
 use App\Logging\WebhookBleduHandler;
 use App\Support\ZaufaneHosty;
@@ -144,11 +145,16 @@ return Application::configure(basePath: dirname(__DIR__))
         // i `Surrogate-Control`. Te nagłówki mają u brzegu PIERWSZEŃSTWO nad
         // `Cache-Control`, więc samo dopisanie `no-store` do `Cache-Control`
         // byłoby zakazem, który Cloudflare zignoruje.
+        // PIĄTY: `UstawLimitCzasuZapytan` (#2290) — `statement_timeout` na czas
+        // żądania HTTP. Przed grupą `web`, żeby objąć też odczyt sesji, i za
+        // `CorrelateRequest`, żeby strona błędu po przerwanym zapytaniu miała
+        // kod błędu. Konsola (worker, harmonogram, migracje) go nie widzi.
         $middleware->prepend([
             NormalizeForwardedFor::class,
             ApplySecurityHeaders::class,
             PreventSharedSessionCache::class,
             CorrelateRequest::class,
+            UstawLimitCzasuZapytan::class,
         ]);
 
         // Aplikacja NIGDY nie jest odpytywana bezpośrednio: ruch idzie przez

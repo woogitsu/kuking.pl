@@ -32,6 +32,7 @@ use App\Models\PostTag;
 use App\Models\Report;
 use App\Models\User;
 use App\Support\Baza\LimitBlokadMigracji;
+use App\Support\Baza\LimitCzasuZapytanHttp;
 use App\Support\KomunikatZaDuzaWysylka;
 use App\Support\MapaStrony;
 use App\Support\OdmianaWalidacji;
@@ -46,8 +47,10 @@ use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Database\Events\MigrationEnded;
 use Illuminate\Database\Events\MigrationStarted;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
 use Illuminate\Queue\Events\Looping;
@@ -69,6 +72,10 @@ class AppServiceProvider extends ServiceProvider
         // Singleton, bo `odswiez()` trzyma flagę „już zaplanowane na commit"
         // — jedno przeliczenie liczników na transakcję (audyt B4 W3).
         $this->app->singleton(KolejkiPanelu::class);
+
+        // Singleton, bo trzyma stan „limit włączony w tym żądaniu" i listę
+        // połączeń do wyzerowania na końcu (#2290).
+        $this->app->singleton(LimitCzasuZapytanHttp::class);
 
         // Retencja spraw (`Compliance`) odświeża liczniki przez kontrakt, bez
         // importu `Moderation` (#2149, etap 3) — ten sam singleton co wyżej.
@@ -157,6 +164,22 @@ class AppServiceProvider extends ServiceProvider
         // całego ruchu serwisu. Uzasadnienie w `LimitBlokadMigracji`.
         Event::listen(MigrationStarted::class, [LimitBlokadMigracji::class, 'przyStarcie']);
         Event::listen(MigrationEnded::class, [LimitBlokadMigracji::class, 'przyKoncu']);
+
+        // #2290: połączenie otwarte W TRAKCIE żądania HTTP (pierwsze, albo po
+        // zerwaniu) też dostaje `statement_timeout`. Poza żądaniem — nic.
+        Event::listen(ConnectionEstablished::class, fn (ConnectionEstablished $zdarzenie) => $this->app->make(LimitCzasuZapytanHttp::class)->naPolaczenie($zdarzenie->connection));
+
+        // Zapytanie przerwane limitem: polski ekran „spróbuj za chwilę"
+        // zamiast ogólnej pięćsetki. Wyjątek i tak idzie do raportu (alarm).
+        $this->app->make(ExceptionHandler::class)->renderable(
+            function (QueryException $e, Request $request) {
+                if (! LimitCzasuZapytanHttp::toPrzerwaneZapytanie($e) || $request->expectsJson()) {
+                    return null;
+                }
+
+                return response()->view('errors.zapytanie-za-dlugo', [], 503, ['Retry-After' => '30']);
+            },
+        );
 
         // Audyt A31: gdy ciało żądania przekracza `post_max_size`
         // z `docker/php.ini`, Laravel SAM już to wykrywa (globalny,

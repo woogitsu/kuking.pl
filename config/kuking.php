@@ -2374,6 +2374,13 @@ return [
         // Bez tej ciszy kanał dostawałby 24 identyczne wiadomości na dobę
         // i nauczyłby ignorować siebie. Zmiana stanu dzwoni od razu.
         'cisza_godzin' => (int) env('KUKING_POLACZENIA_CISZA_GODZIN', 6),
+
+        // `statement_timeout` dla zapytań z ŻĄDANIA HTTP, w milisekundach
+        // (#2290). Worker, harmonogram i migracje go nie dostają. 15 s to
+        // dziesięć razy więcej niż próg alarmu „wolna baza” (1000 ms): zwykła
+        // strona nigdy go nie dotyka, a zawieszone zapytanie nie trzyma wątku
+        // repliki bez końca. 0 wyłącza limit. `App\Support\Baza\LimitCzasuZapytanHttp`.
+        'limit_zapytania_http_ms' => (int) env('KUKING_POLACZENIA_LIMIT_ZAPYTANIA_HTTP_MS', 15000),
     ],
 
     /*
