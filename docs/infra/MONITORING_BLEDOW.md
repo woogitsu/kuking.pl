@@ -186,12 +186,23 @@ dopisywania na końcu.
 Z powłoki produkcyjnej (`railway ssh`, tak jak przy sprawdzaniu poczty):
 
 ```bash
-php artisan tinker --execute="report(new \RuntimeException('Test kanału błędów — zignoruj.'));"
+php artisan kuking:sprawdz-alarm --przez-wyjatek
 ```
 
-Na kanale Discorda powinna pojawić się wiadomość w kilka sekund. Jeśli jej
-nie ma: sprawdź, czy zmienna naprawdę doszła do kontenera
+Komenda zgłasza wyjątek tą samą drogą, którą idzie prawdziwy błąd 500
+(`report()` → obsługa wyjątków w `bootstrap/app.php` → kanał), i mówi,
+czy przyjął ją KAŻDY włączony kanał — Discord i poczta (#599) osobno.
+Na kanale Discorda (i w skrzynce `KUKING_ALARM_EMAIL`, jeśli ustawiona)
+powinna pojawić się wiadomość „RuntimeException” w kilka sekund. Druga próba w ciągu okna
+serii (`KUKING_SERIA_ALARMOW_OKNO_MINUT`, domyślnie 15 minut) nie wyjdzie —
+seria identycznych błędów daje jedną wiadomość na okno, a komenda mówi to
+wprost.
+
+Jeśli wiadomości nie ma: sprawdź, czy zmienna naprawdę doszła do kontenera
 (`railway variables`) i czy serwis był zrestartowany PO jej ustawieniu.
+
+Dawniej stało tu wywołanie `report(…)` w tinkerze; tinkera nie ma
+w obrazie produkcyjnym od D-333.
 
 ---
 
@@ -986,7 +997,7 @@ kiedy ktoś już wie, że coś jest nie tak.
 
 **Problem, który to zamyka.** `/health` mówi `degraded` z powodem
 `zadania_nieudane` i nie podaje ani liczby, ani klasy zadania: publiczna
-odpowiedź niesie sam kod (`HealthController::sprawdzKolejke()`). Odpowiedź
+odpowiedź niesie sam kod (`App\Support\Zdrowie\Sondy\SondaKolejki`). Odpowiedź
 na pytanie „KTÓRE zadanie padło" miały wyłącznie `kuking:martwe-zadania`
 i `kuking:kto-nie-dostal-listu`, czyli komendy z **powłoki serwera**.
 Na Railway powłoki nie ma (`proc_open` wyłączony w `docker/php.ini`),

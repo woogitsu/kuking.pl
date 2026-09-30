@@ -274,6 +274,65 @@ final class KanalAlarmowyMailemTest extends TestCase
         Http::assertNothingSent();
     }
 
+    /**
+     * `--przez-wyjatek` (#2223) idzie przez `report()`, nie przez
+     * `zadzwon()` wprost — też musi meldować o KAŻDYM kanale. Sama poczta
+     * wystarcza, a list niesie klasę wyjątku, nie treść próby.
+     */
+    #[Test]
+    public function proba_przez_wyjatek_dochodzi_samym_listem(): void
+    {
+        Mail::fake();
+        Http::fake();
+        $this->ustaw(webhook: null, poczta: self::SKRZYNKA);
+
+        $this->artisan('kuking:sprawdz-alarm', ['--przez-wyjatek' => true])
+            ->expectsOutputToContain('poczta (KUKING_ALARM_EMAIL) PRZYJĄŁ')
+            ->expectsOutputToContain('drogą błędu 500')
+            ->doesntExpectOutputToContain(self::SKRZYNKA)
+            ->assertExitCode(0);
+
+        Mail::assertSent(AlarmOperacyjny::class, fn (AlarmOperacyjny $list): bool => str_contains($list->tresc, 'RuntimeException')
+            && ! str_contains($list->tresc, 'PRÓBA KANAŁU'));
+        Http::assertNothingSent();
+    }
+
+    #[Test]
+    public function proba_przez_wyjatek_oblewa_gdy_jeden_z_kanalow_nie_przyjal(): void
+    {
+        Http::fake([self::WEBHOOK => Http::response('nie ma', 404)]);
+        Mail::fake();
+        $this->ustaw(webhook: self::WEBHOOK, poczta: self::SKRZYNKA);
+
+        $this->artisan('kuking:sprawdz-alarm', ['--przez-wyjatek' => true])
+            ->expectsOutputToContain('poczta (KUKING_ALARM_EMAIL) PRZYJĄŁ')
+            ->expectsOutputToContain('NIE ZOSTAŁA PRZYJĘTA przez kanał Discord (LOG_BLAD_WEBHOOK_URL)')
+            ->doesntExpectOutputToContain('tajny-token')
+            ->assertExitCode(1);
+
+        Mail::assertSent(AlarmOperacyjny::class, 1);
+    }
+
+    /**
+     * Wynik cudzej, wcześniejszej próby w tym samym procesie nie może
+     * udawać wyniku próby pominiętej przez okno serii.
+     */
+    #[Test]
+    public function proba_przez_wyjatek_w_oknie_serii_nie_czyta_cudzego_wyniku(): void
+    {
+        Mail::fake();
+        Http::fake([self::WEBHOOK => Http::response('ok', 200)]);
+        $this->ustaw(webhook: self::WEBHOOK, poczta: self::SKRZYNKA);
+
+        $this->artisan('kuking:sprawdz-alarm', ['--przez-wyjatek' => true])->assertExitCode(0);
+        // Cudzy sukces w pamięci kanałów tuż przed drugą próbą.
+        KanalyAlarmowe::zadzwon('inna czujka');
+
+        $this->artisan('kuking:sprawdz-alarm', ['--przez-wyjatek' => true])
+            ->expectsOutputToContain('NIE DOSZŁA')
+            ->assertExitCode(1);
+    }
+
     protected function tearDown(): void
     {
         Mockery::close();
