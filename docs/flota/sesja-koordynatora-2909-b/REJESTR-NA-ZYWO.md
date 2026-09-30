@@ -309,3 +309,4 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 - 17:11 PR #2341 paczka N otwarty (e8f8344d7; PHPStan fix wyjątków). Lokalnie: PHPUnit 870, JS 205 + build, PHPStan 0, skrypty OK.
 - Paczka O (decyzja: N teraz, reszta w O): integrator od paczka-n-kandydat: kursor-strefa-czasu f5df223de, audyt-lm-drobne cddfebc30, moderacja-przejmuje-ukrycie 12e3a49a3, + dosylka-na-suficie-partiami (w pracy).
 - 17:14 dosylka-na-suficie-partiami → 0bfb7fb91 (Cache::many, chunkById, sufit 5000 z logiem). Integrator O ma ją scalić na końcu.
+- 17:22 O @ d6bd29049 (kursor-strefa, audyt-lm-drobne, moderacja-przejmuje; bez dosylka — nie było jeszcze). Audyt bezp. N/O: P2 cache Atom zatruwalny nagłówkami → claude/kanal-cache-kanoniczny (w pracy). Decyzja: odwołanie od przejęcia wraca do ukrycia autora → agent. Propozycja #1902 alergeny: PROPOZYCJA_ALERGENY_1902.md.
