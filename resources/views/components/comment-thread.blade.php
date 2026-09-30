@@ -328,7 +328,7 @@
             @endunless
         </article>
     @empty
-        <p class="meta">{{ $answers ? 'To pytanie czeka na odpowiedź. Podziel się swoim doświadczeniem.' : 'Jeszcze nikt tu nic nie napisał. Napisz pierwszy komentarz.' }}</p>
+        <p class="meta meta-samodzielne">{{ $answers ? 'To pytanie czeka na odpowiedź. Podziel się swoim doświadczeniem.' : 'Jeszcze nikt tu nic nie napisał. Napisz pierwszy komentarz.' }}</p>
     @endforelse
     </div>
 

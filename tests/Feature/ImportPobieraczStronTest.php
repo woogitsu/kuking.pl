@@ -60,7 +60,8 @@ final class ImportPobieraczStronTest extends TestCase
 
         $strona = $this->pobieracz()->pobierz('https://przepisy.example.pl/sernik?utm_source=fb&porcje=4&fbclid=abc');
 
-        $this->assertSame('https://przepisy.example.pl/sernik?porcje=4', $strona->url);
+        // Zostaje sama strona: parametry spoza listy zgód (`porcje`, śledzące) znikają (#2229).
+        $this->assertSame('https://przepisy.example.pl/sernik', $strona->url);
         $this->assertStringContainsString('Przepis', $strona->html);
 
         Http::assertSentCount(2);

@@ -134,14 +134,16 @@ class MapaStronyProfileAutorowTest extends TestCase
 
     /**
      * Warunek, który już istniał i którego nie wolno było zepsuć przy
-     * dokładaniu przepisów: `widocznyJakoOsoba()` (D-022).
+     * dokładaniu przepisów: status konta (od 30.09 `dostepnyJakoAutor()`,
+     * D-333; wcześniej `widocznyJakoOsoba()`, D-022).
      *
      * Rozszerzenie warunku o `orWhereHas` jest tu realnym ryzykiem, bo `OR`
      * bez nawiasu rozrywa poprzedni `WHERE` — i mapa zaczęłaby ogłaszać
-     * profile kont zbanowanych, kasowanych i usuniętych. Dlatego ten
-     * przypadek chodzi po WSZYSTKICH statusach, a nie tylko po zbanowanym:
-     * konto zawieszone ma w mapie ZOSTAĆ (kara za pisanie nie kasuje tego,
-     * co ktoś już napisał), więc test pilnuje granicy z obu stron.
+     * profile kont zbanowanych i kasowanych. Dlatego ten przypadek chodzi
+     * po WSZYSTKICH statusach, a nie tylko po zbanowanym: konto zawieszone
+     * i usunięte z zachowanymi treściami ma w mapie ZOSTAĆ (kara za pisanie
+     * nie kasuje tego, co ktoś już napisał; D-022 zostawia tekst po
+     * usunięciu), więc test pilnuje granicy z obu stron.
      *
      * @return array<string, array{0: string, 1: bool}>
      */
@@ -152,7 +154,9 @@ class MapaStronyProfileAutorowTest extends TestCase
             'zawieszone' => [User::STATUS_SUSPENDED, true],
             'zbanowane' => [User::STATUS_BANNED, false],
             'kasowane' => [User::STATUS_PENDING_DELETE, false],
-            'usunięte' => [User::STATUS_ERASED, false],
+            // Konto usunięte z zachowanymi treściami JEST w mapie
+            // (decyzja właściciela z 30.09, D-333).
+            'usunięte' => [User::STATUS_ERASED, true],
         ];
     }
 

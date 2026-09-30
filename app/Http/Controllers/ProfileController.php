@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Media\DostepDoZdjecia;
 use App\Domain\Search\FrazaWUgotowanych;
 use App\Http\Requests\Profile\ProfilRequest;
 use App\Models\Block;
@@ -103,6 +104,20 @@ class ProfileController extends Controller
             ? $this->cookedEventsDlaProfilu($owner, $viewer, $isOwner, $frazaUgotowanych, $autorzyZaBlokada)
             : null;
 
+        $stats = [
+            'posts' => $owner->posts()->published()
+                ->tap(fn ($query) => $this->tylkoWidoczneWpisy($query, $owner, $viewer, $isOwner))->count(),
+            'recipes' => $owner->recipes()->published()
+                ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))->count(),
+            'cooked' => $owner->cookedEvents()
+                ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $viewer, $isOwner))->count(),
+            'followers' => $this->liczbaPolaczen($owner, 'followers', $viewer),
+            'following' => $this->liczbaPolaczen($owner, 'following', $viewer),
+        ];
+
+        $profilDoIndeksu = $owner->jestDostepnyJakoAutor()
+            && ($stats['posts'] > 0 || $stats['recipes'] > 0 || $stats['cooked'] > 0);
+
         return view('pages.profile.show', [
             'profile' => $profile,
             'owner' => $owner,
@@ -137,17 +152,48 @@ class ProfileController extends Controller
             'przepisyWidoczneNaKartach' => $this->przepisyWidoczneNaKartach($cookedEvents, $viewer, $isOwner),
             'autorzyZaBlokada' => $autorzyZaBlokada,
             'frazaUgotowanych' => $frazaUgotowanych,
-            'stats' => [
-                'posts' => $owner->posts()->published()
-                    ->tap(fn ($query) => $this->tylkoWidoczneWpisy($query, $owner, $viewer, $isOwner))->count(),
-                'recipes' => $owner->recipes()->published()
-                    ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))->count(),
-                'cooked' => $owner->cookedEvents()
-                    ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $viewer, $isOwner))->count(),
-                'followers' => $this->liczbaPolaczen($owner, 'followers', $viewer),
-                'following' => $this->liczbaPolaczen($owner, 'following', $viewer),
-            ],
+            'stats' => $stats,
+            // Jedna reguła dla `noindex` i JSON-LD profilu (#2235, #2236):
+            // autor dostępny (`jestDostepnyJakoAutor()` — ta sama bramka co
+            // `UserPolicy::viewProfile()` i mapa strony) i co najmniej jedna
+            // treść widoczna dla tego widza — wpis, przepis ALBO wykonanie
+            // z zakładki „Ugotowane". Wszystkie trzy liczniki liczą tym samym
+            // zakresem co listy, więc prywatne, ukryte i zablokowane nie
+            // odblokują indeksowania.
+            //
+            // Konto `erased` z zachowanymi treściami JEST indeksowane
+            // (decyzja właściciela z 30.09, D-333) — NIE `jestWidocznyJakoOsoba()`.
+            // Jego profil to adres, pod który prowadzą podpisy „Użytkownik
+            // usunięty" pod treściami, które D-018/D-022 obiecały zostawić.
+            'profilDoIndeksu' => $profilDoIndeksu,
+            // `Person.image` (#2231): ta sama bramka co `og:image`
+            // (`isReady()`) i dodatkowo pytanie, czy zdjęcie otworzy się
+            // GOŚCIOWI — dane strukturalne czyta robot bez konta.
+            // Liczone tylko wtedy, gdy JSON-LD w ogóle powstaje.
+            'obrazOsoby' => $profilDoIndeksu ? $this->obrazOsoby($profile) : null,
         ]);
+    }
+
+    /**
+     * Adres awatara do `Person.image` w JSON-LD profilu albo `null` (#2231).
+     *
+     * Ten sam warunek co `og:image` w `components/layout.blade.php` —
+     * `isReady()`, bo `Media::url()` dla zdjęcia bez wariantów podstawia
+     * znak serwisu — i do tego `DostepDoZdjecia::moze(null, …)`: adres
+     * w danych strukturalnych czyta robot bez konta, więc ma się otworzyć
+     * gościowi. Adres bezwzględny, jak w karcie do udostępniania.
+     */
+    private function obrazOsoby(Profile $profile): ?string
+    {
+        $avatar = $profile->avatar;
+
+        if ($avatar === null || ! $avatar->isReady() || ! app(DostepDoZdjecia::class)->moze(null, $avatar)) {
+            return null;
+        }
+
+        $adres = $avatar->url('large');
+
+        return str_starts_with($adres, 'http') ? $adres : url($adres);
     }
 
     /**

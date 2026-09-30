@@ -579,7 +579,8 @@ final class SearchQuery
      * Reguła normalizacji — `App\Support\FrazaWyszukiwania::normalizuj()`,
      * wspólna z podpowiedziami tagów. Obie publiczne metody sprawdzają
      * długość PRZED zapytaniem. Nie obcinamy frazy: wynik ma dotyczyć
-     * całego tekstu (#885).
+     * całego tekstu (#885). Przycięte są wyłącznie białe znaki na brzegach,
+     * które zostały po zniknięciu emoji (#2331).
      */
     private static function normalize(string $phrase): string
     {
