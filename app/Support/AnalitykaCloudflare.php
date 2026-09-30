@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Http\Middleware\ParametryAdresuBezTablic;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 
@@ -123,7 +124,9 @@ final class AnalitykaCloudflare
         $trasa = $zadanie->route();
 
         foreach (self::POLA_SEKRETNE as $pole) {
-            if ($zadanie->query->has($pole)) {
+            // Także pole usunięte jako tablica (`?token[]=…`, BP-04): sekret
+            // dalej stoi w pasku adresu, więc ekran nadal go chroni.
+            if ($zadanie->query->has($pole) || ParametryAdresuBezTablic::bylWAdresie($zadanie, $pole)) {
                 return false;
             }
 

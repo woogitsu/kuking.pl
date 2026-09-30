@@ -19,6 +19,7 @@ use App\Support\NazwaUzytkownika;
 use App\Support\PowrotDoRozmowy;
 use App\Support\RejestracjaZamknieta;
 use App\Support\Turnstile;
+use App\Support\Wejscie;
 use App\Support\ZamiarObserwowania;
 use App\Support\ZamiarUgotowania;
 use App\Support\ZamiarZapisu;
@@ -105,7 +106,9 @@ class RegisterController extends Controller
         // Zamiast komunikatu „na ten adres jest już konto" człowiek dostawał
         // HTTP 500 — i nie miał pojęcia, że po prostu ma już konto.
         $request->merge([
-            'email' => User::normalizeEmail((string) $request->input('email', '')),
+            // Tablica (`email[]=`) zostaje tablicą i dostaje błąd reguły
+            // `string` przy polu, zamiast HTTP 500 z rzutowania (BP-04).
+            'email' => Wejscie::normalizujTekst($request->input('email'), User::normalizeEmail(...)),
 
             /*
              * NAZWĘ UŻYTKOWNIKA UKŁADAMY Z TEGO, CO CZŁOWIEK WPISAŁ — też
@@ -124,7 +127,7 @@ class RegisterController extends Controller
              * jest sprawdzane jako `admin`, a nie jako nazwa nieznana.
              * Wartość już poprawna nie jest ruszana (patrz `NazwaUzytkownika`).
              */
-            'username' => NazwaUzytkownika::znormalizuj((string) $request->input('username', '')),
+            'username' => Wejscie::normalizujTekst($request->input('username'), NazwaUzytkownika::znormalizuj(...)),
         ]);
 
         $data = $request->validate([

@@ -12,6 +12,7 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Profile;
 use App\Models\User;
 use App\Support\Komunikat;
+use App\Support\Wejscie;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -178,7 +179,9 @@ class SocialController extends Controller
             return;
         }
 
-        if ((string) $target->getKey() !== (string) $oczekiwanyId) {
+        // Nie-tekst (`oczekiwany_id[]=`, #2305) nie pasuje do nikogo: ta sama
+        // odmowa co przy zmienionej nazwie, bez HTTP 500 z rzutowania.
+        if ((string) $target->getKey() !== Wejscie::tekst($oczekiwanyId)) {
             throw new BladDlaCzlowieka(
                 'Ta nazwa użytkownika należy teraz do innej osoby. Odśwież stronę i spróbuj ponownie.',
             );

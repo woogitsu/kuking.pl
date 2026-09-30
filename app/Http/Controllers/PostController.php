@@ -24,6 +24,7 @@ use App\Models\Tag;
 use App\Support\Komunikat;
 use App\Support\LimityTagow;
 use App\Support\OdpowiedziWatku;
+use App\Support\Wejscie;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -424,7 +425,10 @@ class PostController extends Controller
             // widział już obie wersje i świadomie zapisuje swoją.
             'wersjaEdycji' => session('konflikt_edycji') === true
                 ? $this->editPost->wersja($post)
-                : old('wersja_edycji', $this->editPost->wersja($post)),
+                // Tablica z podrobionego pola (#2264) to wersja, której nie
+                // było: pusty napis, więc następny zapis kończy się ekranem
+                // konfliktu, a nie HTTP 500 z `{{ }}` na tablicy.
+                : Wejscie::tekst(old('wersja_edycji', $this->editPost->wersja($post))),
         ]);
     }
 
@@ -468,7 +472,10 @@ class PostController extends Controller
                 visibility: $data['visibility'],
                 tagNames: $tagNames,
                 questionTitle: $question ? $data['title'] : null,
-                wersjaFormularza: $request->filled('wersja_edycji') ? (string) $request->input('wersja_edycji') : null,
+                // Nie-tekst (`wersja_edycji[]=`, #2264) to pusty napis, czyli
+                // wersja niezgodna: nic się nie zapisuje, tekst wraca do pól
+                // z ekranem konfliktu — zamiast HTTP 500 z rzutowania.
+                wersjaFormularza: $request->filled('wersja_edycji') ? Wejscie::tekst($request->input('wersja_edycji')) : null,
             );
         } catch (KonfliktEdycjiWpisu $e) {
             // Nic nie zapisano; tekst z formularza wraca do pól (`withInput`),
