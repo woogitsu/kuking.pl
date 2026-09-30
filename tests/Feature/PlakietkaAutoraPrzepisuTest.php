@@ -7,7 +7,6 @@ namespace Tests\Feature;
 use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Models\Comment;
-use App\Models\CookedEvent;
 use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\User;
