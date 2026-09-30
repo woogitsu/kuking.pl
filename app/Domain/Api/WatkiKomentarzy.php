@@ -66,7 +66,9 @@ final class WatkiKomentarzy
                 ->orderBy('comments.id')
                 ->with('author.profile.avatar'),
             (int) config('kuking.comments.page_size'),
-            ['comments.id' => KursorListy::UUID],
+            // `replies()` sortuje już po `created_at, id` — `comments.id` jest
+            // trzecią kolumną, więc kursor niesie wszystkie trzy.
+            ['created_at' => KursorListy::CZAS, 'id' => KursorListy::UUID, 'comments.id' => KursorListy::UUID],
         );
     }
 }
