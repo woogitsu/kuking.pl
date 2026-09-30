@@ -137,9 +137,9 @@ class SciagawkaDoWydrukuTest extends TestCase
         $druk = substr($css, (int) strpos($css, '@media print'));
 
         // Rama kartki (belki, przyciski, formularze) wspólna z przepisem, nie kopia.
-        $this->assertStringContainsString('body:has(.przepis-uklad, .sciagawka) main :is(.btn, button, form)', $druk);
+        $this->assertStringContainsString('body:has(.przepis-uklad, .sciagawka) main :is(.btn, button, form)', $druk, 'Ściągawka nie dzieli z przepisem ramy kartki w druku.');
         // Duży druk: treść co najmniej 16 pt.
-        $this->assertStringContainsString('body:has(.sciagawka) .sciagawka * {'."\n".'    font-size: max(calc(16pt * var(--druk-skala)), 1em);', $druk);
+        $this->assertStringContainsString('body:has(.sciagawka) .sciagawka * {'."\n".'    font-size: max(calc(16pt * var(--druk-skala)), 1em);', $druk, 'Ściągawka nie ma w druku progu 16 pt.');
     }
 
     public function test_zasloniecie_emaila(): void

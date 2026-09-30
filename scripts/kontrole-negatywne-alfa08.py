@@ -747,6 +747,9 @@ KOLAZ_PRIORYTET = """                                 @if($loop->first)
 # dowód, że parser widzi reguły druku, a nie pusty zbiór.
 WYDRUK_CSS = "resources/css/wydruk-przepisu.css"
 WYDRUK_TEST = "test_arkusz_druku_ma_prog_12_pt_i_nie_schodzi_ponizej"
+# Ściągawka do wydruku (F4): ten sam arkusz, treść kartki co najmniej 16 pt
+# i wspólna rama z przepisem (bez kopii reguł).
+SCIAGAWKA_TEST = "test_arkusz_druku_obejmuje_sciagawke_duzym_drukiem"
 # Zamknięcie grupy sygnałów tylko w stanie z ekranu (#1059, wariant b).
 # Znacznik to liczba i najnowsze oznaczenie; każda z dwóch połówek łapie
 # dopisanie, którego druga nie widzi. Mutacja 1 zdejmuje porównanie liczby
@@ -1506,6 +1509,10 @@ checks = [
      lambda s: replace_once(s, " i wszystko, co zapiszesz tu później", "")),
     ("Wydruk przepisu z pismem poniżej 12 pt", WYDRUK_CSS, WYDRUK_TEST,
      lambda s: replace_once(s, "font-size: calc(13pt * var(--druk-skala));", "font-size: calc(10pt * var(--druk-skala));")),
+    ("Ściągawka do wydruku z pismem poniżej 16 pt (F4)", WYDRUK_CSS, SCIAGAWKA_TEST,
+     lambda s: replace_once(s, "font-size: max(calc(16pt * var(--druk-skala)), 1em);", "font-size: max(calc(11pt * var(--druk-skala)), 1em);")),
+    ("Ściągawka bez wspólnej ramy druku (F4)", WYDRUK_CSS, SCIAGAWKA_TEST,
+     lambda s: replace_once(s, "body:has(.przepis-uklad, .sciagawka) main :is(.btn, button, form)", "body:has(.przepis-uklad) main :is(.btn, button, form)")),
     ("Offline: „Spróbuj ponownie” znów prowadzi na /home (#749)", OFFLINE_HTML, OFFLINE_PONOWIENIE_TEST,
      lambda s: replace_once(s, '<a href="">Spróbuj ponownie</a>', '<a href="/home">Spróbuj ponownie</a>')),
     ("Kontrakt karty bez zdjęcia przepisu", KONTRAKT_KARTY, KONTRAKT_KARTY_TEST,

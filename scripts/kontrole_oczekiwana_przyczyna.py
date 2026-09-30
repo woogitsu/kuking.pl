@@ -198,6 +198,8 @@ OCZEKUJ = {
     'Podpowiedź wyglądu bez dolnego insetu': r'Podpowiedź szybkiego wyglądu musi omijać wskaźnik Home\.',
     'Edycja domyślnego zeszytu bez skutku dla przyszłych zapisów': r'contains "i wszystko, co zapiszesz tu później"',
     'Wydruk przepisu z pismem poniżej 12 pt': r'Reguła druku ustawia pismo poniżej 12 pt\.',
+    'Ściągawka do wydruku z pismem poniżej 16 pt (F4)': r'Ściągawka nie ma w druku progu 16 pt\.',
+    'Ściągawka bez wspólnej ramy druku (F4)': r'Ściągawka nie dzieli z przepisem ramy kartki w druku\.',
     'Offline: „Spróbuj ponownie” znów prowadzi na /home (#749)': r"@@ @@ -'' \+'/home'",
     'Kontrakt karty bez zdjęcia przepisu': r'Karta dociąga relacje leniwie na powierzchni „obserwowani”\.|Karta dociąga relacje leniwie na powierzchni „tagi”\.|Karta dociąga relacje leniwie na powierzchni „odkrywanie”\.|Karta dociąga relacje leniwie na powierzchni „tablica”\.|Karta dociąga relacje leniwie na powierzchni „profil”\.|Karta dociąga relacje leniwie na powierzchni „tag”\.|Karta dociąga relacje leniwie na powierzchni „zeszyt”\.|Expected response status code \[200\] but received 500\.',
     'Kontrakt karty bez tematów': r'Brak tematów na „obserwowani”\.|Karta dociąga relacje leniwie na powierzchni „tagi”\.|Brak tematów na „odkrywanie”\.|Brak tematów na „profil”\.|Brak tematów na „tag”\.|Brak tematów na „zeszyt”\.',
