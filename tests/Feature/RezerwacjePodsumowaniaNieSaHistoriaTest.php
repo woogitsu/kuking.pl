@@ -52,6 +52,7 @@ class RezerwacjePodsumowaniaNieSaHistoriaTest extends TestCase
     {
         $odchodzi = $this->user('odchodzi', [
             'wants_weekly_digest' => true,
+            'weekly_digest_sent_at' => now()->subDays(3),
             'status' => User::STATUS_PENDING_DELETE,
             'delete_requested_at' => now()->subDays(31),
             'delete_scope' => User::DELETE_SCOPE_MINIMUM,
@@ -69,6 +70,7 @@ class RezerwacjePodsumowaniaNieSaHistoriaTest extends TestCase
         $this->assertTrue(app(EraseAccountData::class)->handle($odchodzi));
 
         $this->assertNotNull($odchodzi->refresh()->data_erased_at);
+        $this->assertNull($odchodzi->weekly_digest_sent_at, 'Wymazane konto zostawiło datę ostatniego podsumowania.');
         $this->assertSame(
             0,
             DB::table('weekly_digest_sends')->where('user_id', $odchodzi->getKey())->count(),

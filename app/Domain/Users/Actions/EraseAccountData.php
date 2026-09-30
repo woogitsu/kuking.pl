@@ -513,6 +513,9 @@ final class EraseAccountData
                 'remember_token' => null,
                 'email_verified_at' => null,
                 'wants_weekly_digest' => false,
+                // Data ostatniego podsumowania (#2280): polityka obiecuje, że
+                // znika z kontem razem z zapisem tygodnia w `weekly_digest_sends`.
+                'weekly_digest_sent_at' => null,
                 // „Mój stół" (#1749, D-304): usunięcie konta zdejmuje też
                 // preferencję półki propozycji — issue wymaga tego wprost.
                 'moj_stol_enabled' => false,

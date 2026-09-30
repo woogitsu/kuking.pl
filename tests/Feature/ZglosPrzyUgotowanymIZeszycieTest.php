@@ -11,6 +11,8 @@ use App\Models\Recipe;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
+use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -124,6 +126,29 @@ class ZglosPrzyUgotowanymIZeszycieTest extends TestCase
         $decyzja = ModerationAction::query()->where('report_id', $zgloszenie->getKey())->sole();
         $this->assertSame($wlasciciel->getKey(), $decyzja->subject_user_id);
         $this->assertNotNull($zeszyt->fresh(), 'Ostrzeżenie skasowało zeszyt.');
+    }
+
+    public function test_rollback_odmawia_gdy_jest_zgloszenie_zeszytu_a_bez_niego_przechodzi(): void
+    {
+        $migracja = 'database/migrations/2026_09_30_163500_zeszyt_jako_cel_zgloszenia.php';
+
+        // Kontrola dodatnia: bez zgłoszeń zeszytów rollback przechodzi i wraca.
+        Artisan::call('migrate:rollback', ['--path' => $migracja]);
+        Artisan::call('migrate', ['--path' => $migracja]);
+
+        $zeszyt = $this->zeszyt($this->user('wlascicielka'), 'public', 'Zupy', null);
+        $this->actingAs($this->user('widz'))
+            ->post(route('reports.store', ['type' => 'collection', 'id' => $zeszyt->getKey()]), ['reason' => 'spam'])
+            ->assertSessionHasNoErrors();
+
+        try {
+            Artisan::call('migrate:rollback', ['--path' => $migracja]);
+            $this->fail('Rollback przeszedł, choć w bazie jest zgłoszenie zeszytu.');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('Liczba zgłoszeń zeszytów', $e->getMessage());
+        }
+
+        $this->assertSame(1, Report::query()->where('target_type', 'collection')->count());
     }
 
     private function wykonanie(User $kucharz): CookedEvent
