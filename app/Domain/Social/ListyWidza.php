@@ -7,6 +7,7 @@ namespace App\Domain\Social;
 use App\Models\Block;
 use App\Models\User;
 use App\Support\PamiecZadania;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Listy widza, z których korzysta jeden ekran wiele razy: kogo obserwuje,
@@ -32,7 +33,15 @@ use App\Support\PamiecZadania;
  * Każda akcja zmieniająca obserwowanie, blokadę albo obserwowane tematy
  * woła `uniewaznij()` (FollowUser, UnfollowUser, BlockUser, UnblockUser,
  * UpdateTagFollows), więc odczyt w TYM SAMYM żądaniu po zmianie liczy od
- * nowa. Pamięć jest też osobna dla każdego widza.
+ * nowa. Zdarzenie `BlokadyZmienione` (z `BlockUser`/`UnblockUser`) robi to
+ * samo przez nasłuch w `AppServiceProvider`. Pamięć jest też osobna dla
+ * każdego widza.
+ *
+ * BLOKADY: JEDNA PAMIĘĆ (W7 + W8)
+ * Lista blokad jest też jedynym źródłem dla pytania „czy jest blokada
+ * między tą parą" w politykach (`BlokadyWZadaniu::miedzy()`), z bezpiecznikiem
+ * W8: pod transakcją głębszą niż wejście żądania lista idzie prosto z bazy
+ * (patrz `blokady()`).
  *
  * KOLEJKA I KOMENDY
  * Adapter trzyma pamięć w atrybutach jednego `Request`, a proces kolejki
@@ -43,6 +52,13 @@ use App\Support\PamiecZadania;
 final class ListyWidza
 {
     private const KLUCZ = 'kuking.listy_widza';
+
+    /**
+     * Poziom transakcji na WEJŚCIU żądania (0 na produkcji, 1 w teście pod
+     * `RefreshDatabase`); zapisuje go `BlokadyWZadaniu::rozpocznij()` z nasłuchu
+     * `RouteMatched`. Brak wpisu = to nie jest dopasowane żądanie HTTP.
+     */
+    public const KLUCZ_POZIOMU_TRANSAKCJI = 'kuking.blokady_poziom_transakcji';
 
     /**
      * Pamięć, którą ktoś podał wprost (`zPamiecia()`). Bez niej każde użycie
@@ -126,14 +142,53 @@ final class ListyWidza
      * Osoby w blokadzie z widzem w OBIE strony: zablokowane przez niego
      * i te, które zablokowały jego.
      *
+     * To JEDYNA pamięć blokad w żądaniu (W7 + W8 po połączeniu): korzystają
+     * z niej tablica dnia, skróty w menu kart i — przez
+     * `App\Http\Support\BlokadyWZadaniu::miedzy()` — polityki przepisu
+     * i profilu („czy jest blokada między tą parą").
+     *
+     * BEZPIECZNIK z W8: pod transakcją GŁĘBSZĄ niż ta, na której żądanie
+     * weszło, pamięć nie obowiązuje — czytamy bazę i niczego nie zapamiętujemy.
+     * Akcje, które pod zamkiem wiersza sprawdzają uprawnienie jeszcze raz
+     * świeżymi danymi (#1022), muszą zobaczyć blokadę założoną przez inny
+     * proces po pierwszym sprawdzeniu w kontrolerze.
+     *
      * @return list<string>
      */
     public function blokady(User $widz): array
     {
-        return $this->lista($widz, 'blokady', fn (): array => array_values(array_unique([
-            ...Block::query()->where('blocker_id', $widz->getKey())->pluck('blocked_id')->all(),
-            ...Block::query()->where('blocked_id', $widz->getKey())->pluck('blocker_id')->all(),
-        ])));
+        if ($this->podTransakcjaZadania()) {
+            return $this->wczytajBlokady($widz);
+        }
+
+        return $this->lista($widz, 'blokady', fn (): array => $this->wczytajBlokady($widz));
+    }
+
+    /**
+     * Jedno zapytanie (oba kierunki naraz, `blocks_pkey` i `blocks_blocked_idx`),
+     * zamiast dwóch osobnych odczytów z W7 — dzięki temu pytanie o parę
+     * z polityki przepisu kosztuje tyle samo co dawne pojedyncze `EXISTS`.
+     *
+     * @return list<string>
+     */
+    private function wczytajBlokady(User $widz): array
+    {
+        $id = (string) $widz->getKey();
+        $drugie = [];
+
+        foreach (Block::query()->where('blocker_id', $id)->orWhere('blocked_id', $id)->get(['blocker_id', 'blocked_id']) as $blokada) {
+            $drugie[] = (string) ($blokada->blocker_id === $id ? $blokada->blocked_id : $blokada->blocker_id);
+        }
+
+        return array_values(array_unique($drugie));
+    }
+
+    /** Czy jesteśmy GŁĘBIEJ w transakcjach niż przy wejściu żądania (bezpiecznik W8)? */
+    private function podTransakcjaZadania(): bool
+    {
+        $poziom = $this->pamiec()->pobierz(self::KLUCZ_POZIOMU_TRANSAKCJI);
+
+        return $poziom !== null && DB::transactionLevel() > $poziom;
     }
 
     /**

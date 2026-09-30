@@ -61,10 +61,21 @@ final class PrzepisLiczbaZapytanTest extends TestCase
 
         $zapytania = $this->zapytaniaStrony($widz, $przepis);
 
+        // Po połączeniu W7 i W8 jest JEDNA pamięć blokad (`ListyWidza`): pytanie
+        // o parę czyta listę blokad widza jednym zapytaniem (oba kierunki) zamiast
+        // dawnego `SELECT EXISTS` o parę. Liczba zapytań o blokady na stronie się nie
+        // zmienia (1), zmienił się tylko kształt — dlatego wzorzec jest inny, a
+        // limit ten sam. Zero dawnych `EXISTS` pilnuje, że nikt nie wrócił do
+        // drugiej, osobnej pamięci.
         $this->assertCount(
             1,
-            $this->pasujace($zapytania, '/^select exists\(select \* from "blocks" where \("blocker_id" = \? and "blocked_id" = \?\) or/i'),
-            'Polityka przepisu ma zapytać o blokadę tej pary raz na żądanie.',
+            $this->pasujace($zapytania, '/^select "blocker_id", "blocked_id" from "blocks" where "blocker_id" = \? or "blocked_id" = \?/i'),
+            'Polityka przepisu ma zapytać o blokady widza raz na żądanie.',
+        );
+        $this->assertCount(
+            0,
+            $this->pasujace($zapytania, '/^select exists\(select \* from "blocks"/i'),
+            'Polityka przepisu znów pyta o parę osobnym EXISTS, poza wspólną pamięcią blokad.',
         );
     }
 

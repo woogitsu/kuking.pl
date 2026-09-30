@@ -72,8 +72,13 @@ final class StartListyWidzaBezPowtorekTest extends TestCase
         // Tematy: dwa świeże odczyty feedu (podzapytanie) + jeden odczyt
         // skrótów w menu (złączenie) — bez zmian, feed ma je czytać świeżo.
         $this->assertSame(3, $ile('/"tag_follows"/'), 'Obserwowane tematy czytane częściej niż trzy razy na żądanie.');
-        $this->assertSame(1, $ile('/^select "blocked_id" from "blocks"/'), 'Blokady widza czytane więcej niż raz na żądanie.');
-        $this->assertSame(1, $ile('/^select "blocker_id" from "blocks"/'), 'Blokady na widzu czytane więcej niż raz na żądanie.');
+        // Po połączeniu z W8 blokady w obie strony to JEDNO zapytanie (`blocker_id`
+        // OR `blocked_id`), a nie dwa osobne odczyty (`blocked_id` i `blocker_id`):
+        // ta sama lista obsługuje też politykę przepisu (`BlokadyWZadaniu`), a pytanie
+        // o parę nie może kosztować więcej niż dawne `EXISTS`. Limit „raz na żądanie"
+        // zostaje; spadła liczba zapytań z 2 do 1, nie wzrosła.
+        $this->assertSame(1, $ile('/^select "blocker_id", "blocked_id" from "blocks" where "blocker_id" = \? or "blocked_id" = \?/'), 'Blokady widza (w obie strony) czytane więcej niż raz na żądanie.');
+        $this->assertSame(0, $ile('/^select "blocked_id" from "blocks"/') + $ile('/^select "blocker_id" from "blocks"/'), 'Wróciły dwa osobne odczyty blokad zamiast jednego wspólnego.');
         // Tablica dnia liczyła blokady sama (dwa razy po dwa zapytania).
         $this->assertSame(0, $ile('/^select "users"."id" from "users" inner join "blocks"/'), 'Tablica dnia znów czyta blokady poza wspólną pamięcią.');
     }

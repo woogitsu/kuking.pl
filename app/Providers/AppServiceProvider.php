@@ -22,6 +22,7 @@ use App\Domain\Recipes\Historia\DecyzjaOWersjiPrzepisu;
 use App\Domain\Recipes\StrazPochodzeniaPrzepisu;
 use App\Domain\Social\Actions\ObserwujGospodarza;
 use App\Domain\Social\BlokadyZmienione;
+use App\Domain\Social\ListyWidza;
 use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Domain\Users\Import\ZapisSzkicuZPaczki;
 use App\Domain\Users\KoniecWspolnychZeszytow;
@@ -166,9 +167,10 @@ class AppServiceProvider extends ServiceProvider
             }
         });
 
-        // Audyt wydajności P3 W8: pamięć żądania „czy jest blokada" (`RecipePolicy`)
-        // przestaje obowiązywać w chwili, gdy to samo żądanie zmienia blokady.
-        Event::listen(BlokadyZmienione::class, fn () => BlokadyWZadaniu::zapomnij());
+        // Audyt wydajności P3 W8 + W7: jedna pamięć blokad w żądaniu (`ListyWidza`,
+        // z niej czyta też `BlokadyWZadaniu` dla polityk) przestaje obowiązywać
+        // w chwili, gdy to samo żądanie zmienia blokady.
+        Event::listen(BlokadyZmienione::class, fn () => ListyWidza::uniewaznij());
         Event::listen(RouteMatched::class, fn (RouteMatched $zdarzenie) => BlokadyWZadaniu::rozpocznij($zdarzenie->request));
 
         // Audyt B3 W3: każda migracja chodzi z `lock_timeout`, żeby DDL
