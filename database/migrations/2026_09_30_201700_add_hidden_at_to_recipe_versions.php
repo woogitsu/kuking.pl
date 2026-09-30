@@ -61,8 +61,11 @@ return new class extends Migration
 
     private const OGRANICZENIE = 'recipe_versions_hidden_spojny_check';
 
+    // `hidden_by_role IS NOT NULL` stoi jawnie: samo `IN (...)` przy NULL
+    // daje NULL, a CHECK traktuje NULL jak „przechodzi" — wersja ukryta bez
+    // strony przeszłaby przez bazę (złapane testem przed scaleniem).
     private const WARUNEK = '(hidden_at IS NULL AND hidden_by_role IS NULL) '
-        ."OR (hidden_at IS NOT NULL AND hidden_by_role IN ('author','moderator'))";
+        ."OR (hidden_at IS NOT NULL AND hidden_by_role IS NOT NULL AND hidden_by_role IN ('author','moderator'))";
 
     public function up(): void
     {

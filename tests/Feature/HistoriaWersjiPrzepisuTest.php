@@ -473,7 +473,10 @@ class HistoriaWersjiPrzepisuTest extends TestCase
         $this->get(route('recipes.history', $przepis->slug))
             ->assertOk()
             ->assertSee('Wersje są publiczne tak samo jak przepis')
-            ->assertSee('Pojedynczej wersji nie da się usunąć samemu');
+            // #2270: zamiast odsyłać do „Napisz do nas" ekran mówi, że autor
+            // może ukryć pojedynczą wersję.
+            ->assertSee('Autor może ukryć pojedynczą wersję')
+            ->assertDontSee('Pojedynczej wersji nie da się usunąć samemu');
     }
 
     public function test_ponowna_publikacja_bez_zmian_nie_dopisuje_identycznej_wersji(): void
