@@ -6,14 +6,25 @@ namespace Tests\Feature;
 
 use App\Domain\Digest\TrescDigestu;
 use App\Domain\Recipes\Actions\RecordCookedEvent;
+use App\Domain\Users\Actions\RequestEmailChange;
 use App\Models\Notification;
 use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
 use App\Models\RecipeStep;
 use App\Models\User;
+use App\Notifications\LinkDoLogowania;
+use App\Notifications\PotwierdzenieAdresu;
+use App\Notifications\PotwierdzenieNowegoAdresu;
+use App\Notifications\ProbaWejsciaKontemFacebooka;
+use App\Notifications\UstawienieHaslaZamiastLinku;
+use App\Notifications\UstawienieNowegoHasla;
+use App\Notifications\ZaproszenieDoZalozeniaKonta;
+use App\Notifications\ZgloszonaZmianaAdresu;
 use App\Support\Forma;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Support\Facades\Notification as Powiadomienia;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\WzorceRodzaju;
 use Tests\TestCase;
@@ -291,6 +302,77 @@ final class FormaTekstyTest extends TestCase
         ])->render();
 
         $this->assertStringContainsString('Kuking.pl - pokaż, co dziś '.$slowo.'.', $tekst);
+    }
+
+    /**
+     * Stopki listów do ISTNIEJĄCEGO konta (#1753, etap 3).
+     *
+     * Do tej pory miały stałe „ugotowałeś”, bo stał za nim wyjątek „hasło
+     * główne”. D-332 zostawia hasło tylko tam, gdzie czytelnika nie znamy
+     * (przed założeniem konta). Te listy idą do konta, które znamy, więc
+     * osoba bez wybranej formy ma dostać stopkę bez rodzaju — a ta, która
+     * wybrała, swoją formę. Zaproszenie do założenia konta zostaje przy haśle
+     * (konta jeszcze nie ma) — pilnuje tego ostatni test niżej.
+     */
+    #[DataProvider('formy')]
+    public function test_stopki_listow_do_konta_w_formie_adresata(?string $forma, string $slowo): void
+    {
+        $basia = $this->userZForma('basia', $forma);
+
+        $listy = [
+            'link-do-logowania' => new LinkDoLogowania('token-testowy'),
+            'nowe-haslo' => new UstawienieNowegoHasla('token-testowy'),
+            'haslo-zamiast-linku' => new UstawienieHaslaZamiastLinku('token-testowy'),
+            'potwierdz-adres' => new PotwierdzenieAdresu,
+            'proba-wejscia-kontem-facebooka' => new ProbaWejsciaKontemFacebooka,
+        ];
+
+        foreach ($listy as $nazwa => $powiadomienie) {
+            $html = (string) $powiadomienie->toMail($basia)->render();
+
+            $this->assertStringContainsString('pokaż, co dziś '.$slowo.'.', $this->tekst($html), 'Stopka listu '.$nazwa);
+            $this->bezRodzajuGdyNeutralna($forma, $html);
+        }
+    }
+
+    /**
+     * Listy o zmianie adresu idą „na adres” (`Notification::route`), bez
+     * obiektu `User` — forma musi przejść przez konstruktor. Sprawdzamy całą
+     * drogę: akcja → powiadomienie → wyrenderowana stopka.
+     */
+    #[DataProvider('formy')]
+    public function test_stopki_listow_o_zmianie_adresu_w_formie_adresata(?string $forma, string $slowo): void
+    {
+        Powiadomienia::fake();
+        $basia = $this->userZForma('basia', $forma);
+
+        app(RequestEmailChange::class)->handle($basia, 'nowy-adres-basi@example.com');
+
+        foreach ([PotwierdzenieNowegoAdresu::class, ZgloszonaZmianaAdresu::class] as $klasa) {
+            $renderowane = null;
+            Powiadomienia::assertSentOnDemand($klasa, function (object $powiadomienie, array $kanaly, object $odbiorca) use (&$renderowane): bool {
+                $renderowane = (string) $powiadomienie->toMail($odbiorca)->render();
+
+                return true;
+            });
+
+            $this->assertStringContainsString('pokaż, co dziś '.$slowo.'.', $this->tekst((string) $renderowane), 'Stopka listu '.class_basename($klasa));
+            $this->bezRodzajuGdyNeutralna($forma, (string) $renderowane);
+        }
+    }
+
+    /**
+     * Zaproszenie do założenia konta idzie do kogoś, kogo nie znamy — tam
+     * zostaje hasło główne (D-332: „maile przed założeniem konta”). Gdyby
+     * ktoś przepiął i tę stopkę, ten test powie, że to zmiana decyzji.
+     */
+    public function test_zaproszenie_przed_zalozeniem_konta_zostaje_przy_hasle(): void
+    {
+        $html = (string) (new ZaproszenieDoZalozeniaKonta('token-testowy'))
+            ->toMail(new AnonymousNotifiable)
+            ->render();
+
+        $this->assertStringContainsString('pokaż, co dziś ugotowałeś.', $this->tekst($html));
     }
 
     // -----------------------------------------------------------------
