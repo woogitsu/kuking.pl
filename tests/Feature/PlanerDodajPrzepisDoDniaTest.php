@@ -220,6 +220,50 @@ final class PlanerDodajPrzepisDoDniaTest extends TestCase
         $this->assertStringContainsString('error-summary', $html, 'Błąd nadal ma być w podsumowaniu na górze.');
     }
 
+    /**
+     * Każdy link z podsumowania błędów ma trafiać w istniejące `id` na
+     * wyrenderowanej stronie (audyt UX 50+: `#f-day` / `#f-q` nie istniały).
+     *
+     * @return list<string> cele linków
+     */
+    private function celeLinkowPodsumowania(string $html): array
+    {
+        $this->assertSame(1, preg_match('~<div class="error-summary".*?</ul>~s', $html, $blok), 'Brak podsumowania błędów.');
+        preg_match_all('~<a href="#([^"]+)"~', $blok[0], $m);
+        $this->assertNotEmpty($m[1], 'Podsumowanie bez linków.');
+        foreach ($m[1] as $cel) {
+            $this->assertSame(1, preg_match('~\sid="'.preg_quote($cel, '~').'"~', $html), "Link z podsumowania prowadzi do nieistniejącego #{$cel}.");
+        }
+
+        return $m[1];
+    }
+
+    public function test_linki_podsumowania_bledow_planera_trafiaja_w_istniejace_pola(): void
+    {
+        $user = $this->user('osoba30');
+        $przepis = $this->przepis($this->user('osoba31'), 'Sernik linkowy');
+        $referer = route('planer.show', ['tydzien' => '2026-10-12', 'dzien' => '2026-10-15', 'q' => 'sernik']);
+
+        // 1. Dzień z wyników spoza zakresu planera (błąd `day`).
+        $this->actingAs($user)->from($referer)->post(route('planer.store'), [
+            'day' => '2000-01-03', 'recipe_id' => $przepis->getKey(), 'z_planera' => 1, 'q' => 'sernik',
+        ]);
+        $html = $this->actingAs($user)->get($referer)->assertOk()->getContent();
+        $this->assertContains('q-2026-10-15', $this->celeLinkowPodsumowania($html));
+
+        // 2. Za długa fraza z wyników dnia 14.10 (błąd `q`) — pole TEGO dnia.
+        $this->actingAs($user)->from($referer)->post(route('planer.store'), [
+            'day' => '2026-10-14', 'recipe_id' => $przepis->getKey(), 'z_planera' => 1, 'q' => str_repeat('a', 500),
+        ]);
+        $html = $this->actingAs($user)->get($referer)->assertOk()->getContent();
+        $this->assertSame(['q-2026-10-14'], array_values(array_unique($this->celeLinkowPodsumowania($html))));
+
+        // 3. Pusty wpis „Dopisz coś własnego” (błąd `label`).
+        $this->actingAs($user)->from($referer)->post(route('planer.store'), ['day' => '2026-10-14', 'label' => '   ', '_wiersz' => '2026-10-14']);
+        $html = $this->actingAs($user)->get($referer)->assertOk()->getContent();
+        $this->assertSame(['f-label-2026-10-14'], $this->celeLinkowPodsumowania($html));
+    }
+
     public function test_dodanie_pokazuje_jeden_komunikat_sukcesu(): void
     {
         $user = $this->user('osoba17');
