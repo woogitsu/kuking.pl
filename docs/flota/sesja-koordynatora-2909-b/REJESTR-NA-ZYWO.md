@@ -222,3 +222,51 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 - #2226 fix 4: 2edc9628b (wzorzec kontroli „Helper formy ignoruje formę żeńską” — drugi objaw 1753e2, lokalnie POTWIERDZONA). Port marki 2/2 N492 — ponowi się z nowym przebiegiem.
 - 23:5x Issues z audytów: #2268–#2302 (29 P1/P2 + 6 zbiorczych P3). P1: F1 #2288 (JIT /odkryj), IN-01 #2293 (proc_open PDF), IN-02 #2294, IN-03 #2295.
 - Zamknięte duplikaty moich issues wobec #2227–#2267 (zgłoszenia właściciela/Astry): 2273→2237, 2274→2238, 2275→2239+tablice, 2284→2243, 2285→2244, 2286→2245, 2269→2232
+- DECYZJE (klik 30.09 ~00:0x): repo MA BYĆ PUBLICZNE (#2298: tylko zablokować joby forków na self-hosted + poprawić nagłówki); retencja wersji 24 mies. + 3 wersje POTWIERDZONE; digest (KUKING_DIGEST_WLACZONY) włączyć PO poprawce #2237; nowe funkcje do budowy: F1 „Jak wyszło?”, F2 plakietka autorki, F3 „Ugotujmy razem”, F4 ściągawka + F6 wspomnienia.
+## 00:0x #2226 (paczka I) SCALONY do main 224f9eea5. Zamknięte PR #960 #966 (wchłonięte). Właściciel: do 10 Opus.
+- 00:1x Zamknięte (naprawione w I): #2213 #2214 #2215 #2217 #2219 #2221 #2222 #2223 #2224. Prompt robotnika J: scratchpad/k/pelny-j.txt (kopia w gałęzi rejestru: PROMPT_ROBOTNIKA_J.md).
+- Opus (10): integrator J (claude/paczka-j-kandydat: 27, 987, 581, 492×2, 1045, kroki, research×2, audyty×6 + D-333 wiersze); recenzje: 599+595, dziennik+retencja+617, testy-z-porzuconych; poprawki: claude/2288-jit-odkrywanie (#2288-2291), claude/audyt-infra-poprawki (#2293 #2297 #2298 #2296 #2301 IN-12/15), claude/p1-astra-2242-2255-2261, claude/tablice-w-parametrach-500 (#2239 #2251–#2266 + BP-04), claude/audyt-bezpieczenstwo-poprawki (#2268 #2232 #2271 S-04), claude/p2-przeplywy (#2237 #2238 #2240 #2241 #2247 #2249). Później: funkcje F1 F2 F3 F4 F6, Z1–Z6 prywatność, UX.
+## 07:0x Paczka J (etap 1) = claude/paczka-j-kandydat 437f93e19 (15 gałęzi + D-333 wiersze, PHPStan 0, 328 testów, preflight 268/268). PR #2330 otwarty, subskrypcja. Kolejne gałęzie (599, 595, dziennik, retencja, 617, testy + poprawki audytów) → paczka K.
+- 07:0x Nowe issues od właściciela/Astry #2303–#2329 (tablice 500: 2303–2307 → agent tablic; P1 #2323 fork przepisu, #2329 rollback legacy bucketów → nowy Opus claude/p1-2323-2329; reszta P2 w kolejce).
+- 599-alarm-mailem 415c92fbc GOTOWE, 595-rozdzielenie-uslug e83f1b193 GOTOWE (Closes #2294, Refs #2295; przed apply: kuking:zaleznosc-od-starego-bucketu --pliki) → K. Do decyzji: DzwonekOperatora („Napisz do nas”) też mailem?
+- claude/p2-przeplywy c44542ef7 GOTOWE: Closes #2237 #2238 #2240 #2241 #2247 #2249 (+BP-05). Po wdrożeniu digest: --na-sucho, --tylko=, potem KUKING_DIGEST_WLACZONY=true (krok właściciela) → K
+- claude/testy-z-porzuconych-galezi b71c46364 GOTOWE (8 PHP + 1 JS) → K. Luki: people('Basia 🍲') → issue; #847 termin w potwierdzeniu po wysyłce nie na main
+- claude/p1-astra-2242-2255-2261 a57f7ffb8 GOTOWE (Closes #2242 #2255 #2261). Kroki właściciela: R2_ENDPOINT https://, RAILWAY_TOKEN_PRODUCTION dostępny → K. Slot → F3.
+- claude/p1-2323-2329 19ebfb851 GOTOWE (Closes #2323 #2329; testy Dwa) → K
+- Recenzja GOTOWE → K: dziennik-wgladow-moderatora 4d5caeeb1 (luka: wpis konta zbanowanego w StronaWpisu bez śladu — do decyzji), retencja-wersji-przepisu f03a998af (Closes #2024? — #2024 już zamknięte; Refs #2250), 617-dr-zdjec-dokonczenie 1e89db42f (Closes #617 do decyzji; Refs #2228 #2261)
+- claude/2288-jit-odkrywanie 3d7d6b855 GOTOWE (Closes #2288 #2289 #2290, Refs #2291; statement_timeout 15 s w HTTP; krok właściciela: SHOW jit, ALTER ROLE … SET jit=off) → K
+- claude/audyt-bezpieczenstwo-poprawki 303e55aec GOTOWE (Closes #2268 #2232 #2271, Refs #2272; Turnstile na /odwolanie = 8. formularz z JS) → K. S-03 #2270 do decyzji.
+- DECYZJE (klik 30.09 ~08:2x): #2272 Turnstile + 2FA na /odwolanie — TAK (8. formularz z JS, rozszerza D-050); #2270 ukrywanie pojedynczej wersji przez autora i moderatora (hidden_at + audit_log) — ZROBIĆ; „Napisz do nas” (DzwonekOperatora) też mailem na KUKING_ALARM_EMAIL — TAK; dziennik wglądów: też wpisy kont zbanowanych — TAK.
+## 08:3x Raporty gotowe (→ K): audyt-infra-poprawki 2cb61b6e0 (IN-01,04,05,06,09,10,12,15), funkcje-f4-f6 dab0fead6 (F4 wg KARTY = kartka o koncie, nie przepis — do decyzji), funkcje-f1-f2 1fc6e6cec, prywatnosc-eksport-astra 2bfe48522 (#2312 #2313 #2316 #2319 #2320), funkcja-f3-ugotujmy-razem 923435e79 (F3 vs #22 grupa — do decyzji), ci-deploy-astra 2659cea4d (#2309 #2310 #2263 #2248 #2233 #2234 #2230), tablice-w-parametrach-500 1131bab02, niezawodnosc-astra 1771658c1 (11 zgłoszeń), audyt-prywatnosc-poprawki 3f4758208 (Z1–Z6).
+## 08:3x #2330 (paczka J) SCALONY.
+- DECYZJE (klik ~08:4x): F4 = kartka o KONCIE (wg karty) — zostaje; F3 „Ugotujmy razem” to NIE grupa (#22) — jeden przepis tygodnia bez członkostwa.
+- 08:4x #2330 (J) scalony b52858c2a. Opus: integrator K (20 gałęzi + D-333 wiersze), #2270 ukrywanie wersji (claude/2270-ukrywanie-wersji), dzwonek mailem + dziennik wpisów (claude/dzwonek-mailem-i-dziennik-wpisow), SEO i drobne (claude/seo-i-drobne-astra: #2229 #2231 #2235 #2236 #2267 #2331 UX-02).
+- claude/dzwonek-mailem-i-dziennik-wpisow 1c7c34a2d GOTOWE (pula kontakt-operatora KUKING_ALARM_EMAIL_KONTAKT_NA_DOBE=5; dziennik wpisów zbanowanych + API) → integrator K
+- claude/2270-ukrywanie-wersji a51765385 GOTOWE (Closes #2270; migracja hidden_at/hidden_by_role; ryzyko DSA: ukrycie przez moderację bez moderation_actions/odwołania — do decyzji) → integrator K
+- claude/seo-i-drobne-astra 575b6fe69 GOTOWE → K. Do decyzji: noindex dla kont erased; #2227 RSS poza planem; #2236 dup #2235
+- DECYZJE (klik ~09:3x): ukrycie wersji przez moderację = decyzja DSA (uzasadnienie, powiadomienie, odwołanie) — ZROBIĆ; profil konta erased indeksować DALEJ (cofnąć noindex z seo-i-drobne); #2227 RSS/Atom — dopisać do FEATURES i ZBUDOWAĆ.
+## 09:3x Paczka K = claude/paczka-k-kandydat a45ae681d (20 gałęzi; PHPStan 0; preflight 301/301; 943 testy). NIE scalone (klasyfikator zablokował integratorowi „Modify Shared Resources”): dzwonek-mailem-i-dziennik-wpisow, 2270-ukrywanie-wersji, seo-i-drobne-astra → paczka L.
+- DECYZJA (klik ~09:4x): właściciel ZGADZA SIĘ, by agent-integrator scalał zrecenzowane gałęzie floty (claude/*) do gałęzi paczek (claude/paczka-*). PR #2332 = paczka K otwarty, subskrypcja.
+
+## 2026-09-30 — paczka K: poprawki CI
+- 6551e0abc na claude/paczka-k-kandydat (PR #2332): harmonogram FB 07:20, ANALYZE pełne, polityka + weekly_recipe_picks.chosen_by, znacznik strażnika w CofniecieMigracji… Lokalnie 225 testów zielonych. Czekam na CI → merge commit.
+- seo-i-drobne-astra → 1e9806e15: profil konta erased z treściami indeksowany (ProfileController+Sitemap na dostepnyJakoAutor), testy + dokumenty + D-333. Do paczki L.
+- dfb64047c: SygnalyJakWyszloMigracjaTest filtr contype='c' (PG18 NOT NULL w pg_constraint).
+- 2270-ukrywanie-wersji → 7b7ce085b: ukrycie wersji przez moderację = decyzja DSA (moderation_actions recipe_version, powiadomienie, odwołanie, unhide, retencja pomija wersje w sprawie). Bez migracji. Do paczki L. Czeka: 2227-kanaly-atom.
+- 2227-kanaly-atom → 4caa93705: kanały Atom profil/tag/zeszyt, 18 testów, bez migracji. Opcjonalnie właściciel: */kanal do reguły Cloudflare. Paczka L komplet (4 gałęzie) — start integratora po scaleniu K.
+- 10:43 K SCALONA: PR #2332 → b1c96678f w main; 23 issues zamknięte ręcznie. Start integratora L (4 gałęzie) od b1c96678f.
+- W pracy (od ~10:45): integrator L; weryfikator otwartych issues (zamyka z dowodem w main); #2331 (claude/2331-szukanie-emoji); #2308+#2327 (claude/2308-2327-kursor-i-uuid); UX #2243–#2246 (claude/ux-2243-2246). Prompt robotnika: BAZA b1c96678f + uwaga PG18 contype.
+- 10:52 ZAREZERWOWANE dla innej sesji właściciela (5× Sonnet): #2231, #2229, #2259, #2267, #2276, #2283, #2287, #2292, #2300. Nie zlecać tu. Wyniki → paczka M.
+- 10:58 Weryfikator: zamknięte 37 issues z dowodem (tablice, deploy/CI, prywatność Z1–Z6, #2272, #2212). Otwarte 31. PR #2332 błędnie wymieniał #2325, #2235, #2326 — nie są w pełni naprawione. #2235 (cooked w noindex) → sprawdzić w paczce L (seo-i-drobne-astra).
+- Dla innej sesji dopisać #2325 (ten sam plik PobieraczStron co #2229); #2287 tylko UX-02 (UX-05 = #2246 robi tu agent UX).
+- Tu zlecam: #2228 (checksum migratora), #2326 (TagFollowWindow), #2302 IN-13/IN-14.
+- 11:1x #2331 → claude/2331-szukanie-emoji 8c650ea9f (normalizuj() wspólne, emoji w środku też, panel moderacji). UWAGA paczka M: seo-i-drobne-astra (w L) ma częściową poprawkę #2331 (d8bb16217) — przy scalaniu wziąć normalizuj() z 2331, jeden wpis CHANGELOG, test FrazaZEmojiNaBrzeguZnajdujeOsobeTest zachować jeśli nie koliduje.
+- UX #2243–#2246 → claude/ux-2243-2246 eff558c18 (4 commity). Do paczki M. Otwarte: decyzja o novalidate w pozostałych ~30 formularzach; URL jako tekst w KomunikatZamknietegoKonta:55 / EnsureAccountIsActive:237 (kandydat na issue).
+- Decyzje właściciela (klik): novalidate WSZĘDZIE; link „Cofnij usunięcie konta” przy odmowie logowania — TAK. Agent: claude/ux-novalidate-wszedzie od ux-2243-2246 (+ wiersze D-333).
+- #2228 → claude/2228-migrator-checksum c44203aee (rozmiar+SHA-256 ze źródłem, WYNIK_NIEZGODNA, runbook). Krok właściciela: przy przenosinach najpierw --dry-run. Do paczki M.
+- #2302 → claude/2302-infra-p3 6b4bd425a (IN-13 restart 1000 prób prod, worker ALWAYS; IN-14 wyjątki okna 130 s pod strażnikiem). Kroki właściciela: plan płatny Railway przed apply; #1895 pkt 5 odhaczyć (IN-11). Do paczki M.
+- #2326 → claude/2326-limit-obserwowanych-tagow 8f02ab213 (limit 200 w config, TagFollowWindow jedno zapytanie). Paczka M: możliwy konflikt TagFollowWindow z 2331. Pytanie do właściciela: limit 200?
+- #2326 limit → 500 (decyzja właściciela), D-333; dd122cb4d
+- #2308+#2327 → claude/2308-2327-kursor-i-uuid ed7e493e2 (KursorListy, Route::patterns UUID, ReportController isUuid). Uwaga M: Route::patterns globalne w web.php — sprawdzić z kanałami Atom (L) i innymi nowymi trasami.
+- novalidate wszędzie → claude/ux-novalidate-wszedzie 976723be6 (od ux-2243-2246; w M scalić TYLKO tę, zawiera ux-2243-2246). 52 formularze, strażnik, przycisk cofnięcia przy odmowie logowania; API zostaje z adresem (pytanie do właściciela). Kandydat: /odwolanie dla zablokowanego jako przycisk.
+- PR #2339 paczka L otwarty (63a5160de). HANDOVER.md zapisany. Prompt innej sesji: usunięte #2229/#2231/#2267/#2287 (już w L).

@@ -1,93 +1,82 @@
-# Handover sesji koordynatora — 29.09.2026, popołudnie
+# HANDOVER — koordynator Kuking.pl (30.09.2026, ~12:30 UTC)
 
-Stan na ok. 15:30 UTC. Ten plik jest punktem startu dla następnej sesji albo właściciela. Szczegóły są w dwóch plikach obok:
+You are taking over as coordinator of Kuking.pl (repo `woogitsu/kuking.pl`) for about 1 hour. The owner speaks Polish; write to them in Polish. Read `AGENTS.md` first. It is the single source of project rules.
 
-- [`REJESTR.md`](REJESTR.md): chronologiczny rejestr pracy, z każdą gałęzią i SHA, wynikiem recenzji i decyzją.
-- [`PROMPT_ROBOTNIKA.md`](PROMPT_ROBOTNIKA.md): pełny prompt, z którym uruchamiani byli agenci Sonnet.
+## Your role
+- Coordinate, delegate code work to subagents (owner allows up to 10 Opus agents), integrate their branches into "paczka" branches, open PRs to `main`, watch CI, fix CI, merge.
+- Owner's standing orders:
+  - "scalaj do main co można i rób PR": merge when CI is green, **always with a merge commit** (`merge_method: merge`).
+  - Save work to GitHub regularly: the owner checks in only occasionally, and sessions die on limits.
+  - Agents must commit and push WIP after every step.
+- Decisions for the owner: in Polish, clickable (AskUserQuestion), with a recommended option first.
 
-Lista kroków właściciela (decyzje, panele, odbiory, odczyty) jest w
-[`../KROKI_WLASCICIELA_2026-09-29.md`](../KROKI_WLASCICIELA_2026-09-29.md), w paczce G.
+## Hard rules (never)
+- No force-push, rebase, or `reset --hard` of pushed branches. Integrate only by merging (`merge --no-ff`).
+- No destructive operations on production, and no writes to Railway or production. No secrets in docs.
+- Don't launder permission denials. If an agent or another session gets a permission denial, report it to the owner. Don't do it yourself instead.
+- Don't skip, disable or quarantine tests. Every bugfix needs a regression test and a negative control.
+- Never run `npm ci` through a symlinked `node_modules`.
+- The owner deletes branches; the session gets 403.
+- An owner-consented rule: an integrator agent MAY merge reviewed `claude/*` branches into `claude/paczka-*` branches ("Tak, zgoda").
 
-## Co jest na `main`
+## Current state
 
-- Paczka F, PR #2210, scalona `734bed9c6`. Wdrożona na produkcji 14:18 UTC, CI na `main` zielone (25/25).
-- Zamknięte w tej sesji z dowodem w komentarzu:
-  - #988, #2050, #2178, #35, #1985;
-  - PR #2145, wchłonięty przez F;
-  - automatycznie przez F: #2149, #2038, #1687.
+### 1. PR #2339, paczka L (just opened, CI running)
+- Branch `claude/paczka-l-kandydat`, head `63a5160de`, base main `b1c96678f`.
+- Contains:
+  - `dzwonek-mailem-i-dziennik-wpisow`: "Napisz do nas" also by email, plus the moderator access log for banned accounts;
+  - `2270-ukrywanie-wersji`: hiding one recipe version as a DSA moderation decision;
+  - `seo-i-drobne-astra`: erased-account profile indexed, plus #2229, #2231, #2235/#2236, #2267, #2287 UX-02 and a partial #2331;
+  - `2227-kanaly-atom`: Atom feeds.
+- TODO:
+  1. Subscribe to PR activity, watch CI and fix failures on the branch. Use a worktree on `claude/paczka-l-kandydat` and push there.
+  2. When everything is green: merge with a merge commit.
+  3. Then close manually (the "Closes" lines often don't auto-close) #2270 and #2227, with a comment "Naprawione w paczce L — PR #2339, merge commit <sha>". Also verify #2229, #2231, #2235, #2236, #2267 on main and close them with evidence (file + test).
+- Known CI traps:
+  - Local is PG16, CI is PG18. PG18 lists NOT NULL constraints in `pg_constraint` (`contype='n'`), so filter by `contype`.
+  - `HarmonogramBezWspolnychSlotow`: daily jobs must be at least 10 minutes apart. `HarmonogramBezKolizjiTerminow`: no two jobs may share a cron.
+  - `PolitykaOpisujePaczkeUkryciaIReakcje`: every NA_ZADANIE column must be in the policy sentence "Poza paczką, ale na Twoją prośbę, wydajemy" AND in `POZA_PACZKA`.
+  - `StraznikTekstuMaKontroleDodatnia`: a test that reads source needs a `checks` entry or `@bez-kontroli-dodatniej <powód>`.
+  - `DziennikDecyzjiOdwolania`: no four-digit D-numbers in docs.
+  - The policy anchor "…umowy. Ta poprawka obowiązuje od dnia publikacji." must stay, and additions go after it.
+- CI log helpers in the old scratchpad may not exist for you. Use the GitHub MCP tools: `pull_request_read get_check_runs`, `get_job_logs`.
 
-## Otwarte PR
+### 2. Paczka M (to build after L merges)
+Integrate these branches, all pushed and reviewed by agents, all based on `b1c96678f`:
 
-- **#2211, paczka G** (`claude/paczka-g-kandydat`, ostatni push `fc0c8fdfe`).
-  - Zamyka #1731, #970, #1387, #1000.
-  - Na poprzednim commicie wszystko było zielone poza kontrolą ujemną 2/3. `fc0c8fdfe` poprawia jej wzorzec (lokalnie POTWIERDZONA).
-  - Scalić merge commitem, gdy CI zielone.
-  - Po scaleniu zamknąć z dowodem #28. Kod OCR, adresu, PDF i mikrodanych jest w repo, a skuteczność na prawdziwych skanach to krok właściciela.
-
-## Gałęzie gotowe do paczki H
-
-Wszystkie są od `claude/paczka-g-kandydat` albo nowsze. Recenzja oznaczona w [`REJESTR.md`](REJESTR.md).
-
-| Gałąź | Issue | Stan |
+| Branch | SHA | Issue |
 |---|---|---|
-| `claude/970-ugotowalem-na-g` | #970 (D13) | recenzja GOTOWE |
-| `claude/v2-odblokowanie` | D-331 | `FEATURES.md` i `DECISIONS.md`, testy dokumentów zielone |
-| `claude/2130-wersja-slownika` | #2130, D-330 | w recenzji H2 |
-| `claude/health-kontrakt` | #2212 | w recenzji H2 |
-| `claude/599-wolna-strona-glowna` | #599 (test zapytań `/`) | w recenzji H2 |
-| `claude/1997-zakresy-czasu` | #1997 | w recenzji H1 (z testem przeglądarkowym) |
-| `claude/2000-udostepnianie-zeszytu` | #2000 | w recenzji H1 |
-| `claude/1996-kalorie-jsonld` | #1996 | w recenzji H1 |
-| `claude/1751-forma-zwracania` | #1751, #1752, #1753 (część), D-332 | w toku: nowa wersja polityki (zmiana istotna, D-327) |
-| `claude/railway-pro-wykorzystanie` | D1 | dokument `docs/infra/RAILWAY_PRO_WYKORZYSTANIE.md` |
-| `claude/paczka-f-poprawki` | #1011 | dwa wzorce kontroli (drugi objaw „insert into”) |
-| `claude/handover-2909-b` | — | ten handover |
+| `claude/2331-szukanie-emoji` | 8c650ea9f | #2331 search with emoji. **Conflict with L's partial #2331 fix:** take `FrazaWyszukiwania::normalizuj()` from this branch and keep one CHANGELOG entry |
+| `claude/ux-novalidate-wszedzie` | 976723be6+ | Contains `claude/ux-2243-2246` (#2243–#2246), so merge ONLY this one. It adds `novalidate` to 52 forms, the "Cofnij usunięcie konta" button on refused login, and D-333 rows. **An agent is still working on it:** it is adding an "Odwołaj się" button for banned accounts (owner said yes), so wait for its push |
+| `claude/2228-migrator-checksum` | c44203aee | #2228: the photo migrator checks size and SHA-256 |
+| `claude/2302-infra-p3` | 6b4bd425a | #2302 IN-13/IN-14 (Railway restart policy, 1000 retries on prod). Closes #2302 |
+| `claude/2326-limit-obserwowanych-tagow` | dd122cb4d | #2326: limit 500 followed tags (owner's decision, D-333 row). Possible conflict with 2331 in `TagFollowWindow` |
+| `claude/2308-2327-kursor-i-uuid` | ed7e493e2 | #2308/#2327: `KursorListy` and `Route::patterns` UUID. **Check `Route::patterns` against the Atom feed routes from L** (`/zeszyt/{uuid}/kanal`, `/@{username}/kanal`) |
 
-W toku u agentów, gałęzie jeszcze niegotowe:
+Plus branches from the other owner session (5 Sonnet agents, prompt `PROMPT_INNA_SESJA_SONNET.md` here). Issues: #2325, #2259, #2300, #2276 (BP-03), #2283, #2292. Their report will come on branch `claude/raport-sesji-sonnet-3009`, file `docs/flota/sesja-sonnet-3009/RAPORT.md`. That session was blocked on `composer install` (PHPStan zip 403); the owner is deciding the network settings or A2.
 
-- #2024, historia wersji przepisu;
-- #2016, synchronizacja postępu gotowania;
-- #1011, wzorce oczekiwanej przyczyny (gałąź `claude/1011-oczekiwana-przyczyna-v2`).
+- Integrator procedure (proven in K and L):
+  1. Create `claude/paczka-m-kandydat` from main after L, and merge each branch with `--no-ff`, pushing after each.
+  2. Resolve conflicts keeping both sides (CHANGELOG, `resources/nowosci/tresc.md`, D-333).
+  3. Run pint, PHPStan, the guard tests, the changed tests, the negative-control preflight, `node --test scripts/railway/iac.test.mjs`, and migrate:fresh + rollback.
+  4. Open the PR following `.github/pull_request_template.md`.
 
-## Decyzje właściciela z 29.09
+### 3. Owner steps (collect, don't do)
+- `KUKING_ALARM_EMAIL` (optional `KUKING_ALARM_EMAIL_KONTAKT_NA_DOBE`); `R2_ENDPOINT` must be https; `RAILWAY_TOKEN_PRODUCTION`.
+- #1925: required reviewers for the production environment. #2025: activate the gated deploy. #2049: DMARC routing. #2051: R2 lifecycle for `livewire-tmp/`.
+- #2291: `ALTER ROLE … SET jit=off`. #2295: `kuking:zaleznosc-od-starego-bucketu --pliki` before `railway config apply`. #2296: the first `config apply`. A paid Railway plan is required before apply (#2302).
+- #1895 point 5: mark as "not applicable". #2218/#2220: legal review.
+- Photo migration: `--dry-run` first (#2228).
+- Optional: add `*/kanal` to the Cloudflare cache rule.
 
-| Kod | Decyzja |
-|---|---|
-| D1 | Płatny plan Railway, raczej Pro; limit 100 USD i alert 60 USD |
-| D2 | #2130: wersja rosnąca słownika |
-| D3 | Okno 130 s zostaje na alfę |
-| D4 | #22: P3, po bramce WAC/D30 |
-| D7 | #1751: forma neutralna domyślna, bez czekania na prawnika; zmiana polityki ISTOTNA (nowa wersja i pasek) |
-| D8 | Nic nowego w AI; podpisać DPA z OpenAI |
-| D9 | Claim „nie zginą”: nie, do czasu przetestowanego odtworzenia |
-| D10 | #602: odłożyć z warunkami |
-| D11 | Alarmy idą na Discord (już działa przez zmienną w Railway) |
-| D12 | DMARC przez Cloudflare Email Routing |
-| D13 | Scalić refaktor `CookedEventController` |
-| D14 | `HealthController`: osobne issue #2212, najpierw test kształtu |
-| D15 | Odblokowane #1997, #2000, #1996, #2024, #2016 (D-331) |
-| D16 | Akceptacja poprawionych ścieżek w `DECISIONS.md` |
-| D17 | #1687 bez ręcznej kontroli ujemnej |
-| D19 | Kasować zbędne gałęzie po sprawdzeniu scalenia |
+### 4. Remaining open issues (not assigned)
+- #2299 (CI time, L)
+- #2218 and #2220 (partial, need legal)
+- epics and V2 items
 
-Numery decyzji: D-330 (#2130), D-331 (V2), D-332 (#1751). Następny wolny to D-334 (D-333 to zbiorczy wpis decyzji z 29.09).
+Don't start V2 items from the "Nie wcześnie" list.
 
-## Po stronie właściciela (sesja tego nie zrobi)
-
-- Plan Pro w Railway i limit 100/60 USD (D1); okres próbny kończy się ok. 6.10.
-- Podpisanie DPA z OpenAI (D8) i włączenie Cloudflare Email Routing (D12).
-- Kasowanie gałęzi (D19): sesja dostaje 403 przy `push --delete`.
-  - Do skasowania: `codex/2130-kontrola-ujemna` (scalona), `codex/2059-kontrola-ujemna` („sabotaż poprawki”) i `codex/2014-date-modified-jsonld` (dubel).
-  - Do oceny: `codex/2066-urgent-alert-negative`, `codex/hide-expiry-local-date`, `claude/larastan-test-zamiaru-ugotowania`.
-- Alarm „Łączny czas zapytań SQL” na `GET /` (12:28 i 12:40 UTC, 1,1–1,3 s) wystąpił zaraz po wdrożeniu 0.77.001.
-  - Podejrzenie: kompilacja JIT w PostgreSQL przy feedzie obserwowanych.
-  - Sprawdzić na bazie produkcyjnej `SHOW jit; SHOW jit_above_cost;`.
-  - Szczegóły w [`REJESTR.md`](REJESTR.md) i w raporcie gałęzi `claude/599-wolna-strona-glowna`.
-
-## Pułapki tej sesji
-
-- Test `/health` lokalnie oblewa, gdy powłoka ma `AWS_ACCESS_KEY_ID` i `AWS_SECRET_ACCESS_KEY` bez `AWS_ENDPOINT`; przed testami `unset`. Zmienna `AI_AGENT` przełącza `artisan test` na wyjście JSON, przez co `RiskyTestFailsGateTest` oblewa.
-- Strażnik `PodzialWierszyNieRozrywaLiterTest` traktuje każdy literał z ukośnikiem i `R` jako wzorzec. Nazwy klas w stylu `...\Http\Request` w stringach trzeba sklejać.
-- Kontrole ujemne: werdykt wymaga, żeby KAŻDY oblany test pasował do wzorca. Gdy mutacja ma kilka objawów, trzeba albo dodać alternatywę we wzorcu, albo zawęzić filtr do jednego testu (przykład: autozapis kreatora).
-- Miernik panelu (`scripts/panel-marki-run.mjs`) lokalnie potrzebuje świeżej, zmigrowanej bazy, `CHROMIUM_PATH=/opt/pw-browsers/chromium` i pustego `storage/port-panelu`.
-- `git worktree add` z `-C <repo>` i ścieżką względną tworzy worktree w repo; używać ścieżek bezwzględnych.
+## Where things are
+- Register: branch `claude/rejestr-koordynatora-2909`, `docs/flota/sesja-koordynatora-2909-b/REJESTR-NA-ZYWO.md`. It has every SHA and decision. Append to it.
+- Worker prompt: `docs/flota/sesja-koordynatora-2909-b/PROMPT_ROBOTNIKA_J.md` on the same branch (BAZA = origin/main; update the SHA). Give it to every code agent plus a task section.
+- Commit trailers: use the ones your environment gives you.

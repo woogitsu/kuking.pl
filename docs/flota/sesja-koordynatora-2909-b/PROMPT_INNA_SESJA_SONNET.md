@@ -47,18 +47,16 @@ Write code comments, commit messages, UI texts and the final report **in Polish*
 
 ## 4. Issues and suggested assignment (5 Sonnet agents)
 
+NOTE (update 30.09): #2229, #2231, #2267 and #2287 UX-02 were already fixed in paczka L (PR open) — removed from this list. 6 issues remain; one per agent, agent 5 takes two.
+
 Hints come from the verification on `b1c96678f`. Confirm them yourself.
 
 | Agent | Issue | Hint |
 |---|---|---|
-| 1 | **#2231** Public avatar in JSON-LD `Person` | `resources/views/.../profile/show.blade.php` ~l.20–30: no `Person.image`. Use the same rule as the OG image (avatar only when public). Test. |
-| 1 | **#2267** PWA `theme-color` vs light theme | `layout.blade.php` ~l.316 and the manifest use `#151714`. Make theme-color match the theme, e.g. `<meta name="theme-color" media="(prefers-color-scheme: …)">`. Test. |
-| 2 | **#2229** Import: secret query params leak into `source_url` | `PobieraczStron::bezSledzenia` keeps unknown params. Use an allow-list or store only the path. Test with `token=SECRET`. |
-| 2 | **#2325** robots.txt check uses the query string, not just the path | Same class: `PobieraczStron::sciezka()` appends the query string. Pass only the path. Tests. Do it together with #2229 (same file), as separate commits on one branch `claude/2229-2325-pobieracz-stron`. |
+| 2 | **#2325** robots.txt check uses the query string, not just the path | Same class: `PobieraczStron::sciezka()` appends the query string. Pass only the path. Tests. #2229 (same class) is ALREADY fixed on `claude/paczka-l-kandydat` (allow-list of params) — build on top of it: branch `claude/2325-robots-sciezka` from `origin/claude/paczka-l-kandydat` (exception to the base rule), or from `origin/main` once paczka L is merged. |
 | 3 | **#2259** Backup: future timestamp in file name gives a false "fresh" state | `StanKopiiBazy.php` ~l.111 uses `diffInHours(absolute: true)`. A future date must become its own state or raise an alarm. Boundary test. |
 | 3 | **#2300** CI on `main`: a pending run gets replaced by a newer one, but the comment says "queue" (IN-08) | `.github/workflows/ci.yml` ~l.305–307. Either fix the comment or implement a real queue (separate concurrency group). If you change the workflow, add or extend a test that reads the workflow. Keep it minimal. |
 | 4 | **#2276** P3 flow findings | BP-05 is already fixed; do only **BP-03**: `PublishRecipe.php` ~l.628 should check "never published" instead of `$existing === null`. Test. |
-| 4 | **#2287** P3 UX findings | Do only **UX-02**: `.meta` text at 16 px, raise it to at least 18 px, checking the layout. **UX-05 is being done by the main coordinator as #2246. Don't touch it.** |
 | 5 | **#2283** P3 privacy/legal findings Z7–Z11 | Mostly text: the policy (e.g. ~l.154 "gdy będziemy już wysyłać"), the processing register, and `failed_jobs` retention. Policy edits: the anchor sentence "…umowy. Ta poprawka obowiązuje od dnia publikacji." must stay, and additions go AFTER it. Run all policy/legal guard tests (`--filter='Polityka|DokumentyPrawne|TekstyNiePrzypisujaPlci'`). |
 | 5 | **#2292** P3 performance findings F5–F7 | Comment counter, cleanup of the `cache` table, PostgreSQL version in docs. A scheduled job must be at least 10 minutes from other daily jobs and not share a cron (`Harmonogram*` tests). |
 
