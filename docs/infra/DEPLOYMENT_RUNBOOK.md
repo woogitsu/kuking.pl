@@ -853,7 +853,7 @@ Jest to normalna droga na pierwszy zielony deploy: IaC można przyjąć późnie
 > | Start Command | `/usr/local/bin/kuking-entrypoint all` |
 > | Pre-Deploy Command | `php artisan migrate --force --no-interaction` |
 > | Healthcheck Path | `/health`, timeout `180` |
-> | Restart Policy | `ON_FAILURE`, 10 prób |
+> | Restart Policy | `ON_FAILURE`, 10 prób (IaC na produkcji ustawia 1000 — wymaga planu płatnego, #2302 IN-13) |
 >
 > **Healthcheck nie jest ozdobnikiem.** Bez niego Railway przełącza ruch na
 > kontener, który się nie podniósł, i deploy jest „udany" mimo leżącej
