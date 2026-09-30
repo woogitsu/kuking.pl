@@ -37,7 +37,7 @@
                 a inni oglądają porównanie bez nich.
             </p>
         @endif
-        <p class="meta">
+        <p class="meta meta-samodzielne">
             Każda zmiana ma napis: Dodano, Usunięto albo Zmieniono. Zdjęcia nie są porównywane.
         </p>
 
@@ -102,7 +102,7 @@
         @endif
 
         @if($porownanie['bezDanych'] !== [])
-            <p class="meta">
+            <p class="meta meta-samodzielne">
                 Tego nie da się porównać, bo starsza wersja nie zapisała tych pól: {{ implode(', ', $porownanie['bezDanych']) }}.
             </p>
         @endif

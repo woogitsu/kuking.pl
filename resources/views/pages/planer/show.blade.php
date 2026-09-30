@@ -190,7 +190,7 @@
                         <button class="btn btn-secondary" type="submit">Dopisz</button>
                     </form>
                 @else
-                    <p class="meta mt-4">Ten dzień ma komplet: {{ $wpisowNaDzien }} pozycji. Usuń którąś, żeby dopisać nową.</p>
+                    <p class="meta meta-samodzielne mt-4">Ten dzień ma komplet: {{ $wpisowNaDzien }} pozycji. Usuń którąś, żeby dopisać nową.</p>
                 @endif
             </section>
         @endforeach
