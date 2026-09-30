@@ -29,7 +29,8 @@ use Illuminate\Support\Facades\Schema;
  *
  * ISTNIEJĄCA TABELA `dziennik_zgod`: nowy CHECK celu jest nadzbiorem starego,
  * więc `NOT VALID` + `VALIDATE` poza jedną transakcją (`$withinTransaction =
- * false`).
+ * false`), a wymiana CHECK-a idzie przez nazwę tymczasową (nowy powstaje,
+ * zanim stary zniknie — tabela nigdy nie jest bez CHECK-a).
  *
  * ROLLBACK (D-088). `down()` ODMAWIA, gdy ktoś ma zgodę albo dziennik zgód ma
  * choć jeden wiersz tego celu. Zgoda wróciłaby jako `false` bez śladu, a
@@ -44,6 +45,10 @@ return new class extends Migration
     private const INDEKS = 'users_wants_pantry_reminder_idx';
 
     private const DEFINICJA = 'ON users (id) WHERE wants_pantry_reminder';
+
+    private const CHECK_CELU = 'dziennik_zgod_cel_check';
+
+    private const CHECK_TYMCZASOWY = 'dziennik_zgod_cel_check_nowy';
 
     private const CELE_PO = "('tygodniowy_digest', 'zyczenia_urodzinowe', 'odczyt_ai', 'regulamin', 'przypomnienie_spizarni')";
 
@@ -81,11 +86,18 @@ return new class extends Migration
         DB::statement('ALTER TABLE users DROP COLUMN IF EXISTS wants_pantry_reminder');
     }
 
+    /**
+     * Bez okna bez CHECK-a (AGENTS.md §6): nowy CHECK powstaje pod nazwą
+     * tymczasową z `NOT VALID`, potem `VALIDATE`, dopiero wtedy znika stary
+     * i nowy przejmuje jego nazwę. Tak samo w `up()` i w `down()`.
+     */
     private function podmienCelZgody(string $cele): void
     {
-        DB::statement('ALTER TABLE dziennik_zgod DROP CONSTRAINT IF EXISTS dziennik_zgod_cel_check');
-        DB::statement("ALTER TABLE dziennik_zgod ADD CONSTRAINT dziennik_zgod_cel_check CHECK (cel IN {$cele}) NOT VALID");
-        DB::statement('ALTER TABLE dziennik_zgod VALIDATE CONSTRAINT dziennik_zgod_cel_check');
+        DB::statement('ALTER TABLE dziennik_zgod DROP CONSTRAINT IF EXISTS '.self::CHECK_TYMCZASOWY);
+        DB::statement('ALTER TABLE dziennik_zgod ADD CONSTRAINT '.self::CHECK_TYMCZASOWY." CHECK (cel IN {$cele}) NOT VALID");
+        DB::statement('ALTER TABLE dziennik_zgod VALIDATE CONSTRAINT '.self::CHECK_TYMCZASOWY);
+        DB::statement('ALTER TABLE dziennik_zgod DROP CONSTRAINT IF EXISTS '.self::CHECK_CELU);
+        DB::statement('ALTER TABLE dziennik_zgod RENAME CONSTRAINT '.self::CHECK_TYMCZASOWY.' TO '.self::CHECK_CELU);
     }
 
     private function odmowJesliSaDane(): void

@@ -122,6 +122,44 @@ class CofniecieMigracjiNieKasujeTerminowSpizarniTest extends TestCase
         ]);
     }
 
+    public function test_wymiana_checka_celu_zgody_nie_zostawia_nazwy_tymczasowej_i_zachowuje_ochrone(): void
+    {
+        $check = fn (): array => array_map(
+            fn ($w): string => $w->conname.'|'.($w->convalidated ? 'valid' : 'notvalid'),
+            DB::select("SELECT conname, convalidated FROM pg_constraint WHERE conrelid = 'dziennik_zgod'::regclass AND conname LIKE 'dziennik_zgod_cel_check%'"),
+        );
+
+        $this->assertSame(['dziennik_zgod_cel_check|valid'], $check());
+
+        // Kolejność instrukcji: stary CHECK znika DOPIERO po walidacji nowego.
+        foreach (['down', 'up'] as $kierunek) {
+            $sql = [];
+            DB::listen(function ($q) use (&$sql): void {
+                $sql[] = $q->sql;
+            });
+            $this->migracja(self::ZGODA)->{$kierunek}();
+
+            $walidacja = $zdjecie = null;
+            foreach ($sql as $i => $zapytanie) {
+                if (str_contains($zapytanie, 'VALIDATE CONSTRAINT dziennik_zgod_cel_check_nowy')) {
+                    $walidacja = $i;
+                }
+                if (str_contains($zapytanie, 'DROP CONSTRAINT IF EXISTS dziennik_zgod_cel_check') && ! str_contains($zapytanie, '_nowy')) {
+                    $zdjecie = $i;
+                }
+            }
+            $this->assertNotNull($walidacja, "{$kierunek}(): brak walidacji nowego CHECK-a pod nazwą tymczasową.");
+            $this->assertNotNull($zdjecie, "{$kierunek}(): brak zdjęcia starego CHECK-a.");
+            $this->assertLessThan($zdjecie, $walidacja, "{$kierunek}(): stary CHECK zdjęty przed walidacją nowego — okno bez ochrony.");
+        }
+
+        $this->migracja(self::ZGODA)->down();
+        $this->assertSame(['dziennik_zgod_cel_check|valid'], $check(), 'Po down() ma zostać jeden zwalidowany CHECK pod starą nazwą.');
+
+        $this->migracja(self::ZGODA)->up();
+        $this->assertSame(['dziennik_zgod_cel_check|valid'], $check(), 'Po up() ma zostać jeden zwalidowany CHECK pod starą nazwą.');
+    }
+
     public function test_sygnaly_kasuja_tylko_swoje_wiersze_telemetrii(): void
     {
         foreach (['pantry_expiry_set', 'search_performed'] as $nazwa) {
