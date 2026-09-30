@@ -793,6 +793,8 @@ KOLAZ_PRIORYTET = """                                 @if($loop->first)
 # dowód, że parser widzi reguły druku, a nie pusty zbiór.
 WYDRUK_CSS = "resources/css/wydruk-przepisu.css"
 WYDRUK_TEST = "test_arkusz_druku_ma_prog_12_pt_i_nie_schodzi_ponizej"
+# Karta z kodem QR (#2349): ten sam arkusz, kod na papierze co najmniej 9 cm.
+KARTA_QR_TEST = "test_arkusz_druku_dzieli_rame_z_przepisem_i_mierzy_kod_w_centymetrach"
 # Ściągawka do wydruku (F4): ten sam arkusz, treść kartki co najmniej 16 pt
 # i wspólna rama z przepisem (bez kopii reguł).
 SCIAGAWKA_TEST = "test_arkusz_druku_obejmuje_sciagawke_duzym_drukiem"
@@ -1619,6 +1621,8 @@ checks = [
      lambda s: replace_once(s, "font-size: calc(13pt * var(--druk-skala));", "font-size: calc(10pt * var(--druk-skala));")),
     ("Ściągawka do wydruku z pismem poniżej 16 pt (F4)", WYDRUK_CSS, SCIAGAWKA_TEST,
      lambda s: replace_once(s, "font-size: max(calc(16pt * var(--druk-skala)), 1em);", "font-size: max(calc(11pt * var(--druk-skala)), 1em);")),
+    ("Karta QR z kodem mniejszym niż 9 cm (#2349)", WYDRUK_CSS, KARTA_QR_TEST,
+     lambda s: replace_once(s, "    width: 9cm;\n    margin: 12pt 0;", "    width: 4cm;\n    margin: 12pt 0;")),
     ("Ściągawka bez wspólnej ramy druku (F4)", WYDRUK_CSS, SCIAGAWKA_TEST,
      lambda s: replace_once(s, "body:has(.przepis-uklad, .sciagawka) main :is(.btn, button, form)", "body:has(.przepis-uklad) main :is(.btn, button, form)")),
     ("Offline: „Spróbuj ponownie” znów prowadzi na /home (#749)", OFFLINE_HTML, OFFLINE_PONOWIENIE_TEST,

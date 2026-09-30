@@ -299,8 +299,8 @@ class KartaZKodemQrTest extends TestCase
         $css = (string) file_get_contents(base_path('resources/css/wydruk-przepisu.css'));
         $druk = substr($css, (int) strpos($css, '@media print'));
 
-        $this->assertStringContainsString('body:has(.karta-qr) .karta-qr-kod', $druk);
-        $this->assertMatchesRegularExpression('/\.karta-qr-kod \{[^}]*width: 9cm;/s', $druk, 'Kod na papierze ma mieć 9 cm.');
+        $this->assertStringContainsString('body:has(.karta-qr) .karta-qr-kod', $druk, 'Karta QR nie ma reguły druku kodu.');
+        $this->assertMatchesRegularExpression('/\.karta-qr-kod \{[^}]*width: 9cm;/s', $druk, 'Kod QR na papierze ma mniej niż 9 cm.');
         $this->assertMatchesRegularExpression('/\.karta-qr-kod \{[^}]*background: #FFFFFF/s', $druk, 'Kod na papierze ma leżeć na białym polu.');
     }
 }
