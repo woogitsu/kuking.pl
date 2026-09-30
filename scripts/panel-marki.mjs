@@ -264,7 +264,8 @@ export async function sprawdzDodatkoweStanyMenu({ browser, adres, sesja, outputD
       wymagaj(response.status() === 200, 'MENU_BEZ_JS_HTTP');
       wymagaj(!await page.locator('[data-panel-menu-przelacznik]').isVisible(), 'MENU_BEZ_JS_PRZYCISK');
       const links = page.locator('.side-nav-moderacja-lista a');
-      wymagaj(await links.count() === 11, 'MENU_BEZ_JS_KOMPLET');
+      // 12 od „Ugotujmy razem” (F3, 30.09.2026) — wcześniej 11.
+      wymagaj(await links.count() === 12, 'MENU_BEZ_JS_KOMPLET');
       for (const link of await links.all()) wymagaj(await link.isVisible(), 'MENU_BEZ_JS_LINK');
       await page.locator('.side-nav-moderacja-lista a').filter({ hasText: 'Tagi promowane' }).click();
       wymagaj(new URL(page.url()).pathname === '/admin/tagi-promowane', 'MENU_BEZ_JS_NAWIGACJA');

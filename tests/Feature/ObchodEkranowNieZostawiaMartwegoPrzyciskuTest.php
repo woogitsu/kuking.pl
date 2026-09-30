@@ -385,7 +385,7 @@ class ObchodEkranowNieZostawiaMartwegoPrzyciskuTest extends TestCase
             '/admin/zgloszenia', '/admin/sygnaly', '/admin/wiadomosci',
             '/admin/wiadomosci/'.$wiadomosc->getKey(),
             '/admin/odwolania', '/admin/bez-odpowiedzi', '/admin/kolaz-powitalny',
-            '/admin/kuking-na-dzis', '/admin/tagi-promowane', '/admin/uzytkownicy',
+            '/admin/kuking-na-dzis', '/admin/tagi-promowane', '/admin/ugotujmy-razem', '/admin/uzytkownicy',
             '/admin/uzytkownicy?szukaj=halina', '/admin/uzytkownicy?status=active',
             '/admin/uzytkownicy/'.$autor->getKey(),
             '/home',
