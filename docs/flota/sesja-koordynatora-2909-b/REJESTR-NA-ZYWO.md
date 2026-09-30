@@ -333,3 +333,4 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 - 20:36 PR #2358 intervention/image 4 (cba62b746; v4 odwraca rotate/flip — poprawiona tabela EXIF, testy na pikselach). Po scaleniu zamknąć #2336.
 - 20:39 UTC: agent Sonnet #2346 (P1 spiżarnia, atomowość migracji 231500) → claude/2346-migracja-rdzeni-atomowa. Czekam na CI: #2356 #2357 #2358 #2335 #2337 #2338.
 - 20:44 UTC: scalone Dependabot #2335 (a290f51c2), #2337 (001ce1ad2), #2338 (0b0fd6a37). composer.lock na main poprawny (validate, wersje 13.33.0 / 1.1.5 / 1.32.1).
+- 20:46 UTC: #2346 → problem nie istnieje (migracja w transakcji), sam test regresyjny: PR #2359 (0c8b7cbd4). #1744 odświeżony: PR #2360 (f931c9432) — scalać PO paczce Q (Q dotyka DECISIONS.md; potem merge main + scripts/decyzje-przenies.py). Nowi agenci: #2350 plakietka autora (claude/2350-plakietka-autora-przepisu), #2347 wspomnienia wykonań (claude/2347-wspomnienia-wykonan).
