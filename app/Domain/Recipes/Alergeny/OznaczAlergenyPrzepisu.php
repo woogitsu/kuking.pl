@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Recipes\Alergeny;
 
+use App\Domain\Posts\KontoNieMozePublikowac;
 use App\Domain\Recipes\RecipeStatusTransitions;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
@@ -162,7 +163,21 @@ final class OznaczAlergenyPrzepisu
      */
     private function zablokujAutora(User $autor): User
     {
-        return User::query()->whereKey($autor->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
+        $swiezy = User::query()->whereKey($autor->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
+
+        // STAN KONTA NA ŚWIEŻYM WIERSZU, POD BLOKADĄ (jak `PublishRecipe`, #2189):
+        // Policy sprawdziła model wczytany na początku żądania, a kara mogła
+        // zostać zatwierdzona, gdy to oznaczenie czekało na blokadę.
+        if ($swiezy->punishmentHasExpired()) {
+            $swiezy->reinstate();
+        }
+        if (! $swiezy->isActive()) {
+            throw new KontoNieMozePublikowac(
+                'Stan Twojego konta zmienił się podczas zapisywania. Odśwież stronę, aby zobaczyć aktualną informację.',
+            );
+        }
+
+        return $swiezy;
     }
 
     private function zablokowany(Recipe $przepis): Recipe

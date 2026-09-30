@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Alergeny;
 
+use App\Domain\Posts\KontoNieMozePublikowac;
 use App\Domain\Recipes\Alergeny\DeklaracjaAlergenow;
 use App\Domain\Recipes\Alergeny\OznaczAlergenyPrzepisu;
 use App\Exceptions\BladDlaCzlowieka;
@@ -13,6 +14,8 @@ use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\MassAssignmentException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -151,6 +154,52 @@ final class OznaczAlergenyPrzepisuTest extends TestCase
 
         $this->assertEquals($pierwsza, $this->przepis->refresh()->allergens_declared_at);
         $this->assertSame(1, AuditLogEntry::query()->where('action', 'recipe.allergens_marked')->count());
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function nieczynneStanyKonta(): array
+    {
+        return ['zawieszone' => [User::STATUS_SUSPENDED], 'zbanowane' => [User::STATUS_BANNED]];
+    }
+
+    /**
+     * Policy i middleware widziały konto wczytane na początku żądania; kara
+     * mogła zapaść, gdy oznaczenie czekało na blokadę (jak #2189 w `PublishRecipe`).
+     */
+    #[DataProvider('nieczynneStanyKonta')]
+    public function test_handle_odmawia_autorowi_ktory_stracil_aktywnosc_po_wczytaniu_modelu(string $stan): void
+    {
+        $nieaktualny = User::query()->findOrFail($this->autor->getKey());
+        $this->assertTrue($nieaktualny->isActive());
+        DB::table('users')->where('id', $this->autor->getKey())->update(['status' => $stan, 'status_expires_at' => null]);
+
+        try {
+            $this->akcja()->handle($nieaktualny, $this->przepis, new DeklaracjaAlergenow(['milk'], true));
+            $this->fail('Oznaczenie przeszło mimo kary na koncie.');
+        } catch (KontoNieMozePublikowac) {
+            $przepis = $this->przepis->refresh();
+            $this->assertSame('unchecked', $przepis->allergen_status);
+            $this->assertSame(0, AuditLogEntry::query()->where('action', 'recipe.allergens_marked')->count());
+        }
+    }
+
+    #[DataProvider('nieczynneStanyKonta')]
+    public function test_potwierdz_ponownie_odmawia_autorowi_ktory_stracil_aktywnosc(string $stan): void
+    {
+        $this->akcja()->handle($this->autor, $this->przepis, new DeklaracjaAlergenow(['soy'], true));
+        $this->przepis->forceFill(['allergen_status' => Recipe::ALERGENY_DO_PRZEGLADU])->save();
+
+        $nieaktualny = User::query()->findOrFail($this->autor->getKey());
+        DB::table('users')->where('id', $this->autor->getKey())->update(['status' => $stan, 'status_expires_at' => null]);
+
+        try {
+            $this->akcja()->potwierdzPonownie($nieaktualny, $this->przepis);
+            $this->fail('Ponowne potwierdzenie przeszło mimo kary na koncie.');
+        } catch (KontoNieMozePublikowac) {
+            $this->assertSame('needs_review', $this->przepis->refresh()->allergen_status);
+        }
     }
 
     public function test_pol_sterujacych_nie_da_sie_przypisac_masowo(): void
