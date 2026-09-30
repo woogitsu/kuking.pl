@@ -624,8 +624,17 @@ final class PublishRecipe
                  * „Aktualizacja przepisu" z komunikatem „nie ma różnic". Pierwsza
                  * publikacja zawsze zapisuje wersję 1. Publikacja nie zmienia się
                  * poza tym — ten sam zapis, ta sama transakcja i blokada.
+                 *
+                 * „PIERWSZA" TO BRAK HISTORII, NIE BRAK WIERSZA (#2276, BP-03):
+                 * najczęstsza droga to szkic z kreatora (albo z importu, albo
+                 * „Moja wersja"), który człowiek potem publikuje — wtedy
+                 * `$existing` jest, ale wersji jeszcze nie ma. Warunek
+                 * `$existing === null` podpisywał taką wersję 1 „Aktualizacja
+                 * przepisu", jakby była poprawką czegoś, czego w historii nie ma.
+                 * Liczy się stan pod blokadą przepisu, którą ta transakcja
+                 * już trzyma.
                  */
-                if ($existing === null) {
+                if (! $recipe->versions()->exists()) {
                     $this->snapshots->handle($recipe, $author, 'Pierwsza publikacja');
                 } else {
                     $this->snapshots->poprawka($recipe, $author, 'Aktualizacja przepisu');

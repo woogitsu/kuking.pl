@@ -25,7 +25,7 @@
     </x-slot:poFormularzu>
     <x-error-summary />
 
-    <form class="panel-formularza" method="POST" action="{{ route('login') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('login') }}" novalidate>
         @csrf
 
         <x-field name="login" label="Adres e-mail albo nazwa użytkownika" required

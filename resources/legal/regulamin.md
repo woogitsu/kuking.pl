@@ -6,7 +6,7 @@
 
 ## Co się zmieniło
 
-**30 września 2026.** Dopisaliśmy punkt 13 **Wymagania techniczne** (czego potrzebujesz, żeby korzystać z Kuking, i jakie zdjęcia przyjmujemy) oraz punkt 14 **Reklamacje** (gdzie i jak złożyć reklamację, w jakim terminie odpowiadamy i co możesz zrobić, jeśli odpowiedź Ci nie wystarcza). Zmiana opisuje, jak serwis już działa, i dopisuje sposób składania reklamacji: nie dodaje Ci obowiązków i nie odbiera żadnych praw. Obowiązuje od dnia publikacji.
+**30 września 2026.** Dopisaliśmy punkt 13 **Wymagania techniczne** (czego potrzebujesz, żeby korzystać z Kuking, i jakie zdjęcia przyjmujemy) oraz punkt 14 **Reklamacje** (gdzie i jak złożyć reklamację, w jakim terminie odpowiadamy i co możesz zrobić, jeśli odpowiedź Ci nie wystarcza). Zmiana opisuje, jak serwis już działa, i dopisuje sposób składania reklamacji: nie dodaje Ci obowiązków i nie odbiera żadnych praw. Obowiązuje od dnia publikacji. W punkcie 2 uzupełniliśmy też listę tego, na co pozwala Kuking, o funkcje, które serwis już ma — to również opis, bez nowych obowiązków.
 
 **26 września 2026.** W punkcie 2 dopisaliśmy, jak dobieramy wpisy na Starcie, w „Świeżo z Kuking” i na tablicy na dziś, oraz odnośnik do strony **Jak dobieramy wpisy** (`/jak-dobieramy-wpisy`). Zmiana opisuje, jak serwis już działa: nie dodaje Ci obowiązków i nie zmienia Twoich praw.
 
@@ -32,12 +32,23 @@ Adres **biuro@samsufi.pl** jest jednocześnie:
 
 Kuking to serwis społecznościowy dla osób, które gotują. Pozwala:
 - publikować zdjęcia dań i krótkie wpisy,
-- publikować przepisy (składniki, kroki, zdjęcia),
+- publikować przepisy (składniki, kroki, zdjęcia) i oglądać ich wcześniejsze wersje,
 - oznaczać wykonanie danego przepisu ("Ugotowałem"),
-- obserwować innych użytkowników i przeglądać ich publiczne treści,
-- komentować i odpowiadać na komentarze,
-- zapisywać przepisy w swoich kolekcjach,
-- zgłaszać treści, które naruszają zasady.
+- obserwować innych użytkowników i tagi oraz przeglądać publiczne treści,
+- komentować i odpowiadać na komentarze, a pod cudzym wpisem zostawić reakcję „Smakowicie wygląda”,
+- pytać innych o radę i odpowiadać na ich pytania („Poradźcie”),
+- zapisywać przepisy w swoich zeszytach, także we wspólnych zeszytach z osobami, które do nich zaprosisz,
+- gotować z przepisu krok po kroku w trybie gotowania,
+- układać plan posiłków na tydzień i prowadzić listę zakupów,
+- wpisać, co masz w domu, i znaleźć przepisy, które z tego ugotujesz („Co mam w domu”),
+- oglądać propozycje przepisów na półce „Mój stół” i gotować z innymi przepis tygodnia („Ugotujmy razem”),
+- podać dzień urodzin i — jeśli zechcesz — dostać życzenia albo pokazać ten dzień osobom, które Cię obserwują,
+- dostawać raz w tygodniu podsumowanie e-mailem, jeśli je włączysz,
+- logować się hasłem, linkiem z wiadomości e-mail albo kontem Google lub Facebooka,
+- pobrać paczkę ze swoimi danymi i wczytać ją z powrotem na swoje konto,
+- zgłaszać treści, które naruszają zasady, i odwoływać się od decyzji moderacji.
+
+Niektóre z tych funkcji udostępniamy stopniowo, więc może się zdarzyć, że którejś jeszcze u siebie nie widzisz. Szczegóły o danych, których każda z nich potrzebuje, są w Polityce Prywatności.
 
 ### Jak dobieramy wpisy
 

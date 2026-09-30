@@ -158,6 +158,16 @@
                 <x-blad-grupy name="tags" />
             </fieldset>
 
+            {{-- Lista ma granicę (#2326). Przekracza ją tylko konto, które
+                 obserwowało więcej tagów przed wprowadzeniem limitu, albo
+                 bardzo długa lista gospodarza — zdanie mówi, co zrobić. --}}
+            @if($obcieto)
+                <p class="tagi-granica" data-rola="lista-tagow-obcieta">
+                    Ta lista pokazuje najwyżej {{ \App\Support\LimityTagow::maksNaLiscieTwoichTagow() }} tagów.
+                    Odznacz tagi, których już nie potrzebujesz, i naciśnij „Zapisz” — wtedy zobaczysz kolejne.
+                </p>
+            @endif
+
             {{-- Przycisk pojawia się TYLKO wtedy, gdy naprawdę coś dojdzie,
                  i mówi ile — „Pokaż więcej" bez liczby nie daje orientacji,
                  gdzie się jest, a o to w tej decyzji chodziło. --}}

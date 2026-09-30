@@ -26,7 +26,7 @@
         <p><a class="btn btn-secondary" href="{{ route('recipes.history', $recipe->slug) }}">Zostaw ukrytą — wróć</a></p>
 
         <div class="danger-zone stack">
-            <form class="stack" method="POST" action="{{ route('recipes.history.restore.store', [$recipe->slug, $wersja->version_number]) }}">
+            <form class="stack" method="POST" action="{{ route('recipes.history.restore.store', [$recipe->slug, $wersja->version_number]) }}" novalidate>
                 @csrf
                 @if($strona === \App\Models\RecipeVersion::UKRYLA_MODERACJA)
                     <x-field name="reason_code" label="Powód przywrócenia (do rejestru decyzji)" required

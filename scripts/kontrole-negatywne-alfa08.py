@@ -30,6 +30,7 @@ from kontrola_przyczyny import przebieg, sprawdz_wzorce, uruchom_test, werdykt, 
 from kontrola_wyjscia_testu import run_test
 from kontrole_oczekiwana_przyczyna import OCZEKUJ, OCZEKUJ_MIARY, kontrole_mechanizmu
 from podzial_kontroli import indeksy_po_etykietach, parsuj_argumenty, poza_petla_w_tej_czesci, wybierz_indeksy
+from zawezenie_testow import sprawdz_zgodnosc
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -1495,6 +1496,9 @@ checks = [
      lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
     ("Podział testów gubi plik", PODZIAL_TESTOW, PODZIAL_TESTOW_TEST, podzial_gubi_plik),
     ("Macierz testów krótsza niż podział", BRAMKA_CI, PODZIAL_TESTOW_TEST, macierz_krotsza_niz_podzial),
+    # #2299: części kontroli przestają uruchamiać regresje zawężenia `--filter`.
+    ("Kontrole bez regresji zawężenia filtra (#2299)", CI_WORKFLOW, PODZIAL_TESTOW_TEST,
+     lambda s: replace_once(s, "-p 'test_zawezenie_testow.py'", "-p 'test_kontrola_wyjscia_testu.py'")),
     ("Wyścigi dwóch połączeń znów nie blokują CI", CI_WORKFLOW, WYSCIGI_BLOKUJA_TEST,
      lambda s: replace_once(s, "    name: Wyścigi na dwóch połączeniach\n", "    name: Wyścigi na dwóch połączeniach\n    continue-on-error: true\n")),
     # #2215: audyt zależności blokuje; flaga wracająca na job albo skrypt bramki
@@ -2039,6 +2043,33 @@ checks = [
      lambda s: replace_once(s, '<p class="meta meta-samodzielne">Nic jeszcze nie zaplanowane.</p>', '<p class="meta">Nic jeszcze nie zaplanowane.</p>')),
     ("Samodzielne zdanie pomocnicze w arkuszu na 16 px", CSS, "test_klasa_w_arkuszu_daje_tekst_podstawowy_18_px",
      lambda s: replace_once(s, "  .meta-samodzielne {\n    font-size: var(--text-body);", "  .meta-samodzielne {\n    font-size: var(--text-help);")),
+    # D-333 „novalidate wszędzie” (30.09.2026): formularz z natywną walidacją
+    # bez `novalidate` zatrzymuje dymek przeglądarki przed polskim podsumowaniem.
+    # Pierwsza mutacja zapala oba spojrzenia (HTML ekranu i szablon), druga —
+    # formularz w komponencie, rozwijany przez skaner szablonów.
+    ("Logowanie bez novalidate", "resources/views/auth/login.blade.php", "FormularzeZWalidacjaMajaNovalidateTest",
+     lambda s: replace_once(s, "action=\"{{ route('login') }}\" novalidate>", "action=\"{{ route('login') }}\">")),
+    ("Wybór zeszytu bez novalidate", "resources/views/components/wybor-zeszytu.blade.php", "test_kazdy_formularz_w_szablonach_z_natywna_walidacja_ma_novalidate",
+     lambda s: replace_once(s, '<form method="POST" action="{{ $action }}" novalidate>', '<form method="POST" action="{{ $action }}">')),
+    # #2308: lista kursorowa bez `KursorListy` wraca do HTTP 500 na zmyślonym `?cursor=`.
+    ("Strona tagu stronicuje gołym cursorPaginate", "app/Http/Controllers/TagController.php", "test_w_app_cursor_paginate_wola_tylko_kursor_listy",
+     lambda s: replace_once(s,
+         "KursorListy::strona($zapytanie, (int) config('kuking.feed.page_size'), ['published_at' => KursorListy::CZAS, 'id' => KursorListy::UUID])",
+         "$zapytanie->cursorPaginate((int) config('kuking.feed.page_size'))")),
+    # Z8, Z10, Z11 (#2283): polityka mówi o śladzie nieudanej wysyłki tyle dni,
+    # ile queue:prune-failed w harmonogramie; §9 bez obietnicy e-maila;
+    # zakres `profile` przy Google obejmuje zdjęcie.
+    ("Retencja failed_jobs inna niż w polityce", "routes/console.php", "PolitykaMowiPrawdeOPoczcieGoogleIZmianachTest",
+     lambda s: replace_once(s, "Harmonogram::artisan('queue:prune-failed', ['--hours' => 720])",
+                            "Harmonogram::artisan('queue:prune-failed', ['--hours' => 168])")),
+    ("Polityka znów obiecuje e-mail o zmianie", POLITYKA_TEKST, "PolitykaMowiPrawdeOPoczcieGoogleIZmianachTest",
+     lambda s: replace_once(s, "O zmianie polityki nie piszemy do Ciebie e-mailem", "O zmianie polityki napiszemy także e-mailem")),
+    ("Polityka pomija zdjęcie z zakresu Google", POLITYKA_TEKST, "PolitykaMowiPrawdeOPoczcieGoogleIZmianachTest",
+     lambda s: replace_once(s, "Google opisuje je na swoim ekranie zgody jako imię i **zdjęcie profilowe** — nie ma osobnej prośby o samo imię.",
+                            "Google podaje nam imię.")),
+    # Z9 (#2283): regulamin §2 wymienia usługi, których adresy istnieją.
+    ("Regulamin §2 bez „Poradźcie”", "resources/legal/regulamin.md", "RegulaminWymieniaUslugiSerwisuTest",
+     lambda s: replace_once(s, " („Poradźcie”),", ",")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej
@@ -2112,6 +2143,11 @@ if CZESC is not None:
 kontrole_dodatnie = list(dict.fromkeys(test for _label, _filename, test, _mutate in wybrane))
 if not kontrole_dodatnie:
     raise RuntimeError("Wybrana część `checks` jest pusta — nie ma czego sprawdzać.")
+# #2299: każdy `artisan test --filter` dostaje w argumencie pliki, w których filtr
+# coś wybiera (scripts/zawezenie_testow.py) — bez tego PHPUnit budował cały zestaw
+# przy każdym z ok. 270 wywołań na część. Zanim cokolwiek zmutujemy: próba na
+# dwóch pierwszych testach części, że zawężony przebieg wykonuje te same testy.
+sprawdz_zgodnosc(kontrole_dodatnie[:2])
 # JEDYNY test bez własnej mutacji, który ma iść na zielono przed pętlą: klasa
 # obejmująca oba testy metod z wpisów #1059 (GRUPA_LICZBA_TEST i
 # GRUPA_KOLEJNOSC_TEST). Nie jest to druga lista kontroli dodatnich — dopisuj

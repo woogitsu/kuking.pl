@@ -175,7 +175,7 @@
          formularza, więc jedna rola i jedna powierzchnia; rozdziela je
          kreska i nagłówek z `.form-section`, tak jak było to pomyślane. --}}
     <form class="panel-formularza" id="formularz-szczegolow" method="POST" action="{{ $action }}" enctype="multipart/form-data"
-          @if($errors->any()) data-niezapisane-od-serwera @endif>
+          @if($errors->any()) data-niezapisane-od-serwera @endif novalidate>
         @csrf
         @if($isEdit)
             @method('PUT')

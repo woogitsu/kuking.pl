@@ -77,6 +77,8 @@ final class ProbaWejsciaKontemFacebooka extends Notification implements ShouldQu
             ->subject('Ktoś próbował wejść na Twoje konto w Kuking kontem Facebooka')
             ->view('mail.proba-wejscia-kontem-facebooka', [
                 'displayName' => $notifiable->profile?->display_name,
+                // Stopka w formie adresata (D-332, #1753); bez wyboru — bez rodzaju.
+                'profilAdresata' => $notifiable->profile,
                 'linkLogowania' => route('login'),
                 'linkBezpieczenstwo' => route('settings.security'),
             ]);

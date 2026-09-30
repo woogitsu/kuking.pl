@@ -47,9 +47,11 @@ use Throwable;
  *
  * Czyli adres e-mail i hash hasła człowieka — w wiadomości wychodzącej do
  * usługi, nad którą nie mamy kontroli. Znalazł to audyt zewnętrzny (A6-01),
- * odtwarzając prawdziwy błąd unikalności przez trasę HTTP. Kanał nigdy nie
- * był włączony na produkcji (`LOG_BLAD_WEBHOOK_URL` nie było ustawione), więc
- * nic nie wyciekło — ale wystarczyłoby go włączyć.
+ * odtwarzając prawdziwy błąd unikalności przez trasę HTTP. Kanał nie był
+ * wtedy włączony na produkcji (`LOG_BLAD_WEBHOOK_URL` nie było ustawione), więc
+ * nic nie wyciekło — ale wystarczyłoby go włączyć. Od 29.09.2026 jest
+ * włączony (Discord, D-333), dlatego ta lista dozwolonych pól jest dziś
+ * jedyną zaporą między treścią błędu a zewnętrzną usługą.
  *
  * Odfiltrowywanie danych z takiego tekstu wyrażeniem regularnym byłoby
  * zgadywaniem: sterownik może zmienić format, a każdy inny pakiet może

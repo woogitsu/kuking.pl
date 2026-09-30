@@ -80,7 +80,7 @@
 
             <section class="panel-formularza mt-4" aria-labelledby="zapros-po-nazwie">
                 <h2 id="zapros-po-nazwie" class="mt-0">Zaproś osobę z Kuking</h2>
-                <form method="POST" action="{{ route('collections.invitations.store', $collection) }}">
+                <form method="POST" action="{{ route('collections.invitations.store', $collection) }}" novalidate>
                     @csrf
                     <x-field name="nazwa" label="Nazwa konta" required
                              help="Jest na profilu tej osoby, po znaku @ — na przykład halina.k. Dostanie powiadomienie i sama zdecyduje." />

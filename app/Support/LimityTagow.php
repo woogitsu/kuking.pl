@@ -54,6 +54,43 @@ final class LimityTagow
         return (int) config('kuking.tags.max_per_post');
     }
 
+    /**
+     * Ile tagów wolno obserwować z jednego konta (#2326).
+     *
+     * Pilnuje tego `UpdateTagFollows` na KAŻDEJ drodze dodania (przycisk
+     * na stronie tagu, krok powitalny, formularz „Twoje tagi”), pod blokadą
+     * wiersza konta — dwa równoległe dodania nie przeskoczą granicy razem.
+     */
+    public static function maksObserwowanych(): int
+    {
+        return (int) config('kuking.tags.max_followed');
+    }
+
+    /**
+     * Ile pozycji najwyżej składa lista „Twoje tagi” (`TagFollowWindow`).
+     *
+     * Wszechświat tej listy to obserwowane (do `maksObserwowanych()`) plus
+     * promowane przez gospodarza — stąd dwa razy limit. Granica chroni
+     * żądanie przed kontem sprzed limitu i przed bardzo długą listą
+     * gospodarza; obserwowane idą w niej pierwsze, więc każde da się zdjąć.
+     */
+    public static function maksNaLiscieTwoichTagow(): int
+    {
+        return 2 * self::maksObserwowanych();
+    }
+
+    /**
+     * Komunikat po przekroczeniu limitu — jeden tekst na wszystkich drogach.
+     * Mówi, ile wolno i co zrobić, żeby dodać nowy tag.
+     */
+    public static function komunikatLimituObserwowanych(): string
+    {
+        $ile = self::maksObserwowanych();
+        $slowo = Odmiana::rzeczownik($ile, 'tag', 'tagi', 'tagów');
+
+        return "Możesz obserwować najwyżej {$ile} {$slowo}. Żeby dodać nowy, przestań obserwować te, których już nie potrzebujesz — lista „Twoje tagi” jest w ustawieniach.";
+    }
+
     /** Ile podpowiedzi zwraca wyszukiwarka tagów (SPEC §1.5). */
     public static function maksPodpowiedzi(): int
     {

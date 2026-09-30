@@ -23,7 +23,7 @@
         $wybranyMiesiac = (string) old('birthday_month', $user->birthday_month);
     @endphp
 
-    <form class="panel-formularza" method="POST" action="{{ route('settings.birthday.update') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('settings.birthday.update') }}" novalidate>
         @csrf @method('PUT')
 
         @if($dataSlownie)

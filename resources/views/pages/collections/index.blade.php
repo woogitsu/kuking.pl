@@ -201,7 +201,7 @@
          czyta ten stan na żywo i bez JavaScriptu. --}}
     <details class="panel-formularza mt-8" {{ $errors->any() || $saveContext !== [] ? 'open' : '' }}>
         <summary class="btn btn-secondary inline-flex">Załóż nowy zeszyt</summary>
-        <form class="mt-4" method="POST" action="{{ route('collections.store') }}">
+        <form class="mt-4" method="POST" action="{{ route('collections.store') }}" novalidate>
             @csrf
             @foreach($saveContext as $key => $value)
                 <input type="hidden" name="{{ $key }}" value="{{ $value }}">

@@ -146,7 +146,7 @@
                         in_array($decyzja->action, [\App\Models\ModerationAction::ACTION_SUSPEND, \App\Models\ModerationAction::ACTION_BAN], true) => 'Cofam decyzję — zdejmuję tę karę z konta',
                         default => 'Cofam decyzję',
                     })
-                    <form method="POST" action="{{ route('admin.appeals.resolve', $appeal) }}">
+                    <form method="POST" action="{{ route('admin.appeals.resolve', $appeal) }}" novalidate>
                         @csrf
                         {{-- Identyfikator TEGO wiersza (issue #243): kolejka pokazuje
                              formularz odpowiedzi dla KAŻDEGO otwartego odwołania na

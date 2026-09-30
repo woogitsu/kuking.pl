@@ -74,6 +74,8 @@ final class PotwierdzenieAdresu extends VerifyEmail implements ShouldQueue
                 'linkUrl' => AdresKanoniczny::zbuduj(fn (): string => $this->verificationUrl($notifiable)),
                 'waznoscTekst' => self::waznosc($minut),
                 'displayName' => $notifiable->profile?->display_name,
+                // Stopka w formie adresata (D-332, #1753); bez wyboru — bez rodzaju.
+                'profilAdresata' => $notifiable->profile,
             ]);
     }
 

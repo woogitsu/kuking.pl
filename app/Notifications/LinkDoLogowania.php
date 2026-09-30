@@ -119,6 +119,8 @@ final class LinkDoLogowania extends Notification implements ShouldBeEncrypted, S
                 ),
                 'waznoscTekst' => $this->waznosc(),
                 'displayName' => $notifiable->profile?->display_name,
+                // Stopka w formie adresata (D-332, #1753); bez wyboru — bez rodzaju.
+                'profilAdresata' => $notifiable->profile,
             ]);
     }
 

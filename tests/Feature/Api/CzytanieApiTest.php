@@ -309,6 +309,15 @@ class CzytanieApiTest extends TestCase
         $this->assertSame(['Odpowiedź 5', 'Odpowiedź 6'], $druga->json('data.*.body'));
         $this->assertNull($druga->json('meta.next_cursor'));
 
+        // Zmyślony kursor (#2308): sam `_pointsToNextItems` albo napis zamiast
+        // UUID-u to pierwsza strona, nie HTTP 500.
+        foreach (['{"_pointsToNextItems":true}', '{"created_at":"abc","id":"abc","comments.id":"abc","_pointsToNextItems":true}'] as $zmyslony) {
+            $this->jako($this->obca)
+                ->getJson('/api/v1/komentarze/'.$korzen->getKey().'/odpowiedzi?cursor='.rtrim(strtr(base64_encode($zmyslony), '+/', '-_'), '='))
+                ->assertOk()
+                ->assertJsonPath('data.0.body', 'Odpowiedź 1');
+        }
+
         // Odpowiedź nie ma własnych odpowiedzi: 404, nie pusta lista.
         $odpowiedz = Comment::query()->where('parent_id', $korzen->getKey())->oldest()->firstOrFail();
         $this->jako($this->obca)->getJson('/api/v1/komentarze/'.$odpowiedz->getKey().'/odpowiedzi')->assertNotFound();

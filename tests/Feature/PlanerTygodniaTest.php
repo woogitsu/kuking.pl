@@ -206,6 +206,28 @@ final class PlanerTygodniaTest extends TestCase
         $this->assertSame(5, MealPlanEntry::query()->count(), 'Plan nie może tracić pozycji, gdy przepis znika.');
     }
 
+    /**
+     * #2246: komunikat po „na” mówi „na sobotę”, nie „na sobota” — i przy
+     * dodaniu, i przy duplikacie, i przy usunięciu. Nagłówek dnia w planerze
+     * zostaje w mianowniku („Sobota, 3 października”).
+     */
+    public function test_komunikaty_planera_odmieniaja_dzien_po_na(): void
+    {
+        $ja = $this->user('planujaca');
+
+        $this->actingAs($ja)->post(route('planer.store'), ['day' => '2026-10-03', 'label' => 'Bigos'])
+            ->assertSessionHas('status', 'Dopisane na sobotę, 3 października.');
+        $this->actingAs($ja)->post(route('planer.store'), ['day' => '2026-10-03', 'label' => 'Bigos'])
+            ->assertSessionHas('status', 'To już jest w planie na sobotę, 3 października.');
+
+        $wpis = MealPlanEntry::query()->where('user_id', $ja->getKey())->sole();
+        $html = (string) $this->actingAs($ja)->get(route('planer.show'))->assertOk()->getContent();
+        $this->assertStringContainsString('Sobota, 3 października', $html);
+
+        $this->actingAs($ja)->delete(route('planer.destroy', $wpis))
+            ->assertSessionHas('status', 'Usunięte z planu na sobotę, 3 października.');
+    }
+
     public function test_cudzy_plan_jest_niewidoczny_i_nieusuwalny(): void
     {
         $ja = $this->user('planujaca');

@@ -45,6 +45,11 @@ class SprawdzKopieBazy extends Command
                 (int) $wynik['wiek_godzin'],
                 $wynik['prog_godzin'],
             )),
+            // #2259: wcześniej data z przyszłości wychodziła tu jako „Kopia jest".
+            StanKopiiBazy::Z_PRZYSZLOSCI => $this->error(
+                AlarmKopii::trescZPrzyszlosci((int) $wynik['wiek_godzin'])
+                .' Sprawdź zegar i strefę czasową serwisu kopii — znacznik w nazwie musi być w UTC.',
+            ),
             default => $this->error('Nie udało się odpytać bucketu z kopiami.'),
         };
 

@@ -208,8 +208,9 @@ Jak to działa i co widać w logach:
 - **Limit czekania: 900 s** (`MIGRACJE_LIMIT_S`; pre-deploy web ma 600 s).
   Po nim kontener kończy się kodem 1 i log mówi: `nie startuję na starym
   schemacie`. Najczęstsza przyczyna: migracja web się nie udała — sprawdź log
-  jej pre-deploy. Railway ponawia worker (`ON_FAILURE`, 10 prób) i scheduler
-  (`ALWAYS`); po wyczerpaniu prób zrestartuj usługę ręcznie.
+  jej pre-deploy. Railway ponawia worker i scheduler (`ALWAYS`, na produkcji
+  do 1000 prób, poza nią 10 — `PROBY_RESTARTU_PRODUKCJA` w `railway.ts`,
+  #2302 IN-13); po wyczerpaniu prób zrestartuj usługę ręcznie.
 - Przerwa między próbami: `MIGRACJE_ODSTEP_S` (domyślnie 5 s).
 - **Awaryjne wyłączenie**: `MIGRACJE_BRAMKA=0` w zmiennych usługi (log ostrzega
   wprost). Używaj tylko wtedy, gdy sama bramka blokuje start, a schemat jest

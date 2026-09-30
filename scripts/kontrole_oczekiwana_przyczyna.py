@@ -315,6 +315,9 @@ OCZEKUJ = {
         r'|contains "Kuking\.pl - pokaż, co dziś ugotowałaś\."'
         # #1753 etap 2: przycisk „Ugotowałam” na stronie przepisu i w formularzu.
         r'|matches PCRE pattern "~href="\[\^"\]\*/ugotowalem\[\^"\]\*">Ugotowałam</a>~u"'
+        # #1753 etap 3: stopki listów do konta i o zmianie adresu — asercja
+        # z komunikatem „Stopka listu <nazwa>” i samym „pokaż, co dziś …”.
+        r'|^Stopka listu .* contains "pokaż, co dziś ugotowałaś\."'
     ),
     'Wariant neutralny helpera z rodzajem': r'wariant neutralny z rodzajem|contains "Możesz od razu pokazać, co dziś gotujesz"',
     'Goły rodzaj obok wywołania helpera': r'Tekst przypisuje czytelnikowi płeć:.*ugotowałaś',
@@ -372,6 +375,18 @@ OCZEKUJ = {
     # UX-02 (#2287).
     'Pusty dzień planera znów w 16 px': r'stoi samo, a ma 16 px zamiast tekstu podstawowego',
     'Samodzielne zdanie pomocnicze w arkuszu na 16 px': r'Samodzielne zdanie pomocnicze nie ma rozmiaru tekstu podstawowego',
+    # D-333: obie gałęzie strażnika mówią to samo zdanie (ekran i szablon).
+    'Logowanie bez novalidate': r'Formularze? z natywną walidacją bez `novalidate` \(D-333\).*auth/login|Formularze? z natywną walidacją bez `novalidate` \(D-333\).*/login \(gość\)',
+    'Wybór zeszytu bez novalidate': r'Formularz z natywną walidacją bez `novalidate` \(D-333\).*components/wybor-zeszytu\.blade\.php',
+    # #2308: kursor z adresu tylko przez KursorListy.
+    'Strona tagu stronicuje gołym cursorPaginate': r'Lista kursorowa bez KursorListy — zmyślony `\?cursor=` da tam HTTP 500 \(#2308\)\. Użyj `KursorListy::strona\(\)`',
+    # Audyt prywatności 30.09, Z8–Z11 (#2283).
+    'Retencja failed_jobs inna niż w polityce': r'żyje 7 dni — tyle, ile queue:prune-failed w harmonogramie',
+    'Polityka znów obiecuje e-mail o zmianie': r'Polityka §9 obiecuje e-mail o zmianie polityki',
+    'Polityka pomija zdjęcie z zakresu Google': r'a polityka nie mówi, że Google pyta o zdjęcie profilowe',
+    'Regulamin §2 bez „Poradźcie”': r'Serwis ma /pytania, a regulamin §2 nie wymienia tej usługi',
+    # #2299: zawężenie `--filter` w kontrolach ma własne regresje w każdej części.
+    'Kontrole bez regresji zawężenia filtra (#2299)': r'Części kontroli nie uruchamiają `scripts/test_zawezenie_testow\.py` \(#2299\)',
 }
 
 

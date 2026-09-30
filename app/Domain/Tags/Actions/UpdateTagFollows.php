@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Tags\Actions;
 
+use App\Domain\Tags\LimitObserwowanychTagow;
 use App\Domain\Tags\TagMutationLock;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Tag;
 use App\Models\User;
+use App\Support\LimityTagow;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -55,13 +57,16 @@ final class UpdateTagFollows
             if (array_diff($selected, $scope['shown']) !== []) {
                 throw ValidationException::withMessages(['tags' => 'Wybierz tagi z tej listy i zapisz ponownie.']);
             }
-            $this->insert($freshUser, $add);
+            // Najpierw zdjęcia, potem dodania: limit (#2326) liczy stan PO
+            // zapisie, więc zamiana jednego tagu na inny przy pełnej liście
+            // przechodzi. Odmowa niżej cofa całą transakcję, także zdjęcia.
             foreach ($remove as $id) {
                 // Nie usuwamy relacji, której data zmieniła się od otwarcia.
                 // Kolumna ma dokładność sekundy; nie jest wersją relacji.
                 DB::table('tag_follows')->where('user_id', $freshUser->getKey())
                     ->where('tag_id', $id)->where('created_at', $scope['followed'][$id])->delete();
             }
+            $this->insert($freshUser, $add);
         });
     }
 
@@ -69,6 +74,41 @@ final class UpdateTagFollows
     {
         if (! $user->isActive()) {
             throw new BladDlaCzlowieka('To konto jest niedostępne.');
+        }
+    }
+
+    /**
+     * Limit liczby obserwowanych tagów (#2326), liczony pod blokadą wiersza
+     * konta, którą biorą wszystkie wejścia tej klasy — dwa równoległe
+     * dodania czekają na siebie i nie przeskoczą granicy razem.
+     *
+     * Liczą się tylko NOWE relacje: ponowne „Obserwuj” tagu już
+     * obserwowanego nie dokłada wiersza, więc nie ma czego odmawiać. Konto
+     * sprzed limitu, które obserwuje więcej, niczego nie traci — nie doda
+     * tylko nowego, dopóki nie zejdzie poniżej.
+     *
+     * Bez wczytywania relacji: jedno `whereIn` ograniczone do wybranych
+     * i jedno `exists()` z przesunięciem, czyli „czy jest ich już co
+     * najmniej tyle” — koszt nie rośnie z liczbą obserwowanych.
+     *
+     * @param  list<string>  $ids
+     */
+    private function assertMiesciSieWLimicie(User $user, array $ids): void
+    {
+        $juz = DB::table('tag_follows')->where('user_id', $user->getKey())
+            ->whereIn('tag_id', $ids)->count();
+        $nowych = count($ids) - $juz;
+        if ($nowych === 0) {
+            return;
+        }
+
+        $wolnych = LimityTagow::maksObserwowanych() - $nowych;
+        $pelno = $wolnych < 0 || DB::table('tag_follows')->where('user_id', $user->getKey())
+            ->offset($wolnych)->limit(1)->exists();
+        if ($pelno) {
+            throw LimitObserwowanychTagow::withMessages([
+                'tags' => LimityTagow::komunikatLimituObserwowanych(),
+            ]);
         }
     }
 
@@ -85,6 +125,7 @@ final class UpdateTagFollows
                 'tags' => 'Jeden z wybranych tagów nie jest już dostępny. Sprawdź pozostałe zaznaczenia i zapisz ponownie.',
             ]);
         }
+        $this->assertMiesciSieWLimicie($user, $ids);
         DB::table('tag_follows')->insertOrIgnore(array_map(fn (string $id): array => [
             'user_id' => $user->getKey(), 'tag_id' => $id, 'created_at' => now(),
         ], $ids));

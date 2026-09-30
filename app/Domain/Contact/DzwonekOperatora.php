@@ -69,10 +69,13 @@ final class DzwonekOperatora
     public function zadzwon(ContactMessage $wiadomosc): void
     {
         // Oba kanały wyłączone (brak `LOG_BLAD_WEBHOOK_URL` i
-        // `KUKING_ALARM_EMAIL`). Ten sam warunek stoi w `bootstrap/app.php`
-        // przed raportowaniem wyjątków; handlery sprawdzają swój adres
-        // jeszcze raz u siebie, ale sprawdzenie tutaj oszczędza budowanie
-        // treści i czyni umowę „brak zmiennych = zero efektu" widoczną tu.
+        // `KUKING_ALARM_EMAIL`) — tak jest lokalnie i w CI; na produkcji
+        // Discord działa od 29.09.2026 (D-333), a treść jest bez danych
+        // osobowych (`tresc()` niżej). Ten sam warunek stoi w
+        // `bootstrap/app.php` przed raportowaniem wyjątków; handlery
+        // sprawdzają swój adres jeszcze raz u siebie, ale sprawdzenie tutaj
+        // oszczędza budowanie treści i czyni umowę „brak zmiennych = zero
+        // efektu" widoczną tu.
         if (! KanalyAlarmowe::wlaczony()) {
             return;
         }

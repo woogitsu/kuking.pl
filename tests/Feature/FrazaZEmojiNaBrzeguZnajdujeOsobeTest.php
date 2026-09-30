@@ -12,8 +12,10 @@ use Tests\TestCase;
 /**
  * Issue #2331: emoji na brzegu frazy znika w `Str::ascii()` i zostawia
  * spację — „Basia 🍲" dawało wzorzec `%basia %` i nie znajdowało konta
- * „Basia". Brzegi przycinamy PO normalizacji; środek frazy (#885) zostaje
- * bez zmian.
+ * „Basia". Brzegi przycinamy PO normalizacji, a emoji w środku frazy
+ * wypada razem ze swoim odstępem (pełna poprawka #2331; szczegółowe sceny
+ * po każdej ścieżce szukania — `FrazaZEmojiNaBrzeguTest`). Fraza nie jest
+ * obcinana (#885).
  */
 final class FrazaZEmojiNaBrzeguZnajdujeOsobeTest extends TestCase
 {
@@ -33,11 +35,12 @@ final class FrazaZEmojiNaBrzeguZnajdujeOsobeTest extends TestCase
         }
     }
 
-    public function test_srodek_frazy_zostaje_jak_byl_a_jeden_znak_po_przycieciu_to_za_malo(): void
+    public function test_emoji_w_srodku_wypada_z_odstepem_a_jeden_znak_po_przycieciu_to_za_malo(): void
     {
         $this->assertSame('basia', FrazaWyszukiwania::normalizuj(' Basia 🍲 '));
-        // Reguła #885 dla środka frazy bez zmian: dwie spacje po emoji zostają.
-        $this->assertSame('basia  nowak', FrazaWyszukiwania::normalizuj('Basia 🍲 Nowak'));
+        // Emoji w środku wypada razem ze swoim odstępem (#2331) — fraza nie
+        // jest przy tym obcinana (#885).
+        $this->assertSame('basia nowak', FrazaWyszukiwania::normalizuj('Basia 🍲 Nowak'));
 
         // „a 🍲" to po przycięciu jeden znak — tak samo za krótka jak „a".
         $this->assertFalse(SearchQuery::jestPrzeszukiwalna('a 🍲'));

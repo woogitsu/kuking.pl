@@ -165,7 +165,7 @@
             @endif
 
             @if($report->isOpen())
-                <form method="POST" action="{{ route('admin.reports.decide', $report) }}">
+                <form method="POST" action="{{ route('admin.reports.decide', $report) }}" novalidate>
                     @csrf
                     {{-- Identyfikator TEGO wiersza (issue #243): ta strona stawia do
                          dwudziestu pięciu takich formularzy naraz, wszystkie z polami
@@ -371,7 +371,7 @@
                         To Twoja treść — przywrócić może inny moderator albo rozstrzygnie to odwołanie.
                     </p>
                 @elseif(($przywracalne[$report->id] ?? null) === 'przywroc')
-                    <form class="mt-4" method="POST" action="{{ route('admin.reports.restore', $report) }}">
+                    <form class="mt-4" method="POST" action="{{ route('admin.reports.restore', $report) }}" novalidate>
                         @csrf
                         {{-- Ten sam identyfikator wiersza co w formularzu decyzji
                              wyżej (issue #243) — obie postacie formularza nigdy nie

@@ -83,6 +83,11 @@ wiersz. **Oryginałów w starym buckecie nie kasuje.**
    wypisuje „Następna partia: `--po=<uuid>`” — podaj ją w kolejnym.
    Przebieg bez `--po` zaczyna od początku i zbiera wiersze pominięte
    wcześniej (brak pliku zostawia wiersz przy `r2_legacy` — #1031).
+   Kopia w nowym buckecie liczy się dopiero wtedy, gdy ma rozmiar
+   i SHA-256 zgodne ze źródłem w starym (#2228). „NIEZGODNA KOPIA” (ucięty
+   upload albo obcy obiekt pod tym samym kluczem) zostawia wiersz przy
+   `r2_legacy`, a obiektu komenda sama nie nadpisuje: sprawdź go, usuń
+   z nowego bucketu i uruchom przebieg ponownie. Kod wyjścia jest wtedy ≠ 0.
 
 4. **Sprawdzenie po przenosinach:**
    `railway ssh -- php artisan kuking:sprawdz-zdjecia-po-przenosinach`
