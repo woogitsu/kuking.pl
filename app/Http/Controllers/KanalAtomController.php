@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Kanaly\Kanal;
+use App\Domain\Kanaly\KluczeKanalu;
 use App\Domain\Kanaly\TresciKanalu;
 use App\Domain\Kanaly\ZapisAtom;
 use App\Models\Collection;
 use App\Models\Profile;
 use App\Models\Tag;
+use App\Support\AdresKanoniczny;
 use App\Support\PublicznyHtmlGoscia;
 use Closure;
 use Illuminate\Http\RedirectResponse;
@@ -73,7 +75,7 @@ final class KanalAtomController
 
         $wlasciciel->setRelation('profile', $profil);
 
-        return $this->odpowiedz($request, 'profil:'.$wlasciciel->getKey(), fn () => $this->tresci->profil($wlasciciel));
+        return $this->odpowiedz($request, KluczeKanalu::profil((string) $wlasciciel->getKey(), (string) $profil->username), fn () => $this->tresci->profil($wlasciciel));
     }
 
     public function tag(Request $request, string $tag): Response|RedirectResponse
@@ -90,7 +92,7 @@ final class KanalAtomController
             return redirect()->route('kanaly.tag', $model->tagKanoniczny()->slug, status: 301);
         }
 
-        return $this->odpowiedz($request, 'tag:'.$model->getKey(), fn () => $this->tresci->tag($model));
+        return $this->odpowiedz($request, KluczeKanalu::tag((string) $model->getKey()), fn () => $this->tresci->tag($model));
     }
 
     public function zeszyt(Request $request, string $collection): Response
@@ -104,11 +106,11 @@ final class KanalAtomController
             abort(404);
         }
 
-        return $this->odpowiedz($request, 'zeszyt:'.$zeszyt->getKey(), fn () => $this->tresci->zeszyt($zeszyt));
+        return $this->odpowiedz($request, KluczeKanalu::zeszyt((string) $zeszyt->getKey()), fn () => $this->tresci->zeszyt($zeszyt));
     }
 
     /**
-     * @param  string  $klucz  typ i identyfikator kanału (`profil:<id konta>`)
+     * @param  string  $klucz  klucz cache z `KluczeKanalu`
      * @param  Closure(): Kanal  $zbuduj  wołane tylko przy braku świeżej kopii
      */
     private function odpowiedz(Request $request, string $klucz, Closure $zbuduj): Response
@@ -135,11 +137,12 @@ final class KanalAtomController
     /**
      * Krótki cache APLIKACYJNY gotowej treści kanału (decyzja właściciela
      * z 30.09.2026, D-333). Kanał jest zawsze widokiem gościa, więc kopia
-     * jest wspólna (klucz = typ + identyfikator). Cache stoi ZA bramką
+     * jest wspólna (klucz z `KluczeKanalu`: typ + identyfikator, dla profilu też nazwa). Cache stoi ZA bramką
      * dostępu: Policy i 404 dla prywatnego zeszytu, konta zbanowanego albo
      * tagu ukrytego liczą się przy KAŻDYM żądaniu. Cena: pozycja ukryta,
      * usunięta albo zdjęta z urzędu może zostać w kanale najwyżej
-     * `kuking.kanal_cache_sekund` (domyślnie 300 s). Tylko TTL — bez
+     * `kuking.kanal_cache_sekund` (domyślnie 300 s) — chyba że zmiana przeszła
+     * przez model `Post`/`Recipe` (`UniewaznijKanaly` czyści kopie od razu). Bez
      * unieważniania przy zmianie treści. 0 = bez cache.
      *
      * @param  Closure(): Kanal  $zbuduj
@@ -148,14 +151,17 @@ final class KanalAtomController
     {
         $sekundy = max(0, (int) config('kuking.kanal_cache_sekund'));
 
+        // Treść budowana z `APP_URL`, nie z żądania: kopia jest wspólna dla
+        // wszystkich, a `route()` i `Media::url()` biorą schemat, host i port
+        // z żądania (zaufane nagłówki `X-Forwarded-*`). Bez tego jedno
+        // żądanie z obcym `X-Forwarded-Proto`/`-Port` przy zimnym cache
+        // zatruwałoby kanał dla wszystkich na cały TTL.
+        $buduj = fn (): string => AdresKanoniczny::zbuduj(fn (): string => $this->zapis->xml($zbuduj()));
+
         if ($sekundy === 0) {
-            return $this->zapis->xml($zbuduj());
+            return $buduj();
         }
 
-        return Cache::remember(
-            'kuking:kanal:v1:'.$klucz,
-            now()->addSeconds($sekundy),
-            fn (): string => $this->zapis->xml($zbuduj()),
-        );
+        return Cache::remember($klucz, now()->addSeconds($sekundy), $buduj);
     }
 }

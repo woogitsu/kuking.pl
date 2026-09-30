@@ -578,12 +578,19 @@ kanału zostaje w treści jako `<updated>`.
 Gotowa treść kanału (XML) leży w cache aplikacji przez
 `kuking.kanal_cache_sekund` (`KUKING_KANAL_CACHE_SEKUND`, domyślnie 300 s,
 0 = wyłączony). Kanał jest zawsze widokiem gościa, więc kopia jest wspólna,
-a klucz to typ i identyfikator (`kuking:kanal:v1:profil|tag|zeszyt:<id>`).
+a klucz to typ i identyfikator (`KluczeKanalu`: `kuking:kanal:v1:profil:<id konta>:<nazwa małymi literami>`, `…:tag:<id>`, `…:zeszyt:<id>`). Nazwa w kluczu profilu sprawia, że po jej zmianie kanał od razu ma nowe adresy (kopia pod starą nazwą jest nieosiągalna). Treść kanału jest budowana z `APP_URL` (`AdresKanoniczny::zbuduj()`), nie z nagłówków żądania, bo kopia jest wspólna dla wszystkich.
 Cache stoi ZA bramką dostępu: Policy i 404 (prywatny zeszyt, konto
 zbanowane lub kasowane, tag ukryty) liczą się przy każdym żądaniu, więc
-zasady dostępu się nie zmieniły. Cena: pozycja ukryta, usunięta albo zdjęta
-z urzędu może zostać w kanale **najwyżej przez TTL** (do 5 minut). Nie ma
-unieważniania przy zmianie treści — tylko TTL, świadomie. `ETag` powstaje z
+zasady dostępu się nie zmieniły. Zdjęcie z urzędu (DSA), ukrycie przez
+moderację i usunięcie przez autora **od razu** wyrzucają kopie z cache
+(`UniewaznijKanaly`, wołane z modeli `Post` i `Recipe` przy zapisie,
+usunięciu i przywróceniu — jedno miejsce, bez wywołań w kontrolerach):
+kanał profilu autora, kanały tagów wpisu, kanały zeszytów z tą pozycją,
+a przy zmianie przepisu także profile i tagi wpisów, które go pokazują.
+**Reszta zostaje na TTL (do 5 minut):** masowe `UPDATE` z pominięciem modeli
+(np. zmiana statusu konta autora), zmiana zdjęcia (`Media`), ukrycie lub
+scalenie tagu i zmiana nazwy zeszytu. Poza tym nie ma unieważniania przy
+zmianie treści — tylko TTL, świadomie. `ETag` powstaje z
 treści, więc w oknie jest stały, a po jego upływie zgadza się z nową treścią.
 W oknie TTL drugie pobranie nie odpytuje bazy o pozycje (mierzy to
 `KanalyAtomTest::test_cache_aplikacji_…`). `Cache-Control` idzie za polityką HTML gościa: przy
