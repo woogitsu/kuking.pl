@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Social\Actions;
 
+use App\Domain\Social\BlokadyZmienione;
 use App\Domain\Social\ZamekPary;
 use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Exceptions\BladDlaCzlowieka;
@@ -93,6 +94,8 @@ final class BlockUser
                 'blocker_id' => $blokujacy->getKey(),
                 'blocked_id' => $blokowany->getKey(),
             ], ['created_at' => now()]);
+
+            event(new BlokadyZmienione);
 
             $blokujacy->following()->detach($blokowany->getKey());
             $blokowany->following()->detach($blokujacy->getKey());
