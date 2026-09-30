@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Api\WatkiKomentarzy;
+use App\Domain\Moderation\DziennikWgladu;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\CommentResource;
 use App\Http\Resources\Api\V1\PostResource;
@@ -22,6 +23,9 @@ class PostController extends Controller
     public function show(Request $request, Post $post): PostResource
     {
         $this->authorize('view', $post);
+        // Wgląd z urzędu (wpis ukryty albo konta zbanowanego) zostawia ślad
+        // tak samo jak na stronie wpisu (D-333, `DziennikWgladu::wpis()`).
+        app(DziennikWgladu::class)->wpis($post, $request->user(), $request->ip());
 
         $post->load(['author.profile.avatar', 'media', 'tags:id,slug,name,status', 'recipe.heroMedia', 'recipe.author'])
             ->loadCount(['comments' => fn ($q) => $q->widoczneDla($request->user())]);
