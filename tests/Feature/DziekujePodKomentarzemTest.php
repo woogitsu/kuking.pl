@@ -20,6 +20,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -117,7 +118,7 @@ class DziekujePodKomentarzemTest extends TestCase
         // Niezależnie od PHP: baza sama odrzuca drugi wiersz tej pary.
         $this->expectException(QueryException::class);
         CommentThank::query()->insert([
-            'id' => (string) \Illuminate\Support\Str::uuid7(),
+            'id' => (string) Str::uuid7(),
             'comment_id' => $this->komentarz->id,
             'thanker_id' => $this->autor->id,
             'created_at' => now(),

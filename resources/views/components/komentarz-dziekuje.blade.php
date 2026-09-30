@@ -9,7 +9,8 @@
 
     Po podziękowaniu przycisk zamienia się w zwykły napis „Podziękowano za ten
     komentarz." Widzą go dwie osoby: dziękujący i autor komentarza. Nikt inny,
-    bez licznika — pilnuje `PodziekowaniaNieMajaLicznikaTest`. Wycofania nie ma
+    bez licznika — pilnują `FeedNieSortujePoMierzeReakcjiTest` (wzorzec „comment”)
+    i `DziekujePodKomentarzemTest`. Wycofania nie ma
     (decyzja w `ThankForComment`), więc nie ma tu drugiego przycisku.
 
     Widok rysuje przycisk po TANIM warunku (`CommentPolicy::offerThank()`, bez

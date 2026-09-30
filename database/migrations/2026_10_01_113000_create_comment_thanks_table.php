@@ -26,7 +26,8 @@ use Illuminate\Support\Facades\Schema;
  * podziękowania wymazywanego konta kasuje jawnie `EraseAccountData`.
  *
  * BEZ LICZNIKA. Tej tabeli nie czyta żadne zapytanie układające listy ani
- * ranking — pilnuje `PodziekowaniaNieMajaLicznikaTest`.
+ * ranking — pilnują `FeedNieSortujePoMierzeReakcjiTest` (jego wzorzec
+ * „comment” zapala się na nazwie tej tabeli) i `DziekujePodKomentarzemTest`.
  *
  * ROLLBACK (D-088): `down()` ODMAWIA, gdy w tabeli są podziękowania. To słowa
  * ludzi skierowane do innych ludzi; zrzucenie tabeli kasuje je bez śladu,

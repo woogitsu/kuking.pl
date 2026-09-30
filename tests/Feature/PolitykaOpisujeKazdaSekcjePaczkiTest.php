@@ -58,6 +58,7 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
         'postep_gotowania' => '| Zapamiętany postęp w trybie gotowania |',
         'ukryte' => '| Ukrywanie wpisów i osób',
         'moje_reakcje' => '| Reakcja „Smakowicie wygląda”',
+        'moje_podziekowania' => '| „Dziękuję” pod cudzym komentarzem',
         'powiadomienia' => '| Powiadomienia w serwisie |',
         'zdjecia' => '| Publikowanie treści | zdjęcia',
         'dziennik_zgod' => 'ustawienia konta, zgody',
