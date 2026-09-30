@@ -221,7 +221,7 @@ return [
         // rozpoznaje. Ale rozpoznanie nie jest obsługą:
         //   * PHP 8.4 nie ma `IMAGETYPE_HEIC` ani `IMAGETYPE_HEIF`, więc
         //     `getimagesize()` w `StoreUploadedImage` zwraca dla nich `false`;
-        //   * GD (`ImageManager::gd()` w `ProcessUploadedImage`) nie dekoduje
+        //   * GD (`ImageManager::usingDriver(Driver::class)` w `ProcessUploadedImage`) nie dekoduje
         //     HEIC — obraz `gd_info()` ma JPEG, PNG, WebP, AVIF i GIF, nic więcej.
         // Wpisanie ich tutaj nie dawało więc obsługi, tylko obietnicę: pole
         // wyboru pliku podpowiadało HEIC, a serwis odpowiadał „ten plik nie
