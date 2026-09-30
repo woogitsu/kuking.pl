@@ -23,6 +23,7 @@
             <a class="btn btn-secondary" href="{{ route('planer.show') }}">Wróć do tego tygodnia</a>
         @endunless
         <a class="btn btn-secondary" href="{{ route('planer.show', ['tydzien' => $poniedzialek->addDays(7)->toDateString()]) }}">Następny tydzień</a>
+        <a class="btn btn-secondary" href="{{ route('shopping.index') }}">Lista zakupów</a>
     </nav>
 
     @if($poprzedniMaPozycje)
@@ -34,7 +35,7 @@
         </form>
     @endif
 
-    <p class="meta mb-5">Przy każdym dniu wyszukasz przepis i dodasz go do planu. Możesz też dopisać coś własnego, np. „obiad u mamy”. Przepis dodasz również z jego strony — przyciskiem „Dodaj do planera”.</p>
+    <p class="meta mb-5">Przy każdym dniu wyszukasz przepis i dodasz go do planu. Możesz też dopisać coś własnego, np. „obiad u mamy”. Przepis dodasz również z jego strony — przyciskiem „Dodaj do planera”. Przy przepisie w planie „Dodaj składniki” kopiuje jego składniki na listę zakupów.</p>
 
     <div class="planer-dni">
         @foreach($dni as $dataDnia => $dzien)
@@ -75,10 +76,20 @@
                                         <span class="meta">Przepis został usunięty.</span>
                                     @endif
                                 </span>
-                                <form method="POST" action="{{ route('planer.destroy', $wpis) }}">
-                                    @csrf @method('DELETE')
-                                    <button class="btn btn-secondary" type="submit">Usuń z planu<span class="visually-hidden">: {{ $nazwa }}</span></button>
-                                </form>
+                                <span class="planer-nawigacja">
+                                    @if($pozycja['stan'] === PlanerTygodnia::STAN_PRZEPIS)
+                                        {{-- Lista zakupów (#27, etap 2, D-333): linie składników tego przepisu. --}}
+                                        <form method="POST" action="{{ route('shopping.recipe.store', $pozycja['przepis']->slug) }}">
+                                            @csrf
+                                            <input type="hidden" name="z_planera" value="1">
+                                            <button class="btn btn-secondary" type="submit">Dodaj składniki<span class="visually-hidden"> do listy zakupów: {{ $nazwa }}</span></button>
+                                        </form>
+                                    @endif
+                                    <form method="POST" action="{{ route('planer.destroy', $wpis) }}">
+                                        @csrf @method('DELETE')
+                                        <button class="btn btn-secondary" type="submit">Usuń z planu<span class="visually-hidden">: {{ $nazwa }}</span></button>
+                                    </form>
+                                </span>
                             </li>
                         @endforeach
                     </ul>

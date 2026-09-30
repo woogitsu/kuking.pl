@@ -18,6 +18,9 @@ const scenarios = [
   { name: 'restore-no-reason', family: 'restore', payload: { reason_code: '', user_message: 'Kontrola lokalna D' }, errors: ['reason_code'], inline: 1 },
   { name: 'appeal-short', family: 'appeal', payload: { outcome: 'overturned', decision_note: 'test' }, errors: ['decision_note'], inline: 1 },
   { name: 'appeal-no-outcome', family: 'appeal', payload: { decision_note: 'Kontrolowane lokalne uzasadnienie.' }, errors: ['outcome'], inline: 1 },
+  // „Zdejmij z urzędu” (#581): pojedynczy formularz na własnym ekranie, bez `_wiersz`.
+  { name: 'zurzedu-no-reason', family: 'zurzedu', payload: { reason_code: '', user_message: 'Kontrolne uzasadnienie do lokalnej walidacji.', note: 'Kontrolna notatka A' }, errors: ['reason_code'], inline: 1 },
+  { name: 'zurzedu-short-message', family: 'zurzedu', payload: { reason_code: 'spam-reklama', user_message: 'krótko', note: 'Kontrolna notatka B' }, errors: ['user_message'], inline: 1 },
 ];
 const messages = {
   reason_code: 'Wybierz podstawę decyzji — autor treści zobaczy ją w powiadomieniu.',
@@ -26,6 +29,7 @@ const messages = {
   suspend_days: 'Przy decyzji „Zawieś konto" zaznacz jeszcze, na jak długo. „Bez zawieszenia" znaczy, że kary nie ma.',
   decision_note: 'Uzasadnienie ma być zdaniem, nie jednym słowem.',
   outcome: 'Wybierz, czy podtrzymujesz decyzję, czy ją cofasz.',
+  user_message: 'Uzasadnienie jest za krótkie. Napisz jednym, dwoma zdaniami, co konkretnie narusza zasady.',
 };
 
 export async function runCandidate({ browser, origin, session, fullManifest, statesManifest, snapshot, reportPath, appearance, inspectValidation }) {
@@ -39,8 +43,8 @@ export async function runCandidate({ browser, origin, session, fullManifest, sta
     requireThat(typeof snapshot === 'function' && typeof reportPath === 'string' && !existsSync(reportPath), 'CALLBACK_AND_FRESH_REPORT');
     const full = read(fullManifest), states = read(statesManifest);
     requireThat(full.phase === 'pelny' && states.phase === 'stany' && full.database === isolation.database && states.database === full.database && /^panel581-[a-f0-9]{12}$/.test(full.namespace) && states.marker === 'panel-stany-' + full.namespace, 'MANIFESTS');
-    const ids = { report: [full.dane.report, states.ids.second_open_report], appeal: [full.dane.appeal, states.ids.second_open_appeal], restore: [states.ids.resolved_report] };
-    requireThat(Object.values(ids).flat().every(uuid) && new Set(Object.values(ids).flat()).size === 5, 'MANIFEST_IDS');
+    const ids = { report: [full.dane.report, states.ids.second_open_report], appeal: [full.dane.appeal, states.ids.second_open_appeal], restore: [states.ids.resolved_report], zurzedu: [full.dane.comment] };
+    requireThat(Object.values(ids).flat().every(uuid) && new Set(Object.values(ids).flat()).size === 6, 'MANIFEST_IDS');
     const requiredIds = {
       reports: [...ids.report, ...ids.restore],
       appeals: [...ids.appeal, states.ids.closed_appeal],
@@ -79,14 +83,16 @@ export async function runCandidate({ browser, origin, session, fullManifest, sta
     if (appearance) await page.addInitScript(({theme,scale}) => document.addEventListener('DOMContentLoaded', () => { document.documentElement.dataset.theme=theme; document.documentElement.dataset.textScale=String(scale); }),appearance);
     for (const scenario of scenarios) for (const [rowIndex, id] of ids[scenario.family].entries()) {
       const isAppeal = scenario.family === 'appeal';
-      const list = origin + (isAppeal ? '/admin/odwolania?status=open' : '/admin/zgloszenia?status=' + (scenario.family === 'restore' ? 'resolved' : 'open'));
-      const action = origin + (isAppeal ? '/admin/odwolania/' : '/admin/zgloszenia/') + id + (scenario.family === 'restore' ? '/przywroc' : '');
+      const isExOfficio = scenario.family === 'zurzedu';
+      const list = isExOfficio ? origin + '/admin/z-urzedu/comment/' + id
+        : origin + (isAppeal ? '/admin/odwolania?status=open' : '/admin/zgloszenia?status=' + (scenario.family === 'restore' ? 'resolved' : 'open'));
+      const action = isExOfficio ? list : origin + (isAppeal ? '/admin/odwolania/' : '/admin/zgloszenia/') + id + (scenario.family === 'restore' ? '/przywroc' : '');
       const row = { scenario: scenario.name, row: rowIndex + 1, expectedErrors: scenario.errors, pass: false };
       rows.push(row);
       const response = await page.goto(list);
       requireThat(response?.status() === 200 && page.url() === list, 'GET_AUTHENTICATED_LIST');
       const formFor = value => page.locator('main form').filter({ has: page.locator('input[name="_wiersz"][value="' + value + '"]') });
-      const form = formFor(id);
+      const form = isExOfficio ? page.locator('main form.panel-formularza') : formFor(id);
       requireThat(await form.count() === 1 && new URL(await form.getAttribute('action'), origin).href === action, 'FORM_CONTRACT');
       const siblingId = ids[scenario.family].find(other => other !== id);
       const formState = locator => locator.evaluate(el => [...el.querySelectorAll('input,select,textarea')].filter(e => !['_token', '_wiersz'].includes(e.name)).map(e => ({ name: e.name, value: e.value, checked: e.checked ?? null })));
@@ -95,7 +101,7 @@ export async function runCandidate({ browser, origin, session, fullManifest, sta
       requireThat(csrf.length > 0, 'CSRF_MISSING');
       const before = await take();
       try {
-        const post = await context.request.post(action, { form: { ...scenario.payload, _wiersz: id, _token: csrf }, headers: { Accept: 'text/html', Referer: list, Origin: origin }, maxRedirects: 0 });
+        const post = await context.request.post(action, { form: { ...scenario.payload, ...(isExOfficio ? {} : { _wiersz: id }), _token: csrf }, headers: { Accept: 'text/html', Referer: list, Origin: origin }, maxRedirects: 0 });
         row.httpStatus = post.status();
         const retryAfter = post.headers()['retry-after'];
         row.retryAfter = /^\d+$/.test(retryAfter || '') && Number.isSafeInteger(Number(retryAfter)) ? Number(retryAfter) : null;
@@ -143,7 +149,7 @@ export async function runCandidate({ browser, origin, session, fullManifest, sta
       }
       row.pass = true;
     }
-    requireThat(rows.length === 9 && rows.every(r => r.pass), 'CASE_COUNT');
+    requireThat(rows.length === 11 && rows.every(r => r.pass), 'CASE_COUNT');
     completed = true;
     return { status: 'executed', mode: 'HTTP server validation; native browser validation not tested', rows };
   } catch (error) {
@@ -151,6 +157,6 @@ export async function runCandidate({ browser, origin, session, fullManifest, sta
     throw new Error(/^[A-Z_]+$/.test(error?.message || '') ? error.message : 'CANDIDATE_FAILED');
   } finally {
     await context?.close();
-    if (typeof reportPath === 'string' && !existsSync(reportPath)) writeFileSync(reportPath, JSON.stringify({ pass: completed, complete: completed, scope: '9 invalid server POST; geometry and native validation require separate acceptance', rows }, null, 2), { mode: 0o600, flag: 'wx' });
+    if (typeof reportPath === 'string' && !existsSync(reportPath)) writeFileSync(reportPath, JSON.stringify({ pass: completed, complete: completed, scope: '11 invalid server POST; geometry and native validation require separate acceptance', rows }, null, 2), { mode: 0o600, flag: 'wx' });
   }
 }
