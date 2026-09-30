@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Drivers\Gd\Driver as SterownikGd;
+use Intervention\Image\Encoders\WebpEncoder;
 use Intervention\Image\ImageManager;
 use Tests\Support\LicznikDekodowanGd;
 
@@ -119,14 +121,14 @@ try {
     check(count($media->metadata['variants']) === 3, 'Brakuje wariantu zdjęcia.');
 
     // Baseline po pomiarze workera: jego alokacje NIE zawyżają raportowanego RSS joba.
-    $manager = ImageManager::gd(autoOrientation: false);
+    $manager = ImageManager::usingDriver(SterownikGd::class, autoOrientation: false);
     LicznikDekodowanGd::$liczba = 0;
     $variants = [];
     foreach (config('kuking.media.variants') as $variant => $edge) {
-        $image = $manager->read($original);
+        $image = $manager->decodeBinary($original);
         OrientacjaZdjecia::zastosuj($image, $orientation);
         $image->scaleDown(width: $edge, height: $edge);
-        $expected = (string) $image->toWebp(quality: 82);
+        $expected = (string) $image->encode(new WebpEncoder(quality: 82));
         $actual = $media->wariant($variant);
         $bytes = $disk->get($actual['key']);
         $size = getimagesizefromstring($bytes);

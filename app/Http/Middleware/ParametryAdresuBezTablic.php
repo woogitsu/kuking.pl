@@ -55,6 +55,11 @@ final class ParametryAdresuBezTablic
         // Krok „Poznaj ludzi” (onboarding): zaznaczone osoby i ich
         // identyfikatory wracają przez GET, żeby wybór przeżył odświeżenie.
         'onboarding.people' => ['follow', 'oczekiwani'],
+        // Wyszukiwarka: filtr „Bez wskazanych alergenów (według autorów)”
+        // (#1902, D-333) wysyła wybrane kody jako `bez[]=gluten&bez[]=milk`.
+        // Kształt sprawdza `SearchController` (tylko teksty ze słownika;
+        // reszta jest pomijana i ekran mówi o tym wprost).
+        'search' => ['bez'],
     ];
 
     /** Atrybut żądania z nazwami usuniętych parametrów. */

@@ -25,6 +25,9 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Intervention\Image\Drivers\Gd\Driver as SterownikGd;
+use Intervention\Image\Encoders\JpegEncoder;
+use Intervention\Image\Encoders\WebpEncoder;
 use Intervention\Image\ImageManager;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -453,7 +456,7 @@ class GranicaWysylkiDoOpenAiTest extends TestCase
             $klucz = 'media/test/'.Str::uuid()->toString().'_'.$nazwa.'.webp';
             $bajty = is_string($wymiary)
                 ? $wymiary
-                : (string) ImageManager::gd()->create($wymiary[0], $wymiary[1])->fill('cc4400')->toWebp();
+                : (string) ImageManager::usingDriver(SterownikGd::class)->createImage($wymiary[0], $wymiary[1])->fill('cc4400')->encode(new WebpEncoder);
             Storage::disk('public')->put($klucz, $bajty);
             // Metadane celowo „kłamią" o wymiarach — granica ma im nie ufać.
             $metadane[$nazwa] = ['key' => $klucz, 'width' => 320, 'height' => 240];
@@ -526,7 +529,7 @@ class GranicaWysylkiDoOpenAiTest extends TestCase
      */
     private function jpegZMetadanymi(int $szer, int $wys): string
     {
-        $jpeg = (string) ImageManager::gd()->create($szer, $wys)->fill('cc4400')->toJpeg();
+        $jpeg = (string) ImageManager::usingDriver(SterownikGd::class)->createImage($szer, $wys)->fill('cc4400')->encode(new JpegEncoder);
 
         // TIFF little-endian, IFD0 z jednym wpisem: wskaźnik GPS IFD (0x8825),
         // a w nim GPSLatitudeRef = "N". Poprawny na tyle, że `exif_read_data`
