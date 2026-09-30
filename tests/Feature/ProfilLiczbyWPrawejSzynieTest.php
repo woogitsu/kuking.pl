@@ -197,8 +197,10 @@ class ProfilLiczbyWPrawejSzynieTest extends TestCase
             $agregaty,
         ));
 
+        // 6, a nie 7: licznik wpisów w nagłówku idzie do paginatora gotowy
+        // (`ProfileController::postsFor()`), zamiast liczyć się drugi raz.
         $this->assertSame(
-            7,
+            6,
             $agregaty,
             'Liczby o osobie mają być policzone i pokazane RAZ. '
             .'Wzrost tej liczby znaczy, że drugi egzemplarz liczy sobie sam.',
