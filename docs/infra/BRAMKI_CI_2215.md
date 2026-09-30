@@ -100,6 +100,33 @@ sprawdź je w zakładce Checks pierwszego przebiegu, zanim oznaczysz jako wymaga
 (zła nazwa = check, który nigdy nie powstaje, i PR czeka w nieskończoność).
 Nie oznaczaj `Zakres zmiany` ani `Przyrząd testu obciążeniowego (#605)`.
 
+### Krótkie kontrole w jednym jobie (#2299)
+
+Audyt zależności, Larastan i build assetów biegną jednym jobem
+`Krótkie kontrole (audyt zależności, Larastan, build assetów)`
+(`kontrole_krotkie` w `ci.yml`). Pozycje 3, 5 i 6 z listy wyżej noszą dalej
+joby-LUSTRA o dawnych nazwach: jeden krok, kilka sekund, zielone tylko po
+sukcesie `kontrole_krotkie` albo po pominięciu przez bramkę `zakres` (zmiana
+bez kodu). Dlatego scalenie tej zmiany NIE wymaga zmiany ochrony gałęzi
+i niczego nie blokuje. Sloty zwalnia jednak w pełni dopiero usunięcie luster.
+
+Kroki właściciela, **w tej kolejności** (odwrotna blokuje PR-y bez końca):
+
+1. Scal PR ze zmianą. Poczekaj na pierwszy przebieg CI na `main`.
+2. W zakładce Checks tego przebiegu sprawdź dokładną nazwę
+   `Krótkie kontrole (audyt zależności, Larastan, build assetów)`.
+3. Settings → Branches → reguła `main` → „Require status checks”: **dodaj**
+   tę nazwę.
+4. W tej samej regule **usuń** `Larastan (analiza statyczna)`,
+   `Audyt zależności (blokuje high i critical)` i `Build assetów (Vite)`.
+5. Dopiero potem PR usuwający trzy lustra (`static-analysis`, `assets`,
+   `audit` w `ci.yml`, razem z `KrotkieKontroleWJednymJobieTest::LUSTRA`,
+   wpisami w `scripts/stan-ci.sh` i w liście wyżej). Usunięcie luster przed
+   krokiem 4 zostawi wymagane checki, które nigdy nie powstaną.
+
+Pilnuje tego `KrotkieKontroleWJednymJobieTest` (kontrole ujemne w
+`scripts/kontrole-negatywne-alfa08.py`, wpisy z `#2299`).
+
 ### #2025: wdrożenie mimo czerwonego albo anulowanego CI
 
 Bramka Railway (`docs/infra/RAILWAY_CI_GATE.md`,
