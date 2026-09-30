@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2243): pusty albo niepełny formularz rejestracji nie jest już zatrzymywany przez dymek przeglądarki. Po kliknięciu „Załóż konto” na górze pojawia się podsumowanie po polsku z listą wszystkich pól do poprawienia (każda pozycja prowadzi do pola), a przy polach stoją komunikaty mówiące, co wpisać. Pola dalej są oznaczone jako wymagane, także dla czytnika ekranu.
 - Naprawione (#2244): po złym haśle albo bez zaznaczonego potwierdzenia formularz „Chcę usunąć swoje konto” w „Twoich danych” zostaje rozwinięty, więc pole z błędem jest od razu widać, a odnośniki z podsumowania błędów (także do haczyka „Usuń także moje przepisy…”) prowadzą do właściwego pola.
 - Naprawione (#2245): po oznaczeniu konta do usunięcia pod komunikatem stoi przycisk „Cofnij usunięcie konta”, prowadzący prosto do strony cofnięcia. Wcześniej jej adres był wpisany w zdanie jako zwykły tekst i na telefonie trzeba go było przepisać.
 - Naprawione (#2246): komunikaty planera odmieniają dzień po „na”: „Dodane do planu na środę, 14 października”, „Usunięte z planu na sobotę…”, a nie „na środa”. Nagłówki dni i wybór dnia zostają bez zmian („Środa, 14 października”).
