@@ -157,7 +157,7 @@ final class DecyzjaWSprawieZgloszenia extends Notification implements ShouldQueu
 
         $list
             // Wartość z publicznego formularza — jako tekst, nie Markdown (#1636).
-            ->line('Zgłoszona przez Ciebie strona: '.AdresZgloszenia::doListu((string) $this->zgloszenie->target_url))
+            ->line(AdresZgloszenia::liniaListu($this->zgloszenie->target_url))
             ->line('---')
             ->line('**'.OdpowiedzDlaZglaszajacego::NAGLOWEK_POUCZENIA.'**');
 

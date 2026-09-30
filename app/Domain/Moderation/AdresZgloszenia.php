@@ -91,6 +91,21 @@ final class AdresZgloszenia
     }
 
     /**
+     * Cała linia listu z adresem zgłoszenia — JEDNA dla wszystkich listów do
+     * zgłaszającego (potwierdzenie, decyzja, zmiana decyzji).
+     *
+     * Do 30.09.2026 list „Zmiana decyzji” wstawiał `target_url` wprost do
+     * `line()`, obok dwóch listów, które szły przez `doListu()` (#2271,
+     * audyt S-05): `[Potwierdź konto](https://obcy.example)` dawał klikalny
+     * odnośnik w liście podpisanym przez Kuking. Wspólna linia zamiast trzech
+     * sklejeń z palca — czwarty list nie ma skąd wziąć wersji bez ucieczki.
+     */
+    public static function liniaListu(?string $adres): string
+    {
+        return 'Zgłoszona przez Ciebie strona: '.self::doListu((string) $adres);
+    }
+
+    /**
      * @return array<string, mixed>|null części adresu, gdy to bezwzględny
      *                                   adres http(s) z hostem
      */

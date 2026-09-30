@@ -103,7 +103,7 @@ final class PotwierdzenieZgloszeniaNielegalnejTresci extends Notification implem
             ->line('Dostaliśmy Twoje zgłoszenie treści, którą uważasz za niezgodną z prawem.')
             ->line("Numer sprawy: **{$numer}**. Warto go zachować.")
             // Wartość z publicznego formularza — jako tekst, nie Markdown (#1636).
-            ->line('Zgłoszona przez Ciebie strona: '.AdresZgloszenia::doListu((string) $this->zgloszenie->target_url))
+            ->line(AdresZgloszenia::liniaListu($this->zgloszenie->target_url))
             ->line('Sprawdzimy to i odpiszemy Ci z decyzją. Napiszemy także wtedy, gdy '
                 .'uznamy, że treść zostaje — razem z powodem i z informacją, co możesz '
                 .'zrobić dalej, jeśli się z nami nie zgadzasz.')
