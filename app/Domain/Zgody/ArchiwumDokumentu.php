@@ -230,7 +230,7 @@ final class ArchiwumDokumentu
 
     private static function poprawnaData(string $data): bool
     {
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $data) !== 1) {
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/D', $data) !== 1) {
             return false;
         }
 

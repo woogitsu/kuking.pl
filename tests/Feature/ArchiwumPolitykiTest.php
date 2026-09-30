@@ -225,4 +225,15 @@ final class ArchiwumPolitykiTest extends TestCase
         $this->assertFalse(ArchiwumDokumentu::regulamin()->wydawanaNaProsbe('2026-09-01'));
         $this->get('/regulamin/wersje/2026-09-01')->assertNotFound()->assertDontSee('wydajemy na prośbę');
     }
+
+    public function test_data_z_nowa_linia_na_koncu_nie_jest_poprawna(): void
+    {
+        // `$` bez flagi `D` dopuszcza jedną nową linię na końcu, więc
+        // „2000-01-01\n” przechodziło za poprawną datę sprzed archiwum.
+        $polityka = ArchiwumDokumentu::polityka();
+
+        $this->assertTrue($polityka->wydawanaNaProsbe('2000-01-01'), 'Kontrola dodatnia: zwykła data sprzed archiwum.');
+        $this->assertFalse($polityka->wydawanaNaProsbe("2000-01-01\n"));
+        $this->assertNull($polityka->plik("2026-09-30\n"));
+    }
 }
