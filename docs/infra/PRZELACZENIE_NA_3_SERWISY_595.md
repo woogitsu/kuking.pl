@@ -272,7 +272,7 @@ zmienia schematu ani bazy.
 1. `kuking.pl` → Variables → Raw Editor: **dopisz** (nie zastępuj) zmienne
    workera i schedulera, których rola `web` nie ma. Apply je z `kuking.pl`
    zdjął, a kontener `all` bez nich chodziłby bez klucza moderacji, pulsu,
-   odczytu kopii i listów urodzinowych. `${{shared.…}}` to referencja do
+   odczytu kopii, listów urodzinowych i tygodniowego podsumowania. `${{shared.…}}` to referencja do
    Shared Variable z kroku 0.5, nie wartość — wklej dokładnie tak:
 
 <!-- wycofanie-zmienne:start -->
@@ -283,6 +283,7 @@ AWS_KOPIE_SECRET_ACCESS_KEY=${{shared.R2_KOPIE_ODCZYT_SECRET_ACCESS_KEY}}
 AWS_ZDJECIA_KOPIA_ACCESS_KEY_ID=${{shared.R2_ZDJECIA_KOPIA_ODCZYT_ACCESS_KEY_ID}}
 AWS_ZDJECIA_KOPIA_BUCKET=${{shared.R2_ZDJECIA_KOPIA_BUCKET}}
 AWS_ZDJECIA_KOPIA_SECRET_ACCESS_KEY=${{shared.R2_ZDJECIA_KOPIA_ODCZYT_SECRET_ACCESS_KEY}}
+KUKING_DIGEST_WLACZONY=${{shared.KUKING_DIGEST_WLACZONY}}
 KUKING_PULS_HARMONOGRAMU_URL=${{shared.KUKING_PULS_HARMONOGRAMU_URL}}
 KUKING_URODZINY_MAIL_WLACZONY=true
 OPENAI_MODERATION_KEY=${{shared.OPENAI_MODERATION_KEY}}
