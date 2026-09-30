@@ -456,6 +456,6 @@ final class UkrywanieWersjiPrzepisuTest extends TestCase
 
         self::wykonajMigracje($this->migracja(), 'up');
         $this->assertSame(2, (int) DB::scalar("select count(*) from information_schema.columns where table_name = 'recipe_versions' and column_name in ('hidden_at','hidden_by_role')"));
-        $this->assertSame(1, (int) DB::scalar("select count(*) from pg_constraint where conname = 'recipe_versions_hidden_spojny_check' and convalidated"));
+        $this->assertSame(1, (int) DB::scalar("select count(*) from pg_constraint where contype = 'c' and conname = 'recipe_versions_hidden_spojny_check' and convalidated"));
     }
 }

@@ -264,16 +264,21 @@ final class ImportPobieraczStronTest extends TestCase
         // Kontrola dodatnia: zwykła ścieżka względna nadal idzie od katalogu.
         $this->assertSame('https://example.test/a/nowy', PobieraczStron::rozwiaz('https://example.test/a/przepis?x=1', 'nowy'));
 
+        // Parametr z listy zgód `PublicznyAdresZrodla` (#2229): adres zwrócony
+        // przez pobieracz jest już oczyszczony, a parametr spoza listy
+        // (np. `strona`) zniknąłby i asercja nie odróżniłaby zachowanej ścieżki
+        // od adresu wyjściowego.
         Http::fake([
             'https://przepisy.example.pl/robots.txt' => Http::response('', 404),
-            'https://przepisy.example.pl/stary/sernik' => Http::response('', 302, ['Location' => '?strona=2']),
-            'https://przepisy.example.pl/stary/sernik?strona=2' => Http::response(self::HTML, 200, ['Content-Type' => 'text/html']),
+            'https://przepisy.example.pl/stary/sernik' => Http::response('', 302, ['Location' => '?przepis=2']),
+            'https://przepisy.example.pl/stary/sernik?przepis=2' => Http::response(self::HTML, 200, ['Content-Type' => 'text/html']),
         ]);
 
         $this->assertSame(
-            'https://przepisy.example.pl/stary/sernik?strona=2',
+            'https://przepisy.example.pl/stary/sernik?przepis=2',
             $this->pobieracz()->pobierz('https://przepisy.example.pl/stary/sernik')->url,
         );
+        Http::assertSent(fn (Request $r): bool => $r->url() === 'https://przepisy.example.pl/stary/sernik?przepis=2');
     }
 
     public function test_wzgledne_przekierowanie_jest_rozwiazywane_wzgledem_biezacego_adresu(): void

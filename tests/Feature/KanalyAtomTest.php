@@ -12,6 +12,7 @@ use App\Models\Recipe;
 use App\Models\Tag;
 use App\Models\User;
 use DOMDocument;
+use DOMElement;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -51,8 +52,8 @@ class KanalyAtomTest extends TestCase
 
         $this->assertTrue($wczytany, 'Kanał nie jest poprawnym XML-em.');
         $this->assertSame([], $bledy, 'Parser XML zgłosił zastrzeżenia do kanału.');
-        $this->assertSame('feed', $dom->documentElement?->localName);
-        $this->assertSame(self::ATOM, $dom->documentElement?->namespaceURI, 'Korzeń musi być w przestrzeni nazw Atom 1.0.');
+        $this->assertSame('feed', $dom->documentElement->localName);
+        $this->assertSame(self::ATOM, $dom->documentElement->namespaceURI, 'Korzeń musi być w przestrzeni nazw Atom 1.0.');
 
         $xpath = new DOMXPath($dom);
         $xpath->registerNamespace('a', self::ATOM);
@@ -231,7 +232,11 @@ class KanalyAtomTest extends TestCase
 
         $zalaczniki = $x->query('/a:feed/a:entry/a:link[@rel="enclosure"]');
         $this->assertSame(1, $zalaczniki->length, 'Zdjęcie gotowe — jest; niegotowe — nie ma.');
-        $adres = $zalaczniki->item(0)->getAttribute('href');
+        $zalacznik = $zalaczniki->item(0);
+        if (! $zalacznik instanceof DOMElement) {
+            $this->fail('Załącznik kanału nie jest elementem XML.');
+        }
+        $adres = $zalacznik->getAttribute('href');
         $this->assertStringStartsWith(url('/zdjecia/'.$zdjecie->getKey().'/'), $adres, 'Zdjęcie idzie trasą aplikacji (DostepDoZdjecia), nie adresem bucketu.');
         $this->assertStringNotContainsString($zdjecie->object_key, $x->document->saveXML());
     }
