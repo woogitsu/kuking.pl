@@ -400,7 +400,7 @@ final class SearchQuery
             // wyżej, tyle że tu błąd w drugą stronę dotyczyłby zdrowia. Sam
             // `WHERE`: ranking i kursor wyżej i niżej bez zmian (AGENTS.md §8).
             // Kody przeszły przez `Alergen::znormalizuj()`, więc do literału
-            // tablicy trafiają wyłącznie znane, bezpieczne napisy.
+            // tablicy trafiają wyłącznie znane, napisy bez znaków specjalnych.
             ->when($bezAlergenow !== [], fn ($query) => $query
                 ->where('recipes.allergen_status', Recipe::ALERGENY_ZDEKLAROWANE)
                 ->whereRaw('NOT (recipes.allergens && ?::text[])', ['{'.implode(',', $bezAlergenow).'}']))

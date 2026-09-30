@@ -8,7 +8,7 @@
        2. Zaznaczone alergeny bez pola „Składniki sprawdzone” nie zapisują się jako
           deklaracja; błąd jest przy polu i w podsumowaniu (klucz `alergeny`).
        3. Ekran nigdy nie komunikuje braku podpowiedzi — jej brak nic nie znaczy.
-       4. Żadnych haseł obiecujących gwarancję (lista zakazanych słów: `AlergenySlownictwoTest`).
+       4. Żadnych haseł obiecujących cokolwiek (lista zakazanych słów: `AlergenySlownictwoTest`).
 
      $wire           bool   — kreator Livewire (`wire:model`) albo zwykły formularz
      $wybrane        list<string>  zaznaczone kody

@@ -21,7 +21,7 @@
     @if($zdeklarowane && $lista !== '')
         <p>Alergeny według autora: {{ $lista }}. To zaznaczenie autora, nie badanie. Gotowe produkty (sosy, kiełbasy, przyprawy, proszek do pieczenia) mogą zawierać alergeny, których tu nie widać — przeczytaj etykiety.</p>
     @elseif($zdeklarowane)
-        <p>Autor nie zaznaczył żadnego z 14 alergenów. To nie jest gwarancja. Przeczytaj etykiety gotowych produktów.</p>
+        <p>Autor nie zaznaczył żadnego z 14 alergenów. To tylko zaznaczenie autora, nie zapewnienie, że ich tam nie ma. Przeczytaj etykiety gotowych produktów.</p>
     @else
         <p>Alergeny: nie sprawdzono. Autor nie zaznaczył, co zawiera ten przepis, więc nie wiemy, czy nadaje się dla osoby z alergią.</p>
     @endif
