@@ -57,6 +57,14 @@ class RecipeResource extends JsonResource
                 'photo' => Zdjecie::z($k->media),
             ])->values()->all(),
             'url' => $przepis->url(),
+            // Alergeny według autora (#1902) — za flagą `KUKING_ALERGENY_WLACZONE`
+            // i ZAWSZE jako para: stan i lista. Lista jest tylko przy `declared`;
+            // przy `unchecked` i `needs_review` jest `null` (nie wiemy), nigdy
+            // pusta tablica, którą dałoby się odczytać jako „brak alergenów”.
+            ...(config('kuking.alergeny.wlaczone') ? ['allergens' => [
+                'status' => $przepis->allergen_status ?? Recipe::ALERGENY_NIESPRAWDZONE,
+                'list' => $przepis->alergenyZdeklarowane() ? $przepis->allergens : null,
+            ]] : []),
         ];
     }
 }
