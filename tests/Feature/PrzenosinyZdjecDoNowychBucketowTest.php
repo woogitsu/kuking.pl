@@ -9,6 +9,7 @@ use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -205,6 +206,34 @@ class PrzenosinyZdjecDoNowychBucketowTest extends TestCase
         $this->artisan('kuking:przenies-zdjecia', ['--po' => 'wczoraj'])
             ->expectsOutputToContain('Opcja --po przyjmuje identyfikator zdjęcia')
             ->assertFailed();
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function niepoprawneLimity(): array
+    {
+        return [
+            'zero' => ['0'],
+            'ujemny' => ['-1'],
+            'tekst' => ['duzo'],
+            'ulamek' => ['1.5'],
+            'pusty' => [''],
+        ];
+    }
+
+    #[DataProvider('niepoprawneLimity')]
+    public function test_limit_mniejszy_niz_jeden_albo_nie_liczba_jest_odmowa(string $limit): void
+    {
+        // Regresja: `--limit=0` kończył się „Nie ma zdjęć do przeniesienia"
+        // z kodem 0, choć zdjęcia czekały (operator mógł zdjąć stary bucket).
+        $media = $this->stareZdjecie();
+
+        $this->artisan('kuking:przenies-zdjecia', ['--limit' => $limit])
+            ->expectsOutputToContain('Opcja --limit przyjmuje liczbę całkowitą od 1 wzwyż')
+            ->assertFailed();
+
+        $this->assertSame('r2_legacy', $media->refresh()->disk);
     }
 
     public function test_brak_jednego_wariantu_zatrzymuje_przenosiny_w_polowie(): void

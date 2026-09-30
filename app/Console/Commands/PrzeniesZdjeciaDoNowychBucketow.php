@@ -140,11 +140,27 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
             return self::FAILURE;
         }
 
+        // `--limit=0` dawał „Nie ma zdjęć do przeniesienia." z kodem 0 —
+        // operator mógł uznać migrację za skończoną i zdjąć stary bucket, a
+        // `--limit=-1` kończył się surowym błędem SQL. Limit to liczba
+        // całkowita od 1 wzwyż; cokolwiek innego to odmowa (kod ≠ 0).
+        $limitWejscie = (string) $this->option('limit');
+
+        if (preg_match('/^[1-9][0-9]{0,8}$/', $limitWejscie) !== 1) {
+            $this->error('Opcja --limit przyjmuje liczbę całkowitą od 1 wzwyż (na przykład --limit=200). '
+                .'Zero i liczby ujemne niczego by nie przeniosły, a komunikat „Nie ma zdjęć do przeniesienia” '
+                .'mógłby wyglądać jak koniec migracji. Podaj większy limit albo pomiń opcję.');
+
+            return self::FAILURE;
+        }
+
+        $limit = (int) $limitWejscie;
+
         $doPrzeniesienia = Media::query()
             ->where('disk', $stary)
             ->when($po !== null, fn ($zapytanie) => $zapytanie->where('id', '>', $po))
             ->orderBy('id')
-            ->limit((int) $this->option('limit'))
+            ->limit($limit)
             ->get();
 
         if ($doPrzeniesienia->isEmpty()) {
