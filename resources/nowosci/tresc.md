@@ -53,8 +53,9 @@ Przygotowaliśmy oznaczanie alergenów. Autor przepisu może w kroku ze
 składnikami zaznaczyć, które z czternastu alergenów z unijnej listy są
 w przepisie, i potwierdzić, że lista jest pełna. Słownik podpowiada, co warto
 zaznaczyć, ale niczego nie zaznacza sam — decyduje autor. Pod składnikami
-zawsze stoi jedno z dwóch zdań: „Alergeny według autora: …” albo „Alergeny:
-nie sprawdzono”. Brak zaznaczenia nigdy nie znaczy, że czegoś w przepisie
+zawsze stoi jedno z trzech zdań: „Alergeny według autora: …” z listą,
+„Autor nie zaznaczył żadnego z 14 alergenów” albo „Alergeny: nie sprawdzono”.
+Brak zaznaczenia nigdy nie znaczy, że czegoś w przepisie
 nie ma. W wyszukiwarce będzie pole „Bez wskazanych alergenów (według
 autorów)”; pokaże tylko przepisy, w których autor potwierdził listę, a te
 niesprawdzone pominie. To zaznaczenia autorów, nie badania — przy gotowych
