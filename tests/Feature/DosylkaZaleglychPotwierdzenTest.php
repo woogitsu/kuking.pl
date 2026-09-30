@@ -101,11 +101,13 @@ class DosylkaZaleglychPotwierdzenTest extends TestCase
         $zglaszajacy = $this->user('zaleglyC');
         $this->zglos($zglaszajacy, $this->wpis())->assertSessionHasNoErrors();
 
-        $this->assertSame(1, $this->potwierdzenia());
+        $przedDosylka = $this->potwierdzenia();
+        $this->assertSame(1, $przedDosylka);
 
         $this->artisan(self::KOMENDA)->assertSuccessful();
 
-        $this->assertSame(1, $this->potwierdzenia());
+        $poDosylce = $this->potwierdzenia();
+        $this->assertSame(1, $poDosylce);
     }
 
     // ------------------------------------------------------------------

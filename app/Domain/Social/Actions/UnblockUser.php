@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Social\Actions;
 
+use App\Domain\Social\BlokadyZmienione;
+use App\Domain\Social\ListyWidza;
 use App\Models\AuditLogEntry;
 use App\Models\Block;
 use App\Models\User;
@@ -29,6 +31,10 @@ final class UnblockUser
             ->where('blocker_id', $blocker->getKey())
             ->where('blocked_id', $target->getKey())
             ->delete();
+        ListyWidza::uniewaznij();
+
+        // Masowe kasowanie nie wywołuje zdarzeń modelu — ogłaszamy zmianę jawnie.
+        event(new BlokadyZmienione);
 
         AuditLogEntry::recordBezWywracania(
             action: 'user.unblocked',

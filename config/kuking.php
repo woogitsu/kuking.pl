@@ -221,7 +221,7 @@ return [
         // rozpoznaje. Ale rozpoznanie nie jest obsługą:
         //   * PHP 8.4 nie ma `IMAGETYPE_HEIC` ani `IMAGETYPE_HEIF`, więc
         //     `getimagesize()` w `StoreUploadedImage` zwraca dla nich `false`;
-        //   * GD (`ImageManager::gd()` w `ProcessUploadedImage`) nie dekoduje
+        //   * GD (`ImageManager::usingDriver(Driver::class)` w `ProcessUploadedImage`) nie dekoduje
         //     HEIC — obraz `gd_info()` ma JPEG, PNG, WebP, AVIF i GIF, nic więcej.
         // Wpisanie ich tutaj nie dawało więc obsługi, tylko obietnicę: pole
         // wyboru pliku podpowiadało HEIC, a serwis odpowiadał „ten plik nie
@@ -3916,6 +3916,22 @@ return [
             'okno_celu_godzin' => (int) env('KUKING_ALARM_CZLOWIEKA_OKNO_GODZIN', 6),
             'dzienny_sufit' => (int) env('KUKING_ALARM_CZLOWIEKA_SUFIT', 10),
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Alergeny przepisu — oznaczenie autora i filtr (V2, #1902, D-333)
+    |--------------------------------------------------------------------------
+    |
+    | DOMYŚLNIE WYŁĄCZONE. Decyzja właściciela z 30.09.2026: funkcję włącza
+    | dopiero test z osobami 50+ (rozumienie różnicy między „autor nie
+    | zaznaczył” a „nie zawiera”). Wyłączona = brak sekcji „Alergeny”
+    | w kreatorze i formularzu, brak bloku na stronie przepisu, brak filtra
+    | w wyszukiwarce i brak pola w API; kolumny w bazie zostają. Włączenie to
+    | `KUKING_ALERGENY_WLACZONE=true` na rolach `web` i `worker`.
+    */
+    'alergeny' => [
+        'wlaczone' => (bool) env('KUKING_ALERGENY_WLACZONE', false),
     ],
 
     /*

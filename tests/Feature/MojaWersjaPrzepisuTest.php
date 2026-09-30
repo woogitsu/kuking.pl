@@ -343,16 +343,19 @@ class MojaWersjaPrzepisuTest extends TestCase
         // Publikacja „tylko dla mnie” — nikomu nie udostępniona.
         $this->opublikujPrzezFormularz($jan, $wersja, ['visibility' => 'private', 'ingredients' => [['text' => 'indyk']]])->assertSessionHasNoErrors();
         $this->assertTrue($wersja->fresh()->isPublished());
-        $this->assertSame(0, $ile());
+        $powiadomien = $ile();
+        $this->assertSame(0, $powiadomien);
 
         // Pierwsze udostępnienie: prywatna → publiczna.
         $this->opublikujPrzezFormularz($jan, $wersja->fresh(), ['visibility' => 'public', 'ingredients' => [['text' => 'indyk']]])->assertSessionHasNoErrors();
-        $this->assertSame(1, $ile());
+        $powiadomien = $ile();
+        $this->assertSame(1, $powiadomien);
 
         // Z powrotem prywatna i jeszcze raz publiczna — to nie jest nowa wiadomość.
         $this->opublikujPrzezFormularz($jan, $wersja->fresh(), ['visibility' => 'private', 'ingredients' => [['text' => 'indyk']]])->assertSessionHasNoErrors();
         $this->opublikujPrzezFormularz($jan, $wersja->fresh(), ['visibility' => 'public', 'ingredients' => [['text' => 'indyk']]])->assertSessionHasNoErrors();
-        $this->assertSame(1, $ile());
+        $powiadomien = $ile();
+        $this->assertSame(1, $powiadomien);
     }
 
     public function test_prywatna_wersja_nie_powiadamia_autora_oryginalu(): void

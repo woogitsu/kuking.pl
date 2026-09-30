@@ -276,11 +276,13 @@ final class ImportZAdresuWKolejceTest extends TestCase
         $this->assertSame('nieudany', DB::table('proby_importu')->where('import_id', $zlecenie->getKey())->value('status'));
         $this->assertSame(BudzetAi::STAN_ROZLICZONA, DB::table('ai_rezerwacje')->where('import_id', $probaId)->value('stan'));
         $this->assertSame(0, (int) DB::table('ai_budzet_dzienny')->sum('zarezerwowano_mikrousd'));
-        $this->assertSame(1_000_000, (int) DB::table('ai_budzet_dzienny')->sum('wydano_mikrousd'));
+        $wydano = (int) DB::table('ai_budzet_dzienny')->sum('wydano_mikrousd');
+        $this->assertSame(1_000_000, $wydano);
 
         // Powtórzone `failed()` niczego nie liczy drugi raz.
         (new ImportujPrzepisZAdresu((string) $zlecenie->getKey(), true))->failed(new RuntimeException('timeout'));
-        $this->assertSame(1_000_000, (int) DB::table('ai_budzet_dzienny')->sum('wydano_mikrousd'));
+        $wydano = (int) DB::table('ai_budzet_dzienny')->sum('wydano_mikrousd');
+        $this->assertSame(1_000_000, $wydano);
     }
 
     public function test_zadanie_zgubione_w_kolejce_jest_domykane_i_adres_znika_ze_zlecenia(): void

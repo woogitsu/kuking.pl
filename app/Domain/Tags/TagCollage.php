@@ -24,16 +24,36 @@ use Illuminate\Support\Facades\DB;
  * `forTagsWCache()` trzyma w cache WIERSZE doboru (tag, wpis, zdjęcie) per tag przez
  * `CACHE_SEKUND`. Zdjęcia i wpisy-rodziców dociągamy zawsze świeżo, z tymi
  * samymi bramkami (`visiblePosts()`, status zdjęcia) — kafel schowany po
- * zapisaniu cache po prostu wypada. Zalogowany widz ma blokady, więc liczy
- * się jak dotąd.
+ * zapisaniu cache po prostu wypada.
+ *
+ * ZALOGOWANY (audyt W3): dawniej liczył cały dobór od nowa (`/tagi`: 240–300 ms
+ * SQL). Teraz czyta TE SAME wiersze z cache gościa, a blokady i widoczność
+ * dla widza odcina `kafle()` przez `visiblePosts($viewer)` — na małym zbiorze
+ * (najwyżej `POJEMNOSC` wierszy na tag), nie na wszystkich wpisach tagu.
+ * Zapis do cache to `POJEMNOSC` = `LIMIT` + `MARGINES` wierszy; gość pokazuje
+ * pierwsze `LIMIT`, widz tyle, ile zostanie po odcięciu (do `LIMIT`).
+ *
+ * REGUŁA DOPEŁNIENIA: jeśli po odcięciu widzowi zostało mniej niż `LIMIT`
+ * kafli, a cache tagu był pełny (`POJEMNOSC` wierszy, czyli mogło być więcej),
+ * TEN tag liczy się dokładnie starym zapytaniem `forTags()` (tylko te tagi,
+ * nie wszystkie). Niepełny cache oznacza, że więcej nie ma — bez dopełnienia.
+ * Widz nigdy nie dostaje kafla spoza `visiblePosts($viewer)`, a kolejność jest
+ * ta co u gościa. Jedyna różnica względem dokładnego wyniku: wpis z WŁASNYM
+ * niepublicznym przepisem widza (który gość by odciął) nie wchodzi do kolażu
+ * z cache — to zawężenie, nie wyciek.
  */
 final class TagCollage
 {
     private const LIMIT = 5;
 
+    /** Zapas ponad `LIMIT` w cache gościa na odcięcia dla zalogowanego widza. */
+    private const MARGINES = 10;
+
+    private const POJEMNOSC = self::LIMIT + self::MARGINES;
+
     public const CACHE_SEKUND = 600;
 
-    private const KLUCZ = 'tagi:kolaz-goscia:';
+    private const KLUCZ = 'tagi:kolaz-goscia-v2:';
 
     /**
      * Każde medium ma posts z JEDNYM wybranym rodzicem i jego author.profile.
@@ -52,7 +72,7 @@ final class TagCollage
             return [];
         }
 
-        return $this->kafle($result, $this->wiersze(array_keys($result), $viewer), $viewer);
+        return $this->kafle($result, $this->wiersze(array_keys($result), $viewer, self::LIMIT), $viewer);
     }
 
     /**
@@ -79,10 +99,6 @@ final class TagCollage
      */
     public function forTagsWCache(iterable $tagIds, ?User $viewer = null): array
     {
-        if ($viewer !== null) {
-            return $this->forTags($tagIds, $viewer);
-        }
-
         $result = [];
         foreach ($tagIds as $id) {
             $result[$id] = new Collection;
@@ -91,7 +107,27 @@ final class TagCollage
             return [];
         }
 
-        return $this->kafle($result, $this->wierszeGoscia(array_keys($result)), null);
+        $rows = $this->wierszeGoscia(array_keys($result));
+        $kafle = $this->kafle($result, $rows, $viewer);
+        if ($viewer === null) {
+            return $kafle;
+        }
+
+        // Dopełnienie (komentarz klasy): cache pełny, a po odcięciu brakuje.
+        $pelne = $rows->countBy('tag_id');
+        $doDopelnienia = [];
+        foreach ($kafle as $id => $tagKafle) {
+            if ($tagKafle->count() < self::LIMIT && ($pelne[$id] ?? 0) >= self::POJEMNOSC) {
+                $doDopelnienia[] = $id;
+            }
+        }
+        if ($doDopelnienia !== []) {
+            foreach ($this->forTags($doDopelnienia, $viewer) as $id => $tagKafle) {
+                $kafle[$id] = $tagKafle;
+            }
+        }
+
+        return $kafle;
     }
 
     /**
@@ -115,7 +151,7 @@ final class TagCollage
         foreach ($rows as $row) {
             $photo = $media->get($row->media_id);
             $parent = $parents->get($row->post_id);
-            if ($photo === null || $parent === null) {
+            if ($photo === null || $parent === null || $result[$row->tag_id]->count() >= self::LIMIT) {
                 continue;
             }
             // W różnych tagach to samo medium może mieć innego rodzica.
@@ -144,7 +180,7 @@ final class TagCollage
 
         if ($brakujace !== []) {
             $policzone = array_fill_keys($brakujace, []);
-            foreach ($this->wiersze($brakujace, null) as $row) {
+            foreach ($this->wiersze($brakujace, null, self::POJEMNOSC) as $row) {
                 $policzone[$row->tag_id][] = ['tag_id' => $row->tag_id, 'post_id' => $row->post_id, 'media_id' => $row->media_id];
             }
 
@@ -170,7 +206,7 @@ final class TagCollage
      * @param  list<string>  $tagIds
      * @return SupportCollection<int, \stdClass> wiersze `DB::query()`: tag_id, post_id, media_id
      */
-    private function wiersze(array $tagIds, ?User $viewer): SupportCollection
+    private function wiersze(array $tagIds, ?User $viewer, int $limit): SupportCollection
     {
         $posts = $this->visiblePosts($viewer)
             ->select(['posts.id', 'posts.author_id', 'posts.published_at']);
@@ -201,7 +237,7 @@ final class TagCollage
             ->selectRaw('authors.*, ROW_NUMBER() OVER (PARTITION BY tag_id ORDER BY '.$order.') AS tag_row');
 
         return DB::query()->fromSub($ranked, 'ranked')
-            ->where('tag_row', '<=', self::LIMIT)
+            ->where('tag_row', '<=', $limit)
             ->orderBy('tag_id')->orderBy('tag_row')
             ->get(['tag_id', 'post_id', 'media_id']);
 

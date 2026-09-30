@@ -13,6 +13,8 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Drivers\Gd\Driver as SterownikGd;
+use Intervention\Image\Encoders\WebpEncoder;
 use Intervention\Image\ImageManager;
 use League\Flysystem\UnableToWriteFile;
 
@@ -143,7 +145,8 @@ class ProcessUploadedImage implements ShouldQueue
                 throw new \RuntimeException('Brak pliku źródłowego w storage.');
             }
 
-            // `autoOrientation: false` — I TO NIE JEST OSTROŻNOŚĆ, TO
+            // `autoOrientation: false` (opcja sterownika w `ImageManager::usingDriver()`,
+            // Intervention 4) — I TO NIE JEST OSTROŻNOŚĆ, TO
             // NAPRAWA PODWÓJNEGO OBROTU (audyt zewnętrzny T11).
             //
             // ZMIERZONE: plik 100×50 px z EXIF `Orientation = 6` (obróć
@@ -171,7 +174,7 @@ class ProcessUploadedImage implements ShouldQueue
             // Dla grupy 50+ obrócone zdjęcie nie jest drobiazgiem: osoba,
             // która wrzuci danie do góry nogami, nie zgłosi błędu — po
             // prostu przestanie wrzucać zdjęcia.
-            $manager = ImageManager::gd(autoOrientation: false);
+            $manager = ImageManager::usingDriver(SterownikGd::class, autoOrientation: false);
 
             // ZACZYNAMY OD PODGLĄDU, KTÓRY JUŻ JEST (issue #430).
             //
@@ -195,7 +198,7 @@ class ProcessUploadedImage implements ShouldQueue
 
             $orientation = $media->metadata['exif_orientation'] ?? null;
 
-            $sourceImage = $manager->read($original);
+            $sourceImage = $manager->decodeBinary($original);
             OrientacjaZdjecia::zastosuj($sourceImage, $orientation);
 
             foreach (config('kuking.media.variants') as $name => $maxEdge) {
@@ -203,13 +206,13 @@ class ProcessUploadedImage implements ShouldQueue
                 // a scaleDown zapisuje wynik w nowej bitmapie; źródło pozostaje
                 // niezmienione. Każdy wariant powstaje z pełnej rozdzielczości,
                 // nie z poprzedniej miniatury. Nie klonujemy dużej bitmapy GD.
-                $image = $manager->read($sourceImage->core()->native());
+                $image = $manager->decode($sourceImage->core()->native());
 
                 // scaleDown nigdy nie powiększa — małe zdjęcie zostaje małe,
                 // zamiast być rozmyte na siłę.
                 $image->scaleDown(width: $maxEdge, height: $maxEdge);
 
-                $encoded = $image->toWebp(quality: 82);
+                $encoded = $image->encode(new WebpEncoder(quality: 82));
 
                 // Wariant idzie do PUBLICZNEGO prefiksu `media/`, oryginał
                 // został w prywatnym `incoming/`. Liczy to `Media`, bo to

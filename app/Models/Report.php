@@ -63,6 +63,34 @@ class Report extends Model
     ];
 
     /**
+     * Powody dostępne TYLKO przy zgłaszaniu przepisu i TYLKO przy włączonej
+     * fladze `kuking.alergeny.wlaczone` (#1902, D-333): oznaczenie alergenów
+     * to zaznaczenie autora, więc błąd w nim zgłasza się tą samą drogą co inne
+     * sprawy. Klucz idzie do bazy, wartość na ekran. Lista dla celu:
+     * `powodyDla()`.
+     */
+    public const REASONS_PRZEPIS = [
+        'allergen_label' => 'Błędne oznaczenie alergenów',
+    ];
+
+    /**
+     * Powody do pokazania i przyjęcia dla danego typu celu. „Coś innego”
+     * zostaje zawsze ostatnie.
+     *
+     * @return array<string, string>
+     */
+    public static function powodyDla(string $targetType): array
+    {
+        if ($targetType !== 'recipe' || ! (bool) config('kuking.alergeny.wlaczone')) {
+            return self::REASONS;
+        }
+
+        $inne = self::REASONS['other'];
+
+        return [...array_diff_key(self::REASONS, ['other' => true]), ...self::REASONS_PRZEPIS, 'other' => $inne];
+    }
+
+    /**
      * Czego dotyczyło zgłoszenie — po polsku, dla ZGŁASZAJĄCEGO (issue #10).
      *
      * Karta sprawy na `/zgloszenia/{report}` musi przypomnieć człowiekowi,
@@ -406,6 +434,7 @@ class Report extends Model
     public function reasonLabel(): string
     {
         return self::REASONS[$this->reason]
+            ?? self::REASONS_PRZEPIS[$this->reason]
             ?? self::REASONS_AUTOMAT[$this->reason]
             ?? $this->reason;
     }

@@ -84,7 +84,8 @@ dokładna w obie strony. Sesję, IP i pola formularza domena dostaje przez
 `WejdzPrzezDostawce`, `FacebookConnectionConfirmation`, `ExternalRegistrationDraft`),
 a pamięć jednego żądania przez `App\Support\PamiecZadania` (adapter
 `PamiecZadaniaHttp`, wiązanie w `AppServiceProvider`: `Ukrycia`,
-`SkrotyObserwowania`). Kontroler woła domenę jako `ZadanieHttp::z($request)`.
+`SkrotyObserwowania`, `ListyWidza` — obserwowane osoby i blokady widza liczone raz
+na żądanie dla tablicy dnia i skrótów w menu; feed obserwowanych czyta świeżo, #983). Kontroler woła domenę jako `ZadanieHttp::z($request)`.
 Zostaje w kontrolerze: przypadki użycia listy, wyjęcia niedostępnych i
 zapisu przepisu (kolejne kroki).
 Profil publiczny: `ProfilRequest` (zakładka, rok i fraza z adresu, `rules()` puste — jak `ListaKontRequest`).

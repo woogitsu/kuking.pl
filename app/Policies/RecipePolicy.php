@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Policies;
 
 use App\Domain\Recipes\RecipeStatusTransitions;
+use App\Http\Support\BlokadyWZadaniu;
 use App\Models\Recipe;
 use App\Models\User;
 
@@ -50,7 +51,9 @@ class RecipePolicy
             return false;
         }
 
-        if ($user !== null && $user->hasBlockRelationWith($recipe->author)) {
+        // Pamięć żądania: `view()` woła się kilka razy na stronę przepisu,
+        // za każdym razem o tę samą parę (audyt wydajności, P3 W8).
+        if ($user !== null && BlokadyWZadaniu::miedzy($user, $recipe->author)) {
             return false;
         }
 

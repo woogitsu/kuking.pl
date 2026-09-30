@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Feed;
 
+use App\Domain\Social\ListyWidza;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
@@ -39,12 +40,14 @@ use Illuminate\Support\Facades\DB;
  */
 final class FollowingFeed
 {
+    public function __construct(private readonly ListyWidza $listy) {}
+
     /** @return CursorPaginator<int, Post> */
     public function paginate(User $viewer, ?int $perPage = null): CursorPaginator
     {
         $perPage ??= (int) config('kuking.feed.page_size');
 
-        $followedIds = $viewer->following()->pluck('users.id')->all();
+        $followedIds = $this->listy->osobyNaNowo($viewer);
         $tagIds = $this->obserwowaneTematy($viewer);
 
         // Własne wpisy też są w feedzie — inaczej po pierwszej publikacji
@@ -94,7 +97,7 @@ final class FollowingFeed
         return $this->zrodla(
             Post::query(),
             $viewer,
-            $viewer->following()->pluck('users.id')->all(),
+            $this->listy->osobyNaNowo($viewer),
             $this->obserwowaneTematy($viewer),
             zWlasnymi: false,
         )->doesntExist();

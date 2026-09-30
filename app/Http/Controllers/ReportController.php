@@ -60,7 +60,7 @@ class ReportController extends Controller
             'targetId' => $target instanceof User ? $target->getKey() : $id,
             'target' => $target,
             'cel' => CelZgloszenia::dla($target),
-            'reasons' => Report::REASONS,
+            'reasons' => Report::powodyDla($type),
             // Cel „Wróć" — patrz `wracajDo()` (issue #795).
             'powrot' => $this->wracajDo($target),
         ]);

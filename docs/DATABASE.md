@@ -1896,6 +1896,8 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 - `title_search`, `summary_search` — patrz „Kolumny `*_search`".
 - `pokazuj_wartosci_odzywcze boolean NOT NULL DEFAULT true` — patrz
   sekcja `skladniki_odzywcze` niżej (D-299).
+- `allergen_status`, `allergens`, `allergens_declared_at` — alergeny według
+  autora, patrz „Alergeny przepisu" niżej (#1902, D-333).
 
 **`prep_minutes`, `cook_minutes` — puste to „nie wiem", zero to „nie ma"**
 (#1090). `NULL` oznacza, że autor nie podał czasu; `0` — że tego etapu nie ma
@@ -1933,6 +1935,66 @@ człowieka. Po ponownym `up()` wraca `NULL`, czyli stan, w którym JSON-LD
 pomija opcjonalne pole — nic nie odwraca się w stronę nieprawdy; traci się
 tylko dokładność `dateModified` do następnej zmiany treści. Pilnuje
 `tests/Feature/CofniecieDatyZmianyTresciPrzepisuTest.php`.
+
+**Alergeny przepisu — oznaczenie autora** (#1902, D-333, migracja
+`2026_10_01_083000_add_allergens_to_recipes`).
+
+```sql
+ALTER TABLE recipes
+  ADD COLUMN allergen_status varchar(16) NOT NULL DEFAULT 'unchecked',
+  ADD COLUMN allergens text[] NOT NULL DEFAULT '{}',
+  ADD COLUMN allergens_declared_at timestamptz NULL;
+-- cztery CHECK-i, każdy NOT VALID, potem osobno VALIDATE (§6)
+recipes_allergen_status_check:          allergen_status IN ('unchecked','declared','needs_review')
+recipes_allergens_closed_list_check:    allergens <@ ARRAY['gluten','crustaceans','eggs','fish','peanuts',
+                                          'soy','milk','nuts','celery','mustard','sesame','sulphites',
+                                          'lupin','molluscs']::text[]
+recipes_allergens_only_when_declared_check: allergen_status <> 'unchecked' OR cardinality(allergens) = 0
+recipes_allergens_declared_at_check:    (allergen_status = 'unchecked') = (allergens_declared_at IS NULL)
+```
+
+- Poziom PRZEPISU, nie składnika: `PublishRecipe::syncIngredients()` kasuje
+  i zakłada wiersze składników przy każdym zapisie, więc oznaczenie na wierszu
+  by przepadło. Składnik dalej jest wolnym tekstem (`ingredient_text`).
+- 14 kodów to Załącznik II rozporządzenia 1169/2011; polskie nazwy w enumie
+  `App\Domain\Recipes\Alergeny\Alergen`. Lista w enumie i w CHECK-u musi być
+  identyczna — pilnuje `AlergenyOgraniczeniaBazyTest` (odczyt `pg_get_constraintdef`).
+- Trzy stany: `unchecked` (domyślny, także wszystkie istniejące przepisy —
+  „Alergeny: nie sprawdzono"), `declared` (autor zaznaczył i potwierdził, że
+  lista jest pełna; lista MOŻE być pusta), `needs_review` (po potwierdzeniu
+  zmieniono składniki; lista zostaje zapisana, ale nie jest pokazywana, do
+  ponownego potwierdzenia). Filtr w wyszukiwarce przepuszcza wyłącznie `declared`.
+- Wszystkie trzy kolumny POZA `$fillable` (pole sterujące, D-006): stan
+  `declared` powstaje tylko w `OznaczAlergenyPrzepisu` (`forceFill`), a
+  `needs_review` ustawia `PublishRecipe` w transakcji zapisu składników.
+- Bez indeksu: filtr działa na zbiorze zawężonym frazą; GIN `CONCURRENTLY`
+  dopiero po pomiarze.
+- Migawka wersji (`recipe_versions.snapshot`) dostaje `allergen_status` i
+  `allergens`; starsze migawki ich nie mają i brak klucza znaczy „nieznane".
+  Kolumny są też w odcisku treści (`TrescPrzepisu`), w eksporcie danych konta
+  (`alergeny_stan`, `alergeny`, `alergeny_potwierdzone`) i — za flagą
+  `KUKING_ALERGENY_WLACZONE` — w API, zawsze jako para stan + lista.
+- Usunięcie konta (D-022): dane są kolumnami przepisu, idą z nim; nie zawierają
+  danych osobowych. Żadnych danych o widzu filtr nie zapisuje (brak kolumny w
+  `users`, brak zapisu w sesji) — D-299, art. 9 RODO.
+
+Zapytanie do naprawy wierszy, gdy walidacja CHECK-ów w migracji odmówi:
+
+```sql
+SELECT id, allergen_status, allergens, allergens_declared_at FROM recipes
+WHERE NOT (allergen_status IN ('unchecked','declared','needs_review'))
+   OR (allergen_status = 'unchecked' AND (cardinality(allergens) > 0 OR allergens_declared_at IS NOT NULL))
+   OR (allergen_status <> 'unchecked' AND allergens_declared_at IS NULL);
+```
+
+**Rollback ODMAWIA** (D-088): `down()` rzuca wyjątek, gdy choć jeden przepis ma
+`allergen_status <> 'unchecked'`, bo `down()` + kolejny `migrate` wróciłby ze
+stanem „nie sprawdzono" i po cichu skasował decyzję autora. Komunikat po polsku
+podaje zapytanie `\copy` do zachowania danych i zmienną
+`KUKING_ROLLBACK_KASUJ_ALERGENY=true` na świadome skasowanie. Blokada
+`LOCK TABLE recipes` obejmuje sprawdzenie i `DROP COLUMN`. Na świeżej bazie i
+przy samych przepisach niesprawdzonych cofnięcie przechodzi. Test odmowy i
+kontrola dodatnia: `tests/Feature/Alergeny/CofniecieMigracjiNieKasujeAlergenowTest.php`.
 
 **`forked_from_id`, `forked_at` — „Moja wersja", przepis na podstawie
 cudzego** (issue #23, D-301, migracja `2026_09_26_100000_add_forked_from_to_recipes`).
@@ -6880,6 +6942,14 @@ tam, gdzie pytamy przy każdym żądaniu albo pod blokadą:
 | `posts_recipe_idx` | `posts (recipe_id) WHERE recipe_id IS NOT NULL` | `WpisWskazujacyPrzepis` pod `FOR UPDATE` przepisu, `ON DELETE SET NULL` |
 | `notifications_actor_idx` | `notifications (actor_id) WHERE actor_id IS NOT NULL` | `ON DELETE SET NULL` przy usunięciu konta |
 | `product_signals_user_signal_idx` | `product_signals (user_id, signal_name) WHERE user_id IS NOT NULL` | `RecordPromptShown` pod blokadą konta |
+| `collection_items_collection_idx` | `collection_items (collection_id)` — zwykły, bez `WHERE` | flagi „zapisane przeze mnie" (`ZapisyWpisu`), kaskada `ON DELETE CASCADE` z `collections` |
+
+Ostatni wiersz pochodzi z osobnej migracji
+`2026_10_01_090000_indeks_collection_items_collection_id` (audyt wydajności P3
+W6). `collection_items` miała już dwa unikalne indeksy z `collection_id` na
+początku, ale oba są **częściowe** (`WHERE recipe_id IS NOT NULL` /
+`WHERE post_id IS NOT NULL`), więc zapytanie po samym `collection_id` nie może
+z nich skorzystać. Rollback: `DROP INDEX CONCURRENTLY IF EXISTS` — bezstratny.
 
 `post_media.media_id` i `cooked_event_media.media_id` były wcześniej w indeksie
 tylko jako **druga** kolumna klucza głównego — to nie zawęża wyszukiwania po

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Social\Actions;
 
 use App\Domain\Notifications\Actions\NotifyUser;
+use App\Domain\Social\ListyWidza;
 use App\Domain\Social\ZamekPary;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Notification;
@@ -122,6 +123,7 @@ final class FollowUser
             }
 
             $obserwujacy->following()->attach($obserwowany->getKey(), ['created_at' => now()]);
+            ListyWidza::uniewaznij();
 
             // `$follower->profile`, nie `$obserwujacy->profile`: model
             // odczytany pod blokadą nie ma wczytanej relacji profilu, a to

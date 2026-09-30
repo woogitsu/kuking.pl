@@ -319,6 +319,17 @@ w `AGENTS.md` §1 (własny przepis, konto autora zamknięte, blokada).
 Opcjonalnie `photos[]`, `changes_note`, `perceived_difficulty`
 (`easy`/`medium`/`hard`).
 
+**Alergeny przepisu (#1902, D-333)** — pole `allergens` w `GET /api/v1/przepisy/{przepis}`
+istnieje tylko przy włączonej funkcji (`KUKING_ALERGENY_WLACZONE`) i jest ZAWSZE
+parą: `{"status": "declared", "list": ["eggs", "milk"]}`. `status` to `unchecked`
+(autor nie sprawdził), `declared` (autor zaznaczył i potwierdził pełną listę; lista
+może być pusta) albo `needs_review` (po potwierdzeniu zmieniono składniki).
+`list` jest tablicą TYLKO przy `declared`; przy pozostałych stanach jest `null` —
+nigdy pusta tablica, którą dałoby się odczytać jako „brak alergenów”. To
+zaznaczenie autora, nie badanie: aplikacja nie może pokazywać go jako pewnika.
+Kody: `gluten`, `crustaceans`, `eggs`, `fish`, `peanuts`, `soy`, `milk`, `nuts`,
+`celery`, `mustard`, `sesame`, `sulphites`, `lupin`, `molluscs`.
+
 **Komentarz:** `{"body": "Smacznie wygląda!", "parent_id": null}` → `201`
 z komentarzem. `parent_id` to odpowiedź na widoczny komentarz.
 
