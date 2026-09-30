@@ -95,9 +95,23 @@ final class OdbiorcyDigestu
      * `$limit` domyślnie z konfiguracji; komenda potrafi go zawęzić flagą,
      * żeby dało się wysłać jeden list próbny bez ruszania konfiguracji.
      *
+     * `$po` — NASTĘPNA PARTIA TEJ SAMEJ KOLEJKI (#2237, audyt BP-01). Komenda
+     * dobiera kandydatów partiami, aż wyczerpie budżet albo kolejkę, bo
+     * osoba bez treści NIE dostaje znacznika i jutro stoi znowu na początku.
+     * Jedna skończona paczka („budżet × 3") pozwalała więc starszym, cichym
+     * kontom zająć całe okno na zawsze — i list nie dochodził do nikogo
+     * młodszego, nawet do autora, którego przepis ktoś ugotował. Partie są
+     * stronicowane KLUCZEM (ostatnia osoba poprzedniej partii), nie
+     * `OFFSET`-em: osoby, którym list właśnie poszedł, wypadają z warunku
+     * odstępu w trakcie przebiegu, a `OFFSET` przeskoczyłby wtedy tyle samo
+     * osób, które jeszcze nic nie dostały. Wartości klucza bierzemy
+     * z `getRawOriginal()` — tak, jak zwróciła je baza — bo `zarezerwuj()`
+     * zmienia znacznik zapytaniem, a nie w modelu, i bo rzutowanie na datę
+     * gubiłoby ułamki sekundy.
+     *
      * @return Collection<int, User>
      */
-    public function naDzis(?int $limit = null): Collection
+    public function naDzis(?int $limit = null, ?User $po = null): Collection
     {
         $limit ??= (int) config('kuking.digest.dzienny_limit');
         $odstep = (int) config('kuking.digest.odstep_dni');
@@ -112,8 +126,27 @@ final class OdbiorcyDigestu
                 $q->whereNull('weekly_digest_sent_at')
                     ->orWhere('weekly_digest_sent_at', '<=', now()->subDays($odstep));
             })
+            ->when($po !== null, function (Builder $q) use ($po): void {
+                // Ten sam porządek co `ORDER BY` niżej, zapisany jako krotka:
+                // najpierw „nigdy nie dostał" (`IS NOT NULL` = false), potem
+                // znacznik, data założenia i identyfikator.
+                $q->whereRaw(
+                    // `COALESCE` odtwarza miejsce `NULL`-a w sortowaniu:
+                    // znacznik `NULLS FIRST` (wyżej osobną kolumną), data
+                    // założenia rosnąco, czyli w Postgresie `NULLS LAST`.
+                    "(weekly_digest_sent_at IS NOT NULL, COALESCE(weekly_digest_sent_at, '-infinity'), COALESCE(created_at, 'infinity'), id) "
+                    ."> (CAST(? AS boolean), COALESCE(CAST(? AS timestamptz), '-infinity'), COALESCE(CAST(? AS timestamptz), 'infinity'), CAST(? AS uuid))",
+                    [
+                        $po->getRawOriginal('weekly_digest_sent_at') !== null,
+                        $po->getRawOriginal('weekly_digest_sent_at'),
+                        $po->getRawOriginal('created_at'),
+                        (string) $po->getKey(),
+                    ],
+                );
+            })
             ->with('profile')
-            ->orderByRaw('weekly_digest_sent_at ASC NULLS FIRST')
+            ->orderByRaw('weekly_digest_sent_at IS NOT NULL')
+            ->orderByRaw('weekly_digest_sent_at ASC')
             // Drugi klucz, żeby kolejność była POWTARZALNA. Bez niego dwie
             // osoby z tym samym znacznikiem (a po pierwszym przebiegu mają go
             // setki: `NULL`) wracają w kolejności, którą Postgres wybiera
