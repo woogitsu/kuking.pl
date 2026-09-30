@@ -125,7 +125,7 @@ final class ZeszytyDoWyboruKosztPlanuTest extends TestCase
         foreach ([$ja, $wlasciciele['suspended'], $wlasciciele['active']] as $osoba) {
             $nowe = Collection::query()->dostepneDoZapisuDla($osoba)->orderBy('id')->pluck('id')->all();
             $stare = $this->zakresSprzedZmiany(Collection::query(), $osoba)->orderBy('id')->pluck('id')->all();
-            $this->assertSame($stare, $nowe, 'Zakres „dostępne do zapisu” różni się od poprzedniego zapytania dla '.$osoba->username);
+            $this->assertSame($stare, $nowe, 'Zakres „dostępne do zapisu” różni się od poprzedniego zapytania dla '.$osoba->getKey());
         }
 
         // Kontrola sceny: oczekiwany zbiór dla `ja` (nie same puste listy).
@@ -142,7 +142,7 @@ final class ZeszytyDoWyboruKosztPlanuTest extends TestCase
                 ->orderByRaw('(collections.owner_id = ?) DESC', [$osoba->getKey()])
                 ->orderByDesc('is_default')->orderBy('name')->orderBy('id')
                 ->pluck('id')->all();
-            $this->assertSame($stara, app(ZeszytyDoWyboru::class)->dla($osoba)->pluck('id')->all(), 'Kolejność listy do wyboru zmieniona dla '.$osoba->username);
+            $this->assertSame($stara, app(ZeszytyDoWyboru::class)->dla($osoba)->pluck('id')->all(), 'Kolejność listy do wyboru zmieniona dla '.$osoba->getKey());
         }
         $this->assertSame(['Zapisane', 'Moje A', 'Moje B'], array_slice(app(ZeszytyDoWyboru::class)->dla($ja)->pluck('name')->all(), 0, 3));
     }
