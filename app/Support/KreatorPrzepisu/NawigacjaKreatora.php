@@ -61,6 +61,8 @@ final class NawigacjaKreatora
     {
         return match (true) {
             $klucz === 'ingredients', str_starts_with($klucz, 'ingredients.') => 2,
+            // Oznaczenie alergenów (#1902) stoi pod składnikami.
+            $klucz === 'alergeny' => 2,
             // `steps` to błąd „opisz przynajmniej jeden krok”, `steps.N.…` to pola wierszy.
             $klucz === 'steps', str_starts_with($klucz, 'steps.') => 3,
             in_array($klucz, self::KLUCZE_PODGLADU, true) => self::KROK_PODGLADU,

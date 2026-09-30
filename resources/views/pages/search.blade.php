@@ -53,6 +53,34 @@
         @if($maksMinut !== null)
             <input type="hidden" name="czas" value="{{ $maksMinut }}">
         @endif
+
+        {{--
+            FILTR ALERGENÓW (#1902, D-333) — tylko przy włączonej fladze.
+
+            Zwijany, ale bez skryptu (`<details>`), w TYM SAMYM formularzu co fraza:
+            jeden przycisk „Szukaj" i jeden adres (`bez[]=gluten&bez[]=milk`).
+            Bezstanowy — niczego nie zapisujemy o szukającym. Nazwa nie obiecuje
+            niczego: „według autorów", bo to zaznaczenia autorów, nie badanie.
+            Zakres „Ludzie" go nie ma — osoby nie mają alergenów w przepisach.
+        --}}
+        @if(config('kuking.alergeny.wlaczone') && $section !== 'ludzie')
+            <details class="mt-4" id="filtr-alergenow" @if($bezAlergenow !== []) open @endif>
+                <summary class="btn btn-secondary">Bez wskazanych alergenów (według autorów)</summary>
+                <p class="meta mt-3">
+                    Zaznacz alergeny, których autor ma nie wskazywać w przepisie, i kliknij „Szukaj”.
+                    Pokażemy tylko przepisy, w których autor zaznaczył brak tych alergenów. Przepisy,
+                    w których autor nie sprawdził alergenów, są pominięte.
+                </p>
+                <div class="choice-grid">
+                    @foreach(\App\Domain\Recipes\Alergeny\Alergen::cases() as $alergen)
+                        <label class="choice">
+                            <input type="checkbox" name="bez[]" value="{{ $alergen->value }}" @checked(in_array($alergen->value, $bezAlergenow, true))>
+                            <span class="choice-label">{{ $alergen->etykieta() }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            </details>
+        @endif
         <button class="btn btn-primary mt-4" type="submit">Szukaj</button>
     </form>
 
@@ -79,6 +107,9 @@
             60 => ['Do godziny', 'godzinę'],
         ];
         $bazaZakresu = ['q' => $phrase] + ($phrase === '' ? [] : ['nawigacja' => 1]);
+        // Wybór alergenów zostaje przy zakresach przepisów, tak jak czas.
+        $alergenyWAdresie = $bezAlergenow === [] ? [] : ['bez' => $bezAlergenow];
+        $nazwyWybranych = \App\Domain\Recipes\Alergeny\Alergen::nazwyZKodow($bezAlergenow);
     @endphp
     <nav class="chipsy mt-6" aria-label="Co przeszukujemy">
         @foreach([
@@ -91,7 +122,7 @@
                  „Wszystko" i „Ludzie" go gubią, bo ludzie nie mają czasu
                  przygotowania (SearchController, #1997). --}}
             <a class="chip"
-               href="{{ route('search', $bazaZakresu + ['sekcja' => $klucz] + (in_array($klucz, ['przepisy', 'tanie'], true) && $maksMinut !== null ? ['czas' => $maksMinut] : [])) }}"
+               href="{{ route('search', $bazaZakresu + ['sekcja' => $klucz] + (in_array($klucz, ['przepisy', 'tanie'], true) && $maksMinut !== null ? ['czas' => $maksMinut] : []) + (in_array($klucz, ['przepisy', 'tanie'], true) ? $alergenyWAdresie : [])) }}"
                @if($section === $klucz) aria-current="page" @endif>{{ $etykieta }}</a>
         @endforeach
     </nav>
@@ -103,6 +134,12 @@
         w adresie (`?czas=15|30|60`), więc przeżywa odświeżenie i wysłanie
         komuś. Etykieta jest widoczna, nie tylko w `aria-label`.
     --}}
+    @if($bezNieznane > 0)
+        <p class="notice mt-4" role="status">
+            Adres ma alergen, którego nie rozpoznajemy, więc go pomijamy. Wybierz alergeny z listy nad wynikami.
+        </p>
+    @endif
+
     @if($section !== 'ludzie')
         @if($czasNieznany)
             <p class="notice mt-4" role="status">
@@ -113,11 +150,11 @@
         <p class="mt-4 mb-0 font-semibold" id="czas-przepisu-etykieta">Ile masz czasu?</p>
         <nav class="chipsy chipsy-czasu" aria-labelledby="czas-przepisu-etykieta">
             <a class="chip"
-               href="{{ route('search', $bazaZakresu + ['sekcja' => $section]) }}"
+               href="{{ route('search', $bazaZakresu + ['sekcja' => $section] + $alergenyWAdresie) }}"
                @if($maksMinut === null) aria-current="page" @endif>Bez limitu czasu</a>
             @foreach($progiCzasu as $minuty => [$etykieta])
                 <a class="chip"
-                   href="{{ route('search', $bazaZakresu + ['sekcja' => $section === 'wszystko' ? 'przepisy' : $section, 'czas' => $minuty]) }}"
+                   href="{{ route('search', $bazaZakresu + ['sekcja' => $section === 'wszystko' ? 'przepisy' : $section, 'czas' => $minuty] + $alergenyWAdresie) }}"
                    @if($maksMinut === $minuty) aria-current="page" @endif>{{ $etykieta }}</a>
             @endforeach
         </nav>
@@ -177,7 +214,12 @@
                 gotowe brzmienie, nie tylko przykład.
             --}}
             <x-empty-state title="Nic nie znaleźliśmy">
-                @if($section === 'przepisy' && $maksMinut !== null)
+                @if($bezAlergenow !== [])
+                    {{-- Filtr alergenów (#1902): przepisy niesprawdzone są pominięte,
+                         więc „nic" nie znaczy „wszystkie zawierają" — trzeba to powiedzieć. --}}
+                    Nie ma przepisów do „{{ $phrase }}”, w których autor zaznaczył brak: {{ $nazwyWybranych }}.
+                    Spróbuj odznaczyć jeden alergen albo poszukaj bez filtra i przeczytaj składniki samodzielnie.
+                @elseif($section === 'przepisy' && $maksMinut !== null)
                     Nie ma przepisu do „{{ $phrase }}”, który zmieściłby się w {{ $progiCzasu[$maksMinut][1] }}.
                     @if($maksMinut < 60)
                         Spróbuj dłuższego czasu albo „Bez limitu czasu”.
@@ -240,6 +282,13 @@
         @if($szukaPrzepisow && $recipes->isNotEmpty())
             <h2 class="mt-6">{{ $maksMinut !== null ? $progiCzasu[$maksMinut][0] : 'Przepisy' }}</h2>
 
+            @if($bezAlergenow !== [])
+                <p class="notice" role="note">
+                    Pokazujemy tylko przepisy, w których autor zaznaczył brak: {{ $nazwyWybranych }}.
+                    Przepisy, w których autor nie sprawdził alergenów, są pominięte.
+                </p>
+            @endif
+
             <p class="meta">
                 @if($odPrzepisu > 0 && $recipes->count() === 1)
                     Pokazujemy przepis {{ $odPrzepisu + 1 }}.
@@ -253,9 +302,22 @@
             </p>
             <div class="stack">
                 @foreach($recipes as $recipe)
-                    <x-recipe-card :recipe="$recipe" :pokaz-widocznosc="true" />
+                    @if($bezAlergenow !== [])
+                        <div>
+                            <x-recipe-card :recipe="$recipe" :pokaz-widocznosc="true" />
+                            {{-- Jedna linia, tylko przy aktywnym filtrze (#1902): bez plakietki
+                                 na zwykłych kartach, żeby nie udawała certyfikatu. --}}
+                            <p class="meta">Autor zaznaczył brak: {{ $nazwyWybranych }}</p>
+                        </div>
+                    @else
+                        <x-recipe-card :recipe="$recipe" :pokaz-widocznosc="true" />
+                    @endif
                 @endforeach
             </div>
+
+            @if($bezAlergenow !== [])
+                <p class="meta">To zaznaczenia autorów, nie badania. Przy gotowych produktach zawsze czytaj etykietę.</p>
+            @endif
 
             @if($jestWiecej ?? false)
                 {{-- Zwykły odnośnik, nie przycisk sterowany skryptem: dalsze

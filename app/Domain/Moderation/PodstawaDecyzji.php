@@ -147,6 +147,8 @@ final class PodstawaDecyzji
         'hate' => 'mowa-nienawisci',
         'sexual' => 'tresci-dla-doroslych',
         'dangerous_advice' => 'niebezpieczna-porada',
+        // Błędne oznaczenie alergenów (#1902) — najbliższa zasada to niebezpieczna porada.
+        'allergen_label' => 'niebezpieczna-porada',
         'spam' => 'spam-reklama',
         'scam' => 'spam-reklama',
         'minor' => 'dane-dziecka',
