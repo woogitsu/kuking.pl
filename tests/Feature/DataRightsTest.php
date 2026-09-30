@@ -182,6 +182,14 @@ class DataRightsTest extends TestCase
 
         $blad = session('errors')->getBag('default')->first('login');
 
-        $this->assertStringContainsString(route('account.delete.cancel'), $blad);
+        // Od D-333 (30.09.2026) adres nie stoi w zdaniu: wskazuje go przycisk
+        // pod komunikatami (`status_akcja`), a zdanie mówi, gdzie go szukać.
+        // Końcowy HTML sprawdza `OdmowaLogowaniaPrzyciskCofnieciaTest`.
+        $this->assertStringContainsString('„Cofnij usunięcie konta”', $blad);
+        $this->assertStringNotContainsString(route('account.delete.cancel'), $blad);
+        $this->assertSame(
+            ['url' => route('account.delete.cancel'), 'etykieta' => 'Cofnij usunięcie konta'],
+            session('status_akcja'),
+        );
     }
 }

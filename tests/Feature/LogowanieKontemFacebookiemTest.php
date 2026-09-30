@@ -828,6 +828,29 @@ class LogowanieKontemFacebookiemTest extends TestCase
 
         $this->assertGuest();
         $this->assertStringContainsString('zablokowane', (string) session('status'));
+        // Kontrola ujemna do D-333: zablokowanego nie ma czego „cofać”.
+        $this->assertNull(session('status_akcja'));
+    }
+
+    /** D-333: konto w karencji dostaje przycisk „Cofnij usunięcie konta”, nie adres w zdaniu. */
+    #[Test]
+    public function test_konto_do_usuniecia_nie_wchodzi_i_dostaje_przycisk_cofniecia(): void
+    {
+        $this->wlaczFacebooka();
+
+        $basia = $this->user('basia', ['email' => 'basia@example.test']);
+        $basia->connectFacebook(self::FB_ID);
+        $basia->markForDeletion();
+
+        $this->wracamyZFacebooka()->assertRedirect(route('login'));
+
+        $this->assertGuest();
+        $this->assertSame(
+            ['url' => route('account.delete.cancel'), 'etykieta' => 'Cofnij usunięcie konta'],
+            session('status_akcja'),
+        );
+        $this->assertStringContainsString('oznaczone do usunięcia', (string) session('status'));
+        $this->assertStringNotContainsString(route('account.delete.cancel'), (string) session('status'));
     }
 
     #[Test]

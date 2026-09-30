@@ -843,6 +843,8 @@ class LogowanieKontemGoogleTest extends TestCase
         $this->assertGuest();
         $this->assertStringContainsString('zablokowane', (string) session('status'),
             'Osoba zablokowana ma przeczytać uzasadnienie także na tej drodze (DSA art. 17).');
+        // Kontrola ujemna do D-333: zablokowanego nie ma czego „cofać”.
+        $this->assertNull(session('status_akcja'));
     }
 
     #[Test]
@@ -872,6 +874,14 @@ class LogowanieKontemGoogleTest extends TestCase
 
         $this->wracamyZGoogle()->assertRedirect(route('login'));
         $this->assertGuest();
+
+        // D-333: droga powrotu to przycisk pod komunikatem, nie adres w zdaniu.
+        $this->assertSame(
+            ['url' => route('account.delete.cancel'), 'etykieta' => 'Cofnij usunięcie konta'],
+            session('status_akcja'),
+        );
+        $this->assertStringContainsString('oznaczone do usunięcia', (string) session('status'));
+        $this->assertStringNotContainsString(route('account.delete.cancel'), (string) session('status'));
     }
 
     #[Test]
