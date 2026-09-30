@@ -40,6 +40,17 @@ final class ProfilZSamymiWykonaniamiJestIndeksowanyTest extends TestCase
         $this->assertStringContainsString($this->adresProfilu($kucharz), $this->mapaStrony());
     }
 
+    public function test_pierwsze_wykonanie_odswieza_zapamietana_mape_strony(): void
+    {
+        $kucharz = $this->user('swiezy_kucharz');
+        $przepis = Recipe::factory()->create();
+        $this->assertStringNotContainsString($this->adresProfilu($kucharz).'<', $this->mapaStrony());
+
+        CookedEvent::factory()->create(['user_id' => $kucharz->getKey(), 'recipe_id' => $przepis->getKey()]);
+
+        $this->assertStringContainsString($this->adresProfilu($kucharz).'<', $this->mapaStrony());
+    }
+
     public function test_wykonanie_z_przepisu_prywatnego_albo_autora_zbanowanego_nie_odblokowuje_indeksu(): void
     {
         $prywatny = $this->kucharzZWykonaniem(Recipe::factory()->create(['visibility' => 'private']));
