@@ -14,12 +14,29 @@
 
     @if($poprzednia === null)
         <h1>Wersja {{ $wersja->version_number }}</h1>
-        <p>To najstarsza zapisana wersja, więc nie ma z czym jej porównać.</p>
+        @if($pominieteUkryte > 0)
+            <p>To najstarsza wersja, którą możesz zobaczyć, więc nie ma z czym jej porównać. Starsze wersje ukrył autor albo moderacja.</p>
+        @else
+            <p>To najstarsza zapisana wersja, więc nie ma z czym jej porównać.</p>
+        @endif
         <p><a class="btn btn-secondary" href="{{ route('recipes.history.version', [$recipe->slug, $wersja->version_number]) }}">Zobacz wersję {{ $wersja->version_number }}</a></p>
     @else
         <h1>Co się zmieniło</h1>
         <p class="text-lead">Wersja {{ $poprzednia->version_number }} ({{ $poprzednia->created_at->locale('pl')->isoFormat('D MMMM YYYY') }}) →
             wersja {{ $wersja->version_number }} ({{ $wersja->created_at->locale('pl')->isoFormat('D MMMM YYYY') }})</p>
+        @if($pominieteUkryte > 0)
+            <p class="notice">
+                Porównanie pomija {{ $pominieteUkryte === 1 ? 'jedną ukrytą wersję' : $pominieteUkryte.' '.\App\Support\Odmiana::rzeczownik($pominieteUkryte, 'ukrytą wersję', 'ukryte wersje', 'ukrytych wersji') }}
+                między wersją {{ $poprzednia->version_number }} a {{ $wersja->version_number }}, bo autor albo moderacja {{ $pominieteUkryte === 1 ? 'ją ukryli' : 'je ukryli' }}.
+                Widać tu więc wszystkie zmiany z tego czasu razem.
+            </p>
+        @endif
+        @if($wersja->czyUkryta() || $poprzednia->czyUkryta())
+            <p class="notice">
+                W tym porównaniu jest wersja ukryta. Takie wersje widzi tylko autor przepisu i moderacja,
+                a inni oglądają porównanie bez nich.
+            </p>
+        @endif
         <p class="meta">
             Każda zmiana ma napis: Dodano, Usunięto albo Zmieniono. Zdjęcia nie są porównywane.
         </p>

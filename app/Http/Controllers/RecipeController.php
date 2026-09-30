@@ -495,7 +495,7 @@ class RecipeController extends Controller
             // indeksu (docs/seo/SEO_TECHNICAL.md §1.4 pkt 4).
             'wersjaDoIndeksu' => MojaWersja::czyIndeksowac($model),
             'wersje' => $wersje,
-            'historiaWersji' => HistoriaWersji::pokazacLinkPoAutoryzacji($model),
+            'historiaWersji' => HistoriaWersji::pokazacLinkPoAutoryzacji($model, $request->user()),
             'komentarze' => $komentarze,
             // Cała rozmowa, nie tylko ta strona — i razem z odpowiedziami,
             // jak na karcie i stronie wpisu (D-281, D-309). `total()`

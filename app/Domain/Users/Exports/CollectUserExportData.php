@@ -23,6 +23,7 @@ use App\Models\PostReaction;
 use App\Models\Profile;
 use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
+use App\Models\RecipeVersion;
 use App\Models\ShoppingListItem;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -1032,12 +1033,21 @@ final class CollectUserExportData
             ->where('recipe_versions.editor_id', $user->getKey())
             ->orderBy('recipe_versions.created_at')
             ->orderBy('recipe_versions.version_number')
-            ->get(['recipes.title', 'recipe_versions.version_number', 'recipe_versions.change_note', 'recipe_versions.created_at', 'recipe_versions.snapshot'])
+            ->get(['recipes.title', 'recipe_versions.version_number', 'recipe_versions.change_note', 'recipe_versions.created_at', 'recipe_versions.snapshot', 'recipe_versions.hidden_at', 'recipe_versions.hidden_by_role'])
             ->map(fn (object $wersja): array => [
                 'przepis' => $wersja->title,
                 'numer_wersji' => (int) $wersja->version_number,
                 'notatka_o_zmianie' => $wersja->change_note,
                 'zapisano' => $this->date($wersja->created_at),
+                // Ukrycie wersji (#2270): wersja ukryta nadal jest treścią
+                // tej osoby, więc wychodzi cała — z datą ukrycia i stroną,
+                // która ją ukryła. Bez konta moderatora (tego nie ma w wierszu).
+                'ukryto' => $this->date($wersja->hidden_at),
+                'ukryl' => match ($wersja->hidden_by_role) {
+                    RecipeVersion::UKRYL_AUTOR => 'autor',
+                    RecipeVersion::UKRYLA_MODERACJA => 'moderacja',
+                    default => null,
+                },
                 'tresc_wersji' => json_decode((string) $wersja->snapshot, true),
             ])->all();
     }
