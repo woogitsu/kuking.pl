@@ -256,26 +256,36 @@ class KanalyAtomTest extends TestCase
 
     // ── nagłówki cache ─────────────────────────────────────────────────
 
-    public function test_etag_i_last_modified_daja_304(): void
+    public function test_etag_daje_304_a_last_modified_nie_jest_wysylany(): void
     {
         $autor = $this->user('kanalcache');
-        $this->wpis($autor, 'Wpis do cache', ['published_at' => now()->subDay(), 'updated_at' => now()->subDay()]);
+        $wpis = $this->wpis($autor, 'Wpis do cache', ['published_at' => now()->subDay(), 'updated_at' => now()->subDay()]);
 
         $pierwsza = $this->get(route('kanaly.profil', 'kanalcache'));
         $this->atom($pierwsza);
         $etag = (string) $pierwsza->headers->get('ETag');
-        $zmiana = (string) $pierwsza->headers->get('Last-Modified');
 
         $this->assertMatchesRegularExpression('/^W\/"[0-9a-f]{64}"$/', $etag);
-        $this->assertNotSame('', $zmiana);
+        $this->assertFalse($pierwsza->headers->has('Last-Modified'), 'Last-Modified nie zmienia się, gdy pozycja znika — kanał go nie wysyła.');
         $this->assertSame('no-cache, private', $pierwsza->headers->get('Cache-Control'));
         $this->assertSame([], $pierwsza->headers->getCookies(), 'Kanał nie zakłada sesji ani nie stawia ciasteczek.');
 
         $this->get(route('kanaly.profil', 'kanalcache'), ['If-None-Match' => $etag])
             ->assertStatus(304)
             ->assertContent('');
-        $this->get(route('kanaly.profil', 'kanalcache'), ['If-Modified-Since' => $zmiana])
-            ->assertStatus(304);
+        // Regresja (audyt): samo `If-Modified-Since` z daleka w przyszłości
+        // nie może dać 304 — dawniej czytnik po zniknięciu pozycji dostawał
+        // 304 i dalej pokazywał wycofaną treść.
+        $this->get(route('kanaly.profil', 'kanalcache'), ['If-Modified-Since' => now()->addYear()->toRfc7231String()])
+            ->assertOk()
+            ->assertSee('Wpis do cache');
+
+        // Pozycja znika (ukryta moderacją) — pytanie tylko po dacie dostaje świeżą treść.
+        $wpis->forceFill(['updated_at' => now()->subDays(2)])->save();
+        $wpis->delete();
+        $this->get(route('kanaly.profil', 'kanalcache'), ['If-Modified-Since' => now()->toRfc7231String()])
+            ->assertOk()
+            ->assertDontSee('Wpis do cache');
 
         // Nowy wpis zmienia ETag — stary już nie pasuje.
         $this->wpis($autor, 'Świeży wpis');

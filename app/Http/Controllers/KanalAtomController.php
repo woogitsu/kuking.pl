@@ -31,8 +31,11 @@ use Illuminate\Support\Facades\Gate;
  * kasowanego i tag ukryty wyglądają jak adres, którego nie ma — kanał nie
  * potwierdza istnienia rzeczy, których gość nie może zobaczyć.
  *
- * CACHE (#610). `ETag` z treści i `Last-Modified` z najpóźniejszej daty;
- * zgodne `If-None-Match`/`If-Modified-Since` dostaje 304 bez treści.
+ * CACHE (#610). Tylko `ETag` z treści; zgodne `If-None-Match` dostaje 304
+ * bez treści. BEZ `Last-Modified`: data z najpóźniejszej pozycji nie zmienia
+ * się, gdy pozycja znika (usunięta, ukryta, zdjęta z urzędu), więc czytnik
+ * pytający samym `If-Modified-Since` dostawał 304 i dalej pokazywał
+ * wycofaną treść. Hash treści zmienia się przy każdej zmianie zestawu.
  * `Cache-Control` idzie za polityką HTML gościa: przy
  * `KUKING_HTML_EDGE_CACHE_SECONDS` > 0 `public, max-age=0, s-maxage=N`
  * (ta sama górna granica 300 s okna nieświeżości), a domyślnie
@@ -114,7 +117,6 @@ final class KanalAtomController
         ]);
 
         $odpowiedz->setEtag(hash('sha256', $xml), weak: true);
-        $odpowiedz->setLastModified($kanal->zmieniono->toDateTime());
         $odpowiedz->isNotModified($request);
 
         return $odpowiedz;

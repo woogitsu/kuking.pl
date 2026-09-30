@@ -565,18 +565,20 @@ ruchu, pierwszą dźwignią jest cache brzegu (niżej), drugą — tańszy odcis
 listy przed złożeniem treści.
 Limit zapytań `kuking.limits.kanal` (60/min po adresie IP).
 
-**Cache (#610).** `ETag` (słaby, SHA-256 treści) i `Last-Modified` (najpóźniejsza
-data pojemnika i pozycji); zgodne `If-None-Match`/`If-Modified-Since` dostaje
-304 bez treści. `Cache-Control` idzie za polityką HTML gościa: przy
+**Cache (#610).** Tylko `ETag` (słaby, SHA-256 treści); zgodne `If-None-Match`
+dostaje 304 bez treści. **Bez `Last-Modified`** (decyzja z audytu): data z
+najpóźniejszej pozycji nie zmienia się, gdy pozycja znika (usunięta, ukryta,
+zdjęta z urzędu, autor zbanowany), więc czytnik pytający samym
+`If-Modified-Since` dostawał 304 i dalej pokazywał wycofaną treść. Hash
+treści zmienia się przy każdej zmianie zestawu pozycji, a bez
+`Last-Modified` samo `If-Modified-Since` nigdy nie daje 304. Data zmiany
+kanału zostaje w treści jako `<updated>`. `Cache-Control` idzie za polityką HTML gościa: przy
 `KUKING_HTML_EDGE_CACHE_SECONDS` > 0 — `public, max-age=0, s-maxage=N` (ta sama
 górna granica 300 s), domyślnie `private, no-cache` (bez wspólnego cache, ale
 z pytaniem warunkowym). Żądanie z ciasteczkiem albo `Authorization` dostaje od
 `PreventSharedSessionCache` `private, no-store`. Reguła brzegu Cloudflare z
 `docs/infra/CLOUDFLARE_CACHE_597_610.md` kanałów nie obejmuje; `s-maxage`
-zadziała dopiero po jej rozszerzeniu decyzją właściciela. Znana granica
-`Last-Modified`: gdy wraca stara treść (np. odbanowanie autora), data się nie
-przesuwa, więc czytnik pytający samym `If-Modified-Since` zobaczy ją dopiero
-przy następnej nowej pozycji; `ETag` zmienia się od razu.
+zadziała dopiero po jej rozszerzeniu decyzją właściciela.
 
 **Odkrywanie i indeks.** Profil, strona tagu i publiczny zeszyt mają w `<head>`
 `<link rel="alternate" type="application/atom+xml">` — zeszyt tylko wtedy, gdy
