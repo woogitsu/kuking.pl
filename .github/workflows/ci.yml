@@ -2155,6 +2155,15 @@ jobs:
       - name: Menu karty wpisu i potwierdzenie usunięcia bez przycięcia (#1082)
         run: node scripts/menu-karty-wpisu.mjs
 
+      # Wydruk A4 w prawdziwym `@media print`: przepis (#765), ściągawka oraz
+      # karta z kodem QR (#2349) — kod co najmniej 9 × 9 cm na jednej stronie,
+      # biały podkład, czarne moduły, pismo 16 pt, zoom 200% bez przewijania.
+      # Sam zakłada i zdejmuje swoje dane (scripts/fixtures/wydruk-765.php)
+      # na bazie z `migrate:fresh --seed`; stoi przed `dostepnosc.mjs`,
+      # który i tak sieje bazę od nowa.
+      - name: Wydruk A4 przepisu i karty z kodem QR (#765, #2349)
+        run: node scripts/wydruk-przepisu.mjs
+
       - name: axe-core (aktualna macierz ekranów i wariantów)
         run: node scripts/dostepnosc.mjs
 
