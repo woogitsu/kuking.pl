@@ -542,6 +542,9 @@ final class EraseAccountData
                 'terms_notice_dismissed_version' => null,
                 // Ślad zamknięcia paska o zmianie polityki (D-327, D-332).
                 'policy_notice_dismissed_version' => null,
+                // Sprzeciw wobec statystyk (#2277): konto bez właściciela
+                // i tak nie trafia już do statystyk z żadnym powiązaniem.
+                'sprzeciw_statystyk_at' => null,
             ])->save();
 
             // STAN KOŃCOWY KONTA — I TO JEST NAPRAWA DRUGIEJ POŁOWY D-018.

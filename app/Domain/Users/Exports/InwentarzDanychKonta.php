@@ -147,6 +147,7 @@ final class InwentarzDanychKonta
         'pwa_prompt_state' => [self::EKSPORT, 'konto'],
         'terms_notice_dismissed_version' => [self::EKSPORT, 'konto'],
         'policy_notice_dismissed_version' => [self::EKSPORT, 'konto'],
+        'sprzeciw_statystyk_at' => [self::EKSPORT, 'konto'],
         'onboarding_zakonczony_at' => [self::EKSPORT, 'konto'],
         // Urodziny (#1755): dzień i miesiąc bez roku oraz wybory i ślad listu.
         'birthday_day' => [self::EKSPORT, 'konto'],

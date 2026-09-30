@@ -72,6 +72,7 @@ use App\Http\Controllers\Settings\PrivacySettingsController;
 use App\Http\Controllers\Settings\ProfileSettingsController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\SettingsIndexController;
+use App\Http\Controllers\Settings\SprzeciwStatystykController;
 use App\Http\Controllers\Settings\TwoFactorSettingsController;
 use App\Http\Controllers\Settings\WczytanieDanychController;
 use App\Http\Controllers\SitemapController;
@@ -1268,6 +1269,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/ustawienia/prywatnosc', [PrivacySettingsController::class, 'edit'])->name('settings.privacy');
     Route::put('/ustawienia/prywatnosc', [PrivacySettingsController::class, 'update'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia");
+    // Sprzeciw wobec statystyk (RODO art. 21, #2277): dwa jawne przyciski,
+    // nie pole formularza zgód — patrz `PrzestawSprzeciwWobecStatystyk`.
+    Route::post('/ustawienia/prywatnosc/statystyki', [SprzeciwStatystykController::class, 'store'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.privacy.sprzeciw-statystyk');
+    Route::delete('/ustawienia/prywatnosc/statystyki', [SprzeciwStatystykController::class, 'destroy'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.privacy.sprzeciw-statystyk.cofnij');
 
     // Urodziny: dzień i miesiąc, bez roku (issue #1755). Własny ekran, nie
     // pole profilu — powód w `BirthdaySettingsController`.
