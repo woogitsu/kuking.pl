@@ -115,7 +115,7 @@ class ProfileController extends Controller
             'following' => $this->liczbaPolaczen($owner, 'following', $viewer),
         ];
 
-        $profilDoIndeksu = $owner->jestWidocznyJakoOsoba()
+        $profilDoIndeksu = $owner->jestDostepnyJakoAutor()
             && ($stats['posts'] > 0 || $stats['recipes'] > 0 || $stats['cooked'] > 0);
 
         return view('pages.profile.show', [
@@ -154,12 +154,17 @@ class ProfileController extends Controller
             'frazaUgotowanych' => $frazaUgotowanych,
             'stats' => $stats,
             // Jedna reguła dla `noindex` i JSON-LD profilu (#2235, #2236):
-            // osoba widoczna jako osoba (D-022 — nie konto `erased`, tak
-            // samo jak mapa strony) i co najmniej jedna treść widoczna dla
-            // tego widza — wpis, przepis ALBO wykonanie z zakładki
-            // „Ugotowane". Wszystkie trzy liczniki liczą tym samym zakresem
-            // co listy, więc prywatne, ukryte i zablokowane nie odblokują
-            // indeksowania.
+            // autor dostępny (`jestDostepnyJakoAutor()` — ta sama bramka co
+            // `UserPolicy::viewProfile()` i mapa strony) i co najmniej jedna
+            // treść widoczna dla tego widza — wpis, przepis ALBO wykonanie
+            // z zakładki „Ugotowane". Wszystkie trzy liczniki liczą tym samym
+            // zakresem co listy, więc prywatne, ukryte i zablokowane nie
+            // odblokują indeksowania.
+            //
+            // Konto `erased` z zachowanymi treściami JEST indeksowane
+            // (decyzja właściciela z 30.09, D-333) — NIE `jestWidocznyJakoOsoba()`.
+            // Jego profil to adres, pod który prowadzą podpisy „Użytkownik
+            // usunięty" pod treściami, które D-018/D-022 obiecały zostawić.
             'profilDoIndeksu' => $profilDoIndeksu,
             // `Person.image` (#2231): ta sama bramka co `og:image`
             // (`isReady()`) i dodatkowo pytanie, czy zdjęcie otworzy się
