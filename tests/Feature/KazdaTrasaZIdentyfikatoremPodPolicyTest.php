@@ -840,6 +840,19 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('recipes.history.version', [$przepisPrywatny, 2]), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.history.changes', 'porównanie wersji prywatnego przepisu', 'get',
             route('recipes.history.changes', [$przepisPrywatny, 2]), [], [$W, $O, $O, $O, $O]);
+        // Ukrywanie wersji (#2270) — `RecipeVersionPolicy` zaczyna od tej
+        // samej bramki co historia, więc prywatny przepis zamyka drzwi
+        // wszystkim poza autorem, także moderatorowi. Wersja 1 nie jest
+        // najnowsza, więc autor dostaje ekran potwierdzenia i zapis; przy
+        // przywróceniu wersji nieukrytej — komunikat i powrót (302).
+        $dodaj('recipes.history.hide', 'potwierdzenie ukrycia wersji prywatnego przepisu', 'get',
+            route('recipes.history.hide', [$przepisPrywatny, 1]), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.history.hide.store', 'ukrycie wersji prywatnego przepisu', 'post',
+            route('recipes.history.hide.store', [$przepisPrywatny, 1]), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.history.restore', 'potwierdzenie przywrócenia wersji prywatnego przepisu', 'get',
+            route('recipes.history.restore', [$przepisPrywatny, 1]), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.history.restore.store', 'przywrócenie wersji prywatnego przepisu', 'post',
+            route('recipes.history.restore.store', [$przepisPrywatny, 1]), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.edit', 'edycja przepisu', 'get',
             route('recipes.edit', $przepis), [], [$W, $O, $O, $O, $O]);
         // Zlecenie odczytu zdjęcia kartki (V2, D-298) — prywatny szkic ze

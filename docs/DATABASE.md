@@ -2184,7 +2184,9 @@ JavaScriptu (`SnapshotRecipeVersion::poprawka()`):
 
 Autozapis kreatora (pauza w pisaniu, „Dalej", „Wstecz") zapisuje treść, ale
 wersji nie tworzy. **Istniejącej wersji nie zmienia się nigdy** (decyzja
-właściciela z 24.09.2026): model `RecipeVersion` odmawia `update()` wyjątkiem.
+właściciela z 24.09.2026): model `RecipeVersion` odmawia `update()` wyjątkiem
+— jedynym wyjątkiem są dwie kolumny ukrycia (niżej, #2270), które nie są
+treścią wersji.
 Szkic przed pierwszą publikacją nie ma wersji. Zmiana zachowania, nie
 schematu — bez migracji.
 
@@ -2205,6 +2207,57 @@ numer nowej wersji to `max + 1`, ekrany historii liczą sąsiadów z faktycznej
 listy. Eksport danych (`wersje_przepisow`) niesie to, co zostało — kształt
 bez zmian. Bez zmiany schematu; rollback to wyłączenie zadania (skasowanych
 wersji żaden rollback nie przywróci — to cel zmiany).
+
+**Ukrycie pojedynczej wersji (#2270, D-333 — decyzja właściciela 30.09).**
+Migracja `2026_09_30_201700_add_hidden_at_to_recipe_versions`:
+
+```sql
+ALTER TABLE recipe_versions ADD COLUMN hidden_at timestamptz NULL;
+ALTER TABLE recipe_versions ADD COLUMN hidden_by_role varchar(10) NULL;
+ALTER TABLE recipe_versions ADD CONSTRAINT recipe_versions_hidden_spojny_check CHECK (
+    (hidden_at IS NULL AND hidden_by_role IS NULL)
+    OR (hidden_at IS NOT NULL AND hidden_by_role IS NOT NULL
+        AND hidden_by_role IN ('author','moderator'))) NOT VALID;
+ALTER TABLE recipe_versions VALIDATE CONSTRAINT recipe_versions_hidden_spojny_check;
+```
+
+- `hidden_at` — od kiedy wersja jest ukryta; `NULL` = widoczna jak dotąd.
+  Wersję ukrytą widzi wyłącznie autor przepisu i czynna moderacja
+  (`HistoriaWersji::widziUkryte`), z oznaczeniem; dla reszty jej adres daje
+  404, lista jej nie pokazuje, a porównanie bierze za poprzednika najbliższą
+  widoczną wersję i mówi, ile ukrytych pominęło.
+- `hidden_by_role` — **strona**, nie konto: `author` albo `moderator`.
+  Rozstrzyga, kto może ukrycie cofnąć (autor nie cofa ukrycia moderacji,
+  moderacja nie odsłania tego, co autor ukrył sam — `RecipeVersionPolicy`).
+  **Które konto** ukryło, stoi wyłącznie w `audit_log`
+  (`recipe_version.hidden` / `recipe_version.restored`). Kolumny z `uuid`
+  konta świadomie nie ma: weszłaby do inwentarza danych konta, eksportu
+  i wymazywania, a reguła jej nie potrzebuje.
+- Obie kolumny są poza `$fillable` (pola sterujące widocznością) i zmieniają
+  je tylko `RecipeVersion::ukryj()` / `odkryj()`. Strażnik `updating` nadal
+  odrzuca każdą inną zmianę istniejącej wersji — ukrycie nie jest furtką
+  do poprawiania treści.
+- **Najnowszej wersji nie da się ukryć** (`UkrywanieWersji`, sprawdzane pod
+  blokadą wiersza `recipes`, tą samą co przy nadawaniu numeru): to treść
+  przepisu widoczna na jego stronie. Żeby usunąć z niej tekst, autor poprawia
+  przepis — powstaje nowa wersja, a poprzednią da się ukryć.
+- Retencja (akapit wyżej) ukrycia nie patrzy: stara ukryta wersja spoza
+  3 najnowszych znika tak samo jak widoczna. Eksport (`wersje_przepisow`)
+  niesie ukrytą wersję całą, z `ukryto` (data) i `ukryl` (`autor` |
+  `moderacja` | `null`).
+- Bez indeksu: każde zapytanie idzie po `recipe_id` (indeks unikalny
+  `recipe_id, version_number`), a wersji jednego przepisu jest kilka.
+
+Zapytanie kontrolne (CHECK odmówiłby walidacji):
+`SELECT id FROM recipe_versions WHERE (hidden_at IS NULL) <> (hidden_by_role IS NULL);`
+
+**Rollback: `down()` ODMAWIA, gdy choć jedna wersja jest ukryta (D-088).**
+Zdjęcie kolumny odsłania ukryte wersje publicznie, a ponowne `up()` wraca
+z `NULL` — czyli nic nie ukrywa, bez śladu błędu. Komunikat odmowy mówi, co
+zrobić ręcznie (kopia `id, hidden_at, hidden_by_role`, rollback, po ponownym
+`migrate` przywrócenie z kopii). Bez ukrytych wersji (świeża baza, CI)
+`down()` zdejmuje CHECK i obie kolumny bez pytania. Pilnuje
+`tests/Feature/UkrywanieWersjiPrzepisuTest.php` (odmowa + kontrola dodatnia).
 
 ### ingredients + units
 Podstawa search i późniejszego planera.
@@ -3970,6 +4023,22 @@ wpisów z tej strony nie ma. Retencja zwykła, jak `admin.user_viewed` — wpis
 NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest dowodem wykonania
 żądania z RODO art. 17. Tabela i jej schemat się nie zmieniają: `action` nie
 ma CHECK-a, więc nowa nazwa zdarzenia nie wymaga migracji ani rollbacku.
+
+**`recipe_version.hidden`, `recipe_version.restored`** — ukrycie i przywrócenie
+jednej wersji przepisu z „Historii zmian" (#2270,
+`App\Domain\Recipes\Historia\UkrywanieWersji`). `actor_id` — autor albo
+moderator, `subject_type = 'RecipeVersion'`, `subject_id` — wersja,
+`metadata`: `recipe_id`, `version_number`, `strona` (`author` | `moderator`),
+przy przywróceniu także `ukryl` (kto ukrył). **Bez treści wersji** — dziennik
+nie może być drugim miejscem, w którym ukryty tekst przeżywa. **Klasa 1
+(D-249)**: `record()` wewnątrz transakcji ukrycia, bo `recipe_versions` mówi
+tylko, po której stronie ukryto wersję, a KTÓRE konto — wyłącznie ten wpis.
+
+**`moderation.hidden_recipe_version_viewed`** — wgląd moderacji w wersję
+ukrytą (strona wersji albo porównanie z nią), ta sama zasada 3.2 co
+`moderation.hidden_post_viewed`. Autor oglądający własną wersję wpisu nie
+zostawia. Wpis pomocniczy (`recordBezWywracania`), bez metadanych. Retencja
+zwykła dla wszystkich trzech.
 
 ### potwierdzenia_zadan_rodo
 Minimalne potwierdzenie, że żądanie usunięcia konta (RODO art. 17) zostało
