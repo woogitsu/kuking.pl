@@ -1290,6 +1290,17 @@ return [
              * boli wszystkich, nie tylko ofiarę.
              */
             'logowanie_linkiem' => (bool) env('TURNSTILE_NA_LOGOWANIU_LINKIEM', true),
+
+            /*
+             * ÓSME MIEJSCE, DOŁOŻONE 30 WRZEŚNIA 2026 (#2272, audyt S-04):
+             * odwołanie od decyzji osoby, która nie może się zalogować
+             * (`/odwolanie`). Formularz sprawdza hasło do dowolnego konta,
+             * tak jak logowanie i cofnięcie usunięcia — bez tej bramki był
+             * trzecią, niechronioną drogą do zgadywania haseł. Dla osoby bez
+             * JavaScriptu `<noscript>` i ekran podają adres e-mail: odwołanie
+             * złożone listem też rozpatrujemy (DSA art. 20).
+             */
+            'odwolanie' => (bool) env('TURNSTILE_NA_ODWOLANIU', true),
         ],
     ],
 

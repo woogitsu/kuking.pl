@@ -172,7 +172,7 @@ final class Turnstile
     private static function instrukcjaPonowienia(string $miejsce): string
     {
         return match ($miejsce) {
-            'rejestracja', 'logowanie', 'cofniecie_usuniecia' => 'Pozostałe dane nie zniknęły. Dla bezpieczeństwa wpisz hasło ponownie, a potem ',
+            'rejestracja', 'logowanie', 'cofniecie_usuniecia', 'odwolanie' => 'Pozostałe dane nie zniknęły. Dla bezpieczeństwa wpisz hasło ponownie, a potem ',
             default => 'Twoje dane nie zniknęły: ',
         };
     }
@@ -229,6 +229,7 @@ final class Turnstile
             'cofniecie_usuniecia' => 'cofnięcia usunięcia konta',
             'kontakt' => 'wysłania do nas wiadomości',
             'zgloszenie_nielegalnej_tresci' => 'wysłania zgłoszenia',
+            'odwolanie' => 'wysłania odwołania',
             default => 'wysłania tego formularza',
         };
     }

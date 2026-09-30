@@ -6,7 +6,10 @@
     wygląda jak phishing — a nasza grupa jest na to szczególnie wyczulona
     (i słusznie).
 
-    Bez JavaScriptu (D-007). Bez gry słowem „kuKING" — D-009.
+    Turnstile (D-050, od 30.09.2026 — #2272): ten formularz sprawdza hasło
+    tak jak logowanie, więc stoi za tą samą bramką. Bez JavaScriptu zostaje
+    adres e-mail niżej — odwołanie złożone listem też rozpatrujemy.
+    Bez gry słowem „kuKING" — D-009.
 --}}
 <x-layout title="Odwołanie od decyzji" :noindex="true">
     <h1>Odwołanie od decyzji</h1>
@@ -33,6 +36,10 @@
 
         <x-field name="password" label="Hasło" type="password" required autocomplete="current-password" />
 
+        {{-- Konto z 2FA nie składa odwołania samym hasłem (#2272), tak jak się nim nie loguje. --}}
+        <x-field name="code" label="Kod z aplikacji albo kod zapasowy" autocomplete="one-time-code"
+                 help="Tylko jeśli masz włączoną weryfikację dwuetapową. Jeśli nie masz — zostaw to pole puste." />
+
         <h2 class="text-title-sm">Napisz, dlaczego to pomyłka</h2>
 
         <x-field name="body" label="Twoje wyjaśnienie" type="textarea" :rows="6" required
@@ -44,6 +51,8 @@
             zawsze z wyjaśnieniem. Odpowiedź zobaczysz na ekranie logowania, gdy spróbujesz
             wejść na konto. Odwołanie od jednej decyzji składa się raz.
         </p>
+
+        <x-turnstile miejsce="odwolanie" />
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Wyślij odwołanie</button>
