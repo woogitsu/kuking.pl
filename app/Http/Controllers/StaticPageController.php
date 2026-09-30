@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Feed\JakDobieramyWpisy;
+use App\Domain\Zgody\ArchiwumRegulaminu;
 use App\Domain\Ukrycia\Ukrycia;
 use App\Support\ZaufanyMarkdown;
 use Illuminate\Http\Request;
@@ -46,6 +47,9 @@ class StaticPageController extends Controller
             'regulamin',
             'Regulamin',
             'Regulamin Kuking: zasady publikowania zdjęć i przepisów, prawa autorskie, moderacja treści i usuwanie konta.',
+            // Pobranie i wszystkie wersje (#2220, kryterium 4) — patrz
+            // `ArchiwumRegulaminuController`.
+            ['wersjaRegulaminu' => ArchiwumRegulaminu::biezaca()],
         );
     }
 
@@ -84,7 +88,8 @@ class StaticPageController extends Controller
      * tytułami wyglądają na pomyłkę. Każdy tekst mówi, co NAPRAWDĘ jest
      * w danym dokumencie, nie tylko jak się nazywa.
      */
-    private function markdown(string $slug, string $title, string $description): View
+    /** @param  array<string, mixed>  $dodatkowe */
+    private function markdown(string $slug, string $title, string $description, array $dodatkowe = []): View
     {
         $path = resource_path("legal/{$slug}.md");
 
@@ -99,6 +104,7 @@ class StaticPageController extends Controller
             // Te pliki są nasze, ale zasada „nie renderuj cudzego HTML-a”
             // (AGENTS.md §7) obowiązuje tu tak samo, bez wyjątku.
             'html' => $this->kotwicaZmian(ZaufanyMarkdown::doHtml(file_get_contents($path))),
+            ...$dodatkowe,
         ]);
     }
 

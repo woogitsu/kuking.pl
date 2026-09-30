@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\UzytkownicyController;
 use App\Http\Controllers\Admin\WiadomosciController;
 use App\Http\Controllers\Admin\ZUrzeduController;
 use App\Http\Controllers\AppealController;
+use App\Http\Controllers\ArchiwumRegulaminuController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\FacebookDeauthorizeController;
 use App\Http\Controllers\Auth\FacebookLoginController;
@@ -184,6 +185,17 @@ Route::get('/pomoc', [StaticPageController::class, 'help'])->name('help');
 Route::get('/zasady', [StaticPageController::class, 'rules'])->name('rules');
 Route::get('/o-kuking', [StaticPageController::class, 'about'])->name('about');
 Route::get('/regulamin', [StaticPageController::class, 'terms'])->name('terms');
+// Wszystkie wersje regulaminu (#2220, kryterium 4). Adres wersji niesie tę
+// samą datę co `dziennik_zgod.wersja_regulaminu`, więc każdy wiersz dziennika
+// wskazuje brzmienie, które ktoś zaakceptował. Poza indeksem — patrz
+// `ArchiwumRegulaminuController`.
+Route::get('/regulamin/wersje', [ArchiwumRegulaminuController::class, 'index'])->name('terms.versions');
+Route::get('/regulamin/wersje/{data}', [ArchiwumRegulaminuController::class, 'show'])
+    ->where('data', '\d{4}-\d{2}-\d{2}')
+    ->name('terms.version');
+Route::get('/regulamin/wersje/{data}/pobierz', [ArchiwumRegulaminuController::class, 'pobierz'])
+    ->where('data', '\d{4}-\d{2}-\d{2}')
+    ->name('terms.version.download');
 Route::get('/prywatnosc', [StaticPageController::class, 'privacy'])->name('privacy');
 // „Jak dobieramy wpisy" (#1811, D-305) — opis każdej listy wpisów w serwisie,
 // zdanie po zdaniu powiązany z kodem (`JakDobieramyWpisyMowiPrawdeTest`).
