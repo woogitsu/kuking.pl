@@ -3,7 +3,7 @@
 
     <h1>Historia zmian</h1>
     <p class="text-lead">{{ $recipe->title }}</p>
-    <p class="meta">
+    <p class="meta meta-samodzielne">
         Tu są zapisane wersje przepisu z datami. Historia pokazuje tekst i dane przepisu,
         bez zdjęć. Strona przepisu może zawierać jeszcze drobne poprawki, których autor
         nie zapisał jako nowej wersji.

@@ -1899,6 +1899,11 @@ checks = [
      lambda s: replace_once(s, "content=\"{{ $theme === 'dark' ? '#151714' : '#F3F4F1' }}\"", 'content="#151714"')),
     ("Manifest wraca do ciemnego theme_color", "public/manifest.webmanifest", "test_kolory_to_tlo_strony_z_tokenow_a_manifest_ma_jasny",
      lambda s: replace_once(s, '"theme_color": "#F3F4F1"', '"theme_color": "#151714"')),
+    # UX-02 (#2287): samodzielne zdanie pomocnicze wraca do 16 px.
+    ("Pusty dzień planera znów w 16 px", "resources/views/pages/planer/show.blade.php", "test_instrukcje_i_puste_stany_niosa_klase_tekstu_podstawowego",
+     lambda s: replace_once(s, '<p class="meta meta-samodzielne">Nic jeszcze nie zaplanowane.</p>', '<p class="meta">Nic jeszcze nie zaplanowane.</p>')),
+    ("Samodzielne zdanie pomocnicze w arkuszu na 16 px", CSS, "test_klasa_w_arkuszu_daje_tekst_podstawowy_18_px",
+     lambda s: replace_once(s, "  .meta-samodzielne {\n    font-size: var(--text-body);", "  .meta-samodzielne {\n    font-size: var(--text-help);")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

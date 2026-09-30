@@ -129,7 +129,7 @@
     <section class="mt-8" id="zablokowane">
         <h2>Zablokowane osoby</h2>
         @if($blocked->isEmpty() && $blocked->onFirstPage())
-            <p class="meta">Nikogo nie blokujesz.</p>
+            <p class="meta meta-samodzielne">Nikogo nie blokujesz.</p>
         @elseif($blocked->isEmpty())
             {{-- Dalsza strona bywa pusta, gdy ktoś zdjął na niej ostatnią
                  blokadę — „Nikogo nie blokujesz" byłoby wtedy nieprawdą

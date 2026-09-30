@@ -331,6 +331,9 @@ OCZEKUJ = {
     # #2267: theme-color i manifest.
     'Pasek przeglądarki znów zawsze ciemny': r'Jasna strona bez wyboru ma jasny pasek przeglądarki',
     'Manifest wraca do ciemnego theme_color': r'Manifest ma kolor jasnego motywu',
+    # UX-02 (#2287).
+    'Pusty dzień planera znów w 16 px': r'stoi samo, a ma 16 px zamiast tekstu podstawowego',
+    'Samodzielne zdanie pomocnicze w arkuszu na 16 px': r'Samodzielne zdanie pomocnicze nie ma rozmiaru tekstu podstawowego',
 }
 
 
