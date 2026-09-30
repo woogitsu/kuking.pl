@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2322): gdy Google albo Facebook odda odpowiedź w nieoczekiwanym kształcie (np. pole, które powinno być tekstem, przyjdzie jako lista), wejście przez to konto kończy się powrotem na ekran logowania z tym samym komunikatem co przy innych nieudanych próbach, a nie błędem serwera. Imię albo adres w złym typie traktujemy jak brak tego pola.
 - Naprawione (#2314): wczytanie paczki z danymi nie pomija już przepisu tylko dlatego, że na koncie jest inny przepis o tym samym tytule. „Już jest u Ciebie” oznacza teraz przepis o tym samym tytule, składnikach i krokach (wielkość liter i odstępy bez znaczenia) — tak samo, jak od początku rozpoznajemy powtórzenia w samej paczce.
 - Naprawione (#2328): ekran postępu importu przepisu nie cofa się już z „gotowe” do „w toku”, gdy przy wolnym łączu starsza odpowiedź odświeżania wróci po nowszej. Pokazujemy tylko odpowiedź nowszą od ostatnio pokazanej, a po stanie końcowym odświeżanie się zatrzymuje i nic już go nie nadpisuje.
 - Naprawione (#2321): ekran „Twój zeszyt” pokazuje zeszyty porcjami po 30 — osobno własne i osobno „Udostępnione Tobie” — a dalsze są pod przyciskiem „Pokaż więcej zeszytów” (bez skryptu: odnośnik „Następna strona zeszytów”). Wcześniej strona wczytywała naraz wszystkie zeszyty z licznikami, więc przy dużej bibliotece otwierała się coraz wolniej. Liczby przepisów i wpisów na kartach liczą się tak samo jak dotąd. Bez zmian w bazie.
