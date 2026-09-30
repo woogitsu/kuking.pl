@@ -19,7 +19,9 @@ use App\Support\Czas;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -490,6 +492,41 @@ class MojStolTest extends TestCase
         $this->assertNotNull($temat);
         $this->assertSame('Ostatni', $temat['tag']->name);
         $this->assertSame(['Nowy sernik Oli', 'Placek Ewy', 'Babka Izy'], array_map(fn (Post $p) => $p->recipe->title, $temat['wpisy']));
+    }
+
+    /**
+     * #2326: liczba obserwowanych tagów nie ma granicy (fixture obciążeniowy:
+     * 978), a półka potrzebuje z nich tylko warunku w SQL. Liczymy modele
+     * `Tag` naprawdę wczytane z bazy: przy 300 obserwowanych ma ich być tyle,
+     * ile tagów mają wpisy na półce, a nie 300.
+     */
+    public function test_obserwowane_tagi_nie_sa_wczytywane_jako_modele(): void
+    {
+        $widz = $this->wlaczony();
+        $wiele = collect(range(1, 300))->map(fn (int $i) => [
+            'id' => (string) Str::uuid(),
+            'slug' => "obserwowany-{$i}",
+            'name' => "Obserwowany {$i}",
+            'normalized_name' => "obserwowany {$i}",
+        ]);
+        DB::table('tags')->insert($wiele->all());
+        DB::table('tag_follows')->insert($wiele->map(fn (array $t) => ['user_id' => $widz->getKey(), 'tag_id' => $t['id'], 'created_at' => now()])->all());
+
+        $sernik = $this->tag('sernik', 'Sernik');
+        $this->obserwujTag($widz, $sernik);
+        $this->przepis($this->user('ola'), 'Sernik Oli', 3, $sernik);
+
+        $wczytane = 0;
+        Event::listen('eloquent.retrieved: '.Tag::class, function () use (&$wczytane): void {
+            $wczytane++;
+        });
+
+        $polka = app(MojStol::class)->dlaWidza($widz);
+
+        // Kontrola dodatnia: półka nadal działa i podpisuje powód tagiem.
+        $this->assertTrue($polka['obserwuje_tagi']);
+        $this->assertSame(['Sernik'], array_map(fn (array $p) => $p['tag']->name, $polka['z_tagow']));
+        $this->assertLessThan(20, $wczytane, "Półka wczytała {$wczytane} modeli Tag przy 301 obserwowanych — rośnie z liczbą obserwowanych.");
     }
 
     /** #1968: „kuKINGi na dziś" — najwyżej `NA_POLCE_NA_DZIS`, limit w zapytaniu. */
