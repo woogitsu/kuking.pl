@@ -11,7 +11,7 @@
     <p class="meta">
         Wersje są publiczne tak samo jak przepis: widzi je każdy, kto widzi przepis. Zapisana
         wersja zachowuje treść z chwili zapisu, także tę, którą autor usunął później.
-        Autor może ukryć pojedynczą wersję przyciskiem „Ukryj tę wersję” — wtedy widzi ją już
+        Autor może ukryć pojedynczą wersję przyciskiem „Ukryj wersję” z numerem wersji (na przykład „Ukryj wersję 2”) — wtedy widzi ją już
         tylko autor i moderacja.
     </p>
     @if($zUkrytymi)

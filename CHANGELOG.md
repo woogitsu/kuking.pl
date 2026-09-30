@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (audyt): opis na ekranie „Historia zmian” mówił o przycisku „Ukryj tę wersję”, a przyciski nazywają się „Ukryj wersję 2”, „Ukryj wersję 3” itd. Opis nazywa teraz przycisk tak, jak go widać.
 - Naprawione (audyt): kanały Atom (profil, tag, zeszyt) nie wysyłają już nagłówka `Last-Modified`. Czytnik pytający samym `If-Modified-Since` dostawał 304 i dalej pokazywał treść, która w międzyczasie zniknęła (usunięta, ukryta albo zdjęta z urzędu), bo data najpóźniejszej pozycji się wtedy nie zmienia. Zostaje `ETag` z treści, który zmienia się przy każdej zmianie zestawu pozycji.
 - Naprawione (audyt): komenda `kuking:przenies-zdjecia` odmawia teraz `--limit` mniejszego niż 1 i wartości niebędących liczbą całkowitą, z komunikatem po polsku i kodem błędu. Wcześniej `--limit=0` kończył się „Nie ma zdjęć do przeniesienia.” z kodem 0 (łatwo było uznać migrację za zakończoną i zdjąć stary bucket), a `--limit=-1` dawał surowy błąd SQL.
 - Naprawione (#2331): fraza z emoji na początku, na końcu albo w środku („Basia 🍲”, „🍲 żurek”, „Helena 🍲 Nowak”) znajduje to samo co fraza bez emoji — w wyszukiwarce (ludzie i przepisy), w onboardingu, w planerze, w „Szukaj w moich zeszytach”, w „Szukaj w moich wykonaniach”, w filtrze obserwowanych tagów i na liście kont w panelu moderacji. Emoji znikało przy porównaniu i zostawiało po sobie spację, przez którą osoba „Basia” nie pasowała. Odstępy wpisane między słowami zostają jak dotąd. Bez zmian w bazie.
