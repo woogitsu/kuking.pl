@@ -11,6 +11,7 @@ use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Domain\Recipes\Actions\UsunWykonanie;
 use App\Domain\Recipes\Actions\ZapiszWykonanieZFormularza;
 use App\Domain\Recipes\Actions\ZbierzZdjeciaWykonania;
+use App\Domain\Recipes\Gotowanie\JakWyszlo;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\Cooked\KomentarzWykonaniaRequest;
 use App\Http\Requests\Cooked\PodziekowanieRequest;
@@ -173,6 +174,10 @@ class CookedEventController extends Controller
         if (! $event->wasRecentlyCreated) {
             return $this->odpowiedzNaPonowienie($event);
         }
+
+        // Gotowanie z trybu gotowania w tej sesji jest domknięte — „Jak
+        // wyszło?” już o nie nie zapyta, a raport liczy je jako ugotowane (F1).
+        app(JakWyszlo::class)->poUgotowaniu($request->session(), $user, $model);
 
         return redirect()->route('cooked.show', $event)->with(Komunikat::sukces('Wykonanie zapisane.',
         ));

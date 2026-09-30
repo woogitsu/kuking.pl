@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Recipes\Gotowanie\JakWyszlo;
 use App\Domain\Recipes\Gotowanie\PostepGotowania;
 use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Models\CookingProgress;
@@ -136,6 +137,12 @@ class CookingModeController extends Controller
         $total = $steps->count();
         $krok = $this->wyczyscKrok($request->query('krok'), $total);
         $aktualny = $steps->get($krok - 1);
+
+        // Ostatni krok otwarty przez zalogowaną osobę — „Jak wyszło?” na
+        // Starcie, jeśli nie zapisze wykonania (F1, `JakWyszlo`).
+        if ($krok === $total && $osoba !== null) {
+            app(JakWyszlo::class)->zanotujKoniec($request->session(), $osoba, $model);
+        }
 
         $zrobione = $postepKonta !== null
             ? $this->postep->zrobione($postepKonta, $steps->pluck('id')->map(fn ($id): string => (string) $id)->all())
