@@ -47,6 +47,8 @@ use App\Domain\Moderation\NowaDecyzja;
 use App\Domain\Pantry\CoMamWDomu;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Recipes\Actions\PublishRecipe;
+use App\Domain\Recipes\Alergeny\DeklaracjaAlergenow;
+use App\Domain\Recipes\Alergeny\OznaczAlergenyPrzepisu;
 use App\Domain\Recipes\Gotowanie\PostepGotowania;
 use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
 use App\Domain\Social\Actions\BlockUser;
@@ -406,6 +408,18 @@ try {
             }
 
             return $zapisz();
+        })(),
+
+        // Samodzielne oznaczenie alergenów (#1902): prawdziwa akcja, bo mierzymy
+        // kolejność blokad `users` → `recipes` wewnątrz niej.
+        'oznacz-alergeny' => (function () use ($argumenty): string {
+            $przepis = app(OznaczAlergenyPrzepisu::class)->handle(
+                User::query()->whereKey($argumenty['autor'])->firstOrFail(),
+                Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail(),
+                new DeklaracjaAlergenow(['milk'], true),
+            );
+
+            return (string) $przepis->allergen_status;
         })(),
 
         // #2189: prawdziwy zapis przepisu (szkic, publikacja, edycja) przez

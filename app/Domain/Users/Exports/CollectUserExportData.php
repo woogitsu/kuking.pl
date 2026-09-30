@@ -425,6 +425,13 @@ final class CollectUserExportData
             'od_kogo' => $recipe->source_person,
             'notatka_o_zrodle' => $recipe->source_note,
             'w_rodzinie_od_roku' => $recipe->family_since_year,
+            // Alergeny według autora (#1902) — ZAWSZE razem stan i lista: sama
+            // pusta lista mogłaby zostać odczytana jako „brak alergenów”, a to
+            // tylko `declared` z pustą listą (autor potwierdził, że żadnego
+            // z 14 nie zaznaczył). Kody jak w bazie (`gluten`, `milk`, …).
+            'alergeny_stan' => $recipe->allergen_status ?? Recipe::ALERGENY_NIESPRAWDZONE,
+            'alergeny' => $recipe->allergens,
+            'alergeny_potwierdzone' => $this->date($recipe->allergens_declared_at),
             // „Moja wersja" (issue #23, D-301): kiedy ta osoba zaczęła swoją
             // wersję i jaki przepis był oryginałem. Tytuł oryginału tylko
             // wtedy, gdy właściciel paczki może go dziś zobaczyć — to cudza

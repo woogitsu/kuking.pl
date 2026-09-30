@@ -133,7 +133,7 @@ W tle (`ProcessUploadedImage`, lista w `config/kuking.php`,
 - large 1600 px.
 
 Wszystkie trzy warianty są kodowane do WebP z jakością 82
-(`ProcessUploadedImage::handle()`, `toWebp(quality: 82)`). AVIF jest
+(`ProcessUploadedImage::handle()`, `encode(new WebpEncoder(quality: 82))`; Intervention 4 nie ma już skrótów `toWebp()`/`toJpeg()`). AVIF jest
 obsługiwanym formatem wejściowym, ale pipeline nie generuje wariantów AVIF
 ani zestawu alternatywnych formatów wyjściowych.
 

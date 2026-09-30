@@ -9,6 +9,8 @@ use App\Jobs\ProcessUploadedImage;
 use App\Models\Media;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Drivers\Gd\Driver as SterownikGd;
+use Intervention\Image\Encoders\WebpEncoder;
 use Intervention\Image\ImageManager;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
@@ -64,14 +66,14 @@ class JednoDekodowanieZdjeciaTest extends TestCase
                     // Dotychczasowy algorytm: każdy wariant bezpośrednio
                     // z ponownie zdekodowanego oryginału, nigdy z miniatury.
                     $expected = [];
-                    $manager = ImageManager::gd(autoOrientation: false);
+                    $manager = ImageManager::usingDriver(SterownikGd::class, autoOrientation: false);
                     LicznikDekodowanGd::$liczba = 0;
                     foreach ($edges as $name => $edge) {
-                        $image = $manager->read($original);
+                        $image = $manager->decodeBinary($original);
                         OrientacjaZdjecia::zastosuj($image, $orientation);
                         $image->scaleDown(width: $edge, height: $edge);
                         $expected[$name] = [
-                            'bytes' => (string) $image->toWebp(quality: 82),
+                            'bytes' => (string) $image->encode(new WebpEncoder(quality: 82)),
                             'width' => $image->width(),
                             'height' => $image->height(),
                         ];
