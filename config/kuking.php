@@ -3898,6 +3898,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Alergeny przepisu — oznaczenie autora i filtr (V2, #1902, D-333)
+    |--------------------------------------------------------------------------
+    |
+    | DOMYŚLNIE WYŁĄCZONE. Decyzja właściciela z 30.09.2026: funkcję włącza
+    | dopiero test z osobami 50+ (rozumienie różnicy między „autor nie
+    | zaznaczył” a „nie zawiera”). Wyłączona = brak sekcji „Alergeny”
+    | w kreatorze i formularzu, brak bloku na stronie przepisu, brak filtra
+    | w wyszukiwarce i brak pola w API; kolumny w bazie zostają. Włączenie to
+    | `KUKING_ALERGENY_WLACZONE=true` na rolach `web` i `worker`.
+    */
+    'alergeny' => [
+        'wlaczone' => (bool) env('KUKING_ALERGENY_WLACZONE', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Import przepisu i odczyt zdjęcia kartki (V2) — D-296, D-297, D-298
     |--------------------------------------------------------------------------
     |

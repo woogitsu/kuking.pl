@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Recipes\Actions;
 
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
+use App\Domain\Recipes\Alergeny\DeklaracjaAlergenow;
+use App\Domain\Recipes\Alergeny\OznaczAlergenyPrzepisu;
 use App\Domain\Posts\KontoNieMozePublikowac;
 use App\Domain\Recipes\BramkaPublikacjiSzkicu;
 use App\Domain\Recipes\ExistingStepDuplicates;
@@ -97,6 +99,7 @@ final class PublishRecipe
         private readonly StrazPochodzeniaPrzepisu $pochodzenie,
         private readonly BramkaPublikacjiSzkicu $bramkaPublikacji,
         private readonly MojaWersja $mojaWersja,
+        private readonly OznaczAlergenyPrzepisu $alergenyPrzepisu,
     ) {}
 
     /**
@@ -114,6 +117,10 @@ final class PublishRecipe
      *                                kreatora; świadome „Zapisz zmiany" i formularz bez JS — `true`
      * @param  int|null  $oczekiwanaRewizja  rewizja wyświetlona człowiekowi w formularzu;
      *                                       sprawdzana pod blokadą przepisu przed zapisem
+     * @param  DeklaracjaAlergenow|null  $deklaracjaAlergenow  oznaczenie alergenów od autora (#1902);
+     *                                                         `null` = ta droga zapisu nie mówi nic o alergenach
+     *                                                         (autozapis, import, flaga wyłączona) — stan zostaje,
+     *                                                         chyba że zmieniły się składniki (wtedy `needs_review`)
      */
     public function handle(
         User $author,
@@ -126,6 +133,7 @@ final class PublishRecipe
         ?string $kluczWyslania = null,
         bool $wersjaPoprawki = true,
         ?int $oczekiwanaRewizja = null,
+        ?DeklaracjaAlergenow $deklaracjaAlergenow = null,
     ): Recipe {
         $title = trim((string) ($attributes['title'] ?? ''));
 
@@ -230,7 +238,7 @@ final class PublishRecipe
         $klucz = $existing === null ? $kluczWyslania : null;
 
         $zapisz = fn (?string $klucz): Recipe => DB::transaction(function () use (
-            $author, $attributes, $title, $cleanIngredients, $cleanSteps, $publish, $existing, $klucz, $ip, $wersjaPoprawki, $oczekiwanaRewizja
+            $author, $attributes, $title, $cleanIngredients, $cleanSteps, $publish, $existing, $klucz, $ip, $wersjaPoprawki, $oczekiwanaRewizja, $deklaracjaAlergenow
         ): Recipe {
             /*
              * Wstępna mapa kroków jest potrzebna do ustalenia zdjęć przed
@@ -517,7 +525,15 @@ final class PublishRecipe
                 $recipe->update($payload);
             }
 
+            $skladnikiPrzed = $existing === null ? [] : $this->odciskSkladnikowDlaAlergenow(
+                $recipe->ingredients()->get(['ingredient_text', 'substitutes'])
+                    ->map(static fn (RecipeIngredient $wiersz): array => $wiersz->only(['ingredient_text', 'substitutes']))->all(),
+            );
+
             $this->syncIngredients($recipe, $cleanIngredients);
+
+            $this->uzgodnijAlergeny($recipe, $skladnikiPrzed, $cleanIngredients, $deklaracjaAlergenow);
+
             $this->syncSteps($recipe, $author, $cleanSteps, $istniejaceKroki, $doPrzypiecia);
 
             if ($bylSzkicem && $recipe->isPublished()) {
@@ -727,6 +743,54 @@ final class PublishRecipe
             ->where('author_id', $author->getKey())
             ->where('klucz_wyslania', $kluczWyslania)
             ->first();
+    }
+
+    /**
+     * ALERGENY PRZY ZAPISIE SKŁADNIKÓW (#1902, D-333).
+     *
+     * Dwie reguły, w tej kolejności, w tej samej transakcji co zapis
+     * składników:
+     *
+     *  1. Składniki zmieniły się po potwierdzeniu (`declared`) → `needs_review`:
+     *     lista znika z widoku czytelnika, dopóki autor nie potwierdzi jej
+     *     ponownie. Porównanie jest po znormalizowanym tekście składnika
+     *     i zamiennika (wielkość liter, spacje i ogonki nie unieważniają;
+     *     literówka — tak, świadomie: lepiej dopytać niż przeoczyć);
+     *     kolejność wierszy nie ma znaczenia.
+     *  2. Autor przysłał w TYM zapisie świeżą deklarację (inną niż zapisana)
+     *     → zapisuje ją `OznaczAlergenyPrzepisu` i ona wygrywa z regułą 1.
+     *
+     * Bez deklaracji w zapisie (autozapis kreatora, import, flaga wyłączona)
+     * działa tylko reguła 1 — nigdy nie powstaje z tego `declared`.
+     *
+     * @param  list<string>  $przed  odcisk składników sprzed zapisu
+     * @param  list<array<string, mixed>>  $skladnikiPo
+     */
+    private function uzgodnijAlergeny(Recipe $recipe, array $przed, array $skladnikiPo, ?DeklaracjaAlergenow $deklaracja): void
+    {
+        if ($recipe->alergenyZdeklarowane() && $przed !== $this->odciskSkladnikowDlaAlergenow($skladnikiPo)) {
+            $this->alergenyPrzepisu->uniewaznPoZmianieSkladnikow($recipe);
+        }
+
+        if ($deklaracja !== null) {
+            $this->alergenyPrzepisu->zastosuj($recipe, $deklaracja);
+        }
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $wiersze  klucze `ingredient_text` i `substitutes`
+     * @return list<string>
+     */
+    private function odciskSkladnikowDlaAlergenow(array $wiersze): array
+    {
+        $odciski = array_map(
+            static fn (array $wiersz): string => Ingredient::normalize((string) ($wiersz['ingredient_text'] ?? ''))
+                .'|'.Ingredient::normalize((string) ($wiersz['substitutes'] ?? '')),
+            $wiersze,
+        );
+        sort($odciski);
+
+        return $odciski;
     }
 
     /**

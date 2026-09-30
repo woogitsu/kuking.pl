@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Casts\TablicaKodowPg;
 use App\Domain\Recipes\KosztPrzepisu;
 use App\Support\Odmiana;
 use Carbon\CarbonInterface;
@@ -39,6 +40,17 @@ class Recipe extends Model
     public const STATUS_HIDDEN = 'hidden';
 
     public const STATUS_REMOVED = 'removed';
+
+    /**
+     * Stan oznaczenia alergenów (#1902, D-333). Kolumna `allergen_status` jest
+     * POZA `$fillable` — zmienia ją wyłącznie `OznaczAlergenyPrzepisu`
+     * (i `PublishRecipe` przy zmianie składników).
+     */
+    public const ALERGENY_NIESPRAWDZONE = 'unchecked';
+
+    public const ALERGENY_ZDEKLAROWANE = 'declared';
+
+    public const ALERGENY_DO_PRZEGLADU = 'needs_review';
 
     public const SOURCE_OWN = 'own';
 
@@ -124,6 +136,9 @@ class Recipe extends Model
             'published_at' => 'datetime',
             // Ustawia wyłącznie `PublishRecipe` (#2014) — poza `$fillable`.
             'tresc_zmieniona_at' => 'datetime',
+            // Alergeny według autora (#1902) — poza `$fillable`, patrz stałe wyżej.
+            'allergens' => TablicaKodowPg::class,
+            'allergens_declared_at' => 'datetime',
             'servings' => 'float',
             'estimated_cost_pln' => 'float',
             'prep_minutes' => 'integer',
@@ -393,6 +408,16 @@ class Recipe extends Model
     public function isPublished(): bool
     {
         return $this->status === self::STATUS_PUBLISHED && $this->published_at !== null;
+    }
+
+    /**
+     * Czy autor potwierdził oznaczenie alergenów (lista może być pusta).
+     * Tylko wtedy lista jest pokazywana czytelnikom i tylko takie przepisy
+     * przepuszcza filtr w wyszukiwarce — `unchecked` i `needs_review` nie.
+     */
+    public function alergenyZdeklarowane(): bool
+    {
+        return $this->allergen_status === self::ALERGENY_ZDEKLAROWANE;
     }
 
     /**
