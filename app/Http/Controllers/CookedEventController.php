@@ -12,6 +12,7 @@ use App\Domain\Recipes\Actions\UsunWykonanie;
 use App\Domain\Recipes\Actions\ZapiszWykonanieZFormularza;
 use App\Domain\Recipes\Actions\ZbierzZdjeciaWykonania;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Exceptions\BladZdjecFormularza;
 use App\Http\Requests\Cooked\KomentarzWykonaniaRequest;
 use App\Http\Requests\Cooked\PodziekowanieRequest;
 use App\Http\Requests\Cooked\ZapisWykonaniaRequest;
@@ -129,8 +130,11 @@ class CookedEventController extends Controller
 
         try {
             $mediaIds = $this->zdjecia->handle($request->input('media_ids', []), $request->file('photos', []), $user);
-        } catch (BladDlaCzlowieka $e) {
-            return back()->withInput()->withErrors(['photos' => $e->getMessage()]);
+        } catch (BladZdjecFormularza $e) {
+            // Zachowane i już zapisane zdjęcia wracają w ukrytych polach —
+            // gołe `withInput()` odsyłało stare `media_ids` bez nowych
+            // zdjęć (#2241).
+            return back()->withInput($request->wejscieBezPlikow($e->mediaIds))->withErrors(['photos' => $e->getMessage()]);
         }
 
         // „Usuń to zdjęcie" przy zachowanym zdjęciu — świadoma decyzja, nie
