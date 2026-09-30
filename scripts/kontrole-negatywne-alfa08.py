@@ -97,6 +97,17 @@ ALARM_DZIENNIKA_TEST = "test_alarm_dopiero_po_progu_kolejnych_nocy_i_dokladnie_r
 ALARM_DZIENNIKA_RESET_TEST = "test_przebieg_bez_porazki_dziennika_zeruje_licznik_i_daje_jedno_odwolanie"
 ALARM_DZIENNIKA_DZIEN_TEST = "test_drugi_przebieg_tego_samego_dnia_nie_nabija_licznika"
 PLANER_TEST = "PlanerTygodniaTest"
+ZAKUPY_LISTA = "app/Domain/Zakupy/ListaZakupow.php"
+ZAKUPY_KONTROLER = "app/Http/Controllers/ListaZakupowController.php"
+ZAKUPY_MIGRACJA = "database/migrations/2026_09_30_090000_create_shopping_list_items_table.php"
+# Jedna kontrola = jedna metoda: mutacja ma zapalić jedną przyczynę, a wzorzec
+# oczekiwanej porażki dotyczy KAŻDEJ porażki po mutacji (#1011).
+ZAKUPY_WIDOCZNOSC_TEST = "test_przepis_ktory_przestal_byc_widoczny_zostawia_pozycje_jako_sam_tekst"
+ZAKUPY_OSTRZEZENIE_TEST = "test_ponowne_dodanie_tego_samego_przepisu_najpierw_ostrzega_i_dopisuje_po_potwierdzeniu"
+ZAKUPY_LIMIT_TEST = "test_lista_ma_limit_pozycji_i_mowi_co_zrobic"
+ZAKUPY_POLICY_TEST = "test_usuniecie_pozycji_i_cudza_pozycja_nietykalna"
+ZAKUPY_WYMAZANIE_TEST = "test_wymazanie_konta_kasuje_liste_tylko_tej_osoby"
+ZAKUPY_ROLLBACK_TEST = "test_cofniecie_migracji_odmawia_przy_listach_ludzi_i_przechodzi_na_pustej"
 PUSH_JOB = "app/Jobs/WyslijPowiadomieniePush.php"
 PUSH_DWA_POLACZENIA_TEST = "PowiadomieniaPushDwaPolaczeniaTest"
 ALARM_RECOVERY = "app/Domain/Moderation/Actions/AlarmujOPilnymZgloszeniu.php"
@@ -264,6 +275,8 @@ AUTOZAPIS_892_TEST = "test_autozapis_kreatora_892_chodzi_w_ci"
 WYSCIGI_BLOKUJA_TEST = "WyscigiDwochPolaczenBlokujaCiTest"
 AUDYT_BLOKUJE_TEST = "KrytyczneKontroleCiBlokujaTest"
 ROZSZERZENIA_CZESCI_TEST = "test_rozszerzenia_dziela_sie_na_czesci_bez_utraty_pomiaru"
+# #492 (D-333): cztery pomiary #713 w jobie `port_marki`; mutacja zdejmuje jeden krok.
+POMIARY_713_TEST = "test_cztery_pomiary_713_chodza_w_porcie_marki"
 DEPLOY_WSTRZYKNIECIE_TEST = "DeployNieWklejaDanychZdarzeniaDoPowlokiTest"
 WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
 # Preview i IaC nie zgadują stanu (#1389, #1390). Strażnik czyta workflow
@@ -1383,6 +1396,8 @@ checks = [
      lambda s: replace_once(s, "{{ route('help') }}#kto-widzi", "{{ route('posts.create') }}")),
     ("Autozapis kreatora #892 bez kroku CI", CI_WORKFLOW, AUTOZAPIS_892_TEST,
      lambda s: replace_once(s, "          node scripts/kreator-zachowanie.mjs autosave\n", "")),
+    ("Pomiar #713 paska bez kroku CI", CI_WORKFLOW, POMIARY_713_TEST,
+     lambda s: replace_once(s, "        run: node scripts/pasek-uklady.mjs\n", "        run: 'true'\n")),
     ("Stały token wydania Livewire", LIVEWIRE_KONFIG, LIVEWIRE_TOKEN_TEST,
      lambda s: replace_once(s, "'release_token' => strtolower(trim((string) env('RAILWAY_GIT_COMMIT_SHA'))) ?: 'lokalnie',", "'release_token' => 'a',")),
     ("Kreator obiecuje szkic przed zapisem", KREATOR_WIDOK, KREATOR_ZAPIS_TEST,
@@ -1720,6 +1735,26 @@ checks = [
     # Wymazanie konta zostawia prywatny plan tygodnia w bazie.
     ("Wymazanie konta nie kasuje planu tygodnia", WYMAZANIE_KONTA, PLANER_TEST,
      lambda s: replace_once(s, "            $fresh->mealPlanEntries()->delete();\n", "")),
+    # #27 etap 2 (D-333): lista zakupów pokazuje tytuł przepisu, którego
+    # właściciel listy już nie widzi. Lista nie jest furtką do treści.
+    ("Lista zakupów bez filtra widoczności przepisu", ZAKUPY_LISTA, ZAKUPY_WIDOCZNOSC_TEST,
+     lambda s: replace_once(s, "$this->planer->widocznePrzepisy($user)->whereIn('recipes.id', $idPrzepisow)",
+                            "Recipe::query()->whereIn('recipes.id', $idPrzepisow)")),
+    # Ponowne dodanie tego samego przepisu dopisuje bez ostrzeżenia.
+    ("Lista zakupów bez ostrzeżenia przy ponownym dodaniu przepisu", ZAKUPY_LISTA, ZAKUPY_OSTRZEZENIE_TEST,
+     lambda s: replace_once(s, "if ($wczesniej !== null && ! $potwierdzone) {", "if (false) {")),
+    # Pętla dopisuje pozycje bez końca.
+    ("Lista zakupów bez limitu pozycji", ZAKUPY_LISTA, ZAKUPY_LIMIT_TEST,
+     lambda s: replace_once(s, "if ($jest + $ile > self::maksPozycji()) {", "if (false) {")),
+    # Cudzą pozycję da się usunąć znając jej UUID.
+    ("Lista zakupów: usunięcie pozycji bez Policy", ZAKUPY_KONTROLER, ZAKUPY_POLICY_TEST,
+     lambda s: replace_once(s, "        $this->authorize('delete', $pozycja);\n", "")),
+    # Wymazanie konta zostawia prywatną listę zakupów w bazie.
+    ("Wymazanie konta nie kasuje listy zakupów", WYMAZANIE_KONTA, ZAKUPY_WYMAZANIE_TEST,
+     lambda s: replace_once(s, "            $fresh->shoppingListItems()->delete();\n", "")),
+    # Rollback kasuje listy ludzi bez pytania.
+    ("Rollback listy zakupów nie odmawia przy danych", ZAKUPY_MIGRACJA, ZAKUPY_ROLLBACK_TEST,
+     lambda s: replace_once(s, "        if ($ile === 0) {", "        if (true) {")),
     # #2038: wpis dziennika dopisany PRZED nieudanym commitem wymazania musi
     # zostać wycofany — inaczej `wymaz-ponownie` wymaże konto przed końcem karencji.
     ("Wymazanie nie wycofuje wpisu dziennika po nieudanym commicie", WYMAZANIE_KONTA, DZIENNIK_WYCOFANIE_TEST,

@@ -1,0 +1,132 @@
+# Audyt bezpieczeństwa (30 września 2026)
+
+Stan: `origin/claude/paczka-i-kandydat` @ `5548c7e16` (BAZA, przyszły `main`).
+Audyt tylko do odczytu: bez zmian w kodzie aplikacji, bez połączeń z produkcją.
+Punkt odniesienia: `docs/audyt/2026-09-25-A5-bezpieczenstwo.md` (A5-xx)
+i `docs/AUDYT_BEZPIECZENSTWA_2026-09-15.md` (A-xx … E-xx).
+
+Duplikaty sprawdzone na liście wszystkich 2233 issues i PR-ów pobranej przez
+`GET /repos/woogitsu/kuking.pl/issues?state=all` (wyszukiwarka `search/issues`
+jest z tej sesji zablokowana: „sessions are bound to their configured
+repositories”), a także w `docs/audyt*` i `docs/audits/*`.
+
+## Podsumowanie
+
+Pięć znalezisk, w tym żadnego P0 ani P1: **P2 — 4, P3 — 1**. Nie ma IDOR-u,
+obejścia Policy, masowego przypisania pola sterującego, SSRF ani sekretu
+w repozytorium. Strażnicy `KazdaTrasaZIdentyfikatoremPodPolicyTest`
+i `WrazliweKolumnyPozaMasowymPrzypisaniemTest` przechodzą (16 testów,
+1527 asercji). Znaleziska dotyczą nowych albo pobocznych dróg:
+
+- kreatora Livewire, który omija limit formularza;
+- API, które ma zakresy tokenów, ale ich nie sprawdza (#2232);
+- publicznej historii wersji przepisu;
+- formularza odwołania gościa;
+- jednego listu DSA, w którym wrócił wzorzec z #1636.
+
+Z A5 (25.09) naprawione są m.in. A5-01, 02, 03, 05, 07, 08, 09, 10, 11,
+16, 17 i 18. A5-15 nigdy nie trafiło do issue i wraca tu jako S-01.
+A-02 (część o Turnstile) i B-04 z 15.09 też nie mają issue; wracają jako S-04.
+
+## Znaleziska
+
+Odtworzenie: **T** — tymczasowy test PHPUnit na lokalnej bazie PostgreSQL
+(`tests/Feature/AudytTymczasowyBezpieczenstwoTest.php`, usunięty po
+uruchomieniu, treść kroków niżej), **R** — `php artisan route:list`,
+**K** — czytanie kodu.
+
+| ID | Waga | Tytuł | Dowód (plik:linia na BAZIE) | Odtworzenie | Wpływ | Proponowana poprawka i test regresyjny | Rozmiar | Duplikat? |
+|---|---|---|---|---|---|---|---|---|
+| S-01 | P2 | Kreator przepisu (Livewire) omija limit `post`: zapis i publikacja bez żadnego throttle | trasa `POST livewire-*/update` ma tylko `web` i `RequireLivewireHeaders` (R); `config/livewire.php:176` ogranicza wyłącznie `upload-file`; `resources/views/components/recipe-wizard.blade.php:488` (`saveDraft`), `:575` (`publish`), `:701` (`persist`) bez `RateLimiter`; dla porównania `routes/web.php:877-878` (`POST /dodaj/przepis` z `throttle:post`, `20,10` w `config/kuking.php:1596`) | **T**: 25 nowych szkiców z 25 komponentów `recipe-wizard` (`set form.title`, `call saveDraft`) — wszystkie zapisane, `Recipe::count() = 25`; ten sam użytkownik na `POST /dodaj/przepis` dostaje 429 przy 21. żądaniu. **R**: brak `ThrottleRequests` na `livewire-*/update` | Zalogowane konto skryptem zakłada setki przepisów na minutę i publikuje je do „Świeżo z Kuking”, tagów i wyszukiwarki; limit z formularza jest pozorny. Obciążenie bazy i kolejki moderacji. To A5-15 z 25.09 — nigdy nie trafiło do issue | `RateLimiter::attempt` z kluczem `post:{user}` i progiem `kuking.limits.post` w `persist()` przy tworzeniu NOWEGO przepisu i przy `publish` (autozapis istniejącego szkicu bez limitu albo z osobnym, luźnym progiem), komunikat po polsku w `StanZapisu`. Test: 21. nowy szkic z kreatora dostaje komunikat o limicie, a 20 wcześniejszych zostaje | S | brak (A5-15 bez issue) |
+| S-02 | P2 | Mutujące trasy `/api/v1` nie mają `ability:` — token tylko do czytania publikuje | `routes/api.php:21-25` (komentarz obiecuje `ability:<zakres>` na każdej trasie mutującej), `routes/api.php:135-164` (sześć tras POST/DELETE bez `ability`); alias `bootstrap/app.php:350` jest, ale nikt go nie używa; `tests/Feature/Api/ZakresyTokenuTest.php:45` sprawdza tylko trasę sztuczną | **T**: `createToken('…', [ZakresyTokenu::TRESC_CZYTAJ])`, `POST /api/v1/wpisy` ze zdjęciem → **201**, wpis powstaje | Dziś każdy wydany token ma pełny słownik (`User::DOMYSLNE_UPRAWNIENIA_API`), więc skutek jest zerowy; pierwszy token o węższym zakresie (np. dla widżetu lub zewnętrznego czytnika) dostanie zapis. API domyślnie wyłączone (`BramaApi`) | `->middleware('ability:'.ZakresyTokenu::TRESC_PISZ)` na sześciu trasach i `PROFIL_CZYTAJ`/`TRESC_CZYTAJ` na odczytach; test przechodzący po `Route::getRoutes()` i wymagający `ability` na każdej trasie `api.*` poza `api.tokeny.*` | S | **#2232** (otwarte) |
+| S-03 | P2 | Historia wersji pokazuje każdemu tekst, który autor później usunął — i nie ma narzędzia, żeby usunąć wersję | `app/Domain/Recipes/Historia/HistoriaWersji.php:60` (wszystkie wersje przepisu, bez filtra); `app/Http/Controllers/HistoriaPrzepisuController.php:49,113` (dostęp = `view` bieżącego przepisu); `app/Models/RecipeVersion.php:39-41` (`updating` rzuca wyjątek); `resources/views/pages/recipes/historia.blade.php:13-15` („Pojedynczej wersji nie da się usunąć samemu … napisać do nas”); brak kodu usuwającego `RecipeVersion` w `app/Http/Controllers/Admin`, `app/Domain/Moderation`, `app/Console` (grep) | **T**: autorka publikuje przepis z opisem „Od babci Jadwigi Nowak, tel. 600 100 200.”, poprawia opis na „Od babci.” i publikuje; gość: `GET /przepisy/{slug}` — numeru nie ma, `GET /przepisy/{slug}/historia/1` — **200 z numerem telefonu** | Dane osobowe (także osoby trzeciej: babcia, sąsiadka) zostają publicznie pod stałym adresem bez końca. Strona odsyła do „Napisz do nas”, ale obsługa nie ma czym tego zrobić (jedyna droga to usunięcie całego przepisu). RODO art. 17 dla osoby trzeciej, DSA przy treści zgłoszonej i poprawionej przez autora. Ryzyko zapisane przez koordynatora (`docs/flota/sesja-koordynatora-2909-b/REJESTR.md:158`), bez issue i bez decyzji | Decyzja właściciela (D-xxx), potem jedno z dwóch: (a) akcja moderatora „Ukryj wersję N” z wpisem w `audit_log` (kolumna `hidden_at` w `recipe_versions` przez migrację z rollbackiem, `HistoriaWersji::zapytanie` pomija ukryte), albo (b) historia widoczna tylko autorowi i moderatorowi. Test: po ukryciu wersji gość dostaje 404 na `/historia/N`, a autor dalej widzi pozostałe. Dotyka też #2229 (poufne parametry `source_url` leżą w migawkach) | M | brak (pokrewne #2229) |
+| S-04 | P3 | Odwołanie gościa (`POST /odwolanie`) to wyrocznia hasła bez Turnstile i omija 2FA | `routes/web.php:667-669` (tylko `throttle:appeal` `5,60` po IP); `app/Http/Controllers/AppealController.php:148-155` („Nie rozpoznajemy tych danych”) wobec `:163-169` („Nie mamy decyzji…”) — inna odpowiedź dla dobrego hasła; brak `TurnstileJestPotwierdzony` (jest w `app/Http/Controllers/Auth/LoginController.php:77`); brak kroku drugiego składnika | **T** (klucze Turnstile ustawione): `POST /login` bez tokenu → odrzucony błędem `cf-turnstile-response`; `POST /odwolanie` z tym samym kontem bez tokenu: złe hasło → „Nie rozpoznajemy tych danych…”, dobre → „Nie mamy decyzji, od której można się teraz odwołać…” | Automat sprawdza hasła aktywnych kont bez Turnstile (łagodzą to wspólne koszyki `LimitProbHasla`, więc skala jest ograniczona). Dla konta z 2FA: potwierdzenie hasła bez kodu; dla zbanowanego z 2FA: złożenie odwołania w jego imieniu bez drugiego składnika. A-02 (część Turnstile) i B-04 z 15.09 — wciąż bez issue | `TurnstileJestPotwierdzony::reguly('odwolanie')` (nowe miejsce w `kuking.turnstile.miejsca`), jeden komunikat dla złego hasła i konta bez decyzji do odwołania, a przy 2FA — kod przed złożeniem. Test: dobre i złe hasło dają tę samą odpowiedź; bez tokenu Turnstile 422 | S | brak (A-02, B-04 bez issue) |
+| S-05 | P2 | List „Zmiana decyzji” wstawia surowy `target_url` do Markdown — klikalny link phishingowy w liście od Kuking (regresja wzorca z #1636) | `app/Notifications/ZmianaDecyzjiWSprawieZgloszenia.php:55` (`->line((string) $this->zgloszenie->target_url)`) wobec `app/Notifications/PotwierdzenieZgloszeniaNielegalnejTresci.php:106` i `app/Notifications/DecyzjaWSprawieZgloszenia.php:160` (oba przez `AdresZgloszenia::doListu`); `app/Http/Controllers/ZgloszenieNielegalnejTresciController.php:110-111` (`notifier_email` dowolny, `target_url` dowolny tekst); adresat: `app/Domain/Moderation/Actions/NotifyReporterDecisionChanged.php:90` | **T**: `Report` z `target_url = "[Potwierdź konto](https://zly.example/login)"`, `ZmianaDecyzjiWSprawieZgloszenia::toMail()->render()` → HTML zawiera `href="https://zly.example/login"` | Anonim składa zgłoszenie DSA z cudzym adresem w `notifier_email` i linkiem w Markdown jako „adresem”. Gdy moderator po odwołaniu autora cofnie zdjęcie treści, ofiara dostaje podpisany DKIM list Kuking z przyciskiem-linkiem do obcej strony. Warunek (zmiana decyzji) ogranicza częstość, ale sam list jest wiarygodny dla osoby 50+ | `AdresZgloszenia::doListu()` także tutaj (jedna linijka); lepiej wspólna metoda „linia z adresem zgłoszenia” używana przez trzy listy. Test: `render()` trzech listów z `target_url` w Markdown nie zawiera `href` do obcego hosta; skan `app/Notifications` szukający `target_url` bez `doListu` | S | regresja #1636 (zamknięte); brak otwartego |
+
+## Sprawdzone i w porządku
+
+- **Autoryzacja tras.** Strażnik tras z identyfikatorem obejmuje wszystkie
+  nowe trasy V2, każdą dla pięciu ról:
+  - historia wersji;
+  - tryb gotowania i jego synchronizacja;
+  - planer, „Co mam w domu”;
+  - zeszyt wspólny z zaproszeniami i linkiem;
+  - import `/import/{import}`;
+  - wczytanie paczki;
+  - wszystkie trasy `api/v1/*`.
+
+  Policy uwzględniają blokadę, zbanowanego autora i moderatora
+  (`RecipePolicy`, `CollectionPolicy`, `UserPolicy::viewProfile`). Wyniki
+  wyszukiwarki w planerze i „Co ugotuję” idą przez `can('view')`
+  i `widoczneDla()`.
+- **Masowe przypisanie.** `User::createToken()` zapisuje skrót tokenu
+  przez `forceFill`. „Moja wersja” (`ZrobWlasnaWersje`) kopiuje kolumny
+  pochodzenia przez `forceFill` i nie przenosi zdjęć (`media_id => null`).
+- **SSRF w imporcie z adresu** (`app/Domain/Import/Url/StraznikAdresow.php`,
+  `KlientPrzypiety.php`, `PobieraczStron.php`):
+  - biała lista schematów i portów, bez `user:hasło@`;
+  - pełna lista zakresów prywatnych i zarezerwowanych, IPv4 z zapisów
+    `inet_aton` i IPv6;
+  - strefy `.internal` i `.local`, więc także `railway.internal`;
+  - każdy adres z DNS musi być publiczny, a połączenie jest przypięte
+    przez `CURLOPT_RESOLVE` z `CURLOPT_PREREQFUNCTION`, bez proxy;
+  - każde przekierowanie i `robots.txt` przez strażnika od nowa;
+  - limit bajtów liczony w trakcie pobierania i `Accept-Encoding: identity`.
+- **SSRF w Web Push.** `KanalPush::hostDozwolony()` przyjmuje tylko
+  `https`, port 443 i hosty z białej listy usług push.
+- **PDF i paczka ZIP.**
+  - Poppler z limitem czasu i limitem stron (`TekstZPdf`, `OdczytajSkanPdf`).
+  - ZIP z paczki: limit plików, odrzucanie `..`, ścieżek bezwzględnych
+    i ukośnika wstecznego, limit rozmiaru `dane.json` przed odczytem
+    i głębokości JSON. Plik leży pod tokenem UUID w katalogu właściciela.
+- **XSS.** `{!! !!}` występuje tylko przy:
+  - kształtach ikon ze stałej tablicy;
+  - JSON-LD przez `JsonLd::encode` z flagami `JSON_HEX_*`;
+  - dokumentach prawnych i „Co nowego” z plików w repo;
+  - kodzie QR 2FA.
+
+  Linki w treści użytkownika (`LinkiWTekscie`) budowane są z `e()` i białej
+  listy schematów. Pozostałe listy z tekstem od zgłaszającego używają
+  `AdresZgloszenia::doListu` (wyjątek: S-05).
+- **Nagłówki i CSP.**
+  - Nonce, `object-src 'none'`, `base-uri` i `form-action 'self'`;
+    `no-referrer` na trasach z sekretem w adresie.
+  - Caddy nie nadpisuje już `Referrer-Policy` (`?Referrer-Policy`)
+    i ma `request_body max_size`.
+  - Wyjątki CSRF są tylko trzy: `_csp`, wypisanie RFC 8058 z podpisem,
+    `odebranie-dostepu` z HMAC i `hash_equals`.
+- **Limity.** Każda trasa POST/PUT/PATCH/DELETE ma `ThrottleRequests`,
+  z wyjątkiem `logout`, `DELETE api/v1/tokeny/biezacy` (ma limiter grupy
+  `api`) i `livewire-*/update` (S-01).
+- **Sesje i logowanie.**
+  - `invalidateSessions()` rotuje `remember_token`, podbija generację
+    sesji, kasuje link logowania i tokeny API.
+  - Logowanie linkiem i Google przechodzi przez 2FA.
+  - Google: `state`, `nonce` i PKCE, `email_verified` wymagane, adres
+    znormalizowany; połączenie tylko z kontem o potwierdzonym adresie.
+  - Zmiana e-maila wymaga obecnego hasła.
+  - Reset hasła ma jednakową odpowiedź i budżet poczty. Czasowe
+    rozróżnienie istnienia konta przy logowaniu (brak hasha-atrapy,
+    A-04) zostaje bez znaczenia, bo rejestracja mówi to wprost.
+- **Logi.**
+  - `FiltrDanychOsobowych` na kanałach `stderr` i `stack` (A5-02
+    naprawione).
+  - Logi importu, tokenu krawędzi i Turnstile bez adresów, IP i treści.
+- **Sekrety.**
+  - `git grep` wzorców kluczy (OpenAI, AWS, GitHub, Google, prywatne PEM,
+    webhooki Discorda, Turnstile) trafia tylko w dokumentację i testy.
+  - `.env.example` ma puste `APP_KEY`.
+  - `VAPID_PRIVATE_KEY` trafia tylko do workera (`.railway/railway.ts:884-886`).
+- **Udostępnianie i zeszyty.** `Udostepnianie::wolnoWyslac` pyta Policy
+  dla gościa. Zaproszenie do zeszytu idzie po nazwie konta, bez listu
+  na dowolny adres.
+
+## Metoda i ograniczenia
+
+- Przejrzany kod i trasy na BAZIE, w tym zmiany od 28.09, czyli nowe
+  funkcje V2 i paczkę H.
+- Tymczasowy test `tests/Feature/AudytTymczasowyBezpieczenstwoTest.php`
+  potwierdził S-01…S-05 (6 przypadków, wszystkie zgodne z opisem).
+  Po uruchomieniu został usunięty.
+- Nie uruchamiano Caddy, R2 ani przeglądarki. Znaleziska nie zależą od
+  środowiska.

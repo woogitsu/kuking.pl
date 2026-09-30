@@ -23,6 +23,7 @@ use App\Models\PostReaction;
 use App\Models\Profile;
 use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
+use App\Models\ShoppingListItem;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -223,6 +224,8 @@ final class CollectUserExportData
             'odwolania' => $this->appeals($user),
             // Planer tygodnia (#27, D-310).
             'planer' => $this->mealPlan($user),
+            // Lista zakupów (#27, etap 2, D-333).
+            'lista_zakupow' => $this->shoppingList($user),
             'importy_przepisow' => $this->recipeImportOrigins($user),
             'odczyty_przepisow' => $this->recipeImports($user),
             'proby_importu' => $this->recipeImportAttempts($user),
@@ -1070,6 +1073,45 @@ final class CollectUserExportData
                 'dodano' => $this->date($wpis->created_at),
             ];
         })->all();
+    }
+
+    /**
+     * Lista zakupów (#27, etap 2, D-333) — każda pozycja jako tekst, tak jak
+     * ją człowiek widzi.
+     *
+     * Tytuł przepisu tylko wtedy, gdy właściciel listy wciąż go widzi (ta
+     * sama reguła co na ekranie i w planerze): cudzy przepis jest daną osoby,
+     * która go napisała, więc paczka nie przemyca tytułu treści zawężonej
+     * albo usuniętej. Sama linia składnika jest tekstem osoby (skopiowanym,
+     * gdy przepis był dla niej widoczny) i zostaje.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function shoppingList(User $user): array
+    {
+        // Zapytanie wprost, a nie przez `App\Domain\Zakupy\ListaZakupow`:
+        // moduł Zakupy zależy od Recipes, a Recipes (pośrednio) od Users,
+        // więc import stąd zamykałby cykl modułów (GrafModulowDomenyBezCykliTest).
+        // Reguła widoczności jest ta sama — `PlanerTygodnia::widocznePrzepisy()`.
+        $pozycje = $user->shoppingListItems()->orderBy('position')->orderBy('id')->get();
+        $idPrzepisow = $pozycje->pluck('recipe_id')->filter()->unique()->values();
+        $widoczne = $idPrzepisow->isEmpty()
+            ? collect()
+            : app(PlanerTygodnia::class)->widocznePrzepisy($user)->whereIn('recipes.id', $idPrzepisow)->get()->keyBy('id');
+
+        return $pozycje->map(function (ShoppingListItem $pozycja) use ($widoczne): array {
+            $przepis = $pozycja->recipe_id !== null ? $widoczne->get($pozycja->recipe_id) : null;
+
+            return [
+                'pozycja' => $pozycja->text,
+                'pochodzenie' => $pozycja->source === ShoppingListItem::SOURCE_RECIPE ? 'z_przepisu' : 'reczna',
+                'przepis' => $przepis?->title,
+                'adres_przepisu' => $przepis !== null ? route('recipes.show', $przepis->slug) : null,
+                'przepis_niedostepny' => $pozycja->source === ShoppingListItem::SOURCE_RECIPE && $przepis === null,
+                'odhaczona' => $pozycja->jestOdhaczona(),
+                'dodano' => $this->date($pozycja->created_at),
+            ];
+        })->values()->all();
     }
 
     /** @return list<array<string, mixed>> */

@@ -5963,6 +5963,70 @@ pytania. Odmowa i kontrola dodatnia:
 niepotrzebne. **Paczka RODO** wydaje je w sekcji `planer`
 (`InwentarzDanychKonta`).
 
+### shopping_list_items
+
+Lista zakupów (#27, etap 2; decyzja właściciela z 29.09.2026, **D-333** —
+budować bez czekania na pomiar planera z D-310). Migracja
+`2026_09_30_090000_create_shopping_list_items_table`. Jeden wiersz to jedna
+pozycja prywatnej listy jednej osoby. **Pozycja jest tekstem**: wpisanym
+ręcznie albo skopiowaną dosłownie linią składnika przepisu
+(`recipe_ingredients.ingredient_text`), bez sumowania i łączenia — składnik
+jest u nas wolnym tekstem.
+
+| kolumna | typ | uwagi |
+|---|---|---|
+| `id` | `uuid` | `DEFAULT gen_random_uuid()` |
+| `user_id` | `uuid` | → `users(id)` `ON DELETE CASCADE` (pas bezpieczeństwa; konta się anonimizuje, listę kasuje `EraseAccountData`) |
+| `text` | `varchar(240)` | treść pozycji; 240 = długość `ingredient_text`, żeby żadna linia nie była obcinana |
+| `source` | `varchar(10)` | `manual` (dopisana ręcznie) albo `recipe` (skopiowana z przepisu) — oznaczenie pozycji na ekranie |
+| `recipe_id` | `uuid` NULL | → `recipes(id)` **`ON DELETE SET NULL`**: z KTÓREGO przepisu skopiowano linię; służy do ostrzeżenia przy ponownym dodaniu tego samego przepisu |
+| `position` | `integer` | kolejność dopisywania (kolejność linii przepisu jest częścią przepisu) |
+| `checked_at` | `timestamptz` NULL | `NULL` = do kupienia; data = odhaczona |
+| `created_at` / `updated_at` | `timestamptz` | |
+
+**Lista jest prywatna i nie jest furtką do treści.** Nie ma kolumny
+widoczności. Każda trasa (`/lista-zakupow`) pracuje na pozycjach zalogowanego,
+a odhaczenie i usunięcie po identyfikatorze przechodzi przez
+`ShoppingListItemPolicy`. Tytuł i link przepisu ekran pokazuje TYLKO wtedy,
+gdy właściciel listy wciąż go widzi (ta sama reguła co planer,
+`PlanerTygodnia::widocznePrzepisy()`); przepis ukryty, zawężony, usunięty
+miękko albo odcięty blokadą zostawia pozycję jako sam tekst z dopiskiem
+„Przepis jest już niedostępny.”, a po twardym usunięciu — „Przepis został
+usunięty.” (`source` zostaje `recipe`, więc ekran wie, że pozycja pochodziła
+z przepisu). W `$fillable` modelu stoi wyłącznie `text`: właściciela, źródło,
+przepis, kolejność i odhaczenie ustawia akcja domenowa (`ListaZakupow`).
+
+Ograniczenia (nowa tabela, więc razem z `CREATE TABLE` — AGENTS.md §6):
+
+- `shopping_list_items_source_check` — `source IN ('manual', 'recipe')`;
+- `shopping_list_items_recipe_source_check` — `recipe_id IS NULL OR source =
+  'recipe'`: ręczna pozycja nie ma przepisu (odwrotnie nie wymuszamy, bo
+  `ON DELETE SET NULL` zostawia po twardo usuniętym przepisie `recipe` bez
+  `recipe_id`);
+- `shopping_list_items_text_check` — tekst po obcięciu białych znaków ma
+  1–240 znaków;
+- `shopping_list_items_user_position_idx` (odczyt listy) i
+  `shopping_list_items_recipe_idx` (klucz obcy — bez niego kasowanie przepisu
+  robi pełny skan; indeks częściowy `WHERE recipe_id IS NOT NULL`).
+
+Nie ma indeksu unikalnego na tekście ani na przepisie: lista zakupów to wolny
+tekst, „2 jajka” może stać dwa razy, a ten sam przepis wolno dodać drugi raz
+po **ostrzeżeniu** (ekran „Te składniki już są na liście”, GET, bez
+skutku ubocznego). Limity: `kuking.zakupy.pozycji_max` (300 pozycji na listę),
+`kuking.zakupy.znakow_max` (240), własny koszyk `kuking.limits.zakupy`.
+
+**Rollback.** `down()` ODMAWIA, gdy w tabeli są wiersze (D-088): kasowanie
+tabeli zabrałoby ludziom prywatne listy bez śladu. Komunikat mówi, co zrobić
+ręcznie (kopia tabeli, ponowny rollback z
+`KUKING_ROLLBACK_KASUJE_LISTE_ZAKUPOW=1`). Na świeżej i pustej bazie — w CI
+i przy `migrate:refresh` — przechodzi bez pytania. Odmowa i kontrola dodatnia:
+`tests/Feature/ListaZakupowTest.php`.
+
+**Wymazanie konta** kasuje wiersze bezwarunkowo (`EraseAccountData`) —
+prywatna lista jednej osoby, nikomu innemu niepotrzebna. **Paczka RODO**
+wydaje ją w sekcji `lista_zakupow` (`InwentarzDanychKonta`), z tytułem
+przepisu tylko przy przepisie widocznym dla osoby.
+
 ### proby_importu
 
 Wspólna księga limitu OCR, adresu i PDF (D-297/D-300). Migracja
@@ -6191,7 +6255,7 @@ Później:
 - questions;
 - answers;
 - meal_plans (rozbudowa planera ponad `meal_plan_entries`);
-- shopping_lists;
+- shopping_lists (nagłówek listy; pozycje już są w `shopping_list_items`, a wspólna lista — poza zakresem);
 - subscriptions;
 - payments.
 

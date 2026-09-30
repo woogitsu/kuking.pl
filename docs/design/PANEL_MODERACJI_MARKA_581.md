@@ -12,6 +12,27 @@ PR #587 został scalony. [Odbiór produkcyjny dziewięciu sekcji na Alfa 0.45 / 
 potwierdził nową oprawę i wskazał długą nawigację mobilną jako pozostałe tarcie.
 Nie był odbiorem wszystkich operacji, walidacji ani stanów 2FA.
 
+## Walidacja „Zdejmij z urzędu” w mierniku — 29 września 2026
+
+Ekran „Zdejmij z urzędu” (G31, D-251) powstał po miernikach walidacji, więc jego
+błędnych POST nie obejmowało żadne z wcześniejszych 9 przypadków. Miernik
+`scripts/panel-validation.mjs` ma teraz 11: dochodzą `zurzedu-no-reason`
+(brak podstawy decyzji) i `zurzedu-short-message` (uzasadnienie krótsze niż
+10 znaków), oba na komentarzu z pełnej fixture. Sprawdzane jak przy pozostałych
+rodzinach: przekierowanie z powrotem na ekran, jedno podsumowanie z dokładnym
+tekstem błędu, błąd przy polu, zachowane wpisane wartości, link podsumowania
+prowadzący do pola i przenoszący na nie fokus, niezmienione tabele domeny
+(decyzje, powiadomienia, dziennik). Miernik chodzi w jobie CI „Panel marki —
+puste i pełne widoki” (`scripts/panel-marki-run.mjs` woła go tylko przy
+`GITHUB_ACTIONS=true`); to serwerowa walidacja na izolowanej fixture, nie
+odbiór produkcyjny. Przebieg lokalny z recenzji (29.09, sam `runCandidate` na
+bazie `kuking_581_validation`, klaster 55439): 11/11 PASS; kontrola ujemna —
+`min:10` → `min:3` dla `user_message` w `ZUrzeduController` — oblewa
+`DOMAIN_CHANGED` na `zurzedu-short-message`, po przywróceniu MD5 zgodne. Wciąż poza mierzonym zakresem
+(kolejka z komentarza #581 z 17 września): notatka 2001 znaków w sygnałach
+i wiadomości, pięć UUID w kolażu, siedmiu kandydatów i notatka 301 na tablicy,
+nieistniejący tag.
+
 ## Bramki dostępu na produkcji — 18 września 2026
 
 Odczyt `https://kuking.pl`, 13:12 UTC, wyłącznie HTTP GET bez sesji.

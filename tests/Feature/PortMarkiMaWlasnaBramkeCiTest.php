@@ -268,6 +268,40 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
     }
 
     /**
+     * #492 (decyzja właściciela z 29.09.2026, D-333): cztery pomiary #713
+     * chodzą w `port_marki`, każdy dokładnie raz w całym CI.
+     *
+     * Do tej decyzji `pasek-uklady`, `lead-wstep`, `eksport-bloki-692`
+     * i `turnstile-csp` istniały w repozytorium, ale uruchamiał je tylko
+     * człowiek — jak `kreator-zachowanie.mjs` przed #892. Skrypty nie sieją
+     * własnej bazy, więc stoją PO `port-projektu.mjs` i na tej samej bazie
+     * pomiarowej; zmiana samego skryptu albo jego wspólnego szkieletu
+     * (`scripts/lib/serwer-lokalny.mjs`) musi uruchomić job.
+     */
+    public function test_cztery_pomiary_713_chodza_w_porcie_marki(): void
+    {
+        $job = $this->job('port_marki');
+        $port = 'run: node scripts/port-projektu.mjs';
+        $zakres = $this->skrypt();
+        $this->assertSame(1, preg_match("/grep -qE '([^']+)'/", $zakres, $matches));
+        $wzorzec = '~'.str_replace('~', '\\~', $matches[1]).'~';
+
+        foreach (['pasek-uklady', 'lead-wstep', 'eksport-bloki-692', 'turnstile-csp'] as $skrypt) {
+            $krok = 'run: node scripts/'.$skrypt.'.mjs';
+            $this->assertSame(1, substr_count($this->workflow(), $krok), 'Pomiar #713 nie chodzi w CI albo chodzi dwa razy: '.$skrypt);
+            $this->assertStringContainsString($krok, $job, 'Pomiar #713 poza jobem `port_marki`: '.$skrypt);
+            $this->assertLessThan(strpos($job, $krok), strpos($job, $port), $skrypt.' wymaga bazy przygotowanej przez port.');
+            $this->assertMatchesRegularExpression('/DB_DATABASE: kuking_port_pomiar\s+'.preg_quote($krok, '/').'/', $job,
+                $skrypt.': skrypt odmawia bazy `kuking_test`, więc musi dostać bazę pomiarową portu.');
+            $this->assertSame(1, preg_match($wzorzec, 'scripts/'.$skrypt.'.mjs'), 'zakres: zmiana samego '.$skrypt.' nie uruchamia pomiaru.');
+        }
+
+        $this->assertSame(1, preg_match($wzorzec, 'scripts/lib/serwer-lokalny.mjs'), 'zakres: zmiana szkieletu pomiarów #713 nie uruchamia pomiaru.');
+        $this->assertStringContainsString('storage/pasek-uklady', $job);
+        $this->assertStringContainsString('storage/eksport-692', $job);
+    }
+
+    /**
      * Filtr warstwy widoku stoi w JEDNYM miejscu i obejmuje sam przyrząd.
      *
      * Do 19 września 2026 ten sam filtr był skopiowany trzy razy — osobno
