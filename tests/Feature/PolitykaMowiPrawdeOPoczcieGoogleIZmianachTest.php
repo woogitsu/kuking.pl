@@ -49,7 +49,7 @@ class PolitykaMowiPrawdeOPoczcieGoogleIZmianachTest extends TestCase
 
     public function test_polityka_mowi_o_zdjeciu_gdy_google_dostaje_zakres_profile(): void
     {
-        $zakresy = explode(' ', Google::ZAKRES);
+        $zakresy = self::zakresyGoogle();
         $akapit = $this->linia($this->polityka(), '**Co dostajemy od Google i czego nie dostajemy.**');
 
         if (! in_array('profile', $zakresy, true)) {
@@ -65,6 +65,18 @@ class PolitykaMowiPrawdeOPoczcieGoogleIZmianachTest extends TestCase
         );
         $this->assertStringContainsString('Nie zapisujemy ani nie pobieramy Twojego zdjęcia z Google', $akapit);
         $this->assertStringNotContainsString('oraz **Twoje imię** —', $akapit, 'Polityka znów wylicza samo imię jako trzecią rzecz, o którą prosimy Google.');
+    }
+
+    /**
+     * Zakresy z `Google::ZAKRES` przez metodę, nie wprost ze stałej: PHPStan
+     * 2.2.14+ zna literał stałej i uznaje gałąź „bez profile” za martwą.
+     * Test ma działać także wtedy, gdy ktoś zakres `profile` usunie.
+     *
+     * @return list<string>
+     */
+    private static function zakresyGoogle(): array
+    {
+        return explode(' ', Google::ZAKRES);
     }
 
     public function test_paragraf_9_nie_obiecuje_listu_o_zmianie_ktorego_nie_wysylamy(): void
