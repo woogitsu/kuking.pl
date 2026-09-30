@@ -2,10 +2,12 @@
 
 import subprocess
 
+from zawezenie_testow import polecenie_testu
+
 
 def run_test(name, expected_success, command=None):
     result = subprocess.run(
-        command if command is not None else ["php", "artisan", "test", "--filter=" + name, "--no-ansi"],
+        command if command is not None else polecenie_testu(name),
         text=True, encoding="utf-8", errors="replace",
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         timeout=180,

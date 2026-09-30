@@ -382,6 +382,8 @@ OCZEKUJ = {
     'Polityka znów obiecuje e-mail o zmianie': r'Polityka §9 obiecuje e-mail o zmianie polityki',
     'Polityka pomija zdjęcie z zakresu Google': r'a polityka nie mówi, że Google pyta o zdjęcie profilowe',
     'Regulamin §2 bez „Poradźcie”': r'Serwis ma /pytania, a regulamin §2 nie wymienia tej usługi',
+    # #2299: zawężenie `--filter` w kontrolach ma własne regresje w każdej części.
+    'Kontrole bez regresji zawężenia filtra (#2299)': r'Części kontroli nie uruchamiają `scripts/test_zawezenie_testow\.py` \(#2299\)',
 }
 
 

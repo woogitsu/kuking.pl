@@ -676,7 +676,11 @@ jobs:
   #      równoległych częściach, a w części 3 także odwracalność migracji.
   #      To ponad dwieście przebiegów `artisan test --filter`: na main jedna
   #      część trwała ok. 37 min, a na paczce C (208 wpisów) została
-  #      anulowana po 40 min po 153 kontrolach. Wpis `checks` o indeksie i
+  #      anulowana po 40 min po 153 kontrolach. Większość tego czasu to budowa
+  #      całego zestawu PHPUnita przy każdym wywołaniu (ok. 5 s); od #2299
+  #      `scripts/zawezenie_testow.py` podaje pliki, w których filtr coś
+  #      wybiera (te same testy, sprawdzane próbą przed pierwszą mutacją).
+  #      Wpis `checks` o indeksie i
   #      idzie do części `i % 3 + 1` (`scripts/podzial_kontroli.py`); preflight
   #      kotwic sprawdza w każdej części WSZYSTKIE wpisy, a elementy spoza
   #      pętli (miary.csv #2167, GRUPA_SYGNALOW_TEST) i odwracalność migracji
@@ -913,6 +917,16 @@ jobs:
       - name: Test werdyktu kontroli negatywnych
         if: matrix.czesc == 'kontrole'
         run: python3 tests/skrypty/kontrole-negatywne-przyczyna.py
+
+      # #2299: każde `artisan test --filter` z kontroli dostaje w argumencie
+      # pliki, w których filtr coś wybiera (`scripts/zawezenie_testow.py`), bo
+      # budowa całego zestawu kosztowała ok. 5 s na każde z ok. 270 wywołań
+      # części. Najpierw regresje samego zawężenia (zbiory danych, wielkość
+      # liter, powrót do pełnego zestawu), w sekundę i bez bazy; próbę na żywym
+      # PHPUnicie robi skrypt kontroli przed pierwszą mutacją.
+      - name: Test zawężenia filtra kontroli negatywnych
+        if: matrix.czesc == 'kontrole'
+        run: python3 -m unittest discover -s scripts -p 'test_zawezenie_testow.py' -v
 
       - name: Kontrole negatywne regresji Alfa 0.8 i portu marki
         if: matrix.czesc == 'kontrole'
