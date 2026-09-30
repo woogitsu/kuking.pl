@@ -215,10 +215,21 @@ class DataSettingsController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('landing')->with(Komunikat::sukces("Konto zostało oznaczone do usunięcia i wylogowaliśmy Cię. Masz {$days} dni, żeby zmienić zdanie — "
-            .'zrobisz to na stronie „Cofnij usunięcie konta” ('.route('account.delete.cancel').'), podając e-mail '
-            .'albo nazwę użytkownika i hasło. Jeśli nie pamiętasz hasła, najpierw je zresetuj — to też zadziała. '
-            .$coZTekstami,
-        ));
+        // DROGA POWROTU JAKO PRZYCISK, NIE ADRES W ZDANIU (#2245).
+        // Adres strony cofnięcia był doklejony do treści komunikatu, a layout
+        // wypisuje `status` jako zwykły tekst — na telefonie trzeba go było
+        // przepisać ręcznie. Odnośnik idzie przez `status_akcja`, ten sam
+        // mechanizm co „Zobacz swój wpis” po pierwszej publikacji: layout
+        // rysuje go pod komunikatem jako przycisk z adresem z `route()`.
+        return redirect()->route('landing')
+            ->with(Komunikat::sukces("Konto zostało oznaczone do usunięcia i wylogowaliśmy Cię. Masz {$days} dni, żeby zmienić zdanie — "
+                .'zrobisz to na stronie „Cofnij usunięcie konta” (przycisk pod tym komunikatem), podając e-mail '
+                .'albo nazwę użytkownika i hasło. Jeśli nie pamiętasz hasła, najpierw je zresetuj — to też zadziała. '
+                .$coZTekstami,
+            ))
+            ->with('status_akcja', [
+                'url' => route('account.delete.cancel'),
+                'etykieta' => 'Cofnij usunięcie konta',
+            ]);
     }
 }
