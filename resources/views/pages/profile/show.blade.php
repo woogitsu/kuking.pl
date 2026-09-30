@@ -7,7 +7,7 @@
     :szynaWTresci="true"
     :title="$p->display_name.' (@'.$p->username.')'"
     :description="$p->bio ?: $p->display_name.' gotuje w Kuking.'"
-    :noindex="$stats['posts'] === 0 && $stats['recipes'] === 0"
+    :noindex="! $profilDoIndeksu"
     {{-- Avatar, a nie zdjęcie potrawy: link do profilu ma pokazać CZŁOWIEKA.
          Bez avatara wchodzi karta zapasowa — lepsza niż cudza fotografia,
          która sugerowałaby, że to profil o tym daniu. --}}
@@ -15,7 +15,7 @@
     ogType="profile">
 
     <x-slot:head>
-        @if($stats['posts'] > 0 || $stats['recipes'] > 0)
+        @if($profilDoIndeksu)
             @php
                 $profileJsonLd = [
                 '@context' => 'https://schema.org',
@@ -26,7 +26,10 @@
                     'alternateName' => '@'.$p->username,
                     'description' => $p->bio,
                     'url' => route('profile.show', $p->username),
-                ],
+                ]
+                // Tylko gotowy awatar, który otworzy się gościowi (#2231);
+                // bez niego klucza `image` nie ma wcale.
+                + ($obrazOsoby !== null ? ['image' => $obrazOsoby] : []),
             ];
             @endphp
             <x-json-ld :data="$profileJsonLd" />

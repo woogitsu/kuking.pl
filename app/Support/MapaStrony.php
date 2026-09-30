@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Models\CookedEvent;
 use App\Models\Post;
 use App\Models\Profile;
 use App\Models\Recipe;
@@ -60,6 +61,8 @@ final class MapaStrony
         Post::class => ['status', 'visibility', 'published_at', 'body', 'kind', 'author_id', 'deleted_at'],
         Profile::class => ['username', 'user_id'],
         User::class => ['status'],
+        // Wykonanie może samo wprowadzić profil kucharza do mapy (#2235, #2236).
+        CookedEvent::class => ['user_id', 'recipe_id'],
     ];
 
     public static function uniewaznij(): void
@@ -69,11 +72,12 @@ final class MapaStrony
 
     public static function zarejestrujHaki(): void
     {
-        // Nowy przepis albo wpis może wejść do mapy od razu. Nowe konto
+        // Nowy przepis, wpis albo wykonanie (profil kucharza) może wejść do
+        // mapy od razu. Nowe konto
         // i nowy profil nie — nie mają jeszcze treści. `created`, a nie
         // `wasRecentlyCreated` w `saved`: ta flaga zostaje na egzemplarzu
         // i kasowałaby mapę przy każdym kolejnym zapisie w tym żądaniu.
-        foreach ([Recipe::class, Post::class] as $model) {
+        foreach ([Recipe::class, Post::class, CookedEvent::class] as $model) {
             $model::created(static fn () => self::uniewaznij());
         }
 
