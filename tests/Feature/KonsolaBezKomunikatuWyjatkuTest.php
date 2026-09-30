@@ -125,6 +125,24 @@ class KonsolaBezKomunikatuWyjatkuTest extends TestCase
         );
     }
 
+    public function test_proba_odtworzenia_zdjec_nie_wypisuje_komunikatu_storage(): void
+    {
+        config([
+            'filesystems.disks.kopia_testowa' => ['driver' => 'local', 'root' => sys_get_temp_dir()],
+            'filesystems.disks.cel_testowy' => ['driver' => 'local', 'root' => sys_get_temp_dir().'/cel-testowy-1860'],
+        ]);
+        $dysk = self::atrapa(FilesystemAdapter::class);
+        $dysk->shouldReceive('exists')->andThrow(new RuntimeException(self::ZLY_KOMUNIKAT));
+        Storage::set('kopia_testowa', $dysk);
+        $media = $this->zdjecie();
+
+        $this->assertWyjscieBezKomunikatu(
+            'kuking:proba-odtworzenia-zdjec',
+            ['--kopia' => 'kopia_testowa', '--cel' => 'cel_testowy', '--prefiks' => 'migawka/', '--media' => [$media->getKey()], '--wykonaj' => true],
+            'BŁĄD media '.$media->getKey().' (oryginał): '.RuntimeException::class.', ',
+        );
+    }
+
     /**
      * Skaner wyjścia konsoli: każde `getMessage()` w `app/Console` jest albo
      * zamienione na `BezpiecznyBlad`, albo stoi na liście niżej z powodem.
@@ -152,6 +170,9 @@ class KonsolaBezKomunikatuWyjatkuTest extends TestCase
             ],
             'Commands/SprawdzZdjeciaPoPrzenosinach.php' => [
                 '\'klucz\' => $e->getMessage()' => 'WariantyMetadanychNiepelne — własny wyjątek bez identyfikatora medium i treści właściciela (#1905)',
+            ],
+            'Commands/ProbaOdtworzeniaZdjec.php' => [
+                '$e instanceof BladProbyOdtworzenia ? $e->getMessage()' => 'własny wyjątek komendy (BladProbyOdtworzenia) ze zdaniem po polsku bez kluczy; cudze wyjątki idą przez BezpiecznyBlad::jednaLinia()',
             ],
             'Commands/RaportPrzejrzystosci.php' => [
                 '$this->error($e->getMessage())' => 'InvalidArgumentException z własnej dzien() — zdanie po polsku z datą, którą operator sam wpisał w --od/--do',

@@ -20942,6 +20942,7 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | Forma zwracania się | Wdrażamy z formą neutralną domyślną, bez czekania na prawnika (D-332). Zmiana polityki prywatności jest **istotna**: nowa wersja i pasek (D-327) | #1751, #1752, #1753, #8 |
 | AI | Nie uruchamiamy nic nowego (#813, #814, #815, #1983 czekają). Właściciel **podpisuje DPA z OpenAI**, bo import już z niego korzysta | #813, #814, #815, #1983, #28 |
 | Claim „Twoje przepisy nie zginą” | Nie, dopóki nie ma przetestowanego odtworzenia bazy i zdjęć | #30, #594, #193, #617 |
+| #617 DR zdjęć | Dokończyć w repo; **bucket kopii i klucze zakłada właściciel** (buckety R2 są w jurysdykcji EU, potwierdził 29.09). W repo: komenda `kuking:proba-odtworzenia-zdjec` (zapis wyłącznie na dysk testowy), test na atrapie magazynu bez MinIO, runbook `docs/infra/DR_ZDJEC_R2.md` z kryterium odbioru (§7a). Na produkcji zmiennych `AWS_ZDJECIA_KOPIA_*` nie ma, więc kopii zdjęć dalej nie ma i claim „nie zginą” zostaje niedozwolony | #617 |
 | Upload prosto do R2 | Odłożony z warunkami: wraca, gdy pomiar #605 pokaże upload przez aplikację jako wąskie gardło; czyszczenie EXIF/GPS musi zostać | #602 |
 | Raporty DMARC (`rua`) | Cloudflare Email Routing dla `kontakt@kuking.pl` (droga A z `docs/infra/POCZTA_URUCHOMIENIE.md` §3A) | #2049 |
 | Refaktor `CookedEventController` | Scalić (gałąź `claude/970-ugotowalem-na-g`) | #970 |

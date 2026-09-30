@@ -7,7 +7,10 @@ Trwałość R2 („jedenaście dziewiątek”) chroni przed awarią nośnika, ni
 przed poprawnie wykonanym `DELETE`, i **nie jest kopią zapasową**.
 
 Ten dokument to runbook dla **właściciela**. Kod po stronie aplikacji
-(D-257) jest gotowy. Wszystko, co wymaga panelu Cloudflare, tokenów albo
+(D-257) jest gotowy, a od 29 IX 2026 (#617, D-333) także komenda próby
+odtworzenia (§7.1a). Po stronie repozytorium DR zdjęć jest skończone;
+**bucket kopii, tokeny, reguły i pierwszą migawkę zakłada właściciel**
+(§4). Do tego czasu kopii nadal nie ma. Wszystko, co wymaga panelu Cloudflare, tokenów albo
 dotknięcia produkcji, jest opisane jako krok do wykonania, a nie jako
 fakt. Tło i porównanie wariantów: `LOKALIZACJA_DANYCH_R2.md` §6a
 oraz komentarze w #617.
@@ -163,6 +166,29 @@ rclone copy "zrodlo:<AWS_BUCKET>"        "kopia:kuking-zdjecia-kopia/$MIGAWKA/or
 rclone copy "zrodlo:<AWS_PUBLIC_BUCKET>" "kopia:kuking-zdjecia-kopia/$MIGAWKA/warianty/"  --immutable --checksum
 ```
 
+**Jaki mechanizm kopiowania przewidziano.** Wyłącznie zewnętrzny proces
+`rclone copy` z tego paragrafu, uruchamiany przez właściciela. Aplikacja nie
+kopiuje zdjęć i nie dostaje tokenu zapisu do kopii (§3). Odczyt dokumentacji
+Cloudflare R2 z 29 IX 2026 (strona „Buckets”): wśród funkcji bucketu są Bucket
+locks, Object lifecycles, Event notifications i Storage classes; **replikacji
+bucket-do-bucketu tam nie ma**, więc nie zakładaj jej istnienia
+`[do potwierdzenia w dokumentacji Cloudflare przed krokiem 8]`. Gdyby
+Cloudflare ją oferował, i tak obowiązują te same zasady: kopia w osobnym
+buckecie, bez propagowania usunięć (replikacja, która powtarza `DELETE`, nie
+jest kopią) i z datowanymi migawkami z §2. Automatyzacja (harmonogram, alarm o
+wieku ostatniej migawki) jest osobnym zgłoszeniem, dopóki właściciel nie
+wybierze, gdzie ma działać proces kopiujący.
+
+**Osobne konto Cloudflare dla kopii — do decyzji właściciela.** Rygiel z §4
+krok 4 chroni przed tokenem obiektów, ale **nie przed kimś z prawem edycji
+konfiguracji bucketu** na tym samym koncie (§9). Osobne konto, z własnym
+logowaniem i MFA, zamyka i tę drogę, kosztem drugiego konta do pilnowania i
+wyprowadzenia jurysdykcji EU (strażnik D-255 przepuszcza wtedy adres
+`<konto kopii>.eu.r2.cloudflarestorage.com`, więc trzeba sprawdzić, czy
+`AWS_ENDPOINT` aplikacji nie wskazuje wyłącznie na pierwsze konto:
+`r2_kopia_zdjec` dziedziczy dziś `AWS_ENDPOINT`). Domyślnie zostajemy przy
+jednym koncie; wybór osobnego wymaga osobnej zmiennej z adresem kopii.
+
 **Częstotliwość = RPO.** Rekomendacja na start: **raz w tygodniu**.
 Przy retencji 31 dni równocześnie leży do 5 migawek.
 
@@ -257,6 +283,51 @@ przepustowości, RPO ani RTO. Zielony test nie zastępuje 7.1–7.3 ani tabeli �
 8. Wpisać do §8: RPO = odstęp od ostatniej migawki, RTO = od kroku 3 do
    końca kroku 7.
 
+### 7.1a Próba odtworzenia komendą — na dysk testowy, bez dotykania żywych bucketów
+
+Krok 6 z §7.1 (odtworzenie na żywe buckety) jest niebezpieczny i robi go
+właściciel ręcznie. Zanim do niego dojdzie, **pomiar odtworzenia** (obiekty,
+bajty, czas, sumy) da się wykonać komendą, która pisze wyłącznie na dysk
+testowy:
+
+```bash
+# najpierw bez zapisu: czyta migawkę i liczy sumy
+railway ssh --service kuking.pl -- php artisan kuking:proba-odtworzenia-zdjec \
+    --prefiks=migawka-2026-09-28/ --cel=proba_odtworzenia --media=<uuid> --media=<uuid>
+
+# potem z zapisem na dysk testowy (katalog storage/app/proba-odtworzenia)
+railway ssh --service kuking.pl -- php artisan kuking:proba-odtworzenia-zdjec \
+    --prefiks=migawka-2026-09-28/ --cel=proba_odtworzenia --media=<uuid> --media=<uuid> --wykonaj
+```
+
+Co komenda gwarantuje (pilnuje tego `ProbaOdtworzeniaZdjecTest`):
+
+- lista zdjęć pochodzi **z bazy** (wiersze `ready`), nie z bucketu kopii;
+  konto wymazane po migawce nie ma wiersza i nie wraca;
+- oryginał sprawdza SHA-256 z `media.checksum_sha256`, warianty rozmiarem
+  z metadanych; niezgodne bajty **nie trafiają** na dysk testowy; wariant
+  bez rozmiaru w bazie to błąd próby, nie ciche „odtworzone” (wzorzec #2228);
+- odmawia zapisu na dysk kopii, na żywe dyski (`r2`, `r2_publiczne`,
+  `r2_legacy`, `r2_eksporty`, `r2_kopie`, `local`, `public`, dyski z wierszy
+  `media` i z `kuking.media.*`) i na każdy dysk wskazujący ten sam bucket albo
+  katalog co one — także katalog w nich, nad nimi albo przez `..`;
+- nie kasuje niczego i nie nadpisuje: inny plik pod tym samym kluczem na
+  dysku testowym kończy próbę błędem;
+- czyta kopię wyłącznie tokenem odczytu (`AWS_ZDJECIA_KOPIA_*`); nie wypisuje
+  kluczy obiektów ani komunikatów storage;
+- domyślnie odtwarza 3 najnowsze zdjęcia (`--limit`), żeby próba nie stała się
+  odtwarzaniem całości.
+
+Wynik: liczba obiektów i bajtów, czas próby i wiek migawki. Czas z tej komendy
+wpisz do §8 jako **RTO próby na dysk testowy** — to nie jest RTO odtworzenia
+do serwisu (bez wykrycia awarii, decyzji, odtworzenia bazy i tymczasowego
+tokenu zapisu do żywych bucketów). Wiek migawki wynika z nazwy
+`migawka-RRRR-MM-DD/`; przy innej nazwie komenda nie zgaduje.
+
+Dysk `proba_odtworzenia` to katalog w kontenerze i znika przy wdrożeniu;
+zdjęcia odtworzone na nim nie są nigdzie serwowane. Po próbie nic nie trzeba
+sprzątać.
+
 ### 7.2 Rygiel trzyma
 
 Tokenem **zapisu kopii** spróbować skasować jeden obiekt z najnowszej
@@ -273,6 +344,26 @@ założona”.
 
 ---
 
+## 7a. Kryterium odbioru #617
+
+Issue zamykamy, gdy wszystkie punkty mają datę i wynik w §8 — nie wcześniej:
+
+| # | Kryterium | Dowód |
+|---|---|---|
+| 1 | Bucket `kuking-zdjecia-kopia` w EU, bez domeny, `r2.dev` wyłączone | §4 kroki 2–3, zapis daty |
+| 2 | Rygiel 30 dni i lifecycle 31 dni na buckecie kopii | §4 kroki 4–5, próby §7.2 i §7.3 |
+| 3 | Aplikacja ma **tylko** token odczytu kopii; tokenu zapisu nie ma | lista zmiennych Railway (same nazwy) — bez `R2_ZDJECIA_KOPIA_ZAPIS_*` |
+| 4 | Pierwsza migawka i `kuking:sprawdz-kopie-zdjec --sumy` bez rozbieżności | wynik komendy w §8 |
+| 5 | Próba odtworzenia: `kuking:proba-odtworzenia-zdjec --wykonaj` na 3 zdjęciach kończy się kodem 0 | wynik komendy, czas i wiek migawki w §8 |
+| 6 | Odtworzenie do żywych bucketów wg §7.1 na koncie testowym, zmierzone RPO i RTO | §8 |
+| 7 | Zdanie o kopii technicznej w polityce prywatności (#8) | wersja polityki |
+
+Punkty 1–4 i 6–7 wykonuje właściciel; punkt 5 jest jedynym, który można
+powtarzać bez ryzyka i który daje pierwszą liczbę do §8. Zielony test w
+repozytorium nie zastępuje żadnego z nich.
+
+---
+
 ## 8. Wynik — do wypełnienia przez właściciela
 
 | Pomiar | Wartość | Data | Kto |
@@ -282,6 +373,7 @@ założona”.
 | `sprawdz-kopie-zdjec --sumy`: wynik | | | |
 | Rygiel odrzuca `DELETE` (7.2): treść odmowy | | | |
 | Lifecycle usunął obiekt kontrolny (7.3): data i godzina | | | |
+| `proba-odtworzenia-zdjec --wykonaj`: obiekty, bajty, czas, wiek migawki (7.1a) | | | |
 | **RPO** zmierzone (7.1) | | | |
 | **RTO** zmierzone (7.1), liczba obiektów | | | |
 
