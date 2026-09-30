@@ -397,7 +397,30 @@ final class FormaTekstyTest extends TestCase
             return;
         }
 
-        $this->assertSame([], WzorceRodzaju::trafienia($this->tekst($html)), 'Ekran przy formie neutralnej pokazuje rodzaj.');
+        $this->assertSame([], WzorceRodzaju::trafienia($this->bezAdresow($this->tekst($html))), 'Ekran przy formie neutralnej pokazuje rodzaj.');
+    }
+
+    /**
+     * Adres wypisany w liście tekstem (link zapasowy „jeśli przycisk nie
+     * działa”) to nie zdanie do czytelnika. Ma losowy UUID i podpis, więc
+     * fragment w rodzaju „…9aba/e5…” czasem pasował do wzorca
+     * `ukosnik_koncowka` — test oblewał losowo, bez żadnego rodzaju w treści.
+     */
+    private function bezAdresow(string $tekst): string
+    {
+        return (string) preg_replace('~https?://\S+~u', ' ', $tekst);
+    }
+
+    /**
+     * Regresja losowej czerwieni: adres z „…aba/e5…” nie jest rodzajem,
+     * a to samo „aba/e” w zdaniu dalej jest łapane (kontrola z drugiej strony).
+     */
+    public function test_adres_w_tekscie_listu_nie_jest_brany_za_rodzaj(): void
+    {
+        $html = '<p>Skopiuj adres: https://kuking.test/potwierdz/0199aba/e5f0?signature=ab</p>';
+
+        $this->bezRodzajuGdyNeutralna(null, $html);
+        $this->assertNotSame([], WzorceRodzaju::trafienia($this->bezAdresow($this->tekst('<p>Jesteś gotowa/e na obiad</p>'))));
     }
 
     /** Widoczny tekst: bez znaczników, skryptów i stylów, białe znaki zwinięte. */

@@ -8,6 +8,8 @@ use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Drivers\Gd\Driver as SterownikGd;
+use Intervention\Image\Encoders\WebpEncoder;
 use Intervention\Image\ImageManager;
 use League\Flysystem\UnableToWriteFile;
 
@@ -109,7 +111,7 @@ final class PodgladOdRazu
             // zewnętrzny T11, `OrientacjaZdjecia`). Dwie różne orientacje
             // tego samego zdjęcia znaczyłyby, że po odświeżeniu strony
             // obiad się obraca.
-            $obraz = ImageManager::gd(autoOrientation: false)->read($bajty);
+            $obraz = ImageManager::usingDriver(SterownikGd::class, autoOrientation: false)->decodeBinary($bajty);
 
             OrientacjaZdjecia::zastosuj($obraz, $orientacja);
 
@@ -120,7 +122,7 @@ final class PodgladOdRazu
             $krawedz = $this->krawedz();
             $obraz->scaleDown(width: $krawedz, height: $krawedz);
 
-            $zakodowane = (string) $obraz->toWebp(quality: 82);
+            $zakodowane = (string) $obraz->encode(new WebpEncoder(quality: 82));
 
             $klucz = Media::kluczPublicznegoWariantu($objectKey, self::NAZWA);
 

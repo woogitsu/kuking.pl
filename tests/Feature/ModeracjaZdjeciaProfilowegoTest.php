@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Intervention\Image\Drivers\Gd\Driver as SterownikGd;
+use Intervention\Image\Encoders\WebpEncoder;
 use Intervention\Image\ImageManager;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -215,7 +217,7 @@ class ModeracjaZdjeciaProfilowegoTest extends TestCase
 
         Storage::disk('public')->put(
             $thumb,
-            (string) ImageManager::gd()->create(320, 320)->fill('cc4400')->toWebp(),
+            (string) ImageManager::usingDriver(SterownikGd::class)->createImage(320, 320)->fill('cc4400')->encode(new WebpEncoder),
         );
 
         $zdjecie = Media::factory()->create([

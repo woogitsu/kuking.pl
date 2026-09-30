@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Search;
 
+use App\Domain\Recipes\Alergeny\Alergen;
 use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\User;
@@ -279,9 +280,15 @@ final class SearchQuery
      * @param  User|null  $widz  kto szuka — widoczność (#1320), blokady i licznik ugotowań
      * @param  int|null  $maksKosztZl  opcjonalny pułap ceny przepisu (D-286)
      * @param  string|null  $po  kursor z kursorPrzepisu(); gdy czytelny, zastępuje `offset`
+     * @param  list<string>  $bezAlergenow  kody alergenów, których autor ma NIE zaznaczać (#1902, D-333);
+     *                                      puste = bez filtra. Filtr przepuszcza wyłącznie przepisy
+     *                                      `declared`, w których żaden z podanych kodów nie stoi na liście
+     *                                      autora — przepisy niesprawdzone (`unchecked`, `needs_review`)
+     *                                      wypadają (fail-closed, jak brak kosztu przy „Do 20 zł”).
+     *                                      Nieznane kody są ignorowane. Sam `WHERE`, bez wpływu na kolejność.
      * @return Collection<int, Recipe>
      */
-    public function recipes(string $phrase, ?User $widz = null, int $limit = 20, ?int $maksMinut = null, int $offset = 0, ?int $maksKosztZl = null, ?string $po = null): Collection
+    public function recipes(string $phrase, ?User $widz = null, int $limit = 20, ?int $maksMinut = null, int $offset = 0, ?int $maksKosztZl = null, ?string $po = null, array $bezAlergenow = []): Collection
     {
         $phrase = trim($phrase);
         self::phraseValidator($phrase)->validate();
@@ -304,6 +311,8 @@ final class SearchQuery
         // Bez tego gałąź trigramowa niżej milczy przy literówkach — patrz
         // komentarz przy zniesionej stałej wyżej.
         ProgPodobienstwa::ustaw();
+
+        $bezAlergenow = Alergen::znormalizuj($bezAlergenow);
 
         $kursor = self::czytajKursorPrzepisu($po);
         $ws = 'word_similarity(?, recipes.title_search)';
@@ -382,6 +391,19 @@ final class SearchQuery
             ->when($maksKosztZl !== null, fn ($query) => $query
                 ->whereNotNull('estimated_cost_pln')
                 ->where('estimated_cost_pln', '<=', $maksKosztZl))
+            // Filtr „Bez wskazanych alergenów (według autorów)” (#1902, D-333).
+            //
+            // Przepuszcza TYLKO przepisy, w których autor potwierdził listę
+            // (`declared`) i nie ma na niej żadnego z wybranych alergenów.
+            // Przepis `unchecked` albo `needs_review` WYPADA: brak oznaczenia
+            // nie znaczy „nie zawiera” — ta sama zasada co przy czasie i koszcie
+            // wyżej, tyle że tu błąd w drugą stronę dotyczyłby zdrowia. Sam
+            // `WHERE`: ranking i kursor wyżej i niżej bez zmian (AGENTS.md §8).
+            // Kody przeszły przez `Alergen::znormalizuj()`, więc do literału
+            // tablicy trafiają wyłącznie znane, napisy bez znaków specjalnych.
+            ->when($bezAlergenow !== [], fn ($query) => $query
+                ->where('recipes.allergen_status', Recipe::ALERGENY_ZDEKLAROWANE)
+                ->whereRaw('NOT (recipes.allergens && ?::text[])', ['{'.implode(',', $bezAlergenow).'}']))
             // KOLEJNOŚĆ: NAJPIERW TO, CO ZDECYDOWAŁO O TRAFIENIU (issue #187)
             //
             // Wiersz jest w wyniku dlatego, że fraza pasuje do FRAGMENTU

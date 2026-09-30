@@ -57,6 +57,22 @@ Polityka prywatności ma teraz takie same dwa przyciski jak regulamin:
 od 25 września 2026 — każdą można przeczytać i pobrać. Jeśli potrzebujecie
 wcześniejszego brzmienia, napiszcie do nas, a wyślemy je.
 
+### Alergeny w przepisie — przygotowane, na razie wyłączone
+
+Przygotowaliśmy oznaczanie alergenów. Autor przepisu może w kroku ze
+składnikami zaznaczyć, które z czternastu alergenów z unijnej listy są
+w przepisie, i potwierdzić, że lista jest pełna. Słownik podpowiada, co warto
+zaznaczyć, ale niczego nie zaznacza sam — decyduje autor. Pod składnikami
+zawsze stoi jedno z trzech zdań: „Alergeny według autora: …” z listą,
+„Autor nie zaznaczył żadnego z 14 alergenów” albo „Alergeny: nie sprawdzono”.
+Brak zaznaczenia nigdy nie znaczy, że czegoś w przepisie
+nie ma. W wyszukiwarce będzie pole „Bez wskazanych alergenów (według
+autorów)”; pokaże tylko przepisy, w których autor potwierdził listę, a te
+niesprawdzone pominie. To zaznaczenia autorów, nie badania — przy gotowych
+produktach zawsze czytajcie etykiety. Nie zapamiętujemy, jakie alergeny
+wybieracie. Funkcja zostaje na razie wyłączona: włączymy ją dopiero po
+spotkaniach z osobami, które sprawdzą, czy wszystko jest zrozumiałe.
+
 ### „Nie licz mnie w statystykach”
 
 W ustawieniach, w części „Prywatność”, jest nowy przycisk „Nie licz mnie
