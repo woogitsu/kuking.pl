@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2244): po złym haśle albo bez zaznaczonego potwierdzenia formularz „Chcę usunąć swoje konto” w „Twoich danych” zostaje rozwinięty, więc pole z błędem jest od razu widać, a odnośniki z podsumowania błędów (także do haczyka „Usuń także moje przepisy…”) prowadzą do właściwego pola.
 - Naprawione (#2245): po oznaczeniu konta do usunięcia pod komunikatem stoi przycisk „Cofnij usunięcie konta”, prowadzący prosto do strony cofnięcia. Wcześniej jej adres był wpisany w zdanie jako zwykły tekst i na telefonie trzeba go było przepisać.
 - Naprawione (#2246): komunikaty planera odmieniają dzień po „na”: „Dodane do planu na środę, 14 października”, „Usunięte z planu na sobotę…”, a nie „na środa”. Nagłówki dni i wybór dnia zostają bez zmian („Środa, 14 października”).
 - Wewnętrzne: dziennik wglądów moderatora jest dokończony (decyzja właściciela z 29.09.2026, D-333). Gdy moderator otwiera zdjęcie, którego nie zobaczyłby bez swojej roli (zdjęcie będące celem zgłoszenia albo zdjęcie treści ukrytej przez moderację), albo przepis ukryty, zdjęty lub konta zbanowanego (strona przepisu, tryb gotowania, API), w dzienniku audytu zostaje ślad: kto, co, kiedy, z jakiego powodu i w jakiej sprawie. Wyświetlenia publiczne i wejścia autora nic nie zapisują, a to samo zdjęcie otwarte kilka razy w ciągu godziny w tej samej sprawie daje jeden wpis. Bez nowej tabeli i bez zmian dla zwykłych osób; wpisy wygasają po 12 miesiącach jak reszta dziennika.
