@@ -919,6 +919,25 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/przepisy/{recipe}', [RecipeController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('recipes.destroy');
+    // Ukrycie i przywrócenie jednej wersji z historii zmian (issue #2270).
+    // GET to ekran potwierdzenia bez JavaScriptu, POST — sama zmiana.
+    // Kto: `RecipeVersionPolicy`; stan: `UkrywanieWersji`. Limit
+    // `usuwanie`: ukrycie zdejmuje treść z widoku jak usunięcie, a to samo
+    // tempo (potwierdzenie + klik) mieści porządki w długiej historii.
+    Route::get('/przepisy/{recipe}/historia/{numer}/ukryj', [HistoriaPrzepisuController::class, 'potwierdzUkrycie'])
+        ->where('numer', '[1-9][0-9]{0,8}')
+        ->name('recipes.history.hide');
+    Route::post('/przepisy/{recipe}/historia/{numer}/ukryj', [HistoriaPrzepisuController::class, 'ukryj'])
+        ->where('numer', '[1-9][0-9]{0,8}')
+        ->middleware("throttle:{$limits['usuwanie']},usuwanie")
+        ->name('recipes.history.hide.store');
+    Route::get('/przepisy/{recipe}/historia/{numer}/przywroc', [HistoriaPrzepisuController::class, 'potwierdzPrzywrocenie'])
+        ->where('numer', '[1-9][0-9]{0,8}')
+        ->name('recipes.history.restore');
+    Route::post('/przepisy/{recipe}/historia/{numer}/przywroc', [HistoriaPrzepisuController::class, 'przywroc'])
+        ->where('numer', '[1-9][0-9]{0,8}')
+        ->middleware("throttle:{$limits['usuwanie']},usuwanie")
+        ->name('recipes.history.restore.store');
 
     // "Ugotowałem" — najważniejsza akcja w produkcie.
     Route::get('/przepisy/{recipe}/ugotowalem', [CookedEventController::class, 'create'])->name('cooked.create');

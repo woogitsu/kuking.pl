@@ -167,10 +167,27 @@ zmieniły się proporcje lub sposób przygotowania. Historia pokazuje tekst i da
 przepisu, bez zdjęć, i widzi ją każdy, kto widzi sam przepis — nic ponadto. Jeśli
 starsza wersja nie zapisała jakiegoś pola, piszemy o tym wprost, zamiast
 zgadywać. Pamiętajcie, że zapisana wersja zachowuje treść z chwili zapisu, także
-tę, którą autor usunął później: pojedynczej wersji nie da się usunąć samemu, ale
-autor może usunąć cały przepis albo napisać do nas. Starych wersji nie trzymamy
+tę, którą autor usunął później — dlatego autor może ukryć pojedynczą wersję
+(o tym niżej). Starych wersji nie trzymamy
 w nieskończoność: wersja zapisana ponad 24 miesiące temu znika, ale trzy najnowsze
 wersje przepisu zostają zawsze.
+
+### Ukryjcie jedną wersję przepisu
+
+Zdarza się, że w starszej wersji przepisu zostało coś, czego nie chcecie już
+pokazywać — na przykład numer telefonu babci albo nazwisko sąsiadki. W „Historii
+zmian” przy każdej starszej wersji Waszego przepisu jest teraz przycisk „Ukryj
+wersję”. Najpierw pokażemy, co się stanie, a dopiero przycisk „Tak, ukryj”
+ją chowa. Ukrytej wersji nie zobaczy nikt poza Wami i moderacją, a porównanie
+zmian ją pominie i napisze, że coś pominęło. Wy dalej ją widzicie, z napisem
+„Ukryta”, i w każdej chwili możecie ją przywrócić. Najnowszej wersji nie da się
+ukryć, bo to jest to, co widać na stronie przepisu: żeby usunąć z niej tekst,
+poprawcie przepis i zapiszcie zmiany — wtedy poprzednią wersję można już ukryć.
+
+Wersję może też ukryć moderacja, gdy coś w niej narusza zasady. Wtedy dostaniecie
+powiadomienie: której wersji to dotyczy, na jakiej podstawie i dlaczego. Jeśli
+uważacie, że to pomyłka, możecie się odwołać — a gdy przyznamy Wam rację, wersja
+od razu wróci do historii zmian.
 
 ### Zacznijcie gotować na telefonie, dokończcie na tablecie
 

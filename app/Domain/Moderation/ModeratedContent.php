@@ -11,6 +11,7 @@ use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\User;
 
@@ -57,6 +58,15 @@ final class ModeratedContent
 
         // Publiczny zeszyt — nazwa i opis właściciela (issue #2279).
         Collection::class => 'collection',
+
+        // WERSJA PRZEPISU (#2270, D-333). Tylko w `moderation_actions`:
+        // ukrycie wersji przez moderację jest decyzją z urzędu
+        // (`App\Domain\Recipes\Historia\DecyzjaOWersjiPrzepisu`), a wersji nie da się zgłosić, więc
+        // `reports.target_type` jej nie zna. ŚWIADOMIE BEZ WPISU W `UKRYTY`:
+        // wersja nie ma `status`, ukrywa ją `hidden_at` — i wraca po
+        // odwołaniu przez kontrakt `CofniecieUkryciaWersji`, nie przez
+        // `RestoreContent`.
+        RecipeVersion::class => CofniecieUkryciaWersji::TYP,
     ];
 
     /**
@@ -161,6 +171,12 @@ final class ModeratedContent
     {
         if ($model instanceof User) {
             return $model;
+        }
+
+        // Wersję zapisał `editor`, ale decyzja dotyczy autora PRZEPISU —
+        // to on dostaje powiadomienie i on się odwołuje.
+        if ($model instanceof RecipeVersion) {
+            return $model->recipe?->author;
         }
 
         foreach (['author', 'user', 'owner'] as $relacja) {

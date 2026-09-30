@@ -10,6 +10,10 @@
         @if($czyNajnowsza) To najnowsza zapisana wersja. @endif
         Ekran pokazuje tekst i dane, bez zdjęć.
     </p>
+    @if($wersja->czyUkryta())
+        @include('pages.recipes.partials.historia-ukryta', ['wersja' => $wersja, 'recipe' => $recipe])
+    @endif
+    @include('pages.recipes.partials.historia-przycisk-ukrycia', ['wersja' => $wersja, 'czyNajnowsza' => $czyNajnowsza, 'uprawnienia' => $uprawnienia])
 
     <p class="historia-akcje">
         @if($starszy !== null)
