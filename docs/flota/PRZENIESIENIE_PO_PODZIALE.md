@@ -1,35 +1,36 @@
-# Przeniesienie otwartego PR-a po podziale dwóch plików (25.09.2026)
+# Przeniesienie otwartego PR-a po podziale dziennika decyzji (30.09.2026)
 
-Właściciel zdecydował 25.09.2026, że dwa pliki, przez które powstawała
-większość konfliktów w otwartych PR-ach, dzielimy na wiele małych plików:
+Właściciel zdecydował (najpierw 25.09, odświeżone 30.09.2026), że
+`docs/DECISIONS.md` (ponad 21 tys. wierszy, dopisywany zawsze na końcu, konflikt
+w każdej parze równoległych PR-ów z nową decyzją) dzielimy na jeden plik na
+decyzję:
 
-| Było (jeden plik) | Jest | Gałąź podziału |
-|---|---|---|
-| `scripts/kontrole-negatywne-alfa08.py` (wszystkie kontrole) | `scripts/kontrole_negatywne/kNN_<obszar>.py`, stary plik to cienki punkt wejścia | PR #1478, `claude/kontrole-negatywne-katalog` |
-| `docs/DECISIONS.md` (ponad 16 tys. wierszy) | `docs/decyzje/D-NNN-krotki-slug.md`, `docs/DECISIONS.md` to indeks | `claude/decyzje-podzial` |
+| Było | Jest |
+|---|---|
+| `docs/DECISIONS.md` — całość dziennika | `docs/decyzje/D-NNN-krotki-slug.md` (jedna decyzja; `U-NNN-…` dla uzupełnienia do issue), a `docs/DECISIONS.md` to **indeks** z tabelą generowaną z plików |
 
-Oba stare pliki **nadal istnieją**, więc git zwykle zgłasza
-`CONFLICT (content)`, a nie `modify/delete`. Kroki niżej są takie same
-w obu przypadkach: jeśli git mówi `CONFLICT (modify/delete)`, zrób to samo,
-co przy `content` („weź plik z main”, potem przenieś swoje wpisy).
+Stary plik **nadal istnieje**, więc git zwykle zgłasza `CONFLICT (content)`
+w `docs/DECISIONS.md`. Treść decyzji przeniesiono bez zmian (jedyna różnica:
+względne odnośniki markdown w trzech wpisach dostały `../`, bo plik leży katalog
+głębiej). Numery i nagłówki `## D-NNN …` się nie zmieniły, więc odwołania
+„D-NNN w `docs/DECISIONS.md`” działają dalej przez tabelę indeksu.
 
 **Zasady bez wyjątków:** scalaj (`git merge`), nie rebase'uj; bez `--force`,
 `reset --hard`, `--no-verify` i gołego `git stash`. Rozwiązanie „weź moje”
-w którymkolwiek z tych dwóch plików jest **zawsze złe**: przywraca stary
-układ, a strażnicy obleją (z komunikatem, który odsyła tutaj).
+w `docs/DECISIONS.md` jest **zawsze złe**: przywraca stary układ, a
+`DziennikDecyzjiZgodnyZIndeksemTest` obleje (z komunikatem, który odsyła tutaj).
 
 ## 0. Czy mnie to dotyczy?
 
 ```sh
 git fetch origin main
 BAZA=$(git merge-base HEAD origin/main)
-git diff --stat "$BAZA" HEAD -- scripts/kontrole-negatywne-alfa08.py docs/DECISIONS.md
+git diff --stat "$BAZA" HEAD -- docs/DECISIONS.md
 ```
 
-Pusto — nic z tej instrukcji Cię nie dotyczy, scalaj normalnie. Jest któryś
-z plików — zrób sekcję A, B albo obie, **w jednym scaleniu**.
+Pusto — nic z tej instrukcji Cię nie dotyczy, scalaj normalnie.
 
-## A. `docs/DECISIONS.md` — nowa albo zmieniona decyzja
+## A. Nowa albo zmieniona decyzja w `docs/DECISIONS.md`
 
 ```sh
 git merge origin/main                          # konflikt w docs/DECISIONS.md
@@ -53,65 +54,28 @@ scalenia) z bazą scalenia i wypisuje, co zrobił z każdym wpisem:
 
 Uruchom go **przed** commitem scalenia: po commicie `HEAD` ma już indeks
 z main. Jeśli scalenie jest już zacommitowane, podaj swój ostatni commit
-sprzed scalenia: `python3 scripts/decyzje-przenies.py --z <sha> --baza $(git merge-base <sha> origin/main)`.
+sprzed scalenia:
+`python3 scripts/decyzje-przenies.py --z <sha> --baza $(git merge-base <sha> origin/main)`.
 
-Na koniec:
+Ręcznie, bez skryptu: wpis z Twojej gałęzi (`git diff "$BAZA" HEAD -- docs/DECISIONS.md`)
+wklej do nowego pliku `docs/decyzje/D-NNN-krotki-slug.md` — pierwszy wiersz to
+nagłówek `## D-NNN · Tytuł`, podsekcje `### `. Względne odnośniki markdown
+dostają `../`. Numer sprawdź: `ls docs/decyzje/D-NNN-*` ma być puste, inaczej
+weź `php scripts/decyzje-indeks.php --nastepny`.
 
-```sh
-php artisan test --filter='DziennikDecyzjiZgodnyZIndeksemTest|NumeryDecyzjiMajaWpisyTest|OdnosnikiDziennikaDecyzjiIstniejaTest'
-git add docs/DECISIONS.md docs/decyzje
-```
-
-Ręcznie, bez skryptu (gdy np. nie masz Pythona): wpis z Twojej gałęzi
-(`git diff "$BAZA" HEAD -- docs/DECISIONS.md`) wklej do nowego pliku
-`docs/decyzje/D-NNN-krotki-slug.md` — pierwszy wiersz to nagłówek
-`## D-NNN · Tytuł`, podsekcje `### `. Względne odnośniki markdown dostają
-`../` (plik leży katalog głębiej niż stary dziennik). Numer sprawdź:
-`ls docs/decyzje/D-NNN-*` ma być puste, inaczej weź
-`php scripts/decyzje-indeks.php --nastepny`.
-
-## B. `scripts/kontrole-negatywne-alfa08.py` — nowa albo zmieniona kontrola
+## B. Zamknięcie scalenia
 
 ```sh
-git merge origin/main                    # konflikt w scripts/kontrole-negatywne-alfa08.py
-git diff "$BAZA" HEAD -- scripts/kontrole-negatywne-alfa08.py > /tmp/moje-kontrole.diff
-git checkout origin/main -- scripts/kontrole-negatywne-alfa08.py   # punkt wejścia z main
-```
-
-Każdy swój wpis z `/tmp/moje-kontrole.diff` przenieś do **nowego pliku**
-`scripts/kontrole_negatywne/kNN_<obszar>.py` według wzoru z
-`scripts/kontrole_negatywne/README.md` (numer `kNN` ustala tylko kolejność;
-ten sam numer w dwóch PR-ach nie jest konfliktem):
-
-| W starym pliku | W nowym pliku |
-|---|---|
-| stałe `PLIK = "…"`, `TEST = "…"` | te same stałe na górze pliku |
-| funkcja mutacji `def …(source):` | ta sama funkcja, bez zmian |
-| krotka w `checks`: `("nazwa", PLIK, TEST, mutacja),` | `Kontrola("nazwa", PLIK, TEST, mutacja),` w `KONTROLE = [...]` |
-| `run_test(TEST, True)` | `TEST` w `KONTROLE_DODATNIE = [...]` |
-| `replace_once` | `from kontrole_negatywne._narzedzia import Kontrola, replace_once` |
-
-Zmiana ISTNIEJĄCEJ kontroli (np. nowy punkt mutacji): znajdź, gdzie teraz
-mieszka — `grep -rn 'nazwa kontroli' scripts/kontrole_negatywne/` — i zrób
-tę samą zmianę w tamtym pliku.
-
-Sprawdzenie:
-
-```sh
-python3 scripts/kontrole-negatywne-alfa08.py --lista | grep 'nazwa Twojej kontroli'
-php artisan test --filter=StraznikTekstuMaKontroleDodatniaTest
-git add scripts/kontrole-negatywne-alfa08.py scripts/kontrole_negatywne
-```
-
-Punkt wejścia sam odmawia, jeśli zostały w nim stałe, `checks`, `run_test(`
-albo `def` (komunikat odsyła tutaj). Test
-`test_punkt_wejscia_kontroli_nie_ma_wpisow_w_starym_ukladzie` łapie w PHPUnit
-także przywrócony w całości stary monolit.
-
-## C. Zamknięcie scalenia
-
-```sh
+php artisan test --filter='DziennikDecyzji|NumeryDecyzjiMajaWpisyTest|OdnosnikiDziennikaDecyzjiIstniejaTest'
 ./scripts/check.sh
-git commit        # commit scalenia; w opisie: „przeniesione po podziale (PRZENIESIENIE_PO_PODZIALE.md)”
+git add docs/DECISIONS.md docs/decyzje
+git commit        # w opisie: „przeniesione po podziale (PRZENIESIENIE_PO_PODZIALE.md)”
 git push -u origin <ta-sama-gałąź>
 ```
+
+## Skąd wziął się podział (dla porządku)
+
+Układ wygenerował jednorazowo `scripts/decyzje-podziel.py` z dziennika na
+`origin/main` z 30.09.2026 (287 wpisów: 286 decyzji i „Uzupełnienie #369”).
+Skrypt jest w repozytorium i da się go puścić na starszym układzie
+(`--z <ref> --sucho`), żeby sprawdzić, że żadna linia treści nie ginie.
