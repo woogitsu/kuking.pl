@@ -2341,6 +2341,40 @@ jobs:
           fi
           echo "OK   brak tinkera i PsySH; php artisan list działa bez zależności dev"
 
+      # Import z PDF uruchamia Popplera przez Symfony Process, a ten wymaga
+      # `proc_open`, wyłączonego w docker/php.ini (#2293, IN-01). Procesy
+      # kolejki dostają go z powrotem flagą z entrypointu; WWW nie. Tu
+      # sprawdzamy to w PRAWDZIWYM obrazie, z jego php.ini i jego Popplerem:
+      #   1. bez flagi (jak FrankenPHP) Process MA paść — kontrola dodatnia,
+      #      że obraz naprawdę wczytał docker/php.ini;
+      #   2. z flagą odczytaną z entrypointu obrazu `pdftotext -v` przez
+      #      Process MA przejść — tak uruchamia go `TekstZPdf` w workerze.
+      # Odpowiednik bez Dockera: tests/Feature/KolejkaCzytaPdfZProdukcyjnymPhpIniTest.php.
+      - name: Odczyt PDF w procesie kolejki obrazu (#2293)
+        run: |
+          set -euo pipefail
+          OBRAZ_APLIKACJI=kuking:ci-${{ github.sha }}
+          SKRYPT='require "/app/vendor/autoload.php"; $p = new Symfony\Component\Process\Process(["pdftotext", "-v"]); $p->run(); exit($p->getExitCode());'
+
+          funkcje=$(docker run --rm "$OBRAZ_APLIKACJI" sed -n 's/^FUNKCJE_ZABRONIONE_KOLEJKI="\(.*\)"$/\1/p' /usr/local/bin/kuking-entrypoint)
+          if [ -z "$funkcje" ]; then
+            echo "BŁĄD: entrypoint obrazu nie definiuje FUNKCJE_ZABRONIONE_KOLEJKI — kolejka nie dostanie proc_open."
+            exit 1
+          fi
+          echo "Lista funkcji wyłączonych dla kolejki: $funkcje"
+
+          if docker run --rm "$OBRAZ_APLIKACJI" php -r "$SKRYPT" >/dev/null 2>&1; then
+            echo "BŁĄD: Process zadziałał BEZ flagi kolejki — obraz nie wczytuje docker/php.ini albo WWW ma proc_open."
+            exit 1
+          fi
+          echo "OK   bez flagi kolejki proc_open jest wyłączony (jak w WWW)"
+
+          if ! docker run --rm "$OBRAZ_APLIKACJI" php -d "disable_functions=${funkcje}" -r "$SKRYPT"; then
+            echo "BŁĄD: proces z flagą kolejki nie uruchomił pdftotext przez Process — import z PDF padnie na produkcji."
+            exit 1
+          fi
+          echo "OK   proces kolejki uruchamia Popplera przez Process"
+
       # =====================================================================
       #  DRUGI OBRAZ: serwis kopii bazy (issue #193, decyzja D-043)
       #

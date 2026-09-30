@@ -1859,6 +1859,32 @@ checks = [
     ("Runbook znów każe użyć tinkera", "docs/infra/MONITORING_BLEDOW.md", "test_runbooki_produkcyjne_nie_kaza_uzywac_tinkera",
      lambda s: replace_once(s, "php artisan kuking:sprawdz-alarm --przez-wyjatek\n",
                             "php artisan tinker --execute=\"report(new RuntimeException('x'));\"\n")),
+    # #2293 (IN-01): proc_open wraca na listę wyłączonych dla kolejki — odczyt
+    # PDF-a w podprocesie z produkcyjnym php.ini znów pada.
+    ("Kolejka traci proc_open (#2293)", "docker/entrypoint.sh", "KolejkaCzytaPdfZProdukcyjnymPhpIniTest",
+     lambda s: replace_once(s, 'FUNKCJE_ZABRONIONE_KOLEJKI="exec,passthru,shell_exec,system,popen"',
+                            'FUNKCJE_ZABRONIONE_KOLEJKI="exec,passthru,shell_exec,system,proc_open,popen"')),
+    # Ten sam issue: queue:work przestaje dostawać flagę -d disable_functions.
+    ("queue:work bez listy funkcji kolejki (#2293)", "docker/entrypoint.sh", "KolejkaCzytaPdfZProdukcyjnymPhpIniTest",
+     lambda s: replace_once(s, '    -d "disable_functions=${FUNKCJE_ZABRONIONE_KOLEJKI}" \\\n', '')),
+    # #2298 (IN-06): job z pull_request bez straży forka w runs-on.
+    ("Job PR-a bez straży forka (#2298)", ".github/workflows/railway-iac.yml", "WorkflowyNieWpuszczajaForkowNaWlasneRunneryTest",
+     lambda s: s.replace("fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '\"ubuntu-latest\"') || vars", "fromJSON(vars")),
+    # Ten sam issue: bramka deployu z workflow_run bez warunku repozytorium źródłowego.
+    ("Bramka deployu bez warunku repozytorium (#2298)", ".github/workflows/railway-ci-gated-deploy.yml", "WorkflowyNieWpuszczajaForkowNaWlasneRunneryTest",
+     lambda s: replace_once(s, "      github.event.workflow_run.head_repository.full_name == github.repository", "      true")),
+    # #2302 (IN-10): nagłówek workflowu znów mówi o repozytorium prywatnym.
+    ("Nagłówek deploy.yml znów o repo prywatnym (#2302)", ".github/workflows/deploy.yml", "WorkflowyNieWpuszczajaForkowNaWlasneRunneryTest",
+     lambda s: replace_once(s, "#  Repozytorium jest PUBLICZNE (decyzja", "#  Repozytorium jest prywatne (decyzja")),
+    # #2296 (IN-04): runbook #595 przestaje wymieniać wyłącznik włączany przez apply.
+    ("Runbook #595 bez wyłącznika życzeń (#2296)", "docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md", "RunbookApplyNazywaWlaczniki595Test",
+     lambda s: replace_once(s, "| dodanie `KUKING_URODZINY_MAIL_WLACZONY=true`", "| dodanie wyłącznika życzeń")),
+    # #2301 (IN-09): composer.json bez jawnej platformy PHP dla Dependabota.
+    ("Composer bez config.platform.php (#2301)", "composer.json", "ComposerRozwiazujeSieDlaDependabotaTest",
+     lambda s: replace_once(s, '"php": "8.4.1"', '"php": "8.4.0"')),
+    # #2302 (IN-15): nowa migracja dołącza do historycznej grupy znacznika.
+    ("Nowa migracja w starej grupie znacznika (#2302)", "tests/Feature/MigracjeMajaUnikalnyZnacznikCzasuTest.php", "test_kazda_nowa_migracja_ma_wlasny_znacznik_czasu",
+     lambda s: replace_once(s, "'2026_09_26_100000' => 8,", "'2026_09_26_100000' => 7,")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

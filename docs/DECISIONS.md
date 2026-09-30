@@ -19836,6 +19836,18 @@ na prawnika, dla wszystkich zalogowanych (P-7), w tych granicach:
 `CofniecieMigracjiImportuTest`, `ObrazMaNarzedziaPdfTest` — sieć wyłącznie
 przez `Http::fake`, DNS przez podstawioną mapę nazw.
 
+**Uzupełnienie #2293 (30.09.2026, audyt infra IN-01).** Poppler chodzi przez
+Symfony Process, a `docker/php.ini` wyłącza `proc_open`, więc na obrazie
+produkcyjnym odczyt PDF padał zawsze. `php.ini` zostaje bez zmian (WWW dalej
+bez `proc_open`); procesy `queue:work` dostają w `docker/entrypoint.sh` flagę
+`-d disable_functions=` z listą równą tej z `php.ini` minus `proc_open`
+(`FUNKCJE_ZABRONIONE_KOLEJKI`). `exec`, `system`, `popen` i reszta zostają
+wyłączone także w kolejce. Proces bez `proc_open` dostaje nazwane odrzucenie
+„odczyt PDF chwilowo nie działa” i błąd w logu (`TekstZPdf::wymagajUruchamianiaProcesow`).
+Testy: `KolejkaCzytaPdfZProdukcyjnymPhpIniTest` (podproces PHP z produkcyjnym
+`php.ini`) i krok CI „Odczyt PDF w procesie kolejki obrazu (#2293)” na
+zbudowanym obrazie.
+
 **Czego ta decyzja nie zmienia.** Nie otwiera masowego importu ani importu
 z serwisów wymagających logowania; nie pozwala AI „przepisać własnymi słowami"
 cudzego tekstu przed publikacją (to byłoby pranie cudzej treści). Nie zastępuje
