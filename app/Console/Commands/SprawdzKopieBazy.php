@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Domain\Kopie\AlarmKopii;
 use App\Domain\Kopie\StanKopiiBazy;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Czujka: czy kopia bazy poza Railwayem nadal powstaje (issue #193, D-043).
@@ -31,11 +32,7 @@ class SprawdzKopieBazy extends Command
         $wynik = $stan->sprawdz();
 
         match ($wynik['stan']) {
-            StanKopiiBazy::WYLACZONA => $this->warn(
-                'Czujka kopii jest WYŁĄCZONA: bucket nie jest skonfigurowany '
-                .'(AWS_KOPIE_BUCKET). To nie znaczy, że kopie są w porządku — '
-                .'znaczy, że nikt nie patrzy. Patrz docs/infra/KOPIE_I_ODTWORZENIE.md §7.3.',
-            ),
+            StanKopiiBazy::WYLACZONA => $this->zglosWylaczona(),
             StanKopiiBazy::AKTUALNA => $this->info(sprintf(
                 'Kopia jest: najnowsza ma %d h (próg %d h), w buckecie %d kopii.',
                 (int) $wynik['wiek_godzin'],
@@ -61,5 +58,33 @@ class SprawdzKopieBazy extends Command
         return in_array($wynik['stan'], [StanKopiiBazy::AKTUALNA, StanKopiiBazy::WYLACZONA], true)
             ? self::SUCCESS
             : self::FAILURE;
+    }
+
+    /**
+     * Stan WYŁĄCZONA MUSI zostawić ślad w logu produkcji (#2297, IN-05).
+     *
+     * Samo `warn()` trafia do bufora `Artisan::call`, a adapter harmonogramu
+     * (`App\Support\Harmonogram`) czyta ten bufor tylko przy kodzie różnym
+     * od zera. Z harmonogramu w logu zostawało więc samo „DONE", czyli coś,
+     * co wygląda na udane sprawdzenie kopii — przy produkcji bez żadnej kopii.
+     *
+     * `Log::warning`, nie `error`: kanał alarmowy (`blad_webhook`) przyjmuje
+     * dopiero `error`, więc ostrzeżenie idzie do dziennika serwisu, a nie na
+     * Discorda. Jeden wpis na przebieg, a przebieg jest raz na dobę (06:15),
+     * więc bez zalewu alarmów. Kod wyjścia zostaje 0 — uzasadnienie wyżej.
+     */
+    private function zglosWylaczona(): void
+    {
+        $this->warn(
+            'Czujka kopii jest WYŁĄCZONA: bucket nie jest skonfigurowany '
+            .'(AWS_KOPIE_BUCKET). To nie znaczy, że kopie są w porządku — '
+            .'znaczy, że nikt nie patrzy. Patrz docs/infra/KOPIE_I_ODTWORZENIE.md §7.3.',
+        );
+
+        Log::warning(
+            'Kopie bazy NIE są sprawdzane (czujka WYŁĄCZONA) — to nie jest wynik „kopia w porządku”. '
+            .'Ustaw AWS_KOPIE_* według docs/infra/KOPIE_I_ODTWORZENIE.md §7.3.',
+            ['stage' => 'kopie_wylaczone', 'stan' => StanKopiiBazy::WYLACZONA],
+        );
     }
 }

@@ -1296,6 +1296,12 @@ WYŁĄCZONA"** — i to jest ważniejsze niż jej milczenie, bo cisza z powodu
 braku konfiguracji wygląda identycznie jak cisza z powodu „wszystko
 w porządku".
 
+Z harmonogramu (codziennie 06:15) ten sam stan zostawia w logu serwisu
+jedno ostrzeżenie „Kopie bazy NIE są sprawdzane (czujka WYŁĄCZONA)”
+z `stage=kopie_wylaczone` (#2297). Do 30.09.2026 w logu było wtedy samo
+„DONE”. Ostrzeżenie nie idzie na Discorda (kanał alarmów przyjmuje dopiero
+`error`), więc szukaj go w logach Railwaya: `railway logs | grep kopie_wylaczone`.
+
 ### 7.4 Odtworzenie z tej warstwy — BEZ dostępu do aplikacji
 
 Ta procedura **nie potrzebuje Kuking, PHP, Laravela ani konta Railway.**

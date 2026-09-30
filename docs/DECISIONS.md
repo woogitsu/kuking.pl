@@ -18461,7 +18461,11 @@ odkładał albo odrzucał (mail z życzeniami, przypomnienie obserwującym).
    w klasie `podsumowanie`, która gaśnie pierwsza), o stałej porze 08:40 UTC
    z harmonogramu. Po scaleniu **włączona na produkcji**
    (`KUKING_URODZINY_MAIL_WLACZONY` w roli scheduler, `.railway/railway.ts`);
-   staging i PR-y nie wysyłają.
+   staging i PR-y nie wysyłają. **Stan 30.09.2026 (#2296, audyt IN-04):
+   to jeszcze NIE działa** — wartość stoi tylko w `railway.ts`, a
+   `railway config apply` (#595) nie był uruchomiony, więc na produkcji
+   zmiennej nie ma i obowiązuje domyślne `false`. Krok właściciela: W12
+   w `docs/flota/KROKI_WLASCICIELA_2026-09-29.md`.
    **Wypisanie:** podpisany odnośnik w liście prowadzi na stronę z pytaniem —
    **sam GET niczego nie zmienia**, zgodę wycofuje przycisk (POST), a po
    wypisaniu jest „Jednak chcę go dostawać” (wzorem #1403).
@@ -19842,6 +19846,18 @@ na prawnika, dla wszystkich zalogowanych (P-7), w tych granicach:
 `ImportParseryTest`, `ImportTekstZPdfTest`, `ImportPrzepisuZAdresuIPdfTest`,
 `CofniecieMigracjiImportuTest`, `ObrazMaNarzedziaPdfTest` — sieć wyłącznie
 przez `Http::fake`, DNS przez podstawioną mapę nazw.
+
+**Uzupełnienie #2293 (30.09.2026, audyt infra IN-01).** Poppler chodzi przez
+Symfony Process, a `docker/php.ini` wyłącza `proc_open`, więc na obrazie
+produkcyjnym odczyt PDF padał zawsze. `php.ini` zostaje bez zmian (WWW dalej
+bez `proc_open`); procesy `queue:work` dostają w `docker/entrypoint.sh` flagę
+`-d disable_functions=` z listą równą tej z `php.ini` minus `proc_open`
+(`FUNKCJE_ZABRONIONE_KOLEJKI`). `exec`, `system`, `popen` i reszta zostają
+wyłączone także w kolejce. Proces bez `proc_open` dostaje nazwane odrzucenie
+„odczyt PDF chwilowo nie działa” i błąd w logu (`TekstZPdf::wymagajUruchamianiaProcesow`).
+Testy: `KolejkaCzytaPdfZProdukcyjnymPhpIniTest` (podproces PHP z produkcyjnym
+`php.ini`) i krok CI „Odczyt PDF w procesie kolejki obrazu (#2293)” na
+zbudowanym obrazie.
 
 **Czego ta decyzja nie zmienia.** Nie otwiera masowego importu ani importu
 z serwisów wymagających logowania; nie pozwala AI „przepisać własnymi słowami"

@@ -1,9 +1,21 @@
 # ---------------------------------------------------------------------------
 #  CI JEST WŁĄCZONE (D-010, issue #4).
 #
-#  Repozytorium jest prywatne, ale żyje w organizacji `woogitsu` na planie Free,
-#  która ma własną, nieużywaną pulę 2 000 minut Actions miesięcznie.
-#  `./scripts/check.sh` trwa 4-8 minut → 250-500 przebiegów miesięcznie.
+#  Repozytorium jest PUBLICZNE — celowo, decyzją właściciela z 30.09.2026
+#  (#2298). Standardowe runnery GitHuba (`ubuntu-latest`) są dla repozytorium
+#  publicznego darmowe i bez miesięcznego limitu minut
+#  (`docs/decyzje/REPO_PUBLICZNE.md` §1). Dawna pula 2 000 minut dotyczyła
+#  repozytorium prywatnego i nie jest już ograniczeniem (#2302, IN-10).
+#  Ograniczeniem jest czas przebiegu i limit równoległych jobów organizacji.
+#
+#  PR Z FORKA NIGDY NIE IDZIE NA WŁASNE RUNNERY (#2298, IN-06). Każde
+#  `runs-on:` w workflowach uruchamianych przez `pull_request` zaczyna się od
+#  warunku `github.event_name == 'pull_request' &&
+#  github.event.pull_request.head.repo.full_name != github.repository` — PR
+#  z cudzego repozytorium dostaje `ubuntu-latest` bez względu na `CI_RUNS_ON`.
+#  Bez tego ustawienie zmiennej dawałoby autorowi PR-a z forka powłokę na
+#  maszynach właściciela. Pilnuje tego
+#  `tests/Feature/WorkflowyNieWpuszczajaForkowNaWlasneRunneryTest.php`.
 #
 #  Kontrola lokalna ZOSTAJE mimo działającego CI — jest szybsza i łapie błąd,
 #  zanim ten trafi na GitHuba (i zanim zje minuty):
@@ -17,7 +29,7 @@
 #  push na main, `CI_RUNS_ON_BROWSER_MAIN`) — patrz blok „JOB PRZEGLĄDARKOWY"
 #  niżej. Wszystkie POZOSTAŁE joby mają dokładnie to samo:
 #
-#      runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+#      runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
 #
 #  Bez ŻADNEJ z tych dwóch zmiennych joby idą na `ubuntu-latest` — zapas
 #  w runnerach GitHuba JEST i jest wartością domyślną. Żeby wysłać joby na
@@ -71,7 +83,7 @@
 #  pozostałe noszą etykietę `kuking-pr` i obsługują PR-y (i staging). Żaden
 #  runner nie nosi obu etykiet naraz — to jest rezerwacja, nie priorytet.
 #
-#      runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+#      runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
 #
 #  Warunek wybiera `CI_RUNS_ON_MAIN` TYLKO wtedy, gdy przebieg jest PRAWDZIWYM
 #  pushem na `main` (`github.ref == 'refs/heads/main' && github.event_name ==
@@ -148,7 +160,7 @@
 #  Sam `port_funkcje` to ok. 27 min na przebieg — z puli ~500 minut to
 #  około OSIEMNASTU przebiegów, znacznie mniej ciasno niż przy pięciu jobach.
 #
-#      runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_BROWSER_MAIN) || vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
+#      runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_BROWSER_MAIN) || vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
 #
 #  Pozostałe cztery joby (`assets`, `port_panelu`, `port_marki`, `dostepnosc`)
 #  WRÓCIŁY na `CI_RUNS_ON` (własne runnery) — cofnięte do stanu sprzed
@@ -223,8 +235,9 @@
 #  „Wait for CI" — nie wdrażał niczego na produkcję.
 #
 #  Właściciel ma ~2000 niewykorzystanych minut Actions i kazał ich użyć.
-#  Repozytorium jest PRYWATNE, więc minuty są płatne — ale płacą się tylko
-#  wtedy, gdy przebieg idzie na runnery GitHuba. Pełny przebieg ma dziesięć
+#  Do 30.09.2026 repozytorium było prywatne i te minuty były płatne; od tego
+#  dnia jest publiczne, a standardowe runnery GitHuba nic nie kosztują
+#  (#2302, IN-10). Pełny przebieg ma dziesięć
 #  jobów po wydzieleniu portu marki. Czas zależy od zakresu i kolejki runnerów.
 #
 #  JAK WRÓCIĆ NA WŁASNĄ PULĘ — BEZ ZMIANY W KODZIE (od 8 września, wieczór).
@@ -323,7 +336,7 @@ jobs:
   # ===========================================================================
   zakres:
     name: Zakres zmiany
-    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 5
     outputs:
       kod: ${{ steps.sprawdz.outputs.kod }}
@@ -403,7 +416,7 @@ jobs:
     name: Pint (styl kodu)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' || needs.zakres.outputs.dokumenty == 'true'
-    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
     steps:
@@ -546,7 +559,7 @@ jobs:
     needs: zakres
     # Na PR-ze tylko przy zmianie `scripts/*605*`, `scripts/fixtures/obciazenie605/` albo `ci.yml` (wyjście `obciazenie`).
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.obciazenie == 'true'
-    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
     steps:
@@ -567,7 +580,7 @@ jobs:
     name: Larastan (analiza statyczna)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
-    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
     # UWAGA: w repozytorium nie ma jeszcze `phpstan.neon` (issue #32), więc
     # `phpstan analyse` kończyłby się „At least one path must be specified".
@@ -698,7 +711,7 @@ jobs:
     name: Testy (PostgreSQL 18) — ${{ matrix.czesc == 'kontrole' && format('kontrole negatywne, część {0}/3', matrix.kontrole_czesc) || format('część {0}/4', matrix.czesc) }}
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' || needs.zakres.outputs.dokumenty == 'true'
-    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     # 24.09.2026: pełny zestaw trwał 14 min na szybkich runnerach i do 24 min
     # na wolniejszych (i5-6500T, WSL), a przy 25 min przebiegi #1081 i #1464
     # zostały ucięte w trakcie zielonych testów — stąd było 40. Część ma
@@ -982,7 +995,7 @@ jobs:
     name: Testy (PostgreSQL 18)
     needs: [zakres, test]
     if: ${{ !cancelled() }}
-    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 5
     steps:
       - name: Wynik wszystkich części
@@ -1033,7 +1046,7 @@ jobs:
     needs: zakres
     # Na PR-ze tylko przy zmianie kodu, danych albo zaplecza tej grupy (wyjście `wyscigi`).
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.wyscigi == 'true'
-    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
 
     services:
@@ -1115,7 +1128,7 @@ jobs:
     name: Build assetów (Vite)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
-    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
     steps:
@@ -1252,8 +1265,9 @@ jobs:
   # ===========================================================================
   #  4b. Dostępność (axe-core) + wydajność i SEO (Lighthouse) — issue #26
   # ===========================================================================
-  #  URUCHAMIA SIĘ TYLKO PRZY ZMIANACH W WARSTWIE WIDOKU. Repozytorium jest
-  #  prywatne, więc każda minuta Actions kosztuje; ten job podnosi przeglądarkę
+  #  URUCHAMIA SIĘ TYLKO PRZY ZMIANACH W WARSTWIE WIDOKU. Minuty runnerów
+  #  GitHuba są dla repozytorium publicznego darmowe, ale czas przebiegu
+  #  i sloty równoległych jobów nie; ten job podnosi przeglądarkę
   #  i bazę, czyli jest najdroższy z całego CI. Filtr obejmuje także PHP,
   #  które steruje ekranem; sama dokumentacja nie uruchamia pomiaru.
   #
@@ -1294,7 +1308,7 @@ jobs:
     name: Panel marki — puste i pełne widoki
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
-    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 25
     services:
       postgres:
@@ -1390,7 +1404,7 @@ jobs:
     name: Port marki (kompozycje, zoom i kontrole ujemne)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
-    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 25
 
     services:
@@ -1542,7 +1556,7 @@ jobs:
     name: Port marki — rodziny ekranów, zoom i kreator (część ${{ matrix.czesc }}/2)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
-    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_BROWSER_MAIN) || vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_BROWSER_MAIN) || vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
     # #611, etap 9: jeden kawałek trwał 25-30 min (limit 35 min po przebiegu
     # 35241344523), więc dwie części macierzy po ok. 13-15 min każda; limit
     # jak w `port_marki`. Wszystkie kontrole zostają — dzielą się między części.
@@ -1701,7 +1715,7 @@ jobs:
     name: Dostępność (axe-core) i wydajność (Lighthouse)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
-    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 25
 
     services:
@@ -2059,7 +2073,7 @@ jobs:
     name: Martwe reguły CSS (nie blokuje do 06.10.2026)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
-    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 20
     continue-on-error: true
 
@@ -2168,7 +2182,7 @@ jobs:
     name: Audyt zależności (blokuje high i critical)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
-    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
     steps:
@@ -2231,7 +2245,7 @@ jobs:
     needs: zakres
     # Na PR-ze tylko przy zmianie tego, co czyta build obrazu (wyjście `obraz`).
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.obraz == 'true'
-    runs-on: ${{ fromJSON((github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 25
 
     steps:
@@ -2362,6 +2376,40 @@ jobs:
             exit 1
           fi
           echo "OK   brak tinkera i PsySH; php artisan list działa bez zależności dev"
+
+      # Import z PDF uruchamia Popplera przez Symfony Process, a ten wymaga
+      # `proc_open`, wyłączonego w docker/php.ini (#2293, IN-01). Procesy
+      # kolejki dostają go z powrotem flagą z entrypointu; WWW nie. Tu
+      # sprawdzamy to w PRAWDZIWYM obrazie, z jego php.ini i jego Popplerem:
+      #   1. bez flagi (jak FrankenPHP) Process MA paść — kontrola dodatnia,
+      #      że obraz naprawdę wczytał docker/php.ini;
+      #   2. z flagą odczytaną z entrypointu obrazu `pdftotext -v` przez
+      #      Process MA przejść — tak uruchamia go `TekstZPdf` w workerze.
+      # Odpowiednik bez Dockera: tests/Feature/KolejkaCzytaPdfZProdukcyjnymPhpIniTest.php.
+      - name: Odczyt PDF w procesie kolejki obrazu (#2293)
+        run: |
+          set -euo pipefail
+          OBRAZ_APLIKACJI=kuking:ci-${{ github.sha }}
+          SKRYPT='require "/app/vendor/autoload.php"; $p = new Symfony\Component\Process\Process(["pdftotext", "-v"]); $p->run(); exit($p->getExitCode());'
+
+          funkcje=$(docker run --rm "$OBRAZ_APLIKACJI" sed -n 's/^FUNKCJE_ZABRONIONE_KOLEJKI="\(.*\)"$/\1/p' /usr/local/bin/kuking-entrypoint)
+          if [ -z "$funkcje" ]; then
+            echo "BŁĄD: entrypoint obrazu nie definiuje FUNKCJE_ZABRONIONE_KOLEJKI — kolejka nie dostanie proc_open."
+            exit 1
+          fi
+          echo "Lista funkcji wyłączonych dla kolejki: $funkcje"
+
+          if docker run --rm "$OBRAZ_APLIKACJI" php -r "$SKRYPT" >/dev/null 2>&1; then
+            echo "BŁĄD: Process zadziałał BEZ flagi kolejki — obraz nie wczytuje docker/php.ini albo WWW ma proc_open."
+            exit 1
+          fi
+          echo "OK   bez flagi kolejki proc_open jest wyłączony (jak w WWW)"
+
+          if ! docker run --rm "$OBRAZ_APLIKACJI" php -d "disable_functions=${funkcje}" -r "$SKRYPT"; then
+            echo "BŁĄD: proces z flagą kolejki nie uruchomił pdftotext przez Process — import z PDF padnie na produkcji."
+            exit 1
+          fi
+          echo "OK   proces kolejki uruchamia Popplera przez Process"
 
       # =====================================================================
       #  DRUGI OBRAZ: serwis kopii bazy (issue #193, decyzja D-043)

@@ -1,6 +1,7 @@
 # ---------------------------------------------------------------------------
-#  UWAGA: repozytorium jest PRYWATNE, więc minuta GitHub Actions jest płatna
-#  wtedy, gdy przebieg idzie na runnery GitHuba.
+#  Repozytorium jest PUBLICZNE (decyzja właściciela z 30.09.2026, #2298), więc
+#  standardowe runnery GitHuba są darmowe (#2302, IN-10). Ten workflow nie
+#  uruchamia się na `pull_request`, więc PR z forka nie ma do niego dostępu.
 #
 #  Kontrolę robimy lokalnie, za darmo:  ./scripts/check.sh
 #  Instalacja hooka pre-push:           ./scripts/install-hooks.sh

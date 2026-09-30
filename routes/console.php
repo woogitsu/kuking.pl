@@ -428,7 +428,9 @@ Harmonogram::artisan('kuking:odzyskaj-importy')
 //
 // Dopóki bucket R2 nie istnieje, komenda mówi „czujka wyłączona" i nie dzwoni
 // nigdzie — umowa „brak zmiennej = zero efektu", ta sama co przy
-// `LOG_BLAD_WEBHOOK_URL`.
+// `LOG_BLAD_WEBHOOK_URL`. Zostawia za to JEDNO ostrzeżenie w logu na przebieg
+// (`stage=kopie_wylaczone`, #2297): bez niego w logu było samo „DONE",
+// które wyglądało na udane sprawdzenie kopii.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
 Harmonogram::artisan('kuking:sprawdz-kopie')
     ->name('kuking:sprawdz-kopie')

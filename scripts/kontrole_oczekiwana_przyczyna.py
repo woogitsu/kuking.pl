@@ -329,6 +329,15 @@ OCZEKUJ = {
     # #2223 (D-333): tinker poza obrazem produkcyjnym.
     'Tinker wraca do require': r'laravel/tinker wrócił do `require`',
     'Runbook znów każe użyć tinkera': r'MONITORING_BLEDOW\.md każe użyć `php artisan tinker`',
+    # Audyt infra 30.09.2026 (#2293, #2296, #2298, #2301, #2302).
+    'Kolejka traci proc_open (#2293)': r'równa liście z docker/php\.ini minus proc_open|Proces kolejki z produkcyjnym php\.ini nie ma proc_open',
+    'queue:work bez listy funkcji kolejki (#2293)': r'queue:work nie dostaje listy funkcji bez proc_open',
+    'Job PR-a bez straży forka (#2298)': r'może trafić z forka na własny runner',
+    'Bramka deployu bez warunku repozytorium (#2298)': r'bez warunku head_repository\.full_name == github\.repository',
+    'Nagłówek deploy.yml znów o repo prywatnym (#2302)': r'mówi, że repozytorium jest prywatne albo ma pulę 2 000 minut',
+    'Runbook #595 bez wyłącznika życzeń (#2296)': r'runbook .* ich nie wymienia.*KUKING_URODZINY_MAIL_WLACZONY',
+    'Composer bez config.platform.php (#2301)': r'config\.platform\.php = 8\.4\.0 odtwarza błąd #2301|wymagają nowszego PHP niż config\.platform\.php 8\.4\.0',
+    'Nowa migracja w starej grupie znacznika (#2302)': r'Migracja ze znacznikiem czasu, który ma już inna migracja',
 }
 
 
