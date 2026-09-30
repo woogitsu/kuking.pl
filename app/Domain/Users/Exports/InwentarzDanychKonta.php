@@ -157,6 +157,8 @@ final class InwentarzDanychKonta
         'birthday_month' => [self::EKSPORT, 'konto'],
         'birthday_wishes_enabled' => [self::EKSPORT, 'konto'],
         'wants_birthday_email' => [self::EKSPORT, 'konto'],
+        // Sobotnie przypomnienie o produktach do zużycia (#1903) — zgoda.
+        'wants_pantry_reminder' => [self::EKSPORT, 'konto'],
         'birthday_email_sent_on' => [self::EKSPORT, 'konto'],
         'birthday_visible_to_followers' => [self::EKSPORT, 'konto'],
 

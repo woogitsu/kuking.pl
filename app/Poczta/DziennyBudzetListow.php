@@ -467,6 +467,23 @@ final class DziennyBudzetListow
     }
 
     /**
+     * Sobotnie przypomnienie o produktach do zużycia (#1903, D-333): własny
+     * sufit dobowy `kuking.pantry.przypomnienie.dzienny_sufit`, a nad nim
+     * wspólna pula w klasie `podsumowanie` — tej, która gaśnie PIERWSZA.
+     * Przypomnienie nie jest listem niezbędnym do korzystania z konta, więc
+     * nie ma prawa zabrać ostatnich listów doby rejestracji ani logowaniu
+     * linkiem. Osobny klucz licznika: nie zjada puli życzeń ani podsumowań.
+     */
+    public static function dlaPrzypomnienSpizarni(): self
+    {
+        return new self(
+            'przypomnienie-spizarni',
+            'kuking.pantry.przypomnienie.dzienny_sufit',
+            self::wspolny(self::KLASA_PODSUMOWANIE),
+        );
+    }
+
+    /**
      * Zaproszenia do założenia konta — adres BEZ konta (D-085).
      *
      * TEN SUFIT LEŻY WEWNĄTRZ SUFITU LOGOWANIA LINKIEM, a nie obok niego,

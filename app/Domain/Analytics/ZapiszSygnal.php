@@ -81,6 +81,13 @@ final class ZapiszSygnal
 
     public const COOKING_FOLLOWUP_DISMISSED = 'cooking_followup_dismissed';
 
+    /** „Zużyj w pierwszej kolejności” (#1903): zapisano termin, otwarto sekcję, otwarto tryb przepisów. Bez konta i bez nazw produktów. */
+    public const PANTRY_EXPIRY_SET = 'pantry_expiry_set';
+
+    public const PANTRY_PRIORITY_VIEWED = 'pantry_priority_viewed';
+
+    public const PANTRY_COOK_PRIORITY_OPENED = 'pantry_cook_priority_opened';
+
     /**
      * Tygodniowe podsumowanie WPUSZCZONE DO KOLEJKI (issue #11, D-057;
      * przemianowany przy D-078, audyt 10.09.2026 ustalenie MAIL-03).

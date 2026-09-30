@@ -421,6 +421,10 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // `WyslijZyczeniaUrodzinowe` i `ZyczeniaUrodzinowe::send()`.
             'birthday_email_queued_on' => 'date',
             'birthday_visible_to_followers' => 'boolean',
+            // Zgoda na sobotnie przypomnienie o produktach do zużycia (#1903) —
+            // domyślnie wyłączona, zapis tylko przez `PrzestawZgodeNaPrzypomnienieSpizarni`
+            // (dowód w dzienniku zgód). Poza `$fillable`.
+            'wants_pantry_reminder' => 'boolean',
             'is_seeded' => 'boolean',
 
             // Sekret i kody zapasowe 2FA są zaszyfrowane W BAZIE (nie tylko
