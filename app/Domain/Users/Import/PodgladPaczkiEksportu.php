@@ -10,6 +10,7 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Support\LimityTekstuPrzepisu;
+use Illuminate\Support\Facades\DB;
 use JsonException;
 use ZipArchive;
 
@@ -324,8 +325,36 @@ final class PodgladPaczkiEksportu
 
         // Tylko treść tej osoby (`author_id` / `owner_id` z zalogowanego konta),
         // bez skasowanych — skasowany przepis nie jest konfliktem.
-        foreach (Recipe::query()->where('author_id', $user->getKey())->select('title')->cursor() as $przepis) {
-            $this->mojePrzepisy[$this->klucz((string) $przepis->title)] = true;
+        //
+        // Przepis porównujemy ODCISKIEM — tym samym co powtórzenia w paczce
+        // (tytuł, składniki, kroki), a nie samym tytułem (#2314). Baza
+        // dopuszcza kilka przepisów „Sernik”, więc sam tytuł oznaczał jako
+        // „już jest” inny przepis i import go pomijał.
+        $skladniki = DB::table('recipe_ingredients')
+            ->join('recipes', 'recipes.id', '=', 'recipe_ingredients.recipe_id')
+            ->where('recipes.author_id', $user->getKey())
+            ->whereNull('recipes.deleted_at')
+            ->whereNotNull('recipe_ingredients.ingredient_text')
+            ->orderBy('recipe_ingredients.position')
+            ->get(['recipe_ingredients.recipe_id', 'recipe_ingredients.ingredient_text'])
+            ->groupBy('recipe_id');
+        $kroki = DB::table('recipe_steps')
+            ->join('recipes', 'recipes.id', '=', 'recipe_steps.recipe_id')
+            ->where('recipes.author_id', $user->getKey())
+            ->whereNull('recipes.deleted_at')
+            ->whereNotNull('recipe_steps.instruction')
+            ->orderBy('recipe_steps.position')
+            ->get(['recipe_steps.recipe_id', 'recipe_steps.instruction'])
+            ->groupBy('recipe_id');
+
+        foreach (Recipe::query()->where('author_id', $user->getKey())->select(['id', 'title'])->cursor() as $przepis) {
+            $id = $przepis->getKey();
+            $this->mojePrzepisy[$this->odcisk([
+                'przepis',
+                $this->klucz((string) $przepis->title),
+                ($skladniki[$id] ?? collect())->map(fn ($s) => $this->klucz((string) $s->ingredient_text))->values()->all(),
+                ($kroki[$id] ?? collect())->map(fn ($k) => $this->klucz((string) $k->instruction))->values()->all(),
+            ])] = true;
         }
 
         foreach (Post::query()->where('author_id', $user->getKey())->select(['kind', 'title', 'body'])->cursor() as $wpis) {
@@ -502,7 +531,7 @@ final class PodgladPaczkiEksportu
 
         $wPaczce[$odcisk] = true;
 
-        return isset($this->mojePrzepisy[$this->klucz($tytul)])
+        return isset($this->mojePrzepisy[$odcisk])
             ? PozycjaPodgladu::JUZ_JEST
             : PozycjaPodgladu::NOWA;
     }

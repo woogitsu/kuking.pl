@@ -189,7 +189,11 @@ class WczytajPaczkeTest extends TestCase
         $this->przepisWlasny($zenek, 'Rosół z kury');
 
         $dane = $this->szkielet();
-        $dane['przepisy'][] = $this->przepis('Rosół z kury');
+        // Ta sama treść co przepis na koncie — konflikt to odcisk, nie sam tytuł (#2314).
+        $dane['przepisy'][] = $this->przepis('Rosół z kury', [
+            'skladniki' => [['grupa' => null, 'zapis' => '1 cebula', 'uwaga' => null, 'zamienniki' => null]],
+            'kroki' => [['numer' => 1, 'opis' => 'Ugotuj.']],
+        ]);
         $dane['przepisy'][] = $this->przepis('Barszcz');
         $dane['przepisy'][] = $this->przepis('Barszcz');
         $dane['przepisy'][] = $this->przepis('Ukryty', ['status' => Recipe::STATUS_HIDDEN]);
