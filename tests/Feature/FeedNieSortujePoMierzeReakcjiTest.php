@@ -176,6 +176,11 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
             "'(recipes.prep_minutes + recipes.cook_minutes) ASC NULLS LAST'" => 'Drugi człon tej samej reguły: przy '
                 .'remisie krótszy łączny czas przygotowania i gotowania, podany przez autora przepisu. Czas, nie '
                 .'popularność; przepis bez podanego czasu idzie na koniec remisu (ta sama zasada co „Do 30 minut").',
+            "'pilnych_pasuje'" => 'Tryb „Najpierw to, co się psuje" (`?najpierw=termin`, #1903, D-333): alias podzapytania, '
+                .'które liczy MOJE produkty z terminem do dziś + 3 dni (nie mrożone), pasujące do składników TEGO przepisu. '
+                .'Liczy moją własną listę i datę, którą sam wpisałem przy produkcie — nie reakcje innych ludzi. To pierwszy człon '
+                .'jawnej reguły pokazanej na ekranie jednym zdaniem (`CoUgotuje::REGULA_NAJPIERW_TERMIN`); widok domyślny się nie zmienia. '
+                .'Ta sama kategoria co D-285 (dobór po własnej liście).',
         ],
         'app/Domain/Pantry/PodpowiedziSkladnikow.php' => [
             "'char_length(canonical_name), canonical_name'" => 'Kolejność podpowiedzi pod polem „Co masz w domu?": '
