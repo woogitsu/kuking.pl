@@ -106,7 +106,7 @@
                 <button class="btn btn-secondary" type="submit">Licz mnie znowu</button>
             </form>
         @else
-            <p>Liczymy, jak ludzie korzystają z Kuking: na przykład kiedy ktoś ostatnio zajrzał, ile wyszukiwań kończy się bez wyniku i ile osób ogląda strony. Dzięki temu wiemy, co poprawić. Możesz się temu sprzeciwić. Wtedy nie zapisujemy Twoich wizyt ani tego, co robisz w serwisie, a po zalogowaniu Twoje strony nie mają skryptu statystyki odwiedzin Cloudflare.</p>
+            <p>Liczymy, jak ludzie korzystają z Kuking: na przykład kiedy ktoś ostatnio zajrzał, ile wyszukiwań kończy się bez wyniku i ile osób ogląda strony. Dzięki temu wiemy, co poprawić. Możesz się temu sprzeciwić. Wtedy nie zapisujemy Twoich wizyt ani tego, co robisz w serwisie, a po zalogowaniu Twoje strony nie mają skryptu statystyki odwiedzin Cloudflare. Nie zaproponujemy Ci też wtedy dodania Kuking do ekranu telefonu, bo ta podpowiedź korzysta z daty ostatniej wizyty.</p>
             <form method="POST" action="{{ route('settings.privacy.sprzeciw-statystyk') }}">
                 @csrf
                 <button class="btn btn-secondary" type="submit">Nie licz mnie w statystykach</button>
