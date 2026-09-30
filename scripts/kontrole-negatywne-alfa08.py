@@ -2047,6 +2047,11 @@ checks = [
      lambda s: replace_once(s, "action=\"{{ route('login') }}\" novalidate>", "action=\"{{ route('login') }}\">")),
     ("Wybór zeszytu bez novalidate", "resources/views/components/wybor-zeszytu.blade.php", "test_kazdy_formularz_w_szablonach_z_natywna_walidacja_ma_novalidate",
      lambda s: replace_once(s, '<form method="POST" action="{{ $action }}" novalidate>', '<form method="POST" action="{{ $action }}">')),
+    # #2308: lista kursorowa bez `KursorListy` wraca do HTTP 500 na zmyślonym `?cursor=`.
+    ("Strona tagu stronicuje gołym cursorPaginate", "app/Http/Controllers/TagController.php", "test_w_app_cursor_paginate_wola_tylko_kursor_listy",
+     lambda s: replace_once(s,
+         "KursorListy::strona($zapytanie, (int) config('kuking.feed.page_size'), ['published_at' => KursorListy::CZAS, 'id' => KursorListy::UUID])",
+         "$zapytanie->cursorPaginate((int) config('kuking.feed.page_size'))")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

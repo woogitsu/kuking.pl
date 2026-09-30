@@ -96,7 +96,17 @@ use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use App\Http\Controllers\ZgodaOdczytuAiController;
 use App\Http\Controllers\ZmianaPolitykiController;
 use App\Http\Controllers\ZmianaRegulaminuController;
+use App\Support\ParametryUuidTras;
 use Illuminate\Support\Facades\Route;
+
+/*
+ * PARAMETR-UUID PRZYJMUJE TYLKO UUID (#2327) — dla każdej trasy w tym pliku.
+ * `/wpisy/abc` nie pasuje do trasy i dostaje 404, zanim cokolwiek dotknie
+ * bazy; trasy API mają to samo przez `whereUuid()`. Lista nazw i powód:
+ * `App\Support\ParametryUuidTras`. Musi stać PRZED pierwszą trasą — Laravel
+ * dopisuje wzorce do trasy w chwili jej rejestracji.
+ */
+Route::patterns(ParametryUuidTras::wzorce());
 
 /*
 |--------------------------------------------------------------------------

@@ -29,11 +29,18 @@ use App\Models\TagHighlight;
 use App\Models\TagPromotion;
 use App\Models\User;
 use App\Models\WeeklyRecipePick;
+use App\Support\ParametryUuidTras;
+use Illuminate\Contracts\Routing\UrlRoutable;
+use Illuminate\Database\Eloquent\Concerns\HasUniqueStringIds;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Reflector;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -344,6 +351,139 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
                 'note' => 'Podtrzymuję decyzję po ponownym sprawdzeniu.',
             ])
             ->assertRedirect();
+    }
+
+    /**
+     * IDENTYFIKATOR, KTÓRY NIE JEST UUID-EM, DAJE 404 — NIGDY 500 (#2327).
+     *
+     * Ta sama tabela przypadków, tylko w każdym adresie po kolei JEDEN
+     * segment-UUID zamieniony na `abc`, a pozostałe zostają prawdziwe. Tak
+     * dochodzimy do drugiego parametru trasy (`/zeszyt/{collection}/osoby/abc`,
+     * `/zglos/post/abc`) — z `abc` w pierwszym trasa kończy się, zanim drugi
+     * w ogóle zostanie przeczytany. Przed #2327 `/zglos/post/abc`,
+     * `/zglos/comment/abc` i `/zglos/cooked_event/abc` kończyły się
+     * `SQLSTATE[22P02]` i HTTP 500 (audyt B2-13).
+     *
+     * Właściciel i moderator razem przechodzą przez każdą bramkę roli, więc
+     * odpowiedź mówi o identyfikatorze, a nie o tym, że ktoś nie miał prawa
+     * wejść. Każde żądanie w osobnym punkcie zapisu: błąd SQL-a zrywa
+     * transakcję testu i bez tego fałszywie „psułby” wszystkie następne.
+     */
+    public function test_identyfikator_ktory_nie_jest_uuid_daje_404_a_nie_500(): void
+    {
+        $this->zbudujSwiat();
+
+        $bledy = [];
+        $sprawdzone = 0;
+        $podpisana = [];
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
+            if ($trasa->getName() !== null) {
+                $podpisana[$trasa->getName()] = in_array('signed', $trasa->gatherMiddleware(), true);
+            }
+        }
+
+        foreach (['wlasciciel', 'moderator'] as $rola) {
+            foreach ($this->przypadki as $przypadek) {
+                $sciezka = (string) parse_url($przypadek['url'], PHP_URL_PATH);
+                $segmenty = explode('/', $sciezka);
+
+                foreach ($segmenty as $i => $segment) {
+                    if (! Str::isUuid($segment)) {
+                        continue;
+                    }
+
+                    $zepsute = $segmenty;
+                    $zepsute[$i] = 'abc';
+                    $adres = implode('/', $zepsute);
+
+                    $this->zaloguj($rola);
+                    DB::beginTransaction();
+                    $kod = $this->from(route('home'))
+                        ->{$przypadek['metoda']}($adres, $przypadek['dane'])
+                        ->getStatusCode();
+                    DB::rollBack();
+                    $sprawdzone++;
+
+                    // 403 zostaje dozwolone tylko tam, gdzie mówi o czymś innym niż
+                    // zepsuty identyfikator: podpis adresu (zmiana segmentu go
+                    // unieważnia) albo rola, która na NIETKNIĘTY adres i tak ma
+                    // odmowę — wtedy Policy prawdziwego zasobu z pierwszego
+                    // segmentu odpowiada, zanim ktokolwiek przeczyta drugi.
+                    $dozwolone = ($podpisana[$przypadek['trasa']] ?? false)
+                        || $przypadek['oczekiwania'][$rola] !== self::WOLNO
+                        ? [403, 404]
+                        : [404];
+
+                    if (! in_array($kod, $dozwolone, true)) {
+                        $bledy[] = "{$przypadek['trasa']} ({$rola}): {$przypadek['metoda']} {$adres} → HTTP {$kod}";
+                    }
+                }
+            }
+        }
+
+        // Pułapka 2: tabela bez ani jednego UUID-u w adresie też byłaby „zielona”.
+        $this->assertGreaterThanOrEqual(120, $sprawdzone,
+            "Sprawdzono tylko {$sprawdzone} zepsutych adresów — tabela przestała nieść identyfikatory.");
+        $this->assertSame([], $bledy,
+            "Identyfikator, który nie jest UUID-em, ma dać 404 (jak nieistniejący zasób):\n  • ".implode("\n  • ", $bledy));
+    }
+
+    /**
+     * KAŻDY PARAMETR TRASY WIĄZANY Z MODELEM PO UUID MA WZORZEC UUID (#2327).
+     *
+     * Wzorzec daje `Route::patterns(ParametryUuidTras::wzorce())` na górze
+     * `routes/web.php` (trasy API: `whereUuid()`). Skan idzie po sygnaturach
+     * kontrolerów: parametr typowany modelem, którego klucz trasy jest
+     * UUID-em (`HasUuids`), bez wzorca w `wheres` to trasa, na której
+     * o odpowiedzi decyduje dopiero zapytanie do bazy.
+     *
+     * I w drugą stronę: nazwa z listy, która wiąże model po czymś innym niż
+     * UUID (np. konto po nazwie), przestałaby pasować do prawdziwych adresów.
+     */
+    public function test_parametr_wiazany_z_modelem_po_uuid_ma_wzorzec_uuid(): void
+    {
+        $bezWzorca = [];
+        $zlaNazwa = [];
+        $zWzorcem = 0;
+
+        foreach (Route::getRoutes()->getRoutes() as $trasa) {
+            foreach ($trasa->signatureParameters(['subClass' => UrlRoutable::class]) as $parametr) {
+                $nazwa = $parametr->getName();
+                $klasa = Reflector::getParameterClassName($parametr);
+                if (! in_array($nazwa, $trasa->parameterNames(), true) || $klasa === null || ! is_subclass_of($klasa, Model::class)) {
+                    continue;
+                }
+
+                $model = new $klasa;
+                $pole = $trasa->bindingFieldFor($nazwa) ?? $model->getRouteKeyName();
+                $poUuid = in_array(HasUniqueStringIds::class, class_uses_recursive($model), true)
+                    && in_array($pole, $model->uniqueIds(), true);
+                $opis = $trasa->uri().' {'.$nazwa.'} → '.class_basename($klasa).'::'.$pole;
+
+                if (! $poUuid) {
+                    if (in_array($nazwa, ParametryUuidTras::NAZWY, true)) {
+                        $zlaNazwa[] = $opis;
+                    }
+
+                    continue;
+                }
+
+                if (($trasa->wheres[$nazwa] ?? null) === ParametryUuidTras::WZORZEC) {
+                    $zWzorcem++;
+                } else {
+                    $bezWzorca[] = $opis;
+                }
+            }
+        }
+
+        $this->assertSame([], $bezWzorca,
+            'Parametr wiązany z modelem po UUID bez wzorca UUID. Dopisz nazwę do `ParametryUuidTras::NAZWY` '
+            ."(albo `->whereUuid()` przy trasie):\n  • ".implode("\n  • ", $bezWzorca));
+        $this->assertGreaterThanOrEqual(70, $zWzorcem,
+            "Skan znalazł tylko {$zWzorcem} parametrów-UUID ze wzorcem — przestał czytać sygnatury kontrolerów.");
+        $this->assertSame([], $zlaNazwa,
+            "Nazwa z `ParametryUuidTras::NAZWY` wiąże model po czymś innym niż UUID — wzorzec odetnie prawdziwe adresy:\n  • "
+            .implode("\n  • ", $zlaNazwa));
     }
 
     /**

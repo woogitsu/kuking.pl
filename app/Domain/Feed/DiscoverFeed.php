@@ -7,6 +7,7 @@ namespace App\Domain\Feed;
 use App\Models\Hide;
 use App\Models\Post;
 use App\Models\User;
+use App\Support\KursorListy;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\Cursor;
@@ -29,6 +30,13 @@ use Illuminate\Pagination\CursorPaginator;
  */
 final class DiscoverFeed
 {
+    /** Sortowanie listy = kolumny kursora rotacji, w kolejności ORDER BY. */
+    private const KOLUMNY_KURSORA = [
+        'rotacja.runda' => KursorListy::LICZBA,
+        'posts.published_at' => KursorListy::CZAS,
+        'posts.id' => KursorListy::UUID,
+    ];
+
     /**
      * Najdalszy wstecz „stan", jaki przyjmujemy z adresu. Kursor starszy niż
      * doba to zakładka, nie przeglądanie — wtedy lista zaczyna się od
@@ -151,9 +159,9 @@ final class DiscoverFeed
             ->orderBy('rotacja.runda')
             ->orderByDesc('posts.published_at')
             ->orderByDesc('posts.id')
-            // Pusty napis, nie `null`: na `null` Laravel sięga po kursor z adresu
-            // jeszcze raz — ten sam, który właśnie odrzuciliśmy.
-            ->cursorPaginate($perPage, ['*'], 'cursor', $kursor ?? '');
+            // Kursor już sprawdzony wyżej (`kursorRotacji()`); `strona()`
+            // pilnuje jeszcze, że kolumny to naprawdę to sortowanie.
+            ->pipe(fn ($zapytanie) => KursorListy::strona($zapytanie, $perPage, self::KOLUMNY_KURSORA, zAdresu: $kursor !== null));
 
         // Karta nie pokazuje tytułu ani zdjęcia przepisu, którego widz nie
         // zobaczy (issue #1377) — wpis z własną treścią zostaje bez nich.
@@ -172,18 +180,9 @@ final class DiscoverFeed
      */
     private function kursorRotacji(): ?Cursor
     {
-        $kursor = CursorPaginator::resolveCurrentCursor();
-
-        if ($kursor === null) {
-            return null;
-        }
-
-        $parametry = $kursor->toArray();
-        unset($parametry['_pointsToNextItems']);
-        $klucze = array_keys($parametry);
-        sort($klucze);
-
-        return $klucze === ['posts.id', 'posts.published_at', 'rotacja.runda'] ? $kursor : null;
+        // Klucze I typy wartości (#2308): kursor z właściwymi kluczami, ale
+        // z napisem zamiast UUID-u albo czasu, dawał 500 z Postgresa.
+        return KursorListy::zAdresu(self::KOLUMNY_KURSORA);
     }
 
     /**

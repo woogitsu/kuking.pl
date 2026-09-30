@@ -375,6 +375,8 @@ OCZEKUJ = {
     # D-333: obie gałęzie strażnika mówią to samo zdanie (ekran i szablon).
     'Logowanie bez novalidate': r'Formularze? z natywną walidacją bez `novalidate` \(D-333\).*auth/login|Formularze? z natywną walidacją bez `novalidate` \(D-333\).*/login \(gość\)',
     'Wybór zeszytu bez novalidate': r'Formularz z natywną walidacją bez `novalidate` \(D-333\).*components/wybor-zeszytu\.blade\.php',
+    # #2308: kursor z adresu tylko przez KursorListy.
+    'Strona tagu stronicuje gołym cursorPaginate': r'Lista kursorowa bez KursorListy — zmyślony `\?cursor=` da tam HTTP 500 \(#2308\)\. Użyj `KursorListy::strona\(\)`',
 }
 
 
