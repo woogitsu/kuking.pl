@@ -332,3 +332,4 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 - 20:35 PR #2356 (Larastan 3.12 testy) i PR #2357 paczka P (63aa99966, W1–W9, jedna pamięć blokad; kontrola ujemna bezpiecznika transakcji odmówiona przez klasyfikator — do ręcznego sprawdzenia przez właściciela) otwarte. Start integratora Q (1902-alergeny + protokół badania).
 - 20:36 PR #2358 intervention/image 4 (cba62b746; v4 odwraca rotate/flip — poprawiona tabela EXIF, testy na pikselach). Po scaleniu zamknąć #2336.
 - 20:39 UTC: agent Sonnet #2346 (P1 spiżarnia, atomowość migracji 231500) → claude/2346-migracja-rdzeni-atomowa. Czekam na CI: #2356 #2357 #2358 #2335 #2337 #2338.
+- 20:44 UTC: scalone Dependabot #2335 (a290f51c2), #2337 (001ce1ad2), #2338 (0b0fd6a37). composer.lock na main poprawny (validate, wersje 13.33.0 / 1.1.5 / 1.32.1).
