@@ -419,6 +419,16 @@ final class EraseAccountData
             DB::table('wczytane_z_paczki')->where('user_id', $fresh->getKey())->delete();
             app(MagazynPaczek::class)->zapomnijWszystkie($fresh);
 
+            /*
+             * REZERWACJA TYGODNIA PODSUMOWANIA ZNIKA RAZEM Z KONTEM (#2280).
+             *
+             * Wiersz mówi „ta osoba dostała list w tygodniu X". Po wymazaniu
+             * nie ma komu wysyłać, a zostawiony przy zanonimizowanym
+             * `user_id` byłby śladem korzystania z poczty bez terminu.
+             * Jawnie, nie kaskadą — kont się nie kasuje (D-022).
+             */
+            DB::table('weekly_digest_sends')->where('user_id', $fresh->getKey())->delete();
+
             $this->odlaczWiadomosciDoOperatora($fresh);
             $this->odlaczSygnalyProduktowe($fresh);
             $this->odlaczSladyNieudanychListow($fresh);
