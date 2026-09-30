@@ -6,6 +6,9 @@ namespace App\Http\Requests\Recipes;
 
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Media\ZachowaneZdjeciaPrzepisu;
+use App\Domain\Recipes\Alergeny\Alergen;
+use App\Domain\Recipes\Alergeny\DeklaracjaAlergenow;
+use App\Domain\Recipes\Alergeny\OznaczAlergenyPrzepisu;
 use App\Domain\Recipes\KosztPrzepisu;
 use App\Domain\Recipes\StepTimer;
 use App\Domain\Recipes\TekstNaWiersze;
@@ -20,6 +23,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator as ValidatorFactory;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -288,6 +292,12 @@ final class ZapisPrzepisuRequest extends FormRequest
              * chodzić parser.
              */
             'odczyt_sprawdzony' => ['nullable', 'boolean'],
+            // Alergeny według autora (#1902): tylko formularz szczegółów z sekcją
+            // „Alergeny” (znacznik `alergeny_formularz`); brak znacznika = bez zmian.
+            'alergeny_formularz' => ['nullable', 'boolean'],
+            'alergeny' => ['nullable', 'array', 'max:'.count(Alergen::cases())],
+            'alergeny.*' => ['string', Rule::in(Alergen::kody())],
+            'alergeny_potwierdzone' => ['nullable', 'boolean'],
             'skladniki_tekst' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['skladniki_tekst']],
             'przygotowanie_tekst' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['przygotowanie_tekst']],
         ];
@@ -351,6 +361,10 @@ final class ZapisPrzepisuRequest extends FormRequest
             'steps.*.timer_minutes.min' => StepTimer::KOMUNIKAT_UJEMNY,
             'steps.*.timer_minutes.max' => StepTimer::KOMUNIKAT_ZA_DUZO,
             'steps.*.photo.max' => LimityZdjec::komunikatZaDuzyPlik(),
+            'alergeny.array' => 'Nie udało się odczytać zaznaczonych alergenów. Odśwież stronę i zaznacz je jeszcze raz.',
+            'alergeny.max' => 'Zaznaczono za dużo alergenów. Odśwież stronę i zaznacz je jeszcze raz.',
+            'alergeny.*.in' => 'Jeden z zaznaczonych alergenów nie jest na liście. Odśwież stronę i zaznacz alergeny jeszcze raz.',
+            'alergeny.*.string' => 'Jeden z zaznaczonych alergenów nie jest na liście. Odśwież stronę i zaznacz alergeny jeszcze raz.',
             'skladniki_tekst.max' => 'Lista składników jest bardzo długa. Zostaw najwyżej 30 000 znaków — resztę dopisz po opublikowaniu.',
             'przygotowanie_tekst.max' => 'Opis przygotowania jest bardzo długi. Zostaw najwyżej 120 000 znaków — resztę dopisz po opublikowaniu.',
         ];
@@ -359,7 +373,7 @@ final class ZapisPrzepisuRequest extends FormRequest
     /**
      * Druga faza walidacji i dane dla `ZapiszPrzepisZFormularza`.
      *
-     * @return array{recipe: array<string, mixed>, ingredients: list<array<string, mixed>>, steps: array<array-key, array<string, mixed>>}
+     * @return array{recipe: array<string, mixed>, ingredients: list<array<string, mixed>>, steps: array<array-key, array<string, mixed>>, alergeny: ?DeklaracjaAlergenow}
      *
      * @throws ValidationException
      */
@@ -519,7 +533,37 @@ final class ZapisPrzepisuRequest extends FormRequest
             'recipe' => $przepis,
             'ingredients' => $ingredients,
             'steps' => $steps,
+            'alergeny' => $this->deklaracjaAlergenow($data),
         ];
+    }
+
+    /**
+     * Oznaczenie alergenów z formularza szczegółów (#1902) — `null` = ten zapis
+     * nic o alergenach nie mówi (flaga wyłączona, inny ekran, brak znacznika).
+     *
+     * Zaznaczone alergeny bez pola „Składniki sprawdzone” to błąd PRZY POLU
+     * (klucz `alergeny`), ale tylko wtedy, gdy człowiek coś zmienił względem
+     * zapisanego stanu: przepis po zmianie składników (`needs_review`) wraca
+     * do formularza z wczytaną listą i bez potwierdzenia, a zapis takiego
+     * formularza nie może się blokować.
+     *
+     * @param  array<string, mixed>  $data
+     *
+     * @throws ValidationException
+     */
+    private function deklaracjaAlergenow(array $data): ?DeklaracjaAlergenow
+    {
+        if (! (bool) config('kuking.alergeny.wlaczone') || ! $this->boolean('alergeny_formularz')) {
+            return null;
+        }
+
+        $deklaracja = new DeklaracjaAlergenow((array) ($data['alergeny'] ?? []), $this->boolean('alergeny_potwierdzone'));
+
+        if ($deklaracja->wymagaPotwierdzenia() && $deklaracja->rozniSieOd($this->przepis() ?? new Recipe)) {
+            throw ValidationException::withMessages(['alergeny' => OznaczAlergenyPrzepisu::KOMUNIKAT_POTWIERDZ]);
+        }
+
+        return $deklaracja;
     }
 
     /** Identyfikator wpisu z „Dopisz przepis” (#1334) albo `null`. */
