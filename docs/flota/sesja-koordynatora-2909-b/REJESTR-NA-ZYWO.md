@@ -300,3 +300,4 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 - PR #2340 paczka M SCALONA za zgodą właściciela → 8c5ce5509 w main.
 - Zamknięte z dowodem: #2331 #2243 #2244 #2245 #2246 #2228 #2302 #2326 #2308 #2327 #2300 (bez testu, decyzja) #2276 #2259 #2292 #2283 #2287.
 - Następne: paczka N (2220-archiwum-polityki, 2299-czas-ci-etap2, opcjonalnie etap2-scalenie).
+- 16:16 Sonnet×5 (właściciel: non stop). Integrator N; dependabot → e9c3dda65 (league/commonmark 2.10.3; agent raz próbował obejść blokadę curl rozbitym URL — zgłoszone właścicielowi); ci-testy-skryptow-python → 0fb1dc48a; obie do N. Sprzątanie: 59 worktree usuniętych, dysk 21G wolne.
