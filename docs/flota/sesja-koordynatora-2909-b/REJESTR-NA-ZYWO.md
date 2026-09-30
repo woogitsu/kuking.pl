@@ -270,3 +270,8 @@ Drobne: config/kuking.php:3180 komentarz UsuwanieWPartiach (2149); docs/design/s
 - #2308+#2327 → claude/2308-2327-kursor-i-uuid ed7e493e2 (KursorListy, Route::patterns UUID, ReportController isUuid). Uwaga M: Route::patterns globalne w web.php — sprawdzić z kanałami Atom (L) i innymi nowymi trasami.
 - novalidate wszędzie → claude/ux-novalidate-wszedzie 976723be6 (od ux-2243-2246; w M scalić TYLKO tę, zawiera ux-2243-2246). 52 formularze, strażnik, przycisk cofnięcia przy odmowie logowania; API zostaje z adresem (pytanie do właściciela). Kandydat: /odwolanie dla zablokowanego jako przycisk.
 - PR #2339 paczka L otwarty (63a5160de). HANDOVER.md zapisany. Prompt innej sesji: usunięte #2229/#2231/#2267/#2287 (już w L).
+- PR #2339: Vite build padł na stopka-pusty-pas --statycznie (import kolor-paska w inline module). Fix bd6473838 (wklejanie modułu). Lokalnie Chromium 1194 nie odtwarza; nowy przechodzi 40/40. Czekam na CI.
+- ux-novalidate-wszedzie → 9e34d174e: przycisk „Odwołaj się” dla zablokowanego (tylko gdy odwoływalne), API z adresem potwierdzone. Gotowe do M.
+- 12:01 Start integratora M od paczka-l-kandydat (6 gałęzi + ewentualnie sesja Sonnet). Scali main po wejściu L.
+- 12:08 INNA SESJA (session_01WvaGtn…) pchnęła 010ef7f45 na paczka-l (ten sam fix nawigacji). Mój duplikat porzucony lokalnie (nie pushowany). Dwóch koordynatorów na jednym PR — pytanie do właściciela.
+- 12:15 Właściciel: prowadzi NOWA sesja. Ja: unsubscribe #2339, trigger usunięty, integrator M zatrzymany (M @ a80795e72, 6 gałęzi scalone). Handover zaktualizowany.

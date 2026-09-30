@@ -84,3 +84,15 @@ Don't start V2 items from the "Nie wcześnie" list.
 ## Update 30.09 ~12:10 UTC
 - PR #2339: Vite build fixed with bd6473838 (stopka-pusty-pas.mjs inlines kolor-paska.js). Waiting for CI.
 - The paczka M integrator agent started: it builds `claude/paczka-m-kandydat` from `claude/paczka-l-kandydat` with the 6 branches listed above, then merges `origin/main` once L is in. If this session dies, check that branch's log and continue from its last merge.
+
+## Update 30.09 ~12:15 UTC: the owner chose the NEW session to lead
+- The old coordinator session (session_01WgxV2k9UTVzxfsdHYtHjcR) has stood down. It no longer watches PR #2339 and won't push. Its check-in trigger is deleted.
+- The paczka M integrator was STOPPED mid-run. It left `claude/paczka-m-kandydat` @ `a80795e72` with ALL 6 branches merged:
+  - 2331, ux-novalidate-wszedzie, 2228, 2302, 2326, 2308-2327;
+  - plus `novalidate` on the version hide/restore forms (d4d2c7bca) and PHPStan back to zero (a80795e72).
+- Not done on M yet:
+  - merge the latest `claude/paczka-l-kandydat` (010ef7f45 is missing) and `origin/main` once L merges;
+  - `npm run build` with the JS tests, `node scripts/stopka-pusty-pas.mjs --statycznie`, the guards and changed tests, the full PHPUnit run, and migrate/rollback;
+  - check the `Route::patterns` UUID rule against the Atom feed routes;
+  - the branches from the Sonnet session;
+  - open the PR, with Closes #2331 #2243 #2244 #2245 #2246 #2228 #2302 #2326 #2308 #2327.
