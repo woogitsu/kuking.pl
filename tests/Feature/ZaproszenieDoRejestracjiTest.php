@@ -426,6 +426,44 @@ class ZaproszenieDoRejestracjiTest extends TestCase
         $this->assertDatabaseCount('registration_invites', 1);
     }
 
+    /**
+     * Art. 14 RODO (#2219): adres w zaproszeniu podała INNA osoba, więc list
+     * musi sam powiedzieć, kto jest administratorem, po co mu adres, na jakiej
+     * podstawie, jak długo go trzyma, jakie ma prawa odbiorca i gdzie jest
+     * pełna polityka (działający odnośnik).
+     */
+    public function test_wiadomosc_zawiera_informacje_z_art_14_rodo_i_link_do_polityki(): void
+    {
+        Notification::fake();
+
+        $this->wyslijFormularz('trzecia@example.com');
+
+        $html = '';
+        Notification::assertSentOnDemand(
+            ZaproszenieDoZalozeniaKonta::class,
+            function (ZaproszenieDoZalozeniaKonta $powiadomienie, array $kanaly, object $odbiorca) use (&$html): bool {
+                $html = (string) $powiadomienie->toMail($odbiorca)->render();
+
+                return true;
+            },
+        );
+
+        $this->assertStringContainsString('Skąd mamy Twój adres', $html);
+        $this->assertStringContainsString((string) config('kuking.podmiot.nazwa_pelna'), $html);
+        $this->assertStringContainsString((string) config('kuking.podmiot.email'), $html);
+        $this->assertStringContainsString('art. 6 ust. 1 lit. f RODO', $html);
+        $this->assertStringContainsString('kasujemy co noc', $html);
+        $this->assertStringContainsString('sprzeciw', $html);
+        $this->assertStringContainsString('UODO', $html);
+        $this->assertStringContainsString('href="'.route('privacy').'"', $html);
+
+        // Odnośnik naprawdę prowadzi do polityki, a ta opisuje ten przepływ.
+        $strona = $this->get(route('privacy'));
+        $strona->assertOk();
+        $strona->assertSee('Zaproszenie do założenia konta', false);
+        $strona->assertSee('art. 14 RODO', false);
+    }
+
     // ------------------------------------------------------------------
     //  Pomocnicze
     // ------------------------------------------------------------------

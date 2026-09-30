@@ -1,4 +1,4 @@
-# Weryfikacja Alfa 0.8
+# Weryfikacja Alfa 0.08
 
 Data: 12 września 2026. PR #483, scalony jako `86f84a422716b44c733cecdd80984d120c4cf84b`.
 Sprawdzony przed scaleniem commit: `37e1627aac159bc1a6649eedfaea6f325c9aaaa3`.

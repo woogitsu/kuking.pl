@@ -60,6 +60,9 @@ final class OdczytZdjeciaKartkiTest extends TestCase
     {
         parent::setUp();
 
+        // Domyślnie import jest wyłączony (D-333, #2214) — te testy sprawdzają włączony.
+        config(['kuking.import.url.wlaczony' => true, 'kuking.import.pdf.wlaczony' => true, 'kuking.import.zrodla.zdjecie' => true]);
+
         Storage::fake('public');
 
         config([

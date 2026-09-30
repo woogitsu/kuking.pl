@@ -231,7 +231,7 @@
         <x-pusty-stan-odkrywania :ileUkrywasz="$ileUkrywasz ?? 0" />
     @elseif($posts->count() === 0)
         <x-empty-state title="Jeszcze nic tu nie ma" action="Dodaj pierwsze zdjęcie" :href="route('posts.create')">
-            Zacznij od zdjęcia tego, co dziś ugotowałeś.
+            Zacznij od zdjęcia tego, co dziś {{ \App\Support\Forma::dla(auth()->user(), 'ugotowałaś', 'ugotowałeś', 'gotujesz') }}.
         </x-empty-state>
     @else
         <div class="stack" id="lista-wpisow">

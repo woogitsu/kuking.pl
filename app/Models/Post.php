@@ -456,9 +456,25 @@ class Post extends Model
      *
      * @param  Builder<Post>  $query
      */
-    public function scopeBezUkrytychOsob(Builder $query, ?User $widz): void
+    public function scopeBezUkrytychOsob(Builder $query, ?User $widz, bool $bezKorelacji = false): void
     {
         if ($widz === null) {
+            return;
+        }
+
+        $aktywne = fn ($q) => $q->whereNull('hides.hidden_until')->orWhere('hides.hidden_until', '>', now());
+
+        if ($bezKorelacji) {
+            // `NOT IN (podzapytanie)` z jawnym `IS NOT NULL`: wiersze „ukryty
+            // wpis" mają `hidden_user_id = NULL`, a jedno `NULL` na liście
+            // `NOT IN` odrzuca wszystkie wyniki. Powód formy: patrz
+            // `scopeWidoczneDla()` i docs/infra/FEED_OBSERWOWANYCH_JIT_599.md.
+            $query->whereNotIn('posts.author_id', fn ($sub) => $sub->select('hides.hidden_user_id')
+                ->from('hides')
+                ->where('hides.user_id', $widz->getKey())
+                ->whereNotNull('hides.hidden_user_id')
+                ->where($aktywne));
+
             return;
         }
 
@@ -466,7 +482,7 @@ class Post extends Model
             ->from('hides')
             ->where('hides.user_id', $widz->getKey())
             ->whereColumn('hides.hidden_user_id', 'posts.author_id')
-            ->where(fn ($q) => $q->whereNull('hides.hidden_until')->orWhere('hides.hidden_until', '>', now())));
+            ->where($aktywne));
     }
 
     /**
@@ -563,6 +579,48 @@ class Post extends Model
     }
 
     /**
+     * TA SAMA REGUŁA CO `zWidocznymPrzepisemAlboWlasnaTrescia()`, zapisana bez
+     * skorelowanych podzapytań (issue #599).
+     *
+     * PO CO DRUGA POSTAĆ
+     * Skorelowany `EXISTS (... WHERE recipes.id = posts.recipe_id ...)` i
+     * `EXISTS (... post_media ...)` w alternatywie (`OR`) planer nalicza CAŁY
+     * — za każdy kandydujący wiersz `posts` osobno. Przy feedzie obserwowanych
+     * (kilka tysięcy kandydatów) szacunek przekraczał `jit_above_cost`, więc
+     * PostgreSQL kompilował zapytanie przez JIT przy KAŻDYM żądaniu
+     * (docs/infra/FEED_OBSERWOWANYCH_JIT_599.md). `IN (podzapytanie)` bez
+     * korelacji planer nalicza raz — a zwraca tyle samo wierszy, co `EXISTS`.
+     *
+     * CENA: podzapytanie o widoczne przepisy i o wpisy ze zdjęciem czyta te
+     * tabele raz na zapytanie, a nie tylko wiersze wskazane przez kandydatów.
+     * Przy dziś zmierzonym rozmiarze (20 tys. przepisów, kilka tys. zdjęć)
+     * to ułamek milisekundy do kilku milisekund; przy wielokrotnie większych
+     * tabelach trzeba to zmierzyć od nowa. Dlatego to osobny scope, dla jednej
+     * listy, a nie zamiennik dla profilu czy strony wpisu — tam kandydatów jest
+     * kilkanaście i skorelowany `EXISTS` jest tańszy.
+     *
+     * Równoważność pilnuje `FeedObserwowanychKosztPlanuTest` (wynik porównany
+     * z zapytaniem sprzed zmiany na tych samych danych).
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeZWidocznymPrzepisemAlboWlasnaTresciBezKorelacji(Builder $query, ?User $widz): void
+    {
+        $query->where(function (Builder $w) use ($widz): void {
+            $w->whereNull('posts.recipe_id')
+                // Własna treść: niepusty tekst (`~ '\S'` = `filled()`) albo zdjęcie.
+                ->orWhereRaw("posts.body ~ '\\S'")
+                ->orWhereIn('posts.id', fn ($zeZdjeciem) => $zeZdjeciem
+                    ->select('post_media.post_id')->from('post_media'))
+                // Zapowiedź: tylko z przepisem, który widz może zobaczyć.
+                ->orWhereIn('posts.recipe_id', Recipe::query()
+                    ->select('recipes.id')
+                    ->published()
+                    ->widoczneDla($widz, bezKorelacji: true));
+        });
+    }
+
+    /**
      * Zdejmuje z wpisów relację przepisu, którego widz nie może zobaczyć —
      * to samo `setRelation('recipe', null)` co `PostController::show()`,
      * tylko jednym zapytaniem na stronę listy (issue #1377). Karta czyta
@@ -643,9 +701,20 @@ class Post extends Model
      * dotyczą różnych tabel i kolumn — połączenie ich wymagałoby warstwy
      * abstrakcji droższej niż problem, który rozwiązuje.
      *
+     *
+     * `$bezKorelacji = true` zapisuje sprawdzenie obserwowania jako
+     * `IN (podzapytanie)` zamiast skorelowanego `EXISTS` — ta sama reguła,
+     * inny plan. W alternatywie (`OR`) planer nalicza skorelowane
+     * podzapytanie za każdy wiersz `posts`; `IN` bez korelacji raz. Włącza to
+     * tylko feed obserwowanych, gdzie kandydatów są tysiące
+     * (docs/infra/FEED_OBSERWOWANYCH_JIT_599.md). Domyślnie zostaje `EXISTS`:
+     * dla małych partii kandydatów (zeszyt, szyna, profil) jest tańszy —
+     * `SzynaOstatnioZapisanychKosztTest` pilnuje, że nie wolno tego zmienić
+     * globalnie.
+     *
      * @param  Builder<Post>  $query
      */
-    public function scopeWidoczneDla(Builder $query, ?User $widz): void
+    public function scopeWidoczneDla(Builder $query, ?User $widz, bool $bezKorelacji = false): void
     {
         $query->enabledKinds();
 
@@ -672,20 +741,28 @@ class Post extends Model
 
         // Własne wpisy widz widzi zawsze — także prywatne. „Poprawne dane
         // nigdy nie znikają": własne archiwum ma być dostępne dla autora.
-        $query->where(function ($w) use ($widzId): void {
+        $query->where(function ($w) use ($widzId, $bezKorelacji): void {
             $w->where('posts.author_id', $widzId)
-                ->orWhere(function ($cudze) use ($widzId): void {
+                ->orWhere(function ($cudze) use ($widzId, $bezKorelacji): void {
                     $cudze->published()
-                        ->where(function ($widok) use ($widzId): void {
+                        ->where(function ($widok) use ($widzId, $bezKorelacji): void {
                             $widok->where('visibility', self::VISIBILITY_PUBLIC)
-                                ->orWhere(function ($obs) use ($widzId): void {
+                                ->orWhere(function ($obs) use ($widzId, $bezKorelacji): void {
                                     $obs->where('visibility', self::VISIBILITY_FOLLOWERS)
-                                        ->whereExists(function ($sub) use ($widzId): void {
-                                            $sub->selectRaw('1')
-                                                ->from('follows')
-                                                ->where('follows.follower_id', $widzId)
-                                                ->whereColumn('follows.followed_id', 'posts.author_id');
-                                        });
+                                        ->when(
+                                            $bezKorelacji,
+                                            fn ($q) => $q->whereIn('posts.author_id', function ($sub) use ($widzId): void {
+                                                $sub->select('follows.followed_id')
+                                                    ->from('follows')
+                                                    ->where('follows.follower_id', $widzId);
+                                            }),
+                                            fn ($q) => $q->whereExists(function ($sub) use ($widzId): void {
+                                                $sub->selectRaw('1')
+                                                    ->from('follows')
+                                                    ->where('follows.follower_id', $widzId)
+                                                    ->whereColumn('follows.followed_id', 'posts.author_id');
+                                            }),
+                                        );
                                 });
                         });
                 });

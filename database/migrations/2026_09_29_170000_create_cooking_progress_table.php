@@ -20,8 +20,8 @@ use Illuminate\Support\Facades\Schema;
  * tabeli `users` (AGENTS.md §6).
  *
  * CO SYNCHRONIZUJEMY: wyłącznie odhaczone kroki, po ID kroku (nie po
- * numerze — #756). Składniki „przygotowane” (#2069), porcje i minutniki zostają
- * w przeglądarce, jak dotąd.
+ * numerze — #756). Składniki „przygotowane” (#2069) i porcje dochodzą w etapie 2
+ * (migracja `2026_09_29_193700`); minutniki zostają w przeglądarce.
  *
  * RETENCJA: `expires_at` (domyślnie 24 godziny od ostatniej zmiany,
  * `config('kuking.cooking_progress.retention_hours')`). Wygasły wiersz jest

@@ -1,10 +1,12 @@
 # Regulamin Kuking.pl
 
-> **Ten dokument opisuje stan serwisu na 26 września 2026 i jest aktualizowany razem z nim.**
+> **Ten dokument opisuje stan serwisu na 30 września 2026 i jest aktualizowany razem z nim.**
 
 ---
 
 ## Co się zmieniło
+
+**30 września 2026.** Dopisaliśmy punkt 13 **Wymagania techniczne** (czego potrzebujesz, żeby korzystać z Kuking, i jakie zdjęcia przyjmujemy) oraz punkt 14 **Reklamacje** (gdzie i jak złożyć reklamację, w jakim terminie odpowiadamy i co możesz zrobić, jeśli odpowiedź Ci nie wystarcza). Zmiana opisuje, jak serwis już działa, i dopisuje sposób składania reklamacji: nie dodaje Ci obowiązków i nie odbiera żadnych praw. Obowiązuje od dnia publikacji.
 
 **26 września 2026.** W punkcie 2 dopisaliśmy, jak dobieramy wpisy na Starcie, w „Świeżo z Kuking” i na tablicy na dziś, oraz odnośnik do strony **Jak dobieramy wpisy** (`/jak-dobieramy-wpisy`). Zmiana opisuje, jak serwis już działa: nie dodaje Ci obowiązków i nie zmienia Twoich praw.
 
@@ -151,7 +153,44 @@ Możemy zmieniać ten Regulamin — np. gdy zmienia się prawo albo dodajemy now
 
 ## 12. Prawo właściwe i spory
 
-Ten Regulamin podlega prawu polskiemu. Spory rozstrzygają sądy właściwe według przepisów prawa polskiego — jeśli jesteś konsumentem, są to zasady ogólne, których ten Regulamin nie zmienia i nie może zmienić na Twoją niekorzyść. Zanim sprawa trafi do sądu, napisz do nas: większość spraw da się zamknąć rozmową.
+Ten Regulamin podlega prawu polskiemu. Spory rozstrzygają sądy właściwe według przepisów prawa polskiego — jeśli jesteś konsumentem, są to zasady ogólne, których ten Regulamin nie zmienia i nie może zmienić na Twoją niekorzyść. Zanim sprawa trafi do sądu, napisz do nas: większość spraw da się zamknąć rozmową. Jak złożyć reklamację, opisuje punkt 14.
+
+## 13. Wymagania techniczne
+
+Kuking działa w przeglądarce internetowej — nie trzeba instalować żadnej aplikacji. Żeby z niego korzystać, potrzebujesz:
+- **urządzenia z dostępem do internetu** — telefonu, tabletu albo komputera;
+- **aktualnej przeglądarki internetowej**, na przykład Chrome, Edge, Firefox albo Safari. Serwis jest przygotowany dla wersji co najmniej: Chrome i Edge 111, Safari 16.4, Firefox 128. W starszych przeglądarkach strony mogą wyglądać lub działać nieprawidłowo;
+- **włączonego JavaScriptu** — bez niego nie zadziała część formularzy, m.in. zakładanie konta, logowanie i odzyskiwanie hasła, które sprawdzają, czy wypełnia je człowiek;
+- **włączonych plików cookies** — bez nich nie da się pozostać zalogowanym i wysłać formularza (jakich cookies używamy, opisuje Polityka Prywatności, `/prywatnosc`);
+- do założenia konta — **adresu e-mail, do którego masz dostęp**. Wysyłamy na niego link potwierdzający konto, a później na przykład link do ustawienia nowego hasła.
+
+Na telefonie możesz dodać Kuking do ekranu głównego, żeby otwierać go jak aplikację. Nie jest to potrzebne do korzystania z serwisu. Bez połączenia z internetem Kuking nie działa — zobaczysz wtedy tylko informację, że połączenia nie ma.
+
+**Zdjęcia**, które dodajesz do wpisów i przepisów, muszą spełniać te warunki:
+- format **JPG, PNG, WebP albo AVIF**;
+- jedno zdjęcie może ważyć najwyżej **15 MB** i mieć najwyżej **50 megapikseli**;
+- jeden wpis może mieć najwyżej **6 zdjęć**.
+
+Zdjęć w formacie **HEIC** (tak domyślnie zapisuje zdjęcia iPhone) na razie nie przyjmujemy. Gdy wybierzesz takie zdjęcie, serwis powie Ci, jak zapisać je jako JPG.
+
+## 14. Reklamacje
+
+Jeśli Kuking nie działa tak, jak opisuje ten Regulamin — na przykład nie możesz korzystać ze swojego konta, zniknęła Twoja treść albo jakaś funkcja nie działa — możesz złożyć reklamację.
+
+**Gdzie ją złożyć.** Napisz na adres **biuro@samsufi.pl** albo wyślij list na adres: SAMSUFI Spółka z ograniczoną odpowiedzialnością, ul. Jagiellońska 4A, 19-120 Knyszyn. Najlepiej zacznij wiadomość od słowa „Reklamacja”.
+
+**Co w niej napisać.** Żebyśmy mogli sprawę sprawdzić, podaj:
+- adres e-mail, na który masz konto w Kuking (jeśli sprawa dotyczy konta),
+- co nie działa i kiedy to zauważono,
+- czego oczekujesz, na przykład przywrócenia dostępu do konta.
+
+Jeśli czegoś zabraknie, a bez tego nie da się sprawy sprawdzić, poprosimy o uzupełnienie. Reklamację rozpatrzymy także wtedy, gdy nie jest napisana według tego wzoru.
+
+**Kiedy odpowiemy.** Odpowiemy w ciągu **14 dni** od otrzymania reklamacji — e-mailem na adres, z którego przyszła, albo listem, jeśli reklamacja przyszła pocztą.
+
+**Czego ten tryb nie dotyczy.** Jeśli nie zgadzasz się z naszą decyzją o Twojej treści albo koncie (ukrycie, usunięcie, blokada), skorzystaj z odwołania opisanego w punkcie 8. Cudze treści, które naruszają zasady, zgłaszaj przyciskiem „Zgłoś” (punkt 7).
+
+**Jeśli odpowiedź Ci nie wystarcza.** Jeśli jesteś konsumentem, możesz skorzystać z bezpłatnej pomocy miejskiego lub powiatowego rzecznika konsumentów albo zwrócić się do wojewódzkiego inspektoratu Inspekcji Handlowej o pozasądowe rozwiązanie sporu. Udział w takim postępowaniu jest dobrowolny dla obu stron. Informacje o tych możliwościach znajdziesz na stronie Urzędu Ochrony Konkurencji i Konsumentów: prawakonsumenta.uokik.gov.pl. Zawsze możesz też skierować sprawę do sądu (punkt 12).
 
 ---
 
@@ -159,3 +198,5 @@ Ten Regulamin podlega prawu polskiemu. Spory rozstrzygają sądy właściwe wed�
 
 - Regulation (EU) 2022/2065 (Digital Services Act) — Art. 14 (Terms and conditions), Art. 16–18 (notice and action, statement of reasons)
 - Ustawa z dnia 4 lutego 1994 r. o prawie autorskim i prawach pokrewnych — Art. 1, Art. 81
+- Ustawa z dnia 18 lipca 2002 r. o świadczeniu usług drogą elektroniczną — Art. 8 (regulamin: wymagania techniczne, tryb reklamacji)
+- Ustawa z dnia 30 maja 2014 r. o prawach konsumenta — Art. 7a (termin odpowiedzi na reklamację)

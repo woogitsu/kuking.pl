@@ -276,6 +276,33 @@ class Wzorce(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "Dwie kontrole"):
             n.sprawdz_wzorce(self.CHECKS + [("A", "p", "T", lambda s: s)], {"A": "x", "B": "y"})
 
+    def test_preflight_z_wymaganiem_odrzuca_nowy_wpis_bez_wzorca_z_nazwa(self):
+        # Strażnik #1011: WYMAGAJ_WZORCA=True w skrypcie kontroli oznacza, że
+        # `sprawdz_wzorce(..., wymagaj=True)` odmawia PRZED jakimkolwiek testem.
+        with self.assertRaisesRegex(RuntimeError, r"Kontrole bez wzorca oczekiwanej przyczyny.*: B$"):
+            n.sprawdz_wzorce(self.CHECKS, {"A": "x"}, wymagaj=True)
+        self.assertEqual([], n.sprawdz_wzorce(self.CHECKS, {"A": "x", "B": "y"}, wymagaj=True))
+        # bez wymagania (tryb `--tylko`) ta sama luka jest tylko raportowana
+        self.assertEqual(["B"], n.sprawdz_wzorce(self.CHECKS, {"A": "x"}, wymagaj=False))
+
+
+class SkryptKontroli(unittest.TestCase):
+    """Skrypt kontroli ma wymagać wzorca i przekazywać to wymaganie do preflightu."""
+
+    ZRODLO = (Path(__file__).resolve().parents[2] / "scripts" / "kontrole-negatywne-alfa08.py").read_text()
+
+    def test_wymagaj_wzorca_jest_wlaczone(self):
+        self.assertRegex(self.ZRODLO, r"(?m)^WYMAGAJ_WZORCA = True$")
+
+    def test_preflight_i_przebieg_dostaja_wymaganie(self):
+        self.assertIn("sprawdz_wzorce(checks, OCZEKUJ, wymagaj=WYMAGAJ_TERAZ)", self.ZRODLO)
+        self.assertIn("wymagaj_wzorca=WYMAGAJ_TERAZ", self.ZRODLO)
+        self.assertRegex(self.ZRODLO, r"(?m)^WYMAGAJ_TERAZ = WYMAGAJ_WZORCA and not TYLKO$")
+
+    def test_preflight_stoi_przed_pierwszym_testem(self):
+        self.assertLess(self.ZRODLO.index("sprawdz_wzorce(checks, OCZEKUJ, wymagaj=WYMAGAJ_TERAZ)"),
+                        self.ZRODLO.index("run_test(test, True)"))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)

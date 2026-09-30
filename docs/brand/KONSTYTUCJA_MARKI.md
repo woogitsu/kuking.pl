@@ -1,9 +1,9 @@
 # Konstytucja marki Kuking
 
 Wersja 1.17, 17 września 2026. Kierunek pełnego portu zaakceptowany przez
-właściciela i wdrożony jako Alfa 0.9 (PR #488, D-206).
+właściciela i wdrożony jako Alfa 0.09 (PR #488, D-206).
 Ten dokument opisuje standard marki. Zakres dowodów oraz ograniczenia
-odbioru zawiera [raport Alfa 0.9](../design/WERYFIKACJA_ALFA_09.md).
+odbioru zawiera [raport Alfa 0.09](../design/WERYFIKACJA_ALFA_009.md).
 Nowszą inwentaryzację tras i rozdzielenie dowodów kodu, przeglądarki oraz
 produkcji zawiera [audyt kompletności Alfa 0.14](../design/AUDYT_KOMPLETNOSCI_MARKI_ALFA_014.md).
 Wdrożenie kierunku nie jest równoznaczne z pełnym odbiorem wszystkich stanów.

@@ -124,6 +124,32 @@ class PodbicieWersjiWymagaWpisuWChangelogTest extends TestCase
     }
 
     /**
+     * D-333: wydania 0.01–0.09 mają zero wiodące (inaczej „0.9” czyta się jak 0.90,
+     * czyli więcej niż 0.77), a porządek 0.09 < 0.10 < 0.77 liczymy liczbowo.
+     *
+     * @bez-kontroli-dodatniej Sprawdzono ręcznie: nagłówek „Alfa 0.9” w CHANGELOG.md czerwieni ten test (1 nieudana asercja), przywrócony — zielony.
+     */
+    public function test_stare_wydania_maja_zero_wiodace_i_porzadek_jest_liczbowy(): void
+    {
+        $tresc = (string) file_get_contents(base_path('CHANGELOG.md'));
+
+        $this->assertSame(
+            0,
+            preg_match('/^##\s+(?:Alfa|Beta)\s+0\.[1-9]\s+—/mu', $tresc),
+            'CHANGELOG.md: nagłówek wydania 0.1–0.9 bez zera wiodącego — zapisz 0.01–0.09 (D-333).',
+        );
+        $this->assertSame(
+            1,
+            preg_match('/^##\s+Alfa\s+0\.09\s+—/mu', $tresc),
+            'CHANGELOG.md powinien mieć nagłówek „## Alfa 0.09 — …”.',
+        );
+
+        $numery = $this->numeryWersji("## Alfa 0.77 — a\n\n## Alfa 0.10 — b\n\n## Alfa 0.09 — c\n\n## Alfa 0.01 — d\n");
+        $this->assertSame([77, 10, 9, 1], $numery);
+        $this->assertSame([], $this->bledyNumeracji($numery));
+    }
+
+    /**
      * Numery N z nagłówków „## Alfa 0.N — …" / „## Beta 0.N — …", od góry.
      *
      * @return list<int>

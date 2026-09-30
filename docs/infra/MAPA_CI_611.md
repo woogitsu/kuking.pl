@@ -37,7 +37,7 @@ naprawienie CI ponowi wcześniejsze wdrożenie.
 Po naprawie trzeba potwierdzić SHA rzeczywiście działającej wersji i w razie
 potrzeby jawnie wznowić wdrożenie przez kolejkę operacyjną.
 
-## Mapa wszystkich 23 jobów
+## Mapa wszystkich 24 jobów
 
 Warunek **K** to `needs.zakres.outputs.kod == 'true'`; **W** to dodatkowo
 `needs.zakres.outputs.widok == 'true'`. „CI” poniżej oznacza push i PR do
@@ -52,12 +52,13 @@ Zmiana konfiguracji CI jest traktowana jak kod i warstwa widoku.
 | ci / `przyrzad_605` | CI, zakres, K | Testuje przyrząd obciążeniowy na serwerze kontrolnym, m.in. timeout i przerwanie | Raport po zerwaniu lub przekroczeniu czasu może udawać wiarygodny pomiar wydajności. To nie test obciążeniowy produkcji. |
 | ci / `static-analysis` | CI, zakres, K | PHPStan, jeśli istnieje konfiguracja | Utrata analizy typów; sam zielony PHPUnit tego nie zastąpi. Warunek istnienia konfiguracji pozostaje osobnym kandydatem do przeglądu. |
 | ci / `test` | CI, zakres, K; macierz: 4 części testów i 3 części kontroli ujemnych, każda na własnym PostgreSQL; wymagany check „Testy (PostgreSQL 18)” to job zbiorczy `testy`, który czeka na wszystkie 7 | Migracja, odtworzenie migracji (w części 3 kontroli), kontrole ujemne (`--czesc N/3`, wpis `checks` o indeksie i w części `i % 3 + 1`), testy aplikacji | Brak głównej kontroli zachowania, schematu i przyrządów regresyjnych. |
-| ci / `dwa-polaczenia` | CI, zakres, K; własny PostgreSQL | Wyścigi dwóch połączeń; job `continue-on-error: true` | Zniknie sygnał o błędach współbieżności niewidocznych w transakcjach pojedynczego testu. D-105 wymaga stabilności, dokumentuje początkowe 20 zielonych przebiegów i zabrania blokującej bramki dla migającej grupy. |
+| ci / `dwa-polaczenia` | CI, zakres, K i `wyscigi`; własny PostgreSQL | Wyścigi dwóch połączeń; **blokuje** (bez `continue-on-error`, #611 etap 9) | Zniknie sygnał o błędach współbieżności niewidocznych w transakcjach pojedynczego testu. Flagę zdjęto po spełnieniu warunku z D-105: 38 zielonych przebiegów (11 `main`, 27 PR), zero czerwonych kroków, 2,0–4,5 min. Strażnik: `WyscigiDwochPolaczenBlokujaCiTest`. |
 | ci / `assets` | CI, zakres, K | Buduje Vite, sprawdza manifest i zachowanie CSS przy skalowaniu | Możliwy poprawny PHP z niedziałającym lub nieczytelnym frontendem. |
 | ci / `port_panelu` | CI, zakres, K (bez W); własna baza i blokada przeglądarki | Pusty/pełny panel, dane 600, TOTP, artefakty | Zniknie odbiór panelu i jego stanów, których zwykły port marki nie pokrywa. |
 | ci / `port_marki` | CI, zakres, K+W; własna baza i blokada przeglądarki | Grupa bazowa ekranów, zoom, kompozycje i kontrole ujemne | Regresje układu, czytelności i nieskutecznych pomiarów mogą przejść. |
-| ci / `port_funkcje` | CI, zakres, K+W; osobna baza i checkout | Rozszerzenia portu, kreator i minutnik | Brak pokrycia rodzin ekranów oraz interakcji nieobecnych w grupie bazowej. Scalenie baz grozi wzajemnym niszczeniem fixture. |
+| ci / `port_funkcje` | CI, zakres, K+W; macierz 2 części (`czesc: [1, 2]`), każda z osobną bazą i checkoutem | Część 1: `PORT_GRUPA=rozszerzenia-1` (kompozycje, zeszyty, zwarte kolumny, PWA, tagi itd.) + kroki kreatora i autozapis. Część 2: `rozszerzenia-2` (nawigacja-492, zoom 200%) + strona nieaktualna i minutnik | Brak pokrycia rodzin ekranów oraz interakcji nieobecnych w grupie bazowej. Podział (#611 etap 9) zastąpił jeden kawałek 25–30 min dwoma po ok. 13–15 min; grupa `rozszerzenia` zostaje aliasem obu części do uruchomień lokalnych. Strażnicy: `port-grupy.test.mjs` i `PortMarkiMaWlasnaBramkeCiTest` (część macierzy = `GRUPY`, każdy krok w dokładnie jednej części). |
 | ci / `dostepnosc` | CI, zakres, K+W; własna baza i blokada przeglądarki | Aktualizacja service workera, listy, kafel, fokus, axe i Lighthouse, kontrole ujemne | Brak odbioru dostępności, wydajności i aktualizacji PWA; sam build tych usterek nie znajdzie. |
+| ci / `kaskada` | CI, zakres, K+W; własny PostgreSQL, Chromium z Playwrighta; `continue-on-error: true` **do 06.10.2026, potem blokujący (#960)** | Strażnik martwych reguł CSS (D-223): `scripts/kaskada-kontrola-polecenie.sh` buduje arkusz i pyta `getComputedStyle`, czy deklaracja z warstwy wcześniejszej cokolwiek zmienia; zawężenie `--tylko .przepis-liczba` w jednym miejscu, samokontrola kończy się kodem 2, gdy zawężenie nie objęło ani jednej reguły z nosicielem | Deklaracje w całości przykryte przez późniejszą warstwę zostają w repozytorium z komentarzami opisującymi stan, którego przeglądarka nie widzi. Job jest osobny, żeby flaga nieblokowania nie objęła blokujących axe i Lighthouse'a z `dostepnosc`. Ten sam pomiar lokalnie: `./scripts/check.sh --dostepnosc` (krok nieblokujący, ostrzeżenie zamiast błędu). |
 | ci / `audit` | CI, zakres, K | Audyt Composer i npm, także zależności deweloperskich; same kroki audytu nieblokujące | Utrata sygnału o znanych podatnościach. Przygotowanie środowiska nadal może oblać job — komentarz „nigdy nie blokuje” nie jest pełnym opisem. |
 | ci / `docker-build` | CI, zakres, K | Buduje bez publikacji obraz aplikacji i backupu; sprawdza rozszerzenia, brak klucza, pg_dump 18, użytkownika i odmowę bez konfiguracji | Testy PHP mogą przejść, a właściwy obraz nie uruchomi aplikacji lub bezpiecznej kopii zapasowej. |
 | deploy / `audit_ci` | `deployment_status` ze statusem success; bez `needs` | Porównuje SHA wdrożenia z zakończonym CI (`scripts/ci-po-wdrozeniu.mjs`); alarm po fakcie, nie bramka | Cichy rozjazd: wdrożenie SHA, którego CI nie zakończyło się zielono (Railway przepuszcza anulowane CI, jeśli inny workflow miał success). |
@@ -129,7 +130,7 @@ Własny odczyt API GitHub 20.09.2026 (bez zmiany ustawień):
 | Ustawienie | Wynik |
 |---|---|
 | Zmienna repozytorium `CI_RUNS_ON` | `"ubuntu-latest"`, updated_at `2026-09-20T16:27:59Z` |
-| Wszystkie 23 joby w kodzie | `fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"')` |
+| Wszystkie 23 joby w kodzie (stan z 20.09.2026, przed jobem `kaskada`) | `fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"')` |
 | `delete_branch_on_merge` | `true` |
 | Ochrona `main` | Endpoint protection: HTTP 404, „Branch not protected” |
 | Rulesets | Endpoint repozytorium: `[]` |
@@ -159,9 +160,9 @@ upoważnia do usuwania lokalnych worktree ani wspólnego stosu stash.
    archiwum. Sama data ostatniego commita nie świadczy o zbędności gałęzi.
 3. **Ciężkie pomiary.** Obecny podział K/W już istnieje, `port_panelu` nadal
    działa dla K. Zawężenie panelu wymaga mapy zależności fixture/kodu, a
-   obowiązkowy `dwa-polaczenia` — odbioru bieżącej stabilności według D-105.
-   Historyczne 20 zielonych wyników nie jest pomiarem dzisiejszej wersji.
-   Nie usunięto pomiarów.
+   `dwa-polaczenia` — od etapu 9 obowiązkowy, po zmierzeniu stabilności
+   według D-105 (38 zielonych przebiegów z 29.09.2026). `port_funkcje` podzielono
+   na dwie części macierzy bez usuwania pomiarów. Nie usunięto pomiarów.
 4. **Preview i IaC.** Brak gotowego preview daje porażkę (od #1389), a wyłączony test dymny zostawia powód w podsumowaniu (#611 etap 7); usunięcie preview tłumi błędy,
    apply może przyjąć zmiany destrukcyjne i nie filtruje gałęzi. To nazwane
    granice obecnego kontraktu, nie dowód niepotrzebnych kroków. Ich aktywacja

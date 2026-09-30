@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Dwa;
 
 use App\Models\Recipe;
+use App\Models\RecipeIngredient;
 use App\Models\RecipeStep;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -73,6 +74,52 @@ final class PostepGotowaniaNaDwochPolaczeniachTest extends TestDwochPolaczen
         sort($oczekiwane);
 
         $this->assertSame($oczekiwane, $zapisane, 'Oba odhaczenia muszą przeżyć.');
+        $this->assertSame(3, (int) $wiersz->revision, 'Dwie zmiany = rewizja 1 + 2.');
+    }
+
+    public function test_dwa_urzadzenia_zaznaczajace_rozne_skladniki_naraz_nic_sobie_nie_gubia(): void
+    {
+        $osoba = $this->konto();
+        [$przepis] = $this->przepisZKrokami((string) $osoba->getKey());
+        $skladniki = [];
+        foreach (['mąka', 'jajka', 'sól'] as $i => $tekst) {
+            $skladniki[] = (string) RecipeIngredient::create([
+                'recipe_id' => $przepis->getKey(), 'ingredient_text' => $tekst, 'position' => $i,
+            ])->getKey();
+        }
+
+        $postepId = (string) Str::uuid();
+        DB::table('cooking_progress')->insert([
+            'id' => $postepId,
+            'user_id' => $osoba->getKey(),
+            'recipe_id' => $przepis->getKey(),
+            'done_step_ids' => '[]',
+            'revision' => 1,
+            'expires_at' => now()->addHours(24),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $bariera = $this->bariera('SELECT 1 FROM cooking_progress WHERE id = ? FOR UPDATE', [$postepId]);
+        $pierwszy = $this->wTle('postep-skladnik', ['postep' => $postepId, 'skladnik' => $skladniki[0], 'skladniki' => json_encode($skladniki)]);
+        $this->czekajNaZablokowane(1);
+        $drugi = $this->wTle('postep-skladnik', ['postep' => $postepId, 'skladnik' => $skladniki[1], 'skladniki' => json_encode($skladniki)]);
+        $this->czekajNaZablokowane(2);
+        $this->zwolnijBariere($bariera);
+
+        foreach ([$pierwszy->wynik(), $drugi->wynik()] as $numer => $wynik) {
+            $this->assertBezZakleszczenia($wynik, 'urządzenie '.($numer + 1));
+            $this->assertTrue($wynik['ok'], 'Zapis urządzenia '.($numer + 1).' padł: '.$wynik['komunikat']);
+        }
+
+        $wiersz = DB::table('cooking_progress')->where('id', $postepId)->first();
+        $this->assertNotNull($wiersz, 'Kontrola dodatnia: wiersz postępu musi istnieć.');
+        $zapisane = json_decode((string) $wiersz->prepared_ingredient_ids, true);
+        sort($zapisane);
+        $oczekiwane = [$skladniki[0], $skladniki[1]];
+        sort($oczekiwane);
+
+        $this->assertSame($oczekiwane, $zapisane, 'Oba zaznaczenia składników muszą przeżyć.');
         $this->assertSame(3, (int) $wiersz->revision, 'Dwie zmiany = rewizja 1 + 2.');
     }
 

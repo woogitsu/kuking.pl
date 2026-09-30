@@ -338,6 +338,8 @@ final readonly class WejdzPrzezDostawce
             'email' => (string) $tozsamosc->email,
             'displayName' => $dane['display_name'],
             'username' => $dane['username'],
+            // Źródło akceptacji regulaminu: `rejestracja_google` / `rejestracja_facebook` (#2217).
+            'zrodloAkceptacji' => 'rejestracja_'.$this->dostawca->nazwa(),
             'haslo' => null,
             'emailPotwierdzony' => $tozsamosc->emailPotwierdzony,
             'ip' => $zadanie->ip(),

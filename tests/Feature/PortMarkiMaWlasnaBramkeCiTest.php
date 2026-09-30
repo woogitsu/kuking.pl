@@ -64,12 +64,12 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
         $kroki = 'run: node scripts/kroki-kreatora.mjs';
         $this->assertSame(2, substr_count($this->workflow(), $port));
         $this->assertSame(1, substr_count($this->workflow(), $kroki));
-        foreach (['port_marki' => 'baza', 'port_funkcje' => 'rozszerzenia'] as $name => $group) {
+        foreach (['port_marki' => 'baza', 'port_funkcje' => 'rozszerzenia-${{ matrix.czesc }}'] as $name => $group) {
             $job = $this->job($name);
             $this->assertStringContainsString($port, $job);
             $this->assertStringContainsString('run: node --test scripts/port-grupy.test.mjs', $job);
             $this->assertStringContainsString('PORT_GRUPA: '.$group, $job);
-            $this->assertStringContainsString('timeout-minutes: '.($name === 'port_funkcje' ? 35 : 25), $job);
+            $this->assertStringContainsString('timeout-minutes: 25', $job);
             $this->assertStringContainsString("if: needs.zakres.outputs.kod == 'true'", $job);
             $this->assertStringNotContainsString('continue-on-error:', $job);
             $this->assertStringContainsString('job.services.postgres.ports[5432]', $job);
@@ -85,6 +85,158 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
         foreach (['dostepnosc', 'wydajnosc', 'fokus-karty-dania', 'kafel-dodawania', 'service-worker-aktualizacja'] as $script) {
             $this->assertStringContainsString('run: node scripts/'.$script.'.mjs', $other);
         }
+    }
+
+    /**
+     * #611, etap 9: `port_funkcje` szedł 25 minut w jednym kawałku, więc jest
+     * macierzą dwóch części. Wzór „Podział testów gubi plik": podział nie może
+     * zgubić ani zdublować pomiaru.
+     *
+     *  1. części macierzy = części grupy `rozszerzenia-N` z `scripts/port-grupy.mjs`
+     *     (dopisanie części w jednym miejscu bez drugiego zostawiłoby pomiar
+     *     nigdzie niewykonany);
+     *  2. `port-projektu.mjs` idzie w KAŻDEJ części, bez warunku — to on
+     *     wybiera grupę przez `PORT_GRUPA`;
+     *  3. każdy krok dodatkowy (kreator, autozapis, strona nieaktualna, minutnik)
+     *     stoi w dokładnie jednym kroku, z warunkiem na właściwą część;
+     *  4. żaden warunek `matrix.czesc == N` nie wskazuje części spoza macierzy.
+     */
+    public function test_rozszerzenia_dziela_sie_na_czesci_bez_utraty_pomiaru(): void
+    {
+        $job = $this->job('port_funkcje');
+
+        $this->assertSame(1, preg_match('/^        czesc: \[([\d, ]+)\]$/m', $job, $macierz), 'Brak macierzy `czesc` w port_funkcje.');
+        $czesci = array_map('intval', array_map('trim', explode(',', $macierz[1])));
+        $this->assertGreaterThanOrEqual(2, count($czesci), 'Macierz nie dzieli niczego.');
+        $this->assertSame($czesci, array_values(array_unique($czesci)), 'Macierz powtarza część.');
+
+        $grupy = (string) file_get_contents(base_path('scripts/port-grupy.mjs'));
+        $this->assertSame(1, preg_match("/GRUPY = \[([^\]]+)\]/", $grupy, $lista), 'scripts/port-grupy.mjs nie ma listy GRUPY.');
+        preg_match_all("/'(rozszerzenia-\d+)'/", $lista[1], $wGrupach);
+        $this->assertSame(
+            array_map(static fn (int $c): string => 'rozszerzenia-'.$c, $czesci),
+            $wGrupach[1],
+            'Części macierzy `port_funkcje` rozjechały się z GRUPY w scripts/port-grupy.mjs — jakaś część pomiaru nie idzie nigdzie.',
+        );
+
+        $kroki = preg_split('/^      - /m', $job) ?: [];
+        $krokZ = static function (string $polecenie) use ($kroki): array {
+            return array_values(array_filter($kroki, static fn (string $k): bool => str_contains($k, $polecenie)));
+        };
+
+        $port = $krokZ('run: node scripts/port-projektu.mjs');
+        $this->assertCount(1, $port);
+        $this->assertStringNotContainsString('if:', $port[0], 'Pomiar portu pominięty w którejś części macierzy.');
+
+        foreach ([
+            'run: node scripts/kroki-kreatora.mjs' => 1,
+            'node scripts/kreator-zachowanie.mjs autosave' => 1,
+            'node scripts/kreator-zachowanie.mjs published' => 1,
+            'run: node --test scripts/przegladarka/strona-nieaktualna.test.mjs' => 2,
+            'node scripts/minutnik-regresja.mjs' => 2,
+            'node scripts/minutnik-fokus.mjs' => 2,
+        ] as $polecenie => $czesc) {
+            $krok = $krokZ($polecenie);
+            $this->assertCount(1, $krok, 'Krok `'.$polecenie.'` musi stać w port_funkcje dokładnie raz.');
+            $this->assertStringContainsString('if: matrix.czesc == '.$czesc."\n", $krok[0], '`'.$polecenie.'` nie idzie w części '.$czesc.' albo idzie w obu.');
+            $this->assertContains($czesc, $czesci, 'Część '.$czesc.' nie istnieje w macierzy — `'.$polecenie.'` nie uruchomi się nigdzie.');
+        }
+
+        preg_match_all('/if: matrix\.czesc == (\d+)/', $job, $warunki);
+        foreach ($warunki[1] as $numer) {
+            $this->assertContains((int) $numer, $czesci, 'Warunek wskazuje część spoza macierzy: '.$numer);
+        }
+    }
+
+    /**
+     * STRAŻNIK MARTWYCH REGUŁ CSS MA KTO URUCHOMIĆ — I JEST NIEBLOKUJĄCY (D-223, #960).
+     *
+     * `scripts/kaskada-martwe-reguly.mjs` powstał 20.09.2026 i przez dobę nie
+     * wołał go NIKT — ani `ci.yml`, ani `scripts/check.sh`. Strażnik, którego
+     * nic nie uruchamia, jest dokumentacją zamiaru, a nie bramką. Decyzja
+     * właściciela z 29.09.2026: wpiąć, NAJPIERW NIEBLOKUJĄCO, na tydzień.
+     *
+     * Ten test pilnuje rzeczy, z których każda z osobna daje zieleń bez pomiaru:
+     *
+     * 1. WYWOŁANIE ISTNIEJE, dokładnie raz, we własnym jobie `kaskada`, który ma
+     *    `continue-on-error: true` i jawny komentarz z terminem i numerem
+     *    zgłoszenia — nieblokujący bez terminu zostałby taki na zawsze.
+     * 2. JOB STOI NA BRAMCE ZAKRESU (`kod` i `widok`); filtr `scripts/ci/zakres.sh`
+     *    zna skrypty strażnika sprawdza drugi test tego pliku.
+     * 3. STRAŻNIK STOI PO Chromium i PO `migrate:fresh --seed`. Przed nimi padłby
+     *    na przyrządzie, nie na CSS-ie, i pierwsza czerwień nauczyłaby czytelnika,
+     *    że ta bramka „zawsze się sypie".
+     * 4. IDZIE PRZEZ `scripts/kaskada-kontrola-polecenie.sh`, nie przez gołe
+     *    `node …mjs` z własnymi flagami: zawężenie `--tylko` ma JEDNO miejsce,
+     *    wspólne z kontrolą ujemną. Inaczej bramka i jej dowód mierzyłyby dwa
+     *    różne zakresy.
+     * 5. NIE MA GO w `npm run build` ani w `Dockerfile`: obraz nie ma ani
+     *    przeglądarki, ani bazy.
+     * 6. W `scripts/check.sh` krok jest NIEBLOKUJĄCY (ostrzeżenie, nie `zle`),
+     *    na bazie z rodziny testowej — tej samej co krok axe.
+     *
+     * Termin zdjęcia flagi: 06.10.2026. Gdy job stanie się blokujący, ten test
+     * trzeba zmienić RAZEM z nim — celowo: zdjęcie flagi bez świadomej zmiany
+     * testu ma zapalić czerwień, a nie przejść po cichu.
+     */
+    public function test_straznik_martwych_regul_css_ma_kto_uruchomic_i_jest_nieblokujacy(): void
+    {
+        $wywolanie = 'run: bash scripts/kaskada-kontrola-polecenie.sh';
+
+        $this->assertSame(1, substr_count($this->workflow(), $wywolanie),
+            'Strażnik martwych reguł CSS nie jest wołany dokładnie raz w `ci.yml`.');
+
+        $job = $this->job('kaskada');
+        $this->assertStringContainsString($wywolanie, $job,
+            'Strażnik kaskady stoi poza jobem `kaskada`.');
+        $this->assertStringContainsString("if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'", $job);
+        // Flaga NA POZIOMIE JOBA (cztery spacje), nie na kroku zapisu artefaktu —
+        // ten ma własne `continue-on-error` i samo `assertStringContainsString`
+        // przechodziło po zdjęciu flagi z joba (zmierzone kontrolą ujemną).
+        $this->assertSame(1, preg_match('/^    continue-on-error: true\s*$/m', $job),
+            'Job `kaskada` jest blokujący — decyzja właściciela z 29.09.2026 to najpierw tydzień bez blokowania.');
+        $this->assertStringContainsString('(nie blokuje do 06.10.2026)', $job);
+        $this->assertStringContainsString('job.services.postgres.ports[5432]', $job);
+        $this->assertStringContainsString('uses: actions/checkout@', $job);
+
+        // Komentarz z terminem — czytany z surowego workflow, bo `job()` wycina komentarze.
+        $this->assertStringContainsString('nieblokujący do 06.10.2026, potem blokujący — #960', $this->workflow(),
+            'Brak jawnego komentarza z terminem zdjęcia flagi `continue-on-error`.');
+
+        // Osobny job, żeby flaga nie zjadła axe i Lighthouse'a — te są blokujące.
+        $this->assertStringNotContainsString($wywolanie, $this->job('dostepnosc'));
+        $this->assertStringNotContainsString('continue-on-error: true', $this->job('dostepnosc'));
+
+        $przegladarka = strpos($job, 'npx playwright install chromium');
+        $baza = strpos($job, 'migrate:fresh --seed');
+        $straznik = strpos($job, $wywolanie);
+        $this->assertIsInt($przegladarka);
+        $this->assertIsInt($baza);
+        $this->assertLessThan($straznik, $przegladarka,
+            'Strażnik kaskady stoi PRZED instalacją Chromium — padłby na przyrządzie, nie na CSS-ie.');
+        $this->assertLessThan($straznik, $baza,
+            'Strażnik kaskady stoi PRZED zasianiem bazy — `/przepisy/rosol-babci-zofii` nie istniałoby.');
+
+        // Kontrola ujemna dla tego testu: samo `node scripts/kaskada-martwe-reguly.mjs`
+        // w `ci.yml` obeszłoby wspólne zawężenie i rozjechało bramkę z dowodem.
+        $this->assertStringNotContainsString('node scripts/kaskada-martwe-reguly.mjs', $this->workflow(),
+            'Bramka woła strażnika z pominięciem `kaskada-kontrola-polecenie.sh` — zawężenie `--tylko` ma jedno miejsce.');
+
+        foreach (['package.json', 'Dockerfile'] as $plik) {
+            $this->assertStringNotContainsString('kaskada-martwe-reguly', (string) file_get_contents(base_path($plik)),
+                $plik.': strażnik potrzebuje przeglądarki i bazy, których tam nie ma.');
+        }
+
+        // `scripts/check.sh`: krok nieblokujący, baza z rodziny testowej.
+        $check = (string) preg_replace('/^\s*#.*$/m', '', (string) file_get_contents(base_path('scripts/check.sh')));
+        $this->assertSame(1, substr_count($check, 'bash scripts/kaskada-kontrola-polecenie.sh >'),
+            '`scripts/check.sh` nie woła strażnika kaskady dokładnie raz.');
+        $this->assertStringContainsString('DB_DATABASE=kuking_test_a11y bash scripts/kaskada-kontrola-polecenie.sh', $check,
+            'Krok kaskady w `check.sh` ma czytać bazę z rodziny testowej, tę samą co krok axe.');
+        $this->assertSame(1, preg_match('/^krok "Martwe reguły CSS.*?(?=^krok "|\z)/ms', $check, $krok),
+            'Nie znaleziono kroku kaskady w `check.sh`.');
+        $this->assertStringNotContainsString('zle', $krok[0],
+            'Krok kaskady w `check.sh` woła `zle` — to podbija licznik błędów i kończy skrypt kodem 1, a do 06.10.2026 ma tylko ostrzegać.');
     }
 
     /**
@@ -156,7 +308,7 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
         $this->assertStringContainsString('DB_DATABASE: kuking_port_referrer', $referrerJob);
         $this->assertStringNotContainsString('continue-on-error:', $referrerJob);
 
-        foreach (['scripts/port-grupy.mjs', 'scripts/port-grupy.test.mjs', 'scripts/nawigacja-etykiety.mjs', 'scripts/nawigacja-zoom.mjs', 'scripts/nawigacja-negatywy.mjs', 'scripts/szybki-wyglad.mjs', 'scripts/pasek-przewijany.mjs', 'scripts/zwarte-kolumny.mjs', 'scripts/katalog-tagow.mjs', 'scripts/zainteresowania-powiadomienia-marki.mjs', 'scripts/fixtures/kompozycje-513.php', 'resources/css/marka-onboarding.css', 'scripts/lib/stan-ustalony.mjs'] as $path) {
+        foreach (['scripts/port-grupy.mjs', 'scripts/port-grupy.test.mjs', 'scripts/nawigacja-etykiety.mjs', 'scripts/nawigacja-zoom.mjs', 'scripts/nawigacja-negatywy.mjs', 'scripts/szybki-wyglad.mjs', 'scripts/pasek-przewijany.mjs', 'scripts/zwarte-kolumny.mjs', 'scripts/katalog-tagow.mjs', 'scripts/zainteresowania-powiadomienia-marki.mjs', 'scripts/fixtures/kompozycje-513.php', 'resources/css/marka-onboarding.css', 'scripts/lib/stan-ustalony.mjs', 'scripts/kaskada-martwe-reguly.mjs', 'scripts/kaskada-kontrola-polecenie.sh', 'scripts/kaskada-kontrola-ujemna.sh'] as $path) {
             $this->assertSame(1, preg_match($pattern, $path), 'zakres: pominięto '.$path);
         }
 
@@ -303,6 +455,13 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
             //    CI, a dowody zielonego przebiegu nikomu nie są potrzebne.
             preg_match_all('/^        if: (.+)$/m', $job, $warunki);
             foreach ($warunki[1] as $warunek) {
+                // Jedyny dodatkowy warunek: część macierzy `port_funkcje` (#611,
+                // etap 9). Że każda część ma swoje kroki, a numer istnieje
+                // w macierzy, pilnuje `test_rozszerzenia_dziela_sie_na_czesci_bez_utraty_pomiaru`.
+                if ($name === 'port_funkcje' && preg_match('/^matrix\.czesc == \d+$/', trim($warunek)) === 1) {
+                    continue;
+                }
+
                 $this->assertStringNotContainsString('warto', $warunek,
                     $name.': warunek pomijania wrócił na krok — job znowu może być zielony bez pomiaru.');
                 $this->assertStringNotContainsString('steps.zmiany', $warunek,

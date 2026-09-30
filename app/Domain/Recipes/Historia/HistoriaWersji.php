@@ -37,6 +37,17 @@ final class HistoriaWersji
     /** Od ilu wersji historia w ogóle ma sens (jest co porównać). */
     public const MINIMUM_DO_POKAZANIA = 2;
 
+    /**
+     * Drugi warunek bramki: przepis musi być opublikowany. Woła go kontroler
+     * PO `authorize('view')`, więc `RecipePolicy::view` nie jest liczone drugi
+     * raz (zbędne zapytania) — kolejność to: view (403), potem opublikowanie (404).
+     * Dla widza, który nie przeszedł `view`, użyj `wolnoOgladac()`.
+     */
+    public static function opublikowanyPoAutoryzacji(Recipe $recipe): bool
+    {
+        return $recipe->isPublished();
+    }
+
     public static function wolnoOgladac(?User $widz, Recipe $recipe): bool
     {
         return $recipe->isPublished()

@@ -521,6 +521,19 @@ try {
             return $po === null ? -1 : $po->revision;
         })(),
 
+        // Etap 2 (#2016): dwa urządzenia zaznaczają RÓŻNE składniki „przygotowane” naraz.
+        'postep-skladnik' => (function () use ($argumenty): int {
+            $postep = CookingProgress::query()->whereKey($argumenty['postep'])->firstOrFail();
+            $po = app(PostepGotowania::class)->ustawSkladniki(
+                $postep,
+                [$argumenty['skladnik']],
+                [],
+                (array) json_decode($argumenty['skladniki'], true),
+            );
+
+            return $po === null ? -1 : $po->revision;
+        })(),
+
         'postep-wlacz' => (function () use ($argumenty): int {
             return app(PostepGotowania::class)->wlacz(
                 User::query()->whereKey($argumenty['kto'])->firstOrFail(),

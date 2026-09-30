@@ -2911,7 +2911,7 @@ return [
          * przy zmianie, o której ludzie mają się dowiedzieć — literówka
          * w dokumencie to nie powód, żeby zaczepiać każdego.
          */
-        'wersja_regulaminu' => '2026-09-26',
+        'wersja_regulaminu' => '2026-09-30',
 
         /*
          * CZY ZMIANA REGULAMINU JEST ISTOTNA (D-327) — jak `zmiana_polityki`.
@@ -2922,10 +2922,23 @@ return [
          *
          * 26.09.2026 dopisaliśmy opis doboru wpisów (#1811) — opisuje, jak
          * serwis już działa, bez zmiany praw i obowiązków, więc drobna.
+         *
+         * 30.09.2026 (#2220) doszły §13 „Wymagania techniczne” i §14
+         * „Reklamacje”. Drobna, obowiązuje od publikacji — wzorem polityki
+         * 2026-09-30: serwis nie ma prawdziwych użytkowników, więc nikt nie
+         * zna poprzedniej wersji. Klasyfikacja potwierdzona przez właściciela
+         * 29.09 (wiersz #2220 w D-333).
+         *
+         * RÓŻNICA WOBEC POLITYKI (świadoma): pasek „Zmieniliśmy regulamin”
+         * pokazuje się także przy zmianie drobnej — tak każe D-306 i tak
+         * opisuje to D-327 („przy drobnej nie podaje żadnego terminu”).
+         * Pasek polityki jest tylko dla istotnej, bo polityka §9 obiecuje
+         * powiadomienie tylko wtedy (`ZmianaPolityki`). Ukrycie paska
+         * regulaminu przy drobnej zmieniłoby D-306 — to decyzja właściciela.
          */
         'zmiana_regulaminu' => [
             'istotna' => false,
-            'poprzednia' => '2026-09-07',
+            'poprzednia' => '2026-09-26',
             'obowiazuje_od' => null,
         ],
 
@@ -3053,7 +3066,7 @@ return [
              * przetwarzanie, którego nie ma — i nie ma ani jednego miejsca,
              * w którym ktokolwiek by to zauważył.
              *
-             * Dlatego `HealthController::sprawdzAnalityke()` pyta o ROZJAZD,
+             * Dlatego `SondaAnalityki` pyta o ROZJAZD,
              * a nie o sam brak tokenu: sygnał zapala się wtedy i tylko wtedy,
              * gdy poniższy dokument nadal obiecuje analitykę, a tokenu nie ma.
              * Uciszyć go można DWOMA uczciwymi sposobami — wpisać token albo
@@ -3340,6 +3353,24 @@ return [
          * inaczej „napisz do nas" jest obietnicą bez pokrycia.
          */
         'email' => 'biuro@samsufi.pl',
+    ],
+
+    /*
+     * REKLAMACJE — regulamin §14 (#2220, art. 8 ustawy o świadczeniu usług
+     * drogą elektroniczną). Kanałem jest adres spółki (`podmiot.email`) albo
+     * list na adres siedziby — nie formularz „Napisz do nas”, który jest
+     * rozmową bez terminów.
+     *
+     * `termin_odpowiedzi_dni`: tyle dni regulamin obiecuje na odpowiedź.
+     * 14 to termin z art. 7a ustawy o prawach konsumenta — potwierdzony
+     * przez właściciela 29.09 (D-333). Kod tego terminu nie mierzy: pilnuje go
+     * człowiek odpowiadający na `biuro@samsufi.pl`. W repozytorium, nie
+     * w `.env`, z tego samego powodu co `zgody.okres_istotnej_zmiany_dni`:
+     * zmiana to zmiana obietnicy z dokumentu prawnego. Zgodność z tekstem
+     * pilnuje `RegulaminWymaganiaIReklamacjeTest`.
+     */
+    'reklamacje' => [
+        'termin_odpowiedzi_dni' => 14,
     ],
 
     /*
@@ -3773,7 +3804,8 @@ return [
     | etap). Wzorzec jak `moderation.model` wyżej: klucz i nazwa w `.env`,
     | host i ścieżka w KODZIE (`App\Domain\Import\KlientLuna`, D-250).
     |
-    | BRAK KLUCZA = FUNKCJA WYŁĄCZONA. Przycisku „Przepisz z kartki” wtedy nie
+    | DOMYŚLNIE WYŁĄCZONE (D-333, #2214): trzy przełączniki źródeł mają `false`,
+    | włącza je świadomie właściciel zmienną środowiskową. BRAK KLUCZA = FUNKCJA WYŁĄCZONA. Przycisku „Przepisz z kartki” wtedy nie
     | ma w ogóle (bez martwych przycisków, D-053). Tak jest lokalnie, w CI
     | i w testach. Co jeszcze brakuje do działania, mówi
     | `php artisan kuking:sprawdz-import`.
@@ -3782,7 +3814,7 @@ return [
         'url' => [
             // Wyłącznik źródła. false = przycisku „Wklej adres strony" nie ma
             // w ogóle (bez martwych przycisków, D-053).
-            'wlaczony' => (bool) env('KUKING_IMPORT_URL', true),
+            'wlaczony' => (bool) env('KUKING_IMPORT_URL', false),
             // Najwięcej bajtów strony czytanych strumieniowo; większa = odmowa.
             'max_bajtow' => (int) env('KUKING_IMPORT_URL_MAX_BAJTOW', 2_000_000),
             // Limit czasu JEDNEGO żądania (strona, przekierowanie, robots.txt).
@@ -3791,7 +3823,7 @@ return [
             'limit_czasu_calosci' => (int) env('KUKING_IMPORT_URL_LIMIT_CALOSCI', 25),
         ],
         'pdf' => [
-            'wlaczony' => (bool) env('KUKING_IMPORT_PDF', true),
+            'wlaczony' => (bool) env('KUKING_IMPORT_PDF', false),
             'max_mb' => (int) env('KUKING_IMPORT_PDF_MAX_MB', 10),
             'max_stron' => (int) env('KUKING_IMPORT_PDF_MAX_STRON', 5),
             // Limit czasu pdfinfo/pdftotext — spreparowany plik nie zajmie
@@ -3826,7 +3858,7 @@ return [
 
         // Przełącznik OCR; adres i PDF mają własne ustawienia powyżej.
         'zrodla' => [
-            'zdjecie' => (bool) env('KUKING_IMPORT_ZDJECIE', true),
+            'zdjecie' => (bool) env('KUKING_IMPORT_ZDJECIE', false),
         ],
 
         'model' => [
@@ -3937,6 +3969,8 @@ return [
         // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
         // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
         // wersji nie da się z niczym powiązać.
+        // Wydania od 0.1 do 0.9 zapisano z zerem wiodącym (0.01–0.09), żeby nie
+        // wyglądały na nowsze od 0.77 (D-333); to historia — dziś numer ma dwie cyfry.
         'etykieta' => 'Alfa 0.77',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.

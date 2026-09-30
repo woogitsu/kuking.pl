@@ -3,13 +3,23 @@
 ## Nieopublikowane
 
 - Wewnętrzne: do zestawu testów wróciło dziewięć testów regresyjnych z porzuconych gałęzi (licznik zeszytu, granica rozmiaru powiadomienia push, doba i miesiąc limitu importu, zapowiedź przepisu na stronie wpisu, ostrzeżenie o zmianie adresu w kolejce, odwołanie czytające jedną decyzję, kolejka sygnałów, pusta fraza po normalizacji, czas polski w komunikatach) oraz test JS przechwytywania linków podczas zapisu wyglądu. Bez zmian w działaniu aplikacji.
+- Przy zakładaniu konta (hasłem, przez Google i przez Facebooka) Kuking zapisuje teraz trwały dowód akceptacji regulaminu (#2217): którą wersję regulaminu zaakceptowano, kiedy i którą drogą — bez adresu IP i danych przeglądarki. Zapis powstaje razem z kontem i nie da się go zmienić ani skasować; zamknięcie paska „Zmieniliśmy regulamin” akceptacją nie jest. Polityka prywatności opisuje ten zapis, a paczka z Twoimi danymi go zawiera. Konta założone wcześniej nie mają takiego zapisu i nikt go im nie dopisuje.
+- Wiadomość „Zakładanie konta w Kuking” (na adres, na którym konta jeszcze nie ma) zawiera teraz krótką informację z art. 14 RODO (#2219): skąd mamy adres (wpisała go w formularzu logowania osoba, która poprosiła o wiadomość — odbiorca albo ktoś inny), kto jest administratorem, po co używamy adresu, na jakiej podstawie, jak długo go trzymamy (zaproszenie wygasa po 24 godzinach, wygasłe kasujemy co noc), jakie masz prawa i odnośnik do polityki prywatności. Polityka prywatności ma nowy wiersz o tym przepływie (opis tego, co serwis już robił, w wersji z 30.09.2026).
+- Naprawione (#2218): gdy list z potwierdzeniem odbioru zgłoszenia treści niezgodnej z prawem ostatecznie nie wyjdzie (dostawca poczty odmówi po wszystkich próbach), sprawa nie jest już oznaczona jako potwierdzona. Godzinna dosyłka potwierdzeń obejmuje teraz także zgłoszenia bez konta, jeśli podano w nich adres e-mail, a po trzech nieudanych listach na ten sam adres przestaje sama ponawiać i mówi to w wyniku komendy. Bez zmian w bazie.
+- Naprawione (#2222): formularz zgłoszenia treści niezgodnej z prawem nie obiecuje już bezwarunkowo, że „odpiszemy z decyzją”. Wstęp, sekcja kontaktu, podpowiedź przy adresie e-mail i lista „Co się stanie dalej” mówią teraz wprost: jeśli podasz adres, wyślemy potwierdzenie i decyzję; bez adresu zgłoszenie też sprawdzimy, ale nie wyślemy odpowiedzi. Ekran po wysłaniu dodaje, że bez adresu numer sprawy jest jedynym śladem zgłoszenia. Zgłoszenie anonimowe nadal przechodzi i dostaje numer; nic nie zmienia się w wysyłce e-maili ani w bazie.
+- Gość widzi drogę „Zgłoś” przy przepisie, wpisie i komentarzu (#2221). Zwykłe zgłoszenie nadal wymaga konta, więc odnośnik nazywa się „Zgłoś (po zalogowaniu)” i po zalogowaniu wraca na formularz; przy przepisie i wpisie stoi obok zdanie i link do zgłoszenia treści niezgodnej z prawem, które działa bez konta. Strony „Pomoc” i „Napisz do nas” mówią teraz „Po zalogowaniu przy każdym…” i rozróżniają oba zgłoszenia. Zalogowani mają dotychczasowe „Zgłoś” bez zmian. Bez zmiany schematu bazy. [nowa funkcja]
+- Import przepisu z adresu strony, z pliku PDF i odczyt zdjęcia kartki są teraz domyślnie wyłączone (#2214): bez zmiennych `KUKING_IMPORT_URL`, `KUKING_IMPORT_PDF` i `KUKING_IMPORT_ZDJECIE` ustawionych na `true` przycisków nie ma, nawet gdy jest klucz OpenAI. `php artisan kuking:sprawdz-import` pokazuje stan każdego przełącznika. Tam, gdzie import ma działać, trzeba te zmienne ustawić jawnie przed wdrożeniem.
+- Regulamin ma dwa nowe punkty (#2220). Punkt 13 „Wymagania techniczne” mówi, czego potrzeba, żeby korzystać z Kuking: urządzenia z internetem, aktualnej przeglądarki (co najmniej Chrome i Edge 111, Safari 16.4, Firefox 128), włączonego JavaScriptu i plików cookies oraz adresu e-mail do założenia konta; podaje też, jakie zdjęcia przyjmujemy (JPG, PNG, WebP albo AVIF, do 15 MB i 50 megapikseli, do 6 zdjęć we wpisie; HEIC na razie nie). Punkt 14 „Reklamacje” mówi, gdzie złożyć reklamację (biuro@samsufi.pl albo list na adres spółki), co w niej napisać, że odpowiadamy w ciągu 14 dni i co może zrobić konsument, gdy odpowiedź mu nie wystarcza. Nowa wersja regulaminu 2026-09-30 jest drobna i obowiązuje od dnia publikacji (serwis nie ma jeszcze prawdziwych kont — klasyfikacja i termin 14 dni potwierdzone przez właściciela 29.09, D-333). Konto założone przed 30 września zobaczy pasek „Zmieniliśmy regulamin” bez żadnego terminu, jak przy każdej zmianie regulaminu (D-306) — inaczej niż przy drobnej zmianie polityki, która paska nie ma. Liczby w obu punktach pilnuje test zgodności z konfiguracją (`kuking.media`, nowy klucz `kuking.reklamacje.termin_odpowiedzi_dni`).
+- Forma „Jak mamy do Ciebie pisać?” działa w kolejnych miejscach (#1753, D-332): przycisk „Ugotowałem” na stronie przepisu i na karcie wpisu z przepisem oraz tytuł formularza wykonania (przy formie żeńskiej „Ugotowałam”), zdanie powitalne w powiadomieniach i pusty stan Startu („co dziś ugotowałaś/ugotowałeś/gotujesz”) oraz powiadomienie „ktoś ugotował z Twojego przepisu” — o kucharzu w jego formie („Halina ugotowała Twój przepis”), a bez wyboru bez rodzaju („Halina — ugotowane z Twojego przepisu”). Bez wyboru nic się nie zmienia; nazwa funkcji „Ugotowałem” w pomocy, marce i na cudzym profilu zostaje. Wszystko przez `Forma::dla()`, testy w `FormaTekstyTest`. Zostają: stopki listów o bezpieczeństwie konta i powiadomienia zewnętrzne (push, poczta). To rozszerzenie funkcji z wpisu niżej, więc w „Co nowego” dopisuje zdanie do akapitu „Jak mamy do Was pisać?”, a nie nowy akapit.
 - Pytanie „Jak mamy do Ciebie pisać?” (#1751, #1752, #1753, D-332; decyzja właściciela z 29.09.2026). W ustawieniach profilu i na ostatnim kroku po założeniu konta (krok można pominąć) wybierasz formę żeńską, męską albo neutralną; neutralna jest zaznaczona od początku i nic się nie zmienia, dopóki ktoś sam nie wybierze inaczej. Nie zgadujemy formy z imienia ani z Google czy Facebooka. Wybraną formę widzą też inni, bo tak piszemy o Tobie. Pytanie jest dostępne od razu: zmiana polityki prywatności, która je opisuje, jest drobna i obowiązuje od dnia publikacji (decyzja właściciela z 29.09.2026 — serwis nie ma jeszcze prawdziwych kont; bez okresu przejściowego i bez paska). Forma działa w kilku miejscach: na końcu zakładania konta, w pustym „Świeżo z Kuking”, na przycisku kończącym tryb gotowania (przy formie żeńskiej „Ugotowałam”), w stopce tygodniowego podsumowania i listu z paczką danych oraz na stronie „ugotowane z Twojego przepisu”. Pod spodem: kolumna `profiles.form_of_address` (CHECK, `NULL` = neutralnie; migracja odmawia cofnięcia, gdy ktoś wybrał formę — D-088), pole w paczce danych (`forma_zwracania_sie`), wymazanie przy usunięciu konta, wiersz i sekcja „Co się zmieniło” w polityce prywatności (nowa wersja 2026-09-30, drobna, obowiązuje od dnia publikacji; wersja 2026-09-29 z Alfa 0.76 zostaje nietknięta), pasek o zmianie polityki na przyszłe zmiany istotne — przy drobnej się nie pokazuje (`ZmianaPolityki`, kolumna `users.policy_notice_dismissed_version`, rollback odmawia przy zamkniętych paskach; eksport i wymazanie konta obejmują pole) oraz helper `App\Support\Forma::dla()` z obowiązkowym wariantem neutralnym; `TekstyNiePrzypisujaPlciTest` przepuszcza rodzaj tylko w jego wywołaniu. [nowa funkcja]
 - Wyszukiwarka przepisów ma wiersz „Ile masz czasu?”: Bez limitu czasu, Do 15 minut, Do 30 minut i Do godziny (#1997). Wybór jest zwykłym odnośnikiem (bez JavaScriptu), widać go zaznaczonego i zdejmuje się go przyciskiem „Bez limitu czasu”, a próg siedzi w adresie (`?czas=15|30|60`), więc przeżywa odświeżenie, „Pokaż więcej” i wysłanie komuś. Liczymy przygotowanie i gotowanie razem, a przepis bez podanego czasu nie trafia do żadnego progu. Nieznana wartość w adresie nie filtruje po cichu — ekran mówi, że pokazuje wyniki bez limitu. Stary adres `sekcja=szybkie` dalej działa jako „Przepisy” + „Do 30 minut”. Bez zmian w bazie. [nowa funkcja]
 - Publiczny zeszyt ma przycisk „Podziel się” (#2000): WhatsApp, e-mail, Facebook, widoczny adres do skopiowania i arkusz udostępniania w telefonie — ten sam komponent i te same zasady co przy przepisie i wpisie, adres bez dodatkowych parametrów. Przycisk pojawia się tylko przy zeszycie widocznym dla „wszystkich”, także dla gościa — również przy wspólnym zeszycie rodzinnym (D-302), jeśli ma widoczność „wszyscy” (decyzja właściciela z 29.09.2026). Zeszyt „Tylko ja” i domyślne „Zapisane” nie dostają go nawet u właściciela — zamiast niego właściciel czyta zdanie, co zmienić. Widoczność przepisów w środku zeszytu działa jak dotąd, więc odbiorca nie zobaczy pozycji, do których nie ma dostępu. [nowa funkcja]
 - Dane dla wyszukiwarek na stronie przepisu zawierają teraz kalorie na jedną porcję (#1996, `Recipe.nutrition.calories`, np. „480 kcal”) — tylko wtedy, gdy ta sama liczba jest widoczna w sekcji „Szacunkowe wartości odżywcze (na porcję)”: autor nie ukrył sekcji, składniki z tabel to co najmniej 90% masy przepisu i autor podał liczbę porcji. Zaokrąglenie (do 10 kcal) jest to samo co na stronie. Przy ukrytej sekcji, niepełnym pokryciu albo braku liczby porcji pola nie ma, a wartości na cały przepis nigdy nie podajemy jako wartości porcji. [nowa funkcja]
-- Pod przepisem, który ma co najmniej dwie zapisane wersje, jest przycisk „Historia zmian” (#2024). Prowadzi do listy wersji z datami (po 20, z przyciskiem „Pokaż starsze wersje”), do podglądu jednej wersji — tekstu i danych przepisu, bez zdjęć — oraz do porównania z wersją poprzednią: składniki i kroki są opisane słowami „Dodano”, „Usunięto” i „Zmieniono” (kolor tylko je podkreśla), a przy zmianach widać „Było” i „Jest”. Widzi to każdy, kto widzi sam przepis (gość, obserwujący albo tylko autor — według widoczności przepisu, blokad i stanu konta autora); przepis ukryty lub zdjęty przez moderację, szkic i przepis prywatny dla obcych nie mają historii, a ekrany nie pokazują, kto zapisał wersję. Pole, którego starsza wersja jeszcze nie zapisywała, jest opisane jako „Brak danych”, a nie uzupełniane dzisiejszą treścią. Bez zmiany schematu bazy. [nowa funkcja]
-- Tryb gotowania: zalogowana osoba może świadomie włączyć zapamiętywanie postępu przepisu na koncie (#2016). Przycisk „Zapamiętuj postęp na moim koncie” pod krokami zapamiętuje odhaczone kroki tego jednego przepisu, więc po otwarciu go na innym telefonie czy tablecie widać je od razu; wcześniej stały tylko w przeglądarce, w której je zaznaczono. Domyślnie nic się nie zmienia — postęp zostaje w tej przeglądarce, tak samo jak dla osób bez konta. Zapis wygasa po 24 godzinach od ostatniej zmiany, „Zacznij od początku” go czyści, a „Wyłącz zapamiętywanie na koncie i usuń zapis” kasuje go z konta (odhaczenia zostają do końca sesji na tym urządzeniu). Zmiany dokonane na drugim urządzeniu strona zgłasza komunikatem, a przy włączonym skrypcie sama sprawdza co pół minuty i podpowiada odnośnik „Pokaż aktualny postęp”; bez skryptu wszystko działa zwykłymi formularzami. Zapamiętywany jest tylko postęp kroków — składniki „przygotowane”, porcje i minutniki zostają w przeglądarce. Cudzego postępu nie da się zobaczyć ani zmienić, a konto, które straciło dostęp do przepisu, nie odtworzy jego postępu. Postęp jest w paczce danych („postep_gotowania”), znika przy wymazaniu konta, a nocne sprzątanie (`kuking:sprzataj-postep-gotowania`, 03:00) kasuje wygasłe wpisy. Pod spodem: nowa tabela `cooking_progress`, której cofnięcie migracji odmawia, gdy są w niej niewygasłe wiersze (D-088). [nowa funkcja]
+- Pod przepisem, który ma co najmniej dwie zapisane wersje, jest przycisk „Historia zmian” (#2024). Prowadzi do listy wersji z datami (po 20, z przyciskiem „Pokaż starsze wersje”), do podglądu jednej wersji — tekstu i danych przepisu, bez zdjęć — oraz do porównania z wersją poprzednią: składniki i kroki są opisane słowami „Dodano”, „Usunięto” i „Zmieniono” (kolor tylko je podkreśla), a przy zmianach widać „Było” i „Jest”. Widzi to każdy, kto widzi sam przepis (gość, obserwujący albo tylko autor — według widoczności przepisu, blokad i stanu konta autora); przepis ukryty lub zdjęty przez moderację, szkic i przepis prywatny dla obcych nie mają historii, a ekrany nie pokazują, kto zapisał wersję. Pole, którego starsza wersja jeszcze nie zapisywała, jest opisane jako „Brak danych”, a nie uzupełniane dzisiejszą treścią. Stare adresy przepisu (po zmianie tytułu) przekierowują także na ekrany historii, etykieta „względem wersji” pokazuje faktycznego poprzednika, a ponowna publikacja bez zmiany treści nie dopisuje pustej wersji. Ekran historii przypomina, że zapisane wersje są publiczne jak przepis i zachowują treść usuniętą później. Bez zmiany schematu bazy. [nowa funkcja]
+- Tryb gotowania: zalogowana osoba może świadomie włączyć zapamiętywanie postępu przepisu na koncie (#2016). Przycisk „Zapamiętuj postęp na moim koncie” pod krokami zapamiętuje odhaczone kroki tego jednego przepisu, więc po otwarciu go na innym telefonie czy tablecie widać je od razu; wcześniej stały tylko w przeglądarce, w której je zaznaczono. Domyślnie nic się nie zmienia — postęp zostaje w tej przeglądarce, tak samo jak dla osób bez konta. Zapis wygasa po 24 godzinach od ostatniej zmiany, „Zacznij od początku” go czyści, a „Wyłącz zapamiętywanie na koncie i usuń zapis” kasuje go z konta (odhaczenia zostają do końca sesji na tym urządzeniu). Zmiany dokonane na drugim urządzeniu strona zgłasza komunikatem, a przy włączonym skrypcie sama sprawdza co pół minuty i podpowiada odnośnik „Pokaż aktualny postęp”; bez skryptu wszystko działa zwykłymi formularzami. Razem z krokami zapamiętywane są też składniki „przygotowane” i wybrana liczba porcji (patrz następny wpis); minutniki zostają w przeglądarce. Cudzego postępu nie da się zobaczyć ani zmienić, a konto, które straciło dostęp do przepisu, nie odtworzy jego postępu. Postęp jest w paczce danych („postep_gotowania”), znika przy wymazaniu konta, a nocne sprzątanie (`kuking:sprzataj-postep-gotowania`, 03:00) kasuje wygasłe wpisy. Pod spodem: nowa tabela `cooking_progress`, której cofnięcie migracji odmawia, gdy są w niej niewygasłe wiersze (D-088). [nowa funkcja]
+- Tryb gotowania, synchronizacja na koncie — etap 2 (#2016): gdy osoba włączyła „Zapamiętuj postęp na moim koncie” dla przepisu, na koncie zapamiętujemy też składniki zaznaczone jako przygotowane (#2069) i wybraną liczbę porcji. Składniki zaznacza się zwykłym formularzem z przyciskiem „Zapisz zaznaczenie składników” (działa bez JavaScriptu; odznaczenie pola i zapis zdejmują składnik z listy); zapis jest różnicą względem tego, co strona pokazała, więc dwa urządzenia zaznaczające różne składniki nic sobie nie gubią. Porcje zmieniają przyciski „Mniej porcji”, „Więcej porcji” i „Porcje z przepisu”; jawny adres `?porcje=` ma pierwszeństwo, a bez niego drugie urządzenie otwiera przepis na zapisanej liczbie. Bez włączonej synchronizacji nic się nie zmienia (składniki w pamięci karty, porcje w adresie). Te same zasady co dla kroków: wiersz wybiera para „osoba + przepis”, zapis pod blokadą, wspólna rewizja i ważność 24 godziny, dane w paczce („postep_gotowania”: `wybrana_liczba_porcji`, `przygotowane_skladniki`) i wymazywane z kontem. Minutniki zostają w przeglądarce — odliczają lokalnie, bez odpytywania serwera. Pod spodem: dwie kolumny w `cooking_progress` (`servings`, `prepared_ingredient_ids`), których cofnięcie migracji odmawia, gdy są w nich dane (D-088).
 - Panel moderacji: ekran „Zdejmij z urzędu” czyta się pismem podstawowym także w zdaniach o skutku decyzji — że komentarz wróci, jeśli autor wygra odwołanie, i że treść zniknie z serwisu od razu. Były drobnym szarym pismem 16 px, choć to od nich zależy, czy moderator kliknie przycisk. Odbiór panelu w przeglądarce obejmuje teraz i ten ekran (#581).
+- Wewnętrzne: numery najstarszych wydań w tym dzienniku zmian i w dokumentacji mają zero wiodące (Alfa 0.01–0.09 zamiast 0.1–0.9), żeby nie wyglądały na nowsze od 0.77; raporty odbioru Alfa 0.08 i 0.09 zmieniły nazwy plików w `docs/design/`. Numeracja bieżących wydań bez zmian (D-333).
 - Wewnętrzne: `kuking:raport` liczy teraz, czy przepis wpisany w planerze kończy się „Ugotowałem” w dniu planu albo do 3 dni po nim (#27). Pomiar korzysta z istniejących tabel, bez nowych zdarzeń i danych osobowych, pomija konta testowe i gospodarza, a poniżej 20 pozycji pokazuje same liczby bez procentu. To liczby, na których właściciel oprze decyzję o liście zakupów; definicja jest w `docs/research/ANALITYKA.md` §1.6.
 - Import przepisu z adresu strony czyta teraz także starsze blogi, które nie mają danych JSON-LD, tylko oznaczenia „mikrodane” schema.org w samej stronie (#28). Kuking bierze tytuł, opis, składniki, kroki, porcje i czasy przygotowania oraz gotowania wprost ze strony — lokalnie, bez wysyłania czegokolwiek do modelu i bez kosztu — a gdy strona ma oba zapisy, pierwszeństwo ma JSON-LD. Nazwiska autora, ocen ani danych odżywczych ze strony nie przenosimy, zdjęć nie pobieramy, a wynik jak zawsze trafia do prywatnego szkicu do sprawdzenia. Dopiero strona bez żadnych takich danych idzie dalej starą drogą (odczyt przez komputer firmy OpenAI, tylko za zgodą z formularza). Wewnętrznie: w zapisie szkicu droga odczytu z mikrodanych nadal nazywa się `json_ld` (dane strukturalne), więc bez zmiany schematu.
 - W „Twoich danych” można teraz wczytać własną paczkę z danymi, pobraną wcześniej z Kuking (#1985). Wybierasz plik ZIP, a Kuking najpierw pokazuje, co w nim jest: przepisy, własne wpisy i zeszyty do wczytania, te, które już masz na koncie albo które powtarzają się w paczce, oraz pozycje, których wczytać się nie da — z powodem po polsku i z informacją, czego nie wczytamy (zdjęć, pytań z Poradźcie, konta, zgód, komentarzy innych osób). Niczego nie zapisujemy, dopóki nie zaznaczysz pozycji i nie klikniesz „Wczytaj zaznaczone”. Wszystko, co wczytamy, jest prywatne: przepisy trafiają do szkiców, wpisy widzisz tylko Ty, zeszyty są „Tylko ja” — o publikacji zdecydujesz później. Pytań z Poradźcie nie wczytujemy, bo pytanie jest zawsze publiczne, a wczytane treści mają być prywatne — podgląd mówi o tym wprost. Jedno kliknięcie wczytuje najwyżej 50 pozycji, a to samo wczytanie drugi raz niczego nie podwaja. Wybrany plik czeka na decyzję najwyżej 2 godziny w prywatnym magazynie i znika po wczytaniu, przy wymazaniu konta i — gdy go porzucisz — w nocnym sprzątaniu (`kuking:sprzataj-paczki-importu`, 03:30), a w dzienniku zostają tylko liczby. Pod spodem: nowa tabela `wczytane_z_paczki` (odcisk treści, bez samej treści), której cofnięcie migracji odmawia, gdy są w niej wiersze (D-088). [nowa funkcja]
@@ -22,6 +32,7 @@
 - Wewnętrzne: w kreatorze przepisu (#1387) składanie wyników sprawdzenia kroków — które błędy trafiają przy którym polu, w jakiej kolejności i na który krok kreator wraca — jest osobną klasą z tabelą testów, bez renderowania całego kreatora. Komunikaty, kolejność błędów i przechodzenie do kroku z błędem bez zmian.
 - Import przepisu z pliku PDF też nie każe czekać przy formularzu (#28). Po „Zapisz jako szkic” od razu widzisz ekran postępu — „Odczytujemy plik” — a odczyt tekstu, a przy skanie (tylko za zgodą z tego formularza) odczyt przez komputer firmy OpenAI, odbywają się w tle; możesz zamknąć kartę, gotowy szkic czeka w „Moich szkicach”. PDF z warstwą tekstu odczytujemy u siebie i nigdzie go nie wysyłamy. Wysłany plik leży do czasu odczytu w prywatnym magazynie i znika zaraz po nim — także gdy odczyt się nie uda, przy usunięciu konta, a najpóźniej po kilku godzinach (#2051). Plik, który nie jest PDF-em albo jest za duży, odrzucamy od razu, bez zajmowania miejsca w limicie 5 dziennie / 30 miesięcznie. Ponowne wysłanie tego samego formularza nie zajmuje drugiego miejsca i nie kosztuje drugiego odczytu.
 - Naprawione (#1731): błędy zgłaszane z workera kolejki uruchomionego poza produkcją (środowisko z pakietami deweloperskimi) tracą identyfikatory zadania i próby w kontekście dziennika — hook je dopisujący nie powstawał, gdy handler wyjątków był owinięty przez narzędzie deweloperskie. Hook jest teraz rejestrowany przy tworzeniu handlera. Produkcja nie była dotknięta.
+- Wewnętrzne (#2051): komenda `kuking:sprawdz-retencje-livewire` (tylko odczyt) pyta bucket R2 o reguły wygasania i mówi, czy katalog tymczasowych uploadów Livewire ma regułę do 1 dnia oraz czy żadna reguła nie obejmuje oczyszczonych oryginałów ani ich części. Nic nie zapisuje ani nie kasuje, a wynik nie zawiera nazwy bucketu ani kluczy plików.
 
 ## Alfa 0.77 — wspólny zeszyt dla rodziny i import przepisu w tle
 
@@ -789,7 +800,7 @@ Karty dań można nadal otwierać po kliknięciu zdjęcia lub opisu. Przy porusz
 - Wiadomości e-mail otrzymały nową paletę, prosty krój pisma i spójne przyciski.
 - Instrukcje logowania i pomocy są krótsze i precyzyjniejsze.
 
-## Alfa 0.9 — pełny układ nowej marki
+## Alfa 0.09 — pełny układ nowej marki
 
 Pływająca nawigacja, ciemny blok publikacji, nowe karty i typografia. Spójny wygląd profilu, zeszytów, wyszukiwarki, przepisów i formularzy. Funkcje korzystają z dotychczasowych danych i ustawień konta.
 
@@ -807,7 +818,7 @@ ich nie ma.
 
 ---
 
-## Alfa 0.8 — 12 września 2026
+## Alfa 0.08 — 12 września 2026
 
 ### Wygląd i strona główna
 
@@ -829,7 +840,7 @@ ich nie ma.
 
 ---
 
-## Alfa 0.7 — 12 września 2026
+## Alfa 0.07 — 12 września 2026
 
 ### Zdjęcia
 
@@ -902,7 +913,7 @@ ich nie ma.
 
 ---
 
-## Alfa 0.6 — 11 września 2026
+## Alfa 0.06 — 11 września 2026
 
 ### Dla wszystkich
 
@@ -964,7 +975,7 @@ ich nie ma.
 
 ---
 
-## Alfa 0.5 — 11 września 2026
+## Alfa 0.05 — 11 września 2026
 
 ### Dla wszystkich
 
@@ -983,7 +994,7 @@ ich nie ma.
 
 ---
 
-## Alfa 0.4 — 11 września 2026
+## Alfa 0.04 — 11 września 2026
 
 ### Dla wszystkich
 
@@ -1001,7 +1012,7 @@ ich nie ma.
 
 ---
 
-## Alfa 0.3 — 11 września 2026
+## Alfa 0.03 — 11 września 2026
 
 ### Dodawanie przepisu przestało odstraszać
 
@@ -1048,7 +1059,7 @@ Przy powiększonej czcionce wszędzie wraca jedna kolumna. Nic się nie chowa.
   czytał.
 ---
 
-## Alfa 0.2 — 11 września 2026
+## Alfa 0.02 — 11 września 2026
 
 ### Dla wszystkich
 
@@ -1099,7 +1110,7 @@ Przy powiększonej czcionce wszędzie wraca jedna kolumna. Nic się nie chowa.
 
 ---
 
-## Alfa 0.1 — pierwsze wydanie
+## Alfa 0.01 — pierwsze wydanie
 
 Wersja, od której zaczęliśmy. Historia sprzed 11 września 2026 jest
 w historii repozytorium — ten plik zakładamy dziś i nie odtwarzamy go wstecz,

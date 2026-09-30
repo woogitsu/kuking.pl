@@ -31,6 +31,15 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Przycisk „Zgłoś” widać także bez logowania
+
+Przy przepisie, wpisie i komentarzu widać teraz odnośnik „Zgłoś (po zalogowaniu)”
+także wtedy, gdy nie jesteście zalogowani. Zgłoszenie spamu, nękania albo
+niebezpiecznej porady nadal wymaga konta — poprosimy o zalogowanie i od razu
+otworzymy formularz. Treść niezgodną z prawem możecie zgłosić bez konta:
+przy przepisie i wpisie odnośnik do tego formularza stoi obok. Strony „Pomoc”
+i „Napisz do nas” opisują to samo.
+
 ### Jak mamy do Was pisać?
 
 W ustawieniach profilu, a także na ostatnim kroku po założeniu konta, jest nowe
@@ -40,7 +49,10 @@ dopóki ktoś nie wybierze inaczej — możecie też pominąć to pytanie i nic 
 zmieni. Nie zgadujemy niczego z imienia ani z konta Google czy Facebooka.
 Wybraną formę zobaczą też inni, bo tak będziemy o Was pisać, na przykład
 „Ania ugotowała Twój przepis”. Przy formie żeńskiej przycisk na końcu gotowania
-nazywa się „Ugotowałam”. Na razie zmienia to tylko kilka miejsc w serwisie,
+nazywa się „Ugotowałam”. Ta sama forma pojawia się teraz także na przycisku
+„Ugotowałem” pod przepisem i na kartach wpisów, w powitaniu w powiadomieniach
+i w powiadomieniu o tym, że ktoś ugotował z Waszego przepisu. Bez wyboru teksty
+zostają takie jak dotąd. Na razie zmienia to tylko część miejsc w serwisie,
 kolejne dołączymy po kolei. Wybór zmienicie w każdej chwili, a kiedy usuniecie
 konto, zniknie razem z nim.
 
@@ -86,7 +98,9 @@ gdy wracacie do zapisanego albo wydrukowanego przepisu i chcecie wiedzieć, czy
 zmieniły się proporcje lub sposób przygotowania. Historia pokazuje tekst i dane
 przepisu, bez zdjęć, i widzi ją każdy, kto widzi sam przepis — nic ponadto. Jeśli
 starsza wersja nie zapisała jakiegoś pola, piszemy o tym wprost, zamiast
-zgadywać.
+zgadywać. Pamiętajcie, że zapisana wersja zachowuje treść z chwili zapisu, także
+tę, którą autor usunął później: pojedynczej wersji nie da się usunąć samemu, ale
+autor może usunąć cały przepis albo napisać do nas.
 
 ### Zacznijcie gotować na telefonie, dokończcie na tablecie
 
@@ -98,8 +112,10 @@ włączycie, wszystko działa jak dotąd: postęp zostaje tylko w tej przegląda
 Zapamiętany postęp znika sam po 24 godzinach od ostatniej zmiany; możecie go też
 wyczyścić („Zacznij od początku”) albo w każdej chwili wyłączyć i usunąć z konta.
 Kiedy gotujecie na dwóch urządzeniach naraz, Kuking mówi, że postęp zmienił się
-gdzie indziej, i pokazuje aktualny stan. Zapamiętujemy tylko odhaczone kroki —
-zaznaczone składniki, porcje i minutniki zostają w przeglądarce. Postęp jest
+gdzie indziej, i pokazuje aktualny stan. Razem z krokami zapamiętujemy też
+składniki zaznaczone jako przygotowane (zapisujecie je przyciskiem „Zapisz
+zaznaczenie składników”) i wybraną liczbę porcji — tylko dla przepisów, dla
+których włączyliście zapamiętywanie. Minutniki zostają w przeglądarce. Postęp jest
 prywatny: widzicie go tylko Wy, trafia do paczki z Waszymi danymi i znika razem
 z kontem.
 

@@ -390,7 +390,7 @@ adresów da się przeczytać wyłącznie z panelu.
 |---|---|---|---|---|
 | 1 | `GET https://cdn…/media/…_feed.webp` → **403/404** | `curl -sI` na adresie prawdziwego wariantu. **Ten punkt issue #120 odwrócił audyt W7-02:** pierwotnie żądał 200, dziś wariant też nie ma publicznego adresu (sprawdzenie 8 komendy) | | |
 | 2 | `GET https://cdn…/incoming/….jpg` znanego oryginału → **403/404**, przez KAŻDĄ publiczną ścieżkę (własna domena, `r2.dev`, endpoint konta) | sprawdzenia 6 i 7 komendy — wklej tu linie z dosłownymi kodami odpowiedzi, po jednej na adres | | |
-| 3 | ten sam oryginał przez API S3 z serwera → **sukces** | `railway ssh -- php artisan tinker` → `Storage::disk('r2')->exists($klucz)` | | |
+| 3 | ten sam oryginał przez API S3 z serwera → **sukces** sprawdzenie 1 komendy (`railway ssh -- php artisan kuking:bramka-r2 --media=<uuid>` dla konkretnego zdjęcia) — ten sam `exists()` na kluczu z bazy | | |
 | 4 | `r2.dev` **wyłączone** na buckecie oryginałów, i **kompletna lista** publicznych adresów obu bucketów przepisana do `KUKING_R2_PUBLICZNE_ADRESY` | panel R2 → bucket → Settings → Public access (kroki 1–4 w §2a). Bramka udowodni, że zadeklarowany adres odmawia — ale co jest włączone, widać tylko tutaj | | |
 | 5 | w publicznym buckecie **ani jednego** klucza `incoming/` | `aws s3api list-objects-v2 --bucket kuking-media --prefix incoming/ --endpoint-url …` → pusto | | |
 | 6 | `PutObject` przechodzi **bez** `x-amz-acl` | wgraj zdjęcie przez formularz na stagingu i sprawdź, że wiersz `media` dostaje `ready` | | |
