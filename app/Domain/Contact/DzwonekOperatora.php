@@ -56,8 +56,9 @@ final class DzwonekOperatora
 {
     public function zadzwon(ContactMessage $wiadomosc): void
     {
-        // Kanał wyłączony (brak `LOG_BLAD_WEBHOOK_URL`) — tak jest dziś na
-        // produkcji. Ten sam warunek stoi w `bootstrap/app.php` przed
+        // Kanał wyłączony (brak `LOG_BLAD_WEBHOOK_URL`) — tak jest lokalnie
+        // i w CI; na produkcji kanał (Discord) działa od 29.09.2026 (D-333),
+        // a treść jest bez danych osobowych (`tresc()` niżej). Ten sam warunek stoi w `bootstrap/app.php` przed
         // raportowaniem wyjątków; `WebhookBleduHandler` sprawdza go jeszcze
         // raz u siebie, ale sprawdzenie tutaj oszczędza budowanie loggera
         // i czyni umowę „brak zmiennej = zero efektu" widoczną w tym pliku.
