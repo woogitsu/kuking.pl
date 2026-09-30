@@ -37,6 +37,9 @@ import {chromium} from 'playwright';
 // Pełny moduł produkcyjny w Chromium; kontrolowany serwer i mały DOM panelu.
 // To nie jest test zapisu konta ani fizycznego telefonu.
 const source = readFileSync(new URL('../../resources/js/szybki-wyglad.js', import.meta.url), 'utf8');
+// `szybki-wyglad.js` importuje `./kolor-paska.js` (#2267) — serwer testowy
+// podaje prawdziwy plik, zamiast odpowiadać na to żądanie stroną HTML.
+const kolorPaska = readFileSync(new URL('../../resources/js/kolor-paska.js', import.meta.url), 'utf8');
 const html = `<html data-text-scale="100" data-theme="light"><head><meta charset="utf-8"></head><body>
 <a href="/cel">Przejdź dalej</a>
 <details open data-szybki-wyglad><summary>Wygląd</summary>
@@ -58,6 +61,7 @@ for (const mode of ['success', '500', 'offline', 'timeout', 'json']) {
             await page.route('http://kuking.test/**', async route => {
                 const path = new URL(route.request().url()).pathname;
                 if (path === '/wyglad.js') return route.fulfill({contentType: 'text/javascript', body: source});
+                if (path === '/kolor-paska.js') return route.fulfill({contentType: 'text/javascript', body: kolorPaska});
                 if (path === '/motyw') {
                     await gate;
                     if (mode === 'offline') return route.abort('internetdisconnected');
@@ -122,6 +126,7 @@ async function podPrzyciskiem(sposob, tresc) {
         await page.route('http://kuking.test/**', route => {
             const path = new URL(route.request().url()).pathname;
             if (path === '/wyglad.js') return route.fulfill({contentType: 'text/javascript', body: source});
+            if (path === '/kolor-paska.js') return route.fulfill({contentType: 'text/javascript', body: kolorPaska});
             return route.fulfill({contentType: 'text/html', body: path === '/wpis' ? '<h1>Wpis</h1>' : stronaZKaflem(tresc)});
         });
         await page.goto('http://kuking.test/');

@@ -375,7 +375,7 @@ Każdy JSON-LD blok renderowany przez Blade powinien przechodzić dwa testy zani
 | Publiczny przepis (`recipes.visibility='public'`, `status='published'`) | `index, follow` | Realna treść, cel akwizycji |
 | Publiczny wpis z tekstem i/lub zdjęciem (`posts.visibility='public'`, `status='published'`) | `index, follow` | j.w., o ile ma choć minimalną treść (patrz niżej) |
 | Wpis samo-zdjęcie bez tekstu | `index, follow`, ale **bez** promowania w sitemapie priorytetowej | Nie jest spamem, ale ma niską wartość tekstową dla Google — niech żyje dla ludzi (link, udostępnienie), nie forsować w crawl budgecie |
-| Profil z ≥1 publiczną treścią | `index, follow` + `ProfilePage` | Realna, zweryfikowana obecność |
+| Profil z ≥1 publiczną treścią — wpisem, przepisem **albo wykonaniem** z zakładki „Ugotowane” (#2235, #2236) | `index, follow` + `ProfilePage` (z `Person.image` tylko przy gotowym awatarze, który otworzy się gościowi — #2231) + mapa strony | Realna, zweryfikowana obecność. Wykonanie liczy się tym samym zakresem co zakładka dla gościa (przepis publiczny, autor niezbanowany), więc prywatne i ukryte niczego nie odblokują. Konto `erased` (D-022) z zachowanymi publicznymi treściami **jest** indeksowane i jest w mapie strony (decyzja właściciela z 30.09, D-333): granicą jest `jestDostepnyJakoAutor()`, ta sama co `UserPolicy::viewProfile()` — odpada tylko konto zbanowane i w trakcie usuwania. Konto `erased` bez publicznej treści zostaje `noindex` i poza mapą jak każdy pusty profil. Pojedyncza strona wykonania (`/ugotowane/{id}`) zostaje `noindex` |
 | Profil bez żadnej publicznej treści (świeże konto, samo „popatrzę”) | `noindex, follow` | Zero wartości dla wyszukującego, ryzyko cienkiej treści na skalę (tysiące pustych profili) |
 | Strona tagu z ≥1 wpisem widocznym dla wszystkich (`/tag/{slug}`) | `index, follow` | Realna treść; warunek = ten sam zakres co licznik w spisie tagów (D-087) |
 | Strona tagu bez publicznego wpisu (większość słownika z `TagSeeder`) | `noindex, follow`, link w spisie `/tagi` z `rel="nofollow"`, poza sitemapą | Strona zostaje dla ludzi (prawdziwe zero, „Dodaj wpis”), ale ~1400 prawie identycznych pustych stron to cienka treść na skalę (issue #1007). Wraca do indeksu sama po pierwszym publicznym wpisie |
@@ -516,6 +516,101 @@ Recipe::query()
 **Adres wpisu przez `Post::url()` (#968).** Pytanie ma jeden adres, `/pytania/{id}`; `/wpisy/{id}` pytania przekierowuje na niego 301 (po sprawdzeniu dostępu). Mapa ogłasza więc pytania wyłącznie pod `/pytania/{id}` i obejmuje także pytanie z samym tytułem (`body` puste — tytuł jest obowiązkowy). Zwykłe wpisy bez `body` nadal nie wchodzą: to zapowiedzi przepisów.
 
 Tylko URL-e z sekcji 3 oznaczone `index` — status HTTP 200, brak `noindex`, `visibility='public'`. Filtr identyczny z tym używanym do generowania meta robots, żeby nie rozjechały się dwa niezależne źródła prawdy (jedna metoda `RecipePolicy::isPubliclyIndexable()` używana w obu miejscach).
+
+### 4.4 Kanały Atom (#2227, D-333)
+
+Kanał to druga droga odkrywania obok mapy strony: czytnik (Feedly, Inoreader,
+aplikacja w telefonie) sam przynosi nowe wpisy. Trzy adresy, jeden format —
+**Atom 1.0** (RFC 4287). RSS 2.0 nie dokłada niczego, czego czytniki nie czytają
+z Atomu, a drugi format byłby drugą kopią tej samej granicy widoczności.
+
+| Adres | Co zawiera | Kolejność |
+|---|---|---|
+| `/@{nazwa}/kanal` | wpisy z zakładki „Wszystko” profilu, tak jak widzi je gość | `published_at` malejąco |
+| `/tag/{slug}/kanal` | lista strony tagu dla gościa | `published_at` malejąco |
+| `/zeszyt/{uuid}/kanal` | przepisy i wpisy publicznego zeszytu, na jednej osi czasu | data dodania do zeszytu malejąco |
+
+**Widoczność = strona dla gościa.** Kanał zawsze jest widokiem gościa, także gdy
+otwiera go zalogowana osoba: trasy stoją w `bootstrap/app.php` (`then:`), poza
+grupą `web`, bez sesji, a Policy dostaje widza `null`. Zakresy są te same co na
+stronach (`App\Domain\Kanaly\TresciKanalu`); zgodność wyniku z tym, co gość widzi
+na profilu, tagu i w zeszycie, sprawdza `KanalyAtomZgodneZeStronaTest`. Poza
+kanałem zostają: wpisy „tylko dla obserwujących”, prywatne, szkice, ukryte przez
+moderację, zapowiedzi niewidocznych przepisów, treści autorów zbanowanych lub
+kasujących konto (tag — też zawieszonych, jak na stronie tagu), notatki przy
+pozycjach zeszytu i to, kto pozycję dodał. **Odmowa to 404**, nie 403: prywatny
+i domyślny zeszyt, profil konta zbanowanego lub kasowanego, tag ukryty. Tag
+scalony przekierowuje 301 na kanał tagu kanonicznego.
+
+**Co jest w pozycji.** `id` = `urn:uuid:{id treści}` (stały, niezależny od sluga),
+tytuł (tytuł pytania, pierwsza linia tekstu wpisu albo tytuł przepisu),
+`link rel="alternate"` na kanoniczny adres (`Post::url()`, strona przepisu),
+`published`, `updated`, autor (nazwa wyświetlana i adres profilu — bez adresu
+profilu przy koncie wymazanym, D-022), tekst wpisu lub opis przepisu jako
+`summary type="text"`. Zdjęcie jako `link rel="enclosure"` na trasę
+`/zdjecia/{uuid}/{wariant}` i tylko wtedy, gdy `DostepDoZdjecia::moze(null, …)`
+przepuszcza — nigdy adres pliku w buckecie. Żadnych danych osobowych ponad
+to, co widać na stronie (bez e-maila). XML pisze `XMLWriter` (ucieka znaki
+specjalne), a znaki spoza XML 1.0 są wycinane, żeby jeden wklejony znak
+sterujący nie unieważnił całego kanału.
+
+**Limit i koszt.** Najwyżej 30 pozycji (`TresciKanalu::LIMIT`), bez paginacji —
+czytnik pamięta starsze sam. Jedno zapytanie o listę z relacjami karty i
+sprawdzenie dostępu do każdego zdjęcia; bez kolejek i bez nowego silnika.
+Zmierzone 30.09.2026 (test lokalny, PostgreSQL): kanał profilu z 30 wpisami,
+każdy ze zdjęciem, to 96 zapytań SQL — około trzech na zdjęcie
+(`DostepDoZdjecia::moze()`). Odpowiedź 304 liczy tyle samo, bo `ETag` powstaje
+z gotowej treści; oszczędza transfer, nie bazę. Gdy kanały zaczną ważyć w
+ruchu, pierwszą dźwignią jest cache brzegu (niżej), drugą — tańszy odcisk
+listy przed złożeniem treści.
+Limit zapytań `kuking.limits.kanal` (60/min po adresie IP).
+
+**Cache (#610).** Tylko `ETag` (słaby, SHA-256 treści); zgodne `If-None-Match`
+dostaje 304 bez treści. **Bez `Last-Modified`** (decyzja z audytu): data z
+najpóźniejszej pozycji nie zmienia się, gdy pozycja znika (usunięta, ukryta,
+zdjęta z urzędu, autor zbanowany), więc czytnik pytający samym
+`If-Modified-Since` dostawał 304 i dalej pokazywał wycofaną treść. Hash
+treści zmienia się przy każdej zmianie zestawu pozycji, a bez
+`Last-Modified` samo `If-Modified-Since` nigdy nie daje 304. Data zmiany
+kanału zostaje w treści jako `<updated>`.
+
+**Cache aplikacji, 5 minut (decyzja właściciela z 30.09.2026, D-333).**
+Gotowa treść kanału (XML) leży w cache aplikacji przez
+`kuking.kanal_cache_sekund` (`KUKING_KANAL_CACHE_SEKUND`, domyślnie 300 s,
+0 = wyłączony). Kanał jest zawsze widokiem gościa, więc kopia jest wspólna,
+a klucz to typ i identyfikator (`KluczeKanalu`: `kuking:kanal:v1:profil:<id konta>:<nazwa małymi literami>`, `…:tag:<id>`, `…:zeszyt:<id>`). Nazwa w kluczu profilu sprawia, że po jej zmianie kanał od razu ma nowe adresy (kopia pod starą nazwą jest nieosiągalna). Treść kanału jest budowana z `APP_URL` (`AdresKanoniczny::zbuduj()`), nie z nagłówków żądania, bo kopia jest wspólna dla wszystkich.
+Cache stoi ZA bramką dostępu: Policy i 404 (prywatny zeszyt, konto
+zbanowane lub kasowane, tag ukryty) liczą się przy każdym żądaniu, więc
+zasady dostępu się nie zmieniły. Zdjęcie z urzędu (DSA), ukrycie przez
+moderację i usunięcie przez autora **od razu** wyrzucają kopie z cache
+(`UniewaznijKanaly`, wołane z modeli `Post` i `Recipe` przy zapisie,
+usunięciu i przywróceniu — jedno miejsce, bez wywołań w kontrolerach):
+kanał profilu autora, kanały tagów wpisu, kanały zeszytów z tą pozycją,
+a przy zmianie przepisu także profile i tagi wpisów, które go pokazują.
+**Reszta zostaje na TTL (do 5 minut):** masowe `UPDATE` z pominięciem modeli
+(np. zmiana statusu konta autora), zmiana zdjęcia (`Media`), ukrycie lub
+scalenie tagu i zmiana nazwy zeszytu. Poza tym nie ma unieważniania przy
+zmianie treści — tylko TTL, świadomie. `ETag` powstaje z
+treści, więc w oknie jest stały, a po jego upływie zgadza się z nową treścią.
+W oknie TTL drugie pobranie nie odpytuje bazy o pozycje (mierzy to
+`KanalyAtomTest::test_cache_aplikacji_…`). `Cache-Control` idzie za polityką HTML gościa: przy
+`KUKING_HTML_EDGE_CACHE_SECONDS` > 0 — `public, max-age=0, s-maxage=N` (ta sama
+górna granica 300 s), domyślnie `private, no-cache` (bez wspólnego cache, ale
+z pytaniem warunkowym). Żądanie z ciasteczkiem albo `Authorization` dostaje od
+`PreventSharedSessionCache` `private, no-store`. Reguła brzegu Cloudflare z
+`docs/infra/CLOUDFLARE_CACHE_597_610.md` kanałów nie obejmuje; `s-maxage`
+zadziała dopiero po jej rozszerzeniu decyzją właściciela.
+
+**Odkrywanie i indeks.** Profil, strona tagu i publiczny zeszyt mają w `<head>`
+`<link rel="alternate" type="application/atom+xml">` — zeszyt tylko wtedy, gdy
+kanał odpowie gościowi 200. Kanał wysyła `X-Robots-Tag: noindex`: to nie jest
+strona do wyników wyszukiwania, strony, które opisuje, są w mapie strony.
+`robots.txt` blokuje `/zeszyt/*/`, więc także kanał zeszytu dla robotów
+wyszukiwarek — czytniki kanałów tej reguły nie stosują.
+
+Testy: `KanalyAtomTest` (parser XML i wymagane elementy Atom, widoczność,
+chronologia, limit, pusty kanał, 404, escaping, zdjęcia, nagłówki cache,
+`rel="alternate"`), `KanalyAtomZgodneZeStronaTest`.
 
 ---
 

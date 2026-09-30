@@ -7,6 +7,10 @@ Uzupełnienie z 29 września 2026 (#1816, wersja polityki `2026-09-29`):
 wygląda”, lista „Co mam w domu”).
 Uzupełnienie z 30 września 2026 (#1751, D-332, wersja polityki `2026-09-30`,
 zmiana drobna, obowiązuje od dnia publikacji): §3.2 (forma zwracania się).
+Uzupełnienie z 30 września 2026 (#2283, audyt prywatności Z7, Z8, Z11):
+§3.8 (zakres `profile` przy Google obejmuje zdjęcie, którego nie zapisujemy),
+§3.12 (ślad nieudanej wysyłki w `failed_jobs` — 30 dni), §3.19 i §4
+(kanał alarmów Discord działa — odbiorca techniczny bez danych osobowych).
 
 **Skąd wzięła się treść tego dokumentu.** Każda czynność niżej jest
 **wyprowadzona z kodu tego repozytorium**, nie z wyobraźni i nie z polityki
@@ -240,7 +244,13 @@ egzekwuje.
 
 - **Cel:** dodatkowa, dobrowolna droga wejścia na konto obok hasła i linku.
 - **Dane:** od Google — potwierdzenie tożsamości, adres e-mail razem
-  z informacją, czy jest potwierdzony, oraz imię; od Facebooka —
+  z informacją, czy jest potwierdzony, oraz imię. Zakres `profile`
+  (`App\Support\Google::ZAKRES`) Google opisuje na ekranie zgody jako imię
+  **i zdjęcie profilowe**, a w tokenie tożsamości może przyjść adres
+  zdjęcia — kod go nie czyta, nie pobiera i nie zapisuje
+  (`app/Google/KlientGoogle.php` bierze tylko `sub`, `email`,
+  `email_verified` i `given_name`/`name`); polityka mówi
+  o tym wprost (audyt Z11, #2283). Od Facebooka —
   identyfikator konta (inny dla każdego serwisu), imię i adres e-mail,
   **bez informacji, czy adres jest potwierdzony**, a bywa, że bez adresu
   w ogóle. W bazie zostaje identyfikator zewnętrzny i data połączenia
@@ -350,6 +360,19 @@ egzekwuje.
   ślady kasowane po `kuking.poczta.retencja_dni` (90) dniach przy kolejnym
   zapisie (`ZapiszNieudanyList`); przy wymazaniu konta `user_id` → `NULL`
   (audyt B5 pkt 9).
+- **Ładunek nieudanego listu (`failed_jobs`):** list, który przepadł po
+  wszystkich próbach, zostaje w `failed_jobs` razem z ładunkiem zadania —
+  czyli z adresem odbiorcy i treścią listu (część listów ma ładunek
+  szyfrowany kluczem aplikacji, `ShouldBeEncrypted`, ale zaszyfrowany adres
+  dalej jest daną osobową). Retencja **30 dni** od `failed_at`:
+  `queue:prune-failed --hours=720` codziennie o 05:20 (decyzja właściciela
+  z 25.09.2026, `CzyszczenieNieudanychZadanTest`). Ani wymazanie konta,
+  ani `kuking:sprzataj-zaproszenia` tych wierszy wcześniej nie kasują —
+  dotyczy to także zaproszenia do założenia konta, którego sam wiersz
+  `registration_invites` znika najwyżej dobę po wygaśnięciu. Polityka mówi
+  to wprost od 30.09.2026 (audyt Z8, #2283). Wcześniejsze kasowanie
+  (np. po `mail_failures.failed_job_uuid` przy sprzątaniu zaproszeń i przy
+  wymazaniu konta) byłoby zmianą retencji — **do decyzji właściciela**.
 - **Termin usunięcia:** do usunięcia konta. **DO UZUPEŁNIENIA PRZEZ
   WŁAŚCICIELA:** jak długo EmailLabs trzyma logi wysyłek i otwarć —
   to jest okres po jego stronie i widać go tylko w umowie albo w panelu.
@@ -521,12 +544,27 @@ egzekwuje.
   produkcji — przejście na Pro, 30 dni. Procedura po zmianie planu albo
   odbiornika: `docs/DEPLOYMENT.md` → „Dziennik serwera i polityka
   prywatności”.
+- **Kanał alarmów na Discordzie (Discord Inc., USA) — działa.** Właściciel
+  potwierdził 29.09.2026 (D-333, wiersz „Odbiorca alarmów operacyjnych”),
+  że `LOG_BLAD_WEBHOOK_URL` jest ustawiony na produkcji i alarmy dochodzą.
+  Na kanał idzie **dzwonek, nie zapis błędu**: treść jest budowana
+  wyłącznie z listy dozwolonych pól — klasa wyjątku, kod błędu, plik:linia,
+  **wzorzec** trasy (nie adres z parametrami), odcisk i ślad bez argumentów
+  (`App\Logging\WebhookBleduHandler`); przy „Napisz do nas” tylko rodzaj
+  i identyfikator wiadomości, bez treści i adresu (`DzwonekOperatora`);
+  czujki wysyłają liczby i stany (`App\Domain\Monitoring\KanalAlarmowy`).
+  Pilnują tego `BladTrafiaNaWebhookBezDanychOsobowychTest`
+  i `WiadomoscNaWebhookuBezDanychOsobowychTest`. Discord jest więc
+  **odbiorcą technicznym bez danych osobowych** (§4). Czy mimo to wymienić
+  go w polityce prywatności — **do decyzji właściciela / prawnika (#8)**;
+  dziś polityka go nie wymienia, bo nie przekazujemy mu danych osobowych.
+  Gdyby na kanał miała kiedyś pójść dana osobowa (adres, treść, nazwa
+  konta), to już nie jest poprawka kanału, tylko nowy odbiorca: wpis
+  w polityce, §4, §5 i podstawa przekazania do USA — zanim pójdzie
+  pierwsza wiadomość.
 - **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA (#994):**
   - fizyczna lokalizacja (kraj/region) przechowywania logów przez Railway —
     polityka mówi dziś, że tego nie potwierdziliśmy;
-  - czy na produkcji ustawiono `LOG_BLAD_WEBHOOK_URL` (Slack/Discord) — jeśli
-    tak, ten kanał jest kolejnym odbiorcą zapisu błędu i musi trafić do
-    polityki i do §4;
   - czy istnieją eksporty logów poza Railway (drain, pobrane pliki).
 
 ### 3.20 Ukrycia wpisów i osób (issue #1810, D-278)
@@ -769,8 +807,9 @@ w polityce pilnuje `PolitykaPrywatnosciWymieniaKazdaUslugeTest`.
 | Cloudflare Web Analytics | podmiot przetwarzający | adres strony, odnośnik, rodzaj przeglądarki, czas wczytania | USA |
 | OpenAI | podmiot przetwarzający | treść wpisu i pomniejszone zdjęcie, bez danych wskazujących osobę; **oraz — tylko na żądanie i za osobną zgodą, po włączeniu funkcji (§3.23)** — zdjęcie kartki, tekst strony bez danych przepisu albo obrazy stron skanu PDF | USA |
 | EmailLabs (Vercom S.A.) | podmiot przetwarzający | adres e-mail odbiorcy i treść listu | Polska |
-| Google | podmiot przetwarzający przy logowaniu | potwierdzenie tożsamości, e-mail, imię | Irlandia / USA |
+| Google | podmiot przetwarzający przy logowaniu | potwierdzenie tożsamości, e-mail, imię (zakres `profile` obejmuje też adres zdjęcia profilowego — nie zapisujemy go, §3.8) | Irlandia / USA |
 | Meta | **osobny administrator** | zakres po stronie Meta przy logowaniu Facebookiem | Irlandia (dalej w grupie Meta) |
+| Discord (kanał alarmów, `LOG_BLAD_WEBHOOK_URL`) | **odbiorca techniczny bez danych osobowych** — nie podmiot przetwarzający | dzwonek o błędzie albo alarmie: klasa i miejsce błędu, wzorzec trasy, liczby czujek; bez adresów, treści i nazw kont (§3.19) | USA |
 
 **Odbiorcy, których NIE ma i nigdy nie było:** Sentry, PostHog, Google
 Analytics, Matomo, Plausible. Wpisanie ich do rejestru byłoby deklaracją

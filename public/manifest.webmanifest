@@ -8,7 +8,7 @@
   "scope": "/",
   "display": "standalone",
   "background_color": "#F3F4F1",
-  "theme_color": "#151714",
+  "theme_color": "#F3F4F1",
   "categories": ["food", "social", "lifestyle"],
   "icons": [
     {

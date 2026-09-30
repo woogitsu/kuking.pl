@@ -31,6 +31,8 @@ import tempfile
 from typing import NamedTuple, Optional
 import xml.etree.ElementTree as ET
 
+from zawezenie_testow import polecenie_testu
+
 
 POTWIERDZONA = "POTWIERDZONA"
 BRAK_PORAZKI = "BRAK_PORAZKI"
@@ -79,6 +81,9 @@ def digest(path):
 def uruchom_test(name):
     """Jedno `php artisan test --filter=…` z raportem JUnit w katalogu tymczasowym.
 
+    Pliki testów w argumencie dokłada `zawezenie_testow` (#2299): filtr wybiera
+    te same testy, ale PHPUnit nie buduje całego zestawu przy każdym wywołaniu.
+
     Raport, nie wyjście: format dla człowieka zmienia kształt (Collision, JSON
     dla agentów), a JUnit odróżnia asercję (`<failure>`) od wyjątku (`<error>`).
     Brak pliku po przebiegu znaczy, że proces padł, zanim PHPUnit skończył.
@@ -86,7 +91,7 @@ def uruchom_test(name):
     with tempfile.TemporaryDirectory(prefix="kuking-junit-") as katalog:
         raport = Path(katalog) / "junit.xml"
         result = subprocess.run(
-            ["php", "artisan", "test", "--filter=" + name, "--no-ansi", "--log-junit", str(raport)],
+            polecenie_testu(name, "--log-junit", str(raport)),
             text=True, encoding="utf-8", errors="replace",
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             timeout=180,

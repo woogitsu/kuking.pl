@@ -39,7 +39,86 @@ final class KomunikatZamknietegoKonta
      * na pytanie „za co" — inaczej DSA art. 17 zostaje spełniony tylko
      * na papierze.
      */
-    public static function dla(User $user): string
+    /**
+     * Napis przycisku prowadzącego do strony cofnięcia usunięcia konta.
+     * Ten sam, co po zgłoszeniu usunięcia w „Twoich danych” (#2245).
+     */
+    public const ETYKIETA_COFNIECIA = 'Cofnij usunięcie konta';
+
+    /** Napis przycisku do publicznego formularza odwołania (#10, D-333). */
+    public const ETYKIETA_ODWOLANIA = 'Odwołaj się';
+
+    /**
+     * Przycisk pod komunikatem odmowy — dla `status_akcja` w layoucie.
+     *
+     * LINK COFNIĘCIA JAKO PRZYCISK, NIE ADRES W ZDANIU (D-333, 30.09.2026).
+     * Adres strony cofnięcia stał w treści odmowy jako zwykły tekst: layout
+     * i błąd przy polu wypisują ją bez odnośników, więc na telefonie trzeba
+     * go było przepisać. Teraz każda droga wejścia przez przeglądarkę
+     * (hasło, Google, Facebook, wylogowanie przez `EnsureAccountIsActive`)
+     * dokłada ten przycisk przez `status_akcja` — ten sam mechanizm co #2245.
+     *
+     * Konto CZEKAJĄCE na usunięcie dostaje „Cofnij usunięcie konta”.
+     * Konto ZABLOKOWANE — „Odwołaj się” do publicznego formularza odwołania
+     * (decyzja właściciela z 30.09.2026), ale tylko wtedy, gdy ostatnia
+     * blokada jest jeszcze odwoływalna: dokładnie wtedy, gdy zdanie odmowy
+     * i tak mówi o odwołaniu, więc przycisk nie zdradza niczego ponad
+     * komunikat. Konto po wykonanej karencji (`erased`) i blokada po
+     * terminie odwołania nie dostają nic — przycisk byłby obietnicą bez
+     * pokrycia.
+     *
+     * @return array{url: string, etykieta: string}|null
+     */
+    public static function akcja(User $user): ?array
+    {
+        if ($user->status === User::STATUS_PENDING_DELETE) {
+            return [
+                'url' => route('account.delete.cancel'),
+                'etykieta' => self::ETYKIETA_COFNIECIA,
+            ];
+        }
+
+        if ($user->status === User::STATUS_BANNED && self::ostatniaBlokada($user)?->isAppealable() === true) {
+            return [
+                'url' => route('appeals.guest'),
+                'etykieta' => self::ETYKIETA_ODWOLANIA,
+            ];
+        }
+
+        return null;
+    }
+
+    /** Ostatnia BLOKADA tej osoby — ta, o której mówi zdanie odmowy. */
+    private static function ostatniaBlokada(User $user): ?ModerationAction
+    {
+        return ModerationAction::query()
+            ->where('subject_user_id', $user->getKey())
+            ->where('action', ModerationAction::ACTION_BAN)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * Zdanie o drodze odwołania. W przeglądarce wskazuje przycisk z `akcja()`
+     * w obszarze komunikatów na górze strony; w API (bez przycisku) — adres.
+     */
+    public static function wskazanieOdwolania(bool $adresWTresci = false): string
+    {
+        if ($adresWTresci) {
+            return 'Odwołanie złożysz na '.route('appeals.guest').'.';
+        }
+
+        return 'Odwołanie złożysz przyciskiem „'.self::ETYKIETA_ODWOLANIA.'” na górze tej strony.';
+    }
+
+    /**
+     * @param  bool  $adresWTresci  `true` tylko dla API (JSON): klient
+     *                              aplikacji nie ma przycisku z `status_akcja`, więc adres strony
+     *                              cofnięcia zostaje w zdaniu. W przeglądarce zdanie wskazuje
+     *                              przycisk z `akcja()`.
+     */
+    public static function dla(User $user, bool $adresWTresci = false): string
     {
         // Konto po wykonanej karencji (D-022): nie ma czego odzyskiwać
         // i trzeba to powiedzieć wprost, a nie odsyłać do formularza
@@ -52,7 +131,7 @@ final class KomunikatZamknietegoKonta
 
         if ($user->status === User::STATUS_PENDING_DELETE) {
             return 'To konto jest oznaczone do usunięcia, dlatego logowanie jest zamknięte. Jeśli chcesz je odzyskać, '
-                .'wejdź na stronę „Cofnij usunięcie konta” ('.route('account.delete.cancel').') i potwierdź '
+                .self::wskazanieStronyCofniecia($adresWTresci).' i potwierdź '
                 .'hasłem, że to Ty. Jeśli dane zostały już usunięte na stałe, ta strona Cię o tym poinformuje — '
                 .'wtedy napisz do nas: '.config('kuking.community.contact_email');
         }
@@ -74,12 +153,7 @@ final class KomunikatZamknietegoKonta
          * komunikat wyżej mówi „to konto zostało zablokowane" i uzasadnienie
          * musi dotyczyć tej samej decyzji, a nie ukrycia wpisu z zeszłego roku.
          */
-        $blokada = ModerationAction::query()
-            ->where('subject_user_id', $user->getKey())
-            ->where('action', ModerationAction::ACTION_BAN)
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->first();
+        $blokada = self::ostatniaBlokada($user);
 
         $uzasadnienie = $blokada === null ? [] : UzasadnienieDecyzji::zdania($blokada);
 
@@ -89,8 +163,11 @@ final class KomunikatZamknietegoKonta
             // Odwołanie dla osoby zablokowanej ma osobny, PUBLICZNY formularz
             // (#10) — bez niego zdanie „możesz się odwołać" wyżej nie miałoby
             // dokąd prowadzić, bo do serwisu ta osoba nie wejdzie.
+            //
+            // W przeglądarce adres zastępuje przycisk „Odwołaj się” pod
+            // komunikatami (`akcja()`, D-333); API dostaje adres w zdaniu.
             .($blokada !== null && $blokada->isAppealable()
-                ? 'Odwołanie złożysz na '.route('appeals.guest').'. '
+                ? self::wskazanieOdwolania($adresWTresci).' '
                 : '')
             // Dwa warianty ostatniego zdania, bo uzasadnienie mówi już
             // „jeśli uważasz, że to pomyłka, możesz się odwołać". Powtórzenie
@@ -100,5 +177,20 @@ final class KomunikatZamknietegoKonta
                 ? 'Jeśli uważasz, że to pomyłka, napisz do nas: '
                 : 'Możesz też napisać do nas: ')
             .config('kuking.community.contact_email');
+    }
+
+    /**
+     * Fragment zdania „jak dojść do strony cofnięcia”, wspólny dla odmowy
+     * logowania i wylogowania (`EnsureAccountIsActive`). Przycisk z `akcja()`
+     * stoi w obszarze komunikatów na górze strony — tam, gdzie layout
+     * rysuje `status_akcja`, nad nagłówkiem i nad podsumowaniem błędów.
+     */
+    public static function wskazanieStronyCofniecia(bool $adresWTresci = false): string
+    {
+        if ($adresWTresci) {
+            return 'wejdź na stronę „'.self::ETYKIETA_COFNIECIA.'” ('.route('account.delete.cancel').')';
+        }
+
+        return 'użyj przycisku „'.self::ETYKIETA_COFNIECIA.'” na górze tej strony';
     }
 }

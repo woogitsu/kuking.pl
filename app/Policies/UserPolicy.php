@@ -22,8 +22,10 @@ class UserPolicy
      *
      * Konto `erased` nie jest za to NIGDZIE PODPOWIADANE: nie ma go
      * w wyszukiwarce osób (`SearchQuery::people()` pyta o `status = active`),
-     * na listach obserwujących (`widocznyJakoOsoba()`), w mapie strony ani
-     * w podpowiedziach. Różnica jest więc taka: pod ten adres można DOJŚĆ
+     * na listach obserwujących (`widocznyJakoOsoba()`) ani w podpowiedziach.
+     * Wyjątek (decyzja właściciela z 30.09, D-333): profil z zachowanymi
+     * publicznymi treściami jest w mapie strony i bez `noindex` — tą samą
+     * bramką co tutaj. Różnica jest więc taka: pod ten adres można DOJŚĆ
      * z treści, ale nikt do niego nie zaprasza. `follow()` niżej i tak
      * odmawia — obserwować da się wyłącznie konto aktywne.
      */

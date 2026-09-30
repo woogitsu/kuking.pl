@@ -14,7 +14,7 @@
          `f-photos` (issue #874). --}}
     <x-error-summary :field-ids="['photos.*' => 'f-photos', 'media_ids' => 'f-photos', 'media_ids.*' => 'f-photos']" />
 
-    <form class="panel-formularza" method="POST" action="{{ route('cooked.store', $recipe->slug) }}" enctype="multipart/form-data">
+    <form class="panel-formularza" method="POST" action="{{ route('cooked.store', $recipe->slug) }}" enctype="multipart/form-data" novalidate>
         @csrf
 
         {{-- Tożsamość TEGO wysłania formularza (ADR

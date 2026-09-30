@@ -65,7 +65,8 @@ plan będzie taki, jak w tabeli z kroku 2. To rozstrzyga dopiero krok 2.
 
 - [ ] Plan Railway **Pro** aktywny (D-333), limit wydatków: twardy 100 USD,
       alert przy 60 USD (Workspace → Usage). `restartPolicyType: "ALWAYS"`
-      schedulera wymaga planu płatnego. Szacunek z `railway.ts`: 40–65
+      schedulera i workera oraz 1000 prób restartu na produkcji
+      (`PROBY_RESTARTU_PRODUKCJA`, #2302 IN-13) wymagają planu płatnego. Szacunek z `railway.ts`: 40–65
       USD/mies. zamiast 12–18 — zmieści się w limicie, ale sprawdź zużycie
       po tygodniu.
 - [ ] Wolumen odłączony od `kuking.pl` (#596 — potwierdzone 17.09.2026).

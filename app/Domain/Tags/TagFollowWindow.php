@@ -7,6 +7,10 @@ namespace App\Domain\Tags;
 use App\Models\Tag;
 use App\Models\User;
 use App\Support\FrazaWyszukiwania;
+use App\Support\LimityTagow;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Str;
 
 /**
@@ -67,20 +71,14 @@ final class TagFollowWindow
      */
     public function zloz(User $user, string $szukaj, mixed $ile, ?string $token, ?array $wyslane, bool $przeglada = false): array
     {
-        $followed = $user->followedTags()->get();
-        $daty = $followed->mapWithKeys(
-            fn (Tag $tag): array => [$tag->getKey() => (string) $tag->pivot->created_at],
-        )->all();
+        [$pelne, $obcieto] = $this->wszechswiat($user);
+        $daty = $pelne->filter(fn (Tag $tag): bool => $tag->getAttribute('obserwowany_od') !== null)
+            ->mapWithKeys(fn (Tag $tag): array => [$tag->getKey() => (string) $tag->getAttribute('obserwowany_od')])
+            ->all();
 
         $scope = $this->forms->decode($user, $token);
         $pokazane = $scope === null ? [] : array_values(array_filter($scope['shown'], 'is_string'));
         $odniesienie = $scope['followed'] ?? [];
-
-        // Wszechświat tego ekranu jest SUMĄ obserwowanych i promowanych —
-        // uzasadnienie stoi w `TagFollowController::edit()` od czasów D-021
-        // i filtrowanie go nie zmienia. Tag ukryty albo scalony po otwarciu
-        // formularza wypada z tej sumy i nie wraca jako aktywna opcja.
-        $pelne = $followed->concat(Tag::promowane()->get())->unique('id')->sortBy('name')->values();
 
         $szukaj = mb_substr(trim($szukaj), 0, self::MAKS_FRAZA);
         $fraza = self::normalizuj($szukaj);
@@ -156,7 +154,58 @@ final class TagFollowWindow
             'dojdzie' => min(self::PORCJA, max(0, $pasujacychPelnych - $widoczne->count())),
             'wszystkich' => $pelne->count(),
             'pasujacych' => $pasujacychPelnych,
+            // Konto sprzed limitu obserwowanych (#2326) albo bardzo długa
+            // lista gospodarza — widok mówi wtedy, jak zobaczyć resztę.
+            'obcieto' => $obcieto,
         ];
+    }
+
+    /**
+     * Wszechświat tego ekranu jest SUMĄ obserwowanych i promowanych —
+     * uzasadnienie stoi w `TagFollowController::edit()` od czasów D-021
+     * i filtrowanie go nie zmienia. Tag ukryty albo scalony po otwarciu
+     * formularza wypada z tej sumy i nie wraca jako aktywna opcja; tag
+     * obserwowany zostaje w niej w każdym stanie, żeby dało się go zdjąć.
+     *
+     * JEDNO ZAPYTANIE Z GRANICĄ (#2326). Wcześniej były to dwie pełne
+     * kolekcje modeli (obserwowane i promowane z promocją), rosnące liniowo
+     * z liczbą relacji. Teraz baza zwraca najwyżej
+     * `LimityTagow::maksNaLiscieTwoichTagow()` wierszy i tylko trzy kolumny,
+     * których ekran używa: identyfikator, nazwę i datę obserwowania (punkt
+     * odniesienia tokenu, #854). Obserwowane idą w granicy PIERWSZE: gdy coś
+     * musi odpaść, odpada tag promowany, którego człowiek nie obserwuje —
+     * nigdy relacja, którą chce zdjąć. Kolejność na ekranie zostaje ta sama
+     * co przedtem (alfabet w PHP), więc zmiana nie przestawia listy.
+     *
+     * Tag obserwowany, którego granica nie objęła, nie trafia do `shown`,
+     * więc zapis formularza go nie dotyka — różnica liczy się tylko po tym,
+     * co było widać (#854).
+     *
+     * @return array{0: Collection<int, Tag>, 1: bool}
+     */
+    private function wszechswiat(User $user): array
+    {
+        $granica = LimityTagow::maksNaLiscieTwoichTagow();
+
+        $wiersze = Tag::query()
+            ->select(['tags.id', 'tags.name', 'tf.created_at as obserwowany_od'])
+            ->withCasts(['obserwowany_od' => 'datetime'])
+            ->leftJoin('tag_follows as tf', function (JoinClause $join) use ($user): void {
+                $join->on('tf.tag_id', '=', 'tags.id')->where('tf.user_id', '=', $user->getKey());
+            })
+            ->where(function (Builder $q): void {
+                $q->whereNotNull('tf.tag_id')
+                    ->orWhere(fn (Builder $p): Builder => $p->where('tags.status', Tag::STATUS_ACTIVE)->whereHas('promotion'));
+            })
+            ->orderByRaw('tf.tag_id is null')
+            ->orderBy('tags.name')
+            ->orderBy('tags.id')
+            ->limit($granica + 1)
+            ->get();
+
+        $obcieto = $wiersze->count() > $granica;
+
+        return [$wiersze->take($granica)->sortBy('name')->values(), $obcieto];
     }
 
     /** Ile pokazać po naciśnięciu „Pokaż kolejne…”. */

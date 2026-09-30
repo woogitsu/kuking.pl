@@ -14,7 +14,11 @@
         )
         : null;
 @endphp
-<x-layout :title="$collection->name" :noindex="! $collection->isPublic()" :description="$opisStrony">
+{{-- Kanał Atom (#2227) — tylko dla zeszytu, który kanał odda gościowi:
+     `CollectionPolicy::view(null, …)`. Właściciel prywatnego zeszytu nie
+     dostaje odnośnika, pod którym czytnik zobaczyłby 404. --}}
+<x-layout :title="$collection->name" :noindex="! $collection->isPublic()" :description="$opisStrony"
+    :kanalAtom="\Illuminate\Support\Facades\Gate::forUser(null)->allows('view', $collection) ? ['href' => route('kanaly.zeszyt', $collection), 'title' => 'Zeszyt „'.$collection->name.'” (Atom)'] : null">
     {{--
         PRAWA SZYNA (issue #205): pozostałe zeszyty tej samej osoby.
 

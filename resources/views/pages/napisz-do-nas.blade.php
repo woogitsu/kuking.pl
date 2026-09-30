@@ -91,7 +91,7 @@
 
     <x-error-summary />
 
-    <form class="panel-formularza" method="POST" action="{{ route('kontakt.store') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('kontakt.store') }}" novalidate>
         @csrf
 
         {{-- Tożsamość TEGO wysłania formularza (D-027). Zwykłe ukryte pole,

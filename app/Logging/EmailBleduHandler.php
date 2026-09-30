@@ -55,6 +55,27 @@ final class EmailBleduHandler extends AbstractProcessingHandler
 {
     private const MAKSYMALNIE_ZNAKOW_TEMATU = 150;
 
+    /**
+     * Klucz kontekstu, którym wołający wybiera PULĘ listu (decyzja
+     * właściciela 30.09.2026).
+     *
+     * Domyślnie (klucza brak) każdy wpis to alarm o awarii i idzie spod
+     * sufitu `poczta.alarm_operacyjny_na_dobe`. Powiadomienie o wiadomości
+     * z „Napisz do nas" (`DzwonekOperatora`) przychodzi z wartością
+     * `self::PULA_KONTAKT` i idzie spod WŁASNEGO, niższego sufitu
+     * `poczta.kontakt_operatora_na_dobe`: formularz wypełnia każdy, więc bez
+     * osobnej puli dwadzieścia wiadomości od ludzi zjadłoby wszystkie listy
+     * alarmowe doby i prawdziwa awaria przyszłaby już tylko na Discorda.
+     *
+     * Wartość spoza zamkniętej listy = pula alarmowa (bezpieczny kierunek:
+     * nieznana pula nie dostaje własnego, nieograniczonego licznika).
+     * Ten klucz nie wchodzi do treści listu — `WebhookBleduHandler::tresc()`
+     * bierze z kontekstu wyłącznie własną listę dozwolonych pól.
+     */
+    public const KONTEKST_PULA = 'pula_poczty';
+
+    public const PULA_KONTAKT = 'kontakt';
+
     /** Statyczna: pętla może przebiec przez drugi egzemplarz kanału. */
     private static bool $wSrodkuWysylki = false;
 
@@ -90,19 +111,24 @@ final class EmailBleduHandler extends AbstractProcessingHandler
         $budzet = null;
 
         try {
-            $budzet = DziennyBudzetListow::dlaAlarmuOperacyjnego();
+            $kontakt = ($record->context[self::KONTEKST_PULA] ?? null) === self::PULA_KONTAKT;
+            $budzet = $kontakt
+                ? DziennyBudzetListow::dlaDzwonkaKontaktu()
+                : DziennyBudzetListow::dlaAlarmuOperacyjnego();
 
             if (! $budzet->sprobujZarezerwowac()) {
                 $budzet = null;
                 self::$ostatniaWysylkaSieUdala = false;
-                $this->zapiszNiedodzwonienie('dobowy sufit alarmów pocztą albo pula poczty wyczerpane');
+                $this->zapiszNiedodzwonienie($kontakt
+                    ? 'dobowy sufit listów o wiadomościach z „Napisz do nas" albo pula poczty wyczerpane'
+                    : 'dobowy sufit alarmów pocztą albo pula poczty wyczerpane');
 
                 return;
             }
 
             $tresc = WebhookBleduHandler::tresc($record);
 
-            Mail::to($this->adres)->send(new AlarmOperacyjny($this->temat($tresc), $tresc));
+            Mail::to($this->adres)->send(new AlarmOperacyjny($this->temat($tresc, $kontakt ? 'Kontakt' : 'Alarm'), $tresc));
 
             self::$ostatniaWysylkaSieUdala = true;
         } catch (Throwable $e) {
@@ -125,12 +151,14 @@ final class EmailBleduHandler extends AbstractProcessingHandler
     /**
      * Pierwsza linia treści (nagłówek `[nazwa/środowisko]` i klasa albo
      * zdanie czujki) — ta sama, którą widać na Discordzie. Bez znaków nowej
-     * linii: nagłówek `Subject` nie może ich nieść.
+     * linii: nagłówek `Subject` nie może ich nieść. Przedrostek „Kontakt"
+     * zamiast „Alarm" przy wiadomości z formularza: to nie jest awaria,
+     * a skrzynka ma dać się filtrować po temacie.
      */
-    private function temat(string $tresc): string
+    private function temat(string $tresc, string $przedrostek): string
     {
         $pierwsza = trim((string) preg_replace('/\s+/u', ' ', strtok($tresc, "\n") ?: ''));
-        $temat = 'Alarm: '.$pierwsza;
+        $temat = $przedrostek.': '.$pierwsza;
 
         return mb_strlen($temat) > self::MAKSYMALNIE_ZNAKOW_TEMATU
             ? mb_substr($temat, 0, self::MAKSYMALNIE_ZNAKOW_TEMATU - 1).'…'

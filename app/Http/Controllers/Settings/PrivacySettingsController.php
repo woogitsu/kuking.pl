@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Settings;
 use App\Domain\Users\Actions\UpdatePrivacySettings;
 use App\Http\Controllers\Controller;
 use App\Support\Komunikat;
+use App\Support\KursorListy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -37,11 +38,13 @@ class PrivacySettingsController extends Controller
             //
             // Kotwica `#zablokowane`: „Pokaż więcej osób" ma zostawić człowieka
             // przy liście, a nie na górze formularza zgód.
-            'blocked' => $request->user()->blocking()
-                ->with('profile.avatar')
-                ->orderBy('blocks.blocked_id')
-                ->cursorPaginate(self::BLOKAD_NA_STRONE)
-                ->fragment('zablokowane'),
+            'blocked' => KursorListy::strona(
+                $request->user()->blocking()
+                    ->with('profile.avatar')
+                    ->orderBy('blocks.blocked_id'),
+                self::BLOKAD_NA_STRONE,
+                ['blocks.blocked_id' => KursorListy::UUID],
+            )->fragment('zablokowane'),
         ]);
     }
 

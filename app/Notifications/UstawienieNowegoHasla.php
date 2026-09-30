@@ -101,6 +101,8 @@ final class UstawienieNowegoHasla extends ResetPassword implements ShouldBeEncry
                 'linkUrl' => AdresKanoniczny::zbuduj(fn (): string => $this->resetUrl($notifiable)),
                 'waznoscTekst' => $this->waznosc($notifiable),
                 'displayName' => $notifiable->profile?->display_name,
+                // Stopka w formie adresata (D-332, #1753); bez wyboru — bez rodzaju.
+                'profilAdresata' => $notifiable->profile,
             ]);
     }
 

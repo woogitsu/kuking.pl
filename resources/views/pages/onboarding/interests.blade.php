@@ -41,6 +41,13 @@
                     </div>
                     <x-blad-grupy name="tags" />
                 </fieldset>
+                @if($errors->first('tags') === \App\Support\LimityTagow::komunikatLimituObserwowanych())
+                    {{-- Limit obserwowanych: komunikat odsyła do listy „Twoje tagi”,
+                         więc ten krok daje do niej przycisk (audyt UX 50+). --}}
+                    <p class="mt-4">
+                        <a class="btn btn-secondary" href="{{ route('settings.tags') }}">Przejdź do „Twoich tagów”</a>
+                    </p>
+                @endif
                 <div class="form-actions">
                     <button class="btn btn-primary" type="submit">Dalej</button>
                     <a class="btn btn-quiet" href="{{ route('onboarding.people') }}">Pomiń ten krok</a>

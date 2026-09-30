@@ -162,6 +162,9 @@ class KonsolaBezKomunikatuWyjatkuTest extends TestCase
             'Commands/NadajRole.php' => [
                 '$this->error($exception->getMessage())' => 'DomainException z ChangeUserRole — własne zdanie po polsku',
             ],
+            'Commands/PotwierdzZgloszenieInnaDrogaKomenda.php' => [
+                '$this->error($powod->getMessage())' => 'DomainException z PotwierdzZgloszenieInnaDroga — własne zdanie po polsku z numerem sprawy, który operator sam wpisał; bez adresu i treści zgłoszenia (#2218)',
+            ],
             'Commands/ImportujWartosciOdzywcze.php' => [
                 "\$this->error('Nie wczytano niczego: '.\$e->getMessage())" => 'BladDlaCzlowieka z importu tabeli — wyjątek z założenia niesie zdanie dla człowieka, bez danych użytkownika',
             ],

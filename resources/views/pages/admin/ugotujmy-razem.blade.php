@@ -22,7 +22,7 @@
     <x-error-summary />
 
     @php($bladTygodnia = $errors->first('tydzien'))
-    <form class="panel-formularza mb-6" method="POST" action="{{ route('admin.ugotujmy-razem.store') }}">
+    <form class="panel-formularza mb-6" method="POST" action="{{ route('admin.ugotujmy-razem.store') }}" novalidate>
         @csrf
 
         <div class="field @if($bladTygodnia) has-error @endif">

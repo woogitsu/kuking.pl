@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Domain\Notifications\Push\OdlaczUrzadzeniePush;
 use App\Domain\Security\Actions\SprawdzHasloPrzyLogowaniu;
+use App\Domain\Security\OdmowaWejsciaNaZamknieteKonto;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
@@ -84,7 +85,19 @@ class LoginController extends Controller
         // w akcji wspólnej z API (D-270) — uzasadnienie każdej z tych reguł
         // stoi tam, przy kodzie, który je wykonuje.
         $adres = (string) $request->ip();
-        $user = $this->sprawdzHaslo->handle($data['login'], $data['password'], $adres);
+        try {
+            $user = $this->sprawdzHaslo->handle($data['login'], $data['password'], $adres);
+        } catch (OdmowaWejsciaNaZamknieteKonto $odmowa) {
+            // Konto czeka na usunięcie albo ma odwoływalną blokadę: pod
+            // komunikatami na górze strony staje przycisk „Cofnij usunięcie
+            // konta” albo „Odwołaj się” (`status_akcja`, jak #2245), a błąd
+            // przy polu wskazuje go słowami, bez adresu (D-333).
+            if ($odmowa->akcja !== null) {
+                $request->session()->flash('status_akcja', $odmowa->akcja);
+            }
+
+            throw $odmowa;
+        }
 
         // Hasło się zgadza. Jeśli konto ma potwierdzone 2FA (issue #12),
         // logowanie NIE KOŃCZY SIĘ TUTAJ — dopiero po podaniu kodu z aplikacji

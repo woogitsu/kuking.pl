@@ -8,6 +8,7 @@ use App\Domain\Tags\LiczbyTagowWCache;
 use App\Domain\Tags\TagCollage;
 use App\Models\Post;
 use App\Models\Tag;
+use App\Support\KursorListy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -122,7 +123,7 @@ class TagController extends Controller
 
         $widz = $request->user();
 
-        $wpisy = Post::query()
+        $zapytanie = Post::query()
             ->whereHas('tags', fn ($q) => $q->whereKey($tag->getKey()))
             // TYLKO WPISY PUBLICZNE — DLA KAŻDEGO, TAKŻE DLA AUTORA (decyzja
             // właściciela z 26.09, #1338). Strona tagu jest miejscem
@@ -142,11 +143,13 @@ class TagController extends Controller
             // Kartę wpisu wczytujemy jednym kontraktem, wspólnym dla list (#1037).
             ->dlaKarty($widz)
             ->latest('published_at')
-            ->latest('id')
-            // Kursor, nie OFFSET (audyt B4 W2): `paginate()` liczył przy
-            // każdej odsłonie pełny COUNT wszystkich wpisów tagu, a dalsze
-            // strony płaciły OFFSET-em. Feedy robią to tak samo.
-            ->cursorPaginate((int) config('kuking.feed.page_size'))
+            ->latest('id');
+        // Kursor, nie OFFSET (audyt B4 W2): `paginate()` liczył przy
+        // każdej odsłonie pełny COUNT wszystkich wpisów tagu, a dalsze
+        // strony płaciły OFFSET-em. Feedy robią to tak samo. Kursor z adresu
+        // sprawdza `KursorListy` — niepełny albo zmyślony daje pierwszą
+        // stronę, nie HTTP 500 (#2308).
+        $wpisy = KursorListy::strona($zapytanie, (int) config('kuking.feed.page_size'), ['published_at' => KursorListy::CZAS, 'id' => KursorListy::UUID])
             ->withQueryString()
             ->tap(fn ($strona) => Post::ukryjNiedostepnePrzepisy($strona->items(), $widz));
 

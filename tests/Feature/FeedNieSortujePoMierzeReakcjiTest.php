@@ -182,6 +182,12 @@ class FeedNieSortujePoMierzeReakcjiTest extends TestCase
                 .'najkrótsza nazwa składnika najpierw, potem alfabet. Świadomie NIE „najczęściej używane" — to byłaby '
                 .'miara cudzej aktywności. Krótsza nazwa jest po prostu bliżej tego, co ktoś wpisał.',
         ],
+        'app/Domain/Kanaly/TresciKanalu.php' => [
+            "fn (Recipe|Post \$pozycja): string => \$this->dodanoDoZeszytu(\$pozycja)->format('Y-m-d H:i:s.u').'|'.\$pozycja->getKey()" => 'Kanał Atom zeszytu (#2227) skleja '
+                .'dwie listy — przepisy i wpisy zeszytu, każda już ułożona w SQL po `collection_items.created_at` — w jedną oś. '
+                .'Klucz to CZAS dodania pozycji do zeszytu (kolumna tabeli pośredniej, `dodanoDoZeszytu()`), z identyfikatorem '
+                .'jako rozstrzygnięciem remisu; tak samo układa je ekran zeszytu. Żadnej cudzej reakcji się tu nie liczy.',
+        ],
         'app/Domain/Search/SearchQuery.php' => [
             "'word_similarity(?, recipes.title_search) DESC, similarity(recipes.title_search, ?) DESC', [\$needle, \$needle]" => 'Trafność wyszukiwania przepisów. '
                 .'TO NIE JEST FEED — i to jest pierwsza rzecz, którą zakwestionuje następny czytelnik tego rejestru, '

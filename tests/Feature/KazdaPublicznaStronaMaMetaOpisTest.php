@@ -83,6 +83,13 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
         'wydanie' => 'SHA wydania dla testu dymnego — JSON, nie strona HTML',
         'sitemap' => 'plik XML — Google nie czyta z niego meta description',
         'robots' => 'plik tekstowy robots.txt, nie strona HTML',
+        'terms.version.download' => 'pobranie wersji regulaminu jako plik tekstowy (X-Robots-Tag: noindex), nie strona HTML — #2220',
+        'privacy.version.download' => 'pobranie wersji polityki prywatności jako plik tekstowy (X-Robots-Tag: noindex), nie strona HTML — #2220',
+        // Kanały Atom (#2227) — XML z nagłówkiem `X-Robots-Tag: noindex`;
+        // opis strony niosą profil, tag i zeszyt, na które kanał wskazuje.
+        'kanaly.profil' => 'kanał Atom profilu (XML), nie strona HTML — #2227',
+        'kanaly.tag' => 'kanał Atom tagu (XML), nie strona HTML — #2227',
+        'kanaly.zeszyt' => 'kanał Atom zeszytu (XML), nie strona HTML — #2227',
         'storage.local' => 'serwuje surowy plik z dysku (dev), nie renderuje layoutu',
         'media.show' => 'serwuje binarny wariant zdjęcia, nie stronę HTML',
         'google.start' => 'samo przekierowanie do Google — nie renderuje żadnego HTML-a (D-069)',
@@ -147,6 +154,13 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             'register' => route('register'),
             'login' => route('login'),
             'terms' => route('terms'),
+            // Wszystkie wersje regulaminu (#2220): lista i jedna wersja są
+            // `noindex, follow` (obowiązujący jest `/regulamin`), więc pętla
+            // sprawdzi 200 — wpis musi tu być, żeby test widział nowe strony.
+            'terms.versions' => route('terms.versions'),
+            'terms.version' => route('terms.version', config('kuking.zgody.wersja_regulaminu')),
+            'privacy.versions' => route('privacy.versions'),
+            'privacy.version' => route('privacy.version', config('kuking.zgody.wersja_polityki')),
             'feed-rules' => route('feed-rules'),
             'privacy' => route('privacy'),
             'rules' => route('rules'),

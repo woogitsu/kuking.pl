@@ -1,3 +1,5 @@
+import {ustawKolorPaska} from './kolor-paska.js';
+
 // Szybki podgląd jest ulepszeniem zwykłego formularza POST z CSRF.
 let cleanup = () => {};
 function initialize() {
@@ -21,6 +23,7 @@ function initialize() {
     const apply = (choice) => {
         document.documentElement.dataset.textScale = String(choice.text_scale);
         document.documentElement.dataset.theme = choice.theme;
+        ustawKolorPaska(document, choice.theme);
         const footer = document.querySelector('.site-footer-motyw');
         if (footer) {
             footer.elements.theme.value = choice.theme === 'dark' ? 'light' : 'dark';

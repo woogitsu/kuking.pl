@@ -488,7 +488,18 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
             //    miejsca na artefakty wysyłka po zielonym jobie czerwieniła
             //    CI, a dowody zielonego przebiegu nikomu nie są potrzebne.
             preg_match_all('/^        if: (.+)$/m', $job, $warunki);
+            // #2299: warunek runnera wolno postawić wyłącznie na kroku cache
+            // przeglądarki (tyle warunków, ile takich kroków) — pomiar nie
+            // może od niego zależeć. Reguły cache: `CacheMiedzyJobamiNieDajeStarychWynikowTest`.
+            $this->assertSame(
+                substr_count($job, 'path: ~/.cache/ms-playwright'),
+                substr_count($job, "        if: runner.environment == 'github-hosted'"),
+                $name.': warunek runnera stoi na kroku innym niż cache przeglądarki — pomiar mógłby nie ruszyć na własnym runnerze.',
+            );
             foreach ($warunki[1] as $warunek) {
+                if (trim($warunek) === "runner.environment == 'github-hosted'") {
+                    continue;
+                }
                 // Jedyny dodatkowy warunek: część macierzy `port_funkcje` (#611,
                 // etap 9). Że każda część ma swoje kroki, a numer istnieje
                 // w macierzy, pilnuje `test_rozszerzenia_dziela_sie_na_czesci_bez_utraty_pomiaru`.

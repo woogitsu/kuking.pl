@@ -37,8 +37,9 @@ use Throwable;
  * serwisu — adres, który dostawca odrzuca zawsze, dawałby co godzinę kolejne
  * próby i wpisy w `failed_jobs` przez całe życie sprawy. Dlatego `failed()`
  * liczy porażki listu tej sprawy (cache, `PAMIEC_PORAZEK_DNI`), a dosyłka po
- * `LIMIT_PORAZEK_LISTU` porażkach przestaje sama ponawiać list i mówi to
- * w wyniku komendy. Sprawa zostaje zaległością i dalej jest liczona.
+ * `LIMIT_PORAZEK_LISTU` porażkach przestaje sama ponawiać list, mówi to
+ * w wyniku komendy i alarmuje operatora (`AlarmSufituPotwierdzen`). Sprawa
+ * zostaje zaległością i dalej jest liczona.
  */
 final class PotwierdzenieZgloszeniaNielegalnejTresci extends Notification implements ShouldQueue
 {
@@ -59,6 +60,35 @@ final class PotwierdzenieZgloszeniaNielegalnejTresci extends Notification implem
     public static function ponawianieWstrzymane(string $idZgloszenia): bool
     {
         return (int) Cache::get(self::kluczPorazek($idZgloszenia), 0) >= self::LIMIT_PORAZEK_LISTU;
+    }
+
+    /**
+     * To samo co `ponawianieWstrzymane()`, ale dla całej partii jednym
+     * `Cache::many()` (jedno zapytanie do sklepu `database` zamiast jednego na
+     * sprawę). Klucze dokładnie te same co w pojedynczym odczycie.
+     *
+     * @param  list<string>  $idZgloszen
+     * @return list<string> identyfikatory spraw, którym ponawianie wstrzymano
+     */
+    public static function wstrzymaneSposrod(array $idZgloszen): array
+    {
+        if ($idZgloszen === []) {
+            return [];
+        }
+
+        $klucze = [];
+        foreach ($idZgloszen as $id) {
+            $klucze[self::kluczPorazek($id)] = $id;
+        }
+
+        $wstrzymane = [];
+        foreach (Cache::many(array_keys($klucze)) as $klucz => $porazki) {
+            if ((int) $porazki >= self::LIMIT_PORAZEK_LISTU) {
+                $wstrzymane[] = $klucze[$klucz];
+            }
+        }
+
+        return $wstrzymane;
     }
 
     /**

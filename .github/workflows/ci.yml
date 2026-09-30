@@ -300,8 +300,19 @@ permissions:
 # Nowy push do tej samej gałęzi/PR anuluje poprzedni przebieg — ale NIE na
 # main: Railway wdraża dopiero po zielonym CI main („Wait for CI”), a anulowany
 # przebieg nie daje wyniku i wdrożenie commita zostaje pominięte (23.09: 112
-# ze 138 przebiegów main anulowanych, produkcja 18 h bez wdrożenia). Na main
-# przebiegi kolejkują się zamiast się ścinać.
+# ze 138 przebiegów main anulowanych, produkcja 18 h bez wdrożenia).
+#
+# To NIE jest kolejka (#2300). `cancel-in-progress: false` chroni tylko
+# przebieg BIEGNĄCY. GitHub trzyma w grupie najwyżej jeden biegnący i JEDEN
+# oczekujący; nowy przebieg anuluje dotychczasowego oczekującego (26.09:
+# 44 z 64 przebiegów push na main `cancelled`). Przy serii scaleń pełne CI
+# dostaje commit biegnący i wierzchołek serii, a commity pośrednie kończą
+# jako `cancelled`, bez wyniku. Railway „Wait for CI” może taki pośredni SHA
+# wdrożyć mimo braku zielonego CI (#2025) — przed tym chroni dopiero bramka
+# `railway-ci-gated-deploy.yml` (docs/infra/RAILWAY_CI_GATE.md), nie ten klucz.
+# Prawdziwej kolejki (na main osobna grupa na każdy SHA) tu nie ma celowo:
+# każdy commit serii zająłby runnery na pełny przebieg (IN-07), a wdrożenie
+# wierzchołka czekałoby za wszystkimi pośrednimi.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -456,6 +467,19 @@ jobs:
       # jej własne kontrole muszą biec, zanim zaczniemy jej ufać.
       - name: Testy bramki audytu zależności
         run: python3 -m unittest discover -s scripts -p test_audyt_zaleznosci.py -v
+
+      # Strażnik podziału kontroli negatywnych na części CI: bez tego kroku
+      # sam mógłby być czerwony bez śladu. Bez bazy, ok. pół sekundy. Że KAŻDY
+      # test skryptu Pythona ma taki krok, pilnuje
+      # `TestySkryptowPythonaChodzaWCiTest`.
+      - name: Test podziału kontroli negatywnych na części
+        run: python3 -m unittest discover -s scripts -p test_podzial_kontroli.py -v
+
+      # Test narzędzi przyrządu obciążenia #605 (`docs/obciazenie/connection.php`
+      # i skryptów bazy pomiarowej): wyłącznie atrapy `psql`/`createdb`, bez
+      # bazy i sieci, ok. sekundy; PHP jest w tym jobie z kroku wyżej.
+      - name: Test połączenia przyrządu obciążenia
+        run: python3 -m unittest discover -s docs/obciazenie -p test_connection.py -v
 
       # =====================================================================
       #  TESTY SKRYPTU KOPII BAZY (issue #193, D-043/D-049)
@@ -665,7 +689,11 @@ jobs:
   #      równoległych częściach, a w części 3 także odwracalność migracji.
   #      To ponad dwieście przebiegów `artisan test --filter`: na main jedna
   #      część trwała ok. 37 min, a na paczce C (208 wpisów) została
-  #      anulowana po 40 min po 153 kontrolach. Wpis `checks` o indeksie i
+  #      anulowana po 40 min po 153 kontrolach. Większość tego czasu to budowa
+  #      całego zestawu PHPUnita przy każdym wywołaniu (ok. 5 s); od #2299
+  #      `scripts/zawezenie_testow.py` podaje pliki, w których filtr coś
+  #      wybiera (te same testy, sprawdzane próbą przed pierwszą mutacją).
+  #      Wpis `checks` o indeksie i
   #      idzie do części `i % 3 + 1` (`scripts/podzial_kontroli.py`); preflight
   #      kotwic sprawdza w każdej części WSZYSTKIE wpisy, a elementy spoza
   #      pętli (miary.csv #2167, GRUPA_SYGNALOW_TEST) i odwracalność migracji
@@ -903,6 +931,16 @@ jobs:
         if: matrix.czesc == 'kontrole'
         run: python3 tests/skrypty/kontrole-negatywne-przyczyna.py
 
+      # #2299: każde `artisan test --filter` z kontroli dostaje w argumencie
+      # pliki, w których filtr coś wybiera (`scripts/zawezenie_testow.py`), bo
+      # budowa całego zestawu kosztowała ok. 5 s na każde z ok. 270 wywołań
+      # części. Najpierw regresje samego zawężenia (zbiory danych, wielkość
+      # liter, powrót do pełnego zestawu), w sekundę i bez bazy; próbę na żywym
+      # PHPUnicie robi skrypt kontroli przed pierwszą mutacją.
+      - name: Test zawężenia filtra kontroli negatywnych
+        if: matrix.czesc == 'kontrole'
+        run: python3 -m unittest discover -s scripts -p 'test_zawezenie_testow.py' -v
+
       - name: Kontrole negatywne regresji Alfa 0.8 i portu marki
         if: matrix.czesc == 'kontrole'
         run: python3 scripts/kontrole-negatywne-alfa08.py --czesc "${{ matrix.kontrole_czesc }}/3"
@@ -1110,8 +1148,23 @@ jobs:
 
       # `npm ci` (nie `npm install`) — instaluje dokładnie to, co w lockfile,
       # i pada, jeśli package.json rozjechał się z package-lock.json.
+      # #2299: cache `vendor/` i przeglądarki — zasady i granice przy tych
+      # samych krokach w jobie `port_panelu`.
       - name: Instalacja zależności
         run: npm ci --no-audit --no-fund
+      - name: Wersja Playwrighta
+        id: playwright
+        run: |
+          set -euo pipefail
+          wersja="$(node -p "require('./package-lock.json').packages['node_modules/playwright-core'].version")"
+          [[ "$wersja" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "::error::Nie odczytano wersji playwright-core z package-lock.json: ${wersja}"; exit 1; }
+          echo "wersja=${wersja}" >> "$GITHUB_OUTPUT"
+      - name: Cache przeglądarki Playwrighta
+        if: runner.environment == 'github-hosted'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}
 
       - name: Build
         run: npm run build
@@ -1272,12 +1325,28 @@ jobs:
   # Od 24.09.2026 job stoi na filtrze warstwy widoku, jak trzy pozostałe
   # joby przeglądarkowe: na PR-ze chodzi przy zmianie widoku, PHP sterującego
   # ekranem, `scripts/panel-*.mjs`, fixture'ów albo `ci.yml`. Poza PR-em zawsze.
+  #
+  # #2299 (30.09.2026): DWIE CZĘŚCI MACIERZY. Jeden kawałek szedł 17,5–20 min
+  # i był ścieżką krytyczną CI. Części dzielą się SZEROKOŚCIAMI (każda robi
+  # obie fazy, pustą i pełną) i dodatkami (menu, zoom, szczegóły, walidacja);
+  # podział stoi w `scripts/panel-czesci.mjs`, a jego kompletność pilnują
+  # `scripts/panel-czesci.test.mjs` (krok niżej) i
+  # `PanelMarkiDzieliSieBezUtratyPomiaruTest`. Wymagany check „Panel marki —
+  # puste i pełne widoki" wystawia teraz job zbiorczy `panel_marki` (niżej),
+  # jak `testy` dla macierzy `test` — nazwa w ochronie gałęzi się nie zmienia.
   port_panelu:
-    name: Panel marki — puste i pełne widoki
+    name: Panel marki — puste i pełne widoki (część ${{ matrix.czesc }}/2)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
     runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 25
+    strategy:
+      # Czerwona część 1 nie może ukryć wyniku części 2 (i odwrotnie).
+      fail-fast: false
+      matrix:
+        # Części są też w `scripts/panel-czesci.mjs` (`CZESCI_PANELU`);
+        # rozjazd wyłapuje `PanelMarkiDzieliSieBezUtratyPomiaruTest`.
+        czesc: [1, 2]
     services:
       postgres:
         image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
@@ -1306,6 +1375,7 @@ jobs:
       MAIL_MAILER: array
       FILESYSTEM_DISK: public
       SENTRY_LARAVEL_DSN: ""
+      PANEL_CZESC: ${{ matrix.czesc }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Izolowane połączenie i zamrożony czas
@@ -1336,10 +1406,46 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
+      # #2299: CACHE MIĘDZY JOBAMI — tylko to, co nie może dać starego wyniku.
+      #  - `vendor/`: klucz po `composer.lock` i wersji PHP (ten sam co w
+      #    `lint`, `test`, `static-analysis`); `composer install` biegnie
+      #    ZAWSZE po odtworzeniu i doprowadza katalog do stanu z locka, także
+      #    po trafieniu w `restore-keys` (starszy lock).
+      #  - przeglądarka Playwrighta: klucz po DOKŁADNEJ wersji `playwright-core`
+      #    z `package-lock.json` (ona wyznacza rewizję Chromium), bez
+      #    `restore-keys`; `npx playwright install chromium` biegnie dalej
+      #    i dociąga brak. Tylko na runnerach GitHuba: na własnych katalog
+      #    `~/.cache/ms-playwright` jest wspólny dla jobów na jednej maszynie
+      #    (stąd `flock`), a rozpakowanie archiwum w trakcie cudzego joba
+      #    podmieniłoby mu przeglądarkę pod nogami.
+      #  - NIE `node_modules/` (`npm ci` i tak go kasuje; cache npm robi
+      #    `setup-node`) ani `public/build` (arkusz ma powstać z tego commita).
+      # Pilnuje tego `CacheMiedzyJobamiNieDajeStarychWynikowTest`.
+      - name: Cache Composera
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-
+      - name: Wersja Playwrighta
+        id: playwright
+        run: |
+          set -euo pipefail
+          wersja="$(node -p "require('./package-lock.json').packages['node_modules/playwright-core'].version")"
+          [[ "$wersja" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "::error::Nie odczytano wersji playwright-core z package-lock.json: ${wersja}"; exit 1; }
+          echo "wersja=${wersja}" >> "$GITHUB_OUTPUT"
+      - name: Cache przeglądarki Playwrighta
+        if: runner.environment == 'github-hosted'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}
       - name: Instalacja zależności
         run: |
           composer install --no-interaction --prefer-dist --no-progress
           npm ci --no-audit --no-fund
+      - name: Regresja podziału panelu na części
+        run: node --test scripts/panel-czesci.test.mjs
       - name: Przeglądarka
         run: flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
       - name: Nowa baza bez danych demonstracyjnych i rzeczywiste assety
@@ -1348,7 +1454,10 @@ jobs:
           sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
           php artisan storage:link
           php artisan migrate --force --no-interaction
-          npm run build
+          # Sam Vite (#2299): kontrast marki i ~190 testów jednostkowych JS
+          # z `npm run build` (ok. 78 s) biegną w jobie `assets`, który rusza
+          # przy każdym `kod == 'true'`, czyli zawsze obok tego joba.
+          npm run build:assets
       - name: Panel — logowanie z TOTP, faza pusta i pełna
         run: node scripts/panel-marki-run.mjs
       - name: Dowody panelu bez sesji i poświadczeń
@@ -1358,7 +1467,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: panel-marki-${{ github.sha }}
+          name: panel-marki-${{ matrix.czesc }}-${{ github.sha }}
           path: |
             storage/port-panelu/*.json
             storage/port-panelu/*.png
@@ -1367,6 +1476,52 @@ jobs:
             storage/port-panelu/details-zoom/*.json
             storage/port-panelu/details-zoom/*.png
           retention-days: 5
+
+  # ===========================================================================
+  #  Zbiorczy wynik panelu marki — WYMAGANY CHECK „Panel marki — puste i pełne
+  #  widoki" (#2299)
+  # ===========================================================================
+  #  Ta sama konstrukcja co `testy`: macierz z `if` na poziomie joba, gdy
+  #  bramka `zakres` ją pomija, zgłasza JEDEN pominięty check z nierozwiniętą
+  #  nazwą, więc „część 1/2" i „część 2/2" nie mogą być wymagane
+  #  (`docs/infra/BRAMKI_CI_2215.md`). Wymagana zostaje dawna nazwa — teraz na
+  #  tym jobie.
+  #
+  #  Zielony TYLKO gdy:
+  #    - obie części `port_panelu` są `success`, albo
+  #    - `port_panelu` jest `skipped`, bo bramka `zakres` (sama zielona)
+  #      uznała, że zmiana nie dotyka kodu albo warstwy widoku — dokładnie
+  #      ten stan, w którym dawny job też był `skipped`.
+  #  Każdy inny stan (czerwona albo anulowana część, pominięcie z innego
+  #  powodu) jest czerwony. `!cancelled()`: rusza także po czerwieni części.
+  # ===========================================================================
+  panel_marki:
+    name: Panel marki — puste i pełne widoki
+    needs: [zakres, port_panelu]
+    if: ${{ !cancelled() }}
+    runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 5
+    steps:
+      - name: Wynik obu części panelu
+        env:
+          WYNIK_ZAKRESU: ${{ needs.zakres.result }}
+          KOD: ${{ needs.zakres.outputs.kod }}
+          WIDOK: ${{ needs.zakres.outputs.widok }}
+          WYNIK_PANELU: ${{ needs.port_panelu.result }}
+        run: |
+          set -euo pipefail
+          echo "zakres=${WYNIK_ZAKRESU} (kod=${KOD}, widok=${WIDOK}), części panelu=${WYNIK_PANELU}"
+          if [ "${WYNIK_PANELU}" = "success" ]; then
+            echo "### Panel marki: obie części zielone" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ "${WYNIK_PANELU}" = "skipped" ] && [ "${WYNIK_ZAKRESU}" = "success" ] \
+            && { [ "${KOD}" != "true" ] || [ "${WIDOK}" != "true" ]; }; then
+            echo "### Panel marki: pominięty przez bramkę zakresu (bez zmiany kodu albo widoku)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "::error::Panel marki nie jest zielony: części=${WYNIK_PANELU}, zakres=${WYNIK_ZAKRESU}. Szczegóły w jobach „Panel marki — puste i pełne widoki (część …)”."
+          exit 1
 
   port_marki:
     name: Port marki (kompozycje, zoom i kontrole ujemne)
@@ -1448,6 +1603,27 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
+      # #2299: cache `vendor/` i przeglądarki — zasady i granice przy tych
+      # samych krokach w jobie `port_panelu`.
+      - name: Cache Composera
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-
+      - name: Wersja Playwrighta
+        id: playwright
+        run: |
+          set -euo pipefail
+          wersja="$(node -p "require('./package-lock.json').packages['node_modules/playwright-core'].version")"
+          [[ "$wersja" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "::error::Nie odczytano wersji playwright-core z package-lock.json: ${wersja}"; exit 1; }
+          echo "wersja=${wersja}" >> "$GITHUB_OUTPUT"
+      - name: Cache przeglądarki Playwrighta
+        if: runner.environment == 'github-hosted'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}
       - name: Instalacja zależności
         run: |
           composer install --no-interaction --prefer-dist --no-progress
@@ -1464,7 +1640,10 @@ jobs:
           cp .env.example .env
           sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
           php artisan storage:link
-          npm run build
+          # Sam Vite (#2299): kontrast marki i ~190 testów jednostkowych JS
+          # z `npm run build` (ok. 78 s) biegną w jobie `assets`, który rusza
+          # przy każdym `kod == 'true'`, czyli zawsze obok tego joba.
+          npm run build:assets
 
           php artisan migrate:fresh --seed --force --no-interaction
 
@@ -1611,6 +1790,27 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
+      # #2299: cache `vendor/` i przeglądarki — zasady i granice przy tych
+      # samych krokach w jobie `port_panelu`.
+      - name: Cache Composera
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-
+      - name: Wersja Playwrighta
+        id: playwright
+        run: |
+          set -euo pipefail
+          wersja="$(node -p "require('./package-lock.json').packages['node_modules/playwright-core'].version")"
+          [[ "$wersja" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "::error::Nie odczytano wersji playwright-core z package-lock.json: ${wersja}"; exit 1; }
+          echo "wersja=${wersja}" >> "$GITHUB_OUTPUT"
+      - name: Cache przeglądarki Playwrighta
+        if: runner.environment == 'github-hosted'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}
       - name: Instalacja zależności
         run: |
           composer install --no-interaction --prefer-dist --no-progress
@@ -1627,7 +1827,10 @@ jobs:
           cp .env.example .env
           sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
           php artisan storage:link
-          npm run build
+          # Sam Vite (#2299): kontrast marki i ~190 testów jednostkowych JS
+          # z `npm run build` (ok. 78 s) biegną w jobie `assets`, który rusza
+          # przy każdym `kod == 'true'`, czyli zawsze obok tego joba.
+          npm run build:assets
 
           php artisan migrate:fresh --seed --force --no-interaction
 
@@ -1783,6 +1986,27 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
+      # #2299: cache `vendor/` i przeglądarki — zasady i granice przy tych
+      # samych krokach w jobie `port_panelu`.
+      - name: Cache Composera
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-
+      - name: Wersja Playwrighta
+        id: playwright
+        run: |
+          set -euo pipefail
+          wersja="$(node -p "require('./package-lock.json').packages['node_modules/playwright-core'].version")"
+          [[ "$wersja" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "::error::Nie odczytano wersji playwright-core z package-lock.json: ${wersja}"; exit 1; }
+          echo "wersja=${wersja}" >> "$GITHUB_OUTPUT"
+      - name: Cache przeglądarki Playwrighta
+        if: runner.environment == 'github-hosted'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}
       - name: Instalacja zależności
         run: |
           composer install --no-interaction --prefer-dist --no-progress
@@ -1834,7 +2058,10 @@ jobs:
           cp .env.example .env
           sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
           php artisan storage:link
-          npm run build
+          # Sam Vite (#2299): kontrast marki i ~190 testów jednostkowych JS
+          # z `npm run build` (ok. 78 s) biegną w jobie `assets`, który rusza
+          # przy każdym `kod == 'true'`, czyli zawsze obok tego joba.
+          npm run build:assets
 
           # MIGRACJA TUTAJ, NIE TYLKO W SKRYPCIE. `dostepnosc.mjs` robi
           # `migrate:fresh --seed` sam, ale `wydajnosc.mjs` na tym polegał —
@@ -2098,6 +2325,27 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
+      # #2299: cache `vendor/` i przeglądarki — zasady i granice przy tych
+      # samych krokach w jobie `port_panelu`.
+      - name: Cache Composera
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-
+      - name: Wersja Playwrighta
+        id: playwright
+        run: |
+          set -euo pipefail
+          wersja="$(node -p "require('./package-lock.json').packages['node_modules/playwright-core'].version")"
+          [[ "$wersja" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "::error::Nie odczytano wersji playwright-core z package-lock.json: ${wersja}"; exit 1; }
+          echo "wersja=${wersja}" >> "$GITHUB_OUTPUT"
+      - name: Cache przeglądarki Playwrighta
+        if: runner.environment == 'github-hosted'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}
       - name: Instalacja zależności
         run: |
           composer install --no-interaction --prefer-dist --no-progress

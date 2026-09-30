@@ -195,11 +195,25 @@
         </div>
         <p><strong>Zanim to zrobisz, warto najpierw pobrać swoje dane.</strong></p>
 
-        <x-error-summary />
+        {{--
+            PO BŁĘDZIE FORMULARZ STOI OTWARTY (#2244).
 
-        <details>
+            Formularz usunięcia konta siedzi w `<details>`. Po złym haśle
+            (albo braku haczyka) strona wracała z podsumowaniem błędów, ale
+            z ZAMKNIĘTĄ sekcją — pole, którego dotyczył błąd, było schowane,
+            a odnośnik z podsumowania prowadził donikąd. Ten sam wzorzec co
+            w `notatka-zapisu` i ekranie kodu 2FA: `open`, gdy któreś z pól
+            tego formularza wróciło z błędem.
+
+            `usun_tresci` ma pole `f-usun-tresci` (z myślnikiem), więc bez
+            mapy odnośnik z podsumowania celowałby w nieistniejące
+            `#f-usun_tresci`.
+        --}}
+        <x-error-summary :field-ids="['usun_tresci' => 'f-usun-tresci']" />
+
+        <details @if($errors->hasAny(['password', 'confirm', 'usun_tresci'])) open @endif>
             <summary class="btn btn-secondary inline-flex">Chcę usunąć swoje konto</summary>
-            <form class="mt-4" method="POST" action="{{ route('settings.data.delete') }}">
+            <form class="mt-4" method="POST" action="{{ route('settings.data.delete') }}" novalidate>
                 @csrf
                 <x-field name="password" label="Wpisz swoje hasło" type="password" required autocomplete="current-password"
                          help="Pytamy o hasło, żeby mieć pewność, że to naprawdę Ty." />

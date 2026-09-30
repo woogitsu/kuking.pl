@@ -21,7 +21,7 @@
 <details class="wybor-dnia" @if($blad) open @endif>
     <summary class="btn btn-secondary">Dodaj do planera</summary>
     <div class="panel-formularza mt-3">
-        <form method="POST" action="{{ route('planer.store') }}">
+        <form method="POST" action="{{ route('planer.store') }}" novalidate>
             @csrf
             <input type="hidden" name="_wiersz" value="{{ $wiersz }}">
             <input type="hidden" name="recipe_id" value="{{ $recipe->getKey() }}">

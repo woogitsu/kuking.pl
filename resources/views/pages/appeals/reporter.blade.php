@@ -126,7 +126,7 @@
             </p>
         </article>
     @else
-        <form class="panel-formularza mt-5" method="POST" action="{{ url()->full() }}">
+        <form class="panel-formularza mt-5" method="POST" action="{{ url()->full() }}" novalidate>
             @csrf
 
             <h2 class="mt-0 text-title-sm">Napisz, dlaczego się nie zgadzasz</h2>

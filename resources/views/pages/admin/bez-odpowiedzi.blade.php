@@ -71,7 +71,7 @@
                 {{-- Odpowiedź wprost z listy. Wejście we wpis i powrót przy
                      dwudziestu pozycjach to dwadzieścia przeładowań strony —
                      playbook przestaje być wykonalny. --}}
-                <form method="POST" action="{{ route('admin.unanswered.reply', $wpis) }}">
+                <form method="POST" action="{{ route('admin.unanswered.reply', $wpis) }}" novalidate>
                     @csrf
                     <input type="hidden" name="_wiersz" value="{{ $wpis->getKey() }}">
                     <x-field name="body" label="Odpowiedz" type="textarea" :rows="3"

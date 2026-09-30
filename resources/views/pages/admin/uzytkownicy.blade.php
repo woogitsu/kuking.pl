@@ -85,7 +85,7 @@
         @endforeach
     </nav>
 
-    <form method="GET" action="{{ route('admin.users') }}" class="filtry-kont">
+    <form method="GET" action="{{ route('admin.users') }}" class="filtry-kont" novalidate>
         {{-- Sortowanie i zakładka stanu przeżywają wyszukiwanie. Bez tych
              dwóch pól szukanie cicho wracałoby do ustawień domyślnych. --}}
         <input type="hidden" name="sortuj" value="{{ $sortuj }}">

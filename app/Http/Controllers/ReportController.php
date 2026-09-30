@@ -318,7 +318,10 @@ class ReportController extends Controller
     private function resolveTarget(string $type, string $id): Model
     {
         return match ($type) {
-            'post' => Post::findOrFail($id),
+            // Po UUID, przed zapytaniem (#2327, audyt B2-13): `findOrFail('abc')`
+            // dawał Postgresowi napis jako wartość kolumny `uuid` — 500
+            // (`SQLSTATE[22P02]`) zamiast 404. Ten sam powód co przy przepisie niżej.
+            'post' => Str::isUuid($id) ? Post::findOrFail($id) : abort(404),
             // NIE `where('slug', $id)->orWhere('id', $id)`.
             //
             // `recipes.id` jest kolumną `uuid`, więc Postgres musi rzutować
@@ -337,8 +340,8 @@ class ReportController extends Controller
             'recipe' => Str::isUuid($id)
                 ? Recipe::findOrFail($id)
                 : Recipe::where('slug', $id)->firstOrFail(),
-            'comment' => Comment::findOrFail($id),
-            'cooked_event' => CookedEvent::findOrFail($id),
+            'comment' => Str::isUuid($id) ? Comment::findOrFail($id) : abort(404),
+            'cooked_event' => Str::isUuid($id) ? CookedEvent::findOrFail($id) : abort(404),
             // Publiczny zeszyt (#2279). Po UUID, przed zapytaniem — ten sam
             // powód co przy przepisie wyżej (rzutowanie na uuid).
             'collection' => Str::isUuid($id) ? Collection::findOrFail($id) : abort(404),

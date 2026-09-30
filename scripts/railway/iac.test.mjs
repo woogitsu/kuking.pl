@@ -20,7 +20,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -389,6 +389,138 @@ for (const [opis, wzor, zepsuj] of MUTACJE) {
     assert.notEqual(JSON.stringify(g), przed, "mutacja nic nie zmieniła");
     const srodowisko = wzor === PROD ? "production" : "staging";
     assert.notDeepEqual(bledy(g, { ...KONTEKST, srodowisko, rozbity: wzor === PROD }), [], `strażnik nie zauważył: ${opis}`);
+  });
+}
+
+// ---------------------------------------------------------------------------
+//  POLITYKA RESTARTU (audyt 30.09.2026, IN-13, #2302).
+//  Po wyczerpaniu prób Railway zostawia usługę wyłączoną do ręcznego
+//  restartu. Na produkcji 10 prób (limit planu darmowego) to kwadrans awarii
+//  bazy, po którym kolejka stoi do rana. Uzasadnienie liczb jest przy
+//  `PROBY_RESTARTU_PRODUKCJA` w railway.ts.
+// ---------------------------------------------------------------------------
+/** Najwięcej prób, na jakie pozwala plan darmowy (dokumentacja Railway). */
+const LIMIT_PROB_PLANU_DARMOWEGO = 10;
+
+function bledyRestartu(g, { srodowisko }) {
+  const b = [];
+  const produkcja = srodowisko === "production";
+  const aplikacja = g.resources.filter((r) => r.type === "service" && r.groupId === "Aplikacja");
+  if (!aplikacja.length) b.push("brak serwisów aplikacji — nie ma czego sprawdzać");
+  for (const s of aplikacja) {
+    const rola = ROLA(s);
+    const typ = s.deploy?.restartPolicyType;
+    const proby = s.deploy?.restartPolicyMaxRetries;
+    // Kolejka i harmonogram mają chodzić zawsze: wyjście z kodem 0 przy
+    // ON_FAILURE też kończy się martwą usługą.
+    if ((rola === "worker" || rola === "scheduler") && typ !== "ALWAYS") {
+      b.push(`${s.name}: restartPolicyType=${typ}, rola ${rola} wymaga ALWAYS`);
+    }
+    if (rola !== "worker" && rola !== "scheduler" && typ !== "ON_FAILURE") {
+      b.push(`${s.name}: restartPolicyType=${typ}, rola ${rola} ma ON_FAILURE`);
+    }
+    if (!Number.isInteger(proby) || proby < 1) b.push(`${s.name}: restartPolicyMaxRetries=${proby}, oczekiwana liczba prób`);
+    else if (produkcja && proby <= LIMIT_PROB_PLANU_DARMOWEGO) {
+      b.push(`${s.name}: ${proby} prób restartu na produkcji — po krótkiej awarii bazy usługa zostaje wyłączona`);
+    } else if (!produkcja && proby > LIMIT_PROB_PLANU_DARMOWEGO) {
+      b.push(`${s.name}: ${proby} prób restartu poza produkcją — więcej niż ${LIMIT_PROB_PLANU_DARMOWEGO}`);
+    }
+  }
+  return b;
+}
+
+for (const [opis, srodowisko, env] of PRZYPADKI) {
+  test(`graf ${opis}: polityka restartu`, () => {
+    assert.deepEqual(bledyRestartu(graf(srodowisko, env), { srodowisko }), []);
+  });
+}
+
+for (const [opis, wzor, zepsuj] of [
+  ["10 prób workera na produkcji (stan sprzed IN-13)", PROD, (g) => { usluga(g, "worker").deploy.restartPolicyMaxRetries = 10; }],
+  ["10 prób serwisu WWW na produkcji", PROD, (g) => { usluga(g, "kuking.pl").deploy.restartPolicyMaxRetries = 10; }],
+  ["worker z ON_FAILURE", PROD, (g) => { usluga(g, "worker").deploy.restartPolicyType = "ON_FAILURE"; }],
+  ["scheduler z ON_FAILURE", PROD, (g) => { usluga(g, "scheduler").deploy.restartPolicyType = "ON_FAILURE"; }],
+  ["serwis WWW bez restartu", PROD, (g) => { usluga(g, "kuking.pl").deploy.restartPolicyType = "NEVER"; }],
+  ["brak limitu prób", PROD, (g) => { delete usluga(g, "worker").deploy.restartPolicyMaxRetries; }],
+  ["limit produkcji na stagingu", STAGING, (g) => { usluga(g, "kuking.pl").deploy.restartPolicyMaxRetries = 1000; }],
+]) {
+  test(`kontrola ujemna polityki restartu: ${opis}`, () => {
+    const g = structuredClone(wzor);
+    const przed = JSON.stringify(g);
+    zepsuj(g);
+    assert.notEqual(JSON.stringify(g), przed, "mutacja nic nie zmieniła");
+    const srodowisko = wzor === PROD ? "production" : "staging";
+    assert.notDeepEqual(bledyRestartu(g, { srodowisko }), [], `strażnik nie zauważył: ${opis}`);
+  });
+}
+
+// ---------------------------------------------------------------------------
+//  ZADANIA DŁUŻSZE NIŻ OKNO ZAMKNIĘCIA (audyt 30.09.2026, IN-14, #2302).
+//  Wcześniej test znał tylko `ProcessUploadedImage`. Zadanie z `$timeout`
+//  dłuższym niż `drainingSeconds` workera (minus zapas na zamknięcie) jest
+//  zabijane przy wdrożeniu i wraca dopiero po `retry_after`. Każde takie
+//  zadanie ma tu wpis z powodem. Nowe długie zadanie bez wpisu oblewa test.
+//  Wpis, który przestał być potrzebny, też oblewa: lista nie może gnić.
+// ---------------------------------------------------------------------------
+const DLUZSZE_NIZ_OKNO = {
+  // D-333 „Okno zamknięcia workera”: eksport przerwany przy wdrożeniu wraca
+  // po `retry_after`, paczka i tak idzie e-mailem.
+  GenerateUserExport: "D-333: przerwany eksport ponawia kolejka",
+  // IN-14: `tries = 1`, zlecenie domyka `failed()` albo `kuking:odzyskaj-importy`.
+  // Import jest wyłączony na produkcji do podpisania DPA (D-333, #2214).
+  ImportujPrzepisZAdresu: "IN-14: import z adresu, zlecenie domyka odzyskiwanie",
+  ImportujPrzepisZPdf: "IN-14: import z PDF, zlecenie domyka odzyskiwanie",
+};
+
+function limityZadan() {
+  const katalog = resolve(KORZEN, "app/Jobs");
+  return Object.fromEntries(
+    readdirSync(katalog)
+      .filter((plik) => plik.endsWith(".php"))
+      .map((plik) => {
+        const trafienie = readFileSync(join(katalog, plik), "utf8").match(/public (?:int )?\$timeout = (\d+);/);
+        return [plik.replace(/\.php$/, ""), trafienie ? Number(trafienie[1]) : null];
+      })
+      .filter(([, limit]) => limit !== null),
+  );
+}
+
+function bledyOkna(limity, okno, wyjatki) {
+  const b = [];
+  const zaDlugie = Object.entries(limity).filter(([, limit]) => limit + ZAPAS_ZAMKNIECIA_S > okno);
+  for (const [zadanie, limit] of zaDlugie) {
+    if (!(zadanie in wyjatki)) {
+      b.push(`${zadanie}: $timeout=${limit} s + ${ZAPAS_ZAMKNIECIA_S} s zapasu > okno zamknięcia workera ${okno} s i brak wpisu w DLUZSZE_NIZ_OKNO`);
+    }
+  }
+  for (const zadanie of Object.keys(wyjatki)) {
+    if (!(zadanie in limity)) b.push(`DLUZSZE_NIZ_OKNO: ${zadanie} nie istnieje albo nie ma $timeout`);
+    else if (!zaDlugie.some(([z]) => z === zadanie)) b.push(`DLUZSZE_NIZ_OKNO: ${zadanie} mieści się już w oknie, usuń wpis`);
+  }
+  return b;
+}
+
+const LIMITY_ZADAN = limityZadan();
+const OKNO_WORKERA = usluga(PROD, "worker").deploy.drainingSeconds;
+
+test("każde zadanie dłuższe niż okno zamknięcia workera jest świadomym wyjątkiem (IN-14)", () => {
+  // Kontrola, że czytanie kodu zadań w ogóle coś znalazło.
+  assert.equal(LIMITY_ZADAN.ProcessUploadedImage, KONTEKST.limitZdjec);
+  assert.deepEqual(bledyOkna(LIMITY_ZADAN, OKNO_WORKERA, DLUZSZE_NIZ_OKNO), []);
+});
+
+for (const [opis, zepsuj] of [
+  ["nowe zadanie 300 s bez wpisu", (l, w) => { l.NoweDlugieZadanie = 300; }],
+  ["import z PDF zdjęty z listy wyjątków", (l, w) => { delete w.ImportujPrzepisZPdf; }],
+  ["zadanie ze zdjęciami wydłużone do 125 s", (l, w) => { l.ProcessUploadedImage = 125; }],
+  ["wpis dla zadania, które już się mieści", (l, w) => { l.ImportujPrzepisZAdresu = 60; }],
+  ["wpis dla zadania, którego nie ma", (l, w) => { w.UsunieteZadanie = "?"; }],
+]) {
+  test(`kontrola ujemna okna zamknięcia: ${opis}`, () => {
+    const limity = { ...LIMITY_ZADAN };
+    const wyjatki = { ...DLUZSZE_NIZ_OKNO };
+    zepsuj(limity, wyjatki);
+    assert.notDeepEqual(bledyOkna(limity, OKNO_WORKERA, wyjatki), [], `strażnik nie zauważył: ${opis}`);
   });
 }
 
