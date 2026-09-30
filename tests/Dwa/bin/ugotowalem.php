@@ -3,10 +3,11 @@
 declare(strict_types=1);
 
 /**
- * Uczestnik wyścigu #2017: „Ugotowałem” kontra równoległa utrata dostępu.
+ * Uczestnik wyścigu #2017: „Ugotowałem” kontra równoległa utrata dostępu —
+ * i #2323: „Zrób swoją wersję” (scenariusz `fork`) kontra to samo.
  *
- * Woła PRAWDZIWE akcje: `RecordCookedEvent` poprzedzone tym samym
- * sprawdzeniem Policy co w kontrolerze, `PublishRecipe` (autor przełącza
+ * Woła PRAWDZIWE akcje: `RecordCookedEvent` i `ZrobWlasnaWersje`, każdą
+ * poprzedzoną tym samym sprawdzeniem Policy co w kontrolerze, `PublishRecipe` (autor przełącza
  * przepis na „tylko ja”), decyzję moderacji przez `ModerationController`,
  * `BlockUser` i `User::ban()`. Bariera należy wyłącznie do przyrządu:
  * zatrzymuje akcję wewnątrz jej transakcji zaraz po wskazanym zapytaniu
@@ -15,6 +16,7 @@ declare(strict_types=1);
 
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Recipes\Actions\RecordCookedEvent;
+use App\Domain\Recipes\Actions\ZrobWlasnaWersje;
 use App\Domain\Social\Actions\BlockUser;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Requests\Moderation\DecyzjaModeracyjnaRequest;
@@ -71,6 +73,12 @@ try {
                 note: 'Wyszło w wyścigu.',
                 kluczWyslania: (string) Str::uuid7(),
             )->getKey();
+        })(),
+        'fork' => (function () use ($actor, $recipe): string {
+            // Dokładnie to, co robi `RecipeController::fork` przed akcją.
+            Gate::forUser($actor)->authorize('fork', $recipe);
+
+            return (string) app(ZrobWlasnaWersje::class)->handle($actor, $recipe)->getKey();
         })(),
         'private' => app(PublishRecipe::class)->handle(
             author: $actor,

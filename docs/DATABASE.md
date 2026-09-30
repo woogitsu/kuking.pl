@@ -1583,6 +1583,21 @@ oryginał", czyli do stanu sprzed rozdzielenia. **Cofać przed migracją danych,
 nie po:** po przeniesieniu wariantów ta kolumna niesie już prawdziwą wiedzę
 i jej utrata znaczy, że aplikacja szuka ich w starym buckecie.
 
+**Migracja danych `2026_09_06_180000_point_existing_media_at_legacy_disk`**
+(bez zmiany schematu) przestawia stare wiersze z `disk = 'r2'` na
+`disk = variants_disk = 'r2_legacy'`. Po niej nazwa `r2` znaczy wyłącznie nowy,
+prywatny bucket. **Rollback odmawia (D-088, issue #2329)**, gdy w `media` jest
+choć jeden wiersz z `disk = 'r2'` — przeniesiony przez `kuking:przenies-zdjecia`
+albo dodany po rozdzieleniu. Cofnięcie zlałoby wtedy stare wiersze z nowymi,
+a kolejne `up()` przestawiłoby na `r2_legacy` także te, których plików
+w starym buckecie nigdy nie było. Odmowa niczego nie zmienia i mówi, co zrobić
+(cofnąć wdrożenie bez tej migracji albo ręcznie, po kopii tabeli
+i `kuking:zaleznosc-od-starego-bucketu --pliki`). Bez takich wierszy (pusta
+baza, dev/CI na dysku `public`, produkcja przed pierwszym nowym zdjęciem)
+rollback przechodzi jak dawniej: `r2_legacy` → `r2`, `variants_disk` → `NULL`,
+a ponowne `up()` odtwarza stan w całości. Test:
+`tests/Feature/CofniecieMigracjiStaregoBucketuOdmawiaTest.php`.
+
 #### `status = 'deleted'` — kasowanie TRWA, a wiersz jest uchwytem do ponowienia
 
 Wprowadzone przez **D-083** (issue #285, MEDIA-01). **Bez migracji i bez
