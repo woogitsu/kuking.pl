@@ -87,6 +87,20 @@ class KosztZCenGusTest extends TestCase
         }
     }
 
+    #[Test]
+    public function uszkodzony_zakres_nie_liczy_poprawnego_poczatku(): void
+    {
+        foreach (['200 do 300- g mąki', '200 do 300.5.5 g mąki', '200 do 300 g do 400 g mąki'] as $tekst) {
+            $this->assertNull(
+                IloscZTekstu::rozbierz($tekst),
+                'KOSZT_2477_USZKODZONY_ZAKRES_NIE_LICZY_POCZATKU',
+            );
+        }
+
+        $this->assertSame(['ilosc' => 2.0, 'miara' => 'lyzka'], IloscZTekstu::rozbierz('2 łyżki do smażenia'));
+        $this->assertSame(['ilosc' => 250.0, 'miara' => 'g'], IloscZTekstu::rozbierz('200-300 g mąki'));
+    }
+
     // ------------------------------------------------------------------
     // Dopasowanie do cennika
     // ------------------------------------------------------------------
@@ -139,6 +153,11 @@ class KosztZCenGusTest extends TestCase
         $this->assertNotNull($bledny);
         $this->assertFalse($bledny->jestPrzedzial());
         $this->assertStringContainsString('200 do dużo g mąki', $bledny->zdanie());
+
+        $uszkodzony = app(SzacunekKosztuZCen::class)->dla($this->przepis(['200 do 300- g mąki', '2 jajka']));
+        $this->assertNotNull($uszkodzony);
+        $this->assertFalse($uszkodzony->jestPrzedzial());
+        $this->assertStringContainsString('200 do 300- g mąki', $uszkodzony->zdanie());
 
         $podstawa = app(SzacunekKosztuZCen::class)->dla($this->przepis(['200 do 300 g mąki']));
         $zWoda = $this->przepis(['200 do 300 g mąki', '3 l wody', '5 kg warzyw']);

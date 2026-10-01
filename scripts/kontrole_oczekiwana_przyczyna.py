@@ -36,6 +36,7 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 
 OCZEKUJ = {
     'Koszt: słowny zakres gubi granice i miarę (#2477)': r'KOSZT_2477_SLOWNY_ZAKRES_ZACHOWUJE_GRANICE_I_MIARE',
+    'Koszt: uszkodzony zakres przyjmuje początek (#2477)': r'KOSZT_2477_USZKODZONY_ZAKRES_NIE_LICZY_POCZATKU',
     # #1011, paczka H: wpisy dopisane po wzorcach dla wcześniejszych kontroli.
     "Goły ->with('status') wraca do kontrolera": r'Goły zapis klucza `status` wygląda jak zielony sukces',
     'Odmowa nazwana sukcesem': r'Komunikat::sukces\(\) z tekstem „Nie udało się…" — to błąd, nie sukces\.',

@@ -85,6 +85,17 @@ final class IloscZTekstu
                     return null;
                 }
 
+                if (($trafienie[2][0] ?? '') !== '') {
+                    $poDopasowaniu = substr($t, $trafienie[0][1] + strlen($trafienie[0][0]));
+
+                    // Nie bierzemy poprawnego początku uszkodzonego zapisu:
+                    // „300- g”, „300.5.5” ani „300 g do 400 g”.
+                    if (preg_match('/^[.,\/]\d|(?:^|\s)(?:do|lub|albo)\s+\d/', $poDopasowaniu) === 1
+                        || ($slowo === '' && preg_match('/^\s*-\s*\S/', $poDopasowaniu) === 1)) {
+                        return null;
+                    }
+                }
+
                 $ilosc = self::liczba($trafienie[1][0]);
                 if (($trafienie[2][0] ?? '') !== '') {
                     // „2-3 szklanki" — środek przedziału.

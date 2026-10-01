@@ -1266,6 +1266,9 @@ def pierwsze_z_wielu(source, old, new, ile):
 checks = [
     ("Koszt: słowny zakres gubi granice i miarę (#2477)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "slowne_zakresy_zachowuja_obie_granice_i_miare",
      lambda s: replace_once(s, r'(?:\s*-\s*|\s+(?:do|lub|albo)\s+)', r'\s*-\s*')),
+    ("Koszt: uszkodzony zakres przyjmuje początek (#2477)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "uszkodzony_zakres_nie_liczy_poprawnego_poczatku",
+     lambda s: replace_once(s, "if (preg_match('/^[.,\\/]\\d|(?:^|\\s)(?:do|lub|albo)\\s+\\d/', $poDopasowaniu) === 1",
+         "if (false && preg_match('/^[.,\\/]\\d|(?:^|\\s)(?:do|lub|albo)\\s+\\d/', $poDopasowaniu) === 1")),
     # #988: komunikat po akcji ma jawny rodzaj. Goły `->with('status', …)`
     # wróciłby do zielonej plakietki także dla odmowy.
     ("Goły ->with('status') wraca do kontrolera", "app/Http/Controllers/SmakowicieController.php", "test_w_app_nie_ma_golego_zapisu_statusu_bez_rodzaju",
