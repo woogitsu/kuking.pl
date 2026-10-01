@@ -61,6 +61,10 @@ use App\Domain\Users\Actions\ChangeUserRole;
 use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Actions\RequestAccountDeletion;
+use App\Domain\Wskazowki\OdrzucWskazowke;
+use App\Domain\Wskazowki\PrzyjmijWskazowke;
+use App\Domain\Wskazowki\WycofajWskazowke;
+use App\Domain\Wskazowki\ZaproponujWskazowke;
 use App\Domain\Wydania\Actions\ZarejestrujWdrozenie;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Auth\PasswordResetController;
@@ -71,11 +75,13 @@ use App\Models\Collection;
 use App\Models\CollectionInvitation;
 use App\Models\Comment;
 use App\Models\ContactMessage;
+use App\Models\CookedEvent;
 use App\Models\CookingProgress;
 use App\Models\ImportPrzepisu;
 use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\RecipeHint;
 use App\Models\Report;
 use App\Models\Tag;
 use App\Models\User;
@@ -617,6 +623,25 @@ try {
             Collection::query()->whereKey($argumenty['zeszyt'])->firstOrFail(),
             User::query()->whereKey($argumenty['czlonek'])->firstOrFail(),
         ) ? 'odebrano' : 'nie-bylo',
+
+        // Wskazówki od gotujących (#2352): prośba, odpowiedź i wycofanie zgody
+        // na prawdziwych akcjach domenowych.
+        'zaproponuj-wskazowke' => (string) app(ZaproponujWskazowke::class)->handle(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            CookedEvent::query()->whereKey($argumenty['wykonanie'])->firstOrFail(),
+        )->getKey(),
+        'przyjmij-wskazowke' => (string) app(PrzyjmijWskazowke::class)->handle(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            RecipeHint::query()->whereKey($argumenty['wskazowka'])->firstOrFail(),
+        )->status,
+        'odrzuc-wskazowke' => (string) app(OdrzucWskazowke::class)->handle(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            RecipeHint::query()->whereKey($argumenty['wskazowka'])->firstOrFail(),
+        )->status,
+        'wycofaj-wskazowke' => (string) app(WycofajWskazowke::class)->handle(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            RecipeHint::query()->whereKey($argumenty['wskazowka'])->firstOrFail(),
+        )->status,
 
         // Dwa równoległe uruchomienia przypomnień o urodzinach (#2318).
         // Cisza nocna wyłączona (od = do), żeby wynik nie zależał od godziny.

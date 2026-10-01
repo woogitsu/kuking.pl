@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Wskazowki;
 
+use App\Domain\Social\ZamekPary;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\RecipeHint;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -22,16 +22,26 @@ use Illuminate\Support\Facades\Gate;
  * tekst uwagi należy do wykonania kucharza i jego los zależy od niego, nie
  * od tej tabeli. Idempotentne i wyścigowo-bezpieczne: równoległe wycofanie i
  * drugie wycofanie ustawiają się w kolejce na wierszu.
+ *
+ * KOLEJNOŚĆ ZAMKÓW: najpierw oba konta (`ZamekPary`), potem wiersz wskazówki —
+ * jak w pozostałych akcjach tego modułu (patrz `OdrzucWskazowke`).
  */
 final class WycofajWskazowke
 {
     public function handle(User $kucharz, RecipeHint $wskazowka, ?string $ip = null): RecipeHint
     {
-        return DB::transaction(function () use ($kucharz, $wskazowka, $ip): RecipeHint {
+        $autor = User::query()->whereKey($wskazowka->author_id)->first()
+            ?? throw new BladDlaCzlowieka(PrzyjmijWskazowke::NIEAKTUALNE);
+
+        return ZamekPary::zablokuj($kucharz, $autor, function (?User $swiezyKucharz) use ($wskazowka, $ip): RecipeHint {
+            if ($swiezyKucharz === null) {
+                throw new BladDlaCzlowieka(PrzyjmijWskazowke::NIEAKTUALNE);
+            }
+
             $swieza = RecipeHint::query()->whereKey($wskazowka->getKey())->lockForUpdate()->first()
                 ?? throw new BladDlaCzlowieka(PrzyjmijWskazowke::NIEAKTUALNE);
 
-            if ($swieza->cook_id !== $kucharz->getKey()) {
+            if ($swieza->cook_id !== $swiezyKucharz->getKey()) {
                 throw new BladDlaCzlowieka(PrzyjmijWskazowke::NIEAKTUALNE);
             }
 
@@ -40,7 +50,7 @@ final class WycofajWskazowke
                 return $swieza;
             }
 
-            if (Gate::forUser($kucharz)->denies('withdraw', $swieza)) {
+            if (Gate::forUser($swiezyKucharz)->denies('withdraw', $swieza)) {
                 throw new BladDlaCzlowieka(PrzyjmijWskazowke::NIEAKTUALNE);
             }
 
@@ -48,7 +58,7 @@ final class WycofajWskazowke
 
             AuditLogEntry::record(
                 action: 'recipe_hint.withdrawn',
-                actor: $kucharz,
+                actor: $swiezyKucharz,
                 subject: $swieza,
                 metadata: ['recipe_id' => $swieza->recipe_id, 'cooked_event_id' => $swieza->cooked_event_id],
                 ip: $ip,
