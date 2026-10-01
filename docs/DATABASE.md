@@ -6645,7 +6645,7 @@ zamiast dwóch, a usunięcie wykonania zabiera wskazówkę kaskadą.
 | `recipe_version_number` | `integer` NULL | numer wersji przepisu z chwili prośby (bez klucza obcego — wersje podlegają retencji); strona przepisu dopisuje „Przepis był zmieniany po tej wskazówce.”, gdy najnowsza wersja jest wyższa |
 | `decided_at` | `timestamptz` NULL | kiedy kucharz odpowiedział („Zgadzam się” albo „Nie”); porządkuje wskazówki na stronie przepisu (kolejność zgód, bez rankingu) |
 | `withdrawn_at` | `timestamptz` NULL | kiedy kucharz wycofał zgodę |
-| `moderation_hidden_at` | `timestamptz` NULL | od kiedy moderacja ukryła **samą wskazówkę** (migracja `2026_10_01_200000_wskazowka_jako_cel_zgloszenia`, #2352); `NULL` = nie ukryta. Pole sterujące: poza `$fillable`, ustawia je wyłącznie decyzja `hide` (`RecipeHint::ukryjPrzezModeracje()`), zdejmuje uznane odwołanie. To osobny znacznik, nie `status` — stan zgody kucharza zostaje, jaki był |
+| `moderation_hidden_at` | `timestamptz` NULL | od kiedy moderacja ukryła **samą wskazówkę** (migracja `2026_10_01_200000_wskazowka_jako_cel_zgloszenia`, #2352); `NULL` = nie ukryta. Pole sterujące: poza `$fillable`, ustawia je wyłącznie decyzja `hide` (`RecipeHint::ukryjPrzezModeracje()`), zdejmuje uznane odwołanie albo ręczne „Przywróć wskazówkę” (`PrzywrocWskazowke`). To osobny znacznik, nie `status` — stan zgody kucharza zostaje, jaki był |
 | `created_at` / `updated_at` | `timestamptz` | `created_at` = data prośby (limit dobowy autora) |
 
 **Pola sterujące poza `$fillable`.** `RecipeHint::$fillable` jest PUSTE:
@@ -6684,7 +6684,12 @@ Ograniczenia (nowa tabela, więc razem z `CREATE TABLE` — AGENTS.md §6):
   uwagą (`note`), przepis opublikowany, autor aktywny (zawieszenie odcina od
   pisania), kucharz może czytać i nie jest zbanowany/w karencji, **brak
   blokady** w którąkolwiek stronę. Limity: `kuking.wskazowki.na_przepis_max`
-  (10 czekających i przyjętych łącznie) i `na_dobe_max` (10 próśb dziennie).
+  (10 czekających i przyjętych łącznie, **bez ukrytych przez moderację** — ukryta
+  wskazówka zwalnia miejsce, `RecipeHint::scopeZajmujaceMiejsce`) i `na_dobe_max`
+  (10 próśb dziennie). Przywrócenie ukrytej wskazówki (ręczne albo po uznanym
+  odwołaniu) **nie sprawdza limitu**, więc przepis może mieć ponad 10 wskazówek;
+  nowe prośby czekają, aż liczba zajętych miejsc spadnie poniżej limitu, a strona
+  przepisu pokazuje najwyżej `na_stronie_max` (20) wskazówek w kolejności zgód.
 - *Tylko kucharz decyduje* (`answer` → `accept` / `decline` / `withdraw`).
   „Zgadzam się” wymaga braku blokady z autorem, aktywnego konta i dostępnego
   przepisu; **„Nie” i „Wycofaj zgodę” zostają kucharzowi także przy blokadzie
@@ -6746,10 +6751,21 @@ Ograniczenia (nowa tabela, więc razem z `CREATE TABLE` — AGENTS.md §6):
   **Zgoda kucharza jest ważniejsza niż decyzja moderacji:** jeśli w międzyczasie
   wycofał zgodę, wskazówka zostaje `withdrawn`, znika tylko ślad moderacji. Moderator
   nie przywraca wskazówki, której sam jest autorem (`WlasnejTresciNiePrzywracasz`).
+- *Ręczne „Przywróć wskazówkę” bez odwołania* (`PrzywrocWskazowke`, trasa
+  `admin.hints.restore`, decyzja właściciela z 1.10.2026): czynna moderacja
+  zdejmuje `moderation_hidden_at` i zapisuje decyzję `unhide` (`report_id` NULL,
+  powód obowiązkowy, wpis `moderation.restored` w dzienniku). Nie w sprawie, w
+  której moderator jest stroną (kucharz albo autor przepisu —
+  `RecipeHintPolicy::restore`), decyzję administratora cofa administrator
+  (`RestoreContent::wolnoCofnac`). Zamek jak ukrycie: konta aktora, kucharza i
+  autora przepisu w jednym przebiegu rosnąco po `id`, potem wiersz wskazówki.
+  Kucharz dostaje powiadomienie „jest znowu widoczna” tylko wtedy, gdy zgoda
+  nadal obowiązuje; po wycofaniu zgody znika ślad moderacji, ale nic nie wraca
+  publicznie i nie ma wiadomości. Bez zmiany schematu.
   Uznane odwołanie *zgłaszającego* od „Bez działania” może wydać nową decyzję
   `hide` (`DecyzjaPoOdwolaniu`).
-- *Widoczność:* `RecipeHint::scopePrzyjeteDlaPrzepisu` pomija ukryte; ukryta nadal
-  zajmuje miejsce w limicie przepisu (przywrócenie nie może go przekroczyć).
+- *Widoczność:* `RecipeHint::scopePrzyjeteDlaPrzepisu` pomija ukryte; ukryta
+  zwalnia miejsce w limicie przepisu (przywrócenie wolno ponad limit — patrz wyżej).
   Kucharz widzi na stronie wykonania „Ta wskazówka została ukryta przez
   moderację”, autor przepisu — to samo neutralne zdanie co przy „Nie”. Paczka RODO
   kucharza ma `ukryta_przez_moderacje_dnia`; paczka autora przepisu nie ujawnia

@@ -202,6 +202,27 @@ może ukryć **samą wskazówkę**, nie ruszając wykonania.
   zgodę, wskazówka zostaje wycofana — jego decyzja jest ważniejsza. Moderator nie
   przywraca wskazówki, której sam jest autorem. Kucharz może wycofać zgodę także
   na ukrytą wskazówkę.
+- **„Przywróć wskazówkę” bez odwołania** (decyzja właściciela z 1.10.2026, wzorem
+  przywracania wersji z historii zmian). Przycisk stoi w karcie zgłoszenia
+  wskazówki w kolejce (`/admin/zgloszenia`, zakładka „Rozstrzygnięte”), dopóki
+  wskazówka jest ukryta przez moderację; wysyła powód (obowiązkowy, do rejestru
+  decyzji) i opcjonalną wiadomość do kucharza na `admin.hints.restore`. Zapis to
+  decyzja `unhide` (`report_id` pusty), wpis w dzienniku i powiadomienie
+  kucharza „Wskazówka … jest znowu widoczna” — jeśli zgoda nadal obowiązuje;
+  po wycofaniu zgody znika sam znacznik moderacji, wskazówka zostaje wycofana i
+  nikt nie dostaje wiadomości. Przywraca czynna moderacja pod tym samym zamkiem
+  co ukrycie (kucharz i autor przepisu rosnąco po `id`); **nie w sprawie, w
+  której moderator jest stroną** (kucharz, autor przepisu) — zamiast przycisku
+  stoi informacja; **decyzję administratora cofa administrator**. Ręczne
+  przywrócenie i uznane odwołanie wykluczają się: drugie z nich zastaje
+  wskazówkę już widoczną i nie zapisuje drugiej decyzji.
+- **Limit 10 wskazówek na przepis a ukrycie.** Ukryta wskazówka **zwalnia
+  miejsce w limicie** (liczą się przyjęte nieukryte i żywe czekające prośby).
+  Przywrócenie — ręczne i po uznanym odwołaniu — **wolno ponad limit**: limit
+  chroni kucharzy przed lawiną próśb, nie blokuje cofnięcia decyzji moderacji.
+  Dopóki liczba zajętych miejsc nie spadnie poniżej 10, autor nie wyśle nowej
+  prośby. Strona przepisu pokazuje najwyżej `kuking.wskazowki.na_stronie_max`
+  (20) wskazówek w kolejności zgód.
 - **Raport przejrzystości** liczy zgłoszenia wskazówek osobnym wierszem (sekcja 1a).
 
 ### Zdjęcie z urzędu — treść, której nikt nie zgłosił (G31, D-251)
