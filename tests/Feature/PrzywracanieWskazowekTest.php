@@ -405,19 +405,22 @@ final class PrzywracanieWskazowekTest extends TestCase
         $this->assertSame([0, 0, 1], [$poPierwszej, $poDrugiej, $poTrzeciej]);
     }
 
-    public function test_strona_przepisu_pokazuje_wszystkie_wskazowki_takze_ponad_limit(): void
+    public function test_strona_przepisu_pokazuje_wskazowki_ponad_limit_prosb_ale_nie_ponad_sufit_wyswietlania(): void
     {
-        config(['kuking.wskazowki.na_przepis_max' => 2, 'kuking.wskazowki.na_dobe_max' => 20]);
+        config(['kuking.wskazowki.na_przepis_max' => 2, 'kuking.wskazowki.na_dobe_max' => 20, 'kuking.wskazowki.na_stronie_max' => 4]);
         $przepis = $this->nowyPrzepis($this->autor, 'Limit');
-        $uwagi = ['Uwaga alfa.', 'Uwaga beta.', 'Uwaga gamma.'];
+        $uwagi = ['Uwaga alfa.', 'Uwaga beta.', 'Uwaga gamma.', 'Uwaga delta.', 'Uwaga epsilon.'];
         foreach ($uwagi as $numer => $uwaga) {
             $this->nowaWskazowka($this->user('kucharz'.$numer), $przepis, $uwaga);
         }
         $this->przepis = $przepis;
 
         $sekcja = $this->sekcjaPrzepisu($this->user('obcy'));
+        $widoczne = array_map(fn (string $u): bool => str_contains($sekcja, $u), $uwagi);
 
-        $this->assertSame([true, true, true], array_map(fn (string $u): bool => str_contains($sekcja, $u), $uwagi));
+        // Ponad limit próśb (2) strona pokazuje wszystkie przywrócone, ale nie więcej niż sufit (4);
+        // kolejność to kolejność zgód, więc odpada ostatnia.
+        $this->assertSame([true, true, true, true, false], $widoczne);
     }
 
     public function test_uznane_odwolanie_przywraca_wskazowke_takze_ponad_limit(): void

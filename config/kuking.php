@@ -60,8 +60,9 @@ return [
      * uwagę z cudzego wykonania pokazać przy jego przepisie; kucharz się
      * zgadza albo nie.
      *
-     * `na_przepis_max` — ile wskazówek (czekających i przyjętych razem) może
-     * mieć jeden przepis. Granica nie układa niczego według popularności
+     * `na_przepis_max` — ile wskazówek (czekających i przyjętych, bez ukrytych
+     * przez moderację) może mieć jeden przepis; przywrócenie ukrytej wolno
+     * ponad nim, a `na_stronie_max` to sufit tego, co strona pokazuje. Granica nie układa niczego według popularności
      * (AGENTS.md §8, §12): chroni stronę przepisu przed ścianą cytatów i
      * kucharzy przed lawiną próśb. Wskazówki idą w kolejności zgód, bez
      * rankingu, wszystkie na jednej stronie. `na_dobe_max` — ile próśb
@@ -70,6 +71,12 @@ return [
     'wskazowki' => [
         'na_przepis_max' => 10,
         'na_dobe_max' => 10,
+        // Twardy sufit liczby wskazówek POKAZYWANYCH na stronie przepisu
+        // (decyzja właściciela z 1.10.2026: ukryta wskazówka zwalnia miejsce
+        // w limicie, a jej przywrócenie wolno ponad `na_przepis_max`). Założenie:
+        // ponad 10 stoją tylko wskazówki przywrócone przez moderację, więc
+        // 20 starcza z zapasem; sufit nie jest drugim limitem próśb.
+        'na_stronie_max' => 20,
         // Czekająca prośba wygasa po tylu dniach od `created_at` (decyzja
         // właściciela z 1.10.2026): przestaje liczyć się do limitu na przepis
         // i nie da się na nią odpowiedzieć „Zgadzam się”. Wygaśnięcie to koniec
