@@ -2088,7 +2088,9 @@ jobs:
       # przeglądarka joba. Żadnego migrate:fresh na kuking_test ani produkcji.
       - name: Potwierdzenia usuwania bez JavaScriptu (320 px i 200%)
         env:
-          APP_ENV: testing
+          # Laravel w `testing` pomija sprawdzanie tokenu CSRF. Mierzymy
+          # prawdziwe żądanie HTTP i wymagamy odmowy 419 bez tokenu.
+          APP_ENV: local
           DB_DATABASE: kuking_port_confirm_2466_68
           CONFIRM_BROWSER_DB_PORT: ${{ job.services.postgres.ports[5432] }}
         run: |
