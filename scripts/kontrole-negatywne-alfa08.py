@@ -1268,6 +1268,22 @@ checks = [
      lambda s: replace_once(s, "if ($wpisy->currentPage() > $wpisy->lastPage())", "if (false)")),
     ("Moje wpisy: pusta porcja traci kontener (#2473)", "resources/views/pages/collections/moje-wpisy.blade.php", "test_pusta_lista_ma_prawdziwy_pusty_stan_i_kontener_bez_petli",
      lambda s: replace_once(s, 'id="lista-moich-wpisow"', '''id="{{ $wpisy->isEmpty() ? 'brak-listy' : 'lista-moich-wpisow' }}"''')),
+    # #2476: dwa bieżące składniki z identycznym tekstem/ile=null są różne.
+    ("Bieżący eksport pomija wybór Bez ilości (#2476)", "app/Domain/Users/Exports/CollectUserExportData.php",
+     "test_biezacy_szkic_zachowuje_dwa_rozne_wybory_bez_ilosci_w_json",
+     lambda s: replace_once(s, "                'bez_ilosci' => (bool) $item->no_amount,\n", "")),
+    # #2479: wrócenie do nazywania hidden szkicem ma oblać na rzeczywistym ZIP-ie.
+    ("Ukryty przepis nazwany szkicem w eksporcie (#2479)", "app/Domain/Users/Exports/RecipeArchiveStatus.php",
+     "test_ukryty_po_publikacji_nie_jest_szkicem_w_karcie_ani_spisie",
+     lambda s: replace_once(s,
+         "Recipe::STATUS_HIDDEN => ['full' => 'Przepis ukryty', 'short' => 'ukryty'],",
+         "Recipe::STATUS_HIDDEN => ['full' => 'To był szkic — nigdy nie został opublikowany', 'short' => 'szkic'],")),
+    # #2478: rok jako jedyne źródło ma naprawdę otworzyć sekcję w pliku ZIP.
+    ("Sam rok rodzinny znika z HTML eksportu (#2478)", "resources/views/exports/recipe.blade.php",
+     "test_sam_rok_rodzinny_jest_w_html_i_json_bez_pustej_sekcji_dla_innego_przepisu",
+     lambda s: replace_once(s,
+         "@if($recipe->source_note || $recipe->source_person || $recipe->source_url || $recipe->family_since_year)",
+         "@if($recipe->source_note || $recipe->source_person || $recipe->source_url)")),
     # #988: komunikat po akcji ma jawny rodzaj. Goły `->with('status', …)`
     # wróciłby do zielonej plakietki także dla odmowy.
     ("Goły ->with('status') wraca do kontrolera", "app/Http/Controllers/SmakowicieController.php", "test_w_app_nie_ma_golego_zapisu_statusu_bez_rodzaju",
@@ -2170,6 +2186,12 @@ checks = [
     # Z9 (#2283): regulamin §2 wymienia usługi, których adresy istnieją.
     ("Regulamin §2 bez „Poradźcie”", "resources/legal/regulamin.md", "RegulaminWymieniaUslugiSerwisuTest",
      lambda s: replace_once(s, " („Poradźcie”),", ",")),
+    ("Szyna zeszytu ponownie czyta całą historię (#2030)", "app/Http/Controllers/CollectionController.php",
+     "test_szyna_sprawdza_widocznosc_tylko_malej_partii_kandydatow",
+     lambda s: replace_once(s, "        $partia = 20;\n", "        $partia = 1000;\n")),
+    ("Fixture wspomnienia znika po północy w Polsce", "scripts/fixtures/rocznice-wykonania-s.php",
+     "test_fixture_pomiaru_pokazuje_wspomnienie_po_polnocy_w_polsce",
+     lambda s: replace_once(s, "$dzis->copy()->addDay()->subYear()", "$dzis->copy()->subYear()")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

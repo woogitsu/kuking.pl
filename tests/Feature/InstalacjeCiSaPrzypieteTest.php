@@ -153,10 +153,15 @@ final class InstalacjeCiSaPrzypieteTest extends TestCase
 
         $this->assertMatchesRegularExpression('/^PGDG_ODCISK="[0-9A-F]{40}"$/m', $skrypt, 'Skrypt klienta nie ma pełnego odcisku klucza PGDG (40 znaków hex) (#2309).');
 
-        $pobranie = strpos($skrypt, 'curl -fsSL --retry 3 --retry-delay 5 -o "$tymczasowy" "$PGDG_URL"');
-        $sprawdzenie = strpos($skrypt, 'sprawdz_klucz_pgdg "$tymczasowy" || exit 1');
-        $instalacja = strpos($skrypt, 'sudo install -m 0644 "$tymczasowy" "$PGDG_KLUCZ"');
-        $aktualizacja = strpos($skrypt, 'sudo apt-get update');
+        // Polecenia powłoki mogą być złamane ukośnikiem odwrotnym i mieć inne opcje limitu czasu.
+        $polecenia = preg_replace('/\\\\\r?\n[ \t]*/', ' ', $skrypt);
+        $this->assertIsString($polecenia);
+        $wzorPobrania = '/\bcurl[ \t]+-fsSL\b[^\r\n]*[ \t]+-o[ \t]+"\$tymczasowy"[ \t]+"\$PGDG_URL"/';
+        $znalezionoPobranie = preg_match($wzorPobrania, $polecenia, $dopasowanie, PREG_OFFSET_CAPTURE);
+        $pobranie = $znalezionoPobranie === 1 ? $dopasowanie[0][1] : false;
+        $sprawdzenie = strpos($polecenia, 'sprawdz_klucz_pgdg "$tymczasowy" || exit 1');
+        $instalacja = strpos($polecenia, 'sudo install -m 0644 "$tymczasowy" "$PGDG_KLUCZ"');
+        $aktualizacja = strpos($polecenia, 'sudo apt-get update');
 
         $this->assertNotFalse($pobranie, 'Skrypt klienta nie pobiera klucza PGDG do pliku tymczasowego — klucz szedłby prosto do katalogu APT (#2309).');
         $this->assertNotFalse($sprawdzenie, 'Skrypt klienta nie sprawdza odcisku pobranego klucza PGDG przed użyciem (#2309).');
@@ -166,6 +171,11 @@ final class InstalacjeCiSaPrzypieteTest extends TestCase
             $pobranie < $sprawdzenie && $sprawdzenie < $instalacja && $instalacja < $aktualizacja,
             'Kolejność w skrypcie klienta ma być: pobranie do pliku tymczasowego, sprawdzenie odcisku, instalacja klucza, apt-get update (#2309).',
         );
+
+        // Kontrola ujemna rozpoznania: zapis klucza od razu do APT nie jest pobraniem do pliku tymczasowego.
+        $bezPlikuTymczasowego = str_replace('-o "$tymczasowy" "$PGDG_URL"', '-o "$PGDG_KLUCZ" "$PGDG_URL"', $polecenia, $liczbaPodmian);
+        $this->assertSame(1, $liczbaPodmian);
+        $this->assertSame(0, preg_match($wzorPobrania, $bezPlikuTymczasowego));
     }
 
     #[Test]

@@ -37,6 +37,11 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 OCZEKUJ = {
     'Moje wpisy: stara strona udaje pusty dorobek (#2473)': r'MOJE_WPISY_2473_STARA_STRONA_WRACA',
     'Moje wpisy: pusta porcja traci kontener (#2473)': r'MOJE_WPISY_2473_PUSTA_PORCJA_MA_LISTE',
+    'Szyna zeszytu ponownie czyta całą historię (#2030)': r'SZYNA_2030_CALA_HISTORIA',
+    'Bieżący eksport pomija wybór Bez ilości (#2476)': r'EKSPORT_BIEZACY_BEZ_ILOSCI',
+    'Ukryty przepis nazwany szkicem w eksporcie (#2479)': r'EKSPORT_UKRYTY_NIE_JEST_SZKICEM',
+    'Sam rok rodzinny znika z HTML eksportu (#2478)': r'EKSPORT_ROK_SAM_W_HTML',
+    'Fixture wspomnienia znika po północy w Polsce': r'POMIAR_WSPOMNIENIA_PRZED_I_PO_POLNOCY',
     # #1011, paczka H: wpisy dopisane po wzorcach dla wcześniejszych kontroli.
     "Goły ->with('status') wraca do kontrolera": r'Goły zapis klucza `status` wygląda jak zielony sukces',
     'Odmowa nazwana sukcesem': r'Komunikat::sukces\(\) z tekstem „Nie udało się…" — to błąd, nie sukces\.',
