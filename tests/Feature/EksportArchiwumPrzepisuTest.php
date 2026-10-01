@@ -112,6 +112,9 @@ class EksportArchiwumPrzepisuTest extends EksportWygladStylPaczki
         $this->assertCount(1, $pozycja);
         $this->assertStringContainsString('ukryty', $pozycja[0]->textContent, 'EKSPORT_UKRYTY_NIE_JEST_SZKICEM');
         $this->assertStringNotContainsString('szkic', $pozycja[0]->textContent);
+        $pozycjaSzkicu = $this->elementy($this->dokument($spis), '//li[a[@href="przepisy/'.ExportFileNames::recipeFile($szkic).'"]]');
+        $this->assertCount(1, $pozycjaSzkicu);
+        $this->assertStringContainsString('szkic', $pozycjaSzkicu[0]->textContent);
 
         $htmlSzkicu = $this->zPaczki($paczka, 'przepisy/'.ExportFileNames::recipeFile($szkic));
         $this->assertStringContainsString('To był szkic — nigdy nie został opublikowany', $htmlSzkicu);
@@ -123,6 +126,7 @@ class EksportArchiwumPrzepisuTest extends EksportWygladStylPaczki
         $this->assertStringNotContainsString('class="plakietka"', $htmlPubliczny);
         $htmlPrywatny = $this->zPaczki($paczka, 'przepisy/'.ExportFileNames::recipeFile($prywatny));
         $this->assertStringContainsString('Przepis widoczny tylko dla wybranych osób', $htmlPrywatny);
+        $this->assertStringContainsString('Opublikowany ', $htmlPrywatny);
         $htmlBezDaty = $this->zPaczki($paczka, 'przepisy/'.ExportFileNames::recipeFile($ukrytyBezDaty));
         $this->assertStringContainsString('Przepis ukryty', $htmlBezDaty);
         $this->assertStringNotContainsString('nigdy nie został opublikowany', $htmlBezDaty);
