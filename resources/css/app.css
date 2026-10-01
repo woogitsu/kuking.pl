@@ -7126,6 +7126,10 @@
 .dyktowanie-zdanie {
   margin-top: var(--spacing-2);
   margin-bottom: 0;
+  /* Zdanie o dostawcy stoi samo, więc ma rozmiar tekstu podstawowego
+     (nie `.meta` — 16 px). */
+  font-size: var(--text-body);
+  color: var(--color-ink-muted);
 }
 
 .dyktowanie-etykieta {

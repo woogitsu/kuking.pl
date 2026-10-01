@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Media;
+use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ViewErrorBag;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -160,6 +163,34 @@ class DyktowanieNaTrasachKreatoraTest extends TestCase
         foreach ($trafienia[1] as $cel) {
             $this->assertStringContainsString('id="'.$cel.'"', $html, "Host dyktowania na {$trasa} wskazuje pole {$cel}, którego nie ma na stronie.");
         }
+    }
+
+    public function test_dopisz_przepis_do_wpisu_ma_mikrofon_i_host_dyktowania(): void
+    {
+        Storage::fake('public');
+        $autor = $this->user();
+        $zdjecie = Media::factory()->create(['owner_id' => $autor->getKey()]);
+        $wpis = Post::factory()->create(['author_id' => $autor->getKey(), 'body' => 'Pierogi jak u mamy.']);
+        $wpis->media()->attach($zdjecie->getKey(), ['position' => 0]);
+
+        $odpowiedz = $this->actingAs($autor)->get(route('recipes.create.from-post', $wpis))->assertOk();
+
+        $this->assertSame(self::POLITYKA_Z_MIKROFONEM, $odpowiedz->headers->get('Permissions-Policy'));
+        $this->assertStringContainsString('data-dyktowanie data-cel="', (string) $odpowiedz->getContent());
+        $this->assertStringNotContainsString('Dyktuj', (string) $odpowiedz->getContent());
+    }
+
+    #[DataProvider('trasyKreatora')]
+    public function test_strony_kreatora_nie_trafiaja_do_cache_brzegu(string $trasa): void
+    {
+        $autor = $this->user();
+
+        $naglowek = (string) $this->actingAs($autor)->get($this->adres($trasa, $autor))->assertOk()->headers->get('Cache-Control');
+
+        // Strona z odblokowanym mikrofonem jest tylko dla zalogowanego i nie może
+        // zostać podana komu innemu z cache CDN ani przeglądarki.
+        $this->assertMatchesRegularExpression('/\b(private|no-store)\b/', $naglowek);
+        $this->assertDoesNotMatchRegularExpression('/\b(public|s-maxage)\b/', $naglowek);
     }
 
     public function test_serwer_nie_ma_zadnej_drogi_na_dyktowanie_ani_dzwiek(): void
