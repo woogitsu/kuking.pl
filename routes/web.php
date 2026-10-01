@@ -157,7 +157,8 @@ Route::get('/pytania', [QuestionController::class, 'index'])
     ->name('questions.index');
 Route::get('/szukaj', [SearchController::class, 'index'])
     // Wybór alergenów (`bez[]`) nie zostaje w sesji jako `_previous.url` (#1902, D-299).
-    ->middleware(["throttle:{$limits['search']},search", NieZapamietujeWyboruAlergenow::class])
+    // Middleware PRZED throttle: odpowiedź 429 też nie zapisuje wyboru w sesji.
+    ->middleware([NieZapamietujeWyboruAlergenow::class, "throttle:{$limits['search']},search"])
     ->name('search');
 
 Route::get('/health', HealthController::class)->name('health');

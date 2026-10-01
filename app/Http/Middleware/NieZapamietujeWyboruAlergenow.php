@@ -31,16 +31,20 @@ final class NieZapamietujeWyboruAlergenow
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $response = $next($request);
+        // `finally`: czyszczenie ma zajść także wtedy, gdy trasa rzuci wyjątek.
+        // Middleware stoi PRZED `throttle` (kolejność wymusza lista priorytetów
+        // w `bootstrap/app.php`) — przy 429 adres z `bez[]` też zostałby
+        // w sesji, gdyby limit był pierwszy i ten kod się nie uruchomił.
+        try {
+            return $next($request);
+        } finally {
+            if ($request->query->has('bez')) {
+                $pozostale = $request->query->all();
+                unset($pozostale['bez']);
 
-        if ($request->query->has('bez')) {
-            $pozostale = $request->query->all();
-            unset($pozostale['bez']);
-
-            // `fullUrl()` i `getQueryString()` czytają surowy QUERY_STRING.
-            $request->server->set('QUERY_STRING', Arr::query($pozostale));
+                // `fullUrl()` i `getQueryString()` czytają surowy QUERY_STRING.
+                $request->server->set('QUERY_STRING', Arr::query($pozostale));
+            }
         }
-
-        return $response;
     }
 }
