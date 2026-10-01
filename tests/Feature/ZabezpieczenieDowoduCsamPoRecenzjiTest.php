@@ -53,7 +53,12 @@ class ZabezpieczenieDowoduCsamPoRecenzjiTest extends TestCase
     {
         parent::setUp();
 
-        config(['kuking.usuniete_tresci.retention_days' => 30]);
+        config([
+            'kuking.usuniete_tresci.retention_days' => 30,
+            'queue.default' => 'database',
+            'queue.connections.database.connection' => config('database.default'),
+            'queue.connections.database.after_commit' => false,
+        ]);
     }
 
     // ───────────── 1. warianty zdjęcia dowodu przestają być publiczne ─────────────
@@ -89,6 +94,7 @@ class ZabezpieczenieDowoduCsamPoRecenzjiTest extends TestCase
 
         $zdjecie->refresh();
         $this->assertSame(Media::STATUS_SECURED, $zdjecie->status);
+        $this->assertNotEmpty($zdjecie->metadata[Media::METADANE_WARIANTY_DOWODU_PRZENIESIONE_AT] ?? null);
 
         $poPrzeniesieniu = [];
         foreach ($warianty as $klucz) {
@@ -139,6 +145,7 @@ class ZabezpieczenieDowoduCsamPoRecenzjiTest extends TestCase
         $zdjecie->forceFill(['status' => Media::STATUS_SECURED])->save();
 
         (new PrzeniesPubliczneWariantyDowodu([$zdjecie->getKey()]))->handle();
+        $this->assertNotEmpty($zdjecie->fresh()->metadata[Media::METADANE_WARIANTY_DOWODU_PRZENIESIONE_AT] ?? null);
         $mapaPierwsza = $zdjecie->fresh()->metadata[Media::METADANE_WARIANTY_ZABEZPIECZONE];
         (new PrzeniesPubliczneWariantyDowodu([$zdjecie->getKey()]))->handle();
 
@@ -181,6 +188,11 @@ class ZabezpieczenieDowoduCsamPoRecenzjiTest extends TestCase
             // Oczekiwane.
         }
 
+        $this->assertArrayNotHasKey(
+            Media::METADANE_WARIANTY_DOWODU_PRZENIESIONE_AT,
+            $zdjecie->fresh()->metadata,
+            'Porażka kopii nie może wyciszyć sondy zaległego dowodu.',
+        );
         foreach ($warianty as $klucz) {
             $this->assertTrue($publiczny->exists($klucz), 'Wariant zniknął z publicznego dysku bez kopii — dowód stracony.');
         }

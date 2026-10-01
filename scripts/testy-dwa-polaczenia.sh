@@ -108,6 +108,11 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             printf "${CZERWONY}Kontrola ujemna kolejności CSAM #2427 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
+        # #2437: afterCommit nie może oddzielić trwałej decyzji CSAM od joba.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2437.py; then
+            printf "${CZERWONY}Kontrola ujemna atomowości CSAM #2437 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
     fi
     printf "${ZIELONY}Przebiegów zielonych: %s z %s.${RESET}\n" "$PRZESZLO" "$PRZEBIEGI"
     exit 0

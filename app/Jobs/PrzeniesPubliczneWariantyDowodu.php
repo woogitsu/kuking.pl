@@ -134,7 +134,10 @@ class PrzeniesPubliczneWariantyDowodu implements ShouldQueue
             }
         }
 
-        if ($mapa !== $stara) {
+        // Znacznik pozwala wykryć zabezpieczony dowód, dla którego job nie
+        // powstał albo nigdy nie dokończył pracy. Nie zapisujemy go po błędzie
+        // kopii/usunięcia; wtedy /health ma nadal widzieć opóźnienie.
+        if ($mapa !== $stara || ! isset($zdjecie->metadata[Media::METADANE_WARIANTY_DOWODU_PRZENIESIONE_AT])) {
             DB::transaction(function () use ($zdjecie, $mapa): void {
                 $swieze = Media::query()->whereKey($zdjecie->getKey())->lockForUpdate()->first();
 
@@ -144,6 +147,7 @@ class PrzeniesPubliczneWariantyDowodu implements ShouldQueue
 
                 $swieze->update(['metadata' => array_merge($swieze->metadata ?? [], [
                     Media::METADANE_WARIANTY_ZABEZPIECZONE => $mapa,
+                    Media::METADANE_WARIANTY_DOWODU_PRZENIESIONE_AT => now()->toIso8601String(),
                 ])]);
             });
         }
