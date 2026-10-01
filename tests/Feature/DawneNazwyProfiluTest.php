@@ -225,4 +225,18 @@ class DawneNazwyProfiluTest extends TestCase
 
         $this->assertSame(0, $this->wierszy());
     }
+
+    public function test_przekierowanie_kanalu_nie_nadaje_sie_do_zapamietania_na_stale(): void
+    {
+        $this->zmienNazwe($this->user('basia'), 'barbara');
+        auth()->logout();
+
+        // Kanał Atom stoi poza grupą `web`, więc nagłówek musi dać sama odpowiedź:
+        // zapamiętane 301 A → B i B → A (powrót do dawnej nazwy) to pętla.
+        foreach (['/@basia/kanal', '/@basia', '/@basia/obserwujacy'] as $adres) {
+            $naglowek = (string) $this->get($adres)->assertStatus(301)->headers->get('Cache-Control');
+
+            $this->assertStringContainsString('no-store', $naglowek, "301 z {$adres} bez zakazu cache.");
+        }
+    }
 }
