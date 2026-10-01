@@ -350,6 +350,10 @@ class OdczytajPrzepis implements ShouldQueue
     {
         return $szkic !== null
             && $szkic->status === Recipe::STATUS_DRAFT
+            // Nowy szkic OCR zaczyna z rewizją 0. Każdy udany ręczny zapis
+            // przez PublishRecipe (także samej nazwy, opisu lub porcji)
+            // podnosi ją. updated_at przesuwają też zapisy techniczne.
+            && $szkic->content_revision === 0
             && ! $szkic->ingredients()->exists()
             && ! $szkic->steps()->exists();
     }

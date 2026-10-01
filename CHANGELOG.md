@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2520): oczekujący odczyt zdjęcia kartki nie nadpisuje ręcznie poprawionej nazwy, opisu ani porcji szkicu. Wynik kończy się istniejącą informacją o zmienionym szkicu, bez ponownego płatnego odczytu.
+
 - Naprawione (#2476, #2478, #2479): osobista paczka danych zachowuje sam rok rodzinny w HTML, odróżnia przepis ukryty od szkicu i zapisuje jawny wybór „Bez ilości” w bieżących składnikach JSON.
 - Wewnętrzne (#2490): instalator klienta PostgreSQL 18 w CI podaje etap i czas błędu oraz ogranicza czas pobrania klucza i instalacji. Weryfikacja odcisku, wersja klienta i pełne testy pozostają obowiązkowe.
 

@@ -4838,6 +4838,17 @@ razem ze zleceniem. Zlecenie `oczekuje`/`w_toku` bez zmiany od 120 minut (zadani
 zgubione inną drogą) `kuking:odzyskaj-importy` kończy jako `nieudany` /
 `blad_wewnetrzny` — ekran pokazuje „Spróbuj jeszcze raz”.
 
+**Ochrona ręcznej edycji szkicu OCR (#2520).** Świeżo utworzony przez odczyt
+szkic ma `recipes.content_revision = 0`. Udany zapis w `PublishRecipe`, nawet
+samej nazwy, opisu lub liczby porcji, podnosi licznik. `OdczytajPrzepis`
+sprawdza zero przed płatnym żądaniem i ponownie na świeżym wierszu pod blokadą
+przed wpisaniem wyniku. Wyższa rewizja kończy istniejącym kodem
+`szkic_zmieniony`; zapisany tekst autora i zdjęcie zostają. `updated_at`
+nie jest dowodem nietkniętej treści, bo zmieniają go także zapisy techniczne.
+Ponowienie odczytu na ręcznie edytowanym szkicu jest odrzucane przed nowym
+zleceniem. Nie ma nowej kolumny ani migracji; wycofanie kodu przywróciłoby
+ryzyko nadpisania.
+
 **Import z adresu w kolejce (#28).** Zlecenie z `zrodlo = 'url'` powstaje od razu
 po wysłaniu formularza (`ZlecImportZAdresu`: blokada osoby, miejsce w
 `proby_importu`, wiersz zlecenia z `source_url`, zadanie `ImportujPrzepisZAdresu`
