@@ -6,6 +6,7 @@ namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\PodstawaDecyzji;
+use App\Jobs\PrzeniesPubliczneWariantyDowodu;
 use App\Domain\Users\OdmowaOstatniegoAdministratora;
 use App\Domain\Users\ZamekUprzywilejowanegoAktora;
 use App\Exceptions\BladDlaCzlowieka;
@@ -92,13 +93,27 @@ final class ZabezpieczDowodCsam
 
             $klasa = self::TYPY[$typ] ?? throw new BladDlaCzlowieka('Tego rodzaju treści nie da się zabezpieczyć tą drogą.');
 
+            // KOLEJNOŚĆ BLOKAD: KONTA PRZED TREŚCIĄ (konwencja `DecyzjaPoOdwolaniu`,
+            // `PublishRecipe`, `EraseAccountData`: `users` → rzecz zależna).
+            // Wcześniej było odwrotnie — treść, zdjęcia, a konto autora dopiero
+            // przy blokadzie — i autor zapisujący przepis (trzyma `users`,
+            // czeka na `recipes`) albo wymazanie konta (trzyma `users`, czeka
+            // na `recipes`) zakleszczały się z tą akcją (40P01). Dlatego:
+            // 1) odczyt treści BEZ blokady — tylko po to, by ustalić, czyje
+            //    konta (autora i właścicieli zdjęć) trzeba zająć;
+            // 2) konta `FOR UPDATE`, rosnąco po `id`;
+            // 3) dopiero wiersz treści, z ponownym sprawdzeniem stanu.
+            $wstepny = $this->wczytaj($klasa, $id);
+
+            if ($wstepny === null) {
+                throw new BladDlaCzlowieka('Tej treści już nie ma w bazie, więc nie ma czego zabezpieczać.');
+            }
+
+            $zablokowaneKonta = $this->zablokujKonta($typ, $wstepny, $swiezy);
+
             // Blokada wiersza treści: dwa kliknięcia (dwie karty, dwóch
             // moderatorów) dają jedno zabezpieczenie, nie dwa.
-            $zapytanie = $klasa::query();
-            if (method_exists($klasa, 'bootSoftDeletes')) {
-                $zapytanie->withoutGlobalScope(SoftDeletingScope::class);
-            }
-            $cel = $zapytanie->whereKey($id)->lockForUpdate()->first();
+            $cel = $this->wczytaj($klasa, $id, zablokuj: true);
 
             if ($cel === null) {
                 throw new BladDlaCzlowieka('Tej treści już nie ma w bazie, więc nie ma czego zabezpieczać.');
@@ -117,6 +132,18 @@ final class ZabezpieczDowodCsam
             $zgloszenie = $reportId === null ? null : $this->zgloszenie($swiezy, $reportId, $typ, $id);
 
             $mediaId = $this->zdjeciaTresci($typ, $cel);
+
+            // Zdjęcia mogły dojść od odczytu wstępnego (autor zapisał przepis,
+            // zanim wzięliśmy blokadę treści). Ich właściciel nie jest
+            // zablokowany, a brać go teraz byłoby odwróceniem kolejności —
+            // prosimy więc o ponowienie, zamiast ryzykować zakleszczenie.
+            $obcy = Media::query()->whereKey($mediaId)->pluck('owner_id')->filter()
+                ->map(static fn ($wlasciciel): string => (string) $wlasciciel)
+                ->diff($zablokowaneKonta);
+
+            if ($obcy->isNotEmpty()) {
+                throw new BladDlaCzlowieka('Treść zmieniła się w trakcie zabezpieczania. Nic nie zostało zrobione — spróbuj jeszcze raz.');
+            }
 
             $decyzja = ModerationAction::create([
                 'moderator_id' => $swiezy->getKey(),
@@ -137,7 +164,7 @@ final class ZabezpieczDowodCsam
             // niżej — z pamiętanym stanem sprzed zabezpieczenia.
             $wpis = $typ === 'media' ? null : $this->zarejestruj($swiezy, $typ, $id, $osoba?->getKey(), $zgloszenie, $decyzja, $note, null);
 
-            [$zabezpieczone, $pominiete, $pierwszeZdjecie] = $this->zabezpieczZdjecia($swiezy, $mediaId, $zgloszenie, $decyzja, $note);
+            [$zabezpieczone, $pominiete, $pierwszeZdjecie, $zabezpieczoneId] = $this->zabezpieczZdjecia($swiezy, $mediaId, $zgloszenie, $decyzja, $note);
 
             $wpis ??= $pierwszeZdjecie ?? throw new BladDlaCzlowieka(
                 'To zdjęcie jest już w trakcie kasowania i nie da się go zabezpieczyć. Przekaż sprawę właścicielowi serwisu — plik może jeszcze być w magazynie.',
@@ -147,6 +174,12 @@ final class ZabezpieczDowodCsam
             // `ZdejmijZUrzedu`) — miękkie usunięcie. Zdjęcie ukrywa już status.
             if ($typ !== 'media' && method_exists($cel, 'trashed') && ! $cel->trashed()) {
                 $cel->delete();
+            }
+
+            // Po zatwierdzeniu: publiczne warianty zdjęć idą do prywatnego
+            // magazynu, a cache CDN jest czyszczony. Plik oryginału zostaje.
+            if ($zabezpieczoneId !== []) {
+                PrzeniesPubliczneWariantyDowodu::dispatch($zabezpieczoneId)->afterCommit();
             }
 
             $blokada = $this->zablokujKonto($swiezy, $osoba, $zgloszenie, $decyzja);
@@ -189,6 +222,50 @@ final class ZabezpieczDowodCsam
                 zamknietoZgloszenie: $zgloszenie !== null,
             );
         });
+    }
+
+    /**
+     * @param  class-string<Model>  $klasa
+     */
+    private function wczytaj(string $klasa, string $id, bool $zablokuj = false): ?Model
+    {
+        $zapytanie = $klasa::query();
+
+        if (method_exists($klasa, 'bootSoftDeletes')) {
+            $zapytanie->withoutGlobalScope(SoftDeletingScope::class);
+        }
+
+        $zapytanie->whereKey($id);
+
+        return $zablokuj ? $zapytanie->lockForUpdate()->first() : $zapytanie->first();
+    }
+
+    /**
+     * Konta autora i właścicieli zdjęć — `FOR UPDATE`, rosnąco po `id`,
+     * ZANIM ruszymy treść. Konto moderatora jest już zajęte przez
+     * `ZamekUprzywilejowanegoAktora`.
+     *
+     * @return list<string> identyfikatory zablokowanych kont
+     */
+    private function zablokujKonta(string $typ, Model $wstepny, User $moderator): array
+    {
+        $ids = Media::query()->whereKey($this->zdjeciaTresci($typ, $wstepny))->pluck('owner_id')->all();
+        $ids[] = ModeratedContent::osoba($wstepny)?->getKey();
+
+        $ids = collect($ids)
+            ->filter()
+            ->map(static fn ($id): string => (string) $id)
+            ->reject(static fn (string $id): bool => $id === (string) $moderator->getKey())
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        if ($ids !== []) {
+            User::query()->whereKey($ids)->orderBy('id')->lockForUpdate()->get();
+        }
+
+        return [...$ids, (string) $moderator->getKey()];
     }
 
     /**
@@ -241,17 +318,18 @@ final class ZabezpieczDowodCsam
 
     /**
      * @param  list<string>  $mediaId
-     * @return array{0: int, 1: int, 2: ZabezpieczenieDowodu|null} [zabezpieczone, pominięte, pierwszy nowy wpis]
+     * @return array{0: int, 1: int, 2: ZabezpieczenieDowodu|null, 3: list<string>} [zabezpieczone, pominięte, pierwszy nowy wpis, id zabezpieczonych zdjęć]
      */
     private function zabezpieczZdjecia(User $moderator, array $mediaId, ?Report $zgloszenie, ModerationAction $decyzja, ?string $note): array
     {
         if ($mediaId === []) {
-            return [0, 0, null];
+            return [0, 0, null, []];
         }
 
         $zabezpieczone = 0;
         $pominiete = 0;
         $pierwszy = null;
+        $identyfikatory = [];
 
         foreach (Media::query()->whereKey($mediaId)->orderBy('id')->lockForUpdate()->get() as $zdjecie) {
             // Już zabezpieczone (przez inną treść) — nic do zrobienia, to nie błąd.
@@ -272,9 +350,10 @@ final class ZabezpieczDowodCsam
 
             $zdjecie->forceFill(['status' => Media::STATUS_SECURED])->save();
             $zabezpieczone++;
+            $identyfikatory[] = (string) $zdjecie->getKey();
         }
 
-        return [$zabezpieczone, $pominiete, $pierwszy];
+        return [$zabezpieczone, $pominiete, $pierwszy, $identyfikatory];
     }
 
     private function zarejestruj(

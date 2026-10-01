@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
+use App\Domain\Moderation\TrescZabezpieczonaJakoDowod;
 use App\Domain\Moderation\WlasnejTresciNiePrzywracasz;
 use App\Domain\Users\ZamekUprzywilejowanegoAktora;
 use App\Exceptions\BladDlaCzlowieka;
@@ -166,10 +167,7 @@ final class RestoreContent
             // odwołanie nie może upublicznić materiału, który czeka na organy.
             // Los takiej treści rozstrzyga człowiek poza panelem.
             if (ZabezpieczoneDowody::dotyczy($typ, (string) $cel->getKey())) {
-                throw new BladDlaCzlowieka(
-                    'Ta treść jest zabezpieczona jako dowód i nie wraca do serwisu. '
-                    .'Przekaż sprawę właścicielowi serwisu — o jej losie decyduje prawnik, nie panel.',
-                );
+                throw new TrescZabezpieczonaJakoDowod;
             }
 
             return $this->przywrocPodBlokada($moderator, $cel, $typ, $reasonCode, $note, $userMessage, $ip, $zPowiadomieniem);

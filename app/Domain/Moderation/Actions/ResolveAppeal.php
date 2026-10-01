@@ -7,6 +7,7 @@ namespace App\Domain\Moderation\Actions;
 use App\Domain\Moderation\CofniecieUkryciaWersji;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\NowaDecyzja;
+use App\Domain\Moderation\TrescZabezpieczonaJakoDowod;
 use App\Domain\Moderation\WlasnejTresciNiePrzywracasz;
 use App\Domain\Users\ZamekUprzywilejowanegoAktora;
 use App\Exceptions\BladDlaCzlowieka;
@@ -14,7 +15,9 @@ use App\Models\Appeal;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
 use App\Models\User;
+use App\Support\ZabezpieczoneDowody;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -281,6 +284,17 @@ final class ResolveAppeal
             return null;
         }
 
+        // TREŚĆ ZABEZPIECZONA JAKO DOWÓD NIE WRACA (ścieżka CSAM, D-333),
+        // więc odwołania od takiej decyzji nie da się uznać w panelu.
+        // Sprawdzamy PRZED `RestoreContent` i poza `try`: odmowa stamtąd
+        // byłaby połknięta niżej jak „już widoczna”, odwołanie zamknęłoby się
+        // jako uznane z uzasadnieniem „cofnięto”, a treść dalej byłaby ukryta
+        // — nieprawdziwa odpowiedź (DSA art. 20). Transakcja się wycofuje,
+        // odwołanie zostaje otwarte, moderator dostaje czytelny błąd.
+        if ($this->zabezpieczona($decyzja)) {
+            throw new TrescZabezpieczonaJakoDowod;
+        }
+
         // Wersja przepisu (#2270): nie ma `status`, więc `RestoreContent`
         // jej nie przywróci — wraca przez `hidden_at`. Te same dwie reguły
         // co niżej: własnej treści nie przywracasz (wyjątek wychodzi), „nie
@@ -318,6 +332,9 @@ final class ResolveAppeal
                 // Odpowiedź na odwołanie idzie osobno i mówi to samo lepiej.
                 zPowiadomieniem: false,
             );
+        } catch (TrescZabezpieczonaJakoDowod $odmowa) {
+            // Zabezpieczony dowód wykryty dopiero pod blokadą (wyścig z zabezpieczeniem).
+            throw $odmowa;
         } catch (WlasnejTresciNiePrzywracasz $odmowa) {
             // Własnej treści nie przywracasz nawet z odwołania (#1479).
             // Połknięcie zamknęłoby odwołanie jako „cofam" przy treści, która
@@ -332,6 +349,18 @@ final class ResolveAppeal
         }
 
         return null;
+    }
+
+    /** Czy treść tej decyzji (także wersja przepisu i zdjęcie) jest zabezpieczona jako dowód. */
+    private function zabezpieczona(ModerationAction $decyzja): bool
+    {
+        if ($decyzja->target_type === CofniecieUkryciaWersji::TYP) {
+            $przepisId = DB::table('recipe_versions')->where('id', $decyzja->target_id)->value('recipe_id');
+
+            return is_string($przepisId) && ZabezpieczoneDowody::przepis($przepisId);
+        }
+
+        return ZabezpieczoneDowody::dotyczy($decyzja->target_type, $decyzja->target_id);
     }
 
     /**

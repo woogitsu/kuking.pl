@@ -35,8 +35,10 @@ return new class extends Migration
             return;
         }
 
-        DB::statement('ALTER TABLE media DROP CONSTRAINT IF EXISTS '.self::OGRANICZENIE);
-        DB::statement('ALTER TABLE media ADD CONSTRAINT '.self::OGRANICZENIE
+        // JEDEN ALTER TABLE: DROP i ADD w jednej instrukcji, więc nie ma okna,
+        // w którym tabela jest bez ograniczenia (osobne DROP i ADD zostawiałyby
+        // je między instrukcjami, a wpis ze złym statusem mógłby się tam wcisnąć).
+        DB::statement('ALTER TABLE media DROP CONSTRAINT IF EXISTS '.self::OGRANICZENIE.', ADD CONSTRAINT '.self::OGRANICZENIE
             ." CHECK (status IN ('pending','processing','ready','rejected','deleted','secured')) NOT VALID");
         DB::statement('ALTER TABLE media VALIDATE CONSTRAINT '.self::OGRANICZENIE);
     }
@@ -58,8 +60,7 @@ return new class extends Migration
             );
         }
 
-        DB::statement('ALTER TABLE media DROP CONSTRAINT IF EXISTS '.self::OGRANICZENIE);
-        DB::statement('ALTER TABLE media ADD CONSTRAINT '.self::OGRANICZENIE
+        DB::statement('ALTER TABLE media DROP CONSTRAINT IF EXISTS '.self::OGRANICZENIE.', ADD CONSTRAINT '.self::OGRANICZENIE
             ." CHECK (status IN ('pending','processing','ready','rejected','deleted')) NOT VALID");
         DB::statement('ALTER TABLE media VALIDATE CONSTRAINT '.self::OGRANICZENIE);
     }

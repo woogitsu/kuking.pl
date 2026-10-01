@@ -145,6 +145,8 @@ Jeśli dojdzie do naruszenia ochrony danych, które stwarza ryzyko dla Twoich pr
    - Jeśli zaznaczysz **„Usuń także moje przepisy, wpisy, komentarze, wykonania i zeszyty"**: znikają razem z kontem i nikt ich już nie przywróci.
 
    Granica tego pierwszego wariantu: **usunięcie podpisu nie czyni tekstu anonimowym.** Jeśli w przepisie stoi, jak nazywała się Twoja babcia, z jakiej jesteście miejscowości albo co się u Was działo w zeszłe święta — to zostanie w treści, bo to jest treść, a nie podpis. Jeżeli zależy Ci na tym, żeby nie zostało nic, wybierz drugi wariant.
+
+   **Wyjątek:** wymazanie danych może zostać wstrzymane, a część danych zachowana, jeśli prawo nakazuje nam je zachować — na przykład gdy sprawa wymaga zabezpieczenia materiału na potrzeby organów ścigania (art. 17 ust. 3 lit. b RODO). Dotyczy to wyłącznie danych objętych takim obowiązkiem, i tylko na czas, który wskazuje prawo. Pozostałe dane usuwamy jak zwykle, a o wstrzymaniu poinformujemy, o ile prawo na to pozwala.
 4. Kopie zapasowe bazy tworzy nasz dostawca hostingu i mogą one zawierać Twoje dane jeszcze przez pewien czas po usunięciu konta. Tego okresu **nie podajemy, dopóki go nie potwierdzimy u dostawcy**. Własne kopie bazy — zaszyfrowane, w osobnym magazynie Cloudflare R2 — trzymamy najwyżej **30 dni**; starsze kasujemy automatycznie. Kopie zapasowe nie są używane do niczego poza awaryjnym przywróceniem serwisu. Jeśli kiedyś trzeba będzie przywrócić serwis z kopii sprzed usunięcia Twojego konta, usuniemy je ponownie, zanim serwis wróci do działania — prowadzimy w tym celu osobny spis wykonanych usunięć, trzymany poza bazą danych i zawierający tylko identyfikator konta, datę i wybrany przez Ciebie zakres usunięcia.
 
 ## 8. Dzieci

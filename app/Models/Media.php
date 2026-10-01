@@ -103,6 +103,14 @@ class Media extends Model
      */
     public const METADANE_WARIANTY_W_TRAKCIE = 'warianty_w_trakcie';
 
+    /**
+     * Gdzie trafiły publiczne warianty zdjęcia zabezpieczonego jako dowód
+     * (`PrzeniesPubliczneWariantyDowodu`): mapa „dawny klucz publiczny →
+     * klucz w prywatnym magazynie”. `metadata.variants` zostaje nietknięte,
+     * żeby prawnik mógł je odtworzyć; nic z tej mapy nie jest serwowane.
+     */
+    public const METADANE_WARIANTY_ZABEZPIECZONE = 'warianty_zabezpieczone';
+
     protected $fillable = [
         'owner_id',
         'disk',
