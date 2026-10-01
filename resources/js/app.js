@@ -33,6 +33,7 @@ import './drukuj-przepis.js';
 import './postep-importu.js';
 import './powiadomienia-push-uzgodnij.js';
 import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza} from './minutnik-krok.js';
+import {podlaczKolejke} from './kolejka-gotowania.js';
 import {podlaczPrzelacznik, utworzKontrolerWakeLock, utworzPamiecWyboru} from './wake-lock-gotowania.js';
 import {podlaczStronaNieaktualna} from './strona-nieaktualna.js';
 import {komunikatWyboru, moznaUsuwacZWyboru, usunPlikZWyboru} from './usun-zdjecie-z-wyboru.js';
@@ -643,7 +644,7 @@ function odblokujDzwiek() {
     }
 }
 
-if (document.querySelector('.cook-timer, .cook-alarmy')) {
+if (document.querySelector('.cook-timer, .cook-alarmy, [data-kolejka-ekran]')) {
     // Aktywacja uzytkownika na dotyku przychodzi dopiero z pointerup,
     // touchend albo click (iOS Safari nie odblokowuje dzwieku na samym
     // pointerdown) -- sluchamy wszystkich, odblokowanie jest idempotentne.
@@ -1111,6 +1112,11 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         });
     });
 })();
+
+// Kolejka kilku potraw naraz (#2379): ten sam dźwięk alarmu co w minutniku
+// pojedynczego przepisu, stan minutników w tych samych kluczach i funkcjach
+// z ./minutnik-krok.js. Deklaracje funkcji (zagrajAlarm) są wyżej w pliku.
+podlaczKolejke({zagrajAlarm});
 // --- Karuzela zdjęć i wybór wyglądu (issue #92) ----------------------------
 
 /*

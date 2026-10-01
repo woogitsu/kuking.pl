@@ -45,6 +45,7 @@ use App\Http\Controllers\HealthController;
 use App\Http\Controllers\HistoriaPrzepisuController;
 use App\Http\Controllers\ImportPrzepisuController;
 use App\Http\Controllers\JakWyszloController;
+use App\Http\Controllers\KolejkaGotowaniaController;
 use App\Http\Controllers\ListaZakupowController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MojeWpisyController;
@@ -335,6 +336,10 @@ Route::get('/zeszyt/{collection}', [CollectionController::class, 'show'])
 // kroku) ma własny, niski limit zapytań: to POST na cudzy slug, więc nawet
 // bez żadnego ryzyka dla danych zasługuje na ten sam refleks co reszta
 // endpointów zmieniających stan.
+// Kolejka kilku przepisów z niezależnymi minutnikami (#2379). Kolejka żyje
+// w przeglądarce; serwer dostaje ją w adresie i każdy przepis sprawdza przez
+// RecipePolicy::view. Tylko odczyt, więc GET.
+Route::get('/gotuj-kilka', [KolejkaGotowaniaController::class, 'show'])->name('kolejka-gotowania');
 Route::get('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'show'])->name('cooking.show');
 Route::post('/przepisy/{recipe}/gotuj/od-poczatku', [CookingModeController::class, 'restart'])
     ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")

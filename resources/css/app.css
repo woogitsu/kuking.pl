@@ -6921,3 +6921,82 @@
     }
   }
 }
+
+/* KOLEJKA KILKU POTRAW (#2379, D-333). Przełącznik potraw to nazwane
+   przyciski-odnośniki jeden pod drugim: bez hover, bez przeciągania, cel
+   dotyku >= 48 px z `.btn`. Tytuły i etykiety zawijają się (320 px, 200%),
+   nic nie jest obcinane ani przewijane poziomo. */
+@layer components {
+  .kolejka-potrawy {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+  }
+
+  .kolejka-potrawa {
+    width: 100%;
+    height: auto;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    gap: var(--spacing-1);
+    overflow-wrap: anywhere;
+  }
+
+  .kolejka-potrawa-nazwa {
+    font-weight: 700;
+  }
+
+  .kolejka-potrawa-krok {
+    font-size: var(--text-body);
+    font-weight: 400;
+  }
+
+  .kolejka-tytul {
+    overflow-wrap: anywhere;
+  }
+
+  .kolejka-akcje {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+  }
+
+  .kolejka-akcje .btn {
+    height: auto;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  .kolejka-minutniki-lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+  }
+
+  .kolejka-minutnik-wiersz {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .kolejka-minutnik-wiersz .btn {
+    height: auto;
+    overflow-wrap: anywhere;
+  }
+
+  .kolejka-minutnik-tekst {
+    font-size: var(--text-body-lg);
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+}

@@ -508,6 +508,8 @@
                 --}}
                 @if($recipe->steps->isNotEmpty())
                     <a class="btn btn-secondary" href="{{ $adresGotowania }}">Gotuję — pokaż kroki na cały ekran</a>
+                    {{-- Kolejka kilku potraw (#2379): przycisk odkrywa skrypt. --}}
+                    <x-kolejka-dodaj :recipe="$recipe" />
                 @endif
 
                 {{--
