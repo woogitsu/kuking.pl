@@ -310,6 +310,17 @@ final class RecordCookedEvent
      * niepoprawny identyfikator (API, stary formularz) schodzi do najnowszej
      * wersji w chwili zapisu — najlepsze, co wiemy. Przepis bez żadnej wersji
      * (np. sprzed historii) daje `null`: „nie wiadomo".
+     *
+     * SPRAWDZENIE POD `FOR KEY SHARE`, W TEJ SAMEJ TRANSAKCJI CO INSERT.
+     * Zwykłe `exists()` nie trzyma wiersza: retencja
+     * (`kuking:sprzataj-wersje-przepisow`) mogła skasować wersję między
+     * sprawdzeniem a `INSERT`, a wtedy klucz obcy odrzucał zapis (SQLSTATE
+     * 23503) i człowiek dostawał błąd 500 zamiast swojego wykonania.
+     * `FOR KEY SHARE` to dokładnie ta blokada, którą PostgreSQL sam bierze
+     * przy sprawdzaniu klucza obcego: nie koliduje z innymi wykonaniami tej
+     * wersji ani z `UPDATE` niekluczowych kolumn, a `DELETE` retencji czeka
+     * do końca transakcji. Jeśli retencja zdążyła pierwsza, wiersza już nie
+     * ma i schodzimy do najnowszej wersji.
      */
     private function wersjaWykonania(Recipe $recipe, ?string $zFormularza): ?string
     {
@@ -317,6 +328,7 @@ final class RecordCookedEvent
             $jest = RecipeVersion::query()
                 ->where('recipe_id', $recipe->getKey())
                 ->whereKey($zFormularza)
+                ->lock('for key share')
                 ->exists();
 
             if ($jest) {
