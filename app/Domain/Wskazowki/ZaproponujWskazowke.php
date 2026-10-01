@@ -113,9 +113,11 @@ final class ZaproponujWskazowke
     private function sprawdzLimity(User $autor, Recipe $przepis): void
     {
         $naPrzepis = (int) config('kuking.wskazowki.na_przepis_max');
+        // Miejsce zajmują przyjęte i czekające, które NIE wygasły; odrzucone,
+        // wycofane, anulowane i wygasłe zwalniają je (decyzja z 1.10.2026).
         $aktywne = RecipeHint::query()
             ->where('recipe_id', $przepis->getKey())
-            ->whereIn('status', [RecipeHint::STATUS_PROPOSED, RecipeHint::STATUS_ACCEPTED])
+            ->zajmujaceMiejsce()
             ->count();
 
         if ($aktywne >= $naPrzepis) {

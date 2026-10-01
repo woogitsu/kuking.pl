@@ -22,6 +22,15 @@ use App\Models\User;
  *     MIMO blokady: wycofanie zgody musi być zawsze możliwe (RODO art. 7
  *     ust. 3), a „Nie" niczego nie ujawnia ani nie udostępnia.
  *
+ *  4. **Tylko autor anuluje własną czekającą prośbę** (`cancel`), i tylko
+ *     dopóki kucharz nie odpowiedział, a prośba nie wygasła. Kucharz,
+ *     moderator i admin nie anulują cudzych próśb. Anulowanie jest
+ *     wycofaniem własnej prośby, więc zostaje autorowi także przy blokadzie.
+ *
+ * Czekająca prośba WYGASA po `kuking.wskazowki.prosba_wygasa_po_dniach`
+ * od `created_at` (`RecipeHint::wygasla()`): wygasła nie przechodzi ani
+ * przez `accept`, ani `decline`, ani `cancel`.
+ *
  * Zawieszenie odcina od PISANIA (`isActive()`), więc zawieszony autor nie
  * prosi, a zawieszony kucharz nie przyjmuje — ale może odrzucić i wycofać.
  */
@@ -69,6 +78,20 @@ class RecipeHintPolicy
     public function answer(User $user, RecipeHint $hint): bool
     {
         return $user->getKey() === $hint->cook_id;
+    }
+
+    /**
+     * Wejście dla trasy „Anuluj prośbę": to prośba TEGO autora. Stan
+     * rozstrzyga akcja pod blokadą (`cancel`), z komunikatem po polsku.
+     */
+    public function own(User $user, RecipeHint $hint): bool
+    {
+        return $user->getKey() === $hint->author_id;
+    }
+
+    public function cancel(User $user, RecipeHint $hint): bool
+    {
+        return $user->getKey() === $hint->author_id && $hint->czekaNaOdpowiedz();
     }
 
     public function accept(User $user, RecipeHint $hint): bool

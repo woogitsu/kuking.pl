@@ -49,6 +49,14 @@ gotujących”, w kolejności, w jakiej ludzie się zgodzili, każda z nazwą os
 i dniem ugotowania. Nic ich nie układa według popularności. Wskazówkę możecie
 zgłosić tak samo jak wykonanie, z którego pochodzi.
 
+Prośba, na którą nikt nie odpowie, wygasa po 30 dniach — wtedy nic się nie
+dzieje, a ta osoba nie dostaje przypomnienia ani drugiej prośby o to samo
+wykonanie. Jeśli wyślecie prośbę przez pomyłkę, możecie ją anulować
+przyciskiem „Anuluj prośbę” na stronie tego wykonania, dopóki nikt nie
+odpowiedział. A gdy ktoś się zgodzi, dostaniecie o tym powiadomienie — o
+odmowie, wycofaniu zgody ani wygaśnięciu prośby nie dostaniecie żadnej
+wiadomości.
+
 ### Co zużyć w pierwszej kolejności
 
 Przy produktach na liście „Co mam w domu” możecie teraz wpisać termin

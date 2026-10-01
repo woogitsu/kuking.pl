@@ -1168,6 +1168,7 @@ final class CollectUserExportData
             RecipeHint::STATUS_ACCEPTED => 'zgoda udzielona, wskazówka stoi przy przepisie',
             RecipeHint::STATUS_DECLINED => 'odpowiedź: „Nie”',
             RecipeHint::STATUS_WITHDRAWN => 'zgoda wycofana',
+            RecipeHint::STATUS_CANCELLED => 'autor przepisu wycofał prośbę',
         ];
 
         return RecipeHint::query()
@@ -1180,7 +1181,7 @@ final class CollectUserExportData
                 'przepis' => $this->granica->widzi($hint->recipe) ? $hint->recipe->title : self::TRESC_NIEDOSTEPNA,
                 'autor_przepisu' => $this->granica->widzi($hint->recipe) ? $hint->recipe->author?->displayName() : null,
                 'moja_uwaga' => $hint->cookedEvent?->note,
-                'stan' => $stany[$hint->status] ?? $hint->status,
+                'stan' => $hint->wygasla() ? 'prośba wygasła bez odpowiedzi' : ($stany[$hint->status] ?? $hint->status),
                 'prosba_z_dnia' => $this->date($hint->created_at),
                 'odpowiedz_z_dnia' => $this->date($hint->decided_at),
                 'zgoda_wycofana_dnia' => $this->date($hint->withdrawn_at),
@@ -1205,9 +1206,12 @@ final class CollectUserExportData
             ->map(fn (RecipeHint $hint): array => [
                 'przepis' => $hint->recipe?->title,
                 'prosba_z_dnia' => $this->date($hint->created_at),
-                'stan' => match ($hint->status) {
-                    RecipeHint::STATUS_PROPOSED => 'czeka na odpowiedź',
-                    RecipeHint::STATUS_ACCEPTED => 'stoi przy przepisie jako wskazówka',
+                // Wygasła prośba wygląda jak „Nie”: autor nie ma poznać różnicy.
+                'stan' => match (true) {
+                    $hint->wygasla() => 'nie jest dostępna jako wskazówka',
+                    $hint->status === RecipeHint::STATUS_PROPOSED => 'czeka na odpowiedź',
+                    $hint->status === RecipeHint::STATUS_CANCELLED => 'anulowana przeze mnie',
+                    $hint->status === RecipeHint::STATUS_ACCEPTED => 'stoi przy przepisie jako wskazówka',
                     default => 'nie jest dostępna jako wskazówka',
                 },
                 'wersja_przepisu_z_chwili_prosby' => $hint->recipe_version_number,

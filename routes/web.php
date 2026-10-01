@@ -1079,6 +1079,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->whereUuid('wskazowka')
         ->middleware("throttle:{$limits['wskazowki']},wskazowki")
         ->name('hints.withdraw');
+    // Autor anuluje własną CZEKAJĄCĄ prośbę (`RecipeHintPolicy::own` + `cancel`).
+    Route::post('/wskazowki/{wskazowka}/anuluj', [WskazowkaController::class, 'cancel'])
+        ->whereUuid('wskazowka')
+        ->middleware("throttle:{$limits['wskazowki']},wskazowki")
+        ->name('hints.cancel');
 
     // Planer tygodnia (#27, D-310) — prywatny, tylko właściciel. Wszystkie
     // zapisy pod własnym koszykiem `planer`.

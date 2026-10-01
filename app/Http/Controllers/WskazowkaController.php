@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Wskazowki\AnulujProsbeOWskazowke;
 use App\Domain\Wskazowki\OdrzucWskazowke;
 use App\Domain\Wskazowki\PrzyjmijWskazowke;
 use App\Domain\Wskazowki\WycofajWskazowke;
@@ -96,6 +97,25 @@ class WskazowkaController extends Controller
 
         return $this->wroc($wskazowka->cooked_event_id)->with(Komunikat::informacja(
             'Zgoda wycofana. Wskazówka zniknęła ze strony przepisu, a Twoja uwaga zostaje pod wykonaniem.',
+        ));
+    }
+
+    /** Autor przepisu wycofuje własną czekającą prośbę. */
+    public function cancel(Request $request, RecipeHint $wskazowka, AnulujProsbeOWskazowke $anuluj): RedirectResponse
+    {
+        $this->authorize('own', $wskazowka);
+
+        /** @var User $user */
+        $user = $request->user();
+
+        try {
+            $anuluj->handle($user, $wskazowka, $request->ip());
+        } catch (BladDlaCzlowieka $e) {
+            return $this->wroc($wskazowka->cooked_event_id, '#wskazowka-autor')->with(Komunikat::blad($e->getMessage()));
+        }
+
+        return $this->wroc($wskazowka->cooked_event_id, '#wskazowka-autor')->with(Komunikat::informacja(
+            'Prośba anulowana. Nic nie pojawiło się przy przepisie. O to samo wykonanie nie można poprosić drugi raz.',
         ));
     }
 

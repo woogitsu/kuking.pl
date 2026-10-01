@@ -99,6 +99,17 @@ class Notification extends Model
      */
     public const TYPE_HINT_PROPOSED = 'recipe_hint.proposed';
 
+    /**
+     * Kucharz zgodził się na wskazówkę (#2352, decyzja właściciela z 1.10.2026).
+     * Idzie do AUTORA PRZEPISU, aktorem jest kucharz; `data.hint_id`,
+     * `data.cooked_event_id`, `data.recipe_id` i `data.recipe_title`.
+     * Powstaje WYŁĄCZNIE przy „Zgadzam się": odpowiedź „Nie” i wycofanie
+     * zgody nie powiadamiają autora NIGDY (żadnej presji na kucharza i żadnej
+     * wiadomości „ktoś Ci odmówił”). Zdarzenie, nie stan; tylko w serwisie,
+     * bez Web Push (`KanalPush::TYPY`).
+     */
+    public const TYPE_HINT_ACCEPTED = 'recipe_hint.accepted';
+
     public const TYPE_MODERATION = 'moderation.decision';
 
     /**

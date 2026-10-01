@@ -153,4 +153,50 @@ final class WskazowkiNaDwochPolaczeniachTest extends TestDwochPolaczen
         $this->assertSame(1, DB::table('recipe_hints')->where('cooked_event_id', $wykonanie->getKey())->count());
         $this->assertSame(RecipeHint::STATUS_WITHDRAWN, DB::table('recipe_hints')->where('cooked_event_id', $wykonanie->getKey())->value('status'));
     }
+
+    /**
+     * Anulowanie prośby przez autora kontra „Zgadzam się” kucharza (decyzja
+     * z 1.10.2026): obie akcje czekają na ten sam wiersz. Wygrywa dokładnie
+     * jedna; przegrana dostaje odmowę dla człowieka, a zgoda wygrana wysyła
+     * autorowi dokładnie jedno powiadomienie (anulowanie nie wysyła żadnego).
+     *
+     * @return array<string, array{bool}>
+     */
+    public static function kolejnosciAnulowania(): array
+    {
+        return ['anulowanie pierwsze' => [true], 'zgoda pierwsza' => [false]];
+    }
+
+    #[DataProvider('kolejnosciAnulowania')]
+    public function test_anulowanie_kontra_zgadzam_sie_konczy_sie_jednym_stanem(bool $anulowaniePierwsze): void
+    {
+        [$autor, $kucharz, $wykonanie] = $this->swiat();
+        $wskazowka = RecipeHint::factory()->dlaWykonania($wykonanie)->create();
+
+        $bariera = $this->bariera('SELECT 1 FROM recipe_hints WHERE id = ? FOR UPDATE', [(string) $wskazowka->getKey()]);
+        $anulowanie = ['kto' => (string) $autor->getKey(), 'wskazowka' => (string) $wskazowka->getKey()];
+        $zgoda = ['kto' => (string) $kucharz->getKey(), 'wskazowka' => (string) $wskazowka->getKey()];
+        $pierwszy = $anulowaniePierwsze ? $this->wTle('anuluj-prosbe-o-wskazowke', $anulowanie) : $this->wTle('przyjmij-wskazowke', $zgoda);
+        $this->czekajNaZablokowane(1);
+        $drugi = $anulowaniePierwsze ? $this->wTle('przyjmij-wskazowke', $zgoda) : $this->wTle('anuluj-prosbe-o-wskazowke', $anulowanie);
+        $this->czekajNaZablokowane(2);
+        $this->zwolnijBariere($bariera);
+
+        $wynikAnulowania = ($anulowaniePierwsze ? $pierwszy : $drugi)->wynik();
+        $wynikZgody = ($anulowaniePierwsze ? $drugi : $pierwszy)->wynik();
+        $this->assertBezZakleszczenia($wynikAnulowania, 'anulowanie');
+        $this->assertBezZakleszczenia($wynikZgody, 'zgoda');
+
+        $stan = (string) DB::table('recipe_hints')->where('id', $wskazowka->getKey())->value('status');
+        $this->assertContains($stan, [RecipeHint::STATUS_ACCEPTED, RecipeHint::STATUS_CANCELLED]);
+        $this->assertSame(1, (int) $wynikAnulowania['ok'] + (int) $wynikZgody['ok'], 'Obie akcje przeszły albo żadna.');
+        $this->assertSame($stan === RecipeHint::STATUS_CANCELLED, $wynikAnulowania['ok']);
+        $przegrana = $stan === RecipeHint::STATUS_CANCELLED ? $wynikZgody : $wynikAnulowania;
+        $this->assertSame(BladDlaCzlowieka::class, $przegrana['wyjatek'], 'Przegrana ma dostać odmowę dla człowieka: '.$przegrana['komunikat']);
+        $this->assertSame(
+            $stan === RecipeHint::STATUS_ACCEPTED ? 1 : 0,
+            DB::table('notifications')->where('user_id', $autor->getKey())->where('type', Notification::TYPE_HINT_ACCEPTED)->count(),
+            'Powiadomienie o zgodzie powstaje wtedy i tylko wtedy, gdy zgoda wygrała.',
+        );
+    }
 }

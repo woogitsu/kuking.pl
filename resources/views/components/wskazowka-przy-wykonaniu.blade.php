@@ -68,6 +68,13 @@
                 method="POST"
                 label="Wycofaj zgodę"
                 question="Wycofać zgodę? Wskazówka zniknie ze strony przepisu, a autor nie będzie mógł poprosić o nią drugi raz." />
+        @elseif($wskazowka->wygasla())
+            {{-- Czekająca prośba po 30 dniach: koniec, bez przycisków i bez ponowienia. --}}
+            <h2 id="wskazowka-naglowek" class="m-0">Ta prośba wygasła</h2>
+            <p class="m-0">Prośba o zgodę na wskazówkę była bez odpowiedzi zbyt długo i wygasła. Nic nie musisz robić — uwaga zostaje tylko pod tym wykonaniem.</p>
+        @elseif($wskazowka->jestAnulowana())
+            <h2 id="wskazowka-naglowek" class="m-0">Prośba została wycofana</h2>
+            <p class="m-0">Autor przepisu wycofał prośbę o zgodę na wskazówkę. Nic nie musisz robić — uwaga zostaje tylko pod tym wykonaniem.</p>
         @else
             <h2 id="wskazowka-naglowek" class="m-0">Wskazówka przy przepisie</h2>
             <p class="m-0">Ta uwaga nie jest pokazywana jako wskazówka. Zostaje tylko pod tym wykonaniem.</p>
@@ -92,14 +99,25 @@
     @elseif($wskazowka->czekaNaOdpowiedz())
         <section id="wskazowka-autor" class="card stack" aria-labelledby="wskazowka-autor-naglowek">
             <h2 id="wskazowka-autor-naglowek" class="m-0">Wskazówka przy Twoim przepisie</h2>
-            <p class="m-0">Czeka na odpowiedź osoby, która ugotowała. Dopóki się nie zgodzi, nic nie jest pokazane przy przepisie.</p>
+            <p class="m-0">Czeka na odpowiedź osoby, która ugotowała. Dopóki się nie zgodzi, nic nie jest pokazane przy przepisie. Prośba wygasa po {{ (int) config('kuking.wskazowki.prosba_wygasa_po_dniach') }} dniach bez odpowiedzi.</p>
+            <x-confirm-button
+                :action="route('hints.cancel', $wskazowka)"
+                method="POST"
+                label="Anuluj prośbę"
+                question="Anulować prośbę? Osoba, która ugotowała, nie dostanie o tym wiadomości, a o to samo wykonanie nie będzie można poprosić drugi raz." />
         </section>
     @elseif($wskazowka->jestPrzyjeta())
         <section id="wskazowka-autor" class="card stack" aria-labelledby="wskazowka-autor-naglowek">
             <h2 id="wskazowka-autor-naglowek" class="m-0">Wskazówka przy Twoim przepisie</h2>
             <p class="m-0">Ta uwaga stoi przy przepisie jako wskazówka. Osoba, która ugotowała, może to w każdej chwili wycofać.</p>
         </section>
+    @elseif($wskazowka->jestAnulowana())
+        <section id="wskazowka-autor" class="card stack" aria-labelledby="wskazowka-autor-naglowek">
+            <h2 id="wskazowka-autor-naglowek" class="m-0">Wskazówka przy Twoim przepisie</h2>
+            <p class="m-0">Ta prośba została anulowana. O to samo wykonanie nie można poprosić drugi raz.</p>
+        </section>
     @else
+        {{-- „Nie”, wycofana zgoda i wygasła prośba wyglądają tu tak samo. --}}
         <section id="wskazowka-autor" class="card stack" aria-labelledby="wskazowka-autor-naglowek">
             <h2 id="wskazowka-autor-naglowek" class="m-0">Wskazówka przy Twoim przepisie</h2>
             <p class="m-0">Ta uwaga nie jest dostępna jako wskazówka.</p>

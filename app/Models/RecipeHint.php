@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * „Wskazówka od gotujących” (#2352, D-333, decyzja właściciela z 1.10.2026).
@@ -42,6 +43,13 @@ class RecipeHint extends Model
 
     /** Kucharz wycofał zgodę — wskazówka zniknęła, ostateczne. */
     public const STATUS_WITHDRAWN = 'withdrawn';
+
+    /**
+     * Autor sam wycofał własną czekającą prośbę (D-333, 1.10.2026) —
+     * ostateczne jak „Nie”: to samo wykonanie nie dostaje drugiej prośby.
+     * Kucharz nie odpowiadał, więc `decided_at` zostaje pusty.
+     */
+    public const STATUS_CANCELLED = 'cancelled';
 
     protected $fillable = [];
 
@@ -78,9 +86,40 @@ class RecipeHint extends Model
         return $this->belongsTo(User::class, 'cook_id');
     }
 
+    /**
+     * Prośba, na którą kucharz jeszcze może odpowiedzieć: czeka i NIE wygasła.
+     * Wygasła prośba nie ma osobnego stanu — to ten sam wiersz `proposed`,
+     * tylko starszy niż okno z konfiguracji (patrz `wygasla()`).
+     */
     public function czekaNaOdpowiedz(): bool
     {
-        return $this->status === self::STATUS_PROPOSED;
+        return $this->status === self::STATUS_PROPOSED && ! $this->wygasla();
+    }
+
+    /**
+     * Czekająca prośba po upływie okna (`kuking.wskazowki.prosba_wygasa_po_dniach`,
+     * liczone od `created_at`). Wygaśnięcie to KONIEC: bez odpowiedzi, bez
+     * ponowienia (unikalność wykonania zostaje) i bez wiadomości do kogokolwiek.
+     * Nie ma zadania w tle ani zmiany stanu — wiek wiersza rozstrzyga przy
+     * każdym odczycie, więc nie ma okna, w którym prośba „jeszcze żyje” po
+     * terminie.
+     */
+    public function wygasla(): bool
+    {
+        return $this->status === self::STATUS_PROPOSED
+            && $this->created_at !== null
+            && $this->created_at->lte(self::granicaWygasniecia());
+    }
+
+    /** Najstarsza data `created_at`, od której czekająca prośba jeszcze żyje. */
+    public static function granicaWygasniecia(): Carbon
+    {
+        return now()->subDays((int) config('kuking.wskazowki.prosba_wygasa_po_dniach'));
+    }
+
+    public function jestAnulowana(): bool
+    {
+        return $this->status === self::STATUS_CANCELLED;
     }
 
     public function jestPrzyjeta(): bool
@@ -107,6 +146,12 @@ class RecipeHint extends Model
         $this->save();
     }
 
+    public function anuluj(): void
+    {
+        $this->przejdz(self::STATUS_PROPOSED, self::STATUS_CANCELLED);
+        $this->save();
+    }
+
     public function wycofaj(): void
     {
         $this->przejdz(self::STATUS_ACCEPTED, self::STATUS_WITHDRAWN);
@@ -121,6 +166,24 @@ class RecipeHint extends Model
         }
 
         $this->status = $do;
+    }
+
+    /**
+     * Wskazówki zajmujące miejsce w limicie przepisu: przyjęte i czekające,
+     * które nie wygasły. Odrzucone, wycofane, anulowane i wygasłe miejsca nie
+     * zajmują.
+     *
+     * @param  Builder<RecipeHint>  $query
+     */
+    public function scopeZajmujaceMiejsce(Builder $query): void
+    {
+        $query->where(function (Builder $q): void {
+            $q->where('recipe_hints.status', self::STATUS_ACCEPTED)
+                ->orWhere(function (Builder $czekajace): void {
+                    $czekajace->where('recipe_hints.status', self::STATUS_PROPOSED)
+                        ->where('recipe_hints.created_at', '>', self::granicaWygasniecia());
+                });
+        });
     }
 
     /**

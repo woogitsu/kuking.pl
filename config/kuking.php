@@ -70,6 +70,11 @@ return [
     'wskazowki' => [
         'na_przepis_max' => 10,
         'na_dobe_max' => 10,
+        // Czekająca prośba wygasa po tylu dniach od `created_at` (decyzja
+        // właściciela z 1.10.2026): przestaje liczyć się do limitu na przepis
+        // i nie da się na nią odpowiedzieć „Zgadzam się”. Wygaśnięcie to koniec
+        // — nowej prośby o to samo wykonanie nie ma (bez presji na kucharza).
+        'prosba_wygasa_po_dniach' => 30,
     ],
 
     /*

@@ -681,6 +681,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'user_id' => $wlasciciel->getKey(), 'recipe_id' => $cudzyPrzepis->getKey(), 'note' => 'Uwaga do wycofania.',
         ]), RecipeHint::STATUS_ACCEPTED)->create();
 
+        // Anulowanie czekającej prośby: anuluje wyłącznie AUTOR przepisu, więc
+        // tu właściciel jest autorem, a kucharzem — `$przedmiot`.
+        $wskazowkaDoAnulowania = RecipeHint::factory()->dlaWykonania(CookedEvent::factory()->create([
+            'user_id' => $przedmiot->getKey(), 'recipe_id' => $przepis->getKey(), 'note' => 'Uwaga do anulowania.',
+        ]))->create();
+
         $komentarz = Comment::factory()->create([
             'author_id' => $wlasciciel->getKey(),
             'post_id' => $wpisPubliczny->getKey(),
@@ -1173,6 +1179,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('hints.decline', $wskazowkaDoOdmowy), [], [$W, $O, $O, $O, $O]);
         $dodaj('hints.withdraw', 'wycofanie zgody na wskazówkę', 'post',
             route('hints.withdraw', $wskazowkaDoWycofania), [], [$W, $O, $O, $O, $O]);
+        $dodaj('hints.cancel', 'anulowanie własnej czekającej prośby o wskazówkę', 'post',
+            route('hints.cancel', $wskazowkaDoAnulowania), [], [$W, $O, $O, $O, $O]);
 
         // ─── KOMENTARZE ──────────────────────────────────────────────────
         $dodaj('comments.update', 'poprawienie komentarza', 'put',

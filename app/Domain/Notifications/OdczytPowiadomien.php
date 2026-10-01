@@ -256,7 +256,7 @@ final class OdczytPowiadomien
         foreach ($powiadomienia as $powiadomienie) {
             $id = $powiadomienie->data['recipe_id'] ?? null;
 
-            if ($powiadomienie->type === Notification::TYPE_SAVED && is_string($id) && Str::isUuid($id)) {
+            if (in_array($powiadomienie->type, [Notification::TYPE_SAVED, Notification::TYPE_HINT_ACCEPTED], true) && is_string($id) && Str::isUuid($id)) {
                 $doSprawdzenia[$id][] = $powiadomienie;
             }
         }

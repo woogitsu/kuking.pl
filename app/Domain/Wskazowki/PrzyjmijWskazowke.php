@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Wskazowki;
 
+use App\Domain\Notifications\Actions\NotifyUser;
 use App\Domain\Social\ZamekPary;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
+use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\RecipeHint;
 use App\Models\User;
@@ -25,12 +27,18 @@ use Illuminate\Support\Facades\Gate;
  * wskazówki kaskadą, a blokada na wykonaniu obok blokady na wskazówce
  * zakleszczyłaby się z tym usunięciem.
  *
+ * Zgoda powiadamia AUTORA przepisu (`recipe_hint.accepted`, decyzja właściciela
+ * z 1.10.2026) — w tej samej transakcji co zgoda, tylko w serwisie, bez push.
+ * „Nie” i wycofanie zgody nie powiadamiają go nigdy.
+ *
  * Idempotentne: drugie kliknięcie „Zgadzam się" (w tej grupie norma) nic nie
  * zmienia i nie jest błędem. Prośba już odrzucona albo wycofana nie wraca.
  */
 final class PrzyjmijWskazowke
 {
     public const NIEAKTUALNE = 'Ta prośba jest już nieaktualna. Jeśli to wykonanie wciąż Cię dotyczy, autor przepisu może poprosić o wskazówkę innym razem.';
+
+    public function __construct(private readonly NotifyUser $notify) {}
 
     public function handle(User $kucharz, RecipeHint $wskazowka, ?string $ip = null): RecipeHint
     {
@@ -63,6 +71,21 @@ final class PrzyjmijWskazowke
             }
 
             $swieza->przyjmij();
+
+            // Drugie kliknięcie wyszło wyżej (`jestPrzyjeta`), więc wiadomość
+            // powstaje raz na zgodę. Blokadę, zamknięte konto i własną akcję
+            // odcina `NotifyUser`.
+            $this->notify->handle(
+                recipient: $swiezyAutor,
+                type: Notification::TYPE_HINT_ACCEPTED,
+                actor: $swiezyKucharz,
+                data: [
+                    'hint_id' => (string) $swieza->getKey(),
+                    'cooked_event_id' => (string) $swieza->cooked_event_id,
+                    'recipe_id' => (string) $swieza->recipe_id,
+                    'recipe_title' => $swieza->recipe?->title,
+                ],
+            );
 
             AuditLogEntry::record(
                 action: 'recipe_hint.accepted',

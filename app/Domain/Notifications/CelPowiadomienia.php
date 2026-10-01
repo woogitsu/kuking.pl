@@ -93,6 +93,12 @@ final class CelPowiadomienia
             Notification::TYPE_HINT_PROPOSED => isset($data['cooked_event_id']) && ! $powiadomienie->wykonanieUsuniete()
                 ? route('cooked.show', $data['cooked_event_id']).'#wskazowka'
                 : null,
+            // Zgoda kucharza na wskazówkę (#2352): do autora, na stronę jego
+            // przepisu, do sekcji ze wskazówkami. Po `recipe_id` jak przy
+            // zapisie (#1034); przepis usunięty = brak celu.
+            Notification::TYPE_HINT_ACCEPTED => is_string($slug = $this->slugZapisanegoPrzepisu($powiadomienie)) && $slug !== ''
+                ? route('recipes.show', $slug).'#wskazowki-gotujacych'
+                : null,
             // ISSUE #1034: cel po STABILNYM `recipe_id`, nie po zamrożonym
             // `recipe_slug`. Stary slug po usunięciu przepisu prowadził na 404,
             // a po zmianie tytułu przez przekierowanie — tu od razu bierzemy

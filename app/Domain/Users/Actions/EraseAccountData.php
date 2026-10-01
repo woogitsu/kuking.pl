@@ -340,7 +340,7 @@ final class EraseAccountData
             RecipeHint::query()->where('cook_id', $fresh->getKey())->delete();
             RecipeHint::query()
                 ->where('author_id', $fresh->getKey())
-                ->where('status', RecipeHint::STATUS_PROPOSED)
+                ->whereIn('status', [RecipeHint::STATUS_PROPOSED, RecipeHint::STATUS_CANCELLED])
                 ->delete();
 
             /*

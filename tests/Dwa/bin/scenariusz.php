@@ -62,6 +62,7 @@ use App\Domain\Users\Actions\ChangeUserRole;
 use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Actions\RequestAccountDeletion;
+use App\Domain\Wskazowki\AnulujProsbeOWskazowke;
 use App\Domain\Wskazowki\OdrzucWskazowke;
 use App\Domain\Wskazowki\PrzyjmijWskazowke;
 use App\Domain\Wskazowki\WycofajWskazowke;
@@ -637,6 +638,10 @@ try {
             RecipeHint::query()->whereKey($argumenty['wskazowka'])->firstOrFail(),
         )->status,
         'odrzuc-wskazowke' => (string) app(OdrzucWskazowke::class)->handle(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            RecipeHint::query()->whereKey($argumenty['wskazowka'])->firstOrFail(),
+        )->status,
+        'anuluj-prosbe-o-wskazowke' => (string) app(AnulujProsbeOWskazowke::class)->handle(
             User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             RecipeHint::query()->whereKey($argumenty['wskazowka'])->firstOrFail(),
         )->status,

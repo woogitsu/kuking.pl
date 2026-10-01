@@ -6536,6 +6536,33 @@ po **ostrzeżeniu** (ekran „Te składniki już są na liście”, GET, bez
 skutku ubocznego). Limity: `kuking.zakupy.pozycji_max` (300 pozycji na listę),
 `kuking.zakupy.znakow_max` (240), własny koszyk `kuking.limits.zakupy`.
 
+**Wygasanie czekającej prośby (1.10.2026).** Prośba `proposed` starsza niż
+`kuking.wskazowki.prosba_wygasa_po_dniach` (30) od `created_at` **wygasa bez
+zmiany stanu i bez zadania w tle**: `RecipeHint::wygasla()` liczy wiek wiersza
+przy każdym odczycie. Wygasła nie przechodzi przez `accept`, `decline` ani
+`cancel` (Policy), nie zajmuje miejsca w limicie przepisu
+(`RecipeHint::scopeZajmujaceMiejsce` — przyjęte i niewygasłe czekające), a
+kucharz widzi na stronie wykonania zdanie „Ta prośba wygasła” bez przycisków.
+**Wygasła prośba jest końcem**: `recipe_hints_cooked_event_unique` zostaje, więc
+nowej prośby o to samo wykonanie nie ma (bez presji na kucharza). Bez migracji.
+
+**Anulowanie (1.10.2026).** Autor anuluje własną czekającą prośbę
+(`AnulujProsbeOWskazowke`, trasa `hints.cancel`, `RecipeHintPolicy::cancel`)
+pod tym samym zamkiem co pozostałe akcje (`ZamekPary`, potem wiersz
+`FOR UPDATE`), więc anulowanie kontra „Zgadzam się” ustawia się w kolejce —
+test na dwóch połączeniach w `tests/Dwa/WskazowkiNaDwochPolaczeniachTest.php`.
+Przejście `proposed → cancelled` (metoda modelu `anuluj()`), wpis w
+`audit_log` `recipe_hint.cancelled`, brak powiadomienia. Wymazanie konta autora
+kasuje też jego wiersze `cancelled`.
+
+**Rollback migracji `2026_10_01_190000_add_cancelled_status_to_recipe_hints`.**
+Oba CHECK-i wchodzą `NOT VALID` + `VALIDATE` poza transakcją (AGENTS.md §6).
+`down()` **ODMAWIA**, gdy są wiersze `cancelled` (D-088): stare CHECK-i nie znają
+tego stanu, a zamiana na `proposed` wskrzesiłaby wycofaną prośbę, skasowanie
+pozwoliłoby prosić drugi raz. Komunikat mówi, co zrobić ręcznie (kopia tabeli,
+decyzja co do wierszy). Bez wierszy `cancelled` cofnięcie przechodzi bez
+pytania. Test: `tests/Feature/WskazowkiWygasanieAnulowanieZgodaTest.php`.
+
 **Rollback.** `down()` ODMAWIA, gdy w tabeli są wiersze (D-088): kasowanie
 tabeli zabrałoby ludziom prywatne listy bez śladu. Komunikat mówi, co zrobić
 ręcznie (kopia tabeli, ponowny rollback z
@@ -6568,7 +6595,7 @@ zamiast dwóch, a usunięcie wykonania zabiera wskazówkę kaskadą.
 | `cooked_event_id` | `uuid` | → `cooked_events(id)` `ON DELETE CASCADE`; **UNIKALNE** (patrz niżej) |
 | `author_id` | `uuid` | → `users(id)` `ON DELETE CASCADE` (pas bezpieczeństwa; konta się anonimizuje): autor przepisu, który prosi |
 | `cook_id` | `uuid` | → `users(id)` `ON DELETE CASCADE`: kucharz, który odpowiada |
-| `status` | `varchar(10)` | `proposed` (czeka), `accepted` (stoi przy przepisie), `declined` („Nie”, ostateczne), `withdrawn` (zgoda wycofana, ostateczne) |
+| `status` | `varchar(10)` | `proposed` (czeka), `accepted` (stoi przy przepisie), `declined` („Nie”, ostateczne), `withdrawn` (kucharz wycofał zgodę, ostateczne), `cancelled` (autor sam wycofał czekającą prośbę, ostateczne; migracja `2026_10_01_190000`) |
 | `recipe_version_number` | `integer` NULL | numer wersji przepisu z chwili prośby (bez klucza obcego — wersje podlegają retencji); strona przepisu dopisuje „Przepis był zmieniany po tej wskazówce.”, gdy najnowsza wersja jest wyższa |
 | `decided_at` | `timestamptz` NULL | kiedy kucharz odpowiedział („Zgadzam się” albo „Nie”); porządkuje wskazówki na stronie przepisu (kolejność zgód, bez rankingu) |
 | `withdrawn_at` | `timestamptz` NULL | kiedy kucharz wycofał zgodę |
@@ -6583,9 +6610,10 @@ to nazwane metody modelu (`przyjmij()`, `odrzuc()`, `wycofaj()`) — nigdy
 
 Ograniczenia (nowa tabela, więc razem z `CREATE TABLE` — AGENTS.md §6):
 
-- `recipe_hints_status_check` — `status IN ('proposed', 'accepted', 'declined', 'withdrawn')`;
+- `recipe_hints_status_check` — `status IN ('proposed', 'accepted', 'declined', 'withdrawn', 'cancelled')`;
 - `recipe_hints_stan_spojny_check` — stan i znaczniki mówią to samo:
-  `proposed` bez `decided_at` i `withdrawn_at`; `accepted`/`declined` z
+  `proposed` i `cancelled` bez `decided_at` i `withdrawn_at` (kucharz nie
+  odpowiedział; moment anulowania to `updated_at`); `accepted`/`declined` z
   `decided_at`, bez `withdrawn_at`; `withdrawn` z oboma;
 - `recipe_hints_autor_nie_kucharz_check` — `author_id <> cook_id`;
 - `recipe_hints_wersja_check` — numer wersji `NULL` albo `>= 1`;
@@ -6626,9 +6654,12 @@ Ograniczenia (nowa tabela, więc razem z `CREATE TABLE` — AGENTS.md §6):
   widz może zobaczyć (`CookedEvent::scopeWidoczneDla` — blokady, konta
   zbanowane i w karencji usunięcia), w kolejności `decided_at`, bez rankingu,
   jednym zapytaniem z kucharzem, profilem i awatarem.
-- *Powiadomienie:* `Notification::TYPE_HINT_PROPOSED` (`recipe_hint.proposed`)
-  do kucharza, aktorem jest autor; tylko w serwisie, bez Web Push. Odpowiedź
-  („Nie”, zgoda, wycofanie) **nie powiadamia nikogo**.
+- *Powiadomienia:* `Notification::TYPE_HINT_PROPOSED` (`recipe_hint.proposed`)
+  do kucharza, aktorem jest autor; `Notification::TYPE_HINT_ACCEPTED`
+  (`recipe_hint.accepted`, 1.10.2026) do autora przepisu, aktorem jest kucharz,
+  tylko przy „Zgadzam się”, w tej samej transakcji. Oba tylko w serwisie, bez
+  Web Push. „Nie”, wycofanie zgody, anulowanie i wygaśnięcie **nie powiadamiają
+  nikogo**.
 - *Moderacja:* wskazówka **dziedziczy moderację z wykonania** — „Zgłoś” przy
   wskazówce otwiera zgłoszenie typu `cooked_event` (tekst wskazówki to dokładnie
   `note` tego wykonania), decyzja `remove` kasuje wykonanie, a z nim kaskadą

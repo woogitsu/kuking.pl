@@ -827,6 +827,10 @@ trafi tam pierwszy rekord.
   wersji przepisu z chwili prośby). Tekstu nie kopiujemy — wskazówką jest
   `cooked_events.note`. Przy przepisie widać uwagę, nazwę i datę ugotowania
   kucharza; autor przepisu nie dostaje wiadomości o odmowie ani o wycofaniu.
+  Od 1.10.2026: prośba bez odpowiedzi wygasa po 30 dniach (liczone z daty
+  prośby, bez zmiany stanu), autor może anulować własną czekającą prośbę
+  (stan `cancelled`), a zgoda kucharza powiadamia autora w serwisie. Zakres
+  danych się nie zmienia — to te same pola, nowe znaczenia stanu.
 - **Podstawa:** art. 6 ust. 1 lit. a RODO — zgoda kucharza, udzielana osobno
   przy każdej prośbie („Zgadzam się”), brak odpowiedzi to brak publikacji,
   wycofanie w każdej chwili przyciskiem „Wycofaj zgodę” (art. 7 ust. 3), także
@@ -836,7 +840,9 @@ trafi tam pierwszy rekord.
 - **Termin usunięcia:** do wycofania zgody (wskazówka znika ze strony
   przepisu, wiersz zostaje jako ślad, że prośba nie wraca), usunięcia
   wykonania (kaskada) albo konta (`EraseAccountData` kasuje wiersze kucharza
-  niezależnie od zakresu usunięcia, a czekające prośby autora też).
+  niezależnie od zakresu usunięcia, a czekające i anulowane prośby autora też).
+  Zapis wygasłej, anulowanej i odrzuconej prośby zostaje, żeby prośba o to
+  samo wykonanie nie wróciła.
 - **Eksport:** `wskazowki_z_moich_wykonan` (uwaga, stan zgody, daty) i
   `wskazowki_do_moich_przepisow` (stan próśb, bez danych kucharza).
 - **Moderacja:** wskazówka dziedziczy z wykonania — zgłoszenie typu

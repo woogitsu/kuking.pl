@@ -79,6 +79,8 @@
                 \App\Models\Notification::TYPE_FORKED,
                 // Prośba o zgodę na wskazówkę (#2352) — zdarzenie od jednej osoby.
                 \App\Models\Notification::TYPE_HINT_PROPOSED,
+                // Zgoda kucharza na wskazówkę (#2352) — zdarzenie od jednej osoby.
+                \App\Models\Notification::TYPE_HINT_ACCEPTED,
             ], true);
 
             /*
@@ -280,6 +282,15 @@
                                 @else
                                     Twoja uwaga pokaże się tam tylko wtedy, gdy się zgodzisz.
                                 @endif
+                                @break
+                            @case(\App\Models\Notification::TYPE_HINT_ACCEPTED)
+                                {{-- ZGODA NA WSKAZÓWKĘ (#2352). Do autora przepisu, tylko przy
+                                     „Zgadzam się" — „Nie" i wycofanie nie dają żadnej wiadomości.
+                                     Treści uwagi tu nie cytujemy (to tekst kucharza; widać go
+                                     przy przepisie, jeśli zgoda trwa). --}}
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }}: zgoda na wskazówkę</strong>
+                                przy przepisie „{{ $data['recipe_title'] ?? 'przepis' }}”.
+                                Ta uwaga stoi teraz na stronie Twojego przepisu.
                                 @break
                             @case(\App\Models\Notification::TYPE_FIRST_POST)
                                 {{-- Powiadomienie dla GOSPODARZA, nie dla autora
