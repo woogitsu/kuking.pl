@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -107,5 +108,30 @@ class PolitykaCspZdjeciaTylkoZZaufanychHostowTest extends TestCase
         $this->assertStringNotContainsString('evil', $img);
         $this->assertStringNotContainsString('http://cdn.kuking.pl', $img);
         $this->assertStringNotContainsString(' *', $img);
+    }
+
+    /**
+     * Test z prawdziwym podpisem SDK, nie z hostem wpisanym ręcznie w oczekiwaniu:
+     * host adresu, na który `media.show` przekieruje przeglądarkę, MUSI być
+     * dokładnie jednym ze źródeł `img-src`.
+     */
+    public function test_host_prawdziwie_podpisanego_adresu_jest_w_img_src(): void
+    {
+        foreach (['kuking-publiczne', 'kuking.publiczne', 'Kuking_Publiczne'] as $bucket) {
+            config([
+                'filesystems.disks.r2_publiczne.endpoint' => 'https://'.self::KONTO.'.eu.r2.cloudflarestorage.com',
+                'filesystems.disks.r2_publiczne.bucket' => $bucket,
+                'filesystems.disks.r2_publiczne.key' => 'AKIATEST',
+                'filesystems.disks.r2_publiczne.secret' => 'sekret-testowy',
+                'filesystems.disks.r2_publiczne.region' => 'auto',
+                'kuking.media.publiczne_adresy' => [],
+            ]);
+            Storage::forgetDisk('r2_publiczne');
+
+            $podpisany = Storage::disk('r2_publiczne')->temporaryUrl('media/1/thumb.webp', now()->addMinutes(5));
+            $host = (string) parse_url($podpisany, PHP_URL_HOST);
+
+            $this->assertContains('https://'.$host, explode(' ', $this->dyrektywa('img-src')), "bucket {$bucket}: {$podpisany}");
+        }
     }
 }

@@ -55,9 +55,17 @@ final class ZrodlaZdjecDlaCsp
                 [$schemat, $host] = $endpoint;
                 $stylSciezkowy = (bool) ($konfiguracja['use_path_style_endpoint'] ?? false);
 
-                $originy[] = $stylSciezkowy || $bucket === ''
-                    ? "{$schemat}://{$host}"
-                    : "{$schemat}://{$bucket}.{$host}";
+                // SDK AWS spada na adresowanie przez ścieżkę, gdy nazwa bucketu
+                // nie nadaje się na etykietę DNS (kropka, wielka litera,
+                // podkreślnik) — wtedy podpisany adres ma sam host endpointu.
+                // Nazwy R2 takie nie bywają, ale pomyłka w AWS_PUBLIC_BUCKET
+                // nie powinna po cichu zrywać wszystkich zdjęć przez CSP.
+                $bucketNaHoscie = $bucket !== '' && ! $stylSciezkowy
+                    && preg_match('/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/', $bucket) === 1;
+
+                $originy[] = $bucketNaHoscie
+                    ? "{$schemat}://{$bucket}.{$host}"
+                    : "{$schemat}://{$host}";
             }
 
             // Własna domena bucketu (`url`) — tylko gdy jest pełnym adresem.
