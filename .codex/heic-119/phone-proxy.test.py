@@ -73,6 +73,64 @@ def test_naglowek_z_nowa_linia_odrzucony():
     assert proxy['bezpieczny_naglowek']('X\r\nY', 'ok') is False
 
 
+def test_allowlista_zwraca_stala_nazwe_i_wartosc():
+    f = proxy['naglowek_do_przekazania']
+    assert f('content-type', 'text/html') == ('Content-Type', 'text/html')
+    assert f('ETAG', '"abc"') == ('ETag', '"abc"')
+    assert f('X-Nieznany', 'ok') is None, 'Nagłówek spoza allowlisty nie jest przekazywany'
+    assert f('Connection', 'close') is None
+    assert f('Content-Length', '5') is None
+
+
+def test_allowlista_odrzuca_cr_lf_nul_w_nazwie_i_wartosci():
+    f = proxy['naglowek_do_przekazania']
+    assert f('Location', '/x\r\nSet-Cookie: a=1') is None
+    assert f('Location', '/x\nX: y') is None
+    assert f('Location', '/x\x00') is None
+    assert f('Content-Type\r\nX-Evil: 1', 'text/html') is None
+
+
+def test_odpowiedz_upstream_nie_wstrzykuje_naglowkow():
+    """Prawdziwy serwer upstream zwraca NUL w wartości i nagłówek spoza allowlisty; odpowiedź proxy ma go nie zawierać."""
+    import http.client
+    import socket
+    import threading
+
+    gniazdo = socket.socket()
+    gniazdo.bind(('127.0.0.1', 0))
+    gniazdo.listen(1)
+    port_up = gniazdo.getsockname()[1]
+
+    def upstream():
+        polaczenie, _ = gniazdo.accept()
+        polaczenie.recv(65536)
+        polaczenie.sendall(
+            b'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n'
+            b'Location: /ok\r\nX-Evil: 1\r\n'
+            b'Cache-Control: a\x00b\r\nContent-Length: 2\r\nConnection: close\r\n\r\nhi'
+        )
+        polaczenie.close()
+
+    threading.Thread(target=upstream, daemon=True).start()
+    from http.server import ThreadingHTTPServer
+    handler = proxy['make_handler']('127.0.0.1', port_up, 'tok', [])
+    serwer = ThreadingHTTPServer(('127.0.0.1', 0), handler)
+    threading.Thread(target=serwer.serve_forever, daemon=True).start()
+    try:
+        c = http.client.HTTPConnection('127.0.0.1', serwer.server_address[1], timeout=10)
+        c.request('GET', '/', headers={'X-Phone-Proxy-Token': 'tok'})
+        r = c.getresponse()
+        r.read()
+        assert r.status == 200
+        assert r.getheader('Content-Type') == 'text/plain'
+        assert r.getheader('Location') == '/ok'
+        assert r.getheader('Cache-Control') is None, 'Wartość z NUL jest pomijana'
+        assert r.getheader('X-Evil') is None
+    finally:
+        serwer.shutdown()
+        gniazdo.close()
+
+
 if __name__ == '__main__':
     testy = [v for k, v in list(globals().items()) if k.startswith('test_')]
     for test in testy:
