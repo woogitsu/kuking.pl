@@ -290,6 +290,6 @@ final class SkalowaniePorcjiNaStroniePrzepisuTest extends TestCase
     {
         $element = $this->xpath($odpowiedz)->query('//p[@data-koszt-autora]')->item(0);
 
-        return trim($element?->textContent ?? '');
+        return trim($element->textContent ?? '');
     }
 }
