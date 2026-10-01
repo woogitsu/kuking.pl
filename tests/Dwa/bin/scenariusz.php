@@ -40,6 +40,7 @@ use App\Domain\Import\LimitImportu;
 use App\Domain\Import\Rezerwacja;
 use App\Domain\Import\ZlecImportPrzepisu;
 use App\Domain\Moderation\Actions\NotifyReporterDecisionChanged;
+use App\Domain\Moderation\Actions\PrzywrocWskazowke;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Moderation\Actions\RestoreContent;
@@ -649,6 +650,19 @@ try {
             User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             RecipeHint::query()->whereKey($argumenty['wskazowka'])->firstOrFail(),
         )->status,
+
+        // „Przywróć wskazówkę” przez moderatora (#2352): prawdziwa akcja domenowa,
+        // ten sam zamek co ukrycie (konta posortowane, potem wiersz wskazówki).
+        'przywroc-wskazowke' => (function () use ($argumenty): string {
+            $wynik = app(PrzywrocWskazowke::class)->handle(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                $argumenty['wskazowka'],
+                'pomylka_moderacji',
+                'Decyzja z testu wyścigu.',
+            );
+
+            return $wynik['widoczna'] ? 'widoczna' : 'wycofana';
+        })(),
 
         // Dwa równoległe uruchomienia przypomnień o urodzinach (#2318).
         // Cisza nocna wyłączona (od = do), żeby wynik nie zależał od godziny.

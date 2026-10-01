@@ -693,6 +693,24 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'user_id' => $wlasciciel->getKey(), 'recipe_id' => $cudzyPrzepis->getKey(), 'note' => 'Uwaga ukryta.',
         ]), RecipeHint::STATUS_ACCEPTED)->ukrytaPrzezModeracje()->create();
 
+        // „Przywróć wskazówkę” (#2352): ukryta przez moderację, z decyzją `hide`
+        // w rejestrze (bez niej moderacja niczego nie cofa). Kucharz jest
+        // właścicielem, autor przepisu — `$przedmiot`; moderator jest osobą
+        // trzecią, więc może przywrócić.
+        $wskazowkaDoPrzywrocenia = RecipeHint::factory()->dlaWykonania(CookedEvent::factory()->create([
+            'user_id' => $wlasciciel->getKey(), 'recipe_id' => $cudzyPrzepis->getKey(), 'note' => 'Uwaga do przywrócenia.',
+        ]), RecipeHint::STATUS_ACCEPTED)->ukrytaPrzezModeracje()->create();
+        ModerationAction::create([
+            'moderator_id' => $moderator->getKey(),
+            'report_id' => null,
+            'target_type' => 'recipe_hint',
+            'target_id' => $wskazowkaDoPrzywrocenia->getKey(),
+            'subject_user_id' => $wlasciciel->getKey(),
+            'action' => ModerationAction::ACTION_HIDE,
+            'reason_code' => 'cudze-dane-osobowe',
+            'user_message' => 'W uwadze jest numer telefonu.',
+        ]);
+
         // Anulowanie czekającej prośby: anuluje wyłącznie AUTOR przepisu, więc
         // tu właściciel jest autorem, a kucharzem — `$przedmiot`.
         $wskazowkaDoAnulowania = RecipeHint::factory()->dlaWykonania(CookedEvent::factory()->create([
@@ -931,6 +949,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             [$O, $O, $O, $W, $O]);
         $dodaj('admin.reports.restore', 'przywrócenie treści', 'post',
             route('admin.reports.restore', $zgloszenieDoPrzywrocenia), [], [$O, $O, $O, $W, $O]);
+        // „Przywróć wskazówkę” (#2352): wyłącznie czynna moderacja i nie w sprawie,
+        // w której jest stroną (`RecipeHintPolicy::restore`). Właściciel (kucharz)
+        // i obca osoba dostają odmowę, moderator — kontrolę dodatnią.
+        $dodaj('admin.hints.restore', 'przywrócenie ukrytej wskazówki', 'post',
+            route('admin.hints.restore', $wskazowkaDoPrzywrocenia),
+            ['reason_code' => 'pomylka_moderacji', 'user_message' => 'Sprawdziliśmy ponownie.'],
+            [$O, $O, $O, $W, $O]);
         // „Zdejmij z urzędu” (G31, D-251): wyłącznie moderacja, przez
         // `removeExOfficio` — autor własnej treści tędy nie wchodzi.
         $dodaj('admin.z-urzedu.create', 'zdjęcie z urzędu — formularz', 'get',
