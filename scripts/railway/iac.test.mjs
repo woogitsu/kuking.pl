@@ -879,16 +879,39 @@ function panelowePrzyczynyWyjatkow(zrodloPhp) {
 
 const ZRODLO_WYJATKOW = readFileSync(resolve(KORZEN, "tests/Feature/ZmienneRailwayaPerRolaTest.php"), "utf8");
 
+/** Nazwy „tylko z panelu”, dla których bilans nie ma instrukcji. */
+function bezInstrukcji(zrodloPhp) {
+  return panelowePrzyczynyWyjatkow(zrodloPhp).filter((n) => !(n in PANELOWE_Z_ZALOZENIA));
+}
+
+/** Instrukcje w bilansie, których nazwy nie stoją już w `WYJATKI` (poza parą AWS_LEGACY_* z filesystems.php). */
+function instrukcjeBezWyjatku(zrodloPhp) {
+  const wszystkie = new Set([...zrodloPhp.matchAll(/\n {8}'([A-Z0-9_]+)' =>/g)].map((m) => m[1]));
+  return Object.keys(PANELOWE_Z_ZALOZENIA).filter((n) => !wszystkie.has(n) && !n.startsWith("AWS_LEGACY_"));
+}
+
 test("każdy wyjątek „ustawiany ręcznie / z panelu” ma w bilansie instrukcję (IN-03)", () => {
   const panelowe = panelowePrzyczynyWyjatkow(ZRODLO_WYJATKOW);
   for (const n of ["AWS_LEGACY_BUCKET", "KUKING_ZAUFANE_HOSTY", "TURNSTILE_HOSTY_STAGINGU", "KUKING_EXPORT_TEMP_DIR"]) {
     assert.ok(panelowe.includes(n), `${n}: parser WYJATKI zgubił wpis`);
   }
-  assert.deepEqual(panelowe.filter((n) => !(n in PANELOWE_Z_ZALOZENIA)), [], "dopisz instrukcję do PANELOWE_Z_ZALOZENIA w bilans-zmiennych-595.mjs");
+  assert.deepEqual(bezInstrukcji(ZRODLO_WYJATKOW), [], "dopisz instrukcję do PANELOWE_Z_ZALOZENIA w bilans-zmiennych-595.mjs");
   // Runbook wymienia sekcję i najgroźniejszą nazwę.
   const runbook = readFileSync(resolve(KORZEN, "docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md"), "utf8");
   assert.match(runbook, /tylko z panelu \(WYJATKI, #2295\)/);
   assert.match(runbook, /AWS_LEGACY_\*/);
+});
+
+test("instrukcje bilansu nie wskazują nazw, których nie ma już w WYJATKI (martwe wpisy)", () => {
+  assert.deepEqual(instrukcjeBezWyjatku(ZRODLO_WYJATKOW), [], "usuń martwy wpis z PANELOWE_Z_ZALOZENIA albo przywróć wyjątek");
+});
+
+test("pliki infra nie twierdzą, że apply nie dotknie zmiennych z WYJATKI (IN-03)", () => {
+  const spoza = readFileSync(resolve(KORZEN, "docs/infra/ZMIENNE_SPOZA_IAC.md"), "utf8");
+  assert.match(spoza, /apply je usunie/, "ZMIENNE_SPOZA_IAC.md musi mówić, że apply usuwa zmienne z WYJATKI");
+  const stary = readFileSync(resolve(KORZEN, "docs/infra/STARY_BUCKET_R2_LEGACY.md"), "utf8");
+  assert.match(stary, /railway config apply/, "STARY_BUCKET_R2_LEGACY.md musi ostrzegać o apply");
+  assert.match(stary, /AWS_LEGACY_\*/);
 });
 
 test("kontrola ujemna: nowy wyjątek „ustawiany ręcznie” bez instrukcji w bilansie jest wykrywany", () => {
@@ -896,9 +919,15 @@ test("kontrola ujemna: nowy wyjątek „ustawiany ręcznie” bez instrukcji w b
     "private const WYJATKI = [",
     "private const WYJATKI = [\n        'KUKING_NOWY_PRZELACZNIK_Z_PANELU' => 'Ustawiany ręcznie w panelu.',",
   );
-  const panelowe = panelowePrzyczynyWyjatkow(zepsute);
-  assert.ok(panelowe.includes("KUKING_NOWY_PRZELACZNIK_Z_PANELU"));
-  assert.ok(!("KUKING_NOWY_PRZELACZNIK_Z_PANELU" in PANELOWE_Z_ZALOZENIA));
+  assert.notEqual(zepsute, ZRODLO_WYJATKOW);
+  assert.deepEqual(bezInstrukcji(ZRODLO_WYJATKOW), [], "kontrola dodatnia: stan repozytorium jest czysty");
+  assert.deepEqual(bezInstrukcji(zepsute), ["KUKING_NOWY_PRZELACZNIK_Z_PANELU"]);
+});
+
+test("kontrola ujemna: wyjątek usunięty z WYJATKI zostawia martwą instrukcję w bilansie", () => {
+  const zepsute = ZRODLO_WYJATKOW.replace(/\n {8}'TURNSTILE_HOSTY_STAGINGU' =>/, "\n        'TURNSTILE_HOSTY_STAGINGU_X' =>");
+  assert.notEqual(zepsute, ZRODLO_WYJATKOW);
+  assert.deepEqual(instrukcjeBezWyjatku(zepsute), ["TURNSTILE_HOSTY_STAGINGU"]);
 });
 
 test("bilans: nazwy z pliku Shared — linie, JSON; wpis z wartością odrzucony bez jej powtórzenia", () => {
