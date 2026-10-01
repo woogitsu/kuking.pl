@@ -25,7 +25,12 @@
   padding: calc(10px * var(--user-layout-scale, 1)) calc(20px * var(--user-layout-scale, 1));
   gap: calc(12px * var(--user-layout-scale, 1)) calc(20px * var(--user-layout-scale, 1));
 }
-[data-marka] .wordmark { font-size: calc(1.75rem * var(--user-text-scale, 1)); letter-spacing: -.055em; }
+/* Napis nie rośnie ponad ~10% szerokości okna: przy tekście 200% (korzeń
+   32 px) `1.75rem` to 56 px, a „KuKing.pl" jest nierozdzielnym słowem, więc
+   samo `min-width: 0` nie wystarcza — pasek wypychał stronę do 339 px w oknie
+   320 px. Przy zwykłej czcionce i na szerszych oknach działa pierwszy
+   argument `min()`, czyli nic się nie zmienia. */
+[data-marka] .wordmark { font-size: min(calc(1.75rem * var(--user-text-scale, 1)), 10vw); letter-spacing: -.055em; }
 [data-marka] .wordmark .kuking-mark { width: 48px; height: 48px; }
 /* Łączne powiększenie fontu przeglądarki i tekstu konta: poszerzamy
    istniejący wariant samego garnka, zachowując nazwę dostępną odnośnika. */

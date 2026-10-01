@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (UX 50+, tekst 200%): przy szerokości 320 px i powiększonym tekście (czcionka 32 px na całej stronie) nazwa „KuKing.pl" w nagłówku wypychała stronę o 19 px w bok — na każdej stronie, także w trybie gotowania. Napis w nagłówku nie rośnie już ponad około 10% szerokości okna, więc strona nie przewija się poziomo. Automat dostępności mierzy teraz także ten wariant („tekst 200%" ustawiony czcionką strony, w oknach do 414 px), a pomiar trybu gotowania bierze przepis z krokami, żeby nie mierzył po cichu strony przepisu.
 - Naprawione (audyt odporności): adres albo formularz z niepoprawnym tekstem (bajty, które nie są poprawnym UTF-8, albo znak NUL, np. `?q=%FF%FE`) daje teraz stronę błędu 400 po polsku (w API: JSON), a nie błąd serwera 500. Dotyczyło m.in. podpowiedzi tagów, formularzy dodawania wpisu i pytania, wylogowania, spiżarni, podziękowań, zeszytów, profilu i list moderacji.
 - Naprawione (audyt odporności): plan tagu tygodnia w panelu moderacji z tablicą zamiast daty pokazuje błąd przy polu, a nie stronę błędu 500.
 - Naprawione (audyt odporności): adres zasobu Livewire z nazwą komponentu, którego nie ma, daje 404 zamiast błędu 500 i alarmu.
