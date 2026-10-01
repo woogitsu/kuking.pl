@@ -983,7 +983,20 @@ export default defineRailway((ctx) => {
     KUKING_R2_PUBLICZNE_ADRESY: ctx.shared.KUKING_R2_PUBLICZNE_ADRESY,
   };
 
-  const webEnv = { ...appEnv, ...gospodarzEnv, ...pocztaEnv, ...wejscieEnv, ...brzegWebEnv, ...czyszczenieCdnEnv, ...alarmModeratoraEnv, ...pushPublicznyEnv, ...importEnv };
+  //  --- Zamknięcie zakładania kont: TYLKO web (droga do bety, B9) ----------
+  //  `kuking.account.registration_open` (`config/kuking.php`) czytają wyłącznie
+  //  trasy HTTP: `/register`, domknięcie konta z Google i Facebooka oraz
+  //  ekran zaproszenia. Do 1.10.2026 zmiennej nie było w tym pliku, więc
+  //  właściciel, który zamknąłby rejestrację w panelu (`KUKING_REGISTRATION_OPEN=false`
+  //  na czas przeglądu prawnika), po pierwszym `apply` otworzyłby ją po cichu
+  //  dla wszystkich. Przez `ctx.shared`, bo to pokrętło właściciela per
+  //  środowisko. PUSTE (Shared Variable nie założona) = otwarta, jak wartość
+  //  domyślna — `config/kuking.php` traktuje pusty napis tak samo jak brak.
+  const rejestracjaWebEnv = {
+    KUKING_REGISTRATION_OPEN: ctx.shared.KUKING_REGISTRATION_OPEN,
+  };
+
+  const webEnv = { ...appEnv, ...gospodarzEnv, ...pocztaEnv, ...wejscieEnv, ...brzegWebEnv, ...rejestracjaWebEnv, ...czyszczenieCdnEnv, ...alarmModeratoraEnv, ...pushPublicznyEnv, ...importEnv };
   const workerEnv = {
     ...appEnv,
     ...pocztaEnv,

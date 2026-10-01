@@ -656,7 +656,13 @@ return [
     'kanal_cache_sekund' => (int) env('KUKING_KANAL_CACHE_SEKUND', 300),
 
     'account' => [
-        'registration_open' => (bool) env('KUKING_REGISTRATION_OPEN', true),
+        // Pusty napis = brak = OTWARTA. Railway przekazuje niezałożoną Shared
+        // Variable jako pusty napis, a `(bool) ''` to `false` — rejestracja
+        // zamknęłaby się sama po `apply`. Zamyka tylko jawne „false”/„0”;
+        // wartość niezrozumiała też zamyka (kierunek bezpieczny).
+        'registration_open' => in_array(env('KUKING_REGISTRATION_OPEN'), [null, ''], true)
+            ? true
+            : filter_var(env('KUKING_REGISTRATION_OPEN'), FILTER_VALIDATE_BOOL),
 
         // Minimalny wiek. Oświadczenie przy rejestracji — bez weryfikacji
         // tożsamości (docs/legal/COMPLIANCE.md).
