@@ -67,7 +67,7 @@ class PrzeniesPubliczneWariantyDowodu implements ShouldQueue
             }
 
             try {
-                array_push($adresy, ...$this->przenies($zdjecie));
+                $this->przenies($zdjecie, $adresy);
             } catch (Throwable $e) {
                 $niepowodzenia++;
 
@@ -100,11 +100,11 @@ class PrzeniesPubliczneWariantyDowodu implements ShouldQueue
     }
 
     /**
-     * @return list<string|null> adresy do wyczyszczenia w CDN
+     * @param  list<string|null>  $adresy  adresy do wyczyszczenia w CDN — dopisywane
+     *                                     PRZED przenoszeniem, więc zostają także wtedy, gdy przenoszenie rzuci wyjątek
      */
-    private function przenies(Media $zdjecie): array
+    private function przenies(Media $zdjecie, array &$adresy): void
     {
-        $adresy = [];
         $prywatny = $zdjecie->disk;
         $publiczne = array_values(array_unique(array_filter([$zdjecie->variantsDisk(), $this->legacy()])));
 
@@ -147,8 +147,6 @@ class PrzeniesPubliczneWariantyDowodu implements ShouldQueue
                 ])]);
             });
         }
-
-        return $adresy;
     }
 
     /**
