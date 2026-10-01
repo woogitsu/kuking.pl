@@ -58,6 +58,7 @@ przyciskiem „Anuluj prośbę” na stronie tego wykonania, dopóki nikt nie
 odpowiedział. A gdy ktoś się zgodzi, dostaniecie o tym powiadomienie — o
 odmowie, wycofaniu zgody ani wygaśnięciu prośby nie dostaniecie żadnej
 wiadomości.
+
 ### Gotujemy razem z innymi
 
 W trybie gotowania jest przycisk „Gotuj z kimś”. Zakłada wspólną sesję jednego
@@ -75,6 +76,7 @@ go odwołać. Nie otworzy przepisu nikomu, kto nie mógłby go zobaczyć w Kukin
 tylko wspólna lista kroków. Gdy ktoś z sesji coś zmieni, wystarczy kliknąć
 „Odśwież”. Sesja trwa najwyżej 24 godziny i znika razem z odhaczeniami;
 działa przy połączeniu z internetem. Minutniki zostają osobne dla każdej osoby.
+
 ### Wyjaśnienia słów kulinarnych przy gotowaniu
 
 Gdy w kroku trybu „Gotuję” trafi się słowo, którego nie znacie — na przykład
@@ -282,6 +284,7 @@ zdjęcie i kilka słów przez „Ugotowałem”. Wtedy Wasze wykonanie pojawi si
 stronie obok innych z tego tygodnia, od najnowszego. Tydzień trwa od
 poniedziałku do niedzieli. Niżej są poprzednie tygodnie razem ze zdjęciami
 z tamtych dni. Odnośnik do tej strony jest na „Świeżo z Kuking”.
+
 ### Nowe wpisy w czytniku kanałów
 
 Jeśli korzystacie z czytnika kanałów (na przykład Feedly albo Inoreader), możecie
