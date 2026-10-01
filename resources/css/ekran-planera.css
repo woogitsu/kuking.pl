@@ -35,6 +35,8 @@
     gap: var(--spacing-4);
   }
 
+  .planer-dni > .card { min-width: 0; }
+
   .planer-dzien-naglowek {
     display: flex;
     flex-wrap: wrap;
@@ -52,11 +54,16 @@
     margin: 0;
     padding: 0;
     display: grid;
+    /* Wewnętrzny tor `auto` nadal brał min-content otwartego pytania,
+       mimo że zewnętrzny tor dni miał już `minmax(0, 1fr)`. */
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
     gap: var(--spacing-3);
   }
 
   .planer-pozycja {
     display: flex;
+    min-width: 0;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
@@ -80,8 +87,13 @@
     border-top: 1px solid var(--color-border);
   }
 
-  .planer-potwierdzenie > summary,
-  .planer-potwierdzenie .confirm-body {
+  .planer-potwierdzenie > summary {
+    max-width: 100%;
+  }
+
+  .planer-potwierdzenie .confirm-body form,
+  .planer-potwierdzenie .confirm-body .btn {
+    min-width: 0;
     max-width: 100%;
   }
 
@@ -128,4 +140,15 @@
   .wybor-dnia-opcja { display: flex; align-items: flex-start; gap: var(--spacing-2); min-height: 48px; padding-block: var(--spacing-2); cursor: pointer; }
   .wybor-dnia-opcja input { flex: 0 0 auto; margin-top: .35em; }
   .wybor-dnia-opcja span { min-width: 0; overflow-wrap: anywhere; }
+}
+
+/* `.confirm` i `.confirm-body` są poza warstwami w app.css. Reguła w
+   `@layer components` nie przebiłaby ich nawet większą specyficznością.
+   Otwarte pytanie ma szerokość toru, nie min-content tekstu/przycisku. */
+.confirm.planer-potwierdzenie { display: block; }
+.confirm.planer-potwierdzenie .confirm-body {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }

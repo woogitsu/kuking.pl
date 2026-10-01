@@ -54,7 +54,15 @@ class SpizarniaPotwierdzenieUsunieciaTest extends TestCase
         $this->assertSame(1, $methods->length);
         $this->assertSame(1, $tokens->length);
         $this->assertSame($przed, $this->attributesFromDatabase($produkt));
-        // Zwykły powrót do strony również nie kasuje ilości ani terminu.
+    }
+
+    public function test_powrot_do_spizarni_nie_zmienia_ilosci_terminu_ani_zamrozenia(): void
+    {
+        $user = $this->user();
+        $produkt = $user->pantryItems()->create(['name' => 'Mąka pszenna', 'quantity_note' => '500 g']);
+        $produkt->forceFill(['expires_on' => '2026-12-10', 'expiry_kind' => 'best_before', 'frozen' => true])->save();
+        $przed = $produkt->refresh()->getAttributes();
+        $this->actingAs($user)->get(route('pantry.index'))->assertOk();
         $this->get(route('pantry.index'))->assertOk();
         $this->assertSame($przed, $this->attributesFromDatabase($produkt));
     }

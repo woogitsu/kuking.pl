@@ -98,12 +98,14 @@ async function checkScreen(page, path, item, id, statePath) {
   const openWidth = await rootWidth(page);
   if (openWidth.scroll > openWidth.width + 1) {
     const overflow = await page.evaluate(() => [...document.querySelectorAll('main *')]
-      .filter(el => el.getBoundingClientRect().right > document.documentElement.clientWidth + 1)
+      .filter(el => el.getBoundingClientRect().right > document.documentElement.clientWidth + 1
+        || el.scrollWidth > el.clientWidth + 1)
       .slice(0, 12).map(el => {
         const rect = el.getBoundingClientRect();
         const css = getComputedStyle(el);
         return { tag: el.tagName, class: el.className, right: rect.right,
-          width: rect.width, minWidth: css.minWidth, display: css.display };
+          width: rect.width, scrollWidth: el.scrollWidth, clientWidth: el.clientWidth,
+          minWidth: css.minWidth, display: css.display };
       }));
     console.error(JSON.stringify({ item, viewportWidth: openWidth.width, overflow }));
   }

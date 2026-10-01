@@ -25,6 +25,13 @@ Pomiar prawdziwego ekranu w CI (job `110623651455`, 2.10.2026) wykrył
 ma teraz minimum zero, a pytanie granicę szerokości swojego wiersza.
 Nie podnosimy progu pomiaru; wynik poprawki musi potwierdzić świeże CI.
 
+Kolejny pomiar (`110629201573`) przeszedł dla czcionki 100%, ale przy 200%
+wykazał jeszcze 375 px. Poprawka obejmuje też wewnętrzny tor listy pozycji
+i nadpisanie globalnych, niewarstwowych stylów `confirm`. Nic nie ukrywa
+przepełnienia: pomiar nadal wymaga najwyżej 320 px, a diagnostyka pokazuje
+również wewnętrzne `scrollWidth`. Brak lokalnego środowiska przeglądarkowego;
+odbiór poprawki wymaga następnego pełnego CI.
+
 Zmiana nie ma migracji ani nowych danych. Cofnięcie widoku, CSS i testu
 przywraca dawny sposób obsługi; zapisane pozycje planu pozostają bez zmian.
 Taki rollback przywróci też ryzyko przypadkowego usunięcia, więc nie jest
