@@ -608,7 +608,7 @@
 
             {{-- „Skąd ten przepis” stoi PRZED składnikami. To jest decyzja
                  produktowa, nie kolejność przypadkowa. --}}
-            @if(($recipe->source_note || $recipe->source_person) && ! $dlaPomocnika)
+            @if(($recipe->source_note || $recipe->source_person || $recipe->sourceScan) && ! $dlaPomocnika)
                 <section class="recipe-story">
                     <h2 class="mt-0 text-title-sm">Skąd ten przepis</h2>
                     @if($recipe->source_person)

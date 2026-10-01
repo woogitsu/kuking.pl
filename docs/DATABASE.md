@@ -2219,6 +2219,10 @@ dziennej; więcej nie zbieramy. `source_scan_media_id uuid NULL` → `media`
 To zdjęcie bywa skanem odręcznej kartki z nazwiskami, więc dostęp do niego
 idzie tą samą drogą co do każdego innego zdjęcia przepisu
 (`App\Domain\Media\DostepDoZdjecia`).
+Na zwykłej stronie przepisu skan otwiera sekcję „Skąd ten przepis” także bez
+opcjonalnych `source_person` i `source_note`; wariant dla pomocnika nadal ją
+pomija. Zdjęcie renderuje istniejący komponent z przetworzonym wariantem,
+nigdy oryginał z metadanymi pliku.
 
 ### ceny_skladnikow
 Cennik składników do **orientacyjnego kosztu dania**, gdy autor nie wpisał

@@ -537,6 +537,12 @@ final class OdczytZdjeciaKartkiTest extends TestCase
         // Kontrola dodatnia: sprawdzone i bez znaczników — publikuje się.
         $publikuj(['odczyt_sprawdzony' => true], [['text' => '1 szkl. cukru']]);
         $this->assertSame(Recipe::STATUS_PUBLISHED, $szkic->fresh()->status);
+        $this->assertNull($szkic->fresh()->source_person);
+        $this->assertNull($szkic->fresh()->source_note);
+        $this->assertNotNull($szkic->fresh()->source_scan_media_id);
+        $this->actingAs($this->osoba)->get(route('recipes.show', $szkic->fresh()->slug))
+            ->assertOk()
+            ->assertSee('Kartka, z której jest ten przepis.');
 
         // Później edytuje się zwyczajnie, bez ponownego „Tekst sprawdzony”.
         app(PublishRecipe::class)->handle($this->osoba, ['title' => 'Sernik babci Hani', 'visibility' => 'public'], [['text' => '1 szkl. cukru']], [['instruction' => 'Piec 70 minut.']], true, $szkic->fresh());

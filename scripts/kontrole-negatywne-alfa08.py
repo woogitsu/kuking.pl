@@ -2166,6 +2166,11 @@ checks = [
     # Z9 (#2283): regulamin §2 wymienia usługi, których adresy istnieją.
     ("Regulamin §2 bez „Poradźcie”", "resources/legal/regulamin.md", "RegulaminWymieniaUslugiSerwisuTest",
      lambda s: replace_once(s, " („Poradźcie”),", ",")),
+    # #2480: sam skan musi otwierać sekcję źródła bez dopisywania historii.
+    ("Sam skan bez notatki znika ze strony przepisu", "resources/views/pages/recipes/show.blade.php", "SkanKartkiBezHistoriiNaPrzepisieTest",
+     lambda s: replace_once(s,
+         "@if(($recipe->source_note || $recipe->source_person || $recipe->sourceScan) && ! $dlaPomocnika)",
+         "@if(($recipe->source_note || $recipe->source_person) && ! $dlaPomocnika)")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej
