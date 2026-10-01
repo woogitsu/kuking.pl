@@ -79,6 +79,18 @@ class CookedEvent extends Model
     }
 
     /**
+     * Wersja przepisu, z której gotowano (issue #2378). Wskaźnik prywatny dla
+     * kucharza: czyta go wyłącznie `WersjaWykonania`, po `CookedEventPolicy::viewVersion`.
+     * Poza `$fillable`; ustawia go `RecordCookedEvent`.
+     *
+     * @return BelongsTo<RecipeVersion, $this>
+     */
+    public function recipeVersion(): BelongsTo
+    {
+        return $this->belongsTo(RecipeVersion::class);
+    }
+
+    /**
      * @return BelongsToMany<Media, $this>
      */
     public function media(): BelongsToMany
