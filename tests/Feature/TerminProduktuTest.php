@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Analytics\ZapiszSygnal;
+use App\Domain\Pantry\ZmienTerminProduktu;
 use App\Models\PantryItem;
 use App\Models\ProductSignal;
 use App\Models\User;
@@ -47,6 +48,27 @@ class TerminProduktuTest extends TestCase
         return $this->actingAs($ja)
             ->from(route('pantry.edit', $produkt))
             ->put(route('pantry.update', $produkt), ['_formularz' => 'termin', ...$dane]);
+    }
+
+    public function test_zmiana_samej_ilosci_nie_cofa_terminu_zapisanego_miedzy_odczytem_a_blokada(): void
+    {
+        $ja = $this->user();
+        $produkt = $this->produkt($ja);
+        // Model wczytany PRZED zapisem drugiej edycji — jak w kontrolerze,
+        // który czyta produkt przed blokadą wiersza.
+        $nieaktualny = PantryItem::query()->findOrFail($produkt->getKey());
+        $this->assertNull($nieaktualny->expires_on);
+
+        // Druga edycja zdążyła zapisać termin.
+        DB::table('pantry_items')->where('id', $produkt->getKey())
+            ->update(['expires_on' => '2026-10-20', 'expiry_kind' => 'use_by']);
+
+        $this->assertTrue(app(ZmienTerminProduktu::class)->handle($nieaktualny, ['ilosc' => '2 litry']));
+
+        $wiersz = DB::table('pantry_items')->where('id', $produkt->getKey())->first();
+        $this->assertSame('2 litry', $wiersz->quantity_note);
+        $this->assertSame('2026-10-20', (string) $wiersz->expires_on);
+        $this->assertSame('use_by', $wiersz->expiry_kind);
     }
 
     public function test_formularz_ma_trzy_listy_wyboru_szybkie_przyciski_i_uwage_o_terminie(): void
