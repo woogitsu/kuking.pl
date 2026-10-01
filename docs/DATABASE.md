@@ -2327,6 +2327,14 @@ Snapshot po istotnych zmianach.
   stanem normalnym;
 - `created_at`.
 
+Porównanie dwóch migawek (#2451) sprawdza również **widoczną kolejność**
+grup i składników po zastosowaniu `GrupySkladnikow::ulozyc()`. Porównuje
+wspólne wiersze, nie numery `position`: dodanie albo usunięcie składnika nie
+oznacza każdej późniejszej pozycji jako zmienionej. Nie pobiera dzisiejszej
+treści przepisu do odtwarzania starszej wersji. To zmiana odczytu historii,
+bez zmiany schematu i bez migracji; cofnięcie samego kodu przywracałoby błędny
+komunikat „brak różnic” przy przestawieniu.
+
 **Kiedy powstaje wersja (issue #1316).** Przy każdej publikacji
 („Pierwsza publikacja", „Aktualizacja przepisu") oraz przy ŚWIADOMYM zapisie
 BEZ publikacji na przepisie, który jest opublikowany — „Zapisz zmiany",
