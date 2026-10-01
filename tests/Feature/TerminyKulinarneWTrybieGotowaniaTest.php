@@ -142,6 +142,6 @@ class TerminyKulinarneWTrybieGotowaniaTest extends TestCase
             'klasa w HTML' => preg_match('/<p class="cook-terminy-uwaga">/', $blok[0]),
             'meta w bloku' => preg_match('/class="meta"/', $blok[0]),
             'reguła CSS 18 px' => preg_match('/\.cook-terminy-uwaga\s*\{[^}]*font-size:\s*var\(--text-body\);/', $css),
-        ]);
+        ], 'Uwaga pod słownikiem terminów zeszła do .meta albo poniżej 18 px (tekst czytany).');
     }
 }
