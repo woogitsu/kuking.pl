@@ -12,7 +12,6 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Models\CookingSession;
 use App\Models\CookingSessionInvitation;
 use App\Models\Recipe;
-use App\Models\User;
 use App\Support\Komunikat;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -244,7 +243,7 @@ class WspolneGotowanieController extends Controller
     }
 
     /** Strona linku: niczego nie zużywa, a treść przepisu pokazuje dopiero po `RecipePolicy::view`. */
-    public function pokazLink(Request $request, string $token): View|Response
+    public function pokazLink(Request $request, string $token): Response|RedirectResponse
     {
         $zaproszenie = $this->zaproszenia->poTokenie($token);
         $sesja = $zaproszenie?->session;

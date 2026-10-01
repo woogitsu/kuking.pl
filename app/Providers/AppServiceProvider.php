@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Domain\Collections\Wspoldzielenie\ZerwijWspoldzielenie;
-use App\Domain\Recipes\Gotowanie\Wspolne\KoniecWspolnegoGotowaniaImpl;
 use App\Domain\Import\BramkaPublikacjiOdczytu;
 use App\Domain\Import\ModelFragmentow;
 use App\Domain\Import\StrazImportu;
@@ -19,6 +18,7 @@ use App\Domain\Notifications\Push\TransportWebPush;
 use App\Domain\Questions\PytaniaBezOdpowiedzi;
 use App\Domain\Recipes\Actions\ZapiszSzkicZPaczki;
 use App\Domain\Recipes\BramkaPublikacjiSzkicu;
+use App\Domain\Recipes\Gotowanie\Wspolne\KoniecWspolnegoGotowaniaImpl;
 use App\Domain\Recipes\Historia\DecyzjaOWersjiPrzepisu;
 use App\Domain\Recipes\StrazPochodzeniaPrzepisu;
 use App\Domain\Social\Actions\ObserwujGospodarza;

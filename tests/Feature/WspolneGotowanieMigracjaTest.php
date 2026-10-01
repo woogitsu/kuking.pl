@@ -10,6 +10,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -83,7 +84,7 @@ class WspolneGotowanieMigracjaTest extends TestCase
 
         $this->expectException(QueryException::class);
         DB::table('cooking_sessions')->insert([
-            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'id' => (string) Str::uuid(),
             'recipe_id' => $sesja->recipe_id,
             'host_id' => $sesja->host_id,
             'status' => 'active',
@@ -142,7 +143,7 @@ class WspolneGotowanieMigracjaTest extends TestCase
     {
         $host = $this->user();
         $recipe = Recipe::factory()->create(['author_id' => $host->getKey()]);
-        $id = (string) \Illuminate\Support\Str::uuid();
+        $id = (string) Str::uuid();
 
         DB::table('cooking_sessions')->insert([
             'id' => $id,
@@ -162,7 +163,7 @@ class WspolneGotowanieMigracjaTest extends TestCase
     private function zaproszenie(CookingSession $sesja, array $pola): void
     {
         DB::table('cooking_session_invitations')->insert($pola + [
-            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'id' => (string) Str::uuid(),
             'session_id' => $sesja->getKey(),
             'status' => 'pending',
             'expires_at' => now()->addDay(),

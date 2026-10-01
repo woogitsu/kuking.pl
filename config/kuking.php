@@ -3365,10 +3365,6 @@ return [
 
         // Ile niewygasłych sesji naraz może mieć jeden gospodarz.
         'max_sesji_gospodarza' => 5,
-
-        // Co ile sekund skrypt pyta, czy druga osoba zmieniła postęp (tylko
-        // gdy karta jest widoczna). Bez skryptu zostaje przycisk „Odśwież”.
-        'odpytywanie_sekundy' => 20,
     ],
 
     'sessions' => [

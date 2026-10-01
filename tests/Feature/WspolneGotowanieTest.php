@@ -18,6 +18,7 @@ use App\Models\CookingSessionInvitation;
 use App\Models\Recipe;
 use App\Models\RecipeStep;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -304,6 +305,25 @@ class WspolneGotowanieTest extends TestCase
         $this->assertSame(0, DB::table('cooking_session_participants')->count());
     }
 
+    public function test_link_wygasa_wczesniej_niz_zywa_sesja(): void
+    {
+        config(['kuking.wspolne_gotowanie.link_godziny' => 1]);
+        [$gospodarz, , , $sesja] = $this->sesja();
+        $token = $this->token($gospodarz, $sesja);
+        $pomocnik = $this->user();
+
+        $this->travel(2)->hours();
+
+        $this->assertTrue($sesja->fresh()->trwa(), 'sesja nadal trwa');
+        $this->actingAs($pomocnik)->get(route('wspolne-gotowanie.link.show', $token))->assertStatus(410);
+        $this->actingAs($pomocnik)->post(route('wspolne-gotowanie.link.accept', $token))->assertStatus(410);
+        $this->assertSame(0, DB::table('cooking_session_participants')->count());
+
+        // Kontrola dodatnia: świeży link do tej samej sesji działa.
+        $this->actingAs($pomocnik)->post(route('wspolne-gotowanie.link.accept', $this->token($gospodarz, $sesja)))->assertRedirect();
+        $this->assertSame(1, DB::table('cooking_session_participants')->count());
+    }
+
     public function test_nieznany_i_cudzy_token_daja_ten_sam_ekran_co_wygasly(): void
     {
         [$gospodarz, , , $sesja] = $this->sesja();
@@ -370,6 +390,50 @@ class WspolneGotowanieTest extends TestCase
             $this->assertSame(410, $odp->getStatusCode(), $kierunek);
             $this->assertSame(0, DB::table('cooking_session_participants')->where('session_id', $sesja->getKey())->count(), $kierunek);
         }
+    }
+
+    public function test_blokada_z_gospodarzem_niebedacym_autorem_tez_odcina_link(): void
+    {
+        // Gospodarz gotuje CUDZY publiczny przepis — bramka widoczności przepisu
+        // nie widzi blokady między gospodarzem a pomocnikiem, więc musi ją
+        // wyłapać sama akcja dołączania.
+        foreach (['pomocnik-blokuje', 'gospodarz-blokuje'] as $kierunek) {
+            [$recipe] = $this->przepis();
+            $gospodarz = $this->user();
+            $sesja = app(SesjaWspolnegoGotowania::class)->zaloz($gospodarz, $recipe);
+            $token = $this->token($gospodarz, $sesja);
+            $pomocnik = $this->user();
+
+            $kierunek === 'pomocnik-blokuje'
+                ? app(BlockUser::class)->handle($pomocnik, $gospodarz)
+                : app(BlockUser::class)->handle($gospodarz, $pomocnik);
+
+            $this->actingAs($pomocnik)->post(route('wspolne-gotowanie.link.accept', $token))->assertStatus(410);
+            $this->assertSame(0, DB::table('cooking_session_participants')->where('session_id', $sesja->getKey())->count(), $kierunek);
+        }
+
+        // Kontrola dodatnia: bez blokady ta sama droga wpuszcza.
+        [$recipe] = $this->przepis();
+        $gospodarz = $this->user();
+        $sesja = app(SesjaWspolnegoGotowania::class)->zaloz($gospodarz, $recipe);
+        $this->actingAs($this->user())->post(route('wspolne-gotowanie.link.accept', $this->token($gospodarz, $sesja)))->assertRedirect();
+    }
+
+    public function test_blokada_po_dolaczeniu_gdy_gospodarz_nie_jest_autorem_tez_konczy_udzial(): void
+    {
+        [$recipe, $kroki] = $this->przepis();
+        $gospodarz = $this->user();
+        $pomocnik = $this->user();
+        $sesja = app(SesjaWspolnegoGotowania::class)->zaloz($gospodarz, $recipe);
+        app(ZaproszenieDoGotowania::class)->dolacz($pomocnik, $this->token($gospodarz, $sesja));
+        $this->krok($pomocnik, $sesja, $kroki[0])->assertRedirect();
+
+        app(BlockUser::class)->handle($gospodarz, $pomocnik);
+
+        $this->assertSame(0, DB::table('cooking_session_participants')->count());
+        $this->actingAs($pomocnik)->get(route('wspolne-gotowanie.show', $sesja))->assertNotFound();
+        $this->krok($pomocnik, $sesja, $kroki[1])->assertNotFound();
+        $this->assertSame(1, DB::table('cooking_session_steps')->count());
     }
 
     public function test_blokada_z_autorem_przepisu_innym_niz_gospodarz_odcina_link(): void
@@ -560,7 +624,7 @@ class WspolneGotowanieTest extends TestCase
         try {
             app(PostepWspolnegoGotowania::class)->ustaw($pomocnik, $sesja, (string) $kroki[0]->getKey(), true);
             $this->fail('Zawieszone konto odhaczyło krok.');
-        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+        } catch (AuthorizationException) {
             $this->assertSame(0, DB::table('cooking_session_steps')->count());
         }
 
@@ -853,7 +917,7 @@ class WspolneGotowanieTest extends TestCase
         [, , , $kroki, $sesja] = $this->sesjaZPomocnikiem();
         $obca = $this->user();
 
-        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
+        $this->expectException(AuthorizationException::class);
 
         app(PostepWspolnegoGotowania::class)->ustaw($obca, $sesja, (string) $kroki[0]->getKey(), true);
     }

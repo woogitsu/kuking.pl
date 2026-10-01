@@ -50,14 +50,17 @@ są w etapie 1 rozumowane dla pary.
   **SHA-256 tokenu** (`token_hash`, jak `collection_invitations`, D-302);
   token istnieje w odpowiedzi jeden raz i nie da się go odczytać z bazy ani
   z eksportu. Kolumna jest poświadczeniem — poza `$fillable`.
-- **Wygasa po 24 h** (`link_godziny`) albo wcześniej, gdy kończy się sesja.
+- **Wygasa po 24 h** (`link_godziny`), nigdy później niż sesja; kończąc sesję
+  gospodarz kasuje też zaproszenia.
   Jeden aktywny link naraz: nowy link unieważnia poprzedni.
 - **Odwołanie przez gospodarza:** „Odwołaj link” (status `revoked`, kasuje
   skrót tokenu). Gospodarz kończąc sesję kasuje też wszystkie zaproszenia.
-- **Jednorazowość:** przyjęcie zużywa link (status `accepted`, `token_hash =
-  NULL`) pod blokadą wiersza; dwa równoległe przyjęcia dają jedno członkostwo.
-  Drugie kliknięcie tej samej osoby („Dołączam” dwa razy) jest sukcesem bez
-  skutku.
+- **Jednorazowość:** przyjęcie zużywa link (status `accepted`) pod blokadą
+  wiersza sesji i zamkiem pary kont; dwa równoległe przyjęcia dają jedno
+  członkostwo. Przyjęty link zachowuje skrót tokenu do końca sesji (CHECK
+  w bazie), żeby drugie kliknięcie „Dołączam” tej samej osoby było sukcesem bez
+  skutku; ten sam link nie wpuszcza nikogo innego ani osoby usuniętej z sesji.
+  Odwołany link traci skrót.
 - Wejście na adres linku (GET) **niczego nie zużywa** i nie ujawnia treści
   przepisu osobie bez uprawnień (sekcja 4). Link bez dostępu = jedno zdanie:
   „Nie możesz dołączyć do tej sesji. Poproś gospodarza o nowy link.” — to samo
@@ -139,21 +142,22 @@ etap 2 (pytanie 3).
   zapisane.”) — jak w #2016.
 - **Bez WebSocketów i bez `wire:poll`** (AGENTS.md §3). Dwie ścieżki:
   1. **Przycisk „Odśwież”** (zwykły link, działa bez JS) — zawsze widoczny.
-  2. **Krótki polling tylko jako ulepszenie**: skrypt co 20 s (tylko gdy karta
-     jest widoczna, zatrzymany po 30 min bez zmian) pyta `GET …/stan` o samą
-     rewizję (JSON, jedno zapytanie po kluczu) i, gdy jest inna, pokazuje pas
-     „Druga osoba zmieniła postęp — Odśwież”. **Nie przeładowuje strony sam**
-     (gotujący ma brudne ręce i czyta krok; niespodziewane przeładowanie jest
-     gorsze od pasa). Koszt: dwie osoby × 3 żądania/min × czas gotowania
-     (1–2 h) ≈ 360–720 lekkich żądań na sesję; limit `cooking_krok` 60/min
-     jest szeroko powyżej. Uzasadnienie (AGENTS.md §3 wymaga pomiaru kosztu):
+  2. **Krótki polling tylko jako ulepszenie**: istniejący skrypt
+     `postep-gotowania.js` (ten sam co w #2016) co 30 s, tylko gdy karta jest
+     widoczna, pyta `GET …/stan` o samą rewizję (JSON, jedno zapytanie po
+     kluczu) i, gdy jest inna, pokazuje pas „Druga osoba zmieniła postęp —
+     Odśwież”; po pokazaniu pasa przestaje pytać. **Nie przeładowuje strony
+     sam** (gotujący ma brudne ręce i czyta krok; niespodziewane
+     przeładowanie jest gorsze od pasa). Koszt: dwie osoby × 2 żądania/min ×
+     czas gotowania (1–2 h) ≈ 240–480 lekkich żądań na sesję; limit
+     `cooking_krok` 60/min jest szeroko powyżej. Uzasadnienie (AGENTS.md §3 wymaga pomiaru kosztu):
      bez pasa wspólny postęp bywa nieaktualny aż do ręcznego odświeżenia, a
      to jest istota funkcji; bez JS zostaje przycisk. Pomiar wdrożeniowy:
      `http_requests` dla trasy `wspolne-gotowanie.stan`.
-  Przy braku sieci skrypt pokazuje stały, widoczny pas „Brak połączenia —
-  to, co widzisz, może być nieaktualne”; odhaczenie wykonuje się zwykłym
-  formularzem, więc przeglądarka sama zgłosi błąd sieci. **Nie** kolejkujemy
-  odhaczeń offline (#1904 wstrzymany).
+  Błąd sieci przy pytaniu o rewizję jest po cichu pomijany (tak jak w #2016);
+  odhaczenie wykonuje się zwykłym formularzem, więc przeglądarka sama zgłosi
+  brak połączenia. **Nie** kolejkujemy odhaczeń offline i nie pokazujemy stanu
+  „niesynchronizowane” (#1904 wstrzymany).
 
 ## 7. Retencja
 
@@ -223,7 +227,8 @@ etap 2 (pytanie 3).
 - `cooking_session_invitations` — `id`, `session_id` (FK, cascade),
   `token_hash` (częściowy unikalny indeks), `status`
   (`pending|accepted|revoked`), `expires_at`, `accepted_by_id`
-  (FK `SET NULL`), `responded_at`.
+  (FK `SET NULL`), `responded_at`. Oczekujący i przyjęty link mają skrót,
+  odwołany go nie ma (CHECK).
 - Pola sterujące i poświadczenia (`status`, `role`, `token_hash`, klucze
   osób, `revision`, `expires_at`) **nigdy w `$fillable`** (wszystkie modele
   mają pusty `$fillable`; zapis przez nazwane akcje).

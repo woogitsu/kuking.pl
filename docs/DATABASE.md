@@ -6710,7 +6710,7 @@ przechodzi bez pytania. Wymuszenie po kopii tabeli:
 `php artisan kuking:sprzataj-postep-gotowania --wszystkie`). Test:
 `CofniecieMigracjiNieKasujePostepuGotowaniaTest`.
 
-## cooking_sessions i trzy tabele potomne — wspólne gotowanie (#2385)
+## cooking_sessions + cooking_session_participants + cooking_session_steps + cooking_session_invitations — wspólne gotowanie (#2385)
 
 Sesja jednego przepisu dla gospodarza i pomocnika (etap 1: dwie osoby).
 Migracja `2026_10_01_170420_create_cooking_sessions_tables`. Projekt,
