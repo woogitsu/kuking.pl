@@ -91,6 +91,7 @@ export const PANELOWE_Z_ZALOZENIA = {
   KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS:
     "Okres retencji potwierdzeń RODO — decyzja właściciela. PR: schedulerEnv (literal albo ctx.shared), inaczej komenda znów odmówi kasowania.",
   KUKING_TEST_USERNAMES: "Lista kont testowych dla metryki. PR: rola, która liczy metrykę, albo usuń w panelu.",
+  DB_JIT: "Opcjonalny przełącznik diagnostyczny PostgreSQL (`config/database.php`); pusto oznacza `jit=off`, a `on` włącza JIT tylko na żądanie.",
 };
 
 const NAZWA = /^[A-Za-z_][A-Za-z0-9_]*$/;

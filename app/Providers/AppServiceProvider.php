@@ -43,6 +43,7 @@ use App\Support\MapaStrony;
 use App\Support\OdmianaWalidacji;
 use App\Support\OdswiezanieLicznikowKolejek;
 use App\Support\PamiecZadania;
+use App\Support\QueueConfigurationGuard;
 use App\Support\Sesja\GeneracjaSesji;
 use App\Support\Sesja\UchwytSesjiBezPelnegoAdresu;
 use App\Support\Storage\DyskR2;
@@ -134,6 +135,11 @@ class AppServiceProvider extends ServiceProvider
         // puste, więc to wywołanie nic nie robi na produkcji. Uzasadnienie
         // pełne w `App\Support\ZamrozonyCzas`.
         ZamrozonyCzas::zastosuj();
+
+        // #2402: importy zlecają zadanie w transakcji zapisu importu. Nie
+        // uruchamiaj aplikacji z kolejką database wskazującą inną bazę ani z
+        // after_commit zmienionym bez aktualizacji wszystkich ścieżek importu.
+        QueueConfigurationGuard::assertCompatible();
 
         $this->wlaczTrybScislyEloquentPozaProdukcja();
 

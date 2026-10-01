@@ -134,6 +134,20 @@ plan będzie taki, jak w tabeli z kroku 2. To rozstrzyga dopiero krok 2.
    | Oczekiwane usunięcie: połączenie z bazą idzie przez `DB_URL` | `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` — plik daje każdej roli `DB_URL = ${{Postgres.DATABASE_URL}}`, a `url` ma pierwszeństwo (audyt 30.09, §3.1). | Nic; też na listę zgód z kroku 3. |
    | Informacja — referencja bez Shared Variable | Po apply pusto = wartość domyślna, jak dziś. Przy stanie z 29.09: `VAPID_*`, `KUKING_EDGE_*`, `OPENAI_IMPORT_KEY`, `R2_ZDJECIA_KOPIA_*`, `KUKING_HTML_EDGE_CACHE_SECONDS`, `KUKING_TAG_TYGODNIA` i podobne. | Nic, o ile to nazwy funkcji, których produkcja nie ma. Gdy na liście jest coś, co działa dziś (np. klucze R2, EmailLabs) — to znaczy, że stoi w serwisie pod **inną nazwą** niż w pliku: **stop**, wyjaśnij przed planem. |
 
+   **Wartości dosłowne, które apply ustawi inaczej niż domyślne w `config/`
+   (IN-04, #2296).** Bilans porównuje same nazwy, więc nie zobaczy zmiennej,
+   która w panelu JEST, ale z inną wartością, ani takiej, której w panelu NIE
+   MA, a plik ustawia ją na wartość inną niż domyślna z kodu. Lista takich nazw
+   to `ROZNE_OD_DOMYSLNYCH` w `scripts/railway/iac.test.mjs` (z opisem skutku,
+   pilnuje jej `node --test scripts/railway/iac.test.mjs`). Dla każdej nazwy z
+   listy sprawdź w panelu (`railway variables --service kuking.pl`, wartości
+   zostają u Ciebie): zmienna jest i ma wartość z pliku — brak zmiany; zmiennej
+   nie ma — po apply zachowanie produkcji się zmieni zgodnie z opisem, więc
+   przyjmij to świadomie albo ustaw ją w panelu przed apply. Dziś zmieniają
+   zachowanie dwie: `KUKING_QUESTIONS_ENABLED` i `KUKING_URODZINY_MAIL_WLACZONY`
+   (wiersze planu w kroku 2); reszta to ustawienia, bez których produkcja
+   i tak nie działa poprawnie.
+
    Kod `0` — bilans się zamyka, idź dalej. Kod `1` — sekcje STOP nie są
    puste. Kod `2` — złe wywołanie albo w pliku z nazwami stoi coś, co nie
    wygląda na nazwę (np. wklejona wartość).

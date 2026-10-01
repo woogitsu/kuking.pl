@@ -6,6 +6,7 @@ namespace App\Http\Requests\Moderation;
 
 use App\Domain\Moderation\DlugoscZawieszenia;
 use App\Domain\Moderation\PodstawaDecyzji;
+use App\Domain\Moderation\WskazanieWersji;
 use App\Models\ModerationAction;
 use App\Models\Report;
 use App\Models\User;
@@ -66,6 +67,20 @@ final class DecyzjaModeracyjnaRequest extends FormRequest
         }
 
         return true;
+    }
+
+    /**
+     * Ile znaków może mieć wiadomość dla autora (kolumna ma 2000).
+     *
+     * Przy zgłoszeniu WERSJI przepisu przed wiadomością idzie zdanie
+     * wskazujące wersję (`WskazanieWersji`, #2390) i całość musi się zmieścić
+     * w kolumnie — inaczej zapis padłby dopiero w bazie, po wpisaniu uzasadnienia.
+     */
+    private function limitWiadomosci(): int
+    {
+        $report = $this->zgloszenie();
+
+        return WskazanieWersji::limitWiadomosci($report->target_type, $report->target_id);
     }
 
     /** Zgłoszenie z adresu. */
@@ -133,7 +148,7 @@ final class DecyzjaModeracyjnaRequest extends FormRequest
              * CO uznaliśmy za niezgodne z prawem. Puste pole zamieniłoby
              * tamto zdanie w odesłanie w próżnię.
              */
-            'user_message' => ['nullable', 'string', 'max:2000', 'required_if:reason_code,'.PodstawaDecyzji::NIEZGODNE_Z_PRAWEM],
+            'user_message' => ['nullable', 'string', 'max:'.$this->limitWiadomosci(), 'required_if:reason_code,'.PodstawaDecyzji::NIEZGODNE_Z_PRAWEM],
             /*
              * DŁUGOŚĆ ZAWIESZENIA — LISTA Z `DlugoscZawieszenia`, NIE Z PALCA.
              *
@@ -178,6 +193,7 @@ final class DecyzjaModeracyjnaRequest extends FormRequest
             'action.required' => 'Wybierz decyzję.',
             'action.in' => 'Ta decyzja nie ma zastosowania do tego zgłoszenia. Wybierz jedną z pokazanych.',
             'reason_code.required' => 'Wybierz podstawę decyzji — autor treści zobaczy ją w powiadomieniu.',
+            'user_message.max' => 'Wiadomość dla autora jest za długa. Zmieść się w '.$this->limitWiadomosci().' znakach.',
             'user_message.required_if' => 'Przy podstawie „treść niezgodna z prawem" napisz autorowi, '
                 .'co dokładnie uznaliśmy za niezgodne z prawem. Bez tego uzasadnienie odsyła w próżnię.',
             'suspend_days.in' => 'Wybierz długość zawieszenia z listy.',

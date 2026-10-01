@@ -595,7 +595,72 @@ const EKRANY = [
    */
   { nazwa: 'bezpieczeństwo konta', adres: '/ustawienia/bezpieczenstwo', zalogowany: true },
   { nazwa: 'urządzenia z dostępem', adres: '/ustawienia/urzadzenia', zalogowany: true },
+
+  /* ===========================================================================
+   * PACZKA S (#2393) — EKRANY, KTÓRYCH NIE MIERZYŁ NIKT
+   * ===========================================================================
+   *
+   * Spiżarnia z terminami, „Najpierw to, co się psuje", formularz „Ustaw
+   * termin", cztery strony sobotniego listu, „Wydrukuj zeszyt", karta z kodem
+   * QR (przepis i profil), wspomnienie z wykonania na tablicy i historia
+   * wersji (lista, wersja, zmiany). Dane zakłada `fixtures/nowe-ekrany-s.php`.
+   *
+   * `wymaga:` to selektor, który MUSI być na ekranie — dowód, że mierzymy
+   * ekran z treścią, a nie jego pusty stan (pułapka 5, docs/PULAPKI_TESTOW.md).
+   * `poWejsciu:` to dojście kliknięciem do strony, która istnieje tylko jako
+   * odpowiedź na POST (wypisanie, powrót, wygasły link).
+   */
+  { nazwa: 'spiżarnia — Co mam w domu', adres: '/co-mam-w-domu', zalogowany: true, wymaga: '#sekcja-pilne' },
+  { nazwa: 'spiżarnia — ustaw termin', znajdz: 's:terminProduktu', zalogowany: true, wymaga: 'h1:has-text("Ustaw termin")' },
+  { nazwa: 'spiżarnia — najpierw to, co się psuje', adres: '/co-ugotuje?najpierw=termin', zalogowany: true, wymaga: 'h1:has-text("Przepisy na produkty z krótkim terminem")' },
+  { nazwa: 'sobotni list — wypisanie (pytanie)', znajdz: 'spizarnia-link-wypisz', zwolnijLimity: true, wymaga: 'button:has-text("Tak, nie wysyłajcie mi go")' },
+  { nazwa: 'sobotni list — wypisano', znajdz: 'spizarnia-link-wypisz', poWejsciu: 'wypisano', zwolnijLimity: true, wymaga: 'h1:has-text("Nie wyślemy już")' },
+  { nazwa: 'sobotni list — zgoda wróciła', znajdz: 'spizarnia-link-wypisz', poWejsciu: 'wrocono', zwolnijLimity: true, wymaga: 'h1:has-text("Sobotnie przypomnienie przyjdzie")' },
+  { nazwa: 'sobotni list — link wygasł', znajdz: 'spizarnia-link-wypisz', poWejsciu: 'wygaslo', zwolnijLimity: true, wymaga: 'h1:has-text("Ten link wygasł")' },
+  { nazwa: 'zeszyt do druku', znajdz: 's:zeszytDoDruku', zalogowany: true, zwolnijLimity: true, wymaga: '#zeszyt-spis-naglowek' },
+  { nazwa: 'karta z kodem QR — przepis', znajdz: 's:kartaPrzepisu', wymaga: '.karta-qr-kod svg' },
+  { nazwa: 'karta z kodem QR — profil', znajdz: 's:kartaProfilu', wymaga: '.karta-qr-kod svg' },
+  { nazwa: 'tablica — wspomnienie z wykonania', adres: '/home', zalogowany: true, wymaga: '.wspomnienie' },
+  { nazwa: 'historia wersji przepisu', znajdz: 's:historia', wymaga: '.historia-wersja-naglowek' },
+  { nazwa: 'historia wersji — jedna wersja', znajdz: 's:wersja', wymaga: 'a:has-text("Zgłoś wersję 2")' },
+  { nazwa: 'historia wersji — co się zmieniło', znajdz: 's:zmiany', wymaga: '#hz-skladniki' },
 ];
+
+/*
+ * Wspólny krok obu pętli (axe i układ): dojście kliknięciem (`poWejsciu`)
+ * i dowód, że ekran ma treść (`wymaga`). Zwraca komunikat błędu albo `null`.
+ * Błąd jest błędem CAŁEGO PRZEBIEGU z nazwanym ekranem — pomiar w nieznanym
+ * stanie wygląda identycznie jak pomiar udany.
+ */
+/*
+ * Limity tras (`spizarnia.wypisz` — 30 na 10 minut, „Wydrukuj zeszyt" — 10 na
+ * minutę) są celowe i mają zostać: ten pomiar wchodzi na te strony kilkadziesiąt
+ * razy (każda szerokość, skala i wariant, a strony po POST dokładają kliknięcia),
+ * więc bez zwolnienia licznika dostalibyśmy 429 — stronę błędu, która przechodzi
+ * każdy audyt, nie sprawdzając niczego. Zwalnia fixture, na lokalnej bazie
+ * pomiarowej (ma własną blokadę środowiska). Wywołanie PRZED nawigacją.
+ */
+function zwolnijLimityEkranu(ekran) {
+  if (ekran.zwolnijLimity) {
+    uruchomFixtureS('zwolnij-limity');
+  }
+}
+
+async function przygotujEkranS(strona, ekran) {
+  try {
+    if (ekran.poWejsciu) {
+      await dojdzDoStronyListuS(strona, ekran.poWejsciu);
+    }
+
+    if (ekran.wymaga && (await strona.locator(ekran.wymaga).count()) === 0) {
+      return `ekran „${ekran.nazwa}" nie ma elementu ${ekran.wymaga} — mierzony byłby pusty stan albo inna strona`;
+    }
+  } catch (blad) {
+    return `ekran „${ekran.nazwa}": ${String(blad.message).slice(0, 300)}`;
+  }
+
+  return null;
+}
 
 /*
  * Ekrany dla pomiaru układu (issue #80). To EKRANY plus dwa widoki wymienione
@@ -635,6 +700,20 @@ const EKRANY_UKLADU = [
    Przy starcie, przed jakąkolwiek przeglądarką i bazą. */
 wymagajUnikalnychEkranow(EKRANY, 'EKRANY');
 wymagajUnikalnychEkranow(EKRANY_UKLADU, 'EKRANY_UKLADU');
+
+/*
+ * Zawężenie do ekranów, których nazwa pasuje do wyrażenia (WYŁĄCZNIE do
+ * ponowienia jednego ekranu po poprawce): `TYLKO_EKRANY='sobotni|QR' node …`.
+ * Raport z takiego przebiegu jest niepełny i nie zastępuje przebiegu bez filtra.
+ */
+if (process.env.TYLKO_EKRANY) {
+  const wzorzec = new RegExp(process.env.TYLKO_EKRANY, 'u');
+  for (const lista of [EKRANY, EKRANY_UKLADU]) {
+    const zostaja = lista.filter((e) => wzorzec.test(e.nazwa));
+    lista.splice(0, lista.length, ...zostaja);
+  }
+  console.error(`UWAGA: TYLKO_EKRANY="${process.env.TYLKO_EKRANY}" — mierzę ${EKRANY.length} ekranów; raport jest niepełny.`);
+}
 
 /**
  * Znacznik wariantu „czcionka przeglądarki podwojona". Celowo NIE jest
@@ -1937,6 +2016,56 @@ if (idZgloszenia === null) {
 }
 
 /*
+ * EKRANY PACZKI S (#2393) — DANE I LINKI.
+ *
+ * Spiżarnia z terminami, strona „Wydrukuj zeszyt", karta z kodem QR, historia
+ * wersji i strony sobotniego listu nie miały dotąd ANI JEDNEGO pomiaru: trasy
+ * z parametrem w adresie omija skan `PomiarDostepnosciObejmujeStronyPubliczne
+ * Test`, a trasy za `auth` omija on z założenia. Dane (produkty z terminami,
+ * zeszyt, dwie wersje przepisu, wykonanie sprzed roku) zakłada fixture —
+ * `DemoSeeder` nie daje ich kontu pomiarowemu, a ekran bez treści przechodzi
+ * każdy audyt, nie sprawdzając niczego (stąd też `wymaga:` przy ekranach).
+ *
+ * Linki sobotniego listu są PODPISANE na adres tego serwera (podpis obejmuje
+ * host), więc fixture dostaje `adres` — stąd wywołanie dopiero tutaj.
+ */
+const srodowiskoFixture = { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA };
+const uruchomFixtureS = (...argumenty) => execFileSync('php',
+  ['scripts/fixtures/nowe-ekrany-s.php', ...argumenty], { env: srodowiskoFixture })
+  .toString().trim().split('\n').pop();
+const daneEkranowS = JSON.parse(uruchomFixtureS('przygotuj'));
+const linkWypiszS = uruchomFixtureS('link', 'wypisz', adres);
+const linkWygaslyS = uruchomFixtureS('link', 'wygasly', adres);
+
+/*
+ * Strony po wypisaniu / powrocie / wygaśnięciu istnieją tylko jako odpowiedź
+ * na POST z formularza, więc dochodzimy do nich tak, jak człowiek: klikamy.
+ * `wygaslo` podmienia adres formularza „Jednak chcę" na ważny podpisem, ale
+ * już nieważny w czasie link — dokładnie to, co widzi ktoś, kto kliknie go po
+ * godzinie. Każdy krok sprawdza kod HTTP: strona błędu przechodzi każdy audyt.
+ */
+async function dojdzDoStronyListuS(strona, krok) {
+  const kliknij = async (nazwa) => {
+    const [odp] = await Promise.all([
+      strona.waitForResponse((o) => o.request().method() === 'POST' && o.request().isNavigationRequest()),
+      strona.getByRole('button', { name: nazwa }).click(),
+    ]);
+    await strona.waitForLoadState('domcontentloaded');
+    if ((odp?.status() ?? 0) !== 200) {
+      throw new Error(`krok „${nazwa}" odpowiedział kodem ${odp?.status()}`);
+    }
+  };
+
+  await kliknij('Tak, nie wysyłajcie mi go');
+  if (krok === 'wypisano') return;
+
+  if (krok === 'wygaslo') {
+    await strona.locator('form[action*="/spizarnia/wracam/"]').evaluate((f, nowy) => { f.action = nowy; }, linkWygaslyS);
+  }
+  await kliknij('Jednak chcę go dostawać');
+}
+
+/*
  * TRZY EKRANY PANELU MUSZĄ MIEĆ CO POKAZAĆ — INACZEJ MIERZYMY PUSTY STAN
  * I ZAPISUJEMY „✓" (issue #294, ta sama reguła co D-106).
  *
@@ -2204,6 +2333,15 @@ function sciezkaEkranu(ekran) {
 
   if (ekran.znajdz === 'wpis-dluga-nazwa') {
     return `/wpisy/${wpisDlugiejNazwy}`;
+  }
+
+  // Ekrany paczki S (#2393) — adresy z fixture `nowe-ekrany-s.php`.
+  if (ekran.znajdz.startsWith('s:')) {
+    return daneEkranowS[ekran.znajdz.slice(2)] ?? null;
+  }
+
+  if (ekran.znajdz === 'spizarnia-link-wypisz') {
+    return linkWypiszS;
   }
 
   const [, tryb, sufiks] = ekran.znajdz.split(':');
@@ -2583,6 +2721,7 @@ for (const wariant of WARIANTY) {
         ? stronaModeratora
         : (ekran.zalogowany ? stronaZalogowanego : stronaGoscia));
     const sciezka = sciezkaEkranu(ekran);
+    zwolnijLimityEkranu(ekran);
 
     if (! sciezka) {
       // Ciche pominięcie ekranu jest gorsze niż błąd: raport wygląda
@@ -2641,6 +2780,16 @@ for (const wariant of WARIANTY) {
         `BŁĄD: ekran „${ekran.nazwa}" (${sciezka}) odesłał na ${new URL(strona.url()).pathname}. `
         + 'Raport badałby inną stronę niż zamówiona.',
       );
+      process.exitCode = 1;
+      continue;
+    }
+
+    // Dojście kliknięciem i dowód treści (ekrany paczki S) — PRZED motywem
+    // i skalą, bo nawigacja kasowałaby atrybuty ustawione na stronie.
+    const bladEkranuS = await przygotujEkranS(strona, ekran);
+
+    if (bladEkranuS !== null) {
+      console.error(`BŁĄD: ${bladEkranuS}.`);
       process.exitCode = 1;
       continue;
     }
@@ -2925,6 +3074,7 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
 
     for (const ekran of EKRANY_UKLADU) {
       const sciezka = sciezkaEkranu(ekran);
+      zwolnijLimityEkranu(ekran);
 
       if (! sciezka) {
         console.error(`BŁĄD: brak adresu dla ekranu „${ekran.nazwa}".`);
@@ -2964,6 +3114,15 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
           `BŁĄD: ekran „${ekran.nazwa}" (${sciezka}) odpowiedział kodem ${kodUkladu} `
           + 'przy pomiarze układu.',
         );
+        process.exitCode = 1;
+        await strona.close();
+        continue;
+      }
+
+      const bladEkranuS = await przygotujEkranS(strona, ekran);
+
+      if (bladEkranuS !== null) {
+        console.error(`BŁĄD: ${bladEkranuS} (pomiar układu).`);
         process.exitCode = 1;
         await strona.close();
         continue;
