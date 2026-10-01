@@ -75,6 +75,18 @@ class Notification extends Model
      */
     public const TYPE_FORKED = 'recipe.forked';
 
+    /**
+     * Prośba o zgodę na wskazówkę przy przepisie (#2352, D-333). Idzie do
+     * KUCHARZA — osoby, której uwagę z wykonania autor przepisu chce pokazać
+     * przy swoim przepisie; aktorem jest autor. `data.hint_id`,
+     * `data.cooked_event_id`, `data.recipe_id` i `data.recipe_title`.
+     * To zdarzenie, nie stan (nie jest na liście wyciszanych w oknie), a
+     * odpowiedź kucharza („Zgadzam się", „Nie") nie powiadamia nikogo:
+     * odmowa nie może być naciskiem na kucharza ani wiadomością dla autora.
+     * Tylko w serwisie — bez Web Push (`KanalPush::dotyczy`).
+     */
+    public const TYPE_HINT_PROPOSED = 'recipe_hint.proposed';
+
     public const TYPE_MODERATION = 'moderation.decision';
 
     /**
@@ -327,7 +339,7 @@ class Notification extends Model
     {
         $id = $this->data['cooked_event_id'] ?? null;
 
-        if ($this->type !== self::TYPE_COOKED || ! is_string($id) || $id === '') {
+        if (! in_array($this->type, [self::TYPE_COOKED, self::TYPE_HINT_PROPOSED], true) || ! is_string($id) || $id === '') {
             return false;
         }
 

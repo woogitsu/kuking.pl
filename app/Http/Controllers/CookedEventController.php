@@ -21,6 +21,7 @@ use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Recipe;
+use App\Models\RecipeHint;
 use App\Support\Komunikat;
 use App\Support\OdpowiedziWatku;
 use Illuminate\Http\RedirectResponse;
@@ -226,8 +227,16 @@ class CookedEventController extends Controller
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
         OdpowiedziWatku::uzupelnij($komentarze, $request, ['author.profile.avatar', 'cookedEvent.recipe']);
 
+        // Wskazówka (#2352) interesuje tylko dwie osoby: kucharza (odpowiada)
+        // i autora przepisu (prosi). Dla reszty nie pytamy bazy wcale.
+        $widz = $request->user();
+        $wskazowka = $widz !== null && ($widz->getKey() === $cookedEvent->user_id || $widz->getKey() === $cookedEvent->recipe?->author_id)
+            ? RecipeHint::query()->where('cooked_event_id', $cookedEvent->getKey())->with(['author', 'recipe'])->first()
+            : null;
+
         return view('pages.cooked.show', [
             'event' => $cookedEvent,
+            'wskazowka' => $wskazowka,
             'komentarze' => $komentarze,
             // Nagłówek „Komentarze (N)” mówi o CAŁEJ rozmowie razem
             // z odpowiedziami, jak karta wpisu i strona przepisu (D-281,

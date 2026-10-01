@@ -24,6 +24,7 @@ use App\Models\Media;
 use App\Models\PostReaction;
 use App\Models\ProductSignal;
 use App\Models\PrzepisZImportu;
+use App\Models\RecipeHint;
 use App\Models\User;
 use App\Models\WpisZgody;
 use App\Support\Storage\PlikTymczasowyImportu;
@@ -313,6 +314,31 @@ final class EraseAccountData
              * zadziała. Klucz to `user_id` tego jednego konta.
              */
             $fresh->cookingProgress()->delete();
+
+            /*
+             * WSKAZÓWKI OD GOTUJĄCYCH ZNIKAJĄ RAZEM Z KONTEM KUCHARZA (#2352).
+             *
+             * Zgoda na pokazanie uwagi przy cudzym przepisie jest zgodą tej
+             * osoby; po wymazaniu konta nie ma kto jej podtrzymać, a podpis
+             * „osoba, która ugotowała" przy jej tekście byłby zgadywaniem, że
+             * ona by tego chciała. Dlatego — niezależnie od zakresu usunięcia
+             * (`minimum` zostawia samo wykonanie jako dorobek, ale wskazówka
+             * przy cudzym przepisie nie jest dorobkiem kucharza, tylko
+             * wyróżnieniem, na które się zgodził) — kasujemy wszystkie wiersze,
+             * w których to konto jest kucharzem: czekające prośby, przyjęte
+             * wskazówki i ślady odpowiedzi. Prośby WYSŁANE przez to konto jako
+             * autora przepisu, a jeszcze bez odpowiedzi, też znikają: kucharz
+             * nie ma odpowiadać osobie, której już nie ma. Przyjęte wskazówki
+             * przy przepisie zostającym po tym koncie (zakres `minimum`) stoją
+             * dalej — to treść kucharza, który się zgodził, a nie autora.
+             * Jawnie, a nie kaskadą: kont nie kasujemy, tylko anonimizujemy.
+             * Wiersze kluczem `cook_id` / `author_id` tego jednego konta.
+             */
+            RecipeHint::query()->where('cook_id', $fresh->getKey())->delete();
+            RecipeHint::query()
+                ->where('author_id', $fresh->getKey())
+                ->where('status', RecipeHint::STATUS_PROPOSED)
+                ->delete();
 
             /*
              * PRYWATNE UKRYCIA (`hides`, #1810) ZNIKAJĄ RAZEM Z KONTEM

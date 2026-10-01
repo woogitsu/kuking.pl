@@ -76,6 +76,8 @@
                 // „Moja wersja" (issue #23, D-301) — zwykłe zdarzenie od
                 // jednej osoby, dołożone świadomie, nie z automatu.
                 \App\Models\Notification::TYPE_FORKED,
+                // Prośba o zgodę na wskazówkę (#2352) — zdarzenie od jednej osoby.
+                \App\Models\Notification::TYPE_HINT_PROPOSED,
             ], true);
 
             /*
@@ -256,6 +258,20 @@
                                     Twój przepis jest podpisany na jej stronie.
                                 @else
                                     Ta wersja nie jest już dostępna.
+                                @endif
+                                @break
+                            @case(\App\Models\Notification::TYPE_HINT_PROPOSED)
+                                {{-- PROŚBA O ZGODĘ NA WSKAZÓWKĘ (#2352, D-333). Do kucharza.
+                                     Jedno zdanie o tym, czego autor prosi, i drugie o tym,
+                                     że bez odpowiedzi nic się nie stanie. Odpowiedź jest na
+                                     stronie wykonania („Zobacz"), nie tutaj — tekst karty
+                                     nie zna stanu prośby i niczego nie obiecuje ponad to. --}}
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} prosi o zgodę na wskazówkę</strong>
+                                przy przepisie „{{ $data['recipe_title'] ?? 'przepis' }}”.
+                                @if($notification->wykonanieUsuniete())
+                                    To wykonanie zostało usunięte.
+                                @else
+                                    Twoja uwaga pokaże się tam tylko wtedy, gdy się zgodzisz.
                                 @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_FIRST_POST)

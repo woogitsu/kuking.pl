@@ -96,6 +96,7 @@ use App\Http\Controllers\UgotujmyRazemController;
 use App\Http\Controllers\UkryciaController;
 use App\Http\Controllers\UrodzinyWypiszController;
 use App\Http\Controllers\WartosciOdzywczeController;
+use App\Http\Controllers\WskazowkaController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use App\Http\Controllers\ZgodaOdczytuAiController;
@@ -1041,6 +1042,28 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/ugotowane/{cookedEvent}/podziekuj', [CookedEventController::class, 'thank'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('cooked.thank');
+
+    // Wskazówki od gotujących (#2352, D-333). Prośbę wysyła TYLKO autor
+    // przepisu z wykonania cudzego (`RecipeHintPolicy::propose`), odpowiada
+    // TYLKO kucharz (`answer`; stan rozstrzyga akcja pod blokadą). Wszystko
+    // pod jednym koszykiem `wskazowki`; identyfikator w adresie to nie
+    // autoryzacja.
+    Route::post('/ugotowane/{cookedEvent}/wskazowka', [WskazowkaController::class, 'propose'])
+        ->whereUuid('cookedEvent')
+        ->middleware("throttle:{$limits['wskazowki']},wskazowki")
+        ->name('hints.propose');
+    Route::post('/wskazowki/{wskazowka}/zgadzam-sie', [WskazowkaController::class, 'accept'])
+        ->whereUuid('wskazowka')
+        ->middleware("throttle:{$limits['wskazowki']},wskazowki")
+        ->name('hints.accept');
+    Route::post('/wskazowki/{wskazowka}/nie', [WskazowkaController::class, 'decline'])
+        ->whereUuid('wskazowka')
+        ->middleware("throttle:{$limits['wskazowki']},wskazowki")
+        ->name('hints.decline');
+    Route::post('/wskazowki/{wskazowka}/wycofaj', [WskazowkaController::class, 'withdraw'])
+        ->whereUuid('wskazowka')
+        ->middleware("throttle:{$limits['wskazowki']},wskazowki")
+        ->name('hints.withdraw');
 
     // Planer tygodnia (#27, D-310) — prywatny, tylko właściciel. Wszystkie
     // zapisy pod własnym koszykiem `planer`.

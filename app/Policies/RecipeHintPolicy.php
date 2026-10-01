@@ -1,0 +1,105 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Policies;
+
+use App\Models\CookedEvent;
+use App\Models\RecipeHint;
+use App\Models\User;
+
+/**
+ * Wskazówki od gotujących (#2352, D-333). Trzy zasady, każda z testem
+ * ujemnym:
+ *
+ *  1. **Tylko autor przepisu proponuje** (`propose`), i tylko z wykonania
+ *     cudzego, z niepustą uwagą. Moderator nie proponuje za autora.
+ *  2. **Tylko kucharz decyduje** (`accept`, `decline`, `withdraw`) — autor,
+ *     moderator i admin nie przyjmują, nie odrzucają i nie wycofują zgody
+ *     za kogokolwiek. Identyfikator w adresie niczego nie otwiera.
+ *  3. **Blokada między autorem a kucharzem = brak.** Nie powstaje prośba i
+ *     nie da się jej przyjąć. Odrzucenie i wycofanie zgody zostają kucharzowi
+ *     MIMO blokady: wycofanie zgody musi być zawsze możliwe (RODO art. 7
+ *     ust. 3), a „Nie" niczego nie ujawnia ani nie udostępnia.
+ *
+ * Zawieszenie odcina od PISANIA (`isActive()`), więc zawieszony autor nie
+ * prosi, a zawieszony kucharz nie przyjmuje — ale może odrzucić i wycofać.
+ */
+class RecipeHintPolicy
+{
+    public function propose(User $user, CookedEvent $event): bool
+    {
+        $recipe = $event->recipe;
+
+        if ($recipe === null || ! $recipe->isPublished()) {
+            return false;
+        }
+
+        if ($user->getKey() !== $recipe->author_id || ! $user->isActive()) {
+            return false;
+        }
+
+        $kucharz = $event->user;
+
+        // Własnego wykonania nie ma po co „zgadzać" (CHECK w bazie mówi to samo).
+        if ($user->getKey() === $event->user_id || $kucharz === null) {
+            return false;
+        }
+
+        // Prośba musi mieć co pokazać: uwaga z wykonania (nie samo zdjęcie).
+        if (trim((string) $event->note) === '') {
+            return false;
+        }
+
+        // Kucharz ma móc prośbę przeczytać i ma być widoczny jako autor
+        // treści (nie zbanowany, nie w karencji usunięcia).
+        if (! $kucharz->mozeCzytac() || ! $kucharz->jestDostepnyJakoAutor()) {
+            return false;
+        }
+
+        return ! $user->hasBlockRelationWith($kucharz);
+    }
+
+    /**
+     * Wejście dla czterech tras odpowiedzi: to prośba/wskazówka TEJ osoby.
+     * Stan (czeka, przyjęta…) rozstrzygają akcje domenowe pod blokadą, z
+     * uczciwym komunikatem po polsku — ta metoda tylko odcina obcych (403),
+     * żeby podwójne kliknięcie właściciela nie kończyło się ścianą.
+     */
+    public function answer(User $user, RecipeHint $hint): bool
+    {
+        return $user->getKey() === $hint->cook_id;
+    }
+
+    public function accept(User $user, RecipeHint $hint): bool
+    {
+        if ($user->getKey() !== $hint->cook_id || ! $hint->czekaNaOdpowiedz() || ! $user->isActive()) {
+            return false;
+        }
+
+        $autor = $hint->author;
+        $recipe = $hint->recipe;
+
+        // Przepis skasowany (soft delete → relacja `null`) albo nieopublikowany:
+        // nie ma przy czym pokazać wskazówki.
+        if ($autor === null || $recipe === null || ! $recipe->isPublished()) {
+            return false;
+        }
+
+        if (! $autor->jestDostepnyJakoAutor()) {
+            return false;
+        }
+
+        return ! $user->hasBlockRelationWith($autor);
+    }
+
+    public function decline(User $user, RecipeHint $hint): bool
+    {
+        return $user->getKey() === $hint->cook_id && $hint->czekaNaOdpowiedz();
+    }
+
+    public function withdraw(User $user, RecipeHint $hint): bool
+    {
+        return $user->getKey() === $hint->cook_id && $hint->jestPrzyjeta();
+    }
+}

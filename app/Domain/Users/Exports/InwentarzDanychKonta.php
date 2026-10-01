@@ -56,6 +56,11 @@ final class InwentarzDanychKonta
         'recipe_versions.editor_id' => [self::EKSPORT, 'wersje_przepisow'],
         'posts.author_id' => [self::EKSPORT, 'wpisy'],
         'cooked_events.user_id' => [self::EKSPORT, 'ugotowalem'],
+        // Wskazówki od gotujących (#2352, D-333): dwie strony tej samej tabeli,
+        // dwie sekcje. Kucharz dostaje swoją uwagę i stan zgody; autor przepisu
+        // — stan próśb o jego przepisach BEZ danych kucharza i bez jego tekstu.
+        'recipe_hints.cook_id' => [self::EKSPORT, 'wskazowki_z_moich_wykonan'],
+        'recipe_hints.author_id' => [self::EKSPORT, 'wskazowki_do_moich_przepisow'],
         'comments.author_id' => [self::EKSPORT, 'moje_komentarze'],
         'collections.owner_id' => [self::EKSPORT, 'kolekcje'],
         // Wspólny zeszyt (#1743, D-302). Pozycje dodane we WŁASNYM zeszycie

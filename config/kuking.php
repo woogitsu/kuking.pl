@@ -56,6 +56,23 @@ return [
     ],
 
     /*
+     * WSKAZÓWKI OD GOTUJĄCYCH (#2352, D-333) — autor przepisu proponuje, by
+     * uwagę z cudzego wykonania pokazać przy jego przepisie; kucharz się
+     * zgadza albo nie.
+     *
+     * `na_przepis_max` — ile wskazówek (czekających i przyjętych razem) może
+     * mieć jeden przepis. Granica nie układa niczego według popularności
+     * (AGENTS.md §8, §12): chroni stronę przepisu przed ścianą cytatów i
+     * kucharzy przed lawiną próśb. Wskazówki idą w kolejności zgód, bez
+     * rankingu, wszystkie na jednej stronie. `na_dobe_max` — ile próśb
+     * jeden autor może wysłać w dobie (nie wpływa na przyjęte).
+     */
+    'wskazowki' => [
+        'na_przepis_max' => 10,
+        'na_dobe_max' => 10,
+    ],
+
+    /*
      * „ZUŻYJ W PIERWSZEJ KOLEJNOŚCI” (#1903, D-333) — terminy przy produktach
      * z „Co mam w domu”.
      *
@@ -2127,6 +2144,15 @@ return [
          * `planer`, we własnym koszyku.
          */
         'zakupy' => '120,10',
+
+        /*
+         * WSKAZÓWKI OD GOTUJĄCYCH (#2352, D-333) — prośba autora i odpowiedź
+         * kucharza („Zgadzam się”, „Nie”, „Wycofaj zgodę”). To są pojedyncze,
+         * świadome kliknięcia; próg zatrzymuje pętlę, która przy każdym obrocie
+         * budziłaby kogoś powiadomieniem. Dobowy limit próśb jest osobno,
+         * w akcji (`kuking.wskazowki.na_dobe_max`).
+         */
+        'wskazowki' => '30,10',
 
         /*
          * PLANER TYGODNIA — ODCZYT (`GET /planer`, #2037).

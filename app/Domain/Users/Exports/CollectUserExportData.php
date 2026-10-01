@@ -23,6 +23,7 @@ use App\Models\PostReaction;
 use App\Models\Profile;
 use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
+use App\Models\RecipeHint;
 use App\Models\RecipeVersion;
 use App\Models\ShoppingListItem;
 use App\Models\User;
@@ -180,6 +181,9 @@ final class CollectUserExportData
             'przepisy' => $this->recipes($user, $photos),
             'wpisy' => $this->posts($user, $photos),
             'ugotowalem' => $this->cookedEvents($user, $photos),
+            // Wskazówki od gotujących (#2352, D-333), obie strony.
+            'wskazowki_z_moich_wykonan' => $this->hintsAsCook($user),
+            'wskazowki_do_moich_przepisow' => $this->hintsAsAuthor($user),
             'moje_komentarze' => $this->ownComments($user),
             'kolekcje' => $this->collections($user),
             // Wspólne zeszyty (#1743, D-302) — w granicach RODO art. 15 ust. 4,
@@ -1138,6 +1142,66 @@ final class CollectUserExportData
                 'dodano' => $this->date($pozycja->created_at),
             ];
         })->values()->all();
+    }
+
+    /**
+     * Wskazówki z MOICH wykonań (#2352): moja uwaga, kto o nią prosił i co
+     * odpowiedziałem. Tytuł i autor przepisu — wyłącznie gdy przepis widać
+     * dziś (jak w `ugotowalem`, B2-06).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function hintsAsCook(User $user): array
+    {
+        $stany = [
+            RecipeHint::STATUS_PROPOSED => 'czeka na moją odpowiedź',
+            RecipeHint::STATUS_ACCEPTED => 'zgoda udzielona, wskazówka stoi przy przepisie',
+            RecipeHint::STATUS_DECLINED => 'odpowiedź: „Nie”',
+            RecipeHint::STATUS_WITHDRAWN => 'zgoda wycofana',
+        ];
+
+        return RecipeHint::query()
+            ->where('cook_id', $user->getKey())
+            ->with(['recipe.author.profile', 'cookedEvent'])
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (RecipeHint $hint): array => [
+                'przepis' => $this->granica->widzi($hint->recipe) ? $hint->recipe->title : self::TRESC_NIEDOSTEPNA,
+                'autor_przepisu' => $this->granica->widzi($hint->recipe) ? $hint->recipe->author?->displayName() : null,
+                'moja_uwaga' => $hint->cookedEvent?->note,
+                'stan' => $stany[$hint->status] ?? $hint->status,
+                'prosba_z_dnia' => $this->date($hint->created_at),
+                'odpowiedz_z_dnia' => $this->date($hint->decided_at),
+                'zgoda_wycofana_dnia' => $this->date($hint->withdrawn_at),
+            ])->values()->all();
+    }
+
+    /**
+     * Prośby o wskazówki do MOICH przepisów (#2352). Bez cudzych danych:
+     * ani nazwy kucharza, ani jego tekstu. Odmowa i wycofanie zgody wyglądają
+     * tu tak samo — autor nie dowiaduje się, która z nich to była.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function hintsAsAuthor(User $user): array
+    {
+        return RecipeHint::query()
+            ->where('author_id', $user->getKey())
+            ->with('recipe')
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (RecipeHint $hint): array => [
+                'przepis' => $hint->recipe?->title,
+                'prosba_z_dnia' => $this->date($hint->created_at),
+                'stan' => match ($hint->status) {
+                    RecipeHint::STATUS_PROPOSED => 'czeka na odpowiedź',
+                    RecipeHint::STATUS_ACCEPTED => 'stoi przy przepisie jako wskazówka',
+                    default => 'nie jest dostępna jako wskazówka',
+                },
+                'wersja_przepisu_z_chwili_prosby' => $hint->recipe_version_number,
+            ])->values()->all();
     }
 
     /** @return list<array<string, mixed>> */
