@@ -801,6 +801,8 @@ SCIAGAWKA_TEST = "test_arkusz_druku_obejmuje_sciagawke_duzym_drukiem"
 # Wydruk „dla pomocnika” (#2345): ten sam arkusz, pismo kartki co najmniej
 # 16 pt, kod QR co najmniej 3 cm.
 POMOCNIK_TEST = "test_arkusz_druku_dla_pomocnika_ma_pismo_16_pt_i_kod_qr_min_3_cm"
+# Objaśnienie „Zgłoś” gościa ma być ukryte w KAŻDYM wydruku (wspólna lista).
+ZGLOS_GOSCIA_TEST = "test_kazdy_wydruk_chowa_objasnienie_zgloszenia_goscia"
 # Zamknięcie grupy sygnałów tylko w stanie z ekranu (#1059, wariant b).
 # Znacznik to liczba i najnowsze oznaczenie; każda z dwóch połówek łapie
 # dopisanie, którego druga nie widzi. Mutacja 1 zdejmuje porównanie liczby
@@ -1626,6 +1628,8 @@ checks = [
      lambda s: replace_once(s, "body:has(.sciagawka) .sciagawka * {\n    font-size: max(calc(16pt * var(--druk-skala)), 1em);", "body:has(.sciagawka) .sciagawka * {\n    font-size: max(calc(11pt * var(--druk-skala)), 1em);")),
     ("Wydruk dla pomocnika z pismem poniżej 16 pt (#2345)", WYDRUK_CSS, POMOCNIK_TEST,
      lambda s: replace_once(s, "body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika * {\n    font-size: max(calc(16pt * var(--druk-skala)), 1em);", "body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika * {\n    font-size: max(calc(11pt * var(--druk-skala)), 1em);")),
+    ("Wydruk z widocznym objaśnieniem Zgłoś dla gościa (#2345)", WYDRUK_CSS, ZGLOS_GOSCIA_TEST,
+     lambda s: replace_once(s, ".druk-podpowiedz, .zglos-goscia,", ".druk-podpowiedz,")),
     ("Wydruk dla pomocnika z kodem QR mniejszym niż 3 cm (#2345)", WYDRUK_CSS, POMOCNIK_TEST,
      lambda s: replace_once(s, ".druk-pomocnik-qr-kod {\n    width: 4cm;", ".druk-pomocnik-qr-kod {\n    width: 2cm;")),
     ("Karta QR z kodem mniejszym niż 9 cm (#2349)", WYDRUK_CSS, KARTA_QR_TEST,

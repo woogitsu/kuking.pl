@@ -44,6 +44,8 @@ const UKRYTE = [
   '.przepis-autor form', '.danger-zone', '[aria-labelledby="komu-wyszlo"]',
   '[aria-labelledby="komentarze"]', 'main .btn', 'main button', 'main form',
   '[data-drukuj-przepis]', '.druk-podpowiedz',
+  // Objaśnienie „Zgłoś” dla gościa: na papierze nie ma czego kliknąć (każdy wydruk).
+  '.zglos-goscia',
 ];
 // Minimum czytelności na papierze: 12 pt (= 16 px CSS) dla KAŻDEGO tekstu na
 // kartce — składników, kroków, ale też autora, daty, adresu i podpisów.

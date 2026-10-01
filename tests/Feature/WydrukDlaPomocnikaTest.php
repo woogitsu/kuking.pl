@@ -220,12 +220,24 @@ final class WydrukDlaPomocnikaTest extends TestCase
         $this->assertGreaterThanOrEqual(3.0, (float) $m[1], 'Kod QR na kartce dla pomocnika ma mniej niż 3 cm.');
     }
 
-    public function test_kartka_dla_pomocnika_chowa_objasnienie_zgloszenia_goscia(): void
+    public function test_kazdy_wydruk_chowa_objasnienie_zgloszenia_goscia(): void
     {
         $css = (string) file_get_contents(base_path(self::ARKUSZ));
 
-        // Bez tego ostatnia linijka objaśnienia „Zgłoś” spadała na osobną stronę pod kodem QR.
-        $this->assertMatchesRegularExpression('/\.dla-pomocnika \.zglos-goscia \{\s*display: none !important;/', $css);
+        // Wspólna lista „martwego na papierze” (zwykły wydruk i kartka dla pomocnika),
+        // a nie reguła tylko dla `.dla-pomocnika`: objaśnienie „Zgłoś” gościa nie ma
+        // na papierze czego kliknąć, a przy piśmie 16 pt zrzucało linijkę pod kod QR.
+        $this->assertMatchesRegularExpression(
+            '/\.druk-podpowiedz, \.zglos-goscia,[^{]*\{[^}]*display: none !important;/',
+            $css,
+            'Objaśnienie Zgłoś dla gościa nie jest ukryte w każdym wydruku.',
+        );
+
+        // Kontrola dodatnia: gość dostaje objaśnienie w HTML-u (ukrywa je dopiero arkusz druku).
+        $przepis = $this->przepis();
+        $this->get(route('recipes.show', ['recipe' => $przepis->slug, 'druk' => 1]))
+            ->assertOk()
+            ->assertSee('data-zglos-goscia', false);
     }
 
     public function test_parametry_w_adresie_nie_wstrzykuja_html(): void

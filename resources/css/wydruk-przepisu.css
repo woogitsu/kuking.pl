@@ -190,7 +190,7 @@
   body:has(.przepis-uklad, .sciagawka, .zeszyt-druk) :is(
     .skip-link, .topbar, .side-nav, .bottom-nav, .app-rail, .site-footer,
     .szybki-wyglad, .szybki-wyglad-podpowiedz, .pwa-install, .okruchy,
-    .przepis-akcje, .podziel-sie, .danger-zone, .druk-podpowiedz,
+    .przepis-akcje, .podziel-sie, .danger-zone, .druk-podpowiedz, .zglos-goscia,
     [aria-labelledby="komu-wyszlo"], [aria-labelledby="komentarze"]
   ),
   body:has(.przepis-uklad, .sciagawka, .zeszyt-druk) main :is(.btn, button, form) {
@@ -579,13 +579,6 @@
   /* Liczba porcji z wyboru w adresie jest jedna — nad składnikami nie ma
      drugiego wyboru ani przeliczeń w innym miejscu. */
   body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika :is(.porcje-wybor, .porcje-wybor-uwaga) {
-    display: none !important;
-  }
-
-  /* Gość widzi pod przepisem objaśnienie, jak zgłosić treść (wymaga konta).
-     Na kartce na blat jest bezużyteczne, a przy pismie 16 pt zrzucało
-     ostatnią linijkę na osobną stronę, tuż pod kodem QR. */
-  body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika .zglos-goscia {
     display: none !important;
   }
 
