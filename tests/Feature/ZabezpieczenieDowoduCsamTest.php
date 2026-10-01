@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -162,7 +163,7 @@ class ZabezpieczenieDowoduCsamTest extends TestCase
         $krok = $this->zdjecie($autor);
         $przepis = Recipe::factory()->create(['author_id' => $autor->getKey(), 'hero_media_id' => $glowne->getKey()]);
         DB::table('recipe_steps')->insert([
-            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'id' => (string) Str::uuid(),
             'recipe_id' => $przepis->getKey(),
             'position' => 1,
             'instruction' => 'Wymieszaj.',
