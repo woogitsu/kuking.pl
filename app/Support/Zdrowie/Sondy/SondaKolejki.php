@@ -99,7 +99,7 @@ final class SondaKolejki implements Sonda
                 ->where('dowod.target_type', 'media')
                 ->where('dowod.secured_at', '<=', now()->subMinutes(15))
                 ->where('zdjecie.status', Media::STATUS_SECURED)
-                ->whereRaw("NOT jsonb_exists(coalesce(zdjecie.metadata, '{}'::jsonb), ?)", [Media::METADANE_WARIANTY_DOWODU_PRZENIESIONE_AT])
+                ->whereRaw("NULLIF(btrim(zdjecie.metadata ->> ?), '') IS NULL", [Media::METADANE_WARIANTY_DOWODU_PRZENIESIONE_AT])
                 ->exists();
         } catch (Throwable $e) {
             throw new KontrolaZdrowiaNieprzeszla(Powody::POWOD_BAZA, $e->getMessage(), $e);

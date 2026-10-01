@@ -123,6 +123,15 @@ class PrzeniesPubliczneWariantyDowodu implements ShouldQueue
             foreach ($publiczne as $nazwaDysku) {
                 // Ten sam dysk co oryginał: nie ma gdzie przenieść, nie ruszamy.
                 if ($nazwaDysku === $prywatny) {
+                    // `r2_legacy` jest starym PUBLICZNYM bucketem, mimo że
+                    // trzyma też oryginał. `public` to publiczny dysk lokalny.
+                    // Nie wolno nazwać pracy ukończoną, gdy wariant wciąż
+                    // leży w którymś z nich. Oryginału nie kasujemy.
+                    if (in_array($nazwaDysku, ['r2_legacy', 'public'], true)
+                        && $this->istnieje(Storage::disk($nazwaDysku), $klucz)) {
+                        throw new \RuntimeException('Wariant dowodu pozostaje na wspólnym publicznym dysku; potrzebny jest osobny prywatny magazyn.');
+                    }
+
                     continue;
                 }
 

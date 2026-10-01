@@ -44,6 +44,25 @@ final class ZalegleWariantyDowoduSondaTest extends TestCase
         app(SondaKolejki::class)->sprawdz();
     }
 
+    public function test_pusty_lub_null_znacznik_nie_wycisza_alarmu(): void
+    {
+        $zdjecie = $this->dowod();
+        $this->travel(16)->minutes();
+
+        foreach ([null, '', '  '] as $znacznik) {
+            $zdjecie->update(['metadata' => array_merge($zdjecie->metadata, [
+                Media::METADANE_WARIANTY_DOWODU_PRZENIESIONE_AT => $znacznik,
+            ])]);
+
+            try {
+                app(SondaKolejki::class)->sprawdz();
+                $this->fail('Pusty znacznik nie może wyciszyć alarmu.');
+            } catch (KontrolaZdrowiaNieprzeszla $e) {
+                $this->assertSame(Powody::POWOD_WARIANTY_DOWODU_ZALEGLE, $e->kod);
+            }
+        }
+    }
+
     private function dowod(): Media
     {
         $zdjecie = Media::factory()->create();

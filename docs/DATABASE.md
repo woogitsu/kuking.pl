@@ -4328,7 +4328,9 @@ wiersz w `jobs` (kolejka `media`) powstaje w tej samej transakcji co
 PostgreSQL, `after_commit=false`. Nie ma nowej tabeli ani migracji. Po
 ukończeniu worker wpisuje do JSONB `media.metadata` znacznik
 `warianty_dowodu_przeniesione_at`; istniejący `/health` wykrywa jego brak po
-15 minutach. Znacznik nie znaczy, że osobny purge CDN już się zakończył.
+15 minutach. Wartość `null` albo pusta nie wycisza alarmu. Jeśli wariant nadal
+leży na wspólnym publicznym `r2_legacy`, worker nie zapisuje znacznika i nie
+usuwa oryginału. Znacznik nie znaczy, że osobny purge CDN już się zakończył.
 Diagnostyka i bezpieczne pojedyncze ponowienie: `docs/infra/CSAM_KOLEJKA_2437.md`.
 
 Zabezpieczenie przepisu obejmuje **całą jego historię wersji**

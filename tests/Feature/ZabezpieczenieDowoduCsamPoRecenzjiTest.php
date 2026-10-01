@@ -8,6 +8,7 @@ use App\Domain\Compliance\PrzedawnioneUsunieteTresci;
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
 use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Moderation\TrescZabezpieczonaJakoDowod;
+use App\Exceptions\KontrolaZdrowiaNieprzeszla;
 use App\Jobs\ProcessUploadedImage;
 use App\Jobs\PrzeniesPubliczneWariantyDowodu;
 use App\Jobs\PurgePublicMediaCache;
@@ -20,6 +21,8 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Models\ZabezpieczenieDowodu;
+use App\Support\Zdrowie\Powody;
+use App\Support\Zdrowie\Sondy\SondaKolejki;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -198,6 +201,80 @@ class ZabezpieczenieDowoduCsamPoRecenzjiTest extends TestCase
         }
         // Adresy i tak idą do czyszczenia (porażka jednego dysku nie blokuje CDN).
         Queue::assertPushed(PurgePublicMediaCache::class);
+    }
+
+    public function test_stary_wspolny_publiczny_bucket_nie_udaje_zakonczonego_przeniesienia(): void
+    {
+        Queue::fake();
+        $legacy = Storage::fake('r2_legacy');
+        config(['filesystems.disks.r2_legacy.bucket' => 'syntetyczny-legacy']);
+        $autor = $this->user('autor_legacy');
+        $zdjecie = Media::factory()->create([
+            'owner_id' => $autor->getKey(),
+            'disk' => 'r2_legacy',
+            'variants_disk' => 'r2_legacy',
+        ]);
+        $zdjecie->forceFill(['status' => Media::STATUS_SECURED])->save();
+        $legacy->put($zdjecie->object_key, 'syntetyczny oryginał');
+        $warianty = array_column($zdjecie->metadata['variants'], 'key');
+        foreach ($warianty as $klucz) {
+            $legacy->put($klucz, 'syntetyczny wariant');
+        }
+
+        $dowod = new ZabezpieczenieDowodu;
+        $dowod->forceFill([
+            'target_type' => 'media',
+            'target_id' => $zdjecie->getKey(),
+            'subject_user_id' => $autor->getKey(),
+            'previous_media_status' => Media::STATUS_READY,
+        ])->save();
+
+        try {
+            (new PrzeniesPubliczneWariantyDowodu([$zdjecie->getKey()]))->handle();
+            $this->fail('Publiczny wariant w starym buckecie nie może być uznany za przeniesiony.');
+        } catch (RuntimeException) {
+            // Job zostaje do retry i ostatecznie do failed_jobs.
+        }
+
+        $this->assertTrue($legacy->exists($zdjecie->object_key), 'Oryginał dowodu ma zostać nietknięty.');
+        foreach ($warianty as $klucz) {
+            $this->assertTrue($legacy->exists($klucz), 'Wariant bez prywatnej kopii nie może zniknąć.');
+        }
+        $this->assertArrayNotHasKey(Media::METADANE_WARIANTY_DOWODU_PRZENIESIONE_AT, $zdjecie->fresh()->metadata);
+
+        $this->travel(16)->minutes();
+        try {
+            app(SondaKolejki::class)->sprawdz();
+            $this->fail('Zaległy publiczny wariant powinien zapalić sondę.');
+        } catch (KontrolaZdrowiaNieprzeszla $e) {
+            $this->assertSame(Powody::POWOD_WARIANTY_DOWODU_ZALEGLE, $e->kod);
+        }
+    }
+
+    public function test_wspolny_prywatny_dysk_moze_zakonczyc_prace_bez_kasowania_wariantu(): void
+    {
+        Queue::fake();
+        config(['filesystems.disks.r2_legacy.bucket' => null]);
+        $prywatny = Storage::fake('prywatny_dowod_testowy');
+        $zdjecie = Media::factory()->create([
+            'owner_id' => $this->user('autor_prywatny')->getKey(),
+            'disk' => 'prywatny_dowod_testowy',
+            'variants_disk' => 'prywatny_dowod_testowy',
+        ]);
+        $zdjecie->forceFill(['status' => Media::STATUS_SECURED])->save();
+        $prywatny->put($zdjecie->object_key, 'syntetyczny oryginał');
+        $warianty = array_column($zdjecie->metadata['variants'], 'key');
+        foreach ($warianty as $klucz) {
+            $prywatny->put($klucz, 'syntetyczny wariant');
+        }
+
+        (new PrzeniesPubliczneWariantyDowodu([$zdjecie->getKey()]))->handle();
+
+        $this->assertNotEmpty($zdjecie->fresh()->metadata[Media::METADANE_WARIANTY_DOWODU_PRZENIESIONE_AT] ?? null);
+        $this->assertTrue($prywatny->exists($zdjecie->object_key));
+        foreach ($warianty as $klucz) {
+            $this->assertTrue($prywatny->exists($klucz));
+        }
     }
 
     // ───────────── ProcessUploadedImage nie publikuje wariantów dla zdjęcia secured ─────────────
