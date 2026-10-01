@@ -101,12 +101,14 @@ PLANER_TEST = "PlanerTygodniaTest"
 ZAKUPY_LISTA = "app/Domain/Zakupy/ListaZakupow.php"
 ZAKUPY_KONTROLER = "app/Http/Controllers/ListaZakupowController.php"
 ZAKUPY_MIGRACJA = "database/migrations/2026_09_30_090000_create_shopping_list_items_table.php"
+ZAKUPY_POZYCJA = "resources/views/pages/zakupy/_pozycja.blade.php"
 # Jedna kontrola = jedna metoda: mutacja ma zapalić jedną przyczynę, a wzorzec
 # oczekiwanej porażki dotyczy KAŻDEJ porażki po mutacji (#1011).
 ZAKUPY_WIDOCZNOSC_TEST = "test_przepis_ktory_przestal_byc_widoczny_zostawia_pozycje_jako_sam_tekst"
 ZAKUPY_OSTRZEZENIE_TEST = "test_ponowne_dodanie_tego_samego_przepisu_najpierw_ostrzega_i_dopisuje_po_potwierdzeniu"
 ZAKUPY_LIMIT_TEST = "test_lista_ma_limit_pozycji_i_mowi_co_zrobic"
 ZAKUPY_POLICY_TEST = "test_usuniecie_pozycji_i_cudza_pozycja_nietykalna"
+ZAKUPY_POTWIERDZENIE_TEST = "test_pojedyncze_usuniecie_recznej_i_skopiowanej_pozycji_wymaga_otwarcia_pytania"
 ZAKUPY_WYMAZANIE_TEST = "test_wymazanie_konta_kasuje_liste_tylko_tej_osoby"
 ZAKUPY_ROLLBACK_TEST = "test_cofniecie_migracji_odmawia_przy_listach_ludzi_i_przechodzi_na_pustej"
 PUSH_JOB = "app/Jobs/WyslijPowiadomieniePush.php"
@@ -885,6 +887,21 @@ def replace_once(source, old, new):
     if source.count(old) != 1:
         raise RuntimeError("Kontrola nie znalazła dokładnie jednego miejsca mutacji.")
     return source.replace(old, new, 1)
+
+
+def zakupy_usun_bez_pytania(source):
+    """#2466: przywróć bezpośredni formularz DELETE sprzed potwierdzenia."""
+    poczatek = '        <details class="confirm planer-usuwanie">'
+    koniec = '        </details>'
+    if source.count(poczatek) != 1 or source.count(koniec) != 1:
+        raise RuntimeError("Kontrola nie znalazła dokładnie jednego pytania o usunięcie zakupów.")
+    od = source.index(poczatek)
+    do = source.index(koniec, od) + len(koniec)
+    dawny_formularz = '''        <form method="POST" action="{{ route('shopping.destroy', $pozycja) }}">
+            @csrf @method('DELETE')
+            <button class="btn btn-secondary" type="submit">Usuń<span class="visually-hidden">: {{ $pozycja->text }}</span></button>
+        </form>'''
+    return source[:od] + dawny_formularz + source[do:]
 
 
 def remove_notice(source):
@@ -1899,6 +1916,8 @@ checks = [
     # Cudzą pozycję da się usunąć znając jej UUID.
     ("Lista zakupów: usunięcie pozycji bez Policy", ZAKUPY_KONTROLER, ZAKUPY_POLICY_TEST,
      lambda s: replace_once(s, "        $this->authorize('delete', $pozycja);\n", "")),
+    ("Lista zakupów: pojedyncze usunięcie bez pytania (#2466)", ZAKUPY_POZYCJA, ZAKUPY_POTWIERDZENIE_TEST,
+     zakupy_usun_bez_pytania),
     # Wymazanie konta zostawia prywatną listę zakupów w bazie.
     ("Wymazanie konta nie kasuje listy zakupów", WYMAZANIE_KONTA, ZAKUPY_WYMAZANIE_TEST,
      lambda s: replace_once(s, "            $fresh->shoppingListItems()->delete();\n", "")),
