@@ -94,7 +94,7 @@ final class SlownikTerminow
         [
             'haslo' => 'Pasteryzować',
             'rdzenie' => ['pasteryz', 'spasteryz'],
-            'wyjasnienie' => 'Podgrzewać zamknięte słoiki z zawartością w gorącej wodzie lub piekarniku, żeby przetwory dłużej się trzymały. Temperaturę i czas podaje autor przepisu, więc trzymaj się dokładnie jego wskazówek.',
+            'wyjasnienie' => 'Ogrzewać przetwory, by ograniczyć drobnoustroje. Metodę, czas i temperaturę dobierz z przebadanych zaleceń dla konkretnego produktu i składu. Nie utrwalaj napełnionych słoików w zwykłym piekarniku. Sama gorąca woda nie wystarcza dla wszystkich przetworów.',
         ],
         [
             'haslo' => 'Podpiec',
