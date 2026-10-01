@@ -1274,6 +1274,18 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    # #2421: w oknie <= 16rem przy tekście 125/140% pasek górny odpina się,
+    # bo kolumnowy znak robi go wyższym niż rezerwa nad nim (WCAG 2.4.11).
+    ("Pasek przy kolumnowym znaku znowu przypięty", "resources/css/marka-rama.css", "PasekPrzyKolumnowymZnakuTest",
+     lambda s: replace_once(s, 'html:is([data-text-scale="125"], [data-text-scale="140"]) [data-marka] .marka-topbar { position: relative; top: 0; }', "")),
+    # #2343, recenzja paczki V: uwaga pod słownikiem terminów wróciłaby do
+    # .meta, czyli 16 px zamiast tekstu czytanego.
+    ("Uwaga słownika terminów wraca do .meta", "resources/views/components/terminy-kroku.blade.php", "test_uwaga_pod_slownikiem_ma_rozmiar_tekstu_czytanego_nie_meta",
+     lambda s: replace_once(s, '<p class="cook-terminy-uwaga">', '<p class="meta">')),
+    # Droga do bety: bez referencji ctx.shared zamknięcie rejestracji
+    # ustawione w panelu znika przy pierwszym `apply`.
+    ("Przełącznik rejestracji bez Shared Variable", ".railway/railway.ts", "ZamkniecieRejestracjiPrzezyjeApplyTest",
+     lambda s: replace_once(s, "KUKING_REGISTRATION_OPEN: ctx.shared.KUKING_REGISTRATION_OPEN,", "KUKING_REGISTRATION_OPEN: 'true',")),
     # #988: komunikat po akcji ma jawny rodzaj. Goły `->with('status', …)`
     # wróciłby do zielonej plakietki także dla odmowy.
     ("Goły ->with('status') wraca do kontrolera", "app/Http/Controllers/SmakowicieController.php", "test_w_app_nie_ma_golego_zapisu_statusu_bez_rodzaju",
