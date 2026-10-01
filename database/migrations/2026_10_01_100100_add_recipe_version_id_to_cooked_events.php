@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Własne wykonanie pamięta wersję przepisu, którą kucharz miał otwartą
@@ -23,7 +24,9 @@ use Illuminate\Support\Facades\DB;
  *  Po `SET NULL` wykonanie zostaje, a ekran mówi po polsku, że wersji
  *  już nie ma. Wersje usuniętego przepisu idą razem z nim; wykonania też
  *  (`cooked_events.recipe_id` jest `CASCADE`). Wymazanie konta kucharza
- *  kasuje jego wykonania i wskaźnik razem z nimi.
+ *  w zakresie `everything` kasuje jego wykonania i wskaźnik razem z nimi;
+ *  przy domyślnym `minimum` (D-022) wykonania zostają przy zanonimizowanym
+ *  koncie, ze wskaźnikiem.
  *
  * KOLUMNA `NULL`-OWALNA, BEZ BACKFILLU. Wykonania sprzed tej migracji nie
  * wiedzą, z której wersji gotowano; zgadywanie „najbliższej z czasu"
@@ -78,7 +81,12 @@ return new class extends Migration
             return;
         }
 
-        $przypiete = DB::table('cooked_events')->whereNotNull('recipe_version_id')->count();
+        // Po przerwanym `up()` kolumny może nie być: wtedy nie ma czego liczyć
+        // (zapytanie o brakującą kolumnę rzuciłoby błędem SQL), a sprzątanie
+        // niżej jest idempotentne (`IF EXISTS`).
+        $przypiete = Schema::hasColumn('cooked_events', 'recipe_version_id')
+            ? DB::table('cooked_events')->whereNotNull('recipe_version_id')->count()
+            : 0;
 
         if ($przypiete > 0) {
             throw new RuntimeException(

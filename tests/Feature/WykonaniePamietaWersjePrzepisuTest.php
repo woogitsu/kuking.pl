@@ -33,7 +33,7 @@ class WykonaniePamietaWersjePrzepisuTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const SCIEZKA_MIGRACJI = 'database/migrations/2026_10_01_100000_add_recipe_version_id_to_cooked_events.php';
+    private const SCIEZKA_MIGRACJI = 'database/migrations/2026_10_01_100100_add_recipe_version_id_to_cooked_events.php';
 
     private User $autor;
 
@@ -92,6 +92,33 @@ class WykonaniePamietaWersjePrzepisuTest extends TestCase
     public function test_bez_pola_zapis_przypina_najnowsza_wersje(): void
     {
         $this->assertSame($this->v2->getKey(), $this->wykonanie()->recipe_version_id);
+    }
+
+    public function test_sprawdzenie_wersji_z_formularza_trzyma_wiersz_for_key_share(): void
+    {
+        // Test na dwóch połączeniach byłby nieproporcjonalny: sprawdzamy, że
+        // zapytanie o wersję z formularza niesie blokadę, która chroni przed
+        // skasowaniem wersji przez retencję między sprawdzeniem a INSERT
+        // (inaczej klucz obcy rzuca 23503 i człowiek widzi błąd 500).
+        $zapytania = [];
+        DB::listen(function ($q) use (&$zapytania): void {
+            $zapytania[] = strtolower($q->sql);
+        });
+
+        $this->wykonanie($this->v1->getKey());
+
+        $zBlokada = array_filter(
+            $zapytania,
+            fn (string $sql): bool => str_contains($sql, 'from "recipe_versions"') && str_contains($sql, 'for key share'),
+        );
+        $this->assertNotEmpty($zBlokada, 'Wersja z formularza musi być sprawdzana pod FOR KEY SHARE.');
+    }
+
+    public function test_wersja_skasowana_przed_zapisem_schodzi_do_najnowszej_bez_bledu(): void
+    {
+        $this->v1->delete();
+
+        $this->assertSame($this->v2->getKey(), $this->wykonanie($this->v1->getKey())->recipe_version_id);
     }
 
     public function test_wersja_cudzego_przepisu_nie_zostaje_przypieta(): void
@@ -283,6 +310,20 @@ class WykonaniePamietaWersjePrzepisuTest extends TestCase
     public function test_cofniecie_migracji_przechodzi_gdy_nikt_nie_ma_wskaznika(): void
     {
         CookedEvent::factory()->create();
+
+        Artisan::call('migrate:rollback', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
+        $this->assertSame(0, $this->iloscKolumn());
+
+        Artisan::call('migrate', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
+        $this->assertSame(1, $this->iloscKolumn());
+    }
+
+    public function test_cofniecie_po_przerwanym_up_bez_kolumny_nie_rzuca_bledem_sql(): void
+    {
+        // Przerwane `up()` mogło zostawić bazę bez kolumny; rollback ma to
+        // przyjąć, a nie liczyć wskaźników w kolumnie, której nie ma.
+        DB::statement('ALTER TABLE cooked_events DROP COLUMN recipe_version_id');
+        $this->assertSame(0, $this->iloscKolumn());
 
         Artisan::call('migrate:rollback', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
         $this->assertSame(0, $this->iloscKolumn());
