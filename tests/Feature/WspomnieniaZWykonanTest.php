@@ -86,6 +86,40 @@ class WspomnieniaZWykonanTest extends TestCase
         $this->assertStringContainsString('Dwa lata temu, ', (string) $this->blok($zofia));
     }
 
+    public function test_fixture_pomiaru_pokazuje_wspomnienie_po_polnocy_w_polsce(): void
+    {
+        /** @var \Closure(): array{0: Carbon, 1: Carbon} $rocznice */
+        $rocznice = require base_path('scripts/fixtures/rocznice-wykonania-s.php');
+
+        $this->travelTo(Carbon::parse('2026-10-01 21:59:55 UTC'));
+        $zofia = $this->user('zofia');
+        $przepis = Recipe::factory()->create(['title' => 'Rosół pomiarowy']);
+        foreach ($rocznice() as $dzien => $rocznica) {
+            CookedEvent::factory()->create([
+                'user_id' => $zofia->getKey(),
+                'recipe_id' => $przepis->getKey(),
+                'note' => $dzien === 0 ? 'Wspomnienie przed północą' : 'Wspomnienie po północy',
+                'cooked_at' => $rocznica,
+            ]);
+        }
+
+        $this->assertStringContainsString(
+            'Wspomnienie przed północą',
+            (string) $this->blok($zofia),
+            'POMIAR_WSPOMNIENIA_PRZED_I_PO_POLNOCY: przed północą brakuje rocznicy.',
+        );
+
+        $this->travelTo(Carbon::parse('2026-10-01 22:00:05 UTC'));
+        $poPolnocy = $this->blok($zofia);
+        $this->assertNotNull($poPolnocy, 'POMIAR_WSPOMNIENIA_PRZED_I_PO_POLNOCY: po północy ekran był pusty.');
+        $this->assertStringContainsString(
+            'Wspomnienie po północy',
+            $poPolnocy,
+            'POMIAR_WSPOMNIENIA_PRZED_I_PO_POLNOCY: po północy brakuje następnej rocznicy.',
+        );
+        $this->assertStringNotContainsString('Wspomnienie przed północą', $poPolnocy);
+    }
+
     public function test_dzisiejsze_ugotowanie_nie_jest_wspomnieniem(): void
     {
         $zofia = $this->user('zofia');
