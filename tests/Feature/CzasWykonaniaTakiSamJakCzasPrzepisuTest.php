@@ -15,7 +15,7 @@ use Tests\TestCase;
  * „Zajęło mi …” pisze się tak samo jak czas przepisu (decyzja właściciela
  * z 1.10.2026, wiersz w D-333): od 90 minut godziny i minuty, zaokrąglone do
  * 5 minut (`Czas::czasPrzepisu`). Dotyczy tekstów dla człowieka — karty
- * wykonania i czasu kroku w kopii HTML przepisu. Surowe liczby w eksporcie
+ * wykonania i czasu kroku oraz przygotowania i gotowania w kopii HTML przepisu. Surowe liczby w eksporcie
  * JSON/CSV oraz ISO 8601 w JSON-LD zostają bez zmian.
  */
 class CzasWykonaniaTakiSamJakCzasPrzepisuTest extends TestCase
@@ -58,7 +58,7 @@ class CzasWykonaniaTakiSamJakCzasPrzepisuTest extends TestCase
 
     public function test_kopia_html_przepisu_pisze_czas_kroku_jak_czas_przepisu(): void
     {
-        $przepis = Recipe::factory()->create();
+        $przepis = Recipe::factory()->create(['prep_minutes' => 120, 'cook_minutes' => 95]);
         RecipeStep::create(['recipe_id' => $przepis->getKey(), 'position' => 0, 'instruction' => 'Duś.', 'timer_seconds' => 120 * 60]);
         RecipeStep::create(['recipe_id' => $przepis->getKey(), 'position' => 1, 'instruction' => 'Odstaw.', 'timer_seconds' => 45 * 60]);
         $przepis->load('steps.media');
@@ -74,5 +74,7 @@ class CzasWykonaniaTakiSamJakCzasPrzepisuTest extends TestCase
         $this->assertStringContainsString('Czas: 2 godz.</p>', $html);
         $this->assertStringContainsString('Czas: 45 min</p>', $html);
         $this->assertStringNotContainsString('Czas: 120 min', $html);
+        $this->assertStringContainsString('Przygotowanie: 2 godz.</span>', $html);
+        $this->assertStringContainsString('Gotowanie: 1 godz. 35 min</span>', $html);
     }
 }
