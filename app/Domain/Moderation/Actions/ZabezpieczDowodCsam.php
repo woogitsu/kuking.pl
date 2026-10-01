@@ -7,6 +7,7 @@ namespace App\Domain\Moderation\Actions;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\PodstawaDecyzji;
 use App\Domain\Users\OdmowaOstatniegoAdministratora;
+use App\Domain\Users\OstatniAdministrator;
 use App\Domain\Users\ZamekUprzywilejowanegoAktora;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Jobs\PrzeniesPubliczneWariantyDowodu;
@@ -94,6 +95,11 @@ final class ZabezpieczDowodCsam
 
         return DB::transaction(function () use ($moderator, $typ, $id, $reportId, $note, $ip): WynikZabezpieczeniaDowodu {
             $klasa = self::TYPY[$typ] ?? throw new BladDlaCzlowieka('Tego rodzaju treści nie da się zabezpieczyć tą drogą.');
+
+            // Wszystkie akcje uprzywilejowane biorą ten zamek PRZED wierszami.
+            // ZamekUprzywilejowanegoAktora ponowi go w tej samej transakcji
+            // (reentrant), po zdjęciach; jego pierwsze pobranie jest tutaj.
+            OstatniAdministrator::zablokuj();
 
             // PublishRecipe blokuje zdjęcia przed kontem i przepisem (D-103).
             // Także tu zdjęcia muszą iść pierwsze: odwrotna kolejność daje

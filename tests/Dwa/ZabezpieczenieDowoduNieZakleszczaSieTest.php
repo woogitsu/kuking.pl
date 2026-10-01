@@ -144,13 +144,16 @@ final class ZabezpieczenieDowoduNieZakleszczaSieTest extends TestDwochPolaczen
         $autor = $this->konto();
         $autor->markForDeletion(User::DELETE_SCOPE_EVERYTHING);
         $przepis = $this->opublikowanyPrzepis($autor);
+        $zdjecie = Media::factory()->create(['owner_id' => $autor->getKey()]);
+        $przepis->update(['hero_media_id' => $zdjecie->getKey()]);
 
         CookedEvent::create([
             'user_id' => $autor->getKey(),
             'recipe_id' => $przepis->getKey(),
         ]);
 
-        // Egzekucja trzyma `users FOR UPDATE` i staje PRZED kasowaniem przepisów.
+        // Egzekucja trzyma `users FOR UPDATE` i staje PRZED kasowaniem
+        // przepisu, który wskazuje na hero_media_id tego samego konta.
         $bariera = $this->bariera(
             'SELECT 1 FROM cooked_events WHERE user_id = ? FOR UPDATE',
             [(string) $autor->getKey()],

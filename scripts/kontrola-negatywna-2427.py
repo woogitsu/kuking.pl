@@ -68,6 +68,8 @@ def run_test(expect_deadlock: bool) -> None:
         cases = report.findall(".//testcase")
         if len(cases) != 1 or TEST not in cases[0].attrib.get("name", ""):
             raise RuntimeError("JUnit #2427 nie zawiera dokładnie właściwego testu.")
+        if cases[0].find("skipped") is not None:
+            raise RuntimeError("Test #2427 został pominięty; to nie jest dowód.")
         failures = cases[0].findall("failure") + cases[0].findall("error")
         if expect_deadlock:
             details = " ".join(" ".join(f.itertext()) + " " + str(f.attrib) for f in failures)
@@ -84,6 +86,10 @@ mutated_text = mutate(original.decode("utf-8").replace("\r\n", "\n"))
 mutated = mutated_text.replace("\n", newline).encode("utf-8")
 if mutated == original:
     raise RuntimeError("Mutacja #2427 nie zmieniła źródła.")
+
+# Szeroki zestaw wyścigów uruchomiony wcześniej przez CI nie zastępuje
+# bazowej kontroli TEGO testu w chwili mutacji tego konkretnego pliku.
+run_test(expect_deadlock=False)
 
 try:
     SOURCE.write_bytes(mutated)
