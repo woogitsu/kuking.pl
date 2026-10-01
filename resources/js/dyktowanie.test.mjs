@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-    JEZYK, KOMUNIKATY, LIMIT_CISZY_MS, ZDANIE_O_DOSTAWCY,
-    dopiszTekst, komunikatBledu, utworzDyktowanie, znajdzRozpoznawanie,
+    JEZYK, KOMUNIKATY, LIMIT_CISZY_MS, LIMIT_ZAKONCZENIA_MS, STATUSY, ZDANIE_O_DOSTAWCY,
+    dopiszTekst, komunikatBledu, komunikatLimitu, mutacjaPozaDyktowaniem, podlacz, posprzataj,
+    przerwijWszystkie, utworzDyktowanie, utworzRejestr, znajdzRozpoznawanie,
 } from './dyktowanie.js';
 
 /** Atrapa SpeechRecognition: zapamiętuje ostatnią instancję i pozwala wywoływać zdarzenia. */
@@ -127,15 +128,37 @@ test('Kolejne dyktowanie dopisuje do podglądu, nie kasuje poprzedniego', () => 
     assert.equal(stany.at(-1).podglad, 'pierwsze zdanie drugie zdanie');
 });
 
-test('Wynik tymczasowy jest widoczny w podglądzie, ale nie zostaje po końcu, jeśli nie został potwierdzony', () => {
+test('Wynik tymczasowy jest widoczny w podglądzie, a gdy silnik go nie potwierdzi, TRAFIA do podglądu zamiast zniknąć', () => {
     const { m, silnik, stany } = maszyna();
     m.start();
     silnik().wynik('mąk', false);
     assert.equal(stany.at(-1).podglad, 'mąk');
 
     silnik().onend();
-    assert.equal(stany.at(-1).podglad, '');
+    assert.equal(stany.at(-1).podglad, 'mąk', 'Tekst, który człowiek wypowiedział, nie może zniknąć bez słowa.');
+    assert.equal(stany.at(-1).faza, 'podglad');
+    assert.equal(stany.at(-1).komunikat, '');
+});
+
+test('Awans wyniku tymczasowego jest trwały: kolejne dyktowanie go nie kasuje', () => {
+    const { m, silnik, stany } = maszyna();
+    m.start();
+    silnik().wynik('mąk', false);
+    silnik().onend();
+    m.start();
+    silnik().wynik('i cukru', true);
+    silnik().onend();
+
+    assert.equal(stany.at(-1).podglad, 'mąk i cukru');
+});
+
+test('Bez żadnego wyniku koniec nasłuchu to „blad” z komunikatem o ciszy', () => {
+    const { m, silnik, stany } = maszyna();
+    m.start();
+    silnik().onend();
+
     assert.equal(stany.at(-1).faza, 'blad');
+    assert.equal(stany.at(-1).komunikat, KOMUNIKATY.cisza);
 });
 
 test('Odmowa mikrofonu: komunikat po polsku mówi, co zrobić; nic się nie wstawia', () => {
@@ -154,7 +177,9 @@ test('Brak sieci i brak mikrofonu mają własne komunikaty', () => {
     assert.equal(komunikatBledu('network'), KOMUNIKATY.siec);
     assert.match(KOMUNIKATY.siec, /Sprawdź internet/);
     assert.equal(komunikatBledu('audio-capture'), KOMUNIKATY.brakMikrofonu);
-    assert.equal(komunikatBledu('service-not-allowed'), KOMUNIKATY.odmowa);
+    assert.equal(komunikatBledu('service-not-allowed'), KOMUNIKATY.usluga);
+    assert.notEqual(KOMUNIKATY.usluga, KOMUNIKATY.odmowa);
+    assert.match(KOMUNIKATY.usluga, /ustawieniach telefonu albo przeglądarki/);
     assert.equal(komunikatBledu('coś-nowego'), KOMUNIKATY.inny);
 });
 
@@ -256,7 +281,7 @@ test('Skrypt nie nagrywa i nie wysyła niczego sam: brak getUserMedia, MediaReco
         .replace(/\/\*[\s\S]*?\*\//g, '')
         .replace(/^\s*\/\/.*$/gm, '');
 
-    for (const zakazane of ['getUserMedia', 'MediaRecorder', 'AudioContext', 'fetch(', 'XMLHttpRequest', 'sendBeacon', 'WebSocket', 'localStorage', 'sessionStorage']) {
+    for (const zakazane of ['getUserMedia', 'MediaRecorder', 'AudioContext', 'fetch(', 'navigator.mediaDevices', 'new Audio', 'XMLHttpRequest', 'sendBeacon', 'WebSocket', 'localStorage', 'sessionStorage']) {
         assert.equal(zrodlo.includes(zakazane), false, `dyktowanie.js nie może używać: ${zakazane}`);
     }
 });
