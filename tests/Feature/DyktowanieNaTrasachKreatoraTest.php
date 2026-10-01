@@ -148,7 +148,7 @@ class DyktowanieNaTrasachKreatoraTest extends TestCase
     #[DataProvider('publicCommentAndNoteRoutes')]
     public function test_publiczny_ekran_z_dluzszym_polem_oddziela_goscia_od_zalogowanego(string $route): void
     {
-        config(['kuking.html_cache.edge_seconds' => 120]);
+        config(['kuking.html_cache.edge_seconds' => 120, 'kuking.questions.enabled' => true]);
         $author = $this->user();
         $subject = match ($route) {
             'posts.show' => Post::factory()->create(['author_id' => $author->id]),
