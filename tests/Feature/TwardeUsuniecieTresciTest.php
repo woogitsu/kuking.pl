@@ -10,6 +10,8 @@ use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\RecipeVersion;
+use App\Models\Report;
 use App\Models\User;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -214,6 +216,50 @@ class TwardeUsuniecieTresciTest extends TestCase
         $wykonanie->delete();
         $this->assertSame(1, $this->sprzataj()['przepisy']);
         $this->assertDatabaseMissing('recipes', ['id' => $przepis->getKey()]);
+    }
+
+    public function test_przepis_ze_zgloszona_wersja_nie_traci_wersji_w_nagrobku(): void
+    {
+        $zgloszony = Recipe::factory()->create();
+        $wolny = Recipe::factory()->create();
+        $wersje = [];
+        foreach (['zgloszony' => $zgloszony, 'wolny' => $wolny] as $klucz => $przepis) {
+            $wersje[$klucz] = RecipeVersion::create([
+                'recipe_id' => $przepis->getKey(),
+                'editor_id' => $przepis->author_id,
+                'version_number' => 1,
+                'change_note' => 'Wersja 1',
+                'snapshot' => ['title' => $przepis->title, 'summary' => 'Opis', 'ingredients' => [], 'steps' => []],
+            ]);
+            CookedEvent::factory()->create(['recipe_id' => $przepis->getKey()]);
+            $this->usunDniTemu($przepis, 31);
+        }
+
+        Report::create([
+            'reporter_id' => User::factory()->create()->getKey(),
+            'target_type' => 'recipe_version',
+            'target_id' => $wersje['zgloszony']->getKey(),
+            'reason' => 'personal_data',
+            'status' => Report::STATUS_OPEN,
+        ]);
+
+        $wynik = $this->sprzataj();
+
+        // Kontrola dodatnia: przepis bez sprawy przeszedł w nagrobek razem
+        // z kasacją wersji; przepis ze zgłoszoną wersją czeka nietknięty.
+        $this->assertSame(1, $wynik['nagrobki']);
+        $this->assertSame(
+            [
+                'wersja wolnego' => 0,
+                'wersja zgloszonego' => 1,
+                'tytul zgloszonego' => $zgloszony->title,
+            ],
+            [
+                'wersja wolnego' => RecipeVersion::where('id', $wersje['wolny']->getKey())->count(),
+                'wersja zgloszonego' => RecipeVersion::where('id', $wersje['zgloszony']->getKey())->count(),
+                'tytul zgloszonego' => Recipe::withTrashed()->findOrFail($zgloszony->getKey())->title,
+            ],
+        );
     }
 
     public function test_usuniety_komentarz_znika_po_terminie_a_rodzic_czeka_na_odpowiedz(): void

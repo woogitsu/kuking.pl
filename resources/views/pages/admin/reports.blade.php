@@ -94,6 +94,21 @@
             @endif
 
             <h2 class="mt-0 text-title-sm">{{ $report->reasonLabel() }}</h2>
+            {{-- Zgłoszona WERSJA przepisu (#2390): kolejka pokazuje samo UUID, więc
+                 moderator dostaje odnośnik do ekranu tej wersji. „Ukryj treść” przy
+                 takim zgłoszeniu ukrywa wersję (nie przepis) — i mówi to napis. --}}
+            @php($wersjaZgloszenia = $report->target_type === 'recipe_version' ? (($wersje ?? [])[$report->target_id] ?? null) : null)
+            @if($report->target_type === 'recipe_version')
+                <p class="meta">
+                    @if($wersjaZgloszenia)
+                        Zgłoszona jest <strong>wersja {{ $wersjaZgloszenia['numer'] }}</strong> przepisu „{{ $wersjaZgloszenia['tytul'] }}” z historii zmian
+                        (<a href="{{ $wersjaZgloszenia['adres'] }}">zobacz tę wersję</a>).
+                        „Ukryj treść” ukryje tę jedną wersję, nie cały przepis.
+                    @else
+                        Zgłoszona jest wersja przepisu z historii zmian, której już nie ma.
+                    @endif
+                </p>
+            @endif
             <p class="meta">
                 {{ $report->target_type }}@if($report->target_id) · {{ $report->target_id }}@endif ·
                 zgłoszone {{ \App\Support\Czas::data($report->created_at, 'j F Y, H:i') }}

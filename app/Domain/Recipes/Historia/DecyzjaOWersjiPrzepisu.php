@@ -8,12 +8,14 @@ use App\Domain\Moderation\Actions\NotifyModerationDecision;
 use App\Domain\Moderation\Actions\RestoreContent;
 use App\Domain\Moderation\CofniecieUkryciaWersji;
 use App\Domain\Moderation\WlasnejTresciNiePrzywracasz;
+use App\Domain\Moderation\WskazanieWersji;
 use App\Domain\Users\ZamekUprzywilejowanegoAktora;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
 use App\Models\Recipe;
 use App\Models\RecipeVersion;
+use App\Models\Report;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -50,6 +52,9 @@ use LogicException;
  */
 final class DecyzjaOWersjiPrzepisu implements CofniecieUkryciaWersji
 {
+    private const KOMUNIKAT_BRAK_WERSJI = 'Tej wersji już nie ma albo nie da się jej odnaleźć. '
+        .'Wybierz „Bez działania”, aby zamknąć sprawę bez zapisywania sankcji.';
+
     public function __construct(
         private readonly UkrywanieWersji $ukrywanie,
         private readonly NotifyModerationDecision $powiadom,
@@ -63,7 +68,7 @@ final class DecyzjaOWersjiPrzepisu implements CofniecieUkryciaWersji
      */
     public static function wskazanie(Recipe $recipe, int $numer): string
     {
-        return 'Dotyczy wersji '.$numer.' przepisu „'.$recipe->title.'” w historii zmian.';
+        return WskazanieWersji::tekst($recipe, $numer);
     }
 
     /**
@@ -136,6 +141,79 @@ final class DecyzjaOWersjiPrzepisu implements CofniecieUkryciaWersji
 
                 return $decyzja;
             });
+        });
+    }
+
+    /**
+     * Ukrycie wersji jako decyzja w sprawie ZGŁOSZENIA tej wersji (#2390).
+     *
+     * Ta sama blokada i te same reguły stanu co `ukryj()` (nie najnowsza,
+     * nie już ukryta; ukrycie autora moderacja może przejąć), ale decyzja
+     * nosi `report_id` zgłoszenia, a powiadomienia autora i zgłaszającego,
+     * status zgłoszenia i dziennik zostają po stronie `RozstrzygnijZgloszenie`
+     * — jedna decyzja na zgłoszenie (`moderation_actions_one_per_report`).
+     *
+     * Wołane w transakcji z `ZamekUprzywilejowanegoAktora` (`$swiezy`).
+     *
+     * @throws BladDlaCzlowieka gdy wersji nie da się ukryć
+     */
+    #[\Override]
+    public function ukryjPoZgloszeniu(
+        User $swiezy,
+        Report $zgloszenie,
+        RecipeVersion $wersja,
+        string $reasonCode,
+        ?string $note,
+        string $wiadomosc,
+        ?string $ip = null,
+    ): ModerationAction {
+        if (DB::transactionLevel() === 0) {
+            throw new LogicException('DecyzjaOWersjiPrzepisu::ukryjPoZgloszeniu() wymaga transakcji z ZamekUprzywilejowanegoAktora.');
+        }
+
+        $recipe = $wersja->recipe;
+        if ($recipe === null) {
+            throw new BladDlaCzlowieka(self::KOMUNIKAT_BRAK_WERSJI);
+        }
+
+        if (UkrywanieWersji::strona($swiezy, $recipe) !== RecipeVersion::UKRYLA_MODERACJA) {
+            throw new LogicException('Autor ukrywa własną wersję bez decyzji moderacyjnej — przez UkrywanieWersji.');
+        }
+
+        $zapisana = null;
+
+        $wynik = $this->ukrywanie->ukryj($swiezy, $recipe, $wersja->version_number, $ip, function (RecipeVersion $zablokowana) use ($swiezy, $recipe, $zgloszenie, $reasonCode, $note, $wiadomosc, &$zapisana): ModerationAction {
+            $zablokowana->setRelation('recipe', $recipe);
+
+            // Policy na świeżym aktorze pod blokadą — jak w `ukryj()`.
+            Gate::forUser($swiezy)->authorize('hide', $zablokowana);
+
+            return $zapisana = ModerationAction::create([
+                'moderator_id' => $swiezy->getKey(),
+                'report_id' => $zgloszenie->getKey(),
+                'target_type' => self::TYP,
+                'target_id' => $zablokowana->getKey(),
+                'subject_user_id' => $recipe->author_id,
+                'action' => ModerationAction::ACTION_HIDE,
+                // Przejęcie ukrycia autora pamięta stan sprzed decyzji (jak w `ukryj()`).
+                'previous_status' => $zablokowana->czyUkryta() && $zablokowana->hidden_by_role === RecipeVersion::UKRYL_AUTOR
+                    ? RecipeVersion::STAN_PRZED_PRZEJECIEM
+                    : null,
+                'reason_code' => $reasonCode,
+                'note' => $note,
+                'user_message' => $wiadomosc,
+            ]);
+        });
+
+        if (($wynik === UkrywanieWersji::UKRYTO || $wynik === UkrywanieWersji::PRZEJETO) && $zapisana instanceof ModerationAction) {
+            return $zapisana;
+        }
+
+        throw new BladDlaCzlowieka(match ($wynik) {
+            UkrywanieWersji::NAJNOWSZA => 'To jest najnowsza wersja, czyli treść przepisu widoczna na jego stronie — nie da się jej ukryć jako wersji. '
+                .'Wybierz „Bez działania” albo zamknij sprawę decyzją wobec przepisu.',
+            UkrywanieWersji::JUZ_UKRYTA => 'Ta wersja jest już ukryta. Wybierz „Bez działania”, żeby zamknąć sprawę, albo inną decyzję.',
+            default => self::KOMUNIKAT_BRAK_WERSJI,
         });
     }
 

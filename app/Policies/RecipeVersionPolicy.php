@@ -30,6 +30,37 @@ use App\Models\User;
  */
 class RecipeVersionPolicy
 {
+    /**
+     * Kto może ZGŁOSIĆ tę wersję (issue #2390, decyzja właściciela
+     * z 1.10.2026). Osoba trzecia — także taka, która nie jest autorem — ale
+     * tylko wersję, którą w ogóle widzi:
+     *
+     *  - widzi historię przepisu (`HistoriaWersji::wolnoOgladac`), a więc
+     *    przepis jest widoczny i opublikowany;
+     *  - wersja nie jest ukryta, chyba że patrzy autor albo czynna moderacja
+     *    (`HistoriaWersji::widziUkryte`) — zgłoszenie nie może zdradzić
+     *    istnienia wersji, której nie widać;
+     *  - to NIE jest najnowsza wersja: ta jest treścią przepisu, więc zgłasza
+     *    się przepis (najnowszej wersji nie da się też ukryć).
+     *
+     * `?User`, bo bramkę woła `ReportContent::authorize()` także dla zgłaszającego
+     * bez konta; gość i tak odpada na trasie za logowaniem.
+     */
+    public function report(?User $user, RecipeVersion $wersja): bool
+    {
+        $recipe = $wersja->recipe;
+
+        if ($recipe === null || ! HistoriaWersji::wolnoOgladac($user, $recipe)) {
+            return false;
+        }
+
+        if ($wersja->czyUkryta() && ! HistoriaWersji::widziUkryte($user, $recipe)) {
+            return false;
+        }
+
+        return HistoriaWersji::numerNajnowszej($recipe) !== $wersja->version_number;
+    }
+
     public function hide(User $user, RecipeVersion $wersja): bool
     {
         $recipe = $wersja->recipe;

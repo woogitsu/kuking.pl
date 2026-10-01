@@ -6,6 +6,7 @@ namespace App\Domain\Recipes;
 
 use App\Models\Recipe;
 use App\Models\User;
+use App\Support\Czas;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -102,6 +103,6 @@ final class TypowyCzasPrzepisu
         $ostatnieDwie = $this->osoby % 100;
         $slowo = ($koncowka >= 2 && $koncowka <= 4 && ($ostatnieDwie < 12 || $ostatnieDwie > 14)) ? 'osoby' : 'osób';
 
-        return 'Gotujący zwykle potrzebują około '.$this->minuty.' min (na podstawie '.$this->osoby.' '.$slowo.').';
+        return 'Gotujący zwykle potrzebują około '.Czas::czasPrzepisu($this->minuty).' (na podstawie '.$this->osoby.' '.$slowo.').';
     }
 }

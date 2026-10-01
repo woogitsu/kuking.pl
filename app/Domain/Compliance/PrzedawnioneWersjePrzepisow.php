@@ -24,7 +24,8 @@ use Throwable;
  * moderacyjna (`reports`, `moderation_actions`) — wersja z chwili zgłoszenia
  * bywa dowodem; po retencji sprawy (36 mies.) przepis wraca do tej kolejki.
  * Tak samo pojedyncza wersja, o której zapadła decyzja moderacyjna
- * (`target_type = 'recipe_version'`, ukrycie przez moderację, #2270).
+ * (`target_type = 'recipe_version'`, ukrycie przez moderację, #2270) albo
+ * którą wskazuje zgłoszenie (`reports.target_type = 'recipe_version'`, #2390).
  *
  * PO CO. Historia wersji jest publiczna (#2024) i zachowuje treść, którą
  * autor później usunął z przepisu (adres, imię, notatkę). Bez limitu taka
@@ -167,6 +168,13 @@ final class PrzedawnioneWersjePrzepisow
                 $q->select(DB::raw(1))->from('moderation_actions')
                     ->where('moderation_actions.target_type', 'recipe')
                     ->whereColumn('moderation_actions.target_id', 'recipe_versions.recipe_id');
+            })
+            // Zgłoszenie wskazujące TĘ wersję (#2390): ten sam warunek co wyżej
+            // dla przepisu — wersja z chwili zgłoszenia bywa dowodem w sprawie.
+            ->whereNotExists(function ($q): void {
+                $q->select(DB::raw(1))->from('reports')
+                    ->where('reports.target_type', 'recipe_version')
+                    ->whereColumn('reports.target_id', 'recipe_versions.id');
             })
             // Wersja, którą ukryła (albo odsłoniła) moderacja — decyzja
             // moderacyjna o tej JEDNEJ wersji (#2270, 30.09). Bez niej
