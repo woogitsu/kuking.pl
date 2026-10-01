@@ -10,6 +10,13 @@ rozpoznanej liczbie zaczyna się kolejna granica (`300- g`, `300.5.5`,
 odmawia. To dotyczy również pojedynczej liczby, nie tylko poprawnej pierwszej
 pary zakresu. Poprawne `300 g mąki` i `2 łyżki do smażenia` pozostają czytelne.
 
+#2508: ochronę przed następną granicą stosujemy bezpośrednio po ilości.
+Opis przeznaczenia za nazwą produktu (`300 g mąki do 2 porcji` albo
+`300 g mąki do 2 ciast`) zachowuje 300 g, tak samo jak opis w nawiasie.
+Nie zamienia to `300 g do 400 g` w obsługiwany zakres. Regresja mierzy
+odczyt masy i identyczny wynik pełnej wyceny; mutacja przywraca zbyt
+szerokie przeszukiwanie całego dalszego opisu.
+
 Zmiana obejmuje tylko odczyt tekstu na potrzeby orientacyjnego kosztu
 (D-286). Nie poprawia składników zapisanych przez autora, cen, progu
 pokrycia ani pierwszeństwa kwoty podanej przez autora. `no_amount` i woda

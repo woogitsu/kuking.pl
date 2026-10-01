@@ -90,7 +90,9 @@ final class IloscZTekstu
                 // Nie bierzemy poprawnego początku uszkodzonego zapisu,
                 // także gdy parser znalazł tylko pierwszą liczbę:
                 // „300- g”, „300.5.5” ani „300 g do 400 g”.
-                if (preg_match('/^[.,\/]\d|(?:^|\s)(?:do|lub|albo)\s+\d/', $poDopasowaniu) === 1
+                // Spójnik musi przylegać do ilości. W „300 g mąki do 2 porcji”
+                // późniejsze „do” opisuje przeznaczenie, nie następną granicę.
+                if (preg_match('/^[.,\/]\d|^\s*(?:do|lub|albo)\s+\d/', $poDopasowaniu) === 1
                     || ($slowo === '' && preg_match('/^\s*-\s*\S/', $poDopasowaniu) === 1)) {
                     return null;
                 }

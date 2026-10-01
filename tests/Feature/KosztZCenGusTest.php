@@ -115,6 +115,34 @@ class KosztZCenGusTest extends TestCase
         $this->assertSame(['ilosc' => 300.0, 'miara' => 'g'], IloscZTekstu::rozbierz('300 g mąki'));
     }
 
+    #[Test]
+    public function opis_celu_po_produkcie_nie_kasuje_odczytanej_masy(): void
+    {
+        foreach (['300 g maki do 2 porcji', '300 g mąki do 2 porcji', '300 g maki do 2 ciast', '300 g maki (do 2 ciast)'] as $tekst) {
+            $this->assertSame(
+                ['ilosc' => 300.0, 'miara' => 'g'],
+                IloscZTekstu::rozbierz($tekst),
+                'KOSZT_2508_OPIS_CELU_NIE_KASUJE_MASY',
+            );
+        }
+        $this->assertNull(IloscZTekstu::rozbierz('300 g do 400 g mąki'));
+        $this->assertNull(IloscZTekstu::rozbierz('300.5.5 g mąki'));
+    }
+
+    #[Test]
+    public function opis_celu_zachowuje_kwote_i_pokrycie_pelnej_wyceny(): void
+    {
+        $this->cennik();
+        $bezDopisku = app(SzacunekKosztuZCen::class)->dla($this->przepis(['300 g mąki']));
+        $this->assertNotNull($bezDopisku);
+        $this->assertTrue($bezDopisku->jestPrzedzial());
+        foreach (['300 g mąki do 2 porcji', '300 g mąki do 2 ciast', '300 g mąki (do 2 ciast)'] as $tekst) {
+            $zDopiskiem = app(SzacunekKosztuZCen::class)->dla($this->przepis([$tekst]));
+            $this->assertNotNull($zDopiskiem, 'KOSZT_2508_PELNA_WYCENA_OPISU_CELU');
+            $this->assertEquals($bezDopisku, $zDopiskiem, 'KOSZT_2508_PELNA_WYCENA_OPISU_CELU');
+        }
+    }
+
     // ------------------------------------------------------------------
     // Dopasowanie do cennika
     // ------------------------------------------------------------------
