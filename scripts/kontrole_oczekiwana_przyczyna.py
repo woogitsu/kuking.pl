@@ -35,6 +35,9 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'OCR ignoruje ręczną edycję przed modelem (#2520)': r'REWIZJA_SZKICU_2520_PRZED_MODELEM_',
+    'OCR nadpisuje ręczną edycję po odpowiedzi (#2520)': r'REWIZJA_SZKICU_2520_PO_MODELU_',
+    'OCR ponawia odczyt zmienionego szkicu (#2520)': r'REWIZJA_SZKICU_2520_BEZ_PONOWIENIA',
     'Szyna zeszytu ponownie czyta całą historię (#2030)': r'SZYNA_2030_CALA_HISTORIA',
     'Bieżący eksport pomija wybór Bez ilości (#2476)': r'EKSPORT_BIEZACY_BEZ_ILOSCI',
     'Ukryty przepis nazwany szkicem w eksporcie (#2479)': r'EKSPORT_UKRYTY_NIE_JEST_SZKICEM',

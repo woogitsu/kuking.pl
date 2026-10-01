@@ -502,6 +502,7 @@ final class OdczytZdjeciaKartkiTest extends TestCase
 
             $this->app->call([new OdczytajPrzepis((string) $zlecenie->getKey()), 'handle']);
 
+            $this->assertSame(0, Http::recorded()->count(), 'REWIZJA_SZKICU_2520_PRZED_MODELEM_'.$pole);
             $this->assertSame(ImportPrzepisu::KOD_SZKIC_ZMIENIONY, $zlecenie->fresh()->kod_bledu, 'REWIZJA_SZKICU_2520_PRZED_MODELEM_'.$pole);
             $this->assertSame(ImportPrzepisu::STATUS_NIEUDANY, $zlecenie->fresh()->status);
             $this->assertSame($oczekiwane, $szkic->fresh()->{$pole});
@@ -552,9 +553,9 @@ final class OdczytZdjeciaKartkiTest extends TestCase
 
             $this->app->call([new OdczytajPrzepis((string) $zlecenie->getKey()), 'handle']);
 
+            $this->assertSame($oczekiwane, $szkic->fresh()->{$pole}, 'REWIZJA_SZKICU_2520_PO_MODELU_'.$pole);
             $this->assertSame(ImportPrzepisu::KOD_SZKIC_ZMIENIONY, $zlecenie->fresh()->kod_bledu, 'REWIZJA_SZKICU_2520_PO_MODELU_'.$pole);
             $this->assertSame(ImportPrzepisu::STATUS_NIEUDANY, $zlecenie->fresh()->status);
-            $this->assertSame($oczekiwane, $szkic->fresh()->{$pole});
             $this->assertSame(1, $szkic->fresh()->content_revision);
             $this->actingAs($this->osoba)->get(route('import.show', $zlecenie))
                 ->assertOk()
@@ -571,11 +572,10 @@ final class OdczytZdjeciaKartkiTest extends TestCase
         $poprzednie = $this->zlecenieBezWysylki(ImportPrzepisu::STATUS_NIEUDANY);
         $this->zmienTylkoPoleSzkicu($poprzednie->recipe, 'title');
 
-        $this->actingAs($this->osoba)->post(route('import.ponow', $poprzednie))
-            ->assertRedirect(route('import.show', $poprzednie))
+        $odpowiedz = $this->actingAs($this->osoba)->post(route('import.ponow', $poprzednie));
+        $this->assertSame(1, ImportPrzepisu::query()->count(), 'REWIZJA_SZKICU_2520_BEZ_PONOWIENIA');
+        $odpowiedz->assertRedirect(route('import.show', $poprzednie))
             ->assertSessionHasErrors('ponow');
-
-        $this->assertSame(1, ImportPrzepisu::query()->count());
         Queue::assertNotPushed(OdczytajPrzepis::class);
     }
 

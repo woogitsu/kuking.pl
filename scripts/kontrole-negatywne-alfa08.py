@@ -1845,6 +1845,17 @@ checks = [
     # ma wywrócić architektoniczny test „import nigdy nie publikuje”.
     ("Odczyt kartki publikuje przepis", "app/Jobs/OdczytajPrzepis.php", "test_import_nigdy_nie_publikuje_sprawdzone_w_kodzie",
      lambda s: replace_once(s, "publish: false,", "publish: true,")),
+    # #2520: osobne okna przed płatnym żądaniem, po odpowiedzi modelu pod
+    # blokadą szkicu oraz przy ponawianiu. Każde mierzy prawdziwy zapis autora.
+    ("OCR ignoruje ręczną edycję przed modelem (#2520)", "app/Jobs/OdczytajPrzepis.php",
+     "test_reczna_zmiana_samego_pola_przed_startem_ocr_nie_jest_nadpisywana_ani_wysylana_do_modelu",
+     lambda s: replace_once(s, "        if (! $this->szkicNietkniety($szkic)) {", "        if (false) {")),
+    ("OCR nadpisuje ręczną edycję po odpowiedzi (#2520)", "app/Jobs/OdczytajPrzepis.php",
+     "test_reczna_zmiana_podczas_odczytu_modelu_wygrywa_z_jego_pozniejsza_odpowiedzia",
+     lambda s: replace_once(s, "            if (! $this->szkicNietkniety($swiezy)) {", "            if (false) {")),
+    ("OCR ponawia odczyt zmienionego szkicu (#2520)", "app/Domain/Import/ZlecImportPrzepisu.php",
+     "test_ponowienie_po_samej_recznej_zmianie_pola_nie_rezerwuje_nowego_odczytu",
+     lambda s: replace_once(s, " || $szkic->content_revision !== 0 ||", " ||")),
     # #28: import z adresu chodzi w zadaniu — także ono podlega zakazowi publikacji.
     ("Import z adresu publikuje przepis", "app/Jobs/ImportujPrzepisZAdresu.php", "test_import_nigdy_nie_publikuje_sprawdzone_w_kodzie",
      lambda s: replace_once(s, "use Throwable;\n", "use Throwable;\n\n// publish: true\n")),
