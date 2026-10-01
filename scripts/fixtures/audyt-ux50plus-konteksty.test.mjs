@@ -278,9 +278,12 @@ test('KONTROLA DODATNIA forma: wyrok bez sprawdzenia przewijania przepuściłby 
   assert.deepEqual(ocenZ(zepsute, m), [], 'Mutacja miała ukryć przepełnienie.');
 });
 
-test('forma: audyt ma ekrany z formą, skale 100/150 przy 320 px i wyrok w kodzie wyjścia', () => {
+test('forma: audyt ma skale 100/150 i wybór 200 przy 320 px oraz wyrok w kodzie wyjścia', () => {
   assert.match(ZRODLO, /const FORMA_SZEROKOSC = 320;/);
   assert.match(ZRODLO, /const FORMA_SKALE = \[100, 150\];/);
+  assert.match(ZRODLO, /for \(const skala of \[\.\.\.FORMA_SKALE, 200\]\)/);
+  assert.match(ZRODLO, /if \(skala === 200 && !ekran\.wybor\) continue;/);
+  assert.match(ZRODLO, /sprawdzWyborFormyPoBledzie\(strona\)/);
   assert.match(ZRODLO, /Page\.setFontSizes/);
   assert.match(ZRODLO, /if \(forma\.bledy\.length > 0\) \{[\s\S]*process\.exitCode = 1;/);
 });

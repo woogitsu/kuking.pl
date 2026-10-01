@@ -321,6 +321,7 @@ OCZEKUJ = {
     # w recenzji paczki H z komunikatów porażek po mutacji (lokalnie, PG 55439).
     'Cofnięcie formy zwracania się bez odmowy': r'Rollback przeszedł mimo zapisanego wyboru formy',
     'Anonimizacja zostawia formę zwracania się': r"Failed asserting that 'feminine' is null\.",
+    'Błąd wyboru formy odpięty od pierwszego radia': r'Każde radio musi wskazywać jednocześnie pomoc i błąd',
     'Helper formy ignoruje formę żeńską': (
         r"-'ugotowałaś' \+'gotujesz'"
         r'|contains "Możesz od razu pokazać, co dziś ugotowałaś"'

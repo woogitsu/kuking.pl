@@ -23,7 +23,7 @@
  *   przebieg ORZEKA i ustawia kod wyjścia 1. Ustawia na koncie demo formę
  *   żeńską (przez prawdziwy formularz „Jak mamy do Ciebie pisać?", nie przez
  *   bazę), potem w oknie 320 px, przy tekście 100% i przy czcionce
- *   przeglądarki 150% (CDP `Page.setFontSizes`, jak `PRZEGLADARKA_200` w
+ *   przeglądarki 150% (dla samego wyboru również 200%; CDP `Page.setFontSizes`, jak `PRZEGLADARKA_200` w
  *   `dostepnosc.mjs`), odwiedza ekrany, na których forma jest WIDOCZNA
  *   (`EKRANY_FORMY`), i wymaga: brak przewijania w poziomie, tekst formy
  *   ≥ 18 px, cele formy ≥ 48 px, nic nie ucięte ani poza oknem. Ekran bez
@@ -562,6 +562,45 @@ async function ustawFormeWFormularzu(strona, wartosc) {
   return zaznaczone ? null : `formularz przyjął wybór „${wartosc}", ale po przeładowaniu nie jest zaznaczony`;
 }
 
+/** #2405: prawdziwy formularz przy 320 px / 200%, także po błędzie i z klawiaturą. */
+async function sprawdzWyborFormyPoBledzie(strona) {
+  const radia = strona.locator('#forma-zwracania input[name="form_of_address"]');
+  if (await radia.count() !== 3) return ['brak trzech natywnych pól radio'];
+
+  await radia.nth(0).focus();
+  await strona.keyboard.press('ArrowRight');
+  const strzalkaDziala = await radia.nth(1).isChecked();
+  await radia.evaluateAll((pola) => pola.forEach((pole) => { pole.checked = false; }));
+  await Promise.all([
+    strona.waitForNavigation({ waitUntil: 'domcontentloaded' }),
+    strona.locator('#forma-zwracania button[type="submit"]').click(),
+  ]);
+  await strona.waitForFunction(() => document.activeElement?.classList.contains('error-summary'), null, { timeout: 2000 });
+  const stan = await strona.evaluate(() => {
+    const pola = [...document.querySelectorAll('#forma-zwracania input[name="form_of_address"]')];
+    const grupa = document.querySelector('#f-form_of_address');
+    const blad = document.querySelector('#f-form_of_address-error');
+    const podsumowanie = document.querySelector('.error-summary');
+    return {
+      pola: pola.length,
+      opisane: pola.every((pole) => pole.getAttribute('aria-invalid') === 'true'
+        && ['forma-zwracania-pomoc', 'f-form_of_address-error'].every((id) =>
+          pole.getAttribute('aria-describedby')?.split(/\s+/).includes(id) && document.getElementById(id))),
+      grupa: grupa?.getAttribute('aria-invalid') === 'true',
+      blad: blad?.textContent.includes('Zaznacz jedną z trzech odpowiedzi'),
+      link: !!podsumowanie?.querySelector('a[href="#f-form_of_address"]'),
+      fokus: document.activeElement === podsumowanie,
+      bezPrzewijania: document.documentElement.scrollWidth <= window.innerWidth,
+    };
+  });
+  return [
+    ...(!strzalkaDziala ? ['strzałka nie wybiera następnego radia'] : []),
+    ...(stan.pola !== 3 || !stan.opisane || !stan.grupa || !stan.blad || !stan.link || !stan.fokus
+      ? ['błąd nie jest powiązany z każdym radiem, grupą i podsumowaniem albo fokus nie trafił na podsumowanie'] : []),
+    ...(!stan.bezPrzewijania ? ['po błędzie formularz przewija się poziomo przy 320 px / 200%'] : []),
+  ];
+}
+
 /**
  * Przycisk „Ugotowałam" stoi dopiero na OSTATNIM kroku trybu gotowania, więc
  * idziemy odnośnikami „Następny krok", aż ich nie będzie. Bez tego audyt
@@ -604,13 +643,14 @@ async function przebiegForma(przegladarka, stan, dyn) {
       gotowanieOstatni: dyn.gotowanie ? await ostatniKrokGotowania(stronaUstawien, dyn.gotowanie) : undefined,
     };
 
-    for (const skala of FORMA_SKALE) {
+    for (const skala of [...FORMA_SKALE, 200]) {
       const kontekst = await przegladarka.newContext({
         storageState: stan,
         viewport: { width: FORMA_SZEROKOSC, height: 900 },
         deviceScaleFactor: 1,
       });
       for (const ekran of EKRANY_FORMY) {
+        if (skala === 200 && !ekran.wybor) continue;
         const adres = ekran.dynamiczny ? dynForma[ekran.dynamiczny] : ekran.adres;
         const etykieta = `„${ekran.nazwa}" (${adres || '?'}) ${FORMA_SZEROKOSC} px / czcionka ${skala}%`;
         if (!adres) {
@@ -655,6 +695,9 @@ async function przebiegForma(przegladarka, stan, dyn) {
             naruszenia.push('próg 64rem nadal aktywny przy powiększonej czcionce — zmiana nie dotknęła bazy media queries');
           }
           naruszenia.push(...ocenFormePomiar(m));
+          if (ekran.wybor && skala === 200 && await strona.$('#forma-zwracania')) {
+            naruszenia.push(...await sprawdzWyborFormyPoBledzie(strona));
+          }
           for (const n of naruszenia) bledy.push(`${etykieta}: ${n}`);
           pomiary.push({ ekran: ekran.nazwa, adres, szerokosc: FORMA_SZEROKOSC, skala, ...m, naruszenia });
         } catch (e) {
@@ -781,7 +824,7 @@ async function main() {
   let forma = { pomiary: [], bledy: [] };
   if (!BEZ_FORMY) {
     forma = await przebiegForma(przegladarka, stan, dyn);
-    console.log(`… odbiór formy: ${forma.pomiary.length} pomiarów (${FORMA_SZEROKOSC} px × czcionka ${FORMA_SKALE.join('/')}%), naruszeń: ${forma.bledy.length}`);
+    console.log(`… odbiór formy: ${forma.pomiary.length} pomiarów (${FORMA_SZEROKOSC} px × czcionka ${FORMA_SKALE.join('/')}%, wybór także 200%), naruszeń: ${forma.bledy.length}`);
   }
 
   await przegladarka.close();

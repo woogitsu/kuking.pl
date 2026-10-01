@@ -759,6 +759,8 @@ FORMA_KONIEC_ONBOARDINGU = "resources/views/pages/onboarding/done.blade.php"
 FORMA_ODKRYWANIE = "resources/views/components/pusty-stan-odkrywania.blade.php"
 FORMA_TEKSTY_TEST = "FormaTekstyTest"
 TEKSTY_BEZ_PLCI_TEST = "TekstyNiePrzypisujaPlciTest"
+FORMA_WYBOR_WIDOK = "resources/views/components/wybor-formy.blade.php"
+FORMA_WYBOR_DOSTEPNOSC_TEST = "test_blad_w_ustawieniach_jest_powiazany_z_kazdym_radiem_i_podsumowaniem"
 
 GOOGLE_LINK_WIDOK = "resources/views/auth/google-link.blade.php"
 GOOGLE_LINK_TEST = "test_widoki_nie_przypisuja_czytelnikowi_plci"
@@ -1599,6 +1601,12 @@ checks = [
      lambda s: replace_once(s, "        if ($zWyborem > 0) {\n", "        if (false) {\n")),
     ("Anonimizacja zostawia formę zwracania się", FORMA_WYMAZANIE, FORMA_TEST,
      lambda s: replace_once(s, "                    'form_of_address' => null,\n", "")),
+    # #2405: celowo odpinamy błąd tylko od pierwszego radia. Test musi sprawdzić
+    # KAŻDE radio osobno, a nie sam fieldset albo obecność błędu w dokumencie.
+    ("Błąd wyboru formy odpięty od pierwszego radia", FORMA_WYBOR_WIDOK, FORMA_WYBOR_DOSTEPNOSC_TEST,
+     lambda s: replace_once(s,
+                            'value="{{ \\App\\Models\\Profile::FORM_FEMININE }}"\n                       aria-describedby="{{ $opisFormy }}"',
+                            'value="{{ \\App\\Models\\Profile::FORM_FEMININE }}"\n                       aria-describedby="forma-zwracania-pomoc"')),
     # #1753 (D-332): helper ignoruje formę żeńską; wariant neutralny z rodzajem;
     # goły rodzaj OBOK helpera w tej samej linii (wycinamy tylko argumenty).
     ("Helper formy ignoruje formę żeńską", FORMA_HELPER, FORMA_TEKSTY_TEST,
