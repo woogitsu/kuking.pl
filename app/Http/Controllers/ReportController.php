@@ -53,9 +53,14 @@ class ReportController extends Controller
         // a człowiek, który trafił tu starym odnośnikiem (wersja przestała być
         // najnowsza albo odwrotnie), dostaje właściwy formularz zamiast 404.
         // Tylko komuś, kto przepis i tak widzi — bez wskazywania, że istnieje.
+        //
+        // Przepis usunięty miękko ma `$target->recipe === null` (relacja bez
+        // `withTrashed`) — wtedy przekierowania nie ma, a dalej `authorize()`
+        // daje 404 jak dla każdej niewidocznej treści.
         if ($target instanceof RecipeVersion
-            && HistoriaWersji::numerNajnowszej($target->recipe) === $target->version_number
-            && HistoriaWersji::wolnoOgladac($request->user(), $target->recipe)) {
+            && $target->recipe !== null
+            && HistoriaWersji::wolnoOgladac($request->user(), $target->recipe)
+            && HistoriaWersji::numerNajnowszej($target->recipe) === $target->version_number) {
             return redirect()
                 ->route('reports.create', ['type' => 'recipe', 'id' => $target->recipe->slug])
                 ->with(Komunikat::informacja('To najnowsza wersja, czyli sam przepis. Zgłaszasz więc cały przepis.'));

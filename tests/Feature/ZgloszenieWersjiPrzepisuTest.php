@@ -233,6 +233,43 @@ final class ZgloszenieWersjiPrzepisuTest extends TestCase
     }
 
     #[Test]
+    public function test_wersja_przepisu_usunietego_miekko_to_404_a_nie_500(): void
+    {
+        $przepis = $this->przepis();
+        $stara = $this->wersja($przepis, 1);
+        $najnowsza = $this->wersja($przepis, 3);
+        $obcy = $this->user('obcy');
+
+        // Kontrola dodatnia: przed usunięciem formularz starej wersji działa,
+        // a najnowszej odsyła do przepisu.
+        $this->actingAs($obcy)->get($this->formularz($stara))->assertOk();
+        $this->actingAs($obcy)->get($this->formularz($najnowsza))->assertRedirect();
+
+        $przepis->delete();
+
+        // `$wersja->recipe` jest teraz null (relacja bez withTrashed).
+        $poUsunieciu = [];
+        foreach (['stara' => $stara, 'najnowsza' => $najnowsza] as $nazwa => $wersja) {
+            $poUsunieciu['GET '.$nazwa] = $this->actingAs($obcy)->get($this->formularz($wersja))->getStatusCode();
+            $poUsunieciu['POST '.$nazwa] = $this->actingAs($obcy)
+                ->post(route('reports.store', ['type' => 'recipe_version', 'id' => $wersja->getKey()]), ['reason' => 'personal_data'])
+                ->getStatusCode();
+        }
+        auth()->logout();
+
+        // Gość nie dochodzi do kontrolera: trasa jest za logowaniem (login, nie 500).
+        $poUsunieciu['gość GET'] = $this->get($this->formularz($stara))->getStatusCode();
+        $poUsunieciu['gość POST'] = $this->post(route('reports.store', ['type' => 'recipe_version', 'id' => $stara->getKey()]), ['reason' => 'personal_data'])->getStatusCode();
+
+        $this->assertSame([
+            'GET stara' => 404, 'POST stara' => 404,
+            'GET najnowsza' => 404, 'POST najnowsza' => 404,
+            'gość GET' => 302, 'gość POST' => 302,
+        ], $poUsunieciu);
+        $this->assertSame(0, Report::count());
+    }
+
+    #[Test]
     public function test_nieistniejaca_wersja_i_zly_identyfikator_to_404(): void
     {
         $obcy = $this->user('obcy');
