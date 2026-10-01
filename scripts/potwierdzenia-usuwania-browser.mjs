@@ -49,12 +49,12 @@ function rootWidth(page) {
     scroll: document.documentElement.scrollWidth }));
 }
 
-async function accessibleNameMatchesVisible(summary) {
-  const label = await summary.getAttribute('aria-label');
-  if (!label) return;
-  const visible = await summary.locator('span:visible').allTextContents();
-  const action = visible.map(s => s.trim()).find(Boolean) || (await summary.innerText()).trim();
-  assert.ok(action && label.includes(action), `Nazwa dostępna "${label}" nie odpowiada widocznej akcji "${action}".`);
+async function accessibleNameMatchesVisible(summary, open) {
+  const visible = (await summary.innerText()).trim();
+  const aria = await summary.ariaSnapshot();
+  const expected = open ? /Anuluj|Nie usuwaj/u : /Usuń/u;
+  assert.match(visible, expected, `Nieczytelny widoczny stan pytania: ${visible}`);
+  assert.match(aria, expected, `Nazwa dostępna nie odpowiada stanowi pytania: ${aria}`);
 }
 
 async function checkScreen(page, path, item, id, statePath) {
@@ -81,13 +81,18 @@ async function checkScreen(page, path, item, id, statePath) {
   assert.ok(focus.visible && focus.outline !== 'none', `${item}: brak widocznego fokusu klawiatury.`);
   await page.keyboard.press('Enter');
   assert.notEqual(await details.getAttribute('open'), null, `${item}: Enter nie otworzył pytania.`);
-  await accessibleNameMatchesVisible(summary);
+  await accessibleNameMatchesVisible(summary, true);
   assert.ok((await details.innerText()).includes(before[item].text ?? before[item].name ?? before[item].label));
+  const openWidth = await rootWidth(page);
+  assert.ok(openWidth.scroll <= openWidth.width + 1,
+    `${item}: otwarte pytanie wypycha stronę ${openWidth.scroll} > ${openWidth.width}.`);
+  const questionFont = await details.locator('.confirm-question').evaluate(el => parseFloat(getComputedStyle(el).fontSize));
+  assert.ok(questionFont >= 18, `${item}: tekst pytania ma ${questionFont}px zamiast 18px.`);
   assert.deepEqual(rows(statePath), before, `${item}: samo otwarcie zmieniło dane.`);
   await summary.focus();
   await page.keyboard.press('Enter');
   assert.equal(await details.getAttribute('open'), null, `${item}: Enter nie anulował pytania.`);
-  await accessibleNameMatchesVisible(summary);
+  await accessibleNameMatchesVisible(summary, false);
   assert.deepEqual(rows(statePath), before, `${item}: anulowanie zmieniło dane.`);
   assert.deepEqual(mutations, [], `${item}: otwarcie/anulowanie wysłało zapis HTTP.`);
 
@@ -99,13 +104,22 @@ async function checkScreen(page, path, item, id, statePath) {
   assert.ok(width.scroll <= width.width + 1, `${item}: poziome przewijanie ${width.scroll} > ${width.width}.`);
 
   await summary.click();
+  await accessibleNameMatchesVisible(summary, true);
+  const confirmWidth = await rootWidth(page);
+  assert.ok(confirmWidth.scroll <= confirmWidth.width + 1,
+    `${item}: potwierdzenie wypycha stronę ${confirmWidth.scroll} > ${confirmWidth.width}.`);
   const confirm = details.locator(`form[action$="${target}"] button[type="submit"]`);
   const confirmBox = await confirm.boundingBox();
   const confirmFont = await confirm.evaluate(el => parseFloat(getComputedStyle(el).fontSize));
   assert.ok(confirmBox?.height >= 48, `${item}: potwierdzenie ma mniej niż 48px.`);
   assert.ok(confirmFont >= 18, `${item}: potwierdzenie ma mniej niż 18px.`);
   assert.ok((await confirm.innerText()).includes('usuń') || (await confirm.innerText()).includes('Usuń'));
-  await confirm.click();
+  const [mutation] = await Promise.all([
+    page.waitForResponse(response => response.request().method() === 'POST'
+      && new URL(response.url()).pathname === new URL(target).pathname),
+    confirm.click(),
+  ]);
+  assert.equal(mutation.status(), 302, `${item}: potwierdzenie nie wróciło z formularza DELETE.`);
   assert.equal(rows(statePath)[item], null, `${item}: potwierdzenie nie usunęło rekordu.`);
 }
 
@@ -113,8 +127,9 @@ try {
   const port = await availablePort();
   const base = `http://127.0.0.1:${port}`;
   env.APP_URL = base;
-  server = spawn(php, ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`], {
-    cwd: process.cwd(), env, stdio: 'ignore', windowsHide: true,
+  server = spawn(php, ['-S', `127.0.0.1:${port}`, '-t', '.',
+    join(process.cwd(), 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')], {
+    cwd: join(process.cwd(), 'public'), env, stdio: 'ignore', windowsHide: true,
   });
   let ready = false;
   for (let i = 0; i < 300; i++) {
