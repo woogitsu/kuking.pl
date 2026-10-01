@@ -322,14 +322,18 @@ class WykonaniePamietaWersjePrzepisuTest extends TestCase
     {
         // Przerwane `up()` mogło zostawić bazę bez kolumny; rollback ma to
         // przyjąć, a nie liczyć wskaźników w kolumnie, której nie ma.
+        // Kolumny po każdym kroku, sprawdzone jedną asercją (Larastan 3.12
+        // zawęża powtarzane porównania tego samego odczytu).
         DB::statement('ALTER TABLE cooked_events DROP COLUMN recipe_version_id');
-        $this->assertSame(0, $this->iloscKolumn());
+        $kolumny = ['po przerwanym up' => $this->iloscKolumn()];
 
         Artisan::call('migrate:rollback', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
-        $this->assertSame(0, $this->iloscKolumn());
+        $kolumny['po cofnięciu'] = $this->iloscKolumn();
 
         Artisan::call('migrate', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
-        $this->assertSame(1, $this->iloscKolumn());
+        $kolumny['po ponownym up'] = $this->iloscKolumn();
+
+        $this->assertSame(['po przerwanym up' => 0, 'po cofnięciu' => 0, 'po ponownym up' => 1], $kolumny);
     }
 
     private function iloscKolumn(): int
