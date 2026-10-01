@@ -108,15 +108,26 @@ final class ZaproszenieDoGotowania
     /** Czy token wskazuje link, który jeszcze czeka (bez żadnych skutków). */
     public function poTokenie(string $token): ?CookingSessionInvitation
     {
+        $zaproszenie = $this->poTokenieNawetWygaslym($token);
+
+        return $zaproszenie !== null && $zaproszenie->czeka() ? $zaproszenie : null;
+    }
+
+    /**
+     * Zaproszenie ze skrótem pasującym do tokenu, także WYGASŁE. Służy wyłącznie
+     * do drogi powrotnej uczestnika sesji (ponowne otwarcie dawnego linku ma go
+     * zaprowadzić do sesji); samo w sobie niczego nie wpuszcza. Odwołany link
+     * nie ma skrótu, więc go tu nie znajdziemy.
+     */
+    public function poTokenieNawetWygaslym(string $token): ?CookingSessionInvitation
+    {
         if (mb_strlen($token) !== 40) {
             return null;
         }
 
-        $zaproszenie = CookingSessionInvitation::query()
+        return CookingSessionInvitation::query()
             ->where('token_hash', CookingSessionInvitation::skrotTokenu($token))
             ->first();
-
-        return $zaproszenie !== null && $zaproszenie->czeka() ? $zaproszenie : null;
     }
 
     /**
@@ -167,9 +178,12 @@ final class ZaproszenieDoGotowania
                 throw new BladDlaCzlowieka(self::NIEAKTUALNE);
             }
 
-            // Osoba już jest pomocnikiem — drugie kliknięcie, nic nie robimy.
-            // Odwołany albo wygasły link nie wpuszcza nikogo, także jej.
-            if ($zaproszenie->czeka() && $sesja->maPomocnika($swiezaOsoba)) {
+            // Osoba już jest pomocnikiem — drugie kliknięcie albo powrót po
+            // zamknięciu karty: nic nie robimy i oddajemy sesję, także gdy link
+            // w międzyczasie wygasł (to droga POWROTNA, nie nowe wejście; sesja
+            // trwa, a dostęp do przepisu i tak sprawdza ekran sesji). Odwołany
+            // link nie ma skrótu, więc tu w ogóle nie dochodzimy.
+            if ($sesja->maPomocnika($swiezaOsoba)) {
                 return $sesja;
             }
 

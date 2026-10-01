@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {INTERWAL_MS, komunikatOZmianie, podlaczSprawdzanie} from './postep-gotowania.js';
+import {INTERWAL_MS, komunikatOStatusie, komunikatOZmianie, podlaczSprawdzanie} from './postep-gotowania.js';
 
 test('komunikatOZmianie: ta sama rewizja nie mówi nic (kontrola dodatnia dla reszty)', () => {
     assert.equal(komunikatOZmianie({aktywna: true, rewizja: 3}, 3), null);
@@ -108,4 +108,49 @@ test('komunikatOZmianie: własne zdania wspólnego gotowania (#2385) wypierają 
     assert.match(komunikatOZmianie({aktywna: true, rewizja: 4}, 3, {}), /innym urządzeniu/);
     // Ta sama rewizja nadal nie mówi nic.
     assert.equal(komunikatOZmianie({aktywna: true, rewizja: 3}, 3, teksty), null);
+});
+
+test('komunikatOStatusie: 403 i 404 mówią o końcu sesji tylko gdy strona dała własne zdanie (#2385)', () => {
+    const teksty = {koniec: 'Ta sesja już się skończyła.'};
+
+    assert.equal(komunikatOStatusie(404, teksty), 'Ta sesja już się skończyła.');
+    assert.equal(komunikatOStatusie(403, teksty), 'Ta sesja już się skończyła.');
+    // Kontrola ujemna: błąd serwera, limit żądań i brak własnego zdania (tryb gotowania) milczą.
+    assert.equal(komunikatOStatusie(500, teksty), null);
+    assert.equal(komunikatOStatusie(429, teksty), null);
+    assert.equal(komunikatOStatusie(404, {}), null);
+    assert.equal(komunikatOStatusie(404, {koniec: ''}), null);
+});
+
+test('podlaczSprawdzanie: odpowiedź 404 na stan sesji pokazuje zdanie o końcu sesji', async () => {
+    const t = zbuduj({odpowiedz: async () => ({ok: false, status: 404})});
+    t.pas.dataset.postepKomunikatKoniec = 'Ta sesja już się skończyła albo nie masz do niej dostępu.';
+    podlaczSprawdzanie(t.pas, t.srodowisko);
+    await t.zegar().fn();
+
+    assert.equal(t.pas.hidden, false);
+    assert.match(t.tekst.textContent, /sesja już się skończyła/);
+});
+
+test('podlaczSprawdzanie: 404 bez własnego zdania (tryb gotowania) zostaje po cichu pominięty', async () => {
+    const t = zbuduj({odpowiedz: async () => ({ok: false, status: 404})});
+    podlaczSprawdzanie(t.pas, t.srodowisko);
+    await t.zegar().fn();
+
+    assert.equal(t.pas.hidden, true);
+    assert.equal(t.tekst.textContent, '');
+});
+
+test('podlaczSprawdzanie: tekst trafia do stałego regionu live poza pasem, gdy pas go wskazuje', async () => {
+    const t = zbuduj({odpowiedz: ok({aktywna: false})});
+    const region = {textContent: ''};
+    t.pas.dataset.postepRegion = 'wg-zmiana-tekst';
+    t.pas.dataset.postepKomunikatKoniec = 'Koniec sesji.';
+    t.srodowisko.document.getElementById = (id) => (id === 'wg-zmiana-tekst' ? region : null);
+    podlaczSprawdzanie(t.pas, t.srodowisko);
+    await t.zegar().fn();
+
+    assert.equal(region.textContent, 'Koniec sesji.');
+    assert.equal(t.tekst.textContent, '', 'wnętrze pasa nie jest ruszane');
+    assert.equal(t.pas.hidden, false);
 });

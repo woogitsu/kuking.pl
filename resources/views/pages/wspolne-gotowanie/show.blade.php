@@ -25,12 +25,17 @@
 
         <x-error-summary />
 
-        <div class="cook-sync-zmiana stack" role="status" hidden
+        {{-- Region live jest w DOM od początku i PUSTY; skrypt tylko wstawia w
+             niego tekst, a dopiero potem odkrywa pas z przyciskiem. Region,
+             który pojawia się razem z treścią, bywa przez czytniki ekranu
+             pomijany. --}}
+        <p class="m-0" id="wg-zmiana-tekst" role="status" data-postep-tekst></p>
+        <div class="cook-sync-zmiana stack" hidden
              data-postep-synchronizacja data-postep-rewizja="{{ $sesja->revision }}"
              data-postep-adres="{{ route('wspolne-gotowanie.stan', $sesja) }}"
+             data-postep-region="wg-zmiana-tekst"
              data-postep-komunikat-zmiana="Ktoś z sesji zmienił postęp albo skład sesji."
              data-postep-komunikat-koniec="Ta sesja już się skończyła albo nie masz do niej dostępu.">
-            <p class="m-0" data-postep-tekst>Ktoś z sesji zmienił postęp albo skład sesji.</p>
             <a class="btn btn-secondary" href="{{ route('wspolne-gotowanie.show', $sesja) }}">Odśwież</a>
         </div>
 

@@ -76,6 +76,7 @@ class WspolneGotowanieController extends Controller
         if ($przepis === null || $przepis->trashed() || ! Gate::forUser($osoba)->allows('view', $przepis)) {
             return response()->view('pages.wspolne-gotowanie.przepis-niedostepny', [
                 'jestGospodarzem' => $cookingSession->maGospodarza($osoba),
+                'sesja' => $cookingSession,
             ], 403);
         }
 
@@ -116,8 +117,16 @@ class WspolneGotowanieController extends Controller
     {
         $this->authorize('view', $cookingSession);
 
+        // Członek, który przestał widzieć przepis (zmiana widoczności, blokada),
+        // dostaje 200 z `aktywna: false` — skrypt ma to zamienić w zdanie, a nie
+        // w ciszę. Obcy nie dochodzi tu w ogóle (Policy: 404).
         $przepis = $cookingSession->recipe;
-        abort_if($przepis === null || $przepis->trashed() || ! Gate::forUser($request->user())->allows('view', $przepis), 403);
+
+        if ($przepis === null || $przepis->trashed() || ! Gate::forUser($request->user())->allows('view', $przepis)) {
+            return response()
+                ->json(['aktywna' => false])
+                ->header('Cache-Control', 'no-store, private');
+        }
 
         return response()
             ->json(['aktywna' => true, 'rewizja' => $cookingSession->revision])
@@ -234,7 +243,9 @@ class WspolneGotowanieController extends Controller
     {
         $this->authorize('end', $cookingSession);
 
-        $slug = $cookingSession->recipe?->slug;
+        // Przepis usunięty miękko ma jeszcze slug, ale jego adres daje 404.
+        $przepisZSesji = $cookingSession->recipe;
+        $slug = $przepisZSesji !== null && ! $przepisZSesji->trashed() ? $przepisZSesji->slug : null;
         $this->sesje->zakoncz($request->user(), $cookingSession);
 
         $komunikat = Komunikat::sukces('Sesja zakończona. Wspólny postęp i link zostały usunięte, a pomocnicy nie mają już do nich dostępu.');
@@ -247,9 +258,26 @@ class WspolneGotowanieController extends Controller
     /** Strona linku: niczego nie zużywa, a treść przepisu pokazuje dopiero po `RecipePolicy::view`. */
     public function pokazLink(Request $request, string $token): Response|RedirectResponse
     {
-        $zaproszenie = $this->zaproszenia->poTokenie($token);
+        $zaproszenie = $this->zaproszenia->poTokenieNawetWygaslym($token);
         $sesja = $zaproszenie?->session;
         $osoba = $request->user();
+
+        // DROGA POWROTNA: uczestnik sesji trafia do niej zawsze, dopóki sesja
+        // trwa — także gdy link wygasł (po odwołaniu skrótu już nie ma).
+        // Gospodarz otwierający własny link dostaje wskazanie swojej sesji.
+        if ($sesja !== null && $sesja->trwa() && $sesja->host_id === $osoba->getKey()) {
+            return response()->view('pages.wspolne-gotowanie.link-wlasny', ['sesja' => $sesja], 200)
+                ->header('Referrer-Policy', 'no-referrer');
+        }
+
+        if ($sesja !== null && $sesja->trwa() && $sesja->maPomocnika($osoba)) {
+            return redirect()->route('wspolne-gotowanie.show', $sesja);
+        }
+
+        // Dalej wchodzi tylko link, który nadal czeka.
+        if ($zaproszenie !== null && ! $zaproszenie->czeka()) {
+            $zaproszenie = $sesja = null;
+        }
 
         $przepis = $sesja?->trwa() ? $sesja->recipe : null;
         $moze = $sesja !== null && $przepis !== null && ! $przepis->trashed()
@@ -259,21 +287,10 @@ class WspolneGotowanieController extends Controller
             && ! $osoba->hasBlockRelationWith($sesja->host)
             && Gate::forUser($osoba)->allows('view', $przepis);
 
-        // Gospodarz otwierający własny link: wskazujemy mu jego sesję.
-        if ($sesja !== null && $sesja->trwa() && $sesja->host_id === $osoba->getKey()) {
-            return response()->view('pages.wspolne-gotowanie.link-wlasny', ['sesja' => $sesja], 200)
-                ->header('Referrer-Policy', 'no-referrer');
-        }
-
-        // Już uczestnik tej sesji — wystarczy do niej wejść.
-        if ($sesja !== null && $sesja->trwa() && $sesja->maPomocnika($osoba)) {
-            return redirect()->route('wspolne-gotowanie.show', $sesja);
-        }
-
         // Komplet pomocników: link nie ma już dokąd wpuścić, więc nie kusimy przyciskiem.
         $maxPomocnikow = max(1, (int) config('kuking.wspolne_gotowanie.max_pomocnikow', 3));
 
-        if (! $moze || $sesja->pomocnicy()->count() >= $maxPomocnikow) {
+        if (! $moze || $sesja === null || $zaproszenie === null || $sesja->pomocnicy()->count() >= $maxPomocnikow) {
             return response()->view('pages.wspolne-gotowanie.link-nieaktualny', [], 410)
                 ->header('Referrer-Policy', 'no-referrer');
         }

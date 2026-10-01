@@ -39,9 +39,18 @@ class CookingSessionPolicy
             return Response::denyAsNotFound();
         }
 
-        return $sesja->maGospodarza($user) || $sesja->maPomocnika($user)
-            ? Response::allow()
-            : Response::denyAsNotFound();
+        if (! $sesja->maGospodarza($user) && ! $sesja->maPomocnika($user)) {
+            return Response::denyAsNotFound();
+        }
+
+        // Gospodarz z zamkniętym kontem (zbanowany, do usunięcia, wymazany) nie
+        // prowadzi już sesji: pomocnik widzi tyle, co przy sesji, której nie ma.
+        // Zawieszenie tu nie wchodzi — zawieszony czyta (`mozeCzytac`).
+        if (! $sesja->maGospodarza($user) && ! ($sesja->host?->mozeCzytac() ?? false)) {
+            return Response::denyAsNotFound();
+        }
+
+        return Response::allow();
     }
 
     /** Odhaczanie kroków: członek sesji z aktywnym kontem. */

@@ -624,6 +624,10 @@ const EKRANY = [
   { nazwa: 'historia wersji przepisu', znajdz: 's:historia', wymaga: '.historia-wersja-naglowek' },
   { nazwa: 'historia wersji — jedna wersja', znajdz: 's:wersja', wymaga: 'a:has-text("Zgłoś wersję 2")' },
   { nazwa: 'historia wersji — co się zmieniło', znajdz: 's:zmiany', wymaga: '#hz-skladniki' },
+  // Wspólne gotowanie (#2385): ekran sesji dla gospodarza (panel zapraszania,
+  // odwołanie linku, pomocnicy) i ekran linku dla osoby spoza sesji.
+  { nazwa: 'wspólne gotowanie — ekran sesji', znajdz: 's:wspolneGotowanie', zalogowany: true, wymaga: 'button:has-text("Utwórz nowy link")' },
+  { nazwa: 'wspólne gotowanie — link zaproszenia', znajdz: 's:wspolneGotowanieLink', zalogowany: true, wymaga: 'button:has-text("Dołączam")' },
 ];
 
 /*

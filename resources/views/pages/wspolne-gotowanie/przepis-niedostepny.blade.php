@@ -12,5 +12,20 @@
             @endif
         </p>
         <a class="btn btn-primary" href="{{ route('home') }}">Wróć na Start</a>
+
+        {{-- Obiecujemy wyjście i zakończenie, więc są tu naprawdę (z potwierdzeniem). --}}
+        <div class="danger-zone stack">
+            @if($jestGospodarzem)
+                <x-confirm-button
+                    :action="route('wspolne-gotowanie.destroy', $sesja)"
+                    label="Zakończ sesję"
+                    question="Zakończyć tę sesję? Wspólny postęp i link zostaną usunięte, a pomocnicy stracą dostęp." />
+            @else
+                <x-confirm-button
+                    :action="route('wspolne-gotowanie.leave', $sesja)"
+                    label="Wyjdź z sesji"
+                    question="Wyjść z tej sesji? Odhaczone kroki zostaną u gospodarza, a Ty stracisz dostęp do sesji." />
+            @endif
+        </div>
     </div>
 </x-layout>

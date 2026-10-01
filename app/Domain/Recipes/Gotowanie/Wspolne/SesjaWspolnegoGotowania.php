@@ -10,6 +10,7 @@ use App\Models\CookingSession;
 use App\Models\CookingSessionInvitation;
 use App\Models\Recipe;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -95,6 +96,34 @@ final class SesjaWspolnegoGotowania
                 ->first()
                 ?->delete();
         });
+    }
+
+    /**
+     * Trwające sesje osoby (jako gospodarz albo pomocnik) do wiersza „Gotujesz
+     * razem” na Starcie: najnowsze najpierw, najwyżej trzy. Pokazujemy tylko te,
+     * których przepis ta osoba nadal widzi (`RecipePolicy::view`) i których
+     * gospodarz nie ma zamkniętego konta — tytuł przepisu nie wycieka komuś,
+     * kto nie mógłby go zobaczyć.
+     *
+     * @return Collection<int, CookingSession>
+     */
+    public function aktywneDla(User $osoba): Collection
+    {
+        return CookingSession::query()
+            ->where('expires_at', '>', now())
+            ->where('status', CookingSession::STATUS_ACTIVE)
+            ->where(fn ($q) => $q->where('host_id', $osoba->getKey())
+                ->orWhereIn('id', DB::table('cooking_session_participants')->where('user_id', $osoba->getKey())->select('session_id')))
+            ->with(['recipe', 'host'])
+            ->orderByDesc('updated_at')
+            ->limit(10)
+            ->get()
+            ->filter(fn (CookingSession $s): bool => $s->recipe !== null
+                && ! $s->recipe->trashed()
+                && ($s->host?->mozeCzytac() ?? false)
+                && Gate::forUser($osoba)->allows('view', $s->recipe))
+            ->take(3)
+            ->values();
     }
 
     /** Pomocnik odchodzi. Odhaczenia zostają do końca sesji. Idempotentne. */

@@ -47,6 +47,24 @@ export function komunikatOZmianie(odpowiedz, widzianaRewizja, teksty = {}) {
 }
 
 /**
+ * Odpowiedź serwera inna niż 2xx. 403 i 404 znaczą dla wspólnego gotowania
+ * (#2385), że sesja się skończyła albo osoba straciła do niej dostęp — wtedy
+ * (i tylko gdy strona dała własne zdanie `koniec`) mówimy to wprost, zamiast
+ * milczeć. Inne kody (500, 429, brak sieci) są po cichu pomijane.
+ *
+ * @param {number} status kod HTTP
+ * @param {{koniec?: string}} [teksty]
+ * @returns {string|null}
+ */
+export function komunikatOStatusie(status, teksty = {}) {
+    if ((status === 403 || status === 404) && typeof teksty.koniec === 'string' && teksty.koniec !== '') {
+        return teksty.koniec;
+    }
+
+    return null;
+}
+
+/**
  * @param {HTMLElement} pas element z `data-postep-rewizja` i `data-postep-adres`
  * @param {{fetch: typeof fetch, document: Document, ustawCzas: typeof setInterval}} srodowisko
  */
@@ -58,7 +76,12 @@ export function podlaczSprawdzanie(pas, srodowisko) {
 
     if (!Number.isInteger(rewizja) || adres === '') return;
 
-    const tekst = pas.querySelector('[data-postep-tekst]');
+    // Region live może stać POZA pasem (stały, pusty element w DOM — czytniki
+    // ekranu ogłaszają tekst wstawiony do istniejącego regionu); bez
+    // `data-postep-region` tekst jest w środku pasa jak dawniej.
+    const idRegionu = pas.dataset.postepRegion;
+    const tekst = (idRegionu ? srodowisko.document.getElementById?.(idRegionu) : null)
+        ?? pas.querySelector('[data-postep-tekst]');
     let trwaZapytanie = false;
     let pokazano = false;
 
@@ -72,12 +95,14 @@ export function podlaczSprawdzanie(pas, srodowisko) {
                 headers: {Accept: 'application/json'},
             });
 
-            if (!odp.ok) return;
-
-            const komunikat = komunikatOZmianie(await odp.json(), rewizja, {
+            const teksty = {
                 zmiana: pas.dataset.postepKomunikatZmiana,
                 koniec: pas.dataset.postepKomunikatKoniec,
-            });
+            };
+
+            const komunikat = odp.ok
+                ? komunikatOZmianie(await odp.json(), rewizja, teksty)
+                : komunikatOStatusie(odp.status, teksty);
 
             if (komunikat !== null) {
                 if (tekst) tekst.textContent = komunikat;
