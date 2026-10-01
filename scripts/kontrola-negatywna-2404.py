@@ -65,7 +65,9 @@ def run_test(expected_success: bool) -> None:
     except subprocess.TimeoutExpired as error:
         raise RuntimeError("Test #2404 przekroczył 180 s; to nie jest oczekiwana porażka mutacji.") from error
 
-    output = result.stdout
+    # Artisan koloruje podsumowanie nawet z --no-ansi; kody ANSI potrafią
+    # oddzielić "Tests:" od liczby uruchomionych testów.
+    output = re.sub(r"\x1b\[[0-9;]*m", "", result.stdout)
     print(output, flush=True)
     if "No tests found" in output or not re.search(r"Tests:\s+1(?:\s|,|$)", output):
         raise RuntimeError("Nie ma dowodu, że uruchomił się dokładnie jeden test #2404.")
