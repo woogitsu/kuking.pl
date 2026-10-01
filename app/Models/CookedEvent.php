@@ -27,6 +27,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md` §3.4, POMIAR 2d, wiersz 3).
  * Zakazane jest wyłącznie policzenie JEDNEGO wysłania dwa razy, bo dawało
  * autorowi przepisu dwa powiadomienia za jedno gotowanie.
+ *
+ * `recipe_version_id` (#2378) dodaje migracja surowym SQL-em, którego Larastan
+ * nie odczyta — stąd jawna deklaracja. Poza `$fillable`: ustawia go wyłącznie
+ * `RecordCookedEvent`.
+ *
+ * @property string|null $recipe_version_id
  */
 class CookedEvent extends Model
 {
@@ -76,6 +82,18 @@ class CookedEvent extends Model
     public function recipe(): BelongsTo
     {
         return $this->belongsTo(Recipe::class);
+    }
+
+    /**
+     * Wersja przepisu, z której gotowano (issue #2378). Wskaźnik prywatny dla
+     * kucharza: czyta go wyłącznie `WersjaWykonania`, po `CookedEventPolicy::viewVersion`.
+     * Poza `$fillable`; ustawia go `RecordCookedEvent`.
+     *
+     * @return BelongsTo<RecipeVersion, $this>
+     */
+    public function recipeVersion(): BelongsTo
+    {
+        return $this->belongsTo(RecipeVersion::class);
     }
 
     /**

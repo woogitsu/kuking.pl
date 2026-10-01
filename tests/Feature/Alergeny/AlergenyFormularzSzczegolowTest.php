@@ -202,7 +202,8 @@ final class AlergenyFormularzSzczegolowTest extends TestCase
         // Ta sama lista, bez pola „sprawdzone” — to nie zmiana, więc bez błędu.
         $this->zapisz(['alergeny_formularz' => '1', 'alergeny' => ['eggs'], 'ingredients' => [['text' => 'inna mąka']]])
             ->assertSessionHasNoErrors();
-        $this->assertSame('needs_review', $this->stanOznaczenia());
+        // Świeży odczyt z bazy (Larastan 3.12 pamięta wynik `stanOznaczenia()` z asercji wyżej).
+        $this->assertSame('needs_review', (string) Recipe::query()->whereKey($this->przepis->getKey())->value('allergen_status'));
 
         // Zaznaczenie pola „sprawdzone” przy tej samej liście potwierdza ponownie.
         $this->zapisz(['alergeny_formularz' => '1', 'alergeny' => ['eggs'], 'alergeny_potwierdzone' => '1', 'ingredients' => [['text' => 'inna mąka']]])

@@ -46,6 +46,7 @@ use App\Domain\Moderation\Actions\RestoreContent;
 use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
 use App\Domain\Moderation\NowaDecyzja;
 use App\Domain\Pantry\CoMamWDomu;
+use App\Domain\Pantry\ZmienTerminProduktu;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Recipes\Alergeny\DeklaracjaAlergenow;
@@ -76,6 +77,7 @@ use App\Models\ContactMessage;
 use App\Models\CookingProgress;
 use App\Models\CookingSession;
 use App\Models\ImportPrzepisu;
+use App\Models\PantryItem;
 use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -715,6 +717,15 @@ try {
         'dodaj-do-pantry' => (string) app(CoMamWDomu::class)
             ->dodaj(User::query()->whereKey($argumenty['kto'])->firstOrFail(), $argumenty['nazwa'])['produkt']
             ->getKey(),
+
+        // Edycja terminu produktu (#1903): prawdziwa akcja domenowa. Model
+        // wczytujemy PRZED blokadą wiersza, jak kontroler.
+        'ustaw-termin-pantry' => (function () use ($argumenty): string {
+            $produkt = PantryItem::query()->findOrFail($argumenty['produkt']);
+
+            return app(ZmienTerminProduktu::class)
+                ->handle($produkt, (array) json_decode($argumenty['dane'], true), '2026-10-10') ? 'zapisano' : 'brak';
+        })(),
 
         // Zastąpienie wyboru redakcyjnego (#1027): prawdziwe akcje domenowe,
         // bariera po ich własnym DELETE.

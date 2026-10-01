@@ -203,6 +203,18 @@ class CoUgotujeNajpierwTerminTest extends TestCase
         $this->assertNull($wiersze[0]->user_id);
     }
 
+    public function test_sygnal_trybu_termin_leci_raz_na_sesje_a_nie_przy_kazdym_wejsciu_na_pierwsza_strone(): void
+    {
+        $ja = $this->user();
+        $this->lista($ja, ['mleko' => '2026-10-11']);
+
+        $this->actingAs($ja)->get(route('pantry.cook', ['najpierw' => 'termin']))->assertOk();
+        $this->get(route('pantry.cook', ['najpierw' => 'termin']))->assertOk();
+        $this->get(route('pantry.cook', ['najpierw' => 'termin', 'od' => 0]))->assertOk();
+
+        $this->assertSame(1, ProductSignal::query()->where('signal_name', ZapiszSygnal::PANTRY_COOK_PRIORITY_VIEWED)->count());
+    }
+
     public function test_tryb_termin_dziala_i_stronicuje_na_wielu_przepisach(): void
     {
         $ja = $this->user();

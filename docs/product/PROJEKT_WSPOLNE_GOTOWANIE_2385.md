@@ -144,7 +144,7 @@ etap 2 (pytanie 3).
   1. **Przycisk „Odśwież”** (zwykły link, działa bez JS) — zawsze widoczny.
   2. **Krótki polling tylko jako ulepszenie**: istniejący skrypt
      `postep-gotowania.js` (ten sam co w #2016) co 30 s, tylko gdy karta jest
-     widoczna, pyta `GET …/stan` o samą rewizję (JSON, jedno zapytanie po
+     widoczna, pyta `GET /gotowanie-razem/{cookingSession}/stan` o samą rewizję (JSON, jedno zapytanie po
      kluczu) i, gdy jest inna, pokazuje pas „Druga osoba zmieniła postęp —
      Odśwież”; po pokazaniu pasa przestaje pytać. **Nie przeładowuje strony
      sam** (gotujący ma brudne ręce i czyta krok; niespodziewane

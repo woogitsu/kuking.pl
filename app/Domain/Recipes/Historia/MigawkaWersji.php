@@ -18,9 +18,10 @@ use App\Models\Recipe;
  * klasa więc nigdy nie sięga do przepisu — czyta wyłącznie to, co leży
  * w migawce, a nieobecny klucz odróżnia od pustego przez `maKlucz()`.
  *
- * CZEGO TU CELOWO NIE MA: `editor_id`, wykonań (`cooked_events` nie zapisują
- * numeru wersji, więc nic nie wolno sugerować o tym, z której wersji ktoś
- * gotował) i zdjęć (migawka ich nie obejmuje).
+ * CZEGO TU CELOWO NIE MA: `editor_id`, wykonań (publiczna historia nic nie
+ * sugeruje o tym, z której wersji ktoś gotował; wskaźnik z #2378 jest
+ * prywatny dla kucharza i czyta go `WersjaWykonania`) i zdjęć (migawka ich
+ * nie obejmuje).
  */
 final class MigawkaWersji
 {

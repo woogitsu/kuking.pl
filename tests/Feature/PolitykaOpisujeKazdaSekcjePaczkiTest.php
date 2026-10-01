@@ -59,6 +59,7 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
         'wspolne_gotowanie' => '| Wspólne gotowanie |',
         'ukryte' => '| Ukrywanie wpisów i osób',
         'moje_reakcje' => '| Reakcja „Smakowicie wygląda”',
+        'moje_podziekowania' => '| „Dziękuję” pod cudzym komentarzem',
         'powiadomienia' => '| Powiadomienia w serwisie |',
         'zdjecia' => '| Publikowanie treści | zdjęcia',
         'dziennik_zgod' => 'ustawienia konta, zgody',
@@ -73,6 +74,7 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
         'decyzje_moderacji' => '| Obsługa zgłoszeń i moderacji |',
         'odwolania' => 'rozstrzygnięcia odwołania',
         'planer' => '| Plan na tydzień |',
+        'dawne_nazwy_profilu' => 'Gdy zmienisz nazwę użytkownika, zapamiętujemy dotychczasową',
     ];
 
     /**

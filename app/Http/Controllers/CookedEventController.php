@@ -12,6 +12,8 @@ use App\Domain\Recipes\Actions\UsunWykonanie;
 use App\Domain\Recipes\Actions\ZapiszWykonanieZFormularza;
 use App\Domain\Recipes\Actions\ZbierzZdjeciaWykonania;
 use App\Domain\Recipes\Gotowanie\JakWyszlo;
+use App\Domain\Recipes\Gotowanie\WersjaWykonania;
+use App\Domain\Recipes\Historia\MigawkaWersji;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Exceptions\BladZdjecFormularza;
 use App\Http\Requests\Cooked\KomentarzWykonaniaRequest;
@@ -23,8 +25,10 @@ use App\Models\Notification;
 use App\Models\Recipe;
 use App\Support\Komunikat;
 use App\Support\OdpowiedziWatku;
+use App\Support\StaryAdresPrzepisu;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -63,19 +67,41 @@ class CookedEventController extends Controller
         private readonly UsunWykonanie $usunWykonanie,
     ) {}
 
-    public function create(Request $request, string $recipe): View
+    public function create(Request $request, string $recipe): View|RedirectResponse
     {
-        $model = Recipe::where('slug', $recipe)->firstOrFail();
+        $model = Recipe::where('slug', $recipe)->first();
+        if ($model === null) {
+            return StaryAdresPrzepisu::przekieruj($request, $recipe, 'cooked.create', 'cook');
+        }
         $this->authorize('cook', $model);
 
         return view('pages.cooked.create', [
             'recipe' => $model->load(['author.profile', 'heroMedia']),
             'kluczWyslania' => $this->kluczDlaFormularza(),
+            'wersjaPrzepisu' => $this->wersjaDlaFormularza($model),
             // Zdjęcia, które przetrwały błąd innego pola (issue #872). Lista
             // z `old()` to dane od klienta — przechodzi tę samą bramkę co
             // przy zapisie, zanim dotknie zapytania (issue #871).
             'zachowane' => $this->zdjecia->zachowane(old('media_ids', []), $request->user()),
         ]);
+    }
+
+    /**
+     * Wersja przepisu, którą człowiek ma przed oczami przy otwarciu
+     * formularza (issue #2378). `old()` pierwsze: po błędzie walidacji
+     * formularz ma pamiętać wersję z pierwszego otwarcia, nie z ponowienia.
+     */
+    private function wersjaDlaFormularza(Recipe $recipe): ?string
+    {
+        $stara = old('wersja_przepisu');
+
+        if (is_string($stara) && Str::isUuid($stara)) {
+            return $stara;
+        }
+
+        $id = $recipe->versions()->orderByDesc('version_number')->value('id');
+
+        return $id === null ? null : (string) $id;
     }
 
     /**
@@ -166,6 +192,7 @@ class CookedEventController extends Controller
                 mediaIds: $mediaIds,
                 ip: $request->ip(),
                 kluczWyslania: $request->kluczWyslania(),
+                wersjaPrzepisuId: $request->wersjaPrzepisu(),
             );
         } catch (BladDlaCzlowieka $e) {
             return back()->withInput($request->wejscieBezPlikow($mediaIds))->withErrors(['note' => $e->getMessage()]);
@@ -228,11 +255,41 @@ class CookedEventController extends Controller
 
         return view('pages.cooked.show', [
             'event' => $cookedEvent,
+            // Tylko dla kucharza (#2378): przypięta wersja albo `null`.
+            // Obcy nie dostaje nawet informacji, że wskaźnik istnieje.
+            'wersjaWykonania' => $cookedEvent->user_id === $request->user()?->getKey()
+                ? WersjaWykonania::dla($cookedEvent, $request->user())
+                : null,
+            'maPrzypietaWersje' => $cookedEvent->user_id === $request->user()?->getKey()
+                && $cookedEvent->recipe_version_id !== null,
             'komentarze' => $komentarze,
             // Nagłówek „Komentarze (N)” mówi o CAŁEJ rozmowie razem
             // z odpowiedziami, jak karta wpisu i strona przepisu (D-281,
             // D-309). `total()` liczy same wątki, więc zostaje do paginacji.
             'komentarzyRazem' => Comment::policzRozmowe($cookedEvent->comments(), $request->user()),
+        ]);
+    }
+
+    /**
+     * „Wersja z tego gotowania" (issue #2378) — prywatny powrót kucharza do
+     * wersji przepisu, z której gotował. Obcy dostaje 404, nie 403: nie
+     * zdradzamy, że wykonanie ma przypiętą wersję. Brak dostępu do samej
+     * wersji (ukryta, usunięta przez retencję, przepis prywatny) to zwykła
+     * strona z komunikatem — bez tytułu i treści.
+     */
+    public function wersja(Request $request, CookedEvent $cookedEvent): View
+    {
+        // 404, nie 403: obcy nie dowiaduje się, że takie wykonanie istnieje.
+        abort_unless(Gate::forUser($request->user())->allows('viewVersion', $cookedEvent), 404);
+
+        $cookedEvent->loadMissing('recipe.author');
+        $wersja = WersjaWykonania::dla($cookedEvent, $request->user());
+
+        return view('pages.cooked.wersja', [
+            'event' => $cookedEvent,
+            'recipe' => $wersja === null ? null : $cookedEvent->recipe,
+            'wersja' => $wersja,
+            'migawka' => $wersja === null ? null : new MigawkaWersji($wersja->snapshot ?? []),
         ]);
     }
 

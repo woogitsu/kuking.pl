@@ -605,6 +605,23 @@ egzekwuje.
 - **Eksport:** `moje_reakcje`, `reakcje_otrzymane` (nazwa tylko przy osobach
   widocznych dla autora), `reakcje_otrzymane_od_osob_niewidocznych` (liczba).
 
+### 3.21a „Dziękuję” pod komentarzem (issue #2355, F11)
+
+- **Cel:** autor wpisu, przepisu albo wykonania kwituje cudzy komentarz
+  jednym kliknięciem, bez pisania odpowiedzi.
+- **Dane:** komentarz, autor treści, który podziękował, chwila
+  (`comment_thanks`); powiadomienie `comment.thanked` dla autora komentarza
+  (jak §3.11).
+- **Podstawa:** art. 6 ust. 1 lit. b RODO — **do potwierdzenia przez
+  prawnika**.
+- **Odbiorcy:** Railway; stan „podziękowano” widzą wyłącznie dwie osoby —
+  dziękujący i autor komentarza. Bez licznika i bez wpływu na kolejność
+  treści.
+- **Termin usunięcia:** do usunięcia komentarza (twarde usunięcie kasuje
+  wiersz kaskadą) albo do wymazania konta — każdej ze stron (`EraseAccountData`).
+  Wycofania samego podziękowania nie ma.
+- **Eksport:** `moje_podziekowania`; otrzymane — w `powiadomienia`.
+
 ### 3.22 Lista „Co mam w domu” (V2, D-285)
 
 - **Cel:** „Co ugotuję z tego, co mam” — podpowiedź przepisów.
