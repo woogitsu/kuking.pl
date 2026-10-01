@@ -9,6 +9,7 @@ use App\Models\Recipe;
 use App\Models\RecipeStep;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -78,6 +79,35 @@ class TerminyKulinarneWTrybieGotowaniaTest extends TestCase
         $this->assertSame(['Szumowiny', 'Redukować'], $nazwy('Zbierz szumowiny, a potem Redukuj płyn.'));
         $this->assertSame([], $nazwy('Zważ mąkę, ugotuj makaron i podaj z masłem.'));
         $this->assertSame([], $nazwy('Połóż ciasto na poduszce z ręcznika.'), 'Rdzeń liczy się od granicy słowa, nie ze środka.');
+    }
+
+    /** @return array<string, array{0: string}> */
+    public static function odmianaPasteryzacji(): array
+    {
+        return [
+            'polecenie' => ['Pasteryzuj słoiki.'],
+            'bezokolicznik' => ['Pasteryzować przetwory.'],
+            'rzeczownik' => ['Metoda pasteryzacji zależy od produktu.'],
+            'dokonane' => ['Spasteryzuj przetwory.'],
+        ];
+    }
+
+    #[DataProvider('odmianaPasteryzacji')]
+    public function test_objasnienie_pasteryzacji_nie_poleca_piekarnika_ani_dowolnych_parametrow_autora(string $instruction): void
+    {
+        $recipe = $this->przepisZKrokiem($instruction);
+        $html = (string) $this->get(route('cooking.show', $recipe->slug))->assertOk()->getContent();
+
+        $this->assertSame(1, preg_match('/<details class="cook-terminy".*?<\/details>/s', $html, $block));
+        $this->assertStringContainsString('Pasteryzować', $block[0]);
+        $this->assertStringContainsString('Nie utrwalaj napełnionych słoików w zwykłym piekarniku.', $block[0], 'PASTERYZACJA_BEZ_PIEKARNIKA');
+        $this->assertStringNotContainsString('w gorącej wodzie lub piekarniku', $block[0], 'PASTERYZACJA_BEZ_PIEKARNIKA');
+        $this->assertStringContainsString('przebadanych zaleceń dla konkretnego produktu i składu', $block[0], 'PASTERYZACJA_BEZ_PIEKARNIKA');
+        $this->assertStringContainsString('Sama gorąca woda nie wystarcza dla wszystkich przetworów.', $block[0], 'PASTERYZACJA_BEZ_PIEKARNIKA');
+        $this->assertStringNotContainsString('Temperaturę i czas podaje autor przepisu', $block[0], 'PASTERYZACJA_BEZ_PIEKARNIKA');
+        $this->assertStringContainsString('To objaśnienie słowa, nie ocena bezpieczeństwa przepisu.', $block[0], 'PASTERYZACJA_UWAGA_NIE_GWARANTUJE');
+        $this->assertStringNotContainsString('trzymaj się tego, co napisał autor', $block[0], 'PASTERYZACJA_UWAGA_NIE_GWARANTUJE');
+        $this->assertStringContainsString($instruction, $html, 'Treść przepisu użytkownika ma pozostać bez zmian.');
     }
 
     public function test_slownik_ma_poprawna_budowe_i_zasady_tekstow(): void

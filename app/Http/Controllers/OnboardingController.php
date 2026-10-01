@@ -13,6 +13,7 @@ use App\Http\Requests\Onboarding\ZapisZainteresowanRequest;
 use App\Models\Tag;
 use App\Support\Komunikat;
 use App\Support\PowrotDoRozmowy;
+use App\Support\ZamiarDolaczeniaDoZeszytu;
 use App\Support\ZamiarObserwowania;
 use App\Support\ZamiarUgotowania;
 use App\Support\ZamiarZapisu;
@@ -102,7 +103,7 @@ class OnboardingController extends Controller
         return $komunikat === null ? $dalej : $dalej->with(Komunikat::blad($komunikat));
     }
 
-    public function done(Request $request, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie, PowrotDoRozmowy $rozmowa, ZamiarZapisu $zapis): View|RedirectResponse
+    public function done(Request $request, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie, PowrotDoRozmowy $rozmowa, ZamiarZapisu $zapis, ZamiarDolaczeniaDoZeszytu $dolaczenie): View|RedirectResponse
     {
         // Bez zapisu stanu konta: GET może przyjść z prefetchu przeglądarki,
         // więc samo otwarcie tej strony nie wyłącza przypomnienia (#985).
@@ -133,6 +134,11 @@ class OnboardingController extends Controller
         // „Zapisz do zeszytu” (#2028): wracamy na przepis z ROZWINIĘTYM
         // wyborem zeszytu. Nic nie zapisujemy — robi to dopiero klik człowieka.
         if ($cel = $zapis->celPoOnboardingu($request)) {
+            return redirect()->to($cel);
+        }
+
+        // Zaproszenie wraca tylko na podgląd. Przyjęcie wymaga osobnego POST.
+        if ($cel = $dolaczenie->celPoOnboardingu($request)) {
             return redirect()->to($cel);
         }
 

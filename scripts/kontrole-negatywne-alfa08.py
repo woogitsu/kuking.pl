@@ -1282,6 +1282,33 @@ checks = [
      lambda s: replace_once(s, "&& $request->isMethod('GET')\n            && $response->isSuccessful()\n            && str_starts_with((string) $response->headers->get('Content-Type'), 'text/html')", "&& true")),
     ("Dyktowanie odblokowuje wszystkie trasy (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_zalogowanie_nie_odblokowuje_mikrofonu_na_innych_ekranach",
      lambda s: replace_once(s, "&& $request->routeIs(...self::TRASY_DYKTOWANIA)", "&& true")),
+    # #2291: regresja domyślnej konfiguracji ma zapalić odczyt `SHOW jit` na
+    # rzeczywistym nowym połączeniu PostgreSQL, nie tylko test tekstu configu.
+    ("Domyslny JIT wraca na polaczeniu PostgreSQL (#2291)", "config/database.php", "PolaczenieBazyMaWylaczonyJitTest::swieze_polaczenie_aplikacji_ma_jit_off",
+     lambda s: replace_once(s, "'server_options' => ['jit' => env('DB_JIT') ?: 'off'],", "'server_options' => ['jit' => env('DB_JIT') ?: 'on'],")),
+    # #2455: bez gałęzi liczby grupowanej parser zostawia ilość bez zmiany.
+    # Data provider wymaga prawidłowego wyniku także dla NBSP i zakresów.
+    ("Grupowanie tysięcy rozbite na fragmenty (#2455)", "app/Domain/Recipes/Porcje/PrzeliczSkladnik.php", "test_grupowanie_tysiecy_przelicza_cala_ilosc",
+     lambda s: replace_once(s, "|'.self::GRUPOWANA.'|", "|")),
+    # #2445: prawdziwe `porownaj()` ma nie zgubić czasu w żadnej gałęzi luki.
+    ("Historia: zmieniony krok gubi minutnik", "app/Domain/Recipes/Historia/PorownanieWersji.php", "test_zmiana_tekstu_i_minutnika_pokazuje_czasy_obu_migawek",
+     lambda s: replace_once(s, "'przed' => $stare[$lukaStare[$p]]['instruction'].($pokazMinutnik ? self::opisMinutnika($staryCzas) : ''),",
+                            "'przed' => $stare[$lukaStare[$p]]['instruction'],")),
+    ("Historia: dodany krok gubi minutnik", "app/Domain/Recipes/Historia/PorownanieWersji.php", "test_dodany_i_usuniety_krok_pokazuja_wlasny_minutnik_lub_sam_tekst",
+     lambda s: replace_once(s, "'po' => $nowe[$j]['instruction'].$minutnik]", "'po' => $nowe[$j]['instruction']]")),
+    ("Historia: usunięty krok gubi minutnik", "app/Domain/Recipes/Historia/PorownanieWersji.php", "test_dodany_i_usuniety_krok_pokazuja_wlasny_minutnik_lub_sam_tekst",
+     lambda s: replace_once(s, "'przed' => $stare[$i]['instruction'].$minutnik", "'przed' => $stare[$i]['instruction']")),
+    # #2400: cofnięcie porównania pod zamkiem musi pozwolić starej karcie
+    # nadpisać B przez C i oblać test na zapisanej wartości, nie na otoczeniu.
+    ("Stara karta nadpisuje nowszą notatkę (#2400)", "app/Domain/Collections/Actions/UpdateCollectionItemNote.php",
+     "test_stara_karta_nie_nadpisuje_nowszej_notatki_a_szkic_mozna_swiadomie_zapisac",
+     lambda s: replace_once(s,
+         "if (! preg_match('/\\A[a-f0-9]{64}\\z/D', $oczekiwanyOdcisk)\n                || ! hash_equals(self::odcisk($pozycja->note), $oczekiwanyOdcisk)) {",
+         "if (false) {")),
+    ("Pasteryzacja znów zaleca piekarnik (#2434)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_objasnienie_pasteryzacji_nie_poleca_piekarnika_ani_dowolnych_parametrow_autora",
+     lambda s: replace_once(s, "Ogrzewać przetwory, by ograniczyć drobnoustroje. Metodę, czas i temperaturę dobierz z przebadanych zaleceń dla konkretnego produktu i składu. Nie utrwalaj napełnionych słoików w zwykłym piekarniku. Sama gorąca woda nie wystarcza dla wszystkich przetworów.", "Podgrzewać zamknięte słoiki z zawartością w gorącej wodzie lub piekarniku, żeby przetwory dłużej się trzymały. Temperaturę i czas podaje autor przepisu, więc trzymaj się dokładnie jego wskazówek.")),
+    ("Uwaga słownika gwarantuje parametry autora (#2434)", "resources/views/components/terminy-kroku.blade.php", "test_objasnienie_pasteryzacji_nie_poleca_piekarnika_ani_dowolnych_parametrow_autora",
+     lambda s: replace_once(s, "To objaśnienie słowa, nie ocena bezpieczeństwa przepisu. Przy przetworach korzystaj z przebadanych zaleceń dla konkretnego produktu.", "To ogólne wyjaśnienie, nie część przepisu — w razie wątpliwości trzymaj się tego, co napisał autor.")),
     # #2421: w oknie <= 16rem przy tekście 125/140% pasek górny odpina się,
     # bo kolumnowy znak robi go wyższym niż rezerwa nad nim (WCAG 2.4.11).
     ("Pasek przy kolumnowym znaku znowu przypięty", "resources/css/marka-rama.css", "PasekPrzyKolumnowymZnakuTest",
@@ -1306,6 +1333,14 @@ checks = [
      lambda s: replace_once(s, "        $rozmowa->przypiszKonto($request);\n", "")),
     ("Nowe konto Facebook gubi powrót do rozmowy", POWROT_KOMENTARZA_FACEBOOK, POWROT_KOMENTARZA_FACEBOOK_TEST,
      lambda s: replace_once(s, "        $rozmowa->przypiszKonto($request);\n", "")),
+    # #2420: każdy z trzech sposobów zakładania konta musi przejąć
+    # zaproszenie z sesji. Znacznik asercji wskazuje dokładnie ten powrót.
+    ("Rejestracja hasłem gubi zaproszenie do zeszytu (#2420)", "app/Http/Controllers/Auth/RegisterController.php", "test_gosc_po_rejestracji_i_pominieciu_wraca_na_podglad_a_dolacza_dopiero_po_kliknieciu",
+     lambda s: replace_once(s, "        $dolaczenie->przypiszKonto($request);\n", "")),
+    ("Nowe konto Google gubi zaproszenie do zeszytu (#2420)", POWROT_KOMENTARZA_GOOGLE, "test_nowe_konto_google_wraca_do_podgladu_zaproszenia_do_zeszytu",
+     lambda s: replace_once(s, "        $dolaczenie->przypiszKonto($request);\n", "")),
+    ("Nowe konto Facebook gubi zaproszenie do zeszytu (#2420)", POWROT_KOMENTARZA_FACEBOOK, "test_nowe_konto_facebook_wraca_do_podgladu_zaproszenia_do_zeszytu",
+     lambda s: replace_once(s, "        $dolaczenie->przypiszKonto($request);\n", "")),
     # #1868: instalacja bez wskazania migawki wróciłaby do ruchomego mirrora.
     ("APT install bez migawki", OBRAZ_KOPII, APT_MIGAWKA_TEST,
      lambda s: replace_once(s,
@@ -2210,6 +2245,9 @@ checks = [
      lambda s: replace_once(s, ' role="group" aria-label="Postęp zakładania konta"', '')),
     ("Odwołanie od blokady CSAM bez ochrony decyzji (#2427)", "app/Domain/Moderation/Actions/ResolveAppeal.php", "OdwolanieOdBlokadyCsamTest",
      lambda s: replace_once(s, "&& $this->blokadaZDowodem($decyzja)", "&& false")),
+    ("Fixture wspomnienia znika po północy w Polsce", "scripts/fixtures/rocznice-wykonania-s.php",
+     "test_fixture_pomiaru_pokazuje_wspomnienie_po_polnocy_w_polsce",
+     lambda s: replace_once(s, "$dzis->copy()->addDay()->subYear()", "$dzis->copy()->subYear()")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

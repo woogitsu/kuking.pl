@@ -37,7 +37,7 @@ class PolaczenieBazyMaWylaczonyJitTest extends TestCase
     #[Test]
     public function swieze_polaczenie_aplikacji_ma_jit_off(): void
     {
-        $this->assertSame('off', $this->jitNaSwiezymPolaczeniu());
+        $this->assertSame('off', $this->jitNaSwiezymPolaczeniu(), 'JIT_2291_SWIEZA_SESJA_WYMAGA_OFF');
     }
 
     #[Test]

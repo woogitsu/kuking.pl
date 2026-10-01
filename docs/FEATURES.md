@@ -130,7 +130,10 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 - zamienniki — **od autora wdrożone (D-284)**: tekst przy składniku,
   „Zamiast tego: …” na stronie przepisu; podpowiedzi AI — jeszcze nie;
 - skalowanie porcji — **wdrożone (D-284)**: „Na ile porcji?” na stronie
-  przepisu, ilości przeliczane z tekstu składnika, zaokrąglenie kuchenne;
+  przepisu, ilości przeliczane z tekstu składnika, zaokrąglenie kuchenne.
+  Liczby grupowane co trzy cyfry zwykłą spacją, NBSP lub wąską NBSP są
+  odczytywane w całości (#2455); błędne albo niejednoznaczne grupowanie
+  pozostaje tekstem autora, bez częściowego przeliczenia;
 - wartości odżywcze — szacunek na porcję z tabel CIQUAL/USDA, wdrożone (D-299); bez filtrów dietetycznych i bez profilu diety;
 - koszt;
 - native apps, jeśli PWA potwierdzi retencję.

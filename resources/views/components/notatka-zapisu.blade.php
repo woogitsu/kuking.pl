@@ -24,6 +24,14 @@
     $wiersz = 'notatka-'.$typ.'-'.$pozycja->getKey();
     $worek = \App\Domain\Collections\Actions\UpdateCollectionItemNote::WOREK_BLEDOW;
     $zBledem = \App\Support\WierszFormularza::jestAktywny($wiersz) && $errors->getBag($worek)->any();
+    $konflikt = $zBledem && $errors->getBag($worek)->first('note') === \App\Domain\Collections\Actions\UpdateCollectionItemNote::BLAD_KONFLIKTU;
+    $odciskWidoczny = \App\Domain\Collections\Actions\UpdateCollectionItemNote::odcisk($notatka);
+    // Po zwykłym błędzie walidacji szkic nadal odnosi się do starej wersji.
+    // Jedynie konflikt odświeża odcisk dla świadomego zastąpienia.
+    $staryOdcisk = old('_odcisk_notatki');
+    if ($zBledem && ! $konflikt && is_string($staryOdcisk) && preg_match('/\A[a-f0-9]{64}\z/D', $staryOdcisk)) {
+        $odciskWidoczny = $staryOdcisk;
+    }
 @endphp
 @if($jestWlascicielem)
     <div class="notatka-zapisu">
@@ -37,18 +45,22 @@
                 <span class="whitespace-pre-line">{{ $notatka }}</span>
             </p>
         @endif
+        @if($konflikt && ($notatka === null || $notatka === ''))
+            <p class="notatka-zapisu-tresc">Obecna notatka w zeszycie jest pusta.</p>
+        @endif
         <details class="mt-2" @if($zBledem) open @endif>
             <summary class="btn btn-quiet inline-flex">{{ $notatka ? 'Zmień notatkę' : ($wspolny ? 'Dodaj notatkę' : 'Dodaj notatkę dla siebie') }}</summary>
             <form class="mt-2" method="POST" action="{{ route('collections.note', ['collection' => $zeszyt, 'typ' => $typ, 'pozycja' => $pozycja->getKey()]) }}">
                 @csrf
                 @method('PATCH')
                 <input type="hidden" name="_wiersz" value="{{ $wiersz }}">
+                <input type="hidden" name="_odcisk_notatki" value="{{ $odciskWidoczny }}">
                 <x-field name="note" :wiersz="$wiersz" :error-bag="$worek" :label="$wspolny ? 'Notatka' : 'Notatka dla siebie'" type="textarea" :rows="3" dyktowanie
                          :value="$notatka" :licznik-znakow="\App\Domain\Collections\Actions\UpdateCollectionItemNote::LIMIT_ZNAKOW"
                          :help="$wspolny
                             ? 'Widzą ją osoby, które mają dostęp do tego zeszytu. Nie zobaczy jej autor ani nikt inny, kto ogląda ten zeszyt. Żeby ją usunąć, wyczyść pole i zapisz.'
                             : 'Widzisz ją tylko Ty — nie zobaczy jej autor ani nikt, kto ogląda ten zeszyt. Żeby ją usunąć, wyczyść pole i zapisz.'" />
-                <button class="btn btn-primary" type="submit">Zapisz notatkę</button>
+                <button class="btn btn-primary" type="submit">{{ $konflikt ? 'Zastąp obecną notatkę' : 'Zapisz notatkę' }}</button>
             </form>
         </details>
     </div>
