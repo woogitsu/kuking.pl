@@ -358,7 +358,9 @@ final class ZgloszenieWersjiPrzepisuTest extends TestCase
         $this->assertStringContainsString('wersji 1 przepisu', $dlaAutora->data['message']);
 
         $dlaZglaszajacego = Notification::where('user_id', $zglaszajacy->getKey())->where('type', Notification::TYPE_REPORT_DECIDED)->sole();
-        $this->assertNotNull($dlaZglaszajacego);
+        $this->assertSame($zglaszajacy->getKey(), $dlaZglaszajacego->user_id);
+        $this->assertSame(Notification::TYPE_REPORT_DECIDED, $dlaZglaszajacego->type);
+        $this->assertSame((string) $zgloszenie->getKey(), $dlaZglaszajacego->data['report_id']);
 
         // Karta sprawy zgłaszającego mówi, czego dotyczyło zgłoszenie.
         $this->actingAs($zglaszajacy)->get(route('reports.mine.show', $zgloszenie))->assertOk()

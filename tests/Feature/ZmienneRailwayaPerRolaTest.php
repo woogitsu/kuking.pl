@@ -254,6 +254,7 @@ class ZmienneRailwayaPerRolaTest extends TestCase
         'DB_CACHE_CONNECTION' => 'null = domyślne połączenie `pgsql`.',
         'DB_CACHE_LOCK_CONNECTION' => 'null = domyślne połączenie `pgsql`.',
         'DB_CACHE_LOCK_TABLE' => 'null = tabela domyślna Laravela.',
+        'DB_JIT' => 'Pusto = `jit=off` w opcjach połączenia PostgreSQL; ustawiane ręcznie tylko do diagnostycznego włączenia JIT.',
         'DB_QUEUE_CONNECTION' => 'null = domyślne połączenie `pgsql`.',
         'SESSION_CONNECTION' => 'null = domyślne połączenie `pgsql`.',
         'SESSION_STORE' => 'null = sterownik z SESSION_DRIVER.',
