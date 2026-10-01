@@ -19,7 +19,6 @@ use App\Models\WpisZgody;
 use App\Support\Czas;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -171,33 +170,24 @@ final class MaszynaStanowOdczytuTest extends TestCase
      */
     public function test_1973_rezerwacja_osierocona_bez_failed_wygasa_po_czasie(): void
     {
-        // Budżet jest dzienny (dzień w Polsce), a test przesuwa czas
-        // o `rezerwacja_minut` + 1. Uruchomiony po 23:29 czasu polskiego
-        // przechodził przez północ i czytał wiersz NOWEGO dnia — pusty —
-        // więc kontrola ujemna „porzucona rezerwacja nie wygasa” oblewała
-        // z innej przyczyny niż oczekiwana (CI 30.09 ok. 23:40). Czas
-        // przesuwamy WYŁĄCZNIE do przodu (baza stempluje własnym zegarem,
-        // cofnięcie w PHP odwróciłoby kolejność): gdy okno testu trafiłoby
-        // na północ, zaczynamy tuż po niej.
-        $teraz = Carbon::now('Europe/Warsaw');
-        $okno = (int) config('kuking.import.odzyskiwanie.rezerwacja_minut') + 2;
-        if ($teraz->copy()->addMinutes($okno)->toDateString() !== $teraz->toDateString()) {
-            $this->travelTo($teraz->copy()->addDay()->startOfDay()->addMinutes(5));
-        }
-
+        // Nie przesuwamy zegara PHP PRZED rezerwacją: PostgreSQL stempluje
+        // created_at własnym zegarem. Przy 23:29 polskiego czasu przesunięcie
+        // PHP na jutro 00:05 natychmiast postarzało świeżą rezerwację o 36 min.
         $zlecenie = $this->zlecenieBezWysylki();
         $budzet = app(BudzetAi::class);
         $rezerwacja = $budzet->zarezerwuj(self::REZERWACJA, (string) $zlecenie->getKey(), 1);
         $this->assertInstanceOf(Rezerwacja::class, $rezerwacja);
 
         $this->artisan('kuking:odzyskaj-importy')->assertSuccessful();
-        $this->assertSame(self::REZERWACJA, $this->budzet()['zarezerwowano'], 'Świeża rezerwacja trwającego odczytu nie może zniknąć.');
+        $this->assertSame(self::REZERWACJA, $this->budzet($rezerwacja->dzien)['zarezerwowano'], 'Świeża rezerwacja trwającego odczytu nie może zniknąć.');
 
         $this->travel((int) config('kuking.import.odzyskiwanie.rezerwacja_minut') + 1)->minutes();
         $this->artisan('kuking:odzyskaj-importy')->assertSuccessful();
 
         // Nie wysłana = zwolniona bez wydatku.
-        $this->assertSame(['zarezerwowano' => 0, 'wydano' => 0], $this->budzet());
+        // Po północy budżet nowego dnia jest pusty niezależnie od tego,
+        // czy rezerwacja z wczoraj została zwolniona. Czytamy dzień rezerwacji.
+        $this->assertSame(['zarezerwowano' => 0, 'wydano' => 0], $this->budzet($rezerwacja->dzien));
         $this->assertSame('zwolniona', DB::table('ai_rezerwacje')->value('stan'));
     }
 
@@ -495,9 +485,9 @@ final class MaszynaStanowOdczytuTest extends TestCase
     }
 
     /** @return array{zarezerwowano: int, wydano: int} */
-    private function budzet(): array
+    private function budzet(?string $dzien = null): array
     {
-        $wiersz = DB::table('ai_budzet_dzienny')->where('dzien', Czas::dzisiajData())->first();
+        $wiersz = DB::table('ai_budzet_dzienny')->where('dzien', $dzien ?? Czas::dzisiajData())->first();
 
         return [
             'zarezerwowano' => $wiersz === null ? 0 : (int) $wiersz->zarezerwowano_mikrousd,
