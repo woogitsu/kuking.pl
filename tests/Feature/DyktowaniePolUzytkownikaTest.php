@@ -64,4 +64,19 @@ final class DyktowaniePolUzytkownikaTest extends TestCase
         $this->assertStringContainsString('id="f-body"', $html);
         $this->assertStringNotContainsString('data-dyktowanie', $html);
     }
+
+    public function test_jednowierszowe_pola_zachowuja_readonly_i_disabled_bez_mikrofonu(): void
+    {
+        $this->actingAs($this->user());
+        view()->share('errors', new ViewErrorBag);
+
+        $html = Blade::render(<<<'BLADE'
+            <x-field name="haslo" label="Hasło" type="password" dyktowanie :readonly="true" />
+            <x-field name="email" label="E-mail" type="email" dyktowanie :disabled="true" />
+            BLADE);
+
+        $this->assertMatchesRegularExpression('/<input[^>]*id="f-haslo"[^>]*readonly[^>]*>/', $html);
+        $this->assertMatchesRegularExpression('/<input[^>]*id="f-email"[^>]*disabled[^>]*>/', $html);
+        $this->assertStringNotContainsString('data-dyktowanie', $html);
+    }
 }

@@ -235,6 +235,8 @@
                @if($max !== null) max="{{ $max }}" @endif
                @if($step !== null) step="{{ $step }}" @endif
                @if($required) required @endif
+               @if($readonly) readonly @endif
+               @if($disabled) disabled @endif
                @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
                @if($error) aria-invalid="true" @endif>
         @if($type === 'password' && $binding === null)
