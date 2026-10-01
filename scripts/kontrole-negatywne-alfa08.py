@@ -1264,6 +1264,12 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    # #2478: rok jako jedyne źródło ma naprawdę otworzyć sekcję w pliku ZIP.
+    ("Sam rok rodzinny znika z HTML eksportu (#2478)", "resources/views/exports/recipe.blade.php",
+     "test_sam_rok_rodzinny_jest_w_html_i_json_bez_pustej_sekcji_dla_innego_przepisu",
+     lambda s: replace_once(s,
+         "@if($recipe->source_note || $recipe->source_person || $recipe->source_url || $recipe->family_since_year)",
+         "@if($recipe->source_note || $recipe->source_person || $recipe->source_url)")),
     # #988: komunikat po akcji ma jawny rodzaj. Goły `->with('status', …)`
     # wróciłby do zielonej plakietki także dla odmowy.
     ("Goły ->with('status') wraca do kontrolera", "app/Http/Controllers/SmakowicieController.php", "test_w_app_nie_ma_golego_zapisu_statusu_bez_rodzaju",

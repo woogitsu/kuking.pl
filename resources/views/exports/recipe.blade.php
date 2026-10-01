@@ -105,7 +105,7 @@
         </ol>
     @endif
 
-    @if($recipe->source_note || $recipe->source_person || $recipe->source_url)
+    @if($recipe->source_note || $recipe->source_person || $recipe->source_url || $recipe->family_since_year)
         <h2>Skąd ten przepis</h2>
         <div class="karta">
             {{-- „Skąd:" zamiast dawnego „Od:" — ta sama etykieta co przy polu
