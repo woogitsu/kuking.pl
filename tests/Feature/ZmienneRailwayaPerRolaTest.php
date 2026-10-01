@@ -248,7 +248,6 @@ class ZmienneRailwayaPerRolaTest extends TestCase
         'DB_CACHE_CONNECTION' => 'null = domyślne połączenie `pgsql`.',
         'DB_CACHE_LOCK_CONNECTION' => 'null = domyślne połączenie `pgsql`.',
         'DB_CACHE_LOCK_TABLE' => 'null = tabela domyślna Laravela.',
-        'DB_QUEUE_CONNECTION' => 'null = domyślne połączenie `pgsql`.',
         'SESSION_CONNECTION' => 'null = domyślne połączenie `pgsql`.',
         'SESSION_STORE' => 'null = sterownik z SESSION_DRIVER.',
         'SESSION_DOMAIN' => 'null = host żądania, czyli dokładnie kuking.pl bez subdomen.',
