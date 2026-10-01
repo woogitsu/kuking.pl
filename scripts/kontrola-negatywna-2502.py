@@ -29,7 +29,7 @@ def przebieg(modul):
 
 
 kod, log = przebieg(MODUL)
-if kod != 0 or "# tests 1" not in log or "# pass 1" not in log:
+if kod != 0 or "# pass 1" not in log or "# fail 0" not in log:
     sys.stderr.write(log)
     raise SystemExit("#2502: dodatni test DOM nie przeszedł; brak dowodu mutacji.")
 
@@ -38,7 +38,7 @@ with tempfile.TemporaryDirectory(prefix="kuking-2502-") as katalog:
     mutant.write_text(ZRODLO.replace(ORIGINAL, MUTACJA), encoding="utf-8")
     kod, log = przebieg(mutant)
 
-if kod == 0 or MARKER not in log or "# tests 1" not in log or "# fail 1" not in log:
+if kod == 0 or MARKER not in log or "# pass 0" not in log or "# fail 1" not in log:
     sys.stderr.write(log)
     raise SystemExit("#2502: mutant nie oblał dokładnie na starej ilości; brak dowodu.")
 
