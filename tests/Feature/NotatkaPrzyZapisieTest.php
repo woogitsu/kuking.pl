@@ -195,7 +195,7 @@ final class NotatkaPrzyZapisieTest extends TestCase
         ])->assertSessionHasNoErrors();
         $this->actingAs($wspoltworca)->from(route('collections.show', $zeszyt))
             ->patch($adres, ['note' => "  \n  ", '_odcisk_notatki' => $staryOdcisk, '_wiersz' => 'notatka-przepis-'.$przepis->id])
-            ->assertSessionHasErrors('note');
+            ->assertSessionHasErrorsIn(UpdateCollectionItemNote::WOREK_BLEDOW, 'note');
         $this->assertSame('B', DB::table('collection_items')->where('collection_id', $zeszyt->id)->value('note'));
 
         $this->actingAs($wspoltworca)->patch($adres, [
@@ -223,7 +223,7 @@ final class NotatkaPrzyZapisieTest extends TestCase
         $this->assertSame($stary, $this->odciskZHtml($html), 'Szkic po błędzie długości nadal odnosi się do A.');
 
         $this->actingAs($wlasciciel)->patch($adres, ['note' => 'C', '_odcisk_notatki' => $this->odciskZHtml($html)])
-            ->assertSessionHasErrors('note');
+            ->assertSessionHasErrorsIn(UpdateCollectionItemNote::WOREK_BLEDOW, 'note');
         $this->assertSame('B', DB::table('collection_items')->where('collection_id', $zeszyt->id)->value('note'));
     }
 
