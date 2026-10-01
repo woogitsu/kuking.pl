@@ -1274,6 +1274,10 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    # #2455: bez gałęzi liczby grupowanej parser zostawia ilość bez zmiany.
+    # Data provider wymaga prawidłowego wyniku także dla NBSP i zakresów.
+    ("Grupowanie tysięcy rozbite na fragmenty (#2455)", "app/Domain/Recipes/Porcje/PrzeliczSkladnik.php", "test_grupowanie_tysiecy_przelicza_cala_ilosc",
+     lambda s: replace_once(s, "|'.self::GRUPOWANA.'|", "|")),
     # #2445: prawdziwe `porownaj()` ma nie zgubić czasu w żadnej gałęzi luki.
     ("Historia: zmieniony krok gubi minutnik", "app/Domain/Recipes/Historia/PorownanieWersji.php", "test_zmiana_tekstu_i_minutnika_pokazuje_czasy_obu_migawek",
      lambda s: replace_once(s, "'przed' => $stare[$lukaStare[$p]]['instruction'].($pokazMinutnik ? self::opisMinutnika($staryCzas) : ''),",
