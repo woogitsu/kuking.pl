@@ -1113,10 +1113,6 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
     });
 })();
 
-// Kolejka kilku potraw naraz (#2379): ten sam dźwięk alarmu co w minutniku
-// pojedynczego przepisu, stan minutników w tych samych kluczach i funkcjach
-// z ./minutnik-krok.js. Deklaracje funkcji (zagrajAlarm) są wyżej w pliku.
-podlaczKolejke({zagrajAlarm});
 // --- Karuzela zdjęć i wybór wyglądu (issue #92) ----------------------------
 
 /*
@@ -1511,3 +1507,11 @@ for (const menu of document.querySelectorAll('details.topbar-konto')) {
         document.addEventListener('livewire:init', podlacz);
     }
 })();
+
+// --- Kolejka kilku potraw naraz (#2379) ------------------------------------
+// Ten sam dźwięk alarmu co w minutniku pojedynczego przepisu, stan minutników
+// w tych samych kluczach i funkcjach z ./minutnik-krok.js. Wywołanie stoi POZA
+// blokiem „Tryb gotowania: minutniki”, bo scripts/minutnik-regresja.mjs wycina
+// ten blok do osobnego modułu bez importu kolejki (ReferenceError). Deklaracja
+// zagrajAlarm jest na najwyższym poziomie modułu, więc widać ją i tutaj.
+podlaczKolejke({zagrajAlarm});
