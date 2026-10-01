@@ -49,7 +49,7 @@ Content-Security-Policy:
 Uwagi praktyczne:
 - Wygeneruj `nonce` w middleware (np. `Str::random(16)` zakodowane base64) i przekaż go do layoutu Blade jako zmienną — Livewire i Alpine wspierają `x-nonce`/konfigurację nonce od Alpine 3.x (`Alpine.csp = true` / atrybut na `<script>`), sprawdź wersję Alpine użytą w projekcie [do weryfikacji zgodności wersji].
 - Jeśli pełny nonce okaże się zbyt pracochłonny na start, **tymczasowy, gorszy, ale realistyczny kompromis**: `script-src 'self' 'unsafe-inline'` **tylko** dopóki nie wdrożysz nonce — jawnie zapisz to jako dług techniczny, nie zostawiaj bez świadomości.
-- `img-src`/`media-src` muszą wskazywać dokładną domenę R2/CDN, z której serwujesz zdjęcia — nie `*`.
+- `img-src`/`media-src` muszą wskazywać dokładną domenę R2/CDN, z której serwujesz zdjęcia — nie `*`. W kodzie (#2381) lista hostów powstaje z konfiguracji dysków wariantów zdjęć (`<bucket>.<konto>.eu.r2.cloudflarestorage.com`, bo trasa `media.show` przekierowuje na podpisany adres R2, a CSP sprawdza cel przekierowania) i z `KUKING_R2_PUBLICZNE_ADRESY`; `blob:`/`data:` zostają dla podglądu pliku. Klasa: `App\Support\Storage\ZrodlaZdjecDlaCsp`.
 - Wdrażaj CSP najpierw w trybie **`Content-Security-Policy-Report-Only`** przez tydzień, zbierając raporty (endpoint `report-uri`/`report-to`), zanim przełączysz na tryb wymuszający — inaczej ryzykujesz ukrytą awarię UI wykrytą dopiero przez użytkowników.
 
 ### Pozostałe nagłówki
