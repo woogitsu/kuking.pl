@@ -4809,6 +4809,12 @@ for (const szerokosc of SZYBKO ? [320] : [320, 1280]) {
         [rr.left + 16, gora + 16],
         [rr.right - 16, dol - 16],
       ];
+      // Trafienia liczymy PRZED fokusem. `focus()` przewija stronę, żeby link
+      // zmieścił się pod `scroll-padding-top` (przy czcionce 200% i 1280 px to
+      // 15rem = 480 px), więc po nim karta stoi gdzie indziej niż punkty
+      // wyliczone wyżej — i pomiar trafiał w pusty margines obok karty
+      // (CI, #2421: „karta 1, 1280 px, czcionka 200%"), a nie w nakładkę.
+      const trafienia = punkty.map(([x, y]) => zlapanyPrzez(x, y));
       link?.focus({ focusVisible: true });
       const po = link ? getComputedStyle(link, '::after') : null;
       return {
@@ -4816,7 +4822,7 @@ for (const szerokosc of SZYBKO ? [320] : [320, 1280]) {
         wysokoscSamegoLinku: wLinku ? Math.round(wLinku.height) : null,
         linkow: karta.querySelectorAll('a').length,
         zagniezdzone: karta.querySelectorAll('a a').length,
-        trafienia: punkty.map(([x, y]) => zlapanyPrzez(x, y)),
+        trafienia,
         obrysNaKarcie: po ? po.outlineStyle !== 'none' && parseFloat(po.outlineWidth) >= 3 : false,
         pokrycieKarty: po ? po.position === 'absolute' : false,
       };
