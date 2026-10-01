@@ -93,4 +93,29 @@ class PolaczenieBazyMaWylaczonyJitTest extends TestCase
     {
         $this->assertSame(['jit' => 'off'], config('database.connections.pgsql.server_options'));
     }
+
+    #[Test]
+    public function puste_db_jit_w_srodowisku_tez_daje_off_a_nie_bledne_c_jit(): void
+    {
+        // `DB_JIT=` w panelu hostingu albo w `.env` to w `env()` pusty napis,
+        // nie null — domyślna wartość `env('DB_JIT', 'off')` go nie zastępuje,
+        // a pakiet startowy dostawał `-c jit=` i połączenie padało.
+        $poZmiennych = [];
+        $poprzednio = getenv('DB_JIT');
+
+        try {
+            foreach (['brak' => false, 'puste' => '', 'on' => 'on'] as $opis => $wartosc) {
+                $wartosc === false ? putenv('DB_JIT') : putenv('DB_JIT='.$wartosc);
+                $poZmiennych[$opis] = (require config_path('database.php'))['connections']['pgsql']['server_options'];
+            }
+        } finally {
+            $poprzednio === false ? putenv('DB_JIT') : putenv('DB_JIT='.$poprzednio);
+        }
+
+        $this->assertSame([
+            'brak' => ['jit' => 'off'],
+            'puste' => ['jit' => 'off'],
+            'on' => ['jit' => 'on'],
+        ], $poZmiennych);
+    }
 }

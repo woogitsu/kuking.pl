@@ -112,7 +112,9 @@ return [
             // i migracje. `DB_JIT=on` przywraca ustawienie serwera. PgBouncer
             // (D-312): jego tryb transakcyjny odrzuca `options` w pakiecie
             // startowym — wtedy przenieś to na `ALTER ROLE … SET jit = off`.
-            'server_options' => ['jit' => env('DB_JIT', 'off')],
+            // Puste `DB_JIT=` daje `off` (`?:`; domyślna wartość `env()` nie
+            // zastępuje pustego napisu i było `-c jit=`, czyli błąd połączenia).
+            'server_options' => ['jit' => env('DB_JIT') ?: 'off'],
         ],
 
         'sqlsrv' => [
