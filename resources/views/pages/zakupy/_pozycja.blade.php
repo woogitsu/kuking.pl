@@ -33,10 +33,10 @@
             <button class="btn btn-secondary" type="submit">{{ $odhaczona ? 'Cofnij odhaczenie' : 'Odhacz' }}<span class="visually-hidden">: {{ $pozycja->text }}</span></button>
         </form>
         <details class="confirm planer-usuwanie">
-            <summary class="btn btn-secondary confirm-summary"
-                     aria-label="Usuń z listy: {{ $pozycja->text }}. Otwiera pytanie; ponowne naciśnięcie je zamyka.">
+            <summary class="btn btn-secondary confirm-summary">
                 <span class="planer-usuwanie-otworz">Usuń</span>
                 <span class="planer-usuwanie-zamknij">Nie usuwaj</span>
+                <span class="visually-hidden"> z listy: {{ $pozycja->text }}</span>
             </summary>
             <div class="confirm-body">
                 <p class="confirm-question">Usunąć tę pozycję z listy zakupów?</p>

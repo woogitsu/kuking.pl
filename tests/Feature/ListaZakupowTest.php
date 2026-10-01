@@ -416,7 +416,10 @@ final class ListaZakupowTest extends TestCase
             $this->assertFalse($pytanie->hasAttribute('open'), 'Pytanie nie może być otwarte zanim człowiek naciśnie „Usuń”.');
             $podsumowanie = $xpath->query('./summary', $pytanie)->item(0);
             $this->assertInstanceOf(\DOMElement::class, $podsumowanie);
-            $this->assertStringContainsString($pozycja->text, $podsumowanie->getAttribute('aria-label'));
+            $this->assertFalse($podsumowanie->hasAttribute('aria-label'), 'Nazwa dostępna musi zmieniać się razem z widocznym Usuń/Nie usuwaj.');
+            $nazwaDostepna = $xpath->query('./span[contains(concat(" ", normalize-space(@class), " "), " visually-hidden ")]', $podsumowanie)->item(0);
+            $this->assertInstanceOf(\DOMElement::class, $nazwaDostepna);
+            $this->assertStringContainsString($pozycja->text, $nazwaDostepna->textContent);
             $otworz = $xpath->query('.//span[contains(@class, "planer-usuwanie-otworz")]', $podsumowanie)->item(0);
             $zamknij = $xpath->query('.//span[contains(@class, "planer-usuwanie-zamknij")]', $podsumowanie)->item(0);
             $this->assertInstanceOf(\DOMElement::class, $otworz);
