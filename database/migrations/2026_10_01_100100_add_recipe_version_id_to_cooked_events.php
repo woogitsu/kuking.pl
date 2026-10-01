@@ -24,7 +24,9 @@ use Illuminate\Support\Facades\Schema;
  *  Po `SET NULL` wykonanie zostaje, a ekran mówi po polsku, że wersji
  *  już nie ma. Wersje usuniętego przepisu idą razem z nim; wykonania też
  *  (`cooked_events.recipe_id` jest `CASCADE`). Wymazanie konta kucharza
- *  kasuje jego wykonania i wskaźnik razem z nimi.
+ *  w zakresie `everything` kasuje jego wykonania i wskaźnik razem z nimi;
+ *  przy domyślnym `minimum` (D-022) wykonania zostają przy zanonimizowanym
+ *  koncie, ze wskaźnikiem.
  *
  * KOLUMNA `NULL`-OWALNA, BEZ BACKFILLU. Wykonania sprzed tej migracji nie
  * wiedzą, z której wersji gotowano; zgadywanie „najbliższej z czasu"

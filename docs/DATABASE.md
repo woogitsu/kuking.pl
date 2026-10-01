@@ -2937,7 +2937,9 @@ Jedno realne gotowanie. Brak unique `(user_id, recipe_id)`.
   Dlaczego `SET NULL`: `CASCADE` skasowałby notatkę i zdjęcie przy retencji
   wersji (#2024), `RESTRICT` zablokowałby `kuking:sprzataj-wersje-przepisow`.
   Wersje usuniętego przepisu i wykonania tego przepisu idą razem z nim
-  (`recipe_id` jest `CASCADE`); wymazanie konta kucharza kasuje jego wykonania.
+  (`recipe_id` jest `CASCADE`); wymazanie konta kucharza w zakresie `everything` kasuje jego wykonania, a przy
+  domyślnym `minimum` (D-022) wykonania zostają przy zanonimizowanym koncie,
+  razem ze wskaźnikiem.
   Indeks częściowy `cooked_events_recipe_version_idx (recipe_version_id) WHERE
   recipe_version_id IS NOT NULL` obsługuje kaskadę `SET NULL`.
   **Rollback:** `down()` odmawia, gdy choć jedno wykonanie ma wskaźnik (D-088 —
