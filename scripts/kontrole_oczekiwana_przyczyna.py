@@ -203,6 +203,7 @@ OCZEKUJ = {
     'Podpowiedź wyglądu bez dolnego insetu': r'Podpowiedź szybkiego wyglądu musi omijać wskaźnik Home\.',
     'Edycja domyślnego zeszytu bez skutku dla przyszłych zapisów': r'contains "i wszystko, co zapiszesz tu później"',
     'Wydruk przepisu z pismem poniżej 12 pt': r'Reguła druku ustawia pismo poniżej 12 pt\.',
+    'Główny link wydruku gubi wybrane porcje (#2474)': r'DRUK_PORCJE_HREF: link nie zachował zaakceptowanych porcji\.',
     'Ściągawka do wydruku z pismem poniżej 16 pt (F4)': r'Ściągawka nie ma w druku progu 16 pt\.',
     'Wydruk dla pomocnika z pismem poniżej 16 pt (#2345)': r'Wydruk dla pomocnika nie ma w druku progu 16 pt\.',
     'Wydruk z widocznym objaśnieniem Zgłoś dla gościa (#2345)': r'Objaśnienie Zgłoś dla gościa nie jest ukryte w każdym wydruku\.',
