@@ -288,6 +288,37 @@ class KolejkaGotowaniaTest extends TestCase
         DB::table('recipe_slug_redirects')->insert(['slug' => $stary, 'recipe_id' => $przepis->getKey(), 'created_at' => now()]);
     }
 
+    /** @return list<string> */
+    private function pominiete(string $html): array
+    {
+        $xpath = $this->xpath($html);
+
+        return json_decode($this->element($xpath, '//*[@data-kolejka-ekran]')->getAttribute('data-kolejka-pominiete'), true, flags: JSON_THROW_ON_ERROR);
+    }
+
+    public function test_ekran_mowi_skryptowi_ktore_slugi_z_adresu_wypadly_celowo_a_usuniecie_niesie_u(): void
+    {
+        $autor = $this->user('autorpominiete');
+        $zupa = $this->przepis($autor, 'Zupa', 3);
+        $kotlet = $this->przepis($autor, 'Kotlet', 3);
+        $szkic = $this->przepis($autor, 'Szkic', 3, null, Recipe::STATUS_DRAFT);
+
+        // Skrypt dokłada do adresu przepisy zapamiętane, a nieobecne w adresie (inna karta);
+        // te, które wypadły z powodu serwera albo usunięcia przyciskiem, nie mogą wrócić.
+        $odpowiedz = $this->get(route('kolejka-gotowania', ['p' => $zupa->slug.','.$szkic->slug.',nie-ma-takiego', 'u' => $kotlet->slug]))->assertOk();
+
+        $this->assertEqualsCanonicalizing([$szkic->slug, 'nie-ma-takiego', $kotlet->slug], $this->pominiete($odpowiedz->getContent()));
+
+        $this->assertSame([], $this->pominiete($this->get(route('kolejka-gotowania', ['p' => $zupa->slug]))->getContent()));
+
+        // Przycisk usunięcia mówi, że to usunięcie, a nie nieaktualny adres.
+        $dwa = $this->get(route('kolejka-gotowania', ['p' => $zupa->slug.','.$kotlet->slug, 'a' => $kotlet->slug]))->assertOk();
+        $dwa->assertSee(e(route('kolejka-gotowania', ['p' => $zupa->slug.':1', 'u' => $kotlet->slug])), false);
+
+        // Śmieci w `u` nie trafiają do znacznika.
+        $this->assertSame([], $this->pominiete($this->get(route('kolejka-gotowania', ['p' => $zupa->slug, 'u' => '"><b>x']))->getContent()));
+    }
+
     public function test_przepis_ze_zmienionym_adresem_zostaje_w_kolejce_pod_nowym_slugiem_z_krokiem(): void
     {
         $autor = $this->user('autorstary');
@@ -302,7 +333,9 @@ class KolejkaGotowaniaTest extends TestCase
             ->assertDontSee('niedostępn');
 
         $this->assertStringContainsString($zupa->slug.':3', rawurldecode($odpowiedz->getContent()));
-        $this->assertStringNotContainsString('stara-zupa', $odpowiedz->getContent());
+        // Stary slug zostaje tylko w znaczniku „wypadł celowo” dla skryptu, nigdzie w linkach.
+        $this->assertStringNotContainsString('p=stara-zupa', rawurldecode($odpowiedz->getContent()));
+        $this->assertSame(['stara-zupa'], $this->pominiete($odpowiedz->getContent()));
     }
 
     public function test_stary_slug_i_nowy_slug_tego_samego_przepisu_licza_sie_raz(): void

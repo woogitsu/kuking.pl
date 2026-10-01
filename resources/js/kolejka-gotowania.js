@@ -134,6 +134,32 @@ export function adresKolejki(bazowy, pozycje, aktywny = null) {
 }
 
 /**
+ * Adres z innej karty albo z historii przeglądarki bywa starszy niż kolejka
+ * zapamiętana w `localStorage` (przepis dodany w międzyczasie). Zapis adresu
+ * wprost skasowałby taki przepis razem z jego minutnikiem. Dlatego przepisy,
+ * które są zapamiętane, a w adresie ich nie ma i nie wypadły celowo
+ * (`pominiete`: niedostępne, zamienione na nowy adres, usunięte przyciskiem),
+ * wracają do adresu — o ile mieści się ich w limicie. Serwer sprawdzi je
+ * Policy jak każde inne. Kończy się, bo po powrocie są w adresie, a jeśli
+ * serwer któryś odrzuci, trafia on do `pominiete`.
+ *
+ * @param {Pozycja[]} lokalne zapamiętana kolejka
+ * @param {Pozycja[]} dane przepisy z adresu, po sprawdzeniu przez serwer
+ * @param {Iterable<string>} pominiete slugi, których brak jest zamierzony
+ * @returns {Pozycja[]|null} pełna lista do odtworzenia adresu albo `null`
+ */
+export function uzupelnijOZapamietane(lokalne, dane, pominiete) {
+    const zamierzone = new Set(pominiete);
+    const wAdresie = new Set(dane.map((p) => p.slug));
+    const miejsce = LIMIT - dane.length;
+    const obce = lokalne.filter((p) => !wAdresie.has(p.slug) && !zamierzone.has(p.slug));
+
+    if (obce.length === 0 || miejsce <= 0) return null;
+
+    return [...dane, ...obce.slice(0, miejsce)];
+}
+
+/**
  * Klucze minutników należące do przepisów z kolejki — po jednym wpisie na
  * minutnik. Zapis cudzego przepisu albo śmieć w `sessionStorage` są pomijane.
  *
@@ -337,8 +363,26 @@ function podlaczEkran(root, s) {
         return;
     }
 
-    // 3. Adres jest zweryfikowany przez serwer (Policy): to on jest prawdą.
-    // Przepisy, które wypadły, tracą też minutniki.
+    // 3. Adres jest zweryfikowany przez serwer (Policy): to on jest prawdą
+    // o tym, co jest dostępne. Nie jest prawdą o tym, co dodano w innej
+    // karcie: takie przepisy wracają do adresu (patrz `uzupelnijOZapamietane`).
+    let pominiete = [];
+
+    try {
+        pominiete = JSON.parse(root.dataset.kolejkaPominiete ?? '[]');
+    } catch {
+        pominiete = [];
+    }
+
+    const pelna = uzupelnijOZapamietane(odczyt.pozycje, dane, Array.isArray(pominiete) ? pominiete : []);
+
+    if (pelna !== null) {
+        s.location.replace(adresKolejki(bazowy, pelna, root.dataset.kolejkaAktywna || null));
+
+        return;
+    }
+
+    // Przepisy, które wypadły celowo, tracą też minutniki.
     const zostaja = new Set(dane.map((p) => p.slug));
     usunMinutniki(s.sessionStorage, odczyt.pozycje.filter((p) => !zostaja.has(p.slug)).map((p) => p.slug));
     zapiszPozycje(s.localStorage, dane.map(({slug, krok}) => ({slug, krok})), s.teraz());

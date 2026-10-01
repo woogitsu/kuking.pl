@@ -43,6 +43,8 @@ class KolejkaGotowaniaController extends Controller
     /** Ile przepisów mieści kolejka (decyzja właściciela z 1.10.2026). */
     public const LIMIT = 4;
 
+    private const WZORZEC_SLUGA = '/^[a-z0-9][a-z0-9-]{0,219}$/';
+
     public function show(Request $request): View
     {
         $zadane = $this->wczytajPozycje($request->query('p'));
@@ -88,6 +90,17 @@ class KolejkaGotowaniaController extends Controller
         }
 
         $slugi = array_map(fn (array $p): string => $p['recipe']->slug, $pozycje);
+
+        // Slugi z adresu, które na ekranie się nie znalazły (niedostępne, bez
+        // kroków) albo zostały zamienione na nowy adres: skrypt wie dzięki
+        // temu, że ich brak w kolejce jest zamierzony, a nie to samo co
+        // nieaktualny adres z innej karty (kolejka z przeglądarki ma więcej).
+        $pominiete = array_values(array_unique([
+            ...array_values(array_diff(array_keys($zadane), $slugi)),
+            ...array_keys($zmienione),
+        ]));
+        $usuniete = (string) $request->query('u', '');
+        $usuniete = preg_match(self::WZORZEC_SLUGA, $usuniete) === 1 ? $usuniete : '';
         $aktywnySlug = (string) $request->query('a', '');
         $aktywnySlug = $zmienione[$aktywnySlug] ?? $aktywnySlug;
         $aktywnySlug = in_array($aktywnySlug, $slugi, true) ? $aktywnySlug : ($slugi[0] ?? null);
@@ -101,6 +114,8 @@ class KolejkaGotowaniaController extends Controller
             'zAdresu' => $request->query->has('p'),
             'wygasla' => $request->boolean('wygasla'),
             'limit' => self::LIMIT,
+            'pominiete' => $pominiete,
+            'usuniete' => $usuniete,
         ]);
     }
 
@@ -161,7 +176,7 @@ class KolejkaGotowaniaController extends Controller
         foreach (explode(',', $surowe) as $element) {
             [$slug, $krok] = array_pad(explode(':', $element, 2), 2, '1');
 
-            if (preg_match('/^[a-z0-9][a-z0-9-]{0,219}$/', $slug) !== 1 || isset($wynik[$slug])) {
+            if (preg_match(self::WZORZEC_SLUGA, $slug) !== 1 || isset($wynik[$slug])) {
                 continue;
             }
 
