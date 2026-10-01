@@ -12,9 +12,11 @@ use App\Models\Recipe;
 use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\Support\PolecenieArtisanaZOdmowa;
@@ -553,13 +555,13 @@ final class ZgloszenieWersjiPrzepisuTest extends TestCase
         $this->assertSame('recipe_version', Report::sole()->target_type);
 
         // Kontrola: CHECK nie został zdjęty, tylko poszerzony.
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         DB::table('reports')->insert([
-            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'id' => (string) Str::uuid(),
             'source' => Report::SOURCE_COMMUNITY,
             'reporter_id' => $this->user('x')->getKey(),
             'target_type' => 'wersja-w-tle',
-            'target_id' => (string) \Illuminate\Support\Str::uuid(),
+            'target_id' => (string) Str::uuid(),
             'reason' => 'spam',
             'status' => Report::STATUS_OPEN,
             'created_at' => now(),

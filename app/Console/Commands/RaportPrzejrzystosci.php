@@ -32,6 +32,8 @@ use InvalidArgumentException;
  *
  * CO LICZY (okno: `--od` włącznie, `--do` włącznie, daty w strefie serwisu)
  *  1. zgłoszenia wg źródła (`community`, `legal_notice`, `automat`);
+ *  1a. zgłoszenia wg rodzaju zgłoszonej treści (`target_type`), w tym wersja
+ *     przepisu z historii zmian (#2390);
  *  2. decyzje PIERWSZEJ INSTANCJI — ze zgłoszenia (`report_id`) — wg rodzaju;
  *  3. decyzje Z URZĘDU — bez zgłoszenia i bez odwołania, bez `unhide` (D-251);
  *  4. przywrócenia treści (`unhide`);
