@@ -98,8 +98,8 @@
             @foreach($recipes as $recipe)
                 <li>
                     <a href="przepisy/{{ $recipe['plik'] }}">{{ $recipe['tytul'] }}</a>
-                    @if($recipe['szkic'])
-                        <span class="plakietka">szkic</span>
+                    @if($recipe['plakietka'])
+                        <span class="plakietka">{{ $recipe['plakietka'] }}</span>
                     @endif
                     @if($recipe['data'])
                         <br><span class="podpis">{{ $recipe['data'] }}</span>
