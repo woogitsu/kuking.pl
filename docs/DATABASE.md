@@ -2439,6 +2439,44 @@ porcji (V2); cztery miejsca po przecinku wystarczają na ułamki z kuchni.
 `NULL` w obu znaczy „ilości nie podano" i jest czymś innym niż `no_amount`
 niżej, które znaczy „ilości NIE MA".
 
+**`recipe_ingredients.rdzenie text[] NOT NULL`** (migracja
+`2026_10_01_140300_add_rdzenie_to_recipe_ingredients`, „Co ugotuję z tego, co
+mam”) — zapisany wynik `public.kuking_rdzenie_skladnika(ingredient_text)`:
+rdzenie linijki, posortowane i bez powtórzeń. Wypełnia je wyzwalacz
+`recipe_ingredients_rdzenie_trg` (BEFORE INSERT OR UPDATE OF `ingredient_text`,
+funkcja `public.kuking_recipe_ingredients_rdzenie()`), więc kod aplikacji niczego
+nie liczy ani nie pamięta — także `INSERT … SELECT` i seedery. Zapytanie
+`App\Domain\Pantry\CoUgotuje` czyta tę kolumnę (`p.rdzenie <@ ri.rdzenie`,
+wstępny filtr `ri.rdzenie && {…}`) zamiast liczyć funkcję na każdą linijkę
+każdego kandydata przy każdym żądaniu (pomiar: 500 przepisów × 7 składników,
+20 produktów — ok. 985 ms i ok. 109 tys. wywołań funkcji → ok. 25 ms
+i 0 wywołań). Indeks `recipe_ingredients_rdzenie_gin_idx` (GIN, `array_ops`)
+obsługuje `&&`, `@>`, `<@`. CHECK `recipe_ingredients_rdzenie_not_null_check`
+(`rdzenie IS NOT NULL`).
+
+Dlaczego zwykła kolumna z wyzwalaczem, a nie `GENERATED … STORED`:
+`ADD COLUMN … STORED` przepisuje całą tabelę pod `ACCESS EXCLUSIVE`. Tu:
+`ADD COLUMN` bez DEFAULT (zmiana katalogu, milisekundy) → wyzwalacz →
+backfill partiami po 2000 wierszy, każda partia w osobnej transakcji →
+`CHECK … NOT VALID` + `VALIDATE` (`SHARE UPDATE EXCLUSIVE`, zapisy idą dalej)
+→ `CREATE INDEX CONCURRENTLY`. Koszt na produkcji: backfill przepisuje każdy
+wiersz raz (tymczasowo ok. 2× rozmiar tabeli do VACUUM, WAL ok. 1–2×
+rozmiaru tabeli); migracja wznawialna. Zapis przepisu kasuje i zakłada
+wiersze składników, więc wyzwalacz liczy funkcję raz na linijkę przy zapisie
+(zamiast wielokrotnie przy każdym odczycie).
+
+⚠️ Kolumna jest ZWYKŁA: zmiana ciała `kuking_rdzenie_skladnika()` jej nie
+przelicza. Migracja zmieniająca funkcję musi przeliczyć też tę tabelę
+(partiami, `UPDATE recipe_ingredients SET ingredient_text = ingredient_text
+WHERE …`) — jak `UPDATE pantry_items SET name = name` w #2315. Rozjazd wyłapuje
+`CoUgotujeKosztTest::test_zapisane_rdzenie_rowna_sie_funkcji_na_zywo`.
+
+**Rollback:** `down()` zdejmuje indeks, CHECK, wyzwalacz, jego funkcję i kolumnę.
+Bezstratny i **nie odmawia** (D-088 chroni wartości semantyczne, a to dane
+pochodne w całości wyliczalne z `ingredient_text`, który zostaje). Po nim kod
+z tej wersji (`CoUgotuje`) nie zadziała — wycofanie wdrożenia cofa kod razem
+z migracją.
+
 **`recipe_ingredients.note varchar(300) NULL`** — dopisek przy JEDNYM
 składniku („najlepiej wiejskie", „albo margaryna"), **wolny tekst od
 człowieka**. Coś innego niż `ingredient_text`, który jest samym składnikiem
@@ -6498,16 +6536,17 @@ Funkcje (obie `IMMUTABLE STRICT PARALLEL SAFE`):
   (`UPDATE … SET name = name`) i odmawia, gdy przeliczenie dałoby dwa
   produkty jednej osoby o tym samym kluczu — nie kasuje ich za człowieka.
   Rollback przywraca poprzednie ciało funkcji; dane zostają. Ta sama funkcja liczy
-  rdzenie linijek `recipe_ingredients.ingredient_text` w zapytaniu doboru —
+  rdzenie linijek `recipe_ingredients.ingredient_text` — zapisane w
+  `recipe_ingredients.rdzenie` (wyzwalacz, patrz sekcja `recipe_ingredients`);
   reguła mieszka wyłącznie w bazie, bez kopii w PHP;
 - `public.kuking_klucz_skladnika(text) → text` — `array_to_string()` z powyższej.
   Osobna funkcja, bo samo `array_to_string()` jest `STABLE` i nie wolno go
   użyć w kolumnie generowanej.
 
-Zapytanie doboru zawęża kandydatów filtrem `ingredient_text_search LIKE
-'%rdzeń%'` (najdłuższy rdzeń każdego produktu; rdzeń do 4 liter — jego
-pierwsze trzy litery, bo może pochodzić ze słownika form), który może pójść po
-`recipe_ingredients_text_trgm_idx`, a dopiero na nich porównuje tablice.
+Zapytanie doboru zawęża kandydatów filtrem `recipe_ingredients.rdzenie &&
+{najdłuższy rdzeń każdego produktu}`, który idzie po indeksie GIN
+`recipe_ingredients_rdzenie_gin_idx`, a dopiero na nich porównuje tablice
+(`pantry_items.rdzenie <@ recipe_ingredients.rdzenie`).
 
 Prywatność: lista jest w paczce danych (sekcja `co_mam_w_domu`, bez kolumn
 generowanych) i znika w `EraseAccountData` (jawnie — konta się anonimizuje,
