@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\CelZgloszenia;
 use App\Domain\Moderation\ZmianaDecyzjiPoOdwolaniu;
+use App\Domain\Recipes\Historia\HistoriaWersji;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\Moderation\ZgloszenieTresciRequest;
 use App\Models\Collection;
@@ -16,6 +17,7 @@ use App\Models\ModerationAction;
 use App\Models\Post;
 use App\Models\Profile;
 use App\Models\Recipe;
+use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\User;
 use App\Support\Komunikat;
@@ -43,9 +45,26 @@ class ReportController extends Controller
 {
     public function __construct(private readonly ReportContent $report) {}
 
-    public function create(Request $request, string $type, string $id): View
+    public function create(Request $request, string $type, string $id): View|RedirectResponse
     {
         $target = $this->resolveTarget($type, $id);
+
+        // Najnowsza wersja to po prostu przepis (#2390): zgłasza się przepis,
+        // a człowiek, który trafił tu starym odnośnikiem (wersja przestała być
+        // najnowsza albo odwrotnie), dostaje właściwy formularz zamiast 404.
+        // Tylko komuś, kto przepis i tak widzi — bez wskazywania, że istnieje.
+        //
+        // Przepis usunięty miękko ma `$target->recipe === null` (relacja bez
+        // `withTrashed`) — wtedy przekierowania nie ma, a dalej `authorize()`
+        // daje 404 jak dla każdej niewidocznej treści.
+        if ($target instanceof RecipeVersion
+            && $target->recipe !== null
+            && HistoriaWersji::wolnoOgladac($request->user(), $target->recipe)
+            && HistoriaWersji::numerNajnowszej($target->recipe) === $target->version_number) {
+            return redirect()
+                ->route('reports.create', ['type' => 'recipe', 'id' => $target->recipe->slug])
+                ->with(Komunikat::informacja('To najnowsza wersja, czyli sam przepis. Zgłaszasz więc cały przepis.'));
+        }
 
         // Ta sama bramka co w `store()` (przez `handle()`) — inaczej sam
         // formularz renderowałby się dla treści, której zgłaszający nie ma
@@ -293,6 +312,8 @@ class ReportController extends Controller
             $target instanceof Recipe => route('recipes.show', $target),
             $target instanceof CookedEvent => route('cooked.show', $target),
             $target instanceof Collection => route('collections.show', $target),
+            // Ekran zgłaszanej wersji (#2390); przepis ładuje `resolveTarget()`.
+            $target instanceof RecipeVersion => route('recipes.history.version', [$target->recipe->slug, $target->version_number]),
             $target instanceof Comment => $this->wracajDoRodzicaKomentarza($target),
             // `user` — cel zgłoszenia to profil.
             $target instanceof User && $target->profile !== null => route('profile.show', $target->profile->username),
@@ -345,6 +366,11 @@ class ReportController extends Controller
             // Publiczny zeszyt (#2279). Po UUID, przed zapytaniem — ten sam
             // powód co przy przepisie wyżej (rzutowanie na uuid).
             'collection' => Str::isUuid($id) ? Collection::findOrFail($id) : abort(404),
+            // Konkretna wersja z historii zmian (#2390). Po UUID wersji: numer
+            // w adresie bywa luką po retencji, a UUID wskazuje dokładnie to,
+            // co człowiek widział. Przepis ładujemy od razu — potrzebuje go
+            // Policy i adres „Wróć”.
+            'recipe_version' => Str::isUuid($id) ? RecipeVersion::with('recipe')->findOrFail($id) : abort(404),
             // Konto po UUID — stabilnym identyfikatorze, który nie przechodzi
             // na nikogo innego (issue #1599). Nazwa zostaje tylko jako wejście
             // ze starych odnośników do formularza; `store()` jej nie przyjmuje.

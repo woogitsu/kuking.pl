@@ -101,6 +101,20 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // JIT wyłączony na KAŻDYM połączeniu aplikacji (issue #2291, audyt
+            // wydajności F4). Obciążenie to OLTP: krótkie zapytania, a każde,
+            // którego szacunek przekracza `jit_above_cost` (100000), płaciło
+            // setki ms kompilacji (udokumentowane: #2288, #2289, W1; 1,4–2,7 s
+            // na /odkryj). `jit` to parametr zwykłego użytkownika — bez
+            // superużytkownika, bez ALTER DATABASE/SYSTEM i niezależnie od
+            // panelu usługi bazy. Opcja idzie w pakiecie startowym połączenia
+            // (`-c jit=off`), więc obejmuje też worker kolejki, harmonogram
+            // i migracje. `DB_JIT=on` przywraca ustawienie serwera. PgBouncer
+            // (D-312): jego tryb transakcyjny odrzuca `options` w pakiecie
+            // startowym — wtedy przenieś to na `ALTER ROLE … SET jit = off`.
+            // Puste `DB_JIT=` daje `off` (`?:`; domyślna wartość `env()` nie
+            // zastępuje pustego napisu i było `-c jit=`, czyli błąd połączenia).
+            'server_options' => ['jit' => env('DB_JIT') ?: 'off'],
         ],
 
         'sqlsrv' => [

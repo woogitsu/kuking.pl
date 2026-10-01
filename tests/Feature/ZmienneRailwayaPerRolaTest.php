@@ -221,6 +221,12 @@ class ZmienneRailwayaPerRolaTest extends TestCase
      * Zmienne czytane w `config/*.php` bez wartości domyślnej, których
      * `railway.ts` ŚWIADOMIE nie przekazuje.
      *
+     * UWAGA (IN-03, #2295): „nie przekazuje” znaczy, że `railway config apply`
+     * USUNIE taką zmienną z serwisu, jeśli ktoś ustawił ją w panelu. Wpis,
+     * którego powód mówi „ręcznie / z panelu / właściciel”, musi mieć instrukcję
+     * w `PANELOWE_Z_ZALOZENIA` (`scripts/railway/bilans-zmiennych-595.mjs`) —
+     * pilnuje tego `scripts/railway/iac.test.mjs`.
+     *
      * @var array<string, string>
      */
     private const WYJATKI = [
@@ -248,6 +254,7 @@ class ZmienneRailwayaPerRolaTest extends TestCase
         'DB_CACHE_CONNECTION' => 'null = domyślne połączenie `pgsql`.',
         'DB_CACHE_LOCK_CONNECTION' => 'null = domyślne połączenie `pgsql`.',
         'DB_CACHE_LOCK_TABLE' => 'null = tabela domyślna Laravela.',
+        'DB_JIT' => 'Pusto = `jit=off` w opcjach połączenia PostgreSQL; ustawiane ręcznie tylko do diagnostycznego włączenia JIT.',
         'SESSION_CONNECTION' => 'null = domyślne połączenie `pgsql`.',
         'SESSION_STORE' => 'null = sterownik z SESSION_DRIVER.',
         'SESSION_DOMAIN' => 'null = host żądania, czyli dokładnie kuking.pl bez subdomen.',

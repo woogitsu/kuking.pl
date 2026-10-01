@@ -13,7 +13,10 @@
     @foreach($lista as $produkt)
         <li class="card" data-produkt>
             <div class="flex flex-wrap items-center justify-between gap-3">
-                <div>
+                {{-- `min-w-0`: bez niego element flex nie zwęża się poniżej najdłuższego wyrazu i przy 320 px
+                     z czcionką przeglądarki 200% wypycha stronę w bok (332 px) — dwa zagnieżdżone dopełnienia
+                     (sekcja i karta) zostawiają tam 140 px na tekst. --}}
+                <div class="min-w-0">
                     <span class="text-lg">{{ $produkt->name }}</span>
                     @if($produkt->quantity_note)
                         <span class="meta">({{ $produkt->quantity_note }})</span>

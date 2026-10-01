@@ -115,8 +115,8 @@ class Report extends Model
         // Publiczny zeszyt: nazwa i opis właściciela (#2279).
         'collection' => 'zeszyt',
         'unknown' => 'strona spod podanego adresu',
-        // Tylko w `moderation_actions` (lista odwołań w panelu) — wersji
-        // przepisu nie da się zgłosić, ukrywa ją moderacja z urzędu (#2270).
+        // Konkretna wersja z historii zmian przepisu (#2390). Ukrywa ją moderacja
+        // z urzędu (#2270) albo po zgłoszeniu osoby trzeciej.
         'recipe_version' => 'wersja przepisu (historia zmian)',
     ];
 
