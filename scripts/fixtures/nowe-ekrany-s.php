@@ -131,18 +131,25 @@ DB::transaction(function () use ($ania, $rosol): void {
         ]);
     }
 
-    // Wspomnienie z wykonania: własne „Ugotowałem” sprzed roku (strona główna).
-    $rok = Carbon::now('Europe/Warsaw')->subYear()->setTime(12, 0);
-    $wykonanie = CookedEvent::where('user_id', $ania->getKey())->where('recipe_id', $rosol->getKey())
-        ->where('note', 'Pomiar paczki S: rosół sprzed roku')->first()
-        ?? new CookedEvent([
-            'user_id' => $ania->getKey(), 'recipe_id' => $rosol->getKey(),
-            'note' => 'Pomiar paczki S: rosół sprzed roku', 'would_make_again' => true,
-            'perceived_difficulty' => 'easy', 'actual_minutes' => 120,
-        ]);
-    $wykonanie->cooked_at = $rok;
-    $wykonanie->hide_as_memory = false;
-    $wykonanie->save();
+    // Dwie rocznice podtrzymują realny stan ekranu, gdy audyt przechodzi
+    // przez północ w Polsce. Każdego dnia produkt nadal pokazuje tylko jedną.
+    /** @var \Closure(): array{0: Carbon, 1: Carbon} $rocznice */
+    $rocznice = require __DIR__.'/rocznice-wykonania-s.php';
+    foreach ($rocznice() as $dzien => $rok) {
+        $notatka = $dzien === 0
+            ? 'Pomiar paczki S: rosół sprzed roku'
+            : 'Pomiar paczki S: rosół sprzed roku, następny dzień';
+        $wykonanie = CookedEvent::where('user_id', $ania->getKey())->where('recipe_id', $rosol->getKey())
+            ->where('note', $notatka)->first()
+            ?? new CookedEvent([
+                'user_id' => $ania->getKey(), 'recipe_id' => $rosol->getKey(),
+                'note' => $notatka, 'would_make_again' => true,
+                'perceived_difficulty' => 'easy', 'actual_minutes' => 120,
+            ]);
+        $wykonanie->cooked_at = $rok;
+        $wykonanie->hide_as_memory = false;
+        $wykonanie->save();
+    }
 });
 
 $zeszyt = Collection::where('owner_id', $ania->getKey())->where('name', 'Pomiar paczki S — zeszyt do druku')->firstOrFail();

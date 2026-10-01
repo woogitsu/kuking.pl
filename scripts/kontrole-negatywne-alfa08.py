@@ -2166,6 +2166,9 @@ checks = [
     # Z9 (#2283): regulamin §2 wymienia usługi, których adresy istnieją.
     ("Regulamin §2 bez „Poradźcie”", "resources/legal/regulamin.md", "RegulaminWymieniaUslugiSerwisuTest",
      lambda s: replace_once(s, " („Poradźcie”),", ",")),
+    ("Fixture wspomnienia znika po północy w Polsce", "scripts/fixtures/rocznice-wykonania-s.php",
+     "test_fixture_pomiaru_pokazuje_wspomnienie_po_polnocy_w_polsce",
+     lambda s: replace_once(s, "$dzis->copy()->addDay()->subYear()", "$dzis->copy()->subYear()")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej
