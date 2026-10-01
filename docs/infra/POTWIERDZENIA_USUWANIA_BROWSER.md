@@ -15,8 +15,9 @@ dostępności (`ariaSnapshot`), również gdy nie ma jawnego `aria-label`.
 Warunki uruchomienia w przyszłym jobie przeglądarkowym: migracje na świeżej
 bazie o nazwie `kuking_port_confirm_2466_68` w istniejącej usłudze PG18;
 jawne `DB_HOST=127.0.0.1`,
-`DB_PORT` różne od 5432, `CONFIRM_BROWSER_DB_PORT=$DB_PORT`, `APP_ENV=testing`,
-klucz testowej aplikacji, Composer i Playwright. Skrypt nie wykonuje migracji,
+`DB_PORT` różne od 5432, `CONFIRM_BROWSER_DB_PORT=$DB_PORT`, `APP_ENV=local`,
+klucz testowej aplikacji, Composer i Playwright. Test wymaga odpowiedzi 419 na
+żądanie kasujące bez tokenu CSRF, zanim sprawdzi zwykły formularz. Skrypt nie wykonuje migracji,
 nie dotyka wspólnej bazy ani produkcji. Sam stawia lokalny serwer, a po pomiarze
 usuwa własne rekordy fixture. Nie należy podpinać go do CI, zanim trzy poprawki
 widoków będą razem w bazie gałęzi integracyjnej.
