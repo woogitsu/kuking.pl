@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Collections\Wspoldzielenie\ZaprosDoZeszytu;
+use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Google\KlientGoogle;
 use App\Models\Collection;
