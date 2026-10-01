@@ -39,6 +39,17 @@ class UserPolicy
         return ! ($viewer !== null && $viewer->hasBlockRelationWith($target));
     }
 
+    /**
+     * „Mój rok w kuchni” (#2353): prywatne archiwum, ekran liczy się wyłącznie
+     * z danych osoby zalogowanej. Bramka jest ta sama co przy własnych treściach
+     * (`mozeCzytac()`): konto zawieszone dalej widzi swój dorobek
+     * („poprawne dane nigdy nie znikają”), zamknięte — nie.
+     */
+    public function viewMyYear(User $viewer): bool
+    {
+        return $viewer->mozeCzytac();
+    }
+
     public function follow(User $viewer, User $target): bool
     {
         return $viewer->getKey() !== $target->getKey()

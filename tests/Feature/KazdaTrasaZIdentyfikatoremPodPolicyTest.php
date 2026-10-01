@@ -119,6 +119,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
      * @var array<string, string>
      */
     private const BEZ_IDENTYFIKATORA_OBIEKTU = [
+        'moj-rok.rok' => 'Parametr {rok} to liczba z zakresu bieżący rok − 10 lat…bieżący rok (poza nim 404), nie identyfikator obiektu. Ekran liczy się zawsze z danych ZALOGOWANEJ osoby i nie ma w adresie ani w zapytaniu miejsca na konto (MojRokTest::test_cudze_dane_nie_wchodza_do_mojego_podsumowania_a_adres_nie_przyjmuje_konta); wejście idzie przez `UserPolicy::viewMyYear` (#2353).',
         'password.reset' => 'Parametr {token} to jednorazowy token resetu hasła, nie identyfikator obiektu.',
         'login.link.confirm' => 'Parametr {token} to jednorazowy token logowania linkiem (D-056).',
         'facebook.link.confirm' => 'Parametr {token} to jednorazowy dowód kontroli nad obecnym kontem Kuking, związany z sesją i Facebookiem (#2085).',

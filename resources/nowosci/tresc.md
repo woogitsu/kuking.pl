@@ -31,6 +31,18 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Mój rok w kuchni
+
+W zakładce „Moje” jest przycisk „Mój rok w kuchni”. Prowadzi do spokojnej
+strony tylko dla Was: ile dań opublikowaliście w danym roku, ile razy
+zaznaczyliście „Ugotowałem” i które przepisy gotowaliście najczęściej.
+Można przełączyć się na wcześniejsze lata. Nie ma tu porównań z innymi
+osobami, rankingów, odznak ani udostępniania — nikt poza Wami tej strony
+nie otworzy. Przepis, który usuniecie albo który przestanie być dla Was
+dostępny, znika z podsumowania od razu. Jeśli w ustawieniach prywatności
+wyłączycie wspomnienia, wyłączy się też ta strona; nic się wtedy nie
+kasuje.
+
 ### Co zużyć w pierwszej kolejności
 
 Przy produktach na liście „Co mam w domu” możecie teraz wpisać termin

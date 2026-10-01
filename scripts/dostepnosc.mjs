@@ -591,6 +591,12 @@ const EKRANY = [
    */
   { nazwa: 'bezpieczeństwo konta', adres: '/ustawienia/bezpieczenstwo', zalogowany: true },
   { nazwa: 'urządzenia z dostępem', adres: '/ustawienia/urzadzenia', zalogowany: true },
+  /*
+   * „Mój rok w kuchni” (#2353, D-333) — prywatne podsumowanie roku, tylko dla
+   * zalogowanego. Krótkie listy i przełącznik lat jako rząd przycisków, który
+   * przy 320 px i tekście 200% musi się zawinąć, a nie wypchnąć stronę.
+   */
+  { nazwa: 'mój rok w kuchni', adres: '/moj-rok', zalogowany: true },
 ];
 
 /*
