@@ -1264,6 +1264,12 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    # #2479: wrócenie do nazywania hidden szkicem ma oblać na rzeczywistym ZIP-ie.
+    ("Ukryty przepis nazwany szkicem w eksporcie (#2479)", "app/Domain/Users/Exports/RecipeArchiveStatus.php",
+     "test_ukryty_po_publikacji_nie_jest_szkicem_w_karcie_ani_spisie",
+     lambda s: replace_once(s,
+         "Recipe::STATUS_HIDDEN => ['full' => 'Przepis ukryty', 'short' => 'ukryty'],",
+         "Recipe::STATUS_HIDDEN => ['full' => 'To był szkic — nigdy nie został opublikowany', 'short' => 'szkic'],")),
     # #2478: rok jako jedyne źródło ma naprawdę otworzyć sekcję w pliku ZIP.
     ("Sam rok rodzinny znika z HTML eksportu (#2478)", "resources/views/exports/recipe.blade.php",
      "test_sam_rok_rodzinny_jest_w_html_i_json_bez_pustej_sekcji_dla_innego_przepisu",

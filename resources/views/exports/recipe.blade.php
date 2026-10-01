@@ -20,8 +20,9 @@
 
     <div class="naglowek">
         <h1>{{ $recipe->title }}</h1>
-        @if($recipe->status !== 'published')
-            <p><span class="plakietka">To był szkic — nigdy nie został opublikowany</span></p>
+        @php($statusBadge = \App\Domain\Users\Exports\RecipeArchiveStatus::badge($recipe->status, $recipe->published_at !== null))
+        @if($statusBadge)
+            <p><span class="plakietka">{{ $statusBadge['full'] }}</span></p>
         @elseif($recipe->visibility !== 'public')
             <p><span class="plakietka">Przepis widoczny tylko dla wybranych osób</span></p>
         @endif

@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Models\Recipe;
+use Carbon\Carbon;
 
 /** Bieżące przepisy w rzeczywistym ZIP-ie właściciela, nie sam render Blade. */
 class EksportArchiwumPrzepisuTest extends EksportWygladStylPaczki
@@ -71,5 +72,57 @@ class EksportArchiwumPrzepisuTest extends EksportWygladStylPaczki
             $this->assertStringContainsString('<h2>Skąd ten przepis</h2>', $html);
             $this->assertStringContainsString($oczekiwane, $html);
         }
+    }
+
+    public function test_ukryty_po_publikacji_nie_jest_szkicem_w_karcie_ani_spisie(): void
+    {
+        $autor = $this->user('autor_eksportu_stanu');
+        $obcy = $this->user('obcy_eksportu_stanu');
+        $dataPublikacji = Carbon::parse('2026-09-20 12:00:00', 'UTC');
+        $ukryty = Recipe::factory()->for($autor, 'author')->create([
+            'title' => 'Ukryty po publikacji', 'published_at' => $dataPublikacji,
+        ]);
+        $ukryty->forceFill(['status' => Recipe::STATUS_HIDDEN])->save();
+        $szkic = Recipe::factory()->for($autor, 'author')->draft()->create(['title' => 'Prawdziwy szkic']);
+        $opublikowany = Recipe::factory()->for($autor, 'author')->create(['title' => 'Publiczny przepis']);
+        $prywatny = Recipe::factory()->for($autor, 'author')->create([
+            'title' => 'Prywatny opublikowany', 'visibility' => 'private',
+        ]);
+        $ukrytyBezDaty = Recipe::factory()->for($autor, 'author')->create([
+            'title' => 'Ukryty bez historii publikacji',
+            'status' => Recipe::STATUS_HIDDEN, 'published_at' => null,
+        ]);
+        $usuniety = Recipe::factory()->for($autor, 'author')->create(['title' => 'Usunięty przepis']);
+        $usuniety->delete();
+        $cudzy = Recipe::factory()->for($obcy, 'author')->create(['title' => 'Cudzy przepis']);
+
+        $paczka = $this->zbudujPaczke($autor);
+        $strona = $this->zPaczki($paczka, 'przepisy/'.ExportFileNames::recipeFile($ukryty));
+        $this->assertStringContainsString('Przepis ukryty', $strona, 'EKSPORT_UKRYTY_NIE_JEST_SZKICEM');
+        $this->assertStringContainsString('Opublikowany 20 września 2026.', $strona);
+        $this->assertStringNotContainsString('nigdy nie został opublikowany', $strona);
+
+        $spis = $this->zPaczki($paczka, 'index.html');
+        $pozycja = $this->elementy($this->dokument($spis), '//li[a[@href="przepisy/'.ExportFileNames::recipeFile($ukryty).'"]]');
+        $this->assertCount(1, $pozycja);
+        $this->assertStringContainsString('ukryty', $pozycja[0]->textContent, 'EKSPORT_UKRYTY_NIE_JEST_SZKICEM');
+        $this->assertStringNotContainsString('szkic', $pozycja[0]->textContent);
+
+        $htmlSzkicu = $this->zPaczki($paczka, 'przepisy/'.ExportFileNames::recipeFile($szkic));
+        $this->assertStringContainsString('To był szkic — nigdy nie został opublikowany', $htmlSzkicu);
+        $this->assertStringNotContainsString('Opublikowany ', $htmlSzkicu);
+        $htmlPubliczny = $this->zPaczki($paczka, 'przepisy/'.ExportFileNames::recipeFile($opublikowany));
+        $this->assertStringNotContainsString('class="plakietka"', $htmlPubliczny);
+        $htmlPrywatny = $this->zPaczki($paczka, 'przepisy/'.ExportFileNames::recipeFile($prywatny));
+        $this->assertStringContainsString('Przepis widoczny tylko dla wybranych osób', $htmlPrywatny);
+        $htmlBezDaty = $this->zPaczki($paczka, 'przepisy/'.ExportFileNames::recipeFile($ukrytyBezDaty));
+        $this->assertStringContainsString('Przepis ukryty', $htmlBezDaty);
+        $this->assertStringNotContainsString('nigdy nie został opublikowany', $htmlBezDaty);
+        $this->assertStringNotContainsString('Opublikowany ', $htmlBezDaty);
+
+        $dane = json_decode($this->zPaczki($paczka, 'dane.json'), true, 512, JSON_THROW_ON_ERROR);
+        $this->assertCount(5, $dane['przepisy']);
+        $this->assertNotContains($usuniety->title, array_column($dane['przepisy'], 'tytul'));
+        $this->assertNotContains($cudzy->title, array_column($dane['przepisy'], 'tytul'));
     }
 }
