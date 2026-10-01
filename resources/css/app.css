@@ -7002,3 +7002,55 @@
     overflow-wrap: anywhere;
   }
 }
+
+/* Dyktowanie przy polu przepisu (issue #2377). Host jest pusty, dopóki
+   skrypt nie dorysuje w nim interfejsu (D-053). `.btn` ma
+   `display: inline-flex`, które wygrałoby z samym `[hidden]`. */
+.dyktowanie {
+  margin-top: var(--spacing-2);
+  margin-bottom: var(--spacing-3);
+}
+
+.dyktowanie:empty {
+  display: none;
+}
+
+.dyktowanie-akcje {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.dyktowanie-akcje .btn[hidden],
+.dyktowanie [hidden] {
+  display: none;
+}
+
+.dyktowanie-start {
+  gap: var(--spacing-2);
+}
+
+.dyktowanie-zdanie {
+  margin-top: var(--spacing-2);
+  margin-bottom: 0;
+}
+
+.dyktowanie-etykieta {
+  margin: var(--spacing-3) 0 var(--spacing-1);
+  font-weight: 700;
+}
+
+.dyktowanie-podglad {
+  margin: 0 0 var(--spacing-2);
+  padding: var(--spacing-3);
+  min-height: 3rem;
+  font-size: 1.125rem;
+  border: 1px dashed currentColor;
+  border-radius: var(--radius-lg);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.dyktowanie-blad {
+  margin-top: var(--spacing-2);
+}

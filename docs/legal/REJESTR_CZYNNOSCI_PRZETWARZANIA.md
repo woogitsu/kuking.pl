@@ -11,6 +11,9 @@ Uzupełnienie z 30 września 2026 (#2283, audyt prywatności Z7, Z8, Z11):
 §3.8 (zakres `profile` przy Google obejmuje zdjęcie, którego nie zapisujemy),
 §3.12 (ślad nieudanej wysyłki w `failed_jobs` — 30 dni), §3.19 i §4
 (kanał alarmów Discord działa — odbiorca techniczny bez danych osobowych).
+Uzupełnienie z 1 października 2026 (#2377, decyzja właściciela „Budujemy
+z ostrzeżeniem”, D-333, wersja polityki `2026-09-30`, zmiana drobna): §3.3
+(dyktowanie w przeglądarce — Kuking nie przetwarza dźwięku).
 
 **Skąd wzięła się treść tego dokumentu.** Każda czynność niżej jest
 **wyprowadzona z kodu tego repozytorium**, nie z wyobraźni i nie z polityki
@@ -142,6 +145,16 @@ egzekwuje.
   napisze** — łącznie z danymi, o które serwis nie pyta (dieta, zdrowie,
   osoby trzecie). Polityka prywatności §2 mówi o tym wprost.
 - **Podstawa:** art. 6 ust. 1 lit. b RODO.
+- **Dyktowanie w kreatorze przepisu (#2377):** przycisk „Dyktuj” korzysta
+  wyłącznie z Web Speech API **przeglądarki** (`resources/js/dyktowanie.js`).
+  Dźwięk może trafić do dostawcy przeglądarki (np. Google, Apple) na jego
+  zasadach — to nie jest nasz podmiot przetwarzający i nie dostaje od nas
+  żadnych danych. **Kuking nie nagrywa dźwięku, nie ma endpointu na dźwięk
+  ani transkrypcję i nie dostaje niczego poza tekstem, który człowiek sam
+  wstawi do pola przepisu** — od tej chwili to zwykła treść przepisu (ten
+  sam cel, podstawa i termin). Mikrofon jest odblokowany w nagłówku
+  `Permissions-Policy` tylko na trasach tworzenia i edycji przepisu
+  (`ApplySecurityHeaders::TRASY_KREATORA_PRZEPISU`).
 - **Odbiorcy:** Railway, OpenAI — tylko treść publiczna (§3.7).
 - **Termin usunięcia:** do usunięcia treści albo konta; **wcześniejsze
   wersje przepisu** krócej — wersja starsza niż 24 miesiące (data w Polsce)

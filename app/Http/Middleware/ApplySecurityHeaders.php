@@ -83,6 +83,25 @@ class ApplySecurityHeaders
     /** Znacznik na żądaniu: „podpis dla tego żądania już powstał". */
     private const KLUCZ_PODPISU = 'kuking_csp_nonce';
 
+    /**
+     * Trasy, na których wolno użyć mikrofonu: tworzenie i edycja przepisu
+     * (kreator, formularz na jednej stronie, „Dopisz przepis” ze wpisu,
+     * „Dopisz szczegóły”, edycja). Nic poza nimi — start, profil, tryb
+     * gotowania i reszta serwisu zostają przy `microphone=()`.
+     */
+    public const TRASY_KREATORA_PRZEPISU = [
+        'recipes.create',
+        'recipes.create.simple',
+        'recipes.create.from-post',
+        'recipes.details',
+        'recipes.edit',
+    ];
+
+    private function trasaKreatoraPrzepisu(Request $request): bool
+    {
+        return $request->routeIs(...self::TRASY_KREATORA_PRZEPISU);
+    }
+
     public function handle(Request $request, Closure $next): Response
     {
         // PODPIS MUSI POWSTAĆ PRZED `$next()`, NIE PO.
@@ -146,7 +165,13 @@ class ApplySecurityHeaders
         if ($mayExposeReferrerPath) {
             $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         }
-        $response->headers->set('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=()');
+        // MIKROFON: domyślnie zablokowany (`microphone=()`). Odblokowany dla
+        // własnej domeny WYŁĄCZNIE na trasach kreatora przepisu, gdzie działa
+        // dyktowanie przez Web Speech API przeglądarki (issue #2377, D-333).
+        // Kuking sam niczego nie nagrywa; zezwolenie dotyczy tylko tego, że
+        // przeglądarka może zapytać człowieka o mikrofon na tych stronach.
+        $mikrofon = $this->trasaKreatoraPrzepisu($request) ? '(self)' : '()';
+        $response->headers->set('Permissions-Policy', "geolocation=(), microphone={$mikrofon}, camera=(), payment=()");
         $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
 
         // /search i strony zalogowanego nigdy nie idą do indeksu.

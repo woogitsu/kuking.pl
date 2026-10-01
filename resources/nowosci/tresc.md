@@ -393,6 +393,18 @@ Jedno kliknięcie wczytuje najwyżej 50 pozycji, a to samo wczytanie drugi raz
 niczego nie podwoi. Wybrany plik czeka na Waszą decyzję dwie godziny, a jeśli go
 porzucicie, kasujemy go sami w nocnym sprzątaniu.
 
+### Dyktowanie składników i kroków
+
+W kreatorze przepisu, przy polach składników i kroków, możecie teraz dyktować
+zamiast pisać. Naciśnijcie „Dyktuj” i powiedzcie, co dopisać. Podyktowany tekst
+pojawia się najpierw w osobnym polu pod spodem — do przepisu trafia dopiero po
+„Wstaw do przepisu”, a „Anuluj” go wyrzuca. Tekst, który już wpisaliście,
+zostaje nietknięty: dyktowanie dopisuje na końcu. Przycisk widzicie tylko wtedy,
+gdy Wasza przeglądarka umie rozpoznawać mowę, a mikrofon włącza dopiero po
+Waszym pozwoleniu. Mowę rozpoznaje przeglądarka i może wysyłać dźwięk do swojego
+dostawcy (na przykład Google albo Apple). Kuking nie nagrywa dźwięku i go nie
+dostaje — dostajemy tylko tekst, który sami wstawicie.
+
 ## Alfa 0.77
 
 **Wspólny zeszyt dla rodziny.**
