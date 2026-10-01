@@ -31,6 +31,18 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Wersja przepisu, z której gotowaliście
+
+Kiedy zapisujecie „Ugotowałem”, pamiętamy, którą wersję przepisu mieliście
+przed oczami. Autor mógł ją potem zmienić, ale na stronie swojego wykonania
+klikacie „Zobacz wersję” i czytacie dokładnie to, z czego gotowaliście —
+składniki i kroki z tamtego dnia. Widzicie to tylko Wy: nikt inny, także
+autor przepisu, nie zobaczy, z której wersji gotowaliście. Jeśli tamtej
+wersji już nie ma (stare wersje porządkujemy po dwóch latach, autor mógł ją
+też ukryć), napiszemy o tym wprost, a Wasze wykonanie, notatka i zdjęcia
+zostają bez zmian. Wykonania zapisane przed tą zmianą nie mają przypiętej
+wersji.
+
 ### Wszystkie wersje regulaminu
 
 Na górze regulaminu są dwa nowe przyciski. „Pobierz regulamin” zapisuje go

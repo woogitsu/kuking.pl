@@ -2924,6 +2924,27 @@ Jedno realne gotowanie. Brak unique `(user_id, recipe_id)`.
 - `cooked_at timestamptz NOT NULL DEFAULT now()` — kiedy gotowano. Osobne od
   `created_at`, bo wpis o niedzielnym obiedzie bywa pisany we wtorek;
 - `klucz_wyslania` — patrz niżej.
+- **`recipe_version_id uuid NULL` → `recipe_versions (id)` `ON DELETE SET NULL`**
+  (#2378, migracja `2026_10_01_100000_add_recipe_version_id_to_cooked_events`) —
+  wersja przepisu otwarta przy formularzu „Ugotowałem”. **Wskaźnik, nie kopia:**
+  do wykonania nie trafia żadna treść przepisu. Ustawia go wyłącznie
+  `RecordCookedEvent` (poza `$fillable`), po sprawdzeniu, że wersja należy do
+  TEGO przepisu; brak/cudzy identyfikator → najnowsza wersja z chwili zapisu;
+  przepis bez wersji → `NULL`. `NULL` znaczy „nie wiadomo" (wykonania sprzed
+  migracji — bez backfillu — albo wersja skasowana). Czyta go tylko kucharz
+  (`CookedEventPolicy::viewVersion` + `WersjaWykonania`); publiczne widoki i
+  historia #2024 go nie pokazują.
+  Dlaczego `SET NULL`: `CASCADE` skasowałby notatkę i zdjęcie przy retencji
+  wersji (#2024), `RESTRICT` zablokowałby `kuking:sprzataj-wersje-przepisow`.
+  Wersje usuniętego przepisu i wykonania tego przepisu idą razem z nim
+  (`recipe_id` jest `CASCADE`); wymazanie konta kucharza kasuje jego wykonania.
+  Indeks częściowy `cooked_events_recipe_version_idx (recipe_version_id) WHERE
+  recipe_version_id IS NOT NULL` obsługuje kaskadę `SET NULL`.
+  **Rollback:** `down()` odmawia, gdy choć jedno wykonanie ma wskaźnik (D-088 —
+  kolejny `migrate` odtworzyłby kolumnę pustą); na świeżej bazie i samych
+  `NULL`-ach zdejmuje indeks, klucz i kolumnę. Test:
+  `tests/Feature/WykonaniePamietaWersjePrzepisuTest.php`. Przyjęte domyślne i
+  pytania otwarte: `docs/product/PROPOZYCJA_WYKONANIE_WERSJA_2378.md`.
 
 **`klucz_wyslania` — jedno wysłanie formularza to jeden wiersz** (D-027,
 migracja `2026_09_07_900100_add_klucz_wyslania_to_cooked_events`).

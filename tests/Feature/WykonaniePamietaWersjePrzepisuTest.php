@@ -12,6 +12,7 @@ use App\Models\CookedEvent;
 use App\Models\Recipe;
 use App\Models\RecipeVersion;
 use App\Models\User;
+use Illuminate\Database\Eloquent\MassAssignmentException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -115,7 +116,7 @@ class WykonaniePamietaWersjePrzepisuTest extends TestCase
 
     public function test_wskaznika_nie_da_sie_ustawic_masowym_przypisaniem(): void
     {
-        $this->expectException(\Illuminate\Database\Eloquent\MassAssignmentException::class);
+        $this->expectException(MassAssignmentException::class);
 
         (new CookedEvent)->fill(['recipe_version_id' => $this->v1->getKey()]);
     }
