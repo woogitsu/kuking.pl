@@ -126,6 +126,14 @@ final class DawneNazwyProfilu
             return null;
         }
 
-        return redirect()->route($trasa, [...$request->query(), 'username' => $profil->username], 301);
+        // Bez jawnego zakazu cache przeglądarka (a czytnik kanałów, który
+        // omija warstwę `web`) mogłaby zapamiętać 301 na stałe. Po powrocie
+        // osoby do dawnej nazwy dwa zapamiętane przekierowania (A → B i B → A)
+        // dałyby u tego odwiedzającego pętlę. Profil i podstrony dostają
+        // to samo z `PreventSharedSessionCache`; kanał Atom stoi poza nim.
+        $odpowiedz = redirect()->route($trasa, [...$request->query(), 'username' => $profil->username], 301);
+        $odpowiedz->headers->set('Cache-Control', 'private, no-store');
+
+        return $odpowiedz;
     }
 }
