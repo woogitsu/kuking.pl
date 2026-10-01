@@ -1005,3 +1005,121 @@ test("kontrola ujemna runbooka #595: brak linii w bloku wycofania jest wykrywany
   assert.notEqual(zepsuty, RUNBOOK_595, "mutacja nic nie zmieniła");
   assert.notDeepEqual(blokPowrotu(zepsuty), liniePowrotuDoAll(PROD));
 });
+
+// ---------------------------------------------------------------------------
+//  WARTOŚCI DOSŁOWNE RÓŻNE OD DOMYŚLNYCH W config/ (IN-04, #2296).
+//
+//  `railway.ts` nie obowiązuje na produkcji, dopóki nikt nie zrobi `railway
+//  config apply` (#595). Do tego czasu o zachowaniu decyduje panel, a gdy
+//  zmiennej tam nie ma — wartość domyślna z `config/*.php`. Tak D-269
+//  („życzenia mailem włączone na produkcji”) nie działało: w pliku `"true"`,
+//  w `config/kuking.php` `false`, w panelu nic.
+//
+//  Ten blok wylicza z grafu produkcji każdą wartość dosłowną, która RÓŻNI się
+//  od wszystkich jawnych wartości domyślnych w `config/`, i wymaga wpisu w
+//  `ROZNE_OD_DOMYSLNYCH` z opisem skutku, gdy panel tej zmiennej nie ma. To
+//  lista do porównania przez właściciela w kroku 0.5 runbooka
+//  (docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md), nie dowód stanu panelu:
+//  repozytorium panelu nie zna.
+//
+//  Czego to nie łapie: domyślnych będących wyrażeniem (`env('A') === …`,
+//  trójka) — te są pomijane, bo nie da się ich policzyć bez PHP.
+// ---------------------------------------------------------------------------
+const ROZNE_OD_DOMYSLNYCH = {
+  APP_FAKER_LOCALE: "tylko dane demonstracyjne; bez wpływu na ludzi",
+  APP_URL: "adresy w mailach i mapie strony; bez zmiennej byłby `http://localhost`",
+  DB_CONNECTION: "bez zmiennej aplikacja szukałaby SQLite — produkcja bez tego nie wstaje",
+  FILESYSTEM_DISK: "bez zmiennej zdjęcia szłyby na dysk lokalny kontenera, czyli znikałyby przy wdrożeniu",
+  KUKING_QUESTIONS_ENABLED: "włącza dział pytań „Poradźcie” (D-333: właściciel włącza sam po wdrożeniu)",
+  KUKING_URODZINY_MAIL_WLACZONY: "włącza wysyłkę życzeń urodzinowych mailem (D-269, krok W12)",
+  LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK: "bez zmiennej pliki tymczasowe kreatora szłyby na dysk lokalny kontenera (przy kilku usługach worker ich nie zobaczy)",
+  LOG_CHANNEL: "bez zmiennej logi trafiałyby do pliku w kontenerze, a nie na stderr",
+  LOG_STDERR_FORMATTER: "bez zmiennej logi na stderr byłyby tekstem, nie JSON-em (gorzej czytelne dla alarmów i wyszukiwania)",
+  LOG_LEVEL: "poziom `warning` zamiast `debug`; bez zmiennej dziennik rośnie od szczegółów",
+  MAIL_SCHEME: "schemat połączenia SMTP z EmailLabs; bez zmiennej nie jest ustawiony jawnie (sprawdź, że poczta wychodzi)",
+  MAIL_MAILER: "bez zmiennej listy trafiałyby do dziennika (`log`), nie do ludzi",
+  SESSION_ENCRYPT: "szyfrowanie sesji; zmiana unieważnia istniejące sesje (ludzie logują się od nowa)",
+  SESSION_LIFETIME: "43200 minut zamiast 120; bez zmiennej sesje wygasają po dwóch godzinach",
+};
+
+/** Domyślne z config/*.php: tekst literału, `null` dla `env('X')` bez drugiego argumentu, `undefined` dla wyrażenia. */
+function domyslneZConfig() {
+  const dir = resolve(KORZEN, "config");
+  const wynik = new Map();
+  for (const plik of readdirSync(dir).filter((f) => f.endsWith(".php"))) {
+    const zrodlo = readFileSync(join(dir, plik), "utf8");
+    for (const m of zrodlo.matchAll(/env\(\s*'([A-Z0-9_]+)'\s*(?:,\s*((?:[^()]|\([^()]*\))*?))?\)/g)) {
+      const surowa = m[2]?.trim();
+      let wartosc;
+      if (surowa === undefined) wartosc = null;
+      else if (/^'[^']*'$/.test(surowa)) wartosc = surowa.slice(1, -1);
+      else if (/^(true|false|\d+)$/.test(surowa)) wartosc = surowa;
+      else wartosc = undefined;
+      if (!wynik.has(m[1])) wynik.set(m[1], []);
+      wynik.get(m[1]).push(wartosc);
+    }
+  }
+  return wynik;
+}
+
+/** Nazwy wartości dosłownych (w dowolnej usłudze aplikacji), których wartość nie występuje wśród domyślnych z config/. */
+function literalyRozneOdDomyslnych(g, domyslne) {
+  const nazwy = new Set();
+  for (const s of g.resources.filter((r) => r.type === "service" && r.groupId === "Aplikacja")) {
+    for (const [k, v] of Object.entries(s.variables ?? {})) {
+      if (v.type !== "literal") continue;
+      const lista = domyslne.get(k);
+      if (!lista || lista.includes(undefined)) continue; // nie czytana w config/ albo wyrażenie
+      if (!lista.includes(String(v.value))) nazwy.add(k);
+    }
+  }
+  return [...nazwy].sort();
+}
+
+function bledyRoznychOdDomyslnych(g, domyslne, rejestr) {
+  const b = [];
+  const rozne = literalyRozneOdDomyslnych(g, domyslne);
+  for (const n of rozne) {
+    if (!(n in rejestr)) b.push(`${n}: wartość dosłowna w railway.ts różni się od domyślnej w config/ — dopisz do ROZNE_OD_DOMYSLNYCH, co zmieni apply`);
+  }
+  for (const n of Object.keys(rejestr)) {
+    if (!rozne.includes(n)) b.push(`${n}: wpis w ROZNE_OD_DOMYSLNYCH nie ma pokrycia (wartość zrównana z domyślną albo zmienna usunięta) — usuń wpis`);
+  }
+  return b;
+}
+
+const DOMYSLNE_CONFIG = domyslneZConfig();
+
+test("wartości dosłowne różne od domyślnych w config/ są wyliczone w ROZNE_OD_DOMYSLNYCH (IN-04)", () => {
+  assert.ok(DOMYSLNE_CONFIG.size > 100, "parser config/ nic nie znalazł — test niczego by nie sprawdzał");
+  assert.deepEqual(bledyRoznychOdDomyslnych(PROD, DOMYSLNE_CONFIG, ROZNE_OD_DOMYSLNYCH), []);
+});
+
+test("runbook #595 odsyła do ROZNE_OD_DOMYSLNYCH przy porównaniu z panelem (IN-04)", () => {
+  assert.match(RUNBOOK_595, /ROZNE_OD_DOMYSLNYCH/);
+});
+
+function prodZLiteralem(mutacja) {
+  const g = structuredClone(PROD);
+  mutacja(g);
+  return g;
+}
+const bezWpisu = (nazwa) => Object.fromEntries(Object.entries(ROZNE_OD_DOMYSLNYCH).filter(([k]) => k !== nazwa));
+
+for (const [opis, g, rejestr] of [
+  ["nowy wyłącznik włączony dosłownie, domyślnie wyłączony w config", prodZLiteralem((x) => {
+    usluga(x, "scheduler").variables.KUKING_DIGEST_WLACZONY = { type: "literal", value: "true" };
+  }), ROZNE_OD_DOMYSLNYCH],
+  ["wpis rejestru bez pokrycia w grafie", PROD, { ...ROZNE_OD_DOMYSLNYCH, KUKING_NIE_MA_TAKIEJ: "x" }],
+  ["wyłącznik życzeń usunięty z rejestru", PROD, bezWpisu("KUKING_URODZINY_MAIL_WLACZONY")],
+  ["wartość zrównana z domyślną, wpis w rejestrze zostaje", prodZLiteralem((x) => {
+    for (const s of x.resources.filter((r) => r.type === "service")) {
+      if (s.variables?.SESSION_LIFETIME) s.variables.SESSION_LIFETIME.value = "120";
+    }
+  }), ROZNE_OD_DOMYSLNYCH],
+]) {
+  test(`kontrola ujemna różnic od domyślnych: ${opis}`, () => {
+    assert.deepEqual(bledyRoznychOdDomyslnych(PROD, DOMYSLNE_CONFIG, ROZNE_OD_DOMYSLNYCH), [], "kontrola dodatnia: stan repozytorium jest czysty");
+    assert.notDeepEqual(bledyRoznychOdDomyslnych(g, DOMYSLNE_CONFIG, rejestr), [], `strażnik nie zauważył: ${opis}`);
+  });
+}
