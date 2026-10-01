@@ -10,6 +10,7 @@ use App\Models\Recipe;
 use App\Models\RecipeStep;
 use App\Models\User;
 use DOMDocument;
+use DOMElement;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -56,6 +57,17 @@ class KolejkaGotowaniaTest extends TestCase
         @$dom->loadHTML('<?xml encoding="utf-8" ?>'.$html);
 
         return new DOMXPath($dom);
+    }
+
+    private function element(DOMXPath $xpath, string $zapytanie): DOMElement
+    {
+        $wezel = $xpath->query($zapytanie)->item(0);
+
+        if (! $wezel instanceof DOMElement) {
+            $this->fail('Nie znaleziono elementu: '.$zapytanie);
+        }
+
+        return $wezel;
     }
 
     public function test_gosc_widzi_potrawy_przelacznik_i_linki_do_trybu_pojedynczego(): void
@@ -111,11 +123,11 @@ class KolejkaGotowaniaTest extends TestCase
 
         foreach ([route('recipes.show', $przepis->slug), route('cooking.show', $przepis->slug)] as $adres) {
             $xpath = $this->xpath($this->get($adres)->assertOk()->getContent());
-            $blok = $xpath->query('//*[@data-kolejka-dodaj]');
+            $this->assertSame(1, $xpath->query('//*[@data-kolejka-dodaj]')->length, $adres);
+            $blok = $this->element($xpath, '//*[@data-kolejka-dodaj]');
 
-            $this->assertSame(1, $blok->length, $adres);
-            $this->assertTrue($blok->item(0)->hasAttribute('hidden'), 'blok „Dodaj do kolejki” ma `hidden` bez JS: '.$adres);
-            $this->assertSame($przepis->slug, $blok->item(0)->getAttribute('data-slug'));
+            $this->assertTrue($blok->hasAttribute('hidden'), 'blok „Dodaj do kolejki” ma `hidden` bez JS: '.$adres);
+            $this->assertSame($przepis->slug, $blok->getAttribute('data-slug'));
         }
     }
 
@@ -230,10 +242,10 @@ class KolejkaGotowaniaTest extends TestCase
 
         // `?p=` (pusty, ale obecny) to „zapisz pustą kolejkę”, goły adres to „odtwórz z przeglądarki”.
         $xpath = $this->xpath($this->get(route('kolejka-gotowania', ['p' => '']))->assertOk()->getContent());
-        $this->assertSame('1', $xpath->query('//*[@data-kolejka-ekran]')->item(0)->getAttribute('data-kolejka-z-adresu'));
+        $this->assertSame('1', $this->element($xpath, '//*[@data-kolejka-ekran]')->getAttribute('data-kolejka-z-adresu'));
 
         $goly = $this->xpath($this->get(route('kolejka-gotowania'))->assertOk()->assertSee('Kolejka jest pusta')->getContent());
-        $this->assertSame('0', $goly->query('//*[@data-kolejka-ekran]')->item(0)->getAttribute('data-kolejka-z-adresu'));
+        $this->assertSame('0', $this->element($goly, '//*[@data-kolejka-ekran]')->getAttribute('data-kolejka-z-adresu'));
     }
 
     public function test_przepis_bez_krokow_wypada_z_kolejki(): void

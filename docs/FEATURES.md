@@ -144,6 +144,18 @@ z 29 września 2026) — wolno budować:
 - historia i porównanie publicznych wersji przepisu (#2024);
 - opcjonalna synchronizacja postępu gotowania między urządzeniami (#2016).
 
+**Zbudowane** (D-333, wiersz „#2379”, decyzja właściciela z 1 października 2026):
+
+- kolejka do 4 przepisów z niezależnymi minutnikami, `/gotuj-kilka` (#2379) —
+  **zbudowane**. Kolejka żyje tylko w przeglądarce (`localStorage`, bez konta
+  i bez migracji), wygasa po 24 godzinach od ostatniej zmiany, ma przycisk
+  „Wyczyść kolejkę”; zamknięcie karty kończy działające minutniki (kolejka
+  zostaje); alarm ma ten sam dźwięk co minutnik pojedynczego przepisu plus
+  komunikat tekstowy; bez AI. Każdy przepis przechodzi `RecipePolicy::view`,
+  a ten, którego osoba już nie widzi, wypada z kolejki z komunikatem. Bez
+  JavaScriptu ekran pokazuje zwykłe linki do trybu pojedynczego, a przycisk
+  „Dodaj do kolejki gotowania” pojawia się dopiero ze skryptem.
+
 **Dopisane do planu i zbudowane** (D-333, wiersz „#2227”, decyzja właściciela
 z 30 września 2026):
 
