@@ -38,7 +38,7 @@ final class UpdateCollectionItemNote
 
     public const WOREK_BLEDOW = 'notatka';
 
-    public const BLAD_KONFLIKTU = 'Ta notatka zmieniła się, gdy pisałeś swoją. Twój tekst został w polu. Porównaj go z obecną notatką nad polem. Jeśli chcesz ją zastąpić, kliknij „Zastąp obecną notatkę”.';
+    public const BLAD_KONFLIKTU = 'Ta notatka zmieniła się w trakcie pisania. Twój tekst został w polu. Porównaj go z obecną notatką nad polem. Jeśli chcesz ją zastąpić, kliknij „Zastąp obecną notatkę”.';
 
     /** Odcisk wartości widzianej przy otwarciu formularza; null i pusty tekst to różne stany. */
     public static function odcisk(?string $note): string

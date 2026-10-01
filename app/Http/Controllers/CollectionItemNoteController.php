@@ -10,6 +10,7 @@ use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * „Dodaj notatkę dla siebie" przy pozycji własnego zeszytu (issue #978).
@@ -26,14 +27,18 @@ class CollectionItemNoteController extends Controller
 
         $request->validateWithBag(UpdateCollectionItemNote::WOREK_BLEDOW, [
             'note' => ['nullable', 'string'],
-            '_odcisk_notatki' => ['required', 'regex:/\A[a-f0-9]{64}\z/D'],
         ], [
             'note.string' => 'Wpisz notatkę zwykłym tekstem i zapisz jeszcze raz.',
-            '_odcisk_notatki.required' => 'Odśwież zeszyt i spróbuj zapisać notatkę jeszcze raz. Twój tekst pozostanie w polu.',
-            '_odcisk_notatki.regex' => 'Odśwież zeszyt i spróbuj zapisać notatkę jeszcze raz. Twój tekst pozostanie w polu.',
         ]);
 
-        $note = $action->handle($request->user(), $collection, $typ, $pozycja, $request->input('note'), $request->string('_odcisk_notatki')->toString());
+        $odcisk = $request->input('_odcisk_notatki');
+        if (! is_string($odcisk) || ! preg_match('/\A[a-f0-9]{64}\z/D', $odcisk)) {
+            throw ValidationException::withMessages([
+                'note' => 'Nie można sprawdzić, czy notatka się zmieniła. Twój tekst został w polu. Sprawdź obecną notatkę nad polem i zapisz ponownie.',
+            ])->errorBag(UpdateCollectionItemNote::WOREK_BLEDOW);
+        }
+
+        $note = $action->handle($request->user(), $collection, $typ, $pozycja, $request->input('note'), $odcisk);
 
         return redirect()->back(fallback: route('collections.show', $collection))->with(Komunikat::sukces($note === null
             ? 'Notatka usunięta. Zapis został w zeszycie.'

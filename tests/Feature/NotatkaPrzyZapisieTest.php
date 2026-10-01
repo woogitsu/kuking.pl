@@ -234,9 +234,23 @@ final class NotatkaPrzyZapisieTest extends TestCase
         $przepis = Recipe::factory()->create(['author_id' => $this->user('autor')->getKey(), 'visibility' => 'public']);
         $zeszyt->recipes()->attach($przepis->id, ['note' => 'A']);
 
-        $this->actingAs($wlasciciel)->patch($this->adres($zeszyt, 'przepis', $przepis->id), ['note' => 'C'])
-            ->assertSessionHasErrors('_odcisk_notatki');
-        $this->assertSame('A', DB::table('collection_items')->where('collection_id', $zeszyt->id)->value('note'));
+        foreach ([[], ['_odcisk_notatki' => 'błędny'], ['_odcisk_notatki' => ['tablica']]] as $niepoprawnyOdcisk) {
+            $html = (string) $this->actingAs($wlasciciel)->from(route('collections.show', $zeszyt))->followingRedirects()
+                ->patch($this->adres($zeszyt, 'przepis', $przepis->id), [
+                    'note' => 'C', '_wiersz' => 'notatka-przepis-'.$przepis->id,
+                    ...$niepoprawnyOdcisk,
+                ])->assertOk()->getContent();
+            $xpath = $this->xpath($html);
+            $link = $xpath->evaluate('string(//div[contains(@class,"error-summary")]//a/@href)');
+            $this->assertStringStartsWith('#f-note-notatka-przepis-', $link);
+            $this->assertStringContainsString('Nie można sprawdzić, czy notatka się zmieniła', $html);
+            $this->assertStringContainsString('Nie można sprawdzić, czy notatka się zmieniła',
+                $xpath->evaluate('string(//span[@id="'.substr($link, 1).'-error"])'));
+            $this->assertSame('C', trim($xpath->evaluate('string(//textarea[@name="note"])')));
+            $this->assertStringContainsString('Zapisz notatkę', $html);
+            $this->assertStringNotContainsString('Zastąp obecną notatkę', $html);
+            $this->assertSame('A', DB::table('collection_items')->where('collection_id', $zeszyt->id)->value('note'));
+        }
     }
 
     public function test_publiczny_zeszyt_nie_pokazuje_notatki_nikomu_poza_wlascicielem(): void
