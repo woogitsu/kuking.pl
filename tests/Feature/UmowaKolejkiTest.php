@@ -21,6 +21,7 @@ use App\Notifications\PotwierdzenieAdresu;
 use App\Notifications\UstawienieHaslaZamiastLinku;
 use App\Notifications\UstawienieNowegoHasla;
 use App\Notifications\ZaproszenieDoZalozeniaKonta;
+use App\Support\QueueConfigurationGuard;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -225,6 +226,49 @@ class UmowaKolejkiTest extends TestCase
             PrzeanalizujTresc::class,
             fn (PrzeanalizujTresc $z): bool => $z->typ === PrzeanalizujTresc::TYP_KOMENTARZ,
         );
+    }
+
+    public function test_kolejka_bazodanowa_dziedziczy_polaczenie_aplikacji_i_ma_wylaczony_after_commit(): void
+    {
+        config([
+            'queue.default' => 'database',
+            'queue.connections.database.after_commit' => false,
+        ]);
+
+        QueueConfigurationGuard::assertCompatible();
+        $this->assertSame(
+            config('database.default'),
+            config('queue.connections.database.connection'),
+            'Kolejka database musi domyślnie korzystać z połączenia aplikacji.',
+        );
+    }
+
+    public function test_kolejka_bazodanowa_odmawia_rozjazdu_polaczenia(): void
+    {
+        config([
+            'queue.default' => 'database',
+            'queue.connections.database.connection' => 'inne_polaczenie',
+            'queue.connections.database.after_commit' => false,
+        ]);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('tego samego połączenia');
+
+        QueueConfigurationGuard::assertCompatible();
+    }
+
+    public function test_kolejka_bazodanowa_odmawia_wlaczenia_after_commit_bez_zmiany_sciezek_importu(): void
+    {
+        config([
+            'queue.default' => 'database',
+            'queue.connections.database.connection' => config('database.default'),
+            'queue.connections.database.after_commit' => true,
+        ]);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('after_commit=false');
+
+        QueueConfigurationGuard::assertCompatible();
     }
 
     public function test_retry_after_jest_wieksze_niz_najdluzsze_zadanie(): void

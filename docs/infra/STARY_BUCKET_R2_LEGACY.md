@@ -24,6 +24,23 @@ Pomyłkowe wyczyszczenie, przemianowanie albo odebranie tokenu starego
 bucketu to więc dla tych kont bezpowrotna utrata zdjęć
 (`KOPIE_I_ODTWORZENIE.md`, scenariusz c3).
 
+## 1a. `railway config apply` usuwa `AWS_LEGACY_*` z panelu (IN-03, #2295)
+
+`.railway/railway.ts` **świadomie** nie deklaruje `AWS_LEGACY_BUCKET`,
+`AWS_LEGACY_URL` ani pary `AWS_LEGACY_*` (lista `WYJATKI` w
+`tests/Feature/ZmienneRailwayaPerRolaTest.php`), a `railway config apply`
+usuwa zmienne serwisu spoza pliku (`ZMIENNE_SPOZA_IAC.md`, na żywym planie
+jeszcze niepotwierdzone). Jeśli te zmienne stoją dziś w panelu, pierwsze apply
+zdejmuje je razem z wartością, a zdjęcia z `disk = 'r2_legacy'` przestają się
+wyświetlać — bez błędu przy wdrożeniu.
+
+Dlatego **przed każdym apply**: bilans z kroku 0.5 w
+`PRZELACZENIE_NA_3_SERWISY_595.md` (sekcja „tylko z panelu”) i pomiar z §2
+(`--pliki`). Wiersze `r2_legacy` są → wartości przenosi się do Shared
+`R2_LEGACY_*` i deklaruje w `railway.ts`, zanim ruszy apply. Ich nie ma →
+nazwy trafiają do `MARTWE` w `scripts/railway/bilans-zmiennych-595.mjs`
+z datą pomiaru. Kroki w panelu wykonuje właściciel.
+
 ## 2. Pomiar — ile zdjęć zależy od starego bucketu
 
 Tylko odczyt, bez zgody na nic (same `SELECT` i `exists()`):

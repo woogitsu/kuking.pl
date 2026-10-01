@@ -191,6 +191,27 @@ final class RetencjaWersjiPrzepisuTest extends TestCase
         $this->assertDatabaseMissing('recipe_versions', ['id' => $ww[1]->getKey()]);
     }
 
+    public function test_wersja_wskazana_zgloszeniem_zostaje_a_reszta_starych_znika(): void
+    {
+        Date::setTestNow('2026-09-29 12:00:00');
+        [, $w] = $this->przepisZPiecioma();
+
+        Report::create([
+            'reporter_id' => User::factory()->create()->getKey(),
+            'target_type' => 'recipe_version',
+            'target_id' => $w[1]->getKey(),
+            'reason' => 'personal_data',
+            'status' => Report::STATUS_RESOLVED,
+            'resolved_at' => now(),
+        ]);
+
+        $wynik = (new PrzedawnioneWersjePrzepisow)->posprzataj(24, 3);
+
+        $this->assertSame(1, $wynik['skasowano']);
+        $this->assertDatabaseHas('recipe_versions', ['id' => $w[1]->getKey()]);
+        $this->assertDatabaseMissing('recipe_versions', ['id' => $w[2]->getKey()]);
+    }
+
     public function test_na_sucho_liczy_to_samo_co_przebieg_prawdziwy_i_niczego_nie_rusza(): void
     {
         Date::setTestNow('2026-09-29 12:00:00');

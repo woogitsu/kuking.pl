@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Recipe;
+use App\Support\Czas;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -36,6 +37,11 @@ class CzasCalkowityPrzepisuSpojnyTest extends TestCase
             'oba zero' => [0, 0, null],
             'dokładnie 30' => [10, 20, 30],
             '31 minut' => [11, 20, 31],
+            'dokładnie godzina' => [20, 40, 60],
+            '61 minut zostaje dokładne' => [21, 40, 61],
+            '89 minut zostaje dokładne' => [29, 60, 89],
+            '90 minut to godzina i pół' => [30, 60, 90],
+            '91 minut to około godziny i pół' => [31, 60, 91],
         ];
     }
 
@@ -56,7 +62,7 @@ class CzasCalkowityPrzepisuSpojnyTest extends TestCase
         if ($oczekiwany === null) {
             $strona->assertDontSee('>Czas<', escape: false);
         } else {
-            $strona->assertSee('Około '.$oczekiwany.' min', escape: false);
+            $strona->assertSee('Około '.Czas::czasPrzepisu($oczekiwany), escape: false);
         }
 
         $szybkie = $this->get(route('search', ['q' => 'zupa', 'sekcja' => 'szybkie']))->assertOk();
@@ -73,6 +79,13 @@ class CzasCalkowityPrzepisuSpojnyTest extends TestCase
         } else {
             $szybkie->assertDontSee('Zupa testowa');
         }
+
+        // Próg „Do godziny” (60 min) czyta te same minuty, które strona pokazuje
+        // dokładnie aż do 89 — 61 minut nie udaje „godziny”.
+        $this->assertSame(
+            $oczekiwany !== null && $oczekiwany <= 60,
+            Recipe::query()->gotoweWCiagu(60)->whereKey($przepis->getKey())->exists(),
+        );
 
         $this->assertSame($oczekiwany, $przepis->fresh()->totalMinutes());
         $this->assertSame(

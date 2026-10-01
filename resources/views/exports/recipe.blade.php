@@ -45,8 +45,8 @@
 
     <p class="fakty">
         @if($recipe->servingsLabel())<span>{{ $recipe->servingsLabel() }}</span>@endif
-        @if($recipe->prep_minutes)<span>Przygotowanie: {{ $recipe->prep_minutes }} min</span>@endif
-        @if($recipe->cook_minutes)<span>Gotowanie: {{ $recipe->cook_minutes }} min</span>@endif
+        @if($recipe->prep_minutes)<span>Przygotowanie: {{ \App\Support\Czas::czasPrzepisu($recipe->prep_minutes) }}</span>@endif
+        @if($recipe->cook_minutes)<span>Gotowanie: {{ \App\Support\Czas::czasPrzepisu($recipe->cook_minutes) }}</span>@endif
         @if($recipe->difficultyLabel())<span>Trudność: {{ $recipe->difficultyLabel() }}</span>@endif
         @if($recipe->costLabel())<span>{{ $recipe->costLabel() }}</span>@endif
     </p>
