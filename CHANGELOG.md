@@ -3,6 +3,7 @@
 ## Nieopublikowane
 
 - Naprawione (#2445): ekran „Co się zmieniło” pokazuje minutnik także wtedy, gdy jednocześnie zmienił się tekst kroku albo krok dodano lub usunięto. Czas pochodzi z odpowiedniej zapisanej wersji; brak minutnika nie jest zgadywany.
+- Naprawione (#2400): gdy ktoś zmieni notatkę w zeszycie, starsza karta nie nadpisuje jej po cichu. Wpisany szkic zostaje, a właściciel lub współtwórca widzi aktualną notatkę i może świadomie zastąpić ją swoim tekstem.
 - Naprawione (#2420): osoba zaproszona linkiem do wspólnego zeszytu po założeniu konta i pierwszych krokach wraca do podglądu zaproszenia. Samo dołączenie wymaga kliknięcia „Dołączam”; wygasły lub odwołany link nie otwiera podglądu.
 - Naprawione (#2437, CSAM): stan zabezpieczenia i zadanie przeniesienia publicznych wariantów zdjęcia zapisują się w jednej transakcji. Awaria kolejki cofa decyzję; worker widzi zadanie dopiero razem z zatwierdzonym stanem. Sonda zdrowia wykrywa też brak zakończonego przeniesienia mimo pustych tabel zadań. Runbook rozróżnia zadanie oczekujące, nieudane i brakujące, bez ponawiania decyzji moderatora.
 - Naprawione (#2434): objaśnienie „Pasteryzować” nie poleca już utrwalania słoików w zwykłym piekarniku ani dowolnych parametrów autora. Odsyła do przebadanej metody dla konkretnego produktu; uwaga pod słownikiem nie obiecuje oceny bezpieczeństwa przepisu. Przegląd całego słownika pozostaje w #2343.
