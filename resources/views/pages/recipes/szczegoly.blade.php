@@ -396,6 +396,7 @@
                            @if($i === 0) placeholder="1 kurczak, najlepiej zagrodowy" @endif
                            @error("ingredients.$i.text") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-text-error" @enderror>
                     @error("ingredients.$i.text")<span class="field-error" id="f-ingredients-{{ $i }}-text-error">{{ $message }}</span>@enderror
+                    <x-dyktowanie :cel="'f-ingredients-'.$i.'-text'" />
 
                     {{--
                         GRUPA SKŁADNIKÓW — „Ciasto”, „Farsz”, „Do podania”
@@ -530,6 +531,7 @@
                                   @if($i === 0) placeholder="Kurczaka zalej zimną wodą i zagotuj. Zbierz szumowiny." @endif
                         >{{ $oldSteps[$i]['instruction'] ?? '' }}</textarea>
                         @error("steps.$i.instruction")<span class="field-error" id="f-steps-{{ $i }}-instruction-error">{{ $message }}</span>@enderror
+                        <x-dyktowanie :cel="'f-steps-'.$i.'-instruction'" />
                     </div>
 
                     {{-- Ręczna rozpiska, a nie `x-field`, i to jest świadome.
