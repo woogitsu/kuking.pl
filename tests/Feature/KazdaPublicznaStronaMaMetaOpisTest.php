@@ -207,6 +207,10 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             'recipes.history' => route('recipes.history', $recipe->slug),
             'recipes.history.version' => route('recipes.history.version', [$recipe->slug, 2]),
             'recipes.history.changes' => route('recipes.history.changes', [$recipe->slug, 2]),
+            // Karta z kodem QR (#2349): publiczna, ale `noindex` (kartka do
+            // papieru, nie treść dla wyszukiwarki) — pętla sprawdzi 200 i noindex.
+            'recipes.qr-card' => route('recipes.qr-card', $recipe->slug),
+            'profile.qr-card' => route('profile.qr-card', $autor->profile->username),
             'cooking.show' => route('cooking.show', $recipe->slug),
             // „Ugotujmy razem” (F3): strona bieżącego tygodnia (tu bez wyboru —
             // pusty stan też musi mieć opis) i tydzień z archiwum z wyborem.

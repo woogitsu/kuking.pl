@@ -801,6 +801,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // ma pierwszeństwo i wycina zablokowanego (UserPolicy::viewProfile).
         $dodaj('profile.show', 'profil publiczny', 'get',
             route('profile.show', $wlasciciel->profile->username), [], [$W, $W, $O, $W, $W]);
+        // Karta z kodem QR profilu (#2349): te same drzwi co profil (blokada
+        // wycina), a dodatkowo karta istnieje tylko, gdy gość ma tu co oglądać.
+        $dodaj('profile.qr-card', 'karta z kodem QR profilu', 'get',
+            route('profile.qr-card', $wlasciciel->profile->username), [], [$W, $W, $O, $W, $W]);
         $dodaj('social.followers', 'lista obserwujących', 'get',
             route('social.followers', $wlasciciel->profile->username), [], [$W, $W, $O, $W, $W]);
         $dodaj('social.following', 'lista obserwowanych', 'get',
@@ -1009,6 +1013,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // ─── PRZEPISY ────────────────────────────────────────────────────
         $dodaj('recipes.show', 'przepis prywatny', 'get',
             route('recipes.show', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        // Karta z kodem QR (#2349) jest TYLKO dla treści widocznej dla gościa:
+        // prywatny przepis nie dostaje jej nawet u autora (404).
+        $dodaj('recipes.qr-card', 'karta z kodem QR prywatnego przepisu', 'get',
+            route('recipes.qr-card', $przepisPrywatny), [], [$O, $O, $O, $O, $O]);
         $dodaj('recipes.history', 'historia zmian prywatnego przepisu', 'get',
             route('recipes.history', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.history.version', 'wersja prywatnego przepisu', 'get',

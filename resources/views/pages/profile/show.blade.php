@@ -308,6 +308,11 @@
                 <a class="btn btn-primary" href="{{ route('register', ['follow_user' => $owner->getKey()]) }}">Załóż konto, żeby obserwować</a>
                 <a class="btn btn-quiet" href="{{ route('login', ['follow_user' => $owner->getKey()]) }}">Zaloguj się do swojego konta</a>
             @endif
+            {{-- Karta z kodem QR (#2349): tylko gdy gość ma tu co oglądać
+                 (`KartaZKodemQr::profilDostepny()`); inaczej trasa dałaby 404. --}}
+            @if($kartaQrDostepna)
+                <a class="btn btn-quiet" href="{{ route('profile.qr-card', $p->username) }}">Wydrukuj kartę z kodem</a>
+            @endif
         </div>
     </header>
 

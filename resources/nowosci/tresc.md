@@ -67,6 +67,17 @@ które widzicie Wy, a przy każdym może być jedno małe zdjęcie; przyciskiem
 „Bez zdjęć” wydrukujecie samo pismo. Kto stracił dostęp do wspólnego zeszytu,
 nie wydrukuje go już ani nie otworzy.
 
+### Karta z kodem QR do rozdawania
+
+Przy publicznym przepisie, w części „Podziel się”, oraz na publicznym profilu
+jest przycisk „Wydrukuj kartę z kodem”. To jedna kartka dużym drukiem:
+tytuł przepisu (albo nazwa profilu), duży kod QR i ten sam adres zapisany
+literami. Można ją rozdać na zajęciach w kole gospodyń czy uniwersytecie
+trzeciego wieku albo wręczyć rodzinie. Osoba, która zeskanuje kod telefonem,
+od razu zobaczy przepis — konto nie jest do tego potrzebne. W kodzie jest
+tylko publiczny adres, nic, co dotyczy drukującej osoby. Karty nie ma dla
+przepisów prywatnych, ukrytych i usuniętych.
+
 ### Wszystkie wersje regulaminu
 
 Na górze regulaminu są dwa nowe przyciski. „Pobierz regulamin” zapisuje go
