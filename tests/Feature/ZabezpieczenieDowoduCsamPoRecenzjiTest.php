@@ -229,18 +229,23 @@ class ZabezpieczenieDowoduCsamPoRecenzjiTest extends TestCase
             'previous_media_status' => Media::STATUS_READY,
         ])->save();
 
+        $odmowa = false;
         try {
             (new PrzeniesPubliczneWariantyDowodu([$zdjecie->getKey()]))->handle();
-            $this->fail('Publiczny wariant w starym buckecie nie może być uznany za przeniesiony.');
         } catch (RuntimeException) {
-            // Job zostaje do retry i ostatecznie do failed_jobs.
+            $odmowa = true;
         }
+        $this->assertTrue($odmowa, 'CSAM_LEGACY_MUST_STAY_PENDING');
 
         $this->assertTrue($legacy->exists($zdjecie->object_key), 'Oryginał dowodu ma zostać nietknięty.');
         foreach ($warianty as $klucz) {
             $this->assertTrue($legacy->exists($klucz), 'Wariant bez prywatnej kopii nie może zniknąć.');
         }
-        $this->assertArrayNotHasKey(Media::METADANE_WARIANTY_DOWODU_PRZENIESIONE_AT, $zdjecie->fresh()->metadata);
+        $this->assertArrayNotHasKey(
+            Media::METADANE_WARIANTY_DOWODU_PRZENIESIONE_AT,
+            $zdjecie->fresh()->metadata,
+            'CSAM_LEGACY_MUST_STAY_PENDING',
+        );
 
         $this->travel(16)->minutes();
         try {
