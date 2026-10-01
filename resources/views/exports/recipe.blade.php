@@ -45,8 +45,8 @@
 
     <p class="fakty">
         @if($recipe->servingsLabel())<span>{{ $recipe->servingsLabel() }}</span>@endif
-        @if($recipe->prep_minutes)<span>Przygotowanie: {{ \App\Support\Czas::czasPrzepisu($recipe->prep_minutes) }}</span>@endif
-        @if($recipe->cook_minutes)<span>Gotowanie: {{ \App\Support\Czas::czasPrzepisu($recipe->cook_minutes) }}</span>@endif
+        @if($recipe->prep_minutes)<span>Przygotowanie: {{ \App\Support\Czas::czasPrzepisu((int) $recipe->prep_minutes) }}</span>@endif
+        @if($recipe->cook_minutes)<span>Gotowanie: {{ \App\Support\Czas::czasPrzepisu((int) $recipe->cook_minutes) }}</span>@endif
         @if($recipe->difficultyLabel())<span>Trudność: {{ $recipe->difficultyLabel() }}</span>@endif
         @if($recipe->costLabel())<span>{{ $recipe->costLabel() }}</span>@endif
     </p>
@@ -91,7 +91,7 @@
                 <li>
                     {{ $step->instruction }}
                     @if($step->timer_seconds)
-                        <p class="podpis">Czas: {{ (int) round($step->timer_seconds / 60) }} min</p>
+                        <p class="podpis">Czas: {{ \App\Support\Czas::czasPrzepisu((int) round($step->timer_seconds / 60)) }}</p>
                     @endif
                     {{-- `position` w bazie liczy się od zera; człowiekowi
                          pokazujemy numery od jedynki. Sam „Krok N” nie jest
