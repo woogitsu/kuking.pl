@@ -121,6 +121,16 @@ else
     zle "Werdykt kontroli negatywnych oblewa — uruchom: python3 tests/skrypty/kontrole-negatywne-przyczyna.py"
 fi
 
+# --- 3b''. Dziennik decyzji: pliki w docs/decyzje/ zgodne z indeksem -------
+# Jedna decyzja = jeden plik; docs/DECISIONS.md jest indeksem generowanym
+# z plików. To samo pilnuje DziennikDecyzjiZgodnyZIndeksemTest.
+krok "Dziennik decyzji"
+if php scripts/decyzje-indeks.php --sprawdz >/dev/null 2>&1; then
+    ok "Numery unikalne, indeks zgodny z plikami"
+else
+    zle "Dziennik decyzji ma usterki — uruchom: php scripts/decyzje-indeks.php --sprawdz"
+fi
+
 # --- 3c. Przyrząd do testu obciążeniowego (#605) ---------------------------
 # Regresje NARZĘDZIA POMIAROWEGO, nie produktu. Bez bazy, bez PHP, bez sieci
 # poza własnym serwerem scenariuszy na porcie przydzielanym dynamicznie.

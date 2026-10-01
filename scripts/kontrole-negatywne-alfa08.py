@@ -1995,7 +1995,7 @@ checks = [
      lambda s: s + DZIENNIK_MARTWE_ODWOLANIE),
     ("Roboczy identyfikator w AGENTS.md", "AGENTS.md", DZIENNIK_ODWOLANIA_TEST,
      lambda s: s + DZIENNIK_ROBOCZY_NUMER),
-    ("Roboczy nagłówek w dzienniku decyzji", "docs/DECISIONS.md", DZIENNIK_ODWOLANIA_TEST,
+    ("Roboczy nagłówek w dzienniku decyzji", "docs/decyzje/D-001-modularny-monolit-laravel-bez-mikroserwisow.md", DZIENNIK_ODWOLANIA_TEST,
      lambda s: s + DZIENNIK_ROBOCZY_NAGLOWEK),
     ("Strażnik dziennika ślepy na dopisek ROBOCZA", DZIENNIK_ODWOLANIA_PLIK_TESTU, DZIENNIK_ODWOLANIA_TEST,
      lambda s: replace_once(s, r"'/\bD-\d+-(?:ROBOCZ\w*|TYMCZAS\w*|TMP|DRAFT|WIP|TODO)\b/iu'", "'/(*FAIL)/'")),
