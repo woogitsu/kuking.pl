@@ -80,7 +80,7 @@ class DokumentyNieRozjezdzajaSieOZwolnieniuDsaTest extends TestCase
     #[Test]
     public function decyzja_o_terminie_odwolania_nie_wywodzi_go_z_artykulu_wylaczonego(): void
     {
-        $sekcja = $this->sekcja($this->dokument('docs/DECISIONS.md'), '## D-038', '##');
+        $sekcja = $this->sekcja($this->dokument('docs/decyzje/D-038-gdy-dokument-i-kod-mowia-co.md'), '## D-038', '##');
 
         $this->assertStringContainsString('art. 20', $sekcja,
             'Kontrola tego testu: D-038 przestało w ogóle wspominać art. 20. Jeśli to celowe, usuń tę '
