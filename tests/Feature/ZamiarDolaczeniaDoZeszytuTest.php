@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Collections\Wspoldzielenie\DostepDoZeszytu;
 use App\Domain\Collections\Wspoldzielenie\ZaprosDoZeszytu;
 use App\Models\Collection;
 use App\Models\CollectionInvitation;
@@ -110,7 +111,10 @@ final class ZamiarDolaczeniaDoZeszytuTest extends TestCase
         $this->get(route('collections.link.show', $token))->assertRedirect(route('login'));
         $this->get(route('register'))->assertOk();
         $this->zarejestruj();
-        $zaproszenie->forceFill(['status' => CollectionInvitation::STATUS_REVOKED, 'token_hash' => null])->save();
+        $this->assertTrue(app(DostepDoZeszytu::class)->odwolaj(
+            User::findOrFail($zeszyt->owner_id),
+            $zaproszenie,
+        ));
         $this->post(route('onboarding.skip'));
         $this->get(route('onboarding.done'))->assertRedirect(route('collections.link.show', $token));
         $this->get(route('collections.link.show', $token))->assertStatus(410);
