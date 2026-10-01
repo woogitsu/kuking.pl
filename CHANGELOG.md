@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2505): samo otwarcie lub odświeżenie niezmienionej kolejki gotowania nie odnawia jej 24-godzinnej ważności. Dodanie, usunięcie, zmiana kolejności lub kroku nadal odnawiają termin.
 - Wewnętrzne (#2490): instalator klienta PostgreSQL 18 w CI podaje etap i czas błędu oraz ogranicza czas pobrania klucza i instalacji. Weryfikacja odcisku, wersja klienta i pełne testy pozostają obowiązkowe.
 
 - Zmienione (decyzja właściciela z 1.10.2026, D-333): „Zajęło mi …” na karcie wykonania i czas kroku, przygotowania i gotowania w kopii HTML przepisu piszą się jak czas przepisu — poniżej 90 minut dokładne minuty, od 90 godziny i minuty zaokrąglone do 5 minut (120 min to „2 godz.”, 95 min to „1 godz. 35 min”). Surowe liczby w eksporcie JSON/CSV i ISO 8601 w JSON-LD bez zmian. Życzenia urodzinowe mailem (D-269): decyzja o włączeniu w panelu Railway zapisana, krok W12 do wykonania przez właściciela.
