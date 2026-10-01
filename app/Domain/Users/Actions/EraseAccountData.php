@@ -8,6 +8,7 @@ use App\Domain\Compliance\DziennikWymazan;
 use App\Domain\Compliance\DziennikWymazanNiedostepny;
 use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
+use App\Domain\Moderation\ZabezpieczoneDowody;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Users\Import\MagazynPaczek;
 use App\Domain\Users\KoniecWspolnychZeszytow;
@@ -157,6 +158,17 @@ final class EraseAccountData
                 || $fresh->status !== User::STATUS_PENDING_DELETE
                 || $fresh->data_erased_at !== null
             ) {
+                return false;
+            }
+
+            // KONTO Z ZABEZPIECZONYM DOWODEM NIE ZOSTAJE WYMAZANE (ścieżka
+            // CSAM, D-333, 1.10.2026). Anonimizacja zabrałaby adres e-mail
+            // i dane profilu, o które zapyta organ przy zgłoszeniu
+            // (playbook §7.1 pkt 3, 6), a `usunTresci()` — sam dowód. Wniosek
+            // o usunięcie czeka w `pending_delete`; egzekutor ponawia go co noc
+            // i zrobi swoje dopiero, gdy rejestr przestanie mieć to konto. Kiedy
+            // to nastąpi, rozstrzyga prawnik (playbook §7.1a, pytanie 2).
+            if (ZabezpieczoneDowody::konto((string) $fresh->getKey())) {
                 return false;
             }
 

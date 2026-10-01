@@ -6,6 +6,7 @@ namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\WlasnejTresciNiePrzywracasz;
+use App\Domain\Moderation\ZabezpieczoneDowody;
 use App\Domain\Users\ZamekUprzywilejowanegoAktora;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
@@ -158,6 +159,17 @@ final class RestoreContent
             // czytamy z zablokowanego wiersza, przed jakimkolwiek zapisem.
             if (ModeratedContent::osoba($cel)?->getKey() === $moderator->getKey()) {
                 throw new WlasnejTresciNiePrzywracasz;
+            }
+
+            // TREŚĆ ZABEZPIECZONA JAKO DOWÓD NIE WRACA (ścieżka CSAM, D-333).
+            // Dotyczy też „cofam” po wygranym odwołaniu (`ResolveAppeal`):
+            // odwołanie nie może upublicznić materiału, który czeka na organy.
+            // Los takiej treści rozstrzyga człowiek poza panelem.
+            if (ZabezpieczoneDowody::dotyczy($typ, (string) $cel->getKey())) {
+                throw new BladDlaCzlowieka(
+                    'Ta treść jest zabezpieczona jako dowód i nie wraca do serwisu. '
+                    .'Przekaż sprawę właścicielowi serwisu — o jej losie decyduje prawnik, nie panel.',
+                );
             }
 
             return $this->przywrocPodBlokada($moderator, $cel, $typ, $reasonCode, $note, $userMessage, $ip, $zPowiadomieniem);

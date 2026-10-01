@@ -284,8 +284,11 @@ class ProcessUploadedImage implements ShouldQueue
 
                 unset($metadane[Media::METADANE_WARIANTY_W_TRAKCIE]);
 
+                // Zdjęcie zabezpieczone jako dowód, gdy zadanie jeszcze trwało,
+                // NIE wraca do `ready` (ścieżka CSAM, D-333): warianty trafiają
+                // do metadanych, status zostaje.
                 $swieze->update([
-                    'status' => Media::STATUS_READY,
+                    'status' => $swieze->status === Media::STATUS_SECURED ? Media::STATUS_SECURED : Media::STATUS_READY,
                     'metadata' => $metadane,
                 ]);
 
@@ -389,7 +392,7 @@ class ProcessUploadedImage implements ShouldQueue
         return DB::transaction(function (): ?Media {
             $media = Media::query()->whereKey($this->mediaId)->lockForUpdate()->first();
 
-            if ($media === null || $media->status === Media::STATUS_DELETED) {
+            if ($media === null || in_array($media->status, [Media::STATUS_DELETED, Media::STATUS_SECURED], true)) {
                 return null;
             }
 
@@ -548,6 +551,7 @@ class ProcessUploadedImage implements ShouldQueue
         // (D-083), a nie stan przejściowy, który wolno nadpisać porażką.
         if ($media === null
             || $media->status === Media::STATUS_READY
+            || $media->status === Media::STATUS_SECURED
             || $media->status === Media::STATUS_DELETED) {
             return;
         }

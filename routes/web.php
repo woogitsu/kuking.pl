@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Media\PodgladOdRazu;
+use App\Domain\Moderation\Actions\ZabezpieczDowodCsam;
 use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
 use App\Domain\Zgody\ArchiwumDokumentu;
 use App\Http\Controllers\AccountDeletionController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\Admin\TagPromotionController;
 use App\Http\Controllers\Admin\UgotujmyRazemController as AdminUgotujmyRazemController;
 use App\Http\Controllers\Admin\UzytkownicyController;
 use App\Http\Controllers\Admin\WiadomosciController;
+use App\Http\Controllers\Admin\ZabezpieczenieDowoduController;
 use App\Http\Controllers\Admin\ZUrzeduController;
 use App\Http\Controllers\AppealController;
 use App\Http\Controllers\ArchiwumDokumentuController;
@@ -1645,6 +1647,22 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
         ->whereUuid('id')
         ->middleware("throttle:{$limits['moderacja']},moderacja")
         ->name('admin.z-urzedu.store');
+
+    // „CSAM — natychmiast ukryj i zabezpiecz” (D-333, 1.10.2026). Policy
+    // `secureCsam` pyta drugi raz, niezależnie od grupy. Trzy ekrany:
+    // potwierdzenie (GET), wykonanie (POST), wynik z instrukcją zgłoszenia.
+    Route::get('/csam/wynik/{zabezpieczenie}', [ZabezpieczenieDowoduController::class, 'wynik'])
+        ->whereUuid('zabezpieczenie')
+        ->name('admin.csam.wynik');
+    Route::get('/csam/{typ}/{id}', [ZabezpieczenieDowoduController::class, 'create'])
+        ->whereIn('typ', array_keys(ZabezpieczDowodCsam::TYPY))
+        ->whereUuid('id')
+        ->name('admin.csam.create');
+    Route::post('/csam/{typ}/{id}', [ZabezpieczenieDowoduController::class, 'store'])
+        ->whereIn('typ', array_keys(ZabezpieczDowodCsam::TYPY))
+        ->whereUuid('id')
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.csam.store');
 
     /*
      * Kolejka AUTOMATU (D-052) — treści oznaczone do przeglądu przez

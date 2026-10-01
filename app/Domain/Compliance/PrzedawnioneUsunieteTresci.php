@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Compliance;
 
 use App\Domain\Media\KasujZdjecie;
+use App\Domain\Moderation\ZabezpieczoneDowody;
 use App\Models\Comment;
 use App\Models\Media;
 use App\Models\Post;
@@ -289,6 +290,13 @@ final class PrzedawnioneUsunieteTresci
     {
         if ($id === []) {
             return false;
+        }
+
+        // ZABEZPIECZONY DOWÓD (ścieżka CSAM, D-333) nie zależy od retencji
+        // spraw: gdy `kuking:sprzataj-sprawy-moderacyjne` zabierze wiersze
+        // `reports`/`moderation_actions`, rejestr dalej trzyma treść.
+        if (ZabezpieczoneDowody::dotyczy($typ, $id)) {
+            return true;
         }
 
         foreach (['reports', 'moderation_actions'] as $tabela) {

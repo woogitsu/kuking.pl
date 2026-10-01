@@ -172,6 +172,13 @@ final class PrzedawnioneWersjePrzepisow
             // moderacyjna o tej JEDNEJ wersji (#2270, 30.09). Bez niej
             // odwołanie w terminie art. 20 nie miałoby czego przywrócić,
             // a dowód decyzji zniknąłby przed retencją sprawy.
+            // Przepis zabezpieczony jako dowód (ścieżka CSAM, D-333) zachowuje
+            // CAŁĄ historię, niezależnie od wieku wersji i od retencji spraw.
+            ->whereNotExists(function ($q): void {
+                $q->select(DB::raw(1))->from('zabezpieczenia_dowodow')
+                    ->where('zabezpieczenia_dowodow.target_type', 'recipe')
+                    ->whereColumn('zabezpieczenia_dowodow.target_id', 'recipe_versions.recipe_id');
+            })
             ->whereNotExists(function ($q): void {
                 $q->select(DB::raw(1))->from('moderation_actions')
                     ->where('moderation_actions.target_type', 'recipe_version')

@@ -340,6 +340,25 @@
 
                     <button class="btn btn-primary mt-4" type="submit">Zapisz decyzję</button>
                 </form>
+
+                {{--
+                    CSAM (D-333). Osobna droga, odsunięta kreską od zwykłej decyzji:
+                    zwykła decyzja jest „jedno zgłoszenie = jedna decyzja”, a tu
+                    potrzeba naraz ukrycia, zabezpieczenia dowodu i blokady konta.
+                    Zwykły odnośnik (GET) na ekran potwierdzenia — bez JavaScriptu,
+                    bez hover; ekran niczego nie robi, dopóki nie dostanie „tak”.
+                    Nie rysuje się, gdy cel nie jest wpisem, przepisem, komentarzem
+                    ani zdjęciem (ekran by odmówił — AGENTS.md §5, bez martwych przycisków).
+                --}}
+                @if($report->target_id && array_key_exists($report->target_type, \App\Domain\Moderation\Actions\ZabezpieczDowodCsam::TYPY)
+                    && auth()->user()->can('secureCsam', \App\Models\User::class))
+                    <div class="danger-zone mt-4">
+                        <p class="panel-liczby">
+                            Materiał przedstawiający wykorzystywanie seksualne dzieci? Nie rozstrzygaj tego zwykłą decyzją.
+                        </p>
+                        <a class="btn btn-danger" href="{{ route('admin.csam.create', ['typ' => $report->target_type, 'id' => $report->target_id, 'zgloszenie' => $report->id]) }}">CSAM — natychmiast ukryj i zabezpiecz</a>
+                    </div>
+                @endif
             @else
                 <p class="badge">{{ $report->status }} · {{ $report->resolver?->displayName() }}</p>
                 @if($report->resolution_note)
