@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Wewnętrzne (#492): ciemne powierzchnie wspólnej ramy marki (blok publikacji, wstęp tablicy, kafel „Ugotowałem”, kółko dolnej nawigacji) biorą kolory z tokenów `--marka-ciemny-*` zamiast ośmiu gołych zapisów w regułach. Wygląd bez zmian; test `RamaMarkiNieZaszywaKolorowTest` pilnuje, żeby kolory nie wróciły do reguł.
 - Naprawione (audyt odporności): adres albo formularz z niepoprawnym tekstem (bajty, które nie są poprawnym UTF-8, albo znak NUL, np. `?q=%FF%FE`) daje teraz stronę błędu 400 po polsku (w API: JSON), a nie błąd serwera 500. Dotyczyło m.in. podpowiedzi tagów, formularzy dodawania wpisu i pytania, wylogowania, spiżarni, podziękowań, zeszytów, profilu i list moderacji.
 - Naprawione (audyt odporności): plan tagu tygodnia w panelu moderacji z tablicą zamiast daty pokazuje błąd przy polu, a nie stronę błędu 500.
 - Naprawione (audyt odporności): adres zasobu Livewire z nazwą komponentu, którego nie ma, daje 404 zamiast błędu 500 i alarmu.
