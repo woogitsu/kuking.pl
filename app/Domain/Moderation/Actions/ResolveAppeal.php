@@ -7,6 +7,7 @@ namespace App\Domain\Moderation\Actions;
 use App\Domain\Moderation\CofniecieUkryciaWersji;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\NowaDecyzja;
+use App\Domain\Moderation\PodstawaDecyzji;
 use App\Domain\Moderation\TrescZabezpieczonaJakoDowod;
 use App\Domain\Moderation\WlasnejTresciNiePrzywracasz;
 use App\Domain\Users\ZamekUprzywilejowanegoAktora;
@@ -16,6 +17,7 @@ use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
 use App\Models\RecipeHint;
 use App\Models\User;
+use App\Models\ZabezpieczenieDowodu;
 use App\Support\ZabezpieczoneDowody;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -76,6 +78,9 @@ final class ResolveAppeal
 
     public const KONTO_ZOSTAJE_ZAWIESZONE = 'Tę decyzję cofnęliśmy. Twoje konto pozostaje jednak zawieszone '
         .'na podstawie późniejszej, osobnej decyzji. Od niej możesz odwołać się osobno.';
+
+    public const BLOKADA_Z_DOWODEM = 'Tej blokady nie można cofnąć w panelu, bo została nałożona razem z zabezpieczeniem dowodu. '
+        .'Pozostaw odwołanie otwarte i przekaż sprawę właścicielowi serwisu albo prawnikowi do ręcznego rozpatrzenia.';
 
     public function __construct(
         private readonly RestoreContent $przywroc,
@@ -282,6 +287,14 @@ final class ResolveAppeal
     private function cofnij(User $moderator, ModerationAction $decyzja, string $uzasadnienie, ?string $ip, ?string &$dopisekWersji = null): ?string
     {
         if (in_array($decyzja->action, [ModerationAction::ACTION_SUSPEND, ModerationAction::ACTION_BAN], true)) {
+            // Ban z procedury CSAM ma własną decyzję, powiązaną w `note`
+            // z decyzją o zabezpieczeniu treści. Rejestr dowodu potwierdza
+            // ten konkretny związek — sam kod podstawy albo inne dowody
+            // dotyczące konta nie mogą blokować zwykłego odwołania.
+            if ($decyzja->action === ModerationAction::ACTION_BAN && $this->blokadaZDowodem($decyzja)) {
+                throw new BladDlaCzlowieka(self::BLOKADA_Z_DOWODEM);
+            }
+
             return $this->zdejmijKareKonta($decyzja);
         }
 
@@ -364,6 +377,22 @@ final class ResolveAppeal
         }
 
         return null;
+    }
+
+    private function blokadaZDowodem(ModerationAction $decyzja): bool
+    {
+        if ($decyzja->target_type !== 'user'
+            || $decyzja->subject_user_id === null
+            || $decyzja->target_id !== $decyzja->subject_user_id
+            || $decyzja->reason_code !== PodstawaDecyzji::KRZYWDZENIE_DZIECI
+            || preg_match('/\ABlokada razem z zabezpieczeniem dowodu \(decyzja ([0-9a-f-]{36})\)\.\z/u', (string) $decyzja->note, $trafienia) !== 1) {
+            return false;
+        }
+
+        return ZabezpieczenieDowodu::query()
+            ->where('moderation_action_id', $trafienia[1])
+            ->where('subject_user_id', $decyzja->subject_user_id)
+            ->exists();
     }
 
     /** Czy treść tej decyzji (także wersja przepisu i zdjęcie) jest zabezpieczona jako dowód. */
