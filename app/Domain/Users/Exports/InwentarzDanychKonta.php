@@ -52,6 +52,8 @@ final class InwentarzDanychKonta
      */
     public const KOLUMNY_WSKAZUJACE_NA_KONTO = [
         'profiles.user_id' => [self::EKSPORT, 'profil'],
+        // Dawne nazwy profilu (przekierowania `/@stara-nazwa`, 1.10.2026).
+        'profile_username_redirects.user_id' => [self::EKSPORT, 'dawne_nazwy_profilu'],
         'recipes.author_id' => [self::EKSPORT, 'przepisy'],
         'recipe_versions.editor_id' => [self::EKSPORT, 'wersje_przepisow'],
         'posts.author_id' => [self::EKSPORT, 'wpisy'],
