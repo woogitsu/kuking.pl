@@ -1266,9 +1266,13 @@ def pierwsze_z_wielu(source, old, new, ile):
 checks = [
     # #2502: dawne odmierzenie nie może potwierdzić nowej liczby porcji.
     ("Zmiana porcji zachowuje stare odmierzenie (#2502)", "app/Domain/Recipes/Gotowanie/PostepGotowania.php", "test_zmiana_porcji_na_koncie_wymaga_ponownego_odmierzenia_a_krok_i_ta_sama_ilosc_nie",
-     lambda s: replace_once(s, "['servings' => $porcje, 'prepared_ingredient_ids' => []]", "['servings' => $porcje]")),
+     lambda s: replace_once(s, "'prepared_ingredient_ids' => [], 'servings_revision' => $wiersz->servings_revision + 1", "'prepared_ingredient_ids' => $wiersz->prepared_ingredient_ids, 'servings_revision' => $wiersz->servings_revision + 1")),
     ("Stary formularz przywraca porcje z innego urządzenia (#2502)", "app/Domain/Recipes/Gotowanie/PostepGotowania.php", "test_stary_formularz_po_zmianie_porcji_na_drugim_urzadzeniu_nie_przywraca_odmierzenia",
-     lambda s: replace_once(s, "if ($this->porcje($wiersz) !== $porcjeZKontaNaStronie) {", "if (false) {")),
+     lambda s: replace_once(s, "if ($wiersz->getKey() !== $widzianyPostepId || $this->porcje($wiersz) !== $porcjeZKontaNaStronie || $wiersz->servings_revision !== $widzianaRewizjaPorcji) {", "if (false) {")),
+    ("Powrót porcji ABA przywraca stare odmierzenie (#2502)", "app/Domain/Recipes/Gotowanie/PostepGotowania.php", "test_stary_formularz_po_powrocie_do_tej_samej_liczby_porcji_nie_przywraca_odmierzenia",
+     lambda s: replace_once(s, "$wiersz->servings_revision !== $widzianaRewizjaPorcji", "false")),
+    ("Stary formularz po ponownym włączeniu postępu (#2502)", "app/Domain/Recipes/Gotowanie/PostepGotowania.php", "test_formularz_sprzed_wylaczenia_i_ponownego_wlaczenia_nie_potwierdza_dawnych_skladnikow",
+     lambda s: replace_once(s, "$wiersz->getKey() !== $widzianyPostepId", "false")),
     # #2476: dwa bieżące składniki z identycznym tekstem/ile=null są różne.
     ("Bieżący eksport pomija wybór Bez ilości (#2476)", "app/Domain/Users/Exports/CollectUserExportData.php",
      "test_biezacy_szkic_zachowuje_dwa_rozne_wybory_bez_ilosci_w_json",

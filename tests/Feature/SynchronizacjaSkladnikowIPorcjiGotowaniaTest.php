@@ -15,6 +15,7 @@ use App\Models\RecipeStep;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
@@ -61,6 +62,8 @@ class SynchronizacjaSkladnikowIPorcjiGotowaniaTest extends TestCase
             'bylo' => array_map(fn (RecipeIngredient $s): string => (string) $s->getKey(), $bylo),
             'kontekst_porcji' => $wybor->przeliczone() ? $wybor->doAdresu((float) $wybor->wybrane) : 'przepis',
             'porcje_z_konta' => $zKonta === null ? 'przepis' : (string) $zKonta,
+            'rewizja_porcji' => $postep?->servings_revision,
+            'id_postepu' => $postep?->getKey(),
         ] + $dodatkowe);
     }
 
@@ -123,6 +126,8 @@ class SynchronizacjaSkladnikowIPorcjiGotowaniaTest extends TestCase
         // Formularz z zaznaczeniem z serwera; skrypt z sessionStorage go nie rusza.
         $this->assertStringNotContainsString('data-przygotowanie="', $html);
         $this->assertStringContainsString('Zapisz zaznaczenie składników', $html);
+        $this->assertStringContainsString('name="rewizja_porcji" value="1"', $html);
+        $this->assertStringContainsString('name="id_postepu" value="'.$this->postep($osoba, $recipe)->getKey().'"', $html);
         $this->assertMatchesRegularExpression('/name="zaznaczone\[\]" value="'.$s[0]->getKey().'" checked/', $html);
         $this->assertDoesNotMatchRegularExpression('/name="zaznaczone\[\]" value="'.$s[1]->getKey().'" checked/', $html);
         $this->assertMatchesRegularExpression('/name="bylo\[\]" value="'.$s[2]->getKey().'"/', $html);
@@ -136,11 +141,18 @@ class SynchronizacjaSkladnikowIPorcjiGotowaniaTest extends TestCase
         $this->wlacz($osoba, $recipe);
 
         // Urządzenie A i B widziały pustą listę (`bylo` puste); A zapisuje pierwsze.
+        $krok = $recipe->steps()->firstOrFail();
+        $this->actingAs($osoba)->post(route('cooking.zaznacz', $recipe->slug), [
+            'krok_id' => $krok->getKey(), 'zrobiono' => '1', 'krok' => 1,
+        ])->assertRedirect();
+        $this->assertGreaterThan(1, $this->postep($osoba, $recipe)->revision);
         $this->zapiszSkladniki($osoba, $recipe, [$s[0]], [], ['rewizja' => 1]);
+        $this->assertSame(1, $this->postep($osoba, $recipe)->servings_revision);
         $this->zapiszSkladniki($osoba, $recipe, [$s[1]], [], ['rewizja' => 1])
             ->assertSessionHas('status_rodzaj', 'informacja');
 
         $this->assertEqualsCanonicalizing($this->ids([$s[0], $s[1]]), $this->postep($osoba, $recipe)->prepared_ingredient_ids);
+        $this->assertSame(1, $this->postep($osoba, $recipe)->servings_revision, 'Zwykłe odhaczenie nie zmienia znacznika porcji.');
     }
 
     public function test_odznaczenie_zdejmuje_tylko_ten_skladnik_a_powtorzenie_nie_zmienia_rewizji(): void
@@ -279,11 +291,14 @@ class SynchronizacjaSkladnikowIPorcjiGotowaniaTest extends TestCase
         [$recipe, $s] = $this->przepis(null, 'public', 4);
         $this->wlacz($osoba, $recipe);
         $this->zapiszSkladniki($osoba, $recipe, [$s[0]]);
+        $widzianyPostep = $this->postep($osoba, $recipe);
         $this->actingAs($osoba)->post(route('cooking.sync.porcje', $recipe->slug), ['wybor' => '8']);
 
         $this->actingAs($osoba)->post(route('cooking.sync.skladniki', $recipe->slug), [
             'zaznaczone' => [$s[0]->getKey()], 'bylo' => [$s[0]->getKey()],
             'kontekst_porcji' => 'przepis', 'porcje_z_konta' => 'przepis',
+            'rewizja_porcji' => $widzianyPostep->servings_revision,
+            'id_postepu' => $widzianyPostep->getKey(),
         ])->assertSessionHas('status_rodzaj', 'blad');
         $this->assertSame([], $this->postep($osoba, $recipe)->prepared_ingredient_ids, 'PORCJE_2502_STARY_FORMULARZ_NIE_PRZYWRACA');
         $this->assertEquals(8.0, (float) $this->postep($osoba, $recipe)->servings, 'PORCJE_2502_STARY_FORMULARZ_NIE_PRZYWRACA');
@@ -294,6 +309,73 @@ class SynchronizacjaSkladnikowIPorcjiGotowaniaTest extends TestCase
         $this->assertSame([], $this->postep($osoba, $recipe)->prepared_ingredient_ids);
     }
 
+    public function test_stary_formularz_po_powrocie_do_tej_samej_liczby_porcji_nie_przywraca_odmierzenia(): void
+    {
+        $osoba = $this->user();
+        [$recipe, $s] = $this->przepis(null, 'public', 4);
+        $this->wlacz($osoba, $recipe);
+        $staraRewizja = $this->postep($osoba, $recipe)->servings_revision;
+
+        $this->actingAs($osoba)->post(route('cooking.sync.porcje', $recipe->slug), ['wybor' => '8']);
+        $this->actingAs($osoba)->post(route('cooking.sync.porcje', $recipe->slug), ['wybor' => 'przepis']);
+        $this->assertNull($this->postep($osoba, $recipe)->servings);
+        $this->assertSame($staraRewizja + 2, $this->postep($osoba, $recipe)->servings_revision);
+
+        $this->actingAs($osoba)->post(route('cooking.sync.skladniki', $recipe->slug), [
+            'zaznaczone' => [$s[0]->getKey()], 'bylo' => [],
+            'kontekst_porcji' => 'przepis', 'porcje_z_konta' => 'przepis',
+            'rewizja_porcji' => $staraRewizja,
+            'id_postepu' => $this->postep($osoba, $recipe)->getKey(),
+        ])->assertSessionHas('status_rodzaj', 'blad');
+
+        $this->assertSame([], $this->postep($osoba, $recipe)->prepared_ingredient_ids, 'PORCJE_2502_ABA_NIE_PRZYWRACA');
+        $this->zapiszSkladniki($osoba, $recipe, [$s[1]])->assertSessionHas('status_rodzaj', 'sukces');
+        $this->assertSame($this->ids([$s[1]]), $this->postep($osoba, $recipe)->prepared_ingredient_ids);
+    }
+
+    public function test_formularz_sprzed_wylaczenia_i_ponownego_wlaczenia_nie_potwierdza_dawnych_skladnikow(): void
+    {
+        $osoba = $this->user();
+        [$recipe, $s] = $this->przepis(null, 'public', 4);
+        $this->wlacz($osoba, $recipe);
+        $dawnyPostep = $this->postep($osoba, $recipe);
+        $this->actingAs($osoba)->post(route('cooking.sync.wylacz', $recipe->slug))->assertRedirect();
+        $this->wlacz($osoba, $recipe);
+        $this->assertNotSame($dawnyPostep->getKey(), $this->postep($osoba, $recipe)->getKey());
+
+        $this->actingAs($osoba)->post(route('cooking.sync.skladniki', $recipe->slug), [
+            'zaznaczone' => [$s[0]->getKey()], 'bylo' => [],
+            'kontekst_porcji' => 'przepis', 'porcje_z_konta' => 'przepis',
+            'rewizja_porcji' => $dawnyPostep->servings_revision,
+            'id_postepu' => $dawnyPostep->getKey(),
+        ])->assertSessionHas('status_rodzaj', 'blad');
+
+        $this->assertSame([], $this->postep($osoba, $recipe)->prepared_ingredient_ids, 'PORCJE_2502_NOWY_POSTEP_NIE_PRZYWRACA');
+    }
+
+    public function test_rollback_znacznika_odmawia_po_zmianie_porcji_a_przy_wartosci_domyslnej_przechodzi(): void
+    {
+        $migracja = require base_path('database/migrations/2026_10_02_180000_add_servings_revision_to_cooking_progress.php');
+        $osoba = $this->user();
+        [$recipe] = $this->przepis(null, 'public', 4);
+        $this->wlacz($osoba, $recipe);
+
+        $migracja->down();
+        $this->assertFalse(Schema::hasColumn('cooking_progress', 'servings_revision'));
+        $migracja->up();
+        $this->assertTrue(Schema::hasColumn('cooking_progress', 'servings_revision'));
+
+        $this->actingAs($osoba)->post(route('cooking.sync.porcje', $recipe->slug), ['wybor' => '8']);
+        $this->assertGreaterThan(1, $this->postep($osoba, $recipe)->servings_revision);
+        try {
+            $migracja->down();
+            $this->fail('Rollback usunąłby znacznik aktywnej historii porcji.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('historię zmian porcji', $e->getMessage());
+            $this->assertTrue(Schema::hasColumn('cooking_progress', 'servings_revision'));
+        }
+    }
+
     public function test_odhaczenie_kroku_z_jawnym_adresem_innych_porcji_nie_zostawia_starych_skladnikow(): void
     {
         $osoba = $this->user();
@@ -301,6 +383,7 @@ class SynchronizacjaSkladnikowIPorcjiGotowaniaTest extends TestCase
         $krok = $recipe->steps()->firstOrFail();
         $this->wlacz($osoba, $recipe);
         $this->zapiszSkladniki($osoba, $recipe, [$s[0]]);
+        $widzianaRewizjaPorcji = $this->postep($osoba, $recipe)->servings_revision;
 
         $this->actingAs($osoba)->post(route('cooking.zaznacz', $recipe->slug), [
             'krok_id' => $krok->getKey(), 'zrobiono' => '1', 'krok' => 1, 'porcje' => '8',
@@ -308,6 +391,7 @@ class SynchronizacjaSkladnikowIPorcjiGotowaniaTest extends TestCase
 
         $postep = $this->postep($osoba, $recipe);
         $this->assertEquals(8.0, (float) $postep->servings);
+        $this->assertSame($widzianaRewizjaPorcji + 1, $postep->servings_revision);
         $this->assertSame([], $postep->prepared_ingredient_ids, 'PORCJE_2502_KROK_NIE_ZOSTAWIA_STARYCH');
         $this->assertContains((string) $krok->getKey(), $postep->done_step_ids);
     }

@@ -179,6 +179,8 @@ class CookingModeController extends Controller
                 'wlaczona' => $postepKonta !== null,
                 'mozna_wlaczyc' => $postepKonta === null && $osoba !== null && $osoba->can('create', CookingProgress::class),
                 'rewizja' => $postepKonta?->revision,
+                'rewizja_porcji' => $postepKonta?->servings_revision,
+                'id_postepu' => $postepKonta?->getKey(),
                 'wygasa' => $postepKonta?->expires_at,
                 'godziny' => (int) config('kuking.cooking_progress.retention_hours', 24),
                 'porcje_z_konta' => $porcjeKonta,
@@ -406,13 +408,15 @@ class CookingModeController extends Controller
             'bylo' => ['nullable', 'array', 'max:300'],
             'bylo.*' => ['string', 'max:64'],
             'rewizja' => ['nullable', 'integer', 'min:1'],
+            'rewizja_porcji' => ['nullable', 'integer', 'min:1'],
+            'id_postepu' => ['nullable', 'uuid'],
         ]);
 
         // Stare formularze nie mają kontekstu ilości: nie wolno im
         // potwierdzać składników przy nieznanej liczbie porcji.
         $kontekst = $request->input('kontekst_porcji');
         $kontekstKonta = $request->input('porcje_z_konta');
-        if (! is_string($kontekst) || ! is_string($kontekstKonta)
+        if (! isset($data['rewizja_porcji'], $data['id_postepu']) || ! is_string($kontekst) || ! is_string($kontekstKonta)
             || ! $this->poprawnyKontekstPorcji($model, $kontekst)
             || ! $this->poprawnyKontekstPorcji($model, $kontekstKonta)) {
             return $this->wrocDoGotowania($request, $model)
@@ -435,6 +439,8 @@ class CookingModeController extends Controller
                 $model->ingredients()->pluck('id')->map(fn ($id): string => (string) $id)->all(),
                 $porcjeNaStronie,
                 $porcjeZKontaNaStronie,
+                (int) $data['rewizja_porcji'],
+                (string) $data['id_postepu'],
             );
         } catch (NieaktualnePorcjeSkladnikow) {
             return redirect()->route('cooking.show', ['recipe' => $model->slug])

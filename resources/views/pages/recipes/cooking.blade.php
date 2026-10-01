@@ -118,6 +118,8 @@
                         @if($parametrPorcji !== null)<input type="hidden" name="porcje" value="{{ $parametrPorcji }}">@endif
                         <input type="hidden" name="kontekst_porcji" value="{{ $parametrPorcji ?? 'przepis' }}">
                         <input type="hidden" name="porcje_z_konta" value="{{ $synchronizacja['porcje_z_konta'] ?? 'przepis' }}">
+                        <input type="hidden" name="rewizja_porcji" value="{{ $synchronizacja['rewizja_porcji'] }}">
+                        <input type="hidden" name="id_postepu" value="{{ $synchronizacja['id_postepu'] }}">
                         <input type="hidden" name="krok" value="{{ $krok }}">
                         <input type="hidden" name="rewizja" value="{{ $synchronizacja['rewizja'] }}">
                         @foreach($przygotowane as $idPrzygotowanego)<input type="hidden" name="bylo[]" value="{{ $idPrzygotowanego }}">@endforeach

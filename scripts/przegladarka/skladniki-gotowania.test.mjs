@@ -192,6 +192,10 @@ test('zmiana porcji wymaga ponownego potwierdzenia składników, zmiana kroku za
     const { context, page } = await nowaStrona();
     try {
         await otworz(page, 1, 4);
+        await page.evaluate(() => {
+            sessionStorage.setItem('kuking.skladniki.inny-przepis.4', '["cudzy-skladnik"]');
+            sessionStorage.setItem('kuking.minutnik.zupa.1', '123');
+        });
         await pole(page, 'id-maka').check();
         assert.equal(await pole(page, 'id-maka').isChecked(), true);
         await otworz(page, 2, 4);
@@ -201,12 +205,15 @@ test('zmiana porcji wymaga ponownego potwierdzenia składników, zmiana kroku za
         assert.equal(await pole(page, 'id-maka').isChecked(), false, 'Nowa ilość nie jest automatycznie przygotowana.');
         assert.equal(await stan(page, 'id-maka').isVisible(), false);
         assert.match(await page.locator('[data-przygotowanie-wstep]').textContent(), /Sprawdź nowe ilości/);
-        assert.deepEqual(JSON.parse(await zapisane(page, 4)), ['id-maka'], 'Poprzednie odhaczenie nie jest cicho kasowane.');
+        assert.equal(await zapisane(page, 4), null, 'Zmiana ilości usuwa dawny zapis tego przepisu.');
+        assert.equal(await page.evaluate(() => sessionStorage.getItem('kuking.skladniki.inny-przepis.4')), '["cudzy-skladnik"]');
+        assert.equal(await page.evaluate(() => sessionStorage.getItem('kuking.minutnik.zupa.1')), '123');
 
         await pole(page, 'id-maka').check();
         assert.deepEqual(JSON.parse(await zapisane(page, 8)), ['id-maka']);
         await otworz(page, 1, 4);
-        assert.equal(await pole(page, 'id-maka').isChecked(), true, 'Powrót do tej samej ilości odtwarza jej osobny stan.');
+        assert.equal(await pole(page, 'id-maka').isChecked(), false, 'Powrót do dawnej ilości wymaga ponownego odmierzenia.');
+        assert.equal(await zapisane(page, 8), null, 'Zmiana powrotna usuwa także późniejszy zapis.');
     } finally { await context.close(); }
 });
 

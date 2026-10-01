@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#2502: rzeczywisty DOM ma odrzucić dawny klucz bez kontekstu porcji."""
+"""#2502: rzeczywisty DOM musi kasować odhaczenia po zmianie porcji, również ABA."""
 
 import os
 from pathlib import Path
@@ -13,9 +13,9 @@ MODUL = ROOT / "resources/js/skladniki-gotowania.js"
 TEST = "scripts/przegladarka/skladniki-gotowania.test.mjs"
 KOMENDA = ["node", "--test", "--test-name-pattern=zmiana porcji wymaga", TEST]
 ZRODLO = MODUL.read_text(encoding="utf-8")
-ORIGINAL = "return `kuking.skladniki.${recipeId}.${porcje}`;"
-MUTACJA = "return `kuking.skladniki.${recipeId}`;"
-MARKER = "Nowa ilość nie jest automatycznie przygotowana."
+ORIGINAL = "for (const innyKlucz of dawneKlucze) magazyn.removeItem(innyKlucz);"
+MUTACJA = "for (const innyKlucz of dawneKlucze) void innyKlucz;"
+MARKER = "Powrót do dawnej ilości wymaga ponownego odmierzenia."
 
 if ZRODLO.count(ORIGINAL) != 1:
     raise SystemExit("#2502: nie znaleziono dokładnie jednego miejsca mutacji klucza.")
@@ -42,4 +42,4 @@ if kod == 0 or MARKER not in log or "# pass 0" not in log or "# fail 1" not in l
     sys.stderr.write(log)
     raise SystemExit("#2502: mutant nie oblał dokładnie na starej ilości; brak dowodu.")
 
-print("#2502: dodatni test DOM PASS; dawny klucz bez porcji oblał na oczekiwanym markerze.")
+print("#2502: dodatni test DOM PASS; pozostawienie dawnych kluczy oblało powrót ABA.")

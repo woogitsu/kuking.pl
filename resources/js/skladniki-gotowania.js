@@ -6,7 +6,8 @@
  * przekreślenie, które sugerowałoby zużycie składnika.
  *
  * GDZIE ŻYJE STAN. W `sessionStorage` tej karty, pod kluczem przepisu i
- * efektywnej liczby porcji —
+ * efektywnej liczby porcji. Zmiana ilości usuwa poprzednie odhaczenia
+ * tego przepisu, także przy powrocie do dawnej ilości —
  * tak samo jak zapamiętany przełącznik „Nie usypiaj ekranu” (#1302).
  * Każdy krok to osobny dokument (`?krok=N`), więc stan musi przeżyć
  * przeładowanie; nie może za to udawać danych konta ani synchronizacji
@@ -114,7 +115,8 @@ export function podlaczChecklisteSkladnikow(sekcja, pamiec) {
     const wyczysc = sekcja.querySelector('[data-przygotowanie-wyczysc]');
     const skrot = sekcja.querySelector('[data-przygotowanie-podsumowanie]');
     const przepis = sekcja.dataset.przygotowanie ?? '';
-    const klucz = kluczPrzygotowania(przepis, sekcja.dataset.przygotowaniePorcje ?? 'brak');
+    const porcje = sekcja.dataset.przygotowaniePorcje ?? 'brak';
+    const klucz = kluczPrzygotowania(przepis, porcje);
 
     // Sprawdzamy pamięć zapisem próbnym — sama obecność obiektu nie znaczy,
     // że da się do niego pisać (Safari w trybie prywatnym, limit miejsca).
@@ -130,23 +132,32 @@ export function podlaczChecklisteSkladnikow(sekcja, pamiec) {
     }
     const magazyn = pamiecDziala ? pamiec : null;
 
-    const zapisane = odczytajPrzygotowane(magazyn, klucz);
     let inneIlosci = false;
     try {
         const prefiks = `kuking.skladniki.${przepis}.`;
-        // Dawny klucz bez porcji zostawiamy nietknięty, ale nie możemy mu
-        // przypisać ilości wstecz — pokaż potrzebę ponownego odmierzenia.
-        inneIlosci = magazyn?.getItem(`kuking.skladniki.${przepis}`) !== null;
+        const wskaznik = `kuking.skladniki.kontekst.${przepis}`;
+        const poprzedniePorcje = magazyn?.getItem(wskaznik) ?? null;
+        const dawneKlucze = [];
         for (let i = 0; i < (magazyn?.length ?? 0); i += 1) {
-            const innyKlucz = magazyn.key(i);
-            if (innyKlucz?.startsWith(prefiks) && innyKlucz !== klucz && !innyKlucz.endsWith('.proba')) {
-                inneIlosci = true;
-                break;
+            const znaleziony = magazyn.key(i);
+            if (znaleziony?.startsWith(prefiks) && !znaleziony.endsWith('.proba')) {
+                dawneKlucze.push(znaleziony);
             }
         }
+        const staryKlucz = `kuking.skladniki.${przepis}`;
+        const bylStaryZapis = (magazyn?.getItem(staryKlucz) ?? null) !== null;
+        inneIlosci = (poprzedniePorcje !== null && poprzedniePorcje !== porcje)
+            || bylStaryZapis || (poprzedniePorcje === null && dawneKlucze.some((k) => k !== klucz));
+        if (inneIlosci) {
+            // Najpierw lista kluczy, potem kasowanie: indeksy Storage przesuwają się.
+            for (const innyKlucz of dawneKlucze) magazyn.removeItem(innyKlucz);
+            magazyn.removeItem(staryKlucz);
+        }
+        magazyn?.setItem(wskaznik, porcje);
     } catch {
         // Zablokowana pamięć nie przeszkadza w bieżącej checkliście.
     }
+    const zapisane = odczytajPrzygotowane(magazyn, klucz);
 
     const odswiez = ({ ogloszenie = null } = {}) => {
         const zaznaczone = wiersze.filter((w) => w.pole.checked).length;
