@@ -1,6 +1,6 @@
 # Droga do bety — stan na 1 października 2026
 
-Dla: właściciela. Podstawa: `origin/main` z 1.10.2026 (`aca7cfb4b`), treść i komentarze zgłoszeń
+Dla: właściciela. Podstawa treści z rana: `origin/main` z 1.10.2026 (`aca7cfb4b`); stan zweryfikowany na `223f171b3` w sekcji 0, treść i komentarze zgłoszeń
 #594, #595, #597, #598, #599, #120, #193, #8, #15, #29, #1895, #2025, #1925, #2295, #2051, #617, #600, #601,
 #605, #610, #604, [`KROKI_WLASCICIELA_2026-09-29.md`](KROKI_WLASCICIELA_2026-09-29.md),
 [`LISTA_KROKOW_ALFA.md`](../infra/LISTA_KROKOW_ALFA.md), [`PRZED_ZAPROSZENIEM_LUDZI.md`](PRZED_ZAPROSZENIEM_LUDZI.md)
@@ -11,6 +11,72 @@ moderacja działa, restore przetestowany.
 
 Czego nie da się sprawdzić z repo: stan paneli Railway, Cloudflare, R2, EmailLabs. Opieram się tam na
 ostatnich odczytach właściciela i sesji (25–29.09) i oznaczam je datą. Przed działaniem odczytaj panel jeszcze raz.
+
+## 0. Aktualizacja z 1.10.2026, popołudnie (stan `origin/main` = `223f171b3`)
+
+Rano dokument opisywał `aca7cfb4b`. Od tamtej pory na `main` weszły paczki S, T i U, integracja Codexa
+(#2419, audyt GPT-6 Astra #2408/#2409/#2410) i podział dziennika decyzji. Każdy punkt poniżej sprawdzono
+na dzisiejszym `main` (git, `gh api` do stanu zgłoszeń). Stan paneli nadal pochodzi z odczytów 25–29.09 i
+**nie jest tu zweryfikowany** (brak dostępu do paneli).
+
+### 0.1. Poprawki do tego, co napisano rano
+
+| Co rano | Jak jest naprawdę | Dowód |
+|---|---|---|
+| „Zamknięcie `/register` na zaproszenia to drobna zmiana w kodzie” (TL;DR, B9) | **Przełącznik już jest**: `KUKING_REGISTRATION_OPEN=false` (`config/kuking.php`, `account.registration_open`; `RegisterController::show`, wejście przez Google/Facebooka, `RejestracjaZamknieta`). **Ale zamyka też zaproszonych**: ekran zaproszenia przy zamkniętej rejestracji mówi „Zakładanie konta z zaproszenia jest teraz wyłączone”, a zaproszeń wtedy się nie wysyła (`RegistrationInviteController::pokaz`, `WyslijZaproszenieDoRejestracji::handle`). Trybu „publicznie zamknięte, ale z zaproszeniem wolno” **nie ma**, a dzisiejsze zaproszenie (D-085) wysyła się automatycznie każdemu, kto poda nieznany adres na ekranie linku do zalogowania — nie wystawia go człowiek. | `app/Http/Controllers/Auth/RegistrationInviteController.php`, `tests/Feature/ZamknietaRejestracjaNieUdajeAwariiTest.php` |
+| B4: „Poprawka kodu #2295 jest do zlecenia agentowi” | **Zrobiona i scalona** (strażnik wyjątków z panelu w obie strony, ostrzeżenie o `apply` w runbooku starego bucketu, bilans `PANELOWE_Z_ZALOZENIA`). Zostaje wyłącznie odczyt panelu. Zgłoszenie #2295 jest jeszcze otwarte (do zamknięcia z dowodem). | `cebb86e32`, `67f698e9b` (paczka U), `docs/infra/ZMIENNE_SPOZA_IAC.md`, `docs/infra/STARY_BUCKET_R2_LEGACY.md` |
+| B9: „Zamknięcie `/register` ... po cichu przeżyje `apply`” (milczące założenie) | **Nie przeżywało**: `KUKING_REGISTRATION_OPEN` nie było w `.railway/railway.ts`, więc `railway config apply` usunąłby `false` z panelu i `/register` otworzyłby się dla wszystkich. Naprawione w tej gałęzi (patrz 0.3). | `daee883a1` na `claude/droga-do-bety-stan` |
+| §1: „Ścieżki CSAM nie ma w kodzie” | Nadal nie ma **na `main`**, ale jest otwarty PR z panelem moderacji „CSAM — natychmiast ukryj i zabezpiecz” (rejestr dowodów, status zdjęcia `secured`). Prawnik i Dyżurnet zostają bez zmian. | PR #2416 (`claude/csam-panel`), `docs/flota/CSAM_JEDNA_KARTKA.md` |
+
+### 0.2. Blokery po podziale: (a) repo, (b) właściciel, (c) zrobione
+
+**(c) Już na `main` (z dowodem).** Nic z tego nie wymaga już pracy w repo; zgłoszenie można zamknąć dopiero po kroku właściciela, jeśli taki jest.
+
+| Co | Dowód |
+|---|---|
+| Integracja audytu GPT-6 Astra, dziennik decyzji podzielony na pliki `docs/decyzje/` | PR #2408, #2410, #2419 (`9c7449e99`), `docs/audyt/2026-10-01-gpt6-astra.md` |
+| #2402 (P1): importy spójne z transakcją i database queue | PR #2409 (`dddfc9376`, `9a288cd38`), `docs/infra/KOLEJKA_DATABASE_ATOMOWA.md`. Zgłoszenie #2402 otwarte, kod scalony |
+| #2390 (P1, prywatność): historia wersji bez usuniętych danych osobowych, zgłoszenie wersji, retencja | `650f4310b`, `013c7e416`, `795015acb`, `0b4abe17b`, `b91424649` (paczki S/T/U). Zgłoszenie otwarte, kod scalony |
+| #2295 (IN-03) i #2296 (IN-04): strażniki zmiennych z panelu i wartości dosłownych z `railway.ts` | `cebb86e32`, `398c306d2` |
+| #2291: JIT PostgreSQL wyłączony w sesji aplikacji (`DB_JIT` w rejestrze zmiennych panelu) | `01a709b39`, `55acc6871`, `795015acb` |
+| #2025: strażnik bramki wdrożenia po CI (kontrole ujemne warunku sukcesu, nazwy joba zbiorczego) | `b5f3efabe`. Odbiór na produkcji dalej po stronie właściciela |
+| #2381: CSP zdjęć zawężone do zaufanych hostów | `7177b5b78`, `99dfc71f3` |
+| #2382: bramka R2 pkt 12 mówi o kanale `blad_webhook`, nie o niewdrożonym Sentry | `5ade28173` |
+| #2299: CI, etap 3 | `643e13215` |
+| Komendy operacyjne istnieją (kod, nie dowód uruchomienia na produkcji): `kuking:bramka-r2`, `kuking:sprawdz-alarm`, `kuking:martwe-zadania`, `kuking:puls-harmonogramu`, `kuking:sprawdz-piksel`, `kuking:sprawdz-poczte`, `kuking:sprawdz-model`, `kuking:budzet-polaczen`, `kuking:sprawdz-retencje-livewire`, `kuking:raport`, `kuking:wac` | `app/Console/Commands/` |
+| Obraz i skrypty kopii bazy (pętla dump → szyfr → S3 → restore na MinIO) | `docker/kopia/`, `docs/infra/evidence/dr594/RAPORT.md` |
+| Przełącznik zamknięcia rejestracji przeżywa `apply` (nowe) | `daee883a1`, `tests/Feature/ZamkniecieRejestracjiPrzezyjeApplyTest.php` |
+| Narzędzia cold startu, protokół badania, zestaw testów z użytkownikami | bez zmian względem rana (B11, B12) |
+
+**(a) Do zrobienia w repo bez dostępu do produkcji.** Żadne z tych nie blokuje B1–B8 (panele); część blokuje „publiczny start”, nie „zamkniętą alfę”.
+
+| # | Co | Rozmiar | Uwagi |
+|---|---|---|---|
+| A1 | **Tryb „zamknięte publicznie, wejście tylko z zaproszeniem”** (B9, pytanie 1). Dziś zamknięcie odcina też zaproszonych (patrz 0.1). | średni | **Wymaga decyzji właściciela, jej nie ma w D-333.** Dzisiejsze „zaproszenie” (D-085) to automatyczny link, który dostaje KAŻDA osoba wpisująca nieznany adres na ekranie „Wyślij mi link do zalogowania” — nie jest to więc zaproszenie przez człowieka i samo z siebie niczego nie ogranicza. Pytania: kto wystawia zaproszenie (tylko gospodarz/admin czy każdy uczestnik), czy wystawione zaproszenie obchodzi `registration_open=false`, ile ich wolno na osobę, co z Google/Facebookiem (też zamknięte), czy adres musi pasować do zaproszenia (dziś: tak, adres pochodzi z wiersza zaproszenia). Propozycja podziału: (1) decyzja + wiersz D-333; (2) model/akcja „wystaw zaproszenie” (gospodarz, wiersz `registration_invites` z adresem, bez wysyłki automatycznej) + migracja, jeśli brakuje kolumny wystawcy; (3) `RegisterController`/`RegistrationInviteController`: ważne, ręcznie wystawione zaproszenie przechodzi mimo `registration_open=false`, reszta zostaje zamknięta; test + kontrola ujemna; (4) ekran gospodarza „Zaproś osobę” (UX 50+) i dokumenty (`ROADMAP`, `KROKI_WLASCICIELA`). Do czasu decyzji właściciel zostaje przy wyborze: otwarta rejestracja albo całkowicie zamknięta. |
+| A2 | **Ścieżka CSAM w panelu moderacji** | gotowe do przeglądu | PR #2416. Po scaleniu: wykreślić z B9. Nie ruszać w tej gałęzi. |
+| A3 | **Zdanie o DPA w polityce + test** (B8): po podpisaniu umów zmienia się jedno zdanie (`resources/legal/polityka-prywatnosci.md:105`) i test `test_nie_twierdzimy_ze_mamy_umowy_powierzenia` w jednym commicie | mały | Czeka na właściciela (B8); przy podbiciu wersji dokumentu D-327: ustaw `zmiana_*.istotna`. |
+| A4 | Data wejścia w życie regulaminu (`regulamin.md`) | mały | Czeka na prawnika (B9). |
+| A5 | #2403 (P2): atomowa alokacja slugu przepisu; #2404 (P2): wspólny lock pary follow/unfollow; #2405 (P2): `aria-describedby` błędu radiobuttonów formy; #2406 (P2): `aria-current="step"` w onboardingu; #2407 (P3): casty czasu UTC | #2405, #2406 małe; #2403, #2404 średnie (test dwóch połączeń); #2407 mały, ryzykowny dla migracji | Audyt GPT-6 Astra ustawia je przed zamkniętą alfą (pkt 5). Żadne nie ma jeszcze gałęzi ani PR-a (sprawdzone `gh api`, 1.10). Zalecane: #2405+#2406 jednym PR-em (UX 50+, brak blokerów), #2403 i #2404 osobno. |
+| A6 | Zamknięcie zgłoszeń z dowodem po stronie repo: #2402, #2390, #2295, #2296 | mały | Koordynator, po scaleniu paczki. |
+| A7 | Szkielet odbioru #601 na prawdziwym uploadzie, wpis wyniku `kuking:bramka-r2` do `BRAMKA_R2.md` i `KOPIE_I_ODTWORZENIE.md` §5 | tylko dokument | Wypełnia się z wyników właściciela (B3, B6, B7); puste pola zostają, dopóki nie ma wyniku. |
+
+**(b) Kroki właściciela** (bez zmian względem tabeli w §2 i listy w §4; nic z tego nie zostało dziś potwierdzone):
+B1 plan płatny Railway przed 6.10; B2 required reviewers `production` (#1925); B3 ręczny zrzut produkcji i odtworzenie (#594, #193);
+B4 odczyt zmiennych tylko-z-panelu (`AWS_LEGACY_*` itd.) i przeniesienie do Shared Variables **przed** `apply`;
+**B4a (nowe): jeśli zamkniesz rejestrację (`KUKING_REGISTRATION_OPEN=false`), załóż tę samą wartość jako Shared Variable
+`KUKING_REGISTRATION_OPEN` przed `apply`** (pusta Shared Variable = otwarta);
+B5 `config apply` (#595); B6 `kopia-bazy` (#193/#594); B7 bramka R2 + reguła lifecycle `livewire-tmp/` (#120, #2051);
+B8 DPA; B9 prawnik (#8) i decyzja o zaproszeniach (A1); B10 monitoring, puls, Open Tracking; B11 13 sesji (#15); B12 20 osób (#29).
+Odbiory czekające na produkcję: #2025 (odbiór bramki CI), #601 (jedno dekodowanie), #598 (budżet połączeń).
+
+### 0.3. Co zrobiono w tej gałęzi (`claude/droga-do-bety-stan`)
+
+- Ten dokument: stan na teraz, korekty (0.1) i podział (0.2).
+- `daee883a1`: `KUKING_REGISTRATION_OPEN` w `.railway/railway.ts` (tylko web, przez `ctx.shared`), `config/kuking.php`
+  czyta pusty napis jako „otwarta” (wcześniej `(bool) ''` zamykał rejestrację), wiersz w `ZmienneRailwayaPerRolaTest`,
+  nowy `ZamkniecieRejestracjiPrzezyjeApplyTest`, wiersz w tabeli planu `PRZELACZENIE_NA_3_SERWISY_595.md`, CHANGELOG.
+
+Uwaga: poniższe sekcje 1–5 to nadal tekst z rana; w razie rozbieżności wiąże sekcja 0.
 
 ## 1. TL;DR
 
