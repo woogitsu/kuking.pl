@@ -8,8 +8,8 @@ use App\Domain\Compliance\PrzedawnioneUsunieteTresci;
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
 use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Moderation\TrescZabezpieczonaJakoDowod;
-use App\Jobs\PrzeniesPubliczneWariantyDowodu;
 use App\Jobs\ProcessUploadedImage;
+use App\Jobs\PrzeniesPubliczneWariantyDowodu;
 use App\Jobs\PurgePublicMediaCache;
 use App\Models\Appeal;
 use App\Models\AuditLogEntry;
@@ -42,6 +42,8 @@ use Tests\TestCase;
  *  - usunięcie `$chronione()` z `PrzedawnioneUsunieteTresci::bezpiecznie()` → oblewa test wyścigu retencji;
  *  - `ZdjeciaDoPrzypiecia` bez `STATUS_SECURED` → oblewa test przypinania.
  * Kolejność blokad mierzy `tests/Dwa/ZabezpieczenieDowoduNieZakleszczaSieTest.php`.
+ *
+ * @bez-kontroli-dodatniej Źródła są czytane tylko w dwóch testach dokumentów (migracja, polityka), a reszta mierzy zachowanie kodu na bazie i dyskach; kontrole ujemne wszystkich testów wykonano ręcznie (lista wyżej), a w teście polityki kontrolą dodatnią jest porównanie archiwum z bieżącą wersją.
  */
 class ZabezpieczenieDowoduCsamPoRecenzjiTest extends TestCase
 {
@@ -325,11 +327,13 @@ class ZabezpieczenieDowoduCsamPoRecenzjiTest extends TestCase
 
         $moderatorId = (string) $this->moderator()->getKey();
 
-        // Okno wyścigu: zaraz po pierwszym SELECT-cie z rejestru (sprawdzenie
-        // „czy chronione”, wynik: nie) moderator zabezpiecza treść.
+        // Okno wyścigu: sprawdzenie w pętli (bez blokady) już powiedziało
+        // „nie chronione”; zaraz po zajęciu wiersza treści `FOR UPDATE`
+        // moderator zabezpiecza ją (rejestr + decyzja), a dopiero potem
+        // idzie `forceDelete()`. Ponowne sprawdzenie pod blokadą ma to zauważyć.
         $wstawiono = false;
         DB::listen(function ($zapytanie) use (&$wstawiono, $typ, $tresc, $autor, $moderatorId): void {
-            if ($wstawiono || ! str_contains($zapytanie->sql, 'zabezpieczenia_dowodow')) {
+            if ($wstawiono || ! str_contains(strtolower($zapytanie->sql), 'for update')) {
                 return;
             }
             $wstawiono = true;

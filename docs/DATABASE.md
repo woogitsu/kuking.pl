@@ -1724,8 +1724,10 @@ CHECK zmieniony wzorcem `NOT VALID` + `VALIDATE` poza transakcją (AGENTS.md §6
 nowy CHECK jest szerszy od starego, więc walidacja nie może się nie udać.
 
 ```sql
-ALTER TABLE media DROP CONSTRAINT IF EXISTS media_status_check;
-ALTER TABLE media ADD CONSTRAINT media_status_check
+-- JEDEN ALTER TABLE: DROP i ADD w jednej instrukcji (bez okna bez ograniczenia).
+ALTER TABLE media
+    DROP CONSTRAINT IF EXISTS media_status_check,
+    ADD CONSTRAINT media_status_check
     CHECK (status IN ('pending','processing','ready','rejected','deleted','secured')) NOT VALID;
 ALTER TABLE media VALIDATE CONSTRAINT media_status_check;
 ```
@@ -1738,6 +1740,13 @@ danych, odczyt przez AI, kolaże, ponowne przetwarzanie). `KasujZdjecie`
 odmawia skasowania zabezpieczonego zdjęcia (sprzątanie osieroconych, wymazanie
 konta, usunięcie treści). Stan sprzed zabezpieczenia pamięta
 `zabezpieczenia_dowodow.previous_media_status`.
+
+Publiczne warianty (miniatura, podgląd, feed, large) przenosi do prywatnego
+dysku oryginału zadanie `PrzeniesPubliczneWariantyDowodu` (po zatwierdzeniu
+zabezpieczenia; kopia, sprawdzenie, dopiero usunięcie z publicznego dysku;
+oryginał nietknięty) i zleca czyszczenie CDN. Mapa „dawny klucz → nowy klucz”
+leży w `media.metadata.warianty_zabezpieczone`; `metadata.variants` zostaje.
+Bez zmiany schematu (klucz w istniejącej kolumnie JSONB).
 
 **Rollback (D-088): ODMAWIA**, gdy w `media` jest choć jedno zdjęcie
 `secured` — stary CHECK go nie dopuszcza, a zmiana statusu zdjęłaby

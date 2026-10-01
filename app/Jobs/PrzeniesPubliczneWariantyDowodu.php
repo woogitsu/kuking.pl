@@ -156,21 +156,21 @@ class PrzeniesPubliczneWariantyDowodu implements ShouldQueue
     {
         $nowy = 'zabezpieczone/'.$zdjecie->getKey().'/'.basename($klucz);
 
-        if (! $zrodlo->exists($klucz)) {
-            return $cel->exists($nowy) ? $nowy : null;
+        if (! $this->istnieje($zrodlo, $klucz)) {
+            return $this->istnieje($cel, $nowy) ? $nowy : null;
         }
 
-        if (! $cel->exists($nowy)) {
+        if (! $this->istnieje($cel, $nowy)) {
             $tresc = $zrodlo->get($klucz);
 
-            if ($tresc === null || $cel->put($nowy, $tresc) === false || ! $cel->exists($nowy)) {
+            if ($tresc === null || $cel->put($nowy, $tresc) === false || ! $this->istnieje($cel, $nowy)) {
                 throw new \RuntimeException('Nie udało się zapisać kopii wariantu w prywatnym magazynie.');
             }
         }
 
         $zrodlo->delete($klucz);
 
-        if ($zrodlo->exists($klucz)) {
+        if ($this->istnieje($zrodlo, $klucz)) {
             throw new \RuntimeException('Wariant nadal leży na dysku publicznym po próbie usunięcia.');
         }
 
@@ -208,10 +208,20 @@ class PrzeniesPubliczneWariantyDowodu implements ShouldQueue
         return (string) config('filesystems.disks.r2_legacy.bucket') === '' ? null : 'r2_legacy';
     }
 
+    /**
+     * Stan dysku zmienia się między wywołaniami (kopiujemy i kasujemy), więc
+     * każde pytanie jest nowym pomiarem, a nie wartością do zapamiętania.
+     *
+     * @phpstan-impure
+     */
+    private function istnieje(Filesystem $dysk, string $klucz): bool
+    {
+        return $dysk->exists($klucz);
+    }
+
     private function adresPliku(Filesystem $dysk, string $klucz): ?string
     {
         try {
-            /** @phpstan-ignore method.notFound */
             return $dysk->url($klucz);
         } catch (Throwable) {
             return null;

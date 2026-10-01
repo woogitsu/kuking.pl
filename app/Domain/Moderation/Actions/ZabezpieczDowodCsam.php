@@ -6,10 +6,10 @@ namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\PodstawaDecyzji;
-use App\Jobs\PrzeniesPubliczneWariantyDowodu;
 use App\Domain\Users\OdmowaOstatniegoAdministratora;
 use App\Domain\Users\ZamekUprzywilejowanegoAktora;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Jobs\PrzeniesPubliczneWariantyDowodu;
 use App\Models\AuditLogEntry;
 use App\Models\Comment;
 use App\Models\Media;
