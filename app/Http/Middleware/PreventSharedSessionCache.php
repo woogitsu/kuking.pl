@@ -17,6 +17,23 @@ class PreventSharedSessionCache
         $statelessMedia = $request->attributes->get(StartSessionExceptAnonymousMedia::STATELESS_MEDIA) === true;
         $publicznyHtml = PublicznyHtmlGoscia::bezSesji($request);
 
+        // #2395, #2396: stałe przekierowanie (301/308) ze starego sluga
+        // przepisu albo dawnej nazwy profilu zależy od widoczności — `Location`
+        // zdradza aktualny adres. Zapamiętane przez przeglądarkę lub CDN
+        // oddałoby go także po ukryciu przepisu albo zablokowaniu konta, więc
+        // KAŻDE takie przekierowanie jest `private, no-store`, niezależnie od
+        // sesji i ciasteczek (kanał Atom i żądania bez sesji też). Jedno
+        // miejsce zamiast łatania kontrolerów; 404 po odebraniu dostępu i tak
+        // nie niesie `Location`.
+        if (in_array($response->getStatusCode(), [301, 308], true)) {
+            $response->headers->set('Cache-Control', 'private, no-store');
+            $response->headers->remove('CDN-Cache-Control');
+            $response->headers->remove('Cloudflare-CDN-Cache-Control');
+            $response->headers->remove('Surrogate-Control');
+
+            return $response;
+        }
+
         // Warstwa zewnętrzna widzi także Set-Cookie dopisane przez sesję,
         // wyjątki routera i błędy przed grupą web. Nie usuwa ciasteczek.
         if (($request->hasSession() && ! $statelessMedia && ! $publicznyHtml)
