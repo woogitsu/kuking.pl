@@ -386,6 +386,68 @@ final class ListaZakupowTest extends TestCase
         $this->assertModelMissing($moja);
     }
 
+    public function test_pojedyncze_usuniecie_recznej_i_skopiowanej_pozycji_wymaga_otwarcia_pytania(): void
+    {
+        $ja = $this->user('kupujaca');
+        $this->actingAs($ja)->post(route('shopping.store'), ['text' => 'mleko < 2 l'])
+            ->assertRedirect(route('shopping.index').'#dopisz');
+        $przepis = $this->przepis($this->user('kucharka'), ['2 jajka']);
+        $this->actingAs($ja)->post(route('shopping.recipe.store', $przepis->slug))
+            ->assertRedirect(route('shopping.index'));
+        $pozycje = ShoppingListItem::query()->where('user_id', $ja->getKey())->orderBy('position')->get();
+        $this->assertSame([ShoppingListItem::SOURCE_MANUAL, ShoppingListItem::SOURCE_RECIPE], $pozycje->pluck('source')->all());
+
+        $html = (string) $this->actingAs($ja)->get(route('shopping.index'))->assertOk()->getContent();
+        $dom = new \DOMDocument;
+        $stareBledy = libxml_use_internal_errors(true);
+        try {
+            $this->assertTrue($dom->loadHTML($html));
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($stareBledy);
+        }
+        $xpath = new \DOMXPath($dom);
+
+        foreach ($pozycje as $pozycja) {
+            $wiersz = $xpath->query('//li[@id="pozycja-'.$pozycja->getKey().'"]')->item(0);
+            $this->assertInstanceOf(\DOMElement::class, $wiersz);
+            $pytanie = $xpath->query('.//details[contains(concat(" ", normalize-space(@class), " "), " planer-usuwanie ")]', $wiersz)->item(0);
+            $this->assertInstanceOf(\DOMElement::class, $pytanie, 'BRAK_POTWIERDZENIA_2466: pojedyncze usunięcie musi otwierać pytanie.');
+            $this->assertFalse($pytanie->hasAttribute('open'), 'Pytanie nie może być otwarte zanim człowiek naciśnie „Usuń”.');
+            $podsumowanie = $xpath->query('./summary', $pytanie)->item(0);
+            $this->assertInstanceOf(\DOMElement::class, $podsumowanie);
+            $this->assertStringContainsString($pozycja->text, $podsumowanie->getAttribute('aria-label'));
+            $otworz = $xpath->query('.//span[contains(@class, "planer-usuwanie-otworz")]', $podsumowanie)->item(0);
+            $zamknij = $xpath->query('.//span[contains(@class, "planer-usuwanie-zamknij")]', $podsumowanie)->item(0);
+            $this->assertInstanceOf(\DOMElement::class, $otworz);
+            $this->assertInstanceOf(\DOMElement::class, $zamknij);
+            $this->assertSame('Usuń', trim($otworz->textContent));
+            $this->assertSame('Nie usuwaj', trim($zamknij->textContent));
+            $this->assertSame(0, $xpath->query('.//form//summary', $wiersz)->length, 'Pierwsze naciśnięcie nie może wysłać formularza.');
+            $this->assertStringContainsString('Usunąć tę pozycję z listy zakupów?', $pytanie->textContent);
+            $this->assertStringContainsString($pozycja->text, $pytanie->textContent);
+
+            $formularz = $xpath->query('.//form[@action="'.route('shopping.destroy', $pozycja).'"]', $pytanie)->item(0);
+            $this->assertInstanceOf(\DOMElement::class, $formularz);
+            $this->assertSame(1, $xpath->query('.//input[@name="_method" and @value="DELETE"]', $formularz)->length);
+            $this->assertSame(1, $xpath->query('.//button[@type="submit" and contains(text(), "Tak, usuń tę pozycję")]', $formularz)->length);
+            $this->assertSame(1, $xpath->query('.//form[@action="'.route('shopping.destroy', $pozycja).'"]', $wiersz)->length);
+            $this->assertModelExists($pozycja);
+        }
+
+        // Samo obejrzenie i zamknięcie <details> nie wysyła żądania; GET nie zmienia danych.
+        $this->actingAs($ja)->get(route('shopping.index'))->assertOk();
+        $this->assertSame(['mleko < 2 l', '2 jajka'], $this->teksty($ja));
+        $this->assertSame($przepis->getKey(), $pozycje[1]->fresh()->recipe_id);
+
+        // Dopiero przycisk z wnętrza pytania wysyła istniejący, autoryzowany DELETE.
+        $this->actingAs($ja)->delete(route('shopping.destroy', $pozycje[0]))->assertRedirect(route('shopping.index'));
+        $this->assertModelMissing($pozycje[0]);
+        $this->assertModelExists($pozycje[1]);
+        $this->actingAs($ja)->delete(route('shopping.destroy', $pozycje[1]))->assertRedirect(route('shopping.index'));
+        $this->assertModelMissing($pozycje[1]);
+    }
+
     public function test_wyczysc_odhaczone_kasuje_tylko_odhaczone_tylko_swoje(): void
     {
         $ja = $this->user('kupujaca');

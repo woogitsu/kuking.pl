@@ -15,6 +15,18 @@
     gap: var(--spacing-3);
   }
 
+  /* Pojedyncze usunięcie zakupów (#2466): pytanie otwiera się bez skryptu.
+     Osobny odstęp od odhaczania i zawijanie przy 320 px / dużym tekście. */
+  .planer-usuwanie {
+    min-width: 0;
+    max-width: calc(100% - var(--spacing-3));
+    margin-inline-start: var(--spacing-3);
+  }
+
+  .planer-usuwanie .confirm-body { max-width: 100%; }
+  .planer-usuwanie:not([open]) .planer-usuwanie-zamknij { display: none; }
+  .planer-usuwanie[open] .planer-usuwanie-otworz { display: none; }
+
   .planer-dni {
     display: grid;
     gap: var(--spacing-4);

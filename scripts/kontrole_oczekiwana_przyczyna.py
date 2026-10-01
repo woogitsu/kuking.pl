@@ -286,6 +286,7 @@ OCZEKUJ = {
     'Lista zakupów bez ostrzeżenia przy ponownym dodaniu przepisu': r"-'http://localhost:8000/przepisy/[^']+/lista-zakupow' \+'http://localhost:8000/lista-zakupow'",
     'Lista zakupów bez limitu pozycji': r'Session is missing expected key \[errors\]\.',
     'Lista zakupów: usunięcie pozycji bez Policy': r'Expected response status code \[403\] but received 302\.',
+    'Lista zakupów: pojedyncze usunięcie bez pytania (#2466)': r'BRAK_POTWIERDZENIA_2466',
     'Wymazanie konta nie kasuje listy zakupów': r"-\s+0 => 'lista zostaje',\s+\+\s+0 => 'lista do skasowania',",
     'Rollback listy zakupów nie odmawia przy danych': r'Rollback skasował listy zakupów ludzi bez pytania\.',
     'Limit push nie liczy rezerwacji w transporcie': r'Drugi worker przekroczył limit 1\.',
