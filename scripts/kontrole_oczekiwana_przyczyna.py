@@ -422,6 +422,7 @@ OCZEKUJ = {
     'Radia formy bez aria-invalid (#2405)': r'Radio nie ma aria-invalid="true"',
     'Onboarding bez aria-current na bieżącym kroku (#2406)': r'elementów z aria-current="step", powinien być jeden',
     'Onboarding bez grupy z nazwą kroków (#2406)': r'nie ma grupy kroków z role="group"',
+    'Odwołanie od blokady CSAM bez ochrony decyzji (#2427)': r'CSAM_BAN_APPEAL_MUST_STAY_OPEN',
 }
 
 

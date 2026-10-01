@@ -2200,6 +2200,8 @@ checks = [
      lambda s: replace_once(s, '<span class="wizard-steps-current" aria-current="step">', '<span class="wizard-steps-current">')),
     ("Onboarding bez grupy z nazwą kroków (#2406)", "resources/views/pages/onboarding/people.blade.php", DOSTEPNOSC_FORMY_TEST,
      lambda s: replace_once(s, ' role="group" aria-label="Postęp zakładania konta"', '')),
+    ("Odwołanie od blokady CSAM bez ochrony decyzji (#2427)", "app/Domain/Moderation/Actions/ResolveAppeal.php", "OdwolanieOdBlokadyCsamTest",
+     lambda s: replace_once(s, "&& $this->blokadaZDowodem($decyzja)", "&& false")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

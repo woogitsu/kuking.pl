@@ -84,6 +84,7 @@ pull_request|scripts/testy-dwa-polaczenia.sh|tfffft
 pull_request|scripts/kontrola-negatywna-2402.py|tfffft
 pull_request|scripts/kontrola-negatywna-2403.py|tfffft
 pull_request|scripts/kontrola-negatywna-2404.py|tfffft
+pull_request|scripts/kontrola-negatywna-2427.py|tfffft
 pull_request|Dockerfile|tfftff
 pull_request|composer.lock|ttftft
 pull_request|pint.json|tfffff
@@ -196,6 +197,7 @@ mutuj obciazenie "ciezki obciazenie '^(scripts/" "ciezki obciazenie '^(|scripts/
 mutuj obciazenie 'scripts/fixtures/obciazenie605/|' '' || exit 1
 mutuj wyscigi 'tests/(Dwa/|Support/|' 'tests/(Support/|' || exit 1
 mutuj wyscigi '240[234]' '9999' || exit 1
+mutuj wyscigi '|2427' '' || exit 1
 
 echo "Kontrola ujemna: wszystkie sześć wyjść pilnowanych"
 echo "Bramka zakres: OK"

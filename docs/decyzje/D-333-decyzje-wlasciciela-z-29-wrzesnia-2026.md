@@ -116,6 +116,8 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 | CSAM: wspólna kolejność blokad (decyzja właściciela z 1.10.2026, po przeglądzie paczki V) | Zachowujemy zmierzoną kolejność **zdjęcia → konta → treść**, zgodną z publikacją przepisu i D-103. Akcja zabezpieczenia dowodu ma używać tej samej kolejności. Regresja musi obejmować równoległy zapis przepisu z przypiętym zdjęciem i zabezpieczenie tego zdjęcia; kontrola ujemna ma wykazać błąd po przywróceniu dawnej kolejności. | #2416, #2427 |
 | CSAM: odwołanie od powiązanej blokady konta (decyzja właściciela z 1.10.2026, po przeglądzie paczki V) | Panel **odmawia uznania odwołania od blokady konta nałożonej w procedurze zabezpieczenia dowodu CSAM** i wskazuje osobną ręczną procedurę. Odwołanie pozostaje otwarte; zabezpieczenie dowodu i blokada konta pozostają w mocy. Reguła dotyczy konkretnej powiązanej decyzji, a zwykłe odwołania od pozostałych blokad zachowują dotychczasową obsługę. | #2416, #2427 |
 
+| CSAM: konto już objęte inną blokadą (decyzja właściciela z 1.10.2026, po przeglądzie paczki V) | Procedura CSAM zapisuje **osobną, powiązaną z dowodem decyzję o blokadzie także wtedy, gdy konto było już zablokowane z innego powodu**. Uznanie odwołania od starej kary nie zdejmuje nowej blokady CSAM; odwołanie od tej nowej decyzji pozostaje do osobnej ręcznej procedury. Nadal obowiązują uprawnienia moderatora i ochrona kont uprzywilejowanych. | #2416, #2427 |
+
 ### Wycofanie
 Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis
 D-xxx z odwołaniem do tego.
