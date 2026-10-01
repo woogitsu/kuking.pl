@@ -69,6 +69,16 @@ dopóki go nie zaznaczycie. Taki list przychodzi najwyżej raz w tygodniu, tylko
 wtedy, gdy jest co na nim wymienić, a wypisać się z niego można jednym
 kliknięciem na dole listu, bez logowania.
 
+### Kartka z przepisem dla pomocnika
+
+Obok przycisku „Drukuj przepis” jest nowy: „Drukuj dla pomocnika”. To krótsza
+kartka na blat dla osoby, która gotuje razem z Wami: bez opisu i bez rodzinnej
+historii przepisu, za to z liczbą porcji, składnikami i krokami dużym drukiem.
+Jeśli wcześniej wybierzecie „Na ile porcji?”, na kartce będą już przeliczone
+ilości. Przyciskiem „Dodaj kod QR do kartki” możecie dołożyć kod, którym
+pomocnik otworzy ten przepis w telefonie — kod jest tylko dla przepisów
+publicznych, a przy prywatnym go nie ma.
+
 ### Wydrukuj cały zeszyt jako książkę
 
 Na stronie zeszytu jest przycisk „Wydrukuj zeszyt”. Otwiera stronę, którą
@@ -89,6 +99,53 @@ trzeciego wieku albo wręczyć rodzinie. Osoba, która zeskanuje kod telefonem,
 od razu zobaczy przepis — konto nie jest do tego potrzebne. W kodzie jest
 tylko publiczny adres, nic, co dotyczy drukującej osoby. Karty nie ma dla
 przepisów prywatnych, ukrytych i usuniętych.
+
+### Wersja przepisu, z której gotowaliście
+
+Kiedy zapisujecie „Ugotowałem”, pamiętamy, którą wersję przepisu mieliście
+przed oczami. Autor mógł ją potem zmienić, ale na stronie swojego wykonania
+klikacie „Zobacz wersję” i czytacie dokładnie to, z czego gotowaliście —
+składniki i kroki z tamtego dnia. Widzicie to tylko Wy: nikt inny, także
+autor przepisu, nie zobaczy, z której wersji gotowaliście. Jeśli tamtej
+wersji już nie ma (stare wersje porządkujemy po dwóch latach, autor mógł ją
+też ukryć), napiszemy o tym wprost, a Wasze wykonanie, notatka i zdjęcia
+zostają bez zmian. Wykonania zapisane przed tą zmianą nie mają przypiętej
+wersji.
+
+### Ile naprawdę trwa gotowanie według gotujących
+
+Na stronie przepisu, obok czasu podanego przez autora, może pojawić się
+drugie zdanie: „Gotujący zwykle potrzebują około 60 min (na podstawie 7 osób).”
+Bierzemy je z czasów, które sami wpisujecie w „Ugotowałem”. Zdanie pokazujemy
+dopiero wtedy, gdy czas podało co najmniej pięć różnych osób — każda liczy się
+raz, nawet jeśli gotowała ten przepis wiele razy — a liczbę zaokrąglamy do pięciu
+minut. Czasów dłuższych niż doba nie liczymy. Nie widać, kto podał jaki czas,
+a osoby, które zablokowaliście, nie wchodzą do Waszej liczby. Dopóki
+osób jest mniej, nie piszemy nic.
+
+### Kilka potraw naraz, każda z własnym minutnikiem
+
+Gotujecie obiad z kilku dań? Na stronie przepisu i w trybie „Gotuję” jest
+nowy przycisk „Dodaj do kolejki gotowania”. W kolejce zmieszczą się cztery
+przepisy. Na ekranie kolejki przełączacie się między potrawami dużymi,
+podpisanymi przyciskami, np. „Zupa — krok 2 z 5”, a każda potrawa pamięta
+swój krok. Minutniki wszystkich potraw są na jednej liście z nazwą dania,
+np. „Zupa, krok 2: 4:12”, i każdy można osobno anulować. Gdy czas minie,
+usłyszycie ten sam dźwięk co zawsze i zobaczycie napis, np. „Zupa: czas
+minął”. Kolejka jest zapamiętana tylko w Waszej przeglądarce — nie trafia
+na konto — i znika sama po 24 godzinach albo po kliknięciu „Wyczyść kolejkę”.
+Zamknięcie karty kończy działające minutniki, więc po powrocie ustawiacie je
+od nowa. Bez włączonego JavaScriptu kolejki nie ma, a gotowanie jednego
+przepisu działa jak dotąd.
+
+### Zmiana nazwy w adresie profilu nie psuje starych linków
+
+Kiedy zmienicie nazwę użytkownika w ustawieniach profilu, dawny adres
+(na przykład z wydrukowanej karty z kodem QR albo z wiadomości sprzed
+tygodnia) dalej działa: przenosi na Wasz profil pod nową nazwą. Tak samo
+działają listy „Obserwujący” i „Obserwowani” oraz kanał profilu. Jeśli ktoś
+inny zajmie Waszą dawną nazwę, adres prowadzi już do niego. Gdy usuniecie
+konto, dawne nazwy znikają razem z nim.
 
 ### Wszystkie wersje regulaminu
 
@@ -139,6 +196,17 @@ i „jak wyszło?”. Przycisk „Pokaż zdjęcie” otwiera zwykły formularz
 „Ugotowałem”, a „Nie teraz” chowa pytanie. Pytanie znika też samo po kilku
 dniach albo wtedy, gdy zapiszecie wykonanie, i dla tego samego gotowania już
 nie wraca. Widzicie je tylko Wy — nie przychodzi mailem ani powiadomieniem.
+
+### „Dziękuję” pod komentarzem
+
+Pod cudzym komentarzem, który stoi pod Waszym wpisem, przepisem albo
+„Ugotowałem”, jest przycisk „Dziękuję”. Jedno dotknięcie wystarczy — nie trzeba
+pisać odpowiedzi. Osoba, która napisała komentarz, dostaje w powiadomieniach
+krótką wiadomość z odnośnikiem do tego komentarza. Pod komentarzem zostaje
+napis „Podziękowano za ten komentarz.”, który widzicie tylko Wy i autor
+komentarza. Nie ma licznika ani rankingu podziękowań. Podziękowania nie można
+cofnąć, a drugie dotknięcie nic nie dubluje. Jeśli chcecie odpowiedzieć
+własnymi słowami, „Odpowiedz” działa jak dotąd.
 
 ### Napis „Autor przepisu” w rozmowie
 
@@ -288,6 +356,20 @@ Wersję może też ukryć moderacja, gdy coś w niej narusza zasady. Wtedy dosta
 powiadomienie: której wersji to dotyczy, na jakiej podstawie i dlaczego. Jeśli
 uważacie, że to pomyłka, możecie się odwołać — a gdy przyznamy Wam rację, wersja
 od razu wróci do historii zmian.
+
+### Zgłoście konkretną wersję przepisu
+
+Starsza wersja przepisu może zawierać coś, czego nie powinno być w sieci — na
+przykład cudzy numer telefonu — nawet jeśli sam przepis jest w porządku. Na
+ekranie każdej starszej wersji w „Historii zmian” jest teraz przycisk „Zgłoś
+wersję” z numerem wersji. Zgłaszacie dokładnie tę wersję, nie cały przepis.
+Bez konta zobaczycie „Zgłoś wersję (po zalogowaniu)”, a treść niezgodną
+z prawem możecie zgłosić także bez konta. Najnowszej wersji nie zgłaszacie
+osobno, bo to jest sam przepis — wtedy zgłaszacie przepis. Moderacja może
+wersję ukryć w całości: historia zmian jest niezmienna, więc nie wycinamy z niej
+pojedynczych zdań. Autor dostaje powiadomienie z podstawą i uzasadnieniem
+i może się odwołać, a Wy dostajecie odpowiedź tak samo jak przy każdym innym
+zgłoszeniu.
 
 ### Zacznijcie gotować na telefonie, dokończcie na tablecie
 

@@ -206,6 +206,10 @@ const EKRANY = [
   // tekstem. Ten sam przepis co ekran „przepis” wyżej, bo demo ma dla niego
   // gotowe kroki — patrz komentarz przy `adresPrzepisu` niżej w tym pliku.
   { nazwa: 'tryb gotowania', adres: null, znajdz: 'gotowanie' },
+  // Kolejka kilku potraw (#2379): przełącznik potraw, lista minutników i
+  // przyciski pod rząd — ten ekran ma przejść 320 px i 200% tak samo jak
+  // tryb gotowania. Stan kolejki jest w adresie, więc wystarczy ten sam przepis.
+  { nazwa: 'kolejka gotowania', adres: null, znajdz: 'kolejka' },
 
   /*
    * Trzy sposoby wyświetlania zdjęć we wpisie (issue #92).
@@ -597,7 +601,72 @@ const EKRANY = [
    * przy 320 px i tekście 200% musi się zawinąć, a nie wypchnąć stronę.
    */
   { nazwa: 'mój rok w kuchni', adres: '/moj-rok', zalogowany: true },
+
+  /* ===========================================================================
+   * PACZKA S (#2393) — EKRANY, KTÓRYCH NIE MIERZYŁ NIKT
+   * ===========================================================================
+   *
+   * Spiżarnia z terminami, „Najpierw to, co się psuje", formularz „Ustaw
+   * termin", cztery strony sobotniego listu, „Wydrukuj zeszyt", karta z kodem
+   * QR (przepis i profil), wspomnienie z wykonania na tablicy i historia
+   * wersji (lista, wersja, zmiany). Dane zakłada `fixtures/nowe-ekrany-s.php`.
+   *
+   * `wymaga:` to selektor, który MUSI być na ekranie — dowód, że mierzymy
+   * ekran z treścią, a nie jego pusty stan (pułapka 5, docs/PULAPKI_TESTOW.md).
+   * `poWejsciu:` to dojście kliknięciem do strony, która istnieje tylko jako
+   * odpowiedź na POST (wypisanie, powrót, wygasły link).
+   */
+  { nazwa: 'spiżarnia — Co mam w domu', adres: '/co-mam-w-domu', zalogowany: true, wymaga: '#sekcja-pilne' },
+  { nazwa: 'spiżarnia — ustaw termin', znajdz: 's:terminProduktu', zalogowany: true, wymaga: 'h1:has-text("Ustaw termin")' },
+  { nazwa: 'spiżarnia — najpierw to, co się psuje', adres: '/co-ugotuje?najpierw=termin', zalogowany: true, wymaga: 'h1:has-text("Przepisy na produkty z krótkim terminem")' },
+  { nazwa: 'sobotni list — wypisanie (pytanie)', znajdz: 'spizarnia-link-wypisz', zwolnijLimity: true, wymaga: 'button:has-text("Tak, nie wysyłajcie mi go")' },
+  { nazwa: 'sobotni list — wypisano', znajdz: 'spizarnia-link-wypisz', poWejsciu: 'wypisano', zwolnijLimity: true, wymaga: 'h1:has-text("Nie wyślemy już")' },
+  { nazwa: 'sobotni list — zgoda wróciła', znajdz: 'spizarnia-link-wypisz', poWejsciu: 'wrocono', zwolnijLimity: true, wymaga: 'h1:has-text("Sobotnie przypomnienie przyjdzie")' },
+  { nazwa: 'sobotni list — link wygasł', znajdz: 'spizarnia-link-wypisz', poWejsciu: 'wygaslo', zwolnijLimity: true, wymaga: 'h1:has-text("Ten link wygasł")' },
+  { nazwa: 'zeszyt do druku', znajdz: 's:zeszytDoDruku', zalogowany: true, zwolnijLimity: true, wymaga: '#zeszyt-spis-naglowek' },
+  { nazwa: 'karta z kodem QR — przepis', znajdz: 's:kartaPrzepisu', wymaga: '.karta-qr-kod svg' },
+  { nazwa: 'karta z kodem QR — profil', znajdz: 's:kartaProfilu', wymaga: '.karta-qr-kod svg' },
+  { nazwa: 'tablica — wspomnienie z wykonania', adres: '/home', zalogowany: true, wymaga: '.wspomnienie' },
+  { nazwa: 'historia wersji przepisu', znajdz: 's:historia', wymaga: '.historia-wersja-naglowek' },
+  { nazwa: 'historia wersji — jedna wersja', znajdz: 's:wersja', wymaga: 'a:has-text("Zgłoś wersję 2")' },
+  { nazwa: 'historia wersji — co się zmieniło', znajdz: 's:zmiany', wymaga: '#hz-skladniki' },
 ];
+
+/*
+ * Wspólny krok obu pętli (axe i układ): dojście kliknięciem (`poWejsciu`)
+ * i dowód, że ekran ma treść (`wymaga`). Zwraca komunikat błędu albo `null`.
+ * Błąd jest błędem CAŁEGO PRZEBIEGU z nazwanym ekranem — pomiar w nieznanym
+ * stanie wygląda identycznie jak pomiar udany.
+ */
+/*
+ * Limity tras (`spizarnia.wypisz` — 30 na 10 minut, „Wydrukuj zeszyt" — 10 na
+ * minutę) są celowe i mają zostać: ten pomiar wchodzi na te strony kilkadziesiąt
+ * razy (każda szerokość, skala i wariant, a strony po POST dokładają kliknięcia),
+ * więc bez zwolnienia licznika dostalibyśmy 429 — stronę błędu, która przechodzi
+ * każdy audyt, nie sprawdzając niczego. Zwalnia fixture, na lokalnej bazie
+ * pomiarowej (ma własną blokadę środowiska). Wywołanie PRZED nawigacją.
+ */
+function zwolnijLimityEkranu(ekran) {
+  if (ekran.zwolnijLimity) {
+    uruchomFixtureS('zwolnij-limity');
+  }
+}
+
+async function przygotujEkranS(strona, ekran) {
+  try {
+    if (ekran.poWejsciu) {
+      await dojdzDoStronyListuS(strona, ekran.poWejsciu);
+    }
+
+    if (ekran.wymaga && (await strona.locator(ekran.wymaga).count()) === 0) {
+      return `ekran „${ekran.nazwa}" nie ma elementu ${ekran.wymaga} — mierzony byłby pusty stan albo inna strona`;
+    }
+  } catch (blad) {
+    return `ekran „${ekran.nazwa}": ${String(blad.message).slice(0, 300)}`;
+  }
+
+  return null;
+}
 
 /*
  * Ekrany dla pomiaru układu (issue #80). To EKRANY plus dwa widoki wymienione
@@ -638,12 +707,43 @@ const EKRANY_UKLADU = [
 wymagajUnikalnychEkranow(EKRANY, 'EKRANY');
 wymagajUnikalnychEkranow(EKRANY_UKLADU, 'EKRANY_UKLADU');
 
+/*
+ * Zawężenie do ekranów, których nazwa pasuje do wyrażenia (WYŁĄCZNIE do
+ * ponowienia jednego ekranu po poprawce): `TYLKO_EKRANY='sobotni|QR' node …`.
+ * Raport z takiego przebiegu jest niepełny i nie zastępuje przebiegu bez filtra.
+ */
+if (process.env.TYLKO_EKRANY) {
+  const wzorzec = new RegExp(process.env.TYLKO_EKRANY, 'u');
+  for (const lista of [EKRANY, EKRANY_UKLADU]) {
+    const zostaja = lista.filter((e) => wzorzec.test(e.nazwa));
+    lista.splice(0, lista.length, ...zostaja);
+  }
+  console.error(`UWAGA: TYLKO_EKRANY="${process.env.TYLKO_EKRANY}" — mierzę ${EKRANY.length} ekranów; raport jest niepełny.`);
+}
+
 /**
  * Znacznik wariantu „czcionka przeglądarki podwojona". Celowo NIE jest
  * liczbą: liczby w `SKALE_UKLADU` znaczą `data-text-scale`, czyli nasze
  * ustawienie z profilu, a to jest inny mechanizm — patrz komentarz niżej.
  */
 const PRZEGLADARKA_200 = 'przegladarka-200';
+
+/**
+ * Drugi, GRUBSZY wariant „tekst 200%": `font-size: 32px` wpisane na `<html>`
+ * po wczytaniu strony (tak mierzy to zwykle agent albo rozszerzenie
+ * przeglądarki, które podmienia rozmiar korzenia). Różni się od
+ * `PRZEGLADARKA_200` tym, że media query w `rem` zostają przy bazie 16 px —
+ * więc reguły, które „ratują" układ progiem w `rem` (dawny `max-width: 12rem`
+ * chowający napis logotypu), tu NIE działają. Błąd z 1 października 2026:
+ * `/przepisy/{slug}/gotuj` miało `scrollWidth` 339 px w oknie 320 px właśnie
+ * w tym wariancie, a CDP-owy 200% był zielony. Poprawny układ ma znieść oba.
+ *
+ * Mierzymy go tylko w wąskich oknach (patrz `SZEROKOSC_MAKS_HTML_200`):
+ * przy 1280 px ten wariant bada desktop z podwojonym tekstem, w którym nikt
+ * nie jest, i zgłaszałby fałszywe przepełnienia (uzasadnienie niżej).
+ */
+const HTML_200 = 'html-200';
+const SZEROKOSC_MAKS_HTML_200 = 414;
 
 /**
  * Domyślny rozmiar pisma przeglądarki. Wariant `PRZEGLADARKA_200` ustawia
@@ -656,6 +756,10 @@ const BAZOWA_CZCIONKA_PX = 16;
 function etykietaSkali(skala) {
   if (skala === null) {
     return '';
+  }
+
+  if (skala === HTML_200) {
+    return ' / tekst 200% (font-size na <html>)';
   }
 
   return skala === PRZEGLADARKA_200
@@ -1688,7 +1792,22 @@ const adresPrzepisu = (() => {
 // pokazuje prawdziwą treść, nie pustą kartę „autor jeszcze nie opisał
 // przygotowania” (a pusty ekran przechodzi każdy test dostępności, nie
 // sprawdzając niczego — patrz nagłówek tego pliku).
-const adresGotowania = adresPrzepisu === null ? null : `${adresPrzepisu}/gotuj`;
+//
+// ZAPYTANIE O PRZEPIS Z KROKAMI, nie `adresPrzepisu + '/gotuj'`: kontroler
+// przekierowuje przepis bez kroków z powrotem na stronę przepisu (HTTP 200
+// po drodze), a kroki mają w demo tylko niektóre przepisy — przy pierwszym
+// przepisie po `id` bez kroków „tryb gotowania" cicho mierzyłby stronę
+// przepisu. Tak wypadał właśnie ekran, na którym 1 października 2026 szukano
+// usterki nagłówka, i dlatego pomiar jej tam nie pokazywał.
+const adresGotowania = (() => {
+  const slug = execFileSync('php', ['artisan', 'tinker', '--execute',
+    "echo optional(App\\Models\\Recipe::where('status','published')->where('visibility','public')"
+    + "->whereHas('steps')->orderBy('id')->first())->slug;",
+  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+    .toString().trim();
+
+  return slug === '' ? null : `/przepisy/${slug}/gotuj`;
+})();
 
 if (adresPrzepisu === null) {
   console.error('BŁĄD: w bazie nie ma opublikowanego przepisu — ekran przepisu nie zostałby sprawdzony.');
@@ -1900,6 +2019,56 @@ if (idZgloszenia === null) {
     + 'karta sprawy nie zostałaby sprawdzona (brak konta moderatora, tego konta albo cudzego wpisu w bazie).');
   zamknij();
   process.exit(1);
+}
+
+/*
+ * EKRANY PACZKI S (#2393) — DANE I LINKI.
+ *
+ * Spiżarnia z terminami, strona „Wydrukuj zeszyt", karta z kodem QR, historia
+ * wersji i strony sobotniego listu nie miały dotąd ANI JEDNEGO pomiaru: trasy
+ * z parametrem w adresie omija skan `PomiarDostepnosciObejmujeStronyPubliczne
+ * Test`, a trasy za `auth` omija on z założenia. Dane (produkty z terminami,
+ * zeszyt, dwie wersje przepisu, wykonanie sprzed roku) zakłada fixture —
+ * `DemoSeeder` nie daje ich kontu pomiarowemu, a ekran bez treści przechodzi
+ * każdy audyt, nie sprawdzając niczego (stąd też `wymaga:` przy ekranach).
+ *
+ * Linki sobotniego listu są PODPISANE na adres tego serwera (podpis obejmuje
+ * host), więc fixture dostaje `adres` — stąd wywołanie dopiero tutaj.
+ */
+const srodowiskoFixture = { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA };
+const uruchomFixtureS = (...argumenty) => execFileSync('php',
+  ['scripts/fixtures/nowe-ekrany-s.php', ...argumenty], { env: srodowiskoFixture })
+  .toString().trim().split('\n').pop();
+const daneEkranowS = JSON.parse(uruchomFixtureS('przygotuj'));
+const linkWypiszS = uruchomFixtureS('link', 'wypisz', adres);
+const linkWygaslyS = uruchomFixtureS('link', 'wygasly', adres);
+
+/*
+ * Strony po wypisaniu / powrocie / wygaśnięciu istnieją tylko jako odpowiedź
+ * na POST z formularza, więc dochodzimy do nich tak, jak człowiek: klikamy.
+ * `wygaslo` podmienia adres formularza „Jednak chcę" na ważny podpisem, ale
+ * już nieważny w czasie link — dokładnie to, co widzi ktoś, kto kliknie go po
+ * godzinie. Każdy krok sprawdza kod HTTP: strona błędu przechodzi każdy audyt.
+ */
+async function dojdzDoStronyListuS(strona, krok) {
+  const kliknij = async (nazwa) => {
+    const [odp] = await Promise.all([
+      strona.waitForResponse((o) => o.request().method() === 'POST' && o.request().isNavigationRequest()),
+      strona.getByRole('button', { name: nazwa }).click(),
+    ]);
+    await strona.waitForLoadState('domcontentloaded');
+    if ((odp?.status() ?? 0) !== 200) {
+      throw new Error(`krok „${nazwa}" odpowiedział kodem ${odp?.status()}`);
+    }
+  };
+
+  await kliknij('Tak, nie wysyłajcie mi go');
+  if (krok === 'wypisano') return;
+
+  if (krok === 'wygaslo') {
+    await strona.locator('form[action*="/spizarnia/wracam/"]').evaluate((f, nowy) => { f.action = nowy; }, linkWygaslyS);
+  }
+  await kliknij('Jednak chcę go dostawać');
 }
 
 /*
@@ -2156,6 +2325,10 @@ function sciezkaEkranu(ekran) {
     return adresGotowania;
   }
 
+  if (ekran.znajdz === 'kolejka') {
+    return `/gotuj-kilka?p=${adresPrzepisu.split('/').pop()}:1`;
+  }
+
   if (ekran.znajdz === 'odwolanie') {
     return `/odwolanie/${idOdwolania}`;
   }
@@ -2166,6 +2339,15 @@ function sciezkaEkranu(ekran) {
 
   if (ekran.znajdz === 'wpis-dluga-nazwa') {
     return `/wpisy/${wpisDlugiejNazwy}`;
+  }
+
+  // Ekrany paczki S (#2393) — adresy z fixture `nowe-ekrany-s.php`.
+  if (ekran.znajdz.startsWith('s:')) {
+    return daneEkranowS[ekran.znajdz.slice(2)] ?? null;
+  }
+
+  if (ekran.znajdz === 'spizarnia-link-wypisz') {
+    return linkWypiszS;
   }
 
   const [, tryb, sufiks] = ekran.znajdz.split(':');
@@ -2545,6 +2727,7 @@ for (const wariant of WARIANTY) {
         ? stronaModeratora
         : (ekran.zalogowany ? stronaZalogowanego : stronaGoscia));
     const sciezka = sciezkaEkranu(ekran);
+    zwolnijLimityEkranu(ekran);
 
     if (! sciezka) {
       // Ciche pominięcie ekranu jest gorsze niż błąd: raport wygląda
@@ -2603,6 +2786,16 @@ for (const wariant of WARIANTY) {
         `BŁĄD: ekran „${ekran.nazwa}" (${sciezka}) odesłał na ${new URL(strona.url()).pathname}. `
         + 'Raport badałby inną stronę niż zamówiona.',
       );
+      process.exitCode = 1;
+      continue;
+    }
+
+    // Dojście kliknięciem i dowód treści (ekrany paczki S) — PRZED motywem
+    // i skalą, bo nawigacja kasowałaby atrybuty ustawione na stronie.
+    const bladEkranuS = await przygotujEkranS(strona, ekran);
+
+    if (bladEkranuS !== null) {
+      console.error(`BŁĄD: ${bladEkranuS}.`);
       process.exitCode = 1;
       continue;
     }
@@ -2856,7 +3049,11 @@ log('');
 log('Układ (przewijanie w bok):');
 
 for (const szerokosc of SZEROKOSCI_UKLADU) {
-  for (const skala of SKALE_UKLADU) {
+  for (const skala of [...SKALE_UKLADU, HTML_200]) {
+    if (skala === HTML_200 && szerokosc > SZEROKOSC_MAKS_HTML_200) {
+      continue;
+    }
+
     const opis = `${szerokosc} px${etykietaSkali(skala)}`;
 
     const kontekstGoscia = await przegladarka.newContext({
@@ -2883,6 +3080,7 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
 
     for (const ekran of EKRANY_UKLADU) {
       const sciezka = sciezkaEkranu(ekran);
+      zwolnijLimityEkranu(ekran);
 
       if (! sciezka) {
         console.error(`BŁĄD: brak adresu dla ekranu „${ekran.nazwa}".`);
@@ -2927,6 +3125,15 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
         continue;
       }
 
+      const bladEkranuS = await przygotujEkranS(strona, ekran);
+
+      if (bladEkranuS !== null) {
+        console.error(`BŁĄD: ${bladEkranuS} (pomiar układu).`);
+        process.exitCode = 1;
+        await strona.close();
+        continue;
+      }
+
       if (skala === PRZEGLADARKA_200) {
         // KONTROLA METODY POMIARU, nie ozdoba. Sprawdzamy OBIE własności,
         // bo to one odróżniają prawdziwą zmianę czcionki od jej podróbki
@@ -2954,6 +3161,29 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
             + 'zmiana nie dotknęła bazy media queries — mierzylibyśmy układ '
             + 'desktopowy z podwojonym tekstem, czyli stan, w którym żaden '
             + 'człowiek nie jest.',
+          );
+          process.exitCode = 1;
+          await strona.close();
+          continue;
+        }
+      } else if (skala === HTML_200) {
+        // `setProperty` przez CSSOM, nie `<style>`: CSP serwisu zabrania
+        // wstrzykniętych arkuszy, a ta droga przechodzi.
+        await strona.evaluate((px) => {
+          document.documentElement.style.setProperty('font-size', `${px}px`, 'important');
+        }, 2 * BAZOWA_CZCIONKA_PX);
+
+        const korzen = await strona.evaluate(async () => {
+          await new Promise((dalej) => requestAnimationFrame(() => requestAnimationFrame(dalej)));
+
+          return Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+        });
+
+        if (korzen < 2 * BAZOWA_CZCIONKA_PX) {
+          console.error(
+            `BŁĄD: czcionka korzenia to ${korzen} px zamiast ${2 * BAZOWA_CZCIONKA_PX} px `
+            + `na ekranie „${ekran.nazwa}" (${opis}). Bez tego wariant przechodziłby na `
+            + 'zielono, nie mierząc niczego.',
           );
           process.exitCode = 1;
           await strona.close();

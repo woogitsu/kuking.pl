@@ -39,7 +39,10 @@ return [
 
         'database' => [
             'driver' => 'database',
-            'connection' => env('DB_QUEUE_CONNECTION'),
+            // Importy zapisują rekord i zadanie w jednej transakcji (#2402).
+            // Jawne rozdzielenie połączeń łamałoby atomowość, więc domyślnie
+            // kolejka dziedziczy połączenie aplikacji.
+            'connection' => env('DB_QUEUE_CONNECTION', env('DB_CONNECTION', 'sqlite')),
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
             /*

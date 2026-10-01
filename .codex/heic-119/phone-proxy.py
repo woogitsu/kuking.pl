@@ -58,6 +58,61 @@ def bezpieczny_naglowek(nazwa, wartosc):
     return not any(z in (wartosc or '') for z in ('\r', '\n', '\x00'))
 
 
+# Allowlista nagłówków odpowiedzi przekazywanych klientowi. Nazwa do send_header
+# zawsze pochodzi ze stałego literału poniżej, nigdy z odpowiedzi upstream
+# (analiza przepływu CodeQL widzi wtedy, że nazwa nie jest skażona).
+# Są tu nagłówki, które aplikacja ustawia i które zmieniają zachowanie
+# przeglądarki (CSP, HSTS, Retry-After...), żeby test na telefonie pokazywał to,
+# co zobaczy użytkownik. Server i Date pomijamy: send_response() dodaje je sam.
+# Content-Length i Transfer-Encoding też nie — długość liczy proxy.
+_DOZWOLONE_NAGLOWKI = {
+    'content-type': 'Content-Type',
+    'content-encoding': 'Content-Encoding',
+    'content-language': 'Content-Language',
+    'content-disposition': 'Content-Disposition',
+    'content-range': 'Content-Range',
+    'accept-ranges': 'Accept-Ranges',
+    'cache-control': 'Cache-Control',
+    'pragma': 'Pragma',
+    'expires': 'Expires',
+    'etag': 'ETag',
+    'last-modified': 'Last-Modified',
+    'location': 'Location',
+    'refresh': 'Refresh',
+    'link': 'Link',
+    'vary': 'Vary',
+    'allow': 'Allow',
+    'set-cookie': 'Set-Cookie',
+    'content-security-policy': 'Content-Security-Policy',
+    'content-security-policy-report-only': 'Content-Security-Policy-Report-Only',
+    'x-content-type-options': 'X-Content-Type-Options',
+    'x-frame-options': 'X-Frame-Options',
+    'referrer-policy': 'Referrer-Policy',
+    'permissions-policy': 'Permissions-Policy',
+    'strict-transport-security': 'Strict-Transport-Security',
+    'cross-origin-opener-policy': 'Cross-Origin-Opener-Policy',
+    'cross-origin-resource-policy': 'Cross-Origin-Resource-Policy',
+    'retry-after': 'Retry-After',
+    'x-ratelimit-limit': 'X-RateLimit-Limit',
+    'x-ratelimit-remaining': 'X-RateLimit-Remaining',
+    'x-robots-tag': 'X-Robots-Tag',
+    'x-request-id': 'X-Request-ID',
+    'www-authenticate': 'WWW-Authenticate',
+    'access-control-allow-origin': 'Access-Control-Allow-Origin',
+    'access-control-allow-methods': 'Access-Control-Allow-Methods',
+    'access-control-allow-headers': 'Access-Control-Allow-Headers',
+    'access-control-allow-credentials': 'Access-Control-Allow-Credentials',
+}
+
+
+def naglowek_do_przekazania(nazwa, wartosc):
+    """Zwraca (stała nazwa, oczyszczona wartość) albo None, gdy nagłówka nie przekazujemy."""
+    stala_nazwa = _DOZWOLONE_NAGLOWKI.get((nazwa or '').lower())
+    if stala_nazwa is None or not bezpieczny_naglowek(nazwa, wartosc):
+        return None
+    return stala_nazwa, wartosc
+
+
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description='Proxy HTTP do testów na telefonie w sieci lokalnej (tylko dev).')
@@ -157,13 +212,14 @@ def make_handler(target_host, target_port, token, allowed_ips):
             body = resp.read()
             self.send_response(resp.status)
             for key, value in resp.getheaders():
-                if key.lower() in ('connection', 'transfer-encoding', 'content-length'):
-                    continue
-                # Nagłówek z CR/LF albo spoza dozwolonego zestawu pomijamy —
+                # Nagłówek spoza allowlisty albo z CR/LF/NUL pomijamy —
                 # inaczej można by wstrzyknąć własne nagłówki lub treść (HTTP Response Splitting).
-                if not bezpieczny_naglowek(key, value):
+                przekazywany = naglowek_do_przekazania(key, value)
+                if przekazywany is None:
                     continue
-                self.send_header(key, value)
+                # Oczyszczenie bezpośrednio przed send_header — sanitizer rozpoznawany
+                # przez CodeQL (py/http-response-splitting); jedyne takie miejsce.
+                self.send_header(przekazywany[0], przekazywany[1].replace('\r', '').replace('\n', ''))
             self.send_header('Content-Length', str(len(body)))
             self.end_headers()
             self.wfile.write(body)

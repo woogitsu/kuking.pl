@@ -131,6 +131,14 @@ class ModerationAction extends Model
         // odwołać (DSA art. 17). Działa to, co działa naprawdę: ostrzeżenie
         // z prośbą o zmianę nazwy albo opisu, zawieszenie i ban.
         'collection' => [self::ACTION_NONE, self::ACTION_WARN, self::ACTION_SUSPEND, self::ACTION_BAN],
+
+        // WERSJA PRZEPISU (issue #2390). `hide` to ukrycie wersji (`hidden_at`)
+        // przez `DecyzjaOWersjiPrzepisu` — ta sama droga i te same reguły co
+        // ukrycie z historii zmian (nie najnowsza, nie już ukryta). ŚWIADOMIE BEZ
+        // `remove`: wersji nie kasuje się decyzją, historia jest niezmienna
+        // (D-333); usuwa ją wyłącznie retencja. Ostrzeżenie, zawieszenie i ban
+        // dotyczą autora przepisu.
+        'recipe_version' => [self::ACTION_NONE, self::ACTION_WARN, self::ACTION_HIDE, self::ACTION_SUSPEND, self::ACTION_BAN],
     ];
 
     /**
@@ -186,6 +194,29 @@ class ModerationAction extends Model
         $akcje = self::DOZWOLONE[$typCelu] ?? [self::ACTION_NONE];
 
         return array_intersect_key(self::ETYKIETY, array_flip($akcje));
+    }
+
+    /**
+     * Nowe decyzje, które wolno wydać PO UZNANIU ODWOŁANIA zgłaszającego
+     * (`DecyzjaPoOdwolaniu`): lista z `dozwoloneDla()` bez `none`, i bez
+     * `hide` przy wersji przepisu. Ukrycie wersji wymaga stanu z historii
+     * zmian (nie najnowsza, nie już ukryta), a tę drogę ma pierwsza instancja
+     * i ekran historii; po odwołaniu moderator ukrywa wersję stamtąd.
+     * Bez tego wyjątku przycisk zapisałby decyzję „ukryto”, nie ruszając
+     * wersji — dokładnie błąd opisany przy `cooked_event`.
+     *
+     * @return array<string, string> akcja => etykieta
+     */
+    public static function dozwolonePoOdwolaniu(?string $typCelu): array
+    {
+        $akcje = self::dozwoloneDla($typCelu);
+        unset($akcje[self::ACTION_NONE]);
+
+        if ($typCelu === 'recipe_version') {
+            unset($akcje[self::ACTION_HIDE]);
+        }
+
+        return $akcje;
     }
 
     protected $fillable = [

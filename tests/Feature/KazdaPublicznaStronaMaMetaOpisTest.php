@@ -212,6 +212,9 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             'recipes.qr-card' => route('recipes.qr-card', $recipe->slug),
             'profile.qr-card' => route('profile.qr-card', $autor->profile->username),
             'cooking.show' => route('cooking.show', $recipe->slug),
+            // Kolejka kilku przepisów (#2379): ekran roboczy z `noindex` — pętla
+            // sprawdzi 200 i noindex; jeden przepis w adresie, żeby nie mierzyć pustej kolejki.
+            'kolejka-gotowania' => route('kolejka-gotowania', ['p' => $recipe->slug.':1']),
             // „Ugotujmy razem” (F3): strona bieżącego tygodnia (tu bez wyboru —
             // pusty stan też musi mieć opis) i tydzień z archiwum z wyborem.
             'ugotujmy-razem' => route('ugotujmy-razem'),

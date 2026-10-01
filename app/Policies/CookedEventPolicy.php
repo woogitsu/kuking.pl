@@ -35,6 +35,16 @@ class CookedEventPolicy
         return $this->dostep($user, $event, doKomentarza: true);
     }
 
+    /**
+     * Wersja przepisu przypięta do wykonania (#2378): wyłącznie kucharz.
+     * Ani moderator, ani autor przepisu — to prywatny powrót do własnego
+     * gotowania. Co kucharz zobaczy w środku, rozstrzyga `WersjaWykonania`.
+     */
+    public function viewVersion(User $user, CookedEvent $event): bool
+    {
+        return $user->getKey() === $event->user_id;
+    }
+
     private function dostep(?User $user, CookedEvent $event, bool $doKomentarza): bool
     {
         // 1. Blokada — pierwsza, bezwarunkowa, w obie strony (`AGENTS.md` §4).

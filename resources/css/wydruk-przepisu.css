@@ -128,6 +128,25 @@
   margin: 0 0 var(--spacing-4);
 }
 
+/* „Dla pomocnika” (#2345) na ekranie: podgląd kartki. Kod ZAWSZE na białym tle
+   (skaner potrzebuje ciemnych modułów na jasnym polu), adres łamany gdziekolwiek. */
+.druk-pomocnik-qr-kod {
+  background: #FFFFFF;
+  width: min(100%, 12rem);
+  margin: var(--spacing-3) 0;
+}
+
+.druk-pomocnik-qr-kod svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.druk-pomocnik-qr-adres {
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
 @media print {
   @page {
     size: A4;
@@ -171,7 +190,7 @@
   body:has(.przepis-uklad, .sciagawka, .zeszyt-druk) :is(
     .skip-link, .topbar, .side-nav, .bottom-nav, .app-rail, .site-footer,
     .szybki-wyglad, .szybki-wyglad-podpowiedz, .pwa-install, .okruchy,
-    .przepis-akcje, .podziel-sie, .danger-zone, .druk-podpowiedz,
+    .przepis-akcje, .podziel-sie, .danger-zone, .druk-podpowiedz, .zglos-goscia,
     [aria-labelledby="komu-wyszlo"], [aria-labelledby="komentarze"]
   ),
   body:has(.przepis-uklad, .sciagawka, .zeszyt-druk) main :is(.btn, button, form) {
@@ -521,5 +540,68 @@
 
   body:has(.karta-qr) .sciagawka.karta-qr .karta-qr-marka {
     font-size: calc(20pt * var(--druk-skala));
+  }
+
+  /* ───────────────────────────────────────────────────────────────────────
+     „DLA POMOCNIKA” (#2345). Ten sam wydruk przepisu (`?druk=1`), ale
+     krótsza kartka na blat: bez opisu i „Skąd ten przepis” (nie renderuje
+     ich już widok), z liczbą porcji i opcjonalnym kodem QR. Pismo minimum
+     16 pt (razy skala tekstu), tytuł 24 pt — pomocnik czyta z odległości
+     ręki. Reguły o wyższej swoistości niż ogólne 12 pt wyżej; nagłówki
+     i listy dostają niżej własne, większe rozmiary.
+     ─────────────────────────────────────────────────────────────────────── */
+  body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika * {
+    font-size: max(calc(16pt * var(--druk-skala)), 1em);
+    line-height: 1.4;
+  }
+
+  body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika h1 {
+    font-size: calc(24pt * var(--druk-skala));
+    line-height: 1.2;
+  }
+
+  body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika h2 {
+    font-size: calc(19pt * var(--druk-skala));
+  }
+
+  body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika :is(.ingredient-list li, .step-list > li) {
+    font-size: calc(16pt * var(--druk-skala));
+  }
+
+  body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika .naglowek-grupy {
+    font-size: calc(17pt * var(--druk-skala));
+  }
+
+  body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika .step-number {
+    font-size: calc(17pt * var(--druk-skala));
+  }
+
+  /* Liczba porcji z wyboru w adresie jest jedna — nad składnikami nie ma
+     drugiego wyboru ani przeliczeń w innym miejscu. */
+  body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika :is(.porcje-wybor, .porcje-wybor-uwaga) {
+    display: none !important;
+  }
+
+  body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika .druk-pomocnik-porcje {
+    margin: 6pt 0 0;
+  }
+
+  body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika .druk-pomocnik-qr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-top: 14pt;
+  }
+
+  /* Kod 4 cm: na kartce z przepisem zostaje miejsce, a skaner czyta taki
+     kod bez trudu (adres jest krótki). Zawsze czarny na białym. */
+  body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika .druk-pomocnik-qr-kod {
+    width: 4cm;
+    margin: 6pt 0;
+    background: #FFFFFF !important;
+  }
+
+  body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika .druk-pomocnik-qr-adres {
+    overflow-wrap: anywhere;
+    word-break: break-all;
   }
 }

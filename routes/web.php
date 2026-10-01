@@ -47,6 +47,7 @@ use App\Http\Controllers\HistoriaPrzepisuController;
 use App\Http\Controllers\ImportPrzepisuController;
 use App\Http\Controllers\JakWyszloController;
 use App\Http\Controllers\KartaQrController;
+use App\Http\Controllers\KolejkaGotowaniaController;
 use App\Http\Controllers\ListaZakupowController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MojeWpisyController;
@@ -59,6 +60,7 @@ use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PantryController;
 use App\Http\Controllers\PlanerController;
 use App\Http\Controllers\PodsumowanieTygodniaController;
+use App\Http\Controllers\PodziekowanieZaKomentarzController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostMediaController;
 use App\Http\Controllers\ProfileController;
@@ -365,6 +367,10 @@ Route::get('/zeszyt/{collection}/do-druku', CollectionPrintController::class)
 // kroku) ma własny, niski limit zapytań: to POST na cudzy slug, więc nawet
 // bez żadnego ryzyka dla danych zasługuje na ten sam refleks co reszta
 // endpointów zmieniających stan.
+// Kolejka kilku przepisów z niezależnymi minutnikami (#2379). Kolejka żyje
+// w przeglądarce; serwer dostaje ją w adresie i każdy przepis sprawdza przez
+// RecipePolicy::view. Tylko odczyt, więc GET.
+Route::get('/gotuj-kilka', [KolejkaGotowaniaController::class, 'show'])->name('kolejka-gotowania');
 Route::get('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'show'])->name('cooking.show');
 Route::post('/przepisy/{recipe}/gotuj/od-poczatku', [CookingModeController::class, 'restart'])
     ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
@@ -898,6 +904,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['comment']},comment")
         ->withTrashed()
         ->name('comments.destroy');
+    // „Dziękuję" pod komentarzem (issue #2355, F11): autor treści kwituje cudzy
+    // komentarz jednym kliknięciem. Zwykły POST bez JS; bramka
+    // `CommentPolicy::thank`, idempotentne (UNIQUE w bazie), bez wycofania.
+    // Własny koszyk `reakcje` jak „Smakowicie wygląda" — nie zjada budżetu komentarzy.
+    Route::post('/komentarze/{comment}/dziekuje', [PodziekowanieZaKomentarzController::class, 'store'])
+        ->middleware("throttle:{$limits['reakcje']},reakcje")
+        ->name('comments.thank');
 
     /*
      * DODAWANIE ≠ DOPISYWANIE SZCZEGÓŁÓW (issue #364).
@@ -1039,6 +1052,8 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // autora przepisu, osiągana z linku w powiadomieniu. Adres celowo inny
     // niż `cooked.show`, bo to inny ekran z inną autoryzacją (Policy::celebrate).
     Route::get('/ugotowane/{cookedEvent}/wyszlo', [CookedEventController::class, 'celebrate'])->name('cooked.celebrate');
+    // Wersja przepisu z tego gotowania (#2378) — prywatna, tylko kucharz.
+    Route::get('/ugotowane/{cookedEvent}/wersja', [CookedEventController::class, 'wersja'])->name('cooked.version');
     Route::post('/ugotowane/{cookedEvent}/podziekuj', [CookedEventController::class, 'thank'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('cooked.thank');

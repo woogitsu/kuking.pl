@@ -13,6 +13,7 @@ use App\Models\Recipe;
 use App\Models\User;
 use App\Support\AdresKanoniczny;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -175,6 +176,27 @@ class KartaZKodemQrTest extends TestCase
         $przepis->delete();
 
         $this->get(route('recipes.qr-card', $slug))->assertNotFound();
+    }
+
+    public function test_karta_pod_starym_adresem_przepisu_przekierowuje_301_na_aktualny(): void
+    {
+        $przepis = $this->publicznyPrzepis();
+        DB::table('recipe_slug_redirects')->insert(['slug' => 'stary-adres', 'recipe_id' => $przepis->getKey(), 'created_at' => now()]);
+
+        $this->get(route('recipes.qr-card', 'stary-adres'))
+            ->assertStatus(301)
+            ->assertRedirect(route('recipes.qr-card', $przepis->slug));
+    }
+
+    public function test_stary_adres_karty_przepisu_niedostepnego_dla_goscia_daje_404_bez_zdradzania_nowego(): void
+    {
+        $autor = $this->user('autor_stary_priv');
+        $przepis = $this->publicznyPrzepis(['author_id' => $autor->getKey(), 'visibility' => 'private']);
+        DB::table('recipe_slug_redirects')->insert(['slug' => 'stary-prywatny', 'recipe_id' => $przepis->getKey(), 'created_at' => now()]);
+
+        $this->get(route('recipes.qr-card', 'stary-prywatny'))->assertNotFound();
+        // Autor widzi przepis, ale karta jest dla gościa: 404 także u autora.
+        $this->actingAs($autor)->get(route('recipes.qr-card', 'stary-prywatny'))->assertNotFound();
     }
 
     public function test_nieistniejacy_przepis_daje_404(): void

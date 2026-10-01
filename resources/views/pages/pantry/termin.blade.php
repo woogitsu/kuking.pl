@@ -37,6 +37,13 @@
         $wybranyDzien = $poBledzie ? (string) old('termin_dzien', '') : (string) ($produkt->expires_on?->day ?? '');
         $wybranyMiesiac = $poBledzie ? (string) old('termin_miesiac', '') : (string) ($produkt->expires_on?->month ?? '');
         $wybranyRok = $poBledzie ? (string) old('termin_rok', '') : (string) ($produkt->expires_on?->year ?? '');
+        // Po błędzie „szybki przycisk bez rodzaju”: data z przycisku wraca na
+        // listy (chyba że osoba wybrała już coś na listach — wtedy jej wybór).
+        $dataZPrzycisku = $poBledzie && $wybranyDzien === '' && $wybranyMiesiac === '' && $wybranyRok === '' ? $dataZPrzycisku : null;
+        if ($dataZPrzycisku !== null) {
+            [$wybranyRok, $wybranyMiesiac, $wybranyDzien] = array_map('intval', explode('-', $dataZPrzycisku));
+            [$wybranyRok, $wybranyMiesiac, $wybranyDzien] = [(string) $wybranyRok, (string) $wybranyMiesiac, (string) $wybranyDzien];
+        }
         $mrozone = $poBledzie ? (bool) old('mrozone', false) : $produkt->frozen;
         $bladRodzaju = $errors->first('rodzaj');
         $bladDnia = $errors->first('termin_dzien');
@@ -77,6 +84,10 @@
                 <button class="btn btn-secondary" type="submit" name="za" value="{{ $wartosc }}">{{ $etykieta }}</button>
             @endforeach
         </div>
+
+        @if($dataZPrzycisku !== null && $przyciskZPrzed !== null)
+            <p class="mt-4" data-data-z-przycisku><strong>Wybrano „{{ $przyciskZPrzed }}”.</strong> Data jest wpisana w listach niżej. Zaznacz jeszcze, jaki to termin, i naciśnij „Zapisz”.</p>
+        @endif
 
         <p class="mt-6 mb-2">albo wybierz dokładną datę z list:</p>
 

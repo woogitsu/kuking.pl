@@ -6,12 +6,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Domain\Moderation\Actions\RestoreContent;
 use App\Domain\Moderation\Actions\RozstrzygnijZgloszenie;
+use App\Domain\Moderation\CofniecieUkryciaWersji;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\PriorytetSprawy;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Moderation\DecyzjaModeracyjnaRequest;
 use App\Models\ModerationAction;
+use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\User;
 use App\Support\Komunikat;
@@ -125,6 +127,7 @@ class ModerationController extends Controller
             // Które zgłoszenia da się dziś cofnąć (issue #65) — i przy
             // których cofnąć może tylko ktoś inny, bo to treść patrzącego (#1479).
             'przywracalne' => $this->przywracalne($reports->getCollection()->all(), $request->user()),
+            'wersje' => $this->wersjeZgloszen($reports->getCollection()->all()),
             // Liczniki nad zakładkami liczą TO SAMO, co pokazuje lista pod
             // nimi — z tym samym warunkiem o źródle, także przy
             // `?zrodlo=automat` (issue #990). Zakładka niesie bieżące
@@ -143,6 +146,43 @@ class ModerationController extends Controller
                 ->whereIn('status', [Report::STATUS_OPEN, Report::STATUS_TRIAGE, Report::STATUS_REVIEWING])
                 ->count(),
         ]);
+    }
+
+    /**
+     * Ekrany zgłoszonych wersji przepisu (#2390) — jednym zapytaniem, żeby
+     * kolejka mogła odesłać moderatora do wersji, o którą chodzi (kolejka
+     * pokazuje samo `target_type · target_id`). Moderacja widzi też wersje
+     * ukryte, a adres ma numer, który moderator zna z historii zmian.
+     *
+     * @param  list<Report>  $reports
+     * @return array<string, array{adres: string, numer: int, tytul: string}> klucz: id wersji
+     */
+    private function wersjeZgloszen(array $reports): array
+    {
+        $ids = [];
+        foreach ($reports as $report) {
+            if ($report->target_type === CofniecieUkryciaWersji::TYP && $report->target_id !== null) {
+                $ids[] = (string) $report->target_id;
+            }
+        }
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $wynik = [];
+        foreach (RecipeVersion::query()->with('recipe:id,slug,title')->whereIn('id', $ids)->get(['id', 'recipe_id', 'version_number']) as $wersja) {
+            if ($wersja->recipe === null) {
+                continue;
+            }
+            $wynik[(string) $wersja->getKey()] = [
+                'adres' => route('recipes.history.version', [$wersja->recipe->slug, $wersja->version_number]),
+                'numer' => $wersja->version_number,
+                'tytul' => (string) $wersja->recipe->title,
+            ];
+        }
+
+        return $wynik;
     }
 
     /** Sprawy z bieżącego źródła (ludzie albo automat) w danym stanie — ten sam warunek, co lista wyżej. */

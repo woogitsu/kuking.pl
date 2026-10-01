@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Settings;
 
+use App\Domain\Users\Actions\ZapiszProfil;
 use App\Http\Controllers\Controller;
 use App\Rules\ReservedUsername;
 use App\Rules\UsernameNotTaken;
@@ -13,7 +14,6 @@ use App\Support\Wejscie;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -40,7 +40,7 @@ class ProfileSettingsController extends Controller
         ]);
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request, ZapiszProfil $zapiszProfil): RedirectResponse
     {
         $user = $request->user();
         $profile = $user->profile;
@@ -143,7 +143,7 @@ class ProfileSettingsController extends Controller
          * PostgreSQL — treść pól w DETAIL nie może udawać nazwy indeksu.
          */
         try {
-            DB::transaction(fn () => $profile->update($data));
+            $zapiszProfil->handle($profile, $data);
         } catch (UniqueConstraintViolationException $e) {
             if (! self::naruszonoIndeksNazwy($e)) {
                 throw $e;

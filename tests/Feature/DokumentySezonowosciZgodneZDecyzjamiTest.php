@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Tests\Support\DziennikDecyzji;
 use Tests\TestCase;
 
 /**
@@ -22,7 +23,7 @@ use Tests\TestCase;
  * Jednej sprawdzalnej maszynowo własności: dopóki decyzja mówi „informacja
  * zostaje w pliku”, żaden wiersz o `seasonal_moments` ani o sezonowym pasku
  * w Discover nie stoi w komórce **MVP** / **tak**, a oba fragmenty cytują
- * zdanie z D-026 dosłownie. Zdanie jest czytane z `docs/DECISIONS.md`, nie
+ * zdanie z D-026 dosłownie. Zdanie jest czytane z dziennika (`docs/decyzje/`), nie
  * przepisane do testu — jeśli właściciel zmieni decyzję, test oblewa
  * i wymusza ponowne uzgodnienie dokumentów, zamiast bronić starej wersji.
  *
@@ -85,7 +86,7 @@ class DokumentySezonowosciZgodneZDecyzjamiTest extends TestCase
      */
     public function test_kontrola_decyzje_d021_i_d026_mowia_to_co_cytuja_dokumenty(): void
     {
-        $decyzje = $this->plik('docs/DECISIONS.md');
+        $decyzje = (new DziennikDecyzji(base_path()))->tresc();
 
         $this->assertStringContainsString(
             self::ZDANIE_D026,
