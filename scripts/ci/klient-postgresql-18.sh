@@ -44,12 +44,13 @@ set -euo pipefail
 PG18_APT_UPDATE_TIMEOUT="${PG18_APT_UPDATE_TIMEOUT:-90s}"
 PG18_APT_INSTALL_TIMEOUT="${PG18_APT_INSTALL_TIMEOUT:-120s}"
 PG18_CURL_TIMEOUT="${PG18_CURL_TIMEOUT:-70s}"
+PG18_KILL_AFTER="${PG18_KILL_AFTER:-5s}"
 
 uruchom_etap() {
   local opis="$1" limit="$2" start=$SECONDS kod
   shift 2
   echo "Klient PG18: start ${opis} (limit ${limit})."
-  if timeout "$limit" "$@"; then
+  if timeout --kill-after="$PG18_KILL_AFTER" "$limit" "$@"; then
     echo "Klient PG18: ${opis} zakończony po $((SECONDS - start)) s."
   else
     kod=$?

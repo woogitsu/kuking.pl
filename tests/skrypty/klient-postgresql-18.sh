@@ -63,6 +63,11 @@ cat > "${ATRAPY}/sudo" <<'KONIEC'
 echo "sudo $*" >> "$DZIENNIK"
 [ "$1" = apt-get ] && [ "${ATRAPA_APT:-}" = "${2}-wolno" ] && sleep 3
 [ "$1" = apt-get ] && [ "${ATRAPA_APT:-}" = "${2}-blad" ] && exit 100
+if [ "$1" = apt-get ] && [ "${ATRAPA_APT:-}" = "${2}-ignoruje-term" ]; then
+    echo "$$" > "$ATRAPA_PID_FILE"
+    trap '' TERM
+    while :; do sleep 0.1; done
+fi
 [ "$1" = tee ] && cat >/dev/null
 exit 0
 KONIEC
@@ -85,8 +90,10 @@ uruchom() {
     local skrypt="$1" klucz="$2" pg="${3:-}" curl_mode="${4:-}" apt_mode="${5:-}"
     : > "${TMP}/dziennik"
     : > "${TMP}/github_path"
+    rm -f "${TMP}/pid-atrapy"
     PATH="${ATRAPY}:${PATH}" DZIENNIK="${TMP}/dziennik" ATRAPA_KLUCZ="$klucz" ATRAPA_PG="$pg" \
-        ATRAPA_CURL="$curl_mode" ATRAPA_APT="$apt_mode" PG18_CURL_TIMEOUT=1s \
+        ATRAPA_CURL="$curl_mode" ATRAPA_APT="$apt_mode" ATRAPA_PID_FILE="${TMP}/pid-atrapy" \
+        PG18_CURL_TIMEOUT=1s PG18_KILL_AFTER=1s \
         PG18_APT_UPDATE_TIMEOUT=1s PG18_APT_INSTALL_TIMEOUT=1s \
         GITHUB_PATH="${TMP}/github_path" bash "$skrypt" > "${TMP}/wyj" 2>&1
     echo $?
@@ -144,6 +151,7 @@ for przypadek in 'curl|blad|7|pobranie klucza PGDG' \
                   'curl|wolno|124|pobranie klucza PGDG' \
                   'apt|update-blad|100|aktualizacja indeksu APT' \
                   'apt|update-wolno|124|aktualizacja indeksu APT' \
+                  'apt|update-ignoruje-term|137|aktualizacja indeksu APT' \
                   'apt|install-blad|100|instalacja klienta PostgreSQL 18' \
                   'apt|install-wolno|124|instalacja klienta PostgreSQL 18'; do
     IFS='|' read -r rodzaj tryb oczekiwany etap <<< "$przypadek"
@@ -157,6 +165,10 @@ for przypadek in 'curl|blad|7|pobranie klucza PGDG' \
         || { echo "Brak nazwanego błędu etapu ${etap}"; exit 1; }
     grep -q 'po [0-9][0-9]* s' "${TMP}/wyj" \
         || { echo "Brak czasu etapu ${etap}"; exit 1; }
+    if [ "$tryb" = update-ignoruje-term ]; then
+        pid="$(cat "${TMP}/pid-atrapy")"
+        kill -0 "$pid" 2>/dev/null && { echo "Proces ignorujący TERM nadal działa: ${pid}"; exit 1; }
+    fi
     if [ "$rodzaj" = curl ]; then
         ! grep -q '^sudo apt-get' "${TMP}/dziennik" || exit 1
     elif [ "${tryb#update}" != "$tryb" ]; then
@@ -168,12 +180,14 @@ echo "Timeout i błąd sieci/APT: diagnostyka etapu i zatrzymanie dalszych prac"
 # Fizyczna kontrola ujemna: bez timeoutu powolny APT przechodzi, więc
 # powyższy przypadek musiałby oblać oczekiwanie kodu 124.
 tresc="$(cat "$SKRYPT"; echo x)"; tresc="${tresc%x}"
-stary='if timeout "$limit" "$@"; then'
+stary='if timeout --kill-after="$PG18_KILL_AFTER" "$limit" "$@"; then'
 [[ "$tresc" == *"$stary"* ]] || { echo "MUTACJA-NIE-TRAFILA (timeout APT)"; exit 1; }
 printf '%s' "${tresc/"$stary"/'if "$@"; then'}" > "${TMP}/bez-timeout.sh"
 cmp -s "$SKRYPT" "${TMP}/bez-timeout.sh" && { echo "MUTACJA-NO-OP (timeout APT)"; exit 1; }
 kod="$(uruchom "${TMP}/bez-timeout.sh" "$KLUCZ_PGDG" '' '' update-wolno)"
-[ "$kod" != 124 ] || { echo "Kontrola ujemna timeoutu nie zapaliła się"; exit 1; }
+[ "$kod" = 0 ] && grep -q 'Klient PG18: instalacja klienta PostgreSQL 18 zakończony' "${TMP}/wyj" \
+    && grep -q '^sudo apt-get install' "${TMP}/dziennik" \
+    || { echo "Kontrola ujemna timeoutu nie wykazała przejścia przez zawieszoną fazę"; exit 1; }
 echo "Kontrola ujemna: brak timeoutu przepuszcza powolny APT"
 
 # --- 4. Kontrola ujemna ----------------------------------------------------------

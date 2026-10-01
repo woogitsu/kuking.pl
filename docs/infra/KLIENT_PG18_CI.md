@@ -1,5 +1,7 @@
 # Klient PostgreSQL 18 w CI
 
+Refs #2490.
+
 `scripts/ci/klient-postgresql-18.sh` instaluje klienta tylko wtedy, gdy na
 runnerze nie ma już `pg_restore` 18. Job Pint potrzebuje go do uruchomienia
 testów skryptów kopii. Nie zastępuj tej kontroli starszym klientem.
@@ -15,6 +17,8 @@ jest dowód awarii konkretnego serwera ani pakietu.
 
 Skrypt zapisuje teraz początek, limit i czas pobrania klucza, aktualizacji
 indeksu i instalacji. Po przekroczeniu limitu podaje nazwę etapu i kod 124.
+Jeśli polecenie ignoruje sygnał zakończenia, po kolejnych 5 sekundach zostaje
+przymusowo zakończone (kod 137); test potwierdza, że proces nie zostaje w tle.
 `curl` ma limit połączenia i pobrania oraz ponawia tylko błędy uznane przez
 siebie za przejściowe. APT ma ograniczone czasy połączeń i dwa ponowienia
 pobrania; cała aktualizacja i instalacja także mają osobne limity. Błąd
