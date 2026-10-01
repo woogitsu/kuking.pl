@@ -63,10 +63,7 @@ final class DecyzjaPoOdwolaniu
         NowaDecyzja $nowa,
         ?string $ip = null,
     ): ModerationAction {
-        $dozwolone = array_diff(
-            array_keys(ModerationAction::dozwoloneDla($pierwotna->target_type)),
-            [ModerationAction::ACTION_NONE],
-        );
+        $dozwolone = array_keys(ModerationAction::dozwolonePoOdwolaniu($pierwotna->target_type));
 
         if (! in_array($nowa->akcja, $dozwolone, true)) {
             throw new BladDlaCzlowieka('Ta decyzja nie ma zastosowania do zgłoszonej treści. Wybierz jedną z pokazanych.');

@@ -90,6 +90,14 @@ class RaportPrzejrzystosci extends Command
             ],
         ));
 
+        // Rodzaj zgłoszonej treści (#2390): po dodaniu wersji przepisu jako celu
+        // raport pokazuje ją osobnym wierszem, a nie w sumie z przepisami.
+        $this->sekcja('1a. Zgłoszenia według rodzaju treści', ['Rodzaj treści', 'Zgłoszeń'], $this->wiersze(
+            DB::table('reports')->whereBetween('created_at', [$od, $do]),
+            'target_type',
+            Report::TARGET_LABELS,
+        ));
+
         // „Przywróć treść” ma własny wiersz (4.) — w tabelach decyzji byłby
         // zawsze zerowym szumem.
         $rodzaje = array_diff_key(ModerationAction::ETYKIETY, [ModerationAction::ACTION_UNHIDE => true]);

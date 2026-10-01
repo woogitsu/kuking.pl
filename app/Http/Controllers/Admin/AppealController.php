@@ -106,10 +106,7 @@ class AppealController extends Controller
         // tu jest kształt formularza i błędy przy właściwych polach.
         $zNowaDecyzja = $appeal->wymagaNowejDecyzji()
             && $request->input('outcome') === Appeal::STATUS_OVERTURNED;
-        $dozwolone = array_diff(
-            array_keys(ModerationAction::dozwoloneDla($appeal->moderationAction?->target_type)),
-            [ModerationAction::ACTION_NONE],
-        );
+        $dozwolone = array_keys(ModerationAction::dozwolonePoOdwolaniu($appeal->moderationAction?->target_type));
 
         $walidator = Validator::make($request->all(), [
             'outcome' => ['required', 'in:'.Appeal::STATUS_UPHELD.','.Appeal::STATUS_OVERTURNED],

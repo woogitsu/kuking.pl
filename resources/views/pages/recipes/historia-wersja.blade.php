@@ -27,6 +27,21 @@
         @endif
     </p>
 
+    {{-- „Zgłoś” (#2390): osoba trzecia zgłasza TĘ wersję, gdy zostało w niej coś,
+         czego być nie powinno (np. cudzy numer telefonu). Najnowszej wersji nie ma
+         tu wcale: to treść przepisu, więc zgłasza się przepis (przycisk pod nim).
+         Autor nie zgłasza własnej wersji — ukrywa ją sam przyciskiem wyżej.
+         Gość widzi odnośnik z prośbą o logowanie, jak przy przepisie. --}}
+    @if(! $czyNajnowsza && auth()->id() !== $recipe->author_id)
+        <p class="historia-akcje">
+            @auth
+                <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'recipe_version', 'id' => $wersja->getKey()]) }}">Zgłoś wersję {{ $wersja->version_number }}</a>
+            @else
+                <x-zglos-dla-goscia typ="recipe_version" :id="$wersja->getKey()" :pelny="true" :etykieta="'Zgłoś wersję '.$wersja->version_number" />
+            @endauth
+        </p>
+    @endif
+
     <section class="sekcja-strony" aria-labelledby="hw-dane">
         <h2 id="hw-dane">Dane przepisu</h2>
         <dl class="historia-dane">

@@ -11,6 +11,7 @@ use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -63,6 +64,9 @@ final class ReportContent
         CookedEvent::class => 'cooked_event',
         // Publiczny zeszyt (#2279). Widoczność rozstrzyga `CollectionPolicy::view`.
         Collection::class => 'collection',
+        // Konkretna wersja z historii zmian przepisu (#2390). Widoczność
+        // i „nie najnowsza” rozstrzyga `RecipeVersionPolicy::report`.
+        RecipeVersion::class => 'recipe_version',
     ];
 
     /**
@@ -75,6 +79,9 @@ final class ReportContent
         // `report`, a nie `view`: podgląd ukrytego wpisu dla moderatora
         // (#1018) przechodzi `view`, ale jest tylko do odczytu.
         Post::class => 'report',
+        // `report`, a nie `view`: wersja nie ma `view`, a zgłosić wolno tylko
+        // wersję widoczną dla zgłaszającego i nie najnowszą (#2390).
+        RecipeVersion::class => 'report',
     ];
 
     public function __construct(

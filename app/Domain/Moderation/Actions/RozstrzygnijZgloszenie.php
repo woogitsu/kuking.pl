@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\Domain\Moderation\Actions;
 
+use App\Domain\Moderation\CofniecieUkryciaWersji;
 use App\Domain\Moderation\DlugoscZawieszenia;
 use App\Domain\Moderation\ModeratedContent;
+use App\Domain\Moderation\WskazanieWersji;
 use App\Domain\Users\OdmowaOstatniegoAdministratora;
 use App\Domain\Users\ZamekUprzywilejowanegoAktora;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
+use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\User;
 use App\Notifications\DecyzjaWSprawieZgloszenia;
@@ -39,6 +43,7 @@ final class RozstrzygnijZgloszenie
     public function __construct(
         private readonly NotifyModerationDecision $powiadom,
         private readonly NotifyReporterDecision $powiadomZglaszajacego,
+        private readonly CofniecieUkryciaWersji $wersje,
     ) {}
 
     /**
@@ -149,25 +154,55 @@ final class RozstrzygnijZgloszenie
                 ]);
             }
 
-            $akcja = ModerationAction::create([
-                'moderator_id' => $moderator->getKey(),
-                'report_id' => $report->getKey(),
-                'target_type' => $report->target_type,
-                'target_id' => $report->target_id,
-                'subject_user_id' => $osoba?->getKey(),
-                'action' => $wykonanaAkcja,
-                'previous_status' => $aktywnyCel === null ? null : ($aktywnyCel->status ?? null),
-                'reason_code' => $data['reason_code'],
-                'note' => $data['note'] ?? null,
-                'user_message' => $data['user_message'] ?? null,
-            ]);
+            // WERSJA PRZEPISU (#2390): autor dostaje decyzję ze zdaniem, której
+            // wersji dotyczy — powiadomienie nie ma innego miejsca na wskazanie
+            // celu. Decyzja „Bez działania” nic autorowi nie zmienia.
+            $wiadomosc = $data['user_message'] ?? null;
+            if ($aktywnyCel instanceof RecipeVersion
+                && $aktywnyCel->recipe !== null
+                && $wykonanaAkcja !== ModerationAction::ACTION_NONE) {
+                $wiadomosc = trim(WskazanieWersji::tekst($aktywnyCel->recipe, $aktywnyCel->version_number).' '.trim((string) $wiadomosc));
+            }
 
-            // Odmowa strażnika wycofuje decyzję razem z transakcją: nie
-            // zostaje ani wpis, ani powiadomienie o karze, której nie było.
-            try {
-                $this->applyAction($aktywnyCel, $osoba, $wykonanaAkcja, $termin);
-            } catch (OdmowaOstatniegoAdministratora $odmowa) {
-                throw ValidationException::withMessages(['action' => $odmowa->getMessage()]);
+            if ($aktywnyCel instanceof RecipeVersion && $wykonanaAkcja === ModerationAction::ACTION_HIDE) {
+                // Ukrycie wersji idzie tą samą drogą co ukrycie z historii zmian
+                // (blokada przepisu i wersji, „nie najnowsza”, przejęcie ukrycia
+                // autora); zapis decyzji jest w środku, razem ze skutkiem.
+                // Odmowa wycofuje transakcję i wraca jako błąd przy decyzji.
+                try {
+                    $akcja = $this->wersje->ukryjPoZgloszeniu(
+                        $moderator,
+                        $zablokowane,
+                        $aktywnyCel,
+                        $data['reason_code'],
+                        $data['note'] ?? null,
+                        (string) $wiadomosc,
+                        $ip,
+                    );
+                } catch (BladDlaCzlowieka $odmowa) {
+                    throw ValidationException::withMessages(['action' => $odmowa->getMessage()]);
+                }
+            } else {
+                $akcja = ModerationAction::create([
+                    'moderator_id' => $moderator->getKey(),
+                    'report_id' => $report->getKey(),
+                    'target_type' => $report->target_type,
+                    'target_id' => $report->target_id,
+                    'subject_user_id' => $osoba?->getKey(),
+                    'action' => $wykonanaAkcja,
+                    'previous_status' => $aktywnyCel === null ? null : ($aktywnyCel->status ?? null),
+                    'reason_code' => $data['reason_code'],
+                    'note' => $data['note'] ?? null,
+                    'user_message' => $wiadomosc,
+                ]);
+
+                // Odmowa strażnika wycofuje decyzję razem z transakcją: nie
+                // zostaje ani wpis, ani powiadomienie o karze, której nie było.
+                try {
+                    $this->applyAction($aktywnyCel, $osoba, $wykonanaAkcja, $termin);
+                } catch (OdmowaOstatniegoAdministratora $odmowa) {
+                    throw ValidationException::withMessages(['action' => $odmowa->getMessage()]);
+                }
             }
 
             // Powiadomienie o decyzji. Dopóki go nie było, `user_message` lądowała
@@ -180,7 +215,7 @@ final class RozstrzygnijZgloszenie
                 $this->powiadom->handle(
                     osoba: $osoba,
                     decyzja: $wykonanaAkcja,
-                    wiadomoscModeratora: $data['user_message'] ?? null,
+                    wiadomoscModeratora: $wiadomosc,
                     do: $termin,
                     // Bez tego powiadomienie mówi „możesz się odwołać" i nie ma
                     // gdzie kliknąć — a formularz odwołania musi wiedzieć,

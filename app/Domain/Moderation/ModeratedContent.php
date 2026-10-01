@@ -59,10 +59,12 @@ final class ModeratedContent
         // Publiczny zeszyt — nazwa i opis właściciela (issue #2279).
         Collection::class => 'collection',
 
-        // WERSJA PRZEPISU (#2270, D-333). Tylko w `moderation_actions`:
-        // ukrycie wersji przez moderację jest decyzją z urzędu
-        // (`App\Domain\Recipes\Historia\DecyzjaOWersjiPrzepisu`), a wersji nie da się zgłosić, więc
-        // `reports.target_type` jej nie zna. ŚWIADOMIE BEZ WPISU W `UKRYTY`:
+        // WERSJA PRZEPISU (#2270, #2390, D-333). Ukrycie wersji przez moderację
+        // jest decyzją moderacyjną (`App\Domain\Recipes\Historia\DecyzjaOWersjiPrzepisu`):
+        // z urzędu (`report_id` NULL) albo po zgłoszeniu konkretnej wersji przez
+        // osobę trzecią (od #2390 `reports.target_type` zna `recipe_version`,
+        // a „Ukryj treść” w kolejce idzie tą samą drogą co ukrycie z historii).
+        // ŚWIADOMIE BEZ WPISU W `UKRYTY`:
         // wersja nie ma `status`, ukrywa ją `hidden_at` — i wraca po
         // odwołaniu przez kontrakt `CofniecieUkryciaWersji`, nie przez
         // `RestoreContent`.
@@ -153,6 +155,12 @@ final class ModeratedContent
         }
 
         $zapytanie = $klasa::query();
+
+        // Autora wersji wskazuje jej przepis (`osoba()`); bez tego pierwsze
+        // pytanie o osobę to leniwe ładowanie, którego tryb ścisły nie przepuści.
+        if ($klasa === RecipeVersion::class) {
+            $zapytanie->with('recipe.author');
+        }
 
         if ($zUsunietymi && method_exists($klasa, 'bootSoftDeletes')) {
             $zapytanie->withTrashed();
