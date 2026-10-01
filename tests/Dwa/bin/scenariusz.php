@@ -914,11 +914,19 @@ try {
 
         // „CSAM — natychmiast ukryj i zabezpiecz” (D-333): prawdziwa akcja,
         // bo mierzymy kolejność blokad `users` → treść → zdjęcia.
-        'zabezpiecz-csam' => (string) app(ZabezpieczDowodCsam::class)->handle(
-            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
-            $argumenty['typ'],
-            $argumenty['id'],
-        )->zabezpieczenieId,
+        'zabezpiecz-csam' => (function () use ($argumenty): string {
+            config([
+                'queue.default' => 'database',
+                'queue.connections.database.connection' => config('database.default'),
+                'queue.connections.database.after_commit' => false,
+            ]);
+
+            return (string) app(ZabezpieczDowodCsam::class)->handle(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                $argumenty['typ'],
+                $argumenty['id'],
+            )->zabezpieczenieId;
+        })(),
 
         'zmien-role' => app(ChangeUserRole::class)->handle(
             User::query()->whereKey($argumenty['kto'])->firstOrFail(),

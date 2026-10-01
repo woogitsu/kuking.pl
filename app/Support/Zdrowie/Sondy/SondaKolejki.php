@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace App\Support\Zdrowie\Sondy;
 
 use App\Exceptions\KontrolaZdrowiaNieprzeszla;
+use App\Models\Media;
 use App\Support\Zdrowie\Powody;
 use App\Support\Zdrowie\Sonda;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
- * Sonda `kolejka` endpointu `/health` (issue #2212) — logika wyjęta z
- * `HealthController` bez zmiany zachowania; kontroler składa z sond odpowiedź.
+ * Sonda `kolejka` endpointu `/health` (issue #2212) — kontroler składa z sond
+ * odpowiedź. Od #2437 mierzy też zaległe przenoszenie dowodu bez trwałego joba.
  */
 final class SondaKolejki implements Sonda
 {
@@ -80,18 +81,37 @@ final class SondaKolejki implements Sonda
             throw new KontrolaZdrowiaNieprzeszla(Powody::POWOD_BAZA, $e->getMessage(), $e);
         }
 
-        if ($nieudane === 0) {
-            return;
+        if ($nieudane > 0) {
+            throw new KontrolaZdrowiaNieprzeszla(
+                Powody::POWOD_ZADANIA_NIEUDANE,
+                "W tabeli `failed_jobs` jest {$nieudane} nieudanych zadań kolejki. "
+                    .'KTÓRE to zadania i co je przewróciło, widać bez powłoki serwera: '
+                    .'panel moderacji → „Kolejka zadań" (`/admin/kolejka`, rola `admin`). '
+                    .'Co to jest i kogo dotyczy: `php artisan kuking:martwe-zadania` '
+                    .'(niczego nie kasuje bez `--skasuj`). Do kogo nie doszedł list: '
+                    .'`php artisan kuking:kto-nie-dostal-listu`.',
+            );
         }
 
-        throw new KontrolaZdrowiaNieprzeszla(
-            Powody::POWOD_ZADANIA_NIEUDANE,
-            "W tabeli `failed_jobs` jest {$nieudane} nieudanych zadań kolejki. "
-                .'KTÓRE to zadania i co je przewróciło, widać bez powłoki serwera: '
-                .'panel moderacji → „Kolejka zadań" (`/admin/kolejka`, rola `admin`). '
-                .'Co to jest i kogo dotyczy: `php artisan kuking:martwe-zadania` '
-                .'(niczego nie kasuje bez `--skasuj`). Do kogo nie doszedł list: '
-                .'`php artisan kuking:kto-nie-dostal-listu`.',
-        );
+        try {
+            $zaleglyDowod = DB::table('zabezpieczenia_dowodow as dowod')
+                ->join('media as zdjecie', 'zdjecie.id', '=', 'dowod.target_id')
+                ->where('dowod.target_type', 'media')
+                ->where('dowod.secured_at', '<=', now()->subMinutes(15))
+                ->where('zdjecie.status', Media::STATUS_SECURED)
+                ->whereRaw("NULLIF(btrim(zdjecie.metadata ->> ?), '') IS NULL", [Media::METADANE_WARIANTY_DOWODU_PRZENIESIONE_AT])
+                ->exists();
+        } catch (Throwable $e) {
+            throw new KontrolaZdrowiaNieprzeszla(Powody::POWOD_BAZA, $e->getMessage(), $e);
+        }
+
+        if ($zaleglyDowod) {
+            // Publiczny kod nie zawiera ID, adresu ani treści dowodu.
+            throw new KontrolaZdrowiaNieprzeszla(
+                Powody::POWOD_WARIANTY_DOWODU_ZALEGLE,
+                'Zabezpieczony dowód czeka ponad 15 minut na zakończenie przenoszenia wariantów. '
+                    .'Sprawdź osobno `jobs` i `failed_jobs` według runbooka #2437; nie ponawiaj decyzji moderatora.',
+            );
+        }
     }
 }

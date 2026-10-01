@@ -123,6 +123,15 @@ class PrzeniesPubliczneWariantyDowodu implements ShouldQueue
             foreach ($publiczne as $nazwaDysku) {
                 // Ten sam dysk co oryginał: nie ma gdzie przenieść, nie ruszamy.
                 if ($nazwaDysku === $prywatny) {
+                    // `r2_legacy` jest starym PUBLICZNYM bucketem, mimo że
+                    // trzyma też oryginał. `public` to publiczny dysk lokalny.
+                    // Nie wolno nazwać pracy ukończoną, gdy wariant wciąż
+                    // leży w którymś z nich. Oryginału nie kasujemy.
+                    if (in_array($nazwaDysku, ['r2_legacy', 'public'], true)
+                        && $this->istnieje(Storage::disk($nazwaDysku), $klucz)) {
+                        throw new \RuntimeException('Wariant dowodu pozostaje na wspólnym publicznym dysku; potrzebny jest osobny prywatny magazyn.');
+                    }
+
                     continue;
                 }
 
@@ -134,7 +143,10 @@ class PrzeniesPubliczneWariantyDowodu implements ShouldQueue
             }
         }
 
-        if ($mapa !== $stara) {
+        // Znacznik pozwala wykryć zabezpieczony dowód, dla którego job nie
+        // powstał albo nigdy nie dokończył pracy. Nie zapisujemy go po błędzie
+        // kopii/usunięcia; wtedy /health ma nadal widzieć opóźnienie.
+        if ($mapa !== $stara || ! isset($zdjecie->metadata[Media::METADANE_WARIANTY_DOWODU_PRZENIESIONE_AT])) {
             DB::transaction(function () use ($zdjecie, $mapa): void {
                 $swieze = Media::query()->whereKey($zdjecie->getKey())->lockForUpdate()->first();
 
@@ -144,6 +156,7 @@ class PrzeniesPubliczneWariantyDowodu implements ShouldQueue
 
                 $swieze->update(['metadata' => array_merge($swieze->metadata ?? [], [
                     Media::METADANE_WARIANTY_ZABEZPIECZONE => $mapa,
+                    Media::METADANE_WARIANTY_DOWODU_PRZENIESIONE_AT => now()->toIso8601String(),
                 ])]);
             });
         }

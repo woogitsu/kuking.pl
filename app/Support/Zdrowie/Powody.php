@@ -37,6 +37,7 @@ final class Powody
         self::POWOD_ANALITYKA_BEZ_TOKENU,
         self::POWOD_POCZTA_NIE_WYSYLA,
         self::POWOD_ZADANIA_NIEUDANE,
+        self::POWOD_WARIANTY_DOWODU_ZALEGLE,
         self::POWOD_CZYSZCZENIE_CDN_ZALEGLE,
         self::POWOD_LISTY_PRZEPADAJA,
         self::POWOD_LIMIT_POCZTY_WYCZERPANY,
@@ -132,6 +133,9 @@ final class Powody
 
     /** W `failed_jobs` leżą nieudane zadania kolejki, a nikt sam z siebie się o tym nie dowiaduje (D-057 §4). */
     public const POWOD_ZADANIA_NIEUDANE = 'zadania_nieudane';
+
+    /** Zabezpieczony dowód bez zakończonego przeniesienia wariantów (#2437). */
+    public const POWOD_WARIANTY_DOWODU_ZALEGLE = 'warianty_dowodu_zalegle';
 
     /**
      * W `mail_failures` leży co najmniej jeden nieodhaczony list, czyli
