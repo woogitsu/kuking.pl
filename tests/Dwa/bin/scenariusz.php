@@ -702,6 +702,8 @@ try {
             );
 
             return $wynik['widoczna'] ? 'widoczna' : 'wycofana';
+        })(),
+
         // Wspólne gotowanie (#2385): dwie osoby odhaczają TEN SAM krok naraz
         // i dwie osoby przyjmują TEN SAM wielorazowy link naraz. Wołamy akcje
         // domenowe, nie przepisany SQL — test ma pęknąć, jeśli zniknie blokada
