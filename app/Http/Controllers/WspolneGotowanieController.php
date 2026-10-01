@@ -62,7 +62,7 @@ class WspolneGotowanieController extends Controller
         }
 
         return redirect()->route('wspolne-gotowanie.show', $sesja)
-            ->with(Komunikat::sukces('Sesja gotowa. Utwórz link i wyślij go jednej osobie — zobaczy ten sam przepis i ten sam postęp.'));
+            ->with(Komunikat::sukces('Sesja gotowa. Utwórz link i wyślij go jednej osobie — zobaczy ten sam przepis i ten sam postęp. Pomocników może być do trzech, każdego zapraszasz osobnym linkiem.'));
     }
 
     public function show(Request $request, CookingSession $cookingSession): View|Response
@@ -84,12 +84,13 @@ class WspolneGotowanieController extends Controller
 
         $przepis->load(['steps.media', 'ingredients.unit']);
         $jestGospodarzem = $cookingSession->maGospodarza($osoba);
-        $pomocnicy = $cookingSession->pomocnicy()->with('profile')->get();
+        $pomocnicy = $cookingSession->pomocnicy()->with('profile')->orderBy('cooking_session_participants.joined_at')->orderBy('users.id')->get();
         $zrobione = $this->postep->zrobione($cookingSession);
         $oczekujace = $jestGospodarzem
             ? $cookingSession->invitations()->where('status', CookingSessionInvitation::STATUS_PENDING)->where('expires_at', '>', now())->first()
             : null;
 
+        $maxPomocnikow = max(1, (int) config('kuking.wspolne_gotowanie.max_pomocnikow', 3));
         $kroki = $przepis->steps;
         $zrobioneLiczba = $kroki->filter(fn ($k): bool => isset($zrobione[(string) $k->getKey()]))->count();
 
@@ -104,12 +105,13 @@ class WspolneGotowanieController extends Controller
             'pomocnicy' => $pomocnicy,
             'mozeZapisywac' => $osoba->isActive(),
             'oczekujace' => $oczekujace,
-            'jestMiejsce' => $pomocnicy->count() < max(1, (int) config('kuking.wspolne_gotowanie.max_pomocnikow', 1)),
+            'maxPomocnikow' => $maxPomocnikow,
+            'jestMiejsce' => $pomocnicy->count() < $maxPomocnikow,
             'ostrzezenieOWidocznosci' => $jestGospodarzem ? $this->ostrzezenieOWidocznosci($przepis) : null,
         ])->header('Cache-Control', 'no-store, private');
     }
 
-    /** Sam numer rewizji — dla skryptu, który podpowiada, że druga osoba coś zmieniła. */
+    /** Sam numer rewizji — dla skryptu, który podpowiada, że ktoś z sesji coś zmienił. */
     public function stan(Request $request, CookingSession $cookingSession): JsonResponse
     {
         $this->authorize('view', $cookingSession);
@@ -154,10 +156,10 @@ class WspolneGotowanieController extends Controller
         // a krok jest już w żądanym stanie — nie ma o czym ostrzegać.
         $powtorzenie = $widziana !== null && $widziana + 1 === $stanPrzed && $juzWZadanymStanie;
 
-        // Druga osoba zmieniła postęp, odkąd ta strona się wyświetliła — jedno
+        // Ktoś z sesji zmienił postęp, odkąd ta strona się wyświetliła — jedno
         // zdanie, nie komunikat techniczny. Własne kliknięcie jest zapisane.
         if ($widziana !== null && $widziana !== $stanPrzed && ! $powtorzenie) {
-            return $odpowiedz->with(Komunikat::informacja('Druga osoba zmieniła postęp. Widzisz teraz jego aktualny stan, a Twoje kliknięcie zostało zapisane.'));
+            return $odpowiedz->with(Komunikat::informacja('Ktoś z sesji zmienił postęp. Widzisz teraz jego aktualny stan, a Twoje kliknięcie zostało zapisane.'));
         }
 
         return $odpowiedz;
@@ -174,7 +176,7 @@ class WspolneGotowanieController extends Controller
         }
 
         return redirect()->route('wspolne-gotowanie.show', $cookingSession)
-            ->with(Komunikat::sukces('Odhaczenia usunięte dla obu osób. Możecie zacząć od pierwszego kroku.'));
+            ->with(Komunikat::sukces('Odhaczenia usunięte dla wszystkich. Możecie zacząć od pierwszego kroku.'));
     }
 
     public function utworzLink(Request $request, CookingSession $cookingSession): RedirectResponse
@@ -235,7 +237,7 @@ class WspolneGotowanieController extends Controller
         $slug = $cookingSession->recipe?->slug;
         $this->sesje->zakoncz($request->user(), $cookingSession);
 
-        $komunikat = Komunikat::sukces('Sesja zakończona. Wspólny postęp i link zostały usunięte, a druga osoba nie ma już do nich dostępu.');
+        $komunikat = Komunikat::sukces('Sesja zakończona. Wspólny postęp i link zostały usunięte, a pomocnicy nie mają już do nich dostępu.');
 
         return $slug !== null
             ? redirect()->route('cooking.show', $slug)->with($komunikat)

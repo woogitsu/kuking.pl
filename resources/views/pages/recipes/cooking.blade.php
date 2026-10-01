@@ -379,7 +379,7 @@
              Zwykły formularz — działa bez JavaScriptu. --}}
         @if(auth()->user()?->isActive())
             <section class="cook-sync stack" aria-label="Wspólne gotowanie">
-                <p class="m-0">Gotujesz z kimś? Załóż wspólną sesję: zaprosisz jedną osobę linkiem i obie zobaczycie ten sam przepis oraz te same odhaczone kroki. Sesja wygasa po {{ (int) config('kuking.wspolne_gotowanie.retencja_godziny') }} godzinach i znika razem z odhaczeniami.</p>
+                <p class="m-0">Gotujesz z kimś? Załóż wspólną sesję: zaprosisz linkiem do trzech osób (każdą osobnym linkiem) i wszyscy zobaczycie ten sam przepis oraz te same odhaczone kroki. Sesja wygasa po {{ (int) config('kuking.wspolne_gotowanie.retencja_godziny') }} godzinach i znika razem z odhaczeniami.</p>
                 <form method="POST" action="{{ route('wspolne-gotowanie.zaloz', $recipe->slug) }}">
                     @csrf
                     <button type="submit" class="btn btn-secondary">Gotuj z kimś</button>

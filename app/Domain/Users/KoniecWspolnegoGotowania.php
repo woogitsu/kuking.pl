@@ -19,10 +19,12 @@ use App\Models\User;
 interface KoniecWspolnegoGotowania
 {
     /**
-     * Blokada w którąkolwiek stronę: udział pomocnika w sesji drugiej osoby
-     * kończy się natychmiast (w obie strony). Wołać pod zamkiem pary kont.
+     * Blokada w którąkolwiek stronę: udział pomocnika w sesji gospodarza,
+     * z którym jest zablokowany, kończy się natychmiast (w obie strony).
+     * Gdy zablokowane osoby są pomocnikami tej samej sesji, wypada ZABLOKOWANY
+     * (drugi argument), a blokujący zostaje. Wołać pod zamkiem pary kont.
      */
-    public function miedzy(User $a, User $b): void;
+    public function miedzy(User $blokujacy, User $blokowany): void;
 
     /**
      * Usunięcie konta (każdy zakres): sesje tej osoby jako gospodarza znikają,

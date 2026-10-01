@@ -3349,7 +3349,7 @@ return [
     ],
 
     'wspolne_gotowanie' => [
-        // Wspólne gotowanie dwóch osób (#2385, `docs/product/PROJEKT_WSPOLNE_GOTOWANIE_2385.md`).
+        // Wspólne gotowanie gospodarza i do trzech pomocników (#2385, `docs/product/PROJEKT_WSPOLNE_GOTOWANIE_2385.md`).
         // Ile godzin od ZAŁOŻENIA sesja jest ważna. Termin jest stały (bez
         // przedłużania aktywnością): sesja nie ma stawać się trwałą historią
         // konta. Wygasła jest niewidoczna, a nocne
@@ -3359,9 +3359,9 @@ return [
         // Ile godzin żyje jednorazowy link zaproszenia (nigdy dłużej niż sesja).
         'link_godziny' => 24,
 
-        // Ilu pomocników obok gospodarza. Etap 1: jeden (dwie osoby) — mniej
-        // osób to prostsza blokada i mniejsze ryzyko linku przekazanego dalej.
-        'max_pomocnikow' => 1,
+        // Ilu pomocników obok gospodarza: do trzech (decyzja właściciela z
+        // 1.10.2026, wiersz „#2385” w D-333). Jeden link zaprasza jedną osobę.
+        'max_pomocnikow' => 3,
 
         // Ile niewygasłych sesji naraz może mieć jeden gospodarz.
         'max_sesji_gospodarza' => 5,

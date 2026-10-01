@@ -20,11 +20,23 @@ use Illuminate\Support\Str;
  * TOKEN: 40 losowych znaków, jawny istnieje wyłącznie w wyniku `utworz()`.
  * W bazie leży jego SHA-256. Tokenu nie wolno logować ani wkładać do wyjątków.
  *
+ * WIELU POMOCNIKÓW (decyzja właściciela z 1.10.2026): gospodarz i do trzech
+ * pomocników (`kuking.wspolne_gotowanie.max_pomocnikow`). Zaproszenie to
+ * wciąż JEDEN link dla JEDNEJ osoby i najwyżej jeden oczekujący naraz w sesji
+ * (częściowy unikalny indeks); żeby zaprosić kolejną osobę, gospodarz tworzy
+ * następny link po przyjęciu poprzedniego.
+ *
  * PRZYJĘCIE (`dolacz`) ma być nie do obejścia, więc wszystkie warunki są
  * sprawdzane POD ZAMKIEM PARY KONT (osoba + gospodarz, ta sama kolejność
  * blokad co przy zaproszeniu do zeszytu, D-080/D-302), a potem pod blokadą
- * wiersza zaproszenia i sesji — na świeżych odczytach:
- *  - konto osoby aktywne, gospodarz nie zamknięty, brak blokady w żadną stronę;
+ * wiersza SESJI — na świeżych odczytach. Blokada wiersza sesji jest
+ * JEDYNYM miejscem, które szereguje limit pomocników, tworzenie i odwołanie
+ * linku oraz przyjęcie; wiersz zaproszenia czytamy dopiero po niej, więc
+ * wszystkie te operacje biorą blokady w tej samej kolejności (konta → sesja)
+ * i nie zakleszczają się. Zamek pary sam by nie wystarczył do limitu, który
+ * ma nie zależeć od tego, że gospodarz jest wspólny dla każdej pary:
+ *  - konto osoby aktywne, gospodarz nie zamknięty, brak blokady w żadną stronę
+ *    ORAZ brak blokady wobec któregokolwiek z obecnych pomocników;
  *  - OSOBA WIDZI PRZEPIS wg `RecipePolicy::view` — link nie otwiera treści
  *    komuś bez uprawnień (przepis prywatny, „dla obserwujących”, blokada
  *    wobec autora, konto autora zbanowane);
@@ -52,7 +64,7 @@ final class ZaproszenieDoGotowania
             }
 
             if ($swieza->pomocnicy()->count() >= $this->maxPomocnikow()) {
-                throw new BladDlaCzlowieka('Ta sesja ma już pomocnika, więc nie ma miejsca na kolejną osobę. Możesz go usunąć z sesji, żeby zaprosić kogoś innego.');
+                throw new BladDlaCzlowieka('W tej sesji jest już komplet pomocników, więc nie ma miejsca na kolejną osobę. Możesz kogoś usunąć z sesji, żeby zaprosić inną osobę.');
             }
 
             // Nowy link unieważnia poprzedni: w sesji jest najwyżej jeden żywy.
@@ -129,23 +141,24 @@ final class ZaproszenieDoGotowania
             throw new BladDlaCzlowieka('To jest Twoja sesja — nie musisz do niej dołączać. Link wyślij osobie, którą zapraszasz.');
         }
 
-        return ZamekPary::zablokuj($osoba, $gospodarz, function (?User $swiezaOsoba, ?User $swiezyGospodarz) use ($skrot): CookingSession {
+        return ZamekPary::zablokuj($osoba, $gospodarz, function (?User $swiezaOsoba, ?User $swiezyGospodarz) use ($skrot, $wstepne): CookingSession {
             if ($swiezaOsoba === null || $swiezyGospodarz === null) {
                 throw new BladDlaCzlowieka(self::NIEAKTUALNE);
             }
 
-            $zaproszenie = CookingSessionInvitation::query()
-                ->where('token_hash', $skrot)
-                ->lockForUpdate()
-                ->first();
+            // KOLEJNOŚĆ: najpierw wiersz SESJI, potem zaproszenie. Tworzenie i
+            // odwoływanie linku też najpierw blokuje sesję, więc odwrotna
+            // kolejność (zaproszenie, potem sesja) zakleszczałaby się z nimi.
+            // Zaproszenie czytamy po blokadzie sesji, czyli na świeżym stanie.
+            $sesja = CookingSession::query()->whereKey($wstepne->session_id)->lockForUpdate()->first();
 
-            if ($zaproszenie === null) {
+            if ($sesja === null || ! $sesja->trwa() || $sesja->host_id !== $swiezyGospodarz->getKey()) {
                 throw new BladDlaCzlowieka(self::NIEAKTUALNE);
             }
 
-            $sesja = CookingSession::query()->whereKey($zaproszenie->session_id)->lockForUpdate()->first();
+            $zaproszenie = CookingSessionInvitation::query()->where('token_hash', $skrot)->first();
 
-            if ($sesja === null || ! $sesja->trwa() || $sesja->host_id !== $swiezyGospodarz->getKey()) {
+            if ($zaproszenie === null || $zaproszenie->session_id !== $sesja->getKey()) {
                 throw new BladDlaCzlowieka(self::NIEAKTUALNE);
             }
 
@@ -180,9 +193,19 @@ final class ZaproszenieDoGotowania
                 throw new BladDlaCzlowieka(self::NIEAKTUALNE);
             }
 
-            $pomocnicy = DB::table('cooking_session_participants')->where('session_id', $sesja->getKey())->count();
+            // POMOCNICY MIĘDZY SOBĄ: osoby, z których któraś zablokowała drugą,
+            // nie siedzą w jednej sesji. Odmowa jest taka sama jak każda inna,
+            // więc nie zdradza, kogo osoba zablokowała ani kto ją.
+            $obecni = $sesja->pomocnicy()->get();
 
-            if ($pomocnicy >= $this->maxPomocnikow()) {
+            foreach ($obecni as $obecny) {
+                if ($swiezaOsoba->hasBlockRelationWith($obecny)) {
+                    throw new BladDlaCzlowieka(self::NIEAKTUALNE);
+                }
+            }
+
+            // LIMIT pod blokadą wiersza sesji, na świeżym odczycie.
+            if ($obecni->count() >= $this->maxPomocnikow()) {
                 throw new BladDlaCzlowieka(self::NIEAKTUALNE);
             }
 
@@ -232,6 +255,6 @@ final class ZaproszenieDoGotowania
 
     private function maxPomocnikow(): int
     {
-        return max(1, (int) config('kuking.wspolne_gotowanie.max_pomocnikow', 1));
+        return max(1, (int) config('kuking.wspolne_gotowanie.max_pomocnikow', 3));
     }
 }

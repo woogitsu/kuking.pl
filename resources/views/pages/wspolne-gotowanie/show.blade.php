@@ -2,7 +2,7 @@
     $razem = $steps->count();
     $adresPrzepisu = route('recipes.show', $recipe->slug);
     $adresGotowania = route('cooking.show', $recipe->slug);
-    $pomocnik = $pomocnicy->first();
+    $mojeId = auth()->id();
 @endphp
 <x-layout :title="'Gotujemy razem: '.$recipe->title" :noindex="true">
     {{--
@@ -12,7 +12,7 @@
         dużym przyciskiem przy każdym, potem składniki, a na dole to, co robi
         tylko gospodarz. Wszystko zwykłymi formularzami — działa bez
         JavaScriptu; skrypt tylko co jakiś czas pyta o numer rewizji i, gdy
-        druga osoba coś zmieniła, odkrywa pas z odnośnikiem „Odśwież”
+        ktoś z sesji coś zmienił, odkrywa pas z odnośnikiem „Odśwież”
         (D-053: bez skryptu pas zostaje ukryty, a przycisk „Odśwież” stoi
         zawsze). Bez WebSocketów i bez automatycznego przeładowania — osoba
         czytająca krok nie traci miejsca.
@@ -28,9 +28,9 @@
         <div class="cook-sync-zmiana stack" role="status" hidden
              data-postep-synchronizacja data-postep-rewizja="{{ $sesja->revision }}"
              data-postep-adres="{{ route('wspolne-gotowanie.stan', $sesja) }}"
-             data-postep-komunikat-zmiana="Druga osoba zmieniła postęp albo skład sesji."
+             data-postep-komunikat-zmiana="Ktoś z sesji zmienił postęp albo skład sesji."
              data-postep-komunikat-koniec="Ta sesja już się skończyła albo nie masz do niej dostępu.">
-            <p class="m-0" data-postep-tekst>Druga osoba zmieniła postęp albo skład sesji.</p>
+            <p class="m-0" data-postep-tekst>Ktoś z sesji zmienił postęp albo skład sesji.</p>
             <a class="btn btn-secondary" href="{{ route('wspolne-gotowanie.show', $sesja) }}">Odśwież</a>
         </div>
 
@@ -38,11 +38,11 @@
             <h2 id="wg-kto" class="mt-0">Kto gotuje</h2>
             <ul class="stack list-none p-0 m-0">
                 <li><strong>{{ $gospodarz->displayName() }}</strong> — gospodarz{{ $jestGospodarzem ? ' (to Ty)' : '' }}</li>
-                @if($pomocnik)
-                    <li><strong>{{ $pomocnik->displayName() }}</strong> — pomocnik{{ $pomocnik->getKey() === auth()->id() ? ' (to Ty)' : '' }}</li>
-                @else
-                    <li>Pomocnika jeszcze nie ma.</li>
-                @endif
+                @forelse($pomocnicy as $pomocnik)
+                    <li><strong>{{ $pomocnik->displayName() }}</strong> — pomocnik{{ $pomocnik->getKey() === $mojeId ? ' (to Ty)' : '' }}</li>
+                @empty
+                    <li>Pomocników jeszcze nie ma.</li>
+                @endforelse
             </ul>
             <p class="meta mb-0">Zrobione kroki: <strong>{{ $zrobioneLiczba }} z {{ $razem }}</strong>. Sesja wygasa {{ \App\Support\Czas::data($sesja->expires_at, 'j F, H:i') }} — wtedy znika razem z odhaczeniami.</p>
             <p class="m-0"><a class="btn btn-secondary" href="{{ route('wspolne-gotowanie.show', $sesja) }}">Odśwież</a></p>
@@ -115,13 +115,13 @@
 
         @if($jestGospodarzem)
             <section class="panel-formularza stack" aria-labelledby="wg-zapros">
-                <h2 id="wg-zapros" class="mt-0">Zaproś pomocnika</h2>
+                <h2 id="wg-zapros" class="mt-0">Zaproś pomocnika ({{ $pomocnicy->count() }} z {{ $maxPomocnikow }})</h2>
 
                 @if($ostrzezenieOWidocznosci)
                     <p class="notice" role="note">{{ $ostrzezenieOWidocznosci }}</p>
                 @endif
 
-                <p class="m-0">Link działa raz i wygasa po {{ (int) config('kuking.wspolne_gotowanie.link_godziny') }} godzinach. Kto go otworzy, musi się zalogować, widzieć ten przepis i potwierdzić, że dołącza. Pomocnik może odhaczać kroki; zaprosić kogoś albo zakończyć sesję możesz tylko Ty.</p>
+                <p class="m-0">Link działa raz i wygasa po {{ (int) config('kuking.wspolne_gotowanie.link_godziny') }} godzinach. Kto go otworzy, musi się zalogować, widzieć ten przepis i potwierdzić, że dołącza. Jeden link zaprasza jedną osobę, a w sesji może być do {{ $maxPomocnikow }} pomocników. Pomocnicy mogą odhaczać kroki; zapraszać, usuwać kogoś i kończyć sesję możesz tylko Ty.</p>
 
                 @if(session('link_zaproszenia'))
                     <div class="field">
@@ -148,19 +148,23 @@
                         <button class="btn btn-primary" type="submit">{{ $oczekujace ? 'Utwórz nowy link (stary przestanie działać)' : 'Utwórz link' }}</button>
                     </form>
                 @else
-                    <p class="m-0">Sesja ma już pomocnika. Żeby zaprosić kogoś innego, najpierw usuń obecnego pomocnika z sesji.</p>
+                    <p class="m-0">W sesji jest już komplet pomocników. Żeby zaprosić kogoś innego, najpierw usuń jednego z nich z sesji.</p>
                 @endif
             </section>
 
-            @if($pomocnik)
+            @if($pomocnicy->isNotEmpty())
                 <section class="panel-formularza stack" aria-labelledby="wg-pomocnik">
-                    <h2 id="wg-pomocnik" class="mt-0">Pomocnik</h2>
-                    <p class="m-0"><strong>{{ $pomocnik->displayName() }}</strong></p>
-                    <x-confirm-button
-                        :action="route('wspolne-gotowanie.pomocnik.destroy', ['cookingSession' => $sesja, 'user' => $pomocnik->getKey()])"
-                        label="Odbierz dostęp pomocnikowi"
-                        question="Odebrać tej osobie dostęp do sesji? Odhaczone kroki zostaną."
-                        :name="$pomocnik->displayName()" />
+                    <h2 id="wg-pomocnik" class="mt-0">Pomocnicy</h2>
+                    @foreach($pomocnicy as $pomocnik)
+                        <div class="stack">
+                            <p class="m-0"><strong>{{ $pomocnik->displayName() }}</strong></p>
+                            <x-confirm-button
+                                :action="route('wspolne-gotowanie.pomocnik.destroy', ['cookingSession' => $sesja, 'user' => $pomocnik->getKey()])"
+                                label="Odbierz dostęp pomocnikowi"
+                                question="Odebrać tej osobie dostęp do sesji? Odhaczone kroki zostaną."
+                                :name="$pomocnik->displayName()" />
+                        </div>
+                    @endforeach
                 </section>
             @endif
 
@@ -170,12 +174,12 @@
                         :action="route('wspolne-gotowanie.od-poczatku', $sesja)"
                         method="POST"
                         label="Zacznij od początku"
-                        question="Usunąć odhaczenia wszystkich kroków dla obu osób? Przepis zostaje bez zmian." />
+                        question="Usunąć odhaczenia wszystkich kroków dla wszystkich osób w sesji? Przepis zostaje bez zmian." />
                 @endif
                 <x-confirm-button
                     :action="route('wspolne-gotowanie.destroy', $sesja)"
                     label="Zakończ sesję"
-                    question="Zakończyć sesję? Wspólny postęp i link zostaną usunięte, a druga osoba straci dostęp. Przepis i Twoje konto zostają bez zmian." />
+                    question="Zakończyć sesję? Wspólny postęp i link zostaną usunięte, a pomocnicy stracą dostęp. Przepis i Twoje konto zostają bez zmian." />
             </div>
         @else
             <div class="danger-zone stack">
@@ -186,6 +190,6 @@
             </div>
         @endif
 
-        <p class="meta">Sesja jest prywatna dla dwóch osób. Nie ma w niej wiadomości ani publikacji, a zakończenie albo wygaśnięcie usuwa jej dane. Nie zapisuje też „Ugotowałem” — to robisz osobno na stronie przepisu.</p>
+        <p class="meta">Sesja jest prywatna dla osób, które w niej gotują: gospodarza i najwyżej {{ $maxPomocnikow }} pomocników. Nie ma w niej wiadomości ani publikacji, a zakończenie albo wygaśnięcie usuwa jej dane. Nie zapisuje też „Ugotowałem” — to robisz osobno na stronie przepisu.</p>
     </article>
 </x-layout>

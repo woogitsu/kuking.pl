@@ -27,7 +27,7 @@ use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
- * Wspólne gotowanie dwóch osób (#2385). Projekt i autoryzacja:
+ * Wspólne gotowanie: gospodarz i pomocnik (#2385; wielu pomocników: `WspolneGotowanieWieluPomocnikowTest`). Projekt i autoryzacja:
  * `docs/product/PROJEKT_WSPOLNE_GOTOWANIE_2385.md`.
  *
  * Testy autoryzacji mają kontrolę ujemną po obu stronach: dla każdej odmowy
@@ -457,21 +457,29 @@ class WspolneGotowanieTest extends TestCase
         $pomocnik = $this->user();
         $pomocnik->suspend();
 
+        $udzialy = fn (): int => DB::table('cooking_session_participants')->count();
+        $poKrokach = [];
+
         // HTTP: zawieszone konto jest odcinane od zapisów już w warstwie ogólnej...
         $this->actingAs($pomocnik->fresh())->post(route('wspolne-gotowanie.link.accept', $token))->assertRedirect();
-        $this->assertSame(0, DB::table('cooking_session_participants')->count());
+        $poKrokach['po żądaniu HTTP'] = $udzialy();
 
         // ...a akcja domenowa odmawia sama, gdyby ktoś zawołał ją inną drogą.
         try {
             app(ZaproszenieDoGotowania::class)->dolacz($pomocnik->fresh(), $token);
             $this->fail('Zawieszone konto dołączyło.');
         } catch (BladDlaCzlowieka) {
-            $this->assertSame(0, DB::table('cooking_session_participants')->count());
+            $poKrokach['po akcji domenowej'] = $udzialy();
         }
 
         // Kontrola dodatnia: to samo wywołanie dla aktywnego konta się udaje.
         app(ZaproszenieDoGotowania::class)->dolacz($this->user(), $token);
-        $this->assertSame(1, DB::table('cooking_session_participants')->count());
+        $poKrokach['po aktywnym koncie'] = $udzialy();
+
+        $this->assertSame(
+            ['po żądaniu HTTP' => 0, 'po akcji domenowej' => 0, 'po aktywnym koncie' => 1],
+            $poKrokach,
+        );
     }
 
     public function test_gospodarz_otwierajacy_wlasny_link_nie_dolacza_do_siebie(): void
@@ -495,20 +503,6 @@ class WspolneGotowanieTest extends TestCase
         $this->post(route('wspolne-gotowanie.link.accept', $token))->assertRedirect(route('login'));
         $this->assertSame(CookingSessionInvitation::STATUS_PENDING, CookingSessionInvitation::query()->firstOrFail()->status);
     }
-
-    public function test_drugi_pomocnik_nie_zmiesci_sie_przy_limicie_jednego(): void
-    {
-        [$gospodarz, , , , $sesja] = $this->sesjaZPomocnikiem();
-
-        $this->actingAs($gospodarz)->post(route('wspolne-gotowanie.link.store', $sesja))->assertSessionHasErrors('link');
-        // Kontrola dodatnia: po podniesieniu limitu link powstaje.
-        config(['kuking.wspolne_gotowanie.max_pomocnikow' => 2]);
-        $this->actingAs($gospodarz)->post(route('wspolne-gotowanie.link.store', $sesja))->assertSessionHasNoErrors();
-    }
-
-    // ---------------------------------------------------------------------
-    // Dostęp do sesji: UUID to nie autoryzacja
-    // ---------------------------------------------------------------------
 
     public function test_obca_zalogowana_osoba_dostaje_404_na_kazdej_trasie_sesji(): void
     {
@@ -673,14 +667,16 @@ class WspolneGotowanieTest extends TestCase
 
         $this->krok($gospodarz, $sesja, $kroki[0])->assertRedirect();
         $rewizja = $sesja->fresh()->revision;
-        $this->krok($gospodarz, $sesja, $kroki[0], false)->assertRedirect();
+        $poKrokach = [];
 
-        $this->assertSame(0, DB::table('cooking_session_steps')->count());
-        $this->assertSame($rewizja + 1, $sesja->fresh()->revision);
+        $this->krok($gospodarz, $sesja, $kroki[0], false)->assertRedirect();
+        $poKrokach['po cofnięciu'] = [DB::table('cooking_session_steps')->count(), $sesja->fresh()->revision - $rewizja];
 
         // Cofnięcie kroku, który nie jest zrobiony, niczego nie zmienia.
         $this->krok($gospodarz, $sesja, $kroki[0], false)->assertRedirect();
-        $this->assertSame($rewizja + 1, $sesja->fresh()->revision);
+        $poKrokach['po ponownym cofnięciu'] = [DB::table('cooking_session_steps')->count(), $sesja->fresh()->revision - $rewizja];
+
+        $this->assertSame(['po cofnięciu' => [0, 1], 'po ponownym cofnięciu' => [0, 1]], $poKrokach);
     }
 
     public function test_krok_z_innego_przepisu_nie_zostaje_zapisany(): void
@@ -701,7 +697,7 @@ class WspolneGotowanieTest extends TestCase
         // Druga osoba zmienia inny krok, zanim gospodarz kliknie.
         $this->krok($pomocnik, $sesja, $kroki[1])->assertRedirect();
         $odp = $this->krok($gospodarz, $sesja, $kroki[0], true, ['rewizja' => $widziana]);
-        $this->assertStringContainsString('Druga osoba zmieniła postęp', (string) session('status'));
+        $this->assertStringContainsString('Ktoś z sesji zmienił postęp', (string) session('status'));
         $this->assertSame(2, DB::table('cooking_session_steps')->count(), 'kliknięcie gospodarza też zapisane');
         $odp->assertRedirect();
 
@@ -711,7 +707,7 @@ class WspolneGotowanieTest extends TestCase
         $this->krok($gospodarz, $sesja, $kroki[2], true, ['rewizja' => $widziana2])->assertRedirect();
         $this->flushSession();
         $this->krok($gospodarz, $sesja, $kroki[2], true, ['rewizja' => $widziana2]);
-        $this->assertStringNotContainsString('Druga osoba', (string) session('status'));
+        $this->assertStringNotContainsString('Ktoś z sesji', (string) session('status'));
     }
 
     public function test_tylko_gospodarz_czysci_odhaczenia(): void
