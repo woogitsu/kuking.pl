@@ -1280,7 +1280,19 @@ def pierwsze_z_wielu(source, old, new, ile):
     return source.replace(old, new, 1)
 
 
+def spizarnia_bez_potwierdzenia(source):
+    start = source.index('            <details class="confirm group mt-3 w-full min-w-0" data-potwierdzenie-spizarni>')
+    end = source.index('            </details>', start) + len('            </details>')
+    return source[:start] + '''            <form method="POST" action="{{ route('pantry.destroy', $produkt) }}">
+                @csrf
+                @method('DELETE')
+                <button class="btn btn-secondary" type="submit">Usuń</button>
+            </form>''' + source[end:]
+
+
 checks = [
+    ("Spiżarnia usuwa bez pytania (#2467)", "resources/views/pages/pantry/_produkty.blade.php",
+     "test_pierwszy_klik_w_spizarni_rozwija_pytanie_zamiast_kasowac_produkt", spizarnia_bez_potwierdzenia),
     # #988: komunikat po akcji ma jawny rodzaj. Goły `->with('status', …)`
     # wróciłby do zielonej plakietki także dla odmowy.
     ("Goły ->with('status') wraca do kontrolera", "app/Http/Controllers/SmakowicieController.php", "test_w_app_nie_ma_golego_zapisu_statusu_bez_rodzaju",
