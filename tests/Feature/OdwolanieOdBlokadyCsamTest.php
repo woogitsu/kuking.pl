@@ -227,7 +227,7 @@ class OdwolanieOdBlokadyCsamTest extends TestCase
                 'decision_note' => 'Proszę o cofnięcie blokady powiązanej z dowodem.',
             ])
             ->assertRedirect(route('admin.appeals'));
-        $this->assertSame(Appeal::STATUS_OPEN, $odwolanieCsam->refresh()->status);
+        $this->assertSame(Appeal::STATUS_OPEN, $odwolanieCsam->refresh()->status, 'CSAM_BAN_APPEAL_MUST_STAY_OPEN');
         $odpowiedz->assertSessionHasErrors(['outcome' => ResolveAppeal::BLOKADA_Z_DOWODEM]);
         $this->assertSame(User::STATUS_BANNED, $autor->refresh()->status);
         $this->assertDatabaseHas('zabezpieczenia_dowodow', ['id' => $dowod->getKey()]);
