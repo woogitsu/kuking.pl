@@ -239,4 +239,4 @@ ciezki() {
 
 ciezki obraz '^(Dockerfile$|docker/|\.dockerignore$|composer\.(json|lock)$|package(-lock)?\.json$|\.npmrc$|\.railway/|railway\.(json|toml)$|vite\.config\.[cm]?[jt]s$|(tailwind|postcss)\.config\.|artisan$|bootstrap/|config/|app/Providers/|resources/js/[^/]+\.test\.mjs$|scripts/([^/]+|fixtures/[^/]+)\.test\.mjs$|scripts/kontrast-marki\.mjs$|scripts/ci/|\.github/workflows/ci\.yml$)'
 ciezki obciazenie '^(scripts/[^/]*605[^/]*$|scripts/fixtures/obciazenie605/|scripts/ci/|\.github/workflows/ci\.yml$)'
-ciezki wyscigi '^(app/|bootstrap/|config/|database/|routes/|lang/|resources/views/|artisan$|composer\.(json|lock)$|phpunit\.xml$|\.env\.example$|tests/(Dwa/|Support/|TestCase\.php$|bootstrap\.php$)|scripts/(testy-dwa-polaczenia\.sh|kontrola-negatywna-2165\.py)$|scripts/ci/|\.github/(workflows/ci\.yml$|actions/php/))'
+ciezki wyscigi '^(app/|bootstrap/|config/|database/|routes/|lang/|resources/views/|artisan$|composer\.(json|lock)$|phpunit\.xml$|\.env\.example$|tests/(Dwa/|Support/|TestCase\.php$|bootstrap\.php$)|scripts/(testy-dwa-polaczenia\.sh|kontrola-negatywna-(2165|240[234])\.py)$|scripts/ci/|\.github/(workflows/ci\.yml$|actions/php/))'
