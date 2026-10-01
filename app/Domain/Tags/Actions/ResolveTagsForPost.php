@@ -208,14 +208,24 @@ final class ResolveTagsForPost
      */
     private function wolnySlug(string $baza, array $pomijane = []): string
     {
-        $slug = $baza;
+        // CHECK `^[a-z0-9-]{1,40}$`: baza z sufiksem „-N" musi się zmieścić
+        // w 40 znakach, więc przycinamy ją pod długość sufiksu (bez końcowego „-").
+        $slug = $this->przytnij($baza, 40);
         $sufiks = 2;
 
         while (in_array($slug, $pomijane, true) || Tag::query()->where('slug', $slug)->exists()) {
-            $slug = $baza.'-'.$sufiks;
+            $dopisek = '-'.$sufiks;
+            $slug = $this->przytnij($baza, 40 - strlen($dopisek)).$dopisek;
             $sufiks++;
         }
 
         return $slug;
+    }
+
+    private function przytnij(string $baza, int $dlugosc): string
+    {
+        $przyciety = rtrim(substr($baza, 0, $dlugosc), '-');
+
+        return $przyciety === '' ? 'tag' : $przyciety;
     }
 }
