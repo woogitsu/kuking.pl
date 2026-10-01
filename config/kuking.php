@@ -3348,6 +3348,29 @@ return [
         'retention_hours' => 24,
     ],
 
+    'wspolne_gotowanie' => [
+        // Wspólne gotowanie dwóch osób (#2385, `docs/product/PROJEKT_WSPOLNE_GOTOWANIE_2385.md`).
+        // Ile godzin od ZAŁOŻENIA sesja jest ważna. Termin jest stały (bez
+        // przedłużania aktywnością): sesja nie ma stawać się trwałą historią
+        // konta. Wygasła jest niewidoczna, a nocne
+        // `kuking:sprzataj-wspolne-gotowanie` ją kasuje.
+        'retencja_godziny' => 24,
+
+        // Ile godzin żyje jednorazowy link zaproszenia (nigdy dłużej niż sesja).
+        'link_godziny' => 24,
+
+        // Ilu pomocników obok gospodarza. Etap 1: jeden (dwie osoby) — mniej
+        // osób to prostsza blokada i mniejsze ryzyko linku przekazanego dalej.
+        'max_pomocnikow' => 1,
+
+        // Ile niewygasłych sesji naraz może mieć jeden gospodarz.
+        'max_sesji_gospodarza' => 5,
+
+        // Co ile sekund skrypt pyta, czy druga osoba zmieniła postęp (tylko
+        // gdy karta jest widoczna). Bez skryptu zostaje przycisk „Odśwież”.
+        'odpytywanie_sekundy' => 20,
+    ],
+
     'sessions' => [
         // RETENCJA TABELI `sessions` (RZ-01, 21.09.2026).
         //
