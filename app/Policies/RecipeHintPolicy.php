@@ -38,6 +38,11 @@ use Illuminate\Support\Facades\Gate;
  *    wskazówki, której nie widać: czekająca, odrzucona, wycofana i ukryta przez
  *    moderację są dla zgłaszającego 404.
  *
+ * 6. **Przywrócić ukrytą wskazówkę (`restore`) może czynna moderacja**
+ *    (#2352, decyzja właściciela z 1.10.2026), ale nie w sprawie, w której
+ *    sama jest stroną: ani kucharz, ani autor przepisu. Stan (czy jest ukryta,
+ *    kto ukrył) rozstrzyga akcja pod blokadą, z komunikatem po polsku.
+ *
  * Zawieszenie odcina od PISANIA (`isActive()`), więc zawieszony autor nie
  * prosi, a zawieszony kucharz nie przyjmuje — ale może odrzucić i wycofać.
  */
@@ -80,6 +85,18 @@ class RecipeHintPolicy
         $bramka = Gate::forUser($user);
 
         return $bramka->allows('view', $recipe) && $bramka->allows('view', $wykonanie);
+    }
+
+    /**
+     * Wejście dla trasy „Przywróć wskazówkę” w panelu moderacji. Moderator,
+     * który jest kucharzem albo autorem przepisu tej wskazówki, jest jej
+     * stroną — przywraca ją ktoś inny z zespołu (jak własną treść, #1479).
+     */
+    public function restore(User $user, RecipeHint $hint): bool
+    {
+        return $user->isModerator()
+            && $user->getKey() !== $hint->cook_id
+            && $user->getKey() !== $hint->author_id;
     }
 
     public function propose(User $user, CookedEvent $event): bool

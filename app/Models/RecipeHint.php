@@ -272,16 +272,27 @@ class RecipeHint extends Model
     }
 
     /**
-     * Wskazówki zajmujące miejsce w limicie przepisu: przyjęte i czekające,
-     * które nie wygasły. Odrzucone, wycofane, anulowane i wygasłe miejsca nie
-     * zajmują.
+     * Wskazówki zajmujące miejsce w limicie przepisu: przyjęte i NIEUKRYTE
+     * przez moderację oraz czekające, które nie wygasły. Odrzucone, wycofane,
+     * anulowane, wygasłe i ukryte przez moderację miejsca nie zajmują (decyzja
+     * właściciela z 1.10.2026).
+     *
+     * Skutek uboczny jest zamierzony: przywrócenie ukrytej wskazówki (ręczne
+     * albo po uznanym odwołaniu) NIE sprawdza limitu, więc przepis może mieć
+     * wtedy więcej niż `na_przepis_max` wskazówek na stronie. Limit chroni
+     * kucharzy przed lawiną próśb, nie blokuje cofnięcia decyzji moderacji;
+     * dopóki liczba zajętych miejsc nie spadnie poniżej limitu, autor nie
+     * wyśle nowej prośby.
      *
      * @param  Builder<RecipeHint>  $query
      */
     public function scopeZajmujaceMiejsce(Builder $query): void
     {
         $query->where(function (Builder $q): void {
-            $q->where('recipe_hints.status', self::STATUS_ACCEPTED)
+            $q->where(function (Builder $przyjete): void {
+                $przyjete->where('recipe_hints.status', self::STATUS_ACCEPTED)
+                    ->whereNull('recipe_hints.moderation_hidden_at');
+            })
                 ->orWhere(function (Builder $czekajace): void {
                     $czekajace->where('recipe_hints.status', self::STATUS_PROPOSED)
                         ->where('recipe_hints.created_at', '>', self::granicaWygasniecia());

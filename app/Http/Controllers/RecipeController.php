@@ -499,13 +499,15 @@ class RecipeController extends Controller
         // „Wskazówki od gotujących" (#2352, D-333) — wyłącznie PRZYJĘTE, tylko
         // z wykonań, które ten widz może zobaczyć (blokady, zbanowani
         // kucharze: `CookedEvent::widoczneDla`), w kolejności zgód, bez
-        // rankingu. Jedno zapytanie o wskazówki z kucharzem, profilem i
-        // awatarem; numer najnowszej wersji dopiero, gdy jest co oznaczać.
+        // rankingu. BEZ `limit()`: limit 10 pilnuje próśb (`ZaproponujWskazowke`),
+        // a przywrócenie ukrytej wskazówki wolno ponad nim — obcięcie listy
+        // ukryłoby przywróconą wskazówkę po cichu. Liczbę ogranicza to, że każda
+        // wskazówka ponad limit to wskazówka przywrócona przez moderację.
+        // Jedno zapytanie o wskazówki z kucharzem, profilem i awatarem; numer najnowszej wersji dopiero, gdy jest co oznaczać.
         $wskazowki = RecipeHint::query()
             ->przyjeteDlaPrzepisu($model)
             ->whereHas('cookedEvent', fn ($wykonanie) => $wykonanie->widoczneDla($request->user()))
             ->with(['cookedEvent.user.profile.avatar'])
-            ->limit((int) config('kuking.wskazowki.na_przepis_max'))
             ->get();
         $najnowszaWersja = $wskazowki->isEmpty()
             ? null

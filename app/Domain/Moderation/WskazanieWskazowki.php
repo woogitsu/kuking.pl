@@ -32,6 +32,17 @@ final class WskazanieWskazowki
         return $zdanie;
     }
 
+    /**
+     * Zdanie dla kucharza przy ręcznym przywróceniu wskazówki przez moderację:
+     * wskazówka znów stoi przy przepisie. Dodawane do wiadomości tylko wtedy,
+     * gdy zgoda kucharza nadal obowiązuje — po wycofaniu zgody nic nie wraca
+     * i nikt nie dostaje wiadomości o widoczności.
+     */
+    public static function przywrocenie(Recipe $recipe): string
+    {
+        return 'Wskazówka od gotujących przy przepisie „'.$recipe->title.'” jest znowu widoczna.';
+    }
+
     /** Długość zdania w najdłuższej postaci (ukrycie) — do limitu wiadomości moderatora. */
     public static function dlugoscMax(Recipe $recipe): int
     {

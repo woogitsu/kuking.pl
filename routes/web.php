@@ -1677,6 +1677,14 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
         ->middleware("throttle:{$limits['moderacja']},moderacja")
         ->name('admin.reports.restore');
 
+    // „Przywróć wskazówkę” (#2352, decyzja właściciela z 1.10.2026): cofnięcie
+    // ukrycia wskazówki od gotujących bez odwołania kucharza. Identyfikator
+    // wskazówki w adresie niczego nie otwiera — `RecipeHintPolicy::restore`.
+    Route::post('/wskazowki/{wskazowka}/przywroc', [ModerationController::class, 'restoreHint'])
+        ->whereUuid('wskazowka')
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.hints.restore');
+
     // „Zdejmij z urzędu” — treść bez zgłoszenia (G31, D-251). Wejście przyciskiem
     // przy treści; Policy `removeExOfficio` pyta drugi raz, niezależnie od grupy.
     Route::get('/z-urzedu/{typ}/{id}', [ZUrzeduController::class, 'create'])

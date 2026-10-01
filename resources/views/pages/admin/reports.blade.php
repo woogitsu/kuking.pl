@@ -129,6 +129,38 @@
                             Ta wskazówka nie stoi już przy przepisie (ukryta albo kucharz wycofał zgodę).
                         @endif
                     </p>
+                    {{-- „Przywróć wskazówkę” (#2352): ręczne cofnięcie ukrycia bez odwołania
+                         kucharza, jak „Przywróć” wersję z historii zmian. Przycisk tylko
+                         tam, gdzie akcja się uda (`PrzywrocWskazowke::stan`): przy własnej
+                         sprawie moderatora i przy ukryciu administratora stoi informacja. --}}
+                    @if($wskazowkaZgloszenia['przywroc'] === 'strona')
+                        <p class="meta mt-4">
+                            To wskazówka z Twojego wykonania albo z Twojego przepisu — przywrócić ją może inny moderator
+                            albo rozstrzygnie to odwołanie kucharza.
+                        </p>
+                    @elseif($wskazowkaZgloszenia['przywroc'] === 'tylko_admin')
+                        <p class="meta mt-4">
+                            <strong>Ukrył administrator.</strong> Przywrócić tę wskazówkę może tylko administrator — przekaż mu sprawę.
+                        </p>
+                    @elseif($wskazowkaZgloszenia['przywroc'] === 'przywroc')
+                        <form class="mt-4" method="POST" action="{{ $wskazowkaZgloszenia['przywroc_adres'] }}" novalidate>
+                            @csrf
+                            <input type="hidden" name="{{ \App\Support\WierszFormularza::POLE }}" value="{{ $report->id }}">
+                            <h3 class="text-title-sm">Przywróć wskazówkę</h3>
+                            <p class="meta">
+                                Wskazówka wróci na stronę przepisu, jeśli kucharz nadal się na nią zgadza.
+                                Kucharz dostanie powiadomienie. Przepis może mieć wtedy więcej wskazówek niż limit —
+                                nowe prośby autora poczekają, aż ich liczba spadnie poniżej limitu.
+                            </p>
+                            <x-field name="reason_code" label="Powód przywrócenia (kod wewnętrzny)" required
+                                     placeholder="pomylka_moderacji" :wiersz="$report->id"
+                                     help="Krótki, powtarzalny kod. Cofnięcie decyzji też zostaje w rejestrze." />
+                            <x-field name="user_message" label="Wiadomość do kucharza" type="textarea" :rows="2"
+                                     :wiersz="$report->id"
+                                     help="Nieobowiązkowa. Kucharz i tak dostanie zdanie, że wskazówka jest znowu widoczna." />
+                            <button class="btn btn-secondary" type="submit">Przywróć wskazówkę</button>
+                        </form>
+                    @endif
                 @else
                     <p class="meta">Zgłoszona jest wskazówka od gotujących, której już nie ma.</p>
                 @endif

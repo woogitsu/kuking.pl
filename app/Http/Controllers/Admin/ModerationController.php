@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Moderation\Actions\PrzywrocWskazowke;
 use App\Domain\Moderation\Actions\RestoreContent;
 use App\Domain\Moderation\Actions\RozstrzygnijZgloszenie;
 use App\Domain\Moderation\CofniecieUkryciaWersji;
@@ -129,7 +130,7 @@ class ModerationController extends Controller
             // których cofnąć może tylko ktoś inny, bo to treść patrzącego (#1479).
             'przywracalne' => $this->przywracalne($reports->getCollection()->all(), $request->user()),
             'wersje' => $this->wersjeZgloszen($reports->getCollection()->all()),
-            'wskazowki' => $this->wskazowkiZgloszen($reports->getCollection()->all()),
+            'wskazowki' => $this->wskazowkiZgloszen($reports->getCollection()->all(), $request->user()),
             // Liczniki nad zakładkami liczą TO SAMO, co pokazuje lista pod
             // nimi — z tym samym warunkiem o źródle, także przy
             // `?zrodlo=automat` (issue #990). Zakładka niesie bieżące
@@ -195,9 +196,9 @@ class ModerationController extends Controller
      * każdej zgłoszonej treści; wykonanie zostaje nietknięte.
      *
      * @param  list<Report>  $reports
-     * @return array<string, array{adres: string, tytul: string, tekst: string, kucharz: string, pokazywana: bool}> klucz: id wskazówki
+     * @return array<string, array{adres: string, tytul: string, tekst: string, kucharz: string, pokazywana: bool, przywroc: 'przywroc'|'strona'|'tylko_admin'|null, przywroc_adres: string}> klucz: id wskazówki
      */
-    private function wskazowkiZgloszen(array $reports): array
+    private function wskazowkiZgloszen(array $reports, User $moderator): array
     {
         $ids = [];
         foreach ($reports as $report) {
@@ -221,6 +222,10 @@ class ModerationController extends Controller
                 'tekst' => (string) $wskazowka->cookedEvent?->note,
                 'kucharz' => (string) $wskazowka->cook?->displayName(),
                 'pokazywana' => $wskazowka->jestPokazywana(),
+                // „Przywróć wskazówkę” (#2352): stan przycisku z tych samych
+                // reguł co akcja (`PrzywrocWskazowke::stan`).
+                'przywroc' => PrzywrocWskazowke::stan($moderator, $wskazowka),
+                'przywroc_adres' => route('admin.hints.restore', $wskazowka),
             ];
         }
 
@@ -334,6 +339,46 @@ class ModerationController extends Controller
         }
 
         return back()->with(Komunikat::sukces('Treść przywrócona. Wróciła do stanu sprzed ukrycia, a autor dostał powiadomienie.'));
+    }
+
+    /**
+     * „Przywróć wskazówkę” (#2352, decyzja właściciela z 1.10.2026): ręczne
+     * cofnięcie ukrycia wskazówki od gotujących BEZ odwołania kucharza. Wzór:
+     * „Przywróć” wersję z historii zmian. Wejście przez Policy
+     * (`RecipeHintPolicy::restore`: czynna moderacja, nie strona sprawy),
+     * stan i rangę rozstrzyga akcja pod blokadą kont i wiersza.
+     *
+     * Powód do rejestru decyzji jest obowiązkowy tak samo jak przy innych
+     * przywróceniach: cofnięcie kary też zostawia ślad.
+     */
+    public function restoreHint(Request $request, RecipeHint $wskazowka, PrzywrocWskazowke $przywroc): RedirectResponse
+    {
+        $this->authorize('restore', $wskazowka);
+
+        $data = $request->validate([
+            'reason_code' => ['required', 'string', 'max:80'],
+            'user_message' => ['nullable', 'string', 'max:1500'],
+        ], [
+            'reason_code.required' => 'Podaj powód przywrócenia — w rejestrze decyzji musi zostać ślad, dlaczego zdjęto ukrycie.',
+            'reason_code.max' => 'Powód jest za długi. Zmieść się w 80 znakach.',
+            'user_message.max' => 'Wiadomość jest za długa. Zmieść się w 1500 znakach.',
+        ]);
+
+        try {
+            $wynik = $przywroc->handle(
+                moderator: $request->user(),
+                wskazowkaId: (string) $wskazowka->getKey(),
+                reasonCode: $data['reason_code'],
+                userMessage: $data['user_message'] ?? null,
+                ip: $request->ip(),
+            );
+        } catch (BladDlaCzlowieka $blad) {
+            return back()->withInput()->withErrors(['reason_code' => $blad->getMessage()]);
+        }
+
+        return back()->with($wynik['widoczna']
+            ? Komunikat::sukces('Wskazówka znów stoi przy przepisie. Kucharz dostał powiadomienie.')
+            : Komunikat::informacja('Zdjęliśmy ukrycie, ale kucharz w międzyczasie wycofał zgodę, więc wskazówka nie wraca na stronę przepisu. Nikogo o tym nie powiadamiamy.'));
     }
 
     /**
