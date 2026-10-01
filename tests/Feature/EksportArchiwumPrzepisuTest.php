@@ -85,6 +85,10 @@ class EksportArchiwumPrzepisuTest extends EksportWygladStylPaczki
         ]);
         $ukryty->forceFill(['status' => Recipe::STATUS_HIDDEN])->save();
         $szkic = Recipe::factory()->for($autor, 'author')->draft()->create(['title' => 'Prawdziwy szkic']);
+        $ponownySzkic = Recipe::factory()->for($autor, 'author')->create([
+            'title' => 'Szkic po wcześniejszej publikacji',
+            'status' => Recipe::STATUS_DRAFT, 'published_at' => $dataPublikacji,
+        ]);
         $opublikowany = Recipe::factory()->for($autor, 'author')->create(['title' => 'Publiczny przepis']);
         $prywatny = Recipe::factory()->for($autor, 'author')->create([
             'title' => 'Prywatny opublikowany', 'visibility' => 'private',
@@ -112,6 +116,9 @@ class EksportArchiwumPrzepisuTest extends EksportWygladStylPaczki
         $htmlSzkicu = $this->zPaczki($paczka, 'przepisy/'.ExportFileNames::recipeFile($szkic));
         $this->assertStringContainsString('To był szkic — nigdy nie został opublikowany', $htmlSzkicu);
         $this->assertStringNotContainsString('Opublikowany ', $htmlSzkicu);
+        $htmlPonownegoSzkicu = $this->zPaczki($paczka, 'przepisy/'.ExportFileNames::recipeFile($ponownySzkic));
+        $this->assertStringContainsString('Przepis jest teraz szkicem', $htmlPonownegoSzkicu);
+        $this->assertStringNotContainsString('nigdy nie został opublikowany', $htmlPonownegoSzkicu);
         $htmlPubliczny = $this->zPaczki($paczka, 'przepisy/'.ExportFileNames::recipeFile($opublikowany));
         $this->assertStringNotContainsString('class="plakietka"', $htmlPubliczny);
         $htmlPrywatny = $this->zPaczki($paczka, 'przepisy/'.ExportFileNames::recipeFile($prywatny));
@@ -122,7 +129,7 @@ class EksportArchiwumPrzepisuTest extends EksportWygladStylPaczki
         $this->assertStringNotContainsString('Opublikowany ', $htmlBezDaty);
 
         $dane = json_decode($this->zPaczki($paczka, 'dane.json'), true, 512, JSON_THROW_ON_ERROR);
-        $this->assertCount(5, $dane['przepisy']);
+        $this->assertCount(6, $dane['przepisy']);
         $this->assertNotContains($usuniety->title, array_column($dane['przepisy'], 'tytul'));
         $this->assertNotContains($cudzy->title, array_column($dane['przepisy'], 'tytul'));
     }
