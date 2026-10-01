@@ -315,6 +315,14 @@ class ApplySecurityHeaders
             return false;
         }
 
+        // Historia wersji przepisu (#2390): migawki zawierają treść, którą autor
+        // mógł już usunąć z przepisu. `noindex` jest też w meta widoku, ale
+        // nagłówek działa także na odpowiedzi bez HTML-a i dla robotów, które
+        // meta pomijają — adres wersji nie ma prawa żyć w wyszukiwarce.
+        if ($request->routeIs('recipes.history', 'recipes.history.*')) {
+            return true;
+        }
+
         foreach (['szukaj', 'home', 'dodaj', 'powiadomienia', 'ustawienia', 'zeszyt', 'admin', 'zglos', 'witaj'] as $prefix) {
             if ($request->is($prefix, $prefix.'/*')) {
                 return true;

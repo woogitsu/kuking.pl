@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2390): ekrany historii wersji przepisu (lista, wersja, porównanie) wysyłają teraz także nagłówek `X-Robots-Tag: noindex, nofollow`, nie tylko znacznik w treści strony — stare adresy wersji nie powinny zostawać w wyszukiwarkach.
 - Naprawione (audyt odporności): adres albo formularz z niepoprawnym tekstem (bajty, które nie są poprawnym UTF-8, albo znak NUL, np. `?q=%FF%FE`) daje teraz stronę błędu 400 po polsku (w API: JSON), a nie błąd serwera 500. Dotyczyło m.in. podpowiedzi tagów, formularzy dodawania wpisu i pytania, wylogowania, spiżarni, podziękowań, zeszytów, profilu i list moderacji.
 - Naprawione (audyt odporności): plan tagu tygodnia w panelu moderacji z tablicą zamiast daty pokazuje błąd przy polu, a nie stronę błędu 500.
 - Naprawione (audyt odporności): adres zasobu Livewire z nazwą komponentu, którego nie ma, daje 404 zamiast błędu 500 i alarmu.
