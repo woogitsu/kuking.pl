@@ -33,7 +33,7 @@ class WykonaniePamietaWersjePrzepisuTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const SCIEZKA_MIGRACJI = 'database/migrations/2026_10_01_100000_add_recipe_version_id_to_cooked_events.php';
+    private const SCIEZKA_MIGRACJI = 'database/migrations/2026_10_01_100100_add_recipe_version_id_to_cooked_events.php';
 
     private User $autor;
 

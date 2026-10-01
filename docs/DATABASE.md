@@ -2925,7 +2925,7 @@ Jedno realne gotowanie. Brak unique `(user_id, recipe_id)`.
   `created_at`, bo wpis o niedzielnym obiedzie bywa pisany we wtorek;
 - `klucz_wyslania` — patrz niżej.
 - **`recipe_version_id uuid NULL` → `recipe_versions (id)` `ON DELETE SET NULL`**
-  (#2378, migracja `2026_10_01_100000_add_recipe_version_id_to_cooked_events`) —
+  (#2378, migracja `2026_10_01_100100_add_recipe_version_id_to_cooked_events`) —
   wersja przepisu otwarta przy formularzu „Ugotowałem”. **Wskaźnik, nie kopia:**
   do wykonania nie trafia żadna treść przepisu. Ustawia go wyłącznie
   `RecordCookedEvent` (poza `$fillable`), po sprawdzeniu, że wersja należy do
