@@ -98,6 +98,11 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             printf "${CZERWONY}Kontrola ujemna atomowości importów #2402 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
+        # #2403: usunięcie retry slugu musi ujawnić 23505/recipes_slug_unique.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2403.py; then
+            printf "${CZERWONY}Kontrola ujemna kolizji slugu #2403 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
         # #2427: CSAM musi brać zdjęcie przed kontem; odwrotnie występuje 40P01.
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2427.py; then
             printf "${CZERWONY}Kontrola ujemna kolejności CSAM #2427 nie przeszła.${RESET}\n" >&2
