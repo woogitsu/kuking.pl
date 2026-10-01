@@ -73,6 +73,7 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
         'decyzje_moderacji' => '| Obsługa zgłoszeń i moderacji |',
         'odwolania' => 'rozstrzygnięcia odwołania',
         'planer' => '| Plan na tydzień |',
+        'dawne_nazwy_profilu' => 'Gdy zmienisz nazwę użytkownika, zapamiętujemy dotychczasową',
     ];
 
     /**

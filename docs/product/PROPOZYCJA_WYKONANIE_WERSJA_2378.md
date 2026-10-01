@@ -36,7 +36,7 @@ po odpowiedzi.
    „Ugotowałem”**. Tryb gotowania (`/przepisy/{slug}/gotuj`) może być otwarty
    godzinę wcześniej. Czy zapisywać wersję z wejścia w tryb gotowania (wymaga
    zapamiętania jej w sesji/`cooking_progress`)? Domyślnie: nie.
-3. Czy API (`/api/v1`, aplikacja mobilna) ma przyjmować `wersja_przepisu` od
+3. Czy API (to dla aplikacji mobilnej) ma przyjmować `wersja_przepisu` od
    klienta? Dziś API zapisuje najnowszą wersję z chwili wysłania.
 4. Czy kucharz, który stracił dostęp do wersji (np. przepis prywatny), ma dostać
    osobne wyjaśnienie powodu? Domyślnie: nie, jedno zdanie bez powodu (nie
