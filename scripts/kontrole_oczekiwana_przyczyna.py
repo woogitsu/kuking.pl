@@ -412,6 +412,12 @@ OCZEKUJ = {
     'Cache przeglądarki odtwarza inną wersję (#2299)': r'przeglądarka innej wersji nie może być odtwarzana \(#2299\)',
     'Pomiar portu zależny od rodzaju runnera (#2299)': r'warunek runnera stoi na kroku innym niż cache przeglądarki',
     'Cache przeglądarki na własnym runnerze (#2299)': r'cache przeglądarki na własnym runnerze podmieniałby wspólny katalog',
+    # #2405 i #2406: dostępność formy zwracania się i kroków onboardingu.
+    'Błąd wyboru formy bez stabilnego id (#2405)': r'Komunikat błędu wyboru formy musi mieć jeden stabilny id',
+    'Radia formy nie wskazują błędu w aria-describedby (#2405)': r'Radio nie wskazuje komunikatu błędu przez aria-describedby',
+    'Radia formy bez aria-invalid (#2405)': r'Radio nie ma aria-invalid="true"',
+    'Onboarding bez aria-current na bieżącym kroku (#2406)': r'elementów z aria-current="step", powinien być jeden',
+    'Onboarding bez grupy z nazwą kroków (#2406)': r'nie ma grupy kroków z role="group"',
 }
 
 
