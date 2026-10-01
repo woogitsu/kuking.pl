@@ -139,6 +139,17 @@ class ModerationAction extends Model
         // (D-333); usuwa ją wyłącznie retencja. Ostrzeżenie, zawieszenie i ban
         // dotyczą autora przepisu.
         'recipe_version' => [self::ACTION_NONE, self::ACTION_WARN, self::ACTION_HIDE, self::ACTION_SUSPEND, self::ACTION_BAN],
+
+        // WSKAZÓWKA OD GOTUJĄCYCH (issue #2352). `hide` zdejmuje SAMĄ wskazówkę
+        // z sekcji przy przepisie (`recipe_hints.moderation_hidden_at`) i nie
+        // rusza wykonania, z którego pochodzi uwaga — to nie jest martwy
+        // przycisk, jak przy `cooked_event` (tam `hide` nie miało czego
+        // ustawić). ŚWIADOMIE BEZ `remove`: wskazówka to nie osobna treść
+        // kucharza (tekstem jest `cooked_events.note`), a skasowanie wiersza
+        // pozwoliłoby autorowi prosić o to samo wykonanie drugi raz; całe
+        // wykonanie zdejmuje się zgłoszeniem wykonania. Ostrzeżenie, zawieszenie
+        // i ban dotyczą kucharza, czyli autora uwagi.
+        'recipe_hint' => [self::ACTION_NONE, self::ACTION_WARN, self::ACTION_HIDE, self::ACTION_SUSPEND, self::ACTION_BAN],
     ];
 
     /**

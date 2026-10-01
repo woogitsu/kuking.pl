@@ -13,6 +13,7 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Moderation\DecyzjaModeracyjnaRequest;
 use App\Models\ModerationAction;
+use App\Models\RecipeHint;
 use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\User;
@@ -128,6 +129,7 @@ class ModerationController extends Controller
             // których cofnąć może tylko ktoś inny, bo to treść patrzącego (#1479).
             'przywracalne' => $this->przywracalne($reports->getCollection()->all(), $request->user()),
             'wersje' => $this->wersjeZgloszen($reports->getCollection()->all()),
+            'wskazowki' => $this->wskazowkiZgloszen($reports->getCollection()->all()),
             // Liczniki nad zakładkami liczą TO SAMO, co pokazuje lista pod
             // nimi — z tym samym warunkiem o źródle, także przy
             // `?zrodlo=automat` (issue #990). Zakładka niesie bieżące
@@ -179,6 +181,46 @@ class ModerationController extends Controller
                 'adres' => route('recipes.history.version', [$wersja->recipe->slug, $wersja->version_number]),
                 'numer' => $wersja->version_number,
                 'tytul' => (string) $wersja->recipe->title,
+            ];
+        }
+
+        return $wynik;
+    }
+
+    /**
+     * Zgłoszone wskazówki od gotujących (#2352) — jednym zapytaniem. Kolejka
+     * pokazuje samo `target_type · target_id`, a moderator ma zobaczyć TEKST,
+     * o który chodzi (uwaga z wykonania), przepis, przy którym stoi, i czy
+     * dalej jest pokazywana. Moderacja czyta tu cudzą uwagę z urzędu, jak przy
+     * każdej zgłoszonej treści; wykonanie zostaje nietknięte.
+     *
+     * @param  list<Report>  $reports
+     * @return array<string, array{adres: string, tytul: string, tekst: string, kucharz: string, pokazywana: bool}> klucz: id wskazówki
+     */
+    private function wskazowkiZgloszen(array $reports): array
+    {
+        $ids = [];
+        foreach ($reports as $report) {
+            if ($report->target_type === 'recipe_hint' && $report->target_id !== null) {
+                $ids[] = (string) $report->target_id;
+            }
+        }
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $wynik = [];
+        foreach (RecipeHint::query()->with(['recipe:id,slug,title', 'cookedEvent:id,note', 'cook.profile'])->whereIn('id', $ids)->get() as $wskazowka) {
+            if ($wskazowka->recipe === null) {
+                continue;
+            }
+            $wynik[(string) $wskazowka->getKey()] = [
+                'adres' => route('recipes.show', $wskazowka->recipe).'#wskazowki-gotujacych',
+                'tytul' => (string) $wskazowka->recipe->title,
+                'tekst' => (string) $wskazowka->cookedEvent?->note,
+                'kucharz' => (string) $wskazowka->cook?->displayName(),
+                'pokazywana' => $wskazowka->jestPokazywana(),
             ];
         }
 

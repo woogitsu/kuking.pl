@@ -7,6 +7,7 @@ namespace App\Policies;
 use App\Models\CookedEvent;
 use App\Models\RecipeHint;
 use App\Models\User;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Wskazówki od gotujących (#2352, D-333). Trzy zasady, każda z testem
@@ -31,11 +32,56 @@ use App\Models\User;
  * od `created_at` (`RecipeHint::wygasla()`): wygasła nie przechodzi ani
  * przez `accept`, ani `decline`, ani `cancel`.
  *
+ * 5. **Zgłosić wskazówkę (`report`) może ten, kto ją WIDZI w sekcji przy
+ *    przepisie** (#2352, decyzja właściciela z 1.10.2026) — także gość przez
+ *    logowanie, także autor przepisu. Zgłoszenie nie może zdradzić istnienia
+ *    wskazówki, której nie widać: czekająca, odrzucona, wycofana i ukryta przez
+ *    moderację są dla zgłaszającego 404.
+ *
  * Zawieszenie odcina od PISANIA (`isActive()`), więc zawieszony autor nie
  * prosi, a zawieszony kucharz nie przyjmuje — ale może odrzucić i wycofać.
  */
 class RecipeHintPolicy
 {
+    /**
+     * Kto może zgłosić TĘ wskazówkę. Warunki odtwarzają dokładnie to, co
+     * przepuszcza sekcja „Wskazówki od gotujących” (`RecipeController::show`):
+     * przyjęta i nieukryta, przepis opublikowany i widoczny dla zgłaszającego,
+     * kucharz dostępny jako autor treści, brak blokady zgłaszającego z kucharzem
+     * i wykonanie, które zgłaszający może zobaczyć.
+     *
+     * Kucharz zgłasza własną wskazówkę tak samo jak każdą własną treść (bramka
+     * nie rozróżnia autora), ale przycisk przy nim się nie pokazuje — on ma
+     * „Wycofaj zgodę”. `?User`, bo bramkę woła `ReportContent::authorize()`
+     * także dla zgłaszającego bez konta (gość i tak odpada na trasie za logowaniem).
+     */
+    public function report(?User $user, RecipeHint $hint): bool
+    {
+        if (! $hint->jestPokazywana()) {
+            return false;
+        }
+
+        $recipe = $hint->recipe;
+        $kucharz = $hint->cook;
+        $wykonanie = $hint->cookedEvent;
+
+        if ($recipe === null || $kucharz === null || $wykonanie === null || ! $recipe->isPublished()) {
+            return false;
+        }
+
+        if (! $kucharz->jestDostepnyJakoAutor()) {
+            return false;
+        }
+
+        if ($user !== null && $user->hasBlockRelationWith($kucharz)) {
+            return false;
+        }
+
+        $bramka = Gate::forUser($user);
+
+        return $bramka->allows('view', $recipe) && $bramka->allows('view', $wykonanie);
+    }
+
     public function propose(User $user, CookedEvent $event): bool
     {
         $recipe = $event->recipe;

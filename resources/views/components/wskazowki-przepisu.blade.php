@@ -9,8 +9,11 @@
     Kolejność to kolejność zgód, bez rankingu (AGENTS.md §8, §12); nikt tu
     nie ma licznika ani „najlepszej wskazówki". Podpis jak w galerii „Komu
     wyszło": ta sama nazwa kucharza i link do jego wykonania. Tekst jest
-    uwagą z wykonania, więc „Zgłoś” prowadzi do zgłoszenia TEGO wykonania —
-    moderacja wskazówki dziedziczy z wykonania (D-333).
+    uwagą z wykonania, ale moderacja ma ją osobno (D-333, 1.10.2026): „Zgłoś”
+    prowadzi do zgłoszenia SAMEJ WSKAZÓWKI (`recipe_hint`), a moderacja może ją
+    ukryć w tej sekcji bez ruszania wykonania. Zgłoszenie całego wykonania ma
+    swój przycisk na jego stronie („Zobacz to wykonanie”). Kucharz nie zgłasza
+    własnej wskazówki — ma „Wycofaj zgodę”.
 --}}
 @if($wskazowki->isNotEmpty())
     <section class="stack" aria-labelledby="wskazowki-gotujacych">
@@ -41,10 +44,10 @@
                         <a class="btn btn-secondary" href="{{ route('cooked.show', $wykonanie) }}">Zobacz to wykonanie</a>
                         @auth
                             @if(auth()->id() !== $wykonanie->user_id)
-                                <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'cooked_event', 'id' => $wykonanie->getKey()]) }}">Zgłoś</a>
+                                <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'recipe_hint', 'id' => $wskazowka->getKey()]) }}">Zgłoś</a>
                             @endif
                         @else
-                            <x-zglos-dla-goscia typ="cooked_event" :id="$wykonanie->getKey()" />
+                            <x-zglos-dla-goscia typ="recipe_hint" :id="$wskazowka->getKey()" />
                         @endauth
                     </p>
                 </article>

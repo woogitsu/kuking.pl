@@ -1185,6 +1185,9 @@ final class CollectUserExportData
                 'prosba_z_dnia' => $this->date($hint->created_at),
                 'odpowiedz_z_dnia' => $this->date($hint->decided_at),
                 'zgoda_wycofana_dnia' => $this->date($hint->withdrawn_at),
+                // Ukrycie przez moderację (#2352) jest decyzją wobec MOJEJ uwagi
+                // (DSA art. 17), więc kucharz ma o nim w paczce; autor przepisu nie.
+                'ukryta_przez_moderacje_dnia' => $this->date($hint->moderation_hidden_at),
             ])->values()->all();
     }
 
@@ -1211,7 +1214,9 @@ final class CollectUserExportData
                     $hint->wygasla() => 'nie jest dostępna jako wskazówka',
                     $hint->status === RecipeHint::STATUS_PROPOSED => 'czeka na odpowiedź',
                     $hint->status === RecipeHint::STATUS_CANCELLED => 'anulowana przeze mnie',
-                    $hint->status === RecipeHint::STATUS_ACCEPTED => 'stoi przy przepisie jako wskazówka',
+                    // Ukrycie przez moderację nie jest autorowi opisywane: wygląda
+                    // jak „Nie” i wycofanie zgody (tego, kto zdecydował, nie ujawniamy).
+                    $hint->status === RecipeHint::STATUS_ACCEPTED && ! $hint->jestUkrytaPrzezModeracje() => 'stoi przy przepisie jako wskazówka',
                     default => 'nie jest dostępna jako wskazówka',
                 },
                 'wersja_przepisu_z_chwili_prosby' => $hint->recipe_version_number,

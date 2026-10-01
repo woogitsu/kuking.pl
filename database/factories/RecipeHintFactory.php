@@ -27,6 +27,14 @@ class RecipeHintFactory extends Factory
         ];
     }
 
+    /** Wskazówka ukryta przez moderację (stan zgody kucharza zostaje, jaki był). */
+    public function ukrytaPrzezModeracje(): static
+    {
+        return $this->afterMaking(function (RecipeHint $h): void {
+            $h->moderation_hidden_at = now();
+        });
+    }
+
     /**
      * Wskazówka dla gotowego wykonania: przepis, autor i kucharz wynikają z niego.
      */

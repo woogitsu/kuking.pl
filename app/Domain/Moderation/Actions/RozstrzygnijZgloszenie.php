@@ -8,11 +8,13 @@ use App\Domain\Moderation\CofniecieUkryciaWersji;
 use App\Domain\Moderation\DlugoscZawieszenia;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\WskazanieWersji;
+use App\Domain\Moderation\WskazanieWskazowki;
 use App\Domain\Users\OdmowaOstatniegoAdministratora;
 use App\Domain\Users\ZamekUprzywilejowanegoAktora;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
+use App\Models\RecipeHint;
 use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\User;
@@ -116,11 +118,32 @@ final class RozstrzygnijZgloszenie
             //    trzeba go odczytać, zanim cokolwiek się zmieni. Bez tego
             //    ukrycia nie da się później cofnąć do właściwego stanu (#65).
             $cel = ModeratedContent::znajdz($report->target_type, $report->target_id, zUsunietymi: true);
+
+            // WSKAZÓWKA (#2352): ukrycie czyta i zmienia stan zgody kucharza, więc
+            // wiersz idzie pod blokadę (konta, potem wskazówka — jak „Wycofaj
+            // zgodę”), a stan sprawdzamy dopiero na świeżym. Wycofanie zgody
+            // tuż przed decyzją nie może skończyć się „ukryto” wskazówki,
+            // której nie było.
+            if ($cel instanceof RecipeHint && $data['action'] === ModerationAction::ACTION_HIDE) {
+                $cel = RecipeHint::zablokujDoDecyzji((string) $cel->getKey());
+
+                if ($cel !== null && $cel->recipe !== null && ! $cel->jestPokazywana()) {
+                    throw ValidationException::withMessages([
+                        'action' => $cel->jestUkrytaPrzezModeracje()
+                            ? 'Ta wskazówka jest już ukryta. Wybierz „Bez działania”, żeby zamknąć sprawę, albo inną decyzję.'
+                            : 'Ta wskazówka nie stoi już przy przepisie (kucharz wycofał zgodę albo jej nie było), więc nie ma czego ukrywać. '
+                                .'Wybierz „Bez działania”, żeby zamknąć sprawę.',
+                    ]);
+                }
+            }
+
             // Wersja przepisu, którego już nie ma (miękko usunięty), nie ma autora
             // do ukarania ani przepisu do ukrycia — jak treść usunięta (#2390).
             $celNiedostepny = $cel === null
                 || (method_exists($cel, 'trashed') && $cel->trashed())
-                || ($cel instanceof RecipeVersion && $cel->recipe === null);
+                || ($cel instanceof RecipeVersion && $cel->recipe === null)
+                // Wskazówka przepisu, którego już nie ma, nie ma przy czym stać (#2352).
+                || ($cel instanceof RecipeHint && $cel->recipe === null);
 
             if ($celNiedostepny && $data['action'] !== ModerationAction::ACTION_NONE) {
                 throw ValidationException::withMessages([
@@ -165,6 +188,12 @@ final class RozstrzygnijZgloszenie
                 && $aktywnyCel->recipe !== null
                 && $wykonanaAkcja !== ModerationAction::ACTION_NONE) {
                 $wiadomosc = trim(WskazanieWersji::tekst($aktywnyCel->recipe, $aktywnyCel->version_number).' '.trim((string) $wiadomosc));
+            }
+
+            // WSKAZÓWKA OD GOTUJĄCYCH (#2352): kucharz czyta, której wskazówki
+            // dotyczy decyzja i że uwaga zostaje pod jego wykonaniem.
+            if ($aktywnyCel instanceof RecipeHint && $aktywnyCel->recipe !== null) {
+                $wiadomosc = WskazanieWskazowki::wiadomosc($aktywnyCel->recipe, $wykonanaAkcja, $wiadomosc);
             }
 
             if ($aktywnyCel instanceof RecipeVersion && $wykonanaAkcja === ModerationAction::ACTION_HIDE) {
@@ -372,6 +401,14 @@ final class RozstrzygnijZgloszenie
      */
     private function hide(object $target): void
     {
+        // Wskazówka od gotujących (#2352) nie ma `status` do ustawienia —
+        // ukrywa ją osobny znacznik. Stan sprawdzono wyżej, pod blokadą.
+        if ($target instanceof RecipeHint) {
+            $target->ukryjPrzezModeracje();
+
+            return;
+        }
+
         if (! ModeratedContent::daSieUkryc($target)) {
             return;
         }

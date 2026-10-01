@@ -284,6 +284,9 @@ final class PrzedawnioneUsunieteTresci
             // `zamienWNagrobek()` kasuje wersje przepisu, a zgłoszenie albo
             // decyzja o jednej wersji (#2390, #2270) jest dowodem w sprawie.
             || $this->zModeracja('recipe_version', DB::table('recipe_versions')->where('recipe_id', $przepis->getKey())->pluck('id')->all())
+            // Wskazówki od gotujących znikają kaskadą razem z przepisem, a ich
+            // zgłoszenie albo ukrycie (#2352) jest dowodem w sprawie.
+            || $this->zModeracja('recipe_hint', DB::table('recipe_hints')->where('recipe_id', $przepis->getKey())->pluck('id')->all())
             || $this->zModeracja('media', $media);
     }
 

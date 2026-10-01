@@ -13,6 +13,7 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Appeal;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
+use App\Models\RecipeHint;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Gate;
@@ -299,6 +300,14 @@ final class ResolveAppeal
             return null;
         }
 
+        // Wskazówka od gotujących (#2352): wraca przez `moderation_hidden_at`, nie
+        // przez `status` (to zgoda kucharza i `RestoreContent` jej nie ruszy).
+        if ($decyzja->target_type === 'recipe_hint') {
+            $this->przywrocWskazowke($moderator, $decyzja, $uzasadnienie, $ip);
+
+            return null;
+        }
+
         $tresc = ModeratedContent::znajdz($decyzja->target_type, $decyzja->target_id, zUsunietymi: true);
 
         if ($tresc === null || ! ModeratedContent::daSieUkryc($tresc)) {
@@ -332,6 +341,61 @@ final class ResolveAppeal
         }
 
         return null;
+    }
+
+    /**
+     * Cofnięcie ukrycia wskazówki po uznanym odwołaniu kucharza (#2352).
+     *
+     * Zdejmuje wyłącznie ślad moderacji. Jeśli kucharz w międzyczasie wycofał
+     * zgodę, wskazówka zostaje wycofana — jego decyzja jest ważniejsza niż
+     * decyzja moderacji. Zapis `unhide` i wpis w dzienniku jak przy każdym
+     * przywróceniu; powiadomienia nie ma, bo odpowiedź na odwołanie mówi to
+     * samo lepiej. Własnej wskazówki moderator nie przywraca (#1479).
+     *
+     * Tak jak przy innych treściach „nie ma czego cofać” (wskazówki już nie ma,
+     * nie była ukryta) NIE blokuje odpowiedzi na odwołanie.
+     *
+     * @throws WlasnejTresciNiePrzywracasz gdy rozpatrujący jest autorem uwagi
+     */
+    private function przywrocWskazowke(User $moderator, ModerationAction $decyzja, string $uzasadnienie, ?string $ip): void
+    {
+        $wskazowka = RecipeHint::zablokujDoDecyzji((string) $decyzja->target_id);
+
+        if ($wskazowka === null) {
+            return;
+        }
+
+        if ($wskazowka->cook_id === $moderator->getKey()) {
+            throw new WlasnejTresciNiePrzywracasz;
+        }
+
+        if (! $wskazowka->zdejmijUkrycieModeracji()) {
+            return;
+        }
+
+        $przywrocenie = ModerationAction::create([
+            'moderator_id' => $moderator->getKey(),
+            'report_id' => null,
+            'target_type' => 'recipe_hint',
+            'target_id' => $wskazowka->getKey(),
+            'subject_user_id' => $wskazowka->cook_id,
+            'action' => ModerationAction::ACTION_UNHIDE,
+            'previous_status' => null,
+            'reason_code' => 'appeal_overturned',
+            'note' => 'Cofnięte po odwołaniu.',
+            'user_message' => $uzasadnienie,
+        ]);
+
+        AuditLogEntry::record(
+            action: 'moderation.restored',
+            actor: $moderator,
+            subject: $przywrocenie,
+            metadata: [
+                'target_type' => 'recipe_hint',
+                'target_id' => (string) $wskazowka->getKey(),
+            ],
+            ip: $ip,
+        );
     }
 
     /**

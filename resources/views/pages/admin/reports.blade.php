@@ -109,6 +109,30 @@
                     @endif
                 </p>
             @endif
+            {{-- Zgłoszona WSKAZÓWKA od gotujących (#2352): kolejka pokazuje samo UUID,
+                 więc moderator czyta tu uwagę, o którą chodzi, i dostaje odnośnik do
+                 sekcji przy przepisie. „Ukryj treść” zdejmuje samą wskazówkę z tej
+                 sekcji, a wykonanie z uwagą zostaje — i mówi to napis. --}}
+            @if($report->target_type === 'recipe_hint')
+                @php($wskazowkaZgloszenia = (($wskazowki ?? [])[$report->target_id] ?? null))
+                @if($wskazowkaZgloszenia)
+                    <p class="meta">
+                        Zgłoszona jest <strong>wskazówka od gotujących</strong> przy przepisie
+                        „{{ $wskazowkaZgloszenia['tytul'] }}” (<a href="{{ $wskazowkaZgloszenia['adres'] }}">zobacz sekcję przy przepisie</a>),
+                        napisana przez {{ $wskazowkaZgloszenia['kucharz'] }}:
+                    </p>
+                    <blockquote class="wskazowka-cytat tekst-jak-napisano">{{ $wskazowkaZgloszenia['tekst'] }}</blockquote>
+                    <p class="meta">
+                        @if($wskazowkaZgloszenia['pokazywana'])
+                            „Ukryj treść” zdejmie tę jedną wskazówkę ze strony przepisu. Wykonanie, z którego pochodzi uwaga, zostaje nietknięte.
+                        @else
+                            Ta wskazówka nie stoi już przy przepisie (ukryta albo kucharz wycofał zgodę).
+                        @endif
+                    </p>
+                @else
+                    <p class="meta">Zgłoszona jest wskazówka od gotujących, której już nie ma.</p>
+                @endif
+            @endif
             <p class="meta">
                 {{ $report->target_type }}@if($report->target_id) · {{ $report->target_id }}@endif ·
                 zgłoszone {{ \App\Support\Czas::data($report->created_at, 'j F Y, H:i') }}

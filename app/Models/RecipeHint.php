@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use LogicException;
 
 /**
  * „Wskazówka od gotujących” (#2352, D-333, decyzja właściciela z 1.10.2026).
@@ -20,10 +21,16 @@ use Illuminate\Support\Carbon;
  * tu kopiowany — wskazówka to `cooked_events.note` (patrz migracja).
  *
  * `$fillable` jest PUSTE i ma takie zostać: stan (`status`), klucze osób
- * (`author_id`, `cook_id`), klucze treści i znaczniki decyzji ustawiają
+ * (`author_id`, `cook_id`), klucze treści, znaczniki decyzji i ukrycie przez
+ * moderację (`moderation_hidden_at`) ustawiają
  * wyłącznie akcje domenowe (`App\Domain\Wskazowki`), jawnym przypisaniem —
  * nigdy żądanie (AGENTS.md §7: pola sterujące i klucze właściciela poza
  * `$fillable`). Przejścia stanu to nazwane metody niżej, nie `update()`.
+ *
+ * Kolumnę `moderation_hidden_at` dodaje migracja surowym SQL-em, którego
+ * Larastan nie odczyta.
+ *
+ * @property Carbon|null $moderation_hidden_at
  */
 class RecipeHint extends Model
 {
@@ -59,6 +66,7 @@ class RecipeHint extends Model
             'recipe_version_number' => 'integer',
             'decided_at' => 'datetime',
             'withdrawn_at' => 'datetime',
+            'moderation_hidden_at' => 'datetime',
         ];
     }
 
@@ -127,6 +135,82 @@ class RecipeHint extends Model
         return $this->status === self::STATUS_ACCEPTED;
     }
 
+    /** Moderacja zdjęła tę wskazówkę z sekcji przy przepisie (zgoda kucharza zostaje, jaka była). */
+    public function jestUkrytaPrzezModeracje(): bool
+    {
+        return $this->moderation_hidden_at !== null;
+    }
+
+    /**
+     * Czy wskazówka stoi dziś przy przepisie: kucharz się zgodził, nie wycofał
+     * zgody i moderacja jej nie ukryła. Jedno źródło dla strony przepisu,
+     * Policy zgłoszenia i decyzji moderacyjnych.
+     */
+    public function jestPokazywana(): bool
+    {
+        return $this->jestPrzyjeta() && ! $this->jestUkrytaPrzezModeracje();
+    }
+
+    /**
+     * Ukrycie przez moderację (decyzja `hide`, #2352): znika SAMA wskazówka,
+     * wykonanie z uwagą zostaje nietknięte. Wołają je wyłącznie decyzje
+     * moderacyjne, pod blokadą wiersza (`zablokujDoDecyzji()`); o tym, KTO
+     * wolno, decyduje panel moderacji, nie ta metoda.
+     */
+    public function ukryjPrzezModeracje(): void
+    {
+        if (! $this->jestPokazywana()) {
+            throw new LogicException('Ukryć można tylko wskazówkę, która stoi przy przepisie.');
+        }
+
+        $this->moderation_hidden_at = now();
+        $this->save();
+    }
+
+    /**
+     * Zdjęcie ukrycia po uznanym odwołaniu. Zgoda kucharza nie jest tu
+     * ruszana: jeśli w międzyczasie wycofał zgodę, wskazówka zostaje
+     * wycofana, a znika tylko ślad moderacji.
+     *
+     * @return bool czy było co zdejmować
+     */
+    public function zdejmijUkrycieModeracji(): bool
+    {
+        if ($this->moderation_hidden_at === null) {
+            return false;
+        }
+
+        $this->moderation_hidden_at = null;
+        $this->save();
+
+        return true;
+    }
+
+    /**
+     * Wskazówka pod blokadą do decyzji moderacyjnej. Kolejność zamków jak w
+     * akcjach kucharza i autora (`ZamekPary`): oba konta rosnąco po `id`, potem
+     * wiersz wskazówki — odwrotna kolejność zakleszczałaby się z „Wycofaj
+     * zgodę” (konta, potem wskazówka). Zwraca świeży model z relacjami
+     * potrzebnymi decyzji (kucharz, przepis) albo `null`, gdy wskazówki już nie ma.
+     */
+    public static function zablokujDoDecyzji(string $id): ?self
+    {
+        $wstepna = self::query()->whereKey($id)->first(['id', 'cook_id', 'author_id']);
+
+        if ($wstepna === null) {
+            return null;
+        }
+
+        $konta = array_values(array_unique([(string) $wstepna->cook_id, (string) $wstepna->author_id]));
+        sort($konta, SORT_STRING);
+
+        foreach ($konta as $kontoId) {
+            User::query()->whereKey($kontoId)->lockForUpdate()->first(['id']);
+        }
+
+        return self::query()->whereKey($id)->with(['cook', 'recipe', 'cookedEvent'])->lockForUpdate()->first();
+    }
+
     /**
      * Przejścia stanu. Wołają je wyłącznie akcje domenowe, pod blokadą
      * wiersza — metoda sama niczego nie sprawdza poza własnym stanem
@@ -187,15 +271,18 @@ class RecipeHint extends Model
     }
 
     /**
-     * Przyjęte wskazówki jednego przepisu — kolejność po dacie zgody, bez
+     * Przyjęte i nieukryte wskazówki jednego przepisu — kolejność po dacie zgody, bez
      * rankingu (AGENTS.md §8, §12). `id` rozstrzyga remisy sekundy.
      *
      * @param  Builder<RecipeHint>  $query
      */
     public function scopePrzyjeteDlaPrzepisu(Builder $query, Recipe $recipe): void
     {
+        // Ukryta przez moderację (`moderation_hidden_at`) wypada z sekcji,
+        // choć kucharz dalej jest zgodny — zob. `jestPokazywana()`.
         $query->where('recipe_hints.recipe_id', $recipe->getKey())
             ->where('recipe_hints.status', self::STATUS_ACCEPTED)
+            ->whereNull('recipe_hints.moderation_hidden_at')
             ->orderBy('recipe_hints.decided_at')
             ->orderBy('recipe_hints.id');
     }

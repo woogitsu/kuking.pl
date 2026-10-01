@@ -57,6 +57,21 @@
                 <p class="meta m-0">Tej prośby nie da się teraz przyjąć. Możesz odpowiedzieć „Nie” albo zostawić ją bez odpowiedzi.</p>
             @endcannot
             <p class="meta m-0">Odpowiedź „Nie” jest ostateczna i nie wysyła nikomu wiadomości.</p>
+        @elseif($wskazowka->jestPrzyjeta() && $wskazowka->jestUkrytaPrzezModeracje())
+            {{-- Moderacja zdjęła samą wskazówkę (#2352). Uwaga i wykonanie zostają;
+                 decyzję z uzasadnieniem i odnośnikiem do odwołania kucharz dostał
+                 w powiadomieniu. Zgodę nadal może wycofać. --}}
+            <h2 id="wskazowka-naglowek" class="m-0">Ta wskazówka została ukryta przez moderację</h2>
+            <p class="m-0">
+                Nie widać jej już przy przepisie, ale Twoja uwaga i to wykonanie zostały bez zmian.
+                Uzasadnienie i możliwość odwołania znajdziesz w powiadomieniu o decyzji.
+                Zgodę możesz wycofać w każdej chwili.
+            </p>
+            <x-confirm-button
+                :action="route('hints.withdraw', $wskazowka)"
+                method="POST"
+                label="Wycofaj zgodę"
+                question="Wycofać zgodę? Autor nie będzie mógł poprosić o tę uwagę drugi raz." />
         @elseif($wskazowka->jestPrzyjeta())
             <h2 id="wskazowka-naglowek" class="m-0">Ta uwaga jest wskazówką przy przepisie</h2>
             <p class="m-0">
@@ -106,7 +121,7 @@
                 label="Anuluj prośbę"
                 question="Anulować prośbę? Osoba, która ugotowała, nie dostanie o tym wiadomości, a o to samo wykonanie nie będzie można poprosić drugi raz." />
         </section>
-    @elseif($wskazowka->jestPrzyjeta())
+    @elseif($wskazowka->jestPokazywana())
         <section id="wskazowka-autor" class="card stack" aria-labelledby="wskazowka-autor-naglowek">
             <h2 id="wskazowka-autor-naglowek" class="m-0">Wskazówka przy Twoim przepisie</h2>
             <p class="m-0">Ta uwaga stoi przy przepisie jako wskazówka. Osoba, która ugotowała, może to w każdej chwili wycofać.</p>
@@ -117,7 +132,8 @@
             <p class="m-0">Ta prośba została anulowana. O to samo wykonanie nie można poprosić drugi raz.</p>
         </section>
     @else
-        {{-- „Nie”, wycofana zgoda i wygasła prośba wyglądają tu tak samo. --}}
+        {{-- „Nie”, wycofana zgoda, wygasła prośba i wskazówka ukryta przez moderację
+             (#2352) wyglądają tu tak samo — autor nie dowiaduje się, która to była. --}}
         <section id="wskazowka-autor" class="card stack" aria-labelledby="wskazowka-autor-naglowek">
             <h2 id="wskazowka-autor-naglowek" class="m-0">Wskazówka przy Twoim przepisie</h2>
             <p class="m-0">Ta uwaga nie jest dostępna jako wskazówka.</p>

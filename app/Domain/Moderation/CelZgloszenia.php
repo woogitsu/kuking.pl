@@ -9,6 +9,7 @@ use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\RecipeHint;
 use App\Models\RecipeVersion;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -61,6 +62,7 @@ final readonly class CelZgloszenia
             $target instanceof Post => self::nazwaWpisu($target),
             $target instanceof Collection => self::nazwaZeszytu($target),
             $target instanceof RecipeVersion => self::nazwaWersji($target),
+            $target instanceof RecipeHint => self::nazwaWskazowki($target),
             default => 'treść',
         };
     }
@@ -75,6 +77,8 @@ final readonly class CelZgloszenia
             $target instanceof User => self::fragmentProfilu($target),
             // Opis zeszytu to tekst właściciela, który widzą wszyscy (#2279).
             $target instanceof Collection => $target->description,
+            // Tekstem wskazówki jest uwaga z wykonania (#2352).
+            $target instanceof RecipeHint => $target->cookedEvent !== null ? self::fragmentUgotowania($target->cookedEvent) : null,
             default => null,
         };
     }
@@ -256,6 +260,16 @@ final readonly class CelZgloszenia
         return $tytul !== ''
             ? "wersja {$wersja->version_number} przepisu «{$tytul}» (historia zmian)"
             : "wersja {$wersja->version_number} przepisu (historia zmian)";
+    }
+
+    /** Wskazówka od gotujących (#2352): nazwa wskazuje przepis, cytat pochodzi z uwagi. */
+    private static function nazwaWskazowki(RecipeHint $wskazowka): string
+    {
+        $tytul = trim((string) $wskazowka->recipe?->title);
+
+        return $tytul !== ''
+            ? "wskazówka od gotujących przy przepisie «{$tytul}»"
+            : 'wskazówka od gotujących';
     }
 
     private static function nazwaZeszytu(Collection $zeszyt): string
