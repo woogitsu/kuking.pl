@@ -32,6 +32,12 @@
             <input type="hidden" name="klucz_wyslania" value="{{ $kluczWyslania }}">
         @endif
 
+        {{-- Wersja przepisu otwarta przy tym formularzu (#2378). Zwykłe ukryte
+             pole, bez JavaScriptu. Serwer sprawdza, że należy do tego przepisu. --}}
+        @if(($wersjaPrzepisu ?? null) !== null)
+            <input type="hidden" name="wersja_przepisu" value="{{ $wersjaPrzepisu }}">
+        @endif
+
         {{-- KTO TO ZOBACZY — PRZED PIERWSZYM POLEM, NIE DOPIERO PRZY „WYŚLIJ" (#2071).
 
              Wykonanie nie ma własnej widoczności: `CookedEventPolicy::view()`

@@ -72,6 +72,8 @@ class PustyStanPowiadomienTest extends TestCase
             'TYPE_COOKED' => $przepisyIWpisy,
             'TYPE_COMMENT' => $przepisyIWpisy,
             'TYPE_REPLY' => $przepisyIWpisy,
+            // „Dziękuję” pod komentarzem (#2355) — rozmowa pod treściami; to samo zdanie co komentarz i odpowiedź.
+            'TYPE_COMMENT_THANKED' => $przepisyIWpisy,
             'TYPE_SAVED' => $przepisyIWpisy,
             'TYPE_FORKED' => $przepisyIWpisy,
             // Prośba o zgodę na wskazówkę przy przepisie (#2352, D-333).

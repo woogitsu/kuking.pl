@@ -167,7 +167,7 @@ final class CelPowiadomienia
                 : null,
             // ISSUE #759: komentarz/odpowiedź, nie tylko "gdzieś na tej treści".
             // Patrz `adresKomentarza()` niżej.
-            Notification::TYPE_COMMENT, Notification::TYPE_REPLY => $this->adresKomentarza($powiadomienie, $data),
+            Notification::TYPE_COMMENT, Notification::TYPE_REPLY, Notification::TYPE_COMMENT_THANKED => $this->adresKomentarza($powiadomienie, $data),
             default => is_string($data['url'] ?? null) && $data['url'] !== '' ? $data['url'] : null,
         };
     }

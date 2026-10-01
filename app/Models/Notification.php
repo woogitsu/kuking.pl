@@ -44,8 +44,20 @@ class Notification extends Model
     /** Ile znaków komentarza niesie powiadomienie (issue #758, D-229). */
     public const DLUGOSC_WYCINKA_KOMENTARZA = 120;
 
-    /** Typy, których wycinek JEST treścią komentarza — i tylko te. */
-    public const TYPY_Z_WYCINKIEM_KOMENTARZA = [self::TYPE_COMMENT, self::TYPE_REPLY];
+    /**
+     * „Dziękuję" pod komentarzem (issue #2355, F11). Odbiorcą jest AUTOR
+     * komentarza, sprawcą — autor treści, pod którą komentarz stoi.
+     * `data.comment_id` wskazuje podziękowany komentarz; wycinek jego treści
+     * liczy się żywo jak przy `comment.created` (#758, D-229).
+     */
+    public const TYPE_COMMENT_THANKED = 'comment.thanked';
+
+    /**
+     * Typy, których wycinek JEST treścią komentarza — i tylko te.
+     * `data.comment_id` każdego z nich wskazuje komentarz odbiorcy lub
+     * komentarz pod jego treścią; adres „Zobacz" liczy się dla wszystkich tak samo.
+     */
+    public const TYPY_Z_WYCINKIEM_KOMENTARZA = [self::TYPE_COMMENT, self::TYPE_REPLY, self::TYPE_COMMENT_THANKED];
 
     public const TYPE_FOLLOW = 'follow.created';
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Actions;
 
+use App\Domain\Users\DawneNazwyProfilu;
 use App\Domain\Users\ObserwowanieGospodarza;
 use App\Domain\Zgody\ZapiszAkceptacjeRegulaminu;
 use App\Exceptions\BladDlaCzlowieka;
@@ -170,6 +171,10 @@ final class ZalozKonto
                 'username' => $username,
                 'display_name' => $displayName,
             ]);
+
+            // Żywa nazwa przebija dawną: czyjeś przekierowanie z tej nazwy
+            // znika (`DawneNazwyProfilu`).
+            (new DawneNazwyProfilu)->zajmij($user, $username);
 
             Notification::create([
                 'user_id' => $user->getKey(),

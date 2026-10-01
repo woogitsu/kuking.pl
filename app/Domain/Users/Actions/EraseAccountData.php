@@ -8,6 +8,7 @@ use App\Domain\Compliance\DziennikWymazan;
 use App\Domain\Compliance\DziennikWymazanNiedostepny;
 use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
+use App\Domain\Users\DawneNazwyProfilu;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Users\Import\MagazynPaczek;
 use App\Domain\Users\KoniecWspolnychZeszytow;
@@ -15,6 +16,8 @@ use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Domain\Zgody\PrzestawZgodeNaZyczeniaMailem;
 use App\Models\AuditLogEntry;
+use App\Models\Comment;
+use App\Models\CommentThank;
 use App\Models\ContactMessage;
 use App\Models\DataExport;
 use App\Models\FacebookConnectionProof;
@@ -366,6 +369,21 @@ final class EraseAccountData
             PostReaction::query()->where('user_id', $fresh->getKey())->delete();
 
             /*
+             * „DZIĘKUJĘ” POD KOMENTARZEM (`comment_thanks`, #2355) ZNIKA RAZEM
+             * Z KONTEM, W OBU KIERUNKACH. Podziękowania NAPISANE przez to konto
+             * (`thanker_id`) i podziękowania za JEGO komentarze (komentarze
+             * wymazywanego konta bywają tylko miękko usuniete albo zostają pod
+             * podpisem "Użytkownik usunięty" - D-022 - a kaskada klucza obcego
+             * przy anonimizacji nie zadziała). Bez tego wiersz łączyłby
+             * nieistniejącą osobe z cudzą treścią. Dwie egzekucje różnych kont
+             * nie maja wspólnego wiersza (D-093).
+             */
+            CommentThank::query()
+                ->where('thanker_id', $fresh->getKey())
+                ->orWhereIn('comment_id', Comment::withTrashed()->where('author_id', $fresh->getKey())->select('id'))
+                ->delete();
+
+            /*
              * DRUGI SKŁADNIK LOGOWANIA ZNIKA RAZEM Z KONTEM (G05).
              *
              * Sekret i kody zapasowe leżą pod castem `encrypted`, więc to
@@ -529,6 +547,10 @@ final class EraseAccountData
                     'sqlstate' => $awaria instanceof QueryException ? (string) $awaria->getCode() : null,
                 ]);
             }
+
+            // Dawne nazwy profilu to dane osobowe (RODO art. 17) i kluczyk
+            // do nowej nazwy — znikają razem z nazwą (`DawneNazwyProfilu`).
+            (new DawneNazwyProfilu)->usunDlaOsoby($fresh);
 
             if ($profile !== null) {
                 $profile->forceFill([

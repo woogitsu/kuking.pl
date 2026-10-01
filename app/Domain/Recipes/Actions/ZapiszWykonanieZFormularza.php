@@ -32,6 +32,7 @@ final class ZapiszWykonanieZFormularza
         array $mediaIds,
         ?string $ip,
         ?string $kluczWyslania,
+        ?string $wersjaPrzepisuId = null,
     ): CookedEvent {
         // „Zrobisz to jeszcze raz?" ma TRZY stany, nie dwa (audyt A22).
         //
@@ -64,6 +65,7 @@ final class ZapiszWykonanieZFormularza
             changesNote: $dane['changes_note'] ?? null,
             ip: $ip,
             kluczWyslania: $kluczWyslania,
+            wersjaPrzepisuId: $wersjaPrzepisuId,
         );
     }
 }

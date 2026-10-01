@@ -133,7 +133,11 @@ export async function sprawdzKompozycje({ browser, adres, sesja, przepis, bezZdj
     ['marka-profil.css', '.marka-profil-kompozycja { max-width: 720px !important; }', '/@ania', 'K509_PROFIL_PAS', true],
     ['marka-profil.css', '.marka-profil-statystyki .profil-liczby-karta { grid-template-columns: 1fr !important; }', '/@ania', 'K509_PROFIL_PAS', true],
     ['marka-przepis.css', '.marka-przepis .przepis-akcje .btn { width: 100% !important; }', przepis, 'K509_PRZEPIS_AKCJE', true],
-    ['marka-rama.css', '[data-marka] .wordmark > span[aria-hidden] { display: inline !important; }', '/login', 'K509_OVERFLOW', false, 390, 'font-200+140'],
+    // Napis logotypu ma dwa zabezpieczenia przed wypchnięciem strony: ukryty
+    // fragment przy skali 125/140 i rozmiar `min(…, 10vw)` (tekst 200% przy
+    // 320 px). Mutacja zdejmuje oba naraz — samo pokazanie fragmentu przy
+    // `10vw` już się mieści, więc nie dowodziłoby niczego.
+    ['marka-rama.css', '[data-marka] .wordmark > span[aria-hidden] { display: inline !important; } [data-marka] .wordmark { font-size: calc(1.75rem * var(--user-text-scale, 1)) !important; }', '/login', 'K509_OVERFLOW', false, 390, 'font-200+140'],
   ]) {
     const wariant = { dark: false, scale, zalogowany: logged };
     const newPage = async context => {

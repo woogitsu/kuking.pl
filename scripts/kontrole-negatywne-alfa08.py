@@ -1354,7 +1354,12 @@ checks = [
     # Audyt B1, zn. 9: nieistniejąca zmienna koloru ma zapalić strażnika.
     ("Kolor z niezdefiniowanej zmiennej", "resources/css/tagi-w-opisie.css", "UzyteZmienneKolorowIstniejaTest",
      lambda s: replace_once(s, "color: var(--color-ink);", "color: var(--color-text);")),
+    # #492: ciemne powierzchnie ramy marki biorą tokeny, nie gołe kolory.
+    ("Rama marki z zaszytym kolorem", "resources/css/marka-rama.css", "RamaMarkiNieZaszywaKolorowTest",
+     lambda s: replace_once(s, ".composer-help { color: var(--marka-ciemny-tekst-cichy); }", ".composer-help { color: #CBD0C6; }")),
     # Audyt B1, zn. 8: sztywny rem zamiast tokenu ignoruje skalę tekstu.
+    ("Bramka R2 każe sprawdzać Sentry (#2382)", "docs/infra/BRAMKA_R2.md", "BramkaR2NieKierujeDoSentryTest",
+     lambda s: replace_once(s, "nie jest wdrożony", "jest wdrożony")),
     ("Linki sąsiednich wpisów bez skali tekstu", "resources/css/wpis-nawigacja-sasiedzi.css", "TekstyZAudytuB9MowiaPrawdeTest",
      lambda s: replace_once(s, "font-size: var(--text-body);", "font-size: 1.125rem;")),
     ("Cofnięcie CHECK-a kontaktu bez odmowy przy sierotach", KONTAKT_MIGRACJA, KONTAKT_MIGRACJA_TEST,
@@ -1976,7 +1981,7 @@ checks = [
      lambda s: s + DZIENNIK_MARTWE_ODWOLANIE),
     ("Roboczy identyfikator w AGENTS.md", "AGENTS.md", DZIENNIK_ODWOLANIA_TEST,
      lambda s: s + DZIENNIK_ROBOCZY_NUMER),
-    ("Roboczy nagłówek w dzienniku decyzji", "docs/DECISIONS.md", DZIENNIK_ODWOLANIA_TEST,
+    ("Roboczy nagłówek w dzienniku decyzji", "docs/decyzje/D-001-modularny-monolit-laravel-bez-mikroserwisow.md", DZIENNIK_ODWOLANIA_TEST,
      lambda s: s + DZIENNIK_ROBOCZY_NAGLOWEK),
     ("Strażnik dziennika ślepy na dopisek ROBOCZA", DZIENNIK_ODWOLANIA_PLIK_TESTU, DZIENNIK_ODWOLANIA_TEST,
      lambda s: replace_once(s, r"'/\bD-\d+-(?:ROBOCZ\w*|TYMCZAS\w*|TMP|DRAFT|WIP|TODO)\b/iu'", "'/(*FAIL)/'")),

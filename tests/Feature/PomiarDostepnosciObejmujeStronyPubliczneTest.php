@@ -48,6 +48,7 @@ class PomiarDostepnosciObejmujeStronyPubliczneTest extends TestCase
         'up' => 'punkt kontrolny frameworka — nie ma interfejsu',
         'robots.txt' => 'plik tekstowy dla robotów',
         'sitemap.xml' => 'plik XML dla robotów',
+        'gotuj-kilka' => 'mierzona w `EKRANY` przez `znajdz: \'kolejka\'` — adres niesie przepis w `?p=`, pusty adres pokazałby pustą kolejkę (#2379)',
         'napisz-do-nas/dziekujemy' => 'ekran potwierdzenia — bez wysłanego formularza nie ma czego pokazać, a pusty ekran przechodzi każdy audyt',
         'zglos-nielegalna-tresc/przyjete' => 'ekran potwierdzenia — jak wyżej',
         /*

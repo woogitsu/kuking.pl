@@ -3,6 +3,15 @@
 [data-marka] {
   --marka-promien: 26px;
   --marka-cien: 0 12px 36px rgb(21 23 20 / 7%);
+  /* Ciemne powierzchnie marki (blok publikacji, wstęp tablicy, kafel
+     „Ugotowałem", kółko dolnej nawigacji) są ciemne w OBU motywach — dlatego
+     nie biorą `--color-surface`, które w jasnym motywie jest jasne. Wartości
+     te same co dotąd; tu mają jedno miejsce zamiast ośmiu zaszytych w regułach. */
+  --marka-ciemny-tlo: #151714;
+  --marka-ciemny-tekst-cichy: #CBD0C6;
+  --marka-ciemny-akcent: #FF9586;
+  --marka-ciemny-przycisk: #262924;
+  --marka-ciemny-ramka: #737A70;
   background-image: radial-gradient(ellipse at 10% 10%, rgb(190 48 37 / 4%), transparent 35%);
 }
 [data-marka] .marka-topbar {
@@ -25,7 +34,12 @@
   padding: calc(10px * var(--user-layout-scale, 1)) calc(20px * var(--user-layout-scale, 1));
   gap: calc(12px * var(--user-layout-scale, 1)) calc(20px * var(--user-layout-scale, 1));
 }
-[data-marka] .wordmark { font-size: calc(1.75rem * var(--user-text-scale, 1)); letter-spacing: -.055em; }
+/* Napis nie rośnie ponad ~10% szerokości okna: przy tekście 200% (korzeń
+   32 px) `1.75rem` to 56 px, a „KuKing.pl" jest nierozdzielnym słowem, więc
+   samo `min-width: 0` nie wystarcza — pasek wypychał stronę do 339 px w oknie
+   320 px. Przy zwykłej czcionce i na szerszych oknach działa pierwszy
+   argument `min()`, czyli nic się nie zmienia. */
+[data-marka] .wordmark { font-size: min(calc(1.75rem * var(--user-text-scale, 1)), 10vw); letter-spacing: -.055em; }
 [data-marka] .wordmark .kuking-mark { width: 48px; height: 48px; }
 /* Łączne powiększenie fontu przeglądarki i tekstu konta: poszerzamy
    istniejący wariant samego garnka, zachowując nazwę dostępną odnośnika. */
@@ -88,8 +102,8 @@
   isolation: isolate;
   overflow: hidden;
   border-radius: var(--marka-promien);
-  background: #151714;
-  color: #fff;
+  background: var(--marka-ciemny-tlo);
+  color: var(--color-ink-inverse);
   padding: calc(28px * var(--user-layout-scale, 1));
   margin-bottom: calc(28px * var(--user-layout-scale, 1));
   box-shadow: var(--marka-cien);
@@ -111,13 +125,13 @@
   border: 0;
   border-radius: 12px;
   box-shadow: none;
-  color: #fff;
+  color: var(--color-ink-inverse);
   padding: 0;
   margin: 0 0 calc(24px * var(--user-layout-scale, 1));
   min-width: 0;
 }
-[data-marka] .marka-publikacja .composer-title { color: #fff; font-size: calc(1.75rem * var(--user-text-scale, 1)); line-height: 1.2; letter-spacing: -.035em; }
-[data-marka] .marka-publikacja .composer-help { color: #CBD0C6; }
+[data-marka] .marka-publikacja .composer-title { color: var(--color-ink-inverse); font-size: calc(1.75rem * var(--user-text-scale, 1)); line-height: 1.2; letter-spacing: -.035em; }
+[data-marka] .marka-publikacja .composer-help { color: var(--marka-ciemny-tekst-cichy); }
 [data-marka] .marka-publikacja-akcje {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -125,7 +139,7 @@
   max-width: 500px;
 }
 [data-marka] .marka-publikacja-akcje .btn { width: 100%; min-width: 0; white-space: normal; }
-[data-marka] .marka-publikacja-akcje .btn-secondary { background: #262924; border: 1px solid #737A70; }
+[data-marka] .marka-publikacja-akcje .btn-secondary { background: var(--marka-ciemny-przycisk); border: 1px solid var(--marka-ciemny-ramka); }
 [data-marka] .feed-tabs { padding: calc(6px * var(--user-layout-scale, 1)); gap: calc(6px * var(--user-layout-scale, 1)); border: 0; border-radius: 16px; background: var(--color-surface-sunken); }
 [data-marka] .feed-tabs .tab { border: 0; border-radius: 12px; padding: calc(12px * var(--user-layout-scale, 1)) calc(16px * var(--user-layout-scale, 1)); }
 [data-marka] .feed-tabs .tab[aria-current="page"] { background: var(--color-surface-raised); color: var(--color-brand); box-shadow: 0 2px 8px rgb(21 23 20 / 5%); }
@@ -221,7 +235,7 @@
   hyphens: none;
 }
 [data-marka] .bottom-nav-item[aria-current="page"] { box-shadow: none; font-weight: 800; }
-[data-marka] .bottom-nav-kolko { background: #151714; color: #fff; width: 48px; height: 48px; margin: 0; }
+[data-marka] .bottom-nav-kolko { background: var(--marka-ciemny-tlo); color: var(--color-ink-inverse); width: 48px; height: 48px; margin: 0; }
 @media (min-width: 48rem) {
   [data-marka] .marka-publikacja-akcje { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   [data-marka] .marka-start-kroki { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -363,11 +377,11 @@
 [data-marka] .start-feed-wybor .tab { padding: calc(8px * var(--user-layout-scale, 1)) calc(12px * var(--user-layout-scale, 1)); min-height: 48px; color: var(--color-ink-muted); }
 [data-marka] .start-feed-wybor .tab[aria-current="page"] { background: transparent; box-shadow: none; color: var(--color-ink); text-decoration: underline; text-underline-offset: 6px; }
 [data-marka] .marka-tablica { padding: 0; background: transparent; border: 0; }
-[data-marka] .marka-tablica-wstep { background: #151714; color: #fff; padding: calc(24px * var(--user-layout-scale, 1)); border-radius: 24px; margin-bottom: calc(16px * var(--user-layout-scale, 1)); }
-[data-marka] .marka-tablica-wstep .nadtytul { color: #FF9586; font-size: var(--text-help); text-transform: uppercase; letter-spacing: .08em; font-weight: 800; margin-bottom: calc(8px * var(--user-layout-scale, 1)); }
-[data-marka] .marka-tablica-wstep h2 { color: #fff; font-size: calc(1.5rem * var(--user-text-scale, 1)); line-height: 1.2; letter-spacing: -.035em; margin-bottom: calc(18px * var(--user-layout-scale, 1)); }
+[data-marka] .marka-tablica-wstep { background: var(--marka-ciemny-tlo); color: var(--color-ink-inverse); padding: calc(24px * var(--user-layout-scale, 1)); border-radius: 24px; margin-bottom: calc(16px * var(--user-layout-scale, 1)); }
+[data-marka] .marka-tablica-wstep .nadtytul { color: var(--marka-ciemny-akcent); font-size: var(--text-help); text-transform: uppercase; letter-spacing: .08em; font-weight: 800; margin-bottom: calc(8px * var(--user-layout-scale, 1)); }
+[data-marka] .marka-tablica-wstep h2 { color: var(--color-ink-inverse); font-size: calc(1.5rem * var(--user-text-scale, 1)); line-height: 1.2; letter-spacing: -.035em; margin-bottom: calc(18px * var(--user-layout-scale, 1)); }
 [data-marka] .marka-tablica-wstep p:not(.nadtytul) { font-size: var(--text-body); line-height: 1.65; margin-bottom: calc(8px * var(--user-layout-scale, 1)); }
-[data-marka] .marka-tablica-wstep a { display: inline-flex; align-items: center; min-height: 48px; color: #fff; font-weight: 800; }
+[data-marka] .marka-tablica-wstep a { display: inline-flex; align-items: center; min-height: 48px; color: var(--color-ink-inverse); font-weight: 800; }
 [data-marka] .marka-tablica .kuking-board-kolumna { padding: calc(24px * var(--user-layout-scale, 1)); border-radius: 26px; background: var(--color-surface-raised); box-shadow: var(--marka-cien); min-width: 0; }
 [data-marka] .marka-tablica .kuking-board-kolumny { gap: calc(16px * var(--user-layout-scale, 1)); }
 [data-marka] .marka-tablica-naglowek { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: calc(8px * var(--user-layout-scale, 1)); }
@@ -396,12 +410,12 @@
 [data-marka] .landing-wykonanie-tekst > a { display: inline-flex; align-items: center; min-height: 48px; font-size: var(--text-body); font-weight: 700; overflow-wrap: anywhere; }
 [data-marka] .landing-kroki a { margin-top: auto; }
 [data-marka] .landing-wykonanie { padding-top: calc(32px * var(--user-layout-scale, 1)); }
-[data-marka] .landing-wykonanie-karta { display: grid; grid-template-columns: minmax(0, 1fr); border-radius: 30px; background: #151714; color: #fff; }
+[data-marka] .landing-wykonanie-karta { display: grid; grid-template-columns: minmax(0, 1fr); border-radius: 30px; background: var(--marka-ciemny-tlo); color: var(--color-ink-inverse); }
 [data-marka] .landing-wykonanie-tekst { min-width: 0; padding: calc(28px * var(--user-layout-scale, 1)); }
-[data-marka] .landing-wykonanie .nadtytul { color: #FF9586; }
-[data-marka] .landing-wykonanie h2 { color: #fff; margin: calc(28px * var(--user-layout-scale, 1)) 0; }
-[data-marka] .landing-wykonanie-tekst > p:not(.nadtytul) { font-size: var(--text-body); line-height: 1.65; color: #fff; }
-[data-marka] .landing-wykonanie-tekst > a { color: #fff; }
+[data-marka] .landing-wykonanie .nadtytul { color: var(--marka-ciemny-akcent); }
+[data-marka] .landing-wykonanie h2 { color: var(--color-ink-inverse); margin: calc(28px * var(--user-layout-scale, 1)) 0; }
+[data-marka] .landing-wykonanie-tekst > p:not(.nadtytul) { font-size: var(--text-body); line-height: 1.65; color: var(--color-ink-inverse); }
+[data-marka] .landing-wykonanie-tekst > a { color: var(--color-ink-inverse); }
 [data-marka] .landing-wykonanie-zdjecie { min-width: 0; margin: 0; display: flex; flex-direction: column; }
 [data-marka] .landing-wykonanie-zdjecie img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; }
 [data-marka] .landing-wykonanie-zdjecie figcaption { font-size: var(--text-body); line-height: 1.5; padding: calc(16px * var(--user-layout-scale, 1)) calc(24px * var(--user-layout-scale, 1)); overflow-wrap: anywhere; }
