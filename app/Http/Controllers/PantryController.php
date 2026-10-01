@@ -36,6 +36,9 @@ class PantryController extends Controller
     /** Klucz w sesji: sygnał `pantry_priority_viewed` leci najwyżej raz na sesję. */
     private const SESJA_PRIORYTET_WIDZIANY = 'pantry_priority_widziany';
 
+    /** Klucz w sesji: sygnał `pantry_cook_priority_viewed` też leci najwyżej raz na sesję. */
+    private const SESJA_DOBOR_PRIORYTET_WIDZIANY = 'pantry_cook_priority_widziany';
+
     public function index(Request $request, ZapiszSygnal $sygnaly): View
     {
         /** @var User $user */
@@ -104,6 +107,14 @@ class PantryController extends Controller
             'szybkie' => ZmienTerminProduktu::SZYBKIE,
             'rodzaje' => PriorytetZuzycia::RODZAJE,
             'stan' => PriorytetZuzycia::opisStanu($produkt),
+            // Szybki przycisk bez rodzaju kończy się błędem; jego data wraca
+            // na listy, żeby wystarczyło zaznaczyć rodzaj.
+            'dataZPrzycisku' => $request->old('_formularz') === 'termin'
+                ? ZmienTerminProduktu::dataZaPrzyciskiem($request->old('za'))
+                : null,
+            'przyciskZPrzed' => $request->old('_formularz') === 'termin' && is_string($request->old('za'))
+                ? (ZmienTerminProduktu::SZYBKIE[$request->old('za')] ?? null)
+                : null,
         ]);
     }
 
@@ -210,8 +221,11 @@ class PantryController extends Controller
         $najpierwTermin = $request->query('najpierw') === 'termin';
         $wynik = $dobor->dla($user, $od, CoUgotuje::NA_STRONE, $najpierwTermin);
 
-        if ($najpierwTermin && $od === 0) {
+        if ($najpierwTermin && $od === 0 && ! $request->session()->has(self::SESJA_DOBOR_PRIORYTET_WIDZIANY)) {
             // Pomiar (#1903): ktoś otworzył przepisy w trybie „najpierw to, co się psuje”.
+            // RAZ NA SESJĘ, jak `pantry_priority_viewed`: odświeżenie strony
+            // nie nabija licznika (mierzymy osoby, nie wejścia).
+            $request->session()->put(self::SESJA_DOBOR_PRIORYTET_WIDZIANY, true);
             $sygnaly->handle(null, ZapiszSygnal::PANTRY_COOK_PRIORITY_VIEWED);
         }
 

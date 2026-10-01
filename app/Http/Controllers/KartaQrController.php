@@ -8,7 +8,10 @@ use App\Domain\Sharing\KartaZKodemQr;
 use App\Models\Profile;
 use App\Models\Recipe;
 use App\Support\KanonicznyAdresStrony;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 /**
@@ -28,9 +31,25 @@ class KartaQrController extends Controller
 {
     public function __construct(private readonly KartaZKodemQr $karta) {}
 
-    public function przepis(string $recipe): View
+    public function przepis(Request $request, string $recipe): View|RedirectResponse
     {
-        $przepis = Recipe::where('slug', $recipe)->with('author.profile')->firstOrFail();
+        $przepis = Recipe::where('slug', $recipe)->with('author.profile')->first();
+
+        // Stary adres przepisu działa też dla karty (jak `RecipeController::show`):
+        // 301 na aktualny slug. TA SAMA BRAMKA CO POD NOWYM ADRESEM, ale 404
+        // zamiast 403 — `Location` zawiera slug z tytułu, więc przepis
+        // niedostępny dla oglądającego albo nieoglądalny dla gościa (karta
+        // jest do rozdawania) nie może się zdradzić przekierowaniem.
+        if ($przepis === null) {
+            $przekierowanie = DB::table('recipe_slug_redirects')->where('slug', $recipe)->first();
+            abort_if($przekierowanie === null, 404);
+
+            $cel = Recipe::query()->with('author.profile')->findOrFail($przekierowanie->recipe_id);
+            abort_unless(Gate::forUser($request->user())->allows('view', $cel), 404);
+            abort_unless($this->karta->przepisDostepny($cel), 404);
+
+            return redirect()->route('recipes.qr-card', $cel->slug, 301);
+        }
 
         $this->authorize('view', $przepis);
         abort_unless($this->karta->przepisDostepny($przepis), 404);
