@@ -25,3 +25,12 @@ instrukcji gotowania, więc dziedziczy podstawowe pismo strony (co najmniej
 Odbiór dwóch układów A4 / PDF — pojedynczego przepisu i zeszytu — pozostaje
 do wykonania w izolowanej przeglądarce. Test HTTP potwierdza treść obu stron,
 ale nie zastępuje tego odbioru.
+
+Pomiar przeglądarkowy używa lokalnego fixture z trzema kolejnymi krokami:
+`timer_seconds` równym 600, 0 i `NULL`. W trybie drukowania sprawdza czas
+`10 minut` przy pierwszym kroku oraz brak etykiety przy dwóch następnych,
+zarówno na kartce przepisu, jak i w publicznym zeszycie. Z tych stron
+przeglądarka generuje pliki A4 PDF. Kontrola ujemna usuwa etykietę czasu
+z dokumentu i musi oblać pomiar. Sprawdzenie widocznego tekstu w print DOM
+oraz wygenerowanie PDF nie stanowią ekstrakcji tekstu z pliku PDF ani
+wizualnego odbioru całych kartek; te dwa odbiory trzeba odnotować osobno.
