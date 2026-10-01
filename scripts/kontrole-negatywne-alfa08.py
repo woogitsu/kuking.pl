@@ -888,7 +888,7 @@ def replace_once(source, old, new):
 
 
 WYBOR_FORMY_WIDOK = "resources/views/components/wybor-formy.blade.php"
-DOSTEPNOSC_FORMY_TEST = "tests/Feature/DostepnoscFormyIOnboardinguTest.php"
+DOSTEPNOSC_FORMY_TEST = "DostepnoscFormyIOnboardinguTest"
 
 
 def replace_wszystkie(source, old, new, ile):
