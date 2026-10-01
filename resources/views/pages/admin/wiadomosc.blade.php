@@ -208,7 +208,7 @@
                 <input type="hidden" name="reply_key" value="{{ old('reply_key', (string) \Illuminate\Support\Str::uuid()) }}">
                 @error('reply_key')<p class="field-error" id="f-reply_key" tabindex="-1">{{ $message }}</p>@enderror
 
-                <x-field name="odpowiedz" label="Treść odpowiedzi" type="textarea" :rows="8"
+                <x-field name="odpowiedz" label="Treść odpowiedzi" type="textarea" :rows="8" dyktowanie
                          :required="true"
                          :value="old('odpowiedz')"
                          help="Ten tekst dostanie człowiek w e-mailu, dokładnie taki, jak go napiszesz." />
@@ -314,7 +314,7 @@
         {{-- ETYKIETA BEZ „(nieobowiązkowe)" — tę adnotację dokłada sam
              `x-field` na podstawie `:required`. Dopisana ręcznie dublowała
              się na ekranie. --}}
-        <x-field name="handler_note" label="Notatka dla siebie" type="textarea" :rows="4"
+        <x-field name="handler_note" label="Notatka dla siebie" type="textarea" :rows="4" dyktowanie
                  :value="old('handler_note', $wiadomosc->handler_note)"
                  help="Widzi ją tylko obsługa. Na przykład: numer issue. Wysłanych odpowiedzi nie musisz tu przepisywać — są zapisane wyżej." />
 

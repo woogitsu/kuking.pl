@@ -124,6 +124,7 @@
             name="body"
             label="Napisz kilka słów"
             type="textarea"
+            dyktowanie
             :rows="5"
             help="Na przykład: „Rosół na niedzielę, z kaczki od sąsiada. Wyszedł złoty.”"
         />

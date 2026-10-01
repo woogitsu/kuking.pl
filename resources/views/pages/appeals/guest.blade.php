@@ -48,7 +48,7 @@
 
         <h2 class="text-title-sm">Napisz, dlaczego to pomyłka</h2>
 
-        <x-field name="body" label="Twoje wyjaśnienie" type="textarea" :rows="6" required
+        <x-field name="body" label="Twoje wyjaśnienie" type="textarea" :rows="6" required dyktowanie
                  help="Od 10 do 2000 znaków. Wystarczy kilka zdań własnymi słowami." />
 
         <p class="meta">
