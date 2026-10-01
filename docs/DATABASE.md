@@ -6024,6 +6024,35 @@ ISO 8601 z `Z`, porównania, chwile przy przejściach DST 29.03 i 25.10.2026).
 Rollback: usunięcie castów przywraca stare zachowanie (napis z bazy); danych
 nie dotyka.
 
+**Inwentaryzacja castów czasu (schemat bazy testowej po wszystkich migracjach).**
+181 kolumn typu `timestamp`/`timestamptz`/`date` w tabelach bazowych; stan po #2407:
+
+| Grupa | Kolumn | Stan |
+|---|---|---|
+| `created_at`/`updated_at` w modelach z `$timestamps` | 74 | Eloquent sam rzutuje na Carbon — cast zbędny |
+| Kolumny modeli z jawnym castem (`datetime`, `immutable_datetime`, `date`, `immutable_date`) | 75 | OK; w tym trzy dopisane w #2407 |
+| Kolumny modeli **świadomie bez castu** | 2 | wyjątki poniżej |
+| Tabele bez modelu Eloquent (17 tabel, 30 kolumn) | 30 | poza zakresem strażnika, patrz niżej |
+
+Świadomie bez castu (wyjątki w `KolumnyCzasuMajaCastTest::WYJATKI`):
+
+| Kolumna | Powód |
+|---|---|
+| `users.terms_notice_dismissed_version` | to **etykieta wersji** regulaminu (data zapisana i porównywana jako napis ISO `Y-m-d` z configiem, D-306), nie chwila w czasie; `date` zrobiłby z niej Carbon i zepsuł porównanie napisów oraz eksport RODO |
+| `users.policy_notice_dismissed_version` | jak wyżej, dla wersji polityki prywatności (`ZmianaPolityki`) |
+
+Tabele bez modelu (czytane i pisane przez `DB::table()`/SQL, a nie przez
+Eloquent, więc cast nie ma gdzie działać): `ai_budzet_dzienny`,
+`ai_rezerwacje`, `collection_items`, `collection_members`, `failed_jobs`,
+`follows`, `human_urgent_alarm_attempts`, `password_reset_tokens`,
+`proby_importu`, `profile_username_redirects`, `przypomnienia_dobowe`,
+`recipe_slug_redirects`, `tag_follows`, `wdrozenia`, `wdrozenia_funkcje`,
+`weekly_digest_sends`, `zalegle_czyszczenia_cdn`. Gdy któraś dostanie model,
+strażnik wymusi cast od razu. Strażnik: `KolumnyCzasuMajaCastTest` — każda
+kolumna czasu tabeli modelu z `app/Models` ma cast albo wpis w `WYJATKI` z
+powodem (drugi test pilnuje, żeby wyjątek nie przeżył własnej przyczyny).
+Rollback: strażnik to sam test, danych nie dotyka.
+
 **Otwarte, świadomie niezrobione: `failed_jobs.failed_at`.** Tabela pochodzi
 ze schematu Laravela i ma `timestamp` bez strefy. Zmiana na `timestamptz`
 wymaga osobnej, kompatybilnej migracji, **dopiero po sprawdzeniu danych**:
