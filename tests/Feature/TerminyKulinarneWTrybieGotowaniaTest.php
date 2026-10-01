@@ -105,4 +105,43 @@ class TerminyKulinarneWTrybieGotowaniaTest extends TestCase
             'Zagotuj na średnim ogniu, a gdy zacznie wrzeć, zbierz łyżką szumowiny. To decyduje o tym, czy rosół będzie klarowny.',
         ), 'haslo'));
     }
+
+    public function test_rdzenie_lapia_bezokolicznik_i_nie_myla_sztywnego_ciasta_z_piana(): void
+    {
+        $nazwy = fn (string $tekst): array => array_column(SlownikTerminow::wTekscie($tekst), 'haslo');
+
+        // Recenzja paczki V: „rumień” nie łapał „rumienić”, „dusz” nie łapał
+        // „dusić”, a samo „sztywn” pokazywało pianę przy sztywnym cieście.
+        $this->assertSame([
+            'rumienić' => ['Rumienić'],
+            'dusić' => ['Duszenie'],
+            'piana' => ['Sztywna piana'],
+            'na sztywno' => ['Sztywna piana'],
+            'ciasto' => [],
+        ], [
+            'rumienić' => $nazwy('Cebulę rumienić na maśle.'),
+            'dusić' => $nazwy('Dusić pod przykryciem 40 minut.'),
+            'piana' => $nazwy('Białka ubij na sztywną pianę.'),
+            'na sztywno' => $nazwy('Śmietankę ubij na sztywno.'),
+            'ciasto' => $nazwy('Ciasto ma być sztywne, a mięso robi się sztywne po schłodzeniu.'),
+        ]);
+    }
+
+    public function test_uwaga_pod_slownikiem_ma_rozmiar_tekstu_czytanego_nie_meta(): void
+    {
+        $recipe = $this->przepisZKrokiem('Zahartuj śmietanę.');
+
+        $html = (string) $this->get(route('cooking.show', $recipe->slug))->assertOk()->getContent();
+        $this->assertSame(1, preg_match('/<details class="cook-terminy".*?<\/details>/s', $html, $blok));
+        $css = (string) file_get_contents(resource_path('css/app.css'));
+        $this->assertSame([
+            'klasa w HTML' => 1,
+            'meta w bloku' => 0,
+            'reguła CSS 18 px' => 1,
+        ], [
+            'klasa w HTML' => preg_match('/<p class="cook-terminy-uwaga">/', $blok[0]),
+            'meta w bloku' => preg_match('/class="meta"/', $blok[0]),
+            'reguła CSS 18 px' => preg_match('/\.cook-terminy-uwaga\s*\{[^}]*font-size:\s*var\(--text-body\);/', $css),
+        ]);
+    }
 }

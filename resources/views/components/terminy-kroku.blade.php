@@ -18,6 +18,6 @@
                 <dd>{{ $termin['wyjasnienie'] }}</dd>
             @endforeach
         </dl>
-        <p class="meta">To ogólne wyjaśnienie, nie część przepisu — w razie wątpliwości trzymaj się tego, co napisał autor. Nie ma tu tego, czego szukasz? <a href="{{ route('search') }}">Poszukaj w wyszukiwarce</a> albo <a href="{{ route('kontakt') }}">napisz do nas</a>.</p>
+        <p class="cook-terminy-uwaga">To ogólne wyjaśnienie, nie część przepisu — w razie wątpliwości trzymaj się tego, co napisał autor. Nie ma tu tego, czego szukasz? <a href="{{ route('search') }}">Poszukaj w wyszukiwarce</a> albo <a href="{{ route('kontakt') }}">napisz do nas</a>.</p>
     </details>
 @endif

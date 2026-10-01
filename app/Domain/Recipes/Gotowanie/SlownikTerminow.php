@@ -58,7 +58,7 @@ final class SlownikTerminow
         ],
         [
             'haslo' => 'Duszenie',
-            'rdzenie' => ['dusz', 'udusz'],
+            'rdzenie' => ['dusz', 'udusz', 'dusi', 'udusi'],
             'wyjasnienie' => 'Gotowanie pod przykryciem, na małym ogniu, w niewielkiej ilości płynu, czasem w samym soku z warzyw lub mięsa. Dzięki temu potrawa mięknie powoli i się nie przypala.',
         ],
         [
@@ -113,7 +113,7 @@ final class SlownikTerminow
         ],
         [
             'haslo' => 'Rumienić',
-            'rdzenie' => ['zarumie', 'zrumie', 'rumień'],
+            'rdzenie' => ['zarumie', 'zrumie', 'rumie'],
             'wyjasnienie' => 'Smażyć albo piec, aż powierzchnia przybierze złotą lub jasnobrązową barwę. Taki kolor oznacza smak; ciemnobrązowy lub czarny to już przypalenie.',
         ],
         [
@@ -123,7 +123,7 @@ final class SlownikTerminow
         ],
         [
             'haslo' => 'Sztywna piana',
-            'rdzenie' => ['sztywn'],
+            'rdzenie' => ['sztywna pian', 'sztywną pian', 'sztywnej pian', 'sztywnych pian', 'na sztywno'],
             'wyjasnienie' => 'Ubijać, aż piana trzyma kształt i nie spływa, gdy odwrócisz miskę do góry dnem. Naczynie i trzepaczka mają być suche i czyste, a w białku nie może być nawet odrobiny żółtka.',
         ],
         [

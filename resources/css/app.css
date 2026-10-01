@@ -5062,6 +5062,13 @@
     overflow-wrap: anywhere;
 }
 
+/* Uwaga pod słownikiem: celowo NIE `.meta` (16 px) — tekst czytany ma ≥ 18 px. */
+.cook-terminy-uwaga {
+    margin: 0 0 var(--spacing-3);
+    font-size: var(--text-body);
+    overflow-wrap: anywhere;
+}
+
 .cook-ingredients .ingredient-list {
     margin: 0 0 var(--spacing-3);
 }
