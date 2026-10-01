@@ -144,7 +144,12 @@ final class SzynaOstatnioZapisanychKosztTest extends TestCase
         $this->travelTo(CarbonImmutable::parse('2026-09-25 10:00:00', 'UTC'));
         $ja = $this->user('ja_koszt_szyny_2030');
         $autor = $this->user('autor_koszt_szyny_2030');
+        $innyAutor = $this->user('inny_autor_koszt_szyny_2030');
         $this->zasiej($ja, $autor, zeszytow: 10, naZeszyt: 30);
+        // Przy 300 wierszach PostgreSQL może taniej przeskanować całą tabelę
+        // mimo `id IN (20)`. Dodatkowe, niezapisane rzeczy upodabniają rozmiar
+        // tabeli do działającego serwisu; badana historia nadal ma 600 zapisów.
+        $this->zasiejNiezapisane($innyAutor, 3000);
         DB::statement('ANALYZE');
 
         $zapytania = $this->zapytaniaEkranu($ja);
@@ -152,20 +157,40 @@ final class SzynaOstatnioZapisanychKosztTest extends TestCase
         // Liczniki kart czytają każdy zapis z definicji — ich koszt pilnuje
         // drugi test. Tu liczymy resztę ekranu: szynę i dociąganie relacji.
         $wiersze = 0;
-        foreach ($zapytania as [$sql, $parametry]) {
+        $diagnostyka = [];
+        foreach ($zapytania as $numer => [$sql, $parametry]) {
             if (str_contains($sql, 'count(')) {
                 continue;
             }
             $plan = json_decode((string) DB::selectOne('EXPLAIN (ANALYZE, FORMAT JSON) '.$sql, $parametry)->{'QUERY PLAN'}, true);
-            $wiersze += $this->przeczytaneWiersze($plan[0]['Plan'], ['recipes', 'posts']);
+            $przeczytane = $this->przeczytaneWiersze($plan[0]['Plan'], ['recipes', 'posts']);
+            $wiersze += $przeczytane;
+            if ($przeczytane > 0) {
+                $diagnostyka[] = [
+                    'select' => $numer + 1,
+                    'wiersze_recipes_posts' => $przeczytane,
+                    'sql_z_placeholderami' => $sql,
+                    'liczba_parametrow' => count($parametry),
+                    'plan_bez_wartosci_filtrow' => $this->planDoDiagnozy($plan[0]['Plan']),
+                ];
+            }
         }
 
         fwrite(STDERR, "\n[#2030 szyna] 600 odłożonych rzeczy: przeczytanych wierszy recipes+posts poza licznikami: {$wiersze}\n");
 
+        // Przy czerwieni pokaż dokładny SELECT i rodzaj skanu. Wartości
+        // parametrów oraz warunki planu mogą zawierać identyfikatory, więc
+        // nie trafiają do logu CI. Zielony przebieg pozostaje cichy.
+        if ($wiersze > 100) {
+            foreach ($diagnostyka as $pomiar) {
+                fwrite(STDERR, '[#2030 plan] '.json_encode($pomiar, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)."\n");
+            }
+        }
+
         $this->assertLessThanOrEqual(
             100,
             $wiersze,
-            "Szyna „Ostatnio zapisane” przeczytała {$wiersze} wierszy przepisów i wpisów przy 600 odłożonych rzeczach — sprawdza widoczność całej historii zamiast partii kandydatów.",
+            "SZYNA_2030_CALA_HISTORIA: Szyna „Ostatnio zapisane” przeczytała {$wiersze} wierszy przepisów i wpisów przy 600 odłożonych rzeczach — sprawdza widoczność całej historii zamiast partii kandydatów.",
         );
     }
 
@@ -239,6 +264,27 @@ final class SzynaOstatnioZapisanychKosztTest extends TestCase
     }
 
     /**
+     * Kształt planu i realna liczba odczytów, bez wartości filtrów/indeksów.
+     *
+     * @param  array<string, mixed>  $wezel
+     * @return array<string, mixed>
+     */
+    private function planDoDiagnozy(array $wezel): array
+    {
+        $pola = [
+            'Node Type', 'Relation Name', 'Index Name', 'Actual Rows',
+            'Rows Removed by Filter', 'Actual Loops', 'Plan Rows', 'Total Cost',
+        ];
+        $wynik = array_intersect_key($wezel, array_flip($pola));
+        $wynik['Plans'] = [];
+        foreach ($wezel['Plans'] ?? [] as $dziecko) {
+            $wynik['Plans'][] = $this->planDoDiagnozy($dziecko);
+        }
+
+        return $wynik;
+    }
+
+    /**
      * Hurtem, z pominięciem fabryk: `$zeszytow` zeszytów, w każdym
      * `$naZeszyt` widocznych przepisów i tyle samo wpisów, rozłożonych
      * na dwa lata.
@@ -273,6 +319,21 @@ final class SzynaOstatnioZapisanychKosztTest extends TestCase
                   ON t.nr / ? = c.nr
                 SQL, [$teraz, $ja->getKey(), $naZeszyt]);
         }
+    }
+
+    private function zasiejNiezapisane(User $autor, int $ile): void
+    {
+        $teraz = now()->toIso8601String();
+        DB::insert(<<<'SQL'
+            INSERT INTO recipes (author_id, title, slug, visibility, status, published_at, created_at, updated_at)
+            SELECT ?, 'Niezapisany przepis ' || g, 'niezapisany-przepis-2030-' || g, 'public', 'published', ?::timestamptz, ?::timestamptz, ?::timestamptz
+            FROM generate_series(1, ?) AS g
+            SQL, [$autor->getKey(), $teraz, $teraz, $teraz, $ile]);
+        DB::insert(<<<'SQL'
+            INSERT INTO posts (author_id, body, visibility, status, published_at, created_at, updated_at, kind)
+            SELECT ?, 'Niezapisany wpis ' || g, 'public', 'published', ?::timestamptz, ?::timestamptz, ?::timestamptz, 'dish'
+            FROM generate_series(1, ?) AS g
+            SQL, [$autor->getKey(), $teraz, $teraz, $teraz, $ile]);
     }
 
     private function zeszyt(User $wlasciciel, string $nazwa): Collection
