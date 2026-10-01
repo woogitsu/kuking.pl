@@ -34,6 +34,7 @@
  *   ADRES=http://127.0.0.1:8137 node scripts/audyt-ux50plus.mjs
  *   ADRES=... node scripts/audyt-ux50plus.mjs --szybko   (mniejsza macierz)
  *   ADRES=... node scripts/audyt-ux50plus.mjs --tylko-forme   (tylko odbiór formy)
+ *   ADRES=... node scripts/audyt-ux50plus.mjs --tylko-wybor-formy (dwa formularze, 320 px / 100% i 200%)
  *   ADRES=... node scripts/audyt-ux50plus.mjs --bez-formy     (bez odbioru formy)
  *   DB_DATABASE=<baza serwera z ADRES> ADRES=... node scripts/audyt-ux50plus.mjs
  *     (ekrany paczki S biorą dane z scripts/fixtures/nowe-ekrany-s.php; bez bazy: --bez-paczki-s)
@@ -45,14 +46,15 @@ import { execFileSync } from 'node:child_process';
 
 const ADRES = process.env.ADRES || 'http://127.0.0.1:8137';
 const SZYBKO = process.argv.includes('--szybko');
-const TYLKO_FORME = process.argv.includes('--tylko-forme');
+const TYLKO_WYBOR_FORMY = process.argv.includes('--tylko-wybor-formy');
+const TYLKO_FORME = process.argv.includes('--tylko-forme') || TYLKO_WYBOR_FORMY;
 const BEZ_FORMY = process.argv.includes('--bez-formy');
 // Ekrany paczki S wymagają fixture w bazie serwera; test atrapy
 // (`fixtures/audyt-ux50plus-konteksty.test.mjs`) przebiega bez bazy.
 const BEZ_PACZKI_S = process.argv.includes('--bez-paczki-s');
 const TYLKO_EKRANY = process.env.TYLKO_EKRANY ? new RegExp(process.env.TYLKO_EKRANY, 'u') : null;
 const KONTO = 'ania';
-const HASLO = 'haslo-testowe-123';
+const HASLO = process.env.KUKING_DEMO_HASLO || 'haslo-testowe-123';
 
 const SZEROKOSCI = SZYBKO ? [320, 390] : [320, 360, 390, 414, 768, 1440];
 const MOTYWY = SZYBKO ? ['light'] : ['light', 'dark'];
@@ -677,16 +679,17 @@ async function przebiegForma(przegladarka, stan, dyn) {
     const dynForma = {
       ...dyn,
       ugotowalem: dyn.przepis ? `${dyn.przepis}/ugotowalem` : undefined,
-      gotowanieOstatni: dyn.gotowanie ? await ostatniKrokGotowania(stronaUstawien, dyn.gotowanie) : undefined,
+      gotowanieOstatni: !TYLKO_WYBOR_FORMY && dyn.gotowanie ? await ostatniKrokGotowania(stronaUstawien, dyn.gotowanie) : undefined,
     };
 
-    for (const skala of [...FORMA_SKALE, 200]) {
+    for (const skala of (TYLKO_WYBOR_FORMY ? [100, 200] : [...FORMA_SKALE, 200])) {
       const kontekst = await przegladarka.newContext({
         storageState: stan,
         viewport: { width: FORMA_SZEROKOSC, height: 900 },
         deviceScaleFactor: 1,
       });
       for (const ekran of EKRANY_FORMY) {
+        if (TYLKO_WYBOR_FORMY && !ekran.wybor) continue;
         if (skala === 200 && !ekran.wybor) continue;
         const adres = ekran.dynamiczny ? dynForma[ekran.dynamiczny] : ekran.adres;
         const etykieta = `„${ekran.nazwa}" (${adres || '?'}) ${FORMA_SZEROKOSC} px / czcionka ${skala}%`;
@@ -757,7 +760,7 @@ async function przebiegForma(przegladarka, stan, dyn) {
 async function main() {
   const przegladarka = await chromium.launch();
   const stan = await stanZalogowanego(przegladarka);
-  const dyn = await adresyDynamiczne(przegladarka);
+  const dyn = TYLKO_WYBOR_FORMY ? {} : await adresyDynamiczne(przegladarka);
   console.log(`Adresy dynamiczne: przepis=${dyn.przepis} wpis=${dyn.wpis}`);
   if (brakDanychS !== null) {
     // Ekrany paczki S bez danych to pusta zieleń — przerywamy, nie pomijamy.
@@ -861,7 +864,11 @@ async function main() {
   let forma = { pomiary: [], bledy: [] };
   if (!BEZ_FORMY) {
     forma = await przebiegForma(przegladarka, stan, dyn);
-    console.log(`… odbiór formy: ${forma.pomiary.length} pomiarów (${FORMA_SZEROKOSC} px × czcionka ${FORMA_SKALE.join('/')}%, wybór także 200%), naruszeń: ${forma.bledy.length}`);
+    const skaleFormy = TYLKO_WYBOR_FORMY ? '100/200' : `${FORMA_SKALE.join('/')} (wybór także 200)`;
+    console.log(`… odbiór formy: ${forma.pomiary.length} pomiarów (${FORMA_SZEROKOSC} px × czcionka ${skaleFormy}%), naruszeń: ${forma.bledy.length}`);
+    if (TYLKO_WYBOR_FORMY && forma.pomiary.length !== 4) {
+      forma.bledy.push(`zmierzono ${forma.pomiary.length} z 4 wariantów wyboru formy (ustawienia i onboarding, 100% i 200%)`);
+    }
   }
 
   await przegladarka.close();
