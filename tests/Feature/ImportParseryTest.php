@@ -164,9 +164,14 @@ final class ImportParseryTest extends TestCase
         $this->assertSame(1.25, ParserJsonLdPrzepisu::porcje('1.25'));
         $this->assertSame(1.25, ParserJsonLdPrzepisu::porcje(1.25));
         $this->assertSame(0.5, ParserJsonLdPrzepisu::porcje('0,5 porcji'));
+        $this->assertSame(0.5, ParserJsonLdPrzepisu::porcje(0.5));
         $this->assertSame(4.0, ParserJsonLdPrzepisu::porcje('4 porcje'));
-        foreach (['1.251 porcji', '4-6', '1 blacha', '0 porcji', '1000,01 porcji'] as $niejednoznaczne) {
+        $this->assertSame(999.0, ParserJsonLdPrzepisu::porcje('999 porcji'));
+        foreach (['1.251 porcji', '4-6', '1 blacha', '0 porcji', '0,49 porcji', '1000 porcji', '999,01 porcji'] as $niejednoznaczne) {
             $this->assertNull(ParserJsonLdPrzepisu::porcje($niejednoznaczne));
+        }
+        foreach ([0.49, 1000, 1.251, INF, NAN] as $pozaFormularzem) {
+            $this->assertNull(ParserJsonLdPrzepisu::porcje($pozaFormularzem), 'PORCJE_NUMERYCZNE_ZGODNE_Z_FORMULARZEM');
         }
     }
 

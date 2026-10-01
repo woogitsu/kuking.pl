@@ -140,7 +140,8 @@ Parser lokalny wybiera pierwszy **niepusty** przepis w kolejności węzłów JSO
 pusty `Recipe` w tym samym grafie nie zasłania późniejszego przepisu. Mikrodane
 odczytują składnik i krok także z atrybutu `content` elementu `meta`, bez
 mieszania pól odrębnych przepisów. Jednoznaczna tekstowa liczba porcji przyjmuje
-setne z kropką albo przecinkiem; zakresy, inne jednostki i większa precyzja
+setne z kropką albo przecinkiem w granicach formularza 0,5–999 porcji;
+zakresy, inne jednostki, wartości poza granicą i większa precyzja
 pozostają puste. Te naprawy #2536/#2538/#2539 nie zmieniają schematu ani
 budżetu modelu. Wycofanie kodu przywraca błędy odczytu, ale nie wymaga migracji.
 

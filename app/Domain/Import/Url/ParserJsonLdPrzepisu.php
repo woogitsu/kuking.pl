@@ -263,8 +263,8 @@ final class ParserJsonLdPrzepisu
     /**
      * Liczba porcji tylko wtedy, gdy źródło podaje JEDNĄ liczbę:
      * „4", „1,25 porcji", „Serves 0.5". Przedział („4–6") i sztuki bez
-     * słowa o porcjach zostają puste — nie zgadujemy. Maksymalnie setne,
-     * zgodnie z kolumną `recipes.servings` i formularzem.
+     * słowa o porcjach zostają puste — nie zgadujemy. Granice 0,5–999 i
+     * maksymalnie setne są takie same jak w formularzu przepisu.
      */
     public static function porcje(mixed $wartosc): ?float
     {
@@ -273,7 +273,7 @@ final class ParserJsonLdPrzepisu
         }
 
         if (is_int($wartosc) || is_float($wartosc)) {
-            return $wartosc > 0 && $wartosc <= 1000 ? (float) $wartosc : null;
+            return self::poprawnaLiczbaPorcji((float) $wartosc);
         }
 
         if (! is_string($wartosc)) {
@@ -285,10 +285,19 @@ final class ParserJsonLdPrzepisu
         if (preg_match('/^(?:serves|dla|na)?\s*(\d{1,4}(?:[.,]\d{1,2})?)\s*(?:porcj\w*|osob\w*|os\.?|servings?|people|persons?)?$/u', $tekst, $m) === 1) {
             $liczba = (float) str_replace(',', '.', $m[1]);
 
-            return $liczba > 0 && $liczba <= 1000 ? $liczba : null;
+            return self::poprawnaLiczbaPorcji($liczba);
         }
 
         return null;
+    }
+
+    private static function poprawnaLiczbaPorcji(float $liczba): ?float
+    {
+        if (! is_finite($liczba) || $liczba < 0.5 || $liczba > 999 || round($liczba, 2) !== $liczba) {
+            return null;
+        }
+
+        return $liczba;
     }
 
     /** Czas ISO 8601 (`PT1H30M`, `P0DT45M`) w minutach; inny zapis = brak. */
