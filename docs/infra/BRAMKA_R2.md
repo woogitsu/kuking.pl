@@ -399,7 +399,7 @@ adresów da się przeczytać wyłącznie z panelu.
 | 9 | worker wytwarza wszystkie **trzy** warianty | `metadata->variants` ma `thumb`, `feed`, `large` | | |
 | 10 | oryginał ma EXIF, wariant **nie ma** | `exiftool` na pliku z bucketu oryginałów i na wariancie | | |
 | 11 | skasowanie zabiera oryginał **i wszystkie** warianty | skasuj wpis, potem `list-objects-v2` na oba buckety | | |
-| 12 | błąd zapisu do R2 daje bezpieczny komunikat i alert dla operatora | podmień sekret na błędny, spróbuj wgrać, sprawdź Sentry i to, co widzi człowiek | | |
+| 12 | błąd zapisu do R2 daje bezpieczny komunikat i alert dla operatora | podmień sekret na błędny na stagingu, spróbuj wgrać; potwierdź (a) bezpieczny komunikat po polsku, który widzi człowiek, bez nazwy wyjątku i adresu bucketu, oraz (b) wiadomość na kanale Slack/Discord spod `LOG_BLAD_WEBHOOK_URL` (kanał `blad_webhook`, `App\Logging\WebhookBleduHandler`, D-041; konfiguracja: `docs/infra/MONITORING_BLEDOW.md`). Brak wiadomości = punkt nie przeszedł, także gdy `LOG_BLAD_WEBHOOK_URL` jest pusty. Sentry nie jest wdrożony (tylko plan, D-041) — nie szukaj tam | | |
 | 13 | **typ lokalizacji KAŻDEGO bucketu z danymi** (Automatic / Location Hint / Jurisdiction, a jeśli jurysdykcja — czy `eu`) | panel R2 → bucket → Settings. Sprawdzenie 12 komendy rozstrzyga to dla bucketów, po które sięga aplikacja; panel jest jedynym miejscem dla bucketu kopii (#193) i kwarantanny (#602). Lista i procedura: `docs/infra/LOKALIZACJA_DANYCH_R2.md` §5 | | |
 
 Punkty 6–11 to jeden przebieg przez formularz — nie ma sensu robić ich osobno.
