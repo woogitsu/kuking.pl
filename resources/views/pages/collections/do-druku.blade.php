@@ -174,6 +174,9 @@
                                 <div>
                                     <span class="visually-hidden">Krok {{ $krok->position + 1 }}.</span>
                                     <p class="m-0 whitespace-pre-line">{{ $krok->instruction }}</p>
+                                    @if($krok->timerLabel())
+                                        <p class="meta m-0">Czas kroku: {{ $krok->timerLabel() }}</p>
+                                    @endif
                                 </div>
                             </li>
                         @endforeach

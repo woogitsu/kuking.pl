@@ -785,6 +785,9 @@
                                 <div>
                                     <span class="visually-hidden">Krok {{ $step->position + 1 }}.</span>
                                     <p class="m-0 whitespace-pre-line">{{ $step->instruction }}</p>
+                                    @if($step->timerLabel())
+                                        <p class="meta m-0">Czas kroku: {{ $step->timerLabel() }}</p>
+                                    @endif
                                     @if($step->media)
                                         <div class="mt-3 max-w-[20rem]">
                                             {{-- Opis dla czytnika (issue #1304): własny opis autora,
