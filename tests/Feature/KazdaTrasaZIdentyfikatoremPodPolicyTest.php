@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Collections\Actions\UpdateCollectionItemNote;
 use App\Domain\Collections\Wspoldzielenie\ZaprosDoZeszytu;
 use App\Domain\Recipes\Gotowanie\Wspolne\SesjaWspolnegoGotowania;
 use App\Domain\Recipes\Gotowanie\Wspolne\ZaproszenieDoGotowania;
@@ -1389,7 +1390,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // Prywatna notatka przy pozycji (#978) — wyłącznie właściciel zeszytu.
         $dodaj('collections.note', 'notatka przy zapisie', 'patch',
             route('collections.note', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
-            ['note' => 'Mniej soli'], [$W, $O, $O, $O, $O]);
+            ['note' => 'Mniej soli', '_odcisk_notatki' => UpdateCollectionItemNote::odcisk(null)], [$W, $O, $O, $O, $O]);
 
         // ─── WSPÓLNY ZESZYT (#1743, D-302) ───────────────────────────────
         // Zarządza nim wyłącznie właściciel (`CollectionPolicy::manageAccess`
