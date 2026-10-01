@@ -19,7 +19,11 @@ class CzasPrzepisuTest extends TestCase
     {
         return [
             '45 min' => [45, '45 min'],
-            '89 min zostaje w minutach' => [89, '89 min'],
+            '89 min zostaje w minutach (zgodnie z filtrem)' => [89, '89 min'],
+            '31 min zostaje dokładnie (filtr „Do 30 minut” go pomija)' => [31, '31 min'],
+            '91 min autora to około 1 godz. 30 min' => [91, '1 godz. 30 min'],
+            '93 min zaokrągla się do 95' => [93, '1 godz. 35 min'],
+            '122 min zaokrągla się do 2 godz.' => [122, '2 godz.'],
             '90 min to pierwsza godzina z połową' => [90, '1 godz. 30 min'],
             '95 min' => [95, '1 godz. 35 min'],
             '120 min to równe godziny, bez minut' => [120, '2 godz.'],
