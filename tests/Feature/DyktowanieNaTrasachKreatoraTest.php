@@ -161,6 +161,7 @@ class DyktowanieNaTrasachKreatoraTest extends TestCase
                 'owner_id' => $author->id, 'name' => 'Zeszyt do dyktowania',
                 'visibility' => 'public', 'is_default' => false,
             ]),
+            default => throw new \InvalidArgumentException('Nieznana trasa testowa: '.$route),
         };
         $url = route($route, $subject);
         $guest = $this->get($url)->assertOk();
