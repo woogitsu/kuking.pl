@@ -21,6 +21,7 @@ use App\Models\Report;
 use App\Models\User;
 use App\Models\ZabezpieczenieDowodu;
 use App\Notifications\DecyzjaWSprawieZgloszenia;
+use App\Support\QueueConfigurationGuard;
 use App\Support\ZabezpieczoneDowody;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
@@ -188,10 +189,14 @@ final class ZabezpieczDowodCsam
                     $cel->delete();
                 }
 
-                // Po zatwierdzeniu: publiczne warianty zdjęć idą do prywatnego
-                // magazynu, a cache CDN jest czyszczony. Plik oryginału zostaje.
+                // Zadanie wchodzi do TEJ SAMEJ transakcji co status secured i
+                // rejestr. Worker zobaczy oba dopiero po commicie; błąd INSERT
+                // do jobs cofa całą decyzję. afterCommit() zgubiłby zadanie
+                // przy awarii między commitem a zapisem kolejki (#2437).
+                // Dopiero worker przenosi warianty; oryginał zostaje.
                 if ($zabezpieczoneId !== []) {
-                    PrzeniesPubliczneWariantyDowodu::dispatch($zabezpieczoneId)->afterCommit();
+                    QueueConfigurationGuard::assertAtomicDatabaseQueue();
+                    PrzeniesPubliczneWariantyDowodu::dispatch($zabezpieczoneId);
                 }
 
                 $blokada = $this->zablokujKonto($swiezy, $osoba, $zgloszenie, $decyzja);
