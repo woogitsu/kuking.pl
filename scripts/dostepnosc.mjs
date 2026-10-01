@@ -4626,23 +4626,29 @@ for (const szerokosc of SZYBKO ? [320] : [320, 1280]) {
     if (duzaCzcionka) {
       await (await kontekst.newCDPSession(strona)).send('Page.setFontSizes', { fontSizes: { standard: 32, fixed: 32 } });
     }
-    await strona.goto(`${adres}/szukaj?q=zupa`, { waitUntil: 'domcontentloaded' });
+    await strona.goto(`${adres}/szukaj?sekcja=przepisy&q=rosol`, { waitUntil: 'domcontentloaded' });
     await poczekajNaFonty(strona);
 
     const pomiar = await strona.evaluate(() => [...document.querySelectorAll('.recipe-card-wiersz')].map((karta) => {
       const link = karta.querySelector('a.link-tytul');
       const r = karta.getBoundingClientRect();
       const zlapanyPrzez = (x, y) => {
-        const el = document.elementFromPoint(x, y);
-        return el !== null && link !== null && link.contains(el);
+        // Pomijamy przypięte nakładki spoza karty (np. podpowiedź na dole
+        // okna): pytanie brzmi, co na KARCIE dostaje kliknięcie.
+        const el = document.elementsFromPoint(x, y).find((e) => karta.contains(e));
+        return el !== undefined && link !== null && link.contains(el);
       };
       const wLinku = link ? link.getBoundingClientRect() : null;
-      karta.scrollIntoView({ block: 'center' });
+      karta.scrollIntoView({ block: 'center', behavior: 'instant' });
       const rr = karta.getBoundingClientRect();
+      // Karta przy czcionce 200% bywa wyższa niż okno: punkty bierzemy
+      // z części karty, którą widać (elementFromPoint poza oknem daje null).
+      const gora = Math.max(rr.top, 0);
+      const dol = Math.min(rr.bottom, window.innerHeight);
       const punkty = [
-        [rr.left + rr.width / 2, rr.top + rr.height / 2],
-        [rr.left + 6, rr.top + 6],
-        [rr.right - 6, rr.bottom - 6],
+        [rr.left + rr.width / 2, (gora + dol) / 2],
+        [rr.left + 16, gora + 16],
+        [rr.right - 16, dol - 16],
       ];
       link?.focus({ focusVisible: true });
       const po = link ? getComputedStyle(link, '::after') : null;
@@ -4671,7 +4677,7 @@ for (const szerokosc of SZYBKO ? [320] : [320, 1280]) {
     }
 
     if (pomiar.length === 0) {
-      rozjazdyKartyPrzepisu.push({ karta: 0, szerokosc, duzaCzcionka, bledy: ['na /szukaj?q=zupa nie ma karty przepisu do zmierzenia'] });
+      rozjazdyKartyPrzepisu.push({ karta: 0, szerokosc, duzaCzcionka, bledy: ['na /szukaj?sekcja=przepisy&q=rosol nie ma karty przepisu do zmierzenia'] });
     }
 
     await kontekst.close();
