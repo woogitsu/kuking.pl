@@ -82,6 +82,39 @@ final class SkanKartkiBezHistoriiNaPrzepisieTest extends TestCase
         $this->assertStringNotContainsString($skan->object_key, $historia);
     }
 
+    #[Test]
+    public function test_odrzucony_skan_bez_wariantu_pokazuje_wlascicielowi_blad_bez_ujawniania_pliku(): void
+    {
+        $autor = $this->user('odrzucony_skan');
+        $skan = Media::factory()->state(fn () => [
+            'status' => Media::STATUS_REJECTED,
+            'metadata' => ['variants' => []],
+        ])->create(['owner_id' => $autor->getKey()]);
+        $przepis = Recipe::factory()->create([
+            'author_id' => $autor->getKey(),
+            'visibility' => 'private',
+            'source_person' => null,
+            'source_note' => null,
+            'source_scan_media_id' => $skan->getKey(),
+        ]);
+
+        $html = (string) $this->actingAs($autor)->get(route('recipes.show', $przepis->slug))->assertOk()->getContent();
+        $historia = $this->sekcjaPochodzenia($html);
+        $adresWariantu = route('media.show', ['media' => $skan->getKey(), 'wariant' => 'feed']);
+
+        $this->assertStringContainsString('Skąd ten przepis', $historia);
+        $this->assertStringContainsString('Nie udało się przygotować tego zdjęcia.', $historia);
+        $this->assertStringContainsString('Kartka, z której jest ten przepis.', $historia);
+        $this->assertStringNotContainsString('<img', $historia);
+        $this->assertStringNotContainsString($adresWariantu, $html);
+        $this->assertStringNotContainsString($skan->object_key, $html);
+
+        $dlaPomocnika = (string) $this->get(route('recipes.show', ['recipe' => $przepis->slug, 'druk' => 1, 'dla' => 'pomocnika']))->assertOk()->getContent();
+        $this->assertSame('', $this->sekcjaPochodzenia($dlaPomocnika));
+        $this->assertStringNotContainsString($adresWariantu, $dlaPomocnika);
+        $this->assertStringNotContainsString($skan->object_key, $dlaPomocnika);
+    }
+
     private function sekcjaPochodzenia(string $html): string
     {
         preg_match('~<section class="recipe-story">(.*?)</section>~s', $html, $trafienie);
