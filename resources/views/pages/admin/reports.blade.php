@@ -155,7 +155,7 @@
                             <x-field name="reason_code" label="Powód przywrócenia (kod wewnętrzny)" required
                                      placeholder="pomylka_moderacji" :wiersz="$report->id"
                                      help="Krótki, powtarzalny kod. Cofnięcie decyzji też zostaje w rejestrze." />
-                            <x-field name="user_message" label="Wiadomość do kucharza" type="textarea" :rows="2"
+                            <x-field name="user_message" label="Wiadomość do kucharza" type="textarea" :rows="2" dyktowanie
                                      :wiersz="$report->id"
                                      help="Nieobowiązkowa. Kucharz i tak dostanie zdanie, że wskazówka jest znowu widoczna." />
                             <button class="btn btn-secondary" type="submit">Przywróć wskazówkę</button>
@@ -402,8 +402,8 @@
                             <span class="field-error">{{ $bladPodstawy }}</span>
                         @endif
                     </div>
-                    <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2" :wiersz="$report->id" />
-                    <x-field name="user_message" label="Wiadomość do użytkownika" type="textarea" :rows="3"
+                    <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2" :wiersz="$report->id" dyktowanie />
+                    <x-field name="user_message" label="Wiadomość do użytkownika" type="textarea" :rows="3" dyktowanie
                              :wiersz="$report->id"
                              help="Co konkretnie się stało — własnymi słowami. Podstawę, informację o zgłoszeniu,
                                    brak automatu, termin odwołania i drogę do organu pozasądowego oraz sądu
@@ -479,7 +479,7 @@
                         <x-field name="reason_code" label="Powód przywrócenia (kod wewnętrzny)" required
                                  placeholder="autor_poprawil" :wiersz="$report->id"
                                  help="Krótki, powtarzalny kod. Cofnięcie kary też zostaje w logu." />
-                        <x-field name="user_message" label="Wiadomość do użytkownika" type="textarea" :rows="2"
+                        <x-field name="user_message" label="Wiadomość do użytkownika" type="textarea" :rows="2" dyktowanie
                                  :wiersz="$report->id"
                                  help="Nieobowiązkowa. Bez niej wyślemy zdanie domyślne." />
 

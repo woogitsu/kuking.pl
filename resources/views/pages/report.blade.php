@@ -38,7 +38,7 @@
         {{-- Limit 2000 znaków widoczny PRZED wysłaniem (issue #1381) — ta sama
              liczba co `max:2000` w `ReportController::store()`. Licznik tylko
              informuje; nie obcina wklejonego tekstu, rozstrzyga serwer. --}}
-        <x-field name="details" label="Chcesz coś dopisać?" type="textarea" :rows="4"
+        <x-field name="details" label="Chcesz coś dopisać?" type="textarea" :rows="4" dyktowanie
                  :licznik-znakow="2000"
                  help="Nie musisz. Ale każde zdanie pomaga nam szybciej zrozumieć sprawę." />
 
