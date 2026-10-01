@@ -63,7 +63,7 @@ final class ParserSkladnika
     {
         $t = self::normalizuj($tekst);
 
-        [$t, $gramyNaSztuke, $nawiasPo] = $this->wyjmijNawiasy($t);
+        [$t, $gramyNaSztuke, $nawiasPo, $nawiasRazem, $nawiasSprzeczny] = $this->wyjmijNawiasy($t);
         $bezIlosci = preg_match(self::BEZ_ILOSCI, $t) === 1;
 
         // Myślnik ze spacjami i dwukropek oddzielają nazwę od reszty:
@@ -91,8 +91,8 @@ final class ParserSkladnika
         }
 
         $gramyZNawiasu = null;
-        if ($gramyNaSztuke !== null) {
-            $mnoznik = ($nawiasPo || ($jednostka !== null && JednostkiMiary::jestPojemnikiem($jednostka)))
+        if ($gramyNaSztuke !== null && ! $nawiasSprzeczny) {
+            $mnoznik = ! $nawiasRazem && ($nawiasPo || ($jednostka !== null && JednostkiMiary::jestPojemnikiem($jednostka)))
                 ? ($ilosc ?? 1.0)
                 : 1.0;
             $gramyZNawiasu = $gramyNaSztuke * $mnoznik;
@@ -107,7 +107,7 @@ final class ParserSkladnika
             ? self::oczyscNazwe(rtrim($slowoJednostki, '.').' '.$nazwa)
             : null;
 
-        return new OdczytanySkladnik($ilosc, $jednostka, $nazwa, $nazwaZJednostka, $gramyZNawiasu, $bezIlosci);
+        return new OdczytanySkladnik($ilosc, $jednostka, $nazwa, $nazwaZJednostka, $gramyZNawiasu, $bezIlosci, $nawiasSprzeczny);
     }
 
     /**
@@ -144,15 +144,17 @@ final class ParserSkladnika
     }
 
     /**
-     * Waga w nawiasie: „(400 g)”, „(po 200 g)”, „(ok. 1 kg)”. Wszystkie
+     * Waga w nawiasie: „(400 g)”, „(po 200 g)”, „(800 g razem)”. Wszystkie
      * nawiasy znikają z tekstu — to dopiski, nie nazwa.
      *
-     * @return array{0: string, 1: float|null, 2: bool}
+     * @return array{0: string, 1: float|null, 2: bool, 3: bool, 4: bool}
      */
     private function wyjmijNawiasy(string $t): array
     {
         $gramy = null;
         $po = false;
+        $razem = false;
+        $sprzeczny = false;
 
         if (preg_match_all('/\(([^)]*)\)/', $t, $nawiasy) > 0) {
             foreach ($nawiasy[1] as $wnetrze) {
@@ -160,12 +162,14 @@ final class ParserSkladnika
                     $kod = JednostkiMiary::kod($m[3]) ?? 'g';
                     $gramy = self::liczba($m[2]) * JednostkiMiary::MASA[$kod];
                     $po = trim($m[1]) !== '';
+                    $razem = preg_match('/\b(razem|lacznie)\b/', $wnetrze) === 1;
+                    $sprzeczny = $po && $razem;
                 }
             }
             $t = Str::squish((string) preg_replace('/\([^)]*\)/', ' ', $t));
         }
 
-        return [$t, $gramy, $po];
+        return [$t, $gramy, $po, $razem, $sprzeczny];
     }
 
     /**

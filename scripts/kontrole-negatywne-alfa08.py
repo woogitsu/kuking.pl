@@ -1264,6 +1264,12 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    ("Odżywcze: masa razem mnożona przez puszki (#2487)", "app/Domain/Recipes/Odzywcze/ParserSkladnika.php",
+     "test_jawnie_laczna_masa_nie_jest_mnozona_przez_liczbe_opakowan",
+     lambda s: replace_once(s, "! $nawiasRazem && ", "")),
+    ("Odżywcze: sprzeczna masa wpada w domyślną miarę (#2487)", "app/Domain/Recipes/Odzywcze/KalkulatorWartosci.php",
+     "MasaLacznaWNawiasieTest::test_kalkulator_uzywa_lacznej_masy_raz_i_odmawia_przy_sprzecznym_nawiasie",
+     lambda s: replace_once(s, "if ($odczyt->sprzecznaMasaWNawiasie) {", "if (false && $odczyt->sprzecznaMasaWNawiasie) {")),
     # #2476: dwa bieżące składniki z identycznym tekstem/ile=null są różne.
     ("Bieżący eksport pomija wybór Bez ilości (#2476)", "app/Domain/Users/Exports/CollectUserExportData.php",
      "test_biezacy_szkic_zachowuje_dwa_rozne_wybory_bez_ilosci_w_json",

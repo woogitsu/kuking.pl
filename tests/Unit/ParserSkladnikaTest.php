@@ -80,6 +80,35 @@ final class ParserSkladnikaTest extends TestCase
     }
 
     #[Test]
+    public function test_jawnie_laczna_masa_nie_jest_mnozona_przez_liczbe_opakowan(): void
+    {
+        $parser = new ParserSkladnika;
+
+        foreach (['800 g razem', 'razem 800 g', '800 g łącznie', 'łącznie 800 g', '800 g lacznie', 'lacznie 800 g'] as $nawias) {
+            $odczyt = $parser->odczytaj("2 puszki pomidorów ({$nawias})");
+            $this->assertSame(800.0, $odczyt->gramyZNawiasu, 'ODZYWCZE_2487_LACZNA_MASA_BEZ_MNOZENIA');
+            $this->assertFalse($odczyt->sprzecznaMasaWNawiasie);
+        }
+
+        $this->assertSame(800.0, $parser->odczytaj('1 puszka pomidorów (800 g razem)')->gramyZNawiasu);
+        $this->assertSame(800.0, $parser->odczytaj('2 puszki pomidorów (po 400 g)')->gramyZNawiasu);
+        $this->assertSame(800.0, $parser->odczytaj('2 puszki pomidorów (400 g)')->gramyZNawiasu);
+        $this->assertSame(150.0, $parser->odczytaj('3 jajka (150 g razem)')->gramyZNawiasu);
+    }
+
+    #[Test]
+    public function test_sprzeczne_po_i_razem_nie_daja_wiarygodnej_masy(): void
+    {
+        $parser = new ParserSkladnika;
+
+        foreach (['po 400 g razem', 'razem po 400 g', 'po 400 g łącznie'] as $nawias) {
+            $odczyt = $parser->odczytaj("2 puszki pomidorów ({$nawias})");
+            $this->assertNull($odczyt->gramyZNawiasu);
+            $this->assertTrue($odczyt->sprzecznaMasaWNawiasie, 'ODZYWCZE_2487_SPRZECZNY_NAWIAS_ODMAWIA');
+        }
+    }
+
+    #[Test]
     public function test_do_smaku_i_do_podania_znacza_brak_ilosci(): void
     {
         $parser = new ParserSkladnika;

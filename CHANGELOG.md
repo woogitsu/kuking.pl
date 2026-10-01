@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2487): przy szacowaniu wartości odżywczych `2 puszki (800 g razem)` i `2 puszki (łącznie 800 g)` oznaczają 800 g łącznie. Nieoznaczona masa i `po 400 g` zachowują dotychczasowe znaczenie; sprzeczne `po … razem` nie daje niepewnych liczb.
 - Naprawione (#2476, #2478, #2479): osobista paczka danych zachowuje sam rok rodzinny w HTML, odróżnia przepis ukryty od szkicu i zapisuje jawny wybór „Bez ilości” w bieżących składnikach JSON.
 - Wewnętrzne (#2490): instalator klienta PostgreSQL 18 w CI podaje etap i czas błędu oraz ogranicza czas pobrania klucza i instalacji. Weryfikacja odcisku, wersja klienta i pełne testy pozostają obowiązkowe.
 
