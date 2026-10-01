@@ -74,6 +74,8 @@ class PustyStanPowiadomienTest extends TestCase
             'TYPE_REPLY' => $przepisyIWpisy,
             'TYPE_SAVED' => $przepisyIWpisy,
             'TYPE_FORKED' => $przepisyIWpisy,
+            // Prośba o zgodę na wskazówkę przy przepisie (#2352, D-333).
+            'TYPE_HINT_PROPOSED' => $przepisyIWpisy,
             'TYPE_SMAKOWICIE' => $przepisyIWpisy,
             'TYPE_FOLLOW' => $obserwujacy,
             'TYPE_BIRTHDAY' => $urodziny,

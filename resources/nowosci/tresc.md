@@ -31,6 +31,24 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Wskazówki od osób, które ugotowały przepis
+
+Gdy przy czyimś wykonaniu Waszego przepisu stoi pożyteczna uwaga —
+na przykład „chrzan do wywaru, wyszło lepiej” — możecie poprosić tę osobę,
+żeby jej uwaga stanęła przy przepisie jako wskazówka. Na stronie takiego
+wykonania jest przycisk „Poproś o zgodę”. Osoba, która ugotowała, dostaje
+powiadomienie, a na stronie swojego wykonania widzi dokładnie ten tekst i dwa
+przyciski: „Zgadzam się” albo „Nie”. **Bez jej odpowiedzi nic się nie
+pokaże.** Jeśli odpowie „Nie”, nie dostaniecie o tym wiadomości, a prośby nie
+można ponowić.
+
+Kto się zgodził, może zgodę wycofać w każdej chwili przyciskiem „Wycofaj
+zgodę” — wskazówka od razu znika z przepisu, a uwaga zostaje pod jego
+wykonaniem. Na stronie przepisu wskazówki stoją w sekcji „Wskazówki od
+gotujących”, w kolejności, w jakiej ludzie się zgodzili, każda z nazwą osoby
+i dniem ugotowania. Nic ich nie układa według popularności. Wskazówkę możecie
+zgłosić tak samo jak wykonanie, z którego pochodzi.
+
 ### Co zużyć w pierwszej kolejności
 
 Przy produktach na liście „Co mam w domu” możecie teraz wpisać termin

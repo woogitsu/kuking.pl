@@ -152,6 +152,17 @@ z 30 września 2026):
   30 wpisów, z `ETag`/`Last-Modified`. To kanał **wychodzący**: import
   cudzych kanałów RSS zostaje na liście „Nie wcześnie” (D-300).
 
+**Dopisane do planu i zbudowane** (D-333, wiersz „#2352”, decyzja właściciela
+z 1 października 2026; karta F5 z researchu nowych funkcji):
+
+- „Wskazówki od gotujących” (#2352) — autor przepisu proponuje, żeby uwagę
+  z czyjegoś wykonania („Ugotowałem” z notatką) stała przy jego przepisie;
+  kucharz klika „Zgadzam się” albo „Nie” (**zgoda na wniosek, brak odpowiedzi
+  to brak publikacji**) i może zgodę wycofać w każdej chwili. Kolejność po
+  dacie zgody, bez rankingu; moderacja jak wykonanie; eksport obu stron;
+  wymazanie konta kucharza usuwa wskazówkę. Bez AI (to ludzka wersja tego, co
+  chciało #1999, które zostaje na liście niżej).
+
 **Zdjęte z listy „V2, ale nie teraz” i zbudowane** (D-333, wiersze „#1903”,
 decyzja właściciela z 30 września 2026):
 

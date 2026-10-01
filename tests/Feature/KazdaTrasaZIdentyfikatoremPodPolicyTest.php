@@ -21,6 +21,7 @@ use App\Models\Notification;
 use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\RecipeHint;
 use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\ShoppingListItem;
@@ -660,6 +661,26 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'recipe_id' => $przepis->getKey(),
         ]);
 
+        // Wskazówki od gotujących (#2352). PROŚBĘ wysyła autor przepisu, więc
+        // wykonanie jest cudze (kucharz = `$przedmiot`) pod przepisem
+        // właściciela; ODPOWIADA kucharz, więc w trzech pozostałych
+        // przypadkach właściciel jest kucharzem pod cudzym przepisem.
+        $wykonanieDoProsby = CookedEvent::factory()->create([
+            'user_id' => $przedmiot->getKey(),
+            'recipe_id' => $przepis->getKey(),
+            'note' => 'Uwaga, którą autor chce pokazać.',
+        ]);
+        $cudzyPrzepis = Recipe::factory()->create(['author_id' => $przedmiot->getKey()]);
+        $wskazowkaDoZgody = RecipeHint::factory()->dlaWykonania(CookedEvent::factory()->create([
+            'user_id' => $wlasciciel->getKey(), 'recipe_id' => $cudzyPrzepis->getKey(), 'note' => 'Uwaga do zgody.',
+        ]))->create();
+        $wskazowkaDoOdmowy = RecipeHint::factory()->dlaWykonania(CookedEvent::factory()->create([
+            'user_id' => $wlasciciel->getKey(), 'recipe_id' => $cudzyPrzepis->getKey(), 'note' => 'Uwaga do odmowy.',
+        ]))->create();
+        $wskazowkaDoWycofania = RecipeHint::factory()->dlaWykonania(CookedEvent::factory()->create([
+            'user_id' => $wlasciciel->getKey(), 'recipe_id' => $cudzyPrzepis->getKey(), 'note' => 'Uwaga do wycofania.',
+        ]), RecipeHint::STATUS_ACCEPTED)->create();
+
         $komentarz = Comment::factory()->create([
             'author_id' => $wlasciciel->getKey(),
             'post_id' => $wpisPubliczny->getKey(),
@@ -1124,6 +1145,17 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('wspomnienia.ukryj-wykonanie', $wykonanie), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.destroy', 'usunięcie wykonania', 'delete',
             route('cooked.destroy', $wykonanieDoKasacji), [], [$W, $O, $O, $O, $O]);
+        // Wskazówki od gotujących (#2352): prosi wyłącznie autor przepisu
+        // (`RecipeHintPolicy::propose`), odpowiada wyłącznie kucharz (`answer`).
+        // Moderator nie proponuje i nie odpowiada za nikogo.
+        $dodaj('hints.propose', 'prośba o zgodę na wskazówkę z cudzego wykonania', 'post',
+            route('hints.propose', $wykonanieDoProsby), [], [$W, $O, $O, $O, $O]);
+        $dodaj('hints.accept', '„Zgadzam się” na wskazówkę', 'post',
+            route('hints.accept', $wskazowkaDoZgody), [], [$W, $O, $O, $O, $O]);
+        $dodaj('hints.decline', '„Nie” na wskazówkę', 'post',
+            route('hints.decline', $wskazowkaDoOdmowy), [], [$W, $O, $O, $O, $O]);
+        $dodaj('hints.withdraw', 'wycofanie zgody na wskazówkę', 'post',
+            route('hints.withdraw', $wskazowkaDoWycofania), [], [$W, $O, $O, $O, $O]);
 
         // ─── KOMENTARZE ──────────────────────────────────────────────────
         $dodaj('comments.update', 'poprawienie komentarza', 'put',

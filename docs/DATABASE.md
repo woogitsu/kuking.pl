@@ -6441,6 +6441,109 @@ prywatna lista jednej osoby, nikomu innemu niepotrzebna. **Paczka RODO**
 wydaje ją w sekcji `lista_zakupow` (`InwentarzDanychKonta`), z tytułem
 przepisu tylko przy przepisie widocznym dla osoby.
 
+### recipe_hints
+
+Wskazówki od gotujących (#2352; decyzja właściciela z 1.10.2026, **D-333**,
+wiersz „#2352”). Migracja `2026_10_01_160000_create_recipe_hints_table`.
+Autor przepisu PROPONUJE, żeby uwagę z czyjegoś wykonania („Ugotowałem”
+z notatką) stała przy jego przepisie jako wskazówka; kucharz dostaje prośbę
+i odpowiada „Zgadzam się” albo „Nie”. **Zgoda na wniosek:** brak odpowiedzi
+to brak publikacji. Zgodę można wycofać w każdej chwili — wskazówka znika.
+
+**Tabela NIE kopiuje tekstu.** Treścią wskazówki jest `cooked_events.note`,
+które jest niezmienne (nie ma edycji wykonania) — jedna kopia danych kucharza
+zamiast dwóch, a usunięcie wykonania zabiera wskazówkę kaskadą.
+
+| kolumna | typ | uwagi |
+|---|---|---|
+| `id` | `uuid` | `DEFAULT gen_random_uuid()` |
+| `recipe_id` | `uuid` | → `recipes(id)` `ON DELETE CASCADE`: przepis, przy którym stoi wskazówka (soft delete przepisu chowa ją z widoku, bo strona przepisu znika) |
+| `cooked_event_id` | `uuid` | → `cooked_events(id)` `ON DELETE CASCADE`; **UNIKALNE** (patrz niżej) |
+| `author_id` | `uuid` | → `users(id)` `ON DELETE CASCADE` (pas bezpieczeństwa; konta się anonimizuje): autor przepisu, który prosi |
+| `cook_id` | `uuid` | → `users(id)` `ON DELETE CASCADE`: kucharz, który odpowiada |
+| `status` | `varchar(10)` | `proposed` (czeka), `accepted` (stoi przy przepisie), `declined` („Nie”, ostateczne), `withdrawn` (zgoda wycofana, ostateczne) |
+| `recipe_version_number` | `integer` NULL | numer wersji przepisu z chwili prośby (bez klucza obcego — wersje podlegają retencji); strona przepisu dopisuje „Przepis był zmieniany po tej wskazówce.”, gdy najnowsza wersja jest wyższa |
+| `decided_at` | `timestamptz` NULL | kiedy kucharz odpowiedział („Zgadzam się” albo „Nie”); porządkuje wskazówki na stronie przepisu (kolejność zgód, bez rankingu) |
+| `withdrawn_at` | `timestamptz` NULL | kiedy kucharz wycofał zgodę |
+| `created_at` / `updated_at` | `timestamptz` | `created_at` = data prośby (limit dobowy autora) |
+
+**Pola sterujące poza `$fillable`.** `RecipeHint::$fillable` jest PUSTE:
+`status`, klucze osób i treści oraz znaczniki decyzji ustawiają wyłącznie
+akcje domenowe (`App\Domain\Wskazowki\ZaproponujWskazowke`,
+`PrzyjmijWskazowke`, `OdrzucWskazowke`, `WycofajWskazowke`), a przejścia stanu
+to nazwane metody modelu (`przyjmij()`, `odrzuc()`, `wycofaj()`) — nigdy
+`update()` z żądania (AGENTS.md §7). Test: `tests/Feature/WskazowkiOdGotujacychTest.php`.
+
+Ograniczenia (nowa tabela, więc razem z `CREATE TABLE` — AGENTS.md §6):
+
+- `recipe_hints_status_check` — `status IN ('proposed', 'accepted', 'declined', 'withdrawn')`;
+- `recipe_hints_stan_spojny_check` — stan i znaczniki mówią to samo:
+  `proposed` bez `decided_at` i `withdrawn_at`; `accepted`/`declined` z
+  `decided_at`, bez `withdrawn_at`; `withdrawn` z oboma;
+- `recipe_hints_autor_nie_kucharz_check` — `author_id <> cook_id`;
+- `recipe_hints_wersja_check` — numer wersji `NULL` albo `>= 1`;
+- `recipe_hints_cooked_event_unique` — **jedno wykonanie ma najwyżej jedną
+  wskazówkę w całym swoim życiu.** To jest świadome: „Nie” i wycofanie zgody
+  są ostateczne, więc autor nie może ponawiać prośby (presja na kucharza), a
+  ponowna prośba o to samo wykonanie jest odrzucana tym samym zdaniem bez
+  względu na to, czy poprzednia czeka, została przyjęta, odrzucona czy
+  wycofana — autor nie poznaje po komunikacie, że ktoś odmówił;
+- `recipe_hints_przyjete_idx (recipe_id, decided_at, id) WHERE status = 'accepted'`
+  (strona przepisu), `recipe_hints_recipe_idx` (klucz obcy),
+  `recipe_hints_cook_idx (cook_id, status)` (kucharz, eksport, wymazanie),
+  `recipe_hints_author_idx (author_id, created_at)` (limity, eksport).
+
+**Reguły (Policy `RecipeHintPolicy`, akcje pod blokadą).**
+
+- *Tylko autor przepisu proponuje* (`propose`): wykonanie cudzego, z niepustą
+  uwagą (`note`), przepis opublikowany, autor aktywny (zawieszenie odcina od
+  pisania), kucharz może czytać i nie jest zbanowany/w karencji, **brak
+  blokady** w którąkolwiek stronę. Limity: `kuking.wskazowki.na_przepis_max`
+  (10 czekających i przyjętych łącznie) i `na_dobe_max` (10 próśb dziennie).
+- *Tylko kucharz decyduje* (`answer` → `accept` / `decline` / `withdraw`).
+  „Zgadzam się” wymaga braku blokady z autorem, aktywnego konta i dostępnego
+  przepisu; **„Nie” i „Wycofaj zgodę” zostają kucharzowi także przy blokadzie
+  i zawieszeniu** (RODO art. 7 ust. 3 — cofnięcie zgody tak łatwe jak jej
+  udzielenie; `EnsureAccountIsActive` ma obie trasy na liście dozwolonych).
+- Kolejność zamków jak w całym serwisie: `ZamekPary` (oba konta rosnąco po
+  `id`, D-080), potem wiersz wskazówki `FOR UPDATE`. Wykonania ani przepisu
+  przy odpowiedzi nie blokujemy — usunięcie wykonania kasuje wiersz kaskadą i
+  blokada na wykonaniu obok blokady na wskazówce dałaby zakleszczenie.
+  Akcje są idempotentne (podwójne „Zgadzam się” nic nie zmienia).
+- *Widoczność:* strona przepisu pokazuje wyłącznie `accepted` z wykonań, które
+  widz może zobaczyć (`CookedEvent::scopeWidoczneDla` — blokady, konta
+  zbanowane i w karencji usunięcia), w kolejności `decided_at`, bez rankingu,
+  jednym zapytaniem z kucharzem, profilem i awatarem.
+- *Powiadomienie:* `Notification::TYPE_HINT_PROPOSED` (`recipe_hint.proposed`)
+  do kucharza, aktorem jest autor; tylko w serwisie, bez Web Push. Odpowiedź
+  („Nie”, zgoda, wycofanie) **nie powiadamia nikogo**.
+- *Moderacja:* wskazówka **dziedziczy moderację z wykonania** — „Zgłoś” przy
+  wskazówce otwiera zgłoszenie typu `cooked_event` (tekst wskazówki to dokładnie
+  `note` tego wykonania), decyzja `remove` kasuje wykonanie, a z nim kaskadą
+  wskazówkę; ban kucharza chowa wskazówkę (`scopeWidoczneDla`). Nowego celu
+  zgłoszenia (`reports.target_type`, `moderation_actions.target_type`, odwołania,
+  raport przejrzystości) nie ma.
+
+**Rollback.** `down()` ODMAWIA, gdy w tabeli są wiersze (D-088): kasowanie
+tabeli zabrałoby ludziom odpowiedzi „Nie” i wycofania zgód, a po ponownej
+migracji autorzy mogliby prosić o zgodę drugi raz. Komunikat mówi, co zrobić
+ręcznie (kopia tabeli, ponowny rollback z `KUKING_ROLLBACK_KASUJE_WSKAZOWKI=1`).
+Na świeżej i pustej bazie — w CI i przy `migrate:refresh` — przechodzi bez
+pytania. Odmowa i kontrola dodatnia: `tests/Feature/WskazowkiOdGotujacychTest.php`.
+
+**Wymazanie konta** (`EraseAccountData`), niezależnie od zakresu usunięcia,
+kasuje wszystkie wiersze z `cook_id` tego konta (zgoda na wskazówkę przy
+cudzym przepisie jest zgodą tej osoby; po wymazaniu nie ma kto jej
+podtrzymać) oraz **czekające** prośby wysłane przez to konto jako autora
+(kucharz nie odpowiada osobie, której już nie ma). Przyjęte wskazówki przy
+przepisie zostającym po koncie autora (zakres `minimum`) stoją dalej — to treść
+kucharza, który się zgodził. Zakres `everything` kasuje przepisy, a z nimi
+kaskadą wskazówki. **Paczka RODO** wydaje obie strony: `wskazowki_z_moich_wykonan`
+(moja uwaga, stan zgody, daty; tytuł i autor przepisu tylko przy przepisie
+widocznym dla osoby) i `wskazowki_do_moich_przepisow` (stan próśb o moich
+przepisach **bez** nazwy kucharza i bez jego tekstu; „Nie” i wycofanie zgody
+wyglądają tu tak samo — „nie jest dostępna jako wskazówka”).
+
 ### proby_importu
 
 Wspólna księga limitu OCR, adresu i PDF (D-297/D-300). Migracja

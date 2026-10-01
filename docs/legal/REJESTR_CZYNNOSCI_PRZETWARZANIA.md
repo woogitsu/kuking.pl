@@ -801,6 +801,30 @@ trafi tam pierwszy rekord.
 
 ---
 
+### 3.29 Wskazówki od gotujących (V2, #2352, D-333)
+
+- **Cel:** pokazanie uwagi z cudzego „Ugotowałem” przy przepisie jako
+  wskazówki — wyłącznie za zgodą osoby, która ugotowała.
+- **Dane:** prośba i odpowiedź (`recipe_hints`: przepis, wykonanie, autor
+  przepisu, kucharz, stan, daty prośby, odpowiedzi i wycofania zgody, numer
+  wersji przepisu z chwili prośby). Tekstu nie kopiujemy — wskazówką jest
+  `cooked_events.note`. Przy przepisie widać uwagę, nazwę i datę ugotowania
+  kucharza; autor przepisu nie dostaje wiadomości o odmowie ani o wycofaniu.
+- **Podstawa:** art. 6 ust. 1 lit. a RODO — zgoda kucharza, udzielana osobno
+  przy każdej prośbie („Zgadzam się”), brak odpowiedzi to brak publikacji,
+  wycofanie w każdej chwili przyciskiem „Wycofaj zgodę” (art. 7 ust. 3), także
+  przy blokadzie i zawieszeniu konta. Weryfikacja przez prawnika zostaje w #8.
+- **Odbiorcy:** Railway. Zgodna wskazówka jest widoczna dla każdego, kto
+  widzi przepis i to wykonanie (blokady i konta zbanowane ją chowają).
+- **Termin usunięcia:** do wycofania zgody (wskazówka znika ze strony
+  przepisu, wiersz zostaje jako ślad, że prośba nie wraca), usunięcia
+  wykonania (kaskada) albo konta (`EraseAccountData` kasuje wiersze kucharza
+  niezależnie od zakresu usunięcia, a czekające prośby autora też).
+- **Eksport:** `wskazowki_z_moich_wykonan` (uwaga, stan zgody, daty) i
+  `wskazowki_do_moich_przepisow` (stan próśb, bez danych kucharza).
+- **Moderacja:** wskazówka dziedziczy z wykonania — zgłoszenie typu
+  `cooked_event`; nowego celu zgłoszeń nie ma.
+
 ## 4. Kategorie odbiorców (art. 30 ust. 1 lit. d)
 
 Lista jest zweryfikowana wobec kodu (`COMPLIANCE.md` §7.2) i potwierdzona

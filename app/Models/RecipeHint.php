@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Carbon\CarbonImmutable;
 use Database\Factories\RecipeHintFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -24,9 +23,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * wyłącznie akcje domenowe (`App\Domain\Wskazowki`), jawnym przypisaniem —
  * nigdy żądanie (AGENTS.md §7: pola sterujące i klucze właściciela poza
  * `$fillable`). Przejścia stanu to nazwane metody niżej, nie `update()`.
- *
- * @property CarbonImmutable|null $decided_at
- * @property CarbonImmutable|null $withdrawn_at
  */
 class RecipeHint extends Model
 {

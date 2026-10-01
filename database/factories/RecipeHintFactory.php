@@ -7,7 +7,6 @@ namespace Database\Factories;
 use App\Models\CookedEvent;
 use App\Models\Recipe;
 use App\Models\RecipeHint;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -42,15 +41,6 @@ class RecipeHintFactory extends Factory
             $h->status = $status;
             $h->decided_at = in_array($status, [RecipeHint::STATUS_ACCEPTED, RecipeHint::STATUS_DECLINED, RecipeHint::STATUS_WITHDRAWN], true) ? now() : null;
             $h->withdrawn_at = $status === RecipeHint::STATUS_WITHDRAWN ? now() : null;
-        });
-    }
-
-    /** Dla pary osób bez wykonania w tle (rzadko; testy wolą `dlaWykonania`). */
-    public function miedzy(User $autor, User $kucharz): static
-    {
-        return $this->afterMaking(function (RecipeHint $h) use ($autor, $kucharz): void {
-            $h->author_id = $autor->getKey();
-            $h->cook_id = $kucharz->getKey();
         });
     }
 }
