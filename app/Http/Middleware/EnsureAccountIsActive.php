@@ -91,6 +91,10 @@ class EnsureAccountIsActive
         // zatrzymuje, bo to pisanie.
         'hints.decline',
         'hints.withdraw',
+        // #2352: autor wycofuje WŁASNĄ czekającą prośbę. Niczego nie publikuje,
+        // tylko odbiera nacisk z kucharza (prośba znika z jego odpowiedzi);
+        // zawieszenie odcina od pisania, a nie od wycofania własnej prośby.
+        'hints.cancel',
         // #926: prywatny zeszyt i postęp gotowania zostają dostępne.
         // Widoczności zeszytu i treści nadal pilnują ich polityki.
         'collections.store',

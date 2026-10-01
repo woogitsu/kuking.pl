@@ -411,6 +411,26 @@ final class WskazowkiWygasanieAnulowanieZgodaTest extends TestCase
         $this->assertSame(RecipeHint::STATUS_CANCELLED, $h->fresh()->status);
     }
 
+    public function test_zawieszony_autor_anuluje_wlasna_prosbe_bo_to_wycofanie_a_nie_pisanie(): void
+    {
+        $autor = $this->user('autorka');
+        $przepis = $this->przepis($autor);
+        $h = $this->popros($autor, $this->wykonanie($this->user('marek'), $przepis));
+        $drugie = $this->wykonanie($this->user('basia'), $przepis);
+        $autor->forceFill(['status' => User::STATUS_SUSPENDED])->save();
+
+        // Kontrola ujemna: nowa prośba zawieszonego nadal jest zatrzymana.
+        $this->actingAs($autor)->post(route('hints.propose', $drugie));
+        $nowychProsb = RecipeHint::query()->where('cooked_event_id', $drugie->getKey())->count();
+
+        $this->actingAs($autor)->post(route('hints.cancel', $h));
+
+        $this->assertSame(
+            ['nowa_prosba_zawieszonego' => 0, 'stan_po_anulowaniu' => RecipeHint::STATUS_CANCELLED],
+            ['nowa_prosba_zawieszonego' => $nowychProsb, 'stan_po_anulowaniu' => $h->fresh()->status],
+        );
+    }
+
     public function test_baza_zna_stan_anulowana_ale_nie_pozwala_mu_miec_dat_decyzji(): void
     {
         $autor = $this->user('autorka');
@@ -551,7 +571,7 @@ final class WskazowkiWygasanieAnulowanieZgodaTest extends TestCase
             ->assertOk()
             ->assertSee('Marek: zgoda na wskazówkę')
             ->assertSee('Rosół babci')
-            ->assertSee('Ta uwaga stoi teraz na stronie Twojego przepisu.');
+            ->assertSee('Uwaga pojawia się na stronie Twojego przepisu, dopóki zgoda trwa.');
 
         $powiadomienie = Notification::query()->where('type', Notification::TYPE_HINT_ACCEPTED)->sole();
         $this->actingAs($autor)->post(route('notifications.open', $powiadomienie))
@@ -561,6 +581,52 @@ final class WskazowkiWygasanieAnulowanieZgodaTest extends TestCase
         // Przepis usunięty po zgodzie: uczciwa karta, bez „Zobacz" na 404.
         $przepis->delete();
         $this->assertNull(Notification::query()->findOrFail($powiadomienie->getKey())->adresDocelowy());
+    }
+
+    public function test_karta_zgody_nie_klamie_po_wycofaniu_zgody_i_nie_zdradza_wycofania(): void
+    {
+        $autor = $this->user('autorka');
+        $kucharz = $this->user('marek', ['display_name' => 'Marek']);
+        $h = $this->popros($autor, $this->wykonanie($kucharz, $this->przepis($autor)));
+        $this->actingAs($kucharz)->post(route('hints.accept', $h));
+
+        $przed = (string) $this->actingAs($autor)->get(route('notifications.index'))->assertOk()->getContent();
+        $this->actingAs($kucharz)->post(route('hints.withdraw', $h))->assertRedirect();
+        $po = (string) $this->actingAs($autor)->get(route('notifications.index'))->assertOk()->getContent();
+
+        // Kontrola dodatnia: karta jest na liście przed i po; po wycofaniu nie obiecuje
+        // stanu i nie wspomina o wycofaniu (autor nie dowiaduje się o nim z karty).
+        $this->assertStringContainsString('Marek: zgoda na wskazówkę', $przed);
+        $this->assertStringContainsString('Marek: zgoda na wskazówkę', $po);
+        $this->assertSame(RecipeHint::STATUS_WITHDRAWN, $h->fresh()->status);
+        // Wycinek samej karty (strona ma poza nią inne teksty o wycofywaniu).
+        $karta = mb_strtolower(mb_substr($po, (int) mb_strpos($po, 'Marek: zgoda na wskazówkę'), 600));
+        $this->assertStringContainsString('dopóki zgoda trwa', $karta);
+        $this->assertStringNotContainsString('stoi teraz', $karta);
+        $this->assertStringNotContainsString('wycof', $karta);
+    }
+
+    public function test_karta_prosby_nie_obiecuje_stanu_po_odmowie_anulowaniu_i_wygasnieciu(): void
+    {
+        $autor = $this->user('autorka', ['display_name' => 'Halina']);
+        $przepis = $this->przepis($autor);
+        $kucharz = $this->user('marek');
+        $odmowa = $this->popros($autor, $this->wykonanie($kucharz, $przepis));
+        $this->actingAs($kucharz)->post(route('hints.decline', $odmowa))->assertRedirect();
+        $kucharz2 = $this->user('basia');
+        $anulowana = $this->popros($autor, $this->wykonanie($kucharz2, $przepis));
+        $this->actingAs($autor)->post(route('hints.cancel', $anulowana))->assertRedirect();
+        $kucharz3 = $this->user('celina');
+        $wygasla = $this->popros($autor, $this->wykonanie($kucharz3, $przepis));
+        $this->postarz($wygasla, 45);
+
+        foreach ([$kucharz, $kucharz2, $kucharz3] as $odbiorca) {
+            $strona = (string) $this->actingAs($odbiorca)->get(route('notifications.index'))->assertOk()->getContent();
+
+            $this->assertStringContainsString('Halina prosi o zgodę na wskazówkę', $strona);
+            $this->assertStringContainsString('Bez Twojej zgody uwaga nie pojawi się przy przepisie.', $strona);
+            $this->assertStringNotContainsString('pokaże się tam tylko wtedy', $strona);
+        }
     }
 
     public function test_zawieszony_autor_dostaje_powiadomienie_o_zgodzie_bo_zawieszenie_odcina_od_pisania_nie_od_wiadomosci(): void

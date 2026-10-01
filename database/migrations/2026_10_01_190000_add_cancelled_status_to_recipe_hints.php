@@ -21,9 +21,10 @@ use Illuminate\Support\Facades\Schema;
  *    anulował, mówi `updated_at`). Dzięki temu nie dochodzi żadna kolumna
  *    (eksport i wymazanie się nie zmieniają).
  *
- * Oba CHECK-i wchodzą `NOT VALID` + osobny `VALIDATE`, poza transakcją
- * (`$withinTransaction = false`), żeby blokada z pierwszego kroku nie trwała
- * do końca drugiego. Dane istniejące spełniają nowe reguły z definicji
+ * Stare CHECK-i są zdejmowane, a nowe zakładane JEDNYM poleceniem `ALTER TABLE`
+ * (`NOT VALID`) — nie ma chwili bez żadnego z nich — a osobny `VALIDATE` idzie
+ * poza transakcją (`$withinTransaction = false`), żeby blokada z pierwszego
+ * kroku nie trwała do końca drugiego. Dane istniejące spełniają nowe reguły z definicji
  * (nowa reguła jest szersza od starej), więc `up()` niczego nie sprawdza
  * wcześniej; gdyby `VALIDATE` padł, niezwalidowane CHECK-i są zdejmowane,
  * a stare przywracane, żeby ponowne `migrate` zaczęło od czystego stanu.
@@ -79,19 +80,13 @@ return new class extends Migration
             return;
         }
 
-        DB::statement('ALTER TABLE recipe_hints DROP CONSTRAINT IF EXISTS '.self::STATUS);
-        DB::statement('ALTER TABLE recipe_hints DROP CONSTRAINT IF EXISTS '.self::SPOJNY);
-        DB::statement('ALTER TABLE recipe_hints ADD CONSTRAINT '.self::STATUS.' CHECK ('.$status.') NOT VALID');
-        DB::statement('ALTER TABLE recipe_hints ADD CONSTRAINT '.self::SPOJNY.' CHECK ('.$spojny.') NOT VALID');
+        $this->podmienOgraniczenia($status, $spojny);
 
         try {
             DB::statement('ALTER TABLE recipe_hints VALIDATE CONSTRAINT '.self::STATUS);
             DB::statement('ALTER TABLE recipe_hints VALIDATE CONSTRAINT '.self::SPOJNY);
         } catch (Throwable $e) {
-            DB::statement('ALTER TABLE recipe_hints DROP CONSTRAINT IF EXISTS '.self::STATUS);
-            DB::statement('ALTER TABLE recipe_hints DROP CONSTRAINT IF EXISTS '.self::SPOJNY);
-            DB::statement('ALTER TABLE recipe_hints ADD CONSTRAINT '.self::STATUS.' CHECK ('.$statusPoprzedni.') NOT VALID');
-            DB::statement('ALTER TABLE recipe_hints ADD CONSTRAINT '.self::SPOJNY.' CHECK ('.$spojnyPoprzedni.') NOT VALID');
+            $this->podmienOgraniczenia($statusPoprzedni, $spojnyPoprzedni);
 
             throw new RuntimeException(
                 'Nie udało się zwalidować ograniczeń tabeli recipe_hints: w tabeli są wiersze niezgodne z nową regułą. '
@@ -100,6 +95,24 @@ return new class extends Migration
                 previous: $e,
             );
         }
+    }
+
+    /**
+     * Zdjęcie starych i założenie nowych CHECK-ów w JEDNYM poleceniu `ALTER TABLE`:
+     * nie ma chwili, w której tabela nie ma żadnego z nich (równoległy zapis nie
+     * wpisze wtedy wiersza łamiącego regułę). Oba nowe wchodzą `NOT VALID`;
+     * sprawdzenie istniejących wierszy robi osobny `VALIDATE` (blokada
+     * `SHARE UPDATE EXCLUSIVE`, bez blokowania zapisu).
+     */
+    private function podmienOgraniczenia(string $status, string $spojny): void
+    {
+        DB::statement(
+            'ALTER TABLE recipe_hints '
+            .'DROP CONSTRAINT IF EXISTS '.self::STATUS.', '
+            .'DROP CONSTRAINT IF EXISTS '.self::SPOJNY.', '
+            .'ADD CONSTRAINT '.self::STATUS.' CHECK ('.$status.') NOT VALID, '
+            .'ADD CONSTRAINT '.self::SPOJNY.' CHECK ('.$spojny.') NOT VALID',
+        );
     }
 
     private function odmowJesliSaAnulowane(): void
