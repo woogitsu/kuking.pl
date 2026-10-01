@@ -1282,6 +1282,10 @@ checks = [
      lambda s: replace_once(s, "'po' => $nowe[$j]['instruction'].$minutnik]", "'po' => $nowe[$j]['instruction']]")),
     ("Historia: usunięty krok gubi minutnik", "app/Domain/Recipes/Historia/PorownanieWersji.php", "test_dodany_i_usuniety_krok_pokazuja_wlasny_minutnik_lub_sam_tekst",
      lambda s: replace_once(s, "'przed' => $stare[$i]['instruction'].$minutnik", "'przed' => $stare[$i]['instruction']")),
+    ("Pasteryzacja znów zaleca piekarnik (#2434)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_objasnienie_pasteryzacji_nie_poleca_piekarnika_ani_dowolnych_parametrow_autora",
+     lambda s: replace_once(s, "Ogrzewać przetwory, by ograniczyć drobnoustroje. Metodę, czas i temperaturę dobierz z przebadanych zaleceń dla konkretnego produktu i składu. Nie utrwalaj napełnionych słoików w zwykłym piekarniku. Sama gorąca woda nie wystarcza dla wszystkich przetworów.", "Podgrzewać zamknięte słoiki z zawartością w gorącej wodzie lub piekarniku, żeby przetwory dłużej się trzymały. Temperaturę i czas podaje autor przepisu, więc trzymaj się dokładnie jego wskazówek.")),
+    ("Uwaga słownika gwarantuje parametry autora (#2434)", "resources/views/components/terminy-kroku.blade.php", "test_objasnienie_pasteryzacji_nie_poleca_piekarnika_ani_dowolnych_parametrow_autora",
+     lambda s: replace_once(s, "To objaśnienie słowa, nie ocena bezpieczeństwa przepisu. Przy przetworach korzystaj z przebadanych zaleceń dla konkretnego produktu.", "To ogólne wyjaśnienie, nie część przepisu — w razie wątpliwości trzymaj się tego, co napisał autor.")),
     # #2421: w oknie <= 16rem przy tekście 125/140% pasek górny odpina się,
     # bo kolumnowy znak robi go wyższym niż rezerwa nad nim (WCAG 2.4.11).
     ("Pasek przy kolumnowym znaku znowu przypięty", "resources/css/marka-rama.css", "PasekPrzyKolumnowymZnakuTest",

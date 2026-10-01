@@ -38,6 +38,8 @@ OCZEKUJ = {
     'Historia: zmieniony krok gubi minutnik': r'HISTORIA_TIMER_CHANGED',
     'Historia: dodany krok gubi minutnik': r'HISTORIA_TIMER_ADDED',
     'Historia: usunięty krok gubi minutnik': r'HISTORIA_TIMER_REMOVED',
+    'Pasteryzacja znów zaleca piekarnik (#2434)': r'PASTERYZACJA_BEZ_PIEKARNIKA',
+    'Uwaga słownika gwarantuje parametry autora (#2434)': r'PASTERYZACJA_UWAGA_NIE_GWARANTUJE',
     # Paczka V: kontrole dodatnie trzech strażników tekstu.
     'Pasek przy kolumnowym znaku znowu przypięty': r'Przy progu układu kolumnowego znaku pasek ma przestać być przypięty\.',
     'Uwaga słownika terminów wraca do .meta': r'Uwaga pod słownikiem terminów zeszła do \.meta albo poniżej 18 px',
