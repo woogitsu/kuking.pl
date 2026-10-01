@@ -8,6 +8,7 @@ use App\Domain\Compliance\DziennikWymazan;
 use App\Domain\Compliance\DziennikWymazanNiedostepny;
 use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
+use App\Domain\Users\DawneNazwyProfilu;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Users\Import\MagazynPaczek;
 use App\Domain\Users\KoniecWspolnychZeszytow;
@@ -503,6 +504,10 @@ final class EraseAccountData
                     'sqlstate' => $awaria instanceof QueryException ? (string) $awaria->getCode() : null,
                 ]);
             }
+
+            // Dawne nazwy profilu to dane osobowe (RODO art. 17) i kluczyk
+            // do nowej nazwy — znikają razem z nazwą (`DawneNazwyProfilu`).
+            (new DawneNazwyProfilu)->usunDlaOsoby($fresh);
 
             if ($profile !== null) {
                 $profile->forceFill([

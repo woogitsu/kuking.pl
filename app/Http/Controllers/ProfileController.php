@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Media\DostepDoZdjecia;
 use App\Domain\Search\FrazaWUgotowanych;
 use App\Domain\Sharing\KartaZKodemQr;
+use App\Domain\Users\DawneNazwyProfilu;
 use App\Http\Requests\Profile\ProfilRequest;
 use App\Models\Block;
 use App\Models\CookedEvent;
@@ -21,6 +22,7 @@ use App\Support\KanonicznyAdresStrony;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -34,7 +36,7 @@ use Illuminate\View\View;
  */
 class ProfileController extends Controller
 {
-    public function show(Request $request, ProfilRequest $wejscie, string $username): View
+    public function show(Request $request, ProfilRequest $wejscie, string $username): View|RedirectResponse
     {
         // `$request` to żądanie z kontenera, które czyta układ strony
         // (canonical); `ProfilRequest` jest jego kopią, więc atrybutów
@@ -52,7 +54,18 @@ class ProfileController extends Controller
         $profile = Profile::query()
             ->whereRaw('lower(username) = ?', [mb_strtolower($username)])
             ->with(['user', 'avatar'])
-            ->firstOrFail();
+            ->first();
+
+        // Dawna nazwa → 301 na aktualny profil (karty z kodem QR, stare
+        // linki). Dopiero gdy pod nazwą nie ma żywego profilu; Policy tak
+        // samo jak niżej, odmowa to 404 (`DawneNazwyProfilu`).
+        if ($profile === null) {
+            $przekierowanie = (new DawneNazwyProfilu)->przekierowanie($request, $request->user(), $username, 'profile.show');
+
+            abort_if($przekierowanie === null, 404);
+
+            return $przekierowanie;
+        }
 
         $owner = $profile->user;
         $owner->setRelation('profile', $profile);
