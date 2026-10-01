@@ -33,7 +33,7 @@ class EksportArchiwumPrzepisuTest extends EksportWygladStylPaczki
 
         $paczka = $this->zbudujPaczke($autor);
         $html = $this->zPaczki($paczka, 'przepisy/'.ExportFileNames::recipeFile($rok));
-        $this->assertStringContainsString('<h2>Skąd ten przepis</h2>', $html);
+        $this->assertStringContainsString('<h2>Skąd ten przepis</h2>', $html, 'EKSPORT_ROK_SAM_W_HTML');
         $this->assertStringContainsString('W rodzinie od 1974 roku.', $html, 'EKSPORT_ROK_SAM_W_HTML');
         $this->assertStringNotContainsString('<h2>Skąd ten przepis</h2>', $this->zPaczki(
             $paczka, 'przepisy/'.ExportFileNames::recipeFile($bezZrodla),
@@ -70,7 +70,7 @@ class EksportArchiwumPrzepisuTest extends EksportWygladStylPaczki
         $paczka = $this->zbudujPaczke($autor);
         foreach ($przepisy as [$przepis, $oczekiwane]) {
             $html = $this->zPaczki($paczka, 'przepisy/'.ExportFileNames::recipeFile($przepis));
-            $this->assertStringContainsString('<h2>Skąd ten przepis</h2>', $html);
+            $this->assertStringContainsString('<h2>Skąd ten przepis</h2>', $html, 'EKSPORT_ROK_SAM_W_HTML');
             $this->assertStringContainsString($oczekiwane, $html);
         }
     }
