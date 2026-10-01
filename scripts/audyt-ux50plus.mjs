@@ -50,6 +50,7 @@ const BEZ_FORMY = process.argv.includes('--bez-formy');
 // Ekrany paczki S wymagają fixture w bazie serwera; test atrapy
 // (`fixtures/audyt-ux50plus-konteksty.test.mjs`) przebiega bez bazy.
 const BEZ_PACZKI_S = process.argv.includes('--bez-paczki-s');
+const TYLKO_EKRANY = process.env.TYLKO_EKRANY ? new RegExp(process.env.TYLKO_EKRANY, 'u') : null;
 const KONTO = 'ania';
 const HASLO = 'haslo-testowe-123';
 
@@ -118,11 +119,11 @@ const EKRANY = [
   { nazwa: 'spiżarnia — Co mam w domu', adres: '/co-mam-w-domu', zalogowany: true, znak: '#sekcja-pilne' },
   { nazwa: 'spiżarnia — ustaw termin', dynamiczny: 'terminProduktu', zalogowany: true, znak: 'h1:text("Ustaw termin")' },
   { nazwa: 'spiżarnia — najpierw to, co się psuje', adres: '/co-ugotuje?najpierw=termin', zalogowany: true, znak: 'h1:text("Przepisy na produkty z krótkim terminem")' },
-  { nazwa: 'sobotni list — wypisanie (pytanie)', dynamiczny: 'linkWypisz', znak: 'button:text("Tak, nie wysyłajcie mi go")' },
-  { nazwa: 'sobotni list — wypisano', dynamiczny: 'linkWypisz', poWejsciu: 'wypisano', znakPo: 'h1:text("Nie wyślemy już")' },
-  { nazwa: 'sobotni list — zgoda wróciła', dynamiczny: 'linkWypisz', poWejsciu: 'wrocono', znakPo: 'h1:text("Sobotnie przypomnienie przyjdzie")' },
-  { nazwa: 'sobotni list — link wygasł', dynamiczny: 'linkWypisz', poWejsciu: 'wygaslo', znakPo: 'h1:text("Ten link wygasł")' },
-  { nazwa: 'zeszyt do druku', dynamiczny: 'zeszytDoDruku', zalogowany: true, znak: '#zeszyt-spis-naglowek' },
+  { nazwa: 'sobotni list — wypisanie (pytanie)', dynamiczny: 'linkWypisz', zwolnijLimity: true, znak: 'button:text("Tak, nie wysyłajcie mi go")' },
+  { nazwa: 'sobotni list — wypisano', dynamiczny: 'linkWypisz', poWejsciu: 'wypisano', zwolnijLimity: true, znakPo: 'h1:text("Nie wyślemy już")' },
+  { nazwa: 'sobotni list — zgoda wróciła', dynamiczny: 'linkWypisz', poWejsciu: 'wrocono', zwolnijLimity: true, znakPo: 'h1:text("Sobotnie przypomnienie przyjdzie")' },
+  { nazwa: 'sobotni list — link wygasł', dynamiczny: 'linkWypisz', poWejsciu: 'wygaslo', zwolnijLimity: true, znakPo: 'h1:text("Ten link wygasł")' },
+  { nazwa: 'zeszyt do druku', dynamiczny: 'zeszytDoDruku', zalogowany: true, zwolnijLimity: true, znak: '#zeszyt-spis-naglowek' },
   { nazwa: 'karta z kodem QR — przepis', dynamiczny: 'kartaPrzepisu', znak: '.karta-qr-kod svg' },
   { nazwa: 'karta z kodem QR — profil', dynamiczny: 'kartaProfilu', znak: '.karta-qr-kod svg' },
   { nazwa: 'tablica — wspomnienie z wykonania', adres: '/home', zalogowany: true, znak: '.wspomnienie' },
@@ -706,10 +707,18 @@ async function main() {
         const stronaZalogowanego = await kontekstZalogowanego.newPage();
 
         for (const ekran of EKRANY) {
+          // Ponowienie wybranych ekranów po poprawce: TYLKO_EKRANY='sobotni|QR'.
+          // Raport z takiego przebiegu jest niepełny.
+          if (TYLKO_EKRANY && !TYLKO_EKRANY.test(ekran.nazwa)) continue;
           const adres = ekran.dynamiczny ? dyn[ekran.dynamiczny] : ekran.adres;
           if (!adres) continue;
           const strona = ekran.zalogowany ? stronaZalogowanego : stronaGoscia;
           try {
+            // Limity tras są celowe; pomiar wchodzi na te strony dziesiątki razy
+            // (429 przechodzi każdy audyt, nie sprawdzając niczego).
+            if (ekran.zwolnijLimity) {
+              execFileSync('php', ['scripts/fixtures/nowe-ekrany-s.php', 'zwolnij-limity'], { env: process.env });
+            }
             const odp = await strona.goto(ADRES + adres, {
               waitUntil: 'networkidle',
               timeout: 30000,
