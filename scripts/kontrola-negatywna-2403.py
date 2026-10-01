@@ -57,13 +57,19 @@ def run_test(expect_success: bool) -> None:
         raise RuntimeError("Nie udało się uruchomić testu #2403 w tym środowisku.") from exc
 
     print(result.stdout, flush=True)
-    if "No tests found" in result.stdout or not re.search(r"Tests:\s*1(?:\D|$)", result.stdout):
+    # Artisan/PHPUnit potrafi dodać ANSI nawet z --no-ansi. W CI kolor
+    # stał między „Tests:” a liczbą i dawał fałszywy brak testów mimo
+    # prawdziwego 1 passed / 15 assertions na PostgreSQL 18.
+    # GitHub CLI pokazuje niektóre przechwycone ESC jako literalne „^[[”;
+    # obsługujemy obie postacie tego samego kolorowego wydruku.
+    wynik = re.sub(r"(?:\x1b\[|\^\[\[)[0-?]*[ -/]*[@-~]", "", result.stdout)
+    if "No tests found" in wynik or not re.search(r"Tests:\s*1(?:\D|$)", wynik):
         raise RuntimeError("Brak dowodu uruchomienia dokładnie jednego testu #2403.")
 
     if expect_success:
-        if result.returncode != 0 or re.search(r"(?:Skipped|Incomplete|Risky):\s*[1-9]", result.stdout):
+        if result.returncode != 0 or re.search(r"(?:Skipped|Incomplete|Risky):\s*[1-9]", wynik):
             raise RuntimeError("Test dodatni #2403 nie przeszedł; to błąd kodu lub środowiska, nie kontrola ujemna.")
-    elif result.returncode == 0 or "23505" not in result.stdout or '"recipes_slug_unique"' not in result.stdout:
+    elif result.returncode == 0 or "23505" not in wynik or '"recipes_slug_unique"' not in wynik:
         raise RuntimeError("Mutacja #2403 nie wywołała dokładnie konfliktu 23505/recipes_slug_unique.")
 
 
