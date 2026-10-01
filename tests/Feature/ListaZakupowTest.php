@@ -434,7 +434,9 @@ final class ListaZakupowTest extends TestCase
             $this->assertInstanceOf(\DOMElement::class, $formularz);
             $this->assertSame(1, $xpath->query('.//input[@name="_method" and @value="DELETE"]', $formularz)->length);
             $this->assertSame(1, $xpath->query('.//button[@type="submit" and contains(text(), "Tak, usuń tę pozycję")]', $formularz)->length);
-            $this->assertSame(1, $xpath->query('.//form[@action="'.route('shopping.destroy', $pozycja).'"]', $wiersz)->length);
+            $usuwanie = $xpath->query('.//form[@action="'.route('shopping.destroy', $pozycja).'" and input[@name="_method" and @value="DELETE"]]', $wiersz);
+            $this->assertSame(1, $usuwanie->length, 'BRAK_POTWIERDZENIA_2466: tylko jeden formularz DELETE, wewnątrz pytania.');
+            $this->assertTrue($formularz->isSameNode($usuwanie->item(0)));
             $this->assertModelExists($pozycja);
         }
 

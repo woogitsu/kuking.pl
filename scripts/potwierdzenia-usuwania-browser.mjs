@@ -77,13 +77,20 @@ async function checkScreen(page, path, item, id, statePath) {
     if (!['GET', 'HEAD'].includes(request.method())) mutations.push(`${request.method()} ${request.url()}`);
   });
 
+  const restingShadow = await summary.evaluate(el => getComputedStyle(el).boxShadow);
   await summary.focus();
   await page.keyboard.press('Shift+Tab');
   await page.keyboard.press('Tab');
   assert.equal(await summary.evaluate(el => document.activeElement === el), true, `${item}: fokus nie trafia na pytanie.`);
-  const focus = await summary.evaluate(el => ({ visible: el.matches(':focus-visible'),
-    outline: getComputedStyle(el).outlineStyle }));
-  assert.ok(focus.visible && focus.outline !== 'none', `${item}: brak widocznego fokusu klawiatury.`);
+  const focus = await summary.evaluate(el => {
+    const css = getComputedStyle(el);
+    return { visible: el.matches(':focus-visible'), outline: css.outlineStyle,
+      width: parseFloat(css.outlineWidth), color: css.outlineColor, shadow: css.boxShadow };
+  });
+  const outline = focus.outline !== 'none' && focus.width > 0
+    && !/rgba\([^)]*,\s*0\)$|transparent/.test(focus.color);
+  const ring = focus.shadow !== 'none' && focus.shadow !== restingShadow;
+  assert.ok(focus.visible && (outline || ring), `${item}: brak widocznego fokusu klawiatury (${JSON.stringify(focus)}).`);
   await page.keyboard.press('Enter');
   assert.notEqual(await details.getAttribute('open'), null, `${item}: Enter nie otworzył pytania.`);
   await accessibleNameMatchesVisible(summary, true);
@@ -147,14 +154,15 @@ try {
   for (const font200 of [false, true]) {
     const path = join(tmp, `state-${font200 ? '200' : '100'}.json`);
     fixture('przygotuj', path);
-    const data = state(path);
-    const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 320, height: 850 } });
-    const page = await context.newPage();
-    if (font200) {
-      const cdp = await context.newCDPSession(page);
-      await cdp.send('Page.setFontSizes', { fontSizes: { standard: 32, fixed: 32 } });
-    }
+    let context;
     try {
+      const data = state(path);
+      context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 320, height: 850 } });
+      const page = await context.newPage();
+      if (font200) {
+        const cdp = await context.newCDPSession(page);
+        await cdp.send('Page.setFontSizes', { fontSizes: { standard: 32, fixed: 32 } });
+      }
       await page.goto(`${base}/login`);
       await page.locator('input[name="login"]').fill(data.email);
       await page.locator('input[name="password"]').fill(data.password);
@@ -166,12 +174,18 @@ try {
       }
       console.log(`PASS: prawdziwe formularze, bez JS, 320px, czcionka ${font200 ? '200%' : '100%'}.`);
     } finally {
-      await context.close();
-      fixture('posprzataj', path);
+      try { await context?.close(); } finally { fixture('posprzataj', path); }
     }
   }
 } finally {
-  await browser?.close();
-  server?.kill();
-  rmSync(tmp, { recursive: true, force: true });
+  try { await browser?.close(); } finally {
+    if (server && server.exitCode === null && server.signalCode === null) {
+      await new Promise(resolve => {
+        const timer = setTimeout(() => { server.kill('SIGKILL'); resolve(); }, 3000);
+        server.once('exit', () => { clearTimeout(timer); resolve(); });
+        server.kill('SIGTERM');
+      });
+    }
+    rmSync(tmp, { recursive: true, force: true });
+  }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\PantryItem;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
@@ -52,10 +53,16 @@ class SpizarniaPotwierdzenieUsunieciaTest extends TestCase
         $this->assertNotFalse($tokens);
         $this->assertSame(1, $methods->length);
         $this->assertSame(1, $tokens->length);
-        $this->assertSame($przed, $produkt->fresh()->getAttributes());
+        $this->assertSame($przed, $this->attributesFromDatabase($produkt));
         // Zwykły powrót do strony również nie kasuje ilości ani terminu.
         $this->get(route('pantry.index'))->assertOk();
-        $this->assertSame($przed, $produkt->fresh()->getAttributes());
+        $this->assertSame($przed, $this->attributesFromDatabase($produkt));
+    }
+
+    /** @return array<string, mixed> */
+    private function attributesFromDatabase(PantryItem $produkt): array
+    {
+        return PantryItem::query()->findOrFail($produkt->getKey())->getAttributes();
     }
 
     public function test_potwierdzone_usuniecie_kasuje_tylko_wybrany_wlasny_produkt(): void
