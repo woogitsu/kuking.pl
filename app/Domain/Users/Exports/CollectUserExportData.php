@@ -462,6 +462,9 @@ final class CollectUserExportData
                 // („2 szklanki mąki”). Rozbite pola są obok, dla programów.
                 'zapis' => $item->ingredient_text,
                 'ile' => $item->quantity,
+                // Jawny wybór autora; `ile = null` samo nie odróżnia „Bez ilości”
+                // od nieprzeliczonego tekstu. Nie dopisujemy go do migawek.
+                'bez_ilosci' => (bool) $item->no_amount,
                 'jednostka' => $item->unit?->name,
                 'skladnik_ze_slownika' => $item->ingredient?->canonical_name,
                 'uwaga' => $item->note,
