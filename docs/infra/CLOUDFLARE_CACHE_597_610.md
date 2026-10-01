@@ -457,6 +457,18 @@ Czyszczenie cache HTML przy edycji przepisu (punkt 4 issue) **nie jest
 zrobione** — krótki TTL jest jedynym ograniczeniem. To temat na osobne
 zadanie, jeśli 120 s okaże się za dużo.
 
+**Alergeny przepisu (#1902, flaga `KUKING_ALERGENY_WLACZONE`).** Gdy oznaczenie
+alergenów jest włączone, HTML przepisu z brzegu pokazuje listę „Alergeny według
+autora” (albo jej brak) tak, jak wyglądała przy ostatnim pobraniu przez gościa.
+Zmiana oznaczenia przez autora — albo zmiana składników, po której stan przechodzi
+na „do ponownego sprawdzenia” — może więc być niewidoczna dla gości **do TTL**
+(`KUKING_HTML_EDGE_CACHE_SECONDS`, najwyżej 300 s). To nie jest nowe ryzyko
+prywatności, ale jest to informacja o zdrowiu czytana z obcego źródła: nie wolno
+jej przedstawiać jako aktualnej co do sekundy. Dlatego przy włączonych alergenach
+TTL ma zostać krótki (proponowane 120 s, nie więcej), a strona przepisu i tak
+odsyła do czytania składników samodzielnie. Filtr „Bez wskazanych alergenów” na
+`/szukaj` jest wyłączony z cache (adres z zapytaniem), więc go to nie dotyczy.
+
 **Do potwierdzenia w panelu Cloudflare** (z repozytorium tego nie widać):
 
 - czy „Always Online” albo „Serve stale content” nie wydłużają okna ponad N

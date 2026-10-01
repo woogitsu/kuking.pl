@@ -274,4 +274,19 @@ final class AlergenyWyszukiwarkaTest extends TestCase
         $this->assertEqualsCanonicalizing(['query_length', 'has_results'], array_keys($sygnal->properties));
         $this->assertStringNotContainsString('milk', json_encode($sygnal->properties, JSON_THROW_ON_ERROR));
     }
+
+    public function test_odpowiedz_429_tez_nie_zostawia_wyboru_w_sesji(): void
+    {
+        $this->zbior();
+
+        // Limit wyszukiwania to 60 żądań na minutę; 61. dostaje 429 z `throttle`.
+        for ($i = 0; $i < 60; $i++) {
+            $this->get(route('search', ['q' => 'zupa']))->assertOk();
+        }
+
+        $this->get(route('search', ['q' => 'zupa', 'bez' => ['milk']]))->assertStatus(429);
+
+        $this->assertStringNotContainsString('milk', json_encode(session()->all(), JSON_THROW_ON_ERROR), 'Adres z wyborem alergenów został w sesji po odpowiedzi 429.');
+        $this->assertStringNotContainsString('bez', (string) session()->get('_previous.url'));
+    }
 }

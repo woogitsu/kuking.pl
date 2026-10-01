@@ -169,6 +169,24 @@ final class AlergenyKreatorTest extends TestCase
         $this->assertSame(['eggs'], $przepis->allergens);
     }
 
+    public function test_po_ponownym_potwierdzeniu_kolejny_zapis_i_publikacja_nie_dostaja_konfliktu_rewizji(): void
+    {
+        $k = $this->kreator()->set('alergeny', ['eggs'])->set('alergenyPotwierdzone', true)->call('saveDraft');
+        $k->set('ingredients.1.text', 'coś innego')->call('saveDraft');
+        $przed = Recipe::query()->sole()->content_revision;
+
+        $k->call('potwierdzAlergenyPonownie')->assertHasNoErrors();
+
+        $this->assertGreaterThan($przed, Recipe::query()->sole()->content_revision);
+        $k->assertSet('contentRevision', Recipe::query()->sole()->content_revision);
+
+        $k->set('form.summary', 'Po potwierdzeniu')->call('saveDraft')->assertHasNoErrors();
+        $k->set('step', 4)->call('publish')->assertHasNoErrors();
+
+        $this->assertTrue(Recipe::query()->sole()->isPublished());
+        $this->assertSame('declared', Recipe::query()->sole()->allergen_status);
+    }
+
     public function test_przycisk_ponownego_potwierdzenia_nie_robi_deklaracji_z_niczego(): void
     {
         // Przepis istnieje (autozapis), oznaczenie jest „nie sprawdzono”, a zaznaczenie bez potwierdzenia nie jest deklaracją.
