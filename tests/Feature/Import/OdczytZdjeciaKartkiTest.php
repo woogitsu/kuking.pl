@@ -16,6 +16,7 @@ use App\Models\Recipe;
 use App\Models\User;
 use App\Models\WpisZgody;
 use App\Support\Czas;
+use App\Support\KreatorPrzepisu\DanePublikacji;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
@@ -510,9 +511,30 @@ final class OdczytZdjeciaKartkiTest extends TestCase
     public function test_publikacja_szkicu_z_odczytu_wymaga_sprawdzenia_i_usuniecia_znacznikow(): void
     {
         $szkic = $this->gotowySzkic();
+        // Kreator ładuje skan ze szkicu do sourceScanMediaId i przekazuje go
+        // przy każdym zapisie przez DanePublikacji. Pominięcie go w teście
+        // wywoływało inną drogę niż formularz i czyściło zdjęcie kartki.
         $publikuj = fn (array $atrybuty, array $skladniki) => app(PublishRecipe::class)->handle(
             author: $this->osoba,
-            attributes: ['title' => 'Sernik babci Hani', 'visibility' => 'public', ...$atrybuty],
+            attributes: DanePublikacji::atrybuty(
+                title: 'Sernik babci Hani',
+                summary: '',
+                servings: '',
+                estimatedCostPln: '',
+                prepMinutes: '',
+                cookMinutes: '',
+                difficulty: '',
+                visibility: 'public',
+                sourceType: Recipe::SOURCE_OWN,
+                sourcePerson: '',
+                sourceNote: '',
+                sourceUrl: '',
+                familySinceYear: '',
+                heroMediaId: $szkic->hero_media_id,
+                sourceScanMediaId: $szkic->source_scan_media_id,
+                sprawdzilemOdczyt: false,
+                odczytSprawdzony: (bool) ($atrybuty['odczyt_sprawdzony'] ?? false),
+            ),
             ingredients: $skladniki,
             steps: [['instruction' => 'Piec godzinę.']],
             publish: true,
@@ -577,6 +599,7 @@ final class OdczytZdjeciaKartkiTest extends TestCase
         $kreator->set('ingredients.1.text', '1 szkl. cukru')->set('odczytSprawdzony', true)->set('step', 4)->call('publish')
             ->assertHasNoErrors();
         $this->assertSame(Recipe::STATUS_PUBLISHED, $szkic->fresh()->status);
+        $this->assertNotNull($szkic->fresh()->source_scan_media_id, 'Publikacja przez formularz zgubiła zdjęcie kartki.');
     }
 
     public function test_formularz_bez_javascriptu_ma_to_samo_pole_i_te_sama_bramke(): void
