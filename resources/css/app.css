@@ -864,7 +864,14 @@
   }
 
   /*
-   * NAPIS LOGOTYPU ZNIKA, GDY NIE MA JAK SIĘ ZMIEŚCIĆ — zostaje sam garnek.
+   * NAPIS LOGOTYPU SCHODZI POD GARNEK, GDY NIE MA JAK SIĘ ZMIEŚCIĆ.
+   *
+   * Decyzja właściciela z 1.10.2026: napis zostaje WIDOCZNY. Dawniej w tym
+   * stanie znikał (`display: none`) i zostawał sam garnek; teraz znak i napis
+   * układają się w kolumnę (garnek nad napisem), a rozmiar napisu wciąż
+   * ogranicza `min(…, 10vw)`, więc „KuKing.pl" mieści się w oknie 320 px.
+   * Nagłówek robi się wyższy — to zamierzone. Pomiary poniżej opisują stary
+   * wariant (ukrycie); próg w `rem` i jego uzasadnienie zostają prawdziwe.
    *
    * „KuKing.pl" to jeden nierozdzielny token: nie ma w nim spacji, więc nie
    * ma gdzie się złamać, a `min-width: 0` na rodzicu nic tu nie daje —
@@ -896,7 +903,11 @@
    * wyrazu („KuKin / g.pl") — brzydziej niż sam znak.
    */
   @media (max-width: 12rem) {
-    .wordmark > span[aria-hidden] { display: none; }
+    .wordmark {
+      flex-direction: column;
+      gap: 0;
+      text-align: center;
+    }
   }
 
   /* --- Dolna nawigacja (mobile) ---
@@ -6430,6 +6441,47 @@
 .link-tytul {
   color: var(--color-ink);
   text-decoration: none;
+}
+
+/* Cała karta przepisu w układzie wiersza jest jednym celem dotyku
+   (decyzja właściciela z 1.10.2026): sam tytuł ma ok. 21 px wysokości, a
+   wymagane jest co najmniej 48 px. Wzorzec „stretched link": `::after`
+   linku tytułu rozciąga się na kartę (`position: relative`), wygląd tytułu
+   i wysokość karty zostają bez zmian. Czytnik ekranu widzi jeden odnośnik
+   z tytułem — nie ma drugiego linku na miniaturze. Każdy inny element
+   interaktywny na karcie musi leżeć NAD nakładką, stąd `z-index`. */
+.recipe-card-wiersz {
+  position: relative;
+}
+
+.recipe-card-wiersz .link-tytul::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+}
+
+.recipe-card-wiersz a:not(.link-tytul),
+.recipe-card-wiersz button,
+.recipe-card-wiersz summary {
+  position: relative;
+  z-index: 1;
+}
+
+/* Fokus linku tytułu obrysowuje całą kartę, nie tylko jeden wiersz tekstu. */
+.recipe-card-wiersz .link-tytul:focus-visible {
+  outline: none;
+}
+
+.recipe-card-wiersz .link-tytul:focus-visible::after {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  .recipe-card-wiersz .link-tytul:focus-visible::after {
+    outline-color: Highlight;
+  }
 }
 
 /* Wiersz listy w panelu gospodarza: kreska pod spodem zamiast ramki dookoła.
