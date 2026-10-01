@@ -211,6 +211,7 @@
         <section class="cook-step" aria-label="Bieżący krok">
             <p class="cook-step-numer" aria-hidden="true">Krok {{ $krok }} z {{ $total }}</p>
             <p class="cook-step-tekst">{{ $aktualnyKrok->instruction }}</p>
+            <x-terminy-kroku :tekst="$aktualnyKrok->instruction" />
 
             @if($aktualnyKrok->media)
                 <div class="cook-step-zdjecie">

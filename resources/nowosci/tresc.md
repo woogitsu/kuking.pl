@@ -31,6 +31,15 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Wyjaśnienia słów kulinarnych przy gotowaniu
+
+Gdy w kroku trybu „Gotuję” trafi się słowo, którego nie znacie — na przykład
+„zasmażka”, „zahartuj”, „zredukuj” albo „szumowiny” — pod tekstem kroku
+zobaczycie przycisk „Wyjaśnij to”. Dotknijcie go, a rozwinie się krótkie
+objaśnienie po polsku. Nic się przy tym nie zapisuje i nie zmienia: przepis
+zostaje taki, jak napisał autor, a krok bez trudnych słów nie ma przycisku.
+Objaśnienia napisali ludzie, nie sztuczna inteligencja.
+
 ### Co zużyć w pierwszej kolejności
 
 Przy produktach na liście „Co mam w domu” możecie teraz wpisać termin

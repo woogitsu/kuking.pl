@@ -5028,6 +5028,40 @@
     align-items: center;
 }
 
+/* Wyjaśnienia terminów pod krokiem (#2343). Tekst nie mniejszy niż treść
+   strony, nagłówek rozwijania z celem dotyku min. 48 px, bez hovera. */
+.cook-terminy {
+    margin-top: var(--spacing-4);
+    background-color: var(--color-surface-raised);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-2) var(--spacing-5);
+    font-size: var(--text-body);
+}
+
+.cook-terminy > summary {
+    cursor: pointer;
+    font-size: var(--text-body-lg);
+    font-weight: 800;
+    min-height: var(--control-height-min);
+    display: flex;
+    align-items: center;
+}
+
+.cook-terminy-lista {
+    margin: 0 0 var(--spacing-3);
+}
+
+.cook-terminy-lista dt {
+    font-weight: 800;
+    margin-top: var(--spacing-3);
+}
+
+.cook-terminy-lista dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
 .cook-ingredients .ingredient-list {
     margin: 0 0 var(--spacing-3);
 }

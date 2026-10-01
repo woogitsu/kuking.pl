@@ -198,6 +198,13 @@ z 1 października 2026; włączone od razu, bez flagi):
   dopiero od 5 różnych osób; tylko czasy > 0 i ≤ 24 h; tylko wykonania
   widoczne dla widza (blokady, status konta); bez zakresu, bez ikon.
 
+**Zbudowane** (D-333, wiersz „#2343”, założenia wykonawcy do potwierdzenia, 1 października 2026):
+
+- wyjaśnienia terminów kulinarnych w trybie gotowania (#2343) — wyłącznie
+  statyczny słownik w repozytorium i rozwijane „Wyjaśnij to” pod krokiem,
+  bez AI, bez zapisu i bez śledzenia; wariant z modelem AI zostaje zablokowany
+  przez „AI — nic nowego” (D-333).
+
 **V2, ale nie teraz** (decyzja właściciela z 26 września 2026). Propozycje
 z audytu zapisane na później. Nie budować bez nowej decyzji, mimo D-282
 (pięć pozycji odblokowała D-331, a #1902 i #1903 — D-333, listy wyżej):
