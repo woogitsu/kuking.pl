@@ -36,6 +36,7 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 
 OCZEKUJ = {
     'Domyslny JIT wraca na polaczeniu PostgreSQL (#2291)': r'JIT_2291_SWIEZA_SESJA_WYMAGA_OFF',
+    'Grupowanie tysięcy rozbite na fragmenty (#2455)': r'GRUPOWANIE_TYSIECY_WYNIK',
     'Historia: zmieniony krok gubi minutnik': r'HISTORIA_TIMER_CHANGED',
     'Historia: dodany krok gubi minutnik': r'HISTORIA_TIMER_ADDED',
     'Historia: usunięty krok gubi minutnik': r'HISTORIA_TIMER_REMOVED',
