@@ -88,6 +88,12 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             printf "${CZERWONY}Kontrola ujemna kolejności blokad #2165 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
+        # #2403: bez ponowienia konfliktu slugu test na dwóch połączeniach
+        # musi dostać 23505, a przywrócona akcja ponownie przejść.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2403.py; then
+            printf "${CZERWONY}Kontrola ujemna atomowego slugu #2403 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
     fi
     printf "${ZIELONY}Przebiegów zielonych: %s z %s.${RESET}\n" "$PRZESZLO" "$PRZEBIEGI"
     exit 0
