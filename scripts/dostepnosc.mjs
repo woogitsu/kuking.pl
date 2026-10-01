@@ -622,7 +622,7 @@ const EKRANY = [
   { nazwa: 'karta z kodem QR — profil', znajdz: 's:kartaProfilu', wymaga: '.karta-qr-kod svg' },
   { nazwa: 'tablica — wspomnienie z wykonania', adres: '/home', zalogowany: true, wymaga: '.wspomnienie' },
   { nazwa: 'historia wersji przepisu', znajdz: 's:historia', wymaga: '.historia-wersja-naglowek' },
-  { nazwa: 'historia wersji — jedna wersja', znajdz: 's:wersja', wymaga: '#hw-skladniki' },
+  { nazwa: 'historia wersji — jedna wersja', znajdz: 's:wersja', wymaga: 'a:has-text("Zgłoś wersję 2")' },
   { nazwa: 'historia wersji — co się zmieniło', znajdz: 's:zmiany', wymaga: '#hz-skladniki' },
 ];
 

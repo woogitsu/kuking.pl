@@ -105,21 +105,27 @@ DB::transaction(function () use ($ania, $rosol): void {
         $zeszyt->recipes()->syncWithoutDetaching([$przepis->getKey() => ['created_at' => now()->addMinutes($i + 1)]]);
     }
 
-    // Historia wersji rosołu: dwie wersje, żeby były i lista, i porównanie.
-    foreach ([1 => 'Pierwsza publikacja', 2 => 'Mniej soli, dłuższe gotowanie'] as $numer => $opis) {
+    // Historia wersji rosołu: TRZY wersje — lista, porównanie, a ekran „jedna
+    // wersja” mierzy wersję 2, czyli starszą niż najnowsza (3), bo tylko taka
+    // ma przycisk „Zgłoś wersję 2" (najnowsza to sam przepis, bez zgłoszenia).
+    foreach ([1 => 'Pierwsza publikacja', 2 => 'Mniej soli, dłuższe gotowanie', 3 => 'Dodany liść laurowy'] as $numer => $opis) {
         RecipeVersion::firstOrCreate(['recipe_id' => $rosol->getKey(), 'version_number' => $numer], [
             'editor_id' => $rosol->author_id,
             'change_note' => $opis,
             'snapshot' => [
                 'title' => $rosol->title,
-                'summary' => $numer === 1 ? 'Rosół na kurze, jak u babci.' : 'Rosół na kurze, jak u babci, gotowany dłużej.',
+                'summary' => $numer === 1 ? 'Rosół na kurze, jak u babci.' : 'Rosół na kurze, jak u babci, gotowany dłużej.'.($numer === 3 ? ' Z liściem laurowym.' : ''),
                 'servings' => 4,
                 'ingredients' => [
                     ['group_name' => null, 'text' => '1 kurczak', 'quantity' => 1, 'unit' => null, 'note' => null, 'substitutes' => null, 'no_amount' => false, 'position' => 0],
                     ['group_name' => null, 'text' => $numer === 1 ? 'Sól' : 'Sól do smaku', 'quantity' => null, 'unit' => null, 'note' => null, 'substitutes' => null, 'no_amount' => true, 'position' => 1],
                 ],
                 'steps' => [
-                    ['position' => 0, 'instruction' => $numer === 1 ? 'Gotuj dwie godziny.' : 'Gotuj trzy godziny na małym ogniu.', 'timer_seconds' => null],
+                    ['position' => 0, 'instruction' => match ($numer) {
+                        1 => 'Gotuj dwie godziny.',
+                        2 => 'Gotuj trzy godziny na małym ogniu.',
+                        default => 'Gotuj trzy godziny na małym ogniu, z liściem laurowym.',
+                    }, 'timer_seconds' => null],
                 ],
             ],
         ]);
