@@ -583,6 +583,8 @@ try {
                 [$argumenty['skladnik']],
                 [],
                 (array) json_decode($argumenty['skladniki'], true),
+                null, // fixture Dwa używa porcji z przepisu
+                null, // i w obu urządzeniach widziała ten sam kontekst
             );
 
             return $po === null ? -1 : $po->revision;

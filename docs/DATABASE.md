@@ -6799,7 +6799,7 @@ przepisu; wyłączenie kasuje wiersz), więc nie ma flagi w `users`. Bez wiersza
 | `recipe_id` | `uuid NOT NULL` → `recipes` (`ON DELETE CASCADE`) | przepis |
 | `done_step_ids` | `jsonb NOT NULL DEFAULT '[]'` | ID odhaczonych kroków (nie numery — #756); ID nieistniejących już kroków są odrzucane przy odczycie i wypadają przy zapisie |
 | `servings` | `numeric(6,2) NULL` | (etap 2, migracja `2026_09_29_193700`) wybrana liczba porcji; NULL = z przepisu; `CHECK` 1–100 (`cooking_progress_servings_check`) |
-| `prepared_ingredient_ids` | `jsonb NOT NULL DEFAULT '[]'` | (etap 2) ID składników „przygotowanych” (#2069, nie pozycje); tablica ≤ 300 (`cooking_progress_prepared_check`); nieistniejące już ID odpadają przy odczycie i zapisie |
+| `prepared_ingredient_ids` | `jsonb NOT NULL DEFAULT '[]'` | (etap 2) ID składników „przygotowanych” (#2069, nie pozycje); tablica ≤ 300 (`cooking_progress_prepared_check`); nieistniejące już ID odpadają przy odczycie i zapisie; zmiana porcji czyści wyłącznie te odhaczenia (#2502), bo dotyczą wcześniej odmierzonych ilości |
 | `revision` | `integer NOT NULL DEFAULT 1` | wspólna dla kroków, składników i porcji; rośnie o 1 przy każdej zmianie; drugie urządzenie po niej widzi, że stan zmienił się bez niego |
 | `expires_at` | `timestamptz NOT NULL` | ważność: `kuking.cooking_progress.retention_hours` (24 h) od OSTATNIEJ zmiany; wygasły wiersz jest dla serwisu nieistniejący |
 | `created_at`, `updated_at` | `timestamptz` | |
@@ -6814,6 +6814,17 @@ Konflikt dwóch urządzeń: zapis to idempotentne USTAWIENIE jednego kroku pod
 blokadą wiersza (`SELECT … FOR UPDATE`), więc różne kroki nie gubią się
 nawzajem, a na ten sam wygrywa ostatni zapis; formularz niesie rewizję, którą
 widział, i przy rozbieżności osoba dostaje komunikat.
+
+Składniki potwierdza się dla widocznej liczby porcji (#2502). Formularz
+przesyła porcje pokazane na ekranie oraz wartość zapisaną wtedy na koncie;
+oba warunki są sprawdzane pod blokadą wiersza. Zmiana liczby porcji czyści
+listę przygotowanych składników z jawną informacją, ale nie odhaczenia
+kroków. Jawny adres z inną liczbą porcji nie pokazuje dawnej checklisty;
+przy zapisie od tej strony wymaga ponownego zaznaczenia. Pamięć jednej
+karty przeglądarki ma oddzielny klucz na przepis i efektywną liczbę porcji;
+stary klucz bez porcji nie jest uznawany za potwierdzenie nowej ilości.
+Wycofanie kodu nie wymaga rollbacku schematu; przy wycofaniu tej ochrony
+dawne odhaczenia mogłyby znowu opisywać nieaktualne ilości.
 
 Prywatność: widoczne wyłącznie dla właściciela (`CookingProgressPolicy`),
 każde wejście przechodzi też przez `RecipePolicy::view`. Paczka danych ma

@@ -5,7 +5,8 @@
  * dodane do garnka” — dlatego stan pokazuje słowo „Przygotowane”, a nie
  * przekreślenie, które sugerowałoby zużycie składnika.
  *
- * GDZIE ŻYJE STAN. W `sessionStorage` tej karty, pod kluczem przepisu —
+ * GDZIE ŻYJE STAN. W `sessionStorage` tej karty, pod kluczem przepisu i
+ * efektywnej liczby porcji —
  * tak samo jak zapamiętany przełącznik „Nie usypiaj ekranu” (#1302).
  * Każdy krok to osobny dokument (`?krok=N`), więc stan musi przeżyć
  * przeładowanie; nie może za to udawać danych konta ani synchronizacji
@@ -29,8 +30,8 @@
  */
 
 /** Klucz stanu w `sessionStorage` — osobny dla każdego przepisu. */
-export function kluczPrzygotowania(recipeId) {
-    return `kuking.skladniki.${recipeId}`;
+export function kluczPrzygotowania(recipeId, porcje) {
+    return `kuking.skladniki.${recipeId}.${porcje}`;
 }
 
 /**
@@ -112,7 +113,8 @@ export function podlaczChecklisteSkladnikow(sekcja, pamiec) {
     const licznik = sekcja.querySelector('[data-przygotowanie-licznik]');
     const wyczysc = sekcja.querySelector('[data-przygotowanie-wyczysc]');
     const skrot = sekcja.querySelector('[data-przygotowanie-podsumowanie]');
-    const klucz = kluczPrzygotowania(sekcja.dataset.przygotowanie ?? '');
+    const przepis = sekcja.dataset.przygotowanie ?? '';
+    const klucz = kluczPrzygotowania(przepis, sekcja.dataset.przygotowaniePorcje ?? 'brak');
 
     // Sprawdzamy pamięć zapisem próbnym — sama obecność obiektu nie znaczy,
     // że da się do niego pisać (Safari w trybie prywatnym, limit miejsca).
@@ -129,6 +131,22 @@ export function podlaczChecklisteSkladnikow(sekcja, pamiec) {
     const magazyn = pamiecDziala ? pamiec : null;
 
     const zapisane = odczytajPrzygotowane(magazyn, klucz);
+    let inneIlosci = false;
+    try {
+        const prefiks = `kuking.skladniki.${przepis}.`;
+        // Dawny klucz bez porcji zostawiamy nietknięty, ale nie możemy mu
+        // przypisać ilości wstecz — pokaż potrzebę ponownego odmierzenia.
+        inneIlosci = magazyn?.getItem(`kuking.skladniki.${przepis}`) !== null;
+        for (let i = 0; i < (magazyn?.length ?? 0); i += 1) {
+            const innyKlucz = magazyn.key(i);
+            if (innyKlucz?.startsWith(prefiks) && innyKlucz !== klucz && !innyKlucz.endsWith('.proba')) {
+                inneIlosci = true;
+                break;
+            }
+        }
+    } catch {
+        // Zablokowana pamięć nie przeszkadza w bieżącej checkliście.
+    }
 
     const odswiez = ({ ogloszenie = null } = {}) => {
         const zaznaczone = wiersze.filter((w) => w.pole.checked).length;
@@ -173,6 +191,8 @@ export function podlaczChecklisteSkladnikow(sekcja, pamiec) {
     if (wstep) {
         if (!magazyn) {
             wstep.textContent = 'Możesz zaznaczyć składniki, które już masz odmierzone. Ta przeglądarka nie pozwala ich zapamiętać — zaznaczenie zniknie po przejściu do innego kroku.';
+        } else if (inneIlosci && zapisane.size === 0) {
+            wstep.textContent = 'Liczba porcji się zmieniła. Sprawdź nowe ilości i zaznacz ponownie składniki, które masz już odmierzone. Odhaczenia kroków pozostały bez zmian.';
         }
         wstep.hidden = false;
     }

@@ -1264,6 +1264,11 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    # #2502: dawne odmierzenie nie może potwierdzić nowej liczby porcji.
+    ("Zmiana porcji zachowuje stare odmierzenie (#2502)", "app/Domain/Recipes/Gotowanie/PostepGotowania.php", "test_zmiana_porcji_na_koncie_wymaga_ponownego_odmierzenia_a_krok_i_ta_sama_ilosc_nie",
+     lambda s: replace_once(s, "['servings' => $porcje, 'prepared_ingredient_ids' => []]", "['servings' => $porcje]")),
+    ("Stary formularz przywraca porcje z innego urządzenia (#2502)", "app/Domain/Recipes/Gotowanie/PostepGotowania.php", "test_stary_formularz_po_zmianie_porcji_na_drugim_urzadzeniu_nie_przywraca_odmierzenia",
+     lambda s: replace_once(s, "if ($this->porcje($wiersz) !== $porcjeZKontaNaStronie) {", "if (false) {")),
     # #988: komunikat po akcji ma jawny rodzaj. Goły `->with('status', …)`
     # wróciłby do zielonej plakietki także dla odmowy.
     ("Goły ->with('status') wraca do kontrolera", "app/Http/Controllers/SmakowicieController.php", "test_w_app_nie_ma_golego_zapisu_statusu_bez_rodzaju",

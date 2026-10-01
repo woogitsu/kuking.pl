@@ -56,7 +56,7 @@ function wiersz(s) {
     </li>`;
 }
 
-function strona(skladniki, krok) {
+function strona(skladniki, krok, porcje) {
     const grupy = [...new Set(skladniki.map((s) => s.grupa))];
     const listy = grupy.map((g) => `<h3 class="naglowek-grupy">${g}</h3>
         <ul class="ingredient-list">${skladniki.filter((s) => s.grupa === g).map(wiersz).join('')}</ul>`).join('');
@@ -66,7 +66,7 @@ function strona(skladniki, krok) {
         <title>Gotuję</title><link rel="stylesheet" href="/app.css"></head>
         <body><main><article class="stack max-w-[38rem] mx-auto">
         <p class="cook-progress" aria-live="polite">Krok ${krok} z 2</p>
-        <details class="cook-ingredients" data-przygotowanie="${PRZEPIS}">
+        <details class="cook-ingredients" data-przygotowanie="${PRZEPIS}" data-przygotowanie-porcje="${porcje}">
             <summary>Składniki (${skladniki.length})<span class="cook-przygotowanie-skrot" data-przygotowanie-podsumowanie hidden></span></summary>
             <p class="cook-przygotowanie-wstep" data-przygotowanie-wstep hidden>Możesz zaznaczyć składniki, które już masz odmierzone.</p>
             ${listy}
@@ -108,7 +108,7 @@ const serwer = http.createServer((req, res) => {
         return;
     }
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(strona(skladnikiSerwera, Number(url.searchParams.get('krok') ?? 1)));
+    res.end(strona(skladnikiSerwera, Number(url.searchParams.get('krok') ?? 1), url.searchParams.get('porcje') ?? '4'));
 });
 await new Promise((r) => serwer.listen(0, '127.0.0.1', r));
 const ADRES = `http://127.0.0.1:${serwer.address().port}`;
@@ -126,16 +126,16 @@ async function nowaStrona(opcje = {}) {
     return { context, page };
 }
 
-async function otworz(page, krok = 1) {
+async function otworz(page, krok = 1, porcje = 4) {
     skladnikiSerwera = skladnikiSerwera ?? SKLADNIKI;
-    await page.goto(`${ADRES}/?krok=${krok}`);
+    await page.goto(`${ADRES}/?krok=${krok}&porcje=${porcje}`);
     await page.waitForFunction(() => document.querySelector('details[data-przygotowanie-gotowe]') !== null);
     await page.evaluate(() => { document.querySelector('details.cook-ingredients').open = true; });
 }
 
 const pole = (page, id) => page.locator(`li[data-skladnik="${id}"] input[data-przygotowanie-pole]`);
 const stan = (page, id) => page.locator(`li[data-skladnik="${id}"] [data-przygotowanie-stan]`);
-const zapisane = (page) => page.evaluate((k) => sessionStorage.getItem(k), `kuking.skladniki.${PRZEPIS}`);
+const zapisane = (page, porcje = 4) => page.evaluate((k) => sessionStorage.getItem(k), `kuking.skladniki.${PRZEPIS}.${porcje}`);
 
 test('odhaczenie A nie rusza B ani drugiej „soli”, stan ma słowo i przeżywa zmianę kroku', async () => {
     skladnikiSerwera = SKLADNIKI;
@@ -187,6 +187,29 @@ test('druga karta zaczyna bez stanu z pierwszej', async () => {
     } finally { await context.close(); }
 });
 
+test('zmiana porcji wymaga ponownego potwierdzenia składników, zmiana kroku zachowuje odhaczenie', async () => {
+    skladnikiSerwera = SKLADNIKI;
+    const { context, page } = await nowaStrona();
+    try {
+        await otworz(page, 1, 4);
+        await pole(page, 'id-maka').check();
+        assert.equal(await pole(page, 'id-maka').isChecked(), true);
+        await otworz(page, 2, 4);
+        assert.equal(await pole(page, 'id-maka').isChecked(), true, 'Sam krok nie zmienia ilości.');
+
+        await otworz(page, 2, 8);
+        assert.equal(await pole(page, 'id-maka').isChecked(), false, 'Nowa ilość nie jest automatycznie przygotowana.');
+        assert.equal(await stan(page, 'id-maka').isVisible(), false);
+        assert.match(await page.locator('[data-przygotowanie-wstep]').textContent(), /Sprawdź nowe ilości/);
+        assert.deepEqual(JSON.parse(await zapisane(page, 4)), ['id-maka'], 'Poprzednie odhaczenie nie jest cicho kasowane.');
+
+        await pole(page, 'id-maka').check();
+        assert.deepEqual(JSON.parse(await zapisane(page, 8)), ['id-maka']);
+        await otworz(page, 1, 4);
+        assert.equal(await pole(page, 'id-maka').isChecked(), true, 'Powrót do tej samej ilości odtwarza jej osobny stan.');
+    } finally { await context.close(); }
+});
+
 test('„Wyczyść zaznaczenie składników” czyści tylko checklistę: bez żądania, kroki i inne pamięci zostają', async () => {
     skladnikiSerwera = SKLADNIKI;
     const { context, page } = await nowaStrona();
@@ -231,7 +254,7 @@ test('klucz to ID: zmiana kolejności nie przenosi odhaczenia, usunięty składn
     const { context, page } = await nowaStrona();
     try {
         await otworz(page);
-        await page.evaluate((k) => sessionStorage.setItem(k, JSON.stringify(['id-maslo', 'id-usuniety'])), `kuking.skladniki.${PRZEPIS}`);
+        await page.evaluate((k) => sessionStorage.setItem(k, JSON.stringify(['id-maslo', 'id-usuniety'])), `kuking.skladniki.${PRZEPIS}.4`);
         skladnikiSerwera = [SKLADNIKI[3], SKLADNIKI[2], SKLADNIKI[1], SKLADNIKI[0]];
         await otworz(page);
         assert.equal(await pole(page, 'id-maslo').isChecked(), true);
@@ -242,7 +265,7 @@ test('klucz to ID: zmiana kolejności nie przenosi odhaczenia, usunięty składn
         assert.deepEqual(JSON.parse(await zapisane(page)).sort(), ['id-maka', 'id-maslo']);
 
         // Zepsuty zapis nie psuje strony.
-        await page.evaluate((k) => sessionStorage.setItem(k, '{nie-json'), `kuking.skladniki.${PRZEPIS}`);
+        await page.evaluate((k) => sessionStorage.setItem(k, '{nie-json'), `kuking.skladniki.${PRZEPIS}.4`);
         await otworz(page);
         for (const s of SKLADNIKI) assert.equal(await pole(page, s.id).isChecked(), false);
     } finally {
