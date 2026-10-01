@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2485, #2486): wspólna sesja pokazuje zamienniki wpisane przez autora przy składnikach i przetworzone zdjęcia przy właściwych krokach. Dostęp nadal zależy od członkostwa i prawa do przepisu.
+
 - Naprawione (#2455): zmiana liczby porcji przelicza teraz całe ilości zapisane z odstępem tysięcy, także ze spacją nierozdzielającą i w zakresie. Nie zamienia fragmentu `1 000 g` w `½ 000 g`; niejednoznaczny zapis zostawia bez zmian. Tekst przepisu autora pozostaje taki, jak go wpisano.
 - Naprawione (#2445): ekran „Co się zmieniło” pokazuje minutnik także wtedy, gdy jednocześnie zmienił się tekst kroku albo krok dodano lub usunięto. Czas pochodzi z odpowiedniej zapisanej wersji; brak minutnika nie jest zgadywany.
 - Naprawione (#2400): gdy ktoś zmieni notatkę w zeszycie, starsza karta nie nadpisuje jej po cichu. Wpisany szkic zostaje, a właściciel lub współtwórca widzi aktualną notatkę i może świadomie zastąpić ją swoim tekstem.

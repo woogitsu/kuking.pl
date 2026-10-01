@@ -1274,6 +1274,12 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    ("Wspólna sesja traci zamiennik autora (#2485)", "resources/views/pages/wspolne-gotowanie/show.blade.php",
+     "test_zamienniki_i_zdjecia_sa_przy_wlasciwych_elementach_dla_obu_rol",
+     lambda s: replace_once(s, '@if($skladnik->substitutes)<span class="skladnik-zamiennik">Zamiast tego: {{ $skladnik->substitutes }}</span>@endif', '')),
+    ("Wspólna sesja traci zdjęcie kroku (#2486)", "resources/views/pages/wspolne-gotowanie/show.blade.php",
+     "test_zamienniki_i_zdjecia_sa_przy_wlasciwych_elementach_dla_obu_rol",
+     lambda s: replace_once(s, '@if($krok->media)', '@if(false)')),
     # #2291: regresja domyślnej konfiguracji ma zapalić odczyt `SHOW jit` na
     # rzeczywistym nowym połączeniu PostgreSQL, nie tylko test tekstu configu.
     ("Domyslny JIT wraca na polaczeniu PostgreSQL (#2291)", "config/database.php", "PolaczenieBazyMaWylaczonyJitTest::swieze_polaczenie_aplikacji_ma_jit_off",
