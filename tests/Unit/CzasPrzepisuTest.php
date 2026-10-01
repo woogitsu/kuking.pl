@@ -37,4 +37,23 @@ class CzasPrzepisuTest extends TestCase
     {
         $this->assertSame($oczekiwany, Czas::czasPrzepisu($minuty));
     }
+
+    /**
+     * Zaokrąglenie do 5 minut nie może przesunąć przepisu przez żaden próg
+     * filtra „Ile masz czasu?” (15/30/60 min): to, co strona pokazuje jako
+     * „do godziny”, ma być tym, co filtr uznaje za „do godziny”.
+     */
+    public function test_zaokraglenie_nie_przesuwa_przepisu_przez_progi_filtra(): void
+    {
+        foreach (range(1, 1500) as $minuty) {
+            $tekst = Czas::czasPrzepisu($minuty);
+            $this->assertSame(1, preg_match('/^(?:(\d+) godz\.)?(?: ?(\d+) min)?$/u', $tekst, $m), $tekst);
+            $pokazane = ((int) ($m[1] ?? 0)) * 60 + ((int) ($m[2] ?? 0));
+
+            foreach ([15, 30, 60] as $prog) {
+                $this->assertSame($minuty <= $prog, $pokazane <= $prog, "{$minuty} min pokazane jako „{$tekst}” przesuwa przepis przez próg {$prog} min.");
+            }
+            $this->assertLessThanOrEqual(2, abs($pokazane - $minuty), "{$minuty} min → „{$tekst}”");
+        }
+    }
 }
