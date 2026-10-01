@@ -136,6 +136,37 @@ zgłoszenia. „Ugotowałem" nie ma `hide`, bo `cooked_events` nie ma kolumny
 Odmowa nie zamyka zgłoszenia i nie zostawia decyzji, powiadomienia ani wpisu
 w dzienniku.
 
+### Zgłoszenie konkretnej wersji przepisu (#2390, decyzja z 1.10.2026)
+
+Historia zmian zachowuje starą treść przepisu, także tę, którą autor usunął
+(numer telefonu, nazwisko). Usunięcie danych z historii to **ukrycie CAŁEJ
+wersji** — migawek nie redagujemy, historia jest niezmienna (D-333).
+
+- **Kto zgłasza:** każdy, kto widzi tę wersję — także gość. Zalogowany idzie
+  przez `reports.create` (`type = recipe_version`, `id` = UUID wersji), gość ma
+  „Zgłoś wersję N (po zalogowaniu)” i formularz DSA bez konta (adres
+  `/przepisy/{slug}/historia/{numer}` rozpoznaje `CelZAdresuZgloszenia`).
+  Przycisk jest na ekranie wersji (`/przepisy/{slug}/historia/{numer}`), **nie
+  przy najnowszej** (to sam przepis — zgłasza się przepis) i nie przy własnej
+  wersji autora. Wersję ukrytą zgłaszają tylko autor i moderacja
+  (`RecipeVersionPolicy::report`); dla reszty to 404.
+- **Decyzje w kolejce:** „Bez działania”, ostrzeżenie, **„Ukryj treść” = ukrycie
+  tej jednej wersji**, zawieszenie, ban autora przepisu. Bez „Usuń”. Kolejka
+  pokazuje numer wersji i odnośnik do niej.
+- **Ukrycie ze zgłoszenia** idzie tą samą drogą co ukrycie z historii
+  (`DecyzjaOWersjiPrzepisu::ukryjPoZgloszeniu` → `UkrywanieWersji`): pod
+  blokadą przepisu i wersji, nie najnowsza, przejęcie ukrycia autora. Gdy
+  wersji nie da się już ukryć (najnowsza, już ukryta), decyzja wraca błędem
+  przy polu „Decyzja” — sprawy nie zamyka się po cichu.
+- **Autor** dostaje powiadomienie ze zdaniem „Dotyczy wersji N przepisu …”,
+  podstawą i uzasadnieniem, i odwołuje się jak od ukrycia wersji; uznane
+  odwołanie przywraca wersję. Po uznanym odwołaniu **zgłaszającego** nowej
+  decyzji „ukryj” nie wydaje się z formularza odwołań (ukrycie wersji idzie
+  z ekranu historii): `ModerationAction::dozwolonePoOdwolaniu()`.
+- **Zgłaszający** dostaje odpowiedź tą samą drogą co przy innych celach
+  (`NotifyReporterDecision`, karta sprawy). Raport przejrzystości liczy zgłoszenia
+  według rodzaju treści, wersja ma osobny wiersz (sekcja 1a).
+
 ### Zdjęcie z urzędu — treść, której nikt nie zgłosił (G31, D-251)
 
 Panel usuwa cudzą treść rozstrzygnięciem zgłoszenia, a własnego zgłoszenia
@@ -538,6 +569,7 @@ Bez `--od`/`--do` liczy od 1 stycznia bieżącego roku do dziś.
 | Sekcja | Co liczy | Skąd |
 |---|---|---|
 | 1. Zgłoszenia | według źródła: społeczność, DSA art. 16, automat | `reports.source`, `created_at` w oknie |
+| 1a. Rodzaj treści | zgłoszenia według rodzaju zgłoszonej treści, m.in. wersja przepisu (#2390) | `reports.target_type`, `created_at` w oknie |
 | 2. Pierwsza instancja | decyzje ze zgłoszenia według rodzaju | `moderation_actions` z `report_id` |
 | 3. Z urzędu | decyzje bez zgłoszenia i bez odwołania (D-251) | `report_id IS NULL AND appeal_id IS NULL`, bez `unhide` |
 | 4. Przywrócenia | „Przywróć treść” | `action = 'unhide'` |

@@ -3849,6 +3849,31 @@ treść przywrócić — DSA art. 17).
 to są sprawy moderacyjne z decyzjami i odwołaniami, a rollback schematu nie
 jest decyzją o ich wyrzuceniu. Komunikat mówi, co zrobić.
 
+#### `target_type = 'recipe_version'` — konkretna wersja przepisu jako cel zgłoszenia (#2390)
+
+Migracja `2026_10_01_100000_wersja_przepisu_jako_cel_zgloszenia` dopisuje do
+`reports_target_type_check` wartość **`recipe_version`** (decyzja właściciela
+z 1.10.2026, D-333: osoba trzecia — także gość — zgłasza konkretną wersję
+z historii zmian przepisu; usunięcie danych z historii to ukrycie CAŁEJ wersji,
+bez redakcji migawki). `target_id` to `recipe_versions.id` (bez klucza obcego,
+jak przy `moderation_actions`). Zgłosić wolno tylko wersję widoczną dla
+zgłaszającego i **nie najnowszą** (`RecipeVersionPolicy::report`); wersję ukrytą
+zgłaszają tylko autor i moderacja.
+
+Decyzje (`ModerationAction::DOZWOLONE['recipe_version']`): brak działań,
+ostrzeżenie, **ukrycie wersji** (`hidden_at`, przez
+`DecyzjaOWersjiPrzepisu::ukryjPoZgloszeniu`), zawieszenie i ban autora
+przepisu — **bez `remove`** (wersję usuwa wyłącznie retencja). Decyzja ze
+zgłoszenia ma `report_id`, `subject_user_id` = autor przepisu, a
+`user_message` zaczyna się zdaniem wskazującym wersję (`WskazanieWersji`).
+
+DDL jak w AGENTS.md §6: `DROP CONSTRAINT` i `ADD CONSTRAINT … NOT VALID` w jednym
+`ALTER TABLE`, potem osobno `VALIDATE CONSTRAINT`, migracja poza transakcją.
+**Rollback (D-088):** `down()` odmawia, gdy w `reports` leży choć jedno zgłoszenie
+wersji — to sprawy moderacyjne z decyzjami i odwołaniami; bez takich wierszy
+przywraca poprzednią listę wartości. Test:
+`ZgloszenieWersjiPrzepisuTest::test_rollback_odmawia_gdy_jest_zgloszenie_wersji_a_bez_niego_przechodzi`.
+
 #### `target_type = 'unknown'` i puste `target_id`
 
 Adres bywa nierozpoznawalny: ktoś wkleja link z pamięci albo ze zrzutu
@@ -3856,7 +3881,7 @@ ekranu, treść mogła już zniknąć, adres bywa z innego serwisu. **Zgłoszeni
 i tak musi zostać przyjęte** — odmowa byłaby odmówieniem mechanizmu, który
 przepis nakazuje udostępnić. Dlatego:
 
-- `reports_target_type_check` dopuszcza typ `unknown` (jedna z ośmiu wartości po dodaniu `media` i `collection`);
+- `reports_target_type_check` dopuszcza typ `unknown` (jedna z dziewięciu wartości po dodaniu `media`, `collection` i `recipe_version`);
 - `target_id` w `reports` **i** w `moderation_actions` jest teraz `NULL`-owalne.
 
 `NULL`, a nie UUID z samych zer: identyfikator, który wygląda jak
@@ -4102,7 +4127,9 @@ z urzędu: `action = hide`, `target_id` = `recipe_versions.id`,
 (ręczne z historii zmian albo po uznanym odwołaniu, `reason_code =
 appeal_overturned`) to `unhide` z tym samym celem. Kolumna `target_type` nie
 ma CHECK-a (w przeciwieństwie do `reports.target_type`), więc nowy typ nie
-wymaga zmiany schematu; wersji nie da się zgłosić, więc `reports` go nie zna.
+wymaga zmiany schematu. Od #2390 wersję można też zgłosić (`reports.target_type
+= 'recipe_version'`, niżej); wtedy `ukrycie` ze zgłoszenia ma `report_id`
+tego zgłoszenia, a reszta pól jest jak przy decyzji z urzędu.
 Wiersz przeżywa wersję (retencja wersji, usunięcie przepisu) tak jak każda
 decyzja przeżywa treść — `target_id` nie ma klucza obcego. Zapis:
 `App\Domain\Recipes\Historia\DecyzjaOWersjiPrzepisu`.

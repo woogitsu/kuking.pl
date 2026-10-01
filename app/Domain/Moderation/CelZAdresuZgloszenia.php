@@ -7,6 +7,7 @@ namespace App\Domain\Moderation;
 use App\Models\Comment;
 use App\Models\Profile;
 use App\Models\Recipe;
+use App\Models\RecipeVersion;
 
 /**
  * Czego dotyczy adres wklejony w zgłoszeniu prawnym.
@@ -23,6 +24,8 @@ use App\Models\Recipe;
  *
  * CO ROZPOZNAJEMY
  *  - `/przepisy/{slug}` (i dawne `/przepis/…`) → przepis,
+ *  - `/przepisy/{slug}/historia/{numer}` (także `/zmiany`) → ta wersja
+ *    (#2390), o ile nie jest najnowsza; najnowsza to przepis,
  *  - `/wpisy/{uuid}`, `/pytania/{uuid}` → wpis,
  *  - `/ugotowane/{uuid}` → wykonanie,
  *  - `/@{login}` i każda podstrona profilu → konto (B2-02),
@@ -81,6 +84,16 @@ final class CelZAdresuZgloszenia
 
         [$pierwszy, $drugi] = $segmenty;
 
+        // `/przepisy/{slug}/historia/{numer}` (i `/zmiany`) to konkretna wersja
+        // (#2390). Jej zgłoszenie kończy się ukryciem wersji, nie przepisu.
+        $wersja = in_array($pierwszy, ['przepis', 'przepisy'], true)
+            ? self::wersjaZAdresu($drugi, $segmenty[2] ?? null, $segmenty[3] ?? null)
+            : null;
+
+        if ($wersja !== null) {
+            return ['recipe_version', $wersja];
+        }
+
         return match ($pierwszy) {
             'przepis', 'przepisy' => ['recipe', self::idPrzepisu($drugi)],
             'wpis', 'wpisy', 'pytania' => ['post', self::uuidAlbo($drugi)],
@@ -109,6 +122,38 @@ final class CelZAdresuZgloszenia
         }
 
         return $id;
+    }
+
+    /**
+     * Identyfikator wersji z adresu ekranu historii — albo `null`, gdy adres
+     * nie wskazuje wersji, której można dotyczyć odrębna decyzja. Najnowsza
+     * wersja jest po prostu przepisem (nie da się jej ukryć), więc zgłoszenie
+     * takiego adresu dalej dotyczy przepisu; tak samo adres wersji, której nie ma.
+     */
+    private static function wersjaZAdresu(string $przepis, ?string $historia, ?string $numer): ?string
+    {
+        if ($historia !== 'historia' || $numer === null || preg_match('/^[1-9][0-9]{0,8}$/', $numer) !== 1) {
+            return null;
+        }
+
+        $idPrzepisu = self::idPrzepisu($przepis);
+
+        if ($idPrzepisu === null) {
+            return null;
+        }
+
+        $najnowsza = RecipeVersion::query()->where('recipe_id', $idPrzepisu)->max('version_number');
+
+        if ($najnowsza === null || (int) $najnowsza === (int) $numer) {
+            return null;
+        }
+
+        $id = RecipeVersion::query()
+            ->where('recipe_id', $idPrzepisu)
+            ->where('version_number', (int) $numer)
+            ->value('id');
+
+        return is_string($id) ? $id : null;
     }
 
     private static function idPrzepisu(string $segment): ?string
