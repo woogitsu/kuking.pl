@@ -15,6 +15,7 @@ use App\Models\Comment;
 use App\Models\ContactMessageReply;
 use App\Models\CookedEvent;
 use App\Models\CookingProgress;
+use App\Models\CookingSession;
 use App\Models\Hide;
 use App\Models\MealPlanEntry;
 use App\Models\Notification;
@@ -205,6 +206,7 @@ final class CollectUserExportData
             'obserwowane_tagi' => $this->followedTags($user),
             'co_mam_w_domu' => $this->pantry($user),
             'postep_gotowania' => $this->postepGotowania($user),
+            'wspolne_gotowanie' => $this->wspolneGotowanie($user),
             'ukryte' => $this->hides($user),
             // „Smakowicie wygląda" (#1813, D-280): napisane przez tę osobę
             // i otrzymane pod jej wpisami. Otrzymane z nazwą konta — autor
@@ -1223,6 +1225,50 @@ final class CollectUserExportData
                     'przygotowane_skladniki' => $widoczny ? $skladniki : [],
                     'ostatnia_zmiana' => $this->date($postep->updated_at),
                     'wygasa' => $this->date($postep->expires_at),
+                ];
+            })->all();
+    }
+
+    /**
+     * Wspólne gotowanie (#2385) — trwające sesje, w których osoba jest
+     * gospodarzem albo pomocnikiem. Rola, tytuł przepisu (tylko gdy osoba
+     * widzi go dziś), numery kroków odhaczonych PRZEZ TĘ OSOBĘ i termin
+     * ważności. Bez tokenów i skrótów oraz bez danych drugiej osoby — nazwę
+     * drugiej osoby widać na ekranie sesji, ale to jej dane, nie paczki.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function wspolneGotowanie(User $user): array
+    {
+        $id = (string) $user->getKey();
+
+        return CookingSession::query()
+            ->where('expires_at', '>', now())
+            ->where(fn ($q) => $q
+                ->where('host_id', $id)
+                ->orWhereIn('id', DB::table('cooking_session_participants')->where('user_id', $id)->select('session_id')))
+            ->with('recipe')
+            ->orderBy('created_at')
+            ->get()
+            ->map(function (CookingSession $sesja) use ($id): array {
+                $odhaczone = DB::table('cooking_session_steps')
+                    ->where('session_id', $sesja->getKey())
+                    ->where('done_by_id', $id)
+                    ->pluck('step_id')
+                    ->all();
+                $numery = [];
+                foreach ($sesja->recipe->steps()->orderBy('position')->pluck('id')->all() as $pozycja => $krokId) {
+                    if (in_array($krokId, $odhaczone, true)) {
+                        $numery[] = $pozycja + 1;
+                    }
+                }
+
+                return [
+                    'rola' => $sesja->host_id === $id ? 'gospodarz' : 'pomocnik',
+                    'przepis' => $this->granica->widzi($sesja->recipe) ? $sesja->recipe->title : self::TRESC_NIEDOSTEPNA,
+                    'kroki_odhaczone_przeze_mnie' => $numery,
+                    'zalozona' => $this->date($sesja->created_at),
+                    'wygasa' => $this->date($sesja->expires_at),
                 ];
             })->all();
     }

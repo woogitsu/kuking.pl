@@ -70,6 +70,12 @@ final class InwentarzDanychKonta
         'tag_follows.user_id' => [self::EKSPORT, 'obserwowane_tagi'],
         'pantry_items.user_id' => [self::EKSPORT, 'co_mam_w_domu'],
         'cooking_progress.user_id' => [self::EKSPORT, 'postep_gotowania'],
+        // Wspólne gotowanie (#2385): sesja, w której osoba jest gospodarzem albo
+        // pomocnikiem, jej odhaczone kroki i przyjęte przez nią zaproszenie.
+        'cooking_sessions.host_id' => [self::EKSPORT, 'wspolne_gotowanie'],
+        'cooking_session_participants.user_id' => [self::EKSPORT, 'wspolne_gotowanie'],
+        'cooking_session_steps.done_by_id' => [self::EKSPORT, 'wspolne_gotowanie'],
+        'cooking_session_invitations.accepted_by_id' => [self::EKSPORT, 'wspolne_gotowanie'],
         'hides.user_id' => [self::EKSPORT, 'ukryte'],
         'post_reactions.user_id' => [self::EKSPORT, 'moje_reakcje'],
         'notifications.user_id' => [self::EKSPORT, 'powiadomienia'],

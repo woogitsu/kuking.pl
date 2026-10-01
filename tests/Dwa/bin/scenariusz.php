@@ -51,6 +51,8 @@ use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Recipes\Alergeny\DeklaracjaAlergenow;
 use App\Domain\Recipes\Alergeny\OznaczAlergenyPrzepisu;
 use App\Domain\Recipes\Gotowanie\PostepGotowania;
+use App\Domain\Recipes\Gotowanie\Wspolne\PostepWspolnegoGotowania;
+use App\Domain\Recipes\Gotowanie\Wspolne\ZaproszenieDoGotowania;
 use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
@@ -72,6 +74,7 @@ use App\Models\CollectionInvitation;
 use App\Models\Comment;
 use App\Models\ContactMessage;
 use App\Models\CookingProgress;
+use App\Models\CookingSession;
 use App\Models\ImportPrzepisu;
 use App\Models\PendingEmailChange;
 use App\Models\Post;
@@ -617,6 +620,21 @@ try {
             Collection::query()->whereKey($argumenty['zeszyt'])->firstOrFail(),
             User::query()->whereKey($argumenty['czlonek'])->firstOrFail(),
         ) ? 'odebrano' : 'nie-bylo',
+
+        // Wspólne gotowanie (#2385): dwie osoby odhaczają TEN SAM krok naraz
+        // i dwie osoby przyjmują TEN SAM jednorazowy link naraz. Wołamy akcje
+        // domenowe, nie przepisany SQL — test ma pęknąć, jeśli zniknie blokada
+        // wiersza sesji albo zamek pary w `ZaproszenieDoGotowania`.
+        'wspolne-krok' => app(PostepWspolnegoGotowania::class)->ustaw(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            CookingSession::query()->whereKey($argumenty['sesja'])->firstOrFail(),
+            $argumenty['krok'],
+            true,
+        ) ? 'zmieniono' : 'bez-zmiany',
+        'wspolne-dolacz' => (string) app(ZaproszenieDoGotowania::class)->dolacz(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            $argumenty['token'],
+        )->getKey(),
 
         // Dwa równoległe uruchomienia przypomnień o urodzinach (#2318).
         // Cisza nocna wyłączona (od = do), żeby wynik nie zależał od godziny.
