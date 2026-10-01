@@ -55,6 +55,7 @@ use App\Domain\Recipes\Gotowanie\PostepGotowania;
 use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
+use App\Domain\Social\Actions\UnfollowUser;
 use App\Domain\Tags\Actions\MergeTags;
 use App\Domain\Tags\Actions\UpdateTagFollows;
 use App\Domain\Tags\PromowaneTagi;
@@ -354,6 +355,16 @@ try {
             User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             User::query()->whereKey($argumenty['kogo'])->firstOrFail(),
         ),
+
+        // „Przestań obserwować" (#2404).
+        'przestan-obserwowac' => (function () use ($argumenty): bool {
+            app(UnfollowUser::class)->handle(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                User::query()->whereKey($argumenty['kogo'])->firstOrFail(),
+            );
+
+            return true;
+        })(),
 
         // Scalenie tagu SUROWYM `UPDATE` (#996). Świadomie z pominięciem
         // `MergeTags`: mierzymy barierę w PostgreSQL, która ma działać na
