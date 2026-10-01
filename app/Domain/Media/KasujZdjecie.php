@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domain\Media;
 
-use App\Domain\Moderation\ZabezpieczoneDowody;
 use App\Jobs\PurgePublicMediaCache;
 use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
+use App\Support\ZabezpieczoneDowody;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;

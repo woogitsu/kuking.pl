@@ -6,7 +6,6 @@ namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\PodstawaDecyzji;
-use App\Domain\Moderation\ZabezpieczoneDowody;
 use App\Domain\Users\OdmowaOstatniegoAdministratora;
 use App\Domain\Users\ZamekUprzywilejowanegoAktora;
 use App\Exceptions\BladDlaCzlowieka;
@@ -20,6 +19,7 @@ use App\Models\Report;
 use App\Models\User;
 use App\Models\ZabezpieczenieDowodu;
 use App\Notifications\DecyzjaWSprawieZgloszenia;
+use App\Support\ZabezpieczoneDowody;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;

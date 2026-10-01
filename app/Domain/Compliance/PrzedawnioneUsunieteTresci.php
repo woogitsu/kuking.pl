@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Domain\Compliance;
 
 use App\Domain\Media\KasujZdjecie;
-use App\Domain\Moderation\ZabezpieczoneDowody;
 use App\Models\Comment;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Support\ZabezpieczoneDowody;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;

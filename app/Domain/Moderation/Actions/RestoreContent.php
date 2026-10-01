@@ -6,13 +6,13 @@ namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\WlasnejTresciNiePrzywracasz;
-use App\Domain\Moderation\ZabezpieczoneDowody;
 use App\Domain\Users\ZamekUprzywilejowanegoAktora;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Comment;
 use App\Models\ModerationAction;
 use App\Models\User;
+use App\Support\ZabezpieczoneDowody;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;

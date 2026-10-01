@@ -6,13 +6,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Domain\Moderation\Actions\ZabezpieczDowodCsam;
 use App\Domain\Moderation\ModeratedContent;
-use App\Domain\Moderation\ZabezpieczoneDowody;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\Report;
 use App\Models\User;
 use App\Models\ZabezpieczenieDowodu;
 use App\Support\Komunikat;
+use App\Support\ZabezpieczoneDowody;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;

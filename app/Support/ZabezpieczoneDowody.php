@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Moderation;
+namespace App\Support;
 
 use Illuminate\Support\Facades\DB;
 

@@ -1686,7 +1686,7 @@ ALTER TABLE media VALIDATE CONSTRAINT media_status_check;
 
 Znaczenie: **plik zostaje w magazynie jako dowód, a aplikacja nie pokazuje go
 nikomu** — ani autorowi, ani moderatorowi (`Media::maWariantDoPokazania()`,
-a przez nią `DostepDoZdjecia` i trasa `/zdjecia/…` → 404). `secured` nie jest
+a przez nią `DostepDoZdjecia` i trasa zdjęcia → 404). `secured` nie jest
 `ready`, więc zdjęcie wypada z każdego zapytania „status = ready” (eksport
 danych, odczyt przez AI, kolaże, ponowne przetwarzanie). `KasujZdjecie`
 odmawia skasowania zabezpieczonego zdjęcia (sprzątanie osieroconych, wymazanie
@@ -4129,7 +4129,7 @@ Pytają o nie: `PrzedawnioneUsunieteTresci` (retencja usuniętych treści),
 zabezpieczony obiekt nie jest kasowana po 36 miesiącach), `KasujZdjecie`,
 `EraseAccountData` (konto z zabezpieczonym dowodem nie jest wymazywane) i
 `RestoreContent` (zabezpieczona treść nie wraca, także po wygranym odwołaniu).
-Pytania zadaje `App\Domain\Moderation\ZabezpieczoneDowody`.
+Pytania zadaje `App\Support\ZabezpieczoneDowody`.
 
 - `id uuid` PK;
 - `target_type varchar(30) NOT NULL` — `post`, `recipe`, `comment` albo
