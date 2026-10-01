@@ -637,6 +637,11 @@ try {
             User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             $argumenty['token'],
         )->getKey(),
+        // Gospodarz tworzy nowy link (unieważnia stary) w chwili, gdy ktoś przyjmuje stary.
+        'wspolne-utworz-link' => app(ZaproszenieDoGotowania::class)->utworz(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            CookingSession::query()->whereKey($argumenty['sesja'])->firstOrFail(),
+        )[0]->status,
 
         // Dwa równoległe uruchomienia przypomnień o urodzinach (#2318).
         // Cisza nocna wyłączona (od = do), żeby wynik nie zależał od godziny.

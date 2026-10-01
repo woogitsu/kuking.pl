@@ -19,7 +19,16 @@ use PHPUnit\Framework\Attributes\Group;
  *  1. dwie osoby odhaczają TEN SAM krok w tej samej chwili — jeden wiersz,
  *     jedna zmiana rewizji, żadnego błędu (klucz `(session_id, step_id)` plus
  *     blokada wiersza sesji);
- *  2. dwie osoby przyjmują TEN SAM jednorazowy link — dołącza dokładnie jedna.
+ *  2. dwie osoby przyjmują TEN SAM jednorazowy link — dołącza dokładnie jedna;
+ *  3. WIELU POMOCNIKÓW (do trzech): dwie RÓŻNE osoby przyjmują link, gdy zostało
+ *     jedno miejsce — wchodzi dokładnie jedna i limit nie zostaje przekroczony;
+ *  4. przyjęcie linku i odhaczenie kroku naraz — rewizja rośnie o DWA (żadna
+ *     zmiana nie ginie): przyjęcie czyta rewizję dopiero pod blokadą sesji;
+ *  5. odhaczenie kroku przez gospodarza w chwili, gdy blokuje on pomocnika —
+ *     bez zakleszczenia (konta przed sesją także w odhaczeniu), a po wyścigu
+ *     nikt zablokowany nie zostaje w sesji;
+ *  6. tworzenie nowego linku przez gospodarza i przyjęcie starego w tej samej
+ *     chwili nie zakleszczają się (jedna kolejność blokad: konta, sesja, zaproszenie).
  */
 #[Group('dwa-polaczenia')]
 final class WspolneGotowanieNaDwochPolaczeniachTest extends TestDwochPolaczen
@@ -130,5 +139,112 @@ final class WspolneGotowanieNaDwochPolaczeniachTest extends TestDwochPolaczen
     private function wwTle(User $kto, CookingSession $sesja, string $krok): ProcesRownolegly
     {
         return $this->wTle('wspolne-krok', ['kto' => (string) $kto->getKey(), 'sesja' => (string) $sesja->getKey(), 'krok' => $krok]);
+    }
+
+    public function test_dwie_rozne_osoby_przyjmujace_link_gdy_zostalo_jedno_miejsce_daja_dokladnie_jednego_pomocnika(): void
+    {
+        [$gospodarz, , $sesja] = $this->sesjaZPomocnikiem();   // pomocnik nr 1
+        $drugi = $this->konto();
+        [, $tokenDrugiego] = app(ZaproszenieDoGotowania::class)->utworz($gospodarz, $sesja);
+        app(ZaproszenieDoGotowania::class)->dolacz($drugi, $tokenDrugiego);   // pomocnik nr 2, zostało jedno miejsce z trzech
+        [, $token] = app(ZaproszenieDoGotowania::class)->utworz($gospodarz, $sesja);
+        $ewa = $this->konto();
+        $filip = $this->konto();
+
+        $bariera = $this->bariera('SELECT 1 FROM cooking_sessions WHERE id = ? FOR UPDATE', [(string) $sesja->getKey()]);
+        $a = $this->wTle('wspolne-dolacz', ['kto' => (string) $ewa->getKey(), 'token' => $token]);
+        $this->czekajNaZablokowane(1);
+        $b = $this->wTle('wspolne-dolacz', ['kto' => (string) $filip->getKey(), 'token' => $token]);
+        $this->czekajNaZablokowane(2);
+        $this->zwolnijBariere($bariera);
+
+        $wyniki = [$a->wynik(), $b->wynik()];
+        foreach ($wyniki as $numer => $wynik) {
+            $this->assertBezZakleszczenia($wynik, 'przyjęcie '.($numer + 1));
+        }
+
+        $this->assertSame(3, DB::table('cooking_session_participants')->where('session_id', $sesja->getKey())->count(),
+            'Zostało jedno miejsce z trzech: wchodzi dokładnie jedna osoba, nie dwie.');
+        $this->assertCount(1, array_filter($wyniki, fn (array $w) => $w['ok']), 'Dokładnie jedno przyjęcie się udaje.');
+    }
+
+    public function test_nowy_link_gospodarza_i_przyjecie_starego_naraz_sie_nie_zakleszczaja(): void
+    {
+        [$gospodarz, , $sesja] = $this->sesjaZPomocnikiem();
+        [, $token] = app(ZaproszenieDoGotowania::class)->utworz($gospodarz, $sesja);
+        $nowa = $this->konto();
+
+        // Gospodarz jest pierwszy w kolejce po wiersz sesji, przyjmujący drugi:
+        // gdyby przyjęcie trzymało już blokadę zaproszenia, a gospodarz
+        // unieważniał to samo zaproszenie pod blokadą sesji, byłby cykl.
+        $bariera = $this->bariera('SELECT 1 FROM cooking_sessions WHERE id = ? FOR UPDATE', [(string) $sesja->getKey()]);
+        $tworzenie = $this->wTle('wspolne-utworz-link', ['kto' => (string) $gospodarz->getKey(), 'sesja' => (string) $sesja->getKey()]);
+        $this->czekajNaZablokowane(1);
+        $przyjecie = $this->wTle('wspolne-dolacz', ['kto' => (string) $nowa->getKey(), 'token' => $token]);
+        $this->czekajNaZablokowane(2);
+        $this->zwolnijBariere($bariera);
+
+        $wyniki = [$tworzenie->wynik(), $przyjecie->wynik()];
+        $this->assertBezZakleszczenia($wyniki[0], 'tworzenie linku');
+        $this->assertBezZakleszczenia($wyniki[1], 'przyjęcie linku');
+        $this->assertTrue($wyniki[0]['ok'], 'Tworzenie linku padło: '.$wyniki[0]['komunikat']);
+
+        $this->assertSame(1, DB::table('cooking_session_invitations')->where('session_id', $sesja->getKey())->where('status', 'pending')->count(),
+            'Po wyścigu czeka dokładnie jeden link.');
+        $this->assertLessThanOrEqual(3, DB::table('cooking_session_participants')->where('session_id', $sesja->getKey())->count());
+    }
+
+    public function test_przyjecie_linku_i_odhaczenie_kroku_naraz_nie_gubia_zadnej_zmiany_rewizji(): void
+    {
+        [$gospodarz, , $sesja, $kroki] = $this->sesjaZPomocnikiem();
+        [, $token] = app(ZaproszenieDoGotowania::class)->utworz($gospodarz, $sesja);
+        $nowa = $this->konto();
+        $rewizjaPrzed = (int) DB::table('cooking_sessions')->where('id', $sesja->getKey())->value('revision');
+
+        // Odhaczenie jest pierwsze w kolejce po wiersz sesji. Przyjęcie, które
+        // odczytałoby rewizję PRZED blokadą sesji, zapisałoby ją po cudzej
+        // zmianie jako „starą + 1” i zgubiło jedną zmianę.
+        $bariera = $this->bariera('SELECT 1 FROM cooking_sessions WHERE id = ? FOR UPDATE', [(string) $sesja->getKey()]);
+        $odhaczenie = $this->wTle('wspolne-krok', ['kto' => (string) $gospodarz->getKey(), 'sesja' => (string) $sesja->getKey(), 'krok' => $kroki[0]]);
+        $this->czekajNaZablokowane(1);
+        $przyjecie = $this->wTle('wspolne-dolacz', ['kto' => (string) $nowa->getKey(), 'token' => $token]);
+        $this->czekajNaZablokowane(2);
+        $this->zwolnijBariere($bariera);
+
+        foreach ([$odhaczenie->wynik(), $przyjecie->wynik()] as $numer => $wynik) {
+            $this->assertBezZakleszczenia($wynik, 'operacja '.($numer + 1));
+            $this->assertTrue($wynik['ok'], 'Operacja '.($numer + 1).' padła: '.$wynik['komunikat']);
+        }
+
+        $this->assertSame(
+            $rewizjaPrzed + 2,
+            (int) DB::table('cooking_sessions')->where('id', $sesja->getKey())->value('revision'),
+            'Odhaczenie i przyjęcie to dwie realne zmiany — rewizja rośnie o dwa.',
+        );
+    }
+
+    public function test_odhaczenie_przez_gospodarza_i_jego_blokada_pomocnika_naraz_sie_nie_zakleszczaja(): void
+    {
+        [$gospodarz, $pomocnik, $sesja, $kroki] = $this->sesjaZPomocnikiem();
+
+        // Odhaczenie jest pierwsze po wiersz sesji. Blokada bierze oba konta,
+        // a potem sesję; odhaczenie musi więc czekać na konto PRZED sesją,
+        // bo jego klucz obcy `done_by_id` potrzebuje wiersza gospodarza.
+        $bariera = $this->bariera('SELECT 1 FROM cooking_sessions WHERE id = ? FOR UPDATE', [(string) $sesja->getKey()]);
+        $odhaczenie = $this->wTle('wspolne-krok', ['kto' => (string) $gospodarz->getKey(), 'sesja' => (string) $sesja->getKey(), 'krok' => $kroki[0]]);
+        $this->czekajNaZablokowane(1);
+        $blokada = $this->wTle('zablokuj', ['kto' => (string) $gospodarz->getKey(), 'kogo' => (string) $pomocnik->getKey()]);
+        $this->czekajNaZablokowane(2);
+        $this->zwolnijBariere($bariera);
+
+        $wyniki = [$odhaczenie->wynik(), $blokada->wynik()];
+        $this->assertBezZakleszczenia($wyniki[0], 'odhaczenie');
+        $this->assertBezZakleszczenia($wyniki[1], 'blokada');
+        $this->assertTrue($wyniki[0]['ok'], 'Odhaczenie padło: '.$wyniki[0]['komunikat']);
+        $this->assertTrue($wyniki[1]['ok'], 'Blokada padła: '.$wyniki[1]['komunikat']);
+
+        $this->assertSame(0, DB::table('cooking_session_participants')->where('session_id', $sesja->getKey())->count(),
+            'Zablokowany pomocnik nie zostaje w sesji.');
+        $this->assertSame(1, DB::table('cooking_session_steps')->where('session_id', $sesja->getKey())->count());
     }
 }

@@ -127,6 +127,17 @@ final class PostepWspolnegoGotowania
     /** Blokada wiersza sesji + sprawdzenie, że sesja trwa i osoba jest jej uczestnikiem TERAZ. */
     private function zablokuj(User $osoba, CookingSession $sesja): CookingSession
     {
+        // KOLEJNOŚĆ BLOKAD: konto → sesja, jak w przyjęciu linku i w blokadzie
+        // (`ZamekPary` trzyma wiersze kont `FOR UPDATE`, potem bierze wiersz
+        // sesji). Zapis odhaczenia ma klucz obcy `done_by_id → users`, czyli
+        // potrzebuje `KEY SHARE` na wierszu osoby — a ten koliduje z cudzym
+        // `FOR UPDATE`. Bez tego wstępnego kroku odhaczenie trzymałoby wiersz
+        // sesji i czekało na konto, a przyjęcie linku albo blokada trzymałyby
+        // konto i czekały na sesję: zakleszczenie (40P01) wtedy, gdy gospodarz
+        // odhacza krok w chwili, gdy ktoś dołącza do jego sesji. Teraz
+        // odhaczenie najpierw czeka na konto, potem bierze sesję.
+        DB::table('users')->where('id', $osoba->getKey())->lock('for key share')->value('id');
+
         $swieza = CookingSession::query()->whereKey($sesja->getKey())->lockForUpdate()->first();
 
         if ($swieza === null || ! $swieza->trwa()) {
