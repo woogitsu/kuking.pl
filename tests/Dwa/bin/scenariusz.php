@@ -403,6 +403,17 @@ try {
         // razem — przepisany do testu SQL byłby zielony także po zmianie
         // kolejności w `PublishRecipe`.
         'edytuj-przepis' => (function () use ($argumenty): string {
+            if (isset($argumenty['bariera_2427'])) {
+                $zatrzymany = false;
+                DB::listen(static function (QueryExecuted $query) use (&$zatrzymany): void {
+                    if (! $zatrzymany && str_contains($query->sql, 'from "media"')
+                        && str_contains(strtolower($query->sql), 'for update')) {
+                        $zatrzymany = true;
+                        DB::select('SELECT pg_advisory_xact_lock(2427, 1)');
+                    }
+                });
+            }
+
             $zapisz = static function () use ($argumenty): string {
                 $przepis = app(PublishRecipe::class)->handle(
                     author: User::query()->whereKey($argumenty['autor'])->firstOrFail(),
@@ -410,6 +421,7 @@ try {
                         'title' => $argumenty['tytul'],
                         'visibility' => 'public',
                         'source_type' => Recipe::SOURCE_OWN,
+                        'hero_media_id' => $argumenty['zdjecie'] ?? null,
                     ],
                     ingredients: [['text' => $argumenty['skladnik']]],
                     steps: [['instruction' => 'Gotuj do miękkości.']],

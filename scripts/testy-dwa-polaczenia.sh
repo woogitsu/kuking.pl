@@ -98,6 +98,11 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             printf "${CZERWONY}Kontrola ujemna atomowości importów #2402 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
+        # #2427: CSAM musi brać zdjęcie przed kontem; odwrotnie występuje 40P01.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2427.py; then
+            printf "${CZERWONY}Kontrola ujemna kolejności CSAM #2427 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
     fi
     printf "${ZIELONY}Przebiegów zielonych: %s z %s.${RESET}\n" "$PRZESZLO" "$PRZEBIEGI"
     exit 0

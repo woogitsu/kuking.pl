@@ -6,6 +6,7 @@ namespace Tests\Dwa;
 
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Models\CookedEvent;
+use App\Models\Media;
 use App\Models\Recipe;
 use App\Models\RecipeVersion;
 use App\Models\User;
@@ -13,21 +14,16 @@ use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
- * „CSAM — natychmiast ukryj i zabezpiecz” bierze konta PRZED treścią
- * (D-333, recenzja z 1.10.2026).
+ * „CSAM — natychmiast ukryj i zabezpiecz” bierze zdjęcia PRZED kontami
+ * i treścią, tak samo jak PublishRecipe (D-103, D-333).
  *
  * CO BYŁO ZEPSUTE
- * `ZabezpieczDowodCsam::handle()` blokowało: wiersz treści (`recipes`
- * `FOR UPDATE`), zdjęcia, a konto autora dopiero przy blokadzie konta
- * (`ban()`). Konwencja repozytorium jest odwrotna — `users` przed rzeczą
- * zależną (`DecyzjaPoOdwolaniu`, `PublishRecipe`, `EraseAccountData`).
- * Przeplot z autorem zapisującym przepis (trzyma `users`, czeka na `recipes`)
- * i z wymazaniem konta (trzyma `users`, czeka na `recipes`) zamykał cykl
- * i PostgreSQL zabijał jedną ze stron (`40P01`).
+ * CSAM brał `users` przed `media`; PublishRecipe bierze `media` przed
+ * `users`. Przy edycji przepisu z tym samym zdjęciem powstawał cykl
+ * i PostgreSQL przerywał jedną ze stron (`40P01`).
  *
- * Kontrola ujemna (wykonana ręcznie): przywrócenie starej kolejności
- * — `lockForUpdate()` treści przed `zablokujKonta()` — oblewa OBA testy
- * komunikatem „Zakleszczenie (40P01)”.
+ * Pierwsze dwa testy pilnują starszego przeplotu z przepisem bez zdjęcia
+ * i egzekucją wymazania. Trzeci używa prawdziwej blokady hero_media_id.
  */
 #[Group('dwa-polaczenia')]
 final class ZabezpieczenieDowoduNieZakleszczaSieTest extends TestDwochPolaczen
@@ -102,19 +98,62 @@ final class ZabezpieczenieDowoduNieZakleszczaSieTest extends TestDwochPolaczen
         $this->assertSame(User::STATUS_BANNED, DB::table('users')->where('id', $autor->getKey())->value('status'));
     }
 
+    public function test_zabezpieczenie_obok_edycji_przepisu_z_tym_samym_zdjeciem_nie_zakleszcza_sie(): void
+    {
+        $moderator = $this->moderator2fa();
+        $autor = $this->konto();
+        $zdjecie = Media::factory()->create(['owner_id' => $autor->getKey()]);
+        $przepis = $this->opublikowanyPrzepis($autor);
+        $przepis->update(['hero_media_id' => $zdjecie->getKey()]);
+
+        // Edycja bierze media FOR UPDATE i czeka przed blokadą users.
+        $bariera = $this->bariera('SELECT pg_advisory_xact_lock(2427, 1)', []);
+        $edycja = $this->wTle('edytuj-przepis', [
+            'autor' => (string) $autor->getKey(),
+            'przepis' => (string) $przepis->getKey(),
+            'zdjecie' => (string) $zdjecie->getKey(),
+            'tytul' => 'Rosół ze zdjęciem po zabezpieczeniu',
+            'skladnik' => 'lubczyk',
+            'bariera_2427' => '1',
+        ]);
+        $this->czekajNaZablokowane(1);
+
+        $zabezpieczenie = $this->wTle('zabezpiecz-csam', [
+            'kto' => (string) $moderator->getKey(),
+            'typ' => 'recipe',
+            'id' => (string) $przepis->getKey(),
+        ]);
+        $this->czekajNaZablokowane(2);
+        $this->zwolnijBariere($bariera);
+
+        $wynikEdycji = $edycja->wynik();
+        $wynikZabezpieczenia = $zabezpieczenie->wynik();
+
+        $this->assertBezZakleszczenia($wynikEdycji, 'edycja przepisu ze zdjęciem');
+        $this->assertBezZakleszczenia($wynikZabezpieczenia, 'zabezpieczenie tego samego zdjęcia');
+        $this->assertTrue($wynikEdycji['ok'], (string) $wynikEdycji['komunikat']);
+        $this->assertTrue($wynikZabezpieczenia['ok'], (string) $wynikZabezpieczenia['komunikat']);
+        $this->assertSame(Media::STATUS_SECURED, $zdjecie->fresh()->status);
+        $this->assertSame(User::STATUS_BANNED, $autor->fresh()->status);
+        $this->assertNotNull(DB::table('recipes')->where('id', $przepis->getKey())->value('deleted_at'));
+    }
+
     public function test_zabezpieczenie_przepisu_obok_wymazania_konta_autora_nie_zakleszcza_sie(): void
     {
         $moderator = $this->moderator2fa();
         $autor = $this->konto();
         $autor->markForDeletion(User::DELETE_SCOPE_EVERYTHING);
         $przepis = $this->opublikowanyPrzepis($autor);
+        $zdjecie = Media::factory()->create(['owner_id' => $autor->getKey()]);
+        $przepis->update(['hero_media_id' => $zdjecie->getKey()]);
 
         CookedEvent::create([
             'user_id' => $autor->getKey(),
             'recipe_id' => $przepis->getKey(),
         ]);
 
-        // Egzekucja trzyma `users FOR UPDATE` i staje PRZED kasowaniem przepisów.
+        // Egzekucja trzyma `users FOR UPDATE` i staje PRZED kasowaniem
+        // przepisu, który wskazuje na hero_media_id tego samego konta.
         $bariera = $this->bariera(
             'SELECT 1 FROM cooked_events WHERE user_id = ? FOR UPDATE',
             [(string) $autor->getKey()],
