@@ -537,7 +537,7 @@ final class OdczytZdjeciaKartkiTest extends TestCase
     {
         return [
             'nazwa' => ['title', 'Moja poprawiona nazwa'],
-            'opis' => ['summary', 'To m?j w?asny opis kartki.'],
+            'opis' => ['summary', 'To mój własny opis kartki.'],
             'porcje' => ['servings', 6.0],
         ];
     }
@@ -563,7 +563,7 @@ final class OdczytZdjeciaKartkiTest extends TestCase
         $this->assertSame(1, $szkic->fresh()->content_revision);
         $this->actingAs($this->osoba)->get(route('import.show', $zlecenie))
             ->assertOk()
-            ->assertSee('W tym szkicu jest ju? Tw?j tekst, wi?c niczego w nim nie nadpisali?my.');
+            ->assertSee('W tym szkicu jest już Twój tekst, więc niczego w nim nie nadpisaliśmy.');
         Http::assertSentCount(1);
     }
 
