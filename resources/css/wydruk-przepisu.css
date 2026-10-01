@@ -582,6 +582,13 @@
     display: none !important;
   }
 
+  /* Gość widzi pod przepisem objaśnienie, jak zgłosić treść (wymaga konta).
+     Na kartce na blat jest bezużyteczne, a przy pismie 16 pt zrzucało
+     ostatnią linijkę na osobną stronę, tuż pod kodem QR. */
+  body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika .zglos-goscia {
+    display: none !important;
+  }
+
   body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika .druk-pomocnik-porcje {
     margin: 6pt 0 0;
   }

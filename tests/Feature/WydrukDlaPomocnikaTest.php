@@ -217,4 +217,56 @@ final class WydrukDlaPomocnikaTest extends TestCase
         $this->assertSame(1, preg_match('/\.druk-pomocnik-qr-kod \{\s*width: ([\d.]+)cm;/', $druk, $m), 'Kod QR dla pomocnika nie ma szerokości w cm.');
         $this->assertGreaterThanOrEqual(3.0, (float) $m[1], 'Kod QR na kartce dla pomocnika ma mniej niż 3 cm.');
     }
+
+    public function test_kartka_dla_pomocnika_chowa_objasnienie_zgloszenia_goscia(): void
+    {
+        $css = (string) file_get_contents(base_path(self::ARKUSZ));
+
+        // Bez tego ostatnia linijka objaśnienia „Zgłoś” spadała na osobną stronę pod kodem QR.
+        $this->assertMatchesRegularExpression('/\.dla-pomocnika \.zglos-goscia \{\s*display: none !important;/', $css);
+    }
+
+    public function test_parametry_w_adresie_nie_wstrzykuja_html(): void
+    {
+        $przepis = $this->przepis(['visibility' => 'public']);
+        $zlosliwy = '<script>alert(1)</script>';
+
+        $html = (string) $this->get(route('recipes.show', ['recipe' => $przepis->slug, 'druk' => 1, 'dla' => $zlosliwy, 'qr' => $zlosliwy, 'porcje' => $zlosliwy]))
+            ->assertOk()
+            ->getContent();
+
+        // Nieznane „dla” to zwykły wydruk, a wartości z adresu nie wracają do strony.
+        $this->assertStringNotContainsString('alert(1)', $html);
+        $this->assertStringNotContainsString('dla-pomocnika', $html);
+
+        $html = (string) $this->get($this->adres($przepis, ['qr' => $zlosliwy, 'porcje' => $zlosliwy, 'x' => $zlosliwy]))->assertOk()->getContent();
+        $this->assertStringNotContainsString('alert(1)', $html);
+        $this->assertStringNotContainsString('druk-pomocnik-qr-kod', $html, 'Kod QR wymaga qr=1, a nie byle czego.');
+
+        // Tablica zamiast tekstu też nie otwiera trybu ani nie rzuca błędu 500.
+        $this->get(route('recipes.show', ['recipe' => $przepis->slug]).'?druk=1&dla[]=pomocnika')
+            ->assertOk()
+            ->assertDontSee('dla-pomocnika', false);
+    }
+
+    public function test_wariant_z_adresu_nie_trafia_do_wspolnego_cache_html_goscia(): void
+    {
+        config(['kuking.html_cache.edge_seconds' => 120]);
+        $przepis = $this->przepis(['visibility' => 'public']);
+
+        $zwykla = $this->get(route('recipes.show', $przepis->slug))->assertOk();
+        $this->assertTrue($zwykla->headers->hasCacheControlDirective('public'), 'Kontrola dodatnia: strona bez query jest do cache.');
+        $this->assertStringNotContainsString('dla-pomocnika', $zwykla->getContent());
+
+        foreach ([$this->adres($przepis), $this->adres($przepis, ['qr' => 1]), $this->adres($przepis, ['porcje' => 6])] as $adres) {
+            $wariant = $this->get($adres)->assertOk();
+            $this->assertFalse($wariant->headers->hasCacheControlDirective('public'), $adres);
+            $this->assertFalse($wariant->headers->hasCacheControlDirective('s-maxage'), $adres);
+            $this->assertTrue($wariant->headers->hasCacheControlDirective('no-store'), $adres);
+        }
+
+        // I po wariancie strona bez query nadal jest zwykła.
+        $po = $this->get(route('recipes.show', $przepis->slug))->assertOk();
+        $this->assertStringNotContainsString('dla-pomocnika', $po->getContent());
+    }
 }

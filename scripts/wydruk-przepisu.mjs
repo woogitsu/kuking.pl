@@ -57,6 +57,8 @@ const cmNaPx = cm => cm / 2.54 * 96;
 const MIN_KOD_PX = cmNaPx(9) - 0.5;
 const MIN_PISMO_KARTY_PX = 16 / 72 * 96 - 0.05;
 const WYSOKOSC_STRONY_PX = cmNaPx(26.7);
+// Kartka „dla pomocnika” (#2345): kod co najmniej 4 × 4 cm.
+const MIN_KOD_POMOCNIKA_PX = cmNaPx(4) - 0.5;
 
 function znajdzChromium() {
   if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
@@ -89,8 +91,8 @@ function stronyPdf(bufor) {
   return (bufor.toString('latin1').match(/\/Type\s*\/Page(?!s)/g) ?? []).length;
 }
 
-async function zmierz(strona) {
-  return strona.evaluate(({ UKRYTE, MIN_PISMO_PX, MAX_ZDJECIE_PX }) => {
+async function zmierz(strona, pomocnik = null) {
+  return strona.evaluate(({ UKRYTE, MIN_PISMO_PX, MAX_ZDJECIE_PX, pomocnik, MIN_KOD_POMOCNIKA_PX }) => {
     const bledy = [];
     const widoczny = el => {
       if (!el.isConnected) return false;
@@ -107,7 +109,7 @@ async function zmierz(strona) {
         bledy.push(`element ${pozycja} nachodzi na treść: ${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`);
       }
     }
-    const musi = { 'tytuł': 'h1', 'autor': '.przepis-autor .author-name', 'adres przepisu': '.przepis-adres-druk', 'porcje': '.przepis-liczby' };
+    const musi = { 'tytuł': 'h1', 'autor': '.przepis-autor .author-name', 'adres przepisu': '.przepis-adres-druk', 'porcje': pomocnik ? '.druk-pomocnik-porcje' : '.przepis-liczby' };
     for (const [co, selektor] of Object.entries(musi)) {
       const el = document.querySelector(selektor);
       if (!el || !widoczny(el) || !el.textContent.trim()) bledy.push(`brak na papierze: ${co}`);
@@ -153,9 +155,38 @@ async function zmierz(strona) {
     if (zdjecie && widoczny(zdjecie) && zdjecie.getBoundingClientRect().height > MAX_ZDJECIE_PX) {
       bledy.push(`zdjęcie główne za duże: ${Math.round(zdjecie.getBoundingClientRect().height)}px`);
     }
+    if (pomocnik) {
+      // „Dla pomocnika” (#2345): kartka na blat — krótsza (bez opisu i „Skąd ten
+      // przepis”), pismo co najmniej 16 pt, jedna liczba porcji, kod QR tylko na żądanie.
+      for (const selektor of ['.recipe-story', '.text-lead', '.porcje-wybor', '.porcje-wybor-uwaga', '.zglos-goscia']) {
+        const na = [...document.querySelectorAll(selektor)].filter(widoczny);
+        if (na.length) bledy.push(`widoczne na kartce dla pomocnika: ${selektor} (${na.length})`);
+      }
+      const min16 = 16 / 72 * 96 - 0.05;
+      for (const el of document.querySelectorAll('.przepis-uklad *')) {
+        if (!widoczny(el) || el.closest('svg')) continue;
+        if (![...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) continue;
+        const px = parseFloat(getComputedStyle(el).fontSize);
+        if (px < min16) bledy.push(`pismo poniżej 16 pt (${(px / 96 * 72).toFixed(1)} pt): ${el.tagName.toLowerCase()}.${[...el.classList].join('.')} „${el.textContent.trim().slice(0, 30)}”`);
+      }
+      const kod = document.querySelector('.druk-pomocnik-qr-kod');
+      const svg = kod?.querySelector('svg');
+      if (pomocnik.qr !== Boolean(kod && widoczny(kod))) bledy.push(pomocnik.qr ? 'brak kodu QR na kartce' : 'kod QR na kartce, której o niego nie proszono');
+      if (pomocnik.qr && svg) {
+        const r = svg.getBoundingClientRect();
+        if (r.width < MIN_KOD_POMOCNIKA_PX || Math.abs(r.width - r.height) > 1) bledy.push(`kod QR za mały lub nie kwadrat: ${(r.width / 96 * 2.54).toFixed(2)} × ${(r.height / 96 * 2.54).toFixed(2)} cm (minimum 4 × 4)`);
+        if (getComputedStyle(kod).backgroundColor !== 'rgb(255, 255, 255)') bledy.push(`kod QR bez białego podkładu: ${getComputedStyle(kod).backgroundColor}`);
+        const w = [...svg.querySelectorAll('rect, path')].map(el => getComputedStyle(el).fill);
+        if (!w.includes('rgb(0, 0, 0)')) bledy.push('kod QR bez czarnych modułów');
+        if (w.some(f => !['rgb(0, 0, 0)', 'rgb(255, 255, 255)', 'none'].includes(f))) bledy.push('kod QR z kolorem innym niż czarny i biały');
+        if (!document.querySelector('.druk-pomocnik-qr-adres')?.textContent.trim().startsWith('http')) bledy.push('brak adresu tekstem pod kodem');
+        const sekcja = document.querySelector('.druk-pomocnik-qr').getBoundingClientRect();
+        if (sekcja.right > document.documentElement.clientWidth + 0.5) bledy.push('kod QR wystaje poza szerokość kartki');
+      }
+    }
     return { bledy, skladniki: document.querySelectorAll('.ingredient-list li').length,
       kroki: document.querySelectorAll('.step-list > li').length };
-  }, { UKRYTE, MIN_PISMO_PX, MAX_ZDJECIE_PX });
+  }, { UKRYTE, MIN_PISMO_PX, MAX_ZDJECIE_PX, pomocnik, MIN_KOD_POMOCNIKA_PX });
 }
 
 // Pomiar karty z kodem QR w emulacji druku: geometria i kontrast. Samego
@@ -281,6 +312,31 @@ try {
           console.log(`✓ ${opis}`);
         }
         await strona.emulateMedia({ media: 'screen' });
+      }
+    }
+
+    // Kartka „dla pomocnika” (#2345): bez kodu QR i z kodem QR.
+    for (const [dlugosc, sciezka] of [['krotki', przepisy.krotki], ['dlugi', przepisy.dlugi]]) {
+      for (const qr of [false, true]) {
+        for (const motyw of ['jasny', 'ciemny']) {
+          const adresPomocnika = `${sciezka}${sciezka.includes('?') ? '&' : '?'}druk=1&dla=pomocnika${qr ? '&qr=1' : ''}`;
+          const odp = await strona.goto(adres + adresPomocnika, { waitUntil: 'load' });
+          if (odp.status() !== 200) throw new Error(`${adresPomocnika}: HTTP ${odp.status()}`);
+          await strona.evaluate(m => { if (m === 'ciemny') document.documentElement.dataset.theme = 'dark'; else delete document.documentElement.dataset.theme; }, motyw);
+          await strona.emulateMedia({ media: 'print' });
+          const wynik = await zmierz(strona, { qr });
+          const pdf = await strona.pdf({ format: 'A4', printBackground: true, margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' } });
+          const plik = `${KATALOG}/pomocnik-${dlugosc}${qr ? '-qr' : ''}-${motyw}-${kto}.pdf`;
+          writeFileSync(plik, pdf);
+          const opis = `pomocnik/${dlugosc}${qr ? '/z QR' : ''}/${motyw}/${kto}: ${wynik.skladniki} składników, ${wynik.kroki} kroków, ${stronyPdf(pdf)} str. A4 → ${plik}`;
+          if (wynik.bledy.length) {
+            bledow += wynik.bledy.length;
+            console.log(`✗ ${opis}\n  - ${[...new Set(wynik.bledy)].join('\n  - ')}`);
+          } else {
+            console.log(`✓ ${opis}`);
+          }
+          await strona.emulateMedia({ media: 'screen' });
+        }
       }
     }
 
