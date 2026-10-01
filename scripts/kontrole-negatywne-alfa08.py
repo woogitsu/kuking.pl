@@ -2237,6 +2237,9 @@ checks = [
      lambda s: replace_once(s, ' role="group" aria-label="Postęp zakładania konta"', '')),
     ("Odwołanie od blokady CSAM bez ochrony decyzji (#2427)", "app/Domain/Moderation/Actions/ResolveAppeal.php", "OdwolanieOdBlokadyCsamTest",
      lambda s: replace_once(s, "&& $this->blokadaZDowodem($decyzja)", "&& false")),
+    ("Fixture wspomnienia znika po północy w Polsce", "scripts/fixtures/rocznice-wykonania-s.php",
+     "test_fixture_pomiaru_pokazuje_wspomnienie_po_polnocy_w_polsce",
+     lambda s: replace_once(s, "$dzis->copy()->addDay()->subYear()", "$dzis->copy()->subYear()")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

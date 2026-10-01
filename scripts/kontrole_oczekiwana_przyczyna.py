@@ -47,6 +47,7 @@ OCZEKUJ = {
     'Pasek przy kolumnowym znaku znowu przypięty': r'Przy progu układu kolumnowego znaku pasek ma przestać być przypięty\.',
     'Uwaga słownika terminów wraca do .meta': r'Uwaga pod słownikiem terminów zeszła do \.meta albo poniżej 18 px',
     'Przełącznik rejestracji bez Shared Variable': r'Bez referencji `ctx\.shared` zamknięcie rejestracji z panelu zniknie przy pierwszym `apply`\.',
+    'Fixture wspomnienia znika po północy w Polsce': r'POMIAR_WSPOMNIENIA_PRZED_I_PO_POLNOCY',
     # #1011, paczka H: wpisy dopisane po wzorcach dla wcześniejszych kontroli.
     "Goły ->with('status') wraca do kontrolera": r'Goły zapis klucza `status` wygląda jak zielony sukces',
     'Odmowa nazwana sukcesem': r'Komunikat::sukces\(\) z tekstem „Nie udało się…" — to błąd, nie sukces\.',
