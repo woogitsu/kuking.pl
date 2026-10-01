@@ -72,7 +72,7 @@ class OdwolanieOdBlokadyCsamTest extends TestCase
         Queue::fake();
         $moderator = $this->moderator();
         $admin = $this->admin();
-        $autorDowodu = $this->user('autor-dowodu');
+        $autorDowodu = $this->user('autor_dowodu');
         $dowodowyWpis = Post::factory()->create(['author_id' => $autorDowodu->getKey()]);
 
         $this->actingAs($moderator)->post(
@@ -81,7 +81,7 @@ class OdwolanieOdBlokadyCsamTest extends TestCase
         )->assertRedirectContains('/csam/wynik/');
         $this->assertSame(1, ZabezpieczenieDowodu::query()->where('target_type', 'post')->count());
 
-        $autor = $this->user('zwykly-autor');
+        $autor = $this->user('zwykly_autor');
         $wpis = Post::factory()->create(['author_id' => $autor->getKey()]);
         $zgloszenie = Report::create([
             'reporter_id' => $this->user('zglaszajacy')->getKey(),
@@ -120,7 +120,7 @@ class OdwolanieOdBlokadyCsamTest extends TestCase
         Queue::fake();
         $moderator = $this->moderator();
         $admin = $this->admin();
-        $autorDowodu = $this->user('autor-dowodu');
+        $autorDowodu = $this->user('autor_dowodu');
         $wpisDowodowy = Post::factory()->create(['author_id' => $autorDowodu->getKey()]);
 
         $this->actingAs($moderator)->post(
@@ -129,10 +129,10 @@ class OdwolanieOdBlokadyCsamTest extends TestCase
         )->assertRedirectContains('/csam/wynik/');
         $dowod = ZabezpieczenieDowodu::query()->where('target_id', $wpisDowodowy->getKey())->sole();
 
-        $autor = $this->user('autor-zwyklej-decyzji');
+        $autor = $this->user('autor_zwyklej_decyzji');
         $wpis = Post::factory()->create(['author_id' => $autor->getKey()]);
         $zgloszenie = Report::create([
-            'reporter_id' => $this->user('zglaszajacy-falszywa-notatka')->getKey(),
+            'reporter_id' => $this->user('zglaszajacy_falszywa_notatka')->getKey(),
             'target_type' => 'post',
             'target_id' => $wpis->getKey(),
             'reason' => 'copyright',
@@ -173,11 +173,11 @@ class OdwolanieOdBlokadyCsamTest extends TestCase
         Queue::fake();
         $moderator = $this->moderator();
         $admin = $this->admin();
-        $autor = $this->user('autor-z-dwoma-banami');
+        $autor = $this->user('autor_z_dwoma_banami');
         $wpisZgloszony = Post::factory()->create(['author_id' => $autor->getKey()]);
         $wpisDowodowy = Post::factory()->create(['author_id' => $autor->getKey()]);
         $zgloszenie = Report::create([
-            'reporter_id' => $this->user('zglaszajacy-dwa-bany')->getKey(),
+            'reporter_id' => $this->user('zglaszajacy_dwa_bany')->getKey(),
             'target_type' => 'post',
             'target_id' => $wpisZgloszony->getKey(),
             'reason' => 'copyright',
