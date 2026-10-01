@@ -1038,6 +1038,8 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // autora przepisu, osiągana z linku w powiadomieniu. Adres celowo inny
     // niż `cooked.show`, bo to inny ekran z inną autoryzacją (Policy::celebrate).
     Route::get('/ugotowane/{cookedEvent}/wyszlo', [CookedEventController::class, 'celebrate'])->name('cooked.celebrate');
+    // Wersja przepisu z tego gotowania (#2378) — prywatna, tylko kucharz.
+    Route::get('/ugotowane/{cookedEvent}/wersja', [CookedEventController::class, 'wersja'])->name('cooked.version');
     Route::post('/ugotowane/{cookedEvent}/podziekuj', [CookedEventController::class, 'thank'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('cooked.thank');

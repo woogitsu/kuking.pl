@@ -78,6 +78,18 @@ od razu zobaczy przepis — konto nie jest do tego potrzebne. W kodzie jest
 tylko publiczny adres, nic, co dotyczy drukującej osoby. Karty nie ma dla
 przepisów prywatnych, ukrytych i usuniętych.
 
+### Wersja przepisu, z której gotowaliście
+
+Kiedy zapisujecie „Ugotowałem”, pamiętamy, którą wersję przepisu mieliście
+przed oczami. Autor mógł ją potem zmienić, ale na stronie swojego wykonania
+klikacie „Zobacz wersję” i czytacie dokładnie to, z czego gotowaliście —
+składniki i kroki z tamtego dnia. Widzicie to tylko Wy: nikt inny, także
+autor przepisu, nie zobaczy, z której wersji gotowaliście. Jeśli tamtej
+wersji już nie ma (stare wersje porządkujemy po dwóch latach, autor mógł ją
+też ukryć), napiszemy o tym wprost, a Wasze wykonanie, notatka i zdjęcia
+zostają bez zmian. Wykonania zapisane przed tą zmianą nie mają przypiętej
+wersji.
+
 ### Wszystkie wersje regulaminu
 
 Na górze regulaminu są dwa nowe przyciski. „Pobierz regulamin” zapisuje go

@@ -522,7 +522,7 @@ final class CollectUserExportData
         // `reorder` zamiast `orderBy`: relacja `cookedEvents()` ma już własne
         // sortowanie malejące, a dopisanie kolejnej kolumny by go nie zmieniło.
         $events = $user->cookedEvents()
-            ->with(['media', 'recipe.author.profile', ...$this->granica->relacjeKomentarzy()])
+            ->with(['media', 'recipeVersion:id,version_number', 'recipe.author.profile', ...$this->granica->relacjeKomentarzy()])
             ->reorder('cooked_at')
             ->get();
 
@@ -534,6 +534,10 @@ final class CollectUserExportData
             'przepis' => $this->granica->widzi($event->recipe) ? $event->recipe->title : self::TRESC_NIEDOSTEPNA,
             'autor_przepisu' => $this->granica->widzi($event->recipe) ? $event->recipe->author?->displayName() : null,
             'kiedy' => $this->date($event->cooked_at),
+            // Numer wersji przepisu otwartej przy gotowaniu (#2378) — sam numer,
+            // bez treści wersji; `null` = nie wiadomo (wykonanie sprzed zmiany
+            // albo wersja usunięta retencją).
+            'numer_wersji_przepisu' => $event->recipeVersion?->version_number,
             'notatka' => $event->note,
             'zrobie_jeszcze_raz' => $event->would_make_again,
             'moja_ocena_trudnosci' => $event->perceived_difficulty,

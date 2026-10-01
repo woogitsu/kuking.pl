@@ -1115,6 +1115,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // przepisu, nie do każdego widza (`CookedEventPolicy::celebrate`).
         $dodaj('cooked.celebrate', 'ekran „Komuś wyszło"', 'get',
             route('cooked.celebrate', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        // #2378: wersja przepisu z gotowania należy wyłącznie do kucharza
+        // (`CookedEventPolicy::viewVersion`) — nawet autor przepisu dostaje odmowę.
+        $dodaj('cooked.version', 'wersja przepisu przypięta do wykonania', 'get',
+            route('cooked.version', $wykonanie), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.thank', 'podziękowanie za wykonanie', 'post',
             route('cooked.thank', $wykonanie), ['body' => 'Dziękuję za ugotowanie.'], [$W, $O, $O, $O, $O]);
         // F6: wspomnienie z wykonania chowa wyłącznie kucharz
