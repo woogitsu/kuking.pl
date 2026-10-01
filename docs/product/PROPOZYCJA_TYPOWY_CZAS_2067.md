@@ -1,6 +1,8 @@
 # Propozycja: typowy rzeczywisty czas przygotowania z wykonań (#2067)
 
-Status: **propozycja do decyzji właściciela. Nic nie zbudowano.**
+Status: **odblokowane i zbudowane 1 października 2026** (wiersz #2067 w D-333;
+reguły wg rekomendacji poniżej, bez flagi z punktu 8). Dalej tekst propozycji
+z chwili decyzji.
 
 ## Stan faktyczny
 

@@ -447,6 +447,20 @@ usunięcie bezpiecznika tokenu, bezwarunkowe `@csrf` w panelu wyglądu,
 wyjątek pochodzenia bez zawężenia do motywu, publiczny TTL dla odpowiedzi
 innej niż 200, sonda bez przyjęcia 403.
 
+### Typowy czas z wykonań na stronie przepisu (#2067)
+
+Strona przepisu niesie zdanie „Gotujący zwykle potrzebują około N min (na
+podstawie K osób)”. Liczba zależy od widza tylko przez blokady, a gość nie
+ma blokad: `TypowyCzasPrzepisu::dla($przepis, null)` liczy dla niego bez nich
+(zostaje tylko status konta kucharza, taki sam dla wszystkich). Zalogowany
+dostaje `private, no-store`, więc jego liczba (z blokadami) nigdy nie trafia
+do wspólnego cache. HTML gościa jest więc taki sam dla każdego gościa i nie
+zdradza niczyich blokad. **Klucz cache bez zmian i żadne unieważnianie po
+nowym wykonaniu nie jest potrzebne:** liczba może się spóźnić najwyżej o N
+sekund (TTL, jak licznik „Ugotowane N ×” obok), a próg 5 osób i zaokrąglenie
+do 5 minut sprawiają, że pojedyncze wykonanie rzadko ją w ogóle zmienia.
+Test: `TypowyCzasPrzepisuTest::test_gosc_w_cache_brzegu_dostaje_liczbe_bez_blokad`.
+
 ### Okno nieświeżości — do świadomej akceptacji
 
 Przepis przełączony na prywatny, ukryty przez moderację, usunięty albo

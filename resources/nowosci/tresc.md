@@ -31,6 +31,17 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Ile naprawdę trwa gotowanie według gotujących
+
+Na stronie przepisu, obok czasu podanego przez autora, może pojawić się
+drugie zdanie: „Gotujący zwykle potrzebują około 60 min (na podstawie 7 osób).”
+Bierzemy je z czasów, które sami wpisujecie w „Ugotowałem”. Zdanie pokazujemy
+dopiero wtedy, gdy czas podało co najmniej pięć różnych osób — każda liczy się
+raz, nawet jeśli gotowała ten przepis wiele razy — a liczbę zaokrąglamy do pięciu
+minut. Czasów dłuższych niż doba nie liczymy. Nie widać, kto podał jaki czas,
+a osoby, które zablokowaliście, nie wchodzą do Waszej liczby. Dopóki
+osób jest mniej, nie piszemy nic.
+
 ### Wszystkie wersje regulaminu
 
 Na górze regulaminu są dwa nowe przyciski. „Pobierz regulamin” zapisuje go
