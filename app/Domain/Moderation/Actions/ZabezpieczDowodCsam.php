@@ -135,7 +135,7 @@ final class ZabezpieczDowodCsam
             // WPIS DLA TREŚCI (wpis, przepis, komentarz), potem dla każdego jej
             // zdjęcia. Zdjęcie jako cel dostaje wyłącznie własny wpis z pętli
             // niżej — z pamiętanym stanem sprzed zabezpieczenia.
-            $wpis = $typ === 'media' ? null : $this->zarejestruj($swiezy, $typ, $id, $osoba, $zgloszenie, $decyzja, $note, null);
+            $wpis = $typ === 'media' ? null : $this->zarejestruj($swiezy, $typ, $id, $osoba?->getKey(), $zgloszenie, $decyzja, $note, null);
 
             [$zabezpieczone, $pominiete, $pierwszeZdjecie] = $this->zabezpieczZdjecia($swiezy, $mediaId, $zgloszenie, $decyzja, $note);
 
@@ -228,11 +228,11 @@ final class ZabezpieczDowodCsam
         $lista = match ($typ) {
             'media' => [$id],
             'post' => DB::table('post_media')->where('post_id', $id)->pluck('media_id')->all(),
-            'recipe' => [
+            'recipe' => $cel instanceof Recipe ? [
                 $cel->hero_media_id,
                 $cel->source_scan_media_id,
                 ...DB::table('recipe_steps')->where('recipe_id', $id)->whereNotNull('media_id')->pluck('media_id')->all(),
-            ],
+            ] : [],
             default => [],
         };
 
@@ -267,7 +267,7 @@ final class ZabezpieczDowodCsam
                 continue;
             }
 
-            $wpis = $this->zarejestruj($moderator, 'media', (string) $zdjecie->getKey(), $zdjecie->owner, $zgloszenie, $decyzja, $note, $zdjecie->status);
+            $wpis = $this->zarejestruj($moderator, 'media', (string) $zdjecie->getKey(), $zdjecie->owner_id, $zgloszenie, $decyzja, $note, $zdjecie->status);
             $pierwszy ??= $wpis;
 
             $zdjecie->forceFill(['status' => Media::STATUS_SECURED])->save();
@@ -281,7 +281,7 @@ final class ZabezpieczDowodCsam
         User $moderator,
         string $typ,
         string $id,
-        ?User $osoba,
+        ?string $osobaId,
         ?Report $zgloszenie,
         ModerationAction $decyzja,
         ?string $note,
@@ -291,7 +291,7 @@ final class ZabezpieczDowodCsam
         $wpis->forceFill([
             'target_type' => $typ,
             'target_id' => $id,
-            'subject_user_id' => $osoba?->getKey(),
+            'subject_user_id' => $osobaId,
             'report_id' => $zgloszenie?->getKey(),
             'moderation_action_id' => $decyzja->getKey(),
             'secured_by' => $moderator->getKey(),

@@ -12,6 +12,7 @@ use App\Domain\Media\KasujZdjecie;
 use App\Domain\Moderation\Actions\RestoreContent;
 use App\Domain\Moderation\Actions\ZabezpieczDowodCsam;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Models\Appeal;
 use App\Models\AuditLogEntry;
 use App\Models\Comment;
 use App\Models\Media;
@@ -154,6 +155,27 @@ class ZabezpieczenieDowoduCsamTest extends TestCase
         Storage::disk('public')->assertExists($this->pliki($zdjecie));
     }
 
+    public function test_przepis_zabezpiecza_tez_zdjecie_glowne_i_zdjecie_kroku(): void
+    {
+        $autor = $this->user('autor');
+        $glowne = $this->zdjecie($autor);
+        $krok = $this->zdjecie($autor);
+        $przepis = Recipe::factory()->create(['author_id' => $autor->getKey(), 'hero_media_id' => $glowne->getKey()]);
+        DB::table('recipe_steps')->insert([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'recipe_id' => $przepis->getKey(),
+            'position' => 1,
+            'instruction' => 'Wymieszaj.',
+            'media_id' => $krok->getKey(),
+        ]);
+
+        $this->wykonaj($this->moderator(), 'recipe', $przepis)->assertRedirect();
+
+        $this->assertSame(Media::STATUS_SECURED, $glowne->fresh()->status);
+        $this->assertSame(Media::STATUS_SECURED, $krok->fresh()->status);
+        $this->assertSame(3, ZabezpieczenieDowodu::count());
+    }
+
     // ───────────────────────── brak podglądu ─────────────────────────
 
     public function test_zdjecie_nie_jest_pokazywane_nikomu_takze_wlascicielowi_i_moderatorowi(): void
@@ -258,6 +280,84 @@ class ZabezpieczenieDowoduCsamTest extends TestCase
         $this->assertSame(2, ZabezpieczenieDowodu::count());
     }
 
+    public function test_retencja_tresci_szanuje_rejestr_nawet_gdy_spraw_juz_nie_ma(): void
+    {
+        $autor = $this->user('autor');
+        $wpis = Post::factory()->create(['author_id' => $autor->getKey()]);
+        $komentarz = Comment::factory()->create(['author_id' => $autor->getKey(), 'post_id' => Post::factory()->create()->getKey()]);
+        $zdjecie = $this->zdjecie($autor);
+        $wpis->media()->attach($zdjecie->getKey(), ['position' => 0]);
+
+        $this->wykonaj($this->moderator(), 'post', $wpis);
+        $this->wykonaj($this->moderator(), 'comment', $komentarz);
+
+        // Sprawy, które normalnie chronią usuniętą treść, zniknęły (np. po 36 miesiącach).
+        DB::table('appeals')->delete();
+        DB::table('moderation_actions')->delete();
+        DB::table('reports')->delete();
+
+        $this->travel(5)->years();
+        app(PrzedawnioneUsunieteTresci::class)->posprzataj(30);
+
+        $this->assertDatabaseHas('posts', ['id' => $wpis->getKey()]);
+        $this->assertDatabaseHas('comments', ['id' => $komentarz->getKey()]);
+        $this->assertDatabaseHas('media', ['id' => $zdjecie->getKey()]);
+        Storage::disk('public')->assertExists($this->pliki($zdjecie));
+    }
+
+    public function test_retencja_spraw_nie_zabiera_zgloszenia_decyzji_i_odwolania_zabezpieczonego_dowodu(): void
+    {
+        $autor = $this->user('autor');
+        $zglaszajacy = $this->user('zglaszajaca');
+        $moderator = $this->moderator();
+
+        // Dwie sprawy: jedna bez odwołania (chronią ją wiersze zgłoszenia i decyzji),
+        // druga z odwołaniem (chroni je wiersz odwołania).
+        $bezOdwolania = Post::factory()->create(['author_id' => $autor->getKey()]);
+        $zOdwolaniem = Post::factory()->create(['author_id' => $autor->getKey()]);
+        $zgloszenia = [];
+
+        foreach ([$bezOdwolania, $zOdwolaniem] as $wpis) {
+            $zgloszenia[$wpis->getKey()] = Report::create([
+                'reporter_id' => $zglaszajacy->getKey(),
+                'target_type' => 'post',
+                'target_id' => $wpis->getKey(),
+                'reason' => 'child_safety',
+                'status' => Report::STATUS_OPEN,
+            ]);
+            $this->wykonaj($moderator, 'post', $wpis, ['zgloszenie' => $zgloszenia[$wpis->getKey()]->getKey()]);
+        }
+
+        $decyzja = ModerationAction::where('target_id', $zOdwolaniem->getKey())->where('action', ModerationAction::ACTION_REMOVE)->sole();
+        $odwolanie = Appeal::create([
+            'moderation_action_id' => $decyzja->getKey(),
+            'user_id' => $autor->getKey(),
+            'appellant' => Appeal::APPELLANT_AUTHOR,
+            'body' => 'Nie zgadzam się z decyzją.',
+            'status' => Appeal::STATUS_UPHELD,
+            'decided_at' => now(),
+            'decision_note' => 'Podtrzymane.',
+        ]);
+
+        $this->travel(5)->years();
+        DB::table('appeals')->update(['decided_at' => now()->subMonths(40)]);
+        $raport = (new PrzedawnioneSprawyModeracyjne)->posprzataj(36);
+
+        // Wszystko, co dotyczy zabezpieczonych wpisów, zostaje.
+        $this->assertSame(2, Report::count());
+        $this->assertSame(2, ModerationAction::where('action', ModerationAction::ACTION_REMOVE)->count());
+        $this->assertNotNull(Appeal::find($odwolanie->getKey()));
+        $this->assertSame(0, $raport->usunieteZgloszenia);
+        $this->assertSame(0, $raport->usunieteOdwolania);
+
+        // KONTROLA DODATNIA: ta sama retencja, gdy zabezpieczenia nie ma, sprawy zabiera.
+        DB::table('zabezpieczenia_dowodow')->delete();
+        (new PrzedawnioneSprawyModeracyjne)->posprzataj(36);
+
+        $this->assertSame(0, Report::count());
+        $this->assertNull(Appeal::find($odwolanie->getKey()));
+    }
+
     public function test_kontrola_ujemna_bez_zabezpieczenia_ta_sama_retencja_kasuje_wszystko(): void
     {
         // Ten sam scenariusz, ale zabezpieczenie usunięte z rejestru ręcznie —
@@ -310,6 +410,11 @@ class ZabezpieczenieDowoduCsamTest extends TestCase
         }
 
         $this->wykonaj($this->moderator(), 'recipe', $przepis);
+
+        // Sprawy (które same chronią przepis na 36 miesięcy) znikają — zostaje
+        // wyłącznie rejestr, więc test mierzy rejestr, a nie ślad sprawy.
+        DB::table('moderation_actions')->delete();
+        DB::table('reports')->delete();
 
         $this->travel(3)->years();
         (new PrzedawnioneWersjePrzepisow)->posprzataj(24, 3);
