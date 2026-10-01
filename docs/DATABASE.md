@@ -2439,6 +2439,44 @@ porcji (V2); cztery miejsca po przecinku wystarczają na ułamki z kuchni.
 `NULL` w obu znaczy „ilości nie podano" i jest czymś innym niż `no_amount`
 niżej, które znaczy „ilości NIE MA".
 
+**`recipe_ingredients.rdzenie text[] NOT NULL`** (migracja
+`2026_10_01_140300_add_rdzenie_to_recipe_ingredients`, „Co ugotuję z tego, co
+mam”) — zapisany wynik `public.kuking_rdzenie_skladnika(ingredient_text)`:
+rdzenie linijki, posortowane i bez powtórzeń. Wypełnia je wyzwalacz
+`recipe_ingredients_rdzenie_trg` (BEFORE INSERT OR UPDATE OF `ingredient_text`,
+funkcja `public.kuking_recipe_ingredients_rdzenie()`), więc kod aplikacji niczego
+nie liczy ani nie pamięta — także `INSERT … SELECT` i seedery. Zapytanie
+`App\Domain\Pantry\CoUgotuje` czyta tę kolumnę (`p.rdzenie <@ ri.rdzenie`,
+wstępny filtr `ri.rdzenie && {…}`) zamiast liczyć funkcję na każdą linijkę
+każdego kandydata przy każdym żądaniu (pomiar: 500 przepisów × 7 składników,
+20 produktów — ok. 985 ms i ok. 109 tys. wywołań funkcji → ok. 25 ms
+i 0 wywołań). Indeks `recipe_ingredients_rdzenie_gin_idx` (GIN, `array_ops`)
+obsługuje `&&`, `@>`, `<@`. CHECK `recipe_ingredients_rdzenie_not_null_check`
+(`rdzenie IS NOT NULL`).
+
+Dlaczego zwykła kolumna z wyzwalaczem, a nie `GENERATED … STORED`:
+`ADD COLUMN … STORED` przepisuje całą tabelę pod `ACCESS EXCLUSIVE`. Tu:
+`ADD COLUMN` bez DEFAULT (zmiana katalogu, milisekundy) → wyzwalacz →
+backfill partiami po 2000 wierszy, każda partia w osobnej transakcji →
+`CHECK … NOT VALID` + `VALIDATE` (`SHARE UPDATE EXCLUSIVE`, zapisy idą dalej)
+→ `CREATE INDEX CONCURRENTLY`. Koszt na produkcji: backfill przepisuje każdy
+wiersz raz (tymczasowo ok. 2× rozmiar tabeli do VACUUM, WAL ok. 1–2×
+rozmiaru tabeli); migracja wznawialna. Zapis przepisu kasuje i zakłada
+wiersze składników, więc wyzwalacz liczy funkcję raz na linijkę przy zapisie
+(zamiast wielokrotnie przy każdym odczycie).
+
+⚠️ Kolumna jest ZWYKŁA: zmiana ciała `kuking_rdzenie_skladnika()` jej nie
+przelicza. Migracja zmieniająca funkcję musi przeliczyć też tę tabelę
+(partiami, `UPDATE recipe_ingredients SET ingredient_text = ingredient_text
+WHERE …`) — jak `UPDATE pantry_items SET name = name` w #2315. Rozjazd wyłapuje
+`CoUgotujeKosztTest::test_zapisane_rdzenie_rowna_sie_funkcji_na_zywo`.
+
+**Rollback:** `down()` zdejmuje indeks, CHECK, wyzwalacz, jego funkcję i kolumnę.
+Bezstratny i **nie odmawia** (D-088 chroni wartości semantyczne, a to dane
+pochodne w całości wyliczalne z `ingredient_text`, który zostaje). Po nim kod
+z tej wersji (`CoUgotuje`) nie zadziała — wycofanie wdrożenia cofa kod razem
+z migracją.
+
 **`recipe_ingredients.note varchar(300) NULL`** — dopisek przy JEDNYM
 składniku („najlepiej wiejskie", „albo margaryna"), **wolny tekst od
 człowieka**. Coś innego niż `ingredient_text`, który jest samym składnikiem
@@ -2814,6 +2852,40 @@ przechodzi. Test: `tests/Feature/CofniecieMigracjiUrodzinTest.php`.
   zakolejkować drugi list. Po zakończeniu dnia albo przy potwierdzonym
   `birthday_email_sent_on` rollback jest dozwolony. Test odmowy i przejścia:
   `tests/Feature/CofniecieRezerwacjiListuUrodzinowegoTest.php`.
+
+**Sobotnie przypomnienie o produktach do zużycia (#1903, D-333)** — migracja
+`2026_10_01_102000_add_pantry_reminder_consent_to_users`
+(`$withinTransaction = false`):
+
+- **`users.wants_pantry_reminder`** (`boolean NOT NULL DEFAULT false`) —
+  **osobna**, domyślnie WYŁĄCZONA zgoda na jeden list tygodniowo, w sobotę rano,
+  o produktach z listy „Co mam w domu”, których termin minął albo upływa w ciągu
+  `kuking.pantry.pilne_dni` dni (bez mrożonych). Założenie listy ani wpisanie
+  terminu jej nie daje. Zapis wyłącznie przez
+  `App\Domain\Zgody\PrzestawZgodeNaPrzypomnienieSpizarni`, które dopisuje wiersz
+  do `dziennik_zgod` z celem `przypomnienie_spizarni` (D-072); brak zmiany =
+  brak wiersza. Poza `$fillable`. `EraseAccountData` ustawia `false`.
+- **Deduplikacja bez kolumny na `users`:** `PrzypomnienieDobowe::zarezerwuj(
+  'przypomnienie-spizarni', adres, dzień)` (tabela `przypomnienia_dobowe`: skrót
+  adresu i doba, retencja 30 dni) przed `Mail::queue()`. **Doba to dzień
+  w Polsce** (`Czas::dzisiajData()`, Europe/Warsaw), nie data UTC — polska
+  sobota obejmuje dwie daty UTC, a klucz z UTC dopuszczał dwa listy w jednej
+  sobocie (#2364); `PrzypomnienieDobowe` bez podanej doby liczy UTC jak dawniej
+  (`PilnujTerminowOdwolan`). Dzień tygodnia pilnuje
+  sama komenda `kuking:wyslij-przypomnienia-spizarni` (tylko sobota w
+  `Europe/Warsaw`), harmonogram `weeklyOn(6, '09:00')` UTC.
+- **Indeks częściowy `users_wants_pantry_reminder_idx`** (`ON users (id)
+  WHERE wants_pantry_reminder`, `CREATE INDEX CONCURRENTLY`, z zdjęciem
+  niedokończonej budowy INVALID przed próbą): komenda skanuje konta ze zgodą,
+  a ma ją mała mniejszość — bez indeksu byłby to przegląd całej tabeli w każdą
+  sobotę. W transakcji (testy) migracja pomija `CONCURRENTLY`.
+- `dziennik_zgod_cel_check` rozszerzony o `przypomnienie_spizarni`
+  (`NOT VALID` + `VALIDATE`).
+- **Rollback:** `down()` odmawia (D-088), gdy ktoś ma zgodę albo dziennik ma
+  choć jeden wiersz celu `przypomnienie_spizarni` — zgoda wróciłaby jako
+  `false` bez śladu, a wierszy dziennika nie wolno kasować. Test:
+  `CofniecieMigracjiNieKasujeTerminowSpizarniTest`. Eksport:
+  `konto.chce_sobotniego_przypomnienia_o_produktach`.
 
 **Etap d** — migracja `2026_09_25_200300_add_birthday_visible_to_followers_to_users`:
 
@@ -4452,7 +4524,7 @@ odklikał i czy po wycofaniu wysyłka nie szła dalej.
 |---|---|
 | `id` | `bigserial`. Nie UUID — wiersz nigdy nie jest adresowany z zewnątrz (tak samo jak `audit_log` i `product_signals`). Rosnący klucz trzyma KOLEJNOŚĆ dwóch zdarzeń z tej samej sekundy. |
 | `user_id` | `uuid`, **NOT NULL**, FK do `users` z `ON DELETE RESTRICT` (patrz niżej). |
-| `cel` | Cel zgody: `regulamin` (akceptacja regulaminu przy rejestracji, #2217 — od migracji `2026_09_29_234500_dziennik_zgod_akceptacja_regulaminu`) \| `tygodniowy_digest` \| `zyczenia_urodzinowe` (od migracji `2026_09_25_200200_add_birthday_email_consent_to_users`, #1755) \| `odczyt_ai` (od migracji `2026_09_26_100200_dziennik_zgod_cel_odczyt_ai`, D-296 — zgoda na odczyt zdjęć kartek przez OpenAI). CHECK `dziennik_zgod_cel_check` — zbiór zamknięty, każda kolejna zgoda wymaga migracji i recenzji. |
+| `cel` | Cel zgody: `regulamin` (akceptacja regulaminu przy rejestracji, #2217 — od migracji `2026_09_29_234500_dziennik_zgod_akceptacja_regulaminu`) \| `tygodniowy_digest` \| `zyczenia_urodzinowe` (od migracji `2026_09_25_200200_add_birthday_email_consent_to_users`, #1755) \| `odczyt_ai` (od migracji `2026_09_26_100200_dziennik_zgod_cel_odczyt_ai`, D-296 — zgoda na odczyt zdjęć kartek przez OpenAI) \| `przypomnienie_spizarni` (od migracji `2026_10_01_102000_add_pantry_reminder_consent_to_users`, #1903 — sobotnie przypomnienie o produktach do zużycia). CHECK `dziennik_zgod_cel_check` — zbiór zamknięty, każda kolejna zgoda wymaga migracji i recenzji. |
 | `czynnosc` | `udzielona` \| `wycofana`. CHECK `dziennik_zgod_czynnosc_check`. Dwie wartości, bo to są dwie rzeczy, które RODO każe umieć wykazać (art. 7 ust. 1 i ust. 3). |
 | `zrodlo` | `ustawienia` \| `link_wypisania` \| `link_powrotny` \| `usuniecie_konta` \| `ekran_importu` (zgoda „odczyt AI” dana na ekranie „Przepisz z kartki”, D-296) \| `rejestracja_haslo` \| `rejestracja_google` \| `rejestracja_facebook` (droga rejestracji przy celu `regulamin`, #2217). CHECK `dziennik_zgod_zrodlo_check`. Część dowodu: „gdzie człowiek wtedy był". |
 | `wersja_polityki` | Wersja polityki prywatności OBOWIĄZUJĄCA w chwili zdarzenia: `WersjaDokumentu::polityka()->obowiazujaca()` (D-327). Zwykle `config('kuking.zgody.wersja_polityki')`; w okresie przejściowym zmiany istotnej (14 dni od publikacji) — wersja poprzednia. Bez niej dowód mówi „zgodził się", ale nie mówi NA CO. |
@@ -5332,6 +5404,20 @@ jest przestawiany bez przerwy w ochronie: nowy pod tymczasową nazwą
 **Rollback:** `down()` kasuje tylko wiersze tych czterech sygnałów (telemetria
 z retencją 90 dni, nie decyzja człowieka — D-088 nie dotyczy) i przywraca
 poprzedni słownik tą samą drogą. Test: `SygnalyJakWyszloMigracjaTest`.
+
+**Trzy sygnały „Zużyj w pierwszej kolejności” (#1903, D-333, migracja
+`2026_10_01_103000_add_pantry_product_signals`):** `pantry_expiry_set` (zapisano
+termin przy produkcie), `pantry_priority_viewed` (otwarto listę, na której jest
+sekcja „Zużyj w pierwszej kolejności”), `pantry_cook_priority_viewed` (obejrzano
+przepisy w trybie „Najpierw to, co się psuje”, tylko pierwsza strona). Pisze je
+`PantryController` przez `ZapiszSygnal` i zawsze z `user_id = NULL`, bez nazw
+produktów i dat (`properties = {}`). Odsetek kont z co najmniej jednym terminem
+liczy się wprost z `pantry_items`. „Zużyte” i „wyrzucone” nie są mierzone (D6 A).
+CHECK przestawiany bez przerwy w ochronie (tymczasowa nazwa, `NOT VALID`,
+`VALIDATE`, zmiana nazwy — AGENTS.md §6). **Rollback:** `down()` kasuje tylko
+wiersze tych trzech sygnałów (telemetria z retencją 90 dni — D-088 nie
+dotyczy). Test: `MigracjaTerminowSpizarniTest`,
+`CofniecieMigracjiNieKasujeTerminowSpizarniTest`.
 
 **`weekly_digest_queued` nazywał się do 10 września `weekly_digest_sent`**
 (audyt MAIL-03, **D-078**, migracja
@@ -6468,6 +6554,10 @@ co mam” (`App\Domain\Pantry\CoUgotuje`). Migracja
 | `rdzenie` | `text[]` `GENERATED ALWAYS AS (kuking_rdzenie_skladnika(name)) STORED` | rdzenie słów do porównania ze składnikami przepisów |
 | `klucz` | `text` `GENERATED ALWAYS AS (kuking_klucz_skladnika(name)) STORED` | rdzenie posortowane i sklejone spacją |
 | `created_at` | `timestamptz NOT NULL DEFAULT now()` | |
+| `expires_on` | `date NULL` | termin z opakowania (#1903, D-333): dzień kalendarzowy bez strefy. `NULL` = osoba nie podała terminu (nie „produkt nie ma terminu”). Ustawia wyłącznie akcja `ZmienTerminProduktu`, poza `$fillable` |
+| `expiry_kind` | `varchar(12) NULL` | rodzaj terminu: `use_by` („Należy zużyć do”) albo `best_before` („Najlepiej spożyć przed”). `NULL` dokładnie wtedy, gdy `expires_on IS NULL`. Priorytet liczy się jednakowo, różnica jest na opakowaniu i ma zostać widoczna |
+| `quantity_note` | `varchar(40) NULL` | ilość jako WOLNY TEKST własnymi słowami („pół kostki”, „1 litr”); bez liczb i jednostek (D-333: tak jak `ingredient_text`). `NULL` = nie podano. Jedyna nowa kolumna w `$fillable` |
+| `frozen` | `boolean NOT NULL DEFAULT false` | produkt w zamrażarce wypada z sekcji „Zużyj w pierwszej kolejności”; wpisany termin zostaje. Poza `$fillable` |
 
 Ograniczenia:
 - `pantry_items_name_check`: `char_length(btrim(name)) BETWEEN 2 AND 120
@@ -6477,6 +6567,28 @@ Ograniczenia:
 - `pantry_items_user_klucz_unique`: `UNIQUE (user_id, klucz)` — „Jajka”
   i „jajko” to na jednej liście ten sam produkt. Ten indeks obsługuje też
   zapytania po `user_id`.
+- Terminy (#1903, migracja `2026_10_01_101500_add_expiry_to_pantry_items`;
+  CHECK-i dodane wg AGENTS.md §6: `NOT VALID`, potem osobno `VALIDATE`,
+  `$withinTransaction = false`):
+  `pantry_items_expiry_kind_check` (`expiry_kind IS NULL OR expiry_kind IN
+  ('use_by','best_before')`), `pantry_items_expiry_pair_check`
+  (`(expires_on IS NULL) = (expiry_kind IS NULL)` — nie ma terminu bez rodzaju
+  i odwrotnie), `pantry_items_expires_on_range_check` (`expires_on` między
+  2020-01-01 a 2100-12-31 — stałe, bez `now()`, żeby CHECK był niezmienny),
+  `pantry_items_quantity_note_check` (`char_length(btrim(quantity_note))
+  BETWEEN 1 AND 40`).
+- **Indeksu po terminie nie ma, świadomie.** Lista ma najwyżej 150 pozycji na
+  konto i jest zawsze filtrowana po `user_id` (pokrywa ją `UNIQUE (user_id,
+  klucz)`), a ekran, blok na Starcie i tryb `?najpierw=termin` nie skanują
+  produktów wszystkich kont. Sobotnie przypomnienie idzie od kont ze zgodą
+  (częściowy indeks `users_wants_pantry_reminder_idx`, niżej), a dopiero potem
+  po produktach konta (`EXISTS` po `user_id`). Gdyby pojawiło się zadanie
+  skanujące produkty wszystkich kont, dopisać `CREATE INDEX CONCURRENTLY … ON
+  pantry_items (expires_on) WHERE expires_on IS NOT NULL AND NOT frozen`.
+- „Dziś” (granica „termin minął”, „do N dni”) liczy aplikacja w `Europe/Warsaw`
+  (`PriorytetZuzycia::dzis()`) i podaje jako parametr SQL; baza nie używa
+  `now()` w tej regule. `kuking.pantry.pilne_dni` (domyślnie 3) wyznacza
+  granicę pilnych.
 
 Funkcje (obie `IMMUTABLE STRICT PARALLEL SAFE`):
 - `public.kuking_formy_skladnikow() → jsonb` — zamknięty słownik form
@@ -6498,16 +6610,17 @@ Funkcje (obie `IMMUTABLE STRICT PARALLEL SAFE`):
   (`UPDATE … SET name = name`) i odmawia, gdy przeliczenie dałoby dwa
   produkty jednej osoby o tym samym kluczu — nie kasuje ich za człowieka.
   Rollback przywraca poprzednie ciało funkcji; dane zostają. Ta sama funkcja liczy
-  rdzenie linijek `recipe_ingredients.ingredient_text` w zapytaniu doboru —
+  rdzenie linijek `recipe_ingredients.ingredient_text` — zapisane w
+  `recipe_ingredients.rdzenie` (wyzwalacz, patrz sekcja `recipe_ingredients`);
   reguła mieszka wyłącznie w bazie, bez kopii w PHP;
 - `public.kuking_klucz_skladnika(text) → text` — `array_to_string()` z powyższej.
   Osobna funkcja, bo samo `array_to_string()` jest `STABLE` i nie wolno go
   użyć w kolumnie generowanej.
 
-Zapytanie doboru zawęża kandydatów filtrem `ingredient_text_search LIKE
-'%rdzeń%'` (najdłuższy rdzeń każdego produktu; rdzeń do 4 liter — jego
-pierwsze trzy litery, bo może pochodzić ze słownika form), który może pójść po
-`recipe_ingredients_text_trgm_idx`, a dopiero na nich porównuje tablice.
+Zapytanie doboru zawęża kandydatów filtrem `recipe_ingredients.rdzenie &&
+{najdłuższy rdzeń każdego produktu}`, który idzie po indeksie GIN
+`recipe_ingredients_rdzenie_gin_idx`, a dopiero na nich porównuje tablice
+(`pantry_items.rdzenie <@ recipe_ingredients.rdzenie`).
 
 Prywatność: lista jest w paczce danych (sekcja `co_mam_w_domu`, bez kolumn
 generowanych) i znika w `EraseAccountData` (jawnie — konta się anonimizuje,
@@ -6518,6 +6631,24 @@ składników ani wyszukiwarki. Przy niepustej tabeli **odmawia** (D-088) —
 listy to dane wpisane przez ludzi; wymuszenie po zrobieniu kopii:
 `KUKING_ROLLBACK_KASUJE_SPIZARNIE=1`. Na świeżej bazie i w CI
 (`migrate:refresh`) przechodzi bez pytania.
+
+**Rollback terminów (#1903).** `down()` migracji
+`2026_10_01_101500_add_expiry_to_pantry_items` zdejmuje cztery CHECK-i i cztery
+kolumny, ale **odmawia wąsko** (D-088): tylko gdy istnieje wiersz z terminem,
+ilością albo `frozen = true` — to dane wpisane przez człowieka, których `up()`
+nie odtworzy. Komunikat podaje `CREATE TABLE pantry_items_terminy_kopia AS
+SELECT id, expires_on, expiry_kind, quantity_note, frozen FROM pantry_items
+WHERE …` i wymuszenie `KUKING_ROLLBACK_KASUJE_TERMINY_SPIZARNI=1` (`getenv()`,
+nie `env()`). Na pustej i świeżej bazie przechodzi bez pytania. Przy awaryjnym
+rollbacku WDROŻENIA nie trzeba cofać schematu: kolumny są nullable albo ze
+stałym `DEFAULT`, więc stary kod ich nie czyta i nic się nie psuje. Testy:
+`MigracjaTerminowSpizarniTest` (CHECK-i z kontrolą ujemną i dodatnią),
+`CofniecieMigracjiNieKasujeTerminowSpizarniTest`.
+
+**Eksport i wymazanie (#1903).** Sekcja `co_mam_w_domu` paczki ma teraz także
+`termin`, `rodzaj_terminu`, `ilosc` i `mrozone` (test
+`TerminySpizarniEksportIWymazanieTest`); `EraseAccountData` kasuje cały
+`pantry_items` konta, więc nie ma nic nowego do kasowania.
 
 ## cooking_progress — zapamiętany postęp gotowania (V2, #2016)
 

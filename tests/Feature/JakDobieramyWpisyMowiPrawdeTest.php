@@ -115,6 +115,15 @@ class JakDobieramyWpisyMowiPrawdeTest extends TestCase
             'kod: resources/views/pages/tags/index.blade.php :: <h2>Polecane tagi</h2>',
             'kod: resources/views/pages/tags/index.blade.php :: Wybór gospodarza',
         ],
+        'spizarnia.domyslnie' => [
+            'test: Tests\Feature\CoUgotujeTest::test_kolejnosc_najpierw_najmniej_brakujacych_potem_czas_a_nie_popularnosc',
+            "kod: app/Domain/Pantry/CoUgotuje.php :: ->orderBy('skladnikow_brakuje')",
+        ],
+        'spizarnia.termin' => [
+            'test: Tests\Feature\CoUgotujeNajpierwTerminTest::test_przepis_z_dwoma_pilnymi_produktami_jest_przed_przepisem_z_jednym',
+            'test: Tests\Feature\CoUgotujeNajpierwTerminTest::test_ugotowalem_i_zapisy_nie_zmieniaja_kolejnosci',
+            "kod: app/Domain/Pantry/CoUgotuje.php :: ->orderByDesc('pilnych_pasuje')",
+        ],
         'szukaj.przepisy' => [
             'test: Tests\Feature\TrafnoscWyszukiwarkiTest::test_prawdziwe_trafienie_stoi_przed_podobnym_slowem',
             'kod: app/Domain/Search/SearchQuery.php :: word_similarity(?, recipes.title_search) DESC',

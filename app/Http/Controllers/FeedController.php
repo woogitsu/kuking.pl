@@ -9,6 +9,7 @@ use App\Domain\Feed\DiscoverFeed;
 use App\Domain\Feed\FollowingFeed;
 use App\Domain\Feed\HeroKolaz;
 use App\Domain\Feed\MojStol;
+use App\Domain\Pantry\PriorytetZuzycia;
 use App\Domain\Pwa\InstallPrompt;
 use App\Domain\Pwa\InstallPromptContext;
 use App\Domain\Recipes\Gotowanie\JakWyszlo;
@@ -218,6 +219,10 @@ class FeedController extends Controller
             // Rocznica dołączenia (issue #1754) — jedno zdanie od gospodarza
             // albo `null`. Bez pustego stanu i bez powiadomień, jak wyżej.
             'rocznica' => $this->rocznica->dlaOsoby($user),
+            // „Zużyj w pierwszej kolejności” (#1903, D-333) — jedno zdanie tylko
+            // gdy są produkty do zużycia w 3 dni, albo `null`. Pierwsza strona
+            // Startu, bez licznika, ikon i przełącznika.
+            'doZuzycia' => $maKursor ? null : PriorytetZuzycia::zdanieDlaStartu(PriorytetZuzycia::pilneDla($user)),
             'podpisRocznicy' => $this->rocznica->podpis(),
             // „Jak wyszło?” (F1, D-333) — jedno zdanie po trybie gotowania bez
             // „Ugotowałem” albo `null`. Tylko na pierwszej stronie Startu.

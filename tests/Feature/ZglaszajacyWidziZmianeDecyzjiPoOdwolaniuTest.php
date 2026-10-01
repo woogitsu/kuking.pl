@@ -275,7 +275,11 @@ class ZglaszajacyWidziZmianeDecyzjiPoOdwolaniuTest extends TestCase
         ]);
 
         $decyzja = $this->rozstrzygnij($zgloszenie, ModerationAction::ACTION_HIDE);
-        $this->odwolanieAutora($decyzja, Appeal::STATUS_OVERTURNED);
+        $odwolanie = $this->odwolanieAutora($decyzja, Appeal::STATUS_OVERTURNED);
+
+        // Ponowienie po sukcesie nie wysyła drugiego listu (#2380) — kluczem
+        // jest znacznik w dzienniku, bo list nie zostawia wpisu w serwisie.
+        app(NotifyReporterDecisionChanged::class)->handle($odwolanie);
 
         Notification::assertSentOnDemandTimes(ZmianaDecyzjiWSprawieZgloszenia::class, 1);
         Notification::assertSentOnDemand(

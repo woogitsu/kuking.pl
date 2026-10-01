@@ -20,17 +20,24 @@ use Illuminate\Support\Facades\DB;
  * List, który do kolejki TRAFIŁ, a padł dopiero w workerze, jest
  * w `failed_jobs` i czujce kolejki — i następnego dnia wychodzi nowy.
  *
- * DOBA W UTC, tak jak dobowy sufit poczty (`DziennyBudzetListow`): obie
- * reguły liczą to samo wiadro listów, więc muszą się zgadzać co do tego,
+ * DOBA DOMYŚLNIE W UTC, tak jak dobowy sufit poczty (`DziennyBudzetListow`):
+ * obie reguły liczą to samo wiadro listów, więc muszą się zgadzać co do tego,
  * kiedy zaczyna się nowy dzień. Harmonogram startuje o 07:10 UTC, gdzie
  * doba UTC i doba polska są tą samą datą.
+ *
+ * WYJĄTEK: list, którego reguła mówi o DNIU CZŁOWIEKA, podaje dobę sam
+ * (`$doba`, `Y-m-d`, zwykle `Czas::dzisiajData()`, Europe/Warsaw). Sobotnie
+ * przypomnienie o produktach (#1903, #2364) wychodzi „w sobotę w Polsce”, a ta
+ * sobota obejmuje dwie daty UTC (piątek po 22:00/23:00 i sobotę), więc klucz
+ * z UTC pozwalał na dwa listy w jednej polskiej sobocie. Bez `$doba` zachowanie
+ * jest takie jak dawniej — inni użytkownicy klasy niczego nie zmieniają.
  */
 final class PrzypomnienieDobowe
 {
     /** Ile dni znaczników trzymamy — tylko dziś ma znaczenie, reszta to zapas na dochodzenie. */
     private const RETENCJA_DNI = 30;
 
-    public function zarezerwuj(string $rodzaj, string $adres): bool
+    public function zarezerwuj(string $rodzaj, string $adres, ?string $doba = null): bool
     {
         DB::table('przypomnienia_dobowe')
             ->where('doba', '<', now()->subDays(self::RETENCJA_DNI)->toDateString())
@@ -38,23 +45,31 @@ final class PrzypomnienieDobowe
 
         return DB::table('przypomnienia_dobowe')->insertOrIgnore([
             'rodzaj' => $rodzaj,
-            'doba' => self::doba(),
+            'doba' => self::doba($doba),
             'odbiorca' => self::odbiorca($adres),
         ]) === 1;
     }
 
-    public function zwolnij(string $rodzaj, string $adres): void
+    public function zwolnij(string $rodzaj, string $adres, ?string $doba = null): void
     {
         DB::table('przypomnienia_dobowe')
             ->where('rodzaj', $rodzaj)
-            ->where('doba', self::doba())
+            ->where('doba', self::doba($doba))
             ->where('odbiorca', self::odbiorca($adres))
             ->delete();
     }
 
-    private static function doba(): string
+    private static function doba(?string $doba): string
     {
-        return now()->toDateString();
+        if ($doba === null) {
+            return now()->toDateString();
+        }
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $doba) !== 1) {
+            throw new \InvalidArgumentException('Doba przypomnienia ma mieć postać Y-m-d.');
+        }
+
+        return $doba;
     }
 
     /** Skrót, nie adres: do rozpoznania duplikatu e-mail w tabeli nie jest potrzebny. */

@@ -416,6 +416,24 @@ class HistoriaWersjiPrzepisuTest extends TestCase
             ->assertRedirect(route('recipes.history.changes', [$przepis->slug, 2]));
     }
 
+    public function test_porownanie_pokazuje_zmiane_alergenow_tylko_przy_wlaczonej_fladze(): void
+    {
+        $przepis = Recipe::factory()->create();
+        $this->wersja($przepis, 1, ['allergen_status' => 'declared', 'allergens' => ['celery']]);
+        $this->wersja($przepis, 2, ['allergen_status' => 'declared', 'allergens' => ['celery', 'milk']]);
+
+        config(['kuking.alergeny.wlaczone' => true]);
+        $this->get(route('recipes.history.changes', [$przepis->slug, 2]))
+            ->assertOk()
+            ->assertSee('Alergeny według autora')
+            ->assertSee('mleko, seler');
+
+        config(['kuking.alergeny.wlaczone' => false]);
+        $this->get(route('recipes.history.changes', [$przepis->slug, 2]))
+            ->assertOk()
+            ->assertDontSee('Alergeny według autora');
+    }
+
     public function test_stary_slug_przepisu_prywatnego_i_nieopublikowanego_to_404_bez_adresu_w_naglowku(): void
     {
         $prywatny = $this->przepisZWersjami(2, ['visibility' => 'private']);

@@ -99,6 +99,14 @@ class AutoryzacjaTrasZWiazaniemModeluTest extends TestCase
         // (`$request->user()->notifications()->whereKey(...)->firstOrFail()`),
         // więc cudzy identyfikator nie wybiera żadnego wiersza.
         'notifications.open' => 'Właścicielstwo w zapytaniu: relacja notifications() zalogowanego.',
+
+        // Powrót zgody na sobotnie przypomnienie (#1903, D-333): autoryzacją jest
+        // PODPIS z terminem ważności (1 h), sprawdzany w ciele metody
+        // (`URL::hasCorrectSignature` → 403), a nie middleware `signed` — bo
+        // wygasły, ale poprawnie podpisany link ma dostać po polsku wyjaśnienie,
+        // nie gołe 403. Zły podpis nadal kończy się 403 (pokrywa to
+        // SobotniePrzypomnienieOProduktachTest oraz KazdaTrasaZIdentyfikatoremPodPolicyTest).
+        'spizarnia.wracam' => 'Podpis sprawdzany w ciele metody (hasCorrectSignature → 403), wygasły link = strona wyjaśnienia.',
     ];
 
     /**

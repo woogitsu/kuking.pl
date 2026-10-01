@@ -15,7 +15,9 @@ use App\Http\Middleware\CorrelateRequest;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureModeratorHasTwoFactor;
 use App\Http\Middleware\EnsureUserIsModerator;
+use App\Http\Middleware\NieZapamietujeWyboruAlergenow;
 use App\Http\Middleware\NormalizeForwardedFor;
+use App\Http\Middleware\OdrzucNiepoprawneZnaki;
 use App\Http\Middleware\ParametryAdresuBezTablic;
 use App\Http\Middleware\PreventRequestForgeryExceptMediaCookie;
 use App\Http\Middleware\PreventSharedSessionCache;
@@ -33,12 +35,14 @@ use Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
+use Livewire\Exceptions\ComponentNotFoundException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -260,6 +264,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // wywołanie zwrotne dopiero w middleware, czyli w trakcie żądania.
         $middleware->trustHosts(at: ZaufaneHosty::wzorce(...), subdomains: false);
 
+        // Niepoprawny UTF-8 i bajt NUL w adresie albo formularzu to HTTP 400,
+        // a nie 500 z Postgresa (SQLSTATE 22021) i TypeError z PHP. Globalnie,
+        // bo dotyczy też API i Livewire. Uzasadnienie w klasie.
+        $middleware->append(OdrzucNiepoprawneZnaki::class);
+
         $middleware->web(append: [
             ApplySecurityHeaders::class,
 
@@ -366,6 +375,15 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(
             before: HandlePrecognitiveRequests::class,
             prepend: BramaApi::class,
+        );
+
+        // `NieZapamietujeWyboruAlergenow` PRZED `throttle` (#1902): sortowanie
+        // po liście priorytetów wynosi `throttle` przed middleware spoza listy,
+        // więc odpowiedź 429 nie przechodziłaby przez czyszczenie adresu
+        // zapisywanego w sesji.
+        $middleware->prependToPriorityList(
+            before: ThrottleRequests::class,
+            prepend: NieZapamietujeWyboruAlergenow::class,
         );
 
         $middleware->alias([
@@ -679,6 +697,30 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (Throwable $e, Request $request) {
             return BledyApi::dotyczy($request) ? BledyApi::odpowiedz($e) : null;
         });
+
+        // ------------------------------------------------------------------
+        //  LIVEWIRE: NIEISTNIEJĄCY KOMPONENT W ADRESIE ZASOBU TO 404
+        //
+        //  `GET /livewire-<hash>/js/{component}.js`, `/css/{component}.css`
+        //  i `/css/{component}.global.css` z nazwą, której nie ma, rzucały
+        //  `ComponentNotFoundException` (HTTP 500 i alarm). To zwykły zły adres.
+        //
+        //  TYLKO dla tych adresów, nie globalnie: ten sam wyjątek rzucony przy
+        //  wyświetlaniu strony (`<livewire:literowka />`) albo w `update`
+        //  oznacza prawdziwy błąd w kodzie i ma zostać 500 z alarmem.
+        // ------------------------------------------------------------------
+        $zasobLivewire = static fn (Request $request): bool => $request->isMethod('GET')
+            && $request->is('livewire-*/js/*', 'livewire-*/css/*');
+
+        $exceptions->render(function (ComponentNotFoundException $e, Request $request) use ($zasobLivewire) {
+            return $zasobLivewire($request)
+                ? response('Nie ma takiego zasobu.', 404, ['Content-Type' => 'text/plain; charset=UTF-8'])
+                : null;
+        });
+
+        $exceptions->dontReportWhen(
+            static fn (Throwable $e): bool => $e instanceof ComponentNotFoundException && $zasobLivewire(request()),
+        );
 
         // Wygaśnięcie sesji to zdarzenie normalne, nie awaria. Zgłaszanie go
         // zasypywałoby log (i webhook błędów) szumem, w którym utonęłyby

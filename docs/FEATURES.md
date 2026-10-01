@@ -111,7 +111,7 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 - Moja wersja — fork przepisu (**wdrożone przed bramką** — decyzja właściciela z 26.09.2026, D-301);
 - planner;
 - lista zakupów;
-- rodzinna książka; *(pierwszy krok: wspólny zeszyt z zaproszeniami — #1743, D-302, 26.09.2026)*
+- rodzinna książka; *(pierwszy krok: wspólny zeszyt z zaproszeniami — #1743, D-302, 26.09.2026; drugi: „Wydrukuj zeszyt” — okładka, spis i przepisy do druku z przeglądarki, #2351, F7, D-333, 30.09.2026)*
 - Q&A;
 - Web Push;
 - wyzwania społecznościowe. *(pierwszy krok: „Ugotujmy razem” — jeden przepis tygodnia wybrany przez gospodarza i wykonania z tego tygodnia, bez nagród i bez członkostwa; decyzja właściciela z 30.09.2026, karta F3 z researchu nowych funkcji z 30.09.2026)*
@@ -152,6 +152,18 @@ z 30 września 2026):
   30 wpisów, z `ETag`/`Last-Modified`. To kanał **wychodzący**: import
   cudzych kanałów RSS zostaje na liście „Nie wcześnie” (D-300).
 
+**Zdjęte z listy „V2, ale nie teraz” i zbudowane** (D-333, wiersze „#1903”,
+decyzja właściciela z 30 września 2026):
+
+- spiżarnia z terminami ważności i priorytetem zużycia (#1903), jako
+  rozszerzenie „Co mam w domu” — **zbudowana**: termin z opakowania
+  („Należy zużyć do” / „Najlepiej spożyć przed”), ilość jako wolny tekst,
+  oznaczenie „mrożone”, sekcja „Zużyj w pierwszej kolejności” z jawną regułą
+  (`PriorytetZuzycia`), tryb przepisów „Najpierw to, co się psuje”
+  (`/co-ugotuje?najpierw=termin`), jedno zdanie na Starcie i sobotnie
+  przypomnienie e-mailem za osobną, domyślnie wyłączoną zgodą. Bez AI, OCR
+  paragonu i kodu kreskowego, bez push.
+
 **Zbudowane za flagą** (D-333, wiersz „#1902”, decyzja właściciela z 30 września 2026):
 
 - alergeny przepisu według autora i filtr w wyszukiwarce przepisów (#1902) —
@@ -166,10 +178,8 @@ z 30 września 2026):
 
 **V2, ale nie teraz** (decyzja właściciela z 26 września 2026). Propozycje
 z audytu zapisane na później. Nie budować bez nowej decyzji, mimo D-282
-(pięć pozycji odblokowała D-331, lista wyżej):
+(pięć pozycji odblokowała D-331, a #1902 i #1903 — D-333, listy wyżej):
 
-- spiżarnia z terminami ważności i priorytetem zużycia (#1903), jako
-  rozszerzenie pantry;
 - wybrane przepisy do czytania offline w PWA (#1904);
 - głosowy tryb gotowania bez dotykania telefonu (#1906);
 - prywatne podsumowanie AI uwag z wykonań przepisu (#1999);

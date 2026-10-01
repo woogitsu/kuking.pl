@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Digest\OdnosnikWypisania;
+use App\Domain\Pantry\OdnosnikWypisaniaZPrzypomnienia;
 use App\Domain\Recipes\Actions\SnapshotRecipeVersion;
 use App\Domain\Rocznice\OdnosnikWypisaniaZUrodzin;
 use App\Domain\UgotujmyRazem\TydzienGotowania;
@@ -118,6 +119,9 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
         // `resources/views/pages/cooked/show.blade.php` ma `:noindex="true"`
         // bezwarunkowo.
         'cooked.show' => 'wymaga CookedEvent chronionego Policy; noindex bezwarunkowo w pages/cooked/show.blade.php',
+        // Wydruk zeszytu (#2351): kopia treści do druku, `:noindex="true"`
+        // bezwarunkowo w pages/collections/do-druku.blade.php.
+        'collections.print' => 'wymaga zeszytu chronionego Policy; noindex bezwarunkowo w pages/collections/do-druku.blade.php',
 
         // Wymaga PODPISANEGO adresu (`ValidateSignature`) i realnego
         // zgłoszenia (`Report`) powiązanego z autorem zgłoszenia.
@@ -203,6 +207,10 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             'recipes.history' => route('recipes.history', $recipe->slug),
             'recipes.history.version' => route('recipes.history.version', [$recipe->slug, 2]),
             'recipes.history.changes' => route('recipes.history.changes', [$recipe->slug, 2]),
+            // Karta z kodem QR (#2349): publiczna, ale `noindex` (kartka do
+            // papieru, nie treść dla wyszukiwarki) — pętla sprawdzi 200 i noindex.
+            'recipes.qr-card' => route('recipes.qr-card', $recipe->slug),
+            'profile.qr-card' => route('profile.qr-card', $autor->profile->username),
             'cooking.show' => route('cooking.show', $recipe->slug),
             // „Ugotujmy razem” (F3): strona bieżącego tygodnia (tu bez wyboru —
             // pusty stan też musi mieć opis) i tydzień z archiwum z wyborem.
@@ -232,6 +240,8 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             'podsumowanie.wracam' => OdnosnikWypisania::powrotDla($autor),
             // Wypisanie z listu urodzinowego (#1755) — podpisany adres, `noindex`.
             'urodziny.wypisz' => OdnosnikWypisaniaZUrodzin::dla($autor),
+            // Wypisanie z sobotniego przypomnienia o produktach (#1903) — podpisany adres, `noindex`.
+            'spizarnia.wypisz' => OdnosnikWypisaniaZPrzypomnienia::dla($autor),
         ];
 
         $zbadanych = 0;

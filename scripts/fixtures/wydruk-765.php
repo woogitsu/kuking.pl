@@ -103,4 +103,8 @@ echo json_encode([
     'konto' => KONTO,
     'krotki' => route('recipes.show', $krotki->slug, false),
     'dlugi' => route('recipes.show', SLUG_DLUGI, false),
+    // Karta z kodem QR (#2349): ten sam pomiar, inne kartki.
+    'karta_krotki' => route('recipes.qr-card', $krotki->slug, false),
+    'karta_dlugi' => route('recipes.qr-card', SLUG_DLUGI, false),
+    'karta_profil' => route('profile.qr-card', KONTO, false),
 ], JSON_THROW_ON_ERROR);

@@ -163,7 +163,11 @@ final class Wspomnienia
             // do „Ugotuj znowu”, a przepis usunięty, zamieniony na prywatny,
             // ukryty przez moderację albo za blokadą z autorem nie ma wracać
             // na stronę główną tylnymi drzwiami (karta F6, „Ryzyka”).
-            ->whereHas('recipe', fn ($przepis) => $przepis->widoczneDla($user))
+            // Autor zbanowany / w trakcie usuwania / wymazany: `widoczneDla`
+            // pyta o blokady i widoczność, ale nie o konto autora, a
+            // `RecipePolicy::view` odmawia (#2347).
+            ->whereHas('recipe', fn ($przepis) => $przepis->widoczneDla($user)
+                ->whereHas('author', fn ($a) => $a->dostepnyJakoAutor()))
             // `at time zone` z tego samego powodu co w `dlaOsoby()`:
             // `cooked_at` to `timestamptz`, a dzień liczymy u czytelnika.
             ->whereRaw(

@@ -55,6 +55,30 @@ return [
         'znakow_max' => 240,
     ],
 
+    /*
+     * „ZUŻYJ W PIERWSZEJ KOLEJNOŚCI” (#1903, D-333) — terminy przy produktach
+     * z „Co mam w domu”.
+     *
+     * `pilne_dni` — produkt jest pilny, gdy jego termin minął albo upływa
+     * w ciągu tylu dni od dziś (`PriorytetZuzycia`; „dziś” w Europe/Warsaw).
+     *
+     * `przypomnienie` — sobotni list za OSOBNĄ, domyślnie wyłączoną zgodą
+     * (`users.wants_pantry_reminder`, dziennik zgód D-072). `wlaczone` to
+     * wyłącznik awaryjny wysyłki; `dzienny_sufit` — własny sufit dobowy,
+     * a nad nim wspólna pula w klasie `podsumowanie`
+     * (`DziennyBudzetListow::dlaPrzypomnienSpizarni`). Bez push (D-303).
+     */
+    'pantry' => [
+        'pilne_dni' => (int) env('KUKING_SPIZARNIA_PILNE_DNI', 3),
+
+        'przypomnienie' => [
+            'wlaczone' => (bool) env('KUKING_SPIZARNIA_PRZYPOMNIENIE_WLACZONE', true),
+            'dzienny_sufit' => (int) env('KUKING_SPIZARNIA_PRZYPOMNIENIE_SUFIT', 20),
+            // Ile produktów wymienia list; reszta jako „i jeszcze N”.
+            'produktow_w_liscie' => 10,
+        ],
+    ],
+
     'questions' => [
         'enabled' => env('KUKING_QUESTIONS_ENABLED', false),
     ],
@@ -439,6 +463,14 @@ return [
         // Ta sama wartość co tam (12), żeby dwie sekcje tego samego ekranu
         // nie skakały o różne kroki.
         'saved_posts_page_size' => (int) env('KUKING_COLLECTION_SAVED_POSTS_PAGE_SIZE', 12),
+
+        // „Wydrukuj zeszyt” (#2351): ile przepisów idzie na jeden wydruk.
+        // Zeszyt nie ma górnej granicy liczby pozycji, a wydruk to jedna
+        // strona ze składnikami i krokami każdego przepisu. Sto przepisów to
+        // gruba rodzinna książka (setki kartek A4), więcej przeglądarka
+        // drukuje bardzo wolno. Nadwyżka jest zapowiedziana na stronie,
+        // nie gubiona po cichu.
+        'print_max_recipes' => (int) env('KUKING_COLLECTION_PRINT_MAX_RECIPES', 100),
 
         // WSPÓLNY ZESZYT (#1743, D-302).
         //
@@ -1781,6 +1813,16 @@ return [
          * adresu pobiera wiele kanałów naraz, a nie starcza na zalewanie.
          */
         'kanal' => '60,1',
+
+        /*
+         * „WYDRUKUJ ZESZYT” (`/zeszyt/{uuid}/do-druku`) — #2351. Jedna strona
+         * z nawet stu przepisami naraz (składniki i kroki każdego), dostępna
+         * także dla gościa publicznego zeszytu. Człowiek drukuje książkę raz
+         * na jakiś czas, a dwa–trzy razy pod rząd przy poprawianiu zeszytu;
+         * dziesięć na minutę (po koncie, dla gościa po adresie IP) mieści to
+         * z zapasem i nie starcza na odpytywanie automatem.
+         */
+        'zeszyt_druk' => '10,1',
 
         /*
          * STRONA GŁÓWNA (`/`, trasa `landing`) — issue #1952, druga połowa.

@@ -543,6 +543,9 @@ final class EraseAccountData
                 'birthday_day' => null,
                 'birthday_month' => null,
                 'wants_birthday_email' => false,
+                // Sobotnie przypomnienie o produktach (#1903): zgoda gaśnie z kontem,
+                // lista produktów jest kasowana niżej (`pantryItems()->delete()`).
+                'wants_pantry_reminder' => false,
                 'birthday_visible_to_followers' => false,
                 'birthday_email_sent_on' => null,
                 // Bariera przed dublem (issue #1956) — czyścimy razem z resztą

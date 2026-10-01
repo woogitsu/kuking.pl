@@ -12,7 +12,7 @@
     przewijaniem (AGENTS.md §5).
 --}}
 <x-layout title="Co ugotuję z tego, co mam" :noindex="true">
-    <h1>Co ugotuję z tego, co mam?</h1>
+    <h1>{{ $najpierwTermin ? 'Przepisy na produkty z krótkim terminem' : 'Co ugotuję z tego, co mam?' }}</h1>
 
     @if($produktow === 0)
         <x-empty-state title="Najpierw wpisz, co masz w domu" action="Wpisz, co masz w domu" :href="route('pantry.index')">
@@ -22,6 +22,17 @@
     @else
         <p class="text-lead" data-regula-doboru>{{ $regula }}</p>
 
+        {{-- Dwa tryby jednego mechanizmu (#1903): domyślny (najmniej brakujących
+             składników) i „najpierw to, co się psuje”. Przełącznik to zwykły
+             odnośnik; widok domyślny się nie zmienia. --}}
+        <p>
+            @if($najpierwTermin)
+                <a class="btn btn-secondary" href="{{ route('pantry.cook') }}">Pokaż wszystkie propozycje</a>
+            @else
+                <a class="btn btn-secondary" href="{{ route('pantry.cook', ['najpierw' => 'termin']) }}">Najpierw to, co się psuje</a>
+            @endif
+        </p>
+
         <p>
             Porównujemy z Twoją listą: {{ $produktow }} {{ \App\Support\Odmiana::rzeczownik($produktow, 'produkt', 'produkty', 'produktów') }}.
             <a href="{{ route('pantry.index') }}">Zmień listę</a>
@@ -30,7 +41,12 @@
         @if($przepisy->isEmpty())
             @if($od > 0)
                 <p>To już wszystkie przepisy, w których jest coś z Twojej listy.</p>
-                <p><a class="btn btn-secondary" href="{{ route('pantry.cook') }}">Wróć na początek</a></p>
+                <p><a class="btn btn-secondary" href="{{ route('pantry.cook', array_filter(['najpierw' => $najpierwTermin ? 'termin' : null])) }}">Wróć na początek</a></p>
+            @elseif($najpierwTermin)
+                <x-empty-state title="Żaden przepis nie pasuje do produktów z krótkim terminem" action="Zobacz wszystkie propozycje" :href="route('pantry.cook')">
+                    Żaden przepis nie pasuje do produktów z krótkim terminem. Dopisz terminy do produktów
+                    na liście „Co mam w domu” albo zobacz wszystkie propozycje.
+                </x-empty-state>
             @else
                 <x-empty-state title="Nie znaleźliśmy przepisu z tymi produktami" action="Dopisz więcej produktów" :href="route('pantry.index')">
                     Żaden przepis nie ma jeszcze niczego z Twojej listy. Dopisz więcej produktów
@@ -45,6 +61,7 @@
                         $brakuje = (int) $przepis->skladnikow_brakuje;
                         $mam = $razem - $brakuje;
                         $brakujaceLinijki = $brakujace[$przepis->getKey()] ?? [];
+                        $doZuzycia = $do_zuzycia[$przepis->getKey()] ?? [];
                     @endphp
                     <li>
                         <x-recipe-card :recipe="$przepis" />
@@ -56,13 +73,19 @@
                                 Brakuje: {{ implode(', ', $brakujaceLinijki) }}.
                             @endif
                         </p>
+                        @if($doZuzycia !== [])
+                            <p class="mt-1 mb-0" data-zuzyjesz>
+                                <strong>Zużyjesz:</strong>
+                                {{ collect($doZuzycia)->map(fn ($p) => $p['nazwa'].' (do '.\App\Domain\Pantry\PriorytetZuzycia::dataSlownie(\Carbon\CarbonImmutable::parse($p['termin']), false).')')->implode(', ') }}.
+                            </p>
+                        @endif
                     </li>
                 @endforeach
             </ol>
 
             @if($jest_wiecej)
                 <p class="text-center mt-6">
-                    <a class="btn btn-secondary" href="{{ route('pantry.cook', ['od' => $nastepne]) }}">Pokaż więcej przepisów</a>
+                    <a class="btn btn-secondary" href="{{ route('pantry.cook', array_filter(['od' => $nastepne, 'najpierw' => $najpierwTermin ? 'termin' : null])) }}">Pokaż więcej przepisów</a>
                 </p>
             @endif
         @endif
