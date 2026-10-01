@@ -1278,6 +1278,14 @@ checks = [
     # Data provider wymaga prawidłowego wyniku także dla NBSP i zakresów.
     ("Grupowanie tysięcy rozbite na fragmenty (#2455)", "app/Domain/Recipes/Porcje/PrzeliczSkladnik.php", "test_grupowanie_tysiecy_przelicza_cala_ilosc",
      lambda s: replace_once(s, "|'.self::GRUPOWANA.'|", "|")),
+    # #2445: prawdziwe `porownaj()` ma nie zgubić czasu w żadnej gałęzi luki.
+    ("Historia: zmieniony krok gubi minutnik", "app/Domain/Recipes/Historia/PorownanieWersji.php", "test_zmiana_tekstu_i_minutnika_pokazuje_czasy_obu_migawek",
+     lambda s: replace_once(s, "'przed' => $stare[$lukaStare[$p]]['instruction'].($pokazMinutnik ? self::opisMinutnika($staryCzas) : ''),",
+                            "'przed' => $stare[$lukaStare[$p]]['instruction'],")),
+    ("Historia: dodany krok gubi minutnik", "app/Domain/Recipes/Historia/PorownanieWersji.php", "test_dodany_i_usuniety_krok_pokazuja_wlasny_minutnik_lub_sam_tekst",
+     lambda s: replace_once(s, "'po' => $nowe[$j]['instruction'].$minutnik]", "'po' => $nowe[$j]['instruction']]")),
+    ("Historia: usunięty krok gubi minutnik", "app/Domain/Recipes/Historia/PorownanieWersji.php", "test_dodany_i_usuniety_krok_pokazuja_wlasny_minutnik_lub_sam_tekst",
+     lambda s: replace_once(s, "'przed' => $stare[$i]['instruction'].$minutnik", "'przed' => $stare[$i]['instruction']")),
     # #2400: cofnięcie porównania pod zamkiem musi pozwolić starej karcie
     # nadpisać B przez C i oblać test na zapisanej wartości, nie na otoczeniu.
     ("Stara karta nadpisuje nowszą notatkę (#2400)", "app/Domain/Collections/Actions/UpdateCollectionItemNote.php",
