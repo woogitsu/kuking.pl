@@ -609,4 +609,62 @@ final class ZgloszenieWersjiPrzepisuTest extends TestCase
         // Kontrola dodatnia: przepis (osobny wiersz) ma zero zgłoszeń.
         $this->assertMatchesRegularExpression('/\|\s*przepis\s*\|\s*0\s*\|/', $wyjscie);
     }
+
+    #[Test]
+    public function test_uznane_odwolanie_zglaszajacego_wykonuje_nowa_decyzje_wobec_autora_wersji(): void
+    {
+        $przepis = $this->przepis();
+        $wersja = $this->wersja($przepis, 1);
+        $this->zglos($this->user('widz'), $wersja);
+
+        $this->actingAs($this->moderator())
+            ->post(route('admin.reports.decide', Report::sole()), [
+                'action' => ModerationAction::ACTION_NONE,
+                'reason_code' => 'brak_naruszenia',
+            ])
+            ->assertSessionHasNoErrors();
+        auth()->logout();
+
+        $pierwotna = ModerationAction::sole();
+        $odwolanie = Appeal::create([
+            'moderation_action_id' => $pierwotna->getKey(),
+            'report_id' => $pierwotna->report_id,
+            'appellant' => Appeal::APPELLANT_REPORTER,
+            'body' => 'W tej wersji dalej jest cudzy numer telefonu, proszę sprawdzić jeszcze raz.',
+            'status' => Appeal::STATUS_OPEN,
+        ]);
+
+        $this->actingAs($this->admin())
+            ->post(route('admin.appeals.resolve', $odwolanie), [
+                'outcome' => Appeal::STATUS_OVERTURNED,
+                'decision_note' => 'Zgłoszenie było zasadne.',
+                'nowa_decyzja' => ModerationAction::ACTION_WARN,
+                'reason_code' => 'cudze-dane-osobowe',
+                'user_message' => 'W opisie jest cudzy numer telefonu.',
+            ])
+            ->assertSessionHasNoErrors();
+        auth()->logout();
+
+        $nowa = ModerationAction::where('appeal_id', $odwolanie->getKey())->sole();
+        $this->assertStringContainsString('wersji 1', (string) $nowa->user_message, 'Autor nie dowie się, której wersji dotyczy ostrzeżenie.');
+    }
+
+    #[Test]
+    public function test_wersja_usunietego_przepisu_nie_przyjmuje_sankcji_po_cichu(): void
+    {
+        $przepis = $this->przepis();
+        $this->zglos($this->user('widz'), $this->wersja($przepis, 1));
+        $przepis->delete();
+
+        $this->actingAs($this->moderator())
+            ->post(route('admin.reports.decide', Report::sole()), [
+                'action' => ModerationAction::ACTION_WARN,
+                'reason_code' => 'cudze-dane-osobowe',
+                'user_message' => 'W opisie jest cudzy numer telefonu.',
+            ])
+            ->assertSessionHasErrors('action');
+
+        $this->assertSame(0, ModerationAction::count(), 'Ostrzeżenie zapisano wobec wersji, której autora nie da się ustalić.');
+        $this->assertSame(Report::STATUS_OPEN, Report::sole()->status);
+    }
 }

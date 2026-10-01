@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Moderation;
 
-use App\Domain\Moderation\CofniecieUkryciaWersji;
 use App\Domain\Moderation\DlugoscZawieszenia;
-use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\PodstawaDecyzji;
 use App\Domain\Moderation\WskazanieWersji;
 use App\Models\ModerationAction;
-use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
@@ -83,17 +80,7 @@ final class DecyzjaModeracyjnaRequest extends FormRequest
     {
         $report = $this->zgloszenie();
 
-        if ($report->target_type !== CofniecieUkryciaWersji::TYP) {
-            return 2000;
-        }
-
-        $wersja = ModeratedContent::znajdz($report->target_type, $report->target_id);
-
-        if (! $wersja instanceof RecipeVersion || $wersja->recipe === null) {
-            return 2000;
-        }
-
-        return 2000 - mb_strlen(WskazanieWersji::tekst($wersja->recipe, $wersja->version_number)) - 1;
+        return WskazanieWersji::limitWiadomosci($report->target_type, $report->target_id);
     }
 
     /** Zgłoszenie z adresu. */

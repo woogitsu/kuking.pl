@@ -116,8 +116,11 @@ final class RozstrzygnijZgloszenie
             //    trzeba go odczytać, zanim cokolwiek się zmieni. Bez tego
             //    ukrycia nie da się później cofnąć do właściwego stanu (#65).
             $cel = ModeratedContent::znajdz($report->target_type, $report->target_id, zUsunietymi: true);
+            // Wersja przepisu, którego już nie ma (miękko usunięty), nie ma autora
+            // do ukarania ani przepisu do ukrycia — jak treść usunięta (#2390).
             $celNiedostepny = $cel === null
-                || (method_exists($cel, 'trashed') && $cel->trashed());
+                || (method_exists($cel, 'trashed') && $cel->trashed())
+                || ($cel instanceof RecipeVersion && $cel->recipe === null);
 
             if ($celNiedostepny && $data['action'] !== ModerationAction::ACTION_NONE) {
                 throw ValidationException::withMessages([

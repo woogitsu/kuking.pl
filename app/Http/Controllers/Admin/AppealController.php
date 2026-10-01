@@ -8,6 +8,7 @@ use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Moderation\DlugoscZawieszenia;
 use App\Domain\Moderation\NowaDecyzja;
 use App\Domain\Moderation\PodstawaDecyzji;
+use App\Domain\Moderation\WskazanieWersji;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\Appeal;
@@ -107,6 +108,8 @@ class AppealController extends Controller
         $zNowaDecyzja = $appeal->wymagaNowejDecyzji()
             && $request->input('outcome') === Appeal::STATUS_OVERTURNED;
         $dozwolone = array_keys(ModerationAction::dozwolonePoOdwolaniu($appeal->moderationAction?->target_type));
+        // Przy wersji przepisu przed wiadomością idzie zdanie wskazujące wersję (#2390).
+        $limitWiadomosci = WskazanieWersji::limitWiadomosci($appeal->moderationAction?->target_type, $appeal->moderationAction?->target_id);
 
         $walidator = Validator::make($request->all(), [
             'outcome' => ['required', 'in:'.Appeal::STATUS_UPHELD.','.Appeal::STATUS_OVERTURNED],
@@ -114,7 +117,7 @@ class AppealController extends Controller
             'nowa_decyzja' => $zNowaDecyzja ? ['required', Rule::in($dozwolone)] : ['nullable'],
             'reason_code' => $zNowaDecyzja ? ['required', Rule::in(array_keys(PodstawaDecyzji::dlaFormularza()))] : ['nullable'],
             'user_message' => $zNowaDecyzja
-                ? ['nullable', 'string', 'max:2000', 'required_if:reason_code,'.PodstawaDecyzji::NIEZGODNE_Z_PRAWEM]
+                ? ['nullable', 'string', 'max:'.$limitWiadomosci, 'required_if:reason_code,'.PodstawaDecyzji::NIEZGODNE_Z_PRAWEM]
                 : ['nullable'],
             'suspend_days' => ['nullable', Rule::in(DlugoscZawieszenia::wartosci())],
             'suspend_days_custom' => $zNowaDecyzja && DlugoscZawieszenia::wymagaLiczby($request->input('suspend_days'))
@@ -129,6 +132,7 @@ class AppealController extends Controller
             'nowa_decyzja.in' => 'Ta decyzja nie ma zastosowania do zgłoszonej treści. Wybierz jedną z pokazanych.',
             'reason_code.required' => 'Wybierz podstawę nowej decyzji — autor treści zobaczy ją w powiadomieniu.',
             'reason_code.in' => 'Wybierz podstawę z listy.',
+            'user_message.max' => 'Wiadomość dla autora jest za długa. Zmieść się w '.$limitWiadomosci.' znakach.',
             'user_message.required_if' => 'Przy podstawie „treść niezgodna z prawem” napisz autorowi, '
                 .'co dokładnie uznaliśmy za niezgodne z prawem.',
             'suspend_days.in' => 'Wybierz długość zawieszenia z listy.',

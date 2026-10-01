@@ -6,10 +6,12 @@ namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\NowaDecyzja;
+use App\Domain\Moderation\WskazanieWersji;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Appeal;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
+use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -122,6 +124,13 @@ final class DecyzjaPoOdwolaniu
 
         $stanPrzed = $cel->status ?? null;
 
+        // WERSJA PRZEPISU (#2390): autor ma przeczytać, której wersji dotyczy
+        // nowa decyzja (DSA art. 17) — jak przy decyzji ze zgłoszenia.
+        $wiadomosc = $nowa->wiadomoscDlaAutora;
+        if ($cel instanceof RecipeVersion && $cel->recipe !== null) {
+            $wiadomosc = trim(WskazanieWersji::tekst($cel->recipe, $cel->version_number).' '.trim((string) $wiadomosc));
+        }
+
         // Skutek PRZED zapisem decyzji: `suspend()`/`ban()` pisze do wiersza
         // konta, a `INSERT` decyzji bierze na nim `FOR KEY SHARE` — ta sama
         // kolejność co w reszcie ścieżek kar, bez odwróconych blokad.
@@ -139,7 +148,7 @@ final class DecyzjaPoOdwolaniu
             'previous_status' => $stanPrzed,
             'reason_code' => $nowa->podstawa,
             'note' => 'Po uznaniu odwołania zgłaszającego od decyzji „'.$pierwotna->label().'”.',
-            'user_message' => $nowa->wiadomoscDlaAutora,
+            'user_message' => $wiadomosc,
         ]);
         // Poza `$fillable`: powiązanie ustala wyłącznie ta akcja.
         $decyzja->forceFill(['appeal_id' => $odwolanie->getKey()])->save();
@@ -148,7 +157,7 @@ final class DecyzjaPoOdwolaniu
             $this->powiadom->handle(
                 osoba: $osoba,
                 decyzja: $nowa->akcja,
-                wiadomoscModeratora: $nowa->wiadomoscDlaAutora,
+                wiadomoscModeratora: $wiadomosc,
                 do: $nowa->terminZawieszenia,
                 decyzjaModeracyjna: $decyzja,
             );
@@ -194,6 +203,11 @@ final class DecyzjaPoOdwolaniu
         // to `Builder<Model>` bez makr `SoftDeletes` (PHPStan, issue #1731).
         if (method_exists($cel, 'trashed')) {
             $zapytanie->withoutGlobalScope(SoftDeletingScope::class);
+        }
+
+        // Autora wersji wskazuje jej przepis — bez tego `osoba()` to leniwe ładowanie.
+        if ($cel instanceof RecipeVersion) {
+            $zapytanie->with('recipe.author');
         }
 
         return $zapytanie->whereKey($cel->getKey())->lockForUpdate()->first();
