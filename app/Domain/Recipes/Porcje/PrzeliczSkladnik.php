@@ -37,7 +37,11 @@ namespace App\Domain\Recipes\Porcje;
  */
 final class PrzeliczSkladnik
 {
-    private const LICZBA = '(?:\d+\s+\d+\/\d+|\d+\s?[½¼¾⅓⅔⅛]|\d+[.,]\d+|\d+\/\d+|[½¼¾⅓⅔⅛]|\d+)';
+    // Tylko spacja, NBSP i wąska NBSP są separatorami tysięcy. Kropka
+    // pozostaje separatorem dziesiętnym; błędne grupy zostają tekstem autora.
+    private const GRUPOWANA = '[1-9]\d{0,2}(?:[ \x{00A0}\x{202F}]\d{3})+';
+
+    private const LICZBA = '(?:\d+\s+\d+\/\d+|\d+\s?[½¼¾⅓⅔⅛]|'.self::GRUPOWANA.'|\d+[.,]\d+|\d+\/\d+|[½¼¾⅓⅔⅛]|\d+)(?!\s\d|[.,]\d|\d)';
 
     private const SLOWO = '(?:półtorej|półtora|pół)(?!\p{L})';
 
@@ -160,7 +164,7 @@ final class PrzeliczSkladnik
         }
 
         // 3. Liczba ze znaną jednostką gdziekolwiek („masło 200 g”).
-        $wzorzec = '/^(?<przed>.*?(?<![\p{L}\d.,\/]))(?<calosc>'.$ilosc.'(?<spacja>\s*)(?<jednostka>'.$jednostki.')(?!\p{L}))/iu';
+        $wzorzec = '/^(?<przed>.*?(?<![\p{L}\d.,\/])(?<!\d\s))(?<calosc>'.$ilosc.'(?<spacja>\s*)(?<jednostka>'.$jednostki.')(?!\p{L}))/iu';
 
         if (preg_match($wzorzec, $tekst, $m) === 1) {
             return self::trafienie($m);
@@ -201,6 +205,10 @@ final class PrzeliczSkladnik
     private static function liczbaZCyfr(string $zapis): ?float
     {
         $calosci = 0.0;
+
+        if (preg_match('/^'.self::GRUPOWANA.'$/u', $zapis) === 1) {
+            return (float) str_replace([' ', "\u{00A0}", "\u{202F}"], '', $zapis);
+        }
 
         // Znak ułamka na końcu: „1½”, „1 ½”, „½”.
         foreach (self::ULAMKI_ZNAKI as $znak => $wartosc) {

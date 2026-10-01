@@ -25,6 +25,8 @@ use PHPUnit\Framework\TestCase;
  *    i „2 szczypty pieprzu”;
  *  - krok 1 g zamiast 10 g dla setek gramów oblewa „175 g” × 1,5
  *    (wychodzi „263 g cukru” zamiast „260 g cukru”).
+ *  - #2455: kontrola CI usuwa gałąź liczby grupowanej; test musi oblać
+ *    dla zapisu „1 000 g”, także po myślniku i z NBSP.
  */
 final class PrzeliczSkladnikTest extends TestCase
 {
@@ -68,6 +70,31 @@ final class PrzeliczSkladnikTest extends TestCase
         ];
     }
 
+    /** @return array<string, array{0: string, 1: float, 2: string}> */
+    public static function liczbyZGrupowaniem(): array
+    {
+        return [
+            'na początku' => ['1 000 g mąki', 0.5, '500 g mąki'],
+            'po myślniku' => ['mąka – 1 000 g', 0.5, 'mąka – 500 g'],
+            'po dwukropku' => ['mąka: 1 000 g', 2.0, 'mąka: 2000 g'],
+            'w środku zdania ze znaną jednostką' => ['mąka 1 000 g', 0.5, 'mąka 500 g'],
+            'spacja nierozdzielająca' => ["1\u{00A0}000 g mąki", 0.5, '500 g mąki'],
+            'wąska spacja nierozdzielająca' => ["1\u{202F}000 g mąki", 0.5, '500 g mąki'],
+            'dwie grupy cyfr' => ['1 000 000 g mąki', 0.5, '500000 g mąki'],
+            'obie granice zakresu' => ['1 000–2 000 g mąki', 0.5, '500–1000 g mąki'],
+            'zakres słowem' => ['mąka – 1 000 do 2 000 g', 0.5, 'mąka – 500 do 1000 g'],
+        ];
+    }
+
+    #[DataProvider('liczbyZGrupowaniem')]
+    public function test_grupowanie_tysiecy_przelicza_cala_ilosc(string $tekst, float $mnoznik, string $oczekiwany): void
+    {
+        $wynik = PrzeliczSkladnik::przelicz($tekst, false, $mnoznik);
+
+        $this->assertSame($oczekiwany, $wynik->tekst(), 'GRUPOWANIE_TYSIECY_WYNIK: ilość musi być przeliczona w całości.');
+        $this->assertTrue($wynik->zmieniony, 'GRUPOWANIE_TYSIECY_WYNIK: wynik powinien być oznaczony jako zmieniony.');
+    }
+
     #[DataProvider('przeliczane')]
     public function test_przelicza_ilosc_i_odmienia_jednostke(string $tekst, float $mnoznik, string $oczekiwany): void
     {
@@ -91,6 +118,12 @@ final class PrzeliczSkladnikTest extends TestCase
             'liczba bez jednostki w środku' => ['mąka typ 650', false],
             'liczba przyklejona myślnikiem' => ['3-składnikowy sos', false],
             'flaga „bez ilości”' => ['200 ml mleka', true],
+            'zła grupa cyfr na początku' => ['1 00 g mąki', false],
+            'zła grupa cyfr przed jednostką' => ['mąka 1 00 g', false],
+            'czterocyfrowa grupa' => ['1 0000 g mąki', false],
+            'tabulator nie jest separatorem tysięcy' => ["1\t000 g mąki", false],
+            'tabulator przed jednostką' => ["mąka 1\t000 g", false],
+            'nieobsługiwana dziesiętna liczba grupowana' => ['1 000,5 g mąki', false],
         ];
     }
 
