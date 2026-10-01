@@ -6,6 +6,7 @@ namespace Tests\Dwa;
 
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Models\Recipe;
+use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -35,19 +36,43 @@ final class RownoleglySlugPrzepisuTest extends TestDwochPolaczen
 
     public function test_dwa_rownolegle_przepisy_zachowuja_swoje_slugi(): void
     {
+        $this->sprawdzKonfliktSluga($this->konto(), $this->konto(), false);
+    }
+
+    public function test_konflikt_sluga_w_zewnetrznej_transakcji_cofa_tylko_savepoint(): void
+    {
+        // Konta muszą być zatwierdzone PRZED zewnętrzną transakcją;
+        // konkurencyjny INSERT na drugim połączeniu sprawdza ich FK.
         $autor = $this->konto();
         $rywal = $this->konto();
+
+        $slug = DB::transaction(function () use ($autor, $rywal): string {
+            $slug = $this->sprawdzKonfliktSluga($autor, $rywal, true);
+            $this->assertSame(1, DB::transactionLevel(), 'Ponowienie nie może zamknąć zewnętrznej transakcji.');
+
+            return $slug;
+        });
+
+        $this->assertSame(0, DB::transactionLevel());
+        $this->assertSame(1, Recipe::query()->where('slug', $slug.'-2')->count(),
+            'Przepis utworzony po rollbacku savepointu musi przetrwać commit zewnętrznej transakcji.');
+    }
+
+    private function sprawdzKonfliktSluga(User $autor, User $rywal, bool $zewnetrznaTransakcja): string
+    {
         $tytul = 'Zupa wyścigowa '.bin2hex(random_bytes(6));
         $slug = Str::slug(Str::ascii($tytul));
         $drugiePolaczenie = $this->nowePolaczenie();
         $wstawionoRywala = false;
 
-        Recipe::creating(function (Recipe $recipe) use ($drugiePolaczenie, $rywal, $tytul, $slug, &$wstawionoRywala): void {
+        Recipe::creating(function (Recipe $recipe) use ($drugiePolaczenie, $rywal, $tytul, $slug, $zewnetrznaTransakcja, &$wstawionoRywala): void {
             if ($wstawionoRywala || $recipe->title !== $tytul) {
                 return;
             }
 
             $this->assertSame($slug, $recipe->slug);
+            $this->assertSame($zewnetrznaTransakcja ? 2 : 1, DB::transactionLevel(),
+                'Konflikt musi zajść wewnątrz transakcji zapisu, a w drugim wariancie wewnątrz savepointu.');
             $wstawionoRywala = true;
 
             // Autorzy są różni, więc ich blokady wierszy nie zasłonią
@@ -71,6 +96,8 @@ final class RownoleglySlugPrzepisuTest extends TestDwochPolaczen
         $this->assertSame($slug.'-2', $przepis->slug);
         $this->assertSame(1, Recipe::query()->where('slug', $slug)->count());
         $this->assertSame(1, Recipe::query()->where('slug', $slug.'-2')->count());
+
+        return $slug;
     }
 
     public function test_inny_indeks_nie_jest_ponawiany_nawet_gdy_dane_zawieraja_nazwe_sluga(): void
