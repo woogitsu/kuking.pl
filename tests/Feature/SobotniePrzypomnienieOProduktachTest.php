@@ -402,7 +402,9 @@ class SobotniePrzypomnienieOProduktachTest extends TestCase
         $powrot = OdnosnikWypisaniaZPrzypomnienia::powrotDla($basia);
 
         $this->travelTo(now()->addMinutes(61));
-        $this->post($powrot)->assertOk()->assertSee('Ten link wygasł')->assertSee('Zaloguj się');
+        $this->post($powrot)->assertOk()->assertSee('Ten link wygasł')->assertSee('Zaloguj się')
+            ->assertSee('na stronie „Co mam w domu” (jest tam pole „Sobotnie przypomnienie”)', false)
+            ->assertDontSee('w Ustawieniach');
         $this->assertFalse((bool) $basia->fresh()->wants_pantry_reminder, 'Wygasły link nie może włączyć zgody.');
         $this->assertSame(1, WpisZgody::query()->where('user_id', $basia->getKey())->count());
 
