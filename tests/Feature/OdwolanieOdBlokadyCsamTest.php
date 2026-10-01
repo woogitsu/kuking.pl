@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Moderation\Actions\ResolveAppeal;
+use App\Domain\Moderation\PodstawaDecyzji;
 use App\Models\Appeal;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
@@ -48,13 +49,15 @@ class OdwolanieOdBlokadyCsamTest extends TestCase
         $this->assertSame(User::STATUS_BANNED, $autor->refresh()->status);
 
         $odwolanie = $this->odwolanie($autor, $blokada);
-        $this->actingAs($admin)->from(route('admin.appeals'))
+        $odpowiedz = $this->actingAs($admin)->from(route('admin.appeals'))
             ->post(route('admin.appeals.resolve', $odwolanie), [
                 'outcome' => Appeal::STATUS_OVERTURNED,
                 'decision_note' => 'Sprawdziłem odwołanie i cofam blokadę konta.',
             ])
-            ->assertRedirect(route('admin.appeals'))
-            ->assertSessionHasErrors(['outcome' => ResolveAppeal::BLOKADA_Z_DOWODEM]);
+            ->assertRedirect(route('admin.appeals'));
+
+        $this->assertSame(Appeal::STATUS_OPEN, $odwolanie->refresh()->status, 'CSAM_BAN_APPEAL_MUST_STAY_OPEN');
+        $odpowiedz->assertSessionHasErrors(['outcome' => ResolveAppeal::BLOKADA_Z_DOWODEM]);
 
         $this->assertSame(Appeal::STATUS_OPEN, $odwolanie->refresh()->status);
         $this->assertNull($odwolanie->decided_at);
@@ -110,6 +113,124 @@ class OdwolanieOdBlokadyCsamTest extends TestCase
         $this->assertSame(Appeal::STATUS_OVERTURNED, $odwolanie->refresh()->status);
         $this->assertSame(User::STATUS_ACTIVE, $autor->refresh()->status);
         $this->assertSame(User::STATUS_BANNED, $autorDowodu->refresh()->status);
+    }
+
+    public function test_cudza_decyzja_o_dowodzie_w_notatce_nie_blokuje_zwyklego_odwolania(): void
+    {
+        Queue::fake();
+        $moderator = $this->moderator();
+        $admin = $this->admin();
+        $autorDowodu = $this->user('autor-dowodu');
+        $wpisDowodowy = Post::factory()->create(['author_id' => $autorDowodu->getKey()]);
+
+        $this->actingAs($moderator)->post(
+            route('admin.csam.store', ['typ' => 'post', 'id' => $wpisDowodowy->getKey()]),
+            ['potwierdzam' => '1'],
+        )->assertRedirectContains('/csam/wynik/');
+        $dowod = ZabezpieczenieDowodu::query()->where('target_id', $wpisDowodowy->getKey())->sole();
+
+        $autor = $this->user('autor-zwyklej-decyzji');
+        $wpis = Post::factory()->create(['author_id' => $autor->getKey()]);
+        $zgloszenie = Report::create([
+            'reporter_id' => $this->user('zglaszajacy-falszywa-notatka')->getKey(),
+            'target_type' => 'post',
+            'target_id' => $wpis->getKey(),
+            'reason' => 'copyright',
+            'status' => Report::STATUS_OPEN,
+        ]);
+        $notatka = 'Blokada razem z zabezpieczeniem dowodu (decyzja '.$dowod->moderation_action_id.').';
+
+        $this->actingAs($moderator)->from(route('admin.reports'))
+            ->post(route('admin.reports.decide', $zgloszenie), [
+                'action' => ModerationAction::ACTION_BAN,
+                'reason_code' => PodstawaDecyzji::KRZYWDZENIE_DZIECI,
+                'note' => $notatka,
+                'user_message' => 'Blokujemy konto po rozpatrzeniu zgłoszenia.',
+            ])->assertSessionHasNoErrors();
+
+        $blokada = ModerationAction::query()->where('report_id', $zgloszenie->getKey())->sole();
+        $this->assertSame($notatka, $blokada->note);
+        $this->assertSame($autorDowodu->getKey(), $dowod->subject_user_id);
+        $this->assertSame(User::STATUS_BANNED, $autor->refresh()->status);
+        $odwolanie = $this->odwolanie($autor, $blokada);
+
+        $this->actingAs($admin)->from(route('admin.appeals'))
+            ->post(route('admin.appeals.resolve', $odwolanie), [
+                'outcome' => Appeal::STATUS_OVERTURNED,
+                'decision_note' => 'Dowód dotyczy innego konta, więc cofamy tę decyzję.',
+            ])
+            ->assertRedirect(route('admin.appeals'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(Appeal::STATUS_OVERTURNED, $odwolanie->refresh()->status);
+        $this->assertSame(User::STATUS_ACTIVE, $autor->refresh()->status);
+        $this->assertSame(User::STATUS_BANNED, $autorDowodu->refresh()->status);
+        $this->assertDatabaseHas('zabezpieczenia_dowodow', ['id' => $dowod->getKey()]);
+    }
+
+    public function test_pozniejszy_ban_csam_pozostaje_po_uznaniu_odwolania_od_starego_bana(): void
+    {
+        Queue::fake();
+        $moderator = $this->moderator();
+        $admin = $this->admin();
+        $autor = $this->user('autor-z-dwoma-banami');
+        $wpisZgloszony = Post::factory()->create(['author_id' => $autor->getKey()]);
+        $wpisDowodowy = Post::factory()->create(['author_id' => $autor->getKey()]);
+        $zgloszenie = Report::create([
+            'reporter_id' => $this->user('zglaszajacy-dwa-bany')->getKey(),
+            'target_type' => 'post',
+            'target_id' => $wpisZgloszony->getKey(),
+            'reason' => 'copyright',
+            'status' => Report::STATUS_OPEN,
+        ]);
+
+        $this->actingAs($moderator)->from(route('admin.reports'))
+            ->post(route('admin.reports.decide', $zgloszenie), [
+                'action' => ModerationAction::ACTION_BAN,
+                'reason_code' => 'spam',
+                'user_message' => 'Blokujemy konto po rozpatrzeniu zgłoszenia.',
+            ])->assertSessionHasNoErrors();
+        $zwyklaBlokada = ModerationAction::query()->where('report_id', $zgloszenie->getKey())->sole();
+        $this->assertSame(User::STATUS_BANNED, $autor->refresh()->status);
+
+        $this->actingAs($moderator)->post(
+            route('admin.csam.store', ['typ' => 'post', 'id' => $wpisDowodowy->getKey()]),
+            ['potwierdzam' => '1'],
+        )->assertRedirectContains('/csam/wynik/');
+
+        $dowod = ZabezpieczenieDowodu::query()->where('target_id', $wpisDowodowy->getKey())->sole();
+        $blokady = ModerationAction::query()->where('subject_user_id', $autor->getKey())
+            ->where('action', ModerationAction::ACTION_BAN)->get();
+        $this->assertCount(2, $blokady);
+        $blokadaCsam = $blokady->first(fn (ModerationAction $blokada): bool => $blokada->getKey() !== $zwyklaBlokada->getKey());
+        $this->assertNotNull($blokadaCsam);
+        $this->assertSame('user', $blokadaCsam->target_type);
+        $this->assertSame(PodstawaDecyzji::KRZYWDZENIE_DZIECI, $blokadaCsam->reason_code);
+        $this->assertStringContainsString((string) $dowod->moderation_action_id, (string) $blokadaCsam->note);
+        $this->assertSame($autor->getKey(), $dowod->subject_user_id);
+
+        $zwykleOdwolanie = $this->odwolanie($autor, $zwyklaBlokada);
+        $this->actingAs($admin)->from(route('admin.appeals'))
+            ->post(route('admin.appeals.resolve', $zwykleOdwolanie), [
+                'outcome' => Appeal::STATUS_OVERTURNED,
+                'decision_note' => 'Cofamy wcześniejszą zwykłą blokadę.',
+            ])
+            ->assertRedirect(route('admin.appeals'))
+            ->assertSessionHasNoErrors();
+        $this->assertSame(Appeal::STATUS_OVERTURNED, $zwykleOdwolanie->refresh()->status);
+        $this->assertSame(User::STATUS_BANNED, $autor->refresh()->status);
+
+        $odwolanieCsam = $this->odwolanie($autor, $blokadaCsam);
+        $odpowiedz = $this->actingAs($admin)->from(route('admin.appeals'))
+            ->post(route('admin.appeals.resolve', $odwolanieCsam), [
+                'outcome' => Appeal::STATUS_OVERTURNED,
+                'decision_note' => 'Proszę o cofnięcie blokady powiązanej z dowodem.',
+            ])
+            ->assertRedirect(route('admin.appeals'));
+        $this->assertSame(Appeal::STATUS_OPEN, $odwolanieCsam->refresh()->status);
+        $odpowiedz->assertSessionHasErrors(['outcome' => ResolveAppeal::BLOKADA_Z_DOWODEM]);
+        $this->assertSame(User::STATUS_BANNED, $autor->refresh()->status);
+        $this->assertDatabaseHas('zabezpieczenia_dowodow', ['id' => $dowod->getKey()]);
     }
 
     private function odwolanie(User $autor, ModerationAction $decyzja): Appeal
