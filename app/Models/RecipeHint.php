@@ -246,7 +246,7 @@ class RecipeHint extends Model
     private function przejdz(string $z, string $do): void
     {
         if ($this->status !== $z) {
-            throw new \LogicException("Wskazówka w stanie „{$this->status}” nie przechodzi do „{$do}”.");
+            throw new LogicException("Wskazówka w stanie „{$this->status}” nie przechodzi do „{$do}”.");
         }
 
         $this->status = $do;

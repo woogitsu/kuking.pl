@@ -3874,6 +3874,17 @@ wersji — to sprawy moderacyjne z decyzjami i odwołaniami; bez takich wierszy
 przywraca poprzednią listę wartości. Test:
 `ZgloszenieWersjiPrzepisuTest::test_rollback_odmawia_gdy_jest_zgloszenie_wersji_a_bez_niego_przechodzi`.
 
+#### `target_type = 'recipe_hint'` — wskazówka od gotujących jako cel zgłoszenia (#2352)
+
+Migracja `2026_10_01_200000_wskazowka_jako_cel_zgloszenia` dopisuje do
+`reports_target_type_check` wartość **`recipe_hint`** (decyzja właściciela z
+1.10.2026, D-333: osobne ukrycie samej wskazówki przez moderację) i dodaje
+`recipe_hints.moderation_hidden_at` (sekcja `recipe_hints`). `target_id` to
+`recipe_hints.id` (bez klucza obcego, jak przy `moderation_actions`). Zasady
+zgłaszania, decyzje i odwołanie — w sekcji `recipe_hints`, „Zgłoszenie wskazówki”.
+DDL jak w AGENTS.md §6 (`DROP` + `ADD … NOT VALID` jednym `ALTER TABLE`, osobno
+`VALIDATE`, poza transakcją); rollback odmawia przy zgłoszeniu albo ukrytej wskazówce.
+
 #### `target_type = 'unknown'` i puste `target_id`
 
 Adres bywa nierozpoznawalny: ktoś wkleja link z pamięci albo ze zrzutu
@@ -3881,7 +3892,7 @@ ekranu, treść mogła już zniknąć, adres bywa z innego serwisu. **Zgłoszeni
 i tak musi zostać przyjęte** — odmowa byłaby odmówieniem mechanizmu, który
 przepis nakazuje udostępnić. Dlatego:
 
-- `reports_target_type_check` dopuszcza typ `unknown` (jedna z dziewięciu wartości po dodaniu `media`, `collection` i `recipe_version`);
+- `reports_target_type_check` dopuszcza typ `unknown` (jedna z dziesięciu wartości po dodaniu `media`, `collection`, `recipe_version` i `recipe_hint`);
 - `target_id` w `reports` **i** w `moderation_actions` jest teraz `NULL`-owalne.
 
 `NULL`, a nie UUID z samych zer: identyfikator, który wygląda jak
@@ -4133,6 +4144,14 @@ tego zgłoszenia, a reszta pól jest jak przy decyzji z urzędu.
 Wiersz przeżywa wersję (retencja wersji, usunięcie przepisu) tak jak każda
 decyzja przeżywa treść — `target_id` nie ma klucza obcego. Zapis:
 `App\Domain\Recipes\Historia\DecyzjaOWersjiPrzepisu`.
+
+**`target_type = 'recipe_hint'` (#2352, decyzja właściciela z 1.10.2026).**
+Ukrycie samej wskazówki od gotujących: `action = hide`, `target_id` =
+`recipe_hints.id`, `subject_user_id` = **kucharz** (autor uwagi, nie autor
+przepisu), `report_id` = zgłoszenie (albo `appeal_id` przy nowej decyzji po
+odwołaniu zgłaszającego). Cofnięcie po uznanym odwołaniu to `unhide`
+(`reason_code = appeal_overturned`). Kolumna nie ma CHECK-a, więc nowy typ nie
+zmienia tu schematu.
 
 Od migracji `2026_09_06_100000_add_context_to_moderation_actions` (issues #65 i #10)
 wiersz zapisuje dwie rzeczy więcej:
@@ -6626,6 +6645,7 @@ zamiast dwóch, a usunięcie wykonania zabiera wskazówkę kaskadą.
 | `recipe_version_number` | `integer` NULL | numer wersji przepisu z chwili prośby (bez klucza obcego — wersje podlegają retencji); strona przepisu dopisuje „Przepis był zmieniany po tej wskazówce.”, gdy najnowsza wersja jest wyższa |
 | `decided_at` | `timestamptz` NULL | kiedy kucharz odpowiedział („Zgadzam się” albo „Nie”); porządkuje wskazówki na stronie przepisu (kolejność zgód, bez rankingu) |
 | `withdrawn_at` | `timestamptz` NULL | kiedy kucharz wycofał zgodę |
+| `moderation_hidden_at` | `timestamptz` NULL | od kiedy moderacja ukryła **samą wskazówkę** (migracja `2026_10_01_200000_wskazowka_jako_cel_zgloszenia`, #2352); `NULL` = nie ukryta. Pole sterujące: poza `$fillable`, ustawia je wyłącznie decyzja `hide` (`RecipeHint::ukryjPrzezModeracje()`), zdejmuje uznane odwołanie. To osobny znacznik, nie `status` — stan zgody kucharza zostaje, jaki był |
 | `created_at` / `updated_at` | `timestamptz` | `created_at` = data prośby (limit dobowy autora) |
 
 **Pola sterujące poza `$fillable`.** `RecipeHint::$fillable` jest PUSTE:
@@ -6650,6 +6670,9 @@ Ograniczenia (nowa tabela, więc razem z `CREATE TABLE` — AGENTS.md §6):
   ponowna prośba o to samo wykonanie jest odrzucana tym samym zdaniem bez
   względu na to, czy poprzednia czeka, została przyjęta, odrzucona czy
   wycofana — autor nie poznaje po komunikacie, że ktoś odmówił;
+- `recipe_hints_ukrycie_check` — `moderation_hidden_at IS NULL OR status IN ('accepted',
+  'withdrawn')`: ukryć można tylko wskazówkę, na którą kucharz się zgodził
+  (`NOT VALID` + `VALIDATE`, #2352);
 - `recipe_hints_przyjete_idx (recipe_id, decided_at, id) WHERE status = 'accepted'`
   (strona przepisu), `recipe_hints_recipe_idx` (klucz obcy),
   `recipe_hints_cook_idx (cook_id, status)` (kucharz, eksport, wymazanie),
@@ -6687,12 +6710,58 @@ Ograniczenia (nowa tabela, więc razem z `CREATE TABLE` — AGENTS.md §6):
   tylko przy „Zgadzam się”, w tej samej transakcji. Oba tylko w serwisie, bez
   Web Push. „Nie”, wycofanie zgody, anulowanie i wygaśnięcie **nie powiadamiają
   nikogo**.
-- *Moderacja:* wskazówka **dziedziczy moderację z wykonania** — „Zgłoś” przy
-  wskazówce otwiera zgłoszenie typu `cooked_event` (tekst wskazówki to dokładnie
-  `note` tego wykonania), decyzja `remove` kasuje wykonanie, a z nim kaskadą
-  wskazówkę; ban kucharza chowa wskazówkę (`scopeWidoczneDla`). Nowego celu
-  zgłoszenia (`reports.target_type`, `moderation_actions.target_type`, odwołania,
-  raport przejrzystości) nie ma.
+- *Moderacja (od decyzji właściciela z 1.10.2026, migracja
+  `2026_10_01_200000_wskazowka_jako_cel_zgloszenia`):* wskazówka ma **własny cel
+  zgłoszenia** `recipe_hint` — „Zgłoś” przy wskazówce w sekcji przy przepisie
+  otwiera zgłoszenie SAMEJ wskazówki (`target_id` = `recipe_hints.id`), a decyzja
+  `hide` zdejmuje ją z sekcji (`moderation_hidden_at`), **nie ruszając wykonania**
+  ani uwagi pod nim. Szczegóły niżej w „Zgłoszenie wskazówki”. Zgłoszenie całego
+  wykonania (`cooked_event`, decyzja `remove` kasuje wykonanie, a z nim kaskadą
+  wskazówkę) zostaje osobno, na stronie wykonania; ban kucharza dalej chowa
+  wskazówkę (`scopeWidoczneDla`).
+
+**Zgłoszenie wskazówki (#2352, `reports.target_type = 'recipe_hint'`).**
+
+- *Kto zgłasza* (`RecipeHintPolicy::report`): każdy, kto wskazówkę **widzi w
+  sekcji przy przepisie** — gość przez logowanie (jak przy innych celach), obca
+  osoba i autor przepisu. Wskazówka musi być `accepted`, nieukryta, przepis
+  opublikowany i widoczny dla zgłaszającego, kucharz dostępny jako autor, brak
+  blokady zgłaszającego z kucharzem. Czekająca, odrzucona, wycofana, anulowana i
+  ukryta przez moderację jest dla zgłaszającego **404** (zgłoszenie nie zdradza
+  istnienia). Kucharz nie ma przycisku przy własnej wskazówce (ma „Wycofaj
+  zgodę”), choć bramka — jak przy każdej własnej treści — go nie blokuje.
+- *Decyzje* (`ModerationAction::DOZWOLONE['recipe_hint']`): bez działania,
+  ostrzeżenie, **ukrycie wskazówki**, zawieszenie, ban — **bez `remove`**
+  (wskazówka nie jest osobną treścią kucharza, a skasowanie wiersza pozwoliłoby
+  autorowi prosić o to samo wykonanie drugi raz). Adresatem decyzji jest
+  **kucharz** (autor uwagi), nie autor przepisu: `ModeratedContent::osoba()` ma
+  dla wskazówki osobną gałąź, bo relacja `author` wskazówki to autor PRZEPISU.
+  Ukrycie idzie pod blokadą (`RecipeHint::zablokujDoDecyzji()`: konta kucharza i
+  autora rosnąco po `id`, potem wiersz — ta sama kolejność co „Wycofaj zgodę”);
+  wskazówka, która nie stoi już przy przepisie (wycofana, już ukryta), nie
+  przyjmuje „ukryj” — decyzja wraca błędem przy zgłoszeniu zamiast pozornego sukcesu.
+  `user_message` zaczyna się zdaniem wskazującym wskazówkę (`WskazanieWskazowki`).
+- *Odwołanie kucharza* jak od każdej decyzji `hide` (DSA art. 17); uznane
+  odwołanie (`ResolveAppeal`) zdejmuje `moderation_hidden_at` i zapisuje `unhide`.
+  **Zgoda kucharza jest ważniejsza niż decyzja moderacji:** jeśli w międzyczasie
+  wycofał zgodę, wskazówka zostaje `withdrawn`, znika tylko ślad moderacji. Moderator
+  nie przywraca wskazówki, której sam jest autorem (`WlasnejTresciNiePrzywracasz`).
+  Uznane odwołanie *zgłaszającego* od „Bez działania” może wydać nową decyzję
+  `hide` (`DecyzjaPoOdwolaniu`).
+- *Widoczność:* `RecipeHint::scopePrzyjeteDlaPrzepisu` pomija ukryte; ukryta nadal
+  zajmuje miejsce w limicie przepisu (przywrócenie nie może go przekroczyć).
+  Kucharz widzi na stronie wykonania „Ta wskazówka została ukryta przez
+  moderację”, autor przepisu — to samo neutralne zdanie co przy „Nie”. Paczka RODO
+  kucharza ma `ukryta_przez_moderacje_dnia`; paczka autora przepisu nie ujawnia
+  ukrycia.
+- *Retencja:* przepis, którego wskazówka jest przedmiotem zgłoszenia lub decyzji,
+  nie przechodzi w nagrobek (`PrzedawnioneUsunieteTresci`).
+- *Raport przejrzystości* ma osobny wiersz „wskazówka od gotujących” (sekcja 1a).
+- **Rollback migracji ODMAWIA** (D-088) w dwóch przypadkach: w `reports` leży
+  zgłoszenie wskazówki (węższy CHECK by je odrzucił) albo choć jedna wskazówka
+  jest ukryta (zdjęcie kolumny odsłoniłoby ją publicznie, a ponowna migracja nie
+  przywróciłaby ukrycia). Bez takich wierszy przechodzi. Test:
+  `ModeracjaWskazowekTest::test_rollback_odmawia_gdy_jest_zgloszenie_albo_ukryta_wskazowka_a_bez_nich_przechodzi`.
 
 **Rollback.** `down()` ODMAWIA, gdy w tabeli są wiersze (D-088): kasowanie
 tabeli zabrałoby ludziom odpowiedzi „Nie” i wycofania zgód, a po ponownej

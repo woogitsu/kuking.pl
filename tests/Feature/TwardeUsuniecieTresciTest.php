@@ -10,6 +10,7 @@ use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\RecipeHint;
 use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\User;
@@ -258,6 +259,41 @@ class TwardeUsuniecieTresciTest extends TestCase
                 'wersja wolnego' => RecipeVersion::where('id', $wersje['wolny']->getKey())->count(),
                 'wersja zgloszonego' => RecipeVersion::where('id', $wersje['zgloszony']->getKey())->count(),
                 'tytul zgloszonego' => Recipe::withTrashed()->findOrFail($zgloszony->getKey())->title,
+            ],
+        );
+    }
+
+    public function test_przepis_ze_zgloszona_wskazowka_od_gotujacych_czeka_nietkniety(): void
+    {
+        $zgloszony = Recipe::factory()->create();
+        $wolny = Recipe::factory()->create();
+        $wskazowki = [];
+        foreach (['zgloszony' => $zgloszony, 'wolny' => $wolny] as $klucz => $przepis) {
+            $wykonanie = CookedEvent::factory()->create(['recipe_id' => $przepis->getKey(), 'note' => 'Uwaga kucharza.']);
+            $wskazowki[$klucz] = RecipeHint::factory()->dlaWykonania($wykonanie, RecipeHint::STATUS_ACCEPTED)->create();
+            $this->usunDniTemu($przepis, 31);
+        }
+
+        Report::create([
+            'reporter_id' => User::factory()->create()->getKey(),
+            'target_type' => 'recipe_hint',
+            'target_id' => $wskazowki['zgloszony']->getKey(),
+            'reason' => 'personal_data',
+            'status' => Report::STATUS_OPEN,
+        ]);
+
+        $wynik = $this->sprzataj();
+
+        // Kontrola dodatnia: przepis bez sprawy przeszedł w nagrobek (tytuł
+        // zastąpiony); przepis ze zgłoszoną wskazówką czeka nietknięty, bo
+        // zgłoszenie jest dowodem w sprawie moderacyjnej (#2352).
+        $this->assertSame(1, $wynik['nagrobki']);
+        $this->assertSame(
+            ['wolny zachował tytuł' => false, 'zgłoszony zachował tytuł' => true, 'wskazówka zgłoszonego' => 1],
+            [
+                'wolny zachował tytuł' => Recipe::withTrashed()->findOrFail($wolny->getKey())->title === $wolny->title,
+                'zgłoszony zachował tytuł' => Recipe::withTrashed()->findOrFail($zgloszony->getKey())->title === $zgloszony->title,
+                'wskazówka zgłoszonego' => RecipeHint::where('id', $wskazowki['zgloszony']->getKey())->count(),
             ],
         );
     }

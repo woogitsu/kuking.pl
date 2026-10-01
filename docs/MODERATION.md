@@ -167,6 +167,43 @@ wersji** — migawek nie redagujemy, historia jest niezmienna (D-333).
   (`NotifyReporterDecision`, karta sprawy). Raport przejrzystości liczy zgłoszenia
   według rodzaju treści, wersja ma osobny wiersz (sekcja 1a).
 
+### Zgłoszenie wskazówki od gotujących (#2352, decyzja z 1.10.2026)
+
+Wskazówka to uwaga z cudzego „Ugotowałem”, pokazana przy przepisie za zgodą
+kucharza. Do 1.10.2026 moderacja dziedziczyła z wykonania i jedyną decyzją
+zdejmującą treść było `remove` całego wykonania. Teraz wskazówka ma **własny
+cel zgłoszenia** (`type = recipe_hint`, `id` = UUID wskazówki), a moderacja
+może ukryć **samą wskazówkę**, nie ruszając wykonania.
+
+- **Kto zgłasza:** każdy, kto wskazówkę widzi w sekcji „Wskazówki od
+  gotujących” — zalogowany przyciskiem „Zgłoś” pod wskazówką, gość przez
+  „Zgłoś (po zalogowaniu)”, autor przepisu też. Kucharz nie ma przycisku przy
+  własnej wskazówce (ma „Wycofaj zgodę”). Wskazówka czekająca, odrzucona,
+  wycofana, anulowana i już ukryta jest dla zgłaszającego 404
+  (`RecipeHintPolicy::report`). Zgłoszenie **całego wykonania** (`cooked_event`)
+  działa osobno, na stronie wykonania.
+- **Decyzje w kolejce:** „Bez działania”, ostrzeżenie, **„Ukryj treść” = zdjęcie
+  tej jednej wskazówki z przepisu**, zawieszenie, ban. Bez „Usuń” — skasowanie
+  wiersza pozwoliłoby autorowi prosić o to samo wykonanie drugi raz; całe
+  wykonanie zdejmuje się zgłoszeniem wykonania. Kolejka pokazuje tekst uwagi,
+  przepis, nazwę kucharza i odnośnik do sekcji.
+- **Komu idzie decyzja:** **kucharzowi** (autorowi uwagi), nie autorowi
+  przepisu, który o zgodę prosił — kara konta i powiadomienie trafiają do niego,
+  on się odwołuje. Autor przepisu nie dostaje o ukryciu wiadomości.
+  Powiadomienie ma zdanie „Dotyczy wskazówki od gotujących…” i mówi, że uwaga
+  zostaje pod wykonaniem.
+- **Ukrycie** to znacznik `recipe_hints.moderation_hidden_at`, osobny od stanu
+  zgody kucharza. Idzie pod blokadą kont i wiersza wskazówki (jak „Wycofaj
+  zgodę”); wskazówka, która nie stoi już przy przepisie (kucharz wycofał zgodę,
+  już ukryta), nie przyjmuje „ukryj” — decyzja wraca błędem przy polu „Decyzja”,
+  sprawy nie zamyka się po cichu.
+- **Odwołanie kucharza** jak od każdego ukrycia (DSA art. 17). Uznane odwołanie
+  zdejmuje ukrycie i zapisuje `unhide`; jeśli kucharz w międzyczasie wycofał
+  zgodę, wskazówka zostaje wycofana — jego decyzja jest ważniejsza. Moderator nie
+  przywraca wskazówki, której sam jest autorem. Kucharz może wycofać zgodę także
+  na ukrytą wskazówkę.
+- **Raport przejrzystości** liczy zgłoszenia wskazówek osobnym wierszem (sekcja 1a).
+
 ### Zdjęcie z urzędu — treść, której nikt nie zgłosił (G31, D-251)
 
 Panel usuwa cudzą treść rozstrzygnięciem zgłoszenia, a własnego zgłoszenia
@@ -569,7 +606,7 @@ Bez `--od`/`--do` liczy od 1 stycznia bieżącego roku do dziś.
 | Sekcja | Co liczy | Skąd |
 |---|---|---|
 | 1. Zgłoszenia | według źródła: społeczność, DSA art. 16, automat | `reports.source`, `created_at` w oknie |
-| 1a. Rodzaj treści | zgłoszenia według rodzaju zgłoszonej treści, m.in. wersja przepisu (#2390) | `reports.target_type`, `created_at` w oknie |
+| 1a. Rodzaj treści | zgłoszenia według rodzaju zgłoszonej treści, m.in. wersja przepisu (#2390) i wskazówka od gotujących (#2352) | `reports.target_type`, `created_at` w oknie |
 | 2. Pierwsza instancja | decyzje ze zgłoszenia według rodzaju | `moderation_actions` z `report_id` |
 | 3. Z urzędu | decyzje bez zgłoszenia i bez odwołania (D-251) | `report_id IS NULL AND appeal_id IS NULL`, bez `unhide` |
 | 4. Przywrócenia | „Przywróć treść” | `action = 'unhide'` |

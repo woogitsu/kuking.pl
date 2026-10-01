@@ -845,8 +845,11 @@ trafi tam pierwszy rekord.
   samo wykonanie nie wróciła.
 - **Eksport:** `wskazowki_z_moich_wykonan` (uwaga, stan zgody, daty) i
   `wskazowki_do_moich_przepisow` (stan próśb, bez danych kucharza).
-- **Moderacja:** wskazówka dziedziczy z wykonania — zgłoszenie typu
-  `cooked_event`; nowego celu zgłoszeń nie ma.
+- **Moderacja:** wskazówka ma własny cel zgłoszenia (`recipe_hint`, #2352,
+  decyzja z 1.10.2026): moderacja ukrywa samą wskazówkę
+  (`recipe_hints.moderation_hidden_at`), wykonanie zostaje; adresatem decyzji
+  i odwołania jest kucharz. Zgłoszenie całego wykonania (`cooked_event`) działa
+  osobno.
 
 ## 4. Kategorie odbiorców (art. 30 ust. 1 lit. d)
 

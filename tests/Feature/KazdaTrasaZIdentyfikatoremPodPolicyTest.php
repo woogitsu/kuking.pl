@@ -681,6 +681,18 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'user_id' => $wlasciciel->getKey(), 'recipe_id' => $cudzyPrzepis->getKey(), 'note' => 'Uwaga do wycofania.',
         ]), RecipeHint::STATUS_ACCEPTED)->create();
 
+        // Zgłoszenie SAMEJ wskazówki (#2352, `RecipeHintPolicy::report`): zgłasza
+        // każdy, kto ją widzi w sekcji przy przepisie. Kucharz (właściciel)
+        // przechodzi bramkę jak przy każdej własnej treści; osoba zablokowana
+        // przez kucharza i gość nie. Wskazówka ukryta przez moderację jest dla
+        // wszystkich 404 — zgłoszenie nie zdradza jej istnienia.
+        $wskazowkaDoZgloszenia = RecipeHint::factory()->dlaWykonania(CookedEvent::factory()->create([
+            'user_id' => $wlasciciel->getKey(), 'recipe_id' => $cudzyPrzepis->getKey(), 'note' => 'Uwaga do zgłoszenia.',
+        ]), RecipeHint::STATUS_ACCEPTED)->create();
+        $wskazowkaUkryta = RecipeHint::factory()->dlaWykonania(CookedEvent::factory()->create([
+            'user_id' => $wlasciciel->getKey(), 'recipe_id' => $cudzyPrzepis->getKey(), 'note' => 'Uwaga ukryta.',
+        ]), RecipeHint::STATUS_ACCEPTED)->ukrytaPrzezModeracje()->create();
+
         // Anulowanie czekającej prośby: anuluje wyłącznie AUTOR przepisu, więc
         // tu właściciel jest autorem, a kucharzem — `$przedmiot`.
         $wskazowkaDoAnulowania = RecipeHint::factory()->dlaWykonania(CookedEvent::factory()->create([
@@ -1181,6 +1193,17 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('hints.withdraw', $wskazowkaDoWycofania), [], [$W, $O, $O, $O, $O]);
         $dodaj('hints.cancel', 'anulowanie własnej czekającej prośby o wskazówkę', 'post',
             route('hints.cancel', $wskazowkaDoAnulowania), [], [$W, $O, $O, $O, $O]);
+
+        // Zgłoszenie wskazówki (#2352): kontrola dodatnia (widoczna wskazówka)
+        // i ujemna (ukryta przez moderację — 404 dla każdego, także moderatora).
+        $dodaj('reports.create', 'zgłoszenie wskazówki od gotujących — formularz', 'get',
+            route('reports.create', ['type' => 'recipe_hint', 'id' => $wskazowkaDoZgloszenia->getKey()]), [], [$W, $W, $O, $W, $O]);
+        $dodaj('reports.store', 'zgłoszenie wskazówki od gotujących — zapis', 'post',
+            route('reports.store', ['type' => 'recipe_hint', 'id' => $wskazowkaDoZgloszenia->getKey()]), ['reason' => 'spam'], [$W, $W, $O, $W, $O]);
+        $dodaj('reports.create', 'zgłoszenie wskazówki ukrytej przez moderację — formularz', 'get',
+            route('reports.create', ['type' => 'recipe_hint', 'id' => $wskazowkaUkryta->getKey()]), [], [$O, $O, $O, $O, $O]);
+        $dodaj('reports.store', 'zgłoszenie wskazówki ukrytej przez moderację — zapis', 'post',
+            route('reports.store', ['type' => 'recipe_hint', 'id' => $wskazowkaUkryta->getKey()]), ['reason' => 'spam'], [$O, $O, $O, $O, $O]);
 
         // ─── KOMENTARZE ──────────────────────────────────────────────────
         $dodaj('comments.update', 'poprawienie komentarza', 'put',

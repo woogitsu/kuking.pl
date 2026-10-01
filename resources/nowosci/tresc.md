@@ -46,8 +46,10 @@ Kto się zgodził, może zgodę wycofać w każdej chwili przyciskiem „Wycofaj
 zgodę” — wskazówka od razu znika z przepisu, a uwaga zostaje pod jego
 wykonaniem. Na stronie przepisu wskazówki stoją w sekcji „Wskazówki od
 gotujących”, w kolejności, w jakiej ludzie się zgodzili, każda z nazwą osoby
-i dniem ugotowania. Nic ich nie układa według popularności. Wskazówkę możecie
-zgłosić tak samo jak wykonanie, z którego pochodzi.
+i dniem ugotowania. Nic ich nie układa według popularności. Pod każdą wskazówką
+jest przycisk „Zgłoś”. Moderacja może ukryć samą wskazówkę — wtedy znika
+z przepisu, a wykonanie i uwaga pod nim zostają. Osoba, która ją napisała,
+dostaje wiadomość z uzasadnieniem i może się odwołać.
 
 Prośba, na którą nikt nie odpowie, wygasa po 30 dniach — wtedy nic się nie
 dzieje, a ta osoba nie dostaje przypomnienia ani drugiej prośby o to samo
