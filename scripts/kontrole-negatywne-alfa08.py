@@ -1264,6 +1264,10 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    # #2476: dwa bieżące składniki z identycznym tekstem/ile=null są różne.
+    ("Bieżący eksport pomija wybór Bez ilości (#2476)", "app/Domain/Users/Exports/CollectUserExportData.php",
+     "test_biezacy_szkic_zachowuje_dwa_rozne_wybory_bez_ilosci_w_json",
+     lambda s: replace_once(s, "                'bez_ilosci' => (bool) $item->no_amount,\n", "")),
     # #2479: wrócenie do nazywania hidden szkicem ma oblać na rzeczywistym ZIP-ie.
     ("Ukryty przepis nazwany szkicem w eksporcie (#2479)", "app/Domain/Users/Exports/RecipeArchiveStatus.php",
      "test_ukryty_po_publikacji_nie_jest_szkicem_w_karcie_ani_spisie",

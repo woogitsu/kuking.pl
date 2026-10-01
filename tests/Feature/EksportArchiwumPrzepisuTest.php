@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Models\Recipe;
+use App\Models\RecipeIngredient;
 use Carbon\Carbon;
 
 /** Bieżące przepisy w rzeczywistym ZIP-ie właściciela, nie sam render Blade. */
@@ -124,5 +125,41 @@ class EksportArchiwumPrzepisuTest extends EksportWygladStylPaczki
         $this->assertCount(5, $dane['przepisy']);
         $this->assertNotContains($usuniety->title, array_column($dane['przepisy'], 'tytul'));
         $this->assertNotContains($cudzy->title, array_column($dane['przepisy'], 'tytul'));
+    }
+
+    public function test_biezacy_szkic_zachowuje_dwa_rozne_wybory_bez_ilosci_w_json(): void
+    {
+        $autor = $this->user('autor_eksportu_ilosci');
+        $szkic = Recipe::factory()->for($autor, 'author')->draft()->create(['title' => 'Mleko do ciasta']);
+        foreach ([true, false] as $pozycja => $bezIlosci) {
+            RecipeIngredient::create([
+                'recipe_id' => $szkic->getKey(),
+                'position' => $pozycja,
+                'ingredient_text' => '200 ml mleka',
+                'quantity' => null,
+                'no_amount' => $bezIlosci,
+            ]);
+        }
+        $this->assertSame(0, $szkic->versions()->count(), 'To ma być szkic bez historycznej migawki.');
+
+        $paczka = $this->zbudujPaczke($autor);
+        $dane = json_decode($this->zPaczki($paczka, 'dane.json'), true, 512, JSON_THROW_ON_ERROR);
+        $rekord = collect($dane['przepisy'])->sole(fn (array $przepis): bool => $przepis['tytul'] === $szkic->title);
+        $this->assertCount(2, $rekord['skladniki']);
+        $pierwszy = $rekord['skladniki'][0];
+        $drugi = $rekord['skladniki'][1];
+        $this->assertSame('200 ml mleka', $pierwszy['zapis']);
+        $this->assertSame('200 ml mleka', $drugi['zapis']);
+        $this->assertNull($pierwszy['ile']);
+        $this->assertNull($drugi['ile']);
+        $this->assertArrayHasKey('bez_ilosci', $pierwszy, 'EKSPORT_BIEZACY_BEZ_ILOSCI');
+        $this->assertArrayHasKey('bez_ilosci', $drugi, 'EKSPORT_BIEZACY_BEZ_ILOSCI');
+        $this->assertSame(true, $pierwszy['bez_ilosci'], 'EKSPORT_BIEZACY_BEZ_ILOSCI');
+        $this->assertSame(false, $drugi['bez_ilosci'], 'EKSPORT_BIEZACY_BEZ_ILOSCI');
+
+        // HTML cytuje oba wpisy autora; nie zgaduje za niego „do smaku” (D-232).
+        $html = $this->zPaczki($paczka, 'przepisy/'.ExportFileNames::recipeFile($szkic));
+        $this->assertSame(2, substr_count($html, '200 ml mleka'));
+        $this->assertStringNotContainsString('— do smaku', $html);
     }
 }
