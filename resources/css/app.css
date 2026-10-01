@@ -818,7 +818,9 @@
     /* Logotyp też musi umieć się zwęzić — inaczej to on wypycha akcje
        poza ekran, zamiast pozwolić im zejść do drugiego wiersza. */
     min-width: 0;
-    font-size: var(--text-title-sm);
+    /* `min(…, 10vw)`: patrz `[data-marka] .wordmark` w marka-rama.css —
+       napis nie może urosnąć ponad szerokość okna przy tekście 200%. */
+    font-size: min(var(--text-title-sm), 10vw);
     font-weight: 850;
     /* Ujemny odstęp między literami jest częścią logotypu z UI kitu: napis
        ma być zwarty, żeby czytał się jako znak, a nie jako zdanie. Wartość
