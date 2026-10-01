@@ -206,6 +206,10 @@ const EKRANY = [
   // tekstem. Ten sam przepis co ekran „przepis” wyżej, bo demo ma dla niego
   // gotowe kroki — patrz komentarz przy `adresPrzepisu` niżej w tym pliku.
   { nazwa: 'tryb gotowania', adres: null, znajdz: 'gotowanie' },
+  // Kolejka kilku potraw (#2379): przełącznik potraw, lista minutników i
+  // przyciski pod rząd — ten ekran ma przejść 320 px i 200% tak samo jak
+  // tryb gotowania. Stan kolejki jest w adresie, więc wystarczy ten sam przepis.
+  { nazwa: 'kolejka gotowania', adres: null, znajdz: 'kolejka' },
 
   /*
    * Trzy sposoby wyświetlania zdjęć we wpisie (issue #92).
@@ -2148,6 +2152,10 @@ function sciezkaEkranu(ekran) {
 
   if (ekran.znajdz === 'gotowanie') {
     return adresGotowania;
+  }
+
+  if (ekran.znajdz === 'kolejka') {
+    return `/gotuj-kilka?p=${adresPrzepisu.split('/').pop()}:1`;
   }
 
   if (ekran.znajdz === 'odwolanie') {

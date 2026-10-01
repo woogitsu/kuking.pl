@@ -101,6 +101,21 @@ minut. Czasów dłuższych niż doba nie liczymy. Nie widać, kto podał jaki cz
 a osoby, które zablokowaliście, nie wchodzą do Waszej liczby. Dopóki
 osób jest mniej, nie piszemy nic.
 
+### Kilka potraw naraz, każda z własnym minutnikiem
+
+Gotujecie obiad z kilku dań? Na stronie przepisu i w trybie „Gotuję” jest
+nowy przycisk „Dodaj do kolejki gotowania”. W kolejce zmieszczą się cztery
+przepisy. Na ekranie kolejki przełączacie się między potrawami dużymi,
+podpisanymi przyciskami, np. „Zupa — krok 2 z 5”, a każda potrawa pamięta
+swój krok. Minutniki wszystkich potraw są na jednej liście z nazwą dania,
+np. „Zupa, krok 2: 4:12”, i każdy można osobno anulować. Gdy czas minie,
+usłyszycie ten sam dźwięk co zawsze i zobaczycie napis, np. „Zupa: czas
+minął”. Kolejka jest zapamiętana tylko w Waszej przeglądarce — nie trafia
+na konto — i znika sama po 24 godzinach albo po kliknięciu „Wyczyść kolejkę”.
+Zamknięcie karty kończy działające minutniki, więc po powrocie ustawiacie je
+od nowa. Bez włączonego JavaScriptu kolejki nie ma, a gotowanie jednego
+przepisu działa jak dotąd.
+
 ### Wszystkie wersje regulaminu
 
 Na górze regulaminu są dwa nowe przyciski. „Pobierz regulamin” zapisuje go
