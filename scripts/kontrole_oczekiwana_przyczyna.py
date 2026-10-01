@@ -35,6 +35,10 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Dyktowanie odbiera mikrofon zalogowanemu (#2377 etap 2)': r'DICTATION_AUTH_HEADER',
+    'Dyktowanie daje mikrofon gościowi (#2377 etap 2)': r'DICTATION_GUEST_HEADER',
+    'Dyktowanie daje mikrofon błędowi i JSON (#2377 etap 2)': r'DICTATION_NON_FORM_RESPONSE',
+    'Dyktowanie odblokowuje wszystkie trasy (#2377 etap 2)': r'DICTATION_OTHER_ROUTE',
     # Paczka V: kontrole dodatnie trzech strażników tekstu.
     'Pasek przy kolumnowym znaku znowu przypięty': r'Przy progu układu kolumnowego znaku pasek ma przestać być przypięty\.',
     'Uwaga słownika terminów wraca do .meta': r'Uwaga pod słownikiem terminów zeszła do \.meta albo poniżej 18 px',

@@ -118,6 +118,8 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 
 | CSAM: konto już objęte inną blokadą (decyzja właściciela z 1.10.2026, po przeglądzie paczki V) | Procedura CSAM zapisuje **osobną, powiązaną z dowodem decyzję o blokadzie także wtedy, gdy konto było już zablokowane z innego powodu**. Uznanie odwołania od starej kary nie zdejmuje nowej blokady CSAM; odwołanie od tej nowej decyzji pozostaje do osobnej ręcznej procedury. Nadal obowiązują uprawnienia moderatora i ochrona kont uprzywilejowanych. | #2416, #2427 |
 
+| #2377: dyktowanie dłuższych pól — etap 2 (decyzja właściciela z 1.10.2026, handover koordynatora) | Rozszerzamy dyktowanie **wszędzie, gdzie jest dłuższy tekst**: opis przepisu, notatka „Ugotowałem”, komentarze i odpowiedzi, wpis, notatki w zeszycie oraz pozostałe edytowalne dłuższe pola. Ten wiersz rozszerza zakres pierwszego etapu powyżej; nie zmienia technologii ani obiegu dźwięku. `microphone=(self)` tylko dla **zalogowanego** na udanym ekranie HTML z takim polem, z jawną listą tras; gość i reszta ekranów `()`. Zalogowany wariant nie może trafić do cache CDN. Podgląd i jawne wstawienie pozostają obowiązkowe; nie uruchamia to publikacji ani operacji moderacyjnej. Bez hosta w polach tylko do odczytu i na ekranach odzyskiwania po 419/429. Polityka i identyczne archiwum: drobna poprawka wersji 2026-09-30. Nie wysyłamy dźwięku ani transkrypcji do Kuking lub AI. | #2377 |
+
 ### Wycofanie
 Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis
 D-xxx z odwołaniem do tego.

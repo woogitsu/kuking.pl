@@ -84,10 +84,7 @@ class ApplySecurityHeaders
     private const KLUCZ_PODPISU = 'kuking_csp_nonce';
 
     /**
-     * Trasy, na których wolno użyć mikrofonu: tworzenie i edycja przepisu
-     * (kreator, formularz na jednej stronie, „Dopisz przepis” ze wpisu,
-     * „Dopisz szczegóły”, edycja). Nic poza nimi — start, profil, tryb
-     * gotowania i reszta serwisu zostają przy `microphone=()`.
+     * Pierwszy etap dyktowania: tworzenie i edycja przepisu.
      */
     public const TRASY_KREATORA_PRZEPISU = [
         'recipes.create',
@@ -97,9 +94,46 @@ class ApplySecurityHeaders
         'recipes.edit',
     ];
 
-    private function trasaKreatoraPrzepisu(Request $request): bool
+    /** Ekrany z edytowalnym dłuższym tekstem (#2377, etap 2, D-333). */
+    public const TRASY_DYKTOWANIA = [
+        ...self::TRASY_KREATORA_PRZEPISU,
+        'posts.create',
+        'posts.edit',
+        'questions.create',
+        'cooked.create',
+        'cooked.celebrate',
+        'recipes.show',
+        'posts.show',
+        'questions.show',
+        'cooked.show',
+        'collections.index',
+        'collections.edit',
+        'collections.show',
+        'settings.profile',
+        'kontakt',
+        'appeals.show',
+        'appeals.reporter',
+        'appeals.guest',
+        'reports.create',
+        'zglos.nielegalna',
+        'recipes.history.hide',
+        'recipes.history.restore',
+        'admin.reports',
+        'admin.appeals',
+        'admin.sygnaly',
+        'admin.z-urzedu.create',
+        'admin.csam.create',
+        'admin.contact.show',
+        'admin.unanswered',
+    ];
+
+    private function allowsDictation(Request $request, Response $response): bool
     {
-        return $request->routeIs(...self::TRASY_KREATORA_PRZEPISU);
+        return $request->user() !== null
+            && $request->isMethod('GET')
+            && $response->isSuccessful()
+            && str_starts_with((string) $response->headers->get('Content-Type'), 'text/html')
+            && $request->routeIs(...self::TRASY_DYKTOWANIA);
     }
 
     public function handle(Request $request, Closure $next): Response
@@ -166,11 +200,11 @@ class ApplySecurityHeaders
             $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         }
         // MIKROFON: domyślnie zablokowany (`microphone=()`). Odblokowany dla
-        // własnej domeny WYŁĄCZNIE na trasach kreatora przepisu, gdzie działa
+        // własnej domeny WYŁĄCZNIE na ekranach z dłuższym polem dla zalogowanego, gdzie działa
         // dyktowanie przez Web Speech API przeglądarki (issue #2377, D-333).
         // Kuking sam niczego nie nagrywa; zezwolenie dotyczy tylko tego, że
         // przeglądarka może zapytać człowieka o mikrofon na tych stronach.
-        $mikrofon = $this->trasaKreatoraPrzepisu($request) ? '(self)' : '()';
+        $mikrofon = $this->allowsDictation($request, $response) ? '(self)' : '()';
         $response->headers->set('Permissions-Policy', "geolocation=(), microphone={$mikrofon}, camera=(), payment=()");
         $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
 

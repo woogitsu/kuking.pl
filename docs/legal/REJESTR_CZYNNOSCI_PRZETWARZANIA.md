@@ -145,16 +145,22 @@ egzekwuje.
   napisze** — łącznie z danymi, o które serwis nie pyta (dieta, zdrowie,
   osoby trzecie). Polityka prywatności §2 mówi o tym wprost.
 - **Podstawa:** art. 6 ust. 1 lit. b RODO.
-- **Dyktowanie w kreatorze przepisu (#2377):** przycisk „Dyktuj” korzysta
+- **Dyktowanie dłuższych pól po zalogowaniu (#2377, etap 2):** przycisk „Dyktuj” korzysta
   wyłącznie z Web Speech API **przeglądarki** (`resources/js/dyktowanie.js`).
   Dźwięk może trafić do dostawcy przeglądarki (np. Google, Apple) na jego
   zasadach — to nie jest nasz podmiot przetwarzający i nie dostaje od nas
   żadnych danych. **Kuking nie nagrywa dźwięku, nie ma endpointu na dźwięk
   ani transkrypcję i nie dostaje niczego poza tekstem, który człowiek sam
-  wstawi do pola przepisu** — od tej chwili to zwykła treść przepisu (ten
-  sam cel, podstawa i termin). Mikrofon jest odblokowany w nagłówku
-  `Permissions-Policy` tylko na trasach tworzenia i edycji przepisu
-  (`ApplySecurityHeaders::TRASY_KREATORA_PRZEPISU`).
+  wstawi do pola i wyśle formularzem** — od tej chwili tekst podlega celowi,
+  podstawie i terminowi właściwemu dla danej czynności (przepis, wykonanie,
+  wpis, komentarz, notatka, profil, kontakt, odwołanie lub moderacja). Mikrofon
+  jest odblokowany w nagłówku `Permissions-Policy` tylko dla zalogowanego
+  na udanym ekranie HTML z dłuższym polem
+  (`ApplySecurityHeaders::TRASY_DYKTOWANIA`); gość, błędy, przekierowania,
+  JSON i pozostałe ekrany nie dostają mikrofonu. Wariant zalogowanego jest
+  `private, no-store`, bez nagłówków cache CDN. Nie powstaje osobny zapis
+  dźwięku ani transkrypcji. Przegląd prawny rejestru przed publicznym startem
+  pozostaje w #8.
 - **Odbiorcy:** Railway, OpenAI — tylko treść publiczna (§3.7).
 - **Termin usunięcia:** do usunięcia treści albo konta; **wcześniejsze
   wersje przepisu** krócej — wersja starsza niż 24 miesiące (data w Polsce)

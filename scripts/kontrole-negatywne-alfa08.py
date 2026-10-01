@@ -1274,6 +1274,14 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    ("Dyktowanie odbiera mikrofon zalogowanemu (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_ekran_dluzszego_pola_odblokowuje_mikrofon_tylko_zalogowanemu",
+     lambda s: replace_once(s, "return $request->user() !== null", "return false")),
+    ("Dyktowanie daje mikrofon gościowi (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_ekran_dluzszego_pola_odblokowuje_mikrofon_tylko_zalogowanemu",
+     lambda s: replace_once(s, "return $request->user() !== null", "return true")),
+    ("Dyktowanie daje mikrofon błędowi i JSON (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_nazwa_trasy_nie_odblokowuje_mikrofonu_na_bledzie_przekierowaniu_json_ani_post",
+     lambda s: replace_once(s, "&& $request->isMethod('GET')\n            && $response->isSuccessful()\n            && str_starts_with((string) $response->headers->get('Content-Type'), 'text/html')", "&& true")),
+    ("Dyktowanie odblokowuje wszystkie trasy (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_zalogowanie_nie_odblokowuje_mikrofonu_na_innych_ekranach",
+     lambda s: replace_once(s, "&& $request->routeIs(...self::TRASY_DYKTOWANIA)", "&& true")),
     # #2421: w oknie <= 16rem przy tekście 125/140% pasek górny odpina się,
     # bo kolumnowy znak robi go wyższym niż rezerwa nad nim (WCAG 2.4.11).
     ("Pasek przy kolumnowym znaku znowu przypięty", "resources/css/marka-rama.css", "PasekPrzyKolumnowymZnakuTest",

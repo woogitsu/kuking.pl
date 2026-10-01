@@ -63,7 +63,7 @@ X-Frame-Options: DENY
 ```
 
 - **HSTS**: włącz dopiero, gdy HTTPS jest w pełni stabilny na wszystkich subdomenach (w tym ewentualne subdomeny CDN) — `preload` dodawaj świadomie, bo wpis do listy preload jest praktycznie nieodwracalny w krótkim terminie.
-- **Permissions-Policy**: Kuking nie potrzebuje geolokalizacji, mikrofonu, kamery ani płatności w MVP — zablokuj je wszystkie domyślnie; odblokuj pojedynczo, gdy faktyczna funkcja tego wymaga (np. przyszły upload zdjęcia z kamery może wymagać `camera=(self)`).
+- **Permissions-Policy**: domyślnie wszystkie wymienione możliwości są zablokowane. Wyjątek mikrofonu (#2377, D-333): `microphone=(self)` tylko dla zalogowanego na udanym ekranie HTML z dłuższym polem, na jawnej liście `ApplySecurityHeaders::TRASY_DYKTOWANIA`. Gość, błędy, przekierowania, JSON i pozostałe trasy mają `microphone=()`. Wariant zalogowanego jest `private, no-store`, bez nagłówków cache CDN. Dyktowanie korzysta z Web Speech API przeglądarki, Kuking nie dostaje dźwięku; nie otwieramy geolokalizacji, kamery ani płatności.
 - `X-Frame-Options: DENY` jest redundantny wobec `frame-ancestors 'none'` w CSP, ale zostaw dla przeglądarek/proxy nierespektujących CSP.
 
 ---
