@@ -18,9 +18,10 @@ jawne `DB_HOST=127.0.0.1`,
 `DB_PORT` różne od 5432, `CONFIRM_BROWSER_DB_PORT=$DB_PORT`, `APP_ENV=testing`,
 klucz testowej aplikacji, Composer i Playwright. Skrypt nie wykonuje migracji,
 nie dotyka wspólnej bazy ani produkcji. Sam stawia lokalny serwer, a po pomiarze
-usuwa własne rekordy fixture. Nie należy podpinać go do CI, zanim trzy poprawki
-widoków będą razem w bazie gałęzi integracyjnej.
+usuwa własne rekordy fixture. Krok CI został dodany po połączeniu trzech
+poprawek widoków na gałęzi integracyjnej.
 
-Na etapie tej gałęzi wykonano tylko sprawdzenie składni PHP/Node. Nie wykonano
-Chromium ani testów PostgreSQL; wynik użytkowy będzie znany dopiero z CI po
-integracji trzech widoków.
+Po połączeniu trzech widoków skrypt został dopięty jako jeden krok do
+istniejącego joba dostępności. Na etapie przygotowania wykonano tylko kontrolę
+składni PHP/Node. Nie wykonano Chromium ani testów PostgreSQL lokalnie;
+wynik użytkowy rozstrzygnie CI tej połączonej gałęzi.
