@@ -96,7 +96,7 @@
             <li><span class="badge">{{ $event->would_make_again ? 'Zrobię ponownie' : 'Raczej nie powtórzę' }}</span></li>
         @endif
         @if($event->actual_minutes !== null)
-            <li><span class="badge">Zajęło mi {{ $event->actual_minutes }} min</span></li>
+            <li><span class="badge">Zajęło mi {{ \App\Support\Czas::czasPrzepisu((int) $event->actual_minutes) }}</span></li>
         @endif
         @if($event->perceived_difficulty)
             <li><span class="badge">{{ \App\Models\Recipe::DIFFICULTY_LABELS[$event->perceived_difficulty] }}</span></li>

@@ -91,7 +91,7 @@
                 <li>
                     {{ $step->instruction }}
                     @if($step->timer_seconds)
-                        <p class="podpis">Czas: {{ (int) round($step->timer_seconds / 60) }} min</p>
+                        <p class="podpis">Czas: {{ \App\Support\Czas::czasPrzepisu((int) round($step->timer_seconds / 60)) }}</p>
                     @endif
                     {{-- `position` w bazie liczy się od zera; człowiekowi
                          pokazujemy numery od jedynki. Sam „Krok N” nie jest
