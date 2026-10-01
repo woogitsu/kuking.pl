@@ -133,7 +133,7 @@ DB::transaction(function () use ($ania, $rosol): void {
 
     // Dwie rocznice podtrzymują realny stan ekranu, gdy audyt przechodzi
     // przez północ w Polsce. Każdego dnia produkt nadal pokazuje tylko jedną.
-    /** @var \Closure(): array{0: Carbon, 1: Carbon} $rocznice */
+    /** @var Closure(): array{0: Carbon, 1: Carbon} $rocznice */
     $rocznice = require __DIR__.'/rocznice-wykonania-s.php';
     foreach ($rocznice() as $dzien => $rok) {
         $notatka = $dzien === 0
