@@ -300,10 +300,6 @@ class FeedController extends Controller
 
         return view('pages.discover', [
             'posts' => $posts,
-            // „Gotujesz razem” (#2385) — droga powrotna do trwających sesji
-            // (pomocnik, który zamknął kartę, nie musi szukać linku). Tylko na
-            // pierwszej stronie Startu.
-            'wspolneGotowania' => $maKursor ? collect() : app(SesjaWspolnegoGotowania::class)->aktywneDla($user),
             'board' => $this->dailyBoard->forViewer($user),
             // Liczone tylko dla pustej listy — tylko tam pusty stan o tym mówi.
             'ileUkrywasz' => $user !== null && $posts->isEmpty() ? $this->discoverFeed->ileUkrywa($user) : 0,

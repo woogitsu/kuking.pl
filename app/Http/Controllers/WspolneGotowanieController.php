@@ -275,7 +275,7 @@ class WspolneGotowanieController extends Controller
         }
 
         // Dalej wchodzi tylko link, który nadal czeka.
-        if ($zaproszenie !== null && ! $zaproszenie->czeka()) {
+        if (! ($zaproszenie?->czeka() ?? false)) {
             $zaproszenie = $sesja = null;
         }
 
@@ -290,7 +290,7 @@ class WspolneGotowanieController extends Controller
         // Komplet pomocników: link nie ma już dokąd wpuścić, więc nie kusimy przyciskiem.
         $maxPomocnikow = max(1, (int) config('kuking.wspolne_gotowanie.max_pomocnikow', 3));
 
-        if (! $moze || $sesja === null || $zaproszenie === null || $sesja->pomocnicy()->count() >= $maxPomocnikow) {
+        if (! $moze || $sesja->pomocnicy()->count() >= $maxPomocnikow) {
             return response()->view('pages.wspolne-gotowanie.link-nieaktualny', [], 410)
                 ->header('Referrer-Policy', 'no-referrer');
         }

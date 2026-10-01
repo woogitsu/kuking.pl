@@ -72,6 +72,12 @@ blokady między pomocnikami, widok i eksport dla wielu osób).
   a gospodarz usuwa każdego. Przy pełnym komplecie strona linku mówi to samo
   zdanie co każda odmowa, a gospodarz nie utworzy nowego linku, dopóki nie
   usunie któregoś pomocnika.
+- **Droga powrotna uczestnika.** Pomocnik, który zamknął kartę, nie musi mieć
+  linku: wchodzi ze Startu (wiersz „Gotujesz razem: <przepis> — wróć” dla trwających
+  sesji, tylko gdy przepis nadal widzi), a ponowne otwarcie linku — także
+  wygasłego — przekierowuje uczestnika do sesji. Odwołany link nie ma skrótu,
+  więc po odwołaniu zostaje droga przez Start. Sesja gospodarza z zamkniętym
+  kontem jest dla pomocnika niewidoczna (404), zawieszenie nie.
 - **Odwołanie przez gospodarza:** „Odwołaj link” (status `revoked`, kasuje
   skrót tokenu). Odwołanie nie wyrzuca osób, które już weszły. Gospodarz kończąc
   sesję kasuje też wszystkie zaproszenia.

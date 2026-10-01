@@ -627,7 +627,7 @@ class WspolneGotowanieTest extends TestCase
         $odp = $this->actingAs($pomocnik)->get(route('wspolne-gotowanie.show', $sesja))->assertForbidden();
         $this->assertStringNotContainsString($recipe->title, $odp->getContent());
         $this->assertStringNotContainsString('Krok numer 1.', $odp->getContent());
-        $this->actingAs($pomocnik)->getJson(route('wspolne-gotowanie.stan', $sesja))->assertForbidden();
+        $this->actingAs($pomocnik)->getJson(route('wspolne-gotowanie.stan', $sesja))->assertOk()->assertExactJson(['aktywna' => false]);
         $this->krok($pomocnik, $sesja, $kroki[0])->assertForbidden();
         $this->assertSame(0, DB::table('cooking_session_steps')->count());
 
