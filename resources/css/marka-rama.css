@@ -42,9 +42,14 @@
 [data-marka] .wordmark { font-size: min(calc(1.75rem * var(--user-text-scale, 1)), 10vw); letter-spacing: -.055em; }
 [data-marka] .wordmark .kuking-mark { width: 48px; height: 48px; }
 /* Łączne powiększenie fontu przeglądarki i tekstu konta: poszerzamy
-   istniejący wariant samego garnka, zachowując nazwę dostępną odnośnika. */
+   układ kolumnowy znaku (garnek nad napisem, napis nadal widoczny —
+   decyzja właściciela z 1.10.2026). */
 @media (max-width: 16rem) {
-  html:is([data-text-scale="125"], [data-text-scale="140"]) [data-marka] .wordmark > span[aria-hidden] { display: none; }
+  html:is([data-text-scale="125"], [data-text-scale="140"]) [data-marka] .wordmark {
+    flex-direction: column;
+    gap: 0;
+    text-align: center;
+  }
 }
 [data-marka] .topbar-actions { margin-left: auto; flex-wrap: wrap; gap: calc(8px * var(--user-layout-scale, 1)); }
 [data-marka] .topbar-actions .topbar-desktop-only { display: none; }

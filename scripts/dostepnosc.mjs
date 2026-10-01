@@ -4605,6 +4605,89 @@ if (rozjazdySzynyGoscia.length > 0) {
   }
 }
 
+/* ============================================================================
+   CAŁA KARTA PRZEPISU JEST CELEM DOTYKU (decyzja właściciela z 1.10.2026)
+   Sam link tytułu ma ok. 21 px wysokości, a wymóg to ≥ 48 px obszaru dotyku.
+   Rozwiązanie to „stretched link" (`::after` na całą kartę), więc mierzymy
+   to, co widzi palec: trafienie w środek i w rogi karty ma wpaść w link
+   tytułu, karta ma ≥ 48 px, a fokus ma obrysować całą kartę (obrys na
+   `::after`). Przy podwojonej czcionce przeglądarki mierzymy to samo.
+   ========================================================================== */
+log('');
+log('Karta przepisu jako cel dotyku:');
+
+const rozjazdyKartyPrzepisu = [];
+let zmierzoneKartyPrzepisu = 0;
+
+for (const szerokosc of SZYBKO ? [320] : [320, 1280]) {
+  for (const duzaCzcionka of [false, true]) {
+    const kontekst = await przegladarka.newContext({ viewport: { width: szerokosc, height: 900 } });
+    const strona = await kontekst.newPage();
+    if (duzaCzcionka) {
+      await (await kontekst.newCDPSession(strona)).send('Page.setFontSizes', { fontSizes: { standard: 32, fixed: 32 } });
+    }
+    await strona.goto(`${adres}/szukaj?q=zupa`, { waitUntil: 'domcontentloaded' });
+    await poczekajNaFonty(strona);
+
+    const pomiar = await strona.evaluate(() => [...document.querySelectorAll('.recipe-card-wiersz')].map((karta) => {
+      const link = karta.querySelector('a.link-tytul');
+      const r = karta.getBoundingClientRect();
+      const zlapanyPrzez = (x, y) => {
+        const el = document.elementFromPoint(x, y);
+        return el !== null && link !== null && link.contains(el);
+      };
+      const wLinku = link ? link.getBoundingClientRect() : null;
+      karta.scrollIntoView({ block: 'center' });
+      const rr = karta.getBoundingClientRect();
+      const punkty = [
+        [rr.left + rr.width / 2, rr.top + rr.height / 2],
+        [rr.left + 6, rr.top + 6],
+        [rr.right - 6, rr.bottom - 6],
+      ];
+      link?.focus({ focusVisible: true });
+      const po = link ? getComputedStyle(link, '::after') : null;
+      return {
+        wysokoscKarty: Math.round(r.height),
+        wysokoscSamegoLinku: wLinku ? Math.round(wLinku.height) : null,
+        linkow: karta.querySelectorAll('a').length,
+        zagniezdzone: karta.querySelectorAll('a a').length,
+        trafienia: punkty.map(([x, y]) => zlapanyPrzez(x, y)),
+        obrysNaKarcie: po ? po.outlineStyle !== 'none' && parseFloat(po.outlineWidth) >= 3 : false,
+        pokrycieKarty: po ? po.position === 'absolute' : false,
+      };
+    }));
+
+    for (const [i, k] of pomiar.entries()) {
+      zmierzoneKartyPrzepisu += 1;
+      const bledy = [];
+      if (k.wysokoscKarty < 48) bledy.push(`karta ma ${k.wysokoscKarty} px wysokości (< 48)`);
+      if (! k.pokrycieKarty) bledy.push('::after linku tytułu nie jest rozciągniętą nakładką');
+      if (k.trafienia.some((t) => ! t)) bledy.push('trafienie w środek albo róg karty nie wpada w link tytułu');
+      if (k.linkow !== 1 || k.zagniezdzone !== 0) bledy.push(`karta ma ${k.linkow} linków (zagnieżdżonych: ${k.zagniezdzone}), a ma mieć jeden`);
+      if (! k.obrysNaKarcie) bledy.push('fokus linku nie obrysowuje całej karty');
+      if (bledy.length > 0) {
+        rozjazdyKartyPrzepisu.push({ karta: i + 1, szerokosc, duzaCzcionka, bledy });
+      }
+    }
+
+    if (pomiar.length === 0) {
+      rozjazdyKartyPrzepisu.push({ karta: 0, szerokosc, duzaCzcionka, bledy: ['na /szukaj?q=zupa nie ma karty przepisu do zmierzenia'] });
+    }
+
+    await kontekst.close();
+  }
+}
+
+if (rozjazdyKartyPrzepisu.length > 0) {
+  process.exitCode = 1;
+  console.error(`BŁĄD: karta przepisu nie jest w całości celem dotyku (${rozjazdyKartyPrzepisu.length} rozjazdów).`);
+  for (const r of rozjazdyKartyPrzepisu) {
+    console.error(`  karta ${r.karta}, ${r.szerokosc} px${r.duzaCzcionka ? ', czcionka 200%' : ''}: ${r.bledy.join('; ')}`);
+  }
+} else {
+  log(`  ✓ ${zmierzoneKartyPrzepisu} kart: cała powierzchnia to jeden link, ≥ 48 px, fokus obrysowuje kartę`);
+}
+
 // OAuth: własny serwer pomiarowy, bez włazu do sesji w aplikacji (#345).
 const oauth = { wyniki: [], blad: null };
 try {
