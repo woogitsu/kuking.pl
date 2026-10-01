@@ -295,7 +295,7 @@ class SynchronizacjaSkladnikowIPorcjiGotowaniaTest extends TestCase
         $this->actingAs($osoba)->post(route('cooking.sync.porcje', $recipe->slug), ['wybor' => '8']);
 
         $odpowiedz = $this->actingAs($osoba)->post(route('cooking.sync.skladniki', $recipe->slug), [
-            'zaznaczone' => [$s[0]->getKey()], 'bylo' => [$s[0]->getKey()],
+            'zaznaczone' => [$s[0]->getKey(), $s[1]->getKey()], 'bylo' => [$s[0]->getKey()],
             'kontekst_porcji' => 'przepis', 'porcje_z_konta' => 'przepis',
             'rewizja_porcji' => $widzianyPostep->servings_revision,
             'id_postepu' => $widzianyPostep->getKey(),
