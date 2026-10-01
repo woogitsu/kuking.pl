@@ -386,6 +386,14 @@
                     @endif
                 </ul>
             @endif
+            {{-- Typowy czas z wykonań (#2067): dwa osobne zdania, dwa źródła.
+                 Zwykły tekst, bez ikony i bez „szybciej niż autor”. Poniżej
+                 progu 5 osób nie ma nic — także zdania o braku danych. --}}
+            @if(($typowyCzas ?? null) !== null)
+                <p class="przepis-typowy-czas kolumna-czytania" data-typowy-czas="{{ $typowyCzas->minuty }}">
+                    @if($total)Autor podaje około {{ $total }} min. @endif{{ $typowyCzas->zdanie() }}
+                </p>
+            @endif
             {{-- Koszt wg autora (D-286). Pełnym zdaniem, z „ok." i „wg autora",
                  a nie jako kolejna „liczba" obok czasu i porcji: to szacunek
                  jednej osoby, nie cena, którą serwis za coś ręczy. --}}

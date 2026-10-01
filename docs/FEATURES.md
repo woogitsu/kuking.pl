@@ -176,14 +176,23 @@ decyzja właściciela z 30 września 2026):
   profilu alergii widza, bez AI, bez danych w JSON-LD, tylko wyszukiwarka
   przepisów.
 
+**Odblokowane i zbudowane** (D-333, wiersz „#2067”, decyzja właściciela
+z 1 października 2026; włączone od razu, bez flagi):
+
+- typowy rzeczywisty czas przygotowania z wykonań społeczności (#2067) —
+  na stronie przepisu, obok czasu autora, dwa osobne zdania: „Autor podaje
+  około N min.” i „Gotujący zwykle potrzebują około N min (na podstawie K
+  osób).” Mediana czasów z „Ugotowałem” (na osobę), zaokrąglona do 5 minut,
+  dopiero od 5 różnych osób; tylko czasy > 0 i ≤ 24 h; tylko wykonania
+  widoczne dla widza (blokady, status konta); bez zakresu, bez ikon.
+
 **V2, ale nie teraz** (decyzja właściciela z 26 września 2026). Propozycje
 z audytu zapisane na później. Nie budować bez nowej decyzji, mimo D-282
 (pięć pozycji odblokowała D-331, a #1902 i #1903 — D-333, listy wyżej):
 
 - wybrane przepisy do czytania offline w PWA (#1904);
 - głosowy tryb gotowania bez dotykania telefonu (#1906);
-- prywatne podsumowanie AI uwag z wykonań przepisu (#1999);
-- typowy rzeczywisty czas przygotowania z wykonań społeczności (#2067).
+- prywatne podsumowanie AI uwag z wykonań przepisu (#1999).
 
 ## Nie wcześnie
 

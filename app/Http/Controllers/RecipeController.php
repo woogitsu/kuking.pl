@@ -15,6 +15,7 @@ use App\Domain\Recipes\Historia\HistoriaWersji;
 use App\Domain\Recipes\Koszt\SzacunekKosztuZCen;
 use App\Domain\Recipes\MojaWersja;
 use App\Domain\Recipes\Porcje\WyborPorcji;
+use App\Domain\Recipes\TypowyCzasPrzepisu;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\Recipes\ZapisPrzepisuRequest;
 use App\Models\Comment;
@@ -512,6 +513,10 @@ class RecipeController extends Controller
             'szacunekKosztu' => $model->estimated_cost_pln === null
                 ? app(SzacunekKosztuZCen::class)->dla($model)
                 : null,
+            // Typowy czas z wykonań (#2067): reguły i zapytanie w klasie domeny.
+            // Dla gościa `null` = bez blokad, więc ta sama liczba dla każdego
+            // gościa i bezpieczna w cache HTML brzegu (#610).
+            'typowyCzas' => TypowyCzasPrzepisu::dla($model, $request->user()),
             // Wersja zbyt podobna do publicznego oryginału nie idzie do
             // indeksu (docs/seo/SEO_TECHNICAL.md §1.4 pkt 4).
             'wersjaDoIndeksu' => MojaWersja::czyIndeksowac($model),
