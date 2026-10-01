@@ -49,6 +49,16 @@ wspólnie, wracamy do tej decyzji. Nie rozbudowujemy wtedy modelu członkostwa.
     adresat, każdy inny dostaje 404). Link-zaproszenie ma za poświadczenie
     token w adresie.
 
+**Powrót po rejestracji (#2420).** Gdy osoba bez konta otwiera ważny link,
+middleware zapamiętuje jego adres w sesji. Rejestracja przenosi wyłącznie
+rozpoznany token do krótkiego (najwyżej 2 godziny) zamiaru przypisanego do
+nowego konta. Do chwili założenia konta zachowuje `url.intended`, żeby wybór
+logowania hasłem, Google lub Facebookiem na istniejące konto również działał.
+Po ukończeniu lub pominięciu pierwszych kroków nowe konto wraca na podgląd
+zaproszenia; dołączenie nadal wymaga kliknięcia. Trasa podglądu ponownie
+sprawdza termin, odwołanie i jednorazowość w bazie, a nieaktualny link daje
+410. Obcy adres z sesji ani parametr przekierowania nie są celem powrotu.
+
 **Poza zakresem:** wspólne zeszyty poza najbliższymi (grupy, publiczne
 współtworzenie), role inne niż właściciel i współtwórca, historia zmian.
 
