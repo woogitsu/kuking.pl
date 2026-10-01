@@ -290,6 +290,40 @@ test('błąd pobrania zostawia listę, mówi co zrobić i pozwala ponowić', asy
     });
 });
 
+for (const pusta of [false, true]) {
+    test(`stara strona po przekierowaniu ${pusta ? 'do pustej' : 'do znanej'} listy nie kasuje ani nie dubluje kart (#2473)`, async () => {
+        await zPrzegladarka(async (context) => {
+            const zrodlo = await readFile(MODUL, 'utf8');
+            const zadania = [];
+            let zmieniona = false;
+            await context.route('http://kuking.test/**', async (route) => {
+                const url = new URL(route.request().url());
+                if (url.pathname === '/pokaz-wiecej.js') {
+                    return route.fulfill({contentType: 'text/javascript', body: zrodlo});
+                }
+                zadania.push(url.pathname + url.search);
+                if (url.searchParams.has('page')) {
+                    return route.fulfill({status: 302, headers: {location: 'http://kuking.test/zeszyt/moje-wpisy'}});
+                }
+                const karty = zmieniona && pusta ? '' : elementy('wpis', 1, 5);
+                const dalej = zmieniona ? '' : blokWiecej({klucz: 'page', czego: 'wpisów', lista: 'lista-wpisow', nastepny: '/zeszyt/moje-wpisy?page=2'});
+                return route.fulfill({contentType: 'text/html', body: strona(`<div id="lista-wpisow">${karty}</div>${dalej}`)});
+            });
+            const page = await context.newPage();
+            await page.goto('http://kuking.test/zeszyt/moje-wpisy');
+            const przycisk = page.getByRole('button', {name: 'Pokaż więcej wpisów'});
+            await przycisk.waitFor();
+            zmieniona = true;
+            await przycisk.click();
+            await page.waitForFunction(() => document.querySelector('[data-pokaz-wiecej-ogloszenie]')?.textContent.includes('To już koniec listy.'));
+            assert.deepEqual(await klucze(page), oczekiwane('wpis', 5), 'Wcześniejsze karty zostają dokładnie raz.');
+            assert.equal(await przycisk.count(), 0);
+            assert.equal(await page.getByRole('alert').isHidden(), true);
+            assert.deepEqual(zadania, ['/zeszyt/moje-wpisy', '/zeszyt/moje-wpisy?page=2', '/zeszyt/moje-wpisy']);
+        });
+    });
+}
+
 test('strona bez listy w odpowiedzi (np. logowanie) to błąd, nie „koniec listy”', async () => {
     await zPrzegladarka(async (context) => {
         await przygotuj(context, {bezListy: true});
