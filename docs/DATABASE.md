@@ -1669,6 +1669,35 @@ znaczyć dla starego kodu i będą wyglądać jak zwykłe osierocone zdjęcia �
 stary sprzątacz podejmie je normalnie, po wieku, więc nie zablokują się
 w bazie. Nic nie trzeba backfillować.
 
+#### `status = 'secured'` — zdjęcie ZABEZPIECZONE JAKO DOWÓD
+
+Migracja `2026_10_01_150100_allow_secured_media_status` (ścieżka CSAM w panelu
+moderacji, D-333, 1.10.2026). **Zmiana schematu:** `media_status_check`
+dopuszcza teraz `pending, processing, ready, rejected, deleted, secured`.
+CHECK zmieniony wzorcem `NOT VALID` + `VALIDATE` poza transakcją (AGENTS.md §6);
+nowy CHECK jest szerszy od starego, więc walidacja nie może się nie udać.
+
+```sql
+ALTER TABLE media DROP CONSTRAINT IF EXISTS media_status_check;
+ALTER TABLE media ADD CONSTRAINT media_status_check
+    CHECK (status IN ('pending','processing','ready','rejected','deleted','secured')) NOT VALID;
+ALTER TABLE media VALIDATE CONSTRAINT media_status_check;
+```
+
+Znaczenie: **plik zostaje w magazynie jako dowód, a aplikacja nie pokazuje go
+nikomu** — ani autorowi, ani moderatorowi (`Media::maWariantDoPokazania()`,
+a przez nią `DostepDoZdjecia` i trasa `/zdjecia/…` → 404). `secured` nie jest
+`ready`, więc zdjęcie wypada z każdego zapytania „status = ready” (eksport
+danych, odczyt przez AI, kolaże, ponowne przetwarzanie). `KasujZdjecie`
+odmawia skasowania zabezpieczonego zdjęcia (sprzątanie osieroconych, wymazanie
+konta, usunięcie treści). Stan sprzed zabezpieczenia pamięta
+`zabezpieczenia_dowodow.previous_media_status`.
+
+**Rollback (D-088): ODMAWIA**, gdy w `media` jest choć jedno zdjęcie
+`secured` — stary CHECK go nie dopuszcza, a zmiana statusu zdjęłaby
+zabezpieczenie. Na bazie bez takich wierszy `down()` przywraca stary CHECK.
+Test odmowy i kontrola dodatnia: `tests/Feature/CofniecieMigracjiZabezpieczonychDowodowOdmawiaTest.php`.
+
 ### posts + post_media
 Najprostszy content społecznościowy.
 
@@ -4087,6 +4116,58 @@ odwołanie przed jego własnym czasem (ADR §4). Kolejność w komendzie:
 `appeals` → `moderation_actions` → `reports`. Zapytanie idzie wprost do tabeli
 `appeals` przez `moderation_action_id`, a nie przez nazwaną relację Eloquent —
 blokada działa przy każdym żywym odwołaniu, niezależnie od roli odwołującego.
+
+### zabezpieczenia_dowodow
+**Rejestr dowodów zabezpieczonych przed usunięciem** — ścieżka CSAM w panelu
+moderacji („CSAM — natychmiast ukryj i zabezpiecz”), D-333 (wiersz z 1.10.2026).
+Migracja `2026_10_01_150000_create_zabezpieczenia_dowodow_table`. Procedura:
+`docs/legal/MODERATION_PLAYBOOK.md` §7.1, `docs/flota/CSAM_JEDNA_KARTKA.md`.
+
+To **jedno miejsce**, które mówi „tego obiektu nie wolno skasować żadną drogą”.
+Pytają o nie: `PrzedawnioneUsunieteTresci` (retencja usuniętych treści),
+`PrzedawnioneWersjePrzepisow`, `PrzedawnioneSprawyModeracyjne` (sprawa o
+zabezpieczony obiekt nie jest kasowana po 36 miesiącach), `KasujZdjecie`,
+`EraseAccountData` (konto z zabezpieczonym dowodem nie jest wymazywane) i
+`RestoreContent` (zabezpieczona treść nie wraca, także po wygranym odwołaniu).
+Pytania zadaje `App\Domain\Moderation\ZabezpieczoneDowody`.
+
+- `id uuid` PK;
+- `target_type varchar(30) NOT NULL` — `post`, `recipe`, `comment` albo
+  `media` (CHECK `zabezpieczenia_dowodow_target_type_check`); `target_id uuid
+  NOT NULL`. Bez klucza obcego — obiekt bywa skasowany z innych powodów, a
+  rejestr ma po tym zostać. **UNIQUE** (`target_type`, `target_id`): jeden
+  obiekt zabezpiecza się raz;
+- `subject_user_id uuid NULL` → `users` (`ON DELETE SET NULL`) — autor treści
+  albo właściciel zdjęcia. **NULL = nie znamy autora.** Konto z takim wierszem
+  nie jest wymazywane (anonimizacja zabrałaby dane, o które zapyta organ);
+- `report_id uuid NULL` → `reports` (`ON DELETE SET NULL`) — zgłoszenie, z
+  którego wyszła akcja. **NULL = akcja ze strony treści, bez zgłoszenia.**
+- `moderation_action_id uuid NULL` → `moderation_actions` (`ON DELETE SET
+  NULL`) — decyzja „Usuń treść” zapisana przy zabezpieczeniu;
+- `secured_by uuid NULL` → `users` (`ON DELETE SET NULL`) — moderator;
+- `previous_media_status varchar(20) NULL` — **tylko dla `target_type = 'media'`
+  i wtedy obowiązkowe**: status zdjęcia SPRZED zabezpieczenia (`pending`,
+  `processing`, `ready`, `rejected`). Dla wpisu, przepisu i komentarza **zawsze
+  NULL** (CHECK `zabezpieczenia_dowodow_previous_media_status_check`).
+  Potrzebne człowiekowi, który kiedyś — po decyzji prawnika — będzie
+  przywracał zdjęcie;
+- `note varchar(2000) NULL` — notatka wewnętrzna moderatora, **bez opisu
+  materiału**;
+- `secured_at timestamptz NOT NULL DEFAULT now()`.
+
+Zabezpieczenie przepisu obejmuje **całą jego historię wersji**
+(`recipe_versions`) — wersje przepisu nie mają własnego wiersza w rejestrze,
+chroni je wiersz przepisu.
+
+**Nie ma `released_at` i nie ma drogi z panelu, która zdejmuje wiersz.** To
+świadome: kiedy i na czyje polecenie wolno skasować dowód, ma rozstrzygnąć
+prawnik (playbook §7.1a, pytanie 2). Do tego czasu zabezpieczenie jest
+bezterminowe — błąd w bezpieczną stronę.
+
+**Rollback (D-088): ODMAWIA**, gdy tabela nie jest pusta — zrzucenie rejestru
+zdjęłoby ochronę ze wszystkich dowodów naraz, a najbliższa noc retencji by je
+skasowała. Na pustej tabeli `down()` ją usuwa. Test odmowy i kontrola
+dodatnia: `tests/Feature/CofniecieMigracjiZabezpieczonychDowodowOdmawiaTest.php`.
 
 ### appeals
 Odwołania od decyzji moderacyjnych — **AUTORA treści I ZGŁASZAJĄCEGO**
