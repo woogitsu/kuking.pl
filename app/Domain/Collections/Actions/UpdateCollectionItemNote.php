@@ -38,7 +38,15 @@ final class UpdateCollectionItemNote
 
     public const WOREK_BLEDOW = 'notatka';
 
-    public function handle(User $user, Collection $collection, string $typ, string $id, ?string $note): ?string
+    public const BLAD_KONFLIKTU = 'Ta notatka zmieniła się, gdy pisałeś swoją. Twój tekst został w polu. Porównaj go z obecną notatką nad polem. Jeśli chcesz ją zastąpić, kliknij „Zastąp obecną notatkę”.';
+
+    /** Odcisk wartości widzianej przy otwarciu formularza; null i pusty tekst to różne stany. */
+    public static function odcisk(?string $note): string
+    {
+        return hash('sha256', $note === null ? 'brak:' : 'tekst:'.$note);
+    }
+
+    public function handle(User $user, Collection $collection, string $typ, string $id, ?string $note, string $oczekiwanyOdcisk): ?string
     {
         // Notatkę przy pozycji wspólnego zeszytu pisze każdy, kto może do niego
         // dopisywać (#1743, D-302) — właściciel i współpracownicy.
@@ -69,13 +77,29 @@ final class UpdateCollectionItemNote
         // wyżej jest odczytem sprzed tego zamka, więc pod zamkiem pytamy
         // Policy jeszcze raz — o świeże konto i świeży zeszyt. Kolejność
         // konto → zeszyt jak w `ZamekZapisuDoZeszytu`.
-        $zmienione = DB::transaction(static function () use ($user, $collection, $kolumna, $id, $note): int {
+        $zmienione = DB::transaction(static function () use ($user, $collection, $kolumna, $id, $note, $oczekiwanyOdcisk): int {
             $aktor = User::query()->whereKey($user->getKey())->lock('FOR NO KEY UPDATE')->first()
                 ?? throw new ModelNotFoundException;
             $zeszyt = Collection::query()->whereKey($collection->getKey())->lock('FOR NO KEY UPDATE')->first()
                 ?? throw new ModelNotFoundException;
 
             Gate::forUser($aktor)->authorize('addItem', $zeszyt);
+
+            $pozycja = DB::table('collection_items')
+                ->where('collection_id', $zeszyt->getKey())
+                ->where($kolumna, $id)
+                ->lock('FOR NO KEY UPDATE')
+                ->first(['note']);
+
+            if ($pozycja === null) {
+                throw new ModelNotFoundException;
+            }
+
+            if (! preg_match('/\A[a-f0-9]{64}\z/D', $oczekiwanyOdcisk)
+                || ! hash_equals(self::odcisk($pozycja->note), $oczekiwanyOdcisk)) {
+                throw ValidationException::withMessages(['note' => self::BLAD_KONFLIKTU])
+                    ->errorBag(self::WOREK_BLEDOW);
+            }
 
             return DB::table('collection_items')
                 ->where('collection_id', $zeszyt->getKey())

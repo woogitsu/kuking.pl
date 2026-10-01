@@ -26,11 +26,14 @@ class CollectionItemNoteController extends Controller
 
         $request->validateWithBag(UpdateCollectionItemNote::WOREK_BLEDOW, [
             'note' => ['nullable', 'string'],
+            '_odcisk_notatki' => ['required', 'regex:/\A[a-f0-9]{64}\z/D'],
         ], [
             'note.string' => 'Wpisz notatkę zwykłym tekstem i zapisz jeszcze raz.',
+            '_odcisk_notatki.required' => 'Odśwież zeszyt i spróbuj zapisać notatkę jeszcze raz. Twój tekst pozostanie w polu.',
+            '_odcisk_notatki.regex' => 'Odśwież zeszyt i spróbuj zapisać notatkę jeszcze raz. Twój tekst pozostanie w polu.',
         ]);
 
-        $note = $action->handle($request->user(), $collection, $typ, $pozycja, $request->input('note'));
+        $note = $action->handle($request->user(), $collection, $typ, $pozycja, $request->input('note'), $request->string('_odcisk_notatki')->toString());
 
         return redirect()->back(fallback: route('collections.show', $collection))->with(Komunikat::sukces($note === null
             ? 'Notatka usunięta. Zapis został w zeszycie.'
