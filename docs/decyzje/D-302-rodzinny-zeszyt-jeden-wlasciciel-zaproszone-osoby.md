@@ -49,6 +49,14 @@ wspólnie, wracamy do tej decyzji. Nie rozbudowujemy wtedy modelu członkostwa.
     adresat, każdy inny dostaje 404). Link-zaproszenie ma za poświadczenie
     token w adresie.
 
+**Powrót po rejestracji (#2420).** Gdy osoba bez konta otwiera ważny link,
+middleware zapamiętuje jego adres w sesji. Rejestracja przenosi wyłącznie
+rozpoznany token do krótkiego (najwyżej 2 godziny) zamiaru przypisanego do
+nowego konta. Po ukończeniu lub pominięciu pierwszych kroków wraca na
+podgląd zaproszenia; dołączenie nadal wymaga jej kliknięcia. Przy powrocie
+sprawdzamy ponownie termin, odwołanie i jednorazowość w bazie. Obcy adres
+z sesji ani parametr przekierowania nie są celem powrotu.
+
 **Poza zakresem:** wspólne zeszyty poza najbliższymi (grupy, publiczne
 współtworzenie), role inne niż właściciel i współtwórca, historia zmian.
 
