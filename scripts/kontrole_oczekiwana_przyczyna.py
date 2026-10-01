@@ -37,6 +37,7 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 OCZEKUJ = {
     'Odżywcze: masa razem mnożona przez puszki (#2487)': r'ODZYWCZE_2487_LACZNA_MASA_BEZ_MNOZENIA',
     'Odżywcze: sprzeczna masa wpada w domyślną miarę (#2487)': r'ODZYWCZE_2487_SPRZECZNY_NAWIAS_ODMAWIA',
+    'Szyna zeszytu ponownie czyta całą historię (#2030)': r'SZYNA_2030_CALA_HISTORIA',
     'Bieżący eksport pomija wybór Bez ilości (#2476)': r'EKSPORT_BIEZACY_BEZ_ILOSCI',
     'Ukryty przepis nazwany szkicem w eksporcie (#2479)': r'EKSPORT_UKRYTY_NIE_JEST_SZKICEM',
     'Sam rok rodzinny znika z HTML eksportu (#2478)': r'EKSPORT_ROK_SAM_W_HTML',
