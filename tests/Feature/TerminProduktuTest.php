@@ -413,21 +413,20 @@ class TerminProduktuTest extends TestCase
         $ja = $this->user();
         $produkt = $this->produkt($ja);
 
-        // Każda obserwacja to świeże zapytanie: Larastan 3.12 pamięta wynik wywołania domknięcia z poprzedniej asercji.
         $this->wyslij($ja, $produkt, ['rodzaj' => 'use_by', 'za' => '3']);
-        $this->assertSame(1, ProductSignal::query()->where('signal_name', ZapiszSygnal::PANTRY_EXPIRY_SET)->count());
+        $this->assertSame(1, $this->liczbaSygnalowTerminu());
 
         // Sama ilość / „mrożone” przy tym samym terminie — bez sygnału.
         $this->wyslij($ja, $produkt, ['rodzaj' => 'use_by', 'termin_dzien' => '13', 'termin_miesiac' => '10', 'termin_rok' => '2026', 'ilosc' => 'pół kostki', 'mrozone' => '1']);
-        $this->assertSame(1, ProductSignal::query()->where('signal_name', ZapiszSygnal::PANTRY_EXPIRY_SET)->count());
+        $this->assertSame(1, $this->liczbaSygnalowTerminu());
 
         // Zmiana daty albo rodzaju — sygnał.
         $this->wyslij($ja, $produkt, ['rodzaj' => 'best_before', 'termin_dzien' => '13', 'termin_miesiac' => '10', 'termin_rok' => '2026']);
-        $this->assertSame(2, ProductSignal::query()->where('signal_name', ZapiszSygnal::PANTRY_EXPIRY_SET)->count());
+        $this->assertSame(2, $this->liczbaSygnalowTerminu());
 
         // Wyczyszczenie terminu nie jest „ustawieniem”.
         $this->wyslij($ja, $produkt, ['wyczysc' => '1']);
-        $this->assertSame(2, ProductSignal::query()->where('signal_name', ZapiszSygnal::PANTRY_EXPIRY_SET)->count());
+        $this->assertSame(2, $this->liczbaSygnalowTerminu());
     }
 
     public function test_sygnal_ogladania_priorytetu_leci_raz_na_sesje_a_nie_przy_kazdym_get(): void
@@ -543,5 +542,16 @@ class TerminProduktuTest extends TestCase
         $this->assertNotFalse($pierwszy);
         $this->assertLessThan(strpos($html, 'name="za"'), $pierwszy);
         $this->assertStringContainsString('class="sr-only" tabindex="-1" aria-hidden="true">Zapisz</button>', $html);
+    }
+
+    /**
+     * Każde wywołanie czyta bazę od nowa — Larastan 3.12 inaczej pamięta wynik
+     * `count()` z poprzedniej asercji (method.alreadyNarrowedType).
+     *
+     * @phpstan-impure
+     */
+    private function liczbaSygnalowTerminu(): int
+    {
+        return ProductSignal::query()->where('signal_name', ZapiszSygnal::PANTRY_EXPIRY_SET)->count();
     }
 }
