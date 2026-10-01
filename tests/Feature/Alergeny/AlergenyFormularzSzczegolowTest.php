@@ -192,7 +192,7 @@ final class AlergenyFormularzSzczegolowTest extends TestCase
         // Ta sama lista, bez pola „sprawdzone” — to nie zmiana, więc bez błędu.
         $this->zapisz(['alergeny_formularz' => '1', 'alergeny' => ['eggs'], 'ingredients' => [['text' => 'inna mąka']]])
             ->assertSessionHasNoErrors();
-        $this->assertSame('needs_review', $this->przepis->refresh()->allergen_status);
+        $this->assertSame('needs_review', $this->przepis->fresh()?->allergen_status);
 
         // Zaznaczenie pola „sprawdzone” przy tej samej liście potwierdza ponownie.
         $this->zapisz(['alergeny_formularz' => '1', 'alergeny' => ['eggs'], 'alergeny_potwierdzone' => '1', 'ingredients' => [['text' => 'inna mąka']]])
