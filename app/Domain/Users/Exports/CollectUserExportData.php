@@ -313,6 +313,7 @@ final class CollectUserExportData
             'urodziny' => Urodziny::doEksportu($user),
             'pokazuj_zyczenia_urodzinowe' => (bool) $user->birthday_wishes_enabled,
             'chce_zyczen_urodzinowych_mailem' => (bool) $user->wants_birthday_email,
+            'chce_sobotniego_przypomnienia_o_produktach' => (bool) $user->wants_pantry_reminder,
             'pokazuj_urodziny_obserwujacym' => (bool) $user->birthday_visible_to_followers,
             'usuniecie_konta_zgloszone' => $this->date($user->delete_requested_at),
             // Znacznik ostatniej wizyty (issue #114/#115) — dana osobowa
@@ -1156,7 +1157,7 @@ final class CollectUserExportData
 
     /**
      * Prywatna lista „Co mam w domu” (D-285) — nazwy tak, jak je wpisano,
-     * z datą dodania. Bez kolumn generowanych (`rdzenie`, `klucz`): to są
+     * z datą dodania, terminem, ilością i oznaczeniem „mrożone” (#1903). Bez kolumn generowanych (`rdzenie`, `klucz`): to są
      * techniczne klucze porównania wyliczone z nazwy, nie informacja od osoby.
      *
      * @return list<array<string, mixed>>
@@ -1167,10 +1168,17 @@ final class CollectUserExportData
             ->where('user_id', $user->getKey())
             ->orderBy('name')
             ->orderBy('id')
-            ->get(['name', 'created_at'])
+            ->get(['name', 'created_at', 'expires_on', 'expiry_kind', 'quantity_note', 'frozen'])
             ->map(fn (object $produkt): array => [
                 'produkt' => $produkt->name,
                 'dodano' => $this->date($produkt->created_at),
+                // #1903: termin z opakowania (data bez strefy), jego rodzaj
+                // (`use_by` = „Należy zużyć do”, `best_before` = „Najlepiej
+                // spożyć przed”), ilość jako tekst i oznaczenie „mrożone”.
+                'termin' => $produkt->expires_on,
+                'rodzaj_terminu' => $produkt->expiry_kind,
+                'ilosc' => $produkt->quantity_note,
+                'mrozone' => (bool) $produkt->frozen,
             ])->all();
     }
 

@@ -84,6 +84,7 @@ use App\Http\Controllers\Settings\WczytanieDanychController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SmakowicieController;
 use App\Http\Controllers\SocialController;
+use App\Http\Controllers\SpizarniaPrzypomnienieWypiszController;
 use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TagFollowController;
@@ -292,6 +293,18 @@ Route::match(['get', 'post'], '/urodziny/wypisz/{user}', [UrodzinyWypiszControll
 Route::post('/urodziny/wracam/{user}', [UrodzinyWypiszController::class, 'wracam'])
     ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
     ->name('urodziny.wracam');
+
+// Wypisanie z sobotniego przypomnienia o produktach do zużycia (#1903, D-333).
+// Tak samo jak urodziny wyżej: poza `auth`, autoryzacją jest podpis, GET tylko
+// pyta, zgodę wycofuje POST z tokenem CSRF, „Jednak chcę" włącza ją POST-em.
+Route::match(['get', 'post'], '/spizarnia/wypisz/{user}', [SpizarniaPrzypomnienieWypiszController::class, 'wypisz'])
+    ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
+    ->name('spizarnia.wypisz');
+// Bez `signed`: podpis i ważność sprawdza kontroler, żeby wygasły link dostał
+// przyjazną stronę zamiast 403 (D-333).
+Route::post('/spizarnia/wracam/{user}', [SpizarniaPrzypomnienieWypiszController::class, 'wracam'])
+    ->middleware(["throttle:{$limits['ustawienia']},ustawienia"])
+    ->name('spizarnia.wracam');
 
 // Jasny/ciemny wygląd — poza grupami `auth`/`guest` celowo: to jedyny
 // przełącznik w serwisie, którego GOŚĆ (bez konta) też ma prawo użyć
@@ -1067,6 +1080,21 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/co-mam-w-domu/podpowiedzi', [PantryController::class, 'podpowiedzi'])
         ->middleware("throttle:{$limits['podpowiedzi_skladnikow']},podpowiedzi_skladnikow")
         ->name('pantry.suggestions');
+    // Zgoda na sobotnie przypomnienie o produktach do zużycia (#1903, D-333):
+    // zapisuje wyłącznie zalogowana osoba, dla SWOJEGO konta (bez identyfikatora
+    // w adresie), z dowodem w dzienniku zgód.
+    Route::post('/co-mam-w-domu/przypomnienie', [PantryController::class, 'przypomnienie'])
+        ->middleware("throttle:{$limits['spizarnia']},spizarnia")
+        ->name('pantry.reminder');
+    // Termin, ilość i „mrożone” przy produkcie (#1903). UUID w adresie nie
+    // autoryzuje: decyduje `PantryItemPolicy::update` (tylko właściciel).
+    Route::get('/co-mam-w-domu/{pantryItem}/termin', [PantryController::class, 'edit'])
+        ->whereUuid('pantryItem')
+        ->name('pantry.edit');
+    Route::put('/co-mam-w-domu/{pantryItem}/termin', [PantryController::class, 'update'])
+        ->whereUuid('pantryItem')
+        ->middleware("throttle:{$limits['spizarnia']},spizarnia")
+        ->name('pantry.update');
     Route::delete('/co-mam-w-domu/{pantryItem}', [PantryController::class, 'destroy'])
         ->whereUuid('pantryItem')
         ->middleware("throttle:{$limits['spizarnia']},spizarnia")

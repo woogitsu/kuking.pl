@@ -55,6 +55,30 @@ return [
         'znakow_max' => 240,
     ],
 
+    /*
+     * „ZUŻYJ W PIERWSZEJ KOLEJNOŚCI” (#1903, D-333) — terminy przy produktach
+     * z „Co mam w domu”.
+     *
+     * `pilne_dni` — produkt jest pilny, gdy jego termin minął albo upływa
+     * w ciągu tylu dni od dziś (`PriorytetZuzycia`; „dziś” w Europe/Warsaw).
+     *
+     * `przypomnienie` — sobotni list za OSOBNĄ, domyślnie wyłączoną zgodą
+     * (`users.wants_pantry_reminder`, dziennik zgód D-072). `wlaczone` to
+     * wyłącznik awaryjny wysyłki; `dzienny_sufit` — własny sufit dobowy,
+     * a nad nim wspólna pula w klasie `podsumowanie`
+     * (`DziennyBudzetListow::dlaPrzypomnienSpizarni`). Bez push (D-303).
+     */
+    'pantry' => [
+        'pilne_dni' => (int) env('KUKING_SPIZARNIA_PILNE_DNI', 3),
+
+        'przypomnienie' => [
+            'wlaczone' => (bool) env('KUKING_SPIZARNIA_PRZYPOMNIENIE_WLACZONE', true),
+            'dzienny_sufit' => (int) env('KUKING_SPIZARNIA_PRZYPOMNIENIE_SUFIT', 20),
+            // Ile produktów wymienia list; reszta jako „i jeszcze N”.
+            'produktow_w_liscie' => 10,
+        ],
+    ],
+
     'questions' => [
         'enabled' => env('KUKING_QUESTIONS_ENABLED', false),
     ],

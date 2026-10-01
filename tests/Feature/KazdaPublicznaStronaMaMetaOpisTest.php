@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Digest\OdnosnikWypisania;
+use App\Domain\Pantry\OdnosnikWypisaniaZPrzypomnienia;
 use App\Domain\Recipes\Actions\SnapshotRecipeVersion;
 use App\Domain\Rocznice\OdnosnikWypisaniaZUrodzin;
 use App\Domain\UgotujmyRazem\TydzienGotowania;
@@ -232,6 +233,8 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             'podsumowanie.wracam' => OdnosnikWypisania::powrotDla($autor),
             // Wypisanie z listu urodzinowego (#1755) — podpisany adres, `noindex`.
             'urodziny.wypisz' => OdnosnikWypisaniaZUrodzin::dla($autor),
+            // Wypisanie z sobotniego przypomnienia o produktach (#1903) — podpisany adres, `noindex`.
+            'spizarnia.wypisz' => OdnosnikWypisaniaZPrzypomnienia::dla($autor),
         ];
 
         $zbadanych = 0;

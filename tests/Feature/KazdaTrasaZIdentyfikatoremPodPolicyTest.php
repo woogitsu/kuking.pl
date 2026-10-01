@@ -949,6 +949,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             URL::signedRoute('urodziny.wypisz', ['user' => $wlasciciel->getKey()]), [], [$W, $W, $W, $W, $W]);
         $dodaj('urodziny.wracam', 'powrót do listu urodzinowego (podpisany link)', 'post',
             URL::signedRoute('urodziny.wracam', ['user' => $wlasciciel->getKey()]), [], [$W, $W, $W, $W, $W]);
+        // Sobotnie przypomnienie o produktach (#1903) — ta sama zasada co urodziny.
+        $dodaj('spizarnia.wypisz', 'wypisanie z sobotniego przypomnienia (podpisany link)', 'get',
+            URL::signedRoute('spizarnia.wypisz', ['user' => $wlasciciel->getKey()]), [], [$W, $W, $W, $W, $W]);
+        $dodaj('spizarnia.wracam', 'powrót do sobotniego przypomnienia (podpisany link)', 'post',
+            URL::signedRoute('spizarnia.wracam', ['user' => $wlasciciel->getKey()]), [], [$W, $W, $W, $W, $W]);
         $dodaj('settings.email.confirm', 'potwierdzenie zmiany adresu', 'get',
             URL::signedRoute('settings.email.confirm', ['zmiana' => $this->zmianaAdresu->getKey()]), [],
             [$W, $C, $C, $C, $O]);
@@ -1130,6 +1135,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $produktZListy = $wlasciciel->pantryItems()->create(['name' => 'mąka']);
         $dodaj('pantry.destroy', 'usunięcie produktu z listy „Co mam w domu”', 'delete',
             route('pantry.destroy', $produktZListy), [], [$W, $O, $O, $O, $O]);
+        // Termin, ilość i „mrożone” (#1903): tylko właściciel, bez wyjątku
+        // dla moderatora (`PantryItemPolicy::update`).
+        $produktDoTerminu = $wlasciciel->pantryItems()->create(['name' => 'jajka']);
+        $dodaj('pantry.edit', 'ekran „Ustaw termin” przy produkcie z listy', 'get',
+            route('pantry.edit', $produktDoTerminu), [], [$W, $O, $O, $O, $O]);
+        $dodaj('pantry.update', 'zapis terminu przy produkcie z listy', 'put',
+            route('pantry.update', $produktDoTerminu), ['rodzaj' => 'nieznany'], [$W, $O, $O, $O, $O]);
         // ZMIANA STATUSU WŁAŚCICIELA MA ZAWĘŻAĆ, NIGDY NIE ROZSZERZAĆ (#1092).
         //
         // Dwa wiersze na tej samej trasie, różniące się WYŁĄCZNIE flagą
@@ -1337,6 +1349,28 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'opis' => 'powrót do listu urodzinowego BEZ podpisu',
             'metoda' => 'post',
             'url' => route('urodziny.wracam', $wlasciciel),
+            'dane' => [],
+            'oczekiwania' => array_combine(
+                ['wlasciciel', 'obcy', 'zablokowany', 'moderator', 'gosc'],
+                [$O, $O, $O, $O, $O],
+            ),
+        ];
+        $this->przypadki[] = [
+            'trasa' => 'spizarnia.wracam',
+            'opis' => 'powrót do sobotniego przypomnienia BEZ podpisu',
+            'metoda' => 'post',
+            'url' => route('spizarnia.wracam', $wlasciciel),
+            'dane' => [],
+            'oczekiwania' => array_combine(
+                ['wlasciciel', 'obcy', 'zablokowany', 'moderator', 'gosc'],
+                [$O, $O, $O, $O, $O],
+            ),
+        ];
+        $this->przypadki[] = [
+            'trasa' => 'spizarnia.wypisz',
+            'opis' => 'wypisanie z sobotniego przypomnienia BEZ podpisu',
+            'metoda' => 'get',
+            'url' => route('spizarnia.wypisz', $wlasciciel),
             'dane' => [],
             'oczekiwania' => array_combine(
                 ['wlasciciel', 'obcy', 'zablokowany', 'moderator', 'gosc'],

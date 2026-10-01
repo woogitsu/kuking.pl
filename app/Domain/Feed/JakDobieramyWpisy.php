@@ -78,6 +78,13 @@ final class JakDobieramyWpisy
                     'szukaj.osoby' => 'Osoby układamy według tego, jak bardzo nazwa przypomina wpisane słowa.',
                 ],
             ],
+            'spizarnia' => [
+                'tytul' => 'Co ugotuję z tego, co mam',
+                'zdania' => [
+                    'spizarnia.domyslnie' => 'Przepisy układamy według tego, ile składników z Twojej listy „Co mam w domu” już masz, a przy takiej samej liczbie — od tego, który zajmuje najmniej czasu.',
+                    'spizarnia.termin' => 'Po wybraniu „Najpierw to, co się psuje” na górze są przepisy, w których jest najwięcej Twoich produktów z krótkim terminem. Kolejność ustawia tylko data, którą wpisujesz Ty przy swoim produkcie.',
+                ],
+            ],
             'list' => [
                 'tytul' => 'Tygodniowy e-mail',
                 'zdania' => [
