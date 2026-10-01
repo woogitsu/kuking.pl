@@ -219,7 +219,7 @@
                 <a class="btn btn-secondary" href="{{ route('search') }}">Szukaj</a>
             @endif
             <x-field name="name" label="Nazwa zeszytu" required placeholder="Na święta" />
-            <x-field name="description" label="Krótki opis" type="textarea" :rows="2" />
+            <x-field name="description" label="Krótki opis" type="textarea" :rows="2" dyktowanie />
             {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty
                  ARIA wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
             <fieldset class="border-0 p-0 mt-4" id="f-visibility"

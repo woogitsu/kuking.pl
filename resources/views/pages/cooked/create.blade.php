@@ -121,7 +121,7 @@
             @error('media_ids.*')<span class="field-error" id="f-media-ids-error">{{ $message }}</span>@enderror
         </div>
 
-        <x-field name="note" label="Jak wyszło?" type="textarea" :rows="4"
+        <x-field name="note" label="Jak wyszło?" type="textarea" :rows="4" dyktowanie
                  help="Na przykład: „Wyszło pięknie, tylko soli mniej.”" />
 
         {{-- POMOC MÓWI, CO TU WPISAĆ I GDZIE TO TRAFI, A NIE JAK CZĘSTO
@@ -138,7 +138,7 @@
              Nowe zdanie mówi rzecz sprawdzalną przy kodzie: notatka trafia na
              kartę wykonania (`components/cooked-card.blade.php`), podpisana
              dokładnie tak. --}}
-        <x-field name="changes_note" label="Coś po swojemu?" type="textarea" :rows="3"
+        <x-field name="changes_note" label="Coś po swojemu?" type="textarea" :rows="3" dyktowanie
                  help="Zamiana składnika, inny czas, inna forma. Pokażemy to przy Twoim wykonaniu, podpisane „Po swojemu”." />
 
         <x-field name="actual_minutes" label="Ile Ci to zajęło (w minutach)" type="number"

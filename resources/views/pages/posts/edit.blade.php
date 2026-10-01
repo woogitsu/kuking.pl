@@ -50,6 +50,7 @@
             name="body"
             :label="$question ? 'Napisz trochę więcej' : 'Napisz kilka słów'"
             type="textarea"
+            dyktowanie
             :rows="5"
             :value="$post->body"
             help="Na przykład: „Rosół na niedzielę, z kaczki od sąsiada. Wyszedł złoty.”"

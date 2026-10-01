@@ -91,6 +91,12 @@
      * dokładanie licznika tam byłoby szumem bez odbiorcy.
      */
     'licznikZnakow' => null,
+    // Dyktowanie jest jawnie włączane tylko przy polach tekstu użytkownika.
+    // Sam typ textarea nie upoważnia do mikrofonu (moderacja, prawo, readonly).
+    'dyktowanie' => false,
+    'dyktowanieSeparator' => 'spacja',
+    'readonly' => false,
+    'disabled' => false,
 ])
 @php
     /*
@@ -165,6 +171,8 @@
     }
 
     $licznikZnakow = $type === 'textarea' ? $licznikZnakow : null;
+    $pokazDyktowanie = $dyktowanie && $type === 'textarea' && auth()->check()
+        && ! $readonly && ! $disabled;
     $describedBy = collect([
         $help ? $id.'-help' : null,
         $licznikZnakow ? $id.'-licznik' : null,
@@ -193,6 +201,8 @@
                   @if($binding) {{ $binding }}="{{ $wire }}" @endif
                   @if($placeholder) placeholder="{{ $placeholder }}" @endif
                   @if($required) required @endif
+                  @if($readonly) readonly @endif
+                  @if($disabled) disabled @endif
                   @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
                   @if($error) aria-invalid="true" @endif
                   {{--
@@ -206,6 +216,14 @@
                   --}}
                   @if($licznikZnakow) data-licznik="{{ $licznikZnakow }}" data-licznik-cel="{{ $id }}-licznik" @endif
         >{{ $current }}</textarea>
+        @if($pokazDyktowanie)
+            {{-- Pusty host: bez Web Speech API nie ma martwego przycisku.
+                 Cel bierze dokładnie ten sam id co textarea, także w pętli. --}}
+            <div data-dyktowanie data-cel="{{ $id }}" data-separator="{{ $dyktowanieSeparator }}"
+                 data-wstaw-napis="Wstaw do pola"
+                 data-zdanie="Twoja przeglądarka może wysyłać dźwięk do dostawcy rozpoznawania mowy (np. Google lub Apple). Serwis nie nagrywa dźwięku i nie dostaje go — tylko tekst, który wstawisz do pola i wyślesz."
+                 wire:ignore></div>
+        @endif
     @else
         <input class="field-input" id="{{ $id }}" name="{{ $name }}" type="{{ $type }}"
                value="{{ $current }}"
