@@ -9,6 +9,7 @@ use App\Domain\Search\FrazaWUgotowanych;
 use App\Domain\Sharing\KartaZKodemQr;
 use App\Domain\Users\DawneNazwyProfilu;
 use App\Http\Requests\Profile\ProfilRequest;
+use App\Http\Support\PrzekierowanieDawnejNazwy;
 use App\Models\Block;
 use App\Models\CookedEvent;
 use App\Models\Media;
@@ -60,7 +61,7 @@ class ProfileController extends Controller
         // linki). Dopiero gdy pod nazwą nie ma żywego profilu; Policy tak
         // samo jak niżej, odmowa to 404 (`DawneNazwyProfilu`).
         if ($profile === null) {
-            $przekierowanie = (new DawneNazwyProfilu)->przekierowanie($request, $request->user(), $username, 'profile.show');
+            $przekierowanie = PrzekierowanieDawnejNazwy::dla($request, $request->user(), $username, 'profile.show');
 
             abort_if($przekierowanie === null, 404);
 

@@ -8,7 +8,7 @@ use App\Domain\Kanaly\Kanal;
 use App\Domain\Kanaly\KluczeKanalu;
 use App\Domain\Kanaly\TresciKanalu;
 use App\Domain\Kanaly\ZapisAtom;
-use App\Domain\Users\DawneNazwyProfilu;
+use App\Http\Support\PrzekierowanieDawnejNazwy;
 use App\Models\Collection;
 use App\Models\Profile;
 use App\Models\Tag;
@@ -71,7 +71,7 @@ final class KanalAtomController
         // Dawna nazwa → 301 na kanał pod aktualną nazwą (czytniki zapisują
         // adres kanału). Widz to zawsze gość — kanał jest poza sesją.
         if ($profil === null) {
-            $przekierowanie = (new DawneNazwyProfilu)->przekierowanie($request, null, $username, 'kanaly.profil');
+            $przekierowanie = PrzekierowanieDawnejNazwy::dla($request, null, $username, 'kanaly.profil');
 
             abort_if($przekierowanie === null, 404);
 

@@ -6,8 +6,6 @@ namespace App\Domain\Users;
 
 use App\Models\Profile;
 use App\Models\User;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
@@ -105,13 +103,13 @@ final class DawneNazwyProfilu
     }
 
     /**
-     * 301 na ten sam ekran pod aktualną nazwą (ta sama trasa, te same
-     * parametry zapytania) albo `null` — wtedy wołający odpowiada 404.
-     * `$widz` to osoba oglądająca; dla kanału Atom zawsze gość.
-     *
-     * @param  string  $trasa  nazwa trasy z parametrem `username`
+     * Profil, na który wolno przekierować z dawnej nazwy, albo `null` —
+     * wtedy wołający odpowiada 404 (bez `Location`, żeby nie zdradzić nowej
+     * nazwy). `$widz` to osoba oglądająca; dla kanału Atom zawsze gość.
+     * Samo przekierowanie HTTP składa adapter
+     * `App\Http\Support\PrzekierowanieDawnejNazwy` — domena nie zna HTTP (#970).
      */
-    public function przekierowanie(Request $request, ?User $widz, string $nazwa, string $trasa): ?RedirectResponse
+    public function profilDoPrzekierowania(?User $widz, string $nazwa): ?Profile
     {
         $profil = $this->profilPoDawnejNazwie($nazwa);
         $wlasciciel = $profil?->user;
@@ -126,14 +124,6 @@ final class DawneNazwyProfilu
             return null;
         }
 
-        // Bez jawnego zakazu cache przeglądarka (a czytnik kanałów, który
-        // omija warstwę `web`) mogłaby zapamiętać 301 na stałe. Po powrocie
-        // osoby do dawnej nazwy dwa zapamiętane przekierowania (A → B i B → A)
-        // dałyby u tego odwiedzającego pętlę. Profil i podstrony dostają
-        // to samo z `PreventSharedSessionCache`; kanał Atom stoi poza nim.
-        $odpowiedz = redirect()->route($trasa, [...$request->query(), 'username' => $profil->username], 301);
-        $odpowiedz->headers->set('Cache-Control', 'private, no-store');
-
-        return $odpowiedz;
+        return $profil;
     }
 }

@@ -8,8 +8,8 @@ use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Social\Actions\UnblockUser;
 use App\Domain\Social\Actions\UnfollowUser;
-use App\Domain\Users\DawneNazwyProfilu;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Http\Support\PrzekierowanieDawnejNazwy;
 use App\Models\Profile;
 use App\Models\User;
 use App\Support\Komunikat;
@@ -217,7 +217,7 @@ class SocialController extends Controller
 
         // Dawna nazwa → 301 na tę samą listę pod aktualną nazwą.
         if ($profilWDanejNazwie === null) {
-            $przekierowanie = (new DawneNazwyProfilu)->przekierowanie(
+            $przekierowanie = PrzekierowanieDawnejNazwy::dla(
                 $request,
                 $request->user(),
                 $username,
