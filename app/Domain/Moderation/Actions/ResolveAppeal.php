@@ -170,6 +170,12 @@ final class ResolveAppeal
         // treść (`RestoreContent`) albo konto. Nikt inny nie bierze blokady
         // odwołania, więc ta kolejność nie ma z kim się odwrócić. Pomiar:
         // `tests/Dwa/RozpatrzenieOdwolaniaNaDwochPolaczeniachTest.php`.
+        // Wskazówka od gotujących (#2352): cofnięcie albo nowa decyzja blokuje
+        // konta kucharza i autora przepisu, więc idą z aktorem jednym przebiegiem
+        // rosnąco po `id` (jak „Wycofaj zgodę”).
+        $pierwotna = ModerationAction::query()->whereKey($odwolanie->moderation_action_id)->first(['id', 'target_type', 'target_id']);
+        $konta = $pierwotna?->target_type === 'recipe_hint' ? RecipeHint::kontaDoBlokady($pierwotna->target_id) : [];
+
         return ZamekUprzywilejowanegoAktora::wykonaj($moderator, function (User $swiezy) use ($odwolanie, $wynik, $uzasadnienie, $ip, $nowaDecyzja): Appeal {
             Gate::forUser($swiezy)->authorize('resolveAppeals', User::class);
 
@@ -240,7 +246,7 @@ final class ResolveAppeal
             );
 
             return $zablokowane;
-        });
+        }, $konta);
     }
 
     private function sprawdzKarencje(User $moderator, ModerationAction $decyzja): void

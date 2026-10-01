@@ -187,6 +187,25 @@ class RecipeHint extends Model
     }
 
     /**
+     * Konta, które decyzja moderacyjna o tej wskazówce zablokuje (kucharz i autor
+     * przepisu) — do `ZamekUprzywilejowanegoAktora::wykonaj()`, żeby wszystkie
+     * wiersze `users` szły jednym przebiegiem rosnąco po `id`. Odczyt bez
+     * blokady; pusta lista, gdy wskazówki nie ma.
+     *
+     * @return list<string>
+     */
+    public static function kontaDoBlokady(?string $id): array
+    {
+        if ($id === null) {
+            return [];
+        }
+
+        $wiersz = self::query()->whereKey($id)->first(['id', 'cook_id', 'author_id']);
+
+        return $wiersz === null ? [] : [(string) $wiersz->cook_id, (string) $wiersz->author_id];
+    }
+
+    /**
      * Wskazówka pod blokadą do decyzji moderacyjnej. Kolejność zamków jak w
      * akcjach kucharza i autora (`ZamekPary`): oba konta rosnąco po `id`, potem
      * wiersz wskazówki — odwrotna kolejność zakleszczałaby się z „Wycofaj

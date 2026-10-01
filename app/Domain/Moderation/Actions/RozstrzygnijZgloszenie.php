@@ -90,6 +90,11 @@ final class RozstrzygnijZgloszenie
          * `FOR KEY SHARE` na wierszu osoby). Kolejność blokad: zamek ról →
          * aktor → zgłoszenie → osoba ukarana.
          */
+        // Wskazówka od gotujących (#2352): konta kucharza i autora przepisu idą do
+        // jednego, posortowanego przebiegu z aktorem — inaczej moderator będący
+        // autorem przepisu odwracał kolejność względem „Wycofaj zgodę” (40P01).
+        $konta = $report->target_type === 'recipe_hint' ? RecipeHint::kontaDoBlokady($report->target_id) : [];
+
         return ZamekUprzywilejowanegoAktora::wykonaj($moderator, function (User $swiezy) use ($report, $data, $termin, $ip) {
             $moderator = $swiezy;
 
@@ -321,7 +326,7 @@ final class RozstrzygnijZgloszenie
             );
 
             return $akcja;
-        });
+        }, $konta);
     }
 
     /**
