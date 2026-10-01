@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use DOMDocument;
+use DOMElement;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -35,6 +36,7 @@ final class DostepnoscWyboruFormyTest extends TestCase
         $this->assertCount(3, $radia);
         $this->assertCount(0, $xpath->query('//*[@id="f-form_of_address-error"]'));
         foreach ($radia as $radio) {
+            $this->assertInstanceOf(DOMElement::class, $radio);
             $this->assertSame('forma-zwracania-pomoc', $radio->getAttribute('aria-describedby'));
             $this->assertFalse($radio->hasAttribute('aria-invalid'));
             $this->assertFalse($radio->hasAttribute('tabindex'), 'Natywne radio pozostaje w kolejności Tab.');
@@ -44,12 +46,12 @@ final class DostepnoscWyboruFormyTest extends TestCase
     private function sprawdzBlad(string $strona, string $zapis, string $metoda): void
     {
         $osoba = $this->user('basia');
-        $this->actingAs($osoba)->from(route($strona))
+        $this->actingAs($osoba)->get(route($strona))->assertOk();
+        // Zmierzenie rzeczywistej drogi POST → walidacja → redirect → HTML.
+        // Osobny GET po asercji redirectu gubił flash w sztucznej sesji testu.
+        $html = $this->followingRedirects()->from(route($strona))
             ->{$metoda}(route($zapis), ['form_of_address' => 'spoza-listy'])
-            ->assertRedirect(route($strona))
-            ->assertSessionHasErrors('form_of_address');
-
-        $html = $this->get(route($strona))->assertOk()->getContent();
+            ->assertOk()->getContent();
         $dokument = new DOMDocument;
         $dokument->loadHTML($html, LIBXML_NOERROR | LIBXML_NOWARNING);
         $xpath = new DOMXPath($dokument);
@@ -65,13 +67,20 @@ final class DostepnoscWyboruFormyTest extends TestCase
         $this->assertCount(1, $grupa);
         $this->assertCount(3, $radia);
         $this->assertCount(1, $podsumowanie);
-        $this->assertSame('true', $grupa->item(0)->getAttribute('aria-invalid'));
-        $this->assertSame('-1', $grupa->item(0)->getAttribute('tabindex'));
-        $this->assertSame('-1', $podsumowanie->item(0)->getAttribute('tabindex'));
+        $elementGrupy = $grupa->item(0);
+        $elementBledu = $blad->item(0);
+        $elementPodsumowania = $podsumowanie->item(0);
+        $this->assertInstanceOf(DOMElement::class, $elementGrupy);
+        $this->assertInstanceOf(DOMElement::class, $elementBledu);
+        $this->assertInstanceOf(DOMElement::class, $elementPodsumowania);
+        $this->assertSame('true', $elementGrupy->getAttribute('aria-invalid'));
+        $this->assertSame('-1', $elementGrupy->getAttribute('tabindex'));
+        $this->assertSame('-1', $elementPodsumowania->getAttribute('tabindex'));
         $this->assertCount(1, $xpath->query('//div[contains(concat(" ", normalize-space(@class), " "), " error-summary ")]//a[@href="#f-form_of_address"]'));
-        $this->assertStringContainsString('Zaznacz jedną z trzech odpowiedzi', $blad->item(0)->textContent);
+        $this->assertStringContainsString('Zaznacz jedną z trzech odpowiedzi', $elementBledu->textContent);
 
         foreach ($radia as $radio) {
+            $this->assertInstanceOf(DOMElement::class, $radio);
             $this->assertSame('true', $radio->getAttribute('aria-invalid'));
             $this->assertSame(
                 ['forma-zwracania-pomoc', 'f-form_of_address-error'],
