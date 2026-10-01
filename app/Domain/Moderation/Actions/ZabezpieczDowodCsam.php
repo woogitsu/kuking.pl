@@ -196,10 +196,11 @@ final class ZabezpieczDowodCsam
 
                 $blokada = $this->zablokujKonto($swiezy, $osoba, $zgloszenie, $decyzja);
 
-                // JEDNO powiadomienie dla autora: o blokadzie (zdanie z procedury),
-                // a gdy blokady nie było — o usunięciu treści (zdanie domyślne).
+                // JEDNO powiadomienie dla autora: o decyzji CSAM także wtedy,
+                // gdy konto było już zablokowane z innego powodu; bez prawa do
+                // sankcji zostaje zwykła wiadomość o usunięciu treści.
                 if ($osoba !== null) {
-                    $blokada['zablokowano']
+                    $blokada['decyzja'] !== null
                         ? $this->powiadom->handle($osoba, ModerationAction::ACTION_BAN, self::WIADOMOSC_BLOKADY, null, $blokada['decyzja'])
                         : $this->powiadom->handle($osoba, ModerationAction::ACTION_REMOVE, null, null, $decyzja);
                 }
@@ -380,11 +381,10 @@ final class ZabezpieczDowodCsam
             return $wynik;
         }
 
-        if ($osoba->status === User::STATUS_BANNED) {
-            $wynik['juz'] = true;
-
-            return $wynik;
-        }
+        $juzZablokowane = $osoba->status === User::STATUS_BANNED
+            || (in_array($osoba->status, [User::STATUS_PENDING_DELETE, User::STATUS_ERASED], true)
+                && $osoba->punishment_status === User::STATUS_BANNED);
+        $wynik['juz'] = $juzZablokowane;
 
         if ($moderator->cannot('sanctionAccount', $osoba)) {
             $wynik['powod'] = $osoba->isAdmin()
@@ -394,12 +394,14 @@ final class ZabezpieczDowodCsam
             return $wynik;
         }
 
-        try {
-            $osoba->ban();
-        } catch (OdmowaOstatniegoAdministratora $odmowa) {
-            $wynik['powod'] = $odmowa->getMessage();
+        if (! $juzZablokowane) {
+            try {
+                $osoba->ban();
+            } catch (OdmowaOstatniegoAdministratora $odmowa) {
+                $wynik['powod'] = $odmowa->getMessage();
 
-            return $wynik;
+                return $wynik;
+            }
         }
 
         // Druga decyzja jest „z urzędu” (bez `report_id`): jedno zgłoszenie =
@@ -417,7 +419,10 @@ final class ZabezpieczDowodCsam
             'note' => 'Blokada razem z zabezpieczeniem dowodu (decyzja '.$decyzjaTresci->getKey().').',
             'user_message' => self::WIADOMOSC_BLOKADY,
         ]);
-        $wynik['zablokowano'] = true;
+        // Nowa decyzja BAN jest potrzebna nawet przy wcześniejszej blokadzie:
+        // uchylenie starej sankcji nie może usunąć blokady CSAM. Sam status
+        // zmienia się tylko wtedy, gdy przed tą operacją nie był zablokowany.
+        $wynik['zablokowano'] = ! $juzZablokowane;
 
         return $wynik;
     }
