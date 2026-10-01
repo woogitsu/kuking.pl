@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -531,38 +532,39 @@ final class OdczytZdjeciaKartkiTest extends TestCase
         Http::assertSentCount(1);
     }
 
-    public function test_reczna_zmiana_podczas_odczytu_modelu_wygrywa_z_jego_pozniejsza_odpowiedzia(): void
+    /** @return array<string, array{string, string|float}> */
+    public static function polaRecznejEdycji(): array
+    {
+        return [
+            'nazwa' => ['title', 'Moja poprawiona nazwa'],
+            'opis' => ['summary', 'To m?j w?asny opis kartki.'],
+            'porcje' => ['servings', 6.0],
+        ];
+    }
+
+    #[DataProvider('polaRecznejEdycji')]
+    public function test_reczna_zmiana_podczas_odczytu_modelu_wygrywa_z_jego_pozniejsza_odpowiedzia(string $pole, string|float $oczekiwane): void
     {
         $this->zgoda();
-        config(['kuking.import.budzet.dzienny_usd' => 30]);
-        $pole = 'title';
-        $szkic = null;
-        $oczekiwane = null;
-
-        Http::fake(['api.openai.com/*' => function (Request $request) use (&$pole, &$szkic, &$oczekiwane) {
-            $this->assertNotNull($szkic);
-            $oczekiwane = $this->zmienTylkoPoleSzkicu($szkic, $pole);
+        $zlecenie = $this->zlecenieBezWysylki();
+        $szkic = $zlecenie->recipe;
+        $this->assertSame(0, $szkic->content_revision);
+        Http::fake(['api.openai.com/*' => function (Request $request) use ($pole, $szkic) {
+            $this->zmienTylkoPoleSzkicu($szkic, $pole);
 
             return Http::response($this->odpowiedzModelu(self::ODPOWIEDZ));
         }]);
 
-        foreach (['title', 'summary', 'servings'] as $pole) {
-            $zlecenie = $this->zlecenieBezWysylki();
-            $szkic = $zlecenie->recipe;
-            $this->assertSame(0, $szkic->content_revision);
+        $this->app->call([new OdczytajPrzepis((string) $zlecenie->getKey()), 'handle']);
 
-            $this->app->call([new OdczytajPrzepis((string) $zlecenie->getKey()), 'handle']);
-
-            $this->assertSame($oczekiwane, $szkic->fresh()->{$pole}, 'REWIZJA_SZKICU_2520_PO_MODELU_'.$pole);
-            $this->assertSame(ImportPrzepisu::KOD_SZKIC_ZMIENIONY, $zlecenie->fresh()->kod_bledu, 'REWIZJA_SZKICU_2520_PO_MODELU_'.$pole);
-            $this->assertSame(ImportPrzepisu::STATUS_NIEUDANY, $zlecenie->fresh()->status);
-            $this->assertSame(1, $szkic->fresh()->content_revision);
-            $this->actingAs($this->osoba)->get(route('import.show', $zlecenie))
-                ->assertOk()
-                ->assertSee('W tym szkicu jest już Twój tekst, więc niczego w nim nie nadpisaliśmy.');
-        }
-
-        Http::assertSentCount(3);
+        $this->assertSame($oczekiwane, $szkic->fresh()->{$pole}, 'REWIZJA_SZKICU_2520_PO_MODELU_'.$pole);
+        $this->assertSame(ImportPrzepisu::KOD_SZKIC_ZMIENIONY, $zlecenie->fresh()->kod_bledu, 'REWIZJA_SZKICU_2520_PO_MODELU_'.$pole);
+        $this->assertSame(ImportPrzepisu::STATUS_NIEUDANY, $zlecenie->fresh()->status);
+        $this->assertSame(1, $szkic->fresh()->content_revision);
+        $this->actingAs($this->osoba)->get(route('import.show', $zlecenie))
+            ->assertOk()
+            ->assertSee('W tym szkicu jest ju? Tw?j tekst, wi?c niczego w nim nie nadpisali?my.');
+        Http::assertSentCount(1);
     }
 
     public function test_ponowienie_po_samej_recznej_zmianie_pola_nie_rezerwuje_nowego_odczytu(): void
@@ -727,6 +729,7 @@ final class OdczytZdjeciaKartkiTest extends TestCase
             'title' => 'Moja poprawiona nazwa',
             'summary' => 'To mój własny opis kartki.',
             'servings' => 6.0,
+            default => throw new \InvalidArgumentException('Test nie obsługuje tego pola szkicu.'),
         };
 
         app(PublishRecipe::class)->handle(
