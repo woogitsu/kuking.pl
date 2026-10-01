@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { createServer } from 'node:net';
 import { chromium } from 'playwright';
 
-assert.equal(process.env.APP_ENV, 'testing');
+assert.equal(process.env.APP_ENV, 'local');
 assert.equal(process.env.DB_HOST, '127.0.0.1');
 assert.match(process.env.DB_DATABASE ?? '', /^kuking_port_confirm_[a-z0-9_]+$/);
 assert.match(process.env.DB_PORT ?? '', /^\d+$/);
@@ -67,6 +67,11 @@ async function checkScreen(page, path, item, id, statePath) {
   assert.equal(await details.getAttribute('open'), null, `${item}: pytanie ma być początkowo zamknięte.`);
   const before = rows(statePath);
   assert.ok(before[item], `${item}: brakuje rekordu przed testem.`);
+  // W realnym serwerze, poza APP_ENV=testing, formularz bez tokenu MUSI
+  // zostać odrzucony. To pilnuje, że scenariusz nie omija ochrony CSRF.
+  const withoutToken = await page.request.post(target, { data: { _method: 'DELETE' } });
+  assert.equal(withoutToken.status(), 419, `${item}: formularz bez CSRF nie został odrzucony.`);
+  assert.deepEqual(rows(statePath), before, `${item}: żądanie bez CSRF zmieniło dane.`);
   const mutations = [];
   page.on('request', request => {
     if (!['GET', 'HEAD'].includes(request.method())) mutations.push(`${request.method()} ${request.url()}`);

@@ -17,7 +17,7 @@ $app->make(Kernel::class)->bootstrap();
 
 $baza = (string) DB::connection()->getDatabaseName();
 $port = (string) DB::connection()->getConfig('port');
-if (! $app->environment('testing') || DB::connection()->getDriverName() !== 'pgsql'
+if (! $app->environment('local') || DB::connection()->getDriverName() !== 'pgsql'
     || DB::connection()->getConfig('host') !== '127.0.0.1'
     || ! preg_match('/^kuking_port_confirm_[a-z0-9_]+$/', $baza)
     || ! ctype_digit($port) || (int) $port === 5432 || $port !== getenv('CONFIRM_BROWSER_DB_PORT')) {
