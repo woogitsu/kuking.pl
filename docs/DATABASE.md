@@ -6655,6 +6655,13 @@ Ograniczenia (nowa tabela, więc razem z `CREATE TABLE` — AGENTS.md §6):
   `recipe_hints_cook_idx (cook_id, status)` (kucharz, eksport, wymazanie),
   `recipe_hints_author_idx (author_id, created_at)` (limity, eksport).
 
+**Cache brzegu (`KUKING_HTML_EDGE_CACHE_SECONDS` > 0).** Sekcja wskazówek jest
+częścią HTML `recipes.show`, a aplikacja nie czyści tego cache przy zmianie
+wskazówki (czyszczenie dotyczy tylko zdjęć). Gość może więc widzieć wskazówkę po
+wycofaniu zgody (albo ukryciu przez moderację) **do TTL** (najwyżej 300 s);
+wycofanie zgody działa w aplikacji od razu, opóźnienie dotyczy wyłącznie kopii u
+brzegu. Opis okna: `docs/infra/CLOUDFLARE_CACHE_597_610.md`.
+
 **Reguły (Policy `RecipeHintPolicy`, akcje pod blokadą).**
 
 - *Tylko autor przepisu proponuje* (`propose`): wykonanie cudzego, z niepustą

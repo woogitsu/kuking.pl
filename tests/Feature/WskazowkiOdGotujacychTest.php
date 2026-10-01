@@ -538,7 +538,7 @@ final class WskazowkiOdGotujacychTest extends TestCase
             ->assertOk()
             ->assertSee('Halina prosi o zgodę na wskazówkę')
             ->assertSee('Rosół babci')
-            ->assertSee('Twoja uwaga pokaże się tam tylko wtedy, gdy się zgodzisz.');
+            ->assertSee('Bez Twojej zgody uwaga nie pojawi się przy przepisie.');
 
         $powiadomienie = Notification::query()->where('type', Notification::TYPE_HINT_PROPOSED)->sole();
         $this->actingAs($kucharz)->post(route('notifications.open', $powiadomienie))
