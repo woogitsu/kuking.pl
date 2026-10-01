@@ -318,6 +318,20 @@ class WykonaniePamietaWersjePrzepisuTest extends TestCase
         $this->assertSame(1, $this->iloscKolumn());
     }
 
+    public function test_cofniecie_po_przerwanym_up_bez_kolumny_nie_rzuca_bledem_sql(): void
+    {
+        // Przerwane `up()` mogło zostawić bazę bez kolumny; rollback ma to
+        // przyjąć, a nie liczyć wskaźników w kolumnie, której nie ma.
+        DB::statement('ALTER TABLE cooked_events DROP COLUMN recipe_version_id');
+        $this->assertSame(0, $this->iloscKolumn());
+
+        Artisan::call('migrate:rollback', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
+        $this->assertSame(0, $this->iloscKolumn());
+
+        Artisan::call('migrate', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
+        $this->assertSame(1, $this->iloscKolumn());
+    }
+
     private function iloscKolumn(): int
     {
         return count(DB::select(

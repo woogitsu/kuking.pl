@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Własne wykonanie pamięta wersję przepisu, którą kucharz miał otwartą
@@ -78,7 +79,12 @@ return new class extends Migration
             return;
         }
 
-        $przypiete = DB::table('cooked_events')->whereNotNull('recipe_version_id')->count();
+        // Po przerwanym `up()` kolumny może nie być: wtedy nie ma czego liczyć
+        // (zapytanie o brakującą kolumnę rzuciłoby błędem SQL), a sprzątanie
+        // niżej jest idempotentne (`IF EXISTS`).
+        $przypiete = Schema::hasColumn('cooked_events', 'recipe_version_id')
+            ? DB::table('cooked_events')->whereNotNull('recipe_version_id')->count()
+            : 0;
 
         if ($przypiete > 0) {
             throw new RuntimeException(
