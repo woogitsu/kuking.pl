@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Exceptions\KontrolaZdrowiaNieprzeszla;
+use App\Http\Controllers\HealthController;
 use App\Models\Media;
 use App\Models\ZabezpieczenieDowodu;
 use App\Support\Zdrowie\Powody;
@@ -34,14 +35,24 @@ final class ZalegleWariantyDowoduSondaTest extends TestCase
 
     public function test_dowod_przed_progiem_i_po_trwalym_zakonczeniu_nie_alarmuje(): void
     {
+        config(['kuking.health.token' => 'sonda-kolejki-test-2437']);
+        $naglowki = [HealthController::NAGLOWEK_TOKENU => 'sonda-kolejki-test-2437'];
         $zdjecie = $this->dowod();
         app(SondaKolejki::class)->sprawdz();
+        $this->get('/health', $naglowki)
+            ->assertOk()
+            ->assertJsonPath('checks.kolejka.ok', true)
+            ->assertJsonMissingPath('checks.kolejka.error');
 
         $zdjecie->update(['metadata' => array_merge($zdjecie->metadata, [
             Media::METADANE_WARIANTY_DOWODU_PRZENIESIONE_AT => now()->toIso8601String(),
         ])]);
         $this->travel(16)->minutes();
         app(SondaKolejki::class)->sprawdz();
+        $this->get('/health', $naglowki)
+            ->assertOk()
+            ->assertJsonPath('checks.kolejka.ok', true)
+            ->assertJsonMissingPath('checks.kolejka.error');
     }
 
     public function test_pusty_lub_null_znacznik_nie_wycisza_alarmu(): void
