@@ -9,6 +9,7 @@
     </p>
 
     <h1>Wszystko gotowe, {{ $name }}</h1>
+    <x-error-summary />
 
     <p class="text-lead">
         {{-- Zdanie z `docs/brand/COPY_STYLE.md` §6 („koniec onboardingu"),

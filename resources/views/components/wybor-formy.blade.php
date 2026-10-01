@@ -25,6 +25,8 @@
 @php
     $zaznaczone = old('form_of_address', $profile->formOfAddressChoice());
     $imie = $profile->display_name;
+    $bladFormy = $errors->has('form_of_address');
+    $opisFormy = 'forma-zwracania-pomoc'.($bladFormy ? ' f-form_of_address-error' : '');
 @endphp
 @if(\App\Support\Forma::wyborDostepny())
 <form method="POST" action="{{ $akcja }}" class="wybor-formy" id="forma-zwracania">
@@ -33,7 +35,8 @@
         @method($metoda)
     @endif
 
-    <fieldset class="field @error('form_of_address') has-error @enderror">
+    <fieldset id="f-form_of_address" class="field @if($bladFormy) has-error @endif"
+              @if($bladFormy) tabindex="-1" aria-invalid="true" aria-describedby="{{ $opisFormy }}" @endif>
         <legend>Jak mamy do Ciebie pisać?</legend>
         <p class="field-help" id="forma-zwracania-pomoc">
             Wybór dotyczy tylko brzmienia tekstów. Domyślnie piszemy neutralnie, bez formy żeńskiej ani męskiej. Wybrana forma zmienia teksty do Ciebie
@@ -42,9 +45,10 @@
 
         <div class="choice-grid">
             <label class="choice">
-                <input type="radio" name="form_of_address" id="f-form_of_address"
+                <input type="radio" name="form_of_address" id="f-form_of_address-feminine"
                        value="{{ \App\Models\Profile::FORM_FEMININE }}"
-                       aria-describedby="forma-zwracania-pomoc"
+                       aria-describedby="{{ $opisFormy }}"
+                       @if($bladFormy) aria-invalid="true" @endif
                        @checked($zaznaczone === \App\Models\Profile::FORM_FEMININE)>
                 <span>
                     <span class="choice-label">Forma żeńska</span>
@@ -55,7 +59,8 @@
             <label class="choice">
                 <input type="radio" name="form_of_address"
                        value="{{ \App\Models\Profile::FORM_MASCULINE }}"
-                       aria-describedby="forma-zwracania-pomoc"
+                       aria-describedby="{{ $opisFormy }}"
+                       @if($bladFormy) aria-invalid="true" @endif
                        @checked($zaznaczone === \App\Models\Profile::FORM_MASCULINE)>
                 <span>
                     <span class="choice-label">Forma męska</span>
@@ -66,7 +71,8 @@
             <label class="choice">
                 <input type="radio" name="form_of_address"
                        value="{{ \App\Models\Profile::FORM_NEUTRAL }}"
-                       aria-describedby="forma-zwracania-pomoc"
+                       aria-describedby="{{ $opisFormy }}"
+                       @if($bladFormy) aria-invalid="true" @endif
                        @checked($zaznaczone === \App\Models\Profile::FORM_NEUTRAL)>
                 <span>
                     <span class="choice-label">Forma neutralna</span>
@@ -74,7 +80,7 @@
                 </span>
             </label>
         </div>
-        @error('form_of_address')<span class="field-error">{{ $message }}</span>@enderror
+        <x-blad-grupy name="form_of_address" />
     </fieldset>
 
     <div class="form-actions">

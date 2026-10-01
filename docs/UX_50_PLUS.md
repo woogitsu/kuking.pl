@@ -130,6 +130,9 @@ Do tego dwie rzeczy wokół samego zdania:
    ISTNIEJĄCEJ kotwicy `#f-<nazwa pola>`. Pola z `x-field` dostają to same;
    grupy `radio`/`checkbox` i pola plikowe trzeba opisać ręcznie — wzorzec
    i uzasadnienie w `resources/views/components/blad-grupy.blade.php`;
+   przy radiowym wyborze formy zwracania się każde radio wskazuje identyfikator
+   pomocy i, po błędzie, identyfikator komunikatu; grupa ma kotwicę dla
+   podsumowania, a ono po nieudanym zapisie przejmuje fokus;
 5. **poprawne dane nie znikają** — także w grupach wyboru. `checked` wpisane
    na sztywno zamiast `old()` cicho zmieniało widoczność zakładanego zeszytu
    z „Wszyscy" na „Tylko ja" po każdej nieudanej walidacji.
