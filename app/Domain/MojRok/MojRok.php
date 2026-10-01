@@ -71,7 +71,7 @@ final class MojRok
         $dania = Post::query()
             ->where('author_id', $user->getKey())
             ->published()
-            ->enabledKinds()
+            ->where('posts.kind', Post::KIND_DISH)
             ->where('hide_as_memory', false)
             ->where('published_at', '>=', $od)
             ->where('published_at', '<', $do)
@@ -133,7 +133,7 @@ final class MojRok
         $zWpisow = Post::query()
             ->where('author_id', $user->getKey())
             ->published()
-            ->enabledKinds()
+            ->where('posts.kind', Post::KIND_DISH)
             ->where('hide_as_memory', false)
             ->selectRaw('distinct extract(year from published_at at time zone ?)::int as rok', [$strefa])
             ->pluck('rok');

@@ -101,7 +101,7 @@ class MojRokTest extends TestCase
         $tresc = $this->tresc($ja);
 
         $this->assertStringContainsString('Opublikowane dania: <strong>2</strong>', $tresc);
-        $this->assertStringContainsString('<strong>6</strong>', $tresc);
+        $this->assertStringContainsString('Zaznaczone „Ugotowałem”: <strong>6</strong> razy', $tresc);
         $this->assertStringContainsString('Zupa ogórkowa', $tresc);
         $this->assertStringContainsString('3 razy', $tresc);
         $this->assertStringContainsString('Bigos myśliwski', $tresc);
@@ -126,7 +126,7 @@ class MojRokTest extends TestCase
         $tresc = $this->tresc($ja);
 
         $this->assertStringNotContainsString('Opublikowane dania', $tresc);
-        $this->assertStringContainsString('<strong>1</strong>', $tresc);
+        $this->assertStringContainsString('Zaznaczone „Ugotowałem”: <strong>1</strong> raz', $tresc);
         $this->assertStringNotContainsString('Zofia Obca', $tresc);
 
         // Adres nie ma miejsca na identyfikator konta: dowolny dopisek jest
@@ -149,10 +149,10 @@ class MojRokTest extends TestCase
         $this->wpis($ja, '2026-02-02 12:00:00');
         $this->wpis($ja, '2026-02-03 12:00:00');
 
-        $this->assertStringContainsString('<strong>3</strong>', $this->tresc($ja));
+        $this->assertStringContainsString('Opublikowane dania: <strong>3</strong>', $this->tresc($ja));
 
         $cudze = $this->tresc($ona);
-        $this->assertStringNotContainsString('<strong>3</strong>', $cudze);
+        $this->assertStringNotContainsString('Opublikowane dania', $cudze);
         $this->assertStringContainsString('W tym roku nic tu jeszcze nie ma', $cudze);
     }
 
@@ -178,8 +178,9 @@ class MojRokTest extends TestCase
             'zawieszony' => true,
         ], $werdykty);
 
-        // Zamknięte konto nie dostaje ekranu także po HTTP (middleware albo Policy).
-        $this->assertNotSame(200, $this->actingAs($zbanowany->fresh())->get('/moj-rok')->getStatusCode());
+        // Zamknięte konto nie dostaje ekranu także po HTTP: middleware wylogowuje
+        // i odsyła do logowania (302), nie wpuszcza na stronę.
+        $this->actingAs($zbanowany->fresh())->get('/moj-rok')->assertRedirect(route('login'));
     }
 
     public function test_konto_zawieszone_dalej_widzi_swoj_dorobek(): void
@@ -207,7 +208,7 @@ class MojRokTest extends TestCase
         }
 
         $przed = $this->tresc($ja);
-        $this->assertStringContainsString('<strong>10</strong>', $przed);
+        $this->assertStringContainsString('Zaznaczone „Ugotowałem”: <strong>10</strong> razy', $przed);
 
         $usuniety->delete();
         $prywatny->forceFill(['visibility' => 'private'])->save();
@@ -217,7 +218,7 @@ class MojRokTest extends TestCase
         $po = $this->tresc($ja);
 
         $poKrokach = [
-            'liczba wykonań' => str_contains($po, '<strong>2</strong>'),
+            'liczba wykonań' => str_contains($po, 'Zaznaczone „Ugotowałem”: <strong>2</strong> razy'),
             'widoczny' => str_contains($po, 'Zostaje na liście'),
             'usunięty' => str_contains($po, 'Usunięty przepis'),
             'prywatny' => str_contains($po, 'Prywatny cudzy'),
@@ -265,7 +266,7 @@ class MojRokTest extends TestCase
 
         $tresc = $this->tresc($ja);
 
-        $this->assertStringContainsString('<strong>1</strong>', $tresc);
+        $this->assertStringContainsString('Zaznaczone „Ugotowałem”: <strong>1</strong> raz', $tresc);
         // Jedno widoczne wykonanie to nie „najczęściej”.
         $this->assertStringNotContainsString('Gotowane najczęściej', $tresc);
     }
@@ -298,7 +299,8 @@ class MojRokTest extends TestCase
     {
         $ja = $this->user();
 
-        // 31.12.2025 23:30 czasu polskiego to jeszcze 2025, choć w UTC bywa już 2026.
+        // 31.12.2025 23:30 czasu polskiego (22:30 UTC) to jeszcze 2025 także w UTC;
+        // granicę w strefie człowieka sprawdza poniższy wpis i test wykonań.
         $this->wpis($ja, '2025-12-31 23:30:00');
         // 1.01.2026 00:30 czasu polskiego to 2026, choć w UTC bywa jeszcze 2025.
         $this->wpis($ja, '2026-01-01 00:30:00');
@@ -320,6 +322,58 @@ class MojRokTest extends TestCase
         $this->actingAs($ja)->get('/moj-rok/2027')->assertNotFound();
         $this->actingAs($ja)->get('/moj-rok/'.(MojRok::biezacyRok() - MojRok::MAKS_LAT_WSTECZ - 1))->assertNotFound();
         $this->actingAs($ja)->get('/moj-rok/abc')->assertNotFound();
+    }
+
+    public function test_bardzo_dluga_liczba_w_adresie_to_404_a_nie_blad_serwera(): void
+    {
+        $ja = $this->user();
+
+        foreach (['99999999999999999999', '12345', '202'] as $rok) {
+            $this->actingAs($ja)->get('/moj-rok/'.$rok)->assertNotFound();
+        }
+    }
+
+    public function test_licznik_dan_nie_liczy_pytan_gdy_pytania_sa_wlaczone(): void
+    {
+        config(['kuking.questions.enabled' => true]);
+        $ja = $this->user();
+
+        $this->wpis($ja);
+        $this->wpis($ja, '2026-02-02 12:00:00', ['kind' => Post::KIND_QUESTION, 'title' => 'Jak długo gotować jajka?']);
+        $this->wpis($ja, '2026-02-03 12:00:00', ['kind' => Post::KIND_QUESTION, 'title' => 'Czym zastąpić śmietanę?']);
+
+        $this->assertStringContainsString('Opublikowane dania: <strong>1</strong>', $this->tresc($ja));
+
+        // Rok z samymi pytaniami nie jest rokiem z daniami: nie ma go na liście lat.
+        $inna = $this->user();
+        $this->wpis($inna, '2025-05-05 12:00:00', ['kind' => Post::KIND_QUESTION, 'title' => 'Pytanie sprzed roku']);
+
+        $this->assertSame([2026], app(MojRok::class)->lata($inna));
+    }
+
+    public function test_granica_roku_w_strefie_czlowieka_dla_wykonan_i_listy_lat(): void
+    {
+        $ja = $this->user();
+        $przepis = Recipe::factory()->create(['title' => 'Przepis graniczny']);
+
+        // 31.12.2024 23:30 czasu polskiego (22:30 UTC) to 2024, 1.01.2025 00:30
+        // czasu polskiego (31.12.2024 23:30 UTC) to już 2025 — choć w UTC jest
+        // jeszcze 2024. Dwa wykonania, żeby przepis wszedł do „najczęściej”.
+        $this->wykonanie($ja, $przepis, '2024-12-31 23:30:00');
+        $this->wykonanie($ja, $przepis, '2025-01-01 00:30:00');
+        $this->wykonanie($ja, $przepis, '2025-01-01 00:45:00');
+
+        $podsumowania = [];
+        foreach ([2024, 2025] as $rok) {
+            $podsumowania[$rok] = app(MojRok::class)->podsumowanie($ja, $rok)['wykonania'];
+        }
+
+        $this->assertSame([2024 => 1, 2025 => 2], $podsumowania);
+        $this->assertSame([2026, 2025, 2024], app(MojRok::class)->lata($ja));
+
+        $tresc = $this->tresc($ja, '/moj-rok/2025');
+        $this->assertStringContainsString('Zaznaczone „Ugotowałem”: <strong>2</strong> razy', $tresc);
+        $this->assertStringContainsString('Przepis graniczny', $tresc);
     }
 
     public function test_wylaczone_wspomnienia_gaszą_ekran_ale_niczego_nie_kasuja(): void

@@ -1152,11 +1152,12 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // `collections.*`, żeby pozycja „Moje” w nawigacji była bieżąca.
     Route::get('/zeszyt/moje-wpisy', MojeWpisyController::class)->name('collections.own-posts');
     // „Mój rok w kuchni” (#2353, D-333): prywatne podsumowanie roku, tylko
-    // dla właściciela. Bez identyfikatora konta w adresie; rok to liczba
-    // z zakresu sprawdzanego w kontrolerze. Poza `/zeszyt/{collection}`.
+    // dla właściciela. Bez identyfikatora konta w adresie; rok to cztery cyfry
+    // (dłuższa liczba nie mieści się w int), zakres sprawdza kontroler.
+    // Poza `/zeszyt/{collection}`.
     Route::get('/moj-rok', MojRokController::class)->name('moj-rok.show');
     Route::get('/moj-rok/{rok}', MojRokController::class)
-        ->whereNumber('rok')
+        ->where('rok', '[0-9]{4}')
         ->name('moj-rok.rok');
     // Cofnięcie publicznego udostępnienia bez kasowania zeszytu (issue #777).
     // Własny klucz `zeszyt`, nie `usuwanie` — to nie jest akcja destrukcyjna.
