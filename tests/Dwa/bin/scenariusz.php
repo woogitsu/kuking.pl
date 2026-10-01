@@ -624,7 +624,7 @@ try {
         ) ? 'odebrano' : 'nie-bylo',
 
         // Wspólne gotowanie (#2385): dwie osoby odhaczają TEN SAM krok naraz
-        // i dwie osoby przyjmują TEN SAM jednorazowy link naraz. Wołamy akcje
+        // i dwie osoby przyjmują TEN SAM wielorazowy link naraz. Wołamy akcje
         // domenowe, nie przepisany SQL — test ma pęknąć, jeśli zniknie blokada
         // wiersza sesji albo zamek pary w `ZaproszenieDoGotowania`.
         'wspolne-krok' => app(PostepWspolnegoGotowania::class)->ustaw(
@@ -642,6 +642,16 @@ try {
             User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             CookingSession::query()->whereKey($argumenty['sesja'])->firstOrFail(),
         )[0]->status,
+
+        // Gospodarz odwołuje link w chwili, gdy ktoś go przyjmuje.
+        'wspolne-odwolaj-link' => (function () use ($argumenty): string {
+            app(ZaproszenieDoGotowania::class)->odwolaj(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                CookingSession::query()->whereKey($argumenty['sesja'])->firstOrFail(),
+            );
+
+            return 'odwolano';
+        })(),
 
         // Dwa równoległe uruchomienia przypomnień o urodzinach (#2318).
         // Cisza nocna wyłączona (od = do), żeby wynik nie zależał od godziny.

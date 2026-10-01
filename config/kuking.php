@@ -3356,11 +3356,12 @@ return [
         // `kuking:sprzataj-wspolne-gotowanie` ją kasuje.
         'retencja_godziny' => 24,
 
-        // Ile godzin żyje jednorazowy link zaproszenia (nigdy dłużej niż sesja).
+        // Ile godzin żyje link zaproszenia (nigdy dłużej niż sesja). Link jest
+        // wielorazowy: wpuszcza kolejne osoby aż do `max_pomocnikow`.
         'link_godziny' => 24,
 
         // Ilu pomocników obok gospodarza: do trzech (decyzja właściciela z
-        // 1.10.2026, wiersz „#2385” w D-333). Jeden link zaprasza jedną osobę.
+        // 1.10.2026, wiersz „#2385” w D-333). Jeden link wpuszcza do tylu osób (decyzja z 1.10.2026).
         'max_pomocnikow' => 3,
 
         // Ile niewygasłych sesji naraz może mieć jeden gospodarz.

@@ -62,7 +62,7 @@ class WspolneGotowanieController extends Controller
         }
 
         return redirect()->route('wspolne-gotowanie.show', $sesja)
-            ->with(Komunikat::sukces('Sesja gotowa. Utwórz link i wyślij go jednej osobie — zobaczy ten sam przepis i ten sam postęp. Pomocników może być do trzech, każdego zapraszasz osobnym linkiem.'));
+            ->with(Komunikat::sukces('Sesja gotowa. Utwórz link i wyślij go osobom, które zapraszasz — zobaczą ten sam przepis i ten sam postęp. Jeden link wpuści do trzech osób.'));
     }
 
     public function show(Request $request, CookingSession $cookingSession): View|Response
@@ -193,7 +193,7 @@ class WspolneGotowanieController extends Controller
         // jego skrót. Sesja trzyma go do następnego wyświetlenia strony.
         return redirect()->route('wspolne-gotowanie.show', $cookingSession)
             ->with('link_zaproszenia', route('wspolne-gotowanie.link.show', $token))
-            ->with(Komunikat::sukces('Link jest gotowy. Skopiuj go i wyślij jednej osobie.'));
+            ->with(Komunikat::sukces('Link jest gotowy. Skopiuj go i wyślij osobom, które zapraszasz — wpuści do '.max(1, (int) config('kuking.wspolne_gotowanie.max_pomocnikow', 3)).' osób.'));
     }
 
     public function odwolajLink(Request $request, CookingSession $cookingSession): RedirectResponse
@@ -203,7 +203,7 @@ class WspolneGotowanieController extends Controller
         $this->zaproszenia->odwolaj($request->user(), $cookingSession);
 
         return redirect()->route('wspolne-gotowanie.show', $cookingSession)
-            ->with(Komunikat::sukces('Link odwołany. Nikt już z niego nie dołączy.'));
+            ->with(Komunikat::sukces('Link odwołany. Nikt już z niego nie dołączy; osoby, które już są w sesji, zostają.'));
     }
 
     public function usunPomocnika(Request $request, CookingSession $cookingSession, string $user): RedirectResponse
@@ -270,7 +270,10 @@ class WspolneGotowanieController extends Controller
             return redirect()->route('wspolne-gotowanie.show', $sesja);
         }
 
-        if (! $moze) {
+        // Komplet pomocników: link nie ma już dokąd wpuścić, więc nie kusimy przyciskiem.
+        $maxPomocnikow = max(1, (int) config('kuking.wspolne_gotowanie.max_pomocnikow', 3));
+
+        if (! $moze || $sesja->pomocnicy()->count() >= $maxPomocnikow) {
             return response()->view('pages.wspolne-gotowanie.link-nieaktualny', [], 410)
                 ->header('Referrer-Policy', 'no-referrer');
         }
@@ -281,6 +284,7 @@ class WspolneGotowanieController extends Controller
             'gospodarz' => $sesja->host,
             'token' => $token,
             'wazneDo' => $zaproszenie->expires_at,
+            'maxPomocnikow' => $maxPomocnikow,
         ])->header('Referrer-Policy', 'no-referrer');
     }
 

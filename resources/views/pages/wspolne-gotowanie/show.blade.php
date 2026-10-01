@@ -121,11 +121,13 @@
                     <p class="notice" role="note">{{ $ostrzezenieOWidocznosci }}</p>
                 @endif
 
-                <p class="m-0">Link działa raz i wygasa po {{ (int) config('kuking.wspolne_gotowanie.link_godziny') }} godzinach. Kto go otworzy, musi się zalogować, widzieć ten przepis i potwierdzić, że dołącza. Jeden link zaprasza jedną osobę, a w sesji może być do {{ $maxPomocnikow }} pomocników. Pomocnicy mogą odhaczać kroki; zapraszać, usuwać kogoś i kończyć sesję możesz tylko Ty.</p>
+                <p class="m-0">Jeden link wpuści do {{ $maxPomocnikow }} osób i wygasa po {{ (int) config('kuking.wspolne_gotowanie.link_godziny') }} godzinach. Możesz go odwołać w każdej chwili. Kto go otworzy, musi się zalogować, widzieć ten przepis i potwierdzić, że dołącza. Pomocnicy mogą odhaczać kroki; zapraszać, usuwać kogoś i kończyć sesję możesz tylko Ty.</p>
+
+                <p class="notice" role="note">Każdy, kto dostanie ten link, może dołączyć — do {{ $maxPomocnikow }} osób.</p>
 
                 @if(session('link_zaproszenia'))
                     <div class="field">
-                        <label class="field-label" for="wg-link">Twój link — skopiuj go i wyślij jednej osobie</label>
+                        <label class="field-label" for="wg-link">Twój link — skopiuj go i wyślij osobom, które zapraszasz</label>
                         <input class="field-input" id="wg-link" type="text" readonly value="{{ session('link_zaproszenia') }}" data-link-zaproszenia>
                         <p class="field-help">Ten link pokazujemy tylko teraz. Gdy go zgubisz, utwórz nowy — poprzedni przestanie działać.</p>
                     </div>
@@ -135,11 +137,11 @@
                 @enderror
 
                 @if($oczekujace)
-                    <p class="meta m-0">Jest link, na który nikt jeszcze nie odpowiedział (ważny do {{ \App\Support\Czas::data($oczekujace->expires_at, 'j F, H:i') }}).</p>
+                    <p class="meta m-0">Jest działający link (ważny do {{ \App\Support\Czas::data($oczekujace->expires_at, 'j F, H:i') }}).</p>
                     <x-confirm-button
                         :action="route('wspolne-gotowanie.link.destroy', $sesja)"
                         label="Odwołaj link"
-                        question="Odwołać ten link? Nikt już z niego nie dołączy." />
+                        question="Odwołać ten link? Nikt już z niego nie dołączy; osoby, które są już w sesji, zostają." />
                 @endif
 
                 @if($jestMiejsce)

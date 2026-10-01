@@ -36,8 +36,9 @@ Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 W trybie gotowania jest przycisk „Gotuj z kimś”. Zakłada wspólną sesję jednego
 przepisu: wysyłacie link, a każda zaproszona osoba — po zalogowaniu
 i potwierdzeniu — widzi ten sam przepis i te same odhaczone kroki co Wy.
-W sesji może być gospodarz i do trzech pomocników; każdego zapraszacie osobnym
-linkiem, który działa raz. Przy każdym kroku jest duży przycisk „Zrobione”
+W sesji może być gospodarz i do trzech pomocników; zapraszacie jednym linkiem,
+który wpuści do trzech osób. Każdy, kto dostanie ten link, może dołączyć, więc
+wysyłajcie go tylko tym, których zapraszacie. Przy każdym kroku jest duży przycisk „Zrobione”
 (i „Cofnij”), a obok widać, kto go odhaczył i o której. Wszyscy w sesji widzą
 nawzajem swoje nazwy. Osoby, z których któraś zablokowała drugą, nie trafią do
 jednej sesji. Pomocników zaprasza i usuwa oraz sesję kończy tylko gospodarz;

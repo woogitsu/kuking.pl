@@ -15,7 +15,7 @@ jest decyzja właściciela, wybrano wariant bezpieczniejszy i zapisano pytanie
 ## 1. Czym jest sesja (i czym nie jest)
 
 Sesja = jeden przepis, jedna osoba **gospodarz** (zakłada), do niej dołączają
-**pomocnicy** (każdy po własnym, jednorazowym linku) — **do trzech** (decyzja
+**pomocnicy** (wszyscy tym samym linkiem, który wpuszcza do trzech osób) — **do trzech** (decyzja
 właściciela z 1.10.2026, patrz pytanie 1). Wszyscy widzą ten sam przepis i **ten
 sam wspólny postęp kroków**. Nie ma czatu, wiadomości prywatnych, rankingu,
 feedu, publikacji ani powiadomień — AGENTS.md §12, zgłoszenie #2385
@@ -47,41 +47,50 @@ blokady między pomocnikami, widok i eksport dla wielu osób).
 
 ## 3. Zaproszenie
 
-- **Jednorazowy link** z losowym tokenem (40 znaków). W bazie leży wyłącznie
+- **Wielorazowy link (do 3 osób)** z losowym tokenem (40 znaków). W bazie leży wyłącznie
   **SHA-256 tokenu** (`token_hash`, jak `collection_invitations`, D-302);
   token istnieje w odpowiedzi jeden raz i nie da się go odczytać z bazy ani
   z eksportu. Kolumna jest poświadczeniem — poza `$fillable`.
 - **Wygasa po 24 h** (`link_godziny`), nigdy później niż sesja; kończąc sesję
   gospodarz kasuje też zaproszenia.
   Jeden aktywny link naraz: nowy link unieważnia poprzedni.
-- **Jeden link = jedna osoba (rozstrzygnięte przy wielu pomocnikach).** Zostaje
-  to, co dawał schemat: częściowy unikalny indeks „najwyżej jeden oczekujący
-  link na sesję”. Link przyjęty przez osobę jest zużyty; żeby zaprosić kolejną,
-  gospodarz tworzy następny link (ekran sesji pokazuje „Zaproś pomocnika (2 z
-  3)”). Powody: (a) link wielorazowy, wysłany na grupowy czat, wpuszcza
-  każdego, kto go zobaczy — pierwsze trzy osoby, nie te, które gospodarz miał
-  na myśli; (b) odwołanie i ślad „kto przyjął który link” zostają proste;
-  (c) nie trzeba zmieniać schematu ani ponownie przemyśleć retencji skrótu.
-  Koszt: nowy link unieważnia poprzedni, jeśli nikt jeszcze go nie przyjął —
-  ekran mówi to przy przycisku. Przy pełnym komplecie gospodarz nie utworzy
-  linku, dopóki nie usunie któregoś pomocnika.
+- **Link wielorazowy do 3 osób (decyzja właściciela z 1.10.2026; zastępuje
+  wcześniejsze „jeden link = jedna osoba”).** Jeden żywy link (`pending`,
+  niewygasły, nieodwołany) przyjmuje kolejne osoby, aż sesja ma tylu pomocników,
+  ile pozwala `max_pomocnikow` (3). Przyjęcie **nie zużywa** linku i nie zmienia
+  wiersza zaproszenia. Link kończy się trzema drogami: wygasa (`link_godziny`),
+  gospodarz go odwołuje, gospodarz tworzy nowy (nowy unieważnia stary; częściowy
+  unikalny indeks „najwyżej jeden żywy link na sesję” zostaje). Czwartą drogą
+  jest usunięcie pomocnika przez gospodarza: odwołuje żywy link, bo inaczej
+  usunięta osoba wróciłaby nim od razu. Wyjście własne pomocnika linku nie rusza.
+  Ryzyko, które właściciel przyjął: **każdy, kto dostanie link, może dołączyć**
+  (np. link przekazany dalej albo wklejony na grupowy czat) — dlatego ekran
+  gospodarza ostrzega zdaniem „Każdy, kto dostanie ten link, może dołączyć — do
+  3 osób.”, a odwołanie jest zawsze pod ręką („Odwołaj link”). Mitygacje, które
+  zostają: link ważny 24 h i nie dłużej niż sesja, każdy dołączający widzi przepis
+  wg `RecipePolicy::view`, brak blokady z gospodarzem i z obecnymi pomocnikami,
+  a gospodarz usuwa każdego. Przy pełnym komplecie strona linku mówi to samo
+  zdanie co każda odmowa, a gospodarz nie utworzy nowego linku, dopóki nie
+  usunie któregoś pomocnika.
 - **Odwołanie przez gospodarza:** „Odwołaj link” (status `revoked`, kasuje
-  skrót tokenu). Gospodarz kończąc sesję kasuje też wszystkie zaproszenia.
-- **Jednorazowość:** przyjęcie zużywa link (status `accepted`) pod blokadą
-  wiersza sesji i zamkiem pary kont; dwa równoległe przyjęcia dają jedno
-  członkostwo. Przyjęty link zachowuje skrót tokenu do końca sesji (CHECK
-  w bazie), żeby drugie kliknięcie „Dołączam” tej samej osoby było sukcesem bez
-  skutku; ten sam link nie wpuszcza nikogo innego ani osoby usuniętej z sesji.
-  Odwołany link traci skrót.
+  skrót tokenu). Odwołanie nie wyrzuca osób, które już weszły. Gospodarz kończąc
+  sesję kasuje też wszystkie zaproszenia.
+- **Przyjęcie** dzieje się pod blokadą wiersza sesji i zamkiem pary kont (kolejność
+  blokad: konta `ZamekPary`, potem sesja; zaproszenie czytane dopiero pod blokadą
+  sesji). Limit, odwołanie, nowy link i przyjęcie szereguje ten sam wiersz sesji:
+  dwie różne osoby przy jednym wolnym miejscu to dokładnie jedna wchodząca;
+  przyjęcie stojące w kolejce za odwołaniem dostaje odmowę. Osoba, która już jest
+  pomocnikiem, i klika „Dołączam” drugi raz, dostaje sukces bez skutku (tylko
+  dopóki link jest żywy).
 - Wejście na adres linku (GET) **niczego nie zużywa** i nie ujawnia treści
   przepisu osobie bez uprawnień (sekcja 4). Link bez dostępu = jedno zdanie:
   „Nie możesz dołączyć do tej sesji. Poproś gospodarza o nowy link.” — to samo
-  zdanie dla tokenu nieznanego, wygasłego, odwołanego, zużytego i dla braku
+  zdanie dla tokenu nieznanego, wygasłego, odwołanego, przy komplecie osób i dla braku
   dostępu do przepisu (adres nie jest wyrocznią).
 - Limit żądań: istniejący `zaproszenia` (20/10 min) dla tras zaproszeń,
   `cooking_krok` (60/min) dla odhaczeń i odczytu stanu. Nowych kluczy limitów
   nie dokładamy.
-- Odwołany/zużyty wiersz zaproszenia żyje do końca sesji (to ślad „kto kiedy”),
+- Odwołany wiersz zaproszenia żyje do końca sesji (to ślad „kto kiedy”),
   potem znika razem z nią.
 
 ## 4. Kto może dołączyć (autoryzacja — sedno projektu)
@@ -271,8 +280,9 @@ etap 2 (pytanie 3).
 - `cooking_session_invitations` — `id`, `session_id` (FK, cascade),
   `token_hash` (częściowy unikalny indeks), `status`
   (`pending|accepted|revoked`), `expires_at`, `accepted_by_id`
-  (FK `SET NULL`), `responded_at`. Oczekujący i przyjęty link mają skrót,
-  odwołany go nie ma (CHECK).
+  (FK `SET NULL`), `responded_at`. Żywy (`pending`) link ma skrót, odwołany go
+  nie ma (CHECK). Od decyzji z 1.10.2026 o linku wielorazowym `accepted` i
+  `accepted_by_id` nie są ustawiane (nieużywane pozostałości, bez migracji).
 - Pola sterujące i poświadczenia (`status`, `role`, `token_hash`, klucze
   osób, `revision`, `expires_at`) **nigdy w `$fillable`** (wszystkie modele
   mają pusty `$fillable`; zapis przez nazwane akcje).
@@ -317,7 +327,7 @@ Jedna kolejność we wszystkich akcjach sesji: **konta → wiersz sesji →
 
 ## 12. Testy (z kontrolą ujemną)
 
-Token cudzy / nieznany / wygasły / odwołany / zużyty; przepis prywatny
+Token cudzy / nieznany / wygasły / odwołany / komplet osób w sesji; przepis prywatny
 (link nie otwiera, tytuł się nie ujawnia); przepis „dla obserwujących” bez
 obserwowania; blokada gospodarz↔pomocnik przed i po dołączeniu; zawieszone
 konto (czyta, nie odhacza); nie-członek = 404 dla ekranu, odhaczenia i
@@ -334,9 +344,11 @@ i wymazanie każdego z uczestników (`WspolneGotowanieWieluPomocnikowTest`); wyg
 ## Pytania do właściciela (z wybranym bezpieczniejszym wariantem domyślnym)
 
 1. **Ile osób?** ROZSTRZYGNIĘTE (decyzja właściciela z 1.10.2026): gospodarz i
-   **do trzech pomocników** (`max_pomocnikow` = 3). Jeden link zaprasza jedną
-   osobę (sekcja 3); blokada między pomocnikami — wypada zablokowany (sekcja
-   8). Pierwotnie wybrano jednego pomocnika jako wariant bezpieczniejszy.
+   **do trzech pomocników** (`max_pomocnikow` = 3). **Link: ROZSTRZYGNIĘTE
+   (decyzja właściciela z 1.10.2026) — wielorazowy, wpuszcza do 3 osób**
+   (sekcja 3), zamiast „jeden link = jedna osoba”; blokada między pomocnikami —
+   wypada zablokowany (sekcja 8). Pierwotnie wybrano jednego pomocnika jako
+   wariant bezpieczniejszy.
 2. **Wersja przepisu.** Zgłoszenie mówi i „konkretna wersja”, i „aktualna
    wersja”. Wybrano **aktualną** (jak tryb gotowania i #2016; krok usunięty z
    przepisu wypada z sesji). Czy sesja ma zamrażać wersję z chwili startu?

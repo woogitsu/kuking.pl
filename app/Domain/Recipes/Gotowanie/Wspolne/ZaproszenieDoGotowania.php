@@ -14,17 +14,21 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 /**
- * Jednorazowy link do wspólnego gotowania: utworzenie, odwołanie, przyjęcie
- * (#2385). Projekt i uzasadnienia: `docs/product/PROJEKT_WSPOLNE_GOTOWANIE_2385.md`.
+ * Link do wspólnego gotowania (wielorazowy, do trzech osób): utworzenie,
+ * odwołanie, przyjęcie (#2385). Projekt i uzasadnienia: `docs/product/PROJEKT_WSPOLNE_GOTOWANIE_2385.md`.
  *
  * TOKEN: 40 losowych znaków, jawny istnieje wyłącznie w wyniku `utworz()`.
  * W bazie leży jego SHA-256. Tokenu nie wolno logować ani wkładać do wyjątków.
  *
  * WIELU POMOCNIKÓW (decyzja właściciela z 1.10.2026): gospodarz i do trzech
- * pomocników (`kuking.wspolne_gotowanie.max_pomocnikow`). Zaproszenie to
- * wciąż JEDEN link dla JEDNEJ osoby i najwyżej jeden oczekujący naraz w sesji
- * (częściowy unikalny indeks); żeby zaprosić kolejną osobę, gospodarz tworzy
- * następny link po przyjęciu poprzedniego.
+ * pomocników (`kuking.wspolne_gotowanie.max_pomocnikow`). LINK JEST
+ * WIELORAZOWY (decyzja właściciela z 1.10.2026, zastępuje „jeden link = jedna
+ * osoba”): jeden żywy link (`pending`, niewygasły, nieodwołany) przyjmuje
+ * kolejne osoby, aż w sesji jest komplet pomocników. Przyjęcie NIE zużywa
+ * linku i nie zmienia wiersza zaproszenia; kończy go wygaśnięcie
+ * (`link_godziny`), odwołanie albo nowy link gospodarza (nowy unieważnia
+ * stary — w sesji jest najwyżej jeden żywy, częściowy unikalny indeks).
+ * Kto dostanie link, może dołączyć, więc to gospodarz decyduje, komu go daje.
  *
  * PRZYJĘCIE (`dolacz`) ma być nie do obejścia, więc wszystkie warunki są
  * sprawdzane POD ZAMKIEM PARY KONT (osoba + gospodarz, ta sama kolejność
@@ -47,7 +51,7 @@ use Illuminate\Support\Str;
  */
 final class ZaproszenieDoGotowania
 {
-    public const NIEAKTUALNE = 'Nie możesz dołączyć do tej sesji. Link mógł wygasnąć, zostać odwołany albo ktoś już z niego skorzystał. Poproś gospodarza o nowy.';
+    public const NIEAKTUALNE = 'Nie możesz dołączyć do tej sesji. Link mógł wygasnąć, zostać odwołany albo w sesji nie ma już wolnych miejsc. Poproś gospodarza o nowy.';
 
     /**
      * @return array{0: CookingSessionInvitation, 1: string} zaproszenie i JAWNY token — jedyny raz, kiedy istnieje
@@ -87,7 +91,7 @@ final class ZaproszenieDoGotowania
         });
     }
 
-    /** Odwołanie oczekującego linku przez gospodarza. Idempotentne. */
+    /** Odwołanie żywego linku przez gospodarza. Idempotentne. */
     public function odwolaj(User $gospodarz, CookingSession $sesja): void
     {
         Gate::forUser($gospodarz)->authorize('manage', $sesja);
@@ -117,8 +121,9 @@ final class ZaproszenieDoGotowania
 
     /**
      * Przyjęcie linku. Zwraca sesję, do której osoba ma teraz dostęp.
-     * Drugie przyjęcie tego samego linku przez TĘ SAMĄ osobę (podwójne
-     * kliknięcie) jest sukcesem bez skutku; przez kogoś innego — odmową.
+     * Link jest wielorazowy: kolejne osoby wchodzą tym samym linkiem, dopóki
+     * jest wolne miejsce. Drugie przyjęcie przez osobę, która już jest w
+     * sesji (podwójne kliknięcie), jest sukcesem bez skutku.
      *
      * @throws BladDlaCzlowieka
      */
@@ -162,14 +167,10 @@ final class ZaproszenieDoGotowania
                 throw new BladDlaCzlowieka(self::NIEAKTUALNE);
             }
 
-            // Już przyjęte przez TĘ osobę — drugie kliknięcie, nic nie robimy.
-            // Jeśli w międzyczasie ją usunięto, link nie daje drogi z powrotem.
-            if ($zaproszenie->status === CookingSessionInvitation::STATUS_ACCEPTED) {
-                if ($zaproszenie->accepted_by_id === $swiezaOsoba->getKey() && $sesja->maPomocnika($swiezaOsoba)) {
-                    return $sesja;
-                }
-
-                throw new BladDlaCzlowieka(self::NIEAKTUALNE);
+            // Osoba już jest pomocnikiem — drugie kliknięcie, nic nie robimy.
+            // Odwołany albo wygasły link nie wpuszcza nikogo, także jej.
+            if ($zaproszenie->czeka() && $sesja->maPomocnika($swiezaOsoba)) {
+                return $sesja;
             }
 
             if (! $zaproszenie->czeka()) {
@@ -216,11 +217,7 @@ final class ZaproszenieDoGotowania
                 'joined_at' => now(),
             ]);
 
-            $zaproszenie->forceFill([
-                'status' => CookingSessionInvitation::STATUS_ACCEPTED,
-                'accepted_by_id' => $swiezaOsoba->getKey(),
-                'responded_at' => now(),
-            ])->save();
+            // Wiersza zaproszenia NIE ruszamy: link zostaje żywy dla kolejnych osób.
 
             // Gospodarz zobaczy zmianę (kto jest w sesji) po odświeżeniu.
             $sesja->forceFill(['revision' => $sesja->revision + 1])->save();
@@ -242,15 +239,7 @@ final class ZaproszenieDoGotowania
 
     private function uniewaznijOczekujace(CookingSession $sesja): void
     {
-        CookingSessionInvitation::query()
-            ->where('session_id', $sesja->getKey())
-            ->where('status', CookingSessionInvitation::STATUS_PENDING)
-            ->update([
-                'status' => CookingSessionInvitation::STATUS_REVOKED,
-                'token_hash' => null,
-                'responded_at' => now(),
-                'updated_at' => now(),
-            ]);
+        CookingSessionInvitation::uniewaznijZywe((string) $sesja->getKey());
     }
 
     private function maxPomocnikow(): int

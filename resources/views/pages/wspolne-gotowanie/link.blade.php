@@ -26,7 +26,7 @@
             @csrf
             <button class="btn btn-primary" type="submit">Dołączam</button>
         </form>
-        <p class="meta m-0">Link jest ważny do {{ \App\Support\Czas::data($wazneDo, 'j F, H:i') }} i działa raz.</p>
+        <p class="meta m-0">Link jest ważny do {{ \App\Support\Czas::data($wazneDo, 'j F, H:i') }} i wpuszcza do {{ $maxPomocnikow }} osób. Gospodarz może go odwołać.</p>
         <a class="btn btn-secondary" href="{{ route('home') }}">Nie, dziękuję</a>
     </div>
 </x-layout>

@@ -6872,9 +6872,9 @@ Indeksy: `UNIQUE (host_id, recipe_id)` (jedna sesja na parę), `expires_at`
 (`CASCADE`), `user_id` → `users` (`CASCADE`); `role varchar(16)`
 (`CHECK role IN ('helper')`, nowa rola = świadoma zmiana schematu);
 `joined_at timestamptz`. Liczbę pomocników ogranicza akcja pod blokadą wiersza
-sesji (`max_pomocnikow`, domyślnie 3), nie baza. Zaproszenie to jeden link dla jednej osoby
-(częściowy unikalny indeks `…_one_pending_idx`: najwyżej jeden oczekujący link na sesję),
-więc kolejnych pomocników zaprasza się kolejnymi linkami. Bez zmian schematu względem etapu 1.
+sesji (`max_pomocnikow`, domyślnie 3), nie baza. Link zaproszenia jest wielorazowy
+(decyzja z 1.10.2026): jeden żywy link wpuszcza kolejne osoby, aż jest komplet; częściowy unikalny
+indeks `…_one_pending_idx` to najwyżej jeden żywy link na sesję. Bez zmian schematu względem etapu 1.
 
 **`cooking_session_steps`** — wspólny postęp. `PRIMARY KEY (session_id,
 step_id)`; `step_id` → `recipe_steps` (`CASCADE`: krok usunięty z przepisu
@@ -6883,7 +6883,7 @@ konta podpis znika, krok zostaje zrobiony); `done_at timestamptz`. Dwa
 równoczesne odhaczenia tego samego kroku = `INSERT … ON CONFLICT DO NOTHING`
 = jeden wiersz bez błędu; cofnięcie to `DELETE`.
 
-**`cooking_session_invitations`** — jednorazowy link.
+**`cooking_session_invitations`** — wielorazowy link do `max_pomocnikow` osób (przyjęcie niczego tu nie zmienia).
 
 | Kolumna | Typ | Znaczenie |
 |---|---|---|
@@ -6892,13 +6892,13 @@ równoczesne odhaczenia tego samego kroku = `INSERT … ON CONFLICT DO NOTHING`
 | `token_hash` | `varchar(64) NULL` | SHA-256 tokenu (40 znaków losowych); poświadczenie, poza `$fillable`, `$hidden`; kasowany przy odwołaniu; token jawny istnieje tylko w odpowiedzi tworzącej link |
 | `status` | `varchar(16) NOT NULL DEFAULT 'pending'` | `pending`/`accepted`/`revoked` (`cooking_session_invitations_status_check`) |
 | `expires_at` | `timestamptz NOT NULL` | `link_godziny` (24 h), nigdy dalej niż sesja |
-| `accepted_by_id` | `uuid NULL` → `users` (`ON DELETE SET NULL`) | kto skorzystał |
+| `accepted_by_id` | `uuid NULL` → `users` (`ON DELETE SET NULL`) | nieużywana od decyzji z 1.10.2026 o linku wielorazowym (nikt nie „zużywa” linku); zostaje jako pozostałość, kod jej nie ustawia, wymazanie konta zeruje |
 | `responded_at` | `timestamptz NULL` | przyjęcie/odwołanie; `CHECK status <> 'accepted' OR responded_at IS NOT NULL` |
 
 CHECK `cooking_session_invitations_token_check`: oczekujący MA skrót, odwołany
-go NIE MA, przyjęty go zachowuje do końca sesji (drugie „Dołączam” tej samej
-osoby jest sukcesem bez skutku; link i tak jest jednorazowy przez `status`). Częściowe unikalne indeksy: `token_hash` (tam, gdzie nie
-NULL) i `(session_id) WHERE status = 'pending'` — najwyżej jeden oczekujący
+go NIE MA; `accepted` (z pierwotnego projektu „jeden link = jedna osoba”) schemat dopuszcza, ale kod go
+nie ustawia — link wielorazowy zostaje `pending` do wygaśnięcia, odwołania albo nowego linku. Częściowe unikalne indeksy: `token_hash` (tam, gdzie nie
+NULL) i `(session_id) WHERE status = 'pending'` — najwyżej jeden żywy
 link w sesji (nowy unieważnia stary).
 
 **Prywatność i retencja.** Sesja wygasa 24 h po założeniu; wygasła jest dla

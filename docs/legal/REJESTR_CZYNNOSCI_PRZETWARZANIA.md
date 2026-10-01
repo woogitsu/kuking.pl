@@ -751,7 +751,7 @@ trafi tam pierwszy rekord.
 - **Cel:** gotowanie jednego przepisu przez gospodarza i do trzech pomocników ze wspólnym postępem kroków.
 - **Dane:** identyfikatory gospodarza, pomocników i przepisu, identyfikatory
   odhaczonych kroków z informacją, kto i kiedy je odhaczył, numer rewizji,
-  termin wygaśnięcia, skrót SHA-256 jednorazowego linku zaproszenia
+  termin wygaśnięcia, skrót SHA-256 wielorazowego (do trzech osób) linku zaproszenia
   (`cooking_sessions`, `cooking_session_participants`, `cooking_session_steps`,
   `cooking_session_invitations`). Tylko na świadome założenie sesji przez
   gospodarza i przyjęcie zaproszenia przez pomocnika. Bez wiadomości, bez adresu

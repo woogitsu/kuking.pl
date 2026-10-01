@@ -9,10 +9,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Jednorazowy link do wspólnego gotowania (#2385).
+ * Wielorazowy link do wspólnego gotowania (#2385): jeden żywy link wpuszcza
+ * kolejne osoby, aż sesja ma komplet pomocników.
  *
  * W bazie leży wyłącznie SHA-256 tokenu (`token_hash`) i tylko dopóki link
- * czeka; przyjęcie i odwołanie kasują skrót. `$fillable` PUSTE: `status` jest
+ * jest żywy; odwołanie kasuje skrót. Status `accepted` i `accepted_by_id` to
+ * pozostałość pierwotnego projektu „jeden link = jedna osoba”: kod ich już
+ * nie ustawia (przyjęcie niczego w zaproszeniu nie zmienia). `$fillable` PUSTE: `status` jest
  * polem sterującym, `token_hash` poświadczeniem, a klucze osób ustawiają
  * wyłącznie nazwane akcje w `App\Domain\Recipes\Gotowanie\Wspolne`.
  *
@@ -55,6 +58,23 @@ class CookingSessionInvitation extends Model
     public function czeka(): bool
     {
         return $this->status === self::STATUS_PENDING && $this->expires_at->isFuture();
+    }
+
+    /**
+     * Odwołuje żywy link sesji (kasuje skrót tokenu). Wołać POD BLOKADĄ wiersza
+     * sesji, żeby nie mijać się z przyjęciem.
+     */
+    public static function uniewaznijZywe(string $idSesji): void
+    {
+        self::query()
+            ->where('session_id', $idSesji)
+            ->where('status', self::STATUS_PENDING)
+            ->update([
+                'status' => self::STATUS_REVOKED,
+                'token_hash' => null,
+                'responded_at' => now(),
+                'updated_at' => now(),
+            ]);
     }
 
     public static function skrotTokenu(string $token): string

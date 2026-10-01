@@ -232,6 +232,52 @@ class WspolneGotowanieTest extends TestCase
         $this->assertSame(0, DB::table('cooking_session_participants')->count());
     }
 
+    public function test_odwolanie_linku_nie_wyrzuca_tych_ktorzy_juz_weszli_a_kolejnych_nie_wpuszcza(): void
+    {
+        [$gospodarz, , , $sesja] = $this->sesja();
+        $token = $this->token($gospodarz, $sesja);
+        $pierwsza = $this->user();
+        $druga = $this->user();
+        $this->actingAs($pierwsza)->post(route('wspolne-gotowanie.link.accept', $token))->assertRedirect();
+
+        $this->actingAs($gospodarz)->delete(route('wspolne-gotowanie.link.destroy', $sesja))->assertRedirect();
+
+        $this->actingAs($druga)->post(route('wspolne-gotowanie.link.accept', $token))->assertStatus(410);
+        // Odwołany link nie wpuszcza także tej, która już jest w sesji (drugie kliknięcie to nie droga powrotna).
+        $this->actingAs($pierwsza)->post(route('wspolne-gotowanie.link.accept', $token))->assertStatus(410);
+        $this->assertSame([$pierwsza->getKey()], DB::table('cooking_session_participants')->pluck('user_id')->all());
+        $this->actingAs($pierwsza)->get(route('wspolne-gotowanie.show', $sesja))->assertOk();
+    }
+
+    public function test_wygasly_link_nie_wpuszcza_kolejnej_osoby_mimo_wolnych_miejsc(): void
+    {
+        [$gospodarz, , , $sesja] = $this->sesja();
+        $token = $this->token($gospodarz, $sesja);
+        $this->actingAs($this->user())->post(route('wspolne-gotowanie.link.accept', $token))->assertRedirect();
+
+        $this->travel(26)->hours();
+        // Sesja też wygasła po 24 h, więc przedłużamy ją, żeby sprawdzić wyłącznie termin LINKU.
+        CookingSession::query()->update(['expires_at' => now()->addHours(5)]);
+
+        $this->actingAs($this->user())->post(route('wspolne-gotowanie.link.accept', $token))->assertStatus(410);
+        $this->assertSame(1, DB::table('cooking_session_participants')->count());
+    }
+
+    public function test_ekran_gospodarza_i_ekran_linku_mowia_ze_link_wpuszcza_do_trzech_osob_i_da_sie_go_odwolac(): void
+    {
+        [$gospodarz, , , $sesja] = $this->sesja();
+        $token = $this->token($gospodarz, $sesja);
+
+        $ekranGospodarza = $this->actingAs($gospodarz)->get(route('wspolne-gotowanie.show', $sesja))->assertOk()->getContent();
+        $ekranLinku = $this->actingAs($this->user())->get(route('wspolne-gotowanie.link.show', $token))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Każdy, kto dostanie ten link, może dołączyć — do 3 osób.', $ekranGospodarza);
+        $this->assertStringContainsString('Jeden link wpuści do 3 osób', $ekranGospodarza);
+        $this->assertStringContainsString('Odwołaj link', $ekranGospodarza);
+        $this->assertStringContainsString('wpuszcza do 3 osób. Gospodarz może go odwołać.', $ekranLinku);
+        $this->assertStringNotContainsString('działa raz', $ekranGospodarza.$ekranLinku);
+    }
+
     public function test_pomocnik_nie_tworzy_i_nie_odwoluje_linku(): void
     {
         [$gospodarz, $pomocnik, , , $sesja] = $this->sesjaZPomocnikiem();
@@ -262,7 +308,8 @@ class WspolneGotowanieTest extends TestCase
         $this->actingAs($pomocnik)->post(route('wspolne-gotowanie.link.accept', $token))->assertRedirect(route('wspolne-gotowanie.show', $sesja));
 
         $this->assertSame(1, DB::table('cooking_session_participants')->where('user_id', $pomocnik->getKey())->count());
-        $this->assertSame(CookingSessionInvitation::STATUS_ACCEPTED, CookingSessionInvitation::query()->firstOrFail()->status);
+        // Link jest wielorazowy: przyjęcie niczego w zaproszeniu nie zmienia.
+        $this->assertSame(CookingSessionInvitation::STATUS_PENDING, CookingSessionInvitation::query()->firstOrFail()->status);
         $this->actingAs($pomocnik)->get(route('wspolne-gotowanie.show', $sesja))->assertOk();
     }
 
@@ -278,18 +325,24 @@ class WspolneGotowanieTest extends TestCase
         $this->assertSame(1, DB::table('cooking_session_participants')->count());
     }
 
-    public function test_link_zuzyty_przez_jedna_osobe_nie_wpuszcza_drugiej(): void
+    public function test_ten_sam_link_wpuszcza_kolejne_osoby_az_do_kompletu(): void
     {
         [$gospodarz, , , $sesja] = $this->sesja();
         $token = $this->token($gospodarz, $sesja);
-        $pierwsza = $this->user();
-        $druga = $this->user();
+        $osoby = [$this->user(), $this->user(), $this->user()];
+        $czwarta = $this->user();
 
-        $this->actingAs($pierwsza)->post(route('wspolne-gotowanie.link.accept', $token))->assertRedirect();
-        $this->actingAs($druga)->post(route('wspolne-gotowanie.link.accept', $token))->assertStatus(410);
+        foreach ($osoby as $osoba) {
+            $this->actingAs($osoba)->post(route('wspolne-gotowanie.link.accept', $token))->assertRedirect(route('wspolne-gotowanie.show', $sesja));
+        }
+        $this->actingAs($czwarta)->post(route('wspolne-gotowanie.link.accept', $token))->assertStatus(410);
+        // Strona linku przy komplecie nie kusi przyciskiem.
+        $this->actingAs($czwarta)->get(route('wspolne-gotowanie.link.show', $token))->assertStatus(410);
 
-        $this->assertSame([$pierwsza->getKey()], DB::table('cooking_session_participants')->pluck('user_id')->all());
-        $this->actingAs($druga)->get(route('wspolne-gotowanie.show', $sesja))->assertNotFound();
+        $obecni = DB::table('cooking_session_participants')->pluck('user_id')->map(fn ($v): string => (string) $v)->sort()->values()->all();
+        $oczekiwani = collect($osoby)->map(fn (User $u): string => (string) $u->getKey())->sort()->values()->all();
+        $this->assertSame($oczekiwani, $obecni);
+        $this->actingAs($czwarta)->get(route('wspolne-gotowanie.show', $sesja))->assertNotFound();
     }
 
     public function test_wygasly_link_nie_wpuszcza(): void
@@ -765,7 +818,7 @@ class WspolneGotowanieTest extends TestCase
         $this->actingAs($pomocnik)->get(route('wspolne-gotowanie.show', $sesja))->assertNotFound();
     }
 
-    public function test_usuniety_pomocnik_nie_wraca_zuzytym_linkiem(): void
+    public function test_usuniety_pomocnik_nie_wraca_dawnym_linkiem(): void
     {
         [$gospodarz, , , $sesja] = $this->sesja();
         $token = $this->token($gospodarz, $sesja);

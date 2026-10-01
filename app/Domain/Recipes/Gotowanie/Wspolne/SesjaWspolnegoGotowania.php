@@ -7,6 +7,7 @@ namespace App\Domain\Recipes\Gotowanie\Wspolne;
 use App\Domain\Users\ZamekKonta;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\CookingSession;
+use App\Models\CookingSessionInvitation;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -104,17 +105,21 @@ final class SesjaWspolnegoGotowania
         $this->usunUdzial($sesja, (string) $pomocnik->getKey());
     }
 
-    /** Gospodarz odbiera dostęp pomocnikowi. Idempotentne. */
+    /**
+     * Gospodarz odbiera dostęp pomocnikowi. Idempotentne. Żywy link jest przy
+     * tym odwołany: link jest wielorazowy, więc bez tego usunięta osoba mogłaby
+     * wrócić nim od razu (gospodarz tworzy nowy link, jeśli chce kogoś zaprosić).
+     */
     public function usunPomocnika(User $gospodarz, CookingSession $sesja, string $idPomocnika): void
     {
         Gate::forUser($gospodarz)->authorize('manage', $sesja);
 
-        $this->usunUdzial($sesja, $idPomocnika);
+        $this->usunUdzial($sesja, $idPomocnika, true);
     }
 
-    private function usunUdzial(CookingSession $sesja, string $idOsoby): void
+    private function usunUdzial(CookingSession $sesja, string $idOsoby, bool $odwolajLink = false): void
     {
-        DB::transaction(function () use ($sesja, $idOsoby): void {
+        DB::transaction(function () use ($sesja, $idOsoby, $odwolajLink): void {
             $swieza = CookingSession::query()->whereKey($sesja->getKey())->lockForUpdate()->first();
 
             if ($swieza === null) {
@@ -125,6 +130,10 @@ final class SesjaWspolnegoGotowania
                 ->where('session_id', $swieza->getKey())
                 ->where('user_id', $idOsoby)
                 ->delete();
+
+            if ($usuniete > 0 && $odwolajLink) {
+                CookingSessionInvitation::uniewaznijZywe((string) $swieza->getKey());
+            }
 
             if ($usuniete > 0) {
                 $swieza->forceFill(['revision' => $swieza->revision + 1])->save();

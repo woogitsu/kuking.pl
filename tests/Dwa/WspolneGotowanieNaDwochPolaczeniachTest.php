@@ -19,7 +19,8 @@ use PHPUnit\Framework\Attributes\Group;
  *  1. dwie osoby odhaczają TEN SAM krok w tej samej chwili — jeden wiersz,
  *     jedna zmiana rewizji, żadnego błędu (klucz `(session_id, step_id)` plus
  *     blokada wiersza sesji);
- *  2. dwie osoby przyjmują TEN SAM jednorazowy link — dołącza dokładnie jedna;
+ *  2. dwie osoby przyjmują TEN SAM wielorazowy link (są dwa wolne miejsca) —
+ *     wchodzą obie, bo link nie jest zużywany przez pierwszą;
  *  3. WIELU POMOCNIKÓW (do trzech): dwie RÓŻNE osoby przyjmują link, gdy zostało
  *     jedno miejsce — wchodzi dokładnie jedna i limit nie zostaje przekroczony;
  *  4. przyjęcie linku i odhaczenie kroku naraz — rewizja rośnie o DWA (żadna
@@ -28,7 +29,9 @@ use PHPUnit\Framework\Attributes\Group;
  *     bez zakleszczenia (konta przed sesją także w odhaczeniu), a po wyścigu
  *     nikt zablokowany nie zostaje w sesji;
  *  6. tworzenie nowego linku przez gospodarza i przyjęcie starego w tej samej
- *     chwili nie zakleszczają się (jedna kolejność blokad: konta, sesja, zaproszenie).
+ *     chwili nie zakleszczają się (jedna kolejność blokad: konta, sesja, zaproszenie);
+ *  7. odwołanie linku przez gospodarza i przyjęcie go naraz: kto stoi w kolejce
+ *     po wiersz sesji za odwołaniem, nie wchodzi.
  */
 #[Group('dwa-polaczenia')]
 final class WspolneGotowanieNaDwochPolaczeniachTest extends TestDwochPolaczen
@@ -107,7 +110,7 @@ final class WspolneGotowanieNaDwochPolaczeniachTest extends TestDwochPolaczen
         $this->assertSame($rewizjaPrzed + 2, (int) DB::table('cooking_sessions')->where('id', $sesja->getKey())->value('revision'));
     }
 
-    public function test_dwie_osoby_przyjmujace_ten_sam_link_naraz_daja_jednego_pomocnika(): void
+    public function test_dwie_osoby_przyjmujace_ten_sam_link_naraz_wchodza_obie_gdy_sa_dwa_miejsca(): void
     {
         $gospodarz = $this->konto();
         $pierwsza = $this->konto();
@@ -127,12 +130,41 @@ final class WspolneGotowanieNaDwochPolaczeniachTest extends TestDwochPolaczen
         $wyniki = [$a->wynik(), $b->wynik()];
         foreach ($wyniki as $numer => $wynik) {
             $this->assertBezZakleszczenia($wynik, 'przyjęcie '.($numer + 1));
+            $this->assertTrue($wynik['ok'], 'Przyjęcie '.($numer + 1).' padło: '.$wynik['komunikat']);
         }
 
-        $this->assertSame(1, DB::table('cooking_session_participants')->where('session_id', $sesja->getKey())->count(),
-            'Jednorazowy link wpuszcza dokładnie jedną osobę.');
-        $udane = array_values(array_filter($wyniki, fn (array $w) => $w['ok']));
-        $this->assertCount(1, $udane, 'Dokładnie jedno przyjęcie się udaje; drugie dostaje odmowę.');
+        $this->assertSame(2, DB::table('cooking_session_participants')->where('session_id', $sesja->getKey())->count(),
+            'Link wielorazowy wpuszcza obie osoby, gdy są dwa wolne miejsca.');
+        $this->assertSame('pending', DB::table('cooking_session_invitations')->where('session_id', $sesja->getKey())->value('status'),
+            'Przyjęcie nie zużywa linku.');
+    }
+
+    public function test_przyjecie_linku_stojace_za_odwolaniem_go_przez_gospodarza_nie_wpuszcza(): void
+    {
+        $gospodarz = $this->konto();
+        $osoba = $this->konto();
+        $przepis = Recipe::factory()->create(['author_id' => $gospodarz->getKey(), 'visibility' => 'public']);
+        RecipeStep::create(['recipe_id' => $przepis->getKey(), 'position' => 0, 'instruction' => 'Krok 1.']);
+        $sesja = app(SesjaWspolnegoGotowania::class)->zaloz($gospodarz, $przepis);
+        [, $token] = app(ZaproszenieDoGotowania::class)->utworz($gospodarz, $sesja);
+
+        // Odwołanie jest pierwsze w kolejce po wiersz sesji, przyjęcie drugie.
+        $bariera = $this->bariera('SELECT 1 FROM cooking_sessions WHERE id = ? FOR UPDATE', [(string) $sesja->getKey()]);
+        $odwolanie = $this->wTle('wspolne-odwolaj-link', ['kto' => (string) $gospodarz->getKey(), 'sesja' => (string) $sesja->getKey()]);
+        $this->czekajNaZablokowane(1);
+        $przyjecie = $this->wTle('wspolne-dolacz', ['kto' => (string) $osoba->getKey(), 'token' => $token]);
+        $this->czekajNaZablokowane(2);
+        $this->zwolnijBariere($bariera);
+
+        $wynikOdwolania = $odwolanie->wynik();
+        $wynikPrzyjecia = $przyjecie->wynik();
+        $this->assertBezZakleszczenia($wynikOdwolania, 'odwołanie linku');
+        $this->assertBezZakleszczenia($wynikPrzyjecia, 'przyjęcie linku');
+        $this->assertTrue($wynikOdwolania['ok'], 'Odwołanie padło: '.$wynikOdwolania['komunikat']);
+
+        $this->assertFalse($wynikPrzyjecia['ok'], 'Przyjęcie po odwołaniu linku musi dostać odmowę.');
+        $this->assertSame(0, DB::table('cooking_session_participants')->where('session_id', $sesja->getKey())->count());
+        $this->assertSame('revoked', DB::table('cooking_session_invitations')->where('session_id', $sesja->getKey())->value('status'));
     }
 
     /** Odhaczenie przez drugą osobę — ten sam krok co w pierwszym procesie. */

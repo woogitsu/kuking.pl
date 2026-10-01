@@ -112,9 +112,10 @@ class WspolneGotowanieWieluPomocnikowTest extends TestCase
         }
 
         $this->actingAs($gospodarz)->post(route('wspolne-gotowanie.link.store', $sesja))->assertSessionHasErrors('link');
-        $obserwacje['oczekujące linki po czwartej próbie'] = CookingSessionInvitation::query()->where('status', 'pending')->count();
+        $obserwacje['linki po czwartej próbie'] = CookingSessionInvitation::query()->where('status', 'pending')->count();
 
-        $this->assertSame(['Basia' => 1, 'Cezary' => 2, 'Dorota' => 3, 'oczekujące linki po czwartej próbie' => 0], $obserwacje);
+        // Żywy link z ostatniego dołączenia zostaje (wielorazowy), ale nowy się nie pojawił.
+        $this->assertSame(['Basia' => 1, 'Cezary' => 2, 'Dorota' => 3, 'linki po czwartej próbie' => 1], $obserwacje);
     }
 
     public function test_czwarta_osoba_z_linkiem_wystawionym_przed_obnizeniem_limitu_nie_wchodzi(): void
@@ -141,7 +142,7 @@ class WspolneGotowanieWieluPomocnikowTest extends TestCase
         $this->assertSame(['przy limicie 3' => 3, 'przy limicie 4' => 4], $obserwacje);
     }
 
-    public function test_jeden_link_to_jedna_osoba_a_nowy_uniewaznia_oczekujacy(): void
+    public function test_jeden_link_wpuszcza_wiele_osob_a_nowy_uniewaznia_poprzedni(): void
     {
         [$gospodarz, $sesja] = $this->sesjaGospodarza();
         $pierwszy = $this->token($gospodarz, $sesja);
@@ -154,19 +155,24 @@ class WspolneGotowanieWieluPomocnikowTest extends TestCase
         $this->actingAs($this->user('basia'))->post(route('wspolne-gotowanie.link.accept', $drugi))->assertRedirect();
         $obserwacje['po przyjęciu drugiego'] = count($this->idPomocnikow($sesja));
 
-        // Zużyty link nie wpuszcza kolejnej osoby (jedna osoba na link).
-        $this->actingAs($this->user('cezary'))->post(route('wspolne-gotowanie.link.accept', $drugi))->assertStatus(410);
-        $obserwacje['po użyciu drugiego linku przez inną osobę'] = count($this->idPomocnikow($sesja));
+        // Ten sam link wpuszcza kolejną osobę (wielorazowy).
+        $this->actingAs($this->user('cezary'))->post(route('wspolne-gotowanie.link.accept', $drugi))->assertRedirect();
+        $obserwacje['po drugiej osobie z tego samego linku'] = count($this->idPomocnikow($sesja));
 
-        // Każda kolejna osoba dostaje własny, nowy link.
-        $this->dolacz($gospodarz, $sesja, 'Dorota');
-        $obserwacje['po nowym linku dla trzeciej osoby'] = count($this->idPomocnikow($sesja));
+        // Nowy link unieważnia drugi, także dla tych, którzy jeszcze nie weszli.
+        $trzeci = $this->token($gospodarz, $sesja);
+        $dorota = $this->user('dorota');
+        $this->actingAs($dorota)->post(route('wspolne-gotowanie.link.accept', $drugi))->assertStatus(410);
+        $obserwacje['po unieważnionym drugim linku'] = count($this->idPomocnikow($sesja));
+        $this->actingAs($dorota)->post(route('wspolne-gotowanie.link.accept', $trzeci))->assertRedirect();
+        $obserwacje['po nowym linku'] = count($this->idPomocnikow($sesja));
 
         $this->assertSame([
             'po unieważnionym linku' => 0,
             'po przyjęciu drugiego' => 1,
-            'po użyciu drugiego linku przez inną osobę' => 1,
-            'po nowym linku dla trzeciej osoby' => 2,
+            'po drugiej osobie z tego samego linku' => 2,
+            'po unieważnionym drugim linku' => 2,
+            'po nowym linku' => 3,
         ], $obserwacje);
     }
 
@@ -196,7 +202,8 @@ class WspolneGotowanieWieluPomocnikowTest extends TestCase
         $this->dolacz($gospodarz, $sesja, 'Cezary');
 
         $this->actingAs($basia)->post(route('wspolne-gotowanie.link.store', $sesja))->assertForbidden();
-        $this->assertSame(0, CookingSessionInvitation::query()->where('status', 'pending')->count());
+        // Nie powstał nowy link (zostaje wyłącznie żywy z ostatniego dołączenia Cezarego).
+        $this->assertSame(1, CookingSessionInvitation::query()->where('status', 'pending')->count());
     }
 
     // ---------------------------------------------------------------------
@@ -405,7 +412,11 @@ class WspolneGotowanieWieluPomocnikowTest extends TestCase
             $wyniki[$nazwa] = [count($sekcja), $sekcja[0]['rola'], $sekcja[0]['kroki_odhaczone_przeze_mnie']];
             $json = json_encode($sekcja, JSON_THROW_ON_ERROR);
             $wycieki[$nazwa] = array_values(array_filter($cudzeNazwy, fn (string $cudza): bool => str_contains($json, $cudza)));
-            $this->assertStringNotContainsString((string) DB::table('cooking_session_invitations')->value('token_hash'), json_encode($paczka, JSON_THROW_ON_ERROR));
+            $skroty = DB::table('cooking_session_invitations')->whereNotNull('token_hash')->pluck('token_hash')->all();
+            $this->assertNotSame([], $skroty, 'jest żywy link ze skrótem, więc kontrola nie jest pusta');
+            foreach ($skroty as $skrot) {
+                $this->assertStringNotContainsString((string) $skrot, json_encode($paczka, JSON_THROW_ON_ERROR));
+            }
         }
 
         $this->assertSame([
@@ -471,6 +482,6 @@ class WspolneGotowanieWieluPomocnikowTest extends TestCase
             $this->assertSame(ZaproszenieDoGotowania::NIEAKTUALNE, $e->getMessage());
         }
 
-        $this->assertSame(1, CookingSessionInvitation::query()->where('status', 'pending')->count(), 'link nie został zużyty');
+        $this->assertSame(1, CookingSessionInvitation::query()->where('status', 'pending')->count(), 'link nie został zużyty ani odwołany po nieudanej próbie');
     }
 }
