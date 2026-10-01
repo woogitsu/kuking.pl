@@ -35,15 +35,22 @@
  *   ADRES=... node scripts/audyt-ux50plus.mjs --szybko   (mniejsza macierz)
  *   ADRES=... node scripts/audyt-ux50plus.mjs --tylko-forme   (tylko odbiór formy)
  *   ADRES=... node scripts/audyt-ux50plus.mjs --bez-formy     (bez odbioru formy)
+ *   DB_DATABASE=<baza serwera z ADRES> ADRES=... node scripts/audyt-ux50plus.mjs
+ *     (ekrany paczki S biorą dane z scripts/fixtures/nowe-ekrany-s.php; bez bazy: --bez-paczki-s)
  * =============================================================================
  */
 import { chromium } from 'playwright';
 import { writeFileSync, mkdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 
 const ADRES = process.env.ADRES || 'http://127.0.0.1:8137';
 const SZYBKO = process.argv.includes('--szybko');
 const TYLKO_FORME = process.argv.includes('--tylko-forme');
 const BEZ_FORMY = process.argv.includes('--bez-formy');
+// Ekrany paczki S wymagają fixture w bazie serwera; test atrapy
+// (`fixtures/audyt-ux50plus-konteksty.test.mjs`) przebiega bez bazy.
+const BEZ_PACZKI_S = process.argv.includes('--bez-paczki-s');
+const TYLKO_EKRANY = process.env.TYLKO_EKRANY ? new RegExp(process.env.TYLKO_EKRANY, 'u') : null;
 const KONTO = 'ania';
 const HASLO = 'haslo-testowe-123';
 
@@ -102,6 +109,28 @@ const EKRANY = [
   { nazwa: 'ustawienia', adres: '/ustawienia', zalogowany: true },
   { nazwa: 'ustawienia — profil', adres: '/ustawienia/profil', zalogowany: true },
   { nazwa: 'ustawienia — czytelność', adres: '/ustawienia/czytelnosc', zalogowany: true },
+  ...(BEZ_PACZKI_S ? [] : [
+  /*
+   * PACZKA S (#2393). Adresy i dane z `scripts/fixtures/nowe-ekrany-s.php`
+   * (`dynamiczny` = klucz z jego odpowiedzi). `znak` to dowód, że ekran ma
+   * treść, a nie pusty stan; `poWejsciu` + `znakPo` — strona, która istnieje
+   * tylko jako odpowiedź na POST (klikamy jak człowiek).
+   */
+  { nazwa: 'spiżarnia — Co mam w domu', adres: '/co-mam-w-domu', zalogowany: true, znak: '#sekcja-pilne' },
+  { nazwa: 'spiżarnia — ustaw termin', dynamiczny: 'terminProduktu', zalogowany: true, znak: 'h1:text("Ustaw termin")' },
+  { nazwa: 'spiżarnia — najpierw to, co się psuje', adres: '/co-ugotuje?najpierw=termin', zalogowany: true, znak: 'h1:text("Przepisy na produkty z krótkim terminem")' },
+  { nazwa: 'sobotni list — wypisanie (pytanie)', dynamiczny: 'linkWypisz', zwolnijLimity: true, znak: 'button:text("Tak, nie wysyłajcie mi go")' },
+  { nazwa: 'sobotni list — wypisano', dynamiczny: 'linkWypisz', poWejsciu: 'wypisano', zwolnijLimity: true, znakPo: 'h1:text("Nie wyślemy już")' },
+  { nazwa: 'sobotni list — zgoda wróciła', dynamiczny: 'linkWypisz', poWejsciu: 'wrocono', zwolnijLimity: true, znakPo: 'h1:text("Sobotnie przypomnienie przyjdzie")' },
+  { nazwa: 'sobotni list — link wygasł', dynamiczny: 'linkWypisz', poWejsciu: 'wygaslo', zwolnijLimity: true, znakPo: 'h1:text("Ten link wygasł")' },
+  { nazwa: 'zeszyt do druku', dynamiczny: 'zeszytDoDruku', zalogowany: true, zwolnijLimity: true, znak: '#zeszyt-spis-naglowek' },
+  { nazwa: 'karta z kodem QR — przepis', dynamiczny: 'kartaPrzepisu', znak: '.karta-qr-kod svg' },
+  { nazwa: 'karta z kodem QR — profil', dynamiczny: 'kartaProfilu', znak: '.karta-qr-kod svg' },
+  { nazwa: 'tablica — wspomnienie z wykonania', adres: '/home', zalogowany: true, znak: '.wspomnienie' },
+  { nazwa: 'historia wersji przepisu', dynamiczny: 'historia', znak: '.historia-wersja-naglowek' },
+  { nazwa: 'historia wersji — jedna wersja', dynamiczny: 'wersja', znak: '#hw-skladniki' },
+  { nazwa: 'historia wersji — co się zmieniło', dynamiczny: 'zmiany', znak: '#hz-skladniki' },
+  ]),
 ];
 
 /*
@@ -251,7 +280,46 @@ async function adresyDynamiczne(przegladarka) {
   };
   znalezione.gotowanie = znalezione.przepis ? `${znalezione.przepis}/gotuj` : undefined;
   await kontekst.close();
-  return znalezione;
+  return BEZ_PACZKI_S ? znalezione : { ...znalezione, ...daneEkranowS() };
+}
+
+/**
+ * Dane ekranów paczki S z fixture (`DB_DATABASE` musi wskazywać bazę serwera
+ * z ADRES, tak samo jak przy `dostepnosc.mjs`). Bez bazy ekrany te wypadają,
+ * ale GŁOŚNO: komunikat i kod wyjścia 1 (patrz `main`), nie cicha luka.
+ */
+let brakDanychS = null;
+function daneEkranowS() {
+  const uruchom = (...argumenty) => execFileSync('php', ['scripts/fixtures/nowe-ekrany-s.php', ...argumenty],
+    { env: process.env, stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim().split('\n').pop();
+  try {
+    const dane = JSON.parse(uruchom('przygotuj'));
+    const link = new URL(uruchom('link', 'wypisz', ADRES));
+    dane.linkWypisz = link.pathname + link.search;
+    dane.linkWygasly = uruchom('link', 'wygasly', ADRES);
+    return dane;
+  } catch (e) {
+    brakDanychS = String(e.stderr || e.message).slice(0, 300);
+    return {};
+  }
+}
+
+/** Klika drogę do strony, która istnieje tylko jako odpowiedź na POST. */
+async function dojdzDoStronyListu(strona, krok, linkWygasly) {
+  const kliknij = async (nazwa) => {
+    const [odp] = await Promise.all([
+      strona.waitForResponse((o) => o.request().method() === 'POST' && o.request().isNavigationRequest()),
+      strona.getByRole('button', { name: nazwa }).click(),
+    ]);
+    await strona.waitForLoadState('domcontentloaded');
+    if (odp.status() !== 200) throw new Error(`krok „${nazwa}" odpowiedział kodem ${odp.status()}`);
+  };
+  await kliknij('Tak, nie wysyłajcie mi go');
+  if (krok === 'wypisano') return;
+  if (krok === 'wygaslo') {
+    await strona.locator('form[action*="/spizarnia/wracam/"]').evaluate((f, nowy) => { f.action = nowy; }, linkWygasly);
+  }
+  await kliknij('Jednak chcę go dostawać');
 }
 
 /*
@@ -611,6 +679,12 @@ async function main() {
   const stan = await stanZalogowanego(przegladarka);
   const dyn = await adresyDynamiczne(przegladarka);
   console.log(`Adresy dynamiczne: przepis=${dyn.przepis} wpis=${dyn.wpis}`);
+  if (brakDanychS !== null) {
+    // Ekrany paczki S bez danych to pusta zieleń — przerywamy, nie pomijamy.
+    console.error(`BŁĄD: nie przygotowano danych ekranów paczki S (fixture nowe-ekrany-s.php, ustaw DB_DATABASE bazy serwera): ${brakDanychS}`);
+    await przegladarka.close();
+    process.exit(1);
+  }
 
   const wyniki = [];
   const przekierowania = [];
@@ -633,10 +707,18 @@ async function main() {
         const stronaZalogowanego = await kontekstZalogowanego.newPage();
 
         for (const ekran of EKRANY) {
+          // Ponowienie wybranych ekranów po poprawce: TYLKO_EKRANY='sobotni|QR'.
+          // Raport z takiego przebiegu jest niepełny.
+          if (TYLKO_EKRANY && !TYLKO_EKRANY.test(ekran.nazwa)) continue;
           const adres = ekran.dynamiczny ? dyn[ekran.dynamiczny] : ekran.adres;
           if (!adres) continue;
           const strona = ekran.zalogowany ? stronaZalogowanego : stronaGoscia;
           try {
+            // Limity tras są celowe; pomiar wchodzi na te strony dziesiątki razy
+            // (429 przechodzi każdy audyt, nie sprawdzając niczego).
+            if (ekran.zwolnijLimity) {
+              execFileSync('php', ['scripts/fixtures/nowe-ekrany-s.php', 'zwolnij-limity'], { env: process.env });
+            }
             const odp = await strona.goto(ADRES + adres, {
               waitUntil: 'networkidle',
               timeout: 30000,
@@ -660,6 +742,15 @@ async function main() {
               przekierowania.push({ ekran: ekran.nazwa, zamowiona, otrzymana, szerokosc, motyw, skala, blad });
               wyniki.push({ ekran: ekran.nazwa, adres, szerokosc, motyw, skala, blad });
               continue;
+            }
+            if (ekran.poWejsciu) {
+              await dojdzDoStronyListu(strona, ekran.poWejsciu, dyn.linkWygasly);
+              if (!(await strona.$(ekran.znakPo))) {
+                const blad = `brak znaku ekranu po kliknięciu (${ekran.znakPo})`;
+                przekierowania.push({ ekran: ekran.nazwa, zamowiona, otrzymana: new URL(strona.url()).pathname, szerokosc, motyw, skala, blad });
+                wyniki.push({ ekran: ekran.nazwa, adres, szerokosc, motyw, skala, blad });
+                continue;
+              }
             }
             await strona.evaluate((m) => {
               document.documentElement.setAttribute('data-theme', m);

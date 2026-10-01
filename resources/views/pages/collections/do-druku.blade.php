@@ -108,7 +108,7 @@
                     <p class="meta m-0">
                         @if($porcje){{ $porcje }}@endif
                         @if($porcje && $czasMinut) · @endif
-                        @if($czasMinut)Czas: {{ $czasMinut }} min @endif
+                        @if($czasMinut)Czas: {{ \App\Support\Czas::czasPrzepisu($czasMinut) }} @endif
                     </p>
                 @endif
                 @if($wykonania > 0)

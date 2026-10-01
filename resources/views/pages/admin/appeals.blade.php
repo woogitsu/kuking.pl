@@ -207,8 +207,7 @@
                                     powiadomienie z uzasadnieniem i może się od niej odwołać.
                                 </p>
                                 <div class="choice-grid">
-                                    @foreach(\App\Models\ModerationAction::dozwoloneDla($decyzja->target_type) as $value => $label)
-                                        @continue($value === \App\Models\ModerationAction::ACTION_NONE)
+                                    @foreach(\App\Models\ModerationAction::dozwolonePoOdwolaniu($decyzja->target_type) as $value => $label)
                                         <label class="choice">
                                             <input type="radio" name="nowa_decyzja" value="{{ $value }}"
                                                    @if($bladNowej) aria-invalid="true" @endif

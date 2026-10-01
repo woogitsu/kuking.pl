@@ -281,6 +281,9 @@ final class PrzedawnioneUsunieteTresci
                 ->orWhereIn('cooked_event_id', $przepis->cookedEvents()->pluck('id')->all())
                 ->pluck('id')->all())
             || $this->zModeracja('cooked_event', $przepis->cookedEvents()->pluck('id')->all())
+            // `zamienWNagrobek()` kasuje wersje przepisu, a zgłoszenie albo
+            // decyzja o jednej wersji (#2390, #2270) jest dowodem w sprawie.
+            || $this->zModeracja('recipe_version', DB::table('recipe_versions')->where('recipe_id', $przepis->getKey())->pluck('id')->all())
             || $this->zModeracja('media', $media);
     }
 
