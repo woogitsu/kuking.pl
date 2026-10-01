@@ -9,6 +9,7 @@ use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Users\Exports\ExportPhotoPlan;
 use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Domain\Users\Exports\PrzejecieEksportu;
+use App\Domain\Users\Exports\RecipeArchiveStatus;
 use App\Exceptions\DataExportPhotoUnreadable;
 use App\Exceptions\DataExportStorageFailure;
 use App\Exceptions\DataExportTempFailure;
@@ -553,7 +554,9 @@ class GenerateUserExport implements ShouldQueue
         $recipes = array_map(fn (array $recipe): array => [
             'tytul' => $recipe['tytul'],
             'plik' => Str::after($recipe['plik_do_czytania'], 'przepisy/'),
-            'szkic' => $recipe['status'] !== Recipe::STATUS_PUBLISHED,
+            'plakietka' => RecipeArchiveStatus::badge(
+                $recipe['status'], $recipe['opublikowano'] !== null,
+            )['short'] ?? null,
             'data' => $recipe['opublikowano'] ?? $recipe['utworzono']
                 ? Carbon::parse($recipe['opublikowano'] ?? $recipe['utworzono'])->translatedFormat('j F Y')
                 : null,
