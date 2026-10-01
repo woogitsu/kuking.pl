@@ -19,6 +19,7 @@ use App\Models\WpisZgody;
 use App\Support\Czas;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -170,6 +171,20 @@ final class MaszynaStanowOdczytuTest extends TestCase
      */
     public function test_1973_rezerwacja_osierocona_bez_failed_wygasa_po_czasie(): void
     {
+        // Budżet jest dzienny (dzień w Polsce), a test przesuwa czas
+        // o `rezerwacja_minut` + 1. Uruchomiony po 23:29 czasu polskiego
+        // przechodził przez północ i czytał wiersz NOWEGO dnia — pusty —
+        // więc kontrola ujemna „porzucona rezerwacja nie wygasa” oblewała
+        // z innej przyczyny niż oczekiwana (CI 30.09 ok. 23:40). Czas
+        // przesuwamy WYŁĄCZNIE do przodu (baza stempluje własnym zegarem,
+        // cofnięcie w PHP odwróciłoby kolejność): gdy okno testu trafiłoby
+        // na północ, zaczynamy tuż po niej.
+        $teraz = Carbon::now('Europe/Warsaw');
+        $okno = (int) config('kuking.import.odzyskiwanie.rezerwacja_minut') + 2;
+        if ($teraz->copy()->addMinutes($okno)->toDateString() !== $teraz->toDateString()) {
+            $this->travelTo($teraz->copy()->addDay()->startOfDay()->addMinutes(5));
+        }
+
         $zlecenie = $this->zlecenieBezWysylki();
         $budzet = app(BudzetAi::class);
         $rezerwacja = $budzet->zarezerwuj(self::REZERWACJA, (string) $zlecenie->getKey(), 1);
