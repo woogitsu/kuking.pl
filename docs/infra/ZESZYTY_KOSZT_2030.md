@@ -133,8 +133,26 @@ Co się zmieniło:
   kodzie**, bo to strażnik niezmienności.
 - `test_szyna_sprawdza_widocznosc_tylko_malej_partii_kandydatow` sumuje wiersze `recipes`
   i `posts` przeczytane (`EXPLAIN ANALYZE`, zwrócone i odrzucone filtrem, razy pętle)
-  w zapytaniach ekranu poza licznikami, przy 600 odłożonych rzeczach. Stary kod: 600,
+  w zapytaniach ekranu poza licznikami, przy 600 odłożonych rzeczach. Fixture ma
+  też niezapisane rekordy innego autora w obu tabelach, aby plan dla `id IN (20)` nie zależał
+  od tego, czy PostgreSQL uzna skan całej 300-wierszowej tabeli za tańszy od indeksu.
+  Zapisana historia, próg i pomiar rzeczywistych odczytów pozostają bez zmian. Stary kod: 600,
   nowy: 40, próg: 100. **Oblewa na starym kodzie.**
+  Jeśli odczyt przekroczy 100, test wypisuje każdy SELECT, który czytał `recipes`
+  lub `posts`, wraz z liczbą odczytów i kształtem planu. Nie wypisuje wartości
+  parametrów ani warunków planu z identyfikatorami. Próg i ustawienia planera
+  pozostają bez zmian: diagnostyka ma rozróżnić regresję od innego planu
+  PostgreSQL, a nie ukrywać czerwień.
+
+### Nowy sygnał z CI, 1 października 2026
+
+PR #2496, run `36930817846`, job `110599411663`: pomiar tej samej fixture
+zwrócił 320 przy progu 100. W niezależnym PR #2493, run `36930561348`,
+job `110598584632`, pomiar zwrócił 40. Zmiany #2496 nie obejmowały
+`CollectionController` ani tego testu. Log czerwonego joba zawierał tylko sumę,
+bez SQL i planu, więc nie ustalał, czy zmieniła się praca szyny, czy wybór
+planu przez PostgreSQL. Powyższa diagnostyka zapisze te dane dopiero przy
+następnej porażce. Sam wynik 320 nie jest dowodem regresji produktu.
 - `test_liczniki_kart_nie_przekraczaja_progu_jit_przy_200_zeszytach` sprawdza, że żadne
   zapytanie ekranu przy 200 zeszytach i 20 000 zapisów nie ma szacunku ≥
   `jit_inline_above_cost`. Stary kod: ok. 902 tys., nowy: ok. 211 tys., próg: 500 tys.
