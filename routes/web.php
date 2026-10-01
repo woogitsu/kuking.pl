@@ -39,6 +39,7 @@ use App\Http\Controllers\CollectionSharingController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CookedEventController;
 use App\Http\Controllers\CookingModeController;
+use App\Http\Controllers\WspolneGotowanieController;
 use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
@@ -389,6 +390,60 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/przepisy/{recipe}/gotuj/postep', [CookingModeController::class, 'postepZapamietany'])
         ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
         ->name('cooking.sync.postep');
+});
+
+// Wspólne gotowanie (#2385): sesja jednego przepisu dla gospodarza i pomocnika.
+// Wszystko za logowaniem; dostęp rozstrzyga `CookingSessionPolicy` (UUID sesji
+// nie jest autoryzacją — nie-członek dostaje 404) i `RecipePolicy::view`.
+// Limity istniejące: `zaproszenia` (link, zarządzanie) i `cooking_krok`
+// (odhaczanie, odczyt rewizji). Bez WebSocketów — patrz projekt, sekcja 6.
+Route::middleware('auth')->group(function () use ($limits): void {
+    Route::post('/przepisy/{recipe}/gotuj-razem', [WspolneGotowanieController::class, 'zaloz'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('wspolne-gotowanie.zaloz');
+    // Link-zaproszenie: token w adresie, jednorazowy. GET niczego nie zużywa.
+    Route::get('/gotowanie-razem/dolacz/{token}', [WspolneGotowanieController::class, 'pokazLink'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('wspolne-gotowanie.link.show');
+    Route::post('/gotowanie-razem/dolacz/{token}', [WspolneGotowanieController::class, 'przyjmijLink'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('wspolne-gotowanie.link.accept');
+    Route::get('/gotowanie-razem/{cookingSession}', [WspolneGotowanieController::class, 'show'])
+        ->whereUuid('cookingSession')
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('wspolne-gotowanie.show');
+    Route::get('/gotowanie-razem/{cookingSession}/stan', [WspolneGotowanieController::class, 'stan'])
+        ->whereUuid('cookingSession')
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('wspolne-gotowanie.stan');
+    Route::post('/gotowanie-razem/{cookingSession}/krok', [WspolneGotowanieController::class, 'krok'])
+        ->whereUuid('cookingSession')
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('wspolne-gotowanie.krok');
+    Route::post('/gotowanie-razem/{cookingSession}/od-poczatku', [WspolneGotowanieController::class, 'odPoczatku'])
+        ->whereUuid('cookingSession')
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('wspolne-gotowanie.od-poczatku');
+    Route::post('/gotowanie-razem/{cookingSession}/link', [WspolneGotowanieController::class, 'utworzLink'])
+        ->whereUuid('cookingSession')
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('wspolne-gotowanie.link.store');
+    Route::delete('/gotowanie-razem/{cookingSession}/link', [WspolneGotowanieController::class, 'odwolajLink'])
+        ->whereUuid('cookingSession')
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('wspolne-gotowanie.link.destroy');
+    Route::delete('/gotowanie-razem/{cookingSession}/pomocnik/{user}', [WspolneGotowanieController::class, 'usunPomocnika'])
+        ->whereUuid(['cookingSession', 'user'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('wspolne-gotowanie.pomocnik.destroy');
+    Route::delete('/gotowanie-razem/{cookingSession}/moj-udzial', [WspolneGotowanieController::class, 'wyjdz'])
+        ->whereUuid('cookingSession')
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('wspolne-gotowanie.leave');
+    Route::delete('/gotowanie-razem/{cookingSession}', [WspolneGotowanieController::class, 'zakoncz'])
+        ->whereUuid('cookingSession')
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('wspolne-gotowanie.destroy');
 });
 
 Route::get('/wpisy/{post}', [PostController::class, 'show'])->name('posts.show');

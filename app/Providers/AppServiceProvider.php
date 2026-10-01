@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Domain\Collections\Wspoldzielenie\ZerwijWspoldzielenie;
+use App\Domain\Recipes\Gotowanie\Wspolne\KoniecWspolnegoGotowaniaImpl;
 use App\Domain\Import\BramkaPublikacjiOdczytu;
 use App\Domain\Import\ModelFragmentow;
 use App\Domain\Import\StrazImportu;
@@ -25,6 +26,7 @@ use App\Domain\Social\BlokadyZmienione;
 use App\Domain\Social\ListyWidza;
 use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Domain\Users\Import\ZapisSzkicuZPaczki;
+use App\Domain\Users\KoniecWspolnegoGotowania;
 use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Domain\Users\ObserwowanieGospodarza;
 use App\Http\Support\BlokadyWZadaniu;
@@ -100,6 +102,10 @@ class AppServiceProvider extends ServiceProvider
         // D-302): kontrakt w `Users`, implementacja w `Collections` — bez
         // cyklu `Social ↔ Collections` i `Users → Collections → Social`.
         $this->app->bind(KoniecWspolnychZeszytow::class, ZerwijWspoldzielenie::class);
+
+        // Koniec wspólnego gotowania przy blokadzie i wymazaniu konta (#2385):
+        // ten sam wzór — kontrakt w `Users`, implementacja w `Recipes`.
+        $this->app->bind(KoniecWspolnegoGotowania::class, KoniecWspolnegoGotowaniaImpl::class);
 
         // Import przepisu z adresu strony (D-300): DNS przez kontrakt, żeby
         // testy podstawiały własną mapę nazw i nie pytały prawdziwej sieci.

@@ -98,3 +98,14 @@ test('podlaczSprawdzanie: pas bez rewizji albo adresu nie zakłada zegara', () =
 
     assert.equal(t.zegar(), null);
 });
+
+test('komunikatOZmianie: własne zdania wspólnego gotowania (#2385) wypierają domyślne', () => {
+    const teksty = {zmiana: 'Druga osoba zmieniła postęp.', koniec: 'Sesja się skończyła.'};
+
+    assert.equal(komunikatOZmianie({aktywna: true, rewizja: 4}, 3, teksty), 'Druga osoba zmieniła postęp.');
+    assert.equal(komunikatOZmianie({aktywna: false, rewizja: null}, 3, teksty), 'Sesja się skończyła.');
+    // Kontrola dodatnia: bez własnych zdań zostają domyślne.
+    assert.match(komunikatOZmianie({aktywna: true, rewizja: 4}, 3, {}), /innym urządzeniu/);
+    // Ta sama rewizja nadal nie mówi nic.
+    assert.equal(komunikatOZmianie({aktywna: true, rewizja: 3}, 3, teksty), null);
+});

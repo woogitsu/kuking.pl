@@ -49,7 +49,7 @@ class WspolneGotowanieMigracjaTest extends TestCase
         DB::table('cooking_sessions')->where('id', $sesja->getKey())->update(['status' => 'ended']);
     }
 
-    public function test_baza_odrzuca_oczekujace_zaproszenie_bez_skrotu_i_zuzyte_ze_skrotem(): void
+    public function test_baza_odrzuca_oczekujace_zaproszenie_bez_skrotu_i_odwolane_ze_skrotem(): void
     {
         $sesja = $this->sesja();
 

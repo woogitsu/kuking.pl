@@ -6753,14 +6753,15 @@ równoczesne odhaczenia tego samego kroku = `INSERT … ON CONFLICT DO NOTHING`
 |---|---|---|
 | `id` | `uuid` PK | |
 | `session_id` | `uuid NOT NULL` → `cooking_sessions` (`CASCADE`) | |
-| `token_hash` | `varchar(64) NULL` | SHA-256 tokenu (40 znaków losowych); poświadczenie, poza `$fillable`, `$hidden`; token jawny istnieje tylko w odpowiedzi tworzącej link |
+| `token_hash` | `varchar(64) NULL` | SHA-256 tokenu (40 znaków losowych); poświadczenie, poza `$fillable`, `$hidden`; kasowany przy odwołaniu; token jawny istnieje tylko w odpowiedzi tworzącej link |
 | `status` | `varchar(16) NOT NULL DEFAULT 'pending'` | `pending`/`accepted`/`revoked` (`cooking_session_invitations_status_check`) |
 | `expires_at` | `timestamptz NOT NULL` | `link_godziny` (24 h), nigdy dalej niż sesja |
 | `accepted_by_id` | `uuid NULL` → `users` (`ON DELETE SET NULL`) | kto skorzystał |
 | `responded_at` | `timestamptz NULL` | przyjęcie/odwołanie; `CHECK status <> 'accepted' OR responded_at IS NOT NULL` |
 
-CHECK `cooking_session_invitations_token_check`: oczekujący MA skrót, zużyty
-i odwołany go NIE MA. Częściowe unikalne indeksy: `token_hash` (tam, gdzie nie
+CHECK `cooking_session_invitations_token_check`: oczekujący MA skrót, odwołany
+go NIE MA, przyjęty go zachowuje do końca sesji (drugie „Dołączam” tej samej
+osoby jest sukcesem bez skutku; link i tak jest jednorazowy przez `status`). Częściowe unikalne indeksy: `token_hash` (tam, gdzie nie
 NULL) i `(session_id) WHERE status = 'pending'` — najwyżej jeden oczekujący
 link w sesji (nowy unieważnia stary).
 

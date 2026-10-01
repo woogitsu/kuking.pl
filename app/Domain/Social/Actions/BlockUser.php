@@ -7,6 +7,7 @@ namespace App\Domain\Social\Actions;
 use App\Domain\Social\BlokadyZmienione;
 use App\Domain\Social\ListyWidza;
 use App\Domain\Social\ZamekPary;
+use App\Domain\Users\KoniecWspolnegoGotowania;
 use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
@@ -107,6 +108,10 @@ final class BlockUser
             // członkostwo nie przeżyje obok blokady. Przez kontrakt `Users`,
             // nie przez moduł `Collections` — graf modułów bez cykli (#971).
             app(KoniecWspolnychZeszytow::class)->miedzy($blokujacy, $blokowany);
+
+            // Wspólne gotowanie (#2385) kończy się tak samo, w obie strony:
+            // pomocnik traci dostęp do sesji gospodarza w tej samej transakcji.
+            app(KoniecWspolnegoGotowania::class)->miedzy($blokujacy, $blokowany);
         });
 
         AuditLogEntry::recordBezWywracania(

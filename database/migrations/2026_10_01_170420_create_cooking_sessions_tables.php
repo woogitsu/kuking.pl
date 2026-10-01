@@ -24,8 +24,8 @@ use Illuminate\Support\Facades\Schema;
  *   równoczesne odhaczenia tego samego kroku dają JEDEN wiersz bez błędu
  *   (`INSERT … ON CONFLICT DO NOTHING`). `done_by_id`/`done_at` to audyt.
  * - `cooking_session_invitations` — jednorazowy link: w bazie leży wyłącznie
- *   SHA-256 tokenu (`token_hash`, poświadczenie), kasowany przy użyciu i
- *   odwołaniu.
+ *   SHA-256 tokenu (`token_hash`, poświadczenie), kasowany przy odwołaniu;
+ *   przyjęty link zachowuje skrót do końca sesji (idempotencja „Dołączam”).
  *
  * DANE I RETENCJA: wiersze potomne znikają kluczem obcym razem z sesją;
  * sesję kasuje gospodarz (zakończenie) albo `kuking:sprzataj-wspolne-gotowanie`
@@ -100,10 +100,12 @@ return new class extends Migration
             DB::statement('ALTER TABLE cooking_sessions ADD CONSTRAINT cooking_sessions_expiry_check CHECK (expires_at > created_at)');
             DB::statement("ALTER TABLE cooking_session_participants ADD CONSTRAINT cooking_session_participants_role_check CHECK (role IN ('helper'))");
             DB::statement("ALTER TABLE cooking_session_invitations ADD CONSTRAINT cooking_session_invitations_status_check CHECK (status IN ('pending', 'accepted', 'revoked'))");
-            // Zużyty albo odwołany link nie może nosić skrótu tokenu, a oczekujący musi.
+            // Oczekujący link MA skrót, odwołany go NIE MA. Przyjęty zachowuje skrót,
+            // żeby drugie kliknięcie „Dołączam” tej samej osoby było sukcesem bez skutku
+            // (idempotencja); i tak jest jednorazowy przez `status`.
             DB::statement(
                 'ALTER TABLE cooking_session_invitations ADD CONSTRAINT cooking_session_invitations_token_check '
-                ."CHECK ((status = 'pending' AND token_hash IS NOT NULL) OR (status <> 'pending' AND token_hash IS NULL))",
+                ."CHECK ((status = 'pending' AND token_hash IS NOT NULL) OR (status = 'accepted' AND token_hash IS NOT NULL) OR (status = 'revoked' AND token_hash IS NULL))",
             );
             DB::statement(
                 'ALTER TABLE cooking_session_invitations ADD CONSTRAINT cooking_session_invitations_accepted_check '

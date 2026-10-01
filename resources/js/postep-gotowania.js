@@ -27,19 +27,20 @@ export const INTERWAL_MS = 30_000;
  *
  * @param {unknown} odpowiedz surowy JSON z serwera
  * @param {number} widzianaRewizja rewizja zapisana w stronie
+ * @param {{zmiana?: string, koniec?: string}} [teksty] własne zdania (wspólne gotowanie, #2385)
  * @returns {string|null}
  */
-export function komunikatOZmianie(odpowiedz, widzianaRewizja) {
+export function komunikatOZmianie(odpowiedz, widzianaRewizja, teksty = {}) {
     if (odpowiedz === null || typeof odpowiedz !== 'object') return null;
 
     const {aktywna, rewizja} = /** @type {{aktywna?: unknown, rewizja?: unknown}} */ (odpowiedz);
 
     if (aktywna === false) {
-        return 'Zapamiętywanie postępu na koncie wygasło albo zostało wyłączone na innym urządzeniu.';
+        return teksty.koniec ?? 'Zapamiętywanie postępu na koncie wygasło albo zostało wyłączone na innym urządzeniu.';
     }
 
     if (aktywna === true && Number.isInteger(rewizja) && rewizja !== widzianaRewizja) {
-        return 'Postęp tego przepisu zmienił się na innym urządzeniu.';
+        return teksty.zmiana ?? 'Postęp tego przepisu zmienił się na innym urządzeniu.';
     }
 
     return null;
@@ -73,7 +74,10 @@ export function podlaczSprawdzanie(pas, srodowisko) {
 
             if (!odp.ok) return;
 
-            const komunikat = komunikatOZmianie(await odp.json(), rewizja);
+            const komunikat = komunikatOZmianie(await odp.json(), rewizja, {
+                zmiana: pas.dataset.postepKomunikatZmiana,
+                koniec: pas.dataset.postepKomunikatKoniec,
+            });
 
             if (komunikat !== null) {
                 if (tekst) tekst.textContent = komunikat;

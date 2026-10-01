@@ -372,6 +372,17 @@
                 </form>
             </section>
         @endif
+        {{-- Wspólne gotowanie (#2385): tylko dla zalogowanych, aktywnych kont.
+             Zwykły formularz — działa bez JavaScriptu. --}}
+        @if(auth()->user()?->isActive())
+            <section class="cook-sync stack" aria-label="Wspólne gotowanie">
+                <p class="m-0">Gotujesz z kimś? Załóż wspólną sesję: zaprosisz jedną osobę linkiem i obie zobaczycie ten sam przepis oraz te same odhaczone kroki. Sesja wygasa po {{ (int) config('kuking.wspolne_gotowanie.retencja_godziny') }} godzinach i znika razem z odhaczeniami.</p>
+                <form method="POST" action="{{ route('wspolne-gotowanie.zaloz', $recipe->slug) }}">
+                    @csrf
+                    <button type="submit" class="btn btn-secondary">Gotuj z kimś</button>
+                </form>
+            </section>
+        @endif
         @if($hasProgress)
             <div class="danger-zone">
                 <details class="confirm">

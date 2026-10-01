@@ -10,6 +10,7 @@ use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Media\KasujZdjecie;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Users\Import\MagazynPaczek;
+use App\Domain\Users\KoniecWspolnegoGotowania;
 use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
@@ -206,6 +207,10 @@ final class EraseAccountData
             // z nich były wspólne. Niezależnie od zakresu: członkostwa
             // i zaproszenia to relacje z innymi osobami, jak obserwowanie.
             app(KoniecWspolnychZeszytow::class)->przyWymazaniu($fresh);
+
+            // Wspólne gotowanie (#2385): sesje gospodarza, udziały pomocnika
+            // i podpisy odhaczeń. Niezależnie od zakresu usunięcia.
+            app(KoniecWspolnegoGotowania::class)->przyWymazaniu($fresh);
 
             if ($fresh->chceUsunacTresci()) {
                 $this->usunTresci($fresh);
