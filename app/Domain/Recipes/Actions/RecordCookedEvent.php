@@ -11,10 +11,12 @@ use App\Models\AuditLogEntry;
 use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Recipe;
+use App\Models\RecipeVersion;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 /**
  * "Ugotowałem" — zapis realnego wykonania przepisu.
@@ -96,12 +98,13 @@ final class RecordCookedEvent
         ?string $changesNote = null,
         ?string $ip = null,
         ?string $kluczWyslania = null,
+        ?string $wersjaPrzepisuId = null,
     ): CookedEvent {
         $zapisz = function (?string $klucz) use (
-            $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ip
+            $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ip, $wersjaPrzepisuId
         ): CookedEvent {
             return DB::transaction(function () use (
-                $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $klucz, $ip
+                $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $klucz, $ip, $wersjaPrzepisuId
             ): CookedEvent {
                 /*
                  * ZDJĘCIA WYBIERANE POD BLOKADĄ, W TEJ SAMEJ TRANSAKCJI
@@ -186,7 +189,7 @@ final class RecordCookedEvent
                     throw new BladDlaCzlowieka('Tego przepisu nie ma jeszcze opublikowanego.');
                 }
 
-                $event = CookedEvent::create([
+                $event = new CookedEvent([
                     'user_id' => $cook->getKey(),
                     'recipe_id' => $recipe->getKey(),
                     'klucz_wyslania' => $klucz,
@@ -197,6 +200,11 @@ final class RecordCookedEvent
                     'changes_note' => $changesNote,
                     'cooked_at' => now(),
                 ]);
+
+                // Wskaźnik na wersję (issue #2378) jest poza `$fillable`:
+                // ustawia go wyłącznie ta akcja, po sprawdzeniu, że wersja
+                // należy do TEGO przepisu.
+                $event->forceFill(['recipe_version_id' => $this->wersjaWykonania($recipe, $wersjaPrzepisuId)])->save();
 
                 $position = 0;
 
@@ -289,6 +297,51 @@ final class RecordCookedEvent
         }
 
         return $event;
+    }
+
+    /**
+     * Wersja przepisu, z której gotowano (issue #2378) — sam wskaźnik, bez
+     * kopiowania treści.
+     *
+     * `$zFormularza` to identyfikator wersji, którą ekran „Ugotowałem"
+     * pobrał razem z formularzem, czyli tę, którą człowiek miał przed oczami.
+     * To dane od klienta, więc: wersja musi należeć do TEGO przepisu (cudzy
+     * identyfikator nie przypina nikomu wersji innego przepisu). Brak albo
+     * niepoprawny identyfikator (API, stary formularz) schodzi do najnowszej
+     * wersji w chwili zapisu — najlepsze, co wiemy. Przepis bez żadnej wersji
+     * (np. sprzed historii) daje `null`: „nie wiadomo".
+     *
+     * SPRAWDZENIE POD `FOR KEY SHARE`, W TEJ SAMEJ TRANSAKCJI CO INSERT.
+     * Zwykłe `exists()` nie trzyma wiersza: retencja
+     * (`kuking:sprzataj-wersje-przepisow`) mogła skasować wersję między
+     * sprawdzeniem a `INSERT`, a wtedy klucz obcy odrzucał zapis (SQLSTATE
+     * 23503) i człowiek dostawał błąd 500 zamiast swojego wykonania.
+     * `FOR KEY SHARE` to dokładnie ta blokada, którą PostgreSQL sam bierze
+     * przy sprawdzaniu klucza obcego: nie koliduje z innymi wykonaniami tej
+     * wersji ani z `UPDATE` niekluczowych kolumn, a `DELETE` retencji czeka
+     * do końca transakcji. Jeśli retencja zdążyła pierwsza, wiersza już nie
+     * ma i schodzimy do najnowszej wersji.
+     */
+    private function wersjaWykonania(Recipe $recipe, ?string $zFormularza): ?string
+    {
+        if ($zFormularza !== null && Str::isUuid($zFormularza)) {
+            $jest = RecipeVersion::query()
+                ->where('recipe_id', $recipe->getKey())
+                ->whereKey($zFormularza)
+                ->lock('for key share')
+                ->exists();
+
+            if ($jest) {
+                return $zFormularza;
+            }
+        }
+
+        $najnowsza = RecipeVersion::query()
+            ->where('recipe_id', $recipe->getKey())
+            ->orderByDesc('version_number')
+            ->value('id');
+
+        return $najnowsza === null ? null : (string) $najnowsza;
     }
 
     /**

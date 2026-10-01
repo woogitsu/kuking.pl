@@ -31,6 +31,52 @@ nie ma jej ani w progu skryptu, ani w progu
 
 ## Tabele MVP
 
+### profile_username_redirects
+Dawna nazwa profilu: `/@stara-nazwa` przekierowuje 301 na aktualny profil
+tej samej osoby (decyzja właściciela z 1.10.2026, wiersz w D-333; migracja
+`2026_10_01_100000_create_profile_username_redirects_table`). Adres z nazwą
+trafia na wydrukowane karty z kodem QR, do SMS-ów i zakładek, więc zmiana
+nazwy w ustawieniach nie może go zabijać — jak `recipe_slug_redirects` przy
+zmianie tytułu przepisu.
+
+- **`username varchar(40) PRIMARY KEY`** — dawna nazwa, ZAWSZE małymi
+  literami (CHECK `profile_username_redirects_format_check`:
+  `^[a-z0-9_]{3,40}$`). Adres profilu nie rozróżnia wielkości liter
+  (`profiles_username_lower_unique`), więc klucz jest w postaci
+  kanonicznej, a jedna dawna nazwa prowadzi do najwyżej jednej osoby;
+- **`user_id uuid NOT NULL`** → `users` (`ON DELETE CASCADE`) — OSOBA, nie
+  nazwa docelowa. Cel liczymy przy żądaniu z `profiles.username`, więc
+  łańcuch A → B → C kończy się na C bez pętli i bez wiszących wierszy;
+- `created_at timestamptz`. Indeks `profile_username_redirects_user_idx`
+  (`user_id`) obsługuje kasowanie przy wymazaniu konta i kaskadę.
+
+**Reguły (`App\Domain\Users\DawneNazwyProfilu`).**
+- Zapis przy zmianie nazwy w `App\Domain\Users\Actions\ZapiszProfil`, w tej
+  samej transakcji co `UPDATE profiles` (kontroler tylko woła akcję). Zmiana
+  samej wielkości liter („Basia" → „basia") niczego nie zapisuje.
+- **Żywy profil ma pierwszeństwo.** Przekierowania szukamy dopiero, gdy pod
+  nazwą nie ma profilu. Dawnej nazwy nic nie rezerwuje: ktokolwiek może ją
+  zająć (zmiana nazwy albo rejestracja), a wtedy wiersz znika w tej samej
+  transakcji (`zajmij()`), żeby nie ożył po kolejnej zmianie nazwy przez
+  nowego właściciela. Powrót do własnej dawnej nazwy kasuje własny wiersz.
+- **Przekierowanie ma prawa profilu, nie większe.** Przed 301 pytamy
+  `UserPolicy::viewProfile` widza; odmowa (konto zbanowane lub w trakcie
+  usuwania, blokada w którąkolwiek stronę) to 404 — nagłówek `Location`
+  zdradziłby nową nazwę osoby, której profilu widz nie widzi.
+- Obejmuje `/@nazwa`, `/@nazwa/obserwujacy`, `/@nazwa/obserwowani` i kanał
+  Atom `/@nazwa/kanal` (zapytanie w adresie zostaje). Trasy zapisu
+  (`obserwuj`, `blokuj`, `ukryj`) NIE przekierowują — formularz zawsze niesie
+  aktualną nazwę.
+- **Wymazanie konta** (`EraseAccountData`) kasuje wszystkie dawne nazwy
+  osoby (RODO art. 17): dawna nazwa jest daną osobową i kluczykiem do nowej.
+  Konto `erased` zostaje pod anonimową nazwą, bez śladu poprzednich.
+  Wiersze osób, które nie żądały wymazania, żyją bez limitu czasu — dopóki
+  nazwy nie zajmie ktoś inny albo konto nie zostanie usunięte.
+
+**Rollback:** `DROP TABLE` bez strażnika (D-088 chroni wartości semantyczne;
+tu nic groźnego nie wraca). Cena: dawne adresy i karty z kodem QR sprzed
+zmiany nazwy wracają do 404.
+
 ### users
 Konto:
 - id;
@@ -3025,6 +3071,29 @@ Jedno realne gotowanie. Brak unique `(user_id, recipe_id)`.
 - `cooked_at timestamptz NOT NULL DEFAULT now()` — kiedy gotowano. Osobne od
   `created_at`, bo wpis o niedzielnym obiedzie bywa pisany we wtorek;
 - `klucz_wyslania` — patrz niżej.
+- **`recipe_version_id uuid NULL` → `recipe_versions (id)` `ON DELETE SET NULL`**
+  (#2378, migracja `2026_10_01_100100_add_recipe_version_id_to_cooked_events`) —
+  wersja przepisu otwarta przy formularzu „Ugotowałem”. **Wskaźnik, nie kopia:**
+  do wykonania nie trafia żadna treść przepisu. Ustawia go wyłącznie
+  `RecordCookedEvent` (poza `$fillable`), po sprawdzeniu, że wersja należy do
+  TEGO przepisu; brak/cudzy identyfikator → najnowsza wersja z chwili zapisu;
+  przepis bez wersji → `NULL`. `NULL` znaczy „nie wiadomo" (wykonania sprzed
+  migracji — bez backfillu — albo wersja skasowana). Czyta go tylko kucharz
+  (`CookedEventPolicy::viewVersion` + `WersjaWykonania`); publiczne widoki i
+  historia #2024 go nie pokazują.
+  Dlaczego `SET NULL`: `CASCADE` skasowałby notatkę i zdjęcie przy retencji
+  wersji (#2024), `RESTRICT` zablokowałby `kuking:sprzataj-wersje-przepisow`.
+  Wersje usuniętego przepisu i wykonania tego przepisu idą razem z nim
+  (`recipe_id` jest `CASCADE`); wymazanie konta kucharza w zakresie `everything` kasuje jego wykonania, a przy
+  domyślnym `minimum` (D-022) wykonania zostają przy zanonimizowanym koncie,
+  razem ze wskaźnikiem.
+  Indeks częściowy `cooked_events_recipe_version_idx (recipe_version_id) WHERE
+  recipe_version_id IS NOT NULL` obsługuje kaskadę `SET NULL`.
+  **Rollback:** `down()` odmawia, gdy choć jedno wykonanie ma wskaźnik (D-088 —
+  kolejny `migrate` odtworzyłby kolumnę pustą); na świeżej bazie i samych
+  `NULL`-ach zdejmuje indeks, klucz i kolumnę. Test:
+  `tests/Feature/WykonaniePamietaWersjePrzepisuTest.php`. Przyjęte domyślne i
+  pytania otwarte: `docs/product/PROPOZYCJA_WYKONANIE_WERSJA_2378.md`.
 
 **`klucz_wyslania` — jedno wysłanie formularza to jeden wiersz** (D-027,
 migracja `2026_09_07_900100_add_klucz_wyslania_to_cooked_events`).
@@ -3119,6 +3188,44 @@ kaskadowo — więc wykonanie zostawało bez zdjęcia i bez pliku.
 (`2026_09_05_000600_create_cooked_events_tables`). Osobnego `down()` nie ma
 i nie potrzebuje strażnika z D-088: nie leży tu ani jedna wartość semantyczna —
 tylko dwa identyfikatory i liczba porządkowa.
+
+### comment_thanks
+„Dziękuję” pod komentarzem (issue #2355, F11). Migracja
+`2026_10_01_113000_create_comment_thanks_table.php`.
+
+- `id uuid` (PK, `gen_random_uuid()`),
+- `comment_id uuid NOT NULL` → `comments` (`ON DELETE CASCADE`) — za który komentarz,
+- `thanker_id uuid NOT NULL` → `users` (`ON DELETE CASCADE`) — kto dziękuje;
+  zawsze autor treści (wpisu, przepisu, wykonania), pod którą stoi komentarz,
+- `created_at timestamptz`.
+
+`UNIQUE (comment_id, thanker_id)` — podziękowanie to STAN („podziękowano”),
+nie zdarzenie: drugie kliknięcie nie tworzy drugiego wiersza i nie wysyła
+drugiego powiadomienia (`ThankForComment`: `INSERT … ON CONFLICT DO NOTHING`,
+powiadomienie tylko gdy wiersz właśnie powstał). Indeks `thanker_id` pod
+kaskadę konta i eksport. Kto może dziękować, rozstrzyga `CommentPolicy::thank()`
+(nie baza).
+
+**Wycofania nie ma** — decyzja w `ThankForComment` (uprzejmość, nie stan do
+odkręcania; powiadomienie i tak już poszło, a „wycofaj i ponów” nie może
+wyprodukować drugiego). Wiersz znika z komentarzem (twarde usunięcie) albo z kontem.
+
+Bez licznika i bez wpływu na kolejność: żadna lista nie sortuje ani nie
+przycina po tej tabeli (`FeedNieSortujePoMierzeReakcjiTest`, wzorzec „comment”).
+Podziękowanie NIE jest odpowiedzią — nie ma wiersza w `comments`, więc nie
+zamyka edycji komentarza (#1337) i nie wchodzi do wskaźnika odpowiedzi
+(SOUL.md). Stan widzą dwie osoby: dziękujący i autor komentarza.
+
+**Kaskada działa tylko przy twardym usunięciu.** Konta się anonimizuje (D-022),
+więc `EraseAccountData` kasuje jawnie podziękowania wymazywanego konta
+w OBU kierunkach (`thanker_id` oraz `comment_id` jego komentarzy) — przy każdym
+`delete_scope`. Eksport: `moje_podziekowania` (adres rozmowy i chwila, bez
+treści i bez nazwy komentującej); podziękowania otrzymane są w `powiadomienia`
+(typ `comment.thanked`, z żywym wycinkiem komentarza).
+
+**Rollback odmawia (D-088)**, gdy w tabeli są podziękowania — to słowa ludzi
+do ludzi, a `up()` ich nie odtworzy. Na pustej tabeli przechodzi. Test:
+`DziekujePodKomentarzemTest::test_rollback_odmawia_gdy_sa_podziekowania…`.
 
 ### comments
 Komentarz dotyczy dokładnie jednego:

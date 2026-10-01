@@ -206,6 +206,10 @@ const EKRANY = [
   // tekstem. Ten sam przepis co ekran „przepis” wyżej, bo demo ma dla niego
   // gotowe kroki — patrz komentarz przy `adresPrzepisu` niżej w tym pliku.
   { nazwa: 'tryb gotowania', adres: null, znajdz: 'gotowanie' },
+  // Kolejka kilku potraw (#2379): przełącznik potraw, lista minutników i
+  // przyciski pod rząd — ten ekran ma przejść 320 px i 200% tak samo jak
+  // tryb gotowania. Stan kolejki jest w adresie, więc wystarczy ten sam przepis.
+  { nazwa: 'kolejka gotowania', adres: null, znajdz: 'kolejka' },
 
   /*
    * Trzy sposoby wyświetlania zdjęć we wpisie (issue #92).
@@ -640,6 +644,23 @@ wymagajUnikalnychEkranow(EKRANY_UKLADU, 'EKRANY_UKLADU');
 const PRZEGLADARKA_200 = 'przegladarka-200';
 
 /**
+ * Drugi, GRUBSZY wariant „tekst 200%": `font-size: 32px` wpisane na `<html>`
+ * po wczytaniu strony (tak mierzy to zwykle agent albo rozszerzenie
+ * przeglądarki, które podmienia rozmiar korzenia). Różni się od
+ * `PRZEGLADARKA_200` tym, że media query w `rem` zostają przy bazie 16 px —
+ * więc reguły, które „ratują" układ progiem w `rem` (dawny `max-width: 12rem`
+ * chowający napis logotypu), tu NIE działają. Błąd z 1 października 2026:
+ * `/przepisy/{slug}/gotuj` miało `scrollWidth` 339 px w oknie 320 px właśnie
+ * w tym wariancie, a CDP-owy 200% był zielony. Poprawny układ ma znieść oba.
+ *
+ * Mierzymy go tylko w wąskich oknach (patrz `SZEROKOSC_MAKS_HTML_200`):
+ * przy 1280 px ten wariant bada desktop z podwojonym tekstem, w którym nikt
+ * nie jest, i zgłaszałby fałszywe przepełnienia (uzasadnienie niżej).
+ */
+const HTML_200 = 'html-200';
+const SZEROKOSC_MAKS_HTML_200 = 414;
+
+/**
  * Domyślny rozmiar pisma przeglądarki. Wariant `PRZEGLADARKA_200` ustawia
  * dwa razy tyle — czyli dokładnie to, co robi „Rozmiar czcionki: bardzo duży"
  * w ustawieniach Chrome.
@@ -650,6 +671,10 @@ const BAZOWA_CZCIONKA_PX = 16;
 function etykietaSkali(skala) {
   if (skala === null) {
     return '';
+  }
+
+  if (skala === HTML_200) {
+    return ' / tekst 200% (font-size na <html>)';
   }
 
   return skala === PRZEGLADARKA_200
@@ -1682,7 +1707,22 @@ const adresPrzepisu = (() => {
 // pokazuje prawdziwą treść, nie pustą kartę „autor jeszcze nie opisał
 // przygotowania” (a pusty ekran przechodzi każdy test dostępności, nie
 // sprawdzając niczego — patrz nagłówek tego pliku).
-const adresGotowania = adresPrzepisu === null ? null : `${adresPrzepisu}/gotuj`;
+//
+// ZAPYTANIE O PRZEPIS Z KROKAMI, nie `adresPrzepisu + '/gotuj'`: kontroler
+// przekierowuje przepis bez kroków z powrotem na stronę przepisu (HTTP 200
+// po drodze), a kroki mają w demo tylko niektóre przepisy — przy pierwszym
+// przepisie po `id` bez kroków „tryb gotowania" cicho mierzyłby stronę
+// przepisu. Tak wypadał właśnie ekran, na którym 1 października 2026 szukano
+// usterki nagłówka, i dlatego pomiar jej tam nie pokazywał.
+const adresGotowania = (() => {
+  const slug = execFileSync('php', ['artisan', 'tinker', '--execute',
+    "echo optional(App\\Models\\Recipe::where('status','published')->where('visibility','public')"
+    + "->whereHas('steps')->orderBy('id')->first())->slug;",
+  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+    .toString().trim();
+
+  return slug === '' ? null : `/przepisy/${slug}/gotuj`;
+})();
 
 if (adresPrzepisu === null) {
   console.error('BŁĄD: w bazie nie ma opublikowanego przepisu — ekran przepisu nie zostałby sprawdzony.');
@@ -2148,6 +2188,10 @@ function sciezkaEkranu(ekran) {
 
   if (ekran.znajdz === 'gotowanie') {
     return adresGotowania;
+  }
+
+  if (ekran.znajdz === 'kolejka') {
+    return `/gotuj-kilka?p=${adresPrzepisu.split('/').pop()}:1`;
   }
 
   if (ekran.znajdz === 'odwolanie') {
@@ -2850,7 +2894,11 @@ log('');
 log('Układ (przewijanie w bok):');
 
 for (const szerokosc of SZEROKOSCI_UKLADU) {
-  for (const skala of SKALE_UKLADU) {
+  for (const skala of [...SKALE_UKLADU, HTML_200]) {
+    if (skala === HTML_200 && szerokosc > SZEROKOSC_MAKS_HTML_200) {
+      continue;
+    }
+
     const opis = `${szerokosc} px${etykietaSkali(skala)}`;
 
     const kontekstGoscia = await przegladarka.newContext({
@@ -2948,6 +2996,29 @@ for (const szerokosc of SZEROKOSCI_UKLADU) {
             + 'zmiana nie dotknęła bazy media queries — mierzylibyśmy układ '
             + 'desktopowy z podwojonym tekstem, czyli stan, w którym żaden '
             + 'człowiek nie jest.',
+          );
+          process.exitCode = 1;
+          await strona.close();
+          continue;
+        }
+      } else if (skala === HTML_200) {
+        // `setProperty` przez CSSOM, nie `<style>`: CSP serwisu zabrania
+        // wstrzykniętych arkuszy, a ta droga przechodzi.
+        await strona.evaluate((px) => {
+          document.documentElement.style.setProperty('font-size', `${px}px`, 'important');
+        }, 2 * BAZOWA_CZCIONKA_PX);
+
+        const korzen = await strona.evaluate(async () => {
+          await new Promise((dalej) => requestAnimationFrame(() => requestAnimationFrame(dalej)));
+
+          return Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+        });
+
+        if (korzen < 2 * BAZOWA_CZCIONKA_PX) {
+          console.error(
+            `BŁĄD: czcionka korzenia to ${korzen} px zamiast ${2 * BAZOWA_CZCIONKA_PX} px `
+            + `na ekranie „${ekran.nazwa}" (${opis}). Bez tego wariant przechodziłby na `
+            + 'zielono, nie mierząc niczego.',
           );
           process.exitCode = 1;
           await strona.close();

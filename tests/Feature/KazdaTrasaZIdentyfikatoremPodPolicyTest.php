@@ -682,6 +682,19 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'author_id' => $wlasciciel->getKey(),
             'post_id' => $wpisPubliczny->getKey(),
         ]);
+        // „Dziękuję" pod komentarzem (#2355, `CommentPolicy::thank`): dziękuje
+        // wyłącznie autor treści, pod którą stoi komentarz (tu: właścicielka
+        // wpisu publicznego), i tylko komuś innemu niż on sam.
+        $komentarzObcejOsoby = Comment::factory()->create([
+            'author_id' => $przedmiot->getKey(),
+            'post_id' => $wpisPubliczny->getKey(),
+        ]);
+        // Komentarz osoby zablokowanej przez właścicielkę treści: dla niej jest
+        // niewidoczny, więc „Dziękuję" kończy się odmową.
+        $komentarzZablokowanego = Comment::factory()->create([
+            'author_id' => $zablokowany->getKey(),
+            'post_id' => $wpisPubliczny->getKey(),
+        ]);
         // Wątek pod wpisem PRYWATNYM — dla `api.komentarze.odpowiedzi` (#1970):
         // bramką jest `CommentPolicy::view`, która pyta Policy rodzica.
         $komentarzPodPrywatnym = Comment::factory()->create([
@@ -1138,6 +1151,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // przepisu, nie do każdego widza (`CookedEventPolicy::celebrate`).
         $dodaj('cooked.celebrate', 'ekran „Komuś wyszło"', 'get',
             route('cooked.celebrate', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        // #2378: wersja przepisu z gotowania należy wyłącznie do kucharza
+        // (`CookedEventPolicy::viewVersion`) — nawet autor przepisu dostaje odmowę.
+        $dodaj('cooked.version', 'wersja przepisu przypięta do wykonania', 'get',
+            route('cooked.version', $wykonanie), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.thank', 'podziękowanie za wykonanie', 'post',
             route('cooked.thank', $wykonanie), ['body' => 'Dziękuję za ugotowanie.'], [$W, $O, $O, $O, $O]);
         // F6: wspomnienie z wykonania chowa wyłącznie kucharz
@@ -1153,6 +1170,15 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('comments.update', $komentarz), ['body' => 'Poprawiona treść komentarza.'], [$W, $O, $O, $O, $O]);
         $dodaj('comments.destroy', 'usunięcie komentarza', 'delete',
             route('comments.destroy', $komentarzDoKasacji), [], [$W, $O, $O, $O, $O]);
+        // Kontrola dodatnia: wolno wyłącznie autorowi treści, pod którą stoi komentarz.
+        $dodaj('comments.thank', 'podziękowanie za komentarz pod własnym wpisem', 'post',
+            route('comments.thank', $komentarzObcejOsoby), [], [$W, $O, $O, $O, $O]);
+        // Za własny komentarz nie dziękuje nikt (403), a inni nie są autorem treści.
+        $dodaj('comments.thank', 'podziękowanie za własny komentarz', 'post',
+            route('comments.thank', $komentarz), [], [$O, $O, $O, $O, $O]);
+        // Komentarz osoby zablokowanej przez autora treści jest dla niego niewidoczny.
+        $dodaj('comments.thank', 'podziękowanie za komentarz osoby zablokowanej', 'post',
+            route('comments.thank', $komentarzZablokowanego), [], [$O, $O, $O, $O, $O]);
 
         // ─── ZESZYTY ─────────────────────────────────────────────────────
         $dodaj('collections.show', 'prywatny zeszyt', 'get',

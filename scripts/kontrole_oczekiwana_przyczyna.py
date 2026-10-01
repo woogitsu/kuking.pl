@@ -102,6 +102,8 @@ OCZEKUJ = {
     'Komunikat bazy przez BezpiecznyKomunikat w logu śladu listu': r'does not contain "insert into"|does not contain "\$2y\$"|does not contain "X-Amz-Signature"|Surowe getMessage\(\) w logu \(użyj BezpiecznyBlad::kontekst\(\)\)',
     'Skaner logów ślepy na report()': r'Skaner nie złapał wszystkich form: Naruszenia\.php:6 Naruszenia\.php:7',
     'Kolor z niezdefiniowanej zmiennej': r'Te zmienne kolorów są użyte, ale nigdzie nie zdefiniowane',
+    'Rama marki z zaszytym kolorem': r'Te kolory są wpisane w regułę zamiast w token',
+    'Bramka R2 każe sprawdzać Sentry (#2382)': r'Sentry może wystąpić tylko jako wyraźnie oznaczony plan',
     'Linki sąsiednich wpisów bez skali tekstu': r'contains "font-size: var\(--text-body\)"',
     'Cofnięcie CHECK-a kontaktu bez odmowy przy sierotach': r"contains 'Nie można cofnąć migracji'",
     'Cofnięcie znaczników odpowiedzi bez odmowy': r'exception of type "RuntimeException" is thrown',

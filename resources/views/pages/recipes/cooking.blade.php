@@ -314,6 +314,9 @@
             @endif
         </nav>
 
+        {{-- Gotowanie kilku potraw naraz (#2379): przycisk odkrywa skrypt. --}}
+        <x-kolejka-dodaj :recipe="$recipe" />
+
         @if($nastepnyKrok === null)
             {{--
                 Ostatni krok — issue: „Ugotowałem" jako naturalne domknięcie,

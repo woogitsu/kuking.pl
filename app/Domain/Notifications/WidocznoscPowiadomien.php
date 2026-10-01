@@ -199,7 +199,7 @@ final class WidocznoscPowiadomien
 
         $query->where(function (Builder $tylkoIstniejaceTresci) use ($viewer): void {
             $tylkoIstniejaceTresci
-                ->whereNotIn('notifications.type', [Notification::TYPE_COMMENT, Notification::TYPE_REPLY])
+                ->whereNotIn('notifications.type', Notification::TYPY_Z_WYCINKIEM_KOMENTARZA)
                 ->orWhereExists(function (QueryBuilder $sub) use ($viewer): void {
                     $sub->selectRaw('1')
                         ->from('comments as pc')

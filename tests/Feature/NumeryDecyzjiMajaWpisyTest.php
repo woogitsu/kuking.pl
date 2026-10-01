@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Tests\Support\DziennikDecyzji;
 use Tests\TestCase;
 
 /**
- * Każdy numer decyzji cytowany w kodzie ma wpis w `docs/DECISIONS.md`.
+ * Każdy numer decyzji cytowany w kodzie ma wpis w dzienniku decyzji.
+ *
+ * Od 25.09.2026 dziennik to jeden plik na decyzję w `docs/decyzje/`
+ * (`docs/DECISIONS.md` jest indeksem). Test czyta wpisy złączone przez
+ * `Tests\Support\DziennikDecyzji::tresc()` — w tej samej postaci, co dawny
+ * jednoplikowy dziennik — więc reguły niżej nie zmieniły się ani o znak.
  *
  * SKĄD TO SIĘ WZIĘŁO — TEN BŁĄD WYSTĄPIŁ DWA RAZY, DRUGI RAZ PO NAPRAWIE
  * 10 września 2026 okazało się, że kod powołuje się w SIEDEMNASTU miejscach
@@ -81,7 +87,7 @@ use Tests\TestCase;
  *
  *    ```bash
  *    for n in 067 070 073 074 084 086 094; do \
- *      printf 'D-%s: %s\n' "$n" "$(grep -cE "^## D-$n\b" docs/DECISIONS.md)"; done
+ *      printf 'D-%s: %s\n' "$n" "$(ls docs/decyzje | grep -c "^D-$n-")"; done
  *    ```
  *  - **Formatu odnośnika.** „D-051", „(D-051)", „patrz D-051" i „D-051 §3"
  *    są tu równie dobre; ujednolicanie zapisu nie jest tym, co się zepsuło.
@@ -209,7 +215,7 @@ class NumeryDecyzjiMajaWpisyTest extends TestCase
         $this->assertGreaterThanOrEqual(
             self::MIN_WPISOW,
             count($wpisy),
-            'W docs/DECISIONS.md widać mniej niż '.self::MIN_WPISOW.' wpisów '
+            'W dzienniku (docs/decyzje/) widać mniej niż '.self::MIN_WPISOW.' wpisów '
             .'(znaleziono '.count($wpisy).'). Dziennik się nie kurczy, więc to '
             .'usterka tego testu: sprawdź ścieżkę do pliku i wzorzec nagłówka '
             .'„## D-NNN", a nie treść dziennika.',
@@ -265,7 +271,7 @@ class NumeryDecyzjiMajaWpisyTest extends TestCase
         $this->assertGreaterThanOrEqual(
             self::MIN_WPISOW,
             count($numery),
-            'W docs/DECISIONS.md widać mniej niż '.self::MIN_WPISOW.' nagłówków '
+            'W dzienniku (docs/decyzje/) widać mniej niż '.self::MIN_WPISOW.' nagłówków '
             .'(znaleziono '.count($numery).'). To usterka tego testu, nie '
             .'dziennika — sprawdź ścieżkę i wzorzec nagłówka.',
         );
@@ -276,7 +282,7 @@ class NumeryDecyzjiMajaWpisyTest extends TestCase
         $this->assertSame(
             [],
             $zdublowane,
-            'W docs/DECISIONS.md ten sam numer decyzji ma więcej niż jeden wpis: '
+            'W dzienniku (docs/decyzje/) ten sam numer decyzji ma więcej niż jeden wpis: '
             .implode(', ', $zdublowane).'. Kod odsyłający do tego numeru trafia '
             .'w dwie różne decyzje naraz. Najczęstsza przyczyna: konflikt '
             .'scalania na końcu pliku rozwiązany „weź obie strony" — nadaj '
@@ -358,15 +364,16 @@ class NumeryDecyzjiMajaWpisyTest extends TestCase
 
     private function trescDziennika(): string
     {
-        $sciezka = base_path('docs/DECISIONS.md');
+        $dziennik = new DziennikDecyzji(base_path());
 
-        $this->assertFileExists(
-            $sciezka,
-            'Nie ma docs/DECISIONS.md — a to jest plik, wobec którego ten test '
+        $this->assertNotSame(
+            [],
+            $dziennik->pliki(),
+            'Nie ma wpisów w '.DziennikDecyzji::KATALOG.'/ — a to są pliki, wobec których ten test '
             .'sprawdza wszystkie odnośniki z kodu.',
         );
 
-        return (string) file_get_contents($sciezka);
+        return $dziennik->tresc();
     }
 
     /**
@@ -435,7 +442,7 @@ class NumeryDecyzjiMajaWpisyTest extends TestCase
         }
 
         $linie = [
-            'Kod cytuje numery decyzji, których nie ma w docs/DECISIONS.md:',
+            'Kod cytuje numery decyzji, których nie ma w dzienniku (docs/decyzje/, indeks docs/DECISIONS.md):',
             '',
         ];
 
@@ -453,7 +460,7 @@ class NumeryDecyzjiMajaWpisyTest extends TestCase
         $linie[] = ' 1. decyzja jest w dzienniku pod INNYM numerem — przepnij odnośniki;';
         $linie[] = ' 2. decyzji nikt nie podjął, a treść wynika z dokumentu wiążącego';
         $linie[] = '    (np. docs/brand/COPY_STYLE.md) — usuń numer, zostaw odnośnik do issue;';
-        $linie[] = ' 3. decyzja jest realna, a wpisu brakuje — dopisz wpis na końcu dziennika.';
+        $linie[] = ' 3. decyzja jest realna, a wpisu brakuje — dodaj plik docs/decyzje/D-NNN-slug.md (docs/DECISIONS.md, „Jak dodać decyzję").';
         $linie[] = '';
         $linie[] = 'Czego NIE robić: wymyślać decyzji, żeby zapełnić lukę. Numer decyzji jest';
         $linie[] = 'odnośnikiem — martwy odnośnik wygląda na uzasadnienie i zatrzymuje szukanie.';

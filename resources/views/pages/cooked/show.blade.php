@@ -14,6 +14,20 @@
 <x-layout :title="$tytulStrony" :noindex="true">
     <x-cooked-card :event="$event" :showRecipe="true" :przepisZaBlokada="$przepisZaBlokada" />
 
+    {{-- Wersja przepisu z tego gotowania (#2378) — wyłącznie dla kucharza.
+         Publiczna karta wyżej nic o niej nie mówi. --}}
+    @if(($maPrzypietaWersje ?? false))
+        <section class="sekcja-strony" aria-labelledby="wersja-gotowania">
+            <h2 id="wersja-gotowania">Z której wersji przepisu</h2>
+            @if($wersjaWykonania !== null)
+                <p>Wersja przepisu otwarta przy tym wykonaniu. Widzisz ją tylko Ty.</p>
+                <p><a class="btn btn-secondary" href="{{ route('cooked.version', $event) }}">Zobacz wersję {{ $wersjaWykonania->version_number }}</a></p>
+            @else
+                <p class="meta meta-samodzielne">Wersji przepisu z tego gotowania nie możemy już pokazać. Twoje wykonanie zostaje bez zmian.</p>
+            @endif
+        </section>
+    @endif
+
     @if(auth()->id() === $event->user_id)
         <div class="danger-zone">
             <x-confirm-button

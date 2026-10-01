@@ -1244,11 +1244,20 @@ new class extends Component
 
 {{-- `data-kreator-zapis` czyta `resources/js/strona-nieaktualna.js`, gdy
      żądanie dostanie 419 (#977): komunikat nie może obiecać, że szkic jest
-     bezpieczny, jeśli żaden się jeszcze nie zapisał. --}}
+     bezpieczny, jeśli żaden się jeszcze nie zapisał.
+
+     `x-on:input` zapisuje numer wersji przez `$wire.$set(…, false)`, a NIE przez
+     `$wire.editRevision = …`. Bundel CSP (`livewire.csp_safe`) w Livewire 4.4.6
+     (Alpine 3.17.4) przy przypisaniu do składowej sprawdza `obj.constructor`
+     na `$wire`, a Proxy `$wire` odpowiada na to błędem „properties[name] is not
+     a function”: przypisanie po cichu się nie wykonuje, numer wersji nie
+     dociera na serwer i plakietka do końca mówi „Zmiany czekają na zapis.”,
+     choć szkic jest zapisany. `$set(…, false)` robi to samo (zmienia stan
+     lokalnie, bez własnego żądania) w obu wersjach. --}}
 <div class="stack"
      data-kreator-zapis="{{ $recipeId === null ? 'brak' : ($juzOpublikowany ? 'opublikowany' : 'szkic') }}"
      x-data="{ revision: $wire.editRevision }"
-     x-on:input="$wire.editRevision = ++revision">
+     x-on:input="$wire.$set('editRevision', ++revision, false)">
     {{-- ------------------------------------------------------------------
          Wskaźnik kroku. Tekst „Krok 2 z 3” + nazwa kroku, nie same kropki
          (docs/design/DESIGN_SYSTEM.md → WizardSteps).
