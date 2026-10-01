@@ -28,6 +28,7 @@ use App\Support\OdpowiedziWatku;
 use App\Support\StaryAdresPrzepisu;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -278,7 +279,8 @@ class CookedEventController extends Controller
      */
     public function wersja(Request $request, CookedEvent $cookedEvent): View
     {
-        abort_unless($request->user()?->can('viewVersion', $cookedEvent), 404);
+        // 404, nie 403: obcy nie dowiaduje się, że takie wykonanie istnieje.
+        abort_unless(Gate::forUser($request->user())->allows('viewVersion', $cookedEvent), 404);
 
         $cookedEvent->loadMissing('recipe.author');
         $wersja = WersjaWykonania::dla($cookedEvent, $request->user());
