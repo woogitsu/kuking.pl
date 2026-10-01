@@ -101,6 +101,20 @@ class KosztZCenGusTest extends TestCase
         $this->assertSame(['ilosc' => 250.0, 'miara' => 'g'], IloscZTekstu::rozbierz('200-300 g mąki'));
     }
 
+    #[Test]
+    public function uszkodzony_ogon_jednej_liczby_nie_udaje_poprawnej_ilosci(): void
+    {
+        foreach (['300- g mąki', '300.5.5 g mąki', '300 g do 400 g mąki'] as $tekst) {
+            $this->assertNull(
+                IloscZTekstu::rozbierz($tekst),
+                'KOSZT_2477_USZKODZONA_JEDNA_LICZBA_NIE_DAJE_WYCENY',
+            );
+        }
+
+        $this->assertSame(['ilosc' => 2.0, 'miara' => 'lyzka'], IloscZTekstu::rozbierz('2 łyżki do smażenia'));
+        $this->assertSame(['ilosc' => 300.0, 'miara' => 'g'], IloscZTekstu::rozbierz('300 g mąki'));
+    }
+
     // ------------------------------------------------------------------
     // Dopasowanie do cennika
     // ------------------------------------------------------------------

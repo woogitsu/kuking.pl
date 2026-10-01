@@ -1269,6 +1269,9 @@ checks = [
     ("Koszt: uszkodzony zakres przyjmuje początek (#2477)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "uszkodzony_zakres_nie_liczy_poprawnego_poczatku",
      lambda s: replace_once(s, "if (preg_match('/^[.,\\/]\\d|(?:^|\\s)(?:do|lub|albo)\\s+\\d/', $poDopasowaniu) === 1",
          "if (false && preg_match('/^[.,\\/]\\d|(?:^|\\s)(?:do|lub|albo)\\s+\\d/', $poDopasowaniu) === 1")),
+    ("Koszt: uszkodzona pojedyncza liczba daje wycenę (#2477)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "uszkodzony_ogon_jednej_liczby_nie_udaje_poprawnej_ilosci",
+     lambda s: replace_once(s, "                $poDopasowaniu = substr($t, $trafienie[0][1] + strlen($trafienie[0][0]));",
+         "                if (($trafienie[2][0] ?? '') === '') { return self::zMiara(self::liczba($trafienie[1][0]), $slowo); }\n                $poDopasowaniu = substr($t, $trafienie[0][1] + strlen($trafienie[0][0]));")),
     # #988: komunikat po akcji ma jawny rodzaj. Goły `->with('status', …)`
     # wróciłby do zielonej plakietki także dla odmowy.
     ("Goły ->with('status') wraca do kontrolera", "app/Http/Controllers/SmakowicieController.php", "test_w_app_nie_ma_golego_zapisu_statusu_bez_rodzaju",
