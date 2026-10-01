@@ -10,7 +10,7 @@
             Link „Jednak chcę go dostawać” działa przez godzinę od wypisania, żeby nikt niepowołany nie włączył Ci e-maila.
         </p>
         <p class="mb-0">
-            Zaloguj się i włącz sobotnie przypomnienie w Ustawieniach albo na stronie „Co mam w domu”. Nic się nie zmieniło: przypomnienie zostaje wyłączone.
+            Zaloguj się i włącz sobotnie przypomnienie na stronie „Co mam w domu” (jest tam pole „Sobotnie przypomnienie”). Nic się nie zmieniło: przypomnienie zostaje wyłączone.
         </p>
     </div>
     <p>
