@@ -83,6 +83,24 @@ final class TypowyCzasPrzepisuTest extends TestCase
             ->assertSee('Gotujący zwykle potrzebują około 60 min (na podstawie 5 osób).', escape: false);
     }
 
+    public function test_od_90_minut_czasy_sa_w_godzinach_na_calej_stronie(): void
+    {
+        $this->przepis->forceFill(['prep_minutes' => 30, 'cook_minutes' => 60])->save();
+        $this->osobyZCzasami([120, 120, 120, 120, 120]);
+
+        $html = $this->get(route('recipes.show', $this->przepis->slug))->assertOk()
+            ->assertSee('<strong>Około 1 godz. 30 min</strong>', escape: false)
+            ->assertSee('Autor podaje około 1 godz. 30 min.', escape: false)
+            ->assertSee('Gotujący zwykle potrzebują około 2 godz. (na podstawie 5 osób).', escape: false)
+            ->getContent();
+
+        // Dane strukturalne zostają w ISO 8601, nie w godzinach po polsku.
+        $this->assertSame('PT1H30M', $this->przepis->fresh()->totalTimeIso());
+
+        // Dawny zapis „N min” przy czasie od 90 minut nie wraca w kafelku ani w zdaniach.
+        $this->assertDoesNotMatchRegularExpression('/Około 90 min|około 90 min|około 120 min/u', $html);
+    }
+
     public function test_bez_czasu_autora_jest_tylko_zdanie_o_gotujacych(): void
     {
         $this->przepis->forceFill(['prep_minutes' => null, 'cook_minutes' => null])->save();

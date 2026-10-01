@@ -109,7 +109,7 @@ class EkranPrzepisuWedlugKituTest extends TestCase
         }
 
         // Kafle liczb z kitu — tylko te, które autor naprawdę podał.
-        $odpowiedz->assertSee('Około 120 min', escape: false)
+        $odpowiedz->assertSee('Około 2 godz.', escape: false)
             ->assertSee('4 porcje', escape: false)
             ->assertSee('Poziom', escape: false);
     }

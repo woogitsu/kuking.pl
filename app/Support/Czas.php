@@ -30,6 +30,30 @@ use Carbon\CarbonInterface;
  */
 final class Czas
 {
+    /** Od ilu minut czas przepisu piszemy w godzinach (decyzja właściciela z 1.10.2026, D-333). */
+    public const OD_MINUT_W_GODZINACH = 90;
+
+    /**
+     * Czas przepisu po ludzku: „45 min", „1 godz. 30 min", „2 godz.".
+     *
+     * Poniżej 90 minut zostają minuty. Od 90 godziny i minuty liczymy
+     * z wartości, którą dostaliśmy (typowy czas jest już zaokrąglony do
+     * 5 minut, czas autora jest dokładnie taki, jak wpisał). „godz." to
+     * skrót, więc bez odmiany. Bez „około" — dopisuje je miejsce użycia.
+     * JSON-LD NIE używa tej metody: tam zostaje ISO 8601 (`PT1H30M`).
+     */
+    public static function czasPrzepisu(int $minuty): string
+    {
+        if ($minuty < self::OD_MINUT_W_GODZINACH) {
+            return $minuty.' min';
+        }
+
+        $godziny = intdiv($minuty, 60);
+        $reszta = $minuty % 60;
+
+        return $godziny.' godz.'.($reszta > 0 ? ' '.$reszta.' min' : '');
+    }
+
     /** Ten sam moment, wyrażony w strefie, w której człowiek na niego patrzy. */
     public static function lokalnie(CarbonInterface $moment): CarbonInterface
     {

@@ -369,7 +369,7 @@
                     @if($total)
                         <li class="przepis-liczba">
                             <x-ikona nazwa="clock" :rozmiar="26" />
-                            <div><strong>Około {{ $total }} min</strong><span>Czas</span></div>
+                            <div><strong>Około {{ \App\Support\Czas::czasPrzepisu($total) }}</strong><span>Czas</span></div>
                         </li>
                     @endif
                     @if($porcje)
@@ -391,7 +391,7 @@
                  progu 5 osób nie ma nic — także zdania o braku danych. --}}
             @if(($typowyCzas ?? null) !== null)
                 <p class="przepis-typowy-czas kolumna-czytania" data-typowy-czas="{{ $typowyCzas->minuty }}">
-                    @if($total)Autor podaje około {{ $total }} min. @endif{{ $typowyCzas->zdanie() }}
+                    @if($total)Autor podaje około {{ \App\Support\Czas::czasPrzepisu($total) }}. @endif{{ $typowyCzas->zdanie() }}
                 </p>
             @endif
             {{-- Koszt wg autora (D-286). Pełnym zdaniem, z „ok." i „wg autora",
