@@ -284,6 +284,11 @@ test('forma: audyt ma skale 100/150 i wybór 200 przy 320 px oraz wyrok w kodzie
   assert.match(ZRODLO, /for \(const skala of \[\.\.\.FORMA_SKALE, 200\]\)/);
   assert.match(ZRODLO, /if \(skala === 200 && !ekran\.wybor\) continue;/);
   assert.match(ZRODLO, /sprawdzWyborFormyPoBledzie\(strona\)/);
+  assert.match(ZRODLO, /keyboard\.press\('Tab'\)/);
+  assert.match(ZRODLO, /keyboard\.press\('ArrowRight'\)/);
+  assert.match(ZRODLO, /keyboard\.press\('Space'\)/);
+  assert.match(ZRODLO, /keyboard\.press\('Enter'\)/);
+  assert.match(ZRODLO, /ocenFormePomiar\(pomiarPoBledzie\)/);
   assert.match(ZRODLO, /Page\.setFontSizes/);
   assert.match(ZRODLO, /if \(forma\.bledy\.length > 0\) \{[\s\S]*process\.exitCode = 1;/);
 });

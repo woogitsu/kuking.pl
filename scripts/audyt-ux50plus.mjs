@@ -564,12 +564,36 @@ async function ustawFormeWFormularzu(strona, wartosc) {
 
 /** #2405: prawdziwy formularz przy 320 px / 200%, także po błędzie i z klawiaturą. */
 async function sprawdzWyborFormyPoBledzie(strona) {
-  const radia = strona.locator('#forma-zwracania input[name="form_of_address"]');
+  let radia = strona.locator('#forma-zwracania input[name="form_of_address"]');
   if (await radia.count() !== 3) return ['brak trzech natywnych pól radio'];
 
-  await radia.nth(0).focus();
+  // Start od dokumentu: do grupy dochodzimy prawdziwym Tab, bez `.focus()` na radiu.
+  await strona.evaluate(() => document.activeElement?.blur());
+  let tabDoGrupy = false;
+  for (let i = 0; i < 80; i += 1) {
+    await strona.keyboard.press('Tab');
+    tabDoGrupy = await strona.evaluate(() => document.activeElement?.matches('#forma-zwracania input[name="form_of_address"]') === true);
+    if (tabDoGrupy) break;
+  }
+  if (!tabDoGrupy) return ['nie da się dojść klawiszem Tab do grupy radio'];
+
   await strona.keyboard.press('ArrowRight');
   const strzalkaDziala = await radia.nth(1).isChecked();
+  await strona.keyboard.press('ArrowLeft');
+  await strona.keyboard.press('Space');
+  const spacjaDziala = await radia.nth(0).isChecked();
+  await strona.keyboard.press('Tab');
+  const tabDoWyslania = await strona.evaluate(() => document.activeElement?.matches('#forma-zwracania button[type="submit"]') === true);
+  if (!tabDoWyslania) return ['Tab z grupy radio nie prowadzi do przycisku Zapisz formę'];
+  await Promise.all([
+    strona.waitForNavigation({ waitUntil: 'domcontentloaded' }),
+    strona.keyboard.press('Enter'),
+  ]);
+  radia = strona.locator('#forma-zwracania input[name="form_of_address"]');
+  const enterZapisal = await radia.nth(0).isChecked() && await strona.locator('#f-form_of_address-error').count() === 0;
+
+  // Natywnie zaznaczone radio nie pozwala człowiekowi wysłać pustej grupy.
+  // Wymuszenie pustego żądania służy WYŁĄCZNIE sprawdzeniu odpowiedzi serwera.
   await radia.evaluateAll((pola) => pola.forEach((pole) => { pole.checked = false; }));
   await Promise.all([
     strona.waitForNavigation({ waitUntil: 'domcontentloaded' }),
@@ -591,13 +615,26 @@ async function sprawdzWyborFormyPoBledzie(strona) {
       link: !!podsumowanie?.querySelector('a[href="#f-form_of_address"]'),
       fokus: document.activeElement === podsumowanie,
       bezPrzewijania: document.documentElement.scrollWidth <= window.innerWidth,
+      zaznaczonePoBledzie: pola.filter((pole) => pole.checked).length,
     };
   });
+  // Podsumowanie jest pierwszym fokusem po błędzie. Dalej Tab → link → Enter
+  // musi przenieść klawiaturę do fieldsetu, nie tylko zmienić fragment URL.
+  await strona.keyboard.press('Tab');
+  const tabDoLinku = await strona.evaluate(() => document.activeElement?.matches('.error-summary a[href="#f-form_of_address"]') === true);
+  if (tabDoLinku) await strona.keyboard.press('Enter');
+  const linkFokusujeGrupe = await strona.evaluate(() => document.activeElement?.id === 'f-form_of_address');
+  const pomiarPoBledzie = await strona.evaluate(ZMIERZ_FORME, { wzor: WZOR_FORMY });
   return [
     ...(!strzalkaDziala ? ['strzałka nie wybiera następnego radia'] : []),
+    ...(!spacjaDziala ? ['Spacja nie wybiera radia'] : []),
+    ...(!enterZapisal ? ['Enter na przycisku nie zapisuje wyboru'] : []),
     ...(stan.pola !== 3 || !stan.opisane || !stan.grupa || !stan.blad || !stan.link || !stan.fokus
       ? ['błąd nie jest powiązany z każdym radiem, grupą i podsumowaniem albo fokus nie trafił na podsumowanie'] : []),
+    ...(!tabDoLinku || !linkFokusujeGrupe ? ['Tab i Enter w podsumowaniu nie przenoszą fokusu do grupy radio'] : []),
+    ...(stan.zaznaczonePoBledzie !== 1 ? ['po błędnym żądaniu nie odtworzono domyślnie zaznaczonej odpowiedzi'] : []),
     ...(!stan.bezPrzewijania ? ['po błędzie formularz przewija się poziomo przy 320 px / 200%'] : []),
+    ...ocenFormePomiar(pomiarPoBledzie).map((blad) => `po błędnym żądaniu: ${blad}`),
   ];
 }
 
