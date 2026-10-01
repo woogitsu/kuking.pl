@@ -18,7 +18,9 @@ zeszytu pokazują obok instrukcji „Czas kroku: …”, gdy autor zapisał doda
 `timer_seconds`. Obie listy używają `RecipeStep::timerLabel()`, tak samo jak
 tryb gotowania; brak minutnika i zero niczego nie dopisują. Czas nie zależy
 od liczby wybranych porcji. Instrukcja oraz zapis w bazie pozostają bez zmian,
-a na papierze nie pojawia się przycisk odliczania.
+a na papierze nie pojawia się przycisk odliczania. Czas jest częścią
+instrukcji gotowania, więc dziedziczy podstawowe pismo strony (co najmniej
+18 px), zamiast mniejszego pisma metadanych.
 
 Odbiór dwóch układów A4 / PDF — pojedynczego przepisu i zeszytu — pozostaje
 do wykonania w izolowanej przeglądarce. Test HTTP potwierdza treść obu stron,
