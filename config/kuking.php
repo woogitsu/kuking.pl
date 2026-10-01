@@ -464,6 +464,14 @@ return [
         // nie skakały o różne kroki.
         'saved_posts_page_size' => (int) env('KUKING_COLLECTION_SAVED_POSTS_PAGE_SIZE', 12),
 
+        // „Wydrukuj zeszyt” (#2351): ile przepisów idzie na jeden wydruk.
+        // Zeszyt nie ma górnej granicy liczby pozycji, a wydruk to jedna
+        // strona ze składnikami i krokami każdego przepisu. Sto przepisów to
+        // gruba rodzinna książka (setki kartek A4), więcej przeglądarka
+        // drukuje bardzo wolno. Nadwyżka jest zapowiedziana na stronie,
+        // nie gubiona po cichu.
+        'print_max_recipes' => (int) env('KUKING_COLLECTION_PRINT_MAX_RECIPES', 100),
+
         // WSPÓLNY ZESZYT (#1743, D-302).
         //
         // Ile osób poza właścicielem może mieć dostęp do jednego zeszytu —
@@ -1805,6 +1813,16 @@ return [
          * adresu pobiera wiele kanałów naraz, a nie starcza na zalewanie.
          */
         'kanal' => '60,1',
+
+        /*
+         * „WYDRUKUJ ZESZYT” (`/zeszyt/{uuid}/do-druku`) — #2351. Jedna strona
+         * z nawet stu przepisami naraz (składniki i kroki każdego), dostępna
+         * także dla gościa publicznego zeszytu. Człowiek drukuje książkę raz
+         * na jakiś czas, a dwa–trzy razy pod rząd przy poprawianiu zeszytu;
+         * dziesięć na minutę (po koncie, dla gościa po adresie IP) mieści to
+         * z zapasem i nie starcza na odpytywanie automatem.
+         */
+        'zeszyt_druk' => '10,1',
 
         /*
          * STRONA GŁÓWNA (`/`, trasa `landing`) — issue #1952, druga połowa.

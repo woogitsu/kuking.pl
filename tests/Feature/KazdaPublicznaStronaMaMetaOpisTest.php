@@ -119,6 +119,9 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
         // `resources/views/pages/cooked/show.blade.php` ma `:noindex="true"`
         // bezwarunkowo.
         'cooked.show' => 'wymaga CookedEvent chronionego Policy; noindex bezwarunkowo w pages/cooked/show.blade.php',
+        // Wydruk zeszytu (#2351): kopia treści do druku, `:noindex="true"`
+        // bezwarunkowo w pages/collections/do-druku.blade.php.
+        'collections.print' => 'wymaga zeszytu chronionego Policy; noindex bezwarunkowo w pages/collections/do-druku.blade.php',
 
         // Wymaga PODPISANEGO adresu (`ValidateSignature`) i realnego
         // zgłoszenia (`Report`) powiązanego z autorem zgłoszenia.

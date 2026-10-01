@@ -111,7 +111,7 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 - Moja wersja — fork przepisu (**wdrożone przed bramką** — decyzja właściciela z 26.09.2026, D-301);
 - planner;
 - lista zakupów;
-- rodzinna książka; *(pierwszy krok: wspólny zeszyt z zaproszeniami — #1743, D-302, 26.09.2026)*
+- rodzinna książka; *(pierwszy krok: wspólny zeszyt z zaproszeniami — #1743, D-302, 26.09.2026; drugi: „Wydrukuj zeszyt” — okładka, spis i przepisy do druku z przeglądarki, #2351, F7, D-333, 30.09.2026)*
 - Q&A;
 - Web Push;
 - wyzwania społecznościowe. *(pierwszy krok: „Ugotujmy razem” — jeden przepis tygodnia wybrany przez gospodarza i wykonania z tego tygodnia, bez nagród i bez członkostwa; decyzja właściciela z 30.09.2026, karta F3 z researchu nowych funkcji z 30.09.2026)*

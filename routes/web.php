@@ -34,6 +34,7 @@ use App\Http\Controllers\Auth\RegistrationInviteController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\CollectionItemNoteController;
+use App\Http\Controllers\CollectionPrintController;
 use App\Http\Controllers\CollectionSharingController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CookedEventController;
@@ -342,6 +343,15 @@ Route::get('/przepisy/{recipe}/historia/{numer}/zmiany', [HistoriaPrzepisuContro
 Route::get('/zeszyt/{collection}', [CollectionController::class, 'show'])
     ->whereUuid('collection')
     ->name('collections.show');
+
+// „Wydrukuj zeszyt” (#2351, F7): cały zeszyt jako książka do druku z przeglądarki.
+// Odczyt, jak `collections.show`, więc poza `auth`; dostęp rozstrzyga ta sama
+// `CollectionPolicy::view(?User)` (gość — tylko publiczny zeszyt). Strona
+// jest droższa od ekranu zeszytu (wszystkie przepisy naraz), stąd własny limit.
+Route::get('/zeszyt/{collection}/do-druku', CollectionPrintController::class)
+    ->whereUuid('collection')
+    ->middleware("throttle:{$limits['zeszyt_druk']},zeszyt_druk")
+    ->name('collections.print');
 
 // Tryb gotowania (issue #24). Widoczność jak strona przepisu — patrz
 // komentarz nad CookingModeController — więc te trasy stoją tutaj, w bloku
