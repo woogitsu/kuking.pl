@@ -127,3 +127,16 @@ Nie wykonano oglądu zalogowanej produkcji ani badania z użytkownikami.
 Nie uruchomiono `ProbaOdtworzeniaTest`: zgodnie z jawnym wyjątkiem zadania
 używa wspólnej bazy `kuking_zrodlo_proby_glowny`. Pozostałe pomiary wykonano
 samodzielnie; zgłoszenia służyły jako hipotezy, nie przejęte wyniki testów.
+
+## Dopisek: „Mój rok w kuchni” (#2353, D-333)
+
+Prywatne podsumowanie roku (`/moj-rok`) korzysta z tych samych zasad i z tego
+samego wyłącznika `users.memories_enabled`. Zakres danych: wyłącznie rekordy
+zalogowanej osoby — własne wpisy opublikowane w danym roku (także prywatne;
+bez szkiców, usuniętych i schowanych jako wspomnienie) oraz własne wykonania
+„Ugotowałem” przepisów, które ta osoba nadal może otworzyć. Nie ma nowych
+kolumn ani tabel, więc eksport RODO (`posts`, `cooked_events`) i wymazanie
+konta pokrywają ten ekran bez zmian; polityka prywatności nie wymaga nowej
+wersji (brak nowych danych i celów). Nie liczymy cudzych wykonań ani nie
+pokazujemy cudzych imion. Wycofanie: usunięcie trasy `moj-rok.show`,
+kontrolera i odnośnika w „Moje” — bez operacji na bazie.
