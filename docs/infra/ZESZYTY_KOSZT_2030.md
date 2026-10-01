@@ -133,7 +133,10 @@ Co się zmieniło:
   kodzie**, bo to strażnik niezmienności.
 - `test_szyna_sprawdza_widocznosc_tylko_malej_partii_kandydatow` sumuje wiersze `recipes`
   i `posts` przeczytane (`EXPLAIN ANALYZE`, zwrócone i odrzucone filtrem, razy pętle)
-  w zapytaniach ekranu poza licznikami, przy 600 odłożonych rzeczach. Stary kod: 600,
+  w zapytaniach ekranu poza licznikami, przy 600 odłożonych rzeczach. Fixture ma
+  też niezapisane rekordy innego autora w obu tabelach, aby plan dla `id IN (20)` nie zależał
+  od tego, czy PostgreSQL uzna skan całej 300-wierszowej tabeli za tańszy od indeksu.
+  Zapisana historia, próg i pomiar rzeczywistych odczytów pozostają bez zmian. Stary kod: 600,
   nowy: 40, próg: 100. **Oblewa na starym kodzie.**
   Jeśli odczyt przekroczy 100, test wypisuje każdy SELECT, który czytał `recipes`
   lub `posts`, wraz z liczbą odczytów i kształtem planu. Nie wypisuje wartości
