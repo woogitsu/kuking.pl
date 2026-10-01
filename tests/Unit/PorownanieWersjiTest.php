@@ -93,7 +93,7 @@ final class PorownanieWersjiTest extends TestCase
             ['rodzaj' => PorownanieWersji::ZMIENIONO, 'numer' => 1,
                 'przed' => 'Piecz ciasto (minutnik: 10 min)',
                 'po' => 'Piecz ciasto na złoty kolor (minutnik: 20 min)'],
-        ], PorownanieWersji::porownaj($stara, $nowa)['kroki']);
+        ], PorownanieWersji::porownaj($stara, $nowa)['kroki'], 'HISTORIA_TIMER_CHANGED');
     }
 
     public function test_zmieniony_tekst_pokazuje_dodanie_i_usuniecie_minutnika_bez_zgadywania_czasu(): void
@@ -124,6 +124,39 @@ final class PorownanieWersjiTest extends TestCase
         $this->assertSame('Mieszaj powoli', $wynik[0]['po']);
     }
 
+    public function test_historyczne_zero_minutnika_jest_brakiem_takze_przy_zmianie_i_dodaniu_kroku(): void
+    {
+        $obaZera = PorownanieWersji::porownaj(
+            ['steps' => [$this->krok('A', 0)]],
+            ['steps' => [$this->krok('B', 0)]],
+        )['kroki'];
+        $dodanyCzas = PorownanieWersji::porownaj(
+            ['steps' => [$this->krok('A', 0)]],
+            ['steps' => [$this->krok('B', 600)]],
+        )['kroki'];
+        $usunietyCzas = PorownanieWersji::porownaj(
+            ['steps' => [$this->krok('A', 600)]],
+            ['steps' => [$this->krok('B', 0)]],
+        )['kroki'];
+        $krokDodany = PorownanieWersji::porownaj(
+            ['steps' => []],
+            ['steps' => [$this->krok('C', 0)]],
+        )['kroki'];
+        $krokUsuniety = PorownanieWersji::porownaj(
+            ['steps' => [$this->krok('D', 0)]],
+            ['steps' => []],
+        )['kroki'];
+
+        $this->assertSame('A', $obaZera[0]['przed']);
+        $this->assertSame('B', $obaZera[0]['po']);
+        $this->assertSame('A (minutnik: brak)', $dodanyCzas[0]['przed']);
+        $this->assertSame('B (minutnik: 10 min)', $dodanyCzas[0]['po']);
+        $this->assertSame('A (minutnik: 10 min)', $usunietyCzas[0]['przed']);
+        $this->assertSame('B (minutnik: brak)', $usunietyCzas[0]['po']);
+        $this->assertSame('C', $krokDodany[0]['po']);
+        $this->assertSame('D', $krokUsuniety[0]['przed']);
+    }
+
     public function test_dodany_i_usuniety_krok_pokazuja_wlasny_minutnik_lub_sam_tekst(): void
     {
         $wynik = PorownanieWersji::porownaj(
@@ -138,11 +171,11 @@ final class PorownanieWersjiTest extends TestCase
         $this->assertSame([
             ['rodzaj' => PorownanieWersji::USUNIETO, 'numer' => 2, 'przed' => 'Usunięty (minutnik: 10 min)', 'po' => null],
             ['rodzaj' => PorownanieWersji::USUNIETO, 'numer' => 3, 'przed' => 'Bez czasu', 'po' => null],
-        ], $wynik);
+        ], $wynik, 'HISTORIA_TIMER_REMOVED');
         $this->assertSame([
             ['rodzaj' => PorownanieWersji::DODANO, 'numer' => 1, 'przed' => null, 'po' => 'Dodany (minutnik: 125 s)'],
             ['rodzaj' => PorownanieWersji::DODANO, 'numer' => 2, 'przed' => null, 'po' => 'Bez czasu'],
-        ], $dodany);
+        ], $dodany, 'HISTORIA_TIMER_ADDED');
     }
 
     public function test_zmiana_samego_minutnika_nadal_pokazuje_sekundy(): void

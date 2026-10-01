@@ -1274,6 +1274,14 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    # #2445: prawdziwe `porownaj()` ma nie zgubić czasu w żadnej gałęzi luki.
+    ("Historia: zmieniony krok gubi minutnik", "app/Domain/Recipes/Historia/PorownanieWersji.php", "test_zmiana_tekstu_i_minutnika_pokazuje_czasy_obu_migawek",
+     lambda s: replace_once(s, "'przed' => $stare[$lukaStare[$p]]['instruction'].($pokazMinutnik ? self::opisMinutnika($staryCzas) : ''),",
+                            "'przed' => $stare[$lukaStare[$p]]['instruction'],")),
+    ("Historia: dodany krok gubi minutnik", "app/Domain/Recipes/Historia/PorownanieWersji.php", "test_dodany_i_usuniety_krok_pokazuja_wlasny_minutnik_lub_sam_tekst",
+     lambda s: replace_once(s, "'po' => $nowe[$j]['instruction'].$minutnik]", "'po' => $nowe[$j]['instruction']]")),
+    ("Historia: usunięty krok gubi minutnik", "app/Domain/Recipes/Historia/PorownanieWersji.php", "test_dodany_i_usuniety_krok_pokazuja_wlasny_minutnik_lub_sam_tekst",
+     lambda s: replace_once(s, "'przed' => $stare[$i]['instruction'].$minutnik", "'przed' => $stare[$i]['instruction']")),
     # #2421: w oknie <= 16rem przy tekście 125/140% pasek górny odpina się,
     # bo kolumnowy znak robi go wyższym niż rezerwa nad nim (WCAG 2.4.11).
     ("Pasek przy kolumnowym znaku znowu przypięty", "resources/css/marka-rama.css", "PasekPrzyKolumnowymZnakuTest",
