@@ -35,6 +35,9 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Historia: zmieniony krok gubi minutnik': r'HISTORIA_TIMER_CHANGED',
+    'Historia: dodany krok gubi minutnik': r'HISTORIA_TIMER_ADDED',
+    'Historia: usunięty krok gubi minutnik': r'HISTORIA_TIMER_REMOVED',
     'Stara karta nadpisuje nowszą notatkę (#2400)': r'NOTATKA_2400_STARA_KARTA_NIE_NADPISUJE',
     'Pasteryzacja znów zaleca piekarnik (#2434)': r'PASTERYZACJA_BEZ_PIEKARNIKA',
     'Uwaga słownika gwarantuje parametry autora (#2434)': r'PASTERYZACJA_UWAGA_NIE_GWARANTUJE',
