@@ -341,6 +341,24 @@ class WydrukZeszytuTest extends TestCase
             ->assertDontSee('Prywatny sernik');
     }
 
+    public function test_wydruk_niesie_alergeny_wedlug_autora_gdy_funkcja_wlaczona(): void
+    {
+        config(['kuking.alergeny.wlaczone' => true]);
+        $zadeklarowany = $this->przepis($this->halina, 'Sernik');
+        $zadeklarowany->forceFill(['allergen_status' => 'declared', 'allergens' => ['milk', 'eggs'], 'allergens_declared_at' => now()])->save();
+        $this->przepis($this->halina, 'Szarlotka');
+
+        $html = (string) $this->druk($this->halina)->assertOk()->getContent();
+
+        $this->assertStringContainsString('Alergeny według autora:', $html);
+        $this->assertStringContainsString('Alergeny: nie sprawdzono.', $html);
+        $this->assertSame(2, substr_count($html, 'class="zeszyt-alergeny"'));
+        $this->assertStringNotContainsString('id="alergeny"', $html);
+
+        config(['kuking.alergeny.wlaczone' => false]);
+        $this->druk($this->halina)->assertOk()->assertDontSee('zeszyt-alergeny', false);
+    }
+
     public function test_adres_nie_jest_autoryzacja_nieistniejacy_zeszyt_to_404(): void
     {
         $this->actingAs($this->halina)

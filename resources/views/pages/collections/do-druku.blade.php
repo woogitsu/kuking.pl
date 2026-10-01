@@ -144,6 +144,25 @@
                     @endforeach
                 @endif
 
+                {{-- Alergeny według autora (#1902): ten sam trzywariantowy komunikat co
+                     na stronie przepisu — cisza na papierze nie może znaczyć „w porządku”.
+                     Bez `id` i bez przycisków: stu przepisom nie wolno dzielić jednego `id`. --}}
+                @if(config('kuking.alergeny.wlaczone'))
+                    @php
+                        $alergenyLista = $przepis->alergenyZdeklarowane() ? \App\Domain\Recipes\Alergeny\Alergen::nazwyZKodow($przepis->allergens) : '';
+                    @endphp
+                    <section class="zeszyt-alergeny" data-alergeny="{{ $przepis->alergenyZdeklarowane() ? 'declared' : 'unchecked' }}">
+                        <h3>Alergeny</h3>
+                        @if($alergenyLista !== '')
+                            <p class="m-0">Alergeny według autora: {{ $alergenyLista }}. To zaznaczenie autora, nie badanie. Gotowe produkty mogą zawierać alergeny, których tu nie widać — przeczytaj etykiety.</p>
+                        @elseif($przepis->alergenyZdeklarowane())
+                            <p class="m-0">Autor nie zaznaczył żadnego z 14 alergenów. To tylko zaznaczenie autora, nie zapewnienie, że ich tam nie ma. Przeczytaj etykiety gotowych produktów.</p>
+                        @else
+                            <p class="m-0">Alergeny: nie sprawdzono. Autor nie zaznaczył, co zawiera ten przepis, więc nie wiemy, czy nadaje się dla osoby z alergią.</p>
+                        @endif
+                    </section>
+                @endif
+
                 <h3>Przygotowanie</h3>
                 @if($przepis->steps->isEmpty())
                     <p class="meta">Autor nie opisał przygotowania.</p>
