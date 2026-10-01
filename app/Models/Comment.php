@@ -36,6 +36,20 @@ class Comment extends Model
     public const STATUS_PUBLISHED = 'published';
 
     /**
+     * Kontrakt czasu (#2407): `body_removed_at` to `timestamptz`, a `app.timezone`
+     * jest UTC — model oddaje więc Carbon w UTC, nie surowy napis z bazy.
+     * Wyświetlanie w `kuking.strefa` robi widok, nie model.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'body_removed_at' => 'datetime',
+        ];
+    }
+
+    /**
      * Ile odpowiedzi widz widzi w CAŁYM wątku i która porcja jest wczytana
      * (issue #939, `OdpowiedziWatku::uzupelnij()`). Zwykłe właściwości, nie
      * atrybuty — nie trafiają do zapisu. `null` = nikt nie policzył, więc
