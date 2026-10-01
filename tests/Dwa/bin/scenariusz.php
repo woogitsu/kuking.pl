@@ -55,6 +55,7 @@ use App\Domain\Recipes\Gotowanie\PostepGotowania;
 use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
+use App\Domain\Social\Actions\UnfollowUser;
 use App\Domain\Tags\Actions\MergeTags;
 use App\Domain\Tags\Actions\UpdateTagFollows;
 use App\Domain\Tags\PromowaneTagi;
@@ -351,6 +352,12 @@ try {
 
         // „Obserwuj" (D-080).
         'obserwuj' => app(FollowUser::class)->handle(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            User::query()->whereKey($argumenty['kogo'])->firstOrFail(),
+        ),
+
+        // Ten sam przypadek użycia co formularz i API — bez SQL-u przepisanego do testu.
+        'przestan-obserwowac' => app(UnfollowUser::class)->handle(
             User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             User::query()->whereKey($argumenty['kogo'])->firstOrFail(),
         ),

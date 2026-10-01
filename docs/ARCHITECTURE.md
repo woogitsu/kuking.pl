@@ -466,6 +466,13 @@ straciło aktywność. Cofnięcie istniejącego obserwowania pozostaje możliwe,
 także przez formularz zawierający wyłącznie usunięcia. Test dwóch połączeń
 rozstrzyga oba przeploty z sankcją konta (#2091).
 
+`UnfollowUser` korzysta z tego samego `ZamekPary` co `FollowUser` i
+`BlockUser`. Cofnięcie obserwowania jest idempotentne, a dla jednej pary
+„obserwuj” i „przestań obserwować” zapisują relację w kolejności uzyskania
+blokady. Nie wolno tu używać samego `detach()` poza wspólną transakcją:
+późniejsze cofnięcie mogłoby skończyć przed oczekującym obserwowaniem
+(#2404, test na dwóch połączeniach).
+
 ## Wybór redakcyjny: jeden pełny zestaw i audyt w tej samej transakcji
 
 Tablica dnia i kolaż strony powitalnej zastępują cały wybór przez `DELETE`
