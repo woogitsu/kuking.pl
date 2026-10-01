@@ -472,6 +472,18 @@ try {
 
   await sprawdzMacierzNawigacji({ browser: przegladarka, adres, sesja });
   await sprawdzZoomNawigacji({ chromium, adres, sesja, outputDir: 'storage/port-projektu/nawigacja638' });
+  /* #2299 (etap 3): cztery lekkie pomiary (ok. 160 s razem) przeszły z części 1
+     rozszerzeń do grupy `baza`. Nie potrzebują fixture'ów ani stanu z innych
+     pomiarów — tylko adresu i sesji demonstracyjnej, którą `baza` ma tak samo.
+     Zmierzone 30.09 (przebiegi main): `port_funkcje` część 1 ok. 15,9 min, część 2
+     14,3 min, a `port_marki` 10,1 min; po przesunięciu ok. 13,3 / 14,3 / 12,8. */
+  await sprawdzZwarteKolumny({ browser: przegladarka, adres });
+  await sprawdzListeOsob({ browser: przegladarka, adres, sesja });
+  await sprawdzPrzyciskRejestracji({ browser: przegladarka, adres });
+  /* `sprawdzPrzyciskRejestracji` mierzy w oknie 900 px wysokości, więc odpowiada
+     na pytanie „czy przycisk jest sprawny", a nie „czy widać go bez przewijania".
+     To drugie pytanie ma własne okna — wysokości prawdziwych telefonów. */
+  await sprawdzHeroNadZgieciem({ browser: przegladarka, adres });
   });
   /* Grupa `rozszerzenia` to dwie części (#611, etap 9), po jednej na element
      macierzy `port_funkcje`. Część 2 (`nawigacja-492` i `zoom-marki`) potrzebuje
@@ -492,13 +504,6 @@ try {
   const paczka513 = fixture('kompozycje-513');
   await sprawdzKompozycje513({ browser: przegladarka, adres, sesja, phpEnv: env(), ...paczka513 });
   await sprawdzPodpowiedzi({ browser: przegladarka, adres, sesja, phpEnv: env() });
-  await sprawdzZwarteKolumny({ browser: przegladarka, adres });
-  await sprawdzListeOsob({ browser: przegladarka, adres, sesja });
-  await sprawdzPrzyciskRejestracji({ browser: przegladarka, adres });
-  /* `sprawdzPrzyciskRejestracji` mierzy w oknie 900 px wysokości, więc odpowiada
-     na pytanie „czy przycisk jest sprawny", a nie „czy widać go bez przewijania".
-     To drugie pytanie ma własne okna — wysokości prawdziwych telefonów. */
-  await sprawdzHeroNadZgieciem({ browser: przegladarka, adres });
   await sprawdzInstalacjePwa({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzPasek({ browser: przegladarka, adres, sesja });
   await sprawdzSzybkiWyglad({ browser: przegladarka, adres });

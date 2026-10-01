@@ -44,6 +44,14 @@
         </form>
     </section>
 
+    @if($nowyProdukt)
+        <p data-ustaw-termin>
+            <a class="btn btn-secondary" href="{{ route('pantry.edit', $nowyProdukt) }}"
+               aria-label="Ustaw termin: {{ $nowyProdukt->name }}">Ustaw termin</a>
+            <span class="meta">Nie trzeba — możesz to zrobić później.</span>
+        </p>
+    @endif
+
     <section class="sekcja-strony mt-8">
         <h2 class="mt-0">Twoja lista</h2>
 
@@ -58,24 +66,68 @@
                 (najwyżej {{ $maksProduktow }}).
             </p>
 
-            <ul class="lista-naga stack-tight">
-                @foreach($produkty as $produkt)
-                    <li class="card flex flex-wrap items-center justify-between gap-3">
-                        <span class="text-lg">{{ $produkt->name }}</span>
-                        <form method="POST" action="{{ route('pantry.destroy', $produkt) }}">
-                            @csrf
-                            @method('DELETE')
-                            <button class="btn btn-secondary" type="submit"
-                                    aria-label="Usuń z listy: {{ $produkt->name }}">Usuń</button>
-                        </form>
-                    </li>
-                @endforeach
-            </ul>
+            <section aria-labelledby="sekcja-pilne" data-sekcja="pilne">
+                <h3 id="sekcja-pilne">Zużyj w pierwszej kolejności</h3>
+                @if($grupy['pilne']->isEmpty())
+                    <p>Nic nie wymaga pilnego zużycia. Dodaj terminy do produktów, a pokażemy je tutaj.</p>
+                @else
+                    @include('pages.pantry._produkty', ['lista' => $grupy['pilne'], 'dzis' => $dzis])
+                    <p class="mt-4">
+                        <a class="btn btn-primary" href="{{ route('pantry.cook', ['najpierw' => 'termin']) }}">Najpierw to, co się psuje</a>
+                    </p>
+                @endif
+                <p class="meta" data-regula-priorytetu>{{ $regula }}</p>
+            </section>
+
+            @if($grupy['pozniej']->isNotEmpty())
+                <section class="mt-8" aria-labelledby="sekcja-pozniej" data-sekcja="pozniej">
+                    <h3 id="sekcja-pozniej">Później</h3>
+                    @include('pages.pantry._produkty', ['lista' => $grupy['pozniej'], 'dzis' => $dzis])
+                </section>
+            @endif
+
+            @if($grupy['bez_terminu']->isNotEmpty())
+                <section class="mt-8" aria-labelledby="sekcja-bez-terminu" data-sekcja="bez_terminu">
+                    <h3 id="sekcja-bez-terminu">Bez terminu</h3>
+                    @include('pages.pantry._produkty', ['lista' => $grupy['bez_terminu'], 'dzis' => $dzis])
+                </section>
+            @endif
+
+            @if($grupy['mrozone']->isNotEmpty())
+                <section class="mt-8" aria-labelledby="sekcja-mrozone" data-sekcja="mrozone">
+                    <h3 id="sekcja-mrozone">Mrożone</h3>
+                    @include('pages.pantry._produkty', ['lista' => $grupy['mrozone'], 'dzis' => $dzis])
+                </section>
+            @endif
 
             <p class="mt-6">
                 <a class="btn btn-primary" href="{{ route('pantry.cook') }}">Co ugotuję z tego, co mam?</a>
             </p>
         @endif
+    </section>
+
+    {{-- SOBOTNIE PRZYPOMNIENIE (#1903, D-333) — OSOBNA zgoda, domyślnie
+         wyłączona. Ani założenie listy, ani ustawienie terminu jej nie daje.
+         Ukryte pole niesie stan widziany przy otwarciu strony (#879):
+         stary formularz nie zapisze nikogo z powrotem na list, z którego
+         wypisał się odnośnikiem. Działa bez skryptu. --}}
+    <section class="sekcja-strony mt-8" aria-labelledby="sekcja-przypomnienie">
+        <h2 class="mt-0" id="sekcja-przypomnienie">Sobotnie przypomnienie</h2>
+        <form method="POST" action="{{ route('pantry.reminder') }}" novalidate>
+            @csrf
+            <input type="hidden" name="original_pantry_reminder" value="{{ (int) auth()->user()->wants_pantry_reminder }}">
+            <div class="field">
+                <label class="choice" for="f-wants_pantry_reminder">
+                    <input id="f-wants_pantry_reminder" type="checkbox" name="wants_pantry_reminder" value="1"
+                           @checked(auth()->user()->wants_pantry_reminder)>
+                    <span>
+                        <span class="choice-label">Chcę dostawać w sobotę e-mail o produktach do zużycia</span>
+                        <span class="choice-help">Jeden list tygodniowo, rano, i tylko wtedy, gdy na liście jest produkt z terminem, który minął albo upływa w ciągu {{ \App\Domain\Pantry\PriorytetZuzycia::pilneDni() }} dni. W liście są nazwy produktów z Twojej listy. Wypisać się możesz odnośnikiem na dole listu, bez logowania.</span>
+                    </span>
+                </label>
+            </div>
+            <button class="btn btn-secondary" type="submit">Zapisz wybór</button>
+        </form>
     </section>
 
     <p class="mt-8">

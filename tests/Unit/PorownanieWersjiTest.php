@@ -133,4 +133,48 @@ final class PorownanieWersjiTest extends TestCase
         $this->assertSame([], $m->kroki());
         $this->assertNull($m->pole('servings'));
     }
+
+    public function test_zmiana_samych_alergenow_jest_widoczna_w_porownaniu_gdy_flaga_wlaczona(): void
+    {
+        $stara = ['title' => 'Rosół', 'allergen_status' => 'declared', 'allergens' => ['celery']];
+        $nowa = ['title' => 'Rosół', 'allergen_status' => 'declared', 'allergens' => ['celery', 'milk']];
+
+        $wynik = PorownanieWersji::porownaj($stara, $nowa, true);
+
+        $this->assertFalse($wynik['brakZmian']);
+        $this->assertSame([
+            ['etykieta' => 'Alergeny według autora', 'rodzaj' => PorownanieWersji::ZMIENIONO, 'przed' => 'seler', 'po' => 'mleko, seler'],
+        ], $wynik['pola']);
+    }
+
+    public function test_alergeny_do_przegladu_i_pusta_lista_maja_osobne_zdania(): void
+    {
+        $zaznaczone = ['allergen_status' => 'declared', 'allergens' => []];
+        $doPrzegladu = ['allergen_status' => 'needs_review', 'allergens' => []];
+
+        $wynik = PorownanieWersji::porownaj($zaznaczone, $doPrzegladu, true)['pola'];
+
+        $this->assertSame('autor nie wskazał żadnych', $wynik[0]['przed']);
+        $this->assertSame('do ponownego sprawdzenia przez autora', $wynik[0]['po']);
+    }
+
+    public function test_przy_wylaczonej_fladze_alergeny_nie_wchodza_do_porownania(): void
+    {
+        $stara = ['title' => 'Rosół', 'allergen_status' => 'declared', 'allergens' => ['celery']];
+        $nowa = ['title' => 'Rosół', 'allergen_status' => 'declared', 'allergens' => ['milk']];
+
+        $this->assertTrue(PorownanieWersji::porownaj($stara, $nowa)['brakZmian']);
+        $this->assertTrue(PorownanieWersji::porownaj($stara, $nowa, false)['brakZmian']);
+    }
+
+    public function test_starsza_migawka_bez_oznaczenia_alergenow_to_brak_danych_nie_zmiana(): void
+    {
+        $stara = ['title' => 'Rosół'];
+        $nowa = ['title' => 'Rosół', 'allergen_status' => 'declared', 'allergens' => ['celery']];
+
+        $wynik = PorownanieWersji::porownaj($stara, $nowa, true);
+
+        $this->assertSame([], $wynik['pola']);
+        $this->assertSame(['Alergeny według autora'], $wynik['bezDanych']);
+    }
 }

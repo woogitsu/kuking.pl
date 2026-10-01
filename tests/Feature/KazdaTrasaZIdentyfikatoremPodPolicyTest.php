@@ -801,6 +801,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // ma pierwszeństwo i wycina zablokowanego (UserPolicy::viewProfile).
         $dodaj('profile.show', 'profil publiczny', 'get',
             route('profile.show', $wlasciciel->profile->username), [], [$W, $W, $O, $W, $W]);
+        // Karta z kodem QR profilu (#2349): te same drzwi co profil (blokada
+        // wycina), a dodatkowo karta istnieje tylko, gdy gość ma tu co oglądać.
+        $dodaj('profile.qr-card', 'karta z kodem QR profilu', 'get',
+            route('profile.qr-card', $wlasciciel->profile->username), [], [$W, $W, $O, $W, $W]);
         $dodaj('social.followers', 'lista obserwujących', 'get',
             route('social.followers', $wlasciciel->profile->username), [], [$W, $W, $O, $W, $W]);
         $dodaj('social.following', 'lista obserwowanych', 'get',
@@ -949,6 +953,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             URL::signedRoute('urodziny.wypisz', ['user' => $wlasciciel->getKey()]), [], [$W, $W, $W, $W, $W]);
         $dodaj('urodziny.wracam', 'powrót do listu urodzinowego (podpisany link)', 'post',
             URL::signedRoute('urodziny.wracam', ['user' => $wlasciciel->getKey()]), [], [$W, $W, $W, $W, $W]);
+        // Sobotnie przypomnienie o produktach (#1903) — ta sama zasada co urodziny.
+        $dodaj('spizarnia.wypisz', 'wypisanie z sobotniego przypomnienia (podpisany link)', 'get',
+            URL::signedRoute('spizarnia.wypisz', ['user' => $wlasciciel->getKey()]), [], [$W, $W, $W, $W, $W]);
+        $dodaj('spizarnia.wracam', 'powrót do sobotniego przypomnienia (podpisany link)', 'post',
+            URL::signedRoute('spizarnia.wracam', ['user' => $wlasciciel->getKey()]), [], [$W, $W, $W, $W, $W]);
         $dodaj('settings.email.confirm', 'potwierdzenie zmiany adresu', 'get',
             URL::signedRoute('settings.email.confirm', ['zmiana' => $this->zmianaAdresu->getKey()]), [],
             [$W, $C, $C, $C, $O]);
@@ -1004,6 +1013,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // ─── PRZEPISY ────────────────────────────────────────────────────
         $dodaj('recipes.show', 'przepis prywatny', 'get',
             route('recipes.show', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        // Karta z kodem QR (#2349) jest TYLKO dla treści widocznej dla gościa:
+        // prywatny przepis nie dostaje jej nawet u autora (404).
+        $dodaj('recipes.qr-card', 'karta z kodem QR prywatnego przepisu', 'get',
+            route('recipes.qr-card', $przepisPrywatny), [], [$O, $O, $O, $O, $O]);
         $dodaj('recipes.history', 'historia zmian prywatnego przepisu', 'get',
             route('recipes.history', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.history.version', 'wersja prywatnego przepisu', 'get',
@@ -1121,6 +1134,9 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // ─── ZESZYTY ─────────────────────────────────────────────────────
         $dodaj('collections.show', 'prywatny zeszyt', 'get',
             route('collections.show', $zeszyt), [], [$W, $O, $O, $O, $O]);
+        // Wydruk zeszytu (#2351) — ta sama `CollectionPolicy::view()` co strona zeszytu.
+        $dodaj('collections.print', 'wydruk prywatnego zeszytu', 'get',
+            route('collections.print', $zeszyt), [], [$W, $O, $O, $O, $O]);
         $dodaj('collections.destroy', 'usunięcie zeszytu', 'delete',
             route('collections.destroy', $zeszytDoKasacji), [], [$W, $O, $O, $O, $O]);
 
@@ -1130,6 +1146,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $produktZListy = $wlasciciel->pantryItems()->create(['name' => 'mąka']);
         $dodaj('pantry.destroy', 'usunięcie produktu z listy „Co mam w domu”', 'delete',
             route('pantry.destroy', $produktZListy), [], [$W, $O, $O, $O, $O]);
+        // Termin, ilość i „mrożone” (#1903): tylko właściciel, bez wyjątku
+        // dla moderatora (`PantryItemPolicy::update`).
+        $produktDoTerminu = $wlasciciel->pantryItems()->create(['name' => 'jajka']);
+        $dodaj('pantry.edit', 'ekran „Ustaw termin” przy produkcie z listy', 'get',
+            route('pantry.edit', $produktDoTerminu), [], [$W, $O, $O, $O, $O]);
+        $dodaj('pantry.update', 'zapis terminu przy produkcie z listy', 'put',
+            route('pantry.update', $produktDoTerminu), ['rodzaj' => 'nieznany'], [$W, $O, $O, $O, $O]);
         // ZMIANA STATUSU WŁAŚCICIELA MA ZAWĘŻAĆ, NIGDY NIE ROZSZERZAĆ (#1092).
         //
         // Dwa wiersze na tej samej trasie, różniące się WYŁĄCZNIE flagą
@@ -1148,6 +1171,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.show', $zeszytZbanowanegoPrywatny), [], [$O, $O, $O, $O, $O]);
         $dodaj('collections.show', 'publiczny zeszyt osoby zbanowanej', 'get',
             route('collections.show', $zeszytZbanowanegoPubliczny), [], [$O, $O, $O, $W, $O]);
+        $dodaj('collections.print', 'wydruk prywatnego zeszytu osoby zbanowanej', 'get',
+            route('collections.print', $zeszytZbanowanegoPrywatny), [], [$O, $O, $O, $O, $O]);
+        $dodaj('collections.print', 'wydruk publicznego zeszytu osoby zbanowanej', 'get',
+            route('collections.print', $zeszytZbanowanegoPubliczny), [], [$O, $O, $O, $W, $O]);
         // Kanał Atom zeszytu (#2227) — zawsze oczami gościa, więc prywatny
         // zeszyt jest zamknięty także dla WŁAŚCICIELA, a zbanowanego —
         // także dla moderatora (ten ma stronę zeszytu, nie kanał).
@@ -1337,6 +1364,28 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'opis' => 'powrót do listu urodzinowego BEZ podpisu',
             'metoda' => 'post',
             'url' => route('urodziny.wracam', $wlasciciel),
+            'dane' => [],
+            'oczekiwania' => array_combine(
+                ['wlasciciel', 'obcy', 'zablokowany', 'moderator', 'gosc'],
+                [$O, $O, $O, $O, $O],
+            ),
+        ];
+        $this->przypadki[] = [
+            'trasa' => 'spizarnia.wracam',
+            'opis' => 'powrót do sobotniego przypomnienia BEZ podpisu',
+            'metoda' => 'post',
+            'url' => route('spizarnia.wracam', $wlasciciel),
+            'dane' => [],
+            'oczekiwania' => array_combine(
+                ['wlasciciel', 'obcy', 'zablokowany', 'moderator', 'gosc'],
+                [$O, $O, $O, $O, $O],
+            ),
+        ];
+        $this->przypadki[] = [
+            'trasa' => 'spizarnia.wypisz',
+            'opis' => 'wypisanie z sobotniego przypomnienia BEZ podpisu',
+            'metoda' => 'get',
+            'url' => route('spizarnia.wypisz', $wlasciciel),
             'dane' => [],
             'oczekiwania' => array_combine(
                 ['wlasciciel', 'obcy', 'zablokowany', 'moderator', 'gosc'],

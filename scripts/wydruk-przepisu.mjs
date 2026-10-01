@@ -9,6 +9,10 @@
  *  i druk to dwa różne arkusze. Ten skrypt włącza w Chromium PRAWDZIWE
  *  `@media print`, mierzy ułożoną stronę i drukuje PDF A4.
  *
+ *  Karta z kodem QR (#2349) jest mierzona tym samym mechanizmem: kod ≥ 9 × 9 cm
+ *  w całości na pierwszej stronie, biały podkład i czarne moduły, pismo ≥ 16 pt,
+ *  jedna strona A4, a przy zoomie 200% na ekranie brak poziomego przewijania.
+ *
  *  Warianty: krótki i długi przepis × motyw jasny i ciemny × gość i autor
  *  (autor widzi najwięcej przycisków, a dolną belkę ma tylko zalogowany).
  *
@@ -46,6 +50,13 @@ const UKRYTE = [
 const MIN_PISMO_PX = 16;
 // Zdjęcie główne „opcjonalnie małe”: najwyżej 6 cm wysokości.
 const MAX_ZDJECIE_PX = 6 / 2.54 * 96;
+// Karta z kodem QR (#2349): kod co najmniej 9 cm na 9 cm (skaner czyta
+// z kilkudziesięciu centymetrów), pismo co najmniej 16 pt (= 21,33 px),
+// wszystko na JEDNEJ stronie A4 (297 mm − 2 × 15 mm marginesu).
+const cmNaPx = cm => cm / 2.54 * 96;
+const MIN_KOD_PX = cmNaPx(9) - 0.5;
+const MIN_PISMO_KARTY_PX = 16 / 72 * 96 - 0.05;
+const WYSOKOSC_STRONY_PX = cmNaPx(26.7);
 
 function znajdzChromium() {
   if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
@@ -147,6 +158,86 @@ async function zmierz(strona) {
   }, { UKRYTE, MIN_PISMO_PX, MAX_ZDJECIE_PX });
 }
 
+// Pomiar karty z kodem QR w emulacji druku: geometria i kontrast. Samego
+// dekodowania kodu nie ma (brak biblioteki w zależnościach) — o tym, że
+// skaner go przeczyta, świadczą rozmiar, biały podkład i czarne moduły.
+async function zmierzKarte(strona) {
+  return strona.evaluate(({ UKRYTE, MIN_KOD_PX, MIN_PISMO_KARTY_PX, WYSOKOSC_STRONY_PX }) => {
+    const bledy = [];
+    const widoczny = el => {
+      const r = el.getBoundingClientRect();
+      return el.isConnected && r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
+    };
+    for (const selektor of UKRYTE) {
+      const na = [...document.querySelectorAll(selektor)].filter(widoczny);
+      if (na.length) bledy.push(`widoczne na papierze: ${selektor} (${na.length})`);
+    }
+    const karta = document.querySelector('.karta-qr');
+    const kod = document.querySelector('.karta-qr-kod');
+    const svg = kod?.querySelector('svg');
+    if (!karta || !kod || !svg || !widoczny(kod)) return { bledy: ['brak kodu QR na papierze'], kod: null };
+    const r = svg.getBoundingClientRect();
+    const dol = r.bottom + scrollY;
+    if (r.width < MIN_KOD_PX || r.height < MIN_KOD_PX) {
+      bledy.push(`kod QR za mały: ${(r.width / 96 * 2.54).toFixed(2)} × ${(r.height / 96 * 2.54).toFixed(2)} cm (minimum 9 × 9)`);
+    }
+    if (Math.abs(r.width - r.height) > 1) bledy.push(`kod QR nie jest kwadratem: ${r.width} × ${r.height}`);
+    if (dol > WYSOKOSC_STRONY_PX) bledy.push(`kod QR nie mieści się na pierwszej stronie (dół na ${Math.round(dol)} px, strona ${Math.round(WYSOKOSC_STRONY_PX)} px)`);
+    const kr = karta.getBoundingClientRect();
+    if (kr.bottom + scrollY > WYSOKOSC_STRONY_PX) bledy.push(`karta nie mieści się na jednej stronie (dół na ${Math.round(kr.bottom + scrollY)} px, strona ${Math.round(WYSOKOSC_STRONY_PX)} px)`);
+    if (r.right > document.documentElement.clientWidth + 0.5 || r.left < -0.5) bledy.push('kod QR wystaje poza szerokość kartki');
+    // Biały podkład i czarne moduły: skaner potrzebuje ciemnych modułów
+    // na jasnym polu, także wtedy, gdy strona ma ciemny motyw.
+    const tlo = getComputedStyle(kod).backgroundColor;
+    if (tlo !== 'rgb(255, 255, 255)') bledy.push(`kod QR bez białego podkładu: ${tlo}`);
+    const wypelnienia = [...svg.querySelectorAll('rect, path')].map(el => getComputedStyle(el).fill);
+    const czarne = wypelnienia.filter(w => w === 'rgb(0, 0, 0)').length;
+    const biale = wypelnienia.filter(w => w === 'rgb(255, 255, 255)').length;
+    const inne = wypelnienia.filter(w => !['rgb(0, 0, 0)', 'rgb(255, 255, 255)', 'none'].includes(w));
+    if (!czarne) bledy.push('kod QR bez czarnych modułów');
+    if (!biale) bledy.push('kod QR bez białego tła w obrazku');
+    if (inne.length) bledy.push(`kod QR z kolorem innym niż czarny i biały: ${[...new Set(inne)].join(', ')}`);
+    // Cały tekst na karcie: co najmniej 16 pt, ciemny na białym.
+    let najmniejsze = Infinity;
+    for (const el of karta.querySelectorAll('*')) {
+      if (el.closest('svg') || !widoczny(el)) continue;
+      const styl = getComputedStyle(el);
+      if (![...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) continue;
+      const px = parseFloat(styl.fontSize);
+      najmniejsze = Math.min(najmniejsze, px);
+      const opis = `${el.tagName.toLowerCase()}.${[...el.classList].join('.')} „${el.textContent.trim().slice(0, 30)}”`;
+      if (px < MIN_PISMO_KARTY_PX) bledy.push(`pismo poniżej 16 pt (${(px / 96 * 72).toFixed(1)} pt): ${opis}`);
+      if (Math.max(...styl.color.match(/\d+/g).slice(0, 3).map(Number)) > 80) bledy.push(`tekst nie jest ciemny na papierze: ${opis} ${styl.color}`);
+    }
+    for (const el of document.querySelectorAll('body, body *')) {
+      if (!widoczny(el) || el.closest('svg')) continue;
+      const t = getComputedStyle(el).backgroundColor;
+      if (t !== 'rgba(0, 0, 0, 0)' && t !== 'transparent' && t !== 'rgb(255, 255, 255)') bledy.push(`kolorowe tło na papierze: ${el.tagName.toLowerCase()}.${[...el.classList].join('.')} ${t}`);
+    }
+    const adres = karta.querySelector('.karta-qr-adres')?.textContent.trim() ?? '';
+    if (!adres.startsWith(location.origin.replace(/:\d+$/, '')) && !adres.startsWith('http')) bledy.push('brak adresu tekstem pod kodem');
+    return { bledy, kod: { szer: r.width, wys: r.height, dol, czarne, biale, najmniejsze } };
+  }, { UKRYTE, MIN_KOD_PX, MIN_PISMO_KARTY_PX, WYSOKOSC_STRONY_PX });
+}
+
+// Zoom 200% w przeglądarce = połowa szerokości okna w pikselach CSS: na
+// ekranie (nie na papierze) nic nie może wyjść poza szerokość.
+async function zmierzKarteNaEkranie(strona) {
+  return strona.evaluate(() => {
+    const bledy = [];
+    const okno = document.documentElement.clientWidth;
+    if (document.documentElement.scrollWidth > okno + 1) bledy.push(`poziome przewijanie: strona ${document.documentElement.scrollWidth} px, okno ${okno} px`);
+    const svg = document.querySelector('.karta-qr-kod svg');
+    const r = svg?.getBoundingClientRect();
+    if (!r || r.right > okno + 0.5 || r.left < -0.5) bledy.push('kod QR wystaje poza szerokość okna');
+    for (const el of document.querySelectorAll('main *')) {
+      const b = el.getBoundingClientRect();
+      if (b.width > 0 && b.right > okno + 1) bledy.push(`wystaje poza okno: ${el.tagName.toLowerCase()}.${[...el.classList].join('.')} (${Math.round(b.right)} px)`);
+    }
+    return { bledy, szer: Math.round(r?.width ?? 0) };
+  });
+}
+
 const wlasnySerwer = process.env.ADRES ? null : await podniesSerwer();
 const adres = process.env.ADRES ?? wlasnySerwer.adres;
 if (!['127.0.0.1', 'localhost'].includes(new URL(adres).hostname)) throw new Error('Pomiar wydruku tylko lokalnie.');
@@ -192,6 +283,41 @@ try {
         await strona.emulateMedia({ media: 'screen' });
       }
     }
+
+    // Karta z kodem QR (#2349): krótki i długi tytuł przepisu oraz profil.
+    for (const [nazwa, sciezka] of [['karta-przepis-krotki', przepisy.karta_krotki], ['karta-przepis-dlugi', przepisy.karta_dlugi], ['karta-profil', przepisy.karta_profil]]) {
+      for (const motyw of ['jasny', 'ciemny']) {
+        const odp = await strona.goto(adres + sciezka, { waitUntil: 'load' });
+        if (odp.status() !== 200) throw new Error(`${sciezka}: HTTP ${odp.status()}`);
+        await strona.evaluate(m => { if (m === 'ciemny') document.documentElement.dataset.theme = 'dark'; else delete document.documentElement.dataset.theme; }, motyw);
+        await strona.emulateMedia({ media: 'print' });
+        const wynik = await zmierzKarte(strona);
+        const pdf = await strona.pdf({ format: 'A4', printBackground: true, margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' } });
+        const plik = `${KATALOG}/${nazwa}-${motyw}-${kto}.pdf`;
+        writeFileSync(plik, pdf);
+        const stron = stronyPdf(pdf);
+        if (stron !== 1) wynik.bledy.push(`karta zajmuje ${stron} str. A4 zamiast jednej`);
+        const k = wynik.kod;
+        const opis = `${nazwa}/${motyw}/${kto}: kod ${k ? `${(k.szer / 96 * 2.54).toFixed(2)} × ${(k.wys / 96 * 2.54).toFixed(2)} cm (${Math.round(k.szer)} × ${Math.round(k.wys)} px), dół na ${Math.round(k.dol)} px, najmniejsze pismo ${(k.najmniejsze / 96 * 72).toFixed(1)} pt` : 'brak'}, ${stron} str. A4 → ${plik}`;
+        if (wynik.bledy.length) {
+          bledow += wynik.bledy.length;
+          console.log(`✗ ${opis}\n  - ${[...new Set(wynik.bledy)].join('\n  - ')}`);
+        } else {
+          console.log(`✓ ${opis}`);
+        }
+        // Ten sam ekran przy zoomie 200% (okno 1280 px → 640 px CSS).
+        await strona.emulateMedia({ media: 'screen' });
+        await strona.setViewportSize({ width: 640, height: 500 });
+        const naEkranie = await zmierzKarteNaEkranie(strona);
+        await strona.setViewportSize({ width: 718, height: 1000 });
+        if (naEkranie.bledy.length) {
+          bledow += naEkranie.bledy.length;
+          console.log(`✗ ${nazwa}/${motyw}/${kto} zoom 200%: kod ${naEkranie.szer} px\n  - ${[...new Set(naEkranie.bledy)].join('\n  - ')}`);
+        } else {
+          console.log(`✓ ${nazwa}/${motyw}/${kto} zoom 200%: bez poziomego przewijania, kod ${naEkranie.szer} px`);
+        }
+      }
+    }
     await kontekst.close();
   }
 } finally {
@@ -203,4 +329,4 @@ if (bledow) {
   console.error(`Wydruk przepisu: ${bledow} naruszeń. Popraw regułę @media print w resources/css/wydruk-przepisu.css.`);
   process.exit(1);
 }
-console.log('Wydruk przepisu: wszystkie warianty czytelne na A4.');
+console.log('Wydruk przepisu i karty z kodem QR: wszystkie warianty czytelne na A4.');

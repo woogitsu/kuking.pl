@@ -15,6 +15,7 @@ use App\Http\Middleware\CorrelateRequest;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureModeratorHasTwoFactor;
 use App\Http\Middleware\EnsureUserIsModerator;
+use App\Http\Middleware\NieZapamietujeWyboruAlergenow;
 use App\Http\Middleware\NormalizeForwardedFor;
 use App\Http\Middleware\OdrzucNiepoprawneZnaki;
 use App\Http\Middleware\ParametryAdresuBezTablic;
@@ -34,6 +35,7 @@ use Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Log;
@@ -373,6 +375,15 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(
             before: HandlePrecognitiveRequests::class,
             prepend: BramaApi::class,
+        );
+
+        // `NieZapamietujeWyboruAlergenow` PRZED `throttle` (#1902): sortowanie
+        // po liście priorytetów wynosi `throttle` przed middleware spoza listy,
+        // więc odpowiedź 429 nie przechodziłaby przez czyszczenie adresu
+        // zapisywanego w sesji.
+        $middleware->prependToPriorityList(
+            before: ThrottleRequests::class,
+            prepend: NieZapamietujeWyboruAlergenow::class,
         );
 
         $middleware->alias([

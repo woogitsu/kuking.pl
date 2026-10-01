@@ -996,6 +996,9 @@ new class extends Component
         $this->alergeny = $recipe->allergens;
         $this->alergenyPotwierdzone = true;
         $this->alergenyStan = (string) $recipe->allergen_status;
+        // Akcja podbiła `content_revision` — bez odświeżenia następny zapis
+        // dostałby „Ten przepis zmienił się od otwarcia formularza”.
+        $this->contentRevision = $recipe->content_revision;
     }
 
     /** Przepis, który nadpisujemy — z autoryzacją przy KAŻDYM zapisie, nie tylko przy wejściu. */

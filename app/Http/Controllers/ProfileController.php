@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Media\DostepDoZdjecia;
 use App\Domain\Search\FrazaWUgotowanych;
+use App\Domain\Sharing\KartaZKodemQr;
 use App\Http\Requests\Profile\ProfilRequest;
 use App\Models\Block;
 use App\Models\CookedEvent;
@@ -172,6 +173,7 @@ class ProfileController extends Controller
             // Jego profil to adres, pod który prowadzą podpisy „Użytkownik
             // usunięty" pod treściami, które D-018/D-022 obiecały zostawić.
             'profilDoIndeksu' => $profilDoIndeksu,
+            'kartaQrDostepna' => app(KartaZKodemQr::class)->profilDostepny($profile),
             // `Person.image` (#2231): ta sama bramka co `og:image`
             // (`isReady()`) i dodatkowo pytanie, czy zdjęcie otworzy się
             // GOŚCIOWI — dane strukturalne czyta robot bez konta.

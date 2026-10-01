@@ -13,11 +13,13 @@
    zmianą długi przepis zajmował 8–9 stron A4 (po niej 4), a papier dostawał belki,
    17 przycisków autora i ciemne tło w motywie ciemnym.
 
-   ZAKRES: strona przepisu i „Ściągawka do wydruku” (F4, `/ustawienia/sciagawka`).
-   Wspólna rama kartki — biały papier, czarny tekst, bez belek, przycisków
-   i formularzy — stoi pod `body:has(.przepis-uklad, .sciagawka)`; reguły
-   samego przepisu pod `body:has(.przepis-uklad)`, ściągawki na końcu pliku
-   pod `body:has(.sciagawka)`. Inne ekrany drukują się jak dotąd.
+   ZAKRES: strona przepisu, „Ściągawka do wydruku” (F4, `/ustawienia/sciagawka`)
+   i „Wydrukuj zeszyt” (#2351, `/zeszyt/{uuid}/do-druku`). Wspólna rama
+   kartki — biały papier, czarny tekst, bez belek, przycisków i formularzy —
+   stoi pod `body:has(.przepis-uklad, .sciagawka, .zeszyt-druk)`; reguły
+   samego przepisu pod `body:has(.przepis-uklad)`, ściągawki i zeszytu na
+   końcu pliku pod `body:has(.sciagawka)` i `body:has(.zeszyt-druk)`.
+   Inne ekrany drukują się jak dotąd.
 
    POZA WARSTWAMI, CELOWO. `app.css` układa reguły w `@layer`, a reguła
    nieuwarstwiona bije każdą warstwę (patrz komentarze przy `@layer
@@ -63,13 +65,76 @@
   margin-top: var(--spacing-5);
 }
 
+/* Zeszyt do druku (#2351) na ekranie: podgląd książki. Okładka, spis
+   i przepisy to osobne kartki z linią między nimi; długie słowa (tytuł,
+   adres) łamią się, żeby przy 320 px i 200% nie wypchnęły strony w bok. */
+.zeszyt-okladka,
+.zeszyt-spis,
+.zeszyt-przepis {
+  padding: var(--spacing-5) 0;
+  border-top: 1px solid var(--color-border, currentColor);
+  overflow-wrap: anywhere;
+}
+
+.zeszyt-tytul {
+  margin-top: 0;
+}
+
+.zeszyt-zdjecie {
+  max-width: 12rem;
+  margin: var(--spacing-3) 0;
+}
+
+.zeszyt-zdjecie img {
+  width: 100%;
+  height: auto;
+}
+
+.zeszyt-spis-lista {
+  list-style: decimal;
+  padding-left: 1.75em;
+}
+
+.zeszyt-spis-lista a {
+  display: inline-block;
+  min-height: 48px;
+  padding-block: 10px;
+}
+
+/* Karta z kodem QR (#2349) na ekranie: podgląd kartki. Kod ZAWSZE na białym
+   tle (także w motywie ciemnym) — skaner potrzebuje ciemnych modułów na
+   jasnym polu; margines ciszy siedzi w samym obrazku SVG. */
+.karta-qr-marka {
+  font-weight: 700;
+  margin: 0 0 var(--spacing-2);
+}
+
+.karta-qr-kod {
+  background: #FFFFFF;
+  width: min(100%, 20rem);
+  margin: var(--spacing-4) 0;
+}
+
+.karta-qr-kod svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.karta-qr-adres {
+  font-size: var(--text-body-lg);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  margin: 0 0 var(--spacing-4);
+}
+
 @media print {
   @page {
     size: A4;
     margin: 15mm;
   }
 
-  body:has(.przepis-uklad, .sciagawka) {
+  body:has(.przepis-uklad, .sciagawka, .zeszyt-druk) {
     --druk-skala: var(--user-text-scale, 1);
     color-scheme: light;
     background: #FFFFFF;
@@ -93,9 +158,9 @@
 
   /* Motyw ciemny nie może zużyć tonera na tło. Kolory ekranu idą w kosz,
      zostaje czarny tekst na białym. */
-  body:has(.przepis-uklad, .sciagawka) *,
-  body:has(.przepis-uklad, .sciagawka) *::before,
-  body:has(.przepis-uklad, .sciagawka) *::after {
+  body:has(.przepis-uklad, .sciagawka, .zeszyt-druk) *,
+  body:has(.przepis-uklad, .sciagawka, .zeszyt-druk) *::before,
+  body:has(.przepis-uklad, .sciagawka, .zeszyt-druk) *::after {
     color: #151714 !important;
     background: transparent !important;
     box-shadow: none !important;
@@ -103,13 +168,13 @@
   }
 
   /* Rama i wszystko, co na papierze jest martwe. */
-  body:has(.przepis-uklad, .sciagawka) :is(
+  body:has(.przepis-uklad, .sciagawka, .zeszyt-druk) :is(
     .skip-link, .topbar, .side-nav, .bottom-nav, .app-rail, .site-footer,
     .szybki-wyglad, .szybki-wyglad-podpowiedz, .pwa-install, .okruchy,
     .przepis-akcje, .podziel-sie, .danger-zone, .druk-podpowiedz,
     [aria-labelledby="komu-wyszlo"], [aria-labelledby="komentarze"]
   ),
-  body:has(.przepis-uklad, .sciagawka) main :is(.btn, button, form) {
+  body:has(.przepis-uklad, .sciagawka, .zeszyt-druk) main :is(.btn, button, form) {
     display: none !important;
   }
 
@@ -121,7 +186,7 @@
   }
 
   /* Belki są `sticky`/`fixed`; w druku nic nie może nachodzić na treść. */
-  body:has(.przepis-uklad, .sciagawka) :is(.app-body, .app-main, .przepis-uklad, .przepis-uklad > header, .sciagawka) {
+  body:has(.przepis-uklad, .sciagawka, .zeszyt-druk) :is(.app-body, .app-main, .przepis-uklad, .przepis-uklad > header, .sciagawka, .zeszyt-druk) {
     position: static;
     display: block;
     width: auto;
@@ -150,11 +215,11 @@
     page-break-after: avoid;
   }
 
-  body:has(.przepis-uklad, .sciagawka) .meta {
+  body:has(.przepis-uklad, .sciagawka, .zeszyt-druk) .meta {
     color: #3F453C !important;
   }
 
-  body:has(.przepis-uklad, .sciagawka) a {
+  body:has(.przepis-uklad, .sciagawka, .zeszyt-druk) a {
     text-decoration: none;
   }
 
@@ -275,5 +340,186 @@
     margin-top: 14pt;
     padding-top: 8pt;
     border-top: 1pt solid #151714;
+  }
+
+  /* ───────────────────────────────────────────────────────────────────────
+     „WYDRUKUJ ZESZYT” (#2351). Książka: okładka, spis, każdy przepis od
+     nowej kartki. Pismo minimum 16 pt (razy skala tekstu) — książka ma być
+     czytelna przy stole, nie tylko przy blacie. Rama (kolory, belki,
+     przyciski) przychodzi z reguł wspólnych wyżej.
+     ─────────────────────────────────────────────────────────────────────── */
+  body:has(.zeszyt-druk) {
+    font-size: calc(16pt * var(--druk-skala));
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-druk * {
+    font-size: max(calc(16pt * var(--druk-skala)), 1em);
+    line-height: 1.4;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-druk > * + * {
+    margin-top: 0;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-okladka {
+    border: 0;
+    padding: 60mm 0 0;
+    text-align: center;
+    break-after: page;
+    page-break-after: always;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-okladka .zeszyt-tytul {
+    font-size: calc(36pt * var(--druk-skala));
+    line-height: 1.2;
+    margin: 0 0 16pt;
+    overflow-wrap: anywhere;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-okladka .zeszyt-opis {
+    font-size: calc(18pt * var(--druk-skala));
+    margin: 0 0 24pt;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-spis {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-spis h2 {
+    font-size: calc(24pt * var(--druk-skala));
+    margin: 0 0 12pt;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-spis-lista {
+    list-style: decimal;
+    padding-left: 1.75em;
+    margin: 0;
+  }
+
+  /* Cel 48 px jest na ekran; na papierze link to zwykły tekst. */
+  body:has(.zeszyt-druk) .zeszyt-spis-lista a {
+    display: inline;
+    min-height: 0;
+    padding: 0;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-spis-lista li {
+    padding: 2pt 0;
+    overflow-wrap: anywhere;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-przepis {
+    break-before: page;
+    page-break-before: always;
+    border: 0;
+    padding: 0;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-przepis h2 {
+    font-size: calc(26pt * var(--druk-skala));
+    line-height: 1.2;
+    margin: 2pt 0 6pt;
+    overflow-wrap: anywhere;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-przepis h3 {
+    font-size: calc(19pt * var(--druk-skala));
+    margin: 12pt 0 4pt;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-przepis h4 {
+    font-size: calc(17pt * var(--druk-skala));
+    font-weight: 700;
+    margin: 8pt 0 2pt;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-przepis :is(h2, h3, h4) {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-przepis .meta {
+    margin: 0;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-przepis .przepis-adres-druk-zeszyt {
+    margin-top: 14pt;
+    overflow-wrap: anywhere;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-przepis :is(.ingredient-list li, .step-list > li) {
+    padding: 3pt 0;
+    border-bottom: 0.5pt solid #929A8C;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-przepis .step-list > li {
+    gap: 8pt;
+    grid-template-columns: 2em minmax(0, 1fr);
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-przepis .step-number {
+    font-size: calc(18pt * var(--druk-skala));
+    align-self: start;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-przepis :is(.recipe-story, .zeszyt-notatka) {
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-notatka {
+    margin-top: 12pt;
+    padding-top: 6pt;
+    border-top: 1pt solid #151714;
+  }
+
+  /* Zdjęcie „małe”: jest, ale nie zjada kartki ani tuszu. */
+  body:has(.zeszyt-druk) .zeszyt-zdjecie {
+    max-width: 6cm;
+    margin: 6pt 0;
+    break-inside: avoid;
+  }
+
+  body:has(.zeszyt-druk) .zeszyt-zdjecie img {
+    max-height: 5cm;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+  }
+
+  /* ───────────────────────────────────────────────────────────────────────
+     KARTA Z KODEM QR (#2349). Ramę i pismo (16 pt, tytuł 26 pt) dają
+     `.sciagawka` i wspólne reguły wyżej; tu tylko kod i adres. Kod 9 cm
+     (skaner z kilkudziesięciu centymetrów czyta bez trudu), czarny na białym
+     z ciszą dookoła; adres 20 pt, łamany gdziekolwiek — przepisuje się go
+     z papieru, gdy nie ma skanera.
+     ─────────────────────────────────────────────────────────────────────── */
+  body:has(.karta-qr) .karta-qr-kod {
+    width: 9cm;
+    margin: 12pt 0;
+    background: #FFFFFF !important;
+    break-inside: avoid;
+  }
+
+  body:has(.karta-qr) .karta-qr-kod svg {
+    width: 100%;
+    height: auto;
+  }
+
+  body:has(.karta-qr) .sciagawka.karta-qr .karta-qr-adres {
+    font-size: calc(20pt * var(--druk-skala));
+    font-weight: 700;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+  }
+
+  body:has(.karta-qr) .sciagawka.karta-qr .karta-qr-marka {
+    font-size: calc(20pt * var(--druk-skala));
   }
 }

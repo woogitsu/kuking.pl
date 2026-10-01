@@ -14,6 +14,12 @@ use App\Models\User;
  */
 class PantryItemPolicy
 {
+    /** Termin, ilość i „mrożone” (#1903): też wyłącznie właściciel, bez wyjątku dla moderatora. */
+    public function update(User $user, PantryItem $item): bool
+    {
+        return $user->getKey() === $item->user_id;
+    }
+
     public function delete(User $user, PantryItem $item): bool
     {
         return $user->getKey() === $item->user_id;

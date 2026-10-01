@@ -34,6 +34,7 @@ use App\Http\Controllers\Auth\RegistrationInviteController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\CollectionItemNoteController;
+use App\Http\Controllers\CollectionPrintController;
 use App\Http\Controllers\CollectionSharingController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CookedEventController;
@@ -45,6 +46,7 @@ use App\Http\Controllers\HealthController;
 use App\Http\Controllers\HistoriaPrzepisuController;
 use App\Http\Controllers\ImportPrzepisuController;
 use App\Http\Controllers\JakWyszloController;
+use App\Http\Controllers\KartaQrController;
 use App\Http\Controllers\ListaZakupowController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MojeWpisyController;
@@ -84,6 +86,7 @@ use App\Http\Controllers\Settings\WczytanieDanychController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SmakowicieController;
 use App\Http\Controllers\SocialController;
+use App\Http\Controllers\SpizarniaPrzypomnienieWypiszController;
 use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TagFollowController;
@@ -157,7 +160,8 @@ Route::get('/pytania', [QuestionController::class, 'index'])
     ->name('questions.index');
 Route::get('/szukaj', [SearchController::class, 'index'])
     // Wybór alergenów (`bez[]`) nie zostaje w sesji jako `_previous.url` (#1902, D-299).
-    ->middleware(["throttle:{$limits['search']},search", NieZapamietujeWyboruAlergenow::class])
+    // Middleware PRZED throttle: odpowiedź 429 też nie zapisuje wyboru w sesji.
+    ->middleware([NieZapamietujeWyboruAlergenow::class, "throttle:{$limits['search']},search"])
     ->name('search');
 
 Route::get('/health', HealthController::class)->name('health');
@@ -292,6 +296,18 @@ Route::post('/urodziny/wracam/{user}', [UrodzinyWypiszController::class, 'wracam
     ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
     ->name('urodziny.wracam');
 
+// Wypisanie z sobotniego przypomnienia o produktach do zużycia (#1903, D-333).
+// Tak samo jak urodziny wyżej: poza `auth`, autoryzacją jest podpis, GET tylko
+// pyta, zgodę wycofuje POST z tokenem CSRF, „Jednak chcę" włącza ją POST-em.
+Route::match(['get', 'post'], '/spizarnia/wypisz/{user}', [SpizarniaPrzypomnienieWypiszController::class, 'wypisz'])
+    ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
+    ->name('spizarnia.wypisz');
+// Bez `signed`: podpis i ważność sprawdza kontroler, żeby wygasły link dostał
+// przyjazną stronę zamiast 403 (D-333).
+Route::post('/spizarnia/wracam/{user}', [SpizarniaPrzypomnienieWypiszController::class, 'wracam'])
+    ->middleware(["throttle:{$limits['ustawienia']},ustawienia"])
+    ->name('spizarnia.wracam');
+
 // Jasny/ciemny wygląd — poza grupami `auth`/`guest` celowo: to jedyny
 // przełącznik w serwisie, którego GOŚĆ (bez konta) też ma prawo użyć
 // (docs/DECISIONS.md, D-019). Wybór zalogowanego kontroler i tak zapisuje
@@ -306,6 +322,10 @@ Route::post('/motyw', [ThemeController::class, 'update'])
     ->name('theme.update');
 
 Route::get('/przepisy/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
+
+// Karta z kodem QR (#2349): tylko odczyt, także dla gościa; dostęp rozstrzyga
+// Policy i bramka „czy to zobaczy gość” w `KartaQrController`.
+Route::get('/przepisy/{recipe}/karta-qr', [KartaQrController::class, 'przepis'])->name('recipes.qr-card');
 
 // Historia zapisanych wersji przepisu (issue #2024) — tylko odczyt, także dla
 // gościa; dostęp rozstrzyga `RecipePolicy::view` i opublikowanie przepisu
@@ -328,6 +348,15 @@ Route::get('/przepisy/{recipe}/historia/{numer}/zmiany', [HistoriaPrzepisuContro
 Route::get('/zeszyt/{collection}', [CollectionController::class, 'show'])
     ->whereUuid('collection')
     ->name('collections.show');
+
+// „Wydrukuj zeszyt” (#2351, F7): cały zeszyt jako książka do druku z przeglądarki.
+// Odczyt, jak `collections.show`, więc poza `auth`; dostęp rozstrzyga ta sama
+// `CollectionPolicy::view(?User)` (gość — tylko publiczny zeszyt). Strona
+// jest droższa od ekranu zeszytu (wszystkie przepisy naraz), stąd własny limit.
+Route::get('/zeszyt/{collection}/do-druku', CollectionPrintController::class)
+    ->whereUuid('collection')
+    ->middleware("throttle:{$limits['zeszyt_druk']},zeszyt_druk")
+    ->name('collections.print');
 
 // Tryb gotowania (issue #24). Widoczność jak strona przepisu — patrz
 // komentarz nad CookingModeController — więc te trasy stoją tutaj, w bloku
@@ -415,6 +444,8 @@ Route::get('/zdjecia/{media}/{wariant}', [MediaController::class, 'show'])
 // `/@{username}`, z tego samego powodu co reszta tras pod profilem.
 Route::get('/@{username}/obserwujacy', [SocialController::class, 'followers'])->name('social.followers');
 Route::get('/@{username}/obserwowani', [SocialController::class, 'following'])->name('social.following');
+
+Route::get('/@{username}/karta-qr', [KartaQrController::class, 'profil'])->name('profile.qr-card');
 
 // Profil na końcu, bo /@nazwa nie może przechwycić innych adresów.
 Route::get('/@{username}', [ProfileController::class, 'show'])->name('profile.show');
@@ -1066,6 +1097,21 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/co-mam-w-domu/podpowiedzi', [PantryController::class, 'podpowiedzi'])
         ->middleware("throttle:{$limits['podpowiedzi_skladnikow']},podpowiedzi_skladnikow")
         ->name('pantry.suggestions');
+    // Zgoda na sobotnie przypomnienie o produktach do zużycia (#1903, D-333):
+    // zapisuje wyłącznie zalogowana osoba, dla SWOJEGO konta (bez identyfikatora
+    // w adresie), z dowodem w dzienniku zgód.
+    Route::post('/co-mam-w-domu/przypomnienie', [PantryController::class, 'przypomnienie'])
+        ->middleware("throttle:{$limits['spizarnia']},spizarnia")
+        ->name('pantry.reminder');
+    // Termin, ilość i „mrożone” przy produkcie (#1903). UUID w adresie nie
+    // autoryzuje: decyduje `PantryItemPolicy::update` (tylko właściciel).
+    Route::get('/co-mam-w-domu/{pantryItem}/termin', [PantryController::class, 'edit'])
+        ->whereUuid('pantryItem')
+        ->name('pantry.edit');
+    Route::put('/co-mam-w-domu/{pantryItem}/termin', [PantryController::class, 'update'])
+        ->whereUuid('pantryItem')
+        ->middleware("throttle:{$limits['spizarnia']},spizarnia")
+        ->name('pantry.update');
     Route::delete('/co-mam-w-domu/{pantryItem}', [PantryController::class, 'destroy'])
         ->whereUuid('pantryItem')
         ->middleware("throttle:{$limits['spizarnia']},spizarnia")

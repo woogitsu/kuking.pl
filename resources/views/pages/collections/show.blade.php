@@ -83,6 +83,14 @@
         @endif
     </p>
 
+    {{-- „Wydrukuj zeszyt" (#2351, F7): cały zeszyt jako książka do druku
+         z przeglądarki. Tylko gdy jest co drukować — przepisy widoczne dla
+         oglądającego (`$recipes->total()` liczy je tym samym zakresem).
+         Zwykły odnośnik z tekstem, działa bez JavaScriptu. --}}
+    @if($recipes->total() > 0)
+        <p class="mb-5"><a class="btn btn-secondary" href="{{ route('collections.print', ['collection' => $collection, 'druk' => 1]) }}#jak-wydrukowac" rel="nofollow">Wydrukuj zeszyt</a></p>
+    @endif
+
     {{-- „Podziel się" (#2000): przycisk dostaje wyłącznie publiczny zeszyt,
          który zobaczy ktoś bez konta; resztę rozstrzyga `Udostepnianie`
          przez Policy. Prywatny, domyślny i wspólny — bez przycisku. --}}

@@ -39,6 +39,7 @@ use App\Domain\Import\LimitImportowOsoby;
 use App\Domain\Import\LimitImportu;
 use App\Domain\Import\Rezerwacja;
 use App\Domain\Import\ZlecImportPrzepisu;
+use App\Domain\Moderation\Actions\NotifyReporterDecisionChanged;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Moderation\Actions\RestoreContent;
@@ -747,6 +748,16 @@ try {
                 PendingEmailChange::query()->whereKey($argumenty['zmiana'])->firstOrFail(),
                 biezacaSesja: $argumenty['sesja'],
             );
+        })(),
+
+        // Korekta dla zgłaszającego po cofniętej decyzji (#2380). Odwołanie
+        // czytane przed akcją — oba procesy mają je w pamięci.
+        'skoryguj-zglaszajacemu' => (static function () use ($argumenty): string {
+            app(NotifyReporterDecisionChanged::class)->handle(
+                Appeal::query()->whereKey($argumenty['odwolanie'])->firstOrFail(),
+            );
+
+            return 'ok';
         })(),
 
         // Rozpatrzenie odwołania (#950). Odwołanie czytane PRZED akcją, tak

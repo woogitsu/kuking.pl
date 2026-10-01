@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Recipes\Historia;
 
+use App\Domain\Recipes\Alergeny\Alergen;
 use App\Domain\Recipes\KosztPrzepisu;
 use App\Models\Recipe;
 
@@ -43,6 +44,36 @@ final class MigawkaWersji
         'source_url' => 'Adres strony, z której pochodzi przepis',
         'family_since_year' => 'W rodzinie od roku',
     ];
+
+    /** Etykieta oznaczenia alergenów w porównaniu wersji (#1902). */
+    public const ETYKIETA_ALERGENOW = 'Alergeny według autora';
+
+    /**
+     * Oznaczenie alergenów z migawki jako zdanie dla człowieka albo `null`
+     * (niesprawdzone). Nigdy „bez alergenów” — pusta lista to „autor nie
+     * wskazał żadnego”. Stan `needs_review` to informacja, że składniki
+     * zmieniły się po ostatnim zaznaczeniu.
+     */
+    public function alergeny(): ?string
+    {
+        $stan = $this->dane['allergen_status'] ?? null;
+
+        if ($stan === Recipe::ALERGENY_DO_PRZEGLADU) {
+            return 'do ponownego sprawdzenia przez autora';
+        }
+
+        if ($stan !== Recipe::ALERGENY_ZDEKLAROWANE) {
+            return null;
+        }
+
+        $kody = $this->dane['allergens'] ?? [];
+        $nazwy = [];
+        foreach (is_array($kody) ? Alergen::znormalizuj($kody) : [] as $kod) {
+            $nazwy[] = Alergen::from($kod)->nazwa();
+        }
+
+        return $nazwy === [] ? 'autor nie wskazał żadnych' : implode(', ', $nazwy);
+    }
 
     /** @param array<string, mixed> $dane */
     public function __construct(private readonly array $dane) {}
