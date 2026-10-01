@@ -80,6 +80,7 @@ final class WydrukDlaPomocnikaTest extends TestCase
         $this->get(route('recipes.show', ['recipe' => $przepis->slug, 'druk' => 1]))
             ->assertOk()
             ->assertSee('Skąd ten przepis')
+            ->assertSee('skąd ten przepis: ', false)
             ->assertSee('Robiła to zawsze w niedzielę.')
             ->assertSee('Opis do pominięcia na kartce pomocnika.')
             ->assertDontSee('dla-pomocnika"', false);
@@ -87,6 +88,7 @@ final class WydrukDlaPomocnikaTest extends TestCase
         $this->get($this->adres($przepis))
             ->assertOk()
             ->assertDontSee('Skąd ten przepis')
+            ->assertDontSee('skąd ten przepis', false)
             ->assertDontSee('Robiła to zawsze w niedzielę.')
             ->assertDontSee('text-lead kolumna-czytania', false)
             ->assertSee('przepis-uklad', false)

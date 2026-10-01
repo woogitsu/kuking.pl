@@ -285,7 +285,9 @@
                  dopóki tu były, żadna reguła arkusza nie mogła ich poprawić
                  — a rytm nagłówka jest własnością strony przepisu, nie
                  trzech osobnych miejsc w szablonie. --}}
-            <p class="meta">{{ $recipe->attributionLine() }}</p>
+            {{-- Kartka dla pomocnika (#2345) nie ma nigdzie „Skąd ten przepis”, więc i nad tytułem
+                 zostaje sama nazwa autora, bez dopisku z osobą źródła. --}}
+            <p class="meta">{{ $dlaPomocnika ? $recipe->author->displayName() : $recipe->attributionLine() }}</p>
             <x-na-podstawie-przepisu :recipe="$recipe" />
             <h1>{{ $recipe->title }}</h1>
 
