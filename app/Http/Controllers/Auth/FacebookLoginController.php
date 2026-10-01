@@ -24,6 +24,7 @@ use App\Support\Komunikat;
 use App\Support\Poczta;
 use App\Support\PowrotDoRozmowy;
 use App\Support\RejestracjaZamknieta;
+use App\Support\ZamiarDolaczeniaDoZeszytu;
 use App\Support\ZamiarZapisu;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -434,7 +435,7 @@ class FacebookLoginController extends Controller
     /**
      * Zakładamy konto — dopiero teraz i dopiero z dwoma oświadczeniami.
      */
-    public function finish(Request $request, ZalozKonto $zalozKonto, PowrotDoRozmowy $rozmowa, ZamiarZapisu $zapis): RedirectResponse
+    public function finish(Request $request, ZalozKonto $zalozKonto, PowrotDoRozmowy $rozmowa, ZamiarZapisu $zapis, ZamiarDolaczeniaDoZeszytu $dolaczenie): RedirectResponse
     {
         if (! Facebook::dziala()) {
             return $this->drogaZamknieta();
@@ -488,6 +489,7 @@ class FacebookLoginController extends Controller
         // rejestracji i wiążemy go wyłącznie z właśnie utworzonym kontem.
         $rozmowa->przypiszKonto($request);
         $zapis->przypiszKonto($request);
+        $dolaczenie->przypiszKonto($request);
 
         // „Wysłaliśmy Ci wiadomość" pada tylko wtedy, gdy to prawda (#1373).
         if ($konto->listPotwierdzajacyNieWyszedl) {

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Collections\Wspoldzielenie\ZaprosDoZeszytu;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Actions\ZalozoneKonto;
+use App\Models\Collection;
 use App\Models\ModerationAction;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -776,6 +778,48 @@ class LogowanieKontemFacebookiemTest extends TestCase
         $this->assertSame('Basia', $basia->profile->display_name);
         $this->assertNotNull($basia->age_confirmed_at);
         $this->assertDatabaseHas('audit_log', ['action' => 'account.registered']);
+    }
+
+    #[Test]
+    public function test_nowe_konto_facebook_wraca_do_podgladu_zaproszenia_do_zeszytu(): void
+    {
+        $wlasciciel = $this->user('gospodyni');
+        $zeszyt = Collection::create(['owner_id' => $wlasciciel->getKey(), 'name' => 'Obiady rodzinne', 'visibility' => 'private']);
+        [, $token] = app(ZaprosDoZeszytu::class)->linkiem($wlasciciel, $zeszyt);
+        $cel = route('collections.link.show', $token);
+
+        $this->get($cel)->assertRedirect(route('login'));
+        $this->get(route('register'))->assertOk();
+        $this->wlaczFacebooka();
+        $this->wracamyZFacebooka()->assertRedirect(route('facebook.finish'));
+        $this->post(route('facebook.finish.store'), [
+            'display_name' => 'Basia', 'username' => 'basia',
+            'age_confirmed' => '1', 'terms_accepted' => '1',
+        ])->assertRedirect(route('onboarding.interests'));
+        $this->post(route('onboarding.skip'));
+
+        $odpowiedz = $this->get(route('onboarding.done'));
+        $this->assertSame($cel, $odpowiedz->headers->get('Location'), 'ZESZYT_2420_FACEBOOK_NOWE_KONTO');
+        $this->get($cel)->assertOk()->assertSee('Dołączam');
+        $this->assertSame(0, DB::table('collection_members')->where('collection_id', $zeszyt->getKey())->count());
+    }
+
+    #[Test]
+    public function test_istniejace_konto_facebook_po_ekranie_rejestracji_nie_traci_linku_zaproszenia(): void
+    {
+        $wlasciciel = $this->user('gospodyni');
+        $zeszyt = Collection::create(['owner_id' => $wlasciciel->getKey(), 'name' => 'Obiady rodzinne', 'visibility' => 'private']);
+        [, $token] = app(ZaprosDoZeszytu::class)->linkiem($wlasciciel, $zeszyt);
+        $cel = route('collections.link.show', $token);
+        $konto = $this->user('basia', ['email' => 'basia@example.test']);
+        $konto->connectFacebook(self::FB_ID);
+
+        $this->get($cel)->assertRedirect(route('login'));
+        $this->get(route('register'))->assertOk();
+        $this->wlaczFacebooka();
+        $this->wracamyZFacebooka()->assertRedirect($cel);
+        $this->assertAuthenticatedAs($konto);
+        $this->get($cel)->assertOk()->assertSee('Dołączam');
     }
 
     #[Test]
