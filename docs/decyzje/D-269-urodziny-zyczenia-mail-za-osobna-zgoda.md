@@ -33,6 +33,8 @@ odkładał albo odrzucał (mail z życzeniami, przypomnienie obserwującym).
    `railway config apply` (#595) nie był uruchomiony, więc na produkcji
    zmiennej nie ma i obowiązuje domyślne `false`. Krok właściciela: W12
    w `docs/flota/KROKI_WLASCICIELA_2026-09-29.md`.
+   Właściciel zdecydował 1.10.2026, że zmienną ustawia się teraz w panelu Railway
+   (wiersz w D-333); do czasu ustawienia stan powyżej pozostaje prawdziwy.
    **Wypisanie:** podpisany odnośnik w liście prowadzi na stronę z pytaniem —
    **sam GET niczego nie zmienia**, zgodę wycofuje przycisk (POST), a po
    wypisaniu jest „Jednak chcę go dostawać” (wzorem #1403).
