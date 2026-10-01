@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (wewnętrzne, droga do bety, B9): zamknięcie zakładania kont w panelu (`KUKING_REGISTRATION_OPEN=false`, np. na czas przeglądu prawnika) przeżywa pierwsze `railway config apply` — zmienna jest w `.railway/railway.ts` przez Shared Variables serwisu WWW (wcześniej `apply` usunąłby ją i `/register` otworzyłby się po cichu dla wszystkich). Niezałożona Shared Variable (pusty napis) znaczy „otwarta”, jak brak zmiennej, a nie „zamknięta”; zamyka tylko jawne „false”/„0” (i wartość niezrozumiała).
 - Zmienione (decyzja właściciela z 1.10.2026, D-333): „Zajęło mi …” na karcie wykonania i czas kroku, przygotowania i gotowania w kopii HTML przepisu piszą się jak czas przepisu — poniżej 90 minut dokładne minuty, od 90 godziny i minuty zaokrąglone do 5 minut (120 min to „2 godz.”, 95 min to „1 godz. 35 min”). Surowe liczby w eksporcie JSON/CSV i ISO 8601 w JSON-LD bez zmian. Życzenia urodzinowe mailem (D-269): decyzja o włączeniu w panelu Railway zapisana, krok W12 do wykonania przez właściciela.
 - Naprawione (#2390): formularz zgłoszenia konkretnej wersji przepisu usuniętego miękko (i zapis zgłoszenia) daje 404 jak każda niewidoczna treść, a nie błąd serwera 500. Retencja nie kasuje już wersji przepisu wskazanej zgłoszeniem (`reports.target_type = 'recipe_version'`) ani nie usuwa jej przy zamianie przepisu w nagrobek — wersja z otwartą sprawą zostaje do końca retencji sprawy.
 - Naprawione (wewnętrzne, #2291): puste `DB_JIT=` w środowisku daje `jit = off`, a nie błędne `-c jit=` i brak połączenia z bazą.
