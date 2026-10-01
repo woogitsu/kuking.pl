@@ -36,6 +36,7 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 
 OCZEKUJ = {
     'Grupowanie tysięcy rozbite na fragmenty (#2455)': r'GRUPOWANIE_TYSIECY_WYNIK',
+    'Stara karta nadpisuje nowszą notatkę (#2400)': r'NOTATKA_2400_STARA_KARTA_NIE_NADPISUJE',
     'Pasteryzacja znów zaleca piekarnik (#2434)': r'PASTERYZACJA_BEZ_PIEKARNIKA',
     'Uwaga słownika gwarantuje parametry autora (#2434)': r'PASTERYZACJA_UWAGA_NIE_GWARANTUJE',
     # Paczka V: kontrole dodatnie trzech strażników tekstu.

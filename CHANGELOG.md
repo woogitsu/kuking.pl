@@ -3,6 +3,7 @@
 ## Nieopublikowane
 
 - Naprawione (#2455): zmiana liczby porcji przelicza teraz całe ilości zapisane z odstępem tysięcy, także ze spacją nierozdzielającą i w zakresie. Nie zamienia fragmentu `1 000 g` w `½ 000 g`; niejednoznaczny zapis zostawia bez zmian. Tekst przepisu autora pozostaje taki, jak go wpisano.
+- Naprawione (#2400): gdy ktoś zmieni notatkę w zeszycie, starsza karta nie nadpisuje jej po cichu. Wpisany szkic zostaje, a właściciel lub współtwórca widzi aktualną notatkę i może świadomie zastąpić ją swoim tekstem.
 - Naprawione (#2420): osoba zaproszona linkiem do wspólnego zeszytu po założeniu konta i pierwszych krokach wraca do podglądu zaproszenia. Samo dołączenie wymaga kliknięcia „Dołączam”; wygasły lub odwołany link nie otwiera podglądu.
 - Naprawione (#2437, CSAM): stan zabezpieczenia i zadanie przeniesienia publicznych wariantów zdjęcia zapisują się w jednej transakcji. Awaria kolejki cofa decyzję; worker widzi zadanie dopiero razem z zatwierdzonym stanem. Sonda zdrowia wykrywa też brak zakończonego przeniesienia mimo pustych tabel zadań. Runbook rozróżnia zadanie oczekujące, nieudane i brakujące, bez ponawiania decyzji moderatora.
 - Naprawione (#2434): objaśnienie „Pasteryzować” nie poleca już utrwalania słoików w zwykłym piekarniku ani dowolnych parametrów autora. Odsyła do przebadanej metody dla konkretnego produktu; uwaga pod słownikiem nie obiecuje oceny bezpieczeństwa przepisu. Przegląd całego słownika pozostaje w #2343.

@@ -770,6 +770,7 @@ try {
                 UpdateCollectionItemNote::PRZEPIS,
                 $argumenty['przepis'],
                 $argumenty['notatka'],
+                $argumenty['oczekiwany_odcisk'],
             );
         })(),
 
