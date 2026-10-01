@@ -693,35 +693,48 @@ final class PublishRecipe
             return $recipe;
         });
 
-        try {
-            $recipe = $zapisz($klucz);
-        } catch (UniqueConstraintViolationException $e) {
-            if ($klucz === null) {
-                // Bez klucza nie ma jak odbić się o
-                // `recipes_one_per_klucz_wyslania` — to inne ograniczenie
-                // (np. `recipes.slug`) i nie wolno go tu wyciszyć.
-                throw $e;
+        $probySluga = 0;
+        while (true) {
+            try {
+                return $zapisz($klucz);
+            } catch (UniqueConstraintViolationException $e) {
+                // PostgreSQL podaje nazwę NARUSZONEGO indeksu przed DETAIL
+                // i SQL. Samo szukanie nazwy w całym komunikacie mogłoby
+                // trafić na tytuł przepisu przekazany jako parametr.
+                preg_match('/violates unique constraint "([^"]+)"/', $e->getMessage(), $naruszonyIndeks);
+                $indeks = $naruszonyIndeks[1] ?? null;
+
+                // `GenerateRecipeSlug` czyta wolny adres PRZED INSERT-em.
+                // Równoległy zapis może go zająć w tej szczelinie. Po
+                // rollbacku transakcji ponawiamy całą operację: generator
+                // zobaczy zatwierdzony slug i wybierze następny przyrostek.
+                // Tylko ten jeden indeks wolno ponowić; inne naruszenia
+                // unikalności pozostają błędami, a limit zapobiega pętli.
+                if ($indeks === 'recipes_slug_unique') {
+                    $probySluga++;
+                    if ($probySluga >= 3) {
+                        throw $e;
+                    }
+
+                    continue;
+                }
+
+                if ($klucz === null || $indeks !== 'recipes_one_per_klucz_wyslania') {
+                    throw $e;
+                }
+
+                // To samo wysłanie już założyło przepis. Oddajemy ten
+                // przepis bez kolejnej historii ani wpisu w strumieniu.
+                $istniejacy = $this->przepisZTegoWyslania($author, $klucz);
+                if ($istniejacy !== null) {
+                    return $istniejacy;
+                }
+
+                // Klucz zajęty, lecz przepisu już nie widać. Kontynuujemy
+                // bez klucza zgodnie z ADR §4.3.
+                $klucz = null;
             }
-
-            // Indeks `recipes_one_per_klucz_wyslania` odbił wiersz: to
-            // wysłanie już raz założyło przepis. Oddajemy TEN przepis i nie
-            // robimy drugiej wersji w `recipe_versions` ani drugiego wpisu
-            // w dzienniku audytowym — jedno i drugie stoi W transakcji
-            // (audyt A01), więc cofnęło się razem z odbitym wierszem,
-            // a pierwsze wysłanie zapisało je we własnej.
-            $istniejacy = $this->przepisZTegoWyslania($author, $klucz);
-
-            if ($istniejacy !== null) {
-                return $istniejacy;
-            }
-
-            // Klucz zajęty, a przepisu nie widać (np. został w tym czasie
-            // usunięty). Nie odmawiamy — zapisujemy bez klucza, z ryzykiem
-            // duplikatu (ADR §4.3).
-            $recipe = $zapisz(null);
         }
-
-        return $recipe;
     }
 
     private function kontakt(): string

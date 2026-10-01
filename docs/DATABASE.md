@@ -1945,6 +1945,14 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 - `allergen_status`, `allergens`, `allergens_declared_at` — alergeny według
   autora, patrz „Alergeny przepisu" niżej (#1902, D-333).
 
+Slug powstaje z tytułu; gdy adres jest zajęty, dostaje kolejną liczbę (`-2`,
+`-3`). Sprawdzenie wolnego adresu nie jest blokadą: przy równoległej publikacji
+ostateczną ochroną pozostaje `recipes_slug_unique`. Jeśli drugi zapis zajmie
+slug przed INSERT-em, `PublishRecipe` cofa transakcję i ponawia ją najwyżej
+dwukrotnie, za każdym razem wyliczając slug ponownie. Inne naruszenia
+unikalności nie są w ten sposób ponawiane. Cofnięcie tej poprawki wymaga tylko
+przywrócenia kodu aplikacji; indeks w bazie pozostaje.
+
 **`prep_minutes`, `cook_minutes` — puste to „nie wiem", zero to „nie ma"**
 (#1090). `NULL` oznacza, że autor nie podał czasu; `0` — że tego etapu nie ma
 (np. surówka bez gotowania). Czas całkowity jest znany TYLKO przy obu
