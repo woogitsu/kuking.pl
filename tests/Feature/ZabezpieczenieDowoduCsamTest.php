@@ -62,6 +62,9 @@ class ZabezpieczenieDowoduCsamTest extends TestCase
             'kuking.media.disk' => 'public',
             'kuking.media.public_disk' => 'public',
             'kuking.usuniete_tresci.retention_days' => 30,
+            'queue.default' => 'database',
+            'queue.connections.database.connection' => config('database.default'),
+            'queue.connections.database.after_commit' => false,
         ]);
         Storage::fake('public');
     }

@@ -111,6 +111,9 @@ class Media extends Model
      */
     public const METADANE_WARIANTY_ZABEZPIECZONE = 'warianty_zabezpieczone';
 
+    /** Trwały ślad, że worker zakończył przenoszenie wariantów dowodu (#2437). */
+    public const METADANE_WARIANTY_DOWODU_PRZENIESIONE_AT = 'warianty_dowodu_przeniesione_at';
+
     protected $fillable = [
         'owner_id',
         'disk',
