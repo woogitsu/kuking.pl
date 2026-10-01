@@ -13,6 +13,7 @@ use DOMDocument;
 use DOMElement;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -280,5 +281,53 @@ class KolejkaGotowaniaTest extends TestCase
             ->assertSee('To już ostatni krok: Zupa.')
             ->assertSee(route('cooked.create', $zupa->slug), false)
             ->assertDontSee(route('cooked.create', $kotlet->slug), false);
+    }
+
+    private function staryAdres(string $stary, Recipe $przepis): void
+    {
+        DB::table('recipe_slug_redirects')->insert(['slug' => $stary, 'recipe_id' => $przepis->getKey(), 'created_at' => now()]);
+    }
+
+    public function test_przepis_ze_zmienionym_adresem_zostaje_w_kolejce_pod_nowym_slugiem_z_krokiem(): void
+    {
+        $autor = $this->user('autorstary');
+        $zupa = $this->przepis($autor, 'Zupa jarzynowa', 4);
+        $kotlet = $this->przepis($autor, 'Kotlet', 3);
+        $this->staryAdres('stara-zupa', $zupa);
+
+        $odpowiedz = $this->get(route('kolejka-gotowania', ['p' => 'stara-zupa:3,'.$kotlet->slug, 'a' => 'stara-zupa']))
+            ->assertOk()
+            ->assertSee('Zupa jarzynowa: krok 3.')
+            ->assertSee('Kotlet')
+            ->assertDontSee('niedostępn');
+
+        $this->assertStringContainsString($zupa->slug.':3', rawurldecode($odpowiedz->getContent()));
+        $this->assertStringNotContainsString('stara-zupa', $odpowiedz->getContent());
+    }
+
+    public function test_stary_slug_i_nowy_slug_tego_samego_przepisu_licza_sie_raz(): void
+    {
+        $zupa = $this->przepis($this->user('autordubel'), 'Zupa dubel', 4);
+        $this->staryAdres('stara-zupa-dubel', $zupa);
+
+        $this->get(route('kolejka-gotowania', ['p' => 'stara-zupa-dubel:2,'.$zupa->slug.':4']))
+            ->assertOk()
+            ->assertSee('Zupa dubel: krok 2.')
+            ->assertDontSee('Zupa dubel: krok 4.');
+    }
+
+    public function test_stary_slug_przepisu_niedostepnego_wypada_bez_wycieku_nowego_adresu(): void
+    {
+        $autor = $this->user('autorprywatny');
+        $prywatny = $this->przepis($autor, 'Nalewka babci Wandy', 3);
+        $prywatny->forceFill(['visibility' => 'private'])->save();
+        $this->staryAdres('stara-nalewka', $prywatny);
+
+        $this->actingAs($this->user('obcaosoba'))
+            ->get(route('kolejka-gotowania', ['p' => 'stara-nalewka:2']))
+            ->assertOk()
+            ->assertSee('Jeden przepis z kolejki jest już niedostępny')
+            ->assertDontSee('Nalewka babci Wandy')
+            ->assertDontSee($prywatny->slug);
     }
 }

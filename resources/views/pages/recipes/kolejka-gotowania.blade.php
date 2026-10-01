@@ -38,7 +38,7 @@
             }
             if ($niedostepne > 0) {
                 $uwagi[] = ($niedostepne === 1 ? 'Jeden przepis z kolejki jest już niedostępny' : $niedostepne.' przepisy z kolejki są już niedostępne')
-                    .' (został usunięty, ukryty albo zmienił adres), więc wypadł z kolejki. Reszta zostaje.';
+                    .' (został usunięty, ukryty albo wrócił do szkicu), więc wypadł z kolejki. Reszta zostaje.';
             }
             if ($bezKrokow > 0) {
                 $uwagi[] = 'Przepis bez opisanych kroków nie nadaje się do gotowania krok po kroku, więc wypadł z kolejki.';

@@ -6,7 +6,10 @@ namespace App\Http\Controllers;
 
 use App\Domain\Moderation\DziennikWgladu;
 use App\Models\Recipe;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
@@ -31,6 +34,7 @@ use Illuminate\View\View;
  * przepis przechodzi `RecipePolicy::view` — tę samą, co strona przepisu
  * i tryb gotowania. Przepis, którego widz już nie widzi (usunięty, ukryty,
  * wrócił do szkicu, konto zbanowane), wypada z kolejki z komunikatem;
+ * przepis ze zmienionym adresem (`recipe_slug_redirects`) zostaje pod nowym slugiem;
  * treść przepisu nigdy nie jest kopiowana do kolejki, w przeglądarce
  * jest tylko slug i numer kroku.
  */
@@ -47,6 +51,11 @@ class KolejkaGotowaniaController extends Controller
 
         $osoba = $request->user();
         $przepisy = Recipe::query()->whereIn('slug', array_keys($zadane))->with(['steps', 'author'])->get()->keyBy('slug');
+
+        // Przepis, który zmienił adres, zostaje w kolejce pod nowym slugiem
+        // (z tym samym krokiem). Stary slug rozwiązujemy dopiero po `view`:
+        // przepis niedostępny wypada jak każdy inny, bez śladu, że istniał.
+        [$zadane, $przepisy, $zmienione] = $this->rozwiazStareAdresy($zadane, $przepisy, $osoba);
 
         /** @var list<array{recipe: Recipe, krok: int, total: int}> $pozycje */
         $pozycje = [];
@@ -80,6 +89,7 @@ class KolejkaGotowaniaController extends Controller
 
         $slugi = array_map(fn (array $p): string => $p['recipe']->slug, $pozycje);
         $aktywnySlug = (string) $request->query('a', '');
+        $aktywnySlug = $zmienione[$aktywnySlug] ?? $aktywnySlug;
         $aktywnySlug = in_array($aktywnySlug, $slugi, true) ? $aktywnySlug : ($slugi[0] ?? null);
 
         return view('pages.recipes.kolejka-gotowania', [
@@ -92,6 +102,45 @@ class KolejkaGotowaniaController extends Controller
             'wygasla' => $request->boolean('wygasla'),
             'limit' => self::LIMIT,
         ]);
+    }
+
+    /**
+     * Zamienia w zadanej kolejce stare slugi na aktualne. Zwraca nową kolejkę
+     * (kolejność i kroki z adresu, powtórzenia po rozwiązaniu liczą się raz),
+     * przepisy po aktualnym slugu i mapę stary → nowy slug.
+     *
+     * @param  array<string, int>  $zadane
+     * @param  Collection<string, Recipe>  $przepisy
+     * @return array{0: array<string, int>, 1: Collection<string, Recipe>, 2: array<string, string>}
+     */
+    private function rozwiazStareAdresy(array $zadane, Collection $przepisy, ?User $osoba): array
+    {
+        $nieznane = array_values(array_filter(array_keys($zadane), fn (string $slug): bool => ! $przepisy->has($slug)));
+
+        if ($nieznane === []) {
+            return [$zadane, $przepisy, []];
+        }
+
+        $przekierowania = DB::table('recipe_slug_redirects')->whereIn('slug', $nieznane)->pluck('recipe_id', 'slug');
+        $cele = Recipe::query()->whereIn('id', $przekierowania->unique()->all())->with(['steps', 'author'])->get()->keyBy('id');
+
+        $wynik = [];
+        $zmienione = [];
+
+        foreach ($zadane as $slug => $krok) {
+            $cel = $przepisy->has($slug) ? null : $cele->get($przekierowania->get($slug));
+
+            if ($cel !== null && Gate::forUser($osoba)->allows('view', $cel)) {
+                $zmienione[$slug] = $cel->slug;
+                $przepisy->put($cel->slug, $cel);
+                $slug = $cel->slug;
+            }
+
+            // Pierwsze wystąpienie wygrywa (jak przy powtórzonym slugu w adresie).
+            $wynik[$slug] ??= $krok;
+        }
+
+        return [$wynik, $przepisy, $zmienione];
     }
 
     /**
