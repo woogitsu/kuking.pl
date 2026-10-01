@@ -29,7 +29,7 @@
             <li><span class="badge">{{ $etykietaPorcji }}</span></li>
         @endif
         @if($czasRazem !== null)
-            <li><span class="badge">Razem około {{ $czasRazem }} min</span></li>
+            <li><span class="badge">Razem około {{ \App\Support\Czas::czasPrzepisu($czasRazem) }}</span></li>
         @endif
         @if($etykietaKosztu !== null)
             <li><span class="badge">{{ $etykietaKosztu }}</span></li>

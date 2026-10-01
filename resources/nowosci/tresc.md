@@ -74,6 +74,16 @@ dopóki go nie zaznaczycie. Taki list przychodzi najwyżej raz w tygodniu, tylko
 wtedy, gdy jest co na nim wymienić, a wypisać się z niego można jednym
 kliknięciem na dole listu, bez logowania.
 
+### Kartka z przepisem dla pomocnika
+
+Obok przycisku „Drukuj przepis” jest nowy: „Drukuj dla pomocnika”. To krótsza
+kartka na blat dla osoby, która gotuje razem z Wami: bez opisu i bez rodzinnej
+historii przepisu, za to z liczbą porcji, składnikami i krokami dużym drukiem.
+Jeśli wcześniej wybierzecie „Na ile porcji?”, na kartce będą już przeliczone
+ilości. Przyciskiem „Dodaj kod QR do kartki” możecie dołożyć kod, którym
+pomocnik otworzy ten przepis w telefonie — kod jest tylko dla przepisów
+publicznych, a przy prywatnym go nie ma.
+
 ### Wydrukuj cały zeszyt jako książkę
 
 Na stronie zeszytu jest przycisk „Wydrukuj zeszyt”. Otwiera stronę, którą
@@ -351,6 +361,20 @@ Wersję może też ukryć moderacja, gdy coś w niej narusza zasady. Wtedy dosta
 powiadomienie: której wersji to dotyczy, na jakiej podstawie i dlaczego. Jeśli
 uważacie, że to pomyłka, możecie się odwołać — a gdy przyznamy Wam rację, wersja
 od razu wróci do historii zmian.
+
+### Zgłoście konkretną wersję przepisu
+
+Starsza wersja przepisu może zawierać coś, czego nie powinno być w sieci — na
+przykład cudzy numer telefonu — nawet jeśli sam przepis jest w porządku. Na
+ekranie każdej starszej wersji w „Historii zmian” jest teraz przycisk „Zgłoś
+wersję” z numerem wersji. Zgłaszacie dokładnie tę wersję, nie cały przepis.
+Bez konta zobaczycie „Zgłoś wersję (po zalogowaniu)”, a treść niezgodną
+z prawem możecie zgłosić także bez konta. Najnowszej wersji nie zgłaszacie
+osobno, bo to jest sam przepis — wtedy zgłaszacie przepis. Moderacja może
+wersję ukryć w całości: historia zmian jest niezmienna, więc nie wycinamy z niej
+pojedynczych zdań. Autor dostaje powiadomienie z podstawą i uzasadnieniem
+i może się odwołać, a Wy dostajecie odpowiedź tak samo jak przy każdym innym
+zgłoszeniu.
 
 ### Zacznijcie gotować na telefonie, dokończcie na tablecie
 
