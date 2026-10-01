@@ -1312,6 +1312,22 @@ checks = [
     ("Planer usuwa bez pytania (#2468)", "resources/views/pages/planer/show.blade.php",
      "test_usuniecie_z_planera_wymaga_potwierdzenia_przy_wlasciwym_dniu_i_pozycji",
      planer_bez_potwierdzenia),
+    # #2476: dwa bieżące składniki z identycznym tekstem/ile=null są różne.
+    ("Bieżący eksport pomija wybór Bez ilości (#2476)", "app/Domain/Users/Exports/CollectUserExportData.php",
+     "test_biezacy_szkic_zachowuje_dwa_rozne_wybory_bez_ilosci_w_json",
+     lambda s: replace_once(s, "                'bez_ilosci' => (bool) $item->no_amount,\n", "")),
+    # #2479: wrócenie do nazywania hidden szkicem ma oblać na rzeczywistym ZIP-ie.
+    ("Ukryty przepis nazwany szkicem w eksporcie (#2479)", "app/Domain/Users/Exports/RecipeArchiveStatus.php",
+     "test_ukryty_po_publikacji_nie_jest_szkicem_w_karcie_ani_spisie",
+     lambda s: replace_once(s,
+         "Recipe::STATUS_HIDDEN => ['full' => 'Przepis ukryty', 'short' => 'ukryty'],",
+         "Recipe::STATUS_HIDDEN => ['full' => 'To był szkic — nigdy nie został opublikowany', 'short' => 'szkic'],")),
+    # #2478: rok jako jedyne źródło ma naprawdę otworzyć sekcję w pliku ZIP.
+    ("Sam rok rodzinny znika z HTML eksportu (#2478)", "resources/views/exports/recipe.blade.php",
+     "test_sam_rok_rodzinny_jest_w_html_i_json_bez_pustej_sekcji_dla_innego_przepisu",
+     lambda s: replace_once(s,
+         "@if($recipe->source_note || $recipe->source_person || $recipe->source_url || $recipe->family_since_year)",
+         "@if($recipe->source_note || $recipe->source_person || $recipe->source_url)")),
     # #988: komunikat po akcji ma jawny rodzaj. Goły `->with('status', …)`
     # wróciłby do zielonej plakietki także dla odmowy.
     ("Goły ->with('status') wraca do kontrolera", "app/Http/Controllers/SmakowicieController.php", "test_w_app_nie_ma_golego_zapisu_statusu_bez_rodzaju",
