@@ -112,7 +112,7 @@ async function przebieg(zrodlo, playwright = atrapa()) {
 
   const bledy = [];
   let raport = null;
-  const proces = { env: { ADRES }, argv: ['node', 'audyt-ux50plus.mjs', '--szybko', '--bez-formy'], exitCode: 0 };
+  const proces = { env: { ADRES }, argv: ['node', 'audyt-ux50plus.mjs', '--szybko', '--bez-formy', '--bez-paczki-s'], exitCode: 0 };
   const kontekst = vm.createContext({
     chromium: playwright.chromium,
     process: proces,
