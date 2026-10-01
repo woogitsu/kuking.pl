@@ -75,6 +75,14 @@ go odwołać. Nie otworzy przepisu nikomu, kto nie mógłby go zobaczyć w Kukin
 tylko wspólna lista kroków. Gdy ktoś z sesji coś zmieni, wystarczy kliknąć
 „Odśwież”. Sesja trwa najwyżej 24 godziny i znika razem z odhaczeniami;
 działa przy połączeniu z internetem. Minutniki zostają osobne dla każdej osoby.
+### Wyjaśnienia słów kulinarnych przy gotowaniu
+
+Gdy w kroku trybu „Gotuję” trafi się słowo, którego nie znacie — na przykład
+„zasmażka”, „zahartuj”, „zredukuj” albo „szumowiny” — pod tekstem kroku
+zobaczycie przycisk „Wyjaśnij to”. Dotknijcie go, a rozwinie się krótkie
+objaśnienie po polsku. Nic się przy tym nie zapisuje i nie zmienia: przepis
+zostaje taki, jak napisał autor, a krok bez trudnych słów nie ma przycisku.
+Objaśnienia napisali ludzie, nie sztuczna inteligencja.
 
 ### Co zużyć w pierwszej kolejności
 
