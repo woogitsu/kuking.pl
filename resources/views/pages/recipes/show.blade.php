@@ -417,11 +417,23 @@
                      (`?porcje=`), nie zawsze z przepisu autora. --}}
                 <p class="druk-pomocnik-porcje m-0"><strong>Ilość: {{ $wyborPorcji->dostepny() ? \App\Domain\Recipes\Porcje\WyborPorcji::etykieta($wyborPorcji->wybrane) : $porcje }}</strong>@if($wyborPorcji->przeliczone()) <span class="meta">(w przepisie autora: {{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta($wyborPorcji->zPrzepisu) }})</span>@endif</p>
             @endif
-            {{-- Koszt wg autora (D-286). Pełnym zdaniem, z „ok." i „wg autora",
-                 a nie jako kolejna „liczba" obok czasu i porcji: to szacunek
-                 jednej osoby, nie cena, którą serwis za coś ręczy. --}}
-            @if($recipe->costLabel())
-                <p class="przepis-koszt kolumna-czytania" data-koszt-autora="{{ $recipe->estimated_cost_pln }}">{{ $recipe->costLabel() }}</p>
+            {{-- Kwota autora skaluje się tylko dla tego samego, sprawdzonego wyboru
+                 porcji co składniki (D-286). Nie skaluje to przedziału z cennika. --}}
+            @php
+                $kosztAutora = $recipe->costLabel();
+                if ($kosztAutora !== null && $wyborPorcji->przeliczone()) {
+                    $przeliczonyKoszt = \App\Domain\Recipes\KosztPrzepisu::naPorcje(
+                        (float) $recipe->estimated_cost_pln,
+                        $wyborPorcji->zPrzepisu,
+                        (float) $wyborPorcji->wybrane,
+                    );
+                    if ($przeliczonyKoszt !== null) {
+                        $kosztAutora = \App\Domain\Recipes\KosztPrzepisu::zdaniePrzeliczone($przeliczonyKoszt);
+                    }
+                }
+            @endphp
+            @if($kosztAutora !== null)
+                <p class="przepis-koszt kolumna-czytania" data-koszt-autora="{{ $recipe->estimated_cost_pln }}">{{ $kosztAutora }}</p>
             @elseif(($szacunekKosztu ?? null) !== null)
                 {{-- Bez kwoty autora: przedział z cen GUS albo zdanie, dlaczego
                      go nie ma (D-286, część 2). Zawsze „orientacyjny", zawsze

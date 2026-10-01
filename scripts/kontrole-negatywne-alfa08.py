@@ -1264,6 +1264,9 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    # #2524: przeliczony składnik i nieprzeliczona kwota autora to sprzeczna strona.
+    ("Koszt autora pozostaje bazowy po zmianie porcji (#2524)", "resources/views/pages/recipes/show.blade.php", "test_koszt_autora_i_skladniki_uzywaja_tego_samego_wyboru_porcji_takze_w_wydruku",
+     lambda s: replace_once(s, "{{ $kosztAutora }}</p>", "{{ $recipe->costLabel() }}</p>")),
     # #2476: dwa bieżące składniki z identycznym tekstem/ile=null są różne.
     ("Bieżący eksport pomija wybór Bez ilości (#2476)", "app/Domain/Users/Exports/CollectUserExportData.php",
      "test_biezacy_szkic_zachowuje_dwa_rozne_wybory_bez_ilosci_w_json",
