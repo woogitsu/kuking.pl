@@ -25,6 +25,7 @@ use App\Support\Komunikat;
 use App\Support\KursorListy;
 use App\Support\OdpowiedziWatku;
 use App\Support\PaginationLinks;
+use App\Support\StaryAdresPrzepisu;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -149,8 +150,13 @@ class RecipeController extends Controller
      * UUID w adresie to nie autoryzacja: wejście idzie przez Policy, tak samo
      * jak edycja na jednej stronie.
      */
-    public function details(Request $request, Recipe $recipe): View|RedirectResponse
+    public function details(Request $request, string $recipe): View|RedirectResponse
     {
+        $model = Recipe::where('slug', $recipe)->first();
+        if ($model === null) {
+            return StaryAdresPrzepisu::przekieruj($request, $recipe, 'recipes.details', 'update');
+        }
+        $recipe = $model;
         $this->authorize('update', $recipe);
 
         // Nazwa szkicu zmienia slug. Kolejne żądania Livewire potrzebują stałego adresu.
@@ -312,8 +318,13 @@ class RecipeController extends Controller
         return redirect()->route('recipes.show', $recipe)->with(Komunikat::sukces($potwierdzenie));
     }
 
-    public function edit(Request $request, Recipe $recipe): View
+    public function edit(Request $request, string $recipe): View|RedirectResponse
     {
+        $model = Recipe::where('slug', $recipe)->first();
+        if ($model === null) {
+            return StaryAdresPrzepisu::przekieruj($request, $recipe, 'recipes.edit', 'update');
+        }
+        $recipe = $model;
         $this->authorize('update', $recipe);
 
         return view('pages.recipes.szczegoly', [
