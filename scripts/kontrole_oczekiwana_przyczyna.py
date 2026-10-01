@@ -35,6 +35,7 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Planer usuwa bez pytania (#2468)': r'PLANER_2468_PIERWSZY_KLIK_BEZ_DELETE',
     # #1011, paczka H: wpisy dopisane po wzorcach dla wcześniejszych kontroli.
     "Goły ->with('status') wraca do kontrolera": r'Goły zapis klucza `status` wygląda jak zielony sukces',
     'Odmowa nazwana sukcesem': r'Komunikat::sukces\(\) z tekstem „Nie udało się…" — to błąd, nie sukces\.',
