@@ -5984,6 +5984,34 @@ NIEODWRACALNA** — w tabeli leżą listy, które naprawdę poszły do ludzi.
 Przed cofnięciem na czymkolwiek z prawdziwym ruchem:
 `pg_dump --data-only --table=contact_message_replies > odpowiedzi.sql`.
 
+### Kontrakt czasu: `timestamptz`, UTC, casty modeli (#2407)
+
+Wszystkie nowe kolumny czasu to `timestamptz`, `app.timezone` = `UTC`, a
+strefa **wyświetlania** to `kuking.strefa` (`Europe/Warsaw`) i stosuje ją
+widok, nigdy model ani zapytanie. Model oddaje kolumnę czasu jako Carbon w UTC
+dzięki jawnemu `datetime` w `casts()`; bez niego pole jest napisem zależnym od
+strefy sesji PostgreSQL, a porównanie w PHP robi się na tekście.
+
+Domknięte w #2407 (bez migracji — typ kolumn jest już poprawny, brakowało
+castów): `comments.body_removed_at`, `contact_message_replies.sending_started_at`
+i `contact_message_replies.audit_recorded_at`. Pilnuje tego
+`ZnacznikiCzasuKomentarzaIOdpowiedziMajaCastyUtcTest` (serializacja do
+ISO 8601 z `Z`, porównania, chwile przy przejściach DST 29.03 i 25.10.2026).
+Rollback: usunięcie castów przywraca stare zachowanie (napis z bazy); danych
+nie dotyka.
+
+**Otwarte, świadomie niezrobione: `failed_jobs.failed_at`.** Tabela pochodzi
+ze schematu Laravela i ma `timestamp` bez strefy. Zmiana na `timestamptz`
+wymaga osobnej, kompatybilnej migracji, **dopiero po sprawdzeniu danych**:
+`SELECT min(failed_at), max(failed_at), count(*) FROM failed_jobs` oraz
+`SHOW timezone` na bazie produkcyjnej, bo wartość bez strefy trzeba
+zinterpretować (zapisywał ją Laravel w `app.timezone`, czyli UTC, więc
+`ALTER COLUMN failed_at TYPE timestamptz USING failed_at AT TIME ZONE 'UTC'`).
+Przepisanie tabeli jest tu tanie (mało wierszy), ale `down()` ma ODMAWIAĆ, gdy
+w tabeli są wiersze (D-088) — cofnięcie `timestamptz` → `timestamp` zależy od
+strefy sesji. Do czasu tej migracji nic w kodzie nie powinno porównywać
+`failed_at` z kolumnami `timestamptz` bez jawnego `AT TIME ZONE 'UTC'`.
+
 ### weekly_digest_sends
 
 Trwały klucz idempotencji tygodniowego podsumowania: **jeden list na parę

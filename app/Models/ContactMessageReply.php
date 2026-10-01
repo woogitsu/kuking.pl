@@ -56,6 +56,8 @@ class ContactMessageReply extends Model
     {
         return [
             'sent_at' => 'datetime',
+            'sending_started_at' => 'datetime',
+            'audit_recorded_at' => 'datetime',
         ];
     }
 
