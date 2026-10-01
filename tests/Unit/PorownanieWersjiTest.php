@@ -84,6 +84,78 @@ final class PorownanieWersjiTest extends TestCase
         $this->assertSame(2, $wynik[1]['numer']);
     }
 
+    public function test_zmiana_tekstu_i_minutnika_pokazuje_czasy_obu_migawek(): void
+    {
+        $stara = ['steps' => [$this->krok('Piecz ciasto', 600)]];
+        $nowa = ['steps' => [$this->krok('Piecz ciasto na złoty kolor', 1200)]];
+
+        $this->assertSame([
+            ['rodzaj' => PorownanieWersji::ZMIENIONO, 'numer' => 1,
+                'przed' => 'Piecz ciasto (minutnik: 10 min)',
+                'po' => 'Piecz ciasto na złoty kolor (minutnik: 20 min)'],
+        ], PorownanieWersji::porownaj($stara, $nowa)['kroki']);
+    }
+
+    public function test_zmieniony_tekst_pokazuje_dodanie_i_usuniecie_minutnika_bez_zgadywania_czasu(): void
+    {
+        $dodany = PorownanieWersji::porownaj(
+            ['steps' => [$this->krok('Mieszaj')]],
+            ['steps' => [$this->krok('Mieszaj powoli', 95)]],
+        )['kroki'];
+        $usuniety = PorownanieWersji::porownaj(
+            ['steps' => [$this->krok('Gotuj', 125)]],
+            ['steps' => [$this->krok('Gotuj krótko')]],
+        )['kroki'];
+
+        $this->assertSame('Mieszaj (minutnik: brak)', $dodany[0]['przed']);
+        $this->assertSame('Mieszaj powoli (minutnik: 95 s)', $dodany[0]['po']);
+        $this->assertSame('Gotuj (minutnik: 125 s)', $usuniety[0]['przed']);
+        $this->assertSame('Gotuj krótko (minutnik: brak)', $usuniety[0]['po']);
+    }
+
+    public function test_zmiana_samego_tekstu_bez_minutnika_nie_dopisuje_pustej_etykiety(): void
+    {
+        $wynik = PorownanieWersji::porownaj(
+            ['steps' => [$this->krok('Mieszaj')]],
+            ['steps' => [$this->krok('Mieszaj powoli')]],
+        )['kroki'];
+
+        $this->assertSame('Mieszaj', $wynik[0]['przed']);
+        $this->assertSame('Mieszaj powoli', $wynik[0]['po']);
+    }
+
+    public function test_dodany_i_usuniety_krok_pokazuja_wlasny_minutnik_lub_sam_tekst(): void
+    {
+        $wynik = PorownanieWersji::porownaj(
+            ['steps' => [$this->krok('Zachowany'), $this->krok('Usunięty', 600), $this->krok('Bez czasu')]],
+            ['steps' => [$this->krok('Zachowany')]],
+        )['kroki'];
+        $dodany = PorownanieWersji::porownaj(
+            ['steps' => []],
+            ['steps' => [$this->krok('Dodany', 125), $this->krok('Bez czasu')]],
+        )['kroki'];
+
+        $this->assertSame([
+            ['rodzaj' => PorownanieWersji::USUNIETO, 'numer' => 2, 'przed' => 'Usunięty (minutnik: 10 min)', 'po' => null],
+            ['rodzaj' => PorownanieWersji::USUNIETO, 'numer' => 3, 'przed' => 'Bez czasu', 'po' => null],
+        ], $wynik);
+        $this->assertSame([
+            ['rodzaj' => PorownanieWersji::DODANO, 'numer' => 1, 'przed' => null, 'po' => 'Dodany (minutnik: 125 s)'],
+            ['rodzaj' => PorownanieWersji::DODANO, 'numer' => 2, 'przed' => null, 'po' => 'Bez czasu'],
+        ], $dodany);
+    }
+
+    public function test_zmiana_samego_minutnika_nadal_pokazuje_sekundy(): void
+    {
+        $wynik = PorownanieWersji::porownaj(
+            ['steps' => [$this->krok('Duś', 125)]],
+            ['steps' => [$this->krok('Duś', 185)]],
+        )['kroki'];
+
+        $this->assertSame('Duś (minutnik: 125 s)', $wynik[0]['przed']);
+        $this->assertSame('Duś (minutnik: 185 s)', $wynik[0]['po']);
+    }
+
     public function test_brak_klucza_w_starszej_migawce_to_brak_danych_a_nie_zmiana(): void
     {
         $stara = ['title' => 'Rosół', 'source_type' => 'external'];

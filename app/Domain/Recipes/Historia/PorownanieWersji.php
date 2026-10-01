@@ -237,18 +237,23 @@ final class PorownanieWersji
         $pary = min(count($lukaStare), count($lukaNowe));
 
         for ($p = 0; $p < $pary; $p++) {
+            $staryCzas = $stare[$lukaStare[$p]]['timer_seconds'];
+            $nowyCzas = $nowe[$lukaNowe[$p]]['timer_seconds'];
+            $pokazMinutnik = $staryCzas !== null || $nowyCzas !== null;
             $wynik[] = [
                 'rodzaj' => self::ZMIENIONO,
                 'numer' => $lukaNowe[$p] + 1,
-                'przed' => $stare[$lukaStare[$p]]['instruction'],
-                'po' => $nowe[$lukaNowe[$p]]['instruction'],
+                'przed' => $stare[$lukaStare[$p]]['instruction'].($pokazMinutnik ? self::opisMinutnika($staryCzas) : ''),
+                'po' => $nowe[$lukaNowe[$p]]['instruction'].($pokazMinutnik ? self::opisMinutnika($nowyCzas) : ''),
             ];
         }
         foreach (array_slice($lukaStare, $pary) as $i) {
-            $wynik[] = ['rodzaj' => self::USUNIETO, 'numer' => $i + 1, 'przed' => $stare[$i]['instruction'], 'po' => null];
+            $minutnik = $stare[$i]['timer_seconds'] === null ? '' : self::opisMinutnika($stare[$i]['timer_seconds']);
+            $wynik[] = ['rodzaj' => self::USUNIETO, 'numer' => $i + 1, 'przed' => $stare[$i]['instruction'].$minutnik, 'po' => null];
         }
         foreach (array_slice($lukaNowe, $pary) as $j) {
-            $wynik[] = ['rodzaj' => self::DODANO, 'numer' => $j + 1, 'przed' => null, 'po' => $nowe[$j]['instruction']];
+            $minutnik = $nowe[$j]['timer_seconds'] === null ? '' : self::opisMinutnika($nowe[$j]['timer_seconds']);
+            $wynik[] = ['rodzaj' => self::DODANO, 'numer' => $j + 1, 'przed' => null, 'po' => $nowe[$j]['instruction'].$minutnik];
         }
 
         return $wynik;
