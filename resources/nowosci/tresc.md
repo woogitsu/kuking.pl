@@ -57,6 +57,16 @@ dopóki go nie zaznaczycie. Taki list przychodzi najwyżej raz w tygodniu, tylko
 wtedy, gdy jest co na nim wymienić, a wypisać się z niego można jednym
 kliknięciem na dole listu, bez logowania.
 
+### Kartka z przepisem dla pomocnika
+
+Obok przycisku „Drukuj przepis” jest nowy: „Drukuj dla pomocnika”. To krótsza
+kartka na blat dla osoby, która gotuje razem z Wami: bez opisu i bez rodzinnej
+historii przepisu, za to z liczbą porcji, składnikami i krokami dużym drukiem.
+Jeśli wcześniej wybierzecie „Na ile porcji?”, na kartce będą już przeliczone
+ilości. Przyciskiem „Dodaj kod QR do kartki” możecie dołożyć kod, którym
+pomocnik otworzy ten przepis w telefonie — kod jest tylko dla przepisów
+publicznych, a przy prywatnym go nie ma.
+
 ### Wydrukuj cały zeszyt jako książkę
 
 Na stronie zeszytu jest przycisk „Wydrukuj zeszyt”. Otwiera stronę, którą

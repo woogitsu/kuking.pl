@@ -4,6 +4,22 @@
     // Jedna odpowiedź na „ile porcji" dla znaczka i dla structured data
     // (audyt A28) — dwa osobne teksty to dwie okazje do rozjazdu.
     $porcje = $recipe->servingsLabel();
+    // „Dla pomocnika” (#2345): ten sam wydruk (`?druk=1`), krótsza kartka
+    // — bez opisu i „Skąd ten przepis”, z liczbą porcji i opcjonalnym kodem
+    // QR (`&qr=1`). Zero nowych danych; to nadal strona pod RecipePolicy::view.
+    $dlaPomocnika = request()->boolean('druk') && request()->query('dla') === 'pomocnika';
+    $kartaQr = $dlaPomocnika ? app(\App\Domain\Sharing\KartaZKodemQr::class) : null;
+    // Kod QR tylko dla przepisu, który zobaczy GOŚĆ — ta sama bramka co karta #2349.
+    $qrMozliwy = $kartaQr !== null && $kartaQr->przepisDostepny($recipe);
+    $qrNaKartce = $qrMozliwy && request()->boolean('qr');
+    $adresQr = $qrNaKartce ? $kartaQr->adresPrzepisu($recipe) : null;
+    $adresDruku = fn (bool $pomocnik, bool $qr = false): string => route('recipes.show', array_filter([
+        'recipe' => $recipe->slug,
+        'druk' => 1,
+        'dla' => $pomocnik ? 'pomocnika' : null,
+        'qr' => $pomocnik && $qr ? 1 : null,
+        'porcje' => $wyborPorcji->przeliczone() ? $wyborPorcji->doAdresu((float) $wyborPorcji->wybrane) : null,
+    ], fn ($wartosc) => $wartosc !== null)).'#jak-wydrukowac';
     $parametrPorcjiGotowania = $wyborPorcji->przeliczone()
         ? $wyborPorcji->doAdresu((float) $wyborPorcji->wybrane)
         : null;
@@ -247,7 +263,7 @@
     </x-slot:head>
 
     {{-- Bezpośredni header zachowuje semantykę i pomiar typografii portu. --}}
-    <article class="stack przepis-uklad marka-przepis">
+    <article @class(['stack', 'przepis-uklad', 'marka-przepis', 'dla-pomocnika' => $dlaPomocnika])>
         <header class="marka-przepis-hero">
             <div class="marka-przepis-tekst">
             {{--
@@ -269,7 +285,9 @@
                  dopóki tu były, żadna reguła arkusza nie mogła ich poprawić
                  — a rytm nagłówka jest własnością strony przepisu, nie
                  trzech osobnych miejsc w szablonie. --}}
-            <p class="meta">{{ $recipe->attributionLine() }}</p>
+            {{-- Kartka dla pomocnika (#2345) nie ma nigdzie „Skąd ten przepis”, więc i nad tytułem
+                 zostaje sama nazwa autora, bez dopisku z osobą źródła. --}}
+            <p class="meta">{{ $dlaPomocnika ? $recipe->author->displayName() : $recipe->attributionLine() }}</p>
             <x-na-podstawie-przepisu :recipe="$recipe" />
             <h1>{{ $recipe->title }}</h1>
 
@@ -361,7 +379,7 @@
                  i tak rozstrzyga RecipePolicy przy wejściu. --}}
             <p class="meta m-0 przepis-adres-druk">Adres przepisu: {{ route('recipes.show', $recipe->slug) }}</p>
                 {{-- Opis i dane autora należą do tekstowej połowy hero. --}}
-        @if($recipe->summary)
+        @if($recipe->summary && ! $dlaPomocnika)
             <p class="text-lead kolumna-czytania">{{ $recipe->summary }}</p>
         @endif
             @if($total || $porcje || $recipe->difficultyLabel())
@@ -372,7 +390,7 @@
                             <div><strong>Około {{ \App\Support\Czas::czasPrzepisu($total) }}</strong><span>Czas</span></div>
                         </li>
                     @endif
-                    @if($porcje)
+                    @if($porcje && ! $dlaPomocnika)
                         <li class="przepis-liczba">
                             <x-ikona nazwa="users" :rozmiar="26" />
                             <div><strong>{{ $porcje }}</strong><span>Ilość</span></div>
@@ -393,6 +411,11 @@
                 <p class="przepis-typowy-czas kolumna-czytania" data-typowy-czas="{{ $typowyCzas->minuty }}">
                     @if($total)Autor podaje około {{ \App\Support\Czas::czasPrzepisu($total) }}. @endif{{ $typowyCzas->zdanie() }}
                 </p>
+            @endif
+            @if($dlaPomocnika && ($wyborPorcji->dostepny() || $porcje))
+                {{-- Kartka dla pomocnika: liczba porcji WIELKO, z wyborem z adresu
+                     (`?porcje=`), nie zawsze z przepisu autora. --}}
+                <p class="druk-pomocnik-porcje m-0"><strong>Ilość: {{ $wyborPorcji->dostepny() ? \App\Domain\Recipes\Porcje\WyborPorcji::etykieta($wyborPorcji->wybrane) : $porcje }}</strong>@if($wyborPorcji->przeliczone()) <span class="meta">(w przepisie autora: {{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta($wyborPorcji->zPrzepisu) }})</span>@endif</p>
             @endif
             {{-- Koszt wg autora (D-286). Pełnym zdaniem, z „ok." i „wg autora",
                  a nie jako kolejna „liczba" obok czasu i porcji: to szacunek
@@ -531,13 +554,32 @@
                     chowa `wydruk-przepisu.css`.
                 --}}
                 <a class="btn btn-secondary" href="{{ route('recipes.show', ['recipe' => $recipe->slug, 'druk' => 1]) }}#jak-wydrukowac" rel="nofollow" data-drukuj-przepis>Drukuj przepis</a>
+                {{-- „Dla pomocnika” (#2345): krótsza kartka na blat, bez skryptu —
+                     zwykły odnośnik do instrukcji i wyboru kodu QR niżej. --}}
+                <a class="btn btn-secondary" href="{{ $adresDruku(true) }}" rel="nofollow">Drukuj dla pomocnika</a>
             </div>
             @if(request()->boolean('druk'))
                 <div class="notice druk-podpowiedz" id="jak-wydrukowac" role="status">
                     <p class="m-0"><strong>Jak wydrukować ten przepis:</strong></p>
                     <p class="m-0">Na komputerze naciśnij razem klawisze <kbd>Ctrl</kbd> i <kbd>P</kbd> (na komputerze Apple: <kbd>Cmd</kbd> i <kbd>P</kbd>).</p>
                     <p class="m-0">Na telefonie otwórz menu przeglądarki (trzy kropki albo „Udostępnij”) i wybierz „Drukuj”.</p>
-                    <p class="m-0">Na kartce będzie sam przepis — bez menu, przycisków i komentarzy.</p>
+                    @if($dlaPomocnika)
+                        <p class="m-0">Na kartce dla pomocnika będzie to, co potrzebne przy blacie: porcje, składniki i kroki dużym drukiem — bez opisu i bez rodzinnej historii przepisu.</p>
+                        @if($qrMozliwy)
+                            @if($qrNaKartce)
+                                <p class="m-0">Na kartce będzie kod QR do tego przepisu.</p>
+                                <p class="m-0"><a class="btn btn-secondary" href="{{ $adresDruku(true, false) }}" rel="nofollow">Bez kodu QR</a></p>
+                            @else
+                                <p class="m-0"><a class="btn btn-secondary" href="{{ $adresDruku(true, true) }}" rel="nofollow">Dodaj kod QR do kartki</a></p>
+                            @endif
+                        @else
+                            <p class="m-0">Kod QR jest tylko dla przepisów, które widzi każdy. Ten przepis go nie ma.</p>
+                        @endif
+                        <p class="m-0">Liczbę porcji zmienisz przyciskami „Mniej” i „Więcej” nad składnikami.</p>
+                        <p class="m-0"><a class="btn btn-secondary" href="{{ $adresDruku(false) }}" rel="nofollow">Wróć do zwykłego wydruku</a></p>
+                    @else
+                        <p class="m-0">Na kartce będzie sam przepis — bez menu, przycisków i komentarzy.</p>
+                    @endif
                 </div>
             @endif
 
@@ -566,7 +608,7 @@
 
             {{-- „Skąd ten przepis” stoi PRZED składnikami. To jest decyzja
                  produktowa, nie kolejność przypadkowa. --}}
-            @if($recipe->source_note || $recipe->source_person)
+            @if(($recipe->source_note || $recipe->source_person) && ! $dlaPomocnika)
                 <section class="recipe-story">
                     <h2 class="mt-0 text-title-sm">Skąd ten przepis</h2>
                     @if($recipe->source_person)
@@ -599,7 +641,7 @@
                 </section>
             @endif
 
-            @if($recipe->source_type === 'external' && $recipe->source_url)
+            @if($recipe->source_type === 'external' && $recipe->source_url && ! $dlaPomocnika)
                 <p class="meta m-0">Przepis pochodzi ze strony:
                     @if(\Illuminate\Support\Str::isUrl($recipe->source_url, ['http', 'https']))
                         <a href="{{ $recipe->source_url }}" rel="nofollow noopener">{{ $recipe->source_url }}</a>
@@ -652,7 +694,7 @@
                 @if($recipe->ingredients->isEmpty())
                     <p class="meta">Autor jeszcze nie dodał składników.</p>
                 @else
-                    @include('pages.recipes._wybor-porcji', ['wyborPorcji' => $wyborPorcji, 'recipe' => $recipe])
+                    @include('pages.recipes._wybor-porcji', ['wyborPorcji' => $wyborPorcji, 'recipe' => $recipe, 'dlaPomocnika' => $dlaPomocnika, 'qrNaKartce' => $qrNaKartce])
                     {{--
                         GRUPY SKŁADNIKÓW — „Ciasto”, „Farsz”, „Do podania”
                         (D-033, część pierwsza).
@@ -759,6 +801,19 @@
                 @endif
             </section>
         </div>
+
+        @if($qrNaKartce)
+            {{-- Kod QR na kartce dla pomocnika (#2345). Ten sam generator i ten
+                 sam adres kanoniczny co karta #2349: nigdy adres z żądania,
+                 więc bez `?druk=1`, `qr` i `porcje`. Tylko przepis widoczny dla gościa. --}}
+            <section class="druk-pomocnik-qr" aria-labelledby="druk-pomocnik-qr-tytul">
+                <h2 id="druk-pomocnik-qr-tytul">Ten przepis w telefonie</h2>
+                <div class="druk-pomocnik-qr-kod" role="img" aria-label="Kod QR z adresem: {{ $adresQr }}">
+                    {!! $kartaQr->kodSvg($adresQr) !!}
+                </div>
+                <p class="druk-pomocnik-qr-adres m-0">{{ $adresQr }}</p>
+            </section>
+        @endif
 
         @auth
             <p>
