@@ -36,6 +36,7 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 
 OCZEKUJ = {
     'Sam skan bez notatki znika ze strony przepisu': r'Sam skan musi otwierać sekcję pochodzenia przepisu\.',
+    'Fixture wspomnienia znika po północy w Polsce': r'POMIAR_WSPOMNIENIA_PRZED_I_PO_POLNOCY',
     # #1011, paczka H: wpisy dopisane po wzorcach dla wcześniejszych kontroli.
     "Goły ->with('status') wraca do kontrolera": r'Goły zapis klucza `status` wygląda jak zielony sukces',
     'Odmowa nazwana sukcesem': r'Komunikat::sukces\(\) z tekstem „Nie udało się…" — to błąd, nie sukces\.',
