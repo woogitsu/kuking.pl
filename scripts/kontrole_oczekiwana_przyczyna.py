@@ -35,6 +35,8 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Historia ignoruje wybór Bez ilości (#2449)': r'HISTORIA_BEZ_ILOSCI_ZMIANA',
+    'Historia zgaduje wybór w starej migawce (#2449)': r'HISTORIA_BEZ_ILOSCI_BRAK_DANYCH',
     'Domyslny JIT wraca na polaczeniu PostgreSQL (#2291)': r'JIT_2291_SWIEZA_SESJA_WYMAGA_OFF',
     'Grupowanie tysięcy rozbite na fragmenty (#2455)': r'GRUPOWANIE_TYSIECY_WYNIK',
     'Historia: zmieniony krok gubi minutnik': r'HISTORIA_TIMER_CHANGED',
