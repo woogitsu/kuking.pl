@@ -412,22 +412,22 @@ class TerminProduktuTest extends TestCase
     {
         $ja = $this->user();
         $produkt = $this->produkt($ja);
-        $sygnaly = fn (): int => ProductSignal::query()->where('signal_name', ZapiszSygnal::PANTRY_EXPIRY_SET)->count();
 
+        // Każda obserwacja to świeże zapytanie: Larastan 3.12 pamięta wynik wywołania domknięcia z poprzedniej asercji.
         $this->wyslij($ja, $produkt, ['rodzaj' => 'use_by', 'za' => '3']);
-        $this->assertSame(1, $sygnaly());
+        $this->assertSame(1, ProductSignal::query()->where('signal_name', ZapiszSygnal::PANTRY_EXPIRY_SET)->count());
 
         // Sama ilość / „mrożone” przy tym samym terminie — bez sygnału.
         $this->wyslij($ja, $produkt, ['rodzaj' => 'use_by', 'termin_dzien' => '13', 'termin_miesiac' => '10', 'termin_rok' => '2026', 'ilosc' => 'pół kostki', 'mrozone' => '1']);
-        $this->assertSame(1, $sygnaly());
+        $this->assertSame(1, ProductSignal::query()->where('signal_name', ZapiszSygnal::PANTRY_EXPIRY_SET)->count());
 
         // Zmiana daty albo rodzaju — sygnał.
         $this->wyslij($ja, $produkt, ['rodzaj' => 'best_before', 'termin_dzien' => '13', 'termin_miesiac' => '10', 'termin_rok' => '2026']);
-        $this->assertSame(2, $sygnaly());
+        $this->assertSame(2, ProductSignal::query()->where('signal_name', ZapiszSygnal::PANTRY_EXPIRY_SET)->count());
 
         // Wyczyszczenie terminu nie jest „ustawieniem”.
         $this->wyslij($ja, $produkt, ['wyczysc' => '1']);
-        $this->assertSame(2, $sygnaly());
+        $this->assertSame(2, ProductSignal::query()->where('signal_name', ZapiszSygnal::PANTRY_EXPIRY_SET)->count());
     }
 
     public function test_sygnal_ogladania_priorytetu_leci_raz_na_sesje_a_nie_przy_kazdym_get(): void
