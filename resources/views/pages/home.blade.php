@@ -133,6 +133,20 @@
         </section>
     @endif
 
+    @if($doZuzycia ?? null)
+        {{--
+            „ZUŻYJ W PIERWSZEJ KOLEJNOŚCI” (#1903, D-333). Jedno zdanie, tylko gdy
+            na prywatnej liście „Co mam w domu” są produkty z terminem, który
+            minął albo upływa w ciągu 3 dni. Bez licznika, bez ikon, bez
+            przełącznika; bez pustego stanu. Nazwy produktów widzi tylko ich
+            właściciel.
+        --}}
+        <section class="notice do-zuzycia" aria-label="Produkty do zużycia">
+            <p>{{ $doZuzycia }}</p>
+            <p class="mb-0"><a class="btn btn-secondary" href="{{ route('pantry.cook', ['najpierw' => 'termin']) }}">Zobacz, co ugotować</a></p>
+        </section>
+    @endif
+
     @if($wspomnienie ?? null)
         {{--
             „ROK TEMU GOTOWAŁAŚ…" — WŁASNE ARCHIWUM JAKO POWÓD POWROTU (issue #34).

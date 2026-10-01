@@ -36,6 +36,7 @@ final class PorownanieWersji
     /**
      * @param  array<string, mixed>  $starsza
      * @param  array<string, mixed>  $nowsza
+     * @param  bool  $zAlergenami  flaga `kuking.alergeny.wlaczone` — funkcja jest czysta, więc nie czyta konfiguracji sama
      * @return array{
      *     pola: list<array{etykieta: string, rodzaj: string, przed: ?string, po: ?string}>,
      *     bezDanych: list<string>,
@@ -45,12 +46,12 @@ final class PorownanieWersji
      *     bezWykrytychZmian: bool
      * }
      */
-    public static function porownaj(array $starsza, array $nowsza): array
+    public static function porownaj(array $starsza, array $nowsza, bool $zAlergenami = false): array
     {
         $a = new MigawkaWersji($starsza);
         $b = new MigawkaWersji($nowsza);
 
-        [$pola, $bezDanych] = self::pola($a, $b);
+        [$pola, $bezDanych] = self::pola($a, $b, $zAlergenami);
         $skladniki = self::skladniki($a->skladniki(), $b->skladniki());
         $kroki = self::kroki($a->kroki(), $b->kroki());
 
@@ -74,14 +75,22 @@ final class PorownanieWersji
     /**
      * @return array{0: list<array{etykieta: string, rodzaj: string, przed: ?string, po: ?string}>, 1: list<string>}
      */
-    private static function pola(MigawkaWersji $a, MigawkaWersji $b): array
+    private static function pola(MigawkaWersji $a, MigawkaWersji $b, bool $zAlergenami): array
     {
         $zmiany = [];
         $bezDanych = [];
 
-        foreach (MigawkaWersji::ETYKIETY as $klucz => $etykieta) {
-            $przed = $a->pole($klucz);
-            $po = $b->pole($klucz);
+        // Alergeny (#1902) tylko przy włączonej fladze — `SnapshotRecipeVersion`
+        // tworzy wersję przy samej zmianie oznaczenia, więc bez tej pozycji
+        // porównanie pokazałoby „brak zmian” dla dwóch różnych wersji.
+        $pozycje = MigawkaWersji::ETYKIETY;
+        if ($zAlergenami) {
+            $pozycje['allergen_status'] = MigawkaWersji::ETYKIETA_ALERGENOW;
+        }
+
+        foreach ($pozycje as $klucz => $etykieta) {
+            $przed = $klucz === 'allergen_status' ? $a->alergeny() : $a->pole($klucz);
+            $po = $klucz === 'allergen_status' ? $b->alergeny() : $b->pole($klucz);
 
             if (! $a->maKlucz($klucz) || ! $b->maKlucz($klucz)) {
                 // Brakuje klucza po którejś stronie: nie porównujemy. Wpis

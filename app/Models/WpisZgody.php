@@ -53,6 +53,12 @@ class WpisZgody extends Model
     public const CEL_ZYCZENIA_URODZINOWE = 'zyczenia_urodzinowe';
 
     /**
+     * Sobotnie przypomnienie o produktach do zużycia (#1903, D-333). Stan tej
+     * zgody siedzi w `users.wants_pantry_reminder`, dowód w tym dzienniku.
+     */
+    public const CEL_PRZYPOMNIENIE_SPIZARNI = 'przypomnienie_spizarni';
+
+    /**
      * Akceptacja regulaminu przy rejestracji (#2217). Zawsze `udzielona`
      * (CHECK) i zawsze z `wersja_regulaminu`. To NIE jest zamknięcie paska
      * „Zmieniliśmy regulamin” (`users.terms_notice_dismissed_version`, D-306):

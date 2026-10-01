@@ -31,6 +31,100 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Co zużyć w pierwszej kolejności
+
+Przy produktach na liście „Co mam w domu” możecie teraz wpisać termin
+z opakowania: dzień, a do tego, czy to „Należy zużyć do”, czy „Najlepiej
+spożyć przed”. Datę wybieracie z trzech list (dzień, miesiąc, rok) albo
+jednym przyciskiem — „Za 3 dni”, „Za tydzień”, „Za 2 tygodnie”, „Za miesiąc”.
+Możecie dopisać ilość własnymi słowami („pół kostki”) i zaznaczyć, że produkt
+leży w zamrażarce. Wszystko to jest dobrowolne, a listę widzicie tylko Wy.
+
+Lista układa się sama: na górze „Zużyj w pierwszej kolejności” — produkty,
+których termin minął albo upływa w ciągu 3 dni, od najwcześniejszego; niżej
+„Później”, „Bez terminu” i „Mrożone”. Pod spodem stoi jedno zdanie, które
+mówi, dlaczego kolejność jest taka: ustawia ją tylko data, którą sami
+wpisaliście. Termin to Wasza notatka z opakowania — nie oceniamy, czy produkt
+nadaje się do jedzenia, więc przed użyciem zawsze go sprawdźcie.
+
+Na stronie „Co ugotuję z tego, co mam?” jest przycisk „Najpierw to, co się
+psuje”: na górze przepisy, w których jest najwięcej Waszych produktów
+z krótkim terminem, a przy każdym zdanie „Zużyjesz: …”. Na Starcie, gdy są
+takie produkty, pojawia się jedno krótkie zdanie z przyciskiem „Zobacz, co
+ugotować”. Kto chce, może też zaznaczyć na stronie „Co mam w domu” pole
+„Chcę dostawać w sobotę e-mail o produktach do zużycia” — jest wyłączone,
+dopóki go nie zaznaczycie. Taki list przychodzi najwyżej raz w tygodniu, tylko
+wtedy, gdy jest co na nim wymienić, a wypisać się z niego można jednym
+kliknięciem na dole listu, bez logowania.
+
+### Wydrukuj cały zeszyt jako książkę
+
+Na stronie zeszytu jest przycisk „Wydrukuj zeszyt”. Otwiera stronę, którą
+drukujecie zwykłym Ctrl+P albo zapisujecie jako PDF: okładka z nazwą zeszytu,
+spis treści i każdy przepis na osobnej kartce — ze składnikami, krokami,
+podpisem autora i notatką z zeszytu, jeśli ją macie. Są tam tylko te przepisy,
+które widzicie Wy, a przy każdym może być jedno małe zdjęcie; przyciskiem
+„Bez zdjęć” wydrukujecie samo pismo. Kto stracił dostęp do wspólnego zeszytu,
+nie wydrukuje go już ani nie otworzy.
+
+### Karta z kodem QR do rozdawania
+
+Przy publicznym przepisie, w części „Podziel się”, oraz na publicznym profilu
+jest przycisk „Wydrukuj kartę z kodem”. To jedna kartka dużym drukiem:
+tytuł przepisu (albo nazwa profilu), duży kod QR i ten sam adres zapisany
+literami. Można ją rozdać na zajęciach w kole gospodyń czy uniwersytecie
+trzeciego wieku albo wręczyć rodzinie. Osoba, która zeskanuje kod telefonem,
+od razu zobaczy przepis — konto nie jest do tego potrzebne. W kodzie jest
+tylko publiczny adres, nic, co dotyczy drukującej osoby. Karty nie ma dla
+przepisów prywatnych, ukrytych i usuniętych.
+
+### Wersja przepisu, z której gotowaliście
+
+Kiedy zapisujecie „Ugotowałem”, pamiętamy, którą wersję przepisu mieliście
+przed oczami. Autor mógł ją potem zmienić, ale na stronie swojego wykonania
+klikacie „Zobacz wersję” i czytacie dokładnie to, z czego gotowaliście —
+składniki i kroki z tamtego dnia. Widzicie to tylko Wy: nikt inny, także
+autor przepisu, nie zobaczy, z której wersji gotowaliście. Jeśli tamtej
+wersji już nie ma (stare wersje porządkujemy po dwóch latach, autor mógł ją
+też ukryć), napiszemy o tym wprost, a Wasze wykonanie, notatka i zdjęcia
+zostają bez zmian. Wykonania zapisane przed tą zmianą nie mają przypiętej
+wersji.
+
+### Ile naprawdę trwa gotowanie według gotujących
+
+Na stronie przepisu, obok czasu podanego przez autora, może pojawić się
+drugie zdanie: „Gotujący zwykle potrzebują około 60 min (na podstawie 7 osób).”
+Bierzemy je z czasów, które sami wpisujecie w „Ugotowałem”. Zdanie pokazujemy
+dopiero wtedy, gdy czas podało co najmniej pięć różnych osób — każda liczy się
+raz, nawet jeśli gotowała ten przepis wiele razy — a liczbę zaokrąglamy do pięciu
+minut. Czasów dłuższych niż doba nie liczymy. Nie widać, kto podał jaki czas,
+a osoby, które zablokowaliście, nie wchodzą do Waszej liczby. Dopóki
+osób jest mniej, nie piszemy nic.
+
+### Kilka potraw naraz, każda z własnym minutnikiem
+
+Gotujecie obiad z kilku dań? Na stronie przepisu i w trybie „Gotuję” jest
+nowy przycisk „Dodaj do kolejki gotowania”. W kolejce zmieszczą się cztery
+przepisy. Na ekranie kolejki przełączacie się między potrawami dużymi,
+podpisanymi przyciskami, np. „Zupa — krok 2 z 5”, a każda potrawa pamięta
+swój krok. Minutniki wszystkich potraw są na jednej liście z nazwą dania,
+np. „Zupa, krok 2: 4:12”, i każdy można osobno anulować. Gdy czas minie,
+usłyszycie ten sam dźwięk co zawsze i zobaczycie napis, np. „Zupa: czas
+minął”. Kolejka jest zapamiętana tylko w Waszej przeglądarce — nie trafia
+na konto — i znika sama po 24 godzinach albo po kliknięciu „Wyczyść kolejkę”.
+Zamknięcie karty kończy działające minutniki, więc po powrocie ustawiacie je
+od nowa. Bez włączonego JavaScriptu kolejki nie ma, a gotowanie jednego
+przepisu działa jak dotąd.
+
+### Zmiana nazwy w adresie profilu nie psuje starych linków
+
+Kiedy zmienicie nazwę użytkownika w ustawieniach profilu, dawny adres
+(na przykład z wydrukowanej karty z kodem QR albo z wiadomości sprzed
+tygodnia) dalej działa: przenosi na Wasz profil pod nową nazwą. Tak samo
+działają listy „Obserwujący” i „Obserwowani” oraz kanał profilu. Jeśli ktoś
+inny zajmie Waszą dawną nazwę, adres prowadzi już do niego. Gdy usuniecie
+konto, dawne nazwy znikają razem z nim.
+
 ### Wszystkie wersje regulaminu
 
 Na górze regulaminu są dwa nowe przyciski. „Pobierz regulamin” zapisuje go
@@ -80,6 +174,17 @@ i „jak wyszło?”. Przycisk „Pokaż zdjęcie” otwiera zwykły formularz
 „Ugotowałem”, a „Nie teraz” chowa pytanie. Pytanie znika też samo po kilku
 dniach albo wtedy, gdy zapiszecie wykonanie, i dla tego samego gotowania już
 nie wraca. Widzicie je tylko Wy — nie przychodzi mailem ani powiadomieniem.
+
+### „Dziękuję” pod komentarzem
+
+Pod cudzym komentarzem, który stoi pod Waszym wpisem, przepisem albo
+„Ugotowałem”, jest przycisk „Dziękuję”. Jedno dotknięcie wystarczy — nie trzeba
+pisać odpowiedzi. Osoba, która napisała komentarz, dostaje w powiadomieniach
+krótką wiadomość z odnośnikiem do tego komentarza. Pod komentarzem zostaje
+napis „Podziękowano za ten komentarz.”, który widzicie tylko Wy i autor
+komentarza. Nie ma licznika ani rankingu podziękowań. Podziękowania nie można
+cofnąć, a drugie dotknięcie nic nie dubluje. Jeśli chcecie odpowiedzieć
+własnymi słowami, „Odpowiedz” działa jak dotąd.
 
 ### Napis „Autor przepisu” w rozmowie
 

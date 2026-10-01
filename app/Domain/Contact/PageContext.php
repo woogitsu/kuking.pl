@@ -30,6 +30,7 @@ final class PageContext
         'podsumowanie.wypisz',
         'podsumowanie.wracam',
         'urodziny.wypisz',
+        'spizarnia.wypisz',
         'appeals.reporter',
         // Link-zaproszenie do wspólnego zeszytu niesie jednorazowy token (#1743).
         'collections.link.show',

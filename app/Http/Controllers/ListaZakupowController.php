@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Support\Czas;
 use App\Support\Komunikat;
 use App\Support\Odmiana;
+use App\Support\StaryAdresPrzepisu;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -65,8 +66,13 @@ class ListaZakupowController extends Controller
      * gdy składniki tego przepisu już są na liście. GET, więc odświeżenie
      * niczego nie dopisuje.
      */
-    public function confirmRecipe(Request $request, Recipe $recipe): View|RedirectResponse
+    public function confirmRecipe(Request $request, string $recipe): View|RedirectResponse
     {
+        $model = Recipe::where('slug', $recipe)->first();
+        if ($model === null) {
+            return StaryAdresPrzepisu::przekieruj($request, $recipe, 'shopping.recipe.confirm', 'view');
+        }
+        $recipe = $model;
         $this->authorize('view', $recipe);
 
         /** @var User $user */

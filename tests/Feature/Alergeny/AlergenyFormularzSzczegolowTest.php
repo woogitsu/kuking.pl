@@ -37,6 +37,16 @@ final class AlergenyFormularzSzczegolowTest extends TestCase
         $this->przepis = Recipe::factory()->create(['author_id' => $this->autor->getKey(), 'status' => Recipe::STATUS_DRAFT, 'published_at' => null]);
     }
 
+    /**
+     * Stan z bazy jako zwykły `string` (metoda z typem zwrotnym), żeby Larastan
+     * nie zawężał go z PHPDoc modelu po poprzedniej asercji
+     * (`method.alreadyNarrowedType`) — test sprawdza dalej ten sam stan.
+     */
+    private function stanOznaczenia(): string
+    {
+        return (string) $this->przepis->refresh()->allergen_status;
+    }
+
     /** @param  array<string, mixed>  $dodatkowe */
     private function zapisz(array $dodatkowe = [], ?User $kto = null)
     {
@@ -77,7 +87,7 @@ final class AlergenyFormularzSzczegolowTest extends TestCase
 
         $this->zapisz(['alergeny_formularz' => '1', 'alergeny' => ['milk'], 'alergeny_potwierdzone' => '1'])->assertSessionHasNoErrors();
 
-        $this->assertSame('unchecked', $this->przepis->refresh()->allergen_status);
+        $this->assertSame('unchecked', $this->stanOznaczenia());
     }
 
     public function test_przy_wylaczonej_fladze_nieprawidlowe_pole_alergeny_nie_blokuje_zapisu(): void
@@ -143,7 +153,7 @@ final class AlergenyFormularzSzczegolowTest extends TestCase
     public function test_formularz_bez_znacznika_nie_rusza_oznaczenia(): void
     {
         $this->zapisz(['alergeny_formularz' => '1', 'alergeny' => ['fish'], 'alergeny_potwierdzone' => '1']);
-        $this->assertSame('declared', $this->przepis->refresh()->allergen_status);
+        $this->assertSame('declared', $this->stanOznaczenia());
 
         // Zapis z innego ekranu (bez sekcji alergenów) nie cofa i nie zmienia oznaczenia.
         $this->zapisz(['title' => 'Naleśniki, wersja druga'])->assertSessionHasNoErrors();
@@ -174,7 +184,7 @@ final class AlergenyFormularzSzczegolowTest extends TestCase
             'ingredients' => [['text' => '200 g mąki pszennej'], ['text' => '2 jajka'], ['text' => 'mleko']],
         ])->assertSessionHasNoErrors();
 
-        $this->assertSame('needs_review', $this->przepis->refresh()->allergen_status);
+        $this->assertSame('needs_review', $this->stanOznaczenia());
 
         // Edycja przepisu czekającego na przegląd pokazuje notatkę i wczytaną listę, bez potwierdzenia.
         $html = (string) $this->get(route('recipes.edit', $this->przepis))->getContent();
@@ -187,17 +197,18 @@ final class AlergenyFormularzSzczegolowTest extends TestCase
     {
         $this->zapisz(['alergeny_formularz' => '1', 'alergeny' => ['eggs'], 'alergeny_potwierdzone' => '1']);
         $this->zapisz(['alergeny_formularz' => '1', 'alergeny' => ['eggs'], 'alergeny_potwierdzone' => '1', 'ingredients' => [['text' => 'inna mąka']]]);
-        $this->assertSame('needs_review', $this->przepis->refresh()->allergen_status);
+        $this->assertSame('needs_review', $this->stanOznaczenia());
 
         // Ta sama lista, bez pola „sprawdzone” — to nie zmiana, więc bez błędu.
         $this->zapisz(['alergeny_formularz' => '1', 'alergeny' => ['eggs'], 'ingredients' => [['text' => 'inna mąka']]])
             ->assertSessionHasNoErrors();
-        $this->assertSame('needs_review', $this->przepis->refresh()->allergen_status);
+        // Świeży odczyt z bazy (Larastan 3.12 pamięta wynik `stanOznaczenia()` z asercji wyżej).
+        $this->assertSame('needs_review', (string) Recipe::query()->whereKey($this->przepis->getKey())->value('allergen_status'));
 
         // Zaznaczenie pola „sprawdzone” przy tej samej liście potwierdza ponownie.
         $this->zapisz(['alergeny_formularz' => '1', 'alergeny' => ['eggs'], 'alergeny_potwierdzone' => '1', 'ingredients' => [['text' => 'inna mąka']]])
             ->assertSessionHasNoErrors();
-        $this->assertSame('declared', $this->przepis->refresh()->allergen_status);
+        $this->assertSame('declared', $this->stanOznaczenia());
     }
 
     public function test_nieznany_kod_alergenu_jest_odrzucony(): void
@@ -205,7 +216,7 @@ final class AlergenyFormularzSzczegolowTest extends TestCase
         $this->zapisz(['alergeny_formularz' => '1', 'alergeny' => ['banany'], 'alergeny_potwierdzone' => '1'])
             ->assertSessionHasErrors('alergeny.0');
 
-        $this->assertSame('unchecked', $this->przepis->refresh()->allergen_status);
+        $this->assertSame('unchecked', $this->stanOznaczenia());
     }
 
     public function test_cudzy_przepis_nie_da_sie_oznaczyc_przez_formularz(): void
@@ -214,6 +225,6 @@ final class AlergenyFormularzSzczegolowTest extends TestCase
 
         $this->zapisz(['alergeny_formularz' => '1', 'alergeny' => ['milk'], 'alergeny_potwierdzone' => '1'], $obca)->assertForbidden();
 
-        $this->assertSame('unchecked', $this->przepis->refresh()->allergen_status);
+        $this->assertSame('unchecked', $this->stanOznaczenia());
     }
 }

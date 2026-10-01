@@ -91,6 +91,18 @@ final class ZapisWykonaniaRequest extends FormRequest
     }
 
     /**
+     * Wersja przepisu, którą formularz pokazał w chwili otwarcia (#2378).
+     * Nie-UUID schodzi do `null`; czy wersja należy do przepisu, sprawdza
+     * `RecordCookedEvent`.
+     */
+    public function wersjaPrzepisu(): ?string
+    {
+        $wersja = $this->input('wersja_przepisu');
+
+        return is_string($wersja) && Str::isUuid($wersja) ? $wersja : null;
+    }
+
+    /**
      * Faza 1: zdjęcia. Rzuca `ValidationException` jak `$request->validate()`.
      */
     public function walidujZdjecia(): void

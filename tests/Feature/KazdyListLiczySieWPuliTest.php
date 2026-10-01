@@ -57,6 +57,7 @@ class KazdyListLiczySieWPuliTest extends TestCase
         'app/Mail/OdpowiedzNaWiadomosc.php' => 'app/Domain/Contact/Actions/WyslijOdpowiedz.php',
         'app/Mail/PodsumowanieTygodnia.php' => 'app/Console/Commands/WyslijPodsumowaniaTygodnia.php',
         'app/Mail/ZyczeniaUrodzinowe.php' => 'app/Console/Commands/WyslijZyczeniaUrodzinowe.php',
+        'app/Mail/PrzypomnienieOProduktach.php' => 'app/Console/Commands/WyslijPrzypomnieniaOProduktach.php',
     ];
 
     #[Test]

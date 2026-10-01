@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Recipes\Historia;
 
+use App\Domain\Recipes\Alergeny\Alergen;
 use App\Domain\Recipes\KosztPrzepisu;
 use App\Models\Recipe;
 
@@ -17,9 +18,10 @@ use App\Models\Recipe;
  * klasa więc nigdy nie sięga do przepisu — czyta wyłącznie to, co leży
  * w migawce, a nieobecny klucz odróżnia od pustego przez `maKlucz()`.
  *
- * CZEGO TU CELOWO NIE MA: `editor_id`, wykonań (`cooked_events` nie zapisują
- * numeru wersji, więc nic nie wolno sugerować o tym, z której wersji ktoś
- * gotował) i zdjęć (migawka ich nie obejmuje).
+ * CZEGO TU CELOWO NIE MA: `editor_id`, wykonań (publiczna historia nic nie
+ * sugeruje o tym, z której wersji ktoś gotował; wskaźnik z #2378 jest
+ * prywatny dla kucharza i czyta go `WersjaWykonania`) i zdjęć (migawka ich
+ * nie obejmuje).
  */
 final class MigawkaWersji
 {
@@ -43,6 +45,36 @@ final class MigawkaWersji
         'source_url' => 'Adres strony, z której pochodzi przepis',
         'family_since_year' => 'W rodzinie od roku',
     ];
+
+    /** Etykieta oznaczenia alergenów w porównaniu wersji (#1902). */
+    public const ETYKIETA_ALERGENOW = 'Alergeny według autora';
+
+    /**
+     * Oznaczenie alergenów z migawki jako zdanie dla człowieka albo `null`
+     * (niesprawdzone). Nigdy „bez alergenów” — pusta lista to „autor nie
+     * wskazał żadnego”. Stan `needs_review` to informacja, że składniki
+     * zmieniły się po ostatnim zaznaczeniu.
+     */
+    public function alergeny(): ?string
+    {
+        $stan = $this->dane['allergen_status'] ?? null;
+
+        if ($stan === Recipe::ALERGENY_DO_PRZEGLADU) {
+            return 'do ponownego sprawdzenia przez autora';
+        }
+
+        if ($stan !== Recipe::ALERGENY_ZDEKLAROWANE) {
+            return null;
+        }
+
+        $kody = $this->dane['allergens'] ?? [];
+        $nazwy = [];
+        foreach (is_array($kody) ? Alergen::znormalizuj($kody) : [] as $kod) {
+            $nazwy[] = Alergen::from($kod)->nazwa();
+        }
+
+        return $nazwy === [] ? 'autor nie wskazał żadnych' : implode(', ', $nazwy);
+    }
 
     /** @param array<string, mixed> $dane */
     public function __construct(private readonly array $dane) {}

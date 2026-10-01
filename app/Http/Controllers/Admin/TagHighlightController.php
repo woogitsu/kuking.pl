@@ -32,14 +32,23 @@ class TagHighlightController extends Controller
 
         $dane = $request->validate([
             'tag_tygodnia' => ['required', 'string', 'max:200'],
-            'od_dnia' => ['required', 'date_format:Y-m-d'],
-            'do_dnia' => ['required', 'date_format:Y-m-d', 'after_or_equal:od_dnia'],
+            'od_dnia' => ['required', 'string', 'date_format:Y-m-d'],
+            // `after_or_equal` z tablicą w `od_dnia` rzucał TypeError (HTTP 500),
+            // więc porównanie dochodzi dopiero, gdy `od_dnia` jest tekstem.
+            'do_dnia' => array_filter([
+                'required',
+                'string',
+                'date_format:Y-m-d',
+                is_string($request->input('od_dnia')) ? 'after_or_equal:od_dnia' : null,
+            ]),
             'notatka_tygodnia' => ['nullable', 'string', 'max:200'],
         ], [
             'tag_tygodnia.required' => 'Wpisz nazwę tagu, który ma być tagiem tygodnia.',
             'od_dnia.required' => 'Wybierz pierwszy dzień wyróżnienia.',
+            'od_dnia.string' => 'Wybierz pierwszy dzień z kalendarza albo wpisz go jako rok-miesiąc-dzień.',
             'od_dnia.date_format' => 'Wybierz pierwszy dzień z kalendarza albo wpisz go jako rok-miesiąc-dzień.',
             'do_dnia.required' => 'Wybierz ostatni dzień wyróżnienia.',
+            'do_dnia.string' => 'Wybierz ostatni dzień z kalendarza albo wpisz go jako rok-miesiąc-dzień.',
             'do_dnia.date_format' => 'Wybierz ostatni dzień z kalendarza albo wpisz go jako rok-miesiąc-dzień.',
             'do_dnia.after_or_equal' => 'Ostatni dzień nie może być wcześniej niż pierwszy. Popraw jedną z dat.',
             'notatka_tygodnia.max' => 'Notatka może mieć najwyżej 200 znaków. Skróć ją do jednego zdania.',

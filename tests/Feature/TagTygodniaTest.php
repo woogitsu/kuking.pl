@@ -177,6 +177,23 @@ class TagTygodniaTest extends TestCase
             ->assertSessionHasErrors(['do_dnia' => 'Ostatni dzień nie może być wcześniej niż pierwszy. Popraw jedną z dat.']);
     }
 
+    public function test_tablica_zamiast_daty_to_blad_przy_polu_a_nie_http_500(): void
+    {
+        $this->tag('bigos', 'Bigos');
+        $moderator = $this->moderator();
+
+        // `after_or_equal:od_dnia` z tablicą w `od_dnia` rzucał TypeError.
+        $this->actingAs($moderator)
+            ->post(route('admin.tag-highlights.store'), ['tag_tygodnia' => 'Bigos', 'od_dnia' => ['x'], 'do_dnia' => '2026-11-29'])
+            ->assertSessionHasErrors(['od_dnia']);
+
+        $this->actingAs($moderator)
+            ->post(route('admin.tag-highlights.store'), ['tag_tygodnia' => 'Bigos', 'od_dnia' => '2026-11-23', 'do_dnia' => ['x']])
+            ->assertSessionHasErrors(['do_dnia']);
+
+        $this->assertDatabaseCount('tag_highlights', 0);
+    }
+
     public function test_zwykly_uzytkownik_nie_planuje_tagu_tygodnia(): void
     {
         $this->tag('bigos', 'Bigos');

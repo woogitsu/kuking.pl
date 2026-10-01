@@ -124,6 +124,14 @@
                      skrypt, a `role="status"` sprawia, że czytnik ekranu
                      przeczyta je bez zabierania fokusu. --}}
                 <p class="podziel-sie-echo" role="status" aria-live="polite" data-podziel-echo></p>
+
+                {{-- Karta z kodem QR (#2349) — papierowa wersja tego samego
+                     publicznego adresu, do rozdania na zajęciach. Tu, a nie
+                     w pasku akcji: to kolejny sposób „podania dalej”, nie
+                     czynność na Kukingu. Zwykły odnośnik, działa bez JS. --}}
+                @if($tresc instanceof \App\Models\Recipe)
+                    <p class="m-0"><a class="btn btn-secondary" href="{{ route('recipes.qr-card', $tresc->slug) }}">Wydrukuj kartę z kodem</a></p>
+                @endif
             </div>
         </details>
     @elseif(auth()->check() && auth()->user()->can('update', $tresc))

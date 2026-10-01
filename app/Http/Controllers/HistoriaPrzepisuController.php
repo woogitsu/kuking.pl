@@ -111,7 +111,7 @@ class HistoriaPrzepisuController extends Controller
             'pominieteUkryte' => $zUkrytymi ? 0 : HistoriaWersji::ukryteMiedzy($model, $poprzedniNumer, $numer),
             'porownanie' => $poprzednia === null
                 ? null
-                : PorownanieWersji::porownaj($poprzednia->snapshot ?? [], $wersja->snapshot ?? []),
+                : PorownanieWersji::porownaj($poprzednia->snapshot ?? [], $wersja->snapshot ?? [], (bool) config('kuking.alergeny.wlaczone')),
             'nowszy' => $this->sasiad($numery, $numer, 1),
         ]);
     }

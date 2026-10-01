@@ -39,12 +39,14 @@ use App\Domain\Import\LimitImportowOsoby;
 use App\Domain\Import\LimitImportu;
 use App\Domain\Import\Rezerwacja;
 use App\Domain\Import\ZlecImportPrzepisu;
+use App\Domain\Moderation\Actions\NotifyReporterDecisionChanged;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Moderation\Actions\RestoreContent;
 use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
 use App\Domain\Moderation\NowaDecyzja;
 use App\Domain\Pantry\CoMamWDomu;
+use App\Domain\Pantry\ZmienTerminProduktu;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Recipes\Alergeny\DeklaracjaAlergenow;
@@ -72,6 +74,7 @@ use App\Models\Comment;
 use App\Models\ContactMessage;
 use App\Models\CookingProgress;
 use App\Models\ImportPrzepisu;
+use App\Models\PantryItem;
 use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -697,6 +700,15 @@ try {
             ->dodaj(User::query()->whereKey($argumenty['kto'])->firstOrFail(), $argumenty['nazwa'])['produkt']
             ->getKey(),
 
+        // Edycja terminu produktu (#1903): prawdziwa akcja domenowa. Model
+        // wczytujemy PRZED blokadą wiersza, jak kontroler.
+        'ustaw-termin-pantry' => (function () use ($argumenty): string {
+            $produkt = PantryItem::query()->findOrFail($argumenty['produkt']);
+
+            return app(ZmienTerminProduktu::class)
+                ->handle($produkt, (array) json_decode($argumenty['dane'], true), '2026-10-10') ? 'zapisano' : 'brak';
+        })(),
+
         // Zastąpienie wyboru redakcyjnego (#1027): prawdziwe akcje domenowe,
         // bariera po ich własnym DELETE.
         'tablica-dnia' => (function () use ($argumenty): array {
@@ -747,6 +759,16 @@ try {
                 PendingEmailChange::query()->whereKey($argumenty['zmiana'])->firstOrFail(),
                 biezacaSesja: $argumenty['sesja'],
             );
+        })(),
+
+        // Korekta dla zgłaszającego po cofniętej decyzji (#2380). Odwołanie
+        // czytane przed akcją — oba procesy mają je w pamięci.
+        'skoryguj-zglaszajacemu' => (static function () use ($argumenty): string {
+            app(NotifyReporterDecisionChanged::class)->handle(
+                Appeal::query()->whereKey($argumenty['odwolanie'])->firstOrFail(),
+            );
+
+            return 'ok';
         })(),
 
         // Rozpatrzenie odwołania (#950). Odwołanie czytane PRZED akcją, tak

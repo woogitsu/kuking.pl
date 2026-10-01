@@ -819,9 +819,14 @@ działach sklepu i premium zostają poza zakresem i wymagają nowej decyzji.
 
 **Spiżarnia („Co mam w domu”) zeszła z tej listy 26 września 2026** — sekcja
 V2 w `docs/FEATURES.md` wymienia „pantry” i „co ugotuję z tego, co mam”, a
-**D-282** pozwala je budować. Zakazana zostaje
-**spiżarnia z terminami ważności i priorytetem zużycia (#1903)** — stoi na
-liście „V2, ale nie teraz” i wymaga nowej decyzji właściciela.
+**D-282** pozwala je budować. **Spiżarnia z terminami ważności i priorytetem
+zużycia (#1903) zeszła z listy „V2, ale nie teraz” 30 września 2026** —
+decyzja właściciela zapisana w D-333 (wiersze „#1903”): terminy, ilość jako
+wolny tekst, flaga „mrożone”, sekcja „Zużyj w pierwszej kolejności”, tryb
+przepisów „najpierw to, co się psuje” i sobotnie przypomnienie e-mailem za
+osobną, domyślnie wyłączoną zgodą. Poza zakresem zostają: AI, OCR paragonu i
+kod kreskowy, push, liczby i jednostki, „zużyte/wyrzucone” w bazie, wspólna
+spiżarnia domowników.
 
 **OCR starych zeszytów zszedł z tej listy 26 września 2026** — V2 wolno budować
 od decyzji **D-282**, a odczyt zdjęcia kartki działa według **D-296** (zgoda

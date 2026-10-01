@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Support\AnalitykaCloudflare;
+use App\Support\Storage\ZrodlaZdjecDlaCsp;
 use App\Support\Turnstile;
 use Closure;
 use Illuminate\Http\Request;
@@ -229,17 +230,21 @@ class ApplySecurityHeaders
         $analitykaSkrypt = $analitykaWlaczona ? [AnalitykaCloudflare::hostSkryptu()] : [];
         $analitykaZdarzenia = $analitykaWlaczona ? [AnalitykaCloudflare::hostZdarzen()] : [];
 
+        $zdjecia = ZrodlaZdjecDlaCsp::hosty();
+
         $wspolne = [
             "default-src 'self'",
             "base-uri 'self'",
             "object-src 'none'",
             "frame-ancestors 'none'",
             "form-action 'self'",
-            // `https:` zamiast konkretnego hosta, bo zdjęcia mogą iść z dysku
-            // lokalnego albo z R2 pod własną domeną (docs/DECISIONS.md).
-            // `blob:` jest potrzebny do podglądu wybranego pliku przed
-            // wysłaniem (resources/js/app.js).
-            "img-src 'self' data: blob: https:",
+            // Zdjęcia i media: własny host i hosty bucketów z konfiguracji
+            // (#2381, `ZrodlaZdjecDlaCsp`) — NIE `https:`. `media.show`
+            // przekierowuje na podpisany adres R2, a CSP sprawdza także cel
+            // przekierowania. `blob:` i `data:` zostają dla podglądu
+            // wybranego pliku przed wysłaniem (resources/js/app.js).
+            'img-src '.implode(' ', ["'self'", 'data:', 'blob:', ...$zdjecia]),
+            'media-src '.implode(' ', ["'self'", 'blob:', ...$zdjecia]),
             "font-src 'self' data:",
             "worker-src 'self'",
             'connect-src '.implode(' ', ["'self'", ...$vite['connect'], ...$turnstile, ...$analitykaZdarzenia]),
@@ -313,6 +318,14 @@ class ApplySecurityHeaders
         // `zeszyt` niżej dokładał `noindex` także zeszytowi „Wszyscy".
         if ($request->routeIs('collections.show')) {
             return false;
+        }
+
+        // Historia wersji przepisu (#2390): migawki zawierają treść, którą autor
+        // mógł już usunąć z przepisu. `noindex` jest też w meta widoku, ale
+        // nagłówek działa także na odpowiedzi bez HTML-a i dla robotów, które
+        // meta pomijają — adres wersji nie ma prawa żyć w wyszukiwarce.
+        if ($request->routeIs('recipes.history', 'recipes.history.*')) {
+            return true;
         }
 
         foreach (['szukaj', 'home', 'dodaj', 'powiadomienia', 'ustawienia', 'zeszyt', 'admin', 'zglos', 'witaj'] as $prefix) {

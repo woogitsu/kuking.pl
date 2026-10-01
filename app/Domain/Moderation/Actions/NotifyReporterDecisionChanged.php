@@ -7,8 +7,10 @@ namespace App\Domain\Moderation\Actions;
 use App\Domain\Moderation\OdpowiedzDlaZglaszajacego;
 use App\Domain\Moderation\ZmianaDecyzjiPoOdwolaniu;
 use App\Models\Appeal;
+use App\Models\AuditLogEntry;
 use App\Models\Notification;
 use App\Notifications\ZmianaDecyzjiWSprawieZgloszenia;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification as Poczta;
 
 /**
@@ -24,24 +26,47 @@ use Illuminate\Support\Facades\Notification as Poczta;
  * zapadła; korekta jest NOWYM wpisem obok, a aktualny skutek na karcie
  * sprawy liczy `ZmianaDecyzjiPoOdwolaniu` z logu, nie z powiadomień.
  *
- * JEDNA KOREKTA NA ODWOŁANIE. W serwisie pilnuje tego `data.zmiana_po_odwolaniu`
- * — powtórzone wywołanie zastaje wpis i nic nie dokłada. List idzie
- * po zatwierdzeniu transakcji (`afterCommit`), więc wycofane rozpatrzenie
- * nie wyśle korekty zmiany, której nie było.
+ * JEDNA KOREKTA NA ODWOŁANIE — W SERWISIE I W LIŚCIE (#2380).
+ * Akcja bierze blokadę wiersza odwołania (`FOR UPDATE`) i dopiero pod nią
+ * sprawdza, czy korekta już poszła. W serwisie kluczem jest
+ * `data.zmiana_po_odwolaniu`, w liście — wpis dziennika
+ * `appeal.reporter_correction_mailed` z odwołaniem jako przedmiotem
+ * (adresu w nim nie ma; jest przy zgłoszeniu). Drugie wywołanie — równoległe
+ * albo ponowione po sukcesie — czeka na pierwsze i zastaje ślad, więc nie
+ * dokłada drugiej korekty ani drugiego listu.
  *
- * GRANICA: sprawdzenie „już jest” działa bez blokady i bez UNIQUE. Dwa
- * RÓWNOCZESNE „cofam” z dwóch kart mogą dać dwie korekty — dopóki
- * `ResolveAppeal` nie rozpatruje odwołania pod blokadą wiersza (#1485).
- * Dziś na `main` nie ma tam ani transakcji, ani blokady; ten sam wyścig
- * daje też podwójne powiadomienie autora. Przy scalaniu z #1485 ta klasa
- * ma dostać odwołanie ZABLOKOWANE (ze statusem po zapisie), nie obiekt
- * z trasy — ten ma jeszcze `open` i korekta cicho by nie wyszła.
+ * `ResolveAppeal` woła tę klasę już pod tą samą blokadą (#950), więc tam
+ * blokada jest ponowna w tej samej transakcji i nic nie kosztuje. Własną
+ * blokadę klasa ma po to, żeby obietnica „jedna korekta” nie zależała od
+ * tego, KTO ją woła — do 1 października 2026 sprawdzenie „już jest” stało
+ * bez blokady, a dwa bezpośrednie wywołania dawały dwa wpisy (pomiar:
+ * `tests/Dwa/KorektaDlaZglaszajacegoNaDwochPolaczeniachTest.php`).
+ *
+ * List idzie po zatwierdzeniu transakcji (`afterCommit`), a znacznik
+ * zapisuje się w tej samej transakcji co zakolejkowanie — wycofane
+ * rozpatrzenie nie wyśle listu i nie zostawi znacznika. Ponowienie samego
+ * zadania kolejki po wysłaniu to osobna, ogólna granica kolejki, nie tej klasy.
  *
  * Zgłoszenie anonimowe bez adresu nie ma kanału — i nie próbujemy go szukać.
  */
 final class NotifyReporterDecisionChanged
 {
+    public const ZNACZNIK_LISTU = 'appeal.reporter_correction_mailed';
+
     public function handle(Appeal $odwolanie): void
+    {
+        DB::transaction(function () use ($odwolanie): void {
+            // Stan czytany POD blokadą, nie z obiektu, który przyszedł
+            // z zewnątrz — ten mógł być wczytany przed cudzym zapisem.
+            $zablokowane = Appeal::query()->whereKey($odwolanie->getKey())->lockForUpdate()->first();
+
+            if ($zablokowane !== null) {
+                $this->skoryguj($zablokowane);
+            }
+        });
+    }
+
+    private function skoryguj(Appeal $odwolanie): void
     {
         if ($odwolanie->isFromReporter() || $odwolanie->status !== Appeal::STATUS_OVERTURNED) {
             return;
@@ -86,9 +111,27 @@ final class NotifyReporterDecisionChanged
             return;
         }
 
-        if ($zgloszenie->maAdresDoOdpowiedzi()) {
-            Poczta::route('mail', $zgloszenie->notifier_email)
-                ->notify(new ZmianaDecyzjiWSprawieZgloszenia($zgloszenie));
+        if (! $zgloszenie->maAdresDoOdpowiedzi()) {
+            return;
         }
+
+        $listJuzPoszedl = AuditLogEntry::query()
+            ->where('action', self::ZNACZNIK_LISTU)
+            ->where('subject_type', class_basename($odwolanie))
+            ->where('subject_id', $odwolanie->getKey())
+            ->exists();
+
+        if ($listJuzPoszedl) {
+            return;
+        }
+
+        Poczta::route('mail', $zgloszenie->notifier_email)
+            ->notify(new ZmianaDecyzjiWSprawieZgloszenia($zgloszenie));
+
+        AuditLogEntry::record(
+            action: self::ZNACZNIK_LISTU,
+            subject: $odwolanie,
+            metadata: ['report_id' => (string) $zgloszenie->getKey()],
+        );
     }
 }

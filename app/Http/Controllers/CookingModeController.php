@@ -15,6 +15,8 @@ use App\Support\Komunikat;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 /**
@@ -108,7 +110,22 @@ class CookingModeController extends Controller
 
     public function show(Request $request, string $recipe): View|RedirectResponse
     {
-        $model = Recipe::where('slug', $recipe)->firstOrFail();
+        $model = Recipe::where('slug', $recipe)->first();
+
+        // Stary adres przepisu działa też w trybie gotowania (jak
+        // `RecipeController::show`): 301 na aktualny slug z zachowaniem
+        // `?krok=` i `?porcje=`. Ta sama bramka `view` co pod nowym adresem,
+        // ale 404 zamiast 403 — `Location` zawiera slug z tytułu, więc
+        // przepis niedostępny dla oglądającego nie może się zdradzić.
+        if ($model === null) {
+            $przekierowanie = DB::table('recipe_slug_redirects')->where('slug', $recipe)->first();
+            abort_if($przekierowanie === null, 404);
+
+            $cel = Recipe::findOrFail($przekierowanie->recipe_id);
+            abort_unless(Gate::forUser($request->user())->allows('view', $cel), 404);
+
+            return redirect()->route('cooking.show', ['recipe' => $cel->slug] + $request->query(), 301);
+        }
 
         // UUID/slug w adresie to nie autoryzacja (AGENTS.md §7) — to samo
         // pytanie co na stronie przepisu, patrz komentarz nad klasą.

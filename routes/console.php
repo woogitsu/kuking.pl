@@ -718,6 +718,24 @@ Harmonogram::artisan('kuking:wyslij-zyczenia-urodzinowe')
     ->onOneServer()
     ->withoutOverlapping(60);
 
+// Sobotnie przypomnienie o produktach do zużycia (#1903, D-333). Tylko za
+// osobną, domyślnie wyłączoną zgodą (`users.wants_pantry_reminder`), jeden list
+// tygodniowo, tylko gdy na liście „Co mam w domu” jest co wymienić (pusty nie
+// wychodzi), własny sufit w `DziennyBudzetListow::dlaPrzypomnienSpizarni()`.
+// Bez push (D-303).
+//
+// SOBOTA 09:00 UTC — w Polsce 10:00 zimą i 11:00 latem, zawsze po ciszy nocnej
+// (21–8). Wyrażenie `0 9 * * 6` jest inne niż każde zadanie dzienne, a od
+// najbliższego (`kuking:wyslij-zyczenia-urodzinowe` 08:40) dzieli je 20 minut
+// (`HarmonogramBezKolizjiTerminowTest`, `HarmonogramBezWspolnychSlotowTest`).
+// Komenda sama sprawdza, że w Polsce jest sobota. Przed dublem chroni
+// `przypomnienia_dobowe` (`PrzypomnienieDobowe`), nie `withoutOverlapping()`.
+Harmonogram::artisan('kuking:wyslij-przypomnienia-spizarni')
+    ->name('kuking:wyslij-przypomnienia-spizarni')
+    ->weeklyOn(6, '09:00')
+    ->onOneServer()
+    ->withoutOverlapping(60);
+
 // Przypomnienie „Dziś urodziny: …" dla obserwujących (issue #1755, etap d) —
 // tylko u osób, które to same włączyły; powiadomienie w serwisie, nie wpis
 // w feedzie. 07:50 UTC to w Polsce 8:50 zimą i 9:50 latem, czyli zawsze po

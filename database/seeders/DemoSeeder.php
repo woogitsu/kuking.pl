@@ -19,6 +19,7 @@ use App\Models\TagPromotion;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -55,6 +56,9 @@ class DemoSeeder extends Seeder
      * tylko pod inną nazwą.
      */
     private ?string $haslo = null;
+
+    /** Stały slug przepisu, po którym poznajemy, że dane demo już są. */
+    private const ZNACZNIK_DANYCH_DEMO = 'rosol-babci-zofii';
 
     private function hasloDemo(): string
     {
@@ -99,6 +103,34 @@ class DemoSeeder extends Seeder
             return;
         }
 
+        /*
+         * KONTRAKT POWTARZALNOŚCI (issue #2389)
+         *
+         * Drugie uruchomienie nie dopisuje nic i mówi o tym wprost: wpisy,
+         * przepisy i media tworzymy zwykłym `create()`, więc ponowny przebieg
+         * kończył się naruszeniem unikalności `recipes.slug` PO zapisaniu
+         * części danych. Znacznik „dane już są" to stały slug przepisu.
+         * Reset to `migrate:fresh --seed`.
+         *
+         * Cały przebieg idzie w jednej transakcji: wyjątek w połowie cofa
+         * wszystko, więc nieudany zasiew nie zostawia stanu częściowego
+         * (a kolejny nie trafia na połówkę i nie zgłasza fałszywego „już są").
+         * `RecordCookedEvent` ma własną transakcję — w zewnętrznej staje się
+         * punktem zapisu, więc powiadomienia i liczniki liczy tak samo.
+         */
+        if (Recipe::query()->where('slug', self::ZNACZNIK_DANYCH_DEMO)->exists()) {
+            $this->konsola()?->warn('Dane demo już istnieją — nic nie zmieniono. Żeby zasiać od zera, uruchom: php artisan migrate:fresh --seed');
+
+            return;
+        }
+
+        $emailModeratora = DB::transaction(fn (): string => $this->zasiej());
+
+        $this->komunikatKoncowy($emailModeratora);
+    }
+
+    private function zasiej(): string
+    {
         $basia = $this->createUser('basia@example.test', 'basia', 'Basia', [
             'bio' => 'Gotuję codziennie od czterdziestu lat. Najlepiej wychodzą mi zupy i ciasto drożdżowe.',
             'region' => 'Podkarpacie',
@@ -420,7 +452,7 @@ class DemoSeeder extends Seeder
             'status' => Comment::STATUS_PUBLISHED,
         ]);
 
-        $this->komunikatKoncowy($moderator->email);
+        return $moderator->email;
     }
 
     /**

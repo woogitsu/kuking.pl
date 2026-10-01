@@ -605,19 +605,53 @@ egzekwuje.
 - **Eksport:** `moje_reakcje`, `reakcje_otrzymane` (nazwa tylko przy osobach
   widocznych dla autora), `reakcje_otrzymane_od_osob_niewidocznych` (liczba).
 
+### 3.21a „Dziękuję” pod komentarzem (issue #2355, F11)
+
+- **Cel:** autor wpisu, przepisu albo wykonania kwituje cudzy komentarz
+  jednym kliknięciem, bez pisania odpowiedzi.
+- **Dane:** komentarz, autor treści, który podziękował, chwila
+  (`comment_thanks`); powiadomienie `comment.thanked` dla autora komentarza
+  (jak §3.11).
+- **Podstawa:** art. 6 ust. 1 lit. b RODO — **do potwierdzenia przez
+  prawnika**.
+- **Odbiorcy:** Railway; stan „podziękowano” widzą wyłącznie dwie osoby —
+  dziękujący i autor komentarza. Bez licznika i bez wpływu na kolejność
+  treści.
+- **Termin usunięcia:** do usunięcia komentarza (twarde usunięcie kasuje
+  wiersz kaskadą) albo do wymazania konta — każdej ze stron (`EraseAccountData`).
+  Wycofania samego podziękowania nie ma.
+- **Eksport:** `moje_podziekowania`; otrzymane — w `powiadomienia`.
+
 ### 3.22 Lista „Co mam w domu” (V2, D-285)
 
 - **Cel:** „Co ugotuję z tego, co mam” — podpowiedź przepisów.
 - **Dane:** nazwa produktu wpisana przez osobę i data dodania
   (`pantry_items`); kolumny `rdzenie` i `klucz` są wyliczone z nazwy.
+  Od #1903 (D-333) opcjonalnie także: termin z opakowania i jego rodzaj
+  (`expires_on`, `expiry_kind`: `use_by` „Należy zużyć do”, `best_before`
+  „Najlepiej spożyć przed”), ilość jako wolny tekst do 40 znaków
+  (`quantity_note`) i oznaczenie „mrożone” (`frozen`). Termin jest notatką
+  osoby; serwis nie ocenia, czy produkt nadaje się do jedzenia.
 - **Podstawa:** art. 6 ust. 1 lit. b RODO — **do potwierdzenia przez
   prawnika**.
-- **Odbiorcy:** Railway. Lista jest prywatna (`PantryItemPolicy`), porównanie
-  ze składnikami przepisów odbywa się w bazie; nic nie jest wysyłane do
-  podmiotów trzecich.
+- **Sobotnie przypomnienie o produktach do zużycia (#1903):** wyłącznie za
+  **osobną** zgodą (`users.wants_pantry_reminder`, domyślnie `false`; założenie
+  listy ani ustawienie terminu zgody nie daje). Podstawa: art. 6 ust. 1 lit. a
+  RODO. Każda zmiana zgody zapisuje wiersz w dzienniku zgód z celem
+  `przypomnienie_spizarni` (D-072). Jeden list tygodniowo, w sobotę rano,
+  tylko gdy jest co wymienić; w liście nazwy, ilości i terminy pilnych
+  produktów (termin minął albo upływa w ciągu 3 dni, bez mrożonych). Dane
+  techniczne: skrót adresu z datą wysyłki w `przypomnienia_dobowe` (do 30
+  dni). Bez push (D-303). Wycofanie: odnośnik w liście bez logowania albo
+  odznaczenie pola na stronie „Co mam w domu”; `EraseAccountData` gasi zgodę.
+- **Odbiorcy:** Railway; przy liście z przypomnieniem także EmailLabs. Lista
+  jest prywatna (`PantryItemPolicy`, także termin i ilość), porównanie ze
+  składnikami przepisów odbywa się w bazie; nic nie jest wysyłane do
+  podmiotów trzecich poza opisanym wyżej listem do samej osoby.
 - **Termin usunięcia:** do usunięcia produktu albo wymazania konta
   (`EraseAccountData`).
-- **Eksport:** `co_mam_w_domu`.
+- **Eksport:** `co_mam_w_domu` (z terminem, rodzajem terminu, ilością i
+  „mrożone”) oraz `konto.chce_sobotniego_przypomnienia_o_produktach`.
 
 ### 3.23 Odczyt przepisu przez model na żądanie (OpenAI) — zdjęcie kartki, tekst strony, skan PDF — przekazanie poza EOG (issue #2031)
 

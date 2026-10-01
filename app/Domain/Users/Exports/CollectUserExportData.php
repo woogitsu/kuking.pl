@@ -12,6 +12,7 @@ use App\Domain\Ukrycia\Ukrycia;
 use App\Models\Collection;
 use App\Models\CollectionInvitation;
 use App\Models\Comment;
+use App\Models\CommentThank;
 use App\Models\ContactMessageReply;
 use App\Models\CookedEvent;
 use App\Models\CookingProgress;
@@ -211,7 +212,12 @@ final class CollectUserExportData
             // i tak widzi ją przy swoim wpisie.
             'moje_reakcje' => $this->reakcjeDane($user),
             'reakcje_otrzymane' => $this->reakcjeOtrzymane($user),
+            // „Dziękuję” pod cudzymi komentarzami (#2355): tylko podziękowania
+            // napisane przez tę osobę. Otrzymane są w `powiadomienia`.
+            'moje_podziekowania' => $this->podziekowaniaDane($user),
             'reakcje_otrzymane_od_osob_niewidocznych' => $this->reakcjeOtrzymaneBezNazwy($user),
+            // Dawne nazwy profilu (przekierowania `/@stara-nazwa`).
+            'dawne_nazwy_profilu' => $this->dawneNazwyProfilu($user),
             'dziennik_zgod' => $this->consentLog($user),
             'polaczone_konta' => $this->externalIdentities($user),
             'aktywne_sesje' => $this->activeSessions($user),
@@ -313,6 +319,7 @@ final class CollectUserExportData
             'urodziny' => Urodziny::doEksportu($user),
             'pokazuj_zyczenia_urodzinowe' => (bool) $user->birthday_wishes_enabled,
             'chce_zyczen_urodzinowych_mailem' => (bool) $user->wants_birthday_email,
+            'chce_sobotniego_przypomnienia_o_produktach' => (bool) $user->wants_pantry_reminder,
             'pokazuj_urodziny_obserwujacym' => (bool) $user->birthday_visible_to_followers,
             'usuniecie_konta_zgloszone' => $this->date($user->delete_requested_at),
             // Znacznik ostatniej wizyty (issue #114/#115) — dana osobowa
@@ -521,7 +528,7 @@ final class CollectUserExportData
         // `reorder` zamiast `orderBy`: relacja `cookedEvents()` ma już własne
         // sortowanie malejące, a dopisanie kolejnej kolumny by go nie zmieniło.
         $events = $user->cookedEvents()
-            ->with(['media', 'recipe.author.profile', ...$this->granica->relacjeKomentarzy()])
+            ->with(['media', 'recipeVersion:id,version_number', 'recipe.author.profile', ...$this->granica->relacjeKomentarzy()])
             ->reorder('cooked_at')
             ->get();
 
@@ -533,6 +540,10 @@ final class CollectUserExportData
             'przepis' => $this->granica->widzi($event->recipe) ? $event->recipe->title : self::TRESC_NIEDOSTEPNA,
             'autor_przepisu' => $this->granica->widzi($event->recipe) ? $event->recipe->author?->displayName() : null,
             'kiedy' => $this->date($event->cooked_at),
+            // Numer wersji przepisu otwartej przy gotowaniu (#2378) — sam numer,
+            // bez treści wersji; `null` = nie wiadomo (wykonanie sprzed zmiany
+            // albo wersja usunięta retencją).
+            'numer_wersji_przepisu' => $event->recipeVersion?->version_number,
             'notatka' => $event->note,
             'zrobie_jeszcze_raz' => $event->would_make_again,
             'moja_ocena_trudnosci' => $event->perceived_difficulty,
@@ -1156,7 +1167,7 @@ final class CollectUserExportData
 
     /**
      * Prywatna lista „Co mam w domu” (D-285) — nazwy tak, jak je wpisano,
-     * z datą dodania. Bez kolumn generowanych (`rdzenie`, `klucz`): to są
+     * z datą dodania, terminem, ilością i oznaczeniem „mrożone” (#1903). Bez kolumn generowanych (`rdzenie`, `klucz`): to są
      * techniczne klucze porównania wyliczone z nazwy, nie informacja od osoby.
      *
      * @return list<array<string, mixed>>
@@ -1167,10 +1178,17 @@ final class CollectUserExportData
             ->where('user_id', $user->getKey())
             ->orderBy('name')
             ->orderBy('id')
-            ->get(['name', 'created_at'])
+            ->get(['name', 'created_at', 'expires_on', 'expiry_kind', 'quantity_note', 'frozen'])
             ->map(fn (object $produkt): array => [
                 'produkt' => $produkt->name,
                 'dodano' => $this->date($produkt->created_at),
+                // #1903: termin z opakowania (data bez strefy), jego rodzaj
+                // (`use_by` = „Należy zużyć do”, `best_before` = „Najlepiej
+                // spożyć przed”), ilość jako tekst i oznaczenie „mrożone”.
+                'termin' => $produkt->expires_on,
+                'rodzaj_terminu' => $produkt->expiry_kind,
+                'ilosc' => $produkt->quantity_note,
+                'mrozone' => (bool) $produkt->frozen,
             ])->all();
     }
 
@@ -1274,6 +1292,30 @@ final class CollectUserExportData
     }
 
     /**
+     * „Dziękuję” powiedziane przez tę osobę pod cudzymi komentarzami (#2355).
+     * Bez treści i autora komentarza — tylko adres rozmowy i chwila; pozycje
+     * pod komentarzem, którego osoba dziś nie może zobaczyć (ukryty, usunięty,
+     * blokada), nie wychodzą.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function podziekowaniaDane(User $user): array
+    {
+        return CommentThank::query()
+            ->where('thanker_id', $user->getKey())
+            ->whereIn('comment_id', Comment::query()->widoczneDla($user)->select('comments.id'))
+            ->with('comment.post', 'comment.recipe', 'comment.cookedEvent')
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (CommentThank $t): array => [
+                'podziekowanie' => 'Dziękuję pod komentarzem',
+                'rozmowa' => $t->comment?->subject()?->url(),
+                'kiedy' => $this->date($t->created_at),
+            ])->all();
+    }
+
+    /**
      * Reakcje pod wpisami tej osoby — z nazwą konta TYLKO przy osobach, które
      * autor widzi przy wpisie (`Smakowicie::osobyWidoczneDlaAutora()`, te same
      * filtry co `ktoDla()`; przegląd #1781). Reakcja kogoś, z kim jest
@@ -1306,6 +1348,27 @@ final class CollectUserExportData
             ->where('posts.author_id', $user->getKey())
             ->whereNotIn('post_reactions.user_id', app(Smakowicie::class)->osobyWidoczneDlaAutora($user)->select('users.id'))
             ->count();
+    }
+
+    /**
+     * Dawne nazwy profilu tej osoby — te, pod którymi nadal przekierowujemy
+     * (`profile_username_redirects`). Dana osobowa tak samo jak obecna nazwa.
+     * Wiersz nie niesie nic o innych osobach: tylko nazwę i datę zmiany.
+     * Nazwy, które ktoś inny zajął, już nie mają wiersza — nie ma ich tu.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function dawneNazwyProfilu(User $user): array
+    {
+        return DB::table('profile_username_redirects')
+            ->where('user_id', $user->getKey())
+            ->orderBy('created_at')
+            ->orderBy('username')
+            ->get(['username', 'created_at'])
+            ->map(fn (object $w): array => [
+                'nazwa' => $w->username,
+                'zmieniona_kiedy' => $this->date($w->created_at),
+            ])->all();
     }
 
     /**
