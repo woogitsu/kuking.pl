@@ -1278,6 +1278,13 @@ checks = [
     # rzeczywistym nowym połączeniu PostgreSQL, nie tylko test tekstu configu.
     ("Domyslny JIT wraca na polaczeniu PostgreSQL (#2291)", "config/database.php", "PolaczenieBazyMaWylaczonyJitTest::swieze_polaczenie_aplikacji_ma_jit_off",
      lambda s: replace_once(s, "'server_options' => ['jit' => env('DB_JIT') ?: 'off'],", "'server_options' => ['jit' => env('DB_JIT') ?: 'on'],")),
+    # #2400: cofnięcie porównania pod zamkiem musi pozwolić starej karcie
+    # nadpisać B przez C i oblać test na zapisanej wartości, nie na otoczeniu.
+    ("Stara karta nadpisuje nowszą notatkę (#2400)", "app/Domain/Collections/Actions/UpdateCollectionItemNote.php",
+     "test_stara_karta_nie_nadpisuje_nowszej_notatki_a_szkic_mozna_swiadomie_zapisac",
+     lambda s: replace_once(s,
+         "if (! preg_match('/\\A[a-f0-9]{64}\\z/D', $oczekiwanyOdcisk)\n                || ! hash_equals(self::odcisk($pozycja->note), $oczekiwanyOdcisk)) {",
+         "if (false) {")),
     ("Pasteryzacja znów zaleca piekarnik (#2434)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_objasnienie_pasteryzacji_nie_poleca_piekarnika_ani_dowolnych_parametrow_autora",
      lambda s: replace_once(s, "Ogrzewać przetwory, by ograniczyć drobnoustroje. Metodę, czas i temperaturę dobierz z przebadanych zaleceń dla konkretnego produktu i składu. Nie utrwalaj napełnionych słoików w zwykłym piekarniku. Sama gorąca woda nie wystarcza dla wszystkich przetworów.", "Podgrzewać zamknięte słoiki z zawartością w gorącej wodzie lub piekarniku, żeby przetwory dłużej się trzymały. Temperaturę i czas podaje autor przepisu, więc trzymaj się dokładnie jego wskazówek.")),
     ("Uwaga słownika gwarantuje parametry autora (#2434)", "resources/views/components/terminy-kroku.blade.php", "test_objasnienie_pasteryzacji_nie_poleca_piekarnika_ani_dowolnych_parametrow_autora",

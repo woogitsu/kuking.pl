@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Dwa;
 
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
+use App\Domain\Collections\Actions\UpdateCollectionItemNote;
 use App\Domain\Collections\Wspoldzielenie\DostepDoZeszytu;
 use App\Domain\Collections\Wspoldzielenie\OdpowiedzNaZaproszenie;
 use App\Domain\Collections\Wspoldzielenie\ZaprosDoZeszytu;
@@ -77,6 +78,7 @@ final class NotatkaWZeszycieKontraOdebranieDostepuTest extends TestDwochPolaczen
             'zeszyt' => (string) $zeszyt->getKey(),
             'przepis' => (string) $przepis->getKey(),
             'notatka' => '',
+            'oczekiwany_odcisk' => UpdateCollectionItemNote::odcisk('Notatka właścicielki'),
             'stop_po' => '1',
         ]);
         $this->czekajNaZablokowane(1);
@@ -102,6 +104,7 @@ final class NotatkaWZeszycieKontraOdebranieDostepuTest extends TestDwochPolaczen
             'zeszyt' => (string) $zeszyt->getKey(),
             'przepis' => (string) $przepis->getKey(),
             'notatka' => 'Dopisek gościa',
+            'oczekiwany_odcisk' => UpdateCollectionItemNote::odcisk('Notatka właścicielki'),
             'stop_po' => '2',
         ]);
         $this->czekajNaZablokowane(1);

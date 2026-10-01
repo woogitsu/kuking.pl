@@ -36,6 +36,7 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 
 OCZEKUJ = {
     'Domyslny JIT wraca na polaczeniu PostgreSQL (#2291)': r'JIT_2291_SWIEZA_SESJA_WYMAGA_OFF',
+    'Stara karta nadpisuje nowszą notatkę (#2400)': r'NOTATKA_2400_STARA_KARTA_NIE_NADPISUJE',
     'Pasteryzacja znów zaleca piekarnik (#2434)': r'PASTERYZACJA_BEZ_PIEKARNIKA',
     'Uwaga słownika gwarantuje parametry autora (#2434)': r'PASTERYZACJA_UWAGA_NIE_GWARANTUJE',
     # Paczka V: kontrole dodatnie trzech strażników tekstu.
