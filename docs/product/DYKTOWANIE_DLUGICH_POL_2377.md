@@ -40,6 +40,11 @@ wersji 2026-09-30; bieżący plik i archiwum mają identyczne bajty.
 
 ## Dowody i pozostały odbiór
 
+- Inwentaryzacja widoków: 45 użyć `x-field` z textarea — 42 mają jawne
+  dyktowanie, przy pozostałych 3 są dotychczasowe osobne hosty. Ręczny
+  textarea kroków i wiersze składników kreatora również mają hosty.
+  Komentarze są osadzone na czterech trasach treści, notatki zapisów przy
+  zeszycie; wszystkie te nazwy są na liście mikrofonu.
 - Lokalnie: 40/40 testów JS/DOM, składnia zmienionego PHP i Python, zgodny
   indeks decyzji, identyczny SHA256 polityki i archiwum.
 - Cztery nowe mutacje nagłówków mają sprawdzone pojedyncze kotwice.
