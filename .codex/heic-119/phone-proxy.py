@@ -58,6 +58,38 @@ def bezpieczny_naglowek(nazwa, wartosc):
     return not any(z in (wartosc or '') for z in ('\r', '\n', '\x00'))
 
 
+# Allowlista nagłówków odpowiedzi przekazywanych klientowi. Nazwa do send_header
+# zawsze pochodzi ze stałego literału poniżej, nigdy z odpowiedzi upstream
+# (analiza przepływu CodeQL widzi wtedy, że nazwa nie jest skażona).
+_DOZWOLONE_NAGLOWKI = {
+    'content-type': 'Content-Type',
+    'content-encoding': 'Content-Encoding',
+    'content-language': 'Content-Language',
+    'content-disposition': 'Content-Disposition',
+    'cache-control': 'Cache-Control',
+    'expires': 'Expires',
+    'etag': 'ETag',
+    'last-modified': 'Last-Modified',
+    'location': 'Location',
+    'vary': 'Vary',
+    'set-cookie': 'Set-Cookie',
+    'date': 'Date',
+    'server': 'Server',
+}
+
+
+def naglowek_do_przekazania(nazwa, wartosc):
+    """Zwraca (stała nazwa, oczyszczona wartość) albo None, gdy nagłówka nie przekazujemy."""
+    stala_nazwa = _DOZWOLONE_NAGLOWKI.get((nazwa or '').lower())
+    if stala_nazwa is None or not bezpieczny_naglowek(nazwa, wartosc):
+        return None
+    # Jawne usunięcie znaków sterujących tuż przed send_header (sanitizer
+    # rozpoznawany przez CodeQL py/http-response-splitting). Po bezpieczny_naglowek
+    # to no-op, ale zostaje jako druga warstwa obrony.
+    czysta = wartosc.replace('\r', '').replace('\n', '').replace('\x00', '')
+    return stala_nazwa, czysta
+
+
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description='Proxy HTTP do testów na telefonie w sieci lokalnej (tylko dev).')
@@ -157,13 +189,12 @@ def make_handler(target_host, target_port, token, allowed_ips):
             body = resp.read()
             self.send_response(resp.status)
             for key, value in resp.getheaders():
-                if key.lower() in ('connection', 'transfer-encoding', 'content-length'):
-                    continue
-                # Nagłówek z CR/LF albo spoza dozwolonego zestawu pomijamy —
+                # Nagłówek spoza allowlisty albo z CR/LF/NUL pomijamy —
                 # inaczej można by wstrzyknąć własne nagłówki lub treść (HTTP Response Splitting).
-                if not bezpieczny_naglowek(key, value):
+                przekazywany = naglowek_do_przekazania(key, value)
+                if przekazywany is None:
                     continue
-                self.send_header(key, value)
+                self.send_header(przekazywany[0], przekazywany[1].replace('\r', '').replace('\n', ''))
             self.send_header('Content-Length', str(len(body)))
             self.end_headers()
             self.wfile.write(body)
