@@ -34,8 +34,8 @@
 #  Test: tests/skrypty/klient-postgresql-18.sh (atrapy curl/sudo/apt-get,
 #  prawdziwy gpg), strażnik kroków: tests/Feature/InstalacjeCiSaPrzypieteTest.php.
 #
-#  WYJŚCIE: 0 = klient 18 jest (był albo doinstalowany), 1 = nie ma albo klucz
-#  PGDG nie przeszedł kontroli.
+#  WYJŚCIE: 0 = klient 18 jest; 1 = wersja lub odcisk nie przeszły kontroli.
+#  Błąd etapu zachowuje kod polecenia; timeout daje 124 lub po SIGKILL 137.
 # =============================================================================
 set -euo pipefail
 
