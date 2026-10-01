@@ -7,10 +7,10 @@ przywraca ich dokładne bajty i mtime, potem wymaga ponownie zielonego testu.
 
 import os
 from pathlib import Path
-import re
 import shutil
 import subprocess
 import tempfile
+import xml.etree.ElementTree as ET
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -44,21 +44,31 @@ def check_environment():
 def run_test(marker=None):
     env = os.environ.copy()
     env["APP_BASE_PATH"] = str(ROOT)
-    result = subprocess.run(
-        ["php", "artisan", "test", "--group=dwa-polaczenia", "--filter=" + TEST, "--no-ansi"],
-        cwd=ROOT, env=env, timeout=180, check=False,
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        text=True, encoding="utf-8", errors="replace",
-    )
-    print(result.stdout, flush=True)
-    expected = "passed" if marker is None else "failed"
-    if "No tests found" in result.stdout or re.search(r"Tests:\s+6\s+" + expected + r"\b", result.stdout) is None:
+    with tempfile.TemporaryDirectory(prefix="kuking-2402-result-") as directory:
+        report = Path(directory) / "junit.xml"
+        result = subprocess.run(
+            ["php", "artisan", "test", "--group=dwa-polaczenia", "--filter=" + TEST,
+             "--no-ansi", "--log-junit=" + str(report)],
+            cwd=ROOT, env=env, timeout=180, check=False,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, encoding="utf-8", errors="replace",
+        )
+        print(result.stdout, flush=True)
+        if not report.is_file():
+            raise RuntimeError("Brak raportu JUnit #2402; błąd środowiska nie jest dowodem mutacji.")
+        cases = list(ET.parse(report).getroot().iter("testcase"))
+    if len(cases) != 6 or any(case.find("skipped") is not None or case.find("error") is not None for case in cases):
         raise RuntimeError("Brak dowodu wykonania testów #2402; to nie jest kontrola ujemna.")
     if marker is None:
-        if result.returncode != 0 or "skipped" in result.stdout.lower():
+        if result.returncode != 0 or any(case.find("failure") is not None for case in cases):
             raise RuntimeError("Test dodatni #2402 musi przejść bez pominięć.")
-    elif result.returncode == 0 or "FAILED" not in result.stdout or result.stdout.count(marker) < 6:
-        raise RuntimeError("Mutacja #2402 nie wykazała oczekiwanej porażki: " + marker)
+    else:
+        for case in cases:
+            failures = case.findall("failure")
+            if result.returncode == 0 or len(failures) != 1 or marker not in (
+                (failures[0].text or "") + failures[0].get("message", "")
+            ):
+                raise RuntimeError("Mutacja #2402 nie wykazała oczekiwanej porażki: " + marker)
 
 
 def main():

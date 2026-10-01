@@ -157,6 +157,7 @@ final class ImportIKolejkaWJednejTransakcjiTest extends TestDwochPolaczen
             'zdjecie' => app(ZlecImportPrzepisu::class)->handle(
                 $author, UploadedFile::fake()->image('kartka.jpg', 400, 500), $key,
             ),
+            default => throw new \LogicException('Nieznane źródło testowe importu.'),
         };
         $this->imports[] = (string) $import->getKey();
         $this->assertSame(ImportPrzepisu::STATUS_OCZEKUJE, $import->status);
