@@ -5,6 +5,8 @@
 - Naprawione (#2451): porównanie wersji przepisu pokazuje przestawienie składników i grup. Dodanie lub usunięcie składnika nie tworzy pozornej zmiany kolejności pozostałych.
 
 - Naprawione (#2476, #2478, #2479): osobista paczka danych zachowuje sam rok rodzinny w HTML, odróżnia przepis ukryty od szkicu i zapisuje jawny wybór „Bez ilości” w bieżących składnikach JSON.
+- Wewnętrzne (pomiar dostępności): lokalne dane wspomnienia obejmują także następny dzień, żeby audyt przechodzący przez północ w Polsce nadal oglądał właściwy, niepusty ekran. Zasada pokazywania wspomnień w serwisie pozostaje taka sama.
+
 - Wewnętrzne (#2490): instalator klienta PostgreSQL 18 w CI podaje etap i czas błędu oraz ogranicza czas pobrania klucza i instalacji. Weryfikacja odcisku, wersja klienta i pełne testy pozostają obowiązkowe.
 
 - Zmienione (decyzja właściciela z 1.10.2026, D-333): „Zajęło mi …” na karcie wykonania i czas kroku, przygotowania i gotowania w kopii HTML przepisu piszą się jak czas przepisu — poniżej 90 minut dokładne minuty, od 90 godziny i minuty zaokrąglone do 5 minut (120 min to „2 godz.”, 95 min to „1 godz. 35 min”). Surowe liczby w eksporcie JSON/CSV i ISO 8601 w JSON-LD bez zmian. Życzenia urodzinowe mailem (D-269): decyzja o włączeniu w panelu Railway zapisana, krok W12 do wykonania przez właściciela.
