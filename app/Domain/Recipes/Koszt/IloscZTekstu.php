@@ -64,8 +64,12 @@ final class IloscZTekstu
     {
         $t = self::normalizuj($tekst);
 
-        // Liczba (także „1,5", „1/2", „1 1/2", „2-3"), po niej opcjonalnie słowo.
-        $wzor = '/(?<![a-z0-9.,\/])(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:[.,]\d+)?)(?:\s*-\s*(\d+(?:[.,]\d+)?))?\s*(%|[a-z]+\.?)?/';
+        // Dwie poprawne liczby po „-”, „do”, „lub” albo „albo” tworzą zakres.
+        // Jedno słowo „do” po ilości nie jest jednostką ani górną granicą.
+        $liczba = '(?:\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:[.,]\d+)?)';
+        $wzor = '/(?<![a-z0-9.,\/])('.$liczba.')'
+            .'(?:(?:\s*-\s*|\s+(?:do|lub|albo)\s+)('.$liczba.'))?'
+            .'\s*(%|[a-z]+\.?)?/';
 
         if (preg_match_all($wzor, $t, $trafienia, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) > 0) {
             foreach ($trafienia as $trafienie) {
@@ -75,6 +79,10 @@ final class IloscZTekstu
                 // „śmietana 18%", „mąka typ 650" — to nie są ilości.
                 if ($slowo === '%' || str_ends_with($przed, 'typ ')) {
                     continue;
+                }
+
+                if (in_array($slowo, ['do', 'lub', 'albo'], true)) {
+                    return null;
                 }
 
                 $ilosc = self::liczba($trafienie[1][0]);
