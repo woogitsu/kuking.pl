@@ -23,7 +23,7 @@
  *   przebieg ORZEKA i ustawia kod wyjścia 1. Ustawia na koncie demo formę
  *   żeńską (przez prawdziwy formularz „Jak mamy do Ciebie pisać?", nie przez
  *   bazę), potem w oknie 320 px, przy tekście 100% i przy czcionce
- *   przeglądarki 150% (CDP `Page.setFontSizes`, jak `PRZEGLADARKA_200` w
+ *   przeglądarki 150% (dla samego wyboru również 200%; CDP `Page.setFontSizes`, jak `PRZEGLADARKA_200` w
  *   `dostepnosc.mjs`), odwiedza ekrany, na których forma jest WIDOCZNA
  *   (`EKRANY_FORMY`), i wymaga: brak przewijania w poziomie, tekst formy
  *   ≥ 18 px, cele formy ≥ 48 px, nic nie ucięte ani poza oknem. Ekran bez
@@ -34,6 +34,7 @@
  *   ADRES=http://127.0.0.1:8137 node scripts/audyt-ux50plus.mjs
  *   ADRES=... node scripts/audyt-ux50plus.mjs --szybko   (mniejsza macierz)
  *   ADRES=... node scripts/audyt-ux50plus.mjs --tylko-forme   (tylko odbiór formy)
+ *   ADRES=... node scripts/audyt-ux50plus.mjs --tylko-wybor-formy (dwa formularze, 320 px / 100% i 200%)
  *   ADRES=... node scripts/audyt-ux50plus.mjs --bez-formy     (bez odbioru formy)
  *   DB_DATABASE=<baza serwera z ADRES> ADRES=... node scripts/audyt-ux50plus.mjs
  *     (ekrany paczki S biorą dane z scripts/fixtures/nowe-ekrany-s.php; bez bazy: --bez-paczki-s)
@@ -45,14 +46,15 @@ import { execFileSync } from 'node:child_process';
 
 const ADRES = process.env.ADRES || 'http://127.0.0.1:8137';
 const SZYBKO = process.argv.includes('--szybko');
-const TYLKO_FORME = process.argv.includes('--tylko-forme');
+const TYLKO_WYBOR_FORMY = process.argv.includes('--tylko-wybor-formy');
+const TYLKO_FORME = process.argv.includes('--tylko-forme') || TYLKO_WYBOR_FORMY;
 const BEZ_FORMY = process.argv.includes('--bez-formy');
 // Ekrany paczki S wymagają fixture w bazie serwera; test atrapy
 // (`fixtures/audyt-ux50plus-konteksty.test.mjs`) przebiega bez bazy.
 const BEZ_PACZKI_S = process.argv.includes('--bez-paczki-s');
 const TYLKO_EKRANY = process.env.TYLKO_EKRANY ? new RegExp(process.env.TYLKO_EKRANY, 'u') : null;
 const KONTO = 'ania';
-const HASLO = 'haslo-testowe-123';
+const HASLO = process.env.KUKING_DEMO_HASLO || 'haslo-testowe-123';
 
 const SZEROKOSCI = SZYBKO ? [320, 390] : [320, 360, 390, 414, 768, 1440];
 const MOTYWY = SZYBKO ? ['light'] : ['light', 'dark'];
@@ -564,6 +566,82 @@ async function ustawFormeWFormularzu(strona, wartosc) {
   return zaznaczone ? null : `formularz przyjął wybór „${wartosc}", ale po przeładowaniu nie jest zaznaczony`;
 }
 
+/** #2405: prawdziwy formularz przy 320 px / 200%, także po błędzie i z klawiaturą. */
+async function sprawdzWyborFormyPoBledzie(strona) {
+  let radia = strona.locator('#forma-zwracania input[name="form_of_address"]');
+  if (await radia.count() !== 3) return ['brak trzech natywnych pól radio'];
+
+  // Start od dokumentu: do grupy dochodzimy prawdziwym Tab, bez `.focus()` na radiu.
+  await strona.evaluate(() => document.activeElement?.blur());
+  let tabDoGrupy = false;
+  for (let i = 0; i < 80; i += 1) {
+    await strona.keyboard.press('Tab');
+    tabDoGrupy = await strona.evaluate(() => document.activeElement?.matches('#forma-zwracania input[name="form_of_address"]') === true);
+    if (tabDoGrupy) break;
+  }
+  if (!tabDoGrupy) return ['nie da się dojść klawiszem Tab do grupy radio'];
+
+  await strona.keyboard.press('ArrowRight');
+  const strzalkaDziala = await radia.nth(1).isChecked();
+  await strona.keyboard.press('ArrowLeft');
+  await strona.keyboard.press('Space');
+  const spacjaDziala = await radia.nth(0).isChecked();
+  await strona.keyboard.press('Tab');
+  const tabDoWyslania = await strona.evaluate(() => document.activeElement?.matches('#forma-zwracania button[type="submit"]') === true);
+  if (!tabDoWyslania) return ['Tab z grupy radio nie prowadzi do przycisku Zapisz formę'];
+  await Promise.all([
+    strona.waitForNavigation({ waitUntil: 'domcontentloaded' }),
+    strona.keyboard.press('Enter'),
+  ]);
+  radia = strona.locator('#forma-zwracania input[name="form_of_address"]');
+  const enterZapisal = await radia.nth(0).isChecked() && await strona.locator('#f-form_of_address-error').count() === 0;
+
+  // Natywnie zaznaczone radio nie pozwala człowiekowi wysłać pustej grupy.
+  // Wymuszenie pustego żądania służy WYŁĄCZNIE sprawdzeniu odpowiedzi serwera.
+  await radia.evaluateAll((pola) => pola.forEach((pole) => { pole.checked = false; }));
+  await Promise.all([
+    strona.waitForNavigation({ waitUntil: 'domcontentloaded' }),
+    strona.locator('#forma-zwracania button[type="submit"]').click(),
+  ]);
+  await strona.waitForFunction(() => document.activeElement?.classList.contains('error-summary'), null, { timeout: 2000 });
+  const stan = await strona.evaluate(() => {
+    const pola = [...document.querySelectorAll('#forma-zwracania input[name="form_of_address"]')];
+    const grupa = document.querySelector('#forma-zwracania fieldset');
+    const blad = document.querySelector('#f-form_of_address-error');
+    const podsumowanie = document.querySelector('.error-summary');
+    return {
+      pola: pola.length,
+      opisane: pola.every((pole) => pole.getAttribute('aria-invalid') === 'true'
+        && ['forma-zwracania-pomoc', 'f-form_of_address-error'].every((id) =>
+          pole.getAttribute('aria-describedby')?.split(/\s+/).includes(id) && document.getElementById(id))),
+      grupa: !!grupa,
+      blad: blad?.textContent.includes('Zaznacz jedną z trzech odpowiedzi'),
+      link: !!podsumowanie?.querySelector('a[href="#f-form_of_address"]'),
+      fokus: document.activeElement === podsumowanie,
+      bezPrzewijania: document.documentElement.scrollWidth <= window.innerWidth,
+      zaznaczonePoBledzie: pola.filter((pole) => pole.checked).length,
+    };
+  });
+  // Podsumowanie jest pierwszym fokusem po błędzie. Dalej Tab → link → Enter
+  // musi przenieść klawiaturę do pierwszego radia, nie tylko zmienić fragment URL.
+  await strona.keyboard.press('Tab');
+  const tabDoLinku = await strona.evaluate(() => document.activeElement?.matches('.error-summary a[href="#f-form_of_address"]') === true);
+  if (tabDoLinku) await strona.keyboard.press('Enter');
+  const linkFokusujeRadio = await strona.evaluate(() => document.activeElement?.id === 'f-form_of_address');
+  const pomiarPoBledzie = await strona.evaluate(ZMIERZ_FORME, { wzor: WZOR_FORMY });
+  return [
+    ...(!strzalkaDziala ? ['strzałka nie wybiera następnego radia'] : []),
+    ...(!spacjaDziala ? ['Spacja nie wybiera radia'] : []),
+    ...(!enterZapisal ? ['Enter na przycisku nie zapisuje wyboru'] : []),
+    ...(stan.pola !== 3 || !stan.opisane || !stan.grupa || !stan.blad || !stan.link || !stan.fokus
+      ? ['błąd nie jest powiązany z każdym radiem, grupą i podsumowaniem albo fokus nie trafił na podsumowanie'] : []),
+    ...(!tabDoLinku || !linkFokusujeRadio ? ['Tab i Enter w podsumowaniu nie przenoszą fokusu do pierwszego radia'] : []),
+    ...(stan.zaznaczonePoBledzie !== 1 ? ['po błędnym żądaniu nie odtworzono domyślnie zaznaczonej odpowiedzi'] : []),
+    ...(!stan.bezPrzewijania ? ['po błędzie formularz przewija się poziomo przy 320 px / 200%'] : []),
+    ...ocenFormePomiar(pomiarPoBledzie).map((blad) => `po błędnym żądaniu: ${blad}`),
+  ];
+}
+
 /**
  * Przycisk „Ugotowałam" stoi dopiero na OSTATNIM kroku trybu gotowania, więc
  * idziemy odnośnikami „Następny krok", aż ich nie będzie. Bez tego audyt
@@ -603,16 +681,18 @@ async function przebiegForma(przegladarka, stan, dyn) {
     const dynForma = {
       ...dyn,
       ugotowalem: dyn.przepis ? `${dyn.przepis}/ugotowalem` : undefined,
-      gotowanieOstatni: dyn.gotowanie ? await ostatniKrokGotowania(stronaUstawien, dyn.gotowanie) : undefined,
+      gotowanieOstatni: !TYLKO_WYBOR_FORMY && dyn.gotowanie ? await ostatniKrokGotowania(stronaUstawien, dyn.gotowanie) : undefined,
     };
 
-    for (const skala of FORMA_SKALE) {
+    for (const skala of (TYLKO_WYBOR_FORMY ? [100, 200] : [...FORMA_SKALE, 200])) {
       const kontekst = await przegladarka.newContext({
         storageState: stan,
         viewport: { width: FORMA_SZEROKOSC, height: 900 },
         deviceScaleFactor: 1,
       });
       for (const ekran of EKRANY_FORMY) {
+        if (TYLKO_WYBOR_FORMY && !ekran.wybor) continue;
+        if (skala === 200 && !ekran.wybor) continue;
         const adres = ekran.dynamiczny ? dynForma[ekran.dynamiczny] : ekran.adres;
         const etykieta = `„${ekran.nazwa}" (${adres || '?'}) ${FORMA_SZEROKOSC} px / czcionka ${skala}%`;
         if (!adres) {
@@ -657,6 +737,9 @@ async function przebiegForma(przegladarka, stan, dyn) {
             naruszenia.push('próg 64rem nadal aktywny przy powiększonej czcionce — zmiana nie dotknęła bazy media queries');
           }
           naruszenia.push(...ocenFormePomiar(m));
+          if (ekran.wybor && skala === 200 && await strona.$('#forma-zwracania')) {
+            naruszenia.push(...await sprawdzWyborFormyPoBledzie(strona));
+          }
           for (const n of naruszenia) bledy.push(`${etykieta}: ${n}`);
           pomiary.push({ ekran: ekran.nazwa, adres, szerokosc: FORMA_SZEROKOSC, skala, ...m, naruszenia });
         } catch (e) {
@@ -679,7 +762,7 @@ async function przebiegForma(przegladarka, stan, dyn) {
 async function main() {
   const przegladarka = await chromium.launch();
   const stan = await stanZalogowanego(przegladarka);
-  const dyn = await adresyDynamiczne(przegladarka);
+  const dyn = TYLKO_WYBOR_FORMY ? {} : await adresyDynamiczne(przegladarka);
   console.log(`Adresy dynamiczne: przepis=${dyn.przepis} wpis=${dyn.wpis}`);
   if (brakDanychS !== null) {
     // Ekrany paczki S bez danych to pusta zieleń — przerywamy, nie pomijamy.
@@ -783,7 +866,11 @@ async function main() {
   let forma = { pomiary: [], bledy: [] };
   if (!BEZ_FORMY) {
     forma = await przebiegForma(przegladarka, stan, dyn);
-    console.log(`… odbiór formy: ${forma.pomiary.length} pomiarów (${FORMA_SZEROKOSC} px × czcionka ${FORMA_SKALE.join('/')}%), naruszeń: ${forma.bledy.length}`);
+    const skaleFormy = TYLKO_WYBOR_FORMY ? '100/200' : `${FORMA_SKALE.join('/')} (wybór także 200)`;
+    console.log(`… odbiór formy: ${forma.pomiary.length} pomiarów (${FORMA_SZEROKOSC} px × czcionka ${skaleFormy}%), naruszeń: ${forma.bledy.length}`);
+    if (TYLKO_WYBOR_FORMY && forma.pomiary.length !== 4) {
+      forma.bledy.push(`zmierzono ${forma.pomiary.length} z 4 wariantów wyboru formy (ustawienia i onboarding, 100% i 200%)`);
+    }
   }
 
   await przegladarka.close();
