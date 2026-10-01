@@ -1290,9 +1290,28 @@ def spizarnia_bez_potwierdzenia(source):
             </form>''' + source[end:]
 
 
+def planer_bez_potwierdzenia(source):
+    """Przywróć bezpośredni formularz DELETE sprzed #2468."""
+    poczatek = '                                <details class="confirm planer-potwierdzenie">'
+    koniec = '                                </details>'
+    if source.count(poczatek) != 1 or source.count(koniec) != 1:
+        raise RuntimeError('Nie znaleziono dokładnie jednego potwierdzenia Planera.')
+    od = source.index(poczatek)
+    do = source.index(koniec, od) + len(koniec)
+    dawny = '''                                <form method="POST" action="{{ route('planer.destroy', $wpis) }}">
+                                    @csrf @method('DELETE')
+                                    <button class="btn btn-secondary" type="submit">Usuń z planu<span class="visually-hidden">: {{ $nazwa }}</span></button>
+                                </form>'''
+
+    return source[:od] + dawny + source[do:]
+
+
 checks = [
     ("Spiżarnia usuwa bez pytania (#2467)", "resources/views/pages/pantry/_produkty.blade.php",
      "test_pierwszy_klik_w_spizarni_rozwija_pytanie_zamiast_kasowac_produkt", spizarnia_bez_potwierdzenia),
+    ("Planer usuwa bez pytania (#2468)", "resources/views/pages/planer/show.blade.php",
+     "test_usuniecie_z_planera_wymaga_potwierdzenia_przy_wlasciwym_dniu_i_pozycji",
+     planer_bez_potwierdzenia),
     # #988: komunikat po akcji ma jawny rodzaj. Goły `->with('status', …)`
     # wróciłby do zielonej plakietki także dla odmowy.
     ("Goły ->with('status') wraca do kontrolera", "app/Http/Controllers/SmakowicieController.php", "test_w_app_nie_ma_golego_zapisu_statusu_bez_rodzaju",

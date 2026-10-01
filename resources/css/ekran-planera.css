@@ -67,6 +67,28 @@
     overflow-wrap: anywhere;
   }
 
+  /* Destrukcja stoi w osobnym wierszu także przy 320 px i powiększeniu. */
+  .planer-potwierdzenie {
+    flex-basis: 100%;
+    min-width: 0;
+    padding-top: var(--spacing-3);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .planer-potwierdzenie > summary,
+  .planer-potwierdzenie .confirm-body {
+    max-width: 100%;
+  }
+
+  .planer-anuluj,
+  .planer-potwierdzenie[open] .planer-usun-napis {
+    display: none;
+  }
+
+  .planer-potwierdzenie[open] .planer-anuluj {
+    display: inline;
+  }
+
   .planer-dopisz {
     display: flex;
     flex-wrap: wrap;

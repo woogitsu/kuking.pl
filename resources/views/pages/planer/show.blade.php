@@ -119,11 +119,23 @@
                                             <button class="btn btn-secondary" type="submit">Dodaj składniki<span class="visually-hidden"> do listy zakupów: {{ $nazwa }}</span></button>
                                         </form>
                                     @endif
-                                    <form method="POST" action="{{ route('planer.destroy', $wpis) }}">
-                                        @csrf @method('DELETE')
-                                        <button class="btn btn-secondary" type="submit">Usuń z planu<span class="visually-hidden">: {{ $nazwa }}</span></button>
-                                    </form>
                                 </span>
+                                {{-- Usunięcie jest osobno: pierwszy dotyk rozwija pytanie, nie wysyła DELETE. --}}
+                                <details class="confirm planer-potwierdzenie">
+                                    <summary class="btn btn-danger confirm-summary">
+                                        <span class="planer-usun-napis">Usuń z planu</span>
+                                        <span class="planer-anuluj">Anuluj</span>
+                                        <span class="visually-hidden">: {{ $nazwa }}, {{ PlanerTygodnia::nazwaDnia($dzien['dzien']) }}</span>
+                                    </summary>
+                                    <div class="confirm-body">
+                                        <p class="confirm-question">Na pewno usunąć tę pozycję z planu na {{ PlanerTygodnia::naDzien($dzien['dzien']) }}? Tej operacji nie da się cofnąć.</p>
+                                        <p class="confirm-question-nazwa"><strong>{{ $nazwa }}</strong></p>
+                                        <form method="POST" action="{{ route('planer.destroy', $wpis) }}">
+                                            @csrf @method('DELETE')
+                                            <button class="btn btn-danger" type="submit">Tak, usuń z planu</button>
+                                        </form>
+                                    </div>
+                                </details>
                             </li>
                         @endforeach
                     </ul>

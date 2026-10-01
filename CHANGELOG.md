@@ -3,6 +3,7 @@
 ## Nieopublikowane
 
 - Naprawione (#2467): usunięcie produktu z „Co mam w domu” najpierw pokazuje pytanie z jego nazwą. „Anuluj” zamyka je bez kasowania ilości lub terminu, także bez JavaScriptu.
+- Naprawione (#2468): usunięcie pozycji z Planera najpierw pokazuje pytanie z dniem i nazwą; dopiero osobne potwierdzenie usuwa wpis. Zamknięcie pytania zostawia plan bez zmian, a niedostępny przepis nie ujawnia tytułu.
 
 - Wewnętrzne (#2490): instalator klienta PostgreSQL 18 w CI podaje etap i czas błędu oraz ogranicza czas pobrania klucza i instalacji. Weryfikacja odcisku, wersja klienta i pełne testy pozostają obowiązkowe.
 
