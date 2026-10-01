@@ -20,6 +20,11 @@ ujemna przywraca bezpośredni formularz bez `<details>` i musi oblać test.
 
 ## Wycofanie
 
+Pomiar prawdziwego ekranu w CI (job `110623651455`, 2.10.2026) wykrył
+416 px szerokości po otwarciu pytania przy oknie 320 px. Tor siatki dni
+ma teraz minimum zero, a pytanie granicę szerokości swojego wiersza.
+Nie podnosimy progu pomiaru; wynik poprawki musi potwierdzić świeże CI.
+
 Zmiana nie ma migracji ani nowych danych. Cofnięcie widoku, CSS i testu
 przywraca dawny sposób obsługi; zapisane pozycje planu pozostają bez zmian.
 Taki rollback przywróci też ryzyko przypadkowego usunięcia, więc nie jest

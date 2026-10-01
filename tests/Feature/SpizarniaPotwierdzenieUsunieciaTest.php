@@ -59,7 +59,13 @@ class SpizarniaPotwierdzenieUsunieciaTest extends TestCase
         $this->assertSame($przed, $this->attributesFromDatabase($produkt));
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * Każde wywołanie czyta nowy stan bazy po żądaniu HTTP.
+     *
+     * @phpstan-impure
+     *
+     * @return array<string, mixed>
+     */
     private function attributesFromDatabase(PantryItem $produkt): array
     {
         return PantryItem::query()->findOrFail($produkt->getKey())->getAttributes();

@@ -96,6 +96,17 @@ async function checkScreen(page, path, item, id, statePath) {
   await accessibleNameMatchesVisible(summary, true);
   assert.ok((await details.innerText()).includes(before[item].text ?? before[item].name ?? before[item].label));
   const openWidth = await rootWidth(page);
+  if (openWidth.scroll > openWidth.width + 1) {
+    const overflow = await page.evaluate(() => [...document.querySelectorAll('main *')]
+      .filter(el => el.getBoundingClientRect().right > document.documentElement.clientWidth + 1)
+      .slice(0, 12).map(el => {
+        const rect = el.getBoundingClientRect();
+        const css = getComputedStyle(el);
+        return { tag: el.tagName, class: el.className, right: rect.right,
+          width: rect.width, minWidth: css.minWidth, display: css.display };
+      }));
+    console.error(JSON.stringify({ item, viewportWidth: openWidth.width, overflow }));
+  }
   assert.ok(openWidth.scroll <= openWidth.width + 1,
     `${item}: otwarte pytanie wypycha stronę ${openWidth.scroll} > ${openWidth.width}.`);
   const questionFont = await details.locator('.confirm-question').evaluate(el => parseFloat(getComputedStyle(el).fontSize));

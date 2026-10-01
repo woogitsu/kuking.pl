@@ -29,6 +29,9 @@
 
   .planer-dni {
     display: grid;
+    /* Otwarte pytanie nie podnosi minimum toru do szerokości napisu.
+       Przy 200% i 320 px tor auto wypychał cały ekran do 416 px (#2468). */
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--spacing-4);
   }
 
@@ -70,6 +73,8 @@
   /* Destrukcja stoi w osobnym wierszu także przy 320 px i powiększeniu. */
   .planer-potwierdzenie {
     flex-basis: 100%;
+    width: 100%;
+    max-width: 100%;
     min-width: 0;
     padding-top: var(--spacing-3);
     border-top: 1px solid var(--color-border);
