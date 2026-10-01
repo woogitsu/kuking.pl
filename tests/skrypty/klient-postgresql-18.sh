@@ -48,6 +48,8 @@ mkdir -p "$ATRAPY"
 cat > "${ATRAPY}/curl" <<'KONIEC'
 #!/usr/bin/env bash
 echo "curl $*" >> "$DZIENNIK"
+[ "${ATRAPA_CURL:-}" = wolno ] && sleep 3
+[ "${ATRAPA_CURL:-}" = blad ] && exit 7
 cel=""
 while [ $# -gt 0 ]; do
     if [ "$1" = -o ]; then cel="$2"; shift; fi
@@ -59,6 +61,8 @@ KONIEC
 cat > "${ATRAPY}/sudo" <<'KONIEC'
 #!/usr/bin/env bash
 echo "sudo $*" >> "$DZIENNIK"
+[ "$1" = apt-get ] && [ "${ATRAPA_APT:-}" = "${2}-wolno" ] && sleep 3
+[ "$1" = apt-get ] && [ "${ATRAPA_APT:-}" = "${2}-blad" ] && exit 100
 [ "$1" = tee ] && cat >/dev/null
 exit 0
 KONIEC
@@ -78,10 +82,12 @@ chmod +x "${ATRAPY}"/*
 
 # uruchom SKRYPT PLIK_KLUCZA [PG] -> kod wyjścia; wyjście w ${TMP}/wyj, dziennik w ${TMP}/dziennik
 uruchom() {
-    local skrypt="$1" klucz="$2" pg="${3:-}"
+    local skrypt="$1" klucz="$2" pg="${3:-}" curl_mode="${4:-}" apt_mode="${5:-}"
     : > "${TMP}/dziennik"
     : > "${TMP}/github_path"
     PATH="${ATRAPY}:${PATH}" DZIENNIK="${TMP}/dziennik" ATRAPA_KLUCZ="$klucz" ATRAPA_PG="$pg" \
+        ATRAPA_CURL="$curl_mode" ATRAPA_APT="$apt_mode" PG18_CURL_TIMEOUT=1s \
+        PG18_APT_UPDATE_TIMEOUT=1s PG18_APT_INSTALL_TIMEOUT=1s \
         GITHUB_PATH="${TMP}/github_path" bash "$skrypt" > "${TMP}/wyj" 2>&1
     echo $?
 }
@@ -96,8 +102,11 @@ sprawdz_przypadki() {
     kod="$(uruchom "$skrypt" "$KLUCZ_PGDG")"
     if [ "$kod" != 0 ] \
         || ! grep -q "sudo install -m 0644 .* /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc" "${TMP}/dziennik" \
+        || ! grep -q 'curl .*--connect-timeout 10 --max-time 20' "${TMP}/dziennik" \
         || ! grep -q 'sudo apt-get update' "${TMP}/dziennik" \
+        || ! grep -q 'sudo apt-get update .*Acquire::Retries=2' "${TMP}/dziennik" \
         || ! grep -q 'sudo apt-get install -y -qq postgresql-client-18' "${TMP}/dziennik" \
+        || ! grep -q 'sudo apt-get install .*DPkg::Lock::Timeout=20' "${TMP}/dziennik" \
         || ! grep -qx '/usr/lib/postgresql/18/bin' "${TMP}/github_path"; then
         zle=$((zle + 1)); echo "  OBLANE: prawdziwy klucz PGDG nie doprowadził do instalacji (kod ${kod})" >&2
     fi
@@ -128,6 +137,44 @@ grep -q 'ROTACJA KLUCZA' "${TMP}/wyj" || { echo "Błąd klucza nie mówi, co zro
 uruchom "$SKRYPT" "${TMP}/nie-klucz.asc" >/dev/null
 grep -q '^::error title=Klucz PGDG nieczytelny::' "${TMP}/wyj" || { echo "Plik bez klucza bez polskiego tytułu błędu"; exit 1; }
 echo "Komunikaty: po polsku, z instrukcją"
+
+# Błąd sieci lub zawieszone APT kończy etap z nazwą i czasem, bez pozornego
+# sukcesu i bez uruchomienia następnej fazy. Testy nie dotykają systemowego APT.
+for przypadek in 'curl|blad|7|pobranie klucza PGDG' \
+                  'curl|wolno|124|pobranie klucza PGDG' \
+                  'apt|update-blad|100|aktualizacja indeksu APT' \
+                  'apt|update-wolno|124|aktualizacja indeksu APT' \
+                  'apt|install-blad|100|instalacja klienta PostgreSQL 18' \
+                  'apt|install-wolno|124|instalacja klienta PostgreSQL 18'; do
+    IFS='|' read -r rodzaj tryb oczekiwany etap <<< "$przypadek"
+    if [ "$rodzaj" = curl ]; then
+        kod="$(uruchom "$SKRYPT" "$KLUCZ_PGDG" '' "$tryb")"
+    else
+        kod="$(uruchom "$SKRYPT" "$KLUCZ_PGDG" '' '' "$tryb")"
+    fi
+    [ "$kod" = "$oczekiwany" ] || { echo "Błędny kod dla ${tryb}: ${kod}"; exit 1; }
+    grep -q "::error title=Klient PG18 - ${etap}::" "${TMP}/wyj" \
+        || { echo "Brak nazwanego błędu etapu ${etap}"; exit 1; }
+    grep -q 'po [0-9][0-9]* s' "${TMP}/wyj" \
+        || { echo "Brak czasu etapu ${etap}"; exit 1; }
+    if [ "$rodzaj" = curl ]; then
+        ! grep -q '^sudo apt-get' "${TMP}/dziennik" || exit 1
+    elif [ "${tryb#update}" != "$tryb" ]; then
+        ! grep -q '^sudo apt-get install' "${TMP}/dziennik" || exit 1
+    fi
+done
+echo "Timeout i błąd sieci/APT: diagnostyka etapu i zatrzymanie dalszych prac"
+
+# Fizyczna kontrola ujemna: bez timeoutu powolny APT przechodzi, więc
+# powyższy przypadek musiałby oblać oczekiwanie kodu 124.
+tresc="$(cat "$SKRYPT"; echo x)"; tresc="${tresc%x}"
+stary='if timeout "$limit" "$@"; then'
+[[ "$tresc" == *"$stary"* ]] || { echo "MUTACJA-NIE-TRAFILA (timeout APT)"; exit 1; }
+printf '%s' "${tresc/"$stary"/'if "$@"; then'}" > "${TMP}/bez-timeout.sh"
+cmp -s "$SKRYPT" "${TMP}/bez-timeout.sh" && { echo "MUTACJA-NO-OP (timeout APT)"; exit 1; }
+kod="$(uruchom "${TMP}/bez-timeout.sh" "$KLUCZ_PGDG" '' '' update-wolno)"
+[ "$kod" != 124 ] || { echo "Kontrola ujemna timeoutu nie zapaliła się"; exit 1; }
+echo "Kontrola ujemna: brak timeoutu przepuszcza powolny APT"
 
 # --- 4. Kontrola ujemna ----------------------------------------------------------
 mutuj() {

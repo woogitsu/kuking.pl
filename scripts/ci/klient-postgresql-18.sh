@@ -39,6 +39,25 @@
 # =============================================================================
 set -euo pipefail
 
+# Wszystkie limity dotyczą tylko instalacji klienta CI, nie pracy z bazą.
+# Krótsze wartości w testach pozwalają sprawdzić timeout bez czekania minut.
+PG18_APT_UPDATE_TIMEOUT="${PG18_APT_UPDATE_TIMEOUT:-90s}"
+PG18_APT_INSTALL_TIMEOUT="${PG18_APT_INSTALL_TIMEOUT:-120s}"
+PG18_CURL_TIMEOUT="${PG18_CURL_TIMEOUT:-70s}"
+
+uruchom_etap() {
+  local opis="$1" limit="$2" start=$SECONDS kod
+  shift 2
+  echo "Klient PG18: start ${opis} (limit ${limit})."
+  if timeout "$limit" "$@"; then
+    echo "Klient PG18: ${opis} zakończony po $((SECONDS - start)) s."
+  else
+    kod=$?
+    echo "::error title=Klient PG18 - ${opis}::Etap zakończył się kodem ${kod} po $((SECONDS - start)) s (limit ${limit}). Sprawdź dostępność PGDG i dziennik APT; klient nie jest gotowy."
+    return "$kod"
+  fi
+}
+
 # Odcisk klucza „PostgreSQL Debian Repository” (ACCC4CF8). Sprawdzony
 # 30.09.2026 w dwóch miejscach: gpg na pobranym pliku i keyserver.ubuntu.com
 # (ten sam odcisk, uid „PostgreSQL Debian Repository”). Zmiana tylko według „ROTACJA KLUCZA” wyżej.
@@ -80,15 +99,22 @@ echo "Obecny klient: $(pg_restore --version 2>/dev/null || echo brak)"
 
 tymczasowy="$(mktemp)"
 trap 'rm -f "$tymczasowy"' EXIT
-curl -fsSL --retry 3 --retry-delay 5 -o "$tymczasowy" "$PGDG_URL"
+uruchom_etap "pobranie klucza PGDG" "$PG18_CURL_TIMEOUT" \
+  curl -fsSL --retry 2 --retry-delay 2 --retry-max-time 60 \
+    --connect-timeout 10 --max-time 20 -o "$tymczasowy" "$PGDG_URL"
 sprawdz_klucz_pgdg "$tymczasowy" || exit 1
 
 sudo install -d /usr/share/postgresql-common/pgdg
 sudo install -m 0644 "$tymczasowy" "$PGDG_KLUCZ"
 echo "deb [signed-by=${PGDG_KLUCZ}] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
   | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
-sudo apt-get update -qq
-sudo apt-get install -y -qq postgresql-client-18
+uruchom_etap "aktualizacja indeksu APT" "$PG18_APT_UPDATE_TIMEOUT" \
+  sudo apt-get update -qq -o Acquire::Retries=2 \
+    -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20
+uruchom_etap "instalacja klienta PostgreSQL 18" "$PG18_APT_INSTALL_TIMEOUT" \
+  sudo apt-get install -y -qq postgresql-client-18 \
+    -o Acquire::Retries=2 -o Acquire::http::Timeout=20 \
+    -o Acquire::https::Timeout=20 -o DPkg::Lock::Timeout=20
 
 # Bez tego `pg_restore` w kolejnych krokach wskazywałby starszego klienta z PATH.
 echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
