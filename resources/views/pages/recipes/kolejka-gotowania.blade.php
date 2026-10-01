@@ -7,10 +7,10 @@
      * minutniki; bez niego widać potrawy, kroki i linki do trybu pojedynczego.
      */
     $kroki = collect($pozycje)->mapWithKeys(fn (array $p): array => [$p['recipe']->slug => $p['krok']])->all();
-    $adresKolejki = function (array $mapaKrokow, ?string $aktywny) use ($kroki): string {
+    $adresKolejki = function (array $mapaKrokow, ?string $aktywny, ?string $usuniety = null) use ($kroki): string {
         $lista = collect($mapaKrokow)->map(fn (int $krok, string $slug): string => $slug.':'.$krok)->implode(',');
 
-        return route('kolejka-gotowania', array_filter(['p' => $lista, 'a' => $aktywny], fn ($wartosc) => $wartosc !== null));
+        return route('kolejka-gotowania', array_filter(['p' => $lista, 'a' => $aktywny, 'u' => $usuniety], fn ($wartosc) => $wartosc !== null));
     };
     $slugi = array_keys($kroki);
     $liczba = count($slugi);
@@ -21,6 +21,8 @@
          data-kolejka-z-adresu="{{ $zAdresu ? '1' : '0' }}"
          data-kolejka-adres="{{ route('kolejka-gotowania') }}"
          data-kolejka-wygasla="{{ $wygasla ? '1' : '0' }}"
+         data-kolejka-aktywna="{{ $aktywnySlug }}"
+         data-kolejka-pominiete="{{ json_encode([...$pominiete, ...($usuniete !== '' ? [$usuniete] : [])], JSON_THROW_ON_ERROR) }}"
          data-kolejka-dane="{{ json_encode(array_map(fn (array $p): array => [
              'slug' => $p['recipe']->slug,
              'krok' => $p['krok'],
@@ -158,7 +160,7 @@
                     @if($indeks < $liczba - 1)
                         <a class="btn btn-secondary" href="{{ $adresKolejki($zamien($indeks, $indeks + 1), $slugAktywny) }}">Przesuń „{{ $aktywna['recipe']->title }}” niżej</a>
                     @endif
-                    <a class="btn btn-secondary" href="{{ $adresKolejki($bezAktywnej, null) ?: route('kolejka-gotowania', ['p' => '']) }}">Usuń „{{ $aktywna['recipe']->title }}” z kolejki</a>
+                    <a class="btn btn-secondary" href="{{ $adresKolejki($bezAktywnej, null, $slugAktywny) }}">Usuń „{{ $aktywna['recipe']->title }}” z kolejki</a>
                     <a class="btn btn-secondary" href="{{ route('cooking.show', ['recipe' => $slugAktywny, 'krok' => $krokAktywny]) }}">Gotuj tylko „{{ $aktywna['recipe']->title }}” (tryb jednego przepisu)</a>
                     <a class="btn btn-secondary" href="{{ route('recipes.show', $slugAktywny) }}">Zobacz cały przepis</a>
                 </div>

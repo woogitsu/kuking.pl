@@ -12,6 +12,7 @@ import {
     parametrKolejki,
     adresKolejki,
     minutnikiKolejki,
+    uzupelnijOZapamietane,
     storageDziala,
     zapiszPozycje,
     usunMinutniki,
@@ -228,4 +229,32 @@ test('zablokowany storage (prywatne okno) nie rzuca wyjątku', () => {
     assert.doesNotThrow(() => usunMinutniki(ZLY_STORAGE, ['zupa']));
     assert.doesNotThrow(() => wyczyscKolejke({localStorage: ZLY_STORAGE, sessionStorage: ZLY_STORAGE, teraz: () => T0}, ['zupa']));
     assert.equal(storageDziala(new FalszywyStorage()), true);
+});
+
+test('nieaktualny adres z innej karty nie kasuje przepisu dodanego w międzyczasie', () => {
+    const lokalne = [{slug: 'zupa', krok: 1}, {slug: 'kotlet', krok: 2}, {slug: 'sernik', krok: 1}];
+    const dane = [{slug: 'zupa', krok: 2}, {slug: 'kotlet', krok: 2}];
+
+    assert.deepEqual(uzupelnijOZapamietane(lokalne, dane, []), [...dane, {slug: 'sernik', krok: 1}]);
+});
+
+test('przepis usunięty przyciskiem albo odrzucony przez serwer nie wraca do adresu', () => {
+    const lokalne = [{slug: 'zupa', krok: 1}, {slug: 'kotlet', krok: 1}];
+    const dane = [{slug: 'zupa', krok: 1}];
+
+    assert.equal(uzupelnijOZapamietane(lokalne, dane, ['kotlet']), null);
+    assert.equal(uzupelnijOZapamietane(lokalne, dane, new Set(['kotlet'])), null);
+});
+
+test('uzupełnianie adresu mieści się w limicie i się kończy', () => {
+    const lokalne = ['a', 'b', 'c', 'd'].map((slug) => ({slug, krok: 1}));
+
+    // Adres ma już komplet: nic nie wraca, więc nie ma pętli przekierowań.
+    assert.equal(uzupelnijOZapamietane(lokalne, lokalne, []), null);
+
+    const wynik = uzupelnijOZapamietane(lokalne, [{slug: 'a', krok: 1}, {slug: 'b', krok: 1}, {slug: 'c', krok: 1}], []);
+    assert.equal(wynik.length, LIMIT);
+
+    // Po odtworzeniu adresu zapamiętane = adres, więc drugi raz nic nie wraca.
+    assert.equal(uzupelnijOZapamietane(lokalne, wynik, []), null);
 });
