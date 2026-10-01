@@ -1309,6 +1309,14 @@ checks = [
      lambda s: replace_once(s, "        $rozmowa->przypiszKonto($request);\n", "")),
     ("Nowe konto Facebook gubi powrót do rozmowy", POWROT_KOMENTARZA_FACEBOOK, POWROT_KOMENTARZA_FACEBOOK_TEST,
      lambda s: replace_once(s, "        $rozmowa->przypiszKonto($request);\n", "")),
+    # #2420: każdy z trzech sposobów zakładania konta musi przejąć
+    # zaproszenie z sesji. Znacznik asercji wskazuje dokładnie ten powrót.
+    ("Rejestracja hasłem gubi zaproszenie do zeszytu (#2420)", "app/Http/Controllers/Auth/RegisterController.php", "test_gosc_po_rejestracji_i_pominieciu_wraca_na_podglad_a_dolacza_dopiero_po_kliknieciu",
+     lambda s: replace_once(s, "        $dolaczenie->przypiszKonto($request);\n", "")),
+    ("Nowe konto Google gubi zaproszenie do zeszytu (#2420)", POWROT_KOMENTARZA_GOOGLE, "test_nowe_konto_google_wraca_do_podgladu_zaproszenia_do_zeszytu",
+     lambda s: replace_once(s, "        $dolaczenie->przypiszKonto($request);\n", "")),
+    ("Nowe konto Facebook gubi zaproszenie do zeszytu (#2420)", POWROT_KOMENTARZA_FACEBOOK, "test_nowe_konto_facebook_wraca_do_podgladu_zaproszenia_do_zeszytu",
+     lambda s: replace_once(s, "        $dolaczenie->przypiszKonto($request);\n", "")),
     # #1868: instalacja bez wskazania migawki wróciłaby do ruchomego mirrora.
     ("APT install bez migawki", OBRAZ_KOPII, APT_MIGAWKA_TEST,
      lambda s: replace_once(s,

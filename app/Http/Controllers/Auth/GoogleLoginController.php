@@ -18,6 +18,7 @@ use App\Support\Google;
 use App\Support\Komunikat;
 use App\Support\PowrotDoRozmowy;
 use App\Support\RejestracjaZamknieta;
+use App\Support\ZamiarDolaczeniaDoZeszytu;
 use App\Support\ZamiarZapisu;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -348,7 +349,7 @@ class GoogleLoginController extends Controller
     /**
      * Zakładamy konto — dopiero teraz i dopiero z dwoma oświadczeniami.
      */
-    public function finish(Request $request, ZalozKonto $zalozKonto, PowrotDoRozmowy $rozmowa, ZamiarZapisu $zapis): RedirectResponse
+    public function finish(Request $request, ZalozKonto $zalozKonto, PowrotDoRozmowy $rozmowa, ZamiarZapisu $zapis, ZamiarDolaczeniaDoZeszytu $dolaczenie): RedirectResponse
     {
         if (! Google::dziala()) {
             return $this->drogaZamknieta();
@@ -390,6 +391,7 @@ class GoogleLoginController extends Controller
         // rejestracji i wiążemy go wyłącznie z właśnie utworzonym kontem.
         $rozmowa->przypiszKonto($request);
         $zapis->przypiszKonto($request);
+        $dolaczenie->przypiszKonto($request);
 
         return redirect()->route('onboarding.interests')
             ->with(Komunikat::sukces('Konto gotowe. Miło Cię widzieć w Kuking.'));
