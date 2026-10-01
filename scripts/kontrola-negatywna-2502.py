@@ -15,7 +15,7 @@ KOMENDA = ["node", "--test", "--test-name-pattern=zmiana porcji wymaga", TEST]
 ZRODLO = MODUL.read_text(encoding="utf-8")
 ORIGINAL = "for (const innyKlucz of dawneKlucze) magazyn.removeItem(innyKlucz);"
 MUTACJA = "for (const innyKlucz of dawneKlucze) void innyKlucz;"
-MARKER = "Powrót do dawnej ilości wymaga ponownego odmierzenia."
+MARKER = "Zmiana ilości usuwa dawny zapis tego przepisu."
 
 if ZRODLO.count(ORIGINAL) != 1:
     raise SystemExit("#2502: nie znaleziono dokładnie jednego miejsca mutacji klucza.")
