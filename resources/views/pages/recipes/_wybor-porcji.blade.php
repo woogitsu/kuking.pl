@@ -17,6 +17,10 @@
         $adresPorcji = fn (?float $ile): string => route('recipes.show', array_filter([
             'recipe' => $recipe->slug,
             'porcje' => $ile === null ? null : $wyborPorcji->doAdresu($ile),
+            // Na kartce „dla pomocnika” (#2345) zmiana porcji zostaje na kartce.
+            'druk' => ($dlaPomocnika ?? false) ? 1 : null,
+            'dla' => ($dlaPomocnika ?? false) ? 'pomocnika' : null,
+            'qr' => ($dlaPomocnika ?? false) && ($qrNaKartce ?? false) ? 1 : null,
         ], fn ($wartosc) => $wartosc !== null)).'#skladniki';
         $mniej = $wyborPorcji->mniej();
         $wiecej = $wyborPorcji->wiecej();
