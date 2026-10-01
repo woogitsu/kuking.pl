@@ -288,6 +288,30 @@ class HistoriaWersjiPrzepisuTest extends TestCase
             ->assertSee('Jest: Piecz 40 minut.');
     }
 
+    public function test_ekran_porownania_pokazuje_minutniki_z_obu_zapisanych_migawek(): void
+    {
+        $przepis = Recipe::factory()->create();
+        $this->wersja($przepis, 1, ['steps' => [
+            ['position' => 0, 'instruction' => 'Piecz ciasto', 'timer_seconds' => 600],
+            ['position' => 1, 'instruction' => 'Wyjmij z formy', 'timer_seconds' => 125],
+        ]]);
+        $this->wersja($przepis, 2, ['steps' => [
+            ['position' => 0, 'instruction' => 'Piecz ciasto na złoty kolor', 'timer_seconds' => 1200],
+            ['position' => 1, 'instruction' => 'Ostudź przed krojeniem', 'timer_seconds' => 95],
+            ['position' => 2, 'instruction' => 'Posyp cukrem', 'timer_seconds' => 60],
+        ]]);
+
+        $html = $this->get(route('recipes.history.changes', [$przepis->slug, 2]))->assertOk()->getContent();
+        $this->assertSame(1, preg_match('/<section[^>]*aria-labelledby="hz-kroki"[^>]*>(.*?)<\/section>/s', $html, $sekcja));
+        $kroki = html_entity_decode(strip_tags($sekcja[1]));
+
+        $this->assertStringContainsString('Było: Piecz ciasto (minutnik: 10 min)', $kroki);
+        $this->assertStringContainsString('Jest: Piecz ciasto na złoty kolor (minutnik: 20 min)', $kroki);
+        $this->assertStringContainsString('Było: Wyjmij z formy (minutnik: 125 s)', $kroki);
+        $this->assertStringContainsString('Jest: Ostudź przed krojeniem (minutnik: 95 s)', $kroki);
+        $this->assertStringContainsString('Jest: Posyp cukrem (minutnik: 1 min)', $kroki);
+    }
+
     public function test_pierwsza_wersja_nie_ma_z_czym_sie_porownac(): void
     {
         $przepis = $this->przepisZWersjami(2);

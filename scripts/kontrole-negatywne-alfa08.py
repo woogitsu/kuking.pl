@@ -1278,6 +1278,14 @@ checks = [
     # rzeczywistym nowym połączeniu PostgreSQL, nie tylko test tekstu configu.
     ("Domyslny JIT wraca na polaczeniu PostgreSQL (#2291)", "config/database.php", "PolaczenieBazyMaWylaczonyJitTest::swieze_polaczenie_aplikacji_ma_jit_off",
      lambda s: replace_once(s, "'server_options' => ['jit' => env('DB_JIT') ?: 'off'],", "'server_options' => ['jit' => env('DB_JIT') ?: 'on'],")),
+    # #2445: prawdziwe `porownaj()` ma nie zgubić czasu w żadnej gałęzi luki.
+    ("Historia: zmieniony krok gubi minutnik", "app/Domain/Recipes/Historia/PorownanieWersji.php", "test_zmiana_tekstu_i_minutnika_pokazuje_czasy_obu_migawek",
+     lambda s: replace_once(s, "'przed' => $stare[$lukaStare[$p]]['instruction'].($pokazMinutnik ? self::opisMinutnika($staryCzas) : ''),",
+                            "'przed' => $stare[$lukaStare[$p]]['instruction'],")),
+    ("Historia: dodany krok gubi minutnik", "app/Domain/Recipes/Historia/PorownanieWersji.php", "test_dodany_i_usuniety_krok_pokazuja_wlasny_minutnik_lub_sam_tekst",
+     lambda s: replace_once(s, "'po' => $nowe[$j]['instruction'].$minutnik]", "'po' => $nowe[$j]['instruction']]")),
+    ("Historia: usunięty krok gubi minutnik", "app/Domain/Recipes/Historia/PorownanieWersji.php", "test_dodany_i_usuniety_krok_pokazuja_wlasny_minutnik_lub_sam_tekst",
+     lambda s: replace_once(s, "'przed' => $stare[$i]['instruction'].$minutnik", "'przed' => $stare[$i]['instruction']")),
     # #2400: cofnięcie porównania pod zamkiem musi pozwolić starej karcie
     # nadpisać B przez C i oblać test na zapisanej wartości, nie na otoczeniu.
     ("Stara karta nadpisuje nowszą notatkę (#2400)", "app/Domain/Collections/Actions/UpdateCollectionItemNote.php",
