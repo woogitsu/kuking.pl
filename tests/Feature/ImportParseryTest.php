@@ -126,6 +126,50 @@ final class ImportParseryTest extends TestCase
         $this->assertStringNotContainsString('Jan Obcy', $zrzut);
     }
 
+    public function test_pusty_przepis_w_tym_samym_grafie_nie_zaslania_pelnego(): void
+    {
+        $html = $this->stronaZJsonLd(['@graph' => [
+            ['@type' => 'Recipe', 'name' => 'Pusty'],
+            ['@type' => 'Recipe', 'name' => 'Pełny', 'recipeIngredient' => ['mąka'], 'recipeInstructions' => 'Wymieszaj.'],
+        ]]);
+
+        $przepis = (new ParserJsonLdPrzepisu)->odczytaj($html);
+
+        $this->assertSame('Pełny', $przepis?->tytul, 'JSONLD_PUSTY_NIE_ZASLANIA');
+        $this->assertSame(['mąka'], $przepis?->skladniki);
+        $this->assertSame(['Wymieszaj.'], $przepis?->kroki);
+    }
+
+    public function test_zagniezdzona_lista_pomija_pusty_recipe_i_nie_miesza_pol(): void
+    {
+        $html = $this->stronaZJsonLd([
+            '@type' => 'WebPage',
+            'mainEntity' => [
+                ['@type' => 'Recipe', 'name' => 'Pusty', 'image' => 'https://obcy.example.pl/obraz.jpg'],
+                ['@type' => 'Recipe', 'name' => 'Drugi', 'recipeInstructions' => 'Gotuj.'],
+            ],
+        ]);
+
+        $przepis = (new ParserJsonLdPrzepisu)->odczytaj($html);
+
+        $this->assertSame('Drugi', $przepis?->tytul);
+        $this->assertSame([], $przepis?->skladniki);
+        $this->assertSame(['Gotuj.'], $przepis?->kroki);
+        $this->assertStringNotContainsString('obraz.jpg', serialize($przepis));
+    }
+
+    public function test_tekstowe_ulamkowe_porcje_sa_rownowazne_liczbie_bez_zgadywania_jednostek(): void
+    {
+        $this->assertSame(1.25, ParserJsonLdPrzepisu::porcje('1,25 porcji'), 'PORCJE_ULAMKOWE_TEKST');
+        $this->assertSame(1.25, ParserJsonLdPrzepisu::porcje('1.25'));
+        $this->assertSame(1.25, ParserJsonLdPrzepisu::porcje(1.25));
+        $this->assertSame(0.5, ParserJsonLdPrzepisu::porcje('0,5 porcji'));
+        $this->assertSame(4.0, ParserJsonLdPrzepisu::porcje('4 porcje'));
+        foreach (['1.251 porcji', '4-6', '1 blacha', '0 porcji', '1000,01 porcji'] as $niejednoznaczne) {
+            $this->assertNull(ParserJsonLdPrzepisu::porcje($niejednoznaczne));
+        }
+    }
+
     public function test_json_ld_z_instrukcja_jako_html_i_przedzialem_porcji(): void
     {
         $html = $this->stronaZJsonLd([

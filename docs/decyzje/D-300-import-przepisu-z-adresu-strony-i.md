@@ -135,6 +135,15 @@ Testy: `ImportZAdresuWKolejceTest`, `ImportZPdfWKolejceTest`,
 `CofniecieMigracjiKodowAdresuImportuTest`, `CofniecieMigracjiPlikuTymczasowegoImportuTest`,
 `ImportPrzepisuZAdresuIPdfTest`, `UmowaKolejkiTest`.
 
+### Doprecyzowanie parserów lokalnych (#2536, #2538, #2539)
+Parser lokalny wybiera pierwszy **niepusty** przepis w kolejności węzłów JSON-LD;
+pusty `Recipe` w tym samym grafie nie zasłania późniejszego przepisu. Mikrodane
+odczytują składnik i krok także z atrybutu `content` elementu `meta`, bez
+mieszania pól odrębnych przepisów. Jednoznaczna tekstowa liczba porcji przyjmuje
+setne z kropką albo przecinkiem; zakresy, inne jednostki i większa precyzja
+pozostają puste. Te naprawy #2536/#2538/#2539 nie zmieniają schematu ani
+budżetu modelu. Wycofanie kodu przywraca błędy odczytu, ale nie wymaga migracji.
+
 ### Wycofanie
 `KUKING_IMPORT_URL=false` i/lub `KUKING_IMPORT_PDF=false` zdejmują przyciski
 i trasy (404). Istniejące szkice zostają prywatne i zachowują bramkę

@@ -96,6 +96,28 @@ final class ImportMikrodaneTest extends TestCase
         $this->assertSame(['Obierz warzywa.', 'Gotuj godzinę.', 'Podawaj gorącą.'], $przepis->kroki);
     }
 
+    public function test_meta_content_skladnik_i_kroki_sa_odczytane_w_kolejnosci(): void
+    {
+        $html = $this->strona(<<<'HTML'
+            <article itemscope itemtype="https://schema.org/Recipe">
+              <meta itemprop="name" content="Sernik">
+              <meta itemprop="recipeYield" content="1,25 porcji">
+              <meta itemprop="recipeIngredient" content="200 g mąki">
+              <span itemprop="recipeIngredient">1 jajko</span>
+              <meta itemprop="recipeInstructions" content="Wymieszaj.">
+              <div itemprop="recipeInstructions" itemscope itemtype="https://schema.org/HowToStep">
+                <meta itemprop="text" content="Upiecz.">
+              </div>
+            </article>
+            HTML);
+
+        $przepis = $this->parser()->odczytaj($html);
+
+        $this->assertSame(['200 g mąki', '1 jajko'], $przepis?->skladniki, 'MICRODATA_META_SKLADNIK');
+        $this->assertSame(['Wymieszaj.', 'Upiecz.'], $przepis?->kroki, 'MICRODATA_META_KROK');
+        $this->assertSame(1.25, $przepis?->porcje);
+    }
+
     public function test_zagniezdzone_itemscope_nie_miesza_sie_z_polami_przepisu(): void
     {
         $html = $this->strona(<<<'HTML'

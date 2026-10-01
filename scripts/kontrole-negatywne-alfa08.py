@@ -1264,6 +1264,32 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    # #2536–#2539: strukturalny import z URL bez modelu i bez utraty treści.
+    ("Pusty Recipe zasłania pełny w JSON-LD (#2536)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
+     "test_pusty_przepis_w_tym_samym_grafie_nie_zaslania_pelnego",
+     lambda s: replace_once(s,
+         "            if ($znaleziony !== null) {\n                return $znaleziony;\n            }",
+         "            if ($znaleziony === null) {\n                return null;\n            }")),
+    ("Meta content składnika znika z mikrodanych (#2538)", "app/Domain/Import/Url/ParserMikrodanychPrzepisu.php",
+     "test_meta_content_skladnik_i_kroki_sa_odczytane_w_kolejnosci",
+     lambda s: replace_once(s,
+         "foreach (array_merge($wlasciwosci['recipeingredient'] ?? [], $wlasciwosci['ingredients'] ?? []) as $el) {\n            $tekst = $this->jednaLinia($this->wartosc($el));",
+         "foreach (array_merge($wlasciwosci['recipeingredient'] ?? [], $wlasciwosci['ingredients'] ?? []) as $el) {\n            $tekst = $this->jednaLinia($this->tekstElementu($el));")),
+    ("Meta content kroku znika z mikrodanych (#2538)", "app/Domain/Import/Url/ParserMikrodanychPrzepisu.php",
+     "test_meta_content_skladnik_i_kroki_sa_odczytane_w_kolejnosci",
+     lambda s: replace_once(s,
+         "        return $this->wiersze($this->wartosc($el));",
+         "        return $this->wiersze($this->tekstElementu($el));")),
+    ("Meta content zagnieżdżonego kroku znika (#2538)", "app/Domain/Import/Url/ParserMikrodanychPrzepisu.php",
+     "test_meta_content_skladnik_i_kroki_sa_odczytane_w_kolejnosci",
+     lambda s: replace_once(s,
+         "                    array_push($wynik, ...$this->wiersze($this->wartosc($pole)));",
+         "                    array_push($wynik, ...$this->wiersze($this->tekstElementu($pole)));")),
+    ("Tekstowe ułamkowe porcje znikają (#2539)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
+     "test_tekstowe_ulamkowe_porcje_sa_rownowazne_liczbie_bez_zgadywania_jednostek",
+     lambda s: replace_once(s,
+         "(\\d{1,4}(?:[.,]\\d{1,2})?)",
+         "(\\d{1,3})")),
     # #2476: dwa bieżące składniki z identycznym tekstem/ile=null są różne.
     ("Bieżący eksport pomija wybór Bez ilości (#2476)", "app/Domain/Users/Exports/CollectUserExportData.php",
      "test_biezacy_szkic_zachowuje_dwa_rozne_wybory_bez_ilosci_w_json",

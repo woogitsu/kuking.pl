@@ -35,6 +35,11 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Pusty Recipe zasłania pełny w JSON-LD (#2536)': r'JSONLD_PUSTY_NIE_ZASLANIA',
+    'Meta content składnika znika z mikrodanych (#2538)': r'MICRODATA_META_SKLADNIK',
+    'Meta content kroku znika z mikrodanych (#2538)': r'MICRODATA_META_KROK',
+    'Meta content zagnieżdżonego kroku znika (#2538)': r'MICRODATA_META_KROK',
+    'Tekstowe ułamkowe porcje znikają (#2539)': r'PORCJE_ULAMKOWE_TEKST',
     'Szyna zeszytu ponownie czyta całą historię (#2030)': r'SZYNA_2030_CALA_HISTORIA',
     'Bieżący eksport pomija wybór Bez ilości (#2476)': r'EKSPORT_BIEZACY_BEZ_ILOSCI',
     'Ukryty przepis nazwany szkicem w eksporcie (#2479)': r'EKSPORT_UKRYTY_NIE_JEST_SZKICEM',
