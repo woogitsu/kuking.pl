@@ -39,6 +39,9 @@ OCZEKUJ = {
     'Koszt: słowny zakres gubi granice i miarę (#2477)': r'KOSZT_2477_SLOWNY_ZAKRES_ZACHOWUJE_GRANICE_I_MIARE',
     'Koszt: uszkodzony zakres przyjmuje początek (#2477)': r'KOSZT_2477_USZKODZONY_ZAKRES_NIE_LICZY_POCZATKU',
     'Koszt: uszkodzona pojedyncza liczba daje wycenę (#2477)': r'KOSZT_2477_USZKODZONA_JEDNA_LICZBA_NIE_DAJE_WYCENY',
+    'Bieżący eksport pomija wybór Bez ilości (#2476)': r'EKSPORT_BIEZACY_BEZ_ILOSCI',
+    'Ukryty przepis nazwany szkicem w eksporcie (#2479)': r'EKSPORT_UKRYTY_NIE_JEST_SZKICEM',
+    'Sam rok rodzinny znika z HTML eksportu (#2478)': r'EKSPORT_ROK_SAM_W_HTML',
     # #1011, paczka H: wpisy dopisane po wzorcach dla wcześniejszych kontroli.
     "Goły ->with('status') wraca do kontrolera": r'Goły zapis klucza `status` wygląda jak zielony sukces',
     'Odmowa nazwana sukcesem': r'Komunikat::sukces\(\) z tekstem „Nie udało się…" — to błąd, nie sukces\.',
