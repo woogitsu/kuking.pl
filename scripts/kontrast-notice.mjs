@@ -134,7 +134,8 @@ export async function sprawdzPodpowiedzi({
 }) {
     if (!["localhost", "127.0.0.1"].includes(new URL(adres).hostname))
         throw Error("NOTICE_LOKALNIE");
-    const started = Date.now();
+    const started = performance.now();
+    console.log("NOTICE_START etap=warianty");
     const wyniki = [];
     const fixture = (...args) =>
         execFileSync("php", ["scripts/fixtures/kontrast-notice.php", ...args], {
@@ -238,7 +239,9 @@ export async function sprawdzPodpowiedzi({
                     for (const kind of ["primary", "secondary", "plain"]) {
                         await measure(width, dark, scale, kind, scale === 100);
                         count++;
+                        console.log(`NOTICE_PROGRESS warianty=${count}/24 czas_ms=${Math.round(performance.now() - started)}`);
                     }
+        console.log(`NOTICE_END etap=warianty status=ok czas_ms=${Math.round(performance.now() - started)}`);
         if (negatywy) {
             const mainRows = wyniki.length;
             const source = "resources/css/app.css",
@@ -268,6 +271,8 @@ export async function sprawdzPodpowiedzi({
                     text => text.replace(".notice .btn:focus-visible {", ".nieistniejaca-notice .btn:focus-visible {"),
                 ]),
             ]) {
+                const startMutacji = performance.now();
+                console.log(`NOTICE_START mutacja=${name}`);
                 const original = readFileSync(source, "utf8"),
                     mtime = statSync(source).mtimeMs;
                 if (!original.includes(selector))
@@ -307,6 +312,7 @@ export async function sprawdzPodpowiedzi({
                 console.log(
                     `NOTICE_NEGATIVE_OK ${name} backup=${backup} MD5=${before} mtime=${mtime} restored; ${error.message}`,
                 );
+                console.log(`NOTICE_END mutacja=${name} status=ok czas_ms=${Math.round(performance.now() - startMutacji)}`);
             }
         }
         writeFileSync(
@@ -314,7 +320,7 @@ export async function sprawdzPodpowiedzi({
             JSON.stringify(wyniki, null, 2),
         );
         console.log(
-            `NOTICE_OK ${count} konfiguracje normal/hover/focus; primary/secondary także hover+Tab czas_ms=${Date.now() - started}`,
+            `NOTICE_OK ${count} konfiguracje normal/hover/focus; primary/secondary także hover+Tab czas_ms=${Math.round(performance.now() - started)}`,
         );
     } finally {
         fixture("sprzataj", data.draft);
