@@ -1274,6 +1274,10 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    # #2291: regresja domyślnej konfiguracji ma zapalić odczyt `SHOW jit` na
+    # rzeczywistym nowym połączeniu PostgreSQL, nie tylko test tekstu configu.
+    ("Domyslny JIT wraca na polaczeniu PostgreSQL (#2291)", "config/database.php", "test_swieze_polaczenie_aplikacji_ma_jit_off",
+     lambda s: replace_once(s, "'server_options' => ['jit' => env('DB_JIT') ?: 'off'],", "'server_options' => ['jit' => env('DB_JIT') ?: 'on'],")),
     ("Pasteryzacja znów zaleca piekarnik (#2434)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_objasnienie_pasteryzacji_nie_poleca_piekarnika_ani_dowolnych_parametrow_autora",
      lambda s: replace_once(s, "Ogrzewać przetwory, by ograniczyć drobnoustroje. Metodę, czas i temperaturę dobierz z przebadanych zaleceń dla konkretnego produktu i składu. Nie utrwalaj napełnionych słoików w zwykłym piekarniku. Sama gorąca woda nie wystarcza dla wszystkich przetworów.", "Podgrzewać zamknięte słoiki z zawartością w gorącej wodzie lub piekarniku, żeby przetwory dłużej się trzymały. Temperaturę i czas podaje autor przepisu, więc trzymaj się dokładnie jego wskazówek.")),
     ("Uwaga słownika gwarantuje parametry autora (#2434)", "resources/views/components/terminy-kroku.blade.php", "test_objasnienie_pasteryzacji_nie_poleca_piekarnika_ani_dowolnych_parametrow_autora",
