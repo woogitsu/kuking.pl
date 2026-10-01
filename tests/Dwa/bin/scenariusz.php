@@ -44,6 +44,7 @@ use App\Domain\Moderation\Actions\PrzywrocWskazowke;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Moderation\Actions\RestoreContent;
+use App\Domain\Moderation\Actions\ZabezpieczDowodCsam;
 use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
 use App\Domain\Moderation\NowaDecyzja;
 use App\Domain\Pantry\CoMamWDomu;
@@ -897,6 +898,14 @@ try {
                 ? new NowaDecyzja($argumenty['nowa_akcja'], $argumenty['podstawa'], $argumenty['wiadomosc'])
                 : null,
         )->status,
+
+        // „CSAM — natychmiast ukryj i zabezpiecz” (D-333): prawdziwa akcja,
+        // bo mierzymy kolejność blokad `users` → treść → zdjęcia.
+        'zabezpiecz-csam' => (string) app(ZabezpieczDowodCsam::class)->handle(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            $argumenty['typ'],
+            $argumenty['id'],
+        )->zabezpieczenieId,
 
         'zmien-role' => app(ChangeUserRole::class)->handle(
             User::query()->whereKey($argumenty['kto'])->firstOrFail(),

@@ -33,6 +33,7 @@ use App\Models\TagHighlight;
 use App\Models\TagPromotion;
 use App\Models\User;
 use App\Models\WeeklyRecipePick;
+use App\Models\ZabezpieczenieDowodu;
 use App\Support\ParametryUuidTras;
 use Illuminate\Contracts\Routing\UrlRoutable;
 use Illuminate\Database\Eloquent\Concerns\HasUniqueStringIds;
@@ -636,6 +637,19 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
 
         // Osobny wpis dla „Zdejmij z urzędu” (G31) — udany POST go zdejmuje.
         $wpisZUrzedu = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
+        // „CSAM — natychmiast ukryj i zabezpiecz” (D-333): udany POST ukrywa
+        // wpis i BLOKUJE konto autora, więc autor jest osobnym kontem — blokada
+        // nie może zmienić wyniku pozostałych wierszy tej tabeli.
+        $autorCsam = User::factory()->create();
+        $wpisCsamForm = Post::factory()->create(['author_id' => $autorCsam->getKey()]);
+        $wpisCsamZapis = Post::factory()->create(['author_id' => $autorCsam->getKey()]);
+        $wpisCsamWynik = Post::factory()->create(['author_id' => $autorCsam->getKey()]);
+        $dowodCsam = (new ZabezpieczenieDowodu)->forceFill([
+            'target_type' => 'post',
+            'target_id' => $wpisCsamWynik->getKey(),
+            'subject_user_id' => $autorCsam->getKey(),
+        ]);
+        $dowodCsam->save();
         // Ukrycie właściciela (#1810) — cel `settings.hidden.*`.
         $ukrycieWlasciciela = new Hide;
         $ukrycieWlasciciela->forceFill([
@@ -970,6 +984,15 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('admin.z-urzedu.store', ['typ' => 'post', 'id' => $wpisZUrzedu->getKey()]),
             ['reason_code' => 'spam-reklama', 'user_message' => 'Wpis jest reklamą, nie ma nic wspólnego z gotowaniem.'],
             [$O, $O, $O, $W, $O]);
+        // CSAM (D-333): wyłącznie moderacja z 2FA (`secureCsam`); autor treści
+        // tędy nie wchodzi, obcy i gość nie widzą nawet, że trasa istnieje.
+        $dodaj('admin.csam.create', 'CSAM — ekran potwierdzenia', 'get',
+            route('admin.csam.create', ['typ' => 'post', 'id' => $wpisCsamForm->getKey()]), [], [$O, $O, $O, $W, $O]);
+        $dodaj('admin.csam.store', 'CSAM — ukryj i zabezpiecz', 'post',
+            route('admin.csam.store', ['typ' => 'post', 'id' => $wpisCsamZapis->getKey()]),
+            ['potwierdzam' => '1'], [$O, $O, $O, $W, $O]);
+        $dodaj('admin.csam.wynik', 'CSAM — wynik i instrukcja zgłoszenia', 'get',
+            route('admin.csam.wynik', $dowodCsam), [], [$O, $O, $O, $W, $O]);
         // Moderator ma tu ODMOWĘ świadomie: rozstrzyga administrator
         // (`UserPolicy::resolveAppeals`, A-4). Kontrola dodatnia dla admina
         // stoi w osobnym teście wyżej.

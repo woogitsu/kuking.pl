@@ -9,6 +9,7 @@ use App\Models\Comment;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Support\ZabezpieczoneDowody;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -97,7 +98,7 @@ final class PrzedawnioneUsunieteTresci
                 break;
             }
 
-            if (! $naSucho && ! $this->bezpiecznie(fn () => $komentarz->forceDelete(), 'comment', $komentarz->getKey())) {
+            if (! $naSucho && ! $this->bezpiecznie(fn () => $komentarz->forceDelete(), 'comment', $komentarz->getKey(), fn () => $this->zModeracja('comment', [$komentarz->getKey()]))) {
                 continue;
             }
 
@@ -116,7 +117,7 @@ final class PrzedawnioneUsunieteTresci
                 break;
             }
 
-            if (! $naSucho && ! $this->bezpiecznie(fn () => $wpis->forceDelete(), 'post', $wpis->getKey())) {
+            if (! $naSucho && ! $this->bezpiecznie(fn () => $wpis->forceDelete(), 'post', $wpis->getKey(), fn () => $this->wpisZModeracja($wpis, $media))) {
                 continue;
             }
 
@@ -143,6 +144,7 @@ final class PrzedawnioneUsunieteTresci
                     fn () => $cudzeWykonania ? $this->zamienWNagrobek($przepis) : $przepis->forceDelete(),
                     'recipe',
                     $przepis->getKey(),
+                    fn () => $this->przepisZModeracja($przepis, $media),
                 );
 
                 if (! $udane) {
@@ -297,6 +299,13 @@ final class PrzedawnioneUsunieteTresci
             return false;
         }
 
+        // ZABEZPIECZONY DOWÓD (ścieżka CSAM, D-333) nie zależy od retencji
+        // spraw: gdy `kuking:sprzataj-sprawy-moderacyjne` zabierze wiersze
+        // `reports`/`moderation_actions`, rejestr dalej trzyma treść.
+        if (ZabezpieczoneDowody::dotyczy($typ, $id)) {
+            return true;
+        }
+
         foreach (['reports', 'moderation_actions'] as $tabela) {
             if (DB::table($tabela)->where('target_type', $typ)->whereIn('target_id', $id)->exists()) {
                 return true;
@@ -338,12 +347,38 @@ final class PrzedawnioneUsunieteTresci
         });
     }
 
-    private function bezpiecznie(callable $krok, string $typ, string $id): bool
+    /**
+     * Jedna treść w jednej transakcji — z PONOWNYM sprawdzeniem ochrony pod
+     * blokadą wiersza treści.
+     *
+     * Sprawdzenie w pętli (`zModeracja()`) odbywa się BEZ blokady, a potem
+     * idzie `forceDelete()`. W tym oknie moderator może zabezpieczyć treść
+     * jako dowód (`ZabezpieczDowodCsam` bierze ten sam wiersz `FOR UPDATE`
+     * i w tej samej transakcji dopisuje rejestr) albo ktoś może ją zgłosić.
+     * Dlatego: najpierw wiersz `FOR UPDATE`, dopiero potem
+     * `$chronione()` — widzi zatwierdzone zabezpieczenie, a gdy to my byliśmy
+     * pierwsi, zabezpieczenie zastanie treść już usuniętą i odmówi.
+     *
+     * @param  (callable(): bool)|null  $chronione  `true` = treść objęta sprawą lub dowodem
+     */
+    private function bezpiecznie(callable $krok, string $typ, string $id, ?callable $chronione = null): bool
     {
         try {
-            DB::transaction(fn () => $krok());
+            return DB::transaction(function () use ($krok, $typ, $id, $chronione): bool {
+                $tabela = ['comment' => 'comments', 'post' => 'posts', 'recipe' => 'recipes'][$typ] ?? null;
 
-            return true;
+                if ($tabela !== null) {
+                    DB::table($tabela)->where('id', $id)->lockForUpdate()->value('id');
+                }
+
+                if ($chronione !== null && $chronione()) {
+                    return false;
+                }
+
+                $krok();
+
+                return true;
+            });
         } catch (Throwable $e) {
             Log::warning('Twarde usunięcie treści nie powiodło się; spróbujemy następnej nocy.', [
                 'typ' => $typ,
