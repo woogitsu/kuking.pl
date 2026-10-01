@@ -32,6 +32,8 @@ use InvalidArgumentException;
  *
  * CO LICZY (okno: `--od` włącznie, `--do` włącznie, daty w strefie serwisu)
  *  1. zgłoszenia wg źródła (`community`, `legal_notice`, `automat`);
+ *  1a. zgłoszenia wg rodzaju zgłoszonej treści (`target_type`), w tym wersja
+ *     przepisu z historii zmian (#2390);
  *  2. decyzje PIERWSZEJ INSTANCJI — ze zgłoszenia (`report_id`) — wg rodzaju;
  *  3. decyzje Z URZĘDU — bez zgłoszenia i bez odwołania, bez `unhide` (D-251);
  *  4. przywrócenia treści (`unhide`);
@@ -88,6 +90,14 @@ class RaportPrzejrzystosci extends Command
                 Report::SOURCE_LEGAL_NOTICE => 'zgłoszenie nielegalnej treści (DSA art. 16)',
                 Report::SOURCE_AUTOMAT => 'oznaczenie automatu do przeglądu (D-052)',
             ],
+        ));
+
+        // Rodzaj zgłoszonej treści (#2390): po dodaniu wersji przepisu jako celu
+        // raport pokazuje ją osobnym wierszem, a nie w sumie z przepisami.
+        $this->sekcja('1a. Zgłoszenia według rodzaju treści', ['Rodzaj treści', 'Zgłoszeń'], $this->wiersze(
+            DB::table('reports')->whereBetween('created_at', [$od, $do]),
+            'target_type',
+            Report::TARGET_LABELS,
         ));
 
         // „Przywróć treść” ma własny wiersz (4.) — w tabelach decyzji byłby

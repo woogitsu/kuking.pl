@@ -9,6 +9,7 @@ use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\RecipeVersion;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -59,6 +60,7 @@ final readonly class CelZgloszenia
             $target instanceof User => self::nazwaProfilu($target),
             $target instanceof Post => self::nazwaWpisu($target),
             $target instanceof Collection => self::nazwaZeszytu($target),
+            $target instanceof RecipeVersion => self::nazwaWersji($target),
             default => 'treść',
         };
     }
@@ -241,6 +243,19 @@ final readonly class CelZgloszenia
         }
 
         return 'wykonanie przepisu';
+    }
+
+    /**
+     * Wersja z historii zmian (#2390). Bez cytatu: migawka to cały przepis,
+     * a zgłaszający widział jej tekst chwilę wcześniej na ekranie wersji.
+     */
+    private static function nazwaWersji(RecipeVersion $wersja): string
+    {
+        $tytul = trim((string) $wersja->recipe?->title);
+
+        return $tytul !== ''
+            ? "wersja {$wersja->version_number} przepisu «{$tytul}» (historia zmian)"
+            : "wersja {$wersja->version_number} przepisu (historia zmian)";
     }
 
     private static function nazwaZeszytu(Collection $zeszyt): string
