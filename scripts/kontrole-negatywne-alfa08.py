@@ -887,6 +887,16 @@ def replace_once(source, old, new):
     return source.replace(old, new, 1)
 
 
+WYBOR_FORMY_WIDOK = "resources/views/components/wybor-formy.blade.php"
+DOSTEPNOSC_FORMY_TEST = "tests/Feature/DostepnoscFormyIOnboardinguTest.php"
+
+
+def replace_wszystkie(source, old, new, ile):
+    if source.count(old) != ile:
+        raise RuntimeError("Kontrola nie znalazła oczekiwanej liczby miejsc mutacji.")
+    return source.replace(old, new)
+
+
 def remove_notice(source):
     start = source.index("@if($collectionError)")
     end = source.index("@endif", start) + len("@endif")
@@ -2166,6 +2176,18 @@ checks = [
     # Z9 (#2283): regulamin §2 wymienia usługi, których adresy istnieją.
     ("Regulamin §2 bez „Poradźcie”", "resources/legal/regulamin.md", "RegulaminWymieniaUslugiSerwisuTest",
      lambda s: replace_once(s, " („Poradźcie”),", ",")),
+    # #2405 (UX-001): błąd wyboru formy ma być powiązany z radiami.
+    ("Błąd wyboru formy bez stabilnego id (#2405)", WYBOR_FORMY_WIDOK, DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_once(s, '<span class="field-error" id="f-form_of_address-error">', '<span class="field-error">')),
+    ("Radia formy nie wskazują błędu w aria-describedby (#2405)", WYBOR_FORMY_WIDOK, DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_once(s, "'forma-zwracania-pomoc f-form_of_address-error'", "'forma-zwracania-pomoc'")),
+    ("Radia formy bez aria-invalid (#2405)", WYBOR_FORMY_WIDOK, DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_wszystkie(s, '@if($maBlad) aria-invalid="true" @endif', '', 3)),
+    # #2406 (UX-002): onboarding oznacza bieżący krok.
+    ("Onboarding bez aria-current na bieżącym kroku (#2406)", "resources/views/pages/onboarding/interests.blade.php", DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_once(s, '<span class="wizard-steps-current" aria-current="step">', '<span class="wizard-steps-current">')),
+    ("Onboarding bez grupy z nazwą kroków (#2406)", "resources/views/pages/onboarding/people.blade.php", DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_once(s, ' role="group" aria-label="Postęp zakładania konta"', '')),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

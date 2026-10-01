@@ -1,13 +1,13 @@
 <x-layout title="Co lubisz gotować?" :noindex="true">
     <section class="marka-onboarding" aria-labelledby="onboarding-title">
-        <p class="wizard-steps">
-            <span class="wizard-steps-current">Krok 1 z 3</span>
+        <div class="wizard-steps" role="group" aria-label="Postęp zakładania konta">
+            <span class="wizard-steps-current" aria-current="step">Krok 1 z 3</span>
             <span class="wizard-steps-track" aria-hidden="true">
                 <span class="wizard-steps-dot" data-done="true"></span>
                 <span class="wizard-steps-dot"></span>
                 <span class="wizard-steps-dot"></span>
             </span>
-        </p>
+        </div>
         <h1 id="onboarding-title">Co lubisz gotować?</h1>
         {{-- Konto istnieje przed tym krokiem; wybór zainteresowań nie jest warunkiem korzystania. --}}
         <p class="onboarding-status-konta">
