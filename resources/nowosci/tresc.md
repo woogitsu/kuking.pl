@@ -31,6 +31,15 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Zmiana nazwy w adresie profilu nie psuje starych linków
+
+Kiedy zmienicie nazwę użytkownika w ustawieniach profilu, dawny adres
+(na przykład z wydrukowanej karty z kodem QR albo z wiadomości sprzed
+tygodnia) dalej działa: przenosi na Wasz profil pod nową nazwą. Tak samo
+działają listy „Obserwujący” i „Obserwowani” oraz kanał profilu. Jeśli ktoś
+inny zajmie Waszą dawną nazwę, adres prowadzi już do niego. Gdy usuniecie
+konto, dawne nazwy znikają razem z nim.
+
 ### Wszystkie wersje regulaminu
 
 Na górze regulaminu są dwa nowe przyciski. „Pobierz regulamin” zapisuje go
