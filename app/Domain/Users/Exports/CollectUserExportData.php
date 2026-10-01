@@ -212,6 +212,8 @@ final class CollectUserExportData
             'moje_reakcje' => $this->reakcjeDane($user),
             'reakcje_otrzymane' => $this->reakcjeOtrzymane($user),
             'reakcje_otrzymane_od_osob_niewidocznych' => $this->reakcjeOtrzymaneBezNazwy($user),
+            // Dawne nazwy profilu (przekierowania `/@stara-nazwa`).
+            'dawne_nazwy_profilu' => $this->dawneNazwyProfilu($user),
             'dziennik_zgod' => $this->consentLog($user),
             'polaczone_konta' => $this->externalIdentities($user),
             'aktywne_sesje' => $this->activeSessions($user),
@@ -1306,6 +1308,27 @@ final class CollectUserExportData
             ->where('posts.author_id', $user->getKey())
             ->whereNotIn('post_reactions.user_id', app(Smakowicie::class)->osobyWidoczneDlaAutora($user)->select('users.id'))
             ->count();
+    }
+
+    /**
+     * Dawne nazwy profilu tej osoby — te, pod którymi nadal przekierowujemy
+     * (`profile_username_redirects`). Dana osobowa tak samo jak obecna nazwa.
+     * Wiersz nie niesie nic o innych osobach: tylko nazwę i datę zmiany.
+     * Nazwy, które ktoś inny zajął, już nie mają wiersza — nie ma ich tu.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function dawneNazwyProfilu(User $user): array
+    {
+        return DB::table('profile_username_redirects')
+            ->where('user_id', $user->getKey())
+            ->orderBy('created_at')
+            ->orderBy('username')
+            ->get(['username', 'created_at'])
+            ->map(fn (object $w): array => [
+                'nazwa' => $w->username,
+                'zmieniona_kiedy' => $this->date($w->created_at),
+            ])->all();
     }
 
     /**

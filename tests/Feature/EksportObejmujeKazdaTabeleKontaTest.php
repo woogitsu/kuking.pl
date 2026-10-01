@@ -178,6 +178,31 @@ final class EksportObejmujeKazdaTabeleKontaTest extends TestCase
     }
 
     /**
+     * Dawna nazwa profilu to dana osobowa jak obecna nazwa (art. 15/20):
+     * paczka niesie nazwy tej osoby, nie cudze, w tym samym układzie co reszta.
+     */
+    public function test_dawne_nazwy_profilu_sa_w_paczce_tylko_wlasne(): void
+    {
+        $basia = User::factory()->create();
+        $zenek = User::factory()->create();
+
+        DB::table('profile_username_redirects')->insert([
+            ['username' => 'basia_z_kuchni', 'user_id' => $basia->getKey(), 'created_at' => '2026-09-25 10:00:00'],
+            ['username' => 'basia_stara', 'user_id' => $basia->getKey(), 'created_at' => '2026-09-20 10:00:00'],
+            ['username' => 'zenek_dawny', 'user_id' => $zenek->getKey(), 'created_at' => '2026-09-21 10:00:00'],
+        ]);
+
+        $paczka = $this->paczka($basia->fresh());
+
+        $this->assertSame(['basia_stara', 'basia_z_kuchni'], array_column($paczka['dawne_nazwy_profilu'], 'nazwa'));
+        $this->assertStringStartsWith('2026-09-20', $paczka['dawne_nazwy_profilu'][0]['zmieniona_kiedy']);
+        $this->assertStringNotContainsString('zenek_dawny', (string) json_encode($paczka), 'Cudza dawna nazwa w paczce.');
+
+        // Kontrola ujemna: osoba bez zmian nazwy ma pustą listę, nie brak sekcji.
+        $this->assertSame([], $this->paczka(User::factory()->create()->fresh())['dawne_nazwy_profilu']);
+    }
+
+    /**
      * Kara odłożona na czas usuwania konta (#980) to dana o osobie tak samo
      * jak `status_konta` — paczka ma ją pokazać, a nie tylko spisać w inwentarzu.
      */

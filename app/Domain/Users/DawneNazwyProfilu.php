@@ -71,8 +71,8 @@ final class DawneNazwyProfilu
 
     /**
      * Ktoś bierze nazwę (rejestracja albo zmiana): jej wiersz przekierowania,
-     * własny lub cudzy, znika. Wolno zająć cudzą dawną nazwę — pytanie
-     * do właściciela produktu w raporcie z wdrożenia.
+     * własny lub cudzy, znika. Wolno zająć cudzą dawną nazwę od razu
+     * (decyzja właściciela z 1.10.2026, wiersz w D-333).
      */
     public function zajmij(User $user, string $nazwa): void
     {
