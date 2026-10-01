@@ -74,6 +74,7 @@ final class InwentarzDanychKonta
         'cooking_progress.user_id' => [self::EKSPORT, 'postep_gotowania'],
         'hides.user_id' => [self::EKSPORT, 'ukryte'],
         'post_reactions.user_id' => [self::EKSPORT, 'moje_reakcje'],
+        'comment_thanks.thanker_id' => [self::EKSPORT, 'moje_podziekowania'],
         'notifications.user_id' => [self::EKSPORT, 'powiadomienia'],
         'media.owner_id' => [self::EKSPORT, 'zdjecia'],
         'dziennik_zgod.user_id' => [self::EKSPORT, 'dziennik_zgod'],

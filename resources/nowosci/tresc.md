@@ -175,6 +175,17 @@ i „jak wyszło?”. Przycisk „Pokaż zdjęcie” otwiera zwykły formularz
 dniach albo wtedy, gdy zapiszecie wykonanie, i dla tego samego gotowania już
 nie wraca. Widzicie je tylko Wy — nie przychodzi mailem ani powiadomieniem.
 
+### „Dziękuję” pod komentarzem
+
+Pod cudzym komentarzem, który stoi pod Waszym wpisem, przepisem albo
+„Ugotowałem”, jest przycisk „Dziękuję”. Jedno dotknięcie wystarczy — nie trzeba
+pisać odpowiedzi. Osoba, która napisała komentarz, dostaje w powiadomieniach
+krótką wiadomość z odnośnikiem do tego komentarza. Pod komentarzem zostaje
+napis „Podziękowano za ten komentarz.”, który widzicie tylko Wy i autor
+komentarza. Nie ma licznika ani rankingu podziękowań. Podziękowania nie można
+cofnąć, a drugie dotknięcie nic nie dubluje. Jeśli chcecie odpowiedzieć
+własnymi słowami, „Odpowiedz” działa jak dotąd.
+
 ### Napis „Autor przepisu” w rozmowie
 
 Gdy autor przepisu odpowiada pod swoim przepisem albo pod czyimś wykonaniem

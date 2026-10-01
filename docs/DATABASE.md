@@ -3160,6 +3160,44 @@ kaskadowo — więc wykonanie zostawało bez zdjęcia i bez pliku.
 i nie potrzebuje strażnika z D-088: nie leży tu ani jedna wartość semantyczna —
 tylko dwa identyfikatory i liczba porządkowa.
 
+### comment_thanks
+„Dziękuję” pod komentarzem (issue #2355, F11). Migracja
+`2026_10_01_113000_create_comment_thanks_table.php`.
+
+- `id uuid` (PK, `gen_random_uuid()`),
+- `comment_id uuid NOT NULL` → `comments` (`ON DELETE CASCADE`) — za który komentarz,
+- `thanker_id uuid NOT NULL` → `users` (`ON DELETE CASCADE`) — kto dziękuje;
+  zawsze autor treści (wpisu, przepisu, wykonania), pod którą stoi komentarz,
+- `created_at timestamptz`.
+
+`UNIQUE (comment_id, thanker_id)` — podziękowanie to STAN („podziękowano”),
+nie zdarzenie: drugie kliknięcie nie tworzy drugiego wiersza i nie wysyła
+drugiego powiadomienia (`ThankForComment`: `INSERT … ON CONFLICT DO NOTHING`,
+powiadomienie tylko gdy wiersz właśnie powstał). Indeks `thanker_id` pod
+kaskadę konta i eksport. Kto może dziękować, rozstrzyga `CommentPolicy::thank()`
+(nie baza).
+
+**Wycofania nie ma** — decyzja w `ThankForComment` (uprzejmość, nie stan do
+odkręcania; powiadomienie i tak już poszło, a „wycofaj i ponów” nie może
+wyprodukować drugiego). Wiersz znika z komentarzem (twarde usunięcie) albo z kontem.
+
+Bez licznika i bez wpływu na kolejność: żadna lista nie sortuje ani nie
+przycina po tej tabeli (`FeedNieSortujePoMierzeReakcjiTest`, wzorzec „comment”).
+Podziękowanie NIE jest odpowiedzią — nie ma wiersza w `comments`, więc nie
+zamyka edycji komentarza (#1337) i nie wchodzi do wskaźnika odpowiedzi
+(SOUL.md). Stan widzą dwie osoby: dziękujący i autor komentarza.
+
+**Kaskada działa tylko przy twardym usunięciu.** Konta się anonimizuje (D-022),
+więc `EraseAccountData` kasuje jawnie podziękowania wymazywanego konta
+w OBU kierunkach (`thanker_id` oraz `comment_id` jego komentarzy) — przy każdym
+`delete_scope`. Eksport: `moje_podziekowania` (adres rozmowy i chwila, bez
+treści i bez nazwy komentującej); podziękowania otrzymane są w `powiadomienia`
+(typ `comment.thanked`, z żywym wycinkiem komentarza).
+
+**Rollback odmawia (D-088)**, gdy w tabeli są podziękowania — to słowa ludzi
+do ludzi, a `up()` ich nie odtworzy. Na pustej tabeli przechodzi. Test:
+`DziekujePodKomentarzemTest::test_rollback_odmawia_gdy_sa_podziekowania…`.
+
 ### comments
 Komentarz dotyczy dokładnie jednego:
 - post;
