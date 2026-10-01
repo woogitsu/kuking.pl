@@ -8,6 +8,7 @@ use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Social\Actions\UnblockUser;
 use App\Domain\Social\Actions\UnfollowUser;
+use App\Domain\Users\DawneNazwyProfilu;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Profile;
 use App\Models\User;
@@ -212,7 +213,23 @@ class SocialController extends Controller
      */
     private function connections(Request $request, string $username, string $relation, string $title): Response|RedirectResponse
     {
-        $target = $this->findUser($username);
+        $profilWDanejNazwie = Profile::poNazwie($username);
+
+        // Dawna nazwa → 301 na tę samą listę pod aktualną nazwą.
+        if ($profilWDanejNazwie === null) {
+            $przekierowanie = (new DawneNazwyProfilu)->przekierowanie(
+                $request,
+                $request->user(),
+                $username,
+                $relation === 'followers' ? 'social.followers' : 'social.following',
+            );
+
+            abort_if($przekierowanie === null, 404);
+
+            return $przekierowanie;
+        }
+
+        $target = $profilWDanejNazwie->user;
         $this->authorize('viewProfile', $target);
 
         $viewer = $request->user();

@@ -8,6 +8,7 @@ use App\Domain\Kanaly\Kanal;
 use App\Domain\Kanaly\KluczeKanalu;
 use App\Domain\Kanaly\TresciKanalu;
 use App\Domain\Kanaly\ZapisAtom;
+use App\Domain\Users\DawneNazwyProfilu;
 use App\Models\Collection;
 use App\Models\Profile;
 use App\Models\Tag;
@@ -58,7 +59,7 @@ final class KanalAtomController
         private readonly ZapisAtom $zapis = new ZapisAtom,
     ) {}
 
-    public function profil(Request $request, string $username): Response
+    public function profil(Request $request, string $username): Response|RedirectResponse
     {
         // Ta sama droga co `ProfileController::show()`: nazwa bez
         // rozróżniania wielkości liter, indeks `lower(username)`.
@@ -67,7 +68,17 @@ final class KanalAtomController
             ->with('user')
             ->first();
 
-        $wlasciciel = $profil?->user;
+        // Dawna nazwa → 301 na kanał pod aktualną nazwą (czytniki zapisują
+        // adres kanału). Widz to zawsze gość — kanał jest poza sesją.
+        if ($profil === null) {
+            $przekierowanie = (new DawneNazwyProfilu)->przekierowanie($request, null, $username, 'kanaly.profil');
+
+            abort_if($przekierowanie === null, 404);
+
+            return $przekierowanie;
+        }
+
+        $wlasciciel = $profil->user;
 
         if ($wlasciciel === null || Gate::forUser(null)->denies('viewProfile', $wlasciciel)) {
             abort(404);
