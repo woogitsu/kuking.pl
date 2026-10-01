@@ -2167,7 +2167,7 @@ checks = [
     ("Regulamin §2 bez „Poradźcie”", "resources/legal/regulamin.md", "RegulaminWymieniaUslugiSerwisuTest",
      lambda s: replace_once(s, " („Poradźcie”),", ",")),
     # #2480: sam skan musi otwierać sekcję źródła bez dopisywania historii.
-    ("Sam skan bez notatki znika ze strony przepisu", "resources/views/pages/recipes/show.blade.php", "SkanKartkiBezHistoriiNaPrzepisieTest",
+    ("Sam skan bez notatki znika ze strony przepisu", "resources/views/pages/recipes/show.blade.php", "test_wlasciciel_widzi_sam_skan_na_zwyklej_stronie_prywatnego_przepisu",
      lambda s: replace_once(s,
          "@if(($recipe->source_note || $recipe->source_person || $recipe->sourceScan) && ! $dlaPomocnika)",
          "@if(($recipe->source_note || $recipe->source_person) && ! $dlaPomocnika)")),
