@@ -154,9 +154,34 @@ class TerminProduktuTest extends TestCase
 
         $this->wyslij($ja, $produkt, ['za' => '3'])
             ->assertRedirect(route('pantry.edit', $produkt))
-            ->assertSessionHasErrors(['rodzaj' => 'Zaznacz, jaki to termin: „Należy zużyć do” albo „Najlepiej spożyć przed”, albo wybierz „Nie znam terminu”.']);
+            ->assertSessionHasErrors(['rodzaj' => 'Przycisk „Za 3 dni” liczy datę od dziś, ale trzeba jeszcze wiedzieć, jaki to termin. Zaznacz „Należy zużyć do” albo „Najlepiej spożyć przed” i naciśnij „Zapisz” — data jest już wpisana w listach. Nic nie zmieniliśmy.']);
 
         $this->assertNull($produkt->fresh()->expires_on);
+    }
+
+    public function test_po_szybkim_przycisku_bez_rodzaju_data_ilosc_i_mrozone_zostaja_a_komunikat_mowi_co_zrobic(): void
+    {
+        $ja = $this->user();
+        $produkt = $this->produkt($ja);
+
+        $this->actingAs($ja)->from(route('pantry.edit', $produkt))
+            ->put(route('pantry.update', $produkt), ['_formularz' => 'termin', 'za' => '7', 'ilosc' => 'pół kostki', 'mrozone' => '1']);
+
+        $strona = $this->actingAs($ja)->get(route('pantry.edit', $produkt))->assertOk();
+        // „Dziś” 10.10.2026 + 7 dni = 17.10.2026 wraca na listy.
+        $strona->assertSee('<option value="17" selected', false)
+            ->assertSee('<option value="10" selected', false)
+            ->assertSee('<option value="2026" selected', false)
+            ->assertSee('value="pół kostki"', false)
+            ->assertSee('Wybrano „Za tydzień”.', false)
+            // Podsumowanie u góry i błąd przy grupie mówią, co zrobić.
+            ->assertSee('Zaznacz „Należy zużyć do” albo „Najlepiej spożyć przed” i naciśnij „Zapisz”', false)
+            ->assertSee('name="mrozone" value="1" checked', false);
+
+        // Wystarczy zaznaczyć rodzaj i zapisać z tego, co wróciło na listy.
+        $this->wyslij($ja, $produkt, ['rodzaj' => 'use_by', 'termin_dzien' => '17', 'termin_miesiac' => '10', 'termin_rok' => '2026'])
+            ->assertRedirect(route('pantry.index'));
+        $this->assertSame('2026-10-17', $produkt->fresh()->expires_on?->toDateString());
     }
 
     public function test_termin_bez_daty_i_data_bez_rodzaju_to_bledy_a_nieznany_czysci(): void

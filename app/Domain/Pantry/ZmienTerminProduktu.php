@@ -74,6 +74,23 @@ final class ZmienTerminProduktu
     }
 
     /**
+     * Data szybkiego przycisku („Za 3 dni”) liczona od `$dzis`; `null` dla
+     * wartości spoza `SZYBKIE`. Ta sama liczba służy zapisowi i ponownemu
+     * wyświetleniu formularza po błędzie (data nie ginie).
+     */
+    public static function dataZaPrzyciskiem(mixed $za, ?string $dzis = null): ?string
+    {
+        if (! is_string($za) || ! array_key_exists($za, self::SZYBKIE)) {
+            return null;
+        }
+
+        $data = CarbonImmutable::parse($dzis ?? PriorytetZuzycia::dzis())->startOfDay();
+        $data = $za === 'miesiac' ? $data->addMonthNoOverflow() : $data->addDays((int) $za);
+
+        return $data->toDateString();
+    }
+
+    /**
      * @param  array<string, mixed>  $dane  surowe pola formularza
      * @return bool `false`, gdy produktu już nie ma (usunięty równolegle)
      *
@@ -175,17 +192,15 @@ final class ZmienTerminProduktu
             }
 
             if (! $rodzajPoprawny) {
-                $bledy['rodzaj'] = $rodzaj === self::NIEZNANY
-                    ? 'Przycisk „'.self::SZYBKIE[$za].'” ustawia termin, więc zaznacz, jaki to termin: „Należy zużyć do” albo „Najlepiej spożyć przed”. Nic nie zmieniliśmy.'
-                    : $this->bladRodzaju();
+                // Data z przycisku wraca na listy Dzień / Miesiąc / Rok
+                // (`dataZaPrzyciskiem()` w widoku), więc wystarczy zaznaczyć rodzaj.
+                $bledy['rodzaj'] = 'Przycisk „'.self::SZYBKIE[$za].'” liczy datę od dziś, ale trzeba jeszcze wiedzieć, jaki to termin. '
+                    .'Zaznacz „Należy zużyć do” albo „Najlepiej spożyć przed” i naciśnij „Zapisz” — data jest już wpisana w listach. Nic nie zmieniliśmy.';
 
                 return [];
             }
 
-            $data = CarbonImmutable::parse($dzis)->startOfDay();
-            $data = $za === 'miesiac' ? $data->addMonthNoOverflow() : $data->addDays((int) $za);
-
-            return ['expires_on' => $data->toDateString(), 'expiry_kind' => $rodzaj];
+            return ['expires_on' => self::dataZaPrzyciskiem($za, $dzis), 'expiry_kind' => $rodzaj];
         }
 
         // Nic nie wybrano i nic nie było: zostaje bez terminu (zmiana samej ilości).

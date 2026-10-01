@@ -107,6 +107,14 @@ class PantryController extends Controller
             'szybkie' => ZmienTerminProduktu::SZYBKIE,
             'rodzaje' => PriorytetZuzycia::RODZAJE,
             'stan' => PriorytetZuzycia::opisStanu($produkt),
+            // Szybki przycisk bez rodzaju kończy się błędem; jego data wraca
+            // na listy, żeby wystarczyło zaznaczyć rodzaj.
+            'dataZPrzycisku' => $request->old('_formularz') === 'termin'
+                ? ZmienTerminProduktu::dataZaPrzyciskiem($request->old('za'))
+                : null,
+            'przyciskZPrzed' => $request->old('_formularz') === 'termin' && is_string($request->old('za'))
+                ? (ZmienTerminProduktu::SZYBKIE[$request->old('za')] ?? null)
+                : null,
         ]);
     }
 
