@@ -124,6 +124,10 @@ final class PrzeliczSkladnikTest extends TestCase
             'tabulator nie jest separatorem tysięcy' => ["1\t000 g mąki", false],
             'tabulator przed jednostką' => ["mąka 1\t000 g", false],
             'nieobsługiwana dziesiętna liczba grupowana' => ['1 000,5 g mąki', false],
+            'podwójna spacja na początku' => ['1  500 g mąki', false],
+            'podwójna spacja przed jednostką' => ['mąka 1  500 g', false],
+            'podwójna spacja po poprawnej grupie' => ['1 000  500 g mąki', false],
+            'dwa tabulatory przed jednostką' => ["mąka 1\t\t500 g", false],
         ];
     }
 

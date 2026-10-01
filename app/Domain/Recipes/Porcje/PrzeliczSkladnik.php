@@ -41,7 +41,7 @@ final class PrzeliczSkladnik
     // pozostaje separatorem dziesiętnym; błędne grupy zostają tekstem autora.
     private const GRUPOWANA = '[1-9]\d{0,2}(?:[ \x{00A0}\x{202F}]\d{3})+';
 
-    private const LICZBA = '(?:\d+\s+\d+\/\d+|\d+\s?[½¼¾⅓⅔⅛]|'.self::GRUPOWANA.'|\d+[.,]\d+|\d+\/\d+|[½¼¾⅓⅔⅛]|\d+)(?!\s\d|[.,]\d|\d)';
+    private const LICZBA = '(?:\d+\s+\d+\/\d+|\d+\s?[½¼¾⅓⅔⅛]|'.self::GRUPOWANA.'|\d+[.,]\d+|\d+\/\d+|[½¼¾⅓⅔⅛]|\d+)(?!\s+\d|[.,]\d|\d)';
 
     private const SLOWO = '(?:półtorej|półtora|pół)(?!\p{L})';
 
@@ -167,6 +167,12 @@ final class PrzeliczSkladnik
         $wzorzec = '/^(?<przed>.*?(?<![\p{L}\d.,\/])(?<!\d\s))(?<calosc>'.$ilosc.'(?<spacja>\s*)(?<jednostka>'.$jednostki.')(?!\p{L}))/iu';
 
         if (preg_match($wzorzec, $tekst, $m) === 1) {
+            // Po niepełnej liczbie („1  500 g”) nie wolno brać samego
+            // końcowego „500 g”, nawet gdy są dwa lub więcej odstępów.
+            if (preg_match('/\d\s+$/u', $m['przed']) === 1) {
+                return null;
+            }
+
             return self::trafienie($m);
         }
 
