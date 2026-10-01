@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Collections\Wspoldzielenie\ZaprosDoZeszytu;
+use App\Domain\Recipes\Gotowanie\Wspolne\SesjaWspolnegoGotowania;
+use App\Domain\Recipes\Gotowanie\Wspolne\ZaproszenieDoGotowania;
 use App\Domain\UgotujmyRazem\TydzienGotowania;
 use App\Models\Appeal;
 use App\Models\Collection;
@@ -22,6 +24,7 @@ use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\RecipeHint;
+use App\Models\RecipeStep;
 use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\ShoppingListItem;
@@ -129,6 +132,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         'collections.link.show' => 'Parametr {token} to jednorazowy token linku-zaproszenia do wspólnego zeszytu (#1743); w bazie leży jego SHA-256, a przyjęcie odmawia przy blokadzie między stronami.',
         'collections.link.accept' => 'Jak collections.link.show: {token} to jednorazowe poświadczenie linku-zaproszenia, nie identyfikator obiektu.',
         'collections.link.decline' => 'Jak collections.link.show: {token} to jednorazowe poświadczenie linku-zaproszenia, nie identyfikator obiektu.',
+        'wspolne-gotowanie.link.show' => 'Parametr {token} to jednorazowy token linku-zaproszenia do wspólnego gotowania (#2385); w bazie leży jego skrót, a ekran pokazuje przepis dopiero po `RecipePolicy::view` i odmawia przy blokadzie między stronami (WspolneGotowanieTest).',
+        'wspolne-gotowanie.link.accept' => 'Jak wspolne-gotowanie.link.show: {token} to jednorazowe poświadczenie linku-zaproszenia, nie identyfikator obiektu; przyjęcie idzie przez `ZaproszenieDoGotowania::dolacz` (blokada, widoczność przepisu, jedno miejsce).',
         'terms.version' => 'Parametr {data} to data wersji regulaminu (RRRR-MM-DD) — nazwa pliku z repozytorium (`resources/legal/archiwum/`), publicznego jak `/regulamin`; nie wskazuje niczyjego zasobu ani danych (#2220).',
         'terms.version.download' => 'Jak terms.version: {data} to data publicznej wersji regulaminu, plik z repozytorium, bez danych osobowych (#2220).',
         'privacy.version' => 'Parametr {data} to data wersji polityki prywatności (RRRR-MM-DD) — nazwa pliku z repozytorium (`resources/legal/archiwum/`), publicznego jak `/prywatnosc`; nie wskazuje niczyjego zasobu ani danych (#2220).',
@@ -1166,6 +1171,53 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('cooking.sync.skladniki', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooking.sync.porcje', 'zapis liczby porcji prywatnego przepisu', 'post',
             route('cooking.sync.porcje', $przepisPrywatny), ['wybor' => '6'], [$W, $O, $O, $O, $O]);
+        // Wspólne gotowanie (#2385). UUID sesji w adresie NIE jest autoryzacją:
+        // sesję widzi wyłącznie gospodarz i pomocnik, każdy inny (także
+        // moderator) dostaje 404. Dlatego przy gospodarzu `wolno`, a reszta
+        // ról — odmowa. Zakładanie sesji idzie przez `RecipePolicy::view`
+        // (zablokowany przez autora przepisu nie założy). Każdy wiersz ma
+        // własną sesję, bo kończenie i odwoływanie zmieniają jej stan.
+        $sesje = app(SesjaWspolnegoGotowania::class);
+        $zaproszeniaGotowania = app(ZaproszenieDoGotowania::class);
+        $przepisZKrokami = function () use ($wlasciciel): Recipe {
+            $r = Recipe::factory()->create(['author_id' => $wlasciciel->getKey(), 'visibility' => 'public']);
+            RecipeStep::create(['recipe_id' => $r->getKey(), 'position' => 0, 'instruction' => 'Krok pierwszy.']);
+
+            return $r;
+        };
+        $przepisDoZalozenia = $przepisZKrokami();
+        $przepisSesjiGlownej = $przepisZKrokami();
+        $sesjaGlowna = $sesje->zaloz($wlasciciel, $przepisSesjiGlownej);
+        $krokSesji = RecipeStep::query()->where('recipe_id', $przepisSesjiGlownej->getKey())->firstOrFail();
+        $sesjaZPomocnikiem = $sesje->zaloz($wlasciciel, $przepisZKrokami());
+        // Pomocnik to osoba, której żaden wiersz tej tabeli nie blokuje (blokada kończy wspólne gotowanie).
+        $pomocnikGotowania = $this->user('pomocnikgotowania');
+        $zaproszeniaGotowania->dolacz($pomocnikGotowania, $zaproszeniaGotowania->utworz($wlasciciel, $sesjaZPomocnikiem)[1]);
+        // Tu pomocnikiem jest rola „obcy”: tylko ona może stąd wyjść.
+        $sesjaObcegoPomocnika = $sesje->zaloz($wlasciciel, $przepisZKrokami());
+        $zaproszeniaGotowania->dolacz($obcy, $zaproszeniaGotowania->utworz($wlasciciel, $sesjaObcegoPomocnika)[1]);
+        $sesjaDoZakonczenia = $sesje->zaloz($wlasciciel, $przepisZKrokami());
+
+        $dodaj('wspolne-gotowanie.zaloz', 'założenie sesji dla publicznego przepisu', 'post',
+            route('wspolne-gotowanie.zaloz', $przepisDoZalozenia->slug), [], [$W, $W, $O, $W, $O]);
+        $dodaj('wspolne-gotowanie.show', 'ekran sesji wspólnego gotowania', 'get',
+            route('wspolne-gotowanie.show', $sesjaGlowna), [], [$W, $O, $O, $O, $O]);
+        $dodaj('wspolne-gotowanie.stan', 'numer rewizji sesji', 'get',
+            route('wspolne-gotowanie.stan', $sesjaGlowna), [], [$W, $O, $O, $O, $O]);
+        $dodaj('wspolne-gotowanie.krok', 'odhaczenie kroku we wspólnej sesji', 'post',
+            route('wspolne-gotowanie.krok', $sesjaGlowna), ['krok_id' => $krokSesji->getKey(), 'zrobiono' => '1'], [$W, $O, $O, $O, $O]);
+        $dodaj('wspolne-gotowanie.link.store', 'utworzenie linku-zaproszenia', 'post',
+            route('wspolne-gotowanie.link.store', $sesjaGlowna), [], [$W, $O, $O, $O, $O]);
+        $dodaj('wspolne-gotowanie.link.destroy', 'odwołanie linku-zaproszenia', 'delete',
+            route('wspolne-gotowanie.link.destroy', $sesjaGlowna), [], [$W, $O, $O, $O, $O]);
+        $dodaj('wspolne-gotowanie.od-poczatku', 'czyszczenie odhaczeń sesji', 'post',
+            route('wspolne-gotowanie.od-poczatku', $sesjaGlowna), [], [$W, $O, $O, $O, $O]);
+        $dodaj('wspolne-gotowanie.pomocnik.destroy', 'usunięcie pomocnika z sesji', 'delete',
+            route('wspolne-gotowanie.pomocnik.destroy', [$sesjaZPomocnikiem, $pomocnikGotowania->getKey()]), [], [$W, $O, $O, $O, $O]);
+        $dodaj('wspolne-gotowanie.leave', 'wyjście pomocnika z sesji (pomocnikiem jest rola „obcy”)', 'delete',
+            route('wspolne-gotowanie.leave', $sesjaObcegoPomocnika), [], [$O, $W, $O, $O, $O]);
+        $dodaj('wspolne-gotowanie.destroy', 'zakończenie sesji przez gospodarza', 'delete',
+            route('wspolne-gotowanie.destroy', $sesjaDoZakonczenia), [], [$W, $O, $O, $O, $O]);
         // „Jak wyszło?” (F1, D-333): oba przyciski ze Startu — ta sama granica co przepis.
         $dodaj('jak_wyszlo.pokaz', '„Pokaż zdjęcie” pod „Jak wyszło?” przy prywatnym przepisie', 'post',
             route('jak_wyszlo.pokaz', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);

@@ -59,6 +59,7 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
         // Paczka J (#27) dopisuje tę sekcję i wiersz polityki — fraza czeka tu na scalenie.
         'lista_zakupow' => '| Lista zakupów |',
         'postep_gotowania' => '| Zapamiętany postęp w trybie gotowania |',
+        'wspolne_gotowanie' => '| Wspólne gotowanie |',
         'ukryte' => '| Ukrywanie wpisów i osób',
         'moje_reakcje' => '| Reakcja „Smakowicie wygląda”',
         'moje_podziekowania' => '| „Dziękuję” pod cudzym komentarzem',

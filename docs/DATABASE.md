@@ -7075,6 +7075,79 @@ przechodzi bez pytania. Wymuszenie po kopii tabeli:
 `php artisan kuking:sprzataj-postep-gotowania --wszystkie`). Test:
 `CofniecieMigracjiNieKasujePostepuGotowaniaTest`.
 
+## cooking_sessions + cooking_session_participants + cooking_session_steps + cooking_session_invitations — wspólne gotowanie (#2385)
+
+Sesja jednego przepisu dla gospodarza i do trzech pomocników (`max_pomocnikow` = 3, decyzja właściciela z 1.10.2026).
+Migracja `2026_10_01_170420_create_cooking_sessions_tables`. Projekt,
+autoryzacja i retencja: `docs/product/PROJEKT_WSPOLNE_GOTOWANIE_2385.md`.
+Wszystkie modele mają pusty `$fillable`: wiersze powstają i zmieniają się
+wyłącznie przez `App\Domain\Recipes\Gotowanie\Wspolne\*`.
+
+**`cooking_sessions`**
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK, `DEFAULT gen_random_uuid()` | UUID w adresie NIE jest autoryzacją (`CookingSessionPolicy`: nie-członek dostaje 404) |
+| `recipe_id` | `uuid NOT NULL` → `recipes` (`ON DELETE CASCADE`) | przepis (aktualna wersja, jak tryb gotowania) |
+| `host_id` | `uuid NOT NULL` → `users` (`ON DELETE CASCADE`) | gospodarz; poza `$fillable` |
+| `status` | `varchar(16) NOT NULL DEFAULT 'active'` | pole STEROWNICZE; `CHECK status IN ('active')` — zakończenie kasuje sesję, nie ma stanu „zakończona” |
+| `revision` | `integer NOT NULL DEFAULT 1` | rośnie o 1 przy każdej REALNEJ zmianie postępu; druga osoba po niej widzi zmianę; `CHECK revision >= 1` |
+| `expires_at` | `timestamptz NOT NULL` | `kuking.wspolne_gotowanie.retencja_godziny` (24 h) od założenia, stały termin; `CHECK expires_at > created_at` |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+Indeksy: `UNIQUE (host_id, recipe_id)` (jedna sesja na parę), `expires_at`
+(nocne sprzątanie), `recipe_id` (klucz obcy).
+
+**`cooking_session_participants`** — pomocnicy (gospodarz jest w `host_id`).
+`PRIMARY KEY (session_id, user_id)`; `session_id` → `cooking_sessions`
+(`CASCADE`), `user_id` → `users` (`CASCADE`); `role varchar(16)`
+(`CHECK role IN ('helper')`, nowa rola = świadoma zmiana schematu);
+`joined_at timestamptz`. Liczbę pomocników ogranicza akcja pod blokadą wiersza
+sesji (`max_pomocnikow`, domyślnie 3), nie baza. Link zaproszenia jest wielorazowy
+(decyzja z 1.10.2026): jeden żywy link wpuszcza kolejne osoby, aż jest komplet; częściowy unikalny
+indeks `…_one_pending_idx` to najwyżej jeden żywy link na sesję. Bez zmian schematu względem etapu 1.
+
+**`cooking_session_steps`** — wspólny postęp. `PRIMARY KEY (session_id,
+step_id)`; `step_id` → `recipe_steps` (`CASCADE`: krok usunięty z przepisu
+znika z postępu); `done_by_id` → `users` (`ON DELETE SET NULL`: po usunięciu
+konta podpis znika, krok zostaje zrobiony); `done_at timestamptz`. Dwa
+równoczesne odhaczenia tego samego kroku = `INSERT … ON CONFLICT DO NOTHING`
+= jeden wiersz bez błędu; cofnięcie to `DELETE`.
+
+**`cooking_session_invitations`** — wielorazowy link do `max_pomocnikow` osób (przyjęcie niczego tu nie zmienia).
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK | |
+| `session_id` | `uuid NOT NULL` → `cooking_sessions` (`CASCADE`) | |
+| `token_hash` | `varchar(64) NULL` | SHA-256 tokenu (40 znaków losowych); poświadczenie, poza `$fillable`, `$hidden`; kasowany przy odwołaniu; token jawny istnieje tylko w odpowiedzi tworzącej link |
+| `status` | `varchar(16) NOT NULL DEFAULT 'pending'` | `pending`/`accepted`/`revoked` (`cooking_session_invitations_status_check`) |
+| `expires_at` | `timestamptz NOT NULL` | `link_godziny` (24 h), nigdy dalej niż sesja |
+| `accepted_by_id` | `uuid NULL` → `users` (`ON DELETE SET NULL`) | nieużywana od decyzji z 1.10.2026 o linku wielorazowym (nikt nie „zużywa” linku); zostaje jako pozostałość, kod jej nie ustawia, wymazanie konta zeruje |
+| `responded_at` | `timestamptz NULL` | przyjęcie/odwołanie; `CHECK status <> 'accepted' OR responded_at IS NOT NULL` |
+
+CHECK `cooking_session_invitations_token_check`: oczekujący MA skrót, odwołany
+go NIE MA; `accepted` (z pierwotnego projektu „jeden link = jedna osoba”) schemat dopuszcza, ale kod go
+nie ustawia — link wielorazowy zostaje `pending` do wygaśnięcia, odwołania albo nowego linku. Częściowe unikalne indeksy: `token_hash` (tam, gdzie nie
+NULL) i `(session_id) WHERE status = 'pending'` — najwyżej jeden żywy
+link w sesji (nowy unieważnia stary).
+
+**Prywatność i retencja.** Sesja wygasa 24 h po założeniu; wygasła jest dla
+serwisu nieistniejąca (odczyt ją ignoruje), a
+`kuking:sprzataj-wspolne-gotowanie` (03:20) ją kasuje z całą zawartością.
+Zakończenie przez gospodarza kasuje sesję od razu. Blokada gospodarz ↔ pomocnik oraz
+pomocnik ↔ pomocnik (wypada zablokowany) i wymazanie konta kończą udział przez kontrakt
+`Users\KoniecWspolnegoGotowania` (wołany z `BlockUser` i `EraseAccountData`,
+D-302/#971). Paczka danych ma sekcję `wspolne_gotowanie` (bez tokenów i bez
+danych drugiej osoby). Minutniki nie są synchronizowane (jak w #2016).
+
+**Rollback.** `down()` usuwa cztery tabele i **odmawia** (D-088), gdy jest
+choć jedna NIEWYGASŁA sesja; na świeżej bazie, w CI (`migrate:refresh`) i przy
+samych wygasłych sesjach przechodzi bez pytania. Wymuszenie:
+`KUKING_ROLLBACK_KASUJE_WSPOLNE_GOTOWANIE=1` albo wcześniej
+`php artisan kuking:sprzataj-wspolne-gotowanie --wszystkie`. Test:
+`WspolneGotowanieMigracjaTest`.
+
 ## weekly_recipe_picks — „Ugotujmy razem” (F3, 30.09.2026)
 
 Przepis tygodnia wybrany przez gospodarza. Migracja

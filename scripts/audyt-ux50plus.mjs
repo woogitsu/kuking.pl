@@ -130,6 +130,8 @@ const EKRANY = [
   { nazwa: 'historia wersji przepisu', dynamiczny: 'historia', znak: '.historia-wersja-naglowek' },
   { nazwa: 'historia wersji — jedna wersja', dynamiczny: 'wersja', znak: '#hw-skladniki' },
   { nazwa: 'historia wersji — co się zmieniło', dynamiczny: 'zmiany', znak: '#hz-skladniki' },
+  { nazwa: 'wspólne gotowanie — ekran sesji', dynamiczny: 'wspolneGotowanie', zalogowany: true, znak: 'button:text("Utwórz nowy link")' },
+  { nazwa: 'wspólne gotowanie — link zaproszenia', dynamiczny: 'wspolneGotowanieLink', zalogowany: true, znak: 'button:text("Dołączam")' },
   ]),
 ];
 

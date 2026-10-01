@@ -746,6 +746,30 @@ trafi tam pierwszy rekord.
   liczba porcji, przygotowane składniki, daty; tytuł przepisu i teksty składników
   tylko gdy przepis jest dziś widoczny dla osoby).
 
+### 3.24a Wspólne gotowanie (V2, issue #2385)
+
+- **Cel:** gotowanie jednego przepisu przez gospodarza i do trzech pomocników ze wspólnym postępem kroków.
+- **Dane:** identyfikatory gospodarza, pomocników i przepisu, identyfikatory
+  odhaczonych kroków z informacją, kto i kiedy je odhaczył, numer rewizji,
+  termin wygaśnięcia, skrót SHA-256 wielorazowego (do trzech osób) linku zaproszenia
+  (`cooking_sessions`, `cooking_session_participants`, `cooking_session_steps`,
+  `cooking_session_invitations`). Tylko na świadome założenie sesji przez
+  gospodarza i przyjęcie zaproszenia przez pomocnika. Bez wiadomości, bez adresu
+  IP, bez publikacji.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO — funkcja uruchamiana na własne życzenie.
+- **Odbiorcy:** Railway. Dane widzą wyłącznie osoby w sesji (gospodarz i do trzech pomocników; każdy widzi nazwy pozostałych)
+  (`CookingSessionPolicy`; obcy i moderator dostają 404). Każde wejście sprawdza
+  też `RecipePolicy::view` — link nie daje dostępu do treści, której osoba nie
+  mogłaby zobaczyć. Nic nie jest wysyłane do podmiotów trzecich.
+- **Termin usunięcia:** 24 godziny od założenia
+  (`kuking.wspolne_gotowanie.retencja_godziny`; wygasła sesja jest ignorowana
+  przy odczycie, a `kuking:sprzataj-wspolne-gotowanie` kasuje ją co noc o 02:30),
+  zakończenie przez gospodarza (kasuje od razu), blokada między osobami (kończy
+  udział pomocnika wobec gospodarza, a gdy zablokowani są dwaj pomocnicy — udział zablokowanego), wymazanie konta (`EraseAccountData`).
+- **Eksport:** `wspolne_gotowanie` (rola, tytuł przepisu tylko gdy widoczny dla
+  osoby, numery kroków odhaczonych przez tę osobę, daty). Bez danych drugiej osoby.
+- **Projekt i uzasadnienia:** `docs/product/PROJEKT_WSPOLNE_GOTOWANIE_2385.md`.
+
 ### 3.25 Plan na tydzień (V2, #27, D-310)
 
 - **Cel:** prywatny plan posiłków jednej osoby.

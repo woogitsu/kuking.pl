@@ -53,6 +53,8 @@ use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Recipes\Alergeny\DeklaracjaAlergenow;
 use App\Domain\Recipes\Alergeny\OznaczAlergenyPrzepisu;
 use App\Domain\Recipes\Gotowanie\PostepGotowania;
+use App\Domain\Recipes\Gotowanie\Wspolne\PostepWspolnegoGotowania;
+use App\Domain\Recipes\Gotowanie\Wspolne\ZaproszenieDoGotowania;
 use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
@@ -80,6 +82,7 @@ use App\Models\Comment;
 use App\Models\ContactMessage;
 use App\Models\CookedEvent;
 use App\Models\CookingProgress;
+use App\Models\CookingSession;
 use App\Models\ImportPrzepisu;
 use App\Models\PantryItem;
 use App\Models\PendingEmailChange;
@@ -662,6 +665,34 @@ try {
             );
 
             return $wynik['widoczna'] ? 'widoczna' : 'wycofana';
+        // Wspólne gotowanie (#2385): dwie osoby odhaczają TEN SAM krok naraz
+        // i dwie osoby przyjmują TEN SAM wielorazowy link naraz. Wołamy akcje
+        // domenowe, nie przepisany SQL — test ma pęknąć, jeśli zniknie blokada
+        // wiersza sesji albo zamek pary w `ZaproszenieDoGotowania`.
+        'wspolne-krok' => app(PostepWspolnegoGotowania::class)->ustaw(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            CookingSession::query()->whereKey($argumenty['sesja'])->firstOrFail(),
+            $argumenty['krok'],
+            true,
+        ) ? 'zmieniono' : 'bez-zmiany',
+        'wspolne-dolacz' => (string) app(ZaproszenieDoGotowania::class)->dolacz(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            $argumenty['token'],
+        )->getKey(),
+        // Gospodarz tworzy nowy link (unieważnia stary) w chwili, gdy ktoś przyjmuje stary.
+        'wspolne-utworz-link' => app(ZaproszenieDoGotowania::class)->utworz(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            CookingSession::query()->whereKey($argumenty['sesja'])->firstOrFail(),
+        )[0]->status,
+
+        // Gospodarz odwołuje link w chwili, gdy ktoś go przyjmuje.
+        'wspolne-odwolaj-link' => (function () use ($argumenty): string {
+            app(ZaproszenieDoGotowania::class)->odwolaj(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                CookingSession::query()->whereKey($argumenty['sesja'])->firstOrFail(),
+            );
+
+            return 'odwolano';
         })(),
 
         // Dwa równoległe uruchomienia przypomnień o urodzinach (#2318).

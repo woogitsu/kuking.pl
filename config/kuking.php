@@ -3386,6 +3386,26 @@ return [
         'retention_hours' => 24,
     ],
 
+    'wspolne_gotowanie' => [
+        // Wspólne gotowanie gospodarza i do trzech pomocników (#2385, `docs/product/PROJEKT_WSPOLNE_GOTOWANIE_2385.md`).
+        // Ile godzin od ZAŁOŻENIA sesja jest ważna. Termin jest stały (bez
+        // przedłużania aktywnością): sesja nie ma stawać się trwałą historią
+        // konta. Wygasła jest niewidoczna, a nocne
+        // `kuking:sprzataj-wspolne-gotowanie` ją kasuje.
+        'retencja_godziny' => 24,
+
+        // Ile godzin żyje link zaproszenia (nigdy dłużej niż sesja). Link jest
+        // wielorazowy: wpuszcza kolejne osoby aż do `max_pomocnikow`.
+        'link_godziny' => 24,
+
+        // Ilu pomocników obok gospodarza: do trzech (decyzja właściciela z
+        // 1.10.2026, wiersz „#2385” w D-333). Jeden link wpuszcza do tylu osób (decyzja z 1.10.2026).
+        'max_pomocnikow' => 3,
+
+        // Ile niewygasłych sesji naraz może mieć jeden gospodarz.
+        'max_sesji_gospodarza' => 5,
+    ],
+
     'sessions' => [
         // RETENCJA TABELI `sessions` (RZ-01, 21.09.2026).
         //
