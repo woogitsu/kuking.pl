@@ -117,7 +117,7 @@ final class PrzywrocWskazowke
 
             $tekst = trim((string) $userMessage);
             $wiadomosc = $przepis !== null && $widoczna
-                ? trim(WskazanieWskazowki::przywrocenie($przepis).($tekst === '' ? '' : ' '.$tekst))
+                ? trim(WskazanieWskazowki::przywrocenie($wskazowka).($tekst === '' ? '' : ' '.$tekst))
                 : ($tekst === '' ? null : $tekst);
 
             $wskazowka->zdejmijUkrycieModeracji();

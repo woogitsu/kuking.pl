@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Appeal;
 use App\Models\AuditLogEntry;
+use App\Models\Block;
 use App\Models\CookedEvent;
 use App\Models\ModerationAction;
 use App\Models\Notification;
@@ -166,6 +167,22 @@ final class PrzywracanieWskazowekTest extends TestCase
 
         $audyt = AuditLogEntry::where('action', 'moderation.restored')->sole();
         $this->assertSame(['recipe_hint', (string) $this->wskazowka->getKey(), true], [$audyt->metadata['target_type'], $audyt->metadata['target_id'], $audyt->metadata['widoczna']]);
+    }
+
+    public function test_wiadomosc_o_przywroceniu_nie_wymienia_tytulu_przepisu_przy_blokadzie_z_autorem(): void
+    {
+        $this->ukryj($this->wskazowka, $this->moderator());
+        Block::query()->create(['blocker_id' => $this->autor->getKey(), 'blocked_id' => $this->kucharz->getKey()]);
+
+        $this->przywroc($this->moderator())->assertSessionHasNoErrors();
+
+        $decyzja = ModerationAction::where('action', ModerationAction::ACTION_UNHIDE)->sole();
+        $powiadomienie = Notification::where('user_id', $this->kucharz->getKey())->where('type', Notification::TYPE_MODERATION)->sole();
+        foreach ([(string) $decyzja->user_message, (string) $powiadomienie->data['message']] as $tekst) {
+            $this->assertStringNotContainsString('Rosół babci Jadwigi', $tekst);
+            $this->assertStringContainsString('jest znowu widoczna', $tekst);
+            $this->assertStringContainsString('numer jest firmowy', $tekst);
+        }
     }
 
     public function test_powod_jest_obowiazkowy_a_bez_niego_nic_sie_nie_zmienia(): void

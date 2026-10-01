@@ -42,7 +42,7 @@ final class WskazanieWersji
                 return $pelny;
             }
 
-            return $pelny - WskazanieWskazowki::dlugoscMax($wskazowka->recipe) - 1;
+            return $pelny - WskazanieWskazowki::dlugoscMax($wskazowka) - 1;
         }
 
         if ($typCelu !== CofniecieUkryciaWersji::TYP) {

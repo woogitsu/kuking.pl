@@ -198,7 +198,7 @@ final class RozstrzygnijZgloszenie
             // WSKAZÓWKA OD GOTUJĄCYCH (#2352): kucharz czyta, której wskazówki
             // dotyczy decyzja i że uwaga zostaje pod jego wykonaniem.
             if ($aktywnyCel instanceof RecipeHint && $aktywnyCel->recipe !== null) {
-                $wiadomosc = WskazanieWskazowki::wiadomosc($aktywnyCel->recipe, $wykonanaAkcja, $wiadomosc);
+                $wiadomosc = WskazanieWskazowki::wiadomosc($aktywnyCel, $wykonanaAkcja, $wiadomosc);
             }
 
             if ($aktywnyCel instanceof RecipeVersion && $wykonanaAkcja === ModerationAction::ACTION_HIDE) {

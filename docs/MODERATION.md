@@ -191,7 +191,8 @@ może ukryć **samą wskazówkę**, nie ruszając wykonania.
   przepisu, który o zgodę prosił — kara konta i powiadomienie trafiają do niego,
   on się odwołuje. Autor przepisu nie dostaje o ukryciu wiadomości.
   Powiadomienie ma zdanie „Dotyczy wskazówki od gotujących…” i mówi, że uwaga
-  zostaje pod wykonaniem.
+  zostaje pod wykonaniem; **gdy między kucharzem a autorem przepisu jest blokada,
+  zdanie nie wymienia tytułu przepisu** (dotyczy też wiadomości o przywróceniu).
 - **Ukrycie** to znacznik `recipe_hints.moderation_hidden_at`, osobny od stanu
   zgody kucharza. Idzie pod blokadą kont i wiersza wskazówki (jak „Wycofaj
   zgodę”); wskazówka, która nie stoi już przy przepisie (kucharz wycofał zgodę,

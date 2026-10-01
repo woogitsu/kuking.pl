@@ -22,6 +22,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\Support\PolecenieArtisanaZOdmowa;
@@ -466,6 +467,36 @@ final class ModeracjaWskazowekTest extends TestCase
         $this->assertSame(2000, mb_strlen((string) ModerationAction::sole()->user_message));
     }
 
+    /** @return array<string, array{bool}> */
+    public static function kierunkiBlokady(): array
+    {
+        return ['kucharz zablokował autora przepisu' => [true], 'autor przepisu zablokował kucharza' => [false]];
+    }
+
+    #[Test]
+    #[DataProvider('kierunkiBlokady')]
+    public function test_wiadomosc_dla_kucharza_nie_wymienia_tytulu_przepisu_przy_blokadzie_z_autorem(bool $kucharzBlokuje): void
+    {
+        Block::query()->create($kucharzBlokuje
+            ? ['blocker_id' => $this->kucharz->getKey(), 'blocked_id' => $this->autor->getKey()]
+            : ['blocker_id' => $this->autor->getKey(), 'blocked_id' => $this->kucharz->getKey()]);
+        $this->zglos($this->user('widz'));
+
+        $this->actingAs($this->moderator())
+            ->post(route('admin.reports.decide', Report::sole()), $this->decyzjaUkryj())
+            ->assertSessionHasNoErrors();
+
+        $decyzja = ModerationAction::sole();
+        $powiadomienie = Notification::where('user_id', $this->kucharz->getKey())->where('type', Notification::TYPE_MODERATION)->sole();
+        foreach ([(string) $decyzja->user_message, (string) $powiadomienie->data['message']] as $tekst) {
+            $this->assertStringNotContainsString('Rosół babci Jadwigi', $tekst, 'Tytuł przepisu osoby w blokadzie wyciekł do wiadomości dla kucharza.');
+            $this->assertStringContainsString('Dotyczy wskazówki od gotujących, którą pokazywaliśmy przy jednym z przepisów.', $tekst);
+            // Kontrola dodatnia: reszta wiadomości (uzasadnienie moderatora) dociera.
+            $this->assertStringContainsString('W uwadze jest numer telefonu.', $tekst);
+        }
+        $this->assertTrue($this->wskazowka->fresh()->jestUkrytaPrzezModeracje());
+    }
+
     #[Test]
     public function test_moderator_nie_rozstrzyga_zgloszenia_wlasnej_wskazowki(): void
     {
@@ -489,7 +520,7 @@ final class ModeracjaWskazowekTest extends TestCase
 
         $this->assertSame($this->kucharz->getKey(), ModeratedContent::osoba($wskazowka)?->getKey());
         // Kontrola: relacja `author` wskazówki to autor PRZEPISU — to właśnie jej nie wolno brać za autora uwagi.
-        $this->assertSame($this->autor->getKey(), $wskazowka->author?->getKey());
+        $this->assertSame($this->autor->getKey(), $wskazowka->author->getKey());
     }
 
     // ─── ODWOŁANIE KUCHARZA ──────────────────────────────────────────────

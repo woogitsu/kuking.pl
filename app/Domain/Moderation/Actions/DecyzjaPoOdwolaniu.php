@@ -136,7 +136,7 @@ final class DecyzjaPoOdwolaniu
         // WSKAZÓWKA OD GOTUJĄCYCH (#2352): kucharz ma przeczytać, której
         // wskazówki dotyczy nowa decyzja — jak przy decyzji ze zgłoszenia.
         if ($cel instanceof RecipeHint && $cel->recipe !== null) {
-            $wiadomosc = WskazanieWskazowki::wiadomosc($cel->recipe, $nowa->akcja, $wiadomosc);
+            $wiadomosc = WskazanieWskazowki::wiadomosc($cel, $nowa->akcja, $wiadomosc);
         }
 
         // Skutek PRZED zapisem decyzji: `suspend()`/`ban()` pisze do wiersza
