@@ -31,17 +31,20 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
-### Gotujemy razem z drugą osobą
+### Gotujemy razem z innymi
 
 W trybie gotowania jest przycisk „Gotuj z kimś”. Zakłada wspólną sesję jednego
-przepisu: wysyłacie jednej osobie link, a ona — po zalogowaniu i potwierdzeniu
-— widzi ten sam przepis i te same odhaczone kroki co Wy. Przy każdym kroku
-jest duży przycisk „Zrobione” (i „Cofnij”), a obok widać, kto go odhaczył
-i o której. Drugą osobę zaprasza i sesję kończy tylko gospodarz; pomocnik może
-w każdej chwili wyjść. Link działa raz i przez dobę, a gospodarz może go
-odwołać. Nie otworzy przepisu nikomu, kto nie mógłby go zobaczyć w Kuking
+przepisu: wysyłacie link, a każda zaproszona osoba — po zalogowaniu
+i potwierdzeniu — widzi ten sam przepis i te same odhaczone kroki co Wy.
+W sesji może być gospodarz i do trzech pomocników; każdego zapraszacie osobnym
+linkiem, który działa raz. Przy każdym kroku jest duży przycisk „Zrobione”
+(i „Cofnij”), a obok widać, kto go odhaczył i o której. Wszyscy w sesji widzą
+nawzajem swoje nazwy. Osoby, z których któraś zablokowała drugą, nie trafią do
+jednej sesji. Pomocników zaprasza i usuwa oraz sesję kończy tylko gospodarz;
+pomocnik może w każdej chwili wyjść. Link działa przez dobę, a gospodarz może
+go odwołać. Nie otworzy przepisu nikomu, kto nie mógłby go zobaczyć w Kuking
 (na przykład przepisu prywatnego). Nie ma tu wiadomości ani publikowania —
-tylko wspólna lista kroków. Gdy druga osoba coś zmieni, wystarczy kliknąć
+tylko wspólna lista kroków. Gdy ktoś z sesji coś zmieni, wystarczy kliknąć
 „Odśwież”. Sesja trwa najwyżej 24 godziny i znika razem z odhaczeniami;
 działa przy połączeniu z internetem. Minutniki zostają osobne dla każdej osoby.
 

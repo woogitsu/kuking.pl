@@ -6819,7 +6819,7 @@ przechodzi bez pytania. Wymuszenie po kopii tabeli:
 
 ## cooking_sessions + cooking_session_participants + cooking_session_steps + cooking_session_invitations — wspólne gotowanie (#2385)
 
-Sesja jednego przepisu dla gospodarza i pomocnika (etap 1: dwie osoby).
+Sesja jednego przepisu dla gospodarza i do trzech pomocników (`max_pomocnikow` = 3, decyzja właściciela z 1.10.2026).
 Migracja `2026_10_01_170420_create_cooking_sessions_tables`. Projekt,
 autoryzacja i retencja: `docs/product/PROJEKT_WSPOLNE_GOTOWANIE_2385.md`.
 Wszystkie modele mają pusty `$fillable`: wiersze powstają i zmieniają się
@@ -6845,7 +6845,9 @@ Indeksy: `UNIQUE (host_id, recipe_id)` (jedna sesja na parę), `expires_at`
 (`CASCADE`), `user_id` → `users` (`CASCADE`); `role varchar(16)`
 (`CHECK role IN ('helper')`, nowa rola = świadoma zmiana schematu);
 `joined_at timestamptz`. Liczbę pomocników ogranicza akcja pod blokadą wiersza
-sesji (`max_pomocnikow`), nie baza.
+sesji (`max_pomocnikow`, domyślnie 3), nie baza. Zaproszenie to jeden link dla jednej osoby
+(częściowy unikalny indeks `…_one_pending_idx`: najwyżej jeden oczekujący link na sesję),
+więc kolejnych pomocników zaprasza się kolejnymi linkami. Bez zmian schematu względem etapu 1.
 
 **`cooking_session_steps`** — wspólny postęp. `PRIMARY KEY (session_id,
 step_id)`; `step_id` → `recipe_steps` (`CASCADE`: krok usunięty z przepisu
@@ -6875,8 +6877,8 @@ link w sesji (nowy unieważnia stary).
 **Prywatność i retencja.** Sesja wygasa 24 h po założeniu; wygasła jest dla
 serwisu nieistniejąca (odczyt ją ignoruje), a
 `kuking:sprzataj-wspolne-gotowanie` (03:20) ją kasuje z całą zawartością.
-Zakończenie przez gospodarza kasuje sesję od razu. Blokada gospodarz ↔ pomocnik
-i wymazanie konta kończą udział przez kontrakt
+Zakończenie przez gospodarza kasuje sesję od razu. Blokada gospodarz ↔ pomocnik oraz
+pomocnik ↔ pomocnik (wypada zablokowany) i wymazanie konta kończą udział przez kontrakt
 `Users\KoniecWspolnegoGotowania` (wołany z `BlockUser` i `EraseAccountData`,
 D-302/#971). Paczka danych ma sekcję `wspolne_gotowanie` (bez tokenów i bez
 danych drugiej osoby). Minutniki nie są synchronizowane (jak w #2016).

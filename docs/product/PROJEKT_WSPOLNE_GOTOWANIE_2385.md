@@ -1,6 +1,6 @@
 # Wspólne gotowanie — projekt autoryzacji i rdzenia (#2385, etap 1)
 
-**Status:** projekt do wdrożenia w etapie 1 · 1 października 2026
+**Status:** projekt do wdrożenia w etapie 1 · 1 października 2026 · limit do trzech pomocników od 1 października 2026
 **Decyzja właściciela (1.10.2026):** budujemy PEŁNĄ sesję wspólnego gotowania
 (link zaproszenia, role, wspólny postęp). Wiersz w D-333 („bez nowego numeru”).
 **Offline (#1904) jest wstrzymany** decyzją właściciela — sesja działa online
@@ -14,8 +14,9 @@ jest decyzja właściciela, wybrano wariant bezpieczniejszy i zapisano pytanie
 
 ## 1. Czym jest sesja (i czym nie jest)
 
-Sesja = jeden przepis, jedna osoba **gospodarz** (zakłada), do niej dołącza
-**pomocnik** (po jednorazowym linku). Obie osoby widzą ten sam przepis i **ten
+Sesja = jeden przepis, jedna osoba **gospodarz** (zakłada), do niej dołączają
+**pomocnicy** (każdy po własnym, jednorazowym linku) — **do trzech** (decyzja
+właściciela z 1.10.2026, patrz pytanie 1). Wszyscy widzą ten sam przepis i **ten
 sam wspólny postęp kroków**. Nie ma czatu, wiadomości prywatnych, rankingu,
 feedu, publikacji ani powiadomień — AGENTS.md §12, zgłoszenie #2385
 („bez DM”). To nie jest grupa w rozumieniu #22 (jeden przepis, krótkie życie).
@@ -25,11 +26,11 @@ zakończenie sesji niczego nie publikuje i nie zapisuje wykonania (wykonanie
 przepisu pozostaje prywatne do osobnej publikacji — `RecordCookedEvent`,
 nietknięte). Sesja nie zmienia przepisu.
 
-Świadomie MAŁY zakres etapu 1 (wg „Proponowanego kierunku” ze zgłoszenia):
-jeden przepis, dwie role, **dokładnie dwie osoby** (gospodarz + jeden
-pomocnik). Limit to `kuking.wspolne_gotowanie.max_pomocnikow` (domyślnie 1);
-kod i schemat nie zakładają „dokładnie jednego”, ale blokada i wymazanie konta
-są w etapie 1 rozumowane dla pary.
+Świadomie MAŁY zakres (wg „Proponowanego kierunku” ze zgłoszenia): jeden
+przepis, dwie role, **gospodarz i do trzech pomocników**. Limit to
+`kuking.wspolne_gotowanie.max_pomocnikow` (domyślnie 3; w etapie 1 było 1 —
+zmiana jednej liczby plus to, co poniżej: limit pod blokadą wiersza sesji,
+blokady między pomocnikami, widok i eksport dla wielu osób).
 
 ## 2. Kto może założyć sesję
 
@@ -53,6 +54,17 @@ są w etapie 1 rozumowane dla pary.
 - **Wygasa po 24 h** (`link_godziny`), nigdy później niż sesja; kończąc sesję
   gospodarz kasuje też zaproszenia.
   Jeden aktywny link naraz: nowy link unieważnia poprzedni.
+- **Jeden link = jedna osoba (rozstrzygnięte przy wielu pomocnikach).** Zostaje
+  to, co dawał schemat: częściowy unikalny indeks „najwyżej jeden oczekujący
+  link na sesję”. Link przyjęty przez osobę jest zużyty; żeby zaprosić kolejną,
+  gospodarz tworzy następny link (ekran sesji pokazuje „Zaproś pomocnika (2 z
+  3)”). Powody: (a) link wielorazowy, wysłany na grupowy czat, wpuszcza
+  każdego, kto go zobaczy — pierwsze trzy osoby, nie te, które gospodarz miał
+  na myśli; (b) odwołanie i ślad „kto przyjął który link” zostają proste;
+  (c) nie trzeba zmieniać schematu ani ponownie przemyśleć retencji skrótu.
+  Koszt: nowy link unieważnia poprzedni, jeśli nikt jeszcze go nie przyjął —
+  ekran mówi to przy przycisku. Przy pełnym komplecie gospodarz nie utworzy
+  linku, dopóki nie usunie któregoś pomocnika.
 - **Odwołanie przez gospodarza:** „Odwołaj link” (status `revoked`, kasuje
   skrót tokenu). Gospodarz kończąc sesję kasuje też wszystkie zaproszenia.
 - **Jednorazowość:** przyjęcie zużywa link (status `accepted`) pod blokadą
@@ -76,7 +88,9 @@ są w etapie 1 rozumowane dla pary.
 
 Przyjęcie linku wymaga **wszystkich** warunków, sprawdzanych **pod zamkiem pary
 kont** (`ZamekPary`, ta sama kolejność blokad co przy zaproszeniu do zeszytu,
-D-080/D-302) i na wierszach odczytanych pod zamkiem:
+D-080/D-302), potem pod blokadą wiersza sesji, i na wierszach odczytanych pod
+zamkiem (kolejność blokad: konta → sesja → zaproszenie, patrz „Kolejność
+blokad” w sekcji 11):
 
 1. osoba jest **zalogowana** (gość trafia na logowanie i wraca na link);
 2. osoba ma **aktywne** konto (`mozeCzytac()` do podglądu, `isActive()` do
@@ -90,7 +104,11 @@ D-080/D-302) i na wierszach odczytanych pod zamkiem:
    Prywatny przepis gospodarza = pomocnik nie dołączy (nikt poza autorem go
    nie widzi). Tytuł przepisu na stronie linku pokazujemy dopiero PO
    pozytywnym `view`;
-6. sesja jest aktywna (nie zakończona, nie wygasła) i jest wolne miejsce.
+6. sesja jest aktywna (nie zakończona, nie wygasła) i jest wolne miejsce
+   (policzone pod blokadą wiersza sesji, na świeżym odczycie);
+7. **osoba nie ma blokady z żadnym z obecnych pomocników** (w żadną stronę) —
+   zablokowani wzajemnie nie siedzą w jednej sesji. Odmowa tym samym zdaniem
+   co każda inna; nie zdradza, kogo ktoś zablokował.
 
 **Dostęp jest sprawdzany przy każdym żądaniu, nie tylko przy dołączeniu.**
 Ekran sesji, odhaczenie i odczyt stanu przechodzą przez `CookingSessionPolicy`
@@ -116,6 +134,11 @@ adresie niczego nie otwiera.
 | Usunąć pomocnika | tak | — |
 | Wyjść z sesji | — (kończy sesję) | tak |
 | Zakończyć sesję (kasuje dane) | tak | nie |
+| Zobaczyć pozostałych uczestników i kto odhaczył krok | tak | tak |
+
+Pomocnicy mają te same prawa między sobą: każdy może odhaczyć i cofnąć każdy
+krok (także odhaczony przez kogoś innego — to wspólna lista, nie rejestr
+własności), a żaden nie zarządza pozostałymi.
 
 Dlaczego pomocnik może odhaczać: to cały sens „pomagam”. Dlaczego nie może
 wyczyścić postępu: jedno przypadkowe kliknięcie nie powinno kasować pracy
@@ -137,19 +160,22 @@ etap 2 (pytanie 3).
 - `revision` sesji rośnie o 1 przy każdej **realnej** zmianie (odhaczenie
   już odhaczonego nie zmienia niczego i rewizji nie podnosi). To jest to, co
   widzi druga osoba, żeby zauważyć zmianę. Formularz niesie rewizję, którą
-  osoba widziała; przy rozbieżności dostaje **jedno zdanie** („Druga osoba
-  zmieniła postęp. Widzisz jego aktualny stan, a Twoje kliknięcie zostało
-  zapisane.”) — jak w #2016.
+  osoba widziała; przy rozbieżności dostaje **jedno zdanie** („Ktoś z sesji
+  zmienił postęp. Widzisz teraz jego aktualny stan, a Twoje kliknięcie zostało
+  zapisane.”) — jak w #2016. Rewizja rośnie przy zmianie od KAŻDEJ osoby
+  (odhaczenie, cofnięcie, dołączenie, wyjście, usunięcie pomocnika, zmiana
+  składu przez blokadę), więc przy wielu osobach pas „Odśwież” pokazuje się
+  po zmianie od któregokolwiek z pozostałych.
 - **Bez WebSocketów i bez `wire:poll`** (AGENTS.md §3). Dwie ścieżki:
   1. **Przycisk „Odśwież”** (zwykły link, działa bez JS) — zawsze widoczny.
   2. **Krótki polling tylko jako ulepszenie**: istniejący skrypt
      `postep-gotowania.js` (ten sam co w #2016) co 30 s, tylko gdy karta jest
      widoczna, pyta `GET /gotowanie-razem/{cookingSession}/stan` o samą rewizję (JSON, jedno zapytanie po
-     kluczu) i, gdy jest inna, pokazuje pas „Druga osoba zmieniła postęp —
+     kluczu) i, gdy jest inna, pokazuje pas „Ktoś z sesji zmienił postęp —
      Odśwież”; po pokazaniu pasa przestaje pytać. **Nie przeładowuje strony
      sam** (gotujący ma brudne ręce i czyta krok; niespodziewane
-     przeładowanie jest gorsze od pasa). Koszt: dwie osoby × 2 żądania/min ×
-     czas gotowania (1–2 h) ≈ 240–480 lekkich żądań na sesję; limit
+     przeładowanie jest gorsze od pasa). Koszt: do czterech osób (gospodarz + 3) × 2 żądania/min ×
+     czas gotowania (1–2 h) ≈ 480–960 lekkich żądań na sesję; limit
      `cooking_krok` 60/min jest szeroko powyżej. Uzasadnienie (AGENTS.md §3 wymaga pomiaru kosztu):
      bez pasa wspólny postęp bywa nieaktualny aż do ręcznego odświeżenia, a
      to jest istota funkcji; bez JS zostaje przycisk. Pomiar wdrożeniowy:
@@ -179,19 +205,35 @@ etap 2 (pytanie 3).
 ## 8. Blokada, usunięcie konta, eksport, wymazanie
 
 - **Blokada** w którąkolwiek stronę między gospodarzem a pomocnikiem kończy
-  jego udział natychmiast i unieważnia link (kontrakt `Users` → implementacja
-  w `Recipes`, wołane przez `BlockUser` pod zamkiem pary — tak jak
-  `KoniecWspolnychZeszytow`, graf modułów bez cykli #971). Przyjęcie linku
-  wyścigujące się z blokadą jest szeregowane tym samym zamkiem pary.
+  udział pomocnika natychmiast (kontrakt `Users` → implementacja w `Recipes`,
+  wołane przez `BlockUser` pod zamkiem pary — tak jak `KoniecWspolnychZeszytow`,
+  graf modułów bez cykli #971). Przyjęcie linku wyścigujące się z blokadą jest
+  szeregowane wierszem konta osoby, która jest stroną obu operacji.
+- **Blokada między dwoma pomocnikami tej samej sesji: wypada ZABLOKOWANY,
+  blokujący zostaje** (rozstrzygnięte przy wielu pomocnikach). Powody: osoba,
+  która się zabezpiecza, nie traci przez to sesji; zablokowany widzi to samo,
+  co przy usunięciu przez gospodarza („Nie jesteś już uczestnikiem tej sesji”,
+  bez słowa o blokadzie), więc nie dostaje sygnału, że ktoś go zablokował;
+  blokujący nie musi niczego wybierać. Odhaczenia zablokowanego zostają do
+  końca sesji (to praca w gotowaniu). Rewizja sesji rośnie, pozostali widzą
+  zmianę składu. Wariant „wypada ten, kto zablokował” odrzucony: karałby
+  osobę, która właśnie się chroni. Wariant „wypada, kto dołączył później”
+  odrzucony: bywa, że wypadłby blokujący. Blokada osoby spoza sesji niczego
+  w niej nie rusza.
+- **Nowe przyjęcie po blokadzie:** osoba zablokowana (w którąkolwiek stronę)
+  z którymkolwiek obecnym pomocnikiem dostaje odmowę (warunek 7, sekcja 4).
 - **Usunięcie konta** (każdy zakres): sesje gospodarza znikają w całości;
   udziały pomocnika znikają; `done_by_id` tej osoby w cudzych sesjach
-  → `NULL` („osoba, która usunęła konto”).
+  → `NULL` („osoba, która usunęła konto”); pozostali pomocnicy i ich podpisy
+  zostają bez zmian. Wymazanie gospodarza kończy sesję ze wszystkimi pomocnikami.
 - **Eksport (RODO art. 15):** sekcja `wspolne_gotowanie` w `dane.json` — sesje
   niewygasłe, w których osoba jest gospodarzem lub pomocnikiem: rola, tytuł
   przepisu (tylko gdy osoba go widzi — jak w `postep_gotowania`), numery
-  kroków odhaczonych PRZEZ TĘ OSOBĘ, termin ważności, liczba zaproszeń.
-  Bez tokenów i skrótów, bez danych drugiej osoby (nazwa drugiej osoby jest
-  widoczna na ekranie sesji, ale nie jest wydawana w paczce — to jej dane).
+  kroków odhaczonych PRZEZ TĘ OSOBĘ, termin ważności. Bez tokenów i skrótów,
+  bez danych pozostałych uczestników — przy trzech pomocnikach każda paczka
+  zawiera tylko własne odhaczenia, a nazwy gospodarza i pozostałych pomocników
+  są widoczne na ekranie sesji, ale nie są wydawane w paczce (to ich dane;
+  pilnuje tego `WspolneGotowanieWieluPomocnikowTest`).
   Wpisy w `InwentarzDanychKonta` dla każdej kolumny wskazującej na konto.
 - **Wymazanie:** kończenie sesji i „wyjdź” są jawnymi akcjami na ekranie;
   nie ma osobnego „wymaż wszystko” — sesja i tak żyje najwyżej 24 h.
@@ -206,8 +248,10 @@ etap 2 (pytanie 3).
   prywatności dostaje drobną poprawkę bieżącej wersji (nowa kategoria danych
   i jej retencja), bez nowej wersji z paskiem — decyzja koordynatora w
   zleceniu; patrz pytanie 5.
-- Druga osoba widzi: nazwę wyświetlaną/konta gospodarza (pomocnik) i pomocnika
-  (gospodarz) oraz „kto zrobił krok”. Nic ponad to. Sesja nie pojawia się
+- Uczestnicy widzą nawzajem: nazwę wyświetlaną/konta gospodarza i wszystkich
+  pomocników (także pomocnik pozostałych pomocników — to wspólny ekran) oraz
+  „kto zrobił krok”. Nic ponad to. Strona linku mówi to przyszłemu pomocnikowi
+  przed kliknięciem „Dołączam”. Sesja nie pojawia się
   w profilu, w feedzie, w wyszukiwarce ani w statystykach publicznych.
 - `X-Robots`/`noindex` i `Cache-Control: private` na ekranach sesji; token w
   adresie linku: `Referrer-Policy: no-referrer` na stronie linku (token nie
@@ -245,6 +289,32 @@ etap 2 (pytanie 3).
 `WspolneGotowanieController`. Polityka: `CookingSessionPolicy`. Każdy zapis
 pod `lockForUpdate` wiersza sesji; zamek pary kont przy dołączaniu.
 
+### Kolejność blokad (wiele osób, wiele wyścigów)
+
+Jedna kolejność we wszystkich akcjach sesji: **konta → wiersz sesji →
+(zaproszenie, udziały, odhaczenia)**.
+
+- Przyjęcie linku: `ZamekPary(osoba, gospodarz)` (konta `FOR UPDATE` rosnąco po
+  id), potem wiersz sesji, dopiero potem odczyt zaproszenia. Wiersz sesji jest
+  JEDYNYM miejscem, które szereguje limit pomocników, tworzenie i odwołanie
+  linku oraz przyjęcie; zaproszenia nie blokujemy osobno (blokada zaproszenia
+  przed sesją zakleszczała się z gospodarzem unieważniającym ten link pod
+  blokadą sesji — test na dwóch połączeniach).
+- Zamek pary NIE wystarcza do limitu i rewizji: choć gospodarz jest wspólny dla
+  każdej pary (osoba, gospodarz) i jego wiersz konta szereguje dwa przyjęcia,
+  odczyt rewizji i liczby pomocników ma być świeży pod blokadą sesji — inaczej
+  przyjęcie gubiłoby zmianę rewizji zrobioną równocześnie przez odhaczenie
+  (które zamka pary nie bierze).
+- Odhaczenie ma klucz obcy `done_by_id → users`, więc potrzebuje wiersza konta
+  osoby (`KEY SHARE`), który koliduje z cudzym `FOR UPDATE` z zamka pary.
+  Dlatego odhaczenie najpierw bierze `KEY SHARE` na koncie odhaczającego,
+  potem wiersz sesji. Bez tego gospodarz odhaczający krok w chwili, gdy ktoś
+  dołącza do jego sesji albo gdy blokuje pomocnika, zakleszczał się (40P01) —
+  błąd istniał już przy jednym pomocniku i wyszedł dopiero w teście wyścigu.
+- Blokada (`KoniecWspolnegoGotowaniaImpl::miedzy`): pod zamkiem pary kont
+  wybiera sesje, w których strony się spotykają, blokuje je rosnąco po id,
+  dopiero potem rusza udziały.
+
 ## 12. Testy (z kontrolą ujemną)
 
 Token cudzy / nieznany / wygasły / odwołany / zużyty; przepis prywatny
@@ -252,16 +322,21 @@ Token cudzy / nieznany / wygasły / odwołany / zużyty; przepis prywatny
 obserwowania; blokada gospodarz↔pomocnik przed i po dołączeniu; zawieszone
 konto (czyta, nie odhacza); nie-członek = 404 dla ekranu, odhaczenia i
 stanu; pomocnik nie wyczyści, nie zaprosi, nie zakończy; wyścig dwóch
-odhaczeń tego samego kroku (grupa `dwa-polaczenia`) i dwóch przyjęć
-jednego linku; wygaśnięcie i sprzątanie; wymazanie konta; eksport; migracja
+odhaczeń tego samego kroku (grupa `dwa-polaczenia`), dwóch przyjęć
+jednego linku, dwóch RÓŻNYCH osób przy jednym wolnym miejscu (wchodzi
+dokładnie jedna), przyjęcia linku z równoczesnym odhaczeniem (rewizja rośnie o
+dwa), nowego linku gospodarza z przyjęciem starego (bez zakleszczenia) i
+odhaczenia z równoczesną blokadą pomocnika przez gospodarza; do trzech
+pomocników: limit, blokady w obie strony i między pomocnikami, widok, eksport
+i wymazanie każdego z uczestników (`WspolneGotowanieWieluPomocnikowTest`); wygaśnięcie i sprzątanie; wymazanie konta; eksport; migracja
 (schemat, CHECK-i, rollback odmawia/przechodzi).
 
 ## Pytania do właściciela (z wybranym bezpieczniejszym wariantem domyślnym)
 
-1. **Ile osób?** Wybrano: gospodarz + 1 pomocnik (zgłoszenie mówi o „dwóch
-   rolach”; mniej osób = prostsza blokada i mniejsze ryzyko linku
-   przekazanego dalej). Czy dopuścić więcej pomocników? (Zmiana jednej liczby
-   w konfiguracji + test blokady wielu osób.)
+1. **Ile osób?** ROZSTRZYGNIĘTE (decyzja właściciela z 1.10.2026): gospodarz i
+   **do trzech pomocników** (`max_pomocnikow` = 3). Jeden link zaprasza jedną
+   osobę (sekcja 3); blokada między pomocnikami — wypada zablokowany (sekcja
+   8). Pierwotnie wybrano jednego pomocnika jako wariant bezpieczniejszy.
 2. **Wersja przepisu.** Zgłoszenie mówi i „konkretna wersja”, i „aktualna
    wersja”. Wybrano **aktualną** (jak tryb gotowania i #2016; krok usunięty z
    przepisu wypada z sesji). Czy sesja ma zamrażać wersję z chwili startu?
