@@ -70,10 +70,11 @@ class CookingModeTest extends TestCase
         $recipe->update(['servings' => 4]);
         $recipe->ingredients()->delete();
         RecipeIngredient::create([
-            'recipe_id' => $recipe->getKey(), 'ingredient_text' => '200 g mąki', 'position' => 0,
+            'recipe_id' => $recipe->getKey(), 'ingredient_text' => '1 000 g mąki', 'position' => 0,
         ]);
 
         $strona = $this->get(route('recipes.show', ['recipe' => $recipe->slug, 'porcje' => 6]))->assertOk();
+        $this->assertStringContainsString('1500 g mąki', strip_tags((string) $strona->getContent()));
         $wejscie = $this->xpath($strona)->query('//a[contains(normalize-space(.), "Gotuję — pokaż kroki")]')->item(0);
         $this->assertInstanceOf(DOMElement::class, $wejscie);
         $this->assertSame(route('cooking.show', ['recipe' => $recipe->slug, 'porcje' => 6]), $wejscie->getAttribute('href'));
@@ -82,20 +83,20 @@ class CookingModeTest extends TestCase
         $xpath = $this->xpath($gotowanie);
         $skladnik = $xpath->query('//details[contains(@class, "cook-ingredients")]//li[@data-skladnik]/label/span[@class="cook-skladnik-tresc"]')->item(0);
         $this->assertInstanceOf(DOMElement::class, $skladnik);
-        $this->assertSame('300 g mąki', trim((string) preg_replace('/\s+/u', ' ', $skladnik->textContent)));
+        $this->assertSame('1500 g mąki', trim((string) preg_replace('/\s+/u', ' ', $skladnik->textContent)));
         $this->assertSame(1, $xpath->query('//details[contains(@class, "cook-ingredients")]//input[@data-przygotowanie-pole]')->length, 'Przeliczenie nie może usunąć checklisty składników.');
 
         $nastepny = $xpath->query('//nav[@class="cook-nav"]//a[contains(., "Następny krok")]')->item(0);
         $this->assertInstanceOf(DOMElement::class, $nastepny);
         $this->assertSame(route('cooking.show', ['recipe' => $recipe->slug, 'krok' => 2, 'porcje' => 6]), $nastepny->getAttribute('href'));
         $krokDrugi = $this->get($nastepny->getAttribute('href'))->assertOk();
-        $this->assertSame('300 g mąki', trim((string) preg_replace('/\s+/u', ' ', $this->xpath($krokDrugi)->query('//li[@data-skladnik]/label/span[@class="cook-skladnik-tresc"]')->item(0)?->textContent)));
+        $this->assertSame('1500 g mąki', trim((string) preg_replace('/\s+/u', ' ', $this->xpath($krokDrugi)->query('//li[@data-skladnik]/label/span[@class="cook-skladnik-tresc"]')->item(0)?->textContent)));
 
         $wyjscie = $xpath->query('//a[contains(@class, "cook-exit")]')->item(0);
         $this->assertInstanceOf(DOMElement::class, $wyjscie);
         $this->assertSame(route('recipes.show', ['recipe' => $recipe->slug, 'porcje' => 6]), $wyjscie->getAttribute('href'));
         $powrot = $this->get($wyjscie->getAttribute('href'))->assertOk();
-        $this->assertStringContainsString('300 g mąki', strip_tags((string) $powrot->getContent()));
+        $this->assertStringContainsString('1500 g mąki', strip_tags((string) $powrot->getContent()));
 
         $pole = $xpath->query('//form[contains(@class, "cook-zaznacz")]/input[@name="porcje"]')->item(0);
         $this->assertInstanceOf(DOMElement::class, $pole);
@@ -114,10 +115,11 @@ class CookingModeTest extends TestCase
         $this->post(route('cooking.restart', $recipe->slug), ['porcje' => 6])
             ->assertRedirect(route('cooking.show', ['recipe' => $recipe->slug, 'porcje' => 6]));
         $poRestarcie = $this->get(route('cooking.show', ['recipe' => $recipe->slug, 'porcje' => 6]))->assertOk();
-        $this->assertStringContainsString('300 g mąki', strip_tags((string) $poRestarcie->getContent()));
+        $this->assertStringContainsString('1500 g mąki', strip_tags((string) $poRestarcie->getContent()));
 
         $this->get(route('cooking.show', $recipe->slug))
-            ->assertOk()->assertSee('200 g mąki', false)->assertDontSee('Przeliczone na');
+            ->assertOk()->assertSee('1 000 g mąki', false)->assertDontSee('Przeliczone na');
+        $this->assertSame('1 000 g mąki', $recipe->ingredients()->firstOrFail()->ingredient_text);
     }
 
     public function test_nieprawidlowa_liczba_porcji_nie_przechodzi_dalej(): void
