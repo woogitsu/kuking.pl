@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (karta z kodem QR, #2349): karta przepisu pod starym adresem (po zmianie tytułu) przekierowuje teraz na aktualny adres karty, tak jak sama strona przepisu, zamiast pokazywać 404. Przepis niedostępny dla oglądającego albo niedostępny dla gościa nadal daje 404 i nie zdradza nowego adresu.
 - Poprawione (spiżarnia, #1903): gdy w „Ustaw termin” dotkniesz szybkiego przycisku („Za 3 dni” itd.), a nie zaznaczysz rodzaju terminu, formularz wraca z błędem, ale data z przycisku jest już wpisana w listach Dzień / Miesiąc / Rok, ilość i „Mam to w zamrażarce” zostają, a komunikat mówi, co zrobić: zaznaczyć rodzaj i nacisnąć „Zapisz”. Rodzaj terminu nadal trzeba wybrać samemu.
 - Naprawione (spiżarnia, #1903): zmiana samej ilości albo „Mam to w zamrażarce” przy produkcie nie cofa już po cichu terminu, który w tej samej chwili zapisała druga edycja (np. z drugiego okna) — stan produktu jest czytany dopiero po zablokowaniu wiersza.
 - Naprawione (spiżarnia, #1903): pomiar „ktoś otworzył przepisy w trybie najpierw to, co się psuje” (`pantry_cook_priority_viewed`) leci teraz raz na sesję, tak jak `pantry_priority_viewed`, a nie przy każdym wejściu na pierwszą stronę tego trybu.
