@@ -6505,11 +6505,16 @@ Ograniczenia (nowa tabela, więc razem z `CREATE TABLE` — AGENTS.md §6):
   przepisu; **„Nie” i „Wycofaj zgodę” zostają kucharzowi także przy blokadzie
   i zawieszeniu** (RODO art. 7 ust. 3 — cofnięcie zgody tak łatwe jak jej
   udzielenie; `EnsureAccountIsActive` ma obie trasy na liście dozwolonych).
-- Kolejność zamków jak w całym serwisie: `ZamekPary` (oba konta rosnąco po
-  `id`, D-080), potem wiersz wskazówki `FOR UPDATE`. Wykonania ani przepisu
+- Kolejność zamków jak w całym serwisie, **we wszystkich czterech akcjach**:
+  `ZamekPary` (oba konta rosnąco po `id`, D-080), potem wiersz wskazówki
+  `FOR UPDATE` (prośba: konta, potem wiersz wykonania). Wykonania ani przepisu
   przy odpowiedzi nie blokujemy — usunięcie wykonania kasuje wiersz kaskadą i
-  blokada na wykonaniu obok blokady na wskazówce dałaby zakleszczenie.
-  Akcje są idempotentne (podwójne „Zgadzam się” nic nie zmienia).
+  blokada na wykonaniu obok blokady na wskazówce dałaby zakleszczenie. Odmowa
+  i wycofanie też idą najpierw przez konta: wpis w `audit_log` trzyma
+  współdzieloną blokadę wiersza konta (klucz obcy), więc kolejność „wskazówka,
+  potem konto” zakleszczała się ze „Zgadzam się” (konta, potem wskazówka) —
+  złapane przez `tests/Dwa/WskazowkiNaDwochPolaczeniachTest.php`. Akcje są
+  idempotentne (podwójne „Zgadzam się” nic nie zmienia).
 - *Widoczność:* strona przepisu pokazuje wyłącznie `accepted` z wykonań, które
   widz może zobaczyć (`CookedEvent::scopeWidoczneDla` — blokady, konta
   zbanowane i w karencji usunięcia), w kolejności `decided_at`, bez rankingu,

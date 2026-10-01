@@ -29,6 +29,8 @@ use Tests\TestCase;
  * odpowiedzi = brak publikacji, zgodę można wycofać. Każdy pomiar idzie
  * przez HTTP i końcowy HTML (albo przez prawdziwą paczkę danych i prawdziwą
  * akcję wymazania); kontrole ujemne stoją obok dodatnich.
+ *
+ * @bez-kontroli-dodatniej Testy behawioralne (HTTP, baza, paczka danych), nie strażnik tekstu; kontrole mutacyjne wykonano ręcznie na każdej regule (Policy, akcje, widoczność, wymazanie, eksport, rollback).
  */
 final class WskazowkiOdGotujacychTest extends TestCase
 {
