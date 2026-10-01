@@ -3851,7 +3851,7 @@ jest decyzją o ich wyrzuceniu. Komunikat mówi, co zrobić.
 
 #### `target_type = 'recipe_version'` — konkretna wersja przepisu jako cel zgłoszenia (#2390)
 
-Migracja `2026_10_01_100000_wersja_przepisu_jako_cel_zgloszenia` dopisuje do
+Migracja `2026_10_01_100200_wersja_przepisu_jako_cel_zgloszenia` dopisuje do
 `reports_target_type_check` wartość **`recipe_version`** (decyzja właściciela
 z 1.10.2026, D-333: osoba trzecia — także gość — zgłasza konkretną wersję
 z historii zmian przepisu; usunięcie danych z historii to ukrycie CAŁEJ wersji,

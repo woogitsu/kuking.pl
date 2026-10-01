@@ -572,7 +572,7 @@ final class ZgloszenieWersjiPrzepisuTest extends TestCase
     #[Test]
     public function test_rollback_odmawia_gdy_jest_zgloszenie_wersji_a_bez_niego_przechodzi(): void
     {
-        $migracja = 'database/migrations/2026_10_01_100000_wersja_przepisu_jako_cel_zgloszenia.php';
+        $migracja = 'database/migrations/2026_10_01_100200_wersja_przepisu_jako_cel_zgloszenia.php';
 
         // Kontrola dodatnia: bez zgłoszeń wersji rollback przechodzi i da się go powtórzyć.
         Artisan::call('migrate:rollback', ['--path' => $migracja]);
