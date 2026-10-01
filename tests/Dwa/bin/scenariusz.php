@@ -56,6 +56,7 @@ use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Tags\Actions\MergeTags;
+use App\Domain\Tags\Actions\ResolveTagsForPost;
 use App\Domain\Tags\Actions\UpdateTagFollows;
 use App\Domain\Tags\PromowaneTagi;
 use App\Domain\Users\Actions\ChangeUserRole;
@@ -1047,6 +1048,22 @@ try {
             }
 
             return app(ImportujWartosciOdzywcze::class)->handle($argumenty['katalog']);
+        })(),
+
+        // Dwa równoległe wpisy z tym samym NOWYM tagiem albo z nazwami o wspólnym
+        // slugu (ta sama akcja co publikacja wpisu). Bariera stoi w zdarzeniu
+        // `creating` tagu, czyli PO wyliczeniu slugu i PRZED insertem.
+        'rozwiaz-tagi-z-bariera' => (function () use ($argumenty): string {
+            Tag::creating(static function (): void {
+                DB::select('SELECT pg_advisory_xact_lock_shared(2404, 1)');
+            });
+
+            $tagi = app(ResolveTagsForPost::class)->handle([$argumenty['nazwa']]);
+
+            return json_encode(array_map(
+                static fn (Tag $tag): array => ['id' => (string) $tag->getKey(), 'slug' => $tag->slug],
+                $tagi,
+            ), JSON_THROW_ON_ERROR);
         })(),
 
         // Prawdziwa komenda używana przez obie ścieżki wdrożenia (#2082).

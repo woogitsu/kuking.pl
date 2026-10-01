@@ -77,9 +77,8 @@ class ResolveTagsForPostRaceTest extends TestCase
      * wprost, że przechwycenie `UniqueConstraintViolationException` naprawdę
      * działa.
      *
-     * Tu podkładamy konkurencyjny wiersz przy DRUGIM pasującym odczycie —
-     * czyli tym, który `firstOrCreate()` wykonuje SAM, tuż przed swoim
-     * `INSERT`-em. Wtedy `INSERT` testowanego kodu naprawdę zderza się
+     * Tu podkładamy konkurencyjny wiersz przy odczycie po `slug`
+     * (`wolnySlug()`), tuż przed `INSERT`-em. Wtedy `INSERT` testowanego kodu naprawdę zderza się
      * z UNIQUE w bazie, a `createOrFirst()` musi złapać wyjątek i oddać
      * wiersz, który wygrał — to jest dokładnie mechanizm, o który pyta audyt.
      */
@@ -88,25 +87,31 @@ class ResolveTagsForPostRaceTest extends TestCase
         $znormalizowana = Tag::znormalizujNazwe('Barszcz');
         $ileTrafien = 0;
 
-        $listener = function ($query) use (&$ileTrafien, $znormalizowana): void {
+        $wstawiony = false;
+
+        $listener = function ($query) use (&$ileTrafien, &$wstawiony, $znormalizowana): void {
             $sql = strtolower($query->sql);
 
-            if (! str_starts_with(trim($sql), 'select') || ! str_contains($sql, '"tags"') || ! str_contains($sql, 'normalized_name')) {
+            if (! str_starts_with(trim($sql), 'select') || ! str_contains($sql, '"tags"')) {
                 return;
             }
 
-            $ileTrafien++;
+            if (str_contains($sql, 'normalized_name')) {
+                $ileTrafien++;
 
-            // Pierwsze trafienie: sprawdzenie na początku `znajdzAlboUtworz()`
-            // — zostawiamy bez zmian, ma zwrócić "nie ma".
-            if ($ileTrafien !== 2) {
                 return;
             }
 
-            // Drugie trafienie: to jest SELECT, który `firstOrCreate()`
-            // wykonuje tuż przed swoim `INSERT`-em. Wstawiamy konkurencyjny
-            // wiersz TERAZ — testowany kod za chwilę spróbuje utworzyć
-            // dokładnie ten sam, znormalizowany tag i zderzy się z UNIQUE.
+            // SELECT po `slug` (`wolnySlug()`) to ostatni odczyt tuż przed
+            // `INSERT`-em nowego tagu. Wstawiamy konkurencyjny wiersz TERAZ —
+            // testowany kod za chwilę spróbuje utworzyć dokładnie ten sam,
+            // znormalizowany tag i zderzy się z UNIQUE.
+            if ($wstawiony || ! str_contains($sql, '"slug"')) {
+                return;
+            }
+
+            $wstawiony = true;
+
             DB::table('tags')->insert([
                 'id' => (string) Str::uuid(),
                 'name' => 'Barszcz',
@@ -122,13 +127,14 @@ class ResolveTagsForPostRaceTest extends TestCase
 
         $tagi = app(ResolveTagsForPost::class)->handle(['Barszcz']);
 
-        // Trzeci odczyt to `->where($attributes)->first()` z CATCH-a
-        // w `Builder::createOrFirst()` — dowód, że `INSERT` naprawdę
-        // zderzył się z UNIQUE i wyjątek naprawdę został złapany, a nie że
-        // ścieżka z wyjątkiem w ogóle się nie wykonała.
-        $this->assertSame(3, $ileTrafien, 'Test zakłada dokładnie trzy odczyty po normalized_name (sprawdzenie + firstOrCreate + odzyskanie po zderzeniu) — jeśli to się zmieniło, scenariusz już nie mierzy tego, co miał.');
+        // Drugi odczyt po `normalized_name` to odzyskanie wiersza w CATCH-u
+        // `zapiszNowyTag()` — dowód, że `INSERT` naprawdę zderzył się z UNIQUE
+        // i wyjątek naprawdę został złapany, a nie że ścieżka z wyjątkiem
+        // w ogóle się nie wykonała.
+        $this->assertSame(2, $ileTrafien, 'Test zakłada dokładnie dwa odczyty po normalized_name (sprawdzenie + odzyskanie po zderzeniu) — jeśli to się zmieniło, scenariusz już nie mierzy tego, co miał.');
+        $this->assertTrue($wstawiony, 'Konkurencyjny wiersz musiał zostać wstawiony przed insertem.');
         $this->assertSame(1, Tag::query()->where('normalized_name', $znormalizowana)->count(), 'UNIQUE w bazie ma domknąć wyścig: nie może powstać drugi wiersz.');
         $this->assertCount(1, $tagi, 'Wywołujący ma dostać jeden tag, nie wyjątek z bazy.');
-        $this->assertSame('barszcz-konkurencyjny', $tagi[0]->slug, 'Wygrywa wiersz, który zdążył pierwszy — `createOrFirst()` łapie zderzenie i oddaje ISTNIEJĄCY wiersz.');
+        $this->assertSame('barszcz-konkurencyjny', $tagi[0]->slug, 'Wygrywa wiersz, który zdążył pierwszy — `zapiszNowyTag()` łapie zderzenie i oddaje ISTNIEJĄCY wiersz.');
     }
 }
