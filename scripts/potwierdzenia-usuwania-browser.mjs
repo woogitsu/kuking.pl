@@ -53,7 +53,7 @@ async function accessibleNameMatchesVisible(summary) {
   const label = await summary.getAttribute('aria-label');
   if (!label) return;
   const visible = await summary.locator('span:visible').allTextContents();
-  const action = visible.map(s => s.trim()).find(Boolean);
+  const action = visible.map(s => s.trim()).find(Boolean) || (await summary.innerText()).trim();
   assert.ok(action && label.includes(action), `Nazwa dostępna "${label}" nie odpowiada widocznej akcji "${action}".`);
 }
 
