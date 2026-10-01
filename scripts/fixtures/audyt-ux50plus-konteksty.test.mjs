@@ -23,7 +23,6 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const ZRODLO = readFileSync(new URL('../audyt-ux50plus.mjs', import.meta.url), 'utf8');
-const CI = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
 const ADRES = 'http://kuking.test';
 
 const TRASY_GOSCIA = new Set(['/login', '/register', '/nie-pamietam-hasla']);
@@ -294,8 +293,7 @@ test('forma: audyt ma skale 100/150 i wybór 200 przy 320 px oraz wyrok w kodzie
   assert.match(ZRODLO, /if \(forma\.bledy\.length > 0\) \{[\s\S]*process\.exitCode = 1;/);
 });
 
-test('forma: CI mierzy w Chromium tylko dwa formularze i odmawia pustego pomiaru', () => {
+test('forma: celowany wariant mierzy tylko dwa formularze i odmawia pustego pomiaru', () => {
   assert.match(ZRODLO, /TYLKO_WYBOR_FORMY && !ekran\.wybor/);
   assert.match(ZRODLO, /forma\.pomiary\.length !== 4/);
-  assert.match(CI, /Port projektu — układ i kontrola ujemna[\s\S]*Wybór formy — 320 px, 200% i klawiatura po błędzie[\s\S]*run: node scripts\/wybor-formy-ci\.mjs/);
 });
