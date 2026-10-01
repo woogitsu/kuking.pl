@@ -74,6 +74,23 @@ final class ZmienTerminProduktu
     }
 
     /**
+     * Data szybkiego przycisku („Za 3 dni”) liczona od `$dzis`; `null` dla
+     * wartości spoza `SZYBKIE`. Ta sama liczba służy zapisowi i ponownemu
+     * wyświetleniu formularza po błędzie (data nie ginie).
+     */
+    public static function dataZaPrzyciskiem(mixed $za, ?string $dzis = null): ?string
+    {
+        if (! is_string($za) || ! array_key_exists($za, self::SZYBKIE)) {
+            return null;
+        }
+
+        $data = CarbonImmutable::parse($dzis ?? PriorytetZuzycia::dzis())->startOfDay();
+        $data = $za === 'miesiac' ? $data->addMonthNoOverflow() : $data->addDays((int) $za);
+
+        return $data->toDateString();
+    }
+
+    /**
      * @param  array<string, mixed>  $dane  surowe pola formularza
      * @return bool `false`, gdy produktu już nie ma (usunięty równolegle)
      *
@@ -82,18 +99,24 @@ final class ZmienTerminProduktu
     public function handle(PantryItem $produkt, array $dane, ?string $dzis = null): bool
     {
         $dzis ??= PriorytetZuzycia::dzis();
-        $zmiany = $this->zmiany($produkt, $dane, $dzis);
 
-        return DB::transaction(function () use ($produkt, $zmiany): bool {
+        return DB::transaction(function () use ($produkt, $dane, $dzis): bool {
+            // STAN CZYTAMY POD BLOKADĄ. Model z kontrolera został wczytany przed
+            // blokadą, więc mógł być już nieaktualny: gdy druga edycja
+            // zdążyła zapisać termin, zmiana samej ilości (która „zostawia
+            // termin”) cofnęłaby ten termin po cichu. Termin do zachowania
+            // i rok dopuszczony w liście lat pochodzą z wiersza zablokowanego.
             $wiersz = DB::table('pantry_items')
                 ->where('id', $produkt->getKey())
                 ->where('user_id', $produkt->user_id)
                 ->lockForUpdate()
-                ->first(['id']);
+                ->first(['id', 'expires_on', 'expiry_kind']);
 
             if ($wiersz === null) {
                 return false;
             }
+
+            $zmiany = $this->zmiany($wiersz, $dane, $dzis);
 
             DB::table('pantry_items')
                 ->where('id', $produkt->getKey())
@@ -106,11 +129,12 @@ final class ZmienTerminProduktu
 
     /**
      * @param  array<string, mixed>  $dane
+     * @param  object{expires_on: ?string, expiry_kind: ?string}  $zapisany  wiersz odczytany pod blokadą
      * @return array<string, mixed> kolumny do zapisu
      *
      * @throws ValidationException
      */
-    private function zmiany(PantryItem $produkt, array $dane, string $dzis): array
+    private function zmiany(object $zapisany, array $dane, string $dzis): array
     {
         $bledy = [];
 
@@ -120,7 +144,7 @@ final class ZmienTerminProduktu
             'frozen' => filter_var($dane['mrozone'] ?? false, FILTER_VALIDATE_BOOLEAN),
         ];
 
-        $termin = $this->termin($produkt, $dane, $dzis, $bledy);
+        $termin = $this->termin($zapisany, $dane, $dzis, $bledy);
 
         if ($bledy !== []) {
             throw ValidationException::withMessages($bledy);
@@ -131,10 +155,11 @@ final class ZmienTerminProduktu
 
     /**
      * @param  array<string, mixed>  $dane
+     * @param  object{expires_on: ?string, expiry_kind: ?string}  $zapisany  wiersz odczytany pod blokadą
      * @param  array<string, string>  $bledy
      * @return array<string, mixed>
      */
-    private function termin(PantryItem $produkt, array $dane, string $dzis, array &$bledy): array
+    private function termin(object $zapisany, array $dane, string $dzis, array &$bledy): array
     {
         $rodzaj = is_string($dane['rodzaj'] ?? null) ? $dane['rodzaj'] : '';
         $dzien = $this->liczba($dane['termin_dzien'] ?? null);
@@ -167,22 +192,20 @@ final class ZmienTerminProduktu
             }
 
             if (! $rodzajPoprawny) {
-                $bledy['rodzaj'] = $rodzaj === self::NIEZNANY
-                    ? 'Przycisk „'.self::SZYBKIE[$za].'” ustawia termin, więc zaznacz, jaki to termin: „Należy zużyć do” albo „Najlepiej spożyć przed”. Nic nie zmieniliśmy.'
-                    : $this->bladRodzaju();
+                // Data z przycisku wraca na listy Dzień / Miesiąc / Rok
+                // (`dataZaPrzyciskiem()` w widoku), więc wystarczy zaznaczyć rodzaj.
+                $bledy['rodzaj'] = 'Przycisk „'.self::SZYBKIE[$za].'” liczy datę od dziś, ale trzeba jeszcze wiedzieć, jaki to termin. '
+                    .'Zaznacz „Należy zużyć do” albo „Najlepiej spożyć przed” i naciśnij „Zapisz” — data jest już wpisana w listach. Nic nie zmieniliśmy.';
 
                 return [];
             }
 
-            $data = CarbonImmutable::parse($dzis)->startOfDay();
-            $data = $za === 'miesiac' ? $data->addMonthNoOverflow() : $data->addDays((int) $za);
-
-            return ['expires_on' => $data->toDateString(), 'expiry_kind' => $rodzaj];
+            return ['expires_on' => self::dataZaPrzyciskiem($za, $dzis), 'expiry_kind' => $rodzaj];
         }
 
         // Nic nie wybrano i nic nie było: zostaje bez terminu (zmiana samej ilości).
         if (! $rodzajPoprawny && ! $cokolwiekZDaty) {
-            return $this->zostawTermin($produkt);
+            return $this->zostawTermin($zapisany);
         }
 
         if (! $rodzajPoprawny) {
@@ -197,7 +220,7 @@ final class ZmienTerminProduktu
             return [];
         }
 
-        if (! in_array($rok, self::lataDoWyboru($dzis, $produkt->expires_on?->year), true)) {
+        if (! in_array($rok, self::lataDoWyboru($dzis, $zapisany->expires_on === null ? null : (int) substr((string) $zapisany->expires_on, 0, 4)), true)) {
             $bledy['termin_rok'] = 'Wybierz rok z listy.';
 
             return [];
@@ -215,12 +238,15 @@ final class ZmienTerminProduktu
         ];
     }
 
-    /** @return array<string, mixed> */
-    private function zostawTermin(PantryItem $produkt): array
+    /**
+     * @param  object{expires_on: ?string, expiry_kind: ?string}  $zapisany
+     * @return array<string, mixed>
+     */
+    private function zostawTermin(object $zapisany): array
     {
         return [
-            'expires_on' => $produkt->expires_on?->toDateString(),
-            'expiry_kind' => $produkt->expiry_kind,
+            'expires_on' => $zapisany->expires_on,
+            'expiry_kind' => $zapisany->expiry_kind,
         ];
     }
 
