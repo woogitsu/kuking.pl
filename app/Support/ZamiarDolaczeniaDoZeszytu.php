@@ -34,8 +34,9 @@ final class ZamiarDolaczeniaDoZeszytu
             return;
         }
 
-        // Nie zostawiamy po rejestracji starego celu dla innego konta.
-        $request->session()->forget(['url.intended', self::KLUCZ]);
+        // Url.intended pozostaje do logowania/OAuth już istniejącego konta.
+        // Dopiero założenie nowego konta przenosi cel wyłącznie do zamiaru.
+        $request->session()->forget(self::KLUCZ);
         $zaproszenie = $this->aktywne($token);
         if ($zaproszenie === null) {
             return;
@@ -45,14 +46,26 @@ final class ZamiarDolaczeniaDoZeszytu
         $request->session()->forget(['follow_intent', 'cook_intent', 'comment_intent', 'save_intent']);
         $request->session()->put(self::KLUCZ, [
             'token' => $token,
-            'expires' => min(now()->addHours(2)->timestamp, $zaproszenie->expires_at->timestamp),
+            'expires' => now()->addHours(2)->timestamp,
         ]);
     }
 
     public function przypiszKonto(Request $request): void
     {
         $zamiar = $request->session()->get(self::KLUCZ);
-        if (is_array($zamiar) && $this->cel($zamiar) !== null) {
+        $intended = $request->session()->get('url.intended');
+        $token = is_string($intended) ? $this->tokenZAdresu($intended) : null;
+        if ($token !== null) {
+            $request->session()->forget('url.intended');
+        }
+        // Sam dawny klucz sesji nie wystarczy: po zalogowaniu istniejącego
+        // konta `intended` jest już zużyty i nie wolno oddać linku następnemu.
+        if (! is_array($zamiar) || $token === null || ($zamiar['token'] ?? null) !== $token) {
+            $request->session()->forget(self::KLUCZ);
+
+            return;
+        }
+        if ($this->cel($zamiar) !== null) {
             $zamiar['owner'] = $request->user()->getKey();
             $request->session()->put(self::KLUCZ, $zamiar);
         }
@@ -92,8 +105,7 @@ final class ZamiarDolaczeniaDoZeszytu
     {
         $token = $zamiar['token'] ?? null;
         if (! is_string($token) || ! preg_match('/\A[A-Za-z0-9]{40}\z/D', $token)
-            || ! is_int($zamiar['expires'] ?? null) || $zamiar['expires'] <= now()->timestamp
-            || $this->aktywne($token) === null) {
+            || ! is_int($zamiar['expires'] ?? null) || $zamiar['expires'] <= now()->timestamp) {
             return null;
         }
 

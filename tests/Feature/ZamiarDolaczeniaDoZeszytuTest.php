@@ -34,7 +34,9 @@ final class ZamiarDolaczeniaDoZeszytuTest extends TestCase
         $this->zarejestruj();
         $this->post(route('onboarding.skip'))->assertRedirect(route('onboarding.done'));
 
-        $this->get(route('onboarding.done'))->assertRedirect($cel);
+        $odpowiedz = $this->get(route('onboarding.done'));
+        $this->assertSame($cel, $odpowiedz->headers->get('Location'), 'ZESZYT_2420_POWROT_PO_REJESTRACJI');
+        $odpowiedz->assertRedirect($cel);
         $this->assertSame(CollectionInvitation::STATUS_PENDING, $zaproszenie->fresh()->status);
         $this->assertSame(0, DB::table('collection_members')->where('collection_id', $zeszyt->getKey())->count());
 
@@ -66,7 +68,7 @@ final class ZamiarDolaczeniaDoZeszytuTest extends TestCase
         $zaproszenie->forceFill(['expires_at' => now()->subSecond()])->save();
         $this->post(route('onboarding.skip'));
 
-        $this->get(route('onboarding.done'))->assertOk()->assertViewIs('pages.onboarding.done');
+        $this->get(route('onboarding.done'))->assertRedirect(route('collections.link.show', $token));
         $this->get(route('collections.link.show', $token))->assertStatus(410);
     }
 
@@ -77,9 +79,29 @@ final class ZamiarDolaczeniaDoZeszytuTest extends TestCase
         $cel = route('collections.link.show', $token);
 
         $this->get($cel)->assertRedirect(route('login'));
+        $this->get(route('register'))->assertOk();
+        $this->get(route('login'))->assertOk();
         $this->post(route('login'), ['login' => $konto->email, 'password' => 'haslo-testowe-123'])
             ->assertSessionHasNoErrors()->assertRedirect($cel);
         $this->get($cel)->assertOk()->assertSee('Dołączam');
+    }
+
+    public function test_zuzyty_przez_logowanie_link_nie_przechodzi_pozniej_na_inne_nowe_konto(): void
+    {
+        [, , $token] = $this->link();
+        $konto = $this->user('stala');
+        $cel = route('collections.link.show', $token);
+
+        $this->get($cel)->assertRedirect(route('login'));
+        $this->get(route('register'))->assertOk();
+        $this->post(route('login'), ['login' => $konto->email, 'password' => 'haslo-testowe-123'])
+            ->assertRedirect($cel);
+        auth()->logout();
+
+        $this->get(route('register'))->assertOk();
+        $this->zarejestruj();
+        $this->post(route('onboarding.skip'));
+        $this->get(route('onboarding.done'))->assertOk()->assertViewIs('pages.onboarding.done');
     }
 
     public function test_odwolane_i_wygasle_zaproszenie_nie_odslaniaja_podgladu(): void
@@ -90,7 +112,7 @@ final class ZamiarDolaczeniaDoZeszytuTest extends TestCase
         $this->zarejestruj();
         $zaproszenie->forceFill(['status' => CollectionInvitation::STATUS_REVOKED, 'token_hash' => null])->save();
         $this->post(route('onboarding.skip'));
-        $this->get(route('onboarding.done'))->assertOk()->assertViewIs('pages.onboarding.done');
+        $this->get(route('onboarding.done'))->assertRedirect(route('collections.link.show', $token));
         $this->get(route('collections.link.show', $token))->assertStatus(410);
         $this->assertSame(0, DB::table('collection_members')->where('collection_id', $zeszyt->getKey())->count());
 

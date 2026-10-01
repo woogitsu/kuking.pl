@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Security\TwoFactorAuthenticator;
+use App\Domain\Collections\Wspoldzielenie\ZaprosDoZeszytu;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Google\KlientGoogle;
+use App\Models\Collection;
 use App\Models\ModerationAction;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -690,6 +692,48 @@ class LogowanieKontemGoogleTest extends TestCase
             route('recipes.show', ['recipe' => $przepis->slug, 'wybierz_zeszyt' => 1]).'#wybor-zeszytu-przepis-'.$przepis->getKey(),
         );
         $this->assertSame(0, DB::table('collection_items')->count());
+    }
+
+    #[Test]
+    public function test_nowe_konto_google_wraca_do_podgladu_zaproszenia_do_zeszytu(): void
+    {
+        $wlasciciel = $this->user('gospodyni');
+        $zeszyt = Collection::create(['owner_id' => $wlasciciel->getKey(), 'name' => 'Obiady rodzinne', 'visibility' => 'private']);
+        [, $token] = app(ZaprosDoZeszytu::class)->linkiem($wlasciciel, $zeszyt);
+        $cel = route('collections.link.show', $token);
+
+        $this->get($cel)->assertRedirect(route('login'));
+        $this->get(route('register'))->assertOk();
+        $this->wlaczGoogle();
+        $this->wracamyZGoogle()->assertRedirect(route('google.finish'));
+        $this->post(route('google.finish.store'), [
+            'display_name' => 'Basia', 'username' => 'basia',
+            'age_confirmed' => '1', 'terms_accepted' => '1',
+        ])->assertRedirect(route('onboarding.interests'));
+        $this->post(route('onboarding.skip'));
+
+        $odpowiedz = $this->get(route('onboarding.done'));
+        $this->assertSame($cel, $odpowiedz->headers->get('Location'), 'ZESZYT_2420_GOOGLE_NOWE_KONTO');
+        $this->get($cel)->assertOk()->assertSee('Dołączam');
+        $this->assertSame(0, DB::table('collection_members')->where('collection_id', $zeszyt->getKey())->count());
+    }
+
+    #[Test]
+    public function test_istniejace_konto_google_po_ekranie_rejestracji_nie_traci_linku_zaproszenia(): void
+    {
+        $wlasciciel = $this->user('gospodyni');
+        $zeszyt = Collection::create(['owner_id' => $wlasciciel->getKey(), 'name' => 'Obiady rodzinne', 'visibility' => 'private']);
+        [, $token] = app(ZaprosDoZeszytu::class)->linkiem($wlasciciel, $zeszyt);
+        $cel = route('collections.link.show', $token);
+        $konto = $this->user('basia', ['email' => 'basia@example.test']);
+        $konto->connectGoogle('109876543210987654321');
+
+        $this->get($cel)->assertRedirect(route('login'));
+        $this->get(route('register'))->assertOk();
+        $this->wlaczGoogle();
+        $this->wracamyZGoogle()->assertRedirect($cel);
+        $this->assertAuthenticatedAs($konto);
+        $this->get($cel)->assertOk()->assertSee('Dołączam');
     }
 
     #[Test]
