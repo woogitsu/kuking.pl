@@ -413,6 +413,31 @@ try {
             return $zapisz();
         })(),
 
+        // Dwa równoległe nowe przepisy o tym samym tytule (#2403, DB-004).
+        // Prawdziwa akcja `PublishRecipe`. Bariera stoi w zdarzeniu `creating`,
+        // czyli PO wyliczeniu slugu przez `exists()` i PRZED insertem — dokładnie
+        // w oknie wyścigu. Blokada współdzielona: oba procesy przechodzą ją
+        // razem, gdy test zwolni barierę (wyłączną).
+        'nowy-przepis-z-bariera' => (function () use ($argumenty): string {
+            Recipe::creating(static function (): void {
+                DB::select('SELECT pg_advisory_xact_lock_shared(2403, 1)');
+            });
+
+            $przepis = app(PublishRecipe::class)->handle(
+                author: User::query()->whereKey($argumenty['autor'])->firstOrFail(),
+                attributes: [
+                    'title' => $argumenty['tytul'],
+                    'visibility' => 'public',
+                    'source_type' => Recipe::SOURCE_OWN,
+                ],
+                ingredients: [['text' => 'sól']],
+                steps: [['instruction' => 'Gotuj do miękkości.']],
+                publish: true,
+            );
+
+            return (string) $przepis->slug;
+        })(),
+
         // Samodzielne oznaczenie alergenów (#1902): prawdziwa akcja, bo mierzymy
         // kolejność blokad `users` → `recipes` wewnątrz niej.
         'oznacz-alergeny' => (function () use ($argumenty): string {

@@ -1920,7 +1920,12 @@ słowa napisanego przez człowieka.
 Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 
 - `id`, `author_id`, `klucz_wyslania` (patrz niżej), `title`, `slug`
-  (`UNIQUE`, 220 znaków);
+  (`UNIQUE` `recipes_slug_unique`, 220 znaków). Slug jest alokowany
+  atomowo (#2403): `GenerateRecipeSlug::zapisz()` robi insert w SAVEPOINT-cie
+  i przy naruszeniu właśnie tego indeksu bierze kolejny wolny slug (sufiks
+  `-2`, `-3`, …), najwyżej 5 prób; inne błędy bazy idą dalej bez zmian.
+  Bez zmiany schematu — indeks istnieje od `create_recipes_tables`. Rollback:
+  wycofanie ponowienia w kodzie, indeksu nie ruszamy;
 - `summary` — patrz niżej;
 - `servings`, `prep_minutes`, `cook_minutes`, `difficulty`
   (CHECK: `easy` \| `medium` \| `hard`) — o czasach patrz niżej;
