@@ -25,6 +25,7 @@ use App\Models\Notification;
 use App\Models\Recipe;
 use App\Support\Komunikat;
 use App\Support\OdpowiedziWatku;
+use App\Support\StaryAdresPrzepisu;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -65,9 +66,12 @@ class CookedEventController extends Controller
         private readonly UsunWykonanie $usunWykonanie,
     ) {}
 
-    public function create(Request $request, string $recipe): View
+    public function create(Request $request, string $recipe): View|RedirectResponse
     {
-        $model = Recipe::where('slug', $recipe)->firstOrFail();
+        $model = Recipe::where('slug', $recipe)->first();
+        if ($model === null) {
+            return StaryAdresPrzepisu::przekieruj($request, $recipe, 'cooked.create', 'cook');
+        }
         $this->authorize('cook', $model);
 
         return view('pages.cooked.create', [
