@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (moderacja, #2380): zgłaszający dostaje dokładnie jedną korektę po cofnięciu decyzji w odwołaniu autora — także gdy korekta zostanie wywołana dwa razy jednocześnie albo ponowiona po sukcesie. Dotyczy powiadomienia w serwisie i listu do zgłaszającego prawnego (dotąd list wychodził przy każdym wywołaniu). Akcja korekty blokuje wiersz odwołania, a wysłanie listu zostawia ślad w dzienniku audytu (`appeal.reporter_correction_mailed`, bez adresu). Bez zmian w bazie.
 - Naprawione (alergeny, #1902, za flagą): po „Składniki nadal się zgadzają” w kreatorze następny autozapis, „Zapisz zmiany” i „Opublikuj” nie kończą się już komunikatem „Ten przepis zmienił się od otwarcia formularza” — kreator odświeża numer wersji treści, który potwierdzenie podbija.
 - Naprawione (alergeny, #1902, za flagą): wybór alergenów w wyszukiwarce (`bez[]`) nie zostaje w sesji także wtedy, gdy wyszukiwanie odpowie „zbyt wiele zapytań” (429) albo zakończy się błędem. Czyszczenie adresu zapisywanego w sesji działa teraz przed limitem zapytań i w każdym wyniku.
 - Naprawione (alergeny, #1902, za flagą): porównanie wersji przepisu pokazuje zmianę oznaczenia alergenów („Alergeny według autora”), bo sama zmiana oznaczenia tworzy nową wersję — wcześniej ekran mówił „brak zmian” dla dwóch różnych wersji. Starsza wersja bez zapisanego oznaczenia to „brak danych”, nie zmiana.

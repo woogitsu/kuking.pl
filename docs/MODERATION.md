@@ -270,6 +270,13 @@ Ręczne „Przywróć treść" bez odwołania **nie** jest zmianą decyzji — z
 znaczy, że autor poprawił treść — i karty zgłaszającego nie zmienia. Korekta
 nie zdradza autora, treści odwołania ani sankcji wobec konta.
 
+Jedno cofnięte odwołanie to **jedna** korekta, także przy dwóch równoczesnych
+albo ponowionych wywołaniach (#2380): `NotifyReporterDecisionChanged` bierze
+blokadę wiersza odwołania i dopiero pod nią sprawdza ślad — w serwisie
+`data.zmiana_po_odwolaniu`, przy liście wpis dziennika
+`appeal.reporter_correction_mailed` (przedmiot: odwołanie, bez adresu). Pomiar:
+`tests/Dwa/KorektaDlaZglaszajacegoNaDwochPolaczeniachTest.php`.
+
 **Skarga na odrzucenie.** Formularz odwołania dla zgłaszającego
 (`FileReporterAppeal`, issue #23) obsługuje **wyłącznie zgłoszenia prawne**
 z podanym adresem e-mail; wewnętrzny system skarg z art. 20 leży w Sekcji 3,
