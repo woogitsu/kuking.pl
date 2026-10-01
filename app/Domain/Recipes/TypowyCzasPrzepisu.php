@@ -55,6 +55,8 @@ final class TypowyCzasPrzepisu
      *
      * Gość to `null`: blokad nie ma, więc wynik jest ten sam dla każdego
      * gościa — i może leżeć w cache HTML brzegu (#610).
+     *
+     * @phpstan-impure Czyta bazę: ten sam przepis po nowym wykonaniu daje inny wynik.
      */
     public static function dla(Recipe $recipe, ?User $widz): ?self
     {

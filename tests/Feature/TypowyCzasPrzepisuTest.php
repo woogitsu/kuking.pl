@@ -75,8 +75,9 @@ final class TypowyCzasPrzepisuTest extends TestCase
 
         $wynik = TypowyCzasPrzepisu::dla($this->przepis, null);
 
-        $this->assertSame(60, $wynik?->minuty);
-        $this->assertSame(5, $wynik?->osoby);
+        $this->assertNotNull($wynik);
+        $this->assertSame(60, $wynik->minuty);
+        $this->assertSame(5, $wynik->osoby);
 
         $this->get(route('recipes.show', $this->przepis->slug))->assertOk()
             ->assertSee('Autor podaje około 45 min.', escape: false)
@@ -133,8 +134,9 @@ final class TypowyCzasPrzepisuTest extends TestCase
         $this->osobyZCzasami([1440]);
         $wynik = TypowyCzasPrzepisu::dla($this->przepis, null);
 
-        $this->assertSame(5, $wynik?->osoby);
-        $this->assertSame(30, $wynik?->minuty, 'Mediana 30, 30, 30, 30, 1440 to 30; 1441+ nie wchodzą w ogóle.');
+        $this->assertNotNull($wynik);
+        $this->assertSame(5, $wynik->osoby);
+        $this->assertSame(30, $wynik->minuty, 'Mediana 30, 30, 30, 30, 1440 to 30; 1441+ nie wchodzą w ogóle.');
     }
 
     public function test_odciete_wartosci_nie_przesuwaja_mediany(): void
@@ -159,7 +161,7 @@ final class TypowyCzasPrzepisuTest extends TestCase
             '8 w górę' => [8.0, 10],
             '62,5 w górę do 65' => [62.5, 65],
             '62 w dół do 60' => [62.0, 60],
-            '1440' => [1440.0, 1440],
+            'doba zostaje dobą' => [1440.0, 1440],
         ];
     }
 
@@ -255,8 +257,8 @@ final class TypowyCzasPrzepisuTest extends TestCase
     public static function odmiany(): array
     {
         return [
-            '5' => [5, 'osób'], '12' => [12, 'osób'], '22' => [22, 'osoby'], '25' => [25, 'osób'],
-            '112' => [112, 'osób'], '103' => [103, 'osoby'],
+            '5 osób' => [5, 'osób'], '12 osób' => [12, 'osób'], '22 osoby' => [22, 'osoby'], '25 osób' => [25, 'osób'],
+            '112 osób' => [112, 'osób'], '103 osoby' => [103, 'osoby'],
         ];
     }
 }

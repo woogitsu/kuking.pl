@@ -1358,6 +1358,8 @@ checks = [
     ("Rama marki z zaszytym kolorem", "resources/css/marka-rama.css", "RamaMarkiNieZaszywaKolorowTest",
      lambda s: replace_once(s, ".composer-help { color: var(--marka-ciemny-tekst-cichy); }", ".composer-help { color: #CBD0C6; }")),
     # Audyt B1, zn. 8: sztywny rem zamiast tokenu ignoruje skalę tekstu.
+    ("Bramka R2 każe sprawdzać Sentry (#2382)", "docs/infra/BRAMKA_R2.md", "BramkaR2NieKierujeDoSentryTest",
+     lambda s: replace_once(s, "nie jest wdrożony", "jest wdrożony")),
     ("Linki sąsiednich wpisów bez skali tekstu", "resources/css/wpis-nawigacja-sasiedzi.css", "TekstyZAudytuB9MowiaPrawdeTest",
      lambda s: replace_once(s, "font-size: var(--text-body);", "font-size: 1.125rem;")),
     ("Cofnięcie CHECK-a kontaktu bez odmowy przy sierotach", KONTAKT_MIGRACJA, KONTAKT_MIGRACJA_TEST,
