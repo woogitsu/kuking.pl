@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Poprawione (wewnętrzne, #2407): dodano test pilnujący, że każda kolumna czasu w tabelach modeli ma cast albo jawnie opisany wyjątek; inwentaryzacja jest w `docs/DATABASE.md`. Bez zmian dla użytkowników.
 - Poprawione (wewnętrzne, #2407): znaczniki czasu usunięcia treści komentarza oraz rozpoczęcia wysyłki i audytu odpowiedzi z „Napisz do nas” mają jawny kontrakt UTC (`datetime` w modelach), więc serializacja i porównania nie zależą od strefy sesji bazy ani od przejścia na czas letni. Zmiana `failed_jobs.failed_at` na `timestamptz` zostaje opisana w `docs/DATABASE.md` jako osobna migracja po sprawdzeniu danych.
 - Zmienione (decyzja właściciela z 1.10.2026, D-333): „Zajęło mi …” na karcie wykonania i czas kroku, przygotowania i gotowania w kopii HTML przepisu piszą się jak czas przepisu — poniżej 90 minut dokładne minuty, od 90 godziny i minuty zaokrąglone do 5 minut (120 min to „2 godz.”, 95 min to „1 godz. 35 min”). Surowe liczby w eksporcie JSON/CSV i ISO 8601 w JSON-LD bez zmian. Życzenia urodzinowe mailem (D-269): decyzja o włączeniu w panelu Railway zapisana, krok W12 do wykonania przez właściciela.
 - Naprawione (#2390): formularz zgłoszenia konkretnej wersji przepisu usuniętego miękko (i zapis zgłoszenia) daje 404 jak każda niewidoczna treść, a nie błąd serwera 500. Retencja nie kasuje już wersji przepisu wskazanej zgłoszeniem (`reports.target_type = 'recipe_version'`) ani nie usuwa jej przy zamianie przepisu w nagrobek — wersja z otwartą sprawą zostaje do końca retencji sprawy.
