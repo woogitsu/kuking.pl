@@ -369,6 +369,9 @@ OCZEKUJ = {
     'Digest usługi PostgreSQL inny niż w Dockerfile Dependabota': r'ma inny digest niż FROM w docker/ci-postgres/Dockerfile',
     'Bramka Railway checkoutuje bieżący main zamiast SHA z CI': r'Checkout bramki nie ma `ref: \$\{\{ github\.event\.workflow_run\.head_sha \}\}`',
     'Skrypt bramki Railway nie porównuje HEAD z SHA z CI': r'Skrypt bramki nie porównuje `git rev-parse HEAD` z SHA z CI',
+    'Bramka Railway wdraża po CI bez sukcesu (#2025)': r"musi mieć warunek `github\.event\.workflow_run\.conclusion == 'success'`",
+    'Job zbiorczy CI zmienia nazwę, bramka go nie znajdzie (#2025)': r'Job zbiorczy w ci\.yml nie nazywa się już',
+    'Alarm audit_ci bez odczytu przebiegów (#2025)': r'Bez `actions: read` alarm nie odczyta przebiegów CI',
     'Wydanie Sentry z github.sha zamiast SHA wdrożenia': r'Wydanie Sentry ma version: \$\{\{ github\.sha \}\}, a powinno',
     'Nieznany stan w historii wdrożenia pominięty': r'OBLANE: nieznany stan w historii = błąd wejścia \(#2248\) \(kod 0, oczekiwano 2\)',
     # Audyt prywatności 30.09 (#2278, #2281, #2282).

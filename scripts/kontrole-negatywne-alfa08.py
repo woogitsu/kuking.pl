@@ -1244,6 +1244,9 @@ PG_CI_DOCKERFILE = "docker/ci-postgres/Dockerfile"
 BRAMKA_RAILWAY_WORKFLOW = ".github/workflows/railway-ci-gated-deploy.yml"
 BRAMKA_RAILWAY_SKRYPT = "scripts/railway-ci-gated-deploy.py"
 BRAMKA_CHECKOUT_TEST = "bramka_checkoutuje_dokladnie_sha_zielonego_ci"
+BRAMKA_WARUNKI_TEST = "bramka_reaguje_tylko_na_zakonczone_ci_i_tylko_gdy_wlasciciel_ja_wlaczyl"
+BRAMKA_JOB_ZBIORCZY_TEST = "skrypt_bramki_wymaga_dokladnie_tego_joba_zbiorczego_ktory_ma_ci"
+BRAMKA_ALARM_TEST = "alarm_po_wdrozeniu_odpala_sie_dla_produkcji_i_ma_odczyt_przebiegow"
 SENTRY_SHA_TEST = "WydanieSentryMaShaWdrozeniaTest"
 STAN_WDROZENIA_TEST = "DeployAlarmujeGdyWdrozenieKonczySieBezSukcesuTest"
 
@@ -2074,6 +2077,17 @@ checks = [
      lambda s: replace_once(s, "          ref: ${{ github.event.workflow_run.head_sha }}\n", "")),
     ("Skrypt bramki Railway nie porównuje HEAD z SHA z CI", BRAMKA_RAILWAY_SKRYPT, BRAMKA_CHECKOUT_TEST,
      lambda s: replace_once(s, "    verify_checkout(sha, local_head())\n", "")),
+    # #2025: bramka przepuszcza każdy zakończony przebieg CI, nie tylko sukces
+    # (anulowany, pominięty i nieudany też by wdrażały produkcję).
+    ("Bramka Railway wdraża po CI bez sukcesu (#2025)", BRAMKA_RAILWAY_WORKFLOW, BRAMKA_WARUNKI_TEST,
+     lambda s: replace_once(s, "      github.event.workflow_run.conclusion == 'success' &&\n",
+                            "      github.event.workflow_run.conclusion != 'cancelled' &&\n")),
+    # #2025: zmiana nazwy joba zbiorczego CI — bramka szuka go po nazwie.
+    ("Job zbiorczy CI zmienia nazwę, bramka go nie znajdzie (#2025)", CI_WORKFLOW, BRAMKA_JOB_ZBIORCZY_TEST,
+     lambda s: replace_once(s, "  testy:\n    name: Testy (PostgreSQL 18)\n", "  testy:\n    name: Testy PG18\n")),
+    # #2025: alarm po wdrożeniu traci odczyt przebiegów CI.
+    ("Alarm audit_ci bez odczytu przebiegów (#2025)", WDROZENIE_WORKFLOW, BRAMKA_ALARM_TEST,
+     lambda s: replace_once(s, "      actions: read # #2025:", "      checks: read # #2025:")),
     # #2230: wydanie Sentry wraca do github.sha.
     ("Wydanie Sentry z github.sha zamiast SHA wdrożenia", WDROZENIE_WORKFLOW, SENTRY_SHA_TEST,
      lambda s: replace_once(s, "version: ${{ github.event.deployment.sha }}", "version: ${{ github.sha }}")),
