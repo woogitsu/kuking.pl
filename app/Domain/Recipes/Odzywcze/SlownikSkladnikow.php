@@ -23,6 +23,8 @@ use App\Models\SkladnikOdzywczy;
  *    „ser kozi” nie zamieni się w „kozi”, a „mleko kokosowe” w „mleko”;
  *  - słowa PO fragmencie wolno pominąć, chyba że zmieniają produkt
  *    („kokosowe”, „orzechowe”, „sojowe”, „migdałowe”, „owsiane”, „ryżowe”).
+ *    Frazy „z/ze [surowiec]” nie wolno ucinać: „mąka z ciecierzycy”
+ *    nie jest zwykłą mąką pszenną. Pełny alias frazy nadal wygrywa;
  *  - jawnego stanu obróbki („ugotowany”, „surowy”, „suszony”) nie wolno
  *    pominąć po żadnej stronie. Pełny alias stanu nadal wygrywa.
  *
@@ -100,7 +102,12 @@ final class SlownikSkladnikow
 
         for ($dlugosc = min(self::NAJDLUZSZY_FRAGMENT, $ile); $dlugosc >= 1; $dlugosc--) {
             for ($od = 0; $od + $dlugosc <= $ile; $od++) {
-                if (! self::moznaPominac(array_slice($slowa, 0, $od), array_slice($slowa, $od + $dlugosc))) {
+                $po = array_slice($slowa, $od + $dlugosc);
+                // „mąki z” bez nazwy surowca nie jest kompletnym aliasem.
+                if ($po !== [] && in_array($slowa[$od + $dlugosc - 1], ['z', 'ze'], true)) {
+                    continue;
+                }
+                if (! self::moznaPominac(array_slice($slowa, 0, $od), $po)) {
                     continue;
                 }
                 $fragmenty[] = ['tekst' => implode(' ', array_slice($slowa, $od, $dlugosc)), 'od' => $od, 'dlugosc' => $dlugosc];
@@ -116,6 +123,12 @@ final class SlownikSkladnikow
      */
     private static function moznaPominac(array $przed, array $po): bool
     {
+        // Przy skracaniu nie wolno gubić wskazanego źródła produktu.
+        // Pełny alias „soku z cytryny” ma pusty ogon i nadal działa.
+        if (in_array('z', $po, true) || in_array('ze', $po, true)) {
+            return false;
+        }
+
         foreach ($przed as $slowo) {
             if (self::stanProduktu($slowo)) {
                 return false;

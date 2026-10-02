@@ -1312,6 +1312,10 @@ def planer_bez_potwierdzenia(source):
 
 
 checks = [
+    ("Odżywcze: inny surowiec trafia w mąkę pszenną (#2607)",
+     "app/Domain/Recipes/Odzywcze/SlownikSkladnikow.php",
+     "SlownikSurowcaOdzywczegoTest::test_maka_z_ciecierzycy_nie_jest_pszenna_gdy_csv_nie_ma_jej_aliasu",
+     lambda s: replace_once(s, "if (in_array('z', $po, true) || in_array('ze', $po, true)) {", "if (false) {")),
     ("Odżywcze: stan przed nazwą znika (#2563)", "app/Domain/Recipes/Odzywcze/SlownikSkladnikow.php",
      "test_stan_przed_nazwa_nie_pozwala_dopasowac_surowego_produktu",
      lambda s: replace_once(s, "if (self::stanProduktu($slowo)) {", "if (false && self::stanProduktu($slowo)) {")),

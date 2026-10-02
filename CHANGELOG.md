@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2607): mąka z ciecierzycy bez własnej pozycji w tabeli wartości odżywczych pozostaje nieznanym składnikiem zamiast udawać mąkę pszenną. Znana masa nadal liczy się do całego przepisu, a pełne aliasy działają jak dotąd.
 - Naprawione (#2563): szacunek wartości odżywczych nie traktuje ugotowanego ryżu lub makaronu jak surowego tylko dlatego, że słownik zna krótszą nazwę. Gdy brakuje zgodnej pozycji, składnik pozostaje nieznany; pełne aliasy produktów gotowanych i neutralne opisy nadal działają.
 - Naprawione (#2467): usunięcie produktu z „Co mam w domu” najpierw pokazuje pytanie z jego nazwą. „Anuluj” zamyka je bez kasowania ilości lub terminu, także bez JavaScriptu.
 - Naprawione (#2468): usunięcie pozycji z Planera najpierw pokazuje pytanie z dniem i nazwą; dopiero osobne potwierdzenie usuwa wpis. Zamknięcie pytania zostawia plan bez zmian, a niedostępny przepis nie ujawnia tytułu.
