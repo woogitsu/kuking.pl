@@ -28,7 +28,20 @@
         </section>
     @endif
 
+    {{-- Prywatna liczba faktycznych porcji (#2540) — wyłącznie kucharz.
+         Poprawa i usunięcie bez tworzenia nowego wykonania. --}}
     @if(auth()->id() === $event->user_id)
+        <section class="sekcja-strony" aria-labelledby="porcje-wykonania">
+            <h2 id="porcje-wykonania">Ile porcji wyszło</h2>
+            @if($event->faktyczne_porcje !== null)
+                <p>{{ \App\Domain\Recipes\Gotowanie\PorcjeWykonania::etykieta($event->faktyczne_porcje) }}. Widzisz to tylko Ty.</p>
+                <p><a class="btn btn-secondary" href="{{ route('cooked.porcje.edit', $event) }}">Popraw lub usuń liczbę porcji</a></p>
+            @else
+                <p>Nie podano. Jeśli gotowano na inną liczbę porcji niż w przepisie, możesz ją zapisać dla siebie. Widzisz to tylko Ty.</p>
+                <p><a class="btn btn-secondary" href="{{ route('cooked.porcje.edit', $event) }}">Dodaj liczbę porcji</a></p>
+            @endif
+        </section>
+
         <div class="danger-zone">
             <x-confirm-button
                 :action="route('cooked.destroy', $event)"

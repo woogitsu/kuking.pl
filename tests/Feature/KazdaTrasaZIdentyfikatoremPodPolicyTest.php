@@ -1157,6 +1157,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // więc to samo wykonanie wystarcza dla wszystkich ról.
         $dodaj('wspomnienia.ukryj-wykonanie', 'ukrycie wspomnienia z wykonania', 'post',
             route('wspomnienia.ukryj-wykonanie', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        // #2540: prywatna liczba faktycznych porcji — poprawia wyłącznie kucharz
+        // (`CookedEventPolicy::poprawPorcje`), także autor przepisu dostaje odmowę.
+        $dodaj('cooked.porcje.edit', 'ekran poprawy prywatnej liczby porcji', 'get',
+            route('cooked.porcje.edit', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        $dodaj('cooked.porcje.update', 'poprawa prywatnej liczby porcji', 'put',
+            route('cooked.porcje.update', $wykonanie), ['faktyczne_porcje' => '8'], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.destroy', 'usunięcie wykonania', 'delete',
             route('cooked.destroy', $wykonanieDoKasacji), [], [$W, $O, $O, $O, $O]);
 

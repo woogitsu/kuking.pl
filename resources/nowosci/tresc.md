@@ -36,6 +36,16 @@ Przy składniku podanym w gramach, dekagramach, kilogramach, mililitrach, litrac
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Ile porcji wyszło przy „Ugotowałem”
+
+Przepis był na cztery porcje, a Wy ugotowaliście na osiem? W formularzu
+„Ugotowałem” jest teraz nieobowiązkowe pole „Ile porcji wyszło (tylko dla
+Ciebie)”. Wpiszcie liczbę, na przykład 8 albo 2,5, albo zostawcie pole puste —
+niczego nie podstawiamy za Was. Liczbę zobaczycie przy własnym wykonaniu,
+a na stronie wykonania możecie ją poprawić albo usunąć. Widzicie ją tylko Wy:
+inni, także autor przepisu, jej nie widzą, a przepis i powiadomienie zostają
+takie jak dotąd.
+
 ### Dzień gotowania przy „Ugotowałem”
 
 Gotowaliście w niedzielę, a zdjęcie i kilka słów dodajecie dopiero we wtorek?

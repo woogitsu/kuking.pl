@@ -311,6 +311,14 @@ final class EraseAccountData
             $fresh->cookedEvents()->whereNotNull('dzien_gotowania')->update(['dzien_gotowania' => null]);
 
             /*
+             * PRYWATNA LICZBA FAKTYCZNYCH PORCJI ZNIKA RAZEM Z KONTEM (#2540).
+             *
+             * Tak jak dzień gotowania wyżej: wykonanie przy zakresie `minimum`
+             * zostaje, a liczba, którą kucharz podał tylko dla siebie, nie.
+             */
+            $fresh->cookedEvents()->whereNotNull('faktyczne_porcje')->update(['faktyczne_porcje' => null]);
+
+            /*
              * „CO MAM W DOMU” ZNIKA RAZEM Z KONTEM (D-285).
              *
              * Lista produktów z kuchni to dana prywatna, której nikt poza

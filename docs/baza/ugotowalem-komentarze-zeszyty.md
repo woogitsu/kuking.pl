@@ -82,6 +82,27 @@ Jedno realne gotowanie. Brak unique `(user_id, recipe_id)`.
   (D-088 — to deklaracja człowieka, której kolejny `migrate` nie odtworzy, a
   odtworzenie z `cooked_at` byłoby nieprawdą); inaczej zdejmuje CHECK i
   kolumnę. Test: `tests/Feature/PrywatnyDzienGotowaniaTest.php`.
+- **`faktyczne_porcje numeric(5,2) NULL`** (CHECK `faktyczne_porcje IS NULL OR
+  (faktyczne_porcje >= 0.5 AND faktyczne_porcje <= 100)`, migracja
+  `2026_10_03_180000_add_faktyczne_porcje_to_cooked_events`, #2540, decyzja
+  właściciela z 2.10.2026) — **prywatna** liczba porcji, którą kucharz
+  świadomie podał o TEJ próbie („przepis na 4, ugotowano 8”). `numeric`, nie
+  `float`: „2,5” i „0,75” wracają dokładnie; dwa miejsca po przecinku to jawna
+  precyzja, zakres 0,5–100 pilnuje CHECK i `App\Domain\Recipes\Gotowanie\PorcjeWykonania`.
+  `NULL` = nie podano (domyślnie; wykonania sprzed migracji bez backfillu,
+  bo liczba porcji przepisu nie jest dowodem, ile ugotowano). Nic jej nie
+  wylicza z przepisu, adresu `?porcje=`, zapamiętanego wyboru ani Planera.
+  Poza `$fillable`; ustawiają ją wyłącznie `RecordCookedEvent` (przy zapisie)
+  i `PoprawPorcjeWykonania` (poprawa/usunięcie przy istniejącym wykonaniu —
+  zapytanie po kluczu, bez nowego wykonania, powiadomienia ani ruszania
+  `cooked_at`). Widzi ją tylko kucharz (karta wykonania gdy `auth()->id() ===
+  user_id`; poprawa: `CookedEventPolicy::poprawPorcje`); publiczna karta, profil,
+  autor przepisu, powiadomienie, API i SEO jej nie niosą. Eksport danych konta:
+  `ugotowalem[].faktyczne_porcje_podane_przeze_mnie`. Wymazanie konta zeruje
+  kolumnę także przy zakresie `minimum` (wykonanie zostaje). **Rollback:**
+  `down()` odmawia, gdy choć jedno wykonanie ma zapisaną liczbę (D-088 —
+  deklaracja człowieka, której kolejny `migrate` nie odtworzy); inaczej zdejmuje
+  CHECK i kolumnę. Test: `tests/Feature/PrywatneFaktycznePorcjeTest.php`.
 - **`recipe_version_id uuid NULL` → `recipe_versions (id)` `ON DELETE SET NULL`**
   (#2378, migracja `2026_10_01_100100_add_recipe_version_id_to_cooked_events`) —
   wersja przepisu otwarta przy formularzu „Ugotowałem”. **Wskaźnik, nie kopia:**
