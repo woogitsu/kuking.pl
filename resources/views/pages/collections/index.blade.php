@@ -2,6 +2,13 @@
     <div class="marka-zeszyt">
 
     <h1>Twój zeszyt</h1>
+    {{-- Skrót do jednego własnego zeszytu (#2542). Brak skrótu albo zeszyt,
+         którego już nie ma / nie jest Twój → nic się nie pokazuje. --}}
+    @if($skrot)
+        <p class="mb-5" data-rola="skrot-do-zeszytu">
+            <a class="btn btn-primary" href="{{ route('collections.show', $skrot) }}">Otwórz: {{ $skrot->name }}</a>
+        </p>
+    @endif
     {{-- „Przepisy i wpisy", nie same przepisy: od 6 września Zeszyt przyjmuje
          też cudze wpisy (migracja `collection_items_accept_posts`, przycisk
          „Zapisuję" na karcie wpisu). Ten akapit i pusty stan niżej mówiły

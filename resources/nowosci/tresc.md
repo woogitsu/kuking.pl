@@ -32,6 +32,15 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Skrót do ulubionego zeszytu
+
+Jeśli wracacie głównie do jednego zeszytu, na jego stronie jest teraz
+przycisk „Ustaw jako skrót w »Moje«”. Od tej chwili na górze ekranu „Moje”
+czeka duży przycisk „Otwórz: nazwa zeszytu”, także gdy na liście macie
+zeszytów dużo. Skrót można ustawić tylko do własnego zeszytu, widzicie go
+tylko Wy i w każdej chwili usuniecie go przyciskiem „Usuń skrót” — zeszyt
+i zapisy zostają. Skrót nie zmienia tego, dokąd trafia „Zapisuję”.
+
 ## Alfa 0.78
 
 **Co zużyć najpierw, lista zakupów i wydruk zeszytu.**

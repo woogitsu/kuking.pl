@@ -136,6 +136,8 @@ final class InwentarzDanychKonta
         'weekly_digest_sent_at' => [self::EKSPORT, 'konto'],
         'memories_enabled' => [self::EKSPORT, 'konto'],
         'moj_stol_enabled' => [self::EKSPORT, 'konto'],
+        // Skrót do własnego zeszytu w „Moje” (#2542) — w paczce jako nazwa zeszytu.
+        'ulubiony_zeszyt_id' => [self::EKSPORT, 'konto'],
         'age_confirmed_at' => [self::EKSPORT, 'konto'],
         'email_verified_at' => [self::EKSPORT, 'konto'],
         'created_at' => [self::EKSPORT, 'konto'],

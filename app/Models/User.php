@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -492,6 +493,19 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function collections(): HasMany
     {
         return $this->hasMany(Collection::class, 'owner_id');
+    }
+
+    /**
+     * Zeszyt wskazany jako skrót w „Moje” (#2542). Pole `ulubiony_zeszyt_id`
+     * nie jest w `$fillable`; ustawia je wyłącznie `UstawSkrotDoZeszytu`.
+     * Odczyt i tak zawęża do zeszytów tej osoby (obrona w głąb).
+     *
+     * @return BelongsTo<Collection, $this>
+     */
+    public function ulubionyZeszyt(): BelongsTo
+    {
+        return $this->belongsTo(Collection::class, 'ulubiony_zeszyt_id')
+            ->where('collections.owner_id', $this->getKey());
     }
 
     /**

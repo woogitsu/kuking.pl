@@ -1226,6 +1226,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('collections.note', 'notatka przy zapisie', 'patch',
             route('collections.note', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
             ['note' => 'Mniej soli'], [$W, $O, $O, $O, $O]);
+        // Skrót do własnego zeszytu w „Moje” (#2542) — wyłącznie właściciel.
+        $dodaj('collections.shortcut.store', 'ustawienie skrótu do zeszytu', 'post',
+            route('collections.shortcut.store', $zeszyt), [], [$W, $O, $O, $O, $O]);
+        $dodaj('collections.shortcut.destroy', 'usunięcie skrótu do zeszytu', 'delete',
+            route('collections.shortcut.destroy', $zeszyt), [], [$W, $O, $O, $O, $O]);
 
         // ─── WSPÓLNY ZESZYT (#1743, D-302) ───────────────────────────────
         // Zarządza nim wyłącznie właściciel (`CollectionPolicy::manageAccess`

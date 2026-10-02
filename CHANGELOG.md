@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Nowe (#2542): skrót do jednego własnego zeszytu na ekranie „Moje” (decyzja właściciela z 2.10.2026, D-333) [nowa funkcja]. Na stronie własnego zeszytu jest przycisk „Ustaw jako skrót w »Moje«”; gdy skrót jest ustawiony, na górze ekranu „Moje” pojawia się duży przycisk „Otwórz: <nazwa zeszytu>”, a na stronie zeszytu zamiast niego „Usuń skrót”. Skrót można wskazać tylko do własnego zeszytu (nie do cudzego ani wspólnego, w którym ktoś jest tylko współtwórcą), nie zmienia zeszytu domyślnego, widoczności ani praw do zawartości i nie jest widoczny dla nikogo poza Tobą. Usunięcie skrótu nie usuwa zeszytu ani zapisów; usunięcie zeszytu zdejmuje skrót samo. Nowe pole konta `users.ulubiony_zeszyt_id` (migracja z odmową cofnięcia przy wybranych skrótach, D-088); nazwa zeszytu-skrótu jest w paczce danych (`zeszyt_skrot_w_moje`).
+
 ## Alfa 0.78 — co zużyć najpierw, lista zakupów i wydruk zeszytu
 
 - Naprawione (#2621): wklejona pusta linia z nierozdzielającą spacją nie dodaje niewidocznego składnika ani nie skleja dwóch kroków przepisu. Spacja wewnątrz wpisanej ilości zostaje bez zmian.
