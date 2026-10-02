@@ -14,6 +14,16 @@ jest decyzja właściciela, wybrano wariant bezpieczniejszy i zapisano pytanie
 
 ## 1. Czym jest sesja (i czym nie jest)
 
+**Uzupełnienie #2485/#2486.** Lista składników w sesji pokazuje zapisany
+zamiennik autora przy właściwym składniku, a lista kroków pokazuje zdjęcia
+przypięte do właściwych instrukcji przez istniejący komponent `x-photo`.
+Komponent podaje tylko wygenerowany wariant przez trasę z kontrolą dostępu;
+gdy wariantu brak (także po odrzuceniu bez wariantów), pozostaje komunikat
+bez adresu oryginału. Zdjęcia wielu kroków ładują się leniwie. Są to fragmenty
+istniejącego przepisu, więc członkostwo w sesji i prawo do oglądania przepisu
+muszą przejść przed renderowaniem także tych fragmentów; sesja nie zapisuje
+ich kopii. Zmiana nie dodaje AI ani nowych uprawnień.
+
 Sesja = jeden przepis, jedna osoba **gospodarz** (zakłada), do niej dołączają
 **pomocnicy** (wszyscy tym samym linkiem, który wpuszcza do trzech osób) — **do trzech** (decyzja
 właściciela z 1.10.2026, patrz pytanie 1). Wszyscy widzą ten sam przepis i **ten

@@ -66,6 +66,14 @@
                     <li id="krok-{{ $krok->getKey() }}" class="card stack" data-krok-zrobiony="{{ $wpis ? '1' : '0' }}">
                         <p class="meta m-0">Krok {{ $i + 1 }} z {{ $razem }}</p>
                         <p class="cook-step-tekst m-0">{{ $krok->instruction }}</p>
+                        @if($krok->media)
+                            <div class="cook-step-zdjecie">
+                                <x-photo :media="$krok->media" variant="feed" class="post-photo"
+                                         :alt="$krok->media->alt_text ?: 'Zdjęcie do kroku '.($i + 1)"
+                                         tresc="przepis"
+                                         :wymien-url="$mojeId === $recipe->author_id && auth()->user()?->isActive() && auth()->user()->can('update', $recipe) ? route('recipes.edit', $recipe->slug).'#f-steps-'.$i.'-photo' : null" />
+                            </div>
+                        @endif
                         @if($etykietaMinutnika)
                             <p class="meta m-0">Ustaw sobie kuchenny minutnik na {{ $etykietaMinutnika }}. Minutniki nie są wspólne — każda osoba ustawia własny.</p>
                         @endif
@@ -108,6 +116,7 @@
                                 {{ $skladnik->ingredient_text }}
                                 @if($skladnik->no_amount && ! str_contains(mb_strtolower($skladnik->ingredient_text), 'do smaku'))<span class="meta"> — do smaku</span>@endif
                                 @if($skladnik->note)<span class="meta"> — {{ $skladnik->note }}</span>@endif
+                                @if($skladnik->substitutes)<span class="skladnik-zamiennik">Zamiast tego: {{ $skladnik->substitutes }}</span>@endif
                             </li>
                         @endforeach
                     </ul>
