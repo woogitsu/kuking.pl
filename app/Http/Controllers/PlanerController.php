@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Planer\Actions\DodajDoPlanu;
 use App\Domain\Planer\Actions\OznaczPozycjePlanu;
+use App\Domain\Planer\Actions\SkopiujDzienPlanu;
 use App\Domain\Planer\Actions\SkopiujPoprzedniTydzien;
 use App\Domain\Planer\PlanerTygodnia;
 use App\Domain\Planer\ZakresDatPlanu;
@@ -18,6 +19,9 @@ use App\Support\Odmiana;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\MessageBag;
+use Illuminate\Support\ViewErrorBag;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -203,6 +207,116 @@ class PlanerController extends Controller
 
         return redirect()->route('planer.show', ['tydzien' => $poniedzialek->toDateString()])
             ->with($rodzaj);
+    }
+
+    /**
+     * „Skopiuj ten dzień” (#2494): wybór dnia docelowego i podgląd. Zwykły GET
+     * — nic się nie zapisuje, a adres da się odświeżyć. Zapis idzie dopiero
+     * z przycisku „Skopiuj” (`copyDay`).
+     */
+    public function copyDayForm(Request $request, SkopiujDzienPlanu $kopiuj): View|RedirectResponse
+    {
+        $zrodlo = self::dzienZParametru($request->query('dzien'));
+        if ($zrodlo === null) {
+            return redirect()->route('planer.show');
+        }
+
+        $bledy = new MessageBag;
+        $cel = null;
+        $ocena = null;
+
+        $celParametr = $request->query('cel');
+        if (is_string($celParametr) && $celParametr !== '') {
+            $cel = self::dzienZParametru($celParametr);
+            if ($cel === null) {
+                $bledy->add('cel', 'Wybierz dzień z kalendarza albo wpisz go w formacie rrrr-mm-dd, np. 2026-10-02.');
+            } elseif ($cel->equalTo($zrodlo)) {
+                $bledy->add('cel', 'To ten sam dzień, z którego kopiujesz. Wybierz inny dzień — nic nie zostało skopiowane.');
+            } elseif (($blad = SkopiujDzienPlanu::bladZakresu($cel)) !== null) {
+                $bledy->add('cel', $blad);
+            } else {
+                $ocena = $kopiuj->ocen($request->user(), $zrodlo, $cel);
+            }
+        }
+
+        // Błędy z samego adresu (GET nie niesie sesji z błędami). Idą przez
+        // współdzielone `$errors`, żeby widział je też `x-field` i
+        // podsumowanie błędów; błędy po nieudanym zapisie przychodzą z sesji
+        // i nie wolno ich tu przykryć pustym workiem.
+        if ($bledy->isNotEmpty()) {
+            view()->share('errors', (new ViewErrorBag)->put('default', $bledy));
+        }
+
+        return view('pages.planer.kopiuj-dzien', [
+            'zrodlo' => $zrodlo,
+            'cel' => $cel,
+            'ocena' => $ocena,
+            'wpisowNaDzien' => PlanerTygodnia::wpisowNaDzien(),
+        ]);
+    }
+
+    public function copyDay(Request $request, SkopiujDzienPlanu $kopiuj): RedirectResponse
+    {
+        $zrodlo = self::dzienZParametru($request->input('dzien'));
+        if ($zrodlo === null) {
+            return redirect()->route('planer.show')
+                ->with(Komunikat::blad('Nie wiemy, który dzień kopiować. Wybierz „Skopiuj ten dzień” przy dniu w planerze jeszcze raz.'));
+        }
+        $wracaDoFormularza = route('planer.copyday', ['dzien' => $zrodlo->toDateString()]);
+
+        try {
+            $dane = $request->validate([
+                'cel' => ['required', 'string', 'date_format:Y-m-d'],
+                'odcisk' => ['required', 'string', 'max:64'],
+            ], [
+                'cel.required' => 'Wybierz dzień, na który kopiujesz.',
+                'cel.string' => 'Wybierz dzień z kalendarza albo wpisz go w formacie rrrr-mm-dd, np. 2026-10-02.',
+                'cel.date_format' => 'Wybierz dzień z kalendarza albo wpisz go w formacie rrrr-mm-dd, np. 2026-10-02.',
+                'odcisk.required' => 'Ta strona jest nieaktualna. Obejrzyj podgląd jeszcze raz i zatwierdź kopię.',
+                'odcisk.string' => 'Ta strona jest nieaktualna. Obejrzyj podgląd jeszcze raz i zatwierdź kopię.',
+                'odcisk.max' => 'Ta strona jest nieaktualna. Obejrzyj podgląd jeszcze raz i zatwierdź kopię.',
+            ]);
+
+            $cel = CarbonImmutable::createFromFormat('!Y-m-d', $dane['cel']);
+            $wynik = $kopiuj->handle($request->user(), $zrodlo, $cel, $dane['odcisk']);
+        } catch (ValidationException $e) {
+            throw $e->redirectTo($wracaDoFormularza);
+        }
+
+        $kiedy = PlanerTygodnia::naDzien($cel);
+        $tydzienCelu = route('planer.show', ['tydzien' => PlanerTygodnia::poniedzialek($cel->toDateString())->toDateString()])
+            .'#dzien-'.$cel->toDateString();
+
+        return match ($wynik['wynik']) {
+            SkopiujDzienPlanu::ZASTOSOWANO => redirect($tydzienCelu)->with(Komunikat::sukces(
+                'Skopiowane na '.$kiedy.': '.$wynik['dodane'].' '
+                .Odmiana::rzeczownik($wynik['dodane'], 'pozycja', 'pozycje', 'pozycji')
+                .'. Dzień, z którego kopiowano, został bez zmian.')),
+            SkopiujDzienPlanu::NIC_NOWEGO => redirect($tydzienCelu)->with(Komunikat::informacja(
+                'Nic nowego do skopiowania: wszystko z tego dnia już jest w planie na '.$kiedy.' albo przepis jest niedostępny.')),
+            SkopiujDzienPlanu::PUSTY => redirect()->route('planer.show', ['tydzien' => $zrodlo->toDateString()])
+                ->with(Komunikat::informacja('Ten dzień jest pusty — nie ma czego skopiować.')),
+            SkopiujDzienPlanu::TEN_SAM_DZIEN => redirect($wracaDoFormularza)
+                ->with(Komunikat::informacja('To ten sam dzień, z którego kopiujesz. Wybierz inny dzień — nic nie zostało skopiowane.')),
+            default => redirect(route('planer.copyday', ['dzien' => $zrodlo->toDateString(), 'cel' => $cel->toDateString()]))
+                ->with(Komunikat::blad('Plan zmienił się od podglądu, więc nic nie zostało skopiowane. Sprawdź nowy podgląd poniżej i zatwierdź kopię jeszcze raz.')),
+        };
+    }
+
+    /** Dzień z adresu albo formularza (`Y-m-d`); cokolwiek innego to null. */
+    private static function dzienZParametru(mixed $wartosc): ?CarbonImmutable
+    {
+        if (! is_string($wartosc) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $wartosc) !== 1) {
+            return null;
+        }
+
+        try {
+            $dzien = CarbonImmutable::createFromFormat('!Y-m-d', $wartosc);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return $dzien instanceof CarbonImmutable && $dzien->format('Y-m-d') === $wartosc ? $dzien : null;
     }
 
     /**

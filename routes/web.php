@@ -1175,6 +1175,12 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/planer/kopiuj-tydzien', [PlanerController::class, 'copy'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.copy');
+    Route::get('/planer/kopiuj-dzien', [PlanerController::class, 'copyDayForm'])
+        ->middleware("throttle:{$limits['planer_szukaj']},planer_szukaj")
+        ->name('planer.copyday');
+    Route::post('/planer/kopiuj-dzien', [PlanerController::class, 'copyDay'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.copyday.store');
     Route::patch('/planer/{wpis}/zrobione', [PlanerController::class, 'markDone'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.done');
