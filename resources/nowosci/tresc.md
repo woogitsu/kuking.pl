@@ -142,6 +142,17 @@ jest wskazówką przy przepisie albo czeka na Waszą odpowiedź — ekran powie,
 zrobić. Jeśli ktoś zgłosił wykonanie do moderacji, teksty poczekają na decyzję;
 czas poprawicie zawsze.
 
+### Wracanie do wykonań z „Zrobię ponownie”
+
+Nie pamiętacie nazwy dania, ale wiecie, że przy tym gotowaniu zaznaczyliście
+„Tak, zrobię ponownie”? Na własnej zakładce „Ugotowane”, w polu „Szukaj w moich
+wykonaniach”, jest teraz odznaczone domyślnie pole „Tylko wykonania, przy
+których zaznaczono „Zrobię ponownie””. Po zaznaczeniu i kliknięciu „Szukaj”
+zobaczycie tylko takie wykonania, nadal od najnowszego, także razem z kawałkiem
+tytułu. Każde gotowanie jest osobną kartą. Przyciski „Wyłącz ten wybór” i
+„Wyczyść wszystkie filtry” wracają do pełnej listy. Widzicie to tylko Wy — na
+cudzym profilu nic się nie zmienia.
+
 ### Dzień gotowania przy „Ugotowałem”
 
 Gotowaliście w niedzielę, a zdjęcie i kilka słów dodajecie dopiero we wtorek?
