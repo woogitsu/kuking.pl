@@ -191,6 +191,8 @@
                                             <input type="hidden" name="z_planera" value="1">
                                             <button class="btn btn-secondary" type="submit">Dodaj składniki<span class="visually-hidden"> do listy zakupów: {{ $nazwa }}</span></button>
                                         </form>
+                                        {{-- Tylko wybrane linie (#2462). --}}
+                                        <a class="btn btn-secondary" href="{{ route('shopping.recipe.pick', ['recipe' => $pozycja['przepis'], 'z_planera' => 1]) }}">Wybierz składniki<span class="visually-hidden"> do zakupów: {{ $nazwa }}</span></a>
                                     @endif
                                 </span>
                                 @if($maDopisek)

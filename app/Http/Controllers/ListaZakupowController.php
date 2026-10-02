@@ -150,6 +150,103 @@ class ListaZakupowController extends Controller
         ));
     }
 
+    /**
+     * Ekran „Wybierz składniki do zakupów” (#2462): przepis z polami wyboru
+     * przy każdej linii. Zwykły GET — nic nie dopisuje, a odświeżenie ani
+     * wejście tu niczego nie zmienia. Zapis idzie dopiero z „Dodaj wybrane”.
+     */
+    public function pickRecipe(Request $request, Recipe $recipe, ListaZakupow $lista): View
+    {
+        $this->authorize('view', $recipe);
+
+        /** @var User $user */
+        $user = $request->user();
+
+        return view('pages.zakupy.wybierz', [
+            'recipe' => $recipe,
+            ...$lista->doWyboru($recipe),
+            'zPlanera' => $request->boolean('z_planera'),
+            'wczesniej' => session()->has('zakupy_wybor_juz_jest')
+                ? $lista->pierwszeDodanie($user, $recipe)
+                : null,
+            'maksPozycji' => ListaZakupow::maksPozycji(),
+        ]);
+    }
+
+    public function storePicked(Request $request, Recipe $recipe, ListaZakupow $lista): RedirectResponse
+    {
+        // Bramka stoi TU (skan tras widzi `authorize()` w metodzie kontrolera);
+        // akcja domenowa pyta o to samo jeszcze raz.
+        $this->authorize('view', $recipe);
+
+        /** @var User $user */
+        $user = $request->user();
+
+        $zPlanera = $request->boolean('z_planera');
+        $wracaDoWyboru = route('shopping.recipe.pick', [$recipe, ...($zPlanera ? ['z_planera' => 1] : [])]);
+
+        try {
+            $dane = $request->validate([
+                'skladniki' => ['required', 'array', 'min:1', 'max:200'],
+                'skladniki.*' => ['required', 'string', 'uuid'],
+                'odcisk' => ['required', 'string', 'size:64'],
+                'potwierdzam' => ['nullable', 'boolean'],
+                'z_planera' => ['nullable', 'boolean'],
+            ], [
+                'skladniki.required' => 'Zaznacz co najmniej jeden składnik i naciśnij „Dodaj wybrane”. Nic nie zostało dodane.',
+                'skladniki.array' => 'Zaznacz składniki z listy i naciśnij „Dodaj wybrane”. Nic nie zostało dodane.',
+                'skladniki.min' => 'Zaznacz co najmniej jeden składnik i naciśnij „Dodaj wybrane”. Nic nie zostało dodane.',
+                'skladniki.max' => 'Zaznaczono za dużo składników naraz. Zaznacz mniej i naciśnij „Dodaj wybrane”.',
+                'skladniki.*.required' => 'Nie rozpoznajemy części zaznaczonych składników. Odśwież stronę i zaznacz je jeszcze raz.',
+                'skladniki.*.string' => 'Nie rozpoznajemy części zaznaczonych składników. Odśwież stronę i zaznacz je jeszcze raz.',
+                'skladniki.*.uuid' => 'Nie rozpoznajemy części zaznaczonych składników. Odśwież stronę i zaznacz je jeszcze raz.',
+                'odcisk.required' => 'Ta strona jest nieaktualna. Odśwież ją i zaznacz składniki jeszcze raz.',
+                'odcisk.string' => 'Ta strona jest nieaktualna. Odśwież ją i zaznacz składniki jeszcze raz.',
+                'odcisk.size' => 'Ta strona jest nieaktualna. Odśwież ją i zaznacz składniki jeszcze raz.',
+            ]);
+
+            $wynik = $lista->dodajSkladniki(
+                $user, $recipe, (bool) ($dane['potwierdzam'] ?? false), array_values($dane['skladniki']), $dane['odcisk'],
+            );
+        } catch (ValidationException $e) {
+            // Limit z listy zakupów mówi o polu `text`, którego ten ekran nie
+            // ma — błąd stoi przy wyborze, a zaznaczenie wraca z żądaniem.
+            $komunikaty = $e->errors();
+            if (isset($komunikaty['text'])) {
+                $e = ValidationException::withMessages(['skladniki' => (string) $komunikaty['text'][0]]);
+            }
+
+            throw $e->redirectTo($wracaDoWyboru);
+        }
+
+        $zaznaczone = $request->only('skladniki', 'odcisk');
+
+        if ($wynik['wynik'] === ListaZakupow::WYNIK_JUZ_JEST) {
+            // Ostrzeżenie zachowuje dokładnie ten sam podzbiór: ekran wyboru
+            // wraca z zaznaczeniem i przyciskiem „Dodaj wybrane jeszcze raz”.
+            return redirect($wracaDoWyboru)->withInput($zaznaczone)->with('zakupy_wybor_juz_jest', true);
+        }
+
+        if ($wynik['wynik'] === ListaZakupow::WYNIK_ZMIENIONY) {
+            return redirect($wracaDoWyboru)->withInput($zaznaczone)->with(Komunikat::blad(
+                'Składniki tego przepisu zmieniły się, odkąd otworzono tę stronę, więc nic nie zostało dodane. Poniżej jest aktualna lista — sprawdź zaznaczenie i naciśnij „Dodaj wybrane” jeszcze raz.',
+            ));
+        }
+
+        if ($wynik['wynik'] === ListaZakupow::WYNIK_BRAK_SKLADNIKOW) {
+            return $this->wroc($request, $recipe)->with(Komunikat::informacja(
+                'Ten przepis nie ma jeszcze składników, więc nie ma czego dodać do listy zakupów.',
+            ));
+        }
+
+        $ile = $wynik['dodano'];
+
+        return redirect()->route('shopping.index')->with(Komunikat::sukces(
+            'Dodane do listy zakupów: '.$ile.' '.Odmiana::rzeczownik($ile, 'wybrany składnik', 'wybrane składniki', 'wybranych składników')
+            .' z przepisu „'.$recipe->title.'”.',
+        ));
+    }
+
     public function toggle(Request $request, ShoppingListItem $pozycja, ListaZakupow $lista): RedirectResponse
     {
         $this->authorize('update', $pozycja);

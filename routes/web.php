@@ -1236,6 +1236,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/przepisy/{recipe}/lista-zakupow', [ListaZakupowController::class, 'storeRecipe'])
         ->middleware("throttle:{$limits['zakupy']},zakupy")
         ->name('shopping.recipe.store');
+    // Wybór składników do zakupów (#2462): ekran (GET, niczego nie dopisuje)
+    // i zapis wybranych linii. Identyfikator składnika nie jest treścią ani
+    // autoryzacją — decyduje `RecipePolicy::view`, tekst czyta serwer.
+    Route::get('/przepisy/{recipe}/lista-zakupow/wybierz', [ListaZakupowController::class, 'pickRecipe'])
+        ->name('shopping.recipe.pick');
+    Route::post('/przepisy/{recipe}/lista-zakupow/wybrane', [ListaZakupowController::class, 'storePicked'])
+        ->middleware("throttle:{$limits['zakupy']},zakupy")
+        ->name('shopping.recipe.pick.store');
     // „Co mam w domu” i „Co ugotuję z tego, co mam” (V2, D-285).
     //
     // Lista jest prywatna i należy do zalogowanej osoby — żadna trasa nie

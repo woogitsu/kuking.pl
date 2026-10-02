@@ -30,6 +30,16 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Wybór składników do listy zakupów
+
+Sól i mąkę macie, brakuje tylko drożdży? Na stronie przepisu (i w Planerze, przy
+przepisie w planie) jest przycisk „Wybierz składniki do zakupów”. Pokazuje
+składniki przepisu z polami wyboru – zaznaczacie to, czego potrzebujecie, i
+klikacie „Dodaj wybrane”. Na listę zakupów trafiają dokładnie te linie, tak jak
+napisał je autor, bez sumowania. Dotychczasowy przycisk „Dodaj składniki do
+listy zakupów”, który dopisuje wszystkie, zostaje bez zmian. Jeśli te składniki
+już były na liście, zapytamy, czy dodać je jeszcze raz.
+
 ### Odłóż szkic na później
 
 Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.
