@@ -16,6 +16,7 @@ use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
 use App\Models\ImportPrzepisu;
 use App\Models\Media;
+use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
 use App\Moderacja\ExceptionContext;
 use App\Moderacja\ModelChwilowoNiedostepny;
@@ -359,7 +360,7 @@ class OdczytajPrzepis implements ShouldQueue
     }
 
     /**
-     * @param  array{tytul: ?string, porcje: ?string, uwagi: ?string, skladniki: list<array{text: string, group_name: ?string}>, kroki: list<array{instruction: string}>}  $wynik
+     * @param  array{tytul: ?string, porcje: ?string, uwagi: ?string, skladniki: list<array{text: string, group_name: ?string}>, kroki: list<array{instruction: string}>, pominiete: ?array{skladniki: int, kroki: int, obciete: list<string>}}  $wynik
      */
     private function wpiszDoSzkicu(ImportPrzepisu $zlecenie, Recipe $szkic, array $wynik, PublishRecipe $przepisy): void
     {
@@ -412,6 +413,19 @@ class OdczytajPrzepis implements ShouldQueue
                 publish: false,
                 existing: $swiezy,
             );
+
+            // #2521: import, który pominął lub uciął treść, zostawia ślad przy
+            // szkicu (liczby i nazwy pól, bez treści) — czytany przy każdym
+            // otwarciu. Wiersz powstaje tylko wtedy; kompletny odczyt go nie ma.
+            if ($wynik['pominiete'] !== null) {
+                (new PrzepisZImportu)->forceFill([
+                    'recipe_id' => $swiezy->getKey(),
+                    'user_id' => $swiezy->author_id,
+                    'zrodlo' => PrzepisZImportu::ZRODLO_ZDJECIE,
+                    'droga' => 'ocr',
+                    'pominiete' => $wynik['pominiete'],
+                ])->save();
+            }
 
             $zlecenie->forceFill([
                 'status' => ImportPrzepisu::STATUS_GOTOWY,
