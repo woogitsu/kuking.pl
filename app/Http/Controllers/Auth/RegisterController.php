@@ -24,6 +24,7 @@ use App\Support\ZamiarDolaczeniaDoZeszytu;
 use App\Support\ZamiarObserwowania;
 use App\Support\ZamiarUgotowania;
 use App\Support\ZamiarZapisu;
+use App\Support\ZapamietajMnie;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -261,7 +262,7 @@ class RegisterController extends Controller
 
         // `status` ma domyślną wartość w bazie; odświeżony model musi ją
         // widzieć także w tej sesji, zanim Policy oceni przycisk „Obserwuj”.
-        Auth::login($konto->user->refresh(), remember: true);
+        Auth::login($konto->user->refresh(), remember: ZapamietajMnie::zZadania($request));
         $request->session()->regenerate();
         $zamiar->przypiszKonto($request);
         $gotowanie->przypiszKonto($request);

@@ -91,6 +91,17 @@ class CollectionPolicy
     }
 
     /**
+     * „Zaplanuj wybrane przepisy” (#2483): tylko WŁAŚCICIEL zeszytu i tylko do
+     * JEGO planera. Współpracownik wspólnego zeszytu nie planuje z cudzego
+     * zeszytu (nowych uprawnień nie nadajemy), a zawieszone konto nie zapisuje
+     * w planerze (`AktywneKontoPlanu`).
+     */
+    public function planuj(User $user, Collection $collection): bool
+    {
+        return $user->getKey() === $collection->owner_id && $user->isActive();
+    }
+
+    /**
      * Ręczne układanie kolejności przepisów (#2544, pilot V2).
      *
      * NAJWĘŻSZY ZAKRES: tylko właściciel, tylko jego PRYWATNY zeszyt i tylko

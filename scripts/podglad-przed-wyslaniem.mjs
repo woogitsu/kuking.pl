@@ -152,7 +152,7 @@ await stronaLogowania.fill('input[name="login"]', KONTO);
 await stronaLogowania.fill('input[name="password"]', HASLO);
 await Promise.all([
   stronaLogowania.waitForURL((u) => ! u.pathname.endsWith('/login'), { timeout: 15000 }),
-  stronaLogowania.click('button[type="submit"]'),
+  stronaLogowania.click('form[action$="/login"] button[type="submit"]'),
 ]);
 
 const sesja = await kontekstLogowania.storageState();

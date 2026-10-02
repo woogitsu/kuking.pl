@@ -30,6 +30,15 @@ use Illuminate\Database\Eloquent\Builder;
  *    jako zwykły tekst (#766), więc fraza go znajduje. Nic, czego człowiek
  *    już nie widzi na tej samej liście.
  * Wyszukiwanie niczego do listy nie DOKŁADA — tylko ją zawęża.
+ *
+ * ROZSZERZENIE (#2472): fraza pasuje też do WŁASNEJ uwagi (`note`) i tekstu
+ * „Po swojemu” (`changes_note`) tego wykonania — dwa pola, które karta pokazuje
+ * obok zdjęcia. Warunki są alternatywą wewnątrz zakresu właściciela (lista jest
+ * już jego), a ochrona tytułów zostaje: gałąź TYTUŁU działa jak dotąd (przepis
+ * usunięty albo autor za blokadą nie pasuje do frazy). Gałęzie uwagi i „Po
+ * swojemu” dotyczą wyłącznie tekstu, który napisał właściciel, więc wykonanie
+ * znalezione po nich nie ujawnia ani tytułu, ani treści przepisu — karta dalej
+ * chowa tytuł, a pokazuje własne zdjęcie i notatkę.
  */
 final class FrazaWUgotowanych
 {
@@ -55,7 +64,7 @@ final class FrazaWUgotowanych
         // Długość PO normalizacji (#1050): fraza z samych emoji znika
         // w `Str::ascii()` i dawałaby `LIKE '%%'`, czyli wszystko.
         if (mb_strlen(FrazaWyszukiwania::normalizuj($fraza)) < 2) {
-            return new self($fraza, 'Wpisz co najmniej dwie litery z tytułu przepisu.');
+            return new self($fraza, 'Wpisz co najmniej dwie litery z tytułu przepisu, swojej uwagi albo tekstu „Po swojemu”.');
         }
 
         return new self($fraza, null);
@@ -79,9 +88,15 @@ final class FrazaWUgotowanych
 
         $wzorzec = '%'.FrazaWyszukiwania::doLike(FrazaWyszukiwania::normalizuj($this->fraza)).'%';
 
-        $query->whereHas('recipe', function ($przepis) use ($wzorzec, $autorzyZaBlokada): void {
-            $przepis->where('recipes.title_search', 'like', $wzorzec)
-                ->when($autorzyZaBlokada !== [], fn ($q) => $q->whereNotIn('recipes.author_id', $autorzyZaBlokada));
+        $query->where(function ($szukaj) use ($wzorzec, $autorzyZaBlokada): void {
+            $szukaj->whereHas('recipe', function ($przepis) use ($wzorzec, $autorzyZaBlokada): void {
+                $przepis->where('recipes.title_search', 'like', $wzorzec)
+                    ->when($autorzyZaBlokada !== [], fn ($q) => $q->whereNotIn('recipes.author_id', $autorzyZaBlokada));
+            })
+                // Własny tekst wykonania (#2472): ta sama normalizacja co `title_search`
+                // (`kuking_normalize`), puste pola (NULL) nie pasują do niczego.
+                ->orWhereRaw('kuking_normalize(cooked_events.note) like ?', [$wzorzec])
+                ->orWhereRaw('kuking_normalize(cooked_events.changes_note) like ?', [$wzorzec]);
         });
     }
 }

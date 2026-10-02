@@ -30,7 +30,7 @@
         pole, ZANIM w nie klikną. Ikona więc DOCHODZI do istniejącego pola,
         etykieta i tekst pomocy zostają bez zmian.
     --}}
-    <form class="panel-formularza" method="GET" action="{{ route('search') }}">
+    <form class="panel-formularza" method="GET" action="{{ route('search') }}" novalidate>
         @include('components.error-summary', ['errors' => $searchErrors])
         <div class="field @if($searchErrors->has('q')) has-error @endif">
             <label for="f-q">Czego szukasz?</label>
@@ -52,6 +52,10 @@
         <input type="hidden" name="sekcja" value="{{ $section }}">
         @if($maksMinut !== null)
             <input type="hidden" name="czas" value="{{ $maksMinut }}">
+        @endif
+        @if($obserwowani)
+            {{-- Wybór „Od osób, które obserwuję” (#2440) przeżywa nowe wyszukanie frazy. --}}
+            <input type="hidden" name="obserwowani" value="1">
         @endif
 
         {{--
@@ -78,6 +82,34 @@
                             <span class="choice-label">{{ $alergen->etykieta() }}</span>
                         </label>
                     @endforeach
+                </div>
+            </details>
+        @endif
+        {{--
+            „BEZ SKŁADNIKA” (V2, #2526) — jedno opcjonalne kryterium, w tym samym
+            formularzu i pod tym samym przyciskiem „Szukaj”. Zwykły produkt
+            (nie alergen) pomijany tylko w tym wyszukiwaniu; nic się nie zapisuje.
+            Zakres „Ludzie” go nie ma. Rozwinięte, gdy filtr jest aktywny albo
+            wpisano coś błędnego, żeby błąd stał przy polu.
+        --}}
+        @if($section !== 'ludzie')
+            <details class="mt-4" id="filtr-skladnika" @if($bezSkladnika !== null || $bladSkladnika !== null) open @endif>
+                <summary class="btn btn-secondary">Bez wskazanego składnika (nieobowiązkowe)</summary>
+                <div class="field mt-3 @if($bladSkladnika !== null) has-error @endif">
+                    <label for="f-bez-skladnika">Pomiń przepisy ze składnikiem</label>
+                    <span class="field-help" id="f-bez-skladnika-help">
+                        Wpisz jeden produkt, na przykład „brokuł”, i kliknij „Szukaj”. Pominiemy przepisy,
+                        w których autor zapisał ten produkt w składnikach (także w innej odmianie, jak „brokuły”).
+                        To nie jest filtr alergenów. Jeśli produktu nie ma w zapisie składników, przepis zostaje,
+                        więc przy gotowych produktach przeczytaj skład samodzielnie.
+                    </span>
+                    <input class="field-input" id="f-bez-skladnika" name="bez_skladnika" type="text"
+                           value="{{ $skladnikWpisany }}" placeholder="brokuł"
+                           aria-describedby="f-bez-skladnika-help{{ $bladSkladnika !== null ? ' f-bez-skladnika-error' : '' }}"
+                           @if($bladSkladnika !== null) aria-invalid="true" @endif>
+                    @if($bladSkladnika !== null)
+                        <span class="field-error" id="f-bez-skladnika-error">{{ $bladSkladnika }} Wyniki poniżej są bez tego filtra.</span>
+                    @endif
                 </div>
             </details>
         @endif
@@ -110,6 +142,12 @@
         // Wybór alergenów zostaje przy zakresach przepisów, tak jak czas.
         $alergenyWAdresie = $bezAlergenow === [] ? [] : ['bez' => $bezAlergenow];
         $nazwyWybranych = \App\Domain\Recipes\Alergeny\Alergen::nazwyZKodow($bezAlergenow);
+        // „Od osób, które obserwuję” (#2440) zostaje przy zakresach przepisów, tak jak czas i alergeny.
+        $obserwowaniWAdresie = $obserwowani ? ['obserwowani' => 1] : [];
+        $czasWAdresie = $maksMinut !== null ? ['czas' => $maksMinut] : [];
+        // Wybrany składnik do pominięcia (#2526) też zostaje przy zakresach przepisów.
+        $skladnikWAdresie = $bezSkladnika === null ? [] : ['bez_skladnika' => $bezSkladnika];
+        $alergenyWAdresie += $skladnikWAdresie;
     @endphp
     <nav class="chipsy mt-6" aria-label="Co przeszukujemy">
         @foreach([
@@ -122,7 +160,7 @@
                  „Wszystko" i „Ludzie" go gubią, bo ludzie nie mają czasu
                  przygotowania (SearchController, #1997). --}}
             <a class="chip"
-               href="{{ route('search', $bazaZakresu + ['sekcja' => $klucz] + (in_array($klucz, ['przepisy', 'tanie'], true) && $maksMinut !== null ? ['czas' => $maksMinut] : []) + (in_array($klucz, ['przepisy', 'tanie'], true) ? $alergenyWAdresie : [])) }}"
+               href="{{ route('search', $bazaZakresu + ['sekcja' => $klucz] + (in_array($klucz, ['przepisy', 'tanie'], true) && $maksMinut !== null ? ['czas' => $maksMinut] : []) + (in_array($klucz, ['przepisy', 'tanie'], true) ? $alergenyWAdresie + $obserwowaniWAdresie : [])) }}"
                @if($section === $klucz) aria-current="page" @endif>{{ $etykieta }}</a>
         @endforeach
     </nav>
@@ -134,6 +172,16 @@
         w adresie (`?czas=15|30|60`), więc przeżywa odświeżenie i wysłanie
         komuś. Etykieta jest widoczna, nie tylko w `aria-label`.
     --}}
+    @if($bezSkladnika !== null)
+        <div class="notice mt-4" role="status">
+            <p class="mt-0 mb-3">
+                Pomijamy przepisy, w których autor zapisał w składnikach: „{{ $bezSkladnika }}”.
+                Sprawdzamy tylko zapisany tekst składników, nie skład gotowych produktów.
+            </p>
+            <a class="btn btn-secondary" href="{{ route('search', array_filter(['q' => $phrase, 'sekcja' => $section, 'czas' => $maksMinut, 'bez' => $bezAlergenow === [] ? null : $bezAlergenow, 'obserwowani' => $obserwowani ? 1 : null, 'nawigacja' => 1], fn ($v) => $v !== null)) }}">Usuń filtr „bez: {{ $bezSkladnika }}”</a>
+        </div>
+    @endif
+
     @if($bezNieznane > 0)
         <p class="notice mt-4" role="status">
             Adres ma alergen, którego nie rozpoznajemy, więc go pomijamy. Wybierz alergeny z listy nad wynikami.
@@ -150,17 +198,43 @@
         <p class="mt-4 mb-0 font-semibold" id="czas-przepisu-etykieta">Ile masz czasu?</p>
         <nav class="chipsy chipsy-czasu" aria-labelledby="czas-przepisu-etykieta">
             <a class="chip"
-               href="{{ route('search', $bazaZakresu + ['sekcja' => $section] + $alergenyWAdresie) }}"
+               href="{{ route('search', $bazaZakresu + ['sekcja' => $section] + $alergenyWAdresie + $obserwowaniWAdresie) }}"
                @if($maksMinut === null) aria-current="page" @endif>Bez limitu czasu</a>
             @foreach($progiCzasu as $minuty => [$etykieta])
                 <a class="chip"
-                   href="{{ route('search', $bazaZakresu + ['sekcja' => $section === 'wszystko' ? 'przepisy' : $section, 'czas' => $minuty] + $alergenyWAdresie) }}"
+                   href="{{ route('search', $bazaZakresu + ['sekcja' => $section === 'wszystko' ? 'przepisy' : $section, 'czas' => $minuty] + $alergenyWAdresie + $obserwowaniWAdresie) }}"
                    @if($maksMinut === $minuty) aria-current="page" @endif>{{ $etykieta }}</a>
             @endforeach
         </nav>
         @if($maksMinut !== null)
             <p class="meta">Liczymy przygotowanie i gotowanie razem. Przepis, przy którym autor nie podał czasu, tu nie trafia.</p>
         @endif
+    @endif
+
+    {{--
+        CZYJE PRZEPISY (#2440, D-275). Jawny wybór zalogowanej osoby, nie dobór
+        przez serwis: tylko zwęża wyniki do przepisów osób, które ona obserwuje
+        (`follows.follower_id` = ona), kolejność zostaje ta sama. Zwykłe odnośniki
+        jak zakresy i czas; w adresie wyłącznie `obserwowani=1`.
+    --}}
+    @auth
+        @if($section !== 'ludzie')
+            <p class="mt-4 mb-0 font-semibold" id="autorzy-przepisu-etykieta">Czyje przepisy?</p>
+            <nav class="chipsy" aria-labelledby="autorzy-przepisu-etykieta">
+                <a class="chip"
+                   href="{{ route('search', $bazaZakresu + ['sekcja' => $section] + $czasWAdresie + $alergenyWAdresie) }}"
+                   @if(! $obserwowani) aria-current="page" @endif>Wszyscy autorzy</a>
+                <a class="chip"
+                   href="{{ route('search', $bazaZakresu + ['sekcja' => $section === 'wszystko' ? 'przepisy' : $section, 'obserwowani' => 1] + $czasWAdresie + $alergenyWAdresie) }}"
+                   @if($obserwowani) aria-current="page" @endif>Od osób, które obserwuję</a>
+            </nav>
+        @endif
+    @endauth
+    @if($obserwowaniGosc)
+        <p class="notice mt-4" role="status">
+            Wybór „Od osób, które obserwuję” działa po zalogowaniu, bo to Twoja lista. Pokazujemy przepisy wszystkich autorów.
+            <a href="{{ route('login') }}">Zaloguj się</a>, jeśli chcesz go użyć.
+        </p>
     @endif
 
     @if($phrase === '')
@@ -214,7 +288,21 @@
                 gotowe brzmienie, nie tylko przykład.
             --}}
             <x-empty-state title="Nic nie znaleźliśmy">
-                @if($bezAlergenow !== [])
+                @if($obserwowani)
+                    {{-- „Od osób, które obserwuję” (#2440): dwa różne powody pustego wyniku
+                         i zawsze droga do wszystkich autorów — wyników nie poszerzamy po cichu. --}}
+                    @if(! $obserwujeKogos)
+                        Nie obserwujesz jeszcze nikogo, więc nie mamy czyich przepisów przeszukać. Obserwuj osoby na ich profilach albo pokaż przepisy wszystkich autorów.
+                    @else
+                        Żadna z osób, które obserwujesz, nie ma przepisu pasującego do „{{ $phrase }}”{{ $maksMinut !== null || $bezAlergenow !== [] || $bezSkladnika !== null ? ' przy wybranych dodatkowych ograniczeniach' : '' }}.
+                        Wpisz krócej albo pokaż przepisy wszystkich autorów.
+                    @endif
+                @elseif($bezSkladnika !== null)
+                    {{-- Filtr „bez składnika” (#2526): „nic” nie znaczy, że wszystkie
+                         przepisy go zawierają — wskazujemy drogę powrotną. --}}
+                    Nie ma przepisów do „{{ $phrase }}”, w których nie zapisano „{{ $bezSkladnika }}”.
+                    Usuń ten filtr albo wpisz inną nazwę produktu.
+                @elseif($bezAlergenow !== [])
                     {{-- Filtr alergenów (#1902): przepisy niesprawdzone są pominięte,
                          więc „nic" nie znaczy „wszystkie zawierają" — trzeba to powiedzieć. --}}
                     Nie ma przepisów do „{{ $phrase }}”, w których autor zaznaczył brak: {{ $nazwyWybranych }}.
@@ -251,6 +339,12 @@
                 @endif
             </x-empty-state>
 
+            @if($obserwowani)
+                <p class="text-center">
+                    <a class="btn btn-primary" href="{{ route('search', $bazaZakresu + ['sekcja' => $section] + $czasWAdresie + $alergenyWAdresie) }}">Pokaż przepisy wszystkich autorów</a>
+                </p>
+            @endif
+
             {{--
                 Droga dalej, nie ślepy zaułek (SOUL.md 4.11, IMPLEMENTATION_GUIDE
                 etap D). Kto szuka przepisu — może go dodać. Każdy, niezależnie
@@ -281,6 +375,13 @@
 
         @if($szukaPrzepisow && $recipes->isNotEmpty())
             <h2 class="mt-6">{{ $maksMinut !== null ? $progiCzasu[$maksMinut][0] : 'Przepisy' }}</h2>
+
+            @if($obserwowani)
+                <p class="meta" role="note">
+                    Pokazujemy tylko przepisy osób, które obserwujesz.
+                    <a href="{{ route('search', $bazaZakresu + ['sekcja' => $section] + $czasWAdresie + $alergenyWAdresie) }}">Pokaż przepisy wszystkich autorów</a>
+                </p>
+            @endif
 
             @if($bezAlergenow !== [])
                 <p class="notice" role="note">

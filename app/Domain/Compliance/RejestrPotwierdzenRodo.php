@@ -226,6 +226,24 @@ final class RejestrPotwierdzenRodo
     }
 
     /**
+     * Zamknięta sprawa odtworzona ze starych wpisów `audit_log` (backfill,
+     * #2708, krok 5 projektu). To nie jest druga ścieżka zapisu: wiersz idzie
+     * tą samą drogą co każdy inny (losowanie numeru, atrybuty przypisywane
+     * wprost), a wołający (`PrzenoszeniePotwierdzenRodo`) odpowiada za to, że
+     * `wynik`, `zakres` i daty są spójne z CHECK-ami w bazie.
+     *
+     * @param  array<string, mixed>  $wiersz
+     */
+    public function dopiszZAudytu(array $wiersz): PotwierdzenieZadaniaRodo
+    {
+        if (($wiersz['wyjatki'] ?? null) === null && is_string($wiersz['zakres'] ?? null)) {
+            $wiersz['wyjatki'] = $this->wyjatki($wiersz['zakres']);
+        }
+
+        return $this->zapisz($wiersz);
+    }
+
+    /**
      * Wstawia wiersz, losując numer aż do skutku.
      *
      * Unikalności pilnuje INDEKS W BAZIE, nie sprawdzenie przed wstawką:

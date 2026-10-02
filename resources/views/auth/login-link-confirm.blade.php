@@ -31,6 +31,8 @@
         @csrf
         <input type="hidden" name="token" value="{{ $token }}">
 
+        <x-zapamietaj-mnie />
+
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Zaloguj mnie</button>
             <a class="btn btn-quiet" href="{{ route('login') }}">To nie ja — wróć do logowania</a>

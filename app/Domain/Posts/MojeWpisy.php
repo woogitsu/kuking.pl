@@ -52,15 +52,23 @@ final class MojeWpisy
     ];
 
     /** @return LengthAwarePaginator<int, Post> */
-    public function strona(User $autor): LengthAwarePaginator
+    public function strona(User $autor, ?FrazaWMoichWpisach $fraza = null): LengthAwarePaginator
     {
         return $autor->posts()
             ->enabledKinds()
+            // Fraza (#2465) tylko ZAWĘŻA tę samą listę; porządek i paginacja bez zmian.
+            ->tap(fn ($query) => $fraza?->zawez($query))
             ->with(self::RELACJE)
             ->orderByRaw('coalesce(posts.published_at, posts.created_at) desc')
             ->orderByDesc('posts.id')
             ->paginate(self::NA_STRONE)
             ->withQueryString();
+    }
+
+    /** Czy autor ma w ogóle jakikolwiek wpis na tej liście (bez frazy) — od tego zależy pole szukania. */
+    public function maWpisy(User $autor): bool
+    {
+        return $autor->posts()->enabledKinds()->exists();
     }
 
     /**

@@ -19,7 +19,39 @@
     <h1>Moje wpisy</h1>
     <p class="mb-5">Wszystkie Twoje wpisy, od najnowszego — także te tylko dla Ciebie i tylko dla obserwujących. Tę listę widzisz tylko Ty.</p>
 
-    @if($wpisy->total() === 0)
+    {{-- „Szukaj w moich wpisach” (#2465): zwykły GET, działa bez JavaScriptu. Szuka w opisie
+         i tytule wpisu (`FrazaWMoichWpisach`); pusta fraza to cała lista. --}}
+    @if($maWpisy)
+        <form class="panel-formularza mb-6" method="GET" action="{{ route('collections.own-posts') }}" role="search" aria-label="{{ \App\Domain\Posts\FrazaWMoichWpisach::ETYKIETA }}" novalidate>
+            <div class="field @if($fraza->blad) has-error @endif">
+                <label for="f-szukaj-wpisy">{{ \App\Domain\Posts\FrazaWMoichWpisach::ETYKIETA }}</label>
+                <span class="field-help" id="f-szukaj-wpisy-help">Wpisz kawałek opisu albo tytułu wpisu, np. „pierogi”. Polskie znaki nie mają znaczenia — „zurek” znajdzie „Żurek”.</span>
+                <input class="field-input" id="f-szukaj-wpisy" name="szukaj" type="search" value="{{ $fraza->fraza }}"
+                       maxlength="{{ \App\Domain\Search\SearchQuery::MAX_PHRASE_LENGTH }}"
+                       aria-describedby="f-szukaj-wpisy-help{{ $fraza->blad ? ' f-szukaj-wpisy-error' : '' }}"
+                       @if($fraza->blad) aria-invalid="true" @endif>
+                @if($fraza->blad)
+                    <span class="field-error" id="f-szukaj-wpisy-error">{{ $fraza->blad }}</span>
+                @endif
+            </div>
+            <button class="btn btn-primary mt-4" type="submit">Szukaj</button>
+        </form>
+    @endif
+
+    @if($fraza->aktywna())
+        <section class="stack mb-6" aria-labelledby="wyniki-w-wpisach" data-wyniki-w-wpisach>
+            <h2 id="wyniki-w-wpisach" class="m-0">Wyniki dla „{{ $fraza->fraza }}”</h2>
+            @if($wpisy->total() === 0)
+                {{-- Brak dopasowań to nie pusty dorobek — mówimy, czego nie znaleźliśmy i co zrobić. --}}
+                <p class="m-0">Nie znaleźliśmy wśród Twoich wpisów niczego z „{{ $fraza->fraza }}” w opisie ani w tytule. Spróbuj krótszego kawałka. Wszystkie Twoje wpisy są nadal na liście.</p>
+            @else
+                <p class="meta m-0">Znaleźliśmy {{ $wpisy->total() }} {{ \App\Support\Odmiana::rzeczownik($wpisy->total(), 'wpis', 'wpisy', 'wpisów') }}, od najnowszego.</p>
+            @endif
+            <p class="m-0"><a class="btn btn-secondary" href="{{ route('collections.own-posts') }}">Pokaż wszystkie wpisy</a></p>
+        </section>
+    @endif
+
+    @if($wpisy->total() === 0 && ! $fraza->aktywna())
         <x-empty-state title="Nie masz jeszcze żadnego wpisu" action="Dodaj wpis" :href="route('add')">
             Zrób zdjęcie tego, co dziś gotujesz, napisz kilka słów i opublikuj. Twoje wpisy znajdziesz potem tutaj.
         </x-empty-state>

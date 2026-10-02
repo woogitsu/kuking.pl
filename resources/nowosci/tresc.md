@@ -30,6 +30,46 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Notatki z zeszytów podczas gotowania
+
+Zapisaliście przy przepisie „następnym razem mniej soli” albo „moja forma ma 24 cm”? W trybie „Gotuję” jest teraz zwijany blok „Moje notatki z zeszytów”. Po rozwinięciu widzicie swoje dopiski z prywatnych zeszytów, każdy z nazwą zeszytu, i nie musicie opuszczać bieżącego kroku: minutnik, porcje i odhaczenia zostają tak, jak były. Notatki są tylko do odczytu (zmienicie je w zeszycie) i widzicie je wyłącznie Wy.
+
+### Składniki w kolejce gotowania
+
+Gotujecie zupę i sos naraz, a w kroku sosu trzeba sprawdzić, ile mleka? Na ekranie „Gotuję kilka potraw naraz” jest zwinięta sekcja „Składniki” aktywnej potrawy, z grupami, uwagami i zamiennikami. Ilości są takie, jak podał autor, bez przeliczania. Po rozwinięciu nie opuszczacie kolejki, a krok i minutniki zostają bez zmian.
+
+### Zestaw dnia z Planera do kolejki gotowania
+
+Zupa i drugie danie zaplanowane na niedzielę? Przy dniu w Planerze zaznaczcie potrawy i naciśnijcie „Dodaj zaznaczone do kolejki”, a przejdziecie od razu do ekranu „Gotuję kilka potraw naraz”. To, co było już w kolejce, zostaje z bieżącym krokiem. Jeśli zaznaczone potrawy nie mieszczą się w czterech miejscach, nic się nie zmienia, a komunikat podpowiada, co odznaczyć.
+
+### Szukaj tylko wśród osób, które obserwujecie
+
+Pamiętacie zupę od osoby, którą obserwujecie, ale nie jej imię? W „Szukaj” jest nowy wybór „Czyje przepisy?”: „Wszyscy autorzy” albo „Od osób, które obserwuję”. Po drugim wyborze pokazujemy tylko przepisy osób z Waszej listy obserwowanych, w tej samej kolejności co zawsze. Nic nie jest ukryte po cichu: gdy nic nie pasuje, mówimy dlaczego i jednym przyciskiem wracacie do wszystkich autorów.
+
+### Moje próby tego przepisu
+
+Ugotowaliście ten sam przepis kilka razy i chcecie wiedzieć, co się zmieniło od poprzedniego razu? Przy własnym wykonaniu oraz na stronie przepisu jest przycisk „Moje próby tego przepisu”. Otwiera prywatną listę Waszych wykonań tego przepisu, od najstarszego do najnowszego: z datą, rzeczywistym czasem, notatką, zdjęciami i numerem wersji przepisu, z której gotowaliście, a pod spodem krótko, co się zmieniło od poprzedniej próby. Widzicie ją tylko Wy, nic się nie publikuje i nikt nie dostaje powiadomienia.
+
+### Wyszukiwanie bez wybranego składnika
+
+Szukacie obiadu, ale dziś bez brokułu? W wyszukiwarce przepisów jest nowa, zwijana sekcja „Bez wskazanego składnika (nieobowiązkowe)”. Wpisujecie jeden produkt, klikacie „Szukaj”, a wyniki pomijają przepisy, w których autor zapisał go w składnikach — także w innej odmianie. Nad wynikami widać, co pomijamy, i jest przycisk „Usuń filtr”. Uwaga: to nie jest sprawdzenie alergenów ani składu gotowych produktów — działamy na tekście, który napisał autor przepisu, więc przy gotowych produktach zawsze czytajcie etykietę. Nic o Was nie zapamiętujemy.
+
+### Zaplanuj wybrane przepisy z zeszytu
+
+Zebraliście w zeszycie zupę, pieczeń i deser na niedzielny obiad? Na stronie własnego zeszytu jest przycisk „Zaplanuj wybrane przepisy”. Zaznaczacie przepisy, wybieracie jeden dzień w Planerze i widzicie podgląd: co dodamy, a co już tam jest. Dopiero po zatwierdzeniu przepisy trafiają do planu na ten dzień. Nic się nie dzieje bez Waszego kliknięcia, a notatki z zeszytu zostają w zeszycie.
+
+### Porcje przy pozycji dnia w Planerze
+
+Ten sam przepis na środę dla dwóch osób i na niedzielę dla sześciu? W Planerze przy przepisie jest nieobowiązkowy przycisk „Ustaw porcje”. Wpisujecie liczbę porcji dla danego dnia, a link z Planera otwiera przepis od razu przeliczony na tę liczbę. Pusta wartość usuwa wybór i wracają ilości autora. Widzicie to tylko Wy, a sam przepis autora się nie zmienia.
+
+### Zakupy na wybraną liczbę porcji
+
+Przepis jest na 4 porcje, a gotujecie dla 2 osób? Po wybraniu liczby porcji na stronie przepisu obok zwykłego przycisku jest „Dodaj składniki na 2 porcje do listy zakupów”. Najpierw zobaczycie podgląd: ilości autora obok przeliczonych, a linie, których nie da się przeliczyć („do smaku”, bez ilości), zostają takie, jak napisał autor — wymagają Waszego sprawdzenia. Dopiero po zatwierdzeniu trafiają na listę, z adnotacją, że ilość jest przeliczona. Zwykły przycisk nadal dodaje ilości autora.
+
+### Kupione prosto do „Co mam w domu”
+
+Wróciliście ze sklepu i odhaczyliście zakupy? Pod odhaczonymi pozycjami na liście zakupów jest przycisk „Dodaj kupione do »Co mam w domu«”. Zaznaczacie tylko to, co chcecie dopisać (papier do pieczenia raczej nie), poprawiacie nazwę produktu — na przykład z „2 szklanki mąki” na „mąka” — i potwierdzacie. Nie zgadujemy ilości ani terminów, produkty, które już macie, zostają bez zmian, a lista zakupów się nie zmienia. Samo odhaczenie niczego w spiżarni nie robi.
+
 ### Zmiana nazwy produktu w „Co mam w domu”
 
 Wpisaliście „mleko”, a w lodówce jest „mleko kokosowe”? Albo w nazwie została

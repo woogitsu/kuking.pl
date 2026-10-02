@@ -27,7 +27,7 @@ class PrecyzjaWejscZewnetrznychTest extends TestCase
                 $html = Blade::render('<x-wejscia-zewnetrzne />');
                 $this->assertStringNotContainsString('jednym kliknięciem', $html);
                 foreach (['google' => $google, 'facebook' => $facebook] as $provider => $enabled) {
-                    $this->assertSame($enabled, str_contains($html, 'href="'.route($provider.'.start').'"'));
+                    $this->assertSame($enabled, str_contains($html, 'formaction="'.route($provider.'.start').'"'));
                 }
                 $single = Blade::render('<x-wejdz-google />');
                 $this->assertStringNotContainsString('jednym kliknięciem', $single);

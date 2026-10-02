@@ -500,6 +500,9 @@
                     @can('cook', $recipe)
                         <a class="btn btn-primary" href="{{ route('cooked.create', $recipe->slug) }}">{{ \App\Support\Forma::dla(auth()->user(), 'Ugotowałam', 'Ugotowałem', 'Ugotowałem') }}</a>
                     @endcan
+                    @if($maWlasneProby ?? false)
+                        <a class="btn btn-secondary" href="{{ route('cooked.proby', $recipe->slug) }}">Moje próby tego przepisu</a>
+                    @endif
                     @if($isSaved)
                         {{--
                             WYJĘCIE MÓWI, SKĄD WYJMUJE (issue #775).
@@ -813,6 +816,14 @@
                             @csrf
                             <button class="btn btn-secondary" type="submit">Dodaj składniki do listy zakupów</button>
                         </form>
+                        {{-- Przeliczone porcje (#2489): osobny, jawny wybór z podglądem; przycisk
+                             wyżej dalej kopiuje ilości autora. --}}
+                        @if($wyborPorcji->przeliczone() && ! $wyborSztuk->przeliczone())
+                            <p class="mt-3 mb-0">
+                                <a class="btn btn-secondary" href="{{ route('shopping.recipe.scaled', ['recipe' => $recipe->slug, 'porcje' => $wyborPorcji->doAdresu((float) $wyborPorcji->wybrane)]) }}">Dodaj składniki na {{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta((float) $wyborPorcji->wybrane) }} do listy zakupów</a>
+                            </p>
+                            <p class="meta mt-2">Przycisk wyżej dodaje ilości autora ({{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta((float) $wyborPorcji->zPrzepisu) }}).</p>
+                        @endif
                         {{-- Opcjonalnie tylko wybrane linie (#2462); pełne dodanie wyżej zostaje bez zmian. --}}
                         <p class="mt-3"><a class="btn btn-secondary" href="{{ route('shopping.recipe.pick', $recipe) }}">Wybierz składniki do zakupów</a></p>
                     @endauth

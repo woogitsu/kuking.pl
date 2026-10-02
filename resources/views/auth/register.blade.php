@@ -130,6 +130,8 @@
             @error('terms_accepted')<span class="field-error" id="f-terms_accepted-error">{{ $message }}</span>@enderror
         </div>
 
+        <x-zapamietaj-mnie />
+
         <x-turnstile miejsce="rejestracja" />
 
         {{--

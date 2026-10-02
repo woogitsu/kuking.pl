@@ -66,7 +66,26 @@ class AuditLogEntry extends Model
      *
      * @var list<string>
      */
-    public const NIGDY_NIE_KASUJ = [
+    public const NIGDY_NIE_KASUJ = [];
+
+    /**
+     * Trzy wpisy `account.*`, które do 2.10.2026 stały na liście
+     * `NIGDY_NIE_KASUJ` jako JEDYNY dowód obsługi żądania usunięcia konta
+     * (uzasadnienie: ADR_RETENCJE.md §3.1 i opis tej stałej w historii gita).
+     * Decyzja właściciela z 2.10.2026 (#2708, przy D-233) zdjęła je z listy:
+     * dowodem jest teraz minimalne `potwierdzenia_zadan_rodo` (36 miesięcy od
+     * zamknięcia sprawy). Wpisy podlegają zwykłej retencji audytu
+     * (`audit_log.retention_months`, dziś 12 miesięcy), ale
+     * `PrzedawnioneWpisyAudytu` kasuje je TYLKO gdy:
+     *  - potwierdzenia pokrywają wszystkie zamknięcia z audytu
+     *    (`PrzenoszeniePotwierdzenRodo::ileBrakuje() === 0`, czyli backfill
+     *    `kuking:przenies-potwierdzenia-rodo` został wykonany), oraz
+     *  - konto, którego wpis dotyczy, nie ma zabezpieczonego dowodu
+     *    (`zabezpieczenia_dowodow.subject_user_id`, ścieżka CSAM).
+     *
+     * @var list<string>
+     */
+    public const DOWODY_USUNIECIA_KONTA = [
         'account.data_erased',
         'account.delete_requested',
         'account.delete_cancelled',

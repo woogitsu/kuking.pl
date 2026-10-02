@@ -231,7 +231,7 @@ async function main() {
   await logowanie.fill('input[name="password"]', HASLO);
   await Promise.all([
     logowanie.waitForURL((u) => !u.pathname.endsWith('/login'), { timeout: 15000 }),
-    logowanie.click('button[type="submit"]'),
+    logowanie.click('form[action$="/login"] button[type="submit"]'),
   ]);
   const sesja = await wstepny.storageState();
   // Slug pierwszego publicznego przepisu — bierzemy go ze strony, a nie

@@ -9,10 +9,12 @@ use App\Domain\Planer\Actions\OznaczPozycjePlanu;
 use App\Domain\Planer\Actions\PrzeniesPozycjePlanu;
 use App\Domain\Planer\Actions\SkopiujDzienPlanu;
 use App\Domain\Planer\Actions\SkopiujPoprzedniTydzien;
+use App\Domain\Planer\Actions\UstawPorcjePlanu;
 use App\Domain\Planer\Actions\ZapiszDopisekPlanu;
 use App\Domain\Planer\Actions\ZmienTekstPozycjiPlanu;
 use App\Domain\Planer\PlanerTygodnia;
 use App\Domain\Planer\ZakresDatPlanu;
+use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Domain\Search\SearchQuery;
 use App\Models\MealPlanEntry;
 use App\Models\Recipe;
@@ -23,6 +25,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\MessageBag;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
@@ -98,6 +101,9 @@ class PlanerController extends Controller
             'wyniki' => $wyniki,
             'poniedzialek' => $poniedzialek,
             'dni' => $dni,
+            // Przepisy z opisanymi krokami: tylko takie da się dodać do kolejki
+            // gotowania (#2450). Jedno zapytanie na cały tydzień.
+            'zKrokami' => $this->przepisyZKrokami($dni),
             'dzis' => Czas::dzisiajData(),
             'tenTydzien' => PlanerTygodnia::poniedzialek(null)->equalTo($poniedzialek),
             'poprzedniMaPozycje' => $user->mealPlanEntries()
@@ -105,6 +111,31 @@ class PlanerController extends Controller
                 ->exists(),
             'wpisowNaDzien' => PlanerTygodnia::wpisowNaDzien(),
         ]);
+    }
+
+    /**
+     * @param  array<string, array{dzien: CarbonImmutable, pozycje: list<array<string, mixed>>}>  $dni
+     * @return array<string, bool> identyfikatory przepisów (z dnia) mających co najmniej jeden krok
+     */
+    private function przepisyZKrokami(array $dni): array
+    {
+        $idPrzepisow = [];
+
+        foreach ($dni as $dzien) {
+            foreach ($dzien['pozycje'] as $pozycja) {
+                if ($pozycja['stan'] === PlanerTygodnia::STAN_PRZEPIS && $pozycja['przepis'] instanceof Recipe) {
+                    $idPrzepisow[] = (string) $pozycja['przepis']->getKey();
+                }
+            }
+        }
+
+        if ($idPrzepisow === []) {
+            return [];
+        }
+
+        return DB::table('recipe_steps')->whereIn('recipe_id', array_unique($idPrzepisow))
+            ->distinct()->pluck('recipe_id')
+            ->mapWithKeys(fn ($id): array => [(string) $id => true])->all();
     }
 
     /**
@@ -420,6 +451,46 @@ class PlanerController extends Controller
     }
 
     /**
+     * Prywatna liczba planowanych porcji przy pozycji (#2509). Pusta wartość
+     * czyści wybór (wracają ilości autora). Błędny wpis wraca do pola z tym,
+     * co człowiek wpisał, i z komunikatem przy polu.
+     */
+    public function savePortions(Request $request, MealPlanEntry $wpis, UstawPorcjePlanu $ustaw): RedirectResponse
+    {
+        $this->authorize('editServings', $wpis);
+
+        $dane = $request->validate([
+            'porcje' => ['nullable', 'string', 'max:12'],
+            'stan' => ['nullable', 'string', 'max:40'],
+        ], [
+            'porcje.string' => 'Wpisz liczbę porcji, na przykład 6 albo 2,5.',
+            'porcje.max' => 'Wpisz liczbę porcji, na przykład 6 albo 2,5.',
+        ]);
+
+        $wynik = $ustaw->handle($request->user(), (string) $wpis->getKey(), $dane['porcje'] ?? null, $dane['stan'] ?? null);
+        $wyczyszczono = trim((string) ($dane['porcje'] ?? '')) === '';
+        $wroc = redirect()->route('planer.show', ['tydzien' => $wpis->day->toDateString()]);
+
+        $przyPolu = fn (string $tresc): RedirectResponse => $wroc
+            ->withInput($request->only('porcje', '_wiersz'))
+            ->withErrors(['porcje' => $tresc]);
+
+        return match ($wynik) {
+            UstawPorcjePlanu::ZASTOSOWANO => $wroc->with(Komunikat::sukces($wyczyszczono
+                ? 'Wybór porcji usunięty. Przepis otworzy się z ilościami autora.'
+                : 'Porcje na ten dzień zapisane. Widzisz je tylko Ty.')),
+            UstawPorcjePlanu::JUZ_TAK_BYLO => $wroc->with(Komunikat::informacja($wyczyszczono
+                ? 'Ta pozycja nie ma wybranej liczby porcji.'
+                : 'Ta liczba porcji już jest zapisana.')),
+            UstawPorcjePlanu::KONFLIKT => $przyPolu('Liczba porcji tej pozycji zmieniła się w innym oknie. Odśwież stronę, sprawdź aktualną liczbę i w razie potrzeby wpisz swoją jeszcze raz.'),
+            UstawPorcjePlanu::NIEPRAWIDLOWE => $przyPolu('Wpisz liczbę porcji od '.WyborPorcji::NAJMNIEJ.' do '.WyborPorcji::NAJWIECEJ.', na przykład 6 albo 2,5.'),
+            UstawPorcjePlanu::BEZ_PODSTAWY => $przyPolu('Ten przepis nie podaje liczby porcji, więc nie przeliczymy ilości. Ilości zostają takie, jak napisał autor.'),
+            UstawPorcjePlanu::NIE_DOTYCZY => $wroc->with(Komunikat::blad('Porcje ustawisz tylko przy pozycji z dostępnym przepisem.')),
+            default => $wroc->with(Komunikat::blad('Tej pozycji już nie ma w planie. Odśwież stronę.')),
+        };
+    }
+
+    /**
      * Ekran „Przenieś na inny dzień” (#2447): zwykły formularz bez skryptu.
      * Niesie dzień, na którym człowiek widział pozycję — z tego znacznika
      * akcja pozna, że ktoś w innym oknie już ją przeniósł.
@@ -484,7 +555,7 @@ class PlanerController extends Controller
             PrzeniesPozycjePlanu::KONFLIKT => redirect()->route('planer.show', ['tydzien' => $wpis->day->toDateString()])
                 ->with(Komunikat::blad('Ta pozycja została w innym oknie przeniesiona na inny dzień, więc nic nie zmieniliśmy. Sprawdź, gdzie stoi teraz (poniżej, w planie) i w razie potrzeby przenieś ją jeszcze raz.')),
             default => redirect()->route('planer.show')
-                ->with(Komunikat::blad('Tej pozycji juÅ¼ nie ma w planie. OdÅwieÅ¼ stronÄ.')),
+                ->with(Komunikat::blad('Tej pozycji już nie ma w planie. Odśwież stronę.')),
         };
     }
 

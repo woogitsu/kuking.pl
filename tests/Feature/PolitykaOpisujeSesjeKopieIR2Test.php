@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Compliance\PrzedawnioneWpisyAudytu;
 use App\Models\AuditLogEntry;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -81,22 +82,26 @@ class PolitykaOpisujeSesjeKopieIR2Test extends TestCase
         $this->assertStringNotContainsString('nie ustaliliśmy jej jeszcze z dostawcą', $this->polityka());
     }
 
-    public function test_skrot_ip_we_wpisach_dowodowych_znika_po_okresie_retencji_a_wpis_zostaje(): void
+    public function test_skrot_ip_we_wpisach_ktore_przezyly_retencje_znika_a_wpis_zostaje(): void
     {
-        $stary = AuditLogEntry::record('account.delete_requested', ip: '203.0.113.7');
-        $mlody = AuditLogEntry::record('account.delete_cancelled', ip: '203.0.113.8');
+        // Wpis `account.*` bez potwierdzenia w rejestrze zostaje (#2708), ale
+        // jego skrót IP znika po tych samych 12 miesiącach.
+        $konto = User::factory()->create();
+        $stary = AuditLogEntry::record('account.data_erased', null, $konto, ip: '203.0.113.7');
+        $mlody = AuditLogEntry::record('account.delete_cancelled', null, $konto, ip: '203.0.113.8');
         $zwykly = AuditLogEntry::record('post.hidden', ip: '203.0.113.9');
         DB::table('audit_log')->whereIn('id', [$stary->getKey(), $zwykly->getKey()])->update(['created_at' => now()->subMonths(13)]);
 
         $wynik = (new PrzedawnioneWpisyAudytu)->posprzataj(12);
 
         $this->assertSame(1, $wynik['wyczyszczono_ip']);
-        $this->assertDatabaseHas('audit_log', ['id' => $stary->getKey(), 'action' => 'account.delete_requested', 'ip_hash' => null]);
+        $this->assertDatabaseHas('audit_log', ['id' => $stary->getKey(), 'action' => 'account.data_erased', 'ip_hash' => null]);
         // Kontrola dodatnia: świeży wpis dowodowy ma skrót, zwykły stary znika.
         $this->assertNotNull(DB::table('audit_log')->where('id', $mlody->getKey())->value('ip_hash'));
         $this->assertDatabaseMissing('audit_log', ['id' => $zwykly->getKey()]);
 
         $wiersz = $this->wiersz('| Bezpieczeństwo');
-        $this->assertStringContainsString('Skrót adresu IP usuwamy także z nich po tych samych 12 miesiącach', $wiersz);
+        $this->assertStringContainsString('usuwamy tą samą nocną retencją po 12 miesiącach, razem ze skrótem adresu IP', $wiersz);
+        $this->assertStringNotContainsString('zostają na stałe', $wiersz);
     }
 }

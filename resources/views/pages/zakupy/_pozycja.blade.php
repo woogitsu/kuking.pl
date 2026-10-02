@@ -32,6 +32,10 @@
                 @endif
             @endif
         </span>
+        @if($pozycja->scaled_servings !== null)
+            {{-- Przeliczona kopia nie udaje dosłownej linii autora (#2489). --}}
+            <br><span class="meta">Ilość przeliczona z przepisu na {{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta($pozycja->scaled_servings) }}.</span>
+        @endif
     </span>
     <div class="planer-nawigacja">
         <form method="POST" action="{{ route('shopping.toggle', $pozycja) }}">

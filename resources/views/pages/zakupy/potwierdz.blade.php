@@ -11,12 +11,17 @@
     <p class="mb-5">
         Składniki przepisu „{{ $recipe->title }}” trafiły na Twoją listę zakupów już {{ $kiedy }}
         ({{ $ile }} {{ \App\Support\Odmiana::rzeczownik($ile, 'pozycja', 'pozycje', 'pozycji') }}, część mogła już zostać odhaczona albo usunięta).
-        Jeśli dodasz je jeszcze raz, każda pozycja pojawi się drugi raz — łączenia ani sumowania nie robimy.
+        Jeśli dodasz je jeszcze raz, każda pozycja pojawi się drugi raz — łączenia ani sumowania nie robimy.@if(($porcje ?? null) !== null && ($odcisk ?? null) !== null) Dodamy je tak, jak pokazał podgląd, czyli przeliczone na {{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta((float) $porcje) }}.@endif
     </p>
 
     <form class="panel-formularza" method="POST" action="{{ route('shopping.recipe.store', $recipe->slug) }}">
         @csrf
         <input type="hidden" name="potwierdzam" value="1">
+        {{-- Zaakceptowana liczba porcji i podgląd zostają przy ponownym dodaniu (#2489). --}}
+        @if(($porcje ?? null) !== null && ($odcisk ?? null) !== null)
+            <input type="hidden" name="porcje" value="{{ $porcje }}">
+            <input type="hidden" name="odcisk" value="{{ $odcisk }}">
+        @endif
         @if(request()->boolean('z_planera'))
             <input type="hidden" name="z_planera" value="1">
         @endif

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Posts\FrazaWMoichWpisach;
 use App\Domain\Posts\MojeWpisy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +19,8 @@ class MojeWpisyController extends Controller
 {
     public function __invoke(Request $request, MojeWpisy $mojeWpisy): View|RedirectResponse
     {
-        $wpisy = $mojeWpisy->strona($request->user());
+        $fraza = FrazaWMoichWpisach::zAdresu($request->query('szukaj'));
+        $wpisy = $mojeWpisy->strona($request->user(), $fraza);
 
         // Stary adres po usunięciu wpisu lub wyłączeniu pytań nie oznacza
         // pustego dorobku. Tak jak w zeszycie (#908) wracamy do zakresu listy.
@@ -26,11 +28,15 @@ class MojeWpisyController extends Controller
             $request->session()->reflash();
 
             return redirect()->route('collections.own-posts',
-                $wpisy->lastPage() > 1 ? ['page' => $wpisy->lastPage()] : []);
+                ($wpisy->lastPage() > 1 ? ['page' => $wpisy->lastPage()] : [])
+                + ($fraza->aktywna() ? ['szukaj' => $fraza->fraza] : []));
         }
 
         return view('pages.collections.moje-wpisy', [
             'wpisy' => $wpisy,
+            'fraza' => $fraza,
+            // Pole szukania ma sens tylko, gdy jest czego szukać; przy wpisanej frazie zostaje zawsze.
+            'maWpisy' => $fraza->fraza !== '' || $mojeWpisy->maWpisy($request->user()),
         ]);
     }
 }
