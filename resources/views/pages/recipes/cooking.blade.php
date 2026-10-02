@@ -299,6 +299,7 @@
                     <button type="button" class="btn btn-secondary btn-cook cook-timer-anuluj" hidden>
                         Anuluj minutnik
                     </button>
+                    @include('pages.recipes.partials.minutnik-dodatkowy')
                     <p class="visually-hidden cook-timer-komunikat" aria-live="assertive"></p>
                 </div>
             @else
@@ -334,6 +335,7 @@
                     <button type="button" class="btn btn-secondary btn-cook cook-timer-anuluj" hidden>
                         Anuluj minutnik
                     </button>
+                    @include('pages.recipes.partials.minutnik-dodatkowy')
                     <p class="visually-hidden cook-timer-komunikat" aria-live="assertive"></p>
                 </div>
             @endif

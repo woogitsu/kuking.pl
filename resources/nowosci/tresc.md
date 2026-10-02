@@ -129,6 +129,10 @@ Chcecie zachować rodzinną recepturę u siebie, bez zamawiania paczki z całym 
 
 Rodzinny PDF ma kilka stron, a przepis jest tylko na jednej z nich? Przy dodawaniu przepisu z pliku PDF jest teraz drugi przycisk: „Najpierw wybiorę strony z przepisem”. Zobaczycie miniatury i początek tekstu każdej strony, zaznaczycie te, na których jest przepis, i dopiero wtedy ruszy odczyt — tylko z zaznaczonych stron. Zgodę na ewentualne wysłanie skanu do odczytu zaznaczacie osobno, przy wyborze stron. Plik, który zostawicie bez decyzji, usuwamy po dwóch godzinach.
 
+### Dodatkowy czas przy minutniku w trybie gotowania
+
+Minutnik na 40 minut zadzwonił, a potrawa potrzebuje jeszcze 5? Wcześniej „Uruchom jeszcze raz” odliczało znowu całe 40. Teraz przy minutniku kroku jest przycisk „Ustaw dodatkowy czas”: wpisujecie, ile dodatkowych minut, i zatwierdzacie. Gdy minutnik jeszcze odlicza, czas zostaje dodany do tego, co zostało (2 minuty plus 5 to 7); gdy już zadzwonił, odliczanie nowych minut zaczyna się od kliknięcia. Zmiana dotyczy tylko tego jednego minutnika w tej przeglądarce — czas z przepisu i odhaczone kroki zostają bez zmian. Pełny restart nadal jest, z napisem, że odlicza cały czas z przepisu.
+
 ### Pokaż przepis jednej bliskiej osobie
 
 Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie

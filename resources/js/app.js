@@ -33,7 +33,8 @@ import './drukuj-przepis.js';
 import './postep-importu.js';
 import './dyktowanie.js';
 import './powiadomienia-push-uzgodnij.js';
-import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza, aktualnyKrokMinutnika, sprawdzMinutyWlasne, etykietaMinut} from './minutnik-krok.js';
+import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza, aktualnyKrokMinutnika, sprawdzMinutyWlasne, etykietaMinut, sprawdzDodatkoweMinuty} from './minutnik-krok.js';
+import {utworzOdliczanie} from './odliczanie-minutnika.js';
 import {podlaczKolejke} from './kolejka-gotowania.js';
 import {podlaczPrzelacznik, utworzKontrolerWakeLock, utworzPamiecWyboru} from './wake-lock-gotowania.js';
 import {podlaczStronaNieaktualna} from './strona-nieaktualna.js';
@@ -833,8 +834,8 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
 
     // Callback moze wrocic z opoznieniem po usnieciu karty. Liczymy czas do
     // terminu na zegarze monotonicznym, zamiast zakladac, ze kazde
-    // wywolanie setInterval oznacza dokladnie jedna sekunde.
-    let interwal = null;
+    // wywolanie setInterval oznacza dokladnie jedna sekunde. Interwal ma
+    // jednego wlasciciela (`zegarKroku` nizej, ./odliczanie-minutnika.js).
     // Funkcja wylaczajaca alarm TEGO kroku w pasie (pokazAlarmWPasie) --
     // start nowego odliczania musi go uciszyc.
     let wylaczAlarmKroku = null;
@@ -854,44 +855,79 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         odliczanie.textContent = formatMinutySekundy(sekundy);
     };
 
+    // Dodatkowy czas (#2458): przycisk i maly formularz „Ile dodatkowych minut?".
+    // Bez skryptu caly blok jest ukryty (D-053) -- nie ma martwej kontrolki.
+    const dodajPrzycisk = blok.querySelector('.cook-timer-dodaj');
+    const dodajFormularz = blok.querySelector('.cook-timer-dodatkowy');
+    const dodajPole = dodajFormularz?.querySelector('.cook-timer-dodatkowy-minuty') ?? null;
+    const dodajBlad = dodajFormularz?.querySelector('.cook-timer-dodatkowy-blad') ?? null;
+    const dodajPodsumowanie = dodajFormularz?.querySelector('.cook-timer-dodatkowy-podsumowanie') ?? null;
+
+    const wyczyscBladDodawania = () => {
+        if (!dodajFormularz) return;
+        dodajBlad.textContent = '';
+        dodajBlad.hidden = true;
+        dodajPodsumowanie.textContent = '';
+        dodajPodsumowanie.hidden = true;
+        dodajPole.removeAttribute('aria-invalid');
+    };
+
+    // Pokazuje albo chowa przycisk „Ustaw dodatkowy czas"; chowanie zamyka tez formularz.
+    const pokazDodawanie = (widoczne) => {
+        if (!dodajPrzycisk) return;
+        dodajPrzycisk.hidden = !widoczne;
+        if (!widoczne) {
+            dodajFormularz.hidden = true;
+            wyczyscBladDodawania();
+        }
+    };
+
     const pokazKoniec = () => {
         komunikat.textContent = wlasny ? 'Czas minął! Twój minutnik skończył odliczanie.' : 'Czas minął!';
         if (!wlasny) {
-            przycisk.textContent = 'Uruchom minutnik jeszcze raz';
+            // Uczciwa etykieta: restart to PELNY czas autora, a nie „jeszcze raz" cokolwiek.
+            przycisk.textContent = `Uruchom od nowa na pełny czas (${etykieta})`;
         }
         przycisk.hidden = false;
         przycisk.disabled = false;
         if (nazwa) nazwa.hidden = true;
         anuluj.hidden = true;
+        pokazDodawanie(true);
     };
 
-    const zatrzymajOdliczanie = () => {
-        window.clearInterval(interwal);
-        interwal = null;
-        sessionStorage.removeItem(klucz);
-    };
+    const tozsamoscStanu = () => ({stepId, fingerprint, krokPierwotny: Number(krok)});
 
-    const uruchomOdliczanie = (terminMonotoniczny) => {
-        pokaz(pozostaloSekund(terminMonotoniczny, performance.now()));
+    // Jedyny wlasciciel odliczania tego kroku (#2458): start, koniec, anulowanie
+    // i dodanie czasu ida przez niego, wiec nie ma drugiego interwalu ani
+    // drugiego alarmu, a spozniony callback starego odliczania nic nie konczy.
+    const zegarKroku = utworzOdliczanie({
+        teraz: () => performance.now(),
+        planista: {ustaw: (funkcja, ms) => window.setInterval(funkcja, ms), wyczysc: (id) => window.clearInterval(id)},
+        pokaz,
+        przyKoncu: () => {
+            pokazKoniec();
+            // Widoczny alarm z powtarzanym sygnalem, nie jedno "beep"
+            // (przeglad #1301): "Czas minął!" jest tylko dla czytnika
+            // ekranu, a gdy iOS zamrozil karte, interwal odpala sie po
+            // terminie bez gestu i pojedynczy sygnal milczy.
+            alarmKroku();
+        },
+        // Zapis NOWEGO terminu po dodaniu czasu -- przeladowanie (nawigacja po
+        // krokach) odtworzy go, a kolejka czyta ten sam klucz i ten sam termin.
+        zapisz: (terminMonotoniczny) => sessionStorage.setItem(klucz, zapiszStan(
+            sekundyCalkiem,
+            Date.now() + (terminMonotoniczny - performance.now()),
+            tozsamoscStanu(),
+        )),
+        usunZapis: () => sessionStorage.removeItem(klucz),
+    });
 
-        interwal = window.setInterval(() => {
-            const pozostalo = pozostaloSekund(terminMonotoniczny, performance.now());
-            pokaz(pozostalo);
+    const zatrzymajOdliczanie = () => zegarKroku.zatrzymaj();
 
-            if (pozostalo <= 0) {
-                zatrzymajOdliczanie();
-                pokazKoniec();
-                // Widoczny alarm z powtarzanym sygnalem, nie jedno "beep"
-                // (przeglad #1301): "Czas minął!" jest tylko dla czytnika
-                // ekranu, a gdy iOS zamrozil karte, interwal odpala sie po
-                // terminie bez gestu i pojedynczy sygnal milczy.
-                alarmKroku();
-            }
-        }, 1000);
-    };
+    const uruchomOdliczanie = (terminMonotoniczny) => zegarKroku.uruchom(terminMonotoniczny);
 
     const uruchomZKlikniecia = () => {
-        if (interwal !== null) {
+        if (zegarKroku.aktywne()) {
             return;
         }
 
@@ -903,6 +939,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         anuluj.hidden = false;
         odliczanie.hidden = false;
         if (nazwa) nazwa.hidden = false;
+        pokazDodawanie(true);
         komunikat.textContent = `${opisStartu()} ustawiony na ${etykieta}.`;
 
         const terminMonotoniczny = performance.now() + sekundyCalkiem * 1000;
@@ -926,7 +963,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         };
 
         const wystartuj = (sekundy) => {
-            if (interwal !== null) {
+            if (zegarKroku.aktywne()) {
                 return;
             }
 
@@ -962,14 +999,74 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         przycisk.addEventListener('click', uruchomZKlikniecia);
     }
 
+    /*
+     * DODATKOWY CZAS (#2458, decyzja wlasciciela z 2.10.2026). Przycisk
+     * „Ustaw dodatkowy czas" otwiera maly formularz „Ile dodatkowych minut?".
+     * Zatwierdzenie dodaje czas do POZOSTALEGO (trwajacy minutnik) albo liczy
+     * od teraz (po alarmie) i przechodzi przez tego samego wlasciciela
+     * odliczania co start. Czas autora, odhaczenia i inne minutniki bez zmian;
+     * anulowanie formularza nie rusza ani terminu, ani alarmu.
+     */
+    if (dodajPrzycisk && dodajFormularz && dodajPole && dodajBlad && dodajPodsumowanie) {
+        dodajPrzycisk.addEventListener('click', () => {
+            dodajFormularz.hidden = !dodajFormularz.hidden;
+            wyczyscBladDodawania();
+            if (!dodajFormularz.hidden) dodajPole.focus();
+        });
+
+        dodajFormularz.querySelector('.cook-timer-dodatkowy-anuluj')?.addEventListener('click', () => {
+            dodajFormularz.hidden = true;
+            wyczyscBladDodawania();
+            dodajPrzycisk.focus();
+        });
+
+        // Poprawnie wpisane dane zostaja w polu takze po bledzie.
+        dodajFormularz.addEventListener('submit', (zdarzenie) => {
+            zdarzenie.preventDefault();
+            const wynik = sprawdzDodatkoweMinuty(dodajPole.value);
+
+            if (wynik.blad) {
+                dodajBlad.textContent = wynik.blad;
+                dodajBlad.hidden = false;
+                dodajPodsumowanie.textContent = `Nie dodano czasu. ${wynik.blad}`;
+                dodajPodsumowanie.hidden = false;
+                dodajPole.setAttribute('aria-invalid', 'true');
+                dodajPole.focus();
+                return;
+            }
+
+            // Alarm tego kroku (jesli dzwoni) cichnie dopiero przy POPRAWNYM dodaniu.
+            wylaczAlarmKroku?.();
+            wylaczAlarmKroku = null;
+
+            const stan = zegarKroku.dodaj(wynik.sekundy);
+            const dodano = etykietaMinut(wynik.sekundy);
+
+            przycisk.hidden = true;
+            anuluj.hidden = false;
+            odliczanie.hidden = false;
+            if (nazwa) nazwa.hidden = false;
+            // Komunikat jednorazowy dla czytnika (nie co sekunde): co sie stalo.
+            komunikat.textContent = stan === 'przedluzone'
+                ? `Dodano ${dodano} do minutnika. Pozostały czas jest dłuższy o ${dodano}.`
+                : `Ustawiono dodatkowy czas: ${dodano}.`;
+
+            dodajPole.value = '';
+            wyczyscBladDodawania();
+            dodajFormularz.hidden = true;
+            dodajPrzycisk.focus();
+        });
+    }
+
     // Swiadome anulowanie (issue #755) -- ten sam odliczany krok da sie
     // zatrzymac, zamiast czekac na dzwiek albo opuszczac tryb gotowania.
     anuluj.addEventListener('click', () => {
-        if (interwal === null) {
+        if (!zegarKroku.aktywne()) {
             return;
         }
 
         zatrzymajOdliczanie();
+        pokazDodawanie(false);
         odliczanie.hidden = true;
         if (nazwa) nazwa.hidden = true;
         anuluj.hidden = true;
@@ -992,7 +1089,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
      * nigdy nie ruszyl.
      */
     const przywrocZapis = () => {
-        if (interwal !== null) {
+        if (zegarKroku.aktywne()) {
             return true;
         }
 
@@ -1033,6 +1130,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         if (stan.terminMonotoniczny > performance.now()) {
             przycisk.hidden = true;
             anuluj.hidden = false;
+            pokazDodawanie(true);
             if (nazwa) nazwa.hidden = false;
             komunikat.textContent = `${opisStartu()} ustawiony na ${etykieta}.`;
             uruchomOdliczanie(stan.terminMonotoniczny);
