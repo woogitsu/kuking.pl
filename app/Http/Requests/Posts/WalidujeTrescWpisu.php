@@ -12,6 +12,9 @@ namespace App\Http\Requests\Posts;
  */
 trait WalidujeTrescWpisu
 {
+    /** Jedyne źródło limitu: reguła, komunikat i licznik w formularzach (issue #2633). */
+    public const LIMIT_ZNAKOW_TRESCI = 4000;
+
     /**
      * @param  bool  $pytanie  tytuł jest wymagany tylko przy pytaniu
      * @param  bool  $widocznoscZFormularza  pytanie przy zapisie nie przyjmuje pola widoczności
@@ -20,7 +23,7 @@ trait WalidujeTrescWpisu
     protected static function regulyTresci(bool $pytanie, bool $widocznoscZFormularza): array
     {
         return [
-            'body' => ['nullable', 'string', 'max:4000'],
+            'body' => ['nullable', 'string', 'max:'.self::LIMIT_ZNAKOW_TRESCI],
             'visibility' => $widocznoscZFormularza ? ['required', 'in:public,followers,private'] : ['exclude'],
             'title' => $pytanie ? ['required', 'string', 'min:10', 'max:180'] : ['exclude'],
         ];
@@ -32,7 +35,7 @@ trait WalidujeTrescWpisu
     protected static function komunikatyTresci(): array
     {
         return [
-            'body.max' => 'Ten wpis jest za długi. Zmieść się w 4000 znakach.',
+            'body.max' => 'Ten wpis jest za długi. Zmieść się w '.self::LIMIT_ZNAKOW_TRESCI.' znakach.',
             'title.required' => 'Napisz pytanie w tytule.',
             'title.min' => 'Rozwiń pytanie do co najmniej 10 znaków.',
             'title.max' => 'Skróć tytuł pytania do 180 znaków.',
