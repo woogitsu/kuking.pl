@@ -35,6 +35,8 @@
         {{-- Opcjonalna, prywatna lista do powrotu (#2553): domyślnie wyłączona,
              więc ten odnośnik prowadzi na ekran, który to wyjaśnia, a nie na pustą listę. --}}
         <a class="btn btn-secondary" href="{{ route('settings.ogladane') }}">Ostatnio oglądane</a>
+        {{-- Własne stany trybu gotowania zapamiętane na koncie (#2439). --}}
+        <a class="btn btn-secondary" href="{{ route('collections.cooking-progress') }}" data-link-gotowanie-zapamietane>Gotowanie zapamiętane na koncie</a>
         @if($maUdostepnionePrzepisy ?? false)
             <a class="btn btn-secondary" href="{{ route('recipes.shared.index') }}">Przepisy udostępnione mi</a>
         @endif
