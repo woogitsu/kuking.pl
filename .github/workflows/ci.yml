@@ -1229,6 +1229,12 @@ jobs:
       - name: Regresja checklisty składników w trybie „Gotuję” (DOM w Chromium)
         run: node --test scripts/przegladarka/skladniki-gotowania.test.mjs
 
+      - name: Serwer testu checklisty odmawia HTML w liczbie porcji (#2596)
+        run: node --test scripts/przegladarka/skladniki-gotowania-http.test.mjs
+
+      - name: Kontrola ujemna odmowy HTML w liczbie porcji (#2596)
+        run: python3 scripts/kontrola-negatywna-2596.py
+
       - name: Kontrola ujemna porcji i przygotowanych składników (#2502)
         run: python3 scripts/kontrola-negatywna-2502.py
 
