@@ -16,6 +16,7 @@ zakupów tu nie ma i nie było w tej zmianie.
 | `recipe_id` | `uuid` NULL | → `recipes(id)` **`ON DELETE SET NULL`** |
 | `label` | `varchar(120)` NULL | własny wpis, gdy pozycja nie jest przepisem |
 | `done_at` | `timestamptz(6)` NULL | prywatne „Zrobione” (#2593, migracja `2026_10_02_190000`); NULL = nieoznaczona, wartość = chwila oznaczenia i znacznik wersji stanu |
+| `note` | `varchar(80)` NULL | prywatny dopisek przy pozycji z przepisem (#2549, migracja `2026_10_03_130000`); NULL = brak |
 | `created_at` / `updated_at` | `timestamptz` | |
 
 **Plan jest prywatny.** Nie ma kolumny widoczności, bo nie ma czego pokazywać
@@ -76,6 +77,21 @@ wstawia pozycje z `done_at = NULL`. Paczka RODO ma pola `zrobione` i
 (komunikat podaje kopię `pg_dump -t meal_plan_entries` i
 `UPDATE meal_plan_entries SET done_at = NULL`); bez oznaczeń przechodzi.
 Test: `tests/Feature/PlanerZrobioneTest.php`.
+
+**Dopisek (#2549, V2).** `note` jest poza `$fillable`; ustawia go tylko akcja
+`ZapiszDopisekPlanu` (żądana wartość, pusta = wyczyść), pod blokadą wiersza `users`
+i pozycji, po świeżej kontroli konta i własności (`MealPlanEntryPolicy::editNote`).
+Więzy: `meal_plan_entries_note_check` (po `btrim` 1–80 znaków; pusty dopisek to NULL)
+i `meal_plan_entries_note_nie_przy_wlasnym_check` (`note IS NULL OR label IS NULL` —
+dopisek nie stoi przy własnym wpisie; NIE wymaga `recipe_id`, bo `ON DELETE SET NULL`
+zostawia po usuniętym przepisie wiersz bez obu wartości, a kasowanie przepisu nie może
+się na tym wywrócić). Przy przepisie niedostępnym albo usuniętym dopisek zostaje i jest
+widoczny jako „Dopisek:” (własny tekst osoby, nigdy tytuł przepisu). Kopia tygodnia
+przenosi `note`, a pozycji już obecnej w celu nie rusza (`insertOrIgnore`). Paczka RODO:
+pole `dopisek` w sekcji `planer`; wymazanie konta kasuje wiersz razem z dopiskiem.
+**Rollback (D-088):** `down()` ODMAWIA, gdy choć jedna pozycja ma dopisek (komunikat
+podaje kopię `pg_dump -t meal_plan_entries` i `UPDATE meal_plan_entries SET note = NULL`);
+bez dopisków zdejmuje więzy i kolumnę. Test: `tests/Feature/PlanerDopisekTest.php`.
 
 ### shopping_list_items
 

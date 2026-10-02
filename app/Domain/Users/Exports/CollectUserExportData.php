@@ -1132,6 +1132,7 @@ final class CollectUserExportData
                 'adres_przepisu' => $przepis !== null ? route('recipes.show', $przepis->slug) : null,
                 'przepis_niedostepny' => $wpis->recipe_id !== null && $przepis === null,
                 'dodano' => $this->date($wpis->created_at),
+                'dopisek' => $wpis->note,
                 'zrobione' => $wpis->done_at !== null,
                 'oznaczono_jako_zrobione' => $this->date($wpis->done_at),
             ];

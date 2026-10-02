@@ -83,6 +83,10 @@ a to, co dopisaliście w międzyczasie, zostaje. Pamiętamy tylko ostatnie
 usunięcie, a po 15 minutach kopia znika. Pytanie przed usunięciem zostaje
 jak było.
 
+### Dopisek przy przepisie w Planerze
+
+Przy przepisie w planie możesz dopisać krótką, prywatną uwagę, na przykład „kolacja” albo „na niedzielę z rodziną”. Po powrocie do planu od razu widzisz, które danie było na co, bez osobnego wpisu. Dopisek ma najwyżej 80 znaków, widzisz go tylko Ty i możesz go w każdej chwili zmienić albo usunąć. Nie zmienia przepisu ani planu, a przycisk „Skopiuj poprzedni tydzień” przenosi go razem z pozycją.
+
 ## Alfa 0.78
 
 **Co zużyć najpierw, lista zakupów i wydruk zeszytu.**

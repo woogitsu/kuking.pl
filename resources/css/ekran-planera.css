@@ -91,6 +91,24 @@
     color: var(--color-brand);
   }
 
+  /* Dopisek (#2549): własny wiersz, z napisem „Dopisek:”, nie samym wyglądem. */
+  .planer-dopisek-tekst {
+    display: block;
+    overflow-wrap: anywhere;
+  }
+
+  .planer-dopisek {
+    flex-basis: 100%;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .planer-dopisek > summary {
+    width: fit-content;
+    max-width: 100%;
+  }
+
   /* Destrukcja stoi w osobnym wierszu także przy 320 px i powiększeniu. */
   .planer-potwierdzenie {
     flex-basis: 100%;

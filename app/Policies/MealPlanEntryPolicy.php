@@ -19,6 +19,12 @@ class MealPlanEntryPolicy
         return $user->getKey() === $entry->user_id;
     }
 
+    /** Prywatny dopisek przy pozycji (#2549). */
+    public function editNote(User $user, MealPlanEntry $entry): bool
+    {
+        return $user->getKey() === $entry->user_id;
+    }
+
     public function delete(User $user, MealPlanEntry $entry): bool
     {
         return $user->getKey() === $entry->user_id;
