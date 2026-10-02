@@ -25,3 +25,9 @@ cudzych i niedostępnych przepisów. Kontrola ujemna usuwa nowe pole z
 eksportera; wtedy regresja oblewa markerem relacji. Cofnięcie kodu usuwa
 wyłącznie nowe pole z przyszłych paczek. Pobrane już archiwa pozostają
 czytelne; nie ma migracji bazy ani zmiany danych kont.
+
+Plan nazw zdjęć doładowuje autora przepisu przed sprawdzeniem widoczności
+w `RecipePolicy`. W przeciwnym razie eksport przerywał wyjątek przy wyłączonym
+leniwnym ładowaniu relacji, zanim mógł zapisać paczkę. Ta sama regresja ZIP
+obejmuje pełny przebieg; osobna kontrola ujemna cofa samo doładowanie autora
+i wymaga porażki z własnym znacznikiem, nie dowolnego błędu środowiska.

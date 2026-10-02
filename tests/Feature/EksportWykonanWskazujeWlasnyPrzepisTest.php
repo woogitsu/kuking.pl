@@ -14,6 +14,7 @@ use App\Models\DataExport;
 use App\Models\Recipe;
 use App\Models\RecipeVersion;
 use App\Models\User;
+use Illuminate\Database\LazyLoadingViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -45,7 +46,11 @@ class EksportWykonanWskazujeWlasnyPrzepisTest extends TestCase
         CookedEvent::factory()->create(['user_id' => $autor->getKey(), 'recipe_id' => $drugi->getKey(), 'note' => 'Druga próba'])
             ->forceFill(['recipe_version_id' => $drugaWersja->getKey()])->save();
 
-        [$dane, $zip] = $this->paczka($autor);
+        try {
+            [$dane, $zip] = $this->paczka($autor);
+        } catch (LazyLoadingViolationException $e) {
+            $this->fail('EKSPORT_2639_PLAN_ZDJEC_BEZ_LENIWEGO_AUTORA: '.$e->getMessage());
+        }
         $plikiPrzepisow = array_column($dane['przepisy'], 'plik_do_czytania');
         $plikiWykonan = array_column($dane['ugotowalem'], 'plik_wlasnego_przepisu', 'notatka');
 

@@ -1474,6 +1474,9 @@ checks = [
          "            'plik_wlasnego_przepisu' => $this->granica->widzi($event->recipe)\n"
          "                ? ($this->plikiWlasnychPrzepisow[(string) $event->recipe_id] ?? null)\n"
          "                : null,\n", "")),
+    ("Eksport planu zdjęć ładuje autora przepisu (#2639)", "app/Domain/Users/Exports/ExportPhotoPlan.php",
+     "test_dwa_wlasne_przepisy_o_tym_samym_tytule_maja_odrebne_prawdziwe_cele_w_paczce",
+     lambda s: replace_once(s, "->with(['media', 'recipe.author'])->get()", "->with(['media', 'recipe'])->get()")),
     # #2479: wrócenie do nazywania hidden szkicem ma oblać na rzeczywistym ZIP-ie.
     ("Ukryty przepis nazwany szkicem w eksporcie (#2479)", "app/Domain/Users/Exports/RecipeArchiveStatus.php",
      "test_ukryty_po_publikacji_nie_jest_szkicem_w_karcie_ani_spisie",

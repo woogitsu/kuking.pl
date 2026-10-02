@@ -88,6 +88,7 @@ OCZEKUJ = {
     'Szyna zeszytu ponownie czyta całą historię (#2030)': r'SZYNA_2030_CALA_HISTORIA',
     'Bieżący eksport pomija wybór Bez ilości (#2476)': r'EKSPORT_BIEZACY_BEZ_ILOSCI',
     'Eksport gubi relację wykonania z własnym przepisem (#2639)': r'EKSPORT_2639_RELACJA_WYKONANIA_DO_PLIKU',
+    'Eksport planu zdjęć ładuje autora przepisu (#2639)': r'EKSPORT_2639_PLAN_ZDJEC_BEZ_LENIWEGO_AUTORA',
     'Ukryty przepis nazwany szkicem w eksporcie (#2479)': r'EKSPORT_UKRYTY_NIE_JEST_SZKICEM',
     'Sam rok rodzinny znika z HTML eksportu (#2478)': r'EKSPORT_ROK_SAM_W_HTML',
     # #1011, paczka H: wpisy dopisane po wzorcach dla wcześniejszych kontroli.
