@@ -45,6 +45,9 @@ class TwoFactorSettingsController extends Controller
             // Tylko liczba, tylko własnego konta (trasa za `auth`); skróty
             // kodów nie opuszczają modelu (#2575).
             'pozostaleKody' => $wlaczone ? $user->pozostaleKodyZapasowe() : null,
+            // Rozmiar nowego kompletu pochodzi z tej samej konfiguracji,
+            // z której korzysta generator kodów — bez liczby w tekście (#2666).
+            'liczbaKodow' => max(1, (int) config('kuking.two_factor.recovery_codes')),
         ]);
     }
 
