@@ -133,9 +133,20 @@ class SobotniePrzypomnienieOProduktachTest extends TestCase
         $this->assertStringContainsString('Nikt nie czeka dziś na przypomnienie o produktach.', $wynik);
     }
 
-    public function test_produkt_z_terminem_ktory_minal_tez_wymaga_listu(): void
+    public function test_produkt_po_terminie_nalezy_zuzyc_do_nie_wywoluje_listu(): void
     {
         $osoba = $this->osoba('basia', termin: '2026-09-01');
+
+        $this->wyslij();
+
+        Mail::assertNothingQueued();
+        $this->assertSame(1, $osoba->pantryItems()->count(), 'Produkt pozostaje do poprawienia lub usunięcia.');
+    }
+
+    public function test_po_terminie_najlepiej_spozyc_przed_nadal_jest_w_liscie(): void
+    {
+        $osoba = $this->osoba('basia', termin: '2026-09-01');
+        $osoba->pantryItems()->where('name', 'mleko')->update(['expiry_kind' => 'best_before']);
 
         $this->wyslij();
 

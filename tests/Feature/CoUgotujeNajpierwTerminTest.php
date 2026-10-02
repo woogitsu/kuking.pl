@@ -119,7 +119,7 @@ class CoUgotujeNajpierwTerminTest extends TestCase
         $this->assertSame([['nazwa' => 'mleko', 'termin' => '2026-10-11']], $wynik['do_zuzycia'][$a->getKey()]);
     }
 
-    public function test_termin_ktory_minal_tez_jest_pilny(): void
+    public function test_termin_nalezy_zuzyc_do_ktory_minal_nie_jest_pilny(): void
     {
         $ja = $this->user();
         $this->lista($ja, ['mleko' => '2026-09-20']);
@@ -127,7 +127,53 @@ class CoUgotujeNajpierwTerminTest extends TestCase
 
         $wynik = app(CoUgotuje::class)->dla($ja, 0, 20, true);
 
-        $this->assertSame([$przepis->title], $wynik['przepisy']->pluck('title')->all());
+        $this->assertSame([], $wynik['przepisy']->pluck('title')->all());
+        $this->actingAs($ja)->get(route('pantry.cook'))->assertOk()
+            ->assertSee('Nie znaleźliśmy przepisu z tymi produktami')
+            ->assertDontSee($przepis->title)
+            ->assertDontSee('Najpierw wpisz, co masz w domu');
+    }
+
+    public function test_po_terminie_nalezy_zuzyc_do_nie_jest_skladnikiem_w_zadnym_trybie_ale_inne_terminy_pozostaja(): void
+    {
+        $ja = $this->user();
+        $obca = $this->user('obca_z_terminem');
+        $this->lista($ja, [
+            'mleko' => '2026-10-09', 'jajka' => '2026-10-10',
+            'mąka' => '2026-10-09', 'kurczak' => '2026-10-09',
+            'ser' => '2026-10-11',
+        ]);
+        $ja->pantryItems()->where('name', 'mąka')->update(['expiry_kind' => 'best_before']);
+        $ja->pantryItems()->where('name', 'kurczak')->update(['frozen' => true]);
+        $this->lista($obca, ['tajne jajka' => '2026-10-10']);
+
+        $mieszany = $this->przepis('Placek z mlekiem', ['mąka', 'mleko']);
+        $this->przepis('Budyń tylko z mleka', ['mleko']);
+        $this->przepis('Kurczak pieczony', ['kurczak']);
+        $this->przepis('Jajecznica', ['jajka']);
+        $this->przepis('Ser zapiekany', ['ser']);
+
+        $domyslny = app(CoUgotuje::class)->dla($ja);
+        $this->assertContains($mieszany->getKey(), $domyslny['przepisy']->modelKeys(), 'USE_BY_2453_BEZ_DOBORU');
+        $this->assertSame(['mleko'], $domyslny['brakujace'][$mieszany->getKey()], 'USE_BY_2453_BEZ_DOBORU');
+        $this->assertNotContains('Budyń tylko z mleka', $domyslny['przepisy']->pluck('title')->all(), 'USE_BY_2453_BEZ_DOBORU');
+        $this->assertContains('Kurczak pieczony', $domyslny['przepisy']->pluck('title')->all(), 'Mrożony produkt zostaje dostępny.');
+        $this->assertContains('Jajecznica', $domyslny['przepisy']->pluck('title')->all(), 'Termin dzisiaj zostaje dostępny.');
+        $this->assertContains('Ser zapiekany', $domyslny['przepisy']->pluck('title')->all(), 'Termin jutro zostaje dostępny.');
+
+        $pilny = app(CoUgotuje::class)->dla($ja, 0, 20, true);
+        $this->assertSame(['mąka'], array_column($pilny['do_zuzycia'][$mieszany->getKey()], 'nazwa'), 'USE_BY_2453_BEZ_DOBORU');
+        $this->assertNotContains('Budyń tylko z mleka', $pilny['przepisy']->pluck('title')->all(), 'USE_BY_2453_BEZ_DOBORU');
+        $this->assertContains('Jajecznica', $pilny['przepisy']->pluck('title')->all());
+
+        $this->actingAs($ja)->get(route('pantry.cook'))->assertOk()
+            ->assertSee('Placek z mlekiem')
+            ->assertSee('Brakuje: mleko.')
+            ->assertDontSee('Budyń tylko z mleka');
+        $this->get(route('pantry.cook', ['najpierw' => 'termin']))->assertOk()
+            ->assertSee('Zużyjesz:')
+            ->assertDontSee('Budyń tylko z mleka')
+            ->assertDontSee('tajne jajka');
     }
 
     public function test_zdanie_zuzyjesz_zawiera_tylko_produkty_wlasciciela(): void

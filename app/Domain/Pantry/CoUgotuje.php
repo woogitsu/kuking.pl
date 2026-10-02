@@ -65,7 +65,7 @@ final class CoUgotuje
     /**
      * Reguła trybu „Najpierw to, co się psuje” (`?najpierw=termin`, #1903):
      * ta sama baza zapytania, nowy pierwszy klucz — liczba PILNYCH produktów
-     * tej osoby (termin do dziś + N dni, nie mrożone), które pasują do
+     * tej osoby (termin do dziś + N dni, nie mrożone i bez wygasłego `use_by`), które pasują do
      * składników przepisu. Dalej bez zmian. Kolejność ustawia wyłącznie data,
      * którą człowiek sam wpisał przy swoim produkcie — nie cudze reakcje.
      */
@@ -96,15 +96,17 @@ final class CoUgotuje
 
     /**
      * Ta sama linijka, ale tylko wobec PILNYCH produktów tej osoby: z terminem
-     * do dziś + N dni (także minionym), nie mrożonych (#1903). Parametry:
-     * id konta, granica pilnych (`Y-m-d`). Reguła pilności mieszka
+     * do dziś + N dni, nie mrożonych i bez wygasłego `use_by` (#2453). Parametry:
+     * id konta, granica pilnych i dziś (`Y-m-d`). Reguła pilności mieszka
      * w `PriorytetZuzycia`, tu tylko jej wyraz w SQL.
      */
     private const PILNY_SQL = 'EXISTS (SELECT 1 FROM pantry_items p WHERE p.user_id = ? '
         .'AND p.expires_on IS NOT NULL AND p.expires_on <= ? AND NOT p.frozen '
+        .'AND '.PriorytetZuzycia::DOSTEPNY_SQL.' '
         .'AND '.self::PASUJE_SQL.')';
 
     private const MAM_SQL = 'EXISTS (SELECT 1 FROM pantry_items p WHERE p.user_id = ? '
+        .'AND '.PriorytetZuzycia::DOSTEPNY_SQL.' '
         .'AND '.self::PASUJE_SQL.')';
 
     /**
@@ -120,7 +122,8 @@ final class CoUgotuje
     {
         $uid = (string) $widz->getKey();
         $offset = max(0, $offset);
-        $granica = PriorytetZuzycia::granicaPilnych();
+        $dzis = PriorytetZuzycia::dzis();
+        $granica = PriorytetZuzycia::granicaPilnych($dzis);
 
         // Po jednym, najdłuższym rdzeniu z każdego produktu: wstępny filtr
         // `ri.rdzenie && {…}` (nakładanie tablic) idzie po indeksie GIN
@@ -138,14 +141,15 @@ final class CoUgotuje
             .'FROM pantry_items p, unnest(p.rdzenie) AS t '
             .'WHERE p.user_id = ? '
             .($najpierwTermin ? 'AND p.expires_on IS NOT NULL AND p.expires_on <= ? AND NOT p.frozen ' : '')
+            .'AND '.PriorytetZuzycia::DOSTEPNY_SQL.' '
             .'ORDER BY p.id, length(t) DESC, t',
-            $najpierwTermin ? [$uid, $granica] : [$uid],
+            $najpierwTermin ? [$uid, $granica, $dzis] : [$uid, $dzis],
         ))->pluck('rdzen')->unique()->values();
 
         if ($rdzenie->isEmpty()) {
             return [
                 'przepisy' => new Collection, 'brakujace' => [], 'jest_wiecej' => false,
-                'produktow' => $najpierwTermin ? $widz->pantryItems()->count() : 0,
+                'produktow' => $widz->pantryItems()->count(),
                 'do_zuzycia' => [],
             ];
         }
@@ -159,13 +163,13 @@ final class CoUgotuje
             ->whereRaw(
                 'recipes.id IN (SELECT ri.recipe_id FROM recipe_ingredients ri WHERE ri.rdzenie && ?::text[] AND '
                 .($najpierwTermin ? self::PILNY_SQL : self::MAM_SQL).')',
-                $najpierwTermin ? [$wzorzec, $uid, $granica] : [$wzorzec, $uid],
+                $najpierwTermin ? [$wzorzec, $uid, $granica, $dzis] : [$wzorzec, $uid, $dzis],
             )
             ->select('recipes.*')
             ->selectRaw('(SELECT count(*) FROM recipe_ingredients ri WHERE ri.recipe_id = recipes.id) AS skladnikow_razem')
             ->selectRaw(
                 '(SELECT count(*) FROM recipe_ingredients ri WHERE ri.recipe_id = recipes.id AND NOT '.self::MAM_SQL.') AS skladnikow_brakuje',
-                [$uid],
+                [$uid, $dzis],
             )
             ->with(Recipe::RELACJE_KARTY);
 
@@ -174,9 +178,9 @@ final class CoUgotuje
             // (produkty, nie linijki). Pierwszy klucz kolejności w tym trybie.
             $zapytanie->selectRaw(
                 '(SELECT count(*) FROM pantry_items p WHERE p.user_id = ? AND p.expires_on IS NOT NULL '
-                .'AND p.expires_on <= ? AND NOT p.frozen AND EXISTS (SELECT 1 FROM recipe_ingredients ri '
+                .'AND p.expires_on <= ? AND NOT p.frozen AND '.PriorytetZuzycia::DOSTEPNY_SQL.' AND EXISTS (SELECT 1 FROM recipe_ingredients ri '
                 .'WHERE ri.recipe_id = recipes.id AND '.self::PASUJE_SQL.')) AS pilnych_pasuje',
-                [$uid, $granica],
+                [$uid, $granica, $dzis],
             )->orderByDesc('pilnych_pasuje');
         }
 
@@ -199,10 +203,10 @@ final class CoUgotuje
 
         return [
             'przepisy' => $przepisy,
-            'brakujace' => $this->brakujace($przepisy, $uid),
+            'brakujace' => $this->brakujace($przepisy, $uid, $dzis),
             'jest_wiecej' => $jestWiecej,
             'produktow' => $widz->pantryItems()->count(),
-            'do_zuzycia' => $najpierwTermin ? $this->doZuzycia($przepisy, $uid, $granica) : [],
+            'do_zuzycia' => $najpierwTermin ? $this->doZuzycia($przepisy, $uid, $granica, $dzis) : [],
         ];
     }
 
@@ -214,7 +218,7 @@ final class CoUgotuje
      * @param  Collection<int, Recipe>  $przepisy
      * @return array<string, list<array{nazwa: string, termin: string}>> id przepisu => produkty
      */
-    private function doZuzycia(Collection $przepisy, string $uid, string $granica): array
+    private function doZuzycia(Collection $przepisy, string $uid, string $granica, string $dzis): array
     {
         if ($przepisy->isEmpty()) {
             return [];
@@ -226,9 +230,10 @@ final class CoUgotuje
         $wiersze = DB::select(
             'SELECT DISTINCT ri.recipe_id, p.id, p.name, p.expires_on FROM recipe_ingredients ri '
             .'JOIN pantry_items p ON p.user_id = ? AND p.expires_on IS NOT NULL AND p.expires_on <= ? AND NOT p.frozen '
+            .'AND '.PriorytetZuzycia::DOSTEPNY_SQL.' '
             .'AND '.self::PASUJE_SQL.' '
             ."WHERE ri.recipe_id IN ({$miejsca}) ORDER BY p.expires_on, p.name, p.id",
-            [$uid, $granica, ...$przepisy->modelKeys()],
+            [$uid, $granica, $dzis, ...$przepisy->modelKeys()],
         );
 
         foreach ($wiersze as $wiersz) {
@@ -245,7 +250,7 @@ final class CoUgotuje
      * @param  Collection<int, Recipe>  $przepisy
      * @return array<string, list<string>> id przepisu => brakujące linijki
      */
-    private function brakujace(Collection $przepisy, string $uid): array
+    private function brakujace(Collection $przepisy, string $uid, string $dzis): array
     {
         if ($przepisy->isEmpty()) {
             return [];
@@ -256,7 +261,7 @@ final class CoUgotuje
         RecipeIngredient::query()
             ->from('recipe_ingredients as ri')
             ->whereIn('ri.recipe_id', $przepisy->modelKeys())
-            ->whereRaw('NOT '.self::MAM_SQL, [$uid])
+            ->whereRaw('NOT '.self::MAM_SQL, [$uid, $dzis])
             ->orderBy('position')
             ->get(['ri.recipe_id', 'ri.ingredient_text'])
             ->each(function (RecipeIngredient $linijka) use (&$wynik): void {
