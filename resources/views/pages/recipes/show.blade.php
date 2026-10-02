@@ -18,7 +18,8 @@
         'druk' => 1,
         'dla' => $pomocnik ? 'pomocnika' : null,
         'qr' => $pomocnik && $qr ? 1 : null,
-        'porcje' => $zapamietanePorcje->parametrBiezacego(),
+        'porcje' => $wyborSztuk->przeliczone() ? null : $zapamietanePorcje->parametrBiezacego(),
+        'sztuki' => $wyborSztuk->doAdresu(),
     ], fn ($wartosc) => $wartosc !== null)).'#jak-wydrukowac';
     $parametrPorcjiGotowania = $wyborPorcji->przeliczone()
         ? $wyborPorcji->doAdresu((float) $wyborPorcji->wybrane)
@@ -382,7 +383,7 @@
         @if($recipe->summary && ! $dlaPomocnika)
             <p class="text-lead kolumna-czytania">{{ $recipe->summary }}</p>
         @endif
-            @if($total || $porcje || $recipe->difficultyLabel())
+            @if($total || $porcje || $recipe->yieldLabel() || $recipe->difficultyLabel())
                 <ul class="przepis-liczby">
                     @if($total)
                         <li class="przepis-liczba">
@@ -394,6 +395,12 @@
                         <li class="przepis-liczba">
                             <x-ikona nazwa="users" :rozmiar="26" />
                             <div><strong>{{ $porcje }}</strong><span>Ilość</span></div>
+                        </li>
+                    @endif
+                    @if($recipe->yieldLabel() && ! $dlaPomocnika)
+                        <li class="przepis-liczba">
+                            <x-ikona nazwa="chef" :rozmiar="26" />
+                            <div><strong>{{ $recipe->yieldLabel() }}</strong><span>Gotowe sztuki</span></div>
                         </li>
                     @endif
                     @if($recipe->difficultyLabel())
@@ -417,7 +424,10 @@
                     @if($total)Autor podaje około {{ \App\Support\Czas::czasPrzepisu($total) }}. @endif{{ $typowyCzas->zdanie() }}
                 </p>
             @endif
-            @if($dlaPomocnika && ($wyborPorcji->dostepny() || $porcje))
+            @if($dlaPomocnika && $wyborSztuk->przeliczone())
+                {{-- Wybór sztuk (#2645) zastępuje porcje: jedna podstawa. --}}
+                <p class="druk-pomocnik-porcje m-0"><strong>Ilość: {{ $wyborSztuk->etykieta() }}</strong> <span class="meta">(w przepisie autora: {{ $wyborSztuk->etykietaAutora() }})</span></p>
+            @elseif($dlaPomocnika && ($wyborPorcji->dostepny() || $porcje))
                 {{-- Kartka dla pomocnika: liczba porcji WIELKO, z wyborem z adresu
                      (`?porcje=`), nie zawsze z przepisu autora. --}}
                 <p class="druk-pomocnik-porcje m-0"><strong>Ilość: {{ $wyborPorcji->dostepny() ? \App\Domain\Recipes\Porcje\WyborPorcji::etykieta($wyborPorcji->wybrane) : $porcje }}</strong>@if($wyborPorcji->przeliczone()) <span class="meta">(w przepisie autora: {{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta($wyborPorcji->zPrzepisu) }})</span>@endif</p>
@@ -426,7 +436,17 @@
                  porcji co składniki (D-286). Nie skaluje to przedziału z cennika. --}}
             @php
                 $kosztAutora = $recipe->costLabel();
-                if ($kosztAutora !== null && $wyborPorcji->przeliczone()) {
+                if ($kosztAutora !== null && $wyborSztuk->przeliczone()) {
+                    // Koszt całości rośnie proporcjonalnie do sztuk (#2645).
+                    $przeliczonyKoszt = \App\Domain\Recipes\KosztPrzepisu::naPorcje(
+                        (float) $recipe->estimated_cost_pln,
+                        (float) $wyborSztuk->zPrzepisu,
+                        (float) $wyborSztuk->wybrane,
+                    );
+                    if ($przeliczonyKoszt !== null) {
+                        $kosztAutora = \App\Domain\Recipes\KosztPrzepisu::zdaniePrzeliczone($przeliczonyKoszt);
+                    }
+                } elseif ($kosztAutora !== null && $wyborPorcji->przeliczone()) {
                     $przeliczonyKoszt = \App\Domain\Recipes\KosztPrzepisu::naPorcje(
                         (float) $recipe->estimated_cost_pln,
                         $wyborPorcji->zPrzepisu,
@@ -711,8 +731,11 @@
                 @if($recipe->ingredients->isEmpty())
                     <p class="meta">Autor jeszcze nie dodał składników.</p>
                 @else
-                    @include('pages.recipes._wybor-porcji', ['wyborPorcji' => $wyborPorcji, 'zapamietanePorcje' => $zapamietanePorcje, 'recipe' => $recipe, 'dlaPomocnika' => $dlaPomocnika, 'qrNaKartce' => $qrNaKartce])
-                    @include('pages.recipes._zapamietaj-porcje', ['wyborPorcji' => $wyborPorcji, 'zapamietanePorcje' => $zapamietanePorcje, 'recipe' => $recipe])
+                    @unless($wyborSztuk->przeliczone())
+                        @include('pages.recipes._wybor-porcji', ['wyborPorcji' => $wyborPorcji, 'zapamietanePorcje' => $zapamietanePorcje, 'recipe' => $recipe, 'dlaPomocnika' => $dlaPomocnika, 'qrNaKartce' => $qrNaKartce])
+                        @include('pages.recipes._zapamietaj-porcje', ['wyborPorcji' => $wyborPorcji, 'zapamietanePorcje' => $zapamietanePorcje, 'recipe' => $recipe])
+                    @endunless
+                    @include('pages.recipes._wybor-sztuk', ['wyborSztuk' => $wyborSztuk, 'recipe' => $recipe, 'dlaPomocnika' => $dlaPomocnika, 'qrNaKartce' => $qrNaKartce])
                     {{--
                         GRUPY SKŁADNIKÓW — „Ciasto”, „Farsz”, „Do podania”
                         (D-033, część pierwsza).
@@ -747,7 +770,7 @@
                         @endif
                         <ul class="ingredient-list">
                             @foreach($grupaSkladnikow['skladniki'] as $ingredient)
-                                @php($przeliczony = $wyborPorcji->przelicz($ingredient))
+                                @php($przeliczony = $wyborSztuk->przeliczone() ? $wyborSztuk->przelicz($ingredient) : $wyborPorcji->przelicz($ingredient))
                                 <li>
                                     {{-- Przeliczona ilość jest pogrubiona, reszta to zdanie
                                          autora co do znaku (D-284). Bez przeliczenia —

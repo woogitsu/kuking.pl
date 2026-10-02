@@ -14,6 +14,8 @@ use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\Historia\HistoriaWersji;
 use App\Domain\Recipes\Koszt\SzacunekKosztuZCen;
 use App\Domain\Recipes\MojaWersja;
+use App\Domain\Recipes\Porcje\WyborPorcji;
+use App\Domain\Recipes\Porcje\WyborSztuk;
 use App\Domain\Recipes\Porcje\ZapamietanePorcje;
 use App\Domain\Recipes\TypowyCzasPrzepisu;
 use App\Exceptions\BladDlaCzlowieka;
@@ -515,15 +517,19 @@ class RecipeController extends Controller
             ->first();
 
         $wyborZapamietanych = app(ZapamietanePorcje::class)->wybor($model, $request->user(), $request->query('porcje'));
+        $wyborSztuk = WyborSztuk::dla($model, $request->query('sztuki'));
 
         return view('pages.recipes.show', [
             'recipe' => $model,
             // Na ile porcji pokazać ilości (D-284). Wybór żyje w adresie
             // (`?porcje=6`), przeliczenie w `App\Domain\Recipes\Porcje`.
-            // Własne, jawnie zapamiętane ustawienie (#2602) działa tylko, gdy
-            // adres nie mówi o porcjach nic.
-            'wyborPorcji' => $wyborZapamietanych->wybor,
+            // Wybór SZTUK (#2645) wygrywa z `?porcje=` i z zapamiętaną liczbą
+            // porcji (#2602): liczy się jedna podstawa, współczynniki nigdy się
+            // nie mnożą. Bez sztuk działa zapamiętane ustawienie — tylko gdy adres
+            // nie mówi o porcjach nic.
+            'wyborPorcji' => $wyborSztuk->przeliczone() ? WyborPorcji::dla($model, null) : $wyborZapamietanych->wybor,
             'zapamietanePorcje' => $wyborZapamietanych,
+            'wyborSztuk' => $wyborSztuk,
             // Orientacyjny koszt z cen GUS — tylko gdy autor nie podał
             // własnej kwoty; kwota autora zawsze wygrywa (D-286).
             'szacunekKosztu' => $model->estimated_cost_pln === null

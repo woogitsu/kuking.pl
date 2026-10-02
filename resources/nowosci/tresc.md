@@ -113,6 +113,20 @@ przyciskiem, a „Pokaż ilości z przepisu” pokaże ilości autora bez kasowa
 ustawienia. Zapisujemy tylko jedną liczbę przy jednym przepisie, tylko wtedy,
 gdy sami o to poprosicie, i widzicie ją tylko Wy. Liczba z adresu strony
 zawsze wygrywa z zapamiętaną.
+### Ile sztuk wychodzi z przepisu
+
+Przy pierogach, bułkach czy ciasteczkach liczy się nie liczba porcji, tylko
+liczba sztuk. Autor może teraz dopisać do przepisu, ile gotowych sztuk
+wychodzi z podanych ilości, na przykład „24 pierogi”. To osobna informacja:
+liczba pierogów nie mówi, ile osób nakarmi przepis, więc porcje zostają
+tak, jak były.
+
+Na stronie przepisu, nad składnikami, wpisujecie, ile sztuk chcecie zrobić,
+na przykład 36, i naciskacie „Przelicz składniki”. Ilości przeliczają się
+jak przy porcjach: 24 na 36 to półtora raza więcej. Działa bez
+JavaScriptu, a link z wybraną liczbą możecie wysłać rodzinie. Wybieracie
+albo porcje, albo sztuki — nigdy oba naraz. Przepisy, w których autor
+nie podał sztuk, wyglądają tak jak dotąd.
 
 ## Alfa 0.78
 

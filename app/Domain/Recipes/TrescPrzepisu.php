@@ -29,7 +29,7 @@ final class TrescPrzepisu
 {
     /** Kolumny `recipes`, które są treścią przepisu. */
     private const KOLUMNY_PRZEPISU = [
-        'title', 'summary', 'servings', 'prep_minutes', 'cook_minutes', 'difficulty',
+        'title', 'summary', 'servings', 'yield_count', 'yield_unit', 'prep_minutes', 'cook_minutes', 'difficulty',
         'estimated_cost_pln', 'hero_media_id', 'source_type', 'source_url',
         'source_person', 'source_note', 'family_since_year', 'source_scan_media_id',
         // Alergeny według autora to treść (#1902): zmiana oznaczenia przesuwa
