@@ -8,9 +8,9 @@
         <div class="notice" role="status">
             <p class="m-0">
                 @if($limitOsoby === 'dzien')
-                    Dziś odczytaliśmy już {{ $naDzien }} Twoich przepisów — to dzienny limit. Jutro rano będzie można dalej.
+                    Dziś wykorzystano limit {{ $naDzien }} odczytów. Po rozpoczęciu następnego dnia możesz spróbować ponownie, jeśli odczytywanie będzie dostępne.
                 @else
-                    W tym miesiącu wykorzystano już limit odczytów. Od pierwszego dnia miesiąca będzie można dalej.
+                    W tym miesiącu wykorzystano limit odczytów. Po rozpoczęciu następnego miesiąca możesz spróbować ponownie, jeśli odczytywanie będzie dostępne.
                 @endif
                 Zdjęcie możesz dodać już teraz — zostanie zapisane w szkicu, a tekst wpiszesz ręcznie albo odczytasz później.
             </p>

@@ -170,7 +170,7 @@ final class ImportPrzepisuController extends Controller
 
         return view('pages.import.zdjecie', [
             'kluczWyslania' => $this->kluczDlaFormularza(),
-            'limitOsoby' => $limit->przekroczony($osoba),
+            'limitOsoby' => $limit->obecnaBlokada($osoba),
             'brakBudzetu' => $brakBudzetu,
             'naDzien' => (int) config('kuking.import.limity.na_osobe_dzien'),
         ]);

@@ -1312,6 +1312,11 @@ def planer_bez_potwierdzenia(source):
 
 
 checks = [
+    ("OCR: miesięczny limit obiecuje jutro (#2648)", "app/Domain/Import/KomunikatImportu.php",
+     "test_zapisane_zlecenie_pokazuje_obecny_miesieczny_limit_zamiast_obietnicy_jutra",
+     lambda s: replace_once(s,
+                            "Po rozpoczęciu następnego miesiąca możesz spróbować ponownie, jeśli odczytywanie będzie dostępne.",
+                            "Jutro rano będzie można dalej.")),
     ("PDF: ilość dziesiętna staje się numerem listy (#2614)",
      "app/Domain/Import/ParserTekstuPrzepisu.php",
      "ImportParseryTest::test_tekst_pdf_zachowuje_dziesietne_ilosci_a_usuwa_tylko_jednoznaczna_numeracje",
