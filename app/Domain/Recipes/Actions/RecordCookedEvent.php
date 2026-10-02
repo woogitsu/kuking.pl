@@ -103,6 +103,7 @@ final class RecordCookedEvent
         ?string $wersjaPrzepisuId = null,
         ?string $dzienGotowania = null,
         ?string $faktycznePorcje = null,
+        bool $wersjaScisla = false,
     ): CookedEvent {
         // Prywatny dzień gotowania (#2583): sprawdzany tu, a nie tylko w
         // formularzu, żeby żadna droga (konsola, import) nie zapisała dnia
@@ -114,10 +115,10 @@ final class RecordCookedEvent
         $faktyczne = PorcjeWykonania::sprawdz($faktycznePorcje);
 
         $zapisz = function (?string $klucz) use (
-            $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ip, $wersjaPrzepisuId, $dzienGotowania, $faktyczne
+            $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ip, $wersjaPrzepisuId, $dzienGotowania, $faktyczne, $wersjaScisla
         ): CookedEvent {
             return DB::transaction(function () use (
-                $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $klucz, $ip, $wersjaPrzepisuId, $dzienGotowania, $faktyczne
+                $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $klucz, $ip, $wersjaPrzepisuId, $dzienGotowania, $faktyczne, $wersjaScisla
             ): CookedEvent {
                 /*
                  * ZDJĘCIA WYBIERANE POD BLOKADĄ, W TEJ SAMEJ TRANSAKCJI
@@ -222,7 +223,7 @@ final class RecordCookedEvent
                 // `$fillable`. `cooked_at` zostaje chwilą zgłoszenia — dzień
                 // go nie zastępuje i nie dotyka powiadomienia ani kohort.
                 $event->forceFill([
-                    'recipe_version_id' => $this->wersjaWykonania($recipe, $wersjaPrzepisuId),
+                    'recipe_version_id' => $this->wersjaWykonania($recipe, $wersjaPrzepisuId, $wersjaScisla),
                     'dzien_gotowania' => $dzienGotowania,
                     'faktyczne_porcje' => $faktyczne,
                 ])->save();
@@ -343,7 +344,7 @@ final class RecordCookedEvent
      * do końca transakcji. Jeśli retencja zdążyła pierwsza, wiersza już nie
      * ma i schodzimy do najnowszej wersji.
      */
-    private function wersjaWykonania(Recipe $recipe, ?string $zFormularza): ?string
+    private function wersjaWykonania(Recipe $recipe, ?string $zFormularza, bool $scisle = false): ?string
     {
         if ($zFormularza !== null && Str::isUuid($zFormularza)) {
             $jest = RecipeVersion::query()
@@ -355,6 +356,13 @@ final class RecordCookedEvent
             if ($jest) {
                 return $zFormularza;
             }
+        }
+
+        // ŚCIEŻKA „GOTUJ Z TEJ WERSJI” (#2491): wersja historyczna została wskazana jawnie, więc jej
+        // zniknięcie (retencja, usunięcie) to odmowa, a NIE ciche przypięcie dzisiejszej wersji.
+        if ($scisle) {
+            throw new BladDlaCzlowieka('Tej wersji przepisu już nie ma, więc nie zapisaliśmy wykonania. '
+                .'Otwórz „Ugotowałem” przy dzisiejszym przepisie albo wróć do swojego wykonania.');
         }
 
         $najnowsza = RecipeVersion::query()

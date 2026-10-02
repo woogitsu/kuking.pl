@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Gotuj z tej wersji
+
+Autor zmienił przepis, a Wy chcecie powtórzyć dokładnie to, co Wam wcześniej wyszło? Na ekranie „Wersja z tego gotowania” (przy własnym wykonaniu) jest przycisk „Gotuj z tej wersji”. Prowadzi krok po kroku, z minutnikami, ale według starszej wersji, którą wtedy mieliście przed oczami — a nie według dzisiejszego tekstu autora. Na górze zawsze widać, z której wersji i z jakiej daty gotujecie, a przycisk „Wróć do dzisiejszego przepisu” jest pod ręką. Na końcu zapiszecie nowe „Ugotowałem” ze wskazaną starszą wersją. Jeśli ta wersja nie jest już dostępna, powiemy o tym wprost, zamiast po cichu podmienić ją na dzisiejszą.
+
 ### Pokaż przepis jednej bliskiej osobie
 
 Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie

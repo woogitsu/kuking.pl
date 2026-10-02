@@ -1313,6 +1313,15 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // (`CookedEventPolicy::viewVersion`) — nawet autor przepisu dostaje odmowę.
         $dodaj('cooked.version', 'wersja przepisu przypięta do wykonania', 'get',
             route('cooked.version', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        // #2491: „Gotuj z tej wersji” — tryb, postęp i zakończenie tylko dla kucharza.
+        $dodaj('cooked.version.cook', 'krokowy tryb gotowania z wersji własnej próby', 'get',
+            route('cooked.version.cook', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        $dodaj('cooked.version.cook.mark', 'oznaczenie kroku wersji historycznej', 'post',
+            route('cooked.version.cook.mark', $wykonanie), ['krok' => '1', 'zrobiono' => '1'], [$W, $O, $O, $O, $O]);
+        $dodaj('cooked.version.cook.restart', 'restart postępu wersji historycznej', 'post',
+            route('cooked.version.cook.restart', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        $dodaj('cooked.version.finish', 'zakończenie gotowania z wersji historycznej', 'get',
+            route('cooked.version.finish', $wykonanie), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.thank', 'podziękowanie za wykonanie', 'post',
             route('cooked.thank', $wykonanie), ['body' => 'Dziękuję za ugotowanie.'], [$W, $O, $O, $O, $O]);
         // F6: wspomnienie z wykonania chowa wyłącznie kucharz
