@@ -1269,6 +1269,12 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->whereUuid('pantryItem')
         ->middleware("throttle:{$limits['spizarnia']},spizarnia")
         ->name('pantry.destroy');
+    // Usunięcie JEDNEGO z dwóch opakowań produktu (#2568); drugie zostaje.
+    // `PantryItemPolicy::delete` — tak jak przy usuwaniu całego produktu.
+    Route::delete('/co-mam-w-domu/{pantryItem}/opakowanie', [PantryController::class, 'destroyOpakowanie'])
+        ->whereUuid('pantryItem')
+        ->middleware("throttle:{$limits['spizarnia']},spizarnia")
+        ->name('pantry.destroyOpakowanie');
     Route::get('/co-ugotuje', [PantryController::class, 'coUgotuje'])
         ->middleware("throttle:{$limits['co_ugotuje']},co_ugotuje")
         ->name('pantry.cook');
