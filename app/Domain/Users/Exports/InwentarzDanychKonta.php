@@ -72,6 +72,9 @@ final class InwentarzDanychKonta
         'collection_items.added_by_id' => [self::EKSPORT, 'zeszyty_udostepnione_mi'],
         'collection_invitations.inviter_id' => [self::EKSPORT, 'zaproszenia_do_zeszytow'],
         'collection_invitations.invitee_id' => [self::EKSPORT, 'zaproszenia_do_zeszytow'],
+        // Udostępnienie przepisu wskazanej osobie (#2650). Strona autora
+        // (komu pokazuję) idzie tą samą sekcją, przez `recipes.author_id`.
+        'recipe_shares.recipient_id' => [self::EKSPORT, 'udostepnione_przepisy'],
         'follows.follower_id' => [self::EKSPORT, 'obserwuje'],
         'follows.followed_id' => [self::EKSPORT, 'obserwuja_mnie'],
         'blocks.blocker_id' => [self::EKSPORT, 'zablokowane_osoby'],

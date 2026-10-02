@@ -70,6 +70,17 @@ Przepis jest na 4 porcje, a gotujecie dla 2 osób? Po wybraniu liczby porcji na 
 
 Wróciliście ze sklepu i odhaczyliście zakupy? Pod odhaczonymi pozycjami na liście zakupów jest przycisk „Dodaj kupione do »Co mam w domu«”. Zaznaczacie tylko to, co chcecie dopisać (papier do pieczenia raczej nie), poprawiacie nazwę produktu — na przykład z „2 szklanki mąki” na „mąka” — i potwierdzacie. Nie zgadujemy ilości ani terminów, produkty, które już macie, zostają bez zmian, a lista zakupów się nie zmienia. Samo odhaczenie niczego w spiżarni nie robi.
 
+### Pokaż przepis jednej bliskiej osobie
+
+Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie
+„Tylko ja” albo „dla obserwujących” jest teraz przycisk „Pokaż wybranej
+osobie”. Wpiszcie nazwę konta tej osoby (jest na jej profilu, po znaku @),
+sprawdźcie, kogo pokazujemy, i potwierdźcie. Ta osoba przeczyta przepis po
+zalogowaniu, w „Moje” → „Przepisy udostępnione mi”. Nikt inny go nie
+zobaczy, a przepis nie pojawi się w wyszukiwarce. Dostęp odbieracie jednym
+przyciskiem — działa od razu. Ta osoba zobaczy w powiadomieniach w Kuking,
+że pokazujecie jej przepis — bez listu i bez powiadomienia na telefonie.
+
 ### Odłóż szkic na później
 
 Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.

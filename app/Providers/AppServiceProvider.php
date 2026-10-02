@@ -25,11 +25,13 @@ use App\Domain\Recipes\Gotowanie\Wspolne\KoniecWspolnegoGotowaniaImpl;
 use App\Domain\Recipes\Historia\DecyzjaOWersjiPrzepisu;
 use App\Domain\Recipes\Porcje\PorcjePrzepisuPlanu;
 use App\Domain\Recipes\StrazPochodzeniaPrzepisu;
+use App\Domain\Recipes\Udostepnienia\ZerwijUdostepnieniaPrzepisow;
 use App\Domain\Social\Actions\ObserwujGospodarza;
 use App\Domain\Social\BlokadyZmienione;
 use App\Domain\Social\ListyWidza;
 use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Domain\Users\Import\ZapisSzkicuZPaczki;
+use App\Domain\Users\KoniecUdostepnienPrzepisow;
 use App\Domain\Users\KoniecWspolnegoGotowania;
 use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Domain\Users\ObserwowanieGospodarza;
@@ -107,6 +109,9 @@ class AppServiceProvider extends ServiceProvider
         // D-302): kontrakt w `Users`, implementacja w `Collections` — bez
         // cyklu `Social ↔ Collections` i `Users → Collections → Social`.
         $this->app->bind(KoniecWspolnychZeszytow::class, ZerwijWspoldzielenie::class);
+        // Koniec udostępnień przepisów (#2650): ten sam wzór — kontrakt
+        // w `Users`, implementacja w `Recipes` (bez cyklu `Social ↔ Recipes`).
+        $this->app->bind(KoniecUdostepnienPrzepisow::class, ZerwijUdostepnieniaPrzepisow::class);
 
         // Planer (#2483, #2509) czyta zeszyt i porcje przez kontrakty: kontrakt
         // w `Planer`, implementacja w `Collections` i `Recipes` — bez cykli

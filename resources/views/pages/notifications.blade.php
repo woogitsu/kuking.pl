@@ -81,6 +81,8 @@
                 \App\Models\Notification::TYPE_HINT_PROPOSED,
                 // Zgoda kucharza na wskazówkę (#2352) — zdarzenie od jednej osoby.
                 \App\Models\Notification::TYPE_HINT_ACCEPTED,
+                // Pokazany przepis (#2650, D-333) — zwykłe zdarzenie od autora.
+                \App\Models\Notification::TYPE_RECIPE_SHARED,
             ], true);
 
             /*
@@ -298,6 +300,24 @@
                                 przy przepisie „{{ $data['recipe_title'] ?? 'przepis' }}”.
                                 Zgoda została udzielona. Uwaga pojawia się na stronie Twojego przepisu, dopóki zgoda trwa.
                                 @break
+                            @case(\App\Models\Notification::TYPE_RECIPE_SHARED)
+                                {{-- POKAZANY PRZEPIS (#2650, decyzja właściciela z 2.10.2026,
+                                     D-333). Tytuł WYŁĄCZNIE z bieżącego przepisu i tylko
+                                     przy bieżącym `readShared()` — powiadomienie go nie
+                                     przechowuje. Po utracie dostępu zdanie bez tytułu.
+                                     Bez formy rodzajowej („pokazuje"). --}}
+                                @php
+                                    $pokazanyPrzepis = $notification->przepisUdostepniony();
+                                    $pokazujacy = $actor?->profile?->username;
+                                    $pokazujacy = is_string($pokazujacy) && $pokazujacy !== '' ? '@'.$pokazujacy : ($actor?->displayName() ?? 'Ktoś');
+                                @endphp
+                                @if($pokazanyPrzepis !== null)
+                                    <strong>{{ $pokazujacy }} pokazuje Ci przepis</strong>
+                                    „{{ $pokazanyPrzepis->title }}”.
+                                @else
+                                    <strong>Pokazany Ci przepis nie jest już dostępny.</strong>
+                                @endif
+                                @break
                             @case(\App\Models\Notification::TYPE_FIRST_POST)
                                 {{-- Powiadomienie dla GOSPODARZA, nie dla autora
                                      (issue #6). Zachęca do odpowiedzi nowej osobie,
@@ -507,7 +527,7 @@
     @endif
     @else
         <x-empty-state title="Nie ma jeszcze żadnych powiadomień">
-            Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących, urodzinach obserwowanych osób, zaproszeniach do wspólnego zeszytu oraz ważnych sprawach Twojego konta.
+            Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących, urodzinach obserwowanych osób, zaproszeniach do wspólnego zeszytu, przepisach, które ktoś Ci pokazuje, oraz ważnych sprawach Twojego konta.
         </x-empty-state>
     @endif
 
