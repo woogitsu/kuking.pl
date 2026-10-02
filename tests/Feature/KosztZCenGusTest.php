@@ -197,6 +197,49 @@ class KosztZCenGusTest extends TestCase
         }
     }
 
+    #[Test]
+    public function druga_bezposrednia_ilosc_nie_zaniza_masy_do_pierwszej_liczby(): void
+    {
+        foreach ([
+            '1 kg i 200 g mąki', '1 kg 200 g mąki', '500 g + 200 g mąki',
+            '1 kg oraz 200 g mąki', '1 kg i 200 mąki', '500 g + 2 jajka',
+        ] as $tekst) {
+            $this->assertNull(
+                IloscZTekstu::rozbierz($tekst),
+                'KOSZT_2578_DRUGA_ILOSC_NIE_ZANIZA_MASY',
+            );
+        }
+
+        $this->assertSame(['ilosc' => 1200.0, 'miara' => 'g'], IloscZTekstu::rozbierz('1200 g mąki'));
+        $this->assertSame(['ilosc' => 700.0, 'miara' => 'g'], IloscZTekstu::rozbierz('700 g mąki'));
+        $this->assertSame(['ilosc' => 300.0, 'miara' => 'g'], IloscZTekstu::rozbierz('300 g mąki do 2 porcji'));
+        $this->assertSame(['ilosc' => 1000.0, 'miara' => 'g'], IloscZTekstu::rozbierz('1 kg mąki 20%'));
+        $this->assertSame(['ilosc' => 250.0, 'miara' => 'g'], IloscZTekstu::rozbierz('200 do 300 g mąki'));
+        $this->assertNull(IloscZTekstu::rozbierz('mąka typ 650'));
+        $this->assertNull(IloscZTekstu::rozbierz('śmietana 18%'));
+    }
+
+    #[Test]
+    public function druga_bezposrednia_ilosc_daje_jawny_brak_wyceny_zamiast_zanizonej_kwoty(): void
+    {
+        $this->cennik();
+        $pelny = app(SzacunekKosztuZCen::class)->dla($this->przepis(['1200 g mąki', '2 jajka']));
+        $this->assertNotNull($pelny);
+        $this->assertTrue($pelny->jestPrzedzial());
+
+        foreach (['1 kg i 200 g mąki', '1 kg 200 g mąki', '500 g + 200 g mąki'] as $tekst) {
+            $przepis = $this->przepis([$tekst, '2 jajka']);
+            $wynik = app(SzacunekKosztuZCen::class)->dla($przepis);
+
+            $this->assertNotNull($wynik);
+            $this->assertFalse($wynik->jestPrzedzial(), 'KOSZT_2578_PELNA_WYCENA_NIE_UDAJE_PIERWSZEJ_MASY');
+            $this->assertNull($wynik->od);
+            $this->assertNull($wynik->do);
+            $this->assertStringContainsString($tekst, $wynik->zdanie());
+            $this->assertSame($tekst, $przepis->ingredients->first()->ingredient_text);
+        }
+    }
+
     // ------------------------------------------------------------------
     // Dopasowanie do cennika
     // ------------------------------------------------------------------

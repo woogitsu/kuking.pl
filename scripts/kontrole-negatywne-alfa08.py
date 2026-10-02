@@ -1269,6 +1269,8 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    ("Koszt: druga ilość wraca do wyceny pierwszej (#2578)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "druga_bezposrednia_ilosc_nie_zaniza_masy_do_pierwszej_liczby",
+     lambda s: replace_once(s, "if (preg_match('/^\\s*(?:(?:i|oraz)\\s+|\\+\\s*)?\\d/', $poDopasowaniu) === 1) {", "if (false) {")),
     ("Koszt: grupowane tysiące stają się sztukami (#2561)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "grupowane_tysiace_zachowuja_cala_mase_i_nie_staja_sie_sztukami",
      lambda s: replace_once(s, r'|\d{1,3}(?: \d{3})+(?:[.,]\d+)?', '')),
     # #2524: przeliczony składnik i nieprzeliczona kwota autora to sprzeczna strona.

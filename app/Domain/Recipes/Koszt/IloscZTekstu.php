@@ -100,6 +100,15 @@ final class IloscZTekstu
                     return null;
                 }
 
+                // „1 kg i 200 g”, „1 kg 200 g” i „500 g + 200 g” nie są
+                // jedną odczytaną masą. Nie wiemy, czy chodzi o ten sam produkt;
+                // koszt tylko pierwszej części byłby zaniżony (D-286, #2578).
+                // Sprawdzamy wyłącznie bezpośredni ciąg po ilości, aby opis
+                // produktu „300 g mąki do 2 porcji” zachował swoje 300 g.
+                if (preg_match('/^\s*(?:(?:i|oraz)\s+|\+\s*)?\d/', $poDopasowaniu) === 1) {
+                    return null;
+                }
+
                 $ilosc = self::liczba($trafienie[1][0]);
                 if (($trafienie[2][0] ?? '') !== '') {
                     // „2-3 szklanki" — środek przedziału.

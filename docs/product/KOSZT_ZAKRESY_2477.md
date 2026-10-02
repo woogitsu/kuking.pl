@@ -29,3 +29,18 @@ po parze oraz po pojedynczej liczbie: nazwane testy muszą wtedy oblać własne
 asercje.
 Bez migracji. Wycofanie samej zmiany parsera przywróci zaniżanie lub
 odmowę szacunku dla słownych zakresów; nie zmienia zapisanych danych.
+
+## Kilka bezpośrednich ilości — #2578
+
+`1 kg i 200 g mąki`, `1 kg 200 g mąki` oraz `500 g + 200 g mąki`
+nie dostają kosztu liczonego tylko z pierwszej liczby. Parser kosztu
+odmawia odczytu ilości, bo sam tekst nie dowodzi, czy obie liczby opisują
+ten sam produkt. Pełna wycena, jeśli zna cenę innych składników, pokazuje
+brak wiarygodnej masy i nazwę składnika zamiast przedziału kwoty. Poprawny
+pojedynczy zapis masy, zakres oraz opis celu po nazwie produktu pozostają
+bez zmian. Tekst składnika zapisany przez autora nie jest modyfikowany.
+
+Regresja obejmuje parser i rzeczywistą wycenę na stałym cenniku; kontrola
+ujemna usuwa odmowę i wymaga porażki z własnym markerem #2578. Wycofanie
+samej reguły odczytu przywraca zaniżanie kosztu do pierwszej ilości, lecz
+nie zmienia zapisanych składników ani cennika.

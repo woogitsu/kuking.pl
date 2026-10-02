@@ -35,6 +35,7 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Koszt: druga ilość wraca do wyceny pierwszej (#2578)': r'KOSZT_2578_DRUGA_ILOSC_NIE_ZANIZA_MASY',
     'Koszt: grupowane tysiące stają się sztukami (#2561)': r'KOSZT_2561_GRUPOWANE_TYSIACE_NIE_SA_SZTUKAMI',
     'Sam skan bez notatki znika ze strony przepisu': r'Sam skan musi otwierać sekcję pochodzenia przepisu\.',
     'Fixture wspomnienia znika po północy w Polsce': r'POMIAR_WSPOMNIENIA_PRZED_I_PO_POLNOCY',

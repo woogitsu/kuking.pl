@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2578): zapis kilku bezpośrednich ilości przy jednym składniku, np. „1 kg i 200 g mąki”, nie daje zaniżonego kosztu policzonego tylko z pierwszej ilości. Gdy nie da się bezpiecznie ustalić masy, szacunek pokazuje przyczynę zamiast kwoty; zapis autora pozostaje bez zmian.
+
 - Naprawione (#2561): orientacyjny koszt rozpoznaje masę zapisaną z grupowaniem tysięcy (np. „1 000 g jajek”) jako całą masę, a przy uszkodzonym grupowaniu odmawia wyceny zamiast zamieniać fragment na sztuki.
 
 - Naprawione (#2480): kartka przypięta do przepisu jest widoczna na jego zwykłej stronie także wtedy, gdy autor nie dodał osoby ani notatki o źródle. Prywatność zdjęcia i wariant dla pomocnika pozostają bez zmian.
