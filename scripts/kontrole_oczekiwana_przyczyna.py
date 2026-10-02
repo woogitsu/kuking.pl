@@ -37,6 +37,10 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 OCZEKUJ = {
     "Spiżarnia usuwa bez pytania (#2467)": r'SPIZARNIA_2467_USUNIECIE_WYMAGA_PYTANIA',
     'Planer usuwa bez pytania (#2468)': r'PLANER_2468_PIERWSZY_KLIK_BEZ_DELETE',
+    "Zmiana porcji zachowuje stare odmierzenie (#2502)": r'PORCJE_2502_NOWA_ILOSC_NIE_PRZYGOTOWANA',
+    "Stary formularz przywraca porcje z innego urządzenia (#2502)": r'PORCJE_2502_STARY_FORMULARZ_NIE_PRZYWRACA',
+    "Powrót porcji ABA przywraca stare odmierzenie (#2502)": r'PORCJE_2502_ABA_NIE_PRZYWRACA',
+    "Stary formularz po ponownym włączeniu postępu (#2502)": r'PORCJE_2502_NOWY_POSTEP_NIE_PRZYWRACA',
     'Sam skan bez notatki znika ze strony przepisu': r'Sam skan musi otwierać sekcję pochodzenia przepisu\.',
     'Fixture wspomnienia znika po północy w Polsce': r'POMIAR_WSPOMNIENIA_PRZED_I_PO_POLNOCY',
     "Koszt autora pozostaje bazowy po zmianie porcji (#2524)": r'KOSZT_AUTORA_2524_NIEPRZELICZONY',

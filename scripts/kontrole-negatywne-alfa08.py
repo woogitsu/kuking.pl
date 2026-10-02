@@ -1317,6 +1317,15 @@ checks = [
     ("Planer usuwa bez pytania (#2468)", "resources/views/pages/planer/show.blade.php",
      "test_usuniecie_z_planera_wymaga_potwierdzenia_przy_wlasciwym_dniu_i_pozycji",
      planer_bez_potwierdzenia),
+    # #2502: dawne odmierzenie nie może potwierdzić nowej liczby porcji.
+    ("Zmiana porcji zachowuje stare odmierzenie (#2502)", "app/Domain/Recipes/Gotowanie/PostepGotowania.php", "test_zmiana_porcji_na_koncie_wymaga_ponownego_odmierzenia_a_krok_i_ta_sama_ilosc_nie",
+     lambda s: replace_once(s, "'prepared_ingredient_ids' => [], 'servings_revision' => $wiersz->servings_revision + 1", "'prepared_ingredient_ids' => $wiersz->prepared_ingredient_ids, 'servings_revision' => $wiersz->servings_revision + 1")),
+    ("Stary formularz przywraca porcje z innego urządzenia (#2502)", "app/Domain/Recipes/Gotowanie/PostepGotowania.php", "test_stary_formularz_po_zmianie_porcji_na_drugim_urzadzeniu_nie_przywraca_odmierzenia",
+     lambda s: replace_once(s, "if ($wiersz->getKey() !== $widzianyPostepId || $this->porcje($wiersz) !== $porcjeZKontaNaStronie || $wiersz->servings_revision !== $widzianaRewizjaPorcji) {", "if (false) {")),
+    ("Powrót porcji ABA przywraca stare odmierzenie (#2502)", "app/Domain/Recipes/Gotowanie/PostepGotowania.php", "test_stary_formularz_po_powrocie_do_tej_samej_liczby_porcji_nie_przywraca_odmierzenia",
+     lambda s: replace_once(s, "$wiersz->servings_revision !== $widzianaRewizjaPorcji", "false")),
+    ("Stary formularz po ponownym włączeniu postępu (#2502)", "app/Domain/Recipes/Gotowanie/PostepGotowania.php", "test_formularz_sprzed_wylaczenia_i_ponownego_wlaczenia_nie_potwierdza_dawnych_skladnikow",
+     lambda s: replace_once(s, "$wiersz->getKey() !== $widzianyPostepId", "false")),
     # #2524: przeliczony składnik i nieprzeliczona kwota autora to sprzeczna strona.
     ("Koszt autora pozostaje bazowy po zmianie porcji (#2524)", "resources/views/pages/recipes/show.blade.php", "test_koszt_autora_i_skladniki_uzywaja_tego_samego_wyboru_porcji_takze_w_wydruku",
      lambda s: replace_once(s, "{{ $kosztAutora }}</p>", "{{ $recipe->costLabel() }}</p>")),
