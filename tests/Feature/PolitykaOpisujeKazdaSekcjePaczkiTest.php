@@ -52,6 +52,7 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
         'kolekcje' => 'komentarze, „Ugotowałem” i zeszyty',
         'zeszyty_udostepnione_mi' => '| Wspólne zeszyty',
         'zaproszenia_do_zeszytow' => 'kto kogo zaprosił do którego zeszytu',
+        'udostepnione_przepisy' => '| Pokazanie przepisu wybranej osobie',
         'obserwuje' => 'kogo obserwujesz',
         'obserwuja_mnie' => '| Relacje w serwisie |',
         'zablokowane_osoby' => 'kogo blokujesz',

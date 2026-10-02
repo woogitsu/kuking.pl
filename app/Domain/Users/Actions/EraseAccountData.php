@@ -11,6 +11,7 @@ use App\Domain\Media\KasujZdjecie;
 use App\Domain\Users\DawneNazwyProfilu;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Users\Import\MagazynPaczek;
+use App\Domain\Users\KoniecUdostepnienPrzepisow;
 use App\Domain\Users\KoniecWspolnegoGotowania;
 use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
@@ -223,6 +224,9 @@ final class EraseAccountData
             // z nich były wspólne. Niezależnie od zakresu: członkostwa
             // i zaproszenia to relacje z innymi osobami, jak obserwowanie.
             app(KoniecWspolnychZeszytow::class)->przyWymazaniu($fresh);
+            // Udostępnienia przepisów (#2650) — dla tej osoby i jej przepisów,
+            // niezależnie od zakresu: to relacje z innymi osobami.
+            app(KoniecUdostepnienPrzepisow::class)->przyWymazaniu($fresh);
 
             // Wspólne gotowanie (#2385): sesje gospodarza, udziały pomocnika
             // i podpisy odhaczeń. Niezależnie od zakresu usunięcia.

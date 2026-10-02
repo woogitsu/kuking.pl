@@ -73,6 +73,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PwaInstallController;
 use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\RecipeController;
+use App\Http\Controllers\RecipeShareController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ReporterAppealController;
 use App\Http\Controllers\SearchController;
@@ -93,6 +94,7 @@ use App\Http\Controllers\Settings\SettingsIndexController;
 use App\Http\Controllers\Settings\SprzeciwStatystykController;
 use App\Http\Controllers\Settings\TwoFactorSettingsController;
 use App\Http\Controllers\Settings\WczytanieDanychController;
+use App\Http\Controllers\SharedRecipeController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SmakowicieController;
 use App\Http\Controllers\SocialController;
@@ -1100,6 +1102,28 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/przepisy/{recipe}', [RecipeController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('recipes.destroy');
+    // Udostępnienie jednego przepisu wskazanej osobie (#2650, D-333) — sam
+    // odczyt, bez linku; powiadomienie tylko w serwisie. Ekran autora: `manageShares`
+    // (lista, odebranie), `share` (nowe udostępnienie). Strona czytania
+    // odbiorcy: `readShared` przy KAŻDYM żądaniu, bez cache. Rezygnacja
+    // odbiorcy: `RecipeSharePolicy::leave`. Zmiany pod limitem `udostepnienia`.
+    Route::get('/przepisy/{recipe}/udostepnij', [RecipeShareController::class, 'index'])
+        ->name('recipes.shares.index');
+    Route::post('/przepisy/{recipe}/udostepnij', [RecipeShareController::class, 'store'])
+        ->middleware("throttle:{$limits['udostepnienia']},udostepnienia")
+        ->name('recipes.shares.store');
+    Route::delete('/przepisy/{recipe}/udostepnij/{share}', [RecipeShareController::class, 'destroy'])
+        ->whereUuid('share')
+        ->middleware("throttle:{$limits['udostepnienia']},udostepnienia")
+        ->name('recipes.shares.destroy');
+    Route::get('/przepisy/{recipe}/udostepniony', [SharedRecipeController::class, 'show'])
+        ->name('recipes.shared.show');
+    Route::get('/udostepnione-mi', [SharedRecipeController::class, 'index'])
+        ->name('recipes.shared.index');
+    Route::delete('/udostepnione-mi/{share}', [SharedRecipeController::class, 'leave'])
+        ->whereUuid('share')
+        ->middleware("throttle:{$limits['udostepnienia']},udostepnienia")
+        ->name('recipes.shared.leave');
     // Ukrycie i przywrócenie jednej wersji z historii zmian (issue #2270).
     // GET to ekran potwierdzenia bez JavaScriptu, POST — sama zmiana.
     // Kto: `RecipeVersionPolicy`; stan: `UkrywanieWersji`. Limit

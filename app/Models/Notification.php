@@ -110,6 +110,21 @@ class Notification extends Model
      */
     public const TYPE_HINT_ACCEPTED = 'recipe_hint.accepted';
 
+    /**
+     * Autor pokazał odbiorcy jeden swój przepis (#2650, decyzja właściciela
+     * z 2.10.2026, D-333). WYŁĄCZNIE W SERWISIE: nie ma go w
+     * `KanalPush::TYPY` i nie idzie listem.
+     *
+     * `data` niesie SAM `recipe_id` — bez tytułu. Tytuł prywatnego przepisu
+     * liczy się przy wyświetlaniu z bieżącego wiersza i tylko wtedy, gdy
+     * `RecipePolicy::readShared()` dalej przepuszcza odbiorcę
+     * (`CelPowiadomienia::przepisUdostepniony()`). Po cofnięciu, blokadzie,
+     * karze, usunięciu albo ukryciu przepisu karta mówi neutralnie, że
+     * przepis nie jest już dostępny — bez tytułu. Jedno powiadomienie na
+     * parę (przepis, odbiorca): ponowne udostępnienie go nie powtarza.
+     */
+    public const TYPE_RECIPE_SHARED = 'recipe.shared';
+
     public const TYPE_MODERATION = 'moderation.decision';
 
     /**
@@ -282,6 +297,9 @@ class Notification extends Model
     /** Wersja z `data.fork_id` widoczna dla odbiorcy; `false` = nie sprawdzano. */
     private Recipe|false|null $wersjaPrzepisu = false;
 
+    /** Przepis z `recipe.shared`, który odbiorca może dziś czytać; `false` = nie sprawdzano. */
+    private Recipe|false|null $przepisUdostepniony = false;
+
     protected function casts(): array
     {
         return [
@@ -418,6 +436,27 @@ class Notification extends Model
     public function zapamietanaWersjaPrzepisu(): Recipe|false|null
     {
         return $this->wersjaPrzepisu;
+    }
+
+    /** Podręczny przepis z `recipe.shared` — patrz `$przepisUdostepniony`. */
+    public function zapamietajPrzepisUdostepniony(?Recipe $przepis): void
+    {
+        $this->przepisUdostepniony = $przepis;
+    }
+
+    /** `false` = nie sprawdzano, `null` = odbiorca nie może go dziś czytać. */
+    public function zapamietanyPrzepisUdostepniony(): Recipe|false|null
+    {
+        return $this->przepisUdostepniony;
+    }
+
+    /**
+     * Przepis z `recipe.shared`, o ile odbiorca może go DZIŚ czytać —
+     * jedyne źródło tytułu w karcie powiadomienia (#2650).
+     */
+    public function przepisUdostepniony(): ?Recipe
+    {
+        return app(CelPowiadomienia::class)->przepisUdostepniony($this);
     }
 
     /** Wynik zbiorczego sprawdzenia z listy — patrz `$wykonanieIstnieje`. */

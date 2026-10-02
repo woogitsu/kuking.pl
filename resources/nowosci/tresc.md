@@ -30,6 +30,17 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Pokaż przepis jednej bliskiej osobie
+
+Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie
+„Tylko ja” albo „dla obserwujących” jest teraz przycisk „Pokaż wybranej
+osobie”. Wpiszcie nazwę konta tej osoby (jest na jej profilu, po znaku @),
+sprawdźcie, kogo pokazujemy, i potwierdźcie. Ta osoba przeczyta przepis po
+zalogowaniu, w „Moje” → „Przepisy udostępnione mi”. Nikt inny go nie
+zobaczy, a przepis nie pojawi się w wyszukiwarce. Dostęp odbieracie jednym
+przyciskiem — działa od razu. Ta osoba zobaczy w powiadomieniach w Kuking,
+że pokazujecie jej przepis — bez listu i bez powiadomienia na telefonie.
+
 ### Odłóż szkic na później
 
 Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.

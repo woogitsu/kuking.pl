@@ -38,6 +38,7 @@ Kuking to serwis społecznościowy dla osób, które gotują. Pozwala:
 - komentować i odpowiadać na komentarze, a pod cudzym wpisem zostawić reakcję „Smakowicie wygląda”,
 - pytać innych o radę i odpowiadać na ich pytania („Poradźcie”),
 - zapisywać przepisy w swoich zeszytach, także we wspólnych zeszytach z osobami, które do nich zaprosisz,
+- pokazać wybrany przepis jednej wskazanej osobie i cofnąć to w każdej chwili,
 - gotować z przepisu krok po kroku w trybie gotowania,
 - układać plan posiłków na tydzień i prowadzić listę zakupów,
 - wpisać, co masz w domu, i znaleźć przepisy, które z tego ugotujesz („Co mam w domu”),
@@ -47,6 +48,8 @@ Kuking to serwis społecznościowy dla osób, które gotują. Pozwala:
 - logować się hasłem, linkiem z wiadomości e-mail albo kontem Google lub Facebooka,
 - pobrać paczkę ze swoimi danymi i wczytać ją z powrotem na swoje konto,
 - zgłaszać treści, które naruszają zasady, i odwoływać się od decyzji moderacji.
+
+Możesz udostępnić wybrany przepis, który nie jest widoczny dla wszystkich, wskazanej osobie z kontem w Kuking w zakresie pokazanym przed udostępnieniem (sam odczyt przepisu). Pozostałe prywatne dane i notatki nie są objęte tym wyborem. Udostępnienie możesz cofnąć; od tej chwili odbiorca nie uzyska przez nie dalszego dostępu w Kuking. Cofnięcie nie usuwa kopii ani zrzutów ekranu, które odbiorca wcześniej wykonał poza serwisem.
 
 Niektóre z tych funkcji udostępniamy stopniowo, więc może się zdarzyć, że którejś jeszcze u siebie nie widzisz. Szczegóły o danych, których każda z nich potrzebuje, są w Polityce Prywatności.
 

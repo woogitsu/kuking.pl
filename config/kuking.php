@@ -487,6 +487,18 @@ return [
         'replies_per_thread' => (int) env('KUKING_COMMENT_REPLIES_PER_THREAD', 12),
     ],
 
+    /*
+     * UDOSTĘPNIENIE JEDNEGO PRZEPISU WSKAZANEJ OSOBIE (#2650, D-333).
+     *
+     * `max_osob` — ile osób może mieć dostęp do jednego przepisu poza
+     * autorem. Funkcja jest na „pokaż rodzinny przepis bliskiej osobie”,
+     * nie na rozsyłanie: dla szerokiego grona jest „Moi obserwujący”
+     * albo „Wszyscy”. Dziesięć osób to duża rodzina; wspólny zeszyt ma pięć miejsc.
+     */
+    'udostepnienia' => [
+        'max_osob' => 10,
+    ],
+
     'collections' => [
         // Ile ZAPISANYCH WPISÓW pokazuje zeszyt na "stronę" (audyt
         // zewnętrzny T20). Zeszyt rośnie z użyciem serwisu — każde
@@ -2156,6 +2168,17 @@ return [
          * zaproś→odwołaj, która przy każdym obrocie budzi komuś telefon.
          */
         'zaproszenia' => '20,10',
+
+        /*
+         * UDOSTĘPNIENIE PRZEPISU WYBRANEJ OSOBIE (#2650) — sprawdzenie nazwy
+         * konta, zapis udostępnienia, odebranie dostępu i rezygnacja z niego.
+         *
+         * Osobne wiadro od `zaproszenia`: to inna czynność i inny ekran.
+         * Udostępnienie NIKOGO nie powiadamia, więc szkoda z nadużycia to
+         * głównie zgadywanie nazw kont — a te i tak są publiczne na profilach.
+         * 20 na 10 minut wystarcza na rodzinę z pomyłkami w nazwie.
+         */
+        'udostepnienia' => '20,10',
 
         /*
          * PLANER TYGODNIA (#27, D-310) — dopisanie pozycji, usunięcie jej
