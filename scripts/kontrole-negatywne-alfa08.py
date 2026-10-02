@@ -101,12 +101,14 @@ PLANER_TEST = "PlanerTygodniaTest"
 ZAKUPY_LISTA = "app/Domain/Zakupy/ListaZakupow.php"
 ZAKUPY_KONTROLER = "app/Http/Controllers/ListaZakupowController.php"
 ZAKUPY_MIGRACJA = "database/migrations/2026_09_30_090000_create_shopping_list_items_table.php"
+ZAKUPY_POZYCJA = "resources/views/pages/zakupy/_pozycja.blade.php"
 # Jedna kontrola = jedna metoda: mutacja ma zapalić jedną przyczynę, a wzorzec
 # oczekiwanej porażki dotyczy KAŻDEJ porażki po mutacji (#1011).
 ZAKUPY_WIDOCZNOSC_TEST = "test_przepis_ktory_przestal_byc_widoczny_zostawia_pozycje_jako_sam_tekst"
 ZAKUPY_OSTRZEZENIE_TEST = "test_ponowne_dodanie_tego_samego_przepisu_najpierw_ostrzega_i_dopisuje_po_potwierdzeniu"
 ZAKUPY_LIMIT_TEST = "test_lista_ma_limit_pozycji_i_mowi_co_zrobic"
 ZAKUPY_POLICY_TEST = "test_usuniecie_pozycji_i_cudza_pozycja_nietykalna"
+ZAKUPY_POTWIERDZENIE_TEST = "test_pojedyncze_usuniecie_recznej_i_skopiowanej_pozycji_wymaga_otwarcia_pytania"
 ZAKUPY_WYMAZANIE_TEST = "test_wymazanie_konta_kasuje_liste_tylko_tej_osoby"
 ZAKUPY_ROLLBACK_TEST = "test_cofniecie_migracji_odmawia_przy_listach_ludzi_i_przechodzi_na_pustej"
 PUSH_JOB = "app/Jobs/WyslijPowiadomieniePush.php"
@@ -892,6 +894,21 @@ def replace_once(source, old, new):
     return source.replace(old, new, 1)
 
 
+def zakupy_usun_bez_pytania(source):
+    """#2466: przywróć bezpośredni formularz DELETE sprzed potwierdzenia."""
+    poczatek = '        <details class="confirm planer-usuwanie">'
+    koniec = '        </details>'
+    if source.count(poczatek) != 1 or source.count(koniec) != 1:
+        raise RuntimeError("Kontrola nie znalazła dokładnie jednego pytania o usunięcie zakupów.")
+    od = source.index(poczatek)
+    do = source.index(koniec, od) + len(koniec)
+    dawny_formularz = '''        <form method="POST" action="{{ route('shopping.destroy', $pozycja) }}">
+            @csrf @method('DELETE')
+            <button class="btn btn-secondary" type="submit">Usuń<span class="visually-hidden">: {{ $pozycja->text }}</span></button>
+        </form>'''
+    return source[:od] + dawny_formularz + source[do:]
+
+
 def remove_notice(source):
     start = source.index("@if($collectionError)")
     end = source.index("@endif", start) + len("@endif")
@@ -1268,6 +1285,32 @@ def pierwsze_z_wielu(source, old, new, ile):
     return source.replace(old, new, 1)
 
 
+def spizarnia_bez_potwierdzenia(source):
+    start = source.index('            <details class="confirm group mt-3 w-full min-w-0" data-potwierdzenie-spizarni>')
+    end = source.index('            </details>', start) + len('            </details>')
+    return source[:start] + '''            <form method="POST" action="{{ route('pantry.destroy', $produkt) }}">
+                @csrf
+                @method('DELETE')
+                <button class="btn btn-secondary" type="submit">Usuń</button>
+            </form>''' + source[end:]
+
+
+def planer_bez_potwierdzenia(source):
+    """Przywróć bezpośredni formularz DELETE sprzed #2468."""
+    poczatek = '                                <details class="confirm planer-potwierdzenie">'
+    koniec = '                                </details>'
+    if source.count(poczatek) != 1 or source.count(koniec) != 1:
+        raise RuntimeError('Nie znaleziono dokładnie jednego potwierdzenia Planera.')
+    od = source.index(poczatek)
+    do = source.index(koniec, od) + len(koniec)
+    dawny = '''                                <form method="POST" action="{{ route('planer.destroy', $wpis) }}">
+                                    @csrf @method('DELETE')
+                                    <button class="btn btn-secondary" type="submit">Usuń z planu<span class="visually-hidden">: {{ $nazwa }}</span></button>
+                                </form>'''
+
+    return source[:od] + dawny + source[do:]
+
+
 checks = [
     ("Robots: zakodowane litery omijają zakaz (#2569)", "app/Domain/Import/Url/RobotsTxt.php",
      "test_zakodowane_unreserved_i_utf8_nie_omijaja_zakazu",
@@ -1278,6 +1321,40 @@ checks = [
     ("Robots: długość kodowania wygrywa nad oktetami (#2569)", "app/Domain/Import/Url/RobotsTxt.php",
      "test_normalizacja_nie_zmienia_grup_query_wildcardow_i_remisu",
      lambda s: replace_once(s, "strlen((string) preg_replace('/%[0-9A-F]{2}/', 'x', $wzorzec))", "strlen($wzorzec)")),
+    ("Spiżarnia usuwa bez pytania (#2467)", "resources/views/pages/pantry/_produkty.blade.php",
+     "test_pierwszy_klik_w_spizarni_rozwija_pytanie_zamiast_kasowac_produkt", spizarnia_bez_potwierdzenia),
+    ("Planer usuwa bez pytania (#2468)", "resources/views/pages/planer/show.blade.php",
+     "test_usuniecie_z_planera_wymaga_potwierdzenia_przy_wlasciwym_dniu_i_pozycji",
+     planer_bez_potwierdzenia),
+    # #2502: dawne odmierzenie nie może potwierdzić nowej liczby porcji.
+    ("Zmiana porcji zachowuje stare odmierzenie (#2502)", "app/Domain/Recipes/Gotowanie/PostepGotowania.php", "test_zmiana_porcji_na_koncie_wymaga_ponownego_odmierzenia_a_krok_i_ta_sama_ilosc_nie",
+     lambda s: replace_once(s, "'prepared_ingredient_ids' => [], 'servings_revision' => $wiersz->servings_revision + 1", "'prepared_ingredient_ids' => $wiersz->prepared_ingredient_ids, 'servings_revision' => $wiersz->servings_revision + 1")),
+    ("Stary formularz przywraca porcje z innego urządzenia (#2502)", "app/Domain/Recipes/Gotowanie/PostepGotowania.php", "test_stary_formularz_po_zmianie_porcji_na_drugim_urzadzeniu_nie_przywraca_odmierzenia",
+     lambda s: replace_once(s, "if ($wiersz->getKey() !== $widzianyPostepId || $this->porcje($wiersz) !== $porcjeZKontaNaStronie || $wiersz->servings_revision !== $widzianaRewizjaPorcji) {", "if (false) {")),
+    ("Powrót porcji ABA przywraca stare odmierzenie (#2502)", "app/Domain/Recipes/Gotowanie/PostepGotowania.php", "test_stary_formularz_po_powrocie_do_tej_samej_liczby_porcji_nie_przywraca_odmierzenia",
+     lambda s: replace_once(s, "$wiersz->servings_revision !== $widzianaRewizjaPorcji", "false")),
+    ("Stary formularz po ponownym włączeniu postępu (#2502)", "app/Domain/Recipes/Gotowanie/PostepGotowania.php", "test_formularz_sprzed_wylaczenia_i_ponownego_wlaczenia_nie_potwierdza_dawnych_skladnikow",
+     lambda s: replace_once(s, "$wiersz->getKey() !== $widzianyPostepId", "false")),
+    ("Moje wpisy: stara strona udaje pusty dorobek (#2473)", "app/Http/Controllers/MojeWpisyController.php", "test_stara_druga_strona_po_usunieciu_wraca_do_istniejacych_wpisow",
+     lambda s: replace_once(s, "if ($wpisy->currentPage() > $wpisy->lastPage())", "if (false)")),
+    ("Moje wpisy: pusta porcja traci kontener (#2473)", "resources/views/pages/collections/moje-wpisy.blade.php", "test_pusta_lista_ma_prawdziwy_pusty_stan_i_kontener_bez_petli",
+     lambda s: replace_once(s, 'id="lista-moich-wpisow"', '''id="{{ $wpisy->isEmpty() ? 'brak-listy' : 'lista-moich-wpisow' }}"''')),
+    ("Odżywcze: grupowana masa traci tysiące (#2560)", "app/Domain/Recipes/Odzywcze/ParserSkladnika.php",
+     "GrupowanaMasaOdzywczaTest::test_kalkulator_liczy_cale_1500_g_zamiast_500_g",
+     lambda s: replace_once(s, "private const LICZBA = '(?:\\d{1,3}(?: \\d{3})+|\\d+)(?:[.,]\\d+)?';", "private const LICZBA = '\\d+(?:[.,]\\d+)?';")),
+    ("Odżywcze: błędna grupa jest częściową masą (#2560)", "app/Domain/Recipes/Odzywcze/ParserSkladnika.php",
+     "GrupowanaMasaOdzywczaTest::test_niepoprawna_grupa_odmawia_zamiast_liczyc_fragment_lub_miare_puszki",
+     lambda s: replace_once(s, "$niejednoznacznaIlosc = self::maBledneGrupowanie($t);", "$niejednoznacznaIlosc = false;")),
+    ("Odżywcze: błędna masa bierze miarę puszki (#2560)", "app/Domain/Recipes/Odzywcze/KalkulatorWartosci.php",
+     "GrupowanaMasaOdzywczaTest::test_niepoprawna_grupa_odmawia_zamiast_liczyc_fragment_lub_miare_puszki",
+     lambda s: replace_once(s, "if ($odczyt->sprzecznaMasaWNawiasie || $odczyt->niejednoznacznaIlosc) {", "if ($odczyt->sprzecznaMasaWNawiasie) {")),
+    ("Odżywcze: masa razem mnożona przez puszki (#2487)", "app/Domain/Recipes/Odzywcze/ParserSkladnika.php",
+     "test_jawnie_laczna_masa_nie_jest_mnozona_przez_liczbe_opakowan",
+     lambda s: replace_once(s, "! $nawiasRazem && ", "")),
+    ("Odżywcze: sprzeczna masa wpada w domyślną miarę (#2487)", "app/Domain/Recipes/Odzywcze/KalkulatorWartosci.php",
+     "MasaLacznaWNawiasieTest::test_kalkulator_uzywa_lacznej_masy_raz_i_odmawia_przy_sprzecznym_nawiasie",
+     lambda s: replace_once(s, "if ($odczyt->sprzecznaMasaWNawiasie || $odczyt->niejednoznacznaIlosc) {",
+                            "if ($odczyt->niejednoznacznaIlosc) {")),
     # #2524: przeliczony składnik i nieprzeliczona kwota autora to sprzeczna strona.
     ("Koszt autora pozostaje bazowy po zmianie porcji (#2524)", "resources/views/pages/recipes/show.blade.php", "test_koszt_autora_i_skladniki_uzywaja_tego_samego_wyboru_porcji_takze_w_wydruku",
      lambda s: replace_once(s, "{{ $kosztAutora }}</p>", "{{ $recipe->costLabel() }}</p>")),
@@ -1910,6 +1987,17 @@ checks = [
     # ma wywrócić architektoniczny test „import nigdy nie publikuje”.
     ("Odczyt kartki publikuje przepis", "app/Jobs/OdczytajPrzepis.php", "test_import_nigdy_nie_publikuje_sprawdzone_w_kodzie",
      lambda s: replace_once(s, "publish: false,", "publish: true,")),
+    # #2520: osobne okna przed płatnym żądaniem, po odpowiedzi modelu pod
+    # blokadą szkicu oraz przy ponawianiu. Każde mierzy prawdziwy zapis autora.
+    ("OCR ignoruje ręczną edycję przed modelem (#2520)", "app/Jobs/OdczytajPrzepis.php",
+     "test_reczna_zmiana_samego_pola_przed_startem_ocr_nie_jest_nadpisywana_ani_wysylana_do_modelu",
+     lambda s: replace_once(s, "        if (! $this->szkicNietkniety($szkic)) {", "        if (false) {")),
+    ("OCR nadpisuje ręczną edycję po odpowiedzi (#2520)", "app/Jobs/OdczytajPrzepis.php",
+     "test_reczna_zmiana_podczas_odczytu_modelu_wygrywa_z_jego_pozniejsza_odpowiedzia",
+     lambda s: replace_once(s, "            if (! $this->szkicNietkniety($swiezy)) {", "            if (false) {")),
+    ("OCR ponawia odczyt zmienionego szkicu (#2520)", "app/Domain/Import/ZlecImportPrzepisu.php",
+     "test_ponowienie_po_samej_recznej_zmianie_pola_nie_rezerwuje_nowego_odczytu",
+     lambda s: replace_once(s, " || $szkic->content_revision !== 0 ||", " ||")),
     # #28: import z adresu chodzi w zadaniu — także ono podlega zakazowi publikacji.
     ("Import z adresu publikuje przepis", "app/Jobs/ImportujPrzepisZAdresu.php", "test_import_nigdy_nie_publikuje_sprawdzone_w_kodzie",
      lambda s: replace_once(s, "use Throwable;\n", "use Throwable;\n\n// publish: true\n")),
@@ -1980,6 +2068,8 @@ checks = [
     # Cudzą pozycję da się usunąć znając jej UUID.
     ("Lista zakupów: usunięcie pozycji bez Policy", ZAKUPY_KONTROLER, ZAKUPY_POLICY_TEST,
      lambda s: replace_once(s, "        $this->authorize('delete', $pozycja);\n", "")),
+    ("Lista zakupów: pojedyncze usunięcie bez pytania (#2466)", ZAKUPY_POZYCJA, ZAKUPY_POTWIERDZENIE_TEST,
+     zakupy_usun_bez_pytania),
     # Wymazanie konta zostawia prywatną listę zakupów w bazie.
     ("Wymazanie konta nie kasuje listy zakupów", WYMAZANIE_KONTA, ZAKUPY_WYMAZANIE_TEST,
      lambda s: replace_once(s, "            $fresh->shoppingListItems()->delete();\n", "")),

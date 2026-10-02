@@ -317,6 +317,15 @@ try {
             User::query()->whereKey($argumenty['konto'])->firstOrFail(),
         ),
 
+        // #2551: wniosek i prawdziwe wymazanie między pobraniem starego
+        // tygodnia a próbą jego skopiowania na drugim połączeniu.
+        'wymaz-plan-2551' => (function () use ($argumenty): bool {
+            $konto = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+            $konto->markForDeletion(User::DELETE_SCOPE_EVERYTHING);
+
+            return app(EraseAccountData::class)->handle($konto);
+        })(),
+
         // Kandydat egzekutora wczytany PRZED lockiem (#2023). Bariera
         // pozwala w tym czasie zatwierdzić nowy wniosek na tym samym koncie.
         'kasowanie-wygaslego-wniosku' => (function () use ($argumenty): bool {
@@ -583,6 +592,10 @@ try {
                 [$argumenty['skladnik']],
                 [],
                 (array) json_decode($argumenty['skladniki'], true),
+                null, // fixture Dwa używa porcji z przepisu
+                null, // i w obu urządzeniach widziała ten sam kontekst
+                $postep->servings_revision,
+                $postep->getKey(),
             );
 
             return $po === null ? -1 : $po->revision;

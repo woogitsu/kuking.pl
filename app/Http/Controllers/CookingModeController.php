@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Moderation\DziennikWgladu;
 use App\Domain\Recipes\Gotowanie\JakWyszlo;
+use App\Domain\Recipes\Gotowanie\NieaktualnePorcjeSkladnikow;
 use App\Domain\Recipes\Gotowanie\PostepGotowania;
 use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Models\CookingProgress;
@@ -144,6 +145,9 @@ class CookingModeController extends Controller
         $zKonta = $postepKonta !== null && ! $request->query->has('porcje') ? $this->postep->porcje($postepKonta) : null;
         $wyborPorcji = WyborPorcji::dla($model, $zKonta ?? $request->query('porcje'));
         $parametrPorcji = $wyborPorcji->przeliczone() ? $wyborPorcji->doAdresu((float) $wyborPorcji->wybrane) : null;
+        $porcjeKonta = $postepKonta !== null ? $this->postep->porcje($postepKonta) : null;
+        $innePorcjeNizNaKoncie = $postepKonta !== null
+            && $wyborPorcji->wybrane !== WyborPorcji::dla($model, $porcjeKonta)->wybrane;
         $steps = $model->steps;
 
         if ($steps->isEmpty()) {
@@ -175,9 +179,13 @@ class CookingModeController extends Controller
                 'wlaczona' => $postepKonta !== null,
                 'mozna_wlaczyc' => $postepKonta === null && $osoba !== null && $osoba->can('create', CookingProgress::class),
                 'rewizja' => $postepKonta?->revision,
+                'rewizja_porcji' => $postepKonta?->servings_revision,
+                'id_postepu' => $postepKonta?->getKey(),
                 'wygasa' => $postepKonta?->expires_at,
                 'godziny' => (int) config('kuking.cooking_progress.retention_hours', 24),
-                'przygotowane' => $postepKonta !== null
+                'porcje_z_konta' => $porcjeKonta,
+                'inne_porcje' => $innePorcjeNizNaKoncie,
+                'przygotowane' => $postepKonta !== null && ! $innePorcjeNizNaKoncie
                     ? $this->postep->przygotowane($postepKonta, $model->ingredients->pluck('id')->map(fn ($id): string => (string) $id)->all())
                     : [],
             ],
@@ -400,26 +408,56 @@ class CookingModeController extends Controller
             'bylo' => ['nullable', 'array', 'max:300'],
             'bylo.*' => ['string', 'max:64'],
             'rewizja' => ['nullable', 'integer', 'min:1'],
+            'rewizja_porcji' => ['nullable', 'integer', 'min:1'],
+            'id_postepu' => ['nullable', 'uuid'],
         ]);
+
+        // Stare formularze nie mają kontekstu ilości: nie wolno im
+        // potwierdzać składników przy nieznanej liczbie porcji.
+        $kontekst = $request->input('kontekst_porcji');
+        $kontekstKonta = $request->input('porcje_z_konta');
+        if (! isset($data['rewizja_porcji'], $data['id_postepu']) || ! is_string($kontekst) || ! is_string($kontekstKonta)
+            || ! $this->poprawnyKontekstPorcji($model, $kontekst)
+            || ! $this->poprawnyKontekstPorcji($model, $kontekstKonta)) {
+            return $this->wrocDoGotowania($request, $model)
+                ->with(Komunikat::blad('Nie udało się sprawdzić liczby porcji. Otwórz gotowanie ponownie i zaznacz przygotowane składniki przy widocznych ilościach.'));
+        }
+
+        $porcjeNaStronie = $this->porcjeZeZnacznika($model, $kontekst);
+        $porcjeZKontaNaStronie = $this->porcjeZeZnacznika($model, $kontekstKonta);
 
         $zaznaczone = array_values(array_unique($data['zaznaczone'] ?? []));
         $bylo = array_values(array_unique($data['bylo'] ?? []));
         $widzianaRewizja = isset($data['rewizja']) ? (int) $data['rewizja'] : null;
         $rozbieznaRewizja = $widzianaRewizja !== null && $widzianaRewizja !== $postepKonta->revision;
 
-        $po = $this->postep->ustawSkladniki(
-            $postepKonta,
-            array_values(array_diff($zaznaczone, $bylo)),
-            array_values(array_diff($bylo, $zaznaczone)),
-            $model->ingredients()->pluck('id')->map(fn ($id): string => (string) $id)->all(),
-        );
+        try {
+            $po = $this->postep->ustawSkladniki(
+                $postepKonta,
+                array_values(array_diff($zaznaczone, $bylo)),
+                array_values(array_diff($bylo, $zaznaczone)),
+                $model->ingredients()->pluck('id')->map(fn ($id): string => (string) $id)->all(),
+                $porcjeNaStronie,
+                $porcjeZKontaNaStronie,
+                (int) $data['rewizja_porcji'],
+                (string) $data['id_postepu'],
+            );
+        } catch (NieaktualnePorcjeSkladnikow) {
+            return redirect()->route('cooking.show', ['recipe' => $model->slug])
+                ->with('skladniki_otwarte', true)
+                ->with(Komunikat::blad('Liczba porcji zmieniła się na innym urządzeniu. Sprawdź widoczne ilości i zaznacz przygotowane składniki ponownie.'));
+        }
 
         if ($po === null) {
             return $this->wrocDoGotowania($request, $model)
                 ->with(Komunikat::blad('Zapamiętywanie postępu na koncie wygasło, więc zaznaczenie składników nie zostało zapisane. Włącz zapamiętywanie jeszcze raz.'));
         }
 
-        return $this->wrocDoGotowania($request, $model)
+        return redirect()->route('cooking.show', array_filter([
+            'recipe' => $model->slug,
+            'krok' => $this->wyczyscKrok($request->input('krok'), max(1, $model->steps()->count())),
+            'porcje' => $porcjeNaStronie === null ? null : WyborPorcji::dla($model, $porcjeNaStronie)->doAdresu($porcjeNaStronie),
+        ], fn ($wartosc) => $wartosc !== null))
             ->with('skladniki_otwarte', true)
             ->with($rozbieznaRewizja
                 ? Komunikat::informacja('Składniki tego przepisu zmieniły się na innym urządzeniu. Widzisz teraz ich aktualny stan, a Twoje zaznaczenie zostało dołączone.')
@@ -462,6 +500,8 @@ class CookingModeController extends Controller
             $porcje = $wybor->przeliczone() ? (float) $wybor->wybrane : null;
         }
 
+        $bylyPrzygotowane = $postepKonta->prepared_ingredient_ids !== [];
+        $poprzedniePorcje = $this->postep->porcje($postepKonta);
         $po = $this->postep->ustawPorcje($postepKonta, $porcje);
 
         if ($po === null) {
@@ -470,11 +510,15 @@ class CookingModeController extends Controller
         }
 
         // Adres NIE niesie starej liczby porcji — obowiązuje ta z konta.
-        return redirect()->route('cooking.show', array_filter([
+        $przekierowanie = redirect()->route('cooking.show', array_filter([
             'recipe' => $model->slug,
             'krok' => $this->wyczyscKrok($request->input('krok'), max(1, $model->steps()->count())),
             'porcje' => $porcje === null ? null : WyborPorcji::dla($model, $porcje)->doAdresu($porcje),
         ], fn ($wartosc) => $wartosc !== null));
+
+        return $bylyPrzygotowane && $poprzedniePorcje !== $porcje
+            ? $przekierowanie->with(Komunikat::informacja('Liczba porcji się zmieniła. Sprawdź nowe ilości i zaznacz przygotowane składniki ponownie. Odhaczenia kroków pozostały bez zmian.'))
+            : $przekierowanie;
     }
 
     /**
@@ -501,6 +545,22 @@ class CookingModeController extends Controller
         $wybor = WyborPorcji::dla($recipe, $surowe);
 
         return $wybor->przeliczone() ? (float) $wybor->wybrane : null;
+    }
+
+    private function poprawnyKontekstPorcji(Recipe $recipe, string $surowe): bool
+    {
+        if ($surowe === 'przepis') {
+            return true;
+        }
+
+        $wybor = WyborPorcji::dla($recipe, $surowe);
+
+        return $wybor->dostepny() && ! $wybor->odrzucone;
+    }
+
+    private function porcjeZeZnacznika(Recipe $recipe, string $surowe): ?float
+    {
+        return $surowe === 'przepis' ? null : $this->porcjeDoZapisu($recipe, $surowe);
     }
 
     /**
