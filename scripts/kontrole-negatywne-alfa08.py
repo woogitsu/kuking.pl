@@ -1312,6 +1312,11 @@ def planer_bez_potwierdzenia(source):
 
 
 checks = [
+    ("Spiżarnia: sól z 'bez soli' udaje masło (#2613)", "app/Domain/Pantry/CoUgotuje.php",
+     "CoUgotujeNegacjaSkladnikaTest::test_sol_nie_ukrywa_braku_masla_ani_nie_uruchamia_trybu_pilnego",
+     lambda s: replace_once(s,
+         "WHEN public.kuking_normalize(ri.ingredient_text) ~ '(^|[^a-z])bez[[:space:]]+'",
+         "WHEN false")),
     ("Spiżarnia usuwa bez pytania (#2467)", "resources/views/pages/pantry/_produkty.blade.php",
      "test_pierwszy_klik_w_spizarni_rozwija_pytanie_zamiast_kasowac_produkt", spizarnia_bez_potwierdzenia),
     ("Planer usuwa bez pytania (#2468)", "resources/views/pages/planer/show.blade.php",
