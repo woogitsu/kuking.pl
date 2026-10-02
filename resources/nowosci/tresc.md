@@ -32,6 +32,17 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Dzień gotowania przy „Ugotowałem”
+
+Gotowaliście w niedzielę, a zdjęcie i kilka słów dodajecie dopiero we wtorek?
+W formularzu „Ugotowałem” jest teraz nieobowiązkowe pole „Dzień gotowania
+(tylko dla Ciebie)”. Zostawcie je puste, jeśli gotowanie było dziś — nic więcej
+nie trzeba robić. Gdy wybierzecie wcześniejszy dzień, zobaczycie go przy
+własnym wykonaniu jako „Gotowane”, obok daty dodania. Widzicie go tylko Wy:
+inni, także autor przepisu, dalej widzą dzień, w którym wykonanie dodano,
+a kolejność wpisów i powiadomienie dla autora przepisu zostają takie jak
+dotąd. Nie można wybrać dnia z przyszłości.
+
 ### Szukaj w moich planach
 
 W Planerze jest teraz pole „Szukaj w moich planach”. Pamiętacie, że w planie

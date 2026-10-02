@@ -19,6 +19,15 @@
                 ugotowane
                 <time datetime="{{ $event->cooked_at->toIso8601String() }}">{{ \App\Support\Czas::data($event->cooked_at, 'j F Y') }}</time>
             </p>
+            {{-- Prywatny dzień gotowania (#2583): tylko kucharz. Inni, w tym
+                 autor przepisu, widzą wyłącznie datę dodania powyżej. --}}
+            @if($event->dzien_gotowania !== null && auth()->id() === $event->user_id)
+                <p class="meta m-0">
+                    Gotowane (widzisz tylko Ty):
+                    <time datetime="{{ $event->dzien_gotowania->format('Y-m-d') }}">{{ $event->dzien_gotowania->translatedFormat('j F Y') }}</time>.
+                    Dodano: {{ \App\Support\Czas::data($event->cooked_at, 'j F Y') }}.
+                </p>
+            @endif
         </div>
     </div>
 

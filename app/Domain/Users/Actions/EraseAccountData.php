@@ -295,6 +295,17 @@ final class EraseAccountData
             $fresh->shoppingListItems()->delete();
 
             /*
+             * PRYWATNY DZIEŃ GOTOWANIA ZNIKA RAZEM Z KONTEM (#2583).
+             *
+             * Wykonanie przy zakresie `minimum` zostaje (D-022), ale dzień,
+             * który kucharz podał tylko dla siebie, nigdy nie był pokazany
+             * nikomu innemu — więc nie ma po co go zostawiać przy zanonimizowanym
+             * koncie. Przy `everything` wykonania poszły już wyżej. Wiersze
+             * kluczem `user_id`, bez wspólnych wierszy między egzekucjami.
+             */
+            $fresh->cookedEvents()->whereNotNull('dzien_gotowania')->update(['dzien_gotowania' => null]);
+
+            /*
              * „CO MAM W DOMU” ZNIKA RAZEM Z KONTEM (D-285).
              *
              * Lista produktów z kuchni to dana prywatna, której nikt poza
