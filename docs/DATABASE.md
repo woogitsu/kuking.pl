@@ -6511,6 +6511,18 @@ pytania. Odmowa i kontrola dodatnia:
 niepotrzebne. **Paczka RODO** wydaje je w sekcji `planer`
 (`InwentarzDanychKonta`).
 
+Kopia tygodnia i zwykłe dopisanie sprawdzają świeży, aktywny stan konta pod
+blokadą jego wiersza `users`. Kopia czyta źródłowe pozycje dopiero pod tą
+blokadą. Dzięki temu równoległe wymazanie nie może zatwierdzić usunięcia
+planu między odczytem a ponownym zapisem prywatnej notatki (#2551).
+Zawieszenie nadal pozwala na odczyt planu, ale nie na jego zapis.
+Test przeplotu z prawdziwym `EraseAccountData`:
+`tests/Dwa/KopiaPlanuPoWymazaniuKontaTest.php`; kontrola ujemna w CI:
+`scripts/kontrola-negatywna-2551.py`.
+Wycofanie samego kodu przywróciłoby możliwość odtworzenia planu po wymazaniu;
+bezpieczny rollback wymaga zachowania równoważnej blokady i świeżej kontroli
+stanu konta. Schemat bazy w #2551 pozostaje bez zmian.
+
 ### shopping_list_items
 
 Lista zakupów (#27, etap 2; decyzja właściciela z 29.09.2026, **D-333** —

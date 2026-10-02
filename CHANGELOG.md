@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2551): skopiowanie poprzedniego tygodnia nie przywraca prywatnych notatek planu po równoległym wymazaniu konta. Zapis planu sprawdza świeży stan konta; zawieszone konto nadal może plan czytać, ale nie dopisywać.
 - Naprawione (#2476, #2478, #2479): osobista paczka danych zachowuje sam rok rodzinny w HTML, odróżnia przepis ukryty od szkicu i zapisuje jawny wybór „Bez ilości” w bieżących składnikach JSON.
 - Wewnętrzne (pomiar dostępności): lokalne dane wspomnienia obejmują także następny dzień, żeby audyt przechodzący przez północ w Polsce nadal oglądał właściwy, niepusty ekran. Zasada pokazywania wspomnień w serwisie pozostaje taka sama.
 
