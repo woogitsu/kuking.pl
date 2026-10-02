@@ -132,6 +132,11 @@ class JakDobieramyWpisyMowiPrawdeTest extends TestCase
         'szukaj.osoby' => [
             'kod: app/Domain/Search/SearchQuery.php :: similarity(profiles.display_name_search, ?) DESC',
         ],
+        'szukaj.obserwowani' => [
+            'test: Tests\Feature\SzukajOdObserwowanychTest::test_filtr_zaweza_do_obserwowanych_autorow_i_zachowuje_pozostale_filtry',
+            'test: Tests\Feature\SzukajOdObserwowanychTest::test_kierunek_relacji_obserwowanie_widza_przez_autora_nie_wystarcza',
+            "kod: app/Domain/Search/SearchQuery.php :: ->select('follows.followed_id')",
+        ],
         'list.zgoda' => [
             'test: Tests\Feature\ZgodaNaPrzegladNieJestDomyslnaTest::test_nowe_konto_z_rejestracji_nie_ma_zgody_na_przeglad',
             "kod: app/Domain/Digest/OdbiorcyDigestu.php :: ->where('wants_weekly_digest', true)",
