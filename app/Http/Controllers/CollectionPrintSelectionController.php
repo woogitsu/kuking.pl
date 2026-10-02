@@ -30,7 +30,7 @@ class CollectionPrintSelectionController extends Controller
     public const MAKS_NA_LISCIE = 500;
 
     /** Opcje wydruku, które wybór ma przenieść dalej bez zmian. */
-    private const OPCJE = ['bez-zdjec', 'bez-notatek'];
+    private const OPCJE = ['bez-zdjec', 'z-notatkami'];
 
     public function __construct(
         private readonly WidocznaZawartoscZeszytu $zawartosc = new WidocznaZawartoscZeszytu,

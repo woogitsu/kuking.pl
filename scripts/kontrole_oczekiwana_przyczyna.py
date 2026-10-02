@@ -403,6 +403,7 @@ OCZEKUJ = {
     'Odłożenie szkicu: rollback nie odmawia przy odłożonych (#2550)': r'Rollback skasował oznaczenia ludzi bez pytania\.',
     'Poprawka zakupów: rollback nie odmawia przy poprawionych pozycjach (#2443)': r'Rollback skasował informację o poprawkach bez pytania\.',
     'Poprawka zakupów: stara karta nadpisuje nowszą korektę (#2443)': r'Stara karta nie może nadpisać nowszej korekty\.',
+    'Wydruk zeszytu znowu domyślnie z notatkami (#2438)': r'Domyślny wydruk zeszytu pokazał prywatną notatkę\.',
     'Rollback listy zakupów nie odmawia przy danych': r'Rollback skasował listy zakupów ludzi bez pytania\.',
     'Limit push nie liczy rezerwacji w transporcie': r'Drugi worker przekroczył limit 1\.',
     'Recover alarmu pomija potwierdzona odmowe': r'Failed asserting that true is false\.',

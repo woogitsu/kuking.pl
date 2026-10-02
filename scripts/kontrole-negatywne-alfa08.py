@@ -2347,6 +2347,11 @@ checks = [
      lambda s: replace_once(s, "        if ($poprawione > 0) {", "        if (false) {")),
     ("Poprawka zakupów: stara karta nadpisuje nowszą korektę (#2443)", ZAKUPY_LISTA, "ListaZakupowPoprawkaTest",
      lambda s: replace_once(s, "if (! hash_equals(self::znacznikTekstu($pozycja), $widzianyZnacznik)) {", "if (false) {")),
+    # #2438 (decyzja właściciela z 2.10.2026, D-333): wydruk zeszytu jest
+    # DOMYŚLNIE bez notatek; powrót do „notatki, chyba że bez-notatek” musi
+    # wywrócić test domyślnego wydruku.
+    ("Wydruk zeszytu znowu domyślnie z notatkami (#2438)", "app/Http/Controllers/CollectionPrintController.php", "WydrukZeszytuBezNotatekTest",
+     lambda s: replace_once(s, "$zNotatkami = $dostepDoNotatek && $request->boolean('z-notatkami');", "$zNotatkami = $dostepDoNotatek && ! $request->boolean('bez-notatek');")),
     # #2038: wpis dziennika dopisany PRZED nieudanym commitem wymazania musi
     # zostać wycofany — inaczej `wymaz-ponownie` wymaże konto przed końcem karencji.
     ("Wymazanie nie wycofuje wpisu dziennika po nieudanym commicie", WYMAZANIE_KONTA, DZIENNIK_WYCOFANIE_TEST,

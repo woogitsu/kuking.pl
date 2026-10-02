@@ -218,6 +218,28 @@ class WydrukWybranychPrzepisowTest extends TestCase
         $this->assertStringContainsString('Arbuz', $html);
     }
 
+    public function test_wybor_przepisow_przenosi_jawne_z_notatkami_w_obie_strony(): void
+    {
+        // Domyślnie bez notatek (#2438, D-333): ekran wyboru nie dokleja
+        // `z-notatkami`, dopóki ktoś go jawnie nie wybrał.
+        $domyslny = $this->actingAs($this->halina)->get(route('collections.print.select', $this->zeszyt))->assertOk()->getContent();
+        $this->assertIsString($domyslny);
+        $this->assertStringNotContainsString('name="z-notatkami"', $domyslny);
+
+        $zNotatkami = $this->actingAs($this->halina)
+            ->get(route('collections.print.select', ['collection' => $this->zeszyt, 'z-notatkami' => 1]))
+            ->assertOk()->getContent();
+        $this->assertIsString($zNotatkami);
+        $this->assertStringContainsString('name="z-notatkami" value="1"', $zNotatkami);
+
+        // Z wydruku wybranych: „Wybierz przepisy” i „Wydrukuj zeszyt” niosą wybór notatek.
+        $html = $this->druk($this->halina, $this->wybor([$this->przepisy[0]], ['z-notatkami' => 1]))->assertOk()->getContent();
+        $this->assertIsString($html);
+        $this->assertMatchesRegularExpression('/href="(?=[^"]*z-notatkami=1)(?=[^"]*przepisy%5B0%5D)[^"]*"[^>]*>Wybierz przepisy<\/a>/', $html);
+        $this->assertMatchesRegularExpression('/href="(?=[^"]*z-notatkami=1)(?=[^"]*tryb=wybrane)(?=[^"]*druk=1)[^"]*"[^>]*>Wydrukuj zeszyt<\/a>/', $html);
+        $this->assertMatchesRegularExpression('/href="(?![^"]*z-notatkami)(?=[^"]*tryb=wybrane)[^"]*"[^>]*>Bez notatek<\/a>/', $html);
+    }
+
     public function test_ekran_wyboru_nie_ujawnia_niedostepnych_przepisow_i_ma_stala_liczbe_zapytan(): void
     {
         $this->przepis('Ukryty gulasz', null, $this->user('autor2463'), ['status' => 'hidden']);

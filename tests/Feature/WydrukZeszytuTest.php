@@ -89,7 +89,8 @@ class WydrukZeszytuTest extends TestCase
             'source_type' => Recipe::SOURCE_FAMILY, 'source_person' => 'od babci Zosi', 'source_note' => 'Robiła go co Wielkanoc.', 'family_since_year' => 1974,
         ], 'Dodać więcej majeranku');
 
-        $this->druk($this->halina)
+        // Notatki z zeszytu na wydruku tylko na jawne życzenie (#2438, D-333).
+        $this->druk($this->halina, null, ['z-notatkami' => 1])
             ->assertOk()
             ->assertSeeInOrder(['Książka babci', 'Przepisy na każdą niedzielę.', 'Spis treści', 'Żurek wielkanocny', 'Przepis 1 z 1'])
             ->assertSee('Zeszyt osoby Halina')
@@ -161,10 +162,15 @@ class WydrukZeszytuTest extends TestCase
         $this->przepis($this->halina, 'Kotlet', null, [], 'Notatka tylko dla domowników');
         $this->zeszyt->members()->attach($this->jurek->getKey(), ['created_at' => now()]);
 
-        $this->druk($this->jurek)
+        $this->druk($this->jurek, null, ['z-notatkami' => 1])
             ->assertOk()
             ->assertSee('Kotlet')
             ->assertSee('Notatka tylko dla domowników');
+        // Domyślnie bez notatek także dla współpracownika (D-333).
+        $this->druk($this->jurek)
+            ->assertOk()
+            ->assertSee('Kotlet')
+            ->assertDontSee('Notatka tylko dla domowników');
 
         $this->zeszyt->members()->detach($this->jurek->getKey());
 

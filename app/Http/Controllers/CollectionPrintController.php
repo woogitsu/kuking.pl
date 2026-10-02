@@ -44,11 +44,12 @@ use Illuminate\View\View;
  * alfabetycznie. W zeszycie, którego nikt nie układał, nic się nie zmienia.
  * Dotyczy to wszystkich oglądających wydruk, bo układ jest częścią zeszytu.
  *
- * NOTATKI Z ZESZYTU (#2438): osoba z dostępem wybiera „Z notatkami”
- * (domyślnie, jak dotąd) albo „Bez notatek” — kopia do przekazania rodzinie
- * bez prywatnych dopisków. Wybór niczego nie zmienia w bazie i nie zależy od
- * zdjęć. Pominięcie dotyczy wyłącznie `collection_items.note`, nie uwag
- * autora przepisu.
+ * NOTATKI Z ZESZYTU (#2438): DOMYŚLNIE WYDRUK JEST BEZ NOTATEK (decyzja
+ * właściciela z 2.10.2026, D-333) — kopia trafia zwykle do rodziny, a dopisek
+ * bywa prywatny. Osoba z dostępem dołącza notatki jednym kliknięciem „Z
+ * notatkami” (jawny parametr `z-notatkami=1`). Wybór niczego nie zmienia
+ * w bazie i nie zależy od zdjęć. Pominięcie dotyczy wyłącznie
+ * `collection_items.note`, nie uwag autora przepisu.
  *
  * LIMIT: zeszyt nie ma górnej granicy liczby przepisów, a strona idzie
  * jednym żądaniem. Pierwsze `kuking.collections.print_max_recipes` pozycji;
@@ -111,12 +112,14 @@ class CollectionPrintController extends Controller
             && ($widz->getKey() === $collection->owner_id || Gate::forUser($widz)->allows('removeItem', $collection));
 
         // Wybór „Z notatkami / Bez notatek” (#2438) jest niezależny od zdjęć.
-        // Parametr `bez-notatek` może tylko ZAWĘZIĆ wydruk: prawa do notatek
-        // nie przyznaje nigdy (`$dostepDoNotatek` rozstrzyga o tym wyłącznie
-        // Policy). Przy „bez” notatka nie trafia do zmiennych widoku, więc nie
-        // ma jej ani w HTML, ani w ukrytych elementach; samo ukrycie CSS-em
-        // by nie wystarczyło.
-        $zNotatkami = $dostepDoNotatek && ! $request->boolean('bez-notatek');
+        // Domyślnie BEZ notatek (decyzja właściciela z 2.10.2026, D-333);
+        // notatki dołącza wyłącznie jawny parametr `z-notatkami=1`, a i on
+        // prawa do notatek nie przyznaje nigdy (`$dostepDoNotatek` rozstrzyga
+        // o tym wyłącznie Policy). Przy „bez” notatka nie trafia do zmiennych
+        // widoku, więc nie ma jej ani w HTML, ani w ukrytych elementach; samo
+        // ukrycie CSS-em by nie wystarczyło. Stary adres z `bez-notatek=1`
+        // nadal daje wydruk bez notatek.
+        $zNotatkami = $dostepDoNotatek && $request->boolean('z-notatkami');
 
         return view('pages.collections.do-druku', [
             'collection' => $collection,

@@ -18,8 +18,9 @@ use Tests\TestCase;
  * „Z notatkami / Bez notatek” na wydruku zeszytu (issue #2438, decyzja
  * właściciela z 2.10.2026, D-333).
  *
- * Wybór jest niezależny od zdjęć i tylko ZAWĘŻA: parametr w adresie nie
- * przyznaje prawa do notatek. „Bez notatek” znaczy, że dopisek z zeszytu nie
+ * DOMYŚLNIE WYDRUK JEST BEZ NOTATEK (decyzja właściciela z 2.10.2026,
+ * D-333): notatki dołącza jawne „Z notatkami” (`z-notatkami=1`). Wybór jest
+ * niezależny od zdjęć, a parametr w adresie nie przyznaje prawa do notatek. „Bez notatek” znaczy, że dopisek z zeszytu nie
  * ma ani w HTML, ani w ukrytych elementach — samo ukrycie CSS-em nie
  * wystarcza. Baza, daty i notatki zostają nietknięte.
  */
@@ -57,23 +58,12 @@ class WydrukZeszytuBezNotatekTest extends TestCase
         return $zadanie->get(route('collections.print', ['collection' => $this->zeszyt] + $parametry));
     }
 
-    public function test_domyslnie_wydruk_ma_notatke_jak_dotad(): void
+    public function test_domyslnie_wydruk_jest_bez_notatek_a_uwagi_autora_zostaja(): void
     {
         $html = $this->druk($this->halina)->assertOk()->getContent();
 
         $this->assertIsString($html);
-        $this->assertStringContainsString(self::NOTATKA, $html);
-        $this->assertStringContainsString('Notatka z zeszytu', $html);
-        $this->assertStringContainsString('Ten wydruk będzie ze zdjęciami i z notatkami z Twojego zeszytu', $html);
-        $this->assertStringContainsString('>Bez notatek</a>', $html);
-    }
-
-    public function test_bez_notatek_dopisek_nie_trafia_do_html_ani_do_danych_ale_uwagi_autora_zostaja(): void
-    {
-        $html = $this->druk($this->halina, ['bez-notatek' => 1])->assertOk()->getContent();
-
-        $this->assertIsString($html);
-        $this->assertStringNotContainsString(self::NOTATKA, $html);
+        $this->assertStringNotContainsString(self::NOTATKA, $html, 'Domyślny wydruk zeszytu pokazał prywatną notatkę.');
         $this->assertStringNotContainsString('tajny dopisek', $html);
         $this->assertStringNotContainsString('Notatka z zeszytu', $html);
         // Uwagi autora, pochodzenie i treść przepisu zostają.
@@ -82,27 +72,52 @@ class WydrukZeszytuBezNotatekTest extends TestCase
         $this->assertStringContainsString('Twaróg', $html);
         $this->assertStringContainsString('Wymieszaj', $html);
         $this->assertStringContainsString('Ten wydruk będzie ze zdjęciami i bez notatek z zeszytu', $html);
+        $this->assertStringContainsString('Notatki z zeszytu są domyślnie pominięte', $html);
+        $this->assertStringContainsString('kliknij „Z notatkami” przed drukowaniem', $html);
+        $this->assertMatchesRegularExpression('/href="[^"]*z-notatkami=1[^"]*"[^>]*>Z notatkami<\/a>/', $html);
+    }
+
+    public function test_jawne_z_notatkami_dolacza_notatke_jednym_kliknieciem(): void
+    {
+        $html = $this->druk($this->halina, ['z-notatkami' => 1])->assertOk()->getContent();
+
+        $this->assertIsString($html);
+        $this->assertStringContainsString(self::NOTATKA, $html);
+        $this->assertStringContainsString('Notatka z zeszytu', $html);
+        $this->assertStringContainsString('Ten wydruk będzie ze zdjęciami i z notatkami z Twojego zeszytu', $html);
+        $this->assertStringContainsString('wybierz „Bez notatek” przed drukowaniem', $html);
+        // „Bez notatek” wraca do domyślnego adresu, bez parametru notatek.
+        $this->assertMatchesRegularExpression('/href="(?![^"]*z-notatkami)[^"]*"[^>]*>Bez notatek<\/a>/', $html);
+    }
+
+    public function test_stary_adres_bez_notatek_nadal_daje_wydruk_bez_notatek(): void
+    {
+        $html = $this->druk($this->halina, ['bez-notatek' => 1])->assertOk()->getContent();
+
+        $this->assertIsString($html);
+        $this->assertStringNotContainsString(self::NOTATKA, $html);
         $this->assertStringContainsString('>Z notatkami</a>', $html);
     }
 
     public function test_wybor_notatek_jest_niezalezny_od_zdjec_w_obu_kierunkach_i_w_przycisku_druku(): void
     {
-        $html = $this->druk($this->halina, ['bez-notatek' => 1, 'bez-zdjec' => 1])->assertOk()->getContent();
+        $html = $this->druk($this->halina, ['z-notatkami' => 1, 'bez-zdjec' => 1])->assertOk()->getContent();
 
         $this->assertIsString($html);
-        $this->assertStringContainsString('Ten wydruk będzie bez zdjęć i bez notatek z zeszytu', $html);
-        // „Ze zdjęciami” zachowuje brak notatek; „Z notatkami” zachowuje brak zdjęć.
-        $this->assertMatchesRegularExpression('/href="[^"]*bez-notatek=1[^"]*"[^>]*>Ze zdjęciami<\/a>/', $html);
+        $this->assertStringContainsString('Ten wydruk będzie bez zdjęć i z notatkami z Twojego zeszytu', $html);
+        // „Ze zdjęciami” zachowuje notatki; „Bez notatek” zachowuje brak zdjęć.
+        $this->assertMatchesRegularExpression('/href="[^"]*z-notatkami=1[^"]*"[^>]*>Ze zdjęciami<\/a>/', $html);
         $this->assertDoesNotMatchRegularExpression('/href="[^"]*bez-zdjec=1[^"]*"[^>]*>Ze zdjęciami<\/a>/', $html);
-        $this->assertMatchesRegularExpression('/href="[^"]*bez-zdjec=1[^"]*"[^>]*>Z notatkami<\/a>/', $html);
-        $this->assertDoesNotMatchRegularExpression('/href="[^"]*bez-notatek=1[^"]*"[^>]*>Z notatkami<\/a>/', $html);
+        $this->assertMatchesRegularExpression('/href="[^"]*bez-zdjec=1[^"]*"[^>]*>Bez notatek<\/a>/', $html);
+        $this->assertDoesNotMatchRegularExpression('/href="[^"]*z-notatkami=1[^"]*"[^>]*>Bez notatek<\/a>/', $html);
         // Przycisk drukowania niesie oba wybory.
-        $this->assertMatchesRegularExpression('/href="(?=[^"]*bez-notatek=1)(?=[^"]*bez-zdjec=1)(?=[^"]*druk=1)[^"]*"[^>]*>Wydrukuj zeszyt<\/a>/', $html);
+        $this->assertMatchesRegularExpression('/href="(?=[^"]*z-notatkami=1)(?=[^"]*bez-zdjec=1)(?=[^"]*druk=1)[^"]*"[^>]*>Wydrukuj zeszyt<\/a>/', $html);
 
-        // Przy zdjęciach przełączenie notatek zachowuje zdjęcia.
+        // Domyślnie (bez notatek, ze zdjęciami) „Z notatkami” nie zdejmuje zdjęć.
         $domyslny = $this->druk($this->halina)->getContent();
         $this->assertIsString($domyslny);
-        $this->assertDoesNotMatchRegularExpression('/href="[^"]*bez-zdjec=1[^"]*"[^>]*>Bez notatek<\/a>/', $domyslny);
+        $this->assertDoesNotMatchRegularExpression('/href="[^"]*bez-zdjec=1[^"]*"[^>]*>Z notatkami<\/a>/', $domyslny);
+        $this->assertDoesNotMatchRegularExpression('/href="[^"]*z-notatkami=1[^"]*"[^>]*>Wydrukuj zeszyt<\/a>/', $domyslny);
     }
 
     public function test_wybor_nie_zmienia_bazy_dat_ani_powiadomien(): void
@@ -110,7 +125,8 @@ class WydrukZeszytuBezNotatekTest extends TestCase
         $przed = DB::table('collection_items')->get()->toArray();
         $powiadomien = DB::table('notifications')->count();
 
-        $this->druk($this->halina, ['bez-notatek' => 1])->assertOk();
+        $this->druk($this->halina, ['z-notatkami' => 1])->assertOk();
+        $this->druk($this->halina)->assertOk();
 
         $this->assertEquals($przed, DB::table('collection_items')->get()->toArray());
         $this->assertSame($powiadomien, DB::table('notifications')->count());
@@ -122,11 +138,12 @@ class WydrukZeszytuBezNotatekTest extends TestCase
         $obca = $this->user('obca');
 
         foreach ([$obca, null] as $widz) {
-            foreach ([[], ['bez-notatek' => 0], ['bez-notatek' => 1]] as $parametry) {
+            foreach ([[], ['z-notatkami' => 0], ['z-notatkami' => 1], ['bez-notatek' => 1]] as $parametry) {
                 $html = $this->druk($widz, $parametry)->assertOk()->getContent();
                 $this->assertIsString($html);
                 $this->assertStringNotContainsString(self::NOTATKA, $html);
                 $this->assertStringNotContainsString('z notatkami z Twojego zeszytu', $html);
+                $this->assertStringNotContainsString('>Z notatkami</a>', $html, 'obcy nie dostaje przełącznika notatek');
                 $this->assertStringNotContainsString('>Bez notatek</a>', $html, 'obcy nie dostaje przełącznika notatek');
             }
         }
@@ -135,21 +152,21 @@ class WydrukZeszytuBezNotatekTest extends TestCase
         $this->zeszyt->forceFill(['visibility' => 'private'])->save();
         $wspolpracownik = $this->user('jurek');
         DB::table('collection_members')->insert(['collection_id' => $this->zeszyt->getKey(), 'user_id' => $wspolpracownik->getKey(), 'created_at' => now()]);
-        $this->assertStringContainsString(self::NOTATKA, (string) $this->druk($wspolpracownik)->assertOk()->getContent());
-        $this->assertStringNotContainsString(self::NOTATKA, (string) $this->druk($wspolpracownik, ['bez-notatek' => 1])->assertOk()->getContent());
+        $this->assertStringContainsString(self::NOTATKA, (string) $this->druk($wspolpracownik, ['z-notatkami' => 1])->assertOk()->getContent());
+        $this->assertStringNotContainsString(self::NOTATKA, (string) $this->druk($wspolpracownik)->assertOk()->getContent());
 
         DB::table('collection_members')->where('user_id', $wspolpracownik->getKey())->delete();
-        $this->druk($wspolpracownik, ['bez-notatek' => 1])->assertForbidden();
+        $this->druk($wspolpracownik, ['z-notatkami' => 1])->assertForbidden();
     }
 
-    public function test_dziwna_wartosc_parametru_nie_ukrywa_notatek_przypadkiem_ani_nie_daje_500(): void
+    public function test_dziwna_wartosc_parametru_nie_dolacza_notatek_przypadkiem_ani_nie_daje_500(): void
     {
-        foreach (['bez-notatek[]=1', 'bez-notatek=0', 'bez-notatek=nie'] as $zapytanie) {
+        foreach (['z-notatkami[]=1', 'z-notatkami=0', 'z-notatkami=nie', 'z-notatkami='] as $zapytanie) {
             $html = $this->actingAs($this->halina)
                 ->get(route('collections.print', ['collection' => $this->zeszyt]).'?'.$zapytanie)
                 ->assertOk()->getContent();
             $this->assertIsString($html);
-            $this->assertStringContainsString(self::NOTATKA, $html, $zapytanie);
+            $this->assertStringNotContainsString(self::NOTATKA, $html, $zapytanie);
         }
     }
 }

@@ -27,9 +27,10 @@
     $liczbaPrzepisow = $przepisy->count();
     $adresStrony = fn (array $parametry = []) => route('collections.print', ['collection' => $collection] + $parametry);
     // Wybory druku (#2438): zdjęcia i notatki z zeszytu są niezależne, a każdy
-    // odnośnik niesie OBA, żeby zmiana jednego nie cofała drugiego.
+    // odnośnik niesie OBA, żeby zmiana jednego nie cofała drugiego. Domyślnie
+    // bez notatek (D-333); notatki dołącza jawne `z-notatkami=1`.
     $parametrZdjec = $zeZdjeciami ? [] : ['bez-zdjec' => 1];
-    $parametrNotatek = $zNotatkami ? [] : ['bez-notatek' => 1];
+    $parametrNotatek = $zNotatkami ? ['z-notatkami' => 1] : [];
     // Wybór przepisów (#2463) jest niezależny od zdjęć i notatek (#2438): każdy
     // odnośnik niesie WSZYSTKIE trzy, więc zmiana jednego nie rozszerza po
     // cichu zestawu przepisów ani nie cofa wyboru notatek.
@@ -55,9 +56,9 @@
             @endif
             @if($dostepDoNotatek)
                 @if($zNotatkami)
-                    <a class="btn btn-secondary" href="{{ $adresStrony($parametrZdjec + ['bez-notatek' => 1] + $parametrWyboru) }}" rel="nofollow">Bez notatek</a>
+                    <a class="btn btn-secondary" href="{{ $adresStrony($parametrZdjec + $parametrWyboru) }}" rel="nofollow">Bez notatek</a>
                 @else
-                    <a class="btn btn-secondary" href="{{ $adresStrony($parametrZdjec + $parametrWyboru) }}" rel="nofollow">Z notatkami</a>
+                    <a class="btn btn-secondary" href="{{ $adresStrony($parametrZdjec + ['z-notatkami' => 1] + $parametrWyboru) }}" rel="nofollow">Z notatkami</a>
                 @endif
             @endif
             <a class="btn btn-secondary" href="{{ route('collections.print.select', ['collection' => $collection] + $parametrZdjec + $parametrNotatek + ($wybrane ? ['przepisy' => $wybraneId] : [])) }}" rel="nofollow">Wybierz przepisy</a>
@@ -72,6 +73,8 @@
             Ten wydruk będzie {{ $zeZdjeciami ? 'ze zdjęciami' : 'bez zdjęć' }}@if($dostepDoNotatek) i {{ $zNotatkami ? 'z notatkami z Twojego zeszytu' : 'bez notatek z zeszytu' }}@endif.
             @if($dostepDoNotatek && $zNotatkami)
                 Jeśli dajesz kopię rodzinie, a notatki są tylko dla Ciebie, wybierz „Bez notatek” przed drukowaniem. Kopii, która już wyszła z domu, nie da się później zmienić.
+            @elseif($dostepDoNotatek)
+                Notatki z zeszytu są domyślnie pominięte, żeby kopia dla rodziny nie miała prywatnych dopisków. Jeśli chcesz je mieć na papierze, kliknij „Z notatkami” przed drukowaniem.
             @endif
         </p>
         @if($wybrane)
