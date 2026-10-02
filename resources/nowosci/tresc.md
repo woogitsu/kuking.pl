@@ -177,6 +177,16 @@ wiadomo, gdzie jesteście. Etap trwa do kroku z następną nazwą. Nazwa nie jes
 krokiem do odhaczenia: numery kroków, minutniki i to, co już zrobiliście,
 zostają tak samo jak wcześniej. Przepis bez nazw wygląda jak dotąd — pole jest
 nieobowiązkowe.
+### Odzyskanie własnego przepisu
+
+Usunięty przez pomyłkę przepis można odzyskać. W Zeszycie jest teraz przycisk
+„Usunięte przepisy”: zobaczycie na liście swoje przepisy usunięte w ostatnim
+czasie, datę usunięcia i dokładny termin, do kiedy da się je odzyskać. Przycisk
+„Odzyskaj przepis” przywraca przepis jako szkic, który widzicie tylko Wy.
+Niczego nie publikuje: sprawdzicie tekst, składniki i kroki, a o publikacji
+zdecydujecie sami. Jeśli któregoś zdjęcia nie da się już użyć, ekran powie
+o tym wprost. Po upływie terminu przepis jest usuwany na stałe i nie ma już
+drogi powrotu, tak samo po wymazaniu konta.
 
 ## Alfa 0.78
 

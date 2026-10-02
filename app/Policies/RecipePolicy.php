@@ -109,6 +109,25 @@ class RecipePolicy
     }
 
     /**
+     * Lista „Usunięte przepisy" i odzyskanie własnego, omyłkowo usuniętego
+     * przepisu przed końcem retencji (#2620). Wyłącznie autor z AKTYWNYM
+     * kontem: odzyskanie to pisanie, a zawieszenie odcina od pisania.
+     * Moderator nie ma tu żadnej furtki — cudzy „kosz" jest prywatny, a
+     * treść zdjętą moderacyjnie cofa się przez `RestoreContent` i odwołanie.
+     * Czy konkretny przepis wolno odzyskać (termin, nagrobek, sprawa
+     * moderacyjna), rozstrzyga `OdzyskajUsunietyPrzepis` pod blokadą.
+     */
+    public function odzyskaj(User $user, Recipe $recipe): bool
+    {
+        return $user->isActive() && $user->getKey() === $recipe->author_id;
+    }
+
+    public function odzyskajListe(User $user): bool
+    {
+        return $user->isActive();
+    }
+
+    /**
      * Zdjęcie przepisu Z URZĘDU, bez zgłoszenia, z panelu moderacji (G31, D-251).
      * Reguła: `UserPolicy::takeDownContentOf()` — 2FA i niższa rola autora.
      */

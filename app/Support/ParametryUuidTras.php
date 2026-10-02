@@ -45,6 +45,7 @@ final class ParametryUuidTras
         'post',
         'report',
         'urzadzenie',
+        'usuniety',
         'user',
         'wiadomosc',
         'wpis',

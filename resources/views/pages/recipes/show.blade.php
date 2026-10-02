@@ -851,7 +851,7 @@
                                         @if($step->timerLabel())
                                             <p class="m-0">Czas kroku: {{ $step->timerLabel() }}</p>
                                         @endif
-                                    {{-- „Zapytaj o ten krok” (#2556): zwykły link, bez JS. Tylko dla
+                                        {{-- „Zapytaj o ten krok” (#2556): zwykły link, bez JS. Tylko dla
                                              konta, które może użyć zwykłego formularza komentarza, i nie dla
                                              autora przepisu (sam siebie nie zapyta). Prowadzi do formularza
                                              pod przepisem z cytatem w polu; niczego nie wysyła. --}}

@@ -32,6 +32,7 @@ use App\Domain\Collections\Wspoldzielenie\OdpowiedzNaZaproszenie;
 use App\Domain\Comments\Actions\DeleteComment;
 use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Compliance\PrzedawnioneUsunieteTresci;
 use App\Domain\Contact\Actions\WyslijOdpowiedz;
 use App\Domain\Feed\Actions\ZapiszKolaz;
 use App\Domain\Feed\Actions\ZapiszTabliceDnia;
@@ -54,6 +55,7 @@ use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Recipes\Alergeny\DeklaracjaAlergenow;
 use App\Domain\Recipes\Alergeny\OznaczAlergenyPrzepisu;
 use App\Domain\Recipes\Gotowanie\PostepGotowania;
+use App\Domain\Recipes\OdzyskajUsunietyPrzepis;
 use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
@@ -1091,6 +1093,23 @@ try {
 
             return app(ImportujWartosciOdzywcze::class)->handle($argumenty['katalog']);
         })(),
+
+        // #2620: autor odzyskuje własny, usunięty przepis. Prawdziwa akcja,
+        // pod blokadą konta i przepisu.
+        'odzyskaj-przepis-2620' => (function () use ($argumenty): array {
+            $wynik = app(OdzyskajUsunietyPrzepis::class)->handle(
+                User::query()->whereKey($argumenty['konto'])->firstOrFail(),
+                $argumenty['przepis'],
+            );
+
+            return ['juz' => $wynik->juzOdzyskany, 'zdjecia' => $wynik->zdjeciaNieWrocily];
+        })(),
+
+        // #2620: nocne sprzątanie usuniętych treści z NIŻSZYM progiem niż okno
+        // odzyskania — to symuluje rozjazd zegarów między serwerem WWW i
+        // workerem, czyli jedyny sposób, w jaki kandydat sprzątania może
+        // jeszcze zostać odzyskany.
+        'sprzataj-usuniete-2620' => app(PrzedawnioneUsunieteTresci::class)->posprzataj((int) $argumenty['dni']),
 
         // Prawdziwa komenda używana przez obie ścieżki wdrożenia (#2082).
         'migruj-pod-blokada' => Artisan::call('kuking:migruj-pod-blokada'),
